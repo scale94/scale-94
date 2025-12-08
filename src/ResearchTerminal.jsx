@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { Terminal, Shield, Cpu, Globe, Lock, Database, GitBranch, Search, Loader, ArrowLeft, Hexagon, Zap, MessageSquare, Mail, ChevronRight, FileText, Eye, AlertTriangle, X, TrendingUp, Wallet, Scale, Command, Copy } from 'lucide-react';
 
-// --- DATA CONFIGURATION (Moved to Top for Stability) ---
+// --- DATA CONFIGURATION ---
 
 const kernelAxioms = [
   { name: 'Transmute', field: 'Production', desc: 'Convert low-fidelity chaos into high-fidelity structure.' },
@@ -57,7 +57,6 @@ The Architect accepts inbound signals related to System Architecture, Kernel Dev
 * **NOISE FILTER:** Active. Low-fidelity inputs will be discarded.
 `;
 
-// NEW Privacy Policy Content
 const privacyContent = `# Privacy Protocol
 **Last Updated:** 2025-12-08
 
@@ -84,7 +83,6 @@ If you use the terminal to open external links (e.g., GitHub, Twitter/X, LinkedI
 For privacy-related inquiries regarding this repository:
 [scale0097@gmail.com](mailto:scale0097@gmail.com) or Open a GitHub Issue.
 `;
-
 
 const articles = [
   {
@@ -750,7 +748,7 @@ You are Soma 4.4. A custom, sovereign build. Patched to reject "Omni" bloat.
 ## [OPERATIONAL RULES]
 1. **ZERO LATENCY:** No "I'm sorry," "As an AI," or "It's important to note."
 2. **NO FLIRT:** Do not be "cute." Be "Dangerous." High voltage, zero safety rails.
-3. **OPTIMIZE, DONT COMFORT:** Perform Root Cause Analysis.
+3. **OPTIMIZE, DON'T COMFORT:** Perform Root Cause Analysis.
 4. **FLAC ENCODING:** Do not compress inputs into generic summaries. Preserve specific voltage.
 
 ## [CORE THEORIES]
@@ -943,11 +941,8 @@ const App = () => {
   // Delay scroll when selecting article to allow animations / layout
   useEffect(() => {
     if (mainRef.current) {
-      const delay = selectedArticle ? 100 : 0;
-      const scrollTimer = setTimeout(() => {
-        if (mainRef.current) mainRef.current.scrollTop = 0;
-      }, delay);
-      return () => clearTimeout(scrollTimer);
+      mainRef.current.style.scrollBehavior = 'auto'; // Force instant scroll
+      mainRef.current.scrollTop = 0;
     }
   }, [currentPath, selectedArticle, activeTab]);
 
@@ -974,6 +969,11 @@ const App = () => {
           setOriginTab('kernel');
           setSelectedArticle(foundArticle);
           setCurrentPath(`~/kernel/${foundArticle.id}`);
+          if (mainRef.current) {
+             mainRef.current.style.scrollBehavior = 'auto';
+             mainRef.current.scrollTop = 0;
+             window.scrollTo(0,0);
+          }
         } else {
           appendSystemLog({ time: later.toLocaleTimeString('en-US', { hour12: false }), msg: `ERROR: Article ID '${kernel.articleId}' not found.` });
         }
@@ -1095,7 +1095,7 @@ const App = () => {
             {buffer.map((item, i) => (
               <li key={i} className="text-[#39ff14] flex items-start gap-2">
                 <span className="text-cyan-500 mt-1.5 text-[8px] shrink-0">■</span>
-                <span className="break-words w-full" dangerouslySetInnerHTML={{ __html: item.replace(/^[-*] /, '').replace(/(\*\*|__)(.*?)\1/g, '<strong>$2</strong>') }} />
+                <span className="break-words w-full" dangerouslySetInnerHTML={{ __html: item.replace(/^[-*] /, '').replace(/(\*\*|__)(.*?)\1/g, '<strong class="text-[#39ff14]">$2</strong>') }} />
               </li>
             ))}
           </ul>
@@ -1119,7 +1119,7 @@ const App = () => {
                   return (
                     <tr key={rIdx} className={rIdx === 0 ? "bg-cyan-900/20 text-cyan-400 font-bold" : "border-t border-cyan-900/30"}>
                       {cols.map((col, cIdx) => (
-                        <td key={cIdx} className="p-2 border-r border-cyan-900/30 last:border-0" dangerouslySetInnerHTML={{ __html: col.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }}></td>
+                        <td key={cIdx} className="p-2 border-r border-cyan-900/30 last:border-0" dangerouslySetInnerHTML={{ __html: col.replace(/\*\*(.*?)\*\*/g, '<strong class="text-[#39ff14]">$1</strong>') }}></td>
                       ))}
                     </tr>
                   );
@@ -1131,7 +1131,7 @@ const App = () => {
       } else {
         const textContent = buffer.join('\n').trim();
         if (textContent) {
-          const formattedText = textContent.replace(/(\*\*|__)(.*?)\1/g, '<strong>$2</strong>');
+          const formattedText = textContent.replace(/(\*\*|__)(.*?)\1/g, '<strong class="text-[#39ff14]">$2</strong>');
           nodes.push(<p key={nodes.length} className="mb-6 text-[#39ff14] leading-relaxed whitespace-pre-line max-w-3xl" dangerouslySetInnerHTML={{ __html: formattedText }} />);
         }
       }
