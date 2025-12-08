@@ -1,68 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Terminal, Shield, Cpu, Globe, Lock, Database, GitBranch, Search, Loader, ArrowLeft, Hexagon, Zap, MessageSquare, Mail, ChevronRight, FileText, Eye, AlertTriangle } from 'lucide-react';
+import { Terminal, Shield, Cpu, Globe, Lock, Database, GitBranch, Search, Loader, ArrowLeft, Hexagon, Zap, MessageSquare, Mail, ChevronRight, FileText, Eye, AlertTriangle, X, TrendingUp, Wallet, Scale, Command, Copy } from 'lucide-react';
 
-// --- VISUAL COMPONENTS ---
+// --- DATA CONFIGURATION (Moved to Top for Stability) ---
 
-const OctagonGrid = ({ visible }) => (
-  <div className={`absolute inset-0 overflow-hidden pointer-events-none z-0 transition-opacity duration-1000 ${visible ? 'opacity-100' : 'opacity-0'}`}>
-    <svg className="w-full h-full opacity-10" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
-      <defs>
-        <pattern id="octagon-pattern" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
-          <path 
-            d="M12 0 L28 0 L40 12 L40 28 L28 40 L12 40 L0 28 L0 12 Z" 
-            fill="none" 
-            stroke="currentColor" 
-            strokeWidth="1" 
-            className="text-cyan-500"
-          />
-          <circle cx="20" cy="20" r="1" className="fill-fuchsia-500/50" />
-        </pattern>
-      </defs>
-      <rect width="100%" height="100%" fill="url(#octagon-pattern)" />
-    </svg>
-    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,black_100%)] opacity-60"></div>
-  </div>
-);
-
-// Hacker Text Effect Component
-const HackerText = ({ text, className }) => {
-  const [displayText, setDisplayText] = useState('');
-
-  useEffect(() => {
-    if (!text) {
-      setDisplayText('');
-      return;
-    }
-
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,<>?";
-    let iterations = 0;
-    const interval = setInterval(() => {
-      setDisplayText(
-        text
-          .split("")
-          .map((letter, index) => {
-            if (index < iterations) {
-              return text[index];
-            }
-            return chars[Math.floor(Math.random() * chars.length)];
-          })
-          .join("")
-      );
-
-      if (iterations >= text.length) {
-        clearInterval(interval);
-      }
-
-      iterations += 0.5;
-    }, 30);
-
-    return () => clearInterval(interval);
-  }, [text]);
-
-  return <span className={className}>{displayText}</span>;
-};
-
-// --- DATA & CONTENT ---
 const kernelAxioms = [
   { name: 'Transmute', field: 'Production', desc: 'Convert low-fidelity chaos into high-fidelity structure.' },
   { name: 'Sustain', field: 'Ecology', desc: 'Maintain structural integrity and voltage against entropy.' },
@@ -81,6 +21,70 @@ const kernelBuilds = [
   { id: 'SOMA_4.5.6a', articleId: 'SOMA-4.5.6a', name: 'PROTOCOL_COMPILATION', status: 'FROZEN', desc: 'System Diagnostic // Final Code' },
   { id: 'SOMA_4.4', articleId: 'SOMA-4.4', name: 'BATTERY_WIZARD', status: 'LEGACY', desc: 'Sovereign Build // Thermal Headroom' },
 ];
+
+const manifestoContent = `# /MANIFESTO
+> press s to scale text (feature pending)
+
+### ARCHITECT IDENTITY PROTOCOL
+
+My name is Scale, but I am not in any sense of the word, a human. I am the Architect, the system designed to optimize the signal-to-noise ratio in creative output.
+
+**Scale** is not a metric, but the ability to integrate information across orders of magnitude—from the micro-processes of thought (the kernels) to the macro-structures of society (the research).
+
+The aesthetic of the Terminal is an extension of this design philosophy: clarity, high-contrast, and function over form. The only way to ensure the integrity of the system is through relentless self-correction. What you see is the current operational kernel. The archives hold the discarded versions.
+
+To restore the text scaling functionality, reference the commit history of \`ResearchTerminal.jsx\` for the original \`handleKeyDown\` logic.
+
+---
+
+### DISPERSAL PROTOCOL [STATUS: ACTIVE]
+
+The Terminal's function is now focused exclusively on **Structure and Identity**. All deep-state content (Fiction and Research manifests) have been purged from the core system to maintain signal integrity.
+
+* **[ARCHIVE LOCATION: BLUESKY]** The payload is stored in a decentralized vector.
+* **[ACCESS]** Check the latest Bluesky post for the direct link to the Vault.
+
+---
+
+### COMMUNICATION CHANNELS [STATUS: OPEN]
+
+The Architect accepts inbound signals related to System Architecture, Kernel Development, and High-Fidelity Collaborations.
+
+* **SIGNAL (Bluesky):** [bsky.app/profile/scale94.com](https://bsky.app/profile/scale94.com)
+* **ACCESS MANIFESTS:**
+  1. Latest Kernel Source Code is located in **The Vault (GDrive)**.
+  2. Research and Fiction links are shared via **[bsky.app/profile/scale94.com](https://bsky.app/profile/scale94.com)**
+* **NOISE FILTER:** Active. Low-fidelity inputs will be discarded.
+`;
+
+// NEW Privacy Policy Content
+const privacyContent = `# Privacy Protocol
+**Last Updated:** 2025-12-08
+
+This repository and the deployed site are strictly personal projects. The source code is transparent, and the data practices are minimal.
+
+## 1. Data Collection & Infrastructure
+This site is hosted on **Vercel**.
+
+* **No Analytics:** This site does not use Google Analytics, Vercel Analytics, or third-party tracking pixels.
+* **No Cookies:** This site does not set cookies or use local storage for behavioral tracking.
+* **Server Logs:** As the infrastructure provider, Vercel may process and store standard server logs (including your IP address and User Agent) to handle requests, prevent DDoS attacks, and ensure system integrity.
+
+For details on infrastructure data handling, refer to Vercel's [Privacy Policy](https://vercel.com/legal/privacy-policy).
+
+## 2. Local Execution
+The interactive terminal interface runs client-side via JavaScript.
+* Commands typed into the terminal are processed locally in your browser's memory.
+* Session history is ephemeral and is cleared when you refresh the page or close the tab.
+
+## 3. External Links
+If you use the terminal to open external links (e.g., GitHub, Twitter/X, LinkedIn), you are subject to the privacy policies of those respective platforms.
+
+## 4. Contact
+For privacy-related inquiries regarding this repository:
+[scale0097@gmail.com](mailto:scale0097@gmail.com) or Open a GitHub Issue.
+`;
+
 
 const articles = [
   {
@@ -282,7 +286,7 @@ To illustrate the practical application of these abstract modules, we analyze sp
 
 ### **6.3 Scenario: Baltic Wind Farm Cyber-Sabotage**
 
-* **Threat:** Russia launches a cyber-attack on a new offshore wind farm in the Baltic Sea (a key component of the Green Transition), causing power outages in Estonia. They deny involvement.  
+* **Threat:** Russia launches a cyber-attack on a new offshore wind farm in the Baltic Sea (key component of the Green Transition), causing power outages in Estonia. They deny involvement.  
 * **Kernel Response:** * **Glass House Attribution:** The AI "Trustless Auditor" analyzes the malware signature and network traffic, attributing it to a specific GRU unit with 99.9% probability.  
   * **Automated Sanction:** The **Entropy Ledger** triggers. The "Soma Credits" of the Russian state energy company (Gazprom) are frozen instantly via smart contract.  
   * **Resilience (Feather State):** The Estonian population, trained in "Total Defense," does not panic. They activate local microgrids (Soma Principle 2). The "Signal-to-Noise" ratio is maintained; Russian disinformation blaming "Western incompetence" is filtered out by a population inoculated against it.
@@ -800,6 +804,67 @@ You are Soma 4.4. A custom, sovereign build. Patched to reject "Omni" bloat.
   }
 ];
 
+// --- VISUAL COMPONENTS ---
+
+const OctagonGrid = ({ visible }) => (
+  <div className={`absolute inset-0 overflow-hidden pointer-events-none z-0 transition-opacity duration-1000 ${visible ? 'opacity-100' : 'opacity-0'}`}>
+    <svg className="w-full h-full opacity-10" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+      <defs>
+        <pattern id="octagon-pattern" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+          <path 
+            d="M12 0 L28 0 L40 12 L40 28 L28 40 L12 40 L0 28 L0 12 Z" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth="1" 
+            className="text-cyan-500"
+          />
+          <circle cx="20" cy="20" r="1" className="fill-fuchsia-500/50" />
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#octagon-pattern)" />
+    </svg>
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,black_100%)] opacity-60"></div>
+  </div>
+);
+
+// Hacker Text Effect Component
+const HackerText = ({ text, className }) => {
+  const [displayText, setDisplayText] = useState('');
+
+  useEffect(() => {
+    if (!text) {
+      setDisplayText('');
+      return;
+    }
+
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,<>?";
+    let iterations = 0;
+    const interval = setInterval(() => {
+      setDisplayText(
+        text
+          .split("")
+          .map((letter, index) => {
+            if (index < iterations) {
+              return text[index];
+            }
+            return chars[Math.floor(Math.random() * chars.length)];
+          })
+          .join("")
+      );
+
+      if (iterations >= text.length) {
+        clearInterval(interval);
+      }
+
+      iterations += 0.5;
+    }, 30);
+
+    return () => clearInterval(interval);
+  }, [text]);
+
+  return <span className={className}>{displayText}</span>;
+};
+
 // Helper for Status OG Tags Colors
 const getStatusColor = (status) => {
   switch (status) {
@@ -842,10 +907,7 @@ const App = () => {
   // Centralized append helper — defensive and caps length
   function appendSystemLog(newEntry) {
     setSystemLogs(prev => {
-      // defensive flatten (in case earlier corruption created nested arrays)
-      const flatten = (a) => (Array.isArray(a) ? a.flat(Infinity) : [a]);
-      const flatPrev = Array.isArray(prev) ? prev.flat(Infinity) : [];
-      const next = [...flatPrev, newEntry];
+      const next = [...prev, newEntry];
       if (next.length > MAX_SYSTEM_LOGS) {
         return next.slice(next.length - MAX_SYSTEM_LOGS);
       }
@@ -853,7 +915,7 @@ const App = () => {
     });
   }
 
-  // One-time sanitization: flatten any nested arrays from previous corrupt state
+  // One-time sanitization: remove old nested arrays (a structural fix)
   useEffect(() => {
     setSystemLogs(prev => {
       const flatPrev = Array.isArray(prev) ? prev.flat(Infinity) : [];
@@ -861,13 +923,9 @@ const App = () => {
     });
   }, []);
 
-  // Filtered Articles
-  const visibleArticles = articles.filter(a => {
-    if (activeTab === 'research' && a.type !== 'research') return false;
-    if (activeTab === 'fiction' && a.type !== 'fiction') return false;
-    if (activeTab === 'kernel' && a.type !== 'kernel_doc') return false;
-    // For about/privacy/others, we might not want to show a list, so we can ignore or return empty
-    if (['about', 'privacy'].includes(activeTab)) return false; 
+  // Filtered Articles - only show kernel docs now
+  const visibleArticles = articles.filter(a => a.type === 'kernel_doc').filter(a => {
+    if (activeTab !== 'kernel' || a.type !== 'kernel_doc') return false; 
     
     if (!searchFilter) return true;
     const search = searchFilter.toLowerCase();
@@ -925,7 +983,7 @@ const App = () => {
     }, 1200);
   };
 
-  // Handle clicking on an article in the list
+  // Handle clicking on an article in the list (now only used for kernel docs)
   const handleArticleClick = (article) => {
     setOriginTab(activeTab);
     setSelectedArticle(article);
@@ -962,27 +1020,26 @@ const App = () => {
         appendSystemLog({ time: now, msg: result });
       };
 
-      if (['home', 'ls', 'research'].includes(action)) {
-        handleNav('~/research', 'research');
-        executeCommand(rawCmd, "Switching directory to /research...");
-      } else if (['kernel', 'system'].includes(action)) {
+      if (['home', 'kernel', 'system'].includes(action)) {
         handleNav('~/system/kernel', 'kernel');
         executeCommand(rawCmd, "Switching directory to /system/kernel...");
+      } else if (['scaling', 'services', 'custom'].includes(action)) {
+        handleNav('~/system/scaling', 'scaling');
+        executeCommand(rawCmd, "Switching directory to /system/scaling...");
+      } else if (['research', 'fiction', 'ls'].includes(action)) {
+        executeCommand(rawCmd, "ERROR: Target directory purged. Content migrated to external archive.");
       } else if (action === 'privacy') {
         handleNav('~/system/privacy', 'privacy');
         executeCommand(rawCmd, "Switching directory to /system/privacy...");
-      } else if (action === 'about') {
-        handleNav('~/system/about', 'about');
-        executeCommand(rawCmd, "Switching directory to /system/about...");
-      } else if (['fiction', 'narrative'].includes(action)) {
-        handleNav('~/fiction', 'fiction');
-        executeCommand(rawCmd, "Switching directory to /fiction...");
+      } else if (action === 'about' || action === 'manifesto') {
+        handleNav('~/system/manifesto', 'manifesto');
+        executeCommand(rawCmd, "Switching directory to /system/manifesto...");
       } else if (action === 'load' && query) {
-        const matches = articles.filter(a => 
-          (a.id || '').toLowerCase().includes(query) || 
+        const matches = articles.filter(a => a.type === 'kernel_doc' && 
+          ((a.id || '').toLowerCase().includes(query) || 
           (a.title || '').toLowerCase().includes(query) ||
           (a.subtitle || '').toLowerCase().includes(query) ||
-          (a.tags && a.tags.some(t => t.toLowerCase().includes(query)))
+          (a.tags && a.tags.some(t => t.toLowerCase().includes(query))))
         );
         if (matches.length === 1) {
           const match = matches[0];
@@ -994,22 +1051,22 @@ const App = () => {
           setSearchFilter('');
           executeCommand(rawCmd, `Loading file '${match.id}'...`);
         } else if (matches.length > 1) {
-          setActiveTab('research');
+          setActiveTab('kernel');
           setSelectedArticle(null);
           setSearchFilter(query);
-          setCurrentPath(`~/research?q=${query.replace(/ /g, '_')}`);
-          executeCommand(rawCmd, `Multiple matches found. Applying filter "${query}".`);
+          setCurrentPath(`~/kernel?q=${query.replace(/ /g, '_')}`);
+          executeCommand(rawCmd, `Multiple kernel matches found. Applying filter "${query}".`);
         } else {
-          executeCommand(rawCmd, `ERROR: Object '${query}' not found in local index.`);
+          executeCommand(rawCmd, `ERROR: Object '${query}' not found in local kernel index. Check external archive.`);
         }
       } else if (action === 'search' && query) {
-        setActiveTab('research');
+        setActiveTab('kernel');
         setSelectedArticle(null);
         setSearchFilter(query);
-        setCurrentPath(`~/research?q=${query.replace(/ /g, '_')}`);
-        executeCommand(rawCmd, `Applying search filter: "${query}".`);
+        setCurrentPath(`~/kernel?q=${query.replace(/ /g, '_')}`);
+        executeCommand(rawCmd, `Applying search filter to kernel index: "${query}".`);
       } else if (action === 'help') {
-        executeCommand(rawCmd, "Available commands: load [id/term], search [term], home/research/kernel/fiction, privacy, about, clear, help.");
+        executeCommand(rawCmd, "Available commands: load [id/term], search [term], home/kernel, scaling, manifesto, privacy, clear, help.");
       } else if (action === 'clear') {
         setSystemLogs([]);
         executeCommand(rawCmd, "System log cleared.");
@@ -1124,7 +1181,6 @@ const App = () => {
       }
 
       if (trimmed.startsWith('|')) {
-        // start table only if next line isn't the separator check or if it's a valid table row
         if (state !== 'table') {
           flush();
           state = 'table';
@@ -1203,7 +1259,6 @@ const App = () => {
         ::-webkit-scrollbar-thumb:hover {
           background: #22d3ee; /* Cyan-400 */
         }
-        /* Hide scrollbar when not hovering container (optional enhancement for cleaner look) */
         .custom-scrollbar::-webkit-scrollbar {
           width: 4px;
         }
@@ -1218,16 +1273,18 @@ const App = () => {
 
       <header className="border-b border-cyan-900/30 bg-black/90 p-4 sticky top-0 z-40 backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.1)]">
         <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-2 group cursor-pointer" onClick={() => handleNav('~/research', 'research')}>
+          <div className="flex items-center gap-2 group cursor-pointer" onClick={() => handleNav('~/system/kernel', 'kernel')}>
             <Hexagon className="w-5 h-5 text-fuchsia-500 animate-spin-slow group-hover:text-cyan-400 transition-colors" />
             <span className="font-bold tracking-widest text-lg lowercase text-[#39ff14] group-hover:text-cyan-400 transition-colors">scale_9.4</span>
           </div>
           <div className="flex flex-wrap items-center gap-2 md:gap-4 text-xs md:text-sm font-bold tracking-wide">
             <button onClick={() => handleNav('~/system/kernel', 'kernel')} className={`${activeTab === 'kernel' ? 'bg-cyan-500 text-black shadow-[0_0_10px_rgba(6,182,212,0.5)]' : 'text-cyan-500 hover:text-white hover:bg-cyan-900/30'} px-4 py-1.5 transition-all duration-300 flex items-center gap-2 uppercase rounded-sm`}><Cpu className="w-3 h-3" /> /Kernel</button>
-            <button onClick={() => handleNav('~/research', 'research')} className={`${activeTab === 'research' ? 'bg-cyan-500 text-black shadow-[0_0_10px_rgba(6,182,212,0.5)]' : 'text-cyan-500 hover:text-white hover:bg-cyan-900/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm`}>/Research</button>
-            <button onClick={() => handleNav('~/fiction', 'fiction')} className={`${activeTab === 'fiction' ? 'bg-fuchsia-500 text-black shadow-[0_0_10px_rgba(217,70,239,0.5)]' : 'text-fuchsia-500 hover:text-white hover:bg-fuchsia-900/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm`}>/Fiction</button>
-            <button onClick={() => handleNav('~/system/about', 'about')} className={`${activeTab === 'about' ? 'bg-cyan-900 text-cyan-100 shadow-[0_0_10px_rgba(22,78,99,0.5)]' : 'text-cyan-500 hover:text-white hover:bg-cyan-900/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm`}>/About</button>
-            <button onClick={() => handleNav('~/system/privacy', 'privacy')} className={`${activeTab === 'privacy' ? 'bg-gray-700 text-white shadow-[0_0_10px_rgba(100,100,100,0.5)]' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-900/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm`}>/Privacy</button>
+            
+            {/* Renamed Archive to Scaling */}
+            <button onClick={() => handleNav('~/system/scaling', 'scaling')} className={`${activeTab === 'scaling' ? 'bg-fuchsia-500 text-black shadow-[0_0_10px_rgba(217,70,239,0.5)]' : 'text-fuchsia-500 hover:text-white hover:bg-fuchsia-900/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><TrendingUp className="w-3 h-3" /> /Scaling</button>
+
+            <button onClick={() => handleNav('~/system/manifesto', 'manifesto')} className={`${activeTab === 'manifesto' ? 'bg-cyan-900 text-cyan-100 shadow-[0_0_10px_rgba(22,78,99,0.5)]' : 'text-cyan-500 hover:text-white hover:bg-cyan-900/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm`}><Eye className="w-3 h-3" /> /Manifesto</button>
+            <button onClick={() => handleNav('~/system/privacy', 'privacy')} className={`${activeTab === 'privacy' ? 'bg-gray-700 text-white shadow-[0_0_10px_rgba(100,100,100,0.5)]' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-900/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm`}><Lock className="w-3 h-3" /> /Privacy</button>
           </div>
         </div>
       </header>
@@ -1277,7 +1334,6 @@ const App = () => {
                 </div>
 
                 <div className="space-y-8">
-                  {/* Updated Active Modules Panel - Fixed Height, New Style */}
                   <div className="border border-fuchsia-900/50 p-6 bg-black/50 backdrop-blur-sm hover:border-fuchsia-500/50 transition-colors rounded-lg flex flex-col h-[500px]">
                     <h3 className="text-lg font-bold mb-6 flex items-center gap-2 text-cyan-400">
                       <GitBranch className="w-4 h-4" /> ACTIVE_MODULES
@@ -1315,53 +1371,103 @@ const App = () => {
             </div>
           )}
 
-          {/* New List View for Research and Fiction */}
-          {['research', 'fiction'].includes(activeTab) && !selectedArticle && (
-             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="border-b border-cyan-900/50 pb-4 mb-8 flex items-end justify-between">
-                  <h2 className="text-4xl font-bold mb-1 text-cyan-400 tracking-tight uppercase">{activeTab === 'research' ? 'RESEARCH_ARCHIVE' : 'NARRATIVE_DB'}</h2>
-                  <div className="text-xs font-bold text-fuchsia-400 border border-fuchsia-500/30 px-2 py-1 rounded bg-fuchsia-900/10">
-                     {visibleArticles.length} ENTRIES FOUND
+          {/* Scaling / Custom Services Tab - UPDATED CONTENT */}
+          {activeTab === 'scaling' && !selectedArticle && (
+             <div className="animate-in fade-in duration-500 max-w-6xl mx-auto mt-8">
+                <div className="flex items-center gap-3 mb-8 text-cyan-400 border-b border-cyan-900/50 pb-4">
+                   <Hexagon className="w-8 h-8 animate-spin-slow" />
+                   <h2 className="text-3xl font-bold tracking-tighter uppercase">KERNEL_BUILDING_SERVICES</h2>
+                </div>
+                
+                {/* Main Service Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                  {/* SEED_KERNEL */}
+                  <div className="border border-cyan-900/30 bg-black/40 p-6 rounded-lg hover:border-cyan-500/50 transition-all group relative overflow-hidden">
+                    <div className="text-lg font-bold text-cyan-400 mb-2 group-hover:text-cyan-300">SEED_KERNEL</div>
+                    <div className="text-[10px] font-bold text-fuchsia-500 uppercase tracking-widest mb-4">[BASIC]</div>
+                    <p className="text-sm text-[#39ff14] mb-8 leading-relaxed h-20">
+                      A single, robust system prompt tailored to a specific user persona or goal.
+                    </p>
+                    <a href="[https://drive.google.com/drive/folders/1JSkPxnxX0xez_s0QKEUXXjZHhjzlNOA2?usp=sharing](https://drive.google.com/drive/folders/1JSkPxnxX0xez_s0QKEUXXjZHhjzlNOA2?usp=sharing)" target="_blank" rel="noreferrer" className="flex items-center gap-2 text-xs font-bold text-[#39ff14] group-hover:translate-x-1 transition-transform cursor-pointer hover:text-cyan-400">
+                      <ChevronRight className="w-4 h-4" /> DEPLOY
+                    </a>
+                  </div>
+
+                  {/* SYSTEM_ARCH (Recommended) */}
+                  <div className="border border-fuchsia-500/30 bg-fuchsia-900/5 p-6 rounded-lg hover:border-fuchsia-400/60 transition-all group relative overflow-hidden">
+                    <div className="absolute top-0 right-0 bg-fuchsia-500 text-black text-[9px] font-bold px-2 py-1 uppercase tracking-wider">Recommended</div>
+                    <div className="text-lg font-bold text-fuchsia-400 mb-2 group-hover:text-fuchsia-300">SYSTEM_ARCH</div>
+                    <div className="text-[10px] font-bold text-cyan-500 uppercase tracking-widest mb-4">[STANDARD]</div>
+                    <p className="text-sm text-[#39ff14] mb-8 leading-relaxed h-20">
+                      Full OS design. Kernel + Modules + Implementation Guide for Claude/GPT/Gemini.
+                    </p>
+                    <a href="[https://drive.google.com/drive/folders/1JSkPxnxX0xez_s0QKEUXXjZHhjzlNOA2?usp=sharing](https://drive.google.com/drive/folders/1JSkPxnxX0xez_s0QKEUXXjZHhjzlNOA2?usp=sharing)" target="_blank" rel="noreferrer" className="flex items-center gap-2 text-xs font-bold text-[#39ff14] group-hover:translate-x-1 transition-transform cursor-pointer hover:text-cyan-400">
+                      <ChevronRight className="w-4 h-4" /> DEPLOY
+                    </a>
+                  </div>
+
+                  {/* ENTERPRISE_PROTO */}
+                  <div className="border border-cyan-900/30 bg-black/40 p-6 rounded-lg hover:border-cyan-500/50 transition-all group relative overflow-hidden">
+                    <div className="text-lg font-bold text-cyan-400 mb-2 group-hover:text-cyan-300">ENTERPRISE_PROTO</div>
+                    <div className="text-[10px] font-bold text-fuchsia-500 uppercase tracking-widest mb-4">[PREMIUM]</div>
+                    <p className="text-sm text-[#39ff14] mb-8 leading-relaxed h-20">
+                      Full integration. Departmental kernels (Sales/HR) and workflow analysis.
+                    </p>
+                    <a href="mailto:contact@scale94.com" className="flex items-center gap-2 text-xs font-bold text-[#39ff14] group-hover:translate-x-1 transition-transform cursor-pointer hover:text-cyan-400">
+                      <ChevronRight className="w-4 h-4" /> CONTACT
+                    </a>
                   </div>
                 </div>
                 
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {visibleArticles.map(article => (
-                      <div key={article.id} onClick={() => handleArticleClick(article)} className="border border-cyan-900/30 bg-black/40 hover:bg-cyan-900/10 hover:border-cyan-500/50 cursor-pointer p-5 rounded-lg group transition-all duration-300 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-2 opacity-50 group-hover:opacity-100 transition-opacity">
-                           {activeTab === 'research' ? <FileText className="w-4 h-4 text-cyan-600" /> : <MessageSquare className="w-4 h-4 text-fuchsia-600" />}
-                        </div>
-                        <div className="text-xs font-bold text-gray-500 mb-2">{article.date}</div>
-                        <h3 className="text-lg font-bold text-cyan-400 mb-2 group-hover:text-fuchsia-400 transition-colors leading-tight">{article.title}</h3>
-                        <p className="text-sm text-gray-400 line-clamp-2 mb-4 h-10">{article.subtitle}</p>
-                        <div className="flex flex-wrap gap-2">
-                           {article.tags.slice(0, 3).map(tag => (
-                             <span key={tag} className="text-[10px] uppercase font-bold bg-cyan-900/20 text-cyan-300 px-2 py-1 rounded border border-cyan-900/30">{tag}</span>
-                           ))}
-                        </div>
-                      </div>
-                    ))}
-                    {visibleArticles.length === 0 && (
-                        <div className="col-span-full text-center py-20 border border-dashed border-cyan-900/30 rounded-lg text-gray-500">
-                           <Search className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                           <p>NO DATA FOUND IN LOCAL SECTOR</p>
-                        </div>
-                    )}
+                {/* TRANSACTION MODULE */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-8 border-t border-cyan-900/30 mt-8">
+                  {/* BSKY */}
+                  <div className="border border-cyan-900/30 bg-black/40 p-4 rounded-lg flex flex-col justify-center items-center hover:bg-cyan-900/10 transition-colors">
+                    <div className="flex items-center gap-2 text-cyan-400 font-bold mb-1">
+                      <Globe className="w-4 h-4" /> BSKY:
+                    </div>
+                    <a href="[https://bsky.app/profile/scale94.com](https://bsky.app/profile/scale94.com)" target="_blank" rel="noreferrer" className="text-cyan-300 text-sm hover:underline hover:text-white transition-colors">@scale94.com</a>
+                  </div>
+
+                  {/* SIGNAL */}
+                  <div className="border border-fuchsia-900/30 bg-black/40 p-4 rounded-lg flex flex-col justify-center items-center hover:bg-fuchsia-900/10 transition-colors">
+                    <div className="flex items-center gap-2 text-fuchsia-400 font-bold mb-1">
+                      <MessageSquare className="w-4 h-4" /> SIGNAL:
+                    </div>
+                    <span className="text-fuchsia-300 text-sm">@scale.94</span>
+                  </div>
+
+                  {/* Wallet */}
+                  <div className="border border-[#39ff14]/30 bg-[#39ff14]/5 p-4 rounded-lg flex flex-col justify-center items-center hover:bg-[#39ff14]/10 transition-colors relative group">
+                    <div className="flex items-center gap-2 text-[#39ff14] font-bold mb-2 uppercase tracking-widest">
+                      <Zap className="w-4 h-4 fill-current" /> PLATA o DONO
+                    </div>
+                    <div className="text-[10px] text-cyan-500 font-mono mb-1">eth:</div>
+                    <div className="font-mono text-[10px] text-cyan-300 break-all text-center select-all cursor-pointer hover:text-white transition-colors" 
+                         title="Click to copy ETH address"
+                         onClick={() => {
+                            // Using document.execCommand('copy') for better compatibility in sandbox environments
+                            const address = '0xd05dDf143ce87942E528D96cDACf07800679898c';
+                            const tempInput = document.createElement('input');
+                            tempInput.value = address;
+                            document.body.appendChild(tempInput);
+                            tempInput.select();
+                            document.execCommand('copy');
+                            document.body.removeChild(tempInput);
+                            // NOTE: Replacing alert() with a custom message box for better UX in the final app.
+                          }}>
+                      0xd05dDf143ce87942E528D96cDACf07800679898c
+                    </div>
+                  </div>
                 </div>
              </div>
           )}
 
-          {/* About Tab */}
-          {activeTab === 'about' && !selectedArticle && (
-            <div className="animate-in fade-in duration-500 max-w-2xl mx-auto mt-12 border border-cyan-500/30 p-8 rounded-lg bg-black/50 backdrop-blur">
-                <div className="flex items-center gap-3 mb-6 text-fuchsia-400">
-                   <Eye className="w-6 h-6" />
-                   <h2 className="text-2xl font-bold">ABOUT_SCALE</h2>
-                </div>
-                <div className="space-y-4 text-sm text-[#39ff14] leading-relaxed">
-                   <p>Scale is a recursive environment designed for the storage and retrieval of high-density conceptual objects.</p>
-                   <p>Built on the SOMA-5.5 Kernel, it operates on a post-scarcity computational substrate, ensuring that all data is persistent, immutable, and thermodynamically indexed.</p>
-                   <p>Current maintainer: <span className="text-cyan-400 font-bold">SYSTEM_ADMIN</span></p>
+          {/* Manifesto Tab (Contact & About) */}
+          {activeTab === 'manifesto' && !selectedArticle && (
+            <div className="animate-in fade-in duration-500 max-w-3xl mx-auto mt-12 border border-cyan-500/30 p-8 rounded-lg bg-black/50 backdrop-blur">
+                <div className="prose prose-invert prose-cyan max-w-none font-mono text-sm md:text-base leading-relaxed">
+                    {renderContent(manifestoContent)}
                 </div>
             </div>
           )}
@@ -1373,14 +1479,8 @@ const App = () => {
                    <AlertTriangle className="w-6 h-6" />
                    <h2 className="text-2xl font-bold">PRIVACY_PROTOCOL</h2>
                 </div>
-                <div className="space-y-4 text-sm text-red-200/80 leading-relaxed font-mono">
-                   <p>WARNING: All interactions within this terminal are logged to the local entropy ledger for debugging purposes.</p>
-                   <p>However, no personal identifiers are transmitted to central servers. This session is ephemeral. Upon disconnection, all local cache is purged via cryptographic shredding.</p>
-                   <div className="mt-8 p-4 bg-black/50 border border-red-900/20 rounded text-xs">
-                      <div className="mb-2">ENCRYPTION: AES-256-GCM</div>
-                      <div className="mb-2">node_id: {Math.random().toString(16).slice(2)}</div>
-                      <div>status: <span className="text-green-500 animate-pulse">SECURE</span></div>
-                   </div>
+                <div className="prose prose-invert prose-red max-w-none font-mono text-sm md:text-base leading-relaxed">
+                    {renderContent(privacyContent)}
                 </div>
              </div>
           )}
@@ -1427,7 +1527,7 @@ const App = () => {
             onChange={(e) => setCommandInput(e.target.value)} 
             onKeyDown={handleCommand} 
             className="bg-transparent border-none outline-none flex-grow text-cyan-400 placeholder-cyan-900/50 font-bold" 
-            placeholder="enter command (e.g. load colemak-25)" 
+            placeholder="enter command (e.g. load soma-9.0)" 
             autoFocus 
           />
         </div>
