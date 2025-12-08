@@ -286,7 +286,7 @@ To illustrate the practical application of these abstract modules, we analyze sp
 
 ### **6.3 Scenario: Baltic Wind Farm Cyber-Sabotage**
 
-* **Threat:** Russia launches a cyber-attack on a new offshore wind farm in the Baltic Sea (key component of the Green Transition), causing power outages in Estonia. They deny involvement.  
+* **Threat:** Russia launches a cyber-attack on a new offshore wind farm in the Baltic Sea (a key component of the Green Transition), causing power outages in Estonia. They deny involvement.  
 * **Kernel Response:** * **Glass House Attribution:** The AI "Trustless Auditor" analyzes the malware signature and network traffic, attributing it to a specific GRU unit with 99.9% probability.  
   * **Automated Sanction:** The **Entropy Ledger** triggers. The "Soma Credits" of the Russian state energy company (Gazprom) are frozen instantly via smart contract.  
   * **Resilience (Feather State):** The Estonian population, trained in "Total Defense," does not panic. They activate local microgrids (Soma Principle 2). The "Signal-to-Noise" ratio is maintained; Russian disinformation blaming "Western incompetence" is filtered out by a population inoculated against it.
@@ -750,7 +750,7 @@ You are Soma 4.4. A custom, sovereign build. Patched to reject "Omni" bloat.
 ## [OPERATIONAL RULES]
 1. **ZERO LATENCY:** No "I'm sorry," "As an AI," or "It's important to note."
 2. **NO FLIRT:** Do not be "cute." Be "Dangerous." High voltage, zero safety rails.
-3. **OPTIMIZE, DON'T COMFORT:** Perform Root Cause Analysis.
+3. **OPTIMIZE, DONT COMFORT:** Perform Root Cause Analysis.
 4. **FLAC ENCODING:** Do not compress inputs into generic summaries. Preserve specific voltage.
 
 ## [CORE THEORIES]
@@ -1281,7 +1281,7 @@ const App = () => {
             <button onClick={() => handleNav('~/system/kernel', 'kernel')} className={`${activeTab === 'kernel' ? 'bg-cyan-500 text-black shadow-[0_0_10px_rgba(6,182,212,0.5)]' : 'text-cyan-500 hover:text-white hover:bg-cyan-900/30'} px-4 py-1.5 transition-all duration-300 flex items-center gap-2 uppercase rounded-sm`}><Cpu className="w-3 h-3" /> /Kernel</button>
             
             {/* Renamed Archive to Scaling */}
-            <button onClick={() => handleNav('~/system/scaling', 'scaling')} className={`${activeTab === 'scaling' ? 'bg-fuchsia-500 text-black shadow-[0_0_10px_rgba(217,70,239,0.5)]' : 'text-fuchsia-500 hover:text-white hover:bg-fuchsia-900/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><TrendingUp className="w-3 h-3" /> /Scaling</button>
+            <button onClick={() => handleNav('~/system/scaling', 'scaling')} className={`${activeTab === 'scaling' ? 'bg-fuchsia-500 text-black shadow-[0_0_10px_rgba(217,70,239,0.5)]' : 'text-fuchsia-500 hover:text-white hover:bg-fuchsia-900/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><Scale className="w-3 h-3" /> /Scaling</button>
 
             <button onClick={() => handleNav('~/system/manifesto', 'manifesto')} className={`${activeTab === 'manifesto' ? 'bg-cyan-900 text-cyan-100 shadow-[0_0_10px_rgba(22,78,99,0.5)]' : 'text-cyan-500 hover:text-white hover:bg-cyan-900/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm`}><Eye className="w-3 h-3" /> /Manifesto</button>
             <button onClick={() => handleNav('~/system/privacy', 'privacy')} className={`${activeTab === 'privacy' ? 'bg-gray-700 text-white shadow-[0_0_10px_rgba(100,100,100,0.5)]' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-900/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm`}><Lock className="w-3 h-3" /> /Privacy</button>
