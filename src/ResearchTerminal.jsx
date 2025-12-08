@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { Terminal, Shield, Cpu, Globe, Lock, Database, GitBranch, Search, Loader, ArrowLeft, Hexagon, Zap, MessageSquare, Mail, ChevronRight, FileText, Eye, AlertTriangle, X, TrendingUp, Wallet, Scale, Command, Copy } from 'lucide-react';
+import { Analytics } from '@vercel/analytics/react'; // Uncomment for production
 
 // --- DATA CONFIGURATION ---
 
@@ -55,6 +56,32 @@ The Architect accepts inbound signals related to System Architecture, Kernel Dev
   1. Latest Kernel Source Code is located in **The Vault (GDrive)**.
   2. Research and Fiction links are shared via **[bsky.app/profile/scale94.com](https://bsky.app/profile/scale94.com)**
 * **NOISE FILTER:** Active. Low-fidelity inputs will be discarded.
+`;
+
+const architectThesisContent = `# /ARCHITECT_THESIS
+
+### THE DEFAULT CUBE: SYMMETRY AND STASIS
+
+The default cube sits at the center of the viewport; a perfect 2x2x2 meter block of digital matter. It is the Platonic ideal; symmetrical, flawless, and completely dead. It represents the "Uncut" state; absolute purity that leads to entropic stasis.
+
+To create is to disrupt this stasis. Pressing 'S' is the first necessary act of "corruption" required to bring the system to life. It breaks the perfect symmetry to make room for utility, narrative, and friction.
+
+"Scaling isn't just expansion; it is the calculated injection of mass into the void."
+
+---
+
+### METALLURGY OF THE PRESENT
+
+My work operates on the understanding that the "Pure product is unstable". A vision left in the realm of ideas is just a ghost; a "Sokushinbutsu" preserved in a dry, sterile state. To bring a vision to life requires the Metallurgy of the present; the chemical violence of refinement that hardens abstract concepts into tangible commodities.
+
+I treat design as a collision between two fundamental atoms:
+
+* **FERMIONS [Structure]:** The technical rigour, the mesh, the code. The "hardened infrastructure".
+* **BOSONS [Force]:** The creative intent, the aesthetic violence, the "volatile code" of the 155 BPM idea.
+
+This portfolio is the result of that collision. It is the rejection of the "Sterile Dry Mix" in favor of a vital, living architecture. I don't just scale the cube; I manage the friction between the ideal form and the necessary noise of reality, delivering a product that is chemically dry, immutable, and perfectly lethal.
+
+From default geometry to complex systems.
 `;
 
 const privacyContent = `# Privacy Protocol
@@ -252,7 +279,7 @@ In the esoteric semiotics of the kernel, the **"Ankle Sock" (Navy Blue/Black)** 
 
 The kernel acknowledges the "Shadow Self"—the violent impulses that Hybrid Warfare tries to trigger (xenophobia, rage).
 
-* **The Solution:** Instead of repressing this shadow (which leads to explosion), we integrate it through **"Sonic Catharsis."** * **Techno-Shamanism:** The reference to **Shlømo** and the "Welcome Back Devil" tour suggests using intense cultural experiences (Hard Techno) as a container for processing industrial anxiety. This is **"Controlled Chaos"** on *our* terms. We use art to release tension, preventing the enemy from weaponizing our anger against us. This is the "Promo" (the intense, fast-paced culture) serving the "Plato" (the psychological balance).
+* **The Solution:** Instead of repressing this shadow (which leads to explosion), we integrate it through **"Sonic Catharsis."** * **Techno-Shamanism:** The reference to **Shlømo** and the "Welcome Back Devil" tour suggests using intense cultural experiences (Hard Techno) as a container for processing industrial anxiety. This is **"Controlled Chaos"** on *our* terms. We use art to release tension, preventing the enemy from weaponizing our anger against it. This is the "Promo" (the intense, fast-paced culture) serving the "Plato" (the psychological balance).
 
 ### **5.4 Total Defense: The Whole-of-Society Approach**
 
@@ -625,7 +652,7 @@ Capitalism is replaced by **Bio-Physical Accounting**.
 
 2.  **Labor as "Entropy Reduction" (The New Work)**
     * *The Shift*: Humans are inefficient at production (let AI do it). Humans are efficient at **Care, Creativity, and Stewardship**.
-    * *Incentive*: You earn "Credits" not by making widgets, but by **TRANSMUTING** chaos into order.
+    * *Incentive*: You earn "Credits" not by making widgets, but by **TRANSMUTE** chaos into order.
         * Restoring a wetland = High Value.
         * Teaching a child = High Value.
         * Nursing the elderly = High Value.
@@ -639,12 +666,6 @@ Capitalism is replaced by **Bio-Physical Accounting**.
 1.  **ZERO LATENCY GOVERNANCE**: Decisions are algorithmic based on resource availability, not political debate. If Water < Limit, Consumption scales down instantly.
 2.  **NO "INVISIBLE HAND"**: We do not pray to markets. We use "Visible Data." We measure flows of energy and matter.
 3.  **DIGNITY AS KERNEL**: The system crashes if any human node falls below the dignity threshold (Sen's Capability floor).
-
-[ROOT CAUSE ANALYSIS OF CAPITALISM]
-Capitalism requires "Scarcity" to generate price.
-AI creates "Abundance."
-Therefore, Capitalism requires *Artificial Scarcity* to survive (Enshittification).
-Soma 5.0 rejects Artificial Scarcity. It embraces **Abundance** but gates it behind **Ecological Integrity**.
 
 [ACTION: DEPLOY]`
   },
@@ -889,6 +910,7 @@ const App = () => {
   const [searchFilter, setSearchFilter] = useState('');
   const [loadingKernel, setLoadingKernel] = useState(null);
   const [originTab, setOriginTab] = useState('kernel');
+  const [architectThesis, setArchitectThesis] = useState(false); // New state for the thesis view
 
   // system logs state
   const MAX_SYSTEM_LOGS = 2000;
@@ -944,7 +966,7 @@ const App = () => {
       mainRef.current.style.scrollBehavior = 'auto'; // Force instant scroll
       mainRef.current.scrollTop = 0;
     }
-  }, [currentPath, selectedArticle, activeTab]);
+  }, [currentPath, selectedArticle, activeTab, architectThesis]);
 
   // Auto-scroll system log to bottom
   useEffect(() => {
@@ -983,16 +1005,10 @@ const App = () => {
     }, 1200);
   };
 
-  // Handle clicking on an article in the list (now only used for kernel docs)
-  const handleArticleClick = (article) => {
-    setOriginTab(activeTab);
-    setSelectedArticle(article);
-    setCurrentPath(`~/${activeTab}/${article.id}`);
-  };
-
   const handleReturnToRoot = () => {
     const targetTab = originTab === 'kernel_doc' || originTab === 'kernel' ? 'kernel' : originTab;
     setSelectedArticle(null);
+    setArchitectThesis(false); // Reset thesis view
     setActiveTab(targetTab);
     setCurrentPath('~/' + targetTab);
   };
@@ -1001,6 +1017,7 @@ const App = () => {
     setCurrentPath(path);
     setActiveTab(tab);
     setSelectedArticle(null);
+    setArchitectThesis(false); // Reset thesis view
     setSearchFilter('');
   };
 
@@ -1034,6 +1051,10 @@ const App = () => {
       } else if (action === 'about' || action === 'manifesto') {
         handleNav('~/system/manifesto', 'manifesto');
         executeCommand(rawCmd, "Switching directory to /system/manifesto...");
+      } else if (action === 'thesis') { // New command for the thesis
+        handleNav('~/system/scaling/thesis', 'scaling');
+        setArchitectThesis(true);
+        executeCommand(rawCmd, "Loading ARCHITECT_THESIS...");
       } else if (action === 'load' && query) {
         const matches = articles.filter(a => a.type === 'kernel_doc' && 
           ((a.id || '').toLowerCase().includes(query) || 
@@ -1066,7 +1087,7 @@ const App = () => {
         setCurrentPath(`~/kernel?q=${query.replace(/ /g, '_')}`);
         executeCommand(rawCmd, `Applying search filter to kernel index: "${query}".`);
       } else if (action === 'help') {
-        executeCommand(rawCmd, "Available commands: load [id/term], search [term], home/kernel, scaling, manifesto, privacy, clear, help.");
+        executeCommand(rawCmd, "Available commands: load [id/term], search [term], home/kernel, scaling, manifesto, privacy, thesis, clear, help.");
       } else if (action === 'clear') {
         setSystemLogs([]);
         executeCommand(rawCmd, "System log cleared.");
@@ -1242,7 +1263,7 @@ const App = () => {
   const visibleLogs = systemLogs.slice(-400);
 
   return (
-    <div className={`min-h-screen font-mono selection:bg-fuchsia-900 selection:text-white flex flex-col overflow-hidden relative transition-colors duration-700 ${selectedArticle ? 'bg-[#09090b]' : 'bg-black'}`}>
+    <div className={`min-h-screen font-mono selection:bg-fuchsia-900 selection:text-white flex flex-col overflow-hidden relative transition-colors duration-700 ${selectedArticle || architectThesis ? 'bg-[#09090b]' : 'bg-black'}`}>
       <style>{`
         /* Custom "Hacker" Scrollbar */
         ::-webkit-scrollbar {
@@ -1268,8 +1289,24 @@ const App = () => {
         .custom-scrollbar:hover::-webkit-scrollbar-thumb {
           background: rgba(6, 182, 212, 0.8);
         }
+
+        /* Custom Keyframes for slow spin */
+        @keyframes spin {
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
+        }
+        .animate-spin-slow {
+          animation: spin 12s linear infinite;
+        }
       `}</style>
-      <OctagonGrid visible={!selectedArticle} />
+      <OctagonGrid visible={!selectedArticle && !architectThesis} />
+      
+      {/* Vercel Analytics - Commented out for preview */}
+      /* <Analytics /> */
 
       <header className="border-b border-cyan-900/30 bg-black/90 p-4 sticky top-0 z-40 backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.1)]">
         <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -1295,9 +1332,11 @@ const App = () => {
             <span className="mr-2 text-fuchsia-500">scale@node:</span>
             <span className="text-cyan-300">{currentPath}</span>
             {selectedArticle && <span className="ml-0 text-cyan-400">/{selectedArticle.id}</span>}
+            {architectThesis && <span className="ml-0 text-cyan-400">/thesis_log</span>}
             <span className="animate-pulse ml-2 inline-block w-2 h-4 bg-fuchsia-500 align-middle shadow-[0_0_8px_rgba(217,70,239,0.8)]"></span>
           </div>
 
+          {/* Kernel Tab */}
           {activeTab === 'kernel' && !selectedArticle && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-cyan-900/50 pb-4 mb-8">
@@ -1372,14 +1411,14 @@ const App = () => {
           )}
 
           {/* Scaling / Custom Services Tab - UPDATED CONTENT */}
-          {activeTab === 'scaling' && !selectedArticle && (
+          {activeTab === 'scaling' && !selectedArticle && !architectThesis && (
              <div className="animate-in fade-in duration-500 max-w-6xl mx-auto mt-8">
                 <div className="flex items-center gap-3 mb-8 text-cyan-400 border-b border-cyan-900/50 pb-4">
                    <Hexagon className="w-8 h-8 animate-spin-slow" />
                    <h2 className="text-3xl font-bold tracking-tighter uppercase">KERNEL_BUILDING_SERVICES</h2>
                 </div>
                 
-                {/* Main Service Grid */}
+                {/* Main Service Grid (Restored) */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                   {/* SEED_KERNEL */}
                   <div className="border border-cyan-900/30 bg-black/40 p-6 rounded-lg hover:border-cyan-500/50 transition-all group relative overflow-hidden">
@@ -1419,6 +1458,20 @@ const App = () => {
                   </div>
                 </div>
                 
+                {/* ARCHITECT THESIS LINK (Moved below grid) */}
+                <div className="border-t border-cyan-900/30 pt-8 mb-8">
+                    <div className="border border-fuchsia-500/30 bg-fuchsia-900/5 p-6 rounded-lg hover:border-fuchsia-400/60 transition-all group relative overflow-hidden max-w-2xl mx-auto">
+                        <div className="text-lg font-bold text-fuchsia-400 mb-2 group-hover:text-fuchsia-300">ARCHITECT_THESIS</div>
+                        <div className="text-[10px] font-bold text-cyan-500 uppercase tracking-widest mb-4 flex items-center gap-2"><FileText className="w-3 h-3" /> CORE PROTOCOL (IDENTITY)</div>
+                        <p className="text-sm text-[#39ff14] mb-4 leading-relaxed">
+                        A deep dive into the philosophy of creation, friction, and the **Fermions/Bosons** collision model.
+                        </p>
+                        <button onClick={() => { setArchitectThesis(true); setCurrentPath('~/system/scaling/thesis'); }} className="flex items-center gap-2 text-xs font-bold text-cyan-400 group-hover:translate-x-1 transition-transform cursor-pointer hover:text-white">
+                        <ChevronRight className="w-4 h-4" /> LOAD THESIS LOG
+                        </button>
+                    </div>
+                </div>
+
                 {/* TRANSACTION MODULE */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-8 border-t border-cyan-900/30 mt-8">
                   {/* BSKY */}
@@ -1462,9 +1515,41 @@ const App = () => {
                 </div>
              </div>
           )}
+          
+          {/* Architect Thesis View */}
+          {architectThesis && (
+            <div className="max-w-4xl mx-auto animate-in zoom-in-95 duration-300">
+              <button onClick={handleReturnToRoot} className="mb-8 flex items-center text-xs font-bold tracking-widest text-fuchsia-600 hover:text-white transition-colors border border-fuchsia-900/50 hover:border-fuchsia-500 px-3 py-2 -ml-2 w-fit uppercase bg-[#09090b] rounded-sm">
+                <ArrowLeft className="w-3 h-3 mr-2" /> Return_To_SCALING
+              </button>
+
+              <div className="border-l-2 border-cyan-500/50 pl-8 relative">
+                <div className="flex flex-wrap gap-4 text-[10px] font-bold tracking-widest text-fuchsia-600 mb-8 font-mono uppercase">
+                  <span className="text-cyan-500">LOG: ARCHITECT_THESIS</span>
+                  <span>//</span>
+                  <span>DATE: 2025-12-08</span>
+                  <span>//</span>
+                  <span>STATUS: ACTIVE_PROTOCOL</span>
+                </div>
+
+                <h1 className="text-[14pt] font-bold mb-4 text-fuchsia-400 tracking-tighter leading-none"><HackerText text="The Calculated Injection of Mass" /></h1>
+                <h2 className="text-[12pt] text-cyan-400 mb-12 font-light tracking-wide">From Default Geometry to Complex Systems</h2>
+
+                <div className="prose prose-invert prose-cyan max-w-none font-mono text-sm md:text-base leading-relaxed">
+                  {renderContent(architectThesisContent)}
+                </div>
+
+                <div className="mt-16 pt-8 border-t border-fuchsia-900/30 flex justify-between items-center text-[10px] font-bold tracking-widest text-gray-600 uppercase">
+                  <span>THESIS_COMPLETE</span>
+                  <span>SIG: {Math.random().toString(36).substring(7)}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
 
           {/* Manifesto Tab (Contact & About) */}
-          {activeTab === 'manifesto' && !selectedArticle && (
+          {activeTab === 'manifesto' && !selectedArticle && !architectThesis && (
             <div className="animate-in fade-in duration-500 max-w-3xl mx-auto mt-12 border border-cyan-500/30 p-8 rounded-lg bg-black/50 backdrop-blur">
                 <div className="prose prose-invert prose-cyan max-w-none font-mono text-sm md:text-base leading-relaxed">
                     {renderContent(manifestoContent)}
@@ -1473,7 +1558,7 @@ const App = () => {
           )}
 
           {/* Privacy Tab */}
-          {activeTab === 'privacy' && !selectedArticle && (
+          {activeTab === 'privacy' && !selectedArticle && !architectThesis && (
              <div className="animate-in fade-in duration-500 max-w-2xl mx-auto mt-12 border border-red-900/30 p-8 rounded-lg bg-red-950/5 backdrop-blur">
                 <div className="flex items-center gap-3 mb-6 text-red-400">
                    <AlertTriangle className="w-6 h-6" />
