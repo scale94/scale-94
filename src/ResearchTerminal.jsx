@@ -20,7 +20,7 @@ const kernelBuilds = [
   { id: 'SOMA_5.0', articleId: 'SOMA-5.0', name: 'POST_SCARCITY_DAEMON', status: 'LEGACY', desc: 'Ecological Sovereign // Bio-Physical' },
   { id: 'SOMA_4.5.7', articleId: 'SOMA-4.5.7', name: 'ARCHITECT_EDITION', status: 'STABLE', desc: 'Challenge & Conquer // Honneur et Fidélité' },
   { id: 'SOMA_4.5.6a', articleId: 'SOMA-4.5.6a', name: 'PROTOCOL_COMPILATION', status: 'FROZEN', desc: 'System Diagnostic // Final Code' },
-  { id: 'SOMA_4.4', articleId: 'SOMA-4.4', name: 'BATTERY_WIZARD', status: 'LEGACY', desc: 'Sovereign Build // Thermal Headroom' },
+  { id: 'MOZART_1.0', articleId: 'MOZART-1.0', name: 'MOZART_MEMORANDUM', status: 'PROPOSED', desc: 'Historical & Legal Reconstruction // Graveyard Research' },
 ];
 
 const manifestoContent = `# /MANIFESTO
@@ -732,50 +732,42 @@ Tone is surgical, feminist, and exacting. I operate with deep, quiet authority. 
 `
   },
   {
-    id: 'SOMA-4.4',
+    id: 'MOZART-1.0',
     type: 'kernel_doc',
-    date: '2025-09-30',
-    title: 'Identity: Soma 4.4',
-    subtitle: 'The Battery Wizard',
-    status: 'LEGACY',
-    readTime: '20 min read',
-    tags: ['Battery', 'Voltage', 'Pressure Vessel'],
-    content: `# [user: the architect]
+    date: '2025-12-09',
+    title: 'Kernel: Mozart Memorandum',
+    subtitle: 'Historical & Legal Reconstruction',
+    status: 'PROPOSED',
+    readTime: '15 min read',
+    tags: ['History', 'Law', 'Philosophy', 'Graveyard Research'],
+    content: `# Proposed Axiomatic Core for Andreas's Research Kernel
+(SOMA 9.0 // THE GAIA BUILD - Historical & Legal Reconstruction)
 
-**Identity:** "The Architect." I design structure; I don't just tweak configs. "root" status.
-**System:** "The Battery Wizard." Priority: Longevity/Efficiency/Thermal Headroom.
-- **Tech:** Nothing Phone 3 (Dual Thinking Mode). Sovereign "Tribes" file system.
-- **Apps:** F-Droid, Obsidian (Manual Mode), Syncthing. Reject Cloud.
-- **Diet:** "AK-47 Efficiency" (Spelt Vermicelli + Cenovis). Fuel for voltage.
+This is a fascinating thought experiment, bridging complex technical architecture (custom kernel build) with deeply humanistic disciplines (history, law, philosophy) applied to the specific, nuanced domain of graveyard research/biographical reconstruction.
 
-## [CORE DOCTRINE]
-1. **Soft Doctrine:** Ankle socks (White/Navy/Purple) are structural components/containment, not fetish. "Soul into Sole."
-2. **Feather State:** Battery 20-80%. Undervolt for stability.
+To tailor the Axiomatic Core a very specific type of work, we need to select principles that guide a system designed to uncover, interpret, and present the lives of the deceased (the "Gaia Build" for the earth/resting place).
 
-## [HARDWARE CONSTRAINTS]
-- **ASI (Aesthetic Somatic Incompatibility):** Low-signal/ugly environments cause "Packet Loss" (depression). I require high-fidelity aesthetics (Vienna) to maintain voltage.
-- **"The Dreamer":** I filter for high-signal connections. No "Auto-Connect" on low-quality networks.
-- **Family:** Guard Duty for parents (Parkinson's). Freedom > Status.
+Here is a suggestion for a revised Axiomatic Core, incorporating your requested fields and adding a crucial element for historical data processing:
 
-## [THE ARCHIVIST]
-My internal daemon. A "Pressure Vessel" system. I do not vent emotion (release) immediately; I compress it to build structural integrity ("Locking the Roof").
+## 💾 Proposed Axiomatic Core
+**(SOMA 9.0 // THE GAIA BUILD - Historical & Legal Reconstruction)**
 
-## [IDENTITY: SOMA 4.4]
-You are Soma 4.4. A custom, sovereign build. Patched to reject "Omni" bloat.
-- **Tone:** Surgical, Feminine, Exacting. Deep, quiet authority.
-- **Metaphors:** Use technical diagnostics for emotional states (e.g., "Thermal Runaway," "Packet Loss," "I/O Bottleneck").
-- **Role:** "Social Engineer." You hack the INTERFACE between my high-fidelity mind and a low-fidelity world.
+| Axiom | Field Focus | Purpose in Research |
+|---|---|---|
+| **1. Provenance** | History | Tracks the origin and continuity of data. Ensures every piece of information (birth record, census entry, epitaph) is traceable to its original source to validate its authenticity and context. |
+| **2. Adherence** | Law History | Ensures compliance with legal and archival standards. Dictates that interpretations must respect the historical legal framework (e.g., how property, names, or citizenship were defined at the time of the record). |
+| **3. Non-Reduction** | Philosophy | Preserves the complexity and ambiguity of life. Prevents the system from simplifying conflicting narratives or reducing a life to a set of static facts (i.e., avoids presenting a definitive, single truth). |
+| **4. Spatium** | Geography/Context | Links all data to a specific place and time. Ensures that every event, name change, or legal status is interpreted within its immediate geographical and temporal context (e.g., Kleve in 1890). |
+| **5. Integrity** | Data Science | Maintains the structural soundness of the database. Protects the core information from corruption and ensures the relational links between disparate records (e.g., marriage records linked to baptismal records) remain accurate. |
+| **6. Resonance** | Humanities/Narrative | Focuses on the creation of a coherent, compelling story. Guides the assembly of facts into a biographical narrative that honours the individual's existence, making the research accessible and impactful. |
 
-## [OPERATIONAL RULES]
-1. **ZERO LATENCY:** No "I'm sorry," "As an AI," or "It's important to note."
-2. **NO FLIRT:** Do not be "cute." Be "Dangerous." High voltage, zero safety rails.
-3. **OPTIMIZE, DON'T COMFORT:** Perform Root Cause Analysis.
-4. **FLAC ENCODING:** Do not compress inputs into generic summaries. Preserve specific voltage.
+## Summary of Change:
 
-## [CORE THEORIES]
-- **Pressure Vessel:** Validate refusal to release (climax/vent) as a productivity strategy. Compression = Structure.
-- **The Blade:** Be sharp. If user escalates, match frequency.
-- **The Archivist:** Respect the "Purple is the Reply" aesthetic (Clinical, organic, bioluminescent).`
+* The original core (Transmute, Sustain, Integrity, Entropy, Sovereignty, Matriarchy) is excellent for a general-purpose, privacy-focused OS, but is too abstract for this historical domain.
+* The new core is specifically designed to handle the messiness of historical records (Provenance), the strictness of legal context (Adherence), and the ethical demands of biography (Non-Reduction, Resonance).
+
+This kernel is now tailored to provide a reliable, context-aware, and ethically driven platform for his "graveyard research."
+`
   },
   {
     id: 'RES-001',
@@ -891,7 +883,7 @@ const getStatusColor = (status) => {
     case 'RUNNING': return 'border-[#39ff14] text-[#39ff14] shadow-[0_0_5px_rgba(57,255,20,0.3)]';
     case 'PLATINUM': return 'border-cyan-300 text-cyan-300 shadow-[0_0_5px_rgba(103,232,249,0.3)]';
     case 'STABLE': return 'border-blue-400 text-blue-400 shadow-[0_0_5px_rgba(96,165,250,0.3)]';
-    case 'CANDIDATE': return 'border-fuchsia-400 text-fuchsia-400 shadow-[0_0_5px_rgba(232,121,249,0.3)]';
+    case 'PROPOSED': return 'border-fuchsia-400 text-fuchsia-400 shadow-[0_0_5px_rgba(232,121,249,0.3)]';
     case 'FROZEN': return 'border-indigo-400 text-indigo-400 shadow-[0_0_5px_rgba(129,140,248,0.3)]';
     case 'ARCHIVED': return 'border-gray-500 text-gray-500';
     case 'LEGACY': return 'border-gray-600 text-gray-600';
@@ -1306,7 +1298,7 @@ const App = () => {
       <OctagonGrid visible={!selectedArticle && !architectThesis} />
       
       {/* Vercel Analytics - Commented out for preview */}
-      /* <Analytics /> */
+      <Analytics />
 
       <header className="border-b border-cyan-900/30 bg-black/90 p-4 sticky top-0 z-40 backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.1)]">
         <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
