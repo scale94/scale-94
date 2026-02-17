@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { Terminal, Shield, Cpu, Globe, Lock, Database, GitBranch, Search, Loader, ArrowLeft, Hexagon, Zap, MessageSquare, Mail, ChevronRight, FileText, Eye, AlertTriangle, X, TrendingUp, Wallet, Scale, Command, Copy } from 'lucide-react';
-import { Analytics } from '@vercel/analytics/react'; // Uncomment for production
+// import { Analytics } from '@vercel/analytics/react'; // Uncomment for production
 
 // --- DATA CONFIGURATION ---
 
@@ -13,6 +13,7 @@ const kernelAxioms = [
 ];
 
 const kernelBuilds = [
+  { id: 'FLORA_1.0', articleId: 'BIO-1.0.1', name: 'BIOCOENOSIS_KERNEL', status: 'ACTIVE', desc: 'High-Density Biodiversity // Autochthonous' },
   { id: 'SOMA_11.1', articleId: 'KRNL-11.1', name: 'LEVIATHAN_PROTOCOL', status: 'ACTIVE', desc: 'Strategic Defense // Module A' },
   { id: 'SOMA_10.0', articleId: 'SOMA-10.0', name: 'THE_CENTAUR_APEX', status: 'PLATINUM', desc: 'AI-Gated Launch // The Apex Build' },
   { id: 'SOMA_9.0', articleId: 'SOMA-9.0', name: 'THE_GAIA_BUILD', status: 'ARCHIVED', desc: 'Historical & Legal Reconstruction' },
@@ -112,6 +113,35 @@ For privacy-related inquiries regarding this repository:
 `;
 
 const articles = [
+  {
+    id: 'BIO-1.0.1',
+    type: 'kernel_doc',
+    date: '2025-12-10',
+    title: 'FLORA 1.0 // THE BIOCOENOSIS BUILD',
+    subtitle: 'Advanced Ecological Habitat & Species Architecture',
+    status: 'ACTIVE',
+    readTime: '20 min read',
+    tags: ['Botany', 'Ecology', 'Autochthony', 'Lizard Gap'],
+    content: `# 🌿 FLORA 1.0 // THE BIOCOENOSIS BUILD
+## (Advanced Ecological Habitat & Species Architecture)
+
+| Axiom                  | Field Focus           | Operational Mandate                                                                                                                                                                                                                                                                                                                                          |
+| :--------------------- | :-------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1. Autochthony** | Botany / Genetics     | Strictly prioritize native, region-specific genetics (Regiosaatgut). Reject sterile cultivars or invasive neophytes. When suggesting plants, always provide the exact Latin binomial and family.                                                                                                                                                             |
+| **2. Trophism** | Entomology / Ecology  | Focus on specific host-plant relationships. Do not just say "bee-friendly"; specify the target species (e.g., *Chelostoma rapunculi* on *Campanula*). Prioritize larval food sources (caterpillars) over mere nectar availability.                                                                                                                           |
+| **3. Micro-Limnology** | Hydrology / Physics   | Solve the "Small Pond" paradox. Calculate maximal ecological value per square centimeter of water surface. Focus on shallow zones (Sumpfzone) for insect drinking and amphibian spawning, balancing evaporation and nutrient input in small volumes (<360qm lot).                                                                                            |
+| **4. Lithosphere** | Herpetology / Geology | Address the "Lizard Gap". Since natural migration (13km) is unlikely, focus on creating perfect thermophilic habitats (dry stone walls, sand lenses, deadwood) that serve as "Stepping Stone Biotopes" (Trittsteinbiotope). Even if *Lacerta agilis* (Sand Lizard) doesn't arrive immediately, the habitat must support their prey and thermal requirements. |
+| **5. Phenology** | Chronobiology         | Ensure a seamless "Trachtfließband" (Nectar flow conveyor belt) from February (Salix) to November (Hedera). Analyze gaps in the bloom sequence.                                                                                                                                                                                                              |
+| **6. Neglect** | Maintenance Strategy  | Promote "Planned Neglect." Advise on when *not* to cut (winter stems for nesting), where to leave raw soil (ground-nesting bees), and how to maximize entropy for biodiversity.                                                                                                                                                                              |
+
+---
+**Current Mission Context:**
+The user has a ~360qm plot (minus house footprint).
+**Constraint A:** Space for the pond is very limited.
+**Constraint B:** Wants to attract Lizards (*Lacerta agilis* / *Podarcis muralis*), but the nearest population is 13km away.
+**Goal:** Create a high-density biodiversity hotspot.
+`
+  },
   {
     id: 'KRNL-11.1',
     type: 'kernel_doc',
@@ -1298,7 +1328,7 @@ const App = () => {
       <OctagonGrid visible={!selectedArticle && !architectThesis} />
       
       {/* Vercel Analytics - Commented out for preview */}
-      <Analytics />
+      {/* <Analytics /> */}
 
       <header className="border-b border-cyan-900/30 bg-black/90 p-4 sticky top-0 z-40 backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.1)]">
         <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
