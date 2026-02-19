@@ -1,0 +1,78 @@
+import React from 'react';
+import { Database, GitBranch, Shield, ChevronRight } from 'lucide-react';
+import getStatusColor from '../utils/getStatusColor';
+
+const KernelTab = ({ kernelAxioms, kernelBuilds, handleKernelClick, loadingKernel, visibleLogs, logRef }) => (
+  <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-cyan-900/50 pb-4 mb-8">
+      <div>
+        <h2 className="text-4xl font-bold mb-1 text-cyan-400 tracking-tight">SYSTEM_KERNEL</h2>
+        <div className="text-sm text-fuchsia-400 font-bold tracking-widest">VERSION: SOMA 11.1 // BUILD: FISH_SCALE_NECROMANCER</div>
+      </div>
+      <div className="flex items-center gap-4 mt-4 md:mt-0">
+        <div className="flex items-center gap-2 text-xs border border-cyan-500/30 px-3 py-1 bg-cyan-900/10 text-cyan-400 rounded-sm">
+          <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(34,211,238,1)]"></div> OPERATIONAL
+        </div>
+        <div className="flex items-center gap-2 text-xs border border-fuchsia-500/30 px-3 py-1 bg-fuchsia-900/10 text-fuchsia-400 rounded-sm">
+          <Shield className="w-3 h-3" /> LEVIATHAN: ACTIVE
+        </div>
+      </div>
+    </div>
+
+    <div className="grid md:grid-cols-2 gap-8 mb-12">
+      <div className="border border-cyan-900/50 p-6 bg-black/50 backdrop-blur-sm relative group hover:border-cyan-500/50 transition-colors duration-500 rounded-lg h-fit">
+        <h3 className="text-xl font-bold mb-6 flex items-center gap-2 text-fuchsia-400">
+          <Database className="w-5 h-5" /> AXIOMATIC_CORE
+        </h3>
+        <div className="space-y-4">
+          {kernelAxioms.map((axiom, idx) => (
+            <div key={idx} className="group/item hover:bg-cyan-900/10 p-3 -mx-2 transition-all rounded-sm border-l-2 border-transparent hover:border-cyan-500 cursor-default">
+              <div className="flex justify-between items-center mb-1">
+                <span className="font-bold text-cyan-400 text-lg">0{idx + 1} :: {axiom.name.toUpperCase()}</span>
+                <span className="text-[10px] font-bold tracking-widest bg-cyan-900/30 text-cyan-200 px-2 py-0.5 rounded-full">{axiom.field}</span>
+              </div>
+              <p className="text-sm text-[#39ff14] leading-relaxed group-hover/item:text-green-300 transition-colors">{axiom.desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-8">
+        <div className="border border-fuchsia-900/50 p-6 bg-black/50 backdrop-blur-sm hover:border-fuchsia-500/50 transition-colors rounded-lg flex flex-col h-[500px]">
+          <h3 className="text-lg font-bold mb-6 flex items-center gap-2 text-cyan-400">
+            <GitBranch className="w-4 h-4" /> ACTIVE_MODULES
+          </h3>
+          <ul className="space-y-4 text-sm font-mono text-[#39ff14] overflow-y-auto custom-scrollbar pr-2 flex-grow">
+            {kernelBuilds.map((kernel) => (
+              <li key={kernel.id} onClick={() => handleKernelClick(kernel)} className="flex justify-between items-center border-b border-fuchsia-900/30 pb-4 mb-2 cursor-pointer hover:bg-cyan-900/10 p-3 rounded transition-all group">
+                <div>
+                  <div className="font-bold text-cyan-400 text-base mb-1 group-hover:text-cyan-300 transition-colors">{kernel.name}</div>
+                  <div className="text-xs text-[#39ff14] font-bold tracking-wide">{kernel.desc}</div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className={`text-[10px] font-bold px-3 py-1 rounded border bg-transparent tracking-widest ${getStatusColor(kernel.status)}`}>
+                    [{kernel.status}]
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-cyan-500/50 group-hover:text-cyan-400 transition-colors" />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="border border-cyan-900/30 p-6 rounded-lg">
+          <h4 className="text-sm font-bold text-cyan-400 mb-4 flex items-center gap-2"><span className="text-fuchsia-500">{'>_'}</span> SYSTEM LOG (live)</h4>
+          <div ref={logRef} className="max-h-48 overflow-y-auto text-xs p-2 bg-black/60 border border-cyan-900/20 rounded custom-scrollbar">
+            {visibleLogs.map((l, i) => (
+              <div key={`${l.time}-${i}`} className="mb-1 text-[#39ff14] break-words">
+                <span className="text-cyan-500 mr-2">{l.time}</span>— {l.msg}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+export default KernelTab;
