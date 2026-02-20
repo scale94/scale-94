@@ -747,7 +747,7 @@ This kernel is now tailored to provide a reliable, context-aware, and ethically 
   },
   {
     id: 'FIC-001',
-    type: 'fiction',
+    type: 'kernel_doc',
     date: '2024-08-20',
     title: 'The Last Server',
     subtitle: 'A short story about the end of the internet',
@@ -758,7 +758,7 @@ This kernel is now tailored to provide a reliable, context-aware, and ethically 
   },
   {
     id: 'FIC-002',
-    type: 'fiction',
+    type: 'kernel_doc',
     date: '2025-02-14',
     title: 'Silicon Dreams',
     subtitle: 'Do androids dream of electric sheep?',
@@ -771,7 +771,7 @@ This kernel is now tailored to provide a reliable, context-aware, and ethically 
     id: 'TRX-001',
     type: 'fiction',
     date: '2026-02-20',
-    title: 'The World of False Scarcity',
+    title: 'The Cigar Heist',
     subtitle: 'A predator of pretentiousness risks becoming prey.',
     status: 'TRANSMISSION',
     readTime: '4 min read',

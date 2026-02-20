@@ -81,30 +81,27 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath }) => (
       </div>
 
       {/* Wallet */}
-      <div className="border border-[#39ff14]/30 bg-[#39ff14]/5 p-4 rounded-lg flex flex-col md:flex-row gap-4 justify-between items-center hover:bg-[#39ff14]/10 transition-colors relative group">
-        <div className="flex flex-col justify-center w-full">
-          <div className="flex items-center gap-2 text-[#39ff14] font-bold mb-2 uppercase tracking-widest">
-            <Zap className="w-4 h-4 fill-current" /> PLATA o DONO
-          </div>
-          <div className="text-[10px] text-cyan-500 font-mono mb-1">eth:</div>
-          <div className="font-mono text-[10px] text-cyan-300 break-all select-all cursor-pointer hover:text-white transition-colors"
-               title="Click to copy ETH address"
-               onClick={() => {
-                 const address = '0xd05dDf143ce87942E528D96cDACf07800679898c';
+      <div className="border border-[#39ff14]/30 bg-[#39ff14]/5 p-4 rounded-lg flex flex-col justify-center hover:bg-[#39ff14]/10 transition-colors relative group">
+        <div className="flex items-center gap-2 text-[#39ff14] font-bold mb-2 uppercase tracking-widest">
+          <Zap className="w-4 h-4 fill-current" /> PLATA o DONO
+        </div>
+        <div className="text-[10px] text-cyan-500 font-mono mb-1 uppercase tracking-widest">eth:</div>
+        <div className="font-mono text-[10px] text-cyan-300 break-all select-all cursor-pointer hover:text-white transition-colors"
+             title="Click to copy ETH address"
+             onClick={() => {
+               const address = '0xd05dDf143ce87942E528D96cDACf07800679898c';
+               navigator.clipboard.writeText(address).catch(() => {
                  const tempInput = document.createElement('input');
                  tempInput.value = address;
                  document.body.appendChild(tempInput);
                  tempInput.select();
                  document.execCommand('copy');
                  document.body.removeChild(tempInput);
-               }}>
-            0xd05dDf143ce87942E528D96cDACf07800679898c
-          </div>
+               });
+             }}>
+          0xd05dDf143ce87942E528D96cDACf07800679898c
         </div>
-        {/* QR Code */}
-        <div className="w-16 h-16 shrink-0 bg-white p-1 rounded-sm flex items-center justify-center overflow-hidden">
-          <img src="wallet-qr.png" alt="QR" className="w-full h-full object-contain" />
-        </div>
+        <div className="text-[9px] text-[#39ff14]/40 font-mono mt-2 uppercase tracking-widest">[ click to copy ]</div>
       </div>
     </div>
   </div>
