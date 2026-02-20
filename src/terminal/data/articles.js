@@ -766,6 +766,7 @@ This kernel is now tailored to provide a reliable, context-aware, and ethically 
     readTime: '8 min read',
     tags: ['Cyberpunk', 'Noir'],
     content: `# Silicon Dreams\n\nThe rain in Neo-Tokyo tasted like copper and ozone. Jack adjusted his optical intake, filtering out the holographic ads for synthetic liver replacements.`,
+  },
   {
     id: 'BK-1.0',
     type: 'kernel_doc',
