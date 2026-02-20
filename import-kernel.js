@@ -26,6 +26,12 @@ const DRY_RUN       = process.argv.includes('--dry');
 const ARTICLES_PATH = path.join(__dirname, 'src/terminal/data/articles.js');
 const BUILDS_PATH   = path.join(__dirname, 'src/terminal/data/kernelBuilds.js');
 
+// ─── EXCLUSION LIST ───────────────────────────────────────────────────────────
+// Files in this set will never be imported regardless of source directory.
+const EXCLUDE_FILES = new Set([
+  'Soft_Climb_Sequence.md',
+]);
+
 // Status badge map — inferred from filename / frontmatter
 const STATUS_KEYWORDS = {
   ACTIVE: ['active', 'online', 'running'],
@@ -287,7 +293,14 @@ function run() {
     process.exit(1);
   }
 
-  const files = fs.readdirSync(CONTENT_DIR).filter(f => f.endsWith('.md'));
+  const files = fs.readdirSync(CONTENT_DIR).filter(f => {
+    if (!f.endsWith('.md')) return false;
+    if (EXCLUDE_FILES.has(f)) {
+      console.log(`  ⊘ Skipping (excluded): ${f}`);
+      return false;
+    }
+    return true;
+  });
   if (files.length === 0) {
     console.log('  No .md files found in', CONTENT_DIR);
     process.exit(0);
