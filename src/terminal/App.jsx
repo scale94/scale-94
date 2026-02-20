@@ -20,6 +20,7 @@ import ManifestoTab from './views/ManifestoTab';
 import PrivacyTab from './views/PrivacyTab';
 import ArticleView from './views/ArticleView';
 import ThesisView from './views/ThesisView';
+import TransmissionTab from './views/TransmissionTab';
 
 const App = () => {
   const [currentPath, setCurrentPath] = useState('~/system/kernel');
@@ -35,6 +36,9 @@ const App = () => {
   const { appendSystemLog, setSystemLogs, visibleLogs, logRef } = useSystemLog();
 
   const mainRef = useRef(null);
+
+  // Fiction articles for Transmission tab
+  const transmissionStories = articles.filter(a => a.type === 'fiction');
 
   // Filtered Articles - only show kernel docs now
   const visibleArticles = articles.filter(a => a.type === 'kernel_doc').filter(a => {
@@ -133,6 +137,9 @@ const App = () => {
       } else if (['scaling', 'services', 'custom'].includes(action)) {
         handleNav('~/system/scaling', 'scaling');
         executeCommand(rawCmd, "Switching directory to /system/scaling...");
+      } else if (action === 'transmission') {
+        handleNav('~/system/transmission', 'transmission');
+        executeCommand(rawCmd, "Switching directory to /system/transmission...");
       } else if (['research', 'fiction', 'ls'].includes(action)) {
         executeCommand(rawCmd, "ERROR: Target directory purged. Content migrated to external archive.");
       } else if (action === 'privacy') {
@@ -177,7 +184,7 @@ const App = () => {
         setCurrentPath(`~/kernel?q=${query.replace(/ /g, '_')}`);
         executeCommand(rawCmd, `Applying search filter to kernel index: "${query}".`);
       } else if (action === 'help') {
-        executeCommand(rawCmd, "Available commands: load [id/term], search [term], home/kernel, scaling, manifesto, privacy, thesis, clear, help.");
+        executeCommand(rawCmd, "Available commands: load [id/term], search [term], home/kernel, scaling, transmission, manifesto, privacy, thesis, clear, help.");
       } else if (action === 'clear') {
         setSystemLogs([]);
         executeCommand(rawCmd, "System log cleared.");
@@ -251,6 +258,8 @@ const App = () => {
 
             <button onClick={() => handleNav('~/system/scaling', 'scaling')} className={`${activeTab === 'scaling' ? 'bg-fuchsia-500 text-black shadow-[0_0_10px_rgba(217,70,239,0.5)]' : 'text-fuchsia-500 hover:text-white hover:bg-fuchsia-900/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><Scale className="w-3 h-3" /> /Scaling</button>
 
+            <button onClick={() => handleNav('~/system/transmission', 'transmission')} className={`${activeTab === 'transmission' ? 'bg-fuchsia-500 text-black shadow-[0_0_10px_rgba(217,70,239,0.5)]' : 'text-fuchsia-500 hover:text-white hover:bg-fuchsia-900/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm`}>⌖ /Transmission</button>
+
             <button onClick={() => handleNav('~/system/manifesto', 'manifesto')} className={`${activeTab === 'manifesto' ? 'bg-cyan-900 text-cyan-100 shadow-[0_0_10px_rgba(22,78,99,0.5)]' : 'text-cyan-500 hover:text-white hover:bg-cyan-900/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm`}><Eye className="w-3 h-3" /> /Manifesto</button>
             <button onClick={() => handleNav('~/system/privacy', 'privacy')} className={`${activeTab === 'privacy' ? 'bg-gray-700 text-white shadow-[0_0_10px_rgba(100,100,100,0.5)]' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-900/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm`}><Lock className="w-3 h-3" /> /Privacy</button>
           </div>
@@ -290,6 +299,18 @@ const App = () => {
           {/* Architect Thesis View */}
           {architectThesis && (
             <ThesisView handleReturnToRoot={handleReturnToRoot} />
+          )}
+
+          {/* Transmission Tab */}
+          {activeTab === 'transmission' && !selectedArticle && !architectThesis && (
+            <TransmissionTab
+              stories={transmissionStories}
+              onSelect={(story) => {
+                setOriginTab('transmission');
+                setSelectedArticle(story);
+                setCurrentPath('~/system/transmission');
+              }}
+            />
           )}
 
           {/* Manifesto Tab */}
