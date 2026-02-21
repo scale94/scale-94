@@ -27,7 +27,7 @@ const KernelTab = ({ kernelAxioms, kernelBuilds, handleKernelClick, loadingKerne
         <div className="space-y-4">
           {kernelAxioms.map((axiom, idx) => (
             <div key={idx} className="group/item hover:bg-cyan-900/10 p-3 -mx-2 transition-all rounded-sm border-l-2 border-transparent hover:border-cyan-500 cursor-default min-w-0">
-              <div className="flex justify-between items-center mb-1 gap-2">
+              <div className="flex flex-wrap justify-between items-center gap-y-3 mb-1 gap-2">
                 <span className="font-bold text-cyan-400 text-lg min-w-0 break-words">0{idx + 1} :: {axiom.name.toUpperCase()}</span>
                 <span className="text-[10px] font-bold tracking-widest bg-cyan-900/30 text-cyan-200 px-2 py-0.5 rounded-full shrink-0">{axiom.field}</span>
               </div>
@@ -44,7 +44,7 @@ const KernelTab = ({ kernelAxioms, kernelBuilds, handleKernelClick, loadingKerne
           </h3>
           <ul className="space-y-4 text-sm font-mono text-[#39ff14] overflow-y-auto custom-scrollbar pr-2 flex-grow">
             {kernelBuilds.map((kernel) => (
-              <li key={kernel.id} onClick={() => handleKernelClick(kernel)} className="flex justify-between items-center border-b border-fuchsia-900/30 pb-4 mb-2 cursor-pointer hover:bg-cyan-900/10 p-3 rounded transition-all group gap-3">
+              <li key={kernel.id} onClick={() => handleKernelClick(kernel)} className="flex flex-wrap justify-between items-center gap-y-3 border-b border-fuchsia-900/30 pb-4 mb-2 cursor-pointer hover:bg-cyan-900/10 p-3 rounded transition-all group gap-3">
                 <div className="min-w-0">
                   <div className="font-bold text-cyan-400 text-base mb-1 group-hover:text-cyan-300 transition-colors break-words">{kernel.name}</div>
                   <div className="text-xs text-[#39ff14] font-bold tracking-wide break-words">{kernel.desc}</div>
