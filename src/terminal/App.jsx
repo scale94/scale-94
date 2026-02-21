@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { Hexagon, Cpu, Lock, Scale, Eye } from 'lucide-react';
+import { Analytics } from '@vercel/analytics/react';
 
 // Data
 import kernelAxioms from './data/kernelAxioms';
@@ -244,16 +245,15 @@ const App = () => {
       `}</style>
       <OctagonGrid visible={!selectedArticle && !architectThesis} />
 
-      {/* Vercel Analytics - Commented out for preview */}
-      {/* <Analytics /> */}
+      <Analytics />
 
-      <header className="border-b border-cyan-900/30 bg-black/90 p-4 sticky top-0 z-40 backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.1)]">
-        <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-2 group cursor-pointer" onClick={() => handleNav('~/system/kernel', 'kernel')}>
+      <header className="border-b border-cyan-900/30 bg-black/90 p-4 sticky top-0 z-40 backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.1)] overflow-x-hidden w-full">
+        <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4 w-full min-w-0">
+          <div className="flex items-center gap-2 group cursor-pointer shrink-0" onClick={() => handleNav('~/system/kernel', 'kernel')}>
             <Hexagon className="w-5 h-5 text-fuchsia-500 animate-spin-slow group-hover:text-cyan-400 transition-colors" />
             <span className="font-bold tracking-widest text-lg lowercase text-[#39ff14] group-hover:text-cyan-400 transition-colors">scale_9.4</span>
           </div>
-          <div className="flex flex-wrap items-center gap-2 md:gap-4 text-xs md:text-sm font-bold tracking-wide">
+          <div className="flex flex-wrap items-center gap-2 md:gap-4 text-xs md:text-sm font-bold tracking-wide min-w-0 w-full md:w-auto">
             <button onClick={() => handleNav('~/system/kernel', 'kernel')} className={`${activeTab === 'kernel' ? 'bg-cyan-500 text-black shadow-[0_0_10px_rgba(6,182,212,0.5)]' : 'text-cyan-500 hover:text-white hover:bg-cyan-900/30'} px-4 py-1.5 transition-all duration-300 flex items-center gap-2 uppercase rounded-sm`}><Cpu className="w-3 h-3" /> /Kernel</button>
 
             <button onClick={() => handleNav('~/system/scaling', 'scaling')} className={`${activeTab === 'scaling' ? 'bg-fuchsia-500 text-black shadow-[0_0_10px_rgba(217,70,239,0.5)]' : 'text-fuchsia-500 hover:text-white hover:bg-fuchsia-900/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><Scale className="w-3 h-3" /> /Scaling</button>
@@ -266,9 +266,9 @@ const App = () => {
         </div>
       </header>
 
-      <main ref={mainRef} className="flex-grow overflow-y-auto p-4 md:p-8 relative z-10 scroll-smooth">
+      <main ref={mainRef} className="flex-grow overflow-y-auto overflow-x-hidden p-4 md:p-8 relative z-10 scroll-smooth">
         <div className="max-w-[1600px] mx-auto">
-          <div className="mb-8 flex items-center text-sm font-bold tracking-wider">
+          <div className="mb-8 flex items-center text-sm font-bold tracking-wider min-w-0 overflow-hidden">
             <span className="mr-2 text-fuchsia-500">scale@node:</span>
             <span className="text-cyan-300">{currentPath}</span>
             {selectedArticle && <span className="ml-0 text-cyan-400">/{selectedArticle.id}</span>}
@@ -334,8 +334,8 @@ const App = () => {
         </div>
       </main>
 
-      <footer className="border-t border-cyan-900/50 p-2 bg-black/90 backdrop-blur-md z-40 shadow-[0_0_15px_rgba(6,182,212,0.1)]">
-        <div className="max-w-[1600px] mx-auto flex items-center gap-2 text-sm font-bold tracking-wide">
+      <footer className="border-t border-cyan-900/50 p-2 bg-black/90 backdrop-blur-md z-40 shadow-[0_0_15px_rgba(6,182,212,0.1)] overflow-x-hidden w-full">
+        <div className="max-w-[1600px] mx-auto flex items-center gap-2 text-sm font-bold tracking-wide min-w-0 w-full">
           <span className="text-fuchsia-500 hidden md:inline">scale@node:~$</span>
           <span className="text-fuchsia-500 md:hidden">~$</span>
           <input

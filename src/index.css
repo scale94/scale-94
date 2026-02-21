@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Kill mobile horizontal scroll at the root */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
 /* Custom Scrollbar for that Cyberpunk feel */
 ::-webkit-scrollbar {
   width: 8px;

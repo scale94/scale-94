@@ -67,7 +67,7 @@ This repository and the deployed site are strictly personal projects. The source
 ## 1. Data Collection & Infrastructure
 This site is hosted on **Vercel**.
 
-* **No Analytics:** This site does not use Google Analytics, Vercel Analytics, or third-party tracking pixels.
+* **Analytics:** This site does use Vercel Analytics.
 * **No Cookies:** This site does not set cookies or use local storage for behavioral tracking.
 * **Server Logs:** As the infrastructure provider, Vercel may process and store standard server logs (including your IP address and User Agent) to handle requests, prevent DDoS attacks, and ensure system integrity.
 

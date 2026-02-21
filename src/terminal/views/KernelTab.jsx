@@ -26,12 +26,12 @@ const KernelTab = ({ kernelAxioms, kernelBuilds, handleKernelClick, loadingKerne
         </h3>
         <div className="space-y-4">
           {kernelAxioms.map((axiom, idx) => (
-            <div key={idx} className="group/item hover:bg-cyan-900/10 p-3 -mx-2 transition-all rounded-sm border-l-2 border-transparent hover:border-cyan-500 cursor-default">
-              <div className="flex justify-between items-center mb-1">
-                <span className="font-bold text-cyan-400 text-lg">0{idx + 1} :: {axiom.name.toUpperCase()}</span>
-                <span className="text-[10px] font-bold tracking-widest bg-cyan-900/30 text-cyan-200 px-2 py-0.5 rounded-full">{axiom.field}</span>
+            <div key={idx} className="group/item hover:bg-cyan-900/10 p-3 -mx-2 transition-all rounded-sm border-l-2 border-transparent hover:border-cyan-500 cursor-default min-w-0">
+              <div className="flex justify-between items-center mb-1 gap-2">
+                <span className="font-bold text-cyan-400 text-lg min-w-0 break-words">0{idx + 1} :: {axiom.name.toUpperCase()}</span>
+                <span className="text-[10px] font-bold tracking-widest bg-cyan-900/30 text-cyan-200 px-2 py-0.5 rounded-full shrink-0">{axiom.field}</span>
               </div>
-              <p className="text-sm text-[#39ff14] leading-relaxed group-hover/item:text-green-300 transition-colors">{axiom.desc}</p>
+              <p className="text-sm text-[#39ff14] leading-relaxed group-hover/item:text-green-300 transition-colors break-words">{axiom.desc}</p>
             </div>
           ))}
         </div>
@@ -44,13 +44,13 @@ const KernelTab = ({ kernelAxioms, kernelBuilds, handleKernelClick, loadingKerne
           </h3>
           <ul className="space-y-4 text-sm font-mono text-[#39ff14] overflow-y-auto custom-scrollbar pr-2 flex-grow">
             {kernelBuilds.map((kernel) => (
-              <li key={kernel.id} onClick={() => handleKernelClick(kernel)} className="flex justify-between items-center border-b border-fuchsia-900/30 pb-4 mb-2 cursor-pointer hover:bg-cyan-900/10 p-3 rounded transition-all group">
-                <div>
-                  <div className="font-bold text-cyan-400 text-base mb-1 group-hover:text-cyan-300 transition-colors">{kernel.name}</div>
-                  <div className="text-xs text-[#39ff14] font-bold tracking-wide">{kernel.desc}</div>
+              <li key={kernel.id} onClick={() => handleKernelClick(kernel)} className="flex justify-between items-center border-b border-fuchsia-900/30 pb-4 mb-2 cursor-pointer hover:bg-cyan-900/10 p-3 rounded transition-all group gap-3">
+                <div className="min-w-0">
+                  <div className="font-bold text-cyan-400 text-base mb-1 group-hover:text-cyan-300 transition-colors break-words">{kernel.name}</div>
+                  <div className="text-xs text-[#39ff14] font-bold tracking-wide break-words">{kernel.desc}</div>
                 </div>
-                <div className="flex items-center gap-4">
-                  <div className={`text-[10px] font-bold px-3 py-1 rounded border bg-transparent tracking-widest ${getStatusColor(kernel.status)}`}>
+                <div className="flex items-center gap-4 shrink-0">
+                  <div className={`text-[10px] font-bold px-3 py-1 rounded border bg-transparent tracking-widest whitespace-nowrap ${getStatusColor(kernel.status)}`}>
                     [{kernel.status}]
                   </div>
                   <ChevronRight className="w-5 h-5 text-cyan-500/50 group-hover:text-cyan-400 transition-colors" />

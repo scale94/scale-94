@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Claude_Preview__preview_start",
+      "Bash(curl:*)",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "Bash(ls:*)",
+      "Bash(netstat:*)",
+      "Bash(xargs:*)"
+    ]
+  }
+}
