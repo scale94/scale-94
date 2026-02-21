@@ -19,7 +19,7 @@ const KernelTab = ({ kernelAxioms, kernelBuilds, handleKernelClick, loadingKerne
       </div>
     </div>
 
-    <div className="grid md:grid-cols-2 gap-8 mb-12">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 mb-12">
       <div className="border border-cyan-900/50 p-6 bg-black/50 backdrop-blur-sm relative group hover:border-cyan-500/50 transition-colors duration-500 rounded-lg h-fit">
         <h3 className="text-xl font-bold mb-6 flex items-center gap-2 text-fuchsia-400">
           <Database className="w-5 h-5" /> AXIOMATIC_CORE
@@ -38,7 +38,7 @@ const KernelTab = ({ kernelAxioms, kernelBuilds, handleKernelClick, loadingKerne
       </div>
 
       <div className="space-y-8">
-        <div className="border border-fuchsia-900/50 p-6 bg-black/50 backdrop-blur-sm hover:border-fuchsia-500/50 transition-colors rounded-lg flex flex-col h-[500px]">
+        <div className="border border-fuchsia-900/50 p-6 bg-black/50 backdrop-blur-sm hover:border-fuchsia-500/50 transition-colors rounded-lg flex flex-col h-[500px] overflow-hidden">
           <h3 className="text-lg font-bold mb-6 flex items-center gap-2 text-cyan-400">
             <GitBranch className="w-4 h-4" /> ACTIVE_MODULES
           </h3>
