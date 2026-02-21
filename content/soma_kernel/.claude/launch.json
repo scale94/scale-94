@@ -4,7 +4,7 @@
     {
       "name": "scale94-dev",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["E:\\scale_9.4\\content\\soma_kernel\\start-dev.js"],
+      "runtimeArgs": ["start-dev.js"],
       "port": 5180
     }
   ]

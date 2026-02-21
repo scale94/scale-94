@@ -6,7 +6,9 @@
       "mcp__Claude_in_Chrome__tabs_context_mcp",
       "Bash(ls:*)",
       "Bash(netstat:*)",
-      "Bash(xargs:*)"
+      "Bash(xargs:*)",
+      "Bash(gh repo view:*)",
+      "Bash(gh api:*)"
     ]
   }
 }
