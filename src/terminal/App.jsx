@@ -41,10 +41,9 @@ const App = () => {
   // Fiction articles for Transmission tab
   const transmissionStories = articles.filter(a => a.type === 'fiction');
 
-  // Filtered Articles - only show kernel docs now
-  const visibleArticles = articles.filter(a => a.type === 'kernel_doc').filter(a => {
-    if (activeTab !== 'kernel' || a.type !== 'kernel_doc') return false;
-
+  // Filtered Articles — consolidated to a single pass (removed redundant double-filter)
+  const visibleArticles = articles.filter(a => {
+    if (a.type !== 'kernel_doc' || activeTab !== 'kernel') return false;
     if (!searchFilter) return true;
     const search = searchFilter.toLowerCase();
     return (a.title || '').toLowerCase().includes(search) ||
@@ -173,7 +172,7 @@ const App = () => {
           setActiveTab('kernel');
           setSelectedArticle(null);
           setSearchFilter(query);
-          setCurrentPath(`~/kernel?q=${query.replace(/ /g, '_')}`);
+          setCurrentPath(`~/system/kernel?q=${query.replace(/ /g, '_')}`);
           executeCommand(rawCmd, `Multiple kernel matches found. Applying filter "${query}".`);
         } else {
           executeCommand(rawCmd, `ERROR: Object '${query}' not found in local kernel index. Check external archive.`);
@@ -182,7 +181,7 @@ const App = () => {
         setActiveTab('kernel');
         setSelectedArticle(null);
         setSearchFilter(query);
-        setCurrentPath(`~/kernel?q=${query.replace(/ /g, '_')}`);
+        setCurrentPath(`~/system/kernel?q=${query.replace(/ /g, '_')}`);
         executeCommand(rawCmd, `Applying search filter to kernel index: "${query}".`);
       } else if (action === 'help') {
         executeCommand(rawCmd, "Available commands: load [id/term], search [term], home/kernel, scaling, transmission, manifesto, privacy, thesis, clear, help.");
@@ -253,16 +252,16 @@ const App = () => {
             <Hexagon className="w-5 h-5 text-fuchsia-500 animate-spin-slow group-hover:text-cyan-400 transition-colors" />
             <span className="font-bold tracking-widest text-lg lowercase text-[#39ff14] group-hover:text-cyan-400 transition-colors">scale_9.4</span>
           </div>
-          <div className="flex flex-wrap items-center gap-2 md:gap-4 text-xs md:text-sm font-bold tracking-wide min-w-0 w-full md:w-auto">
-            <button onClick={() => handleNav('~/system/kernel', 'kernel')} className={`${activeTab === 'kernel' ? 'bg-cyan-500 text-black shadow-[0_0_10px_rgba(6,182,212,0.5)]' : 'text-cyan-500 hover:text-white hover:bg-cyan-900/30'} px-4 py-1.5 transition-all duration-300 flex items-center gap-2 uppercase rounded-sm`}><Cpu className="w-3 h-3" /> /Kernel</button>
+          <nav aria-label="Main navigation" className="flex flex-wrap items-center gap-2 md:gap-4 text-xs md:text-sm font-bold tracking-wide min-w-0 w-full md:w-auto">
+            <button aria-label="Kernel" aria-current={activeTab === 'kernel' ? 'page' : undefined} onClick={() => handleNav('~/system/kernel', 'kernel')} className={`${activeTab === 'kernel' ? 'bg-cyan-500 text-black shadow-[0_0_10px_rgba(6,182,212,0.5)]' : 'text-cyan-500 hover:text-white hover:bg-cyan-900/30'} px-4 py-1.5 transition-all duration-300 flex items-center gap-2 uppercase rounded-sm`}><Cpu className="w-3 h-3" /> /Kernel</button>
 
-            <button onClick={() => handleNav('~/system/scaling', 'scaling')} className={`${activeTab === 'scaling' ? 'bg-fuchsia-500 text-black shadow-[0_0_10px_rgba(217,70,239,0.5)]' : 'text-fuchsia-500 hover:text-white hover:bg-fuchsia-900/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><Scale className="w-3 h-3" /> /Scaling</button>
+            <button aria-label="Scaling" aria-current={activeTab === 'scaling' ? 'page' : undefined} onClick={() => handleNav('~/system/scaling', 'scaling')} className={`${activeTab === 'scaling' ? 'bg-fuchsia-500 text-black shadow-[0_0_10px_rgba(217,70,239,0.5)]' : 'text-fuchsia-500 hover:text-white hover:bg-fuchsia-900/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><Scale className="w-3 h-3" /> /Scaling</button>
 
-            <button onClick={() => handleNav('~/system/transmission', 'transmission')} className={`${activeTab === 'transmission' ? 'bg-fuchsia-500 text-black shadow-[0_0_10px_rgba(217,70,239,0.5)]' : 'text-fuchsia-500 hover:text-white hover:bg-fuchsia-900/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm`}>⌖ /Transmission</button>
+            <button aria-label="Transmission" aria-current={activeTab === 'transmission' ? 'page' : undefined} onClick={() => handleNav('~/system/transmission', 'transmission')} className={`${activeTab === 'transmission' ? 'bg-fuchsia-500 text-black shadow-[0_0_10px_rgba(217,70,239,0.5)]' : 'text-fuchsia-500 hover:text-white hover:bg-fuchsia-900/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm`}>⌖ /Transmission</button>
 
-            <button onClick={() => handleNav('~/system/manifesto', 'manifesto')} className={`${activeTab === 'manifesto' ? 'bg-cyan-900 text-cyan-100 shadow-[0_0_10px_rgba(22,78,99,0.5)]' : 'text-cyan-500 hover:text-white hover:bg-cyan-900/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm`}><Eye className="w-3 h-3" /> /Manifesto</button>
-            <button onClick={() => handleNav('~/system/privacy', 'privacy')} className={`${activeTab === 'privacy' ? 'bg-gray-700 text-white shadow-[0_0_10px_rgba(100,100,100,0.5)]' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-900/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm`}><Lock className="w-3 h-3" /> /Privacy</button>
-          </div>
+            <button aria-label="Manifesto" aria-current={activeTab === 'manifesto' ? 'page' : undefined} onClick={() => handleNav('~/system/manifesto', 'manifesto')} className={`${activeTab === 'manifesto' ? 'bg-cyan-900 text-cyan-100 shadow-[0_0_10px_rgba(22,78,99,0.5)]' : 'text-cyan-500 hover:text-white hover:bg-cyan-900/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm`}><Eye className="w-3 h-3" /> /Manifesto</button>
+            <button aria-label="Privacy" aria-current={activeTab === 'privacy' ? 'page' : undefined} onClick={() => handleNav('~/system/privacy', 'privacy')} className={`${activeTab === 'privacy' ? 'bg-gray-700 text-white shadow-[0_0_10px_rgba(100,100,100,0.5)]' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-900/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm`}><Lock className="w-3 h-3" /> /Privacy</button>
+          </nav>
         </div>
       </header>
 
@@ -336,9 +335,11 @@ const App = () => {
 
       <footer className="border-t border-cyan-900/50 p-2 bg-black/90 backdrop-blur-md z-40 shadow-[0_0_15px_rgba(6,182,212,0.1)] overflow-x-hidden w-full">
         <div className="max-w-[1600px] mx-auto flex items-center gap-2 text-sm font-bold tracking-wide min-w-0 w-full">
-          <span className="text-fuchsia-500 hidden md:inline">scale@node:~$</span>
-          <span className="text-fuchsia-500 md:hidden">~$</span>
+          <span className="text-fuchsia-500 hidden md:inline" aria-hidden="true">scale@node:~$</span>
+          <span className="text-fuchsia-500 md:hidden" aria-hidden="true">~$</span>
+          <label htmlFor="terminal-input" className="sr-only">Enter terminal command</label>
           <input
+            id="terminal-input"
             type="text"
             value={commandInput}
             onChange={(e) => setCommandInput(e.target.value)}

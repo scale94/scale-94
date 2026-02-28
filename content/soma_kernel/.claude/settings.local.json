@@ -8,7 +8,15 @@
       "Bash(netstat:*)",
       "Bash(xargs:*)",
       "Bash(gh repo view:*)",
-      "Bash(gh api:*)"
+      "Bash(gh api:*)",
+      "Bash(git -C \"E:\\\\scale_9.4\\\\content\\\\soma_kernel\" log --oneline)",
+      "Bash(git -C \"E:\\\\scale_9.4\\\\content\\\\soma_kernel\" log --name-status --format=\"\")",
+      "Bash(git -C \"E:\\\\scale_9.4\\\\content\\\\soma_kernel\" ls-files)",
+      "Bash(sort:*)",
+      "Bash(git -C \"E:\\\\scale_9.4\\\\content\\\\soma_kernel\" log --all --pretty=format:\"%h %s\")",
+      "Bash(find:*)",
+      "Bash(du:*)",
+      "Bash(npm run build:*)"
     ]
   }
 }

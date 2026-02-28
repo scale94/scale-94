@@ -1,6 +1,20 @@
 import React from 'react';
 import HackerText from '../components/HackerText';
 
+// Parses **bold** and __bold__ markers into React <strong> elements.
+// Avoids dangerouslySetInnerHTML entirely.
+const parseBold = (text) => {
+  if (!text) return text;
+  const parts = text.split(/(\*\*.*?\*\*|__.*?__)/g);
+  return parts.map((part, i) => {
+    if (/^(\*\*|__)/.test(part)) {
+      const inner = part.slice(2, -2);
+      return <strong key={i} className="text-[#39ff14]">{inner}</strong>;
+    }
+    return part;
+  });
+};
+
 const renderContent = (content) => {
   if (!content) return null;
 
@@ -17,7 +31,7 @@ const renderContent = (content) => {
           {buffer.map((item, i) => (
             <li key={i} className="text-[#39ff14] flex items-start gap-2">
               <span className="text-cyan-500 mt-1.5 text-[8px] shrink-0">&#9632;</span>
-              <span className="break-words w-full" dangerouslySetInnerHTML={{ __html: item.replace(/^[-*] /, '').replace(/(\*\*|__)(.*?)\1/g, '<strong class="text-[#39ff14]">$2</strong>') }} />
+              <span className="break-words w-full">{parseBold(item.replace(/^[-*] /, ''))}</span>
             </li>
           ))}
         </ul>
@@ -41,7 +55,7 @@ const renderContent = (content) => {
                 return (
                   <tr key={rIdx} className={rIdx === 0 ? "bg-cyan-900/20 text-cyan-400 font-bold" : "border-t border-cyan-900/30"}>
                     {cols.map((col, cIdx) => (
-                      <td key={cIdx} className="p-2 border-r border-cyan-900/30 last:border-0" dangerouslySetInnerHTML={{ __html: col.replace(/\*\*(.*?)\*\*/g, '<strong class="text-[#39ff14]">$1</strong>') }}></td>
+                      <td key={cIdx} className="p-2 border-r border-cyan-900/30 last:border-0">{parseBold(col)}</td>
                     ))}
                   </tr>
                 );
@@ -53,8 +67,11 @@ const renderContent = (content) => {
     } else {
       const textContent = buffer.join('\n').trim();
       if (textContent) {
-        const formattedText = textContent.replace(/(\*\*|__)(.*?)\1/g, '<strong class="text-[#39ff14]">$2</strong>');
-        nodes.push(<p key={nodes.length} className="mb-6 text-[#39ff14] leading-relaxed whitespace-pre-line max-w-3xl" dangerouslySetInnerHTML={{ __html: formattedText }} />);
+        nodes.push(
+          <p key={nodes.length} className="mb-6 text-[#39ff14] leading-relaxed whitespace-pre-line max-w-3xl">
+            {parseBold(textContent)}
+          </p>
+        );
       }
     }
     buffer = [];
@@ -85,7 +102,8 @@ const renderContent = (content) => {
     if (trimmed.startsWith('#')) {
       flush();
       state = 'text';
-      const level = trimmed.match(/^#+/)[0].length;
+      // Safe optional chaining — avoids crash if regex returns no match
+      const level = trimmed.match(/^#+/)?.[0]?.length ?? 1;
       const text = trimmed.replace(/^#+\s*/, '');
       if (level === 1) nodes.push(<h1 key={nodes.length} className="text-[14pt] font-bold mb-4 text-cyan-400 tracking-tighter leading-none"><HackerText text={text} /></h1>);
       else if (level === 2) nodes.push(<h2 key={nodes.length} className="text-[12pt] text-fuchsia-400 mb-12 font-light tracking-wide">{text}</h2>);

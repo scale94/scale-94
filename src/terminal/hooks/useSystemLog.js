@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 
 const MAX_SYSTEM_LOGS = 2000;
 
@@ -36,8 +36,8 @@ export default function useSystemLog() {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
   }, [systemLogs]);
 
-  // Visible logs clamp to avoid huge DOM
-  const visibleLogs = systemLogs.slice(-400);
+  // Memoized slice — avoids creating a new array on every render
+  const visibleLogs = useMemo(() => systemLogs.slice(-400), [systemLogs]);
 
   return { systemLogs, appendSystemLog, setSystemLogs, visibleLogs, logRef };
 }

@@ -11,6 +11,7 @@ const HackerText = ({ text, className }) => {
 
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,<>?";
     let iterations = 0;
+    // 50ms (~20fps) instead of 30ms (~33fps) — cuts re-renders by ~40%
     const interval = setInterval(() => {
       setDisplayText(
         text
@@ -24,12 +25,12 @@ const HackerText = ({ text, className }) => {
           .join("")
       );
 
+      iterations += 0.5;
+
       if (iterations >= text.length) {
         clearInterval(interval);
       }
-
-      iterations += 0.5;
-    }, 30);
+    }, 50);
 
     return () => clearInterval(interval);
   }, [text]);

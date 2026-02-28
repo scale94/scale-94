@@ -9,16 +9,24 @@ html, body {
 }
 
 /* Custom Scrollbar for that Cyberpunk feel */
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #06b6d4 #000;
+}
+
+/* Chromium / Safari */
 ::-webkit-scrollbar {
   width: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #000; 
+  background: #000;
 }
 ::-webkit-scrollbar-thumb {
-  background: #333; 
+  background: #333;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #22d3ee; 
+  background: #22d3ee;
 }
