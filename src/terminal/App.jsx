@@ -295,16 +295,36 @@ const App = () => {
           </div>
 
           {/* Kernel Tab */}
-          {activeTab === 'kernel' && !selectedArticle && (
-            <KernelTab
-              kernelAxioms={kernelAxioms}
-              kernelBuilds={kernelBuilds}
-              handleKernelClick={handleKernelClick}
-              loadingKernel={loadingKernel}
-              visibleLogs={visibleLogs}
-              logRef={logRef}
-            />
-          )}
+          {activeTab === 'kernel' && !selectedArticle && (() => {
+            // Build a date-lookup map from the merged articles array
+            const dateMap = new Map(articles.map(a => [a.id, a.date || '']));
+            // Pin FISH_SCALE_11.1 first, then sort the rest newest → oldest by article date.
+            // Tiebreak by original array position descending so newly-appended entries
+            // (no date yet) still surface at the top rather than sinking to the bottom.
+            const [pinned, ...rest] = kernelBuilds;
+            const sortedBuilds = [
+              pinned,
+              ...rest
+                .map((k, i) => ({ k, i }))
+                .sort((a, b) => {
+                  const dateA = dateMap.get(a.k.articleId) || '';
+                  const dateB = dateMap.get(b.k.articleId) || '';
+                  if (dateA !== dateB) return dateB.localeCompare(dateA); // newest date first
+                  return b.i - a.i;                                        // tiebreak: last in array → shown first
+                })
+                .map(({ k }) => k),
+            ];
+            return (
+              <KernelTab
+                kernelAxioms={kernelAxioms}
+                kernelBuilds={sortedBuilds}
+                handleKernelClick={handleKernelClick}
+                loadingKernel={loadingKernel}
+                visibleLogs={visibleLogs}
+                logRef={logRef}
+              />
+            );
+          })()}
 
           {/* Scaling Tab */}
           {activeTab === 'scaling' && !selectedArticle && !architectThesis && (
