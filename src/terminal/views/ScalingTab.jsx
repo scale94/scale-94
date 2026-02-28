@@ -19,7 +19,7 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath }) => {
   return (
     <div className="animate-in fade-in duration-500 max-w-6xl mx-auto mt-8">
       <div className="flex items-center gap-3 mb-8 text-cyan-400 border-b border-cyan-900/50 pb-4">
-        <Hexagon className="w-8 h-8 animate-spin-slow" />
+        <Hexagon className="w-8 h-8 animate-spin-slow text-fuchsia-500" />
         <h2 className="text-3xl font-bold tracking-tighter uppercase">KERNEL_BUILDING_SERVICES</h2>
       </div>
 

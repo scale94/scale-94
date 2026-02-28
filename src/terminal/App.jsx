@@ -5,7 +5,13 @@ import { Analytics } from '@vercel/analytics/react';
 // Data
 import kernelAxioms from './data/kernelAxioms';
 import kernelBuilds from './data/kernelBuilds';
-import articles from './data/articles';
+import staticArticles from './data/articles';     // existing articles — keeps kernelBuilds IDs intact
+import autoArticles   from './data/loadArticles'; // auto-loaded .md files from content/soma_kernel
+
+// Merge: static articles always win (they have the correct IDs that kernelBuilds references).
+// Any new .md file not already covered by articles.js is appended automatically.
+const staticIds = new Set(staticArticles.map(a => a.id));
+const articles  = [...staticArticles, ...autoArticles.filter(a => !staticIds.has(a.id))];
 
 // Components
 import OctagonGrid from './components/OctagonGrid';

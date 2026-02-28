@@ -16,7 +16,8 @@
       "Bash(git -C \"E:\\\\scale_9.4\\\\content\\\\soma_kernel\" log --all --pretty=format:\"%h %s\")",
       "Bash(find:*)",
       "Bash(du:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(grep:*)"
     ]
   }
 }

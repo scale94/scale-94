@@ -49,7 +49,7 @@ const KernelTab = ({ kernelAxioms, kernelBuilds, handleKernelClick, loadingKerne
                   <div className="font-bold text-cyan-400 text-base mb-1 group-hover:text-cyan-300 transition-colors break-words">{kernel.name}</div>
                   <div className="text-xs text-[#39ff14] font-bold tracking-wide break-words">{kernel.desc}</div>
                 </div>
-                <div className="flex items-center gap-4 shrink-0">
+                <div className="flex items-center gap-4 shrink-0 ml-auto">
                   <div className={`text-[10px] font-bold px-3 py-1 rounded border bg-transparent tracking-widest whitespace-nowrap ${getStatusColor(kernel.status)}`}>
                     [{kernel.status}]
                   </div>
