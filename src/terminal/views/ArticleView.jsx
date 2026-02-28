@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import HackerText from '../components/HackerText';
 import renderContent from '../utils/renderContent';
@@ -9,6 +9,9 @@ const ArticleView = ({ article, originTab, handleReturnToRoot }) => {
   const contentBody = (article.content || '')
     .replace(/^#(?!#)[ \t]+[^\n]*\n?/, '')
     .trimStart();
+
+  // Generate once per article, not on every re-render
+  const sig = useMemo(() => Math.random().toString(36).substring(7), [article.id]);
 
   return (
   <div className="max-w-4xl mx-auto animate-in zoom-in-95 duration-300">
@@ -34,7 +37,7 @@ const ArticleView = ({ article, originTab, handleReturnToRoot }) => {
 
       <div className="mt-16 pt-8 border-t border-cyan-900/30 flex justify-between items-center text-[10px] font-bold tracking-widest text-gray-600 uppercase">
         <span>END OF TRANSMISSION</span>
-        <span>SIG: {Math.random().toString(36).substring(7)}</span>
+        <span>SIG: {sig}</span>
       </div>
     </div>
   </div>

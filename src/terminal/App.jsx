@@ -8,10 +8,21 @@ import kernelBuilds from './data/kernelBuilds';
 import staticArticles from './data/articles';     // existing articles — keeps kernelBuilds IDs intact
 import autoArticles   from './data/loadArticles'; // auto-loaded .md files from content/soma_kernel
 
-// Merge: static articles always win (they have the correct IDs that kernelBuilds references).
-// Any new .md file not already covered by articles.js is appended automatically.
-const staticIds = new Set(staticArticles.map(a => a.id));
-const articles  = [...staticArticles, ...autoArticles.filter(a => !staticIds.has(a.id))];
+// Normalise a title for duplicate detection — strips everything except a-z and digits.
+// e.g. "FISH SCALE KERNEL 11.1.1" and "FISH_SCALE_KERNEL11.1.1" both → "fishscalekernel1111"
+const normaliseTitle = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+// Merge: static articles always win (they carry the exact IDs kernelBuilds references).
+// Auto-loaded .md files are only appended when they are genuinely new — i.e. not already
+// covered by articles.js either by ID or by normalised title.
+const staticIds     = new Set(staticArticles.map(a => a.id));
+const staticTitles  = new Set(staticArticles.map(a => normaliseTitle(a.title)));
+const articles      = [
+  ...staticArticles,
+  ...autoArticles.filter(a =>
+    !staticIds.has(a.id) && !staticTitles.has(normaliseTitle(a.title))
+  ),
+];
 
 // Components
 import OctagonGrid from './components/OctagonGrid';
@@ -47,20 +58,22 @@ const App = () => {
   // Fiction articles for Transmission tab
   const transmissionStories = articles.filter(a => a.type === 'fiction');
 
-  // Filtered Articles — consolidated to a single pass (removed redundant double-filter)
-  const visibleArticles = articles.filter(a => {
-    if (a.type !== 'kernel_doc' || activeTab !== 'kernel') return false;
-    if (!searchFilter) return true;
-    const search = searchFilter.toLowerCase();
-    return (a.title || '').toLowerCase().includes(search) ||
-           (a.subtitle || '').toLowerCase().includes(search) ||
-           (a.tags && a.tags.some(t => t.toLowerCase().includes(search))) ||
-           (a.content || '').toLowerCase().includes(search);
-  });
+  // searchFilter is set by the 'search' terminal command but the results panel
+  // is not yet wired to a view — keeping the state for future use.
 
   useEffect(() => {
     const timer = setTimeout(() => setBootSequence(false), 2000);
     return () => clearTimeout(timer);
+  }, []);
+
+  // Scroll to top on initial mount — prevents autoFocus on the footer input
+  // from pulling mobile browsers down to the keyboard on first load.
+  useEffect(() => {
+    if (mainRef.current) {
+      mainRef.current.scrollTop = 0;
+    }
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
   }, []);
 
   // Scroll to top on navigation
@@ -352,7 +365,6 @@ const App = () => {
             onKeyDown={handleCommand}
             className="bg-transparent border-none outline-none flex-grow text-cyan-400 placeholder-cyan-900/50 font-bold"
             placeholder="enter command (e.g. load soma-9.0)"
-            autoFocus
           />
         </div>
       </footer>

@@ -43,20 +43,30 @@ const KernelTab = ({ kernelAxioms, kernelBuilds, handleKernelClick, loadingKerne
             <GitBranch className="w-4 h-4" /> ACTIVE_MODULES
           </h3>
           <ul className="space-y-4 text-sm font-mono text-[#39ff14] overflow-y-auto custom-scrollbar pr-2 flex-grow">
-            {kernelBuilds.map((kernel) => (
-              <li key={kernel.id} onClick={() => handleKernelClick(kernel)} className="flex flex-wrap justify-between items-center gap-y-3 border-b border-fuchsia-900/30 pb-4 mb-2 cursor-pointer hover:bg-cyan-900/10 p-3 rounded transition-all group gap-3">
-                <div className="min-w-0">
-                  <div className="font-bold text-cyan-400 text-base mb-1 group-hover:text-cyan-300 transition-colors break-words">{kernel.name}</div>
-                  <div className="text-xs text-[#39ff14] font-bold tracking-wide break-words">{kernel.desc}</div>
-                </div>
-                <div className="flex items-center gap-4 shrink-0 ml-auto">
-                  <div className={`text-[10px] font-bold px-3 py-1 rounded border bg-transparent tracking-widest whitespace-nowrap ${getStatusColor(kernel.status)}`}>
-                    [{kernel.status}]
+            {kernelBuilds.map((kernel) => {
+              const isLoading = loadingKernel === kernel.id;
+              return (
+                <li
+                  key={kernel.id}
+                  onClick={() => handleKernelClick(kernel)}
+                  className={`flex flex-wrap justify-between items-center gap-y-3 border-b border-fuchsia-900/30 pb-4 mb-2 cursor-pointer p-3 rounded transition-all group gap-3
+                    ${isLoading ? 'bg-cyan-900/20 border-cyan-500/50 animate-pulse' : 'hover:bg-cyan-900/10'}`}
+                >
+                  <div className="min-w-0">
+                    <div className="font-bold text-cyan-400 text-base mb-1 group-hover:text-cyan-300 transition-colors break-words">{kernel.name}</div>
+                    <div className="text-xs text-[#39ff14] font-bold tracking-wide break-words">
+                      {isLoading ? 'INITIALIZING...' : kernel.desc}
+                    </div>
                   </div>
-                  <ChevronRight className="w-5 h-5 text-cyan-500/50 group-hover:text-cyan-400 transition-colors" />
-                </div>
-              </li>
-            ))}
+                  <div className="flex items-center gap-4 shrink-0 ml-auto">
+                    <div className={`text-[10px] font-bold px-3 py-1 rounded border bg-transparent tracking-widest whitespace-nowrap ${getStatusColor(kernel.status)}`}>
+                      {isLoading ? '...' : `[${kernel.status}]`}
+                    </div>
+                    <ChevronRight className={`w-5 h-5 transition-colors ${isLoading ? 'text-cyan-400 animate-bounce' : 'text-cyan-500/50 group-hover:text-cyan-400'}`} />
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         </div>
 
