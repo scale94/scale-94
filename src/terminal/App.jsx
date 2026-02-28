@@ -296,24 +296,13 @@ const App = () => {
 
           {/* Kernel Tab */}
           {activeTab === 'kernel' && !selectedArticle && (() => {
-            // Build a date-lookup map from the merged articles array
-            const dateMap = new Map(articles.map(a => [a.id, a.date || '']));
-            // Pin FISH_SCALE_11.1 first, then sort the rest newest → oldest by article date.
-            // Tiebreak by original array position descending so newly-appended entries
-            // (no date yet) still surface at the top rather than sinking to the bottom.
+            // Pin FISH_SCALE_11.1 first.
+            // The rest are shown newest-first based on their position in kernelBuilds.js:
+            // the LAST entry in the file = most recently added = shown at position #2.
+            // Simple reversal is intentional — article dates are not reliable for ordering
+            // because many articles share the same bulk-import date (2026-02-20).
             const [pinned, ...rest] = kernelBuilds;
-            const sortedBuilds = [
-              pinned,
-              ...rest
-                .map((k, i) => ({ k, i }))
-                .sort((a, b) => {
-                  const dateA = dateMap.get(a.k.articleId) || '';
-                  const dateB = dateMap.get(b.k.articleId) || '';
-                  if (dateA !== dateB) return dateB.localeCompare(dateA); // newest date first
-                  return b.i - a.i;                                        // tiebreak: last in array → shown first
-                })
-                .map(({ k }) => k),
-            ];
+            const sortedBuilds = [pinned, ...rest.slice().reverse()];
             return (
               <KernelTab
                 kernelAxioms={kernelAxioms}

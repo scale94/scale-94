@@ -210,6 +210,7 @@ const kernelBuilds = [
   { id: 'EK-1.0', articleId: 'EK-1.0', name: 'EMPATHY_KERNEL_1_0', status: 'SYMBIOTIC', desc: 'EMPATHY KERNEL 1.0' },
   { id: 'NEK-1.0-2', articleId: 'NEK-1.0-2', name: 'NECROMANTIC_EMPEROR_KERNEL_V1_0', status: 'NOMINAL', desc: 'scale94 // Kleve // Deep-Time Resilience Architecture' },
   { id: 'SK-1.0-4', articleId: 'SK-1.0-4', name: 'SHADOWSOCKS_KERNEL_∞', status: 'ACTIVE', desc: 'I. THE BLIND SPOT ANALYSIS' },
+  { id: 'FSQ-11.6', articleId: 'FSQ-11.6', name: 'FISH_SCALE_KERNEL_V11_6_0_QUANTUM', status: 'QUANTUM', desc: 'ᛟ Systemless Root · Quantum Branch' },
 ];
 
 export default kernelBuilds;

@@ -1,3 +1,13 @@
+---
+id: FSQ-11.6
+title: FISH SCALE KERNEL · 11.6.0 · QUANTUM EXPANSION
+subtitle: ᛟ Systemless Root · Quantum Branch
+date: 2026-02-28
+status: ACTIVE
+readTime: 8 min read
+tags: [Quantum, Fish Scale, Fermion, Sovereignty, Decoherence]
+---
+
 # FISH SCALE KERNEL · 11.6.0 · QUANTUM EXPANSION
 ## ᛟ Systemless Root · Quantum Branch
 
