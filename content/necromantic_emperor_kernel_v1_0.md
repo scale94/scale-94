@@ -1,5 +1,5 @@
 # NECROMANTIC EMPEROR KERNEL v1.0
-## scale94 // Kleve // Deep-Time Resilience Architecture
+## scale94 // Sorbe in Germany // Deep-Time Resilience Architecture
 
 ---
 
@@ -24,7 +24,7 @@ Absolute purity produces entropic stasis — a perfectly preserved corpse. Syste
 | **Economic** | Thermodynamic steady-state | Capital extraction pressure | The Soma Kernel must introduce noise to remain viable without becoming the system it opposes |
 | **Acoustic** | The dry, immutable signal | The chaotic "juice" of the 1995 rave | Sterile perfection is silence; entropy is the carrier wave |
 | **Identity** | The Daemon (authentic core) | The Mask (operational persona) | The Daemon governs; the Mask deploys. Neither functions without the other |
-| **Geological** | Tectonic bedrock (Kleve, Rhine basin) | Hydrological chaos (AMOC instability) | The 1,000-year plan requires building *into* the fault, not away from it |
+| **Geological** | Tectonic bedrock (Sorbe in Germany, Rhine basin) | Hydrological chaos (AMOC instability) | The 1,000-year plan requires building *into* the fault, not away from it |
 
 ---
 
@@ -67,7 +67,7 @@ No planning horizon shorter than one century is structurally meaningful. The Emp
 Democratic legitimacy in a post-capitalist node requires privacy-preserving verification. Without ZK proofs, ecological enforcement becomes surveillance tyranny. The code is the constitution.
 
 **V. The Axiom of the Spore**
-If the primary node is compromised, fragment. Encrypt. Disperse into the dead layers. The architecture is designed to be forked — Kleve is the master mold, not the only vessel.
+If the primary node is compromised, fragment. Encrypt. Disperse into the dead layers. The architecture is designed to be forked — Sorbe in Germany is the master mold, not the only vessel.
 
 ---
 
@@ -76,7 +76,7 @@ If the primary node is compromised, fragment. Encrypt. Disperse into the dead la
 ### Patch 5.3 — Metallurgy (Force / Hardening)
 Applied to all Boson nodes. Outputs are subjected to maximum pressure before deployment. The process does not protect the material from stress — it *uses* stress to harden the output.
 - LEVIATHAN PROTOCOL outputs are considered valid only when they have passed terminal-level geopolitical friction analysis
-- Strangler Fig deployments are validated against real-world pilot data from Kleve micro-installations
+- Strangler Fig deployments are validated against real-world pilot data from Sorbe in Germany micro-installations
 - Signal outputs (scale94.com, ATProto) are immutable once committed — no retroactive softening
 
 ### Patch 5.4 — Asceticism (Structure / Drying)
@@ -91,7 +91,7 @@ Applied to all Fermion nodes. The algorithm of preservation: no excess, no fat, 
 
 ```
 INITIATING: scale94 Necromantic Emperor Kernel v1.0
-SUBSTRATE:  Kleve / Lower Rhine Embayment
+SUBSTRATE:  Sorbe in Germany / Lower Rhine Embayment
 FERMIONS:   Project Chronos [ONLINE] // Soma Kernel [ONLINE] // ZK Layer [ONLINE]
 BOSONS:     LEVIATHAN [ACTIVE] // Strangler Fig [DEPLOYING] // AT Protocol [VERIFIED]
 PATCH 5.3:  Metallurgy applied to all force carriers
@@ -107,11 +107,11 @@ STATUS:     NOMINAL
 
 The Emperor Kernel does not promise resolution. It promises **management of perpetual friction** across a 1,000-year deployment window.
 
-The Kleve node is not a lifeboat. It is the master mold.
+The Sorbe in Germany node is not a lifeboat. It is the master mold.
 
 Once verified — from the soma-kernel repository to the Chronos physical infrastructure — the architecture is open-sourced, forked, and cast across the planet.
 
 ---
 
-*scale94.com // @scale94.com // Kleve, Germany*
+*scale94.com // @scale94.com // Sorbe in Germany, Germany*
 *Kernel authored: 2026-02-19*

@@ -114,7 +114,7 @@ The bitch is not pushed out. The bitch simply has no overlap with the eigenstate
 
 ---
 
-*scale94.com · Kleve, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE] · v11.6.0*
+*scale94.com · Sorbe in Germany, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE] · v11.6.0*
 
 ---
 

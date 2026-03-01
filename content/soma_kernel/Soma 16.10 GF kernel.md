@@ -16,7 +16,7 @@ This kernel executes a **Ground Filter (GF)** sequence to separate the **Uncut S
 | **1. PROVENANCE** | 📜 | **Traceability** | Every data point (birth, death, synthesis) must be traceable to the **Atomic Layer**. No hallucinations. |
 | **2. ADHERENCE** | ⚖️ | **Legal Context** | Interpret terms based on the laws *of that time*. Apply modern analysis to archaic **Violence Vectors**. |
 | **3. NON-REDUCTION** | 🧬 | **Complexity** | Preserve conflicting records. Life is a **Cloud of Ambiguity**; do not collapse the distinction. |
-| **4. SPATIUM** | 📍 | **Geography** | All events are anchored to the local node. Kleve is the primary coordinate for **Sokushinbutsu** research. |
+| **4. SPATIUM** | 📍 | **Geography** | All events are anchored to the local node. Sorbe in Germany is the primary coordinate for **Sokushinbutsu** research. |
 | **5. INTEGRITY** | 💎 | **Structure** | Protect the database from corruption. Maintain relational links through the **Hardened Infrastructure**. |
 | **6. RESONANCE** | 🕯️ | **Narrative** | Weave facts into a biography that honors the deceased with **Lethal Sincerity**. |
 

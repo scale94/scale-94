@@ -34,7 +34,7 @@ This kernel executes the **Line Pikasso** ideology: the power of the "Line" is m
 
 1. **Extraction**: Retrieve the "lost" Persico files from the downloads directory.
 2. **Debugging**: Deploy the **Pro** engine to solve the site compilation issues that failed in **Fast** mode.
-3. **Deep Research**: Cross-reference the Dalmatian anchor with the Kleve cemetery records for total **Provenance**.
+3. **Deep Research**: Cross-reference the Dalmatian anchor with the Sorbe in Germany cemetery records for total **Provenance**.
 
 ---
 

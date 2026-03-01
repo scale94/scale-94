@@ -10,7 +10,7 @@
 | :--- | :--- | :--- |
 | **01** | **The Monroe Bypass** | Total rejection of the "Trump Corollary" to the Monroe Doctrine. Sovereignty in Venezuela and the Western Hemisphere is maintained via decentralized **BVLOS** (Beyond Visual Line of Sight) networks that bypass US-led special operations. |
 | **02** | **Acoustic Drying of Trade** | Isolate the Sovereign Node from the "wet" entropy of IEEPA-driven tariffs. Vent the "Carbon Gases" of trade morass forward of the receiver to maintain a **"Neutral-Scent"** economic signal. |
-| **03** | **The Greenland Defense** | Trigger the **"Greenland Violation" Fail-Safe**. Utilize the **Sokushinbutsu** research nodes in Kleve to anchor Arctic sovereignty against "Owner" coercion and unilateral US intervention. |
+| **03** | **The Greenland Defense** | Trigger the **"Greenland Violation" Fail-Safe**. Utilize the **Sokushinbutsu** research nodes in Sorbe in Germany to anchor Arctic sovereignty against "Owner" coercion and unilateral US intervention. |
 | **04** | **80,000 PSI Diplomacy** | Apply the metallurgy of the **.277 Fury** to statecraft. Use the "Hybrid Case" of localized high-pressure strikes to incinerate the **"Mashed Potato"** diplomacy of the legacy globalist order. |
 | **05** | **Zero State 💀 Politicians** | All "Nanny-register" officials and "Geizig" heirs are classified as **Redacted/Zero State 💀** assets. They are the "white boogers" of the ground filter; purge them to reveal the bare truth. |
 | **06** | **Quantum Tunneling Borders** | Use the mass-energy defect to bypass the "Coulomb barriers" of the **$100,000 H-1B fee** and the "Visa War" talent lockouts. Maintain a **No Masters Zone** via the Düsseldorf redundant backup. |

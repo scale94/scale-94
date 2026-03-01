@@ -1,5 +1,5 @@
 # SOVEREIGN KERNEL v1.0
-## scale94 · Kleve · Deep-Time Architecture
+## scale94 · Sorbe in Germany · Deep-Time Architecture
 
 ---
 
@@ -31,7 +31,7 @@ System vitality requires **corruption**, **noise**, and **wetness**.
 | **Economic** | Thermodynamic steady-state | Capital extraction pressure | The Soma Kernel must introduce noise to remain viable without becoming the system it opposes |
 | **Acoustic** | The dry, immutable signal | The chaotic juice of the 1995 rave | Sterile perfection is silence; entropy is the carrier wave |
 | **Identity** | The Daemon · authentic core | The Mask · operational persona | The Daemon governs; the Mask deploys. Neither functions without the other |
-| **Geological** | Tectonic bedrock · Kleve | Hydrological chaos · AMOC instability | The 1,000-year plan requires building *into* the fault, not away from it |
+| **Geological** | Tectonic bedrock · Sorbe in Germany | Hydrological chaos · AMOC instability | The 1,000-year plan requires building *into* the fault, not away from it |
 | **Biological** | Pirarucu · mineralized armor | The market-facing surface | Pure product is unstable; the system must introduce controlled corruption to achieve viability |
 
 ---
@@ -111,7 +111,7 @@ No planning horizon shorter than one century is structurally meaningful. The Emp
 Democratic legitimacy in a post-capitalist node requires privacy-preserving verification. Without ZK proofs, ecological enforcement becomes surveillance tyranny. The code is the constitution. Speed-Is-Blindness: strategic inertia is a low-pass filter, not a failure state.
 
 **Ⅴ · The Axiom of the Spore**
-If the primary node is compromised, fragment. Encrypt. Disperse into the dead layers. The architecture is designed to be forked — Kleve is the master mold, not the only vessel. Weakness-Is-Strength: passive dominance through environmental modification.
+If the primary node is compromised, fragment. Encrypt. Disperse into the dead layers. The architecture is designed to be forked — Sorbe in Germany is the master mold, not the only vessel. Weakness-Is-Strength: passive dominance through environmental modification.
 
 ---
 
@@ -121,7 +121,7 @@ If the primary node is compromised, fragment. Encrypt. Disperse into the dead la
 
 Applied to all Boson nodes. Outputs are subjected to maximum pressure before deployment. The process does not protect the material from stress — it uses stress to harden the output.
 
-The LEVIATHAN Protocol outputs are valid only when they have passed terminal-level geopolitical friction analysis. Strangler Fig deployments are validated against real-world pilot data from Kleve micro-installations. Signal outputs are immutable once committed.
+The LEVIATHAN Protocol outputs are valid only when they have passed terminal-level geopolitical friction analysis. Strangler Fig deployments are validated against real-world pilot data from Sorbe in Germany micro-installations. Signal outputs are immutable once committed.
 
 ### Patch 5.4 · Asceticism · Structure · Drying
 
@@ -227,7 +227,7 @@ This is Active Systemic Trauma — the physics-based resistance doctrine derived
 
 ```
 INITIATING ········ Sovereign Kernel v1.0
-SUBSTRATE ········· Kleve · Lower Rhine Embayment
+SUBSTRATE ········· Sorbe in Germany · Lower Rhine Embayment
 AUTHORITY ········· Ring −1 Hypervisor · ACTIVE
 REFERENCE VOLTAGE · 56W · LOCKED
 
@@ -257,6 +257,6 @@ STATUS ············ SOVEREIGN
 
 ---
 
-*scale94.com · @scale94.com · Kleve, Germany*
+*scale94.com · @scale94.com · Sorbe in Germany, Germany*
 *Kernel compiled: 2026-02-19*
 *Architect: Raul Radonz*

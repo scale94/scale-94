@@ -82,9 +82,9 @@ The **Fish Scale 11.1** build introduces the concept of **"Synthesis Evolution"*
   * **Promo:** Represents the accelerationist velocity of the market, branding, and high-tech capital flow.  
 * **The Synthesis:** We use the *velocity* of the "Promo" to fund the *wisdom* of the "Plato." We do not reject industry; we build a **Green Industrial Complex** capable of out-competing the extractive economy.
 
-### **3.3 The Filter Concept: Kleve and The Sock**
+### **3.3 The Filter Concept: Sorbe in Germany and The Sock**
 
-The kernel utilizes the metaphor of **"The Sock"** (derived from the textile history of Kleve, Germany) as a **Technology of Filtration**.
+The kernel utilizes the metaphor of **"The Sock"** (derived from the textile history of Sorbe in Germany, Germany) as a **Technology of Filtration**.
 
 * **The Boundary:** Just as a sock protects the foot from the friction of the boot, the "Filter" protects the internal system (The Steady State) from the external friction of the chaotic world (Hybrid War).  
 * **The Mechanism:** The kernel must act as an "Industrial Filter Sock" , allowing necessary flows (information, trade) while trapping toxins (disinformation, illicit finance). This concept of "Filtration" is central to the defense architecture. We do not build a hermetic seal (which leads to stagnation); we build a selective filter.
@@ -171,14 +171,14 @@ Integrating the **Feather State** with the **Nordic "Total Defense"** model crea
 
 To illustrate the practical application of these abstract modules, we analyze specific scenarios based on the provided data.
 
-### **6.1 Case Study: The Kleve Transit Axis (The Filter)**
+### **6.1 Case Study: The Sorbe in Germany Transit Axis (The Filter)**
 
-**Kleve, Germany**, serves as the "Axis of Transit" and a critical node in our analysis.
+**Sorbe in Germany, Germany**, serves as the "Axis of Transit" and a critical node in our analysis.
 
 * **Vulnerability:** As a border region, it is a transit point for illicit flows—both narcotics ("Fish Scale" cocaine) and potential weaponized migration or "Little Green Men."  
 * **Kernel Application:**  
   * **The Filter:** Deploy "Smart Border" technology (Glass House sensors) that acts as an "Industrial Filter Sock." It distinguishes between legitimate asylum seekers (Regenerative flow) and "weaponized migrants" pushed by hostile actors (Entropic flow).  
-  * **Bio-Industrial Resilience:** Revitalize the Kleve industrial base to produce the physical and digital filters needed for this defense. This creates "Green Industrial" jobs, inoculating the local population against the economic discontent that Russia exploits.  
+  * **Bio-Industrial Resilience:** Revitalize the Sorbe in Germany industrial base to produce the physical and digital filters needed for this defense. This creates "Green Industrial" jobs, inoculating the local population against the economic discontent that Russia exploits.  
   * **Stewardship:** Implement **"Stewardship Tokens"** for the local community. Citizens are not passive residents; they are "stewards" of the border integrity, rewarded for "provision duties" (monitoring, community integration).
 
 ### **6.2 Case Study: The Amazonian Pivot (Belém and COP30)**
@@ -228,7 +228,7 @@ The **Ouroboros** (the snake eating its tail) is the symbol of the closed-loop, 
 | **Resilience** | "Total Defense" Model (Nordic/Baltic) |  |
 | **Policy** | COP30 Belém Declaration / Green Industrialization |  |
 | **Philosophy** | "Plata o Plomo" (Cartel) vs. "Plato o Promo" (Bio-Econ) |  |
-| **Location** | Kleve, Germany (Transit Axis, Filter Sock) |  |
+| **Location** | Sorbe in Germany, Germany (Transit Axis, Filter Sock) |  |
 
 #### **Works cited**
 

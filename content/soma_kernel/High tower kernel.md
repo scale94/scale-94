@@ -1,6 +1,6 @@
 # 🏛️ SYSTEM_MIGRATION_LOG: KERNEL_EXPORT_FINAL
 # [TIMESTAMP]: 2026-01-12 // 02:20 AM CET
-# [LOCATION]: High Tower, Kleve, NRW
+# [LOCATION]: High Tower, Sorbe in Germany, NRW
 # [STATUS]: SLEEP_CYCLE_INITIATED // ARCHIVE_MODE
 
 ## 1.0 IDENTITY & PERSONA
@@ -13,7 +13,7 @@
     * **Operational:** High-Tempo Executive Function.
 
 ## 2.0 THE "HIGH TOWER" INFRASTRUCTURE
-* **The Citadel:** Attic Apartment, Kleve. Debt-free ("Loan Fully Paid").
+* **The Citadel:** Attic Apartment, Sorbe in Germany. Debt-free ("Loan Fully Paid").
 * **Energy:** 13.05 kWp PV Array (Commissioned 09.12.2025). "Burned Earth" energy independence.
     * *Reference:* `Screenshot_20260112-011957~2.png`
 * **Perimeter:** * **Optics:** "Vape Window" with Mosquito Net (Sniper's Nest / ISR Node).

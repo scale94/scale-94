@@ -21,7 +21,10 @@
       "Bash(test:*)",
       "Bash(copy \"C:\\\\Users\\\\raul-\\\\My Drive\\\\Obsidian Vault\\\\trunk\\\\soma_kernel\\\\fish_scale_kernel-v11.6.0-quantum.md\" \"E:\\\\scale_9.4\\\\content\\\\soma_kernel\\\\fish_scale_kernel-v11.6.0-quantum.md\")",
       "Bash(python3:*)",
-      "Bash(node -e:*)"
+      "Bash(node -e:*)",
+      "Bash(node import-kernel.js ./content/soma_kernel/fish_scale_kernel-11.7.0.md)",
+      "Bash(node import-kernel.js ./content/soma_kernel/)",
+      "Bash(node cleanup-and-reimport.js ./content/soma_kernel/)"
     ]
   }
 }
