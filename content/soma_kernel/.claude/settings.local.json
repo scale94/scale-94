@@ -19,7 +19,9 @@
       "Bash(npm run build:*)",
       "Bash(grep:*)",
       "Bash(test:*)",
-      "Bash(copy \"C:\\\\Users\\\\raul-\\\\My Drive\\\\Obsidian Vault\\\\trunk\\\\soma_kernel\\\\fish_scale_kernel-v11.6.0-quantum.md\" \"E:\\\\scale_9.4\\\\content\\\\soma_kernel\\\\fish_scale_kernel-v11.6.0-quantum.md\")"
+      "Bash(copy \"C:\\\\Users\\\\raul-\\\\My Drive\\\\Obsidian Vault\\\\trunk\\\\soma_kernel\\\\fish_scale_kernel-v11.6.0-quantum.md\" \"E:\\\\scale_9.4\\\\content\\\\soma_kernel\\\\fish_scale_kernel-v11.6.0-quantum.md\")",
+      "Bash(python3:*)",
+      "Bash(node -e:*)"
     ]
   }
 }
