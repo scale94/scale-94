@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect, useMemo, lazy, Suspense } from 'react';
 import { Hexagon, Cpu, Lock, Scale, Eye } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
 
@@ -31,14 +31,14 @@ import BootSequence from './components/BootSequence';
 // Hooks
 import useSystemLog from './hooks/useSystemLog';
 
-// Views
-import KernelTab from './views/KernelTab';
-import ScalingTab from './views/ScalingTab';
-import ManifestoTab from './views/ManifestoTab';
-import PrivacyTab from './views/PrivacyTab';
-import ArticleView from './views/ArticleView';
-import ThesisView from './views/ThesisView';
-import TransmissionTab from './views/TransmissionTab';
+// Views — lazy-loaded so each tab bundle is only downloaded when first visited
+const KernelTab       = lazy(() => import('./views/KernelTab'));
+const ScalingTab      = lazy(() => import('./views/ScalingTab'));
+const ManifestoTab    = lazy(() => import('./views/ManifestoTab'));
+const PrivacyTab      = lazy(() => import('./views/PrivacyTab'));
+const ArticleView     = lazy(() => import('./views/ArticleView'));
+const ThesisView      = lazy(() => import('./views/ThesisView'));
+const TransmissionTab = lazy(() => import('./views/TransmissionTab'));
 
 const App = () => {
   const [currentPath, setCurrentPath] = useState('~/system/kernel');
@@ -55,8 +55,14 @@ const App = () => {
 
   const mainRef = useRef(null);
 
-  // Fiction articles for Transmission tab
-  const transmissionStories = articles.filter(a => a.type === 'fiction');
+  // Fiction articles for Transmission tab — memoised (articles is module-level, never changes)
+  const transmissionStories = useMemo(() => articles.filter(a => a.type === 'fiction'), []);
+
+  // Kernel ordering — pinned first, rest reversed. kernelBuilds is a static import so [] dep is safe.
+  const sortedBuilds = useMemo(() => {
+    const [pinned, ...rest] = kernelBuilds;
+    return [pinned, ...rest.slice().reverse()];
+  }, []);
 
   // searchFilter is set by the 'search' terminal command but the results panel
   // is not yet wired to a view — keeping the state for future use.
@@ -285,6 +291,7 @@ const App = () => {
       </header>
 
       <main ref={mainRef} className="flex-grow overflow-y-auto overflow-x-hidden p-4 md:p-8 relative z-10 scroll-smooth">
+        <Suspense fallback={<div className="text-cyan-400 font-mono tracking-widest animate-pulse p-8">// LOADING MODULE...</div>}>
         <div className="max-w-[1600px] mx-auto">
           <div className="mb-8 flex items-center text-sm font-bold tracking-wider min-w-0 overflow-hidden">
             <span className="mr-2 text-fuchsia-500">scale@node:</span>
@@ -295,25 +302,16 @@ const App = () => {
           </div>
 
           {/* Kernel Tab */}
-          {activeTab === 'kernel' && !selectedArticle && (() => {
-            // Pin FISH_SCALE_11.1 first.
-            // The rest are shown newest-first based on their position in kernelBuilds.js:
-            // the LAST entry in the file = most recently added = shown at position #2.
-            // Simple reversal is intentional — article dates are not reliable for ordering
-            // because many articles share the same bulk-import date (2026-02-20).
-            const [pinned, ...rest] = kernelBuilds;
-            const sortedBuilds = [pinned, ...rest.slice().reverse()];
-            return (
-              <KernelTab
-                kernelAxioms={kernelAxioms}
-                kernelBuilds={sortedBuilds}
-                handleKernelClick={handleKernelClick}
-                loadingKernel={loadingKernel}
-                visibleLogs={visibleLogs}
-                logRef={logRef}
-              />
-            );
-          })()}
+          {activeTab === 'kernel' && !selectedArticle && (
+            <KernelTab
+              kernelAxioms={kernelAxioms}
+              kernelBuilds={sortedBuilds}
+              handleKernelClick={handleKernelClick}
+              loadingKernel={loadingKernel}
+              visibleLogs={visibleLogs}
+              logRef={logRef}
+            />
+          )}
 
           {/* Scaling Tab */}
           {activeTab === 'scaling' && !selectedArticle && !architectThesis && (
@@ -359,6 +357,7 @@ const App = () => {
             />
           )}
         </div>
+        </Suspense>
       </main>
 
       <footer className="border-t border-cyan-900/50 p-2 bg-black/90 backdrop-blur-md z-40 shadow-[0_0_15px_rgba(6,182,212,0.1)] overflow-x-hidden w-full">

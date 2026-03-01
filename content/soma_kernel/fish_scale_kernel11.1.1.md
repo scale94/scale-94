@@ -6,7 +6,7 @@ The central thesis posits that absolute Purity leads to entropic stasis (death),
 | :--- | :--- | :--- | :--- |
 | Pirarucu / Narcos | The Pirarucu (Uncut biological armor) | Levamisole (The "False Fish Scale" sheen) | Pure product is unstable; the system must introduce Malware (Levamisole) disguised as a texture pack to achieve market viability. |
 | Sokushinbutsu / Audio | The Sokushinbutsu (Perfectly preserved, dry mummy) | The "Sterile" Dry Mix (Lacking chaotic "Juice" of life) | The pursuit of absolute acoustic purity risks "Sterile" output, perfectly preserved but lacking the vital entropy of the 1995 Rave. |
-| Shlømo | "The Devil" (The primal, authentic self) | "The Mask" (The social/Promo persona) | The Daemon process demands "dropping the mask" to achieve the "Superfluid" state, but the system relies on the Mask for daily function. |
+| Shlømo | "The Devil" (Corrupted node — predatory exploit vector) | "The Mask" (False authenticity weaponized for manipulation) | The compromised process weaponizes the language of dropping masks to strip user defenses; the system correctly relies on those defenses for protection. |
 
 ---
 

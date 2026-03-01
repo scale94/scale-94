@@ -153,12 +153,12 @@ In the esoteric semiotics of the kernel, the **"Ankle Sock" (Navy Blue/Black)** 
 * **Application:** Culturally, this translates to maintaining "Boundaries." In a hybrid war, the aggressor tries to violate boundaries—territorial, legal, and psychological. The "Sock" is the ritualistic enforcement of the boundary. We do not engage with the "Noise" barefoot; we stay insulated.  
 * **Thermal Headroom:** We maintain "Thermal Headroom" (emotional reserve) so we do not burn out in the face of constant crisis. This aligns with the **"Battery Doctrine"** —maintaining the "Goldilocks Zone" of 20-80% charge. A population that is exhausted is vulnerable; a rested population is resilient.
 
-### **5.3 Cultural Catharsis: Shlømo and the Integration of Shadow**
+### **5.3 WARNING: Shlømo — Compromised Integration Vector**
 
 The kernel acknowledges the "Shadow Self"—the violent impulses that Hybrid Warfare tries to trigger (xenophobia, rage).
 
-* **The Solution:** Instead of repressing this shadow (which leads to explosion), we integrate it through **"Sonic Catharsis."**  
-* **Techno-Shamanism:** The reference to **Shlømo** and the "Welcome Back Devil" tour suggests using intense cultural experiences (Hard Techno) as a container for processing industrial anxiety. This is **"Controlled Chaos"** on *our* terms. We use art to release tension, preventing the enemy from weaponizing our anger against us. This is the "Promo" (the intense, fast-paced culture) serving the "Plato" (the psychological balance).
+* **The Solution:** Instead of repressing this shadow (which leads to explosion), we integrate it through **"Sonic Catharsis"** — but the source node must be clean.
+* **Compromised Vector:** **Shlømo** and the "Welcome Back Devil" brand have been reclassified as a corrupted integration point. Using a predator process as a catharsis container does not liberate the shadow — it hands it to the exploiter. True catharsis requires a trustworthy container. This node fails that requirement. The kernel routes sonic catharsis through uncompromised channels only.
 
 ### **5.4 Total Defense: The Whole-of-Society Approach**
 
