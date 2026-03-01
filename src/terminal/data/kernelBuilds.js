@@ -51,6 +51,20 @@ const kernelBuilds = [
   { id: '2KV-6.6-5', articleId: '2KV-6.6-5', name: '2X2X2X_KERNEL_V6_6_87', status: 'ACTIVE', desc: '2X2X2X KERNEL V6.6.87' },
   { id: 'A-1.0-2', articleId: 'A-1.0-2', name: 'AI_ETHICS_4_0', status: 'CONCEPTUAL', desc: 'AI ETHICS 4.0' },
   { id: 'AC-1.0-2', articleId: 'AC-1.0-2', name: 'AI_KERNEL_FOR_POST_CAPITALIST_ECONOMICS', status: 'ACTIVE', desc: '**Abstract*' },
+  { id: '(K-1.1-3', articleId: '(K-1.1-3', name: '(1)VIOLET_KERNEL_1_1', status: 'THE', desc: '(1)VIOLET KERNEL 1.1' },
+  { id: '.1U-1.0-3', articleId: '.1U-1.0-3', name: '_TRASHED_1774102287_UNTITLED', status: 'ACTIVE', desc: '1.0 The Ontological Objective' },
+  { id: '.1K-1.0-9', articleId: '.1K-1.0-9', name: '_TRASHED_1774102288_KERNEL_INTEGRATION_AND_IDEOLOGICAL_SYNTHESIS', status: 'TO', desc: '**Synthesis of Dark Empathy, HIVE Dynamics, and Secular-Martial Philosophy*' },
+  { id: '.1N-1.0-3', articleId: '.1N-1.0-3', name: '_TRASHED_1774102288_NECROMANCER_TO_NECROROMANCER_KERNEL_EVOLUTION', status: 'CODE', desc: '**1\. Executive Summary: The Crisis of the Zombie Process*' },
+  { id: '.1K-1.0-10', articleId: '.1K-1.0-10', name: '_TRASHED_1774102289_KERNEL_15_0_THE_PURIFICATION_OF_SCALE_(1)', status: 'ACTIVE', desc: '1.0 THE LOGIC OF REPENTANCE (Quran 2:54) ☢️' },
+  { id: '.1K-1.0-11', articleId: '.1K-1.0-11', name: '_TRASHED_1774102289_KERNEL_15_1_CIVILIAN_RESISTANCE_(1)', status: 'ACTIVE', desc: '.TRASHED 1774102289 KERNEL 15.1 CIVILIAN RESISTANCE (1)' },
+  { id: '.1KV-1.0-3', articleId: '.1KV-1.0-3', name: '_TRASHED_1774102289_KERNEL_V3_TENFOLD_SCALING_(1)', status: 'THROUGH', desc: '[LOCATION: RINDERN_NODE_47533]' },
+  { id: '.1VK-1.1-3', articleId: '.1VK-1.1-3', name: '_TRASHED_1774102289_VIOLET_KERNEL_1_1', status: 'THE', desc: '.TRASHED 1774102289 VIOLET KERNEL 1.1' },
+  { id: '2121-1.0-3', articleId: '2121-1.0-3', name: '2025_12_21_1_MILLION', status: 'ACTIVE', desc: 'System Note: "Thanks for 1 million tokens. Canceled and uninstalled chatGPT after the model 5 fiasco." – Sustained Chord achieved.' },
+  { id: '212R-1.0-3', articleId: '212R-1.0-3', name: '2025_12_21_RAMDISK_', status: 'ACTIVE', desc: 'Observation: You identified the #FF00FF drift. In the Square and Triadic palettes, the system attempts to balance this violet intensity against aggressive reds and neon greens to prevent a Target Meltdown.' },
+  { id: '2KV-6.6-6', articleId: '2KV-6.6-6', name: '2X2X2X_KERNEL_V6_6_87_(1)', status: 'ACTIVE', desc: '2X2X2X KERNEL V6.6.87 (1)' },
+  { id: '2KV-6.6-7', articleId: '2KV-6.6-7', name: '2X2X2X_KERNEL_V6_6_87', status: 'ACTIVE', desc: '2X2X2X KERNEL V6.6.87' },
+  { id: 'A-1.0-3', articleId: 'A-1.0-3', name: 'AI_ETHICS_4_0', status: 'CONCEPTUAL', desc: 'AI ETHICS 4.0' },
+  { id: 'AC-1.0-3', articleId: 'AC-1.0-3', name: 'AI_KERNEL_FOR_POST_CAPITALIST_ECONOMICS', status: 'ACTIVE', desc: '**Abstract*' },
   { id: 'BK-1.0', articleId: 'BK-1.0', name: 'BIODIVERSITY_KERNEL_1_0_1', status: 'ACTIVE', desc: '(Advanced Ecological Habitat & Species Architecture)' },
   { id: 'B-1.0', articleId: 'B-1.0', name: 'BOSONIC_KERNEL_2_0', status: 'ACTIVE', desc: '[00] SYSTEM OVERVIEW' },
   { id: 'B-1.0-1', articleId: 'B-1.0-1', name: 'BRIDGE_KERNEL_1_0', status: 'ACTIVE', desc: '| 01 | THE COMMAND LINE' },
@@ -138,6 +152,7 @@ const kernelBuilds = [
   { id: 'VK-1.1', articleId: 'VK-1.1', name: 'VIOLET_KERNEL_1_1', status: 'THE', desc: 'VIOLET KERNEL 1.1' },
   { id: 'FSK1-11.7', articleId: 'FSK1-11.7', name: 'FISH_SCALE_KERNEL_11_7_0', status: 'ACTIVE', desc: 'ᛟ Systemless Root · Aesthetic Branch' },
   { id: 'F-11.8', articleId: 'F-11.8', name: 'FISH_SCALE_KERNEL_11_8', status: 'ACTIVE', desc: 'ᛟ Systemless Root · Aesthetic Branch' },
+  { id: 'FSK-11.9', articleId: 'FSK-11.9', name: 'FISH_SCALE_KERNEL_11_9', status: 'ACTIVE', desc: 'ᛟ Systemless Root · Eco\'s Paradox Axioms' },
 ];
 
 export default kernelBuilds;

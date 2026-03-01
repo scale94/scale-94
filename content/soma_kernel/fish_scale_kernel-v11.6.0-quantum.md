@@ -8,8 +8,6 @@ readTime: 8 min read
 tags: [Quantum, Fish Scale, Fermion, Sovereignty, Decoherence]
 ---
 
-# FISH SCALE KERNEL · 11.6.0 · QUANTUM EXPANSION
-## ᛟ Systemless Root · Quantum Branch
 
 > *"The wavefunction does not collapse because you observe it politely."*
 
