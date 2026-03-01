@@ -1,12 +1,12 @@
 import React from 'react';
-import { Database, GitBranch, Shield, ChevronRight, Hexagon } from 'lucide-react';
+import { Database, GitBranch, Shield, ChevronRight, Cpu } from 'lucide-react';
 
 const KernelTab = ({ kernelAxioms, kernelBuilds, handleKernelClick, loadingKernel, visibleLogs, logRef }) => (
   <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
     <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-cyan-900/50 pb-4 mb-8">
       <div>
         <h2 className="text-4xl font-bold mb-1 text-cyan-400 tracking-tight flex items-center gap-3">
-          <Hexagon className="w-8 h-8 text-[#39ff14] shrink-0" style={{animation: 'spin 12s linear infinite reverse'}} />
+          <Cpu className="w-8 h-8 shrink-0 text-[#39ff14]" />
           SYSTEM_KERNEL
         </h2>
         <div className="text-sm text-fuchsia-400 font-bold tracking-widest">VERSION: SOMA 11.1 // BUILD: FISH_SCALE_NECROMANCER</div>
