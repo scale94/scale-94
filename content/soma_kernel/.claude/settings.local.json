@@ -25,7 +25,8 @@
       "Bash(node import-kernel.js ./content/soma_kernel/fish_scale_kernel-11.7.0.md)",
       "Bash(node import-kernel.js ./content/soma_kernel/)",
       "Bash(node cleanup-and-reimport.js ./content/soma_kernel/)",
-      "Bash(node cleanup-and-reimport.js)"
+      "Bash(node cleanup-and-reimport.js)",
+      "Bash(npm install)"
     ]
   }
 }
