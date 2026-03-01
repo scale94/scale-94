@@ -1,6 +1,5 @@
 import React from 'react';
 import { Database, GitBranch, Shield, ChevronRight } from 'lucide-react';
-import getStatusColor from '../utils/getStatusColor';
 
 const KernelTab = ({ kernelAxioms, kernelBuilds, handleKernelClick, loadingKernel, visibleLogs, logRef }) => (
   <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -59,8 +58,8 @@ const KernelTab = ({ kernelAxioms, kernelBuilds, handleKernelClick, loadingKerne
                     </div>
                   </div>
                   <div className="flex items-center gap-4 shrink-0 ml-auto">
-                    <div className={`text-[10px] font-bold px-3 py-1 rounded border bg-transparent tracking-widest whitespace-nowrap ${getStatusColor(kernel.status)}`}>
-                      {isLoading ? '...' : `[${kernel.status}]`}
+                    <div className="text-[10px] font-bold px-3 py-1 rounded border bg-transparent tracking-widest whitespace-nowrap border-cyan-500 text-cyan-500 shadow-[0_0_5px_rgba(6,182,212,0.3)]">
+                      {isLoading ? '...' : '[LOAD]'}
                     </div>
                     <ChevronRight className={`w-5 h-5 transition-colors ${isLoading ? 'text-cyan-400 animate-bounce' : 'text-cyan-500/50 group-hover:text-cyan-400'}`} />
                   </div>
