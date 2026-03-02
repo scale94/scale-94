@@ -9,24 +9,20 @@ const BOOT_LINES = [
   ['INTEGRITY CHECK',           'PASS'],
 ];
 
-// React.memo — BootSequence has no props, so it NEVER re-renders from parent
-// App.jsx state changes (useSystemLog, etc.).  This is critical: any re-render
-// that touches an element's `animation` style — even with the same value — can
-// reset the running CSS animation in some browsers.
+// React.memo — no props means parent App re-renders never touch this component.
 const BootSequence = () => {
   // phase 0 = spinning window (0–2 s)
-  // phase 1 = fading window  (2–3 s) — set by a JS timer, NOT by a CSS keyframe
+  // phase 1 = fading  window (2–3 s) — driven by a JS timer
   const [phase, setPhase] = useState(0);
 
   useEffect(() => {
     const t = setTimeout(() => setPhase(1), 2000);
-    return () => clearTimeout(t);   // cleanup handles React.StrictMode double-mount
+    return () => clearTimeout(t);
   }, []);
 
   return (
     <div className="min-h-screen bg-black font-mono flex items-center justify-center p-4 overflow-hidden relative">
-      {/* All bs-* keyframes live in index.css — never in a JSX <style> tag,
-          which React can re-inject on re-renders and reset running animations. */}
+      {/* All bs-* keyframes + .bs-card / .bs-card-fade live in index.css */}
 
       {/* Static CRT scanlines texture */}
       <div style={{
@@ -41,16 +37,13 @@ const BootSequence = () => {
         animation: 'bs-scan 0.9s linear infinite',
       }} />
 
-      {/* Whole-frame card wrapper.
-          The fade is a CSS *transition* triggered by a JS state change — NOT a
-          @keyframes animation — so it cannot be accidentally reset by React. */}
-      <div
-        className="max-w-lg w-full relative z-10"
-        style={{
-          opacity: phase === 0 ? 1 : 0,
-          transition: 'opacity 1s linear',
-        }}
-      >
+      {/* Card wrapper.
+          Fade is a CSS *class transition* (.bs-card → .bs-card-fade), NOT an
+          inline-style change.  This guarantees the browser has a painted opacity:1
+          starting point before the 1-second transition begins.
+          The CPU animation string is NEVER changed — bs-cpuSpin self-terminates
+          via `forwards` at t=2s and the element stays upright without any JS touch. */}
+      <div className={`max-w-lg w-full relative z-10 bs-card${phase === 1 ? ' bs-card-fade' : ''}`}>
 
         {/* Glowing gradient border */}
         <div style={{
@@ -73,11 +66,11 @@ const BootSequence = () => {
                 className="shrink-0 text-[#39ff14]"
                 style={{
                   width: '2.75rem', height: '2.75rem',
-                  // Phase 0: 2 full rotations in 2 s (ease-out, holds at 720° via forwards) + glow
-                  // Phase 1: spin dropped — glow continues while card fades out
-                  animation: phase === 0
-                    ? 'bs-cpuSpin 2s ease-out forwards, bs-cpuGlow 1.2s ease-in-out 0.4s infinite'
-                    : 'bs-cpuGlow 1.2s ease-in-out 0.4s infinite',
+                  // Set once on mount, never changed.
+                  // bs-cpuSpin runs once (2s, ease-out, forwards) then holds.
+                  // bs-cpuGlow pulses indefinitely in the background.
+                  // No phase-based switching = no animation restart risk.
+                  animation: 'bs-cpuSpin 2s ease-out forwards, bs-cpuGlow 1.2s ease-in-out 0.4s infinite',
                 }}
               />
               <div>
@@ -99,7 +92,7 @@ const BootSequence = () => {
             {/* Divider */}
             <div className="border-t border-cyan-900/40 my-5" />
 
-            {/* Boot lines — staggered 200 ms apart, all visible well before the 2 s mark */}
+            {/* Boot lines — staggered 200 ms apart, all done by ~1.4 s */}
             <div className="space-y-2 text-xs font-bold mb-6">
               {BOOT_LINES.map(([label, status], i) => (
                 <div
@@ -117,7 +110,7 @@ const BootSequence = () => {
               ))}
             </div>
 
-            {/* Progress bar — fills over ~2 s */}
+            {/* Progress bar */}
             <div className="mb-5">
               <div className="h-[2px] bg-cyan-950 w-full rounded-full overflow-hidden">
                 <div
@@ -132,7 +125,7 @@ const BootSequence = () => {
               </div>
             </div>
 
-            {/* Final active status — appears at 1.6 s, 0.4 s before the fade begins */}
+            {/* Final active status — appears at 1.6 s, 0.4 s before the fade */}
             <div
               className="text-xs font-black tracking-widest"
               style={{

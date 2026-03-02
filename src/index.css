@@ -122,3 +122,15 @@ html, body {
   0%, 100% { background-position: 0% 50%; }
   50%      { background-position: 100% 50%; }
 }
+
+/* BootSequence card wrapper fade-out
+   Defined as CSS classes (not inline style) so the browser always has a
+   painted opacity:1 starting point before the transition begins.
+   React simply adds/removes .bs-card-fade — the transition handles the rest. */
+.bs-card {
+  opacity: 1;
+  transition: opacity 1s linear;
+}
+.bs-card-fade {
+  opacity: 0;
+}
