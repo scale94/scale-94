@@ -32,14 +32,14 @@ const EXCLUDE_FILES = new Set([
 ]);
 
 const STATUS_KEYWORDS = {
-  ACTIVE: ['active', 'online', 'running'],
-  ARCHIVED: ['archived', 'archive', 'legacy', 'historical'],
-  FROZEN: ['frozen', 'locked', 'final'],
+  ACTIVE:   ['active', 'online'],
+  RUNNING:  ['running'],           // must come before ARCHIVED so 'running' isn't swallowed
+  ARCHIVED: ['archived', 'archive', 'historical'],
+  FROZEN:   ['frozen', 'locked', 'final'],
   PROPOSED: ['proposed', 'draft', 'wip'],
   PLATINUM: ['platinum', 'apex', 'gated'],
-  STABLE: ['stable'],
-  RUNNING: ['running'],
-  LEGACY: ['legacy'],
+  STABLE:   ['stable'],
+  LEGACY:   ['legacy'],
   EMERGENT: ['emergent', 'new', 'rising'],
 };
 
@@ -142,8 +142,11 @@ function generateId(filename, fm, existingIds) {
   if (fm.id) return fm.id;
 
   const base = path.basename(filename, '.md');
-  // Updated regex to catch versions even at the start of the string or with dots
-  const versionMatch = base.match(/(?:^|[._-])v?(\d+)[_.](\d+)/i);
+  // Primary: separator-delimited version  (fish_scale-11.7.0  →  11.7)
+  // Fallback: digits directly after a letter  (soma_kernel10.0  →  10.0)
+  const versionMatch =
+    base.match(/(?:^|[._-])v?(\d+)[_.](\d+)/i) ||
+    base.match(/[a-z]v?(\d+)[._](\d+)/i);
   
   const parts = base
     .replace(/[._-]v?\d+[._]\d*$/i, '')
@@ -153,6 +156,10 @@ function generateId(filename, fm, existingIds) {
   let prefix = '';
   if (parts.length === 1) {
     prefix = parts[0].slice(0, 4).toUpperCase();
+  } else if (/^v\d/i.test(parts[0])) {
+    // First segment is a versioned label (e.g. v3, v2, v11) — use it as the full
+    // prefix so filenames like v3.2x... → V3-x.y  don't collide with violet → VK-x.y
+    prefix = parts[0].toUpperCase();
   } else {
     prefix = parts.map(w => w[0].toUpperCase()).join('').slice(0, 5);
   }
@@ -177,14 +184,45 @@ function buildNameFromFilename(filename) {
 }
 
 // ─── FILE WRITER ─────────────────────────────────────────────────────────────
-function parseExistingIds(filePath, arrayName) {
-  if (!fs.existsSync(filePath)) return new Set();
-  const src = fs.readFileSync(filePath, 'utf8');
+
+// Normalise a title for duplicate detection — strips everything except a-z digits.
+// Mirrors the same function in App.jsx so the two stay in sync.
+function normaliseTitle(s) {
+  return (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+// Scan ALL .js files in the data directory so we catch IDs declared in sub-files
+// (articles.soma.js, articles.misc.js, articles.archive.js, etc.), not just articles.js.
+function parseExistingIds(filePath) {
+  const dataDir = path.dirname(filePath);
   const ids = new Set();
-  const idRegex = /id:\s*['"]([^'"]+)['"]/g;
-  let m;
-  while ((m = idRegex.exec(src)) !== null) ids.add(m[1]);
+  const jsFiles = fs.existsSync(dataDir)
+    ? fs.readdirSync(dataDir).filter(f => f.endsWith('.js')).map(f => path.join(dataDir, f))
+    : [];
+  for (const f of jsFiles) {
+    const src = fs.readFileSync(f, 'utf8');
+    const re = /\bid:\s*['"`]([^'"`\n]+)['"`]/g;
+    let m;
+    while ((m = re.exec(src)) !== null) ids.add(m[1]);
+  }
   return ids;
+}
+
+// Parse every title field across all data .js files and return a Set of
+// normalised titles — used to skip already-imported files on re-runs.
+function parseExistingTitles(filePath) {
+  const dataDir = path.dirname(filePath);
+  const titles = new Set();
+  const jsFiles = fs.existsSync(dataDir)
+    ? fs.readdirSync(dataDir).filter(f => f.endsWith('.js')).map(f => path.join(dataDir, f))
+    : [];
+  for (const f of jsFiles) {
+    const src = fs.readFileSync(f, 'utf8');
+    const re = /\btitle:\s*"((?:[^"\\]|\\.)*)"/g;
+    let m;
+    while ((m = re.exec(src)) !== null) titles.add(normaliseTitle(m[1]));
+  }
+  return titles;
 }
 
 function serialiseArticle(article) {
@@ -258,11 +296,13 @@ function run() {
     process.exit(0);
   }
 
-  const existingArticleIds = parseExistingIds(ARTICLES_PATH, 'articles');
-  const existingBuildIds   = parseExistingIds(BUILDS_PATH, 'kernelBuilds');
-  const allIds = new Set([...existingArticleIds, ...existingBuildIds]);
+  const existingArticleIds = parseExistingIds(ARTICLES_PATH);
+  const existingBuildIds   = parseExistingIds(BUILDS_PATH);
+  const allIds             = new Set([...existingArticleIds, ...existingBuildIds]);
+  const existingTitles     = parseExistingTitles(ARTICLES_PATH);
 
   let processed = 0;
+  let skipped   = 0;
   const pendingArticles = [];
   const pendingBuilds = [];
 
@@ -273,6 +313,13 @@ function run() {
     const inferred = inferFromContent(body, file);
 
     const title    = fm.title    || inferred.title;
+
+    // Skip files whose title already exists in the data layer (re-run guard)
+    if (existingTitles.has(normaliseTitle(title))) {
+      console.log(`  Skipping (already imported): ${file}`);
+      skipped++;
+      continue;
+    }
     const subtitle = fm.subtitle || inferred.subtitle;
     const date     = fm.date     || inferred.date;
     const status   = (fm.status  || inferred.status).toUpperCase();
@@ -315,6 +362,7 @@ function run() {
     console.log(`\n  ✓ Batch integrated ${pendingArticles.length} new kernel(s) into data layer.`);
   }
 
+  if (skipped > 0) console.log(`\n  ↷ ${skipped} kernel(s) already in data layer — skipped.`);
   console.log(`\n  Done. ${processed} kernel(s) processed.\n`);
 }
 

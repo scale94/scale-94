@@ -4,7 +4,7 @@
     {
       "name": "scale94-dev",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["start-dev.js"],
+      "runtimeArgs": ["../start-dev.js"],
       "port": 5180
     }
   ]

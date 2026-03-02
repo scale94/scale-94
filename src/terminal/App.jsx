@@ -165,7 +165,7 @@ const App = () => {
         setSuggestions(
           kernelBuilds
             .filter(k => norm(k.id).includes(q) || norm(k.name).includes(q))
-            .slice(0, 6)
+            .slice(0, 5)
         );
       } else {
         setSuggestions([]);
@@ -496,26 +496,28 @@ const App = () => {
         </Suspense>
       </main>
 
-      <footer className="border-t border-cyan-900/50 p-2 bg-black/90 backdrop-blur-md z-40 shadow-[0_0_15px_rgba(6,182,212,0.1)] overflow-x-hidden w-full">
+      <footer className="border-t border-cyan-900/50 p-2 bg-black/90 backdrop-blur-md z-40 shadow-[0_0_15px_rgba(6,182,212,0.1)] [overflow-x:clip] w-full">
         <div className="max-w-[1600px] mx-auto relative flex items-center gap-2 text-sm font-bold tracking-wide min-w-0 w-full">
 
           {/* Autocomplete dropdown — floats above the terminal bar */}
           {suggestions.length > 0 && (
-            <div className="absolute bottom-full left-0 right-0 mb-1 bg-black/98 border border-cyan-900/60 backdrop-blur-md shadow-[0_-4px_24px_rgba(6,182,212,0.12)] overflow-hidden z-50 rounded-sm">
-              {suggestions.map((k, i) => (
-                <div
-                  key={k.id}
-                  onMouseDown={(e) => { e.preventDefault(); executeSuggestion(k); }}
-                  className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer border-b border-cyan-900/20 last:border-0 transition-colors
-                    ${i === activeSugg ? 'bg-cyan-900/30 border-l-2 border-l-cyan-400' : 'hover:bg-cyan-900/10 border-l-2 border-l-transparent'}`}
-                >
-                  <span className={`text-xs font-bold tracking-wider truncate ${i === activeSugg ? 'text-cyan-300' : 'text-cyan-400'}`}>
-                    {i === activeSugg && <span className="text-fuchsia-400 mr-1 animate-pulse">▋</span>}{k.name}
-                  </span>
-                  <span className="text-[10px] text-fuchsia-400/60 truncate ml-auto shrink-0 max-w-[50%]">{k.desc}</span>
-                </div>
-              ))}
-              <div className="px-4 py-1.5 text-[10px] text-cyan-900/70 tracking-widest border-t border-cyan-900/20">
+            <div className="absolute bottom-full left-0 right-0 mb-1 bg-black border border-cyan-900/60 shadow-[0_-4px_24px_rgba(6,182,212,0.2)] z-50 rounded-sm overflow-hidden">
+              <div className="max-h-[220px] overflow-y-auto custom-scrollbar">
+                {suggestions.map((k, i) => (
+                  <div
+                    key={k.id}
+                    onMouseDown={(e) => { e.preventDefault(); executeSuggestion(k); }}
+                    onTouchEnd={(e) => { e.preventDefault(); executeSuggestion(k); }}
+                    className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer border-b border-cyan-900/20 last:border-0 transition-colors ${i === activeSugg ? 'bg-cyan-900/30 border-l-2 border-l-cyan-400' : 'hover:bg-cyan-900/10 border-l-2 border-l-transparent'}`}
+                  >
+                    <span className={`text-xs font-bold tracking-wider truncate ${i === activeSugg ? 'text-cyan-300' : 'text-cyan-400'}`}>
+                      {i === activeSugg && <span className="text-fuchsia-400 mr-1 animate-pulse">▋</span>}{k.name}
+                    </span>
+                    <span className="text-[10px] text-fuchsia-400/60 truncate ml-auto shrink-0 max-w-[50%]">{k.desc}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="px-4 py-1.5 text-[10px] text-cyan-900/70 tracking-widest border-t border-cyan-900/20 bg-black">
                 ↑↓ navigate · Enter load · Tab complete · Esc dismiss
               </div>
             </div>
@@ -530,6 +532,10 @@ const App = () => {
             value={commandInput}
             onChange={handleInputChange}
             onKeyDown={handleCommand}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="none"
+            spellCheck={false}
             className="bg-transparent border-none outline-none flex-grow text-cyan-400 placeholder-cyan-900/50 font-bold"
             placeholder="enter command (e.g. load soma-9.0)"
           />
