@@ -52,6 +52,11 @@ const App = () => {
   const [loadingKernel, setLoadingKernel] = useState(null);
   const [originTab, setOriginTab] = useState('kernel');
   const [architectThesis, setArchitectThesis] = useState(false);
+  const [suggestions, setSuggestions]   = useState([]);
+  const [activeSugg,   setActiveSugg]   = useState(-1);
+  const [cmdHistory,   setCmdHistory]   = useState([]);   // most-recent first
+  const [historyIdx,   setHistoryIdx]   = useState(-1);   // -1 = live input
+  const [savedInput,   setSavedInput]   = useState('');
 
   const { appendSystemLog, setSystemLogs, visibleLogs, logRef } = useSystemLog();
 
@@ -66,8 +71,15 @@ const App = () => {
     return [pinned, ...rest.slice().reverse()];
   }, []);
 
-  // searchFilter is set by the 'search' terminal command but the results panel
-  // is not yet wired to a view — keeping the state for future use.
+  // Filtered subset — used by KernelTab when a search/load filter is active.
+  const norm = useCallback((s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, ''), []);
+  const filteredBuilds = useMemo(() => {
+    if (!searchFilter) return sortedBuilds;
+    const q = norm(searchFilter);
+    return sortedBuilds.filter(k =>
+      norm(k.id).includes(q) || norm(k.name).includes(q) || norm(k.desc || '').includes(q)
+    );
+  }, [sortedBuilds, searchFilter, norm]);
 
   useEffect(() => {
     const timer = setTimeout(() => setBootSequence(false), 2000);
@@ -142,14 +154,105 @@ const App = () => {
     setSearchFilter('');
   }, []);
 
+  // Autocomplete — fires on every keystroke, populates suggestion list
+  const handleInputChange = useCallback((e) => {
+    const val = e.target.value;
+    setCommandInput(val);
+    const trimmed = val.trimStart();
+    if (trimmed.toLowerCase().startsWith('load ')) {
+      const q = norm(trimmed.slice(5).trim());
+      if (q.length >= 1) {
+        setSuggestions(
+          kernelBuilds
+            .filter(k => norm(k.id).includes(q) || norm(k.name).includes(q))
+            .slice(0, 6)
+        );
+      } else {
+        setSuggestions([]);
+      }
+    } else {
+      setSuggestions([]);
+    }
+    setActiveSugg(-1);
+  }, [norm]);
+
+  // Shared: fire a suggestion (from keyboard Enter or click)
+  const executeSuggestion = useCallback((kernel) => {
+    setSuggestions([]);
+    setActiveSugg(-1);
+    setCommandInput('');
+    const t = new Date().toLocaleTimeString('en-US', { hour12: false });
+    appendSystemLog({ time: t, msg: `COMMAND: load ${kernel.name}` });
+    appendSystemLog({ time: t, msg: `Locating kernel module "${kernel.name}"...` });
+    handleKernelClick(kernel);
+  }, [appendSystemLog, handleKernelClick]);
+
   // Command handler
   const handleCommand = (e) => {
+    // ── Suggestion dropdown navigation ──────────────────────────────────────
+    if (suggestions.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setActiveSugg(prev => Math.min(prev + 1, suggestions.length - 1));
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setActiveSugg(prev => Math.max(prev - 1, -1));
+        return;
+      }
+      if (e.key === 'Escape') {
+        setSuggestions([]);
+        setActiveSugg(-1);
+        return;
+      }
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const k = activeSugg >= 0 ? suggestions[activeSugg] : suggestions[0];
+        setCommandInput(`load ${k.name}`);
+        setSuggestions([]);
+        setActiveSugg(-1);
+        return;
+      }
+      if (e.key === 'Enter' && activeSugg >= 0) {
+        executeSuggestion(suggestions[activeSugg]);
+        return;
+      }
+    }
+
+    // ── Command history navigation (↑↓ when dropdown is closed) ────────────
+    if (!suggestions.length) {
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (!cmdHistory.length) return;
+        if (historyIdx === -1) setSavedInput(commandInput);
+        const newIdx = historyIdx === -1 ? 0 : Math.min(historyIdx + 1, cmdHistory.length - 1);
+        setHistoryIdx(newIdx);
+        setCommandInput(cmdHistory[newIdx]);
+        return;
+      }
+      if (e.key === 'ArrowDown' && historyIdx !== -1) {
+        e.preventDefault();
+        const newIdx = historyIdx - 1;
+        setHistoryIdx(newIdx);
+        setCommandInput(newIdx === -1 ? savedInput : cmdHistory[newIdx]);
+        return;
+      }
+    }
+
     if (e.key === 'Enter') {
+      setSuggestions([]);
+      setActiveSugg(-1);
       const rawCmd = commandInput.trim();
       const cmdParts = rawCmd.toLowerCase().split(' ').filter(Boolean);
       const action = cmdParts[0] ? (cmdParts[0].startsWith('/') ? cmdParts[0].substring(1) : cmdParts[0]) : '';
       const query = cmdParts.slice(1).join(' ');
       setCommandInput('');
+      if (rawCmd) {
+        setCmdHistory(prev => [rawCmd, ...prev].slice(0, 50));
+        setHistoryIdx(-1);
+        setSavedInput('');
+      }
 
       const now = new Date().toLocaleTimeString('en-US', { hour12: false });
 
@@ -180,30 +283,59 @@ const App = () => {
         setArchitectThesis(true);
         executeCommand(rawCmd, "Loading ARCHITECT_THESIS...");
       } else if (action === 'load' && query) {
-        const matches = articles.filter(a => a.type === 'kernel_doc' &&
-          ((a.id || '').toLowerCase().includes(query) ||
-          (a.title || '').toLowerCase().includes(query) ||
-          (a.subtitle || '').toLowerCase().includes(query) ||
-          (a.tags && a.tags.some(t => t.toLowerCase().includes(query))))
+        // Normalise: strip everything except alphanumerics for fuzzy matching
+        // "load fish scale 11.4" → "fishscale114"  matches  "FISH_SCALE_KERNEL_11_4_0..."
+        const norm = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const q = norm(query);
+
+        // 1. Search kernelBuilds first — triggers the full handleKernelClick animation
+        const kMatches = kernelBuilds.filter(k =>
+          norm(k.id).includes(q) ||
+          norm(k.name).includes(q) ||
+          norm(k.articleId).includes(q)
         );
-        if (matches.length === 1) {
-          const match = matches[0];
-          const targetTab = match.type === 'kernel_doc' ? 'kernel' : match.type;
-          setOriginTab(targetTab);
-          setActiveTab(targetTab);
-          setSelectedArticle(match);
-          setCurrentPath(`~/system/${targetTab}`);
-          setSearchFilter('');
-          executeCommand(rawCmd, `Loading file '${match.id}'...`);
-        } else if (matches.length > 1) {
+
+        if (kMatches.length === 1) {
+          appendSystemLog({ time: now, msg: `COMMAND: ${rawCmd}` });
+          appendSystemLog({ time: now, msg: `Locating kernel module "${kMatches[0].name}"...` });
+          handleKernelClick(kMatches[0]);
+        } else if (kMatches.length > 1) {
           setActiveTab('kernel');
           setSelectedArticle(null);
           setSearchFilter(query);
           setCurrentPath(`~/system/kernel?q=${query.replace(/ /g, '_')}`);
-          executeCommand(rawCmd, `Multiple kernel matches found. Applying filter "${query}".`);
+          executeCommand(rawCmd, `${kMatches.length} kernel modules match "${query}". Filter applied.`);
         } else {
-          executeCommand(rawCmd, `ERROR: Object '${query}' not found in local kernel index. Check external archive.`);
+          // 2. Fall back to full article search (covers articles not in kernelBuilds panel)
+          const aMatches = articles.filter(a => a.type === 'kernel_doc' &&
+            (norm(a.id).includes(q) ||
+             norm(a.title).includes(q) ||
+             norm(a.subtitle).includes(q) ||
+             (a.tags && a.tags.some(t => norm(t).includes(q))))
+          );
+          if (aMatches.length === 1) {
+            setOriginTab('kernel');
+            setActiveTab('kernel');
+            setSelectedArticle(aMatches[0]);
+            setCurrentPath('~/system/kernel');
+            setSearchFilter('');
+            executeCommand(rawCmd, `Loading file '${aMatches[0].id}'...`);
+          } else if (aMatches.length > 1) {
+            setActiveTab('kernel');
+            setSelectedArticle(null);
+            setSearchFilter(query);
+            setCurrentPath(`~/system/kernel?q=${query.replace(/ /g, '_')}`);
+            executeCommand(rawCmd, `${aMatches.length} matches found. Filter applied.`);
+          } else {
+            executeCommand(rawCmd, `ERROR: Object '${query}' not found in kernel index.`);
+          }
         }
+      } else if (action === 'list') {
+        executeCommand(rawCmd, `KERNEL_INDEX :: ${kernelBuilds.length} modules`);
+        setSystemLogs(prev => [
+          ...prev,
+          ...kernelBuilds.map(k => ({ time: now, msg: `  · ${k.name}` }))
+        ].slice(-2000));
       } else if (action === 'search' && query) {
         setActiveTab('kernel');
         setSelectedArticle(null);
@@ -211,7 +343,7 @@ const App = () => {
         setCurrentPath(`~/system/kernel?q=${query.replace(/ /g, '_')}`);
         executeCommand(rawCmd, `Applying search filter to kernel index: "${query}".`);
       } else if (action === 'help') {
-        executeCommand(rawCmd, "Available commands: load [id/term], search [term], home/kernel, scaling, transmission, manifesto, privacy, thesis, clear, help.");
+        executeCommand(rawCmd, "Commands: load [term], list, search [term], home/kernel, scaling, transmission, manifesto, privacy, thesis, clear, help. ↑↓ history.");
       } else if (action === 'clear') {
         setSystemLogs([]);
         executeCommand(rawCmd, "System log cleared.");
@@ -307,11 +439,13 @@ const App = () => {
           {activeTab === 'kernel' && !selectedArticle && (
             <KernelTab
               kernelAxioms={kernelAxioms}
-              kernelBuilds={sortedBuilds}
+              kernelBuilds={filteredBuilds}
               handleKernelClick={handleKernelClick}
               loadingKernel={loadingKernel}
               visibleLogs={visibleLogs}
               logRef={logRef}
+              searchFilter={searchFilter}
+              onClearFilter={() => setSearchFilter('')}
             />
           )}
 
@@ -363,7 +497,30 @@ const App = () => {
       </main>
 
       <footer className="border-t border-cyan-900/50 p-2 bg-black/90 backdrop-blur-md z-40 shadow-[0_0_15px_rgba(6,182,212,0.1)] overflow-x-hidden w-full">
-        <div className="max-w-[1600px] mx-auto flex items-center gap-2 text-sm font-bold tracking-wide min-w-0 w-full">
+        <div className="max-w-[1600px] mx-auto relative flex items-center gap-2 text-sm font-bold tracking-wide min-w-0 w-full">
+
+          {/* Autocomplete dropdown — floats above the terminal bar */}
+          {suggestions.length > 0 && (
+            <div className="absolute bottom-full left-0 right-0 mb-1 bg-black/98 border border-cyan-900/60 backdrop-blur-md shadow-[0_-4px_24px_rgba(6,182,212,0.12)] overflow-hidden z-50 rounded-sm">
+              {suggestions.map((k, i) => (
+                <div
+                  key={k.id}
+                  onMouseDown={(e) => { e.preventDefault(); executeSuggestion(k); }}
+                  className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer border-b border-cyan-900/20 last:border-0 transition-colors
+                    ${i === activeSugg ? 'bg-cyan-900/30 border-l-2 border-l-cyan-400' : 'hover:bg-cyan-900/10 border-l-2 border-l-transparent'}`}
+                >
+                  <span className={`text-xs font-bold tracking-wider truncate ${i === activeSugg ? 'text-cyan-300' : 'text-cyan-400'}`}>
+                    {i === activeSugg && <span className="text-fuchsia-400 mr-1 animate-pulse">▋</span>}{k.name}
+                  </span>
+                  <span className="text-[10px] text-fuchsia-400/60 truncate ml-auto shrink-0 max-w-[50%]">{k.desc}</span>
+                </div>
+              ))}
+              <div className="px-4 py-1.5 text-[10px] text-cyan-900/70 tracking-widest border-t border-cyan-900/20">
+                ↑↓ navigate · Enter load · Tab complete · Esc dismiss
+              </div>
+            </div>
+          )}
+
           <span className="text-fuchsia-500 hidden md:inline" aria-hidden="true">scale@node:~$</span>
           <span className="text-fuchsia-500 md:hidden" aria-hidden="true">~$</span>
           <label htmlFor="terminal-input" className="sr-only">Enter terminal command</label>
@@ -371,7 +528,7 @@ const App = () => {
             id="terminal-input"
             type="text"
             value={commandInput}
-            onChange={(e) => setCommandInput(e.target.value)}
+            onChange={handleInputChange}
             onKeyDown={handleCommand}
             className="bg-transparent border-none outline-none flex-grow text-cyan-400 placeholder-cyan-900/50 font-bold"
             placeholder="enter command (e.g. load soma-9.0)"

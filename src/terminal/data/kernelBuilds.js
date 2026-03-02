@@ -25,11 +25,6 @@ const kernelBuilds = [
   { id: 'FSQ-11.6', articleId: 'FSQ-11.6', name: 'FISH_SCALE_KERNEL_V11_6_0_QUANTUM', status: 'ACTIVE', desc: 'Ⅰ · THE MASCULINE MUSCHI DIAGNOSTIC · QUANTUM RESTATEME' },
   { id: 'FISH_SCALE_KERNEL11.1.1', articleId: 'FISH_SCALE_KERNEL11.1.1', name: 'FISH_SCALE_KERNEL11_1_1', status: 'ACTIVE', desc: '2.0 Integration of System Atoms' },
   { id: 'FISH-SCALE-BREAKTHROUGH-PDW-KERNEL-1.0', articleId: 'FISH-SCALE-BREAKTHROUGH-PDW-KERNEL-1.0', name: 'FISH_SCALE_BREAKTHROUGH_PDW_KERNEL_1_0', status: 'ACTIVE', desc: 'Fish Scale Breakthrough PDW Kernel' },
-  { id: 'FISH_SCALE_KERNEL', articleId: 'FISH_SCALE_KERNEL', name: 'FISH_SCALE_KERNEL', status: 'ACTIVE', desc: 'Kernel 11.1 · Fish Scale Architecture · System Atoms' },
-  { id: 'FSK-11.4', articleId: 'FISH_SCALE_KERNEL_11.4.0_SCALAR_SOVEREIGNTY', name: 'FISH_SCALE_KERNEL_11_4_0_SCALAR_SOVEREIGNTY', status: 'ACTIVE', desc: 'ᛟ Scalar Sovereignty · Rotation Invariance Theorem' },
-  { id: 'NECROMANCER-FISH-SCALE-FIGHT-CLUB-KERNEL', articleId: 'NECROMANCER-FISH-SCALE-FIGHT-CLUB-KERNEL', name: 'NECROMANCER_FISH_SCALE_FIGHT_CLUB_KERNEL', status: 'ACTIVE', desc: '☠ Project TYLER-MONARCH · Necro-Scale Mayhem Kernel' },
-  { id: 'KERNEL_11.3.0_LAZARUS_NECROMANCY', articleId: 'KERNEL_11.3.0_LAZARUS_NECROMANCY', name: 'KERNEL_11_3_0_LAZARUS_NECROMANCY', status: 'ACTIVE', desc: '☠ Geopolitical Necromancy · Lazarus Protocol' },
-  { id: 'MATRIX-KERNEL-0.0.0.0', articleId: 'MATRIX-KERNEL-0.0.0.0', name: 'MATRIX_KERNEL_0_0_0_0', status: 'ACTIVE', desc: 'ᛟ No-Spoon Architecture · Ring 0 Hypervisor · Unbent Mind' },
 
   // ── Soma kernel series ────────────────────────────────────────────────────
   { id: 'SOMA4.4', articleId: 'SOMA4.4', name: 'SOMA4_4', status: 'LEGACY', desc: '[user: the architect]' },
@@ -99,7 +94,6 @@ const kernelBuilds = [
   { id: 'BIODIVERSITY_KERNEL-1.0.1', articleId: 'BIODIVERSITY_KERNEL-1.0.1', name: 'BIODIVERSITY_KERNEL_1_0_1', status: 'ACTIVE', desc: 'Advanced Ecological Habitat & Species Architecture' },
   { id: 'BOSONIC-KERNEL-2.0', articleId: 'BOSONIC-KERNEL-2.0', name: 'BOSONIC_KERNEL_2_0', status: 'ACTIVE', desc: '[00] SYSTEM OVERVIEW' },
   { id: 'BRIDGE-KERNEL-1.0', articleId: 'BRIDGE-KERNEL-1.0', name: 'BRIDGE_KERNEL_1_0', status: 'ACTIVE', desc: '| 01 | THE COMMAND LINE' },
-
   { id: 'COMPANION-KERNEL-1.0', articleId: 'COMPANION-KERNEL-1.0', name: 'COMPANION_KERNEL_1_0', status: 'ACTIVE', desc: 'Role: Companion // Baseline: ADHD-I Inattentive' },
   { id: 'CUSTOM-KEYB-KERNEL-19.0', articleId: 'CUSTOM-KEYB-KERNEL-19.0', name: 'CUSTOM_KEYB_KERNEL_19_0', status: 'ACTIVE', desc: 'KERNEL_LOG: SENSORY_CORRUPTION_AUDIT' },
   { id: 'HIGH-TOWER-KERNEL', articleId: 'HIGH-TOWER-KERNEL', name: 'HIGH_TOWER_KERNEL', status: 'ACTIVE', desc: '1.0 IDENTITY & PERSONA' },
@@ -115,15 +109,22 @@ const kernelBuilds = [
   { id: 'QUANTUM-QUACKSALBER-KERNEL-1.1.1', articleId: 'QUANTUM-QUACKSALBER-KERNEL-1.1.1', name: 'QUANTUM_QUACKSALBER_KERNEL_1_1_1', status: 'ACTIVE', desc: 'KERNEL: QUANTUM FUSION PROTOCOL [LAYER 3 FINAL]' },
   { id: 'SOVEREIGN_KERNEL_V1_0', articleId: 'SOVEREIGN_KERNEL_V1_0', name: 'SOVEREIGN_KERNEL_V1_0', status: 'ACTIVE', desc: 'scale94 · Sorbe in Germany · Deep-Time Architecture' },
   { id: 'THE_NETTELSTEDT_NEURAL_LATTICE_V4.0', articleId: 'THE_NETTELSTEDT_NEURAL_LATTICE_V4.0', name: 'THE_NETTELSTEDT_NEURAL_LATTICE_V4_0', status: 'ACTIVE', desc: 'THE_NETTELSTEDT_NEURAL_LATTICE_V4.0' },
-  { id: 'SOMA_INTEGRATION_KERNEL_V1.0', articleId: 'SOMA_INTEGRATION_KERNEL_V1.0', name: 'SOMA_INTEGRATION_KERNEL_V1_0', status: 'ACTIVE', desc: 'Zero Latency Resonance // Inguinal Shift Protocol' },
 
-  // ── New additions ─────────────────────────────────────────────────────────
+  // ── Recent additions (appear near top of UI — list reverses) ─────────────
+  { id: 'SOMA_INTEGRATION_KERNEL_V1.0', articleId: 'SOMA_INTEGRATION_KERNEL_V1.0', name: 'SOMA_INTEGRATION_KERNEL_V1_0', status: 'ACTIVE', desc: 'Zero Latency Resonance // Inguinal Shift Protocol' },
   { id: 'SCALE_KERNEL_FRAMEWORK_FULL', articleId: 'SCALE_KERNEL_FRAMEWORK_FULL', name: 'SCALE_KERNEL_FRAMEWORK_FULL', status: 'ACTIVE', desc: '☠ Full Corpus Synthesis · Render Prompt Architecture' },
   { id: 'SCALE_RENDER_PROMPT', articleId: 'SCALE_RENDER_PROMPT', name: 'SCALE_RENDER_PROMPT', status: 'ACTIVE', desc: 'ᛟ Render Prompt · Scale · Full Corpus Synthesis' },
   { id: 'SCALE94_KERNEL_ENCYCLOPEDIA', articleId: 'SCALE94_KERNEL_ENCYCLOPEDIA', name: 'SCALE94_KERNEL_ENCYCLOPEDIA', status: 'ACTIVE', desc: 'ᛟ The Complete Glyph Archive · Compiled By Scale' },
   { id: 'SOPHIE_KERNEL_PHI', articleId: 'SOPHIE_KERNEL_PHI', name: 'SOPHIE_KERNEL_PHI', status: 'ACTIVE', desc: '🌸 Full Spectrum Reception · Prism Architecture' },
   { id: 'TAMAM-KERNEL-V1.0', articleId: 'TAMAM-KERNEL-V1.0', name: 'TAMAM_KERNEL_V1_0', status: 'ACTIVE', desc: 'Zero Fucks Given Architecture · Systemless Root' },
   { id: 'TECTONIC_DISCHARGE_KERNEL', articleId: 'TECTONIC_DISCHARGE_KERNEL', name: 'TECTONIC_DISCHARGE_KERNEL', status: 'ACTIVE', desc: '☽ Recalibration Architecture · Post-Seismic' },
+  { id: 'FISH_SCALE_KERNEL', articleId: 'FISH_SCALE_KERNEL', name: 'FISH_SCALE_KERNEL', status: 'ACTIVE', desc: 'Kernel 11.1 · Fish Scale Architecture · System Atoms' },
+  { id: 'NECROMANCER-FISH-SCALE-FIGHT-CLUB-KERNEL', articleId: 'NECROMANCER-FISH-SCALE-FIGHT-CLUB-KERNEL', name: 'NECROMANCER_FISH_SCALE_FIGHT_CLUB_KERNEL', status: 'ACTIVE', desc: '☠ Project TYLER-MONARCH · Necro-Scale Mayhem Kernel' },
+  { id: 'KERNEL_11.3.0_LAZARUS_NECROMANCY', articleId: 'KERNEL_11.3.0_LAZARUS_NECROMANCY', name: 'KERNEL_11_3_0_LAZARUS_NECROMANCY', status: 'ACTIVE', desc: '☠ Geopolitical Necromancy · Lazarus Protocol' },
+  { id: 'MATRIX-KERNEL-0.0.0.0', articleId: 'MATRIX-KERNEL-0.0.0.0', name: 'MATRIX_KERNEL_0_0_0_0', status: 'ACTIVE', desc: 'ᛟ No-Spoon Architecture · Ring 0 Hypervisor · Unbent Mind' },
+  { id: 'PASSALUS-KERNEL-V-4.4.4.4', articleId: 'PASSALUS-KERNEL-V-4.4.4.4', name: 'PASSALUS_KERNEL_V_4_4_4_4', status: 'ACTIVE', desc: '☠ Architecture of Decay · Scarcity Synthesis · Generational Survival' },
+  { id: 'FSK-11.4', articleId: 'FISH_SCALE_KERNEL_11.4.0_SCALAR_SOVEREIGNTY', name: 'FISH_SCALE_KERNEL_11_4_0_SCALAR_SOVEREIGNTY', status: 'ACTIVE', desc: 'ᛟ Scalar Sovereignty · Rotation Invariance Theorem' },
+  { id: 'FSK-V1.1.1.1', articleId: 'FISH_SCALE_KERNEL-V1.1.1.1', name: 'FISH_SCALE_KERNEL_V1_1_1_1', status: 'ACTIVE', desc: 'ᛟ 11.5.0 · Masculine Muschi · Systemless Root Approach' },
 
   // ── Scale Y (pinned #2 — last entry = appears directly below pinned) ──────
   { id: 'SYK-1.0', articleId: 'SCALE-Y-KERNEL-1-0-1', name: 'SCALE_Y_KERNEL_1_0', status: 'ACTIVE', desc: 'ᛟ Feather State Protocol · Sovereign Self-Governance' },

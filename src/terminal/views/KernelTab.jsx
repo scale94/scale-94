@@ -1,8 +1,16 @@
 import React from 'react';
 import { Database, GitBranch, Shield, ChevronRight, Cpu } from 'lucide-react';
 
-const KernelTab = ({ kernelAxioms, kernelBuilds, handleKernelClick, loadingKernel, visibleLogs, logRef }) => (
+const KernelTab = ({ kernelAxioms, kernelBuilds, handleKernelClick, loadingKernel, visibleLogs, logRef, searchFilter, onClearFilter }) => (
   <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+    {searchFilter && (
+      <div className="flex items-center gap-3 mb-4 px-3 py-2 border border-cyan-500/30 bg-cyan-900/10 rounded-sm text-xs font-bold tracking-widest">
+        <span className="text-fuchsia-500">{'>_'}</span>
+        <span className="text-cyan-400">FILTER: <span className="text-[#39ff14]">{searchFilter.toUpperCase()}</span></span>
+        <span className="text-cyan-600 ml-1">— {kernelBuilds.length} result{kernelBuilds.length !== 1 ? 's' : ''}</span>
+        <button onClick={onClearFilter} className="ml-auto text-cyan-900/70 hover:text-cyan-400 transition-colors tracking-wide">[CLEAR]</button>
+      </div>
+    )}
     <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-cyan-900/50 pb-4 mb-8">
       <div>
         <h2 className="text-4xl font-bold mb-1 text-cyan-400 tracking-tight flex items-center gap-3">
