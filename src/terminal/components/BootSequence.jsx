@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Cpu } from 'lucide-react';
 
 const BOOT_LINES = [
@@ -9,51 +9,56 @@ const BOOT_LINES = [
   ['INTEGRITY CHECK',           'PASS'],
 ];
 
-// React.memo — no props, so parent App re-renders never touch this component.
+// ease-out cubic — reaches 100% in exactly `duration` ms
+const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+
+// React.memo — no props, so parent App re-renders can never touch this tree.
 const BootSequence = () => {
-  // phase 1 triggers .bs-card-fade (defined in index.css)
-  const [phase, setPhase] = useState(0);
-  const cpuRef = useRef(null);
+  const cpuRef  = useRef(null); // wrapper div — spin target
+  const cardRef = useRef(null); // card wrapper — fade target
 
   useEffect(() => {
-    // ── Fade timer ────────────────────────────────────────────────────────────
-    const phaseTimer = setTimeout(() => setPhase(1), 2000);
+    // ─── All timing is pure JavaScript. No CSS animation / transition is used
+    // for the spin or the fade, so there is zero dependency on CSS loading order,
+    // Tailwind purge behaviour, or React style-prop reconciliation in production.
+    //
+    //  0 ms → 2000 ms  : CPU spins 720° (ease-out)
+    //  2000 ms → 3000 ms: card fades opacity 1 → 0 (linear)
+    //  3100 ms          : App.jsx unmounts this component
+    const SPIN_MS       = 2000;
+    const FADE_START_MS = 2000;
+    const FADE_MS       = 1000;
+    const t0 = performance.now();
+    let raf;
 
-    // ── CPU spin via CSS *transition* (not @keyframes) ────────────────────────
-    //
-    // Why not @keyframes?  animation-fill-mode:forwards is fragile — any style
-    // reconciliation that touches el.style.animation (even with the same string)
-    // can restart the animation in some browsers.
-    //
-    // The transition approach is bulletproof:
-    //   • transform is held by el.style.transform (a real DOM value, not fill-mode)
-    //   • React never sees transform/transition in the style prop → never resets them
-    //   • Double-rAF ensures the browser has painted the element at 0deg before
-    //     we flip to 720deg, giving the transition a real "from" value.
-    //
-    // We wrap the Cpu SVG in a plain HTML div so transform-origin: 50% 50% is
-    // guaranteed (SVG elements have browser-inconsistent transform origins).
-    let raf1, raf2;
-    const el = cpuRef.current;
-    if (el) {
-      el.style.transition = 'transform 2s ease-out';
-      raf1 = requestAnimationFrame(() => {
-        raf2 = requestAnimationFrame(() => {
-          if (cpuRef.current) cpuRef.current.style.transform = 'rotate(720deg)';
-        });
-      });
-    }
+    const tick = (now) => {
+      const elapsed = now - t0;
 
-    return () => {
-      clearTimeout(phaseTimer);
-      cancelAnimationFrame(raf1);
-      cancelAnimationFrame(raf2);
+      // CPU spin
+      const spinT = Math.min(elapsed / SPIN_MS, 1);
+      if (cpuRef.current) {
+        cpuRef.current.style.transform = `rotate(${easeOut(spinT) * 720}deg)`;
+      }
+
+      // Card fade (starts at 2 s)
+      if (elapsed >= FADE_START_MS && cardRef.current) {
+        const fadeT = Math.min((elapsed - FADE_START_MS) / FADE_MS, 1);
+        cardRef.current.style.opacity = String(1 - fadeT);
+      }
+
+      // Stop the loop once both animations are complete (at 3 s)
+      if (elapsed < FADE_START_MS + FADE_MS) {
+        raf = requestAnimationFrame(tick);
+      }
     };
+
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   return (
     <div className="min-h-screen bg-black font-mono flex items-center justify-center p-4 overflow-hidden relative">
-      {/* All bs-* keyframes + .bs-card / .bs-card-fade live in index.css */}
+      {/* All bs-* keyframes live in index.css */}
 
       {/* Static CRT scanlines texture */}
       <div style={{
@@ -68,9 +73,8 @@ const BootSequence = () => {
         animation: 'bs-scan 0.9s linear infinite',
       }} />
 
-      {/* Card wrapper — fade is a CSS class transition (.bs-card → + .bs-card-fade)
-          so the browser always has a painted opacity:1 starting point. */}
-      <div className={`max-w-lg w-full relative z-10 bs-card${phase === 1 ? ' bs-card-fade' : ''}`}>
+      {/* Card wrapper — opacity driven by JS rAF, not CSS */}
+      <div ref={cardRef} className="max-w-lg w-full relative z-10">
 
         {/* Glowing gradient border */}
         <div style={{
@@ -90,10 +94,10 @@ const BootSequence = () => {
             {/* Title block */}
             <div className="flex items-center gap-4" style={{ animation: 'bs-titleReveal 0.35s ease-out forwards' }}>
 
-              {/* CPU spin wrapper — plain HTML div so transform-origin:50% 50% is reliable.
-                  transform + transition are written directly to el.style via the ref;
-                  they are NOT in the React style prop, so reconciliation can never touch them.
-                  Only the glow pulse lives in the style prop (it never changes). */}
+              {/* CPU spin wrapper — plain HTML div so transform-origin:50% 50% is
+                  reliable cross-browser. transform is written directly to el.style
+                  by the rAF loop; React never sees it so reconciliation can't reset it.
+                  Only the glow pulse lives in the style prop (string never changes). */}
               <div
                 ref={cpuRef}
                 className="shrink-0"

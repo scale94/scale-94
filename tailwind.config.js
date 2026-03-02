@@ -6,7 +6,22 @@ export default {
     "./content/**/*.md", // Ensure tailwind scans your kernels
   ],
   theme: {
-    extend: {},
+    extend: {
+      // Gradient shimmer keyframe + utilities — defined here so they are
+      // guaranteed in the production CSS bundle (Tailwind generates them as
+      // first-class utilities, unlike custom index.css classes which can be
+      // stripped or mis-ordered by the PostCSS pipeline in production builds).
+      keyframes: {
+        'gradient-x': {
+          '0%, 100%': { backgroundPosition: '0% 50%' },
+          '50%':       { backgroundPosition: '100% 50%' },
+        },
+      },
+      animation: {
+        'shimmer-fast': 'gradient-x 3s linear infinite',
+        'shimmer-slow': 'gradient-x 6s ease   infinite',
+      },
+    },
   },
   plugins: [
     require('@tailwindcss/typography'),

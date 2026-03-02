@@ -45,11 +45,9 @@ html, body {
   animation: spin 12s linear infinite;
 }
 
-/* KernelTab + BootSequence gradient shimmer */
-@keyframes gradient-x {
-  0%, 100% { background-position: 0% 50%; }
-  50%      { background-position: 100% 50%; }
-}
+/* gradient-x keyframe → tailwind.config.js theme.extend.keyframes
+   (guaranteed in production bundle; custom index.css rules can be
+    stripped or mis-ordered by PostCSS in prod Tailwind builds) */
 
 /* ── BootSequence animations ─────────────────────────────────────────────── */
 
@@ -123,28 +121,7 @@ html, body {
   50%      { background-position: 100% 50%; }
 }
 
-/* BootSequence card wrapper fade-out
-   Defined as CSS classes (not inline style) so the browser always has a
-   painted opacity:1 starting point before the transition begins.
-   React simply adds/removes .bs-card-fade — the transition handles the rest. */
-.bs-card {
-  opacity: 1;
-  transition: opacity 1s linear;
-}
-.bs-card-fade {
-  opacity: 0;
-}
-
-/* Gradient shimmer — CSS classes so React reconciliation can never restart
-   the animation by re-applying an identical inline style string.
-   Used by KernelTab SYSTEM_KERNEL heading and subtitle. */
-.shimmer-fast {
-  background-size: 200% auto;
-  background-position: 0% 50%;
-  animation: gradient-x 3s linear infinite;
-}
-.shimmer-slow {
-  background-size: 200% auto;
-  background-position: 0% 50%;
-  animation: gradient-x 6s ease infinite;
-}
+/* Boot card fade + gradient shimmer utilities removed:
+   - Boot fade is now a pure JS rAF loop (opacity via el.style, no CSS needed)
+   - Gradient shimmer is now animate-shimmer-fast / animate-shimmer-slow
+     via tailwind.config.js theme.extend — guaranteed in production bundle */
