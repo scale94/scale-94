@@ -11,67 +11,8 @@ const BOOT_LINES = [
 
 const BootSequence = () => (
   <div className="min-h-screen bg-black font-mono flex items-center justify-center p-4 overflow-hidden relative">
-    <style>{`
-      /* CPU icon — exactly 2 rotations (720deg) to end upright */
-      @keyframes bs-cpuSpin {
-        from { transform: rotate(0deg); }
-        to   { transform: rotate(720deg); }
-      }
-      /* CPU icon — green glow pulse */
-      @keyframes bs-cpuGlow {
-        0%,100% { filter: drop-shadow(0 0 4px rgba(57,255,20,0.5)); }
-        50%     { filter: drop-shadow(0 0 16px rgba(57,255,20,1)) drop-shadow(0 0 32px rgba(57,255,20,0.4)); }
-      }
-      /* Title reveal — blur+slide up */
-      @keyframes bs-titleReveal {
-        from { opacity: 0; transform: translateY(-10px); filter: blur(10px); }
-        to   { opacity: 1; transform: translateY(0);     filter: blur(0); }
-      }
-      /* Chromatic glitch on title */
-      @keyframes bs-glitch {
-        0%  { text-shadow: -3px 0 #ff00ff, 3px 0 #00ffff; transform: translate(0); }
-        20% { text-shadow:  3px 0 #ff00ff,-3px 0 #00ffff; transform: translate(-2px, 1px); }
-        40% { text-shadow: -2px 0 #ff00ff, 2px 0 #00ffff; transform: translate(2px,-1px); }
-        60% { text-shadow:  1px 0 #ff00ff,-1px 0 #00ffff; transform: translate(0); }
-        80% { text-shadow: -3px 0 #ff00ff, 3px 0 #00ffff; transform: translate(1px, 2px); }
-        100%{ text-shadow: none;                           transform: translate(0); }
-      }
-      /* Boot lines slide in from left */
-      @keyframes bs-lineIn {
-        from { opacity: 0; transform: translateX(-14px); }
-        to   { opacity: 1; transform: translateX(0); }
-      }
-      /* Progress bar fill */
-      @keyframes bs-progress {
-        from { width: 0%; }
-        to   { width: 100%; }
-      }
-      /* Moving scanline beam */
-      @keyframes bs-scan {
-        0%   { top: -4%; }
-        100% { top: 104%; }
-      }
-      /* Opacity 1 for first 2s, then fades to 0 over the final 1s */
-      @keyframes bs-flicker {
-        0%, 66.7% { opacity: 1; }
-        100%      { opacity: 0; }
-      }
-      /* Border glow breathe */
-      @keyframes bs-glow {
-        0%,100% { box-shadow: 0 0 12px rgba(6,182,212,0.35), 0 0 40px rgba(217,70,239,0.12); }
-        50%     { box-shadow: 0 0 28px rgba(6,182,212,0.7),  0 0 80px rgba(217,70,239,0.3);  }
-      }
-      /* Final status line pulse */
-      @keyframes bs-active {
-        0%,100% { color: #39ff14; text-shadow: 0 0 8px #39ff14; }
-        50%     { color: #00ffaa; text-shadow: 0 0 20px #00ffaa; }
-      }
-      /* Animated gradient shimmer */
-      @keyframes bs-gradient-x {
-        0%, 100% { background-position: 0% 50%; }
-        50%      { background-position: 100% 50%; }
-      }
-    `}</style>
+    {/* All bs-* keyframes live in index.css — never in a JSX <style> tag,
+        which React can re-inject on re-renders and reset running animations. */}
 
     {/* Static CRT scanlines texture */}
     <div style={{

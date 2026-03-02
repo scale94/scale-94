@@ -177,7 +177,7 @@ const App = () => {
   return (
     <div className={`min-h-screen font-mono selection:bg-fuchsia-900 selection:text-white flex flex-col overflow-hidden relative transition-colors duration-700 ${selectedArticle || architectThesis ? 'bg-[#09090b]' : 'bg-black'}`}>
       <style>{`
-        /* Custom "Hacker" Scrollbar */
+        /* App-scoped scrollbar overrides (narrower than the global default) */
         ::-webkit-scrollbar {
           width: 6px;
           height: 6px;
@@ -186,11 +186,11 @@ const App = () => {
           background: #000;
         }
         ::-webkit-scrollbar-thumb {
-          background: #06b6d4; /* Cyan-500 */
+          background: #06b6d4;
           border-radius: 0px;
         }
         ::-webkit-scrollbar-thumb:hover {
-          background: #22d3ee; /* Cyan-400 */
+          background: #22d3ee;
         }
         .custom-scrollbar::-webkit-scrollbar {
           width: 4px;
@@ -201,25 +201,7 @@ const App = () => {
         .custom-scrollbar:hover::-webkit-scrollbar-thumb {
           background: rgba(6, 182, 212, 0.8);
         }
-
-        /* Custom Keyframes for slow spin */
-        @keyframes spin {
-          from {
-            transform: rotate(0deg);
-          }
-          to {
-            transform: rotate(360deg);
-          }
-        }
-        .animate-spin-slow {
-          animation: spin 12s linear infinite;
-        }
-
-        /* Gradient shimmer — shared by KernelTab headings and BootSequence */
-        @keyframes gradient-x {
-          0%, 100% { background-position: 0% 50%; }
-          50%      { background-position: 100% 50%; }
-        }
+        /* spin, animate-spin-slow, gradient-x → index.css */
       `}</style>
       <OctagonGrid visible={!selectedArticle && !architectThesis} />
 
