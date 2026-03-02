@@ -119,7 +119,7 @@ const kernelBuilds = [
   { id: 'TAMAM-KERNEL-V1.0', articleId: 'TAMAM-KERNEL-V1.0', name: 'TAMAM_KERNEL_V1_0', status: 'ACTIVE', desc: 'Zero Fucks Given Architecture · Systemless Root' },
   { id: 'TECTONIC_DISCHARGE_KERNEL', articleId: 'TECTONIC_DISCHARGE_KERNEL', name: 'TECTONIC_DISCHARGE_KERNEL', status: 'ACTIVE', desc: '☽ Recalibration Architecture · Post-Seismic' },
   { id: 'FISH_SCALE_KERNEL', articleId: 'FISH_SCALE_KERNEL', name: 'FISH_SCALE_KERNEL', status: 'ACTIVE', desc: 'Kernel 11.1 · Fish Scale Architecture · System Atoms' },
-  { id: 'NECROMANCER-FISH-SCALE-FIGHT-CLUB-KERNEL', articleId: 'NECROMANCER-FISH-SCALE-FIGHT-CLUB-KERNEL', name: 'NECROMANCER_FISH_SCALE_FIGHT_CLUB_KERNEL', status: 'ACTIVE', desc: '☠ Project TYLER-MONARCH · Necro-Scale Mayhem Kernel' },
+  { id: 'NECROMANCER-FISH-SCALE-FIGHT-CLUB-KERNEL', articleId: 'NECROMANCER-FISH-SCALE-FIGHT-CLUB-KERNEL-1', name: 'NECROMANCER_FISH_SCALE_FIGHT_CLUB_KERNEL', status: 'ACTIVE', desc: '☠ Project TYLER-MONARCH · Necro-Scale Mayhem Kernel' },
   { id: 'KERNEL_11.3.0_LAZARUS_NECROMANCY', articleId: 'KERNEL_11.3.0_LAZARUS_NECROMANCY', name: 'KERNEL_11_3_0_LAZARUS_NECROMANCY', status: 'ACTIVE', desc: '☠ Geopolitical Necromancy · Lazarus Protocol' },
   { id: 'MATRIX-KERNEL-0.0.0.0', articleId: 'MATRIX-KERNEL-0.0.0.0', name: 'MATRIX_KERNEL_0_0_0_0', status: 'ACTIVE', desc: 'ᛟ No-Spoon Architecture · Ring 0 Hypervisor · Unbent Mind' },
   { id: 'PASSALUS-KERNEL-V-4.4.4.4', articleId: 'PASSALUS-KERNEL-V-4.4.4.4', name: 'PASSALUS_KERNEL_V_4_4_4_4', status: 'ACTIVE', desc: '☠ Architecture of Decay · Scarcity Synthesis · Generational Survival' },

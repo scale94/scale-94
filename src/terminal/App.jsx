@@ -4,7 +4,9 @@ import { Analytics } from '@vercel/analytics/react';
 
 // Data
 import kernelAxioms from './data/kernelAxioms';
-import kernelBuilds from './data/kernelBuilds';
+import _rawBuilds from './data/kernelBuilds';
+// Deduplicate by name — the importer can produce multiple entries per kernel on repeated runs
+const kernelBuilds = _rawBuilds.filter((k, i, arr) => arr.findIndex(x => x.name === k.name) === i);
 import staticArticles from './data/articles';     // existing articles — keeps kernelBuilds IDs intact
 import autoArticles   from './data/loadArticles'; // auto-loaded .md files from content/soma_kernel
 

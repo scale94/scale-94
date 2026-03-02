@@ -20,10 +20,10 @@
 
 // Eagerly import all .md files from content/soma_kernel as raw strings.
 // Vite resolves this at build time — zero runtime cost.
-const markdownModules = import.meta.glob('/content/soma_kernel/*.md', {
-  as: 'raw',
-  eager: true,
-});
+const markdownModules = {
+  ...import.meta.glob('/content/*.md',            { as: 'raw', eager: true }),
+  ...import.meta.glob('/content/soma_kernel/*.md', { as: 'raw', eager: true }),
+};
 
 // ─── Frontmatter parser ───────────────────────────────────────────────────────
 // Handles the optional --- block at the top of a file.
