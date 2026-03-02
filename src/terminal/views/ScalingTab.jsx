@@ -120,4 +120,4 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath }) => {
   );
 };
 
-export default ScalingTab;
+export default React.memo(ScalingTab);

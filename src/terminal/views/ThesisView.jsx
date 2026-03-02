@@ -34,4 +34,4 @@ const ThesisView = ({ handleReturnToRoot }) => (
   </div>
 );
 
-export default ThesisView;
+export default React.memo(ThesisView);

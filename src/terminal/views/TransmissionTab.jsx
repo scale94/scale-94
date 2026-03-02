@@ -72,4 +72,4 @@ const TransmissionTab = ({ stories, onSelect }) => (
   </div>
 );
 
-export default TransmissionTab;
+export default React.memo(TransmissionTab);

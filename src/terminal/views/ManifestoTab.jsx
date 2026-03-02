@@ -10,4 +10,4 @@ const ManifestoTab = () => (
   </div>
 );
 
-export default ManifestoTab;
+export default React.memo(ManifestoTab);

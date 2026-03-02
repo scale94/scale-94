@@ -44,4 +44,4 @@ const ArticleView = ({ article, originTab, handleReturnToRoot }) => {
   );
 };
 
-export default ArticleView;
+export default React.memo(ArticleView);

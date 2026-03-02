@@ -15,4 +15,4 @@ const PrivacyTab = () => (
   </div>
 );
 
-export default PrivacyTab;
+export default React.memo(PrivacyTab);

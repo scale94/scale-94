@@ -87,4 +87,4 @@ const KernelTab = ({ kernelAxioms, kernelBuilds, handleKernelClick, loadingKerne
   </div>
 );
 
-export default KernelTab;
+export default React.memo(KernelTab);

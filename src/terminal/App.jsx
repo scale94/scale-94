@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useLayoutEffect, useMemo, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { Hexagon, Cpu, Lock, Scale, Eye } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
 
@@ -93,7 +93,7 @@ const App = () => {
   }, [currentPath, selectedArticle, activeTab, architectThesis]);
 
   // Handle loading a kernel module
-  const handleKernelClick = (kernel) => {
+  const handleKernelClick = useCallback((kernel) => {
     if (loadingKernel) return;
     setLoadingKernel(kernel.id);
     const now = new Date();
@@ -122,23 +122,23 @@ const App = () => {
         appendSystemLog({ time: later.toLocaleTimeString('en-US', { hour12: false }), msg: `NOTICE: No public file attached.` });
       }
     }, 1200);
-  };
+  }, [loadingKernel, appendSystemLog]);
 
-  const handleReturnToRoot = () => {
+  const handleReturnToRoot = useCallback(() => {
     const targetTab = originTab === 'kernel_doc' || originTab === 'kernel' ? 'kernel' : originTab;
     setSelectedArticle(null);
     setArchitectThesis(false);
     setActiveTab(targetTab);
     setCurrentPath('~/' + targetTab);
-  };
+  }, [originTab]);
 
-  const handleNav = (path, tab) => {
+  const handleNav = useCallback((path, tab) => {
     setCurrentPath(path);
     setActiveTab(tab);
     setSelectedArticle(null);
     setArchitectThesis(false);
     setSearchFilter('');
-  };
+  }, []);
 
   // Command handler
   const handleCommand = (e) => {

@@ -26,7 +26,8 @@
       "Bash(node import-kernel.js ./content/soma_kernel/)",
       "Bash(node cleanup-and-reimport.js ./content/soma_kernel/)",
       "Bash(node cleanup-and-reimport.js)",
-      "Bash(npm install)"
+      "Bash(npm install)",
+      "Bash(node E:/scale_9.4/gen_builds.js)"
     ]
   }
 }
