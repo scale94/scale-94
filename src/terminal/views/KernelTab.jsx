@@ -16,13 +16,15 @@ const KernelTab = ({ kernelAxioms, kernelBuilds, handleKernelClick, loadingKerne
         <h2 className="text-4xl font-bold mb-1 tracking-tight flex items-center gap-3">
           <Cpu className="w-8 h-8 shrink-0 text-[#39ff14]" />
           <span
-            className="text-transparent bg-clip-text bg-gradient-to-r from-[#39ff14] via-cyan-300 to-cyan-500 animate-shimmer-fast [background-size:200%_auto]"
+            className="text-transparent bg-clip-text bg-gradient-to-r from-[#39ff14] via-cyan-300 to-cyan-500 animate-shimmer-fast"
+            style={{ backgroundSize: '200% auto' }}
           >
             SYSTEM_KERNEL
           </span>
         </h2>
         <div
-          className="text-sm font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-400 via-cyan-300 to-[#39ff14] animate-shimmer-slow [background-size:200%_auto]"
+          className="text-sm font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-400 via-cyan-300 to-[#39ff14] animate-shimmer-slow"
+          style={{ backgroundSize: '200% auto' }}
         >
           VERSION: SOMA 11.1 // BUILD: FISH_SCALE_NECROMANCER
         </div>

@@ -18,21 +18,20 @@ const BootSequence = () => {
   const cardRef = useRef(null); // card wrapper — fade target
 
   useEffect(() => {
-    // ─── All timing is pure JavaScript. No CSS animation / transition is used
-    // for the spin or the fade, so there is zero dependency on CSS loading order,
-    // Tailwind purge behaviour, or React style-prop reconciliation in production.
-    //
-    //  0 ms → 2000 ms  : CPU spins 720° (ease-out)
+    //  0 ms → 2000 ms   : CPU spins 720° (ease-out)
     //  2000 ms → 3000 ms: card fades opacity 1 → 0 (linear)
-    //  3100 ms          : App.jsx unmounts this component
     const SPIN_MS       = 2000;
     const FADE_START_MS = 2000;
     const FADE_MS       = 1000;
-    const t0 = performance.now();
+    
+    let startTime = null;
     let raf;
 
     const tick = (now) => {
-      const elapsed = now - t0;
+      // FIX: Capture startTime on the exact millisecond the browser paints the first frame.
+      // This prevents the animation from instantly skipping to the end in production builds.
+      if (!startTime) startTime = now;
+      const elapsed = now - startTime;
 
       // CPU spin
       const spinT = Math.min(elapsed / SPIN_MS, 1);
@@ -58,7 +57,52 @@ const BootSequence = () => {
 
   return (
     <div className="min-h-screen bg-black font-mono flex items-center justify-center p-4 overflow-hidden relative">
-      {/* All bs-* keyframes live in index.css */}
+      
+      {/* Injecting the keyframes via React guarantees they are rendered at runtime. 
+        This completely prevents PostCSS/Tailwind from purging or mis-ordering them in production. 
+      */}
+      <style>{`
+        @keyframes bs-cpuGlow {
+          0%,100% { filter: drop-shadow(0 0 4px rgba(57,255,20,0.5)); }
+          50%     { filter: drop-shadow(0 0 16px rgba(57,255,20,1)) drop-shadow(0 0 32px rgba(57,255,20,0.4)); }
+        }
+        @keyframes bs-titleReveal {
+          from { opacity: 0; transform: translateY(-10px); filter: blur(10px); }
+          to   { opacity: 1; transform: translateY(0);     filter: blur(0); }
+        }
+        @keyframes bs-glitch {
+          0%  { text-shadow: -3px 0 #ff00ff, 3px 0 #00ffff; transform: translate(0); }
+          20% { text-shadow:  3px 0 #ff00ff,-3px 0 #00ffff; transform: translate(-2px, 1px); }
+          40% { text-shadow: -2px 0 #ff00ff, 2px 0 #00ffff; transform: translate(2px,-1px); }
+          60% { text-shadow:  1px 0 #ff00ff,-1px 0 #00ffff; transform: translate(0); }
+          80% { text-shadow: -3px 0 #ff00ff, 3px 0 #00ffff; transform: translate(1px, 2px); }
+          100%{ text-shadow: none;                           transform: translate(0); }
+        }
+        @keyframes bs-lineIn {
+          from { opacity: 0; transform: translateX(-14px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes bs-progress {
+          from { width: 0%; }
+          to   { width: 100%; }
+        }
+        @keyframes bs-scan {
+          0%   { top: -4%; }
+          100% { top: 104%; }
+        }
+        @keyframes bs-glow {
+          0%,100% { box-shadow: 0 0 12px rgba(6,182,212,0.35), 0 0 40px rgba(217,70,239,0.12); }
+          50%     { box-shadow: 0 0 28px rgba(6,182,212,0.7),  0 0 80px rgba(217,70,239,0.3);  }
+        }
+        @keyframes bs-active {
+          0%,100% { color: #39ff14; text-shadow: 0 0 8px #39ff14; }
+          50%     { color: #00ffaa; text-shadow: 0 0 20px #00ffaa; }
+        }
+        @keyframes bs-gradient-x {
+          0%, 100% { background-position: 0% 50%; }
+          50%      { background-position: 100% 50%; }
+        }
+      `}</style>
 
       {/* Static CRT scanlines texture */}
       <div style={{
@@ -73,7 +117,7 @@ const BootSequence = () => {
         animation: 'bs-scan 0.9s linear infinite',
       }} />
 
-      {/* Card wrapper — opacity driven by JS rAF, not CSS */}
+      {/* Card wrapper — opacity driven by JS rAF */}
       <div ref={cardRef} className="max-w-lg w-full relative z-10">
 
         {/* Glowing gradient border */}
@@ -96,8 +140,7 @@ const BootSequence = () => {
 
               {/* CPU spin wrapper — plain HTML div so transform-origin:50% 50% is
                   reliable cross-browser. transform is written directly to el.style
-                  by the rAF loop; React never sees it so reconciliation can't reset it.
-                  Only the glow pulse lives in the style prop (string never changes). */}
+                  by the rAF loop; React never sees it so reconciliation can't reset it. */}
               <div
                 ref={cpuRef}
                 className="shrink-0"
