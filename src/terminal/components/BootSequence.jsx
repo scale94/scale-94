@@ -51,13 +51,14 @@ const BootSequence = () => (
         0%   { top: -4%; }
         100% { top: 104%; }
       }
-      /* Whole-screen flicker — fires late in the 3s window */
+      /* Whole-screen flicker at ~2.3-2.7s, then clean fade to 0 at 3s */
       @keyframes bs-flicker {
-        0%,90%,93%,96%,100% { opacity: 1; }
-        91%  { opacity: 0.6; }
-        94%  { opacity: 0.8; }
-        97%  { opacity: 0.5; }
-        98%  { opacity: 0.9; }
+        0%,78%,81%,84%,87%,90% { opacity: 1; }
+        79%  { opacity: 0.6; }
+        82%  { opacity: 0.8; }
+        85%  { opacity: 0.5; }
+        86%  { opacity: 0.9; }
+        100% { opacity: 0; }
       }
       /* Border glow breathe */
       @keyframes bs-glow {
@@ -113,8 +114,8 @@ const BootSequence = () => (
               className="shrink-0 text-[#39ff14]"
               style={{
                 width: '2.75rem', height: '2.75rem',
-                // Spin finishes definitively at 2.5s (2 rotations) with a sharp easeOutExpo deceleration
-                animation: 'bs-cpuSpin 2.5s cubic-bezier(0.16, 1, 0.3, 1) forwards, bs-cpuGlow 1.2s ease-in-out 0.4s infinite',
+                // Spin runs the full 3s and decelerates to a stop right as the screen fades out
+                animation: 'bs-cpuSpin 3s cubic-bezier(0.16, 1, 0.3, 1) forwards, bs-cpuGlow 1.2s ease-in-out 0.4s infinite',
               }}
             />
             <div>

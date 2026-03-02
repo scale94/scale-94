@@ -17,7 +17,7 @@ const KernelTab = ({ kernelAxioms, kernelBuilds, handleKernelClick, loadingKerne
           <Cpu className="w-8 h-8 shrink-0 text-[#39ff14]" />
           <span
             className="text-transparent bg-clip-text bg-gradient-to-r from-[#39ff14] via-cyan-300 to-cyan-500"
-            style={{ backgroundSize: '200% auto', animation: 'gradient-x 4s ease infinite' }}
+            style={{ backgroundSize: '200% auto', animation: 'gradient-x 3s linear infinite' }}
           >
             SYSTEM_KERNEL
           </span>

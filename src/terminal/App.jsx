@@ -77,7 +77,7 @@ const App = () => {
   }, [sortedBuilds, searchFilter, norm]);
 
   useEffect(() => {
-    const timer = setTimeout(() => setBootSequence(false), 3000);
+    const timer = setTimeout(() => setBootSequence(false), 3100);
     return () => clearTimeout(timer);
   }, []);
 
