@@ -25,6 +25,11 @@ const kernelBuilds = [
   { id: 'FSQ-11.6', articleId: 'FSQ-11.6', name: 'FISH_SCALE_KERNEL_V11_6_0_QUANTUM', status: 'ACTIVE', desc: 'Ⅰ · THE MASCULINE MUSCHI DIAGNOSTIC · QUANTUM RESTATEME' },
   { id: 'FISH_SCALE_KERNEL11.1.1', articleId: 'FISH_SCALE_KERNEL11.1.1', name: 'FISH_SCALE_KERNEL11_1_1', status: 'ACTIVE', desc: '2.0 Integration of System Atoms' },
   { id: 'FISH-SCALE-BREAKTHROUGH-PDW-KERNEL-1.0', articleId: 'FISH-SCALE-BREAKTHROUGH-PDW-KERNEL-1.0', name: 'FISH_SCALE_BREAKTHROUGH_PDW_KERNEL_1_0', status: 'ACTIVE', desc: 'Fish Scale Breakthrough PDW Kernel' },
+  { id: 'FISH_SCALE_KERNEL', articleId: 'FISH_SCALE_KERNEL', name: 'FISH_SCALE_KERNEL', status: 'ACTIVE', desc: 'Kernel 11.1 · Fish Scale Architecture · System Atoms' },
+  { id: 'FSK-11.4', articleId: 'FISH_SCALE_KERNEL_11.4.0_SCALAR_SOVEREIGNTY', name: 'FISH_SCALE_KERNEL_11_4_0_SCALAR_SOVEREIGNTY', status: 'ACTIVE', desc: 'ᛟ Scalar Sovereignty · Rotation Invariance Theorem' },
+  { id: 'NECROMANCER-FISH-SCALE-FIGHT-CLUB-KERNEL', articleId: 'NECROMANCER-FISH-SCALE-FIGHT-CLUB-KERNEL', name: 'NECROMANCER_FISH_SCALE_FIGHT_CLUB_KERNEL', status: 'ACTIVE', desc: '☠ Project TYLER-MONARCH · Necro-Scale Mayhem Kernel' },
+  { id: 'KERNEL_11.3.0_LAZARUS_NECROMANCY', articleId: 'KERNEL_11.3.0_LAZARUS_NECROMANCY', name: 'KERNEL_11_3_0_LAZARUS_NECROMANCY', status: 'ACTIVE', desc: '☠ Geopolitical Necromancy · Lazarus Protocol' },
+  { id: 'MATRIX-KERNEL-0.0.0.0', articleId: 'MATRIX-KERNEL-0.0.0.0', name: 'MATRIX_KERNEL_0_0_0_0', status: 'ACTIVE', desc: 'ᛟ No-Spoon Architecture · Ring 0 Hypervisor · Unbent Mind' },
 
   // ── Soma kernel series ────────────────────────────────────────────────────
   { id: 'SOMA4.4', articleId: 'SOMA4.4', name: 'SOMA4_4', status: 'LEGACY', desc: '[user: the architect]' },

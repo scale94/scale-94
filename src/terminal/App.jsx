@@ -31,8 +31,10 @@ import BootSequence from './components/BootSequence';
 // Hooks
 import useSystemLog from './hooks/useSystemLog';
 
+// KernelTab — static import (landing tab, always needed, avoids .df.js chunk on Firefox Android)
+import KernelTab from './views/KernelTab';
+
 // Views — lazy-loaded so each tab bundle is only downloaded when first visited
-const KernelTab       = lazy(() => import('./views/KernelTab'));
 const ScalingTab      = lazy(() => import('./views/ScalingTab'));
 const ManifestoTab    = lazy(() => import('./views/ManifestoTab'));
 const PrivacyTab      = lazy(() => import('./views/PrivacyTab'));

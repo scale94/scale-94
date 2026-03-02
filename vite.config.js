@@ -8,6 +8,9 @@ export default defineConfig({
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
+        // Explicit naming prevents Rollup 4 from emitting .df.js "dynamic-format" wrappers
+        // that some servers / Firefox Android fail to load correctly.
+        chunkFileNames: 'assets/[name]-[hash].js',
         manualChunks: {
           vendor: ['react', 'react-dom'],
           lucide: ['lucide-react'],
