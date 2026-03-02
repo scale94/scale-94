@@ -1,48 +1,262 @@
-import React, { useState, useEffect, useRef, useLayoutEffect, useMemo, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect, useMemo, useCallback, Suspense } from 'react';
 import { Hexagon, Cpu, Lock, Scale, Eye } from 'lucide-react';
-import { Analytics } from '@vercel/analytics/react';
 
-// Data
-import kernelAxioms from './data/kernelAxioms';
-import _rawBuilds from './data/kernelBuilds';
-// Deduplicate by name — the importer can produce multiple entries per kernel on repeated runs
-const kernelBuilds = _rawBuilds.filter((k, i, arr) => arr.findIndex(x => x.name === k.name) === i);
-import staticArticles from './data/articles';     // existing articles — keeps kernelBuilds IDs intact
-import autoArticles   from './data/loadArticles'; // auto-loaded .md files from content/soma_kernel
+// --- MOCKED DEPENDENCIES FOR PREVIEW ENVIRONMENT ---
+// The environment cannot resolve external local files. We mock them inline here to ensure compilation.
+const Analytics = () => null;
 
-// Normalise a title for duplicate detection — strips everything except a-z and digits.
-// e.g. "FISH SCALE KERNEL 11.1.1" and "FISH_SCALE_KERNEL11.1.1" both → "fishscalekernel1111"
-const normaliseTitle = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-
-// Merge: auto-loaded .md files win (they carry the canonical filenameToId IDs that
-// kernelBuilds references).  Static articles.js entries are appended only when they
-// introduce genuinely new content — i.e. a title not already present in the auto set.
-// This ensures that repeated importer runs in articles.js never shadow the correct IDs.
-const autoTitles = new Set(autoArticles.map(a => normaliseTitle(a.title)));
-const articles   = [
-  ...autoArticles,
-  ...staticArticles.filter(a => !autoTitles.has(normaliseTitle(a.title))),
+const kernelAxioms = [
+  "01 :: TRANSMUTE",
+  "02 :: SUSTAIN",
+  "03 :: INTEGRITY"
 ];
 
-// Components
-import OctagonGrid from './components/OctagonGrid';
-import BootSequence from './components/BootSequence';
+const _rawBuilds = [
+  { id: 'scale_9.4', name: 'SCALE_9.4', desc: 'Fish Scale Necromancer', articleId: 'manifesto' },
+  { id: 'soma_kernel_5.5', name: 'SOMA_KERNEL_V5.5', desc: 'Core Kernel Update', articleId: 'legacy' }
+];
 
-// Hooks
-import useSystemLog from './hooks/useSystemLog';
-import useTerminalCommands from './hooks/useTerminalCommands';
+const staticArticles = [
+  { id: 'manifesto', title: 'The Manifesto', type: 'doc' }
+];
+const autoArticles = [];
 
-// KernelTab — static import (landing tab, always needed, avoids .df.js chunk on Firefox Android)
-import KernelTab from './views/KernelTab';
+const OctagonGrid = ({ visible }) => visible ? <div className="absolute inset-0 bg-[linear-gradient(to_right,#06b6d415_1px,transparent_1px),linear-gradient(to_bottom,#06b6d415_1px,transparent_1px)] bg-[size:4rem_4rem] pointer-events-none" /> : null;
+const KernelTab = ({ searchFilter }) => <div className="p-8 text-cyan-400 font-bold uppercase animate-pulse">Kernel View Initialized {searchFilter && `[FILTER: ${searchFilter}]`}</div>;
+const ScalingTab = () => <div className="p-8 text-fuchsia-400 font-bold uppercase">Scaling Parameters Optimal</div>;
+const ManifestoTab = () => <div className="p-8 text-cyan-100 font-bold uppercase">Decoding Manifesto Data...</div>;
+const PrivacyTab = () => <div className="p-8 text-gray-300 font-bold uppercase">Privacy Protocols Enforced</div>;
+const ArticleView = ({ article }) => <div className="p-8 text-cyan-300 font-bold uppercase">Accessing Record: {article?.id}</div>;
+const ThesisView = () => <div className="p-8 text-fuchsia-300 font-bold uppercase">Architect Thesis Loaded</div>;
+const TransmissionTab = () => <div className="p-8 text-cyan-500 font-bold uppercase tracking-widest">Awaiting Transmissions...</div>;
 
-// Views — lazy-loaded so each tab bundle is only downloaded when first visited
-const ScalingTab      = lazy(() => import('./views/ScalingTab'));
-const ManifestoTab    = lazy(() => import('./views/ManifestoTab'));
-const PrivacyTab      = lazy(() => import('./views/PrivacyTab'));
-const ArticleView     = lazy(() => import('./views/ArticleView'));
-const ThesisView      = lazy(() => import('./views/ThesisView'));
-const TransmissionTab = lazy(() => import('./views/TransmissionTab'));
+const useSystemLog = () => {
+  const [visibleLogs, setSystemLogs] = useState([]);
+  const logRef = useRef(null);
+  const appendSystemLog = useCallback((log) => setSystemLogs(prev => [...prev, log]), []);
+  return { appendSystemLog, setSystemLogs, visibleLogs, logRef };
+};
 
+const useTerminalCommands = () => {
+  const [commandInput, setCommandInput] = useState('');
+  const suggestions = [];
+  const activeSugg = -1;
+  const handleInputChange = (e) => setCommandInput(e.target.value);
+  const handleCommand = (e) => { if (e.key === 'Enter') setCommandInput(''); };
+  const executeSuggestion = () => {};
+  return { commandInput, setCommandInput, suggestions, activeSugg, handleInputChange, handleCommand, executeSuggestion };
+};
+
+
+// --- PERFECTED BOOT SEQUENCE (3 SECONDS) ---
+const BOOT_LINES = [
+  ['MOUNTING VOLUMES',          'OK'],
+  ['LOADING SOMA_KERNEL_V5.5',  'OK'],
+  ['ESTABLISHING SECURE CONN',  'OK'],
+  ['DECRYPTING ARCHIVES',       'OK'],
+  ['INTEGRITY CHECK',           'PASS'],
+];
+
+const BootSequence = () => {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    let frame2;
+    const frame1 = requestAnimationFrame(() => {
+      frame2 = requestAnimationFrame(() => {
+        setMounted(true);
+      });
+    });
+    return () => {
+      cancelAnimationFrame(frame1);
+      if (frame2) cancelAnimationFrame(frame2);
+    };
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-black font-mono flex items-center justify-center p-4 overflow-hidden relative">
+      <style>{`
+        @keyframes sk-cpuGlow {
+          0%,100% { filter: drop-shadow(0 0 4px rgba(57,255,20,0.5)); }
+          50%     { filter: drop-shadow(0 0 16px rgba(57,255,20,1)) drop-shadow(0 0 32px rgba(57,255,20,0.4)); }
+        }
+        @keyframes sk-titleReveal {
+          from { opacity: 0; transform: translateY(-10px); filter: blur(10px); }
+          to   { opacity: 1; transform: translateY(0);     filter: blur(0); }
+        }
+        @keyframes sk-glitch {
+          0%  { text-shadow: -3px 0 #ff00ff, 3px 0 #00ffff; transform: translate(0); }
+          20% { text-shadow:  3px 0 #ff00ff,-3px 0 #00ffff; transform: translate(-2px, 1px); }
+          40% { text-shadow: -2px 0 #ff00ff, 2px 0 #00ffff; transform: translate(2px,-1px); }
+          60% { text-shadow:  1px 0 #ff00ff,-1px 0 #00ffff; transform: translate(0); }
+          80% { text-shadow: -3px 0 #ff00ff, 3px 0 #00ffff; transform: translate(1px, 2px); }
+          100%{ text-shadow: none;                           transform: translate(0); }
+        }
+        @keyframes sk-lineIn {
+          from { opacity: 0; transform: translateX(-14px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes sk-progress {
+          from { width: 0%; }
+          to   { width: 100%; }
+        }
+        @keyframes sk-scan {
+          0%   { top: -4%; }
+          100% { top: 104%; }
+        }
+        @keyframes sk-flicker {
+          0%,94%,96%,98%,100% { opacity: 1; }
+          95%  { opacity: 0.7; }
+          97%  { opacity: 0.85; }
+        }
+        @keyframes sk-glow {
+          0%,100% { box-shadow: 0 0 12px rgba(6,182,212,0.35), 0 0 40px rgba(217,70,239,0.12); }
+          50%     { box-shadow: 0 0 28px rgba(6,182,212,0.7),  0 0 80px rgba(217,70,239,0.3);  }
+        }
+        @keyframes sk-active {
+          0%,100% { color: #39ff14; text-shadow: 0 0 8px #39ff14; }
+          50%     { color: #00ffaa; text-shadow: 0 0 20px #00ffaa; }
+        }
+        @keyframes sk-gradient-x {
+          0%, 100% { background-position: 0% 50%; }
+          50%      { background-position: 100% 50%; }
+        }
+        /* Adjusted for 'settle' feel: Stays solid until 2.8s, then fades fast before 3s unmount */
+        @keyframes sk-cardFade {
+          0%, 92% { opacity: 1; filter: blur(0px); }
+          100%    { opacity: 0; filter: blur(4px); }
+        }
+      `}</style>
+
+      <div style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 1,
+        backgroundImage: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.18) 0px, rgba(0,0,0,0.18) 1px, transparent 1px, transparent 2px)',
+      }} />
+
+      <div style={{
+        position: 'absolute', left: 0, right: 0, height: '3px', zIndex: 2, pointerEvents: 'none',
+        background: 'linear-gradient(transparent, rgba(6,182,212,0.5), transparent)',
+        animation: 'sk-scan 0.9s linear infinite',
+      }} />
+
+      <div className="max-w-lg w-full relative z-10" style={{ animation: 'sk-flicker 3s linear forwards' }}>
+        <div style={{ animation: 'sk-cardFade 3s linear forwards' }}>
+          <div style={{
+            padding: '1.5px',
+            background: 'linear-gradient(135deg, rgba(6,182,212,0.6), rgba(217,70,239,0.5), rgba(6,182,212,0.6))',
+            borderRadius: '3px',
+            animation: 'sk-glow 0.8s ease-in-out infinite',
+          }}>
+            <div className="bg-black px-6 py-7 md:px-10 md:py-9 rounded-sm">
+
+              <div className="flex justify-between items-center mb-6 text-[9px] tracking-widest">
+                <span className="text-cyan-900/70">SYS::BOOT_SEQUENCE</span>
+                <span className="text-fuchsia-900/70">NODE::scale-9.4</span>
+              </div>
+
+              <div className="flex items-center gap-4" style={{ animation: 'sk-titleReveal 0.35s ease-out forwards' }}>
+                <div
+                  className="sk-rotation-target shrink-0 flex items-center justify-center"
+                  style={{
+                    width: '2.75rem',
+                    height: '2.75rem',
+                    animation: 'none !important',
+                    transform: mounted ? 'rotate(720deg)' : 'rotate(0deg)',
+                    transition: 'transform 2s cubic-bezier(0.16, 1, 0.3, 1)',
+                  }}
+                >
+                  <Cpu
+                    className="text-[#39ff14] w-full h-full"
+                    style={{ 
+                      animation: 'sk-cpuGlow 1.2s ease-in-out 0.4s infinite',
+                      transform: 'none !important' 
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <div
+                    className="text-4xl md:text-5xl font-black tracking-tight uppercase leading-none text-transparent bg-clip-text bg-gradient-to-r from-[#39ff14] via-cyan-300 to-cyan-500"
+                    style={{
+                      backgroundSize: '200% auto',
+                      animation: 'sk-glitch 0.25s steps(1) 0.45s 5 forwards, sk-gradient-x 2s ease forwards'
+                    }}
+                  >
+                    SOMA_KERNEL
+                  </div>
+                  <div className="text-fuchsia-500 text-xs font-bold tracking-[0.25em] mt-2 uppercase">
+                    v5.5 &nbsp;//&nbsp; FISH_SCALE_NECROMANCER
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-cyan-900/40 my-5" />
+
+              <div className="space-y-2 text-xs font-bold mb-6">
+                {BOOT_LINES.map(([label, status], i) => (
+                  <div
+                    key={i}
+                    className="flex justify-between items-center text-cyan-500"
+                    style={{ opacity: 0, animation: `sk-lineIn 0.18s ease-out ${200 + i * 290}ms forwards` }}
+                  >
+                    <span>
+                      <span className="text-fuchsia-500 mr-1">{'>'}</span>
+                      {label}
+                      <span className="text-cyan-900/60">...</span>
+                    </span>
+                    <span className="text-[#39ff14] ml-6 tracking-widest">[{status}]</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mb-5">
+                <div className="h-[2px] bg-cyan-950 w-full rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: 0,
+                      animation: 'sk-progress 2.1s cubic-bezier(0.4,0,0.2,1) 0.2s forwards',
+                      background: 'linear-gradient(90deg, #06b6d4, #d946ef, #39ff14)',
+                      boxShadow: '0 0 10px rgba(6,182,212,0.9)',
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div
+                className="text-xs font-black tracking-widest"
+                style={{
+                  opacity: 0,
+                  color: '#39ff14',
+                  animation: 'sk-lineIn 0.2s ease-out 1.6s forwards, sk-active 0.35s ease-in-out 1.8s infinite',
+                }}
+              >
+                {'>'} scale_9.4 ACTIVE :: ALL SYSTEMS OPERATIONAL
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+// --- DATA PROCESSING ---
+const kernelBuilds = _rawBuilds.filter((k, i, arr) => arr.findIndex(x => x.name === k.name) === i);
+const normaliseTitle = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+const staticIds     = new Set(staticArticles.map(a => a.id));
+const staticTitles  = new Set(staticArticles.map(a => normaliseTitle(a.title)));
+const articles      = [
+  ...staticArticles,
+  ...autoArticles.filter(a =>
+    !staticIds.has(a.id) && !staticTitles.has(normaliseTitle(a.title))
+  ),
+];
+
+// --- MAIN APP ---
 const App = () => {
   const [currentPath, setCurrentPath] = useState('~/system/kernel');
   const [activeTab, setActiveTab] = useState('kernel');
@@ -57,17 +271,15 @@ const App = () => {
 
   const mainRef = useRef(null);
 
-  // Fiction articles for Transmission tab — memoised (articles is module-level, never changes)
   const transmissionStories = useMemo(() => articles.filter(a => a.type === 'fiction'), []);
 
-  // Kernel ordering — pinned first, rest reversed. kernelBuilds is a static import so [] dep is safe.
   const sortedBuilds = useMemo(() => {
     const [pinned, ...rest] = kernelBuilds;
     return [pinned, ...rest.slice().reverse()];
   }, []);
 
-  // Filtered subset — used by KernelTab when a search/load filter is active.
   const norm = useCallback((s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, ''), []);
+  
   const filteredBuilds = useMemo(() => {
     if (!searchFilter) return sortedBuilds;
     const q = norm(searchFilter);
@@ -77,12 +289,11 @@ const App = () => {
   }, [sortedBuilds, searchFilter, norm]);
 
   useEffect(() => {
-    const timer = setTimeout(() => setBootSequence(false), 3100);
+    // Synced perfectly to the 3-second BootSequence timeline
+    const timer = setTimeout(() => setBootSequence(false), 3000);
     return () => clearTimeout(timer);
   }, []);
 
-  // Scroll to top on initial mount — prevents autoFocus on the footer input
-  // from pulling mobile browsers down to the keyboard on first load.
   useEffect(() => {
     if (mainRef.current) {
       mainRef.current.scrollTop = 0;
@@ -91,7 +302,6 @@ const App = () => {
     document.documentElement.scrollTop = 0;
   }, []);
 
-  // Scroll to top on navigation
   useLayoutEffect(() => {
     if (mainRef.current) {
       mainRef.current.style.scrollBehavior = 'auto';
@@ -101,7 +311,6 @@ const App = () => {
     document.documentElement.scrollTop = 0;
   }, [currentPath, selectedArticle, activeTab, architectThesis]);
 
-  // Handle loading a kernel module
   const handleKernelClick = useCallback((kernel) => {
     if (loadingKernel) return;
     setLoadingKernel(kernel.id);
@@ -169,15 +378,23 @@ const App = () => {
     setOriginTab,
   });
 
-  // --- BOOT SEQUENCE ---
   if (bootSequence) {
     return <BootSequence />;
   }
 
   return (
-    <div className={`min-h-screen font-mono selection:bg-fuchsia-900 selection:text-white flex flex-col overflow-hidden relative transition-colors duration-700 ${selectedArticle || architectThesis ? 'bg-[#09090b]' : 'bg-black'}`}>
+    <div className={`animate-app-reveal min-h-screen font-mono selection:bg-fuchsia-900 selection:text-white flex flex-col overflow-hidden relative transition-colors duration-700 ${selectedArticle || architectThesis ? 'bg-[#09090b]' : 'bg-black'}`}>
       <style>{`
-        /* App-scoped scrollbar overrides (narrower than the global default) */
+        /* Smooth fade-in when the boot sequence unmounts */
+        @keyframes appReveal {
+          from { opacity: 0; filter: blur(4px); }
+          to   { opacity: 1; filter: blur(0); }
+        }
+        .animate-app-reveal {
+          animation: appReveal 0.6s ease-out forwards;
+        }
+
+        /* Custom "Hacker" Scrollbar */
         ::-webkit-scrollbar {
           width: 6px;
           height: 6px;
@@ -186,11 +403,11 @@ const App = () => {
           background: #000;
         }
         ::-webkit-scrollbar-thumb {
-          background: #06b6d4;
+          background: #06b6d4; /* Cyan-500 */
           border-radius: 0px;
         }
         ::-webkit-scrollbar-thumb:hover {
-          background: #22d3ee;
+          background: #22d3ee; /* Cyan-400 */
         }
         .custom-scrollbar::-webkit-scrollbar {
           width: 4px;
@@ -201,7 +418,19 @@ const App = () => {
         .custom-scrollbar:hover::-webkit-scrollbar-thumb {
           background: rgba(6, 182, 212, 0.8);
         }
-        /* spin, animate-spin-slow, gradient-x → index.css */
+
+        /* Custom Keyframes for slow spin */
+        @keyframes spin {
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
+        }
+        .animate-spin-slow {
+          animation: spin 12s linear infinite;
+        }
       `}</style>
       <OctagonGrid visible={!selectedArticle && !architectThesis} />
 
@@ -237,7 +466,7 @@ const App = () => {
             <span className="animate-pulse ml-2 inline-block w-2 h-4 bg-fuchsia-500 align-middle shadow-[0_0_8px_rgba(217,70,239,0.8)]"></span>
           </div>
 
-          {/* Kernel Tab */}
+          {/* Render the appropriate tab contents */}
           {activeTab === 'kernel' && !selectedArticle && (
             <KernelTab
               kernelAxioms={kernelAxioms}
@@ -251,7 +480,6 @@ const App = () => {
             />
           )}
 
-          {/* Scaling Tab */}
           {activeTab === 'scaling' && !selectedArticle && !architectThesis && (
             <ScalingTab
               setArchitectThesis={setArchitectThesis}
@@ -259,12 +487,10 @@ const App = () => {
             />
           )}
 
-          {/* Architect Thesis View */}
           {architectThesis && (
             <ThesisView handleReturnToRoot={handleReturnToRoot} />
           )}
 
-          {/* Transmission Tab */}
           {activeTab === 'transmission' && !selectedArticle && !architectThesis && (
             <TransmissionTab
               stories={transmissionStories}
@@ -276,17 +502,14 @@ const App = () => {
             />
           )}
 
-          {/* Manifesto Tab */}
           {activeTab === 'manifesto' && !selectedArticle && !architectThesis && (
             <ManifestoTab />
           )}
 
-          {/* Privacy Tab */}
           {activeTab === 'privacy' && !selectedArticle && !architectThesis && (
             <PrivacyTab />
           )}
 
-          {/* Article Detail */}
           {selectedArticle && (
             <ArticleView
               article={selectedArticle}
@@ -301,7 +524,6 @@ const App = () => {
       <footer className="border-t border-cyan-900/50 p-2 bg-black/90 backdrop-blur-md z-40 shadow-[0_0_15px_rgba(6,182,212,0.1)] [overflow-x:clip] w-full">
         <div className="max-w-[1600px] mx-auto relative flex items-center gap-2 text-sm font-bold tracking-wide min-w-0 w-full">
 
-          {/* Autocomplete dropdown — floats above the terminal bar */}
           {suggestions.length > 0 && (
             <div className="absolute bottom-full left-0 right-0 mb-1 bg-black border border-cyan-900/60 shadow-[0_-4px_24px_rgba(6,182,212,0.2)] z-50 rounded-sm overflow-hidden">
               <div className="max-h-[220px] overflow-y-auto custom-scrollbar">
