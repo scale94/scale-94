@@ -51,14 +51,10 @@ const BootSequence = () => (
         0%   { top: -4%; }
         100% { top: 104%; }
       }
-      /* Whole-screen flicker at ~2.3-2.7s, then clean fade to 0 at 3s */
+      /* Opacity 1 for first 2s, then fades to 0 over the final 1s */
       @keyframes bs-flicker {
-        0%,78%,81%,84%,87%,90% { opacity: 1; }
-        79%  { opacity: 0.6; }
-        82%  { opacity: 0.8; }
-        85%  { opacity: 0.5; }
-        86%  { opacity: 0.9; }
-        100% { opacity: 0; }
+        0%, 66.7% { opacity: 1; }
+        100%      { opacity: 0; }
       }
       /* Border glow breathe */
       @keyframes bs-glow {
@@ -114,8 +110,8 @@ const BootSequence = () => (
               className="shrink-0 text-[#39ff14]"
               style={{
                 width: '2.75rem', height: '2.75rem',
-                // ease-out spreads the 720° rotation across the full 3s — fast start, gradual deceleration, stops as the fade begins
-                animation: 'bs-cpuSpin 3s ease-out forwards, bs-cpuGlow 1.2s ease-in-out 0.4s infinite',
+                // 2 rotations in exactly 2s, then stops — fade takes over for the final 1s
+                animation: 'bs-cpuSpin 2s ease-out forwards, bs-cpuGlow 1.2s ease-in-out 0.4s infinite',
               }}
             />
             <div>
