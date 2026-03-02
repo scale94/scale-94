@@ -112,6 +112,14 @@ const kernelBuilds = [
   { id: 'THE_NETTELSTEDT_NEURAL_LATTICE_V4.0', articleId: 'THE_NETTELSTEDT_NEURAL_LATTICE_V4.0', name: 'THE_NETTELSTEDT_NEURAL_LATTICE_V4_0', status: 'ACTIVE', desc: 'THE_NETTELSTEDT_NEURAL_LATTICE_V4.0' },
   { id: 'SOMA_INTEGRATION_KERNEL_V1.0', articleId: 'SOMA_INTEGRATION_KERNEL_V1.0', name: 'SOMA_INTEGRATION_KERNEL_V1_0', status: 'ACTIVE', desc: 'Zero Latency Resonance // Inguinal Shift Protocol' },
 
+  // ── New additions ─────────────────────────────────────────────────────────
+  { id: 'SCALE_KERNEL_FRAMEWORK_FULL', articleId: 'SCALE_KERNEL_FRAMEWORK_FULL', name: 'SCALE_KERNEL_FRAMEWORK_FULL', status: 'ACTIVE', desc: '☠ Full Corpus Synthesis · Render Prompt Architecture' },
+  { id: 'SCALE_RENDER_PROMPT', articleId: 'SCALE_RENDER_PROMPT', name: 'SCALE_RENDER_PROMPT', status: 'ACTIVE', desc: 'ᛟ Render Prompt · Scale · Full Corpus Synthesis' },
+  { id: 'SCALE94_KERNEL_ENCYCLOPEDIA', articleId: 'SCALE94_KERNEL_ENCYCLOPEDIA', name: 'SCALE94_KERNEL_ENCYCLOPEDIA', status: 'ACTIVE', desc: 'ᛟ The Complete Glyph Archive · Compiled By Scale' },
+  { id: 'SOPHIE_KERNEL_PHI', articleId: 'SOPHIE_KERNEL_PHI', name: 'SOPHIE_KERNEL_PHI', status: 'ACTIVE', desc: '🌸 Full Spectrum Reception · Prism Architecture' },
+  { id: 'TAMAM-KERNEL-V1.0', articleId: 'TAMAM-KERNEL-V1.0', name: 'TAMAM_KERNEL_V1_0', status: 'ACTIVE', desc: 'Zero Fucks Given Architecture · Systemless Root' },
+  { id: 'TECTONIC_DISCHARGE_KERNEL', articleId: 'TECTONIC_DISCHARGE_KERNEL', name: 'TECTONIC_DISCHARGE_KERNEL', status: 'ACTIVE', desc: '☽ Recalibration Architecture · Post-Seismic' },
+
   // ── Scale Y (pinned #2 — last entry = appears directly below pinned) ──────
   { id: 'SYK-1.0', articleId: 'SCALE-Y-KERNEL-1-0-1', name: 'SCALE_Y_KERNEL_1_0', status: 'ACTIVE', desc: 'ᛟ Feather State Protocol · Sovereign Self-Governance' },
 ];
