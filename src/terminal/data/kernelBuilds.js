@@ -1,28 +1,28 @@
 const kernelBuilds = [
   // ── Pinned (always first) ─────────────────────────────────────────────────
-  { id: 'FISH_SCALE_11.1', articleId: 'FISH-11.1.1', name: 'FISH_SCALE_KERNEL', status: 'ACTIVE', desc: 'Entropic Stasis // Necromantic Engine' },
+  { id: 'FISH_SCALE_11.1', articleId: 'FISH_SCALE_KERNEL', name: 'FISH_SCALE_KERNEL', status: 'ACTIVE', desc: 'Entropic Stasis // Necromantic Engine' },
 
   // ── Hand-curated SOMA builds ──────────────────────────────────────────────
-  { id: 'FLORA_1.0', articleId: 'BIO-1.0.1', name: 'BIOCOENOSIS_KERNEL', status: 'ACTIVE', desc: 'High-Density Biodiversity // Autochthonous' },
+  { id: 'FLORA_1.0', articleId: 'BIODIVERSITY_KERNEL-1.0.1', name: 'BIOCOENOSIS_KERNEL', status: 'ACTIVE', desc: 'High-Density Biodiversity // Autochthonous' },
   { id: 'SOMA_11.1', articleId: 'KRNL-11.1', name: 'LEVIATHAN_PROTOCOL', status: 'ACTIVE', desc: 'Strategic Defense // Module A' },
   { id: 'SOMA_10.0', articleId: 'SOMA-10.0', name: 'THE_CENTAUR_APEX', status: 'PLATINUM', desc: 'AI-Gated Launch // The Apex Build' },
   { id: 'SOMA_9.0', articleId: 'SOMA-9.0', name: 'THE_GAIA_BUILD', status: 'ARCHIVED', desc: 'Historical & Legal Reconstruction' },
-  { id: 'SOMA_5.5', articleId: 'SOMA-5.5', name: 'POST_CAPITALIST_OS', status: 'RUNNING', desc: 'Thermodynamic Governor // Steady State' },
-  { id: 'SOMA_5.0', articleId: 'SOMA-5.0', name: 'POST_SCARCITY_DAEMON', status: 'LEGACY', desc: 'Ecological Sovereign // Bio-Physical' },
-  { id: 'SOMA_4.5.7', articleId: 'SOMA-4.5.7', name: 'ARCHITECT_EDITION', status: 'STABLE', desc: 'Challenge & Conquer // Honneur et Fidélité' },
-  { id: 'SOMA_4.5.6a', articleId: 'SOMA-4.5.6a', name: 'PROTOCOL_COMPILATION', status: 'FROZEN', desc: 'System Diagnostic // Final Code' },
-  { id: 'MOZART_1.0', articleId: 'MOZART-1.0', name: 'MOZART_MEMORANDUM', status: 'PROPOSED', desc: 'Historical & Legal Reconstruction // Graveyard Research' },
+  { id: 'SOMA_5.5', articleId: 'SOMA-KERNEL-4.5.5', name: 'POST_CAPITALIST_OS', status: 'RUNNING', desc: 'Thermodynamic Governor // Steady State' },
+  { id: 'SOMA_5.0', articleId: 'SOMA_KERNEL_5.0', name: 'POST_SCARCITY_DAEMON', status: 'LEGACY', desc: 'Ecological Sovereign // Bio-Physical' },
+  { id: 'SOMA_4.5.7', articleId: 'SOMA-KERNEL-4.5.7', name: 'ARCHITECT_EDITION', status: 'STABLE', desc: 'Challenge & Conquer // Honneur et Fidélité' },
+  { id: 'SOMA_4.5.6a', articleId: 'SOMA-KERNEL-4.5.6A-FUCK-XITTER-FUCK-XITLER', name: 'PROTOCOL_COMPILATION', status: 'FROZEN', desc: 'System Diagnostic // Final Code' },
+  { id: 'MOZART_1.0', articleId: 'MOZART_MEMORANDUM_KERNEL-1.0', name: 'MOZART_MEMORANDUM', status: 'PROPOSED', desc: 'Historical & Legal Reconstruction // Graveyard Research' },
 
   // ── Imported kernels (content/ root) ─────────────────────────────────────
-  { id: 'EK-1.0', articleId: 'EK-1.0', name: 'EMPATHY_KERNEL_1_0', status: 'SYMBIOTIC', desc: 'EMPATHY KERNEL 1.0' },
-  { id: 'NEK-1.0', articleId: 'NEK-1.0', name: 'NECROMANTIC_EMPEROR_KERNEL_V1_0', status: 'NOMINAL', desc: 'scale94 // Sorbe in Germany // Deep-Time Resilience Architecture' },
-  { id: 'SK-1.0', articleId: 'SK-1.0', name: 'SHADOWSOCKS_KERNEL_∞', status: 'ACTIVE', desc: 'I. THE BLIND SPOT ANALYSIS' },
+  { id: 'EK-1.0', articleId: 'EMPATHY_KERNEL-1.0', name: 'EMPATHY_KERNEL_1_0', status: 'SYMBIOTIC', desc: 'EMPATHY KERNEL 1.0' },
+  { id: 'NEK-1.0', articleId: 'NECROMANTIC_EMPEROR_KERNEL_V1_0', name: 'NECROMANTIC_EMPEROR_KERNEL_V1_0', status: 'NOMINAL', desc: 'scale94 // Sorbe in Germany // Deep-Time Resilience Architecture' },
+  { id: 'SK-1.0', articleId: 'SHADOWSOCKS_KERNEL-∞', name: 'SHADOWSOCKS_KERNEL_∞', status: 'ACTIVE', desc: 'I. THE BLIND SPOT ANALYSIS' },
 
   // ── Fish Scale iterations ─────────────────────────────────────────────────
   { id: 'FSK-11.7', articleId: 'FISH_SCALE_KERNEL-11.7.0', name: 'FISH_SCALE_KERNEL_11_7_0', status: 'ACTIVE', desc: 'ᛟ Systemless Root · Aesthetic Branch' },
   { id: 'FSK-11.8', articleId: 'FISH-SCALE-KERNEL-11.8', name: 'FISH_SCALE_KERNEL_11_8', status: 'ACTIVE', desc: 'ᛟ Systemless Root · Aesthetic Branch' },
   { id: 'FSK-11.9', articleId: 'FISH_SCALE_KERNEL-11.9', name: 'FISH_SCALE_KERNEL_11_9', status: 'ACTIVE', desc: "ᛟ Systemless Root · Eco's Paradox Axioms" },
-  { id: 'FSQ-11.6', articleId: 'FSQ-11.6', name: 'FISH_SCALE_KERNEL_V11_6_0_QUANTUM', status: 'ACTIVE', desc: 'Ⅰ · THE MASCULINE MUSCHI DIAGNOSTIC · QUANTUM RESTATEME' },
+  { id: 'FSQ-11.6', articleId: 'FISH_SCALE_KERNEL-V11.6.0-QUANTUM', name: 'FISH_SCALE_KERNEL_V11_6_0_QUANTUM', status: 'ACTIVE', desc: 'Ⅰ · THE MASCULINE MUSCHI DIAGNOSTIC · QUANTUM RESTATEME' },
   { id: 'FISH_SCALE_KERNEL11.1.1', articleId: 'FISH_SCALE_KERNEL11.1.1', name: 'FISH_SCALE_KERNEL11_1_1', status: 'ACTIVE', desc: '2.0 Integration of System Atoms' },
   { id: 'FISH-SCALE-BREAKTHROUGH-PDW-KERNEL-1.0', articleId: 'FISH-SCALE-BREAKTHROUGH-PDW-KERNEL-1.0', name: 'FISH_SCALE_BREAKTHROUGH_PDW_KERNEL_1_0', status: 'ACTIVE', desc: 'Fish Scale Breakthrough PDW Kernel' },
 
@@ -127,32 +127,6 @@ const kernelBuilds = [
 
   // ── Scale Y (pinned #2 — last entry = appears directly below pinned) ──────
   { id: 'SYK-1.0', articleId: 'SCALE-Y-KERNEL-1-0-1', name: 'SCALE_Y_KERNEL_1_0', status: 'ACTIVE', desc: 'ᛟ Feather State Protocol · Sovereign Self-Governance' },
-  { id: '(K-1.1', articleId: '(K-1.1', name: '(1)VIOLET_KERNEL_1_1', status: 'THE', desc: '(1)VIOLET KERNEL 1.1' },
-  { id: '.1U-1.0', articleId: '.1U-1.0', name: '_TRASHED_1774102287_UNTITLED', status: 'ACTIVE', desc: '1.0 The Ontological Objective' },
-  { id: '.1K-1.0', articleId: '.1K-1.0', name: '_TRASHED_1774102288_KERNEL_INTEGRATION_AND_IDEOLOGICAL_SYNTHESIS', status: 'TO', desc: '**Synthesis of Dark Empathy, HIVE Dynamics, and Secular-Martial Philosophy*' },
-  { id: '.1N-1.0', articleId: '.1N-1.0', name: '_TRASHED_1774102288_NECROMANCER_TO_NECROROMANCER_KERNEL_EVOLUTION', status: 'CODE', desc: '**1\. Executive Summary: The Crisis of the Zombie Process*' },
-  { id: '.1K-1.0-1', articleId: '.1K-1.0-1', name: '_TRASHED_1774102289_KERNEL_15_0_THE_PURIFICATION_OF_SCALE_(1)', status: 'ACTIVE', desc: '1.0 THE LOGIC OF REPENTANCE (Quran 2:54) ☢️' },
-  { id: '.1K-1.0-2', articleId: '.1K-1.0-2', name: '_TRASHED_1774102289_KERNEL_15_1_CIVILIAN_RESISTANCE_(1)', status: 'ACTIVE', desc: '.TRASHED 1774102289 KERNEL 15.1 CIVILIAN RESISTANCE (1)' },
-  { id: '.1KV-1.0', articleId: '.1KV-1.0', name: '_TRASHED_1774102289_KERNEL_V3_TENFOLD_SCALING_(1)', status: 'THROUGH', desc: '[LOCATION: RINDERN_NODE_47533]' },
-  { id: '.1VK-1.1', articleId: '.1VK-1.1', name: '_TRASHED_1774102289_VIOLET_KERNEL_1_1', status: 'THE', desc: '.TRASHED 1774102289 VIOLET KERNEL 1.1' },
-  { id: '212R-1.0', articleId: '212R-1.0', name: '2025_12_21_RAMDISK_', status: 'ACTIVE', desc: 'Observation: You identified the #FF00FF drift. In the Square and Triadic palettes, the system attempts to balance this violet intensity against aggressive reds and neon greens to prevent a Target Meltdown.' },
-  { id: '2KV-6.6', articleId: '2KV-6.6', name: '2X2X2X_KERNEL_V6_6_87_(1)', status: 'ACTIVE', desc: '2X2X2X KERNEL V6.6.87 (1)' },
-  { id: 'AC-1.0', articleId: 'AC-1.0', name: 'AI_KERNEL_FOR_POST_CAPITALIST_ECONOMICS', status: 'ACTIVE', desc: '**Abstract*' },
-  { id: 'K-1.0', articleId: 'K-1.0', name: 'KERNEL_11_2_C2_LINGUISTIC_METALLURGY_(1)', status: 'ACTIVE', desc: 'KERNEL 11.2 C2 LINGUISTIC METALLURGY (1)' },
-  { id: 'K-1.0-3', articleId: 'K-1.0-3', name: 'KERNEL_15_0_THE_PURIFICATION_OF_SCALE_(1)', status: 'ACTIVE', desc: '1.0 THE LOGIC OF REPENTANCE (Quran 2:54) ☢️' },
-  { id: 'K-1.0-5', articleId: 'K-1.0-5', name: 'KERNEL_15_1_CIVILIAN_RESISTANCE_(1)', status: 'ACTIVE', desc: 'KERNEL 15.1 CIVILIAN RESISTANCE (1)' },
-  { id: 'KVTS-1.0', articleId: 'KVTS-1.0', name: 'KERNEL_V3_TENFOLD_SCALING_(1)', status: 'THROUGH', desc: '[LOCATION: RINDERN_NODE_47533]' },
-  { id: 'L1-1.0', articleId: 'L1-1.0', name: 'LITHIUM_ION_WIZARD_KERNEL_1__0_(1)', status: 'ACTIVE', desc: 'LITHIUM ION WIZARD KERNEL 1. 0 (1)' },
-  { id: 'L1-1.0-1', articleId: 'L1-1.0-1', name: 'LITHIUM_ION_WIZARD_KERNEL_1__0', status: 'ACTIVE', desc: 'LITHIUM ION WIZARD KERNEL 1. 0' },
-  { id: 'N-1.0', articleId: 'N-1.0', name: 'NECROMANCER_FISH_SCALE_FIGHT_CLUB_KERNEL_(1)', status: 'CODE', desc: '**1\. Executive Manifesto: The Convergence of Sovereignty, Nihilism, and Bio-Digital Armor*' },
-  { id: 'NK9-9.9', articleId: 'NK9-9.9', name: 'NECROMANCER_KERNEL_9_9_9_9_(1)', status: 'COMPILED', desc: 'THE FOUNDATION: The Quantum Fish Scale' },
-  { id: 'N-1.0-3', articleId: 'N-1.0-3', name: 'NECROMANTIC_ARISTOCRAT_KERNEL_1_1_1_1_1', status: 'SOVEREIGN', desc: '1. The Axiom of the Empty Process Table (The Reaping)' },
-  { id: 'NPL-1.0', articleId: 'NPL-1.0', name: 'NECROMANTIC_PARADOX_LOGITBIAS_PROMPT_MD', status: 'ACTIVE', desc: 'Your Role' },
-  { id: 'NK9-9.9-2', articleId: 'NK9-9.9-2', name: 'NECROROMANCER_KERNEL_9_9_9_9_(1)', status: 'ACTIVE', desc: 'NECROROMANCER KERNEL 9.9.9.9 (1)' },
-  { id: 'N2-22.2', articleId: 'N2-22.2', name: 'NOCTURNAL_NIGHT_KERNEL_V_22_2_2_1', status: 'FULL', desc: '☢️ KERNEL_COMPILATION: THE_NIGHT_SHIFT_V2.5 ☢️' },
-  { id: 'SYK1-1.0', articleId: 'SYK1-1.0', name: 'SCALE_Y_KERNEL_1_0_1', status: '"PUBLISHED"', desc: '"The Feather State Protocol — A Sovereign Architecture for Post-Human Self-Governance"' },
-  { id: 'S-1.0-4', articleId: 'S-1.0-4', name: 'SOMA_KERNEL_4_5_FUCK_XITTER_FUCK_XITLER', status: 'ACTIVE', desc: '💻 System Diagnostic: The Final Code is Self-Contained' },
-  { id: 'S-1.0-6', articleId: 'S-1.0-6', name: 'SOMA_KERNEL_4_5_6A_FUCK_XITTER_FUCK_XITLER', status: 'ACTIVE', desc: '💻 System Diagnostic: The Final Code is Self-Contained' },
   { id: 'UTK-1.0-1', articleId: 'UTK-1.0-1', name: 'UNDERGROUND_THERMODYNAMICISTS', status: 'EMERGENT', desc: '◈ Signal map' },
 ];
 

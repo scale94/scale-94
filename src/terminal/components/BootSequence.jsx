@@ -12,10 +12,10 @@ const BOOT_LINES = [
 const BootSequence = () => (
   <div className="min-h-screen bg-black font-mono flex items-center justify-center p-4 overflow-hidden relative">
     <style>{`
-      /* CPU icon — slow spin */
+      /* CPU icon — exactly 2 rotations (720deg) to end upright */
       @keyframes bs-cpuSpin {
         from { transform: rotate(0deg); }
-        to   { transform: rotate(360deg); }
+        to   { transform: rotate(720deg); }
       }
       /* CPU icon — green glow pulse */
       @keyframes bs-cpuGlow {
@@ -51,11 +51,13 @@ const BootSequence = () => (
         0%   { top: -4%; }
         100% { top: 104%; }
       }
-      /* Whole-screen flicker — fires late to give a "lock-in" feel */
+      /* Whole-screen flicker — fires late in the 3s window */
       @keyframes bs-flicker {
-        0%,89%,91%,93%,100% { opacity: 1; }
-        90%  { opacity: 0.7; }
-        92%  { opacity: 0.85; }
+        0%,90%,93%,96%,100% { opacity: 1; }
+        91%  { opacity: 0.6; }
+        94%  { opacity: 0.8; }
+        97%  { opacity: 0.5; }
+        98%  { opacity: 0.9; }
       }
       /* Border glow breathe */
       @keyframes bs-glow {
@@ -66,6 +68,11 @@ const BootSequence = () => (
       @keyframes bs-active {
         0%,100% { color: #39ff14; text-shadow: 0 0 8px #39ff14; }
         50%     { color: #00ffaa; text-shadow: 0 0 20px #00ffaa; }
+      }
+      /* Animated gradient shimmer */
+      @keyframes bs-gradient-x {
+        0%, 100% { background-position: 0% 50%; }
+        50%      { background-position: 100% 50%; }
       }
     `}</style>
 
@@ -82,8 +89,8 @@ const BootSequence = () => (
       animation: 'bs-scan 0.9s linear infinite',
     }} />
 
-    {/* Whole-frame flicker wrapper */}
-    <div className="max-w-lg w-full relative z-10" style={{ animation: 'bs-flicker 2s linear forwards' }}>
+    {/* Whole-frame flicker wrapper - Duration synced to 3s total window */}
+    <div className="max-w-lg w-full relative z-10" style={{ animation: 'bs-flicker 3s linear forwards' }}>
 
       {/* Glowing gradient border */}
       <div style={{
@@ -106,13 +113,18 @@ const BootSequence = () => (
               className="shrink-0 text-[#39ff14]"
               style={{
                 width: '2.75rem', height: '2.75rem',
-                animation: 'bs-cpuSpin 6s linear infinite, bs-cpuGlow 1.2s ease-in-out 0.4s infinite',
+                // Spin finishes definitively at 2.5s (2 rotations) with a sharp easeOutExpo deceleration
+                animation: 'bs-cpuSpin 2.5s cubic-bezier(0.16, 1, 0.3, 1) forwards, bs-cpuGlow 1.2s ease-in-out 0.4s infinite',
               }}
             />
             <div>
               <div
-                className="text-4xl md:text-5xl font-black tracking-tight text-cyan-400 uppercase leading-none"
-                style={{ animation: 'bs-glitch 0.25s steps(1) 0.45s 5 forwards' }}
+                className="text-4xl md:text-5xl font-black tracking-tight uppercase leading-none text-transparent bg-clip-text bg-gradient-to-r from-[#39ff14] via-cyan-300 to-cyan-500"
+                style={{ 
+                  backgroundSize: '200% auto',
+                  // Color fade fills the full 3s window
+                  animation: 'bs-glitch 0.25s steps(1) 0.45s 5 forwards, bs-gradient-x 3s ease forwards'
+                }}
               >
                 SOMA_KERNEL
               </div>
@@ -131,7 +143,7 @@ const BootSequence = () => (
               <div
                 key={i}
                 className="flex justify-between items-center text-cyan-500"
-                style={{ opacity: 0, animation: `bs-lineIn 0.18s ease-out ${180 + i * 220}ms forwards` }}
+                style={{ opacity: 0, animation: `bs-lineIn 0.18s ease-out ${200 + i * 290}ms forwards` }}
               >
                 <span>
                   <span className="text-fuchsia-500 mr-1">{'>'}</span>
@@ -150,7 +162,7 @@ const BootSequence = () => (
                 className="h-full rounded-full"
                 style={{
                   width: 0,
-                  animation: 'bs-progress 1.55s cubic-bezier(0.4,0,0.2,1) 0.15s forwards',
+                  animation: 'bs-progress 2.1s cubic-bezier(0.4,0,0.2,1) 0.2s forwards',
                   background: 'linear-gradient(90deg, #06b6d4, #d946ef, #39ff14)',
                   boxShadow: '0 0 10px rgba(6,182,212,0.9)',
                 }}
@@ -164,7 +176,7 @@ const BootSequence = () => (
             style={{
               opacity: 0,
               color: '#39ff14',
-              animation: 'bs-lineIn 0.2s ease-out 1.6s forwards, bs-active 0.35s ease-in-out 1.8s infinite',
+              animation: 'bs-lineIn 0.2s ease-out 2.5s forwards, bs-active 0.35s ease-in-out 2.7s infinite',
             }}
           >
             {'>'} scale_9.4 ACTIVE :: ALL SYSTEMS OPERATIONAL

@@ -14,16 +14,14 @@ import autoArticles   from './data/loadArticles'; // auto-loaded .md files from 
 // e.g. "FISH SCALE KERNEL 11.1.1" and "FISH_SCALE_KERNEL11.1.1" both → "fishscalekernel1111"
 const normaliseTitle = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
-// Merge: static articles always win (they carry the exact IDs kernelBuilds references).
-// Auto-loaded .md files are only appended when they are genuinely new — i.e. not already
-// covered by articles.js either by ID or by normalised title.
-const staticIds     = new Set(staticArticles.map(a => a.id));
-const staticTitles  = new Set(staticArticles.map(a => normaliseTitle(a.title)));
-const articles      = [
-  ...staticArticles,
-  ...autoArticles.filter(a =>
-    !staticIds.has(a.id) && !staticTitles.has(normaliseTitle(a.title))
-  ),
+// Merge: auto-loaded .md files win (they carry the canonical filenameToId IDs that
+// kernelBuilds references).  Static articles.js entries are appended only when they
+// introduce genuinely new content — i.e. a title not already present in the auto set.
+// This ensures that repeated importer runs in articles.js never shadow the correct IDs.
+const autoTitles = new Set(autoArticles.map(a => normaliseTitle(a.title)));
+const articles   = [
+  ...autoArticles,
+  ...staticArticles.filter(a => !autoTitles.has(normaliseTitle(a.title))),
 ];
 
 // Components
@@ -79,7 +77,7 @@ const App = () => {
   }, [sortedBuilds, searchFilter, norm]);
 
   useEffect(() => {
-    const timer = setTimeout(() => setBootSequence(false), 2000);
+    const timer = setTimeout(() => setBootSequence(false), 3000);
     return () => clearTimeout(timer);
   }, []);
 
@@ -215,6 +213,12 @@ const App = () => {
         }
         .animate-spin-slow {
           animation: spin 12s linear infinite;
+        }
+
+        /* Gradient shimmer — shared by KernelTab headings and BootSequence */
+        @keyframes gradient-x {
+          0%, 100% { background-position: 0% 50%; }
+          50%      { background-position: 100% 50%; }
         }
       `}</style>
       <OctagonGrid visible={!selectedArticle && !architectThesis} />

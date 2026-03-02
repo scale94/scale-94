@@ -13,11 +13,21 @@ const KernelTab = ({ kernelAxioms, kernelBuilds, handleKernelClick, loadingKerne
     )}
     <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-cyan-900/50 pb-4 mb-8">
       <div>
-        <h2 className="text-4xl font-bold mb-1 text-cyan-400 tracking-tight flex items-center gap-3">
+        <h2 className="text-4xl font-bold mb-1 tracking-tight flex items-center gap-3">
           <Cpu className="w-8 h-8 shrink-0 text-[#39ff14]" />
-          SYSTEM_KERNEL
+          <span
+            className="text-transparent bg-clip-text bg-gradient-to-r from-[#39ff14] via-cyan-300 to-cyan-500"
+            style={{ backgroundSize: '200% auto', animation: 'gradient-x 4s ease infinite' }}
+          >
+            SYSTEM_KERNEL
+          </span>
         </h2>
-        <div className="text-sm text-fuchsia-400 font-bold tracking-widest">VERSION: SOMA 11.1 // BUILD: FISH_SCALE_NECROMANCER</div>
+        <div
+          className="text-sm font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-400 via-cyan-300 to-[#39ff14]"
+          style={{ backgroundSize: '200% auto', animation: 'gradient-x 6s ease infinite' }}
+        >
+          VERSION: SOMA 11.1 // BUILD: FISH_SCALE_NECROMANCER
+        </div>
       </div>
       <div className="flex items-center gap-4 mt-4 md:mt-0">
         <div className="flex items-center gap-2 text-xs border border-cyan-500/30 px-3 py-1 bg-cyan-900/10 text-cyan-400 rounded-sm">
