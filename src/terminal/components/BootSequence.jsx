@@ -114,8 +114,8 @@ const BootSequence = () => (
               className="shrink-0 text-[#39ff14]"
               style={{
                 width: '2.75rem', height: '2.75rem',
-                // Spin runs the full 3s and decelerates to a stop right as the screen fades out
-                animation: 'bs-cpuSpin 3s cubic-bezier(0.16, 1, 0.3, 1) forwards, bs-cpuGlow 1.2s ease-in-out 0.4s infinite',
+                // ease-out spreads the 720° rotation across the full 3s — fast start, gradual deceleration, stops as the fade begins
+                animation: 'bs-cpuSpin 3s ease-out forwards, bs-cpuGlow 1.2s ease-in-out 0.4s infinite',
               }}
             />
             <div>
