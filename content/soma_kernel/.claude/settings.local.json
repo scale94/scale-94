@@ -28,7 +28,8 @@
       "Bash(node cleanup-and-reimport.js)",
       "Bash(npm install)",
       "Bash(node E:/scale_9.4/gen_builds.js)",
-      "Bash(node \"E:/scale_9.4/find_missing.cjs\")"
+      "Bash(node \"E:/scale_9.4/find_missing.cjs\")",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ]
   }
 }

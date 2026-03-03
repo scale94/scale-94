@@ -1,8 +1,42 @@
 import React from 'react';
 import { Database, GitBranch, Shield, ChevronRight, Cpu } from 'lucide-react';
 
-const KernelTab = ({ kernelAxioms, kernelBuilds, handleKernelClick, loadingKernel, visibleLogs, logRef, searchFilter, onClearFilter }) => (
-  <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, loadingKernel, visibleLogs = [], logRef, searchFilter, onClearFilter }) => (
+  <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
+    
+    {/* Inline keyframes to guarantee the green glow and fade survive the production build pipeline */}
+    <style>{`
+      @keyframes sk-kernelTextReveal {
+        0% { 
+          opacity: 0; 
+          filter: blur(12px) drop-shadow(0 0 30px #39ff14); 
+          transform: scale(0.95) translateY(-5px); 
+        }
+        50% { 
+          opacity: 1; 
+          filter: blur(0px) drop-shadow(0 0 25px rgba(57, 255, 20, 0.8)); 
+          transform: scale(1) translateY(0); 
+        }
+        100% { 
+          opacity: 1; 
+          filter: blur(0px) drop-shadow(0 0 0px transparent); 
+          transform: scale(1) translateY(0); 
+        }
+      }
+      @keyframes sk-kernelIconReveal {
+        0% { opacity: 0; transform: rotate(-45deg) scale(0.5); filter: drop-shadow(0 0 20px #39ff14); }
+        100% { opacity: 1; transform: rotate(0deg) scale(1); filter: drop-shadow(0 0 8px rgba(57, 255, 20, 0.6)); }
+      }
+      @keyframes sk-kernelShimmer {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+      }
+      @keyframes sk-subReveal {
+        from { opacity: 0; transform: translateX(-10px); }
+        to   { opacity: 1; transform: translateX(0); }
+      }
+    `}</style>
+
     {searchFilter && (
       <div className="flex items-center gap-3 mb-4 px-3 py-2 border border-cyan-500/30 bg-cyan-900/10 rounded-sm text-xs font-bold tracking-widest">
         <span className="text-fuchsia-500">{'>_'}</span>
@@ -14,17 +48,28 @@ const KernelTab = ({ kernelAxioms, kernelBuilds, handleKernelClick, loadingKerne
     <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-cyan-900/50 pb-4 mb-8">
       <div>
         <h2 className="text-4xl font-bold mb-1 tracking-tight flex items-center gap-3">
-          <Cpu className="w-8 h-8 shrink-0 text-[#39ff14]" />
+          <Cpu 
+            className="w-8 h-8 shrink-0 text-[#39ff14]" 
+            style={{ animation: 'sk-kernelIconReveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}
+          />
           <span
-            className="text-transparent bg-clip-text bg-gradient-to-r from-[#39ff14] via-cyan-300 to-cyan-500 animate-shimmer-fast"
-            style={{ backgroundSize: '200% auto' }}
+            className="text-transparent bg-clip-text bg-gradient-to-r from-[#39ff14] via-cyan-300 to-cyan-500"
+            style={{ 
+              backgroundSize: '200% auto',
+              // Combines the custom green glow reveal with a continuous shimmer
+              animation: 'sk-kernelTextReveal 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards, sk-kernelShimmer 3s ease-in-out infinite' 
+            }}
           >
             SYSTEM_KERNEL
           </span>
         </h2>
         <div
-          className="text-sm font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-400 via-cyan-300 to-[#39ff14] animate-shimmer-slow"
-          style={{ backgroundSize: '200% auto' }}
+          className="text-sm font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-400 via-cyan-300 to-[#39ff14]"
+          style={{ 
+            backgroundSize: '200% auto',
+            opacity: 0, // Starts invisible, revealed by animation
+            animation: 'sk-subReveal 0.6s ease-out 0.4s forwards, sk-kernelShimmer 4s ease-in-out infinite'
+          }}
         >
           VERSION: SOMA 11.1 // BUILD: FISH_SCALE_NECROMANCER
         </div>
@@ -48,10 +93,10 @@ const KernelTab = ({ kernelAxioms, kernelBuilds, handleKernelClick, loadingKerne
           {kernelAxioms.map((axiom, idx) => (
             <div key={idx} className="group/item hover:bg-cyan-900/10 p-3 -mx-2 transition-all rounded-sm border-l-2 border-transparent hover:border-cyan-500 cursor-default min-w-0">
               <div className="flex flex-wrap justify-between items-center gap-y-3 mb-1 gap-2">
-                <span className="font-bold text-cyan-400 text-lg min-w-0 break-words">0{idx + 1} :: {axiom.name.toUpperCase()}</span>
-                <span className="text-[10px] font-bold tracking-widest bg-cyan-900/30 text-cyan-200 px-2 py-0.5 rounded-full shrink-0">{axiom.field}</span>
+                <span className="font-bold text-cyan-400 text-lg min-w-0 break-words">0{idx + 1} :: {axiom.name?.toUpperCase() || "UNKNOWN"}</span>
+                <span className="text-[10px] font-bold tracking-widest bg-cyan-900/30 text-cyan-200 px-2 py-0.5 rounded-full shrink-0">{axiom.field || "SYS"}</span>
               </div>
-              <p className="text-sm text-[#39ff14] leading-relaxed group-hover/item:text-green-300 transition-colors break-words">{axiom.desc}</p>
+              <p className="text-sm text-[#39ff14] leading-relaxed group-hover/item:text-green-300 transition-colors break-words">{axiom.desc || "Axiom details unresolvable."}</p>
             </div>
           ))}
         </div>
@@ -68,7 +113,7 @@ const KernelTab = ({ kernelAxioms, kernelBuilds, handleKernelClick, loadingKerne
               return (
                 <li
                   key={kernel.id}
-                  onClick={() => handleKernelClick(kernel)}
+                  onClick={() => handleKernelClick && handleKernelClick(kernel)}
                   className={`flex flex-wrap justify-between items-center gap-y-3 border-b border-fuchsia-900/30 pb-4 mb-2 cursor-pointer p-3 rounded transition-all group gap-3
                     ${isLoading ? 'bg-cyan-900/20 border-cyan-500/50 animate-pulse' : 'hover:bg-cyan-900/10'}`}
                 >
