@@ -12,16 +12,22 @@ const BOOT_LINES = [
 // Cubic ease-out: fast start → smooth deceleration → clean stop
 const easeOut = (t) => 1 - Math.pow(1 - t, 3);
 
-const BootSequence = () => {
+// BootSequence owns its entire timing contract.
+// onDone fires exactly when the animation is complete — App.jsx doesn't need
+// to know the duration, removing the "3000ms magic number in the wrong file" smell.
+const BootSequence = ({ onDone }) => {
   // cpuRef  → div wrapper around <Cpu>  — JS writes transform directly (no CSS animation on spin)
   // cardRef → outer card wrapper        — JS writes opacity + blur for the fade
-  const cpuRef  = useRef(null);
-  const cardRef = useRef(null);
+  const cpuRef   = useRef(null);
+  const cardRef  = useRef(null);
+  const onDoneRef = useRef(onDone); // stable ref so the rAF closure never goes stale
+  useEffect(() => { onDoneRef.current = onDone; }, [onDone]);
 
   useEffect(() => {
     const SPIN_MS       = 2000;  // CPU spins for exactly 2s → 720° (2 full rotations)
     const FADE_START_MS = 2000;  // fade kicks off the instant spin ends
-    const FADE_MS       = 800;   // 800ms fade → done at 2.8s, before 3s App unmount
+    const FADE_MS       = 800;   // fade lasts 0.8s → done at 2.8s total
+    const DONE_MS       = FADE_START_MS + FADE_MS + 200; // 3s: 200ms visual buffer before unmount
     const t0 = performance.now();
     let raf;
 
@@ -46,9 +52,12 @@ const BootSequence = () => {
         cardRef.current.style.filter  = `blur(${eased * 8}px)`;
       }
 
-      // Keep looping until fade is fully done (2.8s), then let App.jsx unmount
-      if (elapsed < FADE_START_MS + FADE_MS) {
+      if (elapsed < DONE_MS) {
         raf = requestAnimationFrame(tick);
+      } else {
+        // Animation fully complete — signal the parent to unmount us.
+        // The timing contract lives here, not in App.jsx.
+        onDoneRef.current?.();
       }
     };
 

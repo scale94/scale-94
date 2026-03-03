@@ -1,46 +1,50 @@
+// ─── ALL STATIC IMPORTS MUST APPEAR BEFORE ANY EXECUTABLE CODE ──────────────
+// ES module spec §15.2.2: ImportDeclaration cannot follow a Statement.
+// Rollup (Vite prod bundler) hoists these, but bundler behaviour diverges from
+// esbuild (Vite dev). Keep all imports at the top to guarantee identical
+// module evaluation order in both environments.
 import React, { useState, useEffect, useRef, useLayoutEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { Hexagon, Cpu, Lock, Scale, Eye } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
 
 // Data
-import kernelAxioms from './data/kernelAxioms';
-import kernelBuilds from './data/kernelBuilds';
-import staticArticles from './data/articles';     // existing articles — keeps kernelBuilds IDs intact
-import autoArticles   from './data/loadArticles'; // auto-loaded .md files from content/soma_kernel
-
-// Normalise a title for duplicate detection — strips everything except a-z and digits.
-// e.g. "FISH SCALE KERNEL 11.1.1" and "FISH_SCALE_KERNEL11.1.1" both → "fishscalekernel1111"
-const normaliseTitle = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-
-// Merge: static articles always win (they carry the exact IDs kernelBuilds references).
-// Auto-loaded .md files are only appended when they are genuinely new — i.e. not already
-// covered by articles.js either by ID or by normalised title.
-const staticIds     = new Set(staticArticles.map(a => a.id));
-const staticTitles  = new Set(staticArticles.map(a => normaliseTitle(a.title)));
-const articles      = [
-  ...staticArticles,
-  ...autoArticles.filter(a =>
-    !staticIds.has(a.id) && !staticTitles.has(normaliseTitle(a.title))
-  ),
-];
+import kernelAxioms    from './data/kernelAxioms';
+import kernelBuilds    from './data/kernelBuilds';
+import staticArticles  from './data/articles';      // existing articles — keeps kernelBuilds IDs intact
+import autoArticles    from './data/loadArticles';   // auto-loaded .md files from content/soma_kernel
 
 // Components
-import OctagonGrid from './components/OctagonGrid';
-import BootSequence from './components/BootSequence';
+import OctagonGrid   from './components/OctagonGrid';
+import BootSequence  from './components/BootSequence';
 
 // Hooks
-import useSystemLog from './hooks/useSystemLog';
+import useSystemLog  from './hooks/useSystemLog';
 
 // KernelTab — static import (landing tab, always needed, avoids .df.js chunk on Firefox Android)
 import KernelTab from './views/KernelTab';
 
-// Views — lazy-loaded so each tab bundle is only downloaded when first visited
+// Views — lazy-loaded so each tab bundle is only fetched when first visited
 const ScalingTab      = lazy(() => import('./views/ScalingTab'));
 const ManifestoTab    = lazy(() => import('./views/ManifestoTab'));
 const PrivacyTab      = lazy(() => import('./views/PrivacyTab'));
 const ArticleView     = lazy(() => import('./views/ArticleView'));
 const ThesisView      = lazy(() => import('./views/ThesisView'));
 const TransmissionTab = lazy(() => import('./views/TransmissionTab'));
+
+// ─── MODULE-LEVEL DERIVED DATA ────────────────────────────────────────────────
+// Normalise a title for duplicate detection — strips everything except a-z and digits.
+const normaliseTitle = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+// Merge: static articles always win (they carry the exact IDs kernelBuilds references).
+// Auto-loaded .md files are only appended when genuinely new.
+const staticIds    = new Set(staticArticles.map(a => a.id));
+const staticTitles = new Set(staticArticles.map(a => normaliseTitle(a.title)));
+const articles     = [
+  ...staticArticles,
+  ...autoArticles.filter(a =>
+    !staticIds.has(a.id) && !staticTitles.has(normaliseTitle(a.title))
+  ),
+];
 
 const App = () => {
   const [currentPath, setCurrentPath] = useState('~/system/kernel');
@@ -81,11 +85,9 @@ const App = () => {
     );
   }, [sortedBuilds, searchFilter, norm]);
 
-  useEffect(() => {
-    // Synced to BootSequence: 2s spin + 0.8s fade = 2.8s done, 3s unmount with buffer.
-    const timer = setTimeout(() => setBootSequence(false), 3000);
-    return () => clearTimeout(timer);
-  }, []);
+  // Boot completion is signalled by BootSequence itself via onDone — App.jsx no
+  // longer needs to know the duration. Memoised so the ref is stable across renders.
+  const handleBootDone = useCallback(() => setBootSequence(false), []);
 
   // Scroll to top on initial mount — prevents autoFocus on the footer input
   // from pulling mobile browsers down to the keyboard on first load.
@@ -358,7 +360,7 @@ const App = () => {
 
   // --- BOOT SEQUENCE ---
   if (bootSequence) {
-    return <BootSequence />;
+    return <BootSequence onDone={handleBootDone} />;
   }
 
   return (

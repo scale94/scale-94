@@ -25,5 +25,9 @@ export default {
   },
   plugins: [
     require('@tailwindcss/typography'),
+    // tailwindcss-animate: generates animate-in, fade-in, slide-in-from-*,
+    // zoom-in-*, etc. — used across every view component. Without this plugin
+    // those classes produce no CSS in production (Tailwind JIT skips unknowns).
+    require('tailwindcss-animate'),
   ],
 }

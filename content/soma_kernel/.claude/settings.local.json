@@ -29,7 +29,8 @@
       "Bash(npm install)",
       "Bash(node E:/scale_9.4/gen_builds.js)",
       "Bash(node \"E:/scale_9.4/find_missing.cjs\")",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(npm install tailwindcss-animate --save-dev)"
     ]
   }
 }
