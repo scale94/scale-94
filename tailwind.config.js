@@ -1,9 +1,16 @@
+// ESM imports — required because package.json has "type": "module".
+// require() is CJS and is not defined in ESM scope. Mixing them causes
+// plugins to silently fail in production (Tailwind CLI + PostCSS pipeline
+// loads this via Node's native ESM handler where require() doesn't exist).
+import typography from '@tailwindcss/typography';
+import animate    from 'tailwindcss-animate';
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
-    "./content/**/*.md", // Ensure tailwind scans your kernels
+    "./content/**/*.md",
   ],
   theme: {
     extend: {
@@ -24,10 +31,7 @@ export default {
     },
   },
   plugins: [
-    require('@tailwindcss/typography'),
-    // tailwindcss-animate: generates animate-in, fade-in, slide-in-from-*,
-    // zoom-in-*, etc. — used across every view component. Without this plugin
-    // those classes produce no CSS in production (Tailwind JIT skips unknowns).
-    require('tailwindcss-animate'),
+    typography,
+    animate,
   ],
 }
