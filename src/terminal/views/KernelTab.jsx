@@ -7,20 +7,27 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
     {/* Inline keyframes to guarantee the green glow and fade survive the production build pipeline */}
     <style>{`
       @keyframes sk-kernelTextReveal {
-        0% { 
-          opacity: 0; 
-          filter: blur(12px) drop-shadow(0 0 30px #39ff14); 
-          transform: scale(0.95) translateY(-5px); 
+        /*
+         * text-shadow instead of filter: drop-shadow — critical for bg-clip-text.
+         * Any non-"none" filter value held via forwards fill on a background-clip:text
+         * element breaks gradient clipping in Blink/WebKit (text goes black).
+         * text-shadow casts from glyph outlines even when color:transparent, so we
+         * keep the green glow reveal without touching the compositing path.
+         */
+        0% {
+          opacity: 0;
+          transform: scale(0.95) translateY(-5px);
+          text-shadow: 0 0 40px #39ff14, 0 0 80px rgba(57, 255, 20, 0.5);
         }
-        50% { 
-          opacity: 1; 
-          filter: blur(0px) drop-shadow(0 0 25px rgba(57, 255, 20, 0.8)); 
-          transform: scale(1) translateY(0); 
+        50% {
+          opacity: 1;
+          transform: scale(1) translateY(0);
+          text-shadow: 0 0 20px rgba(57, 255, 20, 0.7), 0 0 40px rgba(57, 255, 20, 0.3);
         }
-        100% { 
-          opacity: 1; 
-          filter: blur(0px) drop-shadow(0 0 0px transparent); 
-          transform: scale(1) translateY(0); 
+        100% {
+          opacity: 1;
+          transform: scale(1) translateY(0);
+          text-shadow: none;
         }
       }
       @keyframes sk-kernelIconReveal {
