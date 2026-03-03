@@ -60,7 +60,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
             style={{ animation: 'sk-kernelIconReveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}
           />
           <span
-            className="text-transparent bg-clip-text bg-gradient-to-r from-[#39ff14] via-white to-cyan-400"
+            className="text-transparent bg-clip-text bg-gradient-to-r from-[#39ff14] via-[#00ffff] to-cyan-700"
             style={{
               backgroundSize: '300% auto',
               // Combines the custom green glow reveal with a continuous shimmer.
