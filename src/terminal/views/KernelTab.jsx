@@ -60,11 +60,13 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
             style={{ animation: 'sk-kernelIconReveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}
           />
           <span
-            className="text-transparent bg-clip-text bg-gradient-to-r from-[#39ff14] via-cyan-300 to-cyan-500"
-            style={{ 
-              backgroundSize: '200% auto',
-              // Combines the custom green glow reveal with a continuous shimmer
-              animation: 'sk-kernelTextReveal 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards, sk-kernelShimmer 3s ease-in-out infinite' 
+            className="text-transparent bg-clip-text bg-gradient-to-r from-[#39ff14] via-white to-cyan-400"
+            style={{
+              backgroundSize: '300% auto',
+              // Combines the custom green glow reveal with a continuous shimmer.
+              // 300% size + green→white→cyan gives a clearly visible sweep highlight
+              // rather than the near-invisible green→slightly-different-green range.
+              animation: 'sk-kernelTextReveal 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards, sk-kernelShimmer 4s ease-in-out infinite'
             }}
           >
             SYSTEM_KERNEL
