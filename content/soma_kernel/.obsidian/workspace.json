@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "fish_scale_kernel11.1.1.md",
+                "file": "Bridge kernel 1.0.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "fish_scale_kernel11.1.1"
+              "title": "Bridge kernel 1.0"
             }
           }
         ]
@@ -94,7 +94,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "fish_scale_kernel11.1.1.md",
+                "file": "Bridge kernel 1.0.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -104,7 +104,7 @@
                 "unlinkedCollapsed": true
               },
               "icon": "links-coming-in",
-              "title": "Backlinks for fish_scale_kernel11.1.1"
+              "title": "Backlinks for Bridge kernel 1.0"
             }
           },
           {
@@ -113,12 +113,12 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "fish_scale_kernel11.1.1.md",
+                "file": "Bridge kernel 1.0.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
               "icon": "links-going-out",
-              "title": "Outgoing links from fish_scale_kernel11.1.1"
+              "title": "Outgoing links from Bridge kernel 1.0"
             }
           },
           {
@@ -156,13 +156,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "fish_scale_kernel11.1.1.md",
+                "file": "Bridge kernel 1.0.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "Outline of fish_scale_kernel11.1.1"
+              "title": "Outline of Bridge kernel 1.0"
             }
           }
         ]
@@ -185,9 +185,11 @@
   },
   "active": "631ee3606a395f27",
   "lastOpenFiles": [
+    "Biodiversity_kernel 1.0.1.md",
+    "AI Kernel for Post-Capitalist Economics.md",
+    "fish_scale_kernel11.1.1.md",
     "MATRIX-KERNEL-0.0.0.0.md.md",
     "MATRIX-KERNEL-0.0.0.0.md",
-    "fish_scale_kernel11.1.1.md",
     "fish_scale_kernel-v11.6.0-quantum.md",
     "fish_scale_kernel-v1.1.1.1.md"
   ]

@@ -2,8 +2,8 @@ const kernelBuilds = [
   // ── Pinned (always first) ─────────────────────────────────────────────────
   { 
     id: 'FISH_SCALE_11.1', 
-    articleId: 'FISH-SCALE-KERNEL11.1.1', // <-- MUST have dashes and be UPPERCASE
-    name: 'FISH_SCALE_KERNEL', 
+    articleId: 'FISH-SCALE-KERNEL11.1.1', // Keep this as is
+    name: 'FISH-SCALE-KERNEL11.1.1',      // <-- CHANGE UNDERSCORES TO DASHES HERE TOO
     status: 'ACTIVE', 
     desc: 'Entropic Stasis // Necromantic Engine' 
   },
