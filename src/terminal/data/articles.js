@@ -1,8 +1,8 @@
 import soma    from './articles.soma.js';
 import misc    from './articles.misc.js';
 import archive from './articles.archive.js';
-
-const articles = [...soma, ...misc, ...archive,
+import autoLoadedArticles from './loadArticles.js';
+const articles = [...soma, ...misc, ...archive, ...autoLoadedArticles,
   {
     id: 'EK-1.0-1',
     type: 'kernel_doc',

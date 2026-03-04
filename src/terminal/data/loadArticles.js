@@ -2,31 +2,28 @@
  * loadArticles.js
  *
  * Auto-loads every .md file from content/soma_kernel/ at build time.
- * Just drop a new .md file in that folder — it appears on the site automatically.
+ * Just drop a new .md file in that folder – it appears on the site automatically.
  * No manual edits to articles.js required.
  *
  * Optional: add YAML frontmatter to a .md file for richer metadata:
  *
- *   ---
- *   id: MY-KERNEL-1.0
- *   date: 2026-02-28
- *   status: ACTIVE
- *   readTime: 10 min read
- *   tags: [Tag1, Tag2, Tag3]
- *   ---
- *
- * Without frontmatter, metadata is derived from the file content and filename.
+ * ---
+ * id: MY-KERNEL-1.0
+ * date: 2026-02-28
+ * status: ACTIVE
+ * readTime: 10 min read
+ * tags: [Tag1, Tag2, Tag3]
+ * ---
  */
 
-// Eagerly import all .md files from content/soma_kernel as raw strings.
-// Vite resolves this at build time — zero runtime cost.
+// ─── DOUBLE GLOBBING FIX ─────────────────────────────────────────────────────
+// Only pull from soma_kernel to prevent duplicate entries and mismatched paths.
 const markdownModules = {
-  ...import.meta.glob('/content/*.md',            { as: 'raw', eager: true }),
-  ...import.meta.glob('/content/soma_kernel/*.md', { as: 'raw', eager: true }),
+  ...import.meta.glob('../../../content/soma_kernel/*.md', { as: 'raw', eager: true }),
 };
+//console.log("VACUUM CLEANER SUCKED UP:", Object.keys(markdownModules).length, "FILES");
 
 // ─── Frontmatter parser ───────────────────────────────────────────────────────
-// Handles the optional --- block at the top of a file.
 const parseFrontmatter = (raw) => {
   const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
   if (!match) return { frontmatter: {}, content: raw };
@@ -38,7 +35,6 @@ const parseFrontmatter = (raw) => {
     const key   = line.slice(0, colonIdx).trim();
     const value = line.slice(colonIdx + 1).trim();
     if (!key) continue;
-    // Inline array:  tags: [Entropy, Rust, Promo]
     if (value.startsWith('[') && value.endsWith(']')) {
       frontmatter[key] = value.slice(1, -1).split(',').map(s => s.trim().replace(/^['"]|['"]$/g, ''));
     } else {
@@ -51,7 +47,6 @@ const parseFrontmatter = (raw) => {
 
 // ─── Metadata derivation ──────────────────────────────────────────────────────
 const deriveFromContent = (content, filename) => {
-  // Title: first # heading, or first non-empty line, or filename
   const h1 = content.match(/^#(?!#)[ \t]+(.+)$/m);
   const h2 = content.match(/^##(?!#)[ \t]+(.+)$/m);
   const firstLine = content.split('\n').map(l => l.trim()).find(l => l && !l.startsWith('#'));
@@ -59,17 +54,18 @@ const deriveFromContent = (content, filename) => {
   const rawTitle    = h1 ? h1[1].trim() : (firstLine || filename);
   const rawSubtitle = h2 ? h2[1].trim() : '';
 
-  // Date: look for "date: YYYY-MM-DD" or "Date: Month DD, YYYY" anywhere in the file
   const dateMatch = content.match(/(?:^|\n)(?:date|Date):[ \t]*(.+)/);
   const date = dateMatch ? dateMatch[1].trim() : '';
 
   return { rawTitle, rawSubtitle, date };
 };
 
-// ─── Slug → ID ────────────────────────────────────────────────────────────────
+// ─── THE HANDSHAKE FIX: Filename → ID ─────────────────────────────────────────
+// Generates a literal ID, preserves dots, and converts underscores to dashes.
 const filenameToId = (filename) =>
   filename
     .toUpperCase()
+    .replace(/_/g, '-')    // Converts underscores to dashes
     .replace(/\s+/g, '-')
     .replace(/[()[\]]/g, '')
     .replace(/-+/g, '-')
@@ -97,5 +93,5 @@ const articles = Object.entries(markdownModules).map(([filePath, raw]) => {
     content,
   };
 });
-
+//console.log("WAREHOUSE INVENTORY:", articles.map(a => a.id));
 export default articles;
