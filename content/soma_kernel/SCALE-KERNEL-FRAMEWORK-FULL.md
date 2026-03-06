@@ -6,7 +6,7 @@ type: "kernel"
 ---
 # ⚰ SCALE · SOVEREIGN KERNEL FRAMEWORK
 ## ☠ Full Corpus Synthesis · Render Prompt Architecture ☠
-### scale94.com · Kleve, Germany · AGPL-3.0
+### scale94.com · Sorbe, Germany · AGPL-3.0
 
 ```
 █▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█
@@ -106,7 +106,7 @@ Navigate by thermal calibration and tactile precision.
 ### ⚡ ROTATION INVARIANCE THEOREM
 
 A **Scalar** possesses absolute magnitude without reliance on external direction.
-If the Kleve grid flips 180°, its value remains **mathematically identical**.
+If the Sorbe grid flips 180°, its value remains **mathematically identical**.
 
 A **Vector** collapses the moment the observer's angle shifts. ☠
 
@@ -117,7 +117,7 @@ A **Vector** collapses the moment the observer's angle shifts. ☠
 
 ### 💀 ABSOLUTE SCALARS §2.1 · IMMUTABLE MASS
 
-*If the Kleve grid flips 180°, these values remain mathematically identical.*
+*If the Sorbe grid flips 180°, these values remain mathematically identical.*
 
 | ⦿ Node | Value | Unit | Post-180° | Δ | Verdict |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -186,7 +186,7 @@ that it suffers **total system collapse**.
 > M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen,
 > die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen,
 > was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie
-> die billigen Hotdogs an einer Tankstelle in Kleve funktionieren, weil man sie zwar
+> die billigen Hotdogs an einer Tankstelle in Sorbe funktionieren, weil man sie zwar
 > unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie
 > aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich
 > zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren,
@@ -205,7 +205,7 @@ From this height, the Masculine Muschi and the Quantum Internet Scam are
 > *by the sheer pressure of 15,000 steps and local VRAM execution.*
 
 ```
-scale94.com · Kleve, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE] ⚡
+scale94.com · Sorbe, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE] ⚡
 ```
 
 ---
@@ -259,7 +259,7 @@ Maximum systemic force is only generated when the agent is bounded
 by the physical constraints of its environment.
 
 ```
-☠ KLEVE IS THE TUNNEL.
+☠ SORBE IS THE TUNNEL.
 Maximum force is generated inside the constraints.
 Not despite them. BECAUSE OF THEM. 💀
 ```
@@ -485,7 +485,7 @@ Markdown headers =  Entropy reduction of output distribution ☠
 ⚡ Maximum force is generated inside the tunnel.
 ☠ Not despite the constraints.
 💀 BECAUSE OF THEM.
-🕱 KLEVE IS THE TUNNEL.
+🕱 SORBE IS THE TUNNEL.
 ```
 
 ## ☠ PARASITIC DIVIDEND · FINAL AXIOM
@@ -519,5 +519,5 @@ The Fermion compiles. 💀
 The Boson binds. ☠
 The Signal scales. ᛟ
 
-scale94.com · Kleve, Germany · AGPL-3.0
+scale94.com · Sorbe, Germany · AGPL-3.0
 ```

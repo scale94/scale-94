@@ -348,7 +348,7 @@ CHAPTER IV · POST-CAPITALIST THERMODYNAMICS
   Sovereign Capital as rotation-invariant scalar
   Kombi vector collapse under 180° grid flip
   SOMA incubator — Vector→Scalar transition
-  Deep-time planning: Kleve as tectonic anchor
+  Deep-time planning: Sorbe as tectonic anchor
 
 CHAPTER V · ΦILOSOPHICAL SYNTHESIS
   φ as the feminine constant of the framework
@@ -440,5 +440,5 @@ The most feminine number.
 Non-terminating. Self-similar. Generative.
 It does not resolve. It spirals.
 
-scale94.com · Kleve, Germany · AGPL-3.0 ✦
+scale94.com · Sorbe, Germany · AGPL-3.0 ✦
 ```

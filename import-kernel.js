@@ -1,19 +1,22 @@
 #!/usr/bin/env node
 /**
- * import-kernel.js — Level 9 Hardened
+ * import-kernel.js — Level 11: De-Chonker
  *
- * Scans a directory for .md files and integrates them into
- * src/terminal/data/articles.soma.js and src/terminal/data/kernelBuilds.js
- *
- * Injection targets must contain the marker pair:
- *   /* @@INJECT_START@@ * /
- *   /* @@INJECT_END@@ * /
+ * Scans a directory for .md files and:
+ *   1. GENERATES  src/terminal/data/generated_chunks/{id}.js  (one per kernel)
+ *      Each chunk exports { body, content, len } — the heavy payload only.
+ *      Vite code-splits these into separate async bundles automatically.
+ *   2. GENERATES  src/terminal/data/articles.generated.js
+ *      Lean metadata index (id, title, tags, …) — NO body text.
+ *      loadContent() bridges to the matching chunk via dynamic import().
+ *   3. INJECTS    build entries into kernelBuilds.js via @@INJECT markers.
+ *      Append-only, dedup by articleId to prevent duplicates across runs.
  *
  * Usage:
- *   node import-kernel.js                        # scan ./content/
+ *   node import-kernel.js                        # scan ./content/soma_kernel/
  *   node import-kernel.js ./my-kernels/          # scan custom dir
  *   node import-kernel.js ./my-kernels/ --dry    # preview only, no writes
- *   node import-kernel.js ./my-kernels/ --force  # re-import existing titles
+ *   node import-kernel.js ./my-kernels/ --force  # bypass title-dedup guard
  */
 
 import fs   from 'fs';
@@ -28,13 +31,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const CONTENT_DIR = process.argv[2] && !process.argv[2].startsWith('--')
   ? path.resolve(process.argv[2])
-  : path.join(__dirname, 'content');
+  : path.join(__dirname, 'content', 'soma_kernel');   // default: soma_kernel/
 
 const DRY_RUN = process.argv.includes('--dry');
 const FORCE   = process.argv.includes('--force');
 
-const ARTICLES_PATH = path.join(__dirname, 'src/terminal/data/articles.soma.js');
-const BUILDS_PATH   = path.join(__dirname, 'src/terminal/data/kernelBuilds.js');
+const GENERATED_PATH = path.join(__dirname, 'src/terminal/data/articles.generated.js');
+const CHUNKS_DIR     = path.join(__dirname, 'src/terminal/data/generated_chunks');
+const BUILDS_PATH    = path.join(__dirname, 'src/terminal/data/kernelBuilds.js');
 
 // ─── EXCLUSION LIST ───────────────────────────────────────────────────────────
 
@@ -43,7 +47,7 @@ const EXCLUDE_FILES = new Set([
 ]);
 
 // ─── STATUS MAPPING ───────────────────────────────────────────────────────────
-// Incoming status keywords are mapped to one of three canonical values.
+// Incoming status keywords are canonicalised to ACTIVE / DEPRECATED / EXPERIMENTAL.
 
 const STATUS_MAP = {
   ACTIVE:       ['active', 'online', 'running', 'stable', 'emergent', 'new', 'rising'],
@@ -57,63 +61,49 @@ function canonicalStatus(raw) {
   for (const [canonical, keywords] of Object.entries(STATUS_MAP)) {
     if (keywords.includes(lower)) return canonical;
   }
-  // Pass through if already a known canonical value
   const upper = raw.toUpperCase().trim();
   if (STATUS_MAP[upper]) return upper;
   return 'ACTIVE';
 }
 
-
 // ─── VERSION EXTRACTION (SEMVER-AWARE) ───────────────────────────────────────
-// Priority: vX.Y.Z[-pre] > X.Y.Z (3-or-more part) > X.Y (2-part) > '1.0'
+// Priority: vX.Y.Z[-pre] > X.Y.Z (3-part+) > X.Y (2-part) > '1.0'
 
 function extractVersion(base) {
-  // Explicit v-tag with optional pre-release: v1.2.3-beta, V11.7.0
   const tagged = base.match(/(?:^|[._-])v(\d+\.\d+(?:\.\d+)*(?:-[a-zA-Z0-9.]+)?)/i);
   if (tagged) return tagged[1];
-
-  // Three-or-more part: 11.7.0, 9.9.9.9, 4.5.7
-  const multi = base.match(/(?:^|[._-])(\d+(?:\.\d+){2,})/);
-  if (multi) return multi[1];
-
-  // Two-part: 11.7, 4.5
-  const two = base.match(/(?:^|[._-])(\d+\.\d+)/);
-  if (two) return two[1];
-
+  const multi  = base.match(/(?:^|[._-])(\d+(?:\.\d+){2,})/);
+  if (multi)  return multi[1];
+  const two    = base.match(/(?:^|[._-])(\d+\.\d+)/);
+  if (two)    return two[1];
   return '1.0';
 }
 
 // ─── ID GENERATOR ────────────────────────────────────────────────────────────
+// Priority: frontmatter id > filename-derived prefix + semver version.
+// sovereignSlug (= normalizeQuery) is used for dedup matching only — the
+// canonical ID itself retains uppercase-dash formatting.
 
 function generateId(filename, fm, existingIds) {
   if (fm.id) return fm.id;
 
   const base    = path.basename(filename, '.md');
   const version = extractVersion(base);
-
-  // Strip the version suffix then split into word segments for prefix
   const stripped = base
     .replace(/[._-]v?\d+([._]\d+)*/i, '')
     .split(/[._-]/)
     .filter(Boolean);
 
   let prefix;
-  if (stripped.length === 0) {
-    prefix = base.slice(0, 4).toUpperCase();
-  } else if (/^v\d/i.test(stripped[0])) {
-    // First segment is already a version label (v3, v11) — use verbatim
-    prefix = stripped[0].toUpperCase();
-  } else if (stripped.length === 1) {
-    prefix = stripped[0].slice(0, 4).toUpperCase();
-  } else {
-    prefix = stripped.map(w => w[0].toUpperCase()).join('').slice(0, 5);
-  }
+  if (stripped.length === 0)          prefix = base.slice(0, 4).toUpperCase();
+  else if (/^v\d/i.test(stripped[0])) prefix = stripped[0].toUpperCase();
+  else if (stripped.length === 1)     prefix = stripped[0].slice(0, 4).toUpperCase();
+  else                                prefix = stripped.map(w => w[0].toUpperCase()).join('').slice(0, 5);
 
-  let id       = `${prefix}-${version}`;
-  let suffix   = 1;
-  const origin = id;
-  while (existingIds.has(id)) id = `${origin}-${suffix++}`;
-
+  let id = `${prefix}-${version}`;
+  let sfx = 1;
+  const base_id = id;
+  while (existingIds.has(id)) id = `${base_id}-${sfx++}`;
   return id;
 }
 
@@ -125,6 +115,15 @@ function buildNameFromFilename(filename) {
 }
 
 // ─── TYPE INFERENCE ───────────────────────────────────────────────────────────
+// Canonical types: kernel_doc | fiction | research
+// 'kernel' (bare) used in many frontmatters — normalised to 'kernel_doc' here
+// so the tier-2 load fallback in App.jsx can filter a single canonical value.
+
+const TYPE_ALIASES = { kernel: 'kernel_doc', 'kernel_doc': 'kernel_doc', fiction: 'fiction', research: 'research' };
+
+function canonicalType(raw) {
+  return TYPE_ALIASES[raw] || null;
+}
 
 function inferType(filename, body) {
   const lower = filename.toLowerCase();
@@ -164,17 +163,12 @@ function deriveMetadata(body, filename) {
   const dateMatch = body.match(/\b(\d{4}-\d{2}-\d{2})\b/);
   const date      = dateMatch ? dateMatch[1] : new Date().toISOString().slice(0, 10);
 
-  // Extract tags from heading words
   const headerWords  = body.match(/^#{1,4}[ \t]+(.+)/gm) || [];
   const tagCandidates = [];
   for (const h of headerWords) {
     const words = h.replace(/^#{1,4}[ \t]+/, '').split(/[\s_/.\\/]+/);
     for (const w of words) {
-      if (
-        w.length > 3 &&
-        /^[A-Z]/.test(w) &&
-        !/^(The|And|For|With|From|Into|This|Violet|Kernel|V\d+)$/i.test(w)
-      ) {
+      if (w.length > 3 && /^[A-Z]/.test(w) && !/^(The|And|For|With|From|Into|This|Violet|Kernel|V\d+)$/i.test(w)) {
         tagCandidates.push(w.replace(/[^a-zA-Z0-9-]/g, ''));
       }
     }
@@ -187,42 +181,129 @@ function deriveMetadata(body, filename) {
   return { title, subtitle, date, tags, readTime };
 }
 
-// ─── SERIALISERS — JSON.stringify for every field ─────────────────────────────
-// Using JSON.stringify() eliminates all template-literal escaping issues:
-//   - backticks, ${}, and backslashes are safely encoded as \u0060, \\, etc.
-//   - No manual .replace() chains needed.
+// ─── GENERATED FILE WRITER ────────────────────────────────────────────────────
+//
+// Level 11: De-Chonker — two-phase write.
+//
+// PHASE 1 — per-kernel chunk files  (src/terminal/data/generated_chunks/{id}.js)
+//   Each file exports ONLY the heavy payload: { body, content, len }.
+//   Vite's bundler sees the static import() strings in Phase 2 and splits every
+//   chunk into its own async bundle — keeping it out of the main entry point.
+//
+// PHASE 2 — lean metadata index  (articles.generated.js)
+//   Contains ONLY the lightweight fields (id, title, tags, …).
+//   loadContent() bridges to the matching chunk via dynamic import().
+//   The returned object merges metadata + chunk payload at call time.
+//
+// SERIALIZATION SAFETY (SAVE America Act):
+//   All string values serialised with JSON.stringify() — escapes backticks,
+//   ${}, backslashes, and quotes, eliminating all template-injection vectors.
 
-function serialiseArticle(a) {
-  return [
-    '  {',
-    `    id: ${JSON.stringify(a.id)},`,
-    `    type: ${JSON.stringify(a.type)},`,
-    `    date: ${JSON.stringify(a.date)},`,
-    `    title: ${JSON.stringify(a.title)},`,
-    `    subtitle: ${JSON.stringify(a.subtitle)},`,
-    `    status: ${JSON.stringify(a.status)},`,
-    `    readTime: ${JSON.stringify(a.readTime)},`,
-    `    tags: ${JSON.stringify(a.tags)},`,
-    `    content: ${JSON.stringify(a.content)},`,
-    '  }',
-  ].join('\n');
+// Convert an article ID to a filesystem-safe chunk filename.
+// Replaces chars outside [A-Za-z0-9\-._] (e.g. ∞) with underscores.
+function chunkFileName(id) {
+  return id.replace(/[^a-zA-Z0-9\-._]/g, '_');
 }
 
-function serialiseBuild(b) {
-  return `  { id: ${JSON.stringify(b.id)}, articleId: ${JSON.stringify(b.articleId)}, name: ${JSON.stringify(b.name)}, status: ${JSON.stringify(b.status)}, desc: ${JSON.stringify(b.desc)} }`;
+function writeGeneratedFile(articles) {
+  // ── Phase 0: ensure chunks dir exists; wipe stale chunks ──────────────────
+  if (!fs.existsSync(CHUNKS_DIR)) fs.mkdirSync(CHUNKS_DIR, { recursive: true });
+  for (const f of fs.readdirSync(CHUNKS_DIR)) {
+    if (f.endsWith('.js')) fs.rmSync(path.join(CHUNKS_DIR, f));
+  }
+
+  // ── Phase 1: write one chunk file per kernel ───────────────────────────────
+  for (const a of articles) {
+    const wordCount = (a.content || '').trim().split(/\s+/).filter(Boolean).length;
+    const len       = `${wordCount} WDS`;
+    const cname     = chunkFileName(a.id);
+
+    const chunk = [
+      `// ${cname}.js — DO NOT EDIT MANUALLY.`,
+      '// Generated by: node import-kernel.js',
+      'export default {',
+      `  body:    ${JSON.stringify(a.content)},`,
+      `  content: ${JSON.stringify(a.content)},`,
+      `  len:     ${JSON.stringify(len)},`,
+      '};',
+      '',
+    ].join('\n');
+
+    fs.writeFileSync(path.join(CHUNKS_DIR, `${cname}.js`), chunk, 'utf8');
+  }
+
+  // ── Phase 2: write the lean metadata index ─────────────────────────────────
+  const entries = articles.map(a => {
+    const wordCount = (a.content || '').trim().split(/\s+/).filter(Boolean).length;
+    const len       = `${wordCount} WDS`;
+    const cname     = chunkFileName(a.id);
+
+    // meta: what gets spread into the returned article object at load time.
+    // No body/content here — those come from the chunk.
+    const meta = {
+      id:       a.id,
+      type:     a.type,
+      date:     a.date,
+      title:    a.title,
+      subtitle: a.subtitle,
+      status:   a.status,
+      readTime: a.readTime,
+      tags:     a.tags,
+      len,
+    };
+
+    // The import path is a static string literal so Vite can analyse and
+    // split it at build time. JSON.stringify on the path avoids any injection.
+    const importPath = `./generated_chunks/${cname}.js`;
+
+    return [
+      '  {',
+      `    id: ${JSON.stringify(a.id)},`,
+      `    type: ${JSON.stringify(a.type)},`,
+      `    date: ${JSON.stringify(a.date)},`,
+      `    title: ${JSON.stringify(a.title)},`,
+      `    subtitle: ${JSON.stringify(a.subtitle)},`,
+      `    status: ${JSON.stringify(a.status)},`,
+      `    readTime: ${JSON.stringify(a.readTime)},`,
+      `    tags: ${JSON.stringify(a.tags)},`,
+      `    len: ${JSON.stringify(len)},`,
+      `    loadContent: async () => {`,
+      `      const m = await import(${JSON.stringify(importPath)});`,
+      `      return Object.assign(${JSON.stringify(meta)}, m.default);`,
+      `    },`,
+      '  }',
+    ].join('\n');
+  });
+
+  const lines = [
+    '// articles.generated.js — DO NOT EDIT MANUALLY.',
+    '// Generated by: node import-kernel.js — Level 11: De-Chonker',
+    '// Re-run the script to regenerate from content/soma_kernel/.',
+    '// loadContent() lazy-loads the content payload from generated_chunks/.',
+    '',
+    'const articles = [',
+  ];
+
+  if (entries.length > 0) lines.push(entries.join(',\n'));
+  lines.push('];');
+  lines.push('');
+  lines.push('export default articles;');
+  lines.push('');
+
+  fs.writeFileSync(GENERATED_PATH, lines.join('\n'), 'utf8');
 }
 
-// ─── EXISTING-ID / TITLE SCANNERS ────────────────────────────────────────────
-// Scan ALL .js files in the data directory so IDs declared in sub-files
-// (articles.soma.js, articles.misc.js, kernelBuilds.js) are all captured.
+// ─── EXISTING-ID SCANNERS ─────────────────────────────────────────────────────
 
-function parseExistingIds(filePath) {
-  const dataDir = path.dirname(filePath);
+// Scan hand-curated article files (soma + misc) for IDs — used to build the
+// allIds set that prevents generateId() from emitting colliding prefixes.
+// Does NOT scan articles.generated.js so we don't inherit stale generated IDs.
+function parseHandCuratedIds() {
+  const dataDir = path.join(__dirname, 'src/terminal/data');
   const ids     = new Set();
-  const jsFiles = fs.existsSync(dataDir)
-    ? fs.readdirSync(dataDir).filter(f => f.endsWith('.js')).map(f => path.join(dataDir, f))
-    : [];
-  for (const f of jsFiles) {
+  for (const fname of ['articles.soma.js', 'articles.misc.js']) {
+    const f = path.join(dataDir, fname);
+    if (!fs.existsSync(f)) continue;
     const src = fs.readFileSync(f, 'utf8');
     const re  = /\bid:\s*["'`]([^"'`\n]+)["'`]/g;
     let m;
@@ -231,13 +312,14 @@ function parseExistingIds(filePath) {
   return ids;
 }
 
-function parseExistingTitles(filePath) {
-  const dataDir = path.dirname(filePath);
+// Scan hand-curated article files for normalised titles — used to skip files
+// that duplicate an existing hand-curated entry.
+function parseHandCuratedTitles() {
+  const dataDir = path.join(__dirname, 'src/terminal/data');
   const titles  = new Set();
-  const jsFiles = fs.existsSync(dataDir)
-    ? fs.readdirSync(dataDir).filter(f => f.endsWith('.js')).map(f => path.join(dataDir, f))
-    : [];
-  for (const f of jsFiles) {
+  for (const fname of ['articles.soma.js', 'articles.misc.js']) {
+    const f = path.join(dataDir, fname);
+    if (!fs.existsSync(f)) continue;
     const src = fs.readFileSync(f, 'utf8');
     const re  = /\btitle:\s*"((?:[^"\\]|\\.)*)"/g;
     let m;
@@ -246,44 +328,65 @@ function parseExistingTitles(filePath) {
   return titles;
 }
 
-// ─── MARKER-BASED INJECTION ───────────────────────────────────────────────────
+// Scan ONLY the hand-curated section of kernelBuilds.js (everything before
+// @@INJECT_START@@) for existing articleId values.  This is the idempotency
+// guard: if an articleId is already declared in the hand-curated block we
+// skip it from the inject zone so it never appears twice.  We deliberately
+// do NOT scan the inject zone itself — the zone is always wiped and
+// regenerated from scratch, so its previous contents are irrelevant.
+function parseHandCuratedBuildIds() {
+  if (!fs.existsSync(BUILDS_PATH)) return new Set();
+  const src      = fs.readFileSync(BUILDS_PATH, 'utf8');
+  const startIdx = src.indexOf(INJECT_START);
+  // Only scan the hand-curated block; fall back to whole file if no marker.
+  const section  = startIdx !== -1 ? src.slice(0, startIdx) : src;
+  const ids      = new Set();
+  const re       = /\barticleId:\s*["'`]([^"'`\n]+)["'`]/g;
+  let m;
+  while ((m = re.exec(section)) !== null) ids.add(m[1]);
+  return ids;
+}
+
+// ─── MARKER-BASED BUILD INJECTION ─────────────────────────────────────────────
 
 const INJECT_START = '/* @@INJECT_START@@ */';
 const INJECT_END   = '/* @@INJECT_END@@ */';
 
-function batchInject(filePath, items, serialiseFn) {
-  if (!items.length) return false;
-  if (!fs.existsSync(filePath)) {
-    console.error(`  ✗ Data file not found: ${filePath}`);
+function serialiseBuild(b) {
+  return `  { id: ${JSON.stringify(b.id)}, articleId: ${JSON.stringify(b.articleId)}, name: ${JSON.stringify(b.name)}, status: ${JSON.stringify(b.status)}, desc: ${JSON.stringify(b.desc)} }`;
+}
+
+// Clean-slate inject-zone writer — IDEMPOTENT by design.
+//
+// Every run: wipe the zone completely, then write `items` fresh.
+// No reading of existing zone content — previous entries are irrelevant.
+// Same input (content dir + hand-curated block) → identical output, always.
+function writeInjectZone(items) {
+  if (!fs.existsSync(BUILDS_PATH)) {
+    console.error(`  ✗ Builds file not found: ${BUILDS_PATH}`);
     return false;
   }
 
-  const src      = fs.readFileSync(filePath, 'utf8');
+  const src      = fs.readFileSync(BUILDS_PATH, 'utf8');
   const startIdx = src.indexOf(INJECT_START);
   const endIdx   = src.indexOf(INJECT_END);
 
   if (startIdx === -1 || endIdx === -1) {
-    console.error(`  ✗ Injection markers not found in ${path.basename(filePath)}`);
-    console.error(`    Ensure the file contains both:`);
-    console.error(`      ${INJECT_START}`);
-    console.error(`      ${INJECT_END}`);
+    console.error(`  ✗ Injection markers not found in ${path.basename(BUILDS_PATH)}`);
     return false;
   }
 
-  // Content already between the markers (previous injections on re-run with --force)
-  const existing = src.slice(startIdx + INJECT_START.length, endIdx).trim();
-  const payload  = items.map(serialiseFn).join(',\n');
+  // Always regenerate from scratch — append pattern eliminated.
+  const inner = items.length > 0
+    ? '\n' + items.map(serialiseBuild).join(',\n') + ',\n'
+    : '\n';
 
-  const inner = existing
-    ? `\n${existing},\n${payload},\n`
-    : `\n${payload},\n`;
-
-  const injected =
+  const newSrc =
     src.slice(0, startIdx + INJECT_START.length) +
     inner +
     src.slice(endIdx);
 
-  fs.writeFileSync(filePath, injected, 'utf8');
+  fs.writeFileSync(BUILDS_PATH, newSrc, 'utf8');
   return true;
 }
 
@@ -291,7 +394,7 @@ function batchInject(filePath, items, serialiseFn) {
 
 function run() {
   console.log('\n╔══════════════════════════════════════════╗');
-  console.log('║   KERNEL IMPORT — LEVEL 9 HARDENED      ║');
+  console.log('║   KERNEL IMPORT — LEVEL 11: DE-CHONKER  ║');
   console.log('╚══════════════════════════════════════════╝\n');
 
   if (DRY_RUN) console.log('  [DRY RUN — no files will be written]\n');
@@ -303,20 +406,24 @@ function run() {
   }
 
   const files = fs.readdirSync(CONTENT_DIR).filter(f => {
-    if (!f.endsWith('.md'))      return false;
-    if (EXCLUDE_FILES.has(f))   return false;
+    if (!f.endsWith('.md'))    return false;
+    if (EXCLUDE_FILES.has(f)) return false;
     return true;
   });
 
   if (files.length === 0) {
     console.log('  No .md files found in', CONTENT_DIR);
+    if (!DRY_RUN) {
+      writeGeneratedFile([]);
+      console.log('  ✓ articles.generated.js reset to empty array. Chunks dir wiped.\n');
+    }
     process.exit(0);
   }
 
-  const existingIds    = parseExistingIds(ARTICLES_PATH);
-  const existingBldIds = parseExistingIds(BUILDS_PATH);
-  const allIds         = new Set([...existingIds, ...existingBldIds]);
-  const existingTitles = FORCE ? new Set() : parseExistingTitles(ARTICLES_PATH);
+  const handCuratedIds       = parseHandCuratedIds();
+  const handCuratedBuildIds  = parseHandCuratedBuildIds();   // inject-zone dedup guard
+  const allIds               = new Set([...handCuratedIds]); // for ID collision guard
+  const handCuratedTitles    = FORCE ? new Set() : parseHandCuratedTitles();
 
   let processed = 0;
   let skipped   = 0;
@@ -327,34 +434,30 @@ function run() {
     const fullPath = path.join(CONTENT_DIR, file);
     const raw      = fs.readFileSync(fullPath, 'utf8');
 
-    // gray-matter handles: UTF-8 BOM, multi-line YAML, all quote styles,
-    // CRLF line endings, and YAML arrays/strings automatically.
+    // gray-matter: handles UTF-8 BOM, multi-line YAML, CRLF, Date objects.
     const { data: fm, content: body } = matter(raw);
 
     const derived = deriveMetadata(body, file);
     const title   = (fm.title || derived.title).toUpperCase();
 
-    if (!FORCE && existingTitles.has(sovereignSlug(title))) {
-      console.log(`  Skipping (already imported): ${file}`);
+    // Skip if the title already exists in a hand-curated (soma/misc) file.
+    if (handCuratedTitles.has(sovereignSlug(title))) {
+      console.log(`  Skipping (hand-curated conflict): ${file}`);
       skipped++;
       continue;
     }
 
     const subtitle = fm.subtitle || derived.subtitle || '';
-    // gray-matter parses YAML dates as Date objects — coerce to ISO string
     const date     = fm.date
       ? String(fm.date instanceof Date ? fm.date.toISOString() : fm.date).slice(0, 10)
       : derived.date;
     const status   = canonicalStatus(fm.status || inferStatusFromFilename(file));
-    const type     = fm.type     || inferType(file, body);
+    const type     = (fm.type && canonicalType(fm.type)) || inferType(file, body);
     const readTime = fm.readTime || derived.readTime;
 
     let tags = fm.tags || derived.tags || [];
     if (typeof tags === 'string') {
-      tags = tags
-        .split(',')
-        .map(t => t.trim().replace(/^["'`]|["'`]$/g, ''))
-        .filter(Boolean);
+      tags = tags.split(',').map(t => t.trim().replace(/^["'`]|["'`]$/g, '')).filter(Boolean);
     } else if (!Array.isArray(tags)) {
       tags = [String(tags)].filter(Boolean);
     }
@@ -374,17 +477,27 @@ function run() {
     processed++;
     if (!DRY_RUN) {
       pendingArticles.push({ id, type, date, title, subtitle, status, readTime, tags, content: body });
-      pendingBuilds.push({ id: fm.buildId || id, articleId: id, name, status, desc });
+
+      // Build entry — skip only if already declared in the hand-curated section.
+      // The inject zone is always wiped; every non-hand-curated kernel is re-written.
+      if (!handCuratedBuildIds.has(id)) {
+        pendingBuilds.push({ id: fm.buildId || id, articleId: id, name, status, desc });
+      }
     }
   }
 
-  if (!DRY_RUN && pendingArticles.length > 0) {
-    batchInject(ARTICLES_PATH, pendingArticles, serialiseArticle);
-    batchInject(BUILDS_PATH,   pendingBuilds,   serialiseBuild);
-    console.log(`\n  ✓ Injected ${pendingArticles.length} new kernel(s) into data layer.`);
+  if (!DRY_RUN) {
+    // Always overwrite the generated file (full regeneration on every run).
+    writeGeneratedFile(pendingArticles);
+    console.log(`\n  ✓ Generated ${pendingArticles.length} chunk(s) → generated_chunks/`);
+    console.log(`  ✓ Generated articles.generated.js (lean index, ${pendingArticles.length} entries).`);
+
+    // Always rewrite the inject zone — idempotent clean-slate.
+    writeInjectZone(pendingBuilds);
+    console.log(`  ✓ Inject zone rewritten — ${pendingBuilds.length} entry(s) (idempotent).`);
   }
 
-  if (skipped > 0) console.log(`\n  ↷ ${skipped} kernel(s) already in data layer — skipped.`);
+  if (skipped > 0) console.log(`\n  ↷ ${skipped} kernel(s) skipped (hand-curated conflict).`);
   console.log(`\n  Done. ${processed} kernel(s) processed.\n`);
 }
 

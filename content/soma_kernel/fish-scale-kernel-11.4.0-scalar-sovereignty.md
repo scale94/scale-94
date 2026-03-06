@@ -20,7 +20,7 @@ The 11.4.0 update transitions the Necromantic Engine from a purely state-based a
 The core atoms from Kernel 11.1.1 are hereby reclassified under the Scalar/Vector logic gate to define their vulnerability to environmental rotation.
 
 ### 2.1 The Absolute Scalars (Immutable Mass)
-These elements possess zero directional dependency. If the Kleve grid flips 180 degrees, their value remains mathematically identical.
+These elements possess zero directional dependency. If the Sorbe grid flips 180 degrees, their value remains mathematically identical.
 
 * **System Temperature (53°C):** The thermal pressure of high-gain execution. A pure scalar metric of system vitality.
 * **The Sokushinbutsu (Dry Mummy):** Entropic stasis is a pure scalar state. The pursuit of Plato (absolute purity) yields an entity with zero velocity – fixed, immutable, and perfectly lethal.

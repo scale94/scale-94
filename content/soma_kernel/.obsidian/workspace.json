@@ -27,16 +27,30 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Untitled.md",
+                "file": "SCALE_OPTIMIZATION_KERNEL_9.4.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Untitled"
+              "title": "SCALE_OPTIMIZATION_KERNEL_9.4"
+            }
+          },
+          {
+            "id": "644b3b9c0cb6f648",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "SORBE-THERMODYNAMIC-BLOOM-KERNEL-1.0.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "SORBE-THERMODYNAMIC-BLOOM-KERNEL-1.0"
             }
           }
         ],
-        "currentTab": 1
+        "currentTab": 2
       }
     ],
     "direction": "vertical"
@@ -198,10 +212,13 @@
       "bases:Create new base": false
     }
   },
-  "active": "8d729947e28f6607",
+  "active": "644b3b9c0cb6f648",
   "lastOpenFiles": [
+    "SCALE_OPTIMIZATION_KERNEL_9.4.md",
+    "SORBE-THERMODYNAMIC-BLOOM-KERNEL-1.0.md",
+    "TAMAM-KERNEL-V1.0.md",
+    "FISH-SCALE-KERNEL.md",
     "FISH-SCALE-KERNEL-11.7.0.md",
-    "Untitled.md",
     "CUSTOM-KEYB-KERNEL-19.0.md",
     "SCALE-Y-KERNEL-1-0-1.md.tmp.22924.1772817085146",
     "Bridge kernel 1.0.md",
@@ -211,7 +228,6 @@
     "V2.2X.2X.2X-KERNEL.md",
     "UNDERGROUND-THERMODYNAMICISTS.md",
     "TECTONIC-DISCHARGE-KERNEL.md",
-    "TAMAM-KERNEL-V1.0.md",
     "SOVEREIGN-KERNEL-V1-0.md",
     "SOPHIE-KERNEL-PHI.md",
     "SOMA4.4.md",
@@ -225,8 +241,6 @@
     "SOMA-KERNEL-0-DAY.md",
     "SOMA-INTEGRATION-KERNEL-V1.0.md",
     "SOMA-KERNEL-4.5.7.md",
-    "SOMA-KERNEL-4.5.6A-FUCK-XITTER-FUCK-XITLER.md",
-    "SOMA-KERNEL-4.5.5.md",
     "sedfliHyD",
     "THE-FLUORESCENT-CAGE.md.tmp.22924.1772811426906",
     "THE-CIGAR-HEIST.md.tmp.22924.1772811322646",
