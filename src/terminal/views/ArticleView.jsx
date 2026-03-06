@@ -30,42 +30,50 @@ const ArticleView = ({ article, originTab, handleReturnToRoot }) => {
       </div>
 
       {/*
-       * Kinetic Dampener: CSS Grid reserves a rigid floor for the scramble.
-       * - display:grid + grid-template-rows:1fr → h1 occupies one grid track,
-       *   so its height change during scramble is contained within the track.
-       * - alignItems:start → h1 anchors to the top of the track; text grows
-       *   downward and never pushes content above.
-       * - minHeight:120px → guarantees a solid floor for up to ~2 wrapped lines
-       *   at 14pt. Everything below sees a floor that never shrinks below this.
-       * - overflow:hidden → clips any transient paint bleed between frames.
+       * ── Title Isolation Cell ────────────────────────────────────────────────
+       *
+       * Strategy: the body text below is anchored to the BOTTOM of this fixed-
+       * height cell, not to the bottom of the title text itself. This means the
+       * body's Y coordinate is 100% invariant regardless of how many lines the
+       * scramble or final title occupies.
+       *
+       * Geometry:
+       *   display:grid + grid-template-rows:1fr  → single auto-sized track that
+       *     fills the full cell height.
+       *   align-items:end  → h1 is pinned to the BOTTOM of the track; text
+       *     wraps UPWARD into the reserved space, never pushing the body down.
+       *   height:8rem  → hard ceiling (128px). At 14pt / lh:1.2, covers up to
+       *     ~4 wrapped lines (4 × 14pt × 1.2 ≈ 100px) + mb-4 (16px) = 116px.
+       *     Nothing below ever sees a Y-shift larger than 0px.
+       *   overflow:hidden  → clips upward bleed on extreme wraps; the body
+       *     never moves because the bottom of the cell is the anchor, not the
+       *     bottom of the text.
+       *   contain:layout size  → Gecko-specific: isolates this element from the
+       *     global reflow graph. Scramble-induced internal reflows cannot escape.
+       *     'size' tells the engine the box dimensions are externally determined
+       *     (height:8rem), so children's intrinsic size is irrelevant.
+       *   line-height:1.2  → locks the Gecko line-height metric so preseed
+       *     glyphs and final glyphs produce identical line counts.
        */}
       <div style={{
         display: 'grid',
         gridTemplateRows: '1fr',
-        // clamp: 120px floor → scales with vh on small screens → 200px ceiling.
-        // 'contain: size' uses the resolved height as the element's intrinsic size,
-        // so clamp() is fully respected even with containment active.
-        height: 'clamp(120px, 20vh, 200px)',
+        height: '8rem',
         lineHeight: '1.2',
         overflow: 'hidden',
-        alignItems: 'start',
-        // Nuclear containment: layout prevents external reflow propagation;
-        // size declares that children cannot influence this element's dimensions.
+        alignItems: 'end',
         contain: 'layout size',
       }}>
         <h1
           className="text-[14pt] font-bold mb-4 text-cyan-400 tracking-tighter leading-tight"
           style={{
-            // Firefox Android artificially boosts font sizes for readability.
-            // Disabling this keeps the 14pt calculation honest across engines.
+            // Prevents Firefox Android font-inflation from altering line count.
             WebkitTextSizeAdjust: 'none',
             textSizeAdjust: 'none',
-            // 'anywhere' allows wrap at any character boundary — prevents long
-            // random-glyph sequences from overflowing the cage horizontally.
-            // 'none' disables Gecko's invisible soft-hyphen insertion, which
-            // changes the apparent character count and breaks the line-count
-            // assumption our 120px floor is built on.
+            // Allows wrap at any codepoint — stops wide random glyphs from
+            // overflowing the cell horizontally and creating false extra lines.
             overflowWrap: 'anywhere',
+            // Kills Gecko soft-hyphen injection that changes effective char width.
             hyphens: 'none',
           }}
         >
