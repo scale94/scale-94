@@ -30,14 +30,17 @@ const ArticleView = ({ article, originTab, handleReturnToRoot }) => {
       </div>
 
       {/*
-       * Fixed 80px container locks the vertical space before the scramble starts.
-       * display:flex + alignItems:flex-start pins the text to the top of the
-       * reserved block so it never shifts surrounding content regardless of how
-       * many characters are mid-scramble. overflow:hidden prevents transient
-       * paint bleed during animation frames.
+       * Kinetic Dampener: CSS Grid reserves a rigid floor for the scramble.
+       * - display:grid + grid-template-rows:1fr → h1 occupies one grid track,
+       *   so its height change during scramble is contained within the track.
+       * - alignItems:start → h1 anchors to the top of the track; text grows
+       *   downward and never pushes content above.
+       * - minHeight:120px → guarantees a solid floor for up to ~2 wrapped lines
+       *   at 14pt. Everything below sees a floor that never shrinks below this.
+       * - overflow:hidden → clips any transient paint bleed between frames.
        */}
-      <div style={{ display: 'grid', gridTemplateRows: '1fr', height: '120px', overflow: 'hidden' }}>
-        <h1 className="text-[14pt] font-bold mb-4 text-cyan-400 tracking-tighter leading-tight" style={{ alignSelf: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateRows: '1fr', minHeight: '120px', lineHeight: '1.2', overflow: 'hidden', alignItems: 'start' }}>
+        <h1 className="text-[14pt] font-bold mb-4 text-cyan-400 tracking-tighter leading-tight">
           <HackerText text={article.title} />
         </h1>
       </div>
