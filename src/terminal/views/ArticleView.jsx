@@ -11,7 +11,9 @@ const ArticleView = ({ article, originTab, handleReturnToRoot }) => {
     .replace(/^#(?!#)[ \t]+[^\n]*\n?/, '')
     .trimStart();
 
-  // Generate once per article, not on every re-render
+  // Generate once per article load — article.id is the intentional trigger,
+  // not a value used inside the callback (Math.random needs no deps).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const sig = useMemo(() => Math.random().toString(36).substring(7), [article.id]);
 
   return (
@@ -23,9 +25,9 @@ const ArticleView = ({ article, originTab, handleReturnToRoot }) => {
     <div className="border-l-2 border-fuchsia-500/50 pl-8 relative">
       <div className="flex flex-wrap gap-4 text-[10px] font-bold tracking-widest text-cyan-600 mb-8 font-mono uppercase">
         <span className="text-fuchsia-500">LOG: {article.id}</span>
-        <span>//</span>
+        <span>{'//'}</span>
         <span>DATE: {article.date || 'UNDATED'}</span>
-        <span>//</span>
+        <span>{'//'}</span>
         <span>LEN: {article.len || article.readTime || '0 WDS'}</span>
       </div>
 

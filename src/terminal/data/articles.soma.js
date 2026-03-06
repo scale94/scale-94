@@ -153,7 +153,7 @@ The core of **Soma 5.5** is the **Entropy Ledger**.
 The **Fish Scale 11.1** build introduces the concept of **"Synthesis Evolution"**. It posits that we must resolve the duality of the world not by rejecting the "dark" side, but by synthesizing it.
 
 * **The Paradox:** The term "Fish Scale" denotes two opposing realities.  
-  * **The Illicit Vector:** Cocaine of high purity (\>90%). It represents "Extraction," "Death," and the "Plata o Plomo" logic of the cartel.  
+  * **The Illicit Vector:** Cocaine of high purity (>90%). It represents "Extraction," "Death," and the "Plata o Plomo" logic of the cartel.  
   * **The Regenerative Vector:** The Pirarucu fish skin. It represents "Regeneration," "Life," and the "Plato o Promo" logic of the bio-economy.  
 * **The Pivot:** The goal is to shift the global operating system from the Cartel logic to the Bio-logic. We replace the coercive **"Plata o Plomo"** (Silver or Lead) with the evolutionary **"Plato o Promo"**.  
   * **Plato:** Represents deep structural wisdom, ecological balance, and long-term thinking.  
@@ -177,7 +177,7 @@ The primary weapon of Hybrid Warfare is **Ambiguity**. The "Little Green Men," t
 
 #### **4.1.1 The Trustless Auditor as Counter-Intelligence**
 
-The Soma Kernel already deploys "AI as a Neutral Observer" and "Trustless Auditors" (Principle 4\) to monitor ecological compliance. We re-task this sensor grid for defense.
+The Soma Kernel already deploys "AI as a Neutral Observer" and "Trustless Auditors" (Principle 4) to monitor ecological compliance. We re-task this sensor grid for defense.
 
 * **From Carbon to Kinetic:** The same satellite/IoT network that tracks deforestation (for the Entropy Ledger) is re-calibrated to track troop buildups, supply convoys, and missile silos.  
 * **Algorithmic Attribution:** AI pattern recognition analyzes the "digital exhaust" of hybrid operations. It correlates cyber-attack signatures, financial movements in crypto-ledgers, and disinformation propagation patterns to attribute attacks to the aggressor with mathematical certainty.  
@@ -282,8 +282,8 @@ We defeat Hybrid Warfare by:
 3. **Filtering the Noise:** Using "Feather State" discipline to protect our cognitive sovereignty.
 
 The **Ouroboros** (the snake eating its tail) is the symbol of the closed-loop, regenerative economy. But in this **Kernel Build 11.1**, the Ouroboros is **Scaled** â€“ armored like the Pirarucu. It eats its own waste to survive, but its scales are hard enough to break the teeth of any predator that tries to interrupt the feast. The future is not just Green; it is Armored.  
-**Status:** KERNEL\_LOADED **Directive:** EXECUTE DEFENSE PROTOCOLS.  
-**Signed,** *Strategic Systems Architect* *Soma\_Kernel\_Command*`
+**Status:** KERNEL_LOADED **Directive:** EXECUTE DEFENSE PROTOCOLS.
+**Signed,** *Strategic Systems Architect* *Soma_Kernel_Command*`
   },
   {
     id: 'SOMA-10.0',

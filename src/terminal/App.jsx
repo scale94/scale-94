@@ -34,9 +34,6 @@ const ThesisView      = lazy(() => import('./views/ThesisView'));
 const TransmissionTab = lazy(() => import('./views/TransmissionTab'));
 
 // ─── MODULE-LEVEL DERIVED DATA ────────────────────────────────────────────────
-// Normalise a title for duplicate detection — strips everything except a-z and digits.
-const normaliseTitle = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-
 // Merge: static articles always win (they carry the exact IDs kernelBuilds references).
 // Auto-loaded .md stubs are appended when their ID isn't already in the static set.
 // Title-based dedup is intentionally removed: normalised-title collisions were
@@ -154,7 +151,6 @@ const App = () => {
         const el = kernelListRef.current;
         if (!el) return;
         el.scrollTop = saved;
-        console.log('[KERNEL-SCROLL] restored scrollTop:', saved, '/ actual:', el.scrollTop, '/ scrollHeight:', el.scrollHeight, '/ overflow:', getComputedStyle(el).overflow, getComputedStyle(el).overflowY);
       });
     });
     return () => {
@@ -586,7 +582,7 @@ const App = () => {
       </header>
 
       <main ref={mainRef} className="flex-grow overflow-y-auto overflow-x-hidden p-4 md:p-8 relative z-10 scroll-smooth" style={{ scrollPaddingTop: '100px' }}>
-        <Suspense fallback={<div className="text-cyan-400 font-mono tracking-widest animate-pulse p-8">// LOADING MODULE...</div>}>
+        <Suspense fallback={<div className="text-cyan-400 font-mono tracking-widest animate-pulse p-8">{'// LOADING MODULE...'}</div>}>
         <div className="max-w-[1600px] mx-auto">
           <div className="mb-8 flex items-center text-sm font-bold tracking-wider min-w-0 overflow-hidden">
             <span className="mr-2 text-fuchsia-500">scale@node:</span>

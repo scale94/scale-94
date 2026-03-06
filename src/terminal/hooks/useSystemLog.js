@@ -42,7 +42,6 @@ export default function useSystemLog() {
       raf2 = requestAnimationFrame(() => {
         if (!el.isConnected) return;
         el.scrollTop = el.scrollHeight;
-        console.log('[LOG-SNAP] mount — scrollHeight:', el.scrollHeight, '/ el.scrollTop set to:', el.scrollTop, '/ overflow:', getComputedStyle(el).overflow, getComputedStyle(el).overflowY);
       });
     });
 
@@ -52,7 +51,6 @@ export default function useSystemLog() {
     const obs = new MutationObserver(() => {
       if (!el.isConnected) return;
       el.scrollTop = el.scrollHeight;
-      console.log('[LOG-SNAP] mutation — scrollHeight:', el.scrollHeight, '/ scrollTop:', el.scrollTop);
     });
     // childList: direct children (the log <div> rows) — subtree not needed.
     obs.observe(el, { childList: true });

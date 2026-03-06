@@ -102,7 +102,7 @@ function inferFromContent(body, filename) {
   const tagCandidates = [];
   const headerWords = body.match(/^#{1,4}\s+(.+)/gm) || [];
   for (const h of headerWords) {
-    const words = h.replace(/^#{1,4}\s+/, '').split(/[\s_/\.\\]+/);
+    const words = h.replace(/^#{1,4}\s+/, '').split(/[\s_/.\\/]+/);
     for (const w of words) {
       if (w.length > 3 && /^[A-Z]/.test(w) && !/^(The|And|For|With|From|Into|This|Violet|Kernel|V\d+)$/i.test(w)) {
         tagCandidates.push(w.replace(/[^a-zA-Z0-9-]/g, ''));

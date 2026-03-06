@@ -13,9 +13,9 @@ const ThesisView = ({ handleReturnToRoot }) => (
     <div className="border-l-2 border-cyan-500/50 pl-8 relative">
       <div className="flex flex-wrap gap-4 text-[10px] font-bold tracking-widest text-fuchsia-600 mb-8 font-mono uppercase">
         <span className="text-cyan-500">LOG: ARCHITECT_THESIS</span>
-        <span>//</span>
+        <span>{'//'}</span>
         <span>DATE: 2025-12-08</span>
-        <span>//</span>
+        <span>{'//'}</span>
         <span>STATUS: ACTIVE_PROTOCOL</span>
       </div>
 

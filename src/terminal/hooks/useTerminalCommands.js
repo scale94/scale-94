@@ -225,7 +225,7 @@ export default function useTerminalCommands({
     }
   }, [
     suggestions, activeSugg, cmdHistory, historyIdx, savedInput, commandInput,
-    norm, kernelBuilds, articles,
+    kernelBuilds, articles,
     appendSystemLog, setSystemLogs, handleKernelClick, handleNav,
     setActiveTab, setSelectedArticle, setCurrentPath, setSearchFilter,
     setArchitectThesis, setOriginTab,
