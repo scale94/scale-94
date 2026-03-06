@@ -145,7 +145,7 @@ const articles = Object.entries(markdownModules).map(([filePath, loader]) => {
 
     loadContent: async () => {
       let raw = '';
-      try { raw = await loader(); } catch { /* file read failure — return safe stub */ }
+      try { raw = await loader(); } catch (err) { console.error('[KERNEL_LOG] Failed to load chunk:', filename, err); }
 
       const { frontmatter, body } = parseFrontmatter(raw);
       const { rawTitle, rawSubtitle } = deriveFromContent(body, filename);

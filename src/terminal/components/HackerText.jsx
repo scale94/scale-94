@@ -24,13 +24,26 @@ const preseed = (str) => {
 };
 
 const HackerText = ({ text, className }) => {
-  // Initialise with a same-length scrambled string so the container has its
-  // final height before any interval or font-ready callback fires.
-  const [displayText, setDisplayText] = useState(() => preseed(text || ''));
+  // Initialise display text. If the user prefers reduced motion, show the real
+  // string immediately (no scramble on first paint either). Otherwise preseed
+  // a same-length scramble so the container has its final height before the
+  // interval or font-ready callback fires.
+  const [displayText, setDisplayText] = useState(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return text || '';
+    return preseed(text || '');
+  });
 
   useEffect(() => {
     if (!text) {
       setDisplayText('');
+      return;
+    }
+
+    // Respect the OS/browser "prefer reduced motion" setting.
+    // Skips the scramble entirely — renders the final string instantly.
+    // This also benefits users on low-power mobile devices.
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setDisplayText(text);
       return;
     }
 

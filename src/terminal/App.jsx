@@ -20,7 +20,8 @@ import OctagonGrid   from './components/OctagonGrid';
 import BootSequence  from './components/BootSequence';
 
 // Hooks
-import useSystemLog  from './hooks/useSystemLog';
+import useSystemLog       from './hooks/useSystemLog';
+import { normalizeQuery } from '../lib/normalize';
 
 // KernelTab — static import (landing tab, always needed, avoids .df.js chunk on Firefox Android)
 import KernelTab from './views/KernelTab';
@@ -53,7 +54,8 @@ const App = () => {
   const [bootSequence, setBootSequence] = useState(true);
   const [commandInput, setCommandInput] = useState('');
   const [searchFilter, setSearchFilter] = useState('');
-  const [loadingKernel, setLoadingKernel] = useState(null);
+  const [loadingKernel,  setLoadingKernel]  = useState(null);
+  const [loadingSignal,  setLoadingSignal]  = useState(null);
   const [originTab, setOriginTab] = useState('kernel');
   const [architectThesis, setArchitectThesis] = useState(false);
   const [suggestions, setSuggestions]   = useState([]);
@@ -72,6 +74,9 @@ const App = () => {
   const kernelScrollCache = useRef(
     Number(sessionStorage.getItem('kernelScrollY') || 0)
   );
+  // Abort token for handleKernelClick — invalidates in-flight loads when a
+  // new one is started (e.g. user rapidly clicks two kernels in quick succession).
+  const loadAbortRef = useRef(null);
 
   // Fiction articles for Transmission tab — memoised (articles is module-level, never changes)
   const transmissionStories = useMemo(() => articles.filter(a => a.type === 'fiction'), []);
@@ -83,7 +88,8 @@ const App = () => {
   }, []);
 
   // Filtered subset — used by KernelTab when a search/load filter is active.
-  const norm = useCallback((s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, ''), []);
+  // norm is a stable module-level function — no useCallback wrapper needed.
+  const norm = normalizeQuery;
   const filteredBuilds = useMemo(() => {
     if (!searchFilter) return sortedBuilds;
     const q = norm(searchFilter);
@@ -114,7 +120,7 @@ const App = () => {
     }
     window.scrollTo(0, 0);
     document.documentElement.scrollTop = 0;
-  }, [currentPath, selectedArticle, activeTab, architectThesis]);
+  }, [currentPath, selectedArticle?.id, activeTab, architectThesis]);
 
   // Continuously track the kernel list scroll position via a passive onScroll
   // listener attached directly to the overflow-y-auto <ul>.
@@ -159,14 +165,27 @@ const App = () => {
     };
   }, [selectedArticle, activeTab, filteredBuilds.length]);
 
-  // Handle loading a kernel module
+  // Handle loading a kernel module.
+  // Abort-token pattern: each click mints a new token object. If a second click
+  // arrives while the first is still in the 1200ms timeout window (shouldn't
+  // happen because of the loadingKernel guard, but handles edge cases like
+  // rapid programmatic calls), the previous token is marked aborted so its
+  // async continuation is a no-op after the await.
   const handleKernelClick = useCallback((kernel) => {
     if (loadingKernel) return;
+
+    // Invalidate any previous in-flight load
+    if (loadAbortRef.current) loadAbortRef.current.aborted = true;
+    const token = { aborted: false };
+    loadAbortRef.current = token;
+
     setLoadingKernel(kernel.id);
     const now = new Date();
     appendSystemLog({ time: now.toLocaleTimeString('en-US', { hour12: false }), msg: `Initializing ${kernel.name}...` });
 
     setTimeout(async () => {
+      if (token.aborted) return;
+
       const later = new Date();
       appendSystemLog({ time: later.toLocaleTimeString('en-US', { hour12: false }), msg: `${kernel.name} loaded successfully.` });
       setLoadingKernel(null);
@@ -181,6 +200,7 @@ const App = () => {
           const article = foundArticle.loadContent
             ? await foundArticle.loadContent()
             : foundArticle;
+          if (token.aborted) return;  // guard after async gap
           setOriginTab('kernel');
           setSelectedArticle(article);
           setCurrentPath('~/system/kernel');
@@ -190,13 +210,51 @@ const App = () => {
             window.scrollTo(0, 0);
           }
         } else {
-          appendSystemLog({ time: later.toLocaleTimeString('en-US', { hour12: false }), msg: `ERROR: Article ID '${kernel.articleId}' not found.` });
+          if (!token.aborted) appendSystemLog({ time: later.toLocaleTimeString('en-US', { hour12: false }), msg: `ERROR: Article ID '${kernel.articleId}' not found.` });
         }
       } else {
-        appendSystemLog({ time: later.toLocaleTimeString('en-US', { hour12: false }), msg: `NOTICE: No public file attached.` });
+        if (!token.aborted) appendSystemLog({ time: later.toLocaleTimeString('en-US', { hour12: false }), msg: `NOTICE: No public file attached.` });
       }
     }, 1200);
   }, [loadingKernel, appendSystemLog]);
+
+  // Handle loading a transmission signal — mirrors handleKernelClick but for
+  // fiction/signal articles. Uses the same loadAbortRef abort-token pattern and
+  // emits SIGNAL_INGEST_SUCCESS to the system kernel log on success.
+  const handleTransmissionSelect = useCallback(async (story) => {
+    if (loadingSignal) return;
+
+    if (loadAbortRef.current) loadAbortRef.current.aborted = true;
+    const token = { aborted: false };
+    loadAbortRef.current = token;
+
+    setLoadingSignal(story.id);
+    const t1 = new Date().toLocaleTimeString('en-US', { hour12: false });
+    appendSystemLog({ time: t1, msg: `SIGNAL_INGEST: Acquiring "${story.title}"...` });
+
+    try {
+      const article = story.loadContent ? await story.loadContent() : story;
+      if (token.aborted) return;
+
+      const t2 = new Date().toLocaleTimeString('en-US', { hour12: false });
+      appendSystemLog({ time: t2, msg: `SIGNAL_INGEST_SUCCESS: ${story.id}` });
+      setLoadingSignal(null);
+      setOriginTab('transmission');
+      setSelectedArticle(article);
+      setCurrentPath('~/system/transmission');
+      if (mainRef.current) {
+        mainRef.current.style.scrollBehavior = 'auto';
+        mainRef.current.scrollTop = 0;
+        window.scrollTo(0, 0);
+      }
+    } catch (err) {
+      if (token.aborted) return;
+      const t2 = new Date().toLocaleTimeString('en-US', { hour12: false });
+      console.error('[KERNEL_LOG] Transmission load failed:', story.id, err);
+      appendSystemLog({ time: t2, msg: `ERROR: SIGNAL_INGEST_FAIL — ${story.id}` });
+      setLoadingSignal(null);
+    }
+  }, [loadingSignal, appendSystemLog]);
 
   const handleReturnToRoot = useCallback(() => {
     const targetTab = originTab === 'kernel_doc' || originTab === 'kernel' ? 'kernel' : originTab;
@@ -343,9 +401,8 @@ const App = () => {
         setArchitectThesis(true);
         executeCommand(rawCmd, "Loading ARCHITECT_THESIS...");
       } else if (action === 'load' && query) {
-        // Normalise: strip everything except alphanumerics for fuzzy matching
+        // normalizeQuery: strip everything except alphanumerics for fuzzy matching
         // "load fish scale 11.4" → "fishscale114"  matches  "FISH_SCALE_KERNEL_11_4_0..."
-        const norm = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
         const q = norm(query);
 
         // 1. Search kernelBuilds first — triggers the full handleKernelClick animation
@@ -375,10 +432,14 @@ const App = () => {
           );
           if (aMatches.length === 1) {
             executeCommand(rawCmd, `Loading file '${aMatches[0].id}'...`);
+            if (loadAbortRef.current) loadAbortRef.current.aborted = true;
+            const cmdToken = { aborted: false };
+            loadAbortRef.current = cmdToken;
             (async () => {
               const article = (!aMatches[0].content && aMatches[0].loadContent)
                 ? await aMatches[0].loadContent()
                 : aMatches[0];
+              if (cmdToken.aborted) return;
               setOriginTab('kernel');
               setActiveTab('kernel');
               setSelectedArticle(article);
@@ -392,7 +453,24 @@ const App = () => {
             setCurrentPath(`~/system/kernel?q=${query.replace(/ /g, '_')}`);
             executeCommand(rawCmd, `${aMatches.length} matches found. Filter applied.`);
           } else {
-            executeCommand(rawCmd, `ERROR: Object '${query}' not found in kernel index.`);
+            // 3. Bunker check — query the Transmission Stream (fiction / signal archive).
+            // normalizeQuery ensures "Cigar Heist", "cigar heist", and "Cigar-Heist"
+            // all collapse to "cigarheist" before comparison.
+            const tMatches = transmissionStories.filter(s =>
+              norm(s.id).includes(q) ||
+              norm(s.title).includes(q) ||
+              norm(s.subtitle || '').includes(q) ||
+              (s.tags && s.tags.some(t => norm(t).includes(q)))
+            );
+            if (tMatches.length === 1) {
+              executeCommand(rawCmd, `SIGNAL_INGEST: Routing to transmission "${tMatches[0].title}"...`);
+              handleTransmissionSelect(tMatches[0]);
+            } else if (tMatches.length > 1) {
+              handleNav('~/system/transmission', 'transmission');
+              executeCommand(rawCmd, `${tMatches.length} transmissions match "${query}". Switching to Transmission stream.`);
+            } else {
+              executeCommand(rawCmd, `ERROR: Object '${query}' not found in kernel index or transmission stream.`);
+            }
           }
         }
       } else if (action === 'list') {
@@ -624,11 +702,8 @@ const App = () => {
           {activeTab === 'transmission' && !selectedArticle && !architectThesis && (
             <TransmissionTab
               stories={transmissionStories}
-              onSelect={(story) => {
-                setOriginTab('transmission');
-                setSelectedArticle(story);
-                setCurrentPath('~/system/transmission');
-              }}
+              onSelect={handleTransmissionSelect}
+              loadingSignal={loadingSignal}
             />
           )}
 

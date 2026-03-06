@@ -20,6 +20,7 @@ import fs   from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import matter from 'gray-matter';
+import { normalizeQuery as sovereignSlug } from './src/lib/normalize.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -62,18 +63,6 @@ function canonicalStatus(raw) {
   return 'ACTIVE';
 }
 
-// ─── UNICODE NORMALIZATION ────────────────────────────────────────────────────
-// Decomposes Unicode (NFD), strips combining diacritics, then lowercases and
-// strips non-alphanumerics. Mirrors the title-dedup logic in loadArticles.js.
-// Examples: "für" → "fur", "Ångström" → "angstrom"
-
-function sovereignSlug(s) {
-  return (s || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '');
-}
 
 // ─── VERSION EXTRACTION (SEMVER-AWARE) ───────────────────────────────────────
 // Priority: vX.Y.Z[-pre] > X.Y.Z (3-or-more part) > X.Y (2-part) > '1.0'

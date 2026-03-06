@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { normalizeQuery } from '../lib/normalize';
 
 /**
  * useTerminalCommands
@@ -9,8 +10,10 @@ import { useState, useCallback } from 'react';
 export default function useTerminalCommands({
   kernelBuilds,
   articles,
+  transmissionStories,
   norm,
   handleKernelClick,
+  handleTransmissionSelect,
   handleNav,
   appendSystemLog,
   setSystemLogs,
@@ -137,7 +140,7 @@ export default function useTerminalCommands({
       appendSystemLog({ time: now, msg: result });
     };
 
-    const n = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const n = normalizeQuery;
 
     if (['home', 'kernel', 'system'].includes(action)) {
       handleNav('~/system/kernel', 'kernel');
@@ -198,7 +201,24 @@ export default function useTerminalCommands({
           setCurrentPath(`~/system/kernel?q=${query.replace(/ /g, '_')}`);
           executeCommand(rawCmd, `${aMatches.length} matches found. Filter applied.`);
         } else {
-          executeCommand(rawCmd, `ERROR: Object '${query}' not found in kernel index.`);
+          // 3. Bunker check — query the Transmission Stream (fiction / signal archive).
+          // normalizeQuery ensures "Cigar Heist", "cigar heist", and "Cigar-Heist"
+          // all collapse to "cigarheist" before comparison.
+          const tMatches = transmissionStories.filter(s =>
+            n(s.id).includes(q) ||
+            n(s.title).includes(q) ||
+            n(s.subtitle || '').includes(q) ||
+            (s.tags && s.tags.some(t => n(t).includes(q)))
+          );
+          if (tMatches.length === 1) {
+            executeCommand(rawCmd, `SIGNAL_INGEST: Routing to transmission "${tMatches[0].title}"...`);
+            handleTransmissionSelect(tMatches[0]);
+          } else if (tMatches.length > 1) {
+            handleNav('~/system/transmission', 'transmission');
+            executeCommand(rawCmd, `${tMatches.length} transmissions match "${query}". Switching to Transmission stream.`);
+          } else {
+            executeCommand(rawCmd, `ERROR: Object '${query}' not found in kernel index or transmission stream.`);
+          }
         }
       }
     } else if (action === 'list') {
@@ -225,8 +245,8 @@ export default function useTerminalCommands({
     }
   }, [
     suggestions, activeSugg, cmdHistory, historyIdx, savedInput, commandInput,
-    kernelBuilds, articles,
-    appendSystemLog, setSystemLogs, handleKernelClick, handleNav,
+    kernelBuilds, articles, transmissionStories,
+    appendSystemLog, setSystemLogs, handleKernelClick, handleTransmissionSelect, handleNav,
     setActiveTab, setSelectedArticle, setCurrentPath, setSearchFilter,
     setArchitectThesis, setOriginTab,
     executeSuggestion,
