@@ -220,6 +220,14 @@ const App = () => {
     }, 1200);
   }, [loadingKernel, appendSystemLog]);
 
+  // Neural link handler — called when a [[KERNEL-ID]] button is clicked inside
+  // a pre-rendered article chunk. Finds the matching build entry and delegates
+  // to handleKernelClick so the full load animation fires identically.
+  const handleNeuralLink = useCallback((cmd) => {
+    const kernel = kernelBuilds.find(k => k.articleId === cmd || k.id === cmd);
+    if (kernel) handleKernelClick(kernel);
+  }, [handleKernelClick]);
+
   // Handle loading a transmission signal — mirrors handleKernelClick but for
   // fiction/signal articles. Uses the same loadAbortRef abort-token pattern and
   // emits SIGNAL_INGEST_SUCCESS to the system kernel log on success.
@@ -728,6 +736,7 @@ const App = () => {
               article={selectedArticle}
               originTab={originTab}
               handleReturnToRoot={handleReturnToRoot}
+              onNeuralLink={handleNeuralLink}
             />
           )}
         </div>

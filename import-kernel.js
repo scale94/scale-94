@@ -23,6 +23,7 @@ import fs   from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import matter from 'gray-matter';
+import { marked } from 'marked';
 import { normalizeQuery as sovereignSlug } from './src/lib/normalize.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -39,6 +40,7 @@ const FORCE   = process.argv.includes('--force');
 const GENERATED_PATH = path.join(__dirname, 'src/terminal/data/articles.generated.js');
 const CHUNKS_DIR     = path.join(__dirname, 'src/terminal/data/generated_chunks');
 const BUILDS_PATH    = path.join(__dirname, 'src/terminal/data/kernelBuilds.js');
+const TAGS_PATH      = path.join(__dirname, 'src/terminal/data/tags.generated.js');
 
 // ─── EXCLUSION LIST ───────────────────────────────────────────────────────────
 
@@ -142,6 +144,102 @@ function inferStatusFromFilename(filename) {
   return 'ACTIVE';
 }
 
+// ─── HTML UTILS ──────────────────────────────────────────────────────────────
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// ─── MARKED RENDERER — TERMINAL AESTHETIC ────────────────────────────────────
+// Bakes Tailwind classes into pre-rendered HTML chunks at build time.
+// Tailwind scans generated_chunks/*.js so these classes land in the CSS bundle.
+
+marked.use({
+  renderer: {
+    heading(token) {
+      const text = this.parser.parseInline(token.tokens);
+      const cls =
+        token.depth === 1 ? 'text-[14pt] font-bold mb-4 text-cyan-400 tracking-tighter leading-tight' :
+        token.depth === 2 ? 'text-[12pt] text-fuchsia-400 mb-12 font-light tracking-wide' :
+                            'text-lg font-bold mt-8 mb-4 text-fuchsia-400 flex items-center gap-2';
+      return `<h${token.depth} class="${cls}">${text}</h${token.depth}>\n`;
+    },
+    paragraph(token) {
+      const text = this.parser.parseInline(token.tokens);
+      return `<p class="mb-6 text-[#39ff14] leading-relaxed max-w-3xl">${text}</p>\n`;
+    },
+    list(token) {
+      const tag = token.ordered ? 'ol' : 'ul';
+      let body = '';
+      for (const item of token.items) body += this.listitem(item);
+      return `<${tag} class="mb-6 space-y-2 list-none pl-0">${body}</${tag}>\n`;
+    },
+    listitem(token) {
+      // Always use parse (block-aware) — listitem tokens may include tables,
+      // paragraphs, or other block tokens regardless of the loose flag.
+      const text = this.parser.parse(token.tokens);
+      return `<li class="flex items-start gap-2 text-[#39ff14]"><span class="text-cyan-400 mt-1 shrink-0">&#9658;</span><span>${text}</span></li>\n`;
+    },
+    code(token) {
+      return `<pre class="bg-black/80 border border-cyan-900/30 p-4 mb-6 rounded text-xs text-cyan-300 font-mono whitespace-pre-wrap overflow-x-auto shadow-inner"><code>${escapeHtml(token.text)}</code></pre>\n`;
+    },
+    blockquote(token) {
+      const body = this.parser.parse(token.tokens);
+      return `<blockquote class="border-l-2 border-cyan-500/50 pl-4 mb-6 text-cyan-400/70 italic">${body}</blockquote>\n`;
+    },
+    table(token) {
+      const th = token.header.map(h =>
+        `<th class="px-3 py-2 text-left text-cyan-400 border-b border-cyan-900/50 text-xs font-bold tracking-wider">${this.parser.parseInline(h.tokens)}</th>`
+      ).join('');
+      const tr = token.rows.map(row =>
+        `<tr>${row.map(cell =>
+          `<td class="px-3 py-2 text-[#39ff14] text-xs border-b border-cyan-900/20">${this.parser.parseInline(cell.tokens)}</td>`
+        ).join('')}</tr>`
+      ).join('\n');
+      return `<table class="w-full mb-6 border-collapse border border-cyan-900/30"><thead><tr>${th}</tr></thead><tbody>${tr}</tbody></table>\n`;
+    },
+    strong(token) {
+      const text = this.parser.parseInline(token.tokens);
+      return `<strong class="text-cyan-300 font-bold">${text}</strong>`;
+    },
+    em(token) {
+      const text = this.parser.parseInline(token.tokens);
+      return `<em class="text-fuchsia-300 italic">${text}</em>`;
+    },
+    codespan(token) {
+      return `<code class="bg-black/60 text-cyan-300 font-mono text-xs px-1 py-0.5 rounded border border-cyan-900/30">${escapeHtml(token.text)}</code>`;
+    },
+    link(token) {
+      const text = this.parser.parseInline(token.tokens);
+      const href = escapeHtml(token.href || '');
+      return `<a href="${href}" class="text-cyan-400 underline underline-offset-2 hover:text-cyan-200" target="_blank" rel="noopener noreferrer">${text}</a>`;
+    },
+  },
+});
+
+// ─── MARKDOWN PRE-RENDERER ────────────────────────────────────────────────────
+// Converts raw markdown to terminal-aesthetic HTML at build time.
+// Neural links [[KERNEL-ID]] are detected and converted to <button> elements
+// before marked runs, so marked passes them through as raw HTML.
+
+function renderMarkdown(body) {
+  // Pre-process [[KERNEL-ID]] → neural link buttons
+  let processed = body.replace(/\[\[([^\]]+)\]\]/g, (_, id) => {
+    const safeId = escapeHtml(id.trim());
+    return `<button class="neural-link text-cyan-400 underline underline-offset-2 hover:text-cyan-200 cursor-pointer bg-transparent border-none font-mono text-xs font-bold" data-cmd="${safeId}">${safeId}</button>`;
+  });
+
+  // Strip first H1 — ArticleView renders article.title as its own heading
+  processed = processed.replace(/^#(?!#)[ \t]+[^\n]*\n?/, '');
+
+  return marked.parse(processed);
+}
+
 // ─── CONTENT INFERENCE ───────────────────────────────────────────────────────
 
 function deriveMetadata(body, filename) {
@@ -212,19 +310,19 @@ function writeGeneratedFile(articles) {
     if (f.endsWith('.js')) fs.rmSync(path.join(CHUNKS_DIR, f));
   }
 
-  // ── Phase 1: write one chunk file per kernel ───────────────────────────────
+  // ── Phase 1: write one chunk file per kernel (pre-rendered HTML) ───────────
   for (const a of articles) {
     const wordCount = (a.content || '').trim().split(/\s+/).filter(Boolean).length;
     const len       = `${wordCount} WDS`;
     const cname     = chunkFileName(a.id);
+    const html      = renderMarkdown(a.content || '');
 
     const chunk = [
       `// ${cname}.js — DO NOT EDIT MANUALLY.`,
-      '// Generated by: node import-kernel.js',
+      '// Generated by: node import-kernel.js — Level 15: Atomic Pre-rendering',
       'export default {',
-      `  body:    ${JSON.stringify(a.content)},`,
-      `  content: ${JSON.stringify(a.content)},`,
-      `  len:     ${JSON.stringify(len)},`,
+      `  html: ${JSON.stringify(html)},`,
+      `  len:  ${JSON.stringify(len)},`,
       '};',
       '',
     ].join('\n');
@@ -238,8 +336,8 @@ function writeGeneratedFile(articles) {
     const len       = `${wordCount} WDS`;
     const cname     = chunkFileName(a.id);
 
-    // meta: what gets spread into the returned article object at load time.
-    // No body/content here — those come from the chunk.
+    // meta: lightweight fields merged with the chunk payload at load time.
+    // Chunk exports { html, len } — html replaces body/content, len authoritative.
     const meta = {
       id:       a.id,
       type:     a.type,
@@ -252,8 +350,7 @@ function writeGeneratedFile(articles) {
       len,
     };
 
-    // The import path is a static string literal so Vite can analyse and
-    // split it at build time. JSON.stringify on the path avoids any injection.
+    // Static string literal — Vite splits each chunk into its own async bundle.
     const importPath = `./generated_chunks/${cname}.js`;
 
     return [
@@ -291,6 +388,44 @@ function writeGeneratedFile(articles) {
   lines.push('');
 
   fs.writeFileSync(GENERATED_PATH, lines.join('\n'), 'utf8');
+}
+
+// ─── TAGS FILE WRITER ─────────────────────────────────────────────────────────
+// Generates tags.generated.js — a flat map of tag → [{ id, title }].
+// Enables instant vibe-based filtering in the UI without scanning all articles.
+
+function writeTagsFile(articles) {
+  const tagMap = new Map();
+  for (const a of articles) {
+    for (const tag of (a.tags || [])) {
+      if (!tagMap.has(tag)) tagMap.set(tag, []);
+      tagMap.get(tag).push({ id: a.id, title: a.title });
+    }
+  }
+
+  const entries = [...tagMap.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([tag, kernels]) => {
+      const items = kernels
+        .map(k => `    { id: ${JSON.stringify(k.id)}, title: ${JSON.stringify(k.title)} }`)
+        .join(',\n');
+      return `  ${JSON.stringify(tag)}: [\n${items}\n  ]`;
+    });
+
+  const lines = [
+    '// tags.generated.js — DO NOT EDIT MANUALLY.',
+    '// Generated by: node import-kernel.js — Level 15: Associative Index',
+    '// Maps tag → [{ id, title }] for instant vibe-based filtering.',
+    '',
+    'const tagIndex = {',
+    entries.join(',\n'),
+    '};',
+    '',
+    'export default tagIndex;',
+    '',
+  ];
+
+  fs.writeFileSync(TAGS_PATH, lines.join('\n'), 'utf8');
 }
 
 // ─── EXISTING-ID SCANNERS ─────────────────────────────────────────────────────
@@ -489,8 +624,12 @@ function run() {
   if (!DRY_RUN) {
     // Always overwrite the generated file (full regeneration on every run).
     writeGeneratedFile(pendingArticles);
-    console.log(`\n  ✓ Generated ${pendingArticles.length} chunk(s) → generated_chunks/`);
+    console.log(`\n  ✓ Generated ${pendingArticles.length} HTML chunk(s) → generated_chunks/`);
     console.log(`  ✓ Generated articles.generated.js (lean index, ${pendingArticles.length} entries).`);
+
+    // Generate the tag index.
+    writeTagsFile(pendingArticles);
+    console.log(`  ✓ Generated tags.generated.js (associative index).`);
 
     // Always rewrite the inject zone — idempotent clean-slate.
     writeInjectZone(pendingBuilds);

@@ -1,15 +1,23 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useCallback } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import HackerText from '../components/HackerText';
 import renderContent from '../utils/renderContent';
 
-const ArticleView = ({ article, originTab, handleReturnToRoot }) => {
-  // Strip the first # heading from content — ArticleView already renders article.title
-  // above as its own <h1>, so leaving it in the body causes a duplicate heading.
-  // article.body is the canonical field; article.content is kept as an alias.
+const ArticleView = ({ article, originTab, handleReturnToRoot, onNeuralLink }) => {
+  // Fallback for static articles without pre-rendered html:
+  // strip the first # heading since ArticleView renders article.title separately.
   const contentBody = (article.body || article.content || '')
     .replace(/^#(?!#)[ \t]+[^\n]*\n?/, '')
     .trimStart();
+
+  // Event delegation for neural-link buttons inside pre-rendered HTML chunks.
+  const contentRef = useRef(null);
+  const handleContentClick = useCallback((e) => {
+    const btn = e.target.closest('.neural-link');
+    if (!btn) return;
+    const cmd = btn.dataset.cmd;
+    if (cmd && onNeuralLink) onNeuralLink(cmd);
+  }, [onNeuralLink]);
 
   // Generate once per article load — article.id is the intentional trigger,
   // not a value used inside the callback (Math.random needs no deps).
@@ -84,8 +92,15 @@ const ArticleView = ({ article, originTab, handleReturnToRoot }) => {
       </div>
       <h2 className="text-[12pt] text-fuchsia-400 mb-12 font-light tracking-wide">{article.subtitle}</h2>
 
-      <div className="prose prose-invert prose-cyan max-w-none font-mono text-sm md:text-base leading-relaxed">
-        {renderContent(contentBody)}
+      <div
+        className="prose prose-invert prose-cyan max-w-none font-mono text-sm md:text-base leading-relaxed"
+        ref={contentRef}
+        onClick={handleContentClick}
+      >
+        {article.html
+          ? <div dangerouslySetInnerHTML={{ __html: article.html }} />
+          : renderContent(contentBody)
+        }
       </div>
 
       <div className="mt-16 pt-8 border-t border-cyan-900/30 flex justify-between items-center text-[10px] font-bold tracking-widest text-gray-600 uppercase">

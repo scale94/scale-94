@@ -11,6 +11,7 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
     "./content/**/*.md",
+    "./src/terminal/data/generated_chunks/*.js",
   ],
   theme: {
     extend: {
