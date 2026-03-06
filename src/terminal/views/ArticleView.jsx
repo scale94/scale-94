@@ -39,7 +39,7 @@ const ArticleView = ({ article, originTab, handleReturnToRoot }) => {
        *   at 14pt. Everything below sees a floor that never shrinks below this.
        * - overflow:hidden → clips any transient paint bleed between frames.
        */}
-      <div style={{ display: 'grid', gridTemplateRows: '1fr', minHeight: '120px', lineHeight: '1.2', overflow: 'hidden', alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateRows: '1fr', height: '120px', minHeight: '120px', lineHeight: '1.2', overflow: 'hidden', alignItems: 'start', contain: 'layout size' }}>
         <h1 className="text-[14pt] font-bold mb-4 text-cyan-400 tracking-tighter leading-tight">
           <HackerText text={article.title} />
         </h1>

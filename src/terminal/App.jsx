@@ -585,7 +585,7 @@ const App = () => {
         </div>
       </header>
 
-      <main ref={mainRef} className="flex-grow overflow-y-auto overflow-x-hidden p-4 md:p-8 relative z-10 scroll-smooth">
+      <main ref={mainRef} className="flex-grow overflow-y-auto overflow-x-hidden p-4 md:p-8 relative z-10 scroll-smooth" style={{ scrollPaddingTop: '100px' }}>
         <Suspense fallback={<div className="text-cyan-400 font-mono tracking-widest animate-pulse p-8">// LOADING MODULE...</div>}>
         <div className="max-w-[1600px] mx-auto">
           <div className="mb-8 flex items-center text-sm font-bold tracking-wider min-w-0 overflow-hidden">
