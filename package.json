@@ -11,6 +11,7 @@
     "kernel:import": "node import-kernel.js ./content/soma_kernel",
     "kernel:watch": "node watch-kernels.js",
     "kernel:new": "node new-kernel.js",
+    "system:import": "node scripts/import-system.js",
     "spawn": "node scripts/spawn.js"
   },
   "dependencies": {

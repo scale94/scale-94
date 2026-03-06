@@ -1,8 +1,9 @@
 import React from 'react';
 import { ArrowLeft } from 'lucide-react';
 import HackerText from '../components/HackerText';
-import renderContent from '../utils/renderContent';
-import { architectThesisContent } from '../data/content';
+import systemArticles from '../data/articles.system';
+
+const thesis = systemArticles['ARCHITECT-THESIS'];
 
 const ThesisView = ({ handleReturnToRoot }) => (
   <div className="max-w-4xl mx-auto animate-in zoom-in-95 duration-300">
@@ -14,17 +15,22 @@ const ThesisView = ({ handleReturnToRoot }) => (
       <div className="flex flex-wrap gap-4 text-[10px] font-bold tracking-widest text-fuchsia-600 mb-8 font-mono uppercase">
         <span className="text-cyan-500">LOG: ARCHITECT_THESIS</span>
         <span>{'//'}</span>
-        <span>DATE: 2025-12-08</span>
+        <span>DATE: {thesis?.date || '2025-12-08'}</span>
         <span>{'//'}</span>
         <span>STATUS: ACTIVE_PROTOCOL</span>
       </div>
 
-      <h1 className="text-[14pt] font-bold mb-4 text-fuchsia-400 tracking-tighter leading-none"><HackerText text="The Calculated Injection of Mass" /></h1>
-      <h2 className="text-[12pt] text-cyan-400 mb-12 font-light tracking-wide">From Default Geometry to Complex Systems</h2>
+      <h1 className="text-[14pt] font-bold mb-4 text-fuchsia-400 tracking-tighter leading-none">
+        <HackerText text={thesis?.title ?? 'The Calculated Injection of Mass'} />
+      </h1>
+      <h2 className="text-[12pt] text-cyan-400 mb-12 font-light tracking-wide">
+        {thesis?.subtitle ?? 'From Default Geometry to Complex Systems'}
+      </h2>
 
-      <div className="prose prose-invert prose-cyan max-w-none font-mono text-sm md:text-base leading-relaxed">
-        {renderContent(architectThesisContent)}
-      </div>
+      <div
+        className="font-mono text-sm md:text-base leading-relaxed"
+        dangerouslySetInnerHTML={{ __html: thesis?.html ?? '' }}
+      />
 
       <div className="mt-16 pt-8 border-t border-fuchsia-900/30 flex justify-between items-center text-[10px] font-bold tracking-widest text-gray-600 uppercase">
         <span>THESIS_COMPLETE</span>
