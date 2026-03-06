@@ -16,12 +16,10 @@
  * ---
  */
 
-// ─── DOUBLE GLOBBING FIX ─────────────────────────────────────────────────────
-// Only pull from soma_kernel to prevent duplicate entries and mismatched paths.
-const markdownModules = {
-  ...import.meta.glob('../../../content/soma_kernel/*.md', { as: 'raw', eager: true }),
-};
-//console.log("VACUUM CLEANER SUCKED UP:", Object.keys(markdownModules).length, "FILES");
+// ─── LAZY GLOB — content is NOT bundled ──────────────────────────────────────
+// Each entry is a function: () => Promise<string>. Vite emits one async chunk
+// per .md file; content is only fetched when the user actually opens an article.
+const markdownModules = import.meta.glob('../../../content/soma_kernel/*.md', { as: 'raw' });
 
 // ─── Frontmatter parser ───────────────────────────────────────────────────────
 const parseFrontmatter = (raw) => {
@@ -61,37 +59,56 @@ const deriveFromContent = (content, filename) => {
 };
 
 // ─── THE HANDSHAKE FIX: Filename → ID ─────────────────────────────────────────
-// Generates a literal ID, preserves dots, and converts underscores to dashes.
 const filenameToId = (filename) =>
   filename
     .toUpperCase()
-    .replace(/_/g, '-')    // Converts underscores to dashes
+    .replace(/_/g, '-')
     .replace(/\s+/g, '-')
     .replace(/[()[\]]/g, '')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '');
 
-// ─── Build article list ───────────────────────────────────────────────────────
-const articles = Object.entries(markdownModules).map(([filePath, raw]) => {
+// ─── Build article stubs (index only — no content loaded yet) ─────────────────
+// Stubs give the article list enough info to render the kernel index.
+// `loadContent()` is called lazily when a user actually opens the article.
+const articles = Object.entries(markdownModules).map(([filePath, loader]) => {
   const filename = filePath.split('/').pop().replace(/\.md$/, '');
-  const { frontmatter, content } = parseFrontmatter(raw);
-  const { rawTitle, rawSubtitle, date: derivedDate } = deriveFromContent(content, filename);
+  const stubId   = filenameToId(filename);
+  const stubTitle = filename.replace(/[-_]/g, ' ').replace(/\s+/g, ' ').toUpperCase();
 
   return {
-    id:       frontmatter.id       || filenameToId(filename),
+    id:       stubId,
     type:     'kernel_doc',
-    date:     frontmatter.date     || derivedDate,
-    title:    (frontmatter.title   || rawTitle).toUpperCase(),
-    subtitle:  frontmatter.subtitle || rawSubtitle,
-    status:   frontmatter.status   || 'ACTIVE',
-    readTime: frontmatter.readTime || '',
-    tags:     Array.isArray(frontmatter.tags)
-                ? frontmatter.tags
-                : frontmatter.tags
-                  ? [frontmatter.tags]
-                  : [],
-    content,
+    date:     '',
+    title:    stubTitle,
+    subtitle: '',
+    status:   'ACTIVE',
+    readTime: '',
+    tags:     [],
+    content:  undefined, // populated by loadContent()
+
+    // Called in App.jsx before setSelectedArticle — fetches + parses the .md file.
+    loadContent: async () => {
+      const raw = await loader();
+      const { frontmatter, content } = parseFrontmatter(raw);
+      const { rawTitle, rawSubtitle, date: derivedDate } = deriveFromContent(content, filename);
+      return {
+        id:       frontmatter.id       || stubId,
+        type:     'kernel_doc',
+        date:     frontmatter.date     || derivedDate,
+        title:    (frontmatter.title   || rawTitle).toUpperCase(),
+        subtitle:  frontmatter.subtitle || rawSubtitle,
+        status:   frontmatter.status   || 'ACTIVE',
+        readTime: frontmatter.readTime || '',
+        tags:     Array.isArray(frontmatter.tags)
+                    ? frontmatter.tags
+                    : frontmatter.tags
+                      ? [frontmatter.tags]
+                      : [],
+        content,
+      };
+    },
   };
 });
-//console.log("WAREHOUSE INVENTORY:", articles.map(a => a.id));
+
 export default articles;

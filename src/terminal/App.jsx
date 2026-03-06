@@ -116,7 +116,7 @@ const App = () => {
     const now = new Date();
     appendSystemLog({ time: now.toLocaleTimeString('en-US', { hour12: false }), msg: `Initializing ${kernel.name}...` });
 
-    setTimeout(() => {
+    setTimeout(async () => {
       const later = new Date();
       appendSystemLog({ time: later.toLocaleTimeString('en-US', { hour12: false }), msg: `${kernel.name} loaded successfully.` });
       setLoadingKernel(null);
@@ -124,8 +124,12 @@ const App = () => {
       if (kernel.articleId) {
         const foundArticle = articles.find(a => a.id === kernel.articleId);
         if (foundArticle) {
+          // Lazy articles have no content yet — fetch on demand before opening.
+          const article = (!foundArticle.content && foundArticle.loadContent)
+            ? await foundArticle.loadContent()
+            : foundArticle;
           setOriginTab('kernel');
-          setSelectedArticle(foundArticle);
+          setSelectedArticle(article);
           setCurrentPath('~/system/kernel');
           if (mainRef.current) {
             mainRef.current.style.scrollBehavior = 'auto';
@@ -317,12 +321,17 @@ const App = () => {
              (a.tags && a.tags.some(t => norm(t).includes(q))))
           );
           if (aMatches.length === 1) {
-            setOriginTab('kernel');
-            setActiveTab('kernel');
-            setSelectedArticle(aMatches[0]);
-            setCurrentPath('~/system/kernel');
-            setSearchFilter('');
             executeCommand(rawCmd, `Loading file '${aMatches[0].id}'...`);
+            (async () => {
+              const article = (!aMatches[0].content && aMatches[0].loadContent)
+                ? await aMatches[0].loadContent()
+                : aMatches[0];
+              setOriginTab('kernel');
+              setActiveTab('kernel');
+              setSelectedArticle(article);
+              setCurrentPath('~/system/kernel');
+              setSearchFilter('');
+            })();
           } else if (aMatches.length > 1) {
             setActiveTab('kernel');
             setSelectedArticle(null);
