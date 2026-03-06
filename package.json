@@ -33,6 +33,7 @@
     "gray-matter": "^4.0.3",
     "marked": "^17.0.4",
     "postcss": "^8.4.27",
+    "semver": "^7.7.4",
     "tailwindcss": "^3.3.3",
     "tailwindcss-animate": "^1.0.7",
     "vite": "^4.4.5"

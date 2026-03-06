@@ -19,6 +19,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import matter from 'gray-matter';
 import { marked } from 'marked';
+import { atomicWrite, fileHash, loadCache, saveCache } from './_build-utils.js';
 
 const __dirname  = path.dirname(fileURLToPath(import.meta.url));
 const ROOT       = path.join(__dirname, '..');
@@ -26,6 +27,22 @@ const CONTENT_DIR = path.join(ROOT, 'content', 'system_logs');
 const OUTPUT_PATH = path.join(ROOT, 'src', 'terminal', 'data', 'articles.system.js');
 
 const DRY_RUN = process.argv.includes('--dry');
+
+// ─── SCHEMA GUARD ─────────────────────────────────────────────────────────────
+// System articles may omit `date`; if present it must be YYYY-MM-DD.
+
+function validateArticle(article, filename) {
+  const errors = [];
+  if (!article.id    || !article.id.trim())    errors.push('missing `id`');
+  if (!article.title || !article.title.trim()) errors.push('missing `title`');
+  if (article.date && !/^\d{4}-\d{2}-\d{2}$/.test(article.date))
+    errors.push(`invalid \`date\`: "${article.date}" — expected YYYY-MM-DD`);
+  if (errors.length > 0) {
+    console.error(`\n  ✗ SCHEMA VIOLATION in ${filename}:`);
+    errors.forEach(e => console.error(`    · ${e}`));
+    process.exit(1);
+  }
+}
 
 // ─── HTML UTILS ───────────────────────────────────────────────────────────────
 
@@ -116,11 +133,13 @@ function renderMarkdown(body) {
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 
 function run() {
-  console.log('\n╔══════════════════════════════════════════╗');
-  console.log('║  SYSTEM IMPORT — LEVEL 16: EXTRACTION   ║');
-  console.log('╚══════════════════════════════════════════╝\n');
+  console.log('\n╔════════════════════════════════════════════╗');
+  console.log('║  SYSTEM IMPORT — LEVEL 17: HARDENED STATE ║');
+  console.log('╚════════════════════════════════════════════╝\n');
 
   if (DRY_RUN) console.log('  [DRY RUN — no files will be written]\n');
+
+  const cache = loadCache();
 
   if (!fs.existsSync(CONTENT_DIR)) {
     console.error(`  ✗ content/system_logs/ not found: ${CONTENT_DIR}`);
@@ -139,7 +158,11 @@ function run() {
   const articles = {};
 
   for (const file of files) {
-    const raw        = fs.readFileSync(path.join(CONTENT_DIR, file), 'utf8');
+    const fullPath = path.join(CONTENT_DIR, file);
+    const raw      = fs.readFileSync(fullPath, 'utf8');
+    const rawHash  = fileHash(raw);
+    const cacheKey = path.relative(ROOT, fullPath).replace(/\\/g, '/');
+
     const { data: fm, content: body } = matter(raw);
 
     const id       = fm.id || path.basename(file, '.md').toUpperCase().replace(/[^A-Z0-9]/g, '-');
@@ -150,9 +173,13 @@ function run() {
       : '';
     const wordCount = body.trim().split(/\s+/).filter(Boolean).length;
     const len       = `${wordCount} WDS`;
-    const html      = renderMarkdown(body);
+
+    validateArticle({ id, title, date }, file);
+
+    const html = renderMarkdown(body);
 
     articles[id] = { id, title, subtitle, date, len, html };
+    cache[cacheKey] = rawHash;
 
     console.log(`  Processed: ${file}`);
     console.log(`    id:    ${id}`);
@@ -188,7 +215,8 @@ function run() {
   ].join('\n');
 
   if (!DRY_RUN) {
-    fs.writeFileSync(OUTPUT_PATH, src, 'utf8');
+    atomicWrite(OUTPUT_PATH, src);
+    saveCache(cache);
     console.log(`\n  ✓ Generated articles.system.js (${Object.keys(articles).length} system articles).`);
   } else {
     console.log(`\n  [DRY] Would write articles.system.js (${Object.keys(articles).length} system articles).`);
