@@ -17,16 +17,52 @@ export default function useSystemLog() {
     { time: new Date().toLocaleTimeString('en-US', { hour12: false }), msg: "──────────────────────────────────" },
   ]);
 
-  // Stable ref to the live DOM element — updated by the callback ref below.
-  const logElRef = useRef(null);
+  // Stable element ref — written by the callback ref below.
+  const logElRef   = useRef(null);
+  // Holds the active MutationObserver so we can disconnect on unmount.
+  const logObsRef  = useRef(null);
 
-  // Callback ref: React calls this with the element when the log container
-  // mounts (or remounts after a tab switch) and with null when it unmounts.
-  // Scrolling immediately on attach means the user always sees the latest
-  // entries when returning to the kernel tab — no waiting for a new log event.
+  // Callback ref attached to the log container in KernelTab.
+  // React calls this with the element on mount and null on unmount.
   const logRef = useCallback((el) => {
+    // ── Teardown: disconnect the previous observer when the element leaves the DOM.
+    if (logObsRef.current) {
+      logObsRef.current.disconnect();
+      logObsRef.current = null;
+    }
+
     logElRef.current = el;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (!el) return;
+
+    // ── Mount snap: double-rAF defers until after paint so scrollHeight is
+    // fully computed even when the log container had zero height before mount.
+    // Single rAF is enough for layout, but the second frame guarantees paint.
+    let raf2;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        if (!el.isConnected) return;
+        el.scrollTop = el.scrollHeight;
+        console.log('[LOG-SNAP] mount — scrollHeight:', el.scrollHeight, '/ el.scrollTop set to:', el.scrollTop, '/ overflow:', getComputedStyle(el).overflow, getComputedStyle(el).overflowY);
+      });
+    });
+
+    // ── MutationObserver: fires whenever React appends new <div> log rows.
+    // This catches every entry added while the element is live, regardless
+    // of whether the useEffect on systemLogs fired before or after layout.
+    const obs = new MutationObserver(() => {
+      if (!el.isConnected) return;
+      el.scrollTop = el.scrollHeight;
+      console.log('[LOG-SNAP] mutation — scrollHeight:', el.scrollHeight, '/ scrollTop:', el.scrollTop);
+    });
+    // childList: direct children (the log <div> rows) — subtree not needed.
+    obs.observe(el, { childList: true });
+    logObsRef.current = obs;
+
+    // Clean up the rAFs if the element unmounts before they fire.
+    // We store them on the element only as a quick teardown handle;
+    // the null branch above does the real cleanup via the observer disconnect.
+    el._snapRaf1 = raf1;
+    el._snapRaf2 = raf2;
   }, []);
 
   // Centralized append helper — defensive and caps length
@@ -48,9 +84,13 @@ export default function useSystemLog() {
     });
   }, []);
 
-  // Auto-scroll whenever logs update (while the element is mounted).
+  // Fallback scroll: fires after React commits new log entries to the DOM.
+  // The MutationObserver is the primary driver; this covers the edge case
+  // where the observer fires before scrollHeight updates (extremely rare).
   useEffect(() => {
-    if (logElRef.current) logElRef.current.scrollTop = logElRef.current.scrollHeight;
+    const el = logElRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
   }, [systemLogs]);
 
   // Memoized slice — avoids creating a new array on every render

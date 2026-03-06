@@ -135,10 +135,10 @@ const App = () => {
     return () => el.removeEventListener('scroll', save);
   }, [activeTab, selectedArticle]);
 
-  // Restore kernel list scroll position when returning from an article.
-  // rAF defers the write by one frame — guarantees the flex-grow <ul> has
-  // finished its layout pass and scrollHeight is non-zero before we set
-  // scrollTop (fixes the race where scrollTop is silently clamped to 0).
+  // Restore kernel list scroll position when returning from an article or tab.
+  // Double-rAF: first frame = layout committed, second frame = paint committed.
+  // A single rAF races on some rendering paths where the flex-grow <ul> hasn't
+  // computed its final scrollHeight yet; the second frame guarantees it has.
   // filteredBuilds.length as a dep re-fires if the list contents change size.
   useLayoutEffect(() => {
     if (selectedArticle || activeTab !== 'kernel') return;
@@ -147,12 +147,20 @@ const App = () => {
       Number(sessionStorage.getItem('kernelScrollY') || 0) ||
       kernelScrollCache.current;
     if (!saved) return;
-    const id = requestAnimationFrame(() => {
-      if (kernelListRef.current) {
-        kernelListRef.current.scrollTop = saved;
-      }
+
+    let raf2;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        const el = kernelListRef.current;
+        if (!el) return;
+        el.scrollTop = saved;
+        console.log('[KERNEL-SCROLL] restored scrollTop:', saved, '/ actual:', el.scrollTop, '/ scrollHeight:', el.scrollHeight, '/ overflow:', getComputedStyle(el).overflow, getComputedStyle(el).overflowY);
+      });
     });
-    return () => cancelAnimationFrame(id);
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
   }, [selectedArticle, activeTab, filteredBuilds.length]);
 
   // Handle loading a kernel module
