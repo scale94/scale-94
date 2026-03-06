@@ -111,14 +111,34 @@ const App = () => {
     document.documentElement.scrollTop = 0;
   }, [currentPath, selectedArticle, activeTab, architectThesis]);
 
+  // Continuously track the kernel list scroll position via a passive onScroll
+  // listener attached directly to the overflow-y-auto <ul>.
+  // Re-attaches whenever the KernelTab mounts/unmounts (selectedArticle or
+  // activeTab change), because the ref is null while the list is not in the DOM.
+  useEffect(() => {
+    const el = kernelListRef.current;
+    if (!el) return;
+    const save = () => { kernelScrollPos.current = el.scrollTop; };
+    el.addEventListener('scroll', save, { passive: true });
+    return () => el.removeEventListener('scroll', save);
+  }, [activeTab, selectedArticle]);
+
   // Restore kernel list scroll position when returning from an article.
-  // useLayoutEffect fires before paint — no visual jump.
-  // Both deps are state values; kernelListRef/kernelScrollPos are refs (stable).
+  // rAF defers the write by one frame — guarantees the flex-grow <ul> has
+  // finished its layout pass and scrollHeight is non-zero before we set
+  // scrollTop (fixes the race where scrollTop is silently clamped to 0).
+  // filteredBuilds.length as a dep re-fires if the list contents change size.
   useLayoutEffect(() => {
-    if (!selectedArticle && activeTab === 'kernel' && kernelListRef.current) {
-      kernelListRef.current.scrollTop = kernelScrollPos.current;
-    }
-  }, [selectedArticle, activeTab]);
+    if (selectedArticle || activeTab !== 'kernel') return;
+    const saved = kernelScrollPos.current;
+    if (!saved) return;
+    const id = requestAnimationFrame(() => {
+      if (kernelListRef.current) {
+        kernelListRef.current.scrollTop = saved;
+      }
+    });
+    return () => cancelAnimationFrame(id);
+  }, [selectedArticle, activeTab, filteredBuilds.length]);
 
   // Handle loading a kernel module
   const handleKernelClick = useCallback((kernel) => {
@@ -135,8 +155,6 @@ const App = () => {
       if (kernel.articleId) {
         const foundArticle = articles.find(a => a.id === kernel.articleId);
         if (foundArticle) {
-          // Save list scroll position before leaving, then fetch content.
-          kernelScrollPos.current = kernelListRef.current?.scrollTop ?? 0;
           const article = (!foundArticle.content && foundArticle.loadContent)
             ? await foundArticle.loadContent()
             : foundArticle;
@@ -335,7 +353,6 @@ const App = () => {
           if (aMatches.length === 1) {
             executeCommand(rawCmd, `Loading file '${aMatches[0].id}'...`);
             (async () => {
-              kernelScrollPos.current = kernelListRef.current?.scrollTop ?? 0;
               const article = (!aMatches[0].content && aMatches[0].loadContent)
                 ? await aMatches[0].loadContent()
                 : aMatches[0];
