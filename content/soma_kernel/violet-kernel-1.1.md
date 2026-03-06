@@ -1,3 +1,13 @@
+---
+id: VIOLET-KERNEL-1.1
+type: kernel
+date: 2026-03-06
+title: VIOLET-KERNEL-1.1
+subtitle:
+status: ACTIVE
+readTime:
+tags: []
+---
 SYSTEM KERNEL: THE_VIOLET_PROTOCOL (v.FINAL)
 Class: High-Availability / High-Contrast Entity
 Status: The Anomaly

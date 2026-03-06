@@ -10,8 +10,10 @@ import { Analytics } from '@vercel/analytics/react';
 // Data
 import kernelAxioms    from './data/kernelAxioms';
 import kernelBuilds    from './data/kernelBuilds';
-import staticArticles  from './data/articles';      // existing articles — keeps kernelBuilds IDs intact
+import _somaArticles   from './data/articles.soma';  // static soma kernel entries
+import _miscArticles   from './data/articles.misc';  // static misc/fiction entries
 import autoArticles    from './data/loadArticles';   // auto-loaded .md files from content/soma_kernel
+const staticArticles = [..._somaArticles, ..._miscArticles];
 
 // Components
 import OctagonGrid   from './components/OctagonGrid';
@@ -36,14 +38,15 @@ const TransmissionTab = lazy(() => import('./views/TransmissionTab'));
 const normaliseTitle = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
 // Merge: static articles always win (they carry the exact IDs kernelBuilds references).
-// Auto-loaded .md files are only appended when genuinely new.
-const staticIds    = new Set(staticArticles.map(a => a.id));
-const staticTitles = new Set(staticArticles.map(a => normaliseTitle(a.title)));
-const articles     = [
+// Auto-loaded .md stubs are appended when their ID isn't already in the static set.
+// Title-based dedup is intentionally removed: normalised-title collisions were
+// silently dropping .md stubs whose IDs differed from the legacy static entry
+// (e.g. soma 'FISH-11.1.1' vs auto 'FISH-SCALE-KERNEL11.1.1'), breaking the
+// async loadContent path for those kernels entirely.
+const staticIds = new Set(staticArticles.map(a => a.id));
+const articles  = [
   ...staticArticles,
-  ...autoArticles.filter(a =>
-    !staticIds.has(a.id) && !staticTitles.has(normaliseTitle(a.title))
-  ),
+  ...autoArticles.filter(a => !staticIds.has(a.id)),
 ];
 
 const App = () => {
@@ -153,9 +156,13 @@ const App = () => {
       setLoadingKernel(null);
 
       if (kernel.articleId) {
-        const foundArticle = articles.find(a => a.id === kernel.articleId);
+        // Prefer auto-loaded .md stub (has loadContent) over legacy static entry.
+        // Falls back to the static article if no .md stub exists for this ID.
+        const foundArticle =
+          autoArticles.find(a => a.id === kernel.articleId) ??
+          articles.find(a => a.id === kernel.articleId);
         if (foundArticle) {
-          const article = (!foundArticle.content && foundArticle.loadContent)
+          const article = foundArticle.loadContent
             ? await foundArticle.loadContent()
             : foundArticle;
           setOriginTab('kernel');

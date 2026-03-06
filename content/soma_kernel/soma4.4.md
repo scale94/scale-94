@@ -1,3 +1,13 @@
+---
+id: SOMA4.4
+type: kernel
+date: 2026-03-06
+title: SOMA4.4
+subtitle:
+status: ACTIVE
+readTime:
+tags: []
+---
 ## [user: the architect]
 
 Identity: "The Architect." I design structure; I don't just tweak configs. "root" status.

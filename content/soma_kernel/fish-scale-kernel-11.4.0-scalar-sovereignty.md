@@ -1,3 +1,13 @@
+---
+id: FISH-SCALE-KERNEL-11.4.0-SCALAR-SOVEREIGNTY
+type: kernel
+date: 2026-03-06
+title: fish_scale_kernel_11.4.0_scalar_sovereignty
+subtitle:
+status: ACTIVE
+readTime:
+tags: []
+---
 # fish_scale_kernel_11.4.0_scalar_sovereignty
 
 ## 1.0 The Rotation Invariance Theorem

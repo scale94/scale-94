@@ -1,6 +1,6 @@
 ---
 title: "FISH SCALE KERNEL 11.9.0: The Semiotic Branch – Eco's Paradox Axioms"
-date: 2026-03-01
+date: 2026-03-06
 author: "Architect"
 description: "An exhaustive analysis of Umberto Eco's paradox axioms and their transdisciplinary synthesis within the Fish Scale Kernel framework."
 tags: [semiotics, umberto-eco, system-kernel, epistemology, architecture]

@@ -11,14 +11,10 @@
             "id": "631ee3606a395f27",
             "type": "leaf",
             "state": {
-              "type": "markdown",
-              "state": {
-                "file": "Bridge kernel 1.0.md",
-                "mode": "source",
-                "source": false
-              },
+              "type": "empty",
+              "state": {},
               "icon": "lucide-file",
-              "title": "Bridge kernel 1.0"
+              "title": "New tab"
             }
           }
         ]
@@ -185,11 +181,34 @@
   },
   "active": "631ee3606a395f27",
   "lastOpenFiles": [
-    "QUANTUM-REAPER-KERNEL-1.0.md",
+    "SCALE-Y-KERNEL-1-0-1.md.tmp.22924.1772817085146",
+    "Bridge kernel 1.0.md",
+    "VIOLET-KERNEL-1.1.md",
+    "VIOLET-KERNEL-1.0.md",
+    "V3.2X.2X.2X-KERNEL.md",
+    "V2.2X.2X.2X-KERNEL.md",
+    "UNDERGROUND-THERMODYNAMICISTS.md",
+    "TECTONIC-DISCHARGE-KERNEL.md",
+    "TAMAM-KERNEL-V1.0.md",
+    "SOVEREIGN-KERNEL-V1-0.md",
+    "SOPHIE-KERNEL-PHI.md",
+    "SOMA4.4.md",
+    "SOMA-KERNEL10.0.md",
+    "SOMA-KERNEL10-BB.md",
+    "SOMA-KERNEL-ZERO-DAY.md",
+    "SOMA-KERNEL-5.0.md",
+    "SOMA-KERNEL-12G.md",
+    "SOMA-KERNEL-12.12.md",
+    "SOMA-KERNEL-12-IRONCLAD.md",
+    "SOMA-KERNEL-0-DAY.md",
+    "SOMA-INTEGRATION-KERNEL-V1.0.md",
+    "SOMA-KERNEL-4.5.7.md",
+    "SOMA-KERNEL-4.5.6A-FUCK-XITTER-FUCK-XITLER.md",
+    "SOMA-KERNEL-4.5.5.md",
+    "SOMA-KERNEL-4.5-FUCK-XITTER-FUCK-XITLER.md",
+    "SOMA-INTEGRATION-KERNEL-V1.md",
     "sedfliHyD",
-    "THE-FLUORESCENT-CAGE.md",
     "THE-FLUORESCENT-CAGE.md.tmp.22924.1772811426906",
-    "THE-CIGAR-HEIST.md",
     "THE-CIGAR-HEIST.md.tmp.22924.1772811322646",
     "sed7JzhOg",
     "sedgvcYxW",
@@ -197,13 +216,6 @@
     "sedo1eWay",
     "sed3e5okJ",
     "sed49gIlk",
-    "sedT06ens",
-    "Biodiversity_kernel 1.0.1.md",
-    "AI Kernel for Post-Capitalist Economics.md",
-    "fish_scale_kernel11.1.1.md",
-    "MATRIX-KERNEL-0.0.0.0.md.md",
-    "MATRIX-KERNEL-0.0.0.0.md",
-    "fish_scale_kernel-v11.6.0-quantum.md",
-    "fish_scale_kernel-v1.1.1.1.md"
+    "sedT06ens"
   ]
 }

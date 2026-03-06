@@ -1,3 +1,13 @@
+---
+id: SERAPHINE-KERNEL-V15.5.5
+type: kernel
+date: 2026-03-06
+title: 🧬  THE DOCTRINE OF THE VOID & SYSTEM SOVEREIGNTY
+subtitle:
+status: ACTIVE
+readTime:
+tags: []
+---
 # 🧬  THE DOCTRINE OF THE VOID & SYSTEM SOVEREIGNTY
 
 ## 🏛️ 1.0 THE ARCHITECT'S UI (V-CACHE SYNC)

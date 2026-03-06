@@ -1,3 +1,13 @@
+---
+id: SOVEREIGN-KERNEL-V1-0
+type: kernel
+date: 2026-03-06
+title: SOVEREIGN KERNEL v1.0
+subtitle:
+status: ACTIVE
+readTime:
+tags: []
+---
 # SOVEREIGN KERNEL v1.0
 ## scale94 · Sorbe in Germany · Deep-Time Architecture
 

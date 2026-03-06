@@ -23,12 +23,23 @@ const ArticleView = ({ article, originTab, handleReturnToRoot }) => {
       <div className="flex flex-wrap gap-4 text-[10px] font-bold tracking-widest text-cyan-600 mb-8 font-mono uppercase">
         <span className="text-fuchsia-500">LOG: {article.id}</span>
         <span>//</span>
-        <span>DATE: {article.date}</span>
+        <span>DATE: {article.date || 'UNDATED'}</span>
         <span>//</span>
-        <span>LEN: {article.readTime}</span>
+        <span>LEN: {article.len || article.readTime || '0 WDS'}</span>
       </div>
 
-      <h1 className="text-[14pt] font-bold mb-4 text-cyan-400 tracking-tighter leading-none"><HackerText text={article.title} /></h1>
+      {/*
+       * Fixed 80px container locks the vertical space before the scramble starts.
+       * display:flex + alignItems:flex-start pins the text to the top of the
+       * reserved block so it never shifts surrounding content regardless of how
+       * many characters are mid-scramble. overflow:hidden prevents transient
+       * paint bleed during animation frames.
+       */}
+      <div style={{ display: 'grid', gridTemplateRows: '1fr', height: '120px', overflow: 'hidden' }}>
+        <h1 className="text-[14pt] font-bold mb-4 text-cyan-400 tracking-tighter leading-tight" style={{ alignSelf: 'start' }}>
+          <HackerText text={article.title} />
+        </h1>
+      </div>
       <h2 className="text-[12pt] text-fuchsia-400 mb-12 font-light tracking-wide">{article.subtitle}</h2>
 
       <div className="prose prose-invert prose-cyan max-w-none font-mono text-sm md:text-base leading-relaxed">

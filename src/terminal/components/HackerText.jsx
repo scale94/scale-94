@@ -1,7 +1,18 @@
 import React, { useState, useEffect } from 'react';
 
+const CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*_+-=|;:,<>?";
+const randChar = () => CHARS[Math.floor(Math.random() * CHARS.length)];
+
+// Pre-scramble: fill every non-space character position with a random glyph.
+// Spaces are preserved so word-wrap boundaries are stable from the very first frame —
+// this is what prevents the layout shift when the component mounts.
+const preseed = (str) =>
+  str.split('').map(c => (c === ' ' ? ' ' : randChar())).join('');
+
 const HackerText = ({ text, className }) => {
-  const [displayText, setDisplayText] = useState('');
+  // Initialise with a same-length scrambled string so the <h1> container
+  // has its final height before the first interval tick fires.
+  const [displayText, setDisplayText] = useState(() => preseed(text || ''));
 
   useEffect(() => {
     if (!text) {
@@ -9,20 +20,20 @@ const HackerText = ({ text, className }) => {
       return;
     }
 
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,<>?";
+    // Reset to a fresh scramble whenever the text prop changes (new article).
+    setDisplayText(preseed(text));
+
     let iterations = 0;
     // 50ms (~20fps) instead of 30ms (~33fps) — cuts re-renders by ~40%
     const interval = setInterval(() => {
       setDisplayText(
         text
-          .split("")
+          .split('')
           .map((letter, index) => {
-            if (index < iterations) {
-              return text[index];
-            }
-            return chars[Math.floor(Math.random() * chars.length)];
+            if (index < iterations) return text[index];
+            return letter === ' ' ? ' ' : randChar();
           })
-          .join("")
+          .join('')
       );
 
       iterations += 0.5;

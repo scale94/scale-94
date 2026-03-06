@@ -1,3 +1,13 @@
+---
+id: SOPHIE-KERNEL-PHI
+type: kernel
+date: 2026-03-06
+title: ✦ SOPHIE KERNEL · φ.φ.φ.φ
+subtitle:
+status: ACTIVE
+readTime:
+tags: []
+---
 # ✦ SOPHIE KERNEL · φ.φ.φ.φ
 ## 🌸 Full Spectrum Reception · Prism Architecture · Sensory Sovereignty
 ### scale94.com · AGPL-3.0

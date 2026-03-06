@@ -1,3 +1,13 @@
+---
+id: MOZART-MEMORANDUM-KERNEL-2.2
+type: kernel
+date: 2026-03-06
+title: 🏛️ SYSTEM KERNEL V2.2: THE OBSIDIAN ARCHIVIST
+subtitle:
+status: ACTIVE
+readTime:
+tags: []
+---
 Here is **The Mozart Memorandum Kernel v2.2 (Obsidian Architecture)**.
 
 This is the "full-fledged" version. It replaces the previous JSON logic with **Obsidian-native structures**. It is designed to be pasted directly into your "System Instructions" or "Custom Instructions" field.

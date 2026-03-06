@@ -1,3 +1,13 @@
+---
+id: FISH-SCALE-KERNEL11.1.1
+type: kernel
+date: 2026-03-06
+title: FISH-SCALE-KERNEL11.1.1
+subtitle:
+status: ACTIVE
+readTime:
+tags: []
+---
 
 The central thesis posits that absolute Purity leads to entropic stasis (death), while system vitality requires "corruption," "noise," or "wetness."
 

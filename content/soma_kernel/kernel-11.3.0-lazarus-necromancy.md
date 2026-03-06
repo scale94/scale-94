@@ -1,3 +1,13 @@
+---
+id: KERNEL-11.3.0-LAZARUS-NECROMANCY
+type: kernel
+date: 2026-03-06
+title: kernel_11.3.0_lazarus_necromancy
+subtitle:
+status: ACTIVE
+readTime:
+tags: []
+---
 # kernel_11.3.0_lazarus_necromancy
 
 ## 1.0 System Thesis: Geopolitical Necromancy

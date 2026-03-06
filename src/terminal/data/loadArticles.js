@@ -92,6 +92,10 @@ const articles = Object.entries(markdownModules).map(([filePath, loader]) => {
       try { raw = await loader(); } catch { /* file read failure — return safe stub */ }
       const { frontmatter, content } = parseFrontmatter(raw);
       const { rawTitle, rawSubtitle, date: derivedDate } = deriveFromContent(content, filename);
+      const wordCount = content.trim()
+        ? content.trim().split(/\s+/).filter(Boolean).length
+        : 0;
+
       return {
         id:       frontmatter.id                               || stubId,
         type:     frontmatter.type                             || 'kernel',
@@ -100,6 +104,7 @@ const articles = Object.entries(markdownModules).map(([filePath, loader]) => {
         subtitle: frontmatter.subtitle                         || rawSubtitle,
         status:   frontmatter.status                           || 'ACTIVE',
         readTime: frontmatter.readTime                         || '',
+        len:      `${wordCount} WDS`,
         tags:     Array.isArray(frontmatter.tags)
                     ? frontmatter.tags
                     : frontmatter.tags

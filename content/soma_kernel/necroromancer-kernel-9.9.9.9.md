@@ -1,3 +1,13 @@
+---
+id: NECROROMANCER-KERNEL-9.9.9.9
+type: kernel
+date: 2026-03-06
+title: NECROROMANCER-KERNEL-9.9.9.9
+subtitle:
+status: ACTIVE
+readTime:
+tags: []
+---
 /*
 ================================================================================
   THE NECRO-ROMANCER KERNEL // LAYER II: THE STOCHASTIC LATTICE

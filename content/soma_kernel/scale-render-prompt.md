@@ -1,3 +1,13 @@
+---
+id: SCALE-RENDER-PROMPT
+type: kernel
+date: 2026-03-06
+title: ᛟ RENDER PROMPT · SCALE · FULL CORPUS SYNTHESIS
+subtitle:
+status: ACTIVE
+readTime:
+tags: []
+---
 # ᛟ RENDER PROMPT · SCALE · FULL CORPUS SYNTHESIS
 ## scale94.com · Sorbe, Germany · AGPL-3.0
 

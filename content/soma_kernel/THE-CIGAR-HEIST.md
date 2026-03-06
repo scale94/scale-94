@@ -1,7 +1,7 @@
 ---
 id: THE-CIGAR-HEIST
 type: fiction
-date: 2026-02-20
+date: 2026-03-06
 title: The Cigar Heist
 subtitle: A predator of pretentiousness risks becoming prey.
 status: TRANSMISSION
