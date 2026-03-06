@@ -65,6 +65,8 @@ const App = () => {
   const { appendSystemLog, setSystemLogs, visibleLogs, logRef } = useSystemLog();
 
   const mainRef = useRef(null);
+  const kernelListRef  = useRef(null); // ref to the scrollable <ul> in KernelTab
+  const kernelScrollPos = useRef(0);   // last known scrollTop — no state, no re-renders
 
   // Fiction articles for Transmission tab — memoised (articles is module-level, never changes)
   const transmissionStories = useMemo(() => articles.filter(a => a.type === 'fiction'), []);
@@ -109,6 +111,15 @@ const App = () => {
     document.documentElement.scrollTop = 0;
   }, [currentPath, selectedArticle, activeTab, architectThesis]);
 
+  // Restore kernel list scroll position when returning from an article.
+  // useLayoutEffect fires before paint — no visual jump.
+  // Both deps are state values; kernelListRef/kernelScrollPos are refs (stable).
+  useLayoutEffect(() => {
+    if (!selectedArticle && activeTab === 'kernel' && kernelListRef.current) {
+      kernelListRef.current.scrollTop = kernelScrollPos.current;
+    }
+  }, [selectedArticle, activeTab]);
+
   // Handle loading a kernel module
   const handleKernelClick = useCallback((kernel) => {
     if (loadingKernel) return;
@@ -124,7 +135,8 @@ const App = () => {
       if (kernel.articleId) {
         const foundArticle = articles.find(a => a.id === kernel.articleId);
         if (foundArticle) {
-          // Lazy articles have no content yet — fetch on demand before opening.
+          // Save list scroll position before leaving, then fetch content.
+          kernelScrollPos.current = kernelListRef.current?.scrollTop ?? 0;
           const article = (!foundArticle.content && foundArticle.loadContent)
             ? await foundArticle.loadContent()
             : foundArticle;
@@ -323,6 +335,7 @@ const App = () => {
           if (aMatches.length === 1) {
             executeCommand(rawCmd, `Loading file '${aMatches[0].id}'...`);
             (async () => {
+              kernelScrollPos.current = kernelListRef.current?.scrollTop ?? 0;
               const article = (!aMatches[0].content && aMatches[0].loadContent)
                 ? await aMatches[0].loadContent()
                 : aMatches[0];
@@ -367,13 +380,59 @@ const App = () => {
     }
   };
 
-  // --- BOOT SEQUENCE ---
-  if (bootSequence) {
-    return <BootSequence onDone={handleBootDone} />;
-  }
-
   return (
     <div className={`min-h-screen font-mono selection:bg-fuchsia-900 selection:text-white flex flex-col overflow-hidden relative transition-colors duration-700 ${selectedArticle || architectThesis ? 'bg-[#09090b]' : 'bg-black'}`}>
+
+      {/* ── Boot sequence — unmounts when onDone fires ─────────────────────── */}
+      {bootSequence && <BootSequence onDone={handleBootDone} />}
+
+      {/*
+       * ── Global scanlines — strictly tied to bootSequence state ────────────
+       * z-[101]: above BootSequence (z-100) so they draw over the card.
+       * Conditionally rendered: React removes both divs from the DOM in the
+       * same commit that sets bootSequence=false (4000ms). No CSS exit
+       * transition — transition:'none' makes the hard-stop intent explicit.
+       */}
+      {bootSequence && (
+        <>
+          <div style={{
+            position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 101,
+            backgroundImage: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.18) 0px, rgba(0,0,0,0.18) 1px, transparent 1px, transparent 2px)',
+            transition: 'none',
+          }} />
+          <div style={{
+            position: 'fixed', left: 0, right: 0, height: '3px', pointerEvents: 'none', zIndex: 101,
+            background: 'linear-gradient(transparent, rgba(6,182,212,0.5), transparent)',
+            animation: 'bs-scan 0.9s linear infinite',
+            transition: 'none',
+          }} />
+        </>
+      )}
+
+      {/*
+       * ── Boot-to-main transition overlay ───────────────────────────────────
+       * backgroundColor: '#000000' — explicit hex matches the main terminal's
+       *   bg-black exactly, preventing gamma-pop when the overlay becomes
+       *   transparent and the terminal surface is revealed at 5000ms.
+       *
+       * pointerEvents:
+       *   'auto'  while bootSequence=true  → blocks the silently-mounting UI
+       *   'none'  once bootSequence=false  → never traps clicks during the fade
+       *
+       * During boot (bootSequence=true):  opacity 1, transition:none — instant seal.
+       * On boot done (bootSequence=false): opacity 0, transition 1s ease-out — fade.
+       */}
+      <div
+        className="fixed inset-0"
+        style={{
+          zIndex: 97,
+          backgroundColor: '#000000',
+          opacity: bootSequence ? 1 : 0,
+          transition: bootSequence ? 'none' : 'opacity 1s ease-out',
+          pointerEvents: bootSequence ? 'auto' : 'none',
+        }}
+      />
+
       <style>{`
         /* Custom "Hacker" Scrollbar */
         ::-webkit-scrollbar {
@@ -413,9 +472,55 @@ const App = () => {
           animation: spin 12s linear infinite;
         }
       `}</style>
-      <OctagonGrid visible={!selectedArticle && !architectThesis} />
-
       <Analytics />
+
+      {/*
+       * ── CRT render beam ────────────────────────────────────────────────────
+       * Appears once, immediately after boot (bootSequence → false).
+       * Travels top: 0% → top: 100% in 0.9s linear (crt-beam keyframe).
+       * forwards fill-mode: parks at top: 100% (below viewport) forever —
+       * never re-triggers, never interferes with later navigation.
+       * z-50: above the sticky header (z-40), below the boot overlay (z-97).
+       * The beam is NOT inside the clip-path wrapper, so it's always fully
+       * visible while the wrapper reveals content behind it.
+       */}
+      {!bootSequence && (
+        <div
+          style={{
+            position: 'fixed', left: 0, right: 0, height: '3px',
+            zIndex: 50, pointerEvents: 'none',
+            background: 'linear-gradient(transparent, rgba(6,182,212,0.9) 50%, transparent)',
+            boxShadow: '0 0 12px rgba(6,182,212,0.6), 0 0 28px rgba(6,182,212,0.2)',
+            animation: 'crt-beam 0.9s linear forwards',
+          }}
+        />
+      )}
+
+      {/*
+       * ── Terminal content — CRT clip-path reveal ────────────────────────────
+       * clipPath: inset(0 0 100% 0) during boot → entire wrapper is hidden
+       *   (the boot overlay covers it anyway, but this is belt-and-suspenders).
+       *
+       * On boot done: crt-reveal 0.9s linear forwards.
+       *   0%  → inset(0 0 100% 0)  — fully clipped from bottom
+       *   100% → inset(0 0 0% 0)   — fully visible
+       *   forwards: holds the final value after animation ends.
+       *
+       * Because both crt-reveal and crt-beam use identical duration + linear
+       * timing, the clip boundary and beam top are always at the same Y —
+       * text appears strictly behind the beam on every frame.
+       *
+       * CSS animations override inline styles for the animated property, so
+       * the static clipPath value is superseded once the animation fires.
+       */}
+      <div
+        className="flex flex-col flex-grow"
+        style={{
+          clipPath: 'inset(0 0 100% 0)',
+          animation: bootSequence ? 'none' : 'crt-reveal 0.9s linear forwards',
+        }}
+      >
+        <OctagonGrid visible={!selectedArticle && !architectThesis} />
 
       <header className="border-b border-cyan-900/30 bg-black/90 p-4 sticky top-0 z-40 backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.1)] overflow-x-hidden w-full">
         <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4 w-full min-w-0">
@@ -458,6 +563,7 @@ const App = () => {
               logRef={logRef}
               searchFilter={searchFilter}
               onClearFilter={() => setSearchFilter('')}
+              listRef={kernelListRef}
             />
           )}
 
@@ -553,6 +659,7 @@ const App = () => {
           />
         </div>
       </footer>
+      </div>{/* end CRT content wrapper */}
     </div>
   );
 };

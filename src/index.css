@@ -121,6 +121,24 @@ html, body {
   50%      { background-position: 100% 50%; }
 }
 
+/* ── CRT terminal draw animations ───────────────────────────────────────────
+   Both use linear timing so the beam position and the revealed content
+   boundary advance at exactly the same rate — text appears strictly
+   behind the beam, never ahead of it or lagging.
+   Duration is set on the element (0.9s) to match the first bs-scan pass.  */
+
+/* Clip-path sweeps from fully-clipped-bottom → fully-visible */
+@keyframes crt-reveal {
+  from { clip-path: inset(0 0 100% 0); }
+  to   { clip-path: inset(0 0 0% 0); }
+}
+
+/* Render beam travels from top of viewport to bottom */
+@keyframes crt-beam {
+  from { top: 0%; }
+  to   { top: 100%; }
+}
+
 /* Boot card fade + gradient shimmer utilities removed:
    - Boot fade is now a pure JS rAF loop (opacity via el.style, no CSS needed)
    - Gradient shimmer is now animate-shimmer-fast / animate-shimmer-slow

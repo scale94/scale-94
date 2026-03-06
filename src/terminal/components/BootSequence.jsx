@@ -17,24 +17,25 @@ const easeOut = (t) => 1 - Math.pow(1 - t, 3);
 // to know the duration, removing the "3000ms magic number in the wrong file" smell.
 const BootSequence = ({ onDone }) => {
   // cpuRef  → div wrapper around <Cpu>  — JS writes transform directly (no CSS animation on spin)
-  // cardRef → outer card wrapper        — JS writes opacity + blur for the fade
-  const cpuRef   = useRef(null);
-  const cardRef  = useRef(null);
-  const onDoneRef = useRef(onDone); // stable ref so the rAF closure never goes stale
+  // cardRef → outer card wrapper        — CSS transition handles the fade-out
+  const cpuRef    = useRef(null);
+  const cardRef   = useRef(null);
+  const onDoneRef = useRef(onDone); // stable ref so closures never go stale
   useEffect(() => { onDoneRef.current = onDone; }, [onDone]);
 
   useEffect(() => {
     const SPIN_MS       = 2000;  // CPU spins for exactly 2s → 720° (2 full rotations)
-    const FADE_START_MS = 2000;  // fade kicks off the instant spin ends
-    const FADE_MS       = 800;   // fade lasts 0.8s → done at 2.8s total
-    const DONE_MS       = FADE_START_MS + FADE_MS + 200; // 3s: 200ms visual buffer before unmount
+    const FADE_START_MS = 2800;  // 800ms dwell after spin ends — "ACTIVE" is fully visible
+    const DONE_MS       = 4000;  // 2.8s + 1s CSS fade + 0.2s buffer = 4s total (+1s from original 3s)
+
     const t0 = performance.now();
     let raf;
+    let tid; // timeout id for the unmount signal
 
     const tick = (now) => {
       const elapsed = now - t0;
 
-      // ── CPU SPIN ───────────────────────────────────────────────────────────
+      // ── CPU SPIN ──────────────────────────────────────────────────────────
       // Uses a div wrapper (not the SVG) so transform-origin is always 50% 50%.
       // After 2s spinT clamps to 1 → holds at rotate(720deg) forever.
       if (cpuRef.current) {
@@ -42,27 +43,31 @@ const BootSequence = ({ onDone }) => {
         cpuRef.current.style.transform = `rotate(${easeOut(spinT) * 720}deg)`;
       }
 
-      // ── CARD FADE ──────────────────────────────────────────────────────────
-      // Starts at 2000ms, runs 800ms. Opacity + blur written directly — no CSS
-      // transition involved, so React reconciliation can never reset it.
-      if (elapsed >= FADE_START_MS && cardRef.current) {
-        const fadeT = Math.min((elapsed - FADE_START_MS) / FADE_MS, 1);
-        const eased = easeOut(fadeT);
-        cardRef.current.style.opacity = String(1 - eased);
-        cardRef.current.style.filter  = `blur(${eased * 8}px)`;
+      // ── FADE TRIGGER ──────────────────────────────────────────────────────
+      // Fires once at FADE_START_MS. Writing opacity: 0 onto a node that has
+      // `transition: opacity 1s ease-out` triggers the browser's compositor —
+      // no per-frame JS work needed. We hand off to setTimeout for the unmount
+      // signal and stop the rAF loop entirely.
+      if (elapsed >= FADE_START_MS) {
+        if (cardRef.current) {
+          cardRef.current.style.opacity = '0';
+          cardRef.current.style.filter  = 'blur(8px)';
+        }
+        // Wait for the CSS transition to finish (plus the 200ms buffer) before
+        // signalling the parent to unmount. Math.max guards against elapsed
+        // overshooting DONE_MS on a slow frame.
+        tid = setTimeout(() => onDoneRef.current?.(), Math.max(DONE_MS - elapsed, 0));
+        return; // stop rAF — CSS transition + setTimeout own it from here
       }
 
-      if (elapsed < DONE_MS) {
-        raf = requestAnimationFrame(tick);
-      } else {
-        // Animation fully complete — signal the parent to unmount us.
-        // The timing contract lives here, not in App.jsx.
-        onDoneRef.current?.();
-      }
+      raf = requestAnimationFrame(tick);
     };
 
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(tid);
+    };
   }, []);
 
   return (
@@ -79,23 +84,22 @@ const BootSequence = ({ onDone }) => {
      */
     <div className="fixed inset-0 z-[100] bg-black font-mono flex items-center justify-center p-4 overflow-hidden pointer-events-none">
       {/* bs-* keyframes are defined globally in src/index.css → compiled into the
-          production CSS bundle. No inline redefinition needed here. */}
+          production CSS bundle. No inline redefinition needed here.
+          Scanlines are now owned by App.jsx at z-[101] — tied to bootSequence
+          state so they're removed from the DOM the instant boot ends. */}
 
-      {/* Static CRT scanlines overlay */}
-      <div style={{
-        position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 1,
-        backgroundImage: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.18) 0px, rgba(0,0,0,0.18) 1px, transparent 1px, transparent 2px)',
-      }} />
-
-      {/* Moving scanline beam */}
-      <div style={{
-        position: 'absolute', left: 0, right: 0, height: '3px', zIndex: 2, pointerEvents: 'none',
-        background: 'linear-gradient(transparent, rgba(6,182,212,0.5), transparent)',
-        animation: 'bs-scan 0.9s linear infinite',
-      }} />
-
-      {/* ── CARD ── opacity + blur controlled by the rAF loop above */}
-      <div ref={cardRef} className="max-w-lg w-full relative z-10">
+      {/*
+       * ── CARD ──
+       * transition: opacity 1s ease-out, filter 1s ease-out
+       *   The rAF loop writes opacity='0' + filter='blur(8px)' exactly once at
+       *   FADE_START_MS (2800ms). The browser's compositor handles the 1s
+       *   interpolation — no per-frame JS writes during the fade.
+       */}
+      <div
+        ref={cardRef}
+        className="max-w-lg w-full relative z-10"
+        style={{ transition: 'opacity 1s ease-out, filter 1s ease-out' }}
+      >
 
         {/* Gradient border glow */}
         <div style={{
@@ -186,8 +190,9 @@ const BootSequence = ({ onDone }) => {
 
             {/*
              * ACTIVE status — appears at 1.8s (right as progress bar nears end),
-             * pulse loop starts at 2s. Visible for 0.2s before the card fade begins,
-             * then fades with the rest of the card via the rAF opacity write.
+             * pulse loop starts at 2s. Fully visible for 0.8s before the card
+             * fade begins at 2.8s, then fades with the rest of the card via the
+             * CSS transition on the parent ref.
              */}
             <div
               className="text-xs font-black tracking-widest"

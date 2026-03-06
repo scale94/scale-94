@@ -1,7 +1,7 @@
 import React from 'react';
 import { Database, GitBranch, Shield, ChevronRight, Cpu } from 'lucide-react';
 
-const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, loadingKernel, visibleLogs = [], logRef, searchFilter, onClearFilter }) => (
+const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, loadingKernel, visibleLogs = [], logRef, searchFilter, onClearFilter, listRef }) => (
   <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
     
     {/* Inline keyframes to guarantee the green glow and fade survive the production build pipeline */}
@@ -116,7 +116,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
           <h3 className="text-lg font-bold mb-6 flex items-center gap-2 text-cyan-400">
             <GitBranch className="w-4 h-4" /> ACTIVE_MODULES
           </h3>
-          <ul className="space-y-4 text-sm font-mono text-[#39ff14] overflow-y-auto custom-scrollbar pr-2 flex-grow">
+          <ul ref={listRef} className="space-y-4 text-sm font-mono text-[#39ff14] overflow-y-auto custom-scrollbar pr-2 flex-grow">
             {kernelBuilds.map((kernel) => {
               const isLoading = loadingKernel === kernel.id;
               return (

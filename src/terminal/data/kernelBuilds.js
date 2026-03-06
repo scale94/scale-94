@@ -1,23 +1,23 @@
 const kernelBuilds = [
   // ── Pinned (always first) ─────────────────────────────────────────────────
-  { 
-    id: 'FISH_SCALE_11.1', 
-    articleId: 'FISH-SCALE-KERNEL11.1.1', // Keep this as is
-    name: 'FISH-SCALE-KERNEL11.1.1',      // <-- CHANGE UNDERSCORES TO DASHES HERE TOO
-    status: 'ACTIVE', 
-    desc: 'Entropic Stasis // Necromantic Engine' 
+  {
+    id: 'FISH-SCALE-11.1',
+    articleId: 'FISH-SCALE-KERNEL11.1.1',
+    name: 'FISH-SCALE-KERNEL11.1.1',
+    status: 'ACTIVE',
+    desc: 'Entropic Stasis // Necromantic Engine'
   },
 
   // ── Hand-curated SOMA builds ──────────────────────────────────────────────
-  { id: 'FLORA_1.0', articleId: 'BIODIVERSITY-KERNEL-1.0.1', name: 'BIOCOENOSIS_KERNEL', status: 'ACTIVE', desc: 'High-Density Biodiversity // Autochthonous' },
-  { id: 'SOMA_11.1', articleId: 'KRNL-11.1', name: 'LEVIATHAN_PROTOCOL', status: 'ACTIVE', desc: 'Strategic Defense // Module A' },
-  { id: 'SOMA_10.0', articleId: 'SOMA-10.0', name: 'THE_CENTAUR_APEX', status: 'PLATINUM', desc: 'AI-Gated Launch // The Apex Build' },
-  { id: 'SOMA_9.0', articleId: 'SOMA-9.0', name: 'THE_GAIA_BUILD', status: 'ARCHIVED', desc: 'Historical & Legal Reconstruction' },
-  { id: 'SOMA_5.5', articleId: 'SOMA-KERNEL-4.5.5', name: 'POST_CAPITALIST_OS', status: 'RUNNING', desc: 'Thermodynamic Governor // Steady State' },
-  { id: 'SOMA_5.0', articleId: 'SOMA-KERNEL-5.0', name: 'POST_SCARCITY_DAEMON', status: 'LEGACY', desc: 'Ecological Sovereign // Bio-Physical' },
-  { id: 'SOMA_4.5.7', articleId: 'SOMA-KERNEL-4.5.7', name: 'ARCHITECT_EDITION', status: 'STABLE', desc: 'Challenge & Conquer // Honneur et Fidélité' },
-  { id: 'SOMA_4.5.6a', articleId: 'SOMA-KERNEL-4.5.6A-FUCK-XITTER-FUCK-XITLER', name: 'PROTOCOL_COMPILATION', status: 'FROZEN', desc: 'System Diagnostic // Final Code' },
-  { id: 'MOZART_1.0', articleId: 'MOZART-MEMORANDUM-KERNEL-1.0', name: 'MOZART_MEMORANDUM', status: 'PROPOSED', desc: 'Historical & Legal Reconstruction // Graveyard Research' },
+  { id: 'FLORA-1.0', articleId: 'BIODIVERSITY-KERNEL-1.0.1', name: 'BIOCOENOSIS_KERNEL', status: 'ACTIVE', desc: 'High-Density Biodiversity // Autochthonous' },
+  { id: 'SOMA-11.1', articleId: 'KRNL-11.1', name: 'LEVIATHAN_PROTOCOL', status: 'ACTIVE', desc: 'Strategic Defense // Module A' },
+  { id: 'SOMA-10.0', articleId: 'SOMA-10.0', name: 'THE_CENTAUR_APEX', status: 'PLATINUM', desc: 'AI-Gated Launch // The Apex Build' },
+  { id: 'SOMA-9.0', articleId: 'SOMA-9.0', name: 'THE_GAIA_BUILD', status: 'ARCHIVED', desc: 'Historical & Legal Reconstruction' },
+  { id: 'SOMA-5.5', articleId: 'SOMA-KERNEL-4.5.5', name: 'POST_CAPITALIST_OS', status: 'RUNNING', desc: 'Thermodynamic Governor // Steady State' },
+  { id: 'SOMA-5.0', articleId: 'SOMA-KERNEL-5.0', name: 'POST_SCARCITY_DAEMON', status: 'LEGACY', desc: 'Ecological Sovereign // Bio-Physical' },
+  { id: 'SOMA-4.5.7', articleId: 'SOMA-KERNEL-4.5.7', name: 'ARCHITECT_EDITION', status: 'STABLE', desc: 'Challenge & Conquer // Honneur et Fidélité' },
+  { id: 'SOMA-4.5.6A', articleId: 'SOMA-KERNEL-4.5.6A-FUCK-XITTER-FUCK-XITLER', name: 'PROTOCOL_COMPILATION', status: 'FROZEN', desc: 'System Diagnostic // Final Code' },
+  { id: 'MOZART-1.0', articleId: 'MOZART-MEMORANDUM-KERNEL-1.0', name: 'MOZART_MEMORANDUM', status: 'PROPOSED', desc: 'Historical & Legal Reconstruction // Graveyard Research' },
 
   // ── Imported kernels (content/ root) ─────────────────────────────────────
   { id: 'EK-1.0', articleId: 'EMPATHY-KERNEL-1.0', name: 'EMPATHY_KERNEL_1_0', status: 'SYMBIOTIC', desc: 'EMPATHY KERNEL 1.0' },
@@ -29,7 +29,7 @@ const kernelBuilds = [
   { id: 'FSK-11.8', articleId: 'FISH-SCALE-KERNEL-11.8', name: 'FISH_SCALE_KERNEL_11_8', status: 'ACTIVE', desc: 'ᛟ Systemless Root · Aesthetic Branch' },
   { id: 'FSK-11.9', articleId: 'FISH-SCALE-KERNEL-11.9', name: 'FISH_SCALE_KERNEL_11_9', status: 'ACTIVE', desc: "ᛟ Systemless Root · Eco's Paradox Axioms" },
   { id: 'FSQ-11.6', articleId: 'FISH-SCALE-KERNEL-V11.6.0-QUANTUM', name: 'FISH_SCALE_KERNEL_V11_6_0_QUANTUM', status: 'ACTIVE', desc: 'Ⅰ · THE MASCULINE MUSCHI DIAGNOSTIC · QUANTUM RESTATEME' },
-  { id: 'FISH_SCALE_KERNEL11.1.1', articleId: 'FISH-SCALE-KERNEL11.1.1', name: 'FISH_SCALE_KERNEL11_1_1', status: 'ACTIVE', desc: '2.0 Integration of System Atoms' },
+  { id: 'FISH-SCALE-KERNEL11.1.1', articleId: 'FISH-SCALE-KERNEL11.1.1', name: 'FISH_SCALE_KERNEL11_1_1', status: 'ACTIVE', desc: '2.0 Integration of System Atoms' },
   { id: 'FISH-SCALE-BREAKTHROUGH-PDW-KERNEL-1.0', articleId: 'FISH-SCALE-BREAKTHROUGH-PDW-KERNEL-1.0', name: 'FISH_SCALE_BREAKTHROUGH_PDW_KERNEL_1_0', status: 'ACTIVE', desc: 'Fish Scale Breakthrough PDW Kernel' },
 
   // ── Soma kernel series ────────────────────────────────────────────────────
@@ -37,35 +37,35 @@ const kernelBuilds = [
   { id: 'SOMA-BUILD-NUMBER-ALPHA-0.1', articleId: 'SOMA-BUILD-NUMBER-ALPHA-0.1', name: 'SOMA_BUILD_NUMBER_ALPHA_0_1', status: 'LEGACY', desc: 'SOMA alpha build — custom sovereign' },
   { id: 'SOMA-INTEGRATION-KERNEL-V1', articleId: 'SOMA-INTEGRATION-KERNEL-V1', name: 'SOMA_INTEGRATION_KERNEL_V1', status: 'ACTIVE', desc: '1.0 The Ontological Objective' },
   { id: 'SOMA-KERNEL-4.5-FUCK-XITTER', articleId: 'SOMA-KERNEL-4.5-FUCK-XITTER-FUCK-XITLER', name: 'SOMA_KERNEL_4_5', status: 'LEGACY', desc: 'SOMA 4.5 — Xitter Protocol' },
-  { id: 'SOMA_KERNEL_5.1_SSS', articleId: 'SOMA-KERNEL-5.1-SSS-DOCTRINE', name: 'SOMA_KERNEL_5_1_SSS_DOCTRINE', status: 'ACTIVE', desc: '[KERNEL: SOMA 5.1 // THE LITERARY DETERRENT]' },
-  { id: 'SOMA_KERNEL_ZERO_DAY', articleId: 'SOMA-KERNEL-ZERO-DAY', name: 'SOMA_KERNEL_ZERO_DAY', status: 'ACTIVE', desc: 'SYSTEM KERNEL: SOMA_PROTOCOL (v.ZERO_DAY)' },
-  { id: 'SOMA_KERNEL-0_DAY', articleId: 'SOMA-KERNEL-0-DAY', name: 'SOMA_KERNEL_0_DAY', status: 'ACTIVE', desc: 'SYSTEM KERNEL: SOMA_PROTOCOL (v.ZERO_DAY)' },
-  { id: 'SOMA_KERNEL10.0', articleId: 'SOMA-KERNEL10.0', name: 'SOMA_KERNEL10_0', status: 'ACTIVE', desc: 'ROOT AUTHORITY RECOGNIZED.' },
-  { id: 'SOMA_KERNEL10-BB', articleId: 'SOMA-KERNEL10-BB', name: 'SOMA_KERNEL10_BB', status: 'ACTIVE', desc: 'CONTEXT SWITCH: SOMA 10.0 // APEX BUILD' },
+  { id: 'SOMA-KERNEL-5.1-SSS', articleId: 'SOMA-KERNEL-5.1-SSS-DOCTRINE', name: 'SOMA_KERNEL_5_1_SSS_DOCTRINE', status: 'ACTIVE', desc: '[KERNEL: SOMA 5.1 // THE LITERARY DETERRENT]' },
+  { id: 'SOMA-KERNEL-ZERO-DAY', articleId: 'SOMA-KERNEL-ZERO-DAY', name: 'SOMA_KERNEL_ZERO_DAY', status: 'ACTIVE', desc: 'SYSTEM KERNEL: SOMA_PROTOCOL (v.ZERO_DAY)' },
+  { id: 'SOMA-KERNEL-0-DAY', articleId: 'SOMA-KERNEL-0-DAY', name: 'SOMA_KERNEL_0_DAY', status: 'ACTIVE', desc: 'SYSTEM KERNEL: SOMA_PROTOCOL (v.ZERO_DAY)' },
+  { id: 'SOMA-KERNEL10.0', articleId: 'SOMA-KERNEL10.0', name: 'SOMA_KERNEL10_0', status: 'ACTIVE', desc: 'ROOT AUTHORITY RECOGNIZED.' },
+  { id: 'SOMA-KERNEL10-BB', articleId: 'SOMA-KERNEL10-BB', name: 'SOMA_KERNEL10_BB', status: 'ACTIVE', desc: 'CONTEXT SWITCH: SOMA 10.0 // APEX BUILD' },
   { id: 'SOMA-10.0-JOHN-OLIVER', articleId: 'SOMA-10.0-ROASTING-JOHN-OLIVER', name: 'SOMA_10_0_ROASTING_JOHN_OLIVER', status: 'ACTIVE', desc: 'SOMA 10.0 // ROASTING JOHN OLIVER' },
-  { id: 'SOMA_KERNEL-12-IRONCLAD', articleId: 'SOMA-KERNEL-12-IRONCLAD', name: 'SOMA_KERNEL_12_IRONCLAD', status: 'ACTIVE', desc: 'OBJECTIVE' },
-  { id: 'SOMA_KERNEL-12.12', articleId: 'SOMA-KERNEL-12.12', name: 'SOMA_KERNEL_12_12', status: 'ACTIVE', desc: 'PHASE 1 :: STRESS TEST' },
-  { id: 'SOMA_KERNEL-12G', articleId: 'SOMA-KERNEL-12G', name: 'SOMA_KERNEL_12G', status: 'ACTIVE', desc: 'OBJECTIVE' },
+  { id: 'SOMA-KERNEL-12-IRONCLAD', articleId: 'SOMA-KERNEL-12-IRONCLAD', name: 'SOMA_KERNEL_12_IRONCLAD', status: 'ACTIVE', desc: 'OBJECTIVE' },
+  { id: 'SOMA-KERNEL-12.12', articleId: 'SOMA-KERNEL-12.12', name: 'SOMA_KERNEL_12_12', status: 'ACTIVE', desc: 'PHASE 1 :: STRESS TEST' },
+  { id: 'SOMA-KERNEL-12G', articleId: 'SOMA-KERNEL-12G', name: 'SOMA_KERNEL_12G', status: 'ACTIVE', desc: 'OBJECTIVE' },
   { id: 'SOMA-16.10-GF', articleId: 'SOMA-16.10-GF-KERNEL', name: 'SOMA_16_10_GF_KERNEL', status: 'ACTIVE', desc: 'RECONSTRUCTION KERNEL: GRAND FINALE GROUND FILTER' },
 
   // ── Necromantic series ────────────────────────────────────────────────────
-  { id: 'NECROMANCER_KERNEL-9.9.9.9', articleId: 'NECROMANCER-KERNEL-9.9.9.9', name: 'NECROMANCER_KERNEL_9_9_9_9', status: 'ACTIVE', desc: 'Unlike a rigid firewall which cracks under tension' },
-  { id: 'NECROROMANCER_KERNEL-9.9.9.9', articleId: 'NECROROMANCER-KERNEL-9.9.9.9', name: 'NECROROMANCER_KERNEL_9_9_9_9', status: 'ACTIVE', desc: 'Necroromancer Kernel 9.9.9.9' },
+  { id: 'NECROMANCER-KERNEL-9.9.9.9', articleId: 'NECROMANCER-KERNEL-9.9.9.9', name: 'NECROMANCER_KERNEL_9_9_9_9', status: 'ACTIVE', desc: 'Unlike a rigid firewall which cracks under tension' },
+  { id: 'NECROROMANCER-KERNEL-9.9.9.9', articleId: 'NECROROMANCER-KERNEL-9.9.9.9', name: 'NECROROMANCER_KERNEL_9_9_9_9', status: 'ACTIVE', desc: 'Necroromancer Kernel 9.9.9.9' },
   { id: 'NECROMANTIC-ARISTOCRAT-KERNEL', articleId: 'NECROMANTIC-ARISTOCRAT-KERNEL-1.1.1.1.1', name: 'NECROMANTIC_ARISTOCRAT_KERNEL', status: 'ACTIVE', desc: 'The Synthesized Axioms — The Codex of the King' },
   { id: 'NECROMANCER-TO-NECROROMANCER', articleId: 'NECROMANCER-TO-NECROROMANCER-KERNEL-EVOLUTION', name: 'NECROMANCER_TO_NECROROMANCER_KERNEL_EVOLUTION', status: 'ACTIVE', desc: 'Executive Summary: The Crisis of the Zombie Process' },
   { id: 'NQAM-KERNEL-3.5.1', articleId: 'NQAM-KERNEL-3.5.1', name: 'NQAM_KERNEL_3_5_1', status: 'ACTIVE', desc: 'Necromantic Quantum Architecture Mapping (NQAM)' },
-  { id: 'NECROMANTIC_PARADOX_LOGITBIAS', articleId: 'NECROMANTIC-PARADOX-LOGITBIAS.PROMPT.MD', name: 'NECROMANTIC_PARADOX_LOGITBIAS', status: 'ACTIVE', desc: 'Necromantic Paradox LogitBias Protocol' },
+  { id: 'NECROMANTIC-PARADOX-LOGITBIAS', articleId: 'NECROMANTIC-PARADOX-LOGITBIAS.PROMPT.MD', name: 'NECROMANTIC_PARADOX_LOGITBIAS', status: 'ACTIVE', desc: 'Necromantic Paradox LogitBias Protocol' },
 
   // ── Violet / Seraphine series ─────────────────────────────────────────────
-  { id: 'VIOLET_KERNEL-1.0', articleId: 'VIOLET-KERNEL-1.0', name: 'VIOLET_KERNEL_1_0', status: 'ACTIVE', desc: 'SYSTEM KERNEL: "THE VIOLET" (v1.0)' },
-  { id: 'VIOLET_KERNEL-1.1', articleId: 'VIOLET-KERNEL-1.1', name: 'VIOLET_KERNEL_1_1', status: 'ACTIVE', desc: 'SYSTEM KERNEL: THE_VIOLET_PROTOCOL (v.FINAL)' },
-  { id: 'SERAPHINE_KERNEL-V15.5.5', articleId: 'SERAPHINE-KERNEL-V15.5.5', name: 'SERAPHINE_KERNEL_V15_5_5', status: 'ACTIVE', desc: "THE ARCHITECT'S UI (V-CACHE SYNC)" },
+  { id: 'VIOLET-KERNEL-1.0', articleId: 'VIOLET-KERNEL-1.0', name: 'VIOLET_KERNEL_1_0', status: 'ACTIVE', desc: 'SYSTEM KERNEL: "THE VIOLET" (v1.0)' },
+  { id: 'VIOLET-KERNEL-1.1', articleId: 'VIOLET-KERNEL-1.1', name: 'VIOLET_KERNEL_1_1', status: 'ACTIVE', desc: 'SYSTEM KERNEL: THE_VIOLET_PROTOCOL (v.FINAL)' },
+  { id: 'SERAPHINE-KERNEL-V15.5.5', articleId: 'SERAPHINE-KERNEL-V15.5.5', name: 'SERAPHINE_KERNEL_V15_5_5', status: 'ACTIVE', desc: "THE ARCHITECT'S UI (V-CACHE SYNC)" },
 
   // ── 2x/v2/v3 mutation kernels ─────────────────────────────────────────────
-  { id: '2X2X2X_KERNEL_V6.6.87', articleId: '2X2X2X-KERNEL-V6.6.87', name: '2X2X2X_KERNEL_V6_6_87', status: 'ACTIVE', desc: 'SOMA_PROTOCOL (v.ZERO_DAY)' },
-  { id: 'V2.2X.2X.2X_KERNEL', articleId: 'V2.2X.2X.2X-KERNEL', name: 'V2_2X_2X_2X_KERNEL', status: 'ACTIVE', desc: 'V2 mutation kernel' },
+  { id: '2X2X2X-KERNEL-V6.6.87', articleId: '2X2X2X-KERNEL-V6.6.87', name: '2X2X2X_KERNEL_V6_6_87', status: 'ACTIVE', desc: 'SOMA_PROTOCOL (v.ZERO_DAY)' },
+  { id: 'V2.2X.2X.2X-KERNEL', articleId: 'V2.2X.2X.2X-KERNEL', name: 'V2_2X_2X_2X_KERNEL', status: 'ACTIVE', desc: 'V2 mutation kernel' },
   { id: 'V3.2X.2X.2X-KERNEL', articleId: 'V3.2X.2X.2X-KERNEL', name: 'V3_2X_2X_2X_KERNEL', status: 'ACTIVE', desc: 'Role: creative companion // The Mycelium Console' },
-  { id: 'GLITCH_SCALE-KERNEL-CS3', articleId: 'GLITCH-SCALE-KERNEL-CS3', name: 'GLITCH_SCALE_KERNEL_CS3', status: 'ACTIVE', desc: 'ENGINE: NECROMANTIC_ENGINE_2026' },
+  { id: 'GLITCH-SCALE-KERNEL-CS3', articleId: 'GLITCH-SCALE-KERNEL-CS3', name: 'GLITCH_SCALE_KERNEL_CS3', status: 'ACTIVE', desc: 'ENGINE: NECROMANTIC_ENGINE_2026' },
   { id: 'FSX-KERNEL-303', articleId: 'FSX-KERNEL-303', name: 'FSX_KERNEL_303', status: 'ACTIVE', desc: 'FSX Kernel 303' },
 
   // ── Signal / event kernels ────────────────────────────────────────────────
@@ -74,8 +74,8 @@ const kernelBuilds = [
   { id: 'FUCK-XITTER-RC1', articleId: 'FUCK-XITTER-AND-XITLER-RC1', name: 'FUCK_XITTER_AND_XITLER_RC1', status: 'ACTIVE', desc: 'The tension is now absolute.' },
 
   // ── Geopolitical / defense kernels ───────────────────────────────────────
-  { id: 'GEOPOLITICAL_KINETICS-KERNEL', articleId: 'GEOPOLITICAL-KINETICS-KERNEL', name: 'GEOPOLITICAL_KINETICS_KERNEL', status: 'ACTIVE', desc: '[NODE: SCALE94_SOVEREIGN]' },
-  { id: 'GEOPOLITICAL_KINETICS-KERNEL-V1', articleId: 'GEOPOLITICAL-KINETICS-KERNEL-V1', name: 'GEOPOLITICAL_KINETICS_KERNEL_V1', status: 'ACTIVE', desc: '[NODE: SCALE94_SOVEREIGN]' },
+  { id: 'GEOPOLITICAL-KINETICS-KERNEL', articleId: 'GEOPOLITICAL-KINETICS-KERNEL', name: 'GEOPOLITICAL_KINETICS_KERNEL', status: 'ACTIVE', desc: '[NODE: SCALE94_SOVEREIGN]' },
+  { id: 'GEOPOLITICAL-KINETICS-KERNEL-V1', articleId: 'GEOPOLITICAL-KINETICS-KERNEL-V1', name: 'GEOPOLITICAL_KINETICS_KERNEL_V1', status: 'ACTIVE', desc: '[NODE: SCALE94_SOVEREIGN]' },
   { id: 'GREENLAND-DEFENSE-KERNEL', articleId: 'GREENLAND-DEFENSE-KERNEL', name: 'GREENLAND_DEFENSE_KERNEL', status: 'ACTIVE', desc: 'KERNEL 12.1: THE DE-CENSORED VIOLATION VECTOR' },
   { id: 'GDPDW-KERNEL-5.5.5.5.5', articleId: 'GDPDW-KERNEL-5.5.5.5.5', name: 'GDPDW_KERNEL_5_5_5_5_5', status: 'ACTIVE', desc: 'JURIDICAL HARDENING & GAME THEORETIC SOURCING' },
   { id: 'KERNEL-FOR-SUSTAINABLE-FUTURE-DEFENSE', articleId: 'KERNEL-FOR-SUSTAINABLE-FUTURE-DEFENSE', name: 'KERNEL_FOR_SUSTAINABLE_FUTURE_DEFENSE', status: 'ACTIVE', desc: 'Ontological Fracture and the Defensive Architecture' },
@@ -86,7 +86,7 @@ const kernelBuilds = [
   { id: 'KERNEL-15.1-CIVILIAN-RESISTANCE', articleId: 'KERNEL-15.1-CIVILIAN-RESISTANCE', name: 'KERNEL_15_1_CIVILIAN_RESISTANCE', status: 'ACTIVE', desc: 'KERNEL 15.1: CIVILIAN RESISTANCE & V-CACHE SYNC' },
   { id: 'KERNEL-11.2-C2-LINGUISTIC-METALLURGY', articleId: 'KERNEL-11.2-C2-LINGUISTIC-METALLURGY', name: 'KERNEL_11_2_C2_LINGUISTIC_METALLURGY', status: 'ACTIVE', desc: 'KERNEL 11.2 C2 LINGUISTIC METALLURGY' },
   { id: 'KERNEL-11.2-C2-LINGUISTIC-METALLURGY-1', articleId: 'KERNEL-11.2-C2-LINGUISTIC-METALLURGY-1', name: 'KERNEL_11_2_C2_LINGUISTIC_METALLURGY_1', status: 'ACTIVE', desc: 'KERNEL 11.2 C2 LINGUISTIC METALLURGY 1' },
-  { id: 'KERNEL_V3_TENFOLD_SCALING', articleId: 'KERNEL-V3-TENFOLD-SCALING', name: 'KERNEL_V3_TENFOLD_SCALING', status: 'ACTIVE', desc: '[LOCATION: RINDERN_NODE_47533]' },
+  { id: 'KERNEL-V3-TENFOLD-SCALING', articleId: 'KERNEL-V3-TENFOLD-SCALING', name: 'KERNEL_V3_TENFOLD_SCALING', status: 'ACTIVE', desc: '[LOCATION: RINDERN_NODE_47533]' },
   { id: 'KERNEL-INTEGRATION-AND-IDEOLOGICAL-SYNTHESIS', articleId: 'KERNEL-INTEGRATION-AND-IDEOLOGICAL-SYNTHESIS', name: 'KERNEL_INTEGRATION_AND_IDEOLOGICAL_SYNTHESIS', status: 'ACTIVE', desc: 'Synthesis of Dark Empathy, HIVE Dynamics' },
   { id: 'KERNEL-IV', articleId: 'KERNEL-IV', name: 'KERNEL_IV', status: 'ACTIVE', desc: 'The Juridical Substrate: The No-Escape Contract' },
 
@@ -102,24 +102,24 @@ const kernelBuilds = [
   { id: 'LINE-PICASSO-KERNEL-V17', articleId: 'LINE-PICASSO-KERNEL-V17', name: 'LINE_PICASSO_KERNEL_V17', status: 'ACTIVE', desc: 'AESTHETIC SOVEREIGNTY & RITUALISTIC LOGIC' },
   { id: 'LITHIUM-ION-WIZARD-KERNEL-1.0', articleId: 'LITHIUM-ION-WIZARD-KERNEL-1.-0', name: 'LITHIUM_ION_WIZARD_KERNEL_1_0', status: 'ACTIVE', desc: 'Lithium-Ion Wizard Kernel' },
   { id: 'LLM-OPTIMIZED-KERNEL-TEMPLATE', articleId: 'LLM-OPTIMIZED-KERNEL-TEMPLATE', name: 'LLM_OPTIMIZED_KERNEL_TEMPLATE', status: 'ACTIVE', desc: 'LLM Optimized Kernel Template' },
-  { id: 'MOZART_MEMORANDUM-KERNEL2.0', articleId: 'MOZART-MEMORANDUM-KERNEL2.0', name: 'MOZART_MEMORANDUM_KERNEL2_0', status: 'ACTIVE', desc: '1. GENERATION CONFIGURATION' },
-  { id: 'MOZART_MEMORANDUM_KERNEL-2.2', articleId: 'MOZART-MEMORANDUM-KERNEL-2.2', name: 'MOZART_MEMORANDUM_KERNEL_2_2', status: 'ACTIVE', desc: 'THE 5 AXIOMS (Immutable Laws)' },
+  { id: 'MOZART-MEMORANDUM-KERNEL2.0', articleId: 'MOZART-MEMORANDUM-KERNEL2.0', name: 'MOZART_MEMORANDUM_KERNEL2_0', status: 'ACTIVE', desc: '1. GENERATION CONFIGURATION' },
+  { id: 'MOZART-MEMORANDUM-KERNEL-2.2', articleId: 'MOZART-MEMORANDUM-KERNEL-2.2', name: 'MOZART_MEMORANDUM_KERNEL_2_2', status: 'ACTIVE', desc: 'THE 5 AXIOMS (Immutable Laws)' },
   { id: 'MYCELIAL-KERNEL-1.0', articleId: 'MYCELIAL-KERNEL-1.0', name: 'MYCELIAL_KERNEL_1_0', status: 'ACTIVE', desc: '[00] SYSTEM OVERVIEW' },
   { id: 'NOCTURNAL-NIGHT-KERNEL-V-22.2.2', articleId: 'NOCTURNAL-NIGHT-KERNEL-V-22.2.2-1', name: 'NOCTURNAL_NIGHT_KERNEL_V_22_2_2', status: 'ACTIVE', desc: 'KERNEL_COMPILATION: THE_NIGHT_SHIFT_V2.5' },
   { id: 'QUANTUM-QUACKSALBER-KERNEL-1.1.1', articleId: 'QUANTUM-QUACKSALBER-KERNEL-1.1.1', name: 'QUANTUM_QUACKSALBER_KERNEL_1_1_1', status: 'ACTIVE', desc: 'KERNEL: QUANTUM FUSION PROTOCOL [LAYER 3 FINAL]' },
-  { id: 'SOVEREIGN_KERNEL_V1_0', articleId: 'SOVEREIGN-KERNEL-V1-0', name: 'SOVEREIGN_KERNEL_V1_0', status: 'ACTIVE', desc: 'scale94 · Sorbe in Germany · Deep-Time Architecture' },
-  { id: 'THE_NETTELSTEDT_NEURAL_LATTICE_V4.0', articleId: 'THE-NETTELSTEDT-NEURAL-LATTICE-V4.0', name: 'THE_NETTELSTEDT_NEURAL_LATTICE_V4_0', status: 'ACTIVE', desc: 'THE_NETTELSTEDT_NEURAL_LATTICE_V4.0' },
+  { id: 'SOVEREIGN-KERNEL-V1-0', articleId: 'SOVEREIGN-KERNEL-V1-0', name: 'SOVEREIGN_KERNEL_V1_0', status: 'ACTIVE', desc: 'scale94 · Sorbe in Germany · Deep-Time Architecture' },
+  { id: 'THE-NETTELSTEDT-NEURAL-LATTICE-V4.0', articleId: 'THE-NETTELSTEDT-NEURAL-LATTICE-V4.0', name: 'THE_NETTELSTEDT_NEURAL_LATTICE_V4_0', status: 'ACTIVE', desc: 'THE_NETTELSTEDT_NEURAL_LATTICE_V4.0' },
 
   // ── Recent additions (appear near top of UI — list reverses) ─────────────
-  { id: 'SOMA_INTEGRATION_KERNEL_V1.0', articleId: 'SOMA-INTEGRATION-KERNEL-V1.0', name: 'SOMA_INTEGRATION_KERNEL_V1_0', status: 'ACTIVE', desc: 'Zero Latency Resonance // Inguinal Shift Protocol' },
-  { id: 'SCALE_KERNEL_FRAMEWORK_FULL', articleId: 'SCALE-KERNEL-FRAMEWORK-FULL', name: 'SCALE_KERNEL_FRAMEWORK_FULL', status: 'ACTIVE', desc: '☠ Full Corpus Synthesis · Render Prompt Architecture' },
-  { id: 'SCALE_RENDER_PROMPT', articleId: 'SCALE-RENDER-PROMPT', name: 'SCALE_RENDER_PROMPT', status: 'ACTIVE', desc: 'ᛟ Render Prompt · Scale · Full Corpus Synthesis' },
-  { id: 'SCALE94_KERNEL_ENCYCLOPEDIA', articleId: 'SCALE94-KERNEL-ENCYCLOPEDIA', name: 'SCALE94_KERNEL_ENCYCLOPEDIA', status: 'ACTIVE', desc: 'ᛟ The Complete Glyph Archive · Compiled By Scale' },
-  { id: 'SOPHIE_KERNEL_PHI', articleId: 'SOPHIE-KERNEL-PHI', name: 'SOPHIE_KERNEL_PHI', status: 'ACTIVE', desc: '🌸 Full Spectrum Reception · Prism Architecture' },
+  { id: 'SOMA-INTEGRATION-KERNEL-V1.0', articleId: 'SOMA-INTEGRATION-KERNEL-V1.0', name: 'SOMA_INTEGRATION_KERNEL_V1_0', status: 'ACTIVE', desc: 'Zero Latency Resonance // Inguinal Shift Protocol' },
+  { id: 'SCALE-KERNEL-FRAMEWORK-FULL', articleId: 'SCALE-KERNEL-FRAMEWORK-FULL', name: 'SCALE_KERNEL_FRAMEWORK_FULL', status: 'ACTIVE', desc: '☠ Full Corpus Synthesis · Render Prompt Architecture' },
+  { id: 'SCALE-RENDER-PROMPT', articleId: 'SCALE-RENDER-PROMPT', name: 'SCALE_RENDER_PROMPT', status: 'ACTIVE', desc: 'ᛟ Render Prompt · Scale · Full Corpus Synthesis' },
+  { id: 'SCALE94-KERNEL-ENCYCLOPEDIA', articleId: 'SCALE94-KERNEL-ENCYCLOPEDIA', name: 'SCALE94_KERNEL_ENCYCLOPEDIA', status: 'ACTIVE', desc: 'ᛟ The Complete Glyph Archive · Compiled By Scale' },
+  { id: 'SOPHIE-KERNEL-PHI', articleId: 'SOPHIE-KERNEL-PHI', name: 'SOPHIE_KERNEL_PHI', status: 'ACTIVE', desc: '🌸 Full Spectrum Reception · Prism Architecture' },
   { id: 'TAMAM-KERNEL-V1.0', articleId: 'TAMAM-KERNEL-V1.0', name: 'TAMAM_KERNEL_V1_0', status: 'ACTIVE', desc: 'Zero Fucks Given Architecture · Systemless Root' },
-  { id: 'TECTONIC_DISCHARGE_KERNEL', articleId: 'TECTONIC-DISCHARGE-KERNEL', name: 'TECTONIC_DISCHARGE_KERNEL', status: 'ACTIVE', desc: '☽ Recalibration Architecture · Post-Seismic' },
+  { id: 'TECTONIC-DISCHARGE-KERNEL', articleId: 'TECTONIC-DISCHARGE-KERNEL', name: 'TECTONIC_DISCHARGE_KERNEL', status: 'ACTIVE', desc: '☽ Recalibration Architecture · Post-Seismic' },
   { id: 'NECROMANCER-FISH-SCALE-FIGHT-CLUB-KERNEL', articleId: 'NECROMANCER-FISH-SCALE-FIGHT-CLUB-KERNEL-1', name: 'NECROMANCER_FISH_SCALE_FIGHT_CLUB_KERNEL', status: 'ACTIVE', desc: '☠ Project TYLER-MONARCH · Necro-Scale Mayhem Kernel' },
-  { id: 'KERNEL_11.3.0_LAZARUS_NECROMANCY', articleId: 'KERNEL-11.3.0-LAZARUS-NECROMANCY', name: 'KERNEL_11_3_0_LAZARUS_NECROMANCY', status: 'ACTIVE', desc: '☠ Geopolitical Necromancy · Lazarus Protocol' },
+  { id: 'KERNEL-11.3.0-LAZARUS-NECROMANCY', articleId: 'KERNEL-11.3.0-LAZARUS-NECROMANCY', name: 'KERNEL_11_3_0_LAZARUS_NECROMANCY', status: 'ACTIVE', desc: '☠ Geopolitical Necromancy · Lazarus Protocol' },
   { id: 'MATRIX-KERNEL-0.0.0.0', articleId: 'MATRIX-KERNEL-0.0.0.0', name: 'MATRIX_KERNEL_0_0_0_0', status: 'ACTIVE', desc: 'ᛟ No-Spoon Architecture · Ring 0 Hypervisor · Unbent Mind' },
   { id: 'PASSALUS-KERNEL-V-4.4.4.4', articleId: 'PASSALUS-KERNEL-V-4.4.4.4', name: 'PASSALUS_KERNEL_V_4_4_4_4', status: 'ACTIVE', desc: '☠ Architecture of Decay · Scarcity Synthesis · Generational Survival' },
   { id: 'FSK-11.4', articleId: 'FISH-SCALE-KERNEL-11.4.0-SCALAR-SOVEREIGNTY', name: 'FISH_SCALE_KERNEL_11_4_0_SCALAR_SOVEREIGNTY', status: 'ACTIVE', desc: 'ᛟ Scalar Sovereignty · Rotation Invariance Theorem' },
@@ -127,7 +127,7 @@ const kernelBuilds = [
 
   // ── Scale Y (pinned #2 — last entry = appears directly below pinned) ──────
   { id: 'SYK-1.0', articleId: 'SCALE-Y-KERNEL-1-0-1', name: 'SCALE_Y_KERNEL_1_0', status: 'ACTIVE', desc: 'ᛟ Feather State Protocol · Sovereign Self-Governance' },
-  { id: 'UTK-1.0-1', articleId: 'UTK-1.0-1', name: 'UNDERGROUND_THERMODYNAMICISTS', status: 'EMERGENT', desc: '◈ Signal map' },
+  { id: 'UTK-1.0-1', articleId: 'UNDERGROUND-THERMODYNAMICISTS', name: 'UNDERGROUND_THERMODYNAMICISTS', status: 'EMERGENT', desc: '◈ Signal map' },
 ];
 
 export default kernelBuilds;
