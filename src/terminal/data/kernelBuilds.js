@@ -126,6 +126,8 @@ const kernelBuilds = [
   // ── Scale Y (pinned #2 — last entry = appears directly below pinned) ──────
   { id: 'SYK-1.0', articleId: 'SCALE-Y-KERNEL-1-0-1', name: 'SCALE_Y_KERNEL_1_0', status: 'ACTIVE', desc: 'ᛟ Feather State Protocol · Sovereign Self-Governance' },
   { id: 'UTK-1.0-1', articleId: 'UNDERGROUND-THERMODYNAMICISTS', name: 'UNDERGROUND_THERMODYNAMICISTS', status: 'EMERGENT', desc: '◈ Signal map' },
+/* @@INJECT_START@@ */
+/* @@INJECT_END@@ */
 ];
 
 export default kernelBuilds;

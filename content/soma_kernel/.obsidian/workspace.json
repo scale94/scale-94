@@ -11,10 +11,10 @@
             "id": "631ee3606a395f27",
             "type": "leaf",
             "state": {
-              "type": "empty",
+              "type": "graph",
               "state": {},
-              "icon": "lucide-file",
-              "title": "New tab"
+              "icon": "lucide-git-fork",
+              "title": "Graph view"
             }
           }
         ]
@@ -181,6 +181,8 @@
   },
   "active": "631ee3606a395f27",
   "lastOpenFiles": [
+    "FISH-SCALE-KERNEL-11.7.0.md",
+    "CUSTOM-KEYB-KERNEL-19.0.md",
     "SCALE-Y-KERNEL-1-0-1.md.tmp.22924.1772817085146",
     "Bridge kernel 1.0.md",
     "VIOLET-KERNEL-1.1.md",
@@ -206,7 +208,6 @@
     "SOMA-KERNEL-4.5.6A-FUCK-XITTER-FUCK-XITLER.md",
     "SOMA-KERNEL-4.5.5.md",
     "SOMA-KERNEL-4.5-FUCK-XITTER-FUCK-XITLER.md",
-    "SOMA-INTEGRATION-KERNEL-V1.md",
     "sedfliHyD",
     "THE-FLUORESCENT-CAGE.md.tmp.22924.1772811426906",
     "THE-CIGAR-HEIST.md.tmp.22924.1772811322646",
@@ -215,7 +216,6 @@
     "sedXoRyXV",
     "sedo1eWay",
     "sed3e5okJ",
-    "sed49gIlk",
-    "sedT06ens"
+    "sed49gIlk"
   ]
 }

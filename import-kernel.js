@@ -1,177 +1,129 @@
 #!/usr/bin/env node
 /**
- * import-kernel.js
+ * import-kernel.js — Level 9 Hardened
+ *
  * Scans a directory for .md files and integrates them into
- * src/terminal/data/articles.js and src/terminal/data/kernelBuilds.js
+ * src/terminal/data/articles.soma.js and src/terminal/data/kernelBuilds.js
+ *
+ * Injection targets must contain the marker pair:
+ *   /* @@INJECT_START@@ * /
+ *   /* @@INJECT_END@@ * /
  *
  * Usage:
- * node import-kernel.js                        # scan ./content/
- * node import-kernel.js ./my-kernels/          # scan custom dir
- * node import-kernel.js ./my-kernels/ --dry    # preview only, no writes
+ *   node import-kernel.js                        # scan ./content/
+ *   node import-kernel.js ./my-kernels/          # scan custom dir
+ *   node import-kernel.js ./my-kernels/ --dry    # preview only, no writes
+ *   node import-kernel.js ./my-kernels/ --force  # re-import existing titles
  */
 
-import fs from 'fs';
+import fs   from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import matter from 'gray-matter';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// ─── CONFIG ──────────────────────────────────────────────────────────────────
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
 
 const CONTENT_DIR = process.argv[2] && !process.argv[2].startsWith('--')
   ? path.resolve(process.argv[2])
   : path.join(__dirname, 'content');
 
 const DRY_RUN = process.argv.includes('--dry');
-const ARTICLES_PATH = path.join(__dirname, 'src/terminal/data/articles.js');
-const BUILDS_PATH = path.join(__dirname, 'src/terminal/data/kernelBuilds.js');
+const FORCE   = process.argv.includes('--force');
+
+const ARTICLES_PATH = path.join(__dirname, 'src/terminal/data/articles.soma.js');
+const BUILDS_PATH   = path.join(__dirname, 'src/terminal/data/kernelBuilds.js');
 
 // ─── EXCLUSION LIST ───────────────────────────────────────────────────────────
+
 const EXCLUDE_FILES = new Set([
   'Soft_Climb_Sequence.md',
 ]);
 
-const STATUS_KEYWORDS = {
-  ACTIVE:   ['active', 'online'],
-  RUNNING:  ['running'],           // must come before ARCHIVED so 'running' isn't swallowed
-  ARCHIVED: ['archived', 'archive', 'historical'],
-  FROZEN:   ['frozen', 'locked', 'final'],
-  PROPOSED: ['proposed', 'draft', 'wip'],
-  PLATINUM: ['platinum', 'apex', 'gated'],
-  STABLE:   ['stable'],
-  LEGACY:   ['legacy'],
-  EMERGENT: ['emergent', 'new', 'rising'],
+// ─── STATUS MAPPING ───────────────────────────────────────────────────────────
+// Incoming status keywords are mapped to one of three canonical values.
+
+const STATUS_MAP = {
+  ACTIVE:       ['active', 'online', 'running', 'stable', 'emergent', 'new', 'rising'],
+  DEPRECATED:   ['archived', 'archive', 'historical', 'frozen', 'locked', 'final', 'legacy'],
+  EXPERIMENTAL: ['proposed', 'draft', 'wip', 'platinum', 'apex', 'gated'],
 };
 
-// ─── FRONTMATTER PARSER ──────────────────────────────────────────────────────
-function parseFrontmatter(raw) {
-  const fmMatch = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
-  if (!fmMatch) return { fm: {}, body: raw };
-
-  const fmLines = fmMatch[1].split('\n');
-  const fm = {};
-
-  for (const line of fmLines) {
-    const colonIdx = line.indexOf(':');
-    if (colonIdx === -1) continue;
-    const key = line.slice(0, colonIdx).trim();
-    let val = line.slice(colonIdx + 1).trim();
-
-    if (val.startsWith('[') && val.endsWith(']')) {
-      val = val.slice(1, -1).split(',').map(s => s.trim().replace(/['"]/g, ''));
-    }
-
-    fm[key] = val;
+function canonicalStatus(raw) {
+  if (!raw) return 'ACTIVE';
+  const lower = raw.toLowerCase().trim();
+  for (const [canonical, keywords] of Object.entries(STATUS_MAP)) {
+    if (keywords.includes(lower)) return canonical;
   }
-
-  return { fm, body: fmMatch[2] };
-}
-
-// ─── CONTENT EXTRACTOR ───────────────────────────────────────────────────────
-function inferFromContent(body, filename) {
-  const lines = body.split('\n');
-
-  const titleLine = lines.find(l => /^#{1,2}\s/.test(l));
-  const title = titleLine
-    ? titleLine.replace(/^#{1,2}\s+/, '').trim().toUpperCase()
-    : filename.replace(/[-_]/g, ' ').replace(/\.md$/i, '').toUpperCase();
-
-  const subtitleLine = lines.find(l =>
-    /^#{2,3}\s/.test(l) && l !== titleLine
-  ) || lines.find(l => /^>\s/.test(l));
-  const subtitle = subtitleLine
-    ? subtitleLine.replace(/^#{2,3}\s+/, '').replace(/^>\s*\*?/, '').replace(/\*$/, '').trim()
-    : '';
-
-  const dateMatch = body.match(/\b(\d{4}-\d{2}-\d{2})\b/);
-  const date = dateMatch ? dateMatch[1] : new Date().toISOString().slice(0, 10);
-
-  const statusMatch = body.match(/^STATUS:\s*([A-Z]+)/im)
-    || body.match(/^status[:\s]+([A-Z]+)/im);
-  
-  let status = null;
-  if (statusMatch) {
-    const candidate = statusMatch[1].toUpperCase();
-    if (STATUS_KEYWORDS[candidate] || Object.values(STATUS_KEYWORDS).flat().includes(candidate.toLowerCase())) {
-      status = candidate;
-    }
-  }
-  
-  status = status || inferStatus(filename);
-
-  const tagCandidates = [];
-  const headerWords = body.match(/^#{1,4}\s+(.+)/gm) || [];
-  for (const h of headerWords) {
-    const words = h.replace(/^#{1,4}\s+/, '').split(/[\s_/.\\/]+/);
-    for (const w of words) {
-      if (w.length > 3 && /^[A-Z]/.test(w) && !/^(The|And|For|With|From|Into|This|Violet|Kernel|V\d+)$/i.test(w)) {
-        tagCandidates.push(w.replace(/[^a-zA-Z0-9-]/g, ''));
-      }
-    }
-  }
-  const tags = [...new Set(tagCandidates)].filter(t => t.length > 1).slice(0, 5);
-
-  const wordCount = body.split(/\s+/).length;
-  const minutes = Math.max(1, Math.round(wordCount / 200));
-  const readTime = `${minutes} min read`;
-
-  const type = inferType(filename, body);
-
-  return { title, subtitle, date, status, tags, readTime, type };
-}
-
-function inferStatus(filename) {
-  const lower = filename.toLowerCase();
-  for (const [status, keywords] of Object.entries(STATUS_KEYWORDS)) {
-    if (keywords.some(k => lower.includes(k))) return status;
-  }
+  // Pass through if already a known canonical value
+  const upper = raw.toUpperCase().trim();
+  if (STATUS_MAP[upper]) return upper;
   return 'ACTIVE';
 }
 
-function inferType(filename, body) {
-  const lower = filename.toLowerCase();
-  if (lower.includes('kernel') || lower.includes('soma') || lower.includes('protocol')) return 'kernel_doc';
-  if (lower.includes('research') || lower.includes('study') || lower.includes('analysis')) return 'research';
-  if (lower.includes('fiction') || lower.includes('story') || lower.includes('narrative')) return 'fiction';
-  if (/fiction|story|narrative|she said|he said/i.test(body.slice(0, 500))) return 'fiction';
-  return 'kernel_doc';
+// ─── UNICODE NORMALIZATION ────────────────────────────────────────────────────
+// Decomposes Unicode (NFD), strips combining diacritics, then lowercases and
+// strips non-alphanumerics. Mirrors the title-dedup logic in loadArticles.js.
+// Examples: "für" → "fur", "Ångström" → "angstrom"
+
+function sovereignSlug(s) {
+  return (s || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+// ─── VERSION EXTRACTION (SEMVER-AWARE) ───────────────────────────────────────
+// Priority: vX.Y.Z[-pre] > X.Y.Z (3-or-more part) > X.Y (2-part) > '1.0'
+
+function extractVersion(base) {
+  // Explicit v-tag with optional pre-release: v1.2.3-beta, V11.7.0
+  const tagged = base.match(/(?:^|[._-])v(\d+\.\d+(?:\.\d+)*(?:-[a-zA-Z0-9.]+)?)/i);
+  if (tagged) return tagged[1];
+
+  // Three-or-more part: 11.7.0, 9.9.9.9, 4.5.7
+  const multi = base.match(/(?:^|[._-])(\d+(?:\.\d+){2,})/);
+  if (multi) return multi[1];
+
+  // Two-part: 11.7, 4.5
+  const two = base.match(/(?:^|[._-])(\d+\.\d+)/);
+  if (two) return two[1];
+
+  return '1.0';
 }
 
 // ─── ID GENERATOR ────────────────────────────────────────────────────────────
+
 function generateId(filename, fm, existingIds) {
   if (fm.id) return fm.id;
 
-  const base = path.basename(filename, '.md');
-  // Primary: separator-delimited version  (fish_scale-11.7.0  →  11.7)
-  // Fallback: digits directly after a letter  (soma_kernel10.0  →  10.0)
-  const versionMatch =
-    base.match(/(?:^|[._-])v?(\d+)[_.](\d+)/i) ||
-    base.match(/[a-z]v?(\d+)[._](\d+)/i);
-  
-  const parts = base
-    .replace(/[._-]v?\d+[._]\d*$/i, '')
+  const base    = path.basename(filename, '.md');
+  const version = extractVersion(base);
+
+  // Strip the version suffix then split into word segments for prefix
+  const stripped = base
+    .replace(/[._-]v?\d+([._]\d+)*/i, '')
     .split(/[._-]/)
     .filter(Boolean);
 
-  let prefix = '';
-  if (parts.length === 1) {
-    prefix = parts[0].slice(0, 4).toUpperCase();
-  } else if (/^v\d/i.test(parts[0])) {
-    // First segment is a versioned label (e.g. v3, v2, v11) — use it as the full
-    // prefix so filenames like v3.2x... → V3-x.y  don't collide with violet → VK-x.y
-    prefix = parts[0].toUpperCase();
+  let prefix;
+  if (stripped.length === 0) {
+    prefix = base.slice(0, 4).toUpperCase();
+  } else if (/^v\d/i.test(stripped[0])) {
+    // First segment is already a version label (v3, v11) — use verbatim
+    prefix = stripped[0].toUpperCase();
+  } else if (stripped.length === 1) {
+    prefix = stripped[0].slice(0, 4).toUpperCase();
   } else {
-    prefix = parts.map(w => w[0].toUpperCase()).join('').slice(0, 5);
+    prefix = stripped.map(w => w[0].toUpperCase()).join('').slice(0, 5);
   }
 
-  const version = versionMatch ? `${versionMatch[1]}.${versionMatch[2]}` : '1.0';
-  let id = `${prefix}-${version}`;
-
-  let suffix = 1;
-  const original = id;
-  while (existingIds.has(id)) {
-    id = `${original}-${suffix++}`;
-  }
+  let id       = `${prefix}-${version}`;
+  let suffix   = 1;
+  const origin = id;
+  while (existingIds.has(id)) id = `${origin}-${suffix++}`;
 
   return id;
 }
@@ -183,102 +135,178 @@ function buildNameFromFilename(filename) {
     .replace(/-/g, '_');
 }
 
-// ─── FILE WRITER ─────────────────────────────────────────────────────────────
+// ─── TYPE INFERENCE ───────────────────────────────────────────────────────────
 
-// Normalise a title for duplicate detection — strips everything except a-z digits.
-// Mirrors the same function in App.jsx so the two stay in sync.
-function normaliseTitle(s) {
-  return (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+function inferType(filename, body) {
+  const lower = filename.toLowerCase();
+  if (lower.includes('kernel') || lower.includes('soma') || lower.includes('protocol')) return 'kernel_doc';
+  if (lower.includes('research') || lower.includes('study') || lower.includes('analysis'))  return 'research';
+  if (lower.includes('fiction') || lower.includes('story') || lower.includes('narrative'))  return 'fiction';
+  if (/fiction|story|narrative|she said|he said/i.test(body.slice(0, 500)))                 return 'fiction';
+  return 'kernel_doc';
 }
 
-// Scan ALL .js files in the data directory so we catch IDs declared in sub-files
-// (articles.soma.js, articles.misc.js, articles.archive.js, etc.), not just articles.js.
+function inferStatusFromFilename(filename) {
+  const lower = filename.toLowerCase();
+  for (const [canonical, keywords] of Object.entries(STATUS_MAP)) {
+    if (keywords.some(k => lower.includes(k))) return canonical;
+  }
+  return 'ACTIVE';
+}
+
+// ─── CONTENT INFERENCE ───────────────────────────────────────────────────────
+
+function deriveMetadata(body, filename) {
+  const lines = body.split('\n');
+  const h1    = lines.find(l => /^#(?!#)[ \t]+/.test(l));
+  const h2    = lines.find(l => /^##(?!#)[ \t]+/.test(l) && l !== h1);
+  const bq    = lines.find(l => /^>[ \t]/.test(l));
+
+  const title = h1
+    ? h1.replace(/^#[ \t]+/, '').replace(/\*{1,3}(.+?)\*{1,3}/g, '$1').trim().toUpperCase()
+    : path.basename(filename, '.md').replace(/[-_]/g, ' ').replace(/\s+/g, ' ').toUpperCase();
+
+  const subtitle = h2
+    ? h2.replace(/^##[ \t]+/, '').trim()
+    : bq
+      ? bq.replace(/^>[ \t]*\*?/, '').replace(/\*$/, '').trim()
+      : '';
+
+  const dateMatch = body.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+  const date      = dateMatch ? dateMatch[1] : new Date().toISOString().slice(0, 10);
+
+  // Extract tags from heading words
+  const headerWords  = body.match(/^#{1,4}[ \t]+(.+)/gm) || [];
+  const tagCandidates = [];
+  for (const h of headerWords) {
+    const words = h.replace(/^#{1,4}[ \t]+/, '').split(/[\s_/.\\/]+/);
+    for (const w of words) {
+      if (
+        w.length > 3 &&
+        /^[A-Z]/.test(w) &&
+        !/^(The|And|For|With|From|Into|This|Violet|Kernel|V\d+)$/i.test(w)
+      ) {
+        tagCandidates.push(w.replace(/[^a-zA-Z0-9-]/g, ''));
+      }
+    }
+  }
+  const tags = [...new Set(tagCandidates)].filter(t => t.length > 1).slice(0, 5);
+
+  const wordCount = body.split(/\s+/).length;
+  const readTime  = `${Math.max(1, Math.round(wordCount / 200))} min read`;
+
+  return { title, subtitle, date, tags, readTime };
+}
+
+// ─── SERIALISERS — JSON.stringify for every field ─────────────────────────────
+// Using JSON.stringify() eliminates all template-literal escaping issues:
+//   - backticks, ${}, and backslashes are safely encoded as \u0060, \\, etc.
+//   - No manual .replace() chains needed.
+
+function serialiseArticle(a) {
+  return [
+    '  {',
+    `    id: ${JSON.stringify(a.id)},`,
+    `    type: ${JSON.stringify(a.type)},`,
+    `    date: ${JSON.stringify(a.date)},`,
+    `    title: ${JSON.stringify(a.title)},`,
+    `    subtitle: ${JSON.stringify(a.subtitle)},`,
+    `    status: ${JSON.stringify(a.status)},`,
+    `    readTime: ${JSON.stringify(a.readTime)},`,
+    `    tags: ${JSON.stringify(a.tags)},`,
+    `    content: ${JSON.stringify(a.content)},`,
+    '  }',
+  ].join('\n');
+}
+
+function serialiseBuild(b) {
+  return `  { id: ${JSON.stringify(b.id)}, articleId: ${JSON.stringify(b.articleId)}, name: ${JSON.stringify(b.name)}, status: ${JSON.stringify(b.status)}, desc: ${JSON.stringify(b.desc)} }`;
+}
+
+// ─── EXISTING-ID / TITLE SCANNERS ────────────────────────────────────────────
+// Scan ALL .js files in the data directory so IDs declared in sub-files
+// (articles.soma.js, articles.misc.js, kernelBuilds.js) are all captured.
+
 function parseExistingIds(filePath) {
   const dataDir = path.dirname(filePath);
-  const ids = new Set();
+  const ids     = new Set();
   const jsFiles = fs.existsSync(dataDir)
     ? fs.readdirSync(dataDir).filter(f => f.endsWith('.js')).map(f => path.join(dataDir, f))
     : [];
   for (const f of jsFiles) {
     const src = fs.readFileSync(f, 'utf8');
-    const re = /\bid:\s*['"`]([^'"`\n]+)['"`]/g;
+    const re  = /\bid:\s*["'`]([^"'`\n]+)["'`]/g;
     let m;
     while ((m = re.exec(src)) !== null) ids.add(m[1]);
   }
   return ids;
 }
 
-// Parse every title field across all data .js files and return a Set of
-// normalised titles — used to skip already-imported files on re-runs.
 function parseExistingTitles(filePath) {
   const dataDir = path.dirname(filePath);
-  const titles = new Set();
+  const titles  = new Set();
   const jsFiles = fs.existsSync(dataDir)
     ? fs.readdirSync(dataDir).filter(f => f.endsWith('.js')).map(f => path.join(dataDir, f))
     : [];
   for (const f of jsFiles) {
     const src = fs.readFileSync(f, 'utf8');
-    const re = /\btitle:\s*"((?:[^"\\]|\\.)*)"/g;
+    const re  = /\btitle:\s*"((?:[^"\\]|\\.)*)"/g;
     let m;
-    while ((m = re.exec(src)) !== null) titles.add(normaliseTitle(m[1]));
+    while ((m = re.exec(src)) !== null) titles.add(sovereignSlug(m[1]));
   }
   return titles;
 }
 
-function serialiseArticle(article) {
-  const content = article.content
-    .replace(/\\/g, '\\\\')
-    .replace(/`/g, '\\`')
-    .replace(/\${/g, '\\${');
+// ─── MARKER-BASED INJECTION ───────────────────────────────────────────────────
 
-  return `  {
-    id: '${article.id}',
-    type: '${article.type}',
-    date: '${article.date}',
-    title: ${JSON.stringify(article.title)},
-    subtitle: ${JSON.stringify(article.subtitle)},
-    status: '${article.status}',
-    readTime: '${article.readTime}',
-    tags: ${JSON.stringify(article.tags)},
-    content: \`${content}\`,
-  }`;
-}
-
-function serialiseBuild(build) {
-  return `  { id: '${build.id}', articleId: '${build.articleId}', name: ${JSON.stringify(build.name)}, status: '${build.status}', desc: ${JSON.stringify(build.desc)} }`;
-}
+const INJECT_START = '/* @@INJECT_START@@ */';
+const INJECT_END   = '/* @@INJECT_END@@ */';
 
 function batchInject(filePath, items, serialiseFn) {
   if (!items.length) return false;
   if (!fs.existsSync(filePath)) {
-    console.error(`  ✗ Data file not found at ${filePath}`);
+    console.error(`  ✗ Data file not found: ${filePath}`);
     return false;
   }
 
-  let src = fs.readFileSync(filePath, 'utf8');
-  const insertPoint = src.lastIndexOf('];');
-  if (insertPoint === -1) {
-    console.error(`  ✗ Could not find ]; in ${filePath}`);
+  const src      = fs.readFileSync(filePath, 'utf8');
+  const startIdx = src.indexOf(INJECT_START);
+  const endIdx   = src.indexOf(INJECT_END);
+
+  if (startIdx === -1 || endIdx === -1) {
+    console.error(`  ✗ Injection markers not found in ${path.basename(filePath)}`);
+    console.error(`    Ensure the file contains both:`);
+    console.error(`      ${INJECT_START}`);
+    console.error(`      ${INJECT_END}`);
     return false;
   }
 
-  const before = src.slice(0, insertPoint).trimEnd();
-  const afterPatch = before.endsWith(',') ? before : before + ',';
-  
-  const payload = items.map(serialiseFn).join(',\n');
-  const injected = `${afterPatch}\n${payload},\n${src.slice(insertPoint)}`;
-  
+  // Content already between the markers (previous injections on re-run with --force)
+  const existing = src.slice(startIdx + INJECT_START.length, endIdx).trim();
+  const payload  = items.map(serialiseFn).join(',\n');
+
+  const inner = existing
+    ? `\n${existing},\n${payload},\n`
+    : `\n${payload},\n`;
+
+  const injected =
+    src.slice(0, startIdx + INJECT_START.length) +
+    inner +
+    src.slice(endIdx);
+
   fs.writeFileSync(filePath, injected, 'utf8');
   return true;
 }
 
 // ─── MAIN ────────────────────────────────────────────────────────────────────
+
 function run() {
   console.log('\n╔══════════════════════════════════════════╗');
-  console.log('║        KERNEL MARKDOWN LOADER          ║');
+  console.log('║   KERNEL IMPORT — LEVEL 9 HARDENED      ║');
   console.log('╚══════════════════════════════════════════╝\n');
 
   if (DRY_RUN) console.log('  [DRY RUN — no files will be written]\n');
+  if (FORCE)   console.log('  [--force — duplicate-title guard disabled]\n');
 
   if (!fs.existsSync(CONTENT_DIR)) {
     console.error(`  ✗ Content directory not found: ${CONTENT_DIR}`);
@@ -286,62 +314,67 @@ function run() {
   }
 
   const files = fs.readdirSync(CONTENT_DIR).filter(f => {
-    if (!f.endsWith('.md')) return false;
-    if (EXCLUDE_FILES.has(f)) return false;
+    if (!f.endsWith('.md'))      return false;
+    if (EXCLUDE_FILES.has(f))   return false;
     return true;
   });
-  
+
   if (files.length === 0) {
     console.log('  No .md files found in', CONTENT_DIR);
     process.exit(0);
   }
 
-  const existingArticleIds = parseExistingIds(ARTICLES_PATH);
-  const existingBuildIds   = parseExistingIds(BUILDS_PATH);
-  const allIds             = new Set([...existingArticleIds, ...existingBuildIds]);
-  const existingTitles     = parseExistingTitles(ARTICLES_PATH);
+  const existingIds    = parseExistingIds(ARTICLES_PATH);
+  const existingBldIds = parseExistingIds(BUILDS_PATH);
+  const allIds         = new Set([...existingIds, ...existingBldIds]);
+  const existingTitles = FORCE ? new Set() : parseExistingTitles(ARTICLES_PATH);
 
   let processed = 0;
   let skipped   = 0;
   const pendingArticles = [];
-  const pendingBuilds = [];
+  const pendingBuilds   = [];
 
   for (const file of files) {
     const fullPath = path.join(CONTENT_DIR, file);
-    const raw = fs.readFileSync(fullPath, 'utf8');
-    const { fm, body } = parseFrontmatter(raw);
-    const inferred = inferFromContent(body, file);
+    const raw      = fs.readFileSync(fullPath, 'utf8');
 
-    const title    = fm.title    || inferred.title;
+    // gray-matter handles: UTF-8 BOM, multi-line YAML, all quote styles,
+    // CRLF line endings, and YAML arrays/strings automatically.
+    const { data: fm, content: body } = matter(raw);
 
-    // Skip files whose title already exists in the data layer (re-run guard)
-    if (existingTitles.has(normaliseTitle(title))) {
+    const derived = deriveMetadata(body, file);
+    const title   = (fm.title || derived.title).toUpperCase();
+
+    if (!FORCE && existingTitles.has(sovereignSlug(title))) {
       console.log(`  Skipping (already imported): ${file}`);
       skipped++;
       continue;
     }
-    const subtitle = fm.subtitle || inferred.subtitle;
-    const date     = fm.date     || inferred.date;
-    const status   = (fm.status  || inferred.status).toUpperCase();
-    
-    let tags = fm.tags || inferred.tags || [];
-    if (typeof tags === 'string') {
-      tags = tags.split(',').map(t => t.trim());
-    } else if (!Array.isArray(tags)) {
-      tags = [tags];
-    }
-    tags = tags.filter(Boolean);
 
-    const readTime = fm.readTime || inferred.readTime;
-    const type     = fm.type     || inferred.type;
-    const id       = generateId(file, fm, allIds);
-    const name     = fm.name || buildNameFromFilename(file);
-    const desc     = fm.desc || subtitle || title;
+    const subtitle = fm.subtitle || derived.subtitle || '';
+    // gray-matter parses YAML dates as Date objects — coerce to ISO string
+    const date     = fm.date
+      ? String(fm.date instanceof Date ? fm.date.toISOString() : fm.date).slice(0, 10)
+      : derived.date;
+    const status   = canonicalStatus(fm.status || inferStatusFromFilename(file));
+    const type     = fm.type     || inferType(file, body);
+    const readTime = fm.readTime || derived.readTime;
+
+    let tags = fm.tags || derived.tags || [];
+    if (typeof tags === 'string') {
+      tags = tags
+        .split(',')
+        .map(t => t.trim().replace(/^["'`]|["'`]$/g, ''))
+        .filter(Boolean);
+    } else if (!Array.isArray(tags)) {
+      tags = [String(tags)].filter(Boolean);
+    }
+
+    const id   = generateId(file, fm, allIds);
+    const name = fm.name || buildNameFromFilename(file);
+    const desc = fm.desc || subtitle || title;
 
     allIds.add(id);
-
-    const article = { id, type, date, title, subtitle, status, readTime, tags, content: body };
-    const build   = { id: fm.buildId || id, articleId: id, name, status, desc };
 
     console.log(`  Processing: ${file}`);
     console.log(`    id:       ${id}`);
@@ -351,15 +384,15 @@ function run() {
 
     processed++;
     if (!DRY_RUN) {
-      pendingArticles.push(article);
-      pendingBuilds.push(build);
+      pendingArticles.push({ id, type, date, title, subtitle, status, readTime, tags, content: body });
+      pendingBuilds.push({ id: fm.buildId || id, articleId: id, name, status, desc });
     }
   }
 
   if (!DRY_RUN && pendingArticles.length > 0) {
     batchInject(ARTICLES_PATH, pendingArticles, serialiseArticle);
-    batchInject(BUILDS_PATH, pendingBuilds, serialiseBuild);
-    console.log(`\n  ✓ Batch integrated ${pendingArticles.length} new kernel(s) into data layer.`);
+    batchInject(BUILDS_PATH,   pendingBuilds,   serialiseBuild);
+    console.log(`\n  ✓ Injected ${pendingArticles.length} new kernel(s) into data layer.`);
   }
 
   if (skipped > 0) console.log(`\n  ↷ ${skipped} kernel(s) already in data layer — skipped.`);

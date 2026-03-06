@@ -724,6 +724,8 @@ Here is a suggestion for a revised Axiomatic Core, incorporating your requested 
 This kernel is now tailored to provide a reliable, context-aware, and ethically driven platform for his "graveyard research."
 `
   }
+/* @@INJECT_START@@ */
+/* @@INJECT_END@@ */
 ];
 
 export default soma;
