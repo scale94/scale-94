@@ -39,8 +39,36 @@ const ArticleView = ({ article, originTab, handleReturnToRoot }) => {
        *   at 14pt. Everything below sees a floor that never shrinks below this.
        * - overflow:hidden → clips any transient paint bleed between frames.
        */}
-      <div style={{ display: 'grid', gridTemplateRows: '1fr', height: '120px', minHeight: '120px', lineHeight: '1.2', overflow: 'hidden', alignItems: 'start', contain: 'layout size' }}>
-        <h1 className="text-[14pt] font-bold mb-4 text-cyan-400 tracking-tighter leading-tight">
+      <div style={{
+        display: 'grid',
+        gridTemplateRows: '1fr',
+        // clamp: 120px floor → scales with vh on small screens → 200px ceiling.
+        // 'contain: size' uses the resolved height as the element's intrinsic size,
+        // so clamp() is fully respected even with containment active.
+        height: 'clamp(120px, 20vh, 200px)',
+        lineHeight: '1.2',
+        overflow: 'hidden',
+        alignItems: 'start',
+        // Nuclear containment: layout prevents external reflow propagation;
+        // size declares that children cannot influence this element's dimensions.
+        contain: 'layout size',
+      }}>
+        <h1
+          className="text-[14pt] font-bold mb-4 text-cyan-400 tracking-tighter leading-tight"
+          style={{
+            // Firefox Android artificially boosts font sizes for readability.
+            // Disabling this keeps the 14pt calculation honest across engines.
+            WebkitTextSizeAdjust: 'none',
+            textSizeAdjust: 'none',
+            // 'anywhere' allows wrap at any character boundary — prevents long
+            // random-glyph sequences from overflowing the cage horizontally.
+            // 'none' disables Gecko's invisible soft-hyphen insertion, which
+            // changes the apparent character count and breaks the line-count
+            // assumption our 120px floor is built on.
+            overflowWrap: 'anywhere',
+            hyphens: 'none',
+          }}
+        >
           <HackerText text={article.title} />
         </h1>
       </div>

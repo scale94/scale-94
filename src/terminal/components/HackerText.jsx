@@ -3,11 +3,25 @@ import React, { useState, useEffect } from 'react';
 const CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*_+-=|;:,<>?";
 const randChar = () => CHARS[Math.floor(Math.random() * CHARS.length)];
 
-// preseed: fills every non-space position with a random glyph at full length.
-// This reserves the final layout box before the first paint — prevents the
-// container collapsing to zero height during the font-load wait.
-const preseed = (str) =>
-  str.split('').map(c => (c === ' ' ? ' ' : randChar())).join('');
+// preseed: produces a scrambled string whose length is EXACTLY str.length.
+// Length parity is the critical invariant — if preseed were shorter the
+// container would 'pop' open when the real title arrives and its wider
+// character set fills more horizontal space, causing a line-count jump.
+//
+// Space characters are preserved as spaces (not replaced with glyphs) so
+// that word-wrap boundaries are identical between the scrambled and final
+// states. The browser sees the same wrap points on every frame.
+const preseed = (str) => {
+  if (!str) return '';
+  const out = str.split('').map(c => (c === ' ' ? ' ' : randChar())).join('');
+  // Defensive assertion: output must be the same length as input.
+  // If this ever fires it means str contains multi-codepoint grapheme clusters
+  // (e.g. emoji) that split() counts as multiple chars. Caller should sanitise.
+  if (out.length !== str.length) {
+    console.warn('[HackerText] preseed length mismatch — input:', str.length, 'output:', out.length);
+  }
+  return out;
+};
 
 const HackerText = ({ text, className }) => {
   // Initialise with a same-length scrambled string so the container has its
