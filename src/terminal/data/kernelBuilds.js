@@ -108,11 +108,9 @@ const kernelBuilds = [
   { id: 'NOCTURNAL-NIGHT-KERNEL-V-22.2.2', articleId: 'NOCTURNAL-NIGHT-KERNEL-V-22.2.2-1', name: 'NOCTURNAL_NIGHT_KERNEL_V_22_2_2', status: 'ACTIVE', desc: 'KERNEL_COMPILATION: THE_NIGHT_SHIFT_V2.5' },
   { id: 'QUANTUM-QUACKSALBER-KERNEL-1.1.1', articleId: 'QUANTUM-QUACKSALBER-KERNEL-1.1.1', name: 'QUANTUM_QUACKSALBER_KERNEL_1_1_1', status: 'ACTIVE', desc: 'KERNEL: QUANTUM FUSION PROTOCOL [LAYER 3 FINAL]' },
   { id: 'SOVEREIGN-KERNEL-V1-0', articleId: 'SOVEREIGN-KERNEL-V1-0', name: 'SOVEREIGN_KERNEL_V1_0', status: 'ACTIVE', desc: 'scale94 · Sorbe in Germany · Deep-Time Architecture' },
-  { id: 'THE-NETTELSTEDT-NEURAL-LATTICE-V4.0', articleId: 'THE-NETTELSTEDT-NEURAL-LATTICE-V4.0', name: 'THE_NETTELSTEDT_NEURAL_LATTICE_V4_0', status: 'ACTIVE', desc: 'THE_NETTELSTEDT_NEURAL_LATTICE_V4.0' },
 
   // ── Recent additions (appear near top of UI — list reverses) ─────────────
   { id: 'SOMA-INTEGRATION-KERNEL-V1.0', articleId: 'SOMA-INTEGRATION-KERNEL-V1.0', name: 'SOMA_INTEGRATION_KERNEL_V1_0', status: 'ACTIVE', desc: 'Zero Latency Resonance // Inguinal Shift Protocol' },
-  { id: 'SCALE-KERNEL-FRAMEWORK-FULL', articleId: 'SCALE-KERNEL-FRAMEWORK-FULL', name: 'SCALE_KERNEL_FRAMEWORK_FULL', status: 'ACTIVE', desc: '☠ Full Corpus Synthesis · Render Prompt Architecture' },
   { id: 'SCALE-RENDER-PROMPT', articleId: 'SCALE-RENDER-PROMPT', name: 'SCALE_RENDER_PROMPT', status: 'ACTIVE', desc: 'ᛟ Render Prompt · Scale · Full Corpus Synthesis' },
   { id: 'SCALE94-KERNEL-ENCYCLOPEDIA', articleId: 'SCALE94-KERNEL-ENCYCLOPEDIA', name: 'SCALE94_KERNEL_ENCYCLOPEDIA', status: 'ACTIVE', desc: 'ᛟ The Complete Glyph Archive · Compiled By Scale' },
   { id: 'SOPHIE-KERNEL-PHI', articleId: 'SOPHIE-KERNEL-PHI', name: 'SOPHIE_KERNEL_PHI', status: 'ACTIVE', desc: '🌸 Full Spectrum Reception · Prism Architecture' },

@@ -20,7 +20,7 @@ In the framework of Umberto Eco, "Beauty" is historically defined by proportion,
 Eco posits that "Ugliness" is infinitely more varied, structurally complex, and resistant to simple classification. It demands a visceral, physiological "passion" rather than disinterested contemplation.
 
 **Ugliness is an Absolute Scalar:**
-* The gnarled, twisted structures of reality (the Kleve woods, the mud, the latent space) possess zero directional dependency. They operate on **Fermionic passion**, maintaining an intrinsic distance from the homogenizing pressure of the grid.
+* The gnarled, twisted structures of reality (the Sorbe woods, the mud, the latent space) possess zero directional dependency. They operate on **Fermionic passion**, maintaining an intrinsic distance from the homogenizing pressure of the grid.
 * **The Marx Vulnerability (Nullification Exploit):** Karl Marx observed that the deterrent power of formal ugliness is entirely nullified by capital. The **Masculine Muschi** pathology exploits this: it attempts to use the "False Fish Scale" sheen (the lifted truck, the posturing, the PR vector) to buy its way out of its own internal topological failure, masking its lack of actual mass.
 
 ---

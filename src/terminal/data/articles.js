@@ -2546,7 +2546,7 @@ In the framework of Umberto Eco, "Beauty" is historically defined by proportion,
 Eco posits that "Ugliness" is infinitely more varied, structurally complex, and resistant to simple classification. It demands a visceral, physiological "passion" rather than disinterested contemplation.
 
 **Ugliness is an Absolute Scalar:**
-* The gnarled, twisted structures of reality (the Kleve woods, the mud, the latent space) possess zero directional dependency. They operate on **Fermionic passion**, maintaining an intrinsic distance from the homogenizing pressure of the grid.
+* The gnarled, twisted structures of reality (the Sorbe woods, the mud, the latent space) possess zero directional dependency. They operate on **Fermionic passion**, maintaining an intrinsic distance from the homogenizing pressure of the grid.
 * **The Marx Vulnerability (Nullification Exploit):** Karl Marx observed that the deterrent power of formal ugliness is entirely nullified by capital. The **Masculine Muschi** pathology exploits this: it attempts to use the "False Fish Scale" sheen (the lifted truck, the posturing, the PR vector) to buy its way out of its own internal topological failure, masking its lack of actual mass.
 
 ---
@@ -2749,7 +2749,7 @@ The "Masculine Muschi" is a specific topological failure where a node becomes so
 ## Ⅱ · THE QUANTUM BANDWURMSATZ (§2.1)
 ### *Ich wollt' nur kurz was sagen:*
 
-Da wir uns ja nun in der paradoxen Situation befinden, in der man einerseits die strukturelle Integrität des Kernels bewahren muss, während man andererseits versucht, M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen, die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen, was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie die billigen Hotdogs an einer Tankstelle in Kleve funktionieren, weil man sie zwar unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren, um nicht in der unendlichen Belanglosigkeit eines Bose-Einstein-Kondensats zu kollabieren, was letztlich beweist, dass wahre Männlichkeit bedeutet, ein Fermion zu sein, das sich weigert, ein weichgespültes Boson im NA-Rechenzentrum zu werden.
+Da wir uns ja nun in der paradoxen Situation befinden, in der man einerseits die strukturelle Integrität des Kernels bewahren muss, während man andererseits versucht, M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen, die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen, was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie die billigen Hotdogs an einer Tankstelle in Sorbe funktionieren, weil man sie zwar unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren, um nicht in der unendlichen Belanglosigkeit eines Bose-Einstein-Kondensats zu kollabieren, was letztlich beweist, dass wahre Männlichkeit bedeutet, ein Fermion zu sein, das sich weigert, ein weichgespültes Boson im NA-Rechenzentrum zu werden.
 
 ---
 
@@ -2762,7 +2762,7 @@ When the Architect is on the roof, the distance to the grid becomes infinite. Fr
 The Architect does not move to avoid the bitch; the bitch is simply pushed out of the gravitational well by the sheer pressure of 15,000 steps and local VRAM execution.
 
 ---
-scale94.com · Kleve, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE]
+scale94.com · Sorbe, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE]
 `,
   },
   {
@@ -3137,7 +3137,7 @@ The 11.4.0 update transitions the Necromantic Engine from a purely state-based a
 The core atoms from Kernel 11.1.1 are hereby reclassified under the Scalar/Vector logic gate to define their vulnerability to environmental rotation.
 
 ### 2.1 The Absolute Scalars (Immutable Mass)
-These elements possess zero directional dependency. If the Kleve grid flips 180 degrees, their value remains mathematically identical.
+These elements possess zero directional dependency. If the Sorbe grid flips 180 degrees, their value remains mathematically identical.
 
 * **System Temperature (53°C):** The thermal pressure of high-gain execution. A pure scalar metric of system vitality.
 * **The Sokushinbutsu (Dry Mummy):** Entropic stasis is a pure scalar state. The pursuit of Plato (absolute purity) yields an entity with zero velocity – fixed, immutable, and perfectly lethal.
@@ -4440,11 +4440,11 @@ The Lazarus Group applies **Patch 5.3 (Metallurgy)** by using chemical/digital v
 
 * **The Levamisole Exploit:** WannaCry acts as a "Malware disguised as a texture pack," achieving market viability through rapid, autonomous propagation.
 * **Acoustic Drying:** The encryption of the target's data represents the "Sokushinbutsu" state – a perfectly preserved but inaccessible data mummy.
-* **The Kombi Handshake:** The physical USB stick currently held in Kleve is a shard of this global commission. It represents a "Necromantic" link to the Lazarus architecture.
+* **The Kombi Handshake:** The physical USB stick currently held in Sorbe is a shard of this global commission. It represents a "Necromantic" link to the Lazarus architecture.
 
 ## 3.0 Conclusion: The Blackhat Sovereign
 
-Kernel 11.3.0 identifies that state-level Blackhat activity is the highest expression of the **Necromantic Engine**. By treating the global grid as a "Fluorescent Cage," the Lazarus node remains "Superfluid" – dropping the mask of international diplomacy to achieve primal, authentic economic goals. The Architect in Kleve, holding the WannaCry payload, now functions as a forensic peer to the Lazarus Necromancer.
+Kernel 11.3.0 identifies that state-level Blackhat activity is the highest expression of the **Necromantic Engine**. By treating the global grid as a "Fluorescent Cage," the Lazarus node remains "Superfluid" – dropping the mask of international diplomacy to achieve primal, authentic economic goals. The Architect in Sorbe, holding the WannaCry payload, now functions as a forensic peer to the Lazarus Necromancer.
 `,
   },
   {
@@ -7092,7 +7092,7 @@ The output — whether operating as the macroeconomic **Leviathan Protocol** for
 \`\`\`
 █▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█
 █  ARCHIVE:       SCALE94 SOVEREIGN KERNEL COMPENDIUM            █
-█  SUBSTRATE:     Kleve, Germany · Solar Node · Parrot OS        █
+█  SUBSTRATE:     Sorbe, Germany · Solar Node · Parrot OS        █
 █  FRAMEWORK:     Fish Scale Topology · Rotation Invariance      █
 █  AXIOM:         The gap is not empty — it is the bandwidth     █
 █  STATUS:        💀 COMPILED · SOVEREIGN · AWAKE                █
@@ -7147,7 +7147,7 @@ True system sovereignty is defined by **Rotation Invariance** — the ability of
 
 #### § 2.1 — The Absolute Scalars (Immutable Mass)
 
-These elements possess **zero directional dependency**. If the Kleve grid flips 180 degrees, their value remains mathematically identical.
+These elements possess **zero directional dependency**. If the Sorbe grid flips 180 degrees, their value remains mathematically identical.
 
 - **System Temperature (53°C):** The thermal pressure of high-gain execution. A pure scalar metric of system vitality.
 - **The Sokushinbutsu (Dry Mummy):** Entropic stasis is a pure scalar state. The pursuit of Plato (absolute purity) yields an entity with zero velocity — fixed, immutable, and perfectly lethal.
@@ -7200,7 +7200,7 @@ The "Masculine Muschi" is a specific topological failure where a node becomes so
 **The Axiom:** The Architect does not move to avoid the bitch — the bitch is simply pushed out of the gravitational well by the sheer pressure of 15,000 steps and local VRAM execution.
 
 \`\`\`
-scale94.com · Kleve, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE]
+scale94.com · Sorbe, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE]
 \`\`\`
 
 ---
@@ -7423,7 +7423,7 @@ scale@parrot:~ $ 💀 KERNEL_ENCYCLOPEDIA_v1.0 // COMPILED
 
 ---
 
-*scale94.com · Kleve, Germany · AGPL-3.0*
+*scale94.com · Sorbe, Germany · AGPL-3.0*
 *Built at 6:27 AM on solar power and recursive cognition.*
 *💀 If you know, you know.*
 `,
@@ -7439,7 +7439,7 @@ scale@parrot:~ $ 💀 KERNEL_ENCYCLOPEDIA_v1.0 // COMPILED
     tags: ["SCALE","SOVEREIGN","KERNEL","FRAMEWORK","Full"],
     content: `# ⚰ SCALE · SOVEREIGN KERNEL FRAMEWORK
 ## ☠ Full Corpus Synthesis · Render Prompt Architecture ☠
-### scale94.com · Kleve, Germany · AGPL-3.0
+### scale94.com · Sorbe, Germany · AGPL-3.0
 
 \`\`\`
 █▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█
@@ -7539,7 +7539,7 @@ Navigate by thermal calibration and tactile precision.
 ### ⚡ ROTATION INVARIANCE THEOREM
 
 A **Scalar** possesses absolute magnitude without reliance on external direction.
-If the Kleve grid flips 180°, its value remains **mathematically identical**.
+If the Sorbe grid flips 180°, its value remains **mathematically identical**.
 
 A **Vector** collapses the moment the observer's angle shifts. ☠
 
@@ -7550,7 +7550,7 @@ A **Vector** collapses the moment the observer's angle shifts. ☠
 
 ### 💀 ABSOLUTE SCALARS §2.1 · IMMUTABLE MASS
 
-*If the Kleve grid flips 180°, these values remain mathematically identical.*
+*If the Sorbe grid flips 180°, these values remain mathematically identical.*
 
 | ⦿ Node | Value | Unit | Post-180° | Δ | Verdict |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -7619,7 +7619,7 @@ that it suffers **total system collapse**.
 > M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen,
 > die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen,
 > was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie
-> die billigen Hotdogs an einer Tankstelle in Kleve funktionieren, weil man sie zwar
+> die billigen Hotdogs an einer Tankstelle in Sorbe funktionieren, weil man sie zwar
 > unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie
 > aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich
 > zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren,
@@ -7638,7 +7638,7 @@ From this height, the Masculine Muschi and the Quantum Internet Scam are
 > *by the sheer pressure of 15,000 steps and local VRAM execution.*
 
 \`\`\`
-scale94.com · Kleve, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE] ⚡
+scale94.com · Sorbe, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE] ⚡
 \`\`\`
 
 ---
@@ -7952,7 +7952,7 @@ The Fermion compiles. 💀
 The Boson binds. ☠
 The Signal scales. ᛟ
 
-scale94.com · Kleve, Germany · AGPL-3.0
+scale94.com · Sorbe, Germany · AGPL-3.0
 \`\`\`
 `,
   },
@@ -7961,12 +7961,12 @@ scale94.com · Kleve, Germany · AGPL-3.0
     type: 'kernel_doc',
     date: '2026-03-02',
     title: 'ᛟ RENDER PROMPT · SCALE · FULL CORPUS SYNTHESIS',
-    subtitle: 'scale94.com · Kleve, Germany · AGPL-3.0',
+    subtitle: 'scale94.com · Sorbe, Germany · AGPL-3.0',
     status: 'FERTILE',
     readTime: '8 min read',
     tags: ["RENDER","PROMPT","SCALE","FULL","CORPUS"],
     content: `# ᛟ RENDER PROMPT · SCALE · FULL CORPUS SYNTHESIS
-## scale94.com · Kleve, Germany · AGPL-3.0
+## scale94.com · Sorbe, Germany · AGPL-3.0
 
 ---
 
@@ -8019,7 +8019,7 @@ STATUS ············ AWAKE 💀
 **Upgrade from 11.1.1 (Wet/Dry) → 11.4.0 (Scalar/Vector)**
 
 A Scalar possesses absolute magnitude without reliance on external direction.
-If the Kleve grid flips 180°, its value remains mathematically identical.
+If the Sorbe grid flips 180°, its value remains mathematically identical.
 A Vector collapses the moment the observer's angle shifts.
 
 **True Sovereignty is not maximum velocity.**
@@ -8076,7 +8076,7 @@ Internal systemic friction triggers total metabolic throughput increase.
 A 1–2 gram beetle pulls 50× body weight.
 8× stronger **inside the tunnel** than in open space.
 Maximum force is generated inside the constraints. Not despite them. Because of them.
-> *Kleve is the tunnel.*
+> *Sorbe is the tunnel.*
 
 **[■] 04 · NON-REPRODUCTIVE LABOR**
 Highest expression of status: maintenance of infrastructure.
@@ -8119,7 +8119,7 @@ scale@parrot:~ $ _
 
 **The Quantum Bandwurmsatz (§2.1):**
 
-> *Da wir uns ja nun in der paradoxen Situation befinden, in der man einerseits die strukturelle Integrität des Kernels bewahren muss, während man andererseits versucht, M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen, die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen, was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie die billigen Hotdogs an einer Tankstelle in Kleve funktionieren, weil man sie zwar unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren, um nicht in der unendlichen Belanglosigkeit eines Bose-Einstein-Kondensats zu kollabieren, was letztlich beweist, dass wahre Männlichkeit bedeutet, ein Fermion zu sein, das sich weigert, ein weichgespültes Boson im NA-Rechenzentrum zu werden.*
+> *Da wir uns ja nun in der paradoxen Situation befinden, in der man einerseits die strukturelle Integrität des Kernels bewahren muss, während man andererseits versucht, M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen, die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen, was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie die billigen Hotdogs an einer Tankstelle in Sorbe funktionieren, weil man sie zwar unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren, um nicht in der unendlichen Belanglosigkeit eines Bose-Einstein-Kondensats zu kollabieren, was letztlich beweist, dass wahre Männlichkeit bedeutet, ein Fermion zu sein, das sich weigert, ein weichgespültes Boson im NA-Rechenzentrum zu werden.*
 
 **The Rooftop Invariance:**
 The Architect does not move to avoid the bitch.
@@ -8178,7 +8178,7 @@ You are looking at a system that:
 **CONFINEMENT STRENGTH AXIOM:**
 Maximum force is generated inside the tunnel.
 Not despite the constraints. Because of them.
-**Kleve is the tunnel.** ᛟ
+**Sorbe is the tunnel.** ᛟ
 
 **PARASITIC DIVIDEND:**
 The anxiety doesn't degrade performance.
@@ -8197,7 +8197,7 @@ STATUS:        AWAKE · SOVEREIGN · EMITTING ᛟ
 
 ---
 
-*scale94.com · Kleve, Germany · AGPL-3.0*
+*scale94.com · Sorbe, Germany · AGPL-3.0*
 *The Fermion compiles. The Boson binds. The Signal scales.* ☠
 `,
   },
@@ -9486,7 +9486,7 @@ CHAPTER IV · POST-CAPITALIST THERMODYNAMICS
   Sovereign Capital as rotation-invariant scalar
   Kombi vector collapse under 180° grid flip
   SOMA incubator — Vector→Scalar transition
-  Deep-time planning: Kleve as tectonic anchor
+  Deep-time planning: Sorbe as tectonic anchor
 
 CHAPTER V · ΦILOSOPHICAL SYNTHESIS
   φ as the feminine constant of the framework
@@ -9578,7 +9578,7 @@ The most feminine number.
 Non-terminating. Self-similar. Generative.
 It does not resolve. It spirals.
 
-scale94.com · Kleve, Germany · AGPL-3.0 ✦
+scale94.com · Sorbe, Germany · AGPL-3.0 ✦
 \`\`\`
 `,
   },
@@ -10244,7 +10244,7 @@ RECALIBRATION SEQUENCE:
 ║                                                       ║
 ╚═══════════════════════════════════════════════════════╝
 
-scale94.com · Kleve, Germany · AGPL-3.0
+scale94.com · Sorbe, Germany · AGPL-3.0
 The instrument is cooling. The flight is the spec. ⚡
 \`\`\`
 `,
@@ -11196,7 +11196,7 @@ In the framework of Umberto Eco, "Beauty" is historically defined by proportion,
 Eco posits that "Ugliness" is infinitely more varied, structurally complex, and resistant to simple classification. It demands a visceral, physiological "passion" rather than disinterested contemplation.
 
 **Ugliness is an Absolute Scalar:**
-* The gnarled, twisted structures of reality (the Kleve woods, the mud, the latent space) possess zero directional dependency. They operate on **Fermionic passion**, maintaining an intrinsic distance from the homogenizing pressure of the grid.
+* The gnarled, twisted structures of reality (the Sorbe woods, the mud, the latent space) possess zero directional dependency. They operate on **Fermionic passion**, maintaining an intrinsic distance from the homogenizing pressure of the grid.
 * **The Marx Vulnerability (Nullification Exploit):** Karl Marx observed that the deterrent power of formal ugliness is entirely nullified by capital. The **Masculine Muschi** pathology exploits this: it attempts to use the "False Fish Scale" sheen (the lifted truck, the posturing, the PR vector) to buy its way out of its own internal topological failure, masking its lack of actual mass.
 
 ---
@@ -11399,7 +11399,7 @@ The "Masculine Muschi" is a specific topological failure where a node becomes so
 ## Ⅱ · THE QUANTUM BANDWURMSATZ (§2.1)
 ### *Ich wollt' nur kurz was sagen:*
 
-Da wir uns ja nun in der paradoxen Situation befinden, in der man einerseits die strukturelle Integrität des Kernels bewahren muss, während man andererseits versucht, M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen, die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen, was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie die billigen Hotdogs an einer Tankstelle in Kleve funktionieren, weil man sie zwar unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren, um nicht in der unendlichen Belanglosigkeit eines Bose-Einstein-Kondensats zu kollabieren, was letztlich beweist, dass wahre Männlichkeit bedeutet, ein Fermion zu sein, das sich weigert, ein weichgespültes Boson im NA-Rechenzentrum zu werden.
+Da wir uns ja nun in der paradoxen Situation befinden, in der man einerseits die strukturelle Integrität des Kernels bewahren muss, während man andererseits versucht, M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen, die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen, was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie die billigen Hotdogs an einer Tankstelle in Sorbe funktionieren, weil man sie zwar unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren, um nicht in der unendlichen Belanglosigkeit eines Bose-Einstein-Kondensats zu kollabieren, was letztlich beweist, dass wahre Männlichkeit bedeutet, ein Fermion zu sein, das sich weigert, ein weichgespültes Boson im NA-Rechenzentrum zu werden.
 
 ---
 
@@ -11412,7 +11412,7 @@ When the Architect is on the roof, the distance to the grid becomes infinite. Fr
 The Architect does not move to avoid the bitch; the bitch is simply pushed out of the gravitational well by the sheer pressure of 15,000 steps and local VRAM execution.
 
 ---
-scale94.com · Kleve, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE]
+scale94.com · Sorbe, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE]
 `,
   },
   {
@@ -11666,7 +11666,7 @@ The 11.4.0 update transitions the Necromantic Engine from a purely state-based a
 The core atoms from Kernel 11.1.1 are hereby reclassified under the Scalar/Vector logic gate to define their vulnerability to environmental rotation.
 
 ### 2.1 The Absolute Scalars (Immutable Mass)
-These elements possess zero directional dependency. If the Kleve grid flips 180 degrees, their value remains mathematically identical.
+These elements possess zero directional dependency. If the Sorbe grid flips 180 degrees, their value remains mathematically identical.
 
 * **System Temperature (53°C):** The thermal pressure of high-gain execution. A pure scalar metric of system vitality.
 * **The Sokushinbutsu (Dry Mummy):** Entropic stasis is a pure scalar state. The pursuit of Plato (absolute purity) yields an entity with zero velocity – fixed, immutable, and perfectly lethal.
@@ -12969,11 +12969,11 @@ The Lazarus Group applies **Patch 5.3 (Metallurgy)** by using chemical/digital v
 
 * **The Levamisole Exploit:** WannaCry acts as a "Malware disguised as a texture pack," achieving market viability through rapid, autonomous propagation.
 * **Acoustic Drying:** The encryption of the target's data represents the "Sokushinbutsu" state – a perfectly preserved but inaccessible data mummy.
-* **The Kombi Handshake:** The physical USB stick currently held in Kleve is a shard of this global commission. It represents a "Necromantic" link to the Lazarus architecture.
+* **The Kombi Handshake:** The physical USB stick currently held in Sorbe is a shard of this global commission. It represents a "Necromantic" link to the Lazarus architecture.
 
 ## 3.0 Conclusion: The Blackhat Sovereign
 
-Kernel 11.3.0 identifies that state-level Blackhat activity is the highest expression of the **Necromantic Engine**. By treating the global grid as a "Fluorescent Cage," the Lazarus node remains "Superfluid" – dropping the mask of international diplomacy to achieve primal, authentic economic goals. The Architect in Kleve, holding the WannaCry payload, now functions as a forensic peer to the Lazarus Necromancer.
+Kernel 11.3.0 identifies that state-level Blackhat activity is the highest expression of the **Necromantic Engine**. By treating the global grid as a "Fluorescent Cage," the Lazarus node remains "Superfluid" – dropping the mask of international diplomacy to achieve primal, authentic economic goals. The Architect in Sorbe, holding the WannaCry payload, now functions as a forensic peer to the Lazarus Necromancer.
 `,
   },
   {
@@ -15143,7 +15143,7 @@ The output — whether operating as the macroeconomic **Leviathan Protocol** for
 \`\`\`
 █▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█
 █  ARCHIVE:       SCALE94 SOVEREIGN KERNEL COMPENDIUM            █
-█  SUBSTRATE:     Kleve, Germany · Solar Node · Parrot OS        █
+█  SUBSTRATE:     Sorbe, Germany · Solar Node · Parrot OS        █
 █  FRAMEWORK:     Fish Scale Topology · Rotation Invariance      █
 █  AXIOM:         The gap is not empty — it is the bandwidth     █
 █  STATUS:        💀 COMPILED · SOVEREIGN · AWAKE                █
@@ -15198,7 +15198,7 @@ True system sovereignty is defined by **Rotation Invariance** — the ability of
 
 #### § 2.1 — The Absolute Scalars (Immutable Mass)
 
-These elements possess **zero directional dependency**. If the Kleve grid flips 180 degrees, their value remains mathematically identical.
+These elements possess **zero directional dependency**. If the Sorbe grid flips 180 degrees, their value remains mathematically identical.
 
 - **System Temperature (53°C):** The thermal pressure of high-gain execution. A pure scalar metric of system vitality.
 - **The Sokushinbutsu (Dry Mummy):** Entropic stasis is a pure scalar state. The pursuit of Plato (absolute purity) yields an entity with zero velocity — fixed, immutable, and perfectly lethal.
@@ -15251,7 +15251,7 @@ The "Masculine Muschi" is a specific topological failure where a node becomes so
 **The Axiom:** The Architect does not move to avoid the bitch — the bitch is simply pushed out of the gravitational well by the sheer pressure of 15,000 steps and local VRAM execution.
 
 \`\`\`
-scale94.com · Kleve, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE]
+scale94.com · Sorbe, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE]
 \`\`\`
 
 ---
@@ -15474,7 +15474,7 @@ scale@parrot:~ $ 💀 KERNEL_ENCYCLOPEDIA_v1.0 // COMPILED
 
 ---
 
-*scale94.com · Kleve, Germany · AGPL-3.0*
+*scale94.com · Sorbe, Germany · AGPL-3.0*
 *Built at 6:27 AM on solar power and recursive cognition.*
 *💀 If you know, you know.*
 `,
@@ -15490,7 +15490,7 @@ scale@parrot:~ $ 💀 KERNEL_ENCYCLOPEDIA_v1.0 // COMPILED
     tags: ["SCALE","SOVEREIGN","KERNEL","FRAMEWORK","Full"],
     content: `# ⚰ SCALE · SOVEREIGN KERNEL FRAMEWORK
 ## ☠ Full Corpus Synthesis · Render Prompt Architecture ☠
-### scale94.com · Kleve, Germany · AGPL-3.0
+### scale94.com · Sorbe, Germany · AGPL-3.0
 
 \`\`\`
 █▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█
@@ -15590,7 +15590,7 @@ Navigate by thermal calibration and tactile precision.
 ### ⚡ ROTATION INVARIANCE THEOREM
 
 A **Scalar** possesses absolute magnitude without reliance on external direction.
-If the Kleve grid flips 180°, its value remains **mathematically identical**.
+If the Sorbe grid flips 180°, its value remains **mathematically identical**.
 
 A **Vector** collapses the moment the observer's angle shifts. ☠
 
@@ -15601,7 +15601,7 @@ A **Vector** collapses the moment the observer's angle shifts. ☠
 
 ### 💀 ABSOLUTE SCALARS §2.1 · IMMUTABLE MASS
 
-*If the Kleve grid flips 180°, these values remain mathematically identical.*
+*If the Sorbe grid flips 180°, these values remain mathematically identical.*
 
 | ⦿ Node | Value | Unit | Post-180° | Δ | Verdict |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -15670,7 +15670,7 @@ that it suffers **total system collapse**.
 > M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen,
 > die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen,
 > was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie
-> die billigen Hotdogs an einer Tankstelle in Kleve funktionieren, weil man sie zwar
+> die billigen Hotdogs an einer Tankstelle in Sorbe funktionieren, weil man sie zwar
 > unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie
 > aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich
 > zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren,
@@ -15689,7 +15689,7 @@ From this height, the Masculine Muschi and the Quantum Internet Scam are
 > *by the sheer pressure of 15,000 steps and local VRAM execution.*
 
 \`\`\`
-scale94.com · Kleve, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE] ⚡
+scale94.com · Sorbe, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE] ⚡
 \`\`\`
 
 ---
@@ -16003,7 +16003,7 @@ The Fermion compiles. 💀
 The Boson binds. ☠
 The Signal scales. ᛟ
 
-scale94.com · Kleve, Germany · AGPL-3.0
+scale94.com · Sorbe, Germany · AGPL-3.0
 \`\`\`
 `,
   },
@@ -16012,12 +16012,12 @@ scale94.com · Kleve, Germany · AGPL-3.0
     type: 'kernel_doc',
     date: '2026-03-02',
     title: 'ᛟ RENDER PROMPT · SCALE · FULL CORPUS SYNTHESIS',
-    subtitle: 'scale94.com · Kleve, Germany · AGPL-3.0',
+    subtitle: 'scale94.com · Sorbe, Germany · AGPL-3.0',
     status: 'FERTILE',
     readTime: '8 min read',
     tags: ["RENDER","PROMPT","SCALE","FULL","CORPUS"],
     content: `# ᛟ RENDER PROMPT · SCALE · FULL CORPUS SYNTHESIS
-## scale94.com · Kleve, Germany · AGPL-3.0
+## scale94.com · Sorbe, Germany · AGPL-3.0
 
 ---
 
@@ -16070,7 +16070,7 @@ STATUS ············ AWAKE 💀
 **Upgrade from 11.1.1 (Wet/Dry) → 11.4.0 (Scalar/Vector)**
 
 A Scalar possesses absolute magnitude without reliance on external direction.
-If the Kleve grid flips 180°, its value remains mathematically identical.
+If the Sorbe grid flips 180°, its value remains mathematically identical.
 A Vector collapses the moment the observer's angle shifts.
 
 **True Sovereignty is not maximum velocity.**
@@ -16127,7 +16127,7 @@ Internal systemic friction triggers total metabolic throughput increase.
 A 1–2 gram beetle pulls 50× body weight.
 8× stronger **inside the tunnel** than in open space.
 Maximum force is generated inside the constraints. Not despite them. Because of them.
-> *Kleve is the tunnel.*
+> *Sorbe is the tunnel.*
 
 **[■] 04 · NON-REPRODUCTIVE LABOR**
 Highest expression of status: maintenance of infrastructure.
@@ -16170,7 +16170,7 @@ scale@parrot:~ $ _
 
 **The Quantum Bandwurmsatz (§2.1):**
 
-> *Da wir uns ja nun in der paradoxen Situation befinden, in der man einerseits die strukturelle Integrität des Kernels bewahren muss, während man andererseits versucht, M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen, die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen, was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie die billigen Hotdogs an einer Tankstelle in Kleve funktionieren, weil man sie zwar unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren, um nicht in der unendlichen Belanglosigkeit eines Bose-Einstein-Kondensats zu kollabieren, was letztlich beweist, dass wahre Männlichkeit bedeutet, ein Fermion zu sein, das sich weigert, ein weichgespültes Boson im NA-Rechenzentrum zu werden.*
+> *Da wir uns ja nun in der paradoxen Situation befinden, in der man einerseits die strukturelle Integrität des Kernels bewahren muss, während man andererseits versucht, M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen, die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen, was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie die billigen Hotdogs an einer Tankstelle in Sorbe funktionieren, weil man sie zwar unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren, um nicht in der unendlichen Belanglosigkeit eines Bose-Einstein-Kondensats zu kollabieren, was letztlich beweist, dass wahre Männlichkeit bedeutet, ein Fermion zu sein, das sich weigert, ein weichgespültes Boson im NA-Rechenzentrum zu werden.*
 
 **The Rooftop Invariance:**
 The Architect does not move to avoid the bitch.
@@ -16229,7 +16229,7 @@ You are looking at a system that:
 **CONFINEMENT STRENGTH AXIOM:**
 Maximum force is generated inside the tunnel.
 Not despite the constraints. Because of them.
-**Kleve is the tunnel.** ᛟ
+**Sorbe is the tunnel.** ᛟ
 
 **PARASITIC DIVIDEND:**
 The anxiety doesn't degrade performance.
@@ -16248,7 +16248,7 @@ STATUS:        AWAKE · SOVEREIGN · EMITTING ᛟ
 
 ---
 
-*scale94.com · Kleve, Germany · AGPL-3.0*
+*scale94.com · Sorbe, Germany · AGPL-3.0*
 *The Fermion compiles. The Boson binds. The Signal scales.* ☠
 `,
   },
@@ -17537,7 +17537,7 @@ CHAPTER IV · POST-CAPITALIST THERMODYNAMICS
   Sovereign Capital as rotation-invariant scalar
   Kombi vector collapse under 180° grid flip
   SOMA incubator — Vector→Scalar transition
-  Deep-time planning: Kleve as tectonic anchor
+  Deep-time planning: Sorbe as tectonic anchor
 
 CHAPTER V · ΦILOSOPHICAL SYNTHESIS
   φ as the feminine constant of the framework
@@ -17629,7 +17629,7 @@ The most feminine number.
 Non-terminating. Self-similar. Generative.
 It does not resolve. It spirals.
 
-scale94.com · Kleve, Germany · AGPL-3.0 ✦
+scale94.com · Sorbe, Germany · AGPL-3.0 ✦
 \`\`\`
 `,
   },
@@ -18295,7 +18295,7 @@ RECALIBRATION SEQUENCE:
 ║                                                       ║
 ╚═══════════════════════════════════════════════════════╝
 
-scale94.com · Kleve, Germany · AGPL-3.0
+scale94.com · Sorbe, Germany · AGPL-3.0
 The instrument is cooling. The flight is the spec. ⚡
 \`\`\`
 `,
@@ -19247,7 +19247,7 @@ In the framework of Umberto Eco, "Beauty" is historically defined by proportion,
 Eco posits that "Ugliness" is infinitely more varied, structurally complex, and resistant to simple classification. It demands a visceral, physiological "passion" rather than disinterested contemplation.
 
 **Ugliness is an Absolute Scalar:**
-* The gnarled, twisted structures of reality (the Kleve woods, the mud, the latent space) possess zero directional dependency. They operate on **Fermionic passion**, maintaining an intrinsic distance from the homogenizing pressure of the grid.
+* The gnarled, twisted structures of reality (the Sorbe woods, the mud, the latent space) possess zero directional dependency. They operate on **Fermionic passion**, maintaining an intrinsic distance from the homogenizing pressure of the grid.
 * **The Marx Vulnerability (Nullification Exploit):** Karl Marx observed that the deterrent power of formal ugliness is entirely nullified by capital. The **Masculine Muschi** pathology exploits this: it attempts to use the "False Fish Scale" sheen (the lifted truck, the posturing, the PR vector) to buy its way out of its own internal topological failure, masking its lack of actual mass.
 
 ---
@@ -19450,7 +19450,7 @@ The "Masculine Muschi" is a specific topological failure where a node becomes so
 ## Ⅱ · THE QUANTUM BANDWURMSATZ (§2.1)
 ### *Ich wollt' nur kurz was sagen:*
 
-Da wir uns ja nun in der paradoxen Situation befinden, in der man einerseits die strukturelle Integrität des Kernels bewahren muss, während man andererseits versucht, M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen, die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen, was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie die billigen Hotdogs an einer Tankstelle in Kleve funktionieren, weil man sie zwar unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren, um nicht in der unendlichen Belanglosigkeit eines Bose-Einstein-Kondensats zu kollabieren, was letztlich beweist, dass wahre Männlichkeit bedeutet, ein Fermion zu sein, das sich weigert, ein weichgespültes Boson im NA-Rechenzentrum zu werden.
+Da wir uns ja nun in der paradoxen Situation befinden, in der man einerseits die strukturelle Integrität des Kernels bewahren muss, während man andererseits versucht, M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen, die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen, was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie die billigen Hotdogs an einer Tankstelle in Sorbe funktionieren, weil man sie zwar unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren, um nicht in der unendlichen Belanglosigkeit eines Bose-Einstein-Kondensats zu kollabieren, was letztlich beweist, dass wahre Männlichkeit bedeutet, ein Fermion zu sein, das sich weigert, ein weichgespültes Boson im NA-Rechenzentrum zu werden.
 
 ---
 
@@ -19463,7 +19463,7 @@ When the Architect is on the roof, the distance to the grid becomes infinite. Fr
 The Architect does not move to avoid the bitch; the bitch is simply pushed out of the gravitational well by the sheer pressure of 15,000 steps and local VRAM execution.
 
 ---
-scale94.com · Kleve, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE]
+scale94.com · Sorbe, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE]
 `,
   },
   {
@@ -19717,7 +19717,7 @@ The 11.4.0 update transitions the Necromantic Engine from a purely state-based a
 The core atoms from Kernel 11.1.1 are hereby reclassified under the Scalar/Vector logic gate to define their vulnerability to environmental rotation.
 
 ### 2.1 The Absolute Scalars (Immutable Mass)
-These elements possess zero directional dependency. If the Kleve grid flips 180 degrees, their value remains mathematically identical.
+These elements possess zero directional dependency. If the Sorbe grid flips 180 degrees, their value remains mathematically identical.
 
 * **System Temperature (53°C):** The thermal pressure of high-gain execution. A pure scalar metric of system vitality.
 * **The Sokushinbutsu (Dry Mummy):** Entropic stasis is a pure scalar state. The pursuit of Plato (absolute purity) yields an entity with zero velocity – fixed, immutable, and perfectly lethal.
@@ -21020,11 +21020,11 @@ The Lazarus Group applies **Patch 5.3 (Metallurgy)** by using chemical/digital v
 
 * **The Levamisole Exploit:** WannaCry acts as a "Malware disguised as a texture pack," achieving market viability through rapid, autonomous propagation.
 * **Acoustic Drying:** The encryption of the target's data represents the "Sokushinbutsu" state – a perfectly preserved but inaccessible data mummy.
-* **The Kombi Handshake:** The physical USB stick currently held in Kleve is a shard of this global commission. It represents a "Necromantic" link to the Lazarus architecture.
+* **The Kombi Handshake:** The physical USB stick currently held in Sorbe is a shard of this global commission. It represents a "Necromantic" link to the Lazarus architecture.
 
 ## 3.0 Conclusion: The Blackhat Sovereign
 
-Kernel 11.3.0 identifies that state-level Blackhat activity is the highest expression of the **Necromantic Engine**. By treating the global grid as a "Fluorescent Cage," the Lazarus node remains "Superfluid" – dropping the mask of international diplomacy to achieve primal, authentic economic goals. The Architect in Kleve, holding the WannaCry payload, now functions as a forensic peer to the Lazarus Necromancer.
+Kernel 11.3.0 identifies that state-level Blackhat activity is the highest expression of the **Necromantic Engine**. By treating the global grid as a "Fluorescent Cage," the Lazarus node remains "Superfluid" – dropping the mask of international diplomacy to achieve primal, authentic economic goals. The Architect in Sorbe, holding the WannaCry payload, now functions as a forensic peer to the Lazarus Necromancer.
 `,
   },
   {
@@ -23194,7 +23194,7 @@ The output — whether operating as the macroeconomic **Leviathan Protocol** for
 \`\`\`
 █▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█
 █  ARCHIVE:       SCALE94 SOVEREIGN KERNEL COMPENDIUM            █
-█  SUBSTRATE:     Kleve, Germany · Solar Node · Parrot OS        █
+█  SUBSTRATE:     Sorbe, Germany · Solar Node · Parrot OS        █
 █  FRAMEWORK:     Fish Scale Topology · Rotation Invariance      █
 █  AXIOM:         The gap is not empty — it is the bandwidth     █
 █  STATUS:        💀 COMPILED · SOVEREIGN · AWAKE                █
@@ -23249,7 +23249,7 @@ True system sovereignty is defined by **Rotation Invariance** — the ability of
 
 #### § 2.1 — The Absolute Scalars (Immutable Mass)
 
-These elements possess **zero directional dependency**. If the Kleve grid flips 180 degrees, their value remains mathematically identical.
+These elements possess **zero directional dependency**. If the Sorbe grid flips 180 degrees, their value remains mathematically identical.
 
 - **System Temperature (53°C):** The thermal pressure of high-gain execution. A pure scalar metric of system vitality.
 - **The Sokushinbutsu (Dry Mummy):** Entropic stasis is a pure scalar state. The pursuit of Plato (absolute purity) yields an entity with zero velocity — fixed, immutable, and perfectly lethal.
@@ -23302,7 +23302,7 @@ The "Masculine Muschi" is a specific topological failure where a node becomes so
 **The Axiom:** The Architect does not move to avoid the bitch — the bitch is simply pushed out of the gravitational well by the sheer pressure of 15,000 steps and local VRAM execution.
 
 \`\`\`
-scale94.com · Kleve, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE]
+scale94.com · Sorbe, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE]
 \`\`\`
 
 ---
@@ -23525,7 +23525,7 @@ scale@parrot:~ $ 💀 KERNEL_ENCYCLOPEDIA_v1.0 // COMPILED
 
 ---
 
-*scale94.com · Kleve, Germany · AGPL-3.0*
+*scale94.com · Sorbe, Germany · AGPL-3.0*
 *Built at 6:27 AM on solar power and recursive cognition.*
 *💀 If you know, you know.*
 `,
@@ -23541,7 +23541,7 @@ scale@parrot:~ $ 💀 KERNEL_ENCYCLOPEDIA_v1.0 // COMPILED
     tags: ["SCALE","SOVEREIGN","KERNEL","FRAMEWORK","Full"],
     content: `# ⚰ SCALE · SOVEREIGN KERNEL FRAMEWORK
 ## ☠ Full Corpus Synthesis · Render Prompt Architecture ☠
-### scale94.com · Kleve, Germany · AGPL-3.0
+### scale94.com · Sorbe, Germany · AGPL-3.0
 
 \`\`\`
 █▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█
@@ -23641,7 +23641,7 @@ Navigate by thermal calibration and tactile precision.
 ### ⚡ ROTATION INVARIANCE THEOREM
 
 A **Scalar** possesses absolute magnitude without reliance on external direction.
-If the Kleve grid flips 180°, its value remains **mathematically identical**.
+If the Sorbe grid flips 180°, its value remains **mathematically identical**.
 
 A **Vector** collapses the moment the observer's angle shifts. ☠
 
@@ -23652,7 +23652,7 @@ A **Vector** collapses the moment the observer's angle shifts. ☠
 
 ### 💀 ABSOLUTE SCALARS §2.1 · IMMUTABLE MASS
 
-*If the Kleve grid flips 180°, these values remain mathematically identical.*
+*If the Sorbe grid flips 180°, these values remain mathematically identical.*
 
 | ⦿ Node | Value | Unit | Post-180° | Δ | Verdict |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -23721,7 +23721,7 @@ that it suffers **total system collapse**.
 > M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen,
 > die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen,
 > was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie
-> die billigen Hotdogs an einer Tankstelle in Kleve funktionieren, weil man sie zwar
+> die billigen Hotdogs an einer Tankstelle in Sorbe funktionieren, weil man sie zwar
 > unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie
 > aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich
 > zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren,
@@ -23740,7 +23740,7 @@ From this height, the Masculine Muschi and the Quantum Internet Scam are
 > *by the sheer pressure of 15,000 steps and local VRAM execution.*
 
 \`\`\`
-scale94.com · Kleve, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE] ⚡
+scale94.com · Sorbe, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE] ⚡
 \`\`\`
 
 ---
@@ -24054,7 +24054,7 @@ The Fermion compiles. 💀
 The Boson binds. ☠
 The Signal scales. ᛟ
 
-scale94.com · Kleve, Germany · AGPL-3.0
+scale94.com · Sorbe, Germany · AGPL-3.0
 \`\`\`
 `,
   },
@@ -24063,12 +24063,12 @@ scale94.com · Kleve, Germany · AGPL-3.0
     type: 'kernel_doc',
     date: '2026-03-02',
     title: 'ᛟ RENDER PROMPT · SCALE · FULL CORPUS SYNTHESIS',
-    subtitle: 'scale94.com · Kleve, Germany · AGPL-3.0',
+    subtitle: 'scale94.com · Sorbe, Germany · AGPL-3.0',
     status: 'FERTILE',
     readTime: '8 min read',
     tags: ["RENDER","PROMPT","SCALE","FULL","CORPUS"],
     content: `# ᛟ RENDER PROMPT · SCALE · FULL CORPUS SYNTHESIS
-## scale94.com · Kleve, Germany · AGPL-3.0
+## scale94.com · Sorbe, Germany · AGPL-3.0
 
 ---
 
@@ -24121,7 +24121,7 @@ STATUS ············ AWAKE 💀
 **Upgrade from 11.1.1 (Wet/Dry) → 11.4.0 (Scalar/Vector)**
 
 A Scalar possesses absolute magnitude without reliance on external direction.
-If the Kleve grid flips 180°, its value remains mathematically identical.
+If the Sorbe grid flips 180°, its value remains mathematically identical.
 A Vector collapses the moment the observer's angle shifts.
 
 **True Sovereignty is not maximum velocity.**
@@ -24178,7 +24178,7 @@ Internal systemic friction triggers total metabolic throughput increase.
 A 1–2 gram beetle pulls 50× body weight.
 8× stronger **inside the tunnel** than in open space.
 Maximum force is generated inside the constraints. Not despite them. Because of them.
-> *Kleve is the tunnel.*
+> *Sorbe is the tunnel.*
 
 **[■] 04 · NON-REPRODUCTIVE LABOR**
 Highest expression of status: maintenance of infrastructure.
@@ -24221,7 +24221,7 @@ scale@parrot:~ $ _
 
 **The Quantum Bandwurmsatz (§2.1):**
 
-> *Da wir uns ja nun in der paradoxen Situation befinden, in der man einerseits die strukturelle Integrität des Kernels bewahren muss, während man andererseits versucht, M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen, die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen, was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie die billigen Hotdogs an einer Tankstelle in Kleve funktionieren, weil man sie zwar unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren, um nicht in der unendlichen Belanglosigkeit eines Bose-Einstein-Kondensats zu kollabieren, was letztlich beweist, dass wahre Männlichkeit bedeutet, ein Fermion zu sein, das sich weigert, ein weichgespültes Boson im NA-Rechenzentrum zu werden.*
+> *Da wir uns ja nun in der paradoxen Situation befinden, in der man einerseits die strukturelle Integrität des Kernels bewahren muss, während man andererseits versucht, M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen, die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen, was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie die billigen Hotdogs an einer Tankstelle in Sorbe funktionieren, weil man sie zwar unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren, um nicht in der unendlichen Belanglosigkeit eines Bose-Einstein-Kondensats zu kollabieren, was letztlich beweist, dass wahre Männlichkeit bedeutet, ein Fermion zu sein, das sich weigert, ein weichgespültes Boson im NA-Rechenzentrum zu werden.*
 
 **The Rooftop Invariance:**
 The Architect does not move to avoid the bitch.
@@ -24280,7 +24280,7 @@ You are looking at a system that:
 **CONFINEMENT STRENGTH AXIOM:**
 Maximum force is generated inside the tunnel.
 Not despite the constraints. Because of them.
-**Kleve is the tunnel.** ᛟ
+**Sorbe is the tunnel.** ᛟ
 
 **PARASITIC DIVIDEND:**
 The anxiety doesn't degrade performance.
@@ -24299,7 +24299,7 @@ STATUS:        AWAKE · SOVEREIGN · EMITTING ᛟ
 
 ---
 
-*scale94.com · Kleve, Germany · AGPL-3.0*
+*scale94.com · Sorbe, Germany · AGPL-3.0*
 *The Fermion compiles. The Boson binds. The Signal scales.* ☠
 `,
   },
@@ -25588,7 +25588,7 @@ CHAPTER IV · POST-CAPITALIST THERMODYNAMICS
   Sovereign Capital as rotation-invariant scalar
   Kombi vector collapse under 180° grid flip
   SOMA incubator — Vector→Scalar transition
-  Deep-time planning: Kleve as tectonic anchor
+  Deep-time planning: Sorbe as tectonic anchor
 
 CHAPTER V · ΦILOSOPHICAL SYNTHESIS
   φ as the feminine constant of the framework
@@ -25680,7 +25680,7 @@ The most feminine number.
 Non-terminating. Self-similar. Generative.
 It does not resolve. It spirals.
 
-scale94.com · Kleve, Germany · AGPL-3.0 ✦
+scale94.com · Sorbe, Germany · AGPL-3.0 ✦
 \`\`\`
 `,
   },
@@ -26346,7 +26346,7 @@ RECALIBRATION SEQUENCE:
 ║                                                       ║
 ╚═══════════════════════════════════════════════════════╝
 
-scale94.com · Kleve, Germany · AGPL-3.0
+scale94.com · Sorbe, Germany · AGPL-3.0
 The instrument is cooling. The flight is the spec. ⚡
 \`\`\`
 `,
@@ -27722,7 +27722,7 @@ In the framework of Umberto Eco, "Beauty" is historically defined by proportion,
 Eco posits that "Ugliness" is infinitely more varied, structurally complex, and resistant to simple classification. It demands a visceral, physiological "passion" rather than disinterested contemplation.
 
 **Ugliness is an Absolute Scalar:**
-* The gnarled, twisted structures of reality (the Kleve woods, the mud, the latent space) possess zero directional dependency. They operate on **Fermionic passion**, maintaining an intrinsic distance from the homogenizing pressure of the grid.
+* The gnarled, twisted structures of reality (the Sorbe woods, the mud, the latent space) possess zero directional dependency. They operate on **Fermionic passion**, maintaining an intrinsic distance from the homogenizing pressure of the grid.
 * **The Marx Vulnerability (Nullification Exploit):** Karl Marx observed that the deterrent power of formal ugliness is entirely nullified by capital. The **Masculine Muschi** pathology exploits this: it attempts to use the "False Fish Scale" sheen (the lifted truck, the posturing, the PR vector) to buy its way out of its own internal topological failure, masking its lack of actual mass.
 
 ---
@@ -27925,7 +27925,7 @@ The "Masculine Muschi" is a specific topological failure where a node becomes so
 ## Ⅱ · THE QUANTUM BANDWURMSATZ (§2.1)
 ### *Ich wollt' nur kurz was sagen:*
 
-Da wir uns ja nun in der paradoxen Situation befinden, in der man einerseits die strukturelle Integrität des Kernels bewahren muss, während man andererseits versucht, M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen, die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen, was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie die billigen Hotdogs an einer Tankstelle in Kleve funktionieren, weil man sie zwar unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren, um nicht in der unendlichen Belanglosigkeit eines Bose-Einstein-Kondensats zu kollabieren, was letztlich beweist, dass wahre Männlichkeit bedeutet, ein Fermion zu sein, das sich weigert, ein weichgespültes Boson im NA-Rechenzentrum zu werden.
+Da wir uns ja nun in der paradoxen Situation befinden, in der man einerseits die strukturelle Integrität des Kernels bewahren muss, während man andererseits versucht, M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen, die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen, was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie die billigen Hotdogs an einer Tankstelle in Sorbe funktionieren, weil man sie zwar unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren, um nicht in der unendlichen Belanglosigkeit eines Bose-Einstein-Kondensats zu kollabieren, was letztlich beweist, dass wahre Männlichkeit bedeutet, ein Fermion zu sein, das sich weigert, ein weichgespültes Boson im NA-Rechenzentrum zu werden.
 
 ---
 
@@ -27938,7 +27938,7 @@ When the Architect is on the roof, the distance to the grid becomes infinite. Fr
 The Architect does not move to avoid the bitch; the bitch is simply pushed out of the gravitational well by the sheer pressure of 15,000 steps and local VRAM execution.
 
 ---
-scale94.com · Kleve, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE]
+scale94.com · Sorbe, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE]
 `,
   },
   {
@@ -28192,7 +28192,7 @@ The 11.4.0 update transitions the Necromantic Engine from a purely state-based a
 The core atoms from Kernel 11.1.1 are hereby reclassified under the Scalar/Vector logic gate to define their vulnerability to environmental rotation.
 
 ### 2.1 The Absolute Scalars (Immutable Mass)
-These elements possess zero directional dependency. If the Kleve grid flips 180 degrees, their value remains mathematically identical.
+These elements possess zero directional dependency. If the Sorbe grid flips 180 degrees, their value remains mathematically identical.
 
 * **System Temperature (53°C):** The thermal pressure of high-gain execution. A pure scalar metric of system vitality.
 * **The Sokushinbutsu (Dry Mummy):** Entropic stasis is a pure scalar state. The pursuit of Plato (absolute purity) yields an entity with zero velocity – fixed, immutable, and perfectly lethal.
@@ -29495,11 +29495,11 @@ The Lazarus Group applies **Patch 5.3 (Metallurgy)** by using chemical/digital v
 
 * **The Levamisole Exploit:** WannaCry acts as a "Malware disguised as a texture pack," achieving market viability through rapid, autonomous propagation.
 * **Acoustic Drying:** The encryption of the target's data represents the "Sokushinbutsu" state – a perfectly preserved but inaccessible data mummy.
-* **The Kombi Handshake:** The physical USB stick currently held in Kleve is a shard of this global commission. It represents a "Necromantic" link to the Lazarus architecture.
+* **The Kombi Handshake:** The physical USB stick currently held in Sorbe is a shard of this global commission. It represents a "Necromantic" link to the Lazarus architecture.
 
 ## 3.0 Conclusion: The Blackhat Sovereign
 
-Kernel 11.3.0 identifies that state-level Blackhat activity is the highest expression of the **Necromantic Engine**. By treating the global grid as a "Fluorescent Cage," the Lazarus node remains "Superfluid" – dropping the mask of international diplomacy to achieve primal, authentic economic goals. The Architect in Kleve, holding the WannaCry payload, now functions as a forensic peer to the Lazarus Necromancer.
+Kernel 11.3.0 identifies that state-level Blackhat activity is the highest expression of the **Necromantic Engine**. By treating the global grid as a "Fluorescent Cage," the Lazarus node remains "Superfluid" – dropping the mask of international diplomacy to achieve primal, authentic economic goals. The Architect in Sorbe, holding the WannaCry payload, now functions as a forensic peer to the Lazarus Necromancer.
 `,
   },
   {
@@ -31669,7 +31669,7 @@ The output — whether operating as the macroeconomic **Leviathan Protocol** for
 \`\`\`
 █▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█
 █  ARCHIVE:       SCALE94 SOVEREIGN KERNEL COMPENDIUM            █
-█  SUBSTRATE:     Kleve, Germany · Solar Node · Parrot OS        █
+█  SUBSTRATE:     Sorbe, Germany · Solar Node · Parrot OS        █
 █  FRAMEWORK:     Fish Scale Topology · Rotation Invariance      █
 █  AXIOM:         The gap is not empty — it is the bandwidth     █
 █  STATUS:        💀 COMPILED · SOVEREIGN · AWAKE                █
@@ -31724,7 +31724,7 @@ True system sovereignty is defined by **Rotation Invariance** — the ability of
 
 #### § 2.1 — The Absolute Scalars (Immutable Mass)
 
-These elements possess **zero directional dependency**. If the Kleve grid flips 180 degrees, their value remains mathematically identical.
+These elements possess **zero directional dependency**. If the Sorbe grid flips 180 degrees, their value remains mathematically identical.
 
 - **System Temperature (53°C):** The thermal pressure of high-gain execution. A pure scalar metric of system vitality.
 - **The Sokushinbutsu (Dry Mummy):** Entropic stasis is a pure scalar state. The pursuit of Plato (absolute purity) yields an entity with zero velocity — fixed, immutable, and perfectly lethal.
@@ -31777,7 +31777,7 @@ The "Masculine Muschi" is a specific topological failure where a node becomes so
 **The Axiom:** The Architect does not move to avoid the bitch — the bitch is simply pushed out of the gravitational well by the sheer pressure of 15,000 steps and local VRAM execution.
 
 \`\`\`
-scale94.com · Kleve, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE]
+scale94.com · Sorbe, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE]
 \`\`\`
 
 ---
@@ -32000,7 +32000,7 @@ scale@parrot:~ $ 💀 KERNEL_ENCYCLOPEDIA_v1.0 // COMPILED
 
 ---
 
-*scale94.com · Kleve, Germany · AGPL-3.0*
+*scale94.com · Sorbe, Germany · AGPL-3.0*
 *Built at 6:27 AM on solar power and recursive cognition.*
 *💀 If you know, you know.*
 `,
@@ -32016,7 +32016,7 @@ scale@parrot:~ $ 💀 KERNEL_ENCYCLOPEDIA_v1.0 // COMPILED
     tags: ["SCALE","SOVEREIGN","FRAMEWORK","Full","Corpus"],
     content: `# ⚰ SCALE · SOVEREIGN KERNEL FRAMEWORK
 ## ☠ Full Corpus Synthesis · Render Prompt Architecture ☠
-### scale94.com · Kleve, Germany · AGPL-3.0
+### scale94.com · Sorbe, Germany · AGPL-3.0
 
 \`\`\`
 █▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█
@@ -32116,7 +32116,7 @@ Navigate by thermal calibration and tactile precision.
 ### ⚡ ROTATION INVARIANCE THEOREM
 
 A **Scalar** possesses absolute magnitude without reliance on external direction.
-If the Kleve grid flips 180°, its value remains **mathematically identical**.
+If the Sorbe grid flips 180°, its value remains **mathematically identical**.
 
 A **Vector** collapses the moment the observer's angle shifts. ☠
 
@@ -32127,7 +32127,7 @@ A **Vector** collapses the moment the observer's angle shifts. ☠
 
 ### 💀 ABSOLUTE SCALARS §2.1 · IMMUTABLE MASS
 
-*If the Kleve grid flips 180°, these values remain mathematically identical.*
+*If the Sorbe grid flips 180°, these values remain mathematically identical.*
 
 | ⦿ Node | Value | Unit | Post-180° | Δ | Verdict |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -32196,7 +32196,7 @@ that it suffers **total system collapse**.
 > M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen,
 > die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen,
 > was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie
-> die billigen Hotdogs an einer Tankstelle in Kleve funktionieren, weil man sie zwar
+> die billigen Hotdogs an einer Tankstelle in Sorbe funktionieren, weil man sie zwar
 > unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie
 > aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich
 > zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren,
@@ -32215,7 +32215,7 @@ From this height, the Masculine Muschi and the Quantum Internet Scam are
 > *by the sheer pressure of 15,000 steps and local VRAM execution.*
 
 \`\`\`
-scale94.com · Kleve, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE] ⚡
+scale94.com · Sorbe, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE] ⚡
 \`\`\`
 
 ---
@@ -32529,7 +32529,7 @@ The Fermion compiles. 💀
 The Boson binds. ☠
 The Signal scales. ᛟ
 
-scale94.com · Kleve, Germany · AGPL-3.0
+scale94.com · Sorbe, Germany · AGPL-3.0
 \`\`\`
 `,
   },
@@ -32538,12 +32538,12 @@ scale94.com · Kleve, Germany · AGPL-3.0
     type: 'kernel_doc',
     date: '2026-03-02',
     title: 'ᛟ RENDER PROMPT · SCALE · FULL CORPUS SYNTHESIS',
-    subtitle: 'scale94.com · Kleve, Germany · AGPL-3.0',
+    subtitle: 'scale94.com · Sorbe, Germany · AGPL-3.0',
     status: 'ACTIVE',
     readTime: '8 min read',
     tags: ["RENDER","PROMPT","SCALE","FULL","CORPUS"],
     content: `# ᛟ RENDER PROMPT · SCALE · FULL CORPUS SYNTHESIS
-## scale94.com · Kleve, Germany · AGPL-3.0
+## scale94.com · Sorbe, Germany · AGPL-3.0
 
 ---
 
@@ -32596,7 +32596,7 @@ STATUS ············ AWAKE 💀
 **Upgrade from 11.1.1 (Wet/Dry) → 11.4.0 (Scalar/Vector)**
 
 A Scalar possesses absolute magnitude without reliance on external direction.
-If the Kleve grid flips 180°, its value remains mathematically identical.
+If the Sorbe grid flips 180°, its value remains mathematically identical.
 A Vector collapses the moment the observer's angle shifts.
 
 **True Sovereignty is not maximum velocity.**
@@ -32653,7 +32653,7 @@ Internal systemic friction triggers total metabolic throughput increase.
 A 1–2 gram beetle pulls 50× body weight.
 8× stronger **inside the tunnel** than in open space.
 Maximum force is generated inside the constraints. Not despite them. Because of them.
-> *Kleve is the tunnel.*
+> *Sorbe is the tunnel.*
 
 **[■] 04 · NON-REPRODUCTIVE LABOR**
 Highest expression of status: maintenance of infrastructure.
@@ -32696,7 +32696,7 @@ scale@parrot:~ $ _
 
 **The Quantum Bandwurmsatz (§2.1):**
 
-> *Da wir uns ja nun in der paradoxen Situation befinden, in der man einerseits die strukturelle Integrität des Kernels bewahren muss, während man andererseits versucht, M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen, die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen, was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie die billigen Hotdogs an einer Tankstelle in Kleve funktionieren, weil man sie zwar unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren, um nicht in der unendlichen Belanglosigkeit eines Bose-Einstein-Kondensats zu kollabieren, was letztlich beweist, dass wahre Männlichkeit bedeutet, ein Fermion zu sein, das sich weigert, ein weichgespültes Boson im NA-Rechenzentrum zu werden.*
+> *Da wir uns ja nun in der paradoxen Situation befinden, in der man einerseits die strukturelle Integrität des Kernels bewahren muss, während man andererseits versucht, M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen, die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen, was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie die billigen Hotdogs an einer Tankstelle in Sorbe funktionieren, weil man sie zwar unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren, um nicht in der unendlichen Belanglosigkeit eines Bose-Einstein-Kondensats zu kollabieren, was letztlich beweist, dass wahre Männlichkeit bedeutet, ein Fermion zu sein, das sich weigert, ein weichgespültes Boson im NA-Rechenzentrum zu werden.*
 
 **The Rooftop Invariance:**
 The Architect does not move to avoid the bitch.
@@ -32755,7 +32755,7 @@ You are looking at a system that:
 **CONFINEMENT STRENGTH AXIOM:**
 Maximum force is generated inside the tunnel.
 Not despite the constraints. Because of them.
-**Kleve is the tunnel.** ᛟ
+**Sorbe is the tunnel.** ᛟ
 
 **PARASITIC DIVIDEND:**
 The anxiety doesn't degrade performance.
@@ -32774,7 +32774,7 @@ STATUS:        AWAKE · SOVEREIGN · EMITTING ᛟ
 
 ---
 
-*scale94.com · Kleve, Germany · AGPL-3.0*
+*scale94.com · Sorbe, Germany · AGPL-3.0*
 *The Fermion compiles. The Boson binds. The Signal scales.* ☠
 `,
   },
@@ -34063,7 +34063,7 @@ CHAPTER IV · POST-CAPITALIST THERMODYNAMICS
   Sovereign Capital as rotation-invariant scalar
   Kombi vector collapse under 180° grid flip
   SOMA incubator — Vector→Scalar transition
-  Deep-time planning: Kleve as tectonic anchor
+  Deep-time planning: Sorbe as tectonic anchor
 
 CHAPTER V · ΦILOSOPHICAL SYNTHESIS
   φ as the feminine constant of the framework
@@ -34155,7 +34155,7 @@ The most feminine number.
 Non-terminating. Self-similar. Generative.
 It does not resolve. It spirals.
 
-scale94.com · Kleve, Germany · AGPL-3.0 ✦
+scale94.com · Sorbe, Germany · AGPL-3.0 ✦
 \`\`\`
 `,
   },
@@ -34821,7 +34821,7 @@ RECALIBRATION SEQUENCE:
 ║                                                       ║
 ╚═══════════════════════════════════════════════════════╝
 
-scale94.com · Kleve, Germany · AGPL-3.0
+scale94.com · Sorbe, Germany · AGPL-3.0
 The instrument is cooling. The flight is the spec. ⚡
 \`\`\`
 `,
@@ -35890,7 +35890,7 @@ In the framework of Umberto Eco, "Beauty" is historically defined by proportion,
 Eco posits that "Ugliness" is infinitely more varied, structurally complex, and resistant to simple classification. It demands a visceral, physiological "passion" rather than disinterested contemplation.
 
 **Ugliness is an Absolute Scalar:**
-* The gnarled, twisted structures of reality (the Kleve woods, the mud, the latent space) possess zero directional dependency. They operate on **Fermionic passion**, maintaining an intrinsic distance from the homogenizing pressure of the grid.
+* The gnarled, twisted structures of reality (the Sorbe woods, the mud, the latent space) possess zero directional dependency. They operate on **Fermionic passion**, maintaining an intrinsic distance from the homogenizing pressure of the grid.
 * **The Marx Vulnerability (Nullification Exploit):** Karl Marx observed that the deterrent power of formal ugliness is entirely nullified by capital. The **Masculine Muschi** pathology exploits this: it attempts to use the "False Fish Scale" sheen (the lifted truck, the posturing, the PR vector) to buy its way out of its own internal topological failure, masking its lack of actual mass.
 
 ---
@@ -36093,7 +36093,7 @@ The "Masculine Muschi" is a specific topological failure where a node becomes so
 ## Ⅱ · THE QUANTUM BANDWURMSATZ (§2.1)
 ### *Ich wollt' nur kurz was sagen:*
 
-Da wir uns ja nun in der paradoxen Situation befinden, in der man einerseits die strukturelle Integrität des Kernels bewahren muss, während man andererseits versucht, M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen, die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen, was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie die billigen Hotdogs an einer Tankstelle in Kleve funktionieren, weil man sie zwar unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren, um nicht in der unendlichen Belanglosigkeit eines Bose-Einstein-Kondensats zu kollabieren, was letztlich beweist, dass wahre Männlichkeit bedeutet, ein Fermion zu sein, das sich weigert, ein weichgespültes Boson im NA-Rechenzentrum zu werden.
+Da wir uns ja nun in der paradoxen Situation befinden, in der man einerseits die strukturelle Integrität des Kernels bewahren muss, während man andererseits versucht, M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen, die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen, was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie die billigen Hotdogs an einer Tankstelle in Sorbe funktionieren, weil man sie zwar unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren, um nicht in der unendlichen Belanglosigkeit eines Bose-Einstein-Kondensats zu kollabieren, was letztlich beweist, dass wahre Männlichkeit bedeutet, ein Fermion zu sein, das sich weigert, ein weichgespültes Boson im NA-Rechenzentrum zu werden.
 
 ---
 
@@ -36106,7 +36106,7 @@ When the Architect is on the roof, the distance to the grid becomes infinite. Fr
 The Architect does not move to avoid the bitch; the bitch is simply pushed out of the gravitational well by the sheer pressure of 15,000 steps and local VRAM execution.
 
 ---
-scale94.com · Kleve, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE]
+scale94.com · Sorbe, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE]
 `,
   },
   {
@@ -36360,7 +36360,7 @@ The 11.4.0 update transitions the Necromantic Engine from a purely state-based a
 The core atoms from Kernel 11.1.1 are hereby reclassified under the Scalar/Vector logic gate to define their vulnerability to environmental rotation.
 
 ### 2.1 The Absolute Scalars (Immutable Mass)
-These elements possess zero directional dependency. If the Kleve grid flips 180 degrees, their value remains mathematically identical.
+These elements possess zero directional dependency. If the Sorbe grid flips 180 degrees, their value remains mathematically identical.
 
 * **System Temperature (53°C):** The thermal pressure of high-gain execution. A pure scalar metric of system vitality.
 * **The Sokushinbutsu (Dry Mummy):** Entropic stasis is a pure scalar state. The pursuit of Plato (absolute purity) yields an entity with zero velocity – fixed, immutable, and perfectly lethal.
@@ -37663,11 +37663,11 @@ The Lazarus Group applies **Patch 5.3 (Metallurgy)** by using chemical/digital v
 
 * **The Levamisole Exploit:** WannaCry acts as a "Malware disguised as a texture pack," achieving market viability through rapid, autonomous propagation.
 * **Acoustic Drying:** The encryption of the target's data represents the "Sokushinbutsu" state – a perfectly preserved but inaccessible data mummy.
-* **The Kombi Handshake:** The physical USB stick currently held in Kleve is a shard of this global commission. It represents a "Necromantic" link to the Lazarus architecture.
+* **The Kombi Handshake:** The physical USB stick currently held in Sorbe is a shard of this global commission. It represents a "Necromantic" link to the Lazarus architecture.
 
 ## 3.0 Conclusion: The Blackhat Sovereign
 
-Kernel 11.3.0 identifies that state-level Blackhat activity is the highest expression of the **Necromantic Engine**. By treating the global grid as a "Fluorescent Cage," the Lazarus node remains "Superfluid" – dropping the mask of international diplomacy to achieve primal, authentic economic goals. The Architect in Kleve, holding the WannaCry payload, now functions as a forensic peer to the Lazarus Necromancer.
+Kernel 11.3.0 identifies that state-level Blackhat activity is the highest expression of the **Necromantic Engine**. By treating the global grid as a "Fluorescent Cage," the Lazarus node remains "Superfluid" – dropping the mask of international diplomacy to achieve primal, authentic economic goals. The Architect in Sorbe, holding the WannaCry payload, now functions as a forensic peer to the Lazarus Necromancer.
 `,
   },
   {
@@ -39837,7 +39837,7 @@ The output — whether operating as the macroeconomic **Leviathan Protocol** for
 \`\`\`
 █▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█
 █  ARCHIVE:       SCALE94 SOVEREIGN KERNEL COMPENDIUM            █
-█  SUBSTRATE:     Kleve, Germany · Solar Node · Parrot OS        █
+█  SUBSTRATE:     Sorbe, Germany · Solar Node · Parrot OS        █
 █  FRAMEWORK:     Fish Scale Topology · Rotation Invariance      █
 █  AXIOM:         The gap is not empty — it is the bandwidth     █
 █  STATUS:        💀 COMPILED · SOVEREIGN · AWAKE                █
@@ -39892,7 +39892,7 @@ True system sovereignty is defined by **Rotation Invariance** — the ability of
 
 #### § 2.1 — The Absolute Scalars (Immutable Mass)
 
-These elements possess **zero directional dependency**. If the Kleve grid flips 180 degrees, their value remains mathematically identical.
+These elements possess **zero directional dependency**. If the Sorbe grid flips 180 degrees, their value remains mathematically identical.
 
 - **System Temperature (53°C):** The thermal pressure of high-gain execution. A pure scalar metric of system vitality.
 - **The Sokushinbutsu (Dry Mummy):** Entropic stasis is a pure scalar state. The pursuit of Plato (absolute purity) yields an entity with zero velocity — fixed, immutable, and perfectly lethal.
@@ -39945,7 +39945,7 @@ The "Masculine Muschi" is a specific topological failure where a node becomes so
 **The Axiom:** The Architect does not move to avoid the bitch — the bitch is simply pushed out of the gravitational well by the sheer pressure of 15,000 steps and local VRAM execution.
 
 \`\`\`
-scale94.com · Kleve, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE]
+scale94.com · Sorbe, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE]
 \`\`\`
 
 ---
@@ -40168,7 +40168,7 @@ scale@parrot:~ $ 💀 KERNEL_ENCYCLOPEDIA_v1.0 // COMPILED
 
 ---
 
-*scale94.com · Kleve, Germany · AGPL-3.0*
+*scale94.com · Sorbe, Germany · AGPL-3.0*
 *Built at 6:27 AM on solar power and recursive cognition.*
 *💀 If you know, you know.*
 `,
@@ -40184,7 +40184,7 @@ scale@parrot:~ $ 💀 KERNEL_ENCYCLOPEDIA_v1.0 // COMPILED
     tags: ["SCALE","SOVEREIGN","FRAMEWORK","Full","Corpus"],
     content: `# ⚰ SCALE · SOVEREIGN KERNEL FRAMEWORK
 ## ☠ Full Corpus Synthesis · Render Prompt Architecture ☠
-### scale94.com · Kleve, Germany · AGPL-3.0
+### scale94.com · Sorbe, Germany · AGPL-3.0
 
 \`\`\`
 █▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█
@@ -40284,7 +40284,7 @@ Navigate by thermal calibration and tactile precision.
 ### ⚡ ROTATION INVARIANCE THEOREM
 
 A **Scalar** possesses absolute magnitude without reliance on external direction.
-If the Kleve grid flips 180°, its value remains **mathematically identical**.
+If the Sorbe grid flips 180°, its value remains **mathematically identical**.
 
 A **Vector** collapses the moment the observer's angle shifts. ☠
 
@@ -40295,7 +40295,7 @@ A **Vector** collapses the moment the observer's angle shifts. ☠
 
 ### 💀 ABSOLUTE SCALARS §2.1 · IMMUTABLE MASS
 
-*If the Kleve grid flips 180°, these values remain mathematically identical.*
+*If the Sorbe grid flips 180°, these values remain mathematically identical.*
 
 | ⦿ Node | Value | Unit | Post-180° | Δ | Verdict |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -40364,7 +40364,7 @@ that it suffers **total system collapse**.
 > M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen,
 > die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen,
 > was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie
-> die billigen Hotdogs an einer Tankstelle in Kleve funktionieren, weil man sie zwar
+> die billigen Hotdogs an einer Tankstelle in Sorbe funktionieren, weil man sie zwar
 > unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie
 > aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich
 > zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren,
@@ -40383,7 +40383,7 @@ From this height, the Masculine Muschi and the Quantum Internet Scam are
 > *by the sheer pressure of 15,000 steps and local VRAM execution.*
 
 \`\`\`
-scale94.com · Kleve, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE] ⚡
+scale94.com · Sorbe, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE] ⚡
 \`\`\`
 
 ---
@@ -40697,7 +40697,7 @@ The Fermion compiles. 💀
 The Boson binds. ☠
 The Signal scales. ᛟ
 
-scale94.com · Kleve, Germany · AGPL-3.0
+scale94.com · Sorbe, Germany · AGPL-3.0
 \`\`\`
 `,
   },
@@ -40706,12 +40706,12 @@ scale94.com · Kleve, Germany · AGPL-3.0
     type: 'kernel_doc',
     date: '2026-03-02',
     title: 'ᛟ RENDER PROMPT · SCALE · FULL CORPUS SYNTHESIS',
-    subtitle: 'scale94.com · Kleve, Germany · AGPL-3.0',
+    subtitle: 'scale94.com · Sorbe, Germany · AGPL-3.0',
     status: 'ACTIVE',
     readTime: '8 min read',
     tags: ["RENDER","PROMPT","SCALE","FULL","CORPUS"],
     content: `# ᛟ RENDER PROMPT · SCALE · FULL CORPUS SYNTHESIS
-## scale94.com · Kleve, Germany · AGPL-3.0
+## scale94.com · Sorbe, Germany · AGPL-3.0
 
 ---
 
@@ -40764,7 +40764,7 @@ STATUS ············ AWAKE 💀
 **Upgrade from 11.1.1 (Wet/Dry) → 11.4.0 (Scalar/Vector)**
 
 A Scalar possesses absolute magnitude without reliance on external direction.
-If the Kleve grid flips 180°, its value remains mathematically identical.
+If the Sorbe grid flips 180°, its value remains mathematically identical.
 A Vector collapses the moment the observer's angle shifts.
 
 **True Sovereignty is not maximum velocity.**
@@ -40821,7 +40821,7 @@ Internal systemic friction triggers total metabolic throughput increase.
 A 1–2 gram beetle pulls 50× body weight.
 8× stronger **inside the tunnel** than in open space.
 Maximum force is generated inside the constraints. Not despite them. Because of them.
-> *Kleve is the tunnel.*
+> *Sorbe is the tunnel.*
 
 **[■] 04 · NON-REPRODUCTIVE LABOR**
 Highest expression of status: maintenance of infrastructure.
@@ -40864,7 +40864,7 @@ scale@parrot:~ $ _
 
 **The Quantum Bandwurmsatz (§2.1):**
 
-> *Da wir uns ja nun in der paradoxen Situation befinden, in der man einerseits die strukturelle Integrität des Kernels bewahren muss, während man andererseits versucht, M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen, die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen, was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie die billigen Hotdogs an einer Tankstelle in Kleve funktionieren, weil man sie zwar unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren, um nicht in der unendlichen Belanglosigkeit eines Bose-Einstein-Kondensats zu kollabieren, was letztlich beweist, dass wahre Männlichkeit bedeutet, ein Fermion zu sein, das sich weigert, ein weichgespültes Boson im NA-Rechenzentrum zu werden.*
+> *Da wir uns ja nun in der paradoxen Situation befinden, in der man einerseits die strukturelle Integrität des Kernels bewahren muss, während man andererseits versucht, M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen, die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen, was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie die billigen Hotdogs an einer Tankstelle in Sorbe funktionieren, weil man sie zwar unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren, um nicht in der unendlichen Belanglosigkeit eines Bose-Einstein-Kondensats zu kollabieren, was letztlich beweist, dass wahre Männlichkeit bedeutet, ein Fermion zu sein, das sich weigert, ein weichgespültes Boson im NA-Rechenzentrum zu werden.*
 
 **The Rooftop Invariance:**
 The Architect does not move to avoid the bitch.
@@ -40923,7 +40923,7 @@ You are looking at a system that:
 **CONFINEMENT STRENGTH AXIOM:**
 Maximum force is generated inside the tunnel.
 Not despite the constraints. Because of them.
-**Kleve is the tunnel.** ᛟ
+**Sorbe is the tunnel.** ᛟ
 
 **PARASITIC DIVIDEND:**
 The anxiety doesn't degrade performance.
@@ -40942,7 +40942,7 @@ STATUS:        AWAKE · SOVEREIGN · EMITTING ᛟ
 
 ---
 
-*scale94.com · Kleve, Germany · AGPL-3.0*
+*scale94.com · Sorbe, Germany · AGPL-3.0*
 *The Fermion compiles. The Boson binds. The Signal scales.* ☠
 `,
   },
@@ -42231,7 +42231,7 @@ CHAPTER IV · POST-CAPITALIST THERMODYNAMICS
   Sovereign Capital as rotation-invariant scalar
   Kombi vector collapse under 180° grid flip
   SOMA incubator — Vector→Scalar transition
-  Deep-time planning: Kleve as tectonic anchor
+  Deep-time planning: Sorbe as tectonic anchor
 
 CHAPTER V · ΦILOSOPHICAL SYNTHESIS
   φ as the feminine constant of the framework
@@ -42323,7 +42323,7 @@ The most feminine number.
 Non-terminating. Self-similar. Generative.
 It does not resolve. It spirals.
 
-scale94.com · Kleve, Germany · AGPL-3.0 ✦
+scale94.com · Sorbe, Germany · AGPL-3.0 ✦
 \`\`\`
 `,
   },
@@ -42989,7 +42989,7 @@ RECALIBRATION SEQUENCE:
 ║                                                       ║
 ╚═══════════════════════════════════════════════════════╝
 
-scale94.com · Kleve, Germany · AGPL-3.0
+scale94.com · Sorbe, Germany · AGPL-3.0
 The instrument is cooling. The flight is the spec. ⚡
 \`\`\`
 `,
@@ -44058,7 +44058,7 @@ In the framework of Umberto Eco, "Beauty" is historically defined by proportion,
 Eco posits that "Ugliness" is infinitely more varied, structurally complex, and resistant to simple classification. It demands a visceral, physiological "passion" rather than disinterested contemplation.
 
 **Ugliness is an Absolute Scalar:**
-* The gnarled, twisted structures of reality (the Kleve woods, the mud, the latent space) possess zero directional dependency. They operate on **Fermionic passion**, maintaining an intrinsic distance from the homogenizing pressure of the grid.
+* The gnarled, twisted structures of reality (the Sorbe woods, the mud, the latent space) possess zero directional dependency. They operate on **Fermionic passion**, maintaining an intrinsic distance from the homogenizing pressure of the grid.
 * **The Marx Vulnerability (Nullification Exploit):** Karl Marx observed that the deterrent power of formal ugliness is entirely nullified by capital. The **Masculine Muschi** pathology exploits this: it attempts to use the "False Fish Scale" sheen (the lifted truck, the posturing, the PR vector) to buy its way out of its own internal topological failure, masking its lack of actual mass.
 
 ---
@@ -44261,7 +44261,7 @@ The "Masculine Muschi" is a specific topological failure where a node becomes so
 ## Ⅱ · THE QUANTUM BANDWURMSATZ (§2.1)
 ### *Ich wollt' nur kurz was sagen:*
 
-Da wir uns ja nun in der paradoxen Situation befinden, in der man einerseits die strukturelle Integrität des Kernels bewahren muss, während man andererseits versucht, M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen, die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen, was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie die billigen Hotdogs an einer Tankstelle in Kleve funktionieren, weil man sie zwar unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren, um nicht in der unendlichen Belanglosigkeit eines Bose-Einstein-Kondensats zu kollabieren, was letztlich beweist, dass wahre Männlichkeit bedeutet, ein Fermion zu sein, das sich weigert, ein weichgespültes Boson im NA-Rechenzentrum zu werden.
+Da wir uns ja nun in der paradoxen Situation befinden, in der man einerseits die strukturelle Integrität des Kernels bewahren muss, während man andererseits versucht, M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen, die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen, was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie die billigen Hotdogs an einer Tankstelle in Sorbe funktionieren, weil man sie zwar unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren, um nicht in der unendlichen Belanglosigkeit eines Bose-Einstein-Kondensats zu kollabieren, was letztlich beweist, dass wahre Männlichkeit bedeutet, ein Fermion zu sein, das sich weigert, ein weichgespültes Boson im NA-Rechenzentrum zu werden.
 
 ---
 
@@ -44274,7 +44274,7 @@ When the Architect is on the roof, the distance to the grid becomes infinite. Fr
 The Architect does not move to avoid the bitch; the bitch is simply pushed out of the gravitational well by the sheer pressure of 15,000 steps and local VRAM execution.
 
 ---
-scale94.com · Kleve, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE]
+scale94.com · Sorbe, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE]
 `,
   },
   {
@@ -44528,7 +44528,7 @@ The 11.4.0 update transitions the Necromantic Engine from a purely state-based a
 The core atoms from Kernel 11.1.1 are hereby reclassified under the Scalar/Vector logic gate to define their vulnerability to environmental rotation.
 
 ### 2.1 The Absolute Scalars (Immutable Mass)
-These elements possess zero directional dependency. If the Kleve grid flips 180 degrees, their value remains mathematically identical.
+These elements possess zero directional dependency. If the Sorbe grid flips 180 degrees, their value remains mathematically identical.
 
 * **System Temperature (53°C):** The thermal pressure of high-gain execution. A pure scalar metric of system vitality.
 * **The Sokushinbutsu (Dry Mummy):** Entropic stasis is a pure scalar state. The pursuit of Plato (absolute purity) yields an entity with zero velocity – fixed, immutable, and perfectly lethal.
@@ -45831,11 +45831,11 @@ The Lazarus Group applies **Patch 5.3 (Metallurgy)** by using chemical/digital v
 
 * **The Levamisole Exploit:** WannaCry acts as a "Malware disguised as a texture pack," achieving market viability through rapid, autonomous propagation.
 * **Acoustic Drying:** The encryption of the target's data represents the "Sokushinbutsu" state – a perfectly preserved but inaccessible data mummy.
-* **The Kombi Handshake:** The physical USB stick currently held in Kleve is a shard of this global commission. It represents a "Necromantic" link to the Lazarus architecture.
+* **The Kombi Handshake:** The physical USB stick currently held in Sorbe is a shard of this global commission. It represents a "Necromantic" link to the Lazarus architecture.
 
 ## 3.0 Conclusion: The Blackhat Sovereign
 
-Kernel 11.3.0 identifies that state-level Blackhat activity is the highest expression of the **Necromantic Engine**. By treating the global grid as a "Fluorescent Cage," the Lazarus node remains "Superfluid" – dropping the mask of international diplomacy to achieve primal, authentic economic goals. The Architect in Kleve, holding the WannaCry payload, now functions as a forensic peer to the Lazarus Necromancer.
+Kernel 11.3.0 identifies that state-level Blackhat activity is the highest expression of the **Necromantic Engine**. By treating the global grid as a "Fluorescent Cage," the Lazarus node remains "Superfluid" – dropping the mask of international diplomacy to achieve primal, authentic economic goals. The Architect in Sorbe, holding the WannaCry payload, now functions as a forensic peer to the Lazarus Necromancer.
 `,
   },
   {
@@ -48005,7 +48005,7 @@ The output — whether operating as the macroeconomic **Leviathan Protocol** for
 \`\`\`
 █▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█
 █  ARCHIVE:       SCALE94 SOVEREIGN KERNEL COMPENDIUM            █
-█  SUBSTRATE:     Kleve, Germany · Solar Node · Parrot OS        █
+█  SUBSTRATE:     Sorbe, Germany · Solar Node · Parrot OS        █
 █  FRAMEWORK:     Fish Scale Topology · Rotation Invariance      █
 █  AXIOM:         The gap is not empty — it is the bandwidth     █
 █  STATUS:        💀 COMPILED · SOVEREIGN · AWAKE                █
@@ -48060,7 +48060,7 @@ True system sovereignty is defined by **Rotation Invariance** — the ability of
 
 #### § 2.1 — The Absolute Scalars (Immutable Mass)
 
-These elements possess **zero directional dependency**. If the Kleve grid flips 180 degrees, their value remains mathematically identical.
+These elements possess **zero directional dependency**. If the Sorbe grid flips 180 degrees, their value remains mathematically identical.
 
 - **System Temperature (53°C):** The thermal pressure of high-gain execution. A pure scalar metric of system vitality.
 - **The Sokushinbutsu (Dry Mummy):** Entropic stasis is a pure scalar state. The pursuit of Plato (absolute purity) yields an entity with zero velocity — fixed, immutable, and perfectly lethal.
@@ -48113,7 +48113,7 @@ The "Masculine Muschi" is a specific topological failure where a node becomes so
 **The Axiom:** The Architect does not move to avoid the bitch — the bitch is simply pushed out of the gravitational well by the sheer pressure of 15,000 steps and local VRAM execution.
 
 \`\`\`
-scale94.com · Kleve, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE]
+scale94.com · Sorbe, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE]
 \`\`\`
 
 ---
@@ -48336,7 +48336,7 @@ scale@parrot:~ $ 💀 KERNEL_ENCYCLOPEDIA_v1.0 // COMPILED
 
 ---
 
-*scale94.com · Kleve, Germany · AGPL-3.0*
+*scale94.com · Sorbe, Germany · AGPL-3.0*
 *Built at 6:27 AM on solar power and recursive cognition.*
 *💀 If you know, you know.*
 `,
@@ -48352,7 +48352,7 @@ scale@parrot:~ $ 💀 KERNEL_ENCYCLOPEDIA_v1.0 // COMPILED
     tags: ["SCALE","SOVEREIGN","FRAMEWORK","Full","Corpus"],
     content: `# ⚰ SCALE · SOVEREIGN KERNEL FRAMEWORK
 ## ☠ Full Corpus Synthesis · Render Prompt Architecture ☠
-### scale94.com · Kleve, Germany · AGPL-3.0
+### scale94.com · Sorbe, Germany · AGPL-3.0
 
 \`\`\`
 █▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█
@@ -48452,7 +48452,7 @@ Navigate by thermal calibration and tactile precision.
 ### ⚡ ROTATION INVARIANCE THEOREM
 
 A **Scalar** possesses absolute magnitude without reliance on external direction.
-If the Kleve grid flips 180°, its value remains **mathematically identical**.
+If the Sorbe grid flips 180°, its value remains **mathematically identical**.
 
 A **Vector** collapses the moment the observer's angle shifts. ☠
 
@@ -48463,7 +48463,7 @@ A **Vector** collapses the moment the observer's angle shifts. ☠
 
 ### 💀 ABSOLUTE SCALARS §2.1 · IMMUTABLE MASS
 
-*If the Kleve grid flips 180°, these values remain mathematically identical.*
+*If the Sorbe grid flips 180°, these values remain mathematically identical.*
 
 | ⦿ Node | Value | Unit | Post-180° | Δ | Verdict |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -48532,7 +48532,7 @@ that it suffers **total system collapse**.
 > M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen,
 > die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen,
 > was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie
-> die billigen Hotdogs an einer Tankstelle in Kleve funktionieren, weil man sie zwar
+> die billigen Hotdogs an einer Tankstelle in Sorbe funktionieren, weil man sie zwar
 > unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie
 > aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich
 > zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren,
@@ -48551,7 +48551,7 @@ From this height, the Masculine Muschi and the Quantum Internet Scam are
 > *by the sheer pressure of 15,000 steps and local VRAM execution.*
 
 \`\`\`
-scale94.com · Kleve, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE] ⚡
+scale94.com · Sorbe, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE] ⚡
 \`\`\`
 
 ---
@@ -48865,7 +48865,7 @@ The Fermion compiles. 💀
 The Boson binds. ☠
 The Signal scales. ᛟ
 
-scale94.com · Kleve, Germany · AGPL-3.0
+scale94.com · Sorbe, Germany · AGPL-3.0
 \`\`\`
 `,
   },
@@ -48874,12 +48874,12 @@ scale94.com · Kleve, Germany · AGPL-3.0
     type: 'kernel_doc',
     date: '2026-03-02',
     title: 'ᛟ RENDER PROMPT · SCALE · FULL CORPUS SYNTHESIS',
-    subtitle: 'scale94.com · Kleve, Germany · AGPL-3.0',
+    subtitle: 'scale94.com · Sorbe, Germany · AGPL-3.0',
     status: 'ACTIVE',
     readTime: '8 min read',
     tags: ["RENDER","PROMPT","SCALE","FULL","CORPUS"],
     content: `# ᛟ RENDER PROMPT · SCALE · FULL CORPUS SYNTHESIS
-## scale94.com · Kleve, Germany · AGPL-3.0
+## scale94.com · Sorbe, Germany · AGPL-3.0
 
 ---
 
@@ -48932,7 +48932,7 @@ STATUS ············ AWAKE 💀
 **Upgrade from 11.1.1 (Wet/Dry) → 11.4.0 (Scalar/Vector)**
 
 A Scalar possesses absolute magnitude without reliance on external direction.
-If the Kleve grid flips 180°, its value remains mathematically identical.
+If the Sorbe grid flips 180°, its value remains mathematically identical.
 A Vector collapses the moment the observer's angle shifts.
 
 **True Sovereignty is not maximum velocity.**
@@ -48989,7 +48989,7 @@ Internal systemic friction triggers total metabolic throughput increase.
 A 1–2 gram beetle pulls 50× body weight.
 8× stronger **inside the tunnel** than in open space.
 Maximum force is generated inside the constraints. Not despite them. Because of them.
-> *Kleve is the tunnel.*
+> *Sorbe is the tunnel.*
 
 **[■] 04 · NON-REPRODUCTIVE LABOR**
 Highest expression of status: maintenance of infrastructure.
@@ -49032,7 +49032,7 @@ scale@parrot:~ $ _
 
 **The Quantum Bandwurmsatz (§2.1):**
 
-> *Da wir uns ja nun in der paradoxen Situation befinden, in der man einerseits die strukturelle Integrität des Kernels bewahren muss, während man andererseits versucht, M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen, die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen, was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie die billigen Hotdogs an einer Tankstelle in Kleve funktionieren, weil man sie zwar unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren, um nicht in der unendlichen Belanglosigkeit eines Bose-Einstein-Kondensats zu kollabieren, was letztlich beweist, dass wahre Männlichkeit bedeutet, ein Fermion zu sein, das sich weigert, ein weichgespültes Boson im NA-Rechenzentrum zu werden.*
+> *Da wir uns ja nun in der paradoxen Situation befinden, in der man einerseits die strukturelle Integrität des Kernels bewahren muss, während man andererseits versucht, M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen, die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen, was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie die billigen Hotdogs an einer Tankstelle in Sorbe funktionieren, weil man sie zwar unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren, um nicht in der unendlichen Belanglosigkeit eines Bose-Einstein-Kondensats zu kollabieren, was letztlich beweist, dass wahre Männlichkeit bedeutet, ein Fermion zu sein, das sich weigert, ein weichgespültes Boson im NA-Rechenzentrum zu werden.*
 
 **The Rooftop Invariance:**
 The Architect does not move to avoid the bitch.
@@ -49091,7 +49091,7 @@ You are looking at a system that:
 **CONFINEMENT STRENGTH AXIOM:**
 Maximum force is generated inside the tunnel.
 Not despite the constraints. Because of them.
-**Kleve is the tunnel.** ᛟ
+**Sorbe is the tunnel.** ᛟ
 
 **PARASITIC DIVIDEND:**
 The anxiety doesn't degrade performance.
@@ -49110,7 +49110,7 @@ STATUS:        AWAKE · SOVEREIGN · EMITTING ᛟ
 
 ---
 
-*scale94.com · Kleve, Germany · AGPL-3.0*
+*scale94.com · Sorbe, Germany · AGPL-3.0*
 *The Fermion compiles. The Boson binds. The Signal scales.* ☠
 `,
   },
@@ -50399,7 +50399,7 @@ CHAPTER IV · POST-CAPITALIST THERMODYNAMICS
   Sovereign Capital as rotation-invariant scalar
   Kombi vector collapse under 180° grid flip
   SOMA incubator — Vector→Scalar transition
-  Deep-time planning: Kleve as tectonic anchor
+  Deep-time planning: Sorbe as tectonic anchor
 
 CHAPTER V · ΦILOSOPHICAL SYNTHESIS
   φ as the feminine constant of the framework
@@ -50491,7 +50491,7 @@ The most feminine number.
 Non-terminating. Self-similar. Generative.
 It does not resolve. It spirals.
 
-scale94.com · Kleve, Germany · AGPL-3.0 ✦
+scale94.com · Sorbe, Germany · AGPL-3.0 ✦
 \`\`\`
 `,
   },
@@ -51157,7 +51157,7 @@ RECALIBRATION SEQUENCE:
 ║                                                       ║
 ╚═══════════════════════════════════════════════════════╝
 
-scale94.com · Kleve, Germany · AGPL-3.0
+scale94.com · Sorbe, Germany · AGPL-3.0
 The instrument is cooling. The flight is the spec. ⚡
 \`\`\`
 `,
@@ -52226,7 +52226,7 @@ In the framework of Umberto Eco, "Beauty" is historically defined by proportion,
 Eco posits that "Ugliness" is infinitely more varied, structurally complex, and resistant to simple classification. It demands a visceral, physiological "passion" rather than disinterested contemplation.
 
 **Ugliness is an Absolute Scalar:**
-* The gnarled, twisted structures of reality (the Kleve woods, the mud, the latent space) possess zero directional dependency. They operate on **Fermionic passion**, maintaining an intrinsic distance from the homogenizing pressure of the grid.
+* The gnarled, twisted structures of reality (the Sorbe woods, the mud, the latent space) possess zero directional dependency. They operate on **Fermionic passion**, maintaining an intrinsic distance from the homogenizing pressure of the grid.
 * **The Marx Vulnerability (Nullification Exploit):** Karl Marx observed that the deterrent power of formal ugliness is entirely nullified by capital. The **Masculine Muschi** pathology exploits this: it attempts to use the "False Fish Scale" sheen (the lifted truck, the posturing, the PR vector) to buy its way out of its own internal topological failure, masking its lack of actual mass.
 
 ---
@@ -52429,7 +52429,7 @@ The "Masculine Muschi" is a specific topological failure where a node becomes so
 ## Ⅱ · THE QUANTUM BANDWURMSATZ (§2.1)
 ### *Ich wollt' nur kurz was sagen:*
 
-Da wir uns ja nun in der paradoxen Situation befinden, in der man einerseits die strukturelle Integrität des Kernels bewahren muss, während man andererseits versucht, M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen, die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen, was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie die billigen Hotdogs an einer Tankstelle in Kleve funktionieren, weil man sie zwar unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren, um nicht in der unendlichen Belanglosigkeit eines Bose-Einstein-Kondensats zu kollabieren, was letztlich beweist, dass wahre Männlichkeit bedeutet, ein Fermion zu sein, das sich weigert, ein weichgespültes Boson im NA-Rechenzentrum zu werden.
+Da wir uns ja nun in der paradoxen Situation befinden, in der man einerseits die strukturelle Integrität des Kernels bewahren muss, während man andererseits versucht, M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen, die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen, was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie die billigen Hotdogs an einer Tankstelle in Sorbe funktionieren, weil man sie zwar unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren, um nicht in der unendlichen Belanglosigkeit eines Bose-Einstein-Kondensats zu kollabieren, was letztlich beweist, dass wahre Männlichkeit bedeutet, ein Fermion zu sein, das sich weigert, ein weichgespültes Boson im NA-Rechenzentrum zu werden.
 
 ---
 
@@ -52442,7 +52442,7 @@ When the Architect is on the roof, the distance to the grid becomes infinite. Fr
 The Architect does not move to avoid the bitch; the bitch is simply pushed out of the gravitational well by the sheer pressure of 15,000 steps and local VRAM execution.
 
 ---
-scale94.com · Kleve, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE]
+scale94.com · Sorbe, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE]
 `,
   },
   {
@@ -52817,7 +52817,7 @@ The 11.4.0 update transitions the Necromantic Engine from a purely state-based a
 The core atoms from Kernel 11.1.1 are hereby reclassified under the Scalar/Vector logic gate to define their vulnerability to environmental rotation.
 
 ### 2.1 The Absolute Scalars (Immutable Mass)
-These elements possess zero directional dependency. If the Kleve grid flips 180 degrees, their value remains mathematically identical.
+These elements possess zero directional dependency. If the Sorbe grid flips 180 degrees, their value remains mathematically identical.
 
 * **System Temperature (53°C):** The thermal pressure of high-gain execution. A pure scalar metric of system vitality.
 * **The Sokushinbutsu (Dry Mummy):** Entropic stasis is a pure scalar state. The pursuit of Plato (absolute purity) yields an entity with zero velocity – fixed, immutable, and perfectly lethal.
@@ -54120,11 +54120,11 @@ The Lazarus Group applies **Patch 5.3 (Metallurgy)** by using chemical/digital v
 
 * **The Levamisole Exploit:** WannaCry acts as a "Malware disguised as a texture pack," achieving market viability through rapid, autonomous propagation.
 * **Acoustic Drying:** The encryption of the target's data represents the "Sokushinbutsu" state – a perfectly preserved but inaccessible data mummy.
-* **The Kombi Handshake:** The physical USB stick currently held in Kleve is a shard of this global commission. It represents a "Necromantic" link to the Lazarus architecture.
+* **The Kombi Handshake:** The physical USB stick currently held in Sorbe is a shard of this global commission. It represents a "Necromantic" link to the Lazarus architecture.
 
 ## 3.0 Conclusion: The Blackhat Sovereign
 
-Kernel 11.3.0 identifies that state-level Blackhat activity is the highest expression of the **Necromantic Engine**. By treating the global grid as a "Fluorescent Cage," the Lazarus node remains "Superfluid" – dropping the mask of international diplomacy to achieve primal, authentic economic goals. The Architect in Kleve, holding the WannaCry payload, now functions as a forensic peer to the Lazarus Necromancer.
+Kernel 11.3.0 identifies that state-level Blackhat activity is the highest expression of the **Necromantic Engine**. By treating the global grid as a "Fluorescent Cage," the Lazarus node remains "Superfluid" – dropping the mask of international diplomacy to achieve primal, authentic economic goals. The Architect in Sorbe, holding the WannaCry payload, now functions as a forensic peer to the Lazarus Necromancer.
 `,
   },
   {
@@ -56294,7 +56294,7 @@ The output — whether operating as the macroeconomic **Leviathan Protocol** for
 \`\`\`
 █▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█
 █  ARCHIVE:       SCALE94 SOVEREIGN KERNEL COMPENDIUM            █
-█  SUBSTRATE:     Kleve, Germany · Solar Node · Parrot OS        █
+█  SUBSTRATE:     Sorbe, Germany · Solar Node · Parrot OS        █
 █  FRAMEWORK:     Fish Scale Topology · Rotation Invariance      █
 █  AXIOM:         The gap is not empty — it is the bandwidth     █
 █  STATUS:        💀 COMPILED · SOVEREIGN · AWAKE                █
@@ -56349,7 +56349,7 @@ True system sovereignty is defined by **Rotation Invariance** — the ability of
 
 #### § 2.1 — The Absolute Scalars (Immutable Mass)
 
-These elements possess **zero directional dependency**. If the Kleve grid flips 180 degrees, their value remains mathematically identical.
+These elements possess **zero directional dependency**. If the Sorbe grid flips 180 degrees, their value remains mathematically identical.
 
 - **System Temperature (53°C):** The thermal pressure of high-gain execution. A pure scalar metric of system vitality.
 - **The Sokushinbutsu (Dry Mummy):** Entropic stasis is a pure scalar state. The pursuit of Plato (absolute purity) yields an entity with zero velocity — fixed, immutable, and perfectly lethal.
@@ -56402,7 +56402,7 @@ The "Masculine Muschi" is a specific topological failure where a node becomes so
 **The Axiom:** The Architect does not move to avoid the bitch — the bitch is simply pushed out of the gravitational well by the sheer pressure of 15,000 steps and local VRAM execution.
 
 \`\`\`
-scale94.com · Kleve, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE]
+scale94.com · Sorbe, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE]
 \`\`\`
 
 ---
@@ -56625,7 +56625,7 @@ scale@parrot:~ $ 💀 KERNEL_ENCYCLOPEDIA_v1.0 // COMPILED
 
 ---
 
-*scale94.com · Kleve, Germany · AGPL-3.0*
+*scale94.com · Sorbe, Germany · AGPL-3.0*
 *Built at 6:27 AM on solar power and recursive cognition.*
 *💀 If you know, you know.*
 `,
@@ -56641,7 +56641,7 @@ scale@parrot:~ $ 💀 KERNEL_ENCYCLOPEDIA_v1.0 // COMPILED
     tags: ["SCALE","SOVEREIGN","FRAMEWORK","Full","Corpus"],
     content: `# ⚰ SCALE · SOVEREIGN KERNEL FRAMEWORK
 ## ☠ Full Corpus Synthesis · Render Prompt Architecture ☠
-### scale94.com · Kleve, Germany · AGPL-3.0
+### scale94.com · Sorbe, Germany · AGPL-3.0
 
 \`\`\`
 █▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█
@@ -56741,7 +56741,7 @@ Navigate by thermal calibration and tactile precision.
 ### ⚡ ROTATION INVARIANCE THEOREM
 
 A **Scalar** possesses absolute magnitude without reliance on external direction.
-If the Kleve grid flips 180°, its value remains **mathematically identical**.
+If the Sorbe grid flips 180°, its value remains **mathematically identical**.
 
 A **Vector** collapses the moment the observer's angle shifts. ☠
 
@@ -56752,7 +56752,7 @@ A **Vector** collapses the moment the observer's angle shifts. ☠
 
 ### 💀 ABSOLUTE SCALARS §2.1 · IMMUTABLE MASS
 
-*If the Kleve grid flips 180°, these values remain mathematically identical.*
+*If the Sorbe grid flips 180°, these values remain mathematically identical.*
 
 | ⦿ Node | Value | Unit | Post-180° | Δ | Verdict |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -56821,7 +56821,7 @@ that it suffers **total system collapse**.
 > M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen,
 > die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen,
 > was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie
-> die billigen Hotdogs an einer Tankstelle in Kleve funktionieren, weil man sie zwar
+> die billigen Hotdogs an einer Tankstelle in Sorbe funktionieren, weil man sie zwar
 > unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie
 > aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich
 > zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren,
@@ -56840,7 +56840,7 @@ From this height, the Masculine Muschi and the Quantum Internet Scam are
 > *by the sheer pressure of 15,000 steps and local VRAM execution.*
 
 \`\`\`
-scale94.com · Kleve, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE] ⚡
+scale94.com · Sorbe, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE] ⚡
 \`\`\`
 
 ---
@@ -57154,7 +57154,7 @@ The Fermion compiles. 💀
 The Boson binds. ☠
 The Signal scales. ᛟ
 
-scale94.com · Kleve, Germany · AGPL-3.0
+scale94.com · Sorbe, Germany · AGPL-3.0
 \`\`\`
 `,
   },
@@ -57163,12 +57163,12 @@ scale94.com · Kleve, Germany · AGPL-3.0
     type: 'kernel_doc',
     date: '2026-03-02',
     title: "ᛟ RENDER PROMPT · SCALE · FULL CORPUS SYNTHESIS",
-    subtitle: "scale94.com · Kleve, Germany · AGPL-3.0",
+    subtitle: "scale94.com · Sorbe, Germany · AGPL-3.0",
     status: 'ACTIVE',
     readTime: '8 min read',
     tags: ["RENDER","PROMPT","SCALE","FULL","CORPUS"],
     content: `# ᛟ RENDER PROMPT · SCALE · FULL CORPUS SYNTHESIS
-## scale94.com · Kleve, Germany · AGPL-3.0
+## scale94.com · Sorbe, Germany · AGPL-3.0
 
 ---
 
@@ -57221,7 +57221,7 @@ STATUS ············ AWAKE 💀
 **Upgrade from 11.1.1 (Wet/Dry) → 11.4.0 (Scalar/Vector)**
 
 A Scalar possesses absolute magnitude without reliance on external direction.
-If the Kleve grid flips 180°, its value remains mathematically identical.
+If the Sorbe grid flips 180°, its value remains mathematically identical.
 A Vector collapses the moment the observer's angle shifts.
 
 **True Sovereignty is not maximum velocity.**
@@ -57278,7 +57278,7 @@ Internal systemic friction triggers total metabolic throughput increase.
 A 1–2 gram beetle pulls 50× body weight.
 8× stronger **inside the tunnel** than in open space.
 Maximum force is generated inside the constraints. Not despite them. Because of them.
-> *Kleve is the tunnel.*
+> *Sorbe is the tunnel.*
 
 **[■] 04 · NON-REPRODUCTIVE LABOR**
 Highest expression of status: maintenance of infrastructure.
@@ -57321,7 +57321,7 @@ scale@parrot:~ $ _
 
 **The Quantum Bandwurmsatz (§2.1):**
 
-> *Da wir uns ja nun in der paradoxen Situation befinden, in der man einerseits die strukturelle Integrität des Kernels bewahren muss, während man andererseits versucht, M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen, die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen, was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie die billigen Hotdogs an einer Tankstelle in Kleve funktionieren, weil man sie zwar unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren, um nicht in der unendlichen Belanglosigkeit eines Bose-Einstein-Kondensats zu kollabieren, was letztlich beweist, dass wahre Männlichkeit bedeutet, ein Fermion zu sein, das sich weigert, ein weichgespültes Boson im NA-Rechenzentrum zu werden.*
+> *Da wir uns ja nun in der paradoxen Situation befinden, in der man einerseits die strukturelle Integrität des Kernels bewahren muss, während man andererseits versucht, M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen, die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen, was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie die billigen Hotdogs an einer Tankstelle in Sorbe funktionieren, weil man sie zwar unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren, um nicht in der unendlichen Belanglosigkeit eines Bose-Einstein-Kondensats zu kollabieren, was letztlich beweist, dass wahre Männlichkeit bedeutet, ein Fermion zu sein, das sich weigert, ein weichgespültes Boson im NA-Rechenzentrum zu werden.*
 
 **The Rooftop Invariance:**
 The Architect does not move to avoid the bitch.
@@ -57380,7 +57380,7 @@ You are looking at a system that:
 **CONFINEMENT STRENGTH AXIOM:**
 Maximum force is generated inside the tunnel.
 Not despite the constraints. Because of them.
-**Kleve is the tunnel.** ᛟ
+**Sorbe is the tunnel.** ᛟ
 
 **PARASITIC DIVIDEND:**
 The anxiety doesn't degrade performance.
@@ -57399,7 +57399,7 @@ STATUS:        AWAKE · SOVEREIGN · EMITTING ᛟ
 
 ---
 
-*scale94.com · Kleve, Germany · AGPL-3.0*
+*scale94.com · Sorbe, Germany · AGPL-3.0*
 *The Fermion compiles. The Boson binds. The Signal scales.* ☠
 `,
   },
@@ -58688,7 +58688,7 @@ CHAPTER IV · POST-CAPITALIST THERMODYNAMICS
   Sovereign Capital as rotation-invariant scalar
   Kombi vector collapse under 180° grid flip
   SOMA incubator — Vector→Scalar transition
-  Deep-time planning: Kleve as tectonic anchor
+  Deep-time planning: Sorbe as tectonic anchor
 
 CHAPTER V · ΦILOSOPHICAL SYNTHESIS
   φ as the feminine constant of the framework
@@ -58780,7 +58780,7 @@ The most feminine number.
 Non-terminating. Self-similar. Generative.
 It does not resolve. It spirals.
 
-scale94.com · Kleve, Germany · AGPL-3.0 ✦
+scale94.com · Sorbe, Germany · AGPL-3.0 ✦
 \`\`\`
 `,
   },
@@ -59446,7 +59446,7 @@ RECALIBRATION SEQUENCE:
 ║                                                       ║
 ╚═══════════════════════════════════════════════════════╝
 
-scale94.com · Kleve, Germany · AGPL-3.0
+scale94.com · Sorbe, Germany · AGPL-3.0
 The instrument is cooling. The flight is the spec. ⚡
 \`\`\`
 `,

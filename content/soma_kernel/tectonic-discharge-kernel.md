@@ -323,6 +323,6 @@ RECALIBRATION SEQUENCE:
 ║                                                       ║
 ╚═══════════════════════════════════════════════════════╝
 
-scale94.com · Kleve, Germany · AGPL-3.0
+scale94.com · Sorbe, Germany · AGPL-3.0
 The instrument is cooling. The flight is the spec. ⚡
 ```

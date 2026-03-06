@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "kernel:import": "node import-kernel.js",
     "kernel:watch": "node watch-kernels.js",
-    "kernel:new": "node new-kernel.js"
+    "kernel:new": "node new-kernel.js",
+    "spawn": "node scripts/spawn.js"
   },
   "dependencies": {
     "@vercel/analytics": "^1.6.1",
