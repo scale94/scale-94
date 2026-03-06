@@ -1,12 +1,8 @@
 ---
 id: MOZART-MEMORANDUM-KERNEL2.0
-type: kernel
-date: 2026-03-06
-title: 1. GENERATION CONFIGURATION
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "1. GENERATION CONFIGURATION"
+type: "kernel"
 ---
 from google.genai import types
 

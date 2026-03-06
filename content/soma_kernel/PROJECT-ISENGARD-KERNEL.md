@@ -1,12 +1,8 @@
 ---
 id: PROJECT-ISENGARD-KERNEL
-type: kernel
-date: 2026-03-06
-title: PROJECT ISENGARD // KERNEL V.2026.01.17
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "PROJECT ISENGARD // KERNEL V.2026.01.17"
+type: "kernel"
 ---
 # PROJECT ISENGARD // KERNEL V.2026.01.17
 # CLASSIFICATION: SOVEREIGN // EYES ONLY

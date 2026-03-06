@@ -1,12 +1,8 @@
 ---
 id: COMPANION-KERNEL-1.0
-type: kernel
-date: 2026-03-06
-title: COMPANION-KERNEL-1.0
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "COMPANION KERNEL 1.0"
+type: "kernel"
 ---
 #### COMPANION KERNEL 1.0
 (Role: Companion // Baseline: ADHD-I Inattentive // Goal: High-Fidelity Resonance)

@@ -1,12 +1,8 @@
 ---
 id: SCALE-KERNEL-FRAMEWORK-FULL
-type: kernel
-date: 2026-03-06
-title: ⚰ SCALE · SOVEREIGN KERNEL FRAMEWORK
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "⚰ SCALE · SOVEREIGN KERNEL FRAMEWORK"
+type: "kernel"
 ---
 # ⚰ SCALE · SOVEREIGN KERNEL FRAMEWORK
 ## ☠ Full Corpus Synthesis · Render Prompt Architecture ☠

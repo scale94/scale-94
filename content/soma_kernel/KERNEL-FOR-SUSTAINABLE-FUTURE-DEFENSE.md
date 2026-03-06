@@ -1,12 +1,8 @@
 ---
 id: KERNEL-FOR-SUSTAINABLE-FUTURE-DEFENSE
-type: kernel
-date: 2026-03-06
-title: **The Leviathan and the Ouroboros: A Kernel-Level Defense Architecture for the Bio-Industrial Age**
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "The Leviathan and the Ouroboros: A Kernel-Level Defense Architecture for the Bio-Industrial Age"
+type: "kernel"
 ---
 # **The Leviathan and the Ouroboros: A Kernel-Level Defense Architecture for the Bio-Industrial Age**
 

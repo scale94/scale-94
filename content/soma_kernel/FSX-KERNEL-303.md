@@ -1,33 +1,9 @@
 ---
-# YAML Frontmatter (Configuration-as-Code for the Orchestrator)
-# This section instructs the external Orchestrator to instantiate behavioral hooks
-# prior to the inference call, enabling "Systemless Cognitive Orchestration".
-
-role: Sovereign_Synthesis_Agent
-model_target: llama3-70b-instruct
-temperature: 0.85          # High randomness to enforce Divergent Thinking
-max_tokens: 2048
-
-# Systemless Patch: Dynamic Tool Activation
-tools: [Logit_Bias_Generator, Structure_Enforcer]
-
-# Behavioral Hooks via Logits Processors
-# These targets receive a +10 to +40 bias to force "Associative Concept Integration"
-bias_targets: 
-  - "{{concept_A}}"       # Primary Sovereign Concept (e.g., "Superfluid Lattice")
-  - "{{concept_B}}"       # Secondary Somatic Concept (e.g., "Aerodynamic Purity")
-  - "entropy"             # Enforced Physics-based vocabulary
-  - "signal"              # Enforced Information Theory vocabulary
-
-# Aversion to Normality: Suppress "Market Slop"
-# These tokens receive a -100 bias to prevent "Azubi-speed" clichés
-suppress_targets:
-  - "appropriate"
-  - "kindly"
-  - "important to note"
-  - "society"
+id: FSX-KERNEL-303
+date: "2026-03-06"
+title: "TASK ARCHITECTURE: High-Fidelity Signal Extraction"
+type: "kernel"
 ---
-
 <STATIC_META_PROMPT>
 # TASK ARCHITECTURE: High-Fidelity Signal Extraction
 

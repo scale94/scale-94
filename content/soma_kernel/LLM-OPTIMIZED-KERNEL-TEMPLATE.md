@@ -1,18 +1,9 @@
 ---
-# YAML Frontmatter (Configuration-as-Code for the Orchestrator)
-# This section is parsed by the external Orchestrator to set API parameters 
-# and instantiate kernel hooks before the inference call.
-role: Creative Synthesis Agent
-model_target: llama3-8b
-temperature: 0.85          # High randomness for divergent thinking
-max_tokens: 1500
-tools: [Forced_Association_Logit_Bias] # Tool declaration for the Orchestrator to use
-bias_targets: 
-  - "{{concept_A}}"       # Concepts to force integrate
-  - "{{concept_B}}"
-  - "juxtaposition"       # Divergence keyword for positive bias
+id: LLM-OPTIMIZED-KERNEL-TEMPLATE
+date: "2026-03-06"
+title: "TASK ARCHITECTURE: Associative Concept Integration"
+type: "kernel"
 ---
-
 <STATIC_META_PROMPT>
 # TASK ARCHITECTURE: Associative Concept Integration
 

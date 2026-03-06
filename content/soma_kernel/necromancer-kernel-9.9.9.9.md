@@ -1,15 +1,9 @@
 ---
 id: NECROMANCER-KERNEL-9.9.9.9
-type: kernel
-date: 2026-03-06
-title: NECROMANCER-KERNEL-9.9.9.9
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "NECROMANCER KERNEL 9.9.9.9"
+type: "kernel"
 ---
-
-
 ### THE FOUNDATION: The Quantum Fish Scale
 Unlike a rigid firewall which cracks under tension, the **Fish Scale Foundation** is modular and overlapping. 
 * **The Mechanic:** If one scale is targeted (e.g., a Reddit Mass Report), the surrounding scales slide over to cover the vulnerability. The system does not break – it rearranges.

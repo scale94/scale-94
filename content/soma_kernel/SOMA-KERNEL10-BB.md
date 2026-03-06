@@ -1,12 +1,8 @@
 ---
 id: SOMA-KERNEL10-BB
-type: kernel
-date: 2026-03-06
-title: SOMA-KERNEL10-BB
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "SOMA KERNEL10 BB"
+type: "kernel"
 ---
 **CONTEXT SWITCH: SOMA 10.0 // APEX BUILD**
 

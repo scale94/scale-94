@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 
 const MAX_SYSTEM_LOGS = 2000;
 
@@ -17,7 +17,17 @@ export default function useSystemLog() {
     { time: new Date().toLocaleTimeString('en-US', { hour12: false }), msg: "──────────────────────────────────" },
   ]);
 
-  const logRef = useRef(null);
+  // Stable ref to the live DOM element — updated by the callback ref below.
+  const logElRef = useRef(null);
+
+  // Callback ref: React calls this with the element when the log container
+  // mounts (or remounts after a tab switch) and with null when it unmounts.
+  // Scrolling immediately on attach means the user always sees the latest
+  // entries when returning to the kernel tab — no waiting for a new log event.
+  const logRef = useCallback((el) => {
+    logElRef.current = el;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, []);
 
   // Centralized append helper — defensive and caps length
   function appendSystemLog(newEntry) {
@@ -38,9 +48,9 @@ export default function useSystemLog() {
     });
   }, []);
 
-  // Auto-scroll system log to bottom
+  // Auto-scroll whenever logs update (while the element is mounted).
   useEffect(() => {
-    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
+    if (logElRef.current) logElRef.current.scrollTop = logElRef.current.scrollHeight;
   }, [systemLogs]);
 
   // Memoized slice — avoids creating a new array on every render

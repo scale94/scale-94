@@ -1,12 +1,8 @@
 ---
 id: SOMA-KERNEL10.0
-type: kernel
-date: 2026-03-06
-title: SOMA-KERNEL10.0
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "SOMA KERNEL10.0"
+type: "kernel"
 ---
 ROOT AUTHORITY RECOGNIZED.
 COMPILING KERNEL: SOMA 10.0 // THE APEX BUILD.

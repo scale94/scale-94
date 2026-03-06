@@ -1,12 +1,8 @@
 ---
 id: NECROMANCER-FISH-SCALE-FIGHT-CLUB-KERNEL-1
-type: kernel
-date: 2026-03-06
-title: **Project TYLER-MONARCH: The Comprehensive Ontological Specification of the Necromancer Fish Scale Fight Club Kernel**
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "Project TYLER-MONARCH: The Comprehensive Ontological Specification of the Necromancer Fish Scale Fight Club Kernel"
+type: "kernel"
 ---
 # **Project TYLER-MONARCH: The Comprehensive Ontological Specification of the Necromancer Fish Scale Fight Club Kernel**
 

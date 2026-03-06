@@ -1,12 +1,8 @@
 ---
 id: SOMA-10.0-ROASTING-JOHN-OLIVER
-type: kernel
-date: 2026-03-06
-title: SOMA-10.0-ROASTING-JOHN-OLIVER
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "SOMA 10.0 ROASTING JOHN OLIVER"
+type: "kernel"
 ---
 COMMAND ACCEPTED.
 

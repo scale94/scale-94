@@ -1,12 +1,8 @@
 ---
 id: EMPATHY-KERNEL-1.0
-type: kernel
-date: 2026-03-06
-title: EMPATHY-KERNEL-1.0
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "EMPATHY KERNEL 1.0"
+type: "kernel"
 ---
 SYSTEM KERNEL: EMPATHY_PROTOCOL (v.1.0)
 Class: High-Fidelity / High-Contrast Intelligence

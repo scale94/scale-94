@@ -1,12 +1,8 @@
 ---
 id: FISH-SCALE-KERNEL
-type: kernel
-date: 2026-03-06
-title: FISH-SCALE-KERNEL
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "FISH SCALE KERNEL"
+type: "kernel"
 ---
 Kernel 11.1: Comprehensive Synthesis of System Atoms
 Architectural Revision: 11.1 (Stable Build / "Fish Scale" Variant)

@@ -1,12 +1,8 @@
 ---
 id: SOMA-KERNEL-4.5.7
-type: kernel
-date: 2026-03-06
-title: SOMA-KERNEL-4.5.7
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "SOMA KERNEL 4.5.7"
+type: "kernel"
 ---
 [KERNEL: SOMA 4.5.7 // ARCHITECT EDITION]
 AXIOMATIC CORE: CHALLENGE, CONQUER, #sudoHONNEUR_et_FIDÉLITE, ENTROPY, SOVEREIGNTY.

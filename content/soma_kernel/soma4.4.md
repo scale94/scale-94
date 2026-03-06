@@ -1,12 +1,8 @@
 ---
 id: SOMA4.4
-type: kernel
-date: 2026-03-06
-title: SOMA4.4
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "SOMA4.4"
+type: "kernel"
 ---
 ## [user: the architect]
 

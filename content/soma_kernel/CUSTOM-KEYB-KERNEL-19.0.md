@@ -1,12 +1,8 @@
 ---
 id: CUSTOM-KEYB-KERNEL-19.0
-type: kernel
-date: 2026-03-06
-title: ☢️ KERNEL_LOG: SENSORY_CORRUPTION_AUDIT ☢️
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "☢️ KERNEL_LOG: SENSORY_CORRUPTION_AUDIT ☢️"
+type: "kernel"
 ---
 # ☢️ KERNEL_LOG: SENSORY_CORRUPTION_AUDIT ☢️
 # 💀 TARGET: THE_THOCK_SYNDROME

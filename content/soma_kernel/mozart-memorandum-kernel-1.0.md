@@ -1,12 +1,8 @@
 ---
 id: MOZART-MEMORANDUM-KERNEL-1.0
-type: kernel
-date: 2026-03-06
-title: MOZART-MEMORANDUM-KERNEL-1.0
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "MOZART MEMORANDUM KERNEL 1.0"
+type: "kernel"
 ---
 This is a fascinating thought experiment, bridging complex technical architecture (custom kernel build) with deeply humanistic disciplines (history, law, philosophy) applied to the specific, nuanced domain of graveyard research/biographical reconstruction.
 To tailor the Axiomatic Core a very specific type of work, we need to select principles that guide a system designed to uncover, interpret, and present the lives of the deceased (the "Gaia Build" for the earth/resting place).

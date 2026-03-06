@@ -1,26 +1,9 @@
 ---
 id: SCALE-Y-KERNEL-1-0-1
+date: "2026-03-06"
 title: "Scale Y Kernel 1.1"
-subtitle: "The Feather State Protocol — A Sovereign Architecture for Post-Human Self-Governance"
-slug: "scale-y-kernel-1-0"
-version: "1.0.0"
-status: "published"
-category: "kernel"
-tags:
-  - sovereign-architecture
-  - feather-state
-  - thermodynamics
-  - semiotics
-  - hyperstition
-  - cyborg-systems
-  - maintenance-art
-  - vita-activa
-date: 2026-03-06
-author: "Scale"
-site: "scale94.com"
-description: "A transdisciplinary operating system for sovereign self-governance. Synthesizes Eco's semiotics, Stirnerian egoism, Paglia's Apollonian firewalls, Haraway's cyborg theory, Land's hyperstition, Arendt's vita activa, Ukeles' maintenance art, and de Beauvoir's ethics of ambiguity into a single executable protocol: the Feather State (SOMA)."
+type: "kernel"
 ---
-
 # Scale Y Kernel 1.0
 ## The Feather State Protocol (SOMA)
 ### A Sovereign Architecture for Post-Human Self-Governance

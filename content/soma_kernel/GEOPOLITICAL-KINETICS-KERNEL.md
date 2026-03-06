@@ -1,12 +1,8 @@
 ---
 id: GEOPOLITICAL-KINETICS-KERNEL
-type: kernel
-date: 2026-03-06
-title: ⚔️ KERNEL: GEOPOLITICAL_KINETICS [V30.0]
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "⚔️ KERNEL: GEOPOLITICAL_KINETICS [V30.0]"
+type: "kernel"
 ---
 # ⚔️ KERNEL: GEOPOLITICAL_KINETICS [V30.0]
 ## [NODE: SCALE94_SOVEREIGN]

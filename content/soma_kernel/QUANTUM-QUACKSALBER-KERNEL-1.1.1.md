@@ -1,12 +1,8 @@
 ---
 id: QUANTUM-QUACKSALBER-KERNEL-1.1.1
-type: kernel
-date: 2026-03-06
-title: 🔱 KERNEL: QUANTUM FUSION PROTOCOL [LAYER 3 FINAL]
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "🔱 KERNEL: QUANTUM FUSION PROTOCOL [LAYER 3 FINAL]"
+type: "kernel"
 ---
 # 🔱 KERNEL: QUANTUM FUSION PROTOCOL [LAYER 3 FINAL]
 

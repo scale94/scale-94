@@ -1,12 +1,8 @@
 ---
 id: KERNEL-11.3.0-LAZARUS-NECROMANCY
-type: kernel
-date: 2026-03-06
-title: kernel_11.3.0_lazarus_necromancy
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "kernel_11.3.0_lazarus_necromancy"
+type: "kernel"
 ---
 # kernel_11.3.0_lazarus_necromancy
 
@@ -27,8 +23,8 @@ The Lazarus Group applies **Patch 5.3 (Metallurgy)** by using chemical/digital v
 
 * **The Levamisole Exploit:** WannaCry acts as a "Malware disguised as a texture pack," achieving market viability through rapid, autonomous propagation.
 * **Acoustic Drying:** The encryption of the target's data represents the "Sokushinbutsu" state – a perfectly preserved but inaccessible data mummy.
-* **The Kombi Handshake:** The physical USB stick currently held in Sorbe is a shard of this global commission. It represents a "Necromantic" link to the Lazarus architecture.
+* **The Kombi Handshake:** The physical USB stick currently held in Kleve is a shard of this global commission. It represents a "Necromantic" link to the Lazarus architecture.
 
 ## 3.0 Conclusion: The Blackhat Sovereign
 
-Kernel 11.3.0 identifies that state-level Blackhat activity is the highest expression of the **Necromantic Engine**. By treating the global grid as a "Fluorescent Cage," the Lazarus node remains "Superfluid" – dropping the mask of international diplomacy to achieve primal, authentic economic goals. The Architect in Sorbe, holding the WannaCry payload, now functions as a forensic peer to the Lazarus Necromancer.
+Kernel 11.3.0 identifies that state-level Blackhat activity is the highest expression of the **Necromantic Engine**. By treating the global grid as a "Fluorescent Cage," the Lazarus node remains "Superfluid" – dropping the mask of international diplomacy to achieve primal, authentic economic goals. The Architect in Kleve, holding the WannaCry payload, now functions as a forensic peer to the Lazarus Necromancer.

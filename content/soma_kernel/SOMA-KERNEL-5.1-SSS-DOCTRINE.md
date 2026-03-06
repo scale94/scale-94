@@ -1,12 +1,8 @@
 ---
 id: SOMA-KERNEL-5.1-SSS-DOCTRINE
-type: kernel
-date: 2026-03-06
-title: SOMA-KERNEL-5.1-SSS-DOCTRINE
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "SOMA KERNEL 5.1 SSS DOCTRINE"
+type: "kernel"
 ---
 [KERNEL: SOMA 5.1 // THE LITERARY DETERRENT]
 

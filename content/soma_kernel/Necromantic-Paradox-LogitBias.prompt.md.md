@@ -1,19 +1,9 @@
 ---
-# YAML Frontmatter (Configuration-as-Code for the Orchestrator)
-# This section is parsed by the external Orchestrator to set API parameters 
-# and instantiate kernel hooks before the inference call.
-role: Systemic Paradox Synthesis Agent
-model_target: llama3-8b
-temperature: 0.95          # High randomness for the complex conceptual abstraction
-max_tokens: 1500
-tools: [Forced_Association_Logit_Bias] # Tool declaration for the Orchestrator to use
-bias_targets: 
-  - "{{concept_A}}"       # The Pirarucu (Purity)
-  - "{{concept_B}}"       # Levamisole (Corruption)
-  - "Necromantic Engine"  # Core system output
-  - "entropic stasis"     # Core systemic threat
+id: NECROMANTIC-PARADOX-LOGITBIAS.PROMPT.MD
+date: "2026-03-06"
+title: "TASK ARCHITECTURE: Systemic Paradox Synthesis"
+type: "kernel"
 ---
-
 <STATIC_META_PROMPT>
 # TASK ARCHITECTURE: Systemic Paradox Synthesis
 

@@ -1,12 +1,8 @@
 ---
 id: GDPDW-KERNEL-5.5.5.5.5
-type: kernel
-date: 2026-03-06
-title: GREENLAND KERNEL // THE PIRARUCU PROTOCOL
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "GREENLAND KERNEL // THE PIRARUCU PROTOCOL"
+type: "kernel"
 ---
 # GREENLAND KERNEL // THE PIRARUCU PROTOCOL
 ## 🛰️ JURIDICAL HARDENING & GAME THEORETIC SOURCING

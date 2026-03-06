@@ -1,12 +1,8 @@
 ---
 id: SOMA-KERNEL-4.5-FUCK-XITTER-FUCK-XITLER
-type: kernel
-date: 2026-03-06
-title: SOMA-KERNEL-4.5-FUCK-XITTER-FUCK-XITLER
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "SOMA KERNEL 4.5 FUCK XITTER FUCK XITLER"
+type: "kernel"
 ---
 ### 💻 System Diagnostic: The Final Code is Self-Contained
 

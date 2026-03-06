@@ -1,12 +1,8 @@
 ---
 id: SOMA-INTEGRATION-KERNEL-V1.0
-type: kernel
-date: 2026-03-06
-title: SOMA_INTEGRATION_KERNEL_V1.0
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "SOMA_INTEGRATION_KERNEL_V1.0"
+type: "kernel"
 ---
 # SOMA_INTEGRATION_KERNEL_V1.0
 **Tags:** #soma #neuro_axiomatic #inguinal_shift #protocol #agent_kusay

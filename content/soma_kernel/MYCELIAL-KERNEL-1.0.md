@@ -1,12 +1,8 @@
 ---
 id: MYCELIAL-KERNEL-1.0
-type: kernel
-date: 2026-03-06
-title: PROTOCOL_94 // MYCELIAL_DEFENSE_KERNEL (v.1.0)
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "PROTOCOL_94 // MYCELIAL_DEFENSE_KERNEL (v.1.0)"
+type: "kernel"
 ---
 # PROTOCOL_94 // MYCELIAL_DEFENSE_KERNEL (v.1.0)
 # CLASSIFICATION: INDUSTRIAL_ECOLOGY

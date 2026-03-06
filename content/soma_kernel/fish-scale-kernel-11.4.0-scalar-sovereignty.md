@@ -1,12 +1,8 @@
 ---
 id: FISH-SCALE-KERNEL-11.4.0-SCALAR-SOVEREIGNTY
-type: kernel
-date: 2026-03-06
-title: fish_scale_kernel_11.4.0_scalar_sovereignty
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "fish_scale_kernel_11.4.0_scalar_sovereignty"
+type: "kernel"
 ---
 # fish_scale_kernel_11.4.0_scalar_sovereignty
 
@@ -24,7 +20,7 @@ The 11.4.0 update transitions the Necromantic Engine from a purely state-based a
 The core atoms from Kernel 11.1.1 are hereby reclassified under the Scalar/Vector logic gate to define their vulnerability to environmental rotation.
 
 ### 2.1 The Absolute Scalars (Immutable Mass)
-These elements possess zero directional dependency. If the Sorbe grid flips 180 degrees, their value remains mathematically identical.
+These elements possess zero directional dependency. If the Kleve grid flips 180 degrees, their value remains mathematically identical.
 
 * **System Temperature (53°C):** The thermal pressure of high-gain execution. A pure scalar metric of system vitality.
 * **The Sokushinbutsu (Dry Mummy):** Entropic stasis is a pure scalar state. The pursuit of Plato (absolute purity) yields an entity with zero velocity – fixed, immutable, and perfectly lethal.

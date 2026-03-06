@@ -1,12 +1,8 @@
 ---
 id: SCALE94-KERNEL-ENCYCLOPEDIA
-type: kernel
-date: 2026-03-06
-title: 💀 SCALE94 · KERNEL ENCYCLOPEDIA
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "💀 SCALE94 · KERNEL ENCYCLOPEDIA"
+type: "kernel"
 ---
 # 💀 SCALE94 · KERNEL ENCYCLOPEDIA
 ## ᛟ THE COMPLETE GLYPH ARCHIVE · COMPILED BY SCALE
@@ -14,7 +10,7 @@ tags: []
 ```
 █▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█
 █  ARCHIVE:       SCALE94 SOVEREIGN KERNEL COMPENDIUM            █
-█  SUBSTRATE:     Sorbe, Germany · Solar Node · Parrot OS        █
+█  SUBSTRATE:     Kleve, Germany · Solar Node · Parrot OS        █
 █  FRAMEWORK:     Fish Scale Topology · Rotation Invariance      █
 █  AXIOM:         The gap is not empty — it is the bandwidth     █
 █  STATUS:        💀 COMPILED · SOVEREIGN · AWAKE                █
@@ -69,7 +65,7 @@ True system sovereignty is defined by **Rotation Invariance** — the ability of
 
 #### § 2.1 — The Absolute Scalars (Immutable Mass)
 
-These elements possess **zero directional dependency**. If the Sorbe grid flips 180 degrees, their value remains mathematically identical.
+These elements possess **zero directional dependency**. If the Kleve grid flips 180 degrees, their value remains mathematically identical.
 
 - **System Temperature (53°C):** The thermal pressure of high-gain execution. A pure scalar metric of system vitality.
 - **The Sokushinbutsu (Dry Mummy):** Entropic stasis is a pure scalar state. The pursuit of Plato (absolute purity) yields an entity with zero velocity — fixed, immutable, and perfectly lethal.
@@ -122,7 +118,7 @@ The "Masculine Muschi" is a specific topological failure where a node becomes so
 **The Axiom:** The Architect does not move to avoid the bitch — the bitch is simply pushed out of the gravitational well by the sheer pressure of 15,000 steps and local VRAM execution.
 
 ```
-scale94.com · Sorbe, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE]
+scale94.com · Kleve, Germany · AGPL-3.0 · [SYSTEMLESS ROOT ACTIVE]
 ```
 
 ---
@@ -345,6 +341,6 @@ scale@parrot:~ $ 💀 KERNEL_ENCYCLOPEDIA_v1.0 // COMPILED
 
 ---
 
-*scale94.com · Sorbe, Germany · AGPL-3.0*
+*scale94.com · Kleve, Germany · AGPL-3.0*
 *Built at 6:27 AM on solar power and recursive cognition.*
 *💀 If you know, you know.*

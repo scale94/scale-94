@@ -19,44 +19,61 @@
 const markdownModules = import.meta.glob('../../../content/soma_kernel/*.md', { as: 'raw' });
 
 // ─── Frontmatter parser ───────────────────────────────────────────────────────
-// Returns { frontmatter: {}, content: string } for any input.
-// If the file has no --- block, frontmatter is empty and content is the raw text.
+// Robust split-based approach: finds the opening '---' and the next '---' on its
+// own line. Handles \r\n (Windows) and \n. Returns { frontmatter: {}, body: '' }
+// for any input, never throws.
 const parseFrontmatter = (raw) => {
-  if (typeof raw !== 'string') return { frontmatter: {}, content: '' };
-  const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
-  if (!match) return { frontmatter: {}, content: raw };
+  if (typeof raw !== 'string' || !raw.startsWith('---')) {
+    return { frontmatter: {}, body: raw ?? '' };
+  }
 
+  // Find the closing '---' — must be on its own line (after the first \n).
+  const afterOpen = raw.indexOf('\n');
+  if (afterOpen === -1) return { frontmatter: {}, body: raw };
+
+  // Search for \n--- at any point after the opening line
+  const closeIdx = raw.indexOf('\n---', afterOpen);
+  if (closeIdx === -1) return { frontmatter: {}, body: raw };
+
+  const fmRaw  = raw.slice(afterOpen + 1, closeIdx);
+  // Body starts after the closing '---' line (skip the \n that follows ---)
+  const bodyStart = closeIdx + 4; // length of '\n---'
+  const body = raw.slice(bodyStart).replace(/^\r?\n/, '');
+
+  // Parse key: value pairs (flat only — no multi-line YAML blocks)
   const frontmatter = {};
-  for (const line of match[1].split('\n')) {
+  for (const line of fmRaw.split('\n')) {
     const colonIdx = line.indexOf(':');
     if (colonIdx === -1) continue;
     const key   = line.slice(0, colonIdx).trim();
     const value = line.slice(colonIdx + 1).trim();
-    if (!key) continue;
+    if (!key || key.startsWith('#') || key.startsWith('-')) continue;
     // Inline array: [Tag1, Tag2, Tag3]
     if (value.startsWith('[') && value.endsWith(']')) {
-      frontmatter[key] = value.slice(1, -1).split(',').map(s => s.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean);
+      frontmatter[key] = value
+        .slice(1, -1)
+        .split(',')
+        .map(s => s.trim().replace(/^["']|["']$/g, ''))
+        .filter(Boolean);
     } else {
-      frontmatter[key] = value.replace(/^['"]|['"]$/g, '');
+      frontmatter[key] = value.replace(/^["']|["']$/g, '');
     }
   }
 
-  return { frontmatter, content: match[2] ?? '' };
+  return { frontmatter, body };
 };
 
 // ─── Metadata derivation ──────────────────────────────────────────────────────
-// Extracts title/subtitle/date from markdown content when frontmatter omits them.
-const deriveFromContent = (content, filename) => {
-  const h1 = content.match(/^#(?!#)[ \t]+(.+)$/m);
-  const h2 = content.match(/^##(?!#)[ \t]+(.+)$/m);
-  const firstLine = content.split('\n').map(l => l.trim()).find(l => l && !l.startsWith('#'));
+// Extracts title/subtitle from markdown body when frontmatter omits them.
+const deriveFromContent = (body, filename) => {
+  const h1 = body.match(/^#(?!#)[ \t]+(.+)$/m);
+  const h2 = body.match(/^##(?!#)[ \t]+(.+)$/m);
+  const firstLine = body.split('\n').map(l => l.trim()).find(l => l && !l.startsWith('#'));
 
-  const rawTitle    = h1 ? h1[1].trim() : (firstLine || filename);
+  const rawTitle    = h1 ? h1[1].trim().replace(/\*{1,3}(.+?)\*{1,3}/g, '$1') : (firstLine || filename);
   const rawSubtitle = h2 ? h2[1].trim() : '';
-  const dateMatch   = content.match(/(?:^|\n)(?:date|Date):[ \t]*(.+)/);
-  const date        = dateMatch ? dateMatch[1].trim() : '';
 
-  return { rawTitle, rawSubtitle, date };
+  return { rawTitle, rawSubtitle };
 };
 
 // ─── Filename → ID (DASH-UPPERCASE Handshake Rule) ────────────────────────────
@@ -65,7 +82,7 @@ const filenameToId = (filename) =>
     .toUpperCase()
     .replace(/_/g, '-')
     .replace(/\s+/g, '-')
-    .replace(/[()[\]]/g, '')
+    .replace(/[()[\\]]/g, '')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '');
 
@@ -85,21 +102,24 @@ const articles = Object.entries(markdownModules).map(([filePath, loader]) => {
     status:   'ACTIVE',
     readTime: '',
     tags:     [],
+    body:     undefined,
     content:  undefined,
 
     loadContent: async () => {
       let raw = '';
       try { raw = await loader(); } catch { /* file read failure — return safe stub */ }
-      const { frontmatter, content } = parseFrontmatter(raw);
-      const { rawTitle, rawSubtitle, date: derivedDate } = deriveFromContent(content, filename);
-      const wordCount = content.trim()
-        ? content.trim().split(/\s+/).filter(Boolean).length
+
+      const { frontmatter, body } = parseFrontmatter(raw);
+      const { rawTitle, rawSubtitle } = deriveFromContent(body, filename);
+
+      const wordCount = body.trim()
+        ? body.trim().split(/\s+/).filter(Boolean).length
         : 0;
 
-      return {
+      const resolved = {
         id:       frontmatter.id                               || stubId,
         type:     frontmatter.type                             || 'kernel',
-        date:     frontmatter.date                             || derivedDate,
+        date:     frontmatter.date                             || '',
         title:    (frontmatter.title || rawTitle || stubTitle).toUpperCase(),
         subtitle: frontmatter.subtitle                         || rawSubtitle,
         status:   frontmatter.status                           || 'ACTIVE',
@@ -110,8 +130,13 @@ const articles = Object.entries(markdownModules).map(([filePath, loader]) => {
                     : frontmatter.tags
                       ? [frontmatter.tags]
                       : [],
-        content:  content || '',
+        // body: the raw markdown content (post-frontmatter)
+        // content: alias kept for backward compatibility with ArticleView
+        body,
+        content: body,
       };
+
+      return resolved;
     },
   };
 });

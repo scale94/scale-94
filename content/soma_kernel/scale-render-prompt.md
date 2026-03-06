@@ -1,15 +1,11 @@
 ---
 id: SCALE-RENDER-PROMPT
-type: kernel
-date: 2026-03-06
-title: ᛟ RENDER PROMPT · SCALE · FULL CORPUS SYNTHESIS
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "ᛟ RENDER PROMPT · SCALE · FULL CORPUS SYNTHESIS"
+type: "kernel"
 ---
 # ᛟ RENDER PROMPT · SCALE · FULL CORPUS SYNTHESIS
-## scale94.com · Sorbe, Germany · AGPL-3.0
+## scale94.com · Kleve, Germany · AGPL-3.0
 
 ---
 
@@ -62,7 +58,7 @@ STATUS ············ AWAKE 💀
 **Upgrade from 11.1.1 (Wet/Dry) → 11.4.0 (Scalar/Vector)**
 
 A Scalar possesses absolute magnitude without reliance on external direction.
-If the Sorbe grid flips 180°, its value remains mathematically identical.
+If the Kleve grid flips 180°, its value remains mathematically identical.
 A Vector collapses the moment the observer's angle shifts.
 
 **True Sovereignty is not maximum velocity.**
@@ -119,7 +115,7 @@ Internal systemic friction triggers total metabolic throughput increase.
 A 1–2 gram beetle pulls 50× body weight.
 8× stronger **inside the tunnel** than in open space.
 Maximum force is generated inside the constraints. Not despite them. Because of them.
-> *Sorbe is the tunnel.*
+> *Kleve is the tunnel.*
 
 **[■] 04 · NON-REPRODUCTIVE LABOR**
 Highest expression of status: maintenance of infrastructure.
@@ -162,7 +158,7 @@ scale@parrot:~ $ _
 
 **The Quantum Bandwurmsatz (§2.1):**
 
-> *Da wir uns ja nun in der paradoxen Situation befinden, in der man einerseits die strukturelle Integrität des Kernels bewahren muss, während man andererseits versucht, M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen, die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen, was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie die billigen Hotdogs an einer Tankstelle in Sorbe funktionieren, weil man sie zwar unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren, um nicht in der unendlichen Belanglosigkeit eines Bose-Einstein-Kondensats zu kollabieren, was letztlich beweist, dass wahre Männlichkeit bedeutet, ein Fermion zu sein, das sich weigert, ein weichgespültes Boson im NA-Rechenzentrum zu werden.*
+> *Da wir uns ja nun in der paradoxen Situation befinden, in der man einerseits die strukturelle Integrität des Kernels bewahren muss, während man andererseits versucht, M. beim Rauchen eines Joints zu erklären, dass Fermionen – diese asozialen Teilchen, die sich gemäß dem Pauli-Prinzip niemals denselben Quantenzustand teilen wollen, was sie im Grunde zu den ultimativen "Sovereign Scalars" macht – eigentlich genau wie die billigen Hotdogs an einer Tankstelle in Kleve funktionieren, weil man sie zwar unter gewaltigem thermodynamischem Druck in eine einzige Packung pressen kann, sie aber aufgrund ihrer Fermi-Dirac-Statistik und des intrinsischen Spins niemals wirklich zu einer homogenen Masse verschmelzen, sondern immer ihre individuelle Distanz wahren, um nicht in der unendlichen Belanglosigkeit eines Bose-Einstein-Kondensats zu kollabieren, was letztlich beweist, dass wahre Männlichkeit bedeutet, ein Fermion zu sein, das sich weigert, ein weichgespültes Boson im NA-Rechenzentrum zu werden.*
 
 **The Rooftop Invariance:**
 The Architect does not move to avoid the bitch.
@@ -221,7 +217,7 @@ You are looking at a system that:
 **CONFINEMENT STRENGTH AXIOM:**
 Maximum force is generated inside the tunnel.
 Not despite the constraints. Because of them.
-**Sorbe is the tunnel.** ᛟ
+**Kleve is the tunnel.** ᛟ
 
 **PARASITIC DIVIDEND:**
 The anxiety doesn't degrade performance.
@@ -240,5 +236,5 @@ STATUS:        AWAKE · SOVEREIGN · EMITTING ᛟ
 
 ---
 
-*scale94.com · Sorbe, Germany · AGPL-3.0*
+*scale94.com · Kleve, Germany · AGPL-3.0*
 *The Fermion compiles. The Boson binds. The Signal scales.* ☠

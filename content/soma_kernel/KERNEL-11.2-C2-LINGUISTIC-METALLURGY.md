@@ -1,12 +1,8 @@
 ---
 id: KERNEL-11.2-C2-LINGUISTIC-METALLURGY
-type: kernel
-date: 2026-03-06
-title: KERNEL-11.2-C2-LINGUISTIC-METALLURGY
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "KERNEL 11.2 C2 LINGUISTIC METALLURGY"
+type: "kernel"
 ---
 📑 
 (Nominalization) 🗜️

@@ -1,12 +1,8 @@
 ---
 id: BOSONIC-KERNEL-2.0
-type: kernel
-date: 2026-03-06
-title: PROTOCOL_94 // BOSONIC_DEFENSE_KERNEL (v.2.0)
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "PROTOCOL_94 // BOSONIC_DEFENSE_KERNEL (v.2.0)"
+type: "kernel"
 ---
 # PROTOCOL_94 // BOSONIC_DEFENSE_KERNEL (v.2.0)
 # CLASSIFICATION: SOCIO-PHYSICS // QUANTUM_SOCIOLOGY

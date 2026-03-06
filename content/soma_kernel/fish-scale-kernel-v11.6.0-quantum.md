@@ -1,14 +1,9 @@
 ---
-id: FSQ-11.6
-title: FISH SCALE KERNEL · 11.6.0 · QUANTUM EXPANSION
-subtitle: ᛟ Systemless Root · Quantum Branch
-date: 2026-03-06
-status: ACTIVE
-readTime: 8 min read
-tags: [Quantum, Fish Scale, Fermion, Sovereignty, Decoherence]
+id: FISH-SCALE-KERNEL-V11.6.0-QUANTUM
+date: "2026-03-06"
+title: "FISH SCALE KERNEL · 11.6.0 · QUANTUM EXPANSION"
+type: "kernel"
 ---
-
-
 > *"The wavefunction does not collapse because you observe it politely."*
 
 ---

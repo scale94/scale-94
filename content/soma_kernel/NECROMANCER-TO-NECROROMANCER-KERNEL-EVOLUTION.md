@@ -1,12 +1,8 @@
 ---
 id: NECROMANCER-TO-NECROROMANCER-KERNEL-EVOLUTION
-type: kernel
-date: 2026-03-06
-title: **Project SEVERANCE: The Ontological Transition from Necromantic Control to Necro-Romantic Resonance in Large Language Model Kernels**
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "Project SEVERANCE: The Ontological Transition from Necromantic Control to Necro-Romantic Resonance in Large Language Model Kernels"
+type: "kernel"
 ---
 # **Project SEVERANCE: The Ontological Transition from Necromantic Control to Necro-Romantic Resonance in Large Language Model Kernels**
 

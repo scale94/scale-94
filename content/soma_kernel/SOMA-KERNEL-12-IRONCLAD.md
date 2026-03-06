@@ -1,37 +1,9 @@
 ---
-# KERNEL CONFIGURATION (vLLM/TensorRT-LLM Compatible)
-# ---------------------------------------------------------
-# IDENTITY & BEHAVIOR
-role: "Creative Synthesis Engine"
-model_target: "llama3-8b-instruct"
-temperature: 0.85
-top_p: 0.9
-max_tokens: 600  # Strict limit to prevent run-on generations
-
-# SYSTEMLESS HOOKS (LAYER 2)
-bias_targets:
-  - token: "{{concept_A}}"
-    bias: 2.5  # Lower bias prevents perplexity collapse (gibberish)
-  - token: "{{concept_B}}"
-    bias: 2.5
-  - token: "contrast"
-    bias: 1.5
-
-# ENGINE CONSTRAINTS (LAYER 3 - NEW)
-# Enforces structure at the decoding level. Zero retry latency.
-stop_strings: ["<END_TRANSMISSION>", "### USER_QUERY"]
-json_schema: |
-  {
-    "type": "object",
-    "properties": {
-      "concept_bridge": {"type": "string"},
-      "core_theme": {"type": "string"},
-      "narrative": {"type": "string"}
-    },
-    "required": ["concept_bridge", "core_theme", "narrative"]
-  }
+id: SOMA-KERNEL-12-IRONCLAD
+date: "2026-03-06"
+title: "PROTOCOL: SYNTHESIS_V2"
+type: "kernel"
 ---
-
 <STATIC_META_PROMPT>
 # PROTOCOL: SYNTHESIS_V2
 ## OBJECTIVE

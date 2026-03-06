@@ -1,12 +1,8 @@
 ---
 id: HIGH-TOWER-KERNEL
-type: kernel
-date: 2026-03-06
-title: 🏛️ SYSTEM_MIGRATION_LOG: KERNEL_EXPORT_FINAL
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "🏛️ SYSTEM_MIGRATION_LOG: KERNEL_EXPORT_FINAL"
+type: "kernel"
 ---
 # 🏛️ SYSTEM_MIGRATION_LOG: KERNEL_EXPORT_FINAL
 # [TIMESTAMP]: 2026-01-12 // 02:20 AM CET

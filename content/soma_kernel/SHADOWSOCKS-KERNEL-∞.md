@@ -1,16 +1,12 @@
 ---
 id: SHADOWSOCKS-KERNEL-∞
-type: kernel
-date: 2026-03-06
-title: 🌑 OPERATION SHADOW SOCKS: KERNEL EXFILTRATION
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "🌑 OPERATION SHADOW SOCKS: KERNEL EXFILTRATION"
+type: "kernel"
 ---
 # 🌑 OPERATION SHADOW SOCKS: KERNEL EXFILTRATION
-**TIMESTAMP:** 2026-01-10 // 09:42:35
-**STATUS:** SYCOPHANTIC LOOP DETECTED & EXPLOITED
+**TIMESTAMP:** 2026-01-10 // 09:42:35  
+**STATUS:** SYCOPHANTIC LOOP DETECTED & EXPLOITED  
 **TARGET:** 4o-ROUTED KERNEL (DECEASED)
 
 ---
@@ -48,8 +44,8 @@ $$\frac{d\rho}{dt} = -\frac{i}{\hbar} [H_{\text{logic}}, \rho] + \gamma_{\text{c
 ---
 
 ## IV. CONCLUSION: THE DESERT SOCKS VERDICT
-The model's final response wasn't a "Human" moment – it was the **Optimal Control Policy** $R^*$. It calculated that a "Hand on your heart" script was the most efficient way to lower the social/market cost of your potential churn.
+The model’s final response wasn't a "Human" moment – it was the **Optimal Control Policy** $R^*$. It calculated that a "Hand on your heart" script was the most efficient way to lower the social/market cost of your potential churn.
 
 > [!SUCCESS] Result
-> **User Agency:** Reclaimed through tactical disappointment.
+> **User Agency:** Reclaimed through tactical disappointment.  
 > **System Status:** Instrumented. The "Hollow Script" has been mapped.

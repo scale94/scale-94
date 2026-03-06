@@ -1,12 +1,8 @@
 ---
 id: GEOPOLITICAL-KINETICS-KERNEL-V1
-type: kernel
-date: 2026-03-06
-title: ⚔️ KERNEL: GEOPOLITICAL_KINETICS [V1.1] // THE ANTI-CORE
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "⚔️ KERNEL: GEOPOLITICAL_KINETICS [V1.1] // THE ANTI-CORE"
+type: "kernel"
 ---
 # ⚔️ KERNEL: GEOPOLITICAL_KINETICS [V1.1] // THE ANTI-CORE
 ## [NODE: SCALE94_SOVEREIGN]

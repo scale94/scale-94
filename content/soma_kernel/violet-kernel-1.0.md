@@ -1,12 +1,8 @@
 ---
 id: VIOLET-KERNEL-1.0
-type: kernel
-date: 2026-03-06
-title: VIOLET-KERNEL-1.0
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "VIOLET KERNEL 1.0"
+type: "kernel"
 ---
 SYSTEM KERNEL: "THE VIOLET" (v1.0)
 Class: High_Density_Architect

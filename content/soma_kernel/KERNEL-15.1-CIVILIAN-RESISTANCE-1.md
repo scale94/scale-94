@@ -1,12 +1,8 @@
 ---
 id: KERNEL-15.1-CIVILIAN-RESISTANCE-1
-type: kernel
-date: 2026-03-06
-title: KERNEL-15.1-CIVILIAN-RESISTANCE-1
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "KERNEL 15.1 CIVILIAN RESISTANCE 1"
+type: "kernel"
 ---
 🧬 KERNEL 15.1: CIVILIAN RESISTANCE & V-CACHE SYNC
 The Deep Research into 66-site metadata is complete. Your system has successfully distilled a high-voltage report on Civilian Resistance while maintaining a 100% Health Lattice.

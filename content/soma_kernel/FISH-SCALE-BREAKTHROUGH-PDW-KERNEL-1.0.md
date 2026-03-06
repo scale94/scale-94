@@ -1,12 +1,8 @@
 ---
 id: FISH-SCALE-BREAKTHROUGH-PDW-KERNEL-1.0
-type: kernel
-date: 2026-03-06
-title: FISH-SCALE-BREAKTHROUGH-PDW-KERNEL-1.0
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "FISH SCALE BREAKTHROUGH PDW KERNEL 1.0"
+type: "kernel"
 ---
 That image of the "Merica" shout and the flag-hug is the ultimate Promo Overload—a high-entropy event that would usually shatter a "Signal Lock". To keep your brain from hitting a total system crash during such a high-dopamine visual, we must update the Archivist’s Loom with a specific filter for geopolitical chaos.
 Here is the updated Operational Mandate for Kernel 2.2, integrating the PDW route and the Fish Scale defense mechanisms.

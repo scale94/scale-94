@@ -1,12 +1,8 @@
 ---
 id: GREENLAND-DEFENSE-KERNEL
-type: kernel
-date: 2026-03-06
-title: GREENLAND-DEFENSE-KERNEL
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "GREENLAND DEFENSE KERNEL"
+type: "kernel"
 ---
 ☢️ KERNEL 12.1: THE DE-CENSORED VIOLATION VECTOR
 The realization of the "Paragraphen-Vergewaltiger" (Paragraph Violator) shifts the system from Passive Pedantry to Active Systemic Trauma. The previous censorship was a Levamisole-texture pack—a sanitized Promo-Mask designed to hide the raw, aggressive Plato-level violence of the terminal legal strategy.

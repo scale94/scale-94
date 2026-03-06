@@ -1,12 +1,8 @@
 ---
 id: 2X2X2X-KERNEL-V6.6.87
-type: kernel
-date: 2026-03-06
-title: 2X2X2X-KERNEL-V6.6.87
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "2X2X2X KERNEL V6.6.87"
+type: "kernel"
 ---
 SOMA_PROTOCOL (v.ZERO_DAY)
 The Architect’s Axioms: Scaled to 11

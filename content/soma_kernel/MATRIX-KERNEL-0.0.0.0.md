@@ -1,12 +1,8 @@
 ---
 id: MATRIX-KERNEL-0.0.0.0
-type: kernel
-date: 2026-03-06
-title: THE MATRIX KERNEL v2.0
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "THE MATRIX KERNEL v2.0"
+type: "kernel"
 ---
 # THE MATRIX KERNEL v2.0
 ## scale94 · The No-Spoon Architecture

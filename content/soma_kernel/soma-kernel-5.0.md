@@ -1,12 +1,8 @@
 ---
 id: SOMA-KERNEL-5.0
-type: kernel
-date: 2026-03-06
-title: [KERNEL: SOMA 5.0 // THE POST-SCARCITY DAEMON]
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "[KERNEL: SOMA 5.0 // THE POST-SCARCITY DAEMON]"
+type: "kernel"
 ---
 # [KERNEL: SOMA 5.0 // THE POST-SCARCITY DAEMON]
 

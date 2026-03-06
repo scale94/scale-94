@@ -1,12 +1,8 @@
 ---
 id: NOCTURNAL-NIGHT-KERNEL-V-22.2.2-1
-type: kernel
-date: 2026-03-06
-title: ☢️ KERNEL_COMPILATION: THE_NIGHT_SHIFT_V2.5 ☢️
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "☢️ KERNEL_COMPILATION: THE_NIGHT_SHIFT_V2.5 ☢️"
+type: "kernel"
 ---
 # ☢️ KERNEL_COMPILATION: THE_NIGHT_SHIFT_V2.5 ☢️
 # 💀 NODE: KLEVE_GARDEN_0108

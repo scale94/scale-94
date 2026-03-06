@@ -1,12 +1,8 @@
 ---
 id: FUCK-XITTER-AND-XITLER-RC1
-type: kernel
-date: 2026-03-06
-title: FUCK-XITTER-AND-XITLER-RC1
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "FUCK XITTER AND XITLER RC1"
+type: "kernel"
 ---
 ### 🚨 System Finalization: Axiomatic Core Defined
 

@@ -6,7 +6,8 @@ import renderContent from '../utils/renderContent';
 const ArticleView = ({ article, originTab, handleReturnToRoot }) => {
   // Strip the first # heading from content — ArticleView already renders article.title
   // above as its own <h1>, so leaving it in the body causes a duplicate heading.
-  const contentBody = (article.content || '')
+  // article.body is the canonical field; article.content is kept as an alias.
+  const contentBody = (article.body || article.content || '')
     .replace(/^#(?!#)[ \t]+[^\n]*\n?/, '')
     .trimStart();
 

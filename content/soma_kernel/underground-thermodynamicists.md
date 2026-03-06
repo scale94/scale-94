@@ -1,11 +1,8 @@
 ---
-id: UTK-1.0-1
-title: ⟁ THE UNDERGROUND THERMODYNAMICISTS
-status: EMERGENT
-type: kernel_doc
-author: scale
-tags: THERMODYNAMICS, COGNITION, ENTROPY, SOMA, DISSIPATIVE_ONTOLOGY
-description: A hidden network of thinkers treating entropy and phase transitions as literal structural forces.
+id: UNDERGROUND-THERMODYNAMICISTS
+date: "2026-03-06"
+title: "⟁ THE UNDERGROUND THERMODYNAMICISTS"
+type: "kernel"
 ---
 # ⟁ The underground thermodynamicists of mind, structure & governance
 

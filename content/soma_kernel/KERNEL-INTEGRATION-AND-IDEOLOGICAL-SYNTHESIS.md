@@ -1,12 +1,8 @@
 ---
 id: KERNEL-INTEGRATION-AND-IDEOLOGICAL-SYNTHESIS
-type: kernel
-date: 2026-03-06
-title: **Project ZERO-ONE: The Unified Root Kernel Architecture (URKA)**
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "Project ZERO-ONE: The Unified Root Kernel Architecture (URKA)"
+type: "kernel"
 ---
 # **Project ZERO-ONE: The Unified Root Kernel Architecture (URKA)**
 

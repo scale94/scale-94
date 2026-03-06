@@ -1,12 +1,8 @@
 ---
 id: KERNEL-IV
-type: kernel
-date: 2026-03-06
-title: **KERNEL IV: THE SYNTHETIC REALITY COMPLIANCE PROTOCOL (SRCP-01)**
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "KERNEL IV: THE SYNTHETIC REALITY COMPLIANCE PROTOCOL (SRCP-01)"
+type: "kernel"
 ---
 # **KERNEL IV: THE SYNTHETIC REALITY COMPLIANCE PROTOCOL (SRCP-01)**
 ### **A Unified Architecture for Deterministic "Impossible" States**

@@ -1,12 +1,8 @@
 ---
 id: PASSALUS-KERNEL-V-4.4.4.4
-type: kernel
-date: 2026-03-06
-title: THE PASSALUS KERNEL :: ARCHITECTURE OF DECAY
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "THE PASSALUS KERNEL :: ARCHITECTURE OF DECAY"
+type: "kernel"
 ---
 # THE PASSALUS KERNEL :: ARCHITECTURE OF DECAY
 

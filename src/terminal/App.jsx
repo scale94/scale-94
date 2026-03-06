@@ -68,8 +68,13 @@ const App = () => {
   const { appendSystemLog, setSystemLogs, visibleLogs, logRef } = useSystemLog();
 
   const mainRef = useRef(null);
-  const kernelListRef  = useRef(null); // ref to the scrollable <ul> in KernelTab
-  const kernelScrollPos = useRef(0);   // last known scrollTop — no state, no re-renders
+  const kernelListRef = useRef(null); // ref to the scrollable <ul> in KernelTab
+  // Scroll persistence: sessionStorage survives tab switches and hot-reloads.
+  // The ref is a write-through cache so we never pay a sessionStorage read on
+  // every scroll event — only on restore.
+  const kernelScrollCache = useRef(
+    Number(sessionStorage.getItem('kernelScrollY') || 0)
+  );
 
   // Fiction articles for Transmission tab — memoised (articles is module-level, never changes)
   const transmissionStories = useMemo(() => articles.filter(a => a.type === 'fiction'), []);
@@ -121,7 +126,11 @@ const App = () => {
   useEffect(() => {
     const el = kernelListRef.current;
     if (!el) return;
-    const save = () => { kernelScrollPos.current = el.scrollTop; };
+    const save = () => {
+      const top = el.scrollTop;
+      kernelScrollCache.current = top;
+      sessionStorage.setItem('kernelScrollY', top);
+    };
     el.addEventListener('scroll', save, { passive: true });
     return () => el.removeEventListener('scroll', save);
   }, [activeTab, selectedArticle]);
@@ -133,7 +142,10 @@ const App = () => {
   // filteredBuilds.length as a dep re-fires if the list contents change size.
   useLayoutEffect(() => {
     if (selectedArticle || activeTab !== 'kernel') return;
-    const saved = kernelScrollPos.current;
+    // Read from sessionStorage first (survives tab switches); fall back to cache.
+    const saved =
+      Number(sessionStorage.getItem('kernelScrollY') || 0) ||
+      kernelScrollCache.current;
     if (!saved) return;
     const id = requestAnimationFrame(() => {
       if (kernelListRef.current) {

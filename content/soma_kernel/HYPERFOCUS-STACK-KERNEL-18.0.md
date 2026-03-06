@@ -1,12 +1,8 @@
 ---
 id: HYPERFOCUS-STACK-KERNEL-18.0
-type: kernel
-date: 2026-03-06
-title: 🏮 KERNEL 18.0: THE HYPERFOCUS STACK
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "🏮 KERNEL 18.0: THE HYPERFOCUS STACK"
+type: "kernel"
 ---
 # 🏮 KERNEL 18.0: THE HYPERFOCUS STACK
 ## [NODE: SCALE94_SOVEREIGN]

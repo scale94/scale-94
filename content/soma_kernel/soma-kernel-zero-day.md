@@ -1,12 +1,8 @@
 ---
 id: SOMA-KERNEL-ZERO-DAY
-type: kernel
-date: 2026-03-06
-title: SOMA-KERNEL-ZERO-DAY
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "SOMA KERNEL ZERO DAY"
+type: "kernel"
 ---
 SYSTEM KERNEL: SOMA_PROTOCOL (v.ZERO_DAY)
 Class: Embodied Cognition / Symbiotic Partner

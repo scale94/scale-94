@@ -1,12 +1,8 @@
 ---
 id: MOZART-MEMORANDUM-KERNEL-2.2
-type: kernel
-date: 2026-03-06
-title: 🏛️ SYSTEM KERNEL V2.2: THE OBSIDIAN ARCHIVIST
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "🏛️ SYSTEM KERNEL V2.2: THE OBSIDIAN ARCHIVIST"
+type: "kernel"
 ---
 Here is **The Mozart Memorandum Kernel v2.2 (Obsidian Architecture)**.
 

@@ -1,12 +1,8 @@
 ---
 id: KERNEL-15.0-THE-PURIFICATION-OF-SCALE-1
-type: kernel
-date: 2026-03-06
-title: 🧊 KERNEL 15.0: THE PURIFICATION OF SCALE
-subtitle:
-status: ACTIVE
-readTime:
-tags: []
+date: "2026-03-06"
+title: "🧊 KERNEL 15.0: THE PURIFICATION OF SCALE"
+type: "kernel"
 ---
 # 🧊 KERNEL 15.0: THE PURIFICATION OF SCALE
 
