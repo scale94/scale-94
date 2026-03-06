@@ -19,28 +19,44 @@
 const markdownModules = import.meta.glob('../../../content/soma_kernel/*.md', { as: 'raw' });
 
 // ─── Frontmatter parser ───────────────────────────────────────────────────────
-// Robust split-based approach: finds the opening '---' and the next '---' on its
-// own line. Handles \r\n (Windows) and \n. Returns { frontmatter: {}, body: '' }
-// for any input, never throws.
+// Uses a multiline regex split so trailing whitespace or \r after '---' never
+// breaks delimiter detection. Handles UTF-8 BOM, Windows CRLF, and '--- '.
+//
+// Split result for a file with frontmatter:
+//   parts[0] — empty string (before the opening ---)
+//   parts[1] — raw YAML key:value lines
+//   parts[2] — body markdown (everything after the closing ---)
+// Split result for a file without frontmatter:
+//   parts[0] — entire file content (length === 1, no frontmatter)
 const parseFrontmatter = (raw) => {
-  if (typeof raw !== 'string' || !raw.startsWith('---')) {
-    return { frontmatter: {}, body: raw ?? '' };
-  }
+  if (typeof raw !== 'string') return { frontmatter: {}, body: '' };
 
-  // Find the closing '---' — must be on its own line (after the first \n).
-  const afterOpen = raw.indexOf('\n');
-  if (afterOpen === -1) return { frontmatter: {}, body: raw };
+  // ── 1. Strip UTF-8 Byte Order Mark ─────────────────────────────────────────
+  // A BOM (\uFEFF) prepended by some Windows editors causes raw.startsWith('---')
+  // to return false even when the file is correctly formatted, silently dropping
+  // all frontmatter fields (date, title, type) and falling through to the body
+  // fallback — which then injects a full paragraph as the article title.
+  const clean = raw.replace(/^\uFEFF/, '');
 
-  // Search for \n--- at any point after the opening line
-  const closeIdx = raw.indexOf('\n---', afterOpen);
-  if (closeIdx === -1) return { frontmatter: {}, body: raw };
+  // ── 2. Multiline regex split on '---' delimiters ───────────────────────────
+  // /^---\s*$/m matches a line that is exactly '---' plus any trailing whitespace
+  // (\s* catches spaces, tabs, and \r from Windows CRLF line endings).
+  // This is strictly more robust than indexOf('\n---') which fails when the
+  // delimiter has trailing characters.
+  const parts = clean.split(/^---\s*$/m);
 
-  const fmRaw  = raw.slice(afterOpen + 1, closeIdx);
-  // Body starts after the closing '---' line (skip the \n that follows ---)
-  const bodyStart = closeIdx + 4; // length of '\n---'
-  const body = raw.slice(bodyStart).replace(/^\r?\n/, '');
+  // Fewer than 3 parts → no valid frontmatter block present
+  if (parts.length < 3) return { frontmatter: {}, body: clean };
 
-  // Parse key: value pairs (flat only — no multi-line YAML blocks)
+  // parts[1] is the YAML block; parts[2..] is the body (rejoin in case the body
+  // itself contains '---' horizontal rules — e.g. SCALE-Y-KERNEL uses --- as a
+  // section separator inside the markdown body).
+  const fmRaw = parts[1];
+  const body  = parts.slice(2).join('---\n').replace(/^\r?\n/, '');
+
+  // ── 3. Parse key: value pairs ──────────────────────────────────────────────
+  // Flat YAML only — multi-line blocks (sequences starting with '  - item') are
+  // intentionally skipped since our strict template never emits them.
   const frontmatter = {};
   for (const line of fmRaw.split('\n')) {
     const colonIdx = line.indexOf(':');
@@ -65,12 +81,34 @@ const parseFrontmatter = (raw) => {
 
 // ─── Metadata derivation ──────────────────────────────────────────────────────
 // Extracts title/subtitle from markdown body when frontmatter omits them.
+// SAFETY: any derived title is clamped to MAX_TITLE_LEN characters.
+// Without this, the 'firstLine' fallback can grab an entire opening paragraph
+// (e.g. "The central thesis posits...") and pass it as the title prop to
+// HackerText/ArticleView, causing catastrophic layout shifts on mobile.
+const MAX_TITLE_LEN = 60;
+
 const deriveFromContent = (body, filename) => {
   const h1 = body.match(/^#(?!#)[ \t]+(.+)$/m);
   const h2 = body.match(/^##(?!#)[ \t]+(.+)$/m);
-  const firstLine = body.split('\n').map(l => l.trim()).find(l => l && !l.startsWith('#'));
 
-  const rawTitle    = h1 ? h1[1].trim().replace(/\*{1,3}(.+?)\*{1,3}/g, '$1') : (firstLine || filename);
+  // firstLine: first non-empty, non-heading line — only used as last resort.
+  // Clamped hard to MAX_TITLE_LEN to prevent paragraph injection into the title.
+  const firstLine = body
+    .split('\n')
+    .map(l => l.trim())
+    .find(l => l && !l.startsWith('#'));
+
+  let rawTitle;
+  if (h1) {
+    // H1 titles are intentionally short; strip markdown bold/italic wrappers.
+    rawTitle = h1[1].trim().replace(/\*{1,3}(.+?)\*{1,3}/g, '$1');
+  } else if (firstLine) {
+    // Paragraph fallback — always truncate.
+    rawTitle = firstLine.substring(0, MAX_TITLE_LEN);
+  } else {
+    rawTitle = filename;
+  }
+
   const rawSubtitle = h2 ? h2[1].trim() : '';
 
   return { rawTitle, rawSubtitle };
@@ -112,15 +150,34 @@ const articles = Object.entries(markdownModules).map(([filePath, loader]) => {
       const { frontmatter, body } = parseFrontmatter(raw);
       const { rawTitle, rawSubtitle } = deriveFromContent(body, filename);
 
+      // ── Diagnostic: warn when expected frontmatter fields are absent ─────────
+      // Fires during development and in the browser console on any open article.
+      // Use this to audit which files still have corrupt or missing metadata.
+      if (!frontmatter.date) {
+        console.warn(`[loadArticles] missing frontmatter.date — id: ${frontmatter.id || stubId}`);
+      }
+      if (!frontmatter.title) {
+        console.warn(`[loadArticles] missing frontmatter.title — id: ${frontmatter.id || stubId} (using derived: "${rawTitle}")`);
+      }
+
       const wordCount = body.trim()
         ? body.trim().split(/\s+/).filter(Boolean).length
         : 0;
 
-      const resolved = {
+      // ── Final title resolution ───────────────────────────────────────────────
+      // Priority: frontmatter.title > H1 from body > firstLine (clamped) > stubTitle
+      // The toUpperCase() call is safe on any ≤60-char string.
+      // If frontmatter.title is present but abnormally long (shouldn't happen with
+      // our strict template), clamp it here as a final safety net.
+      const resolvedTitle = (frontmatter.title || rawTitle || stubTitle)
+        .substring(0, MAX_TITLE_LEN)
+        .toUpperCase();
+
+      return {
         id:       frontmatter.id                               || stubId,
         type:     frontmatter.type                             || 'kernel',
         date:     frontmatter.date                             || '',
-        title:    (frontmatter.title || rawTitle || stubTitle).toUpperCase(),
+        title:    resolvedTitle,
         subtitle: frontmatter.subtitle                         || rawSubtitle,
         status:   frontmatter.status                           || 'ACTIVE',
         readTime: frontmatter.readTime                         || '',
@@ -130,13 +187,11 @@ const articles = Object.entries(markdownModules).map(([filePath, loader]) => {
                     : frontmatter.tags
                       ? [frontmatter.tags]
                       : [],
-        // body: the raw markdown content (post-frontmatter)
-        // content: alias kept for backward compatibility with ArticleView
+        // body: canonical post-frontmatter markdown content
+        // content: alias for backward compatibility with ArticleView
         body,
         content: body,
       };
-
-      return resolved;
     },
   };
 });
