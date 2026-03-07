@@ -695,9 +695,11 @@ const App = () => {
         const kq = norm(kernelQuery);
 
         // ── Article + WASM registry lookup (registry checked independently) ─
+        // Priority: exact article-id match → ID fuzzy → alias fuzzy
         const target    = articles.find(a => norm(a.id).includes(kq) || norm(a.title).includes(kq));
         const wasmEntry = wasmRegistry[target?.id]
           ?? Object.values(wasmRegistry).find(e => norm(e.id).includes(kq))
+          ?? Object.values(wasmRegistry).find(e => e.aliases?.some(a => norm(a).includes(kq)))
           ?? null;
 
         if (wasmEntry) {
@@ -714,7 +716,11 @@ const App = () => {
               // Dynamic import of wasm-pack JS bindings (served from public/wasm/)
               // @vite-ignore: intentional runtime URL — not bundled by Vite
               const mod = await import(/* @vite-ignore */ wasmEntry.module);
-              await mod.default(); // init() — loads the .wasm binary
+              // Pass explicit WASM URL to init() so it doesn't fall back to
+              // import.meta.url resolution, which is unreliable for files served
+              // from Vite's static public/ directory during dev mode.
+              const wasmUrl = wasmEntry.wasmUrl ?? wasmEntry.module.replace(/\.js$/, '_bg.wasm');
+              await mod.default({ module_or_path: wasmUrl });
 
               // Build final args: start from registry defaults, then apply CLI flags.
               // argMap: { trust: 0, coupling: 0, price: 1, thermal: 1 } → arg index

@@ -5,20 +5,24 @@
 
 const wasmRegistry = {
   "BIODIVERSITY-KERNEL-1.0.1": {
-    id:     "BIODIVERSITY-KERNEL-1.0.1",
-    struct: "BiocoenosisKernel",
-    boot:   "boot",
-    label:  "Biocoenosis Kernel v1.0.1",
-    type:   'rust',
-    module: '/wasm/scale94_kernels.js',
+    id:      "BIODIVERSITY-KERNEL-1.0.1",
+    struct:  "BiocoenosisKernel",
+    boot:    "boot",
+    label:   "Biocoenosis Kernel v1.0.1",
+    type:    'rust',
+    module:  '/wasm/scale94_kernels.js',
+    wasmUrl: '/wasm/scale94_kernels_bg.wasm',
+    aliases: ['biodiversity', 'biocoenosis'],
   },
   "FISH-SCALE-KERNEL11.1.1": {
-    id:     "FISH-SCALE-KERNEL11.1.1",
-    struct: "NecromanticEngine",
-    boot:   "boot",
-    label:  "Necromantic Engine v11.1.1",
-    type:   'rust',
-    module: '/wasm/scale94_kernels.js',
+    id:      "FISH-SCALE-KERNEL11.1.1",
+    struct:  "NecromanticEngine",
+    boot:    "boot",
+    label:   "Necromantic Engine v11.1.1",
+    type:    'rust',
+    module:  '/wasm/scale94_kernels.js',
+    wasmUrl: '/wasm/scale94_kernels_bg.wasm',
+    aliases: ['fishscale', 'necromantic', 'fish'],
   },
   "BOSONIC-KERNEL-2.0": {
     id:      "BOSONIC-KERNEL-2.0",
@@ -31,6 +35,8 @@ const wasmRegistry = {
     label:   "Bosonic Lattice Simulator v2.0",
     type:    'rust',
     module:  '/wasm/scale94_kernels.js',
+    wasmUrl: '/wasm/scale94_kernels_bg.wasm',
+    aliases: ['bosonic_lattice', 'bosonic', 'bosonickernel', 'lattice'],
   },
 };
 

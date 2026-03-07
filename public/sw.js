@@ -1,48 +1,43 @@
 /* eslint-env browser, serviceworker */
-// sw.js — Scale 9.4 // Service Worker // Apocalypse Protocol
-// Level 19: Offline-first PWA — survives complete network partition.
+// sw.js — Scale 9.4 // Service Worker // Level 20: Trivial CAS Worker
+//
+// CAS model: every data file in /kernel/ is content-addressed (immutable).
+// The manifest tells the app which hash is current — it is the only file
+// that must always be fresh. Everything else is cached forever.
 //
 // Strategy:
-//   STATIC ASSETS  (.js, .css, .wasm, hashed filenames) → cache-first
-//   HTML navigation (index.html, /) → network-first with cache fallback
-//   WASM modules    (/wasm/*.*)     → cache-first (large, rarely change)
-//
-// The entire production bundle is progressively cached on first visit.
-// On subsequent visits, the terminal boots from cache even with zero connectivity.
+//   /kernel/manifest.json         → network-first, cache fallback
+//   /kernel/**  (hash-named .json) → cache-first, eternal (content-addressed)
+//   /assets/**  (Vite hashed JS/CSS) → cache-first, eternal
+//   /wasm/**                       → cache-first, eternal
+//   HTML / navigation              → network-first, SPA fallback to '/'
 
-const CACHE_VERSION = 'scale94-v1';
+const CACHE_VERSION = 'scale94-v3'; // bumped: WASM artifacts updated (boot_bosonic_lattice)
 
-// Hashed asset pattern — Vite appends a content hash to all JS/CSS/WASM chunks.
-// These are immutable once cached: if the hash changes, it's a new file.
+// Content-addressed patterns — safe to cache forever.
 const IMMUTABLE_PATTERN = /\/assets\/[^/?]+\.(js|css)(\?.*)?$/;
 const WASM_PATTERN      = /\/wasm\/[^/?]+\.(js|wasm)(\?.*)?$/;
+// /kernel/**/*.json but NOT /kernel/manifest.json
+const KERNEL_CAS_PATTERN = /\/kernel\/(?!manifest\.json)[^/?]+\.json(\?.*)?$/;
 
-// ── Install ──────────────────────────────────────────────────────────────────
-// Skip waiting so the new SW activates immediately on deploy, without requiring
-// the user to close all tabs.
+// ── Install ───────────────────────────────────────────────────────────────────
 
 self.addEventListener('install', event => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_VERSION).then(cache =>
-      // Pre-cache the app shell (HTML + known static roots)
-      cache.addAll(['/', '/vite.svg']).catch(() => {
-        // Ignore pre-cache failures — runtime caching covers the rest
-      })
+      cache.addAll(['/', '/vite.svg']).catch(() => {})
     )
   );
 });
 
-// ── Activate ─────────────────────────────────────────────────────────────────
-// Purge old cache versions so stale bundles never serve after a deploy.
+// ── Activate ──────────────────────────────────────────────────────────────────
 
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(
-        keys
-          .filter(k => k !== CACHE_VERSION)
-          .map(k => caches.delete(k))
+        keys.filter(k => k !== CACHE_VERSION).map(k => caches.delete(k))
       )
     ).then(() => self.clients.claim())
   );
@@ -54,12 +49,13 @@ self.addEventListener('fetch', event => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Only intercept same-origin GET requests
   if (url.origin !== self.location.origin) return;
   if (request.method !== 'GET') return;
 
-  if (IMMUTABLE_PATTERN.test(url.pathname) || WASM_PATTERN.test(url.pathname)) {
-    // Cache-first: hashed assets are content-addressed — safe to serve stale forever
+  const p = url.pathname;
+
+  // Immutable content-addressed assets — cache forever, no revalidation needed.
+  if (IMMUTABLE_PATTERN.test(p) || WASM_PATTERN.test(p) || KERNEL_CAS_PATTERN.test(p)) {
     event.respondWith(
       caches.match(request).then(cached => {
         if (cached) return cached;
@@ -72,8 +68,12 @@ self.addEventListener('fetch', event => {
         });
       })
     );
-  } else {
-    // Network-first: HTML + dynamic paths — prefer fresh, fall back to cache
+    return;
+  }
+
+  // manifest.json — network-first; cache fallback for offline.
+  // The manifest is tiny and must always be fresh so the app boots the correct hashes.
+  if (p === '/kernel/manifest.json') {
     event.respondWith(
       fetch(request)
         .then(response => {
@@ -83,13 +83,23 @@ self.addEventListener('fetch', event => {
           }
           return response;
         })
-        .catch(() =>
-          caches.match(request).then(cached => {
-            if (cached) return cached;
-            // Final fallback: serve index.html for SPA navigation
-            return caches.match('/');
-          })
-        )
+        .catch(() => caches.match(request))
     );
+    return;
   }
+
+  // Everything else — network-first with SPA fallback.
+  event.respondWith(
+    fetch(request)
+      .then(response => {
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_VERSION).then(cache => cache.put(request, clone));
+        }
+        return response;
+      })
+      .catch(() =>
+        caches.match(request).then(cached => cached ?? caches.match('/'))
+      )
+  );
 });

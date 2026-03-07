@@ -39,18 +39,30 @@ const DEV     = process.argv.includes('--dev');
 
 const KERNEL_MAP = [
   {
-    id:     'BIODIVERSITY-KERNEL-1.0.1',
-    struct: 'BiocoenosisKernel',
-    boot:   'boot',
-    label:  'Biocoenosis Kernel v1.0.1',
-    type:   'rust',
+    id:      'BIODIVERSITY-KERNEL-1.0.1',
+    struct:  'BiocoenosisKernel',
+    boot:    'boot',
+    label:   'Biocoenosis Kernel v1.0.1',
+    type:    'rust',
+    aliases: ['biodiversity', 'biocoenosis'],
   },
   {
-    id:     'FISH-SCALE-KERNEL11.1.1',
-    struct: 'NecromanticEngine',
-    boot:   'boot',
-    label:  'Necromantic Engine v11.1.1',
-    type:   'rust',
+    id:      'FISH-SCALE-KERNEL11.1.1',
+    struct:  'NecromanticEngine',
+    boot:    'boot',
+    label:   'Necromantic Engine v11.1.1',
+    type:    'rust',
+    aliases: ['fishscale', 'necromantic', 'fish'],
+  },
+  {
+    // Free function export — uses fn/args/argMap pattern instead of struct/boot.
+    id:      'BOSONIC-KERNEL-2.0',
+    fn:      'boot_bosonic_lattice',
+    args:    [0.8, 0.7],
+    argMap:  { trust: 0, coupling: 0, price: 1, thermal: 1 },
+    label:   'Bosonic Lattice Simulator v2.0',
+    type:    'rust',
+    aliases: ['bosonic_lattice', 'bosonic', 'bosonickernel', 'lattice'],
   },
 ];
 
@@ -141,18 +153,26 @@ function run() {
   // ── Step 3: Generate wasm.generated.js registry ─────────────────────────────
   const moduleUrl = '/wasm/scale94_kernels.js';
 
-  const entries = KERNEL_MAP.map(k =>
-    [
-      `  ${JSON.stringify(k.id)}: {`,
-      `    id:     ${JSON.stringify(k.id)},`,
-      `    struct: ${JSON.stringify(k.struct)},`,
-      `    boot:   ${JSON.stringify(k.boot)},`,
-      `    label:  ${JSON.stringify(k.label)},`,
-      `    type:   'rust',`,
-      `    module: ${JSON.stringify(moduleUrl)},`,
-      `  }`,
-    ].join('\n')
-  );
+  const wasmUrl = '/wasm/scale94_kernels_bg.wasm';
+
+  const entries = KERNEL_MAP.map(k => {
+    const lines = [`  ${JSON.stringify(k.id)}: {`, `    id:      ${JSON.stringify(k.id)},`];
+    if (k.fn) {
+      lines.push(`    fn:      ${JSON.stringify(k.fn)},`);
+      lines.push(`    args:    ${JSON.stringify(k.args ?? [])},`);
+      lines.push(`    argMap:  ${JSON.stringify(k.argMap ?? {})},`);
+    } else {
+      lines.push(`    struct:  ${JSON.stringify(k.struct)},`);
+      lines.push(`    boot:    ${JSON.stringify(k.boot)},`);
+    }
+    lines.push(`    label:   ${JSON.stringify(k.label)},`);
+    lines.push(`    type:    'rust',`);
+    lines.push(`    module:  ${JSON.stringify(moduleUrl)},`);
+    lines.push(`    wasmUrl: ${JSON.stringify(wasmUrl)},`);
+    if (k.aliases?.length) lines.push(`    aliases: ${JSON.stringify(k.aliases)},`);
+    lines.push(`  }`);
+    return lines.join('\n');
+  });
 
   const src = [
     '// wasm.generated.js — DO NOT EDIT MANUALLY.',
