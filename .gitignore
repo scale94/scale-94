@@ -32,3 +32,13 @@ Environment variables
 MacOS garbage
 
 .DS_Store
+
+# IDE — Visual Studio
+**/.vs/
+**/FileContentIndex/
+*.vsidx
+
+# Rust build artifacts
+target/
+content/rust_kernels/target/
+content/rust_kernels/pkg/

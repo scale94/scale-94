@@ -63,8 +63,9 @@ export default function useSystemLog() {
     el._snapRaf2 = raf2;
   }, []);
 
-  // Centralized append helper — defensive and caps length
-  function appendSystemLog(newEntry) {
+  // Centralized append helper — stable reference via useCallback so callers
+  // can safely use it as a useEffect dependency without causing infinite loops.
+  const appendSystemLog = useCallback((newEntry) => {
     setSystemLogs(prev => {
       const next = [...prev, newEntry];
       if (next.length > MAX_SYSTEM_LOGS) {
@@ -72,7 +73,7 @@ export default function useSystemLog() {
       }
       return next;
     });
-  }
+  }, []); // setSystemLogs is stable — no deps needed
 
   // One-time sanitization: remove old nested arrays (a structural fix)
   useEffect(() => {

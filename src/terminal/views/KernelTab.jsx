@@ -148,8 +148,8 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
           <h4 className="text-sm font-bold text-cyan-400 mb-4 flex items-center gap-2"><span className="text-fuchsia-500">{'>_'}</span> SYSTEM LOG (live)</h4>
           <div ref={logRef} className="max-h-48 overflow-y-auto text-xs p-2 bg-black/60 border border-cyan-900/20 rounded custom-scrollbar">
             {visibleLogs.map((l, i) => (
-              <div key={`${l.time}-${i}`} className="mb-1 text-[#39ff14] break-words">
-                <span className="text-cyan-500 mr-2">{l.time}</span>— {l.msg}
+              <div key={`${l.time}-${i}`} className={`mb-1 break-words ${l.rust ? 'text-emerald-400' : 'text-[#39ff14]'}`}>
+                <span className={`mr-2 ${l.rust ? 'text-cyan-300' : 'text-cyan-500'}`}>{l.time}</span>— {l.msg}
               </div>
             ))}
           </div>
