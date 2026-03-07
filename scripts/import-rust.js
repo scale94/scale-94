@@ -28,7 +28,7 @@ const RUST_DIR    = path.join(ROOT, 'content', 'rust_kernels');
 const PKG_DIR     = path.join(RUST_DIR, 'pkg');
 const WASM_OUT    = path.join(ROOT, 'public', 'wasm');   // .wasm binary (static)
 const JS_OUT      = path.join(ROOT, 'src', 'wasm');      // .js bindings (Vite-bundled)
-const REGISTRY    = path.join(ROOT, 'src', 'terminal', 'data', 'wasm.generated.js');
+const REGISTRY    = path.join(ROOT, 'src', 'wasm', 'wasm.generated.js');
 
 const DRY_RUN = process.argv.includes('--dry');
 const DEV     = process.argv.includes('--dev');
