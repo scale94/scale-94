@@ -713,9 +713,10 @@ const App = () => {
           ].slice(-2000));
           (async () => {
             try {
-              // Dynamic import of wasm-pack JS bindings (served from public/wasm/)
-              // @vite-ignore: intentional runtime URL — not bundled by Vite
-              const mod = await import(/* @vite-ignore */ wasmEntry.module);
+              // Lazy import of wasm-pack JS bindings from src/wasm/ (Vite-bundled).
+              // The .wasm binary stays in public/wasm/ and is referenced via wasmUrl.
+              // eslint-disable-next-line import/no-unresolved
+              const mod = await import('../wasm/scale94_kernels.js');
               // Pass explicit WASM URL to init() so it doesn't fall back to
               // import.meta.url resolution, which is unreliable for files served
               // from Vite's static public/ directory during dev mode.

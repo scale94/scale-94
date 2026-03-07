@@ -26,7 +26,8 @@ const __dirname   = path.dirname(fileURLToPath(import.meta.url));
 const ROOT        = path.join(__dirname, '..');
 const RUST_DIR    = path.join(ROOT, 'content', 'rust_kernels');
 const PKG_DIR     = path.join(RUST_DIR, 'pkg');
-const WASM_OUT    = path.join(ROOT, 'public', 'wasm');
+const WASM_OUT    = path.join(ROOT, 'public', 'wasm');   // .wasm binary (static)
+const JS_OUT      = path.join(ROOT, 'src', 'wasm');      // .js bindings (Vite-bundled)
 const REGISTRY    = path.join(ROOT, 'src', 'terminal', 'data', 'wasm.generated.js');
 
 const DRY_RUN = process.argv.includes('--dry');
@@ -126,28 +127,30 @@ function run() {
     log('[DRY] Would run: wasm-pack build --target web --release');
   }
 
-  // ── Step 2: Copy output artifacts to public/wasm/ ───────────────────────────
+  // ── Step 2: Copy output artifacts ───────────────────────────────────────────
+  //   .wasm binary  → public/wasm/   (served as a static asset)
+  //   .js bindings  → src/wasm/      (bundled by Vite so dynamic import() works)
   if (!DRY_RUN) {
     if (!fs.existsSync(WASM_OUT)) fs.mkdirSync(WASM_OUT, { recursive: true });
+    if (!fs.existsSync(JS_OUT))   fs.mkdirSync(JS_OUT,   { recursive: true });
 
-    // wasm-pack --target web emits these files in pkg/:
-    //   scale94_kernels.js         — ES module JS bindings
-    //   scale94_kernels_bg.wasm    — compiled WASM binary
-    //   scale94_kernels_bg.js      — low-level glue
-    //   scale94_kernels.d.ts       — TypeScript declarations (optional)
-    const filesToCopy = [
-      'scale94_kernels.js',
-      'scale94_kernels_bg.wasm',
-      'scale94_kernels_bg.js',
-    ];
+    // Copy WASM binary to public/wasm/ (stays static, served by Vite/CDN)
+    const wasmOk = copyPkgFile('scale94_kernels_bg.wasm');
+    log(wasmOk ? '  → public/wasm/scale94_kernels_bg.wasm' : '  ⚠ WASM binary missing');
 
-    let copied = 0;
-    for (const f of filesToCopy) {
-      if (copyPkgFile(f)) copied++;
+    // Copy JS bindings to src/wasm/ (Vite processes these as proper ES modules)
+    const jsSrc  = path.join(PKG_DIR, 'scale94_kernels.js');
+    const jsDest = path.join(JS_OUT,  'scale94_kernels.js');
+    if (fs.existsSync(jsSrc)) {
+      fs.copyFileSync(jsSrc, jsDest);
+      log(`✓ Copied → src/wasm/scale94_kernels.js`);
+    } else {
+      console.warn('  ⚠ Not found in pkg/: scale94_kernels.js');
     }
-    log(`\n  ${copied}/${filesToCopy.length} artifact(s) copied → public/wasm/`);
+    log('');
   } else {
-    log('[DRY] Would copy pkg/*.{js,wasm} → public/wasm/');
+    log('[DRY] Would copy scale94_kernels_bg.wasm → public/wasm/');
+    log('[DRY] Would copy scale94_kernels.js      → src/wasm/');
   }
 
   // ── Step 3: Generate wasm.generated.js registry ─────────────────────────────
