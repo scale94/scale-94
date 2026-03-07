@@ -91,6 +91,18 @@ const KERNEL_MAP = [
     type:    'rust',
     aliases: ['geopolitical', 'geopolitical_kinetics', 'kinetics', 'statecraft', 'regime'],
   },
+  {
+    // V-Cache cellular automata benchmark — 2-parameter free function.
+    // grid_size:   args[0]  flags: --grid, --size, --cells
+    // generations: args[1]  flags: --generations, --iters, --steps
+    id:      'LEVIATHAN-BENCHMARK-1.0',
+    fn:      'boot_leviathan_benchmark',
+    args:    [100000.0, 100.0],
+    argMap:  { grid: 0, size: 0, cells: 0, generations: 1, iters: 1, steps: 1 },
+    label:   'Leviathan Benchmark v1.0',
+    type:    'rust',
+    aliases: ['leviathan', 'benchmark', 'vcache', 'stress', 'automata'],
+  },
 ];
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────

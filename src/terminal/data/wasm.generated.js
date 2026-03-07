@@ -56,6 +56,17 @@ const wasmRegistry = {
     module:  "/wasm/scale94_kernels.js",
     wasmUrl: "/wasm/scale94_kernels_bg.wasm",
     aliases: ["geopolitical","geopolitical_kinetics","kinetics","statecraft","regime"],
+  },
+  "LEVIATHAN-BENCHMARK-1.0": {
+    id:      "LEVIATHAN-BENCHMARK-1.0",
+    fn:      "boot_leviathan_benchmark",
+    args:    [100000,100],
+    argMap:  {"grid":0,"size":0,"cells":0,"generations":1,"iters":1,"steps":1},
+    label:   "Leviathan Benchmark v1.0",
+    type:    'rust',
+    module:  "/wasm/scale94_kernels.js",
+    wasmUrl: "/wasm/scale94_kernels_bg.wasm",
+    aliases: ["leviathan","benchmark","vcache","stress","automata"],
   }
 };
 

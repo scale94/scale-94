@@ -178,6 +178,28 @@ export function boot_geopolitical_kinetics(sanction, grid, propaganda) {
 }
 
 /**
+ * Boot the Leviathan Cellular Automata benchmark.
+ * grid_size:   number of cells in the 1-D automaton (default 100_000)
+ * generations: number of evolution steps (default 100)
+ * Runs Rule-30 subset over a large buffer to saturate the 5800X3D V-Cache.
+ * @param {number} grid_size
+ * @param {number} generations
+ * @returns {string}
+ */
+export function boot_leviathan_benchmark(grid_size, generations) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.boot_leviathan_benchmark(grid_size, generations);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * Boot the Thermosphere Protocol climate engine.
  * carbon_ppm:      atmospheric CO₂ concentration (ppm); pre-industrial baseline ~280
  * industrial_drag: dimensionless forcing multiplier (0–10 typical)
