@@ -66,7 +66,7 @@ const wasmRegistry = {
     type:    'rust',
     module:  "/wasm/scale94_kernels.js",
     wasmUrl: "/wasm/scale94_kernels_bg.wasm",
-    aliases: ["leviathan","vcache","benchmark","stress","automata","cellular"],
+    aliases: ["vcache_burn","leviathan","vcache","benchmark","stress","automata","cellular"],
   }
 };
 

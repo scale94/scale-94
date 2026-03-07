@@ -101,7 +101,7 @@ const KERNEL_MAP = [
     argMap:  { size: 0, 'gridsize': 0, cells: 0, generations: 1, iters: 1, steps: 1 },
     label:   'Leviathan Cellular Automata v1.0',
     type:    'rust',
-    aliases: ['leviathan', 'vcache', 'benchmark', 'stress', 'automata', 'cellular'],
+    aliases: ['vcache_burn', 'leviathan', 'vcache', 'benchmark', 'stress', 'automata', 'cellular'],
   },
 ];
 
