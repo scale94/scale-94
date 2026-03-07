@@ -514,7 +514,91 @@ const App = () => {
         appendSystemLog({ time: now, msg: result });
       };
 
-      if (['home', 'kernel', 'system'].includes(action)) {
+      if (action === 'run') {
+        // ── NUCLEAR PRIORITY: run is evaluated FIRST — articles[] never consulted ──
+        console.log('[WASM_EXEC] Attempting to run:', query);
+
+        if (!query) {
+          executeCommand(rawCmd, `RUN_FAIL :: No target specified. Try: run leviathan | run climate | run bosonic`);
+        } else {
+          // ── Step 1: Split baseCmd from flag tokens ───────────────────────
+          const [baseCmd, ...flagTokens] = query.split(' ').filter(Boolean);
+          console.log('[WASM_EXEC] Attempting to run:', baseCmd);
+
+          // ── Step 2: Parse --key value pairs ─────────────────────────────
+          const parsedFlags = {};
+          for (let i = 0; i < flagTokens.length; i++) {
+            if (flagTokens[i].startsWith('--') && flagTokens[i + 1] && !flagTokens[i + 1].startsWith('--')) {
+              parsedFlags[flagTokens[i].slice(2)] = parseFloat(flagTokens[i + 1]);
+              i++;
+            }
+          }
+
+          // ── Step 3: WASM-exclusive lookup ────────────────────────────────
+          // Priority: exact ID → norm'd ID → exact alias → fuzzy alias
+          const kq = norm(baseCmd);
+          const wasmEntry = wasmRegistry[baseCmd.toUpperCase()]
+            ?? wasmRegistry[baseCmd]
+            ?? Object.values(wasmRegistry).find(e => norm(e.id) === kq)
+            ?? Object.values(wasmRegistry).find(e => norm(e.id).includes(kq))
+            ?? Object.values(wasmRegistry).find(e => e.aliases?.some(a => norm(a) === kq))
+            ?? Object.values(wasmRegistry).find(e => e.aliases?.some(a => norm(a).includes(kq)))
+            ?? null;
+
+          if (wasmEntry) {
+            appendSystemLog({ time: now, msg: `COMMAND: ${rawCmd}` });
+            setSystemLogs(prev => [
+              ...prev,
+              { time: now, msg: `  WASM_BOOT :: ${wasmEntry.label}` },
+              { time: now, msg: `  MODULE: ${wasmEntry.module}` },
+              { time: now, msg: `  Instantiating WASM module...` },
+            ].slice(-2000));
+            (async () => {
+              try {
+                // eslint-disable-next-line import/no-unresolved
+                const mod = await import('../wasm/scale94_kernels.js');
+                const wasmUrl = wasmEntry.wasmUrl ?? wasmEntry.module.replace(/\.js$/, '_bg.wasm');
+                await mod.default({ module_or_path: wasmUrl });
+
+                const callArgs = [...(wasmEntry.args ?? [])];
+                if (wasmEntry.argMap) {
+                  for (const [flag, idx] of Object.entries(wasmEntry.argMap)) {
+                    if (parsedFlags[flag] !== undefined) callArgs[idx] = parsedFlags[flag];
+                  }
+                }
+
+                const result = wasmEntry.fn
+                  ? mod[wasmEntry.fn](...callArgs)
+                  : mod[wasmEntry.struct][wasmEntry.boot]();
+                const lines    = result.split('\n');
+                const doneTime = new Date().toLocaleTimeString('en-US', { hour12: false });
+                setSystemLogs(prev => [
+                  ...prev,
+                  { time: now,      msg: `  ── KERNEL OUTPUT ─────────────────────────`, rust: true },
+                  ...lines.map(l => ({ time: now, msg: `  ${l}`, rust: true })),
+                  { time: now,      msg: `  ──────────────────────────────────────────`, rust: true },
+                  { time: doneTime, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE`, rust: true },
+                ].slice(-2000));
+              } catch (err) {
+                setSystemLogs(prev => [
+                  ...prev,
+                  { time: now, msg: `  WASM_RUNTIME_ERROR :: ${err.message}` },
+                  { time: now, msg: `  Run: node scripts/import-rust.js  to compile the module.` },
+                ].slice(-2000));
+              }
+            })();
+          } else {
+            // Hard fail — no article fallback, ever.
+            appendSystemLog({ time: now, msg: `COMMAND: ${rawCmd}` });
+            setSystemLogs(prev => [
+              ...prev,
+              { time: now, msg: `  RUN_FAIL :: "${baseCmd}" — not found in WASM registry.` },
+              { time: now, msg: `  ${Object.keys(wasmRegistry).length} kernel(s) available. Try: run leviathan | run climate | run bosonic` },
+              { time: now, msg: `  Use 'load ${baseCmd}' to open a lore article instead.` },
+            ].slice(-2000));
+          }
+        }
+      } else if (['home', 'kernel', 'system'].includes(action)) {
         handleNav('~/system/kernel', 'kernel');
         executeCommand(rawCmd, "Switching directory to /system/kernel...");
       } else if (['scaling', 'services', 'custom'].includes(action)) {
@@ -668,98 +752,6 @@ const App = () => {
         setArchitectThesis(false);
         setActiveTab('kernel');
         setCurrentPath('~/system/kernel/tags');
-      } else if (action === 'run' && query) {
-        // 'run' exclusively targets the WASM registry.
-        // Articles manifest is NOT searched — lore files must not shadow executables.
-
-        // ── Step 1: Split baseCmd from flag tokens ─────────────────────────
-        // "leviathan --size 500000 --iters 200"
-        //  baseCmd="leviathan"  flagTokens=["--size","500000","--iters","200"]
-        const [baseCmd, ...flagTokens] = query.split(' ').filter(Boolean);
-
-        // ── Step 2: Parse --key value pairs into parsedFlags ───────────────
-        const parsedFlags = {};
-        for (let i = 0; i < flagTokens.length; i++) {
-          if (flagTokens[i].startsWith('--') && flagTokens[i + 1] && !flagTokens[i + 1].startsWith('--')) {
-            parsedFlags[flagTokens[i].slice(2)] = parseFloat(flagTokens[i + 1]);
-            i++;
-          }
-        }
-
-        // ── Step 3: WASM-exclusive lookup — articles[] never consulted ─────
-        // Priority: exact ID → norm'd ID → exact alias → fuzzy alias
-        const kq = norm(baseCmd);
-        const wasmEntry = wasmRegistry[baseCmd.toUpperCase()]
-          ?? wasmRegistry[baseCmd]
-          ?? Object.values(wasmRegistry).find(e => norm(e.id) === kq)
-          ?? Object.values(wasmRegistry).find(e => norm(e.id).includes(kq))
-          ?? Object.values(wasmRegistry).find(e => e.aliases?.some(a => norm(a) === kq))
-          ?? Object.values(wasmRegistry).find(e => e.aliases?.some(a => norm(a).includes(kq)))
-          ?? null;
-
-        if (wasmEntry) {
-          // ── WASM execution path ────────────────────────────────────────────
-          appendSystemLog({ time: now, msg: `COMMAND: ${rawCmd}` });
-          setSystemLogs(prev => [
-            ...prev,
-            { time: now, msg: `  WASM_BOOT :: ${wasmEntry.label}` },
-            { time: now, msg: `  MODULE: ${wasmEntry.module}` },
-            { time: now, msg: `  Instantiating WASM module...` },
-          ].slice(-2000));
-          (async () => {
-            try {
-              // Lazy import of wasm-pack JS bindings from src/wasm/ (Vite-bundled).
-              // The .wasm binary stays in public/wasm/ and is referenced via wasmUrl.
-              // eslint-disable-next-line import/no-unresolved
-              const mod = await import('../wasm/scale94_kernels.js');
-              // Pass explicit WASM URL to init() so it doesn't fall back to
-              // import.meta.url resolution, which is unreliable for files served
-              // from Vite's static public/ directory during dev mode.
-              const wasmUrl = wasmEntry.wasmUrl ?? wasmEntry.module.replace(/\.js$/, '_bg.wasm');
-              await mod.default({ module_or_path: wasmUrl });
-
-              // Build final args: start from registry defaults, then apply CLI flags.
-              // argMap: { trust: 0, coupling: 0, price: 1, thermal: 1 } → arg index
-              const callArgs = [...(wasmEntry.args ?? [])];
-              if (wasmEntry.argMap) {
-                for (const [flag, idx] of Object.entries(wasmEntry.argMap)) {
-                  if (parsedFlags[flag] !== undefined) callArgs[idx] = parsedFlags[flag];
-                }
-              }
-
-              // Two call patterns:
-              //   fn/args  — free exported function: mod.boot_bosonic_lattice(0.8, 0.7)
-              //   struct/boot — static class method:  mod.BiocoenosisKernel.boot()
-              const result = wasmEntry.fn
-                ? mod[wasmEntry.fn](...callArgs)
-                : mod[wasmEntry.struct][wasmEntry.boot]();
-              const lines  = result.split('\n');
-              const doneTime = new Date().toLocaleTimeString('en-US', { hour12: false });
-              setSystemLogs(prev => [
-                ...prev,
-                { time: now,      msg: `  ── KERNEL OUTPUT ─────────────────────────`, rust: true },
-                ...lines.map(l => ({ time: now, msg: `  ${l}`, rust: true })),
-                { time: now,      msg: `  ──────────────────────────────────────────`, rust: true },
-                { time: doneTime, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE`, rust: true },
-              ].slice(-2000));
-            } catch (err) {
-              setSystemLogs(prev => [
-                ...prev,
-                { time: now, msg: `  WASM_RUNTIME_ERROR :: ${err.message}` },
-                { time: now, msg: `  Run: node scripts/import-rust.js  to compile the module.` },
-              ].slice(-2000));
-            }
-          })();
-        } else {
-          // No WASM entry found — hard fail, no article fallback.
-          appendSystemLog({ time: now, msg: `COMMAND: ${rawCmd}` });
-          setSystemLogs(prev => [
-            ...prev,
-            { time: now, msg: `  RUN_FAIL :: "${baseCmd}" — not found in WASM registry.` },
-            { time: now, msg: `  ${Object.keys(wasmRegistry).length} kernel(s) available. Try: run leviathan | run climate | run bosonic` },
-            { time: now, msg: `  Use 'load ${baseCmd}' to open a lore article instead.` },
-          ].slice(-2000));
-        }
       } else if (action === 'clear') {
         setSystemLogs([]);
         executeCommand(rawCmd, "System log cleared.");

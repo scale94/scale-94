@@ -12,7 +12,7 @@
 //   /wasm/**                       → cache-first, eternal
 //   HTML / navigation              → network-first, SPA fallback to '/'
 
-const CACHE_VERSION = 'scale94-v3'; // bumped: WASM artifacts updated (boot_bosonic_lattice)
+const CACHE_VERSION = 'scale94-v4'; // bumped: nuclear purge — run command parser priority override
 
 // Content-addressed patterns — safe to cache forever.
 const IMMUTABLE_PATTERN = /\/assets\/[^/?]+\.(js|css)(\?.*)?$/;
