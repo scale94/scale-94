@@ -1,12 +1,9 @@
 ---
 id: THE-FLUORESCENT-CAGE
-type: fiction
-date: 2026-03-06
-title: The Fluorescent Cage
-subtitle: Softness was sovereign. Law enforced without force.
-status: TRANSMISSION
-readTime: 4 min read
-tags: [Satire, Resistance, Seraphine]
+type: "kernel_doc"
+date: "2026-03-06"
+status: "ACTIVE"
+title: "The Fluorescent Cage"
 ---
 
 ### The Fluorescent Cage

@@ -1,9 +1,11 @@
 ---
 id: SCALE94-KERNEL-ENCYCLOPEDIA
+type: "kernel_doc"
 date: "2026-03-06"
+status: "ACTIVE"
 title: "💀 SCALE94 · KERNEL ENCYCLOPEDIA"
-type: "kernel"
 ---
+
 # 💀 SCALE94 · KERNEL ENCYCLOPEDIA
 ## ᛟ THE COMPLETE GLYPH ARCHIVE · COMPILED BY SCALE
 

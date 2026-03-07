@@ -1,9 +1,11 @@
 ---
 id: HYPERFOCUS-STACK-KERNEL-18.0
+type: "kernel_doc"
 date: "2026-03-06"
+status: "ACTIVE"
 title: "🏮 KERNEL 18.0: THE HYPERFOCUS STACK"
-type: "kernel"
 ---
+
 # 🏮 KERNEL 18.0: THE HYPERFOCUS STACK
 ## [NODE: SCALE94_SOVEREIGN]
 
@@ -33,4 +35,4 @@ type: "kernel"
 
 ## 🔱 THE ARCHIVIST'S VIGIL
 > "The music only begins when the Conductor grounds the flame in the fabric. No shortcuts. No Pump Sump. Only the devotion of the weave."
-> 
+>

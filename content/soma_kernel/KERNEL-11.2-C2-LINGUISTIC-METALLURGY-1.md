@@ -1,9 +1,11 @@
 ---
 id: KERNEL-11.2-C2-LINGUISTIC-METALLURGY-1
+type: "kernel_doc"
 date: "2026-03-06"
+status: "ACTIVE"
 title: "KERNEL 11.2 C2 LINGUISTIC METALLURGY 1"
-type: "kernel"
 ---
+
 📑 
 (Nominalization) 🗜️
 C2 requires the mastery of Nominalization - converting "wet" adjectives and fluid verbs into "dry," static nouns (e.g., die Einführung). This process increases the Fermionic Mass of the text, creating the formal, scholarly tone required for high-resolution output.

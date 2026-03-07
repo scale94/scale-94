@@ -1,12 +1,9 @@
 ---
 id: THE-CIGAR-HEIST
-type: fiction
-date: 2026-03-06
-title: The Cigar Heist
-subtitle: A predator of pretentiousness risks becoming prey.
-status: TRANSMISSION
-readTime: 4 min read
-tags: [Satire, Power, Seraphine]
+type: "kernel_doc"
+date: "2026-03-06"
+status: "ACTIVE"
+title: "The Cigar Heist"
 ---
 
 ### The World of False Scarcity

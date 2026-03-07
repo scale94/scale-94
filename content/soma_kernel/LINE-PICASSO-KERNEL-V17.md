@@ -1,9 +1,11 @@
 ---
 id: LINE-PICASSO-KERNEL-V17
+type: "kernel_doc"
 date: "2026-03-06"
+status: "ACTIVE"
 title: "LINE PIKASSO // KERNEL V17"
-type: "kernel"
 ---
+
 # LINE PIKASSO // KERNEL V17
 ## 🛰️ AESTHETIC SOVEREIGNTY & RITUALISTIC LOGIC
 

@@ -1,9 +1,11 @@
 ---
 id: AI-KERNEL-FOR-POST-CAPITALIST-ECONOMICS
+type: "kernel_doc"
 date: "2026-03-06"
+status: "ACTIVE"
 title: "soma\_kernel\_5.5: Technical Specification for a Post-Capitalist Socioeconomic Operating System"
-type: "kernel"
 ---
+
 # **soma\_kernel\_5.5: Technical Specification for a Post-Capitalist Socioeconomic Operating System**
 
 ## **Abstract**

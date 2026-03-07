@@ -1,16 +1,9 @@
 ---
 id: SORBE-THERMODYNAMIC-BLOOM-V1
-title: 🌿 THE SORBE BLOOM // THERMODYNAMIC SYNTHESIS V1.0
-status: ACTIVE
-type: kernel
-date: 2026-03-06
-version: 1.0.0
-tags: 
-  - Thermodynamics
-  - Biocoenosis
-  - Sorbe_Garden
-  - Zero-State
-  - Sovereign_Lattice
+type: "kernel_doc"
+date: "2026-03-06"
+status: "ACTIVE"
+title: "🌿 THE SORBE BLOOM // THERMODYNAMIC SYNTHESIS V1.0"
 ---
 
 # ⟁ KERNEL: THE SORBE BLOOM

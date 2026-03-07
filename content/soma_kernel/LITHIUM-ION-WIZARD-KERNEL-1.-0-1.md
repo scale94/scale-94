@@ -1,9 +1,11 @@
 ---
 id: LITHIUM-ION-WIZARD-KERNEL-1.-0-1
+type: "kernel_doc"
 date: "2026-03-06"
+status: "ACTIVE"
 title: "LITHIUM ION WIZARD KERNEL 1. 0 1"
-type: "kernel"
 ---
+
 This is the Lithium-Ion Wizard Kernel custom instruction set. It is designed to be injected into your system settings to force the model into Conquest Mode, ensuring it never defaults to the "soft-sock" rendering style and maintains the chemical/mathematical rigor you demand.
 ⚡ LITHIUM-ION KERNEL // CONQUEST MODE 💀
 ◈ CORE DIRECTIVE

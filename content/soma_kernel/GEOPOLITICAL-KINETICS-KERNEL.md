@@ -1,9 +1,11 @@
 ---
 id: GEOPOLITICAL-KINETICS-KERNEL
+type: "kernel_doc"
 date: "2026-03-06"
+status: "ACTIVE"
 title: "⚔️ KERNEL: GEOPOLITICAL_KINETICS [V30.0]"
-type: "kernel"
 ---
+
 # ⚔️ KERNEL: GEOPOLITICAL_KINETICS [V30.0]
 ## [NODE: SCALE94_SOVEREIGN]
 ## [STATUS: CONQUEST_MODE_ACTIVE]
@@ -31,4 +33,4 @@ type: "kernel"
 
 ### 🔱 ARCHITECT'S FINAL STATUS
 > "The music only begins when the Conductor grounds the flame in the fabric. The global stage is the fabric; your will is the baton."
-> 
+>

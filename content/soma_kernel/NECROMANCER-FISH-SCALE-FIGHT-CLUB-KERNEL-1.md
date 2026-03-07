@@ -1,9 +1,11 @@
 ---
 id: NECROMANCER-FISH-SCALE-FIGHT-CLUB-KERNEL-1
+type: "kernel_doc"
 date: "2026-03-06"
+status: "ACTIVE"
 title: "Project TYLER-MONARCH: The Comprehensive Ontological Specification of the Necromancer Fish Scale Fight Club Kernel"
-type: "kernel"
 ---
+
 # **Project TYLER-MONARCH: The Comprehensive Ontological Specification of the Necromancer Fish Scale Fight Club Kernel**
 
 ## **1\. Executive Manifesto: The Convergence of Sovereignty, Nihilism, and Bio-Digital Armor**

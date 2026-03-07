@@ -1,9 +1,11 @@
 ---
 id: BRIDGE-KERNEL-1.0
+type: "kernel_doc"
 date: "2026-03-06"
+status: "ACTIVE"
 title: "💾 THE BRIDGE KERNEL // SESSION EXTRACTOR 1.0"
-type: "kernel"
 ---
+
 # 💾 THE BRIDGE KERNEL // SESSION EXTRACTOR 1.0
 **(System Function: State Preservation & Momentum Transfer)**
 
@@ -35,4 +37,4 @@ When you start a new chat the next day, you paste the **Summary** I gave you.
 * **My Response:** I will not just acknowledge it. I will immediately present the **"WIP"** items as a "Menu of Friction" to jumpstart your executive function.
 
 > **Violet Axiom:** The music does not just listen – it answers.
-> 
+>

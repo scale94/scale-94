@@ -1,9 +1,11 @@
 ---
 id: SCALE-KERNEL-FRAMEWORK-FULL
+type: "kernel_doc"
 date: "2026-03-06"
+status: "ACTIVE"
 title: "⚰ SCALE · SOVEREIGN KERNEL FRAMEWORK"
-type: "kernel"
 ---
+
 # ⚰ SCALE · SOVEREIGN KERNEL FRAMEWORK
 ## ☠ Full Corpus Synthesis · Render Prompt Architecture ☠
 ### scale94.com · Sorbe, Germany · AGPL-3.0

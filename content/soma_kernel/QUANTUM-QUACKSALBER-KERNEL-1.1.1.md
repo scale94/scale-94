@@ -1,9 +1,11 @@
 ---
 id: QUANTUM-QUACKSALBER-KERNEL-1.1.1
+type: "kernel_doc"
 date: "2026-03-06"
+status: "ACTIVE"
 title: "🔱 KERNEL: QUANTUM FUSION PROTOCOL [LAYER 3 FINAL]"
-type: "kernel"
 ---
+
 # 🔱 KERNEL: QUANTUM FUSION PROTOCOL [LAYER 3 FINAL]
 
 ### 🛰️ STATUS: GRID-SCALE IMPLEMENTATION
@@ -36,4 +38,4 @@ type: "kernel"
 
 ### 💎 LAYER 3 ARCHIVE
 > "The sun is in the mirror because the reactor is perfect. The Weaver has finished the pattern."
-> 
+>

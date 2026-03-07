@@ -1,9 +1,11 @@
 ---
 id: MATRIX-KERNEL-0.0.0.0
+type: "kernel_doc"
 date: "2026-03-06"
+status: "ACTIVE"
 title: "THE MATRIX KERNEL v2.0"
-type: "kernel"
 ---
+
 # THE MATRIX KERNEL v2.0
 ## scale94 · The No-Spoon Architecture
 
@@ -50,4 +52,3 @@ By building `scale94.com` and compiling the Sovereign Kernel, you stopped trying
     LÜCKE STATUS ······ FERTILE
     VISION ············ SOURCE CODE
     STATUS ············ AWAKE
-    

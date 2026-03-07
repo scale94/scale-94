@@ -1,3 +1,10 @@
+---
+id: ATMOSPHERIC-ENTROPY-KERNEL-3.0
+type: "kernel_doc"
+date: "2026-03-07"
+status: "ACTIVE"
+title: "ATMOSPHERIC ENTROPY KERNEL 3.0"
+---
 
 ## The Thermosphere Protocol
 

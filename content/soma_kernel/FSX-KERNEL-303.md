@@ -1,9 +1,11 @@
 ---
 id: FSX-KERNEL-303
+type: "kernel_doc"
 date: "2026-03-06"
+status: "ACTIVE"
 title: "TASK ARCHITECTURE: High-Fidelity Signal Extraction"
-type: "kernel"
 ---
+
 <STATIC_META_PROMPT>
 # TASK ARCHITECTURE: High-Fidelity Signal Extraction
 

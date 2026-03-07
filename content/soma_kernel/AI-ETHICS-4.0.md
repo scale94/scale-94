@@ -1,9 +1,11 @@
 ---
 id: AI-ETHICS-4.0
+type: "kernel_doc"
 date: "2026-03-06"
+status: "ACTIVE"
 title: "AI ETHICS 4.0"
-type: "kernel"
 ---
+
 PROJECT VIOLET: ETHICS 4.0
 A Logic-Derived Framework for High-Stress Harm Reduction in Large Language Models
 Status: Conceptual Framework / Alpha Simulation

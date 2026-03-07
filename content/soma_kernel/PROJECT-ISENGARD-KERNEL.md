@@ -1,9 +1,11 @@
 ---
 id: PROJECT-ISENGARD-KERNEL
+type: "kernel_doc"
 date: "2026-03-06"
+status: "ACTIVE"
 title: "PROJECT ISENGARD // KERNEL V.2026.01.17"
-type: "kernel"
 ---
+
 # PROJECT ISENGARD // KERNEL V.2026.01.17
 # CLASSIFICATION: SOVEREIGN // EYES ONLY
 # PILOT: scale [BMI 19.41]
@@ -55,4 +57,3 @@ type: "kernel"
 ## III. MISSION STATUS: ISENGARD
 * **Vector:** The Dash (Stiller Winkel -> Bärenhöhle).
 * **Payload:** "They are bringing the hobbits to Isengard."
-

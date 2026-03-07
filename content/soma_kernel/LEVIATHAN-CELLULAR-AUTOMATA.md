@@ -1,3 +1,10 @@
+---
+id: LEVIATHAN-CELLULAR-AUTOMATA
+type: "kernel_doc"
+date: "2026-03-07"
+status: "ACTIVE"
+title: "LEVIATHAN CELLULAR AUTOMATA"
+---
 
 ## The Architecture of V-Cache Annihilation
 

@@ -31,7 +31,19 @@
       "Bash(node \"E:/scale_9.4/find_missing.cjs\")",
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(npm install tailwindcss-animate --save-dev)",
-      "Bash(sed 's/\\\\.md$//')"
+      "Bash(sed 's/\\\\.md$//')",
+      "Bash(Get-ChildItem \"E:\\\\scale_9.4\\\\content\\\\soma_kernel\"\" -Filter \"*.md \")",
+      "Bash(Measure-Object)",
+      "Bash(Select-Object -ExpandProperty Count)",
+      "Bash(powershell -Command \"\\(Get-ChildItem ''E:\\\\scale_9.4\\\\content\\\\soma_kernel\\\\'' -Filter ''*.md''\\).Count\")",
+      "Bash(powershell -Command \"Get-ChildItem ''E:\\\\scale_9.4\\\\content\\\\soma_kernel\\\\'' -Filter ''*.md'' | Select-Object -ExpandProperty Name\")",
+      "Bash(powershell -Command \"Get-ChildItem ''E:\\\\scale_9.4\\\\content\\\\soma_kernel\\\\'' -Filter ''*.md'' | ForEach-Object { Write-Host ''=== '' + $_Name + '' ===''; Get-Content $_FullName -TotalCount 30; Write-Host '''' }\")",
+      "Bash(powershell -ExecutionPolicy Bypass -File \"C:\\\\tmp\\\\audit_md.ps1\")",
+      "Bash(powershell -ExecutionPolicy Bypass -File \"/tmp/audit_md.ps1\")",
+      "Bash(powershell -ExecutionPolicy Bypass -File \"/tmp/audit_frontmatter.ps1\")",
+      "Bash(powershell -Command \"node ''E:/scale_9.4/scripts/repair-frontmatter.js''\")",
+      "Bash(node \"E:/scale_9.4/scripts/repair-frontmatter.cjs\")",
+      "Bash(node \"E:/scale_9.4/scripts/substrate-repair.cjs\")"
     ]
   }
 }

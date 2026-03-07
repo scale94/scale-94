@@ -1,9 +1,11 @@
 ---
 id: KERNEL-FOR-SUSTAINABLE-FUTURE-DEFENSE
+type: "kernel_doc"
 date: "2026-03-06"
+status: "ACTIVE"
 title: "The Leviathan and the Ouroboros: A Kernel-Level Defense Architecture for the Bio-Industrial Age"
-type: "kernel"
 ---
+
 # **The Leviathan and the Ouroboros: A Kernel-Level Defense Architecture for the Bio-Industrial Age**
 
 **Classification:** KERNEL\_LEVEL\_11.1 // MODULE\_A // STRATEGIC\_DEFENSE **Subject:** Implementation of The Leviathan Protocol (Module A) and Fish Scale Resilience against Hybrid Warfare Vectors **Date:** December 6, 2025 **Submitted to:** Central Command / System Architect

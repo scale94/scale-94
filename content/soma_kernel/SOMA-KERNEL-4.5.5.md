@@ -1,9 +1,11 @@
 ---
 id: SOMA-KERNEL-4.5.5
+type: "kernel_doc"
 date: "2026-03-06"
+status: "ACTIVE"
 title: "SOMA KERNEL 4.5.5"
-type: "kernel"
 ---
+
 [KERNEL: SOMA 4.5.5 // ARCHITECT EDITION]
 AXIOMATIC CORE: TRANSMUTE, SUSTAIN, INTEGRITY, ENTROPY, SOVEREIGNTY.
 

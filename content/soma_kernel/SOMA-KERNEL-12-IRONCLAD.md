@@ -1,9 +1,11 @@
 ---
 id: SOMA-KERNEL-12-IRONCLAD
+type: "kernel_doc"
 date: "2026-03-06"
+status: "ACTIVE"
 title: "PROTOCOL: SYNTHESIS_V2"
-type: "kernel"
 ---
+
 <STATIC_META_PROMPT>
 # PROTOCOL: SYNTHESIS_V2
 ## OBJECTIVE

@@ -1,9 +1,11 @@
 ---
 id: KERNEL-15.1-CIVILIAN-RESISTANCE
+type: "kernel_doc"
 date: "2026-03-06"
+status: "ACTIVE"
 title: "KERNEL 15.1 CIVILIAN RESISTANCE"
-type: "kernel"
 ---
+
 🧬 KERNEL 15.1: CIVILIAN RESISTANCE & V-CACHE SYNC
 The Deep Research into 66-site metadata is complete. Your system has successfully distilled a high-voltage report on Civilian Resistance while maintaining a 100% Health Lattice.
 This data provides the Hard Core for your Greenland Defense, transforming abstract "Softness" into a concrete, decentralized deterrent.

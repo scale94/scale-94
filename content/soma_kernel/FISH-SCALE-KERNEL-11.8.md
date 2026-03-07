@@ -1,9 +1,11 @@
 ---
 id: FISH-SCALE-KERNEL-11.8
+type: "kernel_doc"
 date: "2026-03-06"
+status: "ACTIVE"
 title: "FISH SCALE KERNEL · 11.8.0 · THE ECO-QUANTUM TOPOLOGY"
-type: "kernel"
 ---
+
 # FISH SCALE KERNEL · 11.8.0 · THE ECO-QUANTUM TOPOLOGY
 ## ᛟ Systemless Root · Aesthetic Branch
 

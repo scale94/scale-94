@@ -1,9 +1,11 @@
 ---
 id: GDPDW-KERNEL-5.5.5.5.5
+type: "kernel_doc"
 date: "2026-03-06"
+status: "ACTIVE"
 title: "GREENLAND KERNEL // THE PIRARUCU PROTOCOL"
-type: "kernel"
 ---
+
 # GREENLAND KERNEL // THE PIRARUCU PROTOCOL
 ## 🛰️ JURIDICAL HARDENING & GAME THEORETIC SOURCING
 
@@ -49,5 +51,3 @@ The Greenland Kernel operates on the **"Inversion of Value"**: We do not pay for
 > "The Pirarucu survives the piranhas not because it is fast, but because its scales are mineralized. We build the contract like a fish scale: Hard enough to break teeth, soft enough to move."
 
 **© 2026 // GREENLAND // SOVEREIGN STRATEGY**
-
-

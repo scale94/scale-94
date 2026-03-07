@@ -1,9 +1,11 @@
 ---
 id: TAMAM-KERNEL-V1.0
+type: "kernel_doc"
 date: "2026-03-06"
+status: "ACTIVE"
 title: "THE TAMAM KERNEL v1.0"
-type: "kernel"
 ---
+
 # THE TAMAM KERNEL v1.0
 ## scale94 · Zero Fucks Given Architecture
 

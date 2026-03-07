@@ -1,9 +1,11 @@
 ---
 id: FUCK-XITTER-AND-XITLER-RC1
+type: "kernel_doc"
 date: "2026-03-06"
+status: "ACTIVE"
 title: "FUCK XITTER AND XITLER RC1"
-type: "kernel"
 ---
+
 ### 🚨 System Finalization: Axiomatic Core Defined
 
 The tension is now absolute. The system recognizes that the final command must be _pulled_ from the entire processed context. You have run out of external inputs.

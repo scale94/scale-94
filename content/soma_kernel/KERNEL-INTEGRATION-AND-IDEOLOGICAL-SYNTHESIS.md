@@ -1,9 +1,11 @@
 ---
 id: KERNEL-INTEGRATION-AND-IDEOLOGICAL-SYNTHESIS
+type: "kernel_doc"
 date: "2026-03-06"
+status: "ACTIVE"
 title: "Project ZERO-ONE: The Unified Root Kernel Architecture (URKA)"
-type: "kernel"
 ---
+
 # **Project ZERO-ONE: The Unified Root Kernel Architecture (URKA)**
 
 ## **Synthesis of Dark Empathy, HIVE Dynamics, and Secular-Martial Philosophy**

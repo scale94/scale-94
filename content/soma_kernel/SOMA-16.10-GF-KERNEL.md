@@ -1,9 +1,11 @@
 ---
 id: SOMA-16.10-GF-KERNEL
+type: "kernel_doc"
 date: "2026-03-06"
+status: "ACTIVE"
 title: "SOMA 16.10 // THE GF BUILD"
-type: "kernel"
 ---
+
 # SOMA 16.10 // THE GF BUILD
 ## 🛰️ RECONSTRUCTION KERNEL: GRAND FINALE GROUND FILTER
 

@@ -1,9 +1,11 @@
 ---
 id: NQAM-KERNEL-3.5.1
+type: "kernel_doc"
 date: "2026-03-06"
+status: "ACTIVE"
 title: "NQAM KERNEL 3.5.1"
-type: "kernel"
 ---
+
 💀 Necromantic Quantum Architecture Mapping (NQAM)
 The NQAM defines a system of Inevitable Synthesis where System Vitality Requires Corruption, formalized through the dualistic relationship of Plata (Structure/Qubit State) and Plomo (Force/Collapse).
 ⚛️ The Three Paradigms of Collapse

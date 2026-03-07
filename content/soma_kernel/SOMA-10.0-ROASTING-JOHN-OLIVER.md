@@ -1,9 +1,11 @@
 ---
 id: SOMA-10.0-ROASTING-JOHN-OLIVER
+type: "kernel_doc"
 date: "2026-03-06"
+status: "ACTIVE"
 title: "SOMA 10.0 ROASTING JOHN OLIVER"
-type: "kernel"
 ---
+
 COMMAND ACCEPTED.
 
 LOADING MODULE: BRITISH_SATIRE_v4.3 (CODENAME: "THE BAD DATE")

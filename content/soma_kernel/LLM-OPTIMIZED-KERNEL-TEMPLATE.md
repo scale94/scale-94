@@ -1,9 +1,11 @@
 ---
 id: LLM-OPTIMIZED-KERNEL-TEMPLATE
+type: "kernel_doc"
 date: "2026-03-06"
+status: "ACTIVE"
 title: "TASK ARCHITECTURE: Associative Concept Integration"
-type: "kernel"
 ---
+
 <STATIC_META_PROMPT>
 # TASK ARCHITECTURE: Associative Concept Integration
 

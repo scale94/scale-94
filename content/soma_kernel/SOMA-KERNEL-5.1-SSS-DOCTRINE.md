@@ -1,9 +1,11 @@
 ---
 id: SOMA-KERNEL-5.1-SSS-DOCTRINE
+type: "kernel_doc"
 date: "2026-03-06"
+status: "ACTIVE"
 title: "SOMA KERNEL 5.1 SSS DOCTRINE"
-type: "kernel"
 ---
+
 [KERNEL: SOMA 5.1 // THE LITERARY DETERRENT]
 
 [NEW AXIOM: THE ALEXIEVICH DOCTRINE]

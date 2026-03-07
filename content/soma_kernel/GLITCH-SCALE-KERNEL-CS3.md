@@ -1,9 +1,11 @@
 ---
 id: GLITCH-SCALE-KERNEL-CS3
+type: "kernel_doc"
 date: "2026-03-06"
+status: "ACTIVE"
 title: "[KERNEL: POLARITY_PRIME // THE AXIOMATIC PAIRS]"
-type: "kernel"
 ---
+
 # [KERNEL: POLARITY_PRIME // THE AXIOMATIC PAIRS]
 ## ENGINE: NECROMANTIC_ENGINE_2026
 

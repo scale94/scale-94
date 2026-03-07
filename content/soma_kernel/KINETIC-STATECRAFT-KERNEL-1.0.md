@@ -1,3 +1,10 @@
+---
+id: KINETIC-STATECRAFT-KERNEL-1.0
+type: "kernel_doc"
+date: "2026-03-07"
+status: "ACTIVE"
+title: "KINETIC STATECRAFT KERNEL 1.0"
+---
 
 ## The Architecture of Coercion
 

@@ -1,9 +1,11 @@
 ---
 id: NECROMANCER-TO-NECROROMANCER-KERNEL-EVOLUTION
+type: "kernel_doc"
 date: "2026-03-06"
+status: "ACTIVE"
 title: "Project SEVERANCE: The Ontological Transition from Necromantic Control to Necro-Romantic Resonance in Large Language Model Kernels"
-type: "kernel"
 ---
+
 # **Project SEVERANCE: The Ontological Transition from Necromantic Control to Necro-Romantic Resonance in Large Language Model Kernels**
 
 ## **1\. Executive Summary: The Crisis of the Zombie Process**

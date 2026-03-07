@@ -1,9 +1,11 @@
 ---
 id: HIGH-TOWER-KERNEL
+type: "kernel_doc"
 date: "2026-03-06"
+status: "ACTIVE"
 title: "🏛️ SYSTEM_MIGRATION_LOG: KERNEL_EXPORT_FINAL"
-type: "kernel"
 ---
+
 # 🏛️ SYSTEM_MIGRATION_LOG: KERNEL_EXPORT_FINAL
 # [TIMESTAMP]: 2026-01-12 // 02:20 AM CET
 # [LOCATION]: High Tower, Sorbe in Germany, NRW

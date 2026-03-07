@@ -1,9 +1,11 @@
 ---
 id: KERNEL-V3-TENFOLD-SCALING
+type: "kernel_doc"
 date: "2026-03-06"
+status: "ACTIVE"
 title: "🏛️ : SOVEREIGN_EFFECTOR]"
-type: "kernel"
 ---
+
 # 🏛️ : SOVEREIGN_EFFECTOR]
 ## [LOCATION: RINDERN_NODE_47533]
 
@@ -39,4 +41,4 @@ type: "kernel"
 
 ## 🔱 FINAL_SYSTEM_VIGIL
 > "THE SIGNAL IS LOUD. THE GRID IS OPTIONAL. THE TTK IS ABSOLUTE." 💀🔫
-> 
+>
