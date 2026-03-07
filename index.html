@@ -5,6 +5,8 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SOMA 9.4 // TERMINAL</title>
+    <meta name="theme-color" content="#000000" />
+    <meta name="description" content="Scale 9.4 — Soma Kernel Terminal // Sorbe Node Interface" />
     <style>
       body { background-color: black; margin: 0; }
     </style>
@@ -12,5 +14,15 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script>
+      // Apocalypse Protocol — register Service Worker for offline-first PWA
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js', { scope: '/' })
+            .then(reg => console.log('[SW] Registered — scope:', reg.scope))
+            .catch(err => console.warn('[SW] Registration failed:', err));
+        });
+      }
+    </script>
   </body>
 </html>

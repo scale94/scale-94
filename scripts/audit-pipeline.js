@@ -19,7 +19,7 @@ const buildArticleIds = new Set(
 );
 
 const orphaned  = genIds.filter(id => !buildArticleIds.has(id));
-const covered   = genIds.filter(id =>  buildArticleIds.has(id));
+const _covered  = genIds.filter(id =>  buildArticleIds.has(id));
 
 // Type audit
 const kernelDocCount = (genSrc.match(/"type":"kernel_doc"/g) || []).length;

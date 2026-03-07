@@ -1,0 +1,18 @@
+[package]
+name        = "scale94-kernels"
+version     = "0.1.0"
+edition     = "2021"
+description = "Soma 9.4 — Native Rust kernel execution layer (wasm-bindgen targets)"
+
+[lib]
+# cdylib: required for wasm-pack to emit a WebAssembly dynamic library.
+# rlib:   retained so unit tests can be run with `cargo test` on native target.
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+
+[profile.release]
+# Optimize for size — WASM binary is served over the network.
+opt-level = "s"
+lto        = true

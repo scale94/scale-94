@@ -159,9 +159,10 @@ function run() {
 
   for (const file of files) {
     const fullPath = path.join(CONTENT_DIR, file);
-    const raw      = fs.readFileSync(fullPath, 'utf8');
-    const rawHash  = fileHash(raw);
-    const cacheKey = path.relative(ROOT, fullPath).replace(/\\/g, '/');
+    const raw          = fs.readFileSync(fullPath, 'utf8');
+    const rawHash      = fileHash(raw);
+    const cacheKey     = path.relative(ROOT, fullPath).replace(/\\/g, '/');
+    const lastModified = fs.statSync(fullPath).mtime.toISOString().slice(0, 10);
 
     const { data: fm, content: body } = matter(raw);
 
@@ -178,7 +179,7 @@ function run() {
 
     const html = renderMarkdown(body);
 
-    articles[id] = { id, title, subtitle, date, len, html };
+    articles[id] = { id, title, subtitle, date, lastModified, len, html };
     cache[cacheKey] = rawHash;
 
     console.log(`  Processed: ${file}`);
@@ -191,10 +192,11 @@ function run() {
     return [
       `  ${JSON.stringify(id)}: {`,
       `    id:       ${JSON.stringify(a.id)},`,
-      `    title:    ${JSON.stringify(a.title)},`,
-      `    subtitle: ${JSON.stringify(a.subtitle)},`,
-      `    date:     ${JSON.stringify(a.date)},`,
-      `    len:      ${JSON.stringify(a.len)},`,
+      `    title:        ${JSON.stringify(a.title)},`,
+      `    subtitle:     ${JSON.stringify(a.subtitle)},`,
+      `    date:         ${JSON.stringify(a.date)},`,
+      `    lastModified: ${JSON.stringify(a.lastModified)},`,
+      `    len:          ${JSON.stringify(a.len)},`,
       `    html:     ${JSON.stringify(a.html)},`,
       `  }`,
     ].join('\n');

@@ -10,8 +10,10 @@
     "preview": "vite preview",
     "kernel:import": "node import-kernel.js ./content/soma_kernel",
     "kernel:watch": "node watch-kernels.js",
-    "kernel:new": "node new-kernel.js",
+    "kernel:new": "node scripts/soma-cli.js",
     "system:import": "node scripts/import-system.js",
+    "academic:import": "node scripts/import-academic.js",
+    "rust:import": "node scripts/import-rust.js",
     "spawn": "node scripts/spawn.js"
   },
   "dependencies": {

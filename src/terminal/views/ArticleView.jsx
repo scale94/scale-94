@@ -1,9 +1,10 @@
-import React, { useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import HackerText from '../components/HackerText';
 import renderContent from '../utils/renderContent';
 
 const ArticleView = ({ article, originTab, handleReturnToRoot, onNeuralLink }) => {
+  const isAcademic = article.type === 'academic';
   // Fallback for static articles without pre-rendered html:
   // strip the first # heading since ArticleView renders article.title separately.
   const contentBody = (article.body || article.content || '')
@@ -19,22 +20,67 @@ const ArticleView = ({ article, originTab, handleReturnToRoot, onNeuralLink }) =
     if (cmd && onNeuralLink) onNeuralLink(cmd);
   }, [onNeuralLink]);
 
+  // ── Terminal Soundscape — high-speed data downlink simulation ────────────────
+  // Splits pre-rendered HTML into top-level block elements, then reveals them
+  // in batches via setTimeout to mimic a Sorbe Node data stream.
+  const [htmlChunks, setHtmlChunks] = useState([]);
+  const [streamIdx,  setStreamIdx]  = useState(0);
+
+  // Parse HTML → array of block outerHTML strings whenever the article changes.
+  useEffect(() => {
+    if (!article.html) { setHtmlChunks([]); setStreamIdx(0); return; }
+    const doc    = new DOMParser().parseFromString(article.html, 'text/html');
+    const chunks = Array.from(doc.body.children).map(n => n.outerHTML);
+    setHtmlChunks(chunks);
+    setStreamIdx(0);
+  }, [article.id, article.html]);
+
+  // Tick: reveal 4 elements every 22 ms — full article streams in ~165–220 ms.
+  useEffect(() => {
+    if (streamIdx >= htmlChunks.length) return;
+    const t = setTimeout(() => setStreamIdx(i => Math.min(i + 4, htmlChunks.length)), 22);
+    return () => clearTimeout(t);
+  }, [streamIdx, htmlChunks.length]);
+
+  const displayedHtml = htmlChunks.slice(0, streamIdx).join('');
+
   // Generate once per article load — article.id is the intentional trigger,
   // not a value used inside the callback (Math.random needs no deps).
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const sig = useMemo(() => Math.random().toString(36).substring(7), [article.id]);
 
+  // Academic: amber palette. Lore: fuchsia/cyan palette.
+  const accentBorder  = isAcademic ? 'border-amber-500/50'  : 'border-fuchsia-500/50';
+  const accentIdColor = isAcademic ? 'text-amber-400'       : 'text-fuchsia-500';
+  const accentBtn     = isAcademic
+    ? 'text-amber-600 hover:text-white border-amber-900/50 hover:border-amber-500'
+    : 'text-cyan-600 hover:text-white border-cyan-900/50 hover:border-cyan-500';
+
   return (
   <div className="max-w-4xl mx-auto animate-in zoom-in-95 duration-300">
-    <button onClick={handleReturnToRoot} className="mb-8 flex items-center text-xs font-bold tracking-widest text-cyan-600 hover:text-white transition-colors border border-cyan-900/50 hover:border-cyan-500 px-3 py-2 -ml-2 w-fit uppercase bg-[#09090b] rounded-sm">
+    <button onClick={handleReturnToRoot} className={`mb-8 flex items-center text-xs font-bold tracking-widest transition-colors border px-3 py-2 -ml-2 w-fit uppercase bg-[#09090b] rounded-sm ${accentBtn}`}>
       <ArrowLeft className="w-3 h-3 mr-2" /> Return_To_{(originTab || '').toUpperCase()}
     </button>
 
-    <div className="border-l-2 border-fuchsia-500/50 pl-8 relative">
+    {/* Academic classification banner */}
+    {isAcademic && (
+      <div className="mb-4 flex items-center gap-3 border border-amber-900/40 bg-amber-950/10 px-4 py-2 rounded-sm font-mono text-[10px] font-bold tracking-widest uppercase">
+        <span className="text-amber-400">CLASSIFICATION: ACADEMIC // PHD CORPUS // CS2_ANALYSIS</span>
+        <span className="ml-auto text-amber-700">type: static_thesis</span>
+      </div>
+    )}
+
+    <div className={`border-l-2 ${accentBorder} pl-8 relative`}>
       <div className="flex flex-wrap gap-4 text-[10px] font-bold tracking-widest text-cyan-600 mb-8 font-mono uppercase">
-        <span className="text-fuchsia-500">LOG: {article.id}</span>
+        <span className={accentIdColor}>LOG: {article.id}</span>
         <span>{'//'}</span>
         <span>DATE: {article.date || 'UNDATED'}</span>
+        {article.lastModified && article.lastModified !== article.date && (
+          <>
+            <span>{'//'}</span>
+            <span className="text-cyan-400">UPDATED: {article.lastModified}</span>
+          </>
+        )}
         <span>{'//'}</span>
         <span>LEN: {article.len || article.readTime || '0 WDS'}</span>
       </div>
@@ -98,13 +144,13 @@ const ArticleView = ({ article, originTab, handleReturnToRoot, onNeuralLink }) =
         onClick={handleContentClick}
       >
         {article.html
-          ? <div dangerouslySetInnerHTML={{ __html: article.html }} />
+          ? <div dangerouslySetInnerHTML={{ __html: displayedHtml }} />
           : renderContent(contentBody)
         }
       </div>
 
-      <div className="mt-16 pt-8 border-t border-cyan-900/30 flex justify-between items-center text-[10px] font-bold tracking-widest text-gray-600 uppercase">
-        <span>END OF TRANSMISSION</span>
+      <div className={`mt-16 pt-8 border-t ${isAcademic ? 'border-amber-900/30' : 'border-cyan-900/30'} flex justify-between items-center text-[10px] font-bold tracking-widest text-gray-600 uppercase`}>
+        <span>{isAcademic ? 'END OF THESIS // ACADEMIC ARCHIVE' : 'END OF TRANSMISSION'}</span>
         <span>SIG: {sig}</span>
       </div>
     </div>

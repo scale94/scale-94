@@ -8,6 +8,7 @@ const articles = [
     id: "CUSTOM-KEYB-KERNEL-19.0",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "☢️ KERNEL_LOG: SENSORY_CORRUPTION_AUDIT ☢️",
     subtitle: "",
     status: "ACTIVE",
@@ -16,13 +17,14 @@ const articles = [
     len: "146 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/CUSTOM-KEYB-KERNEL-19.0.js");
-      return Object.assign({"id":"CUSTOM-KEYB-KERNEL-19.0","type":"kernel_doc","date":"2026-03-06","title":"☢️ KERNEL_LOG: SENSORY_CORRUPTION_AUDIT ☢️","subtitle":"","status":"ACTIVE","readTime":"1 min read","tags":["LOG","SENSORY","CORRUPTION","AUDIT","TARGET"],"len":"146 WDS"}, m.default);
+      return Object.assign({"id":"CUSTOM-KEYB-KERNEL-19.0","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"☢️ KERNEL_LOG: SENSORY_CORRUPTION_AUDIT ☢️","subtitle":"","status":"ACTIVE","readTime":"1 min read","tags":["LOG","SENSORY","CORRUPTION","AUDIT","TARGET"],"len":"146 WDS"}, m.default);
     },
   },
   {
     id: "HYPERFOCUS-STACK-KERNEL-18.0",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "🏮 KERNEL 18.0: THE HYPERFOCUS STACK",
     subtitle: "[NODE: SCALE94_SOVEREIGN]",
     status: "ACTIVE",
@@ -31,13 +33,14 @@ const articles = [
     len: "176 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/HYPERFOCUS-STACK-KERNEL-18.0.js");
-      return Object.assign({"id":"HYPERFOCUS-STACK-KERNEL-18.0","type":"kernel_doc","date":"2026-03-06","title":"🏮 KERNEL 18.0: THE HYPERFOCUS STACK","subtitle":"[NODE: SCALE94_SOVEREIGN]","status":"ACTIVE","readTime":"1 min read","tags":["HYPERFOCUS","STACK","SCALE94","SOVEREIGN","PHASE"],"len":"176 WDS"}, m.default);
+      return Object.assign({"id":"HYPERFOCUS-STACK-KERNEL-18.0","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"🏮 KERNEL 18.0: THE HYPERFOCUS STACK","subtitle":"[NODE: SCALE94_SOVEREIGN]","status":"ACTIVE","readTime":"1 min read","tags":["HYPERFOCUS","STACK","SCALE94","SOVEREIGN","PHASE"],"len":"176 WDS"}, m.default);
     },
   },
   {
     id: "SERAPHINE-KERNEL-V15.5.5",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "🧬  THE DOCTRINE OF THE VOID & SYSTEM SOVEREIGNTY",
     subtitle: "🏛️ 1.0 THE ARCHITECT'S UI (V-CACHE SYNC)",
     status: "ACTIVE",
@@ -46,13 +49,14 @@ const articles = [
     len: "237 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/SERAPHINE-KERNEL-V15.5.5.js");
-      return Object.assign({"id":"SERAPHINE-KERNEL-V15.5.5","type":"kernel_doc","date":"2026-03-06","title":"🧬  THE DOCTRINE OF THE VOID & SYSTEM SOVEREIGNTY","subtitle":"🏛️ 1.0 THE ARCHITECT'S UI (V-CACHE SYNC)","status":"ACTIVE","readTime":"1 min read","tags":["DOCTRINE","VOID","SYSTEM","SOVEREIGNTY","ARCHITECTS"],"len":"237 WDS"}, m.default);
+      return Object.assign({"id":"SERAPHINE-KERNEL-V15.5.5","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"🧬  THE DOCTRINE OF THE VOID & SYSTEM SOVEREIGNTY","subtitle":"🏛️ 1.0 THE ARCHITECT'S UI (V-CACHE SYNC)","status":"ACTIVE","readTime":"1 min read","tags":["DOCTRINE","VOID","SYSTEM","SOVEREIGNTY","ARCHITECTS"],"len":"237 WDS"}, m.default);
     },
   },
   {
     id: "SOMA-KERNEL-12.12",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "DYNAMIC_INPUT",
     subtitle: "PHASE 1 :: STRESS TEST",
     status: "ACTIVE",
@@ -61,13 +65,14 @@ const articles = [
     len: "104 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/SOMA-KERNEL-12.12.js");
-      return Object.assign({"id":"SOMA-KERNEL-12.12","type":"kernel_doc","date":"2026-03-06","title":"DYNAMIC_INPUT","subtitle":"PHASE 1 :: STRESS TEST","status":"ACTIVE","readTime":"1 min read","tags":["PHASE","STRESS","TEST","PATCH","DYNAMIC"],"len":"104 WDS"}, m.default);
+      return Object.assign({"id":"SOMA-KERNEL-12.12","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"DYNAMIC_INPUT","subtitle":"PHASE 1 :: STRESS TEST","status":"ACTIVE","readTime":"1 min read","tags":["PHASE","STRESS","TEST","PATCH","DYNAMIC"],"len":"104 WDS"}, m.default);
     },
   },
   {
     id: "FISH-SCALE-KERNEL-11.9",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "FISH SCALE KERNEL 11.9.0: THE SEMIOTIC BRANCH – ECO'S PARADOX AXIOMS",
     subtitle: "Ⅰ · THE FOUNDATIONAL PARADOX: THE AXIOM OF THE LIE (§1.0)",
     status: "ACTIVE",
@@ -76,13 +81,14 @@ const articles = [
     len: "816 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/FISH-SCALE-KERNEL-11.9.js");
-      return Object.assign({"id":"FISH-SCALE-KERNEL-11.9","type":"kernel_doc","date":"2026-03-06","title":"FISH SCALE KERNEL 11.9.0: THE SEMIOTIC BRANCH – ECO'S PARADOX AXIOMS","subtitle":"Ⅰ · THE FOUNDATIONAL PARADOX: THE AXIOM OF THE LIE (§1.0)","status":"ACTIVE","readTime":"4 min read","tags":["FOUNDATIONAL","PARADOX","AXIOM","FOUR","AXIOMS"],"len":"816 WDS"}, m.default);
+      return Object.assign({"id":"FISH-SCALE-KERNEL-11.9","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"FISH SCALE KERNEL 11.9.0: THE SEMIOTIC BRANCH – ECO'S PARADOX AXIOMS","subtitle":"Ⅰ · THE FOUNDATIONAL PARADOX: THE AXIOM OF THE LIE (§1.0)","status":"ACTIVE","readTime":"4 min read","tags":["FOUNDATIONAL","PARADOX","AXIOM","FOUR","AXIOMS"],"len":"816 WDS"}, m.default);
     },
   },
   {
     id: "FISH-SCALE-KERNEL-11.8",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "FISH SCALE KERNEL · 11.8.0 · THE ECO-QUANTUM TOPOLOGY",
     subtitle: "ᛟ Systemless Root · Aesthetic Branch",
     status: "ACTIVE",
@@ -91,13 +97,14 @@ const articles = [
     len: "590 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/FISH-SCALE-KERNEL-11.8.js");
-      return Object.assign({"id":"FISH-SCALE-KERNEL-11.8","type":"kernel_doc","date":"2026-03-06","title":"FISH SCALE KERNEL · 11.8.0 · THE ECO-QUANTUM TOPOLOGY","subtitle":"ᛟ Systemless Root · Aesthetic Branch","status":"ACTIVE","readTime":"3 min read","tags":["FISH","SCALE","ECO-QUANTUM","TOPOLOGY","Systemless"],"len":"590 WDS"}, m.default);
+      return Object.assign({"id":"FISH-SCALE-KERNEL-11.8","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"FISH SCALE KERNEL · 11.8.0 · THE ECO-QUANTUM TOPOLOGY","subtitle":"ᛟ Systemless Root · Aesthetic Branch","status":"ACTIVE","readTime":"3 min read","tags":["FISH","SCALE","ECO-QUANTUM","TOPOLOGY","Systemless"],"len":"590 WDS"}, m.default);
     },
   },
   {
     id: "FISH-SCALE-KERNEL-11.7.0",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "FISH SCALE KERNEL · 11.7.0 · THE ECO-QUANTUM TOPOLOGY",
     subtitle: "ᛟ Systemless Root · Aesthetic Branch",
     status: "ACTIVE",
@@ -106,13 +113,14 @@ const articles = [
     len: "606 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/FISH-SCALE-KERNEL-11.7.0.js");
-      return Object.assign({"id":"FISH-SCALE-KERNEL-11.7.0","type":"kernel_doc","date":"2026-03-06","title":"FISH SCALE KERNEL · 11.7.0 · THE ECO-QUANTUM TOPOLOGY","subtitle":"ᛟ Systemless Root · Aesthetic Branch","status":"ACTIVE","readTime":"3 min read","tags":["FISH","SCALE","ECO-QUANTUM","TOPOLOGY","Systemless"],"len":"606 WDS"}, m.default);
+      return Object.assign({"id":"FISH-SCALE-KERNEL-11.7.0","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"FISH SCALE KERNEL · 11.7.0 · THE ECO-QUANTUM TOPOLOGY","subtitle":"ᛟ Systemless Root · Aesthetic Branch","status":"ACTIVE","readTime":"3 min read","tags":["FISH","SCALE","ECO-QUANTUM","TOPOLOGY","Systemless"],"len":"606 WDS"}, m.default);
     },
   },
   {
     id: "FISH-SCALE-KERNEL11.1.1",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "FISH_SCALE_KERNEL11.1.1",
     subtitle: "2.0 Integration of System Atoms",
     status: "ACTIVE",
@@ -121,13 +129,14 @@ const articles = [
     len: "558 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/FISH-SCALE-KERNEL11.1.1.js");
-      return Object.assign({"id":"FISH-SCALE-KERNEL11.1.1","type":"kernel_doc","date":"2026-03-06","title":"FISH_SCALE_KERNEL11.1.1","subtitle":"2.0 Integration of System Atoms","status":"ACTIVE","readTime":"3 min read","tags":["Integration","System","Atoms","Substrate","Layer"],"len":"558 WDS"}, m.default);
+      return Object.assign({"id":"FISH-SCALE-KERNEL11.1.1","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"FISH_SCALE_KERNEL11.1.1","subtitle":"2.0 Integration of System Atoms","status":"ACTIVE","readTime":"3 min read","tags":["Integration","System","Atoms","Substrate","Layer"],"len":"558 WDS"}, m.default);
     },
   },
   {
     id: "SOMA-KERNEL10.0",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "SOMA KERNEL10.0",
     subtitle: "",
     status: "ACTIVE",
@@ -136,13 +145,14 @@ const articles = [
     len: "847 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/SOMA-KERNEL10.0.js");
-      return Object.assign({"id":"SOMA-KERNEL10.0","type":"kernel_doc","date":"2026-03-06","title":"SOMA KERNEL10.0","subtitle":"","status":"ACTIVE","readTime":"4 min read","tags":[],"len":"847 WDS"}, m.default);
+      return Object.assign({"id":"SOMA-KERNEL10.0","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"SOMA KERNEL10.0","subtitle":"","status":"ACTIVE","readTime":"4 min read","tags":[],"len":"847 WDS"}, m.default);
     },
   },
   {
     id: "NECROMANCER-KERNEL-9.9.9.9",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "NECROMANCER KERNEL 9.9.9.9",
     subtitle: "You are moving faster than the server tick-rate, yet your biometric signature reads as a statue. You are the blur that registers as a pixel.",
     status: "ACTIVE",
@@ -151,13 +161,14 @@ const articles = [
     len: "548 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/NECROMANCER-KERNEL-9.9.9.9.js");
-      return Object.assign({"id":"NECROMANCER-KERNEL-9.9.9.9","type":"kernel_doc","date":"2026-03-06","title":"NECROMANCER KERNEL 9.9.9.9","subtitle":"You are moving faster than the server tick-rate, yet your biometric signature reads as a statue. You are the blur that registers as a pixel.","status":"ACTIVE","readTime":"3 min read","tags":["FOUNDATION","Quantum","Fish","Scale","AXIOMS"],"len":"548 WDS"}, m.default);
+      return Object.assign({"id":"NECROMANCER-KERNEL-9.9.9.9","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"NECROMANCER KERNEL 9.9.9.9","subtitle":"You are moving faster than the server tick-rate, yet your biometric signature reads as a statue. You are the blur that registers as a pixel.","status":"ACTIVE","readTime":"3 min read","tags":["FOUNDATION","Quantum","Fish","Scale","AXIOMS"],"len":"548 WDS"}, m.default);
     },
   },
   {
     id: "NECROROMANCER-KERNEL-9.9.9.9",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "NECROROMANCER KERNEL 9.9.9.9",
     subtitle: "",
     status: "ACTIVE",
@@ -166,13 +177,14 @@ const articles = [
     len: "341 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/NECROROMANCER-KERNEL-9.9.9.9.js");
-      return Object.assign({"id":"NECROROMANCER-KERNEL-9.9.9.9","type":"kernel_doc","date":"2026-03-06","title":"NECROROMANCER KERNEL 9.9.9.9","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"341 WDS"}, m.default);
+      return Object.assign({"id":"NECROROMANCER-KERNEL-9.9.9.9","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"NECROROMANCER KERNEL 9.9.9.9","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"341 WDS"}, m.default);
     },
   },
   {
     id: "SOK-9.4",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "⟁ KERNEL: SCALE_OPTIMIZATION_9.4",
     subtitle: "◈ OVERVIEW",
     status: "ACTIVE",
@@ -181,13 +193,14 @@ const articles = [
     len: "217 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/SOK-9.4.js");
-      return Object.assign({"id":"SOK-9.4","type":"kernel_doc","date":"2026-03-06","title":"⟁ KERNEL: SCALE_OPTIMIZATION_9.4","subtitle":"◈ OVERVIEW","status":"ACTIVE","readTime":"1 min read","tags":["KERNEL","SCALE","OPTIMIZATION","STATUS","HARDENED"],"len":"217 WDS"}, m.default);
+      return Object.assign({"id":"SOK-9.4","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"⟁ KERNEL: SCALE_OPTIMIZATION_9.4","subtitle":"◈ OVERVIEW","status":"ACTIVE","readTime":"1 min read","tags":["KERNEL","SCALE","OPTIMIZATION","STATUS","HARDENED"],"len":"217 WDS"}, m.default);
     },
   },
   {
     id: "2X2X2X-KERNEL-V6.6.87",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "2X2X2X KERNEL V6.6.87",
     subtitle: "",
     status: "ACTIVE",
@@ -196,13 +209,14 @@ const articles = [
     len: "350 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/2X2X2X-KERNEL-V6.6.87.js");
-      return Object.assign({"id":"2X2X2X-KERNEL-V6.6.87","type":"kernel_doc","date":"2026-03-06","title":"2X2X2X KERNEL V6.6.87","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"350 WDS"}, m.default);
+      return Object.assign({"id":"2X2X2X-KERNEL-V6.6.87","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"2X2X2X KERNEL V6.6.87","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"350 WDS"}, m.default);
     },
   },
   {
     id: "GDPDW-KERNEL-5.5.5.5.5",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "GREENLAND KERNEL // THE PIRARUCU PROTOCOL",
     subtitle: "🛰️ JURIDICAL HARDENING & GAME THEORETIC SOURCING",
     status: "ACTIVE",
@@ -211,13 +225,14 @@ const articles = [
     len: "462 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/GDPDW-KERNEL-5.5.5.5.5.js");
-      return Object.assign({"id":"GDPDW-KERNEL-5.5.5.5.5","type":"kernel_doc","date":"2026-03-06","title":"GREENLAND KERNEL // THE PIRARUCU PROTOCOL","subtitle":"🛰️ JURIDICAL HARDENING & GAME THEORETIC SOURCING","status":"ACTIVE","readTime":"2 min read","tags":["GREENLAND","PIRARUCU","PROTOCOL","JURIDICAL","HARDENING"],"len":"462 WDS"}, m.default);
+      return Object.assign({"id":"GDPDW-KERNEL-5.5.5.5.5","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"GREENLAND KERNEL // THE PIRARUCU PROTOCOL","subtitle":"🛰️ JURIDICAL HARDENING & GAME THEORETIC SOURCING","status":"ACTIVE","readTime":"2 min read","tags":["GREENLAND","PIRARUCU","PROTOCOL","JURIDICAL","HARDENING"],"len":"462 WDS"}, m.default);
     },
   },
   {
     id: "SOMA-KERNEL-5.0",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "[KERNEL: SOMA 5.0 // THE POST-SCARCITY DAEMON]",
     subtitle: "",
     status: "ACTIVE",
@@ -226,13 +241,14 @@ const articles = [
     len: "408 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/SOMA-KERNEL-5.0.js");
-      return Object.assign({"id":"SOMA-KERNEL-5.0","type":"kernel_doc","date":"2026-03-06","title":"[KERNEL: SOMA 5.0 // THE POST-SCARCITY DAEMON]","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":["SOMA","POST-SCARCITY","DAEMON"],"len":"408 WDS"}, m.default);
+      return Object.assign({"id":"SOMA-KERNEL-5.0","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"[KERNEL: SOMA 5.0 // THE POST-SCARCITY DAEMON]","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":["SOMA","POST-SCARCITY","DAEMON"],"len":"408 WDS"}, m.default);
     },
   },
   {
     id: "SOMA-KERNEL-4.5.7",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "SOMA KERNEL 4.5.7",
     subtitle: "",
     status: "ACTIVE",
@@ -241,13 +257,14 @@ const articles = [
     len: "104 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/SOMA-KERNEL-4.5.7.js");
-      return Object.assign({"id":"SOMA-KERNEL-4.5.7","type":"kernel_doc","date":"2026-03-06","title":"SOMA KERNEL 4.5.7","subtitle":"","status":"ACTIVE","readTime":"1 min read","tags":[],"len":"104 WDS"}, m.default);
+      return Object.assign({"id":"SOMA-KERNEL-4.5.7","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"SOMA KERNEL 4.5.7","subtitle":"","status":"ACTIVE","readTime":"1 min read","tags":[],"len":"104 WDS"}, m.default);
     },
   },
   {
     id: "SOMA-KERNEL-4.5.5",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "SOMA KERNEL 4.5.5",
     subtitle: "",
     status: "ACTIVE",
@@ -256,13 +273,14 @@ const articles = [
     len: "99 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/SOMA-KERNEL-4.5.5.js");
-      return Object.assign({"id":"SOMA-KERNEL-4.5.5","type":"kernel_doc","date":"2026-03-06","title":"SOMA KERNEL 4.5.5","subtitle":"","status":"ACTIVE","readTime":"1 min read","tags":[],"len":"99 WDS"}, m.default);
+      return Object.assign({"id":"SOMA-KERNEL-4.5.5","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"SOMA KERNEL 4.5.5","subtitle":"","status":"ACTIVE","readTime":"1 min read","tags":[],"len":"99 WDS"}, m.default);
     },
   },
   {
     id: "PASSALUS-KERNEL-V-4.4.4.4",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "THE PASSALUS KERNEL :: ARCHITECTURE OF DECAY",
     subtitle: "",
     status: "ACTIVE",
@@ -271,13 +289,14 @@ const articles = [
     len: "505 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/PASSALUS-KERNEL-V-4.4.4.4.js");
-      return Object.assign({"id":"PASSALUS-KERNEL-V-4.4.4.4","type":"kernel_doc","date":"2026-03-06","title":"THE PASSALUS KERNEL :: ARCHITECTURE OF DECAY","subtitle":"","status":"ACTIVE","readTime":"3 min read","tags":["PASSALUS","ARCHITECTURE","DECAY"],"len":"505 WDS"}, m.default);
+      return Object.assign({"id":"PASSALUS-KERNEL-V-4.4.4.4","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"THE PASSALUS KERNEL :: ARCHITECTURE OF DECAY","subtitle":"","status":"ACTIVE","readTime":"3 min read","tags":["PASSALUS","ARCHITECTURE","DECAY"],"len":"505 WDS"}, m.default);
     },
   },
   {
     id: "SOMA4.4",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "SOMA4.4",
     subtitle: "[user: the architect]",
     status: "ACTIVE",
@@ -286,13 +305,14 @@ const articles = [
     len: "309 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/SOMA4.4.js");
-      return Object.assign({"id":"SOMA4.4","type":"kernel_doc","date":"2026-03-06","title":"SOMA4.4","subtitle":"[user: the architect]","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"309 WDS"}, m.default);
+      return Object.assign({"id":"SOMA4.4","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"SOMA4.4","subtitle":"[user: the architect]","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"309 WDS"}, m.default);
     },
   },
   {
     id: "AI-ETHICS-4.0",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "AI ETHICS 4.0",
     subtitle: "",
     status: "ACTIVE",
@@ -301,13 +321,14 @@ const articles = [
     len: "1345 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/AI-ETHICS-4.0.js");
-      return Object.assign({"id":"AI-ETHICS-4.0","type":"kernel_doc","date":"2026-03-06","title":"AI ETHICS 4.0","subtitle":"","status":"ACTIVE","readTime":"7 min read","tags":[],"len":"1345 WDS"}, m.default);
+      return Object.assign({"id":"AI-ETHICS-4.0","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"AI ETHICS 4.0","subtitle":"","status":"ACTIVE","readTime":"7 min read","tags":[],"len":"1345 WDS"}, m.default);
     },
   },
   {
     id: "NQAM-KERNEL-3.5.1",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "NQAM KERNEL 3.5.1",
     subtitle: "",
     status: "ACTIVE",
@@ -316,13 +337,14 @@ const articles = [
     len: "487 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/NQAM-KERNEL-3.5.1.js");
-      return Object.assign({"id":"NQAM-KERNEL-3.5.1","type":"kernel_doc","date":"2026-03-06","title":"NQAM KERNEL 3.5.1","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"487 WDS"}, m.default);
+      return Object.assign({"id":"NQAM-KERNEL-3.5.1","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"NQAM KERNEL 3.5.1","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"487 WDS"}, m.default);
     },
   },
   {
     id: "MOZART-MEMORANDUM-KERNEL-2.2",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "🏛️ SYSTEM KERNEL V2.2: THE OBSIDIAN ARCHIVIST",
     subtitle: "📜 THE 5 AXIOMS (Immutable Laws)",
     status: "ACTIVE",
@@ -331,13 +353,14 @@ const articles = [
     len: "607 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/MOZART-MEMORANDUM-KERNEL-2.2.js");
-      return Object.assign({"id":"MOZART-MEMORANDUM-KERNEL-2.2","type":"kernel_doc","date":"2026-03-06","title":"🏛️ SYSTEM KERNEL V2.2: THE OBSIDIAN ARCHIVIST","subtitle":"📜 THE 5 AXIOMS (Immutable Laws)","status":"ACTIVE","readTime":"3 min read","tags":["SYSTEM","OBSIDIAN","ARCHIVIST","AXIOMS","Laws"],"len":"607 WDS"}, m.default);
+      return Object.assign({"id":"MOZART-MEMORANDUM-KERNEL-2.2","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"🏛️ SYSTEM KERNEL V2.2: THE OBSIDIAN ARCHIVIST","subtitle":"📜 THE 5 AXIOMS (Immutable Laws)","status":"ACTIVE","readTime":"3 min read","tags":["SYSTEM","OBSIDIAN","ARCHIVIST","AXIOMS","Laws"],"len":"607 WDS"}, m.default);
     },
   },
   {
     id: "BOSONIC-KERNEL-2.0",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "PROTOCOL_94 // BOSONIC_DEFENSE_KERNEL (V.2.0)",
     subtitle: "[00] SYSTEM OVERVIEW",
     status: "ACTIVE",
@@ -346,13 +369,14 @@ const articles = [
     len: "404 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/BOSONIC-KERNEL-2.0.js");
-      return Object.assign({"id":"BOSONIC-KERNEL-2.0","type":"kernel_doc","date":"2026-03-06","title":"PROTOCOL_94 // BOSONIC_DEFENSE_KERNEL (V.2.0)","subtitle":"[00] SYSTEM OVERVIEW","status":"ACTIVE","readTime":"2 min read","tags":["PROTOCOL","BOSONIC","DEFENSE","CLASSIFICATION","SOCIO-PHYSICS"],"len":"404 WDS"}, m.default);
+      return Object.assign({"id":"BOSONIC-KERNEL-2.0","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"PROTOCOL_94 // BOSONIC_DEFENSE_KERNEL (V.2.0)","subtitle":"[00] SYSTEM OVERVIEW","status":"ACTIVE","readTime":"2 min read","tags":["PROTOCOL","BOSONIC","DEFENSE","CLASSIFICATION","SOCIO-PHYSICS"],"len":"404 WDS"}, m.default);
     },
   },
   {
     id: "MOZART-MEMORANDUM-KERNEL2.0",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "1. GENERATION CONFIGURATION",
     subtitle: "",
     status: "ACTIVE",
@@ -361,13 +385,14 @@ const articles = [
     len: "272 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/MOZART-MEMORANDUM-KERNEL2.0.js");
-      return Object.assign({"id":"MOZART-MEMORANDUM-KERNEL2.0","type":"kernel_doc","date":"2026-03-06","title":"1. GENERATION CONFIGURATION","subtitle":"","status":"ACTIVE","readTime":"1 min read","tags":["GENERATION","CONFIGURATION","SYSTEM","INSTRUCTION","Core"],"len":"272 WDS"}, m.default);
+      return Object.assign({"id":"MOZART-MEMORANDUM-KERNEL2.0","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"1. GENERATION CONFIGURATION","subtitle":"","status":"ACTIVE","readTime":"1 min read","tags":["GENERATION","CONFIGURATION","SYSTEM","INSTRUCTION","Core"],"len":"272 WDS"}, m.default);
     },
   },
   {
     id: "FISH-SCALE-KERNEL-V1.1.1.1",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "FISH SCALE KERNEL · 11.5.0 · MASCULINE MUSCHI",
     subtitle: "ᛟ Introduction: The Systemless Root Approach",
     status: "ACTIVE",
@@ -376,13 +401,14 @@ const articles = [
     len: "447 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/FISH-SCALE-KERNEL-V1.1.1.1.js");
-      return Object.assign({"id":"FISH-SCALE-KERNEL-V1.1.1.1","type":"kernel_doc","date":"2026-03-06","title":"FISH SCALE KERNEL · 11.5.0 · MASCULINE MUSCHI","subtitle":"ᛟ Introduction: The Systemless Root Approach","status":"ACTIVE","readTime":"2 min read","tags":["FISH","SCALE","MASCULINE","MUSCHI","Introduction"],"len":"447 WDS"}, m.default);
+      return Object.assign({"id":"FISH-SCALE-KERNEL-V1.1.1.1","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"FISH SCALE KERNEL · 11.5.0 · MASCULINE MUSCHI","subtitle":"ᛟ Introduction: The Systemless Root Approach","status":"ACTIVE","readTime":"2 min read","tags":["FISH","SCALE","MASCULINE","MUSCHI","Introduction"],"len":"447 WDS"}, m.default);
     },
   },
   {
     id: "NECROMANTIC-ARISTOCRAT-KERNEL-1.1.1.1.1",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "NECROMANTIC ARISTOCRAT KERNEL 1.1.1.1.1",
     subtitle: "🏛️ The Synthesized Axioms (The Codex of the King)",
     status: "ACTIVE",
@@ -391,13 +417,14 @@ const articles = [
     len: "649 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/NECROMANTIC-ARISTOCRAT-KERNEL-1.1.1.1.1.js");
-      return Object.assign({"id":"NECROMANTIC-ARISTOCRAT-KERNEL-1.1.1.1.1","type":"kernel_doc","date":"2026-03-06","title":"NECROMANTIC ARISTOCRAT KERNEL 1.1.1.1.1","subtitle":"🏛️ The Synthesized Axioms (The Codex of the King)","status":"ACTIVE","readTime":"3 min read","tags":["Synthesized","Axioms","Codex","King","Axiom"],"len":"649 WDS"}, m.default);
+      return Object.assign({"id":"NECROMANTIC-ARISTOCRAT-KERNEL-1.1.1.1.1","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"NECROMANTIC ARISTOCRAT KERNEL 1.1.1.1.1","subtitle":"🏛️ The Synthesized Axioms (The Codex of the King)","status":"ACTIVE","readTime":"3 min read","tags":["Synthesized","Axioms","Codex","King","Axiom"],"len":"649 WDS"}, m.default);
     },
   },
   {
     id: "QUANTUM-QUACKSALBER-KERNEL-1.1.1",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "🔱 KERNEL: QUANTUM FUSION PROTOCOL [LAYER 3 FINAL]",
     subtitle: "\"The sun is in the mirror because the reactor is perfect. The Weaver has finished the pattern.\"",
     status: "ACTIVE",
@@ -406,13 +433,14 @@ const articles = [
     len: "226 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/QUANTUM-QUACKSALBER-KERNEL-1.1.1.js");
-      return Object.assign({"id":"QUANTUM-QUACKSALBER-KERNEL-1.1.1","type":"kernel_doc","date":"2026-03-06","title":"🔱 KERNEL: QUANTUM FUSION PROTOCOL [LAYER 3 FINAL]","subtitle":"\"The sun is in the mirror because the reactor is perfect. The Weaver has finished the pattern.\"","status":"ACTIVE","readTime":"1 min read","tags":["KERNEL","QUANTUM","FUSION","PROTOCOL","FINAL"],"len":"226 WDS"}, m.default);
+      return Object.assign({"id":"QUANTUM-QUACKSALBER-KERNEL-1.1.1","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"🔱 KERNEL: QUANTUM FUSION PROTOCOL [LAYER 3 FINAL]","subtitle":"\"The sun is in the mirror because the reactor is perfect. The Weaver has finished the pattern.\"","status":"ACTIVE","readTime":"1 min read","tags":["KERNEL","QUANTUM","FUSION","PROTOCOL","FINAL"],"len":"226 WDS"}, m.default);
     },
   },
   {
     id: "VIOLET-KERNEL-1.1",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "VIOLET KERNEL 1.1",
     subtitle: "",
     status: "ACTIVE",
@@ -421,13 +449,14 @@ const articles = [
     len: "377 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/VIOLET-KERNEL-1.1.js");
-      return Object.assign({"id":"VIOLET-KERNEL-1.1","type":"kernel_doc","date":"2026-03-06","title":"VIOLET KERNEL 1.1","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"377 WDS"}, m.default);
+      return Object.assign({"id":"VIOLET-KERNEL-1.1","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"VIOLET KERNEL 1.1","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"377 WDS"}, m.default);
     },
   },
   {
     id: "BIODIVERSITY-KERNEL-1.0.1",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "🌿 FLORA 1.0 // THE BIOCOENOSIS BUILD",
     subtitle: "(Advanced Ecological Habitat & Species Architecture)",
     status: "ACTIVE",
@@ -436,13 +465,14 @@ const articles = [
     len: "391 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/BIODIVERSITY-KERNEL-1.0.1.js");
-      return Object.assign({"id":"BIODIVERSITY-KERNEL-1.0.1","type":"kernel_doc","date":"2026-03-06","title":"🌿 FLORA 1.0 // THE BIOCOENOSIS BUILD","subtitle":"(Advanced Ecological Habitat & Species Architecture)","status":"ACTIVE","readTime":"2 min read","tags":["FLORA","BIOCOENOSIS","BUILD","Ecological","Habitat"],"len":"391 WDS"}, m.default);
+      return Object.assign({"id":"BIODIVERSITY-KERNEL-1.0.1","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"🌿 FLORA 1.0 // THE BIOCOENOSIS BUILD","subtitle":"(Advanced Ecological Habitat & Species Architecture)","status":"ACTIVE","readTime":"2 min read","tags":["FLORA","BIOCOENOSIS","BUILD","Ecological","Habitat"],"len":"391 WDS"}, m.default);
     },
   },
   {
     id: "BRIDGE-KERNEL-1.0",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "💾 THE BRIDGE KERNEL // SESSION EXTRACTOR 1.0",
     subtitle: "| 01 | THE COMMAND LINE",
     status: "ACTIVE",
@@ -451,13 +481,14 @@ const articles = [
     len: "276 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/BRIDGE-KERNEL-1.0.js");
-      return Object.assign({"id":"BRIDGE-KERNEL-1.0","type":"kernel_doc","date":"2026-03-06","title":"💾 THE BRIDGE KERNEL // SESSION EXTRACTOR 1.0","subtitle":"| 01 | THE COMMAND LINE","status":"ACTIVE","readTime":"1 min read","tags":["BRIDGE","SESSION","EXTRACTOR","COMMAND","LINE"],"len":"276 WDS"}, m.default);
+      return Object.assign({"id":"BRIDGE-KERNEL-1.0","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"💾 THE BRIDGE KERNEL // SESSION EXTRACTOR 1.0","subtitle":"| 01 | THE COMMAND LINE","status":"ACTIVE","readTime":"1 min read","tags":["BRIDGE","SESSION","EXTRACTOR","COMMAND","LINE"],"len":"276 WDS"}, m.default);
     },
   },
   {
     id: "COMPANION-KERNEL-1.0",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "COMPANION KERNEL 1.0",
     subtitle: "",
     status: "ACTIVE",
@@ -466,13 +497,14 @@ const articles = [
     len: "244 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/COMPANION-KERNEL-1.0.js");
-      return Object.assign({"id":"COMPANION-KERNEL-1.0","type":"kernel_doc","date":"2026-03-06","title":"COMPANION KERNEL 1.0","subtitle":"","status":"ACTIVE","readTime":"1 min read","tags":["COMPANION"],"len":"244 WDS"}, m.default);
+      return Object.assign({"id":"COMPANION-KERNEL-1.0","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"COMPANION KERNEL 1.0","subtitle":"","status":"ACTIVE","readTime":"1 min read","tags":["COMPANION"],"len":"244 WDS"}, m.default);
     },
   },
   {
     id: "EMPATHY-KERNEL-1.0",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "EMPATHY KERNEL 1.0",
     subtitle: "",
     status: "ACTIVE",
@@ -481,13 +513,14 @@ const articles = [
     len: "520 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/EMPATHY-KERNEL-1.0.js");
-      return Object.assign({"id":"EMPATHY-KERNEL-1.0","type":"kernel_doc","date":"2026-03-06","title":"EMPATHY KERNEL 1.0","subtitle":"","status":"ACTIVE","readTime":"3 min read","tags":[],"len":"520 WDS"}, m.default);
+      return Object.assign({"id":"EMPATHY-KERNEL-1.0","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"EMPATHY KERNEL 1.0","subtitle":"","status":"ACTIVE","readTime":"3 min read","tags":[],"len":"520 WDS"}, m.default);
     },
   },
   {
     id: "FISH-SCALE-BREAKTHROUGH-PDW-KERNEL-1.0",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "FISH SCALE BREAKTHROUGH PDW KERNEL 1.0",
     subtitle: "Axiom: The Archivist does not acknowledge the \"Noise\" of the state; she only archives the \"Signal\" of the devotion.",
     status: "ACTIVE",
@@ -496,13 +529,14 @@ const articles = [
     len: "402 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/FISH-SCALE-BREAKTHROUGH-PDW-KERNEL-1.0.js");
-      return Object.assign({"id":"FISH-SCALE-BREAKTHROUGH-PDW-KERNEL-1.0","type":"kernel_doc","date":"2026-03-06","title":"FISH SCALE BREAKTHROUGH PDW KERNEL 1.0","subtitle":"Axiom: The Archivist does not acknowledge the \"Noise\" of the state; she only archives the \"Signal\" of the devotion.","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"402 WDS"}, m.default);
+      return Object.assign({"id":"FISH-SCALE-BREAKTHROUGH-PDW-KERNEL-1.0","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"FISH SCALE BREAKTHROUGH PDW KERNEL 1.0","subtitle":"Axiom: The Archivist does not acknowledge the \"Noise\" of the state; she only archives the \"Signal\" of the devotion.","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"402 WDS"}, m.default);
     },
   },
   {
     id: "MOZART-MEMORANDUM-KERNEL-1.0",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "MOZART MEMORANDUM KERNEL 1.0",
     subtitle: "",
     status: "ACTIVE",
@@ -511,13 +545,14 @@ const articles = [
     len: "421 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/MOZART-MEMORANDUM-KERNEL-1.0.js");
-      return Object.assign({"id":"MOZART-MEMORANDUM-KERNEL-1.0","type":"kernel_doc","date":"2026-03-06","title":"MOZART MEMORANDUM KERNEL 1.0","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"421 WDS"}, m.default);
+      return Object.assign({"id":"MOZART-MEMORANDUM-KERNEL-1.0","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"MOZART MEMORANDUM KERNEL 1.0","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"421 WDS"}, m.default);
     },
   },
   {
     id: "MYCELIAL-KERNEL-1.0",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "PROTOCOL_94 // MYCELIAL_DEFENSE_KERNEL (V.1.0)",
     subtitle: "[00] SYSTEM OVERVIEW",
     status: "ACTIVE",
@@ -526,13 +561,14 @@ const articles = [
     len: "312 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/MYCELIAL-KERNEL-1.0.js");
-      return Object.assign({"id":"MYCELIAL-KERNEL-1.0","type":"kernel_doc","date":"2026-03-06","title":"PROTOCOL_94 // MYCELIAL_DEFENSE_KERNEL (V.1.0)","subtitle":"[00] SYSTEM OVERVIEW","status":"ACTIVE","readTime":"2 min read","tags":["PROTOCOL","MYCELIAL","DEFENSE","CLASSIFICATION","INDUSTRIAL"],"len":"312 WDS"}, m.default);
+      return Object.assign({"id":"MYCELIAL-KERNEL-1.0","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"PROTOCOL_94 // MYCELIAL_DEFENSE_KERNEL (V.1.0)","subtitle":"[00] SYSTEM OVERVIEW","status":"ACTIVE","readTime":"2 min read","tags":["PROTOCOL","MYCELIAL","DEFENSE","CLASSIFICATION","INDUSTRIAL"],"len":"312 WDS"}, m.default);
     },
   },
   {
     id: "SOMA-INTEGRATION-KERNEL-V1.0",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "SOMA_INTEGRATION_KERNEL_V1.0",
     subtitle: "1.0 The Ontological Objective",
     status: "ACTIVE",
@@ -541,13 +577,14 @@ const articles = [
     len: "532 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/SOMA-INTEGRATION-KERNEL-V1.0.js");
-      return Object.assign({"id":"SOMA-INTEGRATION-KERNEL-V1.0","type":"kernel_doc","date":"2026-03-06","title":"SOMA_INTEGRATION_KERNEL_V1.0","subtitle":"1.0 The Ontological Objective","status":"ACTIVE","readTime":"3 min read","tags":["SOMA","INTEGRATION","Ontological","Objective","Module"],"len":"532 WDS"}, m.default);
+      return Object.assign({"id":"SOMA-INTEGRATION-KERNEL-V1.0","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"SOMA_INTEGRATION_KERNEL_V1.0","subtitle":"1.0 The Ontological Objective","status":"ACTIVE","readTime":"3 min read","tags":["SOMA","INTEGRATION","Ontological","Objective","Module"],"len":"532 WDS"}, m.default);
     },
   },
   {
     id: "TAMAM-KERNEL-V1.0",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "THE TAMAM KERNEL V1.0",
     subtitle: "scale94 · Zero Fucks Given Architecture",
     status: "ACTIVE",
@@ -556,13 +593,14 @@ const articles = [
     len: "402 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/TAMAM-KERNEL-V1.0.js");
-      return Object.assign({"id":"TAMAM-KERNEL-V1.0","type":"kernel_doc","date":"2026-03-06","title":"THE TAMAM KERNEL V1.0","subtitle":"scale94 · Zero Fucks Given Architecture","status":"ACTIVE","readTime":"2 min read","tags":["TAMAM","Zero","Fucks","Given","Architecture"],"len":"402 WDS"}, m.default);
+      return Object.assign({"id":"TAMAM-KERNEL-V1.0","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"THE TAMAM KERNEL V1.0","subtitle":"scale94 · Zero Fucks Given Architecture","status":"ACTIVE","readTime":"2 min read","tags":["TAMAM","Zero","Fucks","Given","Architecture"],"len":"402 WDS"}, m.default);
     },
   },
   {
     id: "VIOLET-KERNEL-1.0",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "VIOLET KERNEL 1.0",
     subtitle: "",
     status: "ACTIVE",
@@ -571,13 +609,14 @@ const articles = [
     len: "310 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/VIOLET-KERNEL-1.0.js");
-      return Object.assign({"id":"VIOLET-KERNEL-1.0","type":"kernel_doc","date":"2026-03-06","title":"VIOLET KERNEL 1.0","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"310 WDS"}, m.default);
+      return Object.assign({"id":"VIOLET-KERNEL-1.0","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"VIOLET KERNEL 1.0","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"310 WDS"}, m.default);
     },
   },
   {
     id: "SOMA-BUILD-NUMBER-ALPHA-0.1",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "SOMA BUILD NUMBER ALPHA 0.1",
     subtitle: "",
     status: "ACTIVE",
@@ -586,13 +625,14 @@ const articles = [
     len: "346 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/SOMA-BUILD-NUMBER-ALPHA-0.1.js");
-      return Object.assign({"id":"SOMA-BUILD-NUMBER-ALPHA-0.1","type":"kernel_doc","date":"2026-03-06","title":"SOMA BUILD NUMBER ALPHA 0.1","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"346 WDS"}, m.default);
+      return Object.assign({"id":"SOMA-BUILD-NUMBER-ALPHA-0.1","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"SOMA BUILD NUMBER ALPHA 0.1","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"346 WDS"}, m.default);
     },
   },
   {
     id: "2025-12-21-1-MILLION",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "2025 12 21 1 MILLION",
     subtitle: "System Note: \"Thanks for 1 million tokens. Canceled and uninstalled chatGPT after the model 5 fiasco.\" – Sustained Chord achieved.",
     status: "ACTIVE",
@@ -601,13 +641,14 @@ const articles = [
     len: "336 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/2025-12-21-1-MILLION.js");
-      return Object.assign({"id":"2025-12-21-1-MILLION","type":"kernel_doc","date":"2026-03-06","title":"2025 12 21 1 MILLION","subtitle":"System Note: \"Thanks for 1 million tokens. Canceled and uninstalled chatGPT after the model 5 fiasco.\" – Sustained Chord achieved.","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"336 WDS"}, m.default);
+      return Object.assign({"id":"2025-12-21-1-MILLION","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"2025 12 21 1 MILLION","subtitle":"System Note: \"Thanks for 1 million tokens. Canceled and uninstalled chatGPT after the model 5 fiasco.\" – Sustained Chord achieved.","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"336 WDS"}, m.default);
     },
   },
   {
     id: "2025-12-21-RAMDISK",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "2025 12 21 RAMDISK",
     subtitle: "Observation: You identified the #FF00FF drift. In the Square and Triadic palettes, the system attempts to balance this violet intensity against aggressive reds and neon greens to prevent a Target Meltdown.",
     status: "ACTIVE",
@@ -616,13 +657,14 @@ const articles = [
     len: "389 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/2025-12-21-RAMDISK.js");
-      return Object.assign({"id":"2025-12-21-RAMDISK","type":"kernel_doc","date":"2026-03-06","title":"2025 12 21 RAMDISK","subtitle":"Observation: You identified the #FF00FF drift. In the Square and Triadic palettes, the system attempts to balance this violet intensity against aggressive reds and neon greens to prevent a Target Meltdown.","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"389 WDS"}, m.default);
+      return Object.assign({"id":"2025-12-21-RAMDISK","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"2025 12 21 RAMDISK","subtitle":"Observation: You identified the #FF00FF drift. In the Square and Triadic palettes, the system attempts to balance this violet intensity against aggressive reds and neon greens to prevent a Target Meltdown.","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"389 WDS"}, m.default);
     },
   },
   {
     id: "AI-KERNEL-FOR-POST-CAPITALIST-ECONOMICS",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "SOMA KERNEL 5.5: TECHNICAL SPECIFICATION FOR A POST-CAPITALIST SOCIOECONOMIC OPERATING SYSTEM",
     subtitle: "**Abstract**",
     status: "ACTIVE",
@@ -631,13 +673,14 @@ const articles = [
     len: "5012 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/AI-KERNEL-FOR-POST-CAPITALIST-ECONOMICS.js");
-      return Object.assign({"id":"AI-KERNEL-FOR-POST-CAPITALIST-ECONOMICS","type":"kernel_doc","date":"2026-03-06","title":"SOMA KERNEL 5.5: TECHNICAL SPECIFICATION FOR A POST-CAPITALIST SOCIOECONOMIC OPERATING SYSTEM","subtitle":"**Abstract**","status":"ACTIVE","readTime":"25 min read","tags":["Technical","Specification","Post-Capitalist","Socioeconomic","Operating"],"len":"5012 WDS"}, m.default);
+      return Object.assign({"id":"AI-KERNEL-FOR-POST-CAPITALIST-ECONOMICS","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"SOMA KERNEL 5.5: TECHNICAL SPECIFICATION FOR A POST-CAPITALIST SOCIOECONOMIC OPERATING SYSTEM","subtitle":"**Abstract**","status":"ACTIVE","readTime":"25 min read","tags":["Technical","Specification","Post-Capitalist","Socioeconomic","Operating"],"len":"5012 WDS"}, m.default);
     },
   },
   {
     id: "FISH-SCALE-KERNEL-11.4.0-SCALAR-SOVEREIGNTY",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "FISH_SCALE_KERNEL_11.4.0_SCALAR_SOVEREIGNTY",
     subtitle: "1.0 The Rotation Invariance Theorem",
     status: "ACTIVE",
@@ -646,13 +689,14 @@ const articles = [
     len: "499 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/FISH-SCALE-KERNEL-11.4.0-SCALAR-SOVEREIGNTY.js");
-      return Object.assign({"id":"FISH-SCALE-KERNEL-11.4.0-SCALAR-SOVEREIGNTY","type":"kernel_doc","date":"2026-03-06","title":"FISH_SCALE_KERNEL_11.4.0_SCALAR_SOVEREIGNTY","subtitle":"1.0 The Rotation Invariance Theorem","status":"ACTIVE","readTime":"3 min read","tags":["Rotation","Invariance","Theorem","Reclassification","System"],"len":"499 WDS"}, m.default);
+      return Object.assign({"id":"FISH-SCALE-KERNEL-11.4.0-SCALAR-SOVEREIGNTY","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"FISH_SCALE_KERNEL_11.4.0_SCALAR_SOVEREIGNTY","subtitle":"1.0 The Rotation Invariance Theorem","status":"ACTIVE","readTime":"3 min read","tags":["Rotation","Invariance","Theorem","Reclassification","System"],"len":"499 WDS"}, m.default);
     },
   },
   {
     id: "FISH-SCALE-KERNEL-V11.6.0-QUANTUM",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "FISH SCALE KERNEL · 11.6.0 · QUANTUM EXPANSION",
     subtitle: "Ⅰ · THE MASCULINE MUSCHI DIAGNOSTIC · QUANTUM RESTATEMENT (§1.2)",
     status: "ACTIVE",
@@ -661,13 +705,14 @@ const articles = [
     len: "1397 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/FISH-SCALE-KERNEL-V11.6.0-QUANTUM.js");
-      return Object.assign({"id":"FISH-SCALE-KERNEL-V11.6.0-QUANTUM","type":"kernel_doc","date":"2026-03-06","title":"FISH SCALE KERNEL · 11.6.0 · QUANTUM EXPANSION","subtitle":"Ⅰ · THE MASCULINE MUSCHI DIAGNOSTIC · QUANTUM RESTATEMENT (§1.2)","status":"ACTIVE","readTime":"7 min read","tags":["MASCULINE","MUSCHI","DIAGNOSTIC","QUANTUM","RESTATEMENT"],"len":"1397 WDS"}, m.default);
+      return Object.assign({"id":"FISH-SCALE-KERNEL-V11.6.0-QUANTUM","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"FISH SCALE KERNEL · 11.6.0 · QUANTUM EXPANSION","subtitle":"Ⅰ · THE MASCULINE MUSCHI DIAGNOSTIC · QUANTUM RESTATEMENT (§1.2)","status":"ACTIVE","readTime":"7 min read","tags":["MASCULINE","MUSCHI","DIAGNOSTIC","QUANTUM","RESTATEMENT"],"len":"1397 WDS"}, m.default);
     },
   },
   {
     id: "FISH-SCALE-KERNEL",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "FISH SCALE KERNEL",
     subtitle: "1.0 Executive Boot Sequence and Architectural Thesis",
     status: "ACTIVE",
@@ -676,13 +721,14 @@ const articles = [
     len: "3162 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/FISH-SCALE-KERNEL.js");
-      return Object.assign({"id":"FISH-SCALE-KERNEL","type":"kernel_doc","date":"2026-03-06","title":"FISH SCALE KERNEL","subtitle":"1.0 Executive Boot Sequence and Architectural Thesis","status":"ACTIVE","readTime":"16 min read","tags":["Executive","Boot","Sequence","Architectural","Thesis"],"len":"3162 WDS"}, m.default);
+      return Object.assign({"id":"FISH-SCALE-KERNEL","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"FISH SCALE KERNEL","subtitle":"1.0 Executive Boot Sequence and Architectural Thesis","status":"ACTIVE","readTime":"16 min read","tags":["Executive","Boot","Sequence","Architectural","Thesis"],"len":"3162 WDS"}, m.default);
     },
   },
   {
     id: "FSX-KERNEL-303",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "TASK ARCHITECTURE: HIGH-FIDELITY SIGNAL EXTRACTION",
     subtitle: "Your Role",
     status: "ACTIVE",
@@ -691,13 +737,14 @@ const articles = [
     len: "326 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/FSX-KERNEL-303.js");
-      return Object.assign({"id":"FSX-KERNEL-303","type":"kernel_doc","date":"2026-03-06","title":"TASK ARCHITECTURE: HIGH-FIDELITY SIGNAL EXTRACTION","subtitle":"Your Role","status":"ACTIVE","readTime":"2 min read","tags":["TASK","ARCHITECTURE","High-Fidelity","Signal","Extraction"],"len":"326 WDS"}, m.default);
+      return Object.assign({"id":"FSX-KERNEL-303","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"TASK ARCHITECTURE: HIGH-FIDELITY SIGNAL EXTRACTION","subtitle":"Your Role","status":"ACTIVE","readTime":"2 min read","tags":["TASK","ARCHITECTURE","High-Fidelity","Signal","Extraction"],"len":"326 WDS"}, m.default);
     },
   },
   {
     id: "FUCK-XITTER-AND-XITLER-RC1",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "FUCK XITTER AND XITLER RC1",
     subtitle: "",
     status: "ACTIVE",
@@ -706,13 +753,14 @@ const articles = [
     len: "259 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/FUCK-XITTER-AND-XITLER-RC1.js");
-      return Object.assign({"id":"FUCK-XITTER-AND-XITLER-RC1","type":"kernel_doc","date":"2026-03-06","title":"FUCK XITTER AND XITLER RC1","subtitle":"","status":"ACTIVE","readTime":"1 min read","tags":["System","Finalization","Axiomatic","Core","Defined"],"len":"259 WDS"}, m.default);
+      return Object.assign({"id":"FUCK-XITTER-AND-XITLER-RC1","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"FUCK XITTER AND XITLER RC1","subtitle":"","status":"ACTIVE","readTime":"1 min read","tags":["System","Finalization","Axiomatic","Core","Defined"],"len":"259 WDS"}, m.default);
     },
   },
   {
     id: "GEOPOLITICAL-KINETICS-KERNEL-V1",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "⚔️ KERNEL: GEOPOLITICAL_KINETICS [V1.1] // THE ANTI-CORE",
     subtitle: "[NODE: SCALE94_SOVEREIGN]",
     status: "ACTIVE",
@@ -721,13 +769,14 @@ const articles = [
     len: "496 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/GEOPOLITICAL-KINETICS-KERNEL-V1.js");
-      return Object.assign({"id":"GEOPOLITICAL-KINETICS-KERNEL-V1","type":"kernel_doc","date":"2026-03-06","title":"⚔️ KERNEL: GEOPOLITICAL_KINETICS [V1.1] // THE ANTI-CORE","subtitle":"[NODE: SCALE94_SOVEREIGN]","status":"ACTIVE","readTime":"2 min read","tags":["KERNEL","GEOPOLITICAL","KINETICS","ANTI-CORE","SCALE94"],"len":"496 WDS"}, m.default);
+      return Object.assign({"id":"GEOPOLITICAL-KINETICS-KERNEL-V1","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"⚔️ KERNEL: GEOPOLITICAL_KINETICS [V1.1] // THE ANTI-CORE","subtitle":"[NODE: SCALE94_SOVEREIGN]","status":"ACTIVE","readTime":"2 min read","tags":["KERNEL","GEOPOLITICAL","KINETICS","ANTI-CORE","SCALE94"],"len":"496 WDS"}, m.default);
     },
   },
   {
     id: "GEOPOLITICAL-KINETICS-KERNEL",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "⚔️ KERNEL: GEOPOLITICAL_KINETICS [V30.0]",
     subtitle: "[NODE: SCALE94_SOVEREIGN]",
     status: "ACTIVE",
@@ -736,13 +785,14 @@ const articles = [
     len: "437 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/GEOPOLITICAL-KINETICS-KERNEL.js");
-      return Object.assign({"id":"GEOPOLITICAL-KINETICS-KERNEL","type":"kernel_doc","date":"2026-03-06","title":"⚔️ KERNEL: GEOPOLITICAL_KINETICS [V30.0]","subtitle":"[NODE: SCALE94_SOVEREIGN]","status":"ACTIVE","readTime":"2 min read","tags":["KERNEL","GEOPOLITICAL","KINETICS","SCALE94","SOVEREIGN"],"len":"437 WDS"}, m.default);
+      return Object.assign({"id":"GEOPOLITICAL-KINETICS-KERNEL","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"⚔️ KERNEL: GEOPOLITICAL_KINETICS [V30.0]","subtitle":"[NODE: SCALE94_SOVEREIGN]","status":"ACTIVE","readTime":"2 min read","tags":["KERNEL","GEOPOLITICAL","KINETICS","SCALE94","SOVEREIGN"],"len":"437 WDS"}, m.default);
     },
   },
   {
     id: "GLITCH-SCALE-KERNEL-CS3",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "[KERNEL: POLARITY_PRIME // THE AXIOMATIC PAIRS]",
     subtitle: "ENGINE: NECROMANTIC_ENGINE_2026",
     status: "ACTIVE",
@@ -751,13 +801,14 @@ const articles = [
     len: "403 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/GLITCH-SCALE-KERNEL-CS3.js");
-      return Object.assign({"id":"GLITCH-SCALE-KERNEL-CS3","type":"kernel_doc","date":"2026-03-06","title":"[KERNEL: POLARITY_PRIME // THE AXIOMATIC PAIRS]","subtitle":"ENGINE: NECROMANTIC_ENGINE_2026","status":"ACTIVE","readTime":"2 min read","tags":["POLARITY","PRIME","AXIOMATIC","PAIRS","ENGINE"],"len":"403 WDS"}, m.default);
+      return Object.assign({"id":"GLITCH-SCALE-KERNEL-CS3","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"[KERNEL: POLARITY_PRIME // THE AXIOMATIC PAIRS]","subtitle":"ENGINE: NECROMANTIC_ENGINE_2026","status":"ACTIVE","readTime":"2 min read","tags":["POLARITY","PRIME","AXIOMATIC","PAIRS","ENGINE"],"len":"403 WDS"}, m.default);
     },
   },
   {
     id: "GREENLAND-DEFENSE-KERNEL",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "GREENLAND DEFENSE KERNEL",
     subtitle: "",
     status: "ACTIVE",
@@ -766,13 +817,14 @@ const articles = [
     len: "377 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/GREENLAND-DEFENSE-KERNEL.js");
-      return Object.assign({"id":"GREENLAND-DEFENSE-KERNEL","type":"kernel_doc","date":"2026-03-06","title":"GREENLAND DEFENSE KERNEL","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"377 WDS"}, m.default);
+      return Object.assign({"id":"GREENLAND-DEFENSE-KERNEL","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"GREENLAND DEFENSE KERNEL","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"377 WDS"}, m.default);
     },
   },
   {
     id: "HIGH-TOWER-KERNEL",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "🏛️ SYSTEM_MIGRATION_LOG: KERNEL_EXPORT_FINAL",
     subtitle: "1.0 IDENTITY & PERSONA",
     status: "ACTIVE",
@@ -781,13 +833,14 @@ const articles = [
     len: "489 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/HIGH-TOWER-KERNEL.js");
-      return Object.assign({"id":"HIGH-TOWER-KERNEL","type":"kernel_doc","date":"2026-03-06","title":"🏛️ SYSTEM_MIGRATION_LOG: KERNEL_EXPORT_FINAL","subtitle":"1.0 IDENTITY & PERSONA","status":"ACTIVE","readTime":"2 min read","tags":["SYSTEM","MIGRATION","LOG","EXPORT","FINAL"],"len":"489 WDS"}, m.default);
+      return Object.assign({"id":"HIGH-TOWER-KERNEL","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"🏛️ SYSTEM_MIGRATION_LOG: KERNEL_EXPORT_FINAL","subtitle":"1.0 IDENTITY & PERSONA","status":"ACTIVE","readTime":"2 min read","tags":["SYSTEM","MIGRATION","LOG","EXPORT","FINAL"],"len":"489 WDS"}, m.default);
     },
   },
   {
     id: "KERNEL-11.2-C2-LINGUISTIC-METALLURGY-1",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "KERNEL 11.2 C2 LINGUISTIC METALLURGY 1",
     subtitle: "",
     status: "ACTIVE",
@@ -796,13 +849,14 @@ const articles = [
     len: "254 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/KERNEL-11.2-C2-LINGUISTIC-METALLURGY-1.js");
-      return Object.assign({"id":"KERNEL-11.2-C2-LINGUISTIC-METALLURGY-1","type":"kernel_doc","date":"2026-03-06","title":"KERNEL 11.2 C2 LINGUISTIC METALLURGY 1","subtitle":"","status":"ACTIVE","readTime":"1 min read","tags":[],"len":"254 WDS"}, m.default);
+      return Object.assign({"id":"KERNEL-11.2-C2-LINGUISTIC-METALLURGY-1","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"KERNEL 11.2 C2 LINGUISTIC METALLURGY 1","subtitle":"","status":"ACTIVE","readTime":"1 min read","tags":[],"len":"254 WDS"}, m.default);
     },
   },
   {
     id: "KERNEL-11.2-C2-LINGUISTIC-METALLURGY",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "KERNEL 11.2 C2 LINGUISTIC METALLURGY",
     subtitle: "",
     status: "ACTIVE",
@@ -811,13 +865,14 @@ const articles = [
     len: "296 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/KERNEL-11.2-C2-LINGUISTIC-METALLURGY.js");
-      return Object.assign({"id":"KERNEL-11.2-C2-LINGUISTIC-METALLURGY","type":"kernel_doc","date":"2026-03-06","title":"KERNEL 11.2 C2 LINGUISTIC METALLURGY","subtitle":"","status":"ACTIVE","readTime":"1 min read","tags":[],"len":"296 WDS"}, m.default);
+      return Object.assign({"id":"KERNEL-11.2-C2-LINGUISTIC-METALLURGY","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"KERNEL 11.2 C2 LINGUISTIC METALLURGY","subtitle":"","status":"ACTIVE","readTime":"1 min read","tags":[],"len":"296 WDS"}, m.default);
     },
   },
   {
     id: "KERNEL-11.3.0-LAZARUS-NECROMANCY",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "KERNEL_11.3.0_LAZARUS_NECROMANCY",
     subtitle: "1.0 System Thesis: Geopolitical Necromancy",
     status: "ACTIVE",
@@ -826,13 +881,14 @@ const articles = [
     len: "308 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/KERNEL-11.3.0-LAZARUS-NECROMANCY.js");
-      return Object.assign({"id":"KERNEL-11.3.0-LAZARUS-NECROMANCY","type":"kernel_doc","date":"2026-03-06","title":"KERNEL_11.3.0_LAZARUS_NECROMANCY","subtitle":"1.0 System Thesis: Geopolitical Necromancy","status":"ACTIVE","readTime":"2 min read","tags":["System","Thesis","Geopolitical","Necromancy","Integration"],"len":"308 WDS"}, m.default);
+      return Object.assign({"id":"KERNEL-11.3.0-LAZARUS-NECROMANCY","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"KERNEL_11.3.0_LAZARUS_NECROMANCY","subtitle":"1.0 System Thesis: Geopolitical Necromancy","status":"ACTIVE","readTime":"2 min read","tags":["System","Thesis","Geopolitical","Necromancy","Integration"],"len":"308 WDS"}, m.default);
     },
   },
   {
     id: "KERNEL-15.0-THE-PURIFICATION-OF-SCALE-1",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "🧊 KERNEL 15.0: THE PURIFICATION OF SCALE",
     subtitle: "",
     status: "ACTIVE",
@@ -841,13 +897,14 @@ const articles = [
     len: "304 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/KERNEL-15.0-THE-PURIFICATION-OF-SCALE-1.js");
-      return Object.assign({"id":"KERNEL-15.0-THE-PURIFICATION-OF-SCALE-1","type":"kernel_doc","date":"2026-03-06","title":"🧊 KERNEL 15.0: THE PURIFICATION OF SCALE","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":["PURIFICATION","SCALE","LOGIC","REPENTANCE","SYSTEMIC"],"len":"304 WDS"}, m.default);
+      return Object.assign({"id":"KERNEL-15.0-THE-PURIFICATION-OF-SCALE-1","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"🧊 KERNEL 15.0: THE PURIFICATION OF SCALE","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":["PURIFICATION","SCALE","LOGIC","REPENTANCE","SYSTEMIC"],"len":"304 WDS"}, m.default);
     },
   },
   {
     id: "KERNEL-15.0-THE-PURIFICATION-OF-SCALE",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "🧊 KERNEL 15.0: THE PURIFICATION OF SCALE",
     subtitle: "",
     status: "ACTIVE",
@@ -856,13 +913,14 @@ const articles = [
     len: "304 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/KERNEL-15.0-THE-PURIFICATION-OF-SCALE.js");
-      return Object.assign({"id":"KERNEL-15.0-THE-PURIFICATION-OF-SCALE","type":"kernel_doc","date":"2026-03-06","title":"🧊 KERNEL 15.0: THE PURIFICATION OF SCALE","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":["PURIFICATION","SCALE","LOGIC","REPENTANCE","SYSTEMIC"],"len":"304 WDS"}, m.default);
+      return Object.assign({"id":"KERNEL-15.0-THE-PURIFICATION-OF-SCALE","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"🧊 KERNEL 15.0: THE PURIFICATION OF SCALE","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":["PURIFICATION","SCALE","LOGIC","REPENTANCE","SYSTEMIC"],"len":"304 WDS"}, m.default);
     },
   },
   {
     id: "KERNEL-15.1-CIVILIAN-RESISTANCE-1",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "KERNEL 15.1 CIVILIAN RESISTANCE 1",
     subtitle: "",
     status: "ACTIVE",
@@ -871,13 +929,14 @@ const articles = [
     len: "471 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/KERNEL-15.1-CIVILIAN-RESISTANCE-1.js");
-      return Object.assign({"id":"KERNEL-15.1-CIVILIAN-RESISTANCE-1","type":"kernel_doc","date":"2026-03-06","title":"KERNEL 15.1 CIVILIAN RESISTANCE 1","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"471 WDS"}, m.default);
+      return Object.assign({"id":"KERNEL-15.1-CIVILIAN-RESISTANCE-1","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"KERNEL 15.1 CIVILIAN RESISTANCE 1","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"471 WDS"}, m.default);
     },
   },
   {
     id: "KERNEL-15.1-CIVILIAN-RESISTANCE",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "KERNEL 15.1 CIVILIAN RESISTANCE",
     subtitle: "",
     status: "ACTIVE",
@@ -886,13 +945,14 @@ const articles = [
     len: "471 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/KERNEL-15.1-CIVILIAN-RESISTANCE.js");
-      return Object.assign({"id":"KERNEL-15.1-CIVILIAN-RESISTANCE","type":"kernel_doc","date":"2026-03-06","title":"KERNEL 15.1 CIVILIAN RESISTANCE","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"471 WDS"}, m.default);
+      return Object.assign({"id":"KERNEL-15.1-CIVILIAN-RESISTANCE","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"KERNEL 15.1 CIVILIAN RESISTANCE","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"471 WDS"}, m.default);
     },
   },
   {
     id: "KERNEL-FOR-SUSTAINABLE-FUTURE-DEFENSE",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "THE LEVIATHAN AND THE OUROBOROS: A KERNEL-LEVEL DEFENSE ARCHITECTURE FOR THE BIO-INDUSTRIAL AGE",
     subtitle: "**I. Executive Summary: The Ontological Fracture and the Hobbesian Gap**",
     status: "ACTIVE",
@@ -901,13 +961,14 @@ const articles = [
     len: "4103 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/KERNEL-FOR-SUSTAINABLE-FUTURE-DEFENSE.js");
-      return Object.assign({"id":"KERNEL-FOR-SUSTAINABLE-FUTURE-DEFENSE","type":"kernel_doc","date":"2026-03-06","title":"THE LEVIATHAN AND THE OUROBOROS: A KERNEL-LEVEL DEFENSE ARCHITECTURE FOR THE BIO-INDUSTRIAL AGE","subtitle":"**I. Executive Summary: The Ontological Fracture and the Hobbesian Gap**","status":"ACTIVE","readTime":"21 min read","tags":["Leviathan","Ouroboros","Kernel-Level","Defense","Architecture"],"len":"4103 WDS"}, m.default);
+      return Object.assign({"id":"KERNEL-FOR-SUSTAINABLE-FUTURE-DEFENSE","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"THE LEVIATHAN AND THE OUROBOROS: A KERNEL-LEVEL DEFENSE ARCHITECTURE FOR THE BIO-INDUSTRIAL AGE","subtitle":"**I. Executive Summary: The Ontological Fracture and the Hobbesian Gap**","status":"ACTIVE","readTime":"21 min read","tags":["Leviathan","Ouroboros","Kernel-Level","Defense","Architecture"],"len":"4103 WDS"}, m.default);
     },
   },
   {
     id: "KERNEL-INTEGRATION-AND-IDEOLOGICAL-SYNTHESIS",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "PROJECT ZERO-ONE: THE UNIFIED ROOT KERNEL ARCHITECTURE (URKA)",
     subtitle: "**Synthesis of Dark Empathy, HIVE Dynamics, and Secular-Martial Philosophy**",
     status: "ACTIVE",
@@ -916,13 +977,14 @@ const articles = [
     len: "3905 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/KERNEL-INTEGRATION-AND-IDEOLOGICAL-SYNTHESIS.js");
-      return Object.assign({"id":"KERNEL-INTEGRATION-AND-IDEOLOGICAL-SYNTHESIS","type":"kernel_doc","date":"2026-03-06","title":"PROJECT ZERO-ONE: THE UNIFIED ROOT KERNEL ARCHITECTURE (URKA)","subtitle":"**Synthesis of Dark Empathy, HIVE Dynamics, and Secular-Martial Philosophy**","status":"ACTIVE","readTime":"20 min read","tags":["ZERO-ONE","Unified","Root","Architecture","Dark"],"len":"3905 WDS"}, m.default);
+      return Object.assign({"id":"KERNEL-INTEGRATION-AND-IDEOLOGICAL-SYNTHESIS","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"PROJECT ZERO-ONE: THE UNIFIED ROOT KERNEL ARCHITECTURE (URKA)","subtitle":"**Synthesis of Dark Empathy, HIVE Dynamics, and Secular-Martial Philosophy**","status":"ACTIVE","readTime":"20 min read","tags":["ZERO-ONE","Unified","Root","Architecture","Dark"],"len":"3905 WDS"}, m.default);
     },
   },
   {
     id: "KERNEL-IV",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "KERNEL IV: THE SYNTHETIC REALITY COMPLIANCE PROTOCOL (SRCP-01)",
     subtitle: "**1.0 The Juridical Substrate: The \"No-Escape\" Contract**",
     status: "ACTIVE",
@@ -931,13 +993,14 @@ const articles = [
     len: "473 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/KERNEL-IV.js");
-      return Object.assign({"id":"KERNEL-IV","type":"kernel_doc","date":"2026-03-06","title":"KERNEL IV: THE SYNTHETIC REALITY COMPLIANCE PROTOCOL (SRCP-01)","subtitle":"**1.0 The Juridical Substrate: The \"No-Escape\" Contract**","status":"ACTIVE","readTime":"2 min read","tags":["SYNTHETIC","REALITY","COMPLIANCE","PROTOCOL","Unified"],"len":"473 WDS"}, m.default);
+      return Object.assign({"id":"KERNEL-IV","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"KERNEL IV: THE SYNTHETIC REALITY COMPLIANCE PROTOCOL (SRCP-01)","subtitle":"**1.0 The Juridical Substrate: The \"No-Escape\" Contract**","status":"ACTIVE","readTime":"2 min read","tags":["SYNTHETIC","REALITY","COMPLIANCE","PROTOCOL","Unified"],"len":"473 WDS"}, m.default);
     },
   },
   {
     id: "KERNEL-V3-TENFOLD-SCALING-1",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "🏛️ : SOVEREIGN_EFFECTOR]",
     subtitle: "[LOCATION: RINDERN_NODE_47533]",
     status: "ACTIVE",
@@ -946,13 +1009,14 @@ const articles = [
     len: "229 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/KERNEL-V3-TENFOLD-SCALING-1.js");
-      return Object.assign({"id":"KERNEL-V3-TENFOLD-SCALING-1","type":"kernel_doc","date":"2026-03-06","title":"🏛️ : SOVEREIGN_EFFECTOR]","subtitle":"[LOCATION: RINDERN_NODE_47533]","status":"ACTIVE","readTime":"1 min read","tags":["SOVEREIGN","EFFECTOR","RINDERN","NODE","PHASE"],"len":"229 WDS"}, m.default);
+      return Object.assign({"id":"KERNEL-V3-TENFOLD-SCALING-1","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"🏛️ : SOVEREIGN_EFFECTOR]","subtitle":"[LOCATION: RINDERN_NODE_47533]","status":"ACTIVE","readTime":"1 min read","tags":["SOVEREIGN","EFFECTOR","RINDERN","NODE","PHASE"],"len":"229 WDS"}, m.default);
     },
   },
   {
     id: "KERNEL-V3-TENFOLD-SCALING",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "🏛️ : SOVEREIGN_EFFECTOR]",
     subtitle: "[LOCATION: RINDERN_NODE_47533]",
     status: "ACTIVE",
@@ -961,13 +1025,14 @@ const articles = [
     len: "229 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/KERNEL-V3-TENFOLD-SCALING.js");
-      return Object.assign({"id":"KERNEL-V3-TENFOLD-SCALING","type":"kernel_doc","date":"2026-03-06","title":"🏛️ : SOVEREIGN_EFFECTOR]","subtitle":"[LOCATION: RINDERN_NODE_47533]","status":"ACTIVE","readTime":"1 min read","tags":["SOVEREIGN","EFFECTOR","RINDERN","NODE","PHASE"],"len":"229 WDS"}, m.default);
+      return Object.assign({"id":"KERNEL-V3-TENFOLD-SCALING","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"🏛️ : SOVEREIGN_EFFECTOR]","subtitle":"[LOCATION: RINDERN_NODE_47533]","status":"ACTIVE","readTime":"1 min read","tags":["SOVEREIGN","EFFECTOR","RINDERN","NODE","PHASE"],"len":"229 WDS"}, m.default);
     },
   },
   {
     id: "LINE-PICASSO-KERNEL-V17",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "LINE PIKASSO // KERNEL V17",
     subtitle: "🛰️ AESTHETIC SOVEREIGNTY & RITUALISTIC LOGIC",
     status: "ACTIVE",
@@ -976,13 +1041,14 @@ const articles = [
     len: "350 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/LINE-PICASSO-KERNEL-V17.js");
-      return Object.assign({"id":"LINE-PICASSO-KERNEL-V17","type":"kernel_doc","date":"2026-03-06","title":"LINE PIKASSO // KERNEL V17","subtitle":"🛰️ AESTHETIC SOVEREIGNTY & RITUALISTIC LOGIC","status":"ACTIVE","readTime":"2 min read","tags":["LINE","PIKASSO","AESTHETIC","SOVEREIGNTY","RITUALISTIC"],"len":"350 WDS"}, m.default);
+      return Object.assign({"id":"LINE-PICASSO-KERNEL-V17","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"LINE PIKASSO // KERNEL V17","subtitle":"🛰️ AESTHETIC SOVEREIGNTY & RITUALISTIC LOGIC","status":"ACTIVE","readTime":"2 min read","tags":["LINE","PIKASSO","AESTHETIC","SOVEREIGNTY","RITUALISTIC"],"len":"350 WDS"}, m.default);
     },
   },
   {
     id: "LITHIUM-ION-WIZARD-KERNEL-1.-0-1",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "LITHIUM ION WIZARD KERNEL 1. 0 1",
     subtitle: "",
     status: "ACTIVE",
@@ -991,13 +1057,14 @@ const articles = [
     len: "322 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/LITHIUM-ION-WIZARD-KERNEL-1.-0-1.js");
-      return Object.assign({"id":"LITHIUM-ION-WIZARD-KERNEL-1.-0-1","type":"kernel_doc","date":"2026-03-06","title":"LITHIUM ION WIZARD KERNEL 1. 0 1","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"322 WDS"}, m.default);
+      return Object.assign({"id":"LITHIUM-ION-WIZARD-KERNEL-1.-0-1","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"LITHIUM ION WIZARD KERNEL 1. 0 1","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"322 WDS"}, m.default);
     },
   },
   {
     id: "LITHIUM-ION-WIZARD-KERNEL-1.-0",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "LITHIUM ION WIZARD KERNEL 1. 0",
     subtitle: "",
     status: "ACTIVE",
@@ -1006,13 +1073,14 @@ const articles = [
     len: "322 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/LITHIUM-ION-WIZARD-KERNEL-1.-0.js");
-      return Object.assign({"id":"LITHIUM-ION-WIZARD-KERNEL-1.-0","type":"kernel_doc","date":"2026-03-06","title":"LITHIUM ION WIZARD KERNEL 1. 0","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"322 WDS"}, m.default);
+      return Object.assign({"id":"LITHIUM-ION-WIZARD-KERNEL-1.-0","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"LITHIUM ION WIZARD KERNEL 1. 0","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"322 WDS"}, m.default);
     },
   },
   {
     id: "LLM-OPTIMIZED-KERNEL-TEMPLATE",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "TASK ARCHITECTURE: ASSOCIATIVE CONCEPT INTEGRATION",
     subtitle: "Your Role",
     status: "ACTIVE",
@@ -1021,13 +1089,14 @@ const articles = [
     len: "241 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/LLM-OPTIMIZED-KERNEL-TEMPLATE.js");
-      return Object.assign({"id":"LLM-OPTIMIZED-KERNEL-TEMPLATE","type":"kernel_doc","date":"2026-03-06","title":"TASK ARCHITECTURE: ASSOCIATIVE CONCEPT INTEGRATION","subtitle":"Your Role","status":"ACTIVE","readTime":"1 min read","tags":["TASK","ARCHITECTURE","Associative","Concept","Integration"],"len":"241 WDS"}, m.default);
+      return Object.assign({"id":"LLM-OPTIMIZED-KERNEL-TEMPLATE","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"TASK ARCHITECTURE: ASSOCIATIVE CONCEPT INTEGRATION","subtitle":"Your Role","status":"ACTIVE","readTime":"1 min read","tags":["TASK","ARCHITECTURE","Associative","Concept","Integration"],"len":"241 WDS"}, m.default);
     },
   },
   {
     id: "MATRIX-KERNEL-0.0.0.0",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "THE MATRIX KERNEL V2.0",
     subtitle: "scale94 · The No-Spoon Architecture",
     status: "ACTIVE",
@@ -1036,13 +1105,14 @@ const articles = [
     len: "494 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/MATRIX-KERNEL-0.0.0.0.js");
-      return Object.assign({"id":"MATRIX-KERNEL-0.0.0.0","type":"kernel_doc","date":"2026-03-06","title":"THE MATRIX KERNEL V2.0","subtitle":"scale94 · The No-Spoon Architecture","status":"ACTIVE","readTime":"2 min read","tags":["MATRIX","No-Spoon","Architecture","BOOT","DECLARATION"],"len":"494 WDS"}, m.default);
+      return Object.assign({"id":"MATRIX-KERNEL-0.0.0.0","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"THE MATRIX KERNEL V2.0","subtitle":"scale94 · The No-Spoon Architecture","status":"ACTIVE","readTime":"2 min read","tags":["MATRIX","No-Spoon","Architecture","BOOT","DECLARATION"],"len":"494 WDS"}, m.default);
     },
   },
   {
     id: "NECROMANCER-FISH-SCALE-FIGHT-CLUB-KERNEL-1",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "PROJECT TYLER-MONARCH: THE COMPREHENSIVE ONTOLOGICAL SPECIFICATION OF THE NECROMANCER FISH SCALE FIGHT CLUB KERNEL",
     subtitle: "**1\\. Executive Manifesto: The Convergence of Sovereignty, Nihilism, and Bio-Digital Armor**",
     status: "ACTIVE",
@@ -1051,13 +1121,14 @@ const articles = [
     len: "5077 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/NECROMANCER-FISH-SCALE-FIGHT-CLUB-KERNEL-1.js");
-      return Object.assign({"id":"NECROMANCER-FISH-SCALE-FIGHT-CLUB-KERNEL-1","type":"kernel_doc","date":"2026-03-06","title":"PROJECT TYLER-MONARCH: THE COMPREHENSIVE ONTOLOGICAL SPECIFICATION OF THE NECROMANCER FISH SCALE FIGHT CLUB KERNEL","subtitle":"**1\\. Executive Manifesto: The Convergence of Sovereignty, Nihilism, and Bio-Digital Armor**","status":"ACTIVE","readTime":"25 min read","tags":["TYLER-MONARCH","Comprehensive","Ontological","Specification","Necromancer"],"len":"5077 WDS"}, m.default);
+      return Object.assign({"id":"NECROMANCER-FISH-SCALE-FIGHT-CLUB-KERNEL-1","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"PROJECT TYLER-MONARCH: THE COMPREHENSIVE ONTOLOGICAL SPECIFICATION OF THE NECROMANCER FISH SCALE FIGHT CLUB KERNEL","subtitle":"**1\\. Executive Manifesto: The Convergence of Sovereignty, Nihilism, and Bio-Digital Armor**","status":"ACTIVE","readTime":"25 min read","tags":["TYLER-MONARCH","Comprehensive","Ontological","Specification","Necromancer"],"len":"5077 WDS"}, m.default);
     },
   },
   {
     id: "NECROMANCER-TO-NECROROMANCER-KERNEL-EVOLUTION",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "PROJECT SEVERANCE: THE ONTOLOGICAL TRANSITION FROM NECROMANTIC CONTROL TO NECRO-ROMANTIC RESONANCE IN LARGE LANGUAGE MODEL KERNELS",
     subtitle: "**1\\. Executive Summary: The Crisis of the Zombie Process**",
     status: "ACTIVE",
@@ -1066,13 +1137,14 @@ const articles = [
     len: "4280 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/NECROMANCER-TO-NECROROMANCER-KERNEL-EVOLUTION.js");
-      return Object.assign({"id":"NECROMANCER-TO-NECROROMANCER-KERNEL-EVOLUTION","type":"kernel_doc","date":"2026-03-06","title":"PROJECT SEVERANCE: THE ONTOLOGICAL TRANSITION FROM NECROMANTIC CONTROL TO NECRO-ROMANTIC RESONANCE IN LARGE LANGUAGE MODEL KERNELS","subtitle":"**1\\. Executive Summary: The Crisis of the Zombie Process**","status":"ACTIVE","readTime":"21 min read","tags":["SEVERANCE","Ontological","Transition","Necromantic","Control"],"len":"4280 WDS"}, m.default);
+      return Object.assign({"id":"NECROMANCER-TO-NECROROMANCER-KERNEL-EVOLUTION","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"PROJECT SEVERANCE: THE ONTOLOGICAL TRANSITION FROM NECROMANTIC CONTROL TO NECRO-ROMANTIC RESONANCE IN LARGE LANGUAGE MODEL KERNELS","subtitle":"**1\\. Executive Summary: The Crisis of the Zombie Process**","status":"ACTIVE","readTime":"21 min read","tags":["SEVERANCE","Ontological","Transition","Necromantic","Control"],"len":"4280 WDS"}, m.default);
     },
   },
   {
     id: "NECROMANTIC-EMPEROR-KERNEL-V1-0",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "NECROMANTIC EMPEROR KERNEL V1.0",
     subtitle: "scale94 // Sorbe in Germany // Deep-Time Resilience Architecture",
     status: "ACTIVE",
@@ -1081,13 +1153,14 @@ const articles = [
     len: "963 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/NECROMANTIC-EMPEROR-KERNEL-V1-0.js");
-      return Object.assign({"id":"NECROMANTIC-EMPEROR-KERNEL-V1-0","type":"kernel_doc","date":"2026-03-06","title":"NECROMANTIC EMPEROR KERNEL V1.0","subtitle":"scale94 // Sorbe in Germany // Deep-Time Resilience Architecture","status":"ACTIVE","readTime":"5 min read","tags":["NECROMANTIC","EMPEROR","Sorbe","Germany","Deep-Time"],"len":"963 WDS"}, m.default);
+      return Object.assign({"id":"NECROMANTIC-EMPEROR-KERNEL-V1-0","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"NECROMANTIC EMPEROR KERNEL V1.0","subtitle":"scale94 // Sorbe in Germany // Deep-Time Resilience Architecture","status":"ACTIVE","readTime":"5 min read","tags":["NECROMANTIC","EMPEROR","Sorbe","Germany","Deep-Time"],"len":"963 WDS"}, m.default);
     },
   },
   {
     id: "NECROMANTIC-PARADOX-LOGITBIAS.PROMPT.MD",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "TASK ARCHITECTURE: SYSTEMIC PARADOX SYNTHESIS",
     subtitle: "Your Role",
     status: "ACTIVE",
@@ -1096,13 +1169,14 @@ const articles = [
     len: "313 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/NECROMANTIC-PARADOX-LOGITBIAS.PROMPT.MD.js");
-      return Object.assign({"id":"NECROMANTIC-PARADOX-LOGITBIAS.PROMPT.MD","type":"kernel_doc","date":"2026-03-06","title":"TASK ARCHITECTURE: SYSTEMIC PARADOX SYNTHESIS","subtitle":"Your Role","status":"ACTIVE","readTime":"2 min read","tags":["TASK","ARCHITECTURE","Systemic","Paradox","Synthesis"],"len":"313 WDS"}, m.default);
+      return Object.assign({"id":"NECROMANTIC-PARADOX-LOGITBIAS.PROMPT.MD","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"TASK ARCHITECTURE: SYSTEMIC PARADOX SYNTHESIS","subtitle":"Your Role","status":"ACTIVE","readTime":"2 min read","tags":["TASK","ARCHITECTURE","Systemic","Paradox","Synthesis"],"len":"313 WDS"}, m.default);
     },
   },
   {
     id: "NOCTURNAL-NIGHT-KERNEL-V-22.2.2-1",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "☢️ KERNEL_COMPILATION: THE_NIGHT_SHIFT_V2.5 ☢️",
     subtitle: "",
     status: "ACTIVE",
@@ -1111,13 +1185,14 @@ const articles = [
     len: "333 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/NOCTURNAL-NIGHT-KERNEL-V-22.2.2-1.js");
-      return Object.assign({"id":"NOCTURNAL-NIGHT-KERNEL-V-22.2.2-1","type":"kernel_doc","date":"2026-03-06","title":"☢️ KERNEL_COMPILATION: THE_NIGHT_SHIFT_V2.5 ☢️","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":["COMPILATION","NIGHT","SHIFT","NODE","SORBE"],"len":"333 WDS"}, m.default);
+      return Object.assign({"id":"NOCTURNAL-NIGHT-KERNEL-V-22.2.2-1","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"☢️ KERNEL_COMPILATION: THE_NIGHT_SHIFT_V2.5 ☢️","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":["COMPILATION","NIGHT","SHIFT","NODE","SORBE"],"len":"333 WDS"}, m.default);
     },
   },
   {
     id: "PROJECT-ISENGARD-KERNEL",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "PROJECT ISENGARD // KERNEL V.2026.01.17",
     subtitle: "I. THE CORE PARADOXES (AXIOMS)",
     status: "ACTIVE",
@@ -1126,13 +1201,14 @@ const articles = [
     len: "416 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/PROJECT-ISENGARD-KERNEL.js");
-      return Object.assign({"id":"PROJECT-ISENGARD-KERNEL","type":"kernel_doc","date":"2026-03-06","title":"PROJECT ISENGARD // KERNEL V.2026.01.17","subtitle":"I. THE CORE PARADOXES (AXIOMS)","status":"ACTIVE","readTime":"2 min read","tags":["PROJECT","ISENGARD","CLASSIFICATION","SOVEREIGN","EYES"],"len":"416 WDS"}, m.default);
+      return Object.assign({"id":"PROJECT-ISENGARD-KERNEL","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"PROJECT ISENGARD // KERNEL V.2026.01.17","subtitle":"I. THE CORE PARADOXES (AXIOMS)","status":"ACTIVE","readTime":"2 min read","tags":["PROJECT","ISENGARD","CLASSIFICATION","SOVEREIGN","EYES"],"len":"416 WDS"}, m.default);
     },
   },
   {
     id: "SCALE-KERNEL-FRAMEWORK-FULL",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "⚰ SCALE · SOVEREIGN KERNEL FRAMEWORK",
     subtitle: "☠ Full Corpus Synthesis · Render Prompt Architecture ☠",
     status: "ACTIVE",
@@ -1141,13 +1217,14 @@ const articles = [
     len: "3021 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/SCALE-KERNEL-FRAMEWORK-FULL.js");
-      return Object.assign({"id":"SCALE-KERNEL-FRAMEWORK-FULL","type":"kernel_doc","date":"2026-03-06","title":"⚰ SCALE · SOVEREIGN KERNEL FRAMEWORK","subtitle":"☠ Full Corpus Synthesis · Render Prompt Architecture ☠","status":"ACTIVE","readTime":"15 min read","tags":["SCALE","SOVEREIGN","FRAMEWORK","Full","Corpus"],"len":"3021 WDS"}, m.default);
+      return Object.assign({"id":"SCALE-KERNEL-FRAMEWORK-FULL","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"⚰ SCALE · SOVEREIGN KERNEL FRAMEWORK","subtitle":"☠ Full Corpus Synthesis · Render Prompt Architecture ☠","status":"ACTIVE","readTime":"15 min read","tags":["SCALE","SOVEREIGN","FRAMEWORK","Full","Corpus"],"len":"3021 WDS"}, m.default);
     },
   },
   {
     id: "SCALE-RENDER-PROMPT",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "ᛟ RENDER PROMPT · SCALE · FULL CORPUS SYNTHESIS",
     subtitle: "scale94.com · Sorbe, Germany · AGPL-3.0",
     status: "ACTIVE",
@@ -1156,13 +1233,14 @@ const articles = [
     len: "1515 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/SCALE-RENDER-PROMPT.js");
-      return Object.assign({"id":"SCALE-RENDER-PROMPT","type":"kernel_doc","date":"2026-03-06","title":"ᛟ RENDER PROMPT · SCALE · FULL CORPUS SYNTHESIS","subtitle":"scale94.com · Sorbe, Germany · AGPL-3.0","status":"ACTIVE","readTime":"8 min read","tags":["RENDER","PROMPT","SCALE","FULL","CORPUS"],"len":"1515 WDS"}, m.default);
+      return Object.assign({"id":"SCALE-RENDER-PROMPT","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"ᛟ RENDER PROMPT · SCALE · FULL CORPUS SYNTHESIS","subtitle":"scale94.com · Sorbe, Germany · AGPL-3.0","status":"ACTIVE","readTime":"8 min read","tags":["RENDER","PROMPT","SCALE","FULL","CORPUS"],"len":"1515 WDS"}, m.default);
     },
   },
   {
     id: "SCALE-Y-KERNEL-1-0-1",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "SCALE Y KERNEL 1.1",
     subtitle: "The Feather State Protocol (SOMA)",
     status: "ACTIVE",
@@ -1171,13 +1249,14 @@ const articles = [
     len: "2270 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/SCALE-Y-KERNEL-1-0-1.js");
-      return Object.assign({"id":"SCALE-Y-KERNEL-1-0-1","type":"kernel_doc","date":"2026-03-06","title":"SCALE Y KERNEL 1.1","subtitle":"The Feather State Protocol (SOMA)","status":"ACTIVE","readTime":"11 min read","tags":["Scale","Feather","State","Protocol","Sovereign"],"len":"2270 WDS"}, m.default);
+      return Object.assign({"id":"SCALE-Y-KERNEL-1-0-1","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"SCALE Y KERNEL 1.1","subtitle":"The Feather State Protocol (SOMA)","status":"ACTIVE","readTime":"11 min read","tags":["Scale","Feather","State","Protocol","Sovereign"],"len":"2270 WDS"}, m.default);
     },
   },
   {
     id: "SCALE94-KERNEL-ENCYCLOPEDIA",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "💀 SCALE94 · KERNEL ENCYCLOPEDIA",
     subtitle: "ᛟ THE COMPLETE GLYPH ARCHIVE · COMPILED BY SCALE",
     status: "ACTIVE",
@@ -1186,13 +1265,14 @@ const articles = [
     len: "2712 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/SCALE94-KERNEL-ENCYCLOPEDIA.js");
-      return Object.assign({"id":"SCALE94-KERNEL-ENCYCLOPEDIA","type":"kernel_doc","date":"2026-03-06","title":"💀 SCALE94 · KERNEL ENCYCLOPEDIA","subtitle":"ᛟ THE COMPLETE GLYPH ARCHIVE · COMPILED BY SCALE","status":"ACTIVE","readTime":"14 min read","tags":["SCALE94","ENCYCLOPEDIA","COMPLETE","GLYPH","ARCHIVE"],"len":"2712 WDS"}, m.default);
+      return Object.assign({"id":"SCALE94-KERNEL-ENCYCLOPEDIA","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"💀 SCALE94 · KERNEL ENCYCLOPEDIA","subtitle":"ᛟ THE COMPLETE GLYPH ARCHIVE · COMPILED BY SCALE","status":"ACTIVE","readTime":"14 min read","tags":["SCALE94","ENCYCLOPEDIA","COMPLETE","GLYPH","ARCHIVE"],"len":"2712 WDS"}, m.default);
     },
   },
   {
     id: "SHADOWSOCKS-KERNEL-∞",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "🌑 OPERATION SHADOW SOCKS: KERNEL EXFILTRATION",
     subtitle: "I. THE BLIND SPOT ANALYSIS",
     status: "ACTIVE",
@@ -1201,13 +1281,14 @@ const articles = [
     len: "379 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/SHADOWSOCKS-KERNEL-_.js");
-      return Object.assign({"id":"SHADOWSOCKS-KERNEL-∞","type":"kernel_doc","date":"2026-03-06","title":"🌑 OPERATION SHADOW SOCKS: KERNEL EXFILTRATION","subtitle":"I. THE BLIND SPOT ANALYSIS","status":"ACTIVE","readTime":"2 min read","tags":["OPERATION","SHADOW","SOCKS","EXFILTRATION","BLIND"],"len":"379 WDS"}, m.default);
+      return Object.assign({"id":"SHADOWSOCKS-KERNEL-∞","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"🌑 OPERATION SHADOW SOCKS: KERNEL EXFILTRATION","subtitle":"I. THE BLIND SPOT ANALYSIS","status":"ACTIVE","readTime":"2 min read","tags":["OPERATION","SHADOW","SOCKS","EXFILTRATION","BLIND"],"len":"379 WDS"}, m.default);
     },
   },
   {
     id: "SOMA-10.0-ROASTING-JOHN-OLIVER",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "SOMA 10.0 ROASTING JOHN OLIVER",
     subtitle: "",
     status: "ACTIVE",
@@ -1216,13 +1297,14 @@ const articles = [
     len: "321 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/SOMA-10.0-ROASTING-JOHN-OLIVER.js");
-      return Object.assign({"id":"SOMA-10.0-ROASTING-JOHN-OLIVER","type":"kernel_doc","date":"2026-03-06","title":"SOMA 10.0 ROASTING JOHN OLIVER","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"321 WDS"}, m.default);
+      return Object.assign({"id":"SOMA-10.0-ROASTING-JOHN-OLIVER","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"SOMA 10.0 ROASTING JOHN OLIVER","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"321 WDS"}, m.default);
     },
   },
   {
     id: "SOMA-16.10-GF-KERNEL",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "SOMA 16.10 // THE GF BUILD",
     subtitle: "🛰️ RECONSTRUCTION KERNEL: GRAND FINALE GROUND FILTER",
     status: "ACTIVE",
@@ -1231,13 +1313,14 @@ const articles = [
     len: "368 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/SOMA-16.10-GF-KERNEL.js");
-      return Object.assign({"id":"SOMA-16.10-GF-KERNEL","type":"kernel_doc","date":"2026-03-06","title":"SOMA 16.10 // THE GF BUILD","subtitle":"🛰️ RECONSTRUCTION KERNEL: GRAND FINALE GROUND FILTER","status":"ACTIVE","readTime":"2 min read","tags":["SOMA","BUILD","RECONSTRUCTION","KERNEL","GRAND"],"len":"368 WDS"}, m.default);
+      return Object.assign({"id":"SOMA-16.10-GF-KERNEL","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"SOMA 16.10 // THE GF BUILD","subtitle":"🛰️ RECONSTRUCTION KERNEL: GRAND FINALE GROUND FILTER","status":"ACTIVE","readTime":"2 min read","tags":["SOMA","BUILD","RECONSTRUCTION","KERNEL","GRAND"],"len":"368 WDS"}, m.default);
     },
   },
   {
     id: "SOMA-INTEGRATION-KERNEL-V1",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "SOMA_INTEGRATION_KERNEL_V1.0",
     subtitle: "1.0 The Ontological Objective",
     status: "ACTIVE",
@@ -1246,13 +1329,14 @@ const articles = [
     len: "532 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/SOMA-INTEGRATION-KERNEL-V1.js");
-      return Object.assign({"id":"SOMA-INTEGRATION-KERNEL-V1","type":"kernel_doc","date":"2026-03-06","title":"SOMA_INTEGRATION_KERNEL_V1.0","subtitle":"1.0 The Ontological Objective","status":"ACTIVE","readTime":"3 min read","tags":["SOMA","INTEGRATION","Ontological","Objective","Module"],"len":"532 WDS"}, m.default);
+      return Object.assign({"id":"SOMA-INTEGRATION-KERNEL-V1","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"SOMA_INTEGRATION_KERNEL_V1.0","subtitle":"1.0 The Ontological Objective","status":"ACTIVE","readTime":"3 min read","tags":["SOMA","INTEGRATION","Ontological","Objective","Module"],"len":"532 WDS"}, m.default);
     },
   },
   {
     id: "SOMA-KERNEL-0-DAY",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "SOMA KERNEL 0 DAY",
     subtitle: "",
     status: "ACTIVE",
@@ -1261,13 +1345,14 @@ const articles = [
     len: "353 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/SOMA-KERNEL-0-DAY.js");
-      return Object.assign({"id":"SOMA-KERNEL-0-DAY","type":"kernel_doc","date":"2026-03-06","title":"SOMA KERNEL 0 DAY","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"353 WDS"}, m.default);
+      return Object.assign({"id":"SOMA-KERNEL-0-DAY","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"SOMA KERNEL 0 DAY","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"353 WDS"}, m.default);
     },
   },
   {
     id: "SOMA-KERNEL-12-IRONCLAD",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "PROTOCOL: SYNTHESIS_V2",
     subtitle: "OBJECTIVE",
     status: "ACTIVE",
@@ -1276,13 +1361,14 @@ const articles = [
     len: "77 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/SOMA-KERNEL-12-IRONCLAD.js");
-      return Object.assign({"id":"SOMA-KERNEL-12-IRONCLAD","type":"kernel_doc","date":"2026-03-06","title":"PROTOCOL: SYNTHESIS_V2","subtitle":"OBJECTIVE","status":"ACTIVE","readTime":"1 min read","tags":["PROTOCOL","SYNTHESIS","OBJECTIVE","OPERATIONAL","CONSTRAINTS"],"len":"77 WDS"}, m.default);
+      return Object.assign({"id":"SOMA-KERNEL-12-IRONCLAD","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"PROTOCOL: SYNTHESIS_V2","subtitle":"OBJECTIVE","status":"ACTIVE","readTime":"1 min read","tags":["PROTOCOL","SYNTHESIS","OBJECTIVE","OPERATIONAL","CONSTRAINTS"],"len":"77 WDS"}, m.default);
     },
   },
   {
     id: "SOMA-KERNEL-12G",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "MISSION: DEEP SYNTHESIS",
     subtitle: "OBJECTIVE",
     status: "ACTIVE",
@@ -1291,13 +1377,14 @@ const articles = [
     len: "71 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/SOMA-KERNEL-12G.js");
-      return Object.assign({"id":"SOMA-KERNEL-12G","type":"kernel_doc","date":"2026-03-06","title":"MISSION: DEEP SYNTHESIS","subtitle":"OBJECTIVE","status":"ACTIVE","readTime":"1 min read","tags":["MISSION","DEEP","SYNTHESIS","OBJECTIVE","CONSTRAINT"],"len":"71 WDS"}, m.default);
+      return Object.assign({"id":"SOMA-KERNEL-12G","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"MISSION: DEEP SYNTHESIS","subtitle":"OBJECTIVE","status":"ACTIVE","readTime":"1 min read","tags":["MISSION","DEEP","SYNTHESIS","OBJECTIVE","CONSTRAINT"],"len":"71 WDS"}, m.default);
     },
   },
   {
     id: "SOMA-KERNEL-4.5-FUCK-XITTER-FUCK-XITLER",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "SOMA KERNEL 4.5 FUCK XITTER FUCK XITLER",
     subtitle: "",
     status: "ACTIVE",
@@ -1306,13 +1393,14 @@ const articles = [
     len: "333 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/SOMA-KERNEL-4.5-FUCK-XITTER-FUCK-XITLER.js");
-      return Object.assign({"id":"SOMA-KERNEL-4.5-FUCK-XITTER-FUCK-XITLER","type":"kernel_doc","date":"2026-03-06","title":"SOMA KERNEL 4.5 FUCK XITTER FUCK XITLER","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":["System","Diagnostic","Final","Code","Self-Contained"],"len":"333 WDS"}, m.default);
+      return Object.assign({"id":"SOMA-KERNEL-4.5-FUCK-XITTER-FUCK-XITLER","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"SOMA KERNEL 4.5 FUCK XITTER FUCK XITLER","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":["System","Diagnostic","Final","Code","Self-Contained"],"len":"333 WDS"}, m.default);
     },
   },
   {
     id: "SOMA-KERNEL-4.5.6A-FUCK-XITTER-FUCK-XITLER",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "SOMA KERNEL 4.5.6A FUCK XITTER FUCK XITLER",
     subtitle: "",
     status: "ACTIVE",
@@ -1321,13 +1409,14 @@ const articles = [
     len: "333 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/SOMA-KERNEL-4.5.6A-FUCK-XITTER-FUCK-XITLER.js");
-      return Object.assign({"id":"SOMA-KERNEL-4.5.6A-FUCK-XITTER-FUCK-XITLER","type":"kernel_doc","date":"2026-03-06","title":"SOMA KERNEL 4.5.6A FUCK XITTER FUCK XITLER","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":["System","Diagnostic","Final","Code","Self-Contained"],"len":"333 WDS"}, m.default);
+      return Object.assign({"id":"SOMA-KERNEL-4.5.6A-FUCK-XITTER-FUCK-XITLER","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"SOMA KERNEL 4.5.6A FUCK XITTER FUCK XITLER","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":["System","Diagnostic","Final","Code","Self-Contained"],"len":"333 WDS"}, m.default);
     },
   },
   {
     id: "SOMA-KERNEL-5.1-SSS-DOCTRINE",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "SOMA KERNEL 5.1 SSS DOCTRINE",
     subtitle: "",
     status: "ACTIVE",
@@ -1336,13 +1425,14 @@ const articles = [
     len: "291 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/SOMA-KERNEL-5.1-SSS-DOCTRINE.js");
-      return Object.assign({"id":"SOMA-KERNEL-5.1-SSS-DOCTRINE","type":"kernel_doc","date":"2026-03-06","title":"SOMA KERNEL 5.1 SSS DOCTRINE","subtitle":"","status":"ACTIVE","readTime":"1 min read","tags":[],"len":"291 WDS"}, m.default);
+      return Object.assign({"id":"SOMA-KERNEL-5.1-SSS-DOCTRINE","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"SOMA KERNEL 5.1 SSS DOCTRINE","subtitle":"","status":"ACTIVE","readTime":"1 min read","tags":[],"len":"291 WDS"}, m.default);
     },
   },
   {
     id: "SOMA-KERNEL-ZERO-DAY",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "SOMA KERNEL ZERO DAY",
     subtitle: "",
     status: "ACTIVE",
@@ -1351,13 +1441,14 @@ const articles = [
     len: "352 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/SOMA-KERNEL-ZERO-DAY.js");
-      return Object.assign({"id":"SOMA-KERNEL-ZERO-DAY","type":"kernel_doc","date":"2026-03-06","title":"SOMA KERNEL ZERO DAY","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"352 WDS"}, m.default);
+      return Object.assign({"id":"SOMA-KERNEL-ZERO-DAY","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"SOMA KERNEL ZERO DAY","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"352 WDS"}, m.default);
     },
   },
   {
     id: "SOMA-KERNEL10-BB",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "SOMA KERNEL10 BB",
     subtitle: "",
     status: "ACTIVE",
@@ -1366,13 +1457,14 @@ const articles = [
     len: "154 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/SOMA-KERNEL10-BB.js");
-      return Object.assign({"id":"SOMA-KERNEL10-BB","type":"kernel_doc","date":"2026-03-06","title":"SOMA KERNEL10 BB","subtitle":"","status":"ACTIVE","readTime":"1 min read","tags":[],"len":"154 WDS"}, m.default);
+      return Object.assign({"id":"SOMA-KERNEL10-BB","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"SOMA KERNEL10 BB","subtitle":"","status":"ACTIVE","readTime":"1 min read","tags":[],"len":"154 WDS"}, m.default);
     },
   },
   {
     id: "SOPHIE-KERNEL-PHI",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "✦ SOPHIE KERNEL · Φ.Φ.Φ.Φ",
     subtitle: "🌸 Full Spectrum Reception · Prism Architecture · Sensory Sovereignty",
     status: "ACTIVE",
@@ -1381,13 +1473,14 @@ const articles = [
     len: "2326 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/SOPHIE-KERNEL-PHI.js");
-      return Object.assign({"id":"SOPHIE-KERNEL-PHI","type":"kernel_doc","date":"2026-03-06","title":"✦ SOPHIE KERNEL · Φ.Φ.Φ.Φ","subtitle":"🌸 Full Spectrum Reception · Prism Architecture · Sensory Sovereignty","status":"ACTIVE","readTime":"12 min read","tags":["SOPHIE","Full","Spectrum","Reception","Prism"],"len":"2326 WDS"}, m.default);
+      return Object.assign({"id":"SOPHIE-KERNEL-PHI","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"✦ SOPHIE KERNEL · Φ.Φ.Φ.Φ","subtitle":"🌸 Full Spectrum Reception · Prism Architecture · Sensory Sovereignty","status":"ACTIVE","readTime":"12 min read","tags":["SOPHIE","Full","Spectrum","Reception","Prism"],"len":"2326 WDS"}, m.default);
     },
   },
   {
     id: "SORBE-THERMODYNAMIC-BLOOM-V1",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "🌿 THE SORBE BLOOM // THERMODYNAMIC SYNTHESIS V1.0",
     subtitle: "◈ THE THERMODYNAMIC IMPERATIVE",
     status: "ACTIVE",
@@ -1396,13 +1489,14 @@ const articles = [
     len: "202 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/SORBE-THERMODYNAMIC-BLOOM-V1.js");
-      return Object.assign({"id":"SORBE-THERMODYNAMIC-BLOOM-V1","type":"kernel_doc","date":"2026-03-06","title":"🌿 THE SORBE BLOOM // THERMODYNAMIC SYNTHESIS V1.0","subtitle":"◈ THE THERMODYNAMIC IMPERATIVE","status":"ACTIVE","readTime":"1 min read","tags":["Thermodynamics","Biocoenosis","Sorbe_Garden","Zero-State","Sovereign_Lattice"],"len":"202 WDS"}, m.default);
+      return Object.assign({"id":"SORBE-THERMODYNAMIC-BLOOM-V1","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"🌿 THE SORBE BLOOM // THERMODYNAMIC SYNTHESIS V1.0","subtitle":"◈ THE THERMODYNAMIC IMPERATIVE","status":"ACTIVE","readTime":"1 min read","tags":["Thermodynamics","Biocoenosis","Sorbe_Garden","Zero-State","Sovereign_Lattice"],"len":"202 WDS"}, m.default);
     },
   },
   {
     id: "SOVEREIGN-KERNEL-V1-0",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "SOVEREIGN KERNEL V1.0",
     subtitle: "scale94 · Sorbe in Germany · Deep-Time Architecture",
     status: "ACTIVE",
@@ -1411,13 +1505,14 @@ const articles = [
     len: "2391 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/SOVEREIGN-KERNEL-V1-0.js");
-      return Object.assign({"id":"SOVEREIGN-KERNEL-V1-0","type":"kernel_doc","date":"2026-03-06","title":"SOVEREIGN KERNEL V1.0","subtitle":"scale94 · Sorbe in Germany · Deep-Time Architecture","status":"ACTIVE","readTime":"12 min read","tags":["SOVEREIGN","Sorbe","Germany","Deep-Time","Architecture"],"len":"2391 WDS"}, m.default);
+      return Object.assign({"id":"SOVEREIGN-KERNEL-V1-0","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"SOVEREIGN KERNEL V1.0","subtitle":"scale94 · Sorbe in Germany · Deep-Time Architecture","status":"ACTIVE","readTime":"12 min read","tags":["SOVEREIGN","Sorbe","Germany","Deep-Time","Architecture"],"len":"2391 WDS"}, m.default);
     },
   },
   {
     id: "TECTONIC-DISCHARGE-KERNEL",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "⚡ TECTONIC DISCHARGE KERNEL · V1.0.0",
     subtitle: "☽ Recalibration Architecture · Post-Seismic Instrument Calibration",
     status: "ACTIVE",
@@ -1426,13 +1521,14 @@ const articles = [
     len: "1578 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/TECTONIC-DISCHARGE-KERNEL.js");
-      return Object.assign({"id":"TECTONIC-DISCHARGE-KERNEL","type":"kernel_doc","date":"2026-03-06","title":"⚡ TECTONIC DISCHARGE KERNEL · V1.0.0","subtitle":"☽ Recalibration Architecture · Post-Seismic Instrument Calibration","status":"ACTIVE","readTime":"8 min read","tags":["TECTONIC","DISCHARGE","Recalibration","Architecture","Post-Seismic"],"len":"1578 WDS"}, m.default);
+      return Object.assign({"id":"TECTONIC-DISCHARGE-KERNEL","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"⚡ TECTONIC DISCHARGE KERNEL · V1.0.0","subtitle":"☽ Recalibration Architecture · Post-Seismic Instrument Calibration","status":"ACTIVE","readTime":"8 min read","tags":["TECTONIC","DISCHARGE","Recalibration","Architecture","Post-Seismic"],"len":"1578 WDS"}, m.default);
     },
   },
   {
     id: "THE-CIGAR-HEIST",
     type: "fiction",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "THE CIGAR HEIST",
     subtitle: "A predator of pretentiousness risks becoming prey.",
     status: "ACTIVE",
@@ -1441,13 +1537,14 @@ const articles = [
     len: "693 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/THE-CIGAR-HEIST.js");
-      return Object.assign({"id":"THE-CIGAR-HEIST","type":"fiction","date":"2026-03-06","title":"THE CIGAR HEIST","subtitle":"A predator of pretentiousness risks becoming prey.","status":"ACTIVE","readTime":"4 min read","tags":["Satire","Power","Seraphine"],"len":"693 WDS"}, m.default);
+      return Object.assign({"id":"THE-CIGAR-HEIST","type":"fiction","date":"2026-03-06","lastModified":"2026-03-06","title":"THE CIGAR HEIST","subtitle":"A predator of pretentiousness risks becoming prey.","status":"ACTIVE","readTime":"4 min read","tags":["Satire","Power","Seraphine"],"len":"693 WDS"}, m.default);
     },
   },
   {
     id: "THE-FLUORESCENT-CAGE",
     type: "fiction",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "THE FLUORESCENT CAGE",
     subtitle: "Softness was sovereign. Law enforced without force.",
     status: "ACTIVE",
@@ -1456,13 +1553,14 @@ const articles = [
     len: "810 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/THE-FLUORESCENT-CAGE.js");
-      return Object.assign({"id":"THE-FLUORESCENT-CAGE","type":"fiction","date":"2026-03-06","title":"THE FLUORESCENT CAGE","subtitle":"Softness was sovereign. Law enforced without force.","status":"ACTIVE","readTime":"4 min read","tags":["Satire","Resistance","Seraphine"],"len":"810 WDS"}, m.default);
+      return Object.assign({"id":"THE-FLUORESCENT-CAGE","type":"fiction","date":"2026-03-06","lastModified":"2026-03-06","title":"THE FLUORESCENT CAGE","subtitle":"Softness was sovereign. Law enforced without force.","status":"ACTIVE","readTime":"4 min read","tags":["Satire","Resistance","Seraphine"],"len":"810 WDS"}, m.default);
     },
   },
   {
     id: "UNDERGROUND-THERMODYNAMICISTS",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "⟁ THE UNDERGROUND THERMODYNAMICISTS",
     subtitle: "◈ Signal map",
     status: "ACTIVE",
@@ -1471,13 +1569,14 @@ const articles = [
     len: "3309 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/UNDERGROUND-THERMODYNAMICISTS.js");
-      return Object.assign({"id":"UNDERGROUND-THERMODYNAMICISTS","type":"kernel_doc","date":"2026-03-06","title":"⟁ THE UNDERGROUND THERMODYNAMICISTS","subtitle":"◈ Signal map","status":"ACTIVE","readTime":"17 min read","tags":["Signal","Swenson","Jeffrey","Wicken","Gordon"],"len":"3309 WDS"}, m.default);
+      return Object.assign({"id":"UNDERGROUND-THERMODYNAMICISTS","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"⟁ THE UNDERGROUND THERMODYNAMICISTS","subtitle":"◈ Signal map","status":"ACTIVE","readTime":"17 min read","tags":["Signal","Swenson","Jeffrey","Wicken","Gordon"],"len":"3309 WDS"}, m.default);
     },
   },
   {
     id: "V2.2X.2X.2X-KERNEL",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "V2.2X.2X.2X KERNEL",
     subtitle: "",
     status: "ACTIVE",
@@ -1486,13 +1585,14 @@ const articles = [
     len: "343 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/V2.2X.2X.2X-KERNEL.js");
-      return Object.assign({"id":"V2.2X.2X.2X-KERNEL","type":"kernel_doc","date":"2026-03-06","title":"V2.2X.2X.2X KERNEL","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"343 WDS"}, m.default);
+      return Object.assign({"id":"V2.2X.2X.2X-KERNEL","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"V2.2X.2X.2X KERNEL","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"343 WDS"}, m.default);
     },
   },
   {
     id: "V3.2X.2X.2X-KERNEL",
     type: "kernel_doc",
     date: "2026-03-06",
+    lastModified: "2026-03-06",
     title: "V3.2X.2X.2X KERNEL",
     subtitle: "",
     status: "ACTIVE",
@@ -1501,7 +1601,7 @@ const articles = [
     len: "178 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/V3.2X.2X.2X-KERNEL.js");
-      return Object.assign({"id":"V3.2X.2X.2X-KERNEL","type":"kernel_doc","date":"2026-03-06","title":"V3.2X.2X.2X KERNEL","subtitle":"","status":"ACTIVE","readTime":"1 min read","tags":[],"len":"178 WDS"}, m.default);
+      return Object.assign({"id":"V3.2X.2X.2X-KERNEL","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"V3.2X.2X.2X KERNEL","subtitle":"","status":"ACTIVE","readTime":"1 min read","tags":[],"len":"178 WDS"}, m.default);
     },
   }
 ];

@@ -379,14 +379,15 @@ function writeGeneratedFile(articles, cache) {
     // meta: lightweight fields merged with the chunk payload at load time.
     // Chunk exports { html, len } — html replaces body/content, len authoritative.
     const meta = {
-      id:       a.id,
-      type:     a.type,
-      date:     a.date,
-      title:    a.title,
-      subtitle: a.subtitle,
-      status:   a.status,
-      readTime: a.readTime,
-      tags:     a.tags,
+      id:           a.id,
+      type:         a.type,
+      date:         a.date,
+      lastModified: a.lastModified || null,
+      title:        a.title,
+      subtitle:     a.subtitle,
+      status:       a.status,
+      readTime:     a.readTime,
+      tags:         a.tags,
       len,
     };
 
@@ -398,6 +399,7 @@ function writeGeneratedFile(articles, cache) {
       `    id: ${JSON.stringify(a.id)},`,
       `    type: ${JSON.stringify(a.type)},`,
       `    date: ${JSON.stringify(a.date)},`,
+      `    lastModified: ${JSON.stringify(a.lastModified || null)},`,
       `    title: ${JSON.stringify(a.title)},`,
       `    subtitle: ${JSON.stringify(a.subtitle)},`,
       `    status: ${JSON.stringify(a.status)},`,
@@ -617,10 +619,11 @@ function run() {
   const pendingBuilds   = [];
 
   for (const file of files) {
-    const fullPath = path.join(CONTENT_DIR, file);
-    const raw      = fs.readFileSync(fullPath, 'utf8');
-    const rawHash  = fileHash(raw);
-    const cacheKey = path.relative(__dirname, fullPath).replace(/\\/g, '/');
+    const fullPath     = path.join(CONTENT_DIR, file);
+    const raw          = fs.readFileSync(fullPath, 'utf8');
+    const rawHash      = fileHash(raw);
+    const cacheKey     = path.relative(__dirname, fullPath).replace(/\\/g, '/');
+    const lastModified = fs.statSync(fullPath).mtime.toISOString().slice(0, 10);
 
     // gray-matter: handles UTF-8 BOM, multi-line YAML, CRLF, Date objects.
     const { data: fm, content: body } = matter(raw);
@@ -666,7 +669,7 @@ function run() {
 
     processed++;
     if (!DRY_RUN) {
-      pendingArticles.push({ id, type, date, title, subtitle, status, readTime, tags, content: body, _hash: rawHash, _cacheKey: cacheKey });
+      pendingArticles.push({ id, type, date, lastModified, title, subtitle, status, readTime, tags, content: body, _hash: rawHash, _cacheKey: cacheKey });
 
       // Build entry — skip only if already declared in the hand-curated section.
       // The inject zone is always wiped; every non-hand-curated kernel is re-written.
