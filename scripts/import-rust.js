@@ -65,6 +65,19 @@ const KERNEL_MAP = [
     type:    'rust',
     aliases: ['bosonic_lattice', 'bosonic', 'bosonickernel', 'lattice'],
   },
+  {
+    // Climate thermodynamics engine — 3-parameter free function.
+    // carbon_ppm:      args[0]  flags: --carbon, --ppm
+    // industrial_drag: args[1]  flags: --drag, --industrial
+    // ocean_sink:      args[2]  flags: --sink, --ocean
+    id:      'THERMOSPHERE-PROTOCOL-3.0',
+    fn:      'boot_thermosphere_protocol',
+    args:    [420.0, 2.5, 0.6],
+    argMap:  { carbon: 0, ppm: 0, drag: 1, industrial: 1, sink: 2, ocean: 2 },
+    label:   'Thermosphere Protocol v3.0',
+    type:    'rust',
+    aliases: ['thermosphere', 'thermosphere_protocol', 'climate', 'thermal', 'carbon'],
+  },
 ];
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────

@@ -154,6 +154,29 @@ export function boot_bosonic_lattice(coupling, thermal) {
     }
 }
 
+/**
+ * Boot the Thermosphere Protocol climate engine.
+ * carbon_ppm:      atmospheric CO₂ concentration (ppm); pre-industrial baseline ~280
+ * industrial_drag: dimensionless forcing multiplier (0–10 typical)
+ * ocean_sink:      ocean carbon absorption efficiency (0–1; clamped to 0.01 minimum)
+ * @param {number} carbon_ppm
+ * @param {number} industrial_drag
+ * @param {number} ocean_sink
+ * @returns {string}
+ */
+export function boot_thermosphere_protocol(carbon_ppm, industrial_drag, ocean_sink) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.boot_thermosphere_protocol(carbon_ppm, industrial_drag, ocean_sink);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
 function __wbg_get_imports() {
     const import0 = {
         __proto__: null,

@@ -34,6 +34,17 @@ const wasmRegistry = {
     module:  "/wasm/scale94_kernels.js",
     wasmUrl: "/wasm/scale94_kernels_bg.wasm",
     aliases: ["bosonic_lattice","bosonic","bosonickernel","lattice"],
+  },
+  "THERMOSPHERE-PROTOCOL-3.0": {
+    id:      "THERMOSPHERE-PROTOCOL-3.0",
+    fn:      "boot_thermosphere_protocol",
+    args:    [420,2.5,0.6],
+    argMap:  {"carbon":0,"ppm":0,"drag":1,"industrial":1,"sink":2,"ocean":2},
+    label:   "Thermosphere Protocol v3.0",
+    type:    'rust',
+    module:  "/wasm/scale94_kernels.js",
+    wasmUrl: "/wasm/scale94_kernels_bg.wasm",
+    aliases: ["thermosphere","thermosphere_protocol","climate","thermal","carbon"],
   }
 };
 

@@ -6,10 +6,15 @@
   "system": "system.6d6ca643.json",
   "bosonic_lattice": {
     "wasm": "wasm/scale94_kernels_bg.wasm",
-    "js": "wasm/scale94_kernels.js",
-    "sha256": "2702b55198f63b1de214efa11451de88694e8c9679332f59402067c4861349c1",
-    "version": "0.1.0",
+    "js": "src/wasm/scale94_kernels.js",
+    "sha256": "a4bfe779f5a7f54ecbf47bbef22657193c525f73396e88fafb31038fd6293326",
+    "version": "0.2.0",
     "built": "2026-03-07T00:00:00.000Z",
-    "exports": ["BiocoenosisKernel", "NecromanticEngine", "boot_bosonic_lattice"]
+    "exports": [
+      "BiocoenosisKernel",
+      "NecromanticEngine",
+      "boot_bosonic_lattice",
+      "boot_thermosphere_protocol"
+    ]
   }
 }
