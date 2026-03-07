@@ -5,7 +5,6 @@
 // module evaluation order in both environments.
 import React, { useState, useEffect, useRef, useLayoutEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { Hexagon, Cpu, Lock, Scale, Eye } from 'lucide-react';
-import { Analytics } from '@vercel/analytics/react';
 
 // Data — static (authored, always bundled)
 import kernelAxioms    from './data/kernelAxioms';
@@ -887,7 +886,6 @@ const App = () => {
           animation: spin 12s linear infinite;
         }
       `}</style>
-      <Analytics />
 
       {/*
        * ── CRT render beam ────────────────────────────────────────────────────

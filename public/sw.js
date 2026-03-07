@@ -12,7 +12,7 @@
 //   /wasm/**                       → cache-first, eternal
 //   HTML / navigation              → network-first, SPA fallback to '/'
 
-const CACHE_VERSION = 'scale94-v5'; // bumped: production breach — force live domain cache eviction
+const CACHE_VERSION = 'scale94-v6'; // bumped: total sovereignty — analytics purged, /_vercel/ excluded
 
 // Content-addressed patterns — safe to cache forever.
 const IMMUTABLE_PATTERN = /\/assets\/[^/?]+\.(js|css)(\?.*)?$/;
@@ -51,6 +51,8 @@ self.addEventListener('fetch', event => {
 
   if (url.origin !== self.location.origin) return;
   if (request.method !== 'GET') return;
+  // Never intercept Vercel infrastructure or analytics routes.
+  if (url.pathname.startsWith('/_vercel/')) return;
 
   const p = url.pathname;
 
