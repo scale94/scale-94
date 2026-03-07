@@ -669,15 +669,12 @@ const App = () => {
         setActiveTab('kernel');
         setCurrentPath('~/system/kernel/tags');
       } else if (action === 'run' && query) {
-        // Executable command — priority:
-        //   1. WASM registry (compiled Rust kernels — instantiates module, calls boot())
-        //   2. Academic corpus (static thesis diagnostic + article mount)
-        //   3. Standard kernel fallback (WASM_MODULE_NOT_FOUND + load)
+        // 'run' exclusively targets the WASM registry.
+        // Articles manifest is NOT searched — lore files must not shadow executables.
 
         // ── Step 1: Split baseCmd from flag tokens ─────────────────────────
-        // Input:   "bosonic_lattice --trust 0.9 --price 0.1"
-        // baseCmd: "bosonic_lattice"
-        // flagTokens: ["--trust", "0.9", "--price", "0.1"]
+        // "leviathan --size 500000 --iters 200"
+        //  baseCmd="leviathan"  flagTokens=["--size","500000","--iters","200"]
         const [baseCmd, ...flagTokens] = query.split(' ').filter(Boolean);
 
         // ── Step 2: Parse --key value pairs into parsedFlags ───────────────
@@ -685,16 +682,18 @@ const App = () => {
         for (let i = 0; i < flagTokens.length; i++) {
           if (flagTokens[i].startsWith('--') && flagTokens[i + 1] && !flagTokens[i + 1].startsWith('--')) {
             parsedFlags[flagTokens[i].slice(2)] = parseFloat(flagTokens[i + 1]);
-            i++; // consume the value token
+            i++;
           }
         }
 
-        // ── Step 3: Registry lookup using only baseCmd ─────────────────────
-        // Priority: exact article-id match → fuzzy ID → alias match
-        const kq        = norm(baseCmd);
-        const target    = articles.find(a => norm(a.id).includes(kq) || norm(a.title).includes(kq));
-        const wasmEntry = wasmRegistry[target?.id]
+        // ── Step 3: WASM-exclusive lookup — articles[] never consulted ─────
+        // Priority: exact ID → norm'd ID → exact alias → fuzzy alias
+        const kq = norm(baseCmd);
+        const wasmEntry = wasmRegistry[baseCmd.toUpperCase()]
+          ?? wasmRegistry[baseCmd]
+          ?? Object.values(wasmRegistry).find(e => norm(e.id) === kq)
           ?? Object.values(wasmRegistry).find(e => norm(e.id).includes(kq))
+          ?? Object.values(wasmRegistry).find(e => e.aliases?.some(a => norm(a) === kq))
           ?? Object.values(wasmRegistry).find(e => e.aliases?.some(a => norm(a).includes(kq)))
           ?? null;
 
@@ -751,47 +750,15 @@ const App = () => {
               ].slice(-2000));
             }
           })();
-        } else if (!target) {
-          appendSystemLog({ time: now, msg: `COMMAND: ${rawCmd}` });
-          setSystemLogs(prev => [
-            ...prev,
-            { time: now, msg: `  RUN_FAIL :: "${baseCmd}" — no executable found in registry.` },
-            { time: now, msg: `  WASM registry: ${Object.keys(wasmRegistry).length} module(s) registered.` },
-            { time: now, msg: `  Try: load ${baseCmd.toLowerCase().split(' ')[0]} | list | help` },
-          ].slice(-2000));
-        } else if (target.type === 'academic') {
-          // ── Academic boot sequence ─────────────────────────────────────────
-          appendSystemLog({ time: now, msg: `COMMAND: ${rawCmd}` });
-          setSystemLogs(prev => [
-            ...prev,
-            { time: now, msg: `  ACADEMIC_KERNEL_BOOT :: ${target.id}` },
-            { time: now, msg: `  CLASSIFICATION: ${(target.tags || []).join(' // ')}` },
-            { time: now, msg: `  DATE: ${target.date || 'UNDATED'} // LEN: ${target.len || '?'} // TYPE: STATIC_ANALYSIS` },
-            { time: now, msg: `  THESIS_MODULE: loaded // mounting article...` },
-          ].slice(-2000));
-          if (loadAbortRef.current) loadAbortRef.current.aborted = true;
-          const runToken = { aborted: false };
-          loadAbortRef.current = runToken;
-          (async () => {
-            const article = target.loadContent ? await target.loadContent() : target;
-            if (runToken.aborted) return;
-            setOriginTab('kernel');
-            setActiveTab('kernel');
-            setTagCloudView(false);
-            setSelectedArticle(article);
-            setCurrentPath('~/system/kernel');
-          })();
         } else {
-          // ── No WASM module — redirect to standard load ─────────────────────
+          // No WASM entry found — hard fail, no article fallback.
           appendSystemLog({ time: now, msg: `COMMAND: ${rawCmd}` });
           setSystemLogs(prev => [
             ...prev,
-            { time: now, msg: `  WASM_MODULE_NOT_FOUND :: "${target.id}" has no compiled Rust binary.` },
-            { time: now, msg: `  To compile: rustup + wasm-pack, then node scripts/import-rust.js` },
-            { time: now, msg: `  Routing to standard kernel load...` },
+            { time: now, msg: `  RUN_FAIL :: "${baseCmd}" — not found in WASM registry.` },
+            { time: now, msg: `  ${Object.keys(wasmRegistry).length} kernel(s) available. Try: run leviathan | run climate | run bosonic` },
+            { time: now, msg: `  Use 'load ${baseCmd}' to open a lore article instead.` },
           ].slice(-2000));
-          const kb = kernelBuilds.find(k => k.articleId === target.id || k.id === target.id);
-          if (kb) handleKernelClick(kb);
         }
       } else if (action === 'clear') {
         setSystemLogs([]);
