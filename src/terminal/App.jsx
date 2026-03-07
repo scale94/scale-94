@@ -873,11 +873,6 @@ const App = () => {
   return (
     <div className={`min-h-screen font-mono selection:bg-fuchsia-900 selection:text-white flex flex-col overflow-hidden relative transition-colors duration-700 ${selectedArticle || architectThesis ? 'bg-[#09090b]' : 'bg-black'}`}>
 
-      {/* ── L22.9 CACHE DIAGNOSTIC BANNER — remove once cache is confirmed busted ── */}
-      <div style={{ background: '#000', borderBottom: '2px solid #39ff14', padding: '6px 16px', textAlign: 'center', color: '#39ff14', fontFamily: 'monospace', fontSize: '13px', letterSpacing: '0.15em', zIndex: 9999, position: 'relative' }}>
-        ⚡ LEVEL 22.9 ACTIVE — NUCLEAR PURGE BUILD — CACHE BUSTED ⚡
-      </div>
-
       {/* ── Boot sequence — unmounts when onDone fires ─────────────────────── */}
       {bootSequence && <BootSequence onDone={handleBootDone} />}
 
