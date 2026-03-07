@@ -516,14 +516,49 @@ const App = () => {
 
       if (action === 'run') {
         // ── run: WASM-exclusive — articles[] never consulted ─────────────────
+        // Snapshot registry at call-time so diagnostic logs reflect reality.
+        const currentRegistry = wasmRegistry;
+        console.log('[RUN] Registry keys at dispatch:', Object.keys(currentRegistry));
+
         if (!query) {
           executeCommand(rawCmd, `RUN_FAIL :: No target specified. Try: run vcache_burn | run climate | run bosonic`);
         } else {
-          // Split baseCmd from optional flag tokens
-          // e.g. "vcache_burn --size 500000" → baseCmd="vcache_burn"
           const [baseCmd, ...flagTokens] = query.split(' ').filter(Boolean);
 
-          // ── Step 2: Parse --key value pairs ─────────────────────────────
+          // ── vcache_burn hardwire: bypass lookup, call Leviathan directly ──
+          if (baseCmd.toLowerCase() === 'vcache_burn') {
+            appendSystemLog({ time: now, msg: `COMMAND: ${rawCmd}` });
+            setSystemLogs(prev => [
+              ...prev,
+              { time: now, msg: `  WASM_BOOT :: Leviathan Cellular Automata v1.0` },
+              { time: now, msg: `  Instantiating WASM module...` },
+            ].slice(-2000));
+            (async () => {
+              try {
+                // eslint-disable-next-line import/no-unresolved
+                const mod = await import('../wasm/scale94_kernels.js');
+                await mod.default({ module_or_path: '/wasm/scale94_kernels_bg.wasm' });
+                const result   = mod.boot_leviathan_benchmark(100000.0, 100.0);
+                const lines    = result.split('\n');
+                const doneTime = new Date().toLocaleTimeString('en-US', { hour12: false });
+                setSystemLogs(prev => [
+                  ...prev,
+                  { time: now,      msg: `  ── KERNEL OUTPUT ─────────────────────────`, rust: true },
+                  ...lines.map(l => ({ time: now, msg: `  ${l}`, rust: true })),
+                  { time: now,      msg: `  ──────────────────────────────────────────`, rust: true },
+                  { time: doneTime, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE`, rust: true },
+                ].slice(-2000));
+              } catch (err) {
+                setSystemLogs(prev => [
+                  ...prev,
+                  { time: now, msg: `  WASM_RUNTIME_ERROR :: ${err.message}` },
+                ].slice(-2000));
+              }
+            })();
+            return;
+          }
+
+          // ── Parse --key value flag pairs ─────────────────────────────────
           const parsedFlags = {};
           for (let i = 0; i < flagTokens.length; i++) {
             if (flagTokens[i].startsWith('--') && flagTokens[i + 1] && !flagTokens[i + 1].startsWith('--')) {
@@ -532,15 +567,14 @@ const App = () => {
             }
           }
 
-          // ── Step 3: WASM-exclusive lookup ────────────────────────────────
-          // Priority: exact ID → norm'd ID → exact alias → fuzzy alias
+          // ── Registry lookup: exact ID → norm'd ID → exact alias → fuzzy alias
           const kq = norm(baseCmd);
-          const wasmEntry = wasmRegistry[baseCmd.toUpperCase()]
-            ?? wasmRegistry[baseCmd]
-            ?? Object.values(wasmRegistry).find(e => norm(e.id) === kq)
-            ?? Object.values(wasmRegistry).find(e => norm(e.id).includes(kq))
-            ?? Object.values(wasmRegistry).find(e => e.aliases?.some(a => norm(a) === kq))
-            ?? Object.values(wasmRegistry).find(e => e.aliases?.some(a => norm(a).includes(kq)))
+          const wasmEntry = currentRegistry[baseCmd.toUpperCase()]
+            ?? currentRegistry[baseCmd]
+            ?? Object.values(currentRegistry).find(e => norm(e.id) === kq)
+            ?? Object.values(currentRegistry).find(e => norm(e.id).includes(kq))
+            ?? Object.values(currentRegistry).find(e => e.aliases?.some(a => norm(a) === kq))
+            ?? Object.values(currentRegistry).find(e => e.aliases?.some(a => norm(a).includes(kq)))
             ?? null;
 
           if (wasmEntry) {
@@ -586,12 +620,12 @@ const App = () => {
               }
             })();
           } else {
-            // Hard fail — no article fallback, ever.
+            console.log('[RUN_FAIL] Terminal registry keys:', Object.keys(currentRegistry));
             appendSystemLog({ time: now, msg: `COMMAND: ${rawCmd}` });
             setSystemLogs(prev => [
               ...prev,
               { time: now, msg: `  RUN_FAIL :: "${baseCmd}" — not found in WASM registry.` },
-              { time: now, msg: `  ${Object.keys(wasmRegistry).length} kernel(s) available. Try: run vcache_burn | run climate | run bosonic` },
+              { time: now, msg: `  ${Object.keys(currentRegistry).length} kernel(s) available. Try: run vcache_burn | run climate | run bosonic` },
               { time: now, msg: `  Use 'load ${baseCmd}' to open a lore article instead.` },
             ].slice(-2000));
           }
