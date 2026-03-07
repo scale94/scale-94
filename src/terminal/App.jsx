@@ -514,123 +514,14 @@ const App = () => {
         appendSystemLog({ time: now, msg: result });
       };
 
-      // ── VCACHE_BURN HARDWIRE: substring match anywhere in input ──────────────
-      // Level 22.9: if 'vcache_burn' appears ANYWHERE in the raw command,
-      // skip ALL routing and execute boot_leviathan_benchmark directly.
-      if (rawCmd.toLowerCase().includes('vcache_burn')) {
-        console.log('[L22.9_HARDWIRE] vcache_burn detected — direct execution');
-        appendSystemLog({ time: now, msg: `COMMAND: ${rawCmd}` });
-        setSystemLogs(prev => [
-          ...prev,
-          { time: now, msg: `  L22.9_HARDWIRE :: Leviathan Cellular Automata — direct WASM dispatch` },
-          { time: now, msg: `  Instantiating WASM module (no registry lookup)...` },
-        ].slice(-2000));
-        (async () => {
-          try {
-            // eslint-disable-next-line import/no-unresolved
-            const mod = await import('../wasm/scale94_kernels.js');
-            await mod.default({ module_or_path: '/wasm/scale94_kernels_bg.wasm' });
-            const result = mod.boot_leviathan_benchmark(100000.0, 100.0);
-            const lines    = result.split('\n');
-            const doneTime = new Date().toLocaleTimeString('en-US', { hour12: false });
-            setSystemLogs(prev => [
-              ...prev,
-              { time: now,      msg: `  ── KERNEL OUTPUT ─────────────────────────`, rust: true },
-              ...lines.map(l => ({ time: now, msg: `  ${l}`, rust: true })),
-              { time: now,      msg: `  ──────────────────────────────────────────`, rust: true },
-              { time: doneTime, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE`, rust: true },
-            ].slice(-2000));
-          } catch (err) {
-            setSystemLogs(prev => [
-              ...prev,
-              { time: now, msg: `  HARDWIRE_ERROR :: ${err.message}` },
-            ].slice(-2000));
-          }
-        })();
-      // ── BANG OPERATOR (!): absolute WASM isolation — zero routing, zero fallback ──
-      // Syntax: !<alias> [--flag value ...]   e.g.  !leviathan --size 5000000
-      // The parser never touches articles[], manifest, or help docs.
-      } else if (rawCmd.startsWith('!')) {
-        const bangQuery = rawCmd.slice(1).trim();
-        console.log('[BANG_EXEC] Direct WASM dispatch:', bangQuery);
-        appendSystemLog({ time: now, msg: `COMMAND: ${rawCmd}` });
-
-        if (!bangQuery) {
-          appendSystemLog({ time: now, msg: `  BANG_FAIL :: No target. Usage: !<alias> [--flag value]` });
-        } else {
-          const [bangCmd, ...bangFlagTokens] = bangQuery.split(' ').filter(Boolean);
-          const bangFlags = {};
-          for (let i = 0; i < bangFlagTokens.length; i++) {
-            if (bangFlagTokens[i].startsWith('--') && bangFlagTokens[i + 1] && !bangFlagTokens[i + 1].startsWith('--')) {
-              bangFlags[bangFlagTokens[i].slice(2)] = parseFloat(bangFlagTokens[i + 1]);
-              i++;
-            }
-          }
-          const bq = norm(bangCmd);
-          const bangEntry = wasmRegistry[bangCmd.toUpperCase()]
-            ?? wasmRegistry[bangCmd]
-            ?? Object.values(wasmRegistry).find(e => norm(e.id) === bq)
-            ?? Object.values(wasmRegistry).find(e => norm(e.id).includes(bq))
-            ?? Object.values(wasmRegistry).find(e => e.aliases?.some(a => norm(a) === bq))
-            ?? Object.values(wasmRegistry).find(e => e.aliases?.some(a => norm(a).includes(bq)))
-            ?? null;
-
-          if (bangEntry) {
-            setSystemLogs(prev => [
-              ...prev,
-              { time: now, msg: `  BANG_BOOT :: ${bangEntry.label}` },
-              { time: now, msg: `  Instantiating WASM module...` },
-            ].slice(-2000));
-            (async () => {
-              try {
-                // eslint-disable-next-line import/no-unresolved
-                const mod = await import('../wasm/scale94_kernels.js');
-                const wasmUrl = bangEntry.wasmUrl ?? bangEntry.module.replace(/\.js$/, '_bg.wasm');
-                await mod.default({ module_or_path: wasmUrl });
-                const callArgs = [...(bangEntry.args ?? [])];
-                if (bangEntry.argMap) {
-                  for (const [flag, idx] of Object.entries(bangEntry.argMap)) {
-                    if (bangFlags[flag] !== undefined) callArgs[idx] = bangFlags[flag];
-                  }
-                }
-                const result = bangEntry.fn
-                  ? mod[bangEntry.fn](...callArgs)
-                  : mod[bangEntry.struct][bangEntry.boot]();
-                const lines    = result.split('\n');
-                const doneTime = new Date().toLocaleTimeString('en-US', { hour12: false });
-                setSystemLogs(prev => [
-                  ...prev,
-                  { time: now,      msg: `  ── KERNEL OUTPUT ─────────────────────────`, rust: true },
-                  ...lines.map(l => ({ time: now, msg: `  ${l}`, rust: true })),
-                  { time: now,      msg: `  ──────────────────────────────────────────`, rust: true },
-                  { time: doneTime, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE`, rust: true },
-                ].slice(-2000));
-              } catch (err) {
-                setSystemLogs(prev => [
-                  ...prev,
-                  { time: now, msg: `  BANG_RUNTIME_ERROR :: ${err.message}` },
-                  { time: now, msg: `  Run: node scripts/import-rust.js  to recompile.` },
-                ].slice(-2000));
-              }
-            })();
-          } else {
-            setSystemLogs(prev => [
-              ...prev,
-              { time: now, msg: `  BANG_FAIL :: "${bangCmd}" — not in WASM registry.` },
-              { time: now, msg: `  ${Object.keys(wasmRegistry).length} kernel(s) available. Try: !vcache_burn | !climate | !bosonic` },
-            ].slice(-2000));
-          }
-        }
-      } else if (action === 'run') {
-        // ── NUCLEAR PRIORITY: run is evaluated FIRST — articles[] never consulted ──
-        console.log('[WASM_EXEC] Attempting to run:', query);
-
+      if (action === 'run') {
+        // ── run: WASM-exclusive — articles[] never consulted ─────────────────
         if (!query) {
           executeCommand(rawCmd, `RUN_FAIL :: No target specified. Try: run vcache_burn | run climate | run bosonic`);
         } else {
-          // ── Step 1: Split baseCmd from flag tokens ───────────────────────
+          // Split baseCmd from optional flag tokens
+          // e.g. "vcache_burn --size 500000" → baseCmd="vcache_burn"
           const [baseCmd, ...flagTokens] = query.split(' ').filter(Boolean);
-          console.log('[WASM_EXEC] Attempting to run:', baseCmd);
 
           // ── Step 2: Parse --key value pairs ─────────────────────────────
           const parsedFlags = {};
