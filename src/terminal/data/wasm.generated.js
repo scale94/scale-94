@@ -35,38 +35,38 @@ const wasmRegistry = {
     wasmUrl: "/wasm/scale94_kernels_bg.wasm",
     aliases: ["bosonic_lattice","bosonic","bosonickernel","lattice"],
   },
-  "THERMOSPHERE-PROTOCOL-3.0": {
-    id:      "THERMOSPHERE-PROTOCOL-3.0",
+  "ATMOSPHERIC-ENTROPY-KERNEL-3.0": {
+    id:      "ATMOSPHERIC-ENTROPY-KERNEL-3.0",
     fn:      "boot_thermosphere_protocol",
     args:    [420,2.5,0.6],
-    argMap:  {"carbon":0,"ppm":0,"drag":1,"industrial":1,"sink":2,"ocean":2},
-    label:   "Thermosphere Protocol v3.0",
+    argMap:  {"carbon":0,"ppm":0,"carbonppm":0,"drag":1,"industrial":1,"industrialdrag":1,"sink":2,"ocean":2,"oceansink":2},
+    label:   "Atmospheric Entropy Kernel v3.0",
     type:    'rust',
     module:  "/wasm/scale94_kernels.js",
     wasmUrl: "/wasm/scale94_kernels_bg.wasm",
-    aliases: ["thermosphere","thermosphere_protocol","climate","thermal","carbon"],
+    aliases: ["climate","thermosphere","entropy","atmospheric","thermosphere_protocol","carbon"],
   },
-  "GEOPOLITICAL-KINETICS-1.0": {
-    id:      "GEOPOLITICAL-KINETICS-1.0",
+  "KINETIC-STATECRAFT-KERNEL-1.0": {
+    id:      "KINETIC-STATECRAFT-KERNEL-1.0",
     fn:      "boot_geopolitical_kinetics",
     args:    [6,0.4,0.7],
     argMap:  {"sanction":0,"pressure":0,"grid":1,"resilience":1,"propaganda":2,"narrative":2},
-    label:   "Geopolitical Kinetics v1.0",
+    label:   "Kinetic Statecraft Kernel v1.0",
     type:    'rust',
     module:  "/wasm/scale94_kernels.js",
     wasmUrl: "/wasm/scale94_kernels_bg.wasm",
-    aliases: ["geopolitical","geopolitical_kinetics","kinetics","statecraft","regime"],
+    aliases: ["geopolitics","statecraft","kinetic","geopolitical","regime","kinetics"],
   },
-  "LEVIATHAN-BENCHMARK-1.0": {
-    id:      "LEVIATHAN-BENCHMARK-1.0",
+  "LEVIATHAN-CELLULAR-AUTOMATA": {
+    id:      "LEVIATHAN-CELLULAR-AUTOMATA",
     fn:      "boot_leviathan_benchmark",
     args:    [100000,100],
-    argMap:  {"grid":0,"size":0,"cells":0,"generations":1,"iters":1,"steps":1},
-    label:   "Leviathan Benchmark v1.0",
+    argMap:  {"size":0,"gridsize":0,"cells":0,"generations":1,"iters":1,"steps":1},
+    label:   "Leviathan Cellular Automata v1.0",
     type:    'rust',
     module:  "/wasm/scale94_kernels.js",
     wasmUrl: "/wasm/scale94_kernels_bg.wasm",
-    aliases: ["leviathan","benchmark","vcache","stress","automata"],
+    aliases: ["leviathan","vcache","benchmark","stress","automata","cellular"],
   }
 };
 

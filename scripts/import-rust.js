@@ -67,41 +67,41 @@ const KERNEL_MAP = [
   },
   {
     // Climate thermodynamics engine — 3-parameter free function.
-    // carbon_ppm:      args[0]  flags: --carbon, --ppm
-    // industrial_drag: args[1]  flags: --drag, --industrial
-    // ocean_sink:      args[2]  flags: --sink, --ocean
-    id:      'THERMOSPHERE-PROTOCOL-3.0',
+    // carbon_ppm:      args[0]  flags: --carbon, --ppm, --carbon-ppm
+    // industrial_drag: args[1]  flags: --drag, --industrial, --industrial-drag
+    // ocean_sink:      args[2]  flags: --sink, --ocean, --ocean-sink
+    id:      'ATMOSPHERIC-ENTROPY-KERNEL-3.0',
     fn:      'boot_thermosphere_protocol',
     args:    [420.0, 2.5, 0.6],
-    argMap:  { carbon: 0, ppm: 0, drag: 1, industrial: 1, sink: 2, ocean: 2 },
-    label:   'Thermosphere Protocol v3.0',
+    argMap:  { carbon: 0, ppm: 0, 'carbonppm': 0, drag: 1, industrial: 1, 'industrialdrag': 1, sink: 2, ocean: 2, 'oceansink': 2 },
+    label:   'Atmospheric Entropy Kernel v3.0',
     type:    'rust',
-    aliases: ['thermosphere', 'thermosphere_protocol', 'climate', 'thermal', 'carbon'],
+    aliases: ['climate', 'thermosphere', 'entropy', 'atmospheric', 'thermosphere_protocol', 'carbon'],
   },
   {
     // Statecraft / regime-stability engine — 3-parameter free function.
-    // sanction:    args[0]  flags: --sanction, --pressure
-    // grid:        args[1]  flags: --grid, --resilience
-    // propaganda:  args[2]  flags: --propaganda, --narrative
-    id:      'GEOPOLITICAL-KINETICS-1.0',
+    // sanction:    args[0]  flags: --sanction
+    // grid:        args[1]  flags: --grid
+    // propaganda:  args[2]  flags: --propaganda
+    id:      'KINETIC-STATECRAFT-KERNEL-1.0',
     fn:      'boot_geopolitical_kinetics',
     args:    [6.0, 0.4, 0.7],
     argMap:  { sanction: 0, pressure: 0, grid: 1, resilience: 1, propaganda: 2, narrative: 2 },
-    label:   'Geopolitical Kinetics v1.0',
+    label:   'Kinetic Statecraft Kernel v1.0',
     type:    'rust',
-    aliases: ['geopolitical', 'geopolitical_kinetics', 'kinetics', 'statecraft', 'regime'],
+    aliases: ['geopolitics', 'statecraft', 'kinetic', 'geopolitical', 'regime', 'kinetics'],
   },
   {
     // V-Cache cellular automata benchmark — 2-parameter free function.
-    // grid_size:   args[0]  flags: --grid, --size, --cells
-    // generations: args[1]  flags: --generations, --iters, --steps
-    id:      'LEVIATHAN-BENCHMARK-1.0',
+    // grid_size:   args[0]  flags: --size, --grid-size
+    // generations: args[1]  flags: --generations, --iters
+    id:      'LEVIATHAN-CELLULAR-AUTOMATA',
     fn:      'boot_leviathan_benchmark',
     args:    [100000.0, 100.0],
-    argMap:  { grid: 0, size: 0, cells: 0, generations: 1, iters: 1, steps: 1 },
-    label:   'Leviathan Benchmark v1.0',
+    argMap:  { size: 0, 'gridsize': 0, cells: 0, generations: 1, iters: 1, steps: 1 },
+    label:   'Leviathan Cellular Automata v1.0',
     type:    'rust',
-    aliases: ['leviathan', 'benchmark', 'vcache', 'stress', 'automata'],
+    aliases: ['leviathan', 'vcache', 'benchmark', 'stress', 'automata', 'cellular'],
   },
 ];
 
