@@ -13,7 +13,7 @@ import kernelBuilds    from './data/kernelBuilds';
 import _somaArticles   from './data/articles.soma';   // hand-curated soma kernel entries
 import _miscArticles   from './data/articles.misc';   // hand-curated misc/fiction entries
 import autoArticles    from './data/loadArticles';    // Vite glob .md stubs (dev fallback)
-import wasmRegistry    from './data/wasm.generated';  // compiled Rust kernel WASM module map — 3 kernels
+import wasmRegistry    from './data/wasm.generated';  // compiled Rust kernel WASM module map — 6 kernels
 // Data — dynamic (CAS fetch at boot; _generated, _academic, tagIndex, systemArticles
 // are no longer static imports — they arrive via /kernel/manifest.json fetch)
 
