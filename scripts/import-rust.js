@@ -78,6 +78,19 @@ const KERNEL_MAP = [
     type:    'rust',
     aliases: ['thermosphere', 'thermosphere_protocol', 'climate', 'thermal', 'carbon'],
   },
+  {
+    // Statecraft / regime-stability engine — 3-parameter free function.
+    // sanction:    args[0]  flags: --sanction, --pressure
+    // grid:        args[1]  flags: --grid, --resilience
+    // propaganda:  args[2]  flags: --propaganda, --narrative
+    id:      'GEOPOLITICAL-KINETICS-1.0',
+    fn:      'boot_geopolitical_kinetics',
+    args:    [6.0, 0.4, 0.7],
+    argMap:  { sanction: 0, pressure: 0, grid: 1, resilience: 1, propaganda: 2, narrative: 2 },
+    label:   'Geopolitical Kinetics v1.0',
+    type:    'rust',
+    aliases: ['geopolitical', 'geopolitical_kinetics', 'kinetics', 'statecraft', 'regime'],
+  },
 ];
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────

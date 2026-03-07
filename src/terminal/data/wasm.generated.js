@@ -45,6 +45,17 @@ const wasmRegistry = {
     module:  "/wasm/scale94_kernels.js",
     wasmUrl: "/wasm/scale94_kernels_bg.wasm",
     aliases: ["thermosphere","thermosphere_protocol","climate","thermal","carbon"],
+  },
+  "GEOPOLITICAL-KINETICS-1.0": {
+    id:      "GEOPOLITICAL-KINETICS-1.0",
+    fn:      "boot_geopolitical_kinetics",
+    args:    [6,0.4,0.7],
+    argMap:  {"sanction":0,"pressure":0,"grid":1,"resilience":1,"propaganda":2,"narrative":2},
+    label:   "Geopolitical Kinetics v1.0",
+    type:    'rust',
+    module:  "/wasm/scale94_kernels.js",
+    wasmUrl: "/wasm/scale94_kernels_bg.wasm",
+    aliases: ["geopolitical","geopolitical_kinetics","kinetics","statecraft","regime"],
   }
 };
 

@@ -7,14 +7,15 @@
   "bosonic_lattice": {
     "wasm": "wasm/scale94_kernels_bg.wasm",
     "js": "src/wasm/scale94_kernels.js",
-    "sha256": "a4bfe779f5a7f54ecbf47bbef22657193c525f73396e88fafb31038fd6293326",
-    "version": "0.2.0",
+    "sha256": "ef01fe2052f049335af30db6252482ad72cf93066d0983ad88a54fc9cd6f85e0",
+    "version": "0.3.0",
     "built": "2026-03-07T00:00:00.000Z",
     "exports": [
       "BiocoenosisKernel",
       "NecromanticEngine",
       "boot_bosonic_lattice",
-      "boot_thermosphere_protocol"
+      "boot_thermosphere_protocol",
+      "boot_geopolitical_kinetics"
     ]
   }
 }

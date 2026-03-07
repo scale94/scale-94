@@ -155,6 +155,29 @@ export function boot_bosonic_lattice(coupling, thermal) {
 }
 
 /**
+ * Boot the Geopolitical Kinetics engine.
+ * sanction:    economic pressure index (0–10 typical)
+ * grid:        infrastructure/grid resilience (0–1; clamped to 0.1 minimum)
+ * propaganda:  narrative control coefficient (0–1)
+ * @param {number} sanction
+ * @param {number} grid
+ * @param {number} propaganda
+ * @returns {string}
+ */
+export function boot_geopolitical_kinetics(sanction, grid, propaganda) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.boot_geopolitical_kinetics(sanction, grid, propaganda);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * Boot the Thermosphere Protocol climate engine.
  * carbon_ppm:      atmospheric CO₂ concentration (ppm); pre-industrial baseline ~280
  * industrial_drag: dimensionless forcing multiplier (0–10 typical)
