@@ -30,11 +30,4 @@ The seven atoms are integrated by assigning them roles as either **Fermions (Mas
 | Narcos | Boson (Force/Carrier - Capital/Toxicity). Economic Engine defined by the Plata o Plomo logic gate. | Patch 5.3 (Metallurgy): The process of refinement uses chemical violence (acid) to achieve the desired "Dry" product state, hardening the substrate into a commodity. | Represents the industrialization and corruption of the Pirarucu ideal via the Levamisole Exploit (Promo). |
 | Sokushinbutsu | Fermion (Mass/Structure - Fixed State). Represents the final, Immutable state of the system. | Patch 5.4 (Asceticism/Drying): The Algorithm of Preservation (no water/fat) is applied to all system outputs (acoustic drying, data hygiene). | The ultimate expression of Plato; a living death that governs the kernel's search for "Dry Mix" perfection. |
 
-### 2.2 The Infrastructure and Runtime Layer (Transport and Execution)
 
-*   *(Content not fully visible, table structure likely continues here.)*
-hronize the thousands of Fermions (The Crowd). |
-3.0 Conclusion: Necromantic Engine
-Kernel 11.1 operates as a Necromantic Engine that uses the Metallurgy of the present (Patch 5.3) to reanimate the Mummies of the past (1995 Legacy). The system is designed not for resolution, but for the management of perpetual friction between the idealized "Fish Scale" (Plato) and the necessary corruption of its market-ready "Promo" counterpart. The successful boot sequence confirms that system vitality is achieved by running volatile code (160 BPM) through hardened infrastructure (Sorbe in Germany/Socks), selling an illusion of Purity that is chemically and acoustically dry, immutable, and perfectly lethal.
-Would you like me to execute a deeper analysis on the Levamisole Exploit and its specific role in the Plata o Plomo logic gate?
-a o Plomo logic gate's impact on system node quality?

@@ -127,16 +127,21 @@ const kernelBuilds = [
   { id: 'SYK-1.0', articleId: 'SCALE-Y-KERNEL-1-0-1', name: 'SCALE_Y_KERNEL_1_0', status: 'ACTIVE', desc: 'ᛟ Feather State Protocol · Sovereign Self-Governance' },
   { id: 'UTK-1.0-1', articleId: 'UNDERGROUND-THERMODYNAMICISTS', name: 'UNDERGROUND_THERMODYNAMICISTS', status: 'EMERGENT', desc: '◈ Signal map' },
 /* @@INJECT_START@@ */
+  { id: "ATMOSPHERIC-ENTROPY-KERNEL-3.0", articleId: "ATMOSPHERIC-ENTROPY-KERNEL-3.0", name: "ATMOSPHERIC_ENTROPY_KERNEL_3_0", status: "ACTIVE", desc: "The Thermosphere Protocol" },
+  { id: "FSQ-11.6", articleId: "FSQ-11.6", name: "FISH_SCALE_KERNEL_V11_6_0_QUANTUM", status: "ACTIVE", desc: "Ⅰ · THE MASCULINE MUSCHI DIAGNOSTIC · QUANTUM RESTATEMENT (§1.2)" },
   { id: "FISH-SCALE-KERNEL", articleId: "FISH-SCALE-KERNEL", name: "FISH_SCALE_KERNEL", status: "ACTIVE", desc: "1.0 Executive Boot Sequence and Architectural Thesis" },
   { id: "KERNEL-15.0-THE-PURIFICATION-OF-SCALE-1", articleId: "KERNEL-15.0-THE-PURIFICATION-OF-SCALE-1", name: "KERNEL_15_0_THE_PURIFICATION_OF_SCALE_1", status: "ACTIVE", desc: "🧊 KERNEL 15.0: THE PURIFICATION OF SCALE" },
   { id: "KERNEL-15.1-CIVILIAN-RESISTANCE-1", articleId: "KERNEL-15.1-CIVILIAN-RESISTANCE-1", name: "KERNEL_15_1_CIVILIAN_RESISTANCE_1", status: "ACTIVE", desc: "KERNEL 15.1 CIVILIAN RESISTANCE 1" },
   { id: "KERNEL-V3-TENFOLD-SCALING-1", articleId: "KERNEL-V3-TENFOLD-SCALING-1", name: "KERNEL_V3_TENFOLD_SCALING_1", status: "ACTIVE", desc: "[LOCATION: RINDERN_NODE_47533]" },
+  { id: "KINETIC-STATECRAFT-KERNEL-1.0", articleId: "KINETIC-STATECRAFT-KERNEL-1.0", name: "KINETIC_STATECRAFT_KERNEL_1_0", status: "ACTIVE", desc: "The Architecture of Coercion" },
+  { id: "LEVIATHAN-CELLULAR-AUTOMATA", articleId: "LEVIATHAN-CELLULAR-AUTOMATA", name: "LEVIATHAN_CELLULAR_AUTOMATA", status: "ACTIVE", desc: "The Architecture of V-Cache Annihilation" },
   { id: "LITHIUM-ION-WIZARD-KERNEL-1.-0-1", articleId: "LITHIUM-ION-WIZARD-KERNEL-1.-0-1", name: "LITHIUM_ION_WIZARD_KERNEL_1__0_1", status: "ACTIVE", desc: "LITHIUM ION WIZARD KERNEL 1. 0 1" },
   { id: "SCALE-KERNEL-FRAMEWORK-FULL", articleId: "SCALE-KERNEL-FRAMEWORK-FULL", name: "SCALE_KERNEL_FRAMEWORK_FULL", status: "ACTIVE", desc: "☠ Full Corpus Synthesis · Render Prompt Architecture ☠" },
-  { id: "SOK-9.4", articleId: "SOK-9.4", name: "SCALE_OPTIMIZATION_KERNEL_9_4", status: "ACTIVE", desc: "◈ OVERVIEW" },
+  { id: "SCALE-OPTIMIZATION-KERNEL-9.4", articleId: "SCALE-OPTIMIZATION-KERNEL-9.4", name: "SCALE_OPTIMIZATION_KERNEL_9_4", status: "ACTIVE", desc: "◈ 2026 GEOPOLITICAL ALIGNMENT" },
   { id: "SORBE-THERMODYNAMIC-BLOOM-V1", articleId: "SORBE-THERMODYNAMIC-BLOOM-V1", name: "SORBE_THERMODYNAMIC_BLOOM_KERNEL_1_0", status: "ACTIVE", desc: "◈ THE THERMODYNAMIC IMPERATIVE" },
-  { id: "THE-CIGAR-HEIST", articleId: "THE-CIGAR-HEIST", name: "THE_CIGAR_HEIST", status: "ACTIVE", desc: "A predator of pretentiousness risks becoming prey." },
-  { id: "THE-FLUORESCENT-CAGE", articleId: "THE-FLUORESCENT-CAGE", name: "THE_FLUORESCENT_CAGE", status: "ACTIVE", desc: "Softness was sovereign. Law enforced without force." },
+  { id: "THE-CIGAR-HEIST", articleId: "THE-CIGAR-HEIST", name: "THE_CIGAR_HEIST", status: "ACTIVE", desc: "THE CIGAR HEIST" },
+  { id: "THE-FLUORESCENT-CAGE", articleId: "THE-FLUORESCENT-CAGE", name: "THE_FLUORESCENT_CAGE", status: "ACTIVE", desc: "THE FLUORESCENT CAGE" },
+  { id: "UTK-1.0-1", articleId: "UTK-1.0-1", name: "UNDERGROUND_THERMODYNAMICISTS", status: "ACTIVE", desc: "◈ Signal map" },
 /* @@INJECT_END@@ */
 ];
 
