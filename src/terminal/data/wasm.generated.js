@@ -40,4 +40,9 @@ const wasmRegistry = {
   },
 };
 
+// Boot diagnostic — remove once registration is confirmed stable
+if (typeof console !== 'undefined') {
+  console.log('[WASM_REGISTRY] Registered kernels:', Object.keys(wasmRegistry));
+}
+
 export default wasmRegistry;

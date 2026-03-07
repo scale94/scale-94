@@ -43,6 +43,15 @@ export function fileHash(content) {
 }
 
 /**
+ * SHA-256 hex digest, first `len` characters.
+ * Used to generate CAS filenames: articles.{sha256Prefix}.json
+ * Default len=8 gives 2^32 collision resistance — sufficient for a build corpus.
+ */
+export function sha256Prefix(content, len = 8) {
+  return crypto.createHash('sha256').update(content, 'utf8').digest('hex').slice(0, len);
+}
+
+/**
  * Load the import cache from disk.
  * Returns {} if the file doesn't exist or is malformed JSON.
  */

@@ -1,0 +1,64 @@
+[
+  {
+    "id": "PHD-VALVE-MONOPOLY-THESIS",
+    "type": "academic",
+    "date": "2026-03-07",
+    "lastModified": "2025-12-02",
+    "title": "THESIS: THE RENTSEEKERS PARADOX",
+    "subtitle": "A Case Study on Valve Corporation as an Entropic Monopoly",
+    "status": "ACTIVE",
+    "readTime": "2 min read",
+    "tags": [
+      "Thesis",
+      "Academic",
+      "CS2",
+      "THESIS",
+      "RENT-SEEKERS",
+      "PARADOX",
+      "Case",
+      "Study"
+    ],
+    "len": "450 WDS"
+  },
+  {
+    "id": "PHD-NETWORKING-ARCHITECTURE-CS2-VS-CSGO-BY-HYPERUS102",
+    "type": "academic",
+    "date": "2026-03-07",
+    "lastModified": "2025-12-02",
+    "title": "NETWORKING ARCHITECTURE: CS2 VS CS:GO",
+    "subtitle": "1. Introduction",
+    "status": "ACTIVE",
+    "readTime": "13 min read",
+    "tags": [
+      "Thesis",
+      "Academic",
+      "CS2",
+      "Networking",
+      "Architecture",
+      "CSGO",
+      "Introduction",
+      "Real"
+    ],
+    "len": "2550 WDS"
+  },
+  {
+    "id": "PHD-VOLVO-SMALL-INDIE-COMPANY",
+    "type": "academic",
+    "date": "2026-03-07",
+    "lastModified": "2025-12-02",
+    "title": "VOLVO SMALL INDIE COMPANY",
+    "subtitle": "**DISSERTATION PROPOSAL**",
+    "status": "ACTIVE",
+    "readTime": "4 min read",
+    "tags": [
+      "Thesis",
+      "Academic",
+      "CS2",
+      "Architects",
+      "Structural",
+      "Mandate",
+      "DISSERTATION"
+    ],
+    "len": "884 WDS"
+  }
+]

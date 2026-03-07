@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
 import { ArrowLeft } from 'lucide-react';
-import tagIndex from '../data/tags.generated';
 
 // ── Frequency tiers ────────────────────────────────────────────────────────────
 // Colors + sizing scale with how many kernels share a tag.
@@ -23,12 +22,12 @@ const LEGEND = [
   { color: 'text-gray-500',    label: 'TRACE'        },
 ];
 
-const TagCloudView = ({ handleReturnToRoot }) => {
+const TagCloudView = ({ handleReturnToRoot, tagIndex }) => {
   const tagList = useMemo(() => {
     return Object.entries(tagIndex)
       .map(([tag, kernels]) => ({ tag, count: kernels.length }))
       .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
-  }, []);
+  }, [tagIndex]);
 
   const maxCount = tagList[0]?.count || 1;
   const totalKernels = useMemo(() => {
@@ -36,7 +35,7 @@ const TagCloudView = ({ handleReturnToRoot }) => {
       Object.values(tagIndex).flat().map(k => k.id)
     );
     return ids.size;
-  }, []);
+  }, [tagIndex]);
 
   return (
     <div className="max-w-4xl mx-auto animate-in zoom-in-95 duration-300">
