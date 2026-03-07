@@ -674,28 +674,24 @@ const App = () => {
         //   2. Academic corpus (static thesis diagnostic + article mount)
         //   3. Standard kernel fallback (WASM_MODULE_NOT_FOUND + load)
 
-        // ── Parse flags out of query before normalisation ──────────────────
-        // `run bosonic_lattice --trust 0.9 --price 0.1`
-        // Split into kernelName ("bosonic_lattice") and flags ({trust:0.9, price:0.1})
-        const queryTokens    = query.split(' ').filter(Boolean);
-        const kernelTokens   = [];
-        const parsedFlags    = {};
-        let   pendingFlag    = null;
-        for (const tok of queryTokens) {
-          if (tok.startsWith('--')) {
-            pendingFlag = tok.slice(2);
-          } else if (pendingFlag !== null) {
-            parsedFlags[pendingFlag] = parseFloat(tok);
-            pendingFlag = null;
-          } else {
-            kernelTokens.push(tok);
+        // ── Step 1: Split baseCmd from flag tokens ─────────────────────────
+        // Input:   "bosonic_lattice --trust 0.9 --price 0.1"
+        // baseCmd: "bosonic_lattice"
+        // flagTokens: ["--trust", "0.9", "--price", "0.1"]
+        const [baseCmd, ...flagTokens] = query.split(' ').filter(Boolean);
+
+        // ── Step 2: Parse --key value pairs into parsedFlags ───────────────
+        const parsedFlags = {};
+        for (let i = 0; i < flagTokens.length; i++) {
+          if (flagTokens[i].startsWith('--') && flagTokens[i + 1] && !flagTokens[i + 1].startsWith('--')) {
+            parsedFlags[flagTokens[i].slice(2)] = parseFloat(flagTokens[i + 1]);
+            i++; // consume the value token
           }
         }
-        const kernelQuery = kernelTokens.join(' ');
-        const kq = norm(kernelQuery);
 
-        // ── Article + WASM registry lookup (registry checked independently) ─
-        // Priority: exact article-id match → ID fuzzy → alias fuzzy
+        // ── Step 3: Registry lookup using only baseCmd ─────────────────────
+        // Priority: exact article-id match → fuzzy ID → alias match
+        const kq        = norm(baseCmd);
         const target    = articles.find(a => norm(a.id).includes(kq) || norm(a.title).includes(kq));
         const wasmEntry = wasmRegistry[target?.id]
           ?? Object.values(wasmRegistry).find(e => norm(e.id).includes(kq))
@@ -759,9 +755,9 @@ const App = () => {
           appendSystemLog({ time: now, msg: `COMMAND: ${rawCmd}` });
           setSystemLogs(prev => [
             ...prev,
-            { time: now, msg: `  RUN_FAIL :: "${kernelQuery}" — no executable found in registry.` },
+            { time: now, msg: `  RUN_FAIL :: "${baseCmd}" — no executable found in registry.` },
             { time: now, msg: `  WASM registry: ${Object.keys(wasmRegistry).length} module(s) registered.` },
-            { time: now, msg: `  Try: load ${kernelQuery.toLowerCase().split(' ')[0]} | list | help` },
+            { time: now, msg: `  Try: load ${baseCmd.toLowerCase().split(' ')[0]} | list | help` },
           ].slice(-2000));
         } else if (target.type === 'academic') {
           // ── Academic boot sequence ─────────────────────────────────────────
