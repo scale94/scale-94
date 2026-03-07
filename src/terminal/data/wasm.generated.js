@@ -10,9 +10,9 @@ const wasmRegistry = {
     boot:    "boot",
     label:   "Biocoenosis Kernel v1.0.1",
     type:    'rust',
-    module:  '/wasm/scale94_kernels.js',
-    wasmUrl: '/wasm/scale94_kernels_bg.wasm',
-    aliases: ['biodiversity', 'biocoenosis'],
+    module:  "/wasm/scale94_kernels.js",
+    wasmUrl: "/wasm/scale94_kernels_bg.wasm",
+    aliases: ["biodiversity","biocoenosis"],
   },
   "FISH-SCALE-KERNEL11.1.1": {
     id:      "FISH-SCALE-KERNEL11.1.1",
@@ -20,27 +20,24 @@ const wasmRegistry = {
     boot:    "boot",
     label:   "Necromantic Engine v11.1.1",
     type:    'rust',
-    module:  '/wasm/scale94_kernels.js',
-    wasmUrl: '/wasm/scale94_kernels_bg.wasm',
-    aliases: ['fishscale', 'necromantic', 'fish'],
+    module:  "/wasm/scale94_kernels.js",
+    wasmUrl: "/wasm/scale94_kernels_bg.wasm",
+    aliases: ["fishscale","necromantic","fish"],
   },
   "BOSONIC-KERNEL-2.0": {
     id:      "BOSONIC-KERNEL-2.0",
     fn:      "boot_bosonic_lattice",
-    args:    [0.8, 0.7],
-    // argMap: CLI flag name → positional arg index
-    // `run bosonic_lattice --trust 0.9 --price 0.1`
-    // trust/coupling → args[0], price/thermal → args[1]
-    argMap:  { trust: 0, coupling: 0, price: 1, thermal: 1 },
+    args:    [0.8,0.7],
+    argMap:  {"trust":0,"coupling":0,"price":1,"thermal":1},
     label:   "Bosonic Lattice Simulator v2.0",
     type:    'rust',
-    module:  '/wasm/scale94_kernels.js',
-    wasmUrl: '/wasm/scale94_kernels_bg.wasm',
-    aliases: ['bosonic_lattice', 'bosonic', 'bosonickernel', 'lattice'],
-  },
+    module:  "/wasm/scale94_kernels.js",
+    wasmUrl: "/wasm/scale94_kernels_bg.wasm",
+    aliases: ["bosonic_lattice","bosonic","bosonickernel","lattice"],
+  }
 };
 
-// Boot diagnostic — remove once registration is confirmed stable
+// Boot diagnostic — logs registered kernel IDs to the browser console.
 if (typeof console !== 'undefined') {
   console.log('[WASM_REGISTRY] Registered kernels:', Object.keys(wasmRegistry));
 }

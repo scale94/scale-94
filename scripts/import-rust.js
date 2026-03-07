@@ -187,6 +187,11 @@ function run() {
     entries.join(',\n'),
     '};',
     '',
+    '// Boot diagnostic — logs registered kernel IDs to the browser console.',
+    'if (typeof console !== \'undefined\') {',
+    '  console.log(\'[WASM_REGISTRY] Registered kernels:\', Object.keys(wasmRegistry));',
+    '}',
+    '',
     'export default wasmRegistry;',
     '',
   ].join('\n');
@@ -196,7 +201,7 @@ function run() {
     log(`✓ Generated wasm.generated.js (${KERNEL_MAP.length} kernel(s) registered).`);
   } else {
     log(`[DRY] Would write wasm.generated.js (${KERNEL_MAP.length} kernel(s)):`);
-    KERNEL_MAP.forEach(k => log(`  · ${k.id} → ${k.struct}.${k.boot}()`));
+    KERNEL_MAP.forEach(k => log(`  · ${k.id} → ${k.fn ? `${k.fn}()` : `${k.struct}.${k.boot}()`}`));
   }
 
   console.log('');
