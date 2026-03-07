@@ -91,10 +91,11 @@ html, body {
   to   { width: 100%; }
 }
 
-/* Moving scanline beam */
+/* CRT single-pass screen-draw beam — sweeps once, fades out at the bottom */
 @keyframes bs-scan {
-  0%   { top: -4%; }
-  100% { top: 104%; }
+  0%   { top: -4%;   opacity: 1; }
+  85%  { opacity: 1; }
+  100% { top: 104%;  opacity: 0; }
 }
 
 /* Opacity 1 for first 2s, clean fade to 0 over the final 1s */

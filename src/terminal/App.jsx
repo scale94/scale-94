@@ -876,27 +876,26 @@ const App = () => {
       {bootSequence && <BootSequence onDone={handleBootDone} />}
 
       {/*
-       * ── Global scanlines — strictly tied to bootSequence state ────────────
-       * z-[101]: above BootSequence (z-100) so they draw over the card.
-       * Conditionally rendered: React removes both divs from the DOM in the
-       * same commit that sets bootSequence=false (4000ms). No CSS exit
-       * transition — transition:'none' makes the hard-stop intent explicit.
+       * ── Global scanlines — permanent, root-level, never unmounted ─────────
+       * Rendered unconditionally so the bs-scan animation runs in one
+       * unbroken loop from boot through every route/view change.
+       * Removing the bootSequence gate was the only change needed: the
+       * browser compositor keeps the animation position intact as long as
+       * the DOM node stays mounted.
+       * z-[101]: above BootSequence (z-100) and the boot overlay (z-97).
+       * pointer-events: none on both divs — zero interaction impact.
        */}
-      {bootSequence && (
-        <>
-          <div style={{
-            position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 101,
-            backgroundImage: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.18) 0px, rgba(0,0,0,0.18) 1px, transparent 1px, transparent 2px)',
-            transition: 'none',
-          }} />
-          <div style={{
-            position: 'fixed', left: 0, right: 0, height: '3px', pointerEvents: 'none', zIndex: 101,
-            background: 'linear-gradient(transparent, rgba(6,182,212,0.5), transparent)',
-            animation: 'bs-scan 0.9s linear infinite',
-            transition: 'none',
-          }} />
-        </>
-      )}
+      <div style={{
+        position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 101,
+        backgroundImage: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.18) 0px, rgba(0,0,0,0.18) 1px, transparent 1px, transparent 2px)',
+        transition: 'none',
+      }} />
+      <div style={{
+        position: 'fixed', left: 0, right: 0, height: '3px', pointerEvents: 'none', zIndex: 101,
+        background: 'linear-gradient(transparent, rgba(6,182,212,0.5), transparent)',
+        animation: 'bs-scan 0.9s linear 1 forwards',
+        transition: 'none',
+      }} />
 
       {/*
        * ── Boot-to-main transition overlay ───────────────────────────────────
