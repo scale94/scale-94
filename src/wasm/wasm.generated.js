@@ -29,6 +29,10 @@ const wasmRegistry = {
     fn:      "boot_bosonic_lattice",
     args:    [0.8,0.7],
     argMap:  {"trust":0,"coupling":0,"price":1,"thermal":1},
+    params:  [
+      { name: "coupling", default: 0.8, desc: "Boson-boson coupling constant (0–1, dimensionless)" },
+      { name: "thermal",  default: 0.7, desc: "Reduced thermal parameter kT/J (0–1); <0.5 = superfluid phase" },
+    ],
     label:   "Bosonic Lattice Simulator v2.0",
     type:    'rust',
     module:  "/wasm/scale94_kernels.js",
@@ -40,6 +44,11 @@ const wasmRegistry = {
     fn:      "boot_thermosphere_protocol",
     args:    [420,2.5,0.6],
     argMap:  {"carbon":0,"ppm":0,"carbonppm":0,"drag":1,"industrial":1,"industrialdrag":1,"sink":2,"ocean":2,"oceansink":2},
+    params:  [
+      { name: "carbon_ppm",      default: 420,  desc: "Atmospheric CO₂ concentration in ppm (pre-industrial baseline ~280)" },
+      { name: "industrial_drag", default: 2.5,  desc: "Forcing multiplier 0–10 (economic/industrial pressure on atmosphere)" },
+      { name: "ocean_sink",      default: 0.6,  desc: "Ocean carbon absorption efficiency 0–1 (clamped to 0.01 minimum)" },
+    ],
     label:   "Atmospheric Entropy Kernel v3.0",
     type:    'rust',
     module:  "/wasm/scale94_kernels.js",
@@ -51,6 +60,11 @@ const wasmRegistry = {
     fn:      "boot_geopolitical_kinetics",
     args:    [6,0.4,0.7],
     argMap:  {"sanction":0,"pressure":0,"grid":1,"resilience":1,"propaganda":2,"narrative":2},
+    params:  [
+      { name: "sanction",   default: 6,   desc: "Economic pressure index 0–10 (sanctions, trade war)" },
+      { name: "grid",       default: 0.4, desc: "Infrastructure/grid resilience 0–1 (clamped to 0.1)" },
+      { name: "propaganda", default: 0.7, desc: "Narrative control coefficient 0–1" },
+    ],
     label:   "Kinetic Statecraft Kernel v1.0",
     type:    'rust',
     module:  "/wasm/scale94_kernels.js",
@@ -62,11 +76,15 @@ const wasmRegistry = {
     fn:      "boot_leviathan_benchmark",
     args:    [100000,100],
     argMap:  {"size":0,"gridsize":0,"cells":0,"generations":1,"iters":1,"steps":1},
+    params:  [
+      { name: "grid_size",   default: 100000, desc: "Cell count in the 1-D automaton (V-Cache pressure scales with size)" },
+      { name: "generations", default: 100,    desc: "Rule-30 evolution steps (mutations ∝ size × generations)" },
+    ],
     label:   "Leviathan Cellular Automata v1.0",
     type:    'rust',
     module:  "/wasm/scale94_kernels.js",
     wasmUrl: "/wasm/scale94_kernels_bg.wasm",
-    aliases: ["vcache_burn","leviathan","vcache","benchmark","stress","automata","cellular"],
+    aliases: ["vcache_burn","leviathan","leviathan_ca","leviathanca","vcache","benchmark","stress","automata","cellular"],
   }
 };
 

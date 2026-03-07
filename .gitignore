@@ -42,3 +42,8 @@ MacOS garbage
 target/
 content/rust_kernels/target/
 content/rust_kernels/pkg/
+
+# --- Obsidian Private Metadata ---
+# Prevents local vault configs and deleted files from leaking to GitHub
+**/.obsidian/
+**/.trash/

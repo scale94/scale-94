@@ -45,6 +45,55 @@ const ThesisView      = lazy(() => import('./views/ThesisView'));
 const TransmissionTab = lazy(() => import('./views/TransmissionTab'));
 const TagCloudView    = lazy(() => import('./views/TagCloudView'));
 
+// ── WASM run-command help formatters (pure, no React deps) ─────────────────
+function formatKernelHelp(entry) {
+  const lines = [
+    `  ┌─ ${entry.label}`,
+    `  │  ID:      ${entry.id}`,
+    `  │  Aliases: ${(entry.aliases ?? []).join(', ')}`,
+  ];
+  if (entry.params?.length) {
+    lines.push(`  │  Parameters:`);
+    entry.params.forEach((p, i) => {
+      const flags = Object.entries(entry.argMap ?? {})
+        .filter(([, idx]) => idx === i)
+        .map(([k]) => `--${k}`)
+        .join(', ');
+      lines.push(`  │    [${i + 1}] ${p.name}  (default: ${p.default})${flags ? `  flags: ${flags}` : ''}`);
+      lines.push(`  │        ${p.desc}`);
+    });
+    const examplePos  = entry.params.map(p => p.default).join(' ');
+    const firstFlag   = Object.keys(entry.argMap ?? {})[0] ?? 'param';
+    lines.push(`  │  Positional: run ${entry.aliases?.[0] ?? entry.id} ${examplePos}`);
+    lines.push(`  │  Named flag: run ${entry.aliases?.[0] ?? entry.id} --${firstFlag} <value>`);
+  } else {
+    lines.push(`  │  Params: none — static boot diagnostic`);
+    lines.push(`  │  Usage:  run ${entry.aliases?.[0] ?? entry.id}`);
+  }
+  lines.push(`  └──────────────────────────────────────────`);
+  return lines;
+}
+
+function formatRunHelp(registry) {
+  const entries = Object.values(registry);
+  const lines = [
+    `  RUN_MANIFEST :: ${entries.length} WASM kernel(s) registered`,
+    `  ──────────────────────────────────────────────────────────`,
+  ];
+  for (const e of entries) {
+    const paramStr = e.params?.length ? ' ' + e.params.map(p => `[${p.name}]`).join(' ') : '';
+    lines.push(`  · run ${e.aliases?.[0] ?? e.id}${paramStr}`);
+    lines.push(`      ${e.label}`);
+    if (e.params?.length) {
+      lines.push(`      defaults: ${e.params.map(p => `${p.name}=${p.default}`).join('  ')}`);
+    }
+  }
+  lines.push(`  ──────────────────────────────────────────────────────────`);
+  lines.push(`  Per-kernel help:  run [alias] --help`);
+  lines.push(`  Positional args:  run climate 450 3.0 0.5`);
+  lines.push(`  Named flags:      run climate --carbon 450 --drag 3.0`);
+  return lines;
+}
 
 const App = () => {
   const [currentPath, setCurrentPath] = useState('~/system/kernel');
@@ -156,6 +205,7 @@ const App = () => {
 
   const mainRef = useRef(null);
   const kernelListRef = useRef(null); // ref to the scrollable <ul> in KernelTab
+  const prevSelectedArticleRef = useRef(null); // tracks previous selectedArticle for mobile scroll logic
   // Scroll persistence: sessionStorage survives tab switches and hot-reloads.
   // The ref is a write-through cache so we never pay a sessionStorage read on
   // every scroll event — only on restore.
@@ -237,8 +287,29 @@ const App = () => {
     document.documentElement.scrollTop = 0;
   }, []);
 
-  // Scroll to top on navigation
+  // Scroll to top on navigation — mobile-aware surgical patch:
+  // On desktop (> 768 px) always scroll to top.
+  // On mobile (≤ 768 px) skip the scroll-to-top when returning to the kernel
+  // list from an article so the user lands near Active Modules, not Axiomatic Core.
   useLayoutEffect(() => {
+    const isMobile = window.innerWidth <= 768;
+    const returningToKernel =
+      isMobile &&
+      prevSelectedArticleRef.current !== null &&
+      selectedArticle === null &&
+      activeTab === 'kernel';
+
+    prevSelectedArticleRef.current = selectedArticle;
+
+    if (returningToKernel) {
+      // Smooth-scroll to the Active Modules container so user lands in context.
+      requestAnimationFrame(() => {
+        const el = document.getElementById('kernel-container');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      return;
+    }
+
     if (mainRef.current) {
       mainRef.current.style.scrollBehavior = 'auto';
       mainRef.current.scrollTop = 0;
@@ -524,49 +595,38 @@ const App = () => {
         } else {
           const [baseCmd, ...flagTokens] = query.split(' ').filter(Boolean);
 
-          // ── vcache_burn hardwire: bypass lookup, call Leviathan directly ──
-          if (baseCmd.toLowerCase() === 'vcache_burn') {
+          // ── Global help: `run --help` ─────────────────────────────────────
+          if (baseCmd === '--help' || baseCmd === '-h') {
             appendSystemLog({ time: now, msg: `COMMAND: ${rawCmd}` });
             setSystemLogs(prev => [
               ...prev,
-              { time: now, msg: `  WASM_BOOT :: Leviathan Cellular Automata v1.0` },
-              { time: now, msg: `  Instantiating WASM module...` },
+              ...formatRunHelp(currentRegistry).map(msg => ({ time: now, msg })),
             ].slice(-2000));
-            (async () => {
-              try {
-                // eslint-disable-next-line import/no-unresolved
-                const mod = await import('../wasm/scale94_kernels.js');
-                await mod.default({ module_or_path: '/wasm/scale94_kernels_bg.wasm' });
-                const result   = mod.boot_leviathan_benchmark(100000.0, 100.0);
-                const lines    = result.split('\n');
-                const doneTime = new Date().toLocaleTimeString('en-US', { hour12: false });
-                setSystemLogs(prev => [
-                  ...prev,
-                  { time: now,      msg: `  ── KERNEL OUTPUT ─────────────────────────`, rust: true },
-                  ...lines.map(l => ({ time: now, msg: `  ${l}`, rust: true })),
-                  { time: now,      msg: `  ──────────────────────────────────────────`, rust: true },
-                  { time: doneTime, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE`, rust: true },
-                ].slice(-2000));
-              } catch (err) {
-                setSystemLogs(prev => [
-                  ...prev,
-                  { time: now, msg: `  WASM_RUNTIME_ERROR :: ${err.message}` },
-                ].slice(-2000));
-              }
-            })();
             return;
           }
 
-          // ── Parse --key value flag pairs ─────────────────────────────────
-          const parsedFlags = {};
-          for (let i = 0; i < flagTokens.length; i++) {
-            if (flagTokens[i].startsWith('--') && flagTokens[i + 1] && !flagTokens[i + 1].startsWith('--')) {
-              parsedFlags[flagTokens[i].slice(2)] = parseFloat(flagTokens[i + 1]);
+          // ── Arg parser: strip --help, then collect positionals + named flags
+          const argTokens      = flagTokens.filter(t => t !== '--help' && t !== '-h');
+          const isHelp         = argTokens.length !== flagTokens.length;
+          const parsedFlags    = {};
+          const positionalArgs = [];
+          for (let i = 0; i < argTokens.length; i++) {
+            if (argTokens[i].startsWith('--') && argTokens[i + 1] && !argTokens[i + 1].startsWith('--')) {
+              parsedFlags[argTokens[i].slice(2)] = parseFloat(argTokens[i + 1]);
               i++;
+            } else if (!argTokens[i].startsWith('--') && !isNaN(parseFloat(argTokens[i]))) {
+              positionalArgs.push(parseFloat(argTokens[i]));
             }
           }
 
-          // ── Registry lookup: exact ID → norm'd ID → exact alias → fuzzy alias
+          // ── Registry lookup (7 tiers) ─────────────────────────────────────
+          // 1. exact uppercase key  e.g. "LEVIATHAN-CELLULAR-AUTOMATA"
+          // 2. exact as-typed       e.g. "bosonic"
+          // 3. norm(id) exact       e.g. norm("BOSONIC-KERNEL-2.0") === norm("bosonic kernel 2")
+          // 4. norm(id) contains kq e.g. "leviathancel lularautomata".includes("leviathan")
+          // 5. alias exact          e.g. alias "climate" === "climate"
+          // 6. alias contains kq    e.g. alias "leviathancel..." includes kq
+          // 7. kq contains alias    e.g. "leviathanca".includes("leviathan") — catches leviathan_ca etc.
           const kq = norm(baseCmd);
           const wasmEntry = currentRegistry[baseCmd.toUpperCase()]
             ?? currentRegistry[baseCmd]
@@ -574,14 +634,34 @@ const App = () => {
             ?? Object.values(currentRegistry).find(e => norm(e.id).includes(kq))
             ?? Object.values(currentRegistry).find(e => e.aliases?.some(a => norm(a) === kq))
             ?? Object.values(currentRegistry).find(e => e.aliases?.some(a => norm(a).includes(kq)))
+            ?? Object.values(currentRegistry).find(e => e.aliases?.some(a => norm(a).length >= 4 && kq.includes(norm(a))))
             ?? null;
 
           if (wasmEntry) {
+            // ── Per-kernel help: `run climate --help` ──────────────────────
+            if (isHelp) {
+              appendSystemLog({ time: now, msg: `COMMAND: ${rawCmd}` });
+              setSystemLogs(prev => [
+                ...prev,
+                ...formatKernelHelp(wasmEntry).map(msg => ({ time: now, msg })),
+              ].slice(-2000));
+              return;
+            }
+
             appendSystemLog({ time: now, msg: `COMMAND: ${rawCmd}` });
+            // Resolve callArgs early so they appear in the boot header
+            const callArgs = [...(wasmEntry.args ?? [])];
+            positionalArgs.forEach((val, idx) => { if (idx < callArgs.length) callArgs[idx] = val; });
+            if (wasmEntry.argMap) {
+              for (const [flag, idx] of Object.entries(wasmEntry.argMap)) {
+                if (parsedFlags[flag] !== undefined) callArgs[idx] = parsedFlags[flag];
+              }
+            }
             setSystemLogs(prev => [
               ...prev,
               { time: now, msg: `  WASM_BOOT :: ${wasmEntry.label}` },
               { time: now, msg: `  MODULE: ${wasmEntry.module}` },
+              { time: now, msg: `  ARGS: [${callArgs.join(', ')}]` },
               { time: now, msg: `  Instantiating WASM module...` },
             ].slice(-2000));
             (async () => {
@@ -591,16 +671,11 @@ const App = () => {
                 const wasmUrl = wasmEntry.wasmUrl ?? wasmEntry.module.replace(/\.js$/, '_bg.wasm');
                 await mod.default({ module_or_path: wasmUrl });
 
-                const callArgs = [...(wasmEntry.args ?? [])];
-                if (wasmEntry.argMap) {
-                  for (const [flag, idx] of Object.entries(wasmEntry.argMap)) {
-                    if (parsedFlags[flag] !== undefined) callArgs[idx] = parsedFlags[flag];
-                  }
-                }
-
-                const result = wasmEntry.fn
+                const t0      = performance.now();
+                const result  = wasmEntry.fn
                   ? mod[wasmEntry.fn](...callArgs)
                   : mod[wasmEntry.struct][wasmEntry.boot]();
+                const elapsed  = (performance.now() - t0).toFixed(4);
                 const lines    = result.split('\n');
                 const doneTime = new Date().toLocaleTimeString('en-US', { hour12: false });
                 setSystemLogs(prev => [
@@ -608,7 +683,7 @@ const App = () => {
                   { time: now,      msg: `  ── KERNEL OUTPUT ─────────────────────────`, rust: true },
                   ...lines.map(l => ({ time: now, msg: `  ${l}`, rust: true })),
                   { time: now,      msg: `  ──────────────────────────────────────────`, rust: true },
-                  { time: doneTime, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE`, rust: true },
+                  { time: doneTime, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE  ·  EXEC_TIME: ${elapsed}ms`, rust: true },
                 ].slice(-2000));
               } catch (err) {
                 setSystemLogs(prev => [
