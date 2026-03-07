@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { normalizeQuery } from '../lib/normalize';
+import wasmRegistry from '../../wasm/wasm.generated';
 
 /**
  * useTerminalCommands
@@ -235,6 +236,113 @@ export default function useTerminalCommands({
       executeCommand(rawCmd, `Applying search filter to kernel index: "${query}".`);
     } else if (action === 'help') {
       executeCommand(rawCmd, "Commands: load [term], list, search [term], home/kernel, scaling, transmission, manifesto, privacy, thesis, clear, help. ↑↓ history.");
+    } else if (action === 'run') {
+      // ── WASM-exclusive executor ─────────────────────────────────────────────
+      const currentRegistry = wasmRegistry;
+      console.log('[RUN/hook] Registry keys:', Object.keys(currentRegistry));
+
+      if (!query) {
+        executeCommand(rawCmd, `RUN_FAIL :: No target specified. Try: run vcache_burn | run climate | run bosonic`);
+      } else {
+        const [baseCmd, ...flagTokens] = query.split(' ').filter(Boolean);
+
+        // vcache_burn hardwire — direct call, no lookup
+        if (baseCmd.toLowerCase() === 'vcache_burn') {
+          appendSystemLog({ time: now, msg: `COMMAND: ${rawCmd}` });
+          setSystemLogs(prev => [
+            ...prev,
+            { time: now, msg: `  WASM_BOOT :: Leviathan Cellular Automata v1.0` },
+            { time: now, msg: `  Instantiating WASM module...` },
+          ].slice(-2000));
+          (async () => {
+            try {
+              const mod = await import('../../wasm/scale94_kernels.js');
+              await mod.default({ module_or_path: '/wasm/scale94_kernels_bg.wasm' });
+              const result   = mod.boot_leviathan_benchmark(100000.0, 100.0);
+              const lines    = result.split('\n');
+              const doneTime = new Date().toLocaleTimeString('en-US', { hour12: false });
+              setSystemLogs(prev => [
+                ...prev,
+                { time: now,      msg: `  ── KERNEL OUTPUT ─────────────────────────`, rust: true },
+                ...lines.map(l => ({ time: now, msg: `  ${l}`, rust: true })),
+                { time: now,      msg: `  ──────────────────────────────────────────`, rust: true },
+                { time: doneTime, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE`, rust: true },
+              ].slice(-2000));
+            } catch (err) {
+              setSystemLogs(prev => [...prev, { time: now, msg: `  WASM_RUNTIME_ERROR :: ${err.message}` }].slice(-2000));
+            }
+          })();
+          return;
+        }
+
+        // Parse flags
+        const parsedFlags = {};
+        for (let i = 0; i < flagTokens.length; i++) {
+          if (flagTokens[i].startsWith('--') && flagTokens[i + 1] && !flagTokens[i + 1].startsWith('--')) {
+            parsedFlags[flagTokens[i].slice(2)] = parseFloat(flagTokens[i + 1]);
+            i++;
+          }
+        }
+
+        // 4-tier registry lookup
+        const kq = normalizeQuery(baseCmd);
+        const wasmEntry = currentRegistry[baseCmd.toUpperCase()]
+          ?? currentRegistry[baseCmd]
+          ?? Object.values(currentRegistry).find(e => normalizeQuery(e.id) === kq)
+          ?? Object.values(currentRegistry).find(e => normalizeQuery(e.id).includes(kq))
+          ?? Object.values(currentRegistry).find(e => e.aliases?.some(a => normalizeQuery(a) === kq))
+          ?? Object.values(currentRegistry).find(e => e.aliases?.some(a => normalizeQuery(a).includes(kq)))
+          ?? null;
+
+        if (wasmEntry) {
+          appendSystemLog({ time: now, msg: `COMMAND: ${rawCmd}` });
+          setSystemLogs(prev => [
+            ...prev,
+            { time: now, msg: `  WASM_BOOT :: ${wasmEntry.label}` },
+            { time: now, msg: `  MODULE: ${wasmEntry.module}` },
+            { time: now, msg: `  Instantiating WASM module...` },
+          ].slice(-2000));
+          (async () => {
+            try {
+              const mod = await import('../../wasm/scale94_kernels.js');
+              const wasmUrl = wasmEntry.wasmUrl ?? wasmEntry.module.replace(/\.js$/, '_bg.wasm');
+              await mod.default({ module_or_path: wasmUrl });
+              const callArgs = [...(wasmEntry.args ?? [])];
+              if (wasmEntry.argMap) {
+                for (const [flag, idx] of Object.entries(wasmEntry.argMap)) {
+                  if (parsedFlags[flag] !== undefined) callArgs[idx] = parsedFlags[flag];
+                }
+              }
+              const result = wasmEntry.fn
+                ? mod[wasmEntry.fn](...callArgs)
+                : mod[wasmEntry.struct][wasmEntry.boot]();
+              const lines    = result.split('\n');
+              const doneTime = new Date().toLocaleTimeString('en-US', { hour12: false });
+              setSystemLogs(prev => [
+                ...prev,
+                { time: now,      msg: `  ── KERNEL OUTPUT ─────────────────────────`, rust: true },
+                ...lines.map(l => ({ time: now, msg: `  ${l}`, rust: true })),
+                { time: now,      msg: `  ──────────────────────────────────────────`, rust: true },
+                { time: doneTime, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE`, rust: true },
+              ].slice(-2000));
+            } catch (err) {
+              setSystemLogs(prev => [
+                ...prev,
+                { time: now, msg: `  WASM_RUNTIME_ERROR :: ${err.message}` },
+              ].slice(-2000));
+            }
+          })();
+        } else {
+          console.log('[RUN_FAIL/hook] Registry keys:', Object.keys(currentRegistry));
+          appendSystemLog({ time: now, msg: `COMMAND: ${rawCmd}` });
+          setSystemLogs(prev => [
+            ...prev,
+            { time: now, msg: `  RUN_FAIL :: "${baseCmd}" — not found in WASM registry.` },
+            { time: now, msg: `  ${Object.keys(currentRegistry).length} kernel(s) registered. Try: run vcache_burn | run climate | run bosonic` },
+            { time: now, msg: `  Use 'load ${baseCmd}' to open a lore article instead.` },
+          ].slice(-2000));
+        }
+      }
     } else if (action === 'clear') {
       setSystemLogs([]);
       executeCommand(rawCmd, "System log cleared.");
