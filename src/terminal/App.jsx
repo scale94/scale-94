@@ -514,10 +514,43 @@ const App = () => {
         appendSystemLog({ time: now, msg: result });
       };
 
+      // ── VCACHE_BURN HARDWIRE: substring match anywhere in input ──────────────
+      // Level 22.9: if 'vcache_burn' appears ANYWHERE in the raw command,
+      // skip ALL routing and execute boot_leviathan_benchmark directly.
+      if (rawCmd.toLowerCase().includes('vcache_burn')) {
+        console.log('[L22.9_HARDWIRE] vcache_burn detected — direct execution');
+        appendSystemLog({ time: now, msg: `COMMAND: ${rawCmd}` });
+        setSystemLogs(prev => [
+          ...prev,
+          { time: now, msg: `  L22.9_HARDWIRE :: Leviathan Cellular Automata — direct WASM dispatch` },
+          { time: now, msg: `  Instantiating WASM module (no registry lookup)...` },
+        ].slice(-2000));
+        (async () => {
+          try {
+            // eslint-disable-next-line import/no-unresolved
+            const mod = await import('../wasm/scale94_kernels.js');
+            await mod.default({ module_or_path: '/wasm/scale94_kernels_bg.wasm' });
+            const result = mod.boot_leviathan_benchmark(100000.0, 100.0);
+            const lines    = result.split('\n');
+            const doneTime = new Date().toLocaleTimeString('en-US', { hour12: false });
+            setSystemLogs(prev => [
+              ...prev,
+              { time: now,      msg: `  ── KERNEL OUTPUT ─────────────────────────`, rust: true },
+              ...lines.map(l => ({ time: now, msg: `  ${l}`, rust: true })),
+              { time: now,      msg: `  ──────────────────────────────────────────`, rust: true },
+              { time: doneTime, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE`, rust: true },
+            ].slice(-2000));
+          } catch (err) {
+            setSystemLogs(prev => [
+              ...prev,
+              { time: now, msg: `  HARDWIRE_ERROR :: ${err.message}` },
+            ].slice(-2000));
+          }
+        })();
       // ── BANG OPERATOR (!): absolute WASM isolation — zero routing, zero fallback ──
       // Syntax: !<alias> [--flag value ...]   e.g.  !leviathan --size 5000000
       // The parser never touches articles[], manifest, or help docs.
-      if (rawCmd.startsWith('!')) {
+      } else if (rawCmd.startsWith('!')) {
         const bangQuery = rawCmd.slice(1).trim();
         console.log('[BANG_EXEC] Direct WASM dispatch:', bangQuery);
         appendSystemLog({ time: now, msg: `COMMAND: ${rawCmd}` });
@@ -839,6 +872,11 @@ const App = () => {
 
   return (
     <div className={`min-h-screen font-mono selection:bg-fuchsia-900 selection:text-white flex flex-col overflow-hidden relative transition-colors duration-700 ${selectedArticle || architectThesis ? 'bg-[#09090b]' : 'bg-black'}`}>
+
+      {/* ── L22.9 CACHE DIAGNOSTIC BANNER — remove once cache is confirmed busted ── */}
+      <div style={{ background: '#000', borderBottom: '2px solid #39ff14', padding: '6px 16px', textAlign: 'center', color: '#39ff14', fontFamily: 'monospace', fontSize: '13px', letterSpacing: '0.15em', zIndex: 9999, position: 'relative' }}>
+        ⚡ LEVEL 22.9 ACTIVE — NUCLEAR PURGE BUILD — CACHE BUSTED ⚡
+      </div>
 
       {/* ── Boot sequence — unmounts when onDone fires ─────────────────────── */}
       {bootSequence && <BootSequence onDone={handleBootDone} />}
