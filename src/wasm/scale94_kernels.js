@@ -222,6 +222,153 @@ export function boot_thermosphere_protocol(carbon_ppm, industrial_drag, ocean_si
     }
 }
 
+/**
+ * Simulates a simplified A-CEEI (Approximate Competitive Equilibrium from
+ * Equal Incomes) preference-based allocation market.
+ *
+ * Based on Alvin Roth's Nobel-winning matching market theory.
+ * Each agent gets equal budget; allocation maximises aggregate preference
+ * satisfaction subject to market-clearing via Walrasian tâtonnement.
+ *
+ * Parameters:
+ *   agents      number of allocation participants (2–50)
+ *   goods       number of distinct goods/resources (2–20)
+ *   inequality  budget spread / wealth inequality index (0–1; 0 = perfectly equal)
+ *   diversity   preference diversity across agents (0–1; 1 = fully heterogeneous)
+ * @param {number} agents
+ * @param {number} goods
+ * @param {number} inequality
+ * @param {number} diversity
+ * @returns {string}
+ */
+export function run_ceei_allocation_engine(agents, goods, inequality, diversity) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_ceei_allocation_engine(agents, goods, inequality, diversity);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * Run the soma_kernel_5.5 Daly Rules thermodynamic simulation.
+ *
+ * Integrates three coupled ODEs over `years` annual timesteps:
+ *   1. Renewable resource stock  R(t)  — harvest vs regeneration
+ *   2. Pollution accumulation    P(t)  — waste vs absorption
+ *   3. Non-renewable reserves   NR(t)  — depletion vs substitution
+ *
+ * Entropy production follows irreversible thermodynamics (Prigogine):
+ *   σ(t) = (C/G) · ln(C/G)   when C > G  (dissipation from overshoot)
+ *
+ * Parameters (all f64 for wasm-bindgen):
+ *   consumption   GJ/capita/yr   (current global avg ~80; sustainable ~25–30)
+ *   regeneration  GJ/capita/yr   (biosphere regen capacity ~30)
+ *   waste         Mt CO₂eq/yr    (normalised; global ~55,000 Mt)
+ *   absorption    Mt CO₂eq/yr    (natural sinks ~11,000 Mt)
+ *   nr_depletion  fraction/yr    (fossil reserve draw-down rate; ~0.025)
+ *   substitution  fraction/yr    (renewable substitution rate; ~0.008)
+ *   years         simulation horizon (clamped 1–500)
+ * @param {number} consumption
+ * @param {number} regeneration
+ * @param {number} waste
+ * @param {number} absorption
+ * @param {number} nr_depletion
+ * @param {number} substitution
+ * @param {number} years
+ * @returns {string}
+ */
+export function run_daly_thermo_simulation(consumption, regeneration, waste, absorption, nr_depletion, substitution, years) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_daly_thermo_simulation(consumption, regeneration, waste, absorption, nr_depletion, substitution, years);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * Simulates Soma Plus — the social capital / commons-contribution system
+ * at the heart of soma_kernel_5.5's post-scarcity status economy.
+ *
+ * Agents earn Soma Plus by contributing to the commons:
+ *   Ecological Care  (reforesting, biodiversity monitoring)
+ *   Social Care      (child-rearing, elderly care, education, arts)
+ *   Each contribution accrues SP; SP decays slowly without contribution.
+ *
+ * Status tiers: INITIATE → CONTRIBUTOR → ARTISAN → SOVEREIGN
+ *
+ * Parameters:
+ *   population    number of agents (10–10000)
+ *   eco_share     fraction of agents doing ecological care (0–1)
+ *   social_share  fraction of agents doing social care (0–1)
+ *   arts_share    fraction of agents doing arts/culture (0–1)
+ *   years         simulation cycles (1–200)
+ * @param {number} population
+ * @param {number} eco_share
+ * @param {number} social_share
+ * @param {number} arts_share
+ * @param {number} years
+ * @returns {string}
+ */
+export function run_soma_plus_engine(population, eco_share, social_share, arts_share, years) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_soma_plus_engine(population, eco_share, social_share, arts_share, years);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * Simulates the Strangler Fig transition strategy — building the new economic
+ * system around the old one until the new system dominates.
+ *
+ * Uses a modified logistic growth ODE with legacy system resistance:
+ *   dA/dt = r·A·(1-A) - ρ(t)·A·(1-A)
+ *         = A·(1-A)·(r - ρ(t))
+ *
+ * where ρ(t) = ρ₀·exp(-λ·t)  — resistance decays as legacy system weakens.
+ *
+ * Tipping point: when r > ρ(t), growth flips from negative to positive.
+ * Critical mass:  A ≥ 0.5 (new system is majority)
+ *
+ * Parameters:
+ *   initial_adoption  starting adoption fraction (0.001–0.5)
+ *   growth_rate       logistic growth coefficient r (0.01–2.0)
+ *   resistance        initial legacy resistance ρ₀ (0–2.0)
+ *   years             simulation horizon (1–200)
+ * @param {number} initial_adoption
+ * @param {number} growth_rate
+ * @param {number} resistance
+ * @param {number} years
+ * @returns {string}
+ */
+export function run_strangler_fig_transition(initial_adoption, growth_rate, resistance, years) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_strangler_fig_transition(initial_adoption, growth_rate, resistance, years);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
 function __wbg_get_imports() {
     const import0 = {
         __proto__: null,

@@ -44,7 +44,9 @@
       "Bash(powershell -Command \"node ''E:/scale_9.4/scripts/repair-frontmatter.js''\")",
       "Bash(node \"E:/scale_9.4/scripts/repair-frontmatter.cjs\")",
       "Bash(node \"E:/scale_9.4/scripts/substrate-repair.cjs\")",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(cargo check)",
+      "Bash(node scripts/import-rust.js)"
     ]
   }
 }

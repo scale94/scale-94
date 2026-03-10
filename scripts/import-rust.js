@@ -103,6 +103,121 @@ const KERNEL_MAP = [
     type:    'rust',
     aliases: ['vcache_burn', 'leviathan', 'vcache', 'benchmark', 'stress', 'automata', 'cellular'],
   },
+
+  // ── soma_kernel_5.5 Thermophysical Simulation Layer ────────────────────────
+  {
+    // Daly Rules ODE simulation — 7-parameter free function.
+    // Integrates renewable stock, pollution, non-renewable reserves over N years.
+    // consumption:  args[0]   flags: --consumption, --consume
+    // regeneration: args[1]   flags: --regeneration, --regen
+    // waste:        args[2]   flags: --waste
+    // absorption:   args[3]   flags: --absorption, --absorb
+    // nr_depletion: args[4]   flags: --depletion, --nr
+    // substitution: args[5]   flags: --substitution, --sub
+    // years:        args[6]   flags: --years, --horizon
+    id:      'DALY-THERMO-SIMULATION',
+    fn:      'run_daly_thermo_simulation',
+    args:    [80.0, 30.0, 55000.0, 11000.0, 0.025, 0.008, 100.0],
+    argMap:  {
+      consumption: 0, consume: 0,
+      regeneration: 1, regen: 1,
+      waste: 2,
+      absorption: 3, absorb: 3,
+      depletion: 4, nr: 4, nrdepletion: 4,
+      substitution: 5, sub: 5,
+      years: 6, horizon: 6,
+    },
+    params:  [
+      { name: 'consumption',  default: 80.0,    desc: 'Renewable energy consumption GJ/capita/yr (global avg ~80; sustainable ~25)' },
+      { name: 'regeneration', default: 30.0,    desc: 'Biosphere regeneration capacity GJ/capita/yr (~30)' },
+      { name: 'waste',        default: 55000.0, desc: 'Global waste/pollution output Mt CO₂eq/yr (~55,000)' },
+      { name: 'absorption',   default: 11000.0, desc: 'Natural sink absorption capacity Mt/yr (~11,000)' },
+      { name: 'nr_depletion', default: 0.025,   desc: 'Non-renewable depletion rate fraction/yr (~0.025 = 2.5%/yr)' },
+      { name: 'substitution', default: 0.008,   desc: 'Renewable substitution rate fraction/yr (~0.008 = 0.8%/yr)' },
+      { name: 'years',        default: 100.0,   desc: 'Simulation horizon in years (1–500)' },
+    ],
+    label:   'Daly Thermo Simulation v1.0',
+    type:    'rust',
+    aliases: ['daly', 'thermo', 'thermodynamics', 'daly_rules', 'dalyrulessim', 'daly_thermo', 'ecological', 'entropy_econ'],
+  },
+  {
+    // A-CEEI Allocation Engine — 4-parameter free function.
+    // agents:     args[0]  flags: --agents, --n
+    // goods:      args[1]  flags: --goods, --m
+    // inequality: args[2]  flags: --inequality, --gini
+    // diversity:  args[3]  flags: --diversity, --div
+    id:      'CEEI-ALLOCATION-ENGINE',
+    fn:      'run_ceei_allocation_engine',
+    args:    [20.0, 8.0, 0.3, 0.7],
+    argMap:  {
+      agents: 0, n: 0,
+      goods: 1, m: 1,
+      inequality: 2, gini: 2, ineq: 2,
+      diversity: 3, div: 3, pref: 3,
+    },
+    params:  [
+      { name: 'agents',      default: 20.0, desc: 'Number of allocation participants (2–50)' },
+      { name: 'goods',       default: 8.0,  desc: 'Number of distinct goods/resources (2–20)' },
+      { name: 'inequality',  default: 0.3,  desc: 'Budget inequality index 0–1 (0 = equal incomes; 1 = maximally unequal)' },
+      { name: 'diversity',   default: 0.7,  desc: 'Preference heterogeneity 0–1 (0 = uniform; 1 = fully diverse)' },
+    ],
+    label:   'A-CEEI Allocation Engine v1.0',
+    type:    'rust',
+    aliases: ['ceei', 'allocation', 'matching', 'market', 'roth', 'preference', 'allocation_engine', 'aceei'],
+  },
+  {
+    // Soma Plus social capital accumulation — 5-parameter free function.
+    // population:   args[0]  flags: --pop, --population
+    // eco_share:    args[1]  flags: --eco
+    // social_share: args[2]  flags: --social
+    // arts_share:   args[3]  flags: --arts
+    // years:        args[4]  flags: --years
+    id:      'SOMA-PLUS-ENGINE',
+    fn:      'run_soma_plus_engine',
+    args:    [5000.0, 0.35, 0.35, 0.20, 50.0],
+    argMap:  {
+      population: 0, pop: 0,
+      eco: 1, ecological: 1, ecoShare: 1,
+      social: 2, socialShare: 2,
+      arts: 3, artsShare: 3, culture: 3,
+      years: 4, horizon: 4,
+    },
+    params:  [
+      { name: 'population',   default: 5000.0, desc: 'Number of agents in the simulation (10–10000)' },
+      { name: 'eco_share',    default: 0.35,   desc: 'Fraction doing ecological care 0–1 (reforesting, biodiversity)' },
+      { name: 'social_share', default: 0.35,   desc: 'Fraction doing social care 0–1 (child-rearing, elderly, education)' },
+      { name: 'arts_share',   default: 0.20,   desc: 'Fraction doing arts/culture 0–1 (highest Soma Plus multiplier)' },
+      { name: 'years',        default: 50.0,   desc: 'Simulation cycles / years (1–200)' },
+    ],
+    label:   'Soma Plus Engine v1.0',
+    type:    'rust',
+    aliases: ['soma_plus', 'somaplus', 'soma', 'social_capital', 'commons', 'status', 'contribution'],
+  },
+  {
+    // Strangler Fig Transition Protocol — 4-parameter free function.
+    // initial_adoption: args[0]  flags: --adoption, --seed
+    // growth_rate:      args[1]  flags: --growth, --rate
+    // resistance:       args[2]  flags: --resistance, --rho
+    // years:            args[3]  flags: --years
+    id:      'STRANGLER-FIG-PROTOCOL',
+    fn:      'run_strangler_fig_transition',
+    args:    [0.02, 0.18, 0.25, 75.0],
+    argMap:  {
+      adoption: 0, seed: 0, initial: 0,
+      growth: 1, rate: 1, r: 1,
+      resistance: 2, rho: 2, legacy: 2,
+      years: 3, horizon: 3,
+    },
+    params:  [
+      { name: 'initial_adoption', default: 0.02, desc: 'Starting adoption fraction 0–1 (e.g. 0.02 = 2% early adopters)' },
+      { name: 'growth_rate',      default: 0.18, desc: 'Logistic growth coefficient r (0.01–2.0; higher = faster spread)' },
+      { name: 'resistance',       default: 0.25, desc: 'Initial legacy system resistance ρ₀ (0–2.0; decays at λ=5%/yr)' },
+      { name: 'years',            default: 75.0, desc: 'Simulation horizon in years (1–200)' },
+    ],
+    label:   'Strangler Fig Protocol v1.0',
+    type:    'rust',
+    aliases: ['strangler', 'transition', 'stranglerfig', 'fig', 'adoption', 'legacy', 'logistic'],
+  },
 ];
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────

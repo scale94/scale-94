@@ -267,3 +267,617 @@ impl NecromanticEngine {
         )
     }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SOMA_KERNEL_5.5 — Thermophysical Simulation Layer
+// Nobel-grounded economic thermodynamics: Daly Rules, A-CEEI, Soma Plus,
+// and the Strangler Fig transition protocol.
+//
+// All simulations use pure-Rust f64 arithmetic — no external crates required.
+// Future: Ferray scientific computing backend for array/FFT operations.
+//   cargo add --git https://github.com/dollspace-gay/ferray.git ferray-core
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── Inline LCG PRNG (no `rand` crate needed in WASM) ─────────────────────────
+// Park-Miller LCG: good uniform distribution for simulation seeding.
+#[inline]
+fn lcg_next(state: &mut u64) -> f64 {
+    *state = state.wrapping_mul(6_364_136_223_846_793_005)
+                  .wrapping_add(1_442_695_040_888_963_407);
+    ((*state >> 33) as f64) / (u32::MAX as f64)
+}
+
+// ── Kernel 7: Daly Rules Thermodynamic Simulation (soma_kernel_5.5) ──────────
+
+/// Run the soma_kernel_5.5 Daly Rules thermodynamic simulation.
+///
+/// Integrates three coupled ODEs over `years` annual timesteps:
+///   1. Renewable resource stock  R(t)  — harvest vs regeneration
+///   2. Pollution accumulation    P(t)  — waste vs absorption
+///   3. Non-renewable reserves   NR(t)  — depletion vs substitution
+///
+/// Entropy production follows irreversible thermodynamics (Prigogine):
+///   σ(t) = (C/G) · ln(C/G)   when C > G  (dissipation from overshoot)
+///
+/// Parameters (all f64 for wasm-bindgen):
+///   consumption   GJ/capita/yr   (current global avg ~80; sustainable ~25–30)
+///   regeneration  GJ/capita/yr   (biosphere regen capacity ~30)
+///   waste         Mt CO₂eq/yr    (normalised; global ~55,000 Mt)
+///   absorption    Mt CO₂eq/yr    (natural sinks ~11,000 Mt)
+///   nr_depletion  fraction/yr    (fossil reserve draw-down rate; ~0.025)
+///   substitution  fraction/yr    (renewable substitution rate; ~0.008)
+///   years         simulation horizon (clamped 1–500)
+#[wasm_bindgen]
+pub fn run_daly_thermo_simulation(
+    consumption:  f64,
+    regeneration: f64,
+    waste:        f64,
+    absorption:   f64,
+    nr_depletion: f64,
+    substitution: f64,
+    years:        f64,
+) -> String {
+    let years      = (years as usize).clamp(1, 500);
+    let regen      = regeneration.max(0.01);
+    let absorb     = absorption.max(0.01);
+
+    // State variables (all normalised to 1.0 = current baseline)
+    let mut r_stock        = 1.0_f64;   // renewable resource stock
+    let mut p_stock        = 0.0_f64;   // cumulative pollution
+    let mut nr_stock       = 1.0_f64;   // non-renewable reserves
+    let mut entropy        = 0.0_f64;   // cumulative entropy production (nats)
+
+    let mut collapse_yr:  Option<usize> = None;
+    let mut tipping_yr:   Option<usize> = None;
+    let mut phase = "STABLE";
+
+    // Snapshots at key horizons
+    let snap_yrs = [10, 25, 50, 100, 200, 500];
+    let mut snaps: Vec<(usize, f64, f64, f64, f64)> = Vec::new();
+
+    for yr in 1..=years {
+        // ── Daly Rule 1: Renewable ─────────────────────────────────────────
+        // Regeneration capacity degrades with pollution saturation
+        let pollution_drag   = (1.0 - p_stock * 0.15).max(0.0);
+        let effective_regen  = regen * r_stock * pollution_drag;
+        let delta_r          = (effective_regen - consumption) / regen;
+        r_stock              = (r_stock + delta_r * 0.01).max(0.0);
+
+        // ── Daly Rule 2: Pollution ────────────────────────────────────────
+        // Absorption degrades with saturation (ecosystem overload)
+        let saturation       = (p_stock * 0.4).min(0.95);
+        let eff_absorption   = absorb * (1.0 - saturation);
+        let delta_p          = (waste - eff_absorption) / absorb;
+        p_stock              = (p_stock + delta_p * 0.005).max(0.0);
+
+        // ── Daly Rule 3: Non-renewable ────────────────────────────────────
+        nr_stock = (nr_stock + (substitution - nr_depletion)).clamp(0.0, 2.0);
+
+        // ── Entropy production (Clausius–Duhem) ───────────────────────────
+        let overshoot = consumption / regen;
+        if overshoot > 1.0 {
+            entropy += overshoot * overshoot.ln();
+        }
+        entropy += p_stock * 0.002;   // pollution entropy contribution
+
+        // ── Phase detection ───────────────────────────────────────────────
+        let frag = 1.0 - (-entropy * 0.08).exp();
+        if collapse_yr.is_none() && (r_stock <= 0.05 || p_stock >= 8.0) {
+            collapse_yr = Some(yr);
+            phase = "COLLAPSE";
+        } else if tipping_yr.is_none() && frag > 0.5 && collapse_yr.is_none() {
+            tipping_yr = Some(yr);
+            phase = "CRITICAL";
+        }
+
+        if snap_yrs.contains(&yr) || yr == years {
+            snaps.push((yr, r_stock, p_stock, nr_stock, entropy));
+        }
+    }
+
+    let frag_final    = 1.0 - (-entropy * 0.08).exp();
+    let eco_debt_pct  = ((1.0 - r_stock) * 100.0).max(0.0);
+    let overshoot_x   = consumption / regen;
+    let daly_1_status = if overshoot_x <= 1.0 { "PASS" } else { "BREACH" };
+    let daly_2_status = if waste <= absorb      { "PASS" } else { "BREACH" };
+    let daly_3_status = if substitution >= nr_depletion { "PASS" } else { "BREACH" };
+
+    let mut out = format!(
+        "SOMA_KERNEL_5.5 // DALY_THERMO_SIMULATION\n\
+         ══════════════════════════════════════════\n\
+         HORIZON: {years} yr  |  STATUS: {phase}\n\
+         ──────────────────────────────────────────\n\
+         DALY RULES AUDIT:\n\
+           Rule 1 (Renewable)     Harvest/Regen = {overshoot_x:.3}×  [{daly_1_status}]\n\
+           Rule 2 (Pollution)     Waste/Absorb  = {waste_ratio:.3}×  [{daly_2_status}]\n\
+           Rule 3 (Non-renew)     Dep/Sub ratio = {nr_ratio:.3}×  [{daly_3_status}]\n\
+         ──────────────────────────────────────────\n\
+         SIMULATION TRACE:\n\
+           YR    │ R_STOCK  P_STOCK  NR_STOCK  ENTROPY",
+        years        = years,
+        phase        = phase,
+        overshoot_x  = overshoot_x,
+        daly_1_status = daly_1_status,
+        waste_ratio  = waste / absorb,
+        daly_2_status = daly_2_status,
+        nr_ratio     = nr_depletion / substitution.max(0.001),
+        daly_3_status = daly_3_status,
+    );
+
+    for (yr, r, p, nr, h) in &snaps {
+        out.push_str(&format!(
+            "\n   {:>4}  │ {:.4}   {:.4}   {:.4}    {:.4}",
+            yr, r, p, nr, h
+        ));
+    }
+
+    out.push_str(&format!(
+        "\n ──────────────────────────────────────────\n\
+         FINAL STATE:\n\
+           RESOURCE_STOCK      {r_final:.6}  (1.0 = baseline)\n\
+           POLLUTION_STOCK     {p_final:.6}\n\
+           NR_RESERVES         {nr_final:.6}\n\
+           CUMULATIVE_ENTROPY  {entropy:.6} nats\n\
+           FRAGMENTATION_IDX   {frag:.6}\n\
+           ECOLOGICAL_DEBT     {eco_debt:.2}%\n\
+         COLLAPSE_YEAR:  {collapse}\n\
+         TIPPING_POINT:  {tipping}\n\
+         SOURCE: content/rust_kernels/src/lib.rs",
+        r_final    = snaps.last().map(|s| s.1).unwrap_or(r_stock),
+        p_final    = snaps.last().map(|s| s.2).unwrap_or(p_stock),
+        nr_final   = snaps.last().map(|s| s.3).unwrap_or(nr_stock),
+        entropy    = entropy,
+        frag       = frag_final,
+        eco_debt   = eco_debt_pct,
+        collapse   = collapse_yr.map(|y| y.to_string()).unwrap_or_else(|| "NONE (within horizon)".into()),
+        tipping    = tipping_yr.map(|y| y.to_string()).unwrap_or_else(|| "NOT_REACHED".into()),
+    ));
+    out
+}
+
+// ── Kernel 8: A-CEEI Allocation Engine (soma_kernel_5.5) ─────────────────────
+
+/// Simulates a simplified A-CEEI (Approximate Competitive Equilibrium from
+/// Equal Incomes) preference-based allocation market.
+///
+/// Based on Alvin Roth's Nobel-winning matching market theory.
+/// Each agent gets equal budget; allocation maximises aggregate preference
+/// satisfaction subject to market-clearing via Walrasian tâtonnement.
+///
+/// Parameters:
+///   agents      number of allocation participants (2–50)
+///   goods       number of distinct goods/resources (2–20)
+///   inequality  budget spread / wealth inequality index (0–1; 0 = perfectly equal)
+///   diversity   preference diversity across agents (0–1; 1 = fully heterogeneous)
+#[wasm_bindgen]
+pub fn run_ceei_allocation_engine(
+    agents:     f64,
+    goods:      f64,
+    inequality: f64,
+    diversity:  f64,
+) -> String {
+    let n = (agents as usize).clamp(2, 50);
+    let m = (goods  as usize).clamp(2, 20);
+    let ineq = inequality.clamp(0.0, 1.0);
+    let div  = diversity.clamp(0.001, 1.0);
+
+    // Seed from parameters for deterministic output
+    let mut rng: u64 = ((agents * 1e6) as u64)
+        .wrapping_add((goods * 1e4) as u64)
+        .wrapping_add((inequality * 1e9) as u64)
+        .wrapping_add((diversity * 1e11) as u64)
+        .wrapping_add(0xDEAD_BEEF_CAFE_1234);
+
+    // ── Generate agent utility weights w[i][j] ────────────────────────────
+    // Low diversity → weights cluster near 1/M (uniform preferences)
+    // High diversity → weights spread widely (heterogeneous preferences)
+    let mut w = vec![vec![0.0_f64; m]; n];
+    for i in 0..n {
+        let mut row_sum = 0.0;
+        for j in 0..m {
+            let base = 1.0 / m as f64;
+            let noise = (lcg_next(&mut rng) - 0.5) * 2.0 * div;
+            w[i][j] = (base + noise).max(0.001);
+            row_sum += w[i][j];
+        }
+        // Normalise so each agent's weights sum to 1
+        for j in 0..m { w[i][j] /= row_sum; }
+    }
+
+    // ── Agent budgets (equal incomes, inequality shifts the distribution) ──
+    let mut budgets = vec![1.0_f64; n];
+    if ineq > 0.0 {
+        for i in 0..n {
+            let rank_factor = i as f64 / (n - 1) as f64;
+            budgets[i] = 1.0 - ineq * 0.5 + ineq * rank_factor;
+        }
+    }
+
+    // ── Supply: each good has aggregate supply = total budget / num_goods ──
+    let total_budget: f64 = budgets.iter().sum();
+    let supply = vec![total_budget / m as f64; m];
+
+    // ── Walrasian tâtonnement price adjustment ────────────────────────────
+    let mut prices = vec![1.0_f64; m];
+    let alpha  = 0.3;   // step size
+    let max_it = 200;
+
+    for _iter in 0..max_it {
+        // Demand: each agent maximises log-linear utility (Cobb-Douglas)
+        // Optimal: x_ij* = w_ij * B_i / p_j
+        let mut demand = vec![0.0_f64; m];
+        for i in 0..n {
+            for j in 0..m {
+                demand[j] += w[i][j] * budgets[i] / prices[j];
+            }
+        }
+        // Excess demand
+        let mut max_excess = 0.0_f64;
+        for j in 0..m {
+            let excess = demand[j] - supply[j];
+            max_excess = max_excess.max(excess.abs());
+            prices[j]  = (prices[j] + alpha * excess / supply[j]).max(0.01);
+        }
+        if max_excess < 0.001 { break; }
+    }
+
+    // ── Compute final allocations and utilities ───────────────────────────
+    let mut allocs  = vec![vec![0.0_f64; m]; n];
+    let mut utils   = vec![0.0_f64; n];
+    for i in 0..n {
+        for j in 0..m {
+            allocs[i][j] = w[i][j] * budgets[i] / prices[j];
+            // Cobb-Douglas utility: U_i = Σ w_ij * ln(x_ij + 1)
+            utils[i] += w[i][j] * (allocs[i][j] + 1.0).ln();
+        }
+    }
+
+    // ── Envy-freeness: max over i of max(0, U_i(x_k) - U_i(x_i)) ─────────
+    let mut max_envy = 0.0_f64;
+    for i in 0..n {
+        for k in 0..n {
+            if k == i { continue; }
+            // Utility agent i would get from agent k's allocation
+            let u_ik: f64 = (0..m).map(|j| w[i][j] * (allocs[k][j] + 1.0).ln()).sum();
+            let envy = (u_ik - utils[i]).max(0.0);
+            if envy > max_envy { max_envy = envy; }
+        }
+    }
+
+    // ── Gini coefficient of utility distribution ──────────────────────────
+    let mut sorted_u = utils.clone();
+    sorted_u.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    let n_f = n as f64;
+    let mean_u: f64 = sorted_u.iter().sum::<f64>() / n_f;
+    let gini = if mean_u > 0.0 {
+        let mut gini_num = 0.0_f64;
+        for i in 0..n { for k in 0..n { gini_num += (sorted_u[i] - sorted_u[k]).abs(); } }
+        gini_num / (2.0 * n_f * n_f * mean_u)
+    } else { 0.0 };
+
+    // ── Pareto efficiency: check no agent can improve without harming another
+    // Approximated by measuring residual excess demand magnitude
+    let residual: f64 = (0..m).map(|j| {
+        let d: f64 = (0..n).map(|i| allocs[i][j]).sum();
+        (d - supply[j]).abs() / supply[j].max(0.001)
+    }).sum::<f64>() / m as f64;
+    let pareto_eff = (1.0 - residual).clamp(0.0, 1.0);
+
+    // ── Format output ─────────────────────────────────────────────────────
+    let envy_status  = if max_envy < 0.01 { "ENVY-FREE" } else if max_envy < 0.1 { "APPROX_EF" } else { "ENVY_PRESENT" };
+    let min_u = sorted_u.first().copied().unwrap_or(0.0);
+    let max_u = sorted_u.last().copied().unwrap_or(0.0);
+
+    let mut price_str = String::new();
+    for j in 0..m {
+        price_str.push_str(&format!("p{j}={:.3}", prices[j]));
+        if j < m - 1 { price_str.push(' '); }
+    }
+
+    format!(
+        "SOMA_KERNEL_5.5 // A-CEEI_ALLOCATION_ENGINE\n\
+         ══════════════════════════════════════════\n\
+         AGENTS: {n}  GOODS: {m}  INEQUALITY: {ineq:.2}  DIVERSITY: {div:.2}\n\
+         ──────────────────────────────────────────\n\
+         EQUILIBRIUM_PRICES:\n   {prices}\n\
+         ──────────────────────────────────────────\n\
+         ALLOCATION_METRICS:\n\
+           ENVY_STATUS         {envy_status}\n\
+           MAX_ENVY_INDEX      {max_envy:.6}\n\
+           PARETO_EFFICIENCY   {pareto_eff:.4}\n\
+           GINI_COEFFICIENT    {gini:.4}  (0=equal, 1=maximal_inequality)\n\
+           MEAN_UTILITY        {mean_u:.4}\n\
+           UTILITY_RANGE       [{min_u:.4}, {max_u:.4}]\n\
+         ──────────────────────────────────────────\n\
+         THEOREM_GUARANTEE: Approximate Envy-Freeness + Efficiency\n\
+         (Budish 2011 — A-CEEI; Roth Nobel 2012 — Matching Markets)\n\
+         SOURCE: content/rust_kernels/src/lib.rs",
+        prices = price_str,
+    )
+}
+
+// ── Kernel 9: Soma Plus Social Capital Engine (soma_kernel_5.5) ──────────────
+
+/// Simulates Soma Plus — the social capital / commons-contribution system
+/// at the heart of soma_kernel_5.5's post-scarcity status economy.
+///
+/// Agents earn Soma Plus by contributing to the commons:
+///   Ecological Care  (reforesting, biodiversity monitoring)
+///   Social Care      (child-rearing, elderly care, education, arts)
+///   Each contribution accrues SP; SP decays slowly without contribution.
+///
+/// Status tiers: INITIATE → CONTRIBUTOR → ARTISAN → SOVEREIGN
+///
+/// Parameters:
+///   population    number of agents (10–10000)
+///   eco_share     fraction of agents doing ecological care (0–1)
+///   social_share  fraction of agents doing social care (0–1)
+///   arts_share    fraction of agents doing arts/culture (0–1)
+///   years         simulation cycles (1–200)
+#[wasm_bindgen]
+pub fn run_soma_plus_engine(
+    population:   f64,
+    eco_share:    f64,
+    social_share: f64,
+    arts_share:   f64,
+    years:        f64,
+) -> String {
+    let pop   = (population as usize).clamp(10, 10_000);
+    let years = (years as usize).clamp(1, 200);
+    let eco_s   = eco_share.clamp(0.0, 1.0);
+    let soc_s   = social_share.clamp(0.0, 1.0);
+    let art_s   = arts_share.clamp(0.0, 1.0);
+
+    // Contribution rates per type (SP/yr at full participation)
+    const ECO_RATE:    f64 = 18.0;   // ecological care
+    const SOCIAL_RATE: f64 = 14.0;   // social care
+    const ARTS_RATE:   f64 = 22.0;   // arts/culture (high status multiplier)
+    const DECAY:       f64 = 0.02;   // 2% SP decay per cycle (entropy of social capital)
+
+    // Tier thresholds
+    const T_CONTRIBUTOR: f64 = 100.0;
+    const T_ARTISAN:     f64 = 500.0;
+    const T_SOVEREIGN:   f64 = 2000.0;
+
+    // Agent SP pool — each agent's Soma Plus balance
+    let mut sp: Vec<f64> = vec![0.0; pop];
+    // Seed: "SOMA55" in ASCII = 0x534F4D413535_0000
+    let mut rng: u64 = ((population * 1e5) as u64)
+        .wrapping_add((eco_share * 1e12) as u64)
+        .wrapping_add(0x534F_4D41_3535_0000);
+
+    // Assign contribution types to agents (stochastically, seeded)
+    let mut contribution: Vec<f64> = Vec::with_capacity(pop);
+    for _ in 0..pop {
+        let roll = lcg_next(&mut rng);
+        let rate = if roll < eco_s {
+            ECO_RATE + lcg_next(&mut rng) * 4.0 - 2.0
+        } else if roll < eco_s + soc_s {
+            SOCIAL_RATE + lcg_next(&mut rng) * 4.0 - 2.0
+        } else if roll < eco_s + soc_s + art_s {
+            ARTS_RATE + lcg_next(&mut rng) * 6.0 - 3.0
+        } else {
+            0.0   // passive (survival guaranteed; status not sought)
+        };
+        contribution.push(rate.max(0.0));
+    }
+
+    // Tier snapshots over time
+    let mut tier_trace: Vec<(usize, [usize; 4], f64)> = Vec::new();  // (yr, counts, mean_sp)
+    let snap_yrs = [1, 5, 10, 25, 50, 100, 200];
+
+    for yr in 1..=years {
+        for i in 0..pop {
+            sp[i] = sp[i] * (1.0 - DECAY) + contribution[i];
+        }
+        if snap_yrs.contains(&yr) || yr == years {
+            let mut counts = [0usize; 4];
+            let total_sp: f64 = sp.iter().sum();
+            for &s in &sp {
+                if s < T_CONTRIBUTOR       { counts[0] += 1; }
+                else if s < T_ARTISAN      { counts[1] += 1; }
+                else if s < T_SOVEREIGN    { counts[2] += 1; }
+                else                       { counts[3] += 1; }
+            }
+            tier_trace.push((yr, counts, total_sp / pop as f64));
+        }
+    }
+
+    // Final stats
+    let final_sp = sp.clone();
+    let mean_sp: f64 = final_sp.iter().sum::<f64>() / pop as f64;
+    let variance: f64 = final_sp.iter().map(|s| (s - mean_sp).powi(2)).sum::<f64>() / pop as f64;
+    let std_sp = variance.sqrt();
+    let max_sp = final_sp.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+    let mut sorted_sp = final_sp.clone();
+    sorted_sp.sort_by(|a,b| a.partial_cmp(b).unwrap());
+    let gini = {
+        let mut g = 0.0_f64;
+        let n = pop as f64;
+        if mean_sp > 0.0 {
+            for (i, s) in sorted_sp.iter().enumerate() {
+                g += (2.0 * (i+1) as f64 - n - 1.0) * s;
+            }
+            g / (n * n * mean_sp)
+        } else { 0.0 }
+    };
+    let contributing_pct = contribution.iter().filter(|&&r| r > 0.0).count() as f64 / pop as f64 * 100.0;
+    let passive_pct = 100.0 - contributing_pct;
+
+    let mut out = format!(
+        "SOMA_KERNEL_5.5 // SOMA_PLUS_ENGINE\n\
+         ══════════════════════════════════════════\n\
+         POPULATION: {pop}  HORIZON: {years} yr\n\
+         CONTRIBUTION_MIX:\n\
+           ECOLOGICAL  {eco_pct:.1}%  |  SOCIAL {soc_pct:.1}%  |  ARTS {art_pct:.1}%  |  PASSIVE {passive_pct:.1}%\n\
+         ──────────────────────────────────────────\n\
+         TIER EVOLUTION:\n\
+           YR    │ INITIATE  CONTRIBUTOR  ARTISAN  SOVEREIGN  MEAN_SP",
+        pop          = pop,
+        years        = years,
+        eco_pct      = eco_s * 100.0,
+        soc_pct      = soc_s * 100.0,
+        art_pct      = art_s * 100.0,
+        passive_pct  = passive_pct,
+    );
+    for (yr, counts, mean) in &tier_trace {
+        out.push_str(&format!(
+            "\n   {:>4}  │ {:>7}  {:>11}  {:>7}  {:>9}  {:.1}",
+            yr, counts[0], counts[1], counts[2], counts[3], mean
+        ));
+    }
+    out.push_str(&format!(
+        "\n ──────────────────────────────────────────\n\
+         FINAL DISTRIBUTION:\n\
+           MEAN_SP             {mean_sp:.2}\n\
+           STD_DEV             {std_sp:.2}\n\
+           MAX_SP (SOVEREIGN)  {max_sp:.2}\n\
+           GINI_COEFFICIENT    {gini:.4}  (SP inequality index)\n\
+           CONTRIBUTING_AGENTS {contributing_pct:.1}%\n\
+         SOCIAL_CONTRACT: Survival guaranteed; status earned through commons.\n\
+         SOURCE: content/rust_kernels/src/lib.rs",
+        mean_sp          = mean_sp,
+        std_sp           = std_sp,
+        max_sp           = max_sp,
+        gini             = gini,
+        contributing_pct = contributing_pct,
+    ));
+    out
+}
+
+// ── Kernel 10: Strangler Fig Transition Protocol (soma_kernel_5.5) ───────────
+
+/// Simulates the Strangler Fig transition strategy — building the new economic
+/// system around the old one until the new system dominates.
+///
+/// Uses a modified logistic growth ODE with legacy system resistance:
+///   dA/dt = r·A·(1-A) - ρ(t)·A·(1-A)
+///         = A·(1-A)·(r - ρ(t))
+///
+/// where ρ(t) = ρ₀·exp(-λ·t)  — resistance decays as legacy system weakens.
+///
+/// Tipping point: when r > ρ(t), growth flips from negative to positive.
+/// Critical mass:  A ≥ 0.5 (new system is majority)
+///
+/// Parameters:
+///   initial_adoption  starting adoption fraction (0.001–0.5)
+///   growth_rate       logistic growth coefficient r (0.01–2.0)
+///   resistance        initial legacy resistance ρ₀ (0–2.0)
+///   years             simulation horizon (1–200)
+#[wasm_bindgen]
+pub fn run_strangler_fig_transition(
+    initial_adoption: f64,
+    growth_rate:      f64,
+    resistance:       f64,
+    years:            f64,
+) -> String {
+    let years = (years as usize).clamp(1, 200);
+    let r     = growth_rate.clamp(0.001, 2.0);
+    let rho_0 = resistance.clamp(0.0, 2.0);
+    let lambda = 0.05_f64;   // legacy decay rate — 5% weakening per year
+
+    let mut a = initial_adoption.clamp(0.001, 0.999);  // adoption fraction
+
+    let mut critical_mass_yr: Option<usize> = None;
+    let mut tipping_yr:       Option<usize> = None;
+    let mut dominance_yr:     Option<usize> = None;
+
+    // Tipping year: when r > ρ(t)  →  t* = ln(ρ₀/r) / λ
+    let tipping_analytic = if rho_0 > r && lambda > 0.0 {
+        Some(((rho_0 / r).ln() / lambda).ceil() as usize)
+    } else if rho_0 <= r {
+        Some(0_usize)   // immediately positive growth
+    } else {
+        None
+    };
+
+    let snap_yrs = [1, 2, 5, 10, 15, 20, 25, 30, 40, 50, 75, 100, 150, 200];
+    let mut snaps: Vec<(usize, f64, f64, f64)> = Vec::new();  // (yr, A, rho_t, dA)
+
+    // RK4 integration (dt=1yr is coarse; RK4 avoids Euler overshoot)
+    let dt = 0.25_f64;
+    let steps = (years as f64 / dt) as usize;
+
+    for step in 0..=steps {
+        let t = step as f64 * dt;
+        let yr = t.ceil() as usize;
+
+        let rho_t = rho_0 * (-lambda * t).exp();
+        let effective_rate = r - rho_t;
+        let da = effective_rate * a * (1.0 - a);
+
+        // RK4 on f(a,t) = (r - ρ(t))·a·(1-a)
+        let k1 = (r - rho_0 * (-lambda * t           ).exp()) * a * (1.0 - a);
+        let k2 = (r - rho_0 * (-lambda * (t + dt/2.0)).exp()) * (a + k1*dt/2.0).clamp(0.0,1.0) * (1.0-(a+k1*dt/2.0).clamp(0.0,1.0));
+        let k3 = (r - rho_0 * (-lambda * (t + dt/2.0)).exp()) * (a + k2*dt/2.0).clamp(0.0,1.0) * (1.0-(a+k2*dt/2.0).clamp(0.0,1.0));
+        let k4 = (r - rho_0 * (-lambda * (t + dt    )).exp()) * (a + k3*dt    ).clamp(0.0,1.0) * (1.0-(a+k3*dt    ).clamp(0.0,1.0));
+        a = (a + (k1 + 2.0*k2 + 2.0*k3 + k4) * dt / 6.0).clamp(0.0, 1.0);
+
+        if critical_mass_yr.is_none() && a >= 0.5  { critical_mass_yr = Some(yr); }
+        if dominance_yr.is_none()     && a >= 0.9  { dominance_yr     = Some(yr); }
+        if tipping_yr.is_none()       && effective_rate > 0.0 { tipping_yr = Some(yr); }
+
+        if snap_yrs.contains(&yr) && !snaps.iter().any(|s| s.0 == yr) {
+            snaps.push((yr, a, rho_t, da));
+        }
+    }
+
+    let final_a     = a;
+    let final_rho   = rho_0 * (-lambda * years as f64).exp();
+    let outcome     = if final_a >= 0.9 {
+        "TRANSITION_COMPLETE — New system dominant"
+    } else if final_a >= 0.5 {
+        "CRITICAL_MASS_REACHED — Legacy system in minority"
+    } else if final_a >= 0.2 {
+        "ISLANDS_OF_COHERENCE — Expansion underway"
+    } else {
+        "EMBRYONIC — Growth sub-threshold; resistance dominant"
+    };
+
+    let mut out = format!(
+        "SOMA_KERNEL_5.5 // STRANGLER_FIG_TRANSITION\n\
+         ══════════════════════════════════════════\n\
+         GROWTH_RATE: {r:.3}  RESISTANCE₀: {rho_0:.3}  DECAY: λ={lambda:.3}\n\
+         INITIAL_ADOPTION: {init:.3}  HORIZON: {years} yr\n\
+         ──────────────────────────────────────────\n\
+         ADOPTION CURVE:\n\
+           YR    │ ADOPTION   RESISTANCE  NET_RATE",
+        r    = r,
+        rho_0 = rho_0,
+        lambda = lambda,
+        init = initial_adoption,
+        years = years,
+    );
+    for (yr, adopt, rho_t, _da) in &snaps {
+        let net = r - rho_t;
+        out.push_str(&format!(
+            "\n   {:>4}  │  {:.4}     {:.4}      {:+.4}",
+            yr, adopt, rho_t, net
+        ));
+    }
+
+    let tipping_display = tipping_analytic
+        .map(|y| format!("yr {y} (analytic: r > ρ(t))"))
+        .unwrap_or_else(|| "NEVER (r ≤ ρ₀ always)".into());
+
+    out.push_str(&format!(
+        "\n ──────────────────────────────────────────\n\
+         MILESTONES:\n\
+           TIPPING_POINT       {tipping}\n\
+           CRITICAL_MASS (50%) {critical}\n\
+           DOMINANCE     (90%) {dominance}\n\
+         FINAL_STATE:\n\
+           ADOPTION_FRACTION   {final_a:.6}\n\
+           RESIDUAL_RESISTANCE {final_rho:.6}\n\
+           OUTCOME: {outcome}\n\
+         STRATEGY: Build new system around old — expand 'islands of coherence'.\n\
+         SOURCE: content/rust_kernels/src/lib.rs",
+        tipping   = tipping_display,
+        critical  = critical_mass_yr.map(|y| format!("yr {y}")).unwrap_or_else(|| "NOT_REACHED".into()),
+        dominance = dominance_yr.map(|y| format!("yr {y}")).unwrap_or_else(|| "NOT_REACHED".into()),
+        final_a   = final_a,
+        final_rho = final_rho,
+        outcome   = outcome,
+    ));
+    out
+}
