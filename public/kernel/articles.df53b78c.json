@@ -524,6 +524,25 @@
     "len": "391 WDS"
   },
   {
+    "id": "BBK-1.0",
+    "type": "kernel_doc",
+    "date": "2026-03-10",
+    "lastModified": "2026-03-10",
+    "title": "ᛟ THE BELLARD-BAUDRILLARD KERNEL · PHONEMIC DRIFT",
+    "subtitle": "PHONEMIC DRIFT · THE MEMORY HASH COLLISION",
+    "status": "ACTIVE",
+    "readTime": "6 min read",
+    "tags": [
+      "kernel",
+      "memory-architecture",
+      "phonemics",
+      "epistemology",
+      "simulacra",
+      "cognition"
+    ],
+    "len": "1172 WDS"
+  },
+  {
     "id": "BRIDGE-KERNEL-1.0",
     "type": "kernel_doc",
     "date": "2026-03-06",
