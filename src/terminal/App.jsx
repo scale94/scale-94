@@ -967,7 +967,7 @@ const App = () => {
        * Beam (z-50): 3px line travels with the mask edge via the same translateY
        *   animation. Opacity fades in at 5% and out at 95% to avoid hard edges.
        *
-       * Both use transform: translateZ(0) + willChange: transform for GPU promotion.
+       * Both use translate3d(0,0,0) + willChange + backfaceVisibility for GPU subpixel locking.
        */}
       {!bootSequence && (
         <>
@@ -975,9 +975,12 @@ const App = () => {
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
             backgroundColor: '#000',
             zIndex: 49,
-            animation: 'global-reveal-mask 0.9s linear forwards',
-            transform: 'translateZ(0)',
+            animation: 'global-reveal-mask 1.2s linear forwards',
+            transform: 'translate3d(0,0,0)',
             willChange: 'transform',
+            backfaceVisibility: 'hidden',
+            WebkitBackfaceVisibility: 'hidden',
+            perspective: '1000px',
             pointerEvents: 'none',
           }} />
           <div style={{
@@ -985,9 +988,12 @@ const App = () => {
             zIndex: 50, pointerEvents: 'none',
             background: 'linear-gradient(transparent, rgba(6,182,212,0.9) 50%, transparent)',
             boxShadow: '0 0 12px rgba(6,182,212,0.6), 0 0 28px rgba(6,182,212,0.2)',
-            animation: 'global-beam 0.9s linear forwards',
-            transform: 'translateZ(0)',
+            animation: 'global-beam 1.2s linear forwards',
+            transform: 'translate3d(0,0,0)',
             willChange: 'transform',
+            backfaceVisibility: 'hidden',
+            WebkitBackfaceVisibility: 'hidden',
+            perspective: '1000px',
           }} />
         </>
       )}

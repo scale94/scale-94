@@ -128,21 +128,21 @@ html, body {
 /* ── CRT terminal draw animations ───────────────────────────────────────────
    Unified GPU-accelerated reveal: a solid black mask slides down off the
    screen, revealing the UI behind it. The beam travels at the mask edge.
-   Both use translateY (GPU compositor) — no clip-path, no top/% positioning.
+   Both use translate3d (GPU compositor, subpixel-locked) — no clip-path, no top/vh positioning.
    Duration is 0.9s linear to match the first bs-scan pass.  */
 
 /* Black mask slides down, revealing the UI underneath */
 @keyframes global-reveal-mask {
-  from { transform: translateY(0); }
-  to   { transform: translateY(100vh); }
+  0%   { transform: translate3d(0, 0%, 0); }
+  100% { transform: translate3d(0, 100%, 0); }
 }
 
 /* Render beam travels with the mask edge */
 @keyframes global-beam {
-  0%   { transform: translateY(0vh);   opacity: 0; }
+  0%   { transform: translate3d(0, 0%, 0);   opacity: 0; }
   5%   { opacity: 1; }
   95%  { opacity: 1; }
-  100% { transform: translateY(100vh); opacity: 0; }
+  100% { transform: translate3d(0, 100%, 0); opacity: 0; }
 }
 
 /* Boot card fade + gradient shimmer utilities removed:
