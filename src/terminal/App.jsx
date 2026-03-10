@@ -893,7 +893,7 @@ const App = () => {
         transform: 'translateZ(0)',
       }} />
       <div style={{
-        position: 'fixed', left: 0, right: 0, height: '3px',
+        position: 'fixed', top: 0, left: 0, right: 0, height: '3px',
         pointerEvents: 'none', userSelect: 'none', zIndex: 101,
         background: 'linear-gradient(transparent, rgba(6,182,212,0.5), transparent)',
         animation: 'bs-scan 0.9s linear 1 forwards',

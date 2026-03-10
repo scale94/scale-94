@@ -96,9 +96,9 @@ html, body {
 
 /* CRT single-pass screen-draw beam — sweeps once, fades out at the bottom */
 @keyframes bs-scan {
-  0%   { top: -4%;   opacity: 1; }
+  0%   { transform: translateY(-4vh);   opacity: 1; }
   85%  { opacity: 1; }
-  100% { top: 104%;  opacity: 0; }
+  100% { transform: translateY(104vh);  opacity: 0; }
 }
 
 /* Opacity 1 for first 2s, clean fade to 0 over the final 1s */
