@@ -885,15 +885,12 @@ const App = () => {
        * z-[101]: above BootSequence (z-100) and the boot overlay (z-97).
        * pointer-events: none on both divs — zero interaction impact.
        */}
-      <div style={{
+      <div className="scanline-overlay" style={{
         position: 'fixed', top: 0, bottom: 0, left: 0, right: 0,
-        pointerEvents: 'none', userSelect: 'none', zIndex: 101,
+        zIndex: 101,
         backgroundImage: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.18) 0px, rgba(0,0,0,0.18) 1px, transparent 1px, transparent 2px)',
         transition: 'none',
         transform: 'translateZ(0)',
-        willChange: 'transform',
-        backfaceVisibility: 'hidden',
-        WebkitBackfaceVisibility: 'hidden',
       }} />
       <div style={{
         position: 'fixed', left: 0, right: 0, height: '3px',

@@ -6,6 +6,9 @@
 html, body {
   overflow-x: hidden;
   max-width: 100vw;
+  /* Force grayscale smoothing globally to prevent subpixel tearing under scanlines */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Custom Scrollbar for that Cyberpunk feel */
@@ -144,3 +147,41 @@ html, body {
    - Boot fade is now a pure JS rAF loop (opacity via el.style, no CSS needed)
    - Gradient shimmer is now animate-shimmer-fast / animate-shimmer-slow
      via tailwind.config.js theme.extend — guaranteed in production bundle */
+
+/* ── Scanline overlay base ───────────────────────────────────────────────────
+   mix-blend-mode: overlay blends the scanlines with content instead of sitting
+   on top as a flat dark mask — text stays crisp, effect reads as texture.
+   will-change is intentionally omitted: it promotes to an isolated compositor
+   layer which prevents mix-blend-mode from seeing the content beneath it.      */
+.scanline-overlay {
+  pointer-events: none;
+  user-select: none;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  mix-blend-mode: overlay;
+}
+
+/* ── Mobile scanline tuning ──────────────────────────────────────────────────
+   High-DPI mobile screens (2×–3× device pixel ratio) render 1px CSS lines at
+   sub-pixel widths, causing the repeating-linear-gradient to beat against the
+   font renderer and produce jagged/blurry text. On these screens we:
+     • Widen the scanline pitch to 3px (line + gap) to avoid sub-pixel beating
+     • Drop opacity from 0.18 → 0.10 so the overlay is lighter on OLED panels
+     • Apply grayscale font smoothing (subpixel rendering breaks under overlays)
+   Desktop (1080p/4K) uses system-default smoothing — crisp at native DPI.    */
+@media (max-width: 768px) and (-webkit-min-device-pixel-ratio: 2),
+       (max-width: 768px) and (min-resolution: 192dpi) {
+  .scanline-overlay {
+    background-image: repeating-linear-gradient(
+      0deg,
+      rgba(0,0,0,0.10) 0px,
+      rgba(0,0,0,0.10) 1px,
+      transparent 1px,
+      transparent 3px
+    ) !important;
+  }
+  body, .min-h-screen {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
