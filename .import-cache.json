@@ -193,11 +193,15 @@
   "legislation/LAW-US-2026-CA-947.md": "89d1c8773b9d912ea6dd39a71a05ed309759dd69",
   "content/soma_kernel/gaia_scale_kernel-5.5.5.md": "d6535716869b90d9eaef0e71aee64e260228de43",
   "content/soma_kernel/Untitled.md": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
-  "content/soma_kernel/CEEI-ALLOCATION-ENGINE.md": "52b4bf5a65ff5f1afa3965b247942320059d9415",
-  "content/soma_kernel/DALY-THERMO-SIMULATION.md": "a23f5e13bbe32c554356ac89e318eb78d0c61e38",
+  "content/soma_kernel/CEEI-ALLOCATION-ENGINE.md": "4f6dc856d636b9d959bc1c04eb37c93119fc3f18",
+  "content/soma_kernel/DALY-THERMO-SIMULATION.md": "11f3094b8321577349b92839f4f5b65ea393a07a",
   "content/soma_kernel/RUN-COMMAND-MANUAL.md": "e73b616553fc76c625c950e151926ef59e4454ec",
-  "content/soma_kernel/SOMA-PLUS-ENGINE.md": "020e203e7dbbc917a8000fe5a0a379b12972d405",
-  "content/soma_kernel/STRANGLER-FIG-PROTOCOL.md": "c95a59d763948f6a2bf08cabeae38ab53f58d47f",
+  "content/soma_kernel/SOMA-PLUS-ENGINE.md": "260d9429d018b1b822f2016adedf70202af67471",
+  "content/soma_kernel/STRANGLER-FIG-PROTOCOL.md": "40b0616d1be47a633f16e947dfe68ff30215bf06",
   "content/soma_kernel/surveillance tracker.md": "d4ad2190ce800e3bec977158ac5e510b5d45a6f9",
-  "content/soma_kernel/2026-03-10.md": "da39a3ee5e6b4b0d3255bfef95601890afd80709"
+  "content/soma_kernel/2026-03-10.md": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+  "content/soma_kernel/COLEMAK-DH KERNEL-V11.1.1.1.1.1.1.1.1.1.2.md": "f4708c4cd9645623444f95b247f6d85b452dbde6",
+  "content/soma_kernel/COLEMAK-DH_KERNEL-V11_1_2.md": "ce4ffb565d27937fb6ef7cc75eb6c82fd4b04132",
+  "content/soma_kernel/COLEMAK-DH_KERNEL-V11_2_0.md": "43ac209af3bd74007c10a195b7907c8406be2e95",
+  "content/soma_kernel/SCALING-CUBE-PROTOCOL.md": "c4fa49b408d0785f0d6dd7ad114910e89b04f968"
 }

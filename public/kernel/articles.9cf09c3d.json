@@ -144,6 +144,24 @@
     "len": "1397 WDS"
   },
   {
+    "id": "CD-11.1.1.1.1.1.1.1.1.1.2",
+    "type": "kernel_doc",
+    "date": "2026-03-10",
+    "lastModified": "2026-03-10",
+    "title": "ᛟ THE COLEMAK-DH KERNEL: KINETIC METALLURGY",
+    "subtitle": "Ⅰ. THE THERMODYNAMICS OF THE MATRIX (§1.0)",
+    "status": "ACTIVE",
+    "readTime": "2 min read",
+    "tags": [
+      "COLEMAK-DH",
+      "KERNEL",
+      "KINETIC",
+      "METALLURGY",
+      "THERMODYNAMICS"
+    ],
+    "len": "392 WDS"
+  },
+  {
     "id": "FISH-SCALE-KERNEL11.1.1",
     "type": "kernel_doc",
     "date": "2026-03-07",
@@ -506,18 +524,6 @@
     "len": "391 WDS"
   },
   {
-    "id": "21-1.0",
-    "type": "kernel_doc",
-    "date": "2026-03-10",
-    "lastModified": "2026-03-10",
-    "title": "2026 03 10",
-    "subtitle": "",
-    "status": "ACTIVE",
-    "readTime": "1 min read",
-    "tags": [],
-    "len": "0 WDS"
-  },
-  {
     "id": "BRIDGE-KERNEL-1.0",
     "type": "kernel_doc",
     "date": "2026-03-06",
@@ -552,6 +558,24 @@
       "Loop"
     ],
     "len": "449 WDS"
+  },
+  {
+    "id": "CDK-1.0",
+    "type": "kernel_doc",
+    "date": "2026-03-10",
+    "lastModified": "2026-03-10",
+    "title": "ᛟ COLEMAK-DH KERNEL",
+    "subtitle": "KINETIC METALLURGY",
+    "status": "ACTIVE",
+    "readTime": "2 min read",
+    "tags": [
+      "COLEMAK-DH",
+      "KINETIC",
+      "METALLURGY",
+      "THERMODYNAMICS",
+      "MATRIX"
+    ],
+    "len": "352 WDS"
   },
   {
     "id": "COMPANION-KERNEL-1.0",
@@ -749,13 +773,31 @@
     "status": "ACTIVE",
     "readTime": "4 min read",
     "tags": [
-      "A-CEEI",
-      "ALLOCATION",
-      "ENGINE",
       "Price",
-      "SYSTEM"
+      "SYSTEM",
+      "OVERVIEW",
+      "MECHANISM",
+      "Setup"
     ],
-    "len": "712 WDS"
+    "len": "709 WDS"
+  },
+  {
+    "id": "CDK-1.0-1",
+    "type": "kernel_doc",
+    "date": "2026-03-10",
+    "lastModified": "2026-03-10",
+    "title": "ᛟ COLEMAK-DH KERNEL · KINETIC METALLURGY",
+    "subtitle": "KINETIC METALLURGY",
+    "status": "ACTIVE",
+    "readTime": "5 min read",
+    "tags": [
+      "kernel",
+      "input-architecture",
+      "ergonomics",
+      "kinetic-systems",
+      "SOMA"
+    ],
+    "len": "997 WDS"
   },
   {
     "id": "DALY-THERMO-SIMULATION",
@@ -767,13 +809,13 @@
     "status": "ACTIVE",
     "readTime": "3 min read",
     "tags": [
-      "DALY",
-      "THERMO",
-      "SIMULATION",
       "Hard",
-      "Constraints"
+      "Constraints",
+      "Engine",
+      "SYSTEM",
+      "OVERVIEW"
     ],
-    "len": "663 WDS"
+    "len": "660 WDS"
   },
   {
     "id": "FISH-SCALE-KERNEL",
@@ -1415,6 +1457,24 @@
     "len": "1473 WDS"
   },
   {
+    "id": "SCALING-CUBE-PROTOCOL",
+    "type": "kernel_doc",
+    "date": "2026-03-10",
+    "lastModified": "2026-03-10",
+    "title": "SCALING CUBE PROTOCOL // THE UNCUT STATE",
+    "subtitle": "Platonic Form · Entropic Stasis · The Architecture of Potential",
+    "status": "ACTIVE",
+    "readTime": "4 min",
+    "tags": [
+      "Scaling",
+      "Architecture",
+      "Thermodynamics",
+      "Digital Matter",
+      "Entropic Stasis"
+    ],
+    "len": "447 WDS"
+  },
+  {
     "id": "SHADOWSOCKS-KERNEL-∞",
     "type": "kernel_doc",
     "date": "2026-03-06",
@@ -1568,13 +1628,13 @@
     "status": "ACTIVE",
     "readTime": "4 min read",
     "tags": [
-      "SOMA",
-      "PLUS",
-      "ENGINE",
       "Status",
-      "Earned"
+      "Earned",
+      "Through",
+      "Commons",
+      "SYSTEM"
     ],
-    "len": "860 WDS"
+    "len": "857 WDS"
   },
   {
     "id": "SOMA-KERNEL-0-DAY",
@@ -1682,13 +1742,13 @@
     "status": "ACTIVE",
     "readTime": "5 min read",
     "tags": [
-      "STRANGLER",
-      "PROTOCOL",
       "Build",
       "System",
-      "Around"
+      "Around",
+      "SYSTEM",
+      "OVERVIEW"
     ],
-    "len": "958 WDS"
+    "len": "955 WDS"
   },
   {
     "id": "SURVEILLANCE-TRACKER",

@@ -1,10 +1,4 @@
 {
-  "A-CEEI": [
-    {
-      "id": "CEEI-ALLOCATION-ENGINE",
-      "title": "A-CEEI ALLOCATION ENGINE V1.0 // PREFERENCE-BASED MARKETS"
-    }
-  ],
   "ACCESS": [
     {
       "id": "SCALE-RENDER-PROMPT",
@@ -33,12 +27,6 @@
     {
       "id": "SCALE-OPTIMIZATION-KERNEL-9.4",
       "title": "SCALE OPTIMIZATION KERNEL 9.4"
-    }
-  ],
-  "ALLOCATION": [
-    {
-      "id": "CEEI-ALLOCATION-ENGINE",
-      "title": "A-CEEI ALLOCATION ENGINE V1.0 // PREFERENCE-BASED MARKETS"
     }
   ],
   "Annihilation": [
@@ -87,6 +75,10 @@
     {
       "id": "MATRIX-KERNEL-0.0.0.0",
       "title": "THE MATRIX KERNEL V2.0"
+    },
+    {
+      "id": "SCALING-CUBE-PROTOCOL",
+      "title": "SCALING CUBE PROTOCOL // THE UNCUT STATE"
     }
   ],
   "ARCHITECTURE": [
@@ -307,6 +299,16 @@
       "title": "KINETIC STATECRAFT KERNEL 1.0"
     }
   ],
+  "COLEMAK-DH": [
+    {
+      "id": "CD-11.1.1.1.1.1.1.1.1.1.2",
+      "title": "ᛟ THE COLEMAK-DH KERNEL: KINETIC METALLURGY"
+    },
+    {
+      "id": "CDK-1.0",
+      "title": "ᛟ COLEMAK-DH KERNEL"
+    }
+  ],
   "COMMAND": [
     {
       "id": "BRIDGE-KERNEL-1.0",
@@ -315,6 +317,12 @@
     {
       "id": "RUN-COMMAND-MANUAL",
       "title": "RUN COMMAND MANUAL V1.0 // WASM KERNEL INTERFACE"
+    }
+  ],
+  "Commons": [
+    {
+      "id": "SOMA-PLUS-ENGINE",
+      "title": "SOMA PLUS ENGINE V1.0 // SOCIAL CAPITAL ACCUMULATION"
     }
   ],
   "COMPANION": [
@@ -423,12 +431,6 @@
       "title": "SOMA KERNEL 5.0"
     }
   ],
-  "DALY": [
-    {
-      "id": "DALY-THERMO-SIMULATION",
-      "title": "DALY THERMO SIMULATION V1.0 // THERMODYNAMIC GOVERNOR"
-    }
-  ],
   "Dark": [
     {
       "id": "KERNEL-INTEGRATION-AND-IDEOLOGICAL-SYNTHESIS",
@@ -499,6 +501,12 @@
       "title": "FISH SCALE KERNEL · 11.6.0 · QUANTUM EXPANSION"
     }
   ],
+  "Digital Matter": [
+    {
+      "id": "SCALING-CUBE-PROTOCOL",
+      "title": "SCALING CUBE PROTOCOL // THE UNCUT STATE"
+    }
+  ],
   "Direct": [
     {
       "id": "RUN-COMMAND-MANUAL",
@@ -563,24 +571,34 @@
       "title": "💀 SCALE94 · KERNEL ENCYCLOPEDIA"
     }
   ],
-  "ENGINE": [
+  "Engine": [
     {
-      "id": "CEEI-ALLOCATION-ENGINE",
-      "title": "A-CEEI ALLOCATION ENGINE V1.0 // PREFERENCE-BASED MARKETS"
-    },
+      "id": "DALY-THERMO-SIMULATION",
+      "title": "DALY THERMO SIMULATION V1.0 // THERMODYNAMIC GOVERNOR"
+    }
+  ],
+  "ENGINE": [
     {
       "id": "GLITCH-SCALE-KERNEL-CS3",
       "title": "[KERNEL: POLARITY_PRIME // THE AXIOMATIC PAIRS]"
-    },
-    {
-      "id": "SOMA-PLUS-ENGINE",
-      "title": "SOMA PLUS ENGINE V1.0 // SOCIAL CAPITAL ACCUMULATION"
     }
   ],
   "Entity": [
     {
       "id": "MOZART-MEMORANDUM-KERNEL-2.2",
       "title": "MOZART MEMORANDUM KERNEL 2.2"
+    }
+  ],
+  "Entropic Stasis": [
+    {
+      "id": "SCALING-CUBE-PROTOCOL",
+      "title": "SCALING CUBE PROTOCOL // THE UNCUT STATE"
+    }
+  ],
+  "ergonomics": [
+    {
+      "id": "CDK-1.0-1",
+      "title": "ᛟ COLEMAK-DH KERNEL · KINETIC METALLURGY"
     }
   ],
   "EU": [
@@ -851,6 +869,12 @@
       "title": "PROTOCOL_94 // MYCELIAL_DEFENSE_KERNEL (V.1.0)"
     }
   ],
+  "input-architecture": [
+    {
+      "id": "CDK-1.0-1",
+      "title": "ᛟ COLEMAK-DH KERNEL · KINETIC METALLURGY"
+    }
+  ],
   "INSTRUCTION": [
     {
       "id": "MOZART-MEMORANDUM-KERNEL2.0",
@@ -907,7 +931,17 @@
       "title": "GREENLAND KERNEL // THE PIRARUCU PROTOCOL"
     }
   ],
+  "kernel": [
+    {
+      "id": "CDK-1.0-1",
+      "title": "ᛟ COLEMAK-DH KERNEL · KINETIC METALLURGY"
+    }
+  ],
   "KERNEL": [
+    {
+      "id": "CD-11.1.1.1.1.1.1.1.1.1.2",
+      "title": "ᛟ THE COLEMAK-DH KERNEL: KINETIC METALLURGY"
+    },
     {
       "id": "GSK-5.5.5",
       "title": "ᛟ THE GAIA-SCALE KERNEL: SOVEREIGN RECONSTRUCTION"
@@ -933,6 +967,22 @@
     {
       "id": "KERNEL-FOR-SUSTAINABLE-FUTURE-DEFENSE",
       "title": "THE LEVIATHAN AND THE OUROBOROS: A KERNEL-LEVEL DEFENSE ARCHITECTURE FOR THE BIO-INDUSTRIAL AGE"
+    }
+  ],
+  "KINETIC": [
+    {
+      "id": "CD-11.1.1.1.1.1.1.1.1.1.2",
+      "title": "ᛟ THE COLEMAK-DH KERNEL: KINETIC METALLURGY"
+    },
+    {
+      "id": "CDK-1.0",
+      "title": "ᛟ COLEMAK-DH KERNEL"
+    }
+  ],
+  "kinetic-systems": [
+    {
+      "id": "CDK-1.0-1",
+      "title": "ᛟ COLEMAK-DH KERNEL · KINETIC METALLURGY"
     }
   ],
   "KINETICS": [
@@ -1039,8 +1089,28 @@
   ],
   "MATRIX": [
     {
+      "id": "CDK-1.0",
+      "title": "ᛟ COLEMAK-DH KERNEL"
+    },
+    {
       "id": "MATRIX-KERNEL-0.0.0.0",
       "title": "THE MATRIX KERNEL V2.0"
+    }
+  ],
+  "MECHANISM": [
+    {
+      "id": "CEEI-ALLOCATION-ENGINE",
+      "title": "A-CEEI ALLOCATION ENGINE V1.0 // PREFERENCE-BASED MARKETS"
+    }
+  ],
+  "METALLURGY": [
+    {
+      "id": "CD-11.1.1.1.1.1.1.1.1.1.2",
+      "title": "ᛟ THE COLEMAK-DH KERNEL: KINETIC METALLURGY"
+    },
+    {
+      "id": "CDK-1.0",
+      "title": "ᛟ COLEMAK-DH KERNEL"
     }
   ],
   "MIGRATION": [
@@ -1197,6 +1267,20 @@
       "title": "THE LEVIATHAN AND THE OUROBOROS: A KERNEL-LEVEL DEFENSE ARCHITECTURE FOR THE BIO-INDUSTRIAL AGE"
     }
   ],
+  "OVERVIEW": [
+    {
+      "id": "CEEI-ALLOCATION-ENGINE",
+      "title": "A-CEEI ALLOCATION ENGINE V1.0 // PREFERENCE-BASED MARKETS"
+    },
+    {
+      "id": "DALY-THERMO-SIMULATION",
+      "title": "DALY THERMO SIMULATION V1.0 // THERMODYNAMIC GOVERNOR"
+    },
+    {
+      "id": "STRANGLER-FIG-PROTOCOL",
+      "title": "STRANGLER FIG PROTOCOL V1.0 // TRANSITION DYNAMICS"
+    }
+  ],
   "PAIRS": [
     {
       "id": "GLITCH-SCALE-KERNEL-CS3",
@@ -1265,12 +1349,6 @@
     {
       "id": "GDPDW-KERNEL-5.5.5.5.5",
       "title": "GREENLAND KERNEL // THE PIRARUCU PROTOCOL"
-    }
-  ],
-  "PLUS": [
-    {
-      "id": "SOMA-PLUS-ENGINE",
-      "title": "SOMA PLUS ENGINE V1.0 // SOCIAL CAPITAL ACCUMULATION"
     }
   ],
   "POLARITY": [
@@ -1355,10 +1433,6 @@
     {
       "id": "SOMA-KERNEL-12-IRONCLAD",
       "title": "PROTOCOL: SYNTHESIS_V2"
-    },
-    {
-      "id": "STRANGLER-FIG-PROTOCOL",
-      "title": "STRANGLER FIG PROTOCOL V1.0 // TRANSITION DYNAMICS"
     }
   ],
   "PURIFICATION": [
@@ -1513,6 +1587,12 @@
       "title": "💀 SCALE94 · KERNEL ENCYCLOPEDIA"
     }
   ],
+  "Scaling": [
+    {
+      "id": "SCALING-CUBE-PROTOCOL",
+      "title": "SCALING CUBE PROTOCOL // THE UNCUT STATE"
+    }
+  ],
   "Scarcity": [
     {
       "id": "THE-CIGAR-HEIST",
@@ -1553,6 +1633,12 @@
       "title": "💾 THE BRIDGE KERNEL // SESSION EXTRACTOR 1.0"
     }
   ],
+  "Setup": [
+    {
+      "id": "CEEI-ALLOCATION-ENGINE",
+      "title": "A-CEEI ALLOCATION ENGINE V1.0 // PREFERENCE-BASED MARKETS"
+    }
+  ],
   "SEVERANCE": [
     {
       "id": "CHRO-1.0",
@@ -1591,12 +1677,6 @@
       "title": "TECTONIC DISCHARGE KERNEL"
     }
   ],
-  "SIMULATION": [
-    {
-      "id": "DALY-THERMO-SIMULATION",
-      "title": "DALY THERMO SIMULATION V1.0 // THERMODYNAMIC GOVERNOR"
-    }
-  ],
   "SOCIO-PHYSICS": [
     {
       "id": "BOSONIC-KERNEL-2.0",
@@ -1621,16 +1701,16 @@
       "title": "SOMA KERNEL 5.0"
     },
     {
+      "id": "CDK-1.0-1",
+      "title": "ᛟ COLEMAK-DH KERNEL · KINETIC METALLURGY"
+    },
+    {
       "id": "SOMA-16.10-GF-KERNEL",
       "title": "SOMA 16.10 // THE GF BUILD"
     },
     {
       "id": "SOMA-INTEGRATION-KERNEL-V1",
       "title": "SOMA_INTEGRATION_KERNEL_V1.0"
-    },
-    {
-      "id": "SOMA-PLUS-ENGINE",
-      "title": "SOMA PLUS ENGINE V1.0 // SOCIAL CAPITAL ACCUMULATION"
     }
   ],
   "SORBE": [
@@ -1735,12 +1815,6 @@
     {
       "id": "SORBE-THERMODYNAMIC-BLOOM-V1",
       "title": "🌿 THE SORBE BLOOM // THERMODYNAMIC SYNTHESIS V1.0"
-    }
-  ],
-  "STRANGLER": [
-    {
-      "id": "STRANGLER-FIG-PROTOCOL",
-      "title": "STRANGLER FIG PROTOCOL V1.0 // TRANSITION DYNAMICS"
     }
   ],
   "Strategy": [
@@ -1851,8 +1925,20 @@
       "title": "A-CEEI ALLOCATION ENGINE V1.0 // PREFERENCE-BASED MARKETS"
     },
     {
+      "id": "DALY-THERMO-SIMULATION",
+      "title": "DALY THERMO SIMULATION V1.0 // THERMODYNAMIC GOVERNOR"
+    },
+    {
       "id": "HIGH-TOWER-KERNEL",
       "title": "🏛️ SYSTEM_MIGRATION_LOG: KERNEL_EXPORT_FINAL"
+    },
+    {
+      "id": "SOMA-PLUS-ENGINE",
+      "title": "SOMA PLUS ENGINE V1.0 // SOCIAL CAPITAL ACCUMULATION"
+    },
+    {
+      "id": "STRANGLER-FIG-PROTOCOL",
+      "title": "STRANGLER FIG PROTOCOL V1.0 // TRANSITION DYNAMICS"
     }
   ],
   "Systemic": [
@@ -1927,10 +2013,20 @@
       "title": "FISH SCALE KERNEL 11.4.0 SCALAR SOVEREIGNTY"
     }
   ],
-  "THERMO": [
+  "Thermodynamics": [
     {
-      "id": "DALY-THERMO-SIMULATION",
-      "title": "DALY THERMO SIMULATION V1.0 // THERMODYNAMIC GOVERNOR"
+      "id": "SCALING-CUBE-PROTOCOL",
+      "title": "SCALING CUBE PROTOCOL // THE UNCUT STATE"
+    }
+  ],
+  "THERMODYNAMICS": [
+    {
+      "id": "CD-11.1.1.1.1.1.1.1.1.1.2",
+      "title": "ᛟ THE COLEMAK-DH KERNEL: KINETIC METALLURGY"
+    },
+    {
+      "id": "CDK-1.0",
+      "title": "ᛟ COLEMAK-DH KERNEL"
     }
   ],
   "Thermosphere": [
@@ -1953,6 +2049,12 @@
     {
       "id": "NECROMANTIC-EMPEROR-KERNEL-V1-0",
       "title": "NECROMANTIC EMPEROR KERNEL V1 0"
+    }
+  ],
+  "Through": [
+    {
+      "id": "SOMA-PLUS-ENGINE",
+      "title": "SOMA PLUS ENGINE V1.0 // SOCIAL CAPITAL ACCUMULATION"
     }
   ],
   "TOPOLOGY": [

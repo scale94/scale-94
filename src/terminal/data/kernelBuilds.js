@@ -127,11 +127,14 @@ const kernelBuilds = [
   { id: 'SYK-1.0', articleId: 'SCALE-Y-KERNEL-1-0-1', name: 'SCALE_Y_KERNEL_1_0', status: 'ACTIVE', desc: 'ᛟ Feather State Protocol · Sovereign Self-Governance' },
   { id: 'UTK-1.0-1', articleId: 'UNDERGROUND-THERMODYNAMICISTS', name: 'UNDERGROUND_THERMODYNAMICISTS', status: 'EMERGENT', desc: '◈ Signal map' },
 /* @@INJECT_START@@ */
-  { id: "21-1.0", articleId: "21-1.0", name: "2026_03_10", status: "ACTIVE", desc: "2026 03 10" },
   { id: "ATMOSPHERIC-ENTROPY-KERNEL-3.0", articleId: "ATMOSPHERIC-ENTROPY-KERNEL-3.0", name: "ATMOSPHERIC_ENTROPY_KERNEL_3_0", status: "ACTIVE", desc: "The Thermosphere Protocol" },
   { id: "CEEI-ALLOCATION-ENGINE", articleId: "CEEI-ALLOCATION-ENGINE", name: "CEEI_ALLOCATION_ENGINE", status: "ACTIVE", desc: "The End of the Price Tag — soma_kernel_5.5" },
   { id: "CHRO-1.0", articleId: "CHRO-1.0", name: "CHRONOS_KERNEL_·_V1_1", status: "ACTIVE", desc: "Ⅰ. The Illusion of the Loop 🌀" },
+  { id: "CD-11.1.1.1.1.1.1.1.1.1.2", articleId: "CD-11.1.1.1.1.1.1.1.1.1.2", name: "COLEMAK_DH_KERNEL_V11_1_1_1_1_1_1_1_1_1_2", status: "ACTIVE", desc: "Ⅰ. THE THERMODYNAMICS OF THE MATRIX (§1.0)" },
+  { id: "CDK-1.0", articleId: "CDK-1.0", name: "COLEMAK_DH_KERNEL_V11_1_2", status: "ACTIVE", desc: "KINETIC METALLURGY" },
+  { id: "CDK-1.0-1", articleId: "CDK-1.0-1", name: "COLEMAK_DH_KERNEL_V11_2_0", status: "ACTIVE", desc: "KINETIC METALLURGY" },
   { id: "DALY-THERMO-SIMULATION", articleId: "DALY-THERMO-SIMULATION", name: "DALY_THERMO_SIMULATION", status: "ACTIVE", desc: "The Hard Constraints Engine — soma_kernel_5.5" },
+  { id: "FSQ-11.6", articleId: "FSQ-11.6", name: "FISH_SCALE_KERNEL_V11_6_0_QUANTUM", status: "ACTIVE", desc: "Ⅰ · THE MASCULINE MUSCHI DIAGNOSTIC · QUANTUM RESTATEMENT (§1.2)" },
   { id: "FISH-SCALE-KERNEL", articleId: "FISH-SCALE-KERNEL", name: "FISH_SCALE_KERNEL", status: "ACTIVE", desc: "1.0 Executive Boot Sequence and Architectural Thesis" },
   { id: "GSK-5.5.5", articleId: "GSK-5.5.5", name: "GAIA_SCALE_KERNEL_5_5_5", status: "ACTIVE", desc: "Ⅰ. CORE DIRECTIVES: THE MATRILINEAL FIREWALL (§1.0)" },
   { id: "KERNEL-15.0-THE-PURIFICATION-OF-SCALE-1", articleId: "KERNEL-15.0-THE-PURIFICATION-OF-SCALE-1", name: "KERNEL_15_0_THE_PURIFICATION_OF_SCALE_1", status: "ACTIVE", desc: "🧊 KERNEL 15.0: THE PURIFICATION OF SCALE" },
@@ -143,13 +146,14 @@ const kernelBuilds = [
   { id: "RUN-COMMAND-MANUAL", articleId: "RUN-COMMAND-MANUAL", name: "RUN_COMMAND_MANUAL", status: "ACTIVE", desc: "Direct Interface to Compiled Rust Simulations — scale_9.4 Terminal" },
   { id: "SCALE-KERNEL-FRAMEWORK-FULL", articleId: "SCALE-KERNEL-FRAMEWORK-FULL", name: "SCALE_KERNEL_FRAMEWORK_FULL", status: "ACTIVE", desc: "☠ Full Corpus Synthesis · Render Prompt Architecture ☠" },
   { id: "SCALE-OPTIMIZATION-KERNEL-9.4", articleId: "SCALE-OPTIMIZATION-KERNEL-9.4", name: "SCALE_OPTIMIZATION_KERNEL_9_4", status: "ACTIVE", desc: "◈ 2026 GEOPOLITICAL ALIGNMENT" },
-  { id: "SCALING-CUBE-PROTOCOL", articleId: "SCALING-CUBE-PROTOCOL", name: "SCALING_CUBE_PROTOCOL", status: "ACTIVE", desc: "The Uncut State // Platonic Form → Entropic Stasis" },
+  { id: "SCALING-CUBE-PROTOCOL", articleId: "SCALING-CUBE-PROTOCOL", name: "SCALING_CUBE_PROTOCOL", status: "ACTIVE", desc: "Platonic Form · Entropic Stasis · The Architecture of Potential" },
   { id: "SOMA-PLUS-ENGINE", articleId: "SOMA-PLUS-ENGINE", name: "SOMA_PLUS_ENGINE", status: "ACTIVE", desc: "Status Is Earned Through the Commons — soma_kernel_5.5" },
   { id: "SORBE-THERMODYNAMIC-BLOOM-V1", articleId: "SORBE-THERMODYNAMIC-BLOOM-V1", name: "SORBE_THERMODYNAMIC_BLOOM_KERNEL_1_0", status: "ACTIVE", desc: "◈ THE THERMODYNAMIC IMPERATIVE" },
   { id: "STRANGLER-FIG-PROTOCOL", articleId: "STRANGLER-FIG-PROTOCOL", name: "STRANGLER_FIG_PROTOCOL", status: "ACTIVE", desc: "Build the New System Around the Old — soma_kernel_5.5" },
   { id: "SURVEILLANCE-TRACKER", articleId: "SURVEILLANCE-TRACKER", name: "SURVEILLANCE_TRACKER", status: "ACTIVE", desc: "Mapping the Algorithmic Panopticon" },
   { id: "THE-CIGAR-HEIST", articleId: "THE-CIGAR-HEIST", name: "THE_CIGAR_HEIST", status: "ACTIVE", desc: "THE CIGAR HEIST" },
   { id: "THE-FLUORESCENT-CAGE", articleId: "THE-FLUORESCENT-CAGE", name: "THE_FLUORESCENT_CAGE", status: "ACTIVE", desc: "THE FLUORESCENT CAGE" },
+  { id: "UTK-1.0-1", articleId: "UTK-1.0-1", name: "UNDERGROUND_THERMODYNAMICISTS", status: "ACTIVE", desc: "◈ Signal map" },
 /* @@INJECT_END@@ */
 ];
 
