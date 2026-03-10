@@ -150,40 +150,11 @@ html, body {
    - Gradient shimmer is now animate-shimmer-fast / animate-shimmer-slow
      via tailwind.config.js theme.extend — guaranteed in production bundle */
 
-/* ── Scanline overlay base ───────────────────────────────────────────────────
-   mix-blend-mode: overlay blends the scanlines with content instead of sitting
-   on top as a flat dark mask — text stays crisp, effect reads as texture.
-   will-change is intentionally omitted: it promotes to an isolated compositor
-   layer which prevents mix-blend-mode from seeing the content beneath it.      */
+/* ── Scanline overlay (now z-2, behind all content — see App.jsx) ────────────
+   The .scanline-overlay class is kept for backwards-compat but the active
+   scanline div no longer uses it. Styles are inlined on the div directly
+   with z-index: 2 and 0.05 opacity so the CSS class is a no-op safety net. */
 .scanline-overlay {
   pointer-events: none;
   user-select: none;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  mix-blend-mode: overlay;
-}
-
-/* ── Mobile scanline tuning ──────────────────────────────────────────────────
-   High-DPI mobile screens (2×–3× device pixel ratio) render 1px CSS lines at
-   sub-pixel widths, causing the repeating-linear-gradient to beat against the
-   font renderer and produce jagged/blurry text. On these screens we:
-     • Widen the scanline pitch to 3px (line + gap) to avoid sub-pixel beating
-     • Drop opacity from 0.18 → 0.10 so the overlay is lighter on OLED panels
-     • Apply grayscale font smoothing (subpixel rendering breaks under overlays)
-   Desktop (1080p/4K) uses system-default smoothing — crisp at native DPI.    */
-@media (max-width: 768px) and (-webkit-min-device-pixel-ratio: 2),
-       (max-width: 768px) and (min-resolution: 192dpi) {
-  .scanline-overlay {
-    background-image: repeating-linear-gradient(
-      0deg,
-      rgba(0,0,0,0.10) 0px,
-      rgba(0,0,0,0.10) 1px,
-      transparent 1px,
-      transparent 3px
-    ) !important;
-  }
-  body, .min-h-screen {
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
 }

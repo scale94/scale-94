@@ -4,7 +4,7 @@
 // esbuild (Vite dev). Keep all imports at the top to guarantee identical
 // module evaluation order in both environments.
 import React, { useState, useEffect, useRef, useLayoutEffect, useMemo, useCallback, lazy, Suspense } from 'react';
-import { Hexagon, Cpu, Lock, Scale, Eye } from 'lucide-react';
+import { Hexagon, Cpu, Lock, Scale, Eye, ShieldAlert } from 'lucide-react';
 
 // Data — static (authored, always bundled)
 import kernelAxioms    from './data/kernelAxioms';
@@ -37,9 +37,10 @@ import { normalizeQuery } from '../lib/normalize';
 import KernelTab from './views/KernelTab';
 
 // Views — lazy-loaded so each tab bundle is only fetched when first visited
-const ScalingTab      = lazy(() => import('./views/ScalingTab'));
-const ManifestoTab    = lazy(() => import('./views/ManifestoTab'));
-const PrivacyTab      = lazy(() => import('./views/PrivacyTab'));
+const ScalingTab       = lazy(() => import('./views/ScalingTab'));
+const ManifestoTab     = lazy(() => import('./views/ManifestoTab'));
+const PrivacyTab       = lazy(() => import('./views/PrivacyTab'));
+const SurveillanceTab  = lazy(() => import('./views/SurveillanceTab'));
 const ArticleView     = lazy(() => import('./views/ArticleView'));
 const ThesisView      = lazy(() => import('./views/ThesisView'));
 const TransmissionTab = lazy(() => import('./views/TransmissionTab'));
@@ -224,6 +225,12 @@ const App = () => {
 
   // Fiction articles for Transmission tab — updates when CAS data loads
   const transmissionStories = useMemo(() => articles.filter(a => a.type === 'fiction'), [articles]);
+
+  // Legislation articles for Surveillance tab — prefer CAS-fetched entries (have full metadata)
+  const legislationArticles = useMemo(
+    () => dynamicData?.legislationArticles ?? articles.filter(a => a.type === 'legislation'),
+    [dynamicData, articles],
+  );
 
   // Kernel ordering — pinned first, 5 newest by article date, rest alpha-sorted.
   // Re-runs when articles updates (i.e. once CAS data loads) so dates are available.
@@ -438,6 +445,29 @@ const App = () => {
     const kernel = kernelBuilds.find(k => k.articleId === cmd || k.id === cmd);
     if (kernel) handleKernelClick(kernel);
   }, [handleKernelClick]);
+
+  // Legislation article opener — used by SurveillanceTab cards.
+  // Calls loadContent() (CAS chunk fetch) if body not yet populated, then
+  // shows the article via the standard ArticleView flow.
+  const handleLegislationSelect = useCallback(async (law) => {
+    if (loadAbortRef.current) loadAbortRef.current.aborted = true;
+    const token = { aborted: false };
+    loadAbortRef.current = token;
+    try {
+      const article = law.loadContent ? await law.loadContent() : law;
+      if (token.aborted) return;
+      setOriginTab('surveillance');
+      setSelectedArticle(article);
+      setCurrentPath('~/system/surveillance');
+      if (mainRef.current) {
+        mainRef.current.style.scrollBehavior = 'auto';
+        mainRef.current.scrollTop = 0;
+        window.scrollTo(0, 0);
+      }
+    } catch (err) {
+      console.error('[SURVEILLANCE] Failed to load legislation article:', err);
+    }
+  }, []);
 
   // Handle loading a transmission signal — mirrors handleKernelClick but for
   // fiction/signal articles. Uses the same loadAbortRef abort-token pattern and
@@ -922,10 +952,20 @@ const App = () => {
        * z-[101]: above BootSequence (z-100) and the boot overlay (z-97).
        * pointer-events: none on both divs — zero interaction impact.
        */}
-      <div className="scanline-overlay" style={{
+      {/*
+       * ── CRT scanline texture — fixed, z-2, BEHIND all content ────────────
+       * Keeping z-index LOW (2) means the scanlines sit beneath the main UI
+       * layers (header z-40, main z-10) and never visually stripe text or
+       * nav buttons. The effect reads as subtle screen texture on the dark
+       * terminal background while leaving all foreground elements clean.
+       * Opacity 0.05 — barely perceptible as intended; no mix-blend-mode
+       * so behaviour is compositor-predictable on all browsers/screens.
+       */}
+      <div style={{
         position: 'fixed', top: 0, bottom: 0, left: 0, right: 0,
-        zIndex: 101,
-        backgroundImage: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.18) 0px, rgba(0,0,0,0.18) 1px, transparent 1px, transparent 2px)',
+        zIndex: 2,
+        pointerEvents: 'none', userSelect: 'none',
+        backgroundImage: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.05) 0px, rgba(0,0,0,0.05) 1px, transparent 1px, transparent 3px)',
         transition: 'none',
         transform: 'translateZ(0)',
       }} />
@@ -1069,6 +1109,8 @@ const App = () => {
 
             <button aria-label="Manifesto" aria-current={activeTab === 'manifesto' ? 'page' : undefined} onClick={() => handleNav('~/system/manifesto', 'manifesto')} className={`${activeTab === 'manifesto' ? 'bg-cyan-900 text-cyan-100 shadow-[0_0_10px_rgba(22,78,99,0.5)]' : 'text-cyan-500 hover:text-white hover:bg-cyan-900/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm`}><Eye className="w-3 h-3" /> /Manifesto</button>
             <button aria-label="Privacy" aria-current={activeTab === 'privacy' ? 'page' : undefined} onClick={() => handleNav('~/system/privacy', 'privacy')} className={`${activeTab === 'privacy' ? 'bg-gray-700 text-white shadow-[0_0_10px_rgba(100,100,100,0.5)]' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-900/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm`}><Lock className="w-3 h-3" /> /Privacy</button>
+
+            <button aria-label="Surveillance" aria-current={activeTab === 'surveillance' ? 'page' : undefined} onClick={() => handleNav('~/system/surveillance', 'surveillance')} className={`${activeTab === 'surveillance' ? 'bg-red-900 text-red-100 shadow-[0_0_10px_rgba(248,113,113,0.4)]' : 'text-red-500/70 hover:text-red-300 hover:bg-red-900/20'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><ShieldAlert className="w-3 h-3" /> /Surveillance</button>
           </nav>
         </div>
       </header>
@@ -1130,6 +1172,14 @@ const App = () => {
           {/* Privacy Tab */}
           {activeTab === 'privacy' && !selectedArticle && !architectThesis && (
             <PrivacyTab systemArticles={systemArticles} />
+          )}
+
+          {/* Surveillance Tab — @grey-c0 / Navigators Guild legislation corpus */}
+          {activeTab === 'surveillance' && !selectedArticle && !architectThesis && (
+            <SurveillanceTab
+              legislationArticles={legislationArticles}
+              onOpenLaw={handleLegislationSelect}
+            />
           )}
 
           {/* Article Detail */}
