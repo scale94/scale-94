@@ -12,7 +12,7 @@ import kernelBuilds    from './data/kernelBuilds';
 import _somaArticles   from './data/articles.soma';   // hand-curated soma kernel entries
 import _miscArticles   from './data/articles.misc';   // hand-curated misc/fiction entries
 import autoArticles    from './data/loadArticles';    // Vite glob .md stubs (dev fallback)
-import wasmRegistry    from '../wasm/wasm.generated';  // compiled Rust kernel WASM module map — 10 kernels
+import wasmRegistry    from '../wasm/wasm.generated';  // compiled Rust kernel WASM module map — 12 kernels
 // Data — dynamic (CAS fetch at boot; _generated, _academic, tagIndex, systemArticles
 // are no longer static imports — they arrive via /kernel/manifest.json fetch)
 
@@ -215,6 +215,8 @@ const App = () => {
   // Abort token for handleKernelClick — invalidates in-flight loads when a
   // new one is started (e.g. user rapidly clicks two kernels in quick succession).
   const loadAbortRef = useRef(null);
+  // Persistent WASM struct instances — keyed by wasmEntry.id.
+  const activeKernels = useRef({});
 
   // Fiction articles for Transmission tab — updates when CAS data loads
   const transmissionStories = useMemo(() => articles.filter(a => a.type === 'fiction'), [articles]);
@@ -606,7 +608,7 @@ const App = () => {
           }
 
           // ── Arg parser: strip --help, then collect positionals + named flags
-          const argTokens      = flagTokens.filter(t => t !== '--help' && t !== '-h');
+          const argTokens      = flagTokens.filter(t => t !== '--help' && t !== '-h' && t !== 'reset');
           const isHelp         = argTokens.length !== flagTokens.length;
           const parsedFlags    = {};
           const positionalArgs = [];
@@ -671,10 +673,29 @@ const App = () => {
                 const wasmUrl = wasmEntry.wasmUrl ?? wasmEntry.module.replace(/\.js$/, '_bg.wasm');
                 await mod.default({ module_or_path: wasmUrl });
 
-                const t0      = performance.now();
-                const result  = wasmEntry.fn
-                  ? mod[wasmEntry.fn](...callArgs)
-                  : mod[wasmEntry.struct][wasmEntry.boot]();
+                const t0 = performance.now();
+                let result;
+                if (wasmEntry.isStateful) {
+                  if (!activeKernels.current[wasmEntry.id]) {
+                    activeKernels.current[wasmEntry.id] = new mod[wasmEntry.struct]();
+                    setSystemLogs(prev => [
+                      ...prev,
+                      { time: now, msg: `  KERNEL_INSTANCE_BOOT :: ${wasmEntry.id}` },
+                      { time: now, msg: `  new ${wasmEntry.struct}() initialised — state persists across calls` },
+                    ].slice(-2000));
+                  }
+                  const instance = activeKernels.current[wasmEntry.id];
+                  if (flagTokens.includes('reset')) {
+                    instance.reset();
+                    result = `SOMA_KERNEL_5.5 // RESET\nAll state cleared. Year counter reset to 0.\nCall run soma_live to begin a new simulation.`;
+                  } else {
+                    result = instance[wasmEntry.cycle](...callArgs);
+                  }
+                } else {
+                  result = wasmEntry.fn
+                    ? mod[wasmEntry.fn](...callArgs)
+                    : mod[wasmEntry.struct][wasmEntry.boot]();
+                }
                 const elapsed  = (performance.now() - t0).toFixed(4);
                 const lines    = result.split('\n');
                 const doneTime = new Date().toLocaleTimeString('en-US', { hour12: false });

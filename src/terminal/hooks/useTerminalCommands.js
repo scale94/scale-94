@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { normalizeQuery } from '../lib/normalize';
 import wasmRegistry from '../../wasm/wasm.generated';
 
@@ -31,6 +31,10 @@ export default function useTerminalCommands({
   const [cmdHistory,   setCmdHistory]   = useState([]);  // most-recent first
   const [historyIdx,   setHistoryIdx]   = useState(-1);  // -1 = live input
   const [savedInput,   setSavedInput]   = useState('');
+
+  // Persistent WASM struct instances — keyed by wasmEntry.id.
+  // useRef so the pointer survives re-renders without triggering them.
+  const activeKernels = useRef({});
 
   // ── Autocomplete ────────────────────────────────────────────────────────────
   const handleInputChange = useCallback((e) => {
@@ -313,9 +317,31 @@ export default function useTerminalCommands({
                   if (parsedFlags[flag] !== undefined) callArgs[idx] = parsedFlags[flag];
                 }
               }
-              const result = wasmEntry.fn
-                ? mod[wasmEntry.fn](...callArgs)
-                : mod[wasmEntry.struct][wasmEntry.boot]();
+              let result;
+              if (wasmEntry.isStateful) {
+                // ── Stateful path: create once, drive cycle-by-cycle ──────────
+                if (!activeKernels.current[wasmEntry.id]) {
+                  activeKernels.current[wasmEntry.id] = new mod[wasmEntry.struct]();
+                  setSystemLogs(prev => [
+                    ...prev,
+                    { time: now, msg: `  KERNEL_INSTANCE_BOOT :: ${wasmEntry.id}` },
+                    { time: now, msg: `  new ${wasmEntry.struct}() initialised — state will persist across calls` },
+                  ].slice(-2000));
+                }
+                const instance = activeKernels.current[wasmEntry.id];
+                // Allow `run soma_live reset` to wipe state without a cycle
+                if (flagTokens.includes('reset')) {
+                  instance.reset();
+                  result = `SOMA_KERNEL_5.5 // RESET\nAll state cleared. Year counter reset to 0.\nCall run soma_live to begin a new simulation.`;
+                } else {
+                  result = instance[wasmEntry.cycle](...callArgs);
+                }
+              } else {
+                // ── Stateless path (legacy free-function or struct-boot) ───────
+                result = wasmEntry.fn
+                  ? mod[wasmEntry.fn](...callArgs)
+                  : mod[wasmEntry.struct][wasmEntry.boot]();
+              }
               const lines    = result.split('\n');
               const doneTime = new Date().toLocaleTimeString('en-US', { hour12: false });
               setSystemLogs(prev => [

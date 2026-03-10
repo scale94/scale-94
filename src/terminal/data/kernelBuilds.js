@@ -127,7 +127,9 @@ const kernelBuilds = [
   { id: 'SYK-1.0', articleId: 'SCALE-Y-KERNEL-1-0-1', name: 'SCALE_Y_KERNEL_1_0', status: 'ACTIVE', desc: 'ᛟ Feather State Protocol · Sovereign Self-Governance' },
   { id: 'UTK-1.0-1', articleId: 'UNDERGROUND-THERMODYNAMICISTS', name: 'UNDERGROUND_THERMODYNAMICISTS', status: 'EMERGENT', desc: '◈ Signal map' },
 /* @@INJECT_START@@ */
-  { id: "RUN-MANUAL-1.0", articleId: "RUN-COMMAND-MANUAL", name: "RUN_COMMAND_MANUAL", status: "RUNNING", desc: "run Command Manual // All 10 WASM Kernels // Positional + Named Flags" },
+  { id: "RUN-MANUAL-1.0", articleId: "RUN-COMMAND-MANUAL", name: "RUN_COMMAND_MANUAL", status: "RUNNING", desc: "run Command Manual // All 11 WASM Kernels // Positional + Named Flags" },
+  { id: "SOMA-KERNEL-5.5", articleId: "SOMA-5.5", name: "SOMA_KERNEL_5_5", status: "RUNNING", desc: "soma_kernel_5.5 // Post-Capitalist OS // Daly · A-CEEI · Soma Plus · Strangler Fig" },
+  { id: "SOMA-KERNEL-LIVE", articleId: "RUN-COMMAND-MANUAL", name: "SOMA_KERNEL_LIVE", status: "RUNNING", desc: "SomaKernel Live // Stateful Multi-Cycle Pilot // run soma_live" },
   { id: "DALY-THERMO-1.0", articleId: "DALY-THERMO-SIMULATION", name: "DALY_THERMO_SIMULATION", status: "RUNNING", desc: "Thermodynamic Governor // Daly Rules ODE // Collapse Horizon" },
   { id: "CEEI-1.0", articleId: "CEEI-ALLOCATION-ENGINE", name: "CEEI_ALLOCATION_ENGINE", status: "RUNNING", desc: "A-CEEI // Preference-Based Markets // Roth 2012" },
   { id: "SOMA-PLUS-1.0", articleId: "SOMA-PLUS-ENGINE", name: "SOMA_PLUS_ENGINE", status: "RUNNING", desc: "Social Capital // Commons Contribution Engine // Post-Scarcity" },

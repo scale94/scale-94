@@ -232,7 +232,33 @@ This kernel is a pure computational benchmark — it burns V-Cache with cellular
 
 ---
 
-### 5.7 DALY — Thermodynamic Governor
+### 5.7 SOMA55 — soma_kernel_5.5 Boot Diagnostic
+
+**Aliases:** `soma55`, `soma_kernel`, `soma_kernel_55`, `sk55`, `soma_boot`, `nexteconomy`
+
+**Function:** `boot_soma55()` — zero parameters
+
+**Description:** Top-level boot diagnostic for the entire soma_kernel_5.5 suite. Runs a high-level status check across all four sub-systems — Daly Rules, A-CEEI, Soma Plus, and Strangler Fig — at default parameters. Use this for a fast system overview before drilling into individual sub-kernels.
+
+**Usage:**
+```
+run soma55          # full suite diagnostic — no flags needed
+run soma_kernel
+run sk55
+run nexteconomy
+```
+
+No positional arguments. No flags. The output covers:
+- Daly Rules triple-overshoot audit at current global baseline
+- A-CEEI market clearing status
+- Soma Plus steady-state mean SP and Gini coefficient
+- Strangler Fig tipping-point and critical-mass year
+
+To run a specific sub-system with custom parameters, use `run daly`, `run ceei`, `run soma`, or `run strangler` (see sections 5.8–5.11).
+
+---
+
+### 5.8 DALY — Thermodynamic Governor
 
 **Aliases:** `daly`, `thermo`, `thermodynamics`, `daly_rules`, `ecological`, `daly_thermo`, `entropy_econ`
 
@@ -275,7 +301,7 @@ run daly 40 30 20000 12000 0.015 0.020 150    # CRITICAL → RECOVERY arc
 
 ---
 
-### 5.8 CEEI — A-CEEI Allocation Engine
+### 5.9 CEEI — A-CEEI Allocation Engine
 
 **Aliases:** `ceei`, `allocation`, `matching`, `market`, `roth`, `preference`, `aceei`
 
@@ -307,7 +333,7 @@ run roth --inequality 0 --diversity 0.1      # uniform preferences, equal budget
 
 ---
 
-### 5.9 SOMA — Soma Plus Engine
+### 5.10 SOMA — Soma Plus Engine
 
 **Aliases:** `soma`, `soma_plus`, `somaplus`, `social_capital`, `commons`, `status`, `contribution`
 
@@ -344,7 +370,7 @@ run soma --eco 0 --social 0 --arts 0         # 100% passive → no SP accumulati
 
 ---
 
-### 5.10 STRANGLER — Strangler Fig Transition Protocol
+### 5.11 STRANGLER — Strangler Fig Transition Protocol
 
 **Aliases:** `strangler`, `transition`, `stranglerfig`, `fig`, `logistic`
 
@@ -393,6 +419,7 @@ run bosonic [trust] [thermal]                          # lattice simulator
 run climate [ppm] [drag] [sink]                        # atmospheric entropy
 run statecraft [sanction] [resilience] [narrative]     # geopolitical kinetics
 run leviathan [cells] [generations]                    # V-cache benchmark
+run soma55                                             # soma_kernel_5.5 suite boot
 run daly [C] [G] [W] [A] [dep] [sub] [yr]             # Daly Rules ODE
 run ceei [agents] [goods] [inequality] [diversity]     # A-CEEI allocation
 run soma [pop] [eco] [social] [arts] [yr]              # Soma Plus engine
@@ -419,5 +446,5 @@ run strangler --growth 0.35 --resistance 0.05   # stress-test optimistic scenari
 ---
 
 `SOURCE: content/soma_kernel/RUN-COMMAND-MANUAL.md`
-`KERNELS: content/rust_kernels/src/lib.rs · 10 registered WASM exports`
+`KERNELS: content/rust_kernels/src/lib.rs · 11 registered WASM exports`
 `REGISTRY: src/wasm/wasm.generated.js · scale94-kernels v0.1.0`

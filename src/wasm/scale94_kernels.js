@@ -132,6 +132,81 @@ export class NecromanticEngine {
 }
 if (Symbol.dispose) NecromanticEngine.prototype[Symbol.dispose] = NecromanticEngine.prototype.free;
 
+export class SomaKernel {
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        SomaKernelFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_somakernel_free(ptr, 0);
+    }
+    /**
+     * Execute one annual policy cycle.
+     * consumption    GJ/capita/yr  (legacy ~80; sustainable ~25)
+     * waste          Mt CO2eq/yr   (legacy ~55000; sustainable <11000)
+     * nr_depletion   fraction/yr   (legacy ~0.025; target <0.008)
+     * compliance_mod delta to ostrom_compliance this cycle (-0.2 to +0.2)
+     * @param {number} consumption
+     * @param {number} waste
+     * @param {number} nr_depletion
+     * @param {number} compliance_mod
+     * @returns {string}
+     */
+    execute_cycle(consumption, waste, nr_depletion, compliance_mod) {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const ret = wasm.somakernel_execute_cycle(this.__wbg_ptr, consumption, waste, nr_depletion, compliance_mod);
+            deferred1_0 = ret[0];
+            deferred1_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * @returns {number}
+     */
+    get_adoption() {
+        const ret = wasm.somakernel_get_adoption(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @returns {number}
+     */
+    get_entropy() {
+        const ret = wasm.somakernel_get_entropy(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @returns {number}
+     */
+    get_soma_plus() {
+        const ret = wasm.somakernel_get_soma_plus(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @returns {number}
+     */
+    get_year() {
+        const ret = wasm.somakernel_get_year(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    constructor() {
+        const ret = wasm.somakernel_new();
+        this.__wbg_ptr = ret >>> 0;
+        SomaKernelFinalization.register(this, this.__wbg_ptr, this);
+        return this;
+    }
+    reset() {
+        wasm.somakernel_reset(this.__wbg_ptr);
+    }
+}
+if (Symbol.dispose) SomaKernel.prototype[Symbol.dispose] = SomaKernel.prototype.free;
+
 /**
  * Boot the Bosonic Lattice Simulator.
  * coupling: dimensionless boson-boson coupling constant (0–1 typical)
@@ -191,6 +266,26 @@ export function boot_leviathan_benchmark(grid_size, generations) {
     let deferred1_1;
     try {
         const ret = wasm.boot_leviathan_benchmark(grid_size, generations);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * Top-level boot diagnostic for soma_kernel_5.5.
+ * Runs at default parameters to give a high-level status summary of all
+ * four sub-systems: Daly Rules, A-CEEI, Soma Plus, Strangler Fig.
+ * No parameters — callable as `run soma55` with zero flags.
+ * @returns {string}
+ */
+export function boot_soma55() {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.boot_soma55();
         deferred1_0 = ret[0];
         deferred1_1 = ret[1];
         return getStringFromWasm0(ret[0], ret[1]);
@@ -397,6 +492,9 @@ const BiocoenosisKernelFinalization = (typeof FinalizationRegistry === 'undefine
 const NecromanticEngineFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_necromanticengine_free(ptr >>> 0, 1));
+const SomaKernelFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_somakernel_free(ptr >>> 0, 1));
 
 function getStringFromWasm0(ptr, len) {
     ptr = ptr >>> 0;

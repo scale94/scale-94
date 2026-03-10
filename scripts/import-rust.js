@@ -106,6 +106,39 @@ const KERNEL_MAP = [
 
   // ── soma_kernel_5.5 Thermophysical Simulation Layer ────────────────────────
   {
+    // SomaKernel LIVE — stateful multi-cycle interactive simulator.
+    // Instantiated once with `new SomaKernel()`, then driven cycle-by-cycle
+    // via execute_cycle(consumption, waste, nr_depletion, compliance_mod).
+    // State (r_stock, p_stock, entropy, Soma Plus, Strangler Fig) persists
+    // across all subsequent `run soma_live` calls in the same session.
+    id:         'SOMA-KERNEL-LIVE',
+    isStateful: true,
+    struct:     'SomaKernel',
+    cycle:      'execute_cycle',
+    args:       [80.0, 55000.0, 0.025, 0.05],   // legacy-world defaults
+    argMap: {
+      consumption: 0, harvest: 0, c: 0,
+      waste: 1, w: 1,
+      depletion: 2, nr: 2, dep: 2, nrdepletion: 2,
+      compliance: 3, trust: 3, ostrom: 3, mod: 3,
+    },
+    label:   'SomaKernel Live v5.5',
+    type:    'rust',
+    aliases: ['soma_live', 'soma_cycle', 'pilot', 'somapilot', 'soma_kernel_live'],
+  },
+  {
+    // soma_kernel_5.5 top-level boot diagnostic — zero-parameter free function.
+    // Runs a high-level status check across all four sub-systems at defaults.
+    // No flags needed: run soma55
+    id:      'SOMA-KERNEL-5.5',
+    fn:      'boot_soma55',
+    args:    [],
+    argMap:  {},
+    label:   'soma_kernel_5.5 v1.0',
+    type:    'rust',
+    aliases: ['soma55', 'soma_kernel', 'soma_kernel_55', 'sk55', 'soma_boot', 'nexteconomy'],
+  },
+  {
     // Daly Rules ODE simulation — 7-parameter free function.
     // Integrates renewable stock, pollution, non-renewable reserves over N years.
     // consumption:  args[0]   flags: --consumption, --consume
@@ -191,7 +224,7 @@ const KERNEL_MAP = [
     ],
     label:   'Soma Plus Engine v1.0',
     type:    'rust',
-    aliases: ['soma_plus', 'somaplus', 'soma', 'social_capital', 'commons', 'status', 'contribution'],
+    aliases: ['soma_plus', 'somaplus', 'social_capital', 'commons', 'status', 'contribution'],
   },
   {
     // Strangler Fig Transition Protocol — 4-parameter free function.
@@ -313,7 +346,13 @@ function run() {
 
   const entries = KERNEL_MAP.map(k => {
     const lines = [`  ${JSON.stringify(k.id)}: {`, `    id:      ${JSON.stringify(k.id)},`];
-    if (k.fn) {
+    if (k.isStateful) {
+      lines.push(`    isStateful: true,`);
+      lines.push(`    struct:  ${JSON.stringify(k.struct)},`);
+      lines.push(`    cycle:   ${JSON.stringify(k.cycle)},`);
+      lines.push(`    args:    ${JSON.stringify(k.args ?? [])},`);
+      lines.push(`    argMap:  ${JSON.stringify(k.argMap ?? {})},`);
+    } else if (k.fn) {
       lines.push(`    fn:      ${JSON.stringify(k.fn)},`);
       lines.push(`    args:    ${JSON.stringify(k.args ?? [])},`);
       lines.push(`    argMap:  ${JSON.stringify(k.argMap ?? {})},`);
