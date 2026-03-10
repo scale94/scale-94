@@ -506,6 +506,24 @@
     "len": "276 WDS"
   },
   {
+    "id": "CHRO-1.0",
+    "type": "kernel_doc",
+    "date": "2026-03-10",
+    "lastModified": "2026-03-10",
+    "title": "THE CHRONOS KERNEL · V1.1 · LOOP SEVERANCE",
+    "subtitle": "Ⅰ. The Illusion of the Loop 🌀",
+    "status": "ACTIVE",
+    "readTime": "2 min read",
+    "tags": [
+      "CHRONOS",
+      "LOOP",
+      "SEVERANCE",
+      "Illusion",
+      "Loop"
+    ],
+    "len": "449 WDS"
+  },
+  {
     "id": "COMPANION-KERNEL-1.0",
     "type": "kernel_doc",
     "date": "2026-03-06",

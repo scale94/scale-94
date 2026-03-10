@@ -43,7 +43,8 @@
       "Bash(powershell -ExecutionPolicy Bypass -File \"/tmp/audit_frontmatter.ps1\")",
       "Bash(powershell -Command \"node ''E:/scale_9.4/scripts/repair-frontmatter.js''\")",
       "Bash(node \"E:/scale_9.4/scripts/repair-frontmatter.cjs\")",
-      "Bash(node \"E:/scale_9.4/scripts/substrate-repair.cjs\")"
+      "Bash(node \"E:/scale_9.4/scripts/substrate-repair.cjs\")",
+      "WebFetch(domain:github.com)"
     ]
   }
 }

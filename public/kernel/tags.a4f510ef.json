@@ -241,6 +241,12 @@
       "title": "NECROMANTIC EMPEROR KERNEL V1 0"
     }
   ],
+  "CHRONOS": [
+    {
+      "id": "CHRO-1.0",
+      "title": "THE CHRONOS KERNEL · V1.1 · LOOP SEVERANCE"
+    }
+  ],
   "CLASSIFICATION": [
     {
       "id": "BOSONIC-KERNEL-2.0",
@@ -743,6 +749,12 @@
       "title": "🏮 KERNEL 18.0: THE HYPERFOCUS STACK"
     }
   ],
+  "Illusion": [
+    {
+      "id": "CHRO-1.0",
+      "title": "THE CHRONOS KERNEL · V1.1 · LOOP SEVERANCE"
+    }
+  ],
   "INDUSTRIAL": [
     {
       "id": "MYCELIAL-KERNEL-1.0",
@@ -881,6 +893,18 @@
     {
       "id": "KERNEL-15.0-THE-PURIFICATION-OF-SCALE",
       "title": "🧊 KERNEL 15.0: THE PURIFICATION OF SCALE"
+    }
+  ],
+  "Loop": [
+    {
+      "id": "CHRO-1.0",
+      "title": "THE CHRONOS KERNEL · V1.1 · LOOP SEVERANCE"
+    }
+  ],
+  "LOOP": [
+    {
+      "id": "CHRO-1.0",
+      "title": "THE CHRONOS KERNEL · V1.1 · LOOP SEVERANCE"
     }
   ],
   "Low-Pass": [
@@ -1392,6 +1416,10 @@
     }
   ],
   "SEVERANCE": [
+    {
+      "id": "CHRO-1.0",
+      "title": "THE CHRONOS KERNEL · V1.1 · LOOP SEVERANCE"
+    },
     {
       "id": "NECROMANCER-TO-NECROROMANCER-KERNEL-EVOLUTION",
       "title": "PROJECT SEVERANCE: THE ONTOLOGICAL TRANSITION FROM NECROMANTIC CONTROL TO NECRO-ROMANTIC RESONANCE IN LARGE LANGUAGE MODEL KERNELS"
