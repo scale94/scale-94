@@ -135,6 +135,30 @@ const wasmRegistry = {
     module:  "/wasm/scale94_kernels.js",
     wasmUrl: "/wasm/scale94_kernels_bg.wasm",
     aliases: ["strangler","transition","stranglerfig","fig","adoption","legacy","logistic"],
+  },
+  "SURVEILLANCE-INDEX-1.0": {
+    id:      "SURVEILLANCE-INDEX-1.0",
+    fn:      "run_surveillance_index",
+    //   region_code   0=ALL 1=UK 2=EU 3=US 4=AU 5=CA 6=DE 7=FR 8=SE 9=IE 10=NL 11=NZ 12=BE
+    //   category_code 0=ALL 1=encryption_backdoor 2=digital_id 3=biometric_collection
+    //                 4=data_retention 5=worker_surveillance 6=platform_mandated_scanning
+    //                 7=traffic_retention 8=age_verification
+    //   threshold     0–5 (minimum severity; 0 = all entries)
+    args:    [0, 0, 0],
+    argMap:  {
+      "region":0, "r":0,
+      "uk":0,       // callers pass --region 1, not --uk; but alias hint
+      "category":1, "cat":1, "c":1,
+      "threshold":2, "t":2, "sev":2, "severity":2, "min":2,
+    },
+    label:   "Surveillance Index v1.0",
+    type:    'rust',
+    module:  "/wasm/scale94_kernels.js",
+    wasmUrl: "/wasm/scale94_kernels_bg.wasm",
+    aliases: [
+      "surveillance","panopticon","legislation","governance",
+      "surveillance_index","law","laws","grey","greyc0",
+    ],
   }
 };
 

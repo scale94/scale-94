@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Hexagon, ChevronRight, Globe, MessageSquare, Zap, FileText } from 'lucide-react';
+import { Hexagon, ChevronRight, Globe, MessageSquare, Zap, FileText, Cpu } from 'lucide-react';
 
-const ScalingTab = ({ setArchitectThesis, setCurrentPath }) => {
+const ScalingTab = ({ setArchitectThesis, setCurrentPath, loadKernel }) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopyEth = () => {
@@ -73,6 +73,27 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath }) => {
           </p>
           <button onClick={() => { setArchitectThesis(true); setCurrentPath('~/system/scaling/thesis'); }} className="flex items-center gap-2 text-xs font-bold text-cyan-400 group-hover:translate-x-1 transition-transform cursor-pointer hover:text-white">
             <ChevronRight className="w-4 h-4" /> LOAD THESIS LOG
+          </button>
+        </div>
+      </div>
+
+      {/* SCALING CUBE PROTOCOL */}
+      <div className="border-t border-cyan-900/30 pt-8 mb-8">
+        <div className="border border-cyan-500/30 bg-cyan-900/5 p-6 rounded-lg hover:border-cyan-400/60 transition-all group relative overflow-hidden max-w-2xl mx-auto">
+          <div className="text-lg font-bold text-cyan-400 mb-2 group-hover:text-cyan-300">SCALING_CUBE_PROTOCOL</div>
+          <div className="text-[10px] font-bold text-fuchsia-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+            <Cpu className="w-3 h-3" /> UNCUT STATE / PLATONIC FORM / ENTROPIC STASIS
+          </div>
+          <p className="text-sm text-[#39ff14] mb-4 leading-relaxed font-mono">
+            The default cube sits at the center of the viewport; a perfect 2x2x2 meter block of digital
+            matter. It is the Platonic ideal; symmetrical, flawless, and completely dead. It represents
+            the &#39;Uncut&#39; state; absolute purity that leads to entropic stasis.
+          </p>
+          <button
+            onClick={() => loadKernel && loadKernel('SCALING-CUBE-PROTOCOL')}
+            className="flex items-center gap-2 text-xs font-bold text-cyan-400 group-hover:translate-x-1 transition-transform cursor-pointer hover:text-white"
+          >
+            <ChevronRight className="w-4 h-4" /> LOAD PROTOCOL
           </button>
         </div>
       </div>

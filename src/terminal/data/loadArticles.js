@@ -13,10 +13,11 @@
  * Generate new files: npm run spawn -- "My Kernel Title" [type]
  */
 
-// ─── LAZY GLOB ────────────────────────────────────────────────────────────────
+// ─── LAZY GLOBS ───────────────────────────────────────────────────────────────
 // Each entry is () => Promise<string>. Vite emits one async chunk per .md file;
 // content is only fetched when the user actually opens an article.
-const markdownModules = import.meta.glob('../../../content/soma_kernel/*.md', { as: 'raw' });
+const markdownModules    = import.meta.glob('../../../content/soma_kernel/*.md', { as: 'raw' });
+const legislationModules = import.meta.glob('../../../content/legislation/*.md', { as: 'raw' });
 
 // ─── Frontmatter parser ───────────────────────────────────────────────────────
 // Uses a multiline regex split so trailing whitespace or \r after '---' never
@@ -126,74 +127,79 @@ const filenameToId = (filename) =>
 
 // ─── Build article stubs ──────────────────────────────────────────────────────
 // Stubs are index-only — no content fetched yet. loadContent() fires on open.
-const articles = Object.entries(markdownModules).map(([filePath, loader]) => {
-  const filename  = filePath.split('/').pop().replace(/\.md$/, '');
-  const stubId    = filenameToId(filename);
-  const stubTitle = filename.replace(/[-_]/g, ' ').replace(/\s+/g, ' ').toUpperCase();
+// `defaultType` lets legislation stubs self-identify without relying solely on
+// frontmatter (which always contains type: 'legislation' in generated stubs, but
+// this makes the fallback explicit and safe).
+function buildStubs(moduleMap, defaultType = 'kernel') {
+  return Object.entries(moduleMap).map(([filePath, loader]) => {
+    const filename  = filePath.split('/').pop().replace(/\.md$/, '');
+    const stubId    = filenameToId(filename);
+    const stubTitle = filename.replace(/[-_]/g, ' ').replace(/\s+/g, ' ').toUpperCase();
 
-  return {
-    id:       stubId,
-    type:     'kernel',
-    date:     '',
-    title:    stubTitle,
-    subtitle: '',
-    status:   'ACTIVE',
-    readTime: '',
-    tags:     [],
-    body:     undefined,
-    content:  undefined,
+    return {
+      id:       stubId,
+      type:     defaultType,
+      date:     '',
+      title:    stubTitle,
+      subtitle: '',
+      status:   'ACTIVE',
+      readTime: '',
+      tags:     [],
+      body:     undefined,
+      content:  undefined,
 
-    loadContent: async () => {
-      let raw = '';
-      try { raw = await loader(); } catch (err) { console.error('[KERNEL_LOG] Failed to load chunk:', filename, err); }
+      loadContent: async () => {
+        let raw = '';
+        try { raw = await loader(); } catch (err) { console.error('[KERNEL_LOG] Failed to load chunk:', filename, err); }
 
-      const { frontmatter, body } = parseFrontmatter(raw);
-      const { rawTitle, rawSubtitle } = deriveFromContent(body, filename);
+        const { frontmatter, body } = parseFrontmatter(raw);
+        const { rawTitle, rawSubtitle } = deriveFromContent(body, filename);
 
-      // ── Diagnostic: warn when expected frontmatter fields are absent ─────────
-      // Fires during development and in the browser console on any open article.
-      // Use this to audit which files still have corrupt or missing metadata.
-      if (!frontmatter.date) {
-        console.warn(`[loadArticles] missing frontmatter.date — id: ${frontmatter.id || stubId}`);
-      }
-      if (!frontmatter.title) {
-        console.warn(`[loadArticles] missing frontmatter.title — id: ${frontmatter.id || stubId} (using derived: "${rawTitle}")`);
-      }
+        // ── Diagnostic: warn when expected frontmatter fields are absent ───────
+        // Fires during development and in the browser console on any open article.
+        // Use this to audit which files still have corrupt or missing metadata.
+        if (!frontmatter.date) {
+          console.warn(`[loadArticles] missing frontmatter.date — id: ${frontmatter.id || stubId}`);
+        }
+        if (!frontmatter.title) {
+          console.warn(`[loadArticles] missing frontmatter.title — id: ${frontmatter.id || stubId} (using derived: "${rawTitle}")`);
+        }
 
-      const wordCount = body.trim()
-        ? body.trim().split(/\s+/).filter(Boolean).length
-        : 0;
+        const wordCount = body.trim()
+          ? body.trim().split(/\s+/).filter(Boolean).length
+          : 0;
 
-      // ── Final title resolution ───────────────────────────────────────────────
-      // Priority: frontmatter.title > H1 from body > firstLine (clamped) > stubTitle
-      // The toUpperCase() call is safe on any ≤60-char string.
-      // If frontmatter.title is present but abnormally long (shouldn't happen with
-      // our strict template), clamp it here as a final safety net.
-      const resolvedTitle = (frontmatter.title || rawTitle || stubTitle)
-        .substring(0, MAX_TITLE_LEN)
-        .toUpperCase();
+        // ── Final title resolution ─────────────────────────────────────────────
+        // Priority: frontmatter.title > H1 from body > firstLine (clamped) > stubTitle
+        const resolvedTitle = (frontmatter.title || rawTitle || stubTitle)
+          .substring(0, MAX_TITLE_LEN)
+          .toUpperCase();
 
-      return {
-        id:       frontmatter.id                               || stubId,
-        type:     frontmatter.type                             || 'kernel',
-        date:     frontmatter.date                             || '',
-        title:    resolvedTitle,
-        subtitle: frontmatter.subtitle                         || rawSubtitle,
-        status:   frontmatter.status                           || 'ACTIVE',
-        readTime: frontmatter.readTime                         || '',
-        len:      `${wordCount} WDS`,
-        tags:     Array.isArray(frontmatter.tags)
-                    ? frontmatter.tags
-                    : frontmatter.tags
-                      ? [frontmatter.tags]
-                      : [],
-        // body: canonical post-frontmatter markdown content
-        // content: alias for backward compatibility with ArticleView
-        body,
-        content: body,
-      };
-    },
-  };
-});
+        return {
+          id:       frontmatter.id                               || stubId,
+          type:     frontmatter.type                             || defaultType,
+          date:     frontmatter.date                             || '',
+          title:    resolvedTitle,
+          subtitle: frontmatter.subtitle                         || rawSubtitle,
+          status:   frontmatter.status                           || 'ACTIVE',
+          readTime: frontmatter.readTime                         || '',
+          len:      `${wordCount} WDS`,
+          tags:     Array.isArray(frontmatter.tags)
+                      ? frontmatter.tags
+                      : frontmatter.tags
+                        ? [frontmatter.tags]
+                        : [],
+          // body: canonical post-frontmatter markdown content
+          // content: alias for backward compatibility with ArticleView
+          body,
+          content: body,
+        };
+      },
+    };
+  });
+}
 
-export default articles;
+const articles            = buildStubs(markdownModules,    'kernel');
+const legislationArticles = buildStubs(legislationModules, 'legislation');
+
+export default [...articles, ...legislationArticles];

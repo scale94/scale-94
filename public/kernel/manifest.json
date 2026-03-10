@@ -1,7 +1,7 @@
 {
-  "kernels": "articles.f3d41470.json",
-  "tags": "tags.a4f510ef.json",
-  "generated": "2026-03-10T16:58:31.962Z",
+  "kernels": "articles.381d52f4.json",
+  "tags": "tags.b1bb3e1b.json",
+  "generated": "2026-03-10T21:48:51.289Z",
   "academic": "academic.3286777f.json",
   "system": "system.6d6ca643.json",
   "bosonic_lattice": {
@@ -18,5 +18,6 @@
       "boot_geopolitical_kinetics",
       "boot_leviathan_benchmark"
     ]
-  }
+  },
+  "legislation": "legislation.16e791d6.json"
 }

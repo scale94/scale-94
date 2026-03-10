@@ -6,7 +6,6 @@ status: "RUNNING"
 title: "STRANGLER FIG PROTOCOL v1.0 // TRANSITION DYNAMICS"
 ---
 
-# STRANGLER_FIG_PROTOCOL v1.0
 ## Build the New System Around the Old — soma_kernel_5.5
 
 > *"We start small. Use matching markets for food banks. As these 'islands of coherence' prove superiority, they will expand."*

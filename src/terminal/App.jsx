@@ -127,14 +127,16 @@ const App = () => {
   // All three useMemos depend directly on `dynamicData` to avoid unstable
   // intermediate references (e.g. `?? []` creates a new array on every render).
   const articles = useMemo(() => {
-    const generated = dynamicData?.generatedArticles ?? [];
-    const academic  = dynamicData?.academicArticles  ?? [];
-    const genIds    = new Set(generated.map(a => a.id));
+    const generated   = dynamicData?.generatedArticles   ?? [];
+    const academic    = dynamicData?.academicArticles    ?? [];
+    const legislation = dynamicData?.legislationArticles ?? [];
+    const genIds      = new Set(generated.map(a => a.id));
     return [
       ...staticArticles,
       ...generated.filter(a => !staticIds.has(a.id)),
       ...autoArticles.filter(a => !staticIds.has(a.id) && !genIds.has(a.id)),
       ...academic,
+      ...legislation,
     ];
   }, [dynamicData]);
 
@@ -154,11 +156,12 @@ const App = () => {
           return r.json();
         });
 
-        const [kernelsJson, academicJson, tagsJson, systemJson] = await Promise.all([
-          manifest.kernels  ? fetch(`/kernel/${manifest.kernels}`).then(r  => r.json()) : Promise.resolve([]),
-          manifest.academic ? fetch(`/kernel/${manifest.academic}`).then(r => r.json()) : Promise.resolve([]),
-          manifest.tags     ? fetch(`/kernel/${manifest.tags}`).then(r     => r.json()) : Promise.resolve({}),
-          manifest.system   ? fetch(`/kernel/${manifest.system}`).then(r   => r.json()) : Promise.resolve({}),
+        const [kernelsJson, academicJson, tagsJson, systemJson, legislationJson] = await Promise.all([
+          manifest.kernels      ? fetch(`/kernel/${manifest.kernels}`).then(r      => r.json()) : Promise.resolve([]),
+          manifest.academic     ? fetch(`/kernel/${manifest.academic}`).then(r     => r.json()) : Promise.resolve([]),
+          manifest.tags         ? fetch(`/kernel/${manifest.tags}`).then(r         => r.json()) : Promise.resolve({}),
+          manifest.system       ? fetch(`/kernel/${manifest.system}`).then(r       => r.json()) : Promise.resolve({}),
+          manifest.legislation  ? fetch(`/kernel/${manifest.legislation}`).then(r  => r.json()) : Promise.resolve([]),
         ]);
 
         // Create fetch-based loadContent for each article (replaces dynamic import())
@@ -169,14 +172,15 @@ const App = () => {
           return { ...meta, ...chunk };
         };
 
-        const generatedArticles = Array.isArray(kernelsJson)  ? kernelsJson.map(a => ({ ...a, loadContent: makeLoadContent(a) })) : [];
-        const academicArticles  = Array.isArray(academicJson) ? academicJson.map(a => ({ ...a, loadContent: makeLoadContent(a) })) : [];
+        const generatedArticles   = Array.isArray(kernelsJson)     ? kernelsJson.map(a     => ({ ...a, loadContent: makeLoadContent(a) })) : [];
+        const academicArticles    = Array.isArray(academicJson)    ? academicJson.map(a    => ({ ...a, loadContent: makeLoadContent(a) })) : [];
+        const legislationArticles = Array.isArray(legislationJson) ? legislationJson.map(a => ({ ...a, loadContent: makeLoadContent(a) })) : [];
 
         const laterTime = new Date().toLocaleTimeString('en-US', { hour12: false });
         appendSystemLog({ time: laterTime, msg: `SYSTEM_KERNEL_LOG: Manifest loaded // ${manifest.generated ?? 'no timestamp'}` });
-        appendSystemLog({ time: laterTime, msg: `SYSTEM_KERNEL_LOG: ${generatedArticles.length} kernels // ${academicArticles.length} academic // tags index ready` });
+        appendSystemLog({ time: laterTime, msg: `SYSTEM_KERNEL_LOG: ${generatedArticles.length} kernels // ${academicArticles.length} academic // ${legislationArticles.length} legislation // tags index ready` });
 
-        setDynamicData({ generatedArticles, academicArticles, tagIndex: tagsJson, systemArticles: systemJson, manifest });
+        setDynamicData({ generatedArticles, academicArticles, legislationArticles, tagIndex: tagsJson, systemArticles: systemJson, manifest });
 
         // ── WASM integrity check ─────────────────────────────────────────────
         // Fetch the WASM binary and verify its SHA-256 against the manifest entry.
@@ -198,7 +202,7 @@ const App = () => {
         const laterTime = new Date().toLocaleTimeString('en-US', { hour12: false });
         appendSystemLog({ time: laterTime, msg: 'SYSTEM_KERNEL_LOG: WARNING — manifest unavailable // degraded mode' });
         appendSystemLog({ time: laterTime, msg: '  Run: npm run kernel:import to generate the CAS manifest.' });
-        setDynamicData({ generatedArticles: [], academicArticles: [], tagIndex: {}, systemArticles: {}, manifest: {} });
+        setDynamicData({ generatedArticles: [], academicArticles: [], legislationArticles: [], tagIndex: {}, systemArticles: {}, manifest: {} });
       }
     })();
   }, [appendSystemLog]);
@@ -221,11 +225,23 @@ const App = () => {
   // Fiction articles for Transmission tab — updates when CAS data loads
   const transmissionStories = useMemo(() => articles.filter(a => a.type === 'fiction'), [articles]);
 
-  // Kernel ordering — pinned first, rest reversed. kernelBuilds is a static import so [] dep is safe.
+  // Kernel ordering — pinned first, 5 newest by article date, rest alpha-sorted.
+  // Re-runs when articles updates (i.e. once CAS data loads) so dates are available.
   const sortedBuilds = useMemo(() => {
     const [pinned, ...rest] = kernelBuilds;
-    return [pinned, ...rest.slice().reverse()];
-  }, []);
+    // Build article-date lookup: article.id → 'YYYY-MM-DD' (empty string if unknown)
+    const dateMap = Object.fromEntries(articles.map(a => [a.id, a.date || '']));
+    // Annotate each entry with its article date, then partition
+    const annotated = rest.map(k => ({ ...k, _date: dateMap[k.articleId] || '' }));
+    // Sort descending by date so newest articles float to the top
+    annotated.sort((a, b) => (b._date > a._date ? 1 : b._date < a._date ? -1 : 0));
+    // Top 5 become the "latest" strip; remainder gets alphabetical sort on name
+    const newest5   = annotated.slice(0, 5).map(({ _date, ...k }) => k);
+    const alphaRest = annotated.slice(5)
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(({ _date, ...k }) => k);
+    return [pinned, ...newest5, ...alphaRest];
+  }, [articles]);
 
   // Filtered subset — used by KernelTab when a search/load filter is active.
   // norm is a stable module-level function — no useCallback wrapper needed.
@@ -1088,6 +1104,7 @@ const App = () => {
             <ScalingTab
               setArchitectThesis={setArchitectThesis}
               setCurrentPath={setCurrentPath}
+              loadKernel={handleNeuralLink}
             />
           )}
 

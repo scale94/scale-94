@@ -225,6 +225,24 @@
     "len": "350 WDS"
   },
   {
+    "id": "GSK-5.5.5",
+    "type": "kernel_doc",
+    "date": "2026-03-10",
+    "lastModified": "2026-03-10",
+    "title": "ᛟ THE GAIA-SCALE KERNEL: SOVEREIGN RECONSTRUCTION",
+    "subtitle": "Ⅰ. CORE DIRECTIVES: THE MATRILINEAL FIREWALL (§1.0)",
+    "status": "ACTIVE",
+    "readTime": "2 min read",
+    "tags": [
+      "GAIA-SCALE",
+      "KERNEL",
+      "SOVEREIGN",
+      "RECONSTRUCTION",
+      "CORE"
+    ],
+    "len": "490 WDS"
+  },
+  {
     "id": "GDPDW-KERNEL-5.5.5.5.5",
     "type": "kernel_doc",
     "date": "2026-03-06",
@@ -488,6 +506,18 @@
     "len": "391 WDS"
   },
   {
+    "id": "21-1.0",
+    "type": "kernel_doc",
+    "date": "2026-03-10",
+    "lastModified": "2026-03-10",
+    "title": "2026 03 10",
+    "subtitle": "",
+    "status": "ACTIVE",
+    "readTime": "1 min read",
+    "tags": [],
+    "len": "0 WDS"
+  },
+  {
     "id": "BRIDGE-KERNEL-1.0",
     "type": "kernel_doc",
     "date": "2026-03-06",
@@ -708,6 +738,42 @@
       "Operating"
     ],
     "len": "5012 WDS"
+  },
+  {
+    "id": "CEEI-ALLOCATION-ENGINE",
+    "type": "kernel_doc",
+    "date": "2026-03-10",
+    "lastModified": "2026-03-10",
+    "title": "A-CEEI ALLOCATION ENGINE V1.0 // PREFERENCE-BASED MARKETS",
+    "subtitle": "The End of the Price Tag — soma_kernel_5.5",
+    "status": "ACTIVE",
+    "readTime": "4 min read",
+    "tags": [
+      "A-CEEI",
+      "ALLOCATION",
+      "ENGINE",
+      "Price",
+      "SYSTEM"
+    ],
+    "len": "712 WDS"
+  },
+  {
+    "id": "DALY-THERMO-SIMULATION",
+    "type": "kernel_doc",
+    "date": "2026-03-10",
+    "lastModified": "2026-03-10",
+    "title": "DALY THERMO SIMULATION V1.0 // THERMODYNAMIC GOVERNOR",
+    "subtitle": "The Hard Constraints Engine — soma_kernel_5.5",
+    "status": "ACTIVE",
+    "readTime": "3 min read",
+    "tags": [
+      "DALY",
+      "THERMO",
+      "SIMULATION",
+      "Hard",
+      "Constraints"
+    ],
+    "len": "663 WDS"
   },
   {
     "id": "FISH-SCALE-KERNEL",
@@ -1259,6 +1325,24 @@
     "len": "416 WDS"
   },
   {
+    "id": "RUN-COMMAND-MANUAL",
+    "type": "kernel_doc",
+    "date": "2026-03-10",
+    "lastModified": "2026-03-10",
+    "title": "RUN COMMAND MANUAL V1.0 // WASM KERNEL INTERFACE",
+    "subtitle": "Direct Interface to Compiled Rust Simulations — scale_9.4 Terminal",
+    "status": "ACTIVE",
+    "readTime": "11 min read",
+    "tags": [
+      "COMMAND",
+      "MANUAL",
+      "Direct",
+      "Interface",
+      "Compiled"
+    ],
+    "len": "2290 WDS"
+  },
+  {
     "id": "SCALE-KERNEL-FRAMEWORK-FULL",
     "type": "kernel_doc",
     "date": "2026-03-06",
@@ -1475,6 +1559,24 @@
     "len": "154 WDS"
   },
   {
+    "id": "SOMA-PLUS-ENGINE",
+    "type": "kernel_doc",
+    "date": "2026-03-10",
+    "lastModified": "2026-03-10",
+    "title": "SOMA PLUS ENGINE V1.0 // SOCIAL CAPITAL ACCUMULATION",
+    "subtitle": "Status Is Earned Through the Commons — soma_kernel_5.5",
+    "status": "ACTIVE",
+    "readTime": "4 min read",
+    "tags": [
+      "SOMA",
+      "PLUS",
+      "ENGINE",
+      "Status",
+      "Earned"
+    ],
+    "len": "860 WDS"
+  },
+  {
     "id": "SOMA-KERNEL-0-DAY",
     "type": "kernel_doc",
     "date": "2026-03-07",
@@ -1569,6 +1671,41 @@
       "FISH"
     ],
     "len": "2358 WDS"
+  },
+  {
+    "id": "STRANGLER-FIG-PROTOCOL",
+    "type": "kernel_doc",
+    "date": "2026-03-10",
+    "lastModified": "2026-03-10",
+    "title": "STRANGLER FIG PROTOCOL V1.0 // TRANSITION DYNAMICS",
+    "subtitle": "Build the New System Around the Old — soma_kernel_5.5",
+    "status": "ACTIVE",
+    "readTime": "5 min read",
+    "tags": [
+      "STRANGLER",
+      "PROTOCOL",
+      "Build",
+      "System",
+      "Around"
+    ],
+    "len": "958 WDS"
+  },
+  {
+    "id": "SURVEILLANCE-TRACKER",
+    "type": "kernel_doc",
+    "date": "2026-03-10",
+    "lastModified": "2026-03-10",
+    "title": "TACTICAL CARTOGRAPHY OF DIGITAL AUTHORITARIANISM",
+    "subtitle": "Mapping the Algorithmic Panopticon",
+    "status": "ACTIVE",
+    "readTime": "1 min read",
+    "tags": [
+      "SURVEILLANCE",
+      "PANOPTICON",
+      "LEGISLATION",
+      "EU"
+    ],
+    "len": "257 WDS"
   },
   {
     "id": "TECTONIC-DISCHARGE-KERNEL",

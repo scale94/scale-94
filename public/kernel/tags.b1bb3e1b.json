@@ -1,4 +1,10 @@
 {
+  "A-CEEI": [
+    {
+      "id": "CEEI-ALLOCATION-ENGINE",
+      "title": "A-CEEI ALLOCATION ENGINE V1.0 // PREFERENCE-BASED MARKETS"
+    }
+  ],
   "ACCESS": [
     {
       "id": "SCALE-RENDER-PROMPT",
@@ -27,6 +33,12 @@
     {
       "id": "SCALE-OPTIMIZATION-KERNEL-9.4",
       "title": "SCALE OPTIMIZATION KERNEL 9.4"
+    }
+  ],
+  "ALLOCATION": [
+    {
+      "id": "CEEI-ALLOCATION-ENGINE",
+      "title": "A-CEEI ALLOCATION ENGINE V1.0 // PREFERENCE-BASED MARKETS"
     }
   ],
   "Annihilation": [
@@ -103,6 +115,12 @@
     {
       "id": "SCALE94-KERNEL-ENCYCLOPEDIA",
       "title": "💀 SCALE94 · KERNEL ENCYCLOPEDIA"
+    }
+  ],
+  "Around": [
+    {
+      "id": "STRANGLER-FIG-PROTOCOL",
+      "title": "STRANGLER FIG PROTOCOL V1.0 // TRANSITION DYNAMICS"
     }
   ],
   "Associative": [
@@ -219,6 +237,12 @@
       "title": "💾 THE BRIDGE KERNEL // SESSION EXTRACTOR 1.0"
     }
   ],
+  "Build": [
+    {
+      "id": "STRANGLER-FIG-PROTOCOL",
+      "title": "STRANGLER FIG PROTOCOL V1.0 // TRANSITION DYNAMICS"
+    }
+  ],
   "BUILD": [
     {
       "id": "BIODIVERSITY-KERNEL-1.0.1",
@@ -287,6 +311,10 @@
     {
       "id": "BRIDGE-KERNEL-1.0",
       "title": "💾 THE BRIDGE KERNEL // SESSION EXTRACTOR 1.0"
+    },
+    {
+      "id": "RUN-COMMAND-MANUAL",
+      "title": "RUN COMMAND MANUAL V1.0 // WASM KERNEL INTERFACE"
     }
   ],
   "COMPANION": [
@@ -299,6 +327,12 @@
     {
       "id": "NOCTURNAL-NIGHT-KERNEL-V-22.2.2-1",
       "title": "☢️ KERNEL_COMPILATION: THE_NIGHT_SHIFT_V2.5 ☢️"
+    }
+  ],
+  "Compiled": [
+    {
+      "id": "RUN-COMMAND-MANUAL",
+      "title": "RUN COMMAND MANUAL V1.0 // WASM KERNEL INTERFACE"
     }
   ],
   "COMPLETE": [
@@ -337,6 +371,12 @@
       "title": "SOMA KERNEL 12G"
     }
   ],
+  "Constraints": [
+    {
+      "id": "DALY-THERMO-SIMULATION",
+      "title": "DALY THERMO SIMULATION V1.0 // THERMODYNAMIC GOVERNOR"
+    }
+  ],
   "CONSTRAINTS": [
     {
       "id": "SOMA-KERNEL-12-IRONCLAD",
@@ -359,6 +399,12 @@
       "title": "FUCK XITTER AND XITLER RC1"
     }
   ],
+  "CORE": [
+    {
+      "id": "GSK-5.5.5",
+      "title": "ᛟ THE GAIA-SCALE KERNEL: SOVEREIGN RECONSTRUCTION"
+    }
+  ],
   "Corpus": [
     {
       "id": "SCALE-KERNEL-FRAMEWORK-FULL",
@@ -375,6 +421,12 @@
     {
       "id": "SOMA-KERNEL-5.0",
       "title": "SOMA KERNEL 5.0"
+    }
+  ],
+  "DALY": [
+    {
+      "id": "DALY-THERMO-SIMULATION",
+      "title": "DALY THERMO SIMULATION V1.0 // THERMODYNAMIC GOVERNOR"
     }
   ],
   "Dark": [
@@ -447,6 +499,12 @@
       "title": "FISH SCALE KERNEL · 11.6.0 · QUANTUM EXPANSION"
     }
   ],
+  "Direct": [
+    {
+      "id": "RUN-COMMAND-MANUAL",
+      "title": "RUN COMMAND MANUAL V1.0 // WASM KERNEL INTERFACE"
+    }
+  ],
   "DISCHARGE": [
     {
       "id": "TECTONIC-DISCHARGE-KERNEL",
@@ -463,6 +521,12 @@
     {
       "id": "SOMA-KERNEL-12.12",
       "title": "SOMA KERNEL 12.12"
+    }
+  ],
+  "Earned": [
+    {
+      "id": "SOMA-PLUS-ENGINE",
+      "title": "SOMA PLUS ENGINE V1.0 // SOCIAL CAPITAL ACCUMULATION"
     }
   ],
   "ECO-QUANTUM": [
@@ -501,14 +565,28 @@
   ],
   "ENGINE": [
     {
+      "id": "CEEI-ALLOCATION-ENGINE",
+      "title": "A-CEEI ALLOCATION ENGINE V1.0 // PREFERENCE-BASED MARKETS"
+    },
+    {
       "id": "GLITCH-SCALE-KERNEL-CS3",
       "title": "[KERNEL: POLARITY_PRIME // THE AXIOMATIC PAIRS]"
+    },
+    {
+      "id": "SOMA-PLUS-ENGINE",
+      "title": "SOMA PLUS ENGINE V1.0 // SOCIAL CAPITAL ACCUMULATION"
     }
   ],
   "Entity": [
     {
       "id": "MOZART-MEMORANDUM-KERNEL-2.2",
       "title": "MOZART MEMORANDUM KERNEL 2.2"
+    }
+  ],
+  "EU": [
+    {
+      "id": "SURVEILLANCE-TRACKER",
+      "title": "TACTICAL CARTOGRAPHY OF DIGITAL AUTHORITARIANISM"
     }
   ],
   "EVENT": [
@@ -673,6 +751,12 @@
       "title": "🔱 KERNEL: QUANTUM FUSION PROTOCOL [LAYER 3 FINAL]"
     }
   ],
+  "GAIA-SCALE": [
+    {
+      "id": "GSK-5.5.5",
+      "title": "ᛟ THE GAIA-SCALE KERNEL: SOVEREIGN RECONSTRUCTION"
+    }
+  ],
   "GENERATION": [
     {
       "id": "MOZART-MEMORANDUM-KERNEL2.0",
@@ -731,6 +815,12 @@
       "title": "🌿 FLORA 1.0 // THE BIOCOENOSIS BUILD"
     }
   ],
+  "Hard": [
+    {
+      "id": "DALY-THERMO-SIMULATION",
+      "title": "DALY THERMO SIMULATION V1.0 // THERMODYNAMIC GOVERNOR"
+    }
+  ],
   "HARDENING": [
     {
       "id": "GDPDW-KERNEL-5.5.5.5.5",
@@ -787,6 +877,12 @@
       "title": "SOMA_INTEGRATION_KERNEL_V1.0"
     }
   ],
+  "Interface": [
+    {
+      "id": "RUN-COMMAND-MANUAL",
+      "title": "RUN COMMAND MANUAL V1.0 // WASM KERNEL INTERFACE"
+    }
+  ],
   "Invariance": [
     {
       "id": "FISH-SCALE-KERNEL-11.4.0-SCALAR-SOVEREIGNTY",
@@ -812,6 +908,10 @@
     }
   ],
   "KERNEL": [
+    {
+      "id": "GSK-5.5.5",
+      "title": "ᛟ THE GAIA-SCALE KERNEL: SOVEREIGN RECONSTRUCTION"
+    },
     {
       "id": "QUANTUM-QUACKSALBER-KERNEL-1.1.1",
       "title": "🔱 KERNEL: QUANTUM FUSION PROTOCOL [LAYER 3 FINAL]"
@@ -851,6 +951,12 @@
     {
       "id": "FISH-SCALE-KERNEL11.1.1",
       "title": "FISH SCALE KERNEL11.1.1"
+    }
+  ],
+  "LEGISLATION": [
+    {
+      "id": "SURVEILLANCE-TRACKER",
+      "title": "TACTICAL CARTOGRAPHY OF DIGITAL AUTHORITARIANISM"
     }
   ],
   "Leviathan": [
@@ -911,6 +1017,12 @@
     {
       "id": "SOMA-INTEGRATION-KERNEL-V1.0",
       "title": "SOMA INTEGRATION KERNEL V1.0"
+    }
+  ],
+  "MANUAL": [
+    {
+      "id": "RUN-COMMAND-MANUAL",
+      "title": "RUN COMMAND MANUAL V1.0 // WASM KERNEL INTERFACE"
     }
   ],
   "MASCULINE": [
@@ -1091,6 +1203,12 @@
       "title": "[KERNEL: POLARITY_PRIME // THE AXIOMATIC PAIRS]"
     }
   ],
+  "PANOPTICON": [
+    {
+      "id": "SURVEILLANCE-TRACKER",
+      "title": "TACTICAL CARTOGRAPHY OF DIGITAL AUTHORITARIANISM"
+    }
+  ],
   "Paradox": [
     {
       "id": "NECROMANTIC-PARADOX-LOGITBIAS.PROMPT.MD",
@@ -1149,6 +1267,12 @@
       "title": "GREENLAND KERNEL // THE PIRARUCU PROTOCOL"
     }
   ],
+  "PLUS": [
+    {
+      "id": "SOMA-PLUS-ENGINE",
+      "title": "SOMA PLUS ENGINE V1.0 // SOCIAL CAPITAL ACCUMULATION"
+    }
+  ],
   "POLARITY": [
     {
       "id": "GLITCH-SCALE-KERNEL-CS3",
@@ -1165,6 +1289,12 @@
     {
       "id": "SOMA-KERNEL-5.0",
       "title": "SOMA KERNEL 5.0"
+    }
+  ],
+  "Price": [
+    {
+      "id": "CEEI-ALLOCATION-ENGINE",
+      "title": "A-CEEI ALLOCATION ENGINE V1.0 // PREFERENCE-BASED MARKETS"
     }
   ],
   "PRIME": [
@@ -1225,6 +1355,10 @@
     {
       "id": "SOMA-KERNEL-12-IRONCLAD",
       "title": "PROTOCOL: SYNTHESIS_V2"
+    },
+    {
+      "id": "STRANGLER-FIG-PROTOCOL",
+      "title": "STRANGLER FIG PROTOCOL V1.0 // TRANSITION DYNAMICS"
     }
   ],
   "PURIFICATION": [
@@ -1264,6 +1398,10 @@
     }
   ],
   "RECONSTRUCTION": [
+    {
+      "id": "GSK-5.5.5",
+      "title": "ᛟ THE GAIA-SCALE KERNEL: SOVEREIGN RECONSTRUCTION"
+    },
     {
       "id": "SOMA-16.10-GF-KERNEL",
       "title": "SOMA 16.10 // THE GF BUILD"
@@ -1453,6 +1591,12 @@
       "title": "TECTONIC DISCHARGE KERNEL"
     }
   ],
+  "SIMULATION": [
+    {
+      "id": "DALY-THERMO-SIMULATION",
+      "title": "DALY THERMO SIMULATION V1.0 // THERMODYNAMIC GOVERNOR"
+    }
+  ],
   "SOCIO-PHYSICS": [
     {
       "id": "BOSONIC-KERNEL-2.0",
@@ -1483,6 +1627,10 @@
     {
       "id": "SOMA-INTEGRATION-KERNEL-V1",
       "title": "SOMA_INTEGRATION_KERNEL_V1.0"
+    },
+    {
+      "id": "SOMA-PLUS-ENGINE",
+      "title": "SOMA PLUS ENGINE V1.0 // SOCIAL CAPITAL ACCUMULATION"
     }
   ],
   "SORBE": [
@@ -1505,6 +1653,10 @@
     {
       "id": "HYPERFOCUS-STACK-KERNEL-18.0",
       "title": "🏮 KERNEL 18.0: THE HYPERFOCUS STACK"
+    },
+    {
+      "id": "GSK-5.5.5",
+      "title": "ᛟ THE GAIA-SCALE KERNEL: SOVEREIGN RECONSTRUCTION"
     },
     {
       "id": "GEOPOLITICAL-KINETICS-KERNEL",
@@ -1569,6 +1721,12 @@
       "title": "SCALE Y KERNEL 1.1"
     }
   ],
+  "Status": [
+    {
+      "id": "SOMA-PLUS-ENGINE",
+      "title": "SOMA PLUS ENGINE V1.0 // SOCIAL CAPITAL ACCUMULATION"
+    }
+  ],
   "STATUS": [
     {
       "id": "GEOPOLITICAL-KINETICS-KERNEL-V1",
@@ -1577,6 +1735,12 @@
     {
       "id": "SORBE-THERMODYNAMIC-BLOOM-V1",
       "title": "🌿 THE SORBE BLOOM // THERMODYNAMIC SYNTHESIS V1.0"
+    }
+  ],
+  "STRANGLER": [
+    {
+      "id": "STRANGLER-FIG-PROTOCOL",
+      "title": "STRANGLER FIG PROTOCOL V1.0 // TRANSITION DYNAMICS"
     }
   ],
   "Strategy": [
@@ -1601,6 +1765,12 @@
     {
       "id": "SCALE-RENDER-PROMPT",
       "title": "SCALE RENDER PROMPT"
+    }
+  ],
+  "SURVEILLANCE": [
+    {
+      "id": "SURVEILLANCE-TRACKER",
+      "title": "TACTICAL CARTOGRAPHY OF DIGITAL AUTHORITARIANISM"
     }
   ],
   "Swenson": [
@@ -1661,6 +1831,10 @@
     {
       "id": "SOMA-KERNEL-4.5.6A-FUCK-XITTER-FUCK-XITLER",
       "title": "SOMA KERNEL 4.5.6A FUCK XITTER FUCK XITLER"
+    },
+    {
+      "id": "STRANGLER-FIG-PROTOCOL",
+      "title": "STRANGLER FIG PROTOCOL V1.0 // TRANSITION DYNAMICS"
     }
   ],
   "SYSTEM": [
@@ -1671,6 +1845,10 @@
     {
       "id": "MOZART-MEMORANDUM-KERNEL2.0",
       "title": "MOZART MEMORANDUM KERNEL2.0"
+    },
+    {
+      "id": "CEEI-ALLOCATION-ENGINE",
+      "title": "A-CEEI ALLOCATION ENGINE V1.0 // PREFERENCE-BASED MARKETS"
     },
     {
       "id": "HIGH-TOWER-KERNEL",
@@ -1747,6 +1925,12 @@
     {
       "id": "FISH-SCALE-KERNEL-11.4.0-SCALAR-SOVEREIGNTY",
       "title": "FISH SCALE KERNEL 11.4.0 SCALAR SOVEREIGNTY"
+    }
+  ],
+  "THERMO": [
+    {
+      "id": "DALY-THERMO-SIMULATION",
+      "title": "DALY THERMO SIMULATION V1.0 // THERMODYNAMIC GOVERNOR"
     }
   ],
   "Thermosphere": [

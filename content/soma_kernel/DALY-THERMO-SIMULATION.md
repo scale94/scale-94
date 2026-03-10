@@ -6,7 +6,6 @@ status: "RUNNING"
 title: "DALY THERMO SIMULATION v1.0 // THERMODYNAMIC GOVERNOR"
 ---
 
-# DALY_THERMO_SIMULATION v1.0
 ## The Hard Constraints Engine — soma_kernel_5.5
 
 > *"Economics is a subsystem of the biosphere. You cannot negotiate with physics."*

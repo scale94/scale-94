@@ -6,7 +6,6 @@ status: "RUNNING"
 title: "A-CEEI ALLOCATION ENGINE v1.0 // PREFERENCE-BASED MARKETS"
 ---
 
-# A-CEEI_ALLOCATION_ENGINE v1.0
 ## The End of the Price Tag — soma_kernel_5.5
 
 > *"You cannot simply choose what you want; you must also be chosen."*

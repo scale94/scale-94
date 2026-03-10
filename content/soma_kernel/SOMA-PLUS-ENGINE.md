@@ -6,7 +6,6 @@ status: "RUNNING"
 title: "SOMA PLUS ENGINE v1.0 // SOCIAL CAPITAL ACCUMULATION"
 ---
 
-# SOMA_PLUS_ENGINE v1.0
 ## Status Is Earned Through the Commons — soma_kernel_5.5
 
 > *"If robots do the work, what do humans do? soma_kernel_5.5 answers: Survival is guaranteed; status is earned."*

@@ -8,20 +8,6 @@
         "type": "tabs",
         "children": [
           {
-            "id": "631ee3606a395f27",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "FISH-SCALE-KERNEL-11.7.0.md",
-                "mode": "source",
-                "source": false
-              },
-              "icon": "lucide-file",
-              "title": "FISH-SCALE-KERNEL-11.7.0"
-            }
-          },
-          {
             "id": "8d729947e28f6607",
             "type": "leaf",
             "state": {
@@ -34,37 +20,8 @@
               "icon": "lucide-file",
               "title": "SCALE_OPTIMIZATION_KERNEL_9.4"
             }
-          },
-          {
-            "id": "644b3b9c0cb6f648",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "AI-KERNEL-FOR-POST-CAPITALIST-ECONOMICS.md",
-                "mode": "source",
-                "source": false
-              },
-              "icon": "lucide-file",
-              "title": "AI-KERNEL-FOR-POST-CAPITALIST-ECONOMICS"
-            }
-          },
-          {
-            "id": "bfb7c83b9c830877",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "Untitled.md",
-                "mode": "source",
-                "source": false
-              },
-              "icon": "lucide-file",
-              "title": "Untitled"
-            }
           }
-        ],
-        "currentTab": 3
+        ]
       }
     ],
     "direction": "vertical"
@@ -117,7 +74,8 @@
               "title": "Bookmarks"
             }
           }
-        ]
+        ],
+        "currentTab": 1
       }
     ],
     "direction": "horizontal",
@@ -226,12 +184,16 @@
       "bases:Create new base": false
     }
   },
-  "active": "bfb7c83b9c830877",
+  "active": "8d729947e28f6607",
   "lastOpenFiles": [
+    "2026-03-10.md",
+    "Untitled.canvas",
     "AI-KERNEL-FOR-POST-CAPITALIST-ECONOMICS.md",
-    "Untitled.md",
-    "SORBE-THERMODYNAMIC-BLOOM-KERNEL-1.0.md",
     "SCALE_OPTIMIZATION_KERNEL_9.4.md",
+    "Untitled.md",
+    "surveillance tracker.md",
+    "gaia_scale_kernel-5.5.5.md",
+    "SORBE-THERMODYNAMIC-BLOOM-KERNEL-1.0.md",
     "TAMAM-KERNEL-V1.0.md",
     "FISH-SCALE-KERNEL.md",
     "FISH-SCALE-KERNEL-11.7.0.md",
@@ -251,10 +213,6 @@
     "SOMA-KERNEL10-BB.md",
     "SOMA-KERNEL-ZERO-DAY.md",
     "SOMA-KERNEL-5.0.md",
-    "SOMA-KERNEL-12G.md",
-    "SOMA-KERNEL-12.12.md",
-    "SOMA-KERNEL-12-IRONCLAD.md",
-    "SOMA-KERNEL-0-DAY.md",
     "sedfliHyD",
     "THE-FLUORESCENT-CAGE.md.tmp.22924.1772811426906",
     "THE-CIGAR-HEIST.md.tmp.22924.1772811322646",
