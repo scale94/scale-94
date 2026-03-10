@@ -906,27 +906,13 @@ const App = () => {
 
       {/*
        * ── Boot-to-main transition overlay ───────────────────────────────────
-       * backgroundColor: '#000000' — explicit hex matches the main terminal's
-       *   bg-black exactly, preventing gamma-pop when the overlay becomes
-       *   transparent and the terminal surface is revealed at 5000ms.
-       *
-       * pointerEvents:
-       *   'auto'  while bootSequence=true  → blocks the silently-mounting UI
-       *   'none'  once bootSequence=false  → never traps clicks during the fade
-       *
-       * During boot (bootSequence=true):  opacity 1, transition:none — instant seal.
-       * On boot done (bootSequence=false): opacity 0, transition 1s ease-out — fade.
+       * Removed: the opacity-fade overlay (z-97) has been replaced by the
+       * global-reveal-mask below. BootSequence at z-100 covers the main UI
+       * during boot; the mask at z-49 takes over in the same React commit
+       * when bootSequence → false, ensuring a single-pass top-to-bottom draw
+       * with no clip-path (buggy on iOS Safari flex containers) and no
+       * opacity desync between the overlay fade and the content reveal.
        */}
-      <div
-        className="fixed inset-0"
-        style={{
-          zIndex: 97,
-          backgroundColor: '#000000',
-          opacity: bootSequence ? 1 : 0,
-          transition: bootSequence ? 'none' : 'opacity 1s ease-out',
-          pointerEvents: bootSequence ? 'auto' : 'none',
-        }}
-      />
 
       <style>{`
         /* Custom "Hacker" Scrollbar */
@@ -969,51 +955,52 @@ const App = () => {
       `}</style>
 
       {/*
-       * ── CRT render beam ────────────────────────────────────────────────────
-       * Appears once, immediately after boot (bootSequence → false).
-       * Travels top: 0% → top: 100% in 0.9s linear (crt-beam keyframe).
-       * forwards fill-mode: parks at top: 100% (below viewport) forever —
-       * never re-triggers, never interferes with later navigation.
-       * z-50: above the sticky header (z-40), below the boot overlay (z-97).
-       * The beam is NOT inside the clip-path wrapper, so it's always fully
-       * visible while the wrapper reveals content behind it.
+       * ── Unified global reveal mask + render beam ────────────────────────────
+       * Mounts in the same React commit that unmounts BootSequence.
+       * No clip-path, no opacity transition — pure GPU translateY.
+       *
+       * Mask (z-49): solid black div slides from translateY(0) → translateY(100vh)
+       *   in 0.9s linear. Covers the main UI (z-10 / z-40 header) while passing.
+       *   forwards: parks off-screen below viewport, never blocks interaction.
+       *   pointerEvents: none — never traps clicks.
+       *
+       * Beam (z-50): 3px line travels with the mask edge via the same translateY
+       *   animation. Opacity fades in at 5% and out at 95% to avoid hard edges.
+       *
+       * Both use transform: translateZ(0) + willChange: transform for GPU promotion.
        */}
       {!bootSequence && (
-        <div
-          style={{
-            position: 'fixed', left: 0, right: 0, height: '3px',
+        <>
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: '#000',
+            zIndex: 49,
+            animation: 'global-reveal-mask 0.9s linear forwards',
+            transform: 'translateZ(0)',
+            willChange: 'transform',
+            pointerEvents: 'none',
+          }} />
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, height: '3px',
             zIndex: 50, pointerEvents: 'none',
             background: 'linear-gradient(transparent, rgba(6,182,212,0.9) 50%, transparent)',
             boxShadow: '0 0 12px rgba(6,182,212,0.6), 0 0 28px rgba(6,182,212,0.2)',
-            animation: 'crt-beam 0.9s linear forwards',
-          }}
-        />
+            animation: 'global-beam 0.9s linear forwards',
+            transform: 'translateZ(0)',
+            willChange: 'transform',
+          }} />
+        </>
       )}
 
       {/*
-       * ── Terminal content — CRT clip-path reveal ────────────────────────────
-       * clipPath: inset(0 0 100% 0) during boot → entire wrapper is hidden
-       *   (the boot overlay covers it anyway, but this is belt-and-suspenders).
-       *
-       * On boot done: crt-reveal 0.9s linear forwards.
-       *   0%  → inset(0 0 100% 0)  — fully clipped from bottom
-       *   100% → inset(0 0 0% 0)   — fully visible
-       *   forwards: holds the final value after animation ends.
-       *
-       * Because both crt-reveal and crt-beam use identical duration + linear
-       * timing, the clip boundary and beam top are always at the same Y —
-       * text appears strictly behind the beam on every frame.
-       *
-       * CSS animations override inline styles for the animated property, so
-       * the static clipPath value is superseded once the animation fires.
+       * ── Terminal content ────────────────────────────────────────────────────
+       * No clip-path. The UI renders normally at all times. During boot,
+       * BootSequence (z-100) covers it. After boot, the global-reveal-mask
+       * (z-49) slides down — both mount in the same React commit so there
+       * is no single-frame flash between BootSequence unmounting and the
+       * mask appearing.
        */}
-      <div
-        className="flex flex-col flex-grow"
-        style={{
-          clipPath: 'inset(0 0 100% 0)',
-          animation: bootSequence ? 'none' : 'crt-reveal 0.9s linear forwards',
-        }}
-      >
+      <div className="flex flex-col flex-grow">
         <OctagonGrid visible={!selectedArticle && !architectThesis && !tagCloudView} />
 
       {/* ── Offline indicator ─────────────────────────────────────────────── */}

@@ -127,6 +127,11 @@ const kernelBuilds = [
   { id: 'SYK-1.0', articleId: 'SCALE-Y-KERNEL-1-0-1', name: 'SCALE_Y_KERNEL_1_0', status: 'ACTIVE', desc: 'ᛟ Feather State Protocol · Sovereign Self-Governance' },
   { id: 'UTK-1.0-1', articleId: 'UNDERGROUND-THERMODYNAMICISTS', name: 'UNDERGROUND_THERMODYNAMICISTS', status: 'EMERGENT', desc: '◈ Signal map' },
 /* @@INJECT_START@@ */
+  { id: "RUN-MANUAL-1.0", articleId: "RUN-COMMAND-MANUAL", name: "RUN_COMMAND_MANUAL", status: "RUNNING", desc: "run Command Manual // All 10 WASM Kernels // Positional + Named Flags" },
+  { id: "DALY-THERMO-1.0", articleId: "DALY-THERMO-SIMULATION", name: "DALY_THERMO_SIMULATION", status: "RUNNING", desc: "Thermodynamic Governor // Daly Rules ODE // Collapse Horizon" },
+  { id: "CEEI-1.0", articleId: "CEEI-ALLOCATION-ENGINE", name: "CEEI_ALLOCATION_ENGINE", status: "RUNNING", desc: "A-CEEI // Preference-Based Markets // Roth 2012" },
+  { id: "SOMA-PLUS-1.0", articleId: "SOMA-PLUS-ENGINE", name: "SOMA_PLUS_ENGINE", status: "RUNNING", desc: "Social Capital // Commons Contribution Engine // Post-Scarcity" },
+  { id: "STRANGLER-FIG-1.0", articleId: "STRANGLER-FIG-PROTOCOL", name: "STRANGLER_FIG_PROTOCOL", status: "RUNNING", desc: "Transition Protocol // Islands of Coherence // soma_kernel_5.5" },
   { id: "ATMOSPHERIC-ENTROPY-KERNEL-3.0", articleId: "ATMOSPHERIC-ENTROPY-KERNEL-3.0", name: "ATMOSPHERIC_ENTROPY_KERNEL_3_0", status: "ACTIVE", desc: "The Thermosphere Protocol" },
   { id: "CHRO-1.0", articleId: "CHRO-1.0", name: "CHRONOS_KERNEL_·_V1_1", status: "ACTIVE", desc: "Ⅰ. The Illusion of the Loop 🌀" },
   { id: "FSQ-11.6", articleId: "FSQ-11.6", name: "FISH_SCALE_KERNEL_V11_6_0_QUANTUM", status: "ACTIVE", desc: "Ⅰ · THE MASCULINE MUSCHI DIAGNOSTIC · QUANTUM RESTATEMENT (§1.2)" },

@@ -126,21 +126,23 @@ html, body {
 }
 
 /* ── CRT terminal draw animations ───────────────────────────────────────────
-   Both use linear timing so the beam position and the revealed content
-   boundary advance at exactly the same rate — text appears strictly
-   behind the beam, never ahead of it or lagging.
-   Duration is set on the element (0.9s) to match the first bs-scan pass.  */
+   Unified GPU-accelerated reveal: a solid black mask slides down off the
+   screen, revealing the UI behind it. The beam travels at the mask edge.
+   Both use translateY (GPU compositor) — no clip-path, no top/% positioning.
+   Duration is 0.9s linear to match the first bs-scan pass.  */
 
-/* Clip-path sweeps from fully-clipped-bottom → fully-visible */
-@keyframes crt-reveal {
-  from { clip-path: inset(0 0 100% 0); }
-  to   { clip-path: inset(0 0 0% 0); }
+/* Black mask slides down, revealing the UI underneath */
+@keyframes global-reveal-mask {
+  from { transform: translateY(0); }
+  to   { transform: translateY(100vh); }
 }
 
-/* Render beam travels from top of viewport to bottom */
-@keyframes crt-beam {
-  from { top: 0%; }
-  to   { top: 100%; }
+/* Render beam travels with the mask edge */
+@keyframes global-beam {
+  0%   { transform: translateY(0vh);   opacity: 0; }
+  5%   { opacity: 1; }
+  95%  { opacity: 1; }
+  100% { transform: translateY(100vh); opacity: 0; }
 }
 
 /* Boot card fade + gradient shimmer utilities removed:
