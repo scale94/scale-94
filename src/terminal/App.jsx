@@ -41,6 +41,17 @@ const ScalingTab       = lazy(() => import('./views/ScalingTab'));
 const ManifestoTab     = lazy(() => import('./views/ManifestoTab'));
 const PrivacyTab       = lazy(() => import('./views/PrivacyTab'));
 const SurveillanceTab  = lazy(() => import('./views/SurveillanceTab'));
+const BskyTab          = lazy(() => import('./views/BskyTab'));
+// ButterflyIcon — inline nav variant (matches BskyTab icon, no extra import needed)
+const NavButterflyIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" stroke="none" className="w-3 h-3" aria-hidden="true">
+    <path d="M11.5 11C9.5 9.5 5.5 7 2.5 8.5C0.5 9.5 1 12 4 13C6.5 13.8 9.5 13 11.5 11Z" />
+    <path d="M12.5 11C14.5 9.5 18.5 7 21.5 8.5C23.5 9.5 23 12 20 13C17.5 13.8 14.5 13 12.5 11Z" />
+    <path d="M11.5 13.5C9 14 4 15 3 18C2.5 19.5 4.5 21 7.5 19.5C9.5 18.5 11 16.5 11.5 13.5Z" />
+    <path d="M12.5 13.5C15 14 20 15 21 18C21.5 19.5 19.5 21 16.5 19.5C14.5 18.5 13 16.5 12.5 13.5Z" />
+    <ellipse cx="12" cy="12.5" rx="0.9" ry="3.5" />
+  </svg>
+);
 const ArticleView     = lazy(() => import('./views/ArticleView'));
 const ThesisView      = lazy(() => import('./views/ThesisView'));
 const TransmissionTab = lazy(() => import('./views/TransmissionTab'));
@@ -782,6 +793,9 @@ const App = () => {
         executeCommand(rawCmd, "Switching directory to /system/transmission...");
       } else if (['research', 'fiction', 'ls'].includes(action)) {
         executeCommand(rawCmd, "ERROR: Target directory purged. Content migrated to external archive.");
+      } else if (action === 'bsky' || action === 'bluesky' || action === 'atproto') {
+        handleNav('~/system/bsky', 'bsky');
+        executeCommand(rawCmd, "Switching directory to /system/bsky...");
       } else if (action === 'privacy') {
         handleNav('~/system/privacy', 'privacy');
         executeCommand(rawCmd, "Switching directory to /system/privacy...");
@@ -1111,6 +1125,8 @@ const App = () => {
             <button aria-label="Privacy" aria-current={activeTab === 'privacy' ? 'page' : undefined} onClick={() => handleNav('~/system/privacy', 'privacy')} className={`${activeTab === 'privacy' ? 'bg-gray-700 text-white shadow-[0_0_10px_rgba(100,100,100,0.5)]' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-900/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm`}><Lock className="w-3 h-3" /> /Privacy</button>
 
             <button aria-label="Surveillance" aria-current={activeTab === 'surveillance' ? 'page' : undefined} onClick={() => handleNav('~/system/surveillance', 'surveillance')} className={`${activeTab === 'surveillance' ? 'bg-red-900 text-red-100 shadow-[0_0_10px_rgba(248,113,113,0.4)]' : 'text-red-500/70 hover:text-red-300 hover:bg-red-900/20'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><ShieldAlert className="w-3 h-3" /> /Surveillance</button>
+
+            <button aria-label="BSKY" aria-current={activeTab === 'bsky' ? 'page' : undefined} onClick={() => handleNav('~/system/bsky', 'bsky')} className={`${activeTab === 'bsky' ? 'bg-sky-600 text-white shadow-[0_0_12px_rgba(56,189,248,0.5)]' : 'text-sky-400/80 hover:text-sky-200 hover:bg-sky-900/20'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><NavButterflyIcon /> /BSKY</button>
           </nav>
         </div>
       </header>
@@ -1180,6 +1196,11 @@ const App = () => {
               legislationArticles={legislationArticles}
               onOpenLaw={handleLegislationSelect}
             />
+          )}
+
+          {/* BSKY Tab — AT Protocol / Bluesky network · GraphTracks analytics */}
+          {activeTab === 'bsky' && !selectedArticle && !architectThesis && (
+            <BskyTab />
           )}
 
           {/* Article Detail */}

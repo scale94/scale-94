@@ -48,7 +48,9 @@
       "Bash(cargo check)",
       "Bash(node scripts/import-rust.js)",
       "Bash(node scripts/import-legislation.js)",
-      "Bash(dir \"E:\\\\scale_9.4\\\\content\\\\soma_kernel\"\" /B)"
+      "Bash(dir \"E:\\\\scale_9.4\\\\content\\\\soma_kernel\"\" /B)",
+      "Bash(dir \"E:\\\\scale_9.4\\\\src\\\\terminal\\\\views\" /b)",
+      "Bash(node import-kernel.js)"
     ]
   }
 }
