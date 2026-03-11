@@ -1301,24 +1301,6 @@
     "len": "0 WDS"
   },
   {
-    "id": "KERNEL-V3-TENFOLD-SCALING-1",
-    "type": "kernel_doc",
-    "date": "2026-03-06",
-    "lastModified": "2026-03-11",
-    "title": "🏛️ : SOVEREIGN_EFFECTOR] // REVISION 1",
-    "subtitle": "[LOCATION: SORBE_IN_GERMANY]",
-    "status": "ACTIVE",
-    "readTime": "1 min read",
-    "tags": [
-      "SOVEREIGN",
-      "EFFECTOR",
-      "REVISION",
-      "SORBE",
-      "GERMANY"
-    ],
-    "len": "0 WDS"
-  },
-  {
     "id": "KERNEL-V3-TENFOLD-SCALING",
     "type": "kernel_doc",
     "date": "2026-03-06",
@@ -1562,10 +1544,10 @@
     "type": "kernel_doc",
     "date": "2026-03-11",
     "lastModified": "2026-03-11",
-    "title": "RUN COMMAND MANUAL V2.0 // WASM KERNEL INTERFACE",
+    "title": "RUN COMMAND MANUAL V2.1 // WASM KERNEL INTERFACE",
     "subtitle": "Direct Interface to Compiled Rust Simulations — scale_9.4 Terminal",
     "status": "ACTIVE",
-    "readTime": "18 min read",
+    "readTime": "23 min read",
     "tags": [
       "COMMAND",
       "MANUAL",
@@ -1573,7 +1555,7 @@
       "Interface",
       "Compiled"
     ],
-    "len": "0 WDS"
+    "len": "4533 WDS"
   },
   {
     "id": "SCALE-KERNEL-FRAMEWORK-FULL",

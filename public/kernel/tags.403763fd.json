@@ -364,7 +364,7 @@
     },
     {
       "id": "RUN-COMMAND-MANUAL",
-      "title": "RUN COMMAND MANUAL V2.0 // WASM KERNEL INTERFACE"
+      "title": "RUN COMMAND MANUAL V2.1 // WASM KERNEL INTERFACE"
     }
   ],
   "Commons": [
@@ -388,7 +388,7 @@
   "Compiled": [
     {
       "id": "RUN-COMMAND-MANUAL",
-      "title": "RUN COMMAND MANUAL V2.0 // WASM KERNEL INTERFACE"
+      "title": "RUN COMMAND MANUAL V2.1 // WASM KERNEL INTERFACE"
     }
   ],
   "COMPLETE": [
@@ -592,7 +592,7 @@
   "Direct": [
     {
       "id": "RUN-COMMAND-MANUAL",
-      "title": "RUN COMMAND MANUAL V2.0 // WASM KERNEL INTERFACE"
+      "title": "RUN COMMAND MANUAL V2.1 // WASM KERNEL INTERFACE"
     }
   ],
   "DISCHARGE": [
@@ -638,10 +638,6 @@
     }
   ],
   "EFFECTOR": [
-    {
-      "id": "KERNEL-V3-TENFOLD-SCALING-1",
-      "title": "🏛️ : SOVEREIGN_EFFECTOR] // REVISION 1"
-    },
     {
       "id": "KERNEL-V3-TENFOLD-SCALING",
       "title": "🏛️ : SOVEREIGN_EFFECTOR]"
@@ -909,10 +905,6 @@
   ],
   "GERMANY": [
     {
-      "id": "KERNEL-V3-TENFOLD-SCALING-1",
-      "title": "🏛️ : SOVEREIGN_EFFECTOR] // REVISION 1"
-    },
-    {
       "id": "KERNEL-V3-TENFOLD-SCALING",
       "title": "🏛️ : SOVEREIGN_EFFECTOR]"
     }
@@ -1040,7 +1032,7 @@
     },
     {
       "id": "RUN-COMMAND-MANUAL",
-      "title": "RUN COMMAND MANUAL V2.0 // WASM KERNEL INTERFACE"
+      "title": "RUN COMMAND MANUAL V2.1 // WASM KERNEL INTERFACE"
     }
   ],
   "Invariance": [
@@ -1222,7 +1214,7 @@
   "MANUAL": [
     {
       "id": "RUN-COMMAND-MANUAL",
-      "title": "RUN COMMAND MANUAL V2.0 // WASM KERNEL INTERFACE"
+      "title": "RUN COMMAND MANUAL V2.1 // WASM KERNEL INTERFACE"
     }
   ],
   "MASCULINE": [
@@ -1731,10 +1723,6 @@
     {
       "id": "KERNEL-15.0-THE-PURIFICATION-OF-SCALE-1",
       "title": "🧊 KERNEL 15.0: THE PURIFICATION OF SCALE // REVISION 1"
-    },
-    {
-      "id": "KERNEL-V3-TENFOLD-SCALING-1",
-      "title": "🏛️ : SOVEREIGN_EFFECTOR] // REVISION 1"
     }
   ],
   "RITUALISTIC": [
@@ -1989,10 +1977,6 @@
   ],
   "SORBE": [
     {
-      "id": "KERNEL-V3-TENFOLD-SCALING-1",
-      "title": "🏛️ : SOVEREIGN_EFFECTOR] // REVISION 1"
-    },
-    {
       "id": "KERNEL-V3-TENFOLD-SCALING",
       "title": "🏛️ : SOVEREIGN_EFFECTOR]"
     },
@@ -2023,10 +2007,6 @@
     {
       "id": "GEOPOLITICAL-KINETICS-KERNEL",
       "title": "⚔️ KERNEL: GEOPOLITICAL_KINETICS [V30.0]"
-    },
-    {
-      "id": "KERNEL-V3-TENFOLD-SCALING-1",
-      "title": "🏛️ : SOVEREIGN_EFFECTOR] // REVISION 1"
     },
     {
       "id": "KERNEL-V3-TENFOLD-SCALING",
