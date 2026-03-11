@@ -8,17 +8,13 @@
         "type": "tabs",
         "children": [
           {
-            "id": "8d729947e28f6607",
+            "id": "cbb422adc1983a05",
             "type": "leaf",
             "state": {
-              "type": "markdown",
-              "state": {
-                "file": "SCALE_OPTIMIZATION_KERNEL_9.4.md",
-                "mode": "source",
-                "source": false
-              },
+              "type": "empty",
+              "state": {},
               "icon": "lucide-file",
-              "title": "SCALE_OPTIMIZATION_KERNEL_9.4"
+              "title": "New tab"
             }
           }
         ]
@@ -184,12 +180,13 @@
       "bases:Create new base": false
     }
   },
-  "active": "8d729947e28f6607",
+  "active": "cbb422adc1983a05",
   "lastOpenFiles": [
+    "KERNEL-V3-TENFOLD-SCALING.md.tmp.28352.1773195097419",
+    "SCALE_OPTIMIZATION_KERNEL_9.4.md",
     "2026-03-10.md",
     "Untitled.canvas",
     "AI-KERNEL-FOR-POST-CAPITALIST-ECONOMICS.md",
-    "SCALE_OPTIMIZATION_KERNEL_9.4.md",
     "Untitled.md",
     "surveillance tracker.md",
     "gaia_scale_kernel-5.5.5.md",

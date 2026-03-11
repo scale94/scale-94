@@ -324,7 +324,7 @@
     },
     {
       "id": "CDK-1.0",
-      "title": "ᛟ COLEMAK-DH KERNEL"
+      "title": "ᛟ COLEMAK-DH KERNEL: KINETIC METALLURGY"
     }
   ],
   "COMMAND": [
@@ -827,6 +827,16 @@
       "title": "⚔️ KERNEL: GEOPOLITICAL_KINETICS [V30.0]"
     }
   ],
+  "GERMANY": [
+    {
+      "id": "KERNEL-V3-TENFOLD-SCALING-1",
+      "title": "🏛️ : SOVEREIGN_EFFECTOR]"
+    },
+    {
+      "id": "KERNEL-V3-TENFOLD-SCALING",
+      "title": "🏛️ : SOVEREIGN_EFFECTOR]"
+    }
+  ],
   "Given": [
     {
       "id": "TAMAM-KERNEL-V1.0",
@@ -836,7 +846,7 @@
   "GLOBAL": [
     {
       "id": "SOMA-9.1",
-      "title": "ᛟ SOMA-9.1 KERNEL REPORT // GLOBAL STRATEGIC TELEMETRY (V1.1)"
+      "title": "SOMA-9.1 KERNEL REPORT // GLOBAL STRATEGIC TELEMETRY"
     }
   ],
   "GLYPH": [
@@ -1016,7 +1026,7 @@
     },
     {
       "id": "CDK-1.0",
-      "title": "ᛟ COLEMAK-DH KERNEL"
+      "title": "ᛟ COLEMAK-DH KERNEL: KINETIC METALLURGY"
     }
   ],
   "kinetic-systems": [
@@ -1130,7 +1140,7 @@
   "MATRIX": [
     {
       "id": "CDK-1.0",
-      "title": "ᛟ COLEMAK-DH KERNEL"
+      "title": "ᛟ COLEMAK-DH KERNEL: KINETIC METALLURGY"
     },
     {
       "id": "MATRIX-KERNEL-0.0.0.0",
@@ -1156,7 +1166,7 @@
     },
     {
       "id": "CDK-1.0",
-      "title": "ᛟ COLEMAK-DH KERNEL"
+      "title": "ᛟ COLEMAK-DH KERNEL: KINETIC METALLURGY"
     }
   ],
   "MIGRATION": [
@@ -1246,14 +1256,6 @@
     }
   ],
   "NODE": [
-    {
-      "id": "KERNEL-V3-TENFOLD-SCALING-1",
-      "title": "🏛️ : SOVEREIGN_EFFECTOR]"
-    },
-    {
-      "id": "KERNEL-V3-TENFOLD-SCALING",
-      "title": "🏛️ : SOVEREIGN_EFFECTOR]"
-    },
     {
       "id": "NOCTURNAL-NIGHT-KERNEL-V-22.2.2-1",
       "title": "☢️ KERNEL_COMPILATION: THE_NIGHT_SHIFT_V2.5 ☢️"
@@ -1550,7 +1552,7 @@
   "REPORT": [
     {
       "id": "SOMA-9.1",
-      "title": "ᛟ SOMA-9.1 KERNEL REPORT // GLOBAL STRATEGIC TELEMETRY (V1.1)"
+      "title": "SOMA-9.1 KERNEL REPORT // GLOBAL STRATEGIC TELEMETRY"
     }
   ],
   "RESISTANCE": [
@@ -1563,16 +1565,6 @@
     {
       "id": "FSQ-11.6",
       "title": "FISH SCALE KERNEL · 11.6.0 · QUANTUM EXPANSION"
-    }
-  ],
-  "RINDERN": [
-    {
-      "id": "KERNEL-V3-TENFOLD-SCALING-1",
-      "title": "🏛️ : SOVEREIGN_EFFECTOR]"
-    },
-    {
-      "id": "KERNEL-V3-TENFOLD-SCALING",
-      "title": "🏛️ : SOVEREIGN_EFFECTOR]"
     }
   ],
   "RITUALISTIC": [
@@ -1790,10 +1782,18 @@
   "SOMA-9": [
     {
       "id": "SOMA-9.1",
-      "title": "ᛟ SOMA-9.1 KERNEL REPORT // GLOBAL STRATEGIC TELEMETRY (V1.1)"
+      "title": "SOMA-9.1 KERNEL REPORT // GLOBAL STRATEGIC TELEMETRY"
     }
   ],
   "SORBE": [
+    {
+      "id": "KERNEL-V3-TENFOLD-SCALING-1",
+      "title": "🏛️ : SOVEREIGN_EFFECTOR]"
+    },
+    {
+      "id": "KERNEL-V3-TENFOLD-SCALING",
+      "title": "🏛️ : SOVEREIGN_EFFECTOR]"
+    },
     {
       "id": "NOCTURNAL-NIGHT-KERNEL-V-22.2.2-1",
       "title": "☢️ KERNEL_COMPILATION: THE_NIGHT_SHIFT_V2.5 ☢️"
@@ -1900,7 +1900,7 @@
   "STRATEGIC": [
     {
       "id": "SOMA-9.1",
-      "title": "ᛟ SOMA-9.1 KERNEL REPORT // GLOBAL STRATEGIC TELEMETRY (V1.1)"
+      "title": "SOMA-9.1 KERNEL REPORT // GLOBAL STRATEGIC TELEMETRY"
     }
   ],
   "Strategy": [
@@ -2090,7 +2090,7 @@
   "TELEMETRY": [
     {
       "id": "SOMA-9.1",
-      "title": "ᛟ SOMA-9.1 KERNEL REPORT // GLOBAL STRATEGIC TELEMETRY (V1.1)"
+      "title": "SOMA-9.1 KERNEL REPORT // GLOBAL STRATEGIC TELEMETRY"
     }
   ],
   "TEST": [
@@ -2118,7 +2118,7 @@
     },
     {
       "id": "CDK-1.0",
-      "title": "ᛟ COLEMAK-DH KERNEL"
+      "title": "ᛟ COLEMAK-DH KERNEL: KINETIC METALLURGY"
     }
   ],
   "Thermosphere": [

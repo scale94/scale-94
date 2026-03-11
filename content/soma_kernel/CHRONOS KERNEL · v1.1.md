@@ -1,3 +1,11 @@
+---
+id: CHRO-1.0
+type: "kernel_doc"
+date: "2026-01-12"
+status: "ACTIVE"
+title: "THE CHRONOS KERNEL · v1.1 · LOOP SEVERANCE"
+---
+
 # THE CHRONOS KERNEL · v1.1 · LOOP SEVERANCE
 
 ## Ⅰ. The Illusion of the Loop 🌀

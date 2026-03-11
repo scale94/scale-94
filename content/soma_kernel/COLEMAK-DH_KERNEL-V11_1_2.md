@@ -1,3 +1,11 @@
+---
+id: CDK-1.0
+type: "kernel_doc"
+date: "2026-01-01"
+status: "ACTIVE"
+title: "ᛟ COLEMAK-DH KERNEL: KINETIC METALLURGY"
+---
+
 # ᛟ COLEMAK-DH KERNEL
 ## KINETIC METALLURGY
 
