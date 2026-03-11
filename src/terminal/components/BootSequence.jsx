@@ -25,8 +25,8 @@ const BootSequence = ({ onDone }) => {
 
   useEffect(() => {
     const SPIN_MS       = 2000;  // CPU spins for exactly 2s → 720° (2 full rotations)
-    const FADE_START_MS = 2800;  // 800ms dwell after spin ends — "ACTIVE" is fully visible
-    const DONE_MS       = 4000;  // 2.8s + 1s CSS fade + 0.2s buffer = 4s total (+1s from original 3s)
+    const FADE_START_MS = 3800;  // 1800ms dwell after spin ends — extra second for text fade to finish
+    const DONE_MS       = 5000;  // 3.8s + 1s CSS fade + 0.2s buffer = 5s total
 
     const t0 = performance.now();
     let raf;
@@ -92,7 +92,7 @@ const BootSequence = ({ onDone }) => {
        * ── CARD ──
        * transition: opacity 1s ease-out, filter 1s ease-out
        *   The rAF loop writes opacity='0' + filter='blur(8px)' exactly once at
-       *   FADE_START_MS (2800ms). The browser's compositor handles the 1s
+       *   FADE_START_MS (3800ms). The browser's compositor handles the 1s
        *   interpolation — no per-frame JS writes during the fade.
        */}
       <div
@@ -173,14 +173,14 @@ const BootSequence = ({ onDone }) => {
               ))}
             </div>
 
-            {/* Progress bar — 2.1s fill, starts at 0.2s, completes at ~2.3s */}
+            {/* Progress bar — 3.6s fill, starts at 0.2s, completes at 3.8s = FADE_START_MS */}
             <div className="mb-5">
               <div className="h-[2px] bg-cyan-950 w-full rounded-full overflow-hidden">
                 <div
                   className="h-full rounded-full"
                   style={{
                     width: 0,
-                    animation: 'bs-progress 2.1s cubic-bezier(0.4,0,0.2,1) 0.2s forwards',
+                    animation: 'bs-progress 3.6s cubic-bezier(0.4,0,0.2,1) 0.2s forwards',
                     background: 'linear-gradient(90deg, #06b6d4, #d946ef, #39ff14)',
                     boxShadow: '0 0 10px rgba(6,182,212,0.9)',
                   }}
@@ -189,17 +189,16 @@ const BootSequence = ({ onDone }) => {
             </div>
 
             {/*
-             * ACTIVE status — appears at 1.8s (right as progress bar nears end),
-             * pulse loop starts at 2s. Fully visible for 0.8s before the card
-             * fade begins at 2.8s, then fades with the rest of the card via the
-             * CSS transition on the parent ref.
+             * ACTIVE status — appears at 3.4s (bar at 89%), pulse starts at 3.5s.
+             * Bar hits 100% at 3.8s = FADE_START_MS, then the whole card fades.
+             * The 400ms window lets the "done" state register before fade begins.
              */}
             <div
               className="text-xs font-black tracking-widest"
               style={{
                 opacity: 0,
                 color: '#39ff14',
-                animation: 'bs-lineIn 0.2s ease-out 1.8s forwards, bs-active 0.35s ease-in-out 2s infinite',
+                animation: 'bs-lineIn 0.2s ease-out 3.4s forwards, bs-active 0.35s ease-in-out 3.5s infinite',
               }}
             >
               {'>'} SOMA-9.1 // GAIA BUILD :: ALL SYSTEMS OPERATIONAL
