@@ -215,7 +215,7 @@
   ],
   "Blueprint": [
     {
-      "id": "AT N-1.0",
+      "id": "AT-1.0",
       "title": "**ARCHITECTURAL BLUEPRINT FOR A CYBERPUNK 2077 REACT TERMINAL"
     },
     {
@@ -485,7 +485,7 @@
   ],
   "Cyberpunk": [
     {
-      "id": "AT N-1.0",
+      "id": "AT-1.0",
       "title": "**ARCHITECTURAL BLUEPRINT FOR A CYBERPUNK 2077 REACT TERMINAL"
     }
   ],
@@ -1351,7 +1351,7 @@
   ],
   "Netrunning": [
     {
-      "id": "AT N-1.0",
+      "id": "AT-1.0",
       "title": "**ARCHITECTURAL BLUEPRINT FOR A CYBERPUNK 2077 REACT TERMINAL"
     }
   ],
@@ -1645,7 +1645,7 @@
   ],
   "React": [
     {
-      "id": "AT N-1.0",
+      "id": "AT-1.0",
       "title": "**ARCHITECTURAL BLUEPRINT FOR A CYBERPUNK 2077 REACT TERMINAL"
     },
     {
@@ -2281,7 +2281,7 @@
   ],
   "Terminal": [
     {
-      "id": "AT N-1.0",
+      "id": "AT-1.0",
       "title": "**ARCHITECTURAL BLUEPRINT FOR A CYBERPUNK 2077 REACT TERMINAL"
     },
     {
