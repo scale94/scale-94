@@ -113,10 +113,65 @@ function CountdownDisplay({ msLeft }) {
   );
 }
 
+// ── Command reference data ────────────────────────────────────────────────────
+const CMD_SECTIONS = [
+  {
+    heading: 'ENCLAVE FLOW',
+    color: 'text-amber-400',
+    borderColor: 'border-amber-900/40',
+    commands: [
+      {
+        cmd: 'run classified',
+        keys: ['run classified'],
+        desc: 'Boot the ML-KEM-768 WASM kernel, request a signed challenge token from the API, and navigate to this tab. Opens a 60-second single-use decryption window.',
+      },
+      {
+        cmd: 'verify <CODE>',
+        keys: ['verify ABC123'],
+        desc: 'Submit the 6-char echo passphrase displayed on screen. Server checks HMAC signature, enforces the time gate, then decrypts the AES-256-GCM payload. Case-insensitive, spaces ignored.',
+      },
+    ],
+  },
+  {
+    heading: 'WASM CRYPTO KERNELS',
+    color: 'text-orange-400',
+    borderColor: 'border-orange-900/40',
+    commands: [
+      {
+        cmd: 'run classified',
+        keys: ['run classified', 'run mlkem', 'run pqc'],
+        desc: 'ML-KEM-768 key encapsulation simulation. Generates ephemeral (A, s, e, t) parameters, demonstrates encap/decap round-trip, then calls log_entropy_flush() to zeroize secrets from WASM linear memory.',
+      },
+      {
+        cmd: 'run dh_ec',
+        keys: ['run dh_ec', 'run dh', 'run ec'],
+        desc: 'Classical key exchange reference kernel. Models Diffie-Hellman over a prime field and ECDH over a 256-bit curve. Outputs shared secret derivation steps — useful as a pre-quantum baseline comparison.',
+      },
+      {
+        cmd: 'run feigenbaum',
+        keys: ['run feigenbaum', 'run bifurcation'],
+        desc: 'Period-doubling bifurcation via the logistic map. Plots the route to chaos as r → 4. Relevant to entropy analysis — the Feigenbaum constant δ ≈ 4.669 appears in PRNG quality diagnostics.',
+      },
+    ],
+  },
+  {
+    heading: 'NAVIGATION ALIASES',
+    color: 'text-cyan-400',
+    borderColor: 'border-cyan-900/40',
+    commands: [
+      {
+        cmd: 'load cryptography',
+        keys: ['load cryptography', 'load classified', 'load pqc', 'load mlkem'],
+        desc: 'Navigate directly to this tab. All four aliases resolve via the loadTabMap guard before article search — no ambiguity with kernel article IDs.',
+      },
+    ],
+  },
+];
+
 // ── Phase: LOCKED ─────────────────────────────────────────────────────────────
 function LockedPhase() {
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto mt-8">
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-6xl mx-auto mt-8">
       <style>{RUST_STYLES}</style>
 
       {/* Header */}
@@ -146,87 +201,144 @@ function LockedPhase() {
         </div>
       </div>
 
-      {/* Initiate prompt */}
-      <div className="mb-6 p-5 border border-orange-500/20 bg-orange-900/5 rounded-sm font-mono text-center"
-           style={{ animation: 'cr-borderFlare 5s ease-in-out 0.3s infinite' }}>
-        <div className="text-orange-500/50 text-[10px] tracking-widest uppercase mb-3">
-          CLASSIFIED PAYLOAD — AES-256-GCM ENCRYPTED
-        </div>
-        <div className="text-orange-300/60 text-sm mb-2">
-          Initiate time-locked decryption sequence from the terminal:
-        </div>
-        <div className="inline-block bg-black/60 border border-orange-500/30 px-4 py-2 rounded-sm mt-1">
-          <span className="text-orange-600/60">{'>'} </span>
-          <span className="text-orange-300 font-bold">run classified</span>
-        </div>
-        <div className="text-orange-600/30 text-[9px] mt-3">
-          60-second challenge window · ML-KEM-768 session · single-use
-        </div>
-      </div>
+      {/* Two-column layout on desktop */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8 items-start">
 
-      {/* Math block */}
-      <div className="mb-6 p-5 border border-orange-900/30 bg-black/50 rounded-sm font-mono">
-        <div className="text-[9px] tracking-widest text-orange-600/60 uppercase mb-3">
-          MATHEMATICAL FOUNDATION — MODULE LEARNING WITH ERRORS
-        </div>
-        <div className="text-orange-200/90 text-sm mb-2">
-          <span className="text-orange-600/60 mr-2">{'>'}</span>
-          <span className="text-cyan-400">A</span>
-          <span className="text-orange-400/70">·</span>
-          <span className="text-yellow-400">s</span>
-          <span className="text-orange-400/70"> + </span>
-          <span className="text-rose-400">e</span>
-          <span className="text-orange-400/70"> = </span>
-          <span className="text-orange-200">t</span>
-          <span className="text-orange-600/50"> (mod q)</span>
-        </div>
-        <div className="text-[10px] text-orange-400/50 leading-relaxed space-y-0.5">
-          <div><span className="text-cyan-400/70 w-6 inline-block">A</span> public matrix ∈ ℤ<sub>q</sub><sup>k×k</sup></div>
-          <div><span className="text-yellow-400/70 w-6 inline-block">s</span> secret vector ∈ ℤ<sub>q</sub><sup>k</sup> — private key core</div>
-          <div><span className="text-rose-400/70 w-6 inline-block">e</span> error term — computationally hides s</div>
-          <div><span className="text-orange-300/70 w-6 inline-block">t</span> public key component (encapsulation key)</div>
-          <div className="pt-1 text-orange-600/40">q = 3329  ·  k = 3 (ML-KEM-768)  ·  best attack = O(2¹²⁸) quantum ops</div>
-        </div>
-      </div>
+        {/* ── LEFT: existing content ──────────────────────────────────────── */}
+        <div className="space-y-6">
 
-      {/* Key sizes */}
-      <div className="mb-6">
-        <div className="text-[9px] tracking-widest text-orange-600/60 uppercase mb-3 font-mono">
-          ML-KEM-768 KEY SIZES (FIPS 203 TABLE 2)
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-          {KEY_SIZES.map(({ label, bytes, note }) => (
-            <div key={label} className="border border-orange-900/30 bg-black/40 p-3 rounded-sm flex items-center justify-between gap-3"
-                 style={{ transition: 'border-color 0.2s, box-shadow 0.2s' }}>
-              <div>
-                <div className="text-xs font-mono text-orange-200/80 font-bold">{label}</div>
-                <div className="text-[9px] text-orange-600/40 font-mono mt-0.5">{note}</div>
-              </div>
-              <div className="text-right shrink-0">
-                <div className="text-lg font-bold font-mono tabular-nums text-orange-400"
-                     style={{ textShadow: '0 0 10px rgba(249,115,22,0.5)' }}>{bytes}</div>
-                <div className="text-[8px] tracking-widest text-orange-600/40 uppercase">bytes</div>
-              </div>
+          {/* Initiate prompt */}
+          <div className="p-5 border border-orange-500/20 bg-orange-900/5 rounded-sm font-mono text-center"
+               style={{ animation: 'cr-borderFlare 5s ease-in-out 0.3s infinite' }}>
+            <div className="text-orange-500/50 text-[10px] tracking-widest uppercase mb-3">
+              CLASSIFIED PAYLOAD — AES-256-GCM ENCRYPTED
             </div>
-          ))}
-        </div>
-      </div>
+            <div className="text-orange-300/60 text-sm mb-2">
+              Initiate time-locked decryption sequence from the terminal:
+            </div>
+            <div className="inline-block bg-black/60 border border-orange-500/30 px-4 py-2 rounded-sm mt-1">
+              <span className="text-orange-600/60">{'>'} </span>
+              <span className="text-orange-300 font-bold">run classified</span>
+            </div>
+            <div className="text-orange-600/30 text-[9px] mt-3">
+              60-second challenge window · ML-KEM-768 session · single-use
+            </div>
+          </div>
 
-      {/* Security notes */}
-      <div className="px-4 py-3 border border-orange-500/10 bg-orange-900/5 rounded-sm text-[10px] font-mono text-orange-400/50 leading-relaxed">
-        <div className="flex items-center gap-2 mb-2">
-          <ShieldCheck className="w-3 h-3 text-orange-500/60 shrink-0" />
-          <span className="text-orange-500/70 font-bold tracking-widest uppercase text-[9px]">Security Architecture</span>
-        </div>
-        <ul className="space-y-1 ml-5 list-disc">
-          <li>Payload encrypted with AES-256-GCM — decryption key lives only in server env vars</li>
-          <li>Session tokens signed with HMAC-SHA256 — tampering is detectable without a database</li>
-          <li>Time gate enforced server-side — client countdown is cosmetic only</li>
-          <li>Challenge passphrase verified with <span className="text-orange-300/60">crypto.timingSafeEqual</span> — no timing oracle</li>
-          <li>ML-KEM-768 is NIST Category 3 — equivalent to AES-192 against quantum adversaries</li>
-        </ul>
-      </div>
+          {/* Math block */}
+          <div className="p-5 border border-orange-900/30 bg-black/50 rounded-sm font-mono">
+            <div className="text-[9px] tracking-widest text-orange-600/60 uppercase mb-3">
+              MATHEMATICAL FOUNDATION — MODULE LEARNING WITH ERRORS
+            </div>
+            <div className="text-orange-200/90 text-sm mb-2">
+              <span className="text-orange-600/60 mr-2">{'>'}</span>
+              <span className="text-cyan-400">A</span>
+              <span className="text-orange-400/70">·</span>
+              <span className="text-yellow-400">s</span>
+              <span className="text-orange-400/70"> + </span>
+              <span className="text-rose-400">e</span>
+              <span className="text-orange-400/70"> = </span>
+              <span className="text-orange-200">t</span>
+              <span className="text-orange-600/50"> (mod q)</span>
+            </div>
+            <div className="text-[10px] text-orange-400/50 leading-relaxed space-y-0.5">
+              <div><span className="text-cyan-400/70 w-6 inline-block">A</span> public matrix ∈ ℤ<sub>q</sub><sup>k×k</sup></div>
+              <div><span className="text-yellow-400/70 w-6 inline-block">s</span> secret vector ∈ ℤ<sub>q</sub><sup>k</sup> — private key core</div>
+              <div><span className="text-rose-400/70 w-6 inline-block">e</span> error term — computationally hides s</div>
+              <div><span className="text-orange-300/70 w-6 inline-block">t</span> public key component (encapsulation key)</div>
+              <div className="pt-1 text-orange-600/40">q = 3329  ·  k = 3 (ML-KEM-768)  ·  best attack = O(2¹²⁸) quantum ops</div>
+            </div>
+          </div>
 
+          {/* Key sizes */}
+          <div>
+            <div className="text-[9px] tracking-widest text-orange-600/60 uppercase mb-3 font-mono">
+              ML-KEM-768 KEY SIZES (FIPS 203 TABLE 2)
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {KEY_SIZES.map(({ label, bytes, note }) => (
+                <div key={label} className="border border-orange-900/30 bg-black/40 p-3 rounded-sm flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-xs font-mono text-orange-200/80 font-bold">{label}</div>
+                    <div className="text-[9px] text-orange-600/40 font-mono mt-0.5">{note}</div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="text-lg font-bold font-mono tabular-nums text-orange-400"
+                         style={{ textShadow: '0 0 10px rgba(249,115,22,0.5)' }}>{bytes}</div>
+                    <div className="text-[8px] tracking-widest text-orange-600/40 uppercase">bytes</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Security notes */}
+          <div className="px-4 py-3 border border-orange-500/10 bg-orange-900/5 rounded-sm text-[10px] font-mono text-orange-400/50 leading-relaxed">
+            <div className="flex items-center gap-2 mb-2">
+              <ShieldCheck className="w-3 h-3 text-orange-500/60 shrink-0" />
+              <span className="text-orange-500/70 font-bold tracking-widest uppercase text-[9px]">Security Architecture</span>
+            </div>
+            <ul className="space-y-1 ml-5 list-disc">
+              <li>Payload encrypted with AES-256-GCM — decryption key lives only in server env vars</li>
+              <li>Session tokens signed with HMAC-SHA256 — tampering is detectable without a database</li>
+              <li>Time gate enforced server-side — client countdown is cosmetic only</li>
+              <li>Challenge passphrase verified with <span className="text-orange-300/60">crypto.timingSafeEqual</span> — no timing oracle</li>
+              <li>ML-KEM-768 is NIST Category 3 — equivalent to AES-192 against quantum adversaries</li>
+            </ul>
+          </div>
+
+        </div>
+
+        {/* ── RIGHT: command reference ────────────────────────────────────── */}
+        <div className="border border-orange-900/30 bg-black/30 rounded-sm overflow-hidden">
+
+          {/* Panel header */}
+          <div className="px-4 py-3 border-b border-orange-900/30 bg-orange-950/20 flex items-center gap-2">
+            <Activity className="w-3.5 h-3.5 text-orange-500/70 shrink-0" />
+            <span className="text-[10px] font-bold tracking-widest text-orange-400/70 uppercase">Command Reference</span>
+          </div>
+
+          <div className="divide-y divide-orange-900/20">
+            {CMD_SECTIONS.map((section) => (
+              <div key={section.heading} className="px-4 py-4">
+
+                {/* Section label */}
+                <div className={`text-[8px] font-bold tracking-widest uppercase mb-3 ${section.color}`}>
+                  {section.heading}
+                </div>
+
+                <div className="space-y-4">
+                  {section.commands.map((c) => (
+                    <div key={c.cmd}>
+                      {/* Command chips */}
+                      <div className="flex flex-wrap gap-1 mb-1.5">
+                        {c.keys.map((k) => (
+                          <code
+                            key={k}
+                            className={`text-[9px] font-mono px-2 py-0.5 rounded-sm border ${section.borderColor} bg-black/50 text-orange-300/80`}
+                          >
+                            {k}
+                          </code>
+                        ))}
+                      </div>
+                      {/* Description */}
+                      <p className="text-[10px] font-mono text-orange-400/50 leading-relaxed">
+                        {c.desc}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Panel footer */}
+          <div className="px-4 py-2.5 border-t border-orange-900/20 bg-orange-950/10 text-[8px] font-mono text-orange-600/30 tracking-widest">
+            WASM KERNELS COMPILED FROM RUST · FIPS 203 · SORBE NODE
+          </div>
+        </div>
+
+      </div>
     </div>
   );
 }
