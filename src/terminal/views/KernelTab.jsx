@@ -69,8 +69,8 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
         100% { opacity: 1; transform: translateY(0);    filter: blur(0);    letter-spacing: inherit; }
       }
       @keyframes sk-axiomNumGlow {
-        0%, 100% { text-shadow: 0 0 8px rgba(57,255,20,0.7), 0 0 16px rgba(57,255,20,0.25); }
-        50%       { text-shadow: 0 0 18px rgba(57,255,20,1), 0 0 36px rgba(57,255,20,0.55), 0 0 56px rgba(57,255,20,0.15); }
+        0%, 100% { text-shadow: 0 0 8px rgba(139,92,246,0.7), 0 0 16px rgba(217,70,239,0.25); }
+        50%       { text-shadow: 0 0 18px rgba(139,92,246,1), 0 0 36px rgba(217,70,239,0.7), 0 0 56px rgba(168,85,247,0.25); }
       }
       .axiom-item:hover { box-shadow: inset 3px 0 0 #39ff14, inset 0 0 24px rgba(57,255,20,0.04); }
     `}</style>
@@ -130,7 +130,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
             className="w-5 h-5"
             style={{ color: '#FFB900', animation: 'sk-kernelIconReveal 0.8s cubic-bezier(0.16,1,0.3,1) forwards, sk-axiomIconPulse 5s ease-in-out 0.8s infinite' }}
           />
-          <span className="text-transparent bg-clip-text" style={{ backgroundImage: 'linear-gradient(90deg, #FB7185, #EF4444)', opacity: 0, animation: 'sk-axiomHeadReveal 1s cubic-bezier(0.16,1,0.3,1) 0.2s forwards' }}>AXIOMATIC_CORE</span>
+          <span className="text-transparent bg-clip-text" style={{ backgroundImage: 'linear-gradient(90deg, #8B5CF6, #D946EF, #A855F7)', opacity: 0, animation: 'sk-axiomHeadReveal 1s cubic-bezier(0.16,1,0.3,1) 0.2s forwards' }}>AXIOMATIC_CORE</span>
         </h3>
         <div className="space-y-4">
           {kernelAxioms.map((axiom, idx) => (
@@ -140,13 +140,13 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
               <div className="flex items-center justify-between gap-2 mb-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <span
-                    className="font-mono font-black text-[#39ff14] text-2xl shrink-0 tabular-nums leading-none"
-                    style={{ animation: `sk-axiomNumGlow 3.5s ease-in-out ${idx * 0.4}s infinite` }}
+                    className="font-mono font-black text-transparent bg-clip-text text-2xl shrink-0 tabular-nums leading-none"
+                    style={{ backgroundImage: 'linear-gradient(90deg, #8B5CF6, #D946EF)', animation: `sk-axiomNumGlow 3.5s ease-in-out ${idx * 0.4}s infinite` }}
                   >
                     0{idx + 1}
                   </span>
                   <span className="text-cyan-800 font-mono text-sm font-bold leading-none shrink-0">::</span>
-                  <span className="font-black text-base uppercase tracking-tight truncate leading-tight" style={{ color: '#EF4444' }}>
+                  <span className="font-black text-base uppercase tracking-tight truncate leading-tight text-transparent bg-clip-text" style={{ backgroundImage: 'linear-gradient(90deg, #38bdf8, #a78bfa)' }}>
                     {axiom.name?.toUpperCase() || 'UNKNOWN'}
                   </span>
                 </div>
