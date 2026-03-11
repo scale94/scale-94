@@ -575,7 +575,7 @@
       "Terminal",
       "Netrunning"
     ],
-    "len": "1277 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "BBK-1.0",
@@ -663,6 +663,24 @@
       "COMPANION"
     ],
     "len": "0 WDS"
+  },
+  {
+    "id": "CYNIC-REALIST-KERNEL-1.0",
+    "type": "kernel_doc",
+    "date": "2026-03-11",
+    "lastModified": "2026-03-11",
+    "title": "CYNIC REALIST SCIENCE KERNEL 1.0: ASSOCIATIVE REASONING VIA DISSIPATIVE ADAPTATION",
+    "subtitle": "PARADIGM SHIFT",
+    "status": "ACTIVE",
+    "readTime": "11 min read",
+    "tags": [
+      "CYNIC",
+      "REALIST",
+      "SCIENCE",
+      "PARADIGM",
+      "SHIFT"
+    ],
+    "len": "2238 WDS"
   },
   {
     "id": "EMPATHY-KERNEL-1.0",

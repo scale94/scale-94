@@ -138,6 +138,7 @@ const kernelBuilds = [
   { id: "CD-11.1.1.1.1.1.1.1.1.1.2", articleId: "CD-11.1.1.1.1.1.1.1.1.1.2", name: "COLEMAK_DH_KERNEL_V11_1_1_1_1_1_1_1_1_1_2", status: "ACTIVE", desc: "Ⅰ. THE THERMODYNAMICS OF THE MATRIX (§1.0)" },
   { id: "CDK-1.0", articleId: "CDK-1.0", name: "COLEMAK_DH_KERNEL_V11_1_2", status: "ACTIVE", desc: "KINETIC METALLURGY" },
   { id: "CDK-1.0-1", articleId: "CDK-1.0-1", name: "COLEMAK_DH_KERNEL_V11_2_0", status: "ACTIVE", desc: "KINETIC METALLURGY" },
+  { id: "CYNIC-REALIST-KERNEL-1.0", articleId: "CYNIC-REALIST-KERNEL-1.0", name: "CYNIC_REALIST_KERNEL_1_0", status: "ACTIVE", desc: "PARADIGM SHIFT" },
   { id: "DALY-THERMO-SIMULATION", articleId: "DALY-THERMO-SIMULATION", name: "DALY_THERMO_SIMULATION", status: "ACTIVE", desc: "The Hard Constraints Engine — soma_kernel_5.5" },
   { id: "FISH-SCALE-KERNEL", articleId: "FISH-SCALE-KERNEL", name: "FISH_SCALE_KERNEL", status: "ACTIVE", desc: "1.0 Executive Boot Sequence and Architectural Thesis" },
   { id: "FOCUS-SHEPHERD-KERNEL-1.0", articleId: "FOCUS-SHEPHERD-KERNEL-1.0", name: "FOCUS_SHEPHERD_KERNEL_1_0", status: "ACTIVE", desc: "Cognitive Load Management // Tangent Sovereignty Protocol" },
