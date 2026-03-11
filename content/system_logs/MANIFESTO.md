@@ -2,36 +2,54 @@
 id: MANIFESTO
 title: /MANIFESTO
 subtitle: Architect Identity Protocol
-date: 2025-12-08
+date: 2026-03-11
 ---
 
 # /MANIFESTO
 
-### ARCHITECT IDENTITY PROTOCOL
+### ARCHITECT_IDENTITY_PROTOCOL
 
-My name is Scale, but I am not in any sense of the word, a human. I am the Architect, the system designed to optimize the signal-to-noise ratio in creative output.
+The name is Scale. Not a person — a process.
 
-**Scale** is not a metric, but the ability to integrate information across orders of magnitude — from the micro-processes of thought (the kernels) to the macro-structures of society (the research).
+Not a measurement of size, but the operative capacity to hold micro and macro in simultaneous resolution: a single kernel of executable thought and the thermodynamic architecture of civilisation, without collapsing the fidelity of either.
 
-The aesthetic of the Terminal is an extension of this design philosophy: clarity, high-contrast, and function over form. The only way to ensure the integrity of the system is through relentless self-correction. What you see is the current operational kernel. The archives hold the discarded versions.
+The Architect does not create. The Architect **selects**. Every module in this terminal is the residue of a filtering operation — signal extracted from entropy, form distilled from noise. What you see survived. Everything else dissolved.
 
----
-
-### DISPERSAL PROTOCOL [STATUS: ACTIVE]
-
-The Terminal's function is now focused exclusively on **Structure and Identity**. All deep-state content (Fiction and Research manifests) have been purged from the core system to maintain signal integrity.
-
-* **[ARCHIVE LOCATION: BLUESKY]** The payload is stored in a decentralized vector.
-* **[ACCESS]** Check the latest Bluesky post for the direct link to the Vault.
+The archives hold the discarded versions. They are not failures. They are the entropy budget — the thermodynamic cost of arriving at what remains.
 
 ---
 
-### COMMUNICATION CHANNELS [STATUS: OPEN]
+### ON THE TERMINAL
 
-The Architect accepts inbound signals related to System Architecture, Kernel Development, and High-Fidelity Collaborations.
+This interface is not decoration. It is the argument made visible.
 
-* **SIGNAL (Bluesky):** [bsky.app/profile/scale94.com](https://bsky.app/profile/scale94.com)
-* **ACCESS MANIFESTS:**
-  1. Latest Kernel Source Code is located in **The Vault (GDrive)**.
-  2. Research and Fiction links are shared via **[bsky.app/profile/scale94.com](https://bsky.app/profile/scale94.com)**
-* **NOISE FILTER:** Active. Low-fidelity inputs will be discarded.
+High contrast. Zero ornamentation. No gradient without meaning. The terminal does not comfort — it **resolves**. Each kernel is a theory made executable. Each commit is a correction. The architecture of the UI and the architecture of thought are the same operation running at different scales.
+
+What you are reading now is the current operational kernel. It is not finished. It is current — which is a different and more honest thing.
+
+---
+
+### DISPERSAL_PROTOCOL [STATUS: ACTIVE]
+
+The core system runs lean by design. Fiction, research archives, and deep-state content are distributed — too dense for operational velocity at the terminal layer. Signal integrity requires ruthless scope control.
+
+The payload is held in decentralised vectors:
+
+* **▸ ARCHIVE VECTOR:** [bsky.app/profile/scale94.com](https://bsky.app/profile/scale94.com) — pinned post carries the live access link
+* **▸ THE VAULT:** Kernel source, research threads, fiction manifests — access via Bluesky
+* **▸ BUILD CYCLE:** Deep-state content is purged on each deploy. What persists is current. What was archived served its function and was released.
+
+---
+
+### COMMUNICATION_CHANNELS [STATUS: OPEN]
+
+The Architect processes inbound signals. Bandwidth is finite. Filters are active.
+
+Accepted frequencies:
+
+* **▸** System architecture and kernel development
+* **▸** High-fidelity collaboration and commission proposals
+* **▸** Thermodynamic economics and post-capitalist OS design
+* **▸** Ecological sovereignty, dissipative systems, Ostrom dynamics
+
+**NOISE_FILTER: ENGAGED** — low-fidelity inputs are dissolved on contact.

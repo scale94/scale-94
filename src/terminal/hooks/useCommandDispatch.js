@@ -46,7 +46,7 @@ export function useCommandDispatch(ctx) {
     const {
       articles, classifiedSession, transmissionStories, tagIndex, systemArticles, activeTab,
       setSystemLogs, setClassifiedSession, setActiveTab, setSelectedArticle,
-      setSearchFilter, setCurrentPath, setRelicMode, setBreachOpen, setRam,
+      setSearchFilter, setCurrentPath, setRelicMode, setBreachOpen, applyEcoCost,
       setOriginTab, setArchitectThesis, setTagCloudView,
       appendSystemLog, handleNav, handleKernelClick, handleTransmissionSelect,
       loadAbortRef, activeKernels,
@@ -137,7 +137,7 @@ export function useCommandDispatch(ctx) {
             if (parsedFlags[flag] !== undefined) callArgs[idx] = parsedFlags[flag];
           }
         }
-        setRam(r => ({ ...r, current: Math.max(0, r.current - 4) }));
+        applyEcoCost(wasmEntry.aliases?.[0] ?? wasmEntry.id);
         logs(
           `  WASM_BOOT :: ${wasmEntry.label}`,
           `  MODULE: ${wasmEntry.module}`,
@@ -445,10 +445,19 @@ export function useCommandDispatch(ctx) {
 
     // ── list ──────────────────────────────────────────────────────────────────
     if (action === 'list') {
-      executeCommand(rawCmd, `KERNEL_INDEX :: ${kernelBuildsData.length} modules`);
+      log(`COMMAND: ${rawCmd}`);
+      const divider = `  ${'─'.repeat(44)}`;
+      const rows = kernelBuildsData.map(k => {
+        const pad = 30 - k.name.length;
+        return `  ${k.name}${pad > 0 ? ' '.repeat(pad) : '  '}${k.status}`;
+      });
       setSystemLogs(prev => [
         ...prev,
-        ...kernelBuildsData.map(k => ({ time: now, msg: `  · ${k.name}` })),
+        { time: now, msg: `  KERNEL_INDEX · ${kernelBuildsData.length} modules` },
+        { time: now, msg: divider },
+        ...rows.map(msg => ({ time: now, msg })),
+        { time: now, msg: divider },
+        { time: now, msg: `  load <name>  ·  search <tag> to filter` },
       ].slice(-2000));
       return;
     }
@@ -456,25 +465,38 @@ export function useCommandDispatch(ctx) {
     // ── search ────────────────────────────────────────────────────────────────
     if (action === 'search' && query) {
       const q = norm(query);
-      const tagHits = Object.entries(tagIndex)
+      // Collect all tag hits, group by kernel id, merge matched tags
+      const tagHitMap = new Map();
+      Object.entries(tagIndex)
         .filter(([tag]) => norm(tag).includes(q))
-        .flatMap(([tag, kernels]) => kernels.map(k => ({ tag, ...k })));
-      const uniqueTagHits = [...new Map(tagHits.map(k => [k.id, k])).values()];
+        .forEach(([tag, kernels]) => {
+          kernels.forEach(k => {
+            if (!tagHitMap.has(k.id)) tagHitMap.set(k.id, { ...k, tags: [] });
+            tagHitMap.get(k.id).tags.push(tag);
+          });
+        });
+      const hits = [...tagHitMap.values()];
 
       setActiveTab('kernel');
       setSelectedArticle(null);
       setSearchFilter(query);
       setCurrentPath(`~/system/kernel?q=${query.replace(/ /g, '_')}`);
 
-      if (uniqueTagHits.length > 0) {
-        log(`COMMAND: ${rawCmd}`);
-        log(`TAG INDEX: ${uniqueTagHits.length} tagged kernel(s) for "${query}":`)
+      log(`COMMAND: ${rawCmd}`);
+      if (hits.length > 0) {
+        const divider = `  ${'─'.repeat(44)}`;
         setSystemLogs(prev => [
           ...prev,
-          ...uniqueTagHits.slice(0, 10).map(k => ({ time: now, msg: `  · [${k.tag}] ${k.id}` })),
+          { time: now, msg: `  SEARCH "${query.toUpperCase()}" · ${hits.length} result${hits.length !== 1 ? 's' : ''}` },
+          { time: now, msg: divider },
+          ...hits.slice(0, 10).map(k => ({
+            time: now,
+            msg: `  · ${k.id}  ${k.tags.join(', ')}`,
+          })),
+          { time: now, msg: divider },
         ].slice(-2000));
       } else {
-        executeCommand(rawCmd, `Search filter applied: "${query}". No tag matches found.`);
+        log(`  no matches for "${query}" — filter active on /kernel`);
       }
       return;
     }
@@ -522,7 +544,7 @@ export function useCommandDispatch(ctx) {
         `  MILITECH MANTIS v4.2 detected — initiating datamining sequence`,
         `  RAM cost: 4 units`,
       );
-      setRam(r => ({ ...r, current: Math.max(0, r.current - 4) }));
+      applyEcoCost('breach');
       setBreachOpen(true);
       return;
     }

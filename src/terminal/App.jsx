@@ -34,6 +34,7 @@ import BreachProtocol  from './components/BreachProtocol';
 import useSystemLog           from './hooks/useSystemLog';
 import { useCommandDispatch } from './hooks/useCommandDispatch';
 import { useAutocomplete }    from './hooks/useAutocomplete';
+import { useEcologicalRam }   from './hooks/useEcologicalRam';
 import { normalizeQuery }     from '../lib/normalize';
 
 // KernelTab — static import (landing tab, always needed, avoids .df.js chunk on Firefox Android)
@@ -89,12 +90,12 @@ const App = () => {
   const [breachOpen,   setBreachOpen]   = useState(false);
   // Relic malfunction mode — amplifies glitch, streams hex to log
   const [relicMode,    setRelicMode]    = useState(false);
-  // RAM thermodynamics — §1.2: depletes on commands, auto-recovers
-  const [ram,          setRam]          = useState({ current: 16, max: 16 });
   // CAS dynamic data — null while manifest fetch is in-flight
   const [dynamicData,  setDynamicData]  = useState(null);
 
   const { appendSystemLog, setSystemLogs, visibleLogs, logRef } = useSystemLog();
+  // RAM — ecological entropy model §1.3: cost maps to planetary footprint
+  const { ramPct, ecoCost, applyEcoCost, isCritical, isWarning } = useEcologicalRam({ appendSystemLog });
 
   // ── CAS dynamic data derivation ──────────────────────────────────────────────
   // Merge priority (highest → lowest):
@@ -279,13 +280,6 @@ const App = () => {
     };
   }, []);
 
-  // RAM auto-recovery — §1.2 quickhack thermodynamics. +1 unit every 2.5s until max.
-  useEffect(() => {
-    const t = setInterval(() => {
-      setRam(r => r.current < r.max ? { ...r, current: r.current + 1 } : r);
-    }, 2500);
-    return () => clearInterval(t);
-  }, []);
 
   // Scroll to top on initial mount — prevents autoFocus on the footer input
   // from pulling mobile browsers down to the keyboard on first load.
@@ -516,7 +510,7 @@ const App = () => {
   const dispatchCommand = useCommandDispatch({
     articles, classifiedSession, transmissionStories, tagIndex, systemArticles, activeTab,
     setSystemLogs, setClassifiedSession, setActiveTab, setSelectedArticle,
-    setSearchFilter, setCurrentPath, setRelicMode, setBreachOpen, setRam,
+    setSearchFilter, setCurrentPath, setRelicMode, setBreachOpen, applyEcoCost,
     setOriginTab, setArchitectThesis, setTagCloudView,
     appendSystemLog, handleNav, handleKernelClick, handleTransmissionSelect,
     loadAbortRef, activeKernels,
@@ -788,16 +782,18 @@ const App = () => {
           <nav aria-label="Main navigation" className="flex flex-wrap items-center gap-2 md:gap-4 text-xs md:text-sm font-bold tracking-wide min-w-0 w-full md:w-auto">
             <button aria-label="Kernel" aria-current={activeTab === 'kernel' ? 'page' : undefined} onClick={() => handleNav('~/system/kernel', 'kernel')} className={`${activeTab === 'kernel' ? 'bg-cyan-500 text-black shadow-[0_0_10px_rgba(6,182,212,0.5)]' : 'text-cyan-500 hover:text-white hover:bg-cyan-900/30'} px-4 py-1.5 transition-all duration-300 flex items-center gap-2 uppercase rounded-sm`}><Cpu className="w-3 h-3" /> /Kernel</button>
 
+            <button aria-label="Manifesto" aria-current={activeTab === 'manifesto' ? 'page' : undefined} onClick={() => handleNav('~/system/manifesto', 'manifesto')} className={`${activeTab === 'manifesto' ? 'bg-violet-900 text-violet-100 shadow-[0_0_10px_rgba(139,92,246,0.5)]' : 'text-violet-400/80 hover:text-violet-200 hover:bg-violet-900/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><Eye className="w-3 h-3" /> /Manifesto</button>
+
             <button aria-label="Scaling" aria-current={activeTab === 'scaling' ? 'page' : undefined} onClick={() => handleNav('~/system/scaling', 'scaling')} className={`${activeTab === 'scaling' ? 'bg-fuchsia-500 text-black shadow-[0_0_10px_rgba(217,70,239,0.5)]' : 'text-fuchsia-500 hover:text-white hover:bg-fuchsia-900/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><Scale className="w-3 h-3" /> /Scaling</button>
 
-            <button aria-label="Transmission" aria-current={activeTab === 'transmission' ? 'page' : undefined} onClick={() => handleNav('~/system/transmission', 'transmission')} className={`${activeTab === 'transmission' ? 'bg-fuchsia-500 text-black shadow-[0_0_10px_rgba(217,70,239,0.5)]' : 'text-fuchsia-500 hover:text-white hover:bg-fuchsia-900/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm`}>⌖ /Transmission</button>
+            <button aria-label="Transmission" aria-current={activeTab === 'transmission' ? 'page' : undefined} onClick={() => handleNav('~/system/transmission', 'transmission')} className={`${activeTab === 'transmission' ? 'bg-purple-900 text-purple-100 shadow-[0_0_10px_rgba(168,85,247,0.5)]' : 'text-purple-400/80 hover:text-purple-200 hover:bg-purple-900/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm`}>⌖ /Transmission</button>
 
-            <button aria-label="Manifesto" aria-current={activeTab === 'manifesto' ? 'page' : undefined} onClick={() => handleNav('~/system/manifesto', 'manifesto')} className={`${activeTab === 'manifesto' ? 'bg-cyan-900 text-cyan-100 shadow-[0_0_10px_rgba(22,78,99,0.5)]' : 'text-cyan-500 hover:text-white hover:bg-cyan-900/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm`}><Eye className="w-3 h-3" /> /Manifesto</button>
             <button aria-label="Privacy" aria-current={activeTab === 'privacy' ? 'page' : undefined} onClick={() => handleNav('~/system/privacy', 'privacy')} className={`${activeTab === 'privacy' ? 'bg-rose-900 text-rose-100 shadow-[0_0_10px_rgba(244,63,94,0.4)]' : 'text-rose-400/80 hover:text-rose-200 hover:bg-rose-900/20'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><Lock className="w-3 h-3" /> /Privacy</button>
 
             <button aria-label="Surveillance" aria-current={activeTab === 'surveillance' ? 'page' : undefined} onClick={() => handleNav('~/system/surveillance', 'surveillance')} className={`${activeTab === 'surveillance' ? 'bg-red-900 text-red-100 shadow-[0_0_10px_rgba(248,113,113,0.4)]' : 'text-red-500/70 hover:text-red-300 hover:bg-red-900/20'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><ShieldAlert className="w-3 h-3" /> /Surveillance</button>
 
-            <button aria-label="Cryptography" aria-current={activeTab === 'cryptography' ? 'page' : undefined} onClick={() => handleNav('~/system/cryptography', 'cryptography')} className={`${activeTab === 'cryptography' ? 'bg-green-900 text-green-100 shadow-[0_0_10px_rgba(74,222,128,0.4)]' : 'text-green-500/70 hover:text-green-300 hover:bg-green-900/20'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><KeyRound className="w-3 h-3" /> /Cryptography</button>
+            <button aria-label="Cryptography" aria-current={activeTab === 'cryptography' ? 'page' : undefined} onClick={() => handleNav('~/system/cryptography', 'cryptography')} className={`${activeTab === 'cryptography' ? 'bg-orange-950 text-orange-200 shadow-[0_0_12px_rgba(249,115,22,0.5)]' : 'text-orange-500/70 hover:text-orange-300 hover:bg-orange-950/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><KeyRound className="w-3 h-3" /> /Cryptography</button>
+
             <button aria-label="BSKY" aria-current={activeTab === 'bsky' ? 'page' : undefined} onClick={() => handleNav('~/system/bsky', 'bsky')} className={`${activeTab === 'bsky' ? 'bg-sky-600 text-white shadow-[0_0_12px_rgba(56,189,248,0.5)]' : 'text-sky-400/80 hover:text-sky-200 hover:bg-sky-900/20'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><NavButterflyIcon /> /BSKY</button>
           </nav>
         </div>
@@ -936,24 +932,30 @@ const App = () => {
             </div>
           )}
 
-          {/* RAM bar — §1.2 quickhack thermodynamics */}
-          <div className="hidden md:flex items-center gap-1.5 shrink-0 mr-1" title={`RAM: ${ram.current}/${ram.max} units`}>
-            <span className="text-[9px] font-black tracking-widest text-cyan-900/60">RAM</span>
+          {/* RAM bar — §1.3 ecological entropy model */}
+          <div
+            className="hidden md:flex items-center gap-1.5 shrink-0 mr-1"
+            title={`ECO-RAM: ${ramPct}% active // planetary cost: ${ecoCost}/100`}
+          >
+            <span className={`text-[9px] font-black tracking-widest ${isCritical ? 'text-red-500' : 'text-cyan-900/60'}`}>RAM</span>
             <div className="flex gap-px">
-              {Array.from({ length: ram.max }).map((_, i) => (
-                <div
-                  key={i}
-                  className="w-[5px] h-[10px] rounded-px transition-all duration-300"
-                  style={{
-                    background: i < ram.current
-                      ? (ram.current <= 4 ? '#ef4444' : ram.current <= 8 ? '#f59e0b' : '#39ff14')
-                      : 'rgba(6,182,212,0.08)',
-                    boxShadow: i < ram.current && ram.current > 8 ? '0 0 3px rgba(57,255,20,0.4)' : 'none',
-                  }}
-                />
-              ))}
+              {Array.from({ length: 20 }).map((_, i) => {
+                const filled = i < Math.round(ramPct / 5);
+                return (
+                  <div
+                    key={i}
+                    className={`w-[5px] h-[10px] transition-all duration-700${isCritical && filled ? ' animate-pulse' : ''}`}
+                    style={{
+                      background: filled
+                        ? (isCritical ? '#ef4444' : isWarning ? '#f59e0b' : '#39ff14')
+                        : 'rgba(6,182,212,0.08)',
+                      boxShadow: filled && !isCritical && !isWarning ? '0 0 3px rgba(57,255,20,0.4)' : 'none',
+                    }}
+                  />
+                );
+              })}
             </div>
-            <span className="text-[9px] font-black text-cyan-900/40">{ram.current}/{ram.max}</span>
+            <span className={`text-[9px] font-black ${isCritical ? 'text-red-500/70' : 'text-cyan-900/40'}`}>{ramPct}%</span>
           </div>
 
           <span className="text-fuchsia-500 hidden md:inline" aria-hidden="true">scale@node:~$</span>

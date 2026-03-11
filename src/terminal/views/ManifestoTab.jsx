@@ -1,14 +1,93 @@
 import React from 'react';
+import { Eye, Shield, Activity } from 'lucide-react';
 
 const ManifestoTab = ({ systemArticles = {} }) => {
   const manifesto = systemArticles['MANIFESTO'];
   return (
-  <div className="animate-in fade-in duration-500 max-w-3xl mx-auto mt-12 border border-cyan-500/30 p-8 rounded-lg bg-black/50 backdrop-blur">
-    <div
-      className="font-mono text-sm md:text-base leading-relaxed"
-      dangerouslySetInnerHTML={{ __html: manifesto?.html ?? '' }}
-    />
-  </div>
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
+      <style>{`
+        @keyframes mn-reveal {
+          from { opacity: 0; transform: translateY(-8px); filter: blur(6px); }
+          to   { opacity: 1; transform: translateY(0);   filter: blur(0); }
+        }
+        @keyframes mn-iconReveal {
+          0%   { opacity: 0; transform: rotate(-45deg) scale(0.5); filter: drop-shadow(0 0 20px #06b6d4); }
+          100% { opacity: 1; transform: rotate(0deg)  scale(1);   filter: drop-shadow(0 0 8px rgba(6,182,212,0.6)); }
+        }
+        @keyframes mn-iconPulse {
+          0%, 100% { filter: drop-shadow(0 0 4px rgba(6,182,212,0.4)); }
+          50%       { filter: drop-shadow(0 0 12px rgba(6,182,212,0.9)) drop-shadow(0 0 24px rgba(6,182,212,0.25)); }
+        }
+        @keyframes mn-borderBreath {
+          0%, 100% { box-shadow: 0 0 8px rgba(6,182,212,0.06); }
+          50%       { box-shadow: 0 0 22px rgba(6,182,212,0.18); }
+        }
+        @keyframes mn-subReveal {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+      `}</style>
+
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-cyan-900/50 pb-4 mb-8">
+        <div>
+          <h2 className="text-4xl font-bold mb-1 tracking-tight flex items-center gap-3">
+            <Eye
+              className="w-8 h-8 shrink-0 text-cyan-400"
+              style={{ animation: 'mn-iconReveal 0.8s cubic-bezier(0.16,1,0.3,1) forwards, mn-iconPulse 5s ease-in-out 0.8s infinite' }}
+            />
+            <span
+              className="text-transparent bg-clip-text"
+              style={{
+                backgroundImage: 'linear-gradient(135deg, #06b6d4 0%, #d946ef 50%, #39ff14 100%)',
+                animation: 'mn-reveal 1.2s cubic-bezier(0.16,1,0.3,1) forwards',
+              }}
+            >ARCHITECTS_ARCHITECTURE</span>
+          </h2>
+          <div
+            className="text-sm font-bold tracking-widest text-cyan-400 uppercase"
+            style={{ opacity: 0, animation: 'mn-subReveal 0.5s ease 0.4s forwards' }}
+          >
+            MANIFESTO // SOMA-9.1 // OSTROM_PROTOCOL
+          </div>
+        </div>
+        <div className="flex items-center gap-3 mt-4 md:mt-0">
+          <div className="flex items-center gap-2 text-xs border border-cyan-500/30 px-3 py-1 bg-cyan-900/10 text-cyan-400 rounded-sm">
+            <Activity className="w-3 h-3" /> ARCHITECT: ACTIVE
+          </div>
+          <div className="flex items-center gap-2 text-xs border border-[#39ff14]/30 px-3 py-1 bg-green-900/10 text-[#39ff14] rounded-sm">
+            <Shield className="w-3 h-3" /> CLEARANCE: SOVEREIGN
+          </div>
+        </div>
+      </div>
+
+      {/* Content card */}
+      <div className="max-w-3xl">
+        <div
+          style={{
+            padding: '1.5px',
+            background: 'linear-gradient(135deg, rgba(6,182,212,0.5), rgba(217,70,239,0.3), rgba(57,255,20,0.4))',
+            borderRadius: '6px',
+          }}
+        >
+          <div
+            className="bg-black/90 backdrop-blur-sm px-8 py-8 rounded-[5px]"
+            style={{ animation: 'mn-borderBreath 6s ease-in-out infinite' }}
+          >
+            <div
+              className="font-mono text-sm md:text-base leading-relaxed
+                prose prose-invert prose-sm max-w-none
+                prose-headings:text-cyan-300 prose-headings:font-bold prose-headings:tracking-wide
+                prose-p:text-[#39ff14] prose-p:leading-relaxed
+                prose-a:text-cyan-400 prose-a:no-underline hover:prose-a:text-cyan-200
+                prose-strong:text-cyan-300
+                prose-code:text-[#39ff14] prose-code:bg-transparent"
+              dangerouslySetInnerHTML={{ __html: manifesto?.html ?? '' }}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 
