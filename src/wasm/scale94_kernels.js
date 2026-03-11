@@ -58,6 +58,55 @@ export class BiocoenosisKernel {
 }
 if (Symbol.dispose) BiocoenosisKernel.prototype[Symbol.dispose] = BiocoenosisKernel.prototype.free;
 
+/**
+ * Stateful Gray-Scott kernel — grid persists between compute_steps() calls.
+ * Each call continues the simulation from where the last left off.
+ */
+export class GrayScottKernel {
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        GrayScottKernelFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_grayscottkernel_free(ptr, 0);
+    }
+    /**
+     * Advance the simulation by `frames` PDE steps then render the V-field.
+     * Uses 5-point discrete Laplacian with Dirichlet (zero-flux) boundary.
+     * Swap-based double-buffering avoids the full memcopy of copy_from_slice.
+     * @param {number} feed
+     * @param {number} kill
+     * @param {number} frames
+     * @returns {string}
+     */
+    compute_steps(feed, kill, frames) {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const ret = wasm.grayscottkernel_compute_steps(this.__wbg_ptr, feed, kill, frames);
+            deferred1_0 = ret[0];
+            deferred1_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * Construct with default 60×20 grid seeded at centre.
+     * No-arg constructor required by the WASM stateful kernel protocol.
+     */
+    constructor() {
+        const ret = wasm.grayscottkernel_new();
+        this.__wbg_ptr = ret >>> 0;
+        GrayScottKernelFinalization.register(this, this.__wbg_ptr, this);
+        return this;
+    }
+}
+if (Symbol.dispose) GrayScottKernel.prototype[Symbol.dispose] = GrayScottKernel.prototype.free;
+
 export class NecromanticEngine {
     __destroy_into_raw() {
         const ptr = this.__wbg_ptr;
@@ -318,6 +367,24 @@ export function boot_thermosphere_protocol(carbon_ppm, industrial_drag, ocean_si
 }
 
 /**
+ * Autocomplete hint: single [reveal:0|1] parameter
+ * @returns {Array<any>}
+ */
+export function classified_params() {
+    const ret = wasm.classified_params();
+    return ret;
+}
+
+/**
+ * Autocomplete hint: returns parameter names for the terminal UI
+ * @returns {Array<any>}
+ */
+export function grayscott_params() {
+    const ret = wasm.grayscott_params();
+    return ret;
+}
+
+/**
  * Simulates a simplified A-CEEI (Approximate Competitive Equilibrium from
  * Equal Incomes) preference-based allocation market.
  *
@@ -341,6 +408,34 @@ export function run_ceei_allocation_engine(agents, goods, inequality, diversity)
     let deferred1_1;
     try {
         const ret = wasm.run_ceei_allocation_engine(agents, goods, inequality, diversity);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * Run a full ML-KEM-768 KEM round-trip and format as system kernel log.
+ *
+ * `reveal`:
+ *   0 → decapsulation key (private) is redacted in output  [default]
+ *   1 → private key is printed in full (WARNING display)
+ *
+ * The function always:
+ *   1. Generates a fresh keypair via OS entropy
+ *   2. Encapsulates a shared secret (simulates sender)
+ *   3. Displays public key, ciphertext, and derived shared secret
+ *   4. Conditionally displays the private decapsulation key
+ * @param {number} reveal
+ * @returns {string}
+ */
+export function run_classified(reveal) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_classified(reveal);
         deferred1_0 = ret[0];
         deferred1_1 = ret[1];
         return getStringFromWasm0(ret[0], ret[1]);
@@ -382,6 +477,37 @@ export function run_daly_thermo_simulation(consumption, regeneration, waste, abs
     let deferred1_1;
     try {
         const ret = wasm.run_daly_thermo_simulation(consumption, regeneration, waste, absorption, nr_depletion, substitution, years);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * DH-EC Cryptographic Architecture Kernel.
+ *
+ * mode:
+ *   0 = full comparison (all sections)
+ *   1 = Classical DH only
+ *   2 = Curve25519 ECDH only
+ *   3 = Signal X3DH only
+ *   4 = Threema NaCl only
+ *   5 = Comparison matrix only
+ *
+ * show_details:
+ *   0 = compact (keys abbreviated to 16 hex chars)
+ *   1 = verbose (full 32-byte hex keys + analysis notes)
+ * @param {number} mode
+ * @param {number} show_details
+ * @returns {string}
+ */
+export function run_dh_ec_kernel(mode, show_details) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_dh_ec_kernel(mode, show_details);
         deferred1_0 = ret[0];
         deferred1_1 = ret[1];
         return getStringFromWasm0(ret[0], ret[1]);
@@ -586,8 +712,108 @@ export function soma_91_banner() {
 function __wbg_get_imports() {
     const import0 = {
         __proto__: null,
+        __wbg___wbindgen_is_function_3c846841762788c1: function(arg0) {
+            const ret = typeof(arg0) === 'function';
+            return ret;
+        },
+        __wbg___wbindgen_is_object_781bc9f159099513: function(arg0) {
+            const val = arg0;
+            const ret = typeof(val) === 'object' && val !== null;
+            return ret;
+        },
+        __wbg___wbindgen_is_string_7ef6b97b02428fae: function(arg0) {
+            const ret = typeof(arg0) === 'string';
+            return ret;
+        },
+        __wbg___wbindgen_is_undefined_52709e72fb9f179c: function(arg0) {
+            const ret = arg0 === undefined;
+            return ret;
+        },
         __wbg___wbindgen_throw_6ddd609b62940d55: function(arg0, arg1) {
             throw new Error(getStringFromWasm0(arg0, arg1));
+        },
+        __wbg_call_2d781c1f4d5c0ef8: function() { return handleError(function (arg0, arg1, arg2) {
+            const ret = arg0.call(arg1, arg2);
+            return ret;
+        }, arguments); },
+        __wbg_crypto_38df2bab126b63dc: function(arg0) {
+            const ret = arg0.crypto;
+            return ret;
+        },
+        __wbg_getRandomValues_c44a50d8cfdaebeb: function() { return handleError(function (arg0, arg1) {
+            arg0.getRandomValues(arg1);
+        }, arguments); },
+        __wbg_length_ea16607d7b61445b: function(arg0) {
+            const ret = arg0.length;
+            return ret;
+        },
+        __wbg_msCrypto_bd5a034af96bcba6: function(arg0) {
+            const ret = arg0.msCrypto;
+            return ret;
+        },
+        __wbg_new_with_length_825018a1616e9e55: function(arg0) {
+            const ret = new Uint8Array(arg0 >>> 0);
+            return ret;
+        },
+        __wbg_node_84ea875411254db1: function(arg0) {
+            const ret = arg0.node;
+            return ret;
+        },
+        __wbg_of_8bf7ed3eca00ea43: function(arg0) {
+            const ret = Array.of(arg0);
+            return ret;
+        },
+        __wbg_of_8fd5dd402bc67165: function(arg0, arg1, arg2) {
+            const ret = Array.of(arg0, arg1, arg2);
+            return ret;
+        },
+        __wbg_process_44c7a14e11e9f69e: function(arg0) {
+            const ret = arg0.process;
+            return ret;
+        },
+        __wbg_prototypesetcall_d62e5099504357e6: function(arg0, arg1, arg2) {
+            Uint8Array.prototype.set.call(getArrayU8FromWasm0(arg0, arg1), arg2);
+        },
+        __wbg_randomFillSync_6c25eac9869eb53c: function() { return handleError(function (arg0, arg1) {
+            arg0.randomFillSync(arg1);
+        }, arguments); },
+        __wbg_require_b4edbdcf3e2a1ef0: function() { return handleError(function () {
+            const ret = module.require;
+            return ret;
+        }, arguments); },
+        __wbg_static_accessor_GLOBAL_8adb955bd33fac2f: function() {
+            const ret = typeof global === 'undefined' ? null : global;
+            return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
+        },
+        __wbg_static_accessor_GLOBAL_THIS_ad356e0db91c7913: function() {
+            const ret = typeof globalThis === 'undefined' ? null : globalThis;
+            return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
+        },
+        __wbg_static_accessor_SELF_f207c857566db248: function() {
+            const ret = typeof self === 'undefined' ? null : self;
+            return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
+        },
+        __wbg_static_accessor_WINDOW_bb9f1ba69d61b386: function() {
+            const ret = typeof window === 'undefined' ? null : window;
+            return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
+        },
+        __wbg_subarray_a068d24e39478a8a: function(arg0, arg1, arg2) {
+            const ret = arg0.subarray(arg1 >>> 0, arg2 >>> 0);
+            return ret;
+        },
+        __wbg_versions_276b2795b1c6a219: function(arg0) {
+            const ret = arg0.versions;
+            return ret;
+        },
+        __wbindgen_cast_0000000000000001: function(arg0, arg1) {
+            // Cast intrinsic for `Ref(Slice(U8)) -> NamedExternref("Uint8Array")`.
+            const ret = getArrayU8FromWasm0(arg0, arg1);
+            return ret;
+        },
+        __wbindgen_cast_0000000000000002: function(arg0, arg1) {
+            // Cast intrinsic for `Ref(String) -> Externref`.
+            const ret = getStringFromWasm0(arg0, arg1);
+            return ret;
         },
         __wbindgen_init_externref_table: function() {
             const table = wasm.__wbindgen_externrefs;
@@ -608,12 +834,26 @@ function __wbg_get_imports() {
 const BiocoenosisKernelFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_biocoenosiskernel_free(ptr >>> 0, 1));
+const GrayScottKernelFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_grayscottkernel_free(ptr >>> 0, 1));
 const NecromanticEngineFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_necromanticengine_free(ptr >>> 0, 1));
 const SomaKernelFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_somakernel_free(ptr >>> 0, 1));
+
+function addToExternrefTable0(obj) {
+    const idx = wasm.__externref_table_alloc();
+    wasm.__wbindgen_externrefs.set(idx, obj);
+    return idx;
+}
+
+function getArrayU8FromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return getUint8ArrayMemory0().subarray(ptr / 1, ptr / 1 + len);
+}
 
 function getStringFromWasm0(ptr, len) {
     ptr = ptr >>> 0;
@@ -626,6 +866,19 @@ function getUint8ArrayMemory0() {
         cachedUint8ArrayMemory0 = new Uint8Array(wasm.memory.buffer);
     }
     return cachedUint8ArrayMemory0;
+}
+
+function handleError(f, args) {
+    try {
+        return f.apply(this, args);
+    } catch (e) {
+        const idx = addToExternrefTable0(e);
+        wasm.__wbindgen_exn_store(idx);
+    }
+}
+
+function isLikeNone(x) {
+    return x === undefined || x === null;
 }
 
 let cachedTextDecoder = new TextDecoder('utf-8', { ignoreBOM: true, fatal: true });

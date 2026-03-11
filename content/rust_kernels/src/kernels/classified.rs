@@ -23,8 +23,7 @@
 //   run_classified(reveal: u32) → full KEM round-trip log
 
 use wasm_bindgen::prelude::*;
-use ml_kem::{KemCore, MlKem768};
-use ml_kem::kem::Encapsulate;
+use ml_kem::{KemCore, MlKem768, EncodedSizeUser, kem::Encapsulate};
 use rand_core::OsRng;
 
 /// Autocomplete hint: single [reveal:0|1] parameter
@@ -57,7 +56,8 @@ pub fn run_classified(reveal: u32) -> String {
     // ── Key generation ────────────────────────────────────────────────────────
     // generate() takes an RNG and returns (EncapsulationKey, DecapsulationKey).
     // No Result wrapping — pure math with guaranteed entropy from OsRng.
-    let (ek, dk) = MlKem768::generate(&mut OsRng);
+    // generate() returns (DecapsulationKey, EncapsulationKey) in ml-kem 0.2
+    let (dk, ek) = MlKem768::generate(&mut OsRng);
 
     // ── Encapsulation key (public) ────────────────────────────────────────────
     let ek_hex = hex::encode(ek.as_bytes());
@@ -94,10 +94,11 @@ pub fn run_classified(reveal: u32) -> String {
         Err(_)   => return "[ERR] KERNEL PANIC — ENCAPSULATION FAILURE\n".to_string(),
     };
 
-    let ct_hex = hex::encode(ciphertext.as_bytes());
+    let ct_bytes: &[u8] = ciphertext.as_ref();
+    let ct_hex   = hex::encode(ct_bytes);
     logs.push_str(&format!(
         "[OK] CIPHERTEXT (ENCAPSULATED)   [{} bytes]\n",
-        ciphertext.as_bytes().len()
+        ct_bytes.len()
     ));
     push_hex_block(&mut logs, &ct_hex.to_uppercase());
     logs.push('\n');
@@ -106,7 +107,7 @@ pub fn run_classified(reveal: u32) -> String {
     // SharedKey is a 32-byte value derived from the MLWE trapdoor.
     // Both sender (via encapsulate) and recipient (via decapsulate) derive
     // the identical value — this is what makes KEM a key *agreement* protocol.
-    let ss_hex = hex::encode(shared_key.as_ref());
+    let ss_hex = hex::encode(shared_key);
     logs.push_str("[OK] SHARED SECRET (DERIVED)     [32 bytes]\n");
     logs.push_str(&format!("      {}\n\n", ss_hex.to_uppercase()));
 
@@ -116,7 +117,7 @@ pub fn run_classified(reveal: u32) -> String {
         "[SYS] KEY_SIZES: ek={}B  dk={}B  ct={}B  ss=32B\n",
         ek.as_bytes().len(),
         dk.as_bytes().len(),
-        ciphertext.as_bytes().len(),
+        ct_bytes.len(),
     ));
     logs.push_str("[SYS] KERNEL ROUTINE COMPLETE.\n");
 

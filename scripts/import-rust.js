@@ -396,6 +396,48 @@ const KERNEL_MAP = [
     type:    'rust',
     aliases: ['surveillance', 'panopticon', 'legislation', 'governance', 'surveillance_index', 'law', 'laws', 'grey', 'greyc0'],
   },
+  {
+    // Gray-Scott Reaction-Diffusion PDE — stateful WASM kernel.
+    // Stateful: constructed once with new GrayScottKernel(), driven via compute_steps.
+    // feed:   args[0]  flags: --feed, --f, --feed_rate
+    // kill:   args[1]  flags: --kill, --k, --kill_rate
+    // frames: args[2]  flags: --frames, --steps, --n
+    id:         'GRAY-SCOTT-REACTION-DIFFUSION',
+    isStateful: true,
+    struct:     'GrayScottKernel',
+    cycle:      'compute_steps',
+    args:       [0.055, 0.062, 50],
+    argMap: {
+      feed: 0, f: 0, feed_rate: 0,
+      kill: 1, k: 1, kill_rate: 1,
+      frames: 2, steps: 2, n: 2,
+    },
+    params: [
+      { name: 'feed_rate', default: 0.055, desc: 'feed rate f — replenishes u; presets: coral=0.037, spots=0.055, mazes=0.029, solitons=0.025' },
+      { name: 'kill_rate', default: 0.062, desc: 'kill rate k — removes v; presets: coral=0.065, spots=0.062, mazes=0.057, solitons=0.060' },
+      { name: 'frames',    default: 50,    desc: 'animation frames to compute — each frame = 10 PDE integration steps (1–500)' },
+    ],
+    label:   'Gray-Scott Reaction-Diffusion v1.0',
+    type:    'rust',
+    aliases: ['grayscott', 'gray_scott', 'reaction_diffusion', 'turing', 'morphogenesis', 'pde', 'diffusion'],
+  },
+  {
+    // ML-KEM-768 Post-Quantum Key Encapsulation — FIPS 203.
+    // Generates a fresh keypair via OS entropy, encapsulates a shared secret.
+    // reveal: args[0]  flags: --reveal, --r, --show, --expose
+    //   0 = private key redacted [default]
+    //   1 = private key printed in full (WARNING)
+    id:      'ML-KEM-CLASSIFIED',
+    fn:      'run_classified',
+    args:    [0],
+    argMap:  { reveal: 0, r: 0, show: 0, expose: 0 },
+    params:  [
+      { name: 'reveal', default: 0, desc: 'reveal private decapsulation key: 0=redacted (default), 1=expose full key in log (WARNING)' },
+    ],
+    label:   'ML-KEM-768 Classified v1.0',
+    type:    'rust',
+    aliases: ['classified', 'mlkem', 'ml_kem', 'pqc', 'postquantum', 'kem', 'lattice', 'fips203', 'quantum_crypto'],
+  },
 ];
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────

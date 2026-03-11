@@ -236,11 +236,12 @@ pub fn run_dh_ec_kernel(mode: f64, show_details: f64) -> String {
                Secrets match:        {}\n\
              {dash}\n\
                Derived key (SHA256): {}\n",
-            alice.prime, alice.generator, dash = dash,
+            alice.prime, alice.generator,
             alice.pub_key, bob.pub_key,
             alice_s, bob_s,
             if matched { "✓ YES" } else { "✗ NO" },
             fmt_key(&derived),
+            dash = dash,
         ).unwrap();
 
         if verbose {
@@ -276,13 +277,13 @@ pub fn run_dh_ec_kernel(mode: f64, show_details: f64) -> String {
                Secrets match:        {}\n\
              {dash}\n\
                HKDF session key:     {}\n",
-            dash = dash,
             fmt_key(alice.public.as_bytes()),
             fmt_key(bob.public.as_bytes()),
             fmt_key(alice_s.as_bytes()),
             fmt_key(bob_s.as_bytes()),
             if matched { "✓ YES" } else { "✗ NO" },
             fmt_key(&sk),
+            dash = dash,
         ).unwrap();
 
         if verbose {
