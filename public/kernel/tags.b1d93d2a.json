@@ -183,6 +183,10 @@
   ],
   "AXIOMATIC": [
     {
+      "id": "MM-3.3.3",
+      "title": "SCALE_SYSTEM_KERNEL :: V11.5.0 :: MASCULINE_MEDIOCRACY"
+    },
+    {
       "id": "GLITCH-SCALE-KERNEL-CS3",
       "title": "[KERNEL: POLARITY_PRIME // THE AXIOMATIC PAIRS]"
     }
@@ -571,6 +575,12 @@
       "title": "FUCK XITTER AND XITLER RC1"
     }
   ],
+  "DETONATION": [
+    {
+      "id": "NFDK-4.4.4",
+      "title": "SCALE_SYSTEM_KERNEL :: V4.4.4.4 :: NUCLEAR_FUSION_DETONATION"
+    }
+  ],
   "Diagnostic": [
     {
       "id": "SOMA-KERNEL-4.5-FUCK-XITTER-FUCK-XITLER",
@@ -892,6 +902,10 @@
     }
   ],
   "FUSION": [
+    {
+      "id": "NFDK-4.4.4",
+      "title": "SCALE_SYSTEM_KERNEL :: V4.4.4.4 :: NUCLEAR_FUSION_DETONATION"
+    },
     {
       "id": "QUANTUM-QUACKSALBER-KERNEL-1.1.1",
       "title": "🔱 KERNEL: QUANTUM FUSION PROTOCOL [LAYER 3 FINAL]"
@@ -1263,6 +1277,10 @@
     {
       "id": "FSQ-11.6",
       "title": "FISH SCALE KERNEL · 11.6.0 · QUANTUM EXPANSION"
+    },
+    {
+      "id": "MM-3.3.3",
+      "title": "SCALE_SYSTEM_KERNEL :: V11.5.0 :: MASCULINE_MEDIOCRACY"
     }
   ],
   "Material": [
@@ -1291,6 +1309,12 @@
     {
       "id": "CEEI-ALLOCATION-ENGINE",
       "title": "A-CEEI ALLOCATION ENGINE V1.0 // PREFERENCE-BASED MARKETS"
+    }
+  ],
+  "MEDIOCRACY": [
+    {
+      "id": "MM-3.3.3",
+      "title": "SCALE_SYSTEM_KERNEL :: V11.5.0 :: MASCULINE_MEDIOCRACY"
     }
   ],
   "memory-architecture": [
@@ -1411,6 +1435,12 @@
     {
       "id": "NOCTURNAL-NIGHT-KERNEL-V-22.2.2-1",
       "title": "☢️ KERNEL_COMPILATION: THE_NIGHT_SHIFT_V2.5 ☢️"
+    }
+  ],
+  "NUCLEAR": [
+    {
+      "id": "NFDK-4.4.4",
+      "title": "SCALE_SYSTEM_KERNEL :: V4.4.4.4 :: NUCLEAR_FUSION_DETONATION"
     }
   ],
   "Objective": [
@@ -1825,6 +1855,14 @@
     {
       "id": "FISH-SCALE-KERNEL-11.8",
       "title": "FISH SCALE KERNEL · 11.8.0 · THE ECO-QUANTUM TOPOLOGY"
+    },
+    {
+      "id": "NFDK-4.4.4",
+      "title": "SCALE_SYSTEM_KERNEL :: V4.4.4.4 :: NUCLEAR_FUSION_DETONATION"
+    },
+    {
+      "id": "MM-3.3.3",
+      "title": "SCALE_SYSTEM_KERNEL :: V11.5.0 :: MASCULINE_MEDIOCRACY"
     },
     {
       "id": "KERNEL-15.0-THE-PURIFICATION-OF-SCALE-1",
@@ -2253,6 +2291,14 @@
     {
       "id": "SERAPHINE-KERNEL-V15.5.5",
       "title": "SERAPHINE KERNEL V15.5.5"
+    },
+    {
+      "id": "NFDK-4.4.4",
+      "title": "SCALE_SYSTEM_KERNEL :: V4.4.4.4 :: NUCLEAR_FUSION_DETONATION"
+    },
+    {
+      "id": "MM-3.3.3",
+      "title": "SCALE_SYSTEM_KERNEL :: V11.5.0 :: MASCULINE_MEDIOCRACY"
     },
     {
       "id": "MOZART-MEMORANDUM-KERNEL2.0",

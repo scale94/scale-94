@@ -337,6 +337,24 @@
     "len": "0 WDS"
   },
   {
+    "id": "NFDK-4.4.4",
+    "type": "kernel_doc",
+    "date": "2026-03-11",
+    "lastModified": "2026-03-11",
+    "title": "SCALE_SYSTEM_KERNEL :: V4.4.4.4 :: NUCLEAR_FUSION_DETONATION",
+    "subtitle": "ᛟ 1.0 THE AXIOMATIC CORE [LOCKED]",
+    "status": "ACTIVE",
+    "readTime": "2 min read",
+    "tags": [
+      "SCALE",
+      "SYSTEM",
+      "NUCLEAR",
+      "FUSION",
+      "DETONATION"
+    ],
+    "len": "313 WDS"
+  },
+  {
     "id": "PASSALUS-KERNEL-V-4.4.4.4",
     "type": "kernel_doc",
     "date": "2026-03-06",
@@ -387,6 +405,24 @@
     "readTime": "2 min read",
     "tags": [],
     "len": "0 WDS"
+  },
+  {
+    "id": "MM-3.3.3",
+    "type": "kernel_doc",
+    "date": "2026-03-11",
+    "lastModified": "2026-03-11",
+    "title": "SCALE_SYSTEM_KERNEL :: V11.5.0 :: MASCULINE_MEDIOCRACY",
+    "subtitle": "1.0 THE AXIOMATIC CORE",
+    "status": "ACTIVE",
+    "readTime": "1 min read",
+    "tags": [
+      "SCALE",
+      "SYSTEM",
+      "MASCULINE",
+      "MEDIOCRACY",
+      "AXIOMATIC"
+    ],
+    "len": "282 WDS"
   },
   {
     "id": "SRDK-3.3.3",
@@ -762,7 +798,7 @@
       "AUDIT",
       "LAWSON"
     ],
-    "len": "1814 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "KINETIC-STATECRAFT-KERNEL-1.0",
