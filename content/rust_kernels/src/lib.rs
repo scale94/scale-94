@@ -25,6 +25,8 @@
 //   run_ising_consensus()          → 2-D Ising social consensus field
 //   run_feigenbaum_cascade()       → Bifurcation cascade (δ = 4.6692…)
 //   run_dh_ec_kernel()             → DH-EC Cryptographic Architecture (Signal/Threema)
+//   GrayScottKernel::compute_steps() → Reaction-Diffusion PDE (Ars Electronica 2027)
+//   run_classified()               → ML-KEM-768 Post-Quantum KEM (FIPS 203)
 //
 // Build with: wasm-pack build --target web
 // Output:     pkg/  →  scripts/import-rust.js copies to public/wasm/

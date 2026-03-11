@@ -24,3 +24,5 @@ pub mod replicator;      // run_evolutionary_replicator
 pub mod ising;           // run_ising_consensus
 pub mod feigenbaum;      // run_feigenbaum_cascade
 pub mod dh_ec;           // run_dh_ec_kernel
+pub mod grayscott;       // GrayScottKernel (stateful reaction-diffusion)
+pub mod classified;      // run_classified (ML-KEM-768 post-quantum crypto)

@@ -222,7 +222,39 @@ const wasmRegistry = {
     wasmUrl: "/wasm/scale94_kernels_bg.wasm",
     aliases: ["surveillance","panopticon","legislation","governance","surveillance_index","law","laws","grey","greyc0"],
     params:  [{"name":"region_code","default":0,"desc":"jurisdiction filter: 0=ALL 1=UK 2=EU 3=US 4=AU 5=CA 6=DE 7=FR 8=SE 9=IE 10=NL 11=NZ 12=BE"},{"name":"category_code","default":0,"desc":"threat category: 0=ALL 1=encryption_backdoor 2=digital_id 3=biometric 4=data_retention 5=worker 6=scanning 7=traffic 8=age_verify"},{"name":"threshold","default":0,"desc":"minimum severity filter 0–5 (0=all, 3=elevated+, 5=critical only)"}],
-  }
+  },
+  "GRAY-SCOTT-REACTION-DIFFUSION": {
+    id:         "GRAY-SCOTT-REACTION-DIFFUSION",
+    isStateful: true,
+    struct:     "GrayScottKernel",
+    cycle:      "compute_steps",
+    args:       [0.055, 0.062, 50],
+    argMap:     {"feed":0,"f":0,"feed_rate":0,"kill":1,"k":1,"kill_rate":1,"frames":2,"steps":2,"n":2},
+    label:      "Gray-Scott Reaction-Diffusion v1.0",
+    type:       'rust',
+    module:     "/wasm/scale94_kernels.js",
+    wasmUrl:    "/wasm/scale94_kernels_bg.wasm",
+    aliases:    ["grayscott","gray_scott","reaction_diffusion","turing","morphogenesis","pde","diffusion"],
+    params:     [
+      {"name":"feed_rate","default":0.055,"desc":"f: feed rate of species U — controls pattern type (coral=0.037, spots=0.055, mazes=0.029)"},
+      {"name":"kill_rate","default":0.062,"desc":"k: kill rate of species V — (coral=0.065, spots=0.062, mazes=0.057)"},
+      {"name":"frames","default":50,"desc":"PDE steps to advance — grid persists; call again to continue evolving (10–500)"},
+    ],
+  },
+  "ML-KEM-CLASSIFIED": {
+    id:      "ML-KEM-CLASSIFIED",
+    fn:      "run_classified",
+    args:    [0],
+    argMap:  {"reveal":0,"r":0,"show":0,"expose":0},
+    label:   "ML-KEM-768 Post-Quantum Cryptography Kernel (FIPS 203)",
+    type:    'rust',
+    module:  "/wasm/scale94_kernels.js",
+    wasmUrl: "/wasm/scale94_kernels_bg.wasm",
+    aliases: ["classified","mlkem","ml_kem","pqc","postquantum","kem","lattice","fips203","quantum_crypto"],
+    params:  [
+      {"name":"reveal","default":0,"desc":"0=private key redacted (default)  1=private key exposed in system log (WARN)"},
+    ],
+  },
 };
 
 // Boot diagnostic — logs registered kernel IDs to the browser console.
