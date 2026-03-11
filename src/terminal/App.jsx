@@ -107,6 +107,25 @@ function formatRunHelp(registry) {
   return lines;
 }
 
+// ── Command manifest for prefix completion — module-level (stable reference) ──
+const CMD_MANIFEST = [
+  { name: 'load',         desc: 'open a kernel module  e.g. load soma' },
+  { name: 'run',          desc: 'execute WASM kernel    e.g. run climate' },
+  { name: 'list',         desc: 'show all modules' },
+  { name: 'search',       desc: 'filter kernel index    e.g. search quantum' },
+  { name: 'help',         desc: 'system command reference' },
+  { name: 'clear',        desc: 'clear system log' },
+  { name: 'tags',         desc: 'open tag cloud' },
+  { name: 'thesis',       desc: 'load architect thesis' },
+  { name: 'home',         desc: 'navigate to /kernel' },
+  { name: 'scaling',      desc: 'navigate to /scaling' },
+  { name: 'transmission', desc: 'navigate to /transmission' },
+  { name: 'manifesto',    desc: 'navigate to /manifesto' },
+  { name: 'surveillance', desc: 'navigate to /surveillance' },
+  { name: 'bsky',         desc: 'navigate to /bsky' },
+  { name: 'privacy',      desc: 'navigate to /privacy' },
+];
+
 const App = () => {
   const [currentPath, setCurrentPath] = useState('~/system/kernel');
   const [activeTab, setActiveTab] = useState('kernel');
@@ -536,25 +555,6 @@ const App = () => {
     setTagCloudView(false);
     setSearchFilter('');
   }, []);
-
-  // ── Command manifest for prefix completion ──────────────────────────────────
-  const CMD_MANIFEST = [
-    { name: 'load',         desc: 'open a kernel module  e.g. load soma' },
-    { name: 'run',          desc: 'execute WASM kernel    e.g. run climate' },
-    { name: 'list',         desc: 'show all modules' },
-    { name: 'search',       desc: 'filter kernel index    e.g. search quantum' },
-    { name: 'help',         desc: 'system command reference' },
-    { name: 'clear',        desc: 'clear system log' },
-    { name: 'tags',         desc: 'open tag cloud' },
-    { name: 'thesis',       desc: 'load architect thesis' },
-    { name: 'home',         desc: 'navigate to /kernel' },
-    { name: 'scaling',      desc: 'navigate to /scaling' },
-    { name: 'transmission', desc: 'navigate to /transmission' },
-    { name: 'manifesto',    desc: 'navigate to /manifesto' },
-    { name: 'surveillance', desc: 'navigate to /surveillance' },
-    { name: 'bsky',         desc: 'navigate to /bsky' },
-    { name: 'privacy',      desc: 'navigate to /privacy' },
-  ];
 
   // Autocomplete — fires on every keystroke, populates suggestion list
   const handleInputChange = useCallback((e) => {

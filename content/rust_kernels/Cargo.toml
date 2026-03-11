@@ -14,5 +14,7 @@ wasm-bindgen = "0.2"
 
 [profile.release]
 # Optimize for size — WASM binary is served over the network.
-opt-level = "s"
-lto        = true
+opt-level      = "s"
+lto            = true
+codegen-units  = 1      # single unit → full cross-function inlining via LLVM
+panic          = "abort" # strips unwinding machinery (~8–12KB saved in WASM binary)

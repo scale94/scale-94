@@ -9,6 +9,7 @@
 // Build with: wasm-pack build --target web
 // Output:     pkg/  →  scripts/import-rust.js copies to public/wasm/
 
+use std::fmt::Write as FmtWrite;
 use wasm_bindgen::prelude::*;
 
 // ── SOMA-9.1 // GAIA BUILD — System Kernel Log Banner ────────────────────────
@@ -410,7 +411,9 @@ pub fn run_daly_thermo_simulation(
     let daly_2_status = if waste <= absorb      { "PASS" } else { "BREACH" };
     let daly_3_status = if substitution >= nr_depletion { "PASS" } else { "BREACH" };
 
-    let mut out = format!(
+    // Pre-size: header ~400 + snap rows ~50 each + footer ~300
+    let mut out = String::with_capacity(400 + snaps.len() * 50 + 300);
+    write!(out,
         "SOMA_KERNEL_5.5 // DALY_THERMO_SIMULATION\n\
          ══════════════════════════════════════════\n\
          HORIZON: {years} yr  |  STATUS: {phase}\n\
@@ -422,24 +425,24 @@ pub fn run_daly_thermo_simulation(
          ──────────────────────────────────────────\n\
          SIMULATION TRACE:\n\
            YR    │ R_STOCK  P_STOCK  NR_STOCK  ENTROPY",
-        years        = years,
-        phase        = phase,
-        overshoot_x  = overshoot_x,
+        years         = years,
+        phase         = phase,
+        overshoot_x   = overshoot_x,
         daly_1_status = daly_1_status,
-        waste_ratio  = waste / absorb,
+        waste_ratio   = waste / absorb,
         daly_2_status = daly_2_status,
-        nr_ratio     = nr_depletion / substitution.max(0.001),
+        nr_ratio      = nr_depletion / substitution.max(0.001),
         daly_3_status = daly_3_status,
-    );
+    ).unwrap();
 
     for (yr, r, p, nr, h) in &snaps {
-        out.push_str(&format!(
-            "\n   {:>4}  │ {:.4}   {:.4}   {:.4}    {:.4}",
-            yr, r, p, nr, h
-        ));
+        write!(out, "\n   {:>4}  │ {:.4}   {:.4}   {:.4}    {:.4}", yr, r, p, nr, h).unwrap();
     }
 
-    out.push_str(&format!(
+    let collapse_str = collapse_yr.map(|y| y.to_string()).unwrap_or_else(|| "NONE (within horizon)".into());
+    let tipping_str  = tipping_yr.map(|y| y.to_string()).unwrap_or_else(|| "NOT_REACHED".into());
+    let last         = snaps.last();
+    write!(out,
         "\n ──────────────────────────────────────────\n\
          FINAL STATE:\n\
            RESOURCE_STOCK      {r_final:.6}  (1.0 = baseline)\n\
@@ -451,15 +454,15 @@ pub fn run_daly_thermo_simulation(
          COLLAPSE_YEAR:  {collapse}\n\
          TIPPING_POINT:  {tipping}\n\
          SOURCE: content/rust_kernels/src/lib.rs",
-        r_final    = snaps.last().map(|s| s.1).unwrap_or(r_stock),
-        p_final    = snaps.last().map(|s| s.2).unwrap_or(p_stock),
-        nr_final   = snaps.last().map(|s| s.3).unwrap_or(nr_stock),
-        entropy    = entropy,
-        frag       = frag_final,
-        eco_debt   = eco_debt_pct,
-        collapse   = collapse_yr.map(|y| y.to_string()).unwrap_or_else(|| "NONE (within horizon)".into()),
-        tipping    = tipping_yr.map(|y| y.to_string()).unwrap_or_else(|| "NOT_REACHED".into()),
-    ));
+        r_final  = last.map(|s| s.1).unwrap_or(r_stock),
+        p_final  = last.map(|s| s.2).unwrap_or(p_stock),
+        nr_final = last.map(|s| s.3).unwrap_or(nr_stock),
+        entropy  = entropy,
+        frag     = frag_final,
+        eco_debt = eco_debt_pct,
+        collapse = collapse_str,
+        tipping  = tipping_str,
+    ).unwrap();
     out
 }
 
@@ -596,13 +599,14 @@ pub fn run_ceei_allocation_engine(
     let min_u = sorted_u.first().copied().unwrap_or(0.0);
     let max_u = sorted_u.last().copied().unwrap_or(0.0);
 
-    let mut price_str = String::new();
+    let mut price_str = String::with_capacity(m * 12);
     for j in 0..m {
-        price_str.push_str(&format!("p{j}={:.3}", prices[j]));
+        write!(price_str, "p{j}={:.3}", prices[j]).unwrap();
         if j < m - 1 { price_str.push(' '); }
     }
 
-    format!(
+    let mut out = String::with_capacity(600);
+    write!(out,
         "SOMA_KERNEL_5.5 // A-CEEI_ALLOCATION_ENGINE\n\
          ══════════════════════════════════════════\n\
          AGENTS: {n}  GOODS: {m}  INEQUALITY: {ineq:.2}  DIVERSITY: {div:.2}\n\
@@ -621,7 +625,8 @@ pub fn run_ceei_allocation_engine(
          (Budish 2011 — A-CEEI; Roth Nobel 2012 — Matching Markets)\n\
          SOURCE: content/rust_kernels/src/lib.rs",
         prices = price_str,
-    )
+    ).unwrap();
+    out
 }
 
 // ── Kernel 9: Soma Plus Social Capital Engine (soma_kernel_5.5) ──────────────
@@ -732,7 +737,8 @@ pub fn run_soma_plus_engine(
     let contributing_pct = contribution.iter().filter(|&&r| r > 0.0).count() as f64 / pop as f64 * 100.0;
     let passive_pct = 100.0 - contributing_pct;
 
-    let mut out = format!(
+    let mut out = String::with_capacity(400 + tier_trace.len() * 60 + 250);
+    write!(out,
         "SOMA_KERNEL_5.5 // SOMA_PLUS_ENGINE\n\
          ══════════════════════════════════════════\n\
          POPULATION: {pop}  HORIZON: {years} yr\n\
@@ -741,20 +747,18 @@ pub fn run_soma_plus_engine(
          ──────────────────────────────────────────\n\
          TIER EVOLUTION:\n\
            YR    │ INITIATE  CONTRIBUTOR  ARTISAN  SOVEREIGN  MEAN_SP",
-        pop          = pop,
-        years        = years,
-        eco_pct      = eco_s * 100.0,
-        soc_pct      = soc_s * 100.0,
-        art_pct      = art_s * 100.0,
-        passive_pct  = passive_pct,
-    );
+        pop         = pop,
+        years       = years,
+        eco_pct     = eco_s * 100.0,
+        soc_pct     = soc_s * 100.0,
+        art_pct     = art_s * 100.0,
+        passive_pct = passive_pct,
+    ).unwrap();
     for (yr, counts, mean) in &tier_trace {
-        out.push_str(&format!(
-            "\n   {:>4}  │ {:>7}  {:>11}  {:>7}  {:>9}  {:.1}",
-            yr, counts[0], counts[1], counts[2], counts[3], mean
-        ));
+        write!(out, "\n   {:>4}  │ {:>7}  {:>11}  {:>7}  {:>9}  {:.1}",
+            yr, counts[0], counts[1], counts[2], counts[3], mean).unwrap();
     }
-    out.push_str(&format!(
+    write!(out,
         "\n ──────────────────────────────────────────\n\
          FINAL DISTRIBUTION:\n\
            MEAN_SP             {mean_sp:.2}\n\
@@ -769,7 +773,7 @@ pub fn run_soma_plus_engine(
         max_sp           = max_sp,
         gini             = gini,
         contributing_pct = contributing_pct,
-    ));
+    ).unwrap();
     out
 }
 
@@ -944,7 +948,8 @@ pub fn run_strangler_fig_transition(
         "EMBRYONIC — Growth sub-threshold; resistance dominant"
     };
 
-    let mut out = format!(
+    let mut out = String::with_capacity(350 + snaps.len() * 55 + 250);
+    write!(out,
         "SOMA_KERNEL_5.5 // STRANGLER_FIG_TRANSITION\n\
          ══════════════════════════════════════════\n\
          GROWTH_RATE: {r:.3}  RESISTANCE₀: {rho_0:.3}  DECAY: λ={lambda:.3}\n\
@@ -952,25 +957,20 @@ pub fn run_strangler_fig_transition(
          ──────────────────────────────────────────\n\
          ADOPTION CURVE:\n\
            YR    │ ADOPTION   RESISTANCE  NET_RATE",
-        r    = r,
-        rho_0 = rho_0,
+        r      = r,
+        rho_0  = rho_0,
         lambda = lambda,
-        init = initial_adoption,
-        years = years,
-    );
+        init   = initial_adoption,
+        years  = years,
+    ).unwrap();
     for (yr, adopt, rho_t, _da) in &snaps {
-        let net = r - rho_t;
-        out.push_str(&format!(
-            "\n   {:>4}  │  {:.4}     {:.4}      {:+.4}",
-            yr, adopt, rho_t, net
-        ));
+        write!(out, "\n   {:>4}  │  {:.4}     {:.4}      {:+.4}", yr, adopt, rho_t, r - rho_t).unwrap();
     }
 
     let tipping_display = tipping_analytic
         .map(|y| format!("yr {y} (analytic: r > ρ(t))"))
         .unwrap_or_else(|| "NEVER (r ≤ ρ₀ always)".into());
-
-    out.push_str(&format!(
+    write!(out,
         "\n ──────────────────────────────────────────\n\
          MILESTONES:\n\
            TIPPING_POINT       {tipping}\n\
@@ -988,7 +988,7 @@ pub fn run_strangler_fig_transition(
         final_a   = final_a,
         final_rho = final_rho,
         outcome   = outcome,
-    ));
+    ).unwrap();
     out
 }
 

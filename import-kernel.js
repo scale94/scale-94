@@ -580,11 +580,45 @@ function run() {
   const pendingBuilds   = [];
 
   for (const file of files) {
-    const fullPath     = path.join(CONTENT_DIR, file);
+    const fullPath = path.join(CONTENT_DIR, file);
+    const cacheKey = path.relative(__dirname, fullPath).replace(/\\/g, '/');
+
+    // ── mtime pre-check: skip readFileSync for files that haven't changed ────
+    // Requires all three cache keys to be present + both chunk files to exist.
+    const stat     = fs.statSync(fullPath);
+    const mtimeMs  = stat.mtimeMs;
+    const metaKey  = `${cacheKey}:meta`;
+    const mtimeKey = `${cacheKey}:mtime`;
+    if (!FORCE && cache[mtimeKey] === mtimeMs && cache[cacheKey] && cache[metaKey]) {
+      const cachedMeta = JSON.parse(cache[metaKey]);
+      const cname        = chunkFileName(cachedMeta.id);
+      const chunkPath    = path.join(CHUNKS_DIR,     `${cname}.js`);
+      const chunkJsonPath = path.join(CHUNKS_CAS_DIR, `${cname}.json`);
+      if (fs.existsSync(chunkPath) && fs.existsSync(chunkJsonPath)) {
+        console.log(`  mtime-cache: ${file}`);
+        if (!DRY_RUN) {
+          // Re-push lean article so the manifest index stays complete.
+          // writeGeneratedFile sees cache[_cacheKey] === _hash → skips chunk rewrite.
+          pendingArticles.push({ ...cachedMeta, content: '', _hash: cache[cacheKey], _cacheKey: cacheKey });
+          if (!handCuratedBuildIds.has(cachedMeta.id)) {
+            pendingBuilds.push({
+              id:        cachedMeta.id,
+              articleId: cachedMeta.id,
+              name:      buildNameFromFilename(file),
+              status:    cachedMeta.status,
+              desc:      cachedMeta.subtitle || cachedMeta.title,
+            });
+          }
+          processed++;
+        }
+        skipped++;
+        continue;
+      }
+    }
+
     const raw          = fs.readFileSync(fullPath, 'utf8');
     const rawHash      = fileHash(raw);
-    const cacheKey     = path.relative(__dirname, fullPath).replace(/\\/g, '/');
-    const lastModified = fs.statSync(fullPath).mtime.toISOString().slice(0, 10);
+    const lastModified = stat.mtime.toISOString().slice(0, 10);
 
     // gray-matter: handles UTF-8 BOM, multi-line YAML, CRLF, Date objects.
     const { data: fm, content: body } = matter(raw);
@@ -637,6 +671,10 @@ function run() {
       if (!handCuratedBuildIds.has(id)) {
         pendingBuilds.push({ id: fm.buildId || id, articleId: id, name, status, desc });
       }
+
+      // Store mtime + lean meta so future runs can skip readFileSync on cache hit.
+      cache[mtimeKey] = mtimeMs;
+      cache[metaKey]  = JSON.stringify({ id, type, date, lastModified, title, subtitle, status, readTime, tags });
     }
   }
 
