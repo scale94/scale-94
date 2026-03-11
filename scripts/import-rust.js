@@ -18,6 +18,7 @@
 
 import fs            from 'fs';
 import path          from 'path';
+import crypto        from 'crypto';
 import { execSync }  from 'child_process';
 import { fileURLToPath } from 'url';
 import { atomicWrite }   from './_build-utils.js';
@@ -529,7 +530,14 @@ function run() {
   // ── Step 3: Generate wasm.generated.js registry ─────────────────────────────
   const moduleUrl = '/wasm/scale94_kernels.js';
 
-  const wasmUrl = '/wasm/scale94_kernels_bg.wasm';
+  // Append a content hash to the wasmUrl so browsers always fetch the latest
+  // binary after a rebuild instead of serving a stale cached version.
+  const wasmBinPath = path.join(WASM_OUT, 'scale94_kernels_bg.wasm');
+  let wasmHash = '';
+  if (fs.existsSync(wasmBinPath)) {
+    wasmHash = crypto.createHash('sha256').update(fs.readFileSync(wasmBinPath)).digest('hex').slice(0, 8);
+  }
+  const wasmUrl = `/wasm/scale94_kernels_bg.wasm${wasmHash ? `?v=${wasmHash}` : ''}`;
 
   const entries = KERNEL_MAP.map(k => {
     const lines = [`  ${JSON.stringify(k.id)}: {`, `    id:      ${JSON.stringify(k.id)},`];
