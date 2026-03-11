@@ -190,6 +190,15 @@ const SurveillanceTab = ({ legislationArticles = [], onOpenLaw }) => {
         >
           grey-c0/legislation
         </a>
+        <span className="text-orange-400/30">·</span>
+        <a
+          href="https://grey-c0.github.io/legislation/"
+          target="_blank"
+          rel="noreferrer"
+          className="text-orange-400/60 hover:text-orange-300 transition-colors underline-offset-2 hover:underline"
+        >
+          grey-c0.github.io/legislation
+        </a>
         <span className="text-orange-400/30 hidden md:inline">·</span>
         <span className="text-orange-400/50 hidden md:inline">Integrated via scale_9.4 CAS pipeline</span>
         <span className="ml-auto text-orange-400/50 tabular-nums font-bold">{legislationArticles.length} LAWS INDEXED</span>
@@ -369,6 +378,11 @@ const SurveillanceTab = ({ legislationArticles = [], onOpenLaw }) => {
           <a href="https://github.com/grey-c0/legislation" target="_blank" rel="noreferrer"
             className="hover:text-orange-400/50 transition-colors">
             github.com/grey-c0/legislation
+          </a>
+          {' · '}
+          <a href="https://grey-c0.github.io/legislation/" target="_blank" rel="noreferrer"
+            className="hover:text-orange-400/50 transition-colors">
+            grey-c0.github.io/legislation
           </a>
           {' '} · PANOPTICON INDEX: Σ(sev²) / (n × 25) × 100
         </div>
