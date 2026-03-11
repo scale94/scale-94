@@ -146,7 +146,7 @@
   {
     "id": "CD-11.1.1.1.1.1.1.1.1.1.2",
     "type": "kernel_doc",
-    "date": "2026-03-10",
+    "date": "2026-03-11",
     "lastModified": "2026-03-10",
     "title": "ᛟ THE COLEMAK-DH KERNEL: KINETIC METALLURGY",
     "subtitle": "Ⅰ. THE THERMODYNAMICS OF THE MATRIX (§1.0)",
@@ -245,7 +245,7 @@
   {
     "id": "GSK-5.5.5",
     "type": "kernel_doc",
-    "date": "2026-03-10",
+    "date": "2026-03-11",
     "lastModified": "2026-03-10",
     "title": "ᛟ THE GAIA-SCALE KERNEL: SOVEREIGN RECONSTRUCTION",
     "subtitle": "Ⅰ. CORE DIRECTIVES: THE MATRILINEAL FIREWALL (§1.0)",
@@ -526,7 +526,7 @@
   {
     "id": "BBK-1.0",
     "type": "kernel_doc",
-    "date": "2026-03-10",
+    "date": "2026-03-11",
     "lastModified": "2026-03-10",
     "title": "ᛟ THE BELLARD-BAUDRILLARD KERNEL · PHONEMIC DRIFT",
     "subtitle": "PHONEMIC DRIFT · THE MEMORY HASH COLLISION",
@@ -563,7 +563,7 @@
   {
     "id": "CHRO-1.0",
     "type": "kernel_doc",
-    "date": "2026-03-10",
+    "date": "2026-03-11",
     "lastModified": "2026-03-10",
     "title": "THE CHRONOS KERNEL · V1.1 · LOOP SEVERANCE",
     "subtitle": "Ⅰ. The Illusion of the Loop 🌀",
@@ -581,7 +581,7 @@
   {
     "id": "CDK-1.0",
     "type": "kernel_doc",
-    "date": "2026-03-10",
+    "date": "2026-03-11",
     "lastModified": "2026-03-10",
     "title": "ᛟ COLEMAK-DH KERNEL",
     "subtitle": "KINETIC METALLURGY",
@@ -633,6 +633,25 @@
     "readTime": "2 min read",
     "tags": [],
     "len": "402 WDS"
+  },
+  {
+    "id": "FOCUS-SHEPHERD-KERNEL-1.0",
+    "type": "kernel_doc",
+    "date": "2026-02-10",
+    "lastModified": "2026-03-11",
+    "title": "FOCUS SHEPHERD KERNEL V1.0",
+    "subtitle": "Cognitive Load Management // Tangent Sovereignty Protocol",
+    "status": "ACTIVE",
+    "readTime": "8 min read",
+    "tags": [
+      "Focus",
+      "Protocol",
+      "ADHD",
+      "Session",
+      "Workflow",
+      "CognitiveLoad"
+    ],
+    "len": "1531 WDS"
   },
   {
     "id": "KINETIC-STATECRAFT-KERNEL-1.0",
@@ -803,7 +822,7 @@
   {
     "id": "CDK-1.0-1",
     "type": "kernel_doc",
-    "date": "2026-03-10",
+    "date": "2026-03-11",
     "lastModified": "2026-03-10",
     "title": "ᛟ COLEMAK-DH KERNEL · KINETIC METALLURGY",
     "subtitle": "KINETIC METALLURGY",
@@ -1772,7 +1791,7 @@
   {
     "id": "SURVEILLANCE-TRACKER",
     "type": "kernel_doc",
-    "date": "2026-03-10",
+    "date": "2026-03-11",
     "lastModified": "2026-03-10",
     "title": "TACTICAL CARTOGRAPHY OF DIGITAL AUTHORITARIANISM",
     "subtitle": "Mapping the Algorithmic Panopticon",

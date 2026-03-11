@@ -11,6 +11,12 @@
       "title": "🌿 THE SORBE BLOOM // THERMODYNAMIC SYNTHESIS V1.0"
     }
   ],
+  "ADHD": [
+    {
+      "id": "FOCUS-SHEPHERD-KERNEL-1.0",
+      "title": "FOCUS SHEPHERD KERNEL V1.0"
+    }
+  ],
   "ADHD-I": [
     {
       "id": "SCALE-RENDER-PROMPT",
@@ -303,6 +309,12 @@
     {
       "id": "BBK-1.0",
       "title": "ᛟ THE BELLARD-BAUDRILLARD KERNEL · PHONEMIC DRIFT"
+    }
+  ],
+  "CognitiveLoad": [
+    {
+      "id": "FOCUS-SHEPHERD-KERNEL-1.0",
+      "title": "FOCUS SHEPHERD KERNEL V1.0"
     }
   ],
   "COLEMAK-DH": [
@@ -739,6 +751,12 @@
     {
       "id": "THE-FLUORESCENT-CAGE",
       "title": "THE FLUORESCENT CAGE"
+    }
+  ],
+  "Focus": [
+    {
+      "id": "FOCUS-SHEPHERD-KERNEL-1.0",
+      "title": "FOCUS SHEPHERD KERNEL V1.0"
     }
   ],
   "FOUNDATIONAL": [
@@ -1433,6 +1451,10 @@
       "title": "ATMOSPHERIC ENTROPY KERNEL 3.0"
     },
     {
+      "id": "FOCUS-SHEPHERD-KERNEL-1.0",
+      "title": "FOCUS SHEPHERD KERNEL V1.0"
+    },
+    {
       "id": "SCALE-Y-KERNEL-1-0-1",
       "title": "SCALE Y KERNEL 1.1"
     }
@@ -1653,6 +1675,12 @@
     {
       "id": "FISH-SCALE-KERNEL",
       "title": "FISH SCALE KERNEL"
+    }
+  ],
+  "Session": [
+    {
+      "id": "FOCUS-SHEPHERD-KERNEL-1.0",
+      "title": "FOCUS SHEPHERD KERNEL V1.0"
     }
   ],
   "SESSION": [
@@ -2155,6 +2183,12 @@
     {
       "id": "UTK-1.0-1",
       "title": "⟁ THE UNDERGROUND THERMODYNAMICISTS"
+    }
+  ],
+  "Workflow": [
+    {
+      "id": "FOCUS-SHEPHERD-KERNEL-1.0",
+      "title": "FOCUS SHEPHERD KERNEL V1.0"
     }
   ],
   "World": [

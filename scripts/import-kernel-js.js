@@ -18,7 +18,7 @@
  *   node scripts/import-kernel-js.js                       # scan src/terminal/data/generated_chunks/
  *   node scripts/import-kernel-js.js ./my-chunks/          # scan custom dir
  *   node scripts/import-kernel-js.js ./my-chunks/ --dry    # preview only
- *   node scripts/import-kernel-js.js ./my-chunks/ --commit # git add . && git commit
+ *   node scripts/import-kernel-js.js ./my-chunks/ --commit # git add . && git commit && git push
  *   node scripts/import-kernel-js.js ./my-chunks/ --force  # skip cache
  */
 
@@ -271,7 +271,13 @@ async function run() {
       console.error(`  ✗ git commit failed`);
       process.exit(commit.status ?? 1);
     }
-    console.log(`  ✓ committed: ${message}\n`);
+    console.log(`  git push`);
+    const push = spawnSync('git', ['push', 'origin', 'main'], { stdio: 'inherit' });
+    if (push.status !== 0) {
+      console.error(`  ✗ git push failed (status ${push.status})`);
+      process.exit(push.status ?? 1);
+    }
+    console.log(`  ✓ pushed: ${message}\n`);
   }
 }
 

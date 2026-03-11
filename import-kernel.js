@@ -667,8 +667,8 @@ function run() {
   if (skipped > 0) console.log(`\n  ↷ ${skipped} kernel(s) skipped (hand-curated conflict).`);
   console.log(`\n  Done. ${processed} kernel(s) processed.\n`);
 
-  // ── Auto-commit ────────────────────────────────────────────────────────────
-  if (COMMIT && !DRY_RUN && pendingArticles.length > 0) {
+  // ── Auto-commit + push ────────────────────────────────────────────────────
+  if (!DRY_RUN && pendingArticles.length > 0) {
     const names   = pendingArticles.map(a => a.id).join(', ');
     const message = `import: ${names}`;
     console.log(`  git add .`);
@@ -684,7 +684,13 @@ function run() {
       console.error(`  ✗ git commit failed (status ${commit.status})`);
       process.exit(commit.status ?? 1);
     }
-    console.log(`  ✓ committed: ${message}\n`);
+    console.log(`  git push`);
+    const push = spawnSync('git', ['push', 'origin', 'main'], { stdio: 'inherit' });
+    if (push.status !== 0) {
+      console.error(`  ✗ git push failed (status ${push.status})`);
+      process.exit(push.status ?? 1);
+    }
+    console.log(`  ✓ pushed: ${message}\n`);
   }
 }
 
