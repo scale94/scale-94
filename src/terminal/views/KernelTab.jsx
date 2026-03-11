@@ -61,8 +61,12 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
         50%       { box-shadow: 0 0 18px rgba(57,255,20,0.12), inset 0 0 20px rgba(0,0,0,0.4); }
       }
       @keyframes sk-axiomIconPulse {
-        0%, 100% { filter: drop-shadow(0 0 3px rgba(255,185,0,0.5)); }
-        50%       { filter: drop-shadow(0 0 9px rgba(255,185,0,1)) drop-shadow(0 0 18px rgba(255,185,0,0.35)); }
+        0%, 100% { filter: drop-shadow(0 0 4px rgba(255,185,0,0.6)); }
+        50%       { filter: drop-shadow(0 0 14px rgba(255,185,0,1)) drop-shadow(0 0 28px rgba(255,185,0,0.5)) drop-shadow(0 0 48px rgba(255,185,0,0.2)); }
+      }
+      @keyframes sk-axiomHeadReveal {
+        0%   { opacity: 0; transform: translateY(-10px); filter: blur(16px); letter-spacing: 0.3em; }
+        100% { opacity: 1; transform: translateY(0);    filter: blur(0);    letter-spacing: inherit; }
       }
       @keyframes sk-axiomNumGlow {
         0%, 100% { text-shadow: 0 0 8px rgba(57,255,20,0.7), 0 0 16px rgba(57,255,20,0.25); }
@@ -126,14 +130,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
             className="w-5 h-5"
             style={{ color: '#FFB900', animation: 'sk-kernelIconReveal 0.8s cubic-bezier(0.16,1,0.3,1) forwards, sk-axiomIconPulse 5s ease-in-out 0.8s infinite' }}
           />
-          <span
-            className="text-transparent bg-clip-text"
-            style={{
-              backgroundImage: 'linear-gradient(90deg, #39ff14, #06b6d4, #39ff14)',
-              backgroundSize: '200% auto',
-              animation: 'sk-kernelShimmer 3s ease-in-out infinite',
-            }}
-          >AXIOMATIC_CORE</span>
+          <span style={{ color: '#FB7185', opacity: 0, animation: 'sk-axiomHeadReveal 1s cubic-bezier(0.16,1,0.3,1) 0.2s forwards' }}>AXIOMATIC_CORE</span>
         </h3>
         <div className="space-y-4">
           {kernelAxioms.map((axiom, idx) => (
