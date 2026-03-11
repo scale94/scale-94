@@ -633,6 +633,27 @@
     "len": "0 WDS"
   },
   {
+    "id": "CAK-1.0",
+    "type": "kernel_doc",
+    "date": "2026-03-11",
+    "lastModified": "2026-03-11",
+    "title": "ᛟ PROTOCOL_AQUA · THE CHRONO-ACTUARY",
+    "subtitle": "THERMODYNAMIC LANDLORD · DEEP-TIME AUDITOR · RIVER SOVEREIGN",
+    "status": "ACTIVE",
+    "readTime": "9 min read",
+    "tags": [
+      "kernel",
+      "hydrology",
+      "climatology",
+      "thermodynamics",
+      "sovereign-nature",
+      "SOMA",
+      "aquatic-systems",
+      "ecological-debt"
+    ],
+    "len": "1838 WDS"
+  },
+  {
     "id": "CDK-1.0",
     "type": "kernel_doc",
     "date": "2026-01-01",
@@ -1555,7 +1576,7 @@
       "Interface",
       "Compiled"
     ],
-    "len": "4533 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "SCALE-KERNEL-FRAMEWORK-FULL",

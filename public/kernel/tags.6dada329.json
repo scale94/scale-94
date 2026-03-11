@@ -47,6 +47,12 @@
       "title": "LEVIATHAN CELLULAR AUTOMATA"
     }
   ],
+  "aquatic-systems": [
+    {
+      "id": "CAK-1.0",
+      "title": "ᛟ PROTOCOL_AQUA · THE CHRONO-ACTUARY"
+    }
+  ],
   "ARCHITECTS": [
     {
       "id": "SERAPHINE-KERNEL-V15.5.5",
@@ -301,6 +307,12 @@
     {
       "id": "PROJECT-ISENGARD-KERNEL",
       "title": "PROJECT ISENGARD // KERNEL V.2026.01.17"
+    }
+  ],
+  "climatology": [
+    {
+      "id": "CAK-1.0",
+      "title": "ᛟ PROTOCOL_AQUA · THE CHRONO-ACTUARY"
     }
   ],
   "Code": [
@@ -635,6 +647,12 @@
     {
       "id": "BIODIVERSITY-KERNEL-1.0.1",
       "title": "🌿 FLORA 1.0 // THE BIOCOENOSIS BUILD"
+    }
+  ],
+  "ecological-debt": [
+    {
+      "id": "CAK-1.0",
+      "title": "ᛟ PROTOCOL_AQUA · THE CHRONO-ACTUARY"
     }
   ],
   "EFFECTOR": [
@@ -975,6 +993,12 @@
       "title": "TASK ARCHITECTURE: HIGH-FIDELITY SIGNAL EXTRACTION"
     }
   ],
+  "hydrology": [
+    {
+      "id": "CAK-1.0",
+      "title": "ᛟ PROTOCOL_AQUA · THE CHRONO-ACTUARY"
+    }
+  ],
   "HYPERFOCUS": [
     {
       "id": "HYPERFOCUS-STACK-KERNEL-18.0",
@@ -1063,6 +1087,10 @@
     {
       "id": "BBK-1.0",
       "title": "ᛟ THE BELLARD-BAUDRILLARD KERNEL · PHONEMIC DRIFT"
+    },
+    {
+      "id": "CAK-1.0",
+      "title": "ᛟ PROTOCOL_AQUA · THE CHRONO-ACTUARY"
     },
     {
       "id": "CDK-1.0-1",
@@ -1953,6 +1981,10 @@
       "title": "SOMA KERNEL 5.0"
     },
     {
+      "id": "CAK-1.0",
+      "title": "ᛟ PROTOCOL_AQUA · THE CHRONO-ACTUARY"
+    },
+    {
       "id": "SKC-1.0",
       "title": "ᛟ THE SCALE94 KERNEL CODEX"
     },
@@ -2019,6 +2051,12 @@
     {
       "id": "SCALE-KERNEL-FRAMEWORK-FULL",
       "title": "⚰ SCALE · SOVEREIGN KERNEL FRAMEWORK"
+    }
+  ],
+  "sovereign-nature": [
+    {
+      "id": "CAK-1.0",
+      "title": "ᛟ PROTOCOL_AQUA · THE CHRONO-ACTUARY"
     }
   ],
   "sovereignty": [
@@ -2310,6 +2348,10 @@
     }
   ],
   "thermodynamics": [
+    {
+      "id": "CAK-1.0",
+      "title": "ᛟ PROTOCOL_AQUA · THE CHRONO-ACTUARY"
+    },
     {
       "id": "SKC-1.0",
       "title": "ᛟ THE SCALE94 KERNEL CODEX"

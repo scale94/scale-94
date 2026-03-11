@@ -135,6 +135,7 @@ const kernelBuilds = [
   { id: "BBK-1.0", articleId: "BBK-1.0", name: "BELLARD_BAUDRILLARD_KERNEL_V1_0_0", status: "ACTIVE", desc: "PHONEMIC DRIFT · THE MEMORY HASH COLLISION" },
   { id: "CEEI-ALLOCATION-ENGINE", articleId: "CEEI-ALLOCATION-ENGINE", name: "CEEI_ALLOCATION_ENGINE", status: "ACTIVE", desc: "The End of the Price Tag — soma_kernel_5.5" },
   { id: "CHRO-1.0", articleId: "CHRO-1.0", name: "CHRONOS_KERNEL_·_V1_1", status: "ACTIVE", desc: "Ⅰ. The Illusion of the Loop 🌀" },
+  { id: "CAK-1.0", articleId: "CAK-1.0", name: "CHRONO_ACTUARY_KERNEL_V2_0_0", status: "ACTIVE", desc: "THERMODYNAMIC LANDLORD · DEEP-TIME AUDITOR · RIVER SOVEREIGN" },
   { id: "CD-11.1.1.1.1.1.1.1.1.1.2", articleId: "CD-11.1.1.1.1.1.1.1.1.1.2", name: "COLEMAK_DH_KERNEL_V11_1_1_1_1_1_1_1_1_1_2", status: "ACTIVE", desc: "Ⅰ. THE THERMODYNAMICS OF THE MATRIX (§1.0)" },
   { id: "CDK-1.0", articleId: "CDK-1.0", name: "COLEMAK_DH_KERNEL_V11_1_2", status: "ACTIVE", desc: "KINETIC METALLURGY" },
   { id: "CDK-1.0-1", articleId: "CDK-1.0-1", name: "COLEMAK_DH_KERNEL_V11_2_0", status: "ACTIVE", desc: "KINETIC METALLURGY" },
