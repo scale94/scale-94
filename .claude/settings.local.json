@@ -15,7 +15,8 @@
       "Bash(powershell:*)",
       "Bash(cargo:*)",
       "Bash(wasm-pack build:*)",
-      "Bash(cp:*)"
+      "Bash(cp:*)",
+      "Bash(grep -r \"articles\\\\.generated\\\\|articles.generated\" E:/scale_9.4/src --include=\"*.jsx\" 2>/dev/null | head -5)"
     ]
   }
 }

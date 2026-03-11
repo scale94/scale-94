@@ -1002,14 +1002,14 @@ const articles = [
     date: "2026-03-06",
     lastModified: "2026-03-06",
     title: "🏛️ : SOVEREIGN_EFFECTOR]",
-    subtitle: "[LOCATION: RINDERN_NODE_47533]",
+    subtitle: "[LOCATION: SORBE_IN_GERMANY]",
     status: "ACTIVE",
     readTime: "1 min read",
-    tags: ["SOVEREIGN","EFFECTOR","RINDERN","NODE","PHASE"],
+    tags: ["SOVEREIGN","EFFECTOR","SORBE","NODE","PHASE"],
     len: "229 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/KERNEL-V3-TENFOLD-SCALING-1.js");
-      return Object.assign({"id":"KERNEL-V3-TENFOLD-SCALING-1","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"🏛️ : SOVEREIGN_EFFECTOR]","subtitle":"[LOCATION: RINDERN_NODE_47533]","status":"ACTIVE","readTime":"1 min read","tags":["SOVEREIGN","EFFECTOR","RINDERN","NODE","PHASE"],"len":"229 WDS"}, m.default);
+      return Object.assign({"id":"KERNEL-V3-TENFOLD-SCALING-1","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"🏛️ : SOVEREIGN_EFFECTOR]","subtitle":"[LOCATION: SORBE_IN_GERMANY]","status":"ACTIVE","readTime":"1 min read","tags":["SOVEREIGN","EFFECTOR","SORBE","NODE","PHASE"],"len":"229 WDS"}, m.default);
     },
   },
   {
@@ -1018,14 +1018,14 @@ const articles = [
     date: "2026-03-06",
     lastModified: "2026-03-06",
     title: "🏛️ : SOVEREIGN_EFFECTOR]",
-    subtitle: "[LOCATION: RINDERN_NODE_47533]",
+    subtitle: "[LOCATION: SORBE_IN_GERMANY]",
     status: "ACTIVE",
     readTime: "1 min read",
-    tags: ["SOVEREIGN","EFFECTOR","RINDERN","NODE","PHASE"],
+    tags: ["SOVEREIGN","EFFECTOR","SORBE","NODE","PHASE"],
     len: "229 WDS",
     loadContent: async () => {
       const m = await import("./generated_chunks/KERNEL-V3-TENFOLD-SCALING.js");
-      return Object.assign({"id":"KERNEL-V3-TENFOLD-SCALING","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"🏛️ : SOVEREIGN_EFFECTOR]","subtitle":"[LOCATION: RINDERN_NODE_47533]","status":"ACTIVE","readTime":"1 min read","tags":["SOVEREIGN","EFFECTOR","RINDERN","NODE","PHASE"],"len":"229 WDS"}, m.default);
+      return Object.assign({"id":"KERNEL-V3-TENFOLD-SCALING","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"🏛️ : SOVEREIGN_EFFECTOR]","subtitle":"[LOCATION: SORBE_IN_GERMANY]","status":"ACTIVE","readTime":"1 min read","tags":["SOVEREIGN","EFFECTOR","SORBE","NODE","PHASE"],"len":"229 WDS"}, m.default);
     },
   },
   {

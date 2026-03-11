@@ -575,7 +575,7 @@ const tagIndex = {
   "RESTATEMENT": [
     { id: "FISH-SCALE-KERNEL-V11.6.0-QUANTUM", title: "FISH SCALE KERNEL · 11.6.0 · QUANTUM EXPANSION" }
   ],
-  "RINDERN": [
+  "SORBE": [
     { id: "KERNEL-V3-TENFOLD-SCALING-1", title: "🏛️ : SOVEREIGN_EFFECTOR]" },
     { id: "KERNEL-V3-TENFOLD-SCALING", title: "🏛️ : SOVEREIGN_EFFECTOR]" }
   ],
