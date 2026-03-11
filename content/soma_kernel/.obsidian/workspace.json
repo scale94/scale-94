@@ -182,6 +182,9 @@
   },
   "active": "cbb422adc1983a05",
   "lastOpenFiles": [
+    "main.rs",
+    "Cargo.toml",
+    "DH-EC_KERNEL-V1_0_0.md",
     "KERNEL-V3-TENFOLD-SCALING.md.tmp.28352.1773195097419",
     "SCALE_OPTIMIZATION_KERNEL_9.4.md",
     "2026-03-10.md",
@@ -209,15 +212,12 @@
     "SOMA-KERNEL10.0.md",
     "SOMA-KERNEL10-BB.md",
     "SOMA-KERNEL-ZERO-DAY.md",
-    "SOMA-KERNEL-5.0.md",
     "sedfliHyD",
     "THE-FLUORESCENT-CAGE.md.tmp.22924.1772811426906",
     "THE-CIGAR-HEIST.md.tmp.22924.1772811322646",
     "sed7JzhOg",
     "sedgvcYxW",
     "sedXoRyXV",
-    "sedo1eWay",
-    "sed3e5okJ",
-    "sed49gIlk"
+    "sedo1eWay"
   ]
 }

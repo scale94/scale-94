@@ -12,6 +12,15 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 wasm-bindgen = "0.2"
 
+# ── DH-EC Kernel (dh_ec.rs) ─────────────────────────────────────────────────
+# Pure-Rust Curve25519 ECDH (Signal X3DH + Threema NaCl simulation)
+x25519-dalek = { version = "2.0", features = ["static_secrets"] }
+sha2         = "0.10"
+hkdf         = "0.12"
+rand_core    = { version = "0.6", features = ["getrandom"] }
+# getrandom js feature: enables crypto.getRandomValues() on WASM target
+getrandom    = { version = "0.2", features = ["js"] }
+
 [profile.release]
 # Optimize for size — WASM binary is served over the network.
 opt-level      = "s"

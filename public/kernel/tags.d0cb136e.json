@@ -443,6 +443,12 @@
       "title": "☢️ KERNEL_LOG: SENSORY_CORRUPTION_AUDIT ☢️"
     }
   ],
+  "cryptography": [
+    {
+      "id": "DH-EC-KERNEL-V1-0-0",
+      "title": "ᛟ THE DH-EC KERNEL · CRYPTOGRAPHIC ARCHITECTURE"
+    }
+  ],
   "DAEMON": [
     {
       "id": "SOMA-KERNEL-5.0",
@@ -519,6 +525,12 @@
       "title": "FISH SCALE KERNEL · 11.6.0 · QUANTUM EXPANSION"
     }
   ],
+  "diffie-hellman": [
+    {
+      "id": "DH-EC-KERNEL-V1-0-0",
+      "title": "ᛟ THE DH-EC KERNEL · CRYPTOGRAPHIC ARCHITECTURE"
+    }
+  ],
   "Digital Matter": [
     {
       "id": "SCALING-CUBE-PROTOCOL",
@@ -575,6 +587,12 @@
     {
       "id": "KERNEL-V3-TENFOLD-SCALING",
       "title": "🏛️ : SOVEREIGN_EFFECTOR]"
+    }
+  ],
+  "elliptic-curves": [
+    {
+      "id": "DH-EC-KERNEL-V1-0-0",
+      "title": "ᛟ THE DH-EC KERNEL · CRYPTOGRAPHIC ARCHITECTURE"
     }
   ],
   "EMPEROR": [
@@ -985,6 +1003,10 @@
     {
       "id": "CDK-1.0-1",
       "title": "ᛟ COLEMAK-DH KERNEL · KINETIC METALLURGY"
+    },
+    {
+      "id": "DH-EC-KERNEL-V1-0-0",
+      "title": "ᛟ THE DH-EC KERNEL · CRYPTOGRAPHIC ARCHITECTURE"
     }
   ],
   "KERNEL": [
@@ -1437,6 +1459,12 @@
       "title": "SOPHIE KERNEL PHI"
     }
   ],
+  "privacy": [
+    {
+      "id": "DH-EC-KERNEL-V1-0-0",
+      "title": "ᛟ THE DH-EC KERNEL · CRYPTOGRAPHIC ARCHITECTURE"
+    }
+  ],
   "PROCESSING": [
     {
       "id": "MOZART-MEMORANDUM-KERNEL-2.2",
@@ -1609,6 +1637,12 @@
       "title": "MOZART MEMORANDUM KERNEL 2.2"
     }
   ],
+  "rust": [
+    {
+      "id": "DH-EC-KERNEL-V1-0-0",
+      "title": "ᛟ THE DH-EC KERNEL · CRYPTOGRAPHIC ARCHITECTURE"
+    }
+  ],
   "Scale": [
     {
       "id": "SCALE-Y-KERNEL-1-0-1",
@@ -1725,6 +1759,12 @@
     {
       "id": "NOCTURNAL-NIGHT-KERNEL-V-22.2.2-1",
       "title": "☢️ KERNEL_COMPILATION: THE_NIGHT_SHIFT_V2.5 ☢️"
+    }
+  ],
+  "signal": [
+    {
+      "id": "DH-EC-KERNEL-V1-0-0",
+      "title": "ᛟ THE DH-EC KERNEL · CRYPTOGRAPHIC ARCHITECTURE"
     }
   ],
   "Signal": [
@@ -2145,6 +2185,12 @@
       "title": "NECROMANTIC EMPEROR KERNEL V1 0"
     }
   ],
+  "threema": [
+    {
+      "id": "DH-EC-KERNEL-V1-0-0",
+      "title": "ᛟ THE DH-EC KERNEL · CRYPTOGRAPHIC ARCHITECTURE"
+    }
+  ],
   "Through": [
     {
       "id": "SOMA-PLUS-ENGINE",
@@ -2227,6 +2273,12 @@
     {
       "id": "THE-CIGAR-HEIST",
       "title": "THE CIGAR HEIST"
+    }
+  ],
+  "X3DH": [
+    {
+      "id": "DH-EC-KERNEL-V1-0-0",
+      "title": "ᛟ THE DH-EC KERNEL · CRYPTOGRAPHIC ARCHITECTURE"
     }
   ],
   "Zero": [

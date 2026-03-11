@@ -24,6 +24,7 @@
 //   run_evolutionary_replicator()  → 3-strategy replicator dynamics
 //   run_ising_consensus()          → 2-D Ising social consensus field
 //   run_feigenbaum_cascade()       → Bifurcation cascade (δ = 4.6692…)
+//   run_dh_ec_kernel()             → DH-EC Cryptographic Architecture (Signal/Threema)
 //
 // Build with: wasm-pack build --target web
 // Output:     pkg/  →  scripts/import-rust.js copies to public/wasm/

@@ -187,6 +187,18 @@ const wasmRegistry = {
     aliases: ["feigenbaum","bifurcation","chaos","logistic","cascade","period_doubling","logistic_map"],
     params:  [{"name":"r_start","default":2.8,"desc":"growth parameter scan start — 3.0=period-2, 3.45=period-4 (0–4)"},{"name":"r_end","default":4,"desc":"growth parameter scan end — 3.5699=onset of chaos, 4.0=max (0–4)"},{"name":"warmup","default":200,"desc":"transient iterations to discard before measuring (50–2000)"},{"name":"samples","default":100,"desc":"attractor samples per r value — density of bifurcation diagram (20–500)"}],
   },
+  "DH-EC-KERNEL-V1-0-0": {
+    id:      "DH-EC-KERNEL-V1-0-0",
+    fn:      "run_dh_ec_kernel",
+    args:    [0, 1],
+    argMap:  {"mode":0,"protocol":0,"section":0,"detail":1,"verbose":1},
+    label:   "DH-EC Cryptographic Architecture Kernel v1.0.0",
+    type:    'rust',
+    module:  "/wasm/scale94_kernels.js",
+    wasmUrl: "/wasm/scale94_kernels_bg.wasm",
+    aliases: ["dh_ec","dhec","diffie_hellman","ecdh","x3dh","curve25519","signal_crypto","threema","nacl","cryptography","crypto","key_exchange"],
+    params:  [{"name":"mode","default":0,"desc":"section: 0=full 1=classical_DH 2=curve25519 3=signal_X3DH 4=threema_NaCl 5=matrix_only"},{"name":"show_details","default":1,"desc":"verbosity: 0=compact (abbreviated keys) 1=verbose (full hex + analysis)"}],
+  },
   "STRANGLER-FIG-PROTOCOL": {
     id:      "STRANGLER-FIG-PROTOCOL",
     fn:      "run_strangler_fig_transition",

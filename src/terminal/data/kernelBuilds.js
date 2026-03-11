@@ -19,6 +19,9 @@ const kernelBuilds = [
   { id: 'SOMA-4.5.6A', articleId: 'SOMA-KERNEL-4.5.6A-FUCK-XITTER-FUCK-XITLER', name: 'PROTOCOL_COMPILATION', status: 'FROZEN', desc: 'System Diagnostic // Final Code' },
   { id: 'MOZART-1.0', articleId: 'MOZART-MEMORANDUM-KERNEL-1.0', name: 'MOZART_MEMORANDUM', status: 'PROPOSED', desc: 'Historical & Legal Reconstruction // Graveyard Research' },
 
+  // ── Cryptographic kernels ─────────────────────────────────────────────────
+  { id: 'DH-EC-1.0', articleId: 'DH-EC-KERNEL-V1-0-0', name: 'DH_EC_KERNEL_V1_0_0', status: 'LIVE', desc: 'Cryptographic Architecture · Signal X3DH vs Threema NaCl' },
+
   // ── Imported kernels (content/ root) ─────────────────────────────────────
   { id: 'EK-1.0', articleId: 'EMPATHY-KERNEL-1.0', name: 'EMPATHY_KERNEL_1_0', status: 'SYMBIOTIC', desc: 'EMPATHY KERNEL 1.0' },
   { id: 'NEK-1.0', articleId: 'NECROMANTIC-EMPEROR-KERNEL-V1-0', name: 'NECROMANTIC_EMPEROR_KERNEL_V1_0', status: 'NOMINAL', desc: 'scale94 // Sorbe in Germany // Deep-Time Resilience Architecture' },

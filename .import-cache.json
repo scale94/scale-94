@@ -442,5 +442,8 @@
   "content/soma_kernel/violet_kernel-1.0.md:meta": "{\"id\":\"VIOLET-KERNEL-1.0\",\"type\":\"kernel_doc\",\"date\":\"2026-03-07\",\"lastModified\":\"2026-03-07\",\"title\":\"VIOLET KERNEL 1.0\",\"subtitle\":\"\",\"status\":\"ACTIVE\",\"readTime\":\"2 min read\",\"tags\":[]}",
   "content/soma_kernel/violet_kernel-1.1.md:mtime": 1772910007174.201,
   "content/soma_kernel/violet_kernel-1.1.md:meta": "{\"id\":\"VIOLET-KERNEL-1.1\",\"type\":\"kernel_doc\",\"date\":\"2026-03-07\",\"lastModified\":\"2026-03-07\",\"title\":\"VIOLET KERNEL 1.1\",\"subtitle\":\"\",\"status\":\"ACTIVE\",\"readTime\":\"2 min read\",\"tags\":[]}",
-  "content/soma_kernel/SOMA-9.1 KERNEL REPORT.md": "0183ccc571ce7ffbb02fcd490b744e49d0153679"
+  "content/soma_kernel/SOMA-9.1 KERNEL REPORT.md": "0183ccc571ce7ffbb02fcd490b744e49d0153679",
+  "content/soma_kernel/DH-EC_KERNEL-V1_0_0.md:mtime": 1773197232429.424,
+  "content/soma_kernel/DH-EC_KERNEL-V1_0_0.md:meta": "{\"id\":\"DH-EC-KERNEL-V1-0-0\",\"type\":\"kernel_doc\",\"date\":\"2026-03-10\",\"lastModified\":\"2026-03-11\",\"title\":\"ᛟ THE DH-EC KERNEL · CRYPTOGRAPHIC ARCHITECTURE\",\"subtitle\":\"CRYPTOGRAPHIC ARCHITECTURE · SIGNAL VS THREEMA\",\"status\":\"ACTIVE\",\"readTime\":\"9 min read\",\"tags\":[\"kernel\",\"cryptography\",\"diffie-hellman\",\"elliptic-curves\",\"signal\",\"threema\",\"X3DH\",\"rust\",\"privacy\"]}",
+  "content/soma_kernel/DH-EC_KERNEL-V1_0_0.md": "564ab3eb0782371926cb01ab4e8fccbb6efd99a4"
 }

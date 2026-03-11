@@ -907,6 +907,9 @@ const App = () => {
       } else if (action === 'transmission') {
         handleNav('~/system/transmission', 'transmission');
         executeCommand(rawCmd, "Switching directory to /system/transmission...");
+      } else if (action === 'surveillance' || action === 'panopticon' || action === 'legislation') {
+        handleNav('~/system/surveillance', 'surveillance');
+        executeCommand(rawCmd, "Switching directory to /system/surveillance...");
       } else if (['research', 'fiction', 'ls'].includes(action)) {
         executeCommand(rawCmd, "ERROR: Target directory purged. Content migrated to external archive.");
       } else if (action === 'bsky' || action === 'bluesky' || action === 'atproto') {

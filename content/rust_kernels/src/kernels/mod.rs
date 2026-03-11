@@ -23,3 +23,4 @@ pub mod kuramoto;        // run_kuramoto_synchrony
 pub mod replicator;      // run_evolutionary_replicator
 pub mod ising;           // run_ising_consensus
 pub mod feigenbaum;      // run_feigenbaum_cascade
+pub mod dh_ec;           // run_dh_ec_kernel
