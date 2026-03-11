@@ -18,9 +18,50 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, loadKernel }) => {
 
   return (
     <div className="animate-in fade-in duration-500 max-w-6xl mx-auto mt-8">
-      <div className="flex items-center gap-3 mb-8 text-cyan-400 border-b border-cyan-900/50 pb-4">
-        <Hexagon className="w-8 h-8 animate-spin-slow text-fuchsia-500" />
-        <h2 className="text-3xl font-bold tracking-tighter uppercase">KERNEL_BUILDING_SERVICES</h2>
+      <style>{`
+        @keyframes sc-slideIn {
+          from { opacity: 0; transform: translateX(-16px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes sc-subReveal {
+          from { opacity: 0; transform: translateY(-4px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes sc-hexSpin {
+          from { transform: rotate(0deg); }
+          to   { transform: rotate(-360deg); }
+        }
+        @keyframes sc-hexColor {
+          0%   { color: #d946ef; filter: drop-shadow(0 0 10px rgba(217,70,239,0.9)); opacity: 1; }
+          20%  { color: #06b6d4; filter: drop-shadow(0 0 10px rgba(6,182,212,0.9));  opacity: 0.5; }
+          40%  { color: #39ff14; filter: drop-shadow(0 0 10px rgba(57,255,20,0.9));  opacity: 1; }
+          60%  { color: #f43f5e; filter: drop-shadow(0 0 10px rgba(244,63,94,0.9));  opacity: 0.4; }
+          80%  { color: #818cf8; filter: drop-shadow(0 0 10px rgba(129,140,248,0.9)); opacity: 1; }
+          100% { color: #d946ef; filter: drop-shadow(0 0 10px rgba(217,70,239,0.9)); opacity: 1; }
+        }
+      `}</style>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-fuchsia-900/40 pb-4 mb-8 gap-3">
+        <div>
+          <h2 className="text-4xl font-bold tracking-tight flex items-center gap-3 mb-1">
+            <Hexagon
+              className="w-8 h-8 shrink-0"
+              style={{ animation: 'sc-hexSpin 10s linear infinite, sc-hexColor 5.3s ease-in-out infinite' }}
+            />
+            <span
+              className="text-transparent bg-clip-text uppercase"
+              style={{
+                backgroundImage: 'linear-gradient(90deg, #d946ef 0%, #7c3aed 50%, #06b6d4 100%)',
+                animation: 'sc-slideIn 0.6s cubic-bezier(0.16,1,0.3,1) forwards',
+              }}
+            >KERNEL_BUILDING_SERVICES</span>
+          </h2>
+          <div
+            className="text-sm font-bold tracking-widest text-fuchsia-400/80 uppercase"
+            style={{ opacity: 0, animation: 'sc-subReveal 0.5s cubic-bezier(0.16,1,0.3,1) 0.4s forwards' }}
+          >
+            SOVEREIGN ARCHITECTURE // SCALE94 DEPLOYMENT STACK
+          </div>
+        </div>
       </div>
 
       {/* Main Service Grid */}

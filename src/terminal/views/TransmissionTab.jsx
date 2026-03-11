@@ -33,15 +33,49 @@ const TransmissionTab = ({ stories, onSelect, loadingSignal }) => {
     <div className="animate-in fade-in duration-500">
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
+      <style>{`
+        @keyframes tx-snap {
+          0%   { opacity: 0; letter-spacing: 0.5em; transform: translateY(8px) skewX(-2deg); filter: blur(3px); }
+          45%  { opacity: 1; letter-spacing: 0.14em; transform: translateY(-2px) skewX(0); filter: blur(0); }
+          70%  { letter-spacing: 0.12em; transform: translateY(1px); }
+          100% { opacity: 1; letter-spacing: 0.1em;  transform: translateY(0); }
+        }
+        @keyframes tx-iconPulse {
+          0%, 100% { filter: drop-shadow(0 0 4px rgba(217,70,239,0.6)); }
+          50%       { filter: drop-shadow(0 0 14px rgba(217,70,239,1)) drop-shadow(0 0 28px rgba(217,70,239,0.35)); }
+        }
+        @keyframes tx-subReveal {
+          from { opacity: 0; transform: translateX(6px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes tx-cardIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .tx-card { transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s; }
+        .tx-card:hover { box-shadow: 0 0 20px rgba(217,70,239,0.18), inset 0 0 30px rgba(217,70,239,0.04); }
+        .tx-card:hover .tx-index { color: rgba(217,70,239,0.8) !important; }
+      `}</style>
       <div className="mb-10 border-b border-fuchsia-900/30 pb-6">
         <div className="flex items-center gap-3 mb-3">
-          <span className="text-fuchsia-500 text-xl" aria-hidden="true">⌖</span>
-          <h1 className="text-[13pt] font-bold tracking-widest text-fuchsia-400 uppercase">
-            <HackerText text="TRANSMISSION" />
-          </h1>
+          <span
+            className="text-fuchsia-500 text-3xl shrink-0"
+            style={{ animation: 'tx-iconPulse 2.5s ease-in-out infinite', lineHeight: 1 }}
+            aria-hidden="true"
+          >⌖</span>
+          <h1
+            className="text-4xl font-bold uppercase text-transparent bg-clip-text"
+            style={{
+              backgroundImage: 'linear-gradient(135deg, #f43f5e 0%, #ec4899 40%, #a855f7 75%, #818cf8 100%)',
+              animation: 'tx-snap 0.55s cubic-bezier(0.16,1,0.3,1) forwards',
+            }}
+          >TRANSMISSION</h1>
         </div>
-        <p className="text-xs font-bold tracking-widest text-cyan-700 uppercase">
-          signal / fiction / dispatch — scale94 creative archive
+        <p
+          className="text-xs font-bold tracking-widest text-fuchsia-400/70 uppercase"
+          style={{ opacity: 0, animation: 'tx-subReveal 0.4s ease 0.45s forwards' }}
+        >
+          SIGNAL / FICTION / DISPATCH — SCALE94 CREATIVE ARCHIVE
         </p>
 
         {/* Search filter */}
@@ -96,23 +130,24 @@ const TransmissionTab = ({ stories, onSelect, loadingSignal }) => {
               <div
                 key={story.id}
                 role="listitem"
+                style={{ opacity: 0, animation: `tx-cardIn 0.45s cubic-bezier(0.16,1,0.3,1) ${i * 0.06}s forwards` }}
               >
                 <button
                   onClick={() => !isLoading && !isBlocked && onSelect(story)}
                   aria-label={`Load transmission: ${story.title}`}
                   aria-busy={isLoading}
                   disabled={isLoading || isBlocked}
-                  className={`w-full text-left group border bg-black/40 p-6 rounded-sm transition-all duration-300 relative overflow-hidden
+                  className={`tx-card w-full text-left group border bg-black/40 p-6 rounded-sm relative overflow-hidden
                     ${isLoading
                       ? 'border-fuchsia-500/80 bg-fuchsia-950/30 cursor-wait'
                       : isBlocked
                         ? 'border-fuchsia-900/20 opacity-50 cursor-not-allowed'
-                        : 'border-fuchsia-900/30 hover:border-fuchsia-500/60 hover:bg-fuchsia-950/20 cursor-pointer'
+                        : 'border-fuchsia-900/30 hover:border-fuchsia-500/70 hover:bg-fuchsia-950/20 cursor-pointer'
                     }`}
                 >
                   {/* Index row */}
-                  <div className="text-[10px] font-bold tracking-widest text-fuchsia-900 group-hover:text-fuchsia-600 transition-colors mb-4 uppercase flex justify-between items-center">
-                    <span>TRANSMISSION_{String(i + 1).padStart(2, '0')}</span>
+                  <div className="text-[10px] font-bold tracking-widest mb-4 uppercase flex justify-between items-center">
+                    <span className="tx-index text-fuchsia-900 transition-colors">TRANSMISSION_{String(i + 1).padStart(2, '0')}</span>
                     <span className={`transition-colors ${isLoading ? 'text-fuchsia-400 animate-pulse' : 'text-fuchsia-800 group-hover:text-fuchsia-500'}`}>
                       {isLoading ? '▋' : '⌖'}
                     </span>

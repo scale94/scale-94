@@ -444,6 +444,44 @@ export function run_ceei_allocation_engine(agents, goods, inequality, diversity)
 }
 
 /**
+ * Run the Chrono-Actuary deep-time audit engine.
+ *
+ * temp_c:        baseline water temperature °C          (default 15.0)
+ * do_conc:       current DO concentration mg/L          (default 8.5)
+ * bod_load:      initial BOD at discharge point mg/L    (default 5.0)
+ * delta_t:       project thermal discharge delta °C     (default 2.0)
+ * epi:           Eutrophication Potential Index         (default 0.8)
+ * nitrate:       Nitrate-N concentration mg/L           (default 2.0)
+ * flow_ratio:    Q_project / Q_mean_annual              (default 0.4)
+ * lsi:           Langelier Saturation Index             (default 0.1)
+ * license_years: permit duration — IPCC projection horizon (default 30.0)
+ * human_profit:  reported project profit EUR            (default 1_000_000.0)
+ * @param {number} temp_c
+ * @param {number} do_conc
+ * @param {number} bod_load
+ * @param {number} delta_t
+ * @param {number} epi
+ * @param {number} nitrate
+ * @param {number} flow_ratio
+ * @param {number} lsi
+ * @param {number} license_years
+ * @param {number} human_profit
+ * @returns {string}
+ */
+export function run_chrono_actuary(temp_c, do_conc, bod_load, delta_t, epi, nitrate, flow_ratio, lsi, license_years, human_profit) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_chrono_actuary(temp_c, do_conc, bod_load, delta_t, epi, nitrate, flow_ratio, lsi, license_years, human_profit);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * Run a full ML-KEM-768 KEM round-trip and format as system kernel log.
  *
  * `reveal`:

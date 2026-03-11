@@ -6,11 +6,6 @@ const PrivacyTab = ({ systemArticles = {} }) => {
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
       <style>{`
-        @keyframes pt-shimmer {
-          0%   { background-position: 0% 50%; }
-          50%  { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
         @keyframes pt-reveal {
           from { opacity: 0; transform: translateY(-8px); filter: blur(6px); }
           to   { opacity: 1; transform: translateY(0);   filter: blur(0); }
@@ -32,24 +27,23 @@ const PrivacyTab = ({ systemArticles = {} }) => {
             <span
               className="text-transparent bg-clip-text"
               style={{
-                backgroundImage: 'linear-gradient(90deg, #39ff14, #06b6d4, #d946ef, #ef4444, #38bdf8, #39ff14)',
-                backgroundSize: '300% auto',
-                animation: 'pt-reveal 1.2s cubic-bezier(0.16,1,0.3,1) forwards, pt-shimmer 3s ease-in-out infinite',
+                backgroundImage: 'linear-gradient(135deg, #f43f5e 0%, #e879f9 35%, #818cf8 65%, #22d3ee 100%)',
+                animation: 'pt-reveal 1.2s cubic-bezier(0.16,1,0.3,1) forwards',
               }}
             >PRIVACY_PROTOCOL</span>
           </h2>
           <div
-            className="text-sm font-bold tracking-widest text-rose-400/70"
+            className="text-sm font-bold tracking-widest text-rose-400"
             style={{ opacity: 0, animation: 'pt-reveal 0.7s cubic-bezier(0.16,1,0.3,1) 0.35s forwards' }}
           >
             DIRECTIVE: DATA_SOVEREIGNTY // CLASSIFICATION: OPEN
           </div>
         </div>
         <div className="flex items-center gap-3 mt-4 md:mt-0">
-          <div className="flex items-center gap-2 text-xs border border-rose-500/30 px-3 py-1 bg-rose-900/10 text-rose-300 rounded-sm">
+          <div className="flex items-center gap-2 text-xs border border-rose-500/40 px-3 py-1 bg-rose-900/10 text-rose-300 rounded-sm">
             <Shield className="w-3 h-3" /> DATA POLICY
           </div>
-          <div className="flex items-center gap-2 text-xs border border-cyan-500/30 px-3 py-1 bg-cyan-900/10 text-cyan-400 rounded-sm">
+          <div className="flex items-center gap-2 text-xs border border-cyan-500/40 px-3 py-1 bg-cyan-900/10 text-cyan-300 rounded-sm">
             <Eye className="w-3 h-3" /> TRANSPARENCY ACTIVE
           </div>
         </div>
@@ -60,7 +54,7 @@ const PrivacyTab = ({ systemArticles = {} }) => {
         <div
           style={{
             padding: '1.5px',
-            background: 'linear-gradient(135deg, rgba(244,63,94,0.4), rgba(217,70,239,0.3), rgba(6,182,212,0.4))',
+            background: 'linear-gradient(135deg, #f43f5e 0%, #d946ef 40%, #06b6d4 100%)',
             borderRadius: '6px',
           }}
         >
@@ -69,17 +63,17 @@ const PrivacyTab = ({ systemArticles = {} }) => {
             {/* Meta row */}
             <div className="flex items-center gap-3 mb-6 pb-4 border-b border-rose-900/30 text-[10px] font-bold tracking-widest font-mono uppercase">
               <Database className="w-3 h-3 text-rose-400" />
-              <span className="text-rose-400/70">LOG: PRIVACY-PROTOCOL</span>
-              <span className="text-rose-500/40">//</span>
-              <span className="text-cyan-400/50">NODE: scale-9.4</span>
-              <span className="ml-auto text-rose-400/50">STATUS: ACTIVE</span>
+              <span className="text-rose-400">LOG: PRIVACY-PROTOCOL</span>
+              <span className="text-rose-500/60">//</span>
+              <span className="text-cyan-400">NODE: scale-9.4</span>
+              <span className="ml-auto text-rose-300">STATUS: ACTIVE</span>
             </div>
 
             {/* Body content */}
             <div
               className="prose prose-invert prose-sm max-w-none font-mono leading-relaxed
                 prose-headings:text-rose-300 prose-headings:font-bold prose-headings:tracking-wide
-                prose-p:text-cyan-100/70 prose-p:leading-relaxed
+                prose-p:text-[#39ff14] prose-p:leading-relaxed
                 prose-a:text-rose-400 prose-a:no-underline hover:prose-a:text-rose-200
                 prose-strong:text-rose-300
                 prose-code:text-[#39ff14] prose-code:bg-transparent"
@@ -87,9 +81,9 @@ const PrivacyTab = ({ systemArticles = {} }) => {
             />
 
             {/* Footer */}
-            <div className="mt-10 pt-6 border-t border-rose-900/20 flex justify-between items-center text-[10px] font-bold tracking-widest text-rose-400/40 uppercase font-mono">
+            <div className="mt-10 pt-6 border-t border-rose-900/20 flex justify-between items-center text-[10px] font-bold tracking-widest text-rose-400/60 uppercase font-mono">
               <span>END OF PROTOCOL // SOMA-9.1</span>
-              <span className="text-cyan-400/30">SORBE NODE :: OSTROM_PROTOCOL</span>
+              <span className="text-cyan-400/50">SORBE NODE :: OSTROM_PROTOCOL</span>
             </div>
           </div>
         </div>

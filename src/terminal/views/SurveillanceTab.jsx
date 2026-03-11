@@ -100,18 +100,58 @@ const SurveillanceTab = ({ legislationArticles = [], onOpenLaw }) => {
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-6xl mx-auto mt-8">
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
+      <style>{`
+        @keyframes sv-alertSnap {
+          0%   { opacity: 0; transform: scale(1.08) translateX(-4px); filter: brightness(3) blur(2px); }
+          20%  { opacity: 1; filter: brightness(2); }
+          60%  { transform: scale(1.01) translateX(0); filter: brightness(1.3); }
+          100% { opacity: 1; transform: scale(1); filter: brightness(1); }
+        }
+        @keyframes sv-iconSnap {
+          0%   { opacity: 0; transform: scale(0.5) rotate(-15deg); filter: drop-shadow(0 0 32px #ef4444); }
+          40%  { opacity: 1; transform: scale(1.15) rotate(3deg); filter: drop-shadow(0 0 20px #ef4444); }
+          70%  { transform: scale(0.97) rotate(-1deg); }
+          100% { opacity: 1; transform: scale(1) rotate(0);   filter: drop-shadow(0 0 8px rgba(239,68,68,0.7)); }
+        }
+        @keyframes sv-iconIdlePulse {
+          0%, 100% { filter: drop-shadow(0 0 6px rgba(239,68,68,0.6)); }
+          50%       { filter: drop-shadow(0 0 16px rgba(239,68,68,1)) drop-shadow(0 0 32px rgba(239,68,68,0.3)); }
+        }
+        @keyframes sv-subReveal {
+          from { opacity: 0; transform: translateX(12px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes sv-scoreGlow {
+          0%, 100% { text-shadow: 0 0 10px currentColor, 0 0 20px rgba(239,68,68,0.3); }
+          50%       { text-shadow: 0 0 20px currentColor, 0 0 40px rgba(239,68,68,0.5), 0 0 60px rgba(239,68,68,0.15); }
+        }
+        @keyframes sv-critBorder {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+          50%       { box-shadow: 0 0 12px 2px rgba(239,68,68,0.2), inset 0 0 12px rgba(239,68,68,0.04); }
+        }
+        .sv-card-crit { animation: sv-critBorder 2.5s ease-in-out infinite; }
+        .sv-card-crit:hover { box-shadow: 0 0 20px rgba(239,68,68,0.3) !important; }
+        .sv-card:hover { box-shadow: 0 0 16px rgba(251,146,60,0.18); }
+      `}</style>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-red-900/40 pb-4 mb-6 gap-4">
         <div>
           <h2 className="text-4xl font-bold mb-1 tracking-tight flex items-center gap-3">
             <ShieldAlert
               className="w-8 h-8 shrink-0 text-red-400"
-              style={{ filter: 'drop-shadow(0 0 8px rgba(248,113,113,0.6))' }}
+              style={{ animation: 'sv-iconSnap 0.5s cubic-bezier(0.16,1,0.3,1) forwards, sv-iconIdlePulse 3s ease-in-out 0.6s infinite' }}
             />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-orange-400 to-yellow-500">
-              PANOPTICON_INDEX
-            </span>
+            <span
+              className="text-transparent bg-clip-text uppercase"
+              style={{
+                backgroundImage: 'linear-gradient(90deg, #dc2626 0%, #ea580c 50%, #d97706 100%)',
+                animation: 'sv-alertSnap 0.4s cubic-bezier(0.2,0,0.4,1) forwards',
+              }}
+            >PANOPTICON_INDEX</span>
           </h2>
-          <div className="text-sm font-bold tracking-widest text-orange-400/70 uppercase">
+          <div
+            className="text-sm font-bold tracking-widest text-orange-400 uppercase"
+            style={{ opacity: 0, animation: 'sv-subReveal 0.4s ease 0.35s forwards' }}
+          >
             SURVEILLANCE LEGISLATION TRACKER // ACTIVE CORPUS
           </div>
         </div>
@@ -120,7 +160,10 @@ const SurveillanceTab = ({ legislationArticles = [], onOpenLaw }) => {
           <div className="text-right">
             <div
               className="text-5xl font-bold font-mono tabular-nums"
-              style={{ color: panopticonIndex >= 80 ? '#f87171' : panopticonIndex >= 60 ? '#fb923c' : '#facc15' }}
+              style={{
+                color: panopticonIndex >= 80 ? '#f87171' : panopticonIndex >= 60 ? '#fb923c' : '#facc15',
+                animation: legislationArticles.length ? 'sv-scoreGlow 2.5s ease-in-out infinite' : 'none',
+              }}
             >
               {legislationArticles.length ? panopticonIndex : '—'}
             </div>
@@ -263,7 +306,7 @@ const SurveillanceTab = ({ legislationArticles = [], onOpenLaw }) => {
               <div
                 key={law.id}
                 onClick={() => onOpenLaw && onOpenLaw(law)}
-                className={`border ${style.border} ${style.bg} p-4 rounded-sm cursor-pointer group transition-all hover:brightness-110 hover:shadow-[0_0_12px_rgba(251,146,60,0.15)]`}
+                className={`border ${style.border} ${style.bg} p-4 rounded-sm cursor-pointer group transition-all duration-200 hover:brightness-115 ${sev >= 5 ? 'sv-card-crit' : 'sv-card'}`}
               >
                 {/* Severity badge + location */}
                 <div className="flex justify-between items-start gap-2 mb-2">

@@ -125,18 +125,38 @@ const BskyTab = () => {
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-6xl mx-auto mt-8">
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
+      <style>{`
+        @keyframes bk-float {
+          0%, 100% { transform: translateY(0px);    filter: drop-shadow(0 0 8px rgba(56,189,248,0.6)); }
+          50%       { transform: translateY(-4px);   filter: drop-shadow(0 0 14px rgba(56,189,248,0.9)); }
+        }
+        @keyframes bk-titleReveal {
+          from { opacity: 0; transform: translateY(6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes bk-subReveal {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+      `}</style>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-sky-900/40 pb-4 mb-6 gap-4">
         <div>
           <h2 className="text-4xl font-bold mb-1 tracking-tight flex items-center gap-3">
             <ButterflyIcon
               className="w-10 h-10 shrink-0 text-sky-400"
-              style={{ filter: 'drop-shadow(0 0 10px rgba(56,189,248,0.65))' }}
+              style={{ animation: 'bk-float 3.2s ease-in-out infinite' }}
             />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-300 via-blue-400 to-cyan-400">
+            <span
+              className="text-transparent bg-clip-text bg-gradient-to-r from-sky-300 via-blue-400 to-cyan-400"
+              style={{ animation: 'bk-titleReveal 0.6s cubic-bezier(0.16,1,0.3,1) forwards' }}
+            >
               BSKY_NETWORK
             </span>
           </h2>
-          <div className="text-sm font-bold tracking-widest text-sky-400/60 uppercase">
+          <div
+            className="text-sm font-bold tracking-widest text-sky-400 uppercase"
+            style={{ opacity: 0, animation: 'bk-subReveal 0.5s ease 0.4s forwards' }}
+          >
             AT PROTOCOL // BLUESKY SOCIAL STREAM
           </div>
         </div>

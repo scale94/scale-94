@@ -54,7 +54,11 @@
       "Bash(wasm-pack build --target web --release)",
       "Bash(node scripts/import-rust.js --registry-only)",
       "Bash(node --check /e/scale_9.4/import-kernel.js)",
-      "Bash(wasm-pack build:*)"
+      "Bash(wasm-pack build:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(gh pr:*)"
     ]
   }
 }

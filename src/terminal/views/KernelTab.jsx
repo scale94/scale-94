@@ -48,6 +48,23 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
         from { opacity: 0; transform: translateY(-6px); filter: blur(8px); }
         to   { opacity: 1; transform: translateY(0);   filter: blur(0); }
       }
+      @keyframes sk-treeGlow {
+        0%, 100% { filter: drop-shadow(0 0 3px rgba(6,182,212,0.4)); }
+        50%       { filter: drop-shadow(0 0 10px rgba(6,182,212,1)) drop-shadow(0 0 20px rgba(6,182,212,0.35)); }
+      }
+      @keyframes sk-axiomBreath {
+        0%, 100% { box-shadow: 0 0 6px rgba(57,255,20,0.06), inset 0 0 20px rgba(0,0,0,0.4); }
+        50%       { box-shadow: 0 0 18px rgba(57,255,20,0.12), inset 0 0 20px rgba(0,0,0,0.4); }
+      }
+      @keyframes sk-axiomIconPulse {
+        0%, 100% { filter: drop-shadow(0 0 3px rgba(57,255,20,0.4)); }
+        50%       { filter: drop-shadow(0 0 8px rgba(57,255,20,0.9)) drop-shadow(0 0 16px rgba(57,255,20,0.25)); }
+      }
+      @keyframes sk-axiomNumGlow {
+        0%, 100% { text-shadow: 0 0 8px rgba(57,255,20,0.7), 0 0 16px rgba(57,255,20,0.25); }
+        50%       { text-shadow: 0 0 18px rgba(57,255,20,1), 0 0 36px rgba(57,255,20,0.55), 0 0 56px rgba(57,255,20,0.15); }
+      }
+      .axiom-item:hover { box-shadow: inset 3px 0 0 #39ff14, inset 0 0 24px rgba(57,255,20,0.04); }
     `}</style>
 
     {searchFilter && (
@@ -97,11 +114,13 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
     </div>
 
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 mb-12">
-      <div className="border border-cyan-900/50 p-6 bg-black/50 backdrop-blur-sm relative group hover:border-cyan-500/50 transition-colors duration-500 rounded-lg h-fit">
+      <div className="border border-cyan-900/50 p-6 bg-black/50 backdrop-blur-sm relative group hover:border-cyan-500/50 transition-colors duration-500 rounded-lg h-fit"
+        style={{ animation: 'sk-axiomBreath 5s ease-in-out infinite' }}
+      >
         <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
           <Database
             className="w-5 h-5 text-[#39ff14]"
-            style={{ animation: 'sk-kernelIconReveal 0.8s cubic-bezier(0.16,1,0.3,1) forwards' }}
+            style={{ animation: 'sk-kernelIconReveal 0.8s cubic-bezier(0.16,1,0.3,1) forwards, sk-axiomIconPulse 5s ease-in-out 0.8s infinite' }}
           />
           <span
             className="text-transparent bg-clip-text"
@@ -114,14 +133,25 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
         </h3>
         <div className="space-y-4">
           {kernelAxioms.map((axiom, idx) => (
-            <div key={idx} className="group/item hover:bg-cyan-900/10 p-3 -mx-2 transition-all rounded-sm border-l-2 border-transparent hover:border-cyan-500 cursor-default min-w-0"
+            <div key={idx} className="axiom-item group/item p-3 -mx-2 transition-all duration-200 rounded-sm border-l-2 border-transparent cursor-default min-w-0"
               style={{ opacity: 0, animation: `sk-subReveal 0.5s cubic-bezier(0.16,1,0.3,1) ${0.1 + idx * 0.08}s forwards` }}
             >
-              <div className="flex flex-wrap justify-between items-center gap-y-3 mb-1 gap-2">
-                <span className="font-bold text-cyan-400 text-lg min-w-0 break-words">0{idx + 1} :: {axiom.name?.toUpperCase() || "UNKNOWN"}</span>
-                <span className="text-[10px] font-bold tracking-widest bg-cyan-900/30 text-cyan-200 px-2 py-0.5 rounded-full shrink-0">{axiom.field || "SYS"}</span>
+              <div className="flex flex-wrap justify-between items-start gap-2 mb-2">
+                <div className="flex items-baseline gap-2 min-w-0 flex-wrap">
+                  <span
+                    className="font-mono font-black text-[#39ff14] text-2xl shrink-0 tabular-nums leading-none"
+                    style={{ animation: `sk-axiomNumGlow 3.5s ease-in-out ${idx * 0.4}s infinite` }}
+                  >
+                    0{idx + 1}
+                  </span>
+                  <span className="text-cyan-800 font-mono text-sm font-bold leading-none self-center">::</span>
+                  <span className="font-black text-white text-base uppercase tracking-tight min-w-0 break-words leading-tight">
+                    {axiom.name?.toUpperCase() || 'UNKNOWN'}
+                  </span>
+                </div>
+                <span className="text-[10px] font-bold tracking-widest bg-cyan-900/30 text-cyan-200 px-2 py-0.5 rounded-full shrink-0">{axiom.field || 'SYS'}</span>
               </div>
-              <p className="text-sm text-[#39ff14] leading-relaxed group-hover/item:text-green-300 transition-colors break-words">{axiom.desc || "Axiom details unresolvable."}</p>
+              <p className="text-sm text-[#39ff14]/75 leading-relaxed group-hover/item:text-[#39ff14] transition-colors break-words pl-9">{axiom.desc || 'Axiom details unresolvable.'}</p>
             </div>
           ))}
         </div>
@@ -130,7 +160,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
       <div id="kernel-container" className="space-y-8">
         <div className="border border-cyan-900/50 p-6 bg-black/50 backdrop-blur-sm hover:border-cyan-500/50 transition-colors rounded-lg flex flex-col h-[500px] overflow-hidden">
           <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
-            <GitBranch className="w-4 h-4 shrink-0 text-[#06b6d4]" />
+            <GitBranch className="w-4 h-4 shrink-0 text-[#06b6d4]" style={{ animation: 'sk-kernelIconReveal 0.8s cubic-bezier(0.16,1,0.3,1) forwards, sk-treeGlow 2.5s ease-in-out 0.8s infinite' }} />
             <span
               className="text-transparent bg-clip-text"
               style={{
