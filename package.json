@@ -17,6 +17,7 @@
     "system:import": "node scripts/import-system.js",
     "academic:import": "node scripts/import-academic.js",
     "rust:import": "node scripts/import-rust.js",
+    "rust:registry": "node scripts/import-rust.js --registry-only",
     "spawn": "node scripts/spawn.js"
   },
   "dependencies": {

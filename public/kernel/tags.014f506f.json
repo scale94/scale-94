@@ -833,6 +833,12 @@
       "title": "THE TAMAM KERNEL V1.0"
     }
   ],
+  "GLOBAL": [
+    {
+      "id": "SOMA-9.1",
+      "title": "ᛟ SOMA-9.1 KERNEL REPORT // GLOBAL STRATEGIC TELEMETRY (V1.1)"
+    }
+  ],
   "GLYPH": [
     {
       "id": "SCALE94-KERNEL-ENCYCLOPEDIA",
@@ -1541,6 +1547,12 @@
       "title": "🧊 KERNEL 15.0: THE PURIFICATION OF SCALE"
     }
   ],
+  "REPORT": [
+    {
+      "id": "SOMA-9.1",
+      "title": "ᛟ SOMA-9.1 KERNEL REPORT // GLOBAL STRATEGIC TELEMETRY (V1.1)"
+    }
+  ],
   "RESISTANCE": [
     {
       "id": "FISH-SCALE-KERNEL-11.7.0",
@@ -1775,6 +1787,12 @@
       "title": "SOMA_INTEGRATION_KERNEL_V1.0"
     }
   ],
+  "SOMA-9": [
+    {
+      "id": "SOMA-9.1",
+      "title": "ᛟ SOMA-9.1 KERNEL REPORT // GLOBAL STRATEGIC TELEMETRY (V1.1)"
+    }
+  ],
   "SORBE": [
     {
       "id": "NOCTURNAL-NIGHT-KERNEL-V-22.2.2-1",
@@ -1877,6 +1895,12 @@
     {
       "id": "SORBE-THERMODYNAMIC-BLOOM-V1",
       "title": "🌿 THE SORBE BLOOM // THERMODYNAMIC SYNTHESIS V1.0"
+    }
+  ],
+  "STRATEGIC": [
+    {
+      "id": "SOMA-9.1",
+      "title": "ᛟ SOMA-9.1 KERNEL REPORT // GLOBAL STRATEGIC TELEMETRY (V1.1)"
     }
   ],
   "Strategy": [
@@ -2061,6 +2085,12 @@
     {
       "id": "TECTONIC-DISCHARGE-KERNEL",
       "title": "TECTONIC DISCHARGE KERNEL"
+    }
+  ],
+  "TELEMETRY": [
+    {
+      "id": "SOMA-9.1",
+      "title": "ᛟ SOMA-9.1 KERNEL REPORT // GLOBAL STRATEGIC TELEMETRY (V1.1)"
     }
   ],
   "TEST": [

@@ -467,11 +467,11 @@ function parseHandCuratedTitles() {
 }
 
 // Scan ONLY the hand-curated section of kernelBuilds.js (everything before
-// @@INJECT_START@@) for existing articleId values.  This is the idempotency
-// guard: if an articleId is already declared in the hand-curated block we
-// skip it from the inject zone so it never appears twice.  We deliberately
-// do NOT scan the inject zone itself — the zone is always wiped and
-// regenerated from scratch, so its previous contents are irrelevant.
+// @@INJECT_START@@) for existing id AND articleId values.  This is the
+// idempotency guard: if an article's generated id matches ANY hand-curated
+// entry's `id` or `articleId` field, it is already represented and must not
+// be injected again.  We deliberately do NOT scan the inject zone itself —
+// the zone is always wiped and regenerated from scratch.
 function parseHandCuratedBuildIds() {
   if (!fs.existsSync(BUILDS_PATH)) return new Set();
   const src      = fs.readFileSync(BUILDS_PATH, 'utf8');
@@ -479,7 +479,9 @@ function parseHandCuratedBuildIds() {
   // Only scan the hand-curated block; fall back to whole file if no marker.
   const section  = startIdx !== -1 ? src.slice(0, startIdx) : src;
   const ids      = new Set();
-  const re       = /\barticleId:\s*["'`]([^"'`\n]+)["'`]/g;
+  // Collect both `id:` and `articleId:` field values — either field is enough
+  // to establish that a kernel is already declared in the hand-curated block.
+  const re = /\b(?:articleId|id):\s*["'`]([^"'`\n]+)["'`]/g;
   let m;
   while ((m = re.exec(section)) !== null) ids.add(m[1]);
   return ids;

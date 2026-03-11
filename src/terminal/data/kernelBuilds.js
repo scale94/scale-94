@@ -135,7 +135,6 @@ const kernelBuilds = [
   { id: "CDK-1.0", articleId: "CDK-1.0", name: "COLEMAK_DH_KERNEL_V11_1_2", status: "ACTIVE", desc: "KINETIC METALLURGY" },
   { id: "CDK-1.0-1", articleId: "CDK-1.0-1", name: "COLEMAK_DH_KERNEL_V11_2_0", status: "ACTIVE", desc: "KINETIC METALLURGY" },
   { id: "DALY-THERMO-SIMULATION", articleId: "DALY-THERMO-SIMULATION", name: "DALY_THERMO_SIMULATION", status: "ACTIVE", desc: "The Hard Constraints Engine — soma_kernel_5.5" },
-  { id: "FSQ-11.6", articleId: "FSQ-11.6", name: "FISH_SCALE_KERNEL_V11_6_0_QUANTUM", status: "ACTIVE", desc: "Ⅰ · THE MASCULINE MUSCHI DIAGNOSTIC · QUANTUM RESTATEMENT (§1.2)" },
   { id: "FISH-SCALE-KERNEL", articleId: "FISH-SCALE-KERNEL", name: "FISH_SCALE_KERNEL", status: "ACTIVE", desc: "1.0 Executive Boot Sequence and Architectural Thesis" },
   { id: "FOCUS-SHEPHERD-KERNEL-1.0", articleId: "FOCUS-SHEPHERD-KERNEL-1.0", name: "FOCUS_SHEPHERD_KERNEL_1_0", status: "ACTIVE", desc: "Session management and tangent-routing protocol for sustained deep work. Bedtime gates, hyperfocus detection, parking lot system." },
   { id: "GSK-5.5.5", articleId: "GSK-5.5.5", name: "GAIA_SCALE_KERNEL_5_5_5", status: "ACTIVE", desc: "Ⅰ. CORE DIRECTIVES: THE MATRILINEAL FIREWALL (§1.0)" },
@@ -149,13 +148,13 @@ const kernelBuilds = [
   { id: "SCALE-KERNEL-FRAMEWORK-FULL", articleId: "SCALE-KERNEL-FRAMEWORK-FULL", name: "SCALE_KERNEL_FRAMEWORK_FULL", status: "ACTIVE", desc: "☠ Full Corpus Synthesis · Render Prompt Architecture ☠" },
   { id: "SCALE-OPTIMIZATION-KERNEL-9.4", articleId: "SCALE-OPTIMIZATION-KERNEL-9.4", name: "SCALE_OPTIMIZATION_KERNEL_9_4", status: "ACTIVE", desc: "◈ 2026 GEOPOLITICAL ALIGNMENT" },
   { id: "SCALING-CUBE-PROTOCOL", articleId: "SCALING-CUBE-PROTOCOL", name: "SCALING_CUBE_PROTOCOL", status: "ACTIVE", desc: "Platonic Form · Entropic Stasis · The Architecture of Potential" },
+  { id: "SOMA-9.1", articleId: "SOMA-9.1", name: "SOMA_9_1_KERNEL_REPORT", status: "ACTIVE", desc: "Ⅰ. KINETIC THEATER: MIDDLE EASTERN GRID FRACTURE" },
   { id: "SOMA-PLUS-ENGINE", articleId: "SOMA-PLUS-ENGINE", name: "SOMA_PLUS_ENGINE", status: "ACTIVE", desc: "Status Is Earned Through the Commons — soma_kernel_5.5" },
   { id: "SORBE-THERMODYNAMIC-BLOOM-V1", articleId: "SORBE-THERMODYNAMIC-BLOOM-V1", name: "SORBE_THERMODYNAMIC_BLOOM_KERNEL_1_0", status: "ACTIVE", desc: "◈ THE THERMODYNAMIC IMPERATIVE" },
   { id: "STRANGLER-FIG-PROTOCOL", articleId: "STRANGLER-FIG-PROTOCOL", name: "STRANGLER_FIG_PROTOCOL", status: "ACTIVE", desc: "Build the New System Around the Old — soma_kernel_5.5" },
   { id: "SURVEILLANCE-TRACKER", articleId: "SURVEILLANCE-TRACKER", name: "SURVEILLANCE_TRACKER", status: "ACTIVE", desc: "Mapping the Algorithmic Panopticon" },
   { id: "THE-CIGAR-HEIST", articleId: "THE-CIGAR-HEIST", name: "THE_CIGAR_HEIST", status: "ACTIVE", desc: "THE CIGAR HEIST" },
   { id: "THE-FLUORESCENT-CAGE", articleId: "THE-FLUORESCENT-CAGE", name: "THE_FLUORESCENT_CAGE", status: "ACTIVE", desc: "THE FLUORESCENT CAGE" },
-  { id: "UTK-1.0-1", articleId: "UTK-1.0-1", name: "UNDERGROUND_THERMODYNAMICISTS", status: "ACTIVE", desc: "◈ Signal map" },
 /* @@INJECT_END@@ */
 ];
 

@@ -391,6 +391,87 @@ export function run_daly_thermo_simulation(consumption, regeneration, waste, abs
 }
 
 /**
+ * @param {number} benefit
+ * @param {number} cost
+ * @param {number} punishment
+ * @param {number} mutation
+ * @param {number} generations
+ * @returns {string}
+ */
+export function run_evolutionary_replicator(benefit, cost, punishment, mutation, generations) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_evolutionary_replicator(benefit, cost, punishment, mutation, generations);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * @param {number} r_start
+ * @param {number} r_end
+ * @param {number} warmup
+ * @param {number} samples
+ * @returns {string}
+ */
+export function run_feigenbaum_cascade(r_start, r_end, warmup, samples) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_feigenbaum_cascade(r_start, r_end, warmup, samples);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * @param {number} lattice_size
+ * @param {number} temperature
+ * @param {number} external_field
+ * @param {number} mc_steps
+ * @returns {string}
+ */
+export function run_ising_consensus(lattice_size, temperature, external_field, mc_steps) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_ising_consensus(lattice_size, temperature, external_field, mc_steps);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * @param {number} n_oscillators
+ * @param {number} coupling
+ * @param {number} freq_spread
+ * @param {number} timesteps
+ * @returns {string}
+ */
+export function run_kuramoto_synchrony(n_oscillators, coupling, freq_spread, timesteps) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_kuramoto_synchrony(n_oscillators, coupling, freq_spread, timesteps);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * Simulates Soma Plus — the social capital / commons-contribution system
  * at the heart of soma_kernel_5.5's post-scarcity status economy.
  *
@@ -456,6 +537,44 @@ export function run_strangler_fig_transition(initial_adoption, growth_rate, resi
     let deferred1_1;
     try {
         const ret = wasm.run_strangler_fig_transition(initial_adoption, growth_rate, resistance, years);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * @param {number} region_code
+ * @param {number} category_code
+ * @param {number} threshold
+ * @returns {string}
+ */
+export function run_surveillance_index(region_code, category_code, threshold) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_surveillance_index(region_code, category_code, threshold);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * Returns the SOMA-9.1 Gaia Build boot banner for the terminal kernel log.
+ * No parameters. Static diagnostic — call on first CLI load to confirm
+ * system readiness and log the kernel version to the SYSTEM LOG.
+ * @returns {string}
+ */
+export function soma_91_banner() {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.soma_91_banner();
         deferred1_0 = ret[0];
         deferred1_1 = ret[1];
         return getStringFromWasm0(ret[0], ret[1]);
