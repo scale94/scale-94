@@ -10,7 +10,7 @@ const wasmRegistry = {
     args:    [],
     argMap:  {},
     label:   "SOMA-9.1 // GAIA BUILD — system kernel log banner",
-    type:    'rust',
+    type:    "rust",
     module:  "/wasm/scale94_kernels.js",
     wasmUrl: "/wasm/scale94_kernels_bg.wasm",
     aliases: ["soma91","gaia","soma_91","soma91_banner","banner"],

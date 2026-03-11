@@ -40,6 +40,18 @@ const DEV     = process.argv.includes('--dev');
 
 const KERNEL_MAP = [
   {
+    // SOMA-9.1 Gaia Build banner — zero-parameter free function.
+    // Returns the ascetic system kernel log banner with Ostrom Protocol status.
+    // No flags needed: run soma91  |  run gaia  |  run banner
+    id:      'SOMA-9.1-GAIA',
+    fn:      'soma_91_banner',
+    args:    [],
+    argMap:  {},
+    label:   'SOMA-9.1 // GAIA BUILD — system kernel log banner',
+    type:    'rust',
+    aliases: ['soma91', 'gaia', 'soma_91', 'soma91_banner', 'banner'],
+  },
+  {
     id:      'BIODIVERSITY-KERNEL-1.0.1',
     struct:  'BiocoenosisKernel',
     boot:    'boot',
@@ -365,6 +377,8 @@ function run() {
     lines.push(`    module:  ${JSON.stringify(moduleUrl)},`);
     lines.push(`    wasmUrl: ${JSON.stringify(wasmUrl)},`);
     if (k.aliases?.length) lines.push(`    aliases: ${JSON.stringify(k.aliases)},`);
+    // params — required by frontend param-hinting and --help formatter
+    if (k.params?.length)  lines.push(`    params:  ${JSON.stringify(k.params)},`);
     lines.push(`  }`);
     return lines.join('\n');
   });
