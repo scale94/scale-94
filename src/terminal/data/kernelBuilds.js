@@ -130,7 +130,7 @@ const kernelBuilds = [
   { id: 'SYK-1.0', articleId: 'SCALE-Y-KERNEL-1-0-1', name: 'SCALE_Y_KERNEL_1_0', status: 'ACTIVE', desc: 'ᛟ Feather State Protocol · Sovereign Self-Governance' },
   { id: 'UTK-1.0-1', articleId: 'UNDERGROUND-THERMODYNAMICISTS', name: 'UNDERGROUND_THERMODYNAMICISTS', status: 'EMERGENT', desc: '◈ Signal map' },
 /* @@INJECT_START@@ */
-  { id: "AT-1.0", articleId: "AT-1.0", name: "ARCHITECTURAL_BLUEPRINT_FOR_A_QUANTUM_THEORETIC_REACT_TERMINAL_INTERFACE", status: "ACTIVE", desc: "**1\\. Netrunning Algorithms & Breach Protocol Mathematics**" },
+  { id: "AT-1.0", articleId: "AT-1.0", name: "ARCHITECTURAL_BLUEPRINT_FOR_A_QUANTUM_THEORETIC_REACT_TERMINAL", status: "ACTIVE", desc: "**1\\. Netrunning Algorithms & Breach Protocol Mathematics**" },
   { id: "ATMOSPHERIC-ENTROPY-KERNEL-3.0", articleId: "ATMOSPHERIC-ENTROPY-KERNEL-3.0", name: "ATMOSPHERIC_ENTROPY_KERNEL_3_0", status: "ACTIVE", desc: "The Thermosphere Protocol" },
   { id: "BBK-1.0", articleId: "BBK-1.0", name: "BELLARD_BAUDRILLARD_KERNEL_V1_0_0", status: "ACTIVE", desc: "PHONEMIC DRIFT · THE MEMORY HASH COLLISION" },
   { id: "CEEI-ALLOCATION-ENGINE", articleId: "CEEI-ALLOCATION-ENGINE", name: "CEEI_ALLOCATION_ENGINE", status: "ACTIVE", desc: "The End of the Price Tag — soma_kernel_5.5" },
