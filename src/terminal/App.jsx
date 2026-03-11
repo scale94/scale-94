@@ -122,10 +122,11 @@ const CMD_MANIFEST = [
   { name: 'scaling',      desc: 'navigate to /scaling' },
   { name: 'transmission', desc: 'navigate to /transmission' },
   { name: 'manifesto',    desc: 'navigate to /manifesto' },
-  { name: 'surveillance', desc: 'navigate to /surveillance' },
-  { name: 'bsky',         desc: 'navigate to /bsky' },
-  { name: 'privacy',      desc: 'navigate to /privacy' },
-  { name: 'classified',   desc: 'navigate to /classified — PQC kernel' },
+  { name: 'surveillance',  desc: 'navigate to /surveillance' },
+  { name: 'bsky',          desc: 'navigate to /bsky' },
+  { name: 'privacy',       desc: 'navigate to /privacy' },
+  { name: 'cryptography',  desc: 'navigate to /cryptography — PQC kernel' },
+  { name: 'verify',        desc: 'submit classified challenge  e.g. verify ABCDEF' },
 ];
 
 const App = () => {
@@ -133,6 +134,9 @@ const App = () => {
   const [activeTab, setActiveTab] = useState('kernel');
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [bootSequence, setBootSequence] = useState(true);
+  // Classified enclave session state
+  // null → locked  |  { status:'pending' }  |  { status:'challenged', ... }  |  { status:'unlocked', ... }
+  const [classifiedSession, setClassifiedSession] = useState(null);
   const [commandInput, setCommandInput] = useState('');
   const [searchFilter, setSearchFilter] = useState('');
   const [loadingKernel,  setLoadingKernel]  = useState(null);
@@ -881,6 +885,50 @@ const App = () => {
                   { time: now,      msg: `  ──────────────────────────────────────────`, rust: true },
                   { time: doneTime, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE  ·  EXEC_TIME: ${elapsed}ms`, rust: true },
                 ].slice(-2000));
+
+                // ── Post-classified hook: initiate backend challenge ─────────
+                // Only fires for the ML-KEM-CLASSIFIED kernel — all other
+                // kernels exit the success path here as before.
+                if (wasmEntry.id === 'ML-KEM-CLASSIFIED') {
+                  handleNav('~/system/cryptography', 'cryptography');
+                  setClassifiedSession({ status: 'pending' });
+                  const ct = new Date().toLocaleTimeString('en-US', { hour12: false });
+                  setSystemLogs(prev => [...prev,
+                    { time: ct, msg: `[ENCLAVE] Initiating time-locked decryption session...` },
+                  ].slice(-2000));
+                  try {
+                    const resp = await fetch('/api/classified/challenge', {
+                      method:  'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                    });
+                    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                    const challenge = await resp.json();
+                    setClassifiedSession({
+                      status:        'challenged',
+                      token:         challenge.token,
+                      code:          challenge.challenge,
+                      expiresAt:     challenge.expiresAt,
+                      sessionId:     challenge.sessionId,
+                      algorithm:     challenge.algorithm,
+                      encapKeySize:  challenge.encapKeySize,
+                      ciphertextSize: challenge.ciphertextSize,
+                    });
+                    const ct2 = new Date().toLocaleTimeString('en-US', { hour12: false });
+                    setSystemLogs(prev => [...prev,
+                      { time: ct2, msg: `[ENCLAVE] SESSION_ID: ${challenge.sessionId}` },
+                      { time: ct2, msg: `[ENCLAVE] CHALLENGE:  ${challenge.challenge}` },
+                      { time: ct2, msg: `[ENCLAVE] EXPIRES:   ${new Date(challenge.expiresAt).toLocaleTimeString('en-US', { hour12: false })} (60s)` },
+                      { time: ct2, msg: `[ENCLAVE] ── Type: verify ${challenge.challenge} ──` },
+                    ].slice(-2000));
+                  } catch (apiErr) {
+                    setClassifiedSession(null);
+                    const ct2 = new Date().toLocaleTimeString('en-US', { hour12: false });
+                    setSystemLogs(prev => [...prev,
+                      { time: ct2, msg: `[ENCLAVE] CHALLENGE_ERROR :: ${apiErr.message}` },
+                      { time: ct2, msg: `[ENCLAVE] Check Vercel env vars or run: vercel dev` },
+                    ].slice(-2000));
+                  }
+                }
               } catch (err) {
                 setSystemLogs(prev => [
                   ...prev,
@@ -920,9 +968,60 @@ const App = () => {
       } else if (action === 'privacy') {
         handleNav('~/system/privacy', 'privacy');
         executeCommand(rawCmd, "Switching directory to /system/privacy...");
-      } else if (action === 'classified' || action === 'pqc' || action === 'mlkem') {
-        handleNav('~/system/classified', 'classified');
-        executeCommand(rawCmd, "Switching directory to /system/classified...");
+      } else if (action === 'verify') {
+        // ── Classified enclave challenge verification ────────────────────────
+        if (!query) {
+          executeCommand(rawCmd, `VERIFY_FAIL :: No passphrase supplied. Usage: verify <CODE>`);
+        } else if (!classifiedSession || classifiedSession.status !== 'challenged') {
+          executeCommand(rawCmd, `VERIFY_FAIL :: No active classified session. Type: run classified`);
+        } else if (Date.now() > classifiedSession.expiresAt) {
+          setClassifiedSession(null);
+          executeCommand(rawCmd, `VERIFY_FAIL :: Session window expired. Type: run classified to restart.`);
+        } else {
+          appendSystemLog({ time: now, msg: `COMMAND: ${rawCmd}` });
+          setSystemLogs(prev => [...prev,
+            { time: now, msg: `  ENCLAVE_VERIFY :: Submitting challenge response...` },
+          ].slice(-2000));
+          (async () => {
+            try {
+              const resp = await fetch('/api/classified/verify', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ token: classifiedSession.token, passphrase: query.toUpperCase() }),
+              });
+              const data = await resp.json();
+              const t = new Date().toLocaleTimeString('en-US', { hour12: false });
+              if (resp.ok && data.success) {
+                setClassifiedSession({
+                  status:      'unlocked',
+                  content:     data.content,
+                  sessionId:   data.sessionId,
+                  decryptedAt: data.decryptedAt,
+                  remainingMs: data.remainingMs,
+                });
+                handleNav('~/system/cryptography', 'cryptography');
+                setSystemLogs(prev => [...prev,
+                  { time: t, msg: `  ENCLAVE_DECRYPT :: AES-256-GCM AUTH TAG VERIFIED`, rust: true },
+                  { time: t, msg: `  PLAINTEXT DELIVERED — ${(data.remainingMs / 1000).toFixed(1)}s remaining`, rust: true },
+                  { time: t, msg: `  Navigate to /cryptography to read.`, rust: true },
+                ].slice(-2000));
+              } else {
+                setSystemLogs(prev => [...prev,
+                  { time: t, msg: `  ENCLAVE_REJECT :: ${data.msg ?? data.error}` },
+                ].slice(-2000));
+                if (data.error === 'TIME_EXCEEDED') setClassifiedSession(null);
+              }
+            } catch (err) {
+              const t = new Date().toLocaleTimeString('en-US', { hour12: false });
+              setSystemLogs(prev => [...prev,
+                { time: t, msg: `  VERIFY_ERROR :: ${err.message}` },
+              ].slice(-2000));
+            }
+          })();
+        }
+      } else if (action === 'cryptography' || action === 'classified' || action === 'pqc' || action === 'mlkem') {
+        handleNav('~/system/cryptography', 'cryptography');
+        executeCommand(rawCmd, "Switching directory to /system/cryptography...");
       } else if (action === 'about' || action === 'manifesto') {
         handleNav('~/system/manifesto', 'manifesto');
         executeCommand(rawCmd, "Switching directory to /system/manifesto...");
@@ -931,6 +1030,20 @@ const App = () => {
         setArchitectThesis(true);
         executeCommand(rawCmd, "Loading ARCHITECT_THESIS...");
       } else if (action === 'load' && query) {
+        // Tab-name guard: `load surveillance` / `load cryptography` etc. → navigate to tab
+        const loadTabMap = {
+          surveillance: 'surveillance', panopticon: 'surveillance', legislation: 'surveillance',
+          cryptography: 'cryptography', classified: 'cryptography', pqc: 'cryptography', mlkem: 'cryptography',
+          kernel: 'kernel', home: 'kernel', scaling: 'scaling', transmission: 'transmission',
+          manifesto: 'manifesto', bsky: 'bsky', bluesky: 'bsky', privacy: 'privacy',
+        };
+        const loadQ = query.toLowerCase().trim();
+        if (loadTabMap[loadQ]) {
+          const tgt = loadTabMap[loadQ];
+          handleNav(`~/system/${tgt}`, tgt);
+          executeCommand(rawCmd, `Switching directory to /system/${tgt}...`);
+          return;
+        }
         // normalizeQuery: strip everything except alphanumerics for fuzzy matching
         // "load fish scale 11.4" → "fishscale114"  matches  "FISH_SCALE_KERNEL_11_4_0..."
         const q = norm(query);
@@ -1251,7 +1364,7 @@ const App = () => {
             <button aria-label="Surveillance" aria-current={activeTab === 'surveillance' ? 'page' : undefined} onClick={() => handleNav('~/system/surveillance', 'surveillance')} className={`${activeTab === 'surveillance' ? 'bg-red-900 text-red-100 shadow-[0_0_10px_rgba(248,113,113,0.4)]' : 'text-red-500/70 hover:text-red-300 hover:bg-red-900/20'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><ShieldAlert className="w-3 h-3" /> /Surveillance</button>
 
             <button aria-label="BSKY" aria-current={activeTab === 'bsky' ? 'page' : undefined} onClick={() => handleNav('~/system/bsky', 'bsky')} className={`${activeTab === 'bsky' ? 'bg-sky-600 text-white shadow-[0_0_12px_rgba(56,189,248,0.5)]' : 'text-sky-400/80 hover:text-sky-200 hover:bg-sky-900/20'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><NavButterflyIcon /> /BSKY</button>
-            <button aria-label="Classified" aria-current={activeTab === 'classified' ? 'page' : undefined} onClick={() => handleNav('~/system/classified', 'classified')} className={`${activeTab === 'classified' ? 'bg-green-900 text-green-100 shadow-[0_0_10px_rgba(74,222,128,0.4)]' : 'text-green-500/70 hover:text-green-300 hover:bg-green-900/20'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><KeyRound className="w-3 h-3" /> /Classified</button>
+            <button aria-label="Cryptography" aria-current={activeTab === 'cryptography' ? 'page' : undefined} onClick={() => handleNav('~/system/cryptography', 'cryptography')} className={`${activeTab === 'cryptography' ? 'bg-green-900 text-green-100 shadow-[0_0_10px_rgba(74,222,128,0.4)]' : 'text-green-500/70 hover:text-green-300 hover:bg-green-900/20'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><KeyRound className="w-3 h-3" /> /Cryptography</button>
           </nav>
         </div>
       </header>
@@ -1328,9 +1441,9 @@ const App = () => {
             <BskyTab />
           )}
 
-          {/* Classified Tab — ML-KEM-768 PQC + Gray-Scott kernel reference */}
-          {activeTab === 'classified' && !selectedArticle && !architectThesis && (
-            <ClassifiedTab />
+          {/* Cryptography Tab — ML-KEM-768 PQC + Gray-Scott kernel reference */}
+          {activeTab === 'cryptography' && !selectedArticle && !architectThesis && (
+            <ClassifiedTab session={classifiedSession} />
           )}
 
           {/* Article Detail */}

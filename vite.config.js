@@ -3,6 +3,17 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  server: {
+    // Proxy /api/* to the Vercel dev server (default port 3000) when running
+    // `vite dev` alongside `vercel dev --listen 3001`.
+    // For normal development, use `vercel dev` which serves both together.
+    proxy: {
+      '/api': {
+        target:       process.env.VITE_API_TARGET ?? 'http://localhost:3000',
+        changeOrigin: true,
+      },
+    },
+  },
   assetsInclude: ['**/*.md'],
   build: {
     chunkSizeWarningLimit: 1000,
