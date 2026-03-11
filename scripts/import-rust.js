@@ -494,6 +494,125 @@ const KERNEL_MAP = [
     type:    'rust',
     aliases: ['pragmatic', 'pragmatic_type', 'drk', 'drk_pragmatic', 'thermal_resolve', 'pragmatict'],
   },
+  {
+    // DH-EC Cryptographic Architecture Kernel — compiled in WASM binary via mod.rs,
+    // now registered. Classical DH · ECDH Curve25519 · Signal X3DH · Threema NaCl.
+    // mode:         args[0]  0=ALL 1=classical_dh 2=ecdh 3=x3dh_signal 4=threema_nacl 5=comparison
+    // show_details: args[1]  0=compact 1=verbose (full 32-byte hex + analysis notes)
+    id:      'DH-EC-KERNEL-1.0',
+    fn:      'run_dh_ec_kernel',
+    args:    [0.0, 0.0],
+    argMap:  {
+      mode: 0, m: 0,
+      show: 1, details: 1, showdetails: 1, verbose: 1,
+    },
+    params: [
+      { name: 'mode',         default: 0.0, desc: '0=ALL · 1=classical_dh · 2=ecdh_curve25519 · 3=x3dh_signal · 4=threema_nacl · 5=comparison' },
+      { name: 'show_details', default: 0.0, desc: '0=compact (keys abbreviated) · 1=verbose (full 32-byte hex + analysis notes)' },
+    ],
+    label:   'DH/EC Cryptographic Architecture Kernel v1.0',
+    type:    'rust',
+    aliases: ['dh_ec', 'diffie', 'ecdh', 'curve25519', 'x3dh', 'signal_proto', 'threema', 'nacl'],
+  },
+  {
+    // Chrono-Actuary v2.0.0 — Deep-Time Audit Framework · River Sovereign
+    // Five modules: DO Ledger (Garcia-Benson + Streeter-Phelps), Thermal Rent
+    // (Q10 + IPCC AR6), Nutrient Debt (EPI + Redfield), Hydraulic Sovereignty
+    // (Tennant), Langelier Saturation Index. Permit ruling from aggregate.
+    //
+    // temp_c:        args[0]  flags: --temp, --temperature
+    // do_conc:       args[1]  flags: --do, --oxygen, --dissolved-oxygen
+    // bod_load:      args[2]  flags: --bod, --bod-load
+    // delta_t:       args[3]  flags: --dt, --delta-t, --thermal
+    // epi:           args[4]  flags: --epi, --eutrophication
+    // nitrate:       args[5]  flags: --nitrate, --no3
+    // flow_ratio:    args[6]  flags: --flow, --flow-ratio
+    // lsi:           args[7]  flags: --lsi, --langelier
+    // license_years: args[8]  flags: --years, --license
+    // human_profit:  args[9]  flags: --profit, --eur
+    id:      'CHRONO-ACTUARY-KERNEL-2.0',
+    fn:      'run_chrono_actuary',
+    args:    [15.0, 8.5, 5.0, 2.0, 0.8, 2.0, 0.4, 0.1, 30.0, 1_000_000.0],
+    argMap:  {
+      temp: 0, temperature: 0,
+      do: 1, oxygen: 1, dissolvedoxygen: 1,
+      bod: 2, bodload: 2,
+      dt: 3, deltat: 3, thermal: 3,
+      epi: 4, eutrophication: 4,
+      nitrate: 5, no3: 5,
+      flow: 6, flowratio: 6,
+      lsi: 7, langelier: 7,
+      years: 8, license: 8,
+      profit: 9, eur: 9,
+    },
+    params: [
+      { name: 'temp_c',        default: 15.0,        desc: 'baseline water temperature °C (cold: 5–10, temperate: 15, stressed: 25–30)' },
+      { name: 'do_conc',       default: 8.5,         desc: 'current DO mg/L (full: >8, stressed: 6–8, hypoxic: <4)' },
+      { name: 'bod_load',      default: 5.0,         desc: 'initial BOD at discharge point mg/L (clean: <2, impacted: 5–20)' },
+      { name: 'delta_t',       default: 2.0,         desc: 'thermal discharge delta °C (arson threshold: >5°C sustained)' },
+      { name: 'epi',           default: 0.8,         desc: 'Eutrophication Potential Index (capacity: <1, onset: 1–2, collapse: >5)' },
+      { name: 'nitrate',       default: 2.0,         desc: 'Nitrate-N mg/L (pristine: <1, WHO limit: 11.3, toxic asset: >11.3)' },
+      { name: 'flow_ratio',    default: 0.4,         desc: 'Q/Qmean — project flow as fraction of mean annual (bankrupt: <0.1, viable: 0.3–0.6)' },
+      { name: 'lsi',           default: 0.1,         desc: 'Langelier Saturation Index (equilibrium: ±0.5, veto: <-1.0)' },
+      { name: 'license_years', default: 30.0,        desc: 'permit duration years — IPCC AR6 end-of-license projection horizon' },
+      { name: 'human_profit',  default: 1_000_000.0, desc: 'reported project profit EUR — measured against ecological debt' },
+    ],
+    label:   'Chrono-Actuary Kernel v2.0.0',
+    type:    'rust',
+    aliases: ['chrono', 'actuary', 'chrono_actuary', 'river', 'river_sovereign', 'aqua', 'protocol_aqua', 'audit', 'ecological_audit', 'do_ledger'],
+  },
+  {
+    // run_fusion_plasma — Fusion Plasma Kernel v1.0.0
+    // Plasma Sovereignty Audit · Lawson Criterion · Q-Factor Ledger
+    //
+    // Five modules:
+    //   01 · Lawson Triple Product     n×T×τ_E ignition criterion
+    //   02 · Fusion Power & Q-Factor   P_fusion, P_alpha, Bremsstrahlung, Q
+    //   03 · Plasma Stability Ledger   β_N Troyon limit + Greenwald density
+    //   04 · Confinement Audit         IPB98(y,2) empirical scaling, H-factor
+    //   05 · Fuel Purity & Wall Load   He-4 ash dilution + neutron wall loading
+    //
+    // \ temp_kev:        args[0]  flags: --temp, --temperature, --kev
+    // \ density:         args[1]  flags: --density, --ne, --n
+    // \ tau_e:           args[2]  flags: --tau, --taue, --confinement
+    // \ b_field:         args[3]  flags: --field, --bfield, --bt
+    // \ major_radius:    args[4]  flags: --r, --major, --radius
+    // \ minor_radius:    args[5]  flags: --a, --minor
+    // \ plasma_current:  args[6]  flags: --ip, --current
+    // \ input_power:     args[7]  flags: --power, --pext, --heating
+    // \ elongation:      args[8]  flags: --kappa, --elongation, --shape
+    // \ helium_fraction: args[9]  flags: --he, --helium, --ash
+    id:      'FUSION-PLASMA-KERNEL-1.0',
+    fn:      'run_fusion_plasma',
+    args:    [10.0, 1.0, 3.7, 5.3, 6.2, 2.0, 15.0, 50.0, 1.7, 0.05],
+    argMap:  {
+      temp: 0, temperature: 0, kev: 0,
+      density: 1, ne: 1, n: 1,
+      tau: 2, taue: 2, confinement: 2,
+      field: 3, bfield: 3, bt: 3,
+      r: 4, major: 4, radius: 4,
+      a: 5, minor: 5,
+      ip: 6, current: 6,
+      power: 7, pext: 7, heating: 7,
+      kappa: 8, elongation: 8, shape: 8,
+      he: 9, helium: 9, ash: 9,
+    },
+    params: [
+      { name: 'temp_kev',        default: 10.0,  desc: 'ion temperature keV — ITER Q=10 point: 10 keV, pilot plant: 15-20 keV' },
+      { name: 'density',         default: 1.0,   desc: 'electron density 10²⁰/m³ — ITER: ~1.0, Greenwald limit typically ~1.2' },
+      { name: 'tau_e',           default: 3.7,   desc: 'energy confinement time s — ITER design: 3.7 s (H=1.0 at Q=10)' },
+      { name: 'b_field',         default: 5.3,   desc: 'toroidal magnetic field T — ITER: 5.3 T, compact designs: 7-12 T' },
+      { name: 'major_radius',    default: 6.2,   desc: 'tokamak major radius R m — ITER: 6.2 m' },
+      { name: 'minor_radius',    default: 2.0,   desc: 'tokamak minor radius a m — ITER: 2.0 m' },
+      { name: 'plasma_current',  default: 15.0,  desc: 'plasma current I_p MA — ITER: 15 MA; sets Greenwald limit' },
+      { name: 'input_power',     default: 50.0,  desc: 'external heating power MW — ITER NBI+ECRH+ICRH: 50 MW' },
+      { name: 'elongation',      default: 1.7,   desc: 'plasma elongation κ — ITER: 1.7; increases β_N limit' },
+      { name: 'helium_fraction', default: 0.05,  desc: 'He-4 ash fraction of total ion density — crisis threshold: 0.10' },
+    ],
+    label:   'Fusion Plasma Kernel v1.0.0',
+    type:    'rust',
+    aliases: ['fusion', 'plasma', 'tokamak', 'ignition', 'lawson', 'iter', 'fusion_plasma', 'q_factor', 'triple_product'],
+  },
 ];
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
