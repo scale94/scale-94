@@ -564,7 +564,7 @@
     "type": "kernel_doc",
     "date": "2026-03-11",
     "lastModified": "2026-03-11",
-    "title": "ARCHITECTURAL BLUEPRINT FOR A CYBERPUNK 2077 REACT TERMINAL INTERFACE: INTEGRATING RUST-NATIVE SIMULATION WITH GLITCH AESTHETICS",
+    "title": "**ARCHITECTURAL BLUEPRINT FOR A CYBERPUNK 2077 REACT TERMINAL",
     "subtitle": "**1\\. Netrunning Algorithms & Breach Protocol Mathematics**",
     "status": "ACTIVE",
     "readTime": "6 min read",
@@ -573,9 +573,9 @@
       "Cyberpunk",
       "React",
       "Terminal",
-      "Interface"
+      "Netrunning"
     ],
-    "len": "1284 WDS"
+    "len": "1277 WDS"
   },
   {
     "id": "BBK-1.0",
@@ -769,7 +769,7 @@
       "Terminal",
       "Interface"
     ],
-    "len": "5569 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "SKC-1.0",
@@ -792,7 +792,7 @@
       "dissipation",
       "sovereignty"
     ],
-    "len": "3044 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "SOMA-INTEGRATION-KERNEL-V1.0",
@@ -828,7 +828,7 @@
       "Performance",
       "Diagnostics"
     ],
-    "len": "3659 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "TAMAM-KERNEL-V1.0",
@@ -1555,7 +1555,7 @@
       "Interface",
       "Compiled"
     ],
-    "len": "3651 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "SCALE-KERNEL-FRAMEWORK-FULL",
