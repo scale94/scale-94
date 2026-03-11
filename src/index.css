@@ -136,7 +136,7 @@ html, body {
 }
 
 /* ── Article title clip-path glitch layers ───────────────────────────────── */
-/* Two pseudo-elements slice horizontal bands and offset them (cyan / magenta).
+/* Two pseudo-elements slice horizontal bands and offset them (cyan / green).
    clip-path is always inset(0 0 100% 0) — invisible — except during the glitch
    window, so no per-frame compositor work outside the burst. */
 @keyframes av-glitch-cyan {
@@ -177,13 +177,28 @@ html, body {
   animation: av-glitch-cyan 9s steps(1) infinite;
 }
 .av-glitch-title::after {
-  color: #ff00ff;
+  color: #39ff14;
   animation: av-glitch-magenta 9s steps(1) 0.5s infinite;
 }
 
 /* Relic mode amplifies both glitch layers to fire faster */
 .relic-mode .av-glitch-title::before { animation-duration: 1.8s; }
 .relic-mode .av-glitch-title::after  { animation-duration: 1.8s; }
+
+/* ── ArticleView title reveal ─────────────────────────────────────────────── */
+/* Fires once per article load (key=article.id). Blur + slide up, same family  */
+/* as bs-titleReveal and sk-kernelTextReveal.                                   */
+@keyframes av-titleReveal {
+  from { opacity: 0; transform: translateY(-8px); filter: blur(12px); }
+  to   { opacity: 1; transform: translateY(0);    filter: none; }
+}
+
+/* Continuous shimmer for article title gradient — green→cyan→green sweep */
+@keyframes av-titleShimmer {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
 
 /* ── ArticleView block stream animation ──────────────────────────────────── */
 /* Each HTML chunk is its own React element — fires once per mount (new block). */

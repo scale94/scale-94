@@ -52,7 +52,9 @@
       "Bash(dir \"E:\\\\scale_9.4\\\\src\\\\terminal\\\\views\" /b)",
       "Bash(node import-kernel.js)",
       "Bash(wasm-pack build --target web --release)",
-      "Bash(node scripts/import-rust.js --registry-only)"
+      "Bash(node scripts/import-rust.js --registry-only)",
+      "Bash(node --check /e/scale_9.4/import-kernel.js)",
+      "Bash(wasm-pack build:*)"
     ]
   }
 }

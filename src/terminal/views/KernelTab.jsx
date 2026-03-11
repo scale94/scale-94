@@ -39,6 +39,11 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
         50%  { background-position: 100% 50%; }
         100% { background-position: 0% 50%; }
       }
+      @keyframes sk-moduleNameShimmer {
+        0%   { background-position: 0% 50%; }
+        50%  { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+      }
       @keyframes sk-subReveal {
         from { opacity: 0; transform: translateY(-6px); filter: blur(8px); }
         to   { opacity: 1; transform: translateY(0);   filter: blur(0); }
@@ -61,7 +66,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
             style={{ animation: 'sk-kernelIconReveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}
           />
           <span
-            className="text-transparent bg-clip-text bg-gradient-to-r from-[#39ff14] via-white to-[#00ffff]"
+            className="text-transparent bg-clip-text bg-gradient-to-r from-[#39ff14] via-[#00ffff] to-[#39ff14]"
             style={{
               backgroundSize: '400% auto',
               animation: 'sk-kernelTextReveal 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards, sk-kernelShimmer 2.5s ease-in-out infinite'
@@ -111,8 +116,16 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
 
       <div id="kernel-container" className="space-y-8">
         <div className="border border-cyan-900/50 p-6 bg-black/50 backdrop-blur-sm hover:border-cyan-500/50 transition-colors rounded-lg flex flex-col h-[500px] overflow-hidden">
-          <h3 className="text-lg font-bold mb-6 flex items-center gap-2 text-cyan-400">
-            <GitBranch className="w-4 h-4" /> ACTIVE_MODULES
+          <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
+            <GitBranch className="w-4 h-4 shrink-0 text-[#06b6d4]" />
+            <span
+              className="text-transparent bg-clip-text"
+              style={{
+                backgroundImage: 'linear-gradient(90deg, #06b6d4, #d946ef, #39ff14)',
+                backgroundSize: '200% auto',
+                animation: 'sk-kernelShimmer 3s ease-in-out infinite',
+              }}
+            >ACTIVE_MODULES</span>
           </h3>
           <ul ref={listRef} className="space-y-4 text-sm font-mono text-[#39ff14] overflow-y-auto custom-scrollbar pr-2 flex-grow">
             {kernelBuilds.map((kernel, idx) => {
@@ -121,18 +134,25 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
                 <li
                   key={kernel.id}
                   onClick={() => handleKernelClick && handleKernelClick(kernel)}
-                  className={`flex flex-wrap justify-between items-center gap-y-3 border-b border-cyan-900/20 pb-4 mb-2 cursor-pointer p-3 rounded transition-all group gap-3
-                    ${isLoading ? 'bg-cyan-900/20 border-cyan-500/50 animate-pulse' : 'hover:bg-cyan-900/10'}`}
+                  className={`flex flex-wrap justify-between items-center gap-y-3 border-b pb-4 mb-2 cursor-pointer p-3 rounded transition-all group gap-3
+                    ${isLoading ? 'bg-cyan-900/20 border-cyan-400/60 shadow-[inset_0_0_20px_rgba(34,211,238,0.08)] backdrop-blur-sm animate-pulse' : 'border-cyan-900/20 hover:bg-cyan-900/10'}`}
                   style={{ animation: `sk-kernelModuleIn 0.22s ease-out ${idx * 40}ms both` }}
                 >
                   <div className="min-w-0">
-                    <div className="font-bold text-cyan-400 text-base mb-1 group-hover:text-cyan-300 transition-colors break-words">{kernel.name}</div>
+                    <div
+                      className="font-bold text-base mb-1 break-words text-transparent bg-clip-text"
+                      style={{
+                        backgroundImage: 'linear-gradient(90deg, #39ff14, #06b6d4, #d946ef, #ef4444, #38bdf8, #39ff14)',
+                        backgroundSize: '300% auto',
+                        animation: 'sk-moduleNameShimmer 3.5s ease-in-out infinite',
+                      }}
+                    >{kernel.name}</div>
                     <div className="text-xs text-[#39ff14] font-bold tracking-wide break-words">
                       {isLoading ? 'INITIALIZING...' : kernel.desc}
                     </div>
                   </div>
                   <div className="flex items-center gap-4 shrink-0 ml-auto">
-                    <div className="text-[10px] font-bold px-3 py-1 rounded border bg-transparent tracking-widest whitespace-nowrap border-cyan-500 text-cyan-500 shadow-[0_0_5px_rgba(6,182,212,0.3)]">
+                    <div className={`text-[10px] font-bold px-3 py-1 rounded border tracking-widest whitespace-nowrap transition-all ${isLoading ? 'bg-cyan-900/30 border-cyan-400 text-cyan-300 shadow-[0_0_12px_rgba(34,211,238,0.4)] backdrop-blur-sm' : 'bg-transparent border-cyan-500 text-cyan-500 shadow-[0_0_5px_rgba(6,182,212,0.3)]'}`}>
                       {isLoading ? '...' : '[LOAD]'}
                     </div>
                     <ChevronRight className={`w-5 h-5 transition-colors ${isLoading ? 'text-cyan-400 animate-bounce' : 'text-cyan-500/50 group-hover:text-cyan-400'}`} />

@@ -241,7 +241,7 @@ const KERNEL_MAP = [
     ],
     label:   'Soma Plus Engine v1.0',
     type:    'rust',
-    aliases: ['soma_plus', 'somaplus', 'social_capital', 'commons', 'status', 'contribution'],
+    aliases: ['soma_plus', 'somaplus', 'social_capital', 'commons_engine', 'status', 'contribution'],
   },
   {
     // ── ADVANCED DYNAMICS LAYER — Ars Electronica 2027 ──────────────────────
@@ -297,6 +297,7 @@ const KERNEL_MAP = [
     label:   'Evolutionary Replicator Dynamics v1.0',
     type:    'rust',
     aliases: ['replicator', 'evolutionary', 'gametheory', 'commons', 'cooperate', 'defect', 'altruist', 'ostrom_game'],
+    // 'commons' kept here — replicator dynamics IS the commons dilemma game
   },
   {
     // Ising Consensus Field — 4-parameter free function.
@@ -371,7 +372,7 @@ const KERNEL_MAP = [
     ],
     label:   'Strangler Fig Protocol v1.0',
     type:    'rust',
-    aliases: ['strangler', 'transition', 'stranglerfig', 'fig', 'adoption', 'legacy', 'logistic'],
+    aliases: ['strangler', 'transition', 'stranglerfig', 'fig', 'adoption', 'legacy', 'logistic_transition'],
   },
   {
     // Surveillance Index — grey-c0 / Navigators Guild dataset (44 laws, 14 jurisdictions)
@@ -423,6 +424,32 @@ const KERNEL_MAP = [
     aliases: ['grayscott', 'gray_scott', 'reaction_diffusion', 'turing', 'morphogenesis', 'pde', 'diffusion'],
   },
   {
+    // Cynic Realist Dissipative Adaptation Engine — 4-parameter free function.
+    // Stochastic Kuramoto-England hybrid: dθ_i/dt = ω_i + K·r·sin(ψ−θ_i) + √(2T)·η_i(t)
+    // n_agents:    args[0]  flags: --n_agents, --n, --agents
+    // temperature: args[1]  flags: --temperature, --temp, --t
+    // coupling:    args[2]  flags: --coupling, --k
+    // steps:       args[3]  flags: --steps, --iters
+    id:      'CYNIC-REALIST-KERNEL-1.0',
+    fn:      'run_cynic_realist',
+    args:    [24.0, 1.0, 3.0, 600.0],
+    argMap:  {
+      n_agents: 0, n: 0, agents: 0,
+      temperature: 1, temp: 1, t: 1,
+      coupling: 2, k: 2,
+      steps: 3, iters: 3,
+    },
+    params: [
+      { name: 'n_agents',    default: 24.0,  desc: 'N: cognitive subsystems — stochastic oscillators in the field (4–64)' },
+      { name: 'temperature', default: 1.0,   desc: 'T: evolutionary temperature — stochasticity of adaptation (0.05–5.0)' },
+      { name: 'coupling',    default: 3.0,   desc: 'K: interaction coupling constant — solidarity strength (0.0–20.0)' },
+      { name: 'steps',       default: 600.0, desc: 'Euler integration steps, dt=0.05 — depth of adaptation (50–1500)' },
+    ],
+    label:   'Cynic Realist Dissipative Adaptation Engine v1.0',
+    type:    'rust',
+    aliases: ['cynicrealist', 'cynic_realist', 'dissipative', 'england', 'kuramoto_england', 'sloterdijk'],
+  },
+  {
     // ML-KEM-768 Post-Quantum Key Encapsulation — FIPS 203.
     // Generates a fresh keypair via OS entropy, encapsulates a shared secret.
     // reveal: args[0]  flags: --reveal, --r, --show, --expose
@@ -437,7 +464,35 @@ const KERNEL_MAP = [
     ],
     label:   'ML-KEM-768 Classified v1.0',
     type:    'rust',
-    aliases: ['classified', 'mlkem', 'ml_kem', 'pqc', 'postquantum', 'kem', 'lattice', 'fips203', 'quantum_crypto'],
+    aliases: ['classified', 'mlkem', 'ml_kem', 'pqc', 'postquantum', 'kem', 'lattice_crypto', 'fips203', 'quantum_crypto'],
+  },
+  {
+    // DRK Pragmatic<T> — Dissipative Rust Kernel foundational type system.
+    // Simulates N agents resolving tasks under thermal budget constraints.
+    // Demonstrates: Resolved/Synthetic/Dissolved outcomes, chain degradation,
+    // fidelity distribution, thermal efficiency.
+    // n_agents:       args[0]  flags: --n, --agents
+    // thermal_budget: args[1]  flags: --budget, --energy
+    // thermal_limit:  args[2]  flags: --limit, --threshold
+    // cost_exponent:  args[3]  flags: --alpha, --exponent
+    id:      'DRK-PRAGMATIC-TYPE-1.0',
+    fn:      'run_pragmatic_type',
+    args:    [32.0, 500.0, 10.0, 1.5],
+    argMap:  {
+      n: 0, agents: 0, n_agents: 0,
+      budget: 1, energy: 1, thermal_budget: 1,
+      limit: 2, threshold: 2, thermal_limit: 2,
+      alpha: 3, exponent: 3, cost_exponent: 3,
+    },
+    params: [
+      { name: 'n_agents',       default: 32.0,  desc: 'N: agents attempting resolution tasks (4–128)' },
+      { name: 'thermal_budget', default: 500.0, desc: 'total energy for all computations — shared thermal reservoir (10–10000)' },
+      { name: 'thermal_limit',  default: 10.0,  desc: 'max cost for full-fidelity Resolved outcome (0.5–100)' },
+      { name: 'cost_exponent',  default: 1.5,   desc: 'α: power-law exponent for task cost distribution — lower = more extreme tails (0.5–3.0)' },
+    ],
+    label:   'DRK Pragmatic<T> Type System v1.0',
+    type:    'rust',
+    aliases: ['pragmatic', 'pragmatic_type', 'drk', 'drk_pragmatic', 'thermal_resolve', 'pragmatict'],
   },
 ];
 
@@ -592,6 +647,28 @@ function run() {
   } else {
     log(`[DRY] Would write wasm.generated.js (${KERNEL_MAP.length} kernel(s)):`);
     KERNEL_MAP.forEach(k => log(`  · ${k.id} → ${k.fn ? `${k.fn}()` : (k.struct ? `${k.struct}.${k.boot ?? k.cycle}()` : k.id)}`));
+  }
+
+  // ── Step 4: Update WASM SHA-256 in kernel manifest ────────────────────────
+  // The manifest's bosonic_lattice.sha256 is used by App.jsx for WASM integrity
+  // verification. Keep it in sync after every build so the browser check passes.
+  const MANIFEST = path.join(ROOT, 'public', 'kernel', 'manifest.json');
+  if (!DRY_RUN && fs.existsSync(MANIFEST) && fs.existsSync(wasmBinPath)) {
+    try {
+      const manifest = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
+      const fullHash = crypto.createHash('sha256')
+        .update(fs.readFileSync(wasmBinPath)).digest('hex');
+      if (manifest.bosonic_lattice && manifest.bosonic_lattice.sha256 !== fullHash) {
+        manifest.bosonic_lattice.sha256 = fullHash;
+        manifest.bosonic_lattice.built  = new Date().toISOString();
+        atomicWrite(MANIFEST, JSON.stringify(manifest, null, 2));
+        log(`✓ Updated manifest WASM SHA-256: ${fullHash.slice(0, 12)}…`);
+      } else if (manifest.bosonic_lattice) {
+        log(`  Manifest WASM SHA-256 already current.`);
+      }
+    } catch (e) {
+      console.warn(`  ⚠ Could not update manifest WASM hash: ${e.message}`);
+    }
   }
 
   console.log('');

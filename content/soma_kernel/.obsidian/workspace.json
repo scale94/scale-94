@@ -11,10 +11,14 @@
             "id": "cbb422adc1983a05",
             "type": "leaf",
             "state": {
-              "type": "empty",
-              "state": {},
+              "type": "markdown",
+              "state": {
+                "file": "Architectural Blueprint for a Quantum-Theoretic React Terminal.md",
+                "mode": "source",
+                "source": false
+              },
               "icon": "lucide-file",
-              "title": "New tab"
+              "title": "Architectural Blueprint for a Quantum-Theoretic React Terminal"
             }
           }
         ]
@@ -49,7 +53,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "",
+                "query": "architectural blue",
                 "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": false,
@@ -182,6 +186,8 @@
   },
   "active": "cbb422adc1983a05",
   "lastOpenFiles": [
+    "cynic_realist_kernel_1.0.md",
+    "cynic_realist_kernel_1.0.md.tmp.6980.1773219198452",
     "main.rs",
     "Cargo.toml",
     "DH-EC_KERNEL-V1_0_0.md",
@@ -216,8 +222,6 @@
     "THE-FLUORESCENT-CAGE.md.tmp.22924.1772811426906",
     "THE-CIGAR-HEIST.md.tmp.22924.1772811322646",
     "sed7JzhOg",
-    "sedgvcYxW",
-    "sedXoRyXV",
-    "sedo1eWay"
+    "sedgvcYxW"
   ]
 }

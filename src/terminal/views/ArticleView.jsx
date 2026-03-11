@@ -121,19 +121,27 @@ const ArticleView = ({ article, originTab, handleReturnToRoot, onNeuralLink }) =
         contain: 'layout size',
       }}>
         <h1
-          className="av-glitch-title text-[14pt] font-bold mb-4 text-cyan-400 tracking-tighter leading-tight"
+          key={article.id}
+          className="av-glitch-title text-[14pt] font-bold mb-4 tracking-tighter leading-tight text-transparent bg-clip-text"
           data-text={article.title}
           style={{
+            backgroundImage: 'linear-gradient(90deg, #39ff14, #06b6d4, #d946ef, #ef4444, #38bdf8, #39ff14)',
             WebkitTextSizeAdjust: 'none',
             textSizeAdjust: 'none',
             overflowWrap: 'anywhere',
             hyphens: 'none',
+            backgroundSize: '300% auto',
+            animation: 'av-titleReveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) both, av-titleShimmer 3s ease-in-out infinite',
           }}
         >
           <HackerText text={article.title} />
         </h1>
       </div>
-      <h2 className="text-[12pt] text-fuchsia-400 mb-12 font-light tracking-wide">{article.subtitle}</h2>
+      <h2
+        key={`sub-${article.id}`}
+        className="text-[12pt] text-[#39ff14] mb-12 font-light tracking-wide"
+        style={{ animation: 'av-titleReveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.12s both' }}
+      >{article.subtitle}</h2>
 
       <div
         className="prose prose-invert prose-cyan max-w-none font-mono text-sm md:text-base leading-relaxed"

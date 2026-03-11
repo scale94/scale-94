@@ -580,6 +580,7 @@ function run() {
   let skipped   = 0;
   const pendingArticles = [];
   const pendingBuilds   = [];
+  const changedArticles = []; // cache-misses only — used for commit message
 
   for (const file of files) {
     const fullPath = path.join(CONTENT_DIR, file);
@@ -667,6 +668,7 @@ function run() {
     processed++;
     if (!DRY_RUN) {
       pendingArticles.push({ id, type, date, lastModified, title, subtitle, status, readTime, tags, content: body, _hash: rawHash, _cacheKey: cacheKey });
+      changedArticles.push(id);
 
       // Build entry — skip only if already declared in the hand-curated section.
       // The inject zone is always wiped; every non-hand-curated kernel is re-written.
@@ -709,10 +711,20 @@ function run() {
 
   // ── Auto-commit + push ────────────────────────────────────────────────────
   if (!DRY_RUN && pendingArticles.length > 0) {
-    const names   = pendingArticles.map(a => a.id).join(', ');
-    const message = `import: ${names}`;
-    console.log(`  git add .`);
-    const add = spawnSync('git', ['add', '.'], { stdio: 'inherit' });
+    const message = changedArticles.length > 0
+      ? `import: ${changedArticles.join(', ')}`
+      : `chore: rebuild kernel manifest (no new kernels)`;
+    // Stage only the files this importer generates — never touch unrelated
+    // working-tree changes (WASM builds, JSX edits, etc.).
+    const filesToStage = [
+      'public/kernel',
+      'src/terminal/data/generated_chunks',
+      'src/terminal/data/articles.generated.js',
+      'src/terminal/data/tags.generated.js',
+      'src/terminal/data/kernelBuilds.js',
+    ];
+    console.log(`  git add ${filesToStage.join(' ')}`);
+    const add = spawnSync('git', ['add', ...filesToStage], { stdio: 'inherit' });
     if (add.status !== 0) {
       console.error(`  ✗ git add failed (status ${add.status})`);
       process.exit(add.status ?? 1);

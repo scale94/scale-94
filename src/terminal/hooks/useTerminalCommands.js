@@ -250,6 +250,17 @@ export default function useTerminalCommands({
       } else {
         const [baseCmd, ...flagTokens] = query.split(' ').filter(Boolean);
 
+        // Standalone commands that are not WASM kernels — redirect with hint
+        if (['breach', 'relic'].includes(baseCmd.toLowerCase())) {
+          appendSystemLog({ time: now, msg: `COMMAND: ${rawCmd}` });
+          setSystemLogs(prev => [
+            ...prev,
+            { time: now, msg: `  RUN_REDIRECT :: '${baseCmd}' is a standalone command, not a WASM kernel.` },
+            { time: now, msg: `  Type '${baseCmd.toLowerCase()}' directly to execute it.` },
+          ].slice(-2000));
+          return;
+        }
+
         // vcache_burn hardwire — direct call, no lookup
         if (baseCmd.toLowerCase() === 'vcache_burn') {
           appendSystemLog({ time: now, msg: `COMMAND: ${rawCmd}` });

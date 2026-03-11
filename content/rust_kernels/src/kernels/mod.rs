@@ -26,3 +26,5 @@ pub mod feigenbaum;      // run_feigenbaum_cascade
 pub mod dh_ec;           // run_dh_ec_kernel
 pub mod grayscott;       // GrayScottKernel (stateful reaction-diffusion)
 pub mod classified;      // run_classified (ML-KEM-768 post-quantum crypto)
+pub mod cynic_realist;   // run_cynic_realist (Kuramoto-England dissipative adaptation)
+pub mod pragmatic;       // run_pragmatic_type (DRK: Pragmatic<T> thermodynamic type system)

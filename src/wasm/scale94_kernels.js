@@ -472,6 +472,26 @@ export function run_classified(reveal) {
 }
 
 /**
+ * @param {number} n_agents
+ * @param {number} temperature
+ * @param {number} coupling
+ * @param {number} steps
+ * @returns {string}
+ */
+export function run_cynic_realist(n_agents, temperature, coupling, steps) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_cynic_realist(n_agents, temperature, coupling, steps);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * Run the soma_kernel_5.5 Daly Rules thermodynamic simulation.
  *
  * Integrates three coupled ODEs over `years` annual timesteps:
@@ -616,6 +636,38 @@ export function run_kuramoto_synchrony(n_oscillators, coupling, freq_spread, tim
     let deferred1_1;
     try {
         const ret = wasm.run_kuramoto_synchrony(n_oscillators, coupling, freq_spread, timesteps);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * Dissipative Rust Kernel: Pragmatic<T> Type Demonstration
+ *
+ * Simulates N agents attempting computational tasks drawn from a power-law
+ * cost distribution under a shared thermal budget. As budget depletes:
+ *   Resolved → Synthetic → Dissolved
+ *
+ * Parameters:
+ *   n_agents:       agents attempting resolution (4–128)
+ *   thermal_budget: total energy available for all computations (10–10000)
+ *   thermal_limit:  max cost for full-fidelity resolution (0.5–100)
+ *   cost_exponent:  power-law exponent for task cost distribution (0.5–3.0)
+ *                   lower = more extreme costs; higher = more uniform
+ * @param {number} n_agents
+ * @param {number} thermal_budget
+ * @param {number} thermal_limit
+ * @param {number} cost_exponent
+ * @returns {string}
+ */
+export function run_pragmatic_type(n_agents, thermal_budget, thermal_limit, cost_exponent) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_pragmatic_type(n_agents, thermal_budget, thermal_limit, cost_exponent);
         deferred1_0 = ret[0];
         deferred1_1 = ret[1];
         return getStringFromWasm0(ret[0], ret[1]);
