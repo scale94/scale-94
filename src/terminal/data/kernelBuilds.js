@@ -157,6 +157,7 @@ const kernelBuilds = [
   { id: "SCALE-KERNEL-FRAMEWORK-FULL", articleId: "SCALE-KERNEL-FRAMEWORK-FULL", name: "SCALE_KERNEL_FRAMEWORK_FULL", status: "ACTIVE", desc: "☠ Full Corpus Synthesis · Render Prompt Architecture ☠" },
   { id: "SKC-1.0", articleId: "SKC-1.0", name: "SCALE94_KERNEL_CODEX_V1_0_0", status: "ACTIVE", desc: "TRANSMUTE: Convert Low-Fidelity Chaos into High-Fidelity Structure" },
   { id: "SCALE-OPTIMIZATION-KERNEL-9.4", articleId: "SCALE-OPTIMIZATION-KERNEL-9.4", name: "SCALE_OPTIMIZATION_KERNEL_9_4", status: "ACTIVE", desc: "◈ 2026 GEOPOLITICAL ALIGNMENT" },
+  { id: "SSS-7.7.7.7.7.7.7", articleId: "SSS-7.7.7.7.7.7.7", name: "SCALE_SEVEN_SOVEREIGNITY_KERNEL_V7_7_7_7_7_7_7", status: "ACTIVE", desc: "ᛟ 1.0 THE AXIOMATIC CORE [TRANSCENDENT]" },
   { id: "SCALING-CUBE-PROTOCOL", articleId: "SCALING-CUBE-PROTOCOL", name: "SCALING_CUBE_PROTOCOL", status: "ACTIVE", desc: "Platonic Form · Entropic Stasis · The Architecture of Potential" },
   { id: "SRDK-3.3.3", articleId: "SRDK-3.3.3", name: "SCOTT_REACTION_DIFFUSION_KERNEL_3_3_3", status: "ACTIVE", desc: "Mathematical Architecture" },
   { id: "SOMA-9.1", articleId: "SOMA-9.1", name: "SOMA_9_1_KERNEL_REPORT", status: "ACTIVE", desc: "Ⅰ. KINETIC THEATER: MIDDLE EASTERN GRID FRACTURE" },

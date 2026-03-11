@@ -183,6 +183,10 @@
   ],
   "AXIOMATIC": [
     {
+      "id": "SSS-7.7.7.7.7.7.7",
+      "title": "SCALE_SYSTEM_KERNEL :: V7.7.7.7.7.7.7 :: CRYSTALLINE_INVARIANCE"
+    },
+    {
       "id": "MM-3.3.3",
       "title": "SCALE_SYSTEM_KERNEL :: V11.5.0 :: MASCULINE_MEDIOCRACY"
     },
@@ -501,6 +505,12 @@
     {
       "id": "DH-EC-KERNEL-V1-0-0",
       "title": "ᛟ THE DH-EC KERNEL · CRYPTOGRAPHIC ARCHITECTURE"
+    }
+  ],
+  "CRYSTALLINE": [
+    {
+      "id": "SSS-7.7.7.7.7.7.7",
+      "title": "SCALE_SYSTEM_KERNEL :: V7.7.7.7.7.7.7 :: CRYSTALLINE_INVARIANCE"
     }
   ],
   "Cyberpunk": [
@@ -1085,6 +1095,12 @@
     {
       "id": "FISH-SCALE-KERNEL-11.4.0-SCALAR-SOVEREIGNTY",
       "title": "FISH SCALE KERNEL 11.4.0 SCALAR SOVEREIGNTY"
+    }
+  ],
+  "INVARIANCE": [
+    {
+      "id": "SSS-7.7.7.7.7.7.7",
+      "title": "SCALE_SYSTEM_KERNEL :: V7.7.7.7.7.7.7 :: CRYSTALLINE_INVARIANCE"
     }
   ],
   "ISENGARD": [
@@ -1857,6 +1873,10 @@
       "title": "FISH SCALE KERNEL · 11.8.0 · THE ECO-QUANTUM TOPOLOGY"
     },
     {
+      "id": "SSS-7.7.7.7.7.7.7",
+      "title": "SCALE_SYSTEM_KERNEL :: V7.7.7.7.7.7.7 :: CRYSTALLINE_INVARIANCE"
+    },
+    {
       "id": "NFDK-4.4.4",
       "title": "SCALE_SYSTEM_KERNEL :: V4.4.4.4 :: NUCLEAR_FUSION_DETONATION"
     },
@@ -2291,6 +2311,10 @@
     {
       "id": "SERAPHINE-KERNEL-V15.5.5",
       "title": "SERAPHINE KERNEL V15.5.5"
+    },
+    {
+      "id": "SSS-7.7.7.7.7.7.7",
+      "title": "SCALE_SYSTEM_KERNEL :: V7.7.7.7.7.7.7 :: CRYSTALLINE_INVARIANCE"
     },
     {
       "id": "NFDK-4.4.4",
