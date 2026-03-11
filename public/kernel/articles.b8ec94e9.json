@@ -747,6 +747,24 @@
     "len": "0 WDS"
   },
   {
+    "id": "FUSION-PLASMA-KERNEL-1.0",
+    "type": "kernel_doc",
+    "date": "2026-03-11",
+    "lastModified": "2026-03-11",
+    "title": "FUSION PLASMA KERNEL · 1.0.0 · PLASMA SOVEREIGNTY AUDIT",
+    "subtitle": "THERMODYNAMIC AUDIT · LAWSON CRITERION · Q-FACTOR LEDGER",
+    "status": "ACTIVE",
+    "readTime": "9 min read",
+    "tags": [
+      "FUSION",
+      "PLASMA",
+      "THERMODYNAMIC",
+      "AUDIT",
+      "LAWSON"
+    ],
+    "len": "1814 WDS"
+  },
+  {
     "id": "KINETIC-STATECRAFT-KERNEL-1.0",
     "type": "kernel_doc",
     "date": "2026-03-07",

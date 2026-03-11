@@ -153,6 +153,10 @@
     {
       "id": "CUSTOM-KEYB-KERNEL-19.0",
       "title": "☢️ KERNEL_LOG: SENSORY_CORRUPTION_AUDIT ☢️"
+    },
+    {
+      "id": "FUSION-PLASMA-KERNEL-1.0",
+      "title": "FUSION PLASMA KERNEL · 1.0.0 · PLASMA SOVEREIGNTY AUDIT"
     }
   ],
   "Axiom": [
@@ -891,6 +895,10 @@
     {
       "id": "QUANTUM-QUACKSALBER-KERNEL-1.1.1",
       "title": "🔱 KERNEL: QUANTUM FUSION PROTOCOL [LAYER 3 FINAL]"
+    },
+    {
+      "id": "FUSION-PLASMA-KERNEL-1.0",
+      "title": "FUSION PLASMA KERNEL · 1.0.0 · PLASMA SOVEREIGNTY AUDIT"
     }
   ],
   "GAIA-SCALE": [
@@ -1165,6 +1173,12 @@
     {
       "id": "NECROMANTIC-ARISTOCRAT-KERNEL-1.1.1.1.1",
       "title": "NECROMANTIC ARISTOCRAT KERNEL 1.1.1.1.1"
+    }
+  ],
+  "LAWSON": [
+    {
+      "id": "FUSION-PLASMA-KERNEL-1.0",
+      "title": "FUSION PLASMA KERNEL · 1.0.0 · PLASMA SOVEREIGNTY AUDIT"
     }
   ],
   "Layer": [
@@ -1549,6 +1563,12 @@
     {
       "id": "GDPDW-KERNEL-5.5.5.5.5",
       "title": "GREENLAND KERNEL // THE PIRARUCU PROTOCOL"
+    }
+  ],
+  "PLASMA": [
+    {
+      "id": "FUSION-PLASMA-KERNEL-1.0",
+      "title": "FUSION PLASMA KERNEL · 1.0.0 · PLASMA SOVEREIGNTY AUDIT"
     }
   ],
   "POLARITY": [
@@ -2345,6 +2365,12 @@
     {
       "id": "FISH-SCALE-KERNEL-11.4.0-SCALAR-SOVEREIGNTY",
       "title": "FISH SCALE KERNEL 11.4.0 SCALAR SOVEREIGNTY"
+    }
+  ],
+  "THERMODYNAMIC": [
+    {
+      "id": "FUSION-PLASMA-KERNEL-1.0",
+      "title": "FUSION PLASMA KERNEL · 1.0.0 · PLASMA SOVEREIGNTY AUDIT"
     }
   ],
   "thermodynamics": [
