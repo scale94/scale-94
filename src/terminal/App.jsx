@@ -26,8 +26,9 @@ function chunkFileName(id) {
 }
 
 // Components
-import OctagonGrid   from './components/OctagonGrid';
-import BootSequence  from './components/BootSequence';
+import OctagonGrid     from './components/OctagonGrid';
+import BootSequence    from './components/BootSequence';
+import BreachProtocol  from './components/BreachProtocol';
 
 // Hooks
 import useSystemLog       from './hooks/useSystemLog';
@@ -127,6 +128,8 @@ const CMD_MANIFEST = [
   { name: 'privacy',       desc: 'navigate to /privacy' },
   { name: 'cryptography',  desc: 'navigate to /cryptography — PQC kernel' },
   { name: 'verify',        desc: 'submit classified challenge  e.g. verify ABCDEF' },
+  { name: 'breach',        desc: 'launch Breach Protocol minigame' },
+  { name: 'relic',         desc: 'trigger Relic malfunction diagnostics' },
 ];
 
 const App = () => {
@@ -151,6 +154,12 @@ const App = () => {
   const [historyIdx,   setHistoryIdx]   = useState(-1);   // -1 = live input
   const [savedInput,   setSavedInput]   = useState('');
   const [isOnline,     setIsOnline]     = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  // Breach Protocol minigame
+  const [breachOpen,   setBreachOpen]   = useState(false);
+  // Relic malfunction mode — amplifies glitch, streams hex to log
+  const [relicMode,    setRelicMode]    = useState(false);
+  // RAM thermodynamics — §1.2: depletes on commands, auto-recovers
+  const [ram,          setRam]          = useState({ current: 16, max: 16 });
   // CAS dynamic data — null while manifest fetch is in-flight
   const [dynamicData,  setDynamicData]  = useState(null);
 
@@ -337,6 +346,14 @@ const App = () => {
       window.removeEventListener('online',  goOnline);
       window.removeEventListener('offline', goOffline);
     };
+  }, []);
+
+  // RAM auto-recovery — §1.2 quickhack thermodynamics. +1 unit every 2.5s until max.
+  useEffect(() => {
+    const t = setInterval(() => {
+      setRam(r => r.current < r.max ? { ...r, current: r.current + 1 } : r);
+    }, 2500);
+    return () => clearInterval(t);
   }, []);
 
   // Scroll to top on initial mount — prevents autoFocus on the footer input
@@ -838,6 +855,7 @@ const App = () => {
                 if (parsedFlags[flag] !== undefined) callArgs[idx] = parsedFlags[flag];
               }
             }
+            setRam(r => ({ ...r, current: Math.max(0, r.current - 4) }));
             setSystemLogs(prev => [
               ...prev,
               { time: now, msg: `  WASM_BOOT :: ${wasmEntry.label}` },
@@ -1179,6 +1197,48 @@ const App = () => {
       } else if (action === 'clear') {
         setSystemLogs([]);
         executeCommand(rawCmd, "System log cleared.");
+      } else if (action === 'breach') {
+        // ── Breach Protocol minigame — §1.1 ────────────────────────────────
+        appendSystemLog({ time: now, msg: `COMMAND: ${rawCmd}` });
+        setSystemLogs(prev => [
+          ...prev,
+          { time: now, msg: `  BREACH_PROTOCOL :: Scanning ICE node...` },
+          { time: now, msg: `  MILITECH MANTIS v4.2 detected — initiating datamining sequence` },
+          { time: now, msg: `  RAM cost: 4 units` },
+        ].slice(-2000));
+        setRam(r => ({ ...r, current: Math.max(0, r.current - 4) }));
+        setBreachOpen(true);
+      } else if (action === 'relic') {
+        // ── Relic malfunction diagnostics — §4.2 ───────────────────────────
+        appendSystemLog({ time: now, msg: `COMMAND: ${rawCmd}` });
+        setSystemLogs(prev => [
+          ...prev,
+          { time: now, msg: `  RELIC_CHIP :: Arasaka Secure Your Soul v2.1 — MALFUNCTION DETECTED` },
+          { time: now, msg: `  NEURAL_BRIDGE :: Integrity 23% — cascading failure imminent` },
+          { time: now, msg: `  WARNING: Soulkiller engram overwrite in progress...` },
+        ].slice(-2000));
+        setRelicMode(true);
+        // Flood log with hex streams for 5 seconds, then clear relic mode
+        const HEX = ['BD','E9','1C','7A','55','FF','E3','9A','C2','4F','A1','3D'];
+        let tick = 0;
+        const flood = setInterval(() => {
+          const line = Array.from({ length: 8 }, () => HEX[Math.floor(Math.random() * HEX.length)]).join(' ');
+          const errTypes = ['SYNAPSE_OVERFLOW','DNA_OVERWRITE','ENGRAM_COLLAPSE','CORTEX_BREACH'];
+          const msg = tick % 4 === 0
+            ? `  ${errTypes[Math.floor(Math.random() * errTypes.length)]} :: ${line}`
+            : `  0x${line.replace(/ /g, '')}`;
+          setSystemLogs(prev => [...prev, { time: now, msg, rust: tick % 4 === 0 }].slice(-2000));
+          tick++;
+        }, 120);
+        setTimeout(() => {
+          clearInterval(flood);
+          setRelicMode(false);
+          const t = new Date().toLocaleTimeString('en-US', { hour12: false });
+          setSystemLogs(prev => [...prev,
+            { time: t, msg: `  RELIC_CHIP :: Emergency stabilization complete — neural bridge restored` },
+            { time: t, msg: `  Shannon entropy: H = 4.721 bits — engram partially intact` },
+          ].slice(-2000));
+        }, 5000);
       } else if (action === 'exit') {
         executeCommand(rawCmd, "Session integrity maintained. Disconnecting terminal interface.");
       } else {
@@ -1188,10 +1248,27 @@ const App = () => {
   };
 
   return (
-    <div className={`min-h-screen font-mono selection:bg-fuchsia-900 selection:text-white flex flex-col overflow-hidden relative transition-colors duration-700 ${selectedArticle || architectThesis ? 'bg-[#09090b]' : 'bg-black'}`}>
+    <div className={`min-h-screen font-mono selection:bg-fuchsia-900 selection:text-white flex flex-col overflow-hidden relative transition-colors duration-700 ${selectedArticle || architectThesis ? 'bg-[#09090b]' : 'bg-black'} ${relicMode ? 'relic-mode' : ''}`}
+      style={{ animation: 'terminal-flicker 7s ease-in-out infinite' }}
+    >
 
       {/* ── Boot sequence — unmounts when onDone fires ─────────────────────── */}
       {bootSequence && <BootSequence onDone={handleBootDone} />}
+
+      {/* ── Breach Protocol overlay ─────────────────────────────────────────── */}
+      {breachOpen && (
+        <BreachProtocol
+          onClose={() => setBreachOpen(false)}
+          onSuccess={() => {
+            setBreachOpen(false);
+            const t = new Date().toLocaleTimeString('en-US', { hour12: false });
+            setSystemLogs(prev => [...prev,
+              { time: t, msg: `  BREACH_COMPLETE :: ICE dissolved — DATAMINE daemons uploaded`, rust: true },
+              { time: t, msg: `  REWARD: ACCESS GRANTED // Militech Mantis neutralized`, rust: true },
+            ].slice(-2000));
+          }}
+        />
+      )}
 
       {/*
        * ── Global scanlines — permanent, root-level, never unmounted ─────────
@@ -1501,6 +1578,26 @@ const App = () => {
               </div>
             </div>
           )}
+
+          {/* RAM bar — §1.2 quickhack thermodynamics */}
+          <div className="hidden md:flex items-center gap-1.5 shrink-0 mr-1" title={`RAM: ${ram.current}/${ram.max} units`}>
+            <span className="text-[9px] font-black tracking-widest text-cyan-900/60">RAM</span>
+            <div className="flex gap-px">
+              {Array.from({ length: ram.max }).map((_, i) => (
+                <div
+                  key={i}
+                  className="w-[5px] h-[10px] rounded-px transition-all duration-300"
+                  style={{
+                    background: i < ram.current
+                      ? (ram.current <= 4 ? '#ef4444' : ram.current <= 8 ? '#f59e0b' : '#39ff14')
+                      : 'rgba(6,182,212,0.08)',
+                    boxShadow: i < ram.current && ram.current > 8 ? '0 0 3px rgba(57,255,20,0.4)' : 'none',
+                  }}
+                />
+              ))}
+            </div>
+            <span className="text-[9px] font-black text-cyan-900/40">{ram.current}/{ram.max}</span>
+          </div>
 
           <span className="text-fuchsia-500 hidden md:inline" aria-hidden="true">scale@node:~$</span>
           <span className="text-fuchsia-500 md:hidden" aria-hidden="true">~$</span>

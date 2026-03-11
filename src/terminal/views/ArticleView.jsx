@@ -42,7 +42,7 @@ const ArticleView = ({ article, originTab, handleReturnToRoot, onNeuralLink }) =
     return () => clearTimeout(t);
   }, [streamIdx, htmlChunks.length]);
 
-  const displayedHtml = htmlChunks.slice(0, streamIdx).join('');
+  const displayedChunks = htmlChunks.slice(0, streamIdx);
 
   // Generate once per article load — article.id is the intentional trigger,
   // not a value used inside the callback (Math.random needs no deps).
@@ -121,15 +121,12 @@ const ArticleView = ({ article, originTab, handleReturnToRoot, onNeuralLink }) =
         contain: 'layout size',
       }}>
         <h1
-          className="text-[14pt] font-bold mb-4 text-cyan-400 tracking-tighter leading-tight"
+          className="av-glitch-title text-[14pt] font-bold mb-4 text-cyan-400 tracking-tighter leading-tight"
+          data-text={article.title}
           style={{
-            // Prevents Firefox Android font-inflation from altering line count.
             WebkitTextSizeAdjust: 'none',
             textSizeAdjust: 'none',
-            // Allows wrap at any codepoint — stops wide random glyphs from
-            // overflowing the cell horizontally and creating false extra lines.
             overflowWrap: 'anywhere',
-            // Kills Gecko soft-hyphen injection that changes effective char width.
             hyphens: 'none',
           }}
         >
@@ -144,8 +141,18 @@ const ArticleView = ({ article, originTab, handleReturnToRoot, onNeuralLink }) =
         onClick={handleContentClick}
       >
         {article.html
-          ? <div dangerouslySetInnerHTML={{ __html: displayedHtml }} />
-          : renderContent(contentBody)
+          ? displayedChunks.map((chunk, i) => (
+              <div
+                key={i}
+                dangerouslySetInnerHTML={{ __html: chunk }}
+                style={{ animation: 'av-blockIn 0.18s ease-out both' }}
+              />
+            ))
+          : renderContent(contentBody)?.map((node, i) =>
+              React.cloneElement(node, {
+                style: { ...node.props.style, animation: `av-blockIn 0.18s ease-out ${i * 35}ms both` },
+              })
+            )
         }
       </div>
 

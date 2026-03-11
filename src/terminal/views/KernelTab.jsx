@@ -117,7 +117,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
             <GitBranch className="w-4 h-4" /> ACTIVE_MODULES
           </h3>
           <ul ref={listRef} className="space-y-4 text-sm font-mono text-[#39ff14] overflow-y-auto custom-scrollbar pr-2 flex-grow">
-            {kernelBuilds.map((kernel) => {
+            {kernelBuilds.map((kernel, idx) => {
               const isLoading = loadingKernel === kernel.id;
               return (
                 <li
@@ -125,6 +125,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
                   onClick={() => handleKernelClick && handleKernelClick(kernel)}
                   className={`flex flex-wrap justify-between items-center gap-y-3 border-b border-fuchsia-900/30 pb-4 mb-2 cursor-pointer p-3 rounded transition-all group gap-3
                     ${isLoading ? 'bg-cyan-900/20 border-cyan-500/50 animate-pulse' : 'hover:bg-cyan-900/10'}`}
+                  style={{ animation: `sk-kernelModuleIn 0.22s ease-out ${idx * 40}ms both` }}
                 >
                   <div className="min-w-0">
                     <div className="font-bold text-cyan-400 text-base mb-1 group-hover:text-cyan-300 transition-colors break-words">{kernel.name}</div>

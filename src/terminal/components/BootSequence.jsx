@@ -71,23 +71,7 @@ const BootSequence = ({ onDone }) => {
   }, []);
 
   return (
-    /*
-     * fixed inset-0 z-[100] bg-black
-     *   ↳ Covers the entire viewport, above everything, solid black background.
-     *     App.jsx returns *only* <BootSequence /> during boot (not both layers),
-     *     so there is nothing behind it — but bg-black guarantees a clean seal
-     *     even if body background is white or unstyled.
-     *
-     * pointer-events-none
-     *   ↳ Nothing is interactive during boot; this prevents any phantom click
-     *     state from accumulating before the terminal mounts.
-     */
     <div className="fixed inset-0 z-[100] bg-black font-mono flex items-center justify-center p-4 overflow-hidden pointer-events-none">
-      {/* bs-* keyframes are defined globally in src/index.css → compiled into the
-          production CSS bundle. No inline redefinition needed here.
-          Scanlines are now owned by App.jsx at z-[101] — tied to bootSequence
-          state so they're removed from the DOM the instant boot ends. */}
-
       {/*
        * ── CARD ──
        * transition: opacity 1s ease-out, filter 1s ease-out

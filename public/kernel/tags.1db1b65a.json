@@ -35,6 +35,12 @@
       "title": "SCALE OPTIMIZATION KERNEL 9.4"
     }
   ],
+  "Analysis": [
+    {
+      "id": "SYNT-1.0",
+      "title": "COMPREHENSIVE ANALYSIS OF TECHNICAL SOVEREIGNTY, PERFORMANCE DIAGNOSTICS, AND STRATEGIC HUMAN CAPITAL ARCHITECTURE"
+    }
+  ],
   "Annihilation": [
     {
       "id": "LEVIATHAN-CELLULAR-AUTOMATA",
@@ -207,6 +213,16 @@
       "title": "🌿 THE SORBE BLOOM // THERMODYNAMIC SYNTHESIS V1.0"
     }
   ],
+  "Blueprint": [
+    {
+      "id": "AT N-1.0",
+      "title": "ARCHITECTURAL BLUEPRINT FOR A CYBERPUNK 2077 REACT TERMINAL INTERFACE: INTEGRATING RUST-NATIVE SIMULATION WITH GLITCH AESTHETICS"
+    },
+    {
+      "id": "QR-1.0",
+      "title": "ARCHITECTURAL BLUEPRINT FOR A QUANTUM-THEORETIC REACT TERMINAL INTERFACE: INTEGRATING RUST-NATIVE SIMULATION WITH TYPOGRAPHICAL AESTHETICS"
+    }
+  ],
   "Boot": [
     {
       "id": "FISH-SCALE-KERNEL",
@@ -297,6 +313,12 @@
       "title": "SOMA KERNEL 4.5.6A FUCK XITTER FUCK XITLER"
     }
   ],
+  "codex": [
+    {
+      "id": "SKC-1.0",
+      "title": "ᛟ THE SCALE94 KERNEL CODEX"
+    }
+  ],
   "Codex": [
     {
       "id": "NECROMANTIC-ARISTOCRAT-KERNEL-1.1.1.1.1",
@@ -313,6 +335,10 @@
     {
       "id": "BBK-1.0",
       "title": "ᛟ THE BELLARD-BAUDRILLARD KERNEL · PHONEMIC DRIFT"
+    },
+    {
+      "id": "SKC-1.0",
+      "title": "ᛟ THE SCALE94 KERNEL CODEX"
     }
   ],
   "CognitiveLoad": [
@@ -338,7 +364,7 @@
     },
     {
       "id": "RUN-COMMAND-MANUAL",
-      "title": "RUN COMMAND MANUAL V1.0 // WASM KERNEL INTERFACE"
+      "title": "RUN COMMAND MANUAL V2.0 // WASM KERNEL INTERFACE"
     }
   ],
   "Commons": [
@@ -362,7 +388,7 @@
   "Compiled": [
     {
       "id": "RUN-COMMAND-MANUAL",
-      "title": "RUN COMMAND MANUAL V1.0 // WASM KERNEL INTERFACE"
+      "title": "RUN COMMAND MANUAL V2.0 // WASM KERNEL INTERFACE"
     }
   ],
   "COMPLETE": [
@@ -449,8 +475,18 @@
   ],
   "cryptography": [
     {
+      "id": "SKC-1.0",
+      "title": "ᛟ THE SCALE94 KERNEL CODEX"
+    },
+    {
       "id": "DH-EC-KERNEL-V1-0-0",
       "title": "ᛟ THE DH-EC KERNEL · CRYPTOGRAPHIC ARCHITECTURE"
+    }
+  ],
+  "Cyberpunk": [
+    {
+      "id": "AT N-1.0",
+      "title": "ARCHITECTURAL BLUEPRINT FOR A CYBERPUNK 2077 REACT TERMINAL INTERFACE: INTEGRATING RUST-NATIVE SIMULATION WITH GLITCH AESTHETICS"
     }
   ],
   "DAEMON": [
@@ -529,6 +565,12 @@
       "title": "FISH SCALE KERNEL · 11.6.0 · QUANTUM EXPANSION"
     }
   ],
+  "Diagnostics": [
+    {
+      "id": "SYNT-1.0",
+      "title": "COMPREHENSIVE ANALYSIS OF TECHNICAL SOVEREIGNTY, PERFORMANCE DIAGNOSTICS, AND STRATEGIC HUMAN CAPITAL ARCHITECTURE"
+    }
+  ],
   "diffie-hellman": [
     {
       "id": "DH-EC-KERNEL-V1-0-0",
@@ -544,13 +586,19 @@
   "Direct": [
     {
       "id": "RUN-COMMAND-MANUAL",
-      "title": "RUN COMMAND MANUAL V1.0 // WASM KERNEL INTERFACE"
+      "title": "RUN COMMAND MANUAL V2.0 // WASM KERNEL INTERFACE"
     }
   ],
   "DISCHARGE": [
     {
       "id": "TECTONIC-DISCHARGE-KERNEL",
       "title": "TECTONIC DISCHARGE KERNEL"
+    }
+  ],
+  "dissipation": [
+    {
+      "id": "SKC-1.0",
+      "title": "ᛟ THE SCALE94 KERNEL CODEX"
     }
   ],
   "DOCTRINE": [
@@ -981,8 +1029,16 @@
   ],
   "Interface": [
     {
+      "id": "AT N-1.0",
+      "title": "ARCHITECTURAL BLUEPRINT FOR A CYBERPUNK 2077 REACT TERMINAL INTERFACE: INTEGRATING RUST-NATIVE SIMULATION WITH GLITCH AESTHETICS"
+    },
+    {
+      "id": "QR-1.0",
+      "title": "ARCHITECTURAL BLUEPRINT FOR A QUANTUM-THEORETIC REACT TERMINAL INTERFACE: INTEGRATING RUST-NATIVE SIMULATION WITH TYPOGRAPHICAL AESTHETICS"
+    },
+    {
       "id": "RUN-COMMAND-MANUAL",
-      "title": "RUN COMMAND MANUAL V1.0 // WASM KERNEL INTERFACE"
+      "title": "RUN COMMAND MANUAL V2.0 // WASM KERNEL INTERFACE"
     }
   ],
   "Invariance": [
@@ -1069,6 +1125,12 @@
     {
       "id": "CDK-1.0-1",
       "title": "ᛟ COLEMAK-DH KERNEL · KINETIC METALLURGY"
+    }
+  ],
+  "kinetics": [
+    {
+      "id": "SKC-1.0",
+      "title": "ᛟ THE SCALE94 KERNEL CODEX"
     }
   ],
   "KINETICS": [
@@ -1158,7 +1220,7 @@
   "MANUAL": [
     {
       "id": "RUN-COMMAND-MANUAL",
-      "title": "RUN COMMAND MANUAL V1.0 // WASM KERNEL INTERFACE"
+      "title": "RUN COMMAND MANUAL V2.0 // WASM KERNEL INTERFACE"
     }
   ],
   "MASCULINE": [
@@ -1199,6 +1261,12 @@
     {
       "id": "BBK-1.0",
       "title": "ᛟ THE BELLARD-BAUDRILLARD KERNEL · PHONEMIC DRIFT"
+    }
+  ],
+  "meta-kernel": [
+    {
+      "id": "SKC-1.0",
+      "title": "ᛟ THE SCALE94 KERNEL CODEX"
     }
   ],
   "METALLURGY": [
@@ -1411,6 +1479,12 @@
       "title": "SOMA KERNEL 12.12"
     }
   ],
+  "Performance": [
+    {
+      "id": "SYNT-1.0",
+      "title": "COMPREHENSIVE ANALYSIS OF TECHNICAL SOVEREIGNTY, PERFORMANCE DIAGNOSTICS, AND STRATEGIC HUMAN CAPITAL ARCHITECTURE"
+    }
+  ],
   "PHASE": [
     {
       "id": "HYPERFOCUS-STACK-KERNEL-18.0",
@@ -1561,6 +1635,22 @@
       "title": "🔱 KERNEL: QUANTUM FUSION PROTOCOL [LAYER 3 FINAL]"
     }
   ],
+  "Quantum-Theoretic": [
+    {
+      "id": "QR-1.0",
+      "title": "ARCHITECTURAL BLUEPRINT FOR A QUANTUM-THEORETIC REACT TERMINAL INTERFACE: INTEGRATING RUST-NATIVE SIMULATION WITH TYPOGRAPHICAL AESTHETICS"
+    }
+  ],
+  "React": [
+    {
+      "id": "AT N-1.0",
+      "title": "ARCHITECTURAL BLUEPRINT FOR A CYBERPUNK 2077 REACT TERMINAL INTERFACE: INTEGRATING RUST-NATIVE SIMULATION WITH GLITCH AESTHETICS"
+    },
+    {
+      "id": "QR-1.0",
+      "title": "ARCHITECTURAL BLUEPRINT FOR A QUANTUM-THEORETIC REACT TERMINAL INTERFACE: INTEGRATING RUST-NATIVE SIMULATION WITH TYPOGRAPHICAL AESTHETICS"
+    }
+  ],
   "Reaction-Diffusion": [
     {
       "id": "SRDK-3.3.3",
@@ -1691,6 +1781,12 @@
     {
       "id": "SCALE-KERNEL-FRAMEWORK-FULL",
       "title": "⚰ SCALE · SOVEREIGN KERNEL FRAMEWORK"
+    }
+  ],
+  "scale94": [
+    {
+      "id": "SKC-1.0",
+      "title": "ᛟ THE SCALE94 KERNEL CODEX"
     }
   ],
   "SCALE94": [
@@ -1839,6 +1935,10 @@
       "title": "SOMA KERNEL 5.0"
     },
     {
+      "id": "SKC-1.0",
+      "title": "ᛟ THE SCALE94 KERNEL CODEX"
+    },
+    {
       "id": "CDK-1.0-1",
       "title": "ᛟ COLEMAK-DH KERNEL · KINETIC METALLURGY"
     },
@@ -1909,6 +2009,18 @@
     {
       "id": "SCALE-KERNEL-FRAMEWORK-FULL",
       "title": "⚰ SCALE · SOVEREIGN KERNEL FRAMEWORK"
+    }
+  ],
+  "sovereignty": [
+    {
+      "id": "SKC-1.0",
+      "title": "ᛟ THE SCALE94 KERNEL CODEX"
+    }
+  ],
+  "Sovereignty": [
+    {
+      "id": "SYNT-1.0",
+      "title": "COMPREHENSIVE ANALYSIS OF TECHNICAL SOVEREIGNTY, PERFORMANCE DIAGNOSTICS, AND STRATEGIC HUMAN CAPITAL ARCHITECTURE"
     }
   ],
   "SOVEREIGNTY": [
@@ -2145,6 +2257,10 @@
   ],
   "Technical": [
     {
+      "id": "SYNT-1.0",
+      "title": "COMPREHENSIVE ANALYSIS OF TECHNICAL SOVEREIGNTY, PERFORMANCE DIAGNOSTICS, AND STRATEGIC HUMAN CAPITAL ARCHITECTURE"
+    },
+    {
       "id": "AI-KERNEL-FOR-POST-CAPITALIST-ECONOMICS",
       "title": "SOMA KERNEL 5.5: TECHNICAL SPECIFICATION FOR A POST-CAPITALIST SOCIOECONOMIC OPERATING SYSTEM"
     }
@@ -2161,6 +2277,16 @@
       "title": "SOMA-9.1 KERNEL REPORT // GLOBAL STRATEGIC TELEMETRY"
     }
   ],
+  "Terminal": [
+    {
+      "id": "AT N-1.0",
+      "title": "ARCHITECTURAL BLUEPRINT FOR A CYBERPUNK 2077 REACT TERMINAL INTERFACE: INTEGRATING RUST-NATIVE SIMULATION WITH GLITCH AESTHETICS"
+    },
+    {
+      "id": "QR-1.0",
+      "title": "ARCHITECTURAL BLUEPRINT FOR A QUANTUM-THEORETIC REACT TERMINAL INTERFACE: INTEGRATING RUST-NATIVE SIMULATION WITH TYPOGRAPHICAL AESTHETICS"
+    }
+  ],
   "TEST": [
     {
       "id": "SOMA-KERNEL-12.12",
@@ -2171,6 +2297,12 @@
     {
       "id": "FISH-SCALE-KERNEL-11.4.0-SCALAR-SOVEREIGNTY",
       "title": "FISH SCALE KERNEL 11.4.0 SCALAR SOVEREIGNTY"
+    }
+  ],
+  "thermodynamics": [
+    {
+      "id": "SKC-1.0",
+      "title": "ᛟ THE SCALE94 KERNEL CODEX"
     }
   ],
   "Thermodynamics": [

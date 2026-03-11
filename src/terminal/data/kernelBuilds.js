@@ -130,6 +130,7 @@ const kernelBuilds = [
   { id: 'SYK-1.0', articleId: 'SCALE-Y-KERNEL-1-0-1', name: 'SCALE_Y_KERNEL_1_0', status: 'ACTIVE', desc: 'ᛟ Feather State Protocol · Sovereign Self-Governance' },
   { id: 'UTK-1.0-1', articleId: 'UNDERGROUND-THERMODYNAMICISTS', name: 'UNDERGROUND_THERMODYNAMICISTS', status: 'EMERGENT', desc: '◈ Signal map' },
 /* @@INJECT_START@@ */
+  { id: "AT N-1.0", articleId: "AT N-1.0", name: "ARCHITECTURAL_BLUEPRINT_FOR_A_QUANTUM_THEORETIC_REACT_TERMINAL_INTERFACE__INTEGRATING_RUST_NATIVE_SIMULATION_WITH_TYPOGRAPHICAL_AESTHETICS", status: "ACTIVE", desc: "**1\\. Netrunning Algorithms & Breach Protocol Mathematics**" },
   { id: "ATMOSPHERIC-ENTROPY-KERNEL-3.0", articleId: "ATMOSPHERIC-ENTROPY-KERNEL-3.0", name: "ATMOSPHERIC_ENTROPY_KERNEL_3_0", status: "ACTIVE", desc: "The Thermosphere Protocol" },
   { id: "BBK-1.0", articleId: "BBK-1.0", name: "BELLARD_BAUDRILLARD_KERNEL_V1_0_0", status: "ACTIVE", desc: "PHONEMIC DRIFT · THE MEMORY HASH COLLISION" },
   { id: "CEEI-ALLOCATION-ENGINE", articleId: "CEEI-ALLOCATION-ENGINE", name: "CEEI_ALLOCATION_ENGINE", status: "ACTIVE", desc: "The End of the Price Tag — soma_kernel_5.5" },
@@ -147,8 +148,10 @@ const kernelBuilds = [
   { id: "KINETIC-STATECRAFT-KERNEL-1.0", articleId: "KINETIC-STATECRAFT-KERNEL-1.0", name: "KINETIC_STATECRAFT_KERNEL_1_0", status: "ACTIVE", desc: "The Architecture of Coercion" },
   { id: "LEVIATHAN-CELLULAR-AUTOMATA", articleId: "LEVIATHAN-CELLULAR-AUTOMATA", name: "LEVIATHAN_CELLULAR_AUTOMATA", status: "ACTIVE", desc: "The Architecture of V-Cache Annihilation" },
   { id: "LITHIUM-ION-WIZARD-KERNEL-1.-0-1", articleId: "LITHIUM-ION-WIZARD-KERNEL-1.-0-1", name: "LITHIUM_ION_WIZARD_KERNEL_1__0_1", status: "ACTIVE", desc: "LITHIUM ION WIZARD KERNEL 1. 0 1" },
+  { id: "QR-1.0", articleId: "QR-1.0", name: "QUANTUM_PHYSICS_FOR_RUST_REACT_WEBSITE", status: "ACTIVE", desc: "**1\\. Fundamental Mathematical Frameworks and Theoretical Physics Models**" },
   { id: "RUN-COMMAND-MANUAL", articleId: "RUN-COMMAND-MANUAL", name: "RUN_COMMAND_MANUAL", status: "ACTIVE", desc: "Direct Interface to Compiled Rust Simulations — scale_9.4 Terminal" },
   { id: "SCALE-KERNEL-FRAMEWORK-FULL", articleId: "SCALE-KERNEL-FRAMEWORK-FULL", name: "SCALE_KERNEL_FRAMEWORK_FULL", status: "ACTIVE", desc: "☠ Full Corpus Synthesis · Render Prompt Architecture ☠" },
+  { id: "SKC-1.0", articleId: "SKC-1.0", name: "SCALE94_KERNEL_CODEX_V1_0_0", status: "ACTIVE", desc: "TRANSMUTE: Convert Low-Fidelity Chaos into High-Fidelity Structure" },
   { id: "SCALE-OPTIMIZATION-KERNEL-9.4", articleId: "SCALE-OPTIMIZATION-KERNEL-9.4", name: "SCALE_OPTIMIZATION_KERNEL_9_4", status: "ACTIVE", desc: "◈ 2026 GEOPOLITICAL ALIGNMENT" },
   { id: "SCALING-CUBE-PROTOCOL", articleId: "SCALING-CUBE-PROTOCOL", name: "SCALING_CUBE_PROTOCOL", status: "ACTIVE", desc: "Platonic Form · Entropic Stasis · The Architecture of Potential" },
   { id: "SRDK-3.3.3", articleId: "SRDK-3.3.3", name: "SCOTT_REACTION_DIFFUSION_KERNEL_3_3_3", status: "ACTIVE", desc: "Mathematical Architecture" },
@@ -157,6 +160,7 @@ const kernelBuilds = [
   { id: "SORBE-THERMODYNAMIC-BLOOM-V1", articleId: "SORBE-THERMODYNAMIC-BLOOM-V1", name: "SORBE_THERMODYNAMIC_BLOOM_KERNEL_1_0", status: "ACTIVE", desc: "◈ THE THERMODYNAMIC IMPERATIVE" },
   { id: "STRANGLER-FIG-PROTOCOL", articleId: "STRANGLER-FIG-PROTOCOL", name: "STRANGLER_FIG_PROTOCOL", status: "ACTIVE", desc: "Build the New System Around the Old — soma_kernel_5.5" },
   { id: "SURVEILLANCE-TRACKER", articleId: "SURVEILLANCE-TRACKER", name: "SURVEILLANCE_TRACKER", status: "ACTIVE", desc: "Mapping the Algorithmic Panopticon" },
+  { id: "SYNT-1.0", articleId: "SYNT-1.0", name: "SYNTHESIZING_TECHNICAL_AND_WORKSPACE_INFORMATION", status: "ACTIVE", desc: "**Technical Infrastructure and High-Resolution Performance Diagnostics**" },
   { id: "THE-CIGAR-HEIST", articleId: "THE-CIGAR-HEIST", name: "THE_CIGAR_HEIST", status: "ACTIVE", desc: "THE CIGAR HEIST" },
   { id: "THE-FLUORESCENT-CAGE", articleId: "THE-FLUORESCENT-CAGE", name: "THE_FLUORESCENT_CAGE", status: "ACTIVE", desc: "THE FLUORESCENT CAGE" },
 /* @@INJECT_END@@ */

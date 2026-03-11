@@ -125,6 +125,79 @@ html, body {
   50%      { background-position: 100% 50%; }
 }
 
+/* ── Ambient terminal flicker ────────────────────────────────────────────── */
+/* Very subtle — only fires for ~0.4s in every 7s cycle. Opacity never below 0.93. */
+@keyframes terminal-flicker {
+  0%, 88%, 100% { opacity: 1; }
+  89%           { opacity: 0.96; }
+  91%           { opacity: 1; }
+  93%           { opacity: 0.93; }
+  95%           { opacity: 1; }
+}
+
+/* ── Article title clip-path glitch layers ───────────────────────────────── */
+/* Two pseudo-elements slice horizontal bands and offset them (cyan / magenta).
+   clip-path is always inset(0 0 100% 0) — invisible — except during the glitch
+   window, so no per-frame compositor work outside the burst. */
+@keyframes av-glitch-cyan {
+  0%, 90%, 100% { clip-path: inset(0 0 100% 0); transform: translate(0); }
+  91%  { clip-path: polygon(0 12%, 100% 12%, 100% 20%, 0 20%); transform: translate(-4px, 0); }
+  93%  { clip-path: polygon(0 55%, 100% 55%, 100% 63%, 0 63%); transform: translate(3px, 0); }
+  95%  { clip-path: polygon(0 35%, 100% 35%, 100% 40%, 0 40%); transform: translate(-2px, 0); }
+  97%  { clip-path: inset(0 0 100% 0); }
+}
+@keyframes av-glitch-magenta {
+  0%, 93%, 100% { clip-path: inset(0 0 100% 0); transform: translate(0); }
+  94%  { clip-path: polygon(0 68%, 100% 68%, 100% 75%, 0 75%); transform: translate(5px, 0); }
+  96%  { clip-path: polygon(0 8%,  100% 8%,  100% 14%, 0 14%); transform: translate(-3px, 0); }
+  98%  { clip-path: inset(0 0 100% 0); }
+}
+
+/* Glitch title container — hosts pseudo-elements */
+.av-glitch-title {
+  position: relative;
+  display: block;
+}
+.av-glitch-title::before,
+.av-glitch-title::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  /* Same text styling as the real h1 — size/weight inherited from parent */
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: transparent;
+}
+.av-glitch-title::before {
+  color: #00ffff;
+  animation: av-glitch-cyan 9s steps(1) infinite;
+}
+.av-glitch-title::after {
+  color: #ff00ff;
+  animation: av-glitch-magenta 9s steps(1) 0.5s infinite;
+}
+
+/* Relic mode amplifies both glitch layers to fire faster */
+.relic-mode .av-glitch-title::before { animation-duration: 1.8s; }
+.relic-mode .av-glitch-title::after  { animation-duration: 1.8s; }
+
+/* ── ArticleView block stream animation ──────────────────────────────────── */
+/* Each HTML chunk is its own React element — fires once per mount (new block). */
+@keyframes av-blockIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ── KernelTab module entry animation ────────────────────────────────────── */
+@keyframes sk-kernelModuleIn {
+  from { opacity: 0; transform: translateX(-14px); }
+  to   { opacity: 1; transform: none; }
+}
+
 /* ── CRT terminal draw animations ───────────────────────────────────────────
    Unified GPU-accelerated reveal: a solid black mask slides down off the
    screen, revealing the UI behind it. The beam travels at the mask edge.

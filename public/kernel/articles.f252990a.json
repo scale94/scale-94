@@ -404,7 +404,7 @@
       "Mathematical",
       "Architecture"
     ],
-    "len": "385 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "ATMOSPHERIC-ENTROPY-KERNEL-3.0",
@@ -558,6 +558,24 @@
       "Habitat"
     ],
     "len": "0 WDS"
+  },
+  {
+    "id": "AT N-1.0",
+    "type": "kernel_doc",
+    "date": "2026-03-11",
+    "lastModified": "2026-03-11",
+    "title": "ARCHITECTURAL BLUEPRINT FOR A CYBERPUNK 2077 REACT TERMINAL INTERFACE: INTEGRATING RUST-NATIVE SIMULATION WITH GLITCH AESTHETICS",
+    "subtitle": "**1\\. Netrunning Algorithms & Breach Protocol Mathematics**",
+    "status": "ACTIVE",
+    "readTime": "6 min read",
+    "tags": [
+      "Blueprint",
+      "Cyberpunk",
+      "React",
+      "Terminal",
+      "Interface"
+    ],
+    "len": "1284 WDS"
   },
   {
     "id": "BBK-1.0",
@@ -736,6 +754,47 @@
     "len": "0 WDS"
   },
   {
+    "id": "QR-1.0",
+    "type": "kernel_doc",
+    "date": "2026-03-11",
+    "lastModified": "2026-03-11",
+    "title": "ARCHITECTURAL BLUEPRINT FOR A QUANTUM-THEORETIC REACT TERMINAL INTERFACE: INTEGRATING RUST-NATIVE SIMULATION WITH TYPOGRAPHICAL AESTHETICS",
+    "subtitle": "**1\\. Fundamental Mathematical Frameworks and Theoretical Physics Models**",
+    "status": "ACTIVE",
+    "readTime": "28 min read",
+    "tags": [
+      "Blueprint",
+      "Quantum-Theoretic",
+      "React",
+      "Terminal",
+      "Interface"
+    ],
+    "len": "5569 WDS"
+  },
+  {
+    "id": "SKC-1.0",
+    "type": "kernel_doc",
+    "date": "2026-03-11",
+    "lastModified": "2026-03-11",
+    "title": "ᛟ THE SCALE94 KERNEL CODEX",
+    "subtitle": "TRANSMUTE: Convert Low-Fidelity Chaos into High-Fidelity Structure",
+    "status": "ACTIVE",
+    "readTime": "15 min read",
+    "tags": [
+      "meta-kernel",
+      "codex",
+      "scale94",
+      "SOMA",
+      "thermodynamics",
+      "cryptography",
+      "kinetics",
+      "cognition",
+      "dissipation",
+      "sovereignty"
+    ],
+    "len": "3044 WDS"
+  },
+  {
     "id": "SOMA-INTEGRATION-KERNEL-V1.0",
     "type": "kernel_doc",
     "date": "2026-03-07",
@@ -752,6 +811,24 @@
       "Low-Pass"
     ],
     "len": "0 WDS"
+  },
+  {
+    "id": "SYNT-1.0",
+    "type": "kernel_doc",
+    "date": "2026-03-11",
+    "lastModified": "2026-03-11",
+    "title": "COMPREHENSIVE ANALYSIS OF TECHNICAL SOVEREIGNTY, PERFORMANCE DIAGNOSTICS, AND STRATEGIC HUMAN CAPITAL ARCHITECTURE",
+    "subtitle": "**Technical Infrastructure and High-Resolution Performance Diagnostics**",
+    "status": "ACTIVE",
+    "readTime": "18 min read",
+    "tags": [
+      "Analysis",
+      "Technical",
+      "Sovereignty",
+      "Performance",
+      "Diagnostics"
+    ],
+    "len": "3659 WDS"
   },
   {
     "id": "TAMAM-KERNEL-V1.0",
@@ -911,7 +988,7 @@
       "rust",
       "privacy"
     ],
-    "len": "1769 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "FISH-SCALE-KERNEL",
@@ -1465,12 +1542,12 @@
   {
     "id": "RUN-COMMAND-MANUAL",
     "type": "kernel_doc",
-    "date": "2026-03-10",
-    "lastModified": "2026-03-10",
-    "title": "RUN COMMAND MANUAL V1.0 // WASM KERNEL INTERFACE",
+    "date": "2026-03-11",
+    "lastModified": "2026-03-11",
+    "title": "RUN COMMAND MANUAL V2.0 // WASM KERNEL INTERFACE",
     "subtitle": "Direct Interface to Compiled Rust Simulations — scale_9.4 Terminal",
     "status": "ACTIVE",
-    "readTime": "11 min read",
+    "readTime": "18 min read",
     "tags": [
       "COMMAND",
       "MANUAL",
@@ -1478,7 +1555,7 @@
       "Interface",
       "Compiled"
     ],
-    "len": "0 WDS"
+    "len": "3651 WDS"
   },
   {
     "id": "SCALE-KERNEL-FRAMEWORK-FULL",

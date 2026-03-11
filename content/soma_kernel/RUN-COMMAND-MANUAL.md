@@ -1,12 +1,12 @@
 ---
 id: RUN-COMMAND-MANUAL
 type: "kernel_doc"
-date: "2026-03-10"
+date: "2026-03-11"
 status: "RUNNING"
-title: "RUN COMMAND MANUAL v1.0 // WASM KERNEL INTERFACE"
+title: "RUN COMMAND MANUAL v2.0 // WASM KERNEL INTERFACE"
 ---
 
-# RUN_COMMAND_MANUAL v1.0
+# RUN_COMMAND_MANUAL v2.0
 ## Direct Interface to Compiled Rust Simulations — scale_9.4 Terminal
 
 > *"While `load` fetches lore from the content archive, `run` feeds floating-point parameters directly into compiled WebAssembly binaries. These are not documents. These are simulations."*
@@ -18,7 +18,7 @@ title: "RUN COMMAND MANUAL v1.0 // WASM KERNEL INTERFACE"
 The `run` command is the terminal's direct interface to the compiled Rust/WASM kernel registry. Unlike `load` — which fetches and streams Markdown articles from the content pipeline — `run` invokes compiled physics and economic simulations registered in the WASM module map.
 
 Every kernel listed here is:
-- Compiled from Rust source at `content/rust_kernels/src/lib.rs`
+- Compiled from Rust source at `content/rust_kernels/src/`
 - Packaged via `wasm-pack --target web --release`
 - Registered in `src/wasm/wasm.generated.js`
 - Available immediately — no network fetch required
@@ -91,11 +91,67 @@ Dumps the specific function signature: parameter names, default values, valid ra
 
 ---
 
-## 5. KERNEL REFERENCE
+## 5. SPECIAL COMMANDS
+
+### `breach`
+
+Launches the **Breach Protocol** ICE-breaking minigame. Costs 4 RAM units from the footer RAM bar.
+
+```
+breach
+```
+
+A 6×6 matrix of hex codes is presented. Select cells in alternating row/column order to sequence three daemons — `DATAMINE_V1`, `DATAMINE_V2`, and `ICEPICK` — into a 6-slot buffer within 30 seconds. Completing all daemons before timeout triggers a full system breach.
 
 ---
 
-### 5.1 BIODIVERSITY — BiocoenosisKernel
+### `relic`
+
+Activates **Relic Malfunction Mode** for 5 seconds.
+
+```
+relic
+```
+
+Amplifies the article title glitch layers from 9s to 1.8s cycle. Floods the system log with entropy hex streams and diagnostic error patterns. The terminal returns to normal after the diagnostic window closes.
+
+---
+
+### `run classified` / `verify <CODE>`
+
+Two-stage time-locked decryption sequence for the ML-KEM-768 classified enclave.
+
+```
+run classified          # stage 1: boot WASM, navigate to /cryptography, issue challenge
+verify A3F9B2          # stage 2: submit the 6-char code within 60 seconds
+```
+
+If the session expires, restart with `run classified`. See section 5.19 for full kernel documentation.
+
+---
+
+## 6. KERNEL REFERENCE
+
+---
+
+### 6.1 SOMA-9.1 — GAIA Build Banner
+
+**Aliases:** `soma91`, `gaia`, `soma_91`, `banner`
+
+**Function:** `soma_91_banner()` — zero parameters
+
+**Description:** Boots the SOMA-9.1 GAIA build banner. Top-level system identification sequence for the soma_kernel lineage.
+
+**Usage:**
+```
+run soma91
+run gaia
+run banner
+```
+
+---
+
+### 6.2 BIODIVERSITY — BiocoenosisKernel
 
 **Aliases:** `biodiversity`, `biocoenosis`
 
@@ -107,11 +163,11 @@ run biodiversity
 run biocoenosis
 ```
 
-This kernel uses the struct-based boot pattern — no positional parameters. The simulation runs with internal defaults for species counts, interaction matrices, and succession dynamics.
+Struct-based boot — no positional parameters. Runs with internal defaults for species counts, interaction matrices, and succession dynamics.
 
 ---
 
-### 5.2 FISH-SCALE — NecromanticEngine
+### 6.3 FISH-SCALE — NecromanticEngine
 
 **Aliases:** `fishscale`, `necromantic`, `fish`
 
@@ -124,13 +180,13 @@ run necromantic
 run fish
 ```
 
-No positional parameters. Runs with internal defaults.
+No positional parameters.
 
 ---
 
-### 5.3 BOSONIC — Bosonic Lattice Simulator
+### 6.4 BOSONIC — Bosonic Lattice Simulator
 
-**Aliases:** `bosonic`, `bosonic_lattice`, `bosonickernel`, `lattice`
+**Aliases:** `bosonic`, `bosonic_lattice`, `lattice`
 
 **Function:** `boot_bosonic_lattice(trust: f64, thermal: f64)`
 
@@ -144,16 +200,16 @@ No positional parameters. Runs with internal defaults.
 **Usage:**
 ```
 run bosonic                              # defaults: trust=0.8, thermal=0.7
-run bosonic 0.5 0.3                     # low trust, low thermal
+run bosonic 0.5 0.3                      # low trust, low thermal
 run bosonic --trust 0.9 --thermal 0.2   # high coupling, low noise
 run lattice --coupling 0.6              # alias, named flag
 ```
 
 ---
 
-### 5.4 CLIMATE — Atmospheric Entropy Kernel
+### 6.5 CLIMATE — Atmospheric Entropy Kernel
 
-**Aliases:** `climate`, `thermosphere`, `atmospheric`, `entropy`, `carbon`, `thermosphere_protocol`
+**Aliases:** `climate`, `thermosphere`, `atmospheric`, `entropy`, `carbon`
 
 **Function:** `boot_thermosphere_protocol(carbon_ppm: f64, industrial_drag: f64, ocean_sink: f64)`
 
@@ -161,31 +217,26 @@ run lattice --coupling 0.6              # alias, named flag
 
 | Parameter | Flag(s) | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `carbon_ppm` | `--carbon`, `--ppm`, `--carbonppm` | `420` | Atmospheric CO₂ concentration (ppm) |
-| `industrial_drag` | `--drag`, `--industrial`, `--industrialdrag` | `2.5` | Industrial emissions drag coefficient |
-| `ocean_sink` | `--sink`, `--ocean`, `--oceansink` | `0.6` | Ocean carbon sink capacity fraction |
+| `carbon_ppm` | `--carbon`, `--ppm` | `420` | Atmospheric CO₂ concentration (ppm) |
+| `industrial_drag` | `--drag`, `--industrial` | `2.5` | Industrial emissions drag coefficient |
+| `ocean_sink` | `--sink`, `--ocean` | `0.6` | Ocean carbon sink capacity fraction |
 
 **Usage:**
 ```
-run climate                                  # current-world defaults (420ppm)
-run climate 280 1.0 0.8                      # pre-industrial baseline
-run climate 560 4.0 0.3                      # 2×CO₂ stress scenario
-run climate --carbon 350 --sink 0.9          # named flags
-run thermosphere --drag 1.5                  # reduced industrial drag
+run climate                              # current-world defaults (420ppm)
+run climate 280 1.0 0.8                  # pre-industrial baseline
+run climate 560 4.0 0.3                  # 2×CO₂ stress scenario
+run climate --carbon 350 --sink 0.9     # named flags
+run thermosphere --drag 1.5             # reduced industrial drag
 ```
 
-**Calibration:**
-- `carbon 280` = pre-industrial baseline
-- `carbon 420` = 2026 measured (default)
-- `carbon 560` = 2×CO₂ threshold
-- `drag 2.5` = current emissions trajectory
-- `sink 0.6` = current ocean absorption capacity
+**Calibration:** `carbon 280` = pre-industrial · `carbon 420` = 2026 measured · `carbon 560` = 2×CO₂ threshold
 
 ---
 
-### 5.5 STATECRAFT — Kinetic Statecraft Kernel
+### 6.6 STATECRAFT — Kinetic Statecraft Kernel
 
-**Aliases:** `statecraft`, `geopolitics`, `kinetic`, `geopolitical`, `regime`, `kinetics`
+**Aliases:** `statecraft`, `geopolitics`, `kinetic`, `regime`, `kinetics`
 
 **Function:** `boot_geopolitical_kinetics(sanction_pressure: f64, grid_resilience: f64, propaganda_strength: f64)`
 
@@ -207,7 +258,7 @@ run geopolitics --narrative 0.3 --pressure 8          # high pressure, weak narr
 
 ---
 
-### 5.6 LEVIATHAN — Cellular Automata Benchmark
+### 6.7 LEVIATHAN — Cellular Automata Benchmark
 
 **Aliases:** `leviathan`, `vcache_burn`, `vcache`, `benchmark`, `stress`, `automata`, `cellular`
 
@@ -228,39 +279,60 @@ run vcache_burn --cells 1000000 --steps 50   # V-Cache annihilation
 run benchmark --size 50000                   # lighter diagnostic
 ```
 
-This kernel is a pure computational benchmark — it burns V-Cache with cellular automata computation. The output reports cells/sec and total elapsed time.
+Pure computational benchmark — burns V-Cache with cellular automata computation. Output reports cells/sec and total elapsed time.
 
 ---
 
-### 5.7 SOMA55 — soma_kernel_5.5 Boot Diagnostic
+### 6.8 SOMA-LIVE — SomaKernel Stateful Simulation
 
-**Aliases:** `soma55`, `soma_kernel`, `soma_kernel_55`, `sk55`, `soma_boot`, `nexteconomy`
+**Aliases:** `soma_live`, `soma_cycle`, `pilot`, `somapilot`
 
-**Function:** `boot_soma55()` — zero parameters
+**Stateful kernel** — instance persists across calls. Each `run soma_live` advances one simulation cycle.
 
-**Description:** Top-level boot diagnostic for the entire soma_kernel_5.5 suite. Runs a high-level status check across all four sub-systems — Daly Rules, A-CEEI, Soma Plus, and Strangler Fig — at default parameters. Use this for a fast system overview before drilling into individual sub-kernels.
+**Function:** `SomaKernel::execute_cycle(consumption, waste, nr_depletion, compliance)`
+
+**Defaults:** `[80, 55000, 0.025, 0.05]`
+
+| Parameter | Flag(s) | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `consumption` | `--consumption`, `--c` | `80` | Renewable energy consumption GJ/capita/yr |
+| `waste` | `--waste`, `--w` | `55000` | Global waste output Mt CO₂eq/yr |
+| `nr_depletion` | `--depletion`, `--nr` | `0.025` | Non-renewable depletion fraction/yr |
+| `compliance` | `--compliance`, `--trust`, `--ostrom` | `0.05` | Ostrom protocol compliance rate |
 
 **Usage:**
 ```
-run soma55          # full suite diagnostic — no flags needed
+run soma_live                            # advance one cycle (state persists)
+run soma_live reset                      # wipe state, reset to year 0
+run soma_live --consumption 40           # reduced consumption cycle
+run pilot --compliance 0.3              # high Ostrom compliance
+```
+
+---
+
+### 6.9 SOMA55 — soma_kernel_5.5 Boot Diagnostic
+
+**Aliases:** `soma55`, `soma_kernel`, `sk55`, `soma_boot`, `nexteconomy`
+
+**Function:** `boot_soma55()` — zero parameters
+
+**Description:** Top-level boot diagnostic for the entire soma_kernel_5.5 suite. Runs a high-level status check across all four sub-systems — Daly Rules, A-CEEI, Soma Plus, and Strangler Fig — at default parameters.
+
+**Usage:**
+```
+run soma55          # full suite diagnostic
 run soma_kernel
 run sk55
 run nexteconomy
 ```
 
-No positional arguments. No flags. The output covers:
-- Daly Rules triple-overshoot audit at current global baseline
-- A-CEEI market clearing status
-- Soma Plus steady-state mean SP and Gini coefficient
-- Strangler Fig tipping-point and critical-mass year
-
-To run a specific sub-system with custom parameters, use `run daly`, `run ceei`, `run soma`, or `run strangler` (see sections 5.8–5.11).
+To run a specific sub-system with custom parameters, use `run daly`, `run ceei`, `run soma`, or `run strangler`.
 
 ---
 
-### 5.8 DALY — Thermodynamic Governor
+### 6.10 DALY — Thermodynamic Governor
 
-**Aliases:** `daly`, `thermo`, `thermodynamics`, `daly_rules`, `ecological`, `daly_thermo`, `entropy_econ`
+**Aliases:** `daly`, `thermo`, `thermodynamics`, `ecological`, `daly_thermo`, `entropy_econ`
 
 **Function:** `run_daly_thermo_simulation(consumption, regeneration, waste, absorption, nr_depletion, substitution, years)`
 
@@ -272,7 +344,7 @@ To run a specific sub-system with custom parameters, use `run daly`, `run ceei`,
 | `regeneration` | `--regeneration`, `--regen` | `30.0` | Biosphere regeneration capacity GJ/capita/yr |
 | `waste` | `--waste` | `55000.0` | Global waste output Mt CO₂eq/yr |
 | `absorption` | `--absorption`, `--absorb` | `11000.0` | Natural sink capacity Mt/yr |
-| `nr_depletion` | `--depletion`, `--nr`, `--nrdepletion` | `0.025` | Non-renewable depletion fraction/yr |
+| `nr_depletion` | `--depletion`, `--nr` | `0.025` | Non-renewable depletion fraction/yr |
 | `substitution` | `--substitution`, `--sub` | `0.008` | Renewable substitution rate fraction/yr |
 | `years` | `--years`, `--horizon` | `100.0` | Simulation horizon (years) |
 
@@ -281,16 +353,8 @@ To run a specific sub-system with custom parameters, use `run daly`, `run ceei`,
 run daly                                              # current world → COLLAPSE
 run daly 25 30 11000 12000 0.01 0.03 200              # sustainable scenario
 run daly --consumption 40 --years 150                 # 50% consumption reduction
-run daly --sub 0.05 --depletion 0.01                  # accelerated transition
 run thermo --consumption 80 --regen 80                # harvest = regeneration → PASS
 ```
-
-**Interpretation:**
-- Default parameters (current world) produce `COLLAPSE` — this is the diagnostic
-- Set `consumption ≤ regeneration` for Daly Rule 1 to PASS
-- Set `waste ≤ absorption` for Daly Rule 2 to PASS
-- Set `substitution ≥ depletion` for Daly Rule 3 to PASS
-- All three PASS = `SUSTAINABLE` outcome
 
 **Scenario guide:**
 ```
@@ -301,7 +365,7 @@ run daly 40 30 20000 12000 0.015 0.020 150    # CRITICAL → RECOVERY arc
 
 ---
 
-### 5.9 CEEI — A-CEEI Allocation Engine
+### 6.11 CEEI — A-CEEI Allocation Engine
 
 **Aliases:** `ceei`, `allocation`, `matching`, `market`, `roth`, `preference`, `aceei`
 
@@ -321,21 +385,14 @@ run daly 40 30 20000 12000 0.015 0.020 150    # CRITICAL → RECOVERY arc
 run ceei                                      # default: 20 agents, 8 goods
 run ceei 50 12 0.0 0.9                        # max diversity, equal incomes
 run ceei --inequality 0                       # pure CEEI (equal budgets)
-run ceei --agents 30 --goods 15              # larger market
-run roth --inequality 0 --diversity 0.1      # uniform preferences, equal budgets → near-equal allocation
+run roth --inequality 0 --diversity 0.1       # uniform preferences → near-equal allocation
 ```
-
-**Key experiments:**
-- `--inequality 0` → perfectly equal budgets → minimum envy → CEEI guarantee
-- `--diversity 0.1` → near-uniform preferences → prices converge to uniform
-- `--diversity 0.9` → high heterogeneity → efficient preference-based separation
-- `--inequality 1.0` → maximum budget spread → `ENVY_PRESENT` outcome
 
 ---
 
-### 5.10 SOMA — Soma Plus Engine
+### 6.12 SOMA — Soma Plus Engine
 
-**Aliases:** `soma`, `soma_plus`, `somaplus`, `social_capital`, `commons`, `status`, `contribution`
+**Aliases:** `soma`, `soma_plus`, `somaplus`, `social_capital`, `commons`, `contribution`
 
 **Function:** `run_soma_plus_engine(population, eco_share, social_share, arts_share, years)`
 
@@ -344,33 +401,28 @@ run roth --inequality 0 --diversity 0.1      # uniform preferences, equal budget
 | Parameter | Flag(s) | Default | Description |
 | :--- | :--- | :--- | :--- |
 | `population` | `--pop`, `--population` | `5000` | Number of simulated agents (10–10,000) |
-| `eco_share` | `--eco`, `--ecological`, `--ecoShare` | `0.35` | Fraction doing ecological care |
-| `social_share` | `--social`, `--socialShare` | `0.35` | Fraction doing social care |
-| `arts_share` | `--arts`, `--artsShare`, `--culture` | `0.20` | Fraction doing arts/culture |
+| `eco_share` | `--eco`, `--ecological` | `0.35` | Fraction doing ecological care |
+| `social_share` | `--social` | `0.35` | Fraction doing social care |
+| `arts_share` | `--arts`, `--culture` | `0.20` | Fraction doing arts/culture |
 | `years` | `--years`, `--horizon` | `50` | Simulation cycles (1–200) |
 
-*Remaining fraction `(1 - eco - social - arts)` is passive population — zero Soma Plus accumulation.*
+*Remaining fraction `(1 - eco - social - arts)` is passive — zero Soma Plus accumulation.*
+
+**Contribution rates:** Ecological ~18 SP/yr · Social ~14 SP/yr · Arts ~22 SP/yr · Passive 0 SP/yr
+
+**Status tiers:** INITIATE (0–99) → CONTRIBUTOR (100–499) → ARTISAN (500–1,999) → SOVEREIGN (2,000+)
 
 **Usage:**
 ```
 run soma                                      # default: 5000 agents, 50yr
 run soma 10000 0.5 0.3 0.2 100               # large pop, ecology-heavy, century
 run soma --arts 0.6 --years 25               # arts-dominant society
-run soma --pop 1000 --eco 0.8                # ecological commons economy
 run soma --eco 0 --social 0 --arts 0         # 100% passive → no SP accumulation
 ```
 
-**Contribution rates (SP/yr):**
-- Ecological: ~18 SP/yr
-- Social: ~14 SP/yr
-- Arts/Culture: ~22 SP/yr (highest multiplier)
-- Passive: 0 SP/yr
-
-**Status tiers:** INITIATE (0–99) → CONTRIBUTOR (100–499) → ARTISAN (500–1,999) → SOVEREIGN (2,000+)
-
 ---
 
-### 5.11 STRANGLER — Strangler Fig Transition Protocol
+### 6.13 STRANGLER — Strangler Fig Transition Protocol
 
 **Aliases:** `strangler`, `transition`, `stranglerfig`, `fig`, `logistic`
 
@@ -380,7 +432,7 @@ run soma --eco 0 --social 0 --arts 0         # 100% passive → no SP accumulati
 
 | Parameter | Flag(s) | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `initial_adoption` | `--adoption`, `--seed`, `--initial` | `0.02` | Starting adoption fraction 0–1 (0.02 = 2%) |
+| `initial_adoption` | `--adoption`, `--seed`, `--initial` | `0.02` | Starting adoption fraction 0–1 |
 | `growth_rate` | `--growth`, `--rate`, `--r` | `0.18` | Logistic growth coefficient r |
 | `resistance` | `--resistance`, `--rho`, `--legacy` | `0.25` | Initial legacy resistance ρ₀ |
 | `years` | `--years`, `--horizon` | `75` | Simulation horizon (years) |
@@ -391,44 +443,238 @@ run strangler                                         # realistic transition (~4
 run strangler 0.05 0.25 0.15 100                      # faster growth, weaker resistance
 run strangler 0.01 0.10 0.50 200                      # hard case: high resistance
 run strangler --growth 0.35 --resistance 0.05         # strong new system, weak incumbent
-run strangler --growth 0.05 --resistance 0.40         # failed transition scenario
 run fig --seed 0.10                                   # 10% early adopters
 ```
 
-**Scenario calibration:**
-```
-growth_rate 0.05–0.15   = gradual cultural shift
-growth_rate 0.15–0.30   = active organizing + proven results
-growth_rate 0.30–0.60   = crisis-accelerated adoption
-resistance  0.10–0.30   = weakened incumbency (post-crisis)
-resistance  0.50–1.00   = high entrenchment (state capture)
-```
-
-**Tipping point (analytic):** `t* = ln(ρ₀ / r) / λ` where `λ = 0.05/yr` (fixed decay rate)
-
-If `growth_rate > resistance`: positive growth from day one (rare). If `growth_rate ≤ resistance`: suppressed until legacy system decays enough.
+**Tipping point:** `t* = ln(ρ₀ / r) / λ` where `λ = 0.05/yr`
 
 ---
 
-## 6. QUICK REFERENCE
+### 6.14 KURAMOTO — Synchrony Engine
+
+**Aliases:** `kuramoto`, `synchrony`, `sync`, `oscillator`, `solidarity`, `phase`, `coupled`
+
+**Function:** `run_kuramoto_synchrony(n_oscillators, coupling, freq_spread, timesteps)`
+
+**Defaults:** `[50, 1.5, 1, 500]`
+
+| Parameter | Flag(s) | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `n_oscillators` | `--n`, `--oscillators`, `--agents` | `50` | Agents in the collective field (3–100) |
+| `coupling` | `--coupling`, `--k` | `1.5` | K: global solidarity strength — 0=isolation, K_c≈1.6σ=lock (0–10) |
+| `freq_spread` | `--sigma`, `--spread`, `--diversity` | `1` | σ: natural frequency diversity — heterogeneity of desire (0.01–5) |
+| `timesteps` | `--steps`, `--time`, `--t` | `500` | Integration depth — how long the field evolves (50–2000) |
+
+**Usage:**
+```
+run kuramoto                                     # default: 50 oscillators, K=1.5
+run kuramoto 100 2.0 0.5 1000                    # large field, strong coupling, low diversity
+run kuramoto --coupling 0.5                      # below K_c → no synchronisation
+run kuramoto --coupling 3.0 --sigma 2.0          # strong coupling overcomes high diversity
+run sync --n 10 --steps 200                      # small fast demo
+```
+
+**Critical threshold:** K_c ≈ 1.6σ. Below K_c: fragmented phases. Above K_c: collective lock.
+
+---
+
+### 6.15 REPLICATOR — Evolutionary Replicator Dynamics
+
+**Aliases:** `replicator`, `evolutionary`, `gametheory`, `commons`, `cooperate`, `ostrom_game`
+
+**Function:** `run_evolutionary_replicator(benefit, cost, punishment, mutation, generations)`
+
+**Defaults:** `[2, 1, 1.5, 0.005, 300]`
+
+| Parameter | Flag(s) | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `benefit` | `--benefit`, `--b` | `2` | Value generated by cooperation (0.1–5) |
+| `cost` | `--cost`, `--c` | `1` | Personal sacrifice of contributing (0–3) |
+| `punishment` | `--punishment`, `--p` | `1.5` | Altruist enforcement cost on defectors (0–3) |
+| `mutation` | `--mutation`, `--mu` | `0.005` | Evolutionary noise — rate of strategy drift (0–0.5) |
+| `generations` | `--generations`, `--gen`, `--time` | `300` | Evolutionary time (50–2000) |
+
+**Usage:**
+```
+run replicator                                         # default: b=2, c=1, p=1.5
+run replicator 3 1 2 0.01 500                          # high benefit, strong punishment
+run replicator --benefit 1.2 --cost 1.0 --punishment 0 # no enforcement → defectors dominate
+run replicator --punishment 2.5 --generations 1000     # long-run Ostrom dynamics
+run cooperate --mutation 0.1                           # high evolutionary noise
+```
+
+---
+
+### 6.16 ISING — Consensus Field
+
+**Aliases:** `ising`, `consensus`, `opinion`, `phase_transition`, `monte_carlo`
+
+**Function:** `run_ising_consensus(lattice_size, temperature, external_field, mc_steps)`
+
+**Defaults:** `[20, 2.5, 0, 100]`
+
+| Parameter | Flag(s) | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `lattice_size` | `--size`, `--n`, `--grid` | `20` | N: agents per side of opinion grid — N² total (4–40) |
+| `temperature` | `--temp`, `--t`, `--temperature` | `2.5` | kT/J: social temperature — T_c≈2.269 (0.1–10) |
+| `external_field` | `--field`, `--h`, `--narrative` | `0` | h: external narrative force — ideological field (−3 to 3) |
+| `mc_steps` | `--sweeps`, `--steps`, `--mc` | `100` | Monte Carlo sweeps — time for consensus to emerge (10–500) |
+
+**Usage:**
+```
+run ising                                              # default: 20×20 grid, T=2.5
+run ising 30 2.0 0 200                                 # larger grid, below T_c → ordered phase
+run ising --temp 3.5                                   # above T_c → disordered, no consensus
+run ising --field 1.5 --temp 2.0                       # external narrative drives opinion
+run consensus --narrative -1 --size 15                 # small grid, counter-narrative
+```
+
+**Critical temperature:** T_c ≈ 2.269. Below: ordered consensus. Above: disordered fragmentation.
+
+---
+
+### 6.17 FEIGENBAUM — Bifurcation Cascade
+
+**Aliases:** `feigenbaum`, `bifurcation`, `chaos`, `logistic`, `cascade`, `period_doubling`
+
+**Function:** `run_feigenbaum_cascade(r_start, r_end, warmup, samples)`
+
+**Defaults:** `[2.8, 4, 200, 100]`
+
+| Parameter | Flag(s) | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `r_start` | `--start`, `--r0` | `2.8` | Growth parameter scan start (0–4) |
+| `r_end` | `--end`, `--r1` | `4` | Growth parameter scan end (0–4) |
+| `warmup` | `--warmup`, `--transient` | `200` | Transient iterations to discard (50–2000) |
+| `samples` | `--samples`, `--s` | `100` | Attractor samples per r value (20–500) |
+
+**Usage:**
+```
+run feigenbaum                                         # full bifurcation diagram, r=2.8→4
+run feigenbaum 3.0 3.6 200 200                         # period-doubling onset zone
+run feigenbaum 3.5699 4 500 500                        # onset of chaos → full chaos
+run feigenbaum --start 3.8 --end 4.0 --samples 300    # deep chaos regime, high density
+run chaos --start 3.0 --warmup 500                    # long transient discard
+```
+
+**Key thresholds:** r=3.0 (period-2) · r=3.45 (period-4) · r=3.5699 (onset of chaos) · r=4.0 (fully chaotic)
+
+---
+
+### 6.18 SURVEILLANCE — Panopticon Index
+
+**Aliases:** `surveillance`, `panopticon`, `legislation`, `governance`, `laws`, `greyc0`
+
+**Function:** `run_surveillance_index(region_code, category_code, threshold)`
+
+**Defaults:** `[0, 0, 0]`
+
+| Parameter | Flag(s) | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `region_code` | `--region`, `--r` | `0` | Jurisdiction: 0=ALL 1=UK 2=EU 3=US 4=AU 5=CA 6=DE 7=FR 8=SE 9=IE 10=NL 11=NZ 12=BE |
+| `category_code` | `--category`, `--cat`, `--c` | `0` | Category: 0=ALL 1=encryption_backdoor 2=digital_id 3=biometric 4=data_retention 5=worker 6=scanning 7=traffic 8=age_verify |
+| `threshold` | `--threshold`, `--t`, `--severity` | `0` | Minimum severity filter 0–5 (0=all, 3=elevated+, 5=critical only) |
+
+**Usage:**
+```
+run surveillance                                # all jurisdictions, all categories
+run surveillance 1 0 3                          # UK only, all categories, elevated+
+run surveillance --region 2 --cat 1            # EU encryption backdoor legislation
+run panopticon --severity 5                     # critical threats only, all regions
+run laws --region 3 --category 3 --threshold 4 # US biometric surveillance, high severity
+```
+
+---
+
+### 6.19 GRAY-SCOTT — Reaction-Diffusion System
+
+**Aliases:** `grayscott`, `gray_scott`, `reaction_diffusion`, `turing`, `morphogenesis`, `pde`
+
+**Stateful kernel** — instance persists across calls. Each invocation computes and returns the next animation frame batch.
+
+**Function:** `GrayScottKernel::compute_steps(feed_rate, kill_rate, frames)`
+
+**Defaults:** `[0.055, 0.062, 50]`
+
+| Parameter | Flag(s) | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `feed_rate` | `--feed`, `--f`, `--feed_rate` | `0.055` | f: rate replenishing u — presets: coral=0.037, spots=0.055, mazes=0.029 |
+| `kill_rate` | `--kill`, `--k`, `--kill_rate` | `0.062` | k: rate removing v — presets: coral=0.065, spots=0.062, mazes=0.057 |
+| `frames` | `--frames`, `--steps`, `--n` | `50` | Animation frames to compute (1–500; each frame = 10 PDE steps) |
+
+**Usage:**
+```
+run grayscott                                  # spots preset (default)
+run grayscott 0.037 0.065 100                  # coral growth pattern
+run grayscott 0.029 0.057 200                  # maze / labyrinthine pattern
+run grayscott 0.025 0.060 150                  # solitons / traveling waves
+run turing --feed 0.04 --kill 0.06             # near-critical morphogenesis
+```
+
+**Presets:**
+```
+f=0.037, k=0.065   # coral
+f=0.055, k=0.062   # spots (default)
+f=0.029, k=0.057   # mazes
+f=0.025, k=0.060   # solitons
+```
+
+---
+
+### 6.20 ML-KEM-CLASSIFIED — Post-Quantum Enclave
+
+**Aliases:** `classified`, `mlkem`, `ml_kem`, `pqc`, `postquantum`, `kem`, `fips203`
+
+**Function:** `run_classified(reveal: f64)`
+
+**Defaults:** `[0]`
+
+| Parameter | Flag(s) | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `reveal` | `--reveal`, `--show`, `--expose` | `0` | 0=redacted (default), 1=expose full decapsulation key in log |
+
+This kernel does not simply output text — it initiates a **two-stage time-locked decryption sequence**:
+
+1. `run classified` boots the ML-KEM-768 WASM module, navigates to `/cryptography`, and POSTs to the backend challenge endpoint. A 6-character challenge code and 60-second session are issued.
+2. The user types `verify <CODE>` within 60 seconds. The backend verifies the HMAC-signed session token, applies a timing-safe comparison, and — on success — decrypts the AES-256-GCM payload.
 
 ```
+run classified        # initiate: WASM boot → navigate → challenge issued
+verify A3F9B2         # respond: submit code within 60s → payload decrypted
+```
+
+The underlying algorithm is **ML-KEM-768** (FIPS 203) — a lattice-based key encapsulation mechanism. The kernel logs encapsulation key size (1184 bytes), ciphertext size (1088 bytes), and shared secret entropy metrics before handing off to the backend.
+
+---
+
+## 7. QUICK REFERENCE
+
+```
+run soma91                                             # GAIA banner
 run biodiversity                                       # ecosystem dynamics
 run fishscale                                          # necromantic engine
 run bosonic [trust] [thermal]                          # lattice simulator
 run climate [ppm] [drag] [sink]                        # atmospheric entropy
 run statecraft [sanction] [resilience] [narrative]     # geopolitical kinetics
 run leviathan [cells] [generations]                    # V-cache benchmark
+run soma_live [consumption] [waste] [dep] [compliance] # stateful soma cycle
 run soma55                                             # soma_kernel_5.5 suite boot
 run daly [C] [G] [W] [A] [dep] [sub] [yr]             # Daly Rules ODE
 run ceei [agents] [goods] [inequality] [diversity]     # A-CEEI allocation
 run soma [pop] [eco] [social] [arts] [yr]              # Soma Plus engine
 run strangler [seed] [growth] [resistance] [yr]        # Strangler Fig ODE
+run kuramoto [n] [coupling] [sigma] [steps]            # synchrony / solidarity
+run replicator [b] [c] [p] [mu] [gen]                  # evolutionary game theory
+run ising [size] [temp] [field] [sweeps]               # opinion consensus field
+run feigenbaum [r0] [r1] [warmup] [samples]            # bifurcation / chaos
+run surveillance [region] [category] [threshold]       # panopticon index
+run grayscott [feed] [kill] [frames]                   # reaction-diffusion PDE
+run classified                                         # ML-KEM-768 enclave (→ verify)
 ```
 
 ---
 
-## 7. COMBINING WITH `load`
+## 8. COMBINING WITH `load`
 
 `run` and `load` operate on different layers of the same system.
 
@@ -446,5 +692,5 @@ run strangler --growth 0.35 --resistance 0.05   # stress-test optimistic scenari
 ---
 
 `SOURCE: content/soma_kernel/RUN-COMMAND-MANUAL.md`
-`KERNELS: content/rust_kernels/src/lib.rs · 11 registered WASM exports`
+`KERNELS: content/rust_kernels/src/kernels/ · 19 registered WASM exports`
 `REGISTRY: src/wasm/wasm.generated.js · scale94-kernels v0.1.0`

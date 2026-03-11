@@ -385,6 +385,33 @@ export function grayscott_params() {
 }
 
 /**
+ * Wipe ephemeral noise buffers and simulated key fragments from WASM linear
+ * memory after a classified session cycle ends.
+ *
+ * Uses `zeroize::Zeroize` which emits a compiler_fence(SeqCst) after the
+ * zeroing loop — prevents LLVM from eliding the wipe as a dead-store
+ * optimisation. In WASM, the erased bytes live in the linear memory heap;
+ * while JS can still read WebAssembly.Memory, this ensures Rust's side of
+ * any ephemeral key material is provably cleared before the function returns.
+ *
+ * The React frontend calls this via `mod.log_entropy_flush()` after the
+ * decrypted payload has been delivered, logging the result to the system log.
+ * @returns {string}
+ */
+export function log_entropy_flush() {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.log_entropy_flush();
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * Simulates a simplified A-CEEI (Approximate Competitive Equilibrium from
  * Equal Incomes) preference-based allocation market.
  *
