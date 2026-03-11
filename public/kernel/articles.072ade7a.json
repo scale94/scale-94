@@ -389,6 +389,24 @@
     "len": "0 WDS"
   },
   {
+    "id": "SRDK-3.3.3",
+    "type": "kernel_doc",
+    "date": "2026-03-11",
+    "lastModified": "2026-03-11",
+    "title": "GRAY-SCOTT REACTION-DIFFUSION ENGINE",
+    "subtitle": "Mathematical Architecture",
+    "status": "ACTIVE",
+    "readTime": "2 min read",
+    "tags": [
+      "Gray-Scott",
+      "Reaction-Diffusion",
+      "Engine",
+      "Mathematical",
+      "Architecture"
+    ],
+    "len": "385 WDS"
+  },
+  {
     "id": "ATMOSPHERIC-ENTROPY-KERNEL-3.0",
     "type": "kernel_doc",
     "date": "2026-03-07",

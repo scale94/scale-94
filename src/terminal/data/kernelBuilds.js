@@ -151,6 +151,7 @@ const kernelBuilds = [
   { id: "SCALE-KERNEL-FRAMEWORK-FULL", articleId: "SCALE-KERNEL-FRAMEWORK-FULL", name: "SCALE_KERNEL_FRAMEWORK_FULL", status: "ACTIVE", desc: "☠ Full Corpus Synthesis · Render Prompt Architecture ☠" },
   { id: "SCALE-OPTIMIZATION-KERNEL-9.4", articleId: "SCALE-OPTIMIZATION-KERNEL-9.4", name: "SCALE_OPTIMIZATION_KERNEL_9_4", status: "ACTIVE", desc: "◈ 2026 GEOPOLITICAL ALIGNMENT" },
   { id: "SCALING-CUBE-PROTOCOL", articleId: "SCALING-CUBE-PROTOCOL", name: "SCALING_CUBE_PROTOCOL", status: "ACTIVE", desc: "Platonic Form · Entropic Stasis · The Architecture of Potential" },
+  { id: "SRDK-3.3.3", articleId: "SRDK-3.3.3", name: "SCOTT_REACTION_DIFFUSION_KERNEL_3_3_3", status: "ACTIVE", desc: "Mathematical Architecture" },
   { id: "SOMA-9.1", articleId: "SOMA-9.1", name: "SOMA_9_1_KERNEL_REPORT", status: "ACTIVE", desc: "Ⅰ. KINETIC THEATER: MIDDLE EASTERN GRID FRACTURE" },
   { id: "SOMA-PLUS-ENGINE", articleId: "SOMA-PLUS-ENGINE", name: "SOMA_PLUS_ENGINE", status: "ACTIVE", desc: "Status Is Earned Through the Commons — soma_kernel_5.5" },
   { id: "SORBE-THERMODYNAMIC-BLOOM-V1", articleId: "SORBE-THERMODYNAMIC-BLOOM-V1", name: "SORBE_THERMODYNAMIC_BLOOM_KERNEL_1_0", status: "ACTIVE", desc: "◈ THE THERMODYNAMIC IMPERATIVE" },

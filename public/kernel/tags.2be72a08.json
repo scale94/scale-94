@@ -59,6 +59,10 @@
   ],
   "Architecture": [
     {
+      "id": "SRDK-3.3.3",
+      "title": "GRAY-SCOTT REACTION-DIFFUSION ENGINE"
+    },
+    {
       "id": "KINETIC-STATECRAFT-KERNEL-1.0",
       "title": "KINETIC STATECRAFT KERNEL 1.0"
     },
@@ -609,6 +613,10 @@
   ],
   "Engine": [
     {
+      "id": "SRDK-3.3.3",
+      "title": "GRAY-SCOTT REACTION-DIFFUSION ENGINE"
+    },
+    {
       "id": "DALY-THERMO-SIMULATION",
       "title": "DALY THERMO SIMULATION V1.0 // THERMODYNAMIC GOVERNOR"
     }
@@ -885,6 +893,12 @@
       "title": "SOMA 16.10 // THE GF BUILD"
     }
   ],
+  "Gray-Scott": [
+    {
+      "id": "SRDK-3.3.3",
+      "title": "GRAY-SCOTT REACTION-DIFFUSION ENGINE"
+    }
+  ],
   "GREENLAND": [
     {
       "id": "GDPDW-KERNEL-5.5.5.5.5",
@@ -1157,6 +1171,12 @@
     {
       "id": "SOMA-INTEGRATION-KERNEL-V1.0",
       "title": "SOMA INTEGRATION KERNEL V1.0"
+    }
+  ],
+  "Mathematical": [
+    {
+      "id": "SRDK-3.3.3",
+      "title": "GRAY-SCOTT REACTION-DIFFUSION ENGINE"
     }
   ],
   "MATRIX": [
@@ -1539,6 +1559,12 @@
     {
       "id": "QUANTUM-QUACKSALBER-KERNEL-1.1.1",
       "title": "🔱 KERNEL: QUANTUM FUSION PROTOCOL [LAYER 3 FINAL]"
+    }
+  ],
+  "Reaction-Diffusion": [
+    {
+      "id": "SRDK-3.3.3",
+      "title": "GRAY-SCOTT REACTION-DIFFUSION ENGINE"
     }
   ],
   "REALITY": [
