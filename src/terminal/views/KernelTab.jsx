@@ -130,7 +130,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
             className="w-5 h-5"
             style={{ color: '#FFB900', animation: 'sk-kernelIconReveal 0.8s cubic-bezier(0.16,1,0.3,1) forwards, sk-axiomIconPulse 5s ease-in-out 0.8s infinite' }}
           />
-          <span style={{ color: '#FB7185', opacity: 0, animation: 'sk-axiomHeadReveal 1s cubic-bezier(0.16,1,0.3,1) 0.2s forwards' }}>AXIOMATIC_CORE</span>
+          <span className="text-transparent bg-clip-text" style={{ backgroundImage: 'linear-gradient(90deg, #FB7185, #EF4444)', opacity: 0, animation: 'sk-axiomHeadReveal 1s cubic-bezier(0.16,1,0.3,1) 0.2s forwards' }}>AXIOMATIC_CORE</span>
         </h3>
         <div className="space-y-4">
           {kernelAxioms.map((axiom, idx) => (
