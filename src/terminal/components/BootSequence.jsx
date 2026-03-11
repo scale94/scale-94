@@ -2,11 +2,11 @@ import React, { useEffect, useRef } from 'react';
 import { Cpu } from 'lucide-react';
 
 const BOOT_LINES = [
-  ['MOUNTING VOLUMES',          'OK'],
-  ['LOADING SOMA_KERNEL_V5.5',  'OK'],
-  ['ESTABLISHING SECURE CONN',  'OK'],
-  ['DECRYPTING ARCHIVES',       'OK'],
-  ['INTEGRITY CHECK',           'PASS'],
+  ['MOUNTING VOLUMES',           'OK'],
+  ['LOADING SOMA_KERNEL_9.1',    'OK'],
+  ['GAIA BUILD: OSTROM PROTOCOL','ACTIVE'],
+  ['ESTABLISHING SECURE CONN',   'OK'],
+  ['INTEGRITY CHECK',            'PASS'],
 ];
 
 // Cubic ease-out: fast start → smooth deceleration → clean stop
@@ -145,10 +145,10 @@ const BootSequence = ({ onDone }) => {
                     animation: 'bs-glitch 0.25s steps(1) 0.45s 5 forwards, bs-gradient-x 3s ease forwards',
                   }}
                 >
-                  SOMA_KERNEL
+                  SOMA_9.1
                 </div>
                 <div className="text-fuchsia-500 text-xs font-bold tracking-[0.25em] mt-2 uppercase">
-                  v5.5 &nbsp;//&nbsp; FISH_SCALE_NECROMANCER
+                  GAIA BUILD &nbsp;//&nbsp; OSTROM_PROTOCOL
                 </div>
               </div>
             </div>
@@ -202,7 +202,7 @@ const BootSequence = ({ onDone }) => {
                 animation: 'bs-lineIn 0.2s ease-out 1.8s forwards, bs-active 0.35s ease-in-out 2s infinite',
               }}
             >
-              {'>'} scale_9.4 ACTIVE :: ALL SYSTEMS OPERATIONAL
+              {'>'} SOMA-9.1 // GAIA BUILD :: ALL SYSTEMS OPERATIONAL
             </div>
 
           </div>

@@ -19,12 +19,13 @@
  *   node import-kernel.js ./my-kernels/ --force  # bypass title-dedup guard
  */
 
-import fs   from 'fs';
-import path from 'path';
+import fs             from 'fs';
+import path           from 'path';
 import { fileURLToPath } from 'url';
-import matter from 'gray-matter';
-import { marked } from 'marked';
-import semver from 'semver';
+import { spawnSync }  from 'child_process';
+import matter         from 'gray-matter';
+import { marked }     from 'marked';
+import semver         from 'semver';
 import { normalizeQuery as sovereignSlug } from './src/lib/normalize.js';
 import { atomicWrite, fileHash, loadCache, saveCache, sha256Prefix } from './scripts/_build-utils.js';
 import { KERNEL_DIR, updateManifest, purgeStaleFiles } from './scripts/_manifest-utils.js';
@@ -39,6 +40,7 @@ const CONTENT_DIR = process.argv[2] && !process.argv[2].startsWith('--')
 
 const DRY_RUN = process.argv.includes('--dry');
 const FORCE   = process.argv.includes('--force');
+const COMMIT  = process.argv.includes('--commit');
 
 const CHUNKS_DIR     = path.join(__dirname, 'src/terminal/data/generated_chunks');
 const BUILDS_PATH    = path.join(__dirname, 'src/terminal/data/kernelBuilds.js');
@@ -664,6 +666,26 @@ function run() {
 
   if (skipped > 0) console.log(`\n  ↷ ${skipped} kernel(s) skipped (hand-curated conflict).`);
   console.log(`\n  Done. ${processed} kernel(s) processed.\n`);
+
+  // ── Auto-commit ────────────────────────────────────────────────────────────
+  if (COMMIT && !DRY_RUN && pendingArticles.length > 0) {
+    const names   = pendingArticles.map(a => a.id).join(', ');
+    const message = `import: ${names}`;
+    console.log(`  git add .`);
+    const add = spawnSync('git', ['add', '.'], { stdio: 'inherit' });
+    if (add.status !== 0) {
+      console.error(`  ✗ git add failed (status ${add.status})`);
+      process.exit(add.status ?? 1);
+    }
+    console.log(`  git commit -m "${message}"`);
+    const commit = spawnSync('git', ['commit', '-m', message], { stdio: 'inherit' });
+    if (commit.status !== 0 && commit.status !== 1) {
+      // status 1 = nothing to commit — not an error
+      console.error(`  ✗ git commit failed (status ${commit.status})`);
+      process.exit(commit.status ?? 1);
+    }
+    console.log(`  ✓ committed: ${message}\n`);
+  }
 }
 
 run();

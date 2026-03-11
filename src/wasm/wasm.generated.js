@@ -4,6 +4,17 @@
 // Regenerate after: node scripts/import-rust.js
 
 const wasmRegistry = {
+  "SOMA-9.1-GAIA": {
+    id:      "SOMA-9.1-GAIA",
+    fn:      "soma_91_banner",
+    args:    [],
+    argMap:  {},
+    label:   "SOMA-9.1 // GAIA BUILD — system kernel log banner",
+    type:    'rust',
+    module:  "/wasm/scale94_kernels.js",
+    wasmUrl: "/wasm/scale94_kernels_bg.wasm",
+    aliases: ["soma91","gaia","soma_91","soma91_banner","banner"],
+  },
   "BIODIVERSITY-KERNEL-1.0.1": {
     id:      "BIODIVERSITY-KERNEL-1.0.1",
     struct:  "BiocoenosisKernel",

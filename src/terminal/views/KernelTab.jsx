@@ -80,7 +80,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
             animation: 'sk-subReveal 0.6s ease-out 0.4s forwards, sk-kernelShimmer 4s ease-in-out infinite'
           }}
         >
-          VERSION: SOMA 11.1 // BUILD: FISH_SCALE_NECROMANCER
+          VERSION: SOMA-9.1 // BUILD: GAIA // OSTROM_PROTOCOL
         </div>
       </div>
       <div className="flex items-center gap-4 mt-4 md:mt-0">

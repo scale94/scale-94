@@ -121,6 +121,7 @@ const App = () => {
   const [tagCloudView,    setTagCloudView]    = useState(false);
   const [suggestions, setSuggestions]   = useState([]);
   const [activeSugg,   setActiveSugg]   = useState(-1);
+  const [paramHint,    setParamHint]    = useState('');
   const [cmdHistory,   setCmdHistory]   = useState([]);   // most-recent first
   const [historyIdx,   setHistoryIdx]   = useState(-1);   // -1 = live input
   const [savedInput,   setSavedInput]   = useState('');
@@ -536,37 +537,148 @@ const App = () => {
     setSearchFilter('');
   }, []);
 
+  // ── Command manifest for prefix completion ──────────────────────────────────
+  const CMD_MANIFEST = [
+    { name: 'load',         desc: 'open a kernel module  e.g. load soma' },
+    { name: 'run',          desc: 'execute WASM kernel    e.g. run climate' },
+    { name: 'list',         desc: 'show all modules' },
+    { name: 'search',       desc: 'filter kernel index    e.g. search quantum' },
+    { name: 'help',         desc: 'system command reference' },
+    { name: 'clear',        desc: 'clear system log' },
+    { name: 'tags',         desc: 'open tag cloud' },
+    { name: 'thesis',       desc: 'load architect thesis' },
+    { name: 'home',         desc: 'navigate to /kernel' },
+    { name: 'scaling',      desc: 'navigate to /scaling' },
+    { name: 'transmission', desc: 'navigate to /transmission' },
+    { name: 'manifesto',    desc: 'navigate to /manifesto' },
+    { name: 'surveillance', desc: 'navigate to /surveillance' },
+    { name: 'bsky',         desc: 'navigate to /bsky' },
+    { name: 'privacy',      desc: 'navigate to /privacy' },
+  ];
+
   // Autocomplete — fires on every keystroke, populates suggestion list
   const handleInputChange = useCallback((e) => {
     const val = e.target.value;
     setCommandInput(val);
     const trimmed = val.trimStart();
-    if (trimmed.toLowerCase().startsWith('load ')) {
+    const lower   = trimmed.toLowerCase();
+
+    if (lower.startsWith('load ')) {
+      // ── load <keyword>: kernel fuzzy match ──────────────────────────────
       const q = norm(trimmed.slice(5).trim());
       if (q.length >= 1) {
         setSuggestions(
           kernelBuilds
             .filter(k => norm(k.id).includes(q) || norm(k.name).includes(q))
             .slice(0, 5)
+            .map(k => ({ ...k, _type: 'kernel' }))
         );
       } else {
         setSuggestions([]);
       }
+      setParamHint('');
+
+    } else if (lower.startsWith('run ')) {
+      // ── run <alias>: WASM registry match + param hinting ────────────────
+      const afterRun = trimmed.slice(4);
+      const parts    = afterRun.trim().split(/\s+/);
+      const baseCmd  = parts[0];
+      const hasArgs  = parts.length > 1 && afterRun.trim().length > 0;
+
+      if (!baseCmd) {
+        // bare `run ` — surface all kernels
+        setSuggestions(
+          Object.values(wasmRegistry).slice(0, 6).map(e => ({
+            id:        e.id,
+            name:      e.aliases?.[0] ?? e.id,
+            desc:      e.label,
+            _type:     'run',
+            _complete: `run ${e.aliases?.[0] ?? e.id} `,
+          }))
+        );
+        setParamHint('');
+      } else if (!hasArgs) {
+        // partial alias — fuzzy match
+        const kq      = norm(baseCmd);
+        const matches = Object.values(wasmRegistry)
+          .filter(e =>
+            norm(e.id).includes(kq) ||
+            e.aliases?.some(a => norm(a).includes(kq))
+          )
+          .slice(0, 5)
+          .map(e => ({
+            id:        e.id,
+            name:      e.aliases?.[0] ?? e.id,
+            desc:      e.label,
+            _type:     'run',
+            _complete: `run ${e.aliases?.[0] ?? e.id} `,
+          }));
+        setSuggestions(matches);
+        setParamHint('');
+      } else {
+        // alias resolved, args being typed — show param hint, dismiss dropdown
+        setSuggestions([]);
+        const kq    = norm(baseCmd);
+        const entry = Object.values(wasmRegistry).find(e =>
+          norm(e.id) === kq ||
+          e.aliases?.some(a => norm(a) === kq) ||
+          norm(e.id).includes(kq) ||
+          e.aliases?.some(a => norm(a).includes(kq))
+        );
+        if (entry?.params?.length) {
+          // count how many space-separated args the user has already typed
+          const typedArgCount = parts.length - 1;
+          const remaining = entry.params
+            .slice(typedArgCount)
+            .map(p => `[${p.name}]`)
+            .join(' ');
+          setParamHint(remaining);
+        } else {
+          setParamHint('');
+        }
+      }
+
+    } else if (trimmed && !lower.includes(' ')) {
+      // ── bare partial: command prefix completion ──────────────────────────
+      const matches = CMD_MANIFEST.filter(c => c.name.startsWith(lower)).slice(0, 5);
+      setSuggestions(
+        matches.map(c => ({
+          id:        c.name,
+          name:      c.name,
+          desc:      c.desc,
+          _type:     'cmd',
+          _complete: c.name === 'load' || c.name === 'run' || c.name === 'search'
+            ? `${c.name} `
+            : c.name,
+        }))
+      );
+      setParamHint('');
+
     } else {
       setSuggestions([]);
+      setParamHint('');
     }
     setActiveSugg(-1);
   }, [norm]);
 
   // Shared: fire a suggestion (from keyboard Enter or click)
-  const executeSuggestion = useCallback((kernel) => {
+  const executeSuggestion = useCallback((item) => {
     setSuggestions([]);
     setActiveSugg(-1);
+    setParamHint('');
+
+    // run / cmd completions — fill input, don't navigate
+    if (item._type === 'run' || item._type === 'cmd') {
+      setCommandInput(item._complete ?? item.name);
+      return;
+    }
+
+    // kernel load
     setCommandInput('');
     const t = new Date().toLocaleTimeString('en-US', { hour12: false });
-    appendSystemLog({ time: t, msg: `COMMAND: load ${kernel.name}` });
-    appendSystemLog({ time: t, msg: `Locating kernel module "${kernel.name}"...` });
-    handleKernelClick(kernel);
+    appendSystemLog({ time: t, msg: `COMMAND: load ${item.name}` });
+    appendSystemLog({ time: t, msg: `Locating kernel module "${item.name}"...` });
+    handleKernelClick(item);
   }, [appendSystemLog, handleKernelClick]);
 
   // Command handler
@@ -591,7 +703,11 @@ const App = () => {
       if (e.key === 'Tab') {
         e.preventDefault();
         const k = activeSugg >= 0 ? suggestions[activeSugg] : suggestions[0];
-        setCommandInput(`load ${k.name}`);
+        if (k._type === 'run' || k._type === 'cmd') {
+          setCommandInput(k._complete ?? k.name);
+        } else {
+          setCommandInput(`load ${k.name}`);
+        }
         setSuggestions([]);
         setActiveSugg(-1);
         return;
@@ -1223,6 +1339,17 @@ const App = () => {
 
       <footer className="border-t border-cyan-900/50 p-2 bg-black/90 backdrop-blur-md z-40 shadow-[0_0_15px_rgba(6,182,212,0.1)] [overflow-x:clip] w-full">
         <div className="max-w-[1600px] mx-auto relative flex items-center gap-2 text-sm font-bold tracking-wide min-w-0 w-full">
+
+          {/* Param hint — floats above the terminal bar when run args are being typed */}
+          {paramHint && suggestions.length === 0 && (
+            <div className="absolute bottom-full left-0 right-0 mb-1 bg-black border border-fuchsia-900/40 shadow-[0_-2px_12px_rgba(217,70,239,0.1)] z-50 rounded-sm">
+              <div className="px-4 py-2 flex items-center gap-2 text-xs font-mono">
+                <span className="text-fuchsia-500/70 shrink-0">{'>'}</span>
+                <span className="text-cyan-900/80 truncate">{commandInput}</span>
+                <span className="text-fuchsia-400/60 tracking-wide">{paramHint}</span>
+              </div>
+            </div>
+          )}
 
           {/* Autocomplete dropdown — floats above the terminal bar */}
           {suggestions.length > 0 && (

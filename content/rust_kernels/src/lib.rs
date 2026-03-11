@@ -1,14 +1,41 @@
 // lib.rs — Scale 9.4 // Rust Kernel Execution Layer
-// Level 18: WASM Injection
+// SOMA-9.1 // GAIA BUILD
 //
 // Exposes two Soma kernel boot functions to JavaScript via wasm-bindgen:
 //   BiocoenosisKernel::boot  → Biodiversity Kernel 1.0.1
 //   NecromanticEngine::boot  → Fish Scale Kernel 11.1.1
+//   soma_91_banner()         → SOMA-9.1 Gaia Build boot diagnostic
 //
 // Build with: wasm-pack build --target web
 // Output:     pkg/  →  scripts/import-rust.js copies to public/wasm/
 
 use wasm_bindgen::prelude::*;
+
+// ── SOMA-9.1 // GAIA BUILD — System Kernel Log Banner ────────────────────────
+
+/// Returns the SOMA-9.1 Gaia Build boot banner for the terminal kernel log.
+/// No parameters. Static diagnostic — call on first CLI load to confirm
+/// system readiness and log the kernel version to the SYSTEM LOG.
+#[wasm_bindgen]
+pub fn soma_91_banner() -> String {
+    String::from(
+        "╔══════════════════════════════════════════════════╗\n\
+         ║  SOMA-9.1 // GAIA BUILD                          ║\n\
+         ║  Biocoenosis Kernel // Systemless Root           ║\n\
+         ╠══════════════════════════════════════════════════╣\n\
+         ║  VERSION     : SOMA-9.1.0                        ║\n\
+         ║  BUILD       : GAIA // Ostrom Protocol v1.0      ║\n\
+         ║  STATUS      : GALLOPING                         ║\n\
+         ║  ENTROPY     : 0.000 (steady-state)              ║\n\
+         ║  BOUNDARIES  : sealed                            ║\n\
+         ║  GOVERNANCE  : collective-choice                 ║\n\
+         ║  SANCTIONS   : graduated                         ║\n\
+         ║  SOVEREIGNTY : decoupled                         ║\n\
+         ╠══════════════════════════════════════════════════╣\n\
+         ║  ALL SYSTEMS OPERATIONAL // KERNEL_READY         ║\n\
+         ╚══════════════════════════════════════════════════╝"
+    )
+}
 
 // ── Biocoenosis Kernel (Biodiversity 1.0.1) ───────────────────────────────────
 
@@ -183,7 +210,8 @@ pub fn boot_leviathan_benchmark(grid_size: f64, generations: f64) -> String {
             next_state[i] = new_val;
             if new_val != center { mutations += 1; }
         }
-        current_state.copy_from_slice(&next_state);
+        // O(1) pointer swap — eliminates the O(size) memcpy per generation.
+        std::mem::swap(&mut current_state, &mut next_state);
     }
 
     let cache_pressure = (size as f64 * iters as f64) / 1_000_000.0;
