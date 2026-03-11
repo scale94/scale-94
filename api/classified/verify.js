@@ -108,13 +108,15 @@ export default function handler(req, res) {
   }
 
   // ── 3. Challenge passphrase (timing-safe) ─────────────────────────────────
-  const expected = Buffer.from(session.challenge.toUpperCase(), 'utf8');
-  const provided = Buffer.from((passphrase).trim().toUpperCase(), 'utf8');
+  // Both buffers padded to fixed length before comparison so a wrong-length
+  // guess gets the same code path as a right-length guess — no length oracle.
+  const FIXED_LEN = 64;
+  const expectedBuf = Buffer.alloc(FIXED_LEN);
+  const providedBuf = Buffer.alloc(FIXED_LEN);
+  Buffer.from(session.challenge.toUpperCase(), 'utf8').copy(expectedBuf);
+  Buffer.from(passphrase.trim().toUpperCase(),  'utf8').copy(providedBuf);
 
-  let match = false;
-  if (expected.length === provided.length) {
-    match = crypto.timingSafeEqual(expected, provided);
-  }
+  const match = crypto.timingSafeEqual(expectedBuf, providedBuf);
 
   if (!match) {
     const remaining = Math.max(0, session.expiresAt - now);

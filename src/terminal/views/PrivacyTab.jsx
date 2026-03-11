@@ -70,9 +70,9 @@ const PrivacyTab = ({ systemArticles = {} }) => {
             <div className="flex items-center gap-3 mb-6 pb-4 border-b border-rose-900/30 text-[10px] font-bold tracking-widest font-mono uppercase">
               <Database className="w-3 h-3 text-rose-400" />
               <span className="text-rose-400/70">LOG: PRIVACY-PROTOCOL</span>
-              <span className="text-cyan-900/60">//</span>
-              <span className="text-cyan-600/60">NODE: scale-9.4</span>
-              <span className="ml-auto text-rose-900/60">STATUS: ACTIVE</span>
+              <span className="text-rose-500/40">//</span>
+              <span className="text-cyan-400/50">NODE: scale-9.4</span>
+              <span className="ml-auto text-rose-400/50">STATUS: ACTIVE</span>
             </div>
 
             {/* Body content */}
@@ -87,9 +87,9 @@ const PrivacyTab = ({ systemArticles = {} }) => {
             />
 
             {/* Footer */}
-            <div className="mt-10 pt-6 border-t border-rose-900/20 flex justify-between items-center text-[10px] font-bold tracking-widest text-rose-900/50 uppercase font-mono">
+            <div className="mt-10 pt-6 border-t border-rose-900/20 flex justify-between items-center text-[10px] font-bold tracking-widest text-rose-400/40 uppercase font-mono">
               <span>END OF PROTOCOL // SOMA-9.1</span>
-              <span className="text-cyan-900/40">SORBE NODE :: OSTROM_PROTOCOL</span>
+              <span className="text-cyan-400/30">SORBE NODE :: OSTROM_PROTOCOL</span>
             </div>
           </div>
         </div>

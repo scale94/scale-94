@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { ArrowLeft } from 'lucide-react';
+import DOMPurify from 'dompurify';
 import HackerText from '../components/HackerText';
 import renderContent from '../utils/renderContent';
 
@@ -152,7 +153,7 @@ const ArticleView = ({ article, originTab, handleReturnToRoot, onNeuralLink }) =
           ? displayedChunks.map((chunk, i) => (
               <div
                 key={i}
-                dangerouslySetInnerHTML={{ __html: chunk }}
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(chunk) }}
                 style={{ animation: 'av-blockIn 0.18s ease-out both' }}
               />
             ))

@@ -98,12 +98,25 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
 
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 mb-12">
       <div className="border border-cyan-900/50 p-6 bg-black/50 backdrop-blur-sm relative group hover:border-cyan-500/50 transition-colors duration-500 rounded-lg h-fit">
-        <h3 className="text-xl font-bold mb-6 flex items-center gap-2 text-[#39ff14]">
-          <Database className="w-5 h-5" /> AXIOMATIC_CORE
+        <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+          <Database
+            className="w-5 h-5 text-[#39ff14]"
+            style={{ animation: 'sk-kernelIconReveal 0.8s cubic-bezier(0.16,1,0.3,1) forwards' }}
+          />
+          <span
+            className="text-transparent bg-clip-text"
+            style={{
+              backgroundImage: 'linear-gradient(90deg, #39ff14, #06b6d4, #39ff14)',
+              backgroundSize: '200% auto',
+              animation: 'sk-kernelShimmer 3s ease-in-out infinite',
+            }}
+          >AXIOMATIC_CORE</span>
         </h3>
         <div className="space-y-4">
           {kernelAxioms.map((axiom, idx) => (
-            <div key={idx} className="group/item hover:bg-cyan-900/10 p-3 -mx-2 transition-all rounded-sm border-l-2 border-transparent hover:border-cyan-500 cursor-default min-w-0">
+            <div key={idx} className="group/item hover:bg-cyan-900/10 p-3 -mx-2 transition-all rounded-sm border-l-2 border-transparent hover:border-cyan-500 cursor-default min-w-0"
+              style={{ opacity: 0, animation: `sk-subReveal 0.5s cubic-bezier(0.16,1,0.3,1) ${0.1 + idx * 0.08}s forwards` }}
+            >
               <div className="flex flex-wrap justify-between items-center gap-y-3 mb-1 gap-2">
                 <span className="font-bold text-cyan-400 text-lg min-w-0 break-words">0{idx + 1} :: {axiom.name?.toUpperCase() || "UNKNOWN"}</span>
                 <span className="text-[10px] font-bold tracking-widest bg-cyan-900/30 text-cyan-200 px-2 py-0.5 rounded-full shrink-0">{axiom.field || "SYS"}</span>
@@ -164,7 +177,17 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
         </div>
 
         <div className="border border-cyan-900/30 p-6 rounded-lg">
-          <h4 className="text-sm font-bold text-cyan-400 mb-4 flex items-center gap-2"><span className="text-[#39ff14]">{'>_'}</span> SYSTEM LOG (live)</h4>
+          <h4 className="text-sm font-bold mb-4 flex items-center gap-2">
+            <span className="text-[#39ff14]">{'>_'}</span>
+            <span
+              className="text-transparent bg-clip-text"
+              style={{
+                backgroundImage: 'linear-gradient(90deg, #39ff14, #06b6d4, #d946ef, #ef4444, #38bdf8, #39ff14)',
+                backgroundSize: '300% auto',
+                animation: 'sk-kernelShimmer 5s ease-in-out infinite',
+              }}
+            >SYSTEM LOG (live)</span>
+          </h4>
           <div ref={logRef} className="max-h-48 overflow-y-auto text-xs p-2 bg-black/60 border border-cyan-900/20 rounded custom-scrollbar">
             {visibleLogs.map((l, i) => (
               <div key={`${l.time}-${i}`} className={`mb-1 break-words ${l.rust ? 'text-emerald-400' : 'text-[#39ff14]'}`}>

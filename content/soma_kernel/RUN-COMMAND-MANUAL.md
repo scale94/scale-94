@@ -2,11 +2,12 @@
 id: RUN-COMMAND-MANUAL
 type: "kernel_doc"
 date: "2026-03-11"
+lastModified: "2026-03-11"
 status: "RUNNING"
-title: "RUN COMMAND MANUAL v2.0 // WASM KERNEL INTERFACE"
+title: "RUN COMMAND MANUAL v2.1 // WASM KERNEL INTERFACE"
 ---
 
-# RUN_COMMAND_MANUAL v2.0
+# RUN_COMMAND_MANUAL v2.1
 ## Direct Interface to Compiled Rust Simulations — scale_9.4 Terminal
 
 > *"While `load` fetches lore from the content archive, `run` feeds floating-point parameters directly into compiled WebAssembly binaries. These are not documents. These are simulations."*
@@ -621,7 +622,7 @@ f=0.025, k=0.060   # solitons
 
 ---
 
-### 6.20 ML-KEM-CLASSIFIED — Post-Quantum Enclave
+### 6.20 ML-KEM-CLASSIFIED — Post-Quantum Enclave (see §5 for full flow)
 
 **Aliases:** `classified`, `mlkem`, `ml_kem`, `pqc`, `postquantum`, `kem`, `fips203`
 
@@ -644,6 +645,127 @@ verify A3F9B2         # respond: submit code within 60s → payload decrypted
 ```
 
 The underlying algorithm is **ML-KEM-768** (FIPS 203) — a lattice-based key encapsulation mechanism. The kernel logs encapsulation key size (1184 bytes), ciphertext size (1088 bytes), and shared secret entropy metrics before handing off to the backend.
+
+---
+
+---
+
+### 6.21 CYNIC-REALIST — Dissipative Adaptation Engine
+
+**Aliases:** `cynicrealist`, `cynic_realist`, `dissipative`, `england`, `kuramoto_england`, `sloterdijk`
+
+**Function:** `run_cynic_realist(n_agents: f64, temperature: f64, coupling: f64, steps: f64)`
+
+**Defaults:** `[24, 1.0, 3.0, 600]`
+
+| Parameter | Flag(s) | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `n_agents` | `--n`, `--agents` | `24` | N: cognitive subsystems — stochastic oscillators in the field (4–64) |
+| `temperature` | `--temp`, `--t` | `1.0` | T: evolutionary temperature — stochasticity of adaptation (0.05–5.0) |
+| `coupling` | `--coupling`, `--k` | `3.0` | K: interaction coupling constant — solidarity strength (0.0–20.0) |
+| `steps` | `--steps`, `--iters` | `600` | Euler integration steps, dt=0.05 — depth of simulation (50–1500) |
+
+**Model:** Stochastic Kuramoto-England hybrid. `dθᵢ/dt = ωᵢ + K·r·sin(ψ−θᵢ) + √(2T·dt)·ηᵢ(t)`
+
+Order parameter `r` tracks collective coherence. Free energy `F = ⟨E⟩ − T·S`. Dissipation `σ = K²·r²·N/T`. England's 2013 result — organised systems dissipate *more* than disordered ones — is verified at each snapshot.
+
+**Greenwald density cap:** If N > `⌊0.8·√K·20⌋`, trace impurities are injected every 50 steps to prevent associative overload.
+
+**Status outputs:** `DISSIPATIVELY_ADAPTED` · `CONDENSING` · `PROTO-COHERENT` · `ENTROPIC`
+
+**Usage:**
+```
+run cynicrealist                                    # defaults: N=24, T=1.0, K=3.0
+run cynic_realist 32 0.5 5.0 800                   # high coupling, low T — biological regime
+run cynicrealist --coupling 0.5                    # below K_c → ENTROPIC (no order)
+run england --temp 0.1 --k 10.0                    # deep biological regime
+run sloterdijk --agents 64 --steps 1500            # max N, long integration
+```
+
+**Critical thresholds:**
+```
+K_c = 2·σ_freq·√(2/π)   — below K_c: disordered; above: order condenses
+T_c = σ_freq²·π / (2K)  — below T_c: biological regime (cooperation is thermodynamically favoured)
+```
+
+**Theory:** England (2013); Kuramoto (1975); Sloterdijk (1983); Roederer (2016)
+
+---
+
+### 6.22 DRK-PRAGMATIC-TYPE — Pragmatic\<T\> Type System
+
+**Aliases:** `pragmatic`, `pragmatic_type`, `drk`, `drk_pragmatic`, `thermal_resolve`, `pragmatict`
+
+**Function:** `run_pragmatic_type(n_agents: f64, thermal_budget: f64, thermal_limit: f64, cost_exponent: f64)`
+
+**Defaults:** `[32, 500, 10, 1.5]`
+
+| Parameter | Flag(s) | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `n_agents` | `--n`, `--agents` | `32` | N: agents attempting resolution tasks (4–128) |
+| `thermal_budget` | `--budget`, `--energy` | `500` | Total energy for all computations — shared thermal reservoir (10–10,000) |
+| `thermal_limit` | `--limit`, `--threshold` | `10` | Max cost for full-fidelity `Resolved` outcome (0.5–100) |
+| `cost_exponent` | `--alpha`, `--exponent` | `1.5` | α: power-law exponent for task cost distribution — lower = heavier tails (0.5–3.0) |
+
+**Model:** Demonstration kernel for the `Pragmatic<T>` type — the foundational type of the DRK (Dissipative Rust Kernel) architecture. Replaces `Result<T,E>` with a thermodynamically honest computation outcome:
+
+```
+enum Pragmatic<T> {
+    Resolved(T),          // full fidelity — cost within thermal limit
+    Synthetic(T, f64),    // approximation + fidelity score ∈ [0,1]
+    Dissolved,            // budget exhausted — entropy won
+}
+```
+
+N agents each attempt 8 tasks drawn from a power-law cost distribution. As the shared thermal budget depletes, outcomes shift from `Resolved → Synthetic → Dissolved`. Fidelity degrades multiplicatively through `and_then` chains. The simulation reports thermal efficiency, fidelity histograms, chain degradation, and overall status.
+
+**Status outputs:** `THERMALLY_SOVEREIGN` · `PRAGMATICALLY_STABLE` · `SYNTHETIC_REGIME` · `THERMAL_COLLAPSE`
+
+**Usage:**
+```
+run pragmatic                                           # defaults: N=32, budget=500, limit=10, α=1.5
+run drk 64 2000 20 1.0                                  # more agents, bigger budget, heavier tails
+run pragmatic --budget 50 --limit 10                    # budget starvation → THERMAL_COLLAPSE
+run drk --alpha 0.5 --budget 1000                       # extreme power-law costs, generous budget
+run thermal_resolve --agents 128 --limit 50             # max agents, high resolution limit
+```
+
+**Scenario guide:**
+```
+run pragmatic 32 500 10 1.5     # default — balanced regime (PRAGMATICALLY_STABLE)
+run pragmatic 32 5000 10 1.5    # abundant budget → THERMALLY_SOVEREIGN
+run pragmatic 32 50 10 1.5      # budget starvation → THERMAL_COLLAPSE
+run pragmatic 32 500 100 1.5    # high limit → almost all Resolved
+```
+
+**DRK build sequence:** `Pragmatic<T>` ✓ DONE → kernel log schema → slab arena allocator → GlobalAlloc wrapper → Rhizomatic scheduler → SSS_DOCTRINE
+
+**Theory:** Prigogine (1977); England (2013); Kauffman (1993); Jaynes (1957)
+
+---
+
+### 6.23 DH-EC — Cryptographic Architecture Kernel
+
+**Status:** `COMPILED — NOT YET REGISTERED IN KERNEL_MAP`
+
+> DH-EC is present in `content/rust_kernels/src/kernels/dh_ec.rs` and compiled into the WASM binary via `mod.rs`, but does not yet have an entry in `import-rust.js` KERNEL_MAP. It cannot be invoked via `run` until registered. See source file for full implementation.
+
+**Function (when registered):** `run_dh_ec_kernel(mode: f64, show_details: f64)`
+
+| Parameter | Description |
+| :--- | :--- |
+| `mode` | 0=ALL · 1=classical_dh · 2=ecdh_curve25519 · 3=x3dh_signal · 4=threema_nacl · 5=comparison |
+| `show_details` | 0=compact (keys abbreviated to 16 hex chars) · 1=verbose (full 32-byte hex + analysis notes) |
+
+**Description:** Classical Diffie-Hellman (finite field) · ECDH Curve25519 · Signal X3DH (Extended Triple Diffie-Hellman) · Threema NaCl box. Cryptographic comparison engine v1.0.0. Each mode runs the full key exchange protocol, logging public keys, shared secrets, and protocol analysis. Mode 5 produces a full comparative threat-model assessment.
+
+**Pending registration** — add to `scripts/import-rust.js` KERNEL_MAP with:
+```
+id:      'DH-EC-KERNEL-1.0',
+fn:      'run_dh_ec_kernel',
+args:    [0, 0],
+aliases: ['dh_ec', 'diffie', 'ecdh', 'curve25519', 'x3dh', 'signal_proto', 'threema', 'nacl'],
+```
 
 ---
 
@@ -670,6 +792,9 @@ run feigenbaum [r0] [r1] [warmup] [samples]            # bifurcation / chaos
 run surveillance [region] [category] [threshold]       # panopticon index
 run grayscott [feed] [kill] [frames]                   # reaction-diffusion PDE
 run classified                                         # ML-KEM-768 enclave (→ verify)
+run cynicrealist [n] [temp] [coupling] [steps]         # Kuramoto-England dissipative adaptation
+run pragmatic [n] [budget] [limit] [alpha]             # DRK Pragmatic<T> type system
+# dh_ec — compiled, pending KERNEL_MAP registration
 ```
 
 ---
@@ -692,5 +817,6 @@ run strangler --growth 0.35 --resistance 0.05   # stress-test optimistic scenari
 ---
 
 `SOURCE: content/soma_kernel/RUN-COMMAND-MANUAL.md`
-`KERNELS: content/rust_kernels/src/kernels/ · 19 registered WASM exports`
+`KERNELS: content/rust_kernels/src/kernels/ · 22 registered WASM exports · 1 compiled / pending registration (dh_ec)`
 `REGISTRY: src/wasm/wasm.generated.js · scale94-kernels v0.1.0`
+`UPDATED: v2.1 — added §6.21 CYNIC-REALIST, §6.22 DRK-PRAGMATIC-TYPE, §6.23 DH-EC (pending)`
