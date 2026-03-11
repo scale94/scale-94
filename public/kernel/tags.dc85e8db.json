@@ -570,7 +570,7 @@
   "EFFECTOR": [
     {
       "id": "KERNEL-V3-TENFOLD-SCALING-1",
-      "title": "🏛️ : SOVEREIGN_EFFECTOR]"
+      "title": "🏛️ : SOVEREIGN_EFFECTOR] // REVISION 1"
     },
     {
       "id": "KERNEL-V3-TENFOLD-SCALING",
@@ -830,7 +830,7 @@
   "GERMANY": [
     {
       "id": "KERNEL-V3-TENFOLD-SCALING-1",
-      "title": "🏛️ : SOVEREIGN_EFFECTOR]"
+      "title": "🏛️ : SOVEREIGN_EFFECTOR] // REVISION 1"
     },
     {
       "id": "KERNEL-V3-TENFOLD-SCALING",
@@ -1094,7 +1094,7 @@
   "LOGIC": [
     {
       "id": "KERNEL-15.0-THE-PURIFICATION-OF-SCALE-1",
-      "title": "🧊 KERNEL 15.0: THE PURIFICATION OF SCALE"
+      "title": "🧊 KERNEL 15.0: THE PURIFICATION OF SCALE // REVISION 1"
     },
     {
       "id": "KERNEL-15.0-THE-PURIFICATION-OF-SCALE",
@@ -1379,10 +1379,6 @@
       "title": "SOMA KERNEL 12.12"
     },
     {
-      "id": "KERNEL-V3-TENFOLD-SCALING-1",
-      "title": "🏛️ : SOVEREIGN_EFFECTOR]"
-    },
-    {
       "id": "KERNEL-V3-TENFOLD-SCALING",
       "title": "🏛️ : SOVEREIGN_EFFECTOR]"
     }
@@ -1496,7 +1492,7 @@
   "PURIFICATION": [
     {
       "id": "KERNEL-15.0-THE-PURIFICATION-OF-SCALE-1",
-      "title": "🧊 KERNEL 15.0: THE PURIFICATION OF SCALE"
+      "title": "🧊 KERNEL 15.0: THE PURIFICATION OF SCALE // REVISION 1"
     },
     {
       "id": "KERNEL-15.0-THE-PURIFICATION-OF-SCALE",
@@ -1542,7 +1538,7 @@
   "REPENTANCE": [
     {
       "id": "KERNEL-15.0-THE-PURIFICATION-OF-SCALE-1",
-      "title": "🧊 KERNEL 15.0: THE PURIFICATION OF SCALE"
+      "title": "🧊 KERNEL 15.0: THE PURIFICATION OF SCALE // REVISION 1"
     },
     {
       "id": "KERNEL-15.0-THE-PURIFICATION-OF-SCALE",
@@ -1565,6 +1561,16 @@
     {
       "id": "FSQ-11.6",
       "title": "FISH SCALE KERNEL · 11.6.0 · QUANTUM EXPANSION"
+    }
+  ],
+  "REVISION": [
+    {
+      "id": "KERNEL-15.0-THE-PURIFICATION-OF-SCALE-1",
+      "title": "🧊 KERNEL 15.0: THE PURIFICATION OF SCALE // REVISION 1"
+    },
+    {
+      "id": "KERNEL-V3-TENFOLD-SCALING-1",
+      "title": "🏛️ : SOVEREIGN_EFFECTOR] // REVISION 1"
     }
   ],
   "RITUALISTIC": [
@@ -1616,7 +1622,7 @@
     },
     {
       "id": "KERNEL-15.0-THE-PURIFICATION-OF-SCALE-1",
-      "title": "🧊 KERNEL 15.0: THE PURIFICATION OF SCALE"
+      "title": "🧊 KERNEL 15.0: THE PURIFICATION OF SCALE // REVISION 1"
     },
     {
       "id": "KERNEL-15.0-THE-PURIFICATION-OF-SCALE",
@@ -1788,7 +1794,7 @@
   "SORBE": [
     {
       "id": "KERNEL-V3-TENFOLD-SCALING-1",
-      "title": "🏛️ : SOVEREIGN_EFFECTOR]"
+      "title": "🏛️ : SOVEREIGN_EFFECTOR] // REVISION 1"
     },
     {
       "id": "KERNEL-V3-TENFOLD-SCALING",
@@ -1824,7 +1830,7 @@
     },
     {
       "id": "KERNEL-V3-TENFOLD-SCALING-1",
-      "title": "🏛️ : SOVEREIGN_EFFECTOR]"
+      "title": "🏛️ : SOVEREIGN_EFFECTOR] // REVISION 1"
     },
     {
       "id": "KERNEL-V3-TENFOLD-SCALING",
@@ -2034,10 +2040,6 @@
     }
   ],
   "SYSTEMIC": [
-    {
-      "id": "KERNEL-15.0-THE-PURIFICATION-OF-SCALE-1",
-      "title": "🧊 KERNEL 15.0: THE PURIFICATION OF SCALE"
-    },
     {
       "id": "KERNEL-15.0-THE-PURIFICATION-OF-SCALE",
       "title": "🧊 KERNEL 15.0: THE PURIFICATION OF SCALE"

@@ -3,10 +3,10 @@ id: KERNEL-15.0-THE-PURIFICATION-OF-SCALE-1
 type: "kernel_doc"
 date: "2026-03-06"
 status: "ACTIVE"
-title: "🧊 KERNEL 15.0: THE PURIFICATION OF SCALE"
+title: "🧊 KERNEL 15.0: THE PURIFICATION OF SCALE // REVISION 1"
 ---
 
-# 🧊 KERNEL 15.0: THE PURIFICATION OF SCALE
+# 🧊 KERNEL 15.0: THE PURIFICATION OF SCALE // REVISION 1
 
 The logic of **2:54** is integrated into the **Greenland Defense** as the ultimate protocol for **Systemic Repentance** and **Purification**. It is the process of stripping away the "False Fish Scale" (the idolatry of the ego) to restore the **100% Health Lattice**.
 

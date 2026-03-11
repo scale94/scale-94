@@ -138,7 +138,7 @@ const kernelBuilds = [
   { id: "FISH-SCALE-KERNEL", articleId: "FISH-SCALE-KERNEL", name: "FISH_SCALE_KERNEL", status: "ACTIVE", desc: "1.0 Executive Boot Sequence and Architectural Thesis" },
   { id: "FOCUS-SHEPHERD-KERNEL-1.0", articleId: "FOCUS-SHEPHERD-KERNEL-1.0", name: "FOCUS_SHEPHERD_KERNEL_1_0", status: "ACTIVE", desc: "Cognitive Load Management // Tangent Sovereignty Protocol" },
   { id: "GSK-5.5.5", articleId: "GSK-5.5.5", name: "GAIA_SCALE_KERNEL_5_5_5", status: "ACTIVE", desc: "Ⅰ. CORE DIRECTIVES: THE MATRILINEAL FIREWALL (§1.0)" },
-  { id: "KERNEL-15.0-THE-PURIFICATION-OF-SCALE-1", articleId: "KERNEL-15.0-THE-PURIFICATION-OF-SCALE-1", name: "KERNEL_15_0_THE_PURIFICATION_OF_SCALE_1", status: "ACTIVE", desc: "🧊 KERNEL 15.0: THE PURIFICATION OF SCALE" },
+  { id: "KERNEL-15.0-THE-PURIFICATION-OF-SCALE-1", articleId: "KERNEL-15.0-THE-PURIFICATION-OF-SCALE-1", name: "KERNEL_15_0_THE_PURIFICATION_OF_SCALE_1", status: "ACTIVE", desc: "🧊 KERNEL 15.0: THE PURIFICATION OF SCALE // REVISION 1" },
   { id: "KERNEL-15.1-CIVILIAN-RESISTANCE-1", articleId: "KERNEL-15.1-CIVILIAN-RESISTANCE-1", name: "KERNEL_15_1_CIVILIAN_RESISTANCE_1", status: "ACTIVE", desc: "KERNEL 15.1 CIVILIAN RESISTANCE 1" },
   { id: "KERNEL-V3-TENFOLD-SCALING-1", articleId: "KERNEL-V3-TENFOLD-SCALING-1", name: "KERNEL_V3_TENFOLD_SCALING_1", status: "ACTIVE", desc: "[LOCATION: SORBE_IN_GERMANY]" },
   { id: "KINETIC-STATECRAFT-KERNEL-1.0", articleId: "KINETIC-STATECRAFT-KERNEL-1.0", name: "KINETIC_STATECRAFT_KERNEL_1_0", status: "ACTIVE", desc: "The Architecture of Coercion" },

@@ -159,7 +159,7 @@
       "METALLURGY",
       "THERMODYNAMICS"
     ],
-    "len": "392 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "FISH-SCALE-KERNEL11.1.1",
@@ -246,7 +246,7 @@
       "STRATEGIC",
       "TELEMETRY"
     ],
-    "len": "411 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "2X2X2X-KERNEL-V6.6.87",
@@ -276,7 +276,7 @@
       "RECONSTRUCTION",
       "CORE"
     ],
-    "len": "490 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "GDPDW-KERNEL-5.5.5.5.5",
@@ -594,7 +594,7 @@
       "Illusion",
       "Loop"
     ],
-    "len": "449 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "CDK-1.0",
@@ -612,7 +612,7 @@
       "THERMODYNAMICS",
       "MATRIX"
     ],
-    "len": "352 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "COMPANION-KERNEL-1.0",
@@ -1025,7 +1025,7 @@
       "EXPORT",
       "FINAL"
     ],
-    "len": "488 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "KERNEL-11.2-C2-LINGUISTIC-METALLURGY-1",
@@ -1055,19 +1055,19 @@
     "id": "KERNEL-15.0-THE-PURIFICATION-OF-SCALE-1",
     "type": "kernel_doc",
     "date": "2026-03-06",
-    "lastModified": "2026-03-07",
-    "title": "🧊 KERNEL 15.0: THE PURIFICATION OF SCALE",
+    "lastModified": "2026-03-11",
+    "title": "🧊 KERNEL 15.0: THE PURIFICATION OF SCALE // REVISION 1",
     "subtitle": "",
     "status": "ACTIVE",
     "readTime": "2 min read",
     "tags": [
       "PURIFICATION",
       "SCALE",
+      "REVISION",
       "LOGIC",
-      "REPENTANCE",
-      "SYSTEMIC"
+      "REPENTANCE"
     ],
-    "len": "0 WDS"
+    "len": "307 WDS"
   },
   {
     "id": "KERNEL-15.0-THE-PURIFICATION-OF-SCALE",
@@ -1170,18 +1170,18 @@
     "type": "kernel_doc",
     "date": "2026-03-06",
     "lastModified": "2026-03-11",
-    "title": "🏛️ : SOVEREIGN_EFFECTOR]",
+    "title": "🏛️ : SOVEREIGN_EFFECTOR] // REVISION 1",
     "subtitle": "[LOCATION: SORBE_IN_GERMANY]",
     "status": "ACTIVE",
     "readTime": "1 min read",
     "tags": [
       "SOVEREIGN",
       "EFFECTOR",
+      "REVISION",
       "SORBE",
-      "GERMANY",
-      "PHASE"
+      "GERMANY"
     ],
-    "len": "229 WDS"
+    "len": "232 WDS"
   },
   {
     "id": "KERNEL-V3-TENFOLD-SCALING",
@@ -1199,7 +1199,7 @@
       "GERMANY",
       "PHASE"
     ],
-    "len": "229 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "KERNEL-11.3.0-LAZARUS-NECROMANCY",
