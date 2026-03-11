@@ -58,7 +58,12 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Bash(gh pr:*)"
+      "Bash(gh pr:*)",
+      "Bash(findstr \":5180\")",
+      "Bash(taskkill /PID 29160 /F)",
+      "Bash(cmd /c \"taskkill /PID 29160 /F\")",
+      "Bash(cmd /c \"netstat -ano | findstr :5180\")",
+      "Bash(cmd /c \"netstat -ano | findstr \"\":3000 \\\\|:5173 \\\\|:5174 \\\\|:5175 \\\\|:5180\"\"\")"
     ]
   }
 }
