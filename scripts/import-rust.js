@@ -74,13 +74,31 @@ const KERNEL_MAP = [
   },
   {
     // Free function export — uses fn/args/argMap pattern instead of struct/boot.
+    // n_nodes:   args[0]  flags: --nodes, --n
+    // coupling:  args[1]  flags: --coupling, --trust
+    // thermal:   args[2]  flags: --thermal, --temp
+    // price_fix: args[3]  flags: --price, --price-fix
     id:      'BOSONIC-KERNEL-2.0',
     fn:      'boot_bosonic_lattice',
-    args:    [0.8, 0.7],
-    argMap:  { trust: 0, coupling: 0, price: 1, thermal: 1 },
+    args:    [8.0, 0.8, 0.35, 0.0],
+    argMap:  { nodes: 0, n: 0, coupling: 1, trust: 1, thermal: 2, temp: 2, price: 3, pricefix: 3 },
     label:   'Bosonic Lattice Simulator v2.0',
     type:    'rust',
     aliases: ['bosonic_lattice', 'bosonic', 'bosonickernel', 'lattice'],
+  },
+  {
+    // Phonemic Drift · Memory Hash Collision Simulator.
+    // Models retrieval as resonance matching: phonemic gravity vs semantic gravity.
+    // seed:        args[0]  flags: --seed
+    // target:      args[1]  flags: --target  (0=Baudrillard 1=Bachelard 2=Abelard)
+    // drift_noise: args[2]  flags: --noise, --drift
+    id:      'BELLARD-BAUDRILLARD_KERNEL-V1_0_0',
+    fn:      'run_phonemic_drift',
+    args:    [0xBEEF, 0, 0.65],
+    argMap:  { seed: 0, target: 1, query: 1, noise: 2, drift: 2 },
+    label:   'Bellard-Baudrillard Phonemic Drift v1.0.0',
+    type:    'rust',
+    aliases: ['phonemic', 'drift', 'bellard', 'baudrillard', 'simulacra', 'phonemic_drift', 'memory_hash'],
   },
   {
     // Climate thermodynamics engine — 3-parameter free function.
