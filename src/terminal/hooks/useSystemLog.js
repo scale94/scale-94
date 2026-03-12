@@ -9,11 +9,8 @@ export default function useSystemLog() {
     { time: new Date().toLocaleTimeString('en-US', { hour12: false }), msg: "Entropy Ledger synchronized. STATUS: GALLOPING" },
     { time: new Date().toLocaleTimeString('en-US', { hour12: false }), msg: "User 'scale' authenticated." },
     { time: new Date().toLocaleTimeString('en-US', { hour12: false }), msg: "──────────────────────────────────" },
-    { time: new Date().toLocaleTimeString('en-US', { hour12: false }), msg: "TERMINAL READY. Commands available:" },
-    { time: new Date().toLocaleTimeString('en-US', { hour12: false }), msg: "  load <keyword>  — open a kernel  (e.g. load soma)" },
-    { time: new Date().toLocaleTimeString('en-US', { hour12: false }), msg: "  list            — show all modules" },
-    { time: new Date().toLocaleTimeString('en-US', { hour12: false }), msg: "  search <term>   — filter kernel index" },
-    { time: new Date().toLocaleTimeString('en-US', { hour12: false }), msg: "  help            — all commands" },
+    { time: new Date().toLocaleTimeString('en-US', { hour12: false }), msg: "TERMINAL READY." },
+    { time: new Date().toLocaleTimeString('en-US', { hour12: false }), msg: "  load <kw> · list · search <term> · help" },
     { time: new Date().toLocaleTimeString('en-US', { hour12: false }), msg: "──────────────────────────────────" },
   ]);
 

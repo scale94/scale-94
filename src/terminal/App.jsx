@@ -808,6 +808,7 @@ const App = () => {
               ramPct={ramPct}
               isCritical={isCritical}
               isWarning={isWarning}
+              appendSystemLog={appendSystemLog}
             />
           )}
 

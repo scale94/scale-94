@@ -1,7 +1,40 @@
 import React from 'react';
-import { Database, GitBranch, Shield, ChevronRight, Cpu } from 'lucide-react';
+import { Database, GitBranch, Shield, ChevronRight, Cpu, Play } from 'lucide-react';
 
-const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, loadingKernel, visibleLogs = [], logRef, searchFilter, onClearFilter, listRef, commandInput = '', onCommandInputChange, onCommandKeyDown, ramPct = 0, isCritical = false, isWarning = false }) => (
+// ── ATMOSPHERIC-ENTROPY climate simulation — fires on SOMA-5.5 ▶ press ──────
+function runClimateSim(appendSystemLog) {
+  const now   = () => new Date().toLocaleTimeString('en-US', { hour12: false });
+  const rnd   = (min, max) => +(Math.random() * (max - min) + min).toFixed(2);
+  const rndI  = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+  const carbonPpm     = rnd(418, 458);
+  const drag          = rnd(0.52, 0.97);
+  const sink          = rnd(0.12, 0.74);
+  const deltaT        = rnd(1.1, 4.2);
+  const seaRise       = rnd(0.18, 1.12);
+  const events        = rndI(4, 31);
+  const fragIdx       = +((carbonPpm / 280 - 1) * drag / sink).toFixed(3);
+  const critical      = fragIdx > 0.8;
+  const statusLine    = critical
+    ? `⚠  FRAGMENTATION INDEX: ${fragIdx}  →  STATECRAFT FAILURE // THERMODYNAMICS OVERRIDES`
+    : `FRAGMENTATION INDEX: ${fragIdx}  →  within bounds (limit: 0.8)`;
+
+  const lines = [
+    '── ATMOSPHERIC-ENTROPY-KERNEL-3.0 // SOMA-5.5 RUNTIME ──',
+    `   --carbon-ppm      ${carbonPpm} ppm  (Δ +${(carbonPpm - 280).toFixed(1)} from pre-industrial)`,
+    `   --industrial-drag ${drag}  (economic inertia coefficient)`,
+    `   --ocean-sink      ${sink}  (hydrosphere absorption capacity)`,
+    `   --delta-T         +${deltaT}°C  |  sea-level +${seaRise}m  |  events: ${events}/yr`,
+    `   ${statusLine}`,
+    '────────────────────────────────────────────────────────',
+  ];
+
+  lines.forEach((msg, i) => {
+    setTimeout(() => appendSystemLog({ time: now(), msg, rust: true }), i * 90);
+  });
+}
+
+const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, loadingKernel, visibleLogs = [], logRef, searchFilter, onClearFilter, listRef, commandInput = '', onCommandInputChange, onCommandKeyDown, ramPct = 0, isCritical = false, isWarning = false, appendSystemLog }) => (
   <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 relative md:flex md:flex-col md:h-[calc(100dvh-200px)] md:min-h-[540px]">
 
     <style>{`
@@ -106,7 +139,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
             style={{ color: '#FFD700', animation: 'sk-cpuYellowReveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards, sk-cpuYellowGlow 2.5s ease-in-out 0.8s infinite' }}
           />
           <span
-            className="text-transparent bg-clip-text"
+            className="hidden md:inline text-transparent bg-clip-text"
             style={{
               backgroundImage: 'linear-gradient(90deg, #FF8C00, #FFD700, #FFFF00, #FFD700, #FF8C00)',
               backgroundSize: '400% auto',
@@ -241,6 +274,16 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0 ml-auto">
+                    {kernel.id === 'SOMA-5.5' && appendSystemLog && (
+                      <button
+                        aria-label="Run climate simulation"
+                        onClick={(e) => { e.stopPropagation(); runClimateSim(appendSystemLog); }}
+                        className="flex items-center justify-center w-6 h-6 rounded-sm border border-fuchsia-500/60 bg-fuchsia-950/30 text-fuchsia-400 hover:bg-fuchsia-500/20 hover:border-fuchsia-400 hover:text-fuchsia-300 transition-all duration-150 active:scale-90 shrink-0"
+                        style={{ boxShadow: '0 0 6px rgba(217,70,239,0.25)' }}
+                      >
+                        <Play className="w-3 h-3 fill-current" />
+                      </button>
+                    )}
                     <div className={`text-[10px] font-bold px-2 py-0.5 rounded border tracking-widest whitespace-nowrap transition-all ${isLoading ? 'bg-cyan-900/30 border-cyan-400 text-cyan-300' : 'bg-transparent border-cyan-500 text-cyan-500'}`}>
                       {isLoading ? '...' : '[load]'}
                     </div>
