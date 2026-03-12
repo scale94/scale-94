@@ -45,16 +45,17 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
   const longPressRef    = useRef(null);
 
   // ── tty0 idle fade ─────────────────────────────────────────────────────────
-  // Fades to near-invisible after 3s of no touch. Any touch wakes it back.
+  // Fades to opacity-20 after 4s of no touch on the tty0 panel.
+  // Any touch on the tty0 wakes it back to full opacity.
   const [ttyFaded, setTtyFaded] = useState(false);
   const ttyFadeTimerRef = useRef(null);
   const resetTtyFade = useCallback(() => {
     setTtyFaded(false);
     if (ttyFadeTimerRef.current) clearTimeout(ttyFadeTimerRef.current);
-    ttyFadeTimerRef.current = setTimeout(() => setTtyFaded(true), 3000);
+    ttyFadeTimerRef.current = setTimeout(() => setTtyFaded(true), 4000);
   }, []);
   useEffect(() => {
-    ttyFadeTimerRef.current = setTimeout(() => setTtyFaded(true), 3000);
+    ttyFadeTimerRef.current = setTimeout(() => setTtyFaded(true), 4000);
     return () => clearTimeout(ttyFadeTimerRef.current);
   }, []);
 
