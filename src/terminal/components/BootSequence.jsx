@@ -35,7 +35,7 @@ const INK_DROPS = [
 const easeOut = (t) => 1 - Math.pow(1 - t, 3);
 
 const BootSequence = ({ onDone }) => {
-  const cpuRef    = useRef(null);
+  const squareRef = useRef(null);
   const cardRef   = useRef(null);
   const onDoneRef = useRef(onDone);
   useEffect(() => { onDoneRef.current = onDone; }, [onDone]);
@@ -44,6 +44,7 @@ const BootSequence = ({ onDone }) => {
     const SPIN_MS       = 2000;
     const FADE_START_MS = 3800;
     const DONE_MS       = 5000;
+    const EXIT_DURATION = DONE_MS - FADE_START_MS; // 1200ms
 
     const t0 = performance.now();
     let raf;
@@ -52,17 +53,23 @@ const BootSequence = ({ onDone }) => {
     const tick = (now) => {
       const elapsed = now - t0;
 
-      if (cpuRef.current) {
-        const spinT = Math.min(elapsed / SPIN_MS, 1);
-        cpuRef.current.style.transform = `rotate(${easeOut(spinT) * 720}deg)`;
+      if (squareRef.current) {
+        const spinT   = Math.min(elapsed / SPIN_MS, 1);
+        const baseDeg = easeOut(spinT) * 720;
+
+        if (elapsed < FADE_START_MS) {
+          squareRef.current.style.transform = `rotate(${baseDeg}deg)`;
+        } else {
+          // Exit phase: continue spinning + shrink to zero simultaneously
+          const exitT     = Math.min((elapsed - FADE_START_MS) / EXIT_DURATION, 1);
+          const exitScale = 1 - easeOut(exitT);
+          const exitDeg   = baseDeg + easeOut(exitT) * 360;
+          squareRef.current.style.transform = `rotate(${exitDeg}deg) scale(${exitScale})`;
+        }
       }
 
-      if (elapsed >= FADE_START_MS) {
-        if (cardRef.current) {
-          cardRef.current.style.opacity = '0';
-          cardRef.current.style.filter  = 'blur(8px)';
-        }
-        tid = setTimeout(() => onDoneRef.current?.(), Math.max(DONE_MS - elapsed, 0));
+      if (elapsed >= DONE_MS) {
+        onDoneRef.current?.();
         return;
       }
 
@@ -81,10 +88,10 @@ const BootSequence = ({ onDone }) => {
       <div
         ref={cardRef}
         className="w-[340px] md:w-[400px] aspect-square relative flex items-center"
-        style={{ transition: 'opacity 1s ease-out, filter 1s ease-out' }}
+        style={{ transition: 'none' }}
       >
-        {/* Yellow square — hard edges, no shadows, no gradients */}
-        <div className="relative overflow-visible px-6 py-7 md:px-8 md:py-8 w-full"
+        {/* Yellow square — spins 720° over 2s on boot */}
+        <div ref={squareRef} className="relative overflow-visible px-6 py-7 md:px-8 md:py-8 w-full"
           style={{ background: '#FFD700' }}
         >
 
@@ -122,7 +129,6 @@ const BootSequence = ({ onDone }) => {
               style={{ opacity: 0, animation: 'bs-stamp 0.5s cubic-bezier(0.22,1,0.36,1) 0.55s forwards' }}
             >
               <div
-                ref={cpuRef}
                 className="shrink-0 flex items-center justify-center"
                 style={{ width: '2.75rem', height: '2.75rem' }}
               >

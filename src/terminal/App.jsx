@@ -4,7 +4,7 @@
 // esbuild (Vite dev). Keep all imports at the top to guarantee identical
 // module evaluation order in both environments.
 import React, { useState, useEffect, useRef, useLayoutEffect, useMemo, useCallback, lazy, Suspense } from 'react';
-import { Hexagon, Cpu, Lock, Scale, Eye, ShieldAlert, KeyRound, Activity } from 'lucide-react';
+import { Hexagon, Cpu, Lock, Scale, Eye, ShieldAlert, KeyRound } from 'lucide-react';
 
 // Data — static (authored, always bundled)
 import kernelAxioms    from './data/kernelAxioms';
@@ -57,7 +57,6 @@ const NavButterflyIcon = () => (
   </svg>
 );
 const ClassifiedTab   = lazy(() => import('./views/ClassifiedTab'));
-const TelemetryTab    = lazy(() => import('./views/TelemetryTab'));
 const ArticleView     = lazy(() => import('./views/ArticleView'));
 const ThesisView      = lazy(() => import('./views/ThesisView'));
 const TransmissionTab = lazy(() => import('./views/TransmissionTab'));
@@ -265,16 +264,6 @@ const App = () => {
     });
   }, [sortedBuilds, searchFilter, norm, tagIndex]);
 
-  // Kernel IDs that have a WASM run entry — used to grey out [run] on unbuilt kernels.
-  // wasmRegistry is a static import; this memo runs once.
-  const wasmKernelIds = useMemo(() => {
-    const ids = new Set();
-    for (const entry of Object.values(wasmRegistry)) {
-      ids.add(entry.id);
-      entry.aliases?.forEach(a => ids.add(a));
-    }
-    return ids;
-  }, []);
 
   // Boot completion is signalled by BootSequence itself via onDone — App.jsx no
   // longer needs to know the duration. Memoised so the ref is stable across renders.
@@ -633,46 +622,6 @@ const App = () => {
         />
       )}
 
-      {/*
-       * ── CP2077 screen texture — fixed, z-2, BEHIND all content ────────────
-       * Diagonal diamond lattice (no horizontal scanlines). Two 45° stripe
-       * families cross to form a faint wire-mesh / hex-grid depth cue.
-       * Plus a slow amber vignette pulse at the viewport edges.
-       */}
-      <div style={{
-        position: 'fixed', top: 0, bottom: 0, left: 0, right: 0,
-        zIndex: 2,
-        pointerEvents: 'none', userSelect: 'none',
-        backgroundImage: [
-          'repeating-linear-gradient(45deg,  rgba(255,215,0,0.018) 0px, transparent 1px, transparent 32px)',
-          'repeating-linear-gradient(-45deg, rgba(255,140,0,0.018) 0px, transparent 1px, transparent 32px)',
-          'radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(255,215,0,0.03) 100%)',
-        ].join(', '),
-        transition: 'none',
-        transform: 'translateZ(0)',
-      }} />
-      {/* CP2077 data-scan beam — 72px amber glow, fires once on page load */}
-      <div style={{
-        position: 'fixed', top: 0, left: 0, right: 0, height: '72px',
-        pointerEvents: 'none', userSelect: 'none', zIndex: 101,
-        background: 'linear-gradient(180deg, transparent 0%, rgba(255,215,0,0.06) 20%, rgba(255,215,0,0.25) 48%, rgba(255,215,0,0.25) 52%, rgba(255,215,0,0.06) 80%, transparent 100%)',
-        animation: 'cp-scan 1.5s cubic-bezier(0.22,0,0.45,1) 1 forwards',
-        transition: 'none',
-        transform: 'translateZ(0)',
-        willChange: 'transform',
-        backfaceVisibility: 'hidden',
-        WebkitBackfaceVisibility: 'hidden',
-      }} />
-      {/* CP2077 periodic glitch bar — RGB-split stripe fires every ~14s */}
-      <div style={{
-        position: 'fixed', top: 0, left: 0, right: 0, height: '3px',
-        pointerEvents: 'none', userSelect: 'none', zIndex: 50,
-        background: 'linear-gradient(90deg, transparent 0%, #FFD700 25%, #FFFF00 50%, #FF8C00 75%, transparent 100%)',
-        animation: 'cp-glitch-bar 14s steps(1) 3s infinite',
-        opacity: 0,
-        transform: 'translateZ(0)',
-        willChange: 'transform, opacity',
-      }} />
 
       {/*
        * ── Boot-to-main transition overlay ───────────────────────────────────
@@ -797,8 +746,6 @@ const App = () => {
             <button aria-label="Surveillance" aria-current={activeTab === 'surveillance' ? 'page' : undefined} onClick={() => handleNav('~/system/surveillance', 'surveillance')} className={`${activeTab === 'surveillance' ? 'bg-red-900 text-red-100 shadow-[0_0_10px_rgba(248,113,113,0.4)]' : 'text-red-500/70 hover:text-red-300 hover:bg-red-900/20'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><ShieldAlert className="w-3 h-3" /> /Surveillance</button>
 
             <button aria-label="Cryptography" aria-current={activeTab === 'cryptography' ? 'page' : undefined} onClick={() => handleNav('~/system/cryptography', 'cryptography')} className={`${activeTab === 'cryptography' ? 'bg-orange-950 text-orange-200 shadow-[0_0_12px_rgba(249,115,22,0.5)]' : 'text-orange-500/70 hover:text-orange-300 hover:bg-orange-950/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><KeyRound className="w-3 h-3" /> /Cryptography</button>
-
-            <button aria-label="Telemetry" aria-current={activeTab === 'telemetry' ? 'page' : undefined} onClick={() => handleNav('~/system/telemetry', 'telemetry')} className={`${activeTab === 'telemetry' ? 'bg-amber-950 text-amber-200 shadow-[0_0_12px_rgba(251,191,36,0.4)]' : 'text-amber-600/60 hover:text-amber-300 hover:bg-amber-950/20'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><Activity className="w-3 h-3" /> /Telemetry</button>
           </nav>
         </div>
       </header>
@@ -823,24 +770,6 @@ const App = () => {
               kernelAxioms={kernelAxioms}
               kernelBuilds={filteredBuilds}
               handleKernelClick={handleKernelClick}
-              handleKernelRun={(kernel) => {
-                // Match via articleId (WASM KERNEL_MAP id) or fallback to kernel.id
-                const wasmEntry = Object.values(wasmRegistry).find(
-                  e => e.id === kernel.articleId ||
-                       e.id === kernel.id ||
-                       e.aliases?.some(a =>
-                         a === (kernel.articleId || '').toLowerCase() ||
-                         a === kernel.id.toLowerCase()
-                       )
-                );
-                if (wasmEntry) {
-                  const runAlias = wasmEntry.aliases?.[0] || wasmEntry.id.toLowerCase();
-                  const now = new Date().toLocaleTimeString('en-US', { hour12: false });
-                  dispatchCommand('run', runAlias, `run ${runAlias}`, now);
-                } else {
-                  handleKernelClick(kernel);
-                }
-              }}
               loadingKernel={loadingKernel}
               visibleLogs={visibleLogs}
               logRef={logRef}
@@ -853,7 +782,6 @@ const App = () => {
               ramPct={ramPct}
               isCritical={isCritical}
               isWarning={isWarning}
-              wasmKernelIds={wasmKernelIds}
             />
           )}
 
@@ -906,11 +834,6 @@ const App = () => {
           {/* Cryptography Tab — ML-KEM-768 PQC + Gray-Scott kernel reference */}
           {activeTab === 'cryptography' && !selectedArticle && !architectThesis && (
             <ClassifiedTab session={classifiedSession} />
-          )}
-
-          {/* Telemetry Tab — kernel parameter heatmap */}
-          {activeTab === 'telemetry' && !selectedArticle && !architectThesis && (
-            <TelemetryTab />
           )}
 
           {/* Article Detail */}

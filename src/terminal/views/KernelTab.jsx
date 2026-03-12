@@ -1,7 +1,7 @@
 import React from 'react';
 import { Database, GitBranch, Shield, ChevronRight, Cpu } from 'lucide-react';
 
-const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, handleKernelRun, loadingKernel, visibleLogs = [], logRef, searchFilter, onClearFilter, listRef, commandInput = '', onCommandInputChange, onCommandKeyDown, ramPct = 0, isCritical = false, isWarning = false, wasmKernelIds }) => (
+const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, loadingKernel, visibleLogs = [], logRef, searchFilter, onClearFilter, listRef, commandInput = '', onCommandInputChange, onCommandKeyDown, ramPct = 0, isCritical = false, isWarning = false }) => (
   <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 relative flex flex-col" style={{ height: 'calc(100dvh - 200px)', minHeight: '540px' }}>
 
     <style>{`
@@ -214,27 +214,21 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, ha
           <ul ref={listRef} className="space-y-3 text-sm font-mono text-[#39ff14] overflow-y-auto custom-scrollbar pr-2 flex-1 min-h-0">
             {kernelBuilds.map((kernel, idx) => {
               const isLoading = loadingKernel === kernel.id;
-              const hasWasm = wasmKernelIds
-                ? (wasmKernelIds.has(kernel.articleId) || wasmKernelIds.has(kernel.id))
-                : false;
               return (
                 <li
                   key={kernel.id}
                   onClick={() => handleKernelClick && handleKernelClick(kernel)}
                   className={`flex flex-wrap justify-between items-center gap-y-2 border-b pb-3 mb-1 cursor-pointer p-2 rounded transition-all group gap-2
-                    ${isLoading ? 'bg-cyan-900/20 border-cyan-400/60 shadow-[inset_0_0_20px_rgba(34,211,238,0.08)] backdrop-blur-sm animate-pulse' : 'border-cyan-900/20 hover:bg-cyan-900/10'}
-                    ${!hasWasm && !isLoading ? 'opacity-40 hover:opacity-70' : ''}`}
+                    ${isLoading ? 'bg-cyan-900/20 border-cyan-400/60 shadow-[inset_0_0_20px_rgba(34,211,238,0.08)] backdrop-blur-sm animate-pulse' : 'border-cyan-900/20 hover:bg-cyan-900/10'}`}
                   style={{ animation: `sk-kernelModuleIn 0.22s ease-out ${idx * 40}ms both` }}
                 >
                   <div className="min-w-0">
                     <div
                       className="font-bold text-sm mb-0.5 break-words text-transparent bg-clip-text"
                       style={{
-                        backgroundImage: hasWasm
-                          ? 'linear-gradient(90deg, #39ff14, #06b6d4, #d946ef, #ef4444, #38bdf8, #39ff14)'
-                          : 'linear-gradient(90deg, #4b5563, #6b7280, #4b5563)',
+                        backgroundImage: 'linear-gradient(90deg, #39ff14, #06b6d4, #d946ef, #ef4444, #38bdf8, #39ff14)',
                         backgroundSize: '300% auto',
-                        animation: hasWasm ? 'sk-moduleNameShimmer 3.5s ease-in-out infinite' : 'none',
+                        animation: 'sk-moduleNameShimmer 3.5s ease-in-out infinite',
                       }}
                     >{kernel.name}</div>
                     <div className="text-xs text-[#39ff14] font-bold tracking-wide break-words opacity-70">
@@ -242,17 +236,6 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, ha
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0 ml-auto">
-                    <div
-                      onClick={(e) => { if (!hasWasm) return; e.stopPropagation(); handleKernelRun && handleKernelRun(kernel); }}
-                      title={hasWasm ? undefined : 'wasm kernel not yet built'}
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded border tracking-widest whitespace-nowrap transition-all bg-transparent
-                        ${hasWasm
-                          ? 'cursor-pointer border-fuchsia-700/60 text-fuchsia-500 hover:border-fuchsia-400 hover:text-fuchsia-300'
-                          : 'cursor-not-allowed border-cyan-900/20 text-cyan-900/25 opacity-40 select-none'
-                        }`}
-                    >
-                      [run]
-                    </div>
                     <div className={`text-[10px] font-bold px-2 py-0.5 rounded border tracking-widest whitespace-nowrap transition-all ${isLoading ? 'bg-cyan-900/30 border-cyan-400 text-cyan-300' : 'bg-transparent border-cyan-500 text-cyan-500'}`}>
                       {isLoading ? '...' : '[load]'}
                     </div>

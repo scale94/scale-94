@@ -62,7 +62,7 @@ const ManifestoTab = ({ systemArticles = {} }) => {
         </div>
       </div>
 
-      {/* Three-column layout (5:7:4 = 16): thesis | manifesto | glyph art */}
+      {/* Two-column layout (5:11): thesis | manifesto */}
       <div className="overflow-x-auto">
         <div className="flex gap-6" style={{ minWidth: '720px' }}>
 
@@ -99,7 +99,7 @@ const ManifestoTab = ({ systemArticles = {} }) => {
           </div>
 
           {/* Manifesto */}
-          <div className="flex-[7] shrink-0">
+          <div className="flex-[11] shrink-0">
             <div
               style={{
                 padding: '1.5px',
@@ -125,28 +125,6 @@ const ManifestoTab = ({ systemArticles = {} }) => {
                 />
               </div>
             </div>
-          </div>
-
-          {/* Scale Logo Glyph */}
-          <div className="flex-[4] shrink-0 hidden lg:flex items-start pt-1">
-            <pre
-              className="font-mono leading-[1.35] select-none w-full"
-              style={{ fontSize: '10px', color: 'rgba(57,255,20,0.45)' }}
-            >{`╔════════════════════════╗
-║                        ║
-║  ███ ███ ░█░ █░░ ███   ║
-║  █░░ █░░ █░█ █░░ █░░   ║
-║  ███ █░░ ███ █░░ ██░   ║
-║  ░░█ █░░ █░█ █░░ █░░   ║
-║  ███ ███ █░█ ███ ███   ║
-║                        ║
-╠═══════ scale_9.4 ══════╣
-║                        ║
-║  architect             ║
-║  soma-9.1 // gaia      ║
-║  ostrom_protocol       ║
-║                        ║
-╚════════════════════════╝`}</pre>
           </div>
 
         </div>

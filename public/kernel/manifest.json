@@ -1,9 +1,9 @@
 {
   "kernels": "articles.4ea0673e.json",
   "tags": "tags.95c1bd0b.json",
-  "generated": "2026-03-12T05:18:10.379Z",
+  "generated": "2026-03-12T06:28:06.788Z",
   "academic": "academic.3286777f.json",
-  "system": "system.0ac417d4.json",
+  "system": "system.f4aaa9d4.json",
   "bosonic_lattice": {
     "wasm": "wasm/scale94_kernels_bg.wasm",
     "js": "src/wasm/scale94_kernels.js",

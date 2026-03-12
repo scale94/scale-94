@@ -124,25 +124,6 @@ html, body {
   100%      { opacity: 0; }
 }
 
-/* ── CP2077 scan beam — wide amber/yellow data-scan, fires once on load ─────
-   72px tall feathered beam. translate3d for GPU compositing.               */
-@keyframes cp-scan {
-  0%   { transform: translate3d(0, -10vh, 0); opacity: 0; }
-  4%   { opacity: 1; }
-  92%  { opacity: 1; }
-  100% { transform: translate3d(0, 110vh, 0); opacity: 0; }
-}
-
-/* ── CP2077 periodic glitch bar — narrow RGB-split band, fires every ~14s ──
-   Appears at a fixed position (40vh), jitters with chromatic offset, fades. */
-@keyframes cp-glitch-bar {
-  0%, 90%, 100% { opacity: 0;   transform: translate3d(0, 40vh, 0);  }
-  91%  { opacity: 1;   transform: translate3d( 3px, 40vh, 0);  }
-  92%  { opacity: 0.8; transform: translate3d(-4px, 41vh, 0);  }
-  93%  { opacity: 1;   transform: translate3d( 2px, 39.5vh, 0);}
-  94%  { opacity: 0.6; transform: translate3d(-1px, 40vh, 0);  }
-  95%  { opacity: 0;   transform: translate3d( 0,   40vh, 0);  }
-}
 
 /* Border glow breathe — yellow/amber */
 @keyframes bs-glow {
