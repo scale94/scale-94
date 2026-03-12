@@ -1,15 +1,15 @@
 {
   "kernels": "articles.4ea0673e.json",
   "tags": "tags.95c1bd0b.json",
-  "generated": "2026-03-12T01:09:18.055Z",
+  "generated": "2026-03-12T03:55:13.689Z",
   "academic": "academic.3286777f.json",
   "system": "system.0ac417d4.json",
   "bosonic_lattice": {
     "wasm": "wasm/scale94_kernels_bg.wasm",
     "js": "src/wasm/scale94_kernels.js",
-    "sha256": "e6280e88fec4ec7aa2e8c55e9c2308e0a6399a0fc8d3a8cc75ce45c7cf83237d",
+    "sha256": "384d786a5c40b49536dbb652dd065dcc3fb3e58f215b272ed0dfa228e20ca1b8",
     "version": "0.4.0",
-    "built": "2026-03-12T02:24:11.384Z",
+    "built": "2026-03-12T03:50:49.824Z",
     "exports": [
       "BiocoenosisKernel",
       "NecromanticEngine",
