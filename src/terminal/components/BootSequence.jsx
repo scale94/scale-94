@@ -175,7 +175,7 @@ const BootSequence = ({ onDone }) => {
                 <div
                   className="h-full"
                   style={{
-                    width: 0,
+                    width: '0%',
                     animation: 'bs-progress 3.6s cubic-bezier(0.4,0,0.2,1) 0.2s forwards',
                     background: '#000',
                   }}

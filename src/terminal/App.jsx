@@ -613,22 +613,25 @@ const App = () => {
     }
 
     if (e.key === 'Enter') {
-      setSuggestions([]);
-      setActiveSugg(-1);
-      const rawCmd = commandInput.trim();
-      const cmdParts = rawCmd.toLowerCase().split(' ').filter(Boolean);
-      const action = cmdParts[0] ? (cmdParts[0].startsWith('/') ? cmdParts[0].substring(1) : cmdParts[0]) : '';
-      const query = cmdParts.slice(1).join(' ');
-      setCommandInput('');
-      if (rawCmd) {
-        setCmdHistory(prev => [rawCmd, ...prev].slice(0, 50));
-        setHistoryIdx(-1);
-        setSavedInput('');
-      }
-
-      const now = new Date().toLocaleTimeString('en-US', { hour12: false });
-      dispatchCommand(action, query, rawCmd, now);
+      submitCommand();
     }
+  };
+
+  const submitCommand = () => {
+    setSuggestions([]);
+    setActiveSugg(-1);
+    const rawCmd = commandInput.trim();
+    const cmdParts = rawCmd.toLowerCase().split(' ').filter(Boolean);
+    const action = cmdParts[0] ? (cmdParts[0].startsWith('/') ? cmdParts[0].substring(1) : cmdParts[0]) : '';
+    const query = cmdParts.slice(1).join(' ');
+    setCommandInput('');
+    if (rawCmd) {
+      setCmdHistory(prev => [rawCmd, ...prev].slice(0, 50));
+      setHistoryIdx(-1);
+      setSavedInput('');
+    }
+    const now = new Date().toLocaleTimeString('en-US', { hour12: false });
+    dispatchCommand(action, query, rawCmd, now);
   };
 
   return (
@@ -977,6 +980,14 @@ const App = () => {
               className="bg-transparent border-none outline-none flex-grow text-cyan-400 placeholder-cyan-900/50 font-bold"
               placeholder="enter command (e.g. load soma-9.0)"
             />
+            <button
+              onMouseDown={(e) => { e.preventDefault(); submitCommand(); }}
+              onTouchEnd={(e) => { e.preventDefault(); submitCommand(); }}
+              aria-label="Run command"
+              className="shrink-0 px-3 py-0.5 text-xs font-black tracking-widest text-black bg-fuchsia-500 hover:bg-fuchsia-400 active:bg-fuchsia-600 transition-colors duration-150 rounded-sm select-none"
+            >
+              RUN
+            </button>
           </div>
         </div>
       </footer>
