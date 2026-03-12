@@ -44,6 +44,21 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
   const tapCountRef     = useRef(0);
   const longPressRef    = useRef(null);
 
+  // ── tty0 idle fade ─────────────────────────────────────────────────────────
+  // Fades to opacity-20 after 4s of no touch on the tty0 panel.
+  // Any touch on the tty0 wakes it back to full opacity.
+  const [ttyFaded, setTtyFaded] = useState(false);
+  const ttyFadeTimerRef = useRef(null);
+  const resetTtyFade = useCallback(() => {
+    setTtyFaded(false);
+    if (ttyFadeTimerRef.current) clearTimeout(ttyFadeTimerRef.current);
+    ttyFadeTimerRef.current = setTimeout(() => setTtyFaded(true), 4000);
+  }, []);
+  useEffect(() => {
+    ttyFadeTimerRef.current = setTimeout(() => setTtyFaded(true), 4000);
+    return () => clearTimeout(ttyFadeTimerRef.current);
+  }, []);
+
   useEffect(() => {
     if (mobileInputVisible && mobileInputRef.current) {
       mobileInputRef.current.focus();
@@ -340,8 +355,9 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
 
       {/* ── Bottom apex: /dev/tty0 — centered, triangle point ─────────────── */}
       <div
-        className={`fixed bottom-14 left-0 right-0 h-36 z-40 md:relative md:bottom-auto md:left-auto md:right-auto md:h-auto md:flex-[4] md:min-h-0 border-t border-cyan-900/40 md:border md:border-cyan-900/30 md:rounded-lg flex flex-col md:mx-auto md:w-3/5 overflow-hidden bg-black/95 md:bg-black/50 backdrop-blur-sm transition-opacity duration-500 ${!mobileChrome ? 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto' : ''}`}
-        style={{ animation: 'sk-ttyPulse 4s ease-in-out infinite' }}
+        className={`fixed bottom-14 left-0 right-0 h-36 z-40 md:relative md:bottom-auto md:left-auto md:right-auto md:h-auto md:flex-[4] md:min-h-0 border-t border-cyan-900/40 md:border md:border-cyan-900/30 md:rounded-lg flex flex-col md:mx-auto md:w-3/5 overflow-hidden bg-black/95 md:bg-black/50 backdrop-blur-sm transition-opacity duration-700`}
+        style={{ opacity: ttyFaded ? 0.15 : 1, animation: 'sk-ttyPulse 4s ease-in-out infinite' }}
+        onTouchStart={resetTtyFade}
       >
         {/* Header strip — double-tap + long-tap here to activate mobile keyboard */}
         <div

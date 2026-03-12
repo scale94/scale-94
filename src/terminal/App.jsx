@@ -1008,6 +1008,9 @@ const App = () => {
         <button onClick={() => handleNav('~/system/privacy', 'privacy')} aria-label="Privacy" className={`flex flex-1 items-center justify-center transition-all duration-200 ${activeTab === 'privacy' ? 'text-rose-400' : 'text-rose-900/50'}`}>
           <Lock className="w-5 h-5" />
         </button>
+        <button onClick={() => handleNav('~/system/surveillance', 'surveillance')} aria-label="Surveillance" className={`flex flex-1 items-center justify-center transition-all duration-200 ${activeTab === 'surveillance' ? 'text-red-400' : 'text-red-900/50'}`}>
+          <ShieldAlert className="w-5 h-5" />
+        </button>
       </nav>
 
       </div>{/* end CRT content wrapper */}
