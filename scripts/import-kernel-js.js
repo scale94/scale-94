@@ -28,6 +28,7 @@ import { fileURLToPath } from 'url';
 import { spawnSync } from 'child_process';
 import { atomicWrite, fileHash, loadCache, saveCache, sha256Prefix } from './_build-utils.js';
 import { KERNEL_DIR, readManifest, updateManifest, purgeStaleFiles } from './_manifest-utils.js';
+import { chunkFileName } from './_article-utils.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT      = path.join(__dirname, '..');
@@ -192,7 +193,7 @@ async function run() {
     const cacheKey = `js:${file}`;
 
     // Cache hit — skip if already ingested and chunk exists
-    const cname         = path.basename(file, '.js').replace(/[^a-zA-Z0-9\-._]/g, '_');
+    const cname         = chunkFileName(path.basename(file, '.js'));
     const chunkJsonPath = path.join(CHUNKS_CAS_DIR, `${cname}.json`);
     if (!FORCE && cache[cacheKey] === rawHash && fs.existsSync(chunkJsonPath)) {
       console.log(`  Cached:     ${file}`);

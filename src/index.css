@@ -6,7 +6,7 @@
 html, body {
   overflow-x: hidden;
   max-width: 100vw;
-  /* Force grayscale smoothing globally to prevent subpixel tearing under scanlines */
+  /* Force grayscale smoothing globally for clean subpixel rendering */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -118,17 +118,30 @@ html, body {
   to   { width: 100%; }
 }
 
-/* CRT single-pass screen-draw beam — sweeps once, fades out at the bottom */
-@keyframes bs-scan {
-  0%   { transform: translateY(-4vh);   opacity: 1; }
-  85%  { opacity: 1; }
-  100% { transform: translateY(104vh);  opacity: 0; }
-}
-
 /* Opacity 1 for first 2s, clean fade to 0 over the final 1s */
 @keyframes bs-flicker {
   0%, 66.7% { opacity: 1; }
   100%      { opacity: 0; }
+}
+
+/* ── CP2077 scan beam — wide amber/yellow data-scan, fires once on load ─────
+   72px tall feathered beam. translate3d for GPU compositing.               */
+@keyframes cp-scan {
+  0%   { transform: translate3d(0, -10vh, 0); opacity: 0; }
+  4%   { opacity: 1; }
+  92%  { opacity: 1; }
+  100% { transform: translate3d(0, 110vh, 0); opacity: 0; }
+}
+
+/* ── CP2077 periodic glitch bar — narrow RGB-split band, fires every ~14s ──
+   Appears at a fixed position (40vh), jitters with chromatic offset, fades. */
+@keyframes cp-glitch-bar {
+  0%, 90%, 100% { opacity: 0;   transform: translate3d(0, 40vh, 0);  }
+  91%  { opacity: 1;   transform: translate3d( 3px, 40vh, 0);  }
+  92%  { opacity: 0.8; transform: translate3d(-4px, 41vh, 0);  }
+  93%  { opacity: 1;   transform: translate3d( 2px, 39.5vh, 0);}
+  94%  { opacity: 0.6; transform: translate3d(-1px, 40vh, 0);  }
+  95%  { opacity: 0;   transform: translate3d( 0,   40vh, 0);  }
 }
 
 /* Border glow breathe — yellow/amber */
@@ -237,36 +250,18 @@ html, body {
   to   { opacity: 1; transform: none; }
 }
 
-/* ── CRT terminal draw animations ───────────────────────────────────────────
-   Unified GPU-accelerated reveal: a solid black mask slides down off the
-   screen, revealing the UI behind it. The beam travels at the mask edge.
-   Both use translate3d (GPU compositor, subpixel-locked) — no clip-path, no top/vh positioning.
-   Duration is 0.9s linear to match the first bs-scan pass.  */
-
-/* Black mask slides down, revealing the UI underneath */
+/* ── CP2077 iris wipe — black overlay scales down to nothing ───────────────
+   The black mask shrinks from full coverage to a point at center.
+   Using transform: scale on a centered element. Simpler and GPU-accelerated. */
 @keyframes global-reveal-mask {
-  0%   { transform: translate3d(0, 0%, 0); }
-  100% { transform: translate3d(0, 100%, 0); }
+  0%   { transform: scale(1);   opacity: 1; }
+  85%  { opacity: 1; }
+  100% { transform: scale(0);   opacity: 0; }
 }
 
-/* Render beam travels with the mask edge */
-@keyframes global-beam {
-  0%   { transform: translate3d(0, 0%, 0);   opacity: 0; }
-  5%   { opacity: 1; }
-  95%  { opacity: 1; }
-  100% { transform: translate3d(0, 100%, 0); opacity: 0; }
-}
 
 /* Boot card fade + gradient shimmer utilities removed:
    - Boot fade is now a pure JS rAF loop (opacity via el.style, no CSS needed)
    - Gradient shimmer is now animate-shimmer-fast / animate-shimmer-slow
      via tailwind.config.js theme.extend — guaranteed in production bundle */
 
-/* ── Scanline overlay (now z-2, behind all content — see App.jsx) ────────────
-   The .scanline-overlay class is kept for backwards-compat but the active
-   scanline div no longer uses it. Styles are inlined on the div directly
-   with z-index: 2 and 0.05 opacity so the CSS class is a no-op safety net. */
-.scanline-overlay {
-  pointer-events: none;
-  user-select: none;
-}

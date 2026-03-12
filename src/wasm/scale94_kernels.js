@@ -721,6 +721,26 @@ export function run_kuramoto_synchrony(n_oscillators, coupling, freq_spread, tim
 }
 
 /**
+ * @param {number} input_bits
+ * @param {number} hash_bits
+ * @param {number} algorithm
+ * @param {number} quantum_adv
+ * @returns {string}
+ */
+export function run_pqhash_analysis(input_bits, hash_bits, algorithm, quantum_adv) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_pqhash_analysis(input_bits, hash_bits, algorithm, quantum_adv);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * Dissipative Rust Kernel: Pragmatic<T> Type Demonstration
  *
  * Simulates N agents attempting computational tasks drawn from a power-law

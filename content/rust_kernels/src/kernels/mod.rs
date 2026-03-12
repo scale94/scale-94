@@ -31,3 +31,4 @@ pub mod pragmatic;       // run_pragmatic_type (DRK: Pragmatic<T> thermodynamic 
 pub mod chrono_actuary;  // run_chrono_actuary (Deep-Time Audit Framework · River Sovereign)
 pub mod fusion_plasma;   // run_fusion_plasma (Plasma Sovereignty Audit · Lawson Criterion · Q-Factor)
 pub mod seraphine;       // run_seraphine_sarg (Quantum Associative Reasoning Gain · Lindblad · SARG)
+pub mod pqhash;          // run_pqhash_analysis (Post-Quantum Hash Audit · Grover · BHT)

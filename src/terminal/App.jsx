@@ -4,7 +4,7 @@
 // esbuild (Vite dev). Keep all imports at the top to guarantee identical
 // module evaluation order in both environments.
 import React, { useState, useEffect, useRef, useLayoutEffect, useMemo, useCallback, lazy, Suspense } from 'react';
-import { Hexagon, Cpu, Lock, Scale, Eye, ShieldAlert, KeyRound } from 'lucide-react';
+import { Hexagon, Cpu, Lock, Scale, Eye, ShieldAlert, KeyRound, Activity } from 'lucide-react';
 
 // Data — static (authored, always bundled)
 import kernelAxioms    from './data/kernelAxioms';
@@ -57,6 +57,7 @@ const NavButterflyIcon = () => (
   </svg>
 );
 const ClassifiedTab   = lazy(() => import('./views/ClassifiedTab'));
+const TelemetryTab    = lazy(() => import('./views/TelemetryTab'));
 const ArticleView     = lazy(() => import('./views/ArticleView'));
 const ThesisView      = lazy(() => import('./views/ThesisView'));
 const TransmissionTab = lazy(() => import('./views/TransmissionTab'));
@@ -263,6 +264,17 @@ const App = () => {
       return textMatchIds.has(k.id) || tagArticleIds.has(k.articleId);
     });
   }, [sortedBuilds, searchFilter, norm, tagIndex]);
+
+  // Kernel IDs that have a WASM run entry — used to grey out [run] on unbuilt kernels.
+  // wasmRegistry is a static import; this memo runs once.
+  const wasmKernelIds = useMemo(() => {
+    const ids = new Set();
+    for (const entry of Object.values(wasmRegistry)) {
+      ids.add(entry.id);
+      entry.aliases?.forEach(a => ids.add(a));
+    }
+    return ids;
+  }, []);
 
   // Boot completion is signalled by BootSequence itself via onDone — App.jsx no
   // longer needs to know the duration. Memoised so the ref is stable across renders.
@@ -622,42 +634,44 @@ const App = () => {
       )}
 
       {/*
-       * ── Global scanlines — permanent, root-level, never unmounted ─────────
-       * Rendered unconditionally so the bs-scan animation runs in one
-       * unbroken loop from boot through every route/view change.
-       * Removing the bootSequence gate was the only change needed: the
-       * browser compositor keeps the animation position intact as long as
-       * the DOM node stays mounted.
-       * z-[101]: above BootSequence (z-100) and the boot overlay (z-97).
-       * pointer-events: none on both divs — zero interaction impact.
-       */}
-      {/*
-       * ── CRT scanline texture — fixed, z-2, BEHIND all content ────────────
-       * Keeping z-index LOW (2) means the scanlines sit beneath the main UI
-       * layers (header z-40, main z-10) and never visually stripe text or
-       * nav buttons. The effect reads as subtle screen texture on the dark
-       * terminal background while leaving all foreground elements clean.
-       * Opacity 0.05 — barely perceptible as intended; no mix-blend-mode
-       * so behaviour is compositor-predictable on all browsers/screens.
+       * ── CP2077 screen texture — fixed, z-2, BEHIND all content ────────────
+       * Diagonal diamond lattice (no horizontal scanlines). Two 45° stripe
+       * families cross to form a faint wire-mesh / hex-grid depth cue.
+       * Plus a slow amber vignette pulse at the viewport edges.
        */}
       <div style={{
         position: 'fixed', top: 0, bottom: 0, left: 0, right: 0,
         zIndex: 2,
         pointerEvents: 'none', userSelect: 'none',
-        backgroundImage: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.05) 0px, rgba(0,0,0,0.05) 1px, transparent 1px, transparent 3px)',
+        backgroundImage: [
+          'repeating-linear-gradient(45deg,  rgba(255,215,0,0.018) 0px, transparent 1px, transparent 32px)',
+          'repeating-linear-gradient(-45deg, rgba(255,140,0,0.018) 0px, transparent 1px, transparent 32px)',
+          'radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(255,215,0,0.03) 100%)',
+        ].join(', '),
         transition: 'none',
         transform: 'translateZ(0)',
       }} />
+      {/* CP2077 data-scan beam — 72px amber glow, fires once on page load */}
       <div style={{
-        position: 'fixed', top: 0, left: 0, right: 0, height: '3px',
+        position: 'fixed', top: 0, left: 0, right: 0, height: '72px',
         pointerEvents: 'none', userSelect: 'none', zIndex: 101,
-        background: 'linear-gradient(transparent, rgba(6,182,212,0.5), transparent)',
-        animation: 'bs-scan 0.9s linear 1 forwards',
+        background: 'linear-gradient(180deg, transparent 0%, rgba(255,215,0,0.06) 20%, rgba(255,215,0,0.25) 48%, rgba(255,215,0,0.25) 52%, rgba(255,215,0,0.06) 80%, transparent 100%)',
+        animation: 'cp-scan 1.5s cubic-bezier(0.22,0,0.45,1) 1 forwards',
         transition: 'none',
         transform: 'translateZ(0)',
         willChange: 'transform',
         backfaceVisibility: 'hidden',
         WebkitBackfaceVisibility: 'hidden',
+      }} />
+      {/* CP2077 periodic glitch bar — RGB-split stripe fires every ~14s */}
+      <div style={{
+        position: 'fixed', top: 0, left: 0, right: 0, height: '3px',
+        pointerEvents: 'none', userSelect: 'none', zIndex: 50,
+        background: 'linear-gradient(90deg, transparent 0%, #FFD700 25%, #FFFF00 50%, #FF8C00 75%, transparent 100%)',
+        animation: 'cp-glitch-bar 14s steps(1) 3s infinite',
+        opacity: 0,
+        transform: 'translateZ(0)',
+        willChange: 'transform, opacity',
       }} />
 
       {/*
@@ -727,29 +741,17 @@ const App = () => {
        */}
       {!bootSequence && (
         <>
+          {/* Iris wipe — black circle shrinks to center, revealing UI behind */}
           <div style={{
-            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            position: 'fixed',
+            top: '-50vh', left: '-50vw',
+            width: '200vw', height: '200vh',
             backgroundColor: '#000',
+            borderRadius: '50%',
             zIndex: 49,
-            animation: 'global-reveal-mask 1.2s linear forwards',
-            transform: 'translate3d(0,0,0)',
-            willChange: 'transform',
-            backfaceVisibility: 'hidden',
-            WebkitBackfaceVisibility: 'hidden',
-            perspective: '1000px',
+            animation: 'global-reveal-mask 1s cubic-bezier(0.16,1,0.3,1) forwards',
             pointerEvents: 'none',
-          }} />
-          <div style={{
-            position: 'fixed', top: 0, left: 0, right: 0, height: '3px',
-            zIndex: 50, pointerEvents: 'none',
-            background: 'linear-gradient(transparent, rgba(6,182,212,0.9) 50%, transparent)',
-            boxShadow: '0 0 12px rgba(6,182,212,0.6), 0 0 28px rgba(6,182,212,0.2)',
-            animation: 'global-beam 1.2s linear forwards',
-            transform: 'translate3d(0,0,0)',
-            willChange: 'transform',
-            backfaceVisibility: 'hidden',
-            WebkitBackfaceVisibility: 'hidden',
-            perspective: '1000px',
+            transformOrigin: 'center center',
           }} />
         </>
       )}
@@ -795,6 +797,8 @@ const App = () => {
             <button aria-label="Surveillance" aria-current={activeTab === 'surveillance' ? 'page' : undefined} onClick={() => handleNav('~/system/surveillance', 'surveillance')} className={`${activeTab === 'surveillance' ? 'bg-red-900 text-red-100 shadow-[0_0_10px_rgba(248,113,113,0.4)]' : 'text-red-500/70 hover:text-red-300 hover:bg-red-900/20'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><ShieldAlert className="w-3 h-3" /> /Surveillance</button>
 
             <button aria-label="Cryptography" aria-current={activeTab === 'cryptography' ? 'page' : undefined} onClick={() => handleNav('~/system/cryptography', 'cryptography')} className={`${activeTab === 'cryptography' ? 'bg-orange-950 text-orange-200 shadow-[0_0_12px_rgba(249,115,22,0.5)]' : 'text-orange-500/70 hover:text-orange-300 hover:bg-orange-950/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><KeyRound className="w-3 h-3" /> /Cryptography</button>
+
+            <button aria-label="Telemetry" aria-current={activeTab === 'telemetry' ? 'page' : undefined} onClick={() => handleNav('~/system/telemetry', 'telemetry')} className={`${activeTab === 'telemetry' ? 'bg-amber-950 text-amber-200 shadow-[0_0_12px_rgba(251,191,36,0.4)]' : 'text-amber-600/60 hover:text-amber-300 hover:bg-amber-950/20'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><Activity className="w-3 h-3" /> /Telemetry</button>
           </nav>
         </div>
       </header>
@@ -802,13 +806,16 @@ const App = () => {
       <main ref={mainRef} className="flex-grow overflow-y-auto overflow-x-hidden p-4 md:p-8 relative z-10 scroll-smooth" style={{ scrollPaddingTop: '100px' }}>
         <Suspense fallback={<div className="text-cyan-400 font-mono tracking-widest animate-pulse p-8">{'// LOADING MODULE...'}</div>}>
         <div className="max-w-[1600px] mx-auto">
-          <div className="mb-8 flex items-center text-sm font-bold tracking-wider min-w-0 overflow-hidden">
-            <span className="mr-2 text-fuchsia-500">scale@node:</span>
-            <span className="text-cyan-300">{currentPath}</span>
-            {selectedArticle && <span className="ml-0 text-cyan-400">/{selectedArticle.id}</span>}
-            {architectThesis && <span className="ml-0 text-cyan-400">/thesis_log</span>}
-            <span className="animate-pulse ml-2 inline-block w-2 h-4 bg-fuchsia-500 align-middle shadow-[0_0_8px_rgba(217,70,239,0.8)]"></span>
-          </div>
+          {/* Path breadcrumb — hidden on kernel home (tty0 is the nav there) */}
+          {!(activeTab === 'kernel' && !selectedArticle && !architectThesis && !tagCloudView) && (
+            <div className="mb-8 flex items-center text-sm font-bold tracking-wider min-w-0 overflow-hidden">
+              <span className="mr-2 text-fuchsia-500">scale@node:</span>
+              <span className="text-cyan-300">{currentPath}</span>
+              {selectedArticle && <span className="ml-0 text-cyan-400">/{selectedArticle.id}</span>}
+              {architectThesis && <span className="ml-0 text-cyan-400">/thesis_log</span>}
+              <span className="animate-pulse ml-2 inline-block w-2 h-4 bg-fuchsia-500 align-middle shadow-[0_0_8px_rgba(217,70,239,0.8)]"></span>
+            </div>
+          )}
 
           {/* Kernel Tab */}
           {activeTab === 'kernel' && !selectedArticle && !tagCloudView && (
@@ -817,14 +824,19 @@ const App = () => {
               kernelBuilds={filteredBuilds}
               handleKernelClick={handleKernelClick}
               handleKernelRun={(kernel) => {
-                const alias = kernel.id.toLowerCase();
-                const hasWasm = Object.values(wasmRegistry).some(
-                  e => e.id === kernel.id ||
-                       e.aliases?.some(a => a === alias || a === kernel.id)
+                // Match via articleId (WASM KERNEL_MAP id) or fallback to kernel.id
+                const wasmEntry = Object.values(wasmRegistry).find(
+                  e => e.id === kernel.articleId ||
+                       e.id === kernel.id ||
+                       e.aliases?.some(a =>
+                         a === (kernel.articleId || '').toLowerCase() ||
+                         a === kernel.id.toLowerCase()
+                       )
                 );
-                if (hasWasm) {
+                if (wasmEntry) {
+                  const runAlias = wasmEntry.aliases?.[0] || wasmEntry.id.toLowerCase();
                   const now = new Date().toLocaleTimeString('en-US', { hour12: false });
-                  dispatchCommand('run', alias, `run ${alias}`, now);
+                  dispatchCommand('run', runAlias, `run ${runAlias}`, now);
                 } else {
                   handleKernelClick(kernel);
                 }
@@ -835,6 +847,13 @@ const App = () => {
               searchFilter={searchFilter}
               onClearFilter={() => setSearchFilter('')}
               listRef={kernelListRef}
+              commandInput={commandInput}
+              onCommandInputChange={handleInputChange}
+              onCommandKeyDown={handleCommand}
+              ramPct={ramPct}
+              isCritical={isCritical}
+              isWarning={isWarning}
+              wasmKernelIds={wasmKernelIds}
             />
           )}
 
@@ -887,6 +906,11 @@ const App = () => {
           {/* Cryptography Tab — ML-KEM-768 PQC + Gray-Scott kernel reference */}
           {activeTab === 'cryptography' && !selectedArticle && !architectThesis && (
             <ClassifiedTab session={classifiedSession} />
+          )}
+
+          {/* Telemetry Tab — kernel parameter heatmap */}
+          {activeTab === 'telemetry' && !selectedArticle && !architectThesis && (
+            <TelemetryTab />
           )}
 
           {/* Article Detail */}
@@ -945,48 +969,54 @@ const App = () => {
             </div>
           )}
 
-          {/* RAM bar — §1.3 ecological entropy model */}
-          <div
-            className="hidden md:flex items-center gap-1.5 shrink-0 mr-1"
-            title={`ECO-RAM: ${ramPct}% active // planetary cost: ${ecoCost}/100`}
-          >
-            <span className={`text-[9px] font-black tracking-widest ${isCritical ? 'text-red-500' : 'text-cyan-900/60'}`}>RAM</span>
-            <div className="flex gap-0">
-              {Array.from({ length: 100 }).map((_, i) => {
-                const filled = i < ramPct;
-                return (
-                  <div
-                    key={i}
-                    className={`w-px h-[10px] transition-all duration-700${isCritical && filled ? ' animate-pulse' : ''}`}
-                    style={{
-                      background: filled
-                        ? (isCritical ? '#ef4444' : isWarning ? '#f59e0b' : '#39ff14')
-                        : 'rgba(6,182,212,0.08)',
-                      boxShadow: filled && !isCritical && !isWarning ? '0 0 3px rgba(57,255,20,0.4)' : 'none',
-                    }}
-                  />
-                );
-              })}
+          {/* RAM bar — hidden on kernel home (lives in tty0 there) */}
+          {!(activeTab === 'kernel' && !selectedArticle && !architectThesis && !tagCloudView) && (
+            <div
+              className="hidden md:flex items-center gap-1.5 shrink-0 mr-1"
+              title={`ECO-RAM: ${ramPct}% active // planetary cost: ${ecoCost}/100`}
+            >
+              <span className={`text-[9px] font-black tracking-widest ${isCritical ? 'text-red-500' : 'text-cyan-900/60'}`}>RAM</span>
+              <div className="flex gap-0">
+                {Array.from({ length: 100 }).map((_, i) => {
+                  const filled = i < ramPct;
+                  return (
+                    <div
+                      key={i}
+                      className={`w-px h-[10px] transition-all duration-700${isCritical && filled ? ' animate-pulse' : ''}`}
+                      style={{
+                        background: filled
+                          ? (isCritical ? '#ef4444' : isWarning ? '#f59e0b' : '#39ff14')
+                          : 'rgba(6,182,212,0.08)',
+                        boxShadow: filled && !isCritical && !isWarning ? '0 0 3px rgba(57,255,20,0.4)' : 'none',
+                      }}
+                    />
+                  );
+                })}
+              </div>
+              <span className={`text-[9px] font-black ${isCritical ? 'text-red-500/70' : 'text-cyan-900/40'}`}>{ramPct}%</span>
             </div>
-            <span className={`text-[9px] font-black ${isCritical ? 'text-red-500/70' : 'text-cyan-900/40'}`}>{ramPct}%</span>
-          </div>
+          )}
 
-          <span className="text-fuchsia-500 hidden md:inline" aria-hidden="true">scale@node:~$</span>
-          <span className="text-fuchsia-500 md:hidden" aria-hidden="true">~$</span>
-          <label htmlFor="terminal-input" className="sr-only">Enter terminal command</label>
-          <input
-            id="terminal-input"
-            type="text"
-            value={commandInput}
-            onChange={handleInputChange}
-            onKeyDown={handleCommand}
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="none"
-            spellCheck={false}
-            className="bg-transparent border-none outline-none flex-grow text-cyan-400 placeholder-cyan-900/50 font-bold"
-            placeholder="enter command (e.g. load soma-9.0)"
-          />
+          {/* Prompt + input — greyed out on kernel home (tty0 is primary there) */}
+          {/* TODO: remove opacity/pointer-events wrapper when kernel home footer is retired */}
+          <div className={`flex items-center gap-2 flex-grow min-w-0 transition-opacity duration-300 ${activeTab === 'kernel' && !selectedArticle && !architectThesis && !tagCloudView ? 'opacity-15 pointer-events-none select-none' : ''}`}>
+            <span className="text-fuchsia-500 hidden md:inline shrink-0" aria-hidden="true">scale@node:~$</span>
+            <span className="text-fuchsia-500 md:hidden shrink-0" aria-hidden="true">~$</span>
+            <label htmlFor="terminal-input" className="sr-only">Enter terminal command</label>
+            <input
+              id="terminal-input"
+              type="text"
+              value={commandInput}
+              onChange={handleInputChange}
+              onKeyDown={handleCommand}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="none"
+              spellCheck={false}
+              className="bg-transparent border-none outline-none flex-grow text-cyan-400 placeholder-cyan-900/50 font-bold"
+              placeholder="enter command (e.g. load soma-9.0)"
+            />
+          </div>
         </div>
       </footer>
       </div>{/* end CRT content wrapper */}

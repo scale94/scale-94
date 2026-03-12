@@ -643,6 +643,28 @@ const KERNEL_MAP = [
     type:    'rust',
     aliases: ['seraphine', 'sarg', 'quantum_reasoning', 'qcog', 'seraph', 'assoc', 'decohere', 'reasoning_gain'],
   },
+  {
+    // Post-Quantum Hash Audit — 4-parameter free function.
+    // Evaluates classical vs quantum security margins for SHA-256, SHA-3-256,
+    // BLAKE3, and Argon2id under Grover search and BHT collision algorithms.
+    // input_bits:  args[0]  flags: --bits, --input, --inputbits
+    // hash_bits:   args[1]  flags: --hashbits, --output, --digest
+    // algorithm:   args[2]  flags: --algo, --algorithm
+    // quantum_adv: args[3]  flags: --quantum, --adv
+    id:      'PQHASH-KERNEL-1.0',
+    fn:      'run_pqhash_analysis',
+    args:    [256.0, 256.0, 1.0, 1.0],
+    argMap:  { bits: 0, input: 0, inputbits: 0, hashbits: 1, output: 1, digest: 1, algo: 2, algorithm: 2, quantum: 3, adv: 3 },
+    params: [
+      { name: 'input_bits',  default: 256.0, desc: 'Input size in bits being hashed (e.g. 256 for a 256-bit key)' },
+      { name: 'hash_bits',   default: 256.0, desc: 'Digest output size in bits: 128, 256, 384, or 512' },
+      { name: 'algorithm',   default: 1.0,   desc: 'Hash algorithm: 0=SHA-256, 1=SHA-3-256, 2=BLAKE3, 3=Argon2id' },
+      { name: 'quantum_adv', default: 1.0,   desc: 'Quantum advantage era: 1.0=NISQ (current), 2.0=fault-tolerant' },
+    ],
+    label:   'Post-Quantum Hash Audit v1.0',
+    type:    'rust',
+    aliases: ['pqhash', 'quantum_hash', 'post_quantum', 'hash_audit', 'grover', 'pq_hash', 'hashaudit'],
+  },
 ];
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────

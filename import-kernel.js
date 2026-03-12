@@ -24,11 +24,12 @@ import path           from 'path';
 import { fileURLToPath } from 'url';
 import { spawnSync }  from 'child_process';
 import matter         from 'gray-matter';
-import { marked }     from 'marked';
 import semver         from 'semver';
 import { normalizeQuery as sovereignSlug } from './src/lib/normalize.js';
 import { atomicWrite, fileHash, loadCache, saveCache, sha256Prefix } from './scripts/_build-utils.js';
 import { KERNEL_DIR, updateManifest, purgeStaleFiles } from './scripts/_manifest-utils.js';
+import { renderMarkdown, escapeHtml } from './scripts/_renderers.js';
+import { STATUS_MAP, canonicalStatus, canonicalType, chunkFileName } from './scripts/_article-utils.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -52,26 +53,6 @@ const CHUNKS_CAS_DIR = path.join(KERNEL_DIR, 'chunks');
 const EXCLUDE_FILES = new Set([
   'Soft_Climb_Sequence.md',
 ]);
-
-// ─── STATUS MAPPING ───────────────────────────────────────────────────────────
-// Incoming status keywords are canonicalised to ACTIVE / DEPRECATED / EXPERIMENTAL.
-
-const STATUS_MAP = {
-  ACTIVE:       ['active', 'online', 'running', 'stable', 'emergent', 'new', 'rising'],
-  DEPRECATED:   ['archived', 'archive', 'historical', 'frozen', 'locked', 'final', 'legacy'],
-  EXPERIMENTAL: ['proposed', 'draft', 'wip', 'platinum', 'apex', 'gated'],
-};
-
-function canonicalStatus(raw) {
-  if (!raw) return 'ACTIVE';
-  const lower = raw.toLowerCase().trim();
-  for (const [canonical, keywords] of Object.entries(STATUS_MAP)) {
-    if (keywords.includes(lower)) return canonical;
-  }
-  const upper = raw.toUpperCase().trim();
-  if (STATUS_MAP[upper]) return upper;
-  return 'ACTIVE';
-}
 
 // ─── VERSION EXTRACTION (SEMVER-AWARE) ───────────────────────────────────────
 // Priority: vX.Y.Z[-pre] > X.Y.Z (3-part+) > X.Y (2-part) > '1.0'
@@ -126,12 +107,6 @@ function buildNameFromFilename(filename) {
 // 'kernel' (bare) used in many frontmatters — normalised to 'kernel_doc' here
 // so the tier-2 load fallback in App.jsx can filter a single canonical value.
 
-const TYPE_ALIASES = { kernel: 'kernel_doc', 'kernel_doc': 'kernel_doc', fiction: 'fiction', research: 'research' };
-
-function canonicalType(raw) {
-  return TYPE_ALIASES[raw] || null;
-}
-
 function inferType(filename, body) {
   const lower = filename.toLowerCase();
   if (lower.includes('kernel') || lower.includes('soma') || lower.includes('protocol')) return 'kernel_doc';
@@ -174,102 +149,6 @@ function coerceVersionForSort(id) {
   if (!m) return '0.0.0';
   const c = semver.coerce(m[1]);
   return c ? c.version : '0.0.0';
-}
-
-// ─── HTML UTILS ──────────────────────────────────────────────────────────────
-
-function escapeHtml(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-// ─── MARKED RENDERER — TERMINAL AESTHETIC ────────────────────────────────────
-// Bakes Tailwind classes into pre-rendered HTML chunks at build time.
-// Tailwind scans generated_chunks/*.js so these classes land in the CSS bundle.
-
-marked.use({
-  renderer: {
-    heading(token) {
-      const text = this.parser.parseInline(token.tokens);
-      const cls =
-        token.depth === 1 ? 'text-[14pt] font-bold mb-4 text-cyan-400 tracking-tighter leading-tight' :
-        token.depth === 2 ? 'text-[12pt] text-fuchsia-400 mb-12 font-light tracking-wide' :
-                            'text-lg font-bold mt-8 mb-4 text-fuchsia-400 flex items-center gap-2';
-      return `<h${token.depth} class="${cls}">${text}</h${token.depth}>\n`;
-    },
-    paragraph(token) {
-      const text = this.parser.parseInline(token.tokens);
-      return `<p class="mb-6 text-[#39ff14] leading-relaxed max-w-3xl">${text}</p>\n`;
-    },
-    list(token) {
-      const tag = token.ordered ? 'ol' : 'ul';
-      let body = '';
-      for (const item of token.items) body += this.listitem(item);
-      return `<${tag} class="mb-6 space-y-2 list-none pl-0">${body}</${tag}>\n`;
-    },
-    listitem(token) {
-      // Always use parse (block-aware) — listitem tokens may include tables,
-      // paragraphs, or other block tokens regardless of the loose flag.
-      const text = this.parser.parse(token.tokens);
-      return `<li class="flex items-start gap-2 text-[#39ff14]"><span class="text-cyan-400 mt-1 shrink-0">&#9658;</span><span>${text}</span></li>\n`;
-    },
-    code(token) {
-      return `<pre class="bg-black/80 border border-cyan-900/30 p-4 mb-6 rounded text-xs text-cyan-300 font-mono whitespace-pre-wrap overflow-x-auto shadow-inner"><code>${escapeHtml(token.text)}</code></pre>\n`;
-    },
-    blockquote(token) {
-      const body = this.parser.parse(token.tokens);
-      return `<blockquote class="border-l-2 border-cyan-500/50 pl-4 mb-6 text-cyan-400/70 italic">${body}</blockquote>\n`;
-    },
-    table(token) {
-      const th = token.header.map(h =>
-        `<th class="px-3 py-2 text-left text-cyan-400 border-b border-cyan-900/50 text-xs font-bold tracking-wider">${this.parser.parseInline(h.tokens)}</th>`
-      ).join('');
-      const tr = token.rows.map(row =>
-        `<tr>${row.map(cell =>
-          `<td class="px-3 py-2 text-[#39ff14] text-xs border-b border-cyan-900/20">${this.parser.parseInline(cell.tokens)}</td>`
-        ).join('')}</tr>`
-      ).join('\n');
-      return `<table class="w-full mb-6 border-collapse border border-cyan-900/30"><thead><tr>${th}</tr></thead><tbody>${tr}</tbody></table>\n`;
-    },
-    strong(token) {
-      const text = this.parser.parseInline(token.tokens);
-      return `<strong class="text-cyan-300 font-bold">${text}</strong>`;
-    },
-    em(token) {
-      const text = this.parser.parseInline(token.tokens);
-      return `<em class="text-fuchsia-300 italic">${text}</em>`;
-    },
-    codespan(token) {
-      return `<code class="bg-black/60 text-cyan-300 font-mono text-xs px-1 py-0.5 rounded border border-cyan-900/30">${escapeHtml(token.text)}</code>`;
-    },
-    link(token) {
-      const text = this.parser.parseInline(token.tokens);
-      const href = escapeHtml(token.href || '');
-      return `<a href="${href}" class="text-cyan-400 underline underline-offset-2 hover:text-cyan-200" target="_blank" rel="noopener noreferrer">${text}</a>`;
-    },
-  },
-});
-
-// ─── MARKDOWN PRE-RENDERER ────────────────────────────────────────────────────
-// Converts raw markdown to terminal-aesthetic HTML at build time.
-// Neural links [[KERNEL-ID]] are detected and converted to <button> elements
-// before marked runs, so marked passes them through as raw HTML.
-
-function renderMarkdown(body) {
-  // Pre-process [[KERNEL-ID]] → neural link buttons
-  let processed = body.replace(/\[\[([^\]]+)\]\]/g, (_, id) => {
-    const safeId = escapeHtml(id.trim());
-    return `<button class="neural-link text-cyan-400 underline underline-offset-2 hover:text-cyan-200 cursor-pointer bg-transparent border-none font-mono text-xs font-bold" data-cmd="${safeId}">${safeId}</button>`;
-  });
-
-  // Strip first H1 — ArticleView renders article.title as its own heading
-  processed = processed.replace(/^#(?!#)[ \t]+[^\n]*\n?/, '');
-
-  return marked.parse(processed);
 }
 
 // ─── CONTENT INFERENCE ───────────────────────────────────────────────────────
@@ -328,12 +207,6 @@ function deriveMetadata(body, filename) {
 // SERIALIZATION SAFETY (SAVE America Act):
 //   All string values serialised with JSON.stringify() — escapes backticks,
 //   ${}, backslashes, and quotes, eliminating all template-injection vectors.
-
-// Convert an article ID to a filesystem-safe chunk filename.
-// Replaces chars outside [A-Za-z0-9\-._] (e.g. ∞) with underscores.
-function chunkFileName(id) {
-  return id.replace(/[^a-zA-Z0-9\-._]/g, '_');
-}
 
 function writeGeneratedFile(articles, cache) {
   // ── Phase 0: ensure dirs exist; targeted stale-chunk wipe (src only) ───────

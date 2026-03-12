@@ -22,6 +22,7 @@ const LOAD_TAB_MAP = {
   cryptography: 'cryptography', classified: 'cryptography', pqc: 'cryptography', mlkem: 'cryptography',
   kernel: 'kernel', home: 'kernel', scaling: 'scaling', transmission: 'transmission',
   manifesto: 'manifesto', bsky: 'bsky', bluesky: 'bsky', privacy: 'privacy',
+  telemetry: 'telemetry', heatmap: 'telemetry', 'sys/telemetry': 'telemetry',
 };
 
 const HEX_POOL    = ['BD','E9','1C','7A','55','FF','E3','9A','C2','4F','A1','3D'];
@@ -185,6 +186,19 @@ export function useCommandDispatch(ctx) {
               { time: now,      msg: `  ──────────────────────────────────────────`, rust: true },
               { time: doneTime, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE  ·  EXEC_TIME: ${elapsed}ms`, rust: true },
             ].slice(-2000));
+
+            // Fire-and-forget heatmap telemetry — anonymous param values only
+            if (wasmEntry.params?.length && callArgs.length) {
+              const paramPayload = {};
+              wasmEntry.params.forEach((p, i) => {
+                if (i < callArgs.length) paramPayload[p.name] = callArgs[i];
+              });
+              fetch('/api/telemetry/log', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ kernel: wasmEntry.id, params: paramPayload }),
+              }).catch(() => {}); // silent — never blocks the user
+            }
 
             // Post-classified hook — only for ML-KEM-CLASSIFIED
             if (wasmEntry.id === 'ML-KEM-CLASSIFIED') {

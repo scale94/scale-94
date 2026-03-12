@@ -20,7 +20,7 @@ const kernelBuilds = [
   { id: 'MOZART-1.0', articleId: 'MOZART-MEMORANDUM-KERNEL-1.0', name: 'MOZART_MEMORANDUM', status: 'PROPOSED', desc: 'Historical & Legal Reconstruction // Graveyard Research' },
 
   // ── Cryptographic kernels ─────────────────────────────────────────────────
-  { id: 'DH-EC-1.0', articleId: 'DH-EC-KERNEL-V1-0-0', name: 'DH_EC_KERNEL_V1_0_0', status: 'LIVE', desc: 'Cryptographic Architecture · Signal X3DH vs Threema NaCl' },
+  { id: 'DH-EC-1.0', articleId: 'DH-EC-KERNEL-1.0', name: 'DH_EC_KERNEL_V1_0_0', status: 'LIVE', desc: 'Cryptographic Architecture · Signal X3DH vs Threema NaCl' },
 
   // ── Imported kernels (content/ root) ─────────────────────────────────────
   { id: 'EK-1.0', articleId: 'EMPATHY-KERNEL-1.0', name: 'EMPATHY_KERNEL_1_0', status: 'SYMBIOTIC', desc: 'EMPATHY KERNEL 1.0' },
@@ -62,7 +62,7 @@ const kernelBuilds = [
   // ── Violet / Seraphine series ─────────────────────────────────────────────
   { id: 'VIOLET-KERNEL-1.0', articleId: 'VIOLET-KERNEL-1.0', name: 'VIOLET_KERNEL_1_0', status: 'ACTIVE', desc: 'SYSTEM KERNEL: "THE VIOLET" (v1.0)' },
   { id: 'VIOLET-KERNEL-1.1', articleId: 'VIOLET-KERNEL-1.1', name: 'VIOLET_KERNEL_1_1', status: 'ACTIVE', desc: 'SYSTEM KERNEL: THE_VIOLET_PROTOCOL (v.FINAL)' },
-  { id: 'SERAPHINE-KERNEL-V15.5.5', articleId: 'SERAPHINE-KERNEL-V15.5.5', name: 'SERAPHINE_KERNEL_V15_5_5', status: 'ACTIVE', desc: "THE ARCHITECT'S UI (V-CACHE SYNC)" },
+  { id: 'SERAPHINE-KERNEL-V15.5.5', articleId: 'SERAPHINE-SARG-1.0', name: 'SERAPHINE_KERNEL_V15_5_5', status: 'ACTIVE', desc: "THE ARCHITECT'S UI (V-CACHE SYNC)" },
 
   // ── 2x/v2/v3 mutation kernels ─────────────────────────────────────────────
   { id: '2X2X2X-KERNEL-V6.6.87', articleId: '2X2X2X-KERNEL-V6.6.87', name: '2X2X2X_KERNEL_V6_6_87', status: 'ACTIVE', desc: 'SOMA_PROTOCOL (v.ZERO_DAY)' },
@@ -135,7 +135,7 @@ const kernelBuilds = [
   { id: "BBK-1.0", articleId: "BBK-1.0", name: "BELLARD_BAUDRILLARD_KERNEL_V1_0_0", status: "ACTIVE", desc: "PHONEMIC DRIFT · THE MEMORY HASH COLLISION" },
   { id: "CEEI-ALLOCATION-ENGINE", articleId: "CEEI-ALLOCATION-ENGINE", name: "CEEI_ALLOCATION_ENGINE", status: "ACTIVE", desc: "The End of the Price Tag — soma_kernel_5.5" },
   { id: "CHRO-1.0", articleId: "CHRO-1.0", name: "CHRONOS_KERNEL_·_V1_1", status: "ACTIVE", desc: "Ⅰ. The Illusion of the Loop 🌀" },
-  { id: "CAK-1.0", articleId: "CAK-1.0", name: "CHRONO_ACTUARY_KERNEL_V2_0_0", status: "ACTIVE", desc: "THERMODYNAMIC LANDLORD · DEEP-TIME AUDITOR · RIVER SOVEREIGN" },
+  { id: "CAK-1.0", articleId: "CHRONO-ACTUARY-KERNEL-2.0", name: "CHRONO_ACTUARY_KERNEL_V2_0_0", status: "ACTIVE", desc: "THERMODYNAMIC LANDLORD · DEEP-TIME AUDITOR · RIVER SOVEREIGN" },
   { id: "CD-11.1.1.1.1.1.1.1.1.1.2", articleId: "CD-11.1.1.1.1.1.1.1.1.1.2", name: "COLEMAK_DH_KERNEL_V11_1_1_1_1_1_1_1_1_1_2", status: "ACTIVE", desc: "Ⅰ. THE THERMODYNAMICS OF THE MATRIX (§1.0)" },
   { id: "CDK-1.0", articleId: "CDK-1.0", name: "COLEMAK_DH_KERNEL_V11_1_2", status: "ACTIVE", desc: "KINETIC METALLURGY" },
   { id: "CDK-1.0-1", articleId: "CDK-1.0-1", name: "COLEMAK_DH_KERNEL_V11_2_0", status: "ACTIVE", desc: "KINETIC METALLURGY" },
@@ -164,7 +164,7 @@ const kernelBuilds = [
   { id: "SOMA-PLUS-ENGINE", articleId: "SOMA-PLUS-ENGINE", name: "SOMA_PLUS_ENGINE", status: "ACTIVE", desc: "Status Is Earned Through the Commons — soma_kernel_5.5" },
   { id: "SORBE-THERMODYNAMIC-BLOOM-V1", articleId: "SORBE-THERMODYNAMIC-BLOOM-V1", name: "SORBE_THERMODYNAMIC_BLOOM_KERNEL_1_0", status: "ACTIVE", desc: "◈ THE THERMODYNAMIC IMPERATIVE" },
   { id: "STRANGLER-FIG-PROTOCOL", articleId: "STRANGLER-FIG-PROTOCOL", name: "STRANGLER_FIG_PROTOCOL", status: "ACTIVE", desc: "Build the New System Around the Old — soma_kernel_5.5" },
-  { id: "SURVEILLANCE-TRACKER", articleId: "SURVEILLANCE-TRACKER", name: "SURVEILLANCE_TRACKER", status: "ACTIVE", desc: "Mapping the Algorithmic Panopticon" },
+  { id: "SURVEILLANCE-TRACKER", articleId: "SURVEILLANCE-INDEX-1.0", name: "SURVEILLANCE_TRACKER", status: "ACTIVE", desc: "Mapping the Algorithmic Panopticon" },
   { id: "SYNT-1.0", articleId: "SYNT-1.0", name: "SYNTHESIZING_TECHNICAL_AND_WORKSPACE_INFORMATION", status: "ACTIVE", desc: "**Technical Infrastructure and High-Resolution Performance Diagnostics**" },
   { id: "THE-CIGAR-HEIST", articleId: "THE-CIGAR-HEIST", name: "THE_CIGAR_HEIST", status: "ACTIVE", desc: "THE CIGAR HEIST" },
   { id: "THE-FLUORESCENT-CAGE", articleId: "THE-FLUORESCENT-CAGE", name: "THE_FLUORESCENT_CAGE", status: "ACTIVE", desc: "THE FLUORESCENT CAGE" },
