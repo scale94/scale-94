@@ -274,7 +274,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0 ml-auto">
-                    {kernel.id === 'SOMA-5.5' && appendSystemLog && (
+                    {kernel.sim === 'climate' && appendSystemLog && (
                       <button
                         aria-label="Run climate simulation"
                         onClick={(e) => { e.stopPropagation(); runClimateSim(appendSystemLog); }}

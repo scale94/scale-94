@@ -13,7 +13,7 @@ const kernelBuilds = [
   { id: 'SOMA-11.1', articleId: 'KRNL-11.1', name: 'LEVIATHAN_PROTOCOL', status: 'ACTIVE', desc: 'Strategic Defense // Module A' },
   { id: 'SOMA-10.0', articleId: 'SOMA-10.0', name: 'THE_CENTAUR_APEX', status: 'PLATINUM', desc: 'AI-Gated Launch // The Apex Build' },
   { id: 'SOMA-9.0', articleId: 'SOMA-9.0', name: 'THE_GAIA_BUILD', status: 'ARCHIVED', desc: 'Historical & Legal Reconstruction' },
-  { id: 'SOMA-5.5', articleId: 'SOMA-KERNEL-4.5.5', name: 'POST_CAPITALIST_OS', status: 'RUNNING', desc: 'Thermodynamic Governor // Steady State' },
+  { id: 'SOMA-5.5', articleId: 'SOMA-KERNEL-4.5.5', name: 'POST_CAPITALIST_OS', status: 'RUNNING', desc: 'Thermodynamic Governor // Steady State', sim: 'climate' },
   { id: 'SOMA-5.0', articleId: 'SOMA-KERNEL-5.0', name: 'POST_SCARCITY_DAEMON', status: 'LEGACY', desc: 'Ecological Sovereign // Bio-Physical' },
   { id: 'SOMA-4.5.7', articleId: 'SOMA-KERNEL-4.5.7', name: 'ARCHITECT_EDITION', status: 'STABLE', desc: 'Challenge & Conquer // Honneur et Fidélité' },
   { id: 'SOMA-4.5.6A', articleId: 'SOMA-KERNEL-4.5.6A-FUCK-XITTER-FUCK-XITLER', name: 'PROTOCOL_COMPILATION', status: 'FROZEN', desc: 'System Diagnostic // Final Code' },
