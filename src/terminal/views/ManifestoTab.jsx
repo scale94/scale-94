@@ -3,6 +3,7 @@ import { Eye, Shield, Activity } from 'lucide-react';
 
 const ManifestoTab = ({ systemArticles = {} }) => {
   const manifesto = systemArticles['MANIFESTO'];
+  const thesis = systemArticles['ARCHITECT-THESIS'];
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
       <style>{`
@@ -42,49 +43,112 @@ const ManifestoTab = ({ systemArticles = {} }) => {
                 backgroundImage: 'linear-gradient(135deg, #06b6d4 0%, #d946ef 50%, #39ff14 100%)',
                 animation: 'mn-reveal 1.2s cubic-bezier(0.16,1,0.3,1) forwards',
               }}
-            >ARCHITECTS_ARCHITECTURE</span>
+            >architects_architecture</span>
           </h2>
           <div
-            className="text-sm font-bold tracking-widest text-cyan-400 uppercase"
+            className="text-sm font-bold tracking-widest text-cyan-400"
             style={{ opacity: 0, animation: 'mn-subReveal 0.5s ease 0.4s forwards' }}
           >
-            MANIFESTO // SOMA-9.1 // OSTROM_PROTOCOL
+            manifesto // soma-9.1 // ostrom_protocol
           </div>
         </div>
         <div className="flex items-center gap-3 mt-4 md:mt-0">
           <div className="flex items-center gap-2 text-xs border border-cyan-500/30 px-3 py-1 bg-cyan-900/10 text-cyan-400 rounded-sm">
-            <Activity className="w-3 h-3" /> ARCHITECT: ACTIVE
+            <Activity className="w-3 h-3" /> architect: active
           </div>
           <div className="flex items-center gap-2 text-xs border border-[#39ff14]/30 px-3 py-1 bg-green-900/10 text-[#39ff14] rounded-sm">
-            <Shield className="w-3 h-3" /> CLEARANCE: SOVEREIGN
+            <Shield className="w-3 h-3" /> clearance: sovereign
           </div>
         </div>
       </div>
 
-      {/* Content card */}
-      <div className="max-w-3xl">
-        <div
-          style={{
-            padding: '1.5px',
-            background: 'linear-gradient(135deg, rgba(6,182,212,0.5), rgba(217,70,239,0.3), rgba(57,255,20,0.4))',
-            borderRadius: '6px',
-          }}
-        >
-          <div
-            className="bg-black/90 backdrop-blur-sm px-8 py-8 rounded-[5px]"
-            style={{ animation: 'mn-borderBreath 6s ease-in-out infinite' }}
-          >
+      {/* Three-column layout (5:7:4 = 16): thesis | manifesto | glyph art */}
+      <div className="overflow-x-auto">
+        <div className="flex gap-6" style={{ minWidth: '720px' }}>
+
+          {/* Architect Thesis */}
+          <div className="flex-[5] shrink-0">
             <div
-              className="font-mono text-sm md:text-base leading-relaxed
-                prose prose-invert prose-sm max-w-none
-                prose-headings:text-cyan-300 prose-headings:font-bold prose-headings:tracking-wide
-                prose-p:text-[#39ff14] prose-p:leading-relaxed
-                prose-a:text-cyan-400 prose-a:no-underline hover:prose-a:text-cyan-200
-                prose-strong:text-cyan-300
-                prose-code:text-[#39ff14] prose-code:bg-transparent"
-              dangerouslySetInnerHTML={{ __html: manifesto?.html ?? '' }}
-            />
+              style={{
+                padding: '1.5px',
+                background: 'linear-gradient(135deg, rgba(217,70,239,0.5), rgba(6,182,212,0.3))',
+                borderRadius: '6px',
+                height: '100%',
+              }}
+            >
+              <div className="bg-black/90 backdrop-blur-sm px-6 py-6 rounded-[5px] h-full">
+                <div className="flex flex-wrap gap-3 text-[10px] font-bold tracking-widest mb-6 font-mono">
+                  <span className="text-cyan-500">log: architect_thesis</span>
+                  <span className="text-fuchsia-600">//</span>
+                  <span className="text-fuchsia-600">date: {thesis?.date || '2025-12-08'}</span>
+                  <span className="text-fuchsia-600">//</span>
+                  <span className="text-fuchsia-600">status: active_protocol</span>
+                </div>
+                <div
+                  className="font-mono text-sm leading-relaxed
+                    prose prose-invert prose-sm max-w-none
+                    prose-headings:text-cyan-300 prose-headings:font-bold prose-headings:tracking-wide
+                    prose-p:text-[#39ff14] prose-p:leading-relaxed
+                    prose-strong:text-cyan-300
+                    prose-li:text-[#39ff14]
+                    prose-code:text-[#39ff14] prose-code:bg-transparent"
+                  dangerouslySetInnerHTML={{ __html: thesis?.html ?? '' }}
+                />
+              </div>
+            </div>
           </div>
+
+          {/* Manifesto */}
+          <div className="flex-[7] shrink-0">
+            <div
+              style={{
+                padding: '1.5px',
+                background: 'linear-gradient(135deg, rgba(6,182,212,0.5), rgba(217,70,239,0.3), rgba(57,255,20,0.4))',
+                borderRadius: '6px',
+                height: '100%',
+              }}
+            >
+              <div
+                className="bg-black/90 backdrop-blur-sm px-8 py-8 rounded-[5px] h-full"
+                style={{ animation: 'mn-borderBreath 6s ease-in-out infinite' }}
+              >
+                <div
+                  className="font-mono text-sm md:text-base leading-relaxed
+                    prose prose-invert prose-sm max-w-none
+                    prose-headings:text-cyan-300 prose-headings:font-bold prose-headings:tracking-wide
+                    prose-p:text-[#39ff14] prose-p:leading-relaxed
+                    prose-a:text-cyan-400 prose-a:no-underline hover:prose-a:text-cyan-200
+                    prose-strong:text-cyan-300
+                    prose-li:text-[#39ff14]
+                    prose-code:text-[#39ff14] prose-code:bg-transparent"
+                  dangerouslySetInnerHTML={{ __html: manifesto?.html ?? '' }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Scale Logo Glyph */}
+          <div className="flex-[4] shrink-0 hidden lg:flex items-start pt-1">
+            <pre
+              className="font-mono leading-[1.35] select-none w-full"
+              style={{ fontSize: '10px', color: 'rgba(57,255,20,0.45)' }}
+            >{`╔════════════════════════╗
+║                        ║
+║  ███ ███ ░█░ █░░ ███   ║
+║  █░░ █░░ █░█ █░░ █░░   ║
+║  ███ █░░ ███ █░░ ██░   ║
+║  ░░█ █░░ █░█ █░░ █░░   ║
+║  ███ ███ █░█ ███ ███   ║
+║                        ║
+╠═══════ scale_9.4 ══════╣
+║                        ║
+║  architect             ║
+║  soma-9.1 // gaia      ║
+║  ostrom_protocol       ║
+║                        ║
+╚════════════════════════╝`}</pre>
+          </div>
+
         </div>
       </div>
     </div>

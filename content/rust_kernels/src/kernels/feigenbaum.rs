@@ -1,7 +1,7 @@
 // kernels/feigenbaum.rs — Feigenbaum Cascade Analysis (Ars Electronica 2027)
 //
 // Logistic map: x_{n+1} = r·x_n·(1 − x_n)
-// Feigenbaum (1978): δ = 4.669 201 609 …
+// Feigenbaum (1978): δ = 4.669 201 609 …   α = 2.502 907 875 …
 use std::fmt::Write as FmtWrite;
 use wasm_bindgen::prelude::*;
 
@@ -50,27 +50,48 @@ pub fn run_feigenbaum_cascade(
         period_at[col] = distinct.len();
     }
 
-    // Feigenbaum constants (Feigenbaum 1978)
-    const R1: f64 = 3.000_000_000_000;
-    const R2: f64 = 3.449_489_742_783;
-    const R3: f64 = 3.544_090_359_552;
-    const R4: f64 = 3.564_407_266_095;
-    const R_INF: f64 = 3.569_945_672_000;
-    const DELTA: f64 = 4.669_201_609_102;
+    // Feigenbaum constants (Feigenbaum 1978, 1979)
+    const R1:    f64 = 3.000_000_000_000;   // period-2 onset (exact)
+    const R2:    f64 = 3.449_489_742_783;   // period-4 onset (= 1+√6)
+    const R3:    f64 = 3.544_090_359_552;   // period-8 onset
+    const R4:    f64 = 3.564_407_266_095;   // period-16 onset
+    const R5:    f64 = 3.568_759_419_003;   // period-32 onset
+    const R_INF: f64 = 3.569_945_671_877;   // accumulation point (corrected)
+    const DELTA: f64 = 4.669_201_609_102;   // bifurcation scaling constant δ
+    const ALPHA: f64 = 2.502_907_875_096;   // width scaling constant α
 
-    let delta_est  = (R2 - R1) / (R3 - R2);
-    let delta_est2 = (R3 - R2) / (R4 - R3);
+    let delta1 = (R2 - R1) / (R3 - R2);
+    let delta2 = (R3 - R2) / (R4 - R3);
+    let delta3 = (R4 - R3) / (R5 - R4);
 
-    let chaos_region = r1 > R_INF;
-    let regime_end = if r1 > R_INF + 0.1 { "FULLY_CHAOTIC"       }
-                     else if r1 > R_INF   { "CHAOS_ONSET"         }
-                     else if r1 > R4      { "PERIOD_16_AND_ABOVE" }
-                     else if r1 > R3      { "PERIOD_8"            }
-                     else if r1 > R2      { "PERIOD_4"            }
-                     else if r1 > R1      { "PERIOD_2"            }
-                     else                 { "STABLE_FIXED_POINT"  };
+    // Lyapunov exponent at r_end — numerically computed
+    // λ = lim (1/N) Σ ln|f'(xₙ)| where f'(x) = r(1−2x)
+    const LYAP_N: usize = 10_000;
+    let mut lx = 0.5_f64;
+    for _ in 0..wu { lx = r1 * lx * (1.0 - lx); }
+    let mut lyap_sum = 0.0_f64;
+    for _ in 0..LYAP_N {
+        let deriv = r1 * (1.0 - 2.0 * lx);
+        lyap_sum += deriv.abs().max(1e-15_f64).ln();
+        lx = r1 * lx * (1.0 - lx);
+    }
+    let lyapunov = lyap_sum / LYAP_N as f64;
 
-    let mut out = String::with_capacity(3000);
+    let period_end = period_at[N_R - 1];
+
+    let lyap_class = if lyapunov > 0.01       { "CHAOTIC"  }
+                     else if lyapunov > -0.01  { "MARGINAL" }
+                     else                      { "PERIODIC" };
+
+    let regime_end = if r1 > R_INF + 0.1  { "FULLY_CHAOTIC"       }
+                     else if r1 > R_INF    { "CHAOS_ONSET"         }
+                     else if r1 > R4       { "PERIOD_16_AND_ABOVE" }
+                     else if r1 > R3       { "PERIOD_8"            }
+                     else if r1 > R2       { "PERIOD_4"            }
+                     else if r1 > R1       { "PERIOD_2"            }
+                     else                  { "STABLE_FIXED_POINT"  };
+
+    let mut out = String::with_capacity(3500);
     write!(out,
         "FEIGENBAUM_CASCADE v1.0 // SOMA-9.1\n\
          ══════════════════════════════════════════\n\
@@ -108,41 +129,50 @@ pub fn run_feigenbaum_cascade(
          PERIOD-DOUBLING CASCADE:\n",
     ).unwrap();
 
-    let landmarks = [
+    let landmarks: &[(f64, &str)] = &[
         (R1,    "period 2  — first bifurcation"),
-        (R2,    "period 4"),
+        (R2,    "period 4  (= 1+√6)"),
         (R3,    "period 8"),
         (R4,    "period 16"),
+        (R5,    "period 32"),
         (R_INF, "r_∞ — onset of chaos"),
     ];
-    for (r_val, label) in &landmarks {
+    for (r_val, label) in landmarks {
         if *r_val >= r0 && *r_val <= r1 {
-            write!(out, "   r = {:.6}  →  {}\n", r_val, label).unwrap();
+            write!(out, "   r = {:.12}  →  {}\n", r_val, label).unwrap();
         }
     }
 
     write!(out,
         "──────────────────────────────────────────\n\
-         FEIGENBAUM CONSTANT δ:\n\
-           δ₁ = (r₂−r₁)/(r₃−r₂) = {d1:.9}  (converges to δ)\n\
+         FEIGENBAUM CONSTANTS:\n\
+           δ = {delta:.12}  (bifurcation scaling; 1978)\n\
+           α = {alpha:.12}  (width scaling; 1979)\n\
+         δ CONVERGENCE (ratio of successive interval widths):\n\
+           δ₁ = (r₂−r₁)/(r₃−r₂) = {d1:.9}\n\
            δ₂ = (r₃−r₂)/(r₄−r₃) = {d2:.9}\n\
-           δ  = {delta:.9}  (universal; Feigenbaum 1978)\n\
+           δ₃ = (r₄−r₃)/(r₅−r₄) = {d3:.9}  → δ = {delta:.9}\n\
          ──────────────────────────────────────────\n\
-         LYAPUNOV EXPONENT at r = 4.0:\n\
-           λ = ln 2 ≈ 0.6931  (maximally chaotic; period → ∞)\n\
-         {chaos_note}\n\
+         LYAPUNOV EXPONENT at r_end = {r1:.4}  (N = {lyap_n}):\n\
+           λ = {lyap:.6}  [{lyap_class}]\n\
+           {chaos_note}\n\
+         PERIOD ESTIMATE AT r_end ≈ {period_end}\n\
+         ──────────────────────────────────────────\n\
          THEORY : Feigenbaum (1978, 1979); May (1976); Li & Yorke (1975)\n\
          SOURCE : content/rust_kernels/src/kernels/feigenbaum.rs",
-        d1 = delta_est, d2 = delta_est2, delta = DELTA,
-        chaos_note = if chaos_region {
-            "CHAOS CONFIRMED: λ > 0  — sensitive dependence on initial conditions"
+        delta = DELTA, alpha = ALPHA,
+        d1 = delta1, d2 = delta2, d3 = delta3,
+        r1 = r1, lyap_n = LYAP_N,
+        lyap = lyapunov, lyap_class = lyap_class,
+        period_end = period_end,
+        chaos_note = if lyapunov > 0.01 {
+            "CHAOS CONFIRMED: λ > 0 — sensitive dependence on initial conditions"
+        } else if lyapunov > -0.01 {
+            "MARGINAL: λ ≈ 0 — bifurcation boundary"
         } else {
-            "Scan does not reach r_∞ — extend r_end beyond 3.5699 for chaos"
+            "PERIODIC: λ < 0 — stable attractor, trajectories converge"
         },
     ).unwrap();
-
-    // suppress unused warning on period_at (diagnostic data, not output)
-    let _ = period_at;
 
     out
 }

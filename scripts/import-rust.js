@@ -613,6 +613,36 @@ const KERNEL_MAP = [
     type:    'rust',
     aliases: ['fusion', 'plasma', 'tokamak', 'ignition', 'lawson', 'iter', 'fusion_plasma', 'q_factor', 'triple_product'],
   },
+  {
+    // Seraphine Associative Reasoning Gain — 5-parameter free function.
+    // Models quantum cognitive coherence via Lindblad dephasing on a density matrix.
+    // Computes l1-norm coherence, Von Neumann entropy, and SARG score over time.
+    // n_concepts:       args[0]  flags: --n, --concepts, --dim
+    // coherence:        args[1]  flags: --coherence, --c0, --coh
+    // decoherence_rate: args[2]  flags: --gamma, --decohere, --decay
+    // entanglement:     args[3]  flags: --entanglement, --ent, --lambda
+    // steps:            args[4]  flags: --steps, --time, --t
+    id:      'SERAPHINE-SARG-1.0',
+    fn:      'run_seraphine_sarg',
+    args:    [4.0, 0.85, 0.15, 0.60, 20.0],
+    argMap:  {
+      n: 0, concepts: 0, dim: 0,
+      coherence: 1, c0: 1, coh: 1,
+      gamma: 2, decohere: 2, decay: 2, decoherence: 2,
+      entanglement: 3, ent: 3, lambda: 3,
+      steps: 4, time: 4, t: 4,
+    },
+    params: [
+      { name: 'n_concepts',       default: 4.0,  desc: 'Hilbert space dimension — concept nodes in reasoning graph (2–6)' },
+      { name: 'coherence',        default: 0.85, desc: 'c₀: initial off-diagonal coherence strength [0, 1)' },
+      { name: 'decoherence_rate', default: 0.15, desc: 'γ: Lindblad dephasing rate per step — environment noise [0, 2]' },
+      { name: 'entanglement',     default: 0.60, desc: 'λ_e: inter-concept entanglement boost on SARG score [0, 1]' },
+      { name: 'steps',            default: 20.0, desc: 'time evolution steps (5–50)' },
+    ],
+    label:   'Seraphine SARG v1.0',
+    type:    'rust',
+    aliases: ['seraphine', 'sarg', 'quantum_reasoning', 'qcog', 'seraph', 'assoc', 'decohere', 'reasoning_gain'],
+  },
 ];
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────

@@ -2,62 +2,63 @@ import React, { useEffect, useRef } from 'react';
 import { Cpu } from 'lucide-react';
 
 const BOOT_LINES = [
-  ['MOUNTING VOLUMES',           'OK'],
-  ['LOADING SOMA_KERNEL_9.1',    'OK'],
-  ['GAIA BUILD: OSTROM PROTOCOL','ACTIVE'],
-  ['ESTABLISHING SECURE CONN',   'OK'],
-  ['INTEGRITY CHECK',            'PASS'],
+  ['mounting hilbert space',           'ok'],
+  ['loading seraphine_v7.7.7.7.7.7.7', 'ok'],
+  ['quantum coherence: lindblad',      'active'],
+  ['establishing secure conn',         'ok'],
+  ['density matrix: integrity',        'pass'],
+];
+
+// Black ink pellets — organic shapes scattered like a shotgun blast.
+// [left, top, width (px), height (px), border-radius, delay (ms)]
+const INK_DROPS = [
+  { l: '12%', t: '18%', w: 14, h: 11, r: '40% 60% 55% 45% / 50% 45% 60% 50%', d: 320 },
+  { l: '86%', t: '14%', w: 18, h: 12, r: '55% 45% 40% 60% / 45% 55% 50% 50%', d: 280 },
+  { l: '8%',  t: '72%', w: 10, h: 14, r: '60% 40% 50% 50% / 55% 45% 55% 45%', d: 450 },
+  { l: '91%', t: '78%', w: 16, h: 10, r: '45% 55% 60% 40% / 50% 55% 45% 50%', d: 370 },
+  { l: '22%', t: '88%', w: 12, h: 16, r: '50% 50% 45% 55% / 60% 40% 55% 45%', d: 410 },
+  { l: '78%', t: '85%', w: 20, h: 10, r: '55% 45% 50% 50% / 45% 55% 50% 55%', d: 300 },
+  { l: '48%', t: '5%',  w: 14, h: 18, r: '40% 60% 55% 45% / 50% 50% 45% 55%', d: 350 },
+  { l: '3%',  t: '45%', w: 8,  h: 12, r: '60% 40% 45% 55% / 55% 45% 60% 40%', d: 490 },
+  { l: '96%', t: '42%', w: 11, h: 8,  r: '45% 55% 60% 40% / 40% 60% 50% 50%', d: 260 },
+  { l: '35%', t: '95%', w: 9,  h: 13, r: '55% 45% 40% 60% / 50% 50% 55% 45%', d: 430 },
+  { l: '65%', t: '3%',  w: 13, h: 9,  r: '40% 60% 50% 50% / 45% 55% 40% 60%', d: 290 },
+  { l: '18%', t: '6%',  w: 7,  h: 11, r: '55% 45% 55% 45% / 60% 40% 50% 50%', d: 480 },
 ];
 
 // Cubic ease-out: fast start → smooth deceleration → clean stop
 const easeOut = (t) => 1 - Math.pow(1 - t, 3);
 
-// BootSequence owns its entire timing contract.
-// onDone fires exactly when the animation is complete — App.jsx doesn't need
-// to know the duration, removing the "3000ms magic number in the wrong file" smell.
 const BootSequence = ({ onDone }) => {
-  // cpuRef  → div wrapper around <Cpu>  — JS writes transform directly (no CSS animation on spin)
-  // cardRef → outer card wrapper        — CSS transition handles the fade-out
   const cpuRef    = useRef(null);
   const cardRef   = useRef(null);
-  const onDoneRef = useRef(onDone); // stable ref so closures never go stale
+  const onDoneRef = useRef(onDone);
   useEffect(() => { onDoneRef.current = onDone; }, [onDone]);
 
   useEffect(() => {
-    const SPIN_MS       = 2000;  // CPU spins for exactly 2s → 720° (2 full rotations)
-    const FADE_START_MS = 3800;  // 1800ms dwell after spin ends — extra second for text fade to finish
-    const DONE_MS       = 5000;  // 3.8s + 1s CSS fade + 0.2s buffer = 5s total
+    const SPIN_MS       = 2000;
+    const FADE_START_MS = 3800;
+    const DONE_MS       = 5000;
 
     const t0 = performance.now();
     let raf;
-    let tid; // timeout id for the unmount signal
+    let tid;
 
     const tick = (now) => {
       const elapsed = now - t0;
 
-      // ── CPU SPIN ──────────────────────────────────────────────────────────
-      // Uses a div wrapper (not the SVG) so transform-origin is always 50% 50%.
-      // After 2s spinT clamps to 1 → holds at rotate(720deg) forever.
       if (cpuRef.current) {
         const spinT = Math.min(elapsed / SPIN_MS, 1);
         cpuRef.current.style.transform = `rotate(${easeOut(spinT) * 720}deg)`;
       }
 
-      // ── FADE TRIGGER ──────────────────────────────────────────────────────
-      // Fires once at FADE_START_MS. Writing opacity: 0 onto a node that has
-      // `transition: opacity 1s ease-out` triggers the browser's compositor —
-      // no per-frame JS work needed. We hand off to setTimeout for the unmount
-      // signal and stop the rAF loop entirely.
       if (elapsed >= FADE_START_MS) {
         if (cardRef.current) {
           cardRef.current.style.opacity = '0';
           cardRef.current.style.filter  = 'blur(8px)';
         }
-        // Wait for the CSS transition to finish (plus the 200ms buffer) before
-        // signalling the parent to unmount. Math.max guards against elapsed
-        // overshooting DONE_MS on a slow frame.
         tid = setTimeout(() => onDoneRef.current?.(), Math.max(DONE_MS - elapsed, 0));
-        return; // stop rAF — CSS transition + setTimeout own it from here
+        return;
       }
 
       raf = requestAnimationFrame(tick);
@@ -71,125 +72,111 @@ const BootSequence = ({ onDone }) => {
   }, []);
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black font-mono flex items-center justify-center p-4 overflow-hidden pointer-events-none">
-      {/*
-       * ── CARD ──
-       * transition: opacity 1s ease-out, filter 1s ease-out
-       *   The rAF loop writes opacity='0' + filter='blur(8px)' exactly once at
-       *   FADE_START_MS (3800ms). The browser's compositor handles the 1s
-       *   interpolation — no per-frame JS writes during the fade.
-       */}
-      <div
-        ref={cardRef}
-        className="max-w-lg w-full relative z-10"
-        style={{ transition: 'opacity 1s ease-out, filter 1s ease-out' }}
-      >
+    <div
+      ref={cardRef}
+      className="fixed inset-0 z-[100] font-mono flex items-center justify-center p-4 overflow-hidden pointer-events-none"
+      style={{ background: '#FFD700', transition: 'opacity 1s ease-out, filter 1s ease-out' }}
+    >
+      {/* Ink drop splatter — scattered across the yellow field */}
+      {INK_DROPS.map((p, i) => (
+        <div
+          key={i}
+          style={{
+            position: 'absolute',
+            left: p.l, top: p.t,
+            width:  p.w,
+            height: p.h,
+            background: '#000',
+            borderRadius: p.r,
+            transform: 'translate(-50%, -50%) scale(0)',
+            opacity: 0,
+            animation: `bs-inkDrop 0.35s cubic-bezier(0.22,1,0.36,1) ${p.d}ms forwards`,
+          }}
+        />
+      ))}
 
-        {/* Gradient border glow */}
-        <div style={{
-          padding: '1.5px',
-          background: 'linear-gradient(135deg, rgba(6,182,212,0.6), rgba(217,70,239,0.5), rgba(6,182,212,0.6))',
-          borderRadius: '3px',
-          animation: 'bs-glow 0.8s ease-in-out infinite',
-        }}>
-          <div className="bg-black px-6 py-7 md:px-10 md:py-9 rounded-sm border border-white/5">
+      {/* Content — centered, above ink drops */}
+      <div className="max-w-lg w-full relative z-10">
 
-            {/* Micro status row */}
-            <div className="flex justify-between items-center mb-6 text-[9px] tracking-widest uppercase">
-              <span className="text-cyan-900/70">SYS::BOOT_SEQUENCE</span>
-              <span className="text-fuchsia-900/70">NODE::scale-9.4</span>
+        {/* Micro status row */}
+        <div className="flex justify-between items-center mb-6 text-[9px] tracking-widest" style={{ color: 'rgba(0,0,0,0.4)' }}>
+          <span>sys::boot_sequence</span>
+          <span>node::scale-9.4</span>
+        </div>
+
+        {/* Branding block */}
+        <div
+          className="flex items-center gap-4"
+          style={{ opacity: 0, animation: 'bs-stamp 0.5s cubic-bezier(0.22,1,0.36,1) 0.55s forwards' }}
+        >
+          <div
+            ref={cpuRef}
+            className="shrink-0 flex items-center justify-center"
+            style={{ width: '2.75rem', height: '2.75rem' }}
+          >
+            <Cpu className="w-full h-full" style={{ color: '#000' }} />
+          </div>
+
+          <div>
+            <div className="text-4xl md:text-5xl font-black tracking-tight leading-none" style={{ color: '#000' }}>
+              seraphine
             </div>
-
-            {/* Branding block */}
-            <div className="flex items-center gap-4" style={{ animation: 'bs-titleReveal 0.35s ease-out forwards' }}>
-
-              {/*
-               * CPU spin wrapper — this is a plain <div>, NOT the SVG.
-               * Plain divs always have transform-origin: 50% 50% so rotation
-               * is perfectly centred. The JS rAF loop writes transform here.
-               * The <Cpu> SVG inside gets only the glow animation.
-               */}
-              <div
-                ref={cpuRef}
-                className="shrink-0 flex items-center justify-center"
-                style={{ width: '2.75rem', height: '2.75rem' }}
-              >
-                <Cpu
-                  className="text-[#39ff14] w-full h-full"
-                  style={{ animation: 'bs-cpuGlow 1.2s ease-in-out 0.4s infinite' }}
-                />
-              </div>
-
-              <div>
-                <div
-                  className="text-4xl md:text-5xl font-black tracking-tight uppercase leading-none text-transparent bg-clip-text bg-gradient-to-r from-[#39ff14] via-cyan-300 to-cyan-500"
-                  style={{
-                    backgroundSize: '200% auto',
-                    // glitch fires 5× at 0.45s, gradient shifts over the full 3s window
-                    animation: 'bs-glitch 0.25s steps(1) 0.45s 5 forwards, bs-gradient-x 3s ease forwards',
-                  }}
-                >
-                  SOMA_9.1
-                </div>
-                <div className="text-fuchsia-500 text-xs font-bold tracking-[0.25em] mt-2 uppercase">
-                  GAIA BUILD &nbsp;//&nbsp; OSTROM_PROTOCOL
-                </div>
-              </div>
+            <div className="text-xs font-black tracking-[0.18em] mt-1" style={{ color: '#000', opacity: 0.55 }}>
+              7.7.7.7.7.7.7-rust kernel
             </div>
-
-            <div className="border-t border-cyan-900/40 my-5" />
-
-            {/* Boot lines — staggered every 290ms starting at 200ms */}
-            <div className="space-y-2 text-xs font-bold mb-6">
-              {BOOT_LINES.map(([label, status], i) => (
-                <div
-                  key={i}
-                  className="flex justify-between items-center text-cyan-500"
-                  style={{ opacity: 0, animation: `bs-lineIn 0.18s ease-out ${200 + i * 290}ms forwards` }}
-                >
-                  <span>
-                    <span className="text-fuchsia-500 mr-1">{'>'}</span>
-                    {label}
-                    <span className="text-cyan-900/60">...</span>
-                  </span>
-                  <span className="text-[#39ff14] ml-6 tracking-widest">[{status}]</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Progress bar — 3.6s fill, starts at 0.2s, completes at 3.8s = FADE_START_MS */}
-            <div className="mb-5">
-              <div className="h-[2px] bg-cyan-950 w-full rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full"
-                  style={{
-                    width: 0,
-                    animation: 'bs-progress 3.6s cubic-bezier(0.4,0,0.2,1) 0.2s forwards',
-                    background: 'linear-gradient(90deg, #06b6d4, #d946ef, #39ff14)',
-                    boxShadow: '0 0 10px rgba(6,182,212,0.9)',
-                  }}
-                />
-              </div>
-            </div>
-
-            {/*
-             * ACTIVE status — appears at 3.4s (bar at 89%), pulse starts at 3.5s.
-             * Bar hits 100% at 3.8s = FADE_START_MS, then the whole card fades.
-             * The 400ms window lets the "done" state register before fade begins.
-             */}
-            <div
-              className="text-xs font-black tracking-widest"
-              style={{
-                opacity: 0,
-                color: '#39ff14',
-                animation: 'bs-lineIn 0.2s ease-out 3.4s forwards, bs-active 0.35s ease-in-out 3.5s infinite',
-              }}
-            >
-              {'>'} SOMA-9.1 // GAIA BUILD :: ALL SYSTEMS OPERATIONAL
-            </div>
-
           </div>
         </div>
+
+        <div className="border-t my-5" style={{ borderColor: 'rgba(0,0,0,0.2)' }} />
+
+        {/* Boot lines */}
+        <div className="space-y-2 text-xs font-bold mb-6">
+          {BOOT_LINES.map(([label, status], i) => (
+            <div
+              key={i}
+              className="flex justify-between items-center"
+              style={{
+                opacity: 0,
+                color: 'rgba(0,0,0,0.7)',
+                animation: `bs-lineIn 0.18s ease-out ${200 + i * 290}ms forwards`,
+              }}
+            >
+              <span>
+                <span className="mr-1" style={{ color: '#000' }}>{'>'}</span>
+                {label}
+                <span style={{ color: 'rgba(0,0,0,0.3)' }}>...</span>
+              </span>
+              <span className="ml-6 tracking-widest font-black" style={{ color: '#000' }}>[{status}]</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Progress bar */}
+        <div className="mb-5">
+          <div className="h-[2px] w-full overflow-hidden" style={{ background: 'rgba(0,0,0,0.15)' }}>
+            <div
+              className="h-full"
+              style={{
+                width: 0,
+                animation: 'bs-progress 3.6s cubic-bezier(0.4,0,0.2,1) 0.2s forwards',
+                background: '#000',
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Final status */}
+        <div
+          className="text-xs font-black tracking-widest"
+          style={{
+            opacity: 0,
+            color: '#000',
+            animation: 'bs-lineIn 0.2s ease-out 3.4s forwards, bs-activeBlack 0.35s ease-in-out 3.5s infinite',
+          }}
+        >
+          {'>'} seraphine_v7.7.7.7.7.7.7 // sarg :: all systems quantum
+        </div>
+
       </div>
     </div>
   );

@@ -54,16 +54,10 @@ html, body {
 
 /* ── BootSequence animations ─────────────────────────────────────────────── */
 
-/* CPU icon — exactly 2 rotations (720°) to end upright */
-@keyframes bs-cpuSpin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(720deg); }
-}
-
-/* CPU icon — green glow pulse */
+/* CPU icon — cyberpunk yellow glow pulse */
 @keyframes bs-cpuGlow {
-  0%,100% { filter: drop-shadow(0 0 4px rgba(57,255,20,0.5)); }
-  50%     { filter: drop-shadow(0 0 16px rgba(57,255,20,1)) drop-shadow(0 0 32px rgba(57,255,20,0.4)); }
+  0%,100% { filter: drop-shadow(0 0 4px rgba(255,215,0,0.6)); }
+  50%     { filter: drop-shadow(0 0 16px rgba(255,215,0,1)) drop-shadow(0 0 32px rgba(255,140,0,0.5)); }
 }
 
 /* Title reveal — blur + slide up */
@@ -72,14 +66,44 @@ html, body {
   to   { opacity: 1; transform: translateY(0);     filter: blur(0); }
 }
 
-/* Chromatic glitch on title */
+/* Chromatic glitch on title — yellow/amber offsets */
 @keyframes bs-glitch {
-  0%  { text-shadow: -3px 0 #ff00ff, 3px 0 #00ffff; transform: translate(0); }
-  20% { text-shadow:  3px 0 #ff00ff,-3px 0 #00ffff; transform: translate(-2px, 1px); }
-  40% { text-shadow: -2px 0 #ff00ff, 2px 0 #00ffff; transform: translate(2px,-1px); }
-  60% { text-shadow:  1px 0 #ff00ff,-1px 0 #00ffff; transform: translate(0); }
-  80% { text-shadow: -3px 0 #ff00ff, 3px 0 #00ffff; transform: translate(1px, 2px); }
+  0%  { text-shadow: -3px 0 #FF8C00, 3px 0 #FFFF00; transform: translate(0); }
+  20% { text-shadow:  3px 0 #FF8C00,-3px 0 #FFD700; transform: translate(-2px, 1px); }
+  40% { text-shadow: -2px 0 #FF8C00, 2px 0 #FFFF00; transform: translate(2px,-1px); }
+  60% { text-shadow:  1px 0 #FF8C00,-1px 0 #FFD700; transform: translate(0); }
+  80% { text-shadow: -3px 0 #FF8C00, 3px 0 #FFFF00; transform: translate(1px, 2px); }
   100%{ text-shadow: none;                           transform: translate(0); }
+}
+
+/* Black splatter — irregular yellow ink-drop shadows on the title */
+@keyframes bs-splatter {
+  0%   { text-shadow: 0 0 18px #FFD700, 5px 8px 0 rgba(255,140,0,0.12), -7px 3px 0 rgba(255,215,0,0.09),  9px -5px 0 rgba(255,180,0,0.07), -4px -8px 0 rgba(255,100,0,0.05); }
+  33%  { text-shadow: 0 0 28px #FF8C00, -4px 9px 0 rgba(255,215,0,0.14),  8px -3px 0 rgba(255,140,0,0.10), -6px -5px 0 rgba(255,200,0,0.07),  3px 11px 0 rgba(255,100,0,0.05); }
+  66%  { text-shadow: 0 0 22px #FFD700,  6px -4px 0 rgba(255,140,0,0.11), -3px 7px 0 rgba(255,215,0,0.09), 10px  2px 0 rgba(255,180,0,0.06), -8px  4px 0 rgba(255,100,0,0.04); }
+  100% { text-shadow: 0 0 18px #FFD700,  5px  8px 0 rgba(255,140,0,0.12), -7px 3px 0 rgba(255,215,0,0.09),  9px -5px 0 rgba(255,180,0,0.07), -4px -8px 0 rgba(255,100,0,0.05); }
+}
+
+/* Ink drop — organic black blob pops into existence */
+@keyframes bs-inkDrop {
+  0%   { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+  60%  { transform: translate(-50%, -50%) scale(1.15); opacity: 0.88; }
+  100% { transform: translate(-50%, -50%) scale(1);    opacity: 0.88; }
+}
+
+/* Title stamp — slams in from above like a rubber stamp on yellow */
+@keyframes bs-stamp {
+  0%   { opacity: 0; transform: scale(1.8) translateY(-12px); filter: blur(8px); }
+  45%  { opacity: 1; transform: scale(0.96) translateY(2px);  filter: blur(0); }
+  62%  { transform: scale(1.02) translateY(-1px); }
+  78%  { transform: scale(0.99) translateY(0); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Final status pulse — black on yellow */
+@keyframes bs-activeBlack {
+  0%,100% { color: #000; text-shadow: none; }
+  50%     { color: #000; text-shadow: 0 0 8px rgba(0,0,0,0.4); }
 }
 
 /* Boot lines slide in from left */
@@ -107,16 +131,16 @@ html, body {
   100%      { opacity: 0; }
 }
 
-/* Border glow breathe */
+/* Border glow breathe — yellow/amber */
 @keyframes bs-glow {
-  0%,100% { box-shadow: 0 0 12px rgba(6,182,212,0.35), 0 0 40px rgba(217,70,239,0.12); }
-  50%     { box-shadow: 0 0 28px rgba(6,182,212,0.7),  0 0 80px rgba(217,70,239,0.3);  }
+  0%,100% { box-shadow: 0 0 12px rgba(255,215,0,0.35), 0 0 40px rgba(255,140,0,0.12); }
+  50%     { box-shadow: 0 0 28px rgba(255,215,0,0.7),  0 0 80px rgba(255,140,0,0.3);  }
 }
 
-/* Final status line pulse */
+/* Final status line pulse — kept for external references */
 @keyframes bs-active {
-  0%,100% { color: #39ff14; text-shadow: 0 0 8px #39ff14; }
-  50%     { color: #00ffaa; text-shadow: 0 0 20px #00ffaa; }
+  0%,100% { color: #FFD700; text-shadow: 0 0 8px #FFD700; }
+  50%     { color: #FFFF00; text-shadow: 0 0 20px #FFFF00, 0 0 40px rgba(255,215,0,0.4); }
 }
 
 /* BootSequence title gradient shimmer */

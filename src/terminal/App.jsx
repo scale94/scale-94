@@ -816,6 +816,19 @@ const App = () => {
               kernelAxioms={kernelAxioms}
               kernelBuilds={filteredBuilds}
               handleKernelClick={handleKernelClick}
+              handleKernelRun={(kernel) => {
+                const alias = kernel.id.toLowerCase();
+                const hasWasm = Object.values(wasmRegistry).some(
+                  e => e.id === kernel.id ||
+                       e.aliases?.some(a => a === alias || a === kernel.id)
+                );
+                if (hasWasm) {
+                  const now = new Date().toLocaleTimeString('en-US', { hour12: false });
+                  dispatchCommand('run', alias, `run ${alias}`, now);
+                } else {
+                  handleKernelClick(kernel);
+                }
+              }}
               loadingKernel={loadingKernel}
               visibleLogs={visibleLogs}
               logRef={logRef}
@@ -938,13 +951,13 @@ const App = () => {
             title={`ECO-RAM: ${ramPct}% active // planetary cost: ${ecoCost}/100`}
           >
             <span className={`text-[9px] font-black tracking-widest ${isCritical ? 'text-red-500' : 'text-cyan-900/60'}`}>RAM</span>
-            <div className="flex gap-px">
-              {Array.from({ length: 20 }).map((_, i) => {
-                const filled = i < Math.round(ramPct / 5);
+            <div className="flex gap-0">
+              {Array.from({ length: 100 }).map((_, i) => {
+                const filled = i < ramPct;
                 return (
                   <div
                     key={i}
-                    className={`w-[5px] h-[10px] transition-all duration-700${isCritical && filled ? ' animate-pulse' : ''}`}
+                    className={`w-px h-[10px] transition-all duration-700${isCritical && filled ? ' animate-pulse' : ''}`}
                     style={{
                       background: filled
                         ? (isCritical ? '#ef4444' : isWarning ? '#f59e0b' : '#39ff14')

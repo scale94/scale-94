@@ -30,6 +30,8 @@ export const ECOLOGICAL_ENTROPY_MAP = {
   social_capital:    15,
   pragmatic:         12,  // DRK Pragmatic<T> type system
   drk:               12,
+  dh_ec:             60,  // Diffie-Hellman / ECDH key exchange
+  chrono:            35,  // deep-time ecological audit
 
   // ── Medium footprint — simulations, economic models ─────────────────────────
   strangler:         20,  // logistic adoption transition

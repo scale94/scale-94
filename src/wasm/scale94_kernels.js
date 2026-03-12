@@ -643,6 +643,44 @@ export function run_feigenbaum_cascade(r_start, r_end, warmup, samples) {
 }
 
 /**
+ * Run the Fusion Plasma sovereign audit engine.
+ *
+ * temp_kev:       ion temperature in keV                  (default 10.0)
+ * density:        electron density 10²⁰/m³                (default 1.0)
+ * tau_e:          energy confinement time s                (default 3.7)
+ * b_field:        toroidal magnetic field T                (default 5.3)
+ * major_radius:   tokamak major radius R m                 (default 6.2)
+ * minor_radius:   tokamak minor radius a m                 (default 2.0)
+ * plasma_current: plasma current I_p MA                    (default 15.0)
+ * input_power:    external heating power MW                (default 50.0)
+ * elongation:     plasma elongation κ                      (default 1.7)
+ * helium_fraction: He-4 ash fraction of total ion density  (default 0.05)
+ * @param {number} temp_kev
+ * @param {number} density
+ * @param {number} tau_e
+ * @param {number} b_field
+ * @param {number} major_radius
+ * @param {number} minor_radius
+ * @param {number} plasma_current
+ * @param {number} input_power
+ * @param {number} elongation
+ * @param {number} helium_fraction
+ * @returns {string}
+ */
+export function run_fusion_plasma(temp_kev, density, tau_e, b_field, major_radius, minor_radius, plasma_current, input_power, elongation, helium_fraction) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_fusion_plasma(temp_kev, density, tau_e, b_field, major_radius, minor_radius, plasma_current, input_power, elongation, helium_fraction);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * @param {number} lattice_size
  * @param {number} temperature
  * @param {number} external_field
@@ -706,6 +744,27 @@ export function run_pragmatic_type(n_agents, thermal_budget, thermal_limit, cost
     let deferred1_1;
     try {
         const ret = wasm.run_pragmatic_type(n_agents, thermal_budget, thermal_limit, cost_exponent);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * @param {number} n_concepts
+ * @param {number} coherence
+ * @param {number} decoherence_rate
+ * @param {number} entanglement
+ * @param {number} steps
+ * @returns {string}
+ */
+export function run_seraphine_sarg(n_concepts, coherence, decoherence_rate, entanglement, steps) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_seraphine_sarg(n_concepts, coherence, decoherence_rate, entanglement, steps);
         deferred1_0 = ret[0];
         deferred1_1 = ret[1];
         return getStringFromWasm0(ret[0], ret[1]);
