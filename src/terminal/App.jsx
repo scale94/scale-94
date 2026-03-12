@@ -809,6 +809,7 @@ const App = () => {
               isCritical={isCritical}
               isWarning={isWarning}
               appendSystemLog={appendSystemLog}
+              mobileChrome={mobileChrome}
             />
           )}
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Database, GitBranch, Shield, ChevronRight, Cpu, Play } from 'lucide-react';
 
 // ── ATMOSPHERIC-ENTROPY climate simulation — fires on SOMA-5.5 ▶ press ──────
@@ -34,7 +34,45 @@ function runClimateSim(appendSystemLog) {
   });
 }
 
-const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, loadingKernel, visibleLogs = [], logRef, searchFilter, onClearFilter, listRef, commandInput = '', onCommandInputChange, onCommandKeyDown, ramPct = 0, isCritical = false, isWarning = false, appendSystemLog }) => (
+const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, loadingKernel, visibleLogs = [], logRef, searchFilter, onClearFilter, listRef, commandInput = '', onCommandInputChange, onCommandKeyDown, ramPct = 0, isCritical = false, isWarning = false, appendSystemLog, mobileChrome = true }) => {
+  // ── Gesture-gated mobile keyboard ─────────────────────────────────────────
+  // Activation: double-tap + long-tap on the tty0 header strip.
+  // Double-tap window: 350ms. Long-press threshold: 500ms.
+  const [mobileInputVisible, setMobileInputVisible] = useState(false);
+  const mobileInputRef  = useRef(null);
+  const lastTapTimeRef  = useRef(0);
+  const tapCountRef     = useRef(0);
+  const longPressRef    = useRef(null);
+
+  useEffect(() => {
+    if (mobileInputVisible && mobileInputRef.current) {
+      mobileInputRef.current.focus();
+    }
+  }, [mobileInputVisible]);
+
+  const handleTtyHeaderTouchStart = useCallback(() => {
+    const now = Date.now();
+    tapCountRef.current = (now - lastTapTimeRef.current < 350)
+      ? tapCountRef.current + 1
+      : 1;
+    lastTapTimeRef.current = now;
+
+    if (tapCountRef.current >= 2) {
+      longPressRef.current = setTimeout(() => {
+        setMobileInputVisible(true);
+        tapCountRef.current = 0;
+      }, 500);
+    }
+  }, []);
+
+  const handleTtyHeaderTouchEnd = useCallback(() => {
+    if (longPressRef.current) {
+      clearTimeout(longPressRef.current);
+      longPressRef.current = null;
+    }
+  }, []);
+
+  return (
   <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 relative md:flex md:flex-col md:h-[calc(100dvh-200px)] md:min-h-[540px]">
 
     <style>{`
@@ -298,11 +336,16 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
 
       {/* ── Bottom apex: /dev/tty0 — centered, triangle point ─────────────── */}
       <div
-        className="fixed bottom-14 left-0 right-0 h-[35vh] z-40 md:relative md:bottom-auto md:left-auto md:right-auto md:h-auto md:flex-[4] md:min-h-0 border-t border-cyan-900/40 md:border md:border-cyan-900/30 md:rounded-lg flex flex-col md:mx-auto md:w-3/5 overflow-hidden bg-black/95 md:bg-black/50 backdrop-blur-sm"
+        className={`fixed bottom-14 left-0 right-0 h-[35vh] z-40 md:relative md:bottom-auto md:left-auto md:right-auto md:h-auto md:flex-[4] md:min-h-0 border-t border-cyan-900/40 md:border md:border-cyan-900/30 md:rounded-lg flex flex-col md:mx-auto md:w-3/5 overflow-hidden bg-black/95 md:bg-black/50 backdrop-blur-sm transition-opacity duration-500 ${!mobileChrome ? 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto' : ''}`}
         style={{ animation: 'sk-ttyPulse 4s ease-in-out infinite' }}
       >
-        {/* Header strip */}
-        <div className="flex items-center gap-3 px-4 py-2 border-b border-cyan-900/20 shrink-0">
+        {/* Header strip — double-tap + long-tap here to activate mobile keyboard */}
+        <div
+          className="flex items-center gap-3 px-4 py-2 border-b border-cyan-900/20 shrink-0"
+          onTouchStart={handleTtyHeaderTouchStart}
+          onTouchEnd={handleTtyHeaderTouchEnd}
+          onTouchCancel={handleTtyHeaderTouchEnd}
+        >
           {/* RAM bar — left side of tty0 header */}
           <div className="flex items-center gap-1.5 shrink-0" title={`ECO-RAM: ${ramPct}%`}>
             <span className={`text-[9px] font-black tracking-widest ${isCritical ? 'text-red-500' : 'text-cyan-900/50'}`}>RAM</span>
@@ -344,7 +387,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
           ))}
         </div>
 
-        {/* Inline command input */}
+        {/* Desktop inline command input */}
         <div className="hidden md:flex items-center gap-2 px-4 py-2 border-t border-cyan-900/20 shrink-0 bg-black/60">
           <span className="text-fuchsia-500 text-xs font-bold tracking-widest shrink-0 select-none">tty0:~$</span>
           <input
@@ -360,10 +403,33 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
             placeholder="enter command…"
           />
         </div>
+
+        {/* Mobile keyboard — gesture-gated: double-tap + long-tap on header to unlock */}
+        {mobileInputVisible && (
+          <div className="md:hidden flex items-center gap-2 px-4 py-2 border-t border-fuchsia-900/40 shrink-0 bg-black/90">
+            <span className="text-fuchsia-500 text-xs font-bold tracking-widest shrink-0 select-none">tty0:~$</span>
+            <input
+              ref={mobileInputRef}
+              type="text"
+              inputMode="text"
+              value={commandInput}
+              onChange={onCommandInputChange}
+              onKeyDown={onCommandKeyDown}
+              onBlur={() => setMobileInputVisible(false)}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="none"
+              spellCheck={false}
+              className="bg-transparent border-none outline-none flex-grow text-cyan-400 text-xs font-bold font-mono placeholder-cyan-900/40"
+              placeholder="enter command…"
+            />
+          </div>
+        )}
       </div>
 
     </div>
   </div>
-);
+  );
+};
 
 export default React.memo(KernelTab);
