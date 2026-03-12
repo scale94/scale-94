@@ -730,7 +730,7 @@ const App = () => {
             <Hexagon className="w-5 h-5 text-fuchsia-500 animate-spin-slow group-hover:text-cyan-400 transition-colors" />
             <span className="font-bold tracking-widest text-lg lowercase text-[#39ff14] group-hover:text-cyan-400 transition-colors">scale_9.4</span>
           </div>
-          <nav aria-label="Main navigation" className="flex flex-wrap items-center gap-2 md:gap-4 text-xs md:text-sm font-bold tracking-wide min-w-0 w-full md:w-auto">
+          <nav aria-label="Main navigation" className="hidden md:flex flex-wrap items-center gap-2 md:gap-4 text-xs md:text-sm font-bold tracking-wide min-w-0 w-full md:w-auto">
             <button aria-label="Kernel" aria-current={activeTab === 'kernel' ? 'page' : undefined} onClick={() => handleNav('~/system/kernel', 'kernel')} className={`${activeTab === 'kernel' ? 'bg-cyan-500 text-black shadow-[0_0_10px_rgba(6,182,212,0.5)]' : 'text-cyan-500 hover:text-white hover:bg-cyan-900/30'} px-4 py-1.5 transition-all duration-300 flex items-center gap-2 uppercase rounded-sm`}><Cpu className="w-3 h-3" /> /Kernel</button>
 
             <button aria-label="BSKY" aria-current={activeTab === 'bsky' ? 'page' : undefined} onClick={() => handleNav('~/system/bsky', 'bsky')} className={`${activeTab === 'bsky' ? 'bg-sky-600 text-white shadow-[0_0_12px_rgba(56,189,248,0.5)]' : 'text-sky-400/80 hover:text-sky-200 hover:bg-sky-900/20'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><NavButterflyIcon /> /BSKY</button>
@@ -750,7 +750,7 @@ const App = () => {
         </div>
       </header>
 
-      <main ref={mainRef} className="flex-grow overflow-y-auto overflow-x-hidden p-4 md:p-8 relative z-10 scroll-smooth" style={{ scrollPaddingTop: '100px' }}>
+      <main ref={mainRef} className="flex-grow overflow-y-auto overflow-x-hidden p-4 pb-14 md:p-8 relative z-10 scroll-smooth" style={{ scrollPaddingTop: '100px' }}>
         <Suspense fallback={<div className="text-cyan-400 font-mono tracking-widest animate-pulse p-8">{'// LOADING MODULE...'}</div>}>
         <div className="max-w-[1600px] mx-auto">
           {/* Path breadcrumb — hidden on kernel home (tty0 is the nav there) */}
@@ -854,7 +854,7 @@ const App = () => {
         </Suspense>
       </main>
 
-      <footer className="border-t border-cyan-900/50 p-2 bg-black/90 backdrop-blur-md z-40 shadow-[0_0_15px_rgba(6,182,212,0.1)] [overflow-x:clip] w-full">
+      <footer className="hidden md:block border-t border-cyan-900/50 p-2 bg-black/90 backdrop-blur-md z-40 shadow-[0_0_15px_rgba(6,182,212,0.1)] [overflow-x:clip] w-full">
         <div className="max-w-[1600px] mx-auto relative flex items-center gap-2 text-sm font-bold tracking-wide min-w-0 w-full">
 
           {/* Param hint — floats above the terminal bar when run args are being typed */}
@@ -942,6 +942,30 @@ const App = () => {
           </div>
         </div>
       </footer>
+      {/* ── Mobile bottom nav (hidden on desktop) ──────────────────────────── */}
+      <nav aria-label="Mobile navigation" className="md:hidden fixed bottom-0 left-0 right-0 z-50 h-14 border-t border-cyan-900/40 bg-black/95 backdrop-blur-md flex">
+        <button onClick={() => handleNav('~/system/kernel', 'kernel')} className={`flex flex-1 flex-col items-center justify-center gap-0.5 transition-all duration-200 ${activeTab === 'kernel' ? 'text-cyan-400' : 'text-cyan-900/50'}`}>
+          <Cpu className="w-4 h-4" />
+          <span className="text-[8px] font-bold tracking-widest font-mono">/kernel</span>
+        </button>
+        <button onClick={() => handleNav('~/system/bsky', 'bsky')} className={`flex flex-1 flex-col items-center justify-center gap-0.5 transition-all duration-200 ${activeTab === 'bsky' ? 'text-sky-400' : 'text-sky-900/50'}`}>
+          <NavButterflyIcon />
+          <span className="text-[8px] font-bold tracking-widest font-mono">/bsky</span>
+        </button>
+        <button onClick={() => handleNav('~/system/manifesto', 'manifesto')} className={`flex flex-1 flex-col items-center justify-center gap-0.5 transition-all duration-200 ${activeTab === 'manifesto' ? 'text-violet-400' : 'text-violet-900/50'}`}>
+          <Eye className="w-4 h-4" />
+          <span className="text-[8px] font-bold tracking-widest font-mono">/arch</span>
+        </button>
+        <button onClick={() => handleNav('~/system/scaling', 'scaling')} className={`flex flex-1 flex-col items-center justify-center gap-0.5 transition-all duration-200 ${activeTab === 'scaling' ? 'text-fuchsia-400' : 'text-fuchsia-900/50'}`}>
+          <Scale className="w-4 h-4" />
+          <span className="text-[8px] font-bold tracking-widest font-mono">/scale</span>
+        </button>
+        <button onClick={() => handleNav('~/system/privacy', 'privacy')} className={`flex flex-1 flex-col items-center justify-center gap-0.5 transition-all duration-200 ${activeTab === 'privacy' ? 'text-rose-400' : 'text-rose-900/50'}`}>
+          <Lock className="w-4 h-4" />
+          <span className="text-[8px] font-bold tracking-widest font-mono">/priv</span>
+        </button>
+      </nav>
+
       </div>{/* end CRT content wrapper */}
     </div>
   );

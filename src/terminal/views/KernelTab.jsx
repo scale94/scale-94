@@ -2,7 +2,7 @@ import React from 'react';
 import { Database, GitBranch, Shield, ChevronRight, Cpu } from 'lucide-react';
 
 const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, loadingKernel, visibleLogs = [], logRef, searchFilter, onClearFilter, listRef, commandInput = '', onCommandInputChange, onCommandKeyDown, ramPct = 0, isCritical = false, isWarning = false }) => (
-  <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 relative flex flex-col" style={{ height: 'calc(100dvh - 200px)', minHeight: '540px' }}>
+  <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 relative md:flex md:flex-col md:h-[calc(100dvh-200px)] md:min-h-[540px]">
 
     <style>{`
       @keyframes sk-kernelTextReveal {
@@ -81,6 +81,11 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
         50%       { border-color: rgba(6,182,212,0.4); }
       }
       .axiom-item:hover { box-shadow: inset 3px 0 0 #39ff14, inset 0 0 24px rgba(57,255,20,0.04); }
+      /* Mobile tty0: hidden scrollbar */
+      @media (max-width: 767px) {
+        .sk-tty0-logs { scrollbar-width: none; }
+        .sk-tty0-logs::-webkit-scrollbar { display: none; }
+      }
     `}</style>
 
     {searchFilter && (
@@ -141,10 +146,10 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
      * flex shares (6:4) so neither overflows and no external scroll is needed.
      * Only active_modules scrolls its kernel list internally.
      */}
-    <div className="flex flex-col gap-4 flex-1 min-h-0">
+    <div className="flex flex-col gap-4 md:flex-1 md:min-h-0 pb-[35vh] md:pb-0">
 
       {/* ── Top row: axiomatic_core | active_modules ─── */}
-      <div id="kernel-container" className="flex flex-col md:grid md:grid-cols-2 gap-4 flex-[4] md:flex-[6] min-h-0">
+      <div id="kernel-container" className="flex flex-col md:grid md:grid-cols-2 gap-4 md:flex-[6] md:min-h-0">
 
         {/* axiomatic_core */}
         <div
@@ -196,7 +201,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
         </div>
 
         {/* active_modules */}
-        <div className="border border-cyan-900/50 p-5 bg-black/50 backdrop-blur-sm hover:border-cyan-500/50 transition-colors rounded-lg flex flex-col min-h-0 overflow-hidden">
+        <div className="border border-cyan-900/50 p-5 bg-black/50 backdrop-blur-sm hover:border-cyan-500/50 transition-colors rounded-lg flex flex-col md:min-h-0 md:overflow-hidden">
           <h3 className="text-base font-bold mb-4 flex items-center gap-2 shrink-0">
             <GitBranch
               className="w-4 h-4 shrink-0 text-[#06b6d4]"
@@ -211,7 +216,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
               }}
             >active_modules</span>
           </h3>
-          <ul ref={listRef} className="space-y-3 text-sm font-mono text-[#39ff14] overflow-y-auto custom-scrollbar pr-2 flex-1 min-h-0">
+          <ul ref={listRef} className="space-y-3 text-sm font-mono text-[#39ff14] md:overflow-y-auto custom-scrollbar pr-2 md:flex-1 md:min-h-0">
             {kernelBuilds.map((kernel, idx) => {
               const isLoading = loadingKernel === kernel.id;
               return (
@@ -250,7 +255,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
 
       {/* ── Bottom apex: /dev/tty0 — centered, triangle point ─────────────── */}
       <div
-        className="border border-cyan-900/30 rounded-lg flex-[6] md:flex-[4] min-h-0 flex flex-col mx-auto w-full md:w-3/5 overflow-hidden"
+        className="fixed bottom-14 left-0 right-0 h-[35vh] z-40 md:relative md:bottom-auto md:left-auto md:right-auto md:h-auto md:flex-[4] md:min-h-0 border-t border-cyan-900/40 md:border md:border-cyan-900/30 md:rounded-lg flex flex-col md:mx-auto md:w-3/5 overflow-hidden bg-black/95 md:bg-black/50 backdrop-blur-sm"
         style={{ animation: 'sk-ttyPulse 4s ease-in-out infinite' }}
       >
         {/* Header strip */}
@@ -287,7 +292,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
         {/* Log output */}
         <div
           ref={logRef}
-          className="overflow-y-auto text-xs px-4 py-2 bg-black/70 font-mono custom-scrollbar flex-1 min-h-0"
+          className="sk-tty0-logs overflow-y-auto text-xs px-4 py-2 bg-black/70 font-mono custom-scrollbar flex-1 min-h-0"
         >
           {visibleLogs.map((l, i) => (
             <div key={`${l.time}-${i}`} className={`mb-1 break-words ${l.rust ? 'text-emerald-400' : 'text-[#39ff14]'}`}>
@@ -297,7 +302,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
         </div>
 
         {/* Inline command input */}
-        <div className="flex items-center gap-2 px-4 py-2 border-t border-cyan-900/20 shrink-0 bg-black/60">
+        <div className="hidden md:flex items-center gap-2 px-4 py-2 border-t border-cyan-900/20 shrink-0 bg-black/60">
           <span className="text-fuchsia-500 text-xs font-bold tracking-widest shrink-0 select-none">tty0:~$</span>
           <input
             type="text"
