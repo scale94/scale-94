@@ -45,17 +45,16 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
   const longPressRef    = useRef(null);
 
   // ── tty0 idle fade ─────────────────────────────────────────────────────────
-  // 3s grace period at full opacity, then 1s transition to opacity-0 (total: 4s).
-  // Touch or run resets immediately to full opacity.
-  const [ttyVisible, setTtyVisible] = useState(true);
+  // Fades to near-invisible after 3s of no touch. Any touch wakes it back.
+  const [ttyFaded, setTtyFaded] = useState(false);
   const ttyFadeTimerRef = useRef(null);
   const resetTtyFade = useCallback(() => {
-    setTtyVisible(true);
+    setTtyFaded(false);
     if (ttyFadeTimerRef.current) clearTimeout(ttyFadeTimerRef.current);
-    ttyFadeTimerRef.current = setTimeout(() => setTtyVisible(false), 3000);
+    ttyFadeTimerRef.current = setTimeout(() => setTtyFaded(true), 3000);
   }, []);
   useEffect(() => {
-    ttyFadeTimerRef.current = setTimeout(() => setTtyVisible(false), 3000);
+    ttyFadeTimerRef.current = setTimeout(() => setTtyFaded(true), 3000);
     return () => clearTimeout(ttyFadeTimerRef.current);
   }, []);
 
@@ -355,8 +354,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
 
       {/* ── Bottom apex: /dev/tty0 — centered, triangle point ─────────────── */}
       <div
-        className="fixed bottom-14 left-0 right-0 h-36 z-40 md:relative md:bottom-auto md:left-auto md:right-auto md:h-auto md:flex-[4] md:min-h-0 border-t border-cyan-900/40 md:border md:border-cyan-900/30 md:rounded-lg flex flex-col md:mx-auto md:w-3/5 overflow-hidden bg-black/95 md:bg-black/50 backdrop-blur-sm md:!opacity-100"
-        style={{ opacity: ttyVisible ? 1 : 0, transition: ttyVisible ? 'none' : 'opacity 1s linear' }}
+        className={`fixed bottom-14 left-0 right-0 h-36 z-40 md:relative md:bottom-auto md:left-auto md:right-auto md:h-auto md:flex-[4] md:min-h-0 border-t border-cyan-900/40 md:border md:border-cyan-900/30 md:rounded-lg flex flex-col md:mx-auto md:w-3/5 overflow-hidden bg-black/95 md:bg-black/50 backdrop-blur-sm transition-opacity duration-700 ${ttyFaded ? 'opacity-[0.15] md:!opacity-100' : 'opacity-100'}`}
         style={{ animation: 'sk-ttyPulse 4s ease-in-out infinite' }}
         onTouchStart={resetTtyFade}
       >
