@@ -45,17 +45,17 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
   const longPressRef    = useRef(null);
 
   // ── tty0 idle fade ─────────────────────────────────────────────────────────
-  // Fades to opacity-20 after 4s of no touch on the tty0 panel.
-  // Any touch on the tty0 wakes it back to full opacity.
+  // Starts a 5s progressive CSS fade after 800ms of no touch/run.
+  // Any touch or run wakes it back to full opacity instantly.
   const [ttyFaded, setTtyFaded] = useState(false);
   const ttyFadeTimerRef = useRef(null);
   const resetTtyFade = useCallback(() => {
     setTtyFaded(false);
     if (ttyFadeTimerRef.current) clearTimeout(ttyFadeTimerRef.current);
-    ttyFadeTimerRef.current = setTimeout(() => setTtyFaded(true), 4000);
+    ttyFadeTimerRef.current = setTimeout(() => setTtyFaded(true), 800);
   }, []);
   useEffect(() => {
-    ttyFadeTimerRef.current = setTimeout(() => setTtyFaded(true), 4000);
+    ttyFadeTimerRef.current = setTimeout(() => setTtyFaded(true), 800);
     return () => clearTimeout(ttyFadeTimerRef.current);
   }, []);
 
@@ -165,6 +165,16 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
       @keyframes sk-ttyPulse {
         0%, 100% { border-color: rgba(6,182,212,0.18); }
         50%       { border-color: rgba(6,182,212,0.4); }
+      }
+      @keyframes sk-ttyIdleFade {
+        0%   { opacity: 1; }
+        100% { opacity: 0.08; }
+      }
+      .sk-tty0-fading {
+        animation: sk-ttyIdleFade 5s linear forwards;
+      }
+      @media (min-width: 768px) {
+        .sk-tty0-fading { animation: none !important; opacity: 1 !important; }
       }
       .axiom-item:hover { box-shadow: inset 3px 0 0 #39ff14, inset 0 0 24px rgba(57,255,20,0.04); }
       /* Mobile tty0: hidden scrollbar */
@@ -340,7 +350,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
                     </div>
                     <button
                       aria-label={`Run ${kernel.name}`}
-                      onClick={(e) => { e.stopPropagation(); mobileAutoRun && mobileAutoRun(kernel.id); }}
+                      onClick={(e) => { e.stopPropagation(); mobileAutoRun && mobileAutoRun(kernel.id); resetTtyFade(); }}
                       className="text-[9px] font-bold px-1.5 py-0.5 rounded-sm border border-fuchsia-500/60 text-fuchsia-400 bg-transparent hover:bg-fuchsia-500/10 hover:border-fuchsia-400 hover:text-fuchsia-300 tracking-widest whitespace-nowrap transition-all active:scale-95"
                     >
                       [run]
@@ -355,7 +365,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
 
       {/* ── Bottom apex: /dev/tty0 — centered, triangle point ─────────────── */}
       <div
-        className={`fixed bottom-14 left-0 right-0 h-36 z-40 md:relative md:bottom-auto md:left-auto md:right-auto md:h-auto md:flex-[4] md:min-h-0 border-t border-cyan-900/40 md:border md:border-cyan-900/30 md:rounded-lg flex flex-col md:mx-auto md:w-3/5 overflow-hidden bg-black/95 md:bg-black/50 backdrop-blur-sm transition-opacity duration-700 ${ttyFaded ? 'opacity-[0.15] md:!opacity-100' : 'opacity-100'}`}
+        className={`fixed bottom-14 left-0 right-0 h-36 z-40 md:relative md:bottom-auto md:left-auto md:right-auto md:h-auto md:flex-[4] md:min-h-0 border-t border-cyan-900/40 md:border md:border-cyan-900/30 md:rounded-lg flex flex-col md:mx-auto md:w-3/5 overflow-hidden bg-black/95 md:bg-black/50 backdrop-blur-sm ${ttyFaded ? 'sk-tty0-fading' : 'opacity-100'}`}
         style={{ animation: 'sk-ttyPulse 4s ease-in-out infinite' }}
         onTouchStart={resetTtyFade}
       >
@@ -399,6 +409,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
         <div
           ref={logRef}
           className="sk-tty0-logs overflow-y-auto text-xs px-4 py-2 bg-black/70 font-mono custom-scrollbar flex-1 min-h-0"
+          onTouchMove={resetTtyFade}
         >
           {visibleLogs.map((l, i) => (
             <div key={`${l.time}-${i}`} className={`mb-1 break-words ${l.rust ? 'text-emerald-400' : 'text-[#39ff14]'}`}>

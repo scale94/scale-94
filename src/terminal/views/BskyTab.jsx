@@ -108,6 +108,58 @@ const TOOLKIT_RESOURCES = [
     icon:  'zap',
     accent: { border: 'border-indigo-500/25', bg: 'bg-indigo-950/15', hover: 'hover:border-indigo-400/50 hover:bg-indigo-950/30', text: 'text-indigo-300', dim: 'text-indigo-400/40' },
   },
+  {
+    label: 'SEMBLE',
+    href:  'https://semble.so/profile/psingletary.com/collections/3mabuiycpg626',
+    sub:   'AT://links — apps built on ATProto',
+    tag:   'COLLECTION',
+    icon:  'zap',
+    accent: { border: 'border-orange-500/25', bg: 'bg-orange-950/10', hover: 'hover:border-orange-400/50 hover:bg-orange-950/20', text: 'text-orange-300', dim: 'text-orange-400/40' },
+  },
+];
+
+// // ECOSYSTEM_APPS — clients, feeds, and social tools built on ATProto
+const ECOSYSTEM_RESOURCES = [
+  {
+    label: 'WHITEWIND',
+    href:  'https://whtwnd.com',
+    sub:   'blogging platform on ATProto',
+    tag:   'BLOGGING',
+    icon:  'globe',
+    accent: { border: 'border-violet-500/25', bg: 'bg-violet-950/15', hover: 'hover:border-violet-400/50 hover:bg-violet-950/30', text: 'text-violet-300', dim: 'text-violet-400/40' },
+  },
+  {
+    label: 'FRONTPAGE',
+    href:  'https://frontpage.fyi',
+    sub:   'HN-style link aggregator on ATProto',
+    tag:   'AGGREGATOR',
+    icon:  'zap',
+    accent: { border: 'border-emerald-500/25', bg: 'bg-emerald-950/15', hover: 'hover:border-emerald-400/50 hover:bg-emerald-950/30', text: 'text-emerald-300', dim: 'text-emerald-400/40' },
+  },
+  {
+    label: 'SKYFEED',
+    href:  'https://skyfeed.app',
+    sub:   'custom Bluesky feed builder',
+    tag:   'FEEDS',
+    icon:  'zap',
+    accent: { border: 'border-teal-500/25', bg: 'bg-teal-950/15', hover: 'hover:border-teal-400/50 hover:bg-teal-950/30', text: 'text-teal-300', dim: 'text-teal-400/40' },
+  },
+  {
+    label: 'SMOKE SIGNAL',
+    href:  'https://smokesignal.events',
+    sub:   'events protocol on ATProto',
+    tag:   'EVENTS',
+    icon:  'globe',
+    accent: { border: 'border-rose-500/25', bg: 'bg-rose-950/15', hover: 'hover:border-rose-400/50 hover:bg-rose-950/30', text: 'text-rose-300', dim: 'text-rose-400/40' },
+  },
+  {
+    label: 'GRAYSKY',
+    href:  'https://graysky.app',
+    sub:   'open-source mobile Bluesky client',
+    tag:   'CLIENT',
+    icon:  'butterfly',
+    accent: { border: 'border-purple-500/25', bg: 'bg-purple-950/15', hover: 'hover:border-purple-400/50 hover:bg-purple-950/30', text: 'text-purple-300', dim: 'text-purple-400/40' },
+  },
 ];
 
 const latest = (arr) =>
@@ -461,6 +513,34 @@ const BskyTab = () => {
             <a key={label} href={href} target="_blank" rel="noreferrer"
               className={`border ${accent.border} ${accent.bg} ${accent.hover} p-3 transition-all group flex flex-col gap-1.5 relative overflow-hidden`}
               style={{ animation: `bk-cardReveal 0.4s cubic-bezier(0.16,1,0.3,1) ${i * 0.06 + 0.2}s both` }}
+            >
+              <span className="absolute top-0 left-0 w-2.5 h-2.5 border-t border-l border-current opacity-20 pointer-events-none" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  {icon === 'butterfly' ? <ButterflyIcon className={`w-3 h-3 ${accent.text}`} />
+                    : icon === 'zap'    ? <Zap className={`w-3 h-3 ${accent.text} fill-current`} />
+                    :                    <Globe className={`w-3 h-3 ${accent.text}`} />}
+                  <span className={`text-[10px] font-bold ${accent.text} tracking-wide`}>{label}</span>
+                </div>
+              </div>
+              <span className={`text-[9px] ${accent.dim} font-mono leading-snug`}>{sub}</span>
+              <span className={`text-[8px] ${accent.dim} mt-auto tracking-widest opacity-50`}>{tag}</span>
+            </a>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Ecosystem apps ────────────────────────────────────────────────────── */}
+      <div className="mb-8">
+        <div className="text-[9px] font-bold tracking-[0.3em] text-sky-400/40 uppercase mb-3 border-b border-sky-900/15 pb-2 flex items-center gap-2">
+          <span className="text-sky-500/40">//</span>
+          ECOSYSTEM_APPS
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2">
+          {ECOSYSTEM_RESOURCES.map(({ label, href, sub, tag, icon, accent }, i) => (
+            <a key={label} href={href} target="_blank" rel="noreferrer"
+              className={`border ${accent.border} ${accent.bg} ${accent.hover} p-3 transition-all group flex flex-col gap-1.5 relative overflow-hidden`}
+              style={{ animation: `bk-cardReveal 0.4s cubic-bezier(0.16,1,0.3,1) ${i * 0.06 + 0.3}s both` }}
             >
               <span className="absolute top-0 left-0 w-2.5 h-2.5 border-t border-l border-current opacity-20 pointer-events-none" />
               <div className="flex items-center justify-between">
