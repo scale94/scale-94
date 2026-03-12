@@ -4,6 +4,9 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
+    host: true,       // bind to 0.0.0.0 — exposes Network IP for LAN testing
+    port: 5173,
+    strictPort: true,
     // Proxy /api/* to the Vercel dev server (default port 3000) when running
     // `vite dev` alongside `vercel dev --listen 3001`.
     // For normal development, use `vercel dev` which serves both together.

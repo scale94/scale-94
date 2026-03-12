@@ -34,7 +34,7 @@ function runClimateSim(appendSystemLog) {
   });
 }
 
-const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, loadingKernel, visibleLogs = [], logRef, searchFilter, onClearFilter, listRef, commandInput = '', onCommandInputChange, onCommandKeyDown, ramPct = 0, isCritical = false, isWarning = false, appendSystemLog, mobileChrome = true }) => {
+const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, loadingKernel, visibleLogs = [], logRef, searchFilter, onClearFilter, listRef, commandInput = '', onCommandInputChange, onCommandKeyDown, ramPct = 0, isCritical = false, isWarning = false, appendSystemLog, mobileChrome = true, mobileAutoRun }) => {
   // ── Gesture-gated mobile keyboard ─────────────────────────────────────────
   // Activation: double-tap + long-tap on the tty0 header strip.
   // Double-tap window: 350ms. Long-press threshold: 500ms.
@@ -188,13 +188,13 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
           </span>
         </h2>
         <div
-          className="text-sm font-bold tracking-widest"
+          className="hidden md:block text-sm font-bold tracking-widest"
           style={{ color: '#fb923c', opacity: 0, animation: 'sk-subReveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.35s forwards' }}
         >
           version: soma-9.1 // build: gaia // ostrom_protocol
         </div>
       </div>
-      <div className="flex items-center gap-4 mt-3 md:mt-0 shrink-0">
+      <div className="hidden md:flex items-center gap-4 mt-3 md:mt-0 shrink-0">
         <div className="flex items-center gap-2 text-xs border border-cyan-500/30 px-3 py-1 bg-cyan-900/10 text-cyan-400 rounded-sm">
           <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(34,211,238,1)]"></div> operational
         </div>
@@ -293,7 +293,12 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
               return (
                 <li
                   key={kernel.id}
-                  onClick={() => handleKernelClick && handleKernelClick(kernel)}
+                  onClick={() => {
+                    handleKernelClick && handleKernelClick(kernel);
+                    if (mobileAutoRun && window.matchMedia('(max-width: 767px)').matches) {
+                      setTimeout(() => mobileAutoRun(kernel.id), 900);
+                    }
+                  }}
                   className={`flex flex-wrap justify-between items-center gap-y-2 border-b pb-3 mb-1 cursor-pointer p-2 rounded transition-all group gap-2
                     ${isLoading ? 'bg-cyan-900/20 border-cyan-400/60 shadow-[inset_0_0_20px_rgba(34,211,238,0.08)] backdrop-blur-sm animate-pulse' : 'border-cyan-900/20 hover:bg-cyan-900/10'}`}
                   style={{ animation: `sk-kernelModuleIn 0.22s ease-out ${idx * 40}ms both` }}
@@ -336,7 +341,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
 
       {/* ── Bottom apex: /dev/tty0 — centered, triangle point ─────────────── */}
       <div
-        className={`fixed bottom-14 left-0 right-0 h-[35vh] z-40 md:relative md:bottom-auto md:left-auto md:right-auto md:h-auto md:flex-[4] md:min-h-0 border-t border-cyan-900/40 md:border md:border-cyan-900/30 md:rounded-lg flex flex-col md:mx-auto md:w-3/5 overflow-hidden bg-black/95 md:bg-black/50 backdrop-blur-sm transition-opacity duration-500 ${!mobileChrome ? 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto' : ''}`}
+        className={`fixed bottom-14 left-0 right-0 h-36 z-40 md:relative md:bottom-auto md:left-auto md:right-auto md:h-auto md:flex-[4] md:min-h-0 border-t border-cyan-900/40 md:border md:border-cyan-900/30 md:rounded-lg flex flex-col md:mx-auto md:w-3/5 overflow-hidden bg-black/95 md:bg-black/50 backdrop-blur-sm transition-opacity duration-500 ${!mobileChrome ? 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto' : ''}`}
         style={{ animation: 'sk-ttyPulse 4s ease-in-out infinite' }}
       >
         {/* Header strip — double-tap + long-tap here to activate mobile keyboard */}

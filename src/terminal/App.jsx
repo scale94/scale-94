@@ -13,6 +13,7 @@ import _somaArticles   from './data/articles.soma';   // hand-curated soma kerne
 import _miscArticles   from './data/articles.misc';   // hand-curated misc/fiction entries
 import autoArticles    from './data/loadArticles';    // Vite glob .md stubs (dev fallback)
 import wasmRegistry    from '../wasm/wasm.generated';  // compiled Rust kernel WASM module map — 21 kernels
+import { resolveWasmAlias } from './data/mobileWasmMap';
 // Data — dynamic (CAS fetch at boot; _generated, _academic, tagIndex, systemArticles
 // are no longer static imports — they arrive via /kernel/manifest.json fetch)
 
@@ -540,6 +541,14 @@ const App = () => {
     loadAbortRef, activeKernels,
   });
 
+  // Mobile auto-run — fires a WASM kernel automatically when a card is tapped on mobile.
+  // Resolves the most topically relevant WASM alias for every kernel via mobileWasmMap.
+  const mobileAutoRun = useCallback((kernelId) => {
+    const alias = wasmRegistry[kernelId] ? kernelId : resolveWasmAlias(kernelId);
+    const now = new Date().toLocaleTimeString('en-US', { hour12: false });
+    dispatchCommand('run', alias, `run ${alias}`, now);
+  }, [dispatchCommand]);
+
   // Autocomplete + suggestion execution — keystroke logic lives in useAutocomplete.
   const { handleInputChange, executeSuggestion } = useAutocomplete({
     setCommandInput, setSuggestions, setParamHint, setActiveSugg,
@@ -810,6 +819,7 @@ const App = () => {
               isWarning={isWarning}
               appendSystemLog={appendSystemLog}
               mobileChrome={mobileChrome}
+              mobileAutoRun={mobileAutoRun}
             />
           )}
 
