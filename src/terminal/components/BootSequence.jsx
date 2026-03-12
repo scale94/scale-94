@@ -87,7 +87,7 @@ const BootSequence = ({ onDone }) => {
     <div className="fixed inset-0 z-[100] bg-black font-mono flex items-center justify-center p-4 overflow-hidden pointer-events-none">
       <div
         ref={cardRef}
-        className="w-[340px] md:w-[400px] aspect-square relative flex items-center"
+        className="w-[340px] md:w-[400px] aspect-square relative flex items-stretch"
         style={{ transition: 'none' }}
       >
         {/* Yellow square — spins 720° over 2s on boot */}

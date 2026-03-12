@@ -144,11 +144,11 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
     <div className="flex flex-col gap-4 flex-1 min-h-0">
 
       {/* ── Top row: axiomatic_core | active_modules ─── */}
-      <div id="kernel-container" className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-[6] min-h-0">
+      <div id="kernel-container" className="flex flex-col md:grid md:grid-cols-2 gap-4 flex-[4] md:flex-[6] min-h-0">
 
         {/* axiomatic_core */}
         <div
-          className="border border-cyan-900/50 p-5 bg-black/50 backdrop-blur-sm relative hover:border-cyan-500/50 transition-colors duration-500 rounded-lg flex flex-col min-h-0 overflow-hidden"
+          className="hidden md:flex border border-cyan-900/50 p-5 bg-black/50 backdrop-blur-sm relative hover:border-cyan-500/50 transition-colors duration-500 rounded-lg flex-col min-h-0 overflow-hidden"
           style={{ animation: 'sk-axiomBreath 5s ease-in-out infinite' }}
         >
           <h3 className="text-lg font-bold mb-4 flex items-center gap-2 shrink-0">
@@ -222,16 +222,16 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
                     ${isLoading ? 'bg-cyan-900/20 border-cyan-400/60 shadow-[inset_0_0_20px_rgba(34,211,238,0.08)] backdrop-blur-sm animate-pulse' : 'border-cyan-900/20 hover:bg-cyan-900/10'}`}
                   style={{ animation: `sk-kernelModuleIn 0.22s ease-out ${idx * 40}ms both` }}
                 >
-                  <div className="min-w-0">
+                  <div className="flex-1 min-w-0 overflow-hidden">
                     <div
-                      className="font-bold text-sm mb-0.5 break-words text-transparent bg-clip-text"
+                      className="font-bold text-sm mb-0.5 truncate text-transparent bg-clip-text"
                       style={{
                         backgroundImage: 'linear-gradient(90deg, #39ff14, #06b6d4, #d946ef, #ef4444, #38bdf8, #39ff14)',
                         backgroundSize: '300% auto',
                         animation: 'sk-moduleNameShimmer 3.5s ease-in-out infinite',
                       }}
                     >{kernel.name}</div>
-                    <div className="text-xs text-[#39ff14] font-bold tracking-wide break-words opacity-70">
+                    <div className="text-xs text-[#39ff14] font-bold tracking-wide truncate opacity-70">
                       {isLoading ? 'initializing...' : kernel.desc}
                     </div>
                   </div>
@@ -250,7 +250,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
 
       {/* ── Bottom apex: /dev/tty0 — centered, triangle point ─────────────── */}
       <div
-        className="border border-cyan-900/30 rounded-lg flex-[4] min-h-0 flex flex-col mx-auto w-full md:w-3/5 overflow-hidden"
+        className="border border-cyan-900/30 rounded-lg flex-[6] md:flex-[4] min-h-0 flex flex-col mx-auto w-full md:w-3/5 overflow-hidden"
         style={{ animation: 'sk-ttyPulse 4s ease-in-out infinite' }}
       >
         {/* Header strip */}
@@ -278,6 +278,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
             <span className={`text-[9px] font-black ${isCritical ? 'text-red-500/70' : 'text-cyan-900/35'}`}>{ramPct}%</span>
           </div>
           <span className="text-[#39ff14] tracking-widest font-mono text-xs font-bold shrink-0">/dev/tty0</span>
+          <span className="text-[9px] font-bold tracking-widest text-cyan-900/35 shrink-0">system kernel logs</span>
           <span className="text-[9px] font-bold tracking-widest text-cyan-900/35 ml-auto hidden md:block shrink-0">
             run · help · list · breach · tags
           </span>
@@ -290,7 +291,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
         >
           {visibleLogs.map((l, i) => (
             <div key={`${l.time}-${i}`} className={`mb-1 break-words ${l.rust ? 'text-emerald-400' : 'text-[#39ff14]'}`}>
-              <span className={`mr-2 ${l.rust ? 'text-cyan-300' : 'text-cyan-500'}`}>{l.time}</span>— {l.msg}
+              <span className={`mr-2 ${l.rust ? 'text-cyan-300' : 'text-cyan-500'}`}>{l.time}</span>– {l.msg}
             </div>
           ))}
         </div>
