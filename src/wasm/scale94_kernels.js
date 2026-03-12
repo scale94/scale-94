@@ -416,6 +416,33 @@ export function log_entropy_flush() {
 }
 
 /**
+ * Community assembly simulation — power-law abundance distribution with
+ * standard ecological diversity metrics and stochastic temporal drift.
+ *
+ * Parameters:
+ *   n_species     : species richness (2–500)
+ *   diversity_exp : Zipf rank-abundance exponent (0.1–3.0);
+ *                   0.5 = near-even, 1.0 = natural community, 2.0 = dominated
+ *   timesteps     : stochastic perturbation steps for temporal H drift (0–200)
+ * @param {number} n_species
+ * @param {number} diversity_exp
+ * @param {number} timesteps
+ * @returns {string}
+ */
+export function run_biocoenosis_simulation(n_species, diversity_exp, timesteps) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_biocoenosis_simulation(n_species, diversity_exp, timesteps);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * Simulates a simplified A-CEEI (Approximate Competitive Equilibrium from
  * Equal Incomes) preference-based allocation market.
  *
@@ -725,6 +752,61 @@ export function run_kuramoto_synchrony(n_oscillators, coupling, freq_spread, tim
 }
 
 /**
+ * SCALAR SOVEREIGNTY + MESANTROPY ENGINE
+ *
+ * Simulates N agents through Substrate (3.3.3) and Detonation (4.4.4.4) phases.
+ *
+ * Parameters:
+ *   solar_yield  : available scalar energy as fraction of Eigenverbrauch ceiling (0.0–1.0)
+ *                  0.0 = off-grid scarcity, 1.0 = 364 kWh full Sorbe sovereignty
+ *   signal_depth : RSSI signal depth in dBm-relative units (-1.0 = deep, 0.0 = shallow)
+ *                  reflects "Am Sender 13" signal quality; affects agent coupling strength
+ *   n_agents     : number of agents in the simulation field (7–144)
+ * @param {number} solar_yield
+ * @param {number} signal_depth
+ * @param {number} n_agents
+ * @returns {string}
+ */
+export function run_mesantropy(solar_yield, signal_depth, n_agents) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_mesantropy(solar_yield, signal_depth, n_agents);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * Resonance trace simulation — sweeps N injection cycles through the Fish Scale
+ * entropic stasis field, modulating BPM via sin(r×7)×11 with LCG noise drift.
+ *
+ * Parameters:
+ *   resonance_seed : initial resonance value, wraps mod 2π (0.0–6.28)
+ *   n_cycles       : resonance injection cycles to trace (1–64)
+ *   amplitude      : BPM modulation amplitude multiplier (0.1–3.0)
+ * @param {number} resonance_seed
+ * @param {number} n_cycles
+ * @param {number} amplitude
+ * @returns {string}
+ */
+export function run_necromantic_simulation(resonance_seed, n_cycles, amplitude) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_necromantic_simulation(resonance_seed, n_cycles, amplitude);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * Run the Phonemic Drift analysis.
  *
  * * `seed`        — PRNG seed (0 → uses internal default)
@@ -850,6 +932,36 @@ export function run_soma_plus_engine(population, eco_share, social_share, arts_s
     let deferred1_1;
     try {
         const ret = wasm.run_soma_plus_engine(population, eco_share, social_share, arts_share, years);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * Seven-Fold Crystalline Invariance Kernel
+ *
+ * Simulates the 4-phase progression of the SCALE_SYSTEM_KERNEL v7.7.7.7.7.7.7.
+ * N oscillators advance through Substrate → Detonation → Superfluid → Crystalline.
+ *
+ * Parameters:
+ *   n_oscillators : number of coupled oscillators to simulate (7–77)
+ *   coupling_gain : multiplicative scaling on all coupling constants (0.5–3.0)
+ *                   < 1.0 weakens lock, > 1.0 accelerates crystallisation
+ *   entropy_seed  : deterministic seed for phase initialisation (0–999)
+ *                   0 = maximal disorder, large values = partial pre-ordering
+ * @param {number} n_oscillators
+ * @param {number} coupling_gain
+ * @param {number} entropy_seed
+ * @returns {string}
+ */
+export function run_sovereign_seven(n_oscillators, coupling_gain, entropy_seed) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_sovereign_seven(n_oscillators, coupling_gain, entropy_seed);
         deferred1_0 = ret[0];
         deferred1_1 = ret[1];
         return getStringFromWasm0(ret[0], ret[1]);

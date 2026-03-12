@@ -57,20 +57,42 @@ const KERNEL_MAP = [
     aliases: ['soma91', 'gaia', 'soma_91', 'soma91_banner', 'banner'],
   },
   {
+    // Community assembly simulation: Zipf abundance distribution, Shannon/Simpson
+    // diversity metrics, stochastic temporal drift.
+    // n_species:     args[0]  flags: --n, --species
+    // diversity_exp: args[1]  flags: --exp, --diversity, --zipf
+    // timesteps:     args[2]  flags: --steps, --t, --timesteps
     id:      'BIODIVERSITY-KERNEL-1.0.1',
-    struct:  'BiocoenosisKernel',
-    boot:    'boot',
+    fn:      'run_biocoenosis_simulation',
+    args:    [50.0, 1.0, 50.0],
+    argMap:  { n: 0, species: 0, nspecies: 0, exp: 1, diversity: 1, zipf: 1, steps: 2, timesteps: 2, t: 2 },
+    params:  [
+      { name: 'n_species',     default: 50.0, desc: 'species richness — community size (2–500)' },
+      { name: 'diversity_exp', default: 1.0,  desc: 'Zipf rank-abundance exponent α: 0.5=even, 1.0=natural, 2.0=dominated (0.1–3.0)' },
+      { name: 'timesteps',     default: 50.0, desc: 'stochastic perturbation steps for temporal H drift (0–200)' },
+    ],
     label:   'Biocoenosis Kernel v1.0.1',
     type:    'rust',
-    aliases: ['biodiversity', 'biocoenosis'],
+    aliases: ['biodiversity', 'biocoenosis', 'ecology', 'diversity', 'species', 'shannon_ecology'],
   },
   {
+    // Fish Scale Kernel resonance trace: N injection cycles through the entropic
+    // stasis field, BPM modulated via sin(r×7)×11 with LCG noise drift.
+    // resonance_seed: args[0]  flags: --seed, --resonance, --r
+    // n_cycles:       args[1]  flags: --cycles, --n
+    // amplitude:      args[2]  flags: --amplitude, --amp
     id:      'FISH-SCALE-KERNEL11.1.1',
-    struct:  'NecromanticEngine',
-    boot:    'boot',
+    fn:      'run_necromantic_simulation',
+    args:    [1.0, 12.0, 1.0],
+    argMap:  { seed: 0, resonance: 0, r: 0, cycles: 1, n: 1, amplitude: 2, amp: 2 },
+    params:  [
+      { name: 'resonance_seed', default: 1.0,  desc: 'initial resonance value, wraps mod 2π (0–6.28)' },
+      { name: 'n_cycles',       default: 12.0, desc: 'resonance injection cycles to trace (1–64)' },
+      { name: 'amplitude',      default: 1.0,  desc: 'BPM modulation amplitude multiplier (0.1–3.0)' },
+    ],
     label:   'Necromantic Engine v11.1.1',
     type:    'rust',
-    aliases: ['fishscale', 'necromantic', 'fish'],
+    aliases: ['fishscale', 'necromantic', 'fish', 'resonance', 'bpm', 'harmonic'],
   },
   {
     // Free function export — uses fn/args/argMap pattern instead of struct/boot.
@@ -682,6 +704,49 @@ const KERNEL_MAP = [
     label:   'Post-Quantum Hash Audit v1.0',
     type:    'rust',
     aliases: ['pqhash', 'quantum_hash', 'post_quantum', 'hash_audit', 'grover', 'pq_hash', 'hashaudit'],
+  },
+  {
+    // Mesantropy Scalar Sovereignty Engine v3.3.3 + 4.4.4.4
+    // Simulates N agents through Substrate (3.3.3) and Detonation (4.4.4.4) phases.
+    // Measures MESANTROPY (Shannon entropy of mediocracy distribution), rotation
+    // invariance, temporal integrity, and eigenverbrauch post-detonation.
+    // solar_yield:  args[0]  flags: --solar, --yield, --energy
+    // signal_depth: args[1]  flags: --signal, --depth, --rssi
+    // n_agents:     args[2]  flags: --n, --agents
+    id:      'MESANTROPY-KERNEL-1.0',
+    fn:      'run_mesantropy',
+    args:    [0.8, -0.3, 33.0],
+    argMap:  { solar: 0, yield: 0, energy: 0, signal: 1, depth: 1, rssi: 1, n: 2, agents: 2 },
+    params:  [
+      { name: 'solar_yield',  default: 0.8,  desc: 'scalar energy as fraction of 364 kWh Eigenverbrauch ceiling (0=scarcity, 1=full sovereignty)' },
+      { name: 'signal_depth', default: -0.3, desc: 'RSSI signal quality: -1.0=deep/weak, 0.0=shallow/strong' },
+      { name: 'n_agents',     default: 33.0, desc: 'agents in the simulation field (7–144)' },
+    ],
+    label:   'Mesantropy Scalar Sovereignty Engine v3.3.3/4.4.4.4',
+    type:    'rust',
+    aliases: ['mesantropy', 'scalar', 'detonation', 'vectorcollapse', 'eigenverbrauch', 'mediocracy', 'mesantropy_engine'],
+  },
+  {
+    // Sovereign Seven Crystalline Invariance Engine v7.7.7.7.7.7.7
+    // Runs N Kuramoto oscillators through 4-phase progression:
+    // Substrate (3.3.3, 128 BPM) → Detonation (4.4.4.4, 145) →
+    // Superfluid (5.5.5.5, 155) → Crystalline (7.7.7.7, 220).
+    // Evaluates phase order parameter r, entropy H, crystalline lock condition.
+    // n_oscillators: args[0]  flags: --n, --oscillators
+    // coupling_gain: args[1]  flags: --gain, --coupling, --k
+    // entropy_seed:  args[2]  flags: --seed, --entropy
+    id:      'SOVEREIGN-SEVEN-KERNEL-1.0',
+    fn:      'run_sovereign_seven',
+    args:    [21.0, 1.0, 0.0],
+    argMap:  { n: 0, oscillators: 0, gain: 1, coupling: 1, k: 1, seed: 2, entropy: 2 },
+    params:  [
+      { name: 'n_oscillators', default: 21.0, desc: 'coupled oscillators (7–77); 7=minimal, 21=standard, 77=full field' },
+      { name: 'coupling_gain', default: 1.0,  desc: 'multiplicative coupling scaling: 0.5=weak, 1.0=standard, 3.0=forced lock (0.5–3.0)' },
+      { name: 'entropy_seed',  default: 0.0,  desc: 'phase initialisation seed — 0=maximal disorder (0–999)' },
+    ],
+    label:   'Sovereign Seven Crystalline Invariance Engine v7.7.7.7.7.7.7',
+    type:    'rust',
+    aliases: ['sovereign', 'seven', 'crystalline', 'sovereign_seven', 'crystal_lock', 'invariance', 'seven_layers'],
   },
 ];
 
