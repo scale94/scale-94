@@ -204,16 +204,25 @@ const App = () => {
   // Persistent WASM struct instances — keyed by wasmEntry.id.
   const activeKernels = useRef({});
 
-  // Mobile chrome auto-hide — fade out after 3s of no touch, fade back in on touch
+  // Mobile chrome auto-hide:
+  //   touchstart  → show immediately, cancel any pending hide
+  //   touchend / touchcancel → start 3s countdown, then hide
+  //   boot complete → start 3s countdown (chrome stays visible during boot)
   const showMobileChrome = useCallback(() => {
     setMobileChrome(true);
     if (mobileChromeTimerRef.current) clearTimeout(mobileChromeTimerRef.current);
+  }, []);
+  const hideMobileChromeAfterDelay = useCallback(() => {
+    if (mobileChromeTimerRef.current) clearTimeout(mobileChromeTimerRef.current);
     mobileChromeTimerRef.current = setTimeout(() => setMobileChrome(false), 3000);
   }, []);
+  // Start hide timer after boot completes (not on mount — chrome visible during 5s boot)
   useEffect(() => {
-    mobileChromeTimerRef.current = setTimeout(() => setMobileChrome(false), 3000);
+    if (!bootSequence) {
+      mobileChromeTimerRef.current = setTimeout(() => setMobileChrome(false), 3000);
+    }
     return () => { if (mobileChromeTimerRef.current) clearTimeout(mobileChromeTimerRef.current); };
-  }, []);
+  }, [bootSequence]);
 
   // Fiction articles for Transmission tab — updates when CAS data loads
   const transmissionStories = useMemo(() => articles.filter(a => a.type === 'fiction'), [articles]);
@@ -617,6 +626,8 @@ const App = () => {
     <div className={`min-h-screen font-mono selection:bg-fuchsia-900 selection:text-white flex flex-col overflow-hidden relative transition-colors duration-700 ${selectedArticle || architectThesis ? 'bg-[#09090b]' : 'bg-black'} ${relicMode ? 'relic-mode' : ''}`}
       style={{ animation: 'terminal-flicker 7s ease-in-out infinite' }}
       onTouchStart={showMobileChrome}
+      onTouchEnd={hideMobileChromeAfterDelay}
+      onTouchCancel={hideMobileChromeAfterDelay}
     >
 
       {/* ── Boot sequence — unmounts when onDone fires ─────────────────────── */}
@@ -743,7 +754,7 @@ const App = () => {
         <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4 w-full min-w-0">
           <div className="flex items-center gap-2 group cursor-pointer shrink-0" onClick={() => handleNav('~/system/kernel', 'kernel')}>
             <Hexagon className="w-5 h-5 text-fuchsia-500 animate-spin-slow group-hover:text-cyan-400 transition-colors" />
-            <span className="font-bold tracking-widest text-lg lowercase text-[#39ff14] group-hover:text-cyan-400 transition-colors">scale_9.4</span>
+            <span className="hidden md:inline font-bold tracking-widest text-lg lowercase text-[#39ff14] group-hover:text-cyan-400 transition-colors">scale_9.4</span>
           </div>
           <nav aria-label="Main navigation" className="hidden md:flex flex-wrap items-center gap-2 md:gap-4 text-xs md:text-sm font-bold tracking-wide min-w-0 w-full md:w-auto">
             <button aria-label="Kernel" aria-current={activeTab === 'kernel' ? 'page' : undefined} onClick={() => handleNav('~/system/kernel', 'kernel')} className={`${activeTab === 'kernel' ? 'bg-cyan-500 text-black shadow-[0_0_10px_rgba(6,182,212,0.5)]' : 'text-cyan-500 hover:text-white hover:bg-cyan-900/30'} px-4 py-1.5 transition-all duration-300 flex items-center gap-2 uppercase rounded-sm`}><Cpu className="w-3 h-3" /> /Kernel</button>
@@ -959,25 +970,20 @@ const App = () => {
       </footer>
       {/* ── Mobile bottom nav (hidden on desktop) ──────────────────────────── */}
       <nav aria-label="Mobile navigation" className={`md:hidden fixed bottom-0 left-0 right-0 z-50 h-14 border-t border-cyan-900/40 bg-black flex transition-opacity duration-500 ${!mobileChrome ? 'opacity-0 pointer-events-none' : ''}`}>
-        <button onClick={() => handleNav('~/system/kernel', 'kernel')} className={`flex flex-1 flex-col items-center justify-center gap-0.5 transition-all duration-200 ${activeTab === 'kernel' ? 'text-cyan-400' : 'text-cyan-900/50'}`}>
-          <Cpu className="w-4 h-4" />
-          <span className="text-[8px] font-bold tracking-widest font-mono">/kernel</span>
+        <button onClick={() => handleNav('~/system/kernel', 'kernel')} aria-label="Kernel" className={`flex flex-1 items-center justify-center transition-all duration-200 ${activeTab === 'kernel' ? 'text-cyan-400' : 'text-cyan-900/50'}`}>
+          <Cpu className="w-5 h-5" />
         </button>
-        <button onClick={() => handleNav('~/system/bsky', 'bsky')} className={`flex flex-1 flex-col items-center justify-center gap-0.5 transition-all duration-200 ${activeTab === 'bsky' ? 'text-sky-400' : 'text-sky-900/50'}`}>
+        <button onClick={() => handleNav('~/system/bsky', 'bsky')} aria-label="BSKY" className={`flex flex-1 items-center justify-center transition-all duration-200 ${activeTab === 'bsky' ? 'text-sky-400' : 'text-sky-900/50'}`}>
           <NavButterflyIcon />
-          <span className="text-[8px] font-bold tracking-widest font-mono">/bsky</span>
         </button>
-        <button onClick={() => handleNav('~/system/manifesto', 'manifesto')} className={`flex flex-1 flex-col items-center justify-center gap-0.5 transition-all duration-200 ${activeTab === 'manifesto' ? 'text-violet-400' : 'text-violet-900/50'}`}>
-          <Eye className="w-4 h-4" />
-          <span className="text-[8px] font-bold tracking-widest font-mono">/arch</span>
+        <button onClick={() => handleNav('~/system/manifesto', 'manifesto')} aria-label="Manifesto" className={`flex flex-1 items-center justify-center transition-all duration-200 ${activeTab === 'manifesto' ? 'text-violet-400' : 'text-violet-900/50'}`}>
+          <Eye className="w-5 h-5" />
         </button>
-        <button onClick={() => handleNav('~/system/scaling', 'scaling')} className={`flex flex-1 flex-col items-center justify-center gap-0.5 transition-all duration-200 ${activeTab === 'scaling' ? 'text-fuchsia-400' : 'text-fuchsia-900/50'}`}>
-          <Scale className="w-4 h-4" />
-          <span className="text-[8px] font-bold tracking-widest font-mono">/scale</span>
+        <button onClick={() => handleNav('~/system/scaling', 'scaling')} aria-label="Scaling" className={`flex flex-1 items-center justify-center transition-all duration-200 ${activeTab === 'scaling' ? 'text-fuchsia-400' : 'text-fuchsia-900/50'}`}>
+          <Scale className="w-5 h-5" />
         </button>
-        <button onClick={() => handleNav('~/system/privacy', 'privacy')} className={`flex flex-1 flex-col items-center justify-center gap-0.5 transition-all duration-200 ${activeTab === 'privacy' ? 'text-rose-400' : 'text-rose-900/50'}`}>
-          <Lock className="w-4 h-4" />
-          <span className="text-[8px] font-bold tracking-widest font-mono">/priv</span>
+        <button onClick={() => handleNav('~/system/privacy', 'privacy')} aria-label="Privacy" className={`flex flex-1 items-center justify-center transition-all duration-200 ${activeTab === 'privacy' ? 'text-rose-400' : 'text-rose-900/50'}`}>
+          <Lock className="w-5 h-5" />
         </button>
       </nav>
 
