@@ -22,22 +22,15 @@ const GT_DID     = import.meta.env.VITE_GRAPHTRACKS_DID || null;
 const GT_KEY     = import.meta.env.VITE_GRAPHTRACKS_KEY || null;
 
 // ── Resource manifest ──────────────────────────────────────────────────────────
-const ATPROTO_RESOURCES = [
+// // PROTOCOL_LAYER — core spec + identity infrastructure
+const PROTOCOL_RESOURCES = [
   {
     label: 'BLUESKY PROFILE',
     href:  'https://bsky.app/profile/scale94.com',
     sub:   'bsky.app / @scale94.com',
     tag:   'SOCIAL_NODE',
     icon:  'butterfly',
-    accent: { border: 'border-sky-500/25', bg: 'bg-sky-950/15', hover: 'hover:border-sky-400/50 hover:bg-sky-950/30', text: 'text-sky-300', dim: 'text-sky-400/40', glow: 'rgba(56,189,248,0.4)' },
-  },
-  {
-    label: 'GRAPHTRACKS',
-    href:  'https://graphtracks.com',
-    sub:   'Bluesky network analytics',
-    tag:   'ANALYTICS',
-    icon:  'zap',
-    accent: { border: 'border-cyan-500/25', bg: 'bg-cyan-950/15', hover: 'hover:border-cyan-400/50 hover:bg-cyan-950/30', text: 'text-cyan-300', dim: 'text-cyan-400/40', glow: 'rgba(34,211,238,0.4)' },
+    accent: { border: 'border-sky-500/25', bg: 'bg-sky-950/15', hover: 'hover:border-sky-400/50 hover:bg-sky-950/30', text: 'text-sky-300', dim: 'text-sky-400/40' },
   },
   {
     label: 'AT PROTOCOL',
@@ -45,20 +38,89 @@ const ATPROTO_RESOURCES = [
     sub:   'atproto.com — open protocol spec',
     tag:   'PROTOCOL',
     icon:  'globe',
-    accent: { border: 'border-blue-500/25', bg: 'bg-blue-950/15', hover: 'hover:border-blue-400/50 hover:bg-blue-950/30', text: 'text-blue-300', dim: 'text-blue-400/40', glow: 'rgba(96,165,250,0.4)' },
+    accent: { border: 'border-blue-500/25', bg: 'bg-blue-950/15', hover: 'hover:border-blue-400/50 hover:bg-blue-950/30', text: 'text-blue-300', dim: 'text-blue-400/40' },
   },
   {
-    label: 'GRAPHTRACKS DOCS',
-    href:  'https://github.com/graphtracks/docs',
-    sub:   'OpenAPI spec — REST analytics',
+    label: 'LEXICON',
+    href:  'https://atproto.com/guides/lexicon',
+    sub:   'schema language for AT Protocol',
+    tag:   'SCHEMA',
+    icon:  'globe',
+    accent: { border: 'border-blue-400/20', bg: 'bg-blue-950/10', hover: 'hover:border-blue-300/40 hover:bg-blue-950/25', text: 'text-blue-200', dim: 'text-blue-400/35' },
+  },
+  {
+    label: 'DID / IDENTITY',
+    href:  'https://atproto.com/guides/identity',
+    sub:   'decentralized identifiers + handles',
+    tag:   'IDENTITY',
+    icon:  'globe',
+    accent: { border: 'border-indigo-500/25', bg: 'bg-indigo-950/15', hover: 'hover:border-indigo-400/50 hover:bg-indigo-950/30', text: 'text-indigo-300', dim: 'text-indigo-400/40' },
+  },
+  {
+    label: 'DATA REPOS',
+    href:  'https://atproto.com/guides/data-repos',
+    sub:   'personal data server repository spec',
+    tag:   'STORAGE',
+    icon:  'globe',
+    accent: { border: 'border-indigo-400/20', bg: 'bg-indigo-950/10', hover: 'hover:border-indigo-300/40 hover:bg-indigo-950/25', text: 'text-indigo-200', dim: 'text-indigo-400/35' },
+  },
+];
+
+// // DEV_TOOLKIT — client libraries, APIs, self-hosting
+const TOOLKIT_RESOURCES = [
+  {
+    label: 'TYPESCRIPT SDK',
+    href:  'https://github.com/bluesky-social/atproto/tree/main/packages/api',
+    sub:   '@atproto/api — official TS client',
+    tag:   'SDK',
+    icon:  'zap',
+    accent: { border: 'border-cyan-500/25', bg: 'bg-cyan-950/15', hover: 'hover:border-cyan-400/50 hover:bg-cyan-950/30', text: 'text-cyan-300', dim: 'text-cyan-400/40' },
+  },
+  {
+    label: 'JETSTREAM',
+    href:  'https://github.com/bluesky-social/jetstream',
+    sub:   'firehose → lightweight JSON stream',
+    tag:   'FIREHOSE',
+    icon:  'zap',
+    accent: { border: 'border-cyan-400/20', bg: 'bg-cyan-950/10', hover: 'hover:border-cyan-300/40 hover:bg-cyan-950/25', text: 'text-cyan-200', dim: 'text-cyan-400/35' },
+  },
+  {
+    label: 'PDS SELF-HOST',
+    href:  'https://github.com/bluesky-social/pds',
+    sub:   'run your own Personal Data Server',
+    tag:   'INFRA',
+    icon:  'globe',
+    accent: { border: 'border-sky-600/20', bg: 'bg-sky-950/10', hover: 'hover:border-sky-500/40 hover:bg-sky-950/25', text: 'text-sky-200', dim: 'text-sky-500/35' },
+  },
+  {
+    label: 'BLUESKY DOCS',
+    href:  'https://docs.bsky.app',
+    sub:   'docs.bsky.app — developer reference',
     tag:   'REFERENCE',
     icon:  'globe',
-    accent: { border: 'border-indigo-500/25', bg: 'bg-indigo-950/15', hover: 'hover:border-indigo-400/50 hover:bg-indigo-950/30', text: 'text-indigo-300', dim: 'text-indigo-400/40', glow: 'rgba(129,140,248,0.4)' },
+    accent: { border: 'border-sky-500/25', bg: 'bg-sky-950/15', hover: 'hover:border-sky-400/50 hover:bg-sky-950/30', text: 'text-sky-300', dim: 'text-sky-400/40' },
+  },
+  {
+    label: 'GRAPHTRACKS',
+    href:  'https://graphtracks.com',
+    sub:   'Bluesky network analytics API',
+    tag:   'ANALYTICS',
+    icon:  'zap',
+    accent: { border: 'border-indigo-500/25', bg: 'bg-indigo-950/15', hover: 'hover:border-indigo-400/50 hover:bg-indigo-950/30', text: 'text-indigo-300', dim: 'text-indigo-400/40' },
   },
 ];
 
 const latest = (arr) =>
   Array.isArray(arr) && arr.length ? (arr[arr.length - 1]?.value ?? '—') : '—';
+
+const relativeTime = (iso) => {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 60)   return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24)   return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+};
 
 // ── Component ──────────────────────────────────────────────────────────────────
 const BSKY_HANDLE = 'scale94.com';
@@ -69,6 +131,8 @@ const BskyTab = () => {
   const [loading,   setLoading]   = useState(false);
   const [fetchErr,  setFetchErr]  = useState(null);
   const [lastSync,  setLastSync]  = useState(null);
+  const [commits,   setCommits]   = useState([]);
+  const [commitsLoading, setCommitsLoading] = useState(true);
 
   const apiEnabled = Boolean(GT_DID && GT_KEY);
 
@@ -103,6 +167,14 @@ const BskyTab = () => {
   }, [apiEnabled]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  useEffect(() => {
+    fetch('https://api.github.com/repos/bluesky-social/atproto/commits?per_page=8')
+      .then(r => r.json())
+      .then(data => setCommits(Array.isArray(data) ? data : []))
+      .catch(() => setCommits([]))
+      .finally(() => setCommitsLoading(false));
+  }, []);
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-6xl mx-auto mt-8">
@@ -350,45 +422,107 @@ const BskyTab = () => {
         </div>
       )}
 
-      {/* ── Network resource manifest ─────────────────────────────────────────── */}
-      <div className="mb-8">
-        <div className="text-[9px] font-bold tracking-[0.3em] text-sky-400/40 uppercase mb-4 border-b border-sky-900/15 pb-2 flex items-center gap-2">
+      {/* ── Protocol layer ────────────────────────────────────────────────────── */}
+      <div className="mb-6">
+        <div className="text-[9px] font-bold tracking-[0.3em] text-sky-400/40 uppercase mb-3 border-b border-sky-900/15 pb-2 flex items-center gap-2">
           <span className="text-sky-500/40">//</span>
-          NETWORK_RESOURCES
+          PROTOCOL_LAYER
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-          {ATPROTO_RESOURCES.map(({ label, href, sub, tag, icon, accent }, i) => (
-            <a
-              key={label}
-              href={href}
-              target="_blank"
-              rel="noreferrer"
-              className={`border ${accent.border} ${accent.bg} ${accent.hover} p-4 transition-all group flex flex-col gap-2 relative overflow-hidden`}
-              style={{ animation: `bk-cardReveal 0.4s cubic-bezier(0.16,1,0.3,1) ${i * 0.07 + 0.1}s both` }}
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2">
+          {PROTOCOL_RESOURCES.map(({ label, href, sub, tag, icon, accent }, i) => (
+            <a key={label} href={href} target="_blank" rel="noreferrer"
+              className={`border ${accent.border} ${accent.bg} ${accent.hover} p-3 transition-all group flex flex-col gap-1.5 relative overflow-hidden`}
+              style={{ animation: `bk-cardReveal 0.4s cubic-bezier(0.16,1,0.3,1) ${i * 0.06 + 0.1}s both` }}
             >
-              <span className="absolute top-0 left-0 w-3 h-3 border-t border-l border-current opacity-20 pointer-events-none" />
-              <span className="absolute bottom-0 right-0 w-3 h-3 border-b border-r border-current opacity-20 pointer-events-none" />
-
+              <span className="absolute top-0 left-0 w-2.5 h-2.5 border-t border-l border-current opacity-20 pointer-events-none" />
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {icon === 'butterfly'
-                    ? <ButterflyIcon className={`w-3.5 h-3.5 ${accent.text}`} />
-                    : icon === 'zap'
-                    ? <Zap className={`w-3.5 h-3.5 ${accent.text} fill-current`} />
-                    : <Globe className={`w-3.5 h-3.5 ${accent.text}`} />
-                  }
-                  <span className={`text-[11px] font-bold ${accent.text} tracking-wide`}>{label}</span>
+                <div className="flex items-center gap-1.5">
+                  {icon === 'butterfly' ? <ButterflyIcon className={`w-3 h-3 ${accent.text}`} />
+                    : icon === 'zap'    ? <Zap className={`w-3 h-3 ${accent.text} fill-current`} />
+                    :                    <Globe className={`w-3 h-3 ${accent.text}`} />}
+                  <span className={`text-[10px] font-bold ${accent.text} tracking-wide`}>{label}</span>
                 </div>
-                <span className={`text-[8px] ${accent.dim} font-mono tracking-widest`}>{tag}</span>
               </div>
-
-              <span className={`text-[10px] ${accent.dim} font-mono leading-snug`}>{sub}</span>
-
-              <span className={`text-[9px] ${accent.dim} mt-auto flex items-center gap-1 uppercase tracking-widest group-hover:opacity-80 transition-opacity`}>
-                <ChevronRight className="w-2.5 h-2.5" /> OPEN
-              </span>
+              <span className={`text-[9px] ${accent.dim} font-mono leading-snug`}>{sub}</span>
+              <span className={`text-[8px] ${accent.dim} mt-auto tracking-widest opacity-50`}>{tag}</span>
             </a>
           ))}
+        </div>
+      </div>
+
+      {/* ── Dev toolkit ───────────────────────────────────────────────────────── */}
+      <div className="mb-8">
+        <div className="text-[9px] font-bold tracking-[0.3em] text-sky-400/40 uppercase mb-3 border-b border-sky-900/15 pb-2 flex items-center gap-2">
+          <span className="text-sky-500/40">//</span>
+          DEV_TOOLKIT
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2">
+          {TOOLKIT_RESOURCES.map(({ label, href, sub, tag, icon, accent }, i) => (
+            <a key={label} href={href} target="_blank" rel="noreferrer"
+              className={`border ${accent.border} ${accent.bg} ${accent.hover} p-3 transition-all group flex flex-col gap-1.5 relative overflow-hidden`}
+              style={{ animation: `bk-cardReveal 0.4s cubic-bezier(0.16,1,0.3,1) ${i * 0.06 + 0.2}s both` }}
+            >
+              <span className="absolute top-0 left-0 w-2.5 h-2.5 border-t border-l border-current opacity-20 pointer-events-none" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  {icon === 'butterfly' ? <ButterflyIcon className={`w-3 h-3 ${accent.text}`} />
+                    : icon === 'zap'    ? <Zap className={`w-3 h-3 ${accent.text} fill-current`} />
+                    :                    <Globe className={`w-3 h-3 ${accent.text}`} />}
+                  <span className={`text-[10px] font-bold ${accent.text} tracking-wide`}>{label}</span>
+                </div>
+              </div>
+              <span className={`text-[9px] ${accent.dim} font-mono leading-snug`}>{sub}</span>
+              <span className={`text-[8px] ${accent.dim} mt-auto tracking-widest opacity-50`}>{tag}</span>
+            </a>
+          ))}
+        </div>
+      </div>
+
+      {/* ── atproto commit feed ───────────────────────────────────────────────── */}
+      <div className="mb-8">
+        <div className="text-[9px] font-bold tracking-[0.3em] text-sky-400/40 uppercase mb-3 border-b border-sky-900/15 pb-2 flex items-center gap-2">
+          <span className="text-sky-500/40">//</span>
+          ATPROTO_COMMITS
+          <span className="ml-auto text-sky-400/20 normal-case tracking-normal font-mono">bluesky-social/atproto</span>
+        </div>
+        <div className="border border-sky-900/20 bg-black/40 font-mono text-[10px] overflow-hidden">
+          <div className="px-3 py-1.5 border-b border-sky-900/15 flex items-center gap-2 text-sky-400/20">
+            <span className="text-sky-500/40">&gt;_</span>
+            <span className="tracking-widest">git log --oneline origin/main</span>
+          </div>
+          <div className="divide-y divide-sky-900/10">
+            {commitsLoading ? (
+              [0,1,2].map(i => (
+                <div key={i} className="px-3 py-2 flex items-center gap-3 opacity-30 animate-pulse">
+                  <span className="w-14 h-3 bg-sky-900/40 rounded-sm shrink-0" />
+                  <span className="flex-1 h-3 bg-sky-900/20 rounded-sm" />
+                </div>
+              ))
+            ) : commits.length === 0 ? (
+              <div className="px-3 py-3 text-sky-400/20">— fetch failed or rate limited —</div>
+            ) : commits.map((c, i) => {
+              const sha     = c.sha?.slice(0, 7) ?? '???????';
+              const msg     = (c.commit?.message ?? '').split('\n')[0].slice(0, 72);
+              const author  = c.commit?.author?.name ?? '—';
+              const dateStr = c.commit?.author?.date;
+              const rel     = dateStr ? relativeTime(dateStr) : '';
+              return (
+                <a
+                  key={sha}
+                  href={c.html_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-3 py-2 flex items-start gap-3 hover:bg-sky-950/20 transition-colors group"
+                  style={{ animation: `bk-cardReveal 0.3s ease ${i * 0.04}s both` }}
+                >
+                  <span className="text-sky-500/50 shrink-0 group-hover:text-sky-400/80 transition-colors tabular-nums">{sha}</span>
+                  <span className="text-sky-300/50 flex-1 min-w-0 truncate group-hover:text-sky-200/70 transition-colors">{msg}</span>
+                  <span className="text-sky-400/20 shrink-0 hidden md:block">{author}</span>
+                  <span className="text-sky-400/20 shrink-0 tabular-nums">{rel}</span>
+                </a>
+              );
+            })}
+          </div>
         </div>
       </div>
 
