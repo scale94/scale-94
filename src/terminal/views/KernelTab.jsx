@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Database, GitBranch, Shield, ChevronRight, Cpu, Play } from 'lucide-react';
+import { Database, GitBranch, Shield, Cpu } from 'lucide-react';
 
 // ── ATMOSPHERIC-ENTROPY climate simulation — fires on SOMA-5.5 ▶ press ──────
 function runClimateSim(appendSystemLog) {
@@ -316,21 +316,20 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
                       {isLoading ? 'initializing...' : kernel.desc}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0 ml-auto">
-                    {kernel.sim === 'climate' && appendSystemLog && (
-                      <button
-                        aria-label="Run climate simulation"
-                        onClick={(e) => { e.stopPropagation(); runClimateSim(appendSystemLog); }}
-                        className="flex items-center justify-center w-6 h-6 rounded-sm border border-fuchsia-500/60 bg-fuchsia-950/30 text-fuchsia-400 hover:bg-fuchsia-500/20 hover:border-fuchsia-400 hover:text-fuchsia-300 transition-all duration-150 active:scale-90 shrink-0"
-                        style={{ boxShadow: '0 0 6px rgba(217,70,239,0.25)' }}
-                      >
-                        <Play className="w-3 h-3 fill-current" />
-                      </button>
-                    )}
-                    <div className={`text-[10px] font-bold px-2 py-0.5 rounded border tracking-widest whitespace-nowrap transition-all ${isLoading ? 'bg-cyan-900/30 border-cyan-400 text-cyan-300' : 'bg-transparent border-cyan-500 text-cyan-500'}`}>
+                  <div className="flex items-center gap-1 shrink-0 ml-auto">
+                    <div
+                      onClick={(e) => { e.stopPropagation(); handleKernelClick && handleKernelClick(kernel); }}
+                      className={`text-[9px] font-bold px-1.5 py-0.5 rounded-sm border tracking-widest whitespace-nowrap transition-all cursor-pointer ${isLoading ? 'bg-cyan-900/30 border-cyan-400 text-cyan-300' : 'bg-transparent border-cyan-500/60 text-cyan-500 hover:border-cyan-400 hover:text-cyan-300'}`}
+                    >
                       {isLoading ? '...' : '[load]'}
                     </div>
-                    <ChevronRight className={`w-4 h-4 transition-colors ${isLoading ? 'text-cyan-400 animate-bounce' : 'text-cyan-500/50 group-hover:text-cyan-400'}`} />
+                    <button
+                      aria-label={`Run ${kernel.name}`}
+                      onClick={(e) => { e.stopPropagation(); mobileAutoRun && mobileAutoRun(kernel.id); }}
+                      className="text-[9px] font-bold px-1.5 py-0.5 rounded-sm border border-fuchsia-500/60 text-fuchsia-400 bg-transparent hover:bg-fuchsia-500/10 hover:border-fuchsia-400 hover:text-fuchsia-300 tracking-widest whitespace-nowrap transition-all active:scale-95"
+                    >
+                      [run]
+                    </button>
                   </div>
                 </li>
               );
