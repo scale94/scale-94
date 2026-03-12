@@ -92,6 +92,8 @@ const App = () => {
   const [relicMode,    setRelicMode]    = useState(false);
   // CAS dynamic data — null while manifest fetch is in-flight
   const [dynamicData,  setDynamicData]  = useState(null);
+  // Mobile chrome visibility — fades out after 3s of no touch, fades in on touch
+  const [mobileChrome, setMobileChrome] = useState(true);
 
   const { appendSystemLog, setSystemLogs, visibleLogs, logRef } = useSystemLog();
   // RAM — ecological entropy model §1.3: cost maps to planetary footprint
@@ -189,6 +191,7 @@ const App = () => {
   const mainRef = useRef(null);
   const kernelListRef = useRef(null); // ref to the scrollable <ul> in KernelTab
   const prevSelectedArticleRef = useRef(null); // tracks previous selectedArticle for mobile scroll logic
+  const mobileChromeTimerRef = useRef(null);
   // Scroll persistence: sessionStorage survives tab switches and hot-reloads.
   // The ref is a write-through cache so we never pay a sessionStorage read on
   // every scroll event — only on restore.
@@ -200,6 +203,17 @@ const App = () => {
   const loadAbortRef = useRef(null);
   // Persistent WASM struct instances — keyed by wasmEntry.id.
   const activeKernels = useRef({});
+
+  // Mobile chrome auto-hide — fade out after 3s of no touch, fade back in on touch
+  const showMobileChrome = useCallback(() => {
+    setMobileChrome(true);
+    if (mobileChromeTimerRef.current) clearTimeout(mobileChromeTimerRef.current);
+    mobileChromeTimerRef.current = setTimeout(() => setMobileChrome(false), 3000);
+  }, []);
+  useEffect(() => {
+    mobileChromeTimerRef.current = setTimeout(() => setMobileChrome(false), 3000);
+    return () => { if (mobileChromeTimerRef.current) clearTimeout(mobileChromeTimerRef.current); };
+  }, []);
 
   // Fiction articles for Transmission tab — updates when CAS data loads
   const transmissionStories = useMemo(() => articles.filter(a => a.type === 'fiction'), [articles]);
@@ -602,6 +616,7 @@ const App = () => {
   return (
     <div className={`min-h-screen font-mono selection:bg-fuchsia-900 selection:text-white flex flex-col overflow-hidden relative transition-colors duration-700 ${selectedArticle || architectThesis ? 'bg-[#09090b]' : 'bg-black'} ${relicMode ? 'relic-mode' : ''}`}
       style={{ animation: 'terminal-flicker 7s ease-in-out infinite' }}
+      onTouchStart={showMobileChrome}
     >
 
       {/* ── Boot sequence — unmounts when onDone fires ─────────────────────── */}
@@ -724,7 +739,7 @@ const App = () => {
         </div>
       )}
 
-      <header className="border-b border-cyan-900/30 bg-black/90 p-4 sticky top-0 z-40 backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.1)] overflow-x-hidden w-full">
+      <header className={`border-b border-cyan-900/30 bg-black md:bg-black/90 p-4 sticky top-0 z-40 md:backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.1)] overflow-x-hidden w-full transition-opacity duration-500 ${!mobileChrome ? 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto' : ''}`}>
         <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4 w-full min-w-0">
           <div className="flex items-center gap-2 group cursor-pointer shrink-0" onClick={() => handleNav('~/system/kernel', 'kernel')}>
             <Hexagon className="w-5 h-5 text-fuchsia-500 animate-spin-slow group-hover:text-cyan-400 transition-colors" />
@@ -943,7 +958,7 @@ const App = () => {
         </div>
       </footer>
       {/* ── Mobile bottom nav (hidden on desktop) ──────────────────────────── */}
-      <nav aria-label="Mobile navigation" className="md:hidden fixed bottom-0 left-0 right-0 z-50 h-14 border-t border-cyan-900/40 bg-black/95 backdrop-blur-md flex">
+      <nav aria-label="Mobile navigation" className={`md:hidden fixed bottom-0 left-0 right-0 z-50 h-14 border-t border-cyan-900/40 bg-black flex transition-opacity duration-500 ${!mobileChrome ? 'opacity-0 pointer-events-none' : ''}`}>
         <button onClick={() => handleNav('~/system/kernel', 'kernel')} className={`flex flex-1 flex-col items-center justify-center gap-0.5 transition-all duration-200 ${activeTab === 'kernel' ? 'text-cyan-400' : 'text-cyan-900/50'}`}>
           <Cpu className="w-4 h-4" />
           <span className="text-[8px] font-bold tracking-widest font-mono">/kernel</span>

@@ -64,7 +64,11 @@
       "Bash(cmd /c \"taskkill /PID 29160 /F\")",
       "Bash(cmd /c \"netstat -ano | findstr :5180\")",
       "Bash(cmd /c \"netstat -ano | findstr \"\":3000 \\\\|:5173 \\\\|:5174 \\\\|:5175 \\\\|:5180\"\"\")",
-      "Bash(node scripts/import-system.js)"
+      "Bash(node scripts/import-system.js)",
+      "Bash(done)",
+      "Bash(for file:*)",
+      "Bash(do head:*)",
+      "Bash(-print)"
     ]
   }
 }
