@@ -32,7 +32,7 @@ const CLUSTER: [(&str, &str, u32, u32); 4] = [
 /// * `drift_noise` — retrieval noise [0.0–1.0]; 0=clean semantic, 1=pure phonemic
 #[wasm_bindgen]
 pub fn run_phonemic_drift(seed: u32, target: u32, drift_noise: f64) -> String {
-    let mut rng = if seed == 0 { 0xDEAD_BEEF } else { seed };
+    let mut rng: u64 = if seed == 0 { 0xDEAD_BEEF } else { seed as u64 };
     let noise = drift_noise.clamp(0.0, 1.0);
 
     // Intended target index in CLUSTER (Bellard=0 is never the intended target)
@@ -43,8 +43,7 @@ pub fn run_phonemic_drift(seed: u32, target: u32, drift_noise: f64) -> String {
     };
 
     // Phonemic weight: high noise → phonemic routing dominates
-    rng = lcg_next(rng);
-    let stochastic = (rng % 1000) as f64 / 1000.0;
+    let stochastic = lcg_next(&mut rng);
     let phonemic_weight = (0.20 + noise * 0.70 + stochastic * 0.10).clamp(0.0, 1.0);
     let semantic_weight = 1.0 - phonemic_weight;
 
@@ -91,8 +90,7 @@ pub fn run_phonemic_drift(seed: u32, target: u32, drift_noise: f64) -> String {
 
     // Bachelard poetic distortion: memory poeticises toward an ideal composite type.
     // The brain constructs the Architect-Philosopher who doesn't exist but is desired.
-    rng = lcg_next(rng);
-    let bachelard_amp = 1.0 + (rng % 300) as f64 / 1000.0; // 1.000–1.300x
+    let bachelard_amp = 1.0 + lcg_next(&mut rng) * 0.3; // 1.000–1.300x
     let composite_resonance = (top_res * bachelard_amp).min(1.0);
 
     // Abelard nominalist check: suffix is not a substance

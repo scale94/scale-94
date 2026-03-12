@@ -258,18 +258,22 @@ if (Symbol.dispose) SomaKernel.prototype[Symbol.dispose] = SomaKernel.prototype.
 
 /**
  * Boot the Bosonic Lattice Simulator.
- * coupling: dimensionless boson-boson coupling constant (0–1 typical)
- * thermal:  reduced thermal parameter kT/J (0–1 typical)
- * Returns a diagnostic string for the system kernel log.
+ *
+ * * `n_nodes`   — Fermionic sovereign nodes (integer ≥ 1, passed as f64 for WASM)
+ * * `coupling`  — boson-boson coupling constant [0–1]; bosonic field strength
+ * * `thermal`   — reduced temperature kT/J [0–1]; 0=ground_state 1=decoherence
+ * * `price_fix` — price measurement [0–1]; 0=gift_economy 1=fully_priced (kills trust)
+ * @param {number} n_nodes
  * @param {number} coupling
  * @param {number} thermal
+ * @param {number} price_fix
  * @returns {string}
  */
-export function boot_bosonic_lattice(coupling, thermal) {
+export function boot_bosonic_lattice(n_nodes, coupling, thermal, price_fix) {
     let deferred1_0;
     let deferred1_1;
     try {
-        const ret = wasm.boot_bosonic_lattice(coupling, thermal);
+        const ret = wasm.boot_bosonic_lattice(n_nodes, coupling, thermal, price_fix);
         deferred1_0 = ret[0];
         deferred1_1 = ret[1];
         return getStringFromWasm0(ret[0], ret[1]);
@@ -712,6 +716,30 @@ export function run_kuramoto_synchrony(n_oscillators, coupling, freq_spread, tim
     let deferred1_1;
     try {
         const ret = wasm.run_kuramoto_synchrony(n_oscillators, coupling, freq_spread, timesteps);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * Run the Phonemic Drift analysis.
+ *
+ * * `seed`        — PRNG seed (0 → uses internal default)
+ * * `target`      — intended retrieval target: 0=Baudrillard 1=Bachelard 2=Abelard
+ * * `drift_noise` — retrieval noise [0.0–1.0]; 0=clean semantic, 1=pure phonemic
+ * @param {number} seed
+ * @param {number} target
+ * @param {number} drift_noise
+ * @returns {string}
+ */
+export function run_phonemic_drift(seed, target, drift_noise) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_phonemic_drift(seed, target, drift_noise);
         deferred1_0 = ret[0];
         deferred1_1 = ret[1];
         return getStringFromWasm0(ret[0], ret[1]);
