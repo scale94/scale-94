@@ -1001,22 +1001,22 @@ const App = () => {
       </footer>
       {/* ── Mobile bottom nav (hidden on desktop) ──────────────────────────── */}
       <nav aria-label="Mobile navigation" className={`md:hidden fixed bottom-0 left-0 right-0 z-50 h-14 border-t border-cyan-900/40 bg-black flex transition-opacity duration-500 ${!mobileChrome ? 'opacity-0 pointer-events-none' : ''}`} style={{ willChange: 'opacity, transform', transform: 'translateZ(0)' }}>
-        <button onClick={() => handleNav('~/system/kernel', 'kernel')} aria-label="Kernel" className={`flex flex-1 items-center justify-center transition-all duration-200 ${activeTab === 'kernel' ? 'text-cyan-400' : 'text-cyan-900/50'}`}>
+        <button onClick={() => handleNav('~/system/kernel', 'kernel')} aria-label="Kernel" className={`flex flex-1 items-center justify-center transition-all duration-200 ${activeTab === 'kernel' ? 'text-cyan-400' : 'text-cyan-400/50'}`}>
           <Cpu className="w-5 h-5" />
         </button>
-        <button onClick={() => handleNav('~/system/bsky', 'bsky')} aria-label="BSKY" className={`flex flex-1 items-center justify-center transition-all duration-200 ${activeTab === 'bsky' ? 'text-sky-400' : 'text-sky-900/50'}`}>
+        <button onClick={() => handleNav('~/system/bsky', 'bsky')} aria-label="BSKY" className={`flex flex-1 items-center justify-center transition-all duration-200 ${activeTab === 'bsky' ? 'text-sky-400' : 'text-sky-400/50'}`}>
           <NavButterflyIcon />
         </button>
-        <button onClick={() => handleNav('~/system/manifesto', 'manifesto')} aria-label="Manifesto" className={`flex flex-1 items-center justify-center transition-all duration-200 ${activeTab === 'manifesto' ? 'text-violet-400' : 'text-violet-900/50'}`}>
+        <button onClick={() => handleNav('~/system/manifesto', 'manifesto')} aria-label="Manifesto" className={`flex flex-1 items-center justify-center transition-all duration-200 ${activeTab === 'manifesto' ? 'text-violet-400' : 'text-violet-400/50'}`}>
           <Eye className="w-5 h-5" />
         </button>
-        <button onClick={() => handleNav('~/system/scaling', 'scaling')} aria-label="Scaling" className={`flex flex-1 items-center justify-center transition-all duration-200 ${activeTab === 'scaling' ? 'text-fuchsia-400' : 'text-fuchsia-900/50'}`}>
+        <button onClick={() => handleNav('~/system/scaling', 'scaling')} aria-label="Scaling" className={`flex flex-1 items-center justify-center transition-all duration-200 ${activeTab === 'scaling' ? 'text-fuchsia-400' : 'text-fuchsia-400/50'}`}>
           <Scale className="w-5 h-5" />
         </button>
-        <button onClick={() => handleNav('~/system/privacy', 'privacy')} aria-label="Privacy" className={`flex flex-1 items-center justify-center transition-all duration-200 ${activeTab === 'privacy' ? 'text-rose-400' : 'text-rose-900/50'}`}>
+        <button onClick={() => handleNav('~/system/privacy', 'privacy')} aria-label="Privacy" className={`flex flex-1 items-center justify-center transition-all duration-200 ${activeTab === 'privacy' ? 'text-rose-400' : 'text-rose-400/50'}`}>
           <Lock className="w-5 h-5" />
         </button>
-        <button onClick={() => handleNav('~/system/surveillance', 'surveillance')} aria-label="Surveillance" className={`flex flex-1 items-center justify-center transition-all duration-200 ${activeTab === 'surveillance' ? 'text-red-400' : 'text-red-900/50'}`}>
+        <button onClick={() => handleNav('~/system/surveillance', 'surveillance')} aria-label="Surveillance" className={`flex flex-1 items-center justify-center transition-all duration-200 ${activeTab === 'surveillance' ? 'text-red-400' : 'text-red-400/50'}`}>
           <ShieldAlert className="w-5 h-5" />
         </button>
       </nav>

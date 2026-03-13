@@ -155,6 +155,15 @@ html, body {
   100% { opacity: 1; color: #FFD700; text-shadow: none; }
 }
 
+/* Status tag pop — fires after the line is visible; glow burst then settles */
+@keyframes bs-statusPop {
+  0%   { opacity: 0; transform: translateX(5px) scale(0.75); }
+  42%  { opacity: 1; transform: translateX(-2px) scale(1.08);
+         text-shadow: 0 0 14px currentColor, 0 0 28px currentColor; }
+  68%  { transform: translateX(0) scale(0.97); text-shadow: 0 0 6px currentColor; }
+  100% { opacity: 1; transform: translateX(0) scale(1); text-shadow: none; }
+}
+
 /* Entropy axiom — flickers in orange, unsteady */
 @keyframes bs-entropy-in {
   0%   { opacity: 0; color: #FF6B00; transform: translateX(-14px); }

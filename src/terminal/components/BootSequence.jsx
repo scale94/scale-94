@@ -170,12 +170,21 @@ const BootSequence = ({ onDone }) => {
               // Prompt color
               const promptColor = isThreat ? '#FF6B00' : '#FFD700';
 
-              // Animation — crystalline gets the white-flash lock, entropy flickers
+              // Line animation — crystalline gets white-flash lock, entropy flickers
               const animation = isCrystalline
                 ? `bs-crystalline-lock 0.55s ease-out ${axiomDelay(i)}ms forwards`
                 : isThreat
                 ? `bs-entropy-in 0.28s ease-out ${axiomDelay(i)}ms forwards`
                 : `bs-lineIn 0.18s ease-out ${axiomDelay(i)}ms forwards`;
+
+              // Status tag pop — ~500ms cadence, decoupled from line slide,
+              // aligned with rainbow perimeter arc progress across 3600ms.
+              // Only normal/apex get the separate pop; threat/crystalline
+              // are already unified with their line animations.
+              const popDelay      = 350 + i * 500; // 350, 850, 1350, 1850, 2350, 2850, 3350ms
+              const statusAnim    = (!isThreat && !isCrystalline)
+                ? `bs-statusPop 0.38s cubic-bezier(0.22,1,0.36,1) ${popDelay}ms forwards`
+                : undefined;
 
               return (
                 <div
@@ -190,7 +199,11 @@ const BootSequence = ({ onDone }) => {
                   </span>
                   <span
                     className="tracking-widest font-black text-[10px]"
-                    style={{ color: statusColor }}
+                    style={{
+                      color:     statusColor,
+                      opacity:   statusAnim ? 0 : undefined,
+                      animation: statusAnim,
+                    }}
                   >
                     [{status}]
                   </span>
