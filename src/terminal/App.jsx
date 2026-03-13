@@ -719,44 +719,42 @@ const App = () => {
       `}</style>
 
       {/*
-       * ── Unified global reveal mask + render beam ────────────────────────────
+       * ── Default cube expand — boot singularity → kernel tab reveal ──────────
        * Mounts in the same React commit that unmounts BootSequence.
-       * No clip-path, no opacity transition — pure GPU translateY.
+       * No clip-path (buggy on iOS Safari flex containers). Pure scale + opacity.
        *
-       * Mask (z-49): solid black div slides from translateY(0) → translateY(100vh)
-       *   in 0.9s linear. Covers the main UI (z-10 / z-40 header) while passing.
-       *   forwards: parks off-screen below viewport, never blocks interaction.
-       *   pointerEvents: none — never traps clicks.
+       * The boot card collapses to a point at screen center (scale → 0).
+       * This element is the SAME rectangular form as the boot card, starting at
+       * that collapsed scale (0.01) and expanding outward — the 2x2x2x default
+       * cube "press S" moment: uncut stasis compressed to singularity, then scaled
+       * into creation. At peak scale it covers the full viewport, then fades to 0
+       * revealing the kernel tab behind it.
        *
-       * Beam (z-50): 3px line travels with the mask edge via the same translateY
-       *   animation. Opacity fades in at 5% and out at 95% to avoid hard edges.
-       *
-       * Both use translate3d(0,0,0) + willChange + backfaceVisibility for GPU subpixel locking.
+       * z-49: above main UI (z-10 / z-40), below BootSequence (z-100).
+       * pointerEvents: none — never traps clicks.
        */}
       {!bootSequence && (
-        <>
-          {/* Iris wipe — black circle shrinks to center, revealing UI behind */}
-          <div style={{
-            position: 'fixed',
-            top: '-50vh', left: '-50vw',
-            width: '200vw', height: '200vh',
-            backgroundColor: '#000',
-            borderRadius: '50%',
-            zIndex: 49,
-            animation: 'global-reveal-mask 1s cubic-bezier(0.16,1,0.3,1) forwards',
-            pointerEvents: 'none',
-            transformOrigin: 'center center',
-          }} />
-        </>
+        <div style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          width: '360px',
+          height: '420px',
+          background: '#000',
+          border: '1px solid rgba(255,215,0,0.2)',
+          boxShadow: '0 0 32px rgba(255,215,0,0.08)',
+          zIndex: 49,
+          animation: 'global-reveal-expand 0.85s cubic-bezier(0.16,1,0.3,1) forwards',
+          pointerEvents: 'none',
+        }} />
       )}
 
       {/*
        * ── Terminal content ────────────────────────────────────────────────────
        * No clip-path. The UI renders normally at all times. During boot,
-       * BootSequence (z-100) covers it. After boot, the global-reveal-mask
-       * (z-49) slides down — both mount in the same React commit so there
-       * is no single-frame flash between BootSequence unmounting and the
-       * mask appearing.
+       * BootSequence (z-100) covers it. After boot, the global-reveal-expand
+       * element (z-49) expands from singularity then dissolves — both mount in
+       * the same React commit so there is no single-frame flash.
        */}
       <div className="flex flex-col flex-grow">
         <OctagonGrid visible={!selectedArticle && !architectThesis && !tagCloudView} />
