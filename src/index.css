@@ -137,6 +137,32 @@ html, body {
   50%     { color: #FFFF00; text-shadow: 0 0 20px #FFFF00, 0 0 40px rgba(255,215,0,0.4); }
 }
 
+/* Rainbow perimeter edges — horizontal + vertical scale-in */
+@keyframes bs-edge-x {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+@keyframes bs-edge-y {
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
+}
+
+/* Crystalline axiom lock — white flash → settles to gold */
+@keyframes bs-crystalline-lock {
+  0%   { opacity: 0; color: #ffffff; text-shadow: 0 0 24px #fff, 0 0 48px rgba(255,255,255,0.4); }
+  18%  { opacity: 1; color: #ffffff; text-shadow: 0 0 14px #fff; }
+  55%  { color: #FFD700; text-shadow: 0 0 10px rgba(255,215,0,0.7); }
+  100% { opacity: 1; color: #FFD700; text-shadow: none; }
+}
+
+/* Entropy axiom — flickers in orange, unsteady */
+@keyframes bs-entropy-in {
+  0%   { opacity: 0; color: #FF6B00; transform: translateX(-14px); }
+  40%  { opacity: 1; color: #FF8C00; transform: translateX(2px); }
+  60%  { color: #FF6B00; transform: translateX(-1px); }
+  100% { opacity: 1; color: #FF7A00; transform: translateX(0); }
+}
+
 /* BootSequence title gradient shimmer */
 @keyframes bs-gradient-x {
   0%, 100% { background-position: 0% 50%; }

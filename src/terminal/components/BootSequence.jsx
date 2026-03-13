@@ -1,35 +1,20 @@
 import React, { useEffect, useRef } from 'react';
 import { Cpu } from 'lucide-react';
 
-const BOOT_LINES = [
-  ['mounting hilbert space',           'ok'],
-  ['loading seraphine_v7.7.7.7.7.7.7', 'ok'],
-  ['quantum coherence: lindblad',      'active'],
-  ['establishing secure conn',         'ok'],
-  ['density matrix: integrity',        'pass'],
+// Seven kernel axioms — the fade doctrine enacted as boot sequence.
+// Entropy is the threat. Crystalline is the lock. Zero white fade.
+const AXIOMS = [
+  { name: 'transmute',      field: 'production', status: 'ok',        variant: 'normal'      },
+  { name: 'sustain',        field: 'ecology',    status: 'ok',        variant: 'normal'      },
+  { name: 'integrity',      field: 'structure',  status: 'ok',        variant: 'normal'      },
+  { name: 'entropy',        field: 'threat',     status: 'contained', variant: 'threat'      },
+  { name: 'sovereignty',    field: 'freedom',    status: 'ok',        variant: 'normal'      },
+  { name: 'crystalline',    field: 'phase',      status: 'locked',    variant: 'crystalline' },
+  { name: '7.7.7.7.7.7.7', field: 'kernel',     status: 'active',    variant: 'apex'        },
 ];
 
-// Black ink drops — positioned relative to the yellow card.
-// Clustered at corners, edges, and near-edges so the text center stays clear.
-// [left%, top%, width(px), height(px), border-radius, delay(ms)]
-const INK_DROPS = [
-  // corners
-  { l: '-1%',  t: '-2%',  w: 22, h: 15, r: '40% 60% 55% 45% / 50% 45% 60% 50%', d: 270 },
-  { l: '97%',  t: '-1%',  w: 18, h: 20, r: '55% 45% 40% 60% / 45% 55% 50% 50%', d: 300 },
-  { l: '-2%',  t: '93%',  w: 20, h: 14, r: '60% 40% 50% 50% / 55% 45% 55% 45%', d: 340 },
-  { l: '96%',  t: '91%',  w: 16, h: 18, r: '45% 55% 60% 40% / 50% 55% 45% 50%', d: 285 },
-  // top/bottom edges
-  { l: '44%',  t: '-3%',  w: 14, h: 11, r: '50% 50% 45% 55% / 60% 40% 55% 45%', d: 315 },
-  { l: '52%',  t: '96%',  w: 12, h: 16, r: '55% 45% 50% 50% / 45% 55% 50% 55%', d: 395 },
-  // left/right edges
-  { l: '-3%',  t: '46%',  w: 16, h: 11, r: '40% 60% 55% 45% / 50% 50% 45% 55%', d: 255 },
-  { l: '98%',  t: '43%',  w: 18, h: 13, r: '60% 40% 45% 55% / 55% 45% 60% 40%', d: 330 },
-  // scattered near corners (inside card, not center)
-  { l: '7%',   t: '11%',  w: 9,  h: 11, r: '55% 45% 40% 60% / 45% 55% 50% 50%', d: 370 },
-  { l: '87%',  t: '14%',  w: 11, h: 8,  r: '45% 55% 60% 40% / 55% 45% 50% 50%', d: 295 },
-  { l: '10%',  t: '83%',  w: 10, h: 13, r: '60% 40% 55% 45% / 50% 55% 45% 50%', d: 425 },
-  { l: '89%',  t: '80%',  w: 13, h: 10, r: '50% 50% 40% 60% / 45% 50% 55% 50%', d: 265 },
-];
+// 180ms base, 220ms between each axiom
+const axiomDelay = (i) => 180 + i * 220;
 
 // Cubic ease-out: fast start → smooth deceleration → clean stop
 const easeOut = (t) => 1 - Math.pow(1 - t, 3);
@@ -60,7 +45,7 @@ const BootSequence = ({ onDone }) => {
         if (elapsed < FADE_START_MS) {
           squareRef.current.style.transform = `rotate(${baseDeg}deg)`;
         } else {
-          // Exit phase: continue spinning + shrink to zero simultaneously
+          // Exit: continue spinning + binary collapse. No fade.
           const exitT     = Math.min((elapsed - FADE_START_MS) / EXIT_DURATION, 1);
           const exitScale = 1 - easeOut(exitT);
           const exitDeg   = baseDeg + easeOut(exitT) * 360;
@@ -87,115 +72,144 @@ const BootSequence = ({ onDone }) => {
     <div className="fixed inset-0 z-[100] bg-black font-mono flex items-center justify-center p-4 overflow-hidden pointer-events-none">
       <div
         ref={cardRef}
-        className="w-[340px] md:w-[400px] aspect-square relative flex items-stretch"
+        className="w-[360px] md:w-[420px] relative flex items-stretch"
         style={{ transition: 'none' }}
       >
-        {/* Yellow square — spins 720° over 2s on boot */}
-        <div ref={squareRef} className="relative overflow-visible px-6 py-7 md:px-8 md:py-8 w-full"
-          style={{ background: '#FFD700' }}
+        {/* Terminal card — spins 720° as entropy resolves to crystalline */}
+        <div
+          ref={squareRef}
+          className="relative px-6 py-7 md:px-8 md:py-8 w-full overflow-hidden"
+          style={{
+            background: '#000',
+            border: '1px solid rgba(255,215,0,0.12)',
+            animation: 'bs-glow 2.4s ease-in-out 0.6s infinite',
+          }}
         >
+          {/* Rainbow perimeter — fills clockwise: top → right → bottom → left
+              Each edge takes 900ms; total 3600ms, completes at FADE_START_MS */}
+          {/* Top: magenta → red → orange → gold */}
+          <span style={{
+            position: 'absolute', top: 0, left: 0, right: 0, height: 2,
+            background: 'linear-gradient(90deg, #FF0088, #FF3300, #FF8C00, #FFD700)',
+            transformOrigin: 'left', transform: 'scaleX(0)',
+            animation: 'bs-edge-x 900ms ease-out 200ms forwards',
+            zIndex: 20,
+          }} />
+          {/* Right: gold → lime → cyan */}
+          <span style={{
+            position: 'absolute', top: 0, right: 0, bottom: 0, width: 2,
+            background: 'linear-gradient(180deg, #FFD700, #AAFF00, #00FFAA)',
+            transformOrigin: 'top', transform: 'scaleY(0)',
+            animation: 'bs-edge-y 900ms ease-out 1100ms forwards',
+            zIndex: 20,
+          }} />
+          {/* Bottom: cyan → blue — grows right-to-left */}
+          <span style={{
+            position: 'absolute', bottom: 0, left: 0, right: 0, height: 2,
+            background: 'linear-gradient(270deg, #00FFAA, #00AAFF, #0044FF)',
+            transformOrigin: 'right', transform: 'scaleX(0)',
+            animation: 'bs-edge-x 900ms ease-out 2000ms forwards',
+            zIndex: 20,
+          }} />
+          {/* Left: blue → violet → magenta — grows bottom-to-top */}
+          <span style={{
+            position: 'absolute', top: 0, left: 0, bottom: 0, width: 2,
+            background: 'linear-gradient(0deg, #0044FF, #7700FF, #FF0088)',
+            transformOrigin: 'bottom', transform: 'scaleY(0)',
+            animation: 'bs-edge-y 900ms ease-out 2900ms forwards',
+            zIndex: 20,
+          }} />
 
-          {/* Ink drops — z-0, appear on yellow before text stamps in */}
-          {INK_DROPS.map((p, i) => (
-            <div
-              key={i}
-              style={{
-                position: 'absolute',
-                left: p.l, top: p.t,
-                width:  p.w,
-                height: p.h,
-                background: '#000',
-                borderRadius: p.r,
-                transform: 'translate(-50%, -50%) scale(0)',
-                opacity: 0,
-                zIndex: 0,
-                animation: `bs-inkDrop 0.35s cubic-bezier(0.22,1,0.36,1) ${p.d}ms forwards`,
-              }}
-            />
-          ))}
-
-          {/* Content — z-10, above ink drops */}
-          <div className="relative" style={{ zIndex: 10 }}>
-
-            {/* Micro status row */}
-            <div className="flex justify-between items-center mb-6 text-[9px] tracking-widest" style={{ color: 'rgba(0,0,0,0.4)' }}>
-              <span>sys::boot_sequence</span>
-              <span>node::scale-9.4</span>
-            </div>
-
-            {/* Branding block */}
-            <div
-              className="flex items-center gap-4"
-              style={{ opacity: 0, animation: 'bs-stamp 0.5s cubic-bezier(0.22,1,0.36,1) 0.55s forwards' }}
-            >
-              <div
-                className="shrink-0 flex items-center justify-center"
-                style={{ width: '2.75rem', height: '2.75rem' }}
-              >
-                <Cpu className="w-full h-full" style={{ color: '#000' }} />
-              </div>
-
-              <div>
-                <div className="text-4xl md:text-5xl font-black tracking-tight leading-none" style={{ color: '#000' }}>
-                  seraphine
-                </div>
-                <div className="text-xs font-black tracking-[0.18em] mt-1" style={{ color: 'rgba(0,0,0,0.5)' }}>
-                  7.7.7.7.7.7.7-rust kernel
-                </div>
-              </div>
-            </div>
-
-            <div className="border-t my-5" style={{ borderColor: 'rgba(0,0,0,0.2)' }} />
-
-            {/* Boot lines */}
-            <div className="space-y-2 text-xs font-bold mb-6">
-              {BOOT_LINES.map(([label, status], i) => (
-                <div
-                  key={i}
-                  className="flex justify-between items-center"
-                  style={{
-                    opacity: 0,
-                    color: 'rgba(0,0,0,0.65)',
-                    animation: `bs-lineIn 0.18s ease-out ${200 + i * 290}ms forwards`,
-                  }}
-                >
-                  <span>
-                    <span className="mr-1" style={{ color: '#000' }}>{'>'}</span>
-                    {label}
-                    <span style={{ color: 'rgba(0,0,0,0.25)' }}>...</span>
-                  </span>
-                  <span className="ml-6 tracking-widest font-black" style={{ color: '#000' }}>[{status}]</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Progress bar */}
-            <div className="mb-5">
-              <div className="h-[2px] w-full overflow-hidden" style={{ background: 'rgba(0,0,0,0.15)' }}>
-                <div
-                  className="h-full"
-                  style={{
-                    width: 0,
-                    animation: 'bs-progress 3.6s cubic-bezier(0.4,0,0.2,1) 0.2s forwards',
-                    background: '#000',
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* Final status */}
-            <div
-              className="text-xs font-black tracking-widest"
-              style={{
-                opacity: 0,
-                color: '#000',
-                animation: 'bs-lineIn 0.2s ease-out 3.4s forwards, bs-activeBlack 0.35s ease-in-out 3.5s infinite',
-              }}
-            >
-              {'>'} seraphine_v7.7.7.7.7.7.7 // sarg :: all systems quantum
-            </div>
-
+          {/* Micro status row */}
+          <div className="flex justify-between items-center mb-5 text-[9px] tracking-widest" style={{ color: 'rgba(255,215,0,0.3)' }}>
+            <span>sys::boot_sequence</span>
+            <span>node::scale-9.4</span>
           </div>
+
+          {/* Branding block — stamps in */}
+          <div
+            className="flex items-center gap-4 mb-5"
+            style={{ opacity: 0, animation: 'bs-stamp 0.5s cubic-bezier(0.22,1,0.36,1) 0.55s forwards' }}
+          >
+            <div className="shrink-0 flex items-center justify-center" style={{ width: '2.5rem', height: '2.5rem' }}>
+              <Cpu
+                className="w-full h-full"
+                style={{ color: '#FF8C00', animation: 'bs-cpuGlow 2s ease-in-out 1s infinite' }}
+              />
+            </div>
+            <div>
+              <div className="text-4xl md:text-5xl font-black tracking-tight leading-none" style={{ color: '#FFD700' }}>
+                seraphine
+              </div>
+              <div className="text-xs font-black tracking-[0.18em] mt-1" style={{ color: 'rgba(255,215,0,0.5)' }}>
+                7.7.7.7.7.7.7-rust kernel
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t mb-4" style={{ borderColor: 'rgba(255,215,0,0.12)' }} />
+
+          {/* Kernel axioms — the fade doctrine loading */}
+          <div className="space-y-[5px] text-[11px] font-bold mb-5">
+            {AXIOMS.map(({ name, field, status, variant }, i) => {
+              const isThreat      = variant === 'threat';
+              const isCrystalline = variant === 'crystalline';
+              const isApex        = variant === 'apex';
+
+              // Line text color
+              const lineColor = isThreat ? 'rgba(255,107,0,0.7)'
+                              : isApex   ? 'rgba(255,215,0,0.8)'
+                              :            'rgba(255,200,0,0.5)';
+
+              // Status tag color
+              const statusColor = isThreat      ? '#FF6B00'
+                                : isCrystalline ? '#ffffff'
+                                : isApex        ? '#FFD700'
+                                :                 '#FF8C00';
+
+              // Prompt color
+              const promptColor = isThreat ? '#FF6B00' : '#FFD700';
+
+              // Animation — crystalline gets the white-flash lock, entropy flickers
+              const animation = isCrystalline
+                ? `bs-crystalline-lock 0.55s ease-out ${axiomDelay(i)}ms forwards`
+                : isThreat
+                ? `bs-entropy-in 0.28s ease-out ${axiomDelay(i)}ms forwards`
+                : `bs-lineIn 0.18s ease-out ${axiomDelay(i)}ms forwards`;
+
+              return (
+                <div
+                  key={name}
+                  className="flex justify-between items-center"
+                  style={{ opacity: 0, color: lineColor, animation }}
+                >
+                  <span className="flex items-center gap-[5px]">
+                    <span style={{ color: promptColor }}>{'>'}</span>
+                    <span className="tracking-wide">{name}</span>
+                    <span style={{ color: 'rgba(255,215,0,0.18)', fontSize: '9px', letterSpacing: '0.05em' }}>::{field}</span>
+                  </span>
+                  <span
+                    className="tracking-widest font-black text-[10px]"
+                    style={{ color: statusColor }}
+                  >
+                    [{status}]
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Doctrine line — the culmination */}
+          <div
+            className="text-[10px] font-black tracking-widest"
+            style={{
+              opacity: 0,
+              animation: 'bs-lineIn 0.2s ease-out 3.4s forwards, bs-active 0.35s ease-in-out 3.5s infinite',
+            }}
+          >
+            {'>'} zero white fade :: crystalline invariance locked
+          </div>
+
         </div>
       </div>
     </div>
