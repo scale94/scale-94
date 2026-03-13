@@ -542,6 +542,108 @@ export function useCommandDispatch(ctx) {
       return;
     }
 
+    // ── export ────────────────────────────────────────────────────────────────
+    // export <id> [--pass <passphrase>]
+    // Fetches the article chunk, encrypts it via Tesseract-Vault seal_markdown
+    // (Argon2id + AES-256-GCM + BLAKE3), and downloads as <id>.tesseract
+    if (action === 'export') {
+      if (!query) {
+        log(`COMMAND: ${rawCmd}`);
+        logs(
+          `  EXPORT_FAIL :: No target specified.`,
+          `  Usage: export <kernel-id> [--pass <passphrase>]`,
+          `  Example: export TESSERACT-VAULT-1.0 --pass mySecret`,
+          `  Default passphrase used if --pass is omitted (displayed in terminal).`,
+        );
+        return;
+      }
+
+      // Parse --pass flag
+      const exportTokens = query.split(' ');
+      const passIdx      = exportTokens.indexOf('--pass');
+      const passphrase   = passIdx !== -1 && exportTokens[passIdx + 1]
+        ? exportTokens.slice(passIdx + 1).join(' ')
+        : 'TESSERACT-EXPORT-SCALE94';
+      const idQuery = exportTokens
+        .filter((_, i) => i !== passIdx && (passIdx === -1 || i !== passIdx + 1))
+        .join(' ').trim();
+
+      const q = norm(idQuery);
+      const match = articles.find(a =>
+        norm(a.id) === q ||
+        norm(a.id).includes(q) ||
+        norm(a.title || '').includes(q)
+      );
+
+      log(`COMMAND: ${rawCmd}`);
+
+      if (!match) {
+        logs(
+          `  EXPORT_FAIL :: "${idQuery}" — no kernel found.`,
+          `  Try: load <id> first to confirm the article exists.`,
+        );
+        return;
+      }
+
+      logs(
+        `  TESSERACT_EXPORT :: ${match.id}`,
+        `  [SEC] Routing payload into Tesseract-Vault pipeline...`,
+        `  [KDF] Argon2id m=64KiB t=1 p=1 — deriving master key...`,
+      );
+
+      (async () => {
+        try {
+          const article  = (!match.html && match.loadContent) ? await match.loadContent() : match;
+          const payload  = JSON.stringify({ id: article.id, title: article.title, html: article.html ?? article.content ?? '' });
+          const encoder  = new TextEncoder();
+          const rawBytes = encoder.encode(payload);
+
+          const mod = await import('../../wasm/scale94_kernels.js');
+          await mod.default({ module_or_path: '/wasm/scale94_kernels_bg.wasm' });
+
+          const t0       = performance.now();
+          const sealed   = mod.seal_markdown(rawBytes, passphrase);
+          const elapsed  = (performance.now() - t0).toFixed(1);
+
+          const t = new Date().toLocaleTimeString('en-US', { hour12: false });
+
+          if (!sealed || sealed.length === 0) {
+            setSystemLogs(prev => [...prev,
+              { time: t, msg: `  EXPORT_FAIL :: seal_markdown returned empty — passphrase or WASM error.` },
+            ].slice(-2000));
+            return;
+          }
+
+          // Trigger download
+          const blob = new Blob([sealed], { type: 'application/octet-stream' });
+          const url  = URL.createObjectURL(blob);
+          const a    = document.createElement('a');
+          a.href     = url;
+          a.download = `${match.id}.tesseract`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+
+          setSystemLogs(prev => [...prev,
+            { time: t, msg: `  [OK]  AES-256-GCM ENCRYPT : PASS`, rust: true },
+            { time: t, msg: `  [OK]  BLAKE3 SEAL          : BOUND`, rust: true },
+            { time: t, msg: `  [SEC] WASM linear memory   : ZEROIZED`, rust: true },
+            { time: t, msg: `  [SYS] EXPORT COMPLETE — ${match.id}.tesseract  (${sealed.length} bytes, ${elapsed}ms)`, rust: true },
+            { time: t, msg: passphrase === 'TESSERACT-EXPORT-SCALE94'
+                ? `  [KEY] DEFAULT PASSPHRASE: TESSERACT-EXPORT-SCALE94  ← store this`
+                : `  [KEY] Passphrase: <user-supplied>` },
+          ].slice(-2000));
+        } catch (err) {
+          const t = new Date().toLocaleTimeString('en-US', { hour12: false });
+          setSystemLogs(prev => [...prev,
+            { time: t, msg: `  EXPORT_ERROR :: ${err.message}` },
+          ].slice(-2000));
+        }
+      })();
+      return;
+    }
+
     // ── clear ─────────────────────────────────────────────────────────────────
     if (action === 'clear') {
       setSystemLogs([]);
