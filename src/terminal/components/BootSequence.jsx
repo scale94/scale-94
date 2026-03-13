@@ -182,8 +182,8 @@ const BootSequence = ({ onDone }) => {
               const lineColor = isThreat ? 'rgba(255,107,0,0.7)'
                               : `${arcColor}99`;   // 60% opacity via hex suffix
 
-              // Status tag — full arc color (overridden for crystalline white-flash)
-              const statusColor = isCrystalline ? '#ffffff' : arcColor;
+              // Status tag — full arc color (no white — zero white fade doctrine)
+              const statusColor = arcColor;
 
               // Prompt — arc color at 80% opacity
               const promptColor = isThreat ? '#FF6B00' : `${arcColor}CC`;

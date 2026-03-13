@@ -147,10 +147,10 @@ html, body {
   to   { transform: scaleY(1); }
 }
 
-/* Crystalline axiom lock — white flash → settles to gold */
+/* Crystalline axiom lock — cyan burst → settles to gold. Zero white. */
 @keyframes bs-crystalline-lock {
-  0%   { opacity: 0; color: #ffffff; text-shadow: 0 0 24px #fff, 0 0 48px rgba(255,255,255,0.4); }
-  18%  { opacity: 1; color: #ffffff; text-shadow: 0 0 14px #fff; }
+  0%   { opacity: 0; color: #00FFAA; text-shadow: 0 0 24px #00FFAA, 0 0 48px rgba(0,255,170,0.4); }
+  18%  { opacity: 1; color: #00FFAA; text-shadow: 0 0 14px #00FFAA; }
   55%  { color: #FFD700; text-shadow: 0 0 10px rgba(255,215,0,0.7); }
   100% { opacity: 1; color: #FFD700; text-shadow: none; }
 }
