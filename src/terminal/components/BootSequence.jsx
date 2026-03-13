@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Cpu } from 'lucide-react';
 
 // Seven kernel axioms — the fade doctrine enacted as boot sequence.
@@ -16,6 +16,12 @@ const AXIOMS = [
 // 180ms base, 220ms between each axiom
 const axiomDelay = (i) => 180 + i * 220;
 
+// Doctrine rainbow — matches perimeter fill arc clockwise
+const DOCTRINE_RAINBOW = ['#FF0088','#FF4400','#FF8C00','#FFD700','#AAFF00','#00FFAA','#00AAFF'];
+
+// Status tag pop delays — 500ms cadence aligned with perimeter arc
+const popDelay = (i) => 350 + i * 500;
+
 // Cubic ease-out: fast start → smooth deceleration → clean stop
 const easeOut = (t) => 1 - Math.pow(1 - t, 3);
 
@@ -24,6 +30,16 @@ const BootSequence = ({ onDone }) => {
   const cardRef   = useRef(null);
   const onDoneRef = useRef(onDone);
   useEffect(() => { onDoneRef.current = onDone; }, [onDone]);
+
+  // Frame color tracks the most recently rendered status tag — drives border + glow
+  const [frameColor, setFrameColor] = useState('#FFD700');
+
+  useEffect(() => {
+    const timers = AXIOMS.map((_, i) => (
+      setTimeout(() => setFrameColor(DOCTRINE_RAINBOW[i]), popDelay(i))
+    ));
+    return () => timers.forEach(clearTimeout);
+  }, []);
 
   useEffect(() => {
     const SPIN_MS       = 2000;
@@ -75,14 +91,18 @@ const BootSequence = ({ onDone }) => {
         className="w-[360px] md:w-[420px] relative flex items-stretch"
         style={{ transition: 'none' }}
       >
-        {/* Terminal card — spins 720° as entropy resolves to crystalline */}
+        {/* Terminal card — spins 720° as entropy resolves to crystalline.
+            Border + glow track frameColor, which updates at each axiom pop. */}
         <div
           ref={squareRef}
           className="relative px-6 py-7 md:px-8 md:py-8 w-full overflow-hidden"
           style={{
-            background: '#000',
-            border: '1px solid rgba(255,215,0,0.12)',
-            animation: 'bs-glow 2.4s ease-in-out 0.6s infinite',
+            background:   '#000',
+            borderWidth:  '1px',
+            borderStyle:  'solid',
+            borderColor:  `${frameColor}38`,
+            boxShadow:    `0 0 18px ${frameColor}44, 0 0 56px ${frameColor}18`,
+            transition:   'border-color 0.35s ease, box-shadow 0.35s ease',
           }}
         >
           {/* Rainbow perimeter — fills clockwise: top → right → bottom → left
@@ -156,9 +176,6 @@ const BootSequence = ({ onDone }) => {
               const isCrystalline = variant === 'crystalline';
               const isApex        = variant === 'apex';
 
-              // Doctrine rainbow — matches the perimeter fill arc exactly:
-              // top: magenta→orange→gold · right: gold→lime→cyan · bottom+left: cyan→blue→magenta
-              const DOCTRINE_RAINBOW = ['#FF0088','#FF4400','#FF8C00','#FFD700','#AAFF00','#00FFAA','#00AAFF'];
               const arcColor = DOCTRINE_RAINBOW[i % DOCTRINE_RAINBOW.length];
 
               // Line text — dim version of the arc color for that axiom
@@ -196,7 +213,7 @@ const BootSequence = ({ onDone }) => {
                   <span className="flex items-center gap-[5px]">
                     <span style={{ color: promptColor }}>{'>'}</span>
                     <span className="tracking-wide">{name}</span>
-                    <span style={{ color: 'rgba(255,215,0,0.18)', fontSize: '9px', letterSpacing: '0.05em' }}>::{field}</span>
+                    <span style={{ color: `${arcColor}30`, fontSize: '9px', letterSpacing: '0.05em' }}>::{field}</span>
                   </span>
                   <span
                     className="tracking-widest font-black text-[10px]"
