@@ -71,6 +71,7 @@ const App = () => {
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [bootSequence, setBootSequence] = useState(true);
   const [bootRevealed, setBootRevealed] = useState(false);
+  const [bootAnimDone, setBootAnimDone]  = useState(false);
   // Classified enclave session state
   // null → locked  |  { status:'pending' }  |  { status:'challenged', ... }  |  { status:'unlocked', ... }
   const [classifiedSession, setClassifiedSession] = useState(null);
@@ -304,7 +305,7 @@ const App = () => {
   // longer needs to know the duration. Memoised so the ref is stable across renders.
   const handleBootDone = useCallback(() => {
     setBootSequence(false);
-    requestAnimationFrame(() => setBootRevealed(true));
+    setBootRevealed(true);
   }, []);
 
   // Network status — drives the OFFLINE MODE indicator.
@@ -744,10 +745,16 @@ const App = () => {
       {/* ── Terminal content — springs up from singularity after boot ────────── */}
       <div
         className="flex flex-col flex-grow"
-        style={bootRevealed
-          ? { animation: 'kernel-reveal-scale 0.62s cubic-bezier(0.34,1.56,0.64,1) forwards', transformOrigin: 'center center' }
-          : { transform: 'scale(0.02)', opacity: 0, transformOrigin: 'center center' }
+        style={
+          bootAnimDone
+            ? {}
+            : bootRevealed
+              ? { animation: 'kernel-reveal-scale 0.62s cubic-bezier(0.34,1.56,0.64,1) both', transformOrigin: 'center center' }
+              : { transform: 'scale(0.02)', opacity: 0, transformOrigin: 'center center' }
         }
+        onAnimationEnd={(e) => {
+          if (e.target === e.currentTarget && e.animationName === 'kernel-reveal-scale') setBootAnimDone(true);
+        }}
       >
         <OctagonGrid visible={!selectedArticle && !architectThesis && !tagCloudView} />
 
