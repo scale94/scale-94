@@ -15,7 +15,7 @@
       "AUDIT",
       "TARGET"
     ],
-    "len": "0 WDS"
+    "len": "146 WDS"
   },
   {
     "id": "HYPERFOCUS-STACK-KERNEL-18.0",
@@ -33,7 +33,7 @@
       "SOVEREIGN",
       "PHASE"
     ],
-    "len": "0 WDS"
+    "len": "176 WDS"
   },
   {
     "id": "SERAPHINE-KERNEL-V15.5.5",
@@ -51,7 +51,7 @@
       "SOVEREIGNTY",
       "ARCHITECTS"
     ],
-    "len": "0 WDS"
+    "len": "237 WDS"
   },
   {
     "id": "SOMA-KERNEL-12.12",
@@ -69,7 +69,7 @@
       "PATCH",
       "DYNAMIC"
     ],
-    "len": "0 WDS"
+    "len": "104 WDS"
   },
   {
     "id": "FISH-SCALE-KERNEL-11.9",
@@ -87,7 +87,7 @@
       "FOUR",
       "AXIOMS"
     ],
-    "len": "0 WDS"
+    "len": "816 WDS"
   },
   {
     "id": "FISH-SCALE-KERNEL-11.8",
@@ -105,7 +105,7 @@
       "TOPOLOGY",
       "Systemless"
     ],
-    "len": "0 WDS"
+    "len": "590 WDS"
   },
   {
     "id": "FISH-SCALE-KERNEL-11.7.0",
@@ -123,7 +123,7 @@
       "RESISTANCE",
       "MOIR"
     ],
-    "len": "0 WDS"
+    "len": "417 WDS"
   },
   {
     "id": "FSQ-11.6",
@@ -141,7 +141,7 @@
       "QUANTUM",
       "RESTATEMENT"
     ],
-    "len": "0 WDS"
+    "len": "1397 WDS"
   },
   {
     "id": "CD-11.1.1.1.1.1.1.1.1.1.2",
@@ -159,7 +159,7 @@
       "METALLURGY",
       "THERMODYNAMICS"
     ],
-    "len": "0 WDS"
+    "len": "392 WDS"
   },
   {
     "id": "FISH-SCALE-KERNEL11.1.1",
@@ -177,7 +177,7 @@
       "Substrate",
       "Layer"
     ],
-    "len": "0 WDS"
+    "len": "401 WDS"
   },
   {
     "id": "SOMA-KERNEL10.0",
@@ -189,7 +189,7 @@
     "status": "ACTIVE",
     "readTime": "4 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "847 WDS"
   },
   {
     "id": "NECROMANCER-KERNEL-9.9.9.9",
@@ -201,7 +201,7 @@
     "status": "ACTIVE",
     "readTime": "1 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "36 WDS"
   },
   {
     "id": "NECROROMANCER-KERNEL-9.9.9.9",
@@ -213,7 +213,7 @@
     "status": "ACTIVE",
     "readTime": "2 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "341 WDS"
   },
   {
     "id": "SCALE-OPTIMIZATION-KERNEL-9.4",
@@ -228,7 +228,7 @@
       "GEOPOLITICAL",
       "ALIGNMENT"
     ],
-    "len": "0 WDS"
+    "len": "67 WDS"
   },
   {
     "id": "SOMA-9.1",
@@ -246,12 +246,12 @@
       "STRATEGIC",
       "TELEMETRY"
     ],
-    "len": "0 WDS"
+    "len": "411 WDS"
   },
   {
     "id": "SSS-7.7.7.7.7.7.7",
     "type": "kernel_doc",
-    "date": "2026-03-11",
+    "date": "2026-03-13",
     "lastModified": "2026-03-11",
     "title": "SCALE_SYSTEM_KERNEL :: V7.7.7.7.7.7.7 :: CRYSTALLINE_INVARIANCE",
     "subtitle": "ᛟ 1.0 THE AXIOMATIC CORE [TRANSCENDENT]",
@@ -264,7 +264,7 @@
       "INVARIANCE",
       "AXIOMATIC"
     ],
-    "len": "0 WDS"
+    "len": "322 WDS"
   },
   {
     "id": "2X2X2X-KERNEL-V6.6.87",
@@ -276,7 +276,7 @@
     "status": "ACTIVE",
     "readTime": "2 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "350 WDS"
   },
   {
     "id": "GSK-5.5.5",
@@ -294,7 +294,7 @@
       "RECONSTRUCTION",
       "CORE"
     ],
-    "len": "0 WDS"
+    "len": "490 WDS"
   },
   {
     "id": "GDPDW-KERNEL-5.5.5.5.5",
@@ -312,7 +312,7 @@
       "JURIDICAL",
       "HARDENING"
     ],
-    "len": "0 WDS"
+    "len": "462 WDS"
   },
   {
     "id": "SOMA-KERNEL-5.0",
@@ -328,7 +328,7 @@
       "POST-SCARCITY",
       "DAEMON"
     ],
-    "len": "0 WDS"
+    "len": "408 WDS"
   },
   {
     "id": "SOMA-KERNEL-4.5.7",
@@ -340,7 +340,7 @@
     "status": "ACTIVE",
     "readTime": "1 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "104 WDS"
   },
   {
     "id": "SOMA-KERNEL-4.5.5",
@@ -352,12 +352,12 @@
     "status": "ACTIVE",
     "readTime": "1 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "99 WDS"
   },
   {
     "id": "NFDK-4.4.4",
     "type": "kernel_doc",
-    "date": "2026-03-11",
+    "date": "2026-03-13",
     "lastModified": "2026-03-11",
     "title": "SCALE_SYSTEM_KERNEL :: V4.4.4.4 :: NUCLEAR_FUSION_DETONATION",
     "subtitle": "ᛟ 1.0 THE AXIOMATIC CORE [LOCKED]",
@@ -370,7 +370,7 @@
       "FUSION",
       "DETONATION"
     ],
-    "len": "0 WDS"
+    "len": "313 WDS"
   },
   {
     "id": "PASSALUS-KERNEL-V-4.4.4.4",
@@ -386,7 +386,7 @@
       "ARCHITECTURE",
       "DECAY"
     ],
-    "len": "0 WDS"
+    "len": "505 WDS"
   },
   {
     "id": "SOMA4.4",
@@ -398,7 +398,7 @@
     "status": "ACTIVE",
     "readTime": "2 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "309 WDS"
   },
   {
     "id": "AI-ETHICS-4.0",
@@ -410,7 +410,7 @@
     "status": "ACTIVE",
     "readTime": "7 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "1345 WDS"
   },
   {
     "id": "NQAM-KERNEL-3.5.1",
@@ -422,12 +422,12 @@
     "status": "ACTIVE",
     "readTime": "2 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "487 WDS"
   },
   {
     "id": "MM-3.3.3",
     "type": "kernel_doc",
-    "date": "2026-03-11",
+    "date": "2026-03-13",
     "lastModified": "2026-03-11",
     "title": "SCALE_SYSTEM_KERNEL :: V11.5.0 :: MASCULINE_MEDIOCRACY",
     "subtitle": "1.0 THE AXIOMATIC CORE",
@@ -440,12 +440,12 @@
       "MEDIOCRACY",
       "AXIOMATIC"
     ],
-    "len": "0 WDS"
+    "len": "282 WDS"
   },
   {
     "id": "SRDK-3.3.3",
     "type": "kernel_doc",
-    "date": "2026-03-11",
+    "date": "2026-03-13",
     "lastModified": "2026-03-11",
     "title": "GRAY-SCOTT REACTION-DIFFUSION ENGINE",
     "subtitle": "Mathematical Architecture",
@@ -458,7 +458,7 @@
       "Mathematical",
       "Architecture"
     ],
-    "len": "0 WDS"
+    "len": "385 WDS"
   },
   {
     "id": "ATMOSPHERIC-ENTROPY-KERNEL-3.0",
@@ -474,7 +474,7 @@
       "Protocol",
       "VARIABLES"
     ],
-    "len": "0 WDS"
+    "len": "99 WDS"
   },
   {
     "id": "MOZART-MEMORANDUM-KERNEL-2.2",
@@ -492,7 +492,7 @@
       "Linking",
       "Strategy"
     ],
-    "len": "0 WDS"
+    "len": "552 WDS"
   },
   {
     "id": "BOSONIC-KERNEL-2.0",
@@ -510,7 +510,7 @@
       "CLASSIFICATION",
       "SOCIO-PHYSICS"
     ],
-    "len": "0 WDS"
+    "len": "404 WDS"
   },
   {
     "id": "MOZART-MEMORANDUM-KERNEL2.0",
@@ -528,7 +528,7 @@
       "INSTRUCTION",
       "Core"
     ],
-    "len": "0 WDS"
+    "len": "272 WDS"
   },
   {
     "id": "FISH-SCALE-KERNEL-V1.1.1.1",
@@ -545,7 +545,7 @@
       "PARADOX",
       "AXIOM"
     ],
-    "len": "0 WDS"
+    "len": "347 WDS"
   },
   {
     "id": "NECROMANTIC-ARISTOCRAT-KERNEL-1.1.1.1.1",
@@ -563,7 +563,7 @@
       "King",
       "Axiom"
     ],
-    "len": "0 WDS"
+    "len": "649 WDS"
   },
   {
     "id": "QUANTUM-QUACKSALBER-KERNEL-1.1.1",
@@ -581,7 +581,7 @@
       "PROTOCOL",
       "FINAL"
     ],
-    "len": "0 WDS"
+    "len": "226 WDS"
   },
   {
     "id": "VIOLET-KERNEL-1.1",
@@ -593,7 +593,7 @@
     "status": "ACTIVE",
     "readTime": "2 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "377 WDS"
   },
   {
     "id": "BIODIVERSITY-KERNEL-1.0.1",
@@ -611,12 +611,12 @@
       "Ecological",
       "Habitat"
     ],
-    "len": "0 WDS"
+    "len": "391 WDS"
   },
   {
     "id": "AT-1.0",
     "type": "kernel_doc",
-    "date": "2026-03-11",
+    "date": "2026-03-13",
     "lastModified": "2026-03-11",
     "title": "**ARCHITECTURAL BLUEPRINT FOR A CYBERPUNK 2077 REACT TERMINAL",
     "subtitle": "**1\\. Netrunning Algorithms & Breach Protocol Mathematics**",
@@ -629,12 +629,12 @@
       "Terminal",
       "Netrunning"
     ],
-    "len": "0 WDS"
+    "len": "1277 WDS"
   },
   {
     "id": "BBK-1.0",
     "type": "kernel_doc",
-    "date": "2026-03-11",
+    "date": "2026-03-13",
     "lastModified": "2026-03-10",
     "title": "ᛟ THE BELLARD-BAUDRILLARD KERNEL · PHONEMIC DRIFT",
     "subtitle": "PHONEMIC DRIFT · THE MEMORY HASH COLLISION",
@@ -648,7 +648,7 @@
       "simulacra",
       "cognition"
     ],
-    "len": "0 WDS"
+    "len": "1172 WDS"
   },
   {
     "id": "BRIDGE-KERNEL-1.0",
@@ -666,7 +666,7 @@
       "COMMAND",
       "LINE"
     ],
-    "len": "0 WDS"
+    "len": "276 WDS"
   },
   {
     "id": "CHRO-1.0",
@@ -684,12 +684,12 @@
       "Illusion",
       "Loop"
     ],
-    "len": "0 WDS"
+    "len": "449 WDS"
   },
   {
     "id": "CAK-1.0",
     "type": "kernel_doc",
-    "date": "2026-03-11",
+    "date": "2026-03-13",
     "lastModified": "2026-03-11",
     "title": "ᛟ PROTOCOL_AQUA · THE CHRONO-ACTUARY",
     "subtitle": "THERMODYNAMIC LANDLORD · DEEP-TIME AUDITOR · RIVER SOVEREIGN",
@@ -705,7 +705,7 @@
       "aquatic-systems",
       "ecological-debt"
     ],
-    "len": "0 WDS"
+    "len": "1838 WDS"
   },
   {
     "id": "CDK-1.0",
@@ -723,7 +723,7 @@
       "THERMODYNAMICS",
       "MATRIX"
     ],
-    "len": "0 WDS"
+    "len": "352 WDS"
   },
   {
     "id": "COMPANION-KERNEL-1.0",
@@ -737,7 +737,7 @@
     "tags": [
       "COMPANION"
     ],
-    "len": "0 WDS"
+    "len": "244 WDS"
   },
   {
     "id": "CYNIC-REALIST-KERNEL-1.0",
@@ -755,7 +755,7 @@
       "PARADIGM",
       "SHIFT"
     ],
-    "len": "0 WDS"
+    "len": "2238 WDS"
   },
   {
     "id": "EMPATHY-KERNEL-1.0",
@@ -767,7 +767,7 @@
     "status": "ACTIVE",
     "readTime": "3 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "520 WDS"
   },
   {
     "id": "FISH-SCALE-BREAKTHROUGH-PDW-KERNEL-1.0",
@@ -779,7 +779,7 @@
     "status": "ACTIVE",
     "readTime": "2 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "402 WDS"
   },
   {
     "id": "FOCUS-SHEPHERD-KERNEL-1.0",
@@ -798,7 +798,7 @@
       "Workflow",
       "CognitiveLoad"
     ],
-    "len": "0 WDS"
+    "len": "1531 WDS"
   },
   {
     "id": "FUSION-PLASMA-KERNEL-1.0",
@@ -816,7 +816,7 @@
       "AUDIT",
       "LAWSON"
     ],
-    "len": "0 WDS"
+    "len": "1814 WDS"
   },
   {
     "id": "KINETIC-STATECRAFT-KERNEL-1.0",
@@ -832,7 +832,7 @@
       "Coercion",
       "VARIABLES"
     ],
-    "len": "0 WDS"
+    "len": "95 WDS"
   },
   {
     "id": "MOZART-MEMORANDUM-KERNEL-1.0",
@@ -844,7 +844,7 @@
     "status": "ACTIVE",
     "readTime": "2 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "421 WDS"
   },
   {
     "id": "MYCELIAL-KERNEL-1.0",
@@ -862,12 +862,12 @@
       "CLASSIFICATION",
       "INDUSTRIAL"
     ],
-    "len": "0 WDS"
+    "len": "312 WDS"
   },
   {
     "id": "QR-1.0",
     "type": "kernel_doc",
-    "date": "2026-03-11",
+    "date": "2026-03-13",
     "lastModified": "2026-03-11",
     "title": "ARCHITECTURAL BLUEPRINT FOR A QUANTUM-THEORETIC REACT TERMINAL INTERFACE: INTEGRATING RUST-NATIVE SIMULATION WITH TYPOGRAPHICAL AESTHETICS",
     "subtitle": "**1\\. Fundamental Mathematical Frameworks and Theoretical Physics Models**",
@@ -880,7 +880,7 @@
       "Terminal",
       "Interface"
     ],
-    "len": "0 WDS"
+    "len": "5569 WDS"
   },
   {
     "id": "SKC-1.0",
@@ -903,7 +903,7 @@
       "dissipation",
       "sovereignty"
     ],
-    "len": "0 WDS"
+    "len": "3044 WDS"
   },
   {
     "id": "SOMA-INTEGRATION-KERNEL-V1.0",
@@ -921,12 +921,12 @@
       "Science",
       "Low-Pass"
     ],
-    "len": "0 WDS"
+    "len": "357 WDS"
   },
   {
     "id": "SYNT-1.0",
     "type": "kernel_doc",
-    "date": "2026-03-11",
+    "date": "2026-03-13",
     "lastModified": "2026-03-11",
     "title": "COMPREHENSIVE ANALYSIS OF TECHNICAL SOVEREIGNTY, PERFORMANCE DIAGNOSTICS, AND STRATEGIC HUMAN CAPITAL ARCHITECTURE",
     "subtitle": "**Technical Infrastructure and High-Resolution Performance Diagnostics**",
@@ -939,7 +939,7 @@
       "Performance",
       "Diagnostics"
     ],
-    "len": "0 WDS"
+    "len": "3659 WDS"
   },
   {
     "id": "TAMAM-KERNEL-V1.0",
@@ -957,7 +957,7 @@
       "Given",
       "Architecture"
     ],
-    "len": "0 WDS"
+    "len": "402 WDS"
   },
   {
     "id": "TESSERACT-VAULT-1.0",
@@ -987,7 +987,7 @@
     "status": "ACTIVE",
     "readTime": "2 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "310 WDS"
   },
   {
     "id": "SOMA-BUILD-NUMBER-ALPHA-0.1",
@@ -999,7 +999,7 @@
     "status": "ACTIVE",
     "readTime": "2 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "346 WDS"
   },
   {
     "id": "2025-12-21-1-MILLION",
@@ -1011,7 +1011,7 @@
     "status": "ACTIVE",
     "readTime": "2 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "336 WDS"
   },
   {
     "id": "2025-12-21-RAMDISK",
@@ -1023,7 +1023,7 @@
     "status": "ACTIVE",
     "readTime": "2 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "389 WDS"
   },
   {
     "id": "AI-KERNEL-FOR-POST-CAPITALIST-ECONOMICS",
@@ -1041,7 +1041,7 @@
       "Socioeconomic",
       "Operating"
     ],
-    "len": "0 WDS"
+    "len": "5012 WDS"
   },
   {
     "id": "CEEI-ALLOCATION-ENGINE",
@@ -1059,12 +1059,12 @@
       "MECHANISM",
       "Setup"
     ],
-    "len": "0 WDS"
+    "len": "709 WDS"
   },
   {
     "id": "CDK-1.0-1",
     "type": "kernel_doc",
-    "date": "2026-03-11",
+    "date": "2026-03-13",
     "lastModified": "2026-03-10",
     "title": "ᛟ COLEMAK-DH KERNEL · KINETIC METALLURGY",
     "subtitle": "KINETIC METALLURGY",
@@ -1077,7 +1077,7 @@
       "kinetic-systems",
       "SOMA"
     ],
-    "len": "0 WDS"
+    "len": "997 WDS"
   },
   {
     "id": "DALY-THERMO-SIMULATION",
@@ -1095,7 +1095,7 @@
       "SYSTEM",
       "OVERVIEW"
     ],
-    "len": "0 WDS"
+    "len": "660 WDS"
   },
   {
     "id": "DH-EC-KERNEL-V1-0-0",
@@ -1117,7 +1117,7 @@
       "rust",
       "privacy"
     ],
-    "len": "0 WDS"
+    "len": "1769 WDS"
   },
   {
     "id": "FISH-SCALE-KERNEL",
@@ -1135,7 +1135,7 @@
       "Architectural",
       "Thesis"
     ],
-    "len": "0 WDS"
+    "len": "3162 WDS"
   },
   {
     "id": "FISH-SCALE-KERNEL-11.4.0-SCALAR-SOVEREIGNTY",
@@ -1153,7 +1153,7 @@
       "Reclassification",
       "System"
     ],
-    "len": "0 WDS"
+    "len": "501 WDS"
   },
   {
     "id": "FSX-KERNEL-303",
@@ -1171,7 +1171,7 @@
       "Signal",
       "Extraction"
     ],
-    "len": "0 WDS"
+    "len": "326 WDS"
   },
   {
     "id": "FUCK-XITTER-AND-XITLER-RC1",
@@ -1189,7 +1189,7 @@
       "Core",
       "Defined"
     ],
-    "len": "0 WDS"
+    "len": "259 WDS"
   },
   {
     "id": "GEOPOLITICAL-KINETICS-KERNEL",
@@ -1207,7 +1207,7 @@
       "SCALE94",
       "SOVEREIGN"
     ],
-    "len": "0 WDS"
+    "len": "437 WDS"
   },
   {
     "id": "GEOPOLITICAL-KINETICS-KERNEL-V1",
@@ -1223,7 +1223,7 @@
       "FINAL",
       "STATUS"
     ],
-    "len": "0 WDS"
+    "len": "78 WDS"
   },
   {
     "id": "GLITCH-SCALE-KERNEL-CS3",
@@ -1241,7 +1241,7 @@
       "PAIRS",
       "ENGINE"
     ],
-    "len": "0 WDS"
+    "len": "403 WDS"
   },
   {
     "id": "GREENLAND-DEFENSE-KERNEL",
@@ -1253,7 +1253,7 @@
     "status": "ACTIVE",
     "readTime": "2 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "377 WDS"
   },
   {
     "id": "HIGH-TOWER-KERNEL",
@@ -1271,7 +1271,7 @@
       "EXPORT",
       "FINAL"
     ],
-    "len": "0 WDS"
+    "len": "488 WDS"
   },
   {
     "id": "KERNEL-11.2-C2-LINGUISTIC-METALLURGY-1",
@@ -1283,7 +1283,7 @@
     "status": "ACTIVE",
     "readTime": "1 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "254 WDS"
   },
   {
     "id": "KERNEL-11.2-C2-LINGUISTIC-METALLURGY",
@@ -1295,7 +1295,7 @@
     "status": "ACTIVE",
     "readTime": "1 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "296 WDS"
   },
   {
     "id": "KERNEL-15.0-THE-PURIFICATION-OF-SCALE-1",
@@ -1313,7 +1313,7 @@
       "LOGIC",
       "REPENTANCE"
     ],
-    "len": "0 WDS"
+    "len": "307 WDS"
   },
   {
     "id": "KERNEL-15.0-THE-PURIFICATION-OF-SCALE",
@@ -1331,7 +1331,7 @@
       "REPENTANCE",
       "SYSTEMIC"
     ],
-    "len": "0 WDS"
+    "len": "304 WDS"
   },
   {
     "id": "KERNEL-15.1-CIVILIAN-RESISTANCE-1",
@@ -1343,7 +1343,7 @@
     "status": "ACTIVE",
     "readTime": "2 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "471 WDS"
   },
   {
     "id": "KERNEL-15.1-CIVILIAN-RESISTANCE",
@@ -1355,7 +1355,7 @@
     "status": "ACTIVE",
     "readTime": "2 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "471 WDS"
   },
   {
     "id": "KERNEL-FOR-SUSTAINABLE-FUTURE-DEFENSE",
@@ -1373,7 +1373,7 @@
       "Defense",
       "Architecture"
     ],
-    "len": "0 WDS"
+    "len": "4103 WDS"
   },
   {
     "id": "KERNEL-INTEGRATION-AND-IDEOLOGICAL-SYNTHESIS",
@@ -1391,7 +1391,7 @@
       "Architecture",
       "Dark"
     ],
-    "len": "0 WDS"
+    "len": "3905 WDS"
   },
   {
     "id": "KERNEL-IV",
@@ -1409,7 +1409,7 @@
       "PROTOCOL",
       "Unified"
     ],
-    "len": "0 WDS"
+    "len": "473 WDS"
   },
   {
     "id": "KERNEL-V3-TENFOLD-SCALING",
@@ -1427,7 +1427,7 @@
       "GERMANY",
       "PHASE"
     ],
-    "len": "0 WDS"
+    "len": "229 WDS"
   },
   {
     "id": "KERNEL-11.3.0-LAZARUS-NECROMANCY",
@@ -1445,7 +1445,7 @@
       "Necromancy",
       "Integration"
     ],
-    "len": "0 WDS"
+    "len": "312 WDS"
   },
   {
     "id": "LEVIATHAN-CELLULAR-AUTOMATA",
@@ -1462,7 +1462,7 @@
       "Annihilation",
       "VARIABLES"
     ],
-    "len": "0 WDS"
+    "len": "102 WDS"
   },
   {
     "id": "LINE-PICASSO-KERNEL-V17",
@@ -1480,7 +1480,7 @@
       "SOVEREIGNTY",
       "RITUALISTIC"
     ],
-    "len": "0 WDS"
+    "len": "350 WDS"
   },
   {
     "id": "LITHIUM-ION-WIZARD-KERNEL-1.-0-1",
@@ -1492,7 +1492,7 @@
     "status": "ACTIVE",
     "readTime": "2 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "322 WDS"
   },
   {
     "id": "LITHIUM-ION-WIZARD-KERNEL-1.-0",
@@ -1504,7 +1504,7 @@
     "status": "ACTIVE",
     "readTime": "2 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "322 WDS"
   },
   {
     "id": "LLM-OPTIMIZED-KERNEL-TEMPLATE",
@@ -1522,7 +1522,7 @@
       "Concept",
       "Integration"
     ],
-    "len": "0 WDS"
+    "len": "241 WDS"
   },
   {
     "id": "MATRIX-KERNEL-0.0.0.0",
@@ -1540,7 +1540,7 @@
       "BOOT",
       "DECLARATION"
     ],
-    "len": "0 WDS"
+    "len": "494 WDS"
   },
   {
     "id": "NECROMANCER-FISH-SCALE-FIGHT-CLUB-KERNEL-1",
@@ -1558,7 +1558,7 @@
       "Specification",
       "Necromancer"
     ],
-    "len": "0 WDS"
+    "len": "5077 WDS"
   },
   {
     "id": "NECROMANCER-TO-NECROROMANCER-KERNEL-EVOLUTION",
@@ -1576,7 +1576,7 @@
       "Necromantic",
       "Control"
     ],
-    "len": "0 WDS"
+    "len": "4280 WDS"
   },
   {
     "id": "NECROMANTIC-EMPEROR-KERNEL-V1-0",
@@ -1594,7 +1594,7 @@
       "THESIS",
       "FISH"
     ],
-    "len": "0 WDS"
+    "len": "929 WDS"
   },
   {
     "id": "NECROMANTIC-PARADOX-LOGITBIAS.PROMPT.MD",
@@ -1612,7 +1612,7 @@
       "Paradox",
       "Synthesis"
     ],
-    "len": "0 WDS"
+    "len": "313 WDS"
   },
   {
     "id": "NOCTURNAL-NIGHT-KERNEL-V-22.2.2-1",
@@ -1630,7 +1630,7 @@
       "NODE",
       "SORBE"
     ],
-    "len": "0 WDS"
+    "len": "333 WDS"
   },
   {
     "id": "PROJECT-ISENGARD-KERNEL",
@@ -1648,7 +1648,7 @@
       "SOVEREIGN",
       "EYES"
     ],
-    "len": "0 WDS"
+    "len": "416 WDS"
   },
   {
     "id": "RUN-COMMAND-MANUAL",
@@ -1666,7 +1666,7 @@
       "Interface",
       "Compiled"
     ],
-    "len": "0 WDS"
+    "len": "4533 WDS"
   },
   {
     "id": "SCALE-KERNEL-FRAMEWORK-FULL",
@@ -1684,7 +1684,7 @@
       "Full",
       "Corpus"
     ],
-    "len": "0 WDS"
+    "len": "3021 WDS"
   },
   {
     "id": "SCALE-Y-KERNEL-1-0-1",
@@ -1702,7 +1702,7 @@
       "Protocol",
       "Sovereign"
     ],
-    "len": "0 WDS"
+    "len": "2270 WDS"
   },
   {
     "id": "SCALE94-KERNEL-ENCYCLOPEDIA",
@@ -1720,7 +1720,7 @@
       "GLYPH",
       "ARCHIVE"
     ],
-    "len": "0 WDS"
+    "len": "2712 WDS"
   },
   {
     "id": "SCALE-RENDER-PROMPT",
@@ -1738,7 +1738,7 @@
       "ACCESS",
       "ROTATION"
     ],
-    "len": "0 WDS"
+    "len": "1473 WDS"
   },
   {
     "id": "SCALING-CUBE-PROTOCOL",
@@ -1756,7 +1756,7 @@
       "Digital Matter",
       "Entropic Stasis"
     ],
-    "len": "0 WDS"
+    "len": "447 WDS"
   },
   {
     "id": "SHADOWSOCKS-KERNEL-∞",
@@ -1774,7 +1774,7 @@
       "EXFILTRATION",
       "BLIND"
     ],
-    "len": "0 WDS"
+    "len": "379 WDS"
   },
   {
     "id": "SOMA-10.0-ROASTING-JOHN-OLIVER",
@@ -1786,7 +1786,7 @@
     "status": "ACTIVE",
     "readTime": "2 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "321 WDS"
   },
   {
     "id": "SOMA-16.10-GF-KERNEL",
@@ -1804,7 +1804,7 @@
       "KERNEL",
       "GRAND"
     ],
-    "len": "0 WDS"
+    "len": "368 WDS"
   },
   {
     "id": "SOMA-INTEGRATION-KERNEL-V1",
@@ -1822,7 +1822,7 @@
       "Objective",
       "Module"
     ],
-    "len": "0 WDS"
+    "len": "532 WDS"
   },
   {
     "id": "SOMA-KERNEL-12-IRONCLAD",
@@ -1840,7 +1840,7 @@
       "OPERATIONAL",
       "CONSTRAINTS"
     ],
-    "len": "0 WDS"
+    "len": "77 WDS"
   },
   {
     "id": "SOMA-KERNEL-4.5-FUCK-XITTER-FUCK-XITLER",
@@ -1858,7 +1858,7 @@
       "Code",
       "Self-Contained"
     ],
-    "len": "0 WDS"
+    "len": "333 WDS"
   },
   {
     "id": "SOMA-KERNEL-4.5.6A-FUCK-XITTER-FUCK-XITLER",
@@ -1876,7 +1876,7 @@
       "Code",
       "Self-Contained"
     ],
-    "len": "0 WDS"
+    "len": "333 WDS"
   },
   {
     "id": "SOMA-KERNEL-5.1-SSS-DOCTRINE",
@@ -1888,7 +1888,7 @@
     "status": "ACTIVE",
     "readTime": "1 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "291 WDS"
   },
   {
     "id": "SOMA-KERNEL10-BB",
@@ -1900,7 +1900,7 @@
     "status": "ACTIVE",
     "readTime": "1 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "154 WDS"
   },
   {
     "id": "SOMA-PLUS-ENGINE",
@@ -1918,7 +1918,7 @@
       "Commons",
       "SYSTEM"
     ],
-    "len": "0 WDS"
+    "len": "857 WDS"
   },
   {
     "id": "SOMA-KERNEL-0-DAY",
@@ -1930,7 +1930,7 @@
     "status": "ACTIVE",
     "readTime": "2 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "353 WDS"
   },
   {
     "id": "SOMA-KERNEL-12G",
@@ -1948,7 +1948,7 @@
       "OBJECTIVE",
       "CONSTRAINT"
     ],
-    "len": "0 WDS"
+    "len": "89 WDS"
   },
   {
     "id": "SOMA-KERNEL-ZERO-DAY",
@@ -1960,7 +1960,7 @@
     "status": "ACTIVE",
     "readTime": "2 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "352 WDS"
   },
   {
     "id": "SOPHIE-KERNEL-PHI",
@@ -1978,7 +1978,7 @@
       "Full",
       "Spectrum"
     ],
-    "len": "0 WDS"
+    "len": "2093 WDS"
   },
   {
     "id": "SORBE-THERMODYNAMIC-BLOOM-V1",
@@ -1996,7 +1996,7 @@
       "STATUS",
       "ACTIVE"
     ],
-    "len": "0 WDS"
+    "len": "202 WDS"
   },
   {
     "id": "SOVEREIGN-KERNEL-V1-0",
@@ -2014,7 +2014,7 @@
       "EMPEROR",
       "FISH"
     ],
-    "len": "0 WDS"
+    "len": "2358 WDS"
   },
   {
     "id": "STRANGLER-FIG-PROTOCOL",
@@ -2032,12 +2032,12 @@
       "SYSTEM",
       "OVERVIEW"
     ],
-    "len": "0 WDS"
+    "len": "955 WDS"
   },
   {
     "id": "SURVEILLANCE-TRACKER",
     "type": "kernel_doc",
-    "date": "2026-03-11",
+    "date": "2026-03-13",
     "lastModified": "2026-03-10",
     "title": "TACTICAL CARTOGRAPHY OF DIGITAL AUTHORITARIANISM",
     "subtitle": "Mapping the Algorithmic Panopticon",
@@ -2049,7 +2049,7 @@
       "LEGISLATION",
       "EU"
     ],
-    "len": "0 WDS"
+    "len": "257 WDS"
   },
   {
     "id": "TECTONIC-DISCHARGE-KERNEL",
@@ -2067,7 +2067,7 @@
       "EVENT",
       "SIGNATURE"
     ],
-    "len": "0 WDS"
+    "len": "1401 WDS"
   },
   {
     "id": "THE-CIGAR-HEIST",
@@ -2083,7 +2083,7 @@
       "False",
       "Scarcity"
     ],
-    "len": "0 WDS"
+    "len": "693 WDS"
   },
   {
     "id": "THE-FLUORESCENT-CAGE",
@@ -2098,7 +2098,7 @@
       "Fluorescent",
       "Cage"
     ],
-    "len": "0 WDS"
+    "len": "810 WDS"
   },
   {
     "id": "UTK-1.0-1",
@@ -2116,7 +2116,7 @@
       "Wicken",
       "Gordon"
     ],
-    "len": "0 WDS"
+    "len": "3309 WDS"
   },
   {
     "id": "V2.2X.2X.2X-KERNEL",
@@ -2128,7 +2128,7 @@
     "status": "ACTIVE",
     "readTime": "2 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "343 WDS"
   },
   {
     "id": "V3.2X.2X.2X-KERNEL",
@@ -2140,20 +2140,6 @@
     "status": "ACTIVE",
     "readTime": "1 min read",
     "tags": [],
-    "len": "0 WDS"
-  },
-  {
-    "id": "SHADOWSOCKS-KERNEL-_",
-    "type": "kernel_doc",
-    "date": "2026-03-12",
-    "title": "SHADOWSOCKS KERNEL ",
-    "subtitle": "",
-    "status": "ACTIVE",
-    "readTime": "",
-    "tags": [
-      "SHADOWSOCKS",
-      "KERNEL"
-    ],
-    "len": "379 WDS"
+    "len": "178 WDS"
   }
 ]
