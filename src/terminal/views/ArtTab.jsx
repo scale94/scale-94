@@ -1,0 +1,621 @@
+// ArtTab.jsx — SOMA-9.4 // FADE_DOCTRINE // ARS ELECTRONICA 2027
+//
+// Orbital sphere topology: 25 kernel nodes constrained to a rotating unit sphere.
+// Force-directed layout in 3D, perspective-projected onto Canvas2D.
+// No WebGL dependency — full 3D feel via perspective divide + depth cueing.
+//
+// Interaction:
+//   Left-click  → cue Hopfield associative field (WASM)
+//   Right-click → run that node's own kernel
+//   Drag        → rotate sphere (inertia on release)
+//
+// Color system: deterministic hash HSL via kernelColorMap.js
+
+import React, { useEffect, useRef, useCallback } from 'react';
+import { Waves } from 'lucide-react';
+import { nodeColor, lerpColor, hslAlpha } from '../data/kernelColorMap';
+import { useSomaGraph, CLUSTER_ANCHORS } from '../hooks/useSomaGraph';
+import { useKineticEdges }                from '../hooks/useKineticEdges';
+
+// ── Graph topology ────────────────────────────────────────────────────────────
+
+const CLUSTERS = {
+  eco:    { label: 'ecological'   },
+  sync:   { label: 'synchrony'    },
+  phys:   { label: 'physics'      },
+  crypto: { label: 'cryptography' },
+  drk:    { label: 'drk'          },
+};
+
+const NODES = [
+  { id: 'biocoenosis', label: 'biocoenosis',    cluster: 'eco',    alias: 'biodiversity'    },
+  { id: 'atmospheric', label: 'atmospheric',    cluster: 'eco',    alias: 'climate'         },
+  { id: 'chrono',      label: 'chrono_actuary', cluster: 'eco',    alias: 'chrono'          },
+  { id: 'daly',        label: 'daly',           cluster: 'eco',    alias: 'daly'            },
+  { id: 'replicator',  label: 'replicator',     cluster: 'eco',    alias: 'replicator'      },
+  { id: 'grayscott',   label: 'grayscott',      cluster: 'eco',    alias: 'grayscott'       },
+  { id: 'kuramoto',    label: 'kuramoto',       cluster: 'sync',   alias: 'kuramoto'        },
+  { id: 'ceei',        label: 'ceei',           cluster: 'sync',   alias: 'ceei'            },
+  { id: 'soma91',      label: 'soma_9.1',       cluster: 'sync',   alias: 'soma91'          },
+  { id: 'soma_plus',   label: 'soma_plus',      cluster: 'sync',   alias: 'soma_plus'       },
+  { id: 'leviathan',   label: 'leviathan',      cluster: 'sync',   alias: 'leviathan'       },
+  { id: 'cynic',       label: 'cynic_realist',  cluster: 'sync',   alias: 'cynicrealist'    },
+  { id: 'feigenbaum',  label: 'feigenbaum',     cluster: 'phys',   alias: 'feigenbaum'      },
+  { id: 'ising',       label: 'ising',          cluster: 'phys',   alias: 'ising'           },
+  { id: 'bosonic',     label: 'bosonic',        cluster: 'phys',   alias: 'bosonic_lattice' },
+  { id: 'seraphine',   label: 'seraphine',      cluster: 'phys',   alias: 'seraphine'       },
+  { id: 'fusion',      label: 'fusion_plasma',  cluster: 'phys',   alias: 'fusion'          },
+  { id: 'classified',  label: 'classified',     cluster: 'crypto', alias: 'classified'      },
+  { id: 'pqhash',      label: 'pqhash',         cluster: 'crypto', alias: 'pqhash'          },
+  { id: 'dh_ec',       label: 'dh_ec',          cluster: 'crypto', alias: 'dh_ec'           },
+  { id: 'pragmatic',   label: 'pragmatic',      cluster: 'drk',    alias: 'pragmatic'       },
+  { id: 'soma_kernel', label: 'soma_kernel',    cluster: 'drk',    alias: 'soma_kernel'     },
+  { id: 'strangler',   label: 'strangler_fig',  cluster: 'drk',    alias: 'strangler_fig'   },
+  { id: 'surveillance',label: 'surveillance',   cluster: 'drk',    alias: 'surveillance'    },
+  { id: 'necromantic', label: 'necromantic',    cluster: 'drk',    alias: 'necromantic'     },
+];
+
+const EDGES = [
+  ['biocoenosis', 'replicator'], ['biocoenosis', 'grayscott'],
+  ['daly',        'chrono'],     ['daly',        'atmospheric'], ['chrono', 'atmospheric'],
+  ['kuramoto',    'ceei'],       ['kuramoto',    'soma91'],
+  ['soma91',      'soma_plus'],  ['soma91',      'leviathan'],   ['leviathan', 'cynic'],
+  ['feigenbaum',  'ising'],      ['feigenbaum',  'bosonic'],
+  ['ising',       'bosonic'],    ['bosonic',     'seraphine'],   ['seraphine', 'fusion'],
+  ['classified',  'pqhash'],     ['classified',  'dh_ec'],
+  ['pragmatic',   'soma_kernel'],['soma_kernel', 'strangler'],
+  ['strangler',   'necromantic'],['strangler',   'surveillance'],
+  ['soma91',      'pragmatic'],
+  ['kuramoto',    'feigenbaum'],
+  ['biocoenosis', 'ceei'],
+  ['seraphine',   'pqhash'],
+  ['leviathan',   'surveillance'],
+  ['grayscott',   'ising'],
+  ['daly',        'ceei'],
+];
+
+const ADJ = {};
+NODES.forEach(n => { ADJ[n.id] = []; });
+EDGES.forEach(([a, b]) => { ADJ[a]?.push(b); ADJ[b]?.push(a); });
+
+// Pre-compute per-node colors once — immutable
+const NODE_COLORS = Object.fromEntries(
+  NODES.map(n => [n.id, nodeColor(n.id, n.cluster)])
+);
+const CLUSTER_COLORS = Object.fromEntries(
+  Object.keys(CLUSTERS).map(k => [k, nodeColor(k, k)])
+);
+
+// ── 3D math ───────────────────────────────────────────────────────────────────
+
+// Build flat row-major 3×3 rotation matrix (Y then X rotation)
+function buildRotMatrix(rx, ry) {
+  const cx = Math.cos(rx), sx = Math.sin(rx);
+  const cy = Math.cos(ry), sy = Math.sin(ry);
+  return [
+     cy,       0,    sy,
+     sx * sy,  cx,  -sx * cy,
+    -cx * sy,  sx,   cx * cy,
+  ];
+}
+
+// Apply rotation matrix M to vector (x, y, z)
+function applyM(M, x, y, z) {
+  return [
+    M[0] * x + M[1] * y + M[2] * z,
+    M[3] * x + M[4] * y + M[5] * z,
+    M[6] * x + M[7] * y + M[8] * z,
+  ];
+}
+
+// Perspective project rotated coords onto canvas
+function project(rx, ry, rz, w, h, sphereR, focal) {
+  const scale = focal / (focal + rz * sphereR);
+  return {
+    sx:    w / 2 + rx * sphereR * scale,
+    sy:    h / 2 - ry * sphereR * scale,   // flip Y: canvas Y is down
+    depth: rz,                              // [-1, +1] — used for alpha/size
+    scale,
+  };
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+const AUTO_SPIN = 0.0025;   // rad/frame continuous Y rotation
+const FOCAL_K   = 2.8;      // focal = FOCAL_K × sphereR — controls perspective depth
+const SPHERE_K  = 0.40;     // sphereR = SPHERE_K × min(w, h)
+
+export default function ArtTab({ onRunKernel, onCueNode, associativeField }) {
+  const canvasRef    = useRef(null);
+  const containerRef = useRef(null);
+  const rafRef       = useRef(null);
+  const dimsRef      = useRef({ w: 800, h: 520 });
+  const hoveredRef   = useRef(null);
+
+  // Rotation state — mutated directly, never causes re-render
+  const rotRef  = useRef({ rx: 0.18, ry: 0 });
+  // Drag state
+  const dragRef = useRef({ active: false, lastX: 0, lastY: 0, vx: 0, vy: 0 });
+
+  const {
+    stateRef, initState, step: stepGraph,
+    fireNode, applyAttractor, triggerOverwrite,
+  } = useSomaGraph({ nodes: NODES, adj: ADJ });
+
+  const {
+    edgeStateRef, stepEdges, applyAttractor: applyEdgeAttractor,
+  } = useKineticEdges({ edges: EDGES, nodes: NODES });
+
+  // ── Push incoming attractor data ─────────────────────────────────────────
+  useEffect(() => {
+    if (!associativeField) return;
+    applyAttractor(associativeField);
+    applyEdgeAttractor(associativeField, NODES, triggerOverwrite);
+  }, [associativeField, applyAttractor, applyEdgeAttractor, triggerOverwrite]);
+
+  // ── Resize observer ───────────────────────────────────────────────────────
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const obs = new ResizeObserver(entries => {
+      const W = Math.floor(entries[0].contentRect.width);
+      const H = Math.floor(Math.min(Math.max(W * 0.65, 360), 580));
+      dimsRef.current = { w: W, h: H };
+      if (canvasRef.current) {
+        canvasRef.current.width  = W;
+        canvasRef.current.height = H;
+      }
+      initState();
+    });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [initState]);
+
+  // ── RAF draw loop ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    initState();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    const draw = () => {
+      const s  = stateRef.current;
+      const es = edgeStateRef.current;
+      if (!s) { rafRef.current = requestAnimationFrame(draw); return; }
+
+      const { nodes } = s;
+      const { w, h }  = dimsRef.current;
+      const sphereR   = Math.min(w, h) * SPHERE_K;
+      const focal     = sphereR * FOCAL_K;
+
+      // ── Update rotation ───────────────────────────────────────────────────
+      const drag = dragRef.current;
+      if (!drag.active) {
+        // Inertia decay + auto-spin
+        drag.vx *= 0.94;
+        drag.vy *= 0.94;
+        rotRef.current.rx += drag.vx;
+        rotRef.current.ry += drag.vy + AUTO_SPIN;
+      }
+      const M = buildRotMatrix(rotRef.current.rx, rotRef.current.ry);
+
+      // ── Step simulations ──────────────────────────────────────────────────
+      stepGraph();
+      stepEdges();
+
+      // ── Project all nodes ─────────────────────────────────────────────────
+      const proj = nodes.map(n => {
+        const [rx, ry, rz] = applyM(M, n.x, n.y, n.z);
+        return { ...project(rx, ry, rz, w, h, sphereR, focal), id: n.id };
+      });
+
+      // ── Depth-sort indices for painter's algorithm ────────────────────────
+      // Render far (negative depth) first, near last
+      const sortedNodeIdx = nodes.map((_, i) => i)
+        .sort((a, b) => proj[a].depth - proj[b].depth);
+
+      // ── Clear with trail fade ─────────────────────────────────────────────
+      ctx.fillStyle = 'rgba(0,0,0,0.18)';
+      ctx.fillRect(0, 0, w, h);
+
+      // ── Sphere wireframe ghost ────────────────────────────────────────────
+      // Subtle equator ellipse as spatial anchor
+      const eqRx = sphereR;
+      const eqRy = sphereR * Math.abs(Math.cos(rotRef.current.rx));
+      ctx.beginPath();
+      ctx.ellipse(w / 2, h / 2, eqRx, eqRy, 0, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+
+      // Vertical great circle
+      const vRx = sphereR * Math.abs(Math.cos(rotRef.current.ry));
+      const vRy = sphereR;
+      ctx.beginPath();
+      ctx.ellipse(w / 2, h / 2, vRx, vRy, 0, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // ── Cluster ghost labels (projected anchor positions) ─────────────────
+      ctx.textAlign = 'center';
+      Object.entries(CLUSTER_ANCHORS).forEach(([key, a]) => {
+        const [rx, ry, rz] = applyM(M, a.x, a.y, a.z);
+        if (rz < -0.2) return;  // skip labels on the back face
+        const p   = project(rx, ry, rz, w, h, sphereR, focal);
+        const col = CLUSTER_COLORS[key];
+        const al  = Math.max(0, rz) * 0.12;
+        ctx.font      = 'bold 9px monospace';
+        ctx.fillStyle = hslAlpha(col, al);
+        ctx.fillText(CLUSTERS[key].label.toUpperCase(), p.sx, p.sy - 52 * p.scale);
+      });
+
+      // ── Edges (depth-sorted by average node depth) ────────────────────────
+      if (es) {
+        // Sort edges: far first
+        const sortedEdges = [...es].sort((eA, eB) => {
+          const iA1 = nodes.findIndex(n => n.id === eA.aId);
+          const iA2 = nodes.findIndex(n => n.id === eA.bId);
+          const iB1 = nodes.findIndex(n => n.id === eB.aId);
+          const iB2 = nodes.findIndex(n => n.id === eB.bId);
+          const dA  = ((proj[iA1]?.depth ?? 0) + (proj[iA2]?.depth ?? 0)) / 2;
+          const dB  = ((proj[iB1]?.depth ?? 0) + (proj[iB2]?.depth ?? 0)) / 2;
+          return dA - dB;
+        });
+
+        for (const e of sortedEdges) {
+          const iA = nodes.findIndex(n => n.id === e.aId);
+          const iB = nodes.findIndex(n => n.id === e.bId);
+          if (iA < 0 || iB < 0) continue;
+
+          const na   = nodes[iA], nb = nodes[iB];
+          const pA   = proj[iA],  pB = proj[iB];
+          const colA = NODE_COLORS[e.aId];
+          const colB = NODE_COLORS[e.bId];
+
+          // Depth-based base alpha — fade edges on the back of the sphere
+          const avgDepth  = (pA.depth + pB.depth) / 2;
+          const depthFade = Math.max(0.03, (avgDepth + 1) * 0.5);  // 0→dim, 1→bright
+          const baseAlpha = (Math.min(na.energy, nb.energy) * 0.5 + 0.06) * depthFade;
+          const pulseBoost = e.pulse * 0.40;
+
+          ctx.lineWidth = (0.5 + Math.max(na.energy, nb.energy) * 0.8 + e.pulse * 1.8)
+                        * ((pA.scale + pB.scale) / 2);
+
+          const cMid = lerpColor(colA, colB, e.strength);
+          const grd  = ctx.createLinearGradient(pA.sx, pA.sy, pB.sx, pB.sy);
+          grd.addColorStop(0,   hslAlpha(colA, (baseAlpha + pulseBoost) * (1 - e.strength * 0.4)));
+          grd.addColorStop(0.5, hslAlpha(cMid, baseAlpha + pulseBoost));
+          grd.addColorStop(1,   hslAlpha(colB, (baseAlpha + pulseBoost) * (0.6 + e.strength * 0.4)));
+          ctx.strokeStyle = grd;
+          ctx.beginPath();
+          ctx.moveTo(pA.sx, pA.sy);
+          ctx.lineTo(pB.sx, pB.sy);
+          ctx.stroke();
+
+          // Overwrite pulse ring
+          if (e.pulse > 0.1) {
+            const t  = e.direction >= 0 ? e.pulse : 1 - e.pulse;
+            const px = pA.sx + (pB.sx - pA.sx) * t;
+            const py = pA.sy + (pB.sy - pA.sy) * t;
+            const src = e.direction >= 0 ? colA : colB;
+            ctx.beginPath();
+            ctx.arc(px, py, (2 + e.pulse * 2.5) * pA.scale, 0, Math.PI * 2);
+            ctx.fillStyle = hslAlpha(src, e.pulse * depthFade * 0.9);
+            ctx.fill();
+          }
+        }
+      }
+
+      // ── Nodes (depth-sorted, near drawn last = on top) ────────────────────
+      const hov = hoveredRef.current;
+      for (const i of sortedNodeIdx) {
+        const n   = nodes[i];
+        const p   = proj[i];
+        const col = NODE_COLORS[n.id];
+
+        const isHov     = n.id === hov;
+        const energy    = n.energy + (isHov ? 0.55 : 0);
+        // Depth cuing: nodes on the back are smaller + dimmer
+        const depthAlpha = Math.max(0.08, (p.depth + 1) * 0.5);
+        const radius     = (5 + energy * 4) * p.scale;
+
+        // Overwrite bleed — temporarily radiate source color
+        let renderCol = col;
+        if (n.bleedAmount > 0 && n.bleedFrom) {
+          const srcCol = NODE_COLORS[n.bleedFrom];
+          if (srcCol) renderCol = lerpColor(col, srcCol, n.bleedAmount * 0.7);
+        }
+
+        // Glow halo
+        if (energy > 0.08 || n.bleedAmount > 0) {
+          const haloR = radius + (energy + n.bleedAmount * 0.4) * 16 * p.scale;
+          const hGrd  = ctx.createRadialGradient(p.sx, p.sy, radius * 0.4, p.sx, p.sy, haloR);
+          hGrd.addColorStop(0, hslAlpha(renderCol, (energy + n.bleedAmount * 0.25) * 0.38 * depthAlpha));
+          hGrd.addColorStop(1, hslAlpha(renderCol, 0));
+          ctx.fillStyle = hGrd;
+          ctx.beginPath();
+          ctx.arc(p.sx, p.sy, haloR, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Core sphere
+        const coreAlpha = (0.45 + energy * 0.55) * depthAlpha;
+        ctx.beginPath();
+        ctx.arc(p.sx, p.sy, radius, 0, Math.PI * 2);
+        ctx.fillStyle = isHov ? renderCol.hsl : hslAlpha(renderCol, coreAlpha);
+        ctx.fill();
+
+        // Label — only near/hovered or high-energy nodes
+        if (isHov || (n.energy > 0.45 && p.depth > -0.1)) {
+          const la = isHov ? 0.92 : n.energy * 0.80 * depthAlpha;
+          ctx.fillStyle   = `rgba(255,255,255,${la})`;
+          ctx.font        = `bold ${Math.round((isHov ? 10 : 8) * p.scale)}px monospace`;
+          ctx.textAlign   = 'center';
+          ctx.fillText(n.label, p.sx, p.sy - radius - 4);
+        }
+      }
+
+      rafRef.current = requestAnimationFrame(draw);
+    };
+
+    rafRef.current = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [initState, stepGraph, stepEdges]);
+
+  // ── Hit-test (in projected space) ────────────────────────────────────────
+  const getProjected = useCallback(() => {
+    const s = stateRef.current;
+    if (!s) return [];
+    const { nodes } = s;
+    const { w, h } = dimsRef.current;
+    const sphereR  = Math.min(w, h) * SPHERE_K;
+    const focal    = sphereR * FOCAL_K;
+    const M        = buildRotMatrix(rotRef.current.rx, rotRef.current.ry);
+    return nodes.map(n => {
+      const [rx, ry, rz] = applyM(M, n.x, n.y, n.z);
+      return { node: n, ...project(rx, ry, rz, w, h, sphereR, focal) };
+    });
+  }, [stateRef, dimsRef]);
+
+  const canvasCoords = useCallback((clientX, clientY) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+    return { x: clientX - rect.left, y: clientY - rect.top };
+  }, []);
+
+  const nodeAt = useCallback((cx, cy) => {
+    const projected = getProjected();
+    // Sort by depth desc so we hit nearest node first
+    const sorted = [...projected].sort((a, b) => b.depth - a.depth);
+    for (const { node, sx, sy, depth, scale } of sorted) {
+      if (depth < -0.85) continue;  // skip deeply back-face nodes
+      const r  = (5 + node.energy * 4) * scale + 8;
+      const dx = sx - cx, dy = sy - cy;
+      if (dx * dx + dy * dy < r * r) return node;
+    }
+    return null;
+  }, [getProjected]);
+
+  // ── Mouse/touch handlers (ref-mutating — no React re-renders) ────────────
+  const handleMouseDown = useCallback((e) => {
+    dragRef.current = { active: true, lastX: e.clientX, lastY: e.clientY, vx: 0, vy: 0 };
+  }, []);
+
+  const handleMouseMove = useCallback((e) => {
+    const drag = dragRef.current;
+    if (drag.active) {
+      const dx = e.clientX - drag.lastX;
+      const dy = e.clientY - drag.lastY;
+      drag.vx = dy * 0.005;  // drag X → rotX
+      drag.vy = dx * 0.005;  // drag Y → rotY
+      rotRef.current.rx += drag.vx;
+      rotRef.current.ry += drag.vy;
+      drag.lastX = e.clientX;
+      drag.lastY = e.clientY;
+    }
+    // Hover hit-test
+    const p = canvasCoords(e.clientX, e.clientY);
+    if (p) {
+      const node = nodeAt(p.x, p.y);
+      hoveredRef.current = node?.id ?? null;
+      if (canvasRef.current) canvasRef.current.style.cursor = node ? 'pointer' : drag.active ? 'grabbing' : 'grab';
+    }
+  }, [canvasCoords, nodeAt]);
+
+  const handleMouseUp = useCallback((e) => {
+    dragRef.current.active = false;
+    // Check if this was a click (not a drag)
+    const dx = e.clientX - dragRef.current.lastX;
+    const dy = e.clientY - dragRef.current.lastY;
+    if (Math.abs(dx) < 4 && Math.abs(dy) < 4) {
+      const p    = canvasCoords(e.clientX, e.clientY);
+      if (!p) return;
+      const node = nodeAt(p.x, p.y);
+      if (!node) return;
+      if (e.button === 2) {
+        if (onRunKernel && node.alias) onRunKernel(node.alias);
+      } else {
+        fireNode(node.id);
+        const nodeIdx = NODES.findIndex(n => n.id === node.id);
+        if (onCueNode && nodeIdx >= 0) onCueNode(nodeIdx);
+      }
+    }
+  }, [canvasCoords, nodeAt, fireNode, onCueNode, onRunKernel]);
+
+  const handleContextMenu = useCallback((e) => {
+    e.preventDefault();
+    const p    = canvasCoords(e.clientX, e.clientY);
+    if (!p) return;
+    const node = nodeAt(p.x, p.y);
+    if (node && onRunKernel && node.alias) onRunKernel(node.alias);
+  }, [canvasCoords, nodeAt, onRunKernel]);
+
+  const handleMouseLeave = useCallback(() => {
+    dragRef.current.active = false;
+    hoveredRef.current = null;
+    if (canvasRef.current) canvasRef.current.style.cursor = 'grab';
+  }, []);
+
+  const handleTouchStart = useCallback((e) => {
+    const t = e.touches[0];
+    if (t) dragRef.current = { active: true, lastX: t.clientX, lastY: t.clientY, vx: 0, vy: 0 };
+  }, []);
+
+  const handleTouchMove = useCallback((e) => {
+    e.preventDefault();
+    const t    = e.touches[0];
+    const drag = dragRef.current;
+    if (!t || !drag.active) return;
+    const dx = t.clientX - drag.lastX;
+    const dy = t.clientY - drag.lastY;
+    rotRef.current.rx += dy * 0.005;
+    rotRef.current.ry += dx * 0.005;
+    drag.vx     = dy * 0.005;
+    drag.vy     = dx * 0.005;
+    drag.lastX  = t.clientX;
+    drag.lastY  = t.clientY;
+  }, []);
+
+  const handleTouchEnd = useCallback((e) => {
+    dragRef.current.active = false;
+    const t = e.changedTouches[0];
+    if (!t) return;
+    const p    = canvasCoords(t.clientX, t.clientY);
+    if (!p) return;
+    const node = nodeAt(p.x, p.y);
+    if (!node) return;
+    fireNode(node.id);
+    const nodeIdx = NODES.findIndex(n => n.id === node.id);
+    if (onCueNode && nodeIdx >= 0) onCueNode(nodeIdx);
+  }, [canvasCoords, nodeAt, fireNode, onCueNode]);
+
+  // ── CSS vars for DOM elements outside canvas ──────────────────────────────
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || !associativeField) return;
+    associativeField.co?.forEach(idx => {
+      const node = NODES[idx];
+      if (!node) return;
+      el.style.setProperty(`--node-color-${node.id}`, NODE_COLORS[node.id].hsl);
+    });
+  }, [associativeField]);
+
+  return (
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+      <style>{`
+        @keyframes at-shimmer {
+          0%,100% { background-position: 0% 50%; }
+          50%      { background-position: 100% 50%; }
+        }
+      `}</style>
+
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-amber-900/40 pb-4 mb-6">
+        <div>
+          <h2 className="text-2xl md:text-4xl font-bold mb-1 tracking-tight flex items-center gap-3">
+            <Waves
+              className="w-6 h-6 md:w-8 md:h-8 shrink-0"
+              style={{ color: '#FFD700', filter: 'drop-shadow(0 0 8px rgba(255,215,0,0.6))' }}
+            />
+            <span
+              className="text-transparent bg-clip-text"
+              style={{
+                backgroundImage: 'linear-gradient(90deg, #FF8C00, #FFD700, #d946ef, #FFD700, #FF8C00)',
+                backgroundSize:  '400% auto',
+                animation:       'at-shimmer 3.5s ease-in-out infinite',
+              }}
+            >fade_doctrine</span>
+          </h2>
+          <div className="text-sm font-bold tracking-widest" style={{ color: 'rgba(251,191,36,0.5)' }}>
+            orbital sphere // ars electronica 2027 // soma-9.4
+          </div>
+        </div>
+        <div className="flex items-center gap-3 mt-3 md:mt-0 text-xs font-bold font-mono tracking-widest">
+          <span className="border border-amber-900/40 px-3 py-1 rounded-sm" style={{ color: 'rgba(251,191,36,0.5)' }}>
+            {NODES.length} nodes · {EDGES.length} edges
+          </span>
+          <span className="border border-cyan-900/30 px-3 py-1 rounded-sm text-cyan-400/50">
+            drag to rotate · click → attractor · right-click → run
+          </span>
+        </div>
+      </div>
+
+      {/* Sphere canvas */}
+      <div
+        ref={containerRef}
+        className="w-full rounded-lg overflow-hidden"
+        style={{
+          background: '#000',
+          border:     '1px solid rgba(255,140,0,0.10)',
+          boxShadow:  '0 0 80px rgba(255,140,0,0.025) inset',
+        }}
+      >
+        <canvas
+          ref={canvasRef}
+          width={800}
+          height={520}
+          style={{ display: 'block', width: '100%', height: 'auto', cursor: 'grab' }}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseLeave}
+          onContextMenu={handleContextMenu}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        />
+      </div>
+
+      {/* Cluster legend */}
+      <div className="flex flex-wrap gap-x-5 gap-y-2 mt-4 items-center">
+        {Object.entries(CLUSTERS).map(([key, c]) => {
+          const col = CLUSTER_COLORS[key];
+          return (
+            <div key={key} className="flex items-center gap-1.5 text-xs font-bold font-mono tracking-widest">
+              <div
+                className="w-2 h-2 rounded-full shrink-0"
+                style={{ background: col.hsl, boxShadow: `0 0 5px ${col.hsl}` }}
+              />
+              <span style={{ color: hslAlpha(col, 0.75) }}>{c.label}</span>
+            </div>
+          );
+        })}
+        <span className="ml-auto text-xs font-mono tracking-widest" style={{ color: 'rgba(255,140,0,0.3)' }}>
+          entropy is structural
+        </span>
+      </div>
+
+      {/* Attractor readout */}
+      {associativeField && (
+        <div className="mt-3 border border-amber-900/30 bg-black/60 rounded-sm p-3 font-mono text-[9px]">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-amber-400/70 tracking-widest uppercase">
+              hopfield attractor · seed: {
+                associativeField.seed >= 0
+                  ? NODES[associativeField.seed]?.label ?? associativeField.seed
+                  : 'random'
+              }
+            </span>
+            <span className="text-amber-600/40">E = {associativeField.energy?.toFixed(3)}</span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {associativeField.co?.map(idx => {
+              const node = NODES[idx];
+              if (!node) return null;
+              const col  = NODE_COLORS[node.id];
+              return (
+                <span
+                  key={idx}
+                  className="border px-1.5 py-0.5 rounded-sm tracking-wider"
+                  style={{ color: col.hsl, borderColor: hslAlpha(col, 0.35) }}
+                >
+                  {node.label}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

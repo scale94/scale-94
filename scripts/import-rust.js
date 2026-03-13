@@ -766,6 +766,24 @@ const KERNEL_MAP = [
     type:    'rust',
     aliases: ['sovereign', 'seven', 'crystalline', 'sovereign_seven', 'crystal_lock', 'invariance', 'seven_layers'],
   },
+  {
+    id:      'ASSOCIATIVE-FIELD-1.0',
+    fn:      'run_associative_field',
+    args:    [-1.0, 2.5, 30.0],
+    argMap:  {
+      seed: 0, node: 0, cue: 0,
+      beta: 1, temperature: 1, temp: 1, sharpness: 1,
+      probes: 2, n: 2, scan: 2,
+    },
+    params: [
+      { name: 'seed_node',    default: -1.0,  desc: 'node index to cue (0–24); -1 = landscape scan only' },
+      { name: 'temperature',  default: 2.5,   desc: 'β: inverse temperature — sharpness of attractor basins (0.5–8.0)' },
+      { name: 'n_probes',     default: 30.0,  desc: 'random probes for landscape enumeration (5–80)' },
+    ],
+    label:   'Associative Field v1.0',
+    type:    'rust',
+    aliases: ['associative', 'field', 'associative_field', 'hopfield', 'attractor', 'basin', 'assoc_field', 'kernel_graph', 'pattern'],
+  },
 ];
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────

@@ -32,6 +32,7 @@ pub mod chrono_actuary;  // run_chrono_actuary (Deep-Time Audit Framework · Riv
 pub mod fusion_plasma;   // run_fusion_plasma (Plasma Sovereignty Audit · Lawson Criterion · Q-Factor)
 pub mod seraphine;       // run_seraphine_sarg (Quantum Associative Reasoning Gain · Lindblad · SARG)
 pub mod pqhash;          // run_pqhash_analysis (Post-Quantum Hash Audit · Grover · BHT)
+pub mod associative_field; // run_associative_field (Hopfield Attractor Network · 25-node kernel graph)
 pub mod bellard_baudrillard; // run_phonemic_drift (Phonemic Drift · Memory Hash Collision · Simulacra)
 pub mod mesantropy;          // run_mesantropy (Scalar Sovereignty Engine v3.3.3 + 4.4.4.4)
 pub mod sovereign_seven;     // run_sovereign_seven (Crystalline Invariance Engine v7.7.7.7.7.7.7)

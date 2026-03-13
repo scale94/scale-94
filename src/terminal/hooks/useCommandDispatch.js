@@ -22,6 +22,7 @@ const LOAD_TAB_MAP = {
   cryptography: 'cryptography', classified: 'cryptography', pqc: 'cryptography', mlkem: 'cryptography',
   kernel: 'kernel', home: 'kernel', scaling: 'scaling', transmission: 'transmission',
   manifesto: 'manifesto', bsky: 'bsky', bluesky: 'bsky', privacy: 'privacy',
+  art: 'art', graph: 'art', fade: 'art', 'fade_doctrine': 'art', visual: 'art',
 };
 
 const HEX_POOL    = ['BD','E9','1C','7A','55','FF','E3','9A','C2','4F','A1','3D'];
@@ -49,7 +50,7 @@ export function useCommandDispatch(ctx) {
       setSearchFilter, setCurrentPath, setRelicMode, setBreachOpen, applyEcoCost,
       setOriginTab, setArchitectThesis, setTagCloudView,
       appendSystemLog, handleNav, handleKernelClick, handleTransmissionSelect,
-      loadAbortRef, activeKernels,
+      loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField,
     } = ctxRef.current;
 
     const log  = (msg, rust = false) => appendSystemLog({ time: now, msg, rust });
@@ -176,7 +177,10 @@ export function useCommandDispatch(ctx) {
             }
 
             const elapsed  = (performance.now() - t0).toFixed(4);
-            const lines    = result.split('\n');
+            // Strip DATA: suffix before display; parse it for visualizer hooks
+            const dataMatch = result.match(/\nDATA:(\{.*\})$/s);
+            const displayResult = dataMatch ? result.slice(0, result.length - dataMatch[0].length) : result;
+            const lines    = displayResult.split('\n');
             const doneTime = new Date().toLocaleTimeString('en-US', { hour12: false });
             setSystemLogs(prev => [
               ...prev,
@@ -186,6 +190,19 @@ export function useCommandDispatch(ctx) {
               { time: doneTime, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE  ·  EXEC_TIME: ${elapsed}ms`, rust: true },
             ].slice(-2000));
 
+
+            // Post-kuramoto hook — launch live visual field
+            if (wasmEntry.id === 'KURAMOTO-SYNCHRONY' && setKuramotoViz) {
+              setKuramotoViz({ active: true, n: callArgs[0], k: callArgs[1], sigma: callArgs[2] });
+            }
+
+            // Post-associative-field hook — feed attractor state into ArtTab
+            if (wasmEntry.id === 'ASSOCIATIVE-FIELD-1.0' && setAssociativeField && dataMatch) {
+              try {
+                const data = JSON.parse(dataMatch[1]);
+                setAssociativeField(data);
+              } catch (_) { /* malformed DATA: — ignore */ }
+            }
 
             // Post-classified hook — only for ML-KEM-CLASSIFIED
             if (wasmEntry.id === 'ML-KEM-CLASSIFIED') {

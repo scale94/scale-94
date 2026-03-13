@@ -416,6 +416,25 @@ export function log_entropy_flush() {
 }
 
 /**
+ * @param {number} seed_node
+ * @param {number} temperature
+ * @param {number} n_probes
+ * @returns {string}
+ */
+export function run_associative_field(seed_node, temperature, n_probes) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_associative_field(seed_node, temperature, n_probes);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * Community assembly simulation — power-law abundance distribution with
  * standard ecological diversity metrics and stochastic temporal drift.
  *

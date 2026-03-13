@@ -4,7 +4,7 @@
 // esbuild (Vite dev). Keep all imports at the top to guarantee identical
 // module evaluation order in both environments.
 import React, { useState, useEffect, useRef, useLayoutEffect, useMemo, useCallback, lazy, Suspense } from 'react';
-import { Hexagon, Cpu, Lock, Scale, Eye, ShieldAlert, KeyRound } from 'lucide-react';
+import { Hexagon, Cpu, Lock, Scale, Eye, ShieldAlert, KeyRound, Waves } from 'lucide-react';
 
 // Data — static (authored, always bundled)
 import kernelAxioms    from './data/kernelAxioms';
@@ -27,9 +27,10 @@ function chunkFileName(id) {
 }
 
 // Components
-import OctagonGrid     from './components/OctagonGrid';
-import BootSequence    from './components/BootSequence';
-import BreachProtocol  from './components/BreachProtocol';
+import OctagonGrid          from './components/OctagonGrid';
+import BootSequence         from './components/BootSequence';
+import BreachProtocol       from './components/BreachProtocol';
+import KuramotoVisualizer   from './components/KuramotoVisualizer';
 
 // Hooks
 import useSystemLog           from './hooks/useSystemLog';
@@ -58,6 +59,7 @@ const NavButterflyIcon = () => (
   </svg>
 );
 const ClassifiedTab   = lazy(() => import('./views/ClassifiedTab'));
+const ArtTab          = lazy(() => import('./views/ArtTab'));
 const ArticleView     = lazy(() => import('./views/ArticleView'));
 const ThesisView      = lazy(() => import('./views/ThesisView'));
 const TransmissionTab = lazy(() => import('./views/TransmissionTab'));
@@ -91,6 +93,10 @@ const App = () => {
   const [isOnline,     setIsOnline]     = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
   // Breach Protocol minigame
   const [breachOpen,   setBreachOpen]   = useState(false);
+  // Kuramoto live visual field — null when inactive, { active, n, k, sigma } when running
+  const [kuramotoViz,     setKuramotoViz]     = useState(null);
+  // Associative field attractor — null when inactive, { act, energy, seed, co } when computed
+  const [associativeField, setAssociativeField] = useState(null);
   // Relic malfunction mode — amplifies glitch, streams hex to log
   const [relicMode,    setRelicMode]    = useState(false);
   // CAS dynamic data — null while manifest fetch is in-flight
@@ -563,7 +569,7 @@ const App = () => {
     setSearchFilter, setCurrentPath, setRelicMode, setBreachOpen, applyEcoCost,
     setOriginTab, setArchitectThesis, setTagCloudView,
     appendSystemLog, handleNav, handleKernelClick, handleTransmissionSelect,
-    loadAbortRef, activeKernels,
+    loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField,
   });
 
   // Mobile auto-run — fires a WASM kernel automatically when a card is tapped on mobile.
@@ -686,6 +692,14 @@ const App = () => {
       )}
 
 
+      {/* ── Kuramoto synchrony visualizer ─────────────────────────────────── */}
+      {kuramotoViz?.active && (
+        <KuramotoVisualizer
+          params={kuramotoViz}
+          onDismiss={() => setKuramotoViz(null)}
+        />
+      )}
+
       {/*
        * ── Boot-to-main transition overlay ───────────────────────────────────
        * Removed: the opacity-fade overlay (z-97) has been replaced by the
@@ -798,6 +812,8 @@ const App = () => {
             <button aria-label="Surveillance" aria-current={activeTab === 'surveillance' ? 'page' : undefined} onClick={() => handleNav('~/system/surveillance', 'surveillance')} className={`${activeTab === 'surveillance' ? 'bg-red-900 text-red-100 shadow-[0_0_10px_rgba(248,113,113,0.4)]' : 'text-red-500/70 hover:text-red-300 hover:bg-red-900/20'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><ShieldAlert className="w-3 h-3" /> /Surveillance</button>
 
             <button aria-label="Cryptography" aria-current={activeTab === 'cryptography' ? 'page' : undefined} onClick={() => handleNav('~/system/cryptography', 'cryptography')} className={`${activeTab === 'cryptography' ? 'bg-orange-950 text-orange-200 shadow-[0_0_12px_rgba(249,115,22,0.5)]' : 'text-orange-500/70 hover:text-orange-300 hover:bg-orange-950/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><KeyRound className="w-3 h-3" /> /Cryptography</button>
+
+            <button aria-label="Art" aria-current={activeTab === 'art' ? 'page' : undefined} onClick={() => handleNav('~/system/art', 'art')} className={`${activeTab === 'art' ? 'text-black shadow-[0_0_14px_rgba(255,215,0,0.6)]' : 'hover:text-white hover:bg-amber-900/20'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`} style={activeTab === 'art' ? { background: 'linear-gradient(90deg,#FF8C00,#FFD700)' } : { color: 'rgba(251,191,36,0.6)' }}><Waves className="w-3 h-3" /> /Art</button>
           </nav>
         </div>
       </header>
@@ -884,6 +900,22 @@ const App = () => {
           {/* BSKY Tab — AT Protocol / Bluesky network · GraphTracks analytics */}
           {activeTab === 'bsky' && !selectedArticle && !architectThesis && (
             <BskyTab />
+          )}
+
+          {/* Art Tab — Fade Doctrine Graph // Ars Electronica 2027 */}
+          {activeTab === 'art' && !selectedArticle && !architectThesis && (
+            <ArtTab
+              associativeField={associativeField}
+              onRunKernel={(alias) => {
+                const now = new Date().toLocaleTimeString('en-US', { hour12: false });
+                dispatchCommand('run', alias, `run ${alias}`, now);
+              }}
+              onCueNode={(nodeIdx) => {
+                const now = new Date().toLocaleTimeString('en-US', { hour12: false });
+                const q = `associative_field --seed ${nodeIdx} --beta 2.5 --probes 30`;
+                dispatchCommand('run', q, `run ${q}`, now);
+              }}
+            />
           )}
 
           {/* Cryptography Tab — ML-KEM-768 PQC + Gray-Scott kernel reference */}
@@ -1006,24 +1038,35 @@ const App = () => {
         </div>
       </footer>
       {/* ── Mobile bottom nav (hidden on desktop) ──────────────────────────── */}
-      <nav aria-label="Mobile navigation" className={`md:hidden fixed bottom-0 left-0 right-0 z-50 h-14 border-t border-cyan-900/40 bg-black flex transition-opacity duration-500 ${!mobileChrome ? 'opacity-0 pointer-events-none' : ''}`} style={{ willChange: 'opacity, transform', transform: 'translateZ(0)' }}>
-        <button onClick={() => handleNav('~/system/kernel', 'kernel')} aria-label="Kernel" className={`flex flex-1 items-center justify-center transition-all duration-200 ${activeTab === 'kernel' ? 'text-cyan-400' : 'text-cyan-400/50'}`}>
+      <nav
+        aria-label="Mobile navigation"
+        className={`md:hidden fixed bottom-0 left-0 right-0 z-50 h-14 border-t border-cyan-900/40 bg-black flex overflow-x-auto transition-opacity duration-500 ${!mobileChrome ? 'opacity-0 pointer-events-none' : ''}`}
+        style={{ willChange: 'opacity, transform', transform: 'translateZ(0)', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      >
+        <style>{`nav[aria-label="Mobile navigation"]::-webkit-scrollbar { display: none; }`}</style>
+        <button onClick={() => handleNav('~/system/kernel', 'kernel')} aria-label="Kernel" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'kernel' ? 'text-cyan-400' : 'text-cyan-400/50'}`}>
           <Cpu className="w-5 h-5" />
         </button>
-        <button onClick={() => handleNav('~/system/bsky', 'bsky')} aria-label="BSKY" className={`flex flex-1 items-center justify-center transition-all duration-200 ${activeTab === 'bsky' ? 'text-sky-400' : 'text-sky-400/50'}`}>
+        <button onClick={() => handleNav('~/system/bsky', 'bsky')} aria-label="BSKY" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'bsky' ? 'text-sky-400' : 'text-sky-400/50'}`}>
           <NavButterflyIcon />
         </button>
-        <button onClick={() => handleNav('~/system/manifesto', 'manifesto')} aria-label="Manifesto" className={`flex flex-1 items-center justify-center transition-all duration-200 ${activeTab === 'manifesto' ? 'text-violet-400' : 'text-violet-400/50'}`}>
+        <button onClick={() => handleNav('~/system/manifesto', 'manifesto')} aria-label="Manifesto" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'manifesto' ? 'text-violet-400' : 'text-violet-400/50'}`}>
           <Eye className="w-5 h-5" />
         </button>
-        <button onClick={() => handleNav('~/system/scaling', 'scaling')} aria-label="Scaling" className={`flex flex-1 items-center justify-center transition-all duration-200 ${activeTab === 'scaling' ? 'text-fuchsia-400' : 'text-fuchsia-400/50'}`}>
+        <button onClick={() => handleNav('~/system/scaling', 'scaling')} aria-label="Scaling" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'scaling' ? 'text-fuchsia-400' : 'text-fuchsia-400/50'}`}>
           <Scale className="w-5 h-5" />
         </button>
-        <button onClick={() => handleNav('~/system/privacy', 'privacy')} aria-label="Privacy" className={`flex flex-1 items-center justify-center transition-all duration-200 ${activeTab === 'privacy' ? 'text-rose-400' : 'text-rose-400/50'}`}>
+        <button onClick={() => handleNav('~/system/privacy', 'privacy')} aria-label="Privacy" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'privacy' ? 'text-rose-400' : 'text-rose-400/50'}`}>
           <Lock className="w-5 h-5" />
         </button>
-        <button onClick={() => handleNav('~/system/surveillance', 'surveillance')} aria-label="Surveillance" className={`flex flex-1 items-center justify-center transition-all duration-200 ${activeTab === 'surveillance' ? 'text-red-400' : 'text-red-400/50'}`}>
+        <button onClick={() => handleNav('~/system/surveillance', 'surveillance')} aria-label="Surveillance" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'surveillance' ? 'text-red-400' : 'text-red-400/50'}`}>
           <ShieldAlert className="w-5 h-5" />
+        </button>
+        <button onClick={() => handleNav('~/system/cryptography', 'cryptography')} aria-label="Cryptography" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'cryptography' ? 'text-orange-400' : 'text-orange-400/50'}`}>
+          <KeyRound className="w-5 h-5" />
+        </button>
+        <button onClick={() => handleNav('~/system/art', 'art')} aria-label="Art" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'art' ? 'text-amber-400' : 'text-amber-400/40'}`}>
+          <Waves className="w-5 h-5" />
         </button>
       </nav>
 
