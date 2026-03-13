@@ -355,9 +355,14 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
 
       {/* ── Bottom apex: /dev/tty0 — centered, triangle point ─────────────── */}
       <div
+<<<<<<< HEAD
         className={`fixed bottom-14 left-0 right-0 h-36 z-40 md:relative md:bottom-auto md:left-auto md:right-auto md:h-auto md:flex-[4] md:min-h-0 border-t border-cyan-900/40 md:border md:border-cyan-900/30 md:rounded-lg flex flex-col md:mx-auto md:w-3/5 overflow-hidden bg-black/95 md:bg-black/50 backdrop-blur-sm transition-opacity duration-700 ${ttyFaded ? 'opacity-[0.15] md:!opacity-100' : 'opacity-100'}`}
         style={{ animation: 'sk-ttyPulse 4s ease-in-out infinite' }}
         onTouchStart={resetTtyFade}
+=======
+        className={`fixed bottom-14 left-0 right-0 h-36 z-40 md:relative md:bottom-auto md:left-auto md:right-auto md:h-auto md:flex-[4] md:min-h-0 border-t border-cyan-900/40 md:border md:border-cyan-900/30 md:rounded-lg flex flex-col md:mx-auto md:w-3/5 overflow-hidden bg-black/95 md:bg-black/50 backdrop-blur-sm transition-opacity duration-500 ${!mobileChrome ? 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto' : ''}`}
+        style={{ animation: 'sk-ttyPulse 4s ease-in-out infinite', willChange: 'opacity, transform', transform: 'translateZ(0)' }}
+>>>>>>> dev-backup-mar13
       >
         {/* Header strip — double-tap + long-tap here to activate mobile keyboard */}
         <div

@@ -62,12 +62,22 @@ export default function useSystemLog() {
 
   // Centralized append helper — stable reference via useCallback so callers
   // can safely use it as a useEffect dependency without causing infinite loops.
+  // Consecutive identical messages are collapsed: the last entry gets a [xN]
+  // counter instead of flooding the log with duplicate lines.
   const appendSystemLog = useCallback((newEntry) => {
     setSystemLogs(prev => {
-      const next = [...prev, newEntry];
-      if (next.length > MAX_SYSTEM_LOGS) {
-        return next.slice(next.length - MAX_SYSTEM_LOGS);
+      if (prev.length > 0) {
+        const last = prev[prev.length - 1];
+        // rawMsg holds the original text before any [xN] suffix was appended
+        const rawMsg = last.rawMsg ?? last.msg;
+        if (rawMsg === newEntry.msg && last.rust === newEntry.rust) {
+          const count = (last.count ?? 1) + 1;
+          const updated = { ...last, rawMsg, msg: `${rawMsg} [x${count}]`, count };
+          return [...prev.slice(0, -1), updated];
+        }
       }
+      const next = [...prev, newEntry];
+      if (next.length > MAX_SYSTEM_LOGS) return next.slice(next.length - MAX_SYSTEM_LOGS);
       return next;
     });
   }, []); // setSystemLogs is stable — no deps needed

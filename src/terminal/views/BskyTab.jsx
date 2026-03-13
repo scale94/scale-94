@@ -635,6 +635,29 @@ const BskyTab = () => {
         </div>
       </div>
 
+      {/* ── Open source credit — dollspace-gay/Tesseract-Vault ─────────────── */}
+      <div className="border border-sky-900/15 bg-black/20 mb-6 px-4 py-3 flex flex-col gap-1">
+        <div className="text-[9px] font-bold tracking-[0.3em] text-sky-400/30 uppercase mb-1 flex items-center gap-2">
+          <span className="text-sky-500/40">//</span> OPEN_SOURCE_CREDIT
+        </div>
+        <div className="text-[10px] font-mono text-sky-300/50 leading-relaxed">
+          Post-quantum cryptographic pipeline kernel ported from{' '}
+          <a
+            href="https://github.com/dollspace-gay/Tesseract-Vault"
+            target="_blank"
+            rel="noreferrer"
+            className="text-sky-300/70 hover:text-sky-300 transition-colors underline underline-offset-2 decoration-sky-500/30"
+          >
+            github.com/dollspace-gay/Tesseract-Vault
+          </a>
+          {' '}— architecture by <span className="text-sky-300/70">dollspace-gay</span>.
+          Repo kindly provided. WASM adaptation runs in-browser: Argon2id + ML-KEM-1024 + ML-DSA-87 + AES-256-GCM + BLAKE3.
+        </div>
+        <div className="text-[9px] font-mono text-sky-400/20 mt-1">
+          run tesseract  ·  run vault  ·  run blake3  ·  run pqc_pipeline
+        </div>
+      </div>
+
       {/* ── Footer ──────────────────────────────────────────────────────────── */}
       <div className="border-t border-sky-900/15 pt-4 pb-8 text-center">
         <div className="text-[9px] font-mono text-sky-400/20 tracking-widest mb-1">

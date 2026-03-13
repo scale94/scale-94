@@ -131,6 +131,12 @@
       "title": "💀 SCALE94 · KERNEL ENCYCLOPEDIA"
     }
   ],
+  "Argon2id": [
+    {
+      "id": "TESSERACT-VAULT-1.0",
+      "title": "TESSERACT-VAULT 1.0 // HYBRID POST-QUANTUM CRYPTOGRAPHIC PIPELINE"
+    }
+  ],
   "Around": [
     {
       "id": "STRANGLER-FIG-PROTOCOL",
@@ -147,6 +153,12 @@
     {
       "id": "FISH-SCALE-KERNEL11.1.1",
       "title": "FISH SCALE KERNEL11.1.1"
+    }
+  ],
+  "Attribution": [
+    {
+      "id": "TESSERACT-VAULT-1.0",
+      "title": "TESSERACT-VAULT 1.0 // HYBRID POST-QUANTUM CRYPTOGRAPHIC PIPELINE"
     }
   ],
   "AUDIT": [
@@ -389,6 +401,12 @@
     {
       "id": "RUN-COMMAND-MANUAL",
       "title": "RUN COMMAND MANUAL V2.1 // WASM KERNEL INTERFACE"
+    }
+  ],
+  "Commands": [
+    {
+      "id": "TESSERACT-VAULT-1.0",
+      "title": "TESSERACT-VAULT 1.0 // HYBRID POST-QUANTUM CRYPTOGRAPHIC PIPELINE"
     }
   ],
   "Commons": [
@@ -1513,6 +1531,12 @@
       "title": "THE LEVIATHAN AND THE OUROBOROS: A KERNEL-LEVEL DEFENSE ARCHITECTURE FOR THE BIO-INDUSTRIAL AGE"
     }
   ],
+  "Overview": [
+    {
+      "id": "TESSERACT-VAULT-1.0",
+      "title": "TESSERACT-VAULT 1.0 // HYBRID POST-QUANTUM CRYPTOGRAPHIC PIPELINE"
+    }
+  ],
   "OVERVIEW": [
     {
       "id": "CEEI-ALLOCATION-ENGINE",
@@ -2183,6 +2207,12 @@
     {
       "id": "HYPERFOCUS-STACK-KERNEL-18.0",
       "title": "🏮 KERNEL 18.0: THE HYPERFOCUS STACK"
+    }
+  ],
+  "Stage": [
+    {
+      "id": "TESSERACT-VAULT-1.0",
+      "title": "TESSERACT-VAULT 1.0 // HYBRID POST-QUANTUM CRYPTOGRAPHIC PIPELINE"
     }
   ],
   "State": [

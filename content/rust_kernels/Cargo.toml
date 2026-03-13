@@ -35,6 +35,19 @@ hex          = "0.4"
 # linear memory is cleared after each classified session cycle.
 zeroize      = "1"
 
+# ── Tesseract-Vault kernel ───────────────────────────────────────────────────
+# Architecture ported from: https://github.com/dollspace-gay/Tesseract-Vault
+# Credit: dollspace-gay · Tesseract-Vault Project
+#
+# aes-gcm:  AES-256-GCM authenticated encryption (AEAD)
+# argon2:   Argon2id key derivation (RFC 9106) — memory-hard KDF
+# blake3:   BLAKE3 cryptographic hash — integrity binding
+# ml-dsa:   ML-DSA-87 post-quantum signatures (FIPS 204) — feature = zeroize
+aes-gcm      = { version = "0.10", default-features = false, features = ["aes", "alloc"] }
+argon2       = { version = "0.5",  default-features = false, features = ["alloc"] }
+blake3       = { version = "1.5",  default-features = false }
+ml-dsa       = { version = "0.1.0-rc.5", features = ["zeroize"] }
+
 [profile.release]
 # Optimize for size — WASM binary is served over the network.
 opt-level      = "s"

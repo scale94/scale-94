@@ -336,7 +336,7 @@ export default function useTerminalCommands({
                   setSystemLogs(prev => [
                     ...prev,
                     { time: now, msg: `  KERNEL_INSTANCE_BOOT :: ${wasmEntry.id}` },
-                    { time: now, msg: `  new ${wasmEntry.struct}() initialised — state will persist across calls` },
+                    { time: now, msg: `  new ${wasmEntry.struct}() initialised – state will persist across calls` },
                   ].slice(-2000));
                 }
                 const instance = activeKernels.current[wasmEntry.id];
@@ -374,7 +374,7 @@ export default function useTerminalCommands({
           appendSystemLog({ time: now, msg: `COMMAND: ${rawCmd}` });
           setSystemLogs(prev => [
             ...prev,
-            { time: now, msg: `  RUN_FAIL :: "${baseCmd}" — not found in WASM registry.` },
+            { time: now, msg: `  RUN_FAIL :: "${baseCmd}" – not found in WASM registry.` },
             { time: now, msg: `  ${Object.keys(currentRegistry).length} kernel(s) registered. Try: run vcache_burn | run climate | run bosonic` },
             { time: now, msg: `  Use 'load ${baseCmd}' to open a lore article instead.` },
           ].slice(-2000));

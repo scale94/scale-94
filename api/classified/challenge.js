@@ -12,8 +12,8 @@
 // Security properties:
 //   · Token tampering detected via HMAC signature
 //   · Expiry is baked into the signed payload — no server-side state needed
-//   · Challenge code is single-use per token (replay is impossible within 60s
-//     because the same token can only verify once — see verify.js)
+//   · Replay protection enforced in verify.js via a module-level seen-token Map
+//     (same instance); 60s time gate is the primary defence on cold starts
 
 import crypto from 'node:crypto';
 
