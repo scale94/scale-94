@@ -960,6 +960,24 @@
     "len": "0 WDS"
   },
   {
+    "id": "TESSERACT-VAULT-1.0",
+    "type": "kernel_doc",
+    "date": "2026-03-13",
+    "lastModified": "2026-03-13",
+    "title": "TESSERACT-VAULT 1.0 // HYBRID POST-QUANTUM CRYPTOGRAPHIC PIPELINE",
+    "subtitle": "Commands",
+    "status": "ACTIVE",
+    "readTime": "4 min read",
+    "tags": [
+      "Commands",
+      "Attribution",
+      "Overview",
+      "Stage",
+      "Argon2id"
+    ],
+    "len": "813 WDS"
+  },
+  {
     "id": "VIOLET-KERNEL-1.0",
     "type": "kernel_doc",
     "date": "2026-03-07",
