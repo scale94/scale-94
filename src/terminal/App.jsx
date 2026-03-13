@@ -268,22 +268,32 @@ const App = () => {
   // norm is a stable module-level function — no useCallback wrapper needed.
   // Tag-awareness: also surfaces kernels whose articleId appears in tagIndex
   // entries that match the query — gives `search QUANTUM` access to tag data.
+  //
+  // Sophie search (Φ.Φ.Φ.Φ — full spectrum reception):
+  // Query is split into tokens on whitespace. All tokens must match (AND).
+  // Each token is tested against the full id+name+desc haystack independently,
+  // so "scalar sovereign" and "sovereign scalar" both resolve correctly.
   const norm = normalizeQuery;
   const filteredBuilds = useMemo(() => {
     if (!searchFilter) return sortedBuilds;
-    const q = norm(searchFilter);
+    const tokens = searchFilter.trim().split(/\s+/).map(norm).filter(Boolean);
+    if (!tokens.length) return sortedBuilds;
 
-    // Text match on id / name / desc
+    // Text match — all tokens must appear somewhere in id / name / desc
     const textMatchIds = new Set(
       sortedBuilds
-        .filter(k => norm(k.id).includes(q) || norm(k.name).includes(q) || norm(k.desc || '').includes(q))
+        .filter(k => {
+          const haystack = [k.id, k.name, k.desc || ''].map(norm).join(' ');
+          return tokens.every(t => haystack.includes(t));
+        })
         .map(k => k.id)
     );
 
-    // Tag match: collect articleIds from tagIndex entries whose key contains q
+    // Tag match: collect articleIds from tagIndex entries where every token
+    // appears in the tag name (single-token queries work as before)
     const tagArticleIds = new Set(
       Object.entries(tagIndex)
-        .filter(([tag]) => norm(tag).includes(q))
+        .filter(([tag]) => { const n = norm(tag); return tokens.every(t => n.includes(t)); })
         .flatMap(([, kernels]) => kernels.map(k => k.id))
     );
 
