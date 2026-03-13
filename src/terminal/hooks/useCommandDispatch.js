@@ -159,7 +159,7 @@ export function useCommandDispatch(ctx) {
                 activeKernels.current[wasmEntry.id] = new mod[wasmEntry.struct]();
                 logs(
                   `  KERNEL_INSTANCE_BOOT :: ${wasmEntry.id}`,
-                  `  new ${wasmEntry.struct}() initialised — state persists across calls`,
+                  `  new ${wasmEntry.struct}() initialised – state persists across calls`,
                 );
               }
               const instance = activeKernels.current[wasmEntry.id];
@@ -239,7 +239,7 @@ export function useCommandDispatch(ctx) {
         console.log('[RUN_FAIL] Terminal registry keys:', Object.keys(currentRegistry));
         log(`COMMAND: ${rawCmd}`);
         logs(
-          `  RUN_FAIL :: "${baseCmd}" — not found in WASM registry.`,
+          `  RUN_FAIL :: "${baseCmd}" – not found in WASM registry.`,
           `  ${Object.keys(currentRegistry).length} kernel(s) available. Try: run vcache_burn | run climate | run bosonic`,
           `  Use 'load ${baseCmd}' to open a lore article instead.`,
         );
@@ -331,9 +331,21 @@ export function useCommandDispatch(ctx) {
               handleNav('~/system/cryptography', 'cryptography');
               setSystemLogs(prev => [...prev,
                 { time: t, msg: `  ENCLAVE_DECRYPT :: AES-256-GCM AUTH TAG VERIFIED`, rust: true },
-                { time: t, msg: `  PLAINTEXT DELIVERED — ${(data.remainingMs / 1000).toFixed(1)}s remaining`, rust: true },
+                { time: t, msg: `  PLAINTEXT DELIVERED – ${(data.remainingMs / 1000).toFixed(1)}s remaining`, rust: true },
                 { time: t, msg: `  Navigate to /cryptography to read.`, rust: true },
               ].slice(-2000));
+              // Zeroize ephemeral KEM residue from WASM linear memory now that
+              // the payload has been delivered. Best-effort — silently skipped
+              // if the WASM instance is not live (e.g. direct verify after reload).
+              try {
+                const mod = await import('../../wasm/scale94_kernels.js');
+                const flushResult = mod.log_entropy_flush();
+                const tf = new Date().toLocaleTimeString('en-US', { hour12: false });
+                setSystemLogs(prev => [
+                  ...prev,
+                  ...flushResult.split('\n').filter(Boolean).map(msg => ({ time: tf, msg, rust: true })),
+                ].slice(-2000));
+              } catch (_) { /* WASM not initialised — flush is a no-op */ }
             } else {
               setSystemLogs(prev => [...prev,
                 { time: t, msg: `  ENCLAVE_REJECT :: ${data.msg ?? data.error}` },
@@ -435,7 +447,7 @@ export function useCommandDispatch(ctx) {
       } else {
         log(`COMMAND: ${rawCmd}`);
         logs(
-          `  SIGNAL_LOST :: "${query}" — no carrier detected.`,
+          `  SIGNAL_LOST :: "${query}" – no carrier detected.`,
           `  SORBE NODE: offline // last contact consumed by the Thermodynamic Bloom`,
           `  Entropy has claimed this fragment. The kernel registry holds no record.`,
           `  Try: search ${query.toLowerCase().split(' ')[0]} | list | help`,
@@ -497,7 +509,7 @@ export function useCommandDispatch(ctx) {
           { time: now, msg: divider },
         ].slice(-2000));
       } else {
-        log(`  no matches for "${query}" — filter active on /kernel`);
+        log(`  no matches for "${query}" – filter active on /kernel`);
       }
       return;
     }
@@ -542,7 +554,7 @@ export function useCommandDispatch(ctx) {
       log(`COMMAND: ${rawCmd}`);
       logs(
         `  BREACH_PROTOCOL :: Scanning ICE node...`,
-        `  MILITECH MANTIS v4.2 detected — initiating datamining sequence`,
+        `  MILITECH MANTIS v4.2 detected – initiating datamining sequence`,
         `  RAM cost: 4 units`,
       );
       applyEcoCost('breach');
@@ -554,8 +566,8 @@ export function useCommandDispatch(ctx) {
     if (action === 'relic') {
       log(`COMMAND: ${rawCmd}`);
       logs(
-        `  RELIC_CHIP :: Arasaka Secure Your Soul v2.1 — MALFUNCTION DETECTED`,
-        `  NEURAL_BRIDGE :: Integrity 23% — cascading failure imminent`,
+        `  RELIC_CHIP :: Arasaka Secure Your Soul v2.1 – MALFUNCTION DETECTED`,
+        `  NEURAL_BRIDGE :: Integrity 23% – cascading failure imminent`,
         `  WARNING: Soulkiller engram overwrite in progress...`,
       );
       setRelicMode(true);
@@ -576,8 +588,8 @@ export function useCommandDispatch(ctx) {
         setRelicMode(false);
         const t = new Date().toLocaleTimeString('en-US', { hour12: false });
         setSystemLogs(prev => [...prev,
-          { time: t, msg: `  RELIC_CHIP :: Emergency stabilization complete — neural bridge restored` },
-          { time: t, msg: `  Shannon entropy: H = 4.721 bits — engram partially intact` },
+          { time: t, msg: `  RELIC_CHIP :: Emergency stabilization complete – neural bridge restored` },
+          { time: t, msg: `  Shannon entropy: H = 4.721 bits – engram partially intact` },
         ].slice(-2000));
       }, 5000);
       return;

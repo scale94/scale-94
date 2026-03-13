@@ -133,7 +133,7 @@ const App = () => {
       const now = new Date().toLocaleTimeString('en-US', { hour12: false });
       try {
         appendSystemLog({ time: now, msg: 'SYSTEM_KERNEL_LOG: Fetching kernel manifest...' });
-        const manifest = await fetch('/kernel/manifest.json').then(r => {
+        const manifest = await fetch('/kernel/manifest.json?_=' + Date.now()).then(r => {
           if (!r.ok) throw new Error(`HTTP ${r.status}`);
           return r.json();
         });
@@ -166,9 +166,12 @@ const App = () => {
 
         // ── WASM integrity check ─────────────────────────────────────────────
         // Fetch the WASM binary and verify its SHA-256 against the manifest entry.
+        // Use the same ?v=<hash[:8]> cache-buster that wasm.generated.js uses so
+        // the browser never serves a stale binary from its HTTP cache after a build.
         if (manifest.bosonic_lattice?.sha256 && typeof crypto?.subtle?.digest === 'function') {
           try {
-            const wasmBuf = await fetch('/wasm/scale94_kernels_bg.wasm').then(r => r.arrayBuffer());
+            const sha8    = manifest.bosonic_lattice.sha256.slice(0, 8);
+            const wasmBuf = await fetch(`/wasm/scale94_kernels_bg.wasm?v=${sha8}`).then(r => r.arrayBuffer());
             const hashBuf = await crypto.subtle.digest('SHA-256', wasmBuf);
             const hex     = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
             const vt      = new Date().toLocaleTimeString('en-US', { hour12: false });
@@ -240,8 +243,15 @@ const App = () => {
     const [pinned, ...rest] = kernelBuilds;
     // Build article-date lookup: article.id → 'YYYY-MM-DD' (empty string if unknown)
     const dateMap = Object.fromEntries(articles.map(a => [a.id, a.date || '']));
+    // Dedup by id — hand-curated entries (earlier in the array) win over inject zone
+    const seenIds = new Set([pinned.id]);
+    const uniqueRest = rest.filter(k => {
+      if (seenIds.has(k.id)) return false;
+      seenIds.add(k.id);
+      return true;
+    });
     // Annotate each entry with its article date, then partition
-    const annotated = rest.map(k => ({ ...k, _date: dateMap[k.articleId] || '' }));
+    const annotated = uniqueRest.map(k => ({ ...k, _date: dateMap[k.articleId] || '' }));
     // Sort descending by date so newest articles float to the top
     annotated.sort((a, b) => (b._date > a._date ? 1 : b._date < a._date ? -1 : 0));
     // Top 5 become the "latest" strip; remainder gets alphabetical sort on name
@@ -759,7 +769,7 @@ const App = () => {
         </div>
       )}
 
-      <header className={`border-b border-cyan-900/30 bg-black md:bg-black/90 p-4 sticky top-0 z-40 md:backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.1)] overflow-x-hidden w-full transition-opacity duration-500 ${!mobileChrome ? 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto' : ''}`}>
+      <header className={`border-b border-cyan-900/30 bg-black md:bg-black/90 p-4 sticky top-0 z-40 md:backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.1)] overflow-x-hidden w-full transition-opacity duration-500 ${!mobileChrome ? 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto' : ''}`} style={{ willChange: 'opacity, transform', transform: 'translateZ(0)' }}>
         <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4 w-full min-w-0">
           <div className="flex items-center gap-2 group cursor-pointer shrink-0" onClick={() => handleNav('~/system/kernel', 'kernel')}>
             <Hexagon className="w-5 h-5 text-fuchsia-500 animate-spin-slow group-hover:text-cyan-400 transition-colors" />
@@ -981,7 +991,7 @@ const App = () => {
         </div>
       </footer>
       {/* ── Mobile bottom nav (hidden on desktop) ──────────────────────────── */}
-      <nav aria-label="Mobile navigation" className={`md:hidden fixed bottom-0 left-0 right-0 z-50 h-14 border-t border-cyan-900/40 bg-black flex transition-opacity duration-500 ${!mobileChrome ? 'opacity-0 pointer-events-none' : ''}`}>
+      <nav aria-label="Mobile navigation" className={`md:hidden fixed bottom-0 left-0 right-0 z-50 h-14 border-t border-cyan-900/40 bg-black flex transition-opacity duration-500 ${!mobileChrome ? 'opacity-0 pointer-events-none' : ''}`} style={{ willChange: 'opacity, transform', transform: 'translateZ(0)' }}>
         <button onClick={() => handleNav('~/system/kernel', 'kernel')} aria-label="Kernel" className={`flex flex-1 items-center justify-center transition-all duration-200 ${activeTab === 'kernel' ? 'text-cyan-400' : 'text-cyan-900/50'}`}>
           <Cpu className="w-5 h-5" />
         </button>

@@ -7,9 +7,9 @@
   "bosonic_lattice": {
     "wasm": "wasm/scale94_kernels_bg.wasm",
     "js": "src/wasm/scale94_kernels.js",
-    "sha256": "8b141a6193356f5bfdaf8c617f23d16240ee9fb5679a3b871cbe34aa8d3e5ae8",
+    "sha256": "df7d7f8500bddce76c60fb8c78d04e900883fd3cb204022680d3b9714441dc82",
     "version": "0.4.0",
-    "built": "2026-03-12T16:23:44.873Z",
+    "built": "2026-03-12T21:16:18.590Z",
     "exports": [
       "BiocoenosisKernel",
       "NecromanticEngine",

@@ -21,6 +21,21 @@
 
 import crypto from 'node:crypto';
 
+// ── Replay guard ──────────────────────────────────────────────────────────────
+// Module-level Map persists for the lifetime of this serverless instance.
+// Key: sessionId (UUID). Value: expiresAt timestamp for pruning.
+// Each request prunes expired entries so the Map stays bounded.
+// Note: does not survive a cold start — the 60s time gate is the primary
+// defence; this is a best-effort second layer for same-instance replays.
+const seenTokens = new Map();
+
+function pruneSeenTokens() {
+  const now = Date.now();
+  for (const [id, exp] of seenTokens) {
+    if (now > exp) seenTokens.delete(id);
+  }
+}
+
 function verifyToken(token, secret) {
   const dot = token.lastIndexOf('.');
   if (dot === -1) return null;
@@ -88,6 +103,9 @@ export default function handler(req, res) {
     return res.status(400).json({ error: 'MISSING_PASSPHRASE', msg: 'No passphrase provided.' });
   }
 
+  // Prune expired entries before every check
+  pruneSeenTokens();
+
   // ── 1. HMAC integrity ──────────────────────────────────────────────────────
   const session = verifyToken(token, secret);
   if (!session) {
@@ -104,6 +122,14 @@ export default function handler(req, res) {
     return res.status(401).json({
       error: 'TIME_EXCEEDED',
       msg:   `Session expired ${overshoot}s ago. Run classified to start a new session.`,
+    });
+  }
+
+  // ── 2b. Replay guard ──────────────────────────────────────────────────────
+  if (seenTokens.has(session.sessionId)) {
+    return res.status(401).json({
+      error: 'TOKEN_REPLAYED',
+      msg:   'This session token has already been consumed. Run classified to start a new session.',
     });
   }
 
@@ -125,6 +151,10 @@ export default function handler(req, res) {
       msg:   `Echo mismatch. ${(remaining / 1000).toFixed(0)}s remaining on this session.`,
     });
   }
+
+  // Consume token — must happen before decryption so a race between two
+  // simultaneous requests cannot both slip past the guard
+  seenTokens.set(session.sessionId, session.expiresAt);
 
   // ── 4. Decrypt payload ────────────────────────────────────────────────────
   let content;

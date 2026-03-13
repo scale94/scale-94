@@ -1027,6 +1027,28 @@ export function run_surveillance_index(region_code, category_code, threshold) {
 }
 
 /**
+ * Run the Tesseract-Vault 5-stage hybrid PQC pipeline.
+ *
+ * `verbose`:
+ *   0 → truncated key material (first 8 bytes shown)  [default]
+ *   1 → full 32-byte hex for master_key, shared_secret, and BLAKE3 hash
+ * @param {number} verbose
+ * @returns {string}
+ */
+export function run_tesseract_vault(verbose) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_tesseract_vault(verbose);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * Returns the SOMA-9.1 Gaia Build boot banner for the terminal kernel log.
  * No parameters. Static diagnostic — call on first CLI load to confirm
  * system readiness and log the kernel version to the SYSTEM LOG.
@@ -1043,6 +1065,15 @@ export function soma_91_banner() {
     } finally {
         wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
     }
+}
+
+/**
+ * Autocomplete hint: single [verbose:0|1] parameter
+ * @returns {Array<any>}
+ */
+export function tesseract_vault_params() {
+    const ret = wasm.tesseract_vault_params();
+    return ret;
 }
 
 function __wbg_get_imports() {

@@ -507,6 +507,24 @@ const KERNEL_MAP = [
     aliases: ['classified', 'mlkem', 'ml_kem', 'pqc', 'postquantum', 'kem', 'lattice_crypto', 'fips203', 'quantum_crypto'],
   },
   {
+    // Tesseract-Vault Hybrid PQC Pipeline — architecture by dollspace-gay.
+    // Credit: github.com/dollspace-gay/Tesseract-Vault
+    // 5-stage pipeline: Argon2id KDF → ML-KEM-1024 → ML-DSA-87 → AES-256-GCM → BLAKE3
+    // verbose: args[0]  flags: --verbose, --v, --full
+    //   0 = truncated key material (default)
+    //   1 = full 32-byte hex output for master_key, shared_secret, BLAKE3 hash
+    id:      'TESSERACT-VAULT-1.0',
+    fn:      'run_tesseract_vault',
+    args:    [0],
+    argMap:  { verbose: 0, v: 0, full: 0, show: 0 },
+    params:  [
+      { name: 'verbose', default: 0, desc: 'verbose output: 0=truncated (default), 1=full 32-byte hex for master_key / shared_secret / BLAKE3' },
+    ],
+    label:   'Tesseract-Vault Hybrid PQC Pipeline v1.0',
+    type:    'rust',
+    aliases: ['tesseract', 'vault', 'tesseract_vault', 'hybrid_pqc', 'mlkem1024', 'mldsa', 'mldsa87', 'pqc_pipeline', 'argon2', 'argon2id', 'blake3', 'pipeline'],
+  },
+  {
     // DRK Pragmatic<T> — Dissipative Rust Kernel foundational type system.
     // Simulates N agents resolving tasks under thermal budget constraints.
     // Demonstrates: Resolved/Synthetic/Dissolved outcomes, chain degradation,

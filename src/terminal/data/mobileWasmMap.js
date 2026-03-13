@@ -20,6 +20,7 @@ export function resolveWasmAlias(kernelId) {
   if (id.includes('FUSION') || id.includes('PLASMA') || id.includes('NFDK') || id.includes('NUCLEAR')) return 'fusion';
 
   // ── Crypto / cryptographic ──────────────────────────────────────────────────
+  if (id.includes('TESSERACT') || id.includes('TESSERACT-VAULT'))           return 'tesseract';
   if (id.includes('DH-EC') || id.includes('DH_EC') || id.includes('PQHASH') || id.includes('QUANTUM-HASH') || id.includes('HASH-AUDIT')) return 'pqhash';
   if (id.includes('SHADOWSOCKS') || id.includes('SK-1.0'))          return 'surveillance';
 

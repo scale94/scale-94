@@ -20,7 +20,8 @@ const kernelBuilds = [
   { id: 'MOZART-1.0', articleId: 'MOZART-MEMORANDUM-KERNEL-1.0', name: 'MOZART_MEMORANDUM', status: 'PROPOSED', desc: 'Historical & Legal Reconstruction // Graveyard Research' },
 
   // ── Cryptographic kernels ─────────────────────────────────────────────────
-  { id: 'DH-EC-1.0', articleId: 'DH-EC-KERNEL-1.0', name: 'DH_EC_KERNEL_V1_0_0', status: 'LIVE', desc: 'Cryptographic Architecture · Signal X3DH vs Threema NaCl' },
+  // DH-EC-1.0 removed — inject zone carries DH-EC-KERNEL-V1-0-0 with identical name, causing visual duplicate on mobile
+  { id: 'TESSERACT-VAULT-1.0', articleId: 'TESSERACT-VAULT-1.0', name: 'TESSERACT_VAULT_PQC', status: 'LIVE', desc: 'Hybrid PQC Pipeline · Argon2id + ML-KEM-1024 + ML-DSA-87 + AES-256-GCM + BLAKE3 · Credit: dollspace-gay/Tesseract-Vault' },
 
   // ── Imported kernels (content/ root) ─────────────────────────────────────
   { id: 'EK-1.0', articleId: 'EMPATHY-KERNEL-1.0', name: 'EMPATHY_KERNEL_1_0', status: 'SYMBIOTIC', desc: 'EMPATHY KERNEL 1.0' },

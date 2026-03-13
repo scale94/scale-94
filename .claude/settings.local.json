@@ -16,7 +16,13 @@
       "Bash(cargo:*)",
       "Bash(wasm-pack build:*)",
       "Bash(cp:*)",
-      "Bash(grep -r \"articles\\\\.generated\\\\|articles.generated\" E:/scale_9.4/src --include=\"*.jsx\" 2>/dev/null | head -5)"
+      "Bash(grep -r \"articles\\\\.generated\\\\|articles.generated\" E:/scale_9.4/src --include=\"*.jsx\" 2>/dev/null | head -5)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:api.github.com)",
+      "WebSearch",
+      "Bash(curl -s \"https://raw.githubusercontent.com/dollspace-gay/Tesseract-Vault/main/src/crypto/signatures.rs\" | head -200)",
+      "Bash(curl -s \"https://raw.githubusercontent.com/dollspace-gay/Tesseract-Vault/main/src/crypto/kdf.rs\" | head -200)",
+      "Bash(curl -s \"https://raw.githubusercontent.com/dollspace-gay/Tesseract-Vault/main/src/crypto/signatures.rs\")"
     ]
   }
 }
