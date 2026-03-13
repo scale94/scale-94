@@ -161,11 +161,11 @@ const BootSequence = ({ onDone }) => {
                               : isApex   ? 'rgba(255,215,0,0.8)'
                               :            'rgba(255,200,0,0.5)';
 
-              // Status tag color
-              const statusColor = isThreat      ? '#FF6B00'
-                                : isCrystalline ? '#ffffff'
-                                : isApex        ? '#FFD700'
-                                :                 '#FF8C00';
+              // Status tag color — rainbow fade doctrine spectrum (matches perimeter fill arc)
+              // top edge: magenta→gold  ·  right: gold→cyan  ·  bottom: cyan→blue  ·  left: blue→magenta
+              const DOCTRINE_RAINBOW = ['#FF0088','#FF4400','#FF8C00','#FFD700','#AAFF00','#00FFAA','#00AAFF'];
+              const statusColor = isCrystalline ? '#ffffff'   // white-flash lock — overrides
+                                : DOCTRINE_RAINBOW[i % DOCTRINE_RAINBOW.length];
 
               // Prompt color
               const promptColor = isThreat ? '#FF6B00' : '#FFD700';

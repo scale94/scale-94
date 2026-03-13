@@ -32,6 +32,7 @@ use aes_gcm::aead::{Aead, KeyInit};
 use argon2::{Argon2, Algorithm, Version, Params};
 use rand_core::{OsRng, RngCore};
 use zeroize::Zeroize;
+use std::convert::TryInto;
 
 // ── Demo constants ────────────────────────────────────────────────────────────
 // These are fixed demo values — clearly not production material.
@@ -51,6 +52,122 @@ const MLKEM1024_SS_BYTES:  usize =   32; // shared secret
 const MLDSA87_VK_BYTES:  usize = 2592; // verifying key
 const MLDSA87_SK_BYTES:  usize = 4032; // signing key
 const MLDSA87_SIG_BYTES: usize = 4627; // signature
+
+// ── seal_markdown / unseal_markdown ──────────────────────────────────────────
+//
+// Binary envelope format (100 bytes overhead):
+//   [4B  magic:   b"TV1."]
+//   [32B Argon2id salt (OsRng)]
+//   [12B AES-256-GCM nonce (OsRng)]
+//   [4B  ciphertext_len (LE u32)]
+//   [N+16B AES-256-GCM ciphertext + 128-bit auth tag]
+//   [32B BLAKE3(salt ‖ nonce ‖ ciphertext) — integrity binding]
+//
+// On any error returns an empty Vec (never panics in browser).
+
+/// Encrypt arbitrary bytes with Argon2id KDF + AES-256-GCM + BLAKE3 seal.
+/// Returns the TV1. binary envelope, or empty Vec on error.
+#[wasm_bindgen]
+pub fn seal_markdown(plaintext: &[u8], passphrase: &str) -> Vec<u8> {
+    // 1. Random salt + nonce
+    let mut salt        = [0u8; 32];
+    let mut nonce_bytes = [0u8; 12];
+    RngCore::fill_bytes(&mut OsRng, &mut salt);
+    RngCore::fill_bytes(&mut OsRng, &mut nonce_bytes);
+
+    // 2. Argon2id KDF  (m=64KiB, t=1, p=1 — browser-safe demo params)
+    let params = match Params::new(64, 1, 1, Some(32)) {
+        Ok(p)  => p,
+        Err(_) => return Vec::new(),
+    };
+    let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
+    let mut master_key = [0u8; 32];
+    if argon2.hash_password_into(passphrase.as_bytes(), &salt, &mut master_key).is_err() {
+        return Vec::new();
+    }
+
+    // 3. AES-256-GCM encrypt
+    let cipher     = match aes_gcm::Aes256Gcm::new_from_slice(&master_key) {
+        Ok(c)  => c,
+        Err(_) => { master_key.zeroize(); return Vec::new(); },
+    };
+    let nonce      = aes_gcm::Nonce::from_slice(&nonce_bytes);
+    let ciphertext = match cipher.encrypt(nonce, plaintext) {
+        Ok(c)  => c,
+        Err(_) => { master_key.zeroize(); return Vec::new(); },
+    };
+
+    // 4. BLAKE3 integrity: salt ‖ nonce ‖ ciphertext
+    let mut hasher = blake3::Hasher::new();
+    hasher.update(&salt);
+    hasher.update(&nonce_bytes);
+    hasher.update(&ciphertext);
+    let integrity = hasher.finalize();
+
+    // 5. Pack envelope
+    let ct_len = ciphertext.len() as u32;
+    let mut out = Vec::with_capacity(4 + 32 + 12 + 4 + ciphertext.len() + 32);
+    out.extend_from_slice(b"TV1.");
+    out.extend_from_slice(&salt);
+    out.extend_from_slice(&nonce_bytes);
+    out.extend_from_slice(&ct_len.to_le_bytes());
+    out.extend_from_slice(&ciphertext);
+    out.extend_from_slice(integrity.as_bytes());
+
+    master_key.zeroize();
+    out
+}
+
+/// Decrypt a TV1. envelope. Returns plaintext bytes, or empty Vec on any
+/// failure (wrong passphrase, tampered ciphertext, invalid envelope).
+#[wasm_bindgen]
+pub fn unseal_markdown(sealed: &[u8], passphrase: &str) -> Vec<u8> {
+    // Minimum envelope: 4 + 32 + 12 + 4 + 16 (GCM min) + 32 = 100 bytes
+    if sealed.len() < 100 { return Vec::new(); }
+    if &sealed[..4] != b"TV1." { return Vec::new(); }
+
+    let salt        = &sealed[4..36];
+    let nonce_bytes = &sealed[36..48];
+    let ct_len      = u32::from_le_bytes(sealed[48..52].try_into().unwrap_or([0;4])) as usize;
+
+    if sealed.len() < 52 + ct_len + 32 { return Vec::new(); }
+
+    let ciphertext   = &sealed[52..52 + ct_len];
+    let stored_hash  = &sealed[52 + ct_len..52 + ct_len + 32];
+
+    // BLAKE3 integrity check
+    let mut hasher = blake3::Hasher::new();
+    hasher.update(salt);
+    hasher.update(nonce_bytes);
+    hasher.update(ciphertext);
+    let computed = hasher.finalize();
+    if computed.as_bytes() != stored_hash { return Vec::new(); }
+
+    // Argon2id KDF
+    let params = match Params::new(64, 1, 1, Some(32)) {
+        Ok(p)  => p,
+        Err(_) => return Vec::new(),
+    };
+    let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
+    let mut master_key = [0u8; 32];
+    if argon2.hash_password_into(passphrase.as_bytes(), salt, &mut master_key).is_err() {
+        return Vec::new();
+    }
+
+    // AES-256-GCM decrypt
+    let cipher = match aes_gcm::Aes256Gcm::new_from_slice(&master_key) {
+        Ok(c)  => c,
+        Err(_) => { master_key.zeroize(); return Vec::new(); },
+    };
+    let nonce     = aes_gcm::Nonce::from_slice(nonce_bytes);
+    let plaintext = match cipher.decrypt(nonce, ciphertext) {
+        Ok(p)  => p,
+        Err(_) => { master_key.zeroize(); return Vec::new(); },
+    };
+
+    master_key.zeroize();
+    plaintext
+}
 
 /// Autocomplete hint: single [verbose:0|1] parameter
 #[wasm_bindgen]

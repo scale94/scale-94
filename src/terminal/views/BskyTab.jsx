@@ -434,6 +434,11 @@ const BskyTab = () => {
               target="_blank" rel="noopener noreferrer"
               style={{ fontSize: 9, color: '#00ffd5', opacity: 0.55, letterSpacing: '0.15em', textDecoration: 'none', fontWeight: 700 }}
             >dollspace.gay</a>
+            <a
+              href="https://github.com/dollspace-gay/Tesseract-Vault"
+              target="_blank" rel="noopener noreferrer"
+              style={{ fontSize: 9, color: '#b44aff', opacity: 0.7, letterSpacing: '0.15em', textDecoration: 'none', fontWeight: 700 }}
+            >github</a>
           </div>
 
           <div style={{ fontSize: 11, color: '#e0e0e0', opacity: 0.7, marginBottom: 10, lineHeight: 1.5 }}>
