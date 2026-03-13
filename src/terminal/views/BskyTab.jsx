@@ -469,6 +469,43 @@ const BskyTab = () => {
             }}>run tesseract --verbose 1</span>
           </div>
         </div>
+
+        <div style={{ borderTop: '1px solid rgba(180,74,255,0.1)', margin: '14px 0 14px 10px' }} />
+
+        <div style={{ paddingLeft: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+            <span style={{
+              fontSize: 15, fontWeight: 900, letterSpacing: '0.12em',
+              background: 'linear-gradient(90deg, #ff6b9d, #b44aff)',
+              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+            }}>nico</span>
+            <span style={{ fontSize: 9, color: '#b44aff', opacity: 0.5, letterSpacing: '0.2em' }}>·</span>
+            <a
+              href="https://github.com/grey-c0"
+              target="_blank" rel="noopener noreferrer"
+              style={{ fontSize: 9, color: '#b44aff', opacity: 0.7, letterSpacing: '0.15em', textDecoration: 'none', fontWeight: 700 }}
+            >github</a>
+          </div>
+
+          <div style={{ fontSize: 11, color: '#e0e0e0', opacity: 0.7, marginBottom: 10, lineHeight: 1.5 }}>
+            Surveillance legislation tracker.{' '}
+            <a
+              href="https://github.com/grey-c0/legislation"
+              target="_blank" rel="noopener noreferrer"
+              style={{ color: '#ff6b9d', textDecoration: 'none', fontWeight: 700 }}
+            >grey-c0/legislation</a>
+            {' '}— integrated into Scale 9.4 as the live legislative corpus powering the Surveillance tab.
+          </div>
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            <span style={{
+              fontSize: 9, fontWeight: 800, letterSpacing: '0.14em',
+              color: '#ff6b9d', background: 'rgba(255,107,157,0.07)',
+              border: '1px solid rgba(255,107,157,0.18)',
+              padding: '3px 8px', borderRadius: 2,
+            }}>run surveillance</span>
+          </div>
+        </div>
       </div>
 
       {/* ── Analytics engine status ──────────────────────────────────────────── */}
@@ -723,8 +760,21 @@ const BskyTab = () => {
           {' '}— architecture by <span className="text-sky-300/70">dollspace-gay</span>.
           Repo kindly provided. WASM adaptation runs in-browser: Argon2id + ML-KEM-1024 + ML-DSA-87 + AES-256-GCM + BLAKE3.
         </div>
+        <div className="text-[10px] font-mono text-sky-300/50 leading-relaxed mt-2 pt-2 border-t border-sky-900/15">
+          Surveillance legislation corpus via{' '}
+          <a
+            href="https://github.com/grey-c0/legislation"
+            target="_blank"
+            rel="noreferrer"
+            className="text-sky-300/70 hover:text-sky-300 transition-colors underline underline-offset-2 decoration-sky-500/30"
+          >
+            github.com/grey-c0/legislation
+          </a>
+          {' '}— by <span className="text-sky-300/70">nico</span>.
+          Integrated as the live legislative corpus powering the Surveillance tab.
+        </div>
         <div className="text-[9px] font-mono text-sky-400/20 mt-1">
-          run tesseract  ·  run vault  ·  run blake3  ·  run pqc_pipeline
+          run tesseract  ·  run vault  ·  run blake3  ·  run pqc_pipeline  ·  run surveillance
         </div>
       </div>
 
