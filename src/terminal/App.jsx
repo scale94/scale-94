@@ -70,6 +70,7 @@ const App = () => {
   const [activeTab, setActiveTab] = useState('kernel');
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [bootSequence, setBootSequence] = useState(true);
+  const [bootRevealed, setBootRevealed] = useState(false);
   // Classified enclave session state
   // null → locked  |  { status:'pending' }  |  { status:'challenged', ... }  |  { status:'unlocked', ... }
   const [classifiedSession, setClassifiedSession] = useState(null);
@@ -301,7 +302,10 @@ const App = () => {
 
   // Boot completion is signalled by BootSequence itself via onDone — App.jsx no
   // longer needs to know the duration. Memoised so the ref is stable across renders.
-  const handleBootDone = useCallback(() => setBootSequence(false), []);
+  const handleBootDone = useCallback(() => {
+    setBootSequence(false);
+    requestAnimationFrame(() => setBootRevealed(true));
+  }, []);
 
   // Network status — drives the OFFLINE MODE indicator.
   useEffect(() => {
@@ -736,30 +740,15 @@ const App = () => {
        * z-49: above main UI (z-10 / z-40), below BootSequence (z-100).
        * pointerEvents: none — never traps clicks.
        */}
-      {!bootSequence && (
-        <div style={{
-          position: 'fixed',
-          top: '50%',
-          left: '50%',
-          width: '360px',
-          height: '420px',
-          background: '#000',
-          border: '1px solid rgba(255,215,0,0.2)',
-          boxShadow: '0 0 32px rgba(255,215,0,0.08)',
-          zIndex: 49,
-          animation: 'global-reveal-expand 0.85s cubic-bezier(0.16,1,0.3,1) forwards',
-          pointerEvents: 'none',
-        }} />
-      )}
 
-      {/*
-       * ── Terminal content ────────────────────────────────────────────────────
-       * No clip-path. The UI renders normally at all times. During boot,
-       * BootSequence (z-100) covers it. After boot, the global-reveal-expand
-       * element (z-49) expands from singularity then dissolves — both mount in
-       * the same React commit so there is no single-frame flash.
-       */}
-      <div className="flex flex-col flex-grow">
+      {/* ── Terminal content — springs up from singularity after boot ────────── */}
+      <div
+        className="flex flex-col flex-grow"
+        style={bootRevealed
+          ? { animation: 'kernel-reveal-scale 0.62s cubic-bezier(0.34,1.56,0.64,1) forwards', transformOrigin: 'center center' }
+          : { transform: 'scale(0.02)', opacity: 0, transformOrigin: 'center center' }
+        }
+      >
         <OctagonGrid visible={!selectedArticle && !architectThesis && !tagCloudView} />
 
       {/* ── Offline indicator ─────────────────────────────────────────────── */}

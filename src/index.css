@@ -271,12 +271,13 @@ html, body {
    from that point, covering the screen before dissolving to reveal the kernel
    tab behind it. Arc: uncut stasis (boot) → press S → creation (kernel).
    No clip-path (buggy on iOS Safari flex containers). Pure scale + opacity. */
-@keyframes global-reveal-expand {
-  0%   { transform: translate(-50%, -50%) scale(0.01); opacity: 0;   }
-  6%   { opacity: 1; }
-  52%  { transform: translate(-50%, -50%) scale(5);    opacity: 1;   }
-  80%  { opacity: 1; }
-  100% { transform: translate(-50%, -50%) scale(6);    opacity: 0;   }
+/* Boot singularity → kernel tab expansion (Blender S-key spring) */
+@keyframes kernel-reveal-scale {
+  0%   { transform: scale(0.02); opacity: 0; }
+  5%   { opacity: 1; }
+  62%  { transform: scale(1.018); }
+  80%  { transform: scale(0.997); }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 

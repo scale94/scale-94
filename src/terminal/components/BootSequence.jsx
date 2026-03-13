@@ -28,8 +28,8 @@ const BootSequence = ({ onDone }) => {
   useEffect(() => {
     const SPIN_MS       = 2000;
     const FADE_START_MS = 3800;
-    const DONE_MS       = 5000;
-    const EXIT_DURATION = DONE_MS - FADE_START_MS; // 1200ms
+    const DONE_MS       = 4250;               // fast collapse — 450ms exit window
+    const EXIT_DURATION = DONE_MS - FADE_START_MS; // 450ms
 
     const t0 = performance.now();
     let raf;
@@ -45,10 +45,10 @@ const BootSequence = ({ onDone }) => {
         if (elapsed < FADE_START_MS) {
           squareRef.current.style.transform = `rotate(${baseDeg}deg)`;
         } else {
-          // Exit: continue spinning + binary collapse. No fade.
+          // Exit: ease-in collapse (accelerates into singularity — Blender S→0).
           const exitT     = Math.min((elapsed - FADE_START_MS) / EXIT_DURATION, 1);
-          const exitScale = 1 - easeOut(exitT);
-          const exitDeg   = baseDeg + easeOut(exitT) * 360;
+          const exitScale = 1 - (exitT * exitT * exitT);   // ease-in cubic
+          const exitDeg   = baseDeg + exitT * 180;          // slow final rotation
           squareRef.current.style.transform = `rotate(${exitDeg}deg) scale(${exitScale})`;
         }
       }
@@ -156,19 +156,20 @@ const BootSequence = ({ onDone }) => {
               const isCrystalline = variant === 'crystalline';
               const isApex        = variant === 'apex';
 
-              // Line text color
-              const lineColor = isThreat ? 'rgba(255,107,0,0.7)'
-                              : isApex   ? 'rgba(255,215,0,0.8)'
-                              :            'rgba(255,200,0,0.5)';
-
-              // Status tag color — rainbow fade doctrine spectrum (matches perimeter fill arc)
-              // top edge: magenta→gold  ·  right: gold→cyan  ·  bottom: cyan→blue  ·  left: blue→magenta
+              // Doctrine rainbow — matches the perimeter fill arc exactly:
+              // top: magenta→orange→gold · right: gold→lime→cyan · bottom+left: cyan→blue→magenta
               const DOCTRINE_RAINBOW = ['#FF0088','#FF4400','#FF8C00','#FFD700','#AAFF00','#00FFAA','#00AAFF'];
-              const statusColor = isCrystalline ? '#ffffff'   // white-flash lock — overrides
-                                : DOCTRINE_RAINBOW[i % DOCTRINE_RAINBOW.length];
+              const arcColor = DOCTRINE_RAINBOW[i % DOCTRINE_RAINBOW.length];
 
-              // Prompt color
-              const promptColor = isThreat ? '#FF6B00' : '#FFD700';
+              // Line text — dim version of the arc color for that axiom
+              const lineColor = isThreat ? 'rgba(255,107,0,0.7)'
+                              : `${arcColor}99`;   // 60% opacity via hex suffix
+
+              // Status tag — full arc color (overridden for crystalline white-flash)
+              const statusColor = isCrystalline ? '#ffffff' : arcColor;
+
+              // Prompt — arc color at 80% opacity
+              const promptColor = isThreat ? '#FF6B00' : `${arcColor}CC`;
 
               // Line animation — crystalline gets white-flash lock, entropy flickers
               const animation = isCrystalline
