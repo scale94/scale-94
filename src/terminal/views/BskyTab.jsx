@@ -282,6 +282,76 @@ const BskyTab = () => {
         }
       `}</style>
 
+      {/* ── dollspace featured credit ────────────────────────────────────────── */}
+      <div style={{
+        background: '#0a0a0f',
+        border: '1px solid #1a1a2e',
+        borderRadius: 2,
+        padding: '18px 20px',
+        marginBottom: 28,
+        position: 'relative',
+        overflow: 'hidden',
+      }}>
+        {/* teal left accent bar */}
+        <div style={{
+          position: 'absolute', top: 0, left: 0, bottom: 0, width: 2,
+          background: 'linear-gradient(180deg, #00ffd5, #b44aff)',
+        }} />
+        {/* top-right corner tag */}
+        <div style={{
+          position: 'absolute', top: 10, right: 14,
+          fontSize: 9, letterSpacing: '0.22em', fontWeight: 700,
+          color: '#b44aff', opacity: 0.7,
+        }}>OPEN_SOURCE // CONTRIB</div>
+
+        <div style={{ paddingLeft: 10 }}>
+          {/* name row */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+            <span style={{
+              fontSize: 15, fontWeight: 900, letterSpacing: '0.12em',
+              background: 'linear-gradient(90deg, #00ffd5, #b44aff)',
+              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+            }}>dollspace</span>
+            <span style={{ fontSize: 9, color: '#00ffd5', opacity: 0.5, letterSpacing: '0.2em' }}>·</span>
+            <a
+              href="https://dollspace.gay"
+              target="_blank" rel="noopener noreferrer"
+              style={{ fontSize: 9, color: '#00ffd5', opacity: 0.55, letterSpacing: '0.15em', textDecoration: 'none', fontWeight: 700 }}
+            >dollspace.gay</a>
+          </div>
+
+          {/* descriptor */}
+          <div style={{ fontSize: 11, color: '#e0e0e0', opacity: 0.7, marginBottom: 10, lineHeight: 1.5 }}>
+            Repo kindly provided.{' '}
+            <a
+              href="https://github.com/dollspace-gay/Tesseract-Vault"
+              target="_blank" rel="noopener noreferrer"
+              style={{ color: '#ff6b9d', textDecoration: 'none', fontWeight: 700 }}
+            >Tesseract-Vault</a>
+            {' '}— production-grade Rust encryption suite: ML-KEM-1024, ML-DSA-87, AES-256-GCM, Argon2id, BLAKE3.
+            WASM-ported as a browser kernel in Scale 9.4.
+          </div>
+
+          {/* command pills */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {['run tesseract', 'run vault', 'run blake3', 'run argon2'].map(cmd => (
+              <span key={cmd} style={{
+                fontSize: 9, fontWeight: 800, letterSpacing: '0.14em',
+                color: '#00ffd5', background: 'rgba(0,255,213,0.07)',
+                border: '1px solid rgba(0,255,213,0.18)',
+                padding: '3px 8px', borderRadius: 2,
+              }}>{cmd}</span>
+            ))}
+            <span style={{
+              fontSize: 9, fontWeight: 800, letterSpacing: '0.14em',
+              color: '#b44aff', background: 'rgba(180,74,255,0.07)',
+              border: '1px solid rgba(180,74,255,0.18)',
+              padding: '3px 8px', borderRadius: 2,
+            }}>run tesseract --verbose 1</span>
+          </div>
+        </div>
+      </div>
+
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-sky-900/30 pb-4 mb-6 gap-4">
         <div>
