@@ -95,6 +95,73 @@ const CLUSTER_COLORS = Object.fromEntries(
   Object.keys(CLUSTERS).map(k => [k, nodeColor(k, k)])
 );
 
+// ── 16D fingerprint space (mirrored from spectral_bridge.rs) ──────────────────
+// Indices match NODES array order (0–24). Values on [0,1].
+
+const DIM_NAMES = [
+  'dynamical', 'nonlinearity', 'dimensionality', 'criticality',
+  'entropy', 'synchrony', 'conservation', 'temporal',
+  'spatial', 'stochastic', 'game_theory', 'thermodynamic',
+  'information', 'cryptographic', 'biological', 'economic',
+];
+
+/* prettier-ignore */
+const FEATURES = [
+  /*  0 biocoenosis */ [0.75,0.55,0.50,0.30,0.90,0.30,0.40,0.50,0.35,0.70,0.40,0.20,0.85,0.00,1.00,0.20],
+  /*  1 atmospheric */ [0.80,0.70,0.75,0.50,0.55,0.20,0.50,0.80,0.70,0.30,0.10,0.80,0.30,0.00,0.40,0.10],
+  /*  2 chrono      */ [0.50,0.45,0.50,0.30,0.50,0.10,0.30,1.00,0.35,0.20,0.30,0.60,0.40,0.00,0.65,0.70],
+  /*  3 daly        */ [0.25,0.40,0.30,0.20,0.70,0.20,0.60,0.70,0.05,0.10,0.50,0.75,0.50,0.00,0.30,0.90],
+  /*  4 replicator  */ [0.55,0.70,0.50,0.45,0.45,0.50,0.50,0.45,0.65,0.30,1.00,0.10,0.30,0.00,0.75,0.40],
+  /*  5 grayscott   */ [1.00,0.90,0.75,0.60,0.30,0.40,0.40,0.30,1.00,0.00,0.00,0.20,0.10,0.00,0.30,0.00],
+  /*  6 kuramoto    */ [0.55,0.60,0.70,0.55,0.35,1.00,0.50,0.40,0.65,0.20,0.20,0.10,0.25,0.00,0.25,0.10],
+  /*  7 ceei        */ [0.25,0.30,0.55,0.20,0.40,0.50,0.80,0.20,0.65,0.10,0.85,0.20,0.40,0.00,0.10,1.00],
+  /*  8 soma91      */ [0.30,0.35,0.50,0.30,0.50,0.40,0.50,0.50,0.65,0.20,0.30,0.50,0.50,0.00,0.20,0.50],
+  /*  9 soma_plus   */ [0.45,0.40,0.55,0.30,0.50,0.50,0.50,0.50,0.65,0.30,0.30,0.50,0.50,0.00,0.20,0.40],
+  /* 10 leviathan   */ [0.30,0.50,0.70,0.35,0.40,0.55,0.30,0.45,0.65,0.30,0.90,0.25,0.30,0.00,0.10,0.50],
+  /* 11 cynic       */ [0.15,0.25,0.30,0.10,0.30,0.20,0.20,0.35,0.10,0.15,0.50,0.15,0.20,0.00,0.10,0.30],
+  /* 12 feigenbaum  */ [0.30,1.00,0.25,0.85,0.25,0.10,0.50,0.20,0.05,0.00,0.00,0.10,0.20,0.00,0.00,0.00],
+  /* 13 ising       */ [0.85,0.65,0.55,1.00,0.60,0.70,0.50,0.30,0.40,0.90,0.10,0.85,0.50,0.00,0.00,0.00],
+  /* 14 bosonic     */ [0.50,0.55,0.70,0.70,0.40,0.60,0.50,0.20,0.65,0.30,0.40,0.70,0.30,0.00,0.00,0.30],
+  /* 15 seraphine   */ [0.50,0.65,0.70,0.50,0.35,0.30,0.40,0.25,0.65,0.40,0.10,0.40,0.35,0.45,0.00,0.10],
+  /* 16 fusion      */ [0.80,0.75,0.75,0.60,0.30,0.20,0.45,0.30,0.90,0.30,0.00,0.90,0.20,0.00,0.00,0.10],
+  /* 17 classified  */ [0.05,0.30,0.30,0.00,0.20,0.00,0.05,0.05,0.05,0.50,0.00,0.00,0.50,1.00,0.00,0.00],
+  /* 18 pqhash      */ [0.05,0.35,0.45,0.00,0.40,0.00,0.05,0.05,0.30,0.30,0.00,0.00,0.70,0.90,0.00,0.00],
+  /* 19 dh_ec       */ [0.10,0.50,0.50,0.00,0.25,0.00,0.05,0.05,0.30,0.20,0.00,0.00,0.55,0.90,0.00,0.00],
+  /* 20 pragmatic   */ [0.30,0.55,0.50,0.25,0.50,0.20,0.30,0.50,0.35,0.30,0.20,0.55,0.50,0.00,0.10,0.20],
+  /* 21 soma_kernel */ [0.50,0.50,0.70,0.30,0.60,0.45,0.50,0.50,0.65,0.30,0.30,0.50,0.55,0.00,0.20,0.30],
+  /* 22 strangler   */ [0.50,0.50,0.50,0.40,0.35,0.30,0.30,0.70,0.35,0.25,0.20,0.30,0.25,0.00,0.60,0.15],
+  /* 23 surveillance*/ [0.25,0.30,0.55,0.20,0.60,0.20,0.20,0.50,0.65,0.20,0.50,0.10,0.70,0.30,0.10,0.30],
+  /* 24 necromantic */ [0.70,0.65,0.50,0.40,0.40,0.30,0.20,0.65,0.35,0.50,0.20,0.45,0.30,0.00,0.50,0.10],
+];
+
+// ID → NODES index lookup (built once)
+const NODE_IDX = Object.fromEntries(NODES.map((n, i) => [n.id, i]));
+
+// Cosine similarity between two feature vectors
+function cosineSim(a, b) {
+  let dot = 0, na = 0, nb = 0;
+  for (let i = 0; i < 16; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
+  const d = Math.sqrt(na) * Math.sqrt(nb);
+  return d < 1e-12 ? 0 : dot / d;
+}
+
+// Top-K dimension drivers by dot-product contribution a[i]*b[i]
+function topDrivers(a, b, k = 3) {
+  const contribs = DIM_NAMES.map((name, i) => ({ name, value: a[i] * b[i], magA: a[i], magB: b[i] }));
+  contribs.sort((x, y) => y.value - x.value);
+  return contribs.slice(0, k).filter(c => c.value > 0.01);
+}
+
+// Full edge analysis: cosine similarity + top drivers + per-dim contributions
+function analyzeEdge(idA, idB) {
+  const iA = NODE_IDX[idA], iB = NODE_IDX[idB];
+  if (iA == null || iB == null) return null;
+  const fA = FEATURES[iA], fB = FEATURES[iB];
+  const sim = cosineSim(fA, fB);
+  const drivers = topDrivers(fA, fB, 4);
+  return { sim, drivers };
+}
+
 // ── 3D math ───────────────────────────────────────────────────────────────────
 
 // Build flat row-major 3×3 rotation matrix (Y then X rotation)
@@ -140,6 +207,10 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   const rafRef       = useRef(null);
   const dimsRef      = useRef({ w: 900, h: 620 });
   const hoveredRef   = useRef(null);
+  const [hoveredEdge, setHoveredEdge] = useState(null);  // { aId, bId, cosSim, drivers, isSpectralBridge }
+  const [lockedEdge,  setLockedEdge]  = useState(null);  // click-locked readout (persists until click-away)
+  const [selectedNode, setSelectedNode] = useState(null); // node click → show all connected edges with 16D analysis
+  const edgeDebounceRef = useRef(null);                   // timeout id for hover debounce
 
   // Rotation state — mutated directly, never causes re-render
   const rotRef  = useRef({ rx: 0.18, ry: 0 });
@@ -173,6 +244,26 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     bridgeSimilarityRef.current = map;
   }, [spectralBridges]);
 
+  // ── Per-node edge analysis (computed on click, not on hover) ──────────────
+  const selectedNodeEdges = useMemo(() => {
+    if (!selectedNode) return null;
+    const neighbors = ADJ[selectedNode] ?? [];
+    if (!neighbors.length) return null;
+    const simMap = bridgeSimilarityRef.current;
+    return neighbors.map(nbId => {
+      const analysis = analyzeEdge(selectedNode, nbId);
+      const edgeKey = selectedNode < nbId ? `${selectedNode}:${nbId}` : `${nbId}:${selectedNode}`;
+      const isSpectralBridge = simMap ? edgeKey in simMap : false;
+      return {
+        aId: selectedNode,
+        bId: nbId,
+        cosSim: analysis?.sim ?? 0,
+        drivers: analysis?.drivers ?? [],
+        isSpectralBridge,
+      };
+    }).sort((a, b) => b.cosSim - a.cosSim);  // strongest first
+  }, [selectedNode]);
+
   const {
     stateRef, initState, step: stepGraph,
     fireNode, applyAttractor, triggerOverwrite,
@@ -191,21 +282,6 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   const geomEffectsRef = useRef([]);
   const [termInput,       setTermInput]       = useState('');
   const [lastCmd,         setLastCmd]         = useState('');
-  const [rustAnalysis,    setRustAnalysis]    = useState(null);   // spectral_bridge WASM output
-
-  // Fire spectral_bridge Rust kernel on mount — topology findings output
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const mod = await import('../../wasm/scale94_kernels.js');
-        await mod.default({ module_or_path: '/wasm/scale94_kernels_bg.wasm' });
-        const out = mod.run_spectral_bridge(0.65, 16, 1);
-        if (!cancelled) setRustAnalysis(out);
-      } catch { /* WASM unavailable — silently skip */ }
-    })();
-    return () => { cancelled = true; };
-  }, []);
 
   const spawnEffect = useCallback((alias, opts = {}) => {
     const q    = (alias ?? '').toLowerCase().trim();
@@ -667,6 +743,45 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     return null;
   }, [getProjected]);
 
+  // ── Edge hit-test: find nearest edge within ~8px of cursor ──────────────
+  // Returns full 16D analysis payload for any edge (not just spectral bridges)
+  const edgeAt = useCallback((cx, cy) => {
+    const projected = getProjected();
+    const es = edgeStateRef.current;
+    if (!es) return null;
+    const simMap = bridgeSimilarityRef.current;
+    let bestDist = 8;   // max distance in screen px
+    let bestEdge = null;
+    for (const e of es) {
+      const iA = projected.findIndex(p => p.node.id === e.aId);
+      const iB = projected.findIndex(p => p.node.id === e.bId);
+      if (iA < 0 || iB < 0) continue;
+      const pA = projected[iA], pB = projected[iB];
+      if (pA.depth < -0.7 && pB.depth < -0.7) continue;
+      const dx = pB.sx - pA.sx, dy = pB.sy - pA.sy;
+      const len2 = dx * dx + dy * dy;
+      if (len2 < 1) continue;
+      const t = Math.max(0, Math.min(1, ((cx - pA.sx) * dx + (cy - pA.sy) * dy) / len2));
+      const px = pA.sx + t * dx, py = pA.sy + t * dy;
+      const dist = Math.sqrt((cx - px) ** 2 + (cy - py) ** 2);
+      if (dist < bestDist) {
+        bestDist = dist;
+        // Full 16D analysis — computed for every edge, not just spectral bridges
+        const analysis = analyzeEdge(e.aId, e.bId);
+        const edgeKey = e.aId < e.bId ? `${e.aId}:${e.bId}` : `${e.bId}:${e.aId}`;
+        const isSpectralBridge = simMap ? edgeKey in simMap : false;
+        bestEdge = {
+          aId: e.aId,
+          bId: e.bId,
+          cosSim: analysis?.sim ?? 0,
+          drivers: analysis?.drivers ?? [],
+          isSpectralBridge,
+        };
+      }
+    }
+    return bestEdge;
+  }, [getProjected]);
+
   // ── Mouse/touch handlers (ref-mutating — no React re-renders) ────────────
   const handleMouseDown = useCallback((e) => {
     dragRef.current = { active: true, lastX: e.clientX, lastY: e.clientY, vx: 0, vy: 0 };
@@ -684,14 +799,29 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       drag.lastX = e.clientX;
       drag.lastY = e.clientY;
     }
-    // Hover hit-test
+    // Hover hit-test — nodes take priority, then edges (debounced)
     const p = canvasCoords(e.clientX, e.clientY);
     if (p) {
       const node = nodeAt(p.x, p.y);
       hoveredRef.current = node?.id ?? null;
-      if (canvasRef.current) canvasRef.current.style.cursor = node ? 'pointer' : drag.active ? 'grabbing' : 'grab';
+      if (node) {
+        clearTimeout(edgeDebounceRef.current);
+        if (!lockedEdge) setHoveredEdge(null);
+        if (canvasRef.current) canvasRef.current.style.cursor = 'pointer';
+      } else {
+        // Debounce edge hover: only show after 80ms of sustained proximity,
+        // and hold for 300ms after losing contact (spinning sphere shifts edges)
+        const edge = !drag.active ? edgeAt(p.x, p.y) : null;
+        clearTimeout(edgeDebounceRef.current);
+        if (edge) {
+          edgeDebounceRef.current = setTimeout(() => setHoveredEdge(edge), 80);
+        } else if (!lockedEdge) {
+          edgeDebounceRef.current = setTimeout(() => setHoveredEdge(null), 300);
+        }
+        if (canvasRef.current) canvasRef.current.style.cursor = edge ? 'crosshair' : drag.active ? 'grabbing' : 'grab';
+      }
     }
-  }, [canvasCoords, nodeAt]);
+  }, [canvasCoords, nodeAt, edgeAt, lockedEdge]);
 
   const handleMouseUp = useCallback((e) => {
     dragRef.current.active = false;
@@ -702,7 +832,20 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       const p    = canvasCoords(e.clientX, e.clientY);
       if (!p) return;
       const node = nodeAt(p.x, p.y);
-      if (!node) return;
+      if (!node) {
+        // No node hit — check for edge click to lock/unlock readout
+        const edge = edgeAt(p.x, p.y);
+        if (edge) {
+          setLockedEdge(edge);
+          setHoveredEdge(edge);
+          setSelectedNode(null);
+        } else {
+          setLockedEdge(null);
+          setHoveredEdge(null);
+          setSelectedNode(null);
+        }
+        return;
+      }
       if (e.button === 2) {
         if (node.alias) handleRunKernel(node.alias);
       } else {
@@ -714,9 +857,12 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         firedRef.current = { seedId: node.id, neighborIds: nbs, t0: performance.now() };
         const nodeIdx = NODES.findIndex(n => n.id === node.id);
         if (onCueNode && nodeIdx >= 0) onCueNode(nodeIdx);
+        // Show 16D analysis for this node's edges in the readout panel
+        setSelectedNode(node.id);
+        setLockedEdge(null);
       }
     }
-  }, [canvasCoords, nodeAt, fireNode, spawnEffect, onCueNode, onRunKernel]);
+  }, [canvasCoords, nodeAt, edgeAt, fireNode, spawnEffect, onCueNode, onRunKernel]);
 
   const handleContextMenu = useCallback((e) => {
     e.preventDefault();
@@ -729,6 +875,9 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   const handleMouseLeave = useCallback(() => {
     dragRef.current.active = false;
     hoveredRef.current = null;
+    clearTimeout(edgeDebounceRef.current);
+    setHoveredEdge(null);
+    setLockedEdge(null);
     if (canvasRef.current) canvasRef.current.style.cursor = 'grab';
   }, []);
 
@@ -768,6 +917,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     firedRef.current = { seedId: node.id, neighborIds: nbs, t0: performance.now() };
     const nodeIdx = NODES.findIndex(n => n.id === node.id);
     if (onCueNode && nodeIdx >= 0) onCueNode(nodeIdx);
+    setSelectedNode(node.id);
+    setLockedEdge(null);
   }, [canvasCoords, nodeAt, fireNode, spawnEffect, onCueNode]);
 
   // ── CSS vars for DOM elements outside canvas ──────────────────────────────
@@ -906,84 +1057,176 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         </span>
       </div>
 
-      {/* Attractor readout */}
-      {associativeField && (
-        <div className="mt-3 border border-amber-900/30 bg-black/60 rounded-sm p-3 font-mono text-[9px]">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-amber-400/70 tracking-widest uppercase">
-              hopfield attractor · seed: {
-                associativeField.seed >= 0
-                  ? NODES[associativeField.seed]?.label ?? associativeField.seed
-                  : 'random'
+      {/* ── TerminalReadout — node-click shows all edges, edge-click zooms one ── */}
+      {selectedNode && selectedNodeEdges && !lockedEdge && (() => {
+        const seed = NODES.find(n => n.id === selectedNode);
+        if (!seed) return null;
+        const seedCol = NODE_COLORS[seed.id];
+        const clusterLabel = CLUSTERS[seed.cluster]?.label ?? seed.cluster;
+        return (
+          <div
+            className="mt-3 border rounded-sm p-3 font-mono text-[10px] leading-relaxed"
+            style={{
+              borderColor: hslAlpha(seedCol, 0.35),
+              background: `linear-gradient(135deg, rgba(0,0,0,0.88), ${hslAlpha(seedCol, 0.06)}, rgba(0,0,0,0.88))`,
+            }}
+          >
+            {/* Node header */}
+            <div style={{ color: seedCol.hsl }}>
+              {'> [NODE SELECTED] :: '}
+              <span style={{ color: 'rgba(255,255,255,0.95)' }}>{seed.label.toUpperCase()}</span>
+            </div>
+            <div className="mt-1" style={{ color: 'rgba(255,255,255,0.40)' }}>
+              {'  [STATE] :: '}
+              <span style={{ color: seedCol.hsl }}>{seed.id}</span>
+              {' ∈ '}
+              <span style={{ color: CLUSTER_COLORS[seed.cluster]?.hsl }}>{clusterLabel}</span>
+              {' · '}{selectedNodeEdges.length}{' edges · click edge on sphere to isolate'}
+            </div>
+
+            {/* All connected edges with 16D analysis */}
+            {selectedNodeEdges.map((ed, i) => {
+              const nb = NODES.find(n => n.id === ed.bId);
+              if (!nb) return null;
+              const nbCol = NODE_COLORS[nb.id];
+              const accent = ed.isSpectralBridge ? 'rgba(6,182,212,' : 'rgba(255,215,0,';
+              const sameCluster = seed.cluster === nb.cluster;
+              return (
+                <div key={ed.bId} className={i === 0 ? 'mt-2' : 'mt-3'} style={{ borderTop: i > 0 ? '1px solid rgba(255,255,255,0.06)' : 'none', paddingTop: i > 0 ? '8px' : 0 }}>
+                  {/* Edge link line */}
+                  <div style={{ color: `${accent}0.85)` }}>
+                    {'  > [LINK] :: '}
+                    <span style={{ color: seedCol.hsl }}>{seed.label.toUpperCase()}</span>
+                    {' <-> '}
+                    <span style={{ color: nbCol.hsl }}>{nb.label.toUpperCase()}</span>
+                    {ed.isSpectralBridge && <span style={{ color: 'rgba(6,182,212,0.6)' }}>{' ◆ spectral'}</span>}
+                    {!sameCluster && !ed.isSpectralBridge && <span style={{ color: 'rgba(255,255,255,0.25)' }}>{' ○ cross-cluster'}</span>}
+                  </div>
+
+                  {/* Cosine distance */}
+                  <div className="mt-0.5" style={{ color: `${accent}0.70)` }}>
+                    {'    [COSINE_DISTANCE] :: '}
+                    <span style={{ color: 'rgba(255,255,255,0.90)' }}>{ed.cosSim.toFixed(4)}</span>
+                    <span style={{ color: 'rgba(255,255,255,0.25)' }}>
+                      {ed.cosSim >= 0.85 ? '  ▓▓▓▓▓' :
+                       ed.cosSim >= 0.70 ? '  ▓▓▓▓░' :
+                       ed.cosSim >= 0.55 ? '  ▓▓▓░░' :
+                                           '  ▓▓░░░'}
+                    </span>
+                  </div>
+
+                  {/* Top 3 dominant tensors — compact single-line each */}
+                  {ed.drivers.slice(0, 3).map(d => (
+                    <div key={d.name} className="mt-0.5" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                      {'    [TENSOR] '}
+                      <span style={{ color: 'rgba(255,215,0,0.90)' }}>{d.name}</span>
+                      <span style={{ color: 'rgba(255,255,255,0.25)' }}>{' :: '}</span>
+                      <span style={{ color: 'rgba(255,255,255,0.75)' }}>{d.value.toFixed(3)}</span>
+                      <span style={{ color: 'rgba(255,255,255,0.20)' }}>
+                        {' ('}{seed.id}={d.magA.toFixed(2)}{' · '}{nb.id}={d.magB.toFixed(2)}{')'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+
+            {/* System signature */}
+            <div className="mt-3" style={{ color: 'rgba(255,255,255,0.12)' }}>
+              {'  ── spectral_bridge.rs · 16D fingerprint space · cosine similarity ──'}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Single-edge detail — shown when an edge is click-locked on the sphere */}
+      {lockedEdge && (() => {
+        const ed = lockedEdge;
+        const nA = NODES.find(n => n.id === ed.aId);
+        const nB = NODES.find(n => n.id === ed.bId);
+        if (!nA || !nB) return null;
+        const colA = NODE_COLORS[nA.id], colB = NODE_COLORS[nB.id];
+        const sameCluster = nA.cluster === nB.cluster;
+        const clusterA = CLUSTERS[nA.cluster]?.label ?? nA.cluster;
+        const clusterB = CLUSTERS[nB.cluster]?.label ?? nB.cluster;
+        const accent = ed.isSpectralBridge ? 'rgba(6,182,212,' : 'rgba(255,215,0,';
+        return (
+          <div
+            className="mt-3 border rounded-sm p-3 font-mono text-[10px] leading-relaxed"
+            style={{
+              borderColor: `${accent}0.35)`,
+              background: `linear-gradient(135deg, rgba(0,0,0,0.88), ${hslAlpha(colA, 0.04)}, ${hslAlpha(colB, 0.04)}, rgba(0,0,0,0.88))`,
+            }}
+          >
+            <div style={{ color: `${accent}0.90)` }}>
+              {'> [LINK ESTABLISHED] :: '}
+              <span style={{ color: colA.hsl }}>{nA.label.toUpperCase()}</span>
+              {' <-> '}
+              <span style={{ color: colB.hsl }}>{nB.label.toUpperCase()}</span>
+            </div>
+
+            <div className="mt-1.5" style={{ color: 'rgba(255,255,255,0.45)' }}>
+              {'  [STATE] :: '}
+              <span style={{ color: colA.hsl }}>{nA.id}</span>
+              {' ∈ '}
+              <span style={{ color: CLUSTER_COLORS[nA.cluster]?.hsl }}>{clusterA}</span>
+              {sameCluster
+                ? <span>{' (intra-cluster bond)'}</span>
+                : <>
+                    {' · '}
+                    <span style={{ color: colB.hsl }}>{nB.id}</span>
+                    {' ∈ '}
+                    <span style={{ color: CLUSTER_COLORS[nB.cluster]?.hsl }}>{clusterB}</span>
+                    {ed.isSpectralBridge
+                      ? <span style={{ color: `${accent}0.8)` }}>{' (spectral bridge)'}</span>
+                      : <span>{' (cross-cluster default)'}</span>
+                    }
+                  </>
               }
-            </span>
-            <span className="text-amber-600/40">E = {associativeField.energy?.toFixed(3)}</span>
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {associativeField.co?.map(idx => {
-              const node = NODES[idx];
-              if (!node) return null;
-              const col  = NODE_COLORS[node.id];
-              return (
-                <span
-                  key={idx}
-                  className="border px-1.5 py-0.5 rounded-sm tracking-wider"
-                  style={{ color: col.hsl, borderColor: hslAlpha(col, 0.35) }}
-                >
-                  {node.label}
-                </span>
-              );
-            })}
-          </div>
-        </div>
-      )}
+            </div>
 
-      {/* Rust spectral analysis — auto-fires on mount */}
-      {rustAnalysis && (
-        <div className="mt-3 border border-amber-900/20 bg-black/80 rounded-sm p-3 font-mono text-[10px]">
-          <div className="text-amber-400/60 tracking-widest uppercase mb-2">
-            spectral_bridge :: rust kernel findings
-          </div>
-          <pre
-            className="whitespace-pre-wrap break-words leading-relaxed"
-            style={{ color: 'rgba(255,215,0,0.75)', maxHeight: '220px', overflowY: 'auto' }}
-          >{rustAnalysis}</pre>
-        </div>
-      )}
+            <div className="mt-1" style={{ color: `${accent}0.85)` }}>
+              {'  [COSINE_DISTANCE] :: '}
+              <span style={{ color: 'rgba(255,255,255,0.95)' }}>{ed.cosSim.toFixed(4)}</span>
+              <span style={{ color: 'rgba(255,255,255,0.30)' }}>
+                {ed.cosSim >= 0.85 ? '  ▓▓▓▓▓ strong' :
+                 ed.cosSim >= 0.70 ? '  ▓▓▓▓░ moderate' :
+                 ed.cosSim >= 0.55 ? '  ▓▓▓░░ weak' :
+                                     '  ▓▓░░░ distant'}
+              </span>
+            </div>
 
-      {/* Spectral bridge readout */}
-      {spectralBridges?.bridges?.length > 0 && (
-        <div className="mt-3 border border-cyan-900/30 bg-black/60 rounded-sm p-3 font-mono text-[9px]">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-cyan-400/70 tracking-widest uppercase">
-              spectral bridges · cos &ge; {spectralBridges.threshold?.toFixed(2)}
-            </span>
-            <span className="text-cyan-600/40">{spectralBridges.bridges.length} cross-cluster</span>
+            {ed.drivers.length > 0 && (
+              <div className="mt-1.5">
+                <div style={{ color: `${accent}0.75)` }}>
+                  {'  [DOMINANT_TENSORS] :: top '}{ed.drivers.length}{' of 16 dimensions'}
+                </div>
+                {ed.drivers.map(d => {
+                  const barLen = Math.round(d.value * 20);
+                  const bar = '█'.repeat(barLen) + '░'.repeat(20 - barLen);
+                  return (
+                    <div key={d.name} className="mt-0.5" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                      {'    '}
+                      <span style={{ color: 'rgba(255,215,0,0.95)', display: 'inline-block', minWidth: '120px' }}>
+                        {d.name}
+                      </span>
+                      <span style={{ color: 'rgba(255,255,255,0.25)' }}>{bar} </span>
+                      <span style={{ color: 'rgba(255,255,255,0.80)' }}>{d.value.toFixed(3)}</span>
+                      <span style={{ color: 'rgba(255,255,255,0.25)' }}>
+                        {' ('}{nA.id}={d.magA.toFixed(2)}{' · '}{nB.id}={d.magB.toFixed(2)}{')'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="mt-2" style={{ color: 'rgba(255,255,255,0.12)' }}>
+              {'  ── spectral_bridge.rs · 16D fingerprint space · cosine similarity ──'}
+            </div>
           </div>
-          <div className="flex flex-wrap gap-1.5">
-            {spectralBridges.bridges.map(([a, b, sim], i) => {
-              const nA = NODES[a], nB = NODES[b];
-              if (!nA || !nB) return null;
-              const colA = NODE_COLORS[nA.id], colB = NODE_COLORS[nB.id];
-              return (
-                <span
-                  key={i}
-                  className="border px-1.5 py-0.5 rounded-sm tracking-wider"
-                  style={{
-                    borderColor: hslAlpha(colA, 0.25),
-                    background: `linear-gradient(90deg, ${hslAlpha(colA, 0.08)}, ${hslAlpha(colB, 0.08)})`,
-                  }}
-                >
-                  <span style={{ color: colA.hsl }}>{nA.label}</span>
-                  <span style={{ color: 'rgba(255,255,255,0.25)' }}> ~ </span>
-                  <span style={{ color: colB.hsl }}>{nB.label}</span>
-                  <span style={{ color: 'rgba(255,255,255,0.20)' }}> {sim.toFixed(2)}</span>
-                </span>
-              );
-            })}
-          </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
