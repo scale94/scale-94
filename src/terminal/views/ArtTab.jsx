@@ -427,8 +427,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       const H = Math.floor(Math.min(Math.max(W * 0.65, 360), 580));
       dimsRef.current = { w: W, h: H };
       if (canvasRef.current) {
-        canvasRef.current.width  = W;
-        canvasRef.current.height = H;
+        const dpr = window.devicePixelRatio || 1;
+        canvasRef.current.width  = W * dpr;
+        canvasRef.current.height = H * dpr;
+        canvasRef.current.style.width  = W + 'px';
+        canvasRef.current.style.height = H + 'px';
       }
       initState();
     });
@@ -483,6 +486,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         .sort((a, b) => proj[a].depth - proj[b].depth);
 
       // ── Clear with trail fade ─────────────────────────────────────────────
+      const dpr = window.devicePixelRatio || 1;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.fillStyle = 'rgba(0,0,0,0.18)';
       ctx.fillRect(0, 0, w, h);
 
@@ -767,12 +772,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           );
 
           ctx.textAlign = 'center';
-          if (showFire && fireAlpha > energyA && !showHover) {
-            // Fired labels: render in the node's own color for visual punch
-            ctx.fillStyle = hslAlpha(renderCol, la);
-          } else {
-            ctx.fillStyle = `rgba(255,255,255,${la})`;
-          }
+          // Always render labels in the node's own cluster color
+          ctx.fillStyle = hslAlpha(renderCol, la * (showHover ? 1.0 : 0.82));
           ctx.font = `bold ${fontSize}px monospace`;
           ctx.fillText(n.label, p.sx, p.sy - radius - 4);
         }
