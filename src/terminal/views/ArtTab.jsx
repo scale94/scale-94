@@ -182,6 +182,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     edgeStateRef, stepEdges, applyAttractor: applyEdgeAttractor,
   } = useKineticEdges({ edges: activeEdges, nodes: NODES });
 
+  // ── Fired-node label cascade ──────────────────────────────────────────────
+  // When a node is clicked, store its neighborhood so the draw loop can
+  // render their labels with a staggered fade-in / hold / fade-out envelope.
+  const firedRef = useRef(null);  // { seedId, neighborIds: Set, t0: ms }
+
   // ── Geometry prism effects ────────────────────────────────────────────────
   const geomEffectsRef = useRef([]);
   const [termInput, setTermInput] = useState('');
@@ -549,12 +554,56 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         ctx.fillStyle = isHov ? renderCol.hsl : hslAlpha(renderCol, coreAlpha);
         ctx.fill();
 
-        // Label — only near/hovered or high-energy nodes
-        if (isHov || (n.energy > 0.45 && p.depth > -0.1)) {
-          const la = isHov ? 0.92 : n.energy * 0.80 * depthAlpha;
-          ctx.fillStyle   = `rgba(255,255,255,${la})`;
-          ctx.font        = `bold ${Math.round((isHov ? 10 : 8) * p.scale)}px monospace`;
-          ctx.textAlign   = 'center';
+        // ── Label rendering ────────────────────────────────────────────────
+        // Three sources of label visibility, composited:
+        //   1. Hover — always full brightness
+        //   2. High energy — natural decay after fireNode
+        //   3. Fired cascade — staggered fade-in/hold/fade-out for clicked
+        //      node and its neighbors, with the seed node firing first
+        const fired  = firedRef.current;
+        const inFire = fired && fired.neighborIds.has(n.id);
+        let fireAlpha = 0;
+        if (inFire) {
+          const elapsed = (performance.now() - fired.t0) / 1000;  // seconds
+          const isSeed  = n.id === fired.seedId;
+          // Stagger: seed appears instantly, neighbors delayed 80-200ms by index
+          const delay   = isSeed ? 0 : 0.08 + (i % 5) * 0.025;
+          const t       = elapsed - delay;
+          // Envelope: 0→0.35s fade-in, 0.35→2.5s hold, 2.5→3.5s fade-out
+          if (t < 0)          fireAlpha = 0;
+          else if (t < 0.35)  fireAlpha = t / 0.35;                         // ease in
+          else if (t < 2.5)   fireAlpha = 1.0;                              // hold
+          else if (t < 3.5)   fireAlpha = 1.0 - (t - 2.5);                 // fade out
+          else                { fireAlpha = 0; }
+          // Seed gets full brightness; neighbors get node color tint
+          fireAlpha *= (isSeed ? 0.95 : 0.80) * depthAlpha;
+          // Clear ref when all labels have faded
+          if (elapsed > 3.8) firedRef.current = null;
+        }
+
+        const showHover  = isHov;
+        const showEnergy = n.energy > 0.45 && p.depth > -0.1;
+        const showFire   = fireAlpha > 0.01;
+
+        if (showHover || showEnergy || showFire) {
+          // Pick highest alpha source
+          const hoverA  = showHover  ? 0.92 : 0;
+          const energyA = showEnergy ? n.energy * 0.80 * depthAlpha : 0;
+          const la      = Math.max(hoverA, energyA, fireAlpha);
+
+          const isSeed  = fired && n.id === fired.seedId;
+          const fontSize = Math.round(
+            ((showHover || isSeed) ? 10 : showFire ? 9 : 8) * p.scale
+          );
+
+          ctx.textAlign = 'center';
+          if (showFire && fireAlpha > energyA && !showHover) {
+            // Fired labels: render in the node's own color for visual punch
+            ctx.fillStyle = hslAlpha(renderCol, la);
+          } else {
+            ctx.fillStyle = `rgba(255,255,255,${la})`;
+          }
+          ctx.font = `bold ${fontSize}px monospace`;
           ctx.fillText(n.label, p.sx, p.sy - radius - 4);
         }
       }
@@ -644,6 +693,10 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       } else {
         fireNode(node.id);
         spawnEffect(node.id, { soft: true });   // attractor click → soft geometry pulse
+        // Label cascade — record seed + neighbors for the draw loop
+        const nbs = new Set(ADJ[node.id] ?? []);
+        nbs.add(node.id);
+        firedRef.current = { seedId: node.id, neighborIds: nbs, t0: performance.now() };
         const nodeIdx = NODES.findIndex(n => n.id === node.id);
         if (onCueNode && nodeIdx >= 0) onCueNode(nodeIdx);
       }
@@ -694,6 +747,10 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     if (!node) return;
     fireNode(node.id);
     spawnEffect(node.id, { soft: true });
+    // Label cascade — record seed + neighbors for the draw loop
+    const nbs = new Set(ADJ[node.id] ?? []);
+    nbs.add(node.id);
+    firedRef.current = { seedId: node.id, neighborIds: nbs, t0: performance.now() };
     const nodeIdx = NODES.findIndex(n => n.id === node.id);
     if (onCueNode && nodeIdx >= 0) onCueNode(nodeIdx);
   }, [canvasCoords, nodeAt, fireNode, spawnEffect, onCueNode]);

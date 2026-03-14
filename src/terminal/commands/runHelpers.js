@@ -69,6 +69,9 @@ export const CMD_MANIFEST = [
   { name: 'privacy',       desc: 'navigate to /privacy' },
   { name: 'cryptography',  desc: 'navigate to /cryptography — PQC kernel' },
   { name: 'verify',        desc: 'submit classified challenge  e.g. verify ABCDEF' },
+  { name: 'keygen',        desc: 'generate ML-KEM-768 keypair for encrypt/decrypt' },
+  { name: 'seal',          desc: 'encrypt message with ML-KEM-768 + AES-256-GCM  e.g. seal hello world' },
+  { name: 'open',          desc: 'decrypt sealed blob  e.g. open <hex>' },
   { name: 'breach',        desc: 'launch Breach Protocol minigame' },
   { name: 'relic',         desc: 'trigger Relic malfunction diagnostics' },
 ];

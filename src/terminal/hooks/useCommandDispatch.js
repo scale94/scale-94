@@ -50,7 +50,7 @@ export function useCommandDispatch(ctx) {
       setSearchFilter, setCurrentPath, setRelicMode, setBreachOpen, applyEcoCost,
       setOriginTab, setArchitectThesis, setTagCloudView,
       appendSystemLog, handleNav, handleKernelClick, handleTransmissionSelect,
-      loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField, setSpectralBridges,
+      loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField, setSpectralBridges, setEnclaveKeys,
     } = ctxRef.current;
 
     const log  = (msg, rust = false) => appendSystemLog({ time: now, msg, rust });
@@ -385,6 +385,109 @@ export function useCommandDispatch(ctx) {
           }
         })();
       }
+      return;
+    }
+
+    // ── keygen / seal / open — ML-KEM-768 + AES-256-GCM enclave ──────────────
+    if (action === 'keygen') {
+      log(`COMMAND: ${rawCmd}`);
+      (async () => {
+        try {
+          const mod = await import('../../wasm/scale94_kernels.js');
+          const wasmEntry = Object.values(wasmRegistry).find(e => e.fn === 'run_spectral_bridge');
+          const wasmUrl = wasmEntry?.wasmUrl ?? '/wasm/scale94_kernels_bg.wasm';
+          await mod.default({ module_or_path: wasmUrl });
+          const t0 = performance.now();
+          const result = mod.enclave_keygen();
+          const elapsed = (performance.now() - t0).toFixed(4);
+          const dataMatch = result.match(/\nDATA:(\{.*\})$/s);
+          const displayResult = dataMatch ? result.slice(0, result.length - dataMatch[0].length) : result;
+          const lines = displayResult.split('\n');
+          const doneTime = new Date().toLocaleTimeString('en-US', { hour12: false });
+          setSystemLogs(prev => [
+            ...prev,
+            { time: now, msg: `  ── ENCLAVE KEYGEN ────────────────────────`, rust: true },
+            ...lines.map(l => ({ time: now, msg: `  ${l}`, rust: true })),
+            { time: now, msg: `  ──────────────────────────────────────────`, rust: true },
+            { time: doneTime, msg: `ENCLAVE: KEYGEN COMPLETE  ·  EXEC_TIME: ${elapsed}ms`, rust: true },
+          ].slice(-2000));
+          if (dataMatch) {
+            try {
+              const data = JSON.parse(dataMatch[1]);
+              // Store ek/dk hex in session for display — actual keys live in WASM memory
+              ctxRef.current.setEnclaveKeys?.({ ek: data.ek, dk: data.dk });
+            } catch (_) { /* malformed DATA: — ignore */ }
+          }
+        } catch (err) {
+          logs(`  WASM_RUNTIME_ERROR :: ${err.message}`);
+        }
+      })();
+      return;
+    }
+
+    if (action === 'seal') {
+      if (!query) {
+        executeCommand(rawCmd, `SEAL_FAIL :: No plaintext supplied. Usage: seal <message>`);
+        return;
+      }
+      log(`COMMAND: ${rawCmd}`);
+      (async () => {
+        try {
+          const mod = await import('../../wasm/scale94_kernels.js');
+          const wasmEntry = Object.values(wasmRegistry).find(e => e.wasmUrl);
+          const wasmUrl = wasmEntry?.wasmUrl ?? '/wasm/scale94_kernels_bg.wasm';
+          await mod.default({ module_or_path: wasmUrl });
+          const t0 = performance.now();
+          const result = mod.enclave_seal(query);
+          const elapsed = (performance.now() - t0).toFixed(4);
+          const dataMatch = result.match(/\nDATA:(\{.*\})$/s);
+          const displayResult = dataMatch ? result.slice(0, result.length - dataMatch[0].length) : result;
+          const lines = displayResult.split('\n');
+          const doneTime = new Date().toLocaleTimeString('en-US', { hour12: false });
+          setSystemLogs(prev => [
+            ...prev,
+            { time: now, msg: `  ── ENCLAVE SEAL ──────────────────────────`, rust: true },
+            ...lines.map(l => ({ time: now, msg: `  ${l}`, rust: true })),
+            { time: now, msg: `  ──────────────────────────────────────────`, rust: true },
+            { time: doneTime, msg: `ENCLAVE: SEAL COMPLETE  ·  EXEC_TIME: ${elapsed}ms`, rust: true },
+          ].slice(-2000));
+        } catch (err) {
+          logs(`  ENCLAVE_ERROR :: ${err.message}`, `  Have you run 'keygen' first?`);
+        }
+      })();
+      return;
+    }
+
+    if (action === 'open') {
+      if (!query) {
+        executeCommand(rawCmd, `OPEN_FAIL :: No sealed blob supplied. Usage: open <hex_blob>`);
+        return;
+      }
+      log(`COMMAND: ${rawCmd}`);
+      (async () => {
+        try {
+          const mod = await import('../../wasm/scale94_kernels.js');
+          const wasmEntry = Object.values(wasmRegistry).find(e => e.wasmUrl);
+          const wasmUrl = wasmEntry?.wasmUrl ?? '/wasm/scale94_kernels_bg.wasm';
+          await mod.default({ module_or_path: wasmUrl });
+          const t0 = performance.now();
+          const result = mod.enclave_open(query);
+          const elapsed = (performance.now() - t0).toFixed(4);
+          const dataMatch = result.match(/\nDATA:(\{.*\})$/s);
+          const displayResult = dataMatch ? result.slice(0, result.length - dataMatch[0].length) : result;
+          const lines = displayResult.split('\n');
+          const doneTime = new Date().toLocaleTimeString('en-US', { hour12: false });
+          setSystemLogs(prev => [
+            ...prev,
+            { time: now, msg: `  ── ENCLAVE OPEN ──────────────────────────`, rust: true },
+            ...lines.map(l => ({ time: now, msg: `  ${l}`, rust: true })),
+            { time: now, msg: `  ──────────────────────────────────────────`, rust: true },
+            { time: doneTime, msg: `ENCLAVE: OPEN COMPLETE  ·  EXEC_TIME: ${elapsed}ms`, rust: true },
+          ].slice(-2000));
+        } catch (err) {
+          logs(`  ENCLAVE_ERROR :: ${err.message}`, `  Have you run 'keygen' first?`);
+        }
+      })();
       return;
     }
 

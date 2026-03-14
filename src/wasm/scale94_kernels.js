@@ -380,6 +380,70 @@ export function classified_params() {
 }
 
 /**
+ * Generate an ML-KEM-768 keypair. Stores the typed keypair in WASM memory
+ * for subsequent seal/open calls. Returns formatted log + DATA: JSON with
+ * hex-encoded ek (public) and dk (private).
+ * @returns {string}
+ */
+export function enclave_keygen() {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.enclave_keygen();
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * Decrypt a sealed blob using the decapsulation key from the most recent
+ * `enclave_keygen()` call.
+ * `sealed_hex` — hex-encoded sealed blob (kem_ct || nonce || aes_ct+tag)
+ * Returns formatted log + DATA: JSON with the recovered plaintext.
+ * @param {string} sealed_hex
+ * @returns {string}
+ */
+export function enclave_open(sealed_hex) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(sealed_hex, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.enclave_open(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
+ * Encrypt a plaintext message using ML-KEM-768 + AES-256-GCM.
+ * Uses the encapsulation key from the most recent `enclave_keygen()` call.
+ * Returns formatted log + DATA: JSON with the hex-encoded sealed blob.
+ * @param {string} plaintext
+ * @returns {string}
+ */
+export function enclave_seal(plaintext) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(plaintext, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.enclave_seal(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
  * Autocomplete hint: returns parameter names for the terminal UI
  * @returns {Array<any>}
  */

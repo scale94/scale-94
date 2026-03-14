@@ -38,3 +38,4 @@ pub mod mesantropy;          // run_mesantropy (Scalar Sovereignty Engine v3.3.3
 pub mod sovereign_seven;     // run_sovereign_seven (Crystalline Invariance Engine v7.7.7.7.7.7.7)
 pub mod tesseract_vault;     // run_tesseract_vault (Hybrid PQC Pipeline · Argon2id + ML-KEM-1024 + ML-DSA-87 + AES-256-GCM + BLAKE3)
 pub mod spectral_bridge;     // run_spectral_bridge (Cross-Cluster Topology Discovery · Cosine Similarity · 16-dim Mathematical Fingerprints)
+pub mod enclave;             // enclave_keygen, enclave_seal, enclave_open (ML-KEM-768 + AES-256-GCM real encrypt/decrypt)
