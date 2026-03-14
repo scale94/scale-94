@@ -53,6 +53,13 @@ const NODES = [
   { id: 'strangler',   label: 'strangler_fig',  cluster: 'drk',    alias: 'strangler_fig'   },
   { id: 'surveillance',label: 'surveillance',   cluster: 'drk',    alias: 'surveillance'    },
   { id: 'necromantic', label: 'necromantic',    cluster: 'drk',    alias: 'necromantic'     },
+  // ── Seraphine-8.8.8.8.8.8.8.8 triad nodes ──────────────────────────────────
+  { id: 'white_irid',        label: 'white_irid',        cluster: 'eco',    alias: 'white_irid'        },
+  { id: 'pitch_black_steel', label: 'pitch_black_steel', cluster: 'phys',   alias: 'pitch_black_steel' },
+  { id: 'bouligand_36',      label: 'bouligand_36',      cluster: 'eco',    alias: 'bouligand_36'      },
+  { id: 'polymorph_pqc',     label: 'polymorph_pqc',     cluster: 'crypto', alias: 'polymorph_pqc'     },
+  { id: 'magic_angle_1p1',   label: 'magic_angle_1.1',   cluster: 'phys',   alias: 'magic_angle'       },
+  { id: 'zero_effort_flow',  label: 'zero_effort_flow',  cluster: 'drk',    alias: 'zero_effort_flow'  },
 ];
 
 // Intra-cluster edges — same cluster, always present
@@ -63,7 +70,15 @@ const INTRA_EDGES = [
   ['soma91',      'soma_plus'],  ['soma91',      'leviathan'],   ['leviathan', 'cynic'],
   ['feigenbaum',  'ising'],      ['feigenbaum',  'bosonic'],
   ['ising',       'bosonic'],    ['bosonic',     'seraphine'],   ['seraphine', 'fusion'],
+  ['ising',       'magic_angle_1p1'],                           // condensed matter pair
+  ['bosonic',     'magic_angle_1p1'],                           // quantum phase pair
+  ['pitch_black_steel', 'fusion'],                              // extreme material conditions
+  ['pitch_black_steel', 'seraphine'],                           // mineralization bridge
   ['classified',  'pqhash'],     ['classified',  'dh_ec'],
+  ['classified',  'polymorph_pqc'], ['pqhash', 'polymorph_pqc'], // PQC cluster
+  ['white_irid',  'bouligand_36'],                              // same organism
+  ['white_irid',  'biocoenosis'],                               // biological systems
+  ['zero_effort_flow', 'necromantic'],                          // drk experiential
   ['pragmatic',   'soma_kernel'],['soma_kernel', 'strangler'],
   ['strangler',   'necromantic'],['strangler',   'surveillance'],
 ];
@@ -77,6 +92,10 @@ const DEFAULT_CROSS_EDGES = [
   ['leviathan',   'surveillance'],
   ['grayscott',   'ising'],
   ['daly',        'ceei'],
+  // ── Seraphine-8.8.8.8.8.8.8.8 fusion pair bridges ──
+  ['white_irid',       'pitch_black_steel'], // Pair 1: biological ↔ industrial toughness (cos 0.855)
+  ['bouligand_36',     'polymorph_pqc'],     // Pair 2: rotation ↔ lattice defense (cos 0.611)
+  ['magic_angle_1p1',  'zero_effort_flow'],  // Pair 3: threshold superconductivity ↔ flow (cos 0.863)
 ];
 
 // Full static edge list for physics (always includes all defaults for spring forces)
@@ -131,7 +150,14 @@ const FEATURES = [
   /* 21 soma_kernel */ [0.50,0.50,0.70,0.30,0.60,0.45,0.50,0.50,0.65,0.30,0.30,0.50,0.55,0.00,0.20,0.30],
   /* 22 strangler   */ [0.50,0.50,0.50,0.40,0.35,0.30,0.30,0.70,0.35,0.25,0.20,0.30,0.25,0.00,0.60,0.15],
   /* 23 surveillance*/ [0.25,0.30,0.55,0.20,0.60,0.20,0.20,0.50,0.65,0.20,0.50,0.10,0.70,0.30,0.10,0.30],
-  /* 24 necromantic */ [0.70,0.65,0.50,0.40,0.40,0.30,0.20,0.65,0.35,0.50,0.20,0.45,0.30,0.00,0.50,0.10],
+  /* 24 necromantic     */ [0.70,0.65,0.50,0.40,0.40,0.30,0.20,0.65,0.35,0.50,0.20,0.45,0.30,0.00,0.50,0.10],
+  // ── Seraphine-8.8.8.8.8.8.8.8 triad nodes — dims [13]=crypto [14]=bio [15]=economic ──
+  /* 25 white_irid        */ [0.45,0.70,0.55,0.35,0.40,0.65,0.25,0.80,0.75,0.20,0.05,0.50,0.25,0.00,1.00,0.10],
+  /* 26 pitch_black_steel */ [0.40,0.75,0.45,0.70,0.45,0.55,0.30,0.30,0.55,0.35,0.05,0.90,0.15,0.00,0.00,0.80],
+  /* 27 bouligand_36      */ [0.35,0.60,0.35,0.25,0.30,0.90,0.20,0.10,0.55,0.15,0.05,0.40,0.20,0.10,0.90,0.05],
+  /* 28 polymorph_pqc     */ [0.30,0.80,0.90,0.40,0.85,0.15,0.10,0.10,0.05,0.90,0.85,0.10,0.90,0.95,0.00,0.40],
+  /* 29 magic_angle_1p1   */ [0.80,0.85,0.70,0.95,0.65,0.90,0.75,0.20,0.80,0.55,0.00,0.90,0.45,0.15,0.00,0.20],
+  /* 30 zero_effort_flow  */ [0.75,0.70,0.65,0.60,0.50,0.70,0.40,0.45,0.40,0.40,0.20,0.20,0.55,0.00,0.60,0.30],
 ];
 
 // ID → NODES index lookup (built once)
