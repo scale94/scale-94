@@ -811,6 +811,29 @@ const KERNEL_MAP = [
     type:    'rust',
     aliases: ['spectral', 'bridge', 'spectral_bridge', 'topology', 'cosine', 'fingerprint', 'cross_cluster', 'discover'],
   },
+  {
+    // Conceptual Singularity Engine — 16D tensor fusion foundation.
+    // Extends spectral_bridge 16D space with hysteresis, metabolic_cost, modularity.
+    // n_tensors: args[0]  flags: --nodes, --tensors, --n
+    // n_cycles:  args[1]  flags: --cycles, --steps
+    // threshold: args[2]  flags: --threshold, --thresh
+    id:      'BONE-FUSION-V6_6_6_6_6_6',
+    fn:      'run_bone_fusion',
+    args:    [25.0, 8.0, 0.90],
+    argMap:  {
+      nodes: 0, tensors: 0, n: 0,
+      cycles: 1, steps: 1,
+      threshold: 2, thresh: 2,
+    },
+    params: [
+      { name: 'n_tensors', default: 25.0, desc: 'number of tensor nodes to load (4–25, maps to kernel nodes)' },
+      { name: 'n_cycles',  default: 8.0,  desc: 'kinetic damping / fusion cycles (1–64)' },
+      { name: 'threshold', default: 0.90, desc: 'convergence threshold for fusion eligibility (0.50–0.9999)' },
+    ],
+    label:   'Bone Fusion v6.6.6.6.6.6 · Conceptual Singularity Engine',
+    type:    'rust',
+    aliases: ['bone', 'fusion', 'bone_fusion', 'singularity', 'tensor', 'tensor_fusion', '6666'],
+  },
 ];
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
@@ -985,6 +1008,21 @@ function run() {
       }
     } catch (e) {
       console.warn(`  ⚠ Could not update manifest WASM hash: ${e.message}`);
+    }
+  }
+
+  // ── Step 5: Clear Vite bundle cache ─────────────────────────────────────────
+  // Vite caches scale94_kernels.js in node_modules/.vite. If the cache is stale
+  // (built before this WASM rebuild), the old JS glue calls wasm.<fn>() on a
+  // binary that doesn't have the export → "wasm.run_<fn> is not a function".
+  // Deleting the cache forces Vite to re-bundle the new bindings on next dev start.
+  const viteCacheDir = path.join(ROOT, 'node_modules', '.vite');
+  if (!DRY_RUN && fs.existsSync(viteCacheDir)) {
+    try {
+      fs.rmSync(viteCacheDir, { recursive: true, force: true });
+      log(`✓ Cleared Vite cache (node_modules/.vite) — restart dev server`);
+    } catch (e) {
+      console.warn(`  ⚠ Could not clear Vite cache: ${e.message}`);
     }
   }
 

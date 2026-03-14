@@ -101,6 +101,8 @@ const App = () => {
   const [spectralBridges, setSpectralBridges] = useState(null);
   // Enclave keys — { ek, dk } hex strings from keygen, null until generated
   const [enclaveKeys, setEnclaveKeys] = useState(null);
+  // Probe node — { query, probeVector, similarities } from text_probe kernel, null until run
+  const [probeNode, setProbeNode] = useState(null);
   // Relic malfunction mode — amplifies glitch, streams hex to log
   const [relicMode,    setRelicMode]    = useState(false);
   // CAS dynamic data — null while manifest fetch is in-flight
@@ -573,7 +575,7 @@ const App = () => {
     setSearchFilter, setCurrentPath, setRelicMode, setBreachOpen, applyEcoCost,
     setOriginTab, setArchitectThesis, setTagCloudView,
     appendSystemLog, handleNav, handleKernelClick, handleTransmissionSelect,
-    loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField, setSpectralBridges, setEnclaveKeys,
+    loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField, setSpectralBridges, setEnclaveKeys, setProbeNode,
   });
 
   // Mobile auto-run — fires a WASM kernel automatically when a card is tapped on mobile.
@@ -911,6 +913,7 @@ const App = () => {
             <ArtTab
               associativeField={associativeField}
               spectralBridges={spectralBridges}
+              probeNode={probeNode}
               onRunKernel={(alias) => {
                 const now = new Date().toLocaleTimeString('en-US', { hour12: false });
                 dispatchCommand('run', alias, `run ${alias}`, now);

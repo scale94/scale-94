@@ -201,7 +201,7 @@ const AUTO_SPIN = 0.0025;   // rad/frame continuous Y rotation
 const FOCAL_K   = 2.8;      // focal = FOCAL_K × sphereR — controls perspective depth
 const SPHERE_K  = 0.50;     // sphereR = SPHERE_K × min(w, h) — larger sphere, front and center
 
-export default function ArtTab({ onRunKernel, onCueNode, associativeField, spectralBridges }) {
+export default function ArtTab({ onRunKernel, onCueNode, associativeField, spectralBridges, probeNode }) {
   const canvasRef    = useRef(null);
   const containerRef = useRef(null);
   const rafRef       = useRef(null);
@@ -277,6 +277,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   // When a node is clicked, store its neighborhood so the draw loop can
   // render their labels with a staggered fade-in / hold / fade-out envelope.
   const firedRef = useRef(null);  // { seedId, neighborIds: Set, t0: ms }
+
+  // ── Probe node — text_probe.rs concept injection ──────────────────────────
+  // { query, probe_vector, similarities: [{ id, label, cluster, sim, dist }...] }
+  const probeNodeRef = useRef(null);
+  useEffect(() => { probeNodeRef.current = probeNode ?? null; }, [probeNode]);
 
   // ── Geometry prism effects ────────────────────────────────────────────────
   const geomEffectsRef = useRef([]);
@@ -699,6 +704,67 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         }
       }
 
+      // ── Probe node (text_probe.rs concept injection) ───────────────────────
+      // Rendered after all sphere nodes so it draws on top.
+      const probe = probeNodeRef.current;
+      if (probe?.similarities?.length) {
+        const top = probe.similarities.slice(0, 4);
+        // Weighted centroid of top matches in physics node positions
+        let wx = 0, wy = 0, wz = 0, wsum = 0;
+        for (const { id, sim } of top) {
+          const ni = nodes.findIndex(n => n.id === id);
+          if (ni < 0) continue;
+          wx += nodes[ni].x * sim;
+          wy += nodes[ni].y * sim;
+          wz += nodes[ni].z * sim;
+          wsum += sim;
+        }
+        if (wsum > 1e-12) {
+          wx /= wsum; wy /= wsum; wz /= wsum;
+          const len = Math.sqrt(wx * wx + wy * wy + wz * wz);
+          if (len > 1e-12) { wx /= len; wy /= len; wz /= len; }
+          const [prx, pry, prz] = applyM(M, wx, wy, wz);
+          const pp = project(prx, pry, prz, w, h, sphereR, focal);
+          const depthAlpha = Math.max(0.12, (prz + 1) * 0.5);
+          // Tether lines to top 3 matches
+          ctx.setLineDash([3, 5]);
+          for (const { id, sim } of top.slice(0, 3)) {
+            const ni = nodes.findIndex(n => n.id === id);
+            if (ni < 0) continue;
+            const pn = proj[ni];
+            ctx.lineWidth = 0.9;
+            ctx.strokeStyle = `rgba(167,139,250,${sim * 0.55 * depthAlpha})`;
+            ctx.beginPath();
+            ctx.moveTo(pp.sx, pp.sy);
+            ctx.lineTo(pn.sx, pn.sy);
+            ctx.stroke();
+          }
+          ctx.setLineDash([]);
+          // Pulsing glow halo
+          const pulse = (Math.sin(Date.now() * 0.003) + 1) * 0.5;
+          const probeR = 6 * pp.scale;
+          const glowR  = probeR + pulse * 14 * pp.scale;
+          const gGrd = ctx.createRadialGradient(pp.sx, pp.sy, probeR * 0.3, pp.sx, pp.sy, glowR);
+          gGrd.addColorStop(0, `rgba(167,139,250,${0.45 * depthAlpha})`);
+          gGrd.addColorStop(1, 'rgba(167,139,250,0)');
+          ctx.fillStyle = gGrd;
+          ctx.beginPath();
+          ctx.arc(pp.sx, pp.sy, glowR, 0, Math.PI * 2);
+          ctx.fill();
+          // Core node
+          ctx.beginPath();
+          ctx.arc(pp.sx, pp.sy, probeR, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(196,181,253,${(0.75 + pulse * 0.25) * depthAlpha})`;
+          ctx.fill();
+          // Label
+          const shortQ = probe.query.length > 22 ? probe.query.slice(0, 20) + '…' : probe.query;
+          ctx.textAlign = 'center';
+          ctx.font = `bold ${Math.round(9 * pp.scale)}px monospace`;
+          ctx.fillStyle = `rgba(221,214,254,${0.88 * depthAlpha})`;
+          ctx.fillText(`⊕ ${shortQ}`, pp.sx, pp.sy - probeR - 5);
+        }
+      }
+
       rafRef.current = requestAnimationFrame(draw);
     };
 
@@ -967,6 +1033,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           <span className="border border-amber-900/40 px-3 py-1 rounded-sm" style={{ color: 'rgba(251,191,36,0.5)' }}>
             {NODES.length} nodes · {activeEdges.length} edges
             {spectralBridges ? ` · spectral` : ''}
+            {probeNode ? ` · ⊕ probe` : ''}
           </span>
           <span className="border border-cyan-900/30 px-3 py-1 rounded-sm text-cyan-400/50">
             drag to rotate · click → attractor · right-click / shell → run

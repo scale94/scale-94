@@ -50,7 +50,7 @@ export function useCommandDispatch(ctx) {
       setSearchFilter, setCurrentPath, setRelicMode, setBreachOpen, applyEcoCost,
       setOriginTab, setArchitectThesis, setTagCloudView,
       appendSystemLog, handleNav, handleKernelClick, handleTransmissionSelect,
-      loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField, setSpectralBridges, setEnclaveKeys,
+      loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField, setSpectralBridges, setEnclaveKeys, setProbeNode,
     } = ctxRef.current;
 
     const log  = (msg, rust = false) => appendSystemLog({ time: now, msg, rust });
@@ -182,13 +182,35 @@ export function useCommandDispatch(ctx) {
             const displayResult = dataMatch ? result.slice(0, result.length - dataMatch[0].length) : result;
             const lines    = displayResult.split('\n');
             const doneTime = new Date().toLocaleTimeString('en-US', { hour12: false });
-            setSystemLogs(prev => [
-              ...prev,
-              { time: now,      msg: `  ── KERNEL OUTPUT ─────────────────────────`, rust: true },
-              ...lines.map(l => ({ time: now, msg: `  ${l}`, rust: true })),
-              { time: now,      msg: `  ──────────────────────────────────────────`, rust: true },
-              { time: doneTime, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE  ·  EXEC_TIME: ${elapsed}ms`, rust: true },
-            ].slice(-2000));
+
+            if (wasmEntry.streaming) {
+              // Tier 1 Telemetry: stream output line-by-line at 22ms intervals
+              setSystemLogs(prev => [
+                ...prev,
+                { time: now, msg: `  ── KERNEL OUTPUT ─────────────────────────`, rust: true },
+              ].slice(-2000));
+              lines.forEach((l, i) => {
+                setTimeout(() => {
+                  const t = new Date().toLocaleTimeString('en-US', { hour12: false });
+                  setSystemLogs(prev => [...prev, { time: t, msg: `  ${l}`, rust: true }].slice(-2000));
+                  if (i === lines.length - 1) {
+                    setSystemLogs(prev => [
+                      ...prev,
+                      { time: t, msg: `  ──────────────────────────────────────────`, rust: true },
+                      { time: t, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE  ·  EXEC_TIME: ${elapsed}ms`, rust: true },
+                    ].slice(-2000));
+                  }
+                }, i * 22);
+              });
+            } else {
+              setSystemLogs(prev => [
+                ...prev,
+                { time: now,      msg: `  ── KERNEL OUTPUT ─────────────────────────`, rust: true },
+                ...lines.map(l => ({ time: now, msg: `  ${l}`, rust: true })),
+                { time: now,      msg: `  ──────────────────────────────────────────`, rust: true },
+                { time: doneTime, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE  ·  EXEC_TIME: ${elapsed}ms`, rust: true },
+              ].slice(-2000));
+            }
 
 
             // Post-kuramoto hook — launch live visual field
@@ -486,6 +508,62 @@ export function useCommandDispatch(ctx) {
           ].slice(-2000));
         } catch (err) {
           logs(`  ENCLAVE_ERROR :: ${err.message}`, `  Have you run 'keygen' first?`);
+        }
+      })();
+      return;
+    }
+
+    // ── probe — text_probe.rs: map free-form text into 16D kernel space ───────
+    if (action === 'probe') {
+      if (!query) {
+        executeCommand(rawCmd, `PROBE_FAIL :: No text supplied. Usage: probe <concept text>`);
+        return;
+      }
+      log(`COMMAND: ${rawCmd}`);
+      logs(
+        `  TEXT_PROBE :: Mapping concept to 16D fingerprint space...`,
+        `  QUERY: "${query}"`,
+      );
+      (async () => {
+        try {
+          const mod = await import('../../wasm/scale94_kernels.js');
+          const wasmEntry = Object.values(wasmRegistry).find(e => e.wasmUrl);
+          const wasmUrl = wasmEntry?.wasmUrl ?? '/wasm/scale94_kernels_bg.wasm';
+          await mod.default({ module_or_path: wasmUrl });
+          const t0 = performance.now();
+          const result = mod.run_text_probe(query);
+          const elapsed = (performance.now() - t0).toFixed(4);
+          const dataMatch = result.match(/\nDATA:(\{.*\})$/s);
+          const displayResult = dataMatch ? result.slice(0, result.length - dataMatch[0].length) : result;
+          const lines = displayResult.split('\n');
+          // Stream output line-by-line (Tier 1 telemetry)
+          setSystemLogs(prev => [
+            ...prev,
+            { time: now, msg: `  ── TEXT PROBE ─────────────────────────────`, rust: true },
+          ].slice(-2000));
+          lines.forEach((l, i) => {
+            setTimeout(() => {
+              const t = new Date().toLocaleTimeString('en-US', { hour12: false });
+              setSystemLogs(prev => [...prev, { time: t, msg: `  ${l}`, rust: true }].slice(-2000));
+              if (i === lines.length - 1) {
+                setSystemLogs(prev => [
+                  ...prev,
+                  { time: t, msg: `  ──────────────────────────────────────────`, rust: true },
+                  { time: t, msg: `TEXT_PROBE: COMPLETE  ·  EXEC_TIME: ${elapsed}ms  ·  switch to /art`, rust: true },
+                ].slice(-2000));
+              }
+            }, i * 22);
+          });
+          // Feed probe node into ArtTab
+          if (dataMatch && ctxRef.current.setProbeNode) {
+            try {
+              const data = JSON.parse(dataMatch[1]);
+              ctxRef.current.setProbeNode(data);
+              ctxRef.current.handleNav('~/system/art', 'art');
+            } catch (_) { /* malformed DATA: — ignore */ }
+          }
+        } catch (err) {
+          logs(`  PROBE_ERROR :: ${err.message}`);
         }
       })();
       return;

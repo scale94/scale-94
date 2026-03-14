@@ -526,6 +526,25 @@ export function run_biocoenosis_simulation(n_species, diversity_exp, timesteps) 
 }
 
 /**
+ * @param {number} n_tensors
+ * @param {number} n_cycles
+ * @param {number} threshold
+ * @returns {string}
+ */
+export function run_bone_fusion(n_tensors, n_cycles, threshold) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_bone_fusion(n_tensors, n_cycles, threshold);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * Simulates a simplified A-CEEI (Approximate Competitive Equilibrium from
  * Equal Incomes) preference-based allocation market.
  *
@@ -1147,6 +1166,27 @@ export function run_tesseract_vault(verbose) {
         return getStringFromWasm0(ret[0], ret[1]);
     } finally {
         wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * Map free-form text to the 16D kernel fingerprint space.
+ * Returns terminal output + DATA: JSON for the ArtTab probe node.
+ * @param {string} text
+ * @returns {string}
+ */
+export function run_text_probe(text) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(text, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.run_text_probe(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
     }
 }
 
