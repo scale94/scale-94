@@ -261,6 +261,20 @@ export default function useTerminalCommands({
           return;
         }
 
+        // Seraphine-8.8.8.8.8.8.8.8 triad concept nodes — tensor inputs, not runnable kernels
+        const TRIAD_NODES = ['white_irid','pitch_black_steel','bouligand_36','polymorph_pqc','magic_angle','magic_angle_1p1','zero_effort_flow'];
+        if (TRIAD_NODES.includes(baseCmd.toLowerCase())) {
+          appendSystemLog({ time: now, msg: `COMMAND: ${rawCmd}` });
+          setSystemLogs(prev => [
+            ...prev,
+            { time: now, msg: `  RUN_REDIRECT :: '${baseCmd}' is a Seraphine-8.8.8.8.8.8.8.8 triad concept node.` },
+            { time: now, msg: `  These nodes are tensor inputs to the bone fusion engine, not standalone kernels.` },
+            { time: now, msg: `  To compute fusion across all 31 nodes including the triads:` },
+            { time: now, msg: `  run bone --nodes 31` },
+          ].slice(-2000));
+          return;
+        }
+
         // vcache_burn hardwire — direct call, no lookup
         if (baseCmd.toLowerCase() === 'vcache_burn') {
           appendSystemLog({ time: now, msg: `COMMAND: ${rawCmd}` });

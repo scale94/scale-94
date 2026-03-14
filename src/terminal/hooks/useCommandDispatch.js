@@ -84,6 +84,19 @@ export function useCommandDispatch(ctx) {
         return;
       }
 
+      // Seraphine-8.8.8.8.8.8.8.8 triad concept nodes — tensor inputs, not runnable kernels
+      const TRIAD_NODES = ['white_irid','pitch_black_steel','bouligand_36','polymorph_pqc','magic_angle','magic_angle_1p1','zero_effort_flow'];
+      if (TRIAD_NODES.includes(baseCmd.toLowerCase())) {
+        log(`COMMAND: ${rawCmd}`);
+        logs(
+          `  RUN_REDIRECT :: '${baseCmd}' is a Seraphine-8.8.8.8.8.8.8.8 triad concept node.`,
+          `  These nodes are tensor inputs to the bone fusion engine, not standalone kernels.`,
+          `  To compute fusion across all 31 nodes including the triads:`,
+          `  run bone --nodes 31`,
+        );
+        return;
+      }
+
       // Global help
       if (baseCmd === '--help' || baseCmd === '-h') {
         log(`COMMAND: ${rawCmd}`);
