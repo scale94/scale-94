@@ -1,4 +1,10 @@
 {
+  "16D": [
+    {
+      "id": "SERAPHINE-8.8.8.8.8.8.8.8-ANALOGY-RESEARCH",
+      "title": "CROSS-DOMAIN ANALOGICAL DISTANCE IN 16D FEATURE SPACE — SERAPHINE-8.8.8.8.8.8.8.8 TRIAD ANALYSIS"
+    }
+  ],
   "ACCESS": [
     {
       "id": "SCALE-RENDER-PROMPT",
@@ -39,6 +45,12 @@
     {
       "id": "SCALE-OPTIMIZATION-KERNEL-9.4",
       "title": "SCALE OPTIMIZATION KERNEL 9.4"
+    }
+  ],
+  "analogy": [
+    {
+      "id": "SERAPHINE-8.8.8.8.8.8.8.8-ANALOGY-RESEARCH",
+      "title": "CROSS-DOMAIN ANALOGICAL DISTANCE IN 16D FEATURE SPACE — SERAPHINE-8.8.8.8.8.8.8.8 TRIAD ANALYSIS"
     }
   ],
   "Analysis": [
@@ -155,6 +167,12 @@
       "title": "TASK ARCHITECTURE: ASSOCIATIVE CONCEPT INTEGRATION"
     }
   ],
+  "associative-reasoning": [
+    {
+      "id": "SERAPHINE-8.8.8.8.8.8.8.8-ANALOGY-RESEARCH",
+      "title": "CROSS-DOMAIN ANALOGICAL DISTANCE IN 16D FEATURE SPACE — SERAPHINE-8.8.8.8.8.8.8.8 TRIAD ANALYSIS"
+    }
+  ],
   "Atoms": [
     {
       "id": "FISH-SCALE-KERNEL11.1.1",
@@ -237,6 +255,12 @@
       "title": "🌿 FLORA 1.0 // THE BIOCOENOSIS BUILD"
     }
   ],
+  "biomaterials": [
+    {
+      "id": "SERAPHINE-8.8.8.8.8.8.8.8-ANALOGY-RESEARCH",
+      "title": "CROSS-DOMAIN ANALOGICAL DISTANCE IN 16D FEATURE SPACE — SERAPHINE-8.8.8.8.8.8.8.8 TRIAD ANALYSIS"
+    }
+  ],
   "BLIND": [
     {
       "id": "SHADOWSOCKS-KERNEL-∞",
@@ -257,6 +281,12 @@
     {
       "id": "QR-1.0",
       "title": "ARCHITECTURAL BLUEPRINT FOR A QUANTUM-THEORETIC REACT TERMINAL INTERFACE: INTEGRATING RUST-NATIVE SIMULATION WITH TYPOGRAPHICAL AESTHETICS"
+    }
+  ],
+  "bone-fusion": [
+    {
+      "id": "SERAPHINE-8.8.8.8.8.8.8.8-ANALOGY-RESEARCH",
+      "title": "CROSS-DOMAIN ANALOGICAL DISTANCE IN 16D FEATURE SPACE — SERAPHINE-8.8.8.8.8.8.8.8 TRIAD ANALYSIS"
     }
   ],
   "Boot": [
@@ -535,6 +565,10 @@
     {
       "id": "DH-EC-KERNEL-V1-0-0",
       "title": "ᛟ THE DH-EC KERNEL · CRYPTOGRAPHIC ARCHITECTURE"
+    },
+    {
+      "id": "SERAPHINE-8.8.8.8.8.8.8.8-ANALOGY-RESEARCH",
+      "title": "CROSS-DOMAIN ANALOGICAL DISTANCE IN 16D FEATURE SPACE — SERAPHINE-8.8.8.8.8.8.8.8 TRIAD ANALYSIS"
     }
   ],
   "crystalline": [
@@ -923,6 +957,12 @@
     {
       "id": "BIODIVERSITY-KERNEL-1.0.1",
       "title": "🌿 FLORA 1.0 // THE BIOCOENOSIS BUILD"
+    }
+  ],
+  "flow-state": [
+    {
+      "id": "SERAPHINE-8.8.8.8.8.8.8.8-ANALOGY-RESEARCH",
+      "title": "CROSS-DOMAIN ANALOGICAL DISTANCE IN 16D FEATURE SPACE — SERAPHINE-8.8.8.8.8.8.8.8 TRIAD ANALYSIS"
     }
   ],
   "Fluorescent": [
@@ -1797,6 +1837,12 @@
     {
       "id": "KERNEL-15.0-THE-PURIFICATION-OF-SCALE",
       "title": "🧊 KERNEL 15.0: THE PURIFICATION OF SCALE"
+    }
+  ],
+  "quantum": [
+    {
+      "id": "SERAPHINE-8.8.8.8.8.8.8.8-ANALOGY-RESEARCH",
+      "title": "CROSS-DOMAIN ANALOGICAL DISTANCE IN 16D FEATURE SPACE — SERAPHINE-8.8.8.8.8.8.8.8 TRIAD ANALYSIS"
     }
   ],
   "QUANTUM": [
