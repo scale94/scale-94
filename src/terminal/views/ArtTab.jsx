@@ -201,7 +201,7 @@ const AUTO_SPIN = 0.0025;   // rad/frame continuous Y rotation
 const FOCAL_K   = 2.8;      // focal = FOCAL_K × sphereR — controls perspective depth
 const SPHERE_K  = 0.50;     // sphereR = SPHERE_K × min(w, h) — larger sphere, front and center
 
-export default function ArtTab({ onRunKernel, onCueNode, associativeField, spectralBridges, probeNode }) {
+export default function ArtTab({ onRunKernel, onCueNode, associativeField, spectralBridges, boneFusions, probeNode }) {
   const canvasRef    = useRef(null);
   const containerRef = useRef(null);
   const rafRef       = useRef(null);
@@ -218,16 +218,33 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   const dragRef = useRef({ active: false, lastX: 0, lastY: 0, vx: 0, vy: 0 });
 
   // Dynamic cross-cluster edges — computed by spectral_bridge kernel, or default
+  // Bone fusion edges are merged in when available (fused pairs become permanent connections)
   const activeEdges = useMemo(() => {
-    if (!spectralBridges?.bridges?.length) {
-      return [...INTRA_EDGES, ...DEFAULT_CROSS_EDGES];
+    const base = !spectralBridges?.bridges?.length
+      ? [...INTRA_EDGES, ...DEFAULT_CROSS_EDGES]
+      : [...INTRA_EDGES, ...spectralBridges.bridges
+          .map(([a, b]) => [NODES[a]?.id, NODES[b]?.id])
+          .filter(([a, b]) => a && b)];
+
+    // Add bone fusion edges that aren't already present
+    if (boneFusions?.fusions?.length) {
+      const existing = new Set(base.map(([a, b]) => {
+        const k = a < b ? `${a}:${b}` : `${b}:${a}`;
+        return k;
+      }));
+      for (const f of boneFusions.fusions) {
+        if (!f.fused) continue;
+        const idA = NODES[f.a]?.id, idB = NODES[f.b]?.id;
+        if (!idA || !idB) continue;
+        const key = idA < idB ? `${idA}:${idB}` : `${idB}:${idA}`;
+        if (!existing.has(key)) {
+          base.push([idA, idB]);
+          existing.add(key);
+        }
+      }
     }
-    // Convert bridge indices [a_idx, b_idx, similarity] to ID pairs
-    const computedCross = spectralBridges.bridges
-      .map(([a, b]) => [NODES[a]?.id, NODES[b]?.id])
-      .filter(([a, b]) => a && b);
-    return [...INTRA_EDGES, ...computedCross];
-  }, [spectralBridges]);
+    return base;
+  }, [spectralBridges, boneFusions]);
 
   // Bridge similarity lookup — for rendering computed bridges with strength-weighted visuals
   const bridgeSimilarityRef = useRef(null);
@@ -243,6 +260,22 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     }
     bridgeSimilarityRef.current = map;
   }, [spectralBridges]);
+
+  // Bone fusion lookup — fused edges rendered with solid glow (inverse of dashed spectral)
+  const fusedEdgesRef = useRef(null);
+  useEffect(() => {
+    if (!boneFusions?.fusions?.length) { fusedEdgesRef.current = null; return; }
+    const map = {};
+    for (const f of boneFusions.fusions) {
+      if (!f.fused) continue; // only show successfully fused pairs
+      const idA = NODES[f.a]?.id, idB = NODES[f.b]?.id;
+      if (idA && idB) {
+        const key = idA < idB ? `${idA}:${idB}` : `${idB}:${idA}`;
+        map[key] = { pre: f.pre, post: f.post, burns: f.burns };
+      }
+    }
+    fusedEdgesRef.current = Object.keys(map).length ? map : null;
+  }, [boneFusions]);
 
   // ── Per-node edge analysis (computed on click, not on hover) ──────────────
   const selectedNodeEdges = useMemo(() => {
@@ -486,16 +519,24 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           const isSpectral = simMap && edgeKey in simMap;
           const cosSim     = isSpectral ? simMap[edgeKey] : 0;
 
+          // Bone fusion detection — fused edges get solid glow
+          const fuseMap  = fusedEdgesRef.current;
+          const isFused  = fuseMap && edgeKey in fuseMap;
+          const fuseCos  = isFused ? fuseMap[edgeKey].post : 0;
+
           // Depth-based base alpha — fade edges on the back of the sphere
           const avgDepth  = (pA.depth + pB.depth) / 2;
           const depthFade = Math.max(0.03, (avgDepth + 1) * 0.5);  // 0→dim, 1→bright
           // Spectral bridges: cosine similarity boosts alpha and line width
           const spectralBoost = isSpectral ? cosSim * 0.35 : 0;
-          const baseAlpha = (Math.min(na.energy, nb.energy) * 0.5 + 0.06 + spectralBoost) * depthFade;
+          // Bone fusion: fused edges get an even stronger boost
+          const fusionBoost   = isFused ? fuseCos * 0.5 : 0;
+          const baseAlpha = (Math.min(na.energy, nb.energy) * 0.5 + 0.06 + spectralBoost + fusionBoost) * depthFade;
           const pulseBoost = e.pulse * 0.40;
 
           ctx.lineWidth = (0.5 + Math.max(na.energy, nb.energy) * 0.8 + e.pulse * 1.8
-                        + (isSpectral ? cosSim * 1.2 : 0))
+                        + (isSpectral ? cosSim * 1.2 : 0)
+                        + (isFused ? fuseCos * 2.0 : 0))
                         * ((pA.scale + pB.scale) / 2);
 
           const cMid = lerpColor(colA, colB, e.strength);
@@ -505,13 +546,20 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           grd.addColorStop(1,   hslAlpha(colB, (baseAlpha + pulseBoost) * (0.6 + e.strength * 0.4)));
           ctx.strokeStyle = grd;
 
-          // Spectral bridges render with dashed stroke for visual distinction
-          if (isSpectral) ctx.setLineDash([4, 3]);
+          // Fused edges: solid bright glow (mineralized bone)
+          // Spectral bridges: dashed stroke for visual distinction
+          // Default: solid thin
+          if (isFused) {
+            ctx.shadowColor = hslAlpha(cMid, fuseCos * 0.6);
+            ctx.shadowBlur  = 6 + fuseCos * 8;
+          }
+          if (isSpectral && !isFused) ctx.setLineDash([4, 3]);
           ctx.beginPath();
           ctx.moveTo(pA.sx, pA.sy);
           ctx.lineTo(pB.sx, pB.sy);
           ctx.stroke();
-          if (isSpectral) ctx.setLineDash([]);
+          if (isSpectral && !isFused) ctx.setLineDash([]);
+          if (isFused) { ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; }
 
           // Overwrite pulse ring
           if (e.pulse > 0.1) {
@@ -1033,6 +1081,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           <span className="border border-amber-900/40 px-3 py-1 rounded-sm" style={{ color: 'rgba(251,191,36,0.5)' }}>
             {NODES.length} nodes · {activeEdges.length} edges
             {spectralBridges ? ` · spectral` : ''}
+            {boneFusions ? ` · fused` : ''}
             {probeNode ? ` · ⊕ probe` : ''}
           </span>
           <span className="border border-cyan-900/30 px-3 py-1 rounded-sm text-cyan-400/50">

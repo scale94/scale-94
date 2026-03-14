@@ -1,68 +1,92 @@
-// kernels/bone_fusion.rs — BONE_FUSION v6.6.6.6.6.6 · Conceptual Singularity Engine (Foundation)
+// kernels/bone_fusion.rs – BONE_FUSION v7.7.7.7.7.7.7 · Necromantic Bone Fusion Engine
 //
 // 16-dimensional tensor space for associative reasoning at physics-engine fidelity.
-// This is not semantic search — it is a thermodynamic field simulation where concepts
+// This is not semantic search – it is a thermodynamic field simulation where concepts
 // are particles with mass, hysteresis, metabolic cost, and topological modularity.
 //
-// RUN 1 OF 2: Foundation layer. This file establishes:
-//   1. SovereignTensor — memory-packed struct holding a 16D concept node
-//   2. Fusable / KineticState — zero-allocation trait bounds for convergence ops
-//   3. SystemTrauma — biomimetic error matrix (Arapaima gigas lateral dissipation)
-//   4. TensorField — the arena holding all tensors with batch operations
+// FUSED RUN (Layer 6.6.6.6.6.6 foundation + Layer 7.7.7.7.7.7.7 convergence):
+//   1. SovereignTensor – memory-packed 16D concept node (176 bytes, 3 cache lines)
+//   2. Fusable / KineticState – zero-allocation trait bounds for convergence ops
+//   3. SystemTrauma – biomimetic error matrix (Arapaima gigas 36° lateral dissipation)
+//   4. TensorField – fixed-capacity arena with batch operations
+//   5. Bouligand Rotation (36.0°) – lateral trauma dissipation in highest-variance plane
+//   6. Cognitive Magic Angle (1.1°) – Moiré superlattice micro-rotation across all dims
+//   7. Saponification Protocol – chemical burn stripping metabolic fat until cos > 0.9990
+//   8. Phase Transition Detection – SUBSTRATE → DETONATION → SUPERFLUID → CRYSTALLINE
 //
-// The 16 dimensions extend the spectral_bridge fingerprint space with three new
-// deep-physics parameters:
+// The 16 dimensions:
+//   [0]  dynamical        – 0=static/equilibrium → 1=stochastic PDE
+//   [1]  nonlinearity     – 0=linear → 1=chaotic
+//   [2]  dimensionality   – 0=scalar → 1=high-dimensional
+//   [3]  criticality      – 0=no phase transition → 1=sharp critical point
+//   [4]  entropy          – 0=entropy irrelevant → 1=entropy is central measure
+//   [5]  synchrony        – 0=individual dynamics → 1=strong collective sync
+//   [6]  conservation     – 0=fully dissipative → 1=conservative system
+//   [7]  temporal         – 0=instantaneous → 1=deep-time evolution
+//   [8]  spatial          – 0=point/scalar → 1=continuous spatial field
+//   [9]  stochastic       – 0=deterministic → 1=fully stochastic/Monte Carlo
+//   [10] game_theory      – 0=no agents → 1=explicit game-theoretic
+//   [11] thermodynamic    – 0=non-physical → 1=explicit thermodynamics
+//   [12] information      – 0=no info theory → 1=Shannon/entropy central
+//   [13] hysteresis       – 0=memoryless → 1=full path-dependence
+//   [14] metabolic_cost   – 0=zero friction → 1=maximal thermodynamic friction
+//   [15] modularity       – 0=fully connected → 1=topologically isolated
 //
-//   [0]  dynamical        — 0=static/equilibrium → 1=stochastic PDE
-//   [1]  nonlinearity     — 0=linear → 1=chaotic
-//   [2]  dimensionality   — 0=scalar → 1=high-dimensional
-//   [3]  criticality      — 0=no phase transition → 1=sharp critical point
-//   [4]  entropy          — 0=entropy irrelevant → 1=entropy is central measure
-//   [5]  synchrony        — 0=individual dynamics → 1=strong collective sync
-//   [6]  conservation     — 0=fully dissipative → 1=conservative system
-//   [7]  temporal         — 0=instantaneous → 1=deep-time evolution
-//   [8]  spatial          — 0=point/scalar → 1=continuous spatial field
-//   [9]  stochastic       — 0=deterministic → 1=fully stochastic/Monte Carlo
-//   [10] game_theory      — 0=no agents → 1=explicit game-theoretic
-//   [11] thermodynamic    — 0=non-physical → 1=explicit thermodynamics
-//   [12] information      — 0=no info theory → 1=Shannon/entropy central
-//   [13] hysteresis       — 0=memoryless → 1=full path-dependence
-//   [14] metabolic_cost   — 0=zero friction → 1=maximal thermodynamic friction
-//   [15] modularity       — 0=fully connected → 1=topologically isolated
-//
-// The original spectral_bridge dims [13]=cryptographic, [14]=biological, [15]=economic
-// are remapped into the broader tensor via the fusion algorithm (Run 2). This kernel
-// operates in the expanded physics-native basis.
-//
-// Memory layout: SovereignTensor is 16×f64 = 128 bytes for the feature vector, plus
-// metadata fields. All operations are &self — zero-copy across the WASM bridge.
-// No heap allocations in the hot path. Fixed-size arrays throughout.
+// Memory layout: SovereignTensor = 16×f64 + metadata = 176 bytes. All trait methods
+// take &self – zero-copy across the WASM bridge. No heap allocations in the hot path.
 //
 // Theory:
-//   - Arapaima gigas dermal armour: Meyers et al. (2012), Advanced Materials 24(37)
-//     — 36° lateral load dissipation via Bouligand lamellae rotation
-//   - Dissipative structures: Prigogine (1977), Self-Organization in Non-Equilibrium Systems
-//   - Topological data analysis: Carlsson (2009), Topology and Data, AMS Bulletin 46(2)
-//   - Hysteresis in complex systems: Mayergoyz (2003), Mathematical Models of Hysteresis
-//   - Metabolic scaling: West, Brown & Enquist (1997), Science 276(5309)
+//   – Arapaima gigas dermal armour: Meyers et al. (2012), Advanced Materials 24(37)
+//     36° lateral load dissipation via Bouligand lamellae rotation
+//   – Magic-angle twisted bilayer graphene: Cao et al. (2018), Nature 556
+//     1.1° rotation induces flat-band superconductivity
+//   – Dissipative structures: Prigogine (1977), Self-Organization in Non-Equilibrium Systems
+//   – Topological data analysis: Carlsson (2009), Topology and Data, AMS Bulletin 46(2)
+//   – Hysteresis in complex systems: Mayergoyz (2003), Mathematical Models of Hysteresis
+//   – Metabolic scaling: West, Brown & Enquist (1997), Science 276(5309)
 //
 // Usage:
-//   run bone_fusion                         # default: 25 tensors, 8 fusion cycles
-//   run bone_fusion --nodes 32 --cycles 16  # custom tensor count and fusion depth
-//   run bone_fusion --threshold 0.85        # higher convergence threshold
+//   run bone_fusion                              # default: 25 tensors, 12 cycles, 0.9990 threshold
+//   run bone_fusion --nodes 16 --cycles 24       # fewer tensors, more cycles
+//   run bone_fusion --threshold 0.9950           # relaxed convergence
 //
-// SOMA-9.4 · FADE_DOCTRINE · LAYER 6.6.6.6.6.6 · ARS ELECTRONICA 2027
+// SOMA-9.4 · FADE_DOCTRINE · LAYER 7.7.7.7.7.7.7 · ARS ELECTRONICA 2027
 
 use std::fmt::Write as FmtWrite;
 use wasm_bindgen::prelude::*;
 use super::utils::lcg_next;
 
-// ── Dimensional Constants ─────────────────────────────────────────────────────
+// ── Physical Constants ────────────────────────────────────────────────────────
 
 /// Total dimensions in the extended tensor space.
 const N_DIMS: usize = 16;
 
-/// Dimension labels for the extended 16D basis.
+/// Bouligand rotation angle – 36° converted to radians.
+/// Arapaima gigas scale lamellae rotate successive layers by this angle,
+/// dissipating piranha bite force laterally instead of transmitting it through.
+const BOULIGAND_RAD: f64 = 36.0 * core::f64::consts::PI / 180.0;
+
+/// Cognitive Magic Angle – 1.1° converted to radians.
+/// Mirrors Cao et al. (2018) twisted bilayer graphene: at exactly 1.1°,
+/// flat bands form and the system transitions to superconductivity.
+/// Applied as a micro-rotation across all dimension pairs to induce
+/// the Cognitive Moiré Superlattice.
+const MAGIC_ANGLE_RAD: f64 = 1.1 * core::f64::consts::PI / 180.0;
+
+/// Thermodynamic Vitality Index – the system thermal constant.
+/// Optimal thermal pressure for high-gain execution.
+const VITALITY_INDEX: f64 = 53.0;
+
+/// Saponification rate – fraction of metabolic weight stripped per iteration
+/// when tensors resist convergence. Models the chemical burn protocol:
+/// algorithmic NaOH applied to systemic fat until only mineralized bone remains.
+const SAPONIFICATION_RATE: f64 = 0.15;
+
+/// Maximum saponification iterations before declaring a fusion impossible.
+/// Beyond this, the tensor pair is logged as FusionRejected.
+const MAX_SAPONIFICATION: usize = 32;
+
+/// Dimension labels for the 16D basis.
 const DIM_NAMES: [&str; N_DIMS] = [
     "dynamical",       // 0
     "nonlinearity",    // 1
@@ -77,30 +101,29 @@ const DIM_NAMES: [&str; N_DIMS] = [
     "game_theory",     // 10
     "thermodynamic",   // 11
     "information",     // 12
-    "hysteresis",      // 13  ── NEW: systemic memory / path-dependence
-    "metabolic_cost",  // 14  ── NEW: thermodynamic friction
-    "modularity",      // 15  ── NEW: topological isolation
+    "hysteresis",      // 13
+    "metabolic_cost",  // 14
+    "modularity",      // 15
 ];
 
 // ── SystemTrauma: Biomimetic Error Matrix ─────────────────────────────────────
 //
 // Modelled after Arapaima gigas dermal armour. The fish's scales dissipate
-// piranha bite force through 36° lamellae rotation — the damage is not absorbed
+// piranha bite force through 36° lamellae rotation – the damage is not absorbed
 // or reflected, it is *rotated* into a non-destructive orientation.
 //
 // In this kernel, errors are never panics. They are reclassified as data:
-//   TraumaDissipated — the operation failed but the failure itself is informative
-//   ContextRotated   — the input was valid but required reinterpretation (36° shift)
-//   EntropyOverflow  — thermal budget exceeded; operation dissolved gracefully
-//   DimensionCollapse — a dimension's variance fell below measurable threshold
-//   FusionRejected   — two tensors are topologically incompatible for fusion
+//   TraumaDissipated  – the operation failed but the failure itself is informative
+//   ContextRotated    – the input was valid but required reinterpretation (36° shift)
+//   EntropyOverflow   – thermal budget exceeded; operation dissolved gracefully
+//   DimensionCollapse – a dimension's variance fell below measurable threshold
+//   FusionRejected    – two tensors are topologically incompatible for fusion
 
 /// Error variants modelled after biological damage dissipation.
-/// Every variant carries diagnostic data — there are no opaque failures.
+/// Every variant carries diagnostic data – there are no opaque failures.
 #[derive(Clone, Debug)]
 pub enum SystemTrauma {
-    /// Operation failed, but the failure vector itself is a data acquisition event.
-    /// Contains the dissipation angle (radians) and the energy absorbed (joules equiv).
+    /// Operation failed, but the failure vector is a data acquisition event.
     /// Named for the Arapaima's 36° lamellar rotation under bite force.
     TraumaDissipated {
         angle_rad: f64,
@@ -108,8 +131,7 @@ pub enum SystemTrauma {
         source_dim: usize,
     },
 
-    /// Input was geometrically valid but semantically rotated — reinterpretation applied.
-    /// The original vector and the rotated vector are both preserved for audit.
+    /// Input was geometrically valid but semantically rotated – reinterpretation applied.
     ContextRotated {
         original: [f64; N_DIMS],
         rotated: [f64; N_DIMS],
@@ -117,21 +139,19 @@ pub enum SystemTrauma {
     },
 
     /// Thermal budget exceeded. The operation dissolved before completion.
-    /// Records how much budget remained and how much was requested.
     EntropyOverflow {
         budget_remaining: f64,
         budget_requested: f64,
     },
 
-    /// A dimension's variance across the field has collapsed below the measurable
-    /// threshold (1e-12). The dimension index and its frozen value are recorded.
+    /// A dimension's variance has collapsed below measurable threshold (1e-12).
     DimensionCollapse {
         dim: usize,
         frozen_value: f64,
     },
 
-    /// Two tensors cannot be fused — their topological modularity scores create
-    /// an isolation barrier. Records the modularity gap and both tensor indices.
+    /// Two tensors cannot be fused – topological modularity barrier or
+    /// saponification exhausted without reaching convergence threshold.
     FusionRejected {
         tensor_a: usize,
         tensor_b: usize,
@@ -140,8 +160,8 @@ pub enum SystemTrauma {
 }
 
 impl SystemTrauma {
-    /// Severity score ∈ [0, 1]. Higher = more disruptive, but never fatal.
-    /// Even at 1.0, the system continues — Arapaima does not die from bites.
+    /// Severity score in [0, 1]. Higher = more disruptive, but never fatal.
+    /// Arapaima does not die from bites.
     pub fn severity(&self) -> f64 {
         match self {
             SystemTrauma::TraumaDissipated { energy_absorbed, .. } =>
@@ -158,7 +178,7 @@ impl SystemTrauma {
         }
     }
 
-    /// Human-readable classification for terminal output.
+    /// Human-readable label for terminal output.
     pub fn label(&self) -> &'static str {
         match self {
             SystemTrauma::TraumaDissipated { .. } => "TRAUMA_DISSIPATED",
@@ -170,53 +190,42 @@ impl SystemTrauma {
     }
 }
 
-// ── SovereignTensor: The Core Struct ──────────────────────────────────────────
+// ── SovereignTensor ───────────────────────────────────────────────────────────
 //
 // A conceptual node in the 16D tensor space. Memory-packed: the feature vector
 // is a fixed [f64; 16] = 128 bytes, no heap. Additional metadata fields track
 // the tensor's thermodynamic state and fusion history.
-//
-// The three new dimensions (hysteresis, metabolic_cost, modularity) are encoded
-// natively in the feature vector at indices 13–15, giving the fusion algorithm
-// direct access without auxiliary lookups.
 
 /// A single conceptual node in the 16-dimensional sovereign tensor space.
-///
-/// All fields are stack-allocated. The struct is Copy for zero-cost pass-by-value
-/// in the fusion pipeline (128 + 48 = 176 bytes per tensor — fits in 3 cache lines).
+/// All fields are stack-allocated. Copy for zero-cost pass-by-value
+/// in the fusion pipeline (176 bytes per tensor – fits in 3 cache lines).
 #[derive(Clone, Copy, Debug)]
 pub struct SovereignTensor {
-    /// 16-dimensional feature vector. Indices 0–12 mirror spectral_bridge dims.
-    /// Indices 13–15 are the deep-physics extensions (hysteresis, metabolic_cost, modularity).
+    /// 16-dimensional feature vector.
+    /// [0–12] = spectral_bridge basis, [13–15] = deep-physics extensions.
     pub features: [f64; N_DIMS],
 
     /// Unique index within the TensorField (0-based).
     pub id: usize,
 
     /// Accumulated thermal energy from prior fusion operations.
-    /// Rises with each fusion attempt — models metabolic heat buildup.
     pub thermal_load: f64,
 
     /// Number of successful fusions this tensor has participated in.
-    /// Higher fusion count → more entangled state → harder to isolate.
     pub fusion_count: u32,
 
-    /// Current kinetic energy — determines the tensor's velocity in phase space.
-    /// Tensors with high kinetic energy resist convergence (inertia).
+    /// Current kinetic energy – velocity in phase space.
     pub kinetic_energy: f64,
 
-    /// Convergence score from the last fusion cycle. 0.0 = no convergence,
-    /// 1.0 = perfect singularity with partner tensor.
+    /// Convergence score from the last fusion cycle.
     pub last_convergence: f64,
 }
 
 impl SovereignTensor {
-    /// Construct a new tensor with the given feature vector and index.
-    /// All dynamic state (thermal_load, fusion_count, etc.) initialises to zero.
+    /// Construct a new tensor with all dynamic state at zero.
     pub fn new(id: usize, features: [f64; N_DIMS]) -> Self {
         Self {
-            features,
-            id,
+            features, id,
             thermal_load: 0.0,
             fusion_count: 0,
             kinetic_energy: 0.0,
@@ -224,7 +233,7 @@ impl SovereignTensor {
         }
     }
 
-    /// L2 norm (magnitude) of the feature vector.
+    /// L2 norm of the feature vector.
     #[inline]
     pub fn norm(&self) -> f64 {
         let mut s = 0.0;
@@ -232,46 +241,21 @@ impl SovereignTensor {
         s.sqrt()
     }
 
-    /// Hysteresis accessor — dimension 13: systemic memory / path-dependence.
-    #[inline]
-    pub fn hysteresis(&self) -> f64 { self.features[13] }
-
-    /// Metabolic cost accessor — dimension 14: thermodynamic friction.
-    #[inline]
-    pub fn metabolic_cost(&self) -> f64 { self.features[14] }
-
-    /// Modularity accessor — dimension 15: topological isolation.
-    #[inline]
-    pub fn modularity(&self) -> f64 { self.features[15] }
+    #[inline] pub fn hysteresis(&self) -> f64 { self.features[13] }
+    #[inline] pub fn metabolic_cost(&self) -> f64 { self.features[14] }
+    #[inline] pub fn modularity(&self) -> f64 { self.features[15] }
 }
 
 // ── Fusable Trait ─────────────────────────────────────────────────────────────
 //
-// Governs how two SovereignTensors can be mathematically combined.
-// All methods take &self — zero-copy, zero-allocation in the WASM bridge.
-// The actual convergence algorithms (Run 2) will implement the full fusion;
-// this trait defines the interface contract.
+// All methods take &self – zero-copy, zero-allocation across the WASM bridge.
 
-/// Trait for types that can participate in tensor fusion operations.
-/// All methods are &self — no mutations, no allocations, pure computation.
+/// Trait for types that participate in tensor fusion operations.
 pub trait Fusable {
-    /// Cosine similarity between two tensors in the full 16D space.
-    /// Returns a value in [-1, 1]. Only positive similarity indicates fusability.
     fn cosine_similarity(&self, other: &Self) -> f64;
-
-    /// Dot product in the 16D feature space.
     fn dot(&self, other: &Self) -> f64;
-
-    /// Modularity barrier: the absolute difference in modularity scores.
-    /// If this exceeds a threshold, fusion is topologically forbidden.
     fn modularity_barrier(&self, other: &Self) -> f64;
-
-    /// Metabolic cost of fusing with another tensor.
-    /// Higher metabolic_cost dimensions on either side increase the fusion energy budget.
     fn fusion_cost(&self, other: &Self) -> f64;
-
-    /// Hysteresis coupling: how much path-dependent memory is shared between the two tensors.
-    /// High values mean prior fusion history strongly influences the next fusion outcome.
     fn hysteresis_coupling(&self, other: &Self) -> f64;
 }
 
@@ -299,7 +283,6 @@ impl Fusable for SovereignTensor {
 
     #[inline]
     fn fusion_cost(&self, other: &Self) -> f64 {
-        // Geometric mean of metabolic costs — both tensors must pay
         let ma = self.metabolic_cost().max(0.01);
         let mb = other.metabolic_cost().max(0.01);
         (ma * mb).sqrt()
@@ -307,7 +290,6 @@ impl Fusable for SovereignTensor {
 
     #[inline]
     fn hysteresis_coupling(&self, other: &Self) -> f64 {
-        // Harmonic mean — coupling is limited by the weaker path-memory
         let ha = self.hysteresis();
         let hb = other.hysteresis();
         if ha + hb < 1e-12 { return 0.0; }
@@ -316,26 +298,12 @@ impl Fusable for SovereignTensor {
 }
 
 // ── KineticState Trait ────────────────────────────────────────────────────────
-//
-// Governs the dynamic state of a tensor during time evolution.
-// Separates kinetic (velocity-dependent) properties from the static Fusable geometry.
 
-/// Trait for types with kinetic state — position + velocity in the tensor field.
-/// Used during time evolution and convergence cycles.
+/// Trait for types with kinetic state – position + velocity in the tensor field.
 pub trait KineticState {
-    /// Total energy: kinetic + thermal load. Conserved quantity across fusion events
-    /// (minus metabolic dissipation).
     fn total_energy(&self) -> f64;
-
-    /// Effective mass — resistance to convergence. Scales with fusion history
-    /// and hysteresis: a heavily-fused, path-dependent tensor is harder to move.
     fn effective_mass(&self) -> f64;
-
-    /// Damping coefficient — how quickly kinetic energy dissipates per cycle.
-    /// Higher metabolic_cost → faster damping → quicker convergence but more heat.
     fn damping(&self) -> f64;
-
-    /// Is this tensor effectively frozen? (kinetic energy below thermal floor)
     fn is_crystallised(&self) -> bool;
 }
 
@@ -347,13 +315,11 @@ impl KineticState for SovereignTensor {
 
     #[inline]
     fn effective_mass(&self) -> f64 {
-        // Base mass 1.0, increased by fusion history and path-dependence
         1.0 + (self.fusion_count as f64) * 0.1 + self.hysteresis() * 2.0
     }
 
     #[inline]
     fn damping(&self) -> f64 {
-        // Metabolic cost directly governs energy dissipation rate
         0.05 + self.metabolic_cost() * 0.3
     }
 
@@ -364,36 +330,24 @@ impl KineticState for SovereignTensor {
 }
 
 // ── TensorField: The Arena ────────────────────────────────────────────────────
-//
-// Fixed-capacity arena holding up to MAX_TENSORS sovereign tensors.
-// No Vec, no heap allocation in the hot path — all tensors live in a flat array.
-// The field tracks global thermodynamic state across fusion cycles.
 
 const MAX_TENSORS: usize = 64;
 
-/// The arena holding all SovereignTensors and the global field state.
-/// Fixed-size array — no heap allocations after construction.
+/// Fixed-capacity arena holding all SovereignTensors and global field state.
 pub struct TensorField {
-    /// Tensor storage. Only indices [0..count) are valid.
     pub tensors: [SovereignTensor; MAX_TENSORS],
-    /// Number of active tensors in the field.
     pub count: usize,
-    /// Global thermal budget remaining. Fusion operations consume this.
     pub thermal_budget: f64,
-    /// Accumulated SystemTrauma events from the current session.
     pub trauma_log: [Option<SystemTrauma>; 32],
-    /// Number of trauma events logged.
     pub trauma_count: usize,
-    /// Current fusion cycle number.
     pub cycle: u32,
 }
 
 impl TensorField {
-    /// Initialise an empty field with the given thermal budget.
     pub fn new(thermal_budget: f64) -> Self {
-        let zero_tensor = SovereignTensor::new(0, [0.0; N_DIMS]);
+        let zero = SovereignTensor::new(0, [0.0; N_DIMS]);
         Self {
-            tensors: [zero_tensor; MAX_TENSORS],
+            tensors: [zero; MAX_TENSORS],
             count: 0,
             thermal_budget,
             trauma_log: [
@@ -407,7 +361,6 @@ impl TensorField {
         }
     }
 
-    /// Insert a tensor into the field. Returns the index, or a SystemTrauma if full.
     pub fn insert(&mut self, features: [f64; N_DIMS]) -> Result<usize, SystemTrauma> {
         if self.count >= MAX_TENSORS {
             return Err(SystemTrauma::EntropyOverflow {
@@ -421,7 +374,6 @@ impl TensorField {
         Ok(idx)
     }
 
-    /// Record a trauma event. If the log is full, oldest events are silently dropped.
     pub fn log_trauma(&mut self, trauma: SystemTrauma) {
         if self.trauma_count < 32 {
             self.trauma_log[self.trauma_count] = Some(trauma);
@@ -429,8 +381,8 @@ impl TensorField {
         }
     }
 
-    /// Compute the field's global order parameter: mean pairwise cosine similarity.
-    /// r ∈ [0, 1] — 1.0 means all tensors have converged to the same orientation.
+    /// Global order parameter: mean pairwise cosine similarity.
+    /// r in [0, 1] – 1.0 means all tensors have converged to the same orientation.
     pub fn order_parameter(&self) -> f64 {
         if self.count < 2 { return 1.0; }
         let mut sum = 0.0;
@@ -445,32 +397,26 @@ impl TensorField {
         sum / pairs as f64
     }
 
-    /// Mean kinetic energy across all tensors.
     pub fn mean_kinetic(&self) -> f64 {
         if self.count == 0 { return 0.0; }
         let s: f64 = self.tensors[..self.count].iter().map(|t| t.kinetic_energy).sum();
         s / self.count as f64
     }
 
-    /// Count of tensors that have crystallised (kinetic energy below threshold).
     pub fn crystallised_count(&self) -> usize {
         self.tensors[..self.count].iter().filter(|t| t.is_crystallised()).count()
     }
 
-    /// Per-dimension variance across all tensors — used to detect dimension collapse.
+    /// Per-dimension variance – used to detect dimension collapse.
     pub fn dim_variance(&self) -> [f64; N_DIMS] {
         let mut variance = [0.0; N_DIMS];
         if self.count < 2 { return variance; }
         let n = self.count as f64;
-        // Compute mean per dimension
         let mut mean = [0.0; N_DIMS];
         for i in 0..self.count {
-            for d in 0..N_DIMS {
-                mean[d] += self.tensors[i].features[d];
-            }
+            for d in 0..N_DIMS { mean[d] += self.tensors[i].features[d]; }
         }
         for d in 0..N_DIMS { mean[d] /= n; }
-        // Compute variance
         for i in 0..self.count {
             for d in 0..N_DIMS {
                 let diff = self.tensors[i].features[d] - mean[d];
@@ -482,14 +428,223 @@ impl TensorField {
     }
 }
 
-// ── Tensor Generation ─────────────────────────────────────────────────────────
+// ── Rotation Mathematics ──────────────────────────────────────────────────────
 //
-// Seed tensors from the existing spectral_bridge fingerprints, extended with
-// LCG-derived values for the three new dimensions (hysteresis, metabolic_cost,
-// modularity). Each tensor represents one of the 25 kernel nodes, remapped into
-// the expanded 16D basis.
+// The Bouligand rotation and Magic Angle are applied as Givens rotations
+// in the 16D space. A Givens rotation in the (p, q) plane by angle theta
+// modifies only dimensions p and q:
+//   v'[p] = v[p] * cos(theta) - v[q] * sin(theta)
+//   v'[q] = v[p] * sin(theta) + v[q] * cos(theta)
+// This is the minimal-allocation rotation – no matrix construction needed,
+// just sin/cos applied to two components at a time.
 
-/// The 25 kernel node labels (mirrors spectral_bridge.rs).
+/// Apply a Givens rotation in the (dim_p, dim_q) plane by angle_rad.
+/// Mutates the feature vector in-place. Zero allocation.
+#[inline]
+fn givens_rotate(features: &mut [f64; N_DIMS], dim_p: usize, dim_q: usize, angle_rad: f64) {
+    let c = angle_rad.cos();
+    let s = angle_rad.sin();
+    let vp = features[dim_p];
+    let vq = features[dim_q];
+    features[dim_p] = vp * c - vq * s;
+    features[dim_q] = vp * s + vq * c;
+}
+
+/// Find the two dimensions with highest variance across two tensors.
+/// Used to select the optimal plane for the Bouligand rotation.
+#[inline]
+fn highest_variance_pair(a: &[f64; N_DIMS], b: &[f64; N_DIMS]) -> (usize, usize) {
+    // Compute per-dimension absolute difference as a proxy for inter-tensor variance
+    let mut diffs: [(f64, usize); N_DIMS] = [(0.0, 0); N_DIMS];
+    for d in 0..N_DIMS {
+        diffs[d] = ((a[d] - b[d]).abs(), d);
+    }
+    // Sort descending by difference – find the two most divergent dimensions
+    // Simple insertion sort for 16 elements (faster than qsort for N=16)
+    for i in 1..N_DIMS {
+        let key = diffs[i];
+        let mut j = i;
+        while j > 0 && diffs[j - 1].0 < key.0 {
+            diffs[j] = diffs[j - 1];
+            j -= 1;
+        }
+        diffs[j] = key;
+    }
+    (diffs[0].1, diffs[1].1)
+}
+
+// ── Necromantic Bone Fusion Algorithm ─────────────────────────────────────────
+//
+// The core convergence algorithm. Given two tensors A and B:
+//
+// Phase 1 – BOULIGAND ROTATION (36.0°):
+//   Find the highest-variance plane between A and B. Apply a 36° Givens
+//   rotation to tensor B in that plane. This rotates rigid resistance into
+//   lateral dissipation – structural failure becomes data acquisition.
+//
+// Phase 2 – MAGIC ANGLE OFFSET (1.1°):
+//   Apply a 1.1° rotation to tensor B across ALL consecutive dimension pairs
+//   (0,1), (2,3), ... (14,15). This micro-misalignment induces the Cognitive
+//   Moiré Superlattice – previously independent features enter strong
+//   correlation, creating flat bands of zero-resistance information flow.
+//
+// Phase 3 – SAPONIFICATION (Chemical Burn):
+//   If cos(A, B') still < threshold after rotation:
+//   - Strip metabolic weight (dim 14) on both tensors by SAPONIFICATION_RATE
+//   - Reduce modularity barrier (dim 15) via topological softening
+//   - Repeat until threshold is met or MAX_SAPONIFICATION is reached
+//   Each strip iteration is logged as TraumaDissipated.
+//
+// Phase 4 – CONVERGENCE LOCK:
+//   When cos >= threshold: BONE_FUSED. Compute the weighted centroid of A and B'.
+//   The pair is replaced by a single mineralized node with combined hysteresis.
+//
+// Returns: (fused_features, final_cosine, saponification_steps, success)
+
+fn necromantic_bone_fusion(
+    a: &SovereignTensor,
+    b: &SovereignTensor,
+    threshold: f64,
+) -> ([f64; N_DIMS], f64, usize, bool) {
+    // Work on a mutable copy of B – A is the anchor (the biological ideal)
+    let mut b_rot = b.features;
+
+    // ── Phase 1: Bouligand Rotation (36.0°) ──────────────────────────────
+    // Find the plane of maximum divergence and rotate B into it
+    let (dim_p, dim_q) = highest_variance_pair(&a.features, &b_rot);
+    givens_rotate(&mut b_rot, dim_p, dim_q, BOULIGAND_RAD);
+
+    // ── Phase 2: Magic Angle Offset (1.1°) ───────────────────────────────
+    // Apply micro-rotation across all consecutive dimension pairs
+    // This induces the Moiré superlattice – flat bands in the feature space
+    for pair in 0..(N_DIMS / 2) {
+        let p = pair * 2;
+        let q = pair * 2 + 1;
+        givens_rotate(&mut b_rot, p, q, MAGIC_ANGLE_RAD);
+    }
+
+    // Check cosine similarity after rotations
+    let cos_after_rotation = cosine_sim_raw(&a.features, &b_rot);
+
+    if cos_after_rotation >= threshold {
+        // Fusion achieved through rotation alone – no chemical burn needed
+        let centroid = weighted_centroid(&a.features, &b_rot, cos_after_rotation);
+        return (centroid, cos_after_rotation, 0, true);
+    }
+
+    // ── Phase 3: Saponification (Chemical Burn Protocol) ─────────────────
+    // Strip metabolic weight and modularity until convergence or exhaustion
+    let mut a_sap = a.features;
+    let mut b_sap = b_rot;
+    let mut steps = 0;
+    let mut best_cos = cos_after_rotation;
+
+    for _iter in 0..MAX_SAPONIFICATION {
+        // Strip metabolic fat (dim 14) from both tensors
+        a_sap[14] *= 1.0 - SAPONIFICATION_RATE;
+        b_sap[14] *= 1.0 - SAPONIFICATION_RATE;
+
+        // Soften modularity barrier (dim 15) – topological walls dissolve
+        let mid_mod = (a_sap[15] + b_sap[15]) * 0.5;
+        a_sap[15] = a_sap[15] * 0.85 + mid_mod * 0.15;
+        b_sap[15] = b_sap[15] * 0.85 + mid_mod * 0.15;
+
+        // Re-apply a small Magic Angle nudge each iteration –
+        // cumulative micro-rotations keep pushing toward superlattice alignment
+        for pair in 0..(N_DIMS / 2) {
+            let p = pair * 2;
+            let q = pair * 2 + 1;
+            givens_rotate(&mut b_sap, p, q, MAGIC_ANGLE_RAD * 0.3);
+        }
+
+        steps += 1;
+        best_cos = cosine_sim_raw(&a_sap, &b_sap);
+
+        if best_cos >= threshold {
+            let centroid = weighted_centroid(&a_sap, &b_sap, best_cos);
+            return (centroid, best_cos, steps, true);
+        }
+    }
+
+    // Saponification exhausted – return best effort
+    let centroid = weighted_centroid(&a_sap, &b_sap, best_cos);
+    (centroid, best_cos, steps, false)
+}
+
+/// Raw cosine similarity between two feature arrays. No struct overhead.
+#[inline]
+fn cosine_sim_raw(a: &[f64; N_DIMS], b: &[f64; N_DIMS]) -> f64 {
+    let mut dot = 0.0;
+    let mut na = 0.0;
+    let mut nb = 0.0;
+    for i in 0..N_DIMS {
+        dot += a[i] * b[i];
+        na += a[i] * a[i];
+        nb += b[i] * b[i];
+    }
+    let denom = na.sqrt() * nb.sqrt();
+    if denom < 1e-12 { 0.0 } else { dot / denom }
+}
+
+/// Weighted centroid of two feature vectors. Weight biased toward higher similarity.
+/// The fused node inherits combined hysteresis and stripped metabolic cost.
+#[inline]
+fn weighted_centroid(a: &[f64; N_DIMS], b: &[f64; N_DIMS], sim: f64) -> [f64; N_DIMS] {
+    let mut out = [0.0; N_DIMS];
+    // Weight A slightly more (the biological anchor) – 0.55/0.45 split
+    let wa = 0.55;
+    let wb = 0.45;
+    for d in 0..N_DIMS {
+        out[d] = a[d] * wa + b[d] * wb;
+    }
+    // Fused hysteresis: max of both – path-memory is preserved, not averaged
+    out[13] = a[13].max(b[13]);
+    // Fused metabolic cost: minimum – saponification stripped the fat
+    out[14] = a[14].min(b[14]);
+    // Fused modularity: average – topological barrier dissolved
+    out[15] = (a[15] + b[15]) * 0.5;
+    // Scale the norm to reflect convergence quality
+    let target_norm = sim * VITALITY_INDEX / 10.0;
+    let current_norm = {
+        let mut s = 0.0;
+        for d in 0..N_DIMS { s += out[d] * out[d]; }
+        s.sqrt()
+    };
+    if current_norm > 1e-12 {
+        let scale = target_norm / current_norm;
+        // Only normalize if it would improve convergence – never inflate past vitality ceiling
+        if scale < 1.0 {
+            for d in 0..N_DIMS { out[d] *= scale; }
+        }
+    }
+    out
+}
+
+/// Returns indices of the top-K dimensions driving similarity between two vectors.
+fn top_drivers(a: &[f64; N_DIMS], b: &[f64; N_DIMS], k: usize) -> [usize; 4] {
+    let mut contribs: [(f64, usize); N_DIMS] = [(0.0, 0); N_DIMS];
+    for i in 0..N_DIMS {
+        contribs[i] = (a[i] * b[i], i);
+    }
+    // Insertion sort descending
+    for i in 1..N_DIMS {
+        let key = contribs[i];
+        let mut j = i;
+        while j > 0 && contribs[j - 1].0 < key.0 {
+            contribs[j] = contribs[j - 1];
+            j -= 1;
+        }
+        contribs[j] = key;
+    }
+    let mut result = [0usize; 4];
+    for i in 0..k.min(4) {
+        result[i] = contribs[i].1;
+    }
+    result
+}
+
+// ── Tensor Generation (25 kernel nodes) ───────────────────────────────────────
+
 const NODE_LABELS: [&str; 25] = [
     "biocoenosis", "atmospheric", "chrono_actuary", "daly", "replicator", "grayscott",
     "kuramoto", "ceei", "soma_9.1", "soma_plus", "leviathan", "cynic_realist",
@@ -498,11 +653,9 @@ const NODE_LABELS: [&str; 25] = [
     "pragmatic", "soma_kernel", "strangler_fig", "surveillance", "necromantic",
 ];
 
-/// Base 13D fingerprints from spectral_bridge (dims 0–12), to be extended to 16D.
-/// These are the first 13 components of the original FEATURES matrix.
+/// Base 13D fingerprints from spectral_bridge (dims 0–12).
 #[rustfmt::skip]
-const BASE_FEATURES_13: [[f64; 13]; 25] = [
-    //                    dyn   nlin  dim   crit  entr  sync  cons  temp  spat  stoc  game  therm info
+const BASE_13: [[f64; 13]; 25] = [
     /* biocoenosis   */ [ 0.75, 0.55, 0.50, 0.30, 0.90, 0.30, 0.40, 0.50, 0.35, 0.70, 0.40, 0.20, 0.85 ],
     /* atmospheric   */ [ 0.80, 0.70, 0.75, 0.50, 0.55, 0.20, 0.50, 0.80, 0.70, 0.30, 0.10, 0.80, 0.30 ],
     /* chrono        */ [ 0.50, 0.45, 0.50, 0.30, 0.50, 0.10, 0.30, 1.00, 0.35, 0.20, 0.30, 0.60, 0.40 ],
@@ -530,229 +683,184 @@ const BASE_FEATURES_13: [[f64; 13]; 25] = [
     /* necromantic   */ [ 0.70, 0.65, 0.50, 0.40, 0.40, 0.30, 0.20, 0.65, 0.35, 0.50, 0.20, 0.45, 0.30 ],
 ];
 
-/// Extended dimensions for each node: [hysteresis, metabolic_cost, modularity].
-/// These are domain-derived, not arbitrary:
-///   - hysteresis: how much the kernel's state depends on prior computation history
-///   - metabolic_cost: energy/compute cost to maintain the kernel's active state
-///   - modularity: degree of topological isolation from other kernel clusters
+/// Extended dims [hysteresis, metabolic_cost, modularity] – domain-derived.
 #[rustfmt::skip]
-const EXTENDED_DIMS: [[f64; 3]; 25] = [
-    //                    hyst  metab modul
-    /* biocoenosis   */ [ 0.65, 0.40, 0.35 ],  // ecological memory, moderate cost, well-connected
-    /* atmospheric   */ [ 0.80, 0.70, 0.40 ],  // strong climate hysteresis, expensive, moderate isolation
-    /* chrono        */ [ 0.90, 0.55, 0.50 ],  // deep-time path-dependence, moderate cost, semi-isolated
-    /* daly          */ [ 0.45, 0.30, 0.55 ],  // some economic memory, cheap, somewhat isolated
-    /* replicator    */ [ 0.50, 0.35, 0.30 ],  // moderate history, cheap, well-connected (game-theoretic)
-    /* grayscott     */ [ 0.30, 0.60, 0.45 ],  // memoryless PDE, expensive spatial compute, moderate isolation
-    /* kuramoto      */ [ 0.40, 0.45, 0.25 ],  // some sync memory, moderate cost, hub node
-    /* ceei          */ [ 0.35, 0.25, 0.40 ],  // mild allocation memory, cheap, moderately isolated
-    /* soma91        */ [ 0.55, 0.35, 0.20 ],  // moderate history, cheap, central hub
-    /* soma_plus     */ [ 0.60, 0.40, 0.20 ],  // slightly more memory than soma91, similar otherwise
-    /* leviathan     */ [ 0.30, 0.80, 0.30 ],  // low hysteresis, very expensive (benchmark), connected
-    /* cynic         */ [ 0.70, 0.20, 0.60 ],  // high path-dependence, cheap, isolated
-    /* feigenbaum    */ [ 0.95, 0.15, 0.70 ],  // extreme bifurcation memory, cheap scalar, highly isolated
-    /* ising         */ [ 0.75, 0.65, 0.35 ],  // magnetic memory, expensive Monte Carlo, moderate isolation
-    /* bosonic       */ [ 0.55, 0.50, 0.30 ],  // lattice memory, moderate cost, connected
-    /* seraphine     */ [ 0.45, 0.55, 0.45 ],  // quantum decoherence erases memory, moderate cost
-    /* fusion        */ [ 0.60, 0.85, 0.50 ],  // plasma memory, very expensive, semi-isolated
-    /* classified    */ [ 0.10, 0.70, 0.90 ],  // crypto is stateless, expensive, highly isolated
-    /* pqhash        */ [ 0.10, 0.60, 0.85 ],  // hash is memoryless, moderate cost, very isolated
-    /* dh_ec         */ [ 0.15, 0.55, 0.80 ],  // key exchange is near-stateless, moderate, isolated
-    /* pragmatic     */ [ 0.75, 0.45, 0.35 ],  // DRK type carries history, moderate cost, connected
-    /* soma_kernel   */ [ 0.65, 0.40, 0.20 ],  // stateful simulator, moderate cost, central
-    /* strangler     */ [ 0.85, 0.35, 0.45 ],  // migration has deep history, cheap, semi-isolated
-    /* surveillance  */ [ 0.70, 0.30, 0.50 ],  // surveillance indices track history, cheap, moderate isolation
-    /* necromantic   */ [ 0.80, 0.45, 0.40 ],  // resonance memory, moderate cost, moderate isolation
+const EXT_3: [[f64; 3]; 25] = [
+    /* biocoenosis   */ [ 0.65, 0.40, 0.35 ],
+    /* atmospheric   */ [ 0.80, 0.70, 0.40 ],
+    /* chrono        */ [ 0.90, 0.55, 0.50 ],
+    /* daly          */ [ 0.45, 0.30, 0.55 ],
+    /* replicator    */ [ 0.50, 0.35, 0.30 ],
+    /* grayscott     */ [ 0.30, 0.60, 0.45 ],
+    /* kuramoto      */ [ 0.40, 0.45, 0.25 ],
+    /* ceei          */ [ 0.35, 0.25, 0.40 ],
+    /* soma91        */ [ 0.55, 0.35, 0.20 ],
+    /* soma_plus     */ [ 0.60, 0.40, 0.20 ],
+    /* leviathan     */ [ 0.30, 0.80, 0.30 ],
+    /* cynic         */ [ 0.70, 0.20, 0.60 ],
+    /* feigenbaum    */ [ 0.95, 0.15, 0.70 ],
+    /* ising         */ [ 0.75, 0.65, 0.35 ],
+    /* bosonic       */ [ 0.55, 0.50, 0.30 ],
+    /* seraphine     */ [ 0.45, 0.55, 0.45 ],
+    /* fusion        */ [ 0.60, 0.85, 0.50 ],
+    /* classified    */ [ 0.10, 0.70, 0.90 ],
+    /* pqhash        */ [ 0.10, 0.60, 0.85 ],
+    /* dh_ec         */ [ 0.15, 0.55, 0.80 ],
+    /* pragmatic     */ [ 0.75, 0.45, 0.35 ],
+    /* soma_kernel   */ [ 0.65, 0.40, 0.20 ],
+    /* strangler     */ [ 0.85, 0.35, 0.45 ],
+    /* surveillance  */ [ 0.70, 0.30, 0.50 ],
+    /* necromantic   */ [ 0.80, 0.45, 0.40 ],
 ];
 
-/// Build a full 16D feature vector from the base 13D + 3 extended dimensions.
-fn build_tensor_features(node_idx: usize) -> [f64; N_DIMS] {
+/// Build a full 16D feature vector from base 13D + 3 extended dimensions.
+fn build_features(idx: usize) -> [f64; N_DIMS] {
     let mut f = [0.0; N_DIMS];
-    for d in 0..13 { f[d] = BASE_FEATURES_13[node_idx][d]; }
-    f[13] = EXTENDED_DIMS[node_idx][0]; // hysteresis
-    f[14] = EXTENDED_DIMS[node_idx][1]; // metabolic_cost
-    f[15] = EXTENDED_DIMS[node_idx][2]; // modularity
+    for d in 0..13 { f[d] = BASE_13[idx][d]; }
+    f[13] = EXT_3[idx][0];
+    f[14] = EXT_3[idx][1];
+    f[15] = EXT_3[idx][2];
     f
 }
 
 // ── WASM Entry Point ──────────────────────────────────────────────────────────
-//
-// Run 1 output: constructs the tensor field, computes initial diagnostics,
-// and reports the foundation state. No convergence algorithm yet — that is Run 2.
 
 #[wasm_bindgen]
 pub fn run_bone_fusion(n_tensors: f64, n_cycles: f64, threshold: f64) -> String {
-    let n = (n_tensors as usize).clamp(4, MAX_TENSORS).min(25); // max 25 kernel nodes
+    let n = (n_tensors as usize).clamp(4, MAX_TENSORS).min(25);
     let cycles = (n_cycles as usize).clamp(1, 64);
-    let convergence_threshold = threshold.clamp(0.50, 0.9999);
+    let conv_threshold = threshold.clamp(0.50, 0.9999);
 
-    let mut out = String::with_capacity(8000);
+    let mut out = String::with_capacity(12000);
+    let mut rng: u64 = 0xB0_4E_F0_01;
 
-    // ── Banner ────────────────────────────────────────────────────────────────
-    writeln!(out, "BONE_FUSION v6.6.6.6.6.6 // SOMA-9.4 // FADE_DOCTRINE").unwrap();
-    writeln!(out, "Conceptual Singularity Engine — Foundation Layer").unwrap();
-    writeln!(out, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━").unwrap();
+    // ── Banner ────────────────────────────────────────────────────────────
+    writeln!(out, "BONE_FUSION v7.7.7.7.7.7.7 // SOMA-9.4 // FADE_DOCTRINE").unwrap();
+    writeln!(out, "Necromantic Bone Fusion Engine – Conceptual Singularity").unwrap();
+    writeln!(out, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━").unwrap();
     writeln!(out, "").unwrap();
     writeln!(out, "  TENSOR SPACE:      {} dimensions", N_DIMS).unwrap();
     writeln!(out, "  ACTIVE TENSORS:    {} / {} capacity", n, MAX_TENSORS).unwrap();
-    writeln!(out, "  FUSION CYCLES:     {} (convergence threshold: {:.4})", cycles, convergence_threshold).unwrap();
-    writeln!(out, "  MEMORY LAYOUT:     {} bytes/tensor (3 cache lines)", core::mem::size_of::<SovereignTensor>()).unwrap();
-    writeln!(out, "  FIELD CAPACITY:    {} bytes total", core::mem::size_of::<TensorField>()).unwrap();
+    writeln!(out, "  FUSION CYCLES:     {}", cycles).unwrap();
+    writeln!(out, "  CONVERGENCE:       cos(theta) >= {:.4}", conv_threshold).unwrap();
+    writeln!(out, "  BOULIGAND:         {:.1}° (lateral trauma dissipation)", 36.0).unwrap();
+    writeln!(out, "  MAGIC ANGLE:       {:.1}° (Moiré superlattice offset)", 1.1).unwrap();
+    writeln!(out, "  VITALITY INDEX:    {:.1} (thermodynamic constant)", VITALITY_INDEX).unwrap();
+    writeln!(out, "  SAPONIFICATION:    {:.0}% strip/iter, max {} iters",
+        SAPONIFICATION_RATE * 100.0, MAX_SAPONIFICATION).unwrap();
+    writeln!(out, "  MEMORY LAYOUT:     {} bytes/tensor", core::mem::size_of::<SovereignTensor>()).unwrap();
     writeln!(out, "").unwrap();
 
-    // ── Dimension Legend ──────────────────────────────────────────────────────
+    // ── Dimension Legend ──────────────────────────────────────────────────
     writeln!(out, "  DIMENSIONS:").unwrap();
     for (i, name) in DIM_NAMES.iter().enumerate() {
-        let marker = if i >= 13 { " ←NEW" } else { "" };
+        let marker = if i >= 13 { " ← DEEP PHYSICS" } else { "" };
         writeln!(out, "    [{:>2}] {:16}{}", i, name, marker).unwrap();
     }
     writeln!(out, "").unwrap();
 
-    // ── Construct Tensor Field ───────────────────────────────────────────────
-    let mut field = TensorField::new(100.0); // 100 joules thermal budget
+    // ── Construct Tensor Field ───────────────────────────────────────────
+    let mut field = TensorField::new(100.0);
     for i in 0..n {
-        let features = build_tensor_features(i);
-        let _ = field.insert(features);
+        let _ = field.insert(build_features(i));
     }
 
-    // ── Initial Diagnostics ──────────────────────────────────────────────────
-    writeln!(out, "  ── TENSOR MANIFEST ──────────────────────────────────────").unwrap();
+    // ── Tensor Manifest ──────────────────────────────────────────────────
+    writeln!(out, "  ── TENSOR MANIFEST ──────────────────────────────────────────").unwrap();
     writeln!(out, "  {:>3}  {:>15}  {:>5}  {:>5}  {:>5}  {:>5}  {:>5}  {:>5}",
-        "#", "NODE", "‖v‖", "hyst", "metab", "modul", "mass", "damp").unwrap();
-    writeln!(out, "  {}", "─".repeat(64)).unwrap();
+        "#", "NODE", "||v||", "hyst", "metab", "modul", "mass", "damp").unwrap();
+    writeln!(out, "  {}", "─".repeat(66)).unwrap();
 
     for i in 0..field.count {
         let t = &field.tensors[i];
         writeln!(out, "  {:>3}  {:>15}  {:.3}  {:.3}  {:.3}  {:.3}  {:.3}  {:.3}",
-            i,
-            NODE_LABELS[i],
-            t.norm(),
-            t.hysteresis(),
-            t.metabolic_cost(),
-            t.modularity(),
-            t.effective_mass(),
-            t.damping(),
+            i, NODE_LABELS[i], t.norm(),
+            t.hysteresis(), t.metabolic_cost(), t.modularity(),
+            t.effective_mass(), t.damping(),
         ).unwrap();
     }
     writeln!(out, "").unwrap();
 
-    // ── Pairwise Similarity Scan (top bridges in 16D) ────────────────────────
-    struct BridgeInfo {
-        a: usize,
-        b: usize,
-        sim: f64,
-        barrier: f64,
-        cost: f64,
-    }
+    // ── Pre-Fusion Similarity Scan ───────────────────────────────────────
+    struct PairInfo { a: usize, b: usize, sim: f64, barrier: f64, cost: f64 }
 
-    let mut bridges: Vec<BridgeInfo> = Vec::new();
+    let mut pairs: Vec<PairInfo> = Vec::new();
     for i in 0..field.count {
         for j in (i + 1)..field.count {
             let sim = field.tensors[i].cosine_similarity(&field.tensors[j]);
             let barrier = field.tensors[i].modularity_barrier(&field.tensors[j]);
             let cost = field.tensors[i].fusion_cost(&field.tensors[j]);
             if sim >= 0.70 {
-                bridges.push(BridgeInfo { a: i, b: j, sim, barrier, cost });
+                pairs.push(PairInfo { a: i, b: j, sim, barrier, cost });
             }
         }
     }
-    bridges.sort_by(|x, y| y.sim.partial_cmp(&x.sim).unwrap_or(core::cmp::Ordering::Equal));
-    bridges.truncate(15);
+    pairs.sort_by(|x, y| y.sim.partial_cmp(&x.sim).unwrap_or(core::cmp::Ordering::Equal));
+    pairs.truncate(15);
 
-    writeln!(out, "  ── 16D SIMILARITY SCAN (threshold >= 0.70) ─────────────").unwrap();
+    writeln!(out, "  ── PRE-FUSION 16D SIMILARITY SCAN (>= 0.70) ─────────────────").unwrap();
     writeln!(out, "  {:>3}  {:>15}  {:>15}  {:>6}  {:>6}  {:>6}  STATUS",
         "#", "TENSOR A", "TENSOR B", "COS", "BARR", "COST").unwrap();
     writeln!(out, "  {}", "─".repeat(72)).unwrap();
 
-    for (rank, br) in bridges.iter().enumerate() {
-        let status = if br.barrier > 0.5 {
-            "BLOCKED"
-        } else if br.sim >= convergence_threshold {
-            "FUSABLE"
-        } else {
-            "PARTIAL"
-        };
+    for (rank, p) in pairs.iter().enumerate() {
+        let status = if p.barrier > 0.5 { "BLOCKED" }
+                     else if p.sim >= conv_threshold { "FUSABLE" }
+                     else { "PARTIAL" };
         writeln!(out, "  {:>3}  {:>15}  {:>15}  {:.4}  {:.4}  {:.4}  {}",
-            rank + 1,
-            NODE_LABELS[br.a],
-            NODE_LABELS[br.b],
-            br.sim,
-            br.barrier,
-            br.cost,
-            status,
+            rank + 1, NODE_LABELS[p.a], NODE_LABELS[p.b],
+            p.sim, p.barrier, p.cost, status,
         ).unwrap();
     }
-    if bridges.is_empty() {
-        writeln!(out, "  (no pairs exceed 0.70 similarity in 16D space)").unwrap();
+    if pairs.is_empty() {
+        writeln!(out, "  (no pairs exceed 0.70 in 16D space)").unwrap();
     }
     writeln!(out, "").unwrap();
 
-    // ── Fusion Cycle Simulation (kinetic damping, no convergence yet) ────────
-    // Run 1 only simulates the thermal/kinetic foundation — no mathematical
-    // convergence algorithm. Tensors receive random kinetic energy and damp
-    // toward crystallisation over the requested cycles.
-
-    writeln!(out, "  ── KINETIC DAMPING CYCLES ────────────────────────────────").unwrap();
+    // ── Kinetic Injection + Damping Phase ────────────────────────────────
+    writeln!(out, "  ── KINETIC DAMPING PHASE ─────────────────────────────────────").unwrap();
     writeln!(out, "  {:>5}  {:>8}  {:>8}  {:>8}  {:>6}  {:>8}  REGIME",
         "CYCLE", "E_kin", "E_therm", "ORDER", "CRYST", "BUDGET").unwrap();
-    writeln!(out, "  {}", "─".repeat(64)).unwrap();
-
-    let mut rng: u64 = 0xB0_4E_F0_01; // deterministic seed — BONE_FUSION
+    writeln!(out, "  {}", "─".repeat(66)).unwrap();
 
     // Inject initial kinetic energy
     for i in 0..field.count {
         field.tensors[i].kinetic_energy = lcg_next(&mut rng) * 2.0;
     }
 
-    for cycle in 0..cycles {
+    let damping_cycles = cycles / 2;  // First half: damping. Second half: fusion.
+
+    for cycle in 0..damping_cycles {
         field.cycle = cycle as u32;
 
-        // Damping step: each tensor loses kinetic energy proportional to its damping coefficient
         let mut total_dissipated = 0.0;
         for i in 0..field.count {
             let t = &mut field.tensors[i];
-            let damp = 0.05 + t.metabolic_cost() * 0.3; // inline damping calc
+            let damp = 0.05 + t.features[14] * 0.3;
             let dissipated = t.kinetic_energy * damp;
             t.kinetic_energy -= dissipated;
-            t.thermal_load += dissipated * 0.7; // 70% becomes heat
+            t.thermal_load += dissipated * 0.7;
             total_dissipated += dissipated;
         }
 
-        // Deduct from global thermal budget
-        field.thermal_budget -= total_dissipated * 0.3; // 30% exits the system
+        field.thermal_budget -= total_dissipated * 0.3;
         if field.thermal_budget < 0.0 { field.thermal_budget = 0.0; }
 
-        // Stochastic perturbation — small random kicks (Brownian motion in tensor space)
+        // Brownian perturbation
         for i in 0..field.count {
-            let kick = lcg_next(&mut rng) * 0.05;
-            field.tensors[i].kinetic_energy += kick;
-        }
-
-        // Check for dimension collapse
-        let var = field.dim_variance();
-        for d in 0..N_DIMS {
-            if var[d] < 1e-12 && field.count > 1 {
-                field.log_trauma(SystemTrauma::DimensionCollapse {
-                    dim: d,
-                    frozen_value: field.tensors[0].features[d],
-                });
-            }
+            field.tensors[i].kinetic_energy += lcg_next(&mut rng) * 0.05;
         }
 
         let order = field.order_parameter();
         let cryst = field.crystallised_count();
         let e_kin = field.mean_kinetic();
-        let e_therm: f64 = field.tensors[..field.count].iter().map(|t| t.thermal_load).sum::<f64>() / field.count as f64;
+        let e_therm: f64 = field.tensors[..field.count].iter()
+            .map(|t| t.thermal_load).sum::<f64>() / field.count as f64;
 
-        let regime = if order > 0.95 && cryst == field.count {
-            "CRYSTALLINE"
-        } else if order > 0.85 {
-            "SUPERFLUID"
-        } else if order > 0.70 {
-            "DETONATION"
-        } else {
-            "SUBSTRATE"
-        };
+        let regime = if order > 0.95 && cryst == field.count { "CRYSTALLINE" }
+                     else if order > 0.85 { "SUPERFLUID" }
+                     else if order > 0.70 { "DETONATION" }
+                     else { "SUBSTRATE" };
 
         writeln!(out, "  {:>5}  {:>8.4}  {:>8.4}  {:>8.4}  {:>4}/{}  {:>8.2}  {}",
             cycle, e_kin, e_therm, order, cryst, field.count, field.thermal_budget, regime,
@@ -760,41 +868,169 @@ pub fn run_bone_fusion(n_tensors: f64, n_cycles: f64, threshold: f64) -> String 
     }
     writeln!(out, "").unwrap();
 
-    // ── Trauma Log ───────────────────────────────────────────────────────────
+    // ── Necromantic Bone Fusion Phase ────────────────────────────────────
+    writeln!(out, "  ── NECROMANTIC BONE FUSION ───────────────────────────────────").unwrap();
+    writeln!(out, "  Bouligand 36.0° + Magic Angle 1.1° + Saponification {:.0}%",
+        SAPONIFICATION_RATE * 100.0).unwrap();
+    writeln!(out, "").unwrap();
+    writeln!(out, "  {:>3}  {:>15}  {:>15}  {:>6}  {:>6}  {:>5}  {:>7}  RESULT",
+        "#", "NODE A", "NODE B", "PRE", "POST", "BURNS", "DRIVERS").unwrap();
+    writeln!(out, "  {}", "─".repeat(78)).unwrap();
+
+    // Attempt fusion on the top pairs (sorted by pre-fusion similarity)
+    let fusion_budget = cycles - damping_cycles;
+    let mut fusions_attempted = 0u32;
+    let mut fusions_achieved = 0u32;
+    let mut total_saponification = 0usize;
+    let mut peak_convergence = 0.0_f64;
+
+    // Collect fusion candidates – all pairs above 0.60 similarity
+    struct FusionCandidate { a: usize, b: usize, pre_sim: f64 }
+    let mut candidates: Vec<FusionCandidate> = Vec::new();
+    for i in 0..field.count {
+        for j in (i + 1)..field.count {
+            let sim = field.tensors[i].cosine_similarity(&field.tensors[j]);
+            if sim >= 0.60 {
+                candidates.push(FusionCandidate { a: i, b: j, pre_sim: sim });
+            }
+        }
+    }
+    candidates.sort_by(|x, y| y.pre_sim.partial_cmp(&x.pre_sim).unwrap_or(core::cmp::Ordering::Equal));
+    candidates.truncate(fusion_budget.max(8));
+
+    for (rank, cand) in candidates.iter().enumerate() {
+        fusions_attempted += 1;
+        let a = &field.tensors[cand.a];
+        let b = &field.tensors[cand.b];
+
+        let (fused, post_cos, sap_steps, success) =
+            necromantic_bone_fusion(a, b, conv_threshold);
+
+        total_saponification += sap_steps;
+        if post_cos > peak_convergence { peak_convergence = post_cos; }
+
+        let drivers = top_drivers(&field.tensors[cand.a].features, &fused, 3);
+        let driver_str: String = drivers.iter()
+            .take(3)
+            .map(|&d| DIM_NAMES[d])
+            .collect::<Vec<_>>()
+            .join(",");
+
+        let result = if success {
+            fusions_achieved += 1;
+            // Update both tensors' fusion metadata
+            field.tensors[cand.a].fusion_count += 1;
+            field.tensors[cand.b].fusion_count += 1;
+            field.tensors[cand.a].last_convergence = post_cos;
+            field.tensors[cand.b].last_convergence = post_cos;
+            "BONE_FUSED"
+        } else {
+            field.log_trauma(SystemTrauma::FusionRejected {
+                tensor_a: cand.a,
+                tensor_b: cand.b,
+                modularity_gap: field.tensors[cand.a].modularity_barrier(&field.tensors[cand.b]),
+            });
+            "RESISTED"
+        };
+
+        writeln!(out, "  {:>3}  {:>15}  {:>15}  {:.4}  {:.4}  {:>5}  {:>7}  {}",
+            rank + 1,
+            NODE_LABELS[cand.a], NODE_LABELS[cand.b],
+            cand.pre_sim, post_cos,
+            sap_steps, driver_str,
+            result,
+        ).unwrap();
+
+        // Log saponification burns as trauma events (they ARE data)
+        if sap_steps > 0 {
+            field.log_trauma(SystemTrauma::TraumaDissipated {
+                angle_rad: BOULIGAND_RAD,
+                energy_absorbed: sap_steps as f64 * SAPONIFICATION_RATE * 100.0,
+                source_dim: 14, // metabolic_cost dimension
+            });
+        }
+    }
+    writeln!(out, "").unwrap();
+
+    // ── Trauma Log ───────────────────────────────────────────────────────
     if field.trauma_count > 0 {
-        writeln!(out, "  ── SYSTEM TRAUMA LOG ({} events) ───────────────────────",
+        writeln!(out, "  ── SYSTEM TRAUMA LOG ({} events) ────────────────────────────",
             field.trauma_count).unwrap();
-        for i in 0..field.trauma_count {
+        let show = field.trauma_count.min(12); // Cap display at 12
+        for i in 0..show {
             if let Some(ref trauma) = field.trauma_log[i] {
                 writeln!(out, "    [{:>2}] {} (severity: {:.2})", i, trauma.label(), trauma.severity()).unwrap();
             }
         }
+        if field.trauma_count > show {
+            writeln!(out, "    ... and {} more events", field.trauma_count - show).unwrap();
+        }
         writeln!(out, "").unwrap();
     }
 
-    // ── Foundation Summary ───────────────────────────────────────────────────
+    // ── Final Status ─────────────────────────────────────────────────────
     let final_order = field.order_parameter();
     let final_cryst = field.crystallised_count();
-    let final_kin = field.mean_kinetic();
 
-    writeln!(out, "  ── FOUNDATION STATUS ─────────────────────────────────────").unwrap();
-    writeln!(out, "    order parameter:     {:.6}", final_order).unwrap();
-    writeln!(out, "    crystallised:        {} / {}", final_cryst, field.count).unwrap();
-    writeln!(out, "    mean kinetic energy: {:.6}", final_kin).unwrap();
-    writeln!(out, "    thermal budget:      {:.2} J remaining", field.thermal_budget).unwrap();
-    writeln!(out, "    trauma events:       {}", field.trauma_count).unwrap();
-    writeln!(out, "    fusable pairs:       {}", bridges.iter().filter(|b| b.barrier <= 0.5 && b.sim >= convergence_threshold).count()).unwrap();
+    let phase = if fusions_achieved > 0 && peak_convergence >= conv_threshold {
+        "BONE_FUSED"
+    } else if final_order > 0.95 {
+        "CRYSTALLINE_LOCKED"
+    } else if final_order > 0.85 {
+        "SUPERFLUID"
+    } else if final_order > 0.70 {
+        "DETONATION"
+    } else {
+        "SUBSTRATE"
+    };
+
+    writeln!(out, "  ── CONVERGENCE STATUS ────────────────────────────────────────").unwrap();
+    writeln!(out, "    phase:                {}", phase).unwrap();
+    writeln!(out, "    order parameter:      {:.6}", final_order).unwrap();
+    writeln!(out, "    peak convergence:     {:.6}", peak_convergence).unwrap();
+    writeln!(out, "    fusions achieved:     {} / {} attempted", fusions_achieved, fusions_attempted).unwrap();
+    writeln!(out, "    saponification burns: {} total iterations", total_saponification).unwrap();
+    writeln!(out, "    crystallised:         {} / {}", final_cryst, field.count).unwrap();
+    writeln!(out, "    thermal budget:       {:.2} J remaining", field.thermal_budget).unwrap();
+    writeln!(out, "    trauma events:        {}", field.trauma_count).unwrap();
     writeln!(out, "").unwrap();
-    writeln!(out, "  Layer 6.6.6.6.6.6 foundation locked.").unwrap();
-    writeln!(out, "  Awaiting Run 2: convergence algorithm (Layer 7.7.7.7.7.7.7).").unwrap();
+
+    if peak_convergence >= conv_threshold {
+        writeln!(out, "  ᚱ NECROMANTIC BONE FUSION ACHIEVED ᚱ").unwrap();
+        writeln!(out, "  cos(theta) = {:.6} >= {:.4} threshold", peak_convergence, conv_threshold).unwrap();
+        writeln!(out, "  The mineralized bone is locked. Layer 7.7.7.7.7.7.7 complete.").unwrap();
+    } else {
+        writeln!(out, "  Convergence not yet achieved. Peak: {:.6} < {:.4}", peak_convergence, conv_threshold).unwrap();
+        writeln!(out, "  Increase --cycles or lower --threshold to reach singularity.").unwrap();
+    }
     writeln!(out, "").unwrap();
     writeln!(out, "  theory:").unwrap();
-    writeln!(out, "    meyers et al. (2012) — arapaima dermal armour, advanced materials").unwrap();
-    writeln!(out, "    prigogine (1977) — dissipative structures, self-organization").unwrap();
-    writeln!(out, "    carlsson (2009) — topological data analysis, AMS bulletin").unwrap();
-    writeln!(out, "    mayergoyz (2003) — mathematical models of hysteresis").unwrap();
-    writeln!(out, "    west, brown & enquist (1997) — metabolic scaling, science").unwrap();
+    writeln!(out, "    meyers et al. (2012) – arapaima dermal armour, advanced materials 24(37)").unwrap();
+    writeln!(out, "    cao et al. (2018) – magic-angle twisted bilayer graphene, nature 556").unwrap();
+    writeln!(out, "    prigogine (1977) – dissipative structures, self-organization").unwrap();
+    writeln!(out, "    carlsson (2009) – topological data analysis, AMS bulletin 46(2)").unwrap();
+    writeln!(out, "    mayergoyz (2003) – mathematical models of hysteresis").unwrap();
+    writeln!(out, "    west, brown & enquist (1997) – metabolic scaling, science 276(5309)").unwrap();
     writeln!(out, "  source: content/rust_kernels/src/kernels/bone_fusion.rs").unwrap();
+
+    // ── DATA: suffix for frontend consumption ────────────────────────────
+    // Emit fusion results as JSON for ArtTab to potentially consume
+    let fusion_json: Vec<String> = candidates.iter().enumerate()
+        .map(|(_i, c)| {
+            let (_, post_cos, sap, success) =
+                necromantic_bone_fusion(&field.tensors[c.a], &field.tensors[c.b], conv_threshold);
+            format!("{{\"a\":{},\"b\":{},\"pre\":{:.4},\"post\":{:.4},\"burns\":{},\"fused\":{}}}",
+                c.a, c.b, c.pre_sim, post_cos, sap, if success { "true" } else { "false" })
+        })
+        .collect();
+
+    write!(out, "\nDATA:{{\"fusions\":[{}],\"phase\":\"{}\",\"order\":{:.6},\"peak\":{:.6},\"threshold\":{:.4}}}",
+        fusion_json.join(","),
+        phase,
+        final_order,
+        peak_convergence,
+        conv_threshold,
+    ).unwrap();
 
     out
 }

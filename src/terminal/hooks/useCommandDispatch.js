@@ -50,7 +50,7 @@ export function useCommandDispatch(ctx) {
       setSearchFilter, setCurrentPath, setRelicMode, setBreachOpen, applyEcoCost,
       setOriginTab, setArchitectThesis, setTagCloudView,
       appendSystemLog, handleNav, handleKernelClick, handleTransmissionSelect,
-      loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField, setSpectralBridges, setEnclaveKeys, setProbeNode,
+      loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField, setSpectralBridges, setEnclaveKeys, setProbeNode, setBoneFusions,
     } = ctxRef.current;
 
     const log  = (msg, rust = false) => appendSystemLog({ time: now, msg, rust });
@@ -231,6 +231,14 @@ export function useCommandDispatch(ctx) {
               try {
                 const data = JSON.parse(dataMatch[1]);
                 setSpectralBridges(data);
+              } catch (_) { /* malformed DATA: — ignore */ }
+            }
+
+            // Post-bone-fusion hook — feed fusion results into ArtTab
+            if (wasmEntry.id === 'BONE-FUSION-V6_6_6_6_6_6' && setBoneFusions && dataMatch) {
+              try {
+                const data = JSON.parse(dataMatch[1]);
+                setBoneFusions(data);
               } catch (_) { /* malformed DATA: — ignore */ }
             }
 

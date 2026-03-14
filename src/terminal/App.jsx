@@ -99,6 +99,8 @@ const App = () => {
   const [associativeField, setAssociativeField] = useState(null);
   // Spectral bridges — null when inactive, { bridges, drivers, threshold } when computed
   const [spectralBridges, setSpectralBridges] = useState(null);
+  // Bone fusions — null when inactive, { fusions, phase, order, peak, threshold } when computed
+  const [boneFusions, setBoneFusions] = useState(null);
   // Enclave keys — { ek, dk } hex strings from keygen, null until generated
   const [enclaveKeys, setEnclaveKeys] = useState(null);
   // Probe node — { query, probeVector, similarities } from text_probe kernel, null until run
@@ -200,7 +202,7 @@ const App = () => {
         console.warn('[KERNEL_LOG] Manifest fetch failed:', err.message);
         const laterTime = new Date().toLocaleTimeString('en-US', { hour12: false });
         appendSystemLog({ time: laterTime, msg: 'SYSTEM_KERNEL_LOG: WARNING — manifest unavailable // degraded mode' });
-        appendSystemLog({ time: laterTime, msg: '  Run: npm run kernel:import to generate the CAS manifest.' });
+        appendSystemLog({ time: laterTime, msg: '  Kernel registry operating from local cache.' });
         setDynamicData({ generatedArticles: [], academicArticles: [], legislationArticles: [], tagIndex: {}, systemArticles: {}, manifest: {} });
       }
     })();
@@ -575,7 +577,7 @@ const App = () => {
     setSearchFilter, setCurrentPath, setRelicMode, setBreachOpen, applyEcoCost,
     setOriginTab, setArchitectThesis, setTagCloudView,
     appendSystemLog, handleNav, handleKernelClick, handleTransmissionSelect,
-    loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField, setSpectralBridges, setEnclaveKeys, setProbeNode,
+    loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField, setSpectralBridges, setEnclaveKeys, setProbeNode, setBoneFusions,
   });
 
   // Mobile auto-run — fires a WASM kernel automatically when a card is tapped on mobile.
@@ -913,6 +915,7 @@ const App = () => {
             <ArtTab
               associativeField={associativeField}
               spectralBridges={spectralBridges}
+              boneFusions={boneFusions}
               probeNode={probeNode}
               onRunKernel={(alias) => {
                 const now = new Date().toLocaleTimeString('en-US', { hour12: false });
