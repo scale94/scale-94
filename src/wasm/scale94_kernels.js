@@ -990,6 +990,25 @@ export function run_sovereign_seven(n_oscillators, coupling_gain, entropy_seed) 
 }
 
 /**
+ * @param {number} threshold
+ * @param {number} max_bridges
+ * @param {number} detail
+ * @returns {string}
+ */
+export function run_spectral_bridge(threshold, max_bridges, detail) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_spectral_bridge(threshold, max_bridges, detail);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * Simulates the Strangler Fig transition strategy — building the new economic
  * system around the old one until the new system dominates.
  *

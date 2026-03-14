@@ -97,6 +97,8 @@ const App = () => {
   const [kuramotoViz,     setKuramotoViz]     = useState(null);
   // Associative field attractor — null when inactive, { act, energy, seed, co } when computed
   const [associativeField, setAssociativeField] = useState(null);
+  // Spectral bridges — null when inactive, { bridges, drivers, threshold } when computed
+  const [spectralBridges, setSpectralBridges] = useState(null);
   // Relic malfunction mode — amplifies glitch, streams hex to log
   const [relicMode,    setRelicMode]    = useState(false);
   // CAS dynamic data — null while manifest fetch is in-flight
@@ -569,7 +571,7 @@ const App = () => {
     setSearchFilter, setCurrentPath, setRelicMode, setBreachOpen, applyEcoCost,
     setOriginTab, setArchitectThesis, setTagCloudView,
     appendSystemLog, handleNav, handleKernelClick, handleTransmissionSelect,
-    loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField,
+    loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField, setSpectralBridges,
   });
 
   // Mobile auto-run — fires a WASM kernel automatically when a card is tapped on mobile.
@@ -906,6 +908,7 @@ const App = () => {
           {activeTab === 'art' && !selectedArticle && !architectThesis && (
             <ArtTab
               associativeField={associativeField}
+              spectralBridges={spectralBridges}
               onRunKernel={(alias) => {
                 const now = new Date().toLocaleTimeString('en-US', { hour12: false });
                 dispatchCommand('run', alias, `run ${alias}`, now);

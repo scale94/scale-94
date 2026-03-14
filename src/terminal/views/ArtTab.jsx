@@ -11,7 +11,7 @@
 //
 // Color system: deterministic hash HSL via kernelColorMap.js
 
-import React, { useEffect, useRef, useCallback, useState } from 'react';
+import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { Waves } from 'lucide-react';
 import { nodeColor, lerpColor, hslAlpha } from '../data/kernelColorMap';
 import { useSomaGraph, CLUSTER_ANCHORS } from '../hooks/useSomaGraph';
@@ -55,7 +55,8 @@ const NODES = [
   { id: 'necromantic', label: 'necromantic',    cluster: 'drk',    alias: 'necromantic'     },
 ];
 
-const EDGES = [
+// Intra-cluster edges — same cluster, always present
+const INTRA_EDGES = [
   ['biocoenosis', 'replicator'], ['biocoenosis', 'grayscott'],
   ['daly',        'chrono'],     ['daly',        'atmospheric'], ['chrono', 'atmospheric'],
   ['kuramoto',    'ceei'],       ['kuramoto',    'soma91'],
@@ -65,6 +66,10 @@ const EDGES = [
   ['classified',  'pqhash'],     ['classified',  'dh_ec'],
   ['pragmatic',   'soma_kernel'],['soma_kernel', 'strangler'],
   ['strangler',   'necromantic'],['strangler',   'surveillance'],
+];
+
+// Default cross-cluster bridges — replaced when spectral_bridge kernel runs
+const DEFAULT_CROSS_EDGES = [
   ['soma91',      'pragmatic'],
   ['kuramoto',    'feigenbaum'],
   ['biocoenosis', 'ceei'],
@@ -74,9 +79,13 @@ const EDGES = [
   ['daly',        'ceei'],
 ];
 
+// Full static edge list for physics (always includes all defaults for spring forces)
+const ALL_EDGES = [...INTRA_EDGES, ...DEFAULT_CROSS_EDGES];
+const EDGES = ALL_EDGES;  // backward compat for edge count display
+
 const ADJ = {};
 NODES.forEach(n => { ADJ[n.id] = []; });
-EDGES.forEach(([a, b]) => { ADJ[a]?.push(b); ADJ[b]?.push(a); });
+ALL_EDGES.forEach(([a, b]) => { ADJ[a]?.push(b); ADJ[b]?.push(a); });
 
 // Pre-compute per-node colors once — immutable
 const NODE_COLORS = Object.fromEntries(
@@ -125,7 +134,7 @@ const AUTO_SPIN = 0.0025;   // rad/frame continuous Y rotation
 const FOCAL_K   = 2.8;      // focal = FOCAL_K × sphereR — controls perspective depth
 const SPHERE_K  = 0.40;     // sphereR = SPHERE_K × min(w, h)
 
-export default function ArtTab({ onRunKernel, onCueNode, associativeField }) {
+export default function ArtTab({ onRunKernel, onCueNode, associativeField, spectralBridges }) {
   const canvasRef    = useRef(null);
   const containerRef = useRef(null);
   const rafRef       = useRef(null);
@@ -137,6 +146,33 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField }) {
   // Drag state
   const dragRef = useRef({ active: false, lastX: 0, lastY: 0, vx: 0, vy: 0 });
 
+  // Dynamic cross-cluster edges — computed by spectral_bridge kernel, or default
+  const activeEdges = useMemo(() => {
+    if (!spectralBridges?.bridges?.length) {
+      return [...INTRA_EDGES, ...DEFAULT_CROSS_EDGES];
+    }
+    // Convert bridge indices [a_idx, b_idx, similarity] to ID pairs
+    const computedCross = spectralBridges.bridges
+      .map(([a, b]) => [NODES[a]?.id, NODES[b]?.id])
+      .filter(([a, b]) => a && b);
+    return [...INTRA_EDGES, ...computedCross];
+  }, [spectralBridges]);
+
+  // Bridge similarity lookup — for rendering computed bridges with strength-weighted visuals
+  const bridgeSimilarityRef = useRef(null);
+  useEffect(() => {
+    if (!spectralBridges?.bridges?.length) { bridgeSimilarityRef.current = null; return; }
+    const map = {};
+    for (const [a, b, sim] of spectralBridges.bridges) {
+      const idA = NODES[a]?.id, idB = NODES[b]?.id;
+      if (idA && idB) {
+        const key = idA < idB ? `${idA}:${idB}` : `${idB}:${idA}`;
+        map[key] = sim;
+      }
+    }
+    bridgeSimilarityRef.current = map;
+  }, [spectralBridges]);
+
   const {
     stateRef, initState, step: stepGraph,
     fireNode, applyAttractor, triggerOverwrite,
@@ -144,7 +180,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField }) {
 
   const {
     edgeStateRef, stepEdges, applyAttractor: applyEdgeAttractor,
-  } = useKineticEdges({ edges: EDGES, nodes: NODES });
+  } = useKineticEdges({ edges: activeEdges, nodes: NODES });
 
   // ── Geometry prism effects ────────────────────────────────────────────────
   const geomEffectsRef = useRef([]);
@@ -260,11 +296,14 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField }) {
       // ── Update rotation ───────────────────────────────────────────────────
       const drag = dragRef.current;
       if (!drag.active) {
-        // Inertia decay + auto-spin
-        drag.vx *= 0.94;
-        drag.vy *= 0.94;
+        // Time dilation: when a node is hovered, dampen rotation so user can click
+        const hovered = hoveredRef.current != null;
+        const decay   = hovered ? 0.82 : 0.94;
+        const spin    = hovered ? AUTO_SPIN * 0.15 : AUTO_SPIN;
+        drag.vx *= decay;
+        drag.vy *= decay;
         rotRef.current.rx += drag.vx;
-        rotRef.current.ry += drag.vy + AUTO_SPIN;
+        rotRef.current.ry += drag.vy + spin;
       }
       const M = buildRotMatrix(rotRef.current.rx, rotRef.current.ry);
 
@@ -340,13 +379,22 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField }) {
           const colA = NODE_COLORS[e.aId];
           const colB = NODE_COLORS[e.bId];
 
+          // Spectral bridge detection — computed bridges get cosine similarity boost
+          const simMap = bridgeSimilarityRef.current;
+          const edgeKey = e.aId < e.bId ? `${e.aId}:${e.bId}` : `${e.bId}:${e.aId}`;
+          const isSpectral = simMap && edgeKey in simMap;
+          const cosSim     = isSpectral ? simMap[edgeKey] : 0;
+
           // Depth-based base alpha — fade edges on the back of the sphere
           const avgDepth  = (pA.depth + pB.depth) / 2;
           const depthFade = Math.max(0.03, (avgDepth + 1) * 0.5);  // 0→dim, 1→bright
-          const baseAlpha = (Math.min(na.energy, nb.energy) * 0.5 + 0.06) * depthFade;
+          // Spectral bridges: cosine similarity boosts alpha and line width
+          const spectralBoost = isSpectral ? cosSim * 0.35 : 0;
+          const baseAlpha = (Math.min(na.energy, nb.energy) * 0.5 + 0.06 + spectralBoost) * depthFade;
           const pulseBoost = e.pulse * 0.40;
 
-          ctx.lineWidth = (0.5 + Math.max(na.energy, nb.energy) * 0.8 + e.pulse * 1.8)
+          ctx.lineWidth = (0.5 + Math.max(na.energy, nb.energy) * 0.8 + e.pulse * 1.8
+                        + (isSpectral ? cosSim * 1.2 : 0))
                         * ((pA.scale + pB.scale) / 2);
 
           const cMid = lerpColor(colA, colB, e.strength);
@@ -355,10 +403,14 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField }) {
           grd.addColorStop(0.5, hslAlpha(cMid, baseAlpha + pulseBoost));
           grd.addColorStop(1,   hslAlpha(colB, (baseAlpha + pulseBoost) * (0.6 + e.strength * 0.4)));
           ctx.strokeStyle = grd;
+
+          // Spectral bridges render with dashed stroke for visual distinction
+          if (isSpectral) ctx.setLineDash([4, 3]);
           ctx.beginPath();
           ctx.moveTo(pA.sx, pA.sy);
           ctx.lineTo(pB.sx, pB.sy);
           ctx.stroke();
+          if (isSpectral) ctx.setLineDash([]);
 
           // Overwrite pulse ring
           if (e.pulse > 0.1) {
@@ -541,7 +593,10 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField }) {
     const sorted = [...projected].sort((a, b) => b.depth - a.depth);
     for (const { node, sx, sy, depth, scale } of sorted) {
       if (depth < -0.85) continue;  // skip deeply back-face nodes
-      const r  = (5 + node.energy * 4) * scale + 8;
+      // Forgiving hitbox: 3× visual radius — invisible bubble around each node
+      // so users don't need pixel-perfect aim on a spinning sphere
+      const visualR = (5 + node.energy * 4) * scale;
+      const r  = visualR * 3 + 10;
       const dx = sx - cx, dy = sy - cy;
       if (dx * dx + dy * dy < r * r) return node;
     }
@@ -687,7 +742,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField }) {
         </div>
         <div className="flex items-center gap-3 mt-3 md:mt-0 text-xs font-bold font-mono tracking-widest">
           <span className="border border-amber-900/40 px-3 py-1 rounded-sm" style={{ color: 'rgba(251,191,36,0.5)' }}>
-            {NODES.length} nodes · {EDGES.length} edges
+            {NODES.length} nodes · {activeEdges.length} edges
+            {spectralBridges ? ` · spectral` : ''}
           </span>
           <span className="border border-cyan-900/30 px-3 py-1 rounded-sm text-cyan-400/50">
             drag to rotate · click → attractor · right-click / shell → run
@@ -807,6 +863,40 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField }) {
                   style={{ color: col.hsl, borderColor: hslAlpha(col, 0.35) }}
                 >
                   {node.label}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Spectral bridge readout */}
+      {spectralBridges?.bridges?.length > 0 && (
+        <div className="mt-3 border border-cyan-900/30 bg-black/60 rounded-sm p-3 font-mono text-[9px]">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-cyan-400/70 tracking-widest uppercase">
+              spectral bridges · cos &ge; {spectralBridges.threshold?.toFixed(2)}
+            </span>
+            <span className="text-cyan-600/40">{spectralBridges.bridges.length} cross-cluster</span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {spectralBridges.bridges.map(([a, b, sim], i) => {
+              const nA = NODES[a], nB = NODES[b];
+              if (!nA || !nB) return null;
+              const colA = NODE_COLORS[nA.id], colB = NODE_COLORS[nB.id];
+              return (
+                <span
+                  key={i}
+                  className="border px-1.5 py-0.5 rounded-sm tracking-wider"
+                  style={{
+                    borderColor: hslAlpha(colA, 0.25),
+                    background: `linear-gradient(90deg, ${hslAlpha(colA, 0.08)}, ${hslAlpha(colB, 0.08)})`,
+                  }}
+                >
+                  <span style={{ color: colA.hsl }}>{nA.label}</span>
+                  <span style={{ color: 'rgba(255,255,255,0.25)' }}> ~ </span>
+                  <span style={{ color: colB.hsl }}>{nB.label}</span>
+                  <span style={{ color: 'rgba(255,255,255,0.20)' }}> {sim.toFixed(2)}</span>
                 </span>
               );
             })}

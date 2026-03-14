@@ -784,6 +784,33 @@ const KERNEL_MAP = [
     type:    'rust',
     aliases: ['associative', 'field', 'associative_field', 'hopfield', 'attractor', 'basin', 'assoc_field', 'kernel_graph', 'pattern'],
   },
+  {
+    // Spectral Bridge — Cross-Cluster Topology Discovery v1.0.0
+    // Characterises each of the 25 kernel nodes as a 16-dimensional mathematical
+    // fingerprint, computes cosine similarity across all cross-cluster pairs,
+    // and returns ranked bridges with dimension driver explanations.
+    // Outputs DATA: suffix consumed by ArtTab to update sphere edge topology.
+    //
+    // threshold:   args[0]  flags: --threshold, --thresh, --t
+    // max_bridges: args[1]  flags: --max, --bridges, --n
+    // detail:      args[2]  flags: --detail, --verbose, --v
+    id:      'SPECTRAL-BRIDGE-1.0',
+    fn:      'run_spectral_bridge',
+    args:    [0.70, 12.0, 0.0],
+    argMap:  {
+      threshold: 0, thresh: 0, t: 0,
+      max: 1, bridges: 1, n: 1,
+      detail: 2, verbose: 2, v: 2,
+    },
+    params: [
+      { name: 'threshold',   default: 0.70, desc: 'minimum cosine similarity to form a bridge (0.1–0.99)' },
+      { name: 'max_bridges', default: 12.0, desc: 'maximum number of cross-cluster bridges to return (1–50)' },
+      { name: 'detail',      default: 0.0,  desc: 'show per-bridge dimension values: 0=compact, 1=detailed' },
+    ],
+    label:   'Spectral Bridge v1.0.0',
+    type:    'rust',
+    aliases: ['spectral', 'bridge', 'spectral_bridge', 'topology', 'cosine', 'fingerprint', 'cross_cluster', 'discover'],
+  },
 ];
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────

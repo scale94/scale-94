@@ -50,7 +50,7 @@ export function useCommandDispatch(ctx) {
       setSearchFilter, setCurrentPath, setRelicMode, setBreachOpen, applyEcoCost,
       setOriginTab, setArchitectThesis, setTagCloudView,
       appendSystemLog, handleNav, handleKernelClick, handleTransmissionSelect,
-      loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField,
+      loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField, setSpectralBridges,
     } = ctxRef.current;
 
     const log  = (msg, rust = false) => appendSystemLog({ time: now, msg, rust });
@@ -201,6 +201,14 @@ export function useCommandDispatch(ctx) {
               try {
                 const data = JSON.parse(dataMatch[1]);
                 setAssociativeField(data);
+              } catch (_) { /* malformed DATA: — ignore */ }
+            }
+
+            // Post-spectral-bridge hook — feed discovered bridges into ArtTab
+            if (wasmEntry.id === 'SPECTRAL-BRIDGE-1.0' && setSpectralBridges && dataMatch) {
+              try {
+                const data = JSON.parse(dataMatch[1]);
+                setSpectralBridges(data);
               } catch (_) { /* malformed DATA: — ignore */ }
             }
 
