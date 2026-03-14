@@ -1,26 +1,45 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Cpu } from 'lucide-react';
 
-// Seven kernel axioms — the fade doctrine enacted as boot sequence.
+// Eleven system modules — every nav tab boots in sequence.
 // Entropy is the threat. Crystalline is the lock. Zero white fade.
+// Drama arc: modules load → entropy spikes → crystalline lock → kernel apex → deep modules arm.
 const AXIOMS = [
-  { name: 'transmute',      field: 'production', status: 'ok',        variant: 'normal'      },
-  { name: 'sustain',        field: 'ecology',    status: 'ok',        variant: 'normal'      },
-  { name: 'integrity',      field: 'structure',  status: 'ok',        variant: 'normal'      },
-  { name: 'entropy',        field: 'threat',     status: 'contained', variant: 'threat'      },
-  { name: 'sovereignty',    field: 'freedom',    status: 'ok',        variant: 'normal'      },
-  { name: 'crystalline',    field: 'phase',      status: 'locked',    variant: 'crystalline' },
-  { name: '7.7.7.7.7.7.7', field: 'kernel',     status: 'active',    variant: 'apex'        },
+  { name: 'manifesto',      field: 'doctrine',     status: 'ok',        variant: 'normal'      },
+  { name: 'scaling',        field: 'growth',       status: 'ok',        variant: 'normal'      },
+  { name: 'privacy',        field: 'locked',       status: 'ok',        variant: 'normal'      },
+  { name: 'transmission',   field: 'signal',       status: 'ok',        variant: 'normal'      },
+  { name: 'entropy',        field: 'threat',       status: 'contained', variant: 'threat'      },
+  { name: 'crystalline',    field: 'phase',        status: 'locked',    variant: 'crystalline' },
+  { name: '7.7.7.7.7.7.7', field: 'kernel',       status: 'active',    variant: 'apex'        },
+  { name: 'panopticon',     field: 'surveillance', status: 'indexed',   variant: 'normal'      },
+  { name: 'bsky',           field: 'social',       status: 'online',    variant: 'normal'      },
+  { name: 'pqc_enclave',    field: 'cryptography', status: 'armed',     variant: 'normal'      },
+  { name: 'fade_doctrine',  field: 'art',          status: 'rendering', variant: 'normal'      },
 ];
 
-// 180ms base, 220ms between each axiom
-const axiomDelay = (i) => 180 + i * 220;
+// 180ms base, 200ms between each axiom — keeps last line-in at ~2180ms, well before fade
+const axiomDelay = (i) => 180 + i * 200;
 
-// Doctrine rainbow — matches perimeter fill arc clockwise
-const DOCTRINE_RAINBOW = ['#FF0088','#FF4400','#FF8C00','#FFD700','#AAFF00','#00FFAA','#00AAFF'];
+// Doctrine rainbow — 11 stops, tracks clockwise perimeter fill:
+// top (magenta→gold) · right (gold→spring) · bottom (spring→deep-blue) · left (deep-blue→hot-pink)
+const DOCTRINE_RAINBOW = [
+  '#FF0088', //  0 magenta    — top-left       (manifesto)
+  '#FF4400', //  1 red-orange — top-mid        (scaling)
+  '#FFD700', //  2 gold       — top/right jxn  (privacy)
+  '#88FF00', //  3 yellow-lime — right-upper   (transmission)
+  '#00FFAA', //  4 spring     — right/btm jxn  (entropy)
+  '#00EEFF', //  5 bright-cyan — bottom-mid    (crystalline)
+  '#0088FF', //  6 sky-blue   — bottom-left    (7.7.7.7.7.7.7)
+  '#0033FF', //  7 deep-blue  — btm/left jxn   (panopticon)
+  '#4400FF', //  8 indigo     — left-mid        (bsky)
+  '#AA00FF', //  9 violet     — left-upper      (pqc_enclave)
+  '#FF00CC', // 10 hot-pink   — left-top        (fade_doctrine)
+];
 
-// Status tag pop delays — 500ms cadence aligned with perimeter arc
-const popDelay = (i) => 350 + i * 500;
+// Status tag pop delays — 300ms cadence keeps all 11 pops inside the 3600ms perimeter arc
+// Last pop: 300 + 10×300 = 3300ms  ← 500ms before perimeter completes at 3800ms
+const popDelay = (i) => 300 + i * 300;
 
 // Cubic ease-out: fast start → smooth deceleration → clean stop
 const easeOut = (t) => 1 - Math.pow(1 - t, 3);
@@ -195,13 +214,13 @@ const BootSequence = ({ onDone }) => {
                 ? `bs-entropy-in 0.28s ease-out ${axiomDelay(i)}ms forwards`
                 : `bs-lineIn 0.18s ease-out ${axiomDelay(i)}ms forwards`;
 
-              // Status tag pop — ~500ms cadence, decoupled from line slide,
+              // Status tag pop — 300ms cadence, decoupled from line slide,
               // aligned with rainbow perimeter arc progress across 3600ms.
               // Only normal/apex get the separate pop; threat/crystalline
               // are already unified with their line animations.
-              const popDelay      = 350 + i * 500; // 350, 850, 1350, 1850, 2350, 2850, 3350ms
+              const statusPopDelay = popDelay(i);
               const statusAnim    = (!isThreat && !isCrystalline)
-                ? `bs-statusPop 0.38s cubic-bezier(0.22,1,0.36,1) ${popDelay}ms forwards`
+                ? `bs-statusPop 0.38s cubic-bezier(0.22,1,0.36,1) ${statusPopDelay}ms forwards`
                 : undefined;
 
               return (
