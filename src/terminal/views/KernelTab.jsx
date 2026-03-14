@@ -403,6 +403,14 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
           {visibleLogs.map((l, i) => (
             <div key={`${l.time}-${i}`} className={`mb-1 break-words ${l.rust ? 'text-emerald-400' : 'text-[#39ff14]'}`}>
               <span className={`mr-2 ${l.rust ? 'text-cyan-300' : 'text-cyan-500'}`}>{l.time}</span>– {l.msg}
+              {l.btn && (
+                <button
+                  onClick={() => { mobileAutoRun && mobileAutoRun(l.btn.cmd); resetTtyFade(); }}
+                  className="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-sm border border-fuchsia-500/60 text-fuchsia-400 bg-transparent hover:bg-fuchsia-500/10 hover:border-fuchsia-400 active:scale-95 tracking-widest whitespace-nowrap transition-all"
+                >
+                  [{l.btn.label}]
+                </button>
+              )}
             </div>
           ))}
         </div>

@@ -84,18 +84,20 @@ export function useCommandDispatch(ctx) {
         return;
       }
 
-      // Seraphine-8.8.8.8.8.8.8.8 triad concept nodes — tensor inputs, not runnable kernels
-      const TRIAD_NODES = ['white_irid','pitch_black_steel','bouligand_36','polymorph_pqc','magic_angle','magic_angle_1p1','zero_effort_flow'];
-      if (TRIAD_NODES.includes(baseCmd.toLowerCase())) {
-        log(`COMMAND: ${rawCmd}`);
-        logs(
-          `  RUN_REDIRECT :: '${baseCmd}' is a Seraphine-8.8.8.8.8.8.8.8 triad concept node.`,
-          `  These nodes are tensor inputs to the bone fusion engine, not standalone kernels.`,
-          `  To compute fusion across all 31 nodes including the triads:`,
-          `  run bone --nodes 31`,
-        );
-        return;
-      }
+      // Seraphine-8.8.8.8.8.8.8.8 triad concept nodes — remap to nearest runnable kernel
+      const TRIAD_REDIRECTS = {
+        'white_irid':        ['biodiversity', 'necromantic', 'bone'],
+        'pitch_black_steel': ['fusion', 'ising', 'bosonic'],
+        'bouligand_36':      ['bone', 'necromantic', 'seraphine'],
+        'polymorph_pqc':     ['tesseract', 'classified', 'pqhash'],
+        'magic_angle':       ['ising', 'bosonic', 'feigenbaum'],
+        'magic_angle_1p1':   ['ising', 'bosonic', 'feigenbaum'],
+        'zero_effort_flow':  ['kuramoto', 'pragmatic', 'soma'],
+      };
+      const triadOptions = TRIAD_REDIRECTS[baseCmd.toLowerCase()];
+      const effectiveBase = triadOptions
+        ? triadOptions[Math.floor(Math.random() * triadOptions.length)]
+        : baseCmd;
 
       // Global help
       if (baseCmd === '--help' || baseCmd === '-h') {
@@ -121,10 +123,10 @@ export function useCommandDispatch(ctx) {
         }
       }
 
-      // 7-tier registry lookup
-      const kq = norm(baseCmd);
-      const wasmEntry = currentRegistry[baseCmd.toUpperCase()]
-        ?? currentRegistry[baseCmd]
+      // 7-tier registry lookup (uses effectiveBase — remapped if triad node)
+      const kq = norm(effectiveBase);
+      const wasmEntry = currentRegistry[effectiveBase.toUpperCase()]
+        ?? currentRegistry[effectiveBase]
         ?? Object.values(currentRegistry).find(e => norm(e.id) === kq)
         ?? Object.values(currentRegistry).find(e => norm(e.id).includes(kq))
         ?? Object.values(currentRegistry).find(e => e.aliases?.some(a => norm(a) === kq))
@@ -144,6 +146,7 @@ export function useCommandDispatch(ctx) {
         }
 
         log(`COMMAND: ${rawCmd}`);
+        if (triadOptions) appendSystemLog({ time: now, msg: `  RUN_REMAP :: '${baseCmd}' → '${effectiveBase}'`, btn: { label: `run ${effectiveBase}`, cmd: effectiveBase } });
         const callArgs = [...(wasmEntry.args ?? [])];
         positionalArgs.forEach((val, idx) => { if (idx < callArgs.length) callArgs[idx] = val; });
         if (wasmEntry.argMap) {
