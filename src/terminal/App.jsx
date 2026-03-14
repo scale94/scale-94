@@ -101,6 +101,8 @@ const App = () => {
   const [spectralBridges, setSpectralBridges] = useState(null);
   // Bone fusions — null when inactive, { fusions, phase, order, peak, threshold } when computed
   const [boneFusions, setBoneFusions] = useState(null);
+  // Manual fusions — operator-forged edges via right-click / long-press in /art
+  const [manualFusions, setManualFusions] = useState([]);
   // Enclave keys — { ek, dk } hex strings from keygen, null until generated
   const [enclaveKeys, setEnclaveKeys] = useState(null);
   // Probe node — { query, probeVector, similarities } from text_probe kernel, null until run
@@ -588,6 +590,19 @@ const App = () => {
     dispatchCommand('run', alias, `run ${alias}`, now);
   }, [dispatchCommand]);
 
+  // Manual fusion handler — operator-forged edges from /art right-click / long-press
+  const handleManualFusion = useCallback((idA, idB, analysis) => {
+    setManualFusions(prev => [...prev, { idA, idB, sim: analysis.sim, drivers: analysis.drivers }]);
+    const now  = new Date().toLocaleTimeString('en-US', { hour12: false });
+    const bars = '▓'.repeat(Math.round(analysis.sim * 5)) + '░'.repeat(5 - Math.round(analysis.sim * 5));
+    appendSystemLog({ time: now, msg: `[MANUAL_FUSION] :: ${idA} ↔ ${idB}` });
+    appendSystemLog({ time: now, msg: `  [COSINE] :: ${analysis.sim.toFixed(4)} ${bars}` });
+    analysis.drivers.forEach(d => {
+      appendSystemLog({ time: now, msg: `  [TENSOR] ${d.name} :: ${d.value.toFixed(3)}  (${idA}=${d.magA.toFixed(2)} · ${idB}=${d.magB.toFixed(2)})` });
+    });
+    appendSystemLog({ time: now, msg: `  ── Operator forced lattice convergence. Metabolic cost logged. ──` });
+  }, [appendSystemLog]);
+
   // Autocomplete + suggestion execution — keystroke logic lives in useAutocomplete.
   const { handleInputChange, executeSuggestion } = useAutocomplete({
     setCommandInput, setSuggestions, setParamHint, setActiveSugg,
@@ -916,6 +931,8 @@ const App = () => {
               associativeField={associativeField}
               spectralBridges={spectralBridges}
               boneFusions={boneFusions}
+              manualFusions={manualFusions}
+              onManualFusion={handleManualFusion}
               probeNode={probeNode}
               onRunKernel={(alias) => {
                 const now = new Date().toLocaleTimeString('en-US', { hour12: false });

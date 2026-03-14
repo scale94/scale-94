@@ -164,6 +164,7 @@ const kernelBuilds = [
   { id: "SCALING-CUBE-PROTOCOL", articleId: "SCALING-CUBE-PROTOCOL", name: "SCALING_CUBE_PROTOCOL", status: "ACTIVE", desc: "Platonic Form · Entropic Stasis · The Architecture of Potential" },
   { id: "SRDK-3.3.3", articleId: "SRDK-3.3.3", name: "SCOTT_REACTION_DIFFUSION_KERNEL_3_3_3", status: "ACTIVE", desc: "Mathematical Architecture" },
   { id: "SERAPHINE-8.8.8.8.8.8.8.8-ANALOGY-RESEARCH", articleId: "SERAPHINE-8.8.8.8.8.8.8.8-ANALOGY-RESEARCH", name: "SERAPHINE_8_8_8_8_8_8_8_8_ANALOGY_RESEARCH", status: "ACTIVE", desc: "Seraphine-8.8.8.8.8.8.8.8 — Three Fusion Triads" },
+  { id: "SERAPHINE-8.8.8.8.8.8.8.8-PAPER", articleId: "SERAPHINE-8.8.8.8.8.8.8.8-PAPER", name: "SERAPHINE_8_8_8_8_8_8_8_8_RESEARCH_PAPER", status: "ACTIVE", desc: "Abstract" },
   { id: "SERAPHINE-8.8.8.8.8.8.8.8-BONE-FUSION", articleId: "SERAPHINE-8.8.8.8.8.8.8.8-BONE-FUSION", name: "SERAPHINE_8_8_8_8_8_8_8_8_SCALE_KERNEL", status: "ACTIVE", desc: "⌬ FUSED STATE PARAMETERS ⌬" },
   { id: "SOMA-9.1", articleId: "SOMA-9.1", name: "SOMA_9_1_KERNEL_REPORT", status: "ACTIVE", desc: "Ⅰ. KINETIC THEATER: MIDDLE EASTERN GRID FRACTURE" },
   { id: "SOMA-PLUS-ENGINE", articleId: "SOMA-PLUS-ENGINE", name: "SOMA_PLUS_ENGINE", status: "ACTIVE", desc: "Status Is Earned Through the Commons — soma_kernel_5.5" },

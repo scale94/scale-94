@@ -5,9 +5,10 @@
 // No WebGL dependency — full 3D feel via perspective divide + depth cueing.
 //
 // Interaction:
-//   Left-click  → cue Hopfield associative field (WASM)
-//   Right-click → run that node's own kernel
-//   Drag        → rotate sphere (inertia on release)
+//   Left-click   → cue Hopfield associative field (WASM)
+//   Right-click  → manual fusion: step 1 locks source (pulsing ring), step 2 forges edge
+//   Long-press   → same as right-click on mobile (500ms, haptic feedback)
+//   Drag         → rotate sphere (inertia on release)
 //
 // Color system: deterministic hash HSL via kernelColorMap.js
 
@@ -227,7 +228,7 @@ const AUTO_SPIN = 0.0025;   // rad/frame continuous Y rotation
 const FOCAL_K   = 2.8;      // focal = FOCAL_K × sphereR — controls perspective depth
 const SPHERE_K  = 0.50;     // sphereR = SPHERE_K × min(w, h) — larger sphere, front and center
 
-export default function ArtTab({ onRunKernel, onCueNode, associativeField, spectralBridges, boneFusions, probeNode }) {
+export default function ArtTab({ onRunKernel, onCueNode, associativeField, spectralBridges, boneFusions, probeNode, manualFusions = [], onManualFusion }) {
   const canvasRef    = useRef(null);
   const containerRef = useRef(null);
   const rafRef       = useRef(null);
@@ -238,13 +239,21 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   const [selectedNode, setSelectedNode] = useState(null); // node click → show all connected edges with 16D analysis
   const edgeDebounceRef = useRef(null);                   // timeout id for hover debounce
 
+  // ── Manual fusion state machine ────────────────────────────────────────────
+  // fusionSourceRef: read by draw loop (no re-render), set in sync with state
+  const fusionSourceRef = useRef(null);
+  const [fusionSource, _setFusionSource] = useState(null);
+  const setFusionSource = (id) => { fusionSourceRef.current = id; _setFusionSource(id); };
+  const fusionCursorRef = useRef(null);   // current cursor pos while selecting target
+  const longPressRef    = useRef(null);   // mobile long-press timer
+
   // Rotation state — mutated directly, never causes re-render
   const rotRef  = useRef({ rx: 0.18, ry: 0 });
   // Drag state
   const dragRef = useRef({ active: false, lastX: 0, lastY: 0, vx: 0, vy: 0 });
 
   // Dynamic cross-cluster edges — computed by spectral_bridge kernel, or default
-  // Bone fusion edges are merged in when available (fused pairs become permanent connections)
+  // Bone fusion edges + manual fusions are merged in when available
   const activeEdges = useMemo(() => {
     const base = !spectralBridges?.bridges?.length
       ? [...INTRA_EDGES, ...DEFAULT_CROSS_EDGES]
@@ -252,25 +261,29 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           .map(([a, b]) => [NODES[a]?.id, NODES[b]?.id])
           .filter(([a, b]) => a && b)];
 
+    const existing = new Set(base.map(([a, b]) => {
+      const k = a < b ? `${a}:${b}` : `${b}:${a}`; return k;
+    }));
+
     // Add bone fusion edges that aren't already present
     if (boneFusions?.fusions?.length) {
-      const existing = new Set(base.map(([a, b]) => {
-        const k = a < b ? `${a}:${b}` : `${b}:${a}`;
-        return k;
-      }));
       for (const f of boneFusions.fusions) {
         if (!f.fused) continue;
         const idA = NODES[f.a]?.id, idB = NODES[f.b]?.id;
         if (!idA || !idB) continue;
         const key = idA < idB ? `${idA}:${idB}` : `${idB}:${idA}`;
-        if (!existing.has(key)) {
-          base.push([idA, idB]);
-          existing.add(key);
-        }
+        if (!existing.has(key)) { base.push([idA, idB]); existing.add(key); }
       }
     }
+
+    // Add operator-forged manual fusion edges
+    for (const mf of manualFusions) {
+      const key = mf.idA < mf.idB ? `${mf.idA}:${mf.idB}` : `${mf.idB}:${mf.idA}`;
+      if (!existing.has(key)) { base.push([mf.idA, mf.idB]); existing.add(key); }
+    }
+
     return base;
-  }, [spectralBridges, boneFusions]);
+  }, [spectralBridges, boneFusions, manualFusions]);
 
   // Bridge similarity lookup — for rendering computed bridges with strength-weighted visuals
   const bridgeSimilarityRef = useRef(null);
@@ -288,20 +301,26 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   }, [spectralBridges]);
 
   // Bone fusion lookup — fused edges rendered with solid glow (inverse of dashed spectral)
+  // Also includes operator-forged manual fusions with identical rendering
   const fusedEdgesRef = useRef(null);
   useEffect(() => {
-    if (!boneFusions?.fusions?.length) { fusedEdgesRef.current = null; return; }
     const map = {};
-    for (const f of boneFusions.fusions) {
-      if (!f.fused) continue; // only show successfully fused pairs
-      const idA = NODES[f.a]?.id, idB = NODES[f.b]?.id;
-      if (idA && idB) {
-        const key = idA < idB ? `${idA}:${idB}` : `${idB}:${idA}`;
-        map[key] = { pre: f.pre, post: f.post, burns: f.burns };
+    if (boneFusions?.fusions?.length) {
+      for (const f of boneFusions.fusions) {
+        if (!f.fused) continue;
+        const idA = NODES[f.a]?.id, idB = NODES[f.b]?.id;
+        if (idA && idB) {
+          const key = idA < idB ? `${idA}:${idB}` : `${idB}:${idA}`;
+          map[key] = { pre: f.pre, post: f.post, burns: f.burns };
+        }
       }
     }
+    for (const mf of manualFusions) {
+      const key = mf.idA < mf.idB ? `${mf.idA}:${mf.idB}` : `${mf.idB}:${mf.idA}`;
+      map[key] = { pre: mf.sim * 0.5, post: mf.sim, burns: 1 };
+    }
     fusedEdgesRef.current = Object.keys(map).length ? map : null;
-  }, [boneFusions]);
+  }, [boneFusions, manualFusions]);
 
   // ── Per-node edge analysis (computed on click, not on hover) ──────────────
   const selectedNodeEdges = useMemo(() => {
@@ -779,6 +798,43 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         }
       }
 
+      // ── Manual fusion: pending targeting line + source pulse ring ─────────
+      const fSrc = fusionSourceRef.current;
+      if (fSrc) {
+        const si = NODE_IDX[fSrc];
+        if (si != null) {
+          const sp    = proj[si];
+          const t     = performance.now() / 1000;
+          const pulse = 0.5 + 0.5 * Math.sin(t * 5);
+          const srcCol = NODE_COLORS[fSrc];
+          const ringR  = (5 + nodes[si].energy * 4 + 8 + pulse * 6) * sp.scale;
+          // Pulsing dashed ring around locked source
+          ctx.save();
+          ctx.strokeStyle = hslAlpha(srcCol, 0.55 + pulse * 0.45);
+          ctx.lineWidth   = 1.5 * sp.scale;
+          ctx.setLineDash([5, 4]);
+          ctx.beginPath();
+          ctx.arc(sp.sx, sp.sy, ringR, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.restore();
+          // Dashed targeting thread to cursor
+          const cur = fusionCursorRef.current;
+          if (cur) {
+            ctx.save();
+            ctx.strokeStyle = hslAlpha(srcCol, 0.3 + pulse * 0.15);
+            ctx.lineWidth   = 1;
+            ctx.setLineDash([3, 6]);
+            ctx.beginPath();
+            ctx.moveTo(sp.sx, sp.sy);
+            ctx.lineTo(cur.x, cur.y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
+          }
+        }
+      }
+
       // ── Probe node (text_probe.rs concept injection) ───────────────────────
       // Rendered after all sphere nodes so it draws on top.
       const probe = probeNodeRef.current;
@@ -943,6 +999,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     // Hover hit-test — nodes take priority, then edges (debounced)
     const p = canvasCoords(e.clientX, e.clientY);
     if (p) {
+      // Track cursor for manual fusion targeting line
+      if (fusionSourceRef.current) fusionCursorRef.current = p;
       const node = nodeAt(p.x, p.y);
       hoveredRef.current = node?.id ?? null;
       if (node) {
@@ -987,9 +1045,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         }
         return;
       }
-      if (e.button === 2) {
-        if (node.alias) handleRunKernel(node.alias);
-      } else {
+      if (e.button !== 2) {
+        // Right-click is handled by contextmenu (fusion state machine) — ignore here
         fireNode(node.id);
         spawnEffect(node.id, { soft: true });   // attractor click → soft geometry pulse
         // Label cascade — record seed + neighbors for the draw loop
@@ -1010,8 +1067,22 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     const p    = canvasCoords(e.clientX, e.clientY);
     if (!p) return;
     const node = nodeAt(p.x, p.y);
-    if (node?.alias) handleRunKernel(node.alias);
-  }, [canvasCoords, nodeAt, onRunKernel]);
+    if (!fusionSourceRef.current) {
+      // Step 1: lock source node
+      if (!node) return;
+      setFusionSource(node.id);
+      fusionCursorRef.current = p;
+    } else {
+      if (node && node.id !== fusionSourceRef.current) {
+        // Step 2: complete the forge
+        const analysis = analyzeEdge(fusionSourceRef.current, node.id);
+        if (analysis) onManualFusion?.(fusionSourceRef.current, node.id, analysis);
+      }
+      // Cancel or complete — reset state either way
+      setFusionSource(null);
+      fusionCursorRef.current = null;
+    }
+  }, [canvasCoords, nodeAt, onManualFusion]);
 
   const handleMouseLeave = useCallback(() => {
     dragRef.current.active = false;
@@ -1024,10 +1095,33 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
   const handleTouchStart = useCallback((e) => {
     const t = e.touches[0];
-    if (t) dragRef.current = { active: true, lastX: t.clientX, lastY: t.clientY, vx: 0, vy: 0 };
-  }, []);
+    if (!t) return;
+    dragRef.current = { active: true, lastX: t.clientX, lastY: t.clientY, vx: 0, vy: 0 };
+    // Long-press (500ms) → manual fusion step
+    const p = canvasCoords(t.clientX, t.clientY);
+    if (p) {
+      const node = nodeAt(p.x, p.y);
+      if (node) {
+        longPressRef.current = setTimeout(() => {
+          if (navigator.vibrate) navigator.vibrate(40);
+          if (!fusionSourceRef.current) {
+            setFusionSource(node.id);
+            fusionCursorRef.current = p;
+          } else if (node.id !== fusionSourceRef.current) {
+            const analysis = analyzeEdge(fusionSourceRef.current, node.id);
+            if (analysis) onManualFusion?.(fusionSourceRef.current, node.id, analysis);
+            setFusionSource(null);
+            fusionCursorRef.current = null;
+          } else {
+            setFusionSource(null);
+          }
+        }, 500);
+      }
+    }
+  }, [canvasCoords, nodeAt, onManualFusion]);
 
   const handleTouchMove = useCallback((e) => {
+    clearTimeout(longPressRef.current);
     e.preventDefault();
     const t    = e.touches[0];
     const drag = dragRef.current;
@@ -1043,6 +1137,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   }, []);
 
   const handleTouchEnd = useCallback((e) => {
+    clearTimeout(longPressRef.current);
     dragRef.current.active = false;
     const t = e.changedTouches[0];
     if (!t) return;

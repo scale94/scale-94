@@ -1800,7 +1800,28 @@
       "cryptography",
       "flow-state"
     ],
-    "len": "2560 WDS"
+    "len": "0 WDS"
+  },
+  {
+    "id": "SERAPHINE-8.8.8.8.8.8.8.8-PAPER",
+    "type": "research",
+    "date": "2026-03-14",
+    "lastModified": "2026-03-14",
+    "title": "SERAPHINE-8.8.8.8.8.8.8.8: A DUAL-KERNEL ARCHITECTURE FOR MEASURING AND MAXIMISING CROSS-DOMAIN ANALOGICAL COHERENCE",
+    "subtitle": "Abstract",
+    "status": "ACTIVE",
+    "readTime": "24 min read",
+    "tags": [
+      "seraphine",
+      "bone-fusion",
+      "SARG",
+      "16D",
+      "analogy",
+      "quantum-cognition",
+      "fade-doctrine",
+      "ars-electronica"
+    ],
+    "len": "4804 WDS"
   },
   {
     "id": "SERAPHINE-8.8.8.8.8.8.8.8-BONE-FUSION",
