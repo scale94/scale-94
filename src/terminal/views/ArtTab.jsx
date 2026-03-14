@@ -132,13 +132,13 @@ function project(rx, ry, rz, w, h, sphereR, focal) {
 
 const AUTO_SPIN = 0.0025;   // rad/frame continuous Y rotation
 const FOCAL_K   = 2.8;      // focal = FOCAL_K × sphereR — controls perspective depth
-const SPHERE_K  = 0.40;     // sphereR = SPHERE_K × min(w, h)
+const SPHERE_K  = 0.50;     // sphereR = SPHERE_K × min(w, h) — larger sphere, front and center
 
 export default function ArtTab({ onRunKernel, onCueNode, associativeField, spectralBridges }) {
   const canvasRef    = useRef(null);
   const containerRef = useRef(null);
   const rafRef       = useRef(null);
-  const dimsRef      = useRef({ w: 800, h: 520 });
+  const dimsRef      = useRef({ w: 900, h: 620 });
   const hoveredRef   = useRef(null);
 
   // Rotation state — mutated directly, never causes re-render
@@ -189,8 +189,23 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
   // ── Geometry prism effects ────────────────────────────────────────────────
   const geomEffectsRef = useRef([]);
-  const [termInput, setTermInput] = useState('');
-  const [lastCmd,   setLastCmd]   = useState('');
+  const [termInput,       setTermInput]       = useState('');
+  const [lastCmd,         setLastCmd]         = useState('');
+  const [rustAnalysis,    setRustAnalysis]    = useState(null);   // spectral_bridge WASM output
+
+  // Fire spectral_bridge Rust kernel on mount — topology findings output
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const mod = await import('../../wasm/scale94_kernels.js');
+        await mod.default({ module_or_path: '/wasm/scale94_kernels_bg.wasm' });
+        const out = mod.run_spectral_bridge(0.65, 16, 1);
+        if (!cancelled) setRustAnalysis(out);
+      } catch { /* WASM unavailable — silently skip */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const spawnEffect = useCallback((alias, opts = {}) => {
     const q    = (alias ?? '').toLowerCase().trim();
@@ -808,20 +823,16 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         </div>
       </div>
 
-      {/* Sphere canvas */}
+      {/* Sphere canvas — frameless, front and center */}
       <div
         ref={containerRef}
-        className="w-full rounded-lg overflow-hidden"
-        style={{
-          background: '#000',
-          border:     '1px solid rgba(255,140,0,0.10)',
-          boxShadow:  '0 0 80px rgba(255,140,0,0.025) inset',
-        }}
+        className="w-full overflow-hidden"
+        style={{ background: '#000' }}
       >
         <canvas
           ref={canvasRef}
-          width={800}
-          height={520}
+          width={900}
+          height={620}
           style={{ display: 'block', width: '100%', height: 'auto', cursor: 'grab' }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
@@ -924,6 +935,19 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* Rust spectral analysis — auto-fires on mount */}
+      {rustAnalysis && (
+        <div className="mt-3 border border-amber-900/20 bg-black/80 rounded-sm p-3 font-mono text-[10px]">
+          <div className="text-amber-400/60 tracking-widest uppercase mb-2">
+            spectral_bridge :: rust kernel findings
+          </div>
+          <pre
+            className="whitespace-pre-wrap break-words leading-relaxed"
+            style={{ color: 'rgba(255,215,0,0.75)', maxHeight: '220px', overflowY: 'auto' }}
+          >{rustAnalysis}</pre>
         </div>
       )}
 
