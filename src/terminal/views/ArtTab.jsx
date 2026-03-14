@@ -11,7 +11,7 @@
 //
 // Color system: deterministic hash HSL via kernelColorMap.js
 
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { Waves } from 'lucide-react';
 import { nodeColor, lerpColor, hslAlpha } from '../data/kernelColorMap';
 import { useSomaGraph, CLUSTER_ANCHORS } from '../hooks/useSomaGraph';
@@ -145,6 +145,75 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField }) {
   const {
     edgeStateRef, stepEdges, applyAttractor: applyEdgeAttractor,
   } = useKineticEdges({ edges: EDGES, nodes: NODES });
+
+  // ── Geometry prism effects ────────────────────────────────────────────────
+  const geomEffectsRef = useRef([]);
+  const [termInput, setTermInput] = useState('');
+  const [lastCmd,   setLastCmd]   = useState('');
+
+  const spawnEffect = useCallback((alias, opts = {}) => {
+    const q    = (alias ?? '').toLowerCase().trim();
+    const node = NODES.find(n =>
+      n.alias === q || n.id === q ||
+      n.label === q || n.label.replace(/_/g, '') === q
+    );
+
+    // Degree-scaled intensity: hub nodes (many edges) get stronger, longer effects
+    const degree   = node ? (ADJ[node.id]?.length ?? 1) : 2;
+    const maxLife  = opts.soft ? 120 : Math.min(300, 140 + degree * 18);
+    const intensity = opts.soft ? 0.55 : Math.min(1.0, 0.55 + degree * 0.07);
+
+    // Core neighborhood
+    const localIds = node
+      ? [...new Set([node.id, ...(ADJ[node.id] ?? [])])]
+      : NODES.slice(0, 5).map(n => n.id);
+
+    // Cross-cluster bridges: pick 1-2 nodes from other clusters for sacred geometry
+    if (node && !opts.soft) {
+      const otherClusters = [...new Set(
+        NODES.filter(n => n.cluster !== node.cluster).map(n => n.cluster)
+      )];
+      // One bridge per foreign cluster, up to 2
+      for (const cl of otherClusters.slice(0, 2)) {
+        const bridge = NODES.find(n => n.cluster === cl && !localIds.includes(n.id));
+        if (bridge) localIds.push(bridge.id);
+      }
+    }
+
+    // Mobile: coarse-pointer devices use reduced complexity (fewer nodes, shorter life)
+    const coarse = window.matchMedia('(pointer: coarse)').matches;
+    const nodeLimit = coarse ? 6 : 11;
+
+    // Hard cap: max 4 concurrent effects — drop oldest to prevent perf abuse
+    if (geomEffectsRef.current.length >= 4) geomEffectsRef.current.shift();
+
+    geomEffectsRef.current.push({
+      id:        Date.now() + Math.random(),
+      nodeIds:   localIds.slice(0, nodeLimit),
+      life:      0,
+      maxLife:   coarse ? Math.min(maxLife, 150) : maxLife,
+      hueBase:   Math.random() * 360,
+      intensity: coarse ? Math.min(intensity, 0.7) : intensity,
+      coarse,
+    });
+    if (node) fireNode(node.id);
+  }, [fireNode]);
+
+  const handleRunKernel = useCallback((alias) => {
+    spawnEffect(alias);
+    if (onRunKernel) onRunKernel(alias);
+  }, [spawnEffect, onRunKernel]);
+
+  const handleTermSubmit = useCallback((e) => {
+    e.preventDefault();
+    // Sanitize: only word chars, spaces, dashes — no shell metacharacters
+    const raw = termInput.trim().replace(/[^a-zA-Z0-9 _\-]/g, '').slice(0, 64);
+    if (!raw) return;
+    const alias = raw.startsWith('run ') ? raw.slice(4).trim() : raw;
+    setLastCmd(raw);
+    setTermInput('');
+    handleRunKernel(alias);
+  }, [termInput, handleRunKernel]);
 
   // ── Push incoming attractor data ─────────────────────────────────────────
   useEffect(() => {
@@ -305,6 +374,90 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField }) {
         }
       }
 
+      // ── Prism geometry effects (inside-sphere chords, command-triggered) ────
+      // Additive blending: overlapping spectral lines ACCUMULATE light → bloom cores
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      {
+        // Precompute ID→index map once per frame — O(1) lookup inside effect loop
+        const nodeIdx = {};
+        for (let i = 0; i < nodes.length; i++) nodeIdx[nodes[i].id] = i;
+
+        const live = [];
+        const cx = w / 2, cy = h / 2;     // projected sphere center
+        for (const eff of geomEffectsRef.current) {
+          eff.life++;
+          if (eff.life >= eff.maxLife) continue;
+          live.push(eff);
+
+          const t     = eff.life / eff.maxLife;
+          const alpha = Math.sin(t * Math.PI) * (eff.intensity ?? 1.0);
+          const hue0  = (eff.hueBase + eff.life * 1.8) % 360;
+
+          // Project effect nodes using precomputed index map
+          const effProj = eff.nodeIds.map(id => {
+            const idx = nodeIdx[id];
+            return idx != null ? proj[idx] : null;
+          }).filter(Boolean);
+
+          if (effProj.length < 2) continue;
+
+          // Draw prismatic chord bundle between every pair
+          // Coarse (mobile): 4 spectral lines × 6 nodes = 60 strokes/effect
+          // Fine  (desktop): 7 spectral lines × 11 nodes = 385 strokes/effect
+          const spectralN = eff.coarse ? 4 : 7;
+          for (let a = 0; a < effProj.length; a++) {
+            for (let b = a + 1; b < effProj.length; b++) {
+              const pA = effProj[a], pB = effProj[b];
+
+              for (let k = 0; k < spectralN; k++) {
+                const hue  = (hue0 + k * 48) % 360;
+                const lAlpha = alpha * 0.28 * (1 - k * 0.06);
+                const offset = (k - 3) * 2.2;
+
+                // Control point pulled toward sphere center — creates interior arc illusion
+                const midX = (pA.sx + pB.sx) / 2;
+                const midY = (pA.sy + pB.sy) / 2;
+                const cpx  = midX + (cx - midX) * 0.55 + offset * 2;
+                const cpy  = midY + (cy - midY) * 0.55 + offset * 1.4;
+
+                ctx.strokeStyle = `hsla(${hue},100%,65%,${lAlpha.toFixed(3)})`;
+                ctx.lineWidth   = 0.7;
+                ctx.beginPath();
+                ctx.moveTo(pA.sx + offset, pA.sy + offset * 0.6);
+                ctx.quadraticCurveTo(cpx, cpy, pB.sx + offset, pB.sy + offset * 0.6);
+                ctx.stroke();
+              }
+            }
+          }
+
+          // Sacred polygon outline (cyclic ring) through effect nodes
+          if (effProj.length >= 3) {
+            const polyHue = (hue0 + 180) % 360;
+            ctx.strokeStyle = `hsla(${polyHue},100%,75%,${(alpha * 0.18).toFixed(3)})`;
+            ctx.lineWidth   = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(effProj[0].sx, effProj[0].sy);
+            for (let i = 1; i < effProj.length; i++) ctx.lineTo(effProj[i].sx, effProj[i].sy);
+            ctx.closePath();
+            ctx.stroke();
+          }
+
+          // Star spokes — lines from sphere center to each effect node
+          for (const ep of effProj) {
+            const spokeHue = (hue0 + Math.atan2(ep.sy - cy, ep.sx - cx) * (180 / Math.PI) + 360) % 360;
+            ctx.strokeStyle = `hsla(${spokeHue},90%,70%,${(alpha * 0.12).toFixed(3)})`;
+            ctx.lineWidth   = 0.5;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(ep.sx, ep.sy);
+            ctx.stroke();
+          }
+        }
+        geomEffectsRef.current = live;
+      }
+      ctx.restore();   // back to source-over for nodes
+
       // ── Nodes (depth-sorted, near drawn last = on top) ────────────────────
       const hov = hoveredRef.current;
       for (const i of sortedNodeIdx) {
@@ -432,21 +585,22 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField }) {
       const node = nodeAt(p.x, p.y);
       if (!node) return;
       if (e.button === 2) {
-        if (onRunKernel && node.alias) onRunKernel(node.alias);
+        if (node.alias) handleRunKernel(node.alias);
       } else {
         fireNode(node.id);
+        spawnEffect(node.id, { soft: true });   // attractor click → soft geometry pulse
         const nodeIdx = NODES.findIndex(n => n.id === node.id);
         if (onCueNode && nodeIdx >= 0) onCueNode(nodeIdx);
       }
     }
-  }, [canvasCoords, nodeAt, fireNode, onCueNode, onRunKernel]);
+  }, [canvasCoords, nodeAt, fireNode, spawnEffect, onCueNode, onRunKernel]);
 
   const handleContextMenu = useCallback((e) => {
     e.preventDefault();
     const p    = canvasCoords(e.clientX, e.clientY);
     if (!p) return;
     const node = nodeAt(p.x, p.y);
-    if (node && onRunKernel && node.alias) onRunKernel(node.alias);
+    if (node?.alias) handleRunKernel(node.alias);
   }, [canvasCoords, nodeAt, onRunKernel]);
 
   const handleMouseLeave = useCallback(() => {
@@ -484,9 +638,10 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField }) {
     const node = nodeAt(p.x, p.y);
     if (!node) return;
     fireNode(node.id);
+    spawnEffect(node.id, { soft: true });
     const nodeIdx = NODES.findIndex(n => n.id === node.id);
     if (onCueNode && nodeIdx >= 0) onCueNode(nodeIdx);
-  }, [canvasCoords, nodeAt, fireNode, onCueNode]);
+  }, [canvasCoords, nodeAt, fireNode, spawnEffect, onCueNode]);
 
   // ── CSS vars for DOM elements outside canvas ──────────────────────────────
   useEffect(() => {
@@ -535,7 +690,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField }) {
             {NODES.length} nodes · {EDGES.length} edges
           </span>
           <span className="border border-cyan-900/30 px-3 py-1 rounded-sm text-cyan-400/50">
-            drag to rotate · click → attractor · right-click → run
+            drag to rotate · click → attractor · right-click / shell → run
           </span>
         </div>
       </div>
@@ -564,6 +719,48 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField }) {
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
         />
+
+        {/* Geometry terminal — hidden on touch/mobile (tap nodes directly instead) */}
+        <form
+          onSubmit={handleTermSubmit}
+          className="hidden md:flex items-center"
+          style={{
+            borderTop:  '1px solid rgba(255,140,0,0.08)',
+            padding:    '7px 14px',
+            gap:        '10px',
+            background: 'rgba(0,0,0,0.55)',
+          }}
+        >
+          <span style={{
+            color:      'rgba(255,215,0,0.35)',
+            fontFamily: 'monospace',
+            fontSize:   '10px',
+            letterSpacing: '0.1em',
+            whiteSpace: 'nowrap',
+            minWidth:   '90px',
+          }}>
+            {lastCmd ? `↳ ${lastCmd}` : 'geometry_shell'}
+          </span>
+          <span style={{ color: 'rgba(255,215,0,0.7)', fontFamily: 'monospace', fontSize: '13px' }}>▸</span>
+          <input
+            value={termInput}
+            onChange={e => setTermInput(e.target.value)}
+            placeholder="run <kernel>"
+            spellCheck={false}
+            autoComplete="off"
+            style={{
+              flex:        1,
+              background:  'transparent',
+              border:      'none',
+              outline:     'none',
+              color:       'rgba(255,215,0,0.85)',
+              fontFamily:  'monospace',
+              fontSize:    '12px',
+              letterSpacing: '0.06em',
+              caretColor:  '#FFD700',
+            }}
+          />
+        </form>
       </div>
 
       {/* Cluster legend */}

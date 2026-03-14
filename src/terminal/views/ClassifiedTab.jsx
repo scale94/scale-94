@@ -351,50 +351,96 @@ const KEYGEN_LINES = [
   { delay: 2150, text: 'KEYGEN: ✓ keypair ready — K=3, q=3329, 128-bit post-quantum security', color: 'text-amber-300/80' },
 ];
 
-// random hex dump for visual effect
-function fakeHex(length, seed) {
-  let h = '';
-  let s = seed;
-  for (let i = 0; i < length; i++) {
-    s = (s * 1664525 + 1013904223) & 0xffffffff;
-    h += ('00' + ((s >>> 24) & 0xff).toString(16)).slice(-2);
-    if ((i + 1) % 16 === 0 && i < length - 1) h += '\n';
-    else if (i < length - 1) h += ' ';
+// ── Keypair extraction + download helpers ─────────────────────────────────────
+// Parse the hex blocks out of run_classified(1) log output.
+// Lines carrying key material start with 6 spaces then uppercase hex chars.
+function parseMLKemKeypair(log) {
+  const lines = log.split('\n');
+  let section = null;
+  let ekHex = '';
+  let dkHex = '';
+  for (const line of lines) {
+    if (line.includes('ENCAPSULATION KEY (PUBLIC)'))  { section = 'ek'; continue; }
+    if (line.includes('DECAPSULATION KEY (PRIVATE)')) { section = 'dk'; continue; }
+    if (line.includes('CIPHERTEXT (ENCAPSULATED)'))   { section = null; continue; }
+    if (section && line.startsWith('      ')) {
+      const hex = line.trim();
+      if (/^[0-9A-F]+$/.test(hex)) {
+        if (section === 'ek') ekHex += hex;
+        else                  dkHex += hex;
+      }
+    }
   }
-  return h;
+  return { ekHex, dkHex };
 }
 
-function KeygenPhase({ onProceed }) {
+function hexToBytes(hex) {
+  const out = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  return out;
+}
+
+function triggerDownload(bytes, filename) {
+  const url = URL.createObjectURL(new Blob([bytes], { type: 'application/octet-stream' }));
+  const a   = Object.assign(document.createElement('a'), { href: url, download: filename });
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ── Key generation phase ──────────────────────────────────────────────────────
+function KeygenPhase() {
   const [visibleLines, setVisibleLines] = useState([]);
-  const [showKeys,     setShowKeys]     = useState(false);
   const [showAction,   setShowAction]   = useState(false);
+  const [wasmState,    setWasmState]    = useState('idle'); // idle|running|done|error
+  const [wasmError,    setWasmError]    = useState(null);
+  const [keypair,      setKeypair]      = useState(null);   // { ekHex, dkHex }
+  const [downloaded,   setDownloaded]   = useState({ ek: false, dk: false });
 
   useEffect(() => {
     const timers = KEYGEN_LINES.map((line, i) =>
       setTimeout(() => {
         setVisibleLines(prev => [...prev, { ...line, i }]);
-        if (i === KEYGEN_LINES.length - 1) {
-          setTimeout(() => setShowKeys(true),   400);
-          setTimeout(() => setShowAction(true), 900);
-        }
+        if (i === KEYGEN_LINES.length - 1) setTimeout(() => setShowAction(true), 600);
       }, line.delay)
     );
     return () => timers.forEach(clearTimeout);
   }, []);
 
-  const ekHex = fakeHex(32, 0xdeadbeef);
-  const dkHex = fakeHex(32, 0xcafebabe);
+  const handleInitiate = useCallback(async () => {
+    setWasmState('running');
+    try {
+      const mod    = await import('../../wasm/scale94_kernels.js');
+      const output = mod.run_classified(1);
+      const { ekHex, dkHex } = parseMLKemKeypair(output);
+      if (ekHex.length !== 2368) throw new Error(`ek: ${ekHex.length / 2}B (expected 1184B)`);
+      if (dkHex.length !== 4800) throw new Error(`dk: ${dkHex.length / 2}B (expected 2400B)`);
+      setKeypair({ ekHex, dkHex });
+      setWasmState('done');
+    } catch (err) {
+      setWasmError(err.message);
+      setWasmState('error');
+    }
+  }, []);
+
+  const doDownload = useCallback((which) => {
+    if (!keypair) return;
+    const hex  = which === 'ek' ? keypair.ekHex : keypair.dkHex;
+    const name = which === 'ek'
+      ? 'mlkem768-encapsulation-key.bin'
+      : 'mlkem768-decapsulation-key.bin';
+    triggerDownload(hexToBytes(hex), name);
+    setDownloaded(prev => ({ ...prev, [which]: true }));
+  }, [keypair]);
 
   return (
     <div className="space-y-4 font-mono text-[10px]">
       {/* Log stream */}
       <div className="border border-orange-900/30 bg-black/60 rounded-sm p-4 space-y-0.5 min-h-[200px]">
         {visibleLines.map(line => (
-          <div
-            key={line.i}
-            className={`${line.color} tracking-wide`}
-            style={{ animation: 'cr-logIn 0.25s ease forwards' }}
-          >
+          <div key={line.i} className={`${line.color} tracking-wide`}
+               style={{ animation: 'cr-logIn 0.25s ease forwards' }}>
             <span className="text-orange-900/40 mr-2 select-none">{'>'}</span>
             {line.text}
           </div>
@@ -402,46 +448,99 @@ function KeygenPhase({ onProceed }) {
         {visibleLines.length < KEYGEN_LINES.length && (
           <span className="text-orange-500/40 animate-pulse">█</span>
         )}
+        {wasmState === 'running' && (
+          <div className="text-cyan-400/70 tracking-wide" style={{ animation: 'cr-logIn 0.25s ease forwards' }}>
+            <span className="text-orange-900/40 mr-2 select-none">{'>'}</span>
+            KEYGEN: calling WASM — MlKem768::generate(&amp;mut OsRng)...
+            <span className="animate-pulse ml-1">█</span>
+          </div>
+        )}
+        {wasmState === 'done' && (
+          <>
+            <div className="text-amber-300/80 tracking-wide" style={{ animation: 'cr-logIn 0.25s ease forwards' }}>
+              <span className="text-orange-900/40 mr-2">{'>'}</span>
+              KEYGEN: ✓ ML-KEM-768 keypair generated — OsRng entropy consumed
+            </div>
+            <div className="text-rose-400/60 tracking-wide" style={{ animation: 'cr-logIn 0.25s ease forwards' }}>
+              <span className="text-orange-900/40 mr-2">{'>'}</span>
+              KEYGEN: log_entropy_flush() — ephemeral state zeroized via compiler_fence(SeqCst)
+            </div>
+          </>
+        )}
+        {wasmState === 'error' && (
+          <div className="text-red-400/70 tracking-wide">
+            <span className="text-orange-900/40 mr-2">{'>'}</span>
+            KEYGEN: ✗ WASM ERROR — {wasmError}
+          </div>
+        )}
       </div>
 
-      {/* Key previews */}
-      {showKeys && (
+      {/* Real keypair download UI — appears after WASM completes */}
+      {keypair && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3" style={{ animation: 'cr-hexIn 0.4s ease forwards' }}>
           {[
-            { label: 'ENCAPSULATION KEY (ek)',  hex: ekHex, bytes: 1184, color: 'text-orange-300/70'  },
-            { label: 'DECAPSULATION KEY (dk)',  hex: dkHex, bytes: 2400, color: 'text-rose-400/60'    },
-          ].map(({ label, hex, bytes, color }) => (
-            <div key={label} className="border border-orange-900/25 bg-black/50 rounded-sm p-3">
-              <div className="flex items-center justify-between mb-2">
-                <span className={`text-[8px] tracking-widest uppercase ${color}`}>{label}</span>
-                <span className="text-orange-600/30 text-[8px]">{bytes} bytes</span>
+            { label: 'ENCAPSULATION KEY (ek)', bytes: 1184, color: 'text-orange-300/70', which: 'ek' },
+            { label: 'DECAPSULATION KEY (dk)', bytes: 2400, color: 'text-rose-400/60',   which: 'dk' },
+          ].map(({ label, bytes, color, which }) => {
+            const preview = (which === 'ek' ? keypair.ekHex : keypair.dkHex).slice(0, 64).toUpperCase();
+            const done    = downloaded[which];
+            return (
+              <div key={which} className="border border-orange-900/25 bg-black/50 rounded-sm p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className={`text-[8px] tracking-widest uppercase ${color}`}>{label}</span>
+                  <span className="text-orange-600/30 text-[8px]">{bytes} bytes</span>
+                </div>
+                <pre className={`text-[8px] leading-relaxed break-all whitespace-pre-wrap ${color} opacity-70 mb-2`}>
+                  {preview}
+                  <span className="text-orange-600/30 text-[7px]">  …+{bytes - 32} bytes</span>
+                </pre>
+                <button
+                  onClick={() => doDownload(which)}
+                  className={`w-full text-[9px] font-bold tracking-widest uppercase py-1.5 border transition-all duration-200 rounded-sm ${
+                    done
+                      ? 'border-green-500/30 bg-green-900/10 text-green-400/70'
+                      : which === 'ek'
+                        ? 'border-orange-500/30 bg-orange-900/10 text-orange-300 hover:bg-orange-900/30 hover:border-orange-400/50'
+                        : 'border-rose-500/30 bg-rose-900/10 text-rose-300 hover:bg-rose-900/30 hover:border-rose-400/50'
+                  }`}
+                >
+                  {done ? '✓ DOWNLOADED' : `↓ ${which === 'ek' ? 'mlkem768-encapsulation-key.bin' : 'mlkem768-decapsulation-key.bin'}`}
+                </button>
               </div>
-              <pre className={`text-[8px] leading-relaxed break-all whitespace-pre-wrap ${color} opacity-70`}>
-                {hex}
-                <span className="text-orange-600/30 text-[7px]">...+{bytes - 32} bytes redacted</span>
-              </pre>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
-      {/* Proceed to enclave */}
-      {showAction && (
+      {/* Initiate button — idle state */}
+      {showAction && wasmState === 'idle' && (
         <div className="border border-amber-500/25 bg-amber-950/10 rounded-sm p-4 text-center"
              style={{ animation: 'cr-logIn 0.3s ease forwards' }}>
-          <div className="text-amber-400/70 text-[10px] tracking-widest uppercase mb-2">
-            Keypair generated. Initiate classified decryption?
+          <div className="text-amber-400/70 text-[10px] tracking-widest uppercase mb-1">
+            Entropy pool saturated — ready for key generation
           </div>
-          <div className="text-orange-400/50 text-[9px] mb-3">
-            type <span className="text-orange-300/70">run classified</span> in the terminal — or —
+          <div className="text-orange-400/40 text-[9px] mb-3">
+            Generated locally by Rust/WASM · no internet connection required
           </div>
           <button
-            onClick={onProceed}
+            onClick={handleInitiate}
             className="px-6 py-2 border border-orange-500/40 bg-orange-900/20 text-orange-300 text-[11px] font-bold tracking-widest uppercase rounded-sm hover:bg-orange-900/40 hover:border-orange-400/60 transition-all duration-200"
             style={{ boxShadow: '0 0 12px rgba(249,115,22,0.1)' }}
           >
             → initiate enclave
           </button>
+        </div>
+      )}
+
+      {/* Footer note after keypair is ready */}
+      {keypair && (
+        <div className="border border-orange-500/10 bg-black/20 rounded-sm px-4 py-2 text-center space-y-0.5">
+          <div className="text-orange-600/35 text-[8px] tracking-widest">
+            dk — PRIVATE KEY · STORE SECURELY · NEVER SHARE · FIPS 203 // ML-KEM-768
+          </div>
+          <div className="text-orange-600/20 text-[8px]">
+            type <span className="text-orange-500/40">run classified</span> for the time-locked AES-GCM decryption enclave
+          </div>
         </div>
       )}
     </div>
