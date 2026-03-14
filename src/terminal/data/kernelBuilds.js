@@ -163,7 +163,7 @@ const kernelBuilds = [
   { id: "SSS-7.7.7.7.7.7.7", articleId: "SSS-7.7.7.7.7.7.7", name: "SCALE_SEVEN_SOVEREIGNITY_KERNEL_V7_7_7_7_7_7_7", status: "ACTIVE", desc: "ᛟ 1.0 THE AXIOMATIC CORE [TRANSCENDENT]" },
   { id: "SCALING-CUBE-PROTOCOL", articleId: "SCALING-CUBE-PROTOCOL", name: "SCALING_CUBE_PROTOCOL", status: "ACTIVE", desc: "Platonic Form · Entropic Stasis · The Architecture of Potential" },
   { id: "SRDK-3.3.3", articleId: "SRDK-3.3.3", name: "SCOTT_REACTION_DIFFUSION_KERNEL_3_3_3", status: "ACTIVE", desc: "Mathematical Architecture" },
-  { id: "SERAPHINE-8.8.8.8.8.8.8.8-BONE-FUSION", articleId: "SERAPHINE-8.8.8.8.8.8.8.8-BONE-FUSION", name: "SERAPHINE_8_8_8_8_8_8_8_8_SCALE_KERNEL", status: "ACTIVE", desc: "[STATUS: MINERALIZED // BONE FUSION: COMPLETE // LAYER 7.7.7.7.7.7.7]" },
+  { id: "SERAPHINE-8.8.8.8.8.8.8.8-BONE-FUSION", articleId: "SERAPHINE-8.8.8.8.8.8.8.8-BONE-FUSION", name: "SERAPHINE_8_8_8_8_8_8_8_8_SCALE_KERNEL", status: "ACTIVE", desc: "⌬ FUSED STATE PARAMETERS ⌬" },
   { id: "SOMA-9.1", articleId: "SOMA-9.1", name: "SOMA_9_1_KERNEL_REPORT", status: "ACTIVE", desc: "Ⅰ. KINETIC THEATER: MIDDLE EASTERN GRID FRACTURE" },
   { id: "SOMA-PLUS-ENGINE", articleId: "SOMA-PLUS-ENGINE", name: "SOMA_PLUS_ENGINE", status: "ACTIVE", desc: "Status Is Earned Through the Commons — soma_kernel_5.5" },
   { id: "SORBE-THERMODYNAMIC-BLOOM-V1", articleId: "SORBE-THERMODYNAMIC-BLOOM-V1", name: "SORBE_THERMODYNAMIC_BLOOM_KERNEL_1_0", status: "ACTIVE", desc: "◈ THE THERMODYNAMIC IMPERATIVE" },
