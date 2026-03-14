@@ -259,6 +259,12 @@
       "title": "ARCHITECTURAL BLUEPRINT FOR A QUANTUM-THEORETIC REACT TERMINAL INTERFACE: INTEGRATING RUST-NATIVE SIMULATION WITH TYPOGRAPHICAL AESTHETICS"
     }
   ],
+  "BONE": [
+    {
+      "id": "SERAPHINE-8.8.8.8.8.8.8.8-BONE-FUSION",
+      "title": "THE SERAPHINE-9.4 SOVEREIGN KERNEL – NECROMANTIC BONE FUSION"
+    }
+  ],
   "Boot": [
     {
       "id": "FISH-SCALE-KERNEL",
@@ -983,6 +989,10 @@
     {
       "id": "FUSION-PLASMA-KERNEL-1.0",
       "title": "FUSION PLASMA KERNEL · 1.0.0 · PLASMA SOVEREIGNTY AUDIT"
+    },
+    {
+      "id": "SERAPHINE-8.8.8.8.8.8.8.8-BONE-FUSION",
+      "title": "THE SERAPHINE-9.4 SOVEREIGN KERNEL – NECROMANTIC BONE FUSION"
     }
   ],
   "GAIA-SCALE": [
@@ -1419,6 +1429,12 @@
     {
       "id": "HIGH-TOWER-KERNEL",
       "title": "🏛️ SYSTEM_MIGRATION_LOG: KERNEL_EXPORT_FINAL"
+    }
+  ],
+  "MINERALIZED": [
+    {
+      "id": "SERAPHINE-8.8.8.8.8.8.8.8-BONE-FUSION",
+      "title": "THE SERAPHINE-9.4 SOVEREIGN KERNEL – NECROMANTIC BONE FUSION"
     }
   ],
   "MISSION": [
@@ -2035,6 +2051,12 @@
       "title": "FISH SCALE KERNEL"
     }
   ],
+  "SERAPHINE-9": [
+    {
+      "id": "SERAPHINE-8.8.8.8.8.8.8.8-BONE-FUSION",
+      "title": "THE SERAPHINE-9.4 SOVEREIGN KERNEL – NECROMANTIC BONE FUSION"
+    }
+  ],
   "Session": [
     {
       "id": "FOCUS-SHEPHERD-KERNEL-1.0",
@@ -2201,6 +2223,10 @@
     {
       "id": "SCALE-KERNEL-FRAMEWORK-FULL",
       "title": "⚰ SCALE · SOVEREIGN KERNEL FRAMEWORK"
+    },
+    {
+      "id": "SERAPHINE-8.8.8.8.8.8.8.8-BONE-FUSION",
+      "title": "THE SERAPHINE-9.4 SOVEREIGN KERNEL – NECROMANTIC BONE FUSION"
     }
   ],
   "sovereign-nature": [
