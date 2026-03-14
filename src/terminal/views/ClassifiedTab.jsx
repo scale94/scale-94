@@ -293,7 +293,7 @@ function EntropyGrid({ onComplete }) {
           ref={canvasRef}
           width={COLS * CELL}
           height={ROWS * CELL}
-          style={{ display: 'block', width: '100%', maxWidth: `${COLS * CELL}px` }}
+          style={{ display: 'block', width: '100%', maxWidth: `${COLS * CELL}px`, touchAction: 'none' }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onTouchStart={handleTouchStart}
@@ -411,7 +411,8 @@ function KeygenPhase() {
   const handleInitiate = useCallback(async () => {
     setWasmState('running');
     try {
-      const mod    = await import('../../wasm/scale94_kernels.js');
+      const mod = await import('../../wasm/scale94_kernels.js');
+      await mod.default({ module_or_path: '/wasm/scale94_kernels_bg.wasm' });
       const output = mod.run_classified(1);
       const { ekHex, dkHex } = parseMLKemKeypair(output);
       if (ekHex.length !== 2368) throw new Error(`ek: ${ekHex.length / 2}B (expected 1184B)`);

@@ -49,3 +49,4 @@ content/rust_kernels/pkg/
 # Prevents local vault configs and deleted files from leaking to GitHub
 **/.obsidian/
 **/.trash/
+.vercel
