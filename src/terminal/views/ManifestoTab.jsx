@@ -67,13 +67,13 @@ const ManifestoTab = ({ systemArticles = {} }) => {
         <div className="flex gap-6" style={{ minWidth: '720px' }}>
 
           {/* Architect Thesis */}
-          <div className="flex-[5] shrink-0">
+          <div className="flex-[5] shrink-0 flex flex-col">
             <div
               style={{
                 padding: '1.5px',
                 background: 'linear-gradient(135deg, rgba(217,70,239,0.5), rgba(6,182,212,0.3))',
                 borderRadius: '6px',
-                height: '100%',
+                flex: 1,
               }}
             >
               <div className="bg-black/90 backdrop-blur-sm px-6 py-6 rounded-[5px] h-full">
@@ -99,13 +99,13 @@ const ManifestoTab = ({ systemArticles = {} }) => {
           </div>
 
           {/* Manifesto */}
-          <div className="flex-[11] shrink-0">
+          <div className="flex-[11] shrink-0 flex flex-col">
             <div
               style={{
                 padding: '1.5px',
                 background: 'linear-gradient(135deg, rgba(6,182,212,0.5), rgba(217,70,239,0.3), rgba(57,255,20,0.4))',
                 borderRadius: '6px',
-                height: '100%',
+                flex: 1,
               }}
             >
               <div
