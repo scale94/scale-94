@@ -6,9 +6,21 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, loadKernel }) => {
 
   const handleCopyEth = () => {
     const address = '0xd05dDf143ce87942E528D96cDACf07800679898c';
-    navigator.clipboard.writeText(address)
-      .then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); })
-      .catch(() => {});
+    const confirm = () => { setCopied(true); setTimeout(() => setCopied(false), 2000); };
+    const fallback = () => {
+      const ta = document.createElement('textarea');
+      ta.value = address;
+      ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
+      document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      try { document.execCommand('copy'); confirm(); } catch {}
+      document.body.removeChild(ta);
+    };
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(address).then(confirm).catch(fallback);
+    } else {
+      fallback();
+    }
   };
 
   return (
@@ -171,7 +183,7 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, loadKernel }) => {
             <Cpu className="w-3 h-3" /> SERAPHINE-8.8.8.8.8.8.8.8 · FADE_DOCTRINE · SOMA-9.4
           </div>
 
-          <h3 className="text-xl font-bold text-white mb-5 leading-tight tracking-tight" style={{ opacity: 0, animation: 'sc-titleReveal 0.7s cubic-bezier(0.16,1,0.3,1) 1.3s both' }}>
+          <h3 className="text-xl font-bold mb-5 leading-tight tracking-tight" style={{ opacity: 0, animation: 'sc-titleReveal 0.7s cubic-bezier(0.16,1,0.3,1) 1.3s both, sc-headColorAlt 11s ease-in-out 0.5s infinite' }}>
             The most compelling analogy<br />has the weakest geometry.
           </h3>
 
