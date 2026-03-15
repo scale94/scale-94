@@ -52,6 +52,26 @@ const RUST_STYLES = `
     from { opacity: 0; }
     to   { opacity: 1; }
   }
+
+  /* ── Vault Monitor — 130 BPM = 462ms per beat ─────────────────────────── */
+  @keyframes vm-beat {
+    0%, 100% { background: rgba(249,115,22,0.38); }
+    50%       { background: rgba(249,115,22,0.92); }
+  }
+  @keyframes vm-beat-done {
+    0%, 100% { background: rgba(251,191,36,0.55); }
+    50%       { background: rgba(251,191,36,1); }
+  }
+  @keyframes vm-beat-encap {
+    0%, 100% { background: rgba(34,211,238,0.35); }
+    50%       { background: rgba(34,211,238,0.85); }
+  }
+  .vm-cell-dim    { background: rgba(194,65,12,0.10); transition: background 0.3s ease; }
+  .vm-cell-lit    { background: rgba(249,115,22,0.45); animation: vm-beat 462ms ease-in-out infinite; }
+  .vm-cell-active { background: rgba(249,115,22,0.9);  animation: vm-beat 462ms ease-in-out infinite; }
+  .vm-cell-encap  { background: rgba(34,211,238,0.6);  animation: vm-beat-encap 462ms ease-in-out infinite; }
+  .vm-cell-done   { background: rgba(251,191,36,0.65); animation: vm-beat-done 462ms ease-in-out infinite; }
+  .vm-cell-error  { background: rgba(239,68,68,0.22);  transition: background 0.3s ease; }
 `;
 
 // ── Countdown ─────────────────────────────────────────────────────────────────
@@ -338,6 +358,237 @@ function EntropyGrid({ onComplete }) {
   );
 }
 
+// ── Vault Monitor ─────────────────────────────────────────────────────────────
+// Hex-cell grid that mirrors the vault.js streaming lifecycle.
+// 130 BPM standard clock: each lit cell pulses at 462ms period.
+// Cells are hexagonal (clip-path); lit cells activate left→right as chunks complete.
+// Also serves as the drag-and-drop enclave entry point.
+
+const VM_COLS        = 10;
+const VM_ROWS        = 5;
+const VM_TOTAL_CELLS = VM_COLS * VM_ROWS; // 50 cells
+const HEX_PATH       = 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)';
+
+function VaultMonitor({ vaultState = 'idle', vaultProgress = null, enclaveKeys, onVaultDrop, onKeysLoaded }) {
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [keyLoadMsg, setKeyLoadMsg] = useState(null);
+  const fileInputRef        = useRef(null);
+  const decryptInputRef     = useRef(null);
+  const loadKeysInputRef    = useRef(null);
+  const hasKeys = !!enclaveKeys;
+
+  const handleLoadKeys = useCallback(async (e) => {
+    const files = [...(e.target.files ?? [])];
+    e.target.value = '';
+    if (!files.length) return;
+    try {
+      const keys = { ek: enclaveKeys?.ek ?? null, dk: enclaveKeys?.dk ?? null };
+      for (const f of files) {
+        const buf = await f.arrayBuffer();
+        const hex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+        if      (buf.byteLength === 1184) keys.ek = hex;
+        else if (buf.byteLength === 2400) keys.dk = hex;
+        else { setKeyLoadMsg(`unrecognised: ${f.name} (${buf.byteLength}B)`); setTimeout(() => setKeyLoadMsg(null), 3000); return; }
+      }
+      if (!keys.ek || !keys.dk) {
+        setKeyLoadMsg(keys.ek ? 'ek loaded — add dk to complete' : 'dk loaded — add ek to complete');
+        onKeysLoaded?.(keys.ek && keys.dk ? keys : (keys.ek ? { ...enclaveKeys, ek: keys.ek } : { ...enclaveKeys, dk: keys.dk }));
+      } else {
+        onKeysLoaded?.(keys);
+        setKeyLoadMsg('keypair restored ✓');
+      }
+      setTimeout(() => setKeyLoadMsg(null), 3000);
+    } catch (err) {
+      setKeyLoadMsg(`load failed: ${err.message}`);
+      setTimeout(() => setKeyLoadMsg(null), 3000);
+    }
+  }, [enclaveKeys, onKeysLoaded]);
+
+  // Compute how many cells to light up
+  const pct = (() => {
+    if (!vaultProgress) return 0;
+    if (vaultProgress.chunksTotal) return Math.min(100, Math.round((vaultProgress.chunksDone / vaultProgress.chunksTotal) * 100));
+    if (vaultProgress.bytesTotal)  return Math.min(100, Math.round((vaultProgress.bytesDone  / vaultProgress.bytesTotal)  * 100));
+    return 0;
+  })();
+
+  const litCount = (() => {
+    if (vaultState === 'done')       return VM_TOTAL_CELLS;
+    if (vaultState === 'encap')      return 1;
+    if (vaultState === 'streaming')  return Math.min(VM_TOTAL_CELLS - 1, Math.max(1, Math.round(pct / 100 * VM_TOTAL_CELLS)));
+    if (vaultState === 'error')      return 3;
+    return 0;
+  })();
+
+  const handleDrop = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    const file = e.dataTransfer?.files?.[0];
+    if (!file || !hasKeys || !onVaultDrop) return;
+    onVaultDrop(file);
+  }, [hasKeys, onVaultDrop]);
+
+  const handleDragOver  = (e) => { e.preventDefault(); setIsDragOver(true); };
+  const handleDragLeave = ()  => setIsDragOver(false);
+
+  const handleFileInput = useCallback((e) => {
+    const file = e.target.files?.[0];
+    if (file && hasKeys && onVaultDrop) onVaultDrop(file);
+    e.target.value = '';
+  }, [hasKeys, onVaultDrop]);
+
+  const handleZoneClick = useCallback(() => {
+    if (hasKeys && vaultState === 'idle') fileInputRef.current?.click();
+  }, [hasKeys, vaultState]);
+
+  const getCellClass = (i) => {
+    if (vaultState === 'error')                              return 'vm-cell-error';
+    if (vaultState === 'done')                               return 'vm-cell-done';
+    if (vaultState === 'encap'     && i === 0)               return 'vm-cell-encap';
+    if (vaultState === 'streaming' && i === litCount - 1)    return 'vm-cell-active';
+    if (i < litCount)                                        return 'vm-cell-lit';
+    return 'vm-cell-dim';
+  };
+
+  const isActive = vaultState === 'encap' || vaultState === 'streaming';
+  const isDone   = vaultState === 'done';
+  const isError  = vaultState === 'error';
+  const isIdle   = vaultState === 'idle';
+
+  const borderColor = isDragOver ? 'rgba(249,115,22,0.65)'
+    : isDone    ? 'rgba(251,191,36,0.35)'
+    : isError   ? 'rgba(239,68,68,0.35)'
+    : isActive  ? 'rgba(249,115,22,0.35)'
+    :             'rgba(194,65,12,0.18)';
+
+  const statusColor  = isError ? 'text-red-400/70' : isDone ? 'text-amber-400/80' : 'text-orange-400/70';
+  const statusText   = (() => {
+    if (vaultState === 'encap') {
+      const fn = vaultProgress?.filename ?? '';
+      return fn.endsWith('.soma') ? '> KEM_DECAP: LOADING' : '> KEM_ENCAP: SECURE';
+    }
+    if (vaultState === 'streaming') {
+      const fn = vaultProgress?.filename ?? '';
+      const isDecrypt = fn.endsWith('.soma');
+      return isDecrypt
+        ? `> KEM_DECAP: ${pct}%  ·  ${fn}`
+        : `> DEM_STREAM: ${pct}%  ·  ${fn}`;
+    }
+    if (vaultState === 'done') {
+      const fn = vaultProgress?.filename ?? '';
+      const isDecrypt = fn && !fn.endsWith('.soma');
+      return isDecrypt ? `> VAULT_OPENED  ·  ${fn}` : `> VAULT_SEALED  ·  ${fn}`;
+    }
+    if (vaultState === 'error')     return '> VAULT_ERR // ENCLAVE FAILURE';
+    return null;
+  })();
+
+  return (
+    <div
+      className="font-mono p-3 rounded-sm"
+      style={{
+        border: `1px solid ${borderColor}`,
+        background: isDragOver ? 'rgba(249,115,22,0.04)' : 'rgba(0,0,0,0.25)',
+        transition: 'border-color 0.25s ease, background 0.25s ease',
+        minHeight: '120px',
+        cursor: hasKeys && isIdle ? 'pointer' : 'default',
+        userSelect: 'none',
+      }}
+      onDrop={handleDrop}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onClick={handleZoneClick}
+    >
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="*/*"
+        style={{ display: 'none' }}
+        onChange={handleFileInput}
+      />
+      <style>{RUST_STYLES}</style>
+
+      {/* Header row */}
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[8px] tracking-widest text-orange-600/50 uppercase">VAULT ENCLAVE // ML-KEM-768</span>
+        {isActive && <span className="text-[8px] text-orange-400/70 tracking-widest" style={{ animation: 'vm-beat 462ms ease-in-out infinite' }}>◈ ACTIVE</span>}
+        {isDone   && <span className="text-[8px] text-amber-400/70 tracking-widest">{vaultProgress?.filename && !vaultProgress.filename.endsWith('.soma') ? '◈ OPENED' : '◈ SEALED'}</span>}
+        {isError  && <span className="text-[8px] text-red-400/70 tracking-widest">◈ FAULT</span>}
+      </div>
+
+      {/* Hex cell grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${VM_COLS}, 1fr)`, gap: '2px', marginBottom: '8px' }}>
+        {Array.from({ length: VM_TOTAL_CELLS }, (_, i) => (
+          <div
+            key={i}
+            className={getCellClass(i)}
+            style={{ aspectRatio: '0.866', clipPath: HEX_PATH }}
+          />
+        ))}
+      </div>
+
+      {/* Status / idle prompt */}
+      {statusText ? (
+        <div className={`text-[9px] tracking-wide truncate ${statusColor}`}>{statusText}</div>
+      ) : (
+        <div className="text-center space-y-1">
+          {hasKeys ? (
+            <>
+              <div className={`text-[9px] tracking-widest uppercase ${isDragOver ? 'text-orange-300/80' : 'text-orange-600/40'}`}>
+                {isDragOver ? 'drop to encrypt →' : 'tap or drop to encrypt'}
+              </div>
+              <button
+                className="font-mono text-[9px] tracking-widest uppercase border border-orange-900/30 px-2 py-0.5 rounded-sm text-orange-500/60 hover:text-orange-400/80 hover:border-orange-600/50 transition-colors"
+                style={{ background: 'rgba(194,65,12,0.06)' }}
+                onClick={(e) => { e.stopPropagation(); decryptInputRef.current?.click(); }}
+              >
+                ↑ decrypt .soma file
+              </button>
+              <input
+                ref={decryptInputRef}
+                type="file"
+                accept=".soma"
+                style={{ display: 'none' }}
+                onChange={(e) => { handleFileInput(e); }}
+              />
+            </>
+          ) : (
+            <>
+              <div className="text-orange-600/35 text-[9px] tracking-widest uppercase mb-1">no keypair in session</div>
+              {keyLoadMsg ? (
+                <div className="text-amber-500/70 text-[9px] tracking-wide">{keyLoadMsg}</div>
+              ) : (
+                <>
+                  <button
+                    className="font-mono text-[9px] tracking-widest uppercase border border-orange-900/30 px-2 py-0.5 rounded-sm text-orange-500/60 hover:text-orange-400/80 hover:border-orange-600/50 transition-colors mb-0.5"
+                    style={{ background: 'rgba(194,65,12,0.06)' }}
+                    onClick={(e) => { e.stopPropagation(); loadKeysInputRef.current?.click(); }}
+                  >
+                    ↑ load saved keys
+                  </button>
+                  <input
+                    ref={loadKeysInputRef}
+                    type="file"
+                    accept=".bin"
+                    multiple
+                    style={{ display: 'none' }}
+                    onChange={handleLoadKeys}
+                  />
+                  <div className="text-orange-900/40 text-[8px]">or run keygen · select both .bin files</div>
+                </>
+              )}
+            </>
+          )}
+          <div className="text-orange-900/25 text-[8px] pt-0.5 border-t border-orange-900/15 mt-1">
+            AES-256-GCM · 1MB chunks · SOMA v0x01
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Key generation log lines ──────────────────────────────────────────────────
 const KEYGEN_LINES = [
   { delay: 0,    text: 'KEYGEN: seeding from entropy pool...', color: 'text-orange-400/70' },
@@ -352,27 +603,6 @@ const KEYGEN_LINES = [
 ];
 
 // ── Keypair extraction + download helpers ─────────────────────────────────────
-// Parse the hex blocks out of run_classified(1) log output.
-// Lines carrying key material start with 6 spaces then uppercase hex chars.
-function parseMLKemKeypair(log) {
-  const lines = log.split('\n');
-  let section = null;
-  let ekHex = '';
-  let dkHex = '';
-  for (const line of lines) {
-    if (line.includes('ENCAPSULATION KEY (PUBLIC)'))  { section = 'ek'; continue; }
-    if (line.includes('DECAPSULATION KEY (PRIVATE)')) { section = 'dk'; continue; }
-    if (line.includes('CIPHERTEXT (ENCAPSULATED)'))   { section = null; continue; }
-    if (section && line.startsWith('      ')) {
-      const hex = line.trim();
-      if (/^[0-9A-F]+$/.test(hex)) {
-        if (section === 'ek') ekHex += hex;
-        else                  dkHex += hex;
-      }
-    }
-  }
-  return { ekHex, dkHex };
-}
 
 function hexToBytes(hex) {
   const out = new Uint8Array(hex.length / 2);
@@ -390,7 +620,7 @@ function triggerDownload(bytes, filename) {
 }
 
 // ── Key generation phase ──────────────────────────────────────────────────────
-function KeygenPhase() {
+function KeygenPhase({ onKeysGenerated }) {
   const [visibleLines, setVisibleLines] = useState([]);
   const [showAction,   setShowAction]   = useState(false);
   const [wasmState,    setWasmState]    = useState('idle'); // idle|running|done|error
@@ -401,7 +631,7 @@ function KeygenPhase() {
   useEffect(() => {
     const timers = KEYGEN_LINES.map((line, i) =>
       setTimeout(() => {
-        setVisibleLines(prev => [...prev, { ...line, i }]);
+        setVisibleLines(prev => prev.some(l => l.i === i) ? prev : [...prev, { ...line, i }]);
         if (i === KEYGEN_LINES.length - 1) setTimeout(() => setShowAction(true), 600);
       }, line.delay)
     );
@@ -413,17 +643,20 @@ function KeygenPhase() {
     try {
       const mod = await import('../../wasm/scale94_kernels.js');
       await mod.default({ module_or_path: '/wasm/scale94_kernels_bg.wasm' });
-      const output = mod.run_classified(1);
-      const { ekHex, dkHex } = parseMLKemKeypair(output);
-      if (ekHex.length !== 2368) throw new Error(`ek: ${ekHex.length / 2}B (expected 1184B)`);
-      if (dkHex.length !== 4800) throw new Error(`dk: ${dkHex.length / 2}B (expected 2400B)`);
+      const output = mod.enclave_keygen();
+      const dataMatch = output.match(/\nDATA:(\{.*\})$/s);
+      if (!dataMatch) throw new Error('enclave_keygen: no DATA block in output');
+      const { ek: ekHex, dk: dkHex } = JSON.parse(dataMatch[1]);
+      if (!ekHex || ekHex.length !== 2368) throw new Error(`ek: ${(ekHex?.length ?? 0) / 2}B (expected 1184B)`);
+      if (!dkHex || dkHex.length !== 4800) throw new Error(`dk: ${(dkHex?.length ?? 0) / 2}B (expected 2400B)`);
       setKeypair({ ekHex, dkHex });
+      onKeysGenerated?.({ ek: ekHex, dk: dkHex });
       setWasmState('done');
     } catch (err) {
       setWasmError(err.message);
       setWasmState('error');
     }
-  }, []);
+  }, [onKeysGenerated]);
 
   const doDownload = useCallback((which) => {
     if (!keypair) return;
@@ -540,7 +773,7 @@ function KeygenPhase() {
             dk — PRIVATE KEY · STORE SECURELY · NEVER SHARE · FIPS 203 // ML-KEM-768
           </div>
           <div className="text-orange-600/20 text-[8px]">
-            type <span className="text-orange-500/40">run classified</span> for the time-locked AES-GCM decryption enclave
+            drop or tap the vault monitor to encrypt · load keys after refresh to decrypt
           </div>
         </div>
       )}
@@ -549,7 +782,7 @@ function KeygenPhase() {
 }
 
 // ── Phase: LOCKED (entropy grid entry point) ──────────────────────────────────
-function LockedPhase({ onInitiateEnclave }) {
+function LockedPhase({ onInitiateEnclave, vaultState, vaultProgress, enclaveKeys, onVaultDrop, onKeysGenerated }) {
   const [phase, setPhase] = useState('collect'); // 'collect' | 'generating'
 
   return (
@@ -603,7 +836,7 @@ function LockedPhase({ onInitiateEnclave }) {
           {phase === 'collect' ? (
             <EntropyGrid onComplete={() => setPhase('generating')} />
           ) : (
-            <KeygenPhase onProceed={onInitiateEnclave} />
+            <KeygenPhase onProceed={onInitiateEnclave} onKeysGenerated={onKeysGenerated} />
           )}
         </div>
 
@@ -656,17 +889,14 @@ function LockedPhase({ onInitiateEnclave }) {
             </div>
           </div>
 
-          {/* Enclave prompt */}
-          <div className="p-4 border border-orange-500/15 bg-orange-900/5 rounded-sm font-mono text-center">
-            <div className="text-orange-600/40 text-[9px] tracking-widest uppercase mb-2">
-              Classified payload — AES-256-GCM encrypted
-            </div>
-            <div className="text-[10px] text-orange-400/40 mb-2">
-              Collect entropy above, then initiate the decryption enclave:
-            </div>
-            <code className="text-orange-300/60 text-xs">run classified</code>
-            <div className="text-orange-900/40 text-[8px] mt-2">60s window · HMAC-signed · single-use</div>
-          </div>
+          {/* Vault Monitor — live encryption enclave + drag-and-drop */}
+          <VaultMonitor
+            vaultState={vaultState}
+            vaultProgress={vaultProgress}
+            enclaveKeys={enclaveKeys}
+            onVaultDrop={onVaultDrop}
+            onKeysLoaded={onKeysGenerated}
+          />
 
         </div>
       </div>
@@ -855,12 +1085,13 @@ function UnlockedPhase({ session }) {
 }
 
 // ── Root ──────────────────────────────────────────────────────────────────────
-const ClassifiedTab = ({ session, onInitiateEnclave }) => {
-  if (!session || session.status === 'locked') return <LockedPhase onInitiateEnclave={onInitiateEnclave} />;
+const ClassifiedTab = ({ session, onInitiateEnclave, vaultState, vaultProgress, enclaveKeys, onVaultDrop, onKeysGenerated }) => {
+  const vaultProps = { vaultState, vaultProgress, enclaveKeys, onVaultDrop };
+  if (!session || session.status === 'locked') return <LockedPhase onInitiateEnclave={onInitiateEnclave} onKeysGenerated={onKeysGenerated} {...vaultProps} />;
   if (session.status === 'pending')            return <PendingPhase />;
   if (session.status === 'challenged')         return <ChallengedPhase session={session} />;
   if (session.status === 'unlocked')           return <UnlockedPhase session={session} />;
-  return <LockedPhase onInitiateEnclave={onInitiateEnclave} />;
+  return <LockedPhase onInitiateEnclave={onInitiateEnclave} onKeysGenerated={onKeysGenerated} {...vaultProps} />;
 };
 
 export default React.memo(ClassifiedTab);

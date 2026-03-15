@@ -24,7 +24,7 @@
 //   run_tesseract_vault(verbose: u32)    → full pipeline log
 
 use wasm_bindgen::prelude::*;
-use ml_kem::{KemCore, MlKem1024, EncodedSizeUser, kem::Encapsulate};
+use ml_kem::{KemCore, MlKem768Params, MlKem1024, EncodedSizeUser, kem::{Encapsulate, Decapsulate}};
 use ml_dsa::{KeyGen, MlDsa87};
 use ml_dsa::signature::{Signer, Verifier};
 use aes_gcm::{Aes256Gcm, Nonce};
@@ -33,6 +33,7 @@ use argon2::{Argon2, Algorithm, Version, Params};
 use rand_core::{OsRng, RngCore};
 use zeroize::Zeroize;
 use std::convert::TryInto;
+use std::sync::atomic::{compiler_fence, Ordering::SeqCst};
 
 // ── Demo constants ────────────────────────────────────────────────────────────
 // These are fixed demo values — clearly not production material.
@@ -411,4 +412,109 @@ pub fn run_tesseract_vault(verbose: u32) -> String {
     logs.push_str("[SYS]  FIPS 203 · FIPS 204 · RFC 9106 · RustCrypto ecosystem\n");
 
     logs
+}
+
+// ── ML-KEM-768 byte-level KEM bindings for Tesseract Vault JS ────────────────
+//
+// These functions bridge WASM ↔ JS for the file-encryption vault.
+// Key gen / storage is handled by enclave.rs; these functions take raw bytes
+// so JS can drive the KEM layer without holding Rust-typed objects.
+//
+// vault_encapsulate(ek_bytes: &[u8]) → Vec<u8>
+//   Input  : 1184-byte ML-KEM-768 encapsulation key (from keygen / stored hex)
+//   Output : [32B shared_secret ‖ 1088B KEM_ciphertext]
+//   The shared secret is passed to Web Crypto as an AES-256-GCM key.
+//   JS MUST zeroize the ss slice after importKey() completes.
+//
+// vault_decapsulate(kem_ct: &[u8], dk_bytes: &[u8]) → Vec<u8>
+//   Input  : 1088-byte KEM ciphertext (from .soma header) +
+//            2400-byte decapsulation key (private key bytes)
+//   Output : [32B shared_secret]
+//
+// Both functions zeroize ephemeral Rust-side key material via compiler_fence(SeqCst)
+// to prevent LLVM from eliding the wipe across the WASM ABI boundary.
+//
+// Key sizes (FIPS 203, ML-KEM-768, NIST Category 3):
+//   Encapsulation key (public)  : 1184 bytes
+//   Decapsulation key (private) : 2400 bytes
+//   KEM ciphertext              : 1088 bytes
+//   Shared secret               :   32 bytes
+
+const VAULT_EK_LEN: usize = 1184;
+const VAULT_DK_LEN: usize = 2400;
+const VAULT_CT_LEN: usize = 1088;
+
+/// Encapsulate a fresh shared secret with the given ML-KEM-768 public key.
+/// Returns `[32B shared_secret ‖ 1088B KEM_ciphertext]`, or empty Vec on error.
+/// JS must import ss into Web Crypto immediately and zero the raw bytes.
+#[wasm_bindgen]
+pub fn vault_encapsulate(public_key: &[u8]) -> Vec<u8> {
+    if public_key.len() != VAULT_EK_LEN {
+        return Vec::new();
+    }
+
+    // Reconstruct typed EncapsulationKey<MlKem768Params> from raw bytes.
+    // MlKem768Params (not MlKem768 = Kem<P>) satisfies the KemParams trait chain.
+    let ek_array: ml_kem::array::Array<u8, _> = match public_key.try_into() {
+        Ok(arr) => arr,
+        Err(_)  => return Vec::new(),
+    };
+    let ek = ml_kem::kem::EncapsulationKey::<MlKem768Params>::from_bytes(&ek_array);
+
+    let (kem_ct, mut shared_secret) = match ek.encapsulate(&mut OsRng) {
+        Ok(pair) => pair,
+        Err(_)   => return Vec::new(),
+    };
+
+    let ss_bytes:  &[u8] = AsRef::<[u8]>::as_ref(&shared_secret);
+    let ct_bytes:  &[u8] = AsRef::<[u8]>::as_ref(&kem_ct);
+
+    // Pack return value: [32B ss ‖ 1088B ct]
+    // Note: ss is copied out here — JS receives it and is responsible for
+    // zeroing after importKey(). The Rust-side copy is wiped below.
+    let mut out = Vec::with_capacity(32 + VAULT_CT_LEN);
+    out.extend_from_slice(ss_bytes);
+    out.extend_from_slice(ct_bytes);
+
+    // Zeroize Rust-side shared secret — compiler_fence prevents LLVM elision
+    AsMut::<[u8]>::as_mut(&mut shared_secret).zeroize();
+    compiler_fence(SeqCst);
+
+    out
+}
+
+/// Recover the shared secret from a KEM ciphertext using the private key.
+/// Returns `[32B shared_secret]`, or empty Vec on any failure.
+/// JS must import ss into Web Crypto immediately and zero the raw bytes.
+#[wasm_bindgen]
+pub fn vault_decapsulate(kem_ct: &[u8], private_key: &[u8]) -> Vec<u8> {
+    if kem_ct.len() != VAULT_CT_LEN || private_key.len() != VAULT_DK_LEN {
+        return Vec::new();
+    }
+
+    // Reconstruct typed DecapsulationKey<MlKem768Params> from raw bytes
+    let dk_array: ml_kem::array::Array<u8, _> = match private_key.try_into() {
+        Ok(arr) => arr,
+        Err(_)  => return Vec::new(),
+    };
+    let dk = ml_kem::kem::DecapsulationKey::<MlKem768Params>::from_bytes(&dk_array);
+
+    // Reconstruct KEM ciphertext as typed Array
+    let ct_array: ml_kem::array::Array<u8, _> = match kem_ct.try_into() {
+        Ok(arr) => arr,
+        Err(_)  => return Vec::new(),
+    };
+
+    let mut shared_secret = match dk.decapsulate(&ct_array) {
+        Ok(ss) => ss,
+        Err(_) => return Vec::new(),
+    };
+
+    let ss_bytes: Vec<u8> = AsRef::<[u8]>::as_ref(&shared_secret).to_vec();
+
+    // Zeroize Rust-side shared secret
+    AsMut::<[u8]>::as_mut(&mut shared_secret).zeroize();
+    compiler_fence(SeqCst);
+
+    ss_bytes
 }

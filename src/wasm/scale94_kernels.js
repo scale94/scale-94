@@ -1254,6 +1254,41 @@ export function unseal_markdown(sealed, passphrase) {
     return v3;
 }
 
+/**
+ * Recover the shared secret from a KEM ciphertext using the private key.
+ * Returns `[32B shared_secret]`, or empty Vec on any failure.
+ * JS must import ss into Web Crypto immediately and zero the raw bytes.
+ * @param {Uint8Array} kem_ct
+ * @param {Uint8Array} private_key
+ * @returns {Uint8Array}
+ */
+export function vault_decapsulate(kem_ct, private_key) {
+    const ptr0 = passArray8ToWasm0(kem_ct, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passArray8ToWasm0(private_key, wasm.__wbindgen_malloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.vault_decapsulate(ptr0, len0, ptr1, len1);
+    var v3 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v3;
+}
+
+/**
+ * Encapsulate a fresh shared secret with the given ML-KEM-768 public key.
+ * Returns `[32B shared_secret ‖ 1088B KEM_ciphertext]`, or empty Vec on error.
+ * JS must import ss into Web Crypto immediately and zero the raw bytes.
+ * @param {Uint8Array} public_key
+ * @returns {Uint8Array}
+ */
+export function vault_encapsulate(public_key) {
+    const ptr0 = passArray8ToWasm0(public_key, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.vault_encapsulate(ptr0, len0);
+    var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v2;
+}
+
 function __wbg_get_imports() {
     const import0 = {
         __proto__: null,

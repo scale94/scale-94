@@ -53,8 +53,8 @@ export function useCommandDispatch(ctx) {
       setSearchFilter, setCurrentPath, setRelicMode, setBreachOpen, applyEcoCost,
       setOriginTab, setArchitectThesis, setTagCloudView,
       appendSystemLog, handleNav, handleKernelClick, handleTransmissionSelect,
-      loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField, setSpectralBridges, setEnclaveKeys, setProbeNode, setBoneFusions,
-      fusionLog, setFusionLog,
+      loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField, setSpectralBridges, enclaveKeys, setEnclaveKeys, setProbeNode, setBoneFusions,
+      fusionLog, setFusionLog, setVaultState, setVaultProgress,
     } = ctxRef.current;
 
     const log  = (msg, rust = false) => appendSystemLog({ time: now, msg, rust });
@@ -579,6 +579,155 @@ export function useCommandDispatch(ctx) {
           logs(`  ENCLAVE_ERROR :: ${err.message}`, `  Have you run 'keygen' first?`);
         }
       })();
+      return;
+    }
+
+    // ── vault — Tesseract Vault file encryption (ML-KEM-768 + AES-256-GCM) ────
+    // Commands: vault encrypt | vault decrypt
+    // Requires: keygen (ML-KEM-768 keypair must be in session)
+    //
+    // vault encrypt  → opens file picker, encrypts → downloads <file>.soma
+    // vault decrypt  → opens file picker for .soma, decrypts → downloads original
+    if (action === 'vault') {
+      const sub = (query || '').trim().toLowerCase().split(/\s+/)[0];
+
+      if (!sub || sub === 'help') {
+        executeCommand(rawCmd, [
+          'VAULT // Tesseract Vault — post-quantum file encryption',
+          '',
+          '  vault encrypt   encrypt any file → <filename>.soma',
+          '  vault decrypt   decrypt a .soma file → original',
+          '',
+          '  KEM  : ML-KEM-768 (FIPS 203) via Rust/WASM',
+          '  DEM  : AES-256-GCM streaming  (Web Crypto API, 1MB chunks)',
+          '  FORMAT: SOMA v0x01  [12B IV ‖ 1088B KEM_CT ‖ encrypted chunks]',
+          '',
+          '  Requires: keygen  (run first to generate a keypair)',
+          '',
+          '  ⚠  KEY CUSTODY IS YOUR RESPONSIBILITY.',
+          '     If you lose the private key, encrypted files are unrecoverable.',
+          '     There is no server-side backup and no recovery mechanism.',
+          '     Back up the dk (decapsulation key) from keygen output before encrypting.',
+        ].join('\n'));
+        return;
+      }
+
+      const currentKeys = ctxRef.current.enclaveKeys;
+      if (!currentKeys) {
+        executeCommand(rawCmd, [
+          'VAULT_FAIL :: No keypair in session.',
+          '  Run: keygen   to generate an ML-KEM-768 keypair first.',
+        ].join('\n'));
+        return;
+      }
+
+      if (sub === 'encrypt') {
+        log(`COMMAND: ${rawCmd}`);
+        const input = document.createElement('input');
+        input.type   = 'file';
+        input.accept = '*/*';
+        input.onchange = async (e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          const logLine = (msg) => {
+            const t = new Date().toLocaleTimeString('en-US', { hour12: false });
+            setSystemLogs(prev => [...prev, { time: t, msg, rust: true }].slice(-2000));
+          };
+          const { setVaultState: svs, setVaultProgress: svp } = ctxRef.current;
+          try {
+            const mod = await import('../../wasm/scale94_kernels.js');
+            const wasmEntry = Object.values(wasmRegistry).find(e => e.wasmUrl);
+            const wasmUrl = wasmEntry?.wasmUrl ?? '/wasm/scale94_kernels_bg.wasm';
+            await mod.default({ module_or_path: wasmUrl });
+            const { encryptFile } = await import('../crypto/vault.js');
+            const onProgress = (prog) => {
+              if      (prog.phase === 'encap')      { svs?.('encap'); svp?.(prog); }
+              else if (prog.phase === 'streaming') { svs?.('streaming'); svp?.(prog); }
+              else if (prog.phase === 'done')      { svs?.('done');     svp?.(prog); setTimeout(() => { svs?.('idle'); svp?.(null); }, 3500); }
+            };
+            const { blob, filename } = await encryptFile(
+              file, mod, ctxRef.current.enclaveKeys.ek, logLine, onProgress,
+            );
+            const url = URL.createObjectURL(blob);
+            const a   = document.createElement('a');
+            a.href     = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+            const t = new Date().toLocaleTimeString('en-US', { hour12: false });
+            setSystemLogs(prev => [
+              ...prev,
+              { time: t, msg: `VAULT: ${filename} — download triggered`, rust: true },
+            ].slice(-2000));
+          } catch (err) {
+            const { setVaultState: svs2 } = ctxRef.current;
+            svs2?.('error');
+            setTimeout(() => { ctxRef.current.setVaultState?.('idle'); ctxRef.current.setVaultProgress?.(null); }, 3500);
+            const t = new Date().toLocaleTimeString('en-US', { hour12: false });
+            setSystemLogs(prev => [
+              ...prev,
+              { time: t, msg: `VAULT_ERROR :: ${err.message}` },
+            ].slice(-2000));
+          }
+        };
+        input.click();
+        return;
+      }
+
+      if (sub === 'decrypt') {
+        log(`COMMAND: ${rawCmd}`);
+        const input = document.createElement('input');
+        input.type   = 'file';
+        input.accept = '.soma,*/*';
+        input.onchange = async (e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          const logLine = (msg) => {
+            const t = new Date().toLocaleTimeString('en-US', { hour12: false });
+            setSystemLogs(prev => [...prev, { time: t, msg, rust: true }].slice(-2000));
+          };
+          const { setVaultState: svs, setVaultProgress: svp } = ctxRef.current;
+          try {
+            const mod = await import('../../wasm/scale94_kernels.js');
+            const wasmEntry = Object.values(wasmRegistry).find(e => e.wasmUrl);
+            const wasmUrl = wasmEntry?.wasmUrl ?? '/wasm/scale94_kernels_bg.wasm';
+            await mod.default({ module_or_path: wasmUrl });
+            const { decryptFile } = await import('../crypto/vault.js');
+            const onProgress = (prog) => {
+              if      (prog.phase === 'encap')      { svs?.('encap'); svp?.(prog); }
+              else if (prog.phase === 'streaming') { svs?.('streaming'); svp?.(prog); }
+              else if (prog.phase === 'done')      { svs?.('done');     svp?.(prog); setTimeout(() => { svs?.('idle'); svp?.(null); }, 3500); }
+            };
+            const { blob, filename } = await decryptFile(
+              file, mod, ctxRef.current.enclaveKeys.dk, logLine, onProgress,
+            );
+            const url = URL.createObjectURL(blob);
+            const a   = document.createElement('a');
+            a.href     = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+            const t = new Date().toLocaleTimeString('en-US', { hour12: false });
+            setSystemLogs(prev => [
+              ...prev,
+              { time: t, msg: `VAULT: ${filename} decrypted — download triggered`, rust: true },
+            ].slice(-2000));
+          } catch (err) {
+            const { setVaultState: svs2 } = ctxRef.current;
+            svs2?.('error');
+            setTimeout(() => { ctxRef.current.setVaultState?.('idle'); ctxRef.current.setVaultProgress?.(null); }, 3500);
+            const t = new Date().toLocaleTimeString('en-US', { hour12: false });
+            setSystemLogs(prev => [
+              ...prev,
+              { time: t, msg: `VAULT_ERROR :: ${err.message}` },
+            ].slice(-2000));
+          }
+        };
+        input.click();
+        return;
+      }
+
+      executeCommand(rawCmd, `VAULT_FAIL :: Unknown subcommand '${sub}'. Try: vault help`);
       return;
     }
 

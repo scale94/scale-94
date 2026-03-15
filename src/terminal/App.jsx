@@ -108,6 +108,9 @@ const App = () => {
   const [orthogonalBridges, setOrthogonalBridges] = useState([]);
   // Enclave keys — { ek, dk } hex strings from keygen, null until generated
   const [enclaveKeys, setEnclaveKeys] = useState(null);
+  // Vault monitor state — drives VaultMonitor UI in ClassifiedTab
+  const [vaultState,    setVaultState]    = useState('idle'); // idle|encap|streaming|done|error
+  const [vaultProgress, setVaultProgress] = useState(null);  // { phase, chunksDone, chunksTotal, bytesTotal, bytesDone, filename }
   // Probe node — { query, probeVector, similarities } from text_probe kernel, null until run
   const [probeNode, setProbeNode] = useState(null);
   // Relic malfunction mode — amplifies glitch, streams hex to log
@@ -573,6 +576,44 @@ const App = () => {
     setSearchFilter('');
   }, []);
 
+  // Vault drop handler — called by VaultMonitor drag-drop or file-picker.
+  // Auto-routes: .soma files → decryptFile (uses dk), anything else → encryptFile (uses ek).
+  const handleVaultDrop = useCallback(async (file) => {
+    if (!enclaveKeys) return;
+    const logLine = (msg) => {
+      const t = new Date().toLocaleTimeString('en-US', { hour12: false });
+      setSystemLogs(prev => [...prev, { time: t, msg, rust: true }].slice(-2000));
+    };
+    const isSoma = file.name.toLowerCase().endsWith('.soma');
+    try {
+      const mod = await import('../wasm/scale94_kernels.js');
+      const wasmEntry = Object.values(wasmRegistry).find(e => e.wasmUrl);
+      const wasmUrl = wasmEntry?.wasmUrl ?? '/wasm/scale94_kernels_bg.wasm';
+      await mod.default({ module_or_path: wasmUrl });
+      const { encryptFile, decryptFile } = await import('./crypto/vault.js');
+      const onProgress = (prog) => {
+        if      (prog.phase === 'encap')      { setVaultState('encap'); setVaultProgress(prog); }
+        else if (prog.phase === 'streaming') { setVaultState('streaming'); setVaultProgress(prog); }
+        else if (prog.phase === 'done')      {
+          setVaultState('done'); setVaultProgress(prog);
+          setTimeout(() => { setVaultState('idle'); setVaultProgress(null); }, 3500);
+        }
+      };
+      const { blob, filename } = isSoma
+        ? await decryptFile(file, mod, enclaveKeys.dk, logLine, onProgress)
+        : await encryptFile(file, mod, enclaveKeys.ek, logLine, onProgress);
+      const url = URL.createObjectURL(blob);
+      const a   = Object.assign(document.createElement('a'), { href: url, download: filename });
+      a.click();
+      URL.revokeObjectURL(url);
+      logLine(`VAULT: ${filename} — download triggered`);
+    } catch (err) {
+      setVaultState('error');
+      logLine(`VAULT_ERROR :: ${err.message}`);
+      setTimeout(() => { setVaultState('idle'); setVaultProgress(null); }, 3500);
+    }
+  }, [enclaveKeys]);
+
   // Command dispatcher — all Enter-key logic lives in useCommandDispatch.
   // ctx is rebuilt on every render; the hook reads it through a ref so the
   // returned callback stays stable (deps: []).
@@ -582,8 +623,8 @@ const App = () => {
     setSearchFilter, setCurrentPath, setRelicMode, setBreachOpen, applyEcoCost,
     setOriginTab, setArchitectThesis, setTagCloudView,
     appendSystemLog, handleNav, handleKernelClick, handleTransmissionSelect,
-    loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField, setSpectralBridges, setEnclaveKeys, setProbeNode, setBoneFusions,
-    fusionLog, setFusionLog,
+    loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField, setSpectralBridges, enclaveKeys, setEnclaveKeys, setProbeNode, setBoneFusions,
+    fusionLog, setFusionLog, setVaultState, setVaultProgress,
   });
 
   // Mobile auto-run — fires a WASM kernel automatically when a card is tapped on mobile.
@@ -966,7 +1007,14 @@ const App = () => {
 
           {/* Cryptography Tab — ML-KEM-768 PQC + Gray-Scott kernel reference */}
           {activeTab === 'cryptography' && !selectedArticle && !architectThesis && (
-            <ClassifiedTab session={classifiedSession} />
+            <ClassifiedTab
+              session={classifiedSession}
+              vaultState={vaultState}
+              vaultProgress={vaultProgress}
+              enclaveKeys={enclaveKeys}
+              onVaultDrop={handleVaultDrop}
+              onKeysGenerated={setEnclaveKeys}
+            />
           )}
 
           {/* Article Detail */}
