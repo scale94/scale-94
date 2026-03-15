@@ -58,19 +58,32 @@ const RUST_STYLES = `
     0%, 100% { background: rgba(249,115,22,0.38); }
     50%       { background: rgba(249,115,22,0.92); }
   }
-  @keyframes vm-beat-done {
-    0%, 100% { background: rgba(251,191,36,0.55); }
-    50%       { background: rgba(251,191,36,1); }
-  }
   @keyframes vm-beat-encap {
     0%, 100% { background: rgba(34,211,238,0.35); }
     50%       { background: rgba(34,211,238,0.85); }
+  }
+  /* Done — slow amber seal breathe. Not a strobe. */
+  @keyframes vm-seal-breathe {
+    0%, 100% { background: rgba(251,191,36,0.33); }
+    50%      { background: rgba(251,191,36,0.62); }
+  }
+  /* Scan line — moving gradient band sweeping top→bottom during active ops */
+  @keyframes vm-scan-sweep {
+    0%   { background-position: 0% -30%; }
+    100% { background-position: 0% 130%; }
+  }
+  /* Done container — one-shot cyan burst then amber settle */
+  @keyframes vm-done-glow {
+    0%   { box-shadow: none; }
+    18%  { box-shadow: 0 0 0 1px rgba(34,211,238,0.55), 0 0 20px rgba(34,211,238,0.12), inset 0 0 10px rgba(34,211,238,0.04); }
+    60%  { box-shadow: 0 0 0 1px rgba(251,191,36,0.28), 0 0 10px rgba(251,191,36,0.07); }
+    100% { box-shadow: 0 0 0 1px rgba(251,191,36,0.16), 0 0 4px rgba(251,191,36,0.04); }
   }
   .vm-cell-dim    { background: rgba(194,65,12,0.10); transition: background 0.3s ease; }
   .vm-cell-lit    { background: rgba(249,115,22,0.45); animation: vm-beat 462ms ease-in-out infinite; }
   .vm-cell-active { background: rgba(249,115,22,0.9);  animation: vm-beat 462ms ease-in-out infinite; }
   .vm-cell-encap  { background: rgba(34,211,238,0.6);  animation: vm-beat-encap 462ms ease-in-out infinite; }
-  .vm-cell-done   { background: rgba(251,191,36,0.65); animation: vm-beat-done 462ms ease-in-out infinite; }
+  .vm-cell-done   { background: rgba(251,191,36,0.46); animation: vm-seal-breathe 2800ms ease-in-out infinite; }
   .vm-cell-error  { background: rgba(239,68,68,0.22);  transition: background 0.3s ease; }
 `;
 
@@ -494,6 +507,7 @@ function VaultMonitor({ vaultState = 'idle', vaultProgress = null, enclaveKeys, 
         minHeight: '120px',
         cursor: hasKeys && isIdle ? 'pointer' : 'default',
         userSelect: 'none',
+        animation: isDone ? 'vm-done-glow 1.6s ease-out forwards' : undefined,
       }}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
@@ -518,7 +532,7 @@ function VaultMonitor({ vaultState = 'idle', vaultProgress = null, enclaveKeys, 
       </div>
 
       {/* Hex cell grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${VM_COLS}, 1fr)`, gap: '2px', marginBottom: '8px' }}>
+      <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: `repeat(${VM_COLS}, 1fr)`, gap: '2px', marginBottom: '8px' }}>
         {Array.from({ length: VM_TOTAL_CELLS }, (_, i) => (
           <div
             key={i}
@@ -526,6 +540,21 @@ function VaultMonitor({ vaultState = 'idle', vaultProgress = null, enclaveKeys, 
             style={{ aspectRatio: '0.866', clipPath: HEX_PATH }}
           />
         ))}
+        {/* Scan line — sweeps during active encrypt/decrypt */}
+        {isActive && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'linear-gradient(180deg, transparent 0%, rgba(249,115,22,0.55) 50%, transparent 100%)',
+              backgroundSize: '100% 22%',
+              backgroundRepeat: 'no-repeat',
+              animation: 'vm-scan-sweep 1.9s linear infinite',
+              pointerEvents: 'none',
+              zIndex: 1,
+            }}
+          />
+        )}
       </div>
 
       {/* Status / idle prompt */}
@@ -820,6 +849,16 @@ function LockedPhase({ onInitiateEnclave, vaultState, vaultProgress, enclaveKeys
           <Lock className="w-3 h-3" />
           {phase === 'collect' ? 'AWAITING ENTROPY' : 'KEYGEN ACTIVE'}
         </div>
+      </div>
+
+      {/* Zero-Insurance disclaimer */}
+      <div className="mb-6 border-l-2 border-orange-900/40 pl-3 font-mono text-[10px] tracking-wide leading-relaxed"
+        style={{ opacity: 0, animation: 'cr-subReveal 0.5s ease 0.8s forwards' }}
+      >
+        <span className="text-orange-500/60 font-bold tracking-widest">AXIOM //</span>
+        <span className="text-orange-700/55"> The burden of integrity lives at the node. Use implies acceptance of the </span>
+        <span className="text-orange-500/55 tracking-widest">Zero-Insurance Protocol</span>
+        <span className="text-orange-700/40">.</span>
       </div>
 
       {/* Two-column layout */}

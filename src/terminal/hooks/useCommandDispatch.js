@@ -1209,6 +1209,103 @@ export function useCommandDispatch(ctx) {
       return;
     }
 
+    // ── vitality — thermodynamic vitality audit ────────────────────────────────
+    if (action === 'vitality') {
+      const sub = (query || '').trim().toLowerCase();
+
+      if (!sub || sub === '--help') {
+        executeCommand(rawCmd, [
+          'VITALITY // Thermodynamic Vitality Audit',
+          '',
+          '  vitality --audit   measure metabolic drag + frame latency',
+          '',
+          '  Reads JS heap pressure (Chrome/Edge) and samples 60 rAF frames',
+          '  to compute the Thermodynamic Vitality Index (TVI) for this session.',
+        ].join('\n'));
+        return;
+      }
+
+      if (sub === '--audit') {
+        log(`COMMAND: ${rawCmd}`);
+
+        const logLine = (msg, rust = false) => {
+          const t = new Date().toLocaleTimeString('en-US', { hour12: false });
+          setSystemLogs(prev => [...prev, { time: t, msg, rust }].slice(-2000));
+        };
+
+        logLine('> ENCLAVE VITALITY AUDIT...');
+
+        (async () => {
+          // ── Heap state ──────────────────────────────────────────────────────
+          const mem = (typeof performance !== 'undefined' && performance.memory) || null;
+          let heapLine;
+          let metabolicFat = 0;
+
+          if (mem) {
+            const usedMB  = (mem.usedJSHeapSize  / 1_048_576).toFixed(1);
+            const limitMB = (mem.jsHeapSizeLimit  / 1_048_576).toFixed(0);
+            metabolicFat  = (mem.usedJSHeapSize / mem.jsHeapSizeLimit) * 100;
+            heapLine = `> JS HEAP STATE: ${usedMB}MB / ${limitMB}MB (${metabolicFat.toFixed(2)}% Metabolic Fat)`;
+          } else {
+            heapLine = '> JS HEAP STATE: API unavailable – run in Chrome/Edge for heap telemetry';
+          }
+
+          // ── Frame latency – 60 rAF samples ─────────────────────────────────
+          const TARGET_MS = 1000 / 60; // 16.67ms
+          const FRAMES    = 60;
+
+          const deltas = await new Promise(resolve => {
+            const d = [];
+            let last = null;
+            let count = 0;
+            const tick = (ts) => {
+              if (last !== null) d.push(Math.abs(ts - last - TARGET_MS));
+              last = ts;
+              if (++count < FRAMES + 1) requestAnimationFrame(tick);
+              else resolve(d);
+            };
+            requestAnimationFrame(tick);
+          });
+
+          const avgDev = deltas.length
+            ? deltas.reduce((a, b) => a + b, 0) / deltas.length
+            : 0;
+          const peakDev = deltas.length ? Math.max(...deltas) : 0;
+
+          // ── Thermodynamic Vitality Index ────────────────────────────────────
+          // TVI = 100 − heap penalty − latency penalty, clamped 0–100
+          const tvi = Math.max(0, Math.min(100,
+            100 - (metabolicFat * 1.5) - (avgDev * 8)
+          ));
+
+          const tviLabel = tvi > 85 ? 'SUPERFLUID'
+            : tvi > 70 ? 'LAMINAR'
+            : tvi > 50 ? 'TURBULENT'
+            : tvi > 30 ? 'VISCOUS'
+            :            'NECROTIC';
+
+          const statusNote = tvi > 85
+            ? '  STATUS: optimal thermal equilibrium – no corrective action required'
+            : tvi > 50
+              ? '  STATUS: nominal – minor metabolic drag detected'
+              : '  STATUS: degraded – consider closing background tabs or reloading';
+
+          logLine(heapLine, true);
+          logLine(
+            `> FRAME LATENCY: ${avgDev.toFixed(2)}ms avg deviation – ${peakDev.toFixed(2)}ms peak (${FRAMES} frames sampled)`,
+            true
+          );
+          logLine(`> THERMODYNAMIC VITALITY INDEX: ${tvi.toFixed(1)} (${tviLabel})`, true);
+          logLine(statusNote);
+        })();
+
+        return;
+      }
+
+      executeCommand(rawCmd, `VITALITY_FAIL :: Unknown flag '${query}'. Try: vitality --audit`);
+      return;
+    }
+
     // ── unknown ───────────────────────────────────────────────────────────────
     executeCommand(rawCmd, `ERROR: Command '${action}' not recognized. Type 'help' for assistance.`);
   }, []); // stable — reads state through ctxRef
