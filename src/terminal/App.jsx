@@ -846,18 +846,13 @@ const App = () => {
        * pointerEvents: none — never traps clicks.
        */}
 
-      {/* ── Terminal content — springs up from singularity after boot ────────── */}
+      {/* ── Terminal content — the cube. Scales from a tiny point to full
+           viewport after boot. GPU-promoted, no overshoot. ───────────────── */}
       <div
-        className="flex flex-col flex-grow"
-        style={
-          bootAnimDone
-            ? {}
-            : bootRevealed
-              ? { animation: 'kernel-reveal-scale 0.62s cubic-bezier(0.34,1.56,0.64,1) both', transformOrigin: 'center center' }
-              : { transform: 'scale(0.02)', opacity: 0, transformOrigin: 'center center' }
-        }
+        className={`flex flex-col flex-grow${bootRevealed && !bootAnimDone ? ' cube-scale-up-anim' : ''}`}
+        style={bootAnimDone ? {} : bootRevealed ? {} : { transform: 'scale(0.01)', transformOrigin: 'center center' }}
         onAnimationEnd={(e) => {
-          if (e.target === e.currentTarget && e.animationName === 'kernel-reveal-scale') setBootAnimDone(true);
+          if (e.target === e.currentTarget && e.animationName === 'cube-scale-up') setBootAnimDone(true);
         }}
       >
         <OctagonGrid visible={!selectedArticle && !architectThesis && !tagCloudView} />

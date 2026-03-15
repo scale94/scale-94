@@ -267,17 +267,34 @@ html, body {
 }
 
 /* ── Default cube expand — boot singularity → kernel tab reveal ────────────
-   The boot card collapses to a point. This SAME rectangular form then expands
-   from that point, covering the screen before dissolving to reveal the kernel
-   tab behind it. Arc: uncut stasis (boot) → press S → creation (kernel).
-   No clip-path (buggy on iOS Safari flex containers). Pure scale + opacity. */
-/* Boot singularity → kernel tab expansion (Blender S-key spring) */
-@keyframes kernel-reveal-scale {
-  0%   { transform: scale(0.02); opacity: 0; }
-  5%   { opacity: 1; }
-  62%  { transform: scale(1.018); }
-  80%  { transform: scale(0.997); }
-  100% { transform: scale(1); opacity: 1; }
+   The terminal UI IS the cube. Scale from a tiny point to full viewport.
+   No overshoot (was the lag source — spring past scale(1) caused viewport-
+   exceeding repaints). Clean ease-out-expo. GPU-promoted via will-change.
+   Desktop 16:9: slightly longer travel feels weightier on wide screens.
+   Mobile 9:16: tighter duration suits portrait form. */
+
+@keyframes cube-scale-up {
+  from { transform: scale(0.01); }
+  to   { transform: scale(1); }
+}
+
+/* Base — animation name is always cube-scale-up so onAnimationEnd is simple */
+.cube-scale-up-anim {
+  transform-origin: center center;
+  will-change: transform;
+  animation-name: cube-scale-up;
+  animation-fill-mode: both;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Desktop 16:9 — 1000ms */
+@media (min-width: 768px) {
+  .cube-scale-up-anim { animation-duration: 1.0s; }
+}
+
+/* Mobile 9:16 — 800ms */
+@media (max-width: 767px) {
+  .cube-scale-up-anim { animation-duration: 0.8s; }
 }
 
 
