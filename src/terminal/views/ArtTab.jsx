@@ -1,4 +1,4 @@
-// ArtTab.jsx — SOMA-9.4 // FADE_DOCTRINE // ARS ELECTRONICA 2027
+// ArtTab.jsx — SOMA-9.4 // FEIGENBAUM_FADE // ARS ELECTRONICA 2027
 //
 // Orbital sphere topology: 25 kernel nodes constrained to a rotating unit sphere.
 // Force-directed layout in 3D, perspective-projected onto Canvas2D.
@@ -17,6 +17,10 @@ import { Waves } from 'lucide-react';
 import { nodeColor, lerpColor, hslAlpha } from '../data/kernelColorMap';
 import { useSomaGraph, CLUSTER_ANCHORS } from '../hooks/useSomaGraph';
 import { useKineticEdges }                from '../hooks/useKineticEdges';
+import {
+  NODES, NODE_IDX, FEATURES, DIM_NAMES,
+  cosineSim, topDrivers, analyzeEdge, findOrthogonalNode,
+} from '../data/nodeFeatures';
 
 // ── Graph topology ────────────────────────────────────────────────────────────
 
@@ -28,40 +32,7 @@ const CLUSTERS = {
   drk:    { label: 'drk'          },
 };
 
-const NODES = [
-  { id: 'biocoenosis', label: 'biocoenosis',    cluster: 'eco',    alias: 'biodiversity'    },
-  { id: 'atmospheric', label: 'atmospheric',    cluster: 'eco',    alias: 'climate'         },
-  { id: 'chrono',      label: 'chrono_actuary', cluster: 'eco',    alias: 'chrono'          },
-  { id: 'daly',        label: 'daly',           cluster: 'eco',    alias: 'daly'            },
-  { id: 'replicator',  label: 'replicator',     cluster: 'eco',    alias: 'replicator'      },
-  { id: 'grayscott',   label: 'grayscott',      cluster: 'eco',    alias: 'grayscott'       },
-  { id: 'kuramoto',    label: 'kuramoto',       cluster: 'sync',   alias: 'kuramoto'        },
-  { id: 'ceei',        label: 'ceei',           cluster: 'sync',   alias: 'ceei'            },
-  { id: 'soma91',      label: 'soma_9.1',       cluster: 'sync',   alias: 'soma91'          },
-  { id: 'soma_plus',   label: 'soma_plus',      cluster: 'sync',   alias: 'soma_plus'       },
-  { id: 'leviathan',   label: 'leviathan',      cluster: 'sync',   alias: 'leviathan'       },
-  { id: 'cynic',       label: 'cynic_realist',  cluster: 'sync',   alias: 'cynicrealist'    },
-  { id: 'feigenbaum',  label: 'feigenbaum',     cluster: 'phys',   alias: 'feigenbaum'      },
-  { id: 'ising',       label: 'ising',          cluster: 'phys',   alias: 'ising'           },
-  { id: 'bosonic',     label: 'bosonic',        cluster: 'phys',   alias: 'bosonic_lattice' },
-  { id: 'seraphine',   label: 'seraphine',      cluster: 'phys',   alias: 'seraphine'       },
-  { id: 'fusion',      label: 'fusion_plasma',  cluster: 'phys',   alias: 'fusion'          },
-  { id: 'classified',  label: 'classified',     cluster: 'crypto', alias: 'classified'      },
-  { id: 'pqhash',      label: 'pqhash',         cluster: 'crypto', alias: 'pqhash'          },
-  { id: 'dh_ec',       label: 'dh_ec',          cluster: 'crypto', alias: 'dh_ec'           },
-  { id: 'pragmatic',   label: 'pragmatic',      cluster: 'drk',    alias: 'pragmatic'       },
-  { id: 'soma_kernel', label: 'soma_kernel',    cluster: 'drk',    alias: 'soma_kernel'     },
-  { id: 'strangler',   label: 'strangler_fig',  cluster: 'drk',    alias: 'strangler_fig'   },
-  { id: 'surveillance',label: 'surveillance',   cluster: 'drk',    alias: 'surveillance'    },
-  { id: 'necromantic', label: 'necromantic',    cluster: 'drk',    alias: 'necromantic'     },
-  // ── Seraphine-8.8.8.8.8.8.8.8 triad nodes ──────────────────────────────────
-  { id: 'white_irid',        label: 'white_irid',        cluster: 'eco',    alias: 'white_irid'        },
-  { id: 'pitch_black_steel', label: 'pitch_black_steel', cluster: 'phys',   alias: 'pitch_black_steel' },
-  { id: 'bouligand_36',      label: 'bouligand_36',      cluster: 'eco',    alias: 'bouligand_36'      },
-  { id: 'polymorph_pqc',     label: 'polymorph_pqc',     cluster: 'crypto', alias: 'polymorph_pqc'     },
-  { id: 'magic_angle_1p1',   label: 'magic_angle_1.1',   cluster: 'phys',   alias: 'magic_angle'       },
-  { id: 'zero_effort_flow',  label: 'zero_effort_flow',  cluster: 'drk',    alias: 'zero_effort_flow'  },
-];
+// NODES imported from nodeFeatures.js
 
 // Intra-cluster edges — same cluster, always present
 const INTRA_EDGES = [
@@ -115,79 +86,7 @@ const CLUSTER_COLORS = Object.fromEntries(
   Object.keys(CLUSTERS).map(k => [k, nodeColor(k, k)])
 );
 
-// ── 16D fingerprint space (mirrored from spectral_bridge.rs) ──────────────────
-// Indices match NODES array order (0–24). Values on [0,1].
-
-const DIM_NAMES = [
-  'dynamical', 'nonlinearity', 'dimensionality', 'criticality',
-  'entropy', 'synchrony', 'conservation', 'temporal',
-  'spatial', 'stochastic', 'game_theory', 'thermodynamic',
-  'information', 'cryptographic', 'biological', 'economic',
-];
-
-/* prettier-ignore */
-const FEATURES = [
-  /*  0 biocoenosis */ [0.75,0.55,0.50,0.30,0.90,0.30,0.40,0.50,0.35,0.70,0.40,0.20,0.85,0.00,1.00,0.20],
-  /*  1 atmospheric */ [0.80,0.70,0.75,0.50,0.55,0.20,0.50,0.80,0.70,0.30,0.10,0.80,0.30,0.00,0.40,0.10],
-  /*  2 chrono      */ [0.50,0.45,0.50,0.30,0.50,0.10,0.30,1.00,0.35,0.20,0.30,0.60,0.40,0.00,0.65,0.70],
-  /*  3 daly        */ [0.25,0.40,0.30,0.20,0.70,0.20,0.60,0.70,0.05,0.10,0.50,0.75,0.50,0.00,0.30,0.90],
-  /*  4 replicator  */ [0.55,0.70,0.50,0.45,0.45,0.50,0.50,0.45,0.65,0.30,1.00,0.10,0.30,0.00,0.75,0.40],
-  /*  5 grayscott   */ [1.00,0.90,0.75,0.60,0.30,0.40,0.40,0.30,1.00,0.00,0.00,0.20,0.10,0.00,0.30,0.00],
-  /*  6 kuramoto    */ [0.55,0.60,0.70,0.55,0.35,1.00,0.50,0.40,0.65,0.20,0.20,0.10,0.25,0.00,0.25,0.10],
-  /*  7 ceei        */ [0.25,0.30,0.55,0.20,0.40,0.50,0.80,0.20,0.65,0.10,0.85,0.20,0.40,0.00,0.10,1.00],
-  /*  8 soma91      */ [0.30,0.35,0.50,0.30,0.50,0.40,0.50,0.50,0.65,0.20,0.30,0.50,0.50,0.00,0.20,0.50],
-  /*  9 soma_plus   */ [0.45,0.40,0.55,0.30,0.50,0.50,0.50,0.50,0.65,0.30,0.30,0.50,0.50,0.00,0.20,0.40],
-  /* 10 leviathan   */ [0.30,0.50,0.70,0.35,0.40,0.55,0.30,0.45,0.65,0.30,0.90,0.25,0.30,0.00,0.10,0.50],
-  /* 11 cynic       */ [0.15,0.25,0.30,0.10,0.30,0.20,0.20,0.35,0.10,0.15,0.50,0.15,0.20,0.00,0.10,0.30],
-  /* 12 feigenbaum  */ [0.30,1.00,0.25,0.85,0.25,0.10,0.50,0.20,0.05,0.00,0.00,0.10,0.20,0.00,0.00,0.00],
-  /* 13 ising       */ [0.85,0.65,0.55,1.00,0.60,0.70,0.50,0.30,0.40,0.90,0.10,0.85,0.50,0.00,0.00,0.00],
-  /* 14 bosonic     */ [0.50,0.55,0.70,0.70,0.40,0.60,0.50,0.20,0.65,0.30,0.40,0.70,0.30,0.00,0.00,0.30],
-  /* 15 seraphine   */ [0.50,0.65,0.70,0.50,0.35,0.30,0.40,0.25,0.65,0.40,0.10,0.40,0.35,0.45,0.00,0.10],
-  /* 16 fusion      */ [0.80,0.75,0.75,0.60,0.30,0.20,0.45,0.30,0.90,0.30,0.00,0.90,0.20,0.00,0.00,0.10],
-  /* 17 classified  */ [0.05,0.30,0.30,0.00,0.20,0.00,0.05,0.05,0.05,0.50,0.00,0.00,0.50,1.00,0.00,0.00],
-  /* 18 pqhash      */ [0.05,0.35,0.45,0.00,0.40,0.00,0.05,0.05,0.30,0.30,0.00,0.00,0.70,0.90,0.00,0.00],
-  /* 19 dh_ec       */ [0.10,0.50,0.50,0.00,0.25,0.00,0.05,0.05,0.30,0.20,0.00,0.00,0.55,0.90,0.00,0.00],
-  /* 20 pragmatic   */ [0.30,0.55,0.50,0.25,0.50,0.20,0.30,0.50,0.35,0.30,0.20,0.55,0.50,0.00,0.10,0.20],
-  /* 21 soma_kernel */ [0.50,0.50,0.70,0.30,0.60,0.45,0.50,0.50,0.65,0.30,0.30,0.50,0.55,0.00,0.20,0.30],
-  /* 22 strangler   */ [0.50,0.50,0.50,0.40,0.35,0.30,0.30,0.70,0.35,0.25,0.20,0.30,0.25,0.00,0.60,0.15],
-  /* 23 surveillance*/ [0.25,0.30,0.55,0.20,0.60,0.20,0.20,0.50,0.65,0.20,0.50,0.10,0.70,0.30,0.10,0.30],
-  /* 24 necromantic     */ [0.70,0.65,0.50,0.40,0.40,0.30,0.20,0.65,0.35,0.50,0.20,0.45,0.30,0.00,0.50,0.10],
-  // ── Seraphine-8.8.8.8.8.8.8.8 triad nodes — dims [13]=crypto [14]=bio [15]=economic ──
-  /* 25 white_irid        */ [0.45,0.70,0.55,0.35,0.40,0.65,0.25,0.80,0.75,0.20,0.05,0.50,0.25,0.00,1.00,0.10],
-  /* 26 pitch_black_steel */ [0.40,0.75,0.45,0.70,0.45,0.55,0.30,0.30,0.55,0.35,0.05,0.90,0.15,0.00,0.00,0.80],
-  /* 27 bouligand_36      */ [0.35,0.60,0.35,0.25,0.30,0.90,0.20,0.10,0.55,0.15,0.05,0.40,0.20,0.10,0.90,0.05],
-  /* 28 polymorph_pqc     */ [0.30,0.80,0.90,0.40,0.85,0.15,0.10,0.10,0.05,0.90,0.85,0.10,0.90,0.95,0.00,0.40],
-  /* 29 magic_angle_1p1   */ [0.80,0.85,0.70,0.95,0.65,0.90,0.75,0.20,0.80,0.55,0.00,0.90,0.45,0.15,0.00,0.20],
-  /* 30 zero_effort_flow  */ [0.75,0.70,0.65,0.60,0.50,0.70,0.40,0.45,0.40,0.40,0.20,0.20,0.55,0.00,0.60,0.30],
-];
-
-// ID → NODES index lookup (built once)
-const NODE_IDX = Object.fromEntries(NODES.map((n, i) => [n.id, i]));
-
-// Cosine similarity between two feature vectors
-function cosineSim(a, b) {
-  let dot = 0, na = 0, nb = 0;
-  for (let i = 0; i < 16; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
-  const d = Math.sqrt(na) * Math.sqrt(nb);
-  return d < 1e-12 ? 0 : dot / d;
-}
-
-// Top-K dimension drivers by dot-product contribution a[i]*b[i]
-function topDrivers(a, b, k = 3) {
-  const contribs = DIM_NAMES.map((name, i) => ({ name, value: a[i] * b[i], magA: a[i], magB: b[i] }));
-  contribs.sort((x, y) => y.value - x.value);
-  return contribs.slice(0, k).filter(c => c.value > 0.01);
-}
-
-// Full edge analysis: cosine similarity + top drivers + per-dim contributions
-function analyzeEdge(idA, idB) {
-  const iA = NODE_IDX[idA], iB = NODE_IDX[idB];
-  if (iA == null || iB == null) return null;
-  const fA = FEATURES[iA], fB = FEATURES[iB];
-  const sim = cosineSim(fA, fB);
-  const drivers = topDrivers(fA, fB, 4);
-  return { sim, drivers };
-}
+// analyzeEdge, cosineSim, topDrivers, NODES, FEATURES, NODE_IDX, DIM_NAMES — imported from nodeFeatures.js
 
 // ── 3D math ───────────────────────────────────────────────────────────────────
 
@@ -228,7 +127,7 @@ const AUTO_SPIN = 0.0025;   // rad/frame continuous Y rotation
 const FOCAL_K   = 2.8;      // focal = FOCAL_K × sphereR — controls perspective depth
 const SPHERE_K  = 0.50;     // sphereR = SPHERE_K × min(w, h) — larger sphere, front and center
 
-export default function ArtTab({ onRunKernel, onCueNode, associativeField, spectralBridges, boneFusions, probeNode, manualFusions = [], onManualFusion }) {
+export default function ArtTab({ onRunKernel, onCueNode, associativeField, spectralBridges, boneFusions, probeNode, manualFusions = [], onManualFusion, orthogonalBridges = [], onOrthogonalBridge }) {
   const canvasRef    = useRef(null);
   const containerRef = useRef(null);
   const rafRef       = useRef(null);
@@ -237,6 +136,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   const [hoveredEdge, setHoveredEdge] = useState(null);  // { aId, bId, cosSim, drivers, isSpectralBridge }
   const [lockedEdge,  setLockedEdge]  = useState(null);  // click-locked readout (persists until click-away)
   const [selectedNode, setSelectedNode] = useState(null); // node click → show all connected edges with 16D analysis
+  const [lockedOrtho, setLockedOrtho] = useState(null);  // most recent orthogonal bridge readout
   const edgeDebounceRef = useRef(null);                   // timeout id for hover debounce
 
   // ── Manual fusion state machine ────────────────────────────────────────────
@@ -282,8 +182,14 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       if (!existing.has(key)) { base.push([mf.idA, mf.idB]); existing.add(key); }
     }
 
+    // Add orthogonal bridge edges (engine-forged divergent links)
+    for (const ob of orthogonalBridges) {
+      const key = ob.idA < ob.idB ? `${ob.idA}:${ob.idB}` : `${ob.idB}:${ob.idA}`;
+      if (!existing.has(key)) { base.push([ob.idA, ob.idB]); existing.add(key); }
+    }
+
     return base;
-  }, [spectralBridges, boneFusions, manualFusions]);
+  }, [spectralBridges, boneFusions, manualFusions, orthogonalBridges]);
 
   // Bridge similarity lookup — for rendering computed bridges with strength-weighted visuals
   const bridgeSimilarityRef = useRef(null);
@@ -321,6 +227,27 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     }
     fusedEdgesRef.current = Object.keys(map).length ? map : null;
   }, [boneFusions, manualFusions]);
+
+  // Orthogonal bridge lookup — engine-forged edges rendered with hue-shifting glow
+  const orthogonalEdgesRef = useRef(null);
+  useEffect(() => {
+    if (!orthogonalBridges.length) { orthogonalEdgesRef.current = null; return; }
+    const map = {};
+    for (const ob of orthogonalBridges) {
+      const key = ob.idA < ob.idB ? `${ob.idA}:${ob.idB}` : `${ob.idB}:${ob.idA}`;
+      map[key] = ob;
+    }
+    orthogonalEdgesRef.current = Object.keys(map).length ? map : null;
+  }, [orthogonalBridges]);
+
+  // Auto-show readout when a new orthogonal bridge is forged
+  useEffect(() => {
+    if (!orthogonalBridges.length) return;
+    const latest = orthogonalBridges[orthogonalBridges.length - 1];
+    setLockedOrtho(latest);
+    setLockedEdge(null);
+    setSelectedNode(null);
+  }, [orthogonalBridges]);
 
   // ── Per-node edge analysis (computed on click, not on hover) ──────────────
   const selectedNodeEdges = useMemo(() => {
@@ -574,6 +501,10 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           const isFused  = fuseMap && edgeKey in fuseMap;
           const fuseCos  = isFused ? fuseMap[edgeKey].post : 0;
 
+          // Orthogonal bridge detection — engine-forged divergent links get hue-shift glow
+          const orthoMap = orthogonalEdgesRef.current;
+          const isOrtho  = orthoMap && edgeKey in orthoMap;
+
           // Depth-based base alpha — fade edges on the back of the sphere
           const avgDepth  = (pA.depth + pB.depth) / 2;
           const depthFade = Math.max(0.03, (avgDepth + 1) * 0.5);  // 0→dim, 1→bright
@@ -586,30 +517,53 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
           ctx.lineWidth = (0.5 + Math.max(na.energy, nb.energy) * 0.8 + e.pulse * 1.8
                         + (isSpectral ? cosSim * 1.2 : 0)
-                        + (isFused ? fuseCos * 2.0 : 0))
+                        + (isFused ? fuseCos * 2.0 : 0)
+                        + (isOrtho ? 2.0 : 0))
                         * ((pA.scale + pB.scale) / 2);
 
-          const cMid = lerpColor(colA, colB, e.strength);
-          const grd  = ctx.createLinearGradient(pA.sx, pA.sy, pB.sx, pB.sy);
-          grd.addColorStop(0,   hslAlpha(colA, (baseAlpha + pulseBoost) * (1 - e.strength * 0.4)));
-          grd.addColorStop(0.5, hslAlpha(cMid, baseAlpha + pulseBoost));
-          grd.addColorStop(1,   hslAlpha(colB, (baseAlpha + pulseBoost) * (0.6 + e.strength * 0.4)));
-          ctx.strokeStyle = grd;
-
+          // Orthogonal bridges: hue-shifting gradient (magenta↔cyan), overrides default grd
           // Fused edges: solid bright glow (mineralized bone)
           // Spectral bridges: dashed stroke for visual distinction
           // Default: solid thin
-          if (isFused) {
-            ctx.shadowColor = hslAlpha(cMid, fuseCos * 0.6);
-            ctx.shadowBlur  = 6 + fuseCos * 8;
+          if (isOrtho) {
+            const ot  = Date.now() * 0.0008;
+            const hue = (ot * 60) % 360;                           // full rotation ~6s
+            const orthoAlpha = Math.min(1, baseAlpha + pulseBoost + 0.3) * depthFade;
+            const oGrd = ctx.createLinearGradient(pA.sx, pA.sy, pB.sx, pB.sy);
+            oGrd.addColorStop(0,   `hsla(${hue},100%,65%,${orthoAlpha})`);
+            oGrd.addColorStop(0.5, `hsla(${(hue + 60) % 360},100%,72%,${Math.min(1, orthoAlpha + 0.15)})`);
+            oGrd.addColorStop(1,   `hsla(${(hue + 150) % 360},100%,65%,${orthoAlpha})`);
+            ctx.strokeStyle  = oGrd;
+            ctx.shadowColor  = `hsl(${(hue + 30) % 360},100%,60%)`;
+            ctx.shadowBlur   = 10 + Math.sin(ot * 3) * 4;
+            ctx.setLineDash([8, 4]);
+            ctx.beginPath();
+            ctx.moveTo(pA.sx, pA.sy);
+            ctx.lineTo(pB.sx, pB.sy);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur  = 0;
+          } else {
+            const cMid = lerpColor(colA, colB, e.strength);
+            const grd  = ctx.createLinearGradient(pA.sx, pA.sy, pB.sx, pB.sy);
+            grd.addColorStop(0,   hslAlpha(colA, (baseAlpha + pulseBoost) * (1 - e.strength * 0.4)));
+            grd.addColorStop(0.5, hslAlpha(cMid, baseAlpha + pulseBoost));
+            grd.addColorStop(1,   hslAlpha(colB, (baseAlpha + pulseBoost) * (0.6 + e.strength * 0.4)));
+            ctx.strokeStyle = grd;
+
+            if (isFused) {
+              ctx.shadowColor = hslAlpha(cMid, fuseCos * 0.6);
+              ctx.shadowBlur  = 6 + fuseCos * 8;
+            }
+            if (isSpectral && !isFused) ctx.setLineDash([4, 3]);
+            ctx.beginPath();
+            ctx.moveTo(pA.sx, pA.sy);
+            ctx.lineTo(pB.sx, pB.sy);
+            ctx.stroke();
+            if (isSpectral && !isFused) ctx.setLineDash([]);
+            if (isFused) { ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; }
           }
-          if (isSpectral && !isFused) ctx.setLineDash([4, 3]);
-          ctx.beginPath();
-          ctx.moveTo(pA.sx, pA.sy);
-          ctx.lineTo(pB.sx, pB.sy);
-          ctx.stroke();
-          if (isSpectral && !isFused) ctx.setLineDash([]);
-          if (isFused) { ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; }
 
           // Overwrite pulse ring
           if (e.pulse > 0.1) {
@@ -1038,10 +992,12 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           setLockedEdge(edge);
           setHoveredEdge(edge);
           setSelectedNode(null);
+          setLockedOrtho(null);
         } else {
           setLockedEdge(null);
           setHoveredEdge(null);
           setSelectedNode(null);
+          setLockedOrtho(null);
         }
         return;
       }
@@ -1067,22 +1023,18 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     const p    = canvasCoords(e.clientX, e.clientY);
     if (!p) return;
     const node = nodeAt(p.x, p.y);
-    if (!fusionSourceRef.current) {
-      // Step 1: lock source node
-      if (!node) return;
-      setFusionSource(node.id);
-      fusionCursorRef.current = p;
-    } else {
-      if (node && node.id !== fusionSourceRef.current) {
-        // Step 2: complete the forge
-        const analysis = analyzeEdge(fusionSourceRef.current, node.id);
-        if (analysis) onManualFusion?.(fusionSourceRef.current, node.id, analysis);
-      }
-      // Cancel or complete — reset state either way
-      setFusionSource(null);
-      fusionCursorRef.current = null;
+    if (!node || !onOrthogonalBridge) return;
+
+    // Build the current active edge set so the search excludes existing connections
+    const edgeSet = new Set(activeEdges.map(([a, b]) => a < b ? `${a}:${b}` : `${b}:${a}`));
+
+    // Single-step: immediately find the most orthogonal node and forge the link
+    const result = findOrthogonalNode(node.id, edgeSet);
+    if (result) {
+      onOrthogonalBridge(node.id, result);
+      spawnEffect(node.id, { soft: true });
     }
-  }, [canvasCoords, nodeAt, onManualFusion]);
+  }, [canvasCoords, nodeAt, onOrthogonalBridge, activeEdges, spawnEffect]);
 
   const handleMouseLeave = useCallback(() => {
     dragRef.current.active = false;
@@ -1193,7 +1145,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
                 backgroundSize:  '400% auto',
                 animation:       'at-shimmer 3.5s ease-in-out infinite',
               }}
-            >fade_doctrine</span>
+            >feigenbaum_fade</span>
           </h2>
           <div className="text-sm font-bold tracking-widest" style={{ color: 'rgba(251,191,36,0.5)' }}>
             orbital sphere // ars electronica 2027 // soma-9.4
@@ -1204,10 +1156,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             {NODES.length} nodes · {activeEdges.length} edges
             {spectralBridges ? ` · spectral` : ''}
             {boneFusions ? ` · fused` : ''}
+            {orthogonalBridges.length ? ` · ⊥ ${orthogonalBridges.length} orthogonal` : ''}
             {probeNode ? ` · ⊕ probe` : ''}
           </span>
           <span className="border border-cyan-900/30 px-3 py-1 rounded-sm text-cyan-400/50">
-            drag to rotate · click → attractor · right-click / shell → run
+            drag to rotate · click → attractor · right-click → ⊥ orthogonal
           </span>
         </div>
       </div>
@@ -1461,6 +1414,73 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
             <div className="mt-2" style={{ color: 'rgba(255,255,255,0.12)' }}>
               {'  ── spectral_bridge.rs · 16D fingerprint space · cosine similarity ──'}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Orthogonal Bridge readout — engine-forged divergent links ── */}
+      {lockedOrtho && (() => {
+        const nA = NODES.find(n => n.id === lockedOrtho.idA);
+        const nB = NODES.find(n => n.id === lockedOrtho.idB);
+        if (!nA || !nB) return null;
+        const colA = NODE_COLORS[nA.id], colB = NODE_COLORS[nB.id];
+        return (
+          <div
+            className="mt-3 border rounded-sm p-3 font-mono text-[10px] leading-relaxed"
+            style={{
+              borderColor: 'rgba(217,70,239,0.45)',
+              background:  'linear-gradient(135deg, rgba(0,0,0,0.88), rgba(217,70,239,0.05), rgba(6,182,212,0.04), rgba(0,0,0,0.88))',
+            }}
+          >
+            <div style={{ color: 'rgba(217,70,239,0.95)' }}>
+              {'> [ORTHOGONAL_BRIDGE] :: '}
+              <span style={{ color: colA.hsl }}>{nA.label.toUpperCase()}</span>
+              {' <-> '}
+              <span style={{ color: colB.hsl }}>{nB.label.toUpperCase()}</span>
+            </div>
+
+            <div className="mt-1" style={{ color: 'rgba(6,182,212,0.80)' }}>
+              {'  [COSINE_DISTANCE] :: '}
+              <span style={{ color: 'rgba(255,255,255,0.95)' }}>{lockedOrtho.sim.toFixed(4)}</span>
+              <span style={{ color: 'rgba(255,255,255,0.30)' }}>{'  ░░░░░ maximal divergence'}</span>
+            </div>
+
+            <div className="mt-1" style={{ color: 'rgba(255,255,255,0.30)' }}>
+              {'  [CLUSTERS] :: '}
+              <span style={{ color: CLUSTER_COLORS[nA.cluster]?.hsl }}>{CLUSTERS[nA.cluster]?.label ?? nA.cluster}</span>
+              {' ↔ '}
+              <span style={{ color: CLUSTER_COLORS[nB.cluster]?.hsl }}>{CLUSTERS[nB.cluster]?.label ?? nB.cluster}</span>
+              <span style={{ color: 'rgba(217,70,239,0.60)' }}>{' (synthetic cross-cluster link)'}</span>
+            </div>
+
+            {lockedOrtho.divergentDims?.length > 0 && (
+              <div className="mt-1.5">
+                <div style={{ color: 'rgba(217,70,239,0.70)' }}>
+                  {'  [DIVERGENT_DIMS] :: top '}{lockedOrtho.divergentDims.length}{' structural paradoxes'}
+                </div>
+                {lockedOrtho.divergentDims.map(d => {
+                  const barLen = Math.round(d.delta * 20);
+                  const bar = '█'.repeat(barLen) + '░'.repeat(20 - barLen);
+                  return (
+                    <div key={d.name} className="mt-0.5" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                      {'    '}
+                      <span style={{ color: 'rgba(217,70,239,0.90)', display: 'inline-block', minWidth: '120px' }}>
+                        {d.name}
+                      </span>
+                      <span style={{ color: 'rgba(6,182,212,0.40)' }}>{bar} </span>
+                      <span style={{ color: 'rgba(255,255,255,0.80)' }}>{'Δ'}{d.delta.toFixed(3)}</span>
+                      <span style={{ color: 'rgba(255,255,255,0.25)' }}>
+                        {' ('}{nA.id}{'='}{d.vA.toFixed(2)}{' ↔ '}{nB.id}{'='}{d.vB.toFixed(2)}{')'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="mt-2" style={{ color: 'rgba(255,255,255,0.12)' }}>
+              {'  ── DIVERGENCE_ENGINE · findOrthogonalNode · 16D cosine · forced synthetic ──'}
             </div>
           </div>
         );

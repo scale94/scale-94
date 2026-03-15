@@ -101,8 +101,11 @@ const App = () => {
   const [spectralBridges, setSpectralBridges] = useState(null);
   // Bone fusions — null when inactive, { fusions, phase, order, peak, threshold } when computed
   const [boneFusions, setBoneFusions] = useState(null);
+  const [fusionLog, setFusionLog] = useState([]);   // run <nodeA> <nodeB> history
   // Manual fusions — operator-forged edges via right-click / long-press in /art
   const [manualFusions, setManualFusions] = useState([]);
+  // Orthogonal bridges — engine-forged divergent links from DIVERGENCE_ENGINE
+  const [orthogonalBridges, setOrthogonalBridges] = useState([]);
   // Enclave keys — { ek, dk } hex strings from keygen, null until generated
   const [enclaveKeys, setEnclaveKeys] = useState(null);
   // Probe node — { query, probeVector, similarities } from text_probe kernel, null until run
@@ -580,6 +583,7 @@ const App = () => {
     setOriginTab, setArchitectThesis, setTagCloudView,
     appendSystemLog, handleNav, handleKernelClick, handleTransmissionSelect,
     loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField, setSpectralBridges, setEnclaveKeys, setProbeNode, setBoneFusions,
+    fusionLog, setFusionLog,
   });
 
   // Mobile auto-run — fires a WASM kernel automatically when a card is tapped on mobile.
@@ -590,7 +594,19 @@ const App = () => {
     dispatchCommand('run', alias, `run ${alias}`, now);
   }, [dispatchCommand]);
 
-  // Manual fusion handler — operator-forged edges from /art right-click / long-press
+  // Orthogonal bridge handler — DIVERGENCE_ENGINE auto-forged links from right-click
+  const handleOrthogonalBridge = useCallback((sourceId, result) => {
+    setOrthogonalBridges(prev => [...prev, {
+      idA: sourceId, idB: result.id, sim: result.sim, divergentDims: result.divergentDims,
+    }]);
+    const now = new Date().toLocaleTimeString('en-US', { hour12: false });
+    appendSystemLog({ time: now, msg: `[DIVERGENCE_ENGINE] :: Forced orthogonal bridge generated :: ${sourceId.toUpperCase()} <-> ${result.id.toUpperCase()} :: Cosine Similarity: ${result.sim.toFixed(4)}`, rust: true });
+    if (result.divergentDims?.length) {
+      appendSystemLog({ time: now, msg: `  [DIVERGENT_DIMS] :: ${result.divergentDims.map(d => `${d.name}(Δ${d.delta.toFixed(3)})`).join(' · ')}`, rust: true });
+    }
+  }, [appendSystemLog]);
+
+  // Manual fusion handler — operator-forged edges from /art long-press (mobile)
   const handleManualFusion = useCallback((idA, idB, analysis) => {
     setManualFusions(prev => [...prev, { idA, idB, sim: analysis.sim, drivers: analysis.drivers }]);
     const now  = new Date().toLocaleTimeString('en-US', { hour12: false });
@@ -933,6 +949,8 @@ const App = () => {
               boneFusions={boneFusions}
               manualFusions={manualFusions}
               onManualFusion={handleManualFusion}
+              orthogonalBridges={orthogonalBridges}
+              onOrthogonalBridge={handleOrthogonalBridge}
               probeNode={probeNode}
               onRunKernel={(alias) => {
                 const now = new Date().toLocaleTimeString('en-US', { hour12: false });
