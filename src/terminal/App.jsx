@@ -99,8 +99,17 @@ const App = () => {
   const [associativeField, setAssociativeField] = useState(null);
   // Spectral bridges — null when inactive, { bridges, drivers, threshold } when computed
   const [spectralBridges, setSpectralBridges] = useState(null);
+  // Bone fusions — null when inactive, { fusions, phase, order, peak, threshold } when computed
+  const [boneFusions, setBoneFusions] = useState(null);
+  const [fusionLog, setFusionLog] = useState([]);   // run <nodeA> <nodeB> history
+  // Manual fusions — operator-forged edges via right-click / long-press in /art
+  const [manualFusions, setManualFusions] = useState([]);
+  // Orthogonal bridges — engine-forged divergent links from DIVERGENCE_ENGINE
+  const [orthogonalBridges, setOrthogonalBridges] = useState([]);
   // Enclave keys — { ek, dk } hex strings from keygen, null until generated
   const [enclaveKeys, setEnclaveKeys] = useState(null);
+  // Probe node — { query, probeVector, similarities } from text_probe kernel, null until run
+  const [probeNode, setProbeNode] = useState(null);
   // Relic malfunction mode — amplifies glitch, streams hex to log
   const [relicMode,    setRelicMode]    = useState(false);
   // CAS dynamic data — null while manifest fetch is in-flight
@@ -198,7 +207,7 @@ const App = () => {
         console.warn('[KERNEL_LOG] Manifest fetch failed:', err.message);
         const laterTime = new Date().toLocaleTimeString('en-US', { hour12: false });
         appendSystemLog({ time: laterTime, msg: 'SYSTEM_KERNEL_LOG: WARNING — manifest unavailable // degraded mode' });
-        appendSystemLog({ time: laterTime, msg: '  Run: npm run kernel:import to generate the CAS manifest.' });
+        appendSystemLog({ time: laterTime, msg: '  Kernel registry operating from local cache.' });
         setDynamicData({ generatedArticles: [], academicArticles: [], legislationArticles: [], tagIndex: {}, systemArticles: {}, manifest: {} });
       }
     })();
@@ -573,7 +582,8 @@ const App = () => {
     setSearchFilter, setCurrentPath, setRelicMode, setBreachOpen, applyEcoCost,
     setOriginTab, setArchitectThesis, setTagCloudView,
     appendSystemLog, handleNav, handleKernelClick, handleTransmissionSelect,
-    loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField, setSpectralBridges, setEnclaveKeys,
+    loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField, setSpectralBridges, setEnclaveKeys, setProbeNode, setBoneFusions,
+    fusionLog, setFusionLog,
   });
 
   // Mobile auto-run — fires a WASM kernel automatically when a card is tapped on mobile.
@@ -583,6 +593,31 @@ const App = () => {
     const now = new Date().toLocaleTimeString('en-US', { hour12: false });
     dispatchCommand('run', alias, `run ${alias}`, now);
   }, [dispatchCommand]);
+
+  // Orthogonal bridge handler — DIVERGENCE_ENGINE auto-forged links from right-click
+  const handleOrthogonalBridge = useCallback((sourceId, result) => {
+    setOrthogonalBridges(prev => [...prev, {
+      idA: sourceId, idB: result.id, sim: result.sim, divergentDims: result.divergentDims,
+    }]);
+    const now = new Date().toLocaleTimeString('en-US', { hour12: false });
+    appendSystemLog({ time: now, msg: `[DIVERGENCE_ENGINE] :: Forced orthogonal bridge generated :: ${sourceId.toUpperCase()} <-> ${result.id.toUpperCase()} :: Cosine Similarity: ${result.sim.toFixed(4)}`, rust: true });
+    if (result.divergentDims?.length) {
+      appendSystemLog({ time: now, msg: `  [DIVERGENT_DIMS] :: ${result.divergentDims.map(d => `${d.name}(Δ${d.delta.toFixed(3)})`).join(' · ')}`, rust: true });
+    }
+  }, [appendSystemLog]);
+
+  // Manual fusion handler — operator-forged edges from /art long-press (mobile)
+  const handleManualFusion = useCallback((idA, idB, analysis) => {
+    setManualFusions(prev => [...prev, { idA, idB, sim: analysis.sim, drivers: analysis.drivers }]);
+    const now  = new Date().toLocaleTimeString('en-US', { hour12: false });
+    const bars = '▓'.repeat(Math.round(analysis.sim * 5)) + '░'.repeat(5 - Math.round(analysis.sim * 5));
+    appendSystemLog({ time: now, msg: `[MANUAL_FUSION] :: ${idA} ↔ ${idB}` });
+    appendSystemLog({ time: now, msg: `  [COSINE] :: ${analysis.sim.toFixed(4)} ${bars}` });
+    analysis.drivers.forEach(d => {
+      appendSystemLog({ time: now, msg: `  [TENSOR] ${d.name} :: ${d.value.toFixed(3)}  (${idA}=${d.magA.toFixed(2)} · ${idB}=${d.magB.toFixed(2)})` });
+    });
+    appendSystemLog({ time: now, msg: `  ── Operator forced lattice convergence. Metabolic cost logged. ──` });
+  }, [appendSystemLog]);
 
   // Autocomplete + suggestion execution — keystroke logic lives in useAutocomplete.
   const { handleInputChange, executeSuggestion } = useAutocomplete({
@@ -911,6 +946,12 @@ const App = () => {
             <ArtTab
               associativeField={associativeField}
               spectralBridges={spectralBridges}
+              boneFusions={boneFusions}
+              manualFusions={manualFusions}
+              onManualFusion={handleManualFusion}
+              orthogonalBridges={orthogonalBridges}
+              onOrthogonalBridge={handleOrthogonalBridge}
+              probeNode={probeNode}
               onRunKernel={(alias) => {
                 const now = new Date().toLocaleTimeString('en-US', { hour12: false });
                 dispatchCommand('run', alias, `run ${alias}`, now);

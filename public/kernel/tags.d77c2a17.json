@@ -1,4 +1,14 @@
 {
+  "16D": [
+    {
+      "id": "SERAPHINE-8.8.8.8.8.8.8.8-ANALOGY-RESEARCH",
+      "title": "CROSS-DOMAIN ANALOGICAL DISTANCE IN 16D FEATURE SPACE — SERAPHINE-8.8.8.8.8.8.8.8 TRIAD ANALYSIS"
+    },
+    {
+      "id": "SERAPHINE-8.8.8.8.8.8.8.8-PAPER",
+      "title": "SERAPHINE-8.8.8.8.8.8.8.8: A DUAL-KERNEL ARCHITECTURE FOR MEASURING AND MAXIMISING CROSS-DOMAIN ANALOGICAL COHERENCE"
+    }
+  ],
   "ACCESS": [
     {
       "id": "SCALE-RENDER-PROMPT",
@@ -39,6 +49,16 @@
     {
       "id": "SCALE-OPTIMIZATION-KERNEL-9.4",
       "title": "SCALE OPTIMIZATION KERNEL 9.4"
+    }
+  ],
+  "analogy": [
+    {
+      "id": "SERAPHINE-8.8.8.8.8.8.8.8-ANALOGY-RESEARCH",
+      "title": "CROSS-DOMAIN ANALOGICAL DISTANCE IN 16D FEATURE SPACE — SERAPHINE-8.8.8.8.8.8.8.8 TRIAD ANALYSIS"
+    },
+    {
+      "id": "SERAPHINE-8.8.8.8.8.8.8.8-PAPER",
+      "title": "SERAPHINE-8.8.8.8.8.8.8.8: A DUAL-KERNEL ARCHITECTURE FOR MEASURING AND MAXIMISING CROSS-DOMAIN ANALOGICAL COHERENCE"
     }
   ],
   "Analysis": [
@@ -149,10 +169,22 @@
       "title": "STRANGLER FIG PROTOCOL V1.0 // TRANSITION DYNAMICS"
     }
   ],
+  "ars-electronica": [
+    {
+      "id": "SERAPHINE-8.8.8.8.8.8.8.8-PAPER",
+      "title": "SERAPHINE-8.8.8.8.8.8.8.8: A DUAL-KERNEL ARCHITECTURE FOR MEASURING AND MAXIMISING CROSS-DOMAIN ANALOGICAL COHERENCE"
+    }
+  ],
   "Associative": [
     {
       "id": "LLM-OPTIMIZED-KERNEL-TEMPLATE",
       "title": "TASK ARCHITECTURE: ASSOCIATIVE CONCEPT INTEGRATION"
+    }
+  ],
+  "associative-reasoning": [
+    {
+      "id": "SERAPHINE-8.8.8.8.8.8.8.8-ANALOGY-RESEARCH",
+      "title": "CROSS-DOMAIN ANALOGICAL DISTANCE IN 16D FEATURE SPACE — SERAPHINE-8.8.8.8.8.8.8.8 TRIAD ANALYSIS"
     }
   ],
   "Atoms": [
@@ -237,6 +269,12 @@
       "title": "🌿 FLORA 1.0 // THE BIOCOENOSIS BUILD"
     }
   ],
+  "biomaterials": [
+    {
+      "id": "SERAPHINE-8.8.8.8.8.8.8.8-ANALOGY-RESEARCH",
+      "title": "CROSS-DOMAIN ANALOGICAL DISTANCE IN 16D FEATURE SPACE — SERAPHINE-8.8.8.8.8.8.8.8 TRIAD ANALYSIS"
+    }
+  ],
   "BLIND": [
     {
       "id": "SHADOWSOCKS-KERNEL-∞",
@@ -257,6 +295,16 @@
     {
       "id": "QR-1.0",
       "title": "ARCHITECTURAL BLUEPRINT FOR A QUANTUM-THEORETIC REACT TERMINAL INTERFACE: INTEGRATING RUST-NATIVE SIMULATION WITH TYPOGRAPHICAL AESTHETICS"
+    }
+  ],
+  "bone-fusion": [
+    {
+      "id": "SERAPHINE-8.8.8.8.8.8.8.8-ANALOGY-RESEARCH",
+      "title": "CROSS-DOMAIN ANALOGICAL DISTANCE IN 16D FEATURE SPACE — SERAPHINE-8.8.8.8.8.8.8.8 TRIAD ANALYSIS"
+    },
+    {
+      "id": "SERAPHINE-8.8.8.8.8.8.8.8-PAPER",
+      "title": "SERAPHINE-8.8.8.8.8.8.8.8: A DUAL-KERNEL ARCHITECTURE FOR MEASURING AND MAXIMISING CROSS-DOMAIN ANALOGICAL COHERENCE"
     }
   ],
   "Boot": [
@@ -535,6 +583,10 @@
     {
       "id": "DH-EC-KERNEL-V1-0-0",
       "title": "ᛟ THE DH-EC KERNEL · CRYPTOGRAPHIC ARCHITECTURE"
+    },
+    {
+      "id": "SERAPHINE-8.8.8.8.8.8.8.8-ANALOGY-RESEARCH",
+      "title": "CROSS-DOMAIN ANALOGICAL DISTANCE IN 16D FEATURE SPACE — SERAPHINE-8.8.8.8.8.8.8.8 TRIAD ANALYSIS"
     }
   ],
   "crystalline": [
@@ -851,6 +903,12 @@
       "title": "FADE DOCTRINE 1.0 // ZERO WHITE FADE — UX COLOR SEMIOTIC SYSTEM"
     }
   ],
+  "fade-doctrine": [
+    {
+      "id": "SERAPHINE-8.8.8.8.8.8.8.8-PAPER",
+      "title": "SERAPHINE-8.8.8.8.8.8.8.8: A DUAL-KERNEL ARCHITECTURE FOR MEASURING AND MAXIMISING CROSS-DOMAIN ANALOGICAL COHERENCE"
+    }
+  ],
   "False": [
     {
       "id": "THE-CIGAR-HEIST",
@@ -925,6 +983,12 @@
       "title": "🌿 FLORA 1.0 // THE BIOCOENOSIS BUILD"
     }
   ],
+  "flow-state": [
+    {
+      "id": "SERAPHINE-8.8.8.8.8.8.8.8-ANALOGY-RESEARCH",
+      "title": "CROSS-DOMAIN ANALOGICAL DISTANCE IN 16D FEATURE SPACE — SERAPHINE-8.8.8.8.8.8.8.8 TRIAD ANALYSIS"
+    }
+  ],
   "Fluorescent": [
     {
       "id": "THE-FLUORESCENT-CAGE",
@@ -969,6 +1033,12 @@
     {
       "id": "SOPHIE-KERNEL-PHI",
       "title": "SOPHIE KERNEL PHI"
+    }
+  ],
+  "FUSED": [
+    {
+      "id": "SERAPHINE-8.8.8.8.8.8.8.8-BONE-FUSION",
+      "title": "THE SERAPHINE-9.4 SOVEREIGN KERNEL – NECROMANTIC BONE FUSION"
     }
   ],
   "FUSION": [
@@ -1627,6 +1697,12 @@
       "title": "FISH SCALE KERNEL V1.1.1.1"
     }
   ],
+  "PARAMETERS": [
+    {
+      "id": "SERAPHINE-8.8.8.8.8.8.8.8-BONE-FUSION",
+      "title": "THE SERAPHINE-9.4 SOVEREIGN KERNEL – NECROMANTIC BONE FUSION"
+    }
+  ],
   "PASSALUS": [
     {
       "id": "PASSALUS-KERNEL-V-4.4.4.4",
@@ -1787,6 +1863,12 @@
       "title": "🧊 KERNEL 15.0: THE PURIFICATION OF SCALE"
     }
   ],
+  "quantum": [
+    {
+      "id": "SERAPHINE-8.8.8.8.8.8.8.8-ANALOGY-RESEARCH",
+      "title": "CROSS-DOMAIN ANALOGICAL DISTANCE IN 16D FEATURE SPACE — SERAPHINE-8.8.8.8.8.8.8.8 TRIAD ANALYSIS"
+    }
+  ],
   "QUANTUM": [
     {
       "id": "FSQ-11.6",
@@ -1799,6 +1881,12 @@
     {
       "id": "QUANTUM-QUACKSALBER-KERNEL-1.1.1",
       "title": "🔱 KERNEL: QUANTUM FUSION PROTOCOL [LAYER 3 FINAL]"
+    }
+  ],
+  "quantum-cognition": [
+    {
+      "id": "SERAPHINE-8.8.8.8.8.8.8.8-PAPER",
+      "title": "SERAPHINE-8.8.8.8.8.8.8.8: A DUAL-KERNEL ARCHITECTURE FOR MEASURING AND MAXIMISING CROSS-DOMAIN ANALOGICAL COHERENCE"
     }
   ],
   "Quantum-Theoretic": [
@@ -1927,6 +2015,12 @@
       "title": "ᛟ THE DH-EC KERNEL · CRYPTOGRAPHIC ARCHITECTURE"
     }
   ],
+  "SARG": [
+    {
+      "id": "SERAPHINE-8.8.8.8.8.8.8.8-PAPER",
+      "title": "SERAPHINE-8.8.8.8.8.8.8.8: A DUAL-KERNEL ARCHITECTURE FOR MEASURING AND MAXIMISING CROSS-DOMAIN ANALOGICAL COHERENCE"
+    }
+  ],
   "Scale": [
     {
       "id": "SCALE-Y-KERNEL-1-0-1",
@@ -2033,6 +2127,18 @@
     {
       "id": "FISH-SCALE-KERNEL",
       "title": "FISH SCALE KERNEL"
+    }
+  ],
+  "seraphine": [
+    {
+      "id": "SERAPHINE-8.8.8.8.8.8.8.8-PAPER",
+      "title": "SERAPHINE-8.8.8.8.8.8.8.8: A DUAL-KERNEL ARCHITECTURE FOR MEASURING AND MAXIMISING CROSS-DOMAIN ANALOGICAL COHERENCE"
+    }
+  ],
+  "SERAPHINE-9": [
+    {
+      "id": "SERAPHINE-8.8.8.8.8.8.8.8-BONE-FUSION",
+      "title": "THE SERAPHINE-9.4 SOVEREIGN KERNEL – NECROMANTIC BONE FUSION"
     }
   ],
   "Session": [
@@ -2201,6 +2307,10 @@
     {
       "id": "SCALE-KERNEL-FRAMEWORK-FULL",
       "title": "⚰ SCALE · SOVEREIGN KERNEL FRAMEWORK"
+    },
+    {
+      "id": "SERAPHINE-8.8.8.8.8.8.8.8-BONE-FUSION",
+      "title": "THE SERAPHINE-9.4 SOVEREIGN KERNEL – NECROMANTIC BONE FUSION"
     }
   ],
   "sovereign-nature": [
@@ -2267,6 +2377,12 @@
     {
       "id": "SCALE-Y-KERNEL-1-0-1",
       "title": "SCALE Y KERNEL 1.1"
+    }
+  ],
+  "STATE": [
+    {
+      "id": "SERAPHINE-8.8.8.8.8.8.8.8-BONE-FUSION",
+      "title": "THE SERAPHINE-9.4 SOVEREIGN KERNEL – NECROMANTIC BONE FUSION"
     }
   ],
   "Status": [

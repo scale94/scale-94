@@ -15,6 +15,9 @@ import wasmRegistry    from '../../wasm/wasm.generated';
 import kernelBuildsData from '../data/kernelBuilds';
 import { normalizeQuery } from '../../lib/normalize';
 import { formatKernelHelp, formatRunHelp } from '../commands/runHelpers';
+import {
+  resolveNode, analyzeFullEdge, extractParadoxes, nextFusionId,
+} from '../data/nodeFeatures';
 
 // Tab name → tab id — used by `load <tabname>` guard
 const LOAD_TAB_MAP = {
@@ -22,7 +25,7 @@ const LOAD_TAB_MAP = {
   cryptography: 'cryptography', classified: 'cryptography', pqc: 'cryptography', mlkem: 'cryptography',
   kernel: 'kernel', home: 'kernel', scaling: 'scaling', transmission: 'transmission',
   manifesto: 'manifesto', bsky: 'bsky', bluesky: 'bsky', privacy: 'privacy',
-  art: 'art', graph: 'art', fade: 'art', 'fade_doctrine': 'art', visual: 'art',
+  art: 'art', graph: 'art', fade: 'art', 'fade_doctrine': 'art', 'feigenbaum_fade': 'art', visual: 'art',
 };
 
 const HEX_POOL    = ['BD','E9','1C','7A','55','FF','E3','9A','C2','4F','A1','3D'];
@@ -50,7 +53,8 @@ export function useCommandDispatch(ctx) {
       setSearchFilter, setCurrentPath, setRelicMode, setBreachOpen, applyEcoCost,
       setOriginTab, setArchitectThesis, setTagCloudView,
       appendSystemLog, handleNav, handleKernelClick, handleTransmissionSelect,
-      loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField, setSpectralBridges, setEnclaveKeys,
+      loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField, setSpectralBridges, setEnclaveKeys, setProbeNode, setBoneFusions,
+      fusionLog, setFusionLog,
     } = ctxRef.current;
 
     const log  = (msg, rust = false) => appendSystemLog({ time: now, msg, rust });
@@ -84,6 +88,62 @@ export function useCommandDispatch(ctx) {
         return;
       }
 
+      // ── Pairwise 16D collision: run <nodeA> <nodeB> ────────────────────────
+      // Intercept before WASM lookup: two string tokens that are both sphere nodes.
+      const twoTokens = query.trim().split(/\s+/);
+      if (twoTokens.length === 2) {
+        const nA = resolveNode(twoTokens[0]);
+        const nB = resolveNode(twoTokens[1]);
+        if (nA && nB && nA.id !== nB.id) {
+          log(`COMMAND: ${rawCmd}`);
+          const full = analyzeFullEdge(nA.id, nB.id);
+          if (full) {
+            const fid   = nextFusionId();
+            const sim   = full.sim;
+            const bar   = '▓'.repeat(Math.round(sim * 5)) + '░'.repeat(5 - Math.round(sim * 5));
+            const phase = sim > 0.85 ? 'CRYSTALLINE' : sim > 0.65 ? 'SUPERFLUID' : sim > 0.40 ? 'SUBSTRATE' : 'DETONATION';
+            const thermal = (1 - sim).toFixed(4);
+            const driverStr = full.drivers.slice(0, 3).map(d => d.name).join(' · ');
+            const divider = `  ${'─'.repeat(49)}`;
+            setSystemLogs(prev => [
+              ...prev,
+              { time: now, msg: `  [COLLISION] :: ${nA.label} ↔ ${nB.label}`, rust: true },
+              { time: now, msg: divider, rust: true },
+              { time: now, msg: `  [COSINE]   :: ${sim.toFixed(4)}  ${bar}`, rust: true },
+              { time: now, msg: `  [ORDER]    :: ${phase}`, rust: true },
+              { time: now, msg: `  [THERMAL]  :: ${thermal}  (residual divergence budget)`, rust: true },
+              { time: now, msg: divider, rust: true },
+              { time: now, msg: `  TOP DRIVERS (dot-product contribution):`, rust: true },
+              ...full.drivers.slice(0, 3).map(d =>
+                ({ time: now, msg: `  ► [${String(d.i).padStart(2,'0')}] ${d.name.padEnd(16)} :: ${d.contrib.toFixed(3)}  (${d.vA.toFixed(2)} × ${d.vB.toFixed(2)})`, rust: true })
+              ),
+              { time: now, msg: divider, rust: true },
+              { time: now, msg: `  [FUSION_ID] :: ${fid}`, rust: true },
+              { time: now, msg: `  ── ext ${fid}         →  full 16D tensor manifest`, rust: true },
+              { time: now, msg: `  ── ext ${fid} --core  →  paradox extraction (bone layer)`, rust: true },
+            ].slice(-2000));
+            // Store in fusionLog
+            setFusionLog(prev => [...prev, { id: fid, idA: nA.id, idB: nB.id, labelA: nA.label, labelB: nB.label, full }]);
+          }
+          return;
+        }
+      }
+
+      // ── Seraphine-8.8.8.8.8.8.8.8 triad concept nodes — remap to nearest runnable kernel
+      const TRIAD_REDIRECTS = {
+        'white_irid':        ['biodiversity', 'necromantic', 'bone'],
+        'pitch_black_steel': ['fusion', 'ising', 'bosonic'],
+        'bouligand_36':      ['bone', 'necromantic', 'seraphine'],
+        'polymorph_pqc':     ['tesseract', 'classified', 'pqhash'],
+        'magic_angle':       ['ising', 'bosonic', 'feigenbaum'],
+        'magic_angle_1p1':   ['ising', 'bosonic', 'feigenbaum'],
+        'zero_effort_flow':  ['kuramoto', 'pragmatic', 'soma'],
+      };
+      const triadOptions = TRIAD_REDIRECTS[baseCmd.toLowerCase()];
+      const effectiveBase = triadOptions
+        ? triadOptions[Math.floor(Math.random() * triadOptions.length)]
+        : baseCmd;
+
       // Global help
       if (baseCmd === '--help' || baseCmd === '-h') {
         log(`COMMAND: ${rawCmd}`);
@@ -108,10 +168,10 @@ export function useCommandDispatch(ctx) {
         }
       }
 
-      // 7-tier registry lookup
-      const kq = norm(baseCmd);
-      const wasmEntry = currentRegistry[baseCmd.toUpperCase()]
-        ?? currentRegistry[baseCmd]
+      // 7-tier registry lookup (uses effectiveBase — remapped if triad node)
+      const kq = norm(effectiveBase);
+      const wasmEntry = currentRegistry[effectiveBase.toUpperCase()]
+        ?? currentRegistry[effectiveBase]
         ?? Object.values(currentRegistry).find(e => norm(e.id) === kq)
         ?? Object.values(currentRegistry).find(e => norm(e.id).includes(kq))
         ?? Object.values(currentRegistry).find(e => e.aliases?.some(a => norm(a) === kq))
@@ -131,6 +191,7 @@ export function useCommandDispatch(ctx) {
         }
 
         log(`COMMAND: ${rawCmd}`);
+        if (triadOptions) appendSystemLog({ time: now, msg: `  RUN_REMAP :: '${baseCmd}' → '${effectiveBase}'`, btn: { label: `run ${effectiveBase}`, cmd: effectiveBase } });
         const callArgs = [...(wasmEntry.args ?? [])];
         positionalArgs.forEach((val, idx) => { if (idx < callArgs.length) callArgs[idx] = val; });
         if (wasmEntry.argMap) {
@@ -182,13 +243,35 @@ export function useCommandDispatch(ctx) {
             const displayResult = dataMatch ? result.slice(0, result.length - dataMatch[0].length) : result;
             const lines    = displayResult.split('\n');
             const doneTime = new Date().toLocaleTimeString('en-US', { hour12: false });
-            setSystemLogs(prev => [
-              ...prev,
-              { time: now,      msg: `  ── KERNEL OUTPUT ─────────────────────────`, rust: true },
-              ...lines.map(l => ({ time: now, msg: `  ${l}`, rust: true })),
-              { time: now,      msg: `  ──────────────────────────────────────────`, rust: true },
-              { time: doneTime, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE  ·  EXEC_TIME: ${elapsed}ms`, rust: true },
-            ].slice(-2000));
+
+            if (wasmEntry.streaming) {
+              // Tier 1 Telemetry: stream output line-by-line at 22ms intervals
+              setSystemLogs(prev => [
+                ...prev,
+                { time: now, msg: `  ── KERNEL OUTPUT ─────────────────────────`, rust: true },
+              ].slice(-2000));
+              lines.forEach((l, i) => {
+                setTimeout(() => {
+                  const t = new Date().toLocaleTimeString('en-US', { hour12: false });
+                  setSystemLogs(prev => [...prev, { time: t, msg: `  ${l}`, rust: true }].slice(-2000));
+                  if (i === lines.length - 1) {
+                    setSystemLogs(prev => [
+                      ...prev,
+                      { time: t, msg: `  ──────────────────────────────────────────`, rust: true },
+                      { time: t, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE  ·  EXEC_TIME: ${elapsed}ms`, rust: true },
+                    ].slice(-2000));
+                  }
+                }, i * 22);
+              });
+            } else {
+              setSystemLogs(prev => [
+                ...prev,
+                { time: now,      msg: `  ── KERNEL OUTPUT ─────────────────────────`, rust: true },
+                ...lines.map(l => ({ time: now, msg: `  ${l}`, rust: true })),
+                { time: now,      msg: `  ──────────────────────────────────────────`, rust: true },
+                { time: doneTime, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE  ·  EXEC_TIME: ${elapsed}ms`, rust: true },
+              ].slice(-2000));
+            }
 
 
             // Post-kuramoto hook — launch live visual field
@@ -209,6 +292,14 @@ export function useCommandDispatch(ctx) {
               try {
                 const data = JSON.parse(dataMatch[1]);
                 setSpectralBridges(data);
+              } catch (_) { /* malformed DATA: — ignore */ }
+            }
+
+            // Post-bone-fusion hook — feed fusion results into ArtTab
+            if (wasmEntry.id === 'BONE-FUSION-V6_6_6_6_6_6' && setBoneFusions && dataMatch) {
+              try {
+                const data = JSON.parse(dataMatch[1]);
+                setBoneFusions(data);
               } catch (_) { /* malformed DATA: — ignore */ }
             }
 
@@ -488,6 +579,144 @@ export function useCommandDispatch(ctx) {
           logs(`  ENCLAVE_ERROR :: ${err.message}`, `  Have you run 'keygen' first?`);
         }
       })();
+      return;
+    }
+
+    // ── probe — text_probe.rs: map free-form text into 16D kernel space ───────
+    if (action === 'probe') {
+      if (!query) {
+        executeCommand(rawCmd, `PROBE_FAIL :: No text supplied. Usage: probe <concept text>`);
+        return;
+      }
+      log(`COMMAND: ${rawCmd}`);
+      logs(
+        `  TEXT_PROBE :: Mapping concept to 16D fingerprint space...`,
+        `  QUERY: "${query}"`,
+      );
+      (async () => {
+        try {
+          const mod = await import('../../wasm/scale94_kernels.js');
+          const wasmEntry = Object.values(wasmRegistry).find(e => e.wasmUrl);
+          const wasmUrl = wasmEntry?.wasmUrl ?? '/wasm/scale94_kernels_bg.wasm';
+          await mod.default({ module_or_path: wasmUrl });
+          const t0 = performance.now();
+          const result = mod.run_text_probe(query);
+          const elapsed = (performance.now() - t0).toFixed(4);
+          const dataMatch = result.match(/\nDATA:(\{.*\})$/s);
+          const displayResult = dataMatch ? result.slice(0, result.length - dataMatch[0].length) : result;
+          const lines = displayResult.split('\n');
+          // Stream output line-by-line (Tier 1 telemetry)
+          setSystemLogs(prev => [
+            ...prev,
+            { time: now, msg: `  ── TEXT PROBE ─────────────────────────────`, rust: true },
+          ].slice(-2000));
+          lines.forEach((l, i) => {
+            setTimeout(() => {
+              const t = new Date().toLocaleTimeString('en-US', { hour12: false });
+              setSystemLogs(prev => [...prev, { time: t, msg: `  ${l}`, rust: true }].slice(-2000));
+              if (i === lines.length - 1) {
+                setSystemLogs(prev => [
+                  ...prev,
+                  { time: t, msg: `  ──────────────────────────────────────────`, rust: true },
+                  { time: t, msg: `TEXT_PROBE: COMPLETE  ·  EXEC_TIME: ${elapsed}ms  ·  switch to /art`, rust: true },
+                ].slice(-2000));
+              }
+            }, i * 22);
+          });
+          // Feed probe node into ArtTab
+          if (dataMatch && ctxRef.current.setProbeNode) {
+            try {
+              const data = JSON.parse(dataMatch[1]);
+              ctxRef.current.setProbeNode(data);
+              ctxRef.current.handleNav('~/system/art', 'art');
+            } catch (_) { /* malformed DATA: — ignore */ }
+          }
+        } catch (err) {
+          logs(`  PROBE_ERROR :: ${err.message}`);
+        }
+      })();
+      return;
+    }
+
+    // ── ext — 16D tensor manifest (Layer 4.4.4.4) + paradox extraction (Layer 5.5.5.5.5) ──
+    if (action === 'ext') {
+      if (!query) {
+        executeCommand(rawCmd, `EXT_FAIL :: No fusion ID supplied. Usage: ext <FX-NNNN> [--core]`);
+        return;
+      }
+      const extTokens = query.trim().split(/\s+/);
+      const targetId  = extTokens[0].toUpperCase();
+      const coreMode  = extTokens.includes('--core');
+      const entry     = (fusionLog ?? []).find(e => e.id === targetId);
+      if (!entry) {
+        log(`COMMAND: ${rawCmd}`);
+        logs(
+          `  EXT_FAIL :: "${targetId}" not found in session fusion log.`,
+          `  Run: run <nodeA> <nodeB>  to register a fusion first.`,
+          (fusionLog ?? []).length > 0
+            ? `  Available: ${(fusionLog ?? []).map(e => e.id).join(' · ')}`
+            : `  No fusions registered this session.`,
+        );
+        return;
+      }
+      log(`COMMAND: ${rawCmd}`);
+      const divider = `  ${'─'.repeat(49)}`;
+
+      if (!coreMode) {
+        // Layer 4.4.4.4 — Flesh: full 16D tensor manifest
+        const { full, labelA, labelB } = entry;
+        const sortedByDelta = [...full.dims].sort((a, b) => b.delta - a.delta);
+        setSystemLogs(prev => [
+          ...prev,
+          { time: now, msg: `  [EXT] :: ${entry.id}  ${labelA} ↔ ${labelB}`, rust: true },
+          { time: now, msg: `  LAYER 4.4.4.4 — FLESH :: 16D TENSOR MANIFEST`, rust: true },
+          { time: now, msg: divider, rust: true },
+          { time: now, msg: `  ${'DIM'.padEnd(18)} ${'nodeA'.padEnd(8)} ${'nodeB'.padEnd(8)} ${'Δ'.padEnd(8)} contrib`, rust: true },
+          { time: now, msg: divider, rust: true },
+          ...full.dims.map(d => {
+            const bar = d.delta > 0.40 ? ' ◆◆◆' : d.delta > 0.20 ? ' ◆◆░' : d.delta > 0.08 ? ' ◆░░' : '    ';
+            return {
+              time: now,
+              msg: `  [${String(d.i).padStart(2,'0')}] ${d.name.padEnd(16)} ${d.vA.toFixed(2).padEnd(8)} ${d.vB.toFixed(2).padEnd(8)} ${d.delta.toFixed(3).padEnd(8)} ${d.contrib.toFixed(3)}${bar}`,
+              rust: true,
+            };
+          }),
+          { time: now, msg: divider, rust: true },
+          { time: now, msg: `  TOP CONVERGENCE DRIVERS:`, rust: true },
+          ...full.drivers.map(d =>
+            ({ time: now, msg: `  ► ${d.name.padEnd(16)} :: ${d.contrib.toFixed(3)}`, rust: true })
+          ),
+          { time: now, msg: divider, rust: true },
+          { time: now, msg: `  HIGHEST DIVERGENCE:  ${sortedByDelta[0].name} (Δ ${sortedByDelta[0].delta.toFixed(3)}) · ${sortedByDelta[1].name} (Δ ${sortedByDelta[1].delta.toFixed(3)})`, rust: true },
+          { time: now, msg: `  ── ext ${entry.id} --core  →  paradox extraction (bone layer)`, rust: true },
+        ].slice(-2000));
+      } else {
+        // Layer 5.5.5.5.5 — Bone: paradox extraction
+        const result = extractParadoxes(entry.idA, entry.idB);
+        if (!result) { logs(`  EXT_CORE_FAIL :: could not compute paradoxes.`); return; }
+        const { paradoxes, finalSim } = result;
+        setSystemLogs(prev => [
+          ...prev,
+          { time: now, msg: `  [EXT --core] :: ${entry.id}  ${entry.labelA} ↔ ${entry.labelB}`, rust: true },
+          { time: now, msg: `  LAYER 5.5.5.5.5 — BONE :: SAPONIFICATION PROTOCOL (32 iterations)`, rust: true },
+          { time: now, msg: divider, rust: true },
+          { time: now, msg: `  Post-protocol cosine: ${finalSim.toFixed(4)}`, rust: true },
+          { time: now, msg: `  Irreducible paradoxes: ${paradoxes.length}`, rust: true },
+          { time: now, msg: divider, rust: true },
+          ...(paradoxes.length > 0
+            ? [
+                { time: now, msg: `  PARADOX DIMENSIONS — structural orthogonality that survives stripping:`, rust: true },
+                ...paradoxes.map((p, pi) =>
+                  ({ time: now, msg: `  [${pi + 1}] ${p.name.padEnd(16)} residual Δ ${p.residual.toFixed(4)}  (was ${p.original.toFixed(3)})`, rust: true })
+                ),
+              ]
+            : [{ time: now, msg: `  No residual paradoxes — fusion achieved full protocol convergence.`, rust: true }]
+          ),
+          { time: now, msg: divider, rust: true },
+          { time: now, msg: `  These dimensions resist metabolic stripping.`, rust: true },
+          { time: now, msg: `  They are the structural incompatibilities the fusion must carry.`, rust: true },
+        ].slice(-2000));
+      }
       return;
     }
 

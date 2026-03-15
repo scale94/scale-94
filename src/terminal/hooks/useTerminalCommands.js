@@ -261,6 +261,21 @@ export default function useTerminalCommands({
           return;
         }
 
+        // Seraphine-8.8.8.8.8.8.8.8 triad concept nodes — remap to nearest runnable kernel
+        const TRIAD_REDIRECTS = {
+          'white_irid':        ['biodiversity', 'necromantic', 'bone'],
+          'pitch_black_steel': ['fusion', 'ising', 'bosonic'],
+          'bouligand_36':      ['bone', 'necromantic', 'seraphine'],
+          'polymorph_pqc':     ['tesseract', 'classified', 'pqhash'],
+          'magic_angle':       ['ising', 'bosonic', 'feigenbaum'],
+          'magic_angle_1p1':   ['ising', 'bosonic', 'feigenbaum'],
+          'zero_effort_flow':  ['kuramoto', 'pragmatic', 'soma'],
+        };
+        const triadOptions = TRIAD_REDIRECTS[baseCmd.toLowerCase()];
+        const effectiveBase = triadOptions
+          ? triadOptions[Math.floor(Math.random() * triadOptions.length)]
+          : baseCmd;
+
         // vcache_burn hardwire — direct call, no lookup
         if (baseCmd.toLowerCase() === 'vcache_burn') {
           appendSystemLog({ time: now, msg: `COMMAND: ${rawCmd}` });
@@ -299,10 +314,10 @@ export default function useTerminalCommands({
           }
         }
 
-        // 4-tier registry lookup
-        const kq = normalizeQuery(baseCmd);
-        const wasmEntry = currentRegistry[baseCmd.toUpperCase()]
-          ?? currentRegistry[baseCmd]
+        // 4-tier registry lookup (uses effectiveBase — remapped if triad node)
+        const kq = normalizeQuery(effectiveBase);
+        const wasmEntry = currentRegistry[effectiveBase.toUpperCase()]
+          ?? currentRegistry[effectiveBase]
           ?? Object.values(currentRegistry).find(e => normalizeQuery(e.id) === kq)
           ?? Object.values(currentRegistry).find(e => normalizeQuery(e.id).includes(kq))
           ?? Object.values(currentRegistry).find(e => e.aliases?.some(a => normalizeQuery(a) === kq))
@@ -313,6 +328,7 @@ export default function useTerminalCommands({
           appendSystemLog({ time: now, msg: `COMMAND: ${rawCmd}` });
           setSystemLogs(prev => [
             ...prev,
+            ...(triadOptions ? [{ time: now, msg: `  RUN_REMAP :: '${baseCmd}' → '${effectiveBase}'`, btn: { label: `run ${effectiveBase}`, cmd: effectiveBase } }] : []),
             { time: now, msg: `  WASM_BOOT :: ${wasmEntry.label}` },
             { time: now, msg: `  MODULE: ${wasmEntry.module}` },
             { time: now, msg: `  Instantiating WASM module...` },
