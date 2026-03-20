@@ -1,5 +1,3 @@
-/* @ts-self-types="./scale94_kernels.d.ts" */
-
 export class BiocoenosisKernel {
     __destroy_into_raw() {
         const ptr = this.__wbg_ptr;
@@ -57,229 +55,6 @@ export class BiocoenosisKernel {
     }
 }
 if (Symbol.dispose) BiocoenosisKernel.prototype[Symbol.dispose] = BiocoenosisKernel.prototype.free;
-
-/**
- * Stateful Gray-Scott grid seeded from the five `drk` cluster node positions.
- * Exports the V-field as a raw `f32` buffer for direct WebGL texture upload.
- */
-export class DrkDiffusionGrid {
-    __destroy_into_raw() {
-        const ptr = this.__wbg_ptr;
-        this.__wbg_ptr = 0;
-        DrkDiffusionGridFinalization.unregister(this);
-        return ptr;
-    }
-    free() {
-        const ptr = this.__destroy_into_raw();
-        wasm.__wbg_drkdiffusiongrid_free(ptr, 0);
-    }
-    /**
-     * @returns {number}
-     */
-    height() {
-        const ret = wasm.drkdiffusiongrid_height(this.__wbg_ptr);
-        return ret >>> 0;
-    }
-    /**
-     * Construct and seed the 64×64 grid.  Call `step()` to evolve the PDE.
-     */
-    constructor() {
-        const ret = wasm.drkdiffusiongrid_new();
-        this.__wbg_ptr = ret >>> 0;
-        DrkDiffusionGridFinalization.register(this, this.__wbg_ptr, this);
-        return this;
-    }
-    /**
-     * Re-seed all drk node patches — useful for resetting without re-allocating.
-     */
-    reseed() {
-        wasm.drkdiffusiongrid_reseed(this.__wbg_ptr);
-    }
-    /**
-     * Advance the simulation by `steps` PDE iterations.
-     *
-     * Recommended parameters for Turing spot patterns: feed=0.035, kill=0.065.
-     * Labyrinthine / maze patterns:                    feed=0.060, kill=0.062.
-     * @param {number} feed
-     * @param {number} kill
-     * @param {number} steps
-     */
-    step(feed, kill, steps) {
-        wasm.drkdiffusiongrid_step(this.__wbg_ptr, feed, kill, steps);
-    }
-    /**
-     * @returns {number}
-     */
-    total_steps() {
-        const ret = wasm.drkdiffusiongrid_total_steps(this.__wbg_ptr);
-        return ret >>> 0;
-    }
-    /**
-     * Pointer to the U-field buffer (substrate concentration).
-     * @returns {number}
-     */
-    u_ptr() {
-        const ret = wasm.drkdiffusiongrid_u_ptr(this.__wbg_ptr);
-        return ret >>> 0;
-    }
-    /**
-     * Number of `f32` elements in the V-field buffer (width × height = 4096).
-     * @returns {number}
-     */
-    v_len() {
-        const ret = wasm.drkdiffusiongrid_v_len(this.__wbg_ptr);
-        return ret >>> 0;
-    }
-    /**
-     * Pointer to the V-field `f32` buffer in WASM linear memory.
-     *
-     * JS usage (zero-copy):
-     *   const tex = new Float32Array(wasm.memory.buffer, grid.v_ptr(), grid.v_len());
-     * @returns {number}
-     */
-    v_ptr() {
-        const ret = wasm.drkdiffusiongrid_v_ptr(this.__wbg_ptr);
-        return ret >>> 0;
-    }
-    /**
-     * @returns {number}
-     */
-    width() {
-        const ret = wasm.drkdiffusiongrid_width(this.__wbg_ptr);
-        return ret >>> 0;
-    }
-}
-if (Symbol.dispose) DrkDiffusionGrid.prototype[Symbol.dispose] = DrkDiffusionGrid.prototype.free;
-
-/**
- * Per-edge tensor bundle for the Three.js visual layer.
- */
-export class EdgeTensors {
-    static __wrap(ptr) {
-        ptr = ptr >>> 0;
-        const obj = Object.create(EdgeTensors.prototype);
-        obj.__wbg_ptr = ptr;
-        EdgeTensorsFinalization.register(obj, obj.__wbg_ptr, obj);
-        return obj;
-    }
-    __destroy_into_raw() {
-        const ptr = this.__wbg_ptr;
-        this.__wbg_ptr = 0;
-        EdgeTensorsFinalization.unregister(this);
-        return ptr;
-    }
-    free() {
-        const ptr = this.__destroy_into_raw();
-        wasm.__wbg_edgetensors_free(ptr, 0);
-    }
-    /**
-     * Serialise to a compact JSON object for direct JS consumption.
-     * @returns {string}
-     */
-    to_json() {
-        let deferred1_0;
-        let deferred1_1;
-        try {
-            const ret = wasm.edgetensors_to_json(this.__wbg_ptr);
-            deferred1_0 = ret[0];
-            deferred1_1 = ret[1];
-            return getStringFromWasm0(ret[0], ret[1]);
-        } finally {
-            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
-        }
-    }
-    /**
-     * Source node index (matches NODE_IDS / FEATURES arrays).
-     * @returns {number}
-     */
-    get a() {
-        const ret = wasm.__wbg_get_edgetensors_a(this.__wbg_ptr);
-        return ret >>> 0;
-    }
-    /**
-     * Target node index.
-     * @returns {number}
-     */
-    get b() {
-        const ret = wasm.__wbg_get_edgetensors_b(this.__wbg_ptr);
-        return ret >>> 0;
-    }
-    /**
-     * Dd — dynamical geometry mean; drives stroke width + sine amplitude.
-     * @returns {number}
-     */
-    get dynamical() {
-        const ret = wasm.__wbg_get_edgetensors_dynamical(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * Nl — nonlinearity geometry mean; drives jitter/noise magnitude.
-     * @returns {number}
-     */
-    get nonlinearity() {
-        const ret = wasm.__wbg_get_edgetensors_nonlinearity(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * Raw cosine similarity of the edge (0–1).
-     * @returns {number}
-     */
-    get similarity() {
-        const ret = wasm.__wbg_get_edgetensors_similarity(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * Tt — temporal geometry mean; drives bezier texture scroll speed.
-     * @returns {number}
-     */
-    get temporal() {
-        const ret = wasm.__wbg_get_edgetensors_temporal(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * Source node index (matches NODE_IDS / FEATURES arrays).
-     * @param {number} arg0
-     */
-    set a(arg0) {
-        wasm.__wbg_set_edgetensors_a(this.__wbg_ptr, arg0);
-    }
-    /**
-     * Target node index.
-     * @param {number} arg0
-     */
-    set b(arg0) {
-        wasm.__wbg_set_edgetensors_b(this.__wbg_ptr, arg0);
-    }
-    /**
-     * Dd — dynamical geometry mean; drives stroke width + sine amplitude.
-     * @param {number} arg0
-     */
-    set dynamical(arg0) {
-        wasm.__wbg_set_edgetensors_dynamical(this.__wbg_ptr, arg0);
-    }
-    /**
-     * Nl — nonlinearity geometry mean; drives jitter/noise magnitude.
-     * @param {number} arg0
-     */
-    set nonlinearity(arg0) {
-        wasm.__wbg_set_edgetensors_nonlinearity(this.__wbg_ptr, arg0);
-    }
-    /**
-     * Raw cosine similarity of the edge (0–1).
-     * @param {number} arg0
-     */
-    set similarity(arg0) {
-        wasm.__wbg_set_edgetensors_similarity(this.__wbg_ptr, arg0);
-    }
-    /**
-     * Tt — temporal geometry mean; drives bezier texture scroll speed.
-     * @param {number} arg0
-     */
-    set temporal(arg0) {
-        wasm.__wbg_set_edgetensors_temporal(this.__wbg_ptr, arg0);
-    }
-}
-if (Symbol.dispose) EdgeTensors.prototype[Symbol.dispose] = EdgeTensors.prototype.free;
 
 /**
  * Stateful Gray-Scott kernel — grid persists between compute_steps() calls.
@@ -664,40 +439,6 @@ export function enclave_seal(plaintext) {
     } finally {
         wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
     }
-}
-
-/**
- * Returns a JSON array of EdgeTensor objects for **every** node pair whose
- * cosine similarity meets `threshold`.  Includes both cross- and same-cluster
- * pairs so the frontend can drive all visible edges, not just bridges.
- *
- * Format: [{"a":i,"b":j,"temporal":f,"dynamical":f,"nonlinearity":f,"similarity":f}, ...]
- * @param {number} threshold
- * @returns {string}
- */
-export function get_all_edge_tensors(threshold) {
-    let deferred1_0;
-    let deferred1_1;
-    try {
-        const ret = wasm.get_all_edge_tensors(threshold);
-        deferred1_0 = ret[0];
-        deferred1_1 = ret[1];
-        return getStringFromWasm0(ret[0], ret[1]);
-    } finally {
-        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
-    }
-}
-
-/**
- * Compute the three visual-kinematic tensors for a single edge (a_idx → b_idx).
- * Returns `None` (JS `null`) if either index is out of range.
- * @param {number} a_idx
- * @param {number} b_idx
- * @returns {EdgeTensors | undefined}
- */
-export function get_edge_tensors(a_idx, b_idx) {
-    const ret = wasm.get_edge_tensors(a_idx, b_idx);
-    return ret === 0 ? undefined : EdgeTensors.__wrap(ret);
 }
 
 /**
@@ -1522,87 +1263,6 @@ export function tesseract_vault_params() {
 }
 
 /**
- * Pre-allocate input and output buffers for `n` (lat, lon, depth) triplets.
- *
- * Must be called once before `topo_get_input` / `topo_get_output`.
- * Calling again with the same `n` is a no-op (buffers are reused as-is).
- * Calling with a different `n` reallocates — invalidates any held views.
- * @param {number} n
- */
-export function topo_alloc(n) {
-    wasm.topo_alloc(n);
-}
-
-/**
- * Return a live Float32Array view of the input buffer.
- *
- * # Safety
- * The view is valid as long as no reallocation occurs (i.e., `topo_alloc` is
- * not called again with a different `n` while the view is held).
- * In this pipeline the buffers are allocated once and never moved, so the
- * view is effectively permanent.
- * @returns {Float32Array}
- */
-export function topo_get_input() {
-    const ret = wasm.topo_get_input();
-    return ret;
-}
-
-/**
- * Return a live Float32Array view of the output buffer.
- *
- * Call this *after* `topo_transform` to receive the computed (x, y, z) data.
- * Same lifetime guarantees as `topo_get_input`.
- * @returns {Float32Array}
- */
-export function topo_get_output() {
-    const ret = wasm.topo_get_output();
-    return ret;
-}
-
-/**
- * Return the current allocated capacity of the input buffer (number of f32s).
- * @returns {number}
- */
-export function topo_input_len() {
-    const ret = wasm.topo_input_len();
-    return ret >>> 0;
-}
-
-/**
- * Return the current allocated capacity of the output buffer (number of f32s).
- * Divide by 3 to get point count.
- * @returns {number}
- */
-export function topo_output_len() {
-    const ret = wasm.topo_output_len();
-    return ret >>> 0;
-}
-
-/**
- * Convert `n` (lat°, lon°, depth_km) triplets → (x, y, z) Cartesian coords.
- *
- * Reads from the input buffer (written by JS via `topo_get_input` view).
- * Writes results into the output buffer (read by JS via `topo_get_output`).
- *
- * # Parameters
- * - `n`           — number of points (input/output must each be pre-allocated
- *                   to `n * 3` f32s via `topo_alloc`).
- * - `radius`      — base sphere radius. Use `1.0` for a unit sphere (the
- *                   standard for most render pipelines); use `6371.0` for km.
- * - `depth_scale` — multiplier applied to the depth modifier.
- *                   `0.0` = perfectly round sphere (ignores depth).
- *                   `1.0` = full topographic relief.
- *                   Values in `0.05..0.2` give a subtle, realistic effect.
- * @param {number} n
- * @param {number} radius
- * @param {number} depth_scale
- */
-export function topo_transform(n, radius, depth_scale) {
-    wasm.topo_transform(n, radius, depth_scale);
-}
-
-/**
  * Decrypt a TV1. envelope. Returns plaintext bytes, or empty Vec on any
  * failure (wrong passphrase, tampered ciphertext, invalid envelope).
  * @param {Uint8Array} sealed
@@ -1654,143 +1314,121 @@ export function vault_encapsulate(public_key) {
     wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
     return v2;
 }
-
-function __wbg_get_imports() {
-    const import0 = {
-        __proto__: null,
-        __wbg___wbindgen_is_function_3c846841762788c1: function(arg0) {
-            const ret = typeof(arg0) === 'function';
-            return ret;
-        },
-        __wbg___wbindgen_is_object_781bc9f159099513: function(arg0) {
-            const val = arg0;
-            const ret = typeof(val) === 'object' && val !== null;
-            return ret;
-        },
-        __wbg___wbindgen_is_string_7ef6b97b02428fae: function(arg0) {
-            const ret = typeof(arg0) === 'string';
-            return ret;
-        },
-        __wbg___wbindgen_is_undefined_52709e72fb9f179c: function(arg0) {
-            const ret = arg0 === undefined;
-            return ret;
-        },
-        __wbg___wbindgen_throw_6ddd609b62940d55: function(arg0, arg1) {
-            throw new Error(getStringFromWasm0(arg0, arg1));
-        },
-        __wbg_call_2d781c1f4d5c0ef8: function() { return handleError(function (arg0, arg1, arg2) {
-            const ret = arg0.call(arg1, arg2);
-            return ret;
-        }, arguments); },
-        __wbg_crypto_38df2bab126b63dc: function(arg0) {
-            const ret = arg0.crypto;
-            return ret;
-        },
-        __wbg_getRandomValues_c44a50d8cfdaebeb: function() { return handleError(function (arg0, arg1) {
-            arg0.getRandomValues(arg1);
-        }, arguments); },
-        __wbg_length_ea16607d7b61445b: function(arg0) {
-            const ret = arg0.length;
-            return ret;
-        },
-        __wbg_msCrypto_bd5a034af96bcba6: function(arg0) {
-            const ret = arg0.msCrypto;
-            return ret;
-        },
-        __wbg_new_with_length_825018a1616e9e55: function(arg0) {
-            const ret = new Uint8Array(arg0 >>> 0);
-            return ret;
-        },
-        __wbg_node_84ea875411254db1: function(arg0) {
-            const ret = arg0.node;
-            return ret;
-        },
-        __wbg_of_8bf7ed3eca00ea43: function(arg0) {
-            const ret = Array.of(arg0);
-            return ret;
-        },
-        __wbg_of_8fd5dd402bc67165: function(arg0, arg1, arg2) {
-            const ret = Array.of(arg0, arg1, arg2);
-            return ret;
-        },
-        __wbg_process_44c7a14e11e9f69e: function(arg0) {
-            const ret = arg0.process;
-            return ret;
-        },
-        __wbg_prototypesetcall_d62e5099504357e6: function(arg0, arg1, arg2) {
-            Uint8Array.prototype.set.call(getArrayU8FromWasm0(arg0, arg1), arg2);
-        },
-        __wbg_randomFillSync_6c25eac9869eb53c: function() { return handleError(function (arg0, arg1) {
-            arg0.randomFillSync(arg1);
-        }, arguments); },
-        __wbg_require_b4edbdcf3e2a1ef0: function() { return handleError(function () {
-            const ret = module.require;
-            return ret;
-        }, arguments); },
-        __wbg_static_accessor_GLOBAL_8adb955bd33fac2f: function() {
-            const ret = typeof global === 'undefined' ? null : global;
-            return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
-        },
-        __wbg_static_accessor_GLOBAL_THIS_ad356e0db91c7913: function() {
-            const ret = typeof globalThis === 'undefined' ? null : globalThis;
-            return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
-        },
-        __wbg_static_accessor_SELF_f207c857566db248: function() {
-            const ret = typeof self === 'undefined' ? null : self;
-            return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
-        },
-        __wbg_static_accessor_WINDOW_bb9f1ba69d61b386: function() {
-            const ret = typeof window === 'undefined' ? null : window;
-            return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
-        },
-        __wbg_subarray_a068d24e39478a8a: function(arg0, arg1, arg2) {
-            const ret = arg0.subarray(arg1 >>> 0, arg2 >>> 0);
-            return ret;
-        },
-        __wbg_versions_276b2795b1c6a219: function(arg0) {
-            const ret = arg0.versions;
-            return ret;
-        },
-        __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Ref(Slice(F32)) -> NamedExternref("Float32Array")`.
-            const ret = getArrayF32FromWasm0(arg0, arg1);
-            return ret;
-        },
-        __wbindgen_cast_0000000000000002: function(arg0, arg1) {
-            // Cast intrinsic for `Ref(Slice(U8)) -> NamedExternref("Uint8Array")`.
-            const ret = getArrayU8FromWasm0(arg0, arg1);
-            return ret;
-        },
-        __wbindgen_cast_0000000000000003: function(arg0, arg1) {
-            // Cast intrinsic for `Ref(String) -> Externref`.
-            const ret = getStringFromWasm0(arg0, arg1);
-            return ret;
-        },
-        __wbindgen_init_externref_table: function() {
-            const table = wasm.__wbindgen_externrefs;
-            const offset = table.grow(4);
-            table.set(0, undefined);
-            table.set(offset + 0, undefined);
-            table.set(offset + 1, null);
-            table.set(offset + 2, true);
-            table.set(offset + 3, false);
-        },
-    };
-    return {
-        __proto__: null,
-        "./scale94_kernels_bg.js": import0,
-    };
+export function __wbg___wbindgen_is_function_3c846841762788c1(arg0) {
+    const ret = typeof(arg0) === 'function';
+    return ret;
 }
-
+export function __wbg___wbindgen_is_object_781bc9f159099513(arg0) {
+    const val = arg0;
+    const ret = typeof(val) === 'object' && val !== null;
+    return ret;
+}
+export function __wbg___wbindgen_is_string_7ef6b97b02428fae(arg0) {
+    const ret = typeof(arg0) === 'string';
+    return ret;
+}
+export function __wbg___wbindgen_is_undefined_52709e72fb9f179c(arg0) {
+    const ret = arg0 === undefined;
+    return ret;
+}
+export function __wbg___wbindgen_throw_6ddd609b62940d55(arg0, arg1) {
+    throw new Error(getStringFromWasm0(arg0, arg1));
+}
+export function __wbg_call_2d781c1f4d5c0ef8() { return handleError(function (arg0, arg1, arg2) {
+    const ret = arg0.call(arg1, arg2);
+    return ret;
+}, arguments); }
+export function __wbg_crypto_38df2bab126b63dc(arg0) {
+    const ret = arg0.crypto;
+    return ret;
+}
+export function __wbg_getRandomValues_c44a50d8cfdaebeb() { return handleError(function (arg0, arg1) {
+    arg0.getRandomValues(arg1);
+}, arguments); }
+export function __wbg_length_ea16607d7b61445b(arg0) {
+    const ret = arg0.length;
+    return ret;
+}
+export function __wbg_msCrypto_bd5a034af96bcba6(arg0) {
+    const ret = arg0.msCrypto;
+    return ret;
+}
+export function __wbg_new_with_length_825018a1616e9e55(arg0) {
+    const ret = new Uint8Array(arg0 >>> 0);
+    return ret;
+}
+export function __wbg_node_84ea875411254db1(arg0) {
+    const ret = arg0.node;
+    return ret;
+}
+export function __wbg_of_8bf7ed3eca00ea43(arg0) {
+    const ret = Array.of(arg0);
+    return ret;
+}
+export function __wbg_of_8fd5dd402bc67165(arg0, arg1, arg2) {
+    const ret = Array.of(arg0, arg1, arg2);
+    return ret;
+}
+export function __wbg_process_44c7a14e11e9f69e(arg0) {
+    const ret = arg0.process;
+    return ret;
+}
+export function __wbg_prototypesetcall_d62e5099504357e6(arg0, arg1, arg2) {
+    Uint8Array.prototype.set.call(getArrayU8FromWasm0(arg0, arg1), arg2);
+}
+export function __wbg_randomFillSync_6c25eac9869eb53c() { return handleError(function (arg0, arg1) {
+    arg0.randomFillSync(arg1);
+}, arguments); }
+export function __wbg_require_b4edbdcf3e2a1ef0() { return handleError(function () {
+    const ret = module.require;
+    return ret;
+}, arguments); }
+export function __wbg_static_accessor_GLOBAL_8adb955bd33fac2f() {
+    const ret = typeof global === 'undefined' ? null : global;
+    return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
+}
+export function __wbg_static_accessor_GLOBAL_THIS_ad356e0db91c7913() {
+    const ret = typeof globalThis === 'undefined' ? null : globalThis;
+    return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
+}
+export function __wbg_static_accessor_SELF_f207c857566db248() {
+    const ret = typeof self === 'undefined' ? null : self;
+    return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
+}
+export function __wbg_static_accessor_WINDOW_bb9f1ba69d61b386() {
+    const ret = typeof window === 'undefined' ? null : window;
+    return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
+}
+export function __wbg_subarray_a068d24e39478a8a(arg0, arg1, arg2) {
+    const ret = arg0.subarray(arg1 >>> 0, arg2 >>> 0);
+    return ret;
+}
+export function __wbg_versions_276b2795b1c6a219(arg0) {
+    const ret = arg0.versions;
+    return ret;
+}
+export function __wbindgen_cast_0000000000000001(arg0, arg1) {
+    // Cast intrinsic for `Ref(Slice(U8)) -> NamedExternref("Uint8Array")`.
+    const ret = getArrayU8FromWasm0(arg0, arg1);
+    return ret;
+}
+export function __wbindgen_cast_0000000000000002(arg0, arg1) {
+    // Cast intrinsic for `Ref(String) -> Externref`.
+    const ret = getStringFromWasm0(arg0, arg1);
+    return ret;
+}
+export function __wbindgen_init_externref_table() {
+    const table = wasm.__wbindgen_externrefs;
+    const offset = table.grow(4);
+    table.set(0, undefined);
+    table.set(offset + 0, undefined);
+    table.set(offset + 1, null);
+    table.set(offset + 2, true);
+    table.set(offset + 3, false);
+}
 const BiocoenosisKernelFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_biocoenosiskernel_free(ptr >>> 0, 1));
-const DrkDiffusionGridFinalization = (typeof FinalizationRegistry === 'undefined')
-    ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_drkdiffusiongrid_free(ptr >>> 0, 1));
-const EdgeTensorsFinalization = (typeof FinalizationRegistry === 'undefined')
-    ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_edgetensors_free(ptr >>> 0, 1));
 const GrayScottKernelFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_grayscottkernel_free(ptr >>> 0, 1));
@@ -1807,22 +1445,9 @@ function addToExternrefTable0(obj) {
     return idx;
 }
 
-function getArrayF32FromWasm0(ptr, len) {
-    ptr = ptr >>> 0;
-    return getFloat32ArrayMemory0().subarray(ptr / 4, ptr / 4 + len);
-}
-
 function getArrayU8FromWasm0(ptr, len) {
     ptr = ptr >>> 0;
     return getUint8ArrayMemory0().subarray(ptr / 1, ptr / 1 + len);
-}
-
-let cachedFloat32ArrayMemory0 = null;
-function getFloat32ArrayMemory0() {
-    if (cachedFloat32ArrayMemory0 === null || cachedFloat32ArrayMemory0.byteLength === 0) {
-        cachedFloat32ArrayMemory0 = new Float32Array(wasm.memory.buffer);
-    }
-    return cachedFloat32ArrayMemory0;
 }
 
 function getStringFromWasm0(ptr, len) {
@@ -1924,95 +1549,8 @@ if (!('encodeInto' in cachedTextEncoder)) {
 
 let WASM_VECTOR_LEN = 0;
 
-let wasmModule, wasm;
-function __wbg_finalize_init(instance, module) {
-    wasm = instance.exports;
-    wasmModule = module;
-    cachedFloat32ArrayMemory0 = null;
-    cachedUint8ArrayMemory0 = null;
-    wasm.__wbindgen_start();
-    return wasm;
+
+let wasm;
+export function __wbg_set_wasm(val) {
+    wasm = val;
 }
-
-async function __wbg_load(module, imports) {
-    if (typeof Response === 'function' && module instanceof Response) {
-        if (typeof WebAssembly.instantiateStreaming === 'function') {
-            try {
-                return await WebAssembly.instantiateStreaming(module, imports);
-            } catch (e) {
-                const validResponse = module.ok && expectedResponseType(module.type);
-
-                if (validResponse && module.headers.get('Content-Type') !== 'application/wasm') {
-                    console.warn("`WebAssembly.instantiateStreaming` failed because your server does not serve Wasm with `application/wasm` MIME type. Falling back to `WebAssembly.instantiate` which is slower. Original error:\n", e);
-
-                } else { throw e; }
-            }
-        }
-
-        const bytes = await module.arrayBuffer();
-        return await WebAssembly.instantiate(bytes, imports);
-    } else {
-        const instance = await WebAssembly.instantiate(module, imports);
-
-        if (instance instanceof WebAssembly.Instance) {
-            return { instance, module };
-        } else {
-            return instance;
-        }
-    }
-
-    function expectedResponseType(type) {
-        switch (type) {
-            case 'basic': case 'cors': case 'default': return true;
-        }
-        return false;
-    }
-}
-
-function initSync(module) {
-    if (wasm !== undefined) return wasm;
-
-
-    if (module !== undefined) {
-        if (Object.getPrototypeOf(module) === Object.prototype) {
-            ({module} = module)
-        } else {
-            console.warn('using deprecated parameters for `initSync()`; pass a single object instead')
-        }
-    }
-
-    const imports = __wbg_get_imports();
-    if (!(module instanceof WebAssembly.Module)) {
-        module = new WebAssembly.Module(module);
-    }
-    const instance = new WebAssembly.Instance(module, imports);
-    return __wbg_finalize_init(instance, module);
-}
-
-async function __wbg_init(module_or_path) {
-    if (wasm !== undefined) return wasm;
-
-
-    if (module_or_path !== undefined) {
-        if (Object.getPrototypeOf(module_or_path) === Object.prototype) {
-            ({module_or_path} = module_or_path)
-        } else {
-            console.warn('using deprecated parameters for the initialization function; pass a single object instead')
-        }
-    }
-
-    if (module_or_path === undefined) {
-        module_or_path = new URL('scale94_kernels_bg.wasm', import.meta.url);
-    }
-    const imports = __wbg_get_imports();
-
-    if (typeof module_or_path === 'string' || (typeof Request === 'function' && module_or_path instanceof Request) || (typeof URL === 'function' && module_or_path instanceof URL)) {
-        module_or_path = fetch(module_or_path);
-    }
-
-    const { instance, module } = await __wbg_load(await module_or_path, imports);
-
-    return __wbg_finalize_init(instance, module);
-}
-
-export { initSync, __wbg_init as default };

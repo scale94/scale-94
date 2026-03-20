@@ -152,6 +152,55 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   // Drag state
   const dragRef = useRef({ active: false, lastX: 0, lastY: 0, vx: 0, vy: 0 });
 
+  // ── Tensor-directed edge kinematics (spectral_bridge WASM) ───────────────
+  const edgeTensorsRef    = useRef(null);  // Map<edgeKey, {temporal,dynamical,nonlinearity}>
+  const drkGridRef        = useRef(null);  // DrkDiffusionGrid WASM instance
+  const wasmInstanceRef   = useRef(null);  // raw wasm instance (for memory.buffer)
+  const dashOffsetRef     = useRef(0);     // global dash scroll accumulator
+
+  // drk cluster node IDs and their approximate grid positions [0..1]
+  const DRK_GRID_NODES = {
+    pragmatic:    [0.30, 0.50],
+    soma_kernel:  [0.50, 0.50],
+    strangler:    [0.70, 0.50],
+    surveillance: [0.50, 0.25],
+    necromantic:  [0.50, 0.75],
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const mod = await import('../../wasm/scale94_kernels.js');
+        if (cancelled) return;
+        const wasmInst = await mod.default({ module_or_path: '/wasm/scale94_kernels_bg.wasm' });
+        if (cancelled) return;
+        wasmInstanceRef.current = wasmInst;
+
+        // Build edge tensor lookup keyed by sorted "aId:bId"
+        const raw    = mod.get_all_edge_tensors(0.0);
+        const parsed = JSON.parse(raw);
+        const map    = {};
+        for (const t of parsed) {
+          const aId = NODES[t.a]?.id, bId = NODES[t.b]?.id;
+          if (!aId || !bId) continue;
+          const key = aId < bId ? `${aId}:${bId}` : `${bId}:${aId}`;
+          map[key] = { temporal: t.temporal, dynamical: t.dynamical, nonlinearity: t.nonlinearity };
+        }
+        edgeTensorsRef.current = map;
+
+        // Init drk Gray-Scott diffusion grid with 400-step warmup
+        const grid = new mod.DrkDiffusionGrid();
+        grid.step(0.035, 0.065, 400);
+        drkGridRef.current = grid;
+      } catch (err) {
+        // WASM unavailable — kinematics degrade gracefully to existing rendering
+        console.warn('[ArtTab] tensor WASM unavailable:', err?.message);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   // Dynamic cross-cluster edges — computed by spectral_bridge kernel, or default
   // Bone fusion edges + manual fusions are merged in when available
   const activeEdges = useMemo(() => {
@@ -420,6 +469,22 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       stepGraph();
       stepEdges();
 
+      // ── Tensor kinematics: advance drk diffusion grid + dash offset ───────
+      const tensors = edgeTensorsRef.current;  // may be null before WASM loads
+      const drkGrid = drkGridRef.current;
+      if (drkGrid) drkGrid.step(0.035, 0.065, 1);
+      dashOffsetRef.current -= 0.35;  // base scroll; per-edge Tt will scale this
+
+      // Pre-read V-field buffer once per frame (avoid per-node allocations)
+      let drkVBuf = null, drkW = 64, drkH = 64;
+      if (drkGrid && wasmInstanceRef.current) {
+        try {
+          drkVBuf = new Float32Array(wasmInstanceRef.current.memory.buffer, drkGrid.v_ptr(), drkGrid.v_len());
+          drkW = drkGrid.width();
+          drkH = drkGrid.height();
+        } catch (_) { drkVBuf = null; }
+      }
+
       // ── Project all nodes ─────────────────────────────────────────────────
       const proj = nodes.map(n => {
         const [rx, ry, rz] = applyM(M, n.x, n.y, n.z);
@@ -496,6 +561,12 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           const isSpectral = simMap && edgeKey in simMap;
           const cosSim     = isSpectral ? simMap[edgeKey] : 0;
 
+          // Tensor-directed kinematics — geometric-mean per-dimension scalars
+          const et = tensors ? tensors[edgeKey] : null;
+          const Tt = et ? et.temporal      : 0.5;  // dim-7: controls dash scroll speed
+          const Dd = et ? et.dynamical     : 0.5;  // dim-0: controls stroke width boost
+          const Nl = et ? et.nonlinearity  : 0.5;  // dim-1: controls path jitter
+
           // Bone fusion detection — fused edges get solid glow
           const fuseMap  = fusedEdgesRef.current;
           const isFused  = fuseMap && edgeKey in fuseMap;
@@ -518,7 +589,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           ctx.lineWidth = (0.5 + Math.max(na.energy, nb.energy) * 0.8 + e.pulse * 1.8
                         + (isSpectral ? cosSim * 1.2 : 0)
                         + (isFused ? fuseCos * 2.0 : 0)
-                        + (isOrtho ? 2.0 : 0))
+                        + (isOrtho ? 2.0 : 0)
+                        + Dd * 1.2)                     // Dynamical Tensor: thicker = more chaotic
                         * ((pA.scale + pB.scale) / 2);
 
           // Orthogonal bridges: hue-shifting gradient (magenta↔cyan), overrides default grd
@@ -556,12 +628,30 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
               ctx.shadowColor = hslAlpha(cMid, fuseCos * 0.6);
               ctx.shadowBlur  = 6 + fuseCos * 8;
             }
-            if (isSpectral && !isFused) ctx.setLineDash([4, 3]);
+            if (isSpectral && !isFused) {
+              // Temporal Tensor: faster scroll on high-Tt edges
+              const dashOffset = dashOffsetRef.current * (0.4 + Tt * 1.6);
+              ctx.setLineDash([4, 3]);
+              ctx.lineDashOffset = dashOffset;
+            }
             ctx.beginPath();
             ctx.moveTo(pA.sx, pA.sy);
-            ctx.lineTo(pB.sx, pB.sy);
+            // Nonlinearity Tensor: jitter midpoint of path proportional to Nl
+            if (Nl > 0.05) {
+              const t0   = performance.now() * 0.002;
+              const jAmp = Nl * 8 * ((pA.scale + pB.scale) / 2);
+              const jx   = Math.sin(t0 + iA * 1.3) * jAmp;
+              const jy   = Math.cos(t0 + iB * 0.9) * jAmp;
+              ctx.quadraticCurveTo(
+                (pA.sx + pB.sx) / 2 + jx,
+                (pA.sy + pB.sy) / 2 + jy,
+                pB.sx, pB.sy
+              );
+            } else {
+              ctx.lineTo(pB.sx, pB.sy);
+            }
             ctx.stroke();
-            if (isSpectral && !isFused) ctx.setLineDash([]);
+            if (isSpectral && !isFused) { ctx.setLineDash([]); ctx.lineDashOffset = 0; }
             if (isFused) { ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; }
           }
 
@@ -683,11 +773,21 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           if (srcCol) renderCol = lerpColor(col, srcCol, n.bleedAmount * 0.7);
         }
 
+        // ── drk V-field modulation (Gray-Scott Turing pattern glow) ─────────
+        let drkVField = 0;
+        const drkPos = DRK_GRID_NODES[n.id];
+        if (drkVBuf && drkPos) {
+          const gx  = Math.floor(drkPos[0] * (drkW - 1));
+          const gy  = Math.floor(drkPos[1] * (drkH - 1));
+          drkVField = drkVBuf[gy * drkW + gx] ?? 0;
+        }
+
         // Glow halo
-        if (energy > 0.08 || n.bleedAmount > 0) {
-          const haloR = radius + (energy + n.bleedAmount * 0.4) * 16 * p.scale;
+        const drkGlowBoost = drkVField * 0.45;
+        if (energy > 0.08 || n.bleedAmount > 0 || drkGlowBoost > 0.01) {
+          const haloR = radius + (energy + n.bleedAmount * 0.4 + drkGlowBoost) * 16 * p.scale;
           const hGrd  = ctx.createRadialGradient(p.sx, p.sy, radius * 0.4, p.sx, p.sy, haloR);
-          hGrd.addColorStop(0, hslAlpha(renderCol, (energy + n.bleedAmount * 0.25) * 0.38 * depthAlpha));
+          hGrd.addColorStop(0, hslAlpha(renderCol, (energy + n.bleedAmount * 0.25 + drkGlowBoost * 0.6) * 0.38 * depthAlpha));
           hGrd.addColorStop(1, hslAlpha(renderCol, 0));
           ctx.fillStyle = hGrd;
           ctx.beginPath();

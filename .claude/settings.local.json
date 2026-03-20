@@ -32,7 +32,11 @@
       "Bash(ls src/terminal/utils/renderContent*)",
       "Bash(ls F:/scale_9.4/node_modules/.vite/deps/dompurify*)",
       "Bash(find F:/scale_9.4/node_modules/.vite -name *.js)",
-      "Bash(find F:/scale_9.4/.vite -name *.js)"
+      "Bash(find F:/scale_9.4/.vite -name *.js)",
+      "Bash(ls public/kernel/articles.*.json)",
+      "Bash(python3 -m json.tool)",
+      "Bash(wasm2wat public/wasm/scale94_kernels_bg.wasm)",
+      "Bash(wasm-pack --version)"
     ]
   }
 }
