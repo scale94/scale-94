@@ -481,18 +481,18 @@
     "type": "kernel_doc",
     "date": "2026-03-20",
     "lastModified": "2026-03-20",
-    "title": "[SESSION KERNEL: 16D_EXPLOSION_ERA_V2.1]",
-    "subtitle": "█║▌║█║ TECHNICAL_DOMAIN: THE_VAULT",
+    "title": "[SYSTEM_KERNEL: PROTOCOL_94_V2.2_CLEAN]",
+    "subtitle": "1. FUNCTIONAL_DYNAMICS ($F/B$ DUALITY)",
     "status": "ACTIVE",
     "readTime": "1 min read",
     "tags": [
       "KERNEL",
-      "EXPLOSION",
+      "PROTOCOL",
+      "CLEAN",
       "STATUS",
-      "STABILIZED",
-      "PROTOCOL"
+      "HIGH-FIDELITY"
     ],
-    "len": "211 WDS"
+    "len": "280 WDS"
   },
   {
     "id": "MOZART-MEMORANDUM-KERNEL-2.2",
@@ -1818,7 +1818,7 @@
       "cryptography",
       "flow-state"
     ],
-    "len": "2560 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "SERAPHINE-8.8.8.8.8.8.8.8-PAPER",
@@ -1839,7 +1839,7 @@
       "fade-doctrine",
       "ars-electronica"
     ],
-    "len": "4804 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "SERAPHINE-8.8.8.8.8.8.8.8-BONE-FUSION",
@@ -1857,7 +1857,7 @@
       "STATE",
       "PARAMETERS"
     ],
-    "len": "1447 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "SHADOWSOCKS-KERNEL-∞",

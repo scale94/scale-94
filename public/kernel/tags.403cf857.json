@@ -387,6 +387,12 @@
       "title": "PROJECT ISENGARD // KERNEL V.2026.01.17"
     }
   ],
+  "CLEAN": [
+    {
+      "id": "1EE-2.2",
+      "title": "[SYSTEM_KERNEL: PROTOCOL_94_V2.2_CLEAN]"
+    }
+  ],
   "climatology": [
     {
       "id": "CAK-1.0",
@@ -873,12 +879,6 @@
       "title": "🌑 OPERATION SHADOW SOCKS: KERNEL EXFILTRATION"
     }
   ],
-  "EXPLOSION": [
-    {
-      "id": "1EE-2.2",
-      "title": "[SESSION KERNEL: 16D_EXPLOSION_ERA_V2.1]"
-    }
-  ],
   "EXPORT": [
     {
       "id": "HIGH-TOWER-KERNEL",
@@ -1161,6 +1161,12 @@
       "title": "TASK ARCHITECTURE: HIGH-FIDELITY SIGNAL EXTRACTION"
     }
   ],
+  "HIGH-FIDELITY": [
+    {
+      "id": "1EE-2.2",
+      "title": "[SYSTEM_KERNEL: PROTOCOL_94_V2.2_CLEAN]"
+    }
+  ],
   "hydrology": [
     {
       "id": "CAK-1.0",
@@ -1286,7 +1292,7 @@
     },
     {
       "id": "1EE-2.2",
-      "title": "[SESSION KERNEL: 16D_EXPLOSION_ERA_V2.1]"
+      "title": "[SYSTEM_KERNEL: PROTOCOL_94_V2.2_CLEAN]"
     },
     {
       "id": "QUANTUM-QUACKSALBER-KERNEL-1.1.1",
@@ -1844,7 +1850,7 @@
     },
     {
       "id": "1EE-2.2",
-      "title": "[SESSION KERNEL: 16D_EXPLOSION_ERA_V2.1]"
+      "title": "[SYSTEM_KERNEL: PROTOCOL_94_V2.2_CLEAN]"
     },
     {
       "id": "BOSONIC-KERNEL-2.0",
@@ -2375,12 +2381,6 @@
       "title": "SOPHIE KERNEL PHI"
     }
   ],
-  "STABILIZED": [
-    {
-      "id": "1EE-2.2",
-      "title": "[SESSION KERNEL: 16D_EXPLOSION_ERA_V2.1]"
-    }
-  ],
   "STACK": [
     {
       "id": "HYPERFOCUS-STACK-KERNEL-18.0",
@@ -2414,7 +2414,7 @@
   "STATUS": [
     {
       "id": "1EE-2.2",
-      "title": "[SESSION KERNEL: 16D_EXPLOSION_ERA_V2.1]"
+      "title": "[SYSTEM_KERNEL: PROTOCOL_94_V2.2_CLEAN]"
     },
     {
       "id": "GEOPOLITICAL-KINETICS-KERNEL-V1",
