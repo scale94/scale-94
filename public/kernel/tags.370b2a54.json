@@ -873,6 +873,12 @@
       "title": "🌑 OPERATION SHADOW SOCKS: KERNEL EXFILTRATION"
     }
   ],
+  "EXPLOSION": [
+    {
+      "id": "1EE-2.2",
+      "title": "[SESSION KERNEL: 16D_EXPLOSION_ERA_V2.1]"
+    }
+  ],
   "EXPORT": [
     {
       "id": "HIGH-TOWER-KERNEL",
@@ -1277,6 +1283,10 @@
     {
       "id": "GSK-5.5.5",
       "title": "ᛟ THE GAIA-SCALE KERNEL: SOVEREIGN RECONSTRUCTION"
+    },
+    {
+      "id": "1EE-2.2",
+      "title": "[SESSION KERNEL: 16D_EXPLOSION_ERA_V2.1]"
     },
     {
       "id": "QUANTUM-QUACKSALBER-KERNEL-1.1.1",
@@ -1833,6 +1843,10 @@
       "title": "GREENLAND KERNEL // THE PIRARUCU PROTOCOL"
     },
     {
+      "id": "1EE-2.2",
+      "title": "[SESSION KERNEL: 16D_EXPLOSION_ERA_V2.1]"
+    },
+    {
       "id": "BOSONIC-KERNEL-2.0",
       "title": "PROTOCOL_94 // BOSONIC_DEFENSE_KERNEL (V.2.0)"
     },
@@ -2361,6 +2375,12 @@
       "title": "SOPHIE KERNEL PHI"
     }
   ],
+  "STABILIZED": [
+    {
+      "id": "1EE-2.2",
+      "title": "[SESSION KERNEL: 16D_EXPLOSION_ERA_V2.1]"
+    }
+  ],
   "STACK": [
     {
       "id": "HYPERFOCUS-STACK-KERNEL-18.0",
@@ -2392,6 +2412,10 @@
     }
   ],
   "STATUS": [
+    {
+      "id": "1EE-2.2",
+      "title": "[SESSION KERNEL: 16D_EXPLOSION_ERA_V2.1]"
+    },
     {
       "id": "GEOPOLITICAL-KINETICS-KERNEL-V1",
       "title": "GEOPOLITICAL KINETICS KERNEL V1"

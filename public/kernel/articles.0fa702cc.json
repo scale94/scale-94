@@ -477,6 +477,24 @@
     "len": "0 WDS"
   },
   {
+    "id": "1EE-2.2",
+    "type": "kernel_doc",
+    "date": "2026-03-20",
+    "lastModified": "2026-03-20",
+    "title": "[SESSION KERNEL: 16D_EXPLOSION_ERA_V2.1]",
+    "subtitle": "█║▌║█║ TECHNICAL_DOMAIN: THE_VAULT",
+    "status": "ACTIVE",
+    "readTime": "1 min read",
+    "tags": [
+      "KERNEL",
+      "EXPLOSION",
+      "STATUS",
+      "STABILIZED",
+      "PROTOCOL"
+    ],
+    "len": "211 WDS"
+  },
+  {
     "id": "MOZART-MEMORANDUM-KERNEL-2.2",
     "type": "kernel_doc",
     "date": "2026-03-07",
@@ -1785,7 +1803,7 @@
     "id": "SERAPHINE-8.8.8.8.8.8.8.8-ANALOGY-RESEARCH",
     "type": "research",
     "date": "2026-03-14",
-    "lastModified": "2026-03-14",
+    "lastModified": "2026-03-15",
     "title": "CROSS-DOMAIN ANALOGICAL DISTANCE IN 16D FEATURE SPACE — SERAPHINE-8.8.8.8.8.8.8.8 TRIAD ANALYSIS",
     "subtitle": "Seraphine-8.8.8.8.8.8.8.8 — Three Fusion Triads",
     "status": "ACTIVE",
@@ -1800,13 +1818,13 @@
       "cryptography",
       "flow-state"
     ],
-    "len": "0 WDS"
+    "len": "2560 WDS"
   },
   {
     "id": "SERAPHINE-8.8.8.8.8.8.8.8-PAPER",
     "type": "research",
     "date": "2026-03-14",
-    "lastModified": "2026-03-14",
+    "lastModified": "2026-03-15",
     "title": "SERAPHINE-8.8.8.8.8.8.8.8: A DUAL-KERNEL ARCHITECTURE FOR MEASURING AND MAXIMISING CROSS-DOMAIN ANALOGICAL COHERENCE",
     "subtitle": "Abstract",
     "status": "ACTIVE",
@@ -1827,7 +1845,7 @@
     "id": "SERAPHINE-8.8.8.8.8.8.8.8-BONE-FUSION",
     "type": "kernel_doc",
     "date": "2026-03-14",
-    "lastModified": "2026-03-14",
+    "lastModified": "2026-03-15",
     "title": "THE SERAPHINE-9.4 SOVEREIGN KERNEL – NECROMANTIC BONE FUSION",
     "subtitle": "⌬ FUSED STATE PARAMETERS ⌬",
     "status": "ACTIVE",
@@ -1839,7 +1857,7 @@
       "STATE",
       "PARAMETERS"
     ],
-    "len": "0 WDS"
+    "len": "1447 WDS"
   },
   {
     "id": "SHADOWSOCKS-KERNEL-∞",
