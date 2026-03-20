@@ -68,7 +68,8 @@
       "Bash(done)",
       "Bash(for file:*)",
       "Bash(do head:*)",
-      "Bash(-print)"
+      "Bash(-print)",
+      "Bash(cargo check:*)"
     ]
   }
 }

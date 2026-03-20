@@ -22,7 +22,17 @@
       "WebSearch",
       "Bash(curl -s \"https://raw.githubusercontent.com/dollspace-gay/Tesseract-Vault/main/src/crypto/signatures.rs\" | head -200)",
       "Bash(curl -s \"https://raw.githubusercontent.com/dollspace-gay/Tesseract-Vault/main/src/crypto/kdf.rs\" | head -200)",
-      "Bash(curl -s \"https://raw.githubusercontent.com/dollspace-gay/Tesseract-Vault/main/src/crypto/signatures.rs\")"
+      "Bash(curl -s \"https://raw.githubusercontent.com/dollspace-gay/Tesseract-Vault/main/src/crypto/signatures.rs\")",
+      "Bash(npx vite:*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(grep -o '^ *\"\"\"\"[A-Z0-9\\\\-]*\"\"\"\": {$' /f/scale_9.4/src/wasm/wasm.generated.js)",
+      "Bash(node --input-type=module --experimental-vm-modules -e \":*)",
+      "Bash(npx --yes acorn --ecma2020 --module src/terminal/App.jsx)",
+      "Bash(npx acorn:*)",
+      "Bash(ls src/terminal/utils/renderContent*)",
+      "Bash(ls F:/scale_9.4/node_modules/.vite/deps/dompurify*)",
+      "Bash(find F:/scale_9.4/node_modules/.vite -name *.js)",
+      "Bash(find F:/scale_9.4/.vite -name *.js)"
     ]
   }
 }
