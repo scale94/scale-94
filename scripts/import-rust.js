@@ -834,6 +834,20 @@ const KERNEL_MAP = [
     type:    'rust',
     aliases: ['bone', 'fusion', 'bone_fusion', 'singularity', 'tensor', 'tensor_fusion', '6666'],
   },
+  {
+    id:     'ECOCIDE-V1.0.0',
+    fn:     'run_ecocide',
+    args:   [1.0, 0.1, 0.0],
+    argMap: { gdp: 0, multiplier: 0, dt: 1, reset: 2 },
+    params: [
+      { name: 'gdp_multiplier', default: 1.0,  desc: 'GDP extraction scalar \u2013 1.0 = homeostasis baseline, >1.0 drives S\u2092\u1d07\u2099' },
+      { name: 'dt',             default: 0.1,   desc: 'Time step in seconds (simulation delta)' },
+      { name: 'reset',          default: 0.0,   desc: 'Set to 1.0 to reinitialise the simulation from scratch' },
+    ],
+    label:   'Ecocide \u2013 Exergy Destruction Engine v1.0.0 \u2013 Gouy-Stodola Theorem',
+    type:    'rust',
+    aliases: ['ecocide', 'exergy', 'gouy_stodola', 'thermal_arson', 'overshoot', 'capitalism', 'gdp', 'biosphere', 'collapse_engine'],
+  },
 ];
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────

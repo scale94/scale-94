@@ -4,7 +4,7 @@
 // esbuild (Vite dev). Keep all imports at the top to guarantee identical
 // module evaluation order in both environments.
 import React, { useState, useEffect, useRef, useLayoutEffect, useMemo, useCallback, lazy, Suspense } from 'react';
-import { Hexagon, Cpu, Lock, Scale, Eye, ShieldAlert, KeyRound, Waves, Radio } from 'lucide-react';
+import { Hexagon, Cpu, Lock, Scale, Eye, ShieldAlert, KeyRound, Waves, Radio, Leaf } from 'lucide-react';
 
 // Data — static (authored, always bundled)
 import kernelAxioms    from './data/kernelAxioms';
@@ -60,6 +60,7 @@ const NavButterflyIcon = () => (
 );
 const ClassifiedTab   = lazy(() => import('./views/ClassifiedTab'));
 const ArtTab          = lazy(() => import('./views/ArtTab'));
+const EcocideTab      = lazy(() => import('./views/EcocideTab'));
 const ArticleView     = lazy(() => import('./views/ArticleView'));
 const ThesisView      = lazy(() => import('./views/ThesisView'));
 const TransmissionTab = lazy(() => import('./views/TransmissionTab'));
@@ -889,6 +890,8 @@ const App = () => {
             <button aria-label="Cryptography" aria-current={activeTab === 'cryptography' ? 'page' : undefined} onClick={() => handleNav('~/system/cryptography', 'cryptography')} className={`${activeTab === 'cryptography' ? 'bg-orange-950 text-orange-200 shadow-[0_0_12px_rgba(249,115,22,0.5)]' : 'text-orange-500/70 hover:text-orange-300 hover:bg-orange-950/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><KeyRound className="w-3 h-3" /> /Cryptography</button>
 
             <button aria-label="Art" aria-current={activeTab === 'art' ? 'page' : undefined} onClick={() => handleNav('~/system/art', 'art')} className={`${activeTab === 'art' ? 'text-black shadow-[0_0_14px_rgba(255,215,0,0.6)]' : 'hover:text-white hover:bg-amber-900/20'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`} style={activeTab === 'art' ? { background: 'linear-gradient(90deg,#FF8C00,#FFD700)' } : { color: 'rgba(251,191,36,0.6)' }}><Waves className="w-3 h-3" /> /Art</button>
+
+            <button aria-label="Ecocide" aria-current={activeTab === 'ecocide' ? 'page' : undefined} onClick={() => handleNav('~/system/ecocide', 'ecocide')} className={`${activeTab === 'ecocide' ? 'text-black shadow-[0_0_14px_rgba(122,184,0,0.55)]' : 'hover:text-white hover:bg-[#1a2d00]/40'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`} style={activeTab === 'ecocide' ? { background: 'linear-gradient(90deg,#7ab800,#3d5c00)' } : { color: 'rgba(122,184,0,0.5)' }}><Leaf className="w-3 h-3" /> /Ecocide</button>
           </nav>
         </div>
       </header>
@@ -896,8 +899,8 @@ const App = () => {
       <main ref={mainRef} className="flex-grow overflow-y-auto overflow-x-hidden p-4 pb-14 md:p-8 relative z-10 scroll-smooth" style={{ scrollPaddingTop: '100px' }}>
         <Suspense fallback={<div className="text-cyan-400 font-mono tracking-widest animate-pulse p-8">{'// LOADING MODULE...'}</div>}>
         <div className="max-w-[1600px] mx-auto">
-          {/* Path breadcrumb — hidden on kernel home (tty0 is the nav there) */}
-          {!(activeTab === 'kernel' && !selectedArticle && !architectThesis && !tagCloudView) && (
+          {/* Path breadcrumb — hidden on kernel home and ecocide (full-canvas views) */}
+          {!(activeTab === 'ecocide' && !selectedArticle && !architectThesis) && !(activeTab === 'kernel' && !selectedArticle && !architectThesis && !tagCloudView) && (
             <div className="mb-8 flex items-center text-sm font-bold tracking-wider min-w-0 overflow-hidden">
               <span className="mr-2 text-fuchsia-500">scale@node:</span>
               <span className="text-cyan-300">{currentPath}</span>
@@ -997,6 +1000,13 @@ const App = () => {
                 const q = `associative_field --seed ${nodeIdx} --beta 2.5 --probes 30`;
                 dispatchCommand('run', q, `run ${q}`, now);
               }}
+            />
+          )}
+
+          {/* Ecocide Tab — Exergy Destruction Engine · Gouy-Stodola Theorem */}
+          {activeTab === 'ecocide' && !selectedArticle && !architectThesis && (
+            <EcocideTab
+              onLog={appendSystemLog}
             />
           )}
 
@@ -1159,6 +1169,9 @@ const App = () => {
         </button>
         <button onClick={() => handleNav('~/system/art', 'art')} aria-label="Art" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'art' ? 'text-amber-400' : 'text-amber-400/40'}`}>
           <Waves className="w-5 h-5" />
+        </button>
+        <button onClick={() => handleNav('~/system/ecocide', 'ecocide')} aria-label="Ecocide" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200`} style={{ color: activeTab === 'ecocide' ? '#7ab800' : 'rgba(122,184,0,0.35)' }}>
+          <Leaf className="w-5 h-5" />
         </button>
       </nav>
 

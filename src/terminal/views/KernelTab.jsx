@@ -142,6 +142,11 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
         0%, 100% { filter: drop-shadow(0 0 3px rgba(6,182,212,0.4)); }
         50%       { filter: drop-shadow(0 0 10px rgba(6,182,212,1)) drop-shadow(0 0 20px rgba(6,182,212,0.35)); }
       }
+      @keyframes sk-treeLoad {
+        0%   { transform: rotate(0deg)   scale(1.0); filter: drop-shadow(0 0 6px rgba(217,70,239,0.9)); }
+        50%  { transform: rotate(180deg) scale(1.15); filter: drop-shadow(0 0 14px rgba(217,70,239,1)) drop-shadow(0 0 28px rgba(57,255,20,0.5)); }
+        100% { transform: rotate(360deg) scale(1.0); filter: drop-shadow(0 0 6px rgba(217,70,239,0.9)); }
+      }
       @keyframes sk-axiomBreath {
         0%, 100% { box-shadow: 0 0 6px rgba(57,255,20,0.06), inset 0 0 20px rgba(0,0,0,0.4); }
         50%       { box-shadow: 0 0 18px rgba(57,255,20,0.12), inset 0 0 20px rgba(0,0,0,0.4); }
@@ -290,8 +295,11 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
         <div className="border border-cyan-900/50 p-5 bg-black/50 backdrop-blur-sm hover:border-cyan-500/50 transition-colors rounded-lg flex flex-col md:min-h-0 md:overflow-hidden">
           <h3 className="text-base font-bold mb-4 flex items-center gap-2 shrink-0">
             <GitBranch
-              className="w-4 h-4 shrink-0 text-[#06b6d4]"
-              style={{ animation: 'sk-kernelIconReveal 0.8s cubic-bezier(0.16,1,0.3,1) forwards, sk-treeGlow 2.5s ease-in-out 0.8s infinite' }}
+              className="w-4 h-4 shrink-0"
+              style={loadingKernel
+                ? { color: '#d946ef', animation: 'sk-treeLoad 0.7s linear infinite' }
+                : { color: '#06b6d4', animation: 'sk-kernelIconReveal 0.8s cubic-bezier(0.16,1,0.3,1) forwards, sk-treeGlow 2.5s ease-in-out 0.8s infinite' }
+              }
             />
             <span
               className="text-transparent bg-clip-text"

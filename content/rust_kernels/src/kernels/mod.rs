@@ -41,3 +41,5 @@ pub mod spectral_bridge;     // run_spectral_bridge (Cross-Cluster Topology Disc
 pub mod enclave;             // enclave_keygen, enclave_seal, enclave_open (ML-KEM-768 + AES-256-GCM real encrypt/decrypt)
 pub mod text_probe;          // run_text_probe (16D concept fingerprinting · cosine projection into kernel space)
 pub mod bone_fusion;         // run_bone_fusion (Conceptual Singularity Engine v6.6.6.6.6.6 · 16D Tensor Fusion Foundation)
+pub mod ecocide;             // run_ecocide (Exergy Destruction Engine v1.0.0 · Gouy-Stodola Theorem · Non-Equilibrium Thermodynamics)
+pub mod topo;                // topo_alloc, topo_transform, topo_get_input, topo_get_output (Zero-copy spherical→Cartesian engine · lat/lon/depth → XYZ · Float32Array live view)

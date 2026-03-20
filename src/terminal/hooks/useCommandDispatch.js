@@ -26,6 +26,7 @@ const LOAD_TAB_MAP = {
   kernel: 'kernel', home: 'kernel', scaling: 'scaling', transmission: 'transmission',
   manifesto: 'manifesto', bsky: 'bsky', bluesky: 'bsky', privacy: 'privacy',
   art: 'art', graph: 'art', fade: 'art', 'fade_doctrine': 'art', 'feigenbaum_fade': 'art', visual: 'art',
+  ecocide: 'ecocide', exergy: 'ecocide', 'gouy_stodola': 'ecocide', 'thermal_arson': 'ecocide', overshoot: 'ecocide', capitalism: 'ecocide',
 };
 
 const HEX_POOL    = ['BD','E9','1C','7A','55','FF','E3','9A','C2','4F','A1','3D'];

@@ -735,6 +735,34 @@ export function run_dh_ec_kernel(mode, show_details) {
 }
 
 /**
+ * Advance the Ecocide simulation by one time step.
+ *
+ * Arguments:
+ *   gdp_multiplier  — GDP extraction scalar (1.0 = homeostasis baseline)
+ *   dt              — time step in seconds
+ *   reset           — set to 1.0 to reinitialise the simulation from scratch
+ *
+ * Returns a JSON string with phase, thermodynamic scalars, per-dot arrays,
+ * and (on reset) the 2048-char binary land mask for JS rendering.
+ * @param {number} gdp_multiplier
+ * @param {number} dt
+ * @param {number} reset
+ * @returns {string}
+ */
+export function run_ecocide(gdp_multiplier, dt, reset) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_ecocide(gdp_multiplier, dt, reset);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * @param {number} benefit
  * @param {number} cost
  * @param {number} punishment
@@ -1237,6 +1265,87 @@ export function tesseract_vault_params() {
 }
 
 /**
+ * Pre-allocate input and output buffers for `n` (lat, lon, depth) triplets.
+ *
+ * Must be called once before `topo_get_input` / `topo_get_output`.
+ * Calling again with the same `n` is a no-op (buffers are reused as-is).
+ * Calling with a different `n` reallocates — invalidates any held views.
+ * @param {number} n
+ */
+export function topo_alloc(n) {
+    wasm.topo_alloc(n);
+}
+
+/**
+ * Return a live Float32Array view of the input buffer.
+ *
+ * # Safety
+ * The view is valid as long as no reallocation occurs (i.e., `topo_alloc` is
+ * not called again with a different `n` while the view is held).
+ * In this pipeline the buffers are allocated once and never moved, so the
+ * view is effectively permanent.
+ * @returns {Float32Array}
+ */
+export function topo_get_input() {
+    const ret = wasm.topo_get_input();
+    return ret;
+}
+
+/**
+ * Return a live Float32Array view of the output buffer.
+ *
+ * Call this *after* `topo_transform` to receive the computed (x, y, z) data.
+ * Same lifetime guarantees as `topo_get_input`.
+ * @returns {Float32Array}
+ */
+export function topo_get_output() {
+    const ret = wasm.topo_get_output();
+    return ret;
+}
+
+/**
+ * Return the current allocated capacity of the input buffer (number of f32s).
+ * @returns {number}
+ */
+export function topo_input_len() {
+    const ret = wasm.topo_input_len();
+    return ret >>> 0;
+}
+
+/**
+ * Return the current allocated capacity of the output buffer (number of f32s).
+ * Divide by 3 to get point count.
+ * @returns {number}
+ */
+export function topo_output_len() {
+    const ret = wasm.topo_output_len();
+    return ret >>> 0;
+}
+
+/**
+ * Convert `n` (lat°, lon°, depth_km) triplets → (x, y, z) Cartesian coords.
+ *
+ * Reads from the input buffer (written by JS via `topo_get_input` view).
+ * Writes results into the output buffer (read by JS via `topo_get_output`).
+ *
+ * # Parameters
+ * - `n`           — number of points (input/output must each be pre-allocated
+ *                   to `n * 3` f32s via `topo_alloc`).
+ * - `radius`      — base sphere radius. Use `1.0` for a unit sphere (the
+ *                   standard for most render pipelines); use `6371.0` for km.
+ * - `depth_scale` — multiplier applied to the depth modifier.
+ *                   `0.0` = perfectly round sphere (ignores depth).
+ *                   `1.0` = full topographic relief.
+ *                   Values in `0.05..0.2` give a subtle, realistic effect.
+ * @param {number} n
+ * @param {number} radius
+ * @param {number} depth_scale
+ */
+export function topo_transform(n, radius, depth_scale) {
+    wasm.topo_transform(n, radius, depth_scale);
+}
+
+/**
  * Decrypt a TV1. envelope. Returns plaintext bytes, or empty Vec on any
  * failure (wrong passphrase, tampered ciphertext, invalid envelope).
  * @param {Uint8Array} sealed
@@ -1386,11 +1495,16 @@ function __wbg_get_imports() {
             return ret;
         },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
+            // Cast intrinsic for `Ref(Slice(F32)) -> NamedExternref("Float32Array")`.
+            const ret = getArrayF32FromWasm0(arg0, arg1);
+            return ret;
+        },
+        __wbindgen_cast_0000000000000002: function(arg0, arg1) {
             // Cast intrinsic for `Ref(Slice(U8)) -> NamedExternref("Uint8Array")`.
             const ret = getArrayU8FromWasm0(arg0, arg1);
             return ret;
         },
-        __wbindgen_cast_0000000000000002: function(arg0, arg1) {
+        __wbindgen_cast_0000000000000003: function(arg0, arg1) {
             // Cast intrinsic for `Ref(String) -> Externref`.
             const ret = getStringFromWasm0(arg0, arg1);
             return ret;
@@ -1430,9 +1544,22 @@ function addToExternrefTable0(obj) {
     return idx;
 }
 
+function getArrayF32FromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return getFloat32ArrayMemory0().subarray(ptr / 4, ptr / 4 + len);
+}
+
 function getArrayU8FromWasm0(ptr, len) {
     ptr = ptr >>> 0;
     return getUint8ArrayMemory0().subarray(ptr / 1, ptr / 1 + len);
+}
+
+let cachedFloat32ArrayMemory0 = null;
+function getFloat32ArrayMemory0() {
+    if (cachedFloat32ArrayMemory0 === null || cachedFloat32ArrayMemory0.byteLength === 0) {
+        cachedFloat32ArrayMemory0 = new Float32Array(wasm.memory.buffer);
+    }
+    return cachedFloat32ArrayMemory0;
 }
 
 function getStringFromWasm0(ptr, len) {
@@ -1538,6 +1665,7 @@ let wasmModule, wasm;
 function __wbg_finalize_init(instance, module) {
     wasm = instance.exports;
     wasmModule = module;
+    cachedFloat32ArrayMemory0 = null;
     cachedUint8ArrayMemory0 = null;
     wasm.__wbindgen_start();
     return wasm;
