@@ -289,3 +289,253 @@ pub fn run_spectral_bridge(threshold: f64, max_bridges: f64, detail: f64) -> Str
 
     out
 }
+
+// ── Task 1: Tensor-Directed Edge Kinematics ──────────────────────────────────
+//
+// Three scalar tensors derived from the 16D feature space drive visual
+// kinematics on each rendered edge in the Three.js/WebGL frontend:
+//
+//   Temporal Tensor  (Tt) — from dimension 7 "temporal"
+//     → controls dashed-line texture scroll speed along the bezier curve
+//
+//   Dynamical Tensor (Dd) — from dimension 0 "dynamical"
+//     → controls stroke width and sine-wave amplitude of the edge
+//
+//   Nonlinearity Tensor (Nl) — from dimension 1 "nonlinearity"
+//     → controls magnitude of randomised jitter/noise on the path
+//
+// Each value is the geometric mean of the two nodes' scores on that dimension,
+// giving a value in [0, 1] that reflects mutual strength on the axis.
+
+/// Per-edge tensor bundle for the Three.js visual layer.
+#[wasm_bindgen]
+pub struct EdgeTensors {
+    /// Tt — temporal geometry mean; drives bezier texture scroll speed.
+    pub temporal: f64,
+    /// Dd — dynamical geometry mean; drives stroke width + sine amplitude.
+    pub dynamical: f64,
+    /// Nl — nonlinearity geometry mean; drives jitter/noise magnitude.
+    pub nonlinearity: f64,
+    /// Raw cosine similarity of the edge (0–1).
+    pub similarity: f64,
+    /// Source node index (matches NODE_IDS / FEATURES arrays).
+    pub a: u32,
+    /// Target node index.
+    pub b: u32,
+}
+
+#[wasm_bindgen]
+impl EdgeTensors {
+    /// Serialise to a compact JSON object for direct JS consumption.
+    pub fn to_json(&self) -> String {
+        format!(
+            "{{\"a\":{},\"b\":{},\"temporal\":{:.4},\"dynamical\":{:.4},\"nonlinearity\":{:.4},\"similarity\":{:.4}}}",
+            self.a, self.b, self.temporal, self.dynamical, self.nonlinearity, self.similarity
+        )
+    }
+}
+
+/// Compute the three visual-kinematic tensors for a single edge (a_idx → b_idx).
+/// Returns `None` (JS `null`) if either index is out of range.
+#[wasm_bindgen]
+pub fn get_edge_tensors(a_idx: u32, b_idx: u32) -> Option<EdgeTensors> {
+    let (a, b) = (a_idx as usize, b_idx as usize);
+    if a >= 25 || b >= 25 { return None; }
+    let fa = &FEATURES[a];
+    let fb = &FEATURES[b];
+    Some(EdgeTensors {
+        temporal:     (fa[7] * fb[7]).sqrt(),   // dimension 7 — temporal
+        dynamical:    (fa[0] * fb[0]).sqrt(),   // dimension 0 — dynamical
+        nonlinearity: (fa[1] * fb[1]).sqrt(),   // dimension 1 — nonlinearity
+        similarity:   cosine_similarity(fa, fb),
+        a: a_idx,
+        b: b_idx,
+    })
+}
+
+/// Returns a JSON array of EdgeTensor objects for **every** node pair whose
+/// cosine similarity meets `threshold`.  Includes both cross- and same-cluster
+/// pairs so the frontend can drive all visible edges, not just bridges.
+///
+/// Format: [{"a":i,"b":j,"temporal":f,"dynamical":f,"nonlinearity":f,"similarity":f}, ...]
+#[wasm_bindgen]
+pub fn get_all_edge_tensors(threshold: f64) -> String {
+    let threshold = threshold.clamp(0.0, 1.0);
+    let mut entries: Vec<String> = Vec::with_capacity(64);
+
+    for i in 0..25_usize {
+        for j in (i + 1)..25_usize {
+            let fa = &FEATURES[i];
+            let fb = &FEATURES[j];
+            let sim = cosine_similarity(fa, fb);
+            if sim < threshold { continue; }
+
+            let tt = (fa[7] * fb[7]).sqrt();
+            let dd = (fa[0] * fb[0]).sqrt();
+            let nl = (fa[1] * fb[1]).sqrt();
+
+            entries.push(format!(
+                "{{\"a\":{},\"b\":{},\"temporal\":{:.4},\"dynamical\":{:.4},\"nonlinearity\":{:.4},\"similarity\":{:.4}}}",
+                i, j, tt, dd, nl, sim
+            ));
+        }
+    }
+
+    format!("[{}]", entries.join(","))
+}
+
+// ── Task 2: Gray-Scott Reaction-Diffusion Hooks (drk cluster) ────────────────
+//
+// The five `drk` cluster nodes (pragmatic, soma_kernel, strangler,
+// surveillance, necromantic — indices 20–24) are seeded as reaction sources
+// in a 64×64 Gray-Scott grid.  After `step()` is called, the V-field buffer
+// can be read directly from WASM linear memory by the WebGL shader:
+//
+//   const grid  = new DrkDiffusionGrid();
+//   grid.step(0.035, 0.065, 200);            // feed, kill, iterations
+//   const vBuf  = new Float32Array(          // zero-copy view
+//       wasm.memory.buffer, grid.v_ptr(), grid.v_len()
+//   );
+//   // Upload vBuf to a WebGL texture and sample in the fragment shader.
+//
+// Spot-forming parameters (f≈0.035, k≈0.065) are recommended for Turing
+// patterns on node surfaces.  Labyrinthine: f=0.060, k=0.062.
+
+const DRK_GRID_W: usize = 64;
+const DRK_GRID_H: usize = 64;
+
+// Normalised (x, y) seed positions for the five drk nodes in [0,1]² space.
+// Mapped onto the grid at construction time.
+const DRK_SEED_POSITIONS: [(f32, f32); 5] = [
+    (0.30, 0.50),   // pragmatic    (idx 20)
+    (0.50, 0.50),   // soma_kernel  (idx 21)
+    (0.70, 0.50),   // strangler    (idx 22)
+    (0.50, 0.25),   // surveillance (idx 23)
+    (0.50, 0.75),   // necromantic  (idx 24)
+];
+
+const DRK_SEED_RADIUS: usize = 3;  // patch half-size in grid cells
+
+/// Stateful Gray-Scott grid seeded from the five `drk` cluster node positions.
+/// Exports the V-field as a raw `f32` buffer for direct WebGL texture upload.
+#[wasm_bindgen]
+pub struct DrkDiffusionGrid {
+    u: Vec<f32>,
+    v: Vec<f32>,
+    total_steps: u32,
+}
+
+#[wasm_bindgen]
+impl DrkDiffusionGrid {
+    /// Construct and seed the 64×64 grid.  Call `step()` to evolve the PDE.
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> DrkDiffusionGrid {
+        let size = DRK_GRID_W * DRK_GRID_H;
+        let mut u = vec![1.0_f32; size];
+        let mut v = vec![0.0_f32; size];
+
+        for &(nx, ny) in &DRK_SEED_POSITIONS {
+            let cx = ((nx * DRK_GRID_W as f32) as usize).min(DRK_GRID_W - 1);
+            let cy = ((ny * DRK_GRID_H as f32) as usize).min(DRK_GRID_H - 1);
+            let r  = DRK_SEED_RADIUS;
+
+            let x0 = cx.saturating_sub(r);
+            let x1 = (cx + r).min(DRK_GRID_W - 1);
+            let y0 = cy.saturating_sub(r);
+            let y1 = (cy + r).min(DRK_GRID_H - 1);
+
+            for py in y0..=y1 {
+                for px in x0..=x1 {
+                    let idx = py * DRK_GRID_W + px;
+                    u[idx] = 0.5;
+                    v[idx] = 0.25;
+                }
+            }
+        }
+
+        DrkDiffusionGrid { u, v, total_steps: 0 }
+    }
+
+    /// Advance the simulation by `steps` PDE iterations.
+    ///
+    /// Recommended parameters for Turing spot patterns: feed=0.035, kill=0.065.
+    /// Labyrinthine / maze patterns:                    feed=0.060, kill=0.062.
+    pub fn step(&mut self, feed: f32, kill: f32, steps: u32) {
+        let du: f32 = 0.2;
+        let dv: f32 = 0.1;
+        let dt: f32 = 1.0;
+        let w = DRK_GRID_W;
+        let h = DRK_GRID_H;
+
+        let mut nu = self.u.clone();
+        let mut nv = self.v.clone();
+
+        for _ in 0..steps {
+            for y in 1..(h - 1) {
+                for x in 1..(w - 1) {
+                    let idx = y * w + x;
+                    let u   = self.u[idx];
+                    let v   = self.v[idx];
+                    let uvv = u * v * v;
+
+                    let lap_u = self.u[idx - 1] + self.u[idx + 1]
+                              + self.u[idx - w]  + self.u[idx + w]
+                              - 4.0 * u;
+
+                    let lap_v = self.v[idx - 1] + self.v[idx + 1]
+                              + self.v[idx - w]  + self.v[idx + w]
+                              - 4.0 * v;
+
+                    nu[idx] = (u + (du * lap_u - uvv + feed * (1.0 - u)) * dt).clamp(0.0, 1.0);
+                    nv[idx] = (v + (dv * lap_v + uvv - (feed + kill) *  v) * dt).clamp(0.0, 1.0);
+                }
+            }
+            std::mem::swap(&mut self.u, &mut nu);
+            std::mem::swap(&mut self.v, &mut nv);
+        }
+
+        self.total_steps += steps;
+    }
+
+    /// Pointer to the V-field `f32` buffer in WASM linear memory.
+    ///
+    /// JS usage (zero-copy):
+    ///   const tex = new Float32Array(wasm.memory.buffer, grid.v_ptr(), grid.v_len());
+    pub fn v_ptr(&self) -> *const f32 { self.v.as_ptr() }
+
+    /// Number of `f32` elements in the V-field buffer (width × height = 4096).
+    pub fn v_len(&self) -> usize { self.v.len() }
+
+    /// Pointer to the U-field buffer (substrate concentration).
+    pub fn u_ptr(&self) -> *const f32 { self.u.as_ptr() }
+
+    pub fn width(&self)       -> usize { DRK_GRID_W }
+    pub fn height(&self)      -> usize { DRK_GRID_H }
+    pub fn total_steps(&self) -> u32   { self.total_steps }
+
+    /// Re-seed all drk node patches — useful for resetting without re-allocating.
+    pub fn reseed(&mut self) {
+        let size = DRK_GRID_W * DRK_GRID_H;
+        self.u.iter_mut().for_each(|x| *x = 1.0);
+        self.v.iter_mut().for_each(|x| *x = 0.0);
+        self.total_steps = 0;
+        let _ = size; // silence unused warning; loop above handles it
+
+        for &(nx, ny) in &DRK_SEED_POSITIONS {
+            let cx = ((nx * DRK_GRID_W as f32) as usize).min(DRK_GRID_W - 1);
+            let cy = ((ny * DRK_GRID_H as f32) as usize).min(DRK_GRID_H - 1);
+            let r  = DRK_SEED_RADIUS;
+            let x0 = cx.saturating_sub(r);
+            let x1 = (cx + r).min(DRK_GRID_W - 1);
+            let y0 = cy.saturating_sub(r);
+            let y1 = (cy + r).min(DRK_GRID_H - 1);
+            for py in y0..=y1 {
+                for px in x0..=x1 {
+                    let idx = py * DRK_GRID_W + px;
+                    self.u[idx] = 0.5;
+                    self.v[idx] = 0.25;
+                }
+            }
+        }
+    }
+}

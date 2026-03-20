@@ -896,9 +896,9 @@ const App = () => {
         </div>
       </header>
 
-      <main ref={mainRef} className="flex-grow overflow-y-auto overflow-x-hidden p-4 pb-14 md:p-8 relative z-10 scroll-smooth" style={{ scrollPaddingTop: '100px' }}>
+      <main ref={mainRef} className={`flex-grow overflow-y-auto overflow-x-hidden relative z-10 scroll-smooth ${activeTab === 'ecocide' && !selectedArticle && !architectThesis ? 'p-0 h-full' : 'p-4 pb-14 md:p-8'}`} style={{ scrollPaddingTop: '100px' }}>
         <Suspense fallback={<div className="text-cyan-400 font-mono tracking-widest animate-pulse p-8">{'// LOADING MODULE...'}</div>}>
-        <div className="max-w-[1600px] mx-auto">
+        <div className={`max-w-[1600px] mx-auto${activeTab === 'ecocide' && !selectedArticle && !architectThesis ? ' h-full' : ''}`}>
           {/* Path breadcrumb — hidden on kernel home and ecocide (full-canvas views) */}
           {!(activeTab === 'ecocide' && !selectedArticle && !architectThesis) && !(activeTab === 'kernel' && !selectedArticle && !architectThesis && !tagCloudView) && (
             <div className="mb-8 flex items-center text-sm font-bold tracking-wider min-w-0 overflow-hidden">
