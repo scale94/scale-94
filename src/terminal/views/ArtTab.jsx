@@ -2133,30 +2133,60 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             }}
             ref={feigTitleRef}
           >
-            <Waves
-              className="w-6 h-6 md:w-8 md:h-8 shrink-0"
+            {/* Wrap SVG in span so filter renders on WebKit/Safari */}
+            <span
+              className="shrink-0"
               style={{
-                color: selectedNode === 'feigenbaum' ? '#FFD700' : '#FF8C00',
+                display: 'inline-flex',
                 filter: selectedNode === 'feigenbaum'
                   ? 'drop-shadow(0 0 8px rgba(255,215,0,0.85)) drop-shadow(0 0 3px rgba(255,215,0,1))'
                   : 'drop-shadow(0 0 8px rgba(255,140,0,0.7)) drop-shadow(0 0 16px rgba(217,70,239,0.4))',
-                transition: 'color 0.4s ease, filter 0.4s ease',
+                transition: 'filter 0.4s ease',
               }}
-            />
-            <span
-              className="text-transparent bg-clip-text"
-              style={{
-                backgroundImage: selectedNode === 'feigenbaum'
-                  ? 'linear-gradient(90deg, #FFD700, #fff700, #FFD700)'
-                  : 'linear-gradient(90deg, #FF8C00, #FFD700, #d946ef, #FFD700, #FF8C00)',
-                backgroundSize: '100% auto',
-                animation: 'none',
-                transition: 'background-image 0.4s ease',
-                filter: selectedNode === 'feigenbaum'
-                  ? 'drop-shadow(0 0 18px rgba(255,215,0,0.9)) drop-shadow(0 0 6px rgba(255,215,0,1))'
-                  : 'drop-shadow(0 0 10px rgba(255,140,0,0.7)) drop-shadow(0 0 24px rgba(217,70,239,0.35))',
-              }}
-            >feigenbaum_fade</span>
+            >
+              <Waves
+                className="w-6 h-6 md:w-8 md:h-8"
+                style={{
+                  color: selectedNode === 'feigenbaum' ? '#FFD700' : '#FF8C00',
+                  transition: 'color 0.4s ease',
+                }}
+              />
+            </span>
+            {/* Title: gradient clip + separate glow layer underneath for Safari compat */}
+            <span style={{ position: 'relative', display: 'inline-block' }}>
+              {/* Glow layer — blurred duplicate, not clip-text, so Safari shows it */}
+              <span
+                aria-hidden="true"
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  color: selectedNode === 'feigenbaum' ? '#FFD700' : '#FF8C00',
+                  filter: selectedNode === 'feigenbaum'
+                    ? 'blur(8px) opacity(0.9)'
+                    : 'blur(10px) opacity(0.7)',
+                  transition: 'color 0.4s ease, filter 0.4s ease',
+                  userSelect: 'none',
+                  pointerEvents: 'none',
+                  fontWeight: 'inherit',
+                  fontSize: 'inherit',
+                  letterSpacing: 'inherit',
+                }}
+              >feigenbaum_fade</span>
+              {/* Visible gradient text — -webkit-background-clip for Safari */}
+              <span
+                style={{
+                  backgroundImage: selectedNode === 'feigenbaum'
+                    ? 'linear-gradient(90deg, #FFD700, #fff700, #FFD700)'
+                    : 'linear-gradient(90deg, #FF8C00, #FFD700, #d946ef, #FFD700, #FF8C00)',
+                  backgroundSize: '200% auto',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                  color: 'transparent',
+                  transition: 'background-image 0.4s ease',
+                }}
+              >feigenbaum_fade</span>
+            </span>
           </h2>
           <div className="text-sm font-bold tracking-widest" style={{ color: 'rgba(251,191,36,0.5)' }}>
             orbital sphere // ars electronica 2027 // soma-9.4
