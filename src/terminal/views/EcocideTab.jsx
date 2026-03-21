@@ -39,6 +39,16 @@ import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { ChevronRight, Filter, X, AlertTriangle } from 'lucide-react';
 import wasmRegistry from '../../wasm/wasm.generated';
 
+// ── Coupling Event Bus ─────────────────────────────────────────────────────
+// Simple pub/sub for cross-tab phase coupling.
+// ArtTab.jsx can subscribe via: ecocideBus.on(handler)
+// The coupling can feed into the Hopfield field's r parameter.
+export const ecocideBus = {
+  _listeners: [],
+  emit(data) { this._listeners.forEach(fn => fn(data)); },
+  on(fn) { this._listeners.push(fn); return () => { this._listeners = this._listeners.filter(f => f !== fn); }; },
+};
+
 // ── Eco article filter ────────────────────────────────────────────────────────
 const ECO_TAGS = new Set([
   'Botany','Ecology','Autochthony','Lizard Gap','Biodiversity','Atmospheric',
@@ -536,6 +546,10 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
       setUiPhase(phase);
       setUiStats({ viable: DOT_COUNT - deadCount, dead: deadCount, capital, s_gen, x_dest, dx_dt });
       setUiSarg(sarg);
+
+      // ── Coupling: emit phase data for ArtTab Hopfield field ───────────
+      ecocideBus.emit({ type: 'ECOCIDE_PHASE', phase, metabolicRift: metabolicFat, exergyRate: exergyNorm });
+
       // Accumulate sparkline history (capped at 80 ticks ≈ 8 s of data)
       const _hist = sargHistoryRef.current;
       _hist.push(sarg.sarg);

@@ -1,6 +1,101 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Database, GitBranch, Shield, Cpu } from 'lucide-react';
 
+// ── Mini rotating sphere hero canvas ────────────────────────────────────────
+function useMiniSphere(canvasRef) {
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const W = 180, H = 180;
+    const cx = W / 2, cy = H / 2, R = 65;
+    const colors = ['#39ff14', '#06b6d4', '#d946ef'];
+    const dots = Array.from({ length: 12 }, (_, i) => {
+      const phi = Math.acos(1 - 2 * (i + 0.5) / 12);
+      const theta = Math.PI * (1 + Math.sqrt(5)) * i;
+      return { phi, theta };
+    });
+    let raf;
+    const draw = (t) => {
+      ctx.clearRect(0, 0, W, H);
+      const rot = t * 0.0008;
+      // wireframe circle
+      ctx.beginPath();
+      ctx.arc(cx, cy, R, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(6,182,212,0.12)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      // equator ellipse
+      ctx.beginPath();
+      for (let a = 0; a <= Math.PI * 2; a += 0.05) {
+        const x = cx + R * Math.cos(a);
+        const y = cy + R * 0.35 * Math.sin(a);
+        a === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = 'rgba(57,255,20,0.08)';
+      ctx.stroke();
+      // dots
+      dots.forEach((d, i) => {
+        const sp = Math.sin(d.phi);
+        const x3 = sp * Math.cos(d.theta + rot);
+        const z3 = sp * Math.sin(d.theta + rot);
+        const y3 = Math.cos(d.phi);
+        const scale = 1 / (1.8 - z3 * 0.5);
+        const sx = cx + x3 * R * scale;
+        const sy = cy + y3 * R * scale;
+        const r = (2.5 + scale * 2) * (0.6 + z3 * 0.4);
+        const col = colors[i % 3];
+        ctx.beginPath();
+        ctx.arc(sx, sy, Math.max(1, r), 0, Math.PI * 2);
+        ctx.fillStyle = col;
+        ctx.globalAlpha = 0.5 + z3 * 0.5;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      });
+      raf = requestAnimationFrame(draw);
+    };
+    raf = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(raf);
+  }, [canvasRef]);
+}
+
+// ── Lyapunov sparkline canvas ───────────────────────────────────────────────
+function useLyapunovSparkline(canvasRef) {
+  const bufRef = useRef(new Float32Array(60).fill(0));
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const W = 120, H = 24;
+    let raf, frame = 0;
+    const draw = () => {
+      frame++;
+      if (frame % 3 === 0) {
+        const buf = bufRef.current;
+        for (let i = 0; i < buf.length - 1; i++) buf[i] = buf[i + 1];
+        buf[buf.length - 1] = Math.sin(frame * 0.04) * 0.4 + Math.sin(frame * 0.11) * 0.3 + Math.sin(frame * 0.023) * 0.3;
+      }
+      ctx.clearRect(0, 0, W, H);
+      const buf = bufRef.current;
+      ctx.beginPath();
+      for (let i = 0; i < buf.length; i++) {
+        const x = (i / (buf.length - 1)) * W;
+        const y = H / 2 - buf[i] * (H * 0.4);
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = '#06b6d4';
+      ctx.lineWidth = 1.5;
+      ctx.shadowColor = 'rgba(6,182,212,0.6)';
+      ctx.shadowBlur = 4;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      raf = requestAnimationFrame(draw);
+    };
+    raf = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(raf);
+  }, [canvasRef]);
+}
+
 // ── ATMOSPHERIC-ENTROPY climate simulation — fires on SOMA-5.5 ▶ press ──────
 function runClimateSim(appendSystemLog) {
   const now   = () => new Date().toLocaleTimeString('en-US', { hour12: false });
@@ -35,6 +130,15 @@ function runClimateSim(appendSystemLog) {
 }
 
 const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, loadingKernel, visibleLogs = [], logRef, searchFilter, onClearFilter, listRef, commandInput = '', onCommandInputChange, onCommandKeyDown, ramPct = 0, isCritical = false, isWarning = false, appendSystemLog, mobileChrome = true, mobileAutoRun }) => {
+  // ── Mini sphere + sparkline canvas refs ───────────────────────────────────
+  // Two sphere refs: one for the mobile canvas (below title), one for desktop
+  const sphereCanvasRef        = useRef(null); // desktop
+  const sphereCanvasMobileRef  = useRef(null); // mobile
+  const sparklineCanvasRef     = useRef(null);
+  useMiniSphere(sphereCanvasRef);
+  useMiniSphere(sphereCanvasMobileRef);
+  useLyapunovSparkline(sparklineCanvasRef);
+
   // ── Gesture-gated mobile keyboard ─────────────────────────────────────────
   // Activation: double-tap + long-tap on the tty0 header strip.
   // Double-tap window: 350ms. Long-press threshold: 500ms.
@@ -213,6 +317,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
 
     {/* ── system_kernel header — shrink-0 so it never flexes away ─────────── */}
     <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-cyan-900/50 pb-3 mb-4 shrink-0">
+
       <div>
         <h2 className="text-4xl font-bold mb-1 tracking-tight flex items-center gap-3">
           <Cpu
@@ -220,7 +325,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
             style={{ color: '#FFD700', animation: 'sk-cpuYellowReveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards, sk-cpuYellowGlow 2.5s ease-in-out 0.8s infinite' }}
           />
           <span
-            className="hidden md:inline text-transparent bg-clip-text"
+            className="text-transparent bg-clip-text text-2xl md:text-4xl"
             style={{
               backgroundImage: 'linear-gradient(90deg, #FF8C00, #FFD700, #FFFF00, #FFD700, #FF8C00)',
               backgroundSize: '400% auto',
@@ -231,20 +336,27 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
           </span>
         </h2>
         <div
-          className="hidden md:block text-sm font-bold tracking-widest"
+          className="text-xs md:text-sm font-bold tracking-widest"
           style={{ color: '#fb923c', opacity: 0, animation: 'sk-subReveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.35s forwards' }}
         >
           version: soma-9.1 // build: gaia // ostrom_protocol
         </div>
+        {/* Mobile sphere — sits below the title, hidden on desktop */}
+        <canvas ref={sphereCanvasMobileRef} width={180} height={180}
+          className="block md:hidden mt-3"
+          style={{ width: 120, height: 120 }} />
       </div>
-      <div className="hidden md:flex items-center gap-4 mt-3 md:mt-0 shrink-0">
-        <div className="flex items-center gap-2 text-xs border border-cyan-500/30 px-3 py-1 bg-cyan-900/10 text-cyan-400 rounded-sm">
+      <div className="flex items-center gap-2 md:gap-4 mt-2 md:mt-0 shrink-0 flex-wrap">
+        <div className="flex items-center gap-2 text-xs border border-cyan-500/30 px-2 md:px-3 py-1 bg-cyan-900/10 text-cyan-400 rounded-sm">
           <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(34,211,238,1)]"></div> operational
+          <canvas ref={sparklineCanvasRef} width={120} height={24} className="ml-2 hidden md:block" style={{ width: 120, height: 24 }} />
         </div>
-        <div className="flex items-center gap-2 text-xs border border-[#39ff14]/30 px-3 py-1 bg-green-900/10 text-[#39ff14] rounded-sm shadow-[0_0_6px_rgba(57,255,20,0.15)]">
+        <div className="flex items-center gap-2 text-xs border border-[#39ff14]/30 px-2 md:px-3 py-1 bg-green-900/10 text-[#39ff14] rounded-sm shadow-[0_0_6px_rgba(57,255,20,0.15)]">
           <Shield className="w-3 h-3" /> leviathan: active
         </div>
       </div>
+      {/* Desktop sphere — right-aligned in the header row */}
+      <canvas ref={sphereCanvasRef} width={180} height={180} className="hidden md:block shrink-0" style={{ width: 180, height: 180 }} />
     </div>
 
     {/*

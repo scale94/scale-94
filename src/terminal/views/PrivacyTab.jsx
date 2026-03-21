@@ -133,6 +133,70 @@ const PrivacyTab = ({ systemArticles = {} }) => {
         </div>
       </div>
 
+      {/* ── Data Flow Diagram ──────────────────────────────────────────────── */}
+      <div className="mb-8 border border-rose-900/20 bg-black/30 rounded-sm p-4">
+        <div className="text-[9px] font-mono tracking-widest text-rose-400/40 uppercase mb-3 flex items-center gap-2">
+          <Eye className="w-2.5 h-2.5" /> DATA FLOW ARCHITECTURE
+        </div>
+        <svg viewBox="0 0 800 120" className="w-full" style={{ height: 120 }} xmlns="http://www.w3.org/2000/svg">
+          {/* Nodes */}
+          {[
+            { x: 80,  label: 'Browser', color: '#06b6d4' },
+            { x: 280, label: 'Vercel Edge', color: '#f43f5e' },
+            { x: 500, label: 'CDN', color: '#f43f5e' },
+            { x: 700, label: 'Client Sandbox', color: '#06b6d4' },
+          ].map((node, i) => (
+            <g key={node.label}>
+              <rect x={node.x - 60} y={35} width={120} height={40} rx={6} ry={6}
+                fill="rgba(0,0,0,0.6)" stroke={node.color} strokeWidth="1" opacity="0.8" />
+              <text x={node.x} y={60} textAnchor="middle" fill={node.color} fontSize="11" fontFamily="monospace" fontWeight="bold">
+                {node.label}
+              </text>
+            </g>
+          ))}
+          {/* Arrows between nodes */}
+          {[
+            { x1: 140, x2: 220, noData: false },
+            { x1: 340, x2: 440, noData: false },
+            { x1: 560, x2: 640, noData: true },
+          ].map((arrow, i) => (
+            <g key={i}>
+              <line x1={arrow.x1} y1={55} x2={arrow.x2} y2={55}
+                stroke={arrow.noData ? 'rgba(6,182,212,0.4)' : 'rgba(244,63,94,0.3)'}
+                strokeWidth="1.5" strokeDasharray={arrow.noData ? '4 3' : 'none'}
+                markerEnd="url(#arrowhead)" />
+              {arrow.noData && (
+                <g>
+                  <line x1={(arrow.x1 + arrow.x2) / 2 - 6} y1={48}
+                        x2={(arrow.x1 + arrow.x2) / 2 + 6} y2={62}
+                        stroke="#06b6d4" strokeWidth="2" opacity="0.6" />
+                  <text x={(arrow.x1 + arrow.x2) / 2} y={42} textAnchor="middle"
+                        fill="#06b6d4" fontSize="8" fontFamily="monospace" opacity="0.6">
+                    NO DATA
+                  </text>
+                </g>
+              )}
+            </g>
+          ))}
+          {/* Labels below */}
+          <text x={180} y={95} textAnchor="middle" fill="rgba(244,63,94,0.3)" fontSize="8" fontFamily="monospace">
+            IP + UA logged
+          </text>
+          <text x={400} y={95} textAnchor="middle" fill="rgba(244,63,94,0.3)" fontSize="8" fontFamily="monospace">
+            static assets
+          </text>
+          <text x={600} y={95} textAnchor="middle" fill="rgba(6,182,212,0.5)" fontSize="8" fontFamily="monospace">
+            WASM local exec
+          </text>
+          {/* Arrow marker definition */}
+          <defs>
+            <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+              <polygon points="0 0, 8 3, 0 6" fill="rgba(244,63,94,0.4)" />
+            </marker>
+          </defs>
+        </svg>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
 
         {/* ── Base protocol card (from .md) ──────────────────────────────────── */}

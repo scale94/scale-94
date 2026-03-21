@@ -1,5 +1,28 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { ShieldAlert, ChevronRight, Globe, Filter, AlertTriangle, X, Activity } from 'lucide-react';
+
+// ── Approximate geo coordinates for threat map (viewBox 800×400 Mercator-ish) ──
+const REGION_GEO = {
+  UK: [380, 130], EU: [400, 150], US: [180, 170], AU: [680, 320],
+  CA: [170, 120], DE: [410, 145], FR: [390, 160], SE: [415, 110],
+  IE: [365, 135], NL: [400, 140], NZ: [740, 340], BE: [395, 148],
+};
+
+// Simplified continent outlines for the threat map
+const CONTINENT_PATHS = [
+  // North America (simplified)
+  'M90,100 L130,80 L200,85 L250,100 L260,140 L240,180 L210,210 L180,240 L160,230 L140,200 L100,180 L80,150 Z',
+  // South America
+  'M190,250 L220,240 L240,260 L250,300 L240,340 L220,370 L200,380 L180,360 L175,320 L180,280 Z',
+  // Europe
+  'M370,100 L420,90 L440,100 L445,130 L430,160 L410,170 L390,165 L375,150 L365,130 Z',
+  // Africa
+  'M380,180 L420,175 L450,200 L460,250 L450,300 L430,330 L400,340 L380,320 L370,280 L365,230 Z',
+  // Asia
+  'M450,80 L550,70 L650,90 L700,120 L690,170 L650,200 L580,210 L520,190 L480,160 L450,130 Z',
+  // Australia
+  'M650,280 L710,270 L740,290 L740,320 L720,340 L680,340 L660,320 L650,300 Z',
+];
 
 // ── Severity colour palette (mirrors import-legislation.js threat palette) ──
 const SEV = {
@@ -51,6 +74,9 @@ const parseCats = (raw) => {
   return [];
 };
 
+// ── Raw hex colors for SVG threat dots ──────────────────────────────────────
+const SEV_HEX = { 5: '#ef4444', 4: '#f97316', 3: '#eab308', 2: '#06b6d4', 1: '#22c55e' };
+
 // ── Component ──────────────────────────────────────────────────────────────
 const SurveillanceTab = ({ legislationArticles = [], onOpenLaw }) => {
   const [region,   setRegion]   = useState('ALL');
@@ -95,6 +121,25 @@ const SurveillanceTab = ({ legislationArticles = [], onOpenLaw }) => {
   const highCount  = legislationArticles.filter(a => parseInt(a.severity, 10) === 4).length;
   const filtersOn  = region !== 'ALL' || category !== 'ALL' || minSev > 0;
   const resetFilters = () => { setRegion('ALL'); setCategory('ALL'); setMinSev(0); };
+
+  // ── Threat map: per-region max severity ───────────────────────────────────
+  const regionThreats = useMemo(() => {
+    const map = {};
+    for (const a of legislationArticles) {
+      const loc = (a.location || '').toUpperCase();
+      const sev = parseInt(a.severity, 10) || 0;
+      for (const [code] of REGIONS) {
+        if (code === 'ALL') continue;
+        const match = code === 'EU'
+          ? (loc.includes('EU') || loc.includes('EUROPEAN'))
+          : loc.includes(code);
+        if (match) {
+          map[code] = Math.max(map[code] || 0, sev);
+        }
+      }
+    }
+    return map;
+  }, [legislationArticles]);
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-6xl mx-auto mt-8">
@@ -218,6 +263,50 @@ const SurveillanceTab = ({ legislationArticles = [], onOpenLaw }) => {
           </div>
         ))}
       </div>
+
+      {/* ── Threat map SVG ─────────────────────────────────────────────────── */}
+      {legislationArticles.length > 0 && (
+        <div className="mb-6 border border-orange-900/20 bg-black/30 rounded-sm p-3 overflow-hidden">
+          <div className="text-[9px] font-mono tracking-widest text-orange-400/40 uppercase mb-2 flex items-center gap-2">
+            <Globe className="w-2.5 h-2.5" /> THREAT DISTRIBUTION MAP
+          </div>
+          <svg viewBox="0 0 800 400" className="w-full" style={{ height: 200 }} xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <style>{`
+                @keyframes sv-dotPulse {
+                  0%, 100% { r: var(--base-r); opacity: 0.85; }
+                  50%       { r: calc(var(--base-r) + 3px); opacity: 1; }
+                }
+              `}</style>
+            </defs>
+            {/* Continent outlines */}
+            {CONTINENT_PATHS.map((d, i) => (
+              <path key={i} d={d} fill="none" stroke="rgba(249,115,22,0.15)" strokeWidth="1.5" />
+            ))}
+            {/* Threat dots per region */}
+            {Object.entries(regionThreats).map(([code, maxSev]) => {
+              const coords = REGION_GEO[code];
+              if (!coords) return null;
+              const r = 4 + maxSev * 2;
+              const color = SEV_HEX[maxSev] || '#6b7280';
+              return (
+                <g key={code}>
+                  <circle cx={coords[0]} cy={coords[1]} r={r + 4} fill={color} opacity="0.15">
+                    <animate attributeName="r" values={`${r + 2};${r + 8};${r + 2}`} dur="2.5s" repeatCount="indefinite" />
+                    <animate attributeName="opacity" values="0.15;0.05;0.15" dur="2.5s" repeatCount="indefinite" />
+                  </circle>
+                  <circle cx={coords[0]} cy={coords[1]} r={r} fill={color} opacity="0.85">
+                    <animate attributeName="r" values={`${r};${r + 2};${r}`} dur="2.5s" repeatCount="indefinite" />
+                  </circle>
+                  <text x={coords[0]} y={coords[1] + r + 12} textAnchor="middle" fill={color} fontSize="9" fontFamily="monospace" opacity="0.6">
+                    {code}
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+      )}
 
       {/* ── Filters ───────────────────────────────────────────────────────── */}
       <div className="flex flex-wrap gap-3 mb-6 p-4 border border-orange-900/20 bg-black/30 rounded-sm items-end">

@@ -1,5 +1,89 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Globe, ChevronRight, Zap, RefreshCw, Radio } from 'lucide-react';
+
+// ── Mini AT Protocol network graph ──────────────────────────────────────────
+function ATProtoGraph() {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const W = 280, H = 180;
+
+    // Nodes: label, initial x, y, color
+    const nodes = [
+      { label: 'PDS',      x: 60,  y: 90,  color: '#38bdf8', vx: 0, vy: 0 },
+      { label: 'Relay',    x: 140, y: 50,  color: '#67e8f9', vx: 0, vy: 0 },
+      { label: 'AppView',  x: 220, y: 90,  color: '#bae6fd', vx: 0, vy: 0 },
+      { label: 'Client',   x: 220, y: 150, color: '#7dd3fc', vx: 0, vy: 0 },
+      { label: 'FeedGen',  x: 60,  y: 150, color: '#0ea5e9', vx: 0, vy: 0 },
+    ];
+    // Edges: [from, to]
+    const edges = [[0,1],[1,2],[2,3],[1,4]];
+    // Target positions for spring forces
+    const targets = nodes.map(n => ({ x: n.x, y: n.y }));
+
+    let raf;
+    const draw = (t) => {
+      ctx.clearRect(0, 0, W, H);
+
+      // Apply gentle spring physics + slight oscillation
+      const time = t * 0.001;
+      nodes.forEach((n, i) => {
+        const tx = targets[i].x + Math.sin(time + i * 1.3) * 5;
+        const ty = targets[i].y + Math.cos(time + i * 0.9) * 4;
+        n.vx += (tx - n.x) * 0.03;
+        n.vy += (ty - n.y) * 0.03;
+        n.vx *= 0.85;
+        n.vy *= 0.85;
+        n.x += n.vx;
+        n.y += n.vy;
+      });
+
+      // Draw edges
+      for (const [a, b] of edges) {
+        ctx.beginPath();
+        ctx.moveTo(nodes[a].x, nodes[a].y);
+        ctx.lineTo(nodes[b].x, nodes[b].y);
+        ctx.strokeStyle = 'rgba(56,189,248,0.2)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+
+      // Draw nodes
+      for (const n of nodes) {
+        // glow
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, 14, 0, Math.PI * 2);
+        ctx.fillStyle = n.color.replace(')', ',0.08)').replace('rgb', 'rgba');
+        ctx.fill();
+        // solid circle
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, 8, 0, Math.PI * 2);
+        ctx.fillStyle = n.color;
+        ctx.globalAlpha = 0.7;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        // label
+        ctx.font = 'bold 8px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = 'rgba(186,230,253,0.7)';
+        ctx.fillText(n.label, n.x, n.y + 22);
+      }
+
+      raf = requestAnimationFrame(draw);
+    };
+    raf = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  return (
+    <canvas ref={canvasRef} width={280} height={180}
+      className="hidden md:block shrink-0"
+      style={{ width: 280, height: 180 }} />
+  );
+}
 
 // ── Bluesky butterfly icon ─────────────────────────────────────────────────────
 export const ButterflyIcon = ({ className, style }) => (
@@ -308,6 +392,8 @@ const BskyTab = () => {
             AT PROTOCOL // BLUESKY SOCIAL STREAM
           </div>
         </div>
+
+        <ATProtoGraph />
 
         <div className="flex items-center gap-3 shrink-0">
           {lastSync && (

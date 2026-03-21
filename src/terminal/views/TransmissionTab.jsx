@@ -111,6 +111,48 @@ const TransmissionTab = ({ stories, onSelect, loadingSignal }) => {
         )}
       </div>
 
+      {/* ── Timeline visualization ──────────────────────────────────────────── */}
+      {filtered.length > 0 && (() => {
+        // Parse and sort stories by date for the timeline
+        const dated = filtered
+          .map((s, idx) => ({ ...s, _idx: idx, _ts: s.date ? new Date(s.date).getTime() : 0 }))
+          .filter(s => s._ts > 0)
+          .sort((a, b) => a._ts - b._ts);
+        if (dated.length < 2) return null;
+        const minTs = dated[0]._ts;
+        const maxTs = dated[dated.length - 1]._ts;
+        const range = maxTs - minTs || 1;
+        const pad = 40;
+        return (
+          <div className="mb-8">
+            <div className="text-[9px] font-mono tracking-widest text-fuchsia-800 uppercase mb-2">
+              SIGNAL TIMELINE
+            </div>
+            <svg width="100%" height="60" viewBox={`0 0 800 60`} className="w-full" preserveAspectRatio="xMidYMid meet">
+              {/* connecting line */}
+              <line
+                x1={pad} y1={30} x2={800 - pad} y2={30}
+                stroke="rgba(217,70,239,0.2)" strokeWidth="1.5"
+              />
+              {/* dots */}
+              {dated.map((s, i) => {
+                const x = pad + ((s._ts - minTs) / range) * (800 - pad * 2);
+                return (
+                  <g key={s.id}>
+                    <circle cx={x} cy={30} r={5} fill="rgba(217,70,239,0.6)" stroke="rgba(217,70,239,0.9)" strokeWidth="1">
+                      <animate attributeName="r" values="5;7;5" dur="3s" repeatCount="indefinite" begin={`${i * 0.3}s`} />
+                    </circle>
+                    <text x={x} y={50} textAnchor="middle" fill="rgba(217,70,239,0.4)" fontSize="8" fontFamily="monospace">
+                      {s.date}
+                    </text>
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+        );
+      })()}
+
       {/* ── Signal grid ────────────────────────────────────────────────────── */}
       {filtered.length === 0 ? (
         <div className="text-center py-24 text-cyan-900 font-bold tracking-widest uppercase text-xs">

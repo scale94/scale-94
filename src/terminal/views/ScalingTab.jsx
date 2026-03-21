@@ -1,12 +1,79 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Hexagon, ChevronRight, Globe, MessageSquare, Zap, FileText, Cpu } from 'lucide-react';
+
+// ── Gold particle burst system ──────────────────────────────────────────────
+function useParticleBurst(canvasRef) {
+  const particlesRef = useRef([]);
+  const rafRef = useRef(null);
+  const activeRef = useRef(false);
+
+  const spawnBurst = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    const particles = [];
+    for (let i = 0; i < 30; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 1.5 + Math.random() * 3;
+      const hue = 40 + Math.random() * 15; // gold hues 40-55
+      particles.push({
+        x: cx, y: cy,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: 1.0,
+        size: 2 + Math.random() * 3,
+        hue,
+      });
+    }
+    particlesRef.current = particles;
+    if (!activeRef.current) {
+      activeRef.current = true;
+      const ctx = canvas.getContext('2d');
+      const draw = () => {
+        const ps = particlesRef.current;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        let alive = false;
+        for (const p of ps) {
+          if (p.life <= 0) continue;
+          alive = true;
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vx *= 0.97;
+          p.vy *= 0.97;
+          p.life -= 0.02;
+          const alpha = p.life * p.life; // quadratic fade
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+          ctx.fillStyle = `hsla(${p.hue}, 90%, 60%, ${alpha})`;
+          ctx.fill();
+        }
+        if (alive) {
+          rafRef.current = requestAnimationFrame(draw);
+        } else {
+          activeRef.current = false;
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      };
+      rafRef.current = requestAnimationFrame(draw);
+    }
+  }, [canvasRef]);
+
+  useEffect(() => {
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, []);
+
+  return spawnBurst;
+}
 
 const ScalingTab = ({ setArchitectThesis, setCurrentPath, loadKernel }) => {
   const [copied, setCopied] = useState(false);
+  const ethParticleRef = useRef(null);
+  const spawnBurst = useParticleBurst(ethParticleRef);
 
   const handleCopyEth = () => {
     const address = '0xd05dDf143ce87942E528D96cDACf07800679898c';
-    const confirm = () => { setCopied(true); setTimeout(() => setCopied(false), 2000); };
+    const confirm = () => { setCopied(true); spawnBurst(); setTimeout(() => setCopied(false), 2000); };
     const fallback = () => {
       const ta = document.createElement('textarea');
       ta.value = address;
@@ -324,8 +391,9 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, loadKernel }) => {
           <span className="text-fuchsia-300 text-sm">@scale.94</span>
         </div>
 
-        <div className="border border-[#39ff14]/30 bg-[#39ff14]/5 p-4 rounded-lg flex flex-col justify-center hover:bg-[#39ff14]/10 transition-colors relative group">
-          <div className="flex items-center gap-2 text-[#39ff14] font-bold mb-2 uppercase tracking-widest">
+        <div className="border border-[#39ff14]/30 bg-[#39ff14]/5 p-4 rounded-lg flex flex-col justify-center hover:bg-[#39ff14]/10 transition-colors relative group overflow-hidden">
+          <canvas ref={ethParticleRef} width={400} height={200} className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }} />
+          <div className="flex items-center gap-2 text-[#39ff14] font-bold mb-2 uppercase tracking-widest relative z-10">
             <Zap className="w-4 h-4 fill-current" /> PLATA o DONO
           </div>
           <div className="text-[10px] text-cyan-500 font-mono mb-1 uppercase tracking-widest">eth:</div>

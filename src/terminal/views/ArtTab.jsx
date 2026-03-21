@@ -21,6 +21,7 @@ import { useAssociativeField }            from '../hooks/useAssociativeField';
 import { useTemporalMemory }              from '../hooks/useTemporalMemory';
 import { useMorphogenesis }               from '../hooks/useMorphogenesis';
 import { useSpectralLight }               from '../hooks/useSpectralLight';
+import { useAnalogicalReasoning }         from '../hooks/useAnalogicalReasoning';
 import {
   NODES, NODE_IDX, FEATURES, DIM_NAMES,
   cosineSim, topDrivers, analyzeEdge, findOrthogonalNode,
@@ -383,6 +384,13 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     getSpectralFlux, getPCDirections,
   } = useSpectralLight({ fieldRef, features: FEATURES, nodeCount: NODES.length });
 
+  // ── Analogical Reasoning (SME-lite + Gestalt completion + Chimera) ──────
+  const {
+    reasoningRef, stepReasoning,
+    getAnalogies, getFilaments, getGhostNodes, getCompletionQuality,
+    getClusterSync, getChimeraZones, getNodeChimeraState,
+  } = useAnalogicalReasoning({ fieldRef });
+
   // ── Morphogenesis callbacks ───────────────────────────────────────────
   useEffect(() => {
     onDivision.current = (parentId, child1Id, child2Id) => {
@@ -392,6 +400,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       if (audioInitRef.current) somaAudio.playNode?.('drk_entropy', { soft: true });
     };
   }, [onDivision, onApoptosis]);
+
+  // ── Analogical reasoning display state (throttled from RAF) ──────────
+  const [analogyCount, setAnalogyCount] = useState(0);
+  const [chimeraActive, setChimeraActive] = useState(false);
+  const [gestaltQuality, setGestaltQuality] = useState(0);
 
   // ── Eco data modulations ──────────────────────────────────────────────
   const ecoModRef = useRef(new Float32Array(16));
@@ -769,6 +782,17 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       stepField();
       stepMorphogenesis();
       stepSpectral();
+      stepReasoning();
+
+      // ── Throttled reasoning state push (every ~60 frames ≈ 2s) ──────────
+      if (particleFrameRef.current % 60 === 0) {
+        const _ac = getAnalogies().length;
+        const _cz = getChimeraZones().length > 0;
+        const _gq = getCompletionQuality();
+        setAnalogyCount(_ac);
+        setChimeraActive(_cz);
+        setGestaltQuality(_gq);
+      }
 
       // ── Apply Hopfield activations to node energies ──────────────────────
       if (fieldRef.current) {
@@ -826,6 +850,22 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           const hue = col?.hue ?? 30;
           const hueTarget = (hue + 120 + Math.random() * 60) % 360;
           emitNodeBurst(pool, n.x, n.y, n.z, hue, hueTarget, 3);
+        }
+      }
+
+      // Emit particles along analogy filaments (thin golden trail)
+      if (pFrame % 12 === 0) {
+        const _fils = getFilaments();
+        for (const fil of _fils) {
+          if (fil.strength < 0.2 || fil.nodeA >= nodes.length || fil.nodeB >= nodes.length) continue;
+          if (Math.random() > fil.strength) continue;
+          const nA = nodes[fil.nodeA], nB = nodes[fil.nodeB];
+          if (!nA || !nB) continue;
+          emitEdgeParticles(pool,
+            nA.x, nA.y, nA.z, nB.x, nB.y, nB.z,
+            40, 55, // golden hue range
+            1
+          );
         }
       }
 
@@ -922,6 +962,117 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             ctx.lineTo(pB.sx, pB.sy);
             ctx.stroke();
           }
+        }
+      }
+
+      // ── Analogy Filaments — thin golden threads connecting structurally similar nodes ──
+      {
+        const filaments = getFilaments();
+        if (filaments.length > 0) {
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          const _t = performance.now() * 0.001;
+          for (const fil of filaments) {
+            const iA = fil.nodeA, iB = fil.nodeB;
+            if (iA >= nodes.length || iB >= nodes.length) continue;
+            const pA = proj[iA], pB = proj[iB];
+            if (!pA || !pB) continue;
+            const avgDepth = (pA.depth + pB.depth) / 2;
+            if (avgDepth < -0.5) continue;
+            const depthFade = Math.max(0, (avgDepth + 1) * 0.5);
+            const alpha = fil.strength * depthFade * 0.65;
+            if (alpha < 0.01) continue;
+
+            // Shimmering hue based on time + node positions
+            const hue = (40 + Math.sin(_t * 0.7 + iA * 0.3) * 15) | 0; // golden range 25-55
+
+            // Wide diffuse glow
+            ctx.strokeStyle = `hsla(${hue},85%,65%,${(alpha * 0.35).toFixed(3)})`;
+            ctx.lineWidth = 3.5 * ((pA.scale + pB.scale) / 2);
+            ctx.setLineDash([6, 8]);
+            ctx.beginPath();
+            ctx.moveTo(pA.sx, pA.sy);
+            // Slight arc toward sphere center for "inside the sphere" look
+            const midX = (pA.sx + pB.sx) / 2;
+            const midY = (pA.sy + pB.sy) / 2;
+            const cpx = midX + (w / 2 - midX) * 0.25;
+            const cpy = midY + (h / 2 - midY) * 0.25;
+            ctx.quadraticCurveTo(cpx, cpy, pB.sx, pB.sy);
+            ctx.stroke();
+
+            // Sharp core
+            ctx.strokeStyle = `hsla(${hue},90%,88%,${(alpha * 0.7).toFixed(3)})`;
+            ctx.lineWidth = 0.8;
+            ctx.beginPath();
+            ctx.moveTo(pA.sx, pA.sy);
+            ctx.quadraticCurveTo(cpx, cpy, pB.sx, pB.sy);
+            ctx.stroke();
+          }
+          ctx.setLineDash([]);
+          ctx.restore();
+        }
+      }
+
+      // ── Chimera boundary zones — flickering interference at sync/async borders ──
+      {
+        const zones = getChimeraZones();
+        if (zones.length > 0) {
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          const _ct = performance.now() * 0.001;
+          for (const zone of zones) {
+            // Find the cross-cluster edges that form this boundary
+            // and render flickering interference fringes along them
+            const strength = Math.min(1, zone.boundaryStrength * 2);
+            if (strength < 0.05) continue;
+
+            // Hue oscillates between the two sync states
+            const hue = (180 + Math.sin(_ct * 3.5 + zone.syncA * 10) * 60) | 0;
+            const flicker = 0.4 + Math.sin(_ct * 7 + zone.syncB * 5) * 0.3;
+            const alpha = strength * flicker * 0.25;
+
+            // Render a subtle pulsing arc between cluster centroids
+            // (use first nodes of each cluster as rough anchors)
+            const membersA = nodes.filter(n => n.cluster === zone.clusterA);
+            const membersB = nodes.filter(n => n.cluster === zone.clusterB);
+            if (membersA.length === 0 || membersB.length === 0) continue;
+
+            // Centroid of each cluster in projected space
+            let cxA = 0, cyA = 0, cxB = 0, cyB = 0;
+            let countA = 0, countB = 0;
+            for (const n of membersA) {
+              const idx = nodes.indexOf(n);
+              if (idx >= 0 && proj[idx]) {
+                cxA += proj[idx].sx; cyA += proj[idx].sy; countA++;
+              }
+            }
+            for (const n of membersB) {
+              const idx = nodes.indexOf(n);
+              if (idx >= 0 && proj[idx]) {
+                cxB += proj[idx].sx; cyB += proj[idx].sy; countB++;
+              }
+            }
+            if (countA === 0 || countB === 0) continue;
+            cxA /= countA; cyA /= countA;
+            cxB /= countB; cyB /= countB;
+
+            // Interference fringe — dashed arc with phase-shifting dash offset
+            ctx.strokeStyle = `hsla(${hue},70%,60%,${alpha.toFixed(3)})`;
+            ctx.lineWidth = 2 + strength * 3;
+            ctx.setLineDash([4, 6]);
+            ctx.lineDashOffset = _ct * 30;  // scrolling dash pattern
+            ctx.beginPath();
+            const bMidX = (cxA + cxB) / 2;
+            const bMidY = (cyA + cyB) / 2;
+            const bCpx = bMidX + (w / 2 - bMidX) * 0.3;
+            const bCpy = bMidY + (h / 2 - bMidY) * 0.3;
+            ctx.moveTo(cxA, cyA);
+            ctx.quadraticCurveTo(bCpx, bCpy, cxB, cyB);
+            ctx.stroke();
+          }
+          ctx.setLineDash([]);
+          ctx.lineDashOffset = 0;
+          ctx.restore();
         }
       }
 
@@ -1264,6 +1415,68 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         ctx.arc(p.sx, p.sy, radius, 0, Math.PI * 2);
         ctx.fillStyle = isHov ? renderCol.hsl : hslAlpha(renderCol, coreAlpha);
         ctx.fill();
+
+        // ── Chimera state halo — phase-locked clusters glow in unison ──────
+        {
+          const _chim = getNodeChimeraState(i);
+          if (_chim) {
+            const _ct = performance.now() * 0.001;
+            if (_chim.isSync) {
+              // Synchronized: steady warm halo pulsing at cluster phase
+              const syncPulse = 0.5 + 0.5 * Math.sin(_ct * 2 + _chim.meanPhase);
+              const syncAlpha = _chim.orderParam * syncPulse * 0.18 * depthAlpha;
+              if (syncAlpha > 0.01) {
+                const syncR = radius + 6 * p.scale;
+                ctx.beginPath();
+                ctx.arc(p.sx, p.sy, syncR, 0, Math.PI * 2);
+                ctx.strokeStyle = `hsla(45,90%,70%,${syncAlpha.toFixed(3)})`;
+                ctx.lineWidth = 1.5 * p.scale;
+                ctx.stroke();
+              }
+            } else if (_chim.isChimera) {
+              // Chimera boundary: erratic flickering ring
+              const flickRate = 5 + _chim.orderParam * 8;
+              const flickAlpha = (0.15 + Math.sin(_ct * flickRate + i) * 0.12) * depthAlpha;
+              if (flickAlpha > 0.01) {
+                const chimR = radius + 8 * p.scale;
+                const chimHue = (200 + Math.sin(_ct * 1.3 + i * 0.7) * 40) | 0;
+                ctx.beginPath();
+                ctx.arc(p.sx, p.sy, chimR, 0, Math.PI * 2);
+                ctx.strokeStyle = `hsla(${chimHue},80%,60%,${flickAlpha.toFixed(3)})`;
+                ctx.lineWidth = 1.0 * p.scale;
+                ctx.setLineDash([3, 4]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+              }
+            }
+            // Async clusters: no extra ring (they're the "noise floor")
+          }
+        }
+
+        // ── Ghost node (Gestalt completion) — materializing outline ─────────
+        {
+          const _ghosts = getGhostNodes();
+          if (_ghosts && _ghosts[i] > 0.02) {
+            const ghostAlpha = _ghosts[i] * depthAlpha;
+            const ghostR = radius + 4 * p.scale + _ghosts[i] * 6 * p.scale;
+            // Double ring: inner dashed (incomplete), outer solid (materializing)
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
+            // Inner ring: partial reconstruction
+            ctx.beginPath();
+            ctx.arc(p.sx, p.sy, ghostR, 0, Math.PI * 2 * _ghosts[i]);
+            ctx.strokeStyle = `hsla(180,70%,75%,${(ghostAlpha * 0.5).toFixed(3)})`;
+            ctx.lineWidth = 1.5 * p.scale;
+            ctx.stroke();
+            // Outer glow ring: completion halo
+            ctx.beginPath();
+            ctx.arc(p.sx, p.sy, ghostR + 3 * p.scale, 0, Math.PI * 2);
+            ctx.strokeStyle = `hsla(180,60%,85%,${(ghostAlpha * 0.2).toFixed(3)})`;
+            ctx.lineWidth = 3 * p.scale;
+            ctx.stroke();
+            ctx.restore();
+          }
+        }
 
         // ── Label rendering ────────────────────────────────────────────────
         // Three sources of label visibility, composited:
@@ -1958,6 +2171,9 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             {probeNode ? ` · ⊕ probe` : ''}
             {bifurcCount > 0 ? ` · ⌥ +${bifurcCount} children` : ''}
             {` · ${phaseRegime}`}
+            {analogyCount > 0 ? ` · ≅ ${analogyCount} analogies` : ''}
+            {chimeraActive ? ` · ⊘ chimera` : ''}
+            {gestaltQuality > 0.5 ? ` · ◌ gestalt ${(gestaltQuality * 100)|0}%` : ''}
           </span>
           <span className="border border-cyan-900/30 px-3 py-1 rounded-sm text-cyan-400/50">
             drag · click → attractor · shift-click → ◈ resonance · right-click → ⊥
