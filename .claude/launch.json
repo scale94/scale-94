@@ -3,9 +3,10 @@
   "configurations": [
     {
       "name": "scale94-dev",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["vercel", "dev", "--yes"],
-      "port": 3000
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["node_modules/vite/bin/vite.js"],
+      "port": 5173,
+      "autoPort": true
     }
   ]
 }

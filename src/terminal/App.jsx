@@ -4,7 +4,7 @@
 // esbuild (Vite dev). Keep all imports at the top to guarantee identical
 // module evaluation order in both environments.
 import React, { useState, useEffect, useRef, useLayoutEffect, useMemo, useCallback, lazy, Suspense } from 'react';
-import { Hexagon, Cpu, Lock, Scale, Eye, ShieldAlert, KeyRound, Waves, Radio } from 'lucide-react';
+import { Hexagon, Cpu, Lock, Scale, Eye, ShieldAlert, KeyRound, Waves, Radio, Leaf } from 'lucide-react';
 
 // Data — static (authored, always bundled)
 import kernelAxioms    from './data/kernelAxioms';
@@ -48,6 +48,7 @@ const ManifestoTab     = lazy(() => import('./views/ManifestoTab'));
 const PrivacyTab       = lazy(() => import('./views/PrivacyTab'));
 const SurveillanceTab  = lazy(() => import('./views/SurveillanceTab'));
 const BskyTab          = lazy(() => import('./views/BskyTab'));
+const EcocideTab       = lazy(() => import('./views/EcocideTab'));
 // ButterflyIcon — inline nav variant (matches BskyTab icon, no extra import needed)
 const NavButterflyIcon = () => (
   <svg viewBox="0 0 24 24" fill="currentColor" stroke="none" className="w-3 h-3" aria-hidden="true">
@@ -112,6 +113,9 @@ const App = () => {
   const [probeNode, setProbeNode] = useState(null);
   // Relic malfunction mode — amplifies glitch, streams hex to log
   const [relicMode,    setRelicMode]    = useState(false);
+  // Global cross-tab article search overlay (⌘K / Ctrl+K)
+  const [globalSearchOpen,  setGlobalSearchOpen]  = useState(false);
+  const [globalSearchQuery, setGlobalSearchQuery] = useState('');
   // CAS dynamic data — null while manifest fetch is in-flight
   const [dynamicData,  setDynamicData]  = useState(null);
   // Mobile chrome visibility — fades out after 3s of no touch, fades in on touch
@@ -350,6 +354,20 @@ const App = () => {
   }, []);
 
 
+  // ⌘K / Ctrl+K → open global article search overlay
+  useEffect(() => {
+    const handler = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setGlobalSearchOpen(v => !v);
+        setGlobalSearchQuery('');
+      }
+      if (e.key === 'Escape') setGlobalSearchOpen(false);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
   // Scroll to top on initial mount — prevents autoFocus on the footer input
   // from pulling mobile browsers down to the keyboard on first load.
   useEffect(() => {
@@ -571,6 +589,27 @@ const App = () => {
     setArchitectThesis(false);
     setTagCloudView(false);
     setSearchFilter('');
+  }, []);
+
+  // Open an article from the global search overlay — routes to the right tab
+  const openArticleFromSearch = useCallback((article) => {
+    setGlobalSearchOpen(false);
+    setGlobalSearchQuery('');
+    const isEco = article?.tags?.some(t =>
+      ['Botany','Ecology','Autochthony','Lizard Gap','Biodiversity','Atmospheric',
+       'Climate','Thermodynamic','Entropy','Ecological','Biocoenosis','Biology',
+       'Sustainability','Ecocide','ecological','biodiversity','atmospheric'].includes(t)
+    );
+    const isFiction = article?.type === 'fiction';
+    const tab  = isFiction ? 'transmission' : isEco ? 'ecocide' : 'kernel';
+    const path = `~/system/${tab}/${article.id}`;
+    setActiveTab(tab);
+    setOriginTab(tab);
+    setCurrentPath(path);
+    setSelectedArticle(article);
+    setArchitectThesis(false);
+    setTagCloudView(false);
+    if (mainRef.current) { mainRef.current.scrollTop = 0; }
   }, []);
 
   // Command dispatcher — all Enter-key logic lives in useCommandDispatch.
@@ -821,6 +860,120 @@ const App = () => {
       >
         <OctagonGrid visible={!selectedArticle && !architectThesis && !tagCloudView} />
 
+      {/* ── Global article search overlay (⌘K) ───────────────────────────── */}
+      {globalSearchOpen && (
+        <div
+          className="fixed inset-0 z-[60] flex items-start justify-center pt-[12vh]"
+          style={{ background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(4px)' }}
+          onClick={e => { if (e.target === e.currentTarget) setGlobalSearchOpen(false); }}
+        >
+          <div
+            className="w-full max-w-xl mx-4 overflow-hidden rounded-sm"
+            style={{
+              background:  'rgba(0,0,0,0.97)',
+              border:      '1px solid rgba(57,255,20,0.18)',
+              boxShadow:   '0 0 0 1px rgba(57,255,20,0.04), 0 0 32px rgba(57,255,20,0.07), 0 8px 32px rgba(0,0,0,0.7)',
+              animation:   'sk-logIn 0.18s ease forwards',
+            }}
+          >
+            {/* Search input row */}
+            <div
+              className="flex items-center gap-3 px-4 py-3"
+              style={{ borderBottom: '1px solid rgba(57,255,20,0.10)' }}
+            >
+              <span style={{ color: 'rgba(57,255,20,0.35)', fontFamily: 'monospace', fontSize: '14px' }}>⌕</span>
+              <input
+                autoFocus
+                value={globalSearchQuery}
+                onChange={e => setGlobalSearchQuery(e.target.value)}
+                placeholder="search articles, kernels, tags…"
+                spellCheck={false}
+                style={{
+                  flex:        1,
+                  background:  'transparent',
+                  border:      'none',
+                  outline:     'none',
+                  color:       '#39ff14',
+                  fontFamily:  'monospace',
+                  fontSize:    '13px',
+                  letterSpacing: '0.04em',
+                  caretColor:  '#39ff14',
+                }}
+                onKeyDown={e => e.key === 'Escape' && setGlobalSearchOpen(false)}
+              />
+              <span
+                style={{ color: 'rgba(57,255,20,0.22)', fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.12em', cursor: 'pointer' }}
+                onClick={() => setGlobalSearchOpen(false)}
+              >ESC</span>
+            </div>
+
+            {/* Results area */}
+            {(() => {
+              const q = globalSearchQuery.trim();
+              if (!q) return (
+                <div style={{ padding: '24px 16px', textAlign: 'center', fontFamily: 'monospace', fontSize: '9px', color: 'rgba(57,255,20,0.18)', letterSpacing: '0.14em' }}>
+                  TYPE TO SEARCH ALL ARTICLES · MANIFESTO · TRANSMISSION · ECO-KERNEL
+                </div>
+              );
+              const nq = norm(q);
+              const results = articles.filter(a => {
+                const hay = norm([a.title ?? a.id, a.id, ...(a.tags ?? [])].join(' '));
+                return nq.split(' ').every(t => hay.includes(t));
+              }).slice(0, 10);
+              if (!results.length) return (
+                <div style={{ padding: '24px 16px', textAlign: 'center', fontFamily: 'monospace', fontSize: '10px', color: 'rgba(57,255,20,0.20)' }}>
+                  no matches
+                </div>
+              );
+              return (
+                <ul style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                  {results.map(a => {
+                    const isEco = a?.tags?.some(t =>
+                      ['Ecology','Botany','Biodiversity','Atmospheric','Climate','Ecocide','ecological'].includes(t)
+                    );
+                    const tab      = a.type === 'fiction' ? 'transmission' : isEco ? 'ecocide' : 'kernel';
+                    const tabColor = tab === 'transmission' ? 'rgba(167,139,250,0.65)'
+                                   : tab === 'ecocide'      ? 'rgba(122,184,0,0.70)'
+                                   :                          'rgba(57,255,20,0.55)';
+                    return (
+                      <li key={a.id} style={{ borderBottom: '1px solid rgba(57,255,20,0.05)' }}>
+                        <button
+                          className="w-full text-left flex items-start gap-3 px-4 py-2.5 transition-colors"
+                          style={{ background: 'transparent' }}
+                          onMouseEnter={e => e.currentTarget.style.background = 'rgba(57,255,20,0.04)'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                          onClick={() => openArticleFromSearch(a)}
+                        >
+                          <span style={{ color: tabColor, fontFamily: 'monospace', fontSize: '8px', fontWeight: 800, letterSpacing: '0.12em', marginTop: '2px', flexShrink: 0, width: '68px' }}>
+                            {tab.toUpperCase()}
+                          </span>
+                          <span style={{ flex: 1, minWidth: 0 }}>
+                            <span style={{ color: 'rgba(57,255,20,0.88)', fontFamily: 'monospace', fontSize: '12px', fontWeight: 700, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {a.title ?? a.id}
+                            </span>
+                            {a.tags?.length > 0 && (
+                              <span style={{ color: 'rgba(57,255,20,0.22)', fontFamily: 'monospace', fontSize: '9px' }}>
+                                {a.tags.slice(0, 4).join(' · ')}
+                              </span>
+                            )}
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              );
+            })()}
+
+            {/* Footer hint */}
+            <div style={{ padding: '6px 16px', borderTop: '1px solid rgba(57,255,20,0.07)', fontFamily: 'monospace', fontSize: '8px', color: 'rgba(57,255,20,0.15)', letterSpacing: '0.10em', display: 'flex', justifyContent: 'space-between' }}>
+              <span>SCALE_9.4 // KERNEL SEARCH</span>
+              <span>↑↓ navigate · ↵ open · esc close</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Offline indicator ─────────────────────────────────────────────── */}
       {!isOnline && (
         <div className="sticky top-0 z-[45] flex items-center justify-center gap-2 bg-amber-950/95 border-b border-amber-500/40 py-1 text-[10px] font-bold tracking-widest text-amber-400 font-mono uppercase backdrop-blur">
@@ -835,24 +988,42 @@ const App = () => {
             <Hexagon className="w-5 h-5 text-fuchsia-500 animate-spin-slow group-hover:text-cyan-400 transition-colors" />
             <span className="hidden md:inline font-bold tracking-widest text-lg lowercase text-[#39ff14] group-hover:text-cyan-400 transition-colors">scale_9.4</span>
           </div>
-          <nav aria-label="Main navigation" className="hidden md:flex flex-wrap items-center gap-2 md:gap-4 text-xs md:text-sm font-bold tracking-wide min-w-0 w-full md:w-auto">
-            <button aria-label="Kernel" aria-current={activeTab === 'kernel' ? 'page' : undefined} onClick={() => handleNav('~/system/kernel', 'kernel')} className={`${activeTab === 'kernel' ? 'bg-cyan-500 text-black shadow-[0_0_10px_rgba(6,182,212,0.5)]' : 'text-cyan-500 hover:text-white hover:bg-cyan-900/30'} px-4 py-1.5 transition-all duration-300 flex items-center gap-2 uppercase rounded-sm`}><Cpu className="w-3 h-3" /> /Kernel</button>
+          <nav aria-label="Main navigation" className="hidden md:flex items-center gap-1 text-[11px] font-bold tracking-normal overflow-x-auto shrink min-w-0" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+            <button aria-label="Kernel" aria-current={activeTab === 'kernel' ? 'page' : undefined} onClick={() => handleNav('~/system/kernel', 'kernel')} className={`${activeTab === 'kernel' ? 'bg-cyan-500 text-black shadow-[0_0_10px_rgba(6,182,212,0.5)]' : 'text-cyan-500 hover:text-white hover:bg-cyan-900/30'} px-2 py-1 transition-all duration-300 flex items-center gap-1.5 uppercase rounded-sm whitespace-nowrap`}><Cpu className="w-3 h-3" /> /Kernel</button>
 
-            <button aria-label="BSKY" aria-current={activeTab === 'bsky' ? 'page' : undefined} onClick={() => handleNav('~/system/bsky', 'bsky')} className={`${activeTab === 'bsky' ? 'bg-sky-600 text-white shadow-[0_0_12px_rgba(56,189,248,0.5)]' : 'text-sky-400/80 hover:text-sky-200 hover:bg-sky-900/20'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><NavButterflyIcon /> /BSKY</button>
+            <button aria-label="BSKY" aria-current={activeTab === 'bsky' ? 'page' : undefined} onClick={() => handleNav('~/system/bsky', 'bsky')} className={`${activeTab === 'bsky' ? 'bg-sky-600 text-white shadow-[0_0_12px_rgba(56,189,248,0.5)]' : 'text-sky-400/80 hover:text-sky-200 hover:bg-sky-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><NavButterflyIcon /> /BSKY</button>
 
-            <button aria-label="Manifesto" aria-current={activeTab === 'manifesto' ? 'page' : undefined} onClick={() => handleNav('~/system/manifesto', 'manifesto')} className={`${activeTab === 'manifesto' ? 'bg-violet-900 text-violet-100 shadow-[0_0_10px_rgba(139,92,246,0.5)]' : 'text-violet-400/80 hover:text-violet-200 hover:bg-violet-900/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><Eye className="w-3 h-3" /> /Manifesto</button>
+            <button aria-label="Manifesto" aria-current={activeTab === 'manifesto' ? 'page' : undefined} onClick={() => handleNav('~/system/manifesto', 'manifesto')} className={`${activeTab === 'manifesto' ? 'bg-violet-900 text-violet-100 shadow-[0_0_10px_rgba(139,92,246,0.5)]' : 'text-violet-400/80 hover:text-violet-200 hover:bg-violet-900/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><Eye className="w-3 h-3" /> /Manifesto</button>
 
-            <button aria-label="Transmission" aria-current={activeTab === 'transmission' ? 'page' : undefined} onClick={() => handleNav('~/system/transmission', 'transmission')} className={`${activeTab === 'transmission' ? 'bg-purple-900 text-purple-100 shadow-[0_0_10px_rgba(168,85,247,0.5)]' : 'text-purple-400/80 hover:text-purple-200 hover:bg-purple-900/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm`}>⌖ /Transmission</button>
+            <button aria-label="Transmission" aria-current={activeTab === 'transmission' ? 'page' : undefined} onClick={() => handleNav('~/system/transmission', 'transmission')} className={`${activeTab === 'transmission' ? 'bg-purple-900 text-purple-100 shadow-[0_0_10px_rgba(168,85,247,0.5)]' : 'text-purple-400/80 hover:text-purple-200 hover:bg-purple-900/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm whitespace-nowrap`}>⌖ /Transmission</button>
 
-            <button aria-label="Scaling" aria-current={activeTab === 'scaling' ? 'page' : undefined} onClick={() => handleNav('~/system/scaling', 'scaling')} className={`${activeTab === 'scaling' ? 'bg-fuchsia-500 text-black shadow-[0_0_10px_rgba(217,70,239,0.5)]' : 'text-fuchsia-500 hover:text-white hover:bg-fuchsia-900/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><Scale className="w-3 h-3" /> /Scaling</button>
+            <button aria-label="Scaling" aria-current={activeTab === 'scaling' ? 'page' : undefined} onClick={() => handleNav('~/system/scaling', 'scaling')} className={`${activeTab === 'scaling' ? 'bg-fuchsia-500 text-black shadow-[0_0_10px_rgba(217,70,239,0.5)]' : 'text-fuchsia-500 hover:text-white hover:bg-fuchsia-900/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><Scale className="w-3 h-3" /> /Scaling</button>
 
-            <button aria-label="Privacy" aria-current={activeTab === 'privacy' ? 'page' : undefined} onClick={() => handleNav('~/system/privacy', 'privacy')} className={`${activeTab === 'privacy' ? 'bg-rose-900 text-rose-100 shadow-[0_0_10px_rgba(244,63,94,0.4)]' : 'text-rose-400/80 hover:text-rose-200 hover:bg-rose-900/20'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><Lock className="w-3 h-3" /> /Privacy</button>
+            <button aria-label="Privacy" aria-current={activeTab === 'privacy' ? 'page' : undefined} onClick={() => handleNav('~/system/privacy', 'privacy')} className={`${activeTab === 'privacy' ? 'bg-rose-900 text-rose-100 shadow-[0_0_10px_rgba(244,63,94,0.4)]' : 'text-rose-400/80 hover:text-rose-200 hover:bg-rose-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><Lock className="w-3 h-3" /> /Privacy</button>
 
-            <button aria-label="Surveillance" aria-current={activeTab === 'surveillance' ? 'page' : undefined} onClick={() => handleNav('~/system/surveillance', 'surveillance')} className={`${activeTab === 'surveillance' ? 'bg-red-900 text-red-100 shadow-[0_0_10px_rgba(248,113,113,0.4)]' : 'text-red-500/70 hover:text-red-300 hover:bg-red-900/20'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><ShieldAlert className="w-3 h-3" /> /Surveillance</button>
+            <button aria-label="Surveillance" aria-current={activeTab === 'surveillance' ? 'page' : undefined} onClick={() => handleNav('~/system/surveillance', 'surveillance')} className={`${activeTab === 'surveillance' ? 'bg-red-900 text-red-100 shadow-[0_0_10px_rgba(248,113,113,0.4)]' : 'text-red-500/70 hover:text-red-300 hover:bg-red-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><ShieldAlert className="w-3 h-3" /> /Surveillance</button>
 
-            <button aria-label="Cryptography" aria-current={activeTab === 'cryptography' ? 'page' : undefined} onClick={() => handleNav('~/system/cryptography', 'cryptography')} className={`${activeTab === 'cryptography' ? 'bg-orange-950 text-orange-200 shadow-[0_0_12px_rgba(249,115,22,0.5)]' : 'text-orange-500/70 hover:text-orange-300 hover:bg-orange-950/30'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`}><KeyRound className="w-3 h-3" /> /Cryptography</button>
+            <button aria-label="Cryptography" aria-current={activeTab === 'cryptography' ? 'page' : undefined} onClick={() => handleNav('~/system/cryptography', 'cryptography')} className={`${activeTab === 'cryptography' ? 'bg-orange-950 text-orange-200 shadow-[0_0_12px_rgba(249,115,22,0.5)]' : 'text-orange-500/70 hover:text-orange-300 hover:bg-orange-950/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><KeyRound className="w-3 h-3" /> /Cryptography</button>
 
-            <button aria-label="Art" aria-current={activeTab === 'art' ? 'page' : undefined} onClick={() => handleNav('~/system/art', 'art')} className={`${activeTab === 'art' ? 'text-black shadow-[0_0_14px_rgba(255,215,0,0.6)]' : 'hover:text-white hover:bg-amber-900/20'} px-4 py-1.5 transition-all duration-300 uppercase rounded-sm flex items-center gap-2`} style={activeTab === 'art' ? { background: 'linear-gradient(90deg,#FF8C00,#FFD700)' } : { color: 'rgba(251,191,36,0.6)' }}><Waves className="w-3 h-3" /> /Art</button>
+            <button aria-label="Art" aria-current={activeTab === 'art' ? 'page' : undefined} onClick={() => handleNav('~/system/art', 'art')} className={`${activeTab === 'art' ? 'text-black shadow-[0_0_14px_rgba(255,215,0,0.6)]' : 'hover:text-white hover:bg-amber-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`} style={activeTab === 'art' ? { background: 'linear-gradient(90deg,#FF8C00,#FFD700)' } : { color: 'rgba(251,191,36,0.6)' }}><Waves className="w-3 h-3" /> /Art</button>
+
+            <button aria-label="Ecocide" aria-current={activeTab === 'ecocide' ? 'page' : undefined} onClick={() => handleNav('~/system/ecocide', 'ecocide')} className={`${activeTab === 'ecocide' ? 'text-black shadow-[0_0_14px_rgba(122,184,0,0.55)]' : 'hover:text-white hover:bg-[#1a2d00]/40'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`} style={activeTab === 'ecocide' ? { background: 'linear-gradient(90deg,#7ab800,#3d5c00)' } : { color: 'rgba(122,184,0,0.5)' }}><Leaf className="w-3 h-3" /> /Ecocide</button>
+
+            {/* Global search button */}
+            <button
+              aria-label="Search articles (⌘K)"
+              onClick={() => { setGlobalSearchOpen(v => !v); setGlobalSearchQuery(''); }}
+              className="ml-2 flex items-center gap-1.5 px-2 py-1 rounded-sm transition-all duration-200 whitespace-nowrap text-[10px] tracking-widest font-bold font-mono"
+              style={{
+                border:  `1px solid ${globalSearchOpen ? 'rgba(57,255,20,0.35)' : 'rgba(57,255,20,0.12)'}`,
+                color:   globalSearchOpen ? '#39ff14' : 'rgba(57,255,20,0.38)',
+                textShadow: globalSearchOpen ? '0 0 8px rgba(57,255,20,0.5)' : 'none',
+              }}
+            >
+              <span>⌕</span>
+              <span className="hidden lg:inline">SEARCH</span>
+              <span className="hidden xl:inline text-[9px]" style={{ opacity: 0.4 }}>⌘K</span>
+            </button>
           </nav>
         </div>
       </header>
@@ -960,6 +1131,18 @@ const App = () => {
                 const now = new Date().toLocaleTimeString('en-US', { hour12: false });
                 const q = `associative_field --seed ${nodeIdx} --beta 2.5 --probes 30`;
                 dispatchCommand('run', q, `run ${q}`, now);
+              }}
+            />
+          )}
+
+          {/* Ecocide Tab — biocoenosis · atmospheric entropy · thermodynamic law */}
+          {activeTab === 'ecocide' && !selectedArticle && !architectThesis && (
+            <EcocideTab
+              articles={articles}
+              onOpenArticle={(article) => {
+                setSelectedArticle(article);
+                setOriginTab('ecocide');
+                setCurrentPath(`~/system/ecocide/${article.id}`);
               }}
             />
           )}
@@ -1116,6 +1299,15 @@ const App = () => {
         </button>
         <button onClick={() => handleNav('~/system/art', 'art')} aria-label="Art" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'art' ? 'text-amber-400' : 'text-amber-400/40'}`}>
           <Waves className="w-5 h-5" />
+        </button>
+        {/* Mobile search button */}
+        <button
+          onClick={() => { setGlobalSearchOpen(v => !v); setGlobalSearchQuery(''); }}
+          aria-label="Search"
+          className="flex shrink-0 w-14 items-center justify-center transition-all duration-200"
+          style={{ color: globalSearchOpen ? '#39ff14' : 'rgba(57,255,20,0.38)', textShadow: globalSearchOpen ? '0 0 10px rgba(57,255,20,0.6)' : 'none' }}
+        >
+          <span className="text-xl font-bold leading-none">⌕</span>
         </button>
       </nav>
 

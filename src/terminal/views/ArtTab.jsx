@@ -20,6 +20,7 @@ import { useKineticEdges }                from '../hooks/useKineticEdges';
 import {
   NODES, NODE_IDX, FEATURES, DIM_NAMES,
   cosineSim, topDrivers, analyzeEdge, findOrthogonalNode,
+  compareNodes, jitterFeatures,
 } from '../data/nodeFeatures';
 
 // ── Graph topology ────────────────────────────────────────────────────────────
@@ -86,6 +87,12 @@ const CLUSTER_COLORS = Object.fromEntries(
   Object.keys(CLUSTERS).map(k => [k, nodeColor(k, k)])
 );
 
+// ── Dynamic node registries (Period-Doubling bifurcation) ─────────────────────
+// Module-level Maps so the RAF draw loop can read without React re-renders.
+// Populated by handleBifurcate; cleared on initState (sphere reset).
+const dynColorMap    = new Map();   // childId → color object (same shape as NODE_COLORS values)
+const dynFeaturesMap = new Map();   // childId → Float32Array[16]
+
 // analyzeEdge, cosineSim, topDrivers, NODES, FEATURES, NODE_IDX, DIM_NAMES — imported from nodeFeatures.js
 
 // ── 3D math ───────────────────────────────────────────────────────────────────
@@ -121,6 +128,42 @@ function project(rx, ry, rz, w, h, sphereR, focal) {
   };
 }
 
+// ── Query projection ──────────────────────────────────────────────────────────
+// Maps a free-text query to the 16D feature space via keyword presence scoring,
+// then ranks all NODES by cosine similarity. Used by `query <text>` in the
+// geometry terminal and automatically populates the sphere probe visualisation.
+const DIM_KEYWORDS = {
+  dynamical:      ['dynamic', 'chaos', 'attractor', 'bifurcation', 'lorenz', 'orbit'],
+  nonlinearity:   ['nonlinear', 'feedback', 'complex', 'sensitivity', 'instability'],
+  dimensionality: ['dimension', 'manifold', 'space', 'embedding', 'topology', 'high-dim'],
+  criticality:    ['critical', 'phase transition', 'threshold', 'tipping', 'metastable'],
+  entropy:        ['entropy', 'disorder', 'uncertainty', 'heat', 'dissipation'],
+  synchrony:      ['sync', 'synchrony', 'coherence', 'coupled', 'kuramoto', 'phase lock'],
+  conservation:   ['conservation', 'invariant', 'symmetry', 'energy', 'conserved'],
+  temporal:       ['time', 'temporal', 'delay', 'memory', 'history', 'chronological'],
+  spatial:        ['spatial', 'pattern', 'turing', 'reaction', 'diffusion', 'field'],
+  stochastic:     ['random', 'stochastic', 'noise', 'probability', 'monte carlo'],
+  game_theory:    ['game', 'strategy', 'equilibrium', 'payoff', 'competition', 'nash'],
+  thermodynamic:  ['thermodynamic', 'exergy', 'temperature', 'carnot', 'boltzmann', 'heat'],
+  information:    ['information', 'bit', 'encoding', 'compression', 'shannon', 'kolmogorov'],
+  cryptographic:  ['crypto', 'key', 'quantum', 'post-quantum', 'hash', 'lattice', 'kem', 'inefficien'],
+  biological:     ['bio', 'ecology', 'species', 'evolution', 'organism', 'ecosystem', 'ecocide', 'life'],
+  economic:       ['economic', 'gdp', 'growth', 'capital', 'market', 'extraction', 'monetary'],
+};
+
+function _queryProject(text) {
+  const lower = text.toLowerCase();
+  const qVec = DIM_NAMES.map(dim => (DIM_KEYWORDS[dim] ?? []).some(kw => lower.includes(kw)) ? 1.0 : 0.0);
+  const qNorm = Math.sqrt(qVec.reduce((s, v) => s + v * v, 0));
+  if (qNorm < 1e-12) { const n = DIM_NAMES.length; qVec.fill(1 / Math.sqrt(n)); }
+  else { for (let i = 0; i < qVec.length; i++) qVec[i] /= qNorm; }
+  const sims = NODES.map((n, i) => ({
+    id: n.id, label: n.label, cluster: n.cluster,
+    sim: cosineSim(qVec, FEATURES[i] ?? []),
+  })).sort((a, b) => b.sim - a.sim);
+  return { query: text, probe_vector: qVec, similarities: sims };
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 const AUTO_SPIN = 0.0025;   // rad/frame continuous Y rotation
@@ -130,6 +173,7 @@ const SPHERE_K  = 0.50;     // sphereR = SPHERE_K × min(w, h) — larger sphere
 export default function ArtTab({ onRunKernel, onCueNode, associativeField, spectralBridges, boneFusions, probeNode, manualFusions = [], onManualFusion, orthogonalBridges = [], onOrthogonalBridge }) {
   const canvasRef    = useRef(null);
   const containerRef = useRef(null);
+  const feigTitleRef = useRef(null);
   const rafRef       = useRef(null);
   const dimsRef      = useRef({ w: 900, h: 620 });
   const hoveredRef   = useRef(null);
@@ -138,6 +182,27 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   const [selectedNode, setSelectedNode] = useState(null); // node click → show all connected edges with 16D analysis
   const [lockedOrtho, setLockedOrtho] = useState(null);  // most recent orthogonal bridge readout
   const edgeDebounceRef = useRef(null);                   // timeout id for hover debounce
+
+  // ── Resonance Mode (Shift-Click two nodes → compare 16D cosine similarity) ──
+  const [resonanceMode,   setResonanceMode]   = useState(false);
+  const [resonanceNodes,  setResonanceNodes]  = useState([]);        // up to 2 node IDs
+  const [resonanceResult, setResonanceResult] = useState(null);      // { sim, topDims }
+  // Refs mirror state for RAF read-access without triggering re-renders
+  const resonanceModeRef   = useRef(false);
+  const resonanceNodesRef  = useRef([]);
+  const resonanceResultRef = useRef(null);
+
+  // ── Node hover tooltip ────────────────────────────────────────────────────
+  const [hoveredTooltip, setHoveredTooltip] = useState(null);   // { id, label, cluster, topDims }
+  const [tooltipPos,     setTooltipPos]     = useState({ x: 0, y: 0 });
+  const tooltipTimerRef  = useRef(null);
+
+  // ── Query projection result ───────────────────────────────────────────────
+  const [queryResult, setQueryResult] = useState(null);         // { query, similarities }
+
+  // ── Period-Doubling / Bifurcation ─────────────────────────────────────────
+  const [bifurcCount, setBifurcCount] = useState(0);   // total child nodes spawned
+  const birthMapRef = useRef(new Map());                // childId → {parentId, px, py, pz, t0}
 
   // ── Manual fusion state machine ────────────────────────────────────────────
   // fusionSourceRef: read by draw loop (no re-render), set in sync with state
@@ -271,7 +336,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
   const {
     stateRef, initState, step: stepGraph,
-    fireNode, applyAttractor, triggerOverwrite,
+    fireNode, applyAttractor, triggerOverwrite, triggerBifurcation,
   } = useSomaGraph({ nodes: NODES, adj: ADJ });
 
   const {
@@ -349,13 +414,68 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   const handleTermSubmit = useCallback((e) => {
     e.preventDefault();
     // Sanitize: only word chars, spaces, dashes — no shell metacharacters
-    const raw = termInput.trim().replace(/[^a-zA-Z0-9 _\-]/g, '').slice(0, 64);
+    const raw = termInput.trim().replace(/[^a-zA-Z0-9 _\-]/g, '').slice(0, 80);
     if (!raw) return;
+
+    // ── Query projection: `query <text>` maps text → 16D and ranks nodes ──
+    if (raw.startsWith('query ')) {
+      const qText = raw.slice(6).trim();
+      if (qText) {
+        const result = _queryProject(qText);
+        probeNodeRef.current = result;
+        setQueryResult(result);
+        setLastCmd(`query: ${qText.slice(0, 22)}`);
+        setTermInput('');
+        return;
+      }
+    }
+    // `clear query` dismisses the probe
+    if (raw === 'clear query' || raw === 'query clear') {
+      probeNodeRef.current = null;
+      setQueryResult(null);
+      setLastCmd('query cleared');
+      setTermInput('');
+      return;
+    }
+
     const alias = raw.startsWith('run ') ? raw.slice(4).trim() : raw;
     setLastCmd(raw);
     setTermInput('');
     handleRunKernel(alias);
   }, [termInput, handleRunKernel]);
+
+  // ── Period-Doubling trigger ───────────────────────────────────────────────
+  // Computes connection degree per node from activeEdges, finds top 15%,
+  // spawns child SimNodes with ±2.5% tensor drift, registers birth animations.
+  const handleBifurcate = useCallback(() => {
+    // Build degree map from current active edge set
+    const degreeMap = {};
+    NODES.forEach(n => { degreeMap[n.id] = 0; });
+    activeEdges.forEach(([a, b]) => {
+      degreeMap[a] = (degreeMap[a] ?? 0) + 1;
+      degreeMap[b] = (degreeMap[b] ?? 0) + 1;
+    });
+
+    const spawned = triggerBifurcation(degreeMap);
+    if (!spawned.length) return;
+
+    const now = performance.now();
+    for (const { childId, parentId, px, py, pz } of spawned) {
+      // Register 400ms cubic-bezier birth animation
+      birthMapRef.current.set(childId, { parentId, px, py, pz, t0: now });
+
+      // Inherit parent color (exact) — child is visually distinguishable via
+      // position and bleed animation; no hue shift needed
+      const parentColor = NODE_COLORS[parentId];
+      if (parentColor) dynColorMap.set(childId, parentColor);
+
+      // Jitter parent's 16D tensor ±2.5% for the child's feature fingerprint
+      const childFeats = jitterFeatures(parentId);
+      if (childFeats) dynFeaturesMap.set(childId, childFeats);
+    }
+
+    setBifurcCount(c => c + spawned.length);
+  }, [activeEdges, triggerBifurcation]);
 
   // ── Push incoming attractor data ─────────────────────────────────────────
   useEffect(() => {
@@ -579,6 +699,46 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         }
       }
 
+      // ── Resonance edge (Shift-Click comparison — solid glowing coalescence) ──
+      if (resonanceModeRef.current && resonanceNodesRef.current.length === 2) {
+        const [rIdA, rIdB] = resonanceNodesRef.current;
+        const rIA = nodes.findIndex(n => n.id === rIdA);
+        const rIB = nodes.findIndex(n => n.id === rIdB);
+        if (rIA >= 0 && rIB >= 0) {
+          const rResult = resonanceResultRef.current;
+          const sim     = rResult?.sim ?? 0.5;
+          const pRA = proj[rIA], pRB = proj[rIB];
+          const avgScale = (pRA.scale + pRB.scale) / 2;
+
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+
+          // Outer bloom halo — wide, low alpha
+          const haloGrd = ctx.createLinearGradient(pRA.sx, pRA.sy, pRB.sx, pRB.sy);
+          haloGrd.addColorStop(0,   `rgba(255,215,0,${(0.06 + sim * 0.12).toFixed(3)})`);
+          haloGrd.addColorStop(0.5, `rgba(255,255,200,${(0.04 + sim * 0.10).toFixed(3)})`);
+          haloGrd.addColorStop(1,   `rgba(255,215,0,${(0.06 + sim * 0.12).toFixed(3)})`);
+          ctx.strokeStyle = haloGrd;
+          ctx.lineWidth   = (8 + sim * 16) * avgScale;
+          ctx.shadowBlur  = 0;
+          ctx.beginPath(); ctx.moveTo(pRA.sx, pRA.sy); ctx.lineTo(pRB.sx, pRB.sy); ctx.stroke();
+
+          // Core solid line — width and bloom scale linearly with cosine similarity
+          const coreGrd = ctx.createLinearGradient(pRA.sx, pRA.sy, pRB.sx, pRB.sy);
+          coreGrd.addColorStop(0,   `rgba(255,215,0,${(0.55 + sim * 0.45).toFixed(3)})`);
+          coreGrd.addColorStop(0.5, `rgba(255,255,255,${(0.40 + sim * 0.55).toFixed(3)})`);
+          coreGrd.addColorStop(1,   `rgba(255,215,0,${(0.55 + sim * 0.45).toFixed(3)})`);
+          ctx.strokeStyle = coreGrd;
+          ctx.lineWidth   = (1.5 + sim * 4.0) * avgScale;
+          ctx.shadowColor = `rgba(255,215,0,0.9)`;
+          ctx.shadowBlur  = 4 + sim * 24;
+          ctx.beginPath(); ctx.moveTo(pRA.sx, pRA.sy); ctx.lineTo(pRB.sx, pRB.sy); ctx.stroke();
+
+          ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+          ctx.restore();
+        }
+      }
+
       // ── Prism geometry effects (inside-sphere chords, command-triggered) ────
       // Additive blending: overlapping spectral lines ACCUMULATE light → bloom cores
       ctx.save();
@@ -667,14 +827,44 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       const hov = hoveredRef.current;
       for (const i of sortedNodeIdx) {
         const n   = nodes[i];
-        const p   = proj[i];
-        const col = NODE_COLORS[n.id];
+        // Dynamic nodes (bifurcation children) fall back to dynColorMap
+        const col = NODE_COLORS[n.id] ?? dynColorMap.get(n.id);
+        if (!col) continue;   // no color registered yet → skip this frame
+
+        // ── Birth animation: ease child from parent position over 400ms ──────
+        // Uses cubic-bezier ease-out: 1 - (1-t)³ — matches CSS ease-out cubic
+        let p = proj[i];
+        const _birth = birthMapRef.current.get(n.id);
+        if (_birth) {
+          const _elapsed = performance.now() - _birth.t0;
+          if (_elapsed >= 400) {
+            birthMapRef.current.delete(n.id);
+          } else {
+            const _t    = _elapsed / 400;
+            const _ease = 1 - Math.pow(1 - _t, 3);
+            const [_prx, _pry, _prz] = applyM(M, _birth.px, _birth.py, _birth.pz);
+            const _pp = project(_prx, _pry, _prz, w, h, sphereR, focal);
+            p = {
+              sx:    _pp.sx    + (proj[i].sx    - _pp.sx)    * _ease,
+              sy:    _pp.sy    + (proj[i].sy    - _pp.sy)    * _ease,
+              depth: _pp.depth + (proj[i].depth - _pp.depth) * _ease,
+              scale: _pp.scale + (proj[i].scale - _pp.scale) * _ease,
+            };
+          }
+        }
 
         const isHov     = n.id === hov;
         const energy    = n.energy + (isHov ? 0.55 : 0);
         // Depth cuing: nodes on the back are smaller + dimmer
-        const depthAlpha = Math.max(0.08, (p.depth + 1) * 0.5);
-        const radius     = (5 + energy * 4) * p.scale;
+        let depthAlpha = Math.max(0.08, (p.depth + 1) * 0.5);
+
+        // ── Resonance dimming: non-selected nodes → 10% opacity ──────────────
+        const _resNodes = resonanceNodesRef.current;
+        const _resActive = resonanceModeRef.current && _resNodes.length > 0;
+        const _isResNode = _resActive && _resNodes.includes(n.id);
+        if (_resActive && !_isResNode) depthAlpha *= 0.10;
+
+        const radius = (5 + energy * 4) * p.scale;
 
         // Overwrite bleed — temporarily radiate source color
         let renderCol = col;
@@ -961,7 +1151,23 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         clearTimeout(edgeDebounceRef.current);
         if (!lockedEdge) setHoveredEdge(null);
         if (canvasRef.current) canvasRef.current.style.cursor = 'pointer';
+        // Tooltip: debounce 130ms so it doesn't flash on a spinning sphere
+        clearTimeout(tooltipTimerRef.current);
+        tooltipTimerRef.current = setTimeout(() => {
+          const rect = canvasRef.current?.getBoundingClientRect();
+          if (!rect) return;
+          const ni = NODE_IDX[node.id];
+          const feat = ni != null ? FEATURES[ni] : null;
+          const topDims = feat
+            ? DIM_NAMES.map((nm, i) => ({ name: nm, v: feat[i] }))
+                .sort((a, b) => b.v - a.v).slice(0, 3)
+            : [];
+          setHoveredTooltip({ id: node.id, label: node.label, cluster: node.cluster, topDims });
+          setTooltipPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+        }, 130);
       } else {
+        clearTimeout(tooltipTimerRef.current);
+        setHoveredTooltip(null);
         // Debounce edge hover: only show after 80ms of sustained proximity,
         // and hold for 300ms after losing contact (spinning sphere shifts edges)
         const edge = !drag.active ? edgeAt(p.x, p.y) : null;
@@ -1002,6 +1208,26 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         return;
       }
       if (e.button !== 2) {
+        // ── Resonance Mode: Shift-Click selects up to 2 nodes for comparison ──
+        if (e.shiftKey && resonanceModeRef.current) {
+          const cur = resonanceNodesRef.current;
+          // Toggle: clicking a selected node deselects it; otherwise replace oldest
+          const next = cur.includes(node.id)
+            ? cur.filter(id => id !== node.id)
+            : [...cur.slice(-1), node.id];   // keep last + add new (FIFO pair)
+          resonanceNodesRef.current = next;
+          setResonanceNodes(next);
+          if (next.length === 2) {
+            const result = compareNodes(next[0], next[1]);
+            resonanceResultRef.current = result;
+            setResonanceResult(result);
+          } else {
+            resonanceResultRef.current = null;
+            setResonanceResult(null);
+          }
+          return;   // don't fire normal click in resonance mode
+        }
+
         // Right-click is handled by contextmenu (fusion state machine) — ignore here
         fireNode(node.id);
         spawnEffect(node.id, { soft: true });   // attractor click → soft geometry pulse
@@ -1040,6 +1266,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     dragRef.current.active = false;
     hoveredRef.current = null;
     clearTimeout(edgeDebounceRef.current);
+    clearTimeout(tooltipTimerRef.current);
+    setHoveredTooltip(null);
     setHoveredEdge(null);
     setLockedEdge(null);
     if (canvasRef.current) canvasRef.current.style.cursor = 'grab';
@@ -1128,12 +1356,44 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           0%,100% { background-position: 0% 50%; }
           50%      { background-position: 100% 50%; }
         }
+        @keyframes at-feigReveal {
+          0%   { opacity: 0; filter: brightness(4) blur(8px); letter-spacing: 0.5em; }
+          25%  { opacity: 1; filter: brightness(2.8) blur(2px); letter-spacing: 0.2em; }
+          55%  { opacity: 0.65; filter: brightness(3.2) blur(0px); letter-spacing: 0.06em; }
+          78%  { opacity: 1; filter: brightness(1.5) blur(0px); letter-spacing: 0.02em; }
+          100% { opacity: 1; filter: brightness(1) blur(0px); letter-spacing: normal; }
+        }
+        @keyframes at-feigGlow {
+          0%, 100% { text-shadow: 0 0 8px rgba(255,215,0,0.2), 0 0 20px rgba(255,215,0,0); }
+          50%      { text-shadow: 0 0 12px rgba(255,215,0,0.45), 0 0 32px rgba(217,70,239,0.2); }
+        }
+        @keyframes at-feigHueShift {
+          0%, 100% { --feig-accent: #d946ef; }
+          50%      { --feig-accent: #8b5cf6; }
+        }
+        @keyframes at-feigSpark {
+          0%   { transform: scale(1); filter: brightness(1); }
+          15%  { transform: scale(1.025); filter: brightness(3); }
+          40%  { transform: scale(1.01); filter: brightness(1.6); }
+          100% { transform: scale(1); filter: brightness(1); }
+        }
       `}</style>
 
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-amber-900/40 pb-4 mb-6">
         <div>
-          <h2 className="text-2xl md:text-4xl font-bold mb-1 tracking-tight flex items-center gap-3">
+          <h2
+            className="text-2xl md:text-4xl font-bold mb-1 tracking-tight flex items-center gap-3 cursor-pointer select-none"
+            onClick={() => {
+              const el = feigTitleRef.current;
+              if (!el) return;
+              el.style.animation = 'none';
+              void el.offsetWidth;
+              el.style.animation = 'at-feigSpark 0.5s cubic-bezier(0.16,1,0.3,1) forwards';
+              setTimeout(() => { if (el) el.style.animation = ''; }, 550);
+            }}
+            ref={feigTitleRef}
+          >
             <Waves
               className="w-6 h-6 md:w-8 md:h-8 shrink-0"
               style={{ color: '#FFD700', filter: 'drop-shadow(0 0 8px rgba(255,215,0,0.6))' }}
@@ -1141,9 +1401,13 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             <span
               className="text-transparent bg-clip-text"
               style={{
-                backgroundImage: 'linear-gradient(90deg, #FF8C00, #FFD700, #d946ef, #FFD700, #FF8C00)',
-                backgroundSize:  '400% auto',
-                animation:       'at-shimmer 3.5s ease-in-out infinite',
+                backgroundImage: selectedNode === 'feigenbaum'
+                  ? 'linear-gradient(90deg, #FFD700, #fff, #FFD700, #d946ef, #FFD700)'
+                  : 'linear-gradient(90deg, #FF8C00, #FFD700, #8b5cf6, #d946ef, #FFD700, #FF8C00)',
+                backgroundSize: '400% auto',
+                animation: 'at-feigReveal 1s cubic-bezier(0.7,0,0.3,1) forwards, at-shimmer 3.5s cubic-bezier(0.7,0,0.3,1) 1s infinite, at-feigGlow 5s ease-in-out 1.2s infinite',
+                transition: 'background-image 0.4s ease',
+                ...(selectedNode === 'feigenbaum' ? { filter: 'brightness(1.8)', textShadow: '0 0 18px rgba(255,215,0,0.7), 0 0 40px rgba(255,215,0,0.3)' } : {}),
               }}
             >feigenbaum_fade</span>
           </h2>
@@ -1151,17 +1415,47 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             orbital sphere // ars electronica 2027 // soma-9.4
           </div>
         </div>
-        <div className="flex items-center gap-3 mt-3 md:mt-0 text-xs font-bold font-mono tracking-widest">
+        <div className="flex flex-wrap items-center gap-2 mt-3 md:mt-0 text-xs font-bold font-mono tracking-widest">
           <span className="border border-amber-900/40 px-3 py-1 rounded-sm" style={{ color: 'rgba(251,191,36,0.5)' }}>
-            {NODES.length} nodes · {activeEdges.length} edges
+            {NODES.length + bifurcCount} nodes · {activeEdges.length} edges
             {spectralBridges ? ` · spectral` : ''}
             {boneFusions ? ` · fused` : ''}
             {orthogonalBridges.length ? ` · ⊥ ${orthogonalBridges.length} orthogonal` : ''}
             {probeNode ? ` · ⊕ probe` : ''}
+            {bifurcCount > 0 ? ` · ⌥ +${bifurcCount} children` : ''}
           </span>
           <span className="border border-cyan-900/30 px-3 py-1 rounded-sm text-cyan-400/50">
-            drag to rotate · click → attractor · right-click → ⊥ orthogonal
+            drag · click → attractor · shift-click → ◈ resonance · right-click → ⊥
           </span>
+          {/* Resonance Mode toggle */}
+          <button
+            onClick={() => {
+              const next = !resonanceMode;
+              setResonanceMode(next);
+              resonanceModeRef.current = next;
+              if (!next) {
+                setResonanceNodes([]);   resonanceNodesRef.current  = [];
+                setResonanceResult(null); resonanceResultRef.current = null;
+              }
+            }}
+            className="px-3 py-1 rounded-sm border transition-all duration-200"
+            style={{
+              borderColor: resonanceMode ? 'rgba(255,215,0,0.6)' : 'rgba(255,215,0,0.2)',
+              color:       resonanceMode ? 'rgba(255,215,0,0.95)' : 'rgba(255,215,0,0.4)',
+              background:  resonanceMode ? 'rgba(255,215,0,0.08)' : 'transparent',
+              textShadow:  resonanceMode ? '0 0 8px rgba(255,215,0,0.6)' : 'none',
+            }}
+          >
+            ◈ resonance{resonanceMode ? ` [${resonanceNodes.length}/2]` : ''}
+          </button>
+          {/* Period-Doubling bifurcation trigger */}
+          <button
+            onClick={handleBifurcate}
+            className="px-3 py-1 rounded-sm border border-fuchsia-900/40 text-fuchsia-400/50 hover:border-fuchsia-500/60 hover:text-fuchsia-300/80 transition-all duration-200"
+            title="Bifurcate top 15% most-connected nodes (Period-Doubling)"
+          >
+            ⌥ bifurcate
+          </button>
         </div>
       </div>
 
@@ -1169,7 +1463,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       <div
         ref={containerRef}
         className="w-full overflow-hidden"
-        style={{ background: '#000' }}
+        style={{ background: '#000', position: 'relative' }}
       >
         <canvas
           ref={canvasRef}
@@ -1185,6 +1479,42 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
         />
+
+        {/* ── Node hover tooltip ───────────────────────────────────────────── */}
+        {hoveredTooltip && (
+          <div
+            style={{
+              position:    'absolute',
+              left:        Math.min(tooltipPos.x + 14, (dimsRef.current.w || 600) - 160),
+              top:         Math.max(tooltipPos.y - 14, 8),
+              pointerEvents: 'none',
+              zIndex:      20,
+              background:  'rgba(0,0,0,0.90)',
+              border:      '1px solid rgba(255,215,0,0.20)',
+              borderRadius: '3px',
+              padding:     '6px 10px',
+              fontFamily:  'monospace',
+              fontSize:    '9px',
+              lineHeight:  '1.65',
+              letterSpacing: '0.04em',
+              color:       'rgba(255,255,255,0.65)',
+              whiteSpace:  'nowrap',
+            }}
+          >
+            <div style={{ color: NODE_COLORS[hoveredTooltip.id]?.hsl ?? 'rgba(255,215,0,0.9)', fontWeight: 700, fontSize: '10px' }}>
+              {hoveredTooltip.label.toUpperCase()}
+            </div>
+            <div style={{ color: CLUSTER_COLORS[hoveredTooltip.cluster]?.hsl ?? 'rgba(255,255,255,0.35)', fontSize: '8px', marginBottom: '3px' }}>
+              {CLUSTERS[hoveredTooltip.cluster]?.label ?? hoveredTooltip.cluster}
+            </div>
+            {hoveredTooltip.topDims.map(d => (
+              <div key={d.name}>
+                <span style={{ color: 'rgba(255,215,0,0.45)', display: 'inline-block', minWidth: '100px' }}>{d.name}</span>
+                <span style={{ color: 'rgba(255,255,255,0.85)' }}>{d.v.toFixed(2)}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Geometry terminal — hidden on touch/mobile (tap nodes directly instead) */}
         <form
@@ -1211,7 +1541,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           <input
             value={termInput}
             onChange={e => setTermInput(e.target.value)}
-            placeholder="run <kernel>"
+            placeholder="run <kernel>  |  query <text>"
             spellCheck={false}
             autoComplete="off"
             style={{
@@ -1228,6 +1558,53 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           />
         </form>
       </div>
+
+      {/* ── Query projection result panel ──────────────────────────────────── */}
+      {queryResult && (
+        <div
+          className="mt-3 border rounded-sm p-3 font-mono text-[10px] leading-relaxed"
+          style={{
+            borderColor: 'rgba(167,139,250,0.35)',
+            background:  'linear-gradient(135deg, rgba(0,0,0,0.88), rgba(167,139,250,0.05), rgba(0,0,0,0.88))',
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <div style={{ color: 'rgba(167,139,250,0.95)' }}>
+              {'> [QUERY_PROJECTION] :: '}
+              <span style={{ color: 'rgba(255,255,255,0.80)' }}>
+                "{queryResult.query.slice(0, 55)}{queryResult.query.length > 55 ? '…' : ''}"
+              </span>
+            </div>
+            <button
+              onClick={() => { probeNodeRef.current = null; setQueryResult(null); }}
+              style={{ color: 'rgba(167,139,250,0.5)', fontFamily: 'monospace', fontSize: '10px', background: 'none', border: 'none', cursor: 'pointer' }}
+              onMouseEnter={e => e.target.style.color = 'rgba(167,139,250,0.9)'}
+              onMouseLeave={e => e.target.style.color = 'rgba(167,139,250,0.5)'}
+            >[CLEAR]</button>
+          </div>
+          <div className="mt-1.5" style={{ color: 'rgba(255,255,255,0.30)' }}>
+            {'  [TOP RESONANT NODES] :: 16D cosine similarity'}
+          </div>
+          {queryResult.similarities.slice(0, 6).map((n, i) => {
+            const col = NODE_COLORS[n.id];
+            const cluCol = CLUSTER_COLORS[n.cluster];
+            const barLen = Math.round(n.sim * 22);
+            const bar = '█'.repeat(barLen) + '░'.repeat(22 - barLen);
+            return (
+              <div key={n.id} className="mt-0.5 flex gap-2 items-baseline">
+                <span style={{ color: 'rgba(167,139,250,0.55)', minWidth: '16px' }}>{i + 1}.</span>
+                <span style={{ color: col?.hsl ?? 'rgba(255,215,0,0.85)', minWidth: '110px', fontWeight: 700 }}>{n.label}</span>
+                <span style={{ color: cluCol?.hsl ?? 'rgba(255,255,255,0.3)', minWidth: '80px', fontSize: '9px' }}>{CLUSTERS[n.cluster]?.label ?? n.cluster}</span>
+                <span style={{ color: 'rgba(167,139,250,0.35)', fontSize: '9px' }}>{bar}</span>
+                <span style={{ color: 'rgba(255,255,255,0.75)' }}>{n.sim.toFixed(4)}</span>
+              </div>
+            );
+          })}
+          <div className="mt-1.5" style={{ color: 'rgba(255,255,255,0.12)' }}>
+            {'  ── sphere probe ⊕ rendered on canvas · type `clear query` to dismiss ──'}
+          </div>
+        </div>
+      )}
 
       {/* Cluster legend */}
       <div className="flex flex-wrap gap-x-5 gap-y-2 mt-4 items-center">
@@ -1247,6 +1624,100 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           entropy is structural
         </span>
       </div>
+
+      {/* ── Resonance Mode readout ──────────────────────────────────────────── */}
+      {resonanceMode && (
+        <div
+          className="mt-3 border rounded-sm p-3 font-mono text-[10px] leading-relaxed"
+          style={{
+            borderColor: resonanceResult ? 'rgba(255,215,0,0.35)' : 'rgba(255,215,0,0.12)',
+            background:  'linear-gradient(135deg, rgba(0,0,0,0.88), rgba(255,215,0,0.04), rgba(0,0,0,0.88))',
+          }}
+        >
+          <div style={{ color: 'rgba(255,215,0,0.7)' }}>
+            {'> [RESONANCE_MODE] :: '}
+            <span style={{ color: 'rgba(255,255,255,0.6)' }}>
+              shift-click two nodes to compare 16D tensor similarity
+            </span>
+          </div>
+
+          {resonanceNodes.length === 0 && (
+            <div className="mt-1" style={{ color: 'rgba(255,215,0,0.3)' }}>
+              {'  awaiting node selection... (0/2)'}
+            </div>
+          )}
+
+          {resonanceNodes.length === 1 && (() => {
+            const n = NODES.find(x => x.id === resonanceNodes[0]);
+            const c = NODE_COLORS[resonanceNodes[0]];
+            return (
+              <div className="mt-1">
+                <span style={{ color: 'rgba(255,215,0,0.5)' }}>{'  [A] :: '}</span>
+                <span style={{ color: c?.hsl ?? '#FFD700' }}>{n?.label ?? resonanceNodes[0]}</span>
+                <span style={{ color: 'rgba(255,215,0,0.3)' }}>{' · awaiting [B]...'}</span>
+              </div>
+            );
+          })()}
+
+          {resonanceNodes.length === 2 && resonanceResult && (() => {
+            const [idA, idB]   = resonanceNodes;
+            const nA = NODES.find(x => x.id === idA);
+            const nB = NODES.find(x => x.id === idB);
+            const cA = NODE_COLORS[idA], cB = NODE_COLORS[idB];
+            const sim = resonanceResult.sim;
+            // Similarity quality label
+            const simLabel = sim > 0.92 ? 'NEAR-IDENTICAL'
+              : sim > 0.80 ? 'HIGH RESONANCE'
+              : sim > 0.65 ? 'MODERATE'
+              : sim > 0.45 ? 'WEAK'
+              : 'ORTHOGONAL';
+            const simColor = sim > 0.80 ? 'rgba(255,215,0,0.95)'
+              : sim > 0.60 ? 'rgba(255,180,0,0.80)'
+              : 'rgba(200,100,50,0.75)';
+            return (
+              <>
+                <div className="mt-2 flex gap-3 flex-wrap">
+                  <span style={{ color: 'rgba(255,215,0,0.5)' }}>{'  [A] :: '}</span>
+                  <span style={{ color: cA?.hsl ?? '#FFD700' }}>{nA?.label ?? idA}</span>
+                  <span style={{ color: 'rgba(255,255,255,0.25)' }}>{'⟷'}</span>
+                  <span style={{ color: cB?.hsl ?? '#FFD700' }}>{nB?.label ?? idB}</span>
+                  <span style={{ color: 'rgba(255,215,0,0.5)' }}>{' [B]'}</span>
+                </div>
+                <div className="mt-1" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                  {'  [SIM] :: '}
+                  <span style={{
+                    color: simColor,
+                    textShadow: sim > 0.80 ? '0 0 8px rgba(255,215,0,0.5)' : 'none',
+                  }}>
+                    {sim.toFixed(4)}
+                  </span>
+                  {' — '}
+                  <span style={{ color: simColor }}>{simLabel}</span>
+                </div>
+                <div className="mt-2" style={{ color: 'rgba(255,215,0,0.4)' }}>
+                  {'  [TOP COALESCENT DIMENSIONS]'}
+                </div>
+                {resonanceResult.topDims.map((d, i) => (
+                  <div key={d.name} className="mt-0.5 pl-4" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                    <span style={{ color: 'rgba(255,215,0,0.45)' }}>{`[${i + 1}] `}</span>
+                    <span style={{ color: 'rgba(255,255,255,0.85)' }}>{d.name}</span>
+                    {' · '}
+                    <span style={{ color: 'rgba(255,215,0,0.7)' }}>
+                      {`A=${d.vA.toFixed(2)} B=${d.vB.toFixed(2)} ⊗=${d.contribution.toFixed(4)}`}
+                    </span>
+                  </div>
+                ))}
+                <div className="mt-1.5" style={{ color: 'rgba(255,255,255,0.20)' }}>
+                  {'  edge bloom intensity ∝ similarity · lineWidth = '}
+                  <span style={{ color: 'rgba(255,215,0,0.4)' }}>{`${(1.5 + sim * 4).toFixed(2)}px`}</span>
+                  {' · shadowBlur = '}
+                  <span style={{ color: 'rgba(255,215,0,0.4)' }}>{`${(4 + sim * 24).toFixed(0)}px`}</span>
+                </div>
+              </>
+            );
+          })()}
+        </div>
+      )}
 
       {/* ── TerminalReadout — node-click shows all edges, edge-click zooms one ── */}
       {selectedNode && selectedNodeEdges && !lockedEdge && (() => {

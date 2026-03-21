@@ -197,5 +197,58 @@ export function useSomaGraph({ nodes, adj }) {
     }
   }, []);
 
-  return { stateRef, initState, step, fireNode, applyAttractor, triggerOverwrite };
+  // ── Period-Doubling: Bifurcation trigger ──────────────────────────────────
+  // Targets top 15% most-connected nodes and "splits" each into a child node.
+  // Child inherits parent cluster (for gravity) and starts with energy = 1.0
+  // (birth flash). The bleedFrom/bleedAmount fields create a visual overwrite
+  // pulse radiating parent color through the newborn node for ~80 frames.
+  //
+  // degreeMap: { [nodeId]: connectionCount } — computed in ArtTab from activeEdges
+  //
+  // Returns: [{ childId, parentId, px, py, pz }] — caller tracks birth animation
+  const triggerBifurcation = useCallback((degreeMap) => {
+    const s = stateRef.current;
+    if (!s) return [];
+    const { nodes: sn } = s;
+
+    // Find the maximum degree across all current sim nodes
+    let maxDeg = 0;
+    for (const n of sn) {
+      const d = degreeMap[n.id] ?? 0;
+      if (d > maxDeg) maxDeg = d;
+    }
+    if (maxDeg === 0) return [];
+
+    const threshold = maxDeg * 0.85;   // top 15% cutoff
+    const spawned   = [];
+    const origLen   = sn.length;       // snapshot — don't iterate newly added nodes
+
+    for (let i = 0; i < origLen; i++) {
+      const n = sn[i];
+      if ((degreeMap[n.id] ?? 0) < threshold) continue;
+
+      // ±2.5% stochastic position jitter — simulates tensor drift at bifurcation
+      const jitter = () => (Math.random() - 0.5) * 0.05;
+      const [cx, cy, cz] = norm3(n.x + jitter(), n.y + jitter(), n.z + jitter());
+
+      // Unique child ID: parent ID + 4-char random suffix
+      const childId = `${n.id}_b${Math.random().toString(36).slice(2, 6)}`;
+
+      sn.push({
+        id:          childId,
+        cluster:     n.cluster,        // inherit cluster → same gravity anchor
+        x: cx, y: cy, z: cz,
+        vx: 0,  vy: 0,  vz: 0,
+        energy:      1.0,              // full birth energy → bright flash
+        bleedFrom:   n.id,             // parent color bleeds through on birth
+        bleedAmount: 0.9,
+      });
+
+      spawned.push({ childId, parentId: n.id, px: n.x, py: n.y, pz: n.z });
+    }
+
+    return spawned;
+  }, []);
+
+  return { stateRef, initState, step, fireNode, applyAttractor, triggerOverwrite, triggerBifurcation };
 }
