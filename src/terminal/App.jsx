@@ -48,6 +48,7 @@ const ManifestoTab     = lazy(() => import('./views/ManifestoTab'));
 const PrivacyTab       = lazy(() => import('./views/PrivacyTab'));
 const SurveillanceTab  = lazy(() => import('./views/SurveillanceTab'));
 const BskyTab          = lazy(() => import('./views/BskyTab'));
+const EcocideTab       = lazy(() => import('./views/EcocideTab'));
 // ButterflyIcon — inline nav variant (matches BskyTab icon, no extra import needed)
 const NavButterflyIcon = () => (
   <svg viewBox="0 0 24 24" fill="currentColor" stroke="none" className="w-3 h-3" aria-hidden="true">
@@ -962,6 +963,18 @@ const App = () => {
                 const now = new Date().toLocaleTimeString('en-US', { hour12: false });
                 const q = `associative_field --seed ${nodeIdx} --beta 2.5 --probes 30`;
                 dispatchCommand('run', q, `run ${q}`, now);
+              }}
+            />
+          )}
+
+          {/* Ecocide Tab — biocoenosis · atmospheric entropy · thermodynamic law */}
+          {activeTab === 'ecocide' && !selectedArticle && !architectThesis && (
+            <EcocideTab
+              articles={articles}
+              onOpenArticle={(article) => {
+                setSelectedArticle(article);
+                setOriginTab('ecocide');
+                setCurrentPath(`~/system/ecocide/${article.id}`);
               }}
             />
           )}
