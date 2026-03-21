@@ -432,19 +432,56 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
     const wasm = wasmRef.current;
 
     tickRef.current = setInterval(() => {
-      // Layer 3.3.3 – Growth-to-extraction conversion
       const gr = growthRateRef.current;
-      const prevDeadFrac = statsRef.current.dead / DOT_COUNT;
-      const gdpForWasm = growthToGdp(gr, prevDeadFrac);
 
+      // ── Try WASM run_ecocide; fall back to JS integrator if unavailable ──
+      let deadCount, deadFrac, exergyNorm, phase, metabolicFat, x_dest, dx_dt, capital, s_gen;
+
+      let wasmOk = false;
       let raw;
-      try { raw = wasm.run_ecocide(gdpForWasm, WASM_DT, 0.0); } catch { return; }
-      let data;
-      try { data = JSON.parse(raw); } catch { return; }
+      try { raw = wasm.run_ecocide(growthToGdp(gr, deadFracRef.current), WASM_DT, 0.0); wasmOk = true; } catch { /* fall through */ }
 
-      const deadCount  = data.dead ?? 0;
-      const deadFrac   = deadCount / DOT_COUNT;
-      const exergyNorm = Math.min(1.0, (data.dx_dest_dt ?? 0) / X_SOLAR);
+      if (wasmOk && raw) {
+        let data;
+        try { data = JSON.parse(raw); } catch { wasmOk = false; }
+        if (wasmOk && data) {
+          deadCount    = data.dead ?? 0;
+          deadFrac     = deadCount / DOT_COUNT;
+          exergyNorm   = Math.min(1.0, (data.dx_dest_dt ?? 0) / X_SOLAR);
+          phase        = data.phase ?? 0;
+          metabolicFat = data.metabolic_fat ?? 0;
+          x_dest       = data.x_dest ?? 0;
+          dx_dt        = data.dx_dest_dt ?? 0;
+          capital      = data.capital ?? 0;
+          s_gen        = data.s_gen ?? 0;
+        }
+      }
+
+      if (!wasmOk) {
+        // ── JS ecological integrator ──────────────────────────────────────
+        // Runs at WASM_HZ (10 Hz), dt = 0.1 s
+        const prevDF    = deadFracRef.current;
+        const extraction = Math.max(0, growthToGdp(gr, prevDF) - 1.0); // excess above sustainable
+        const regeneration = 0.12 * (1.0 - prevDF);                     // regen capacity shrinks
+        const damage     = Math.max(0, extraction * 0.055 - regeneration) * WASM_DT;
+        const recovery   = gr < 0.5 ? 0.008 * (1.0 - prevDF) * WASM_DT : 0; // slow natural recovery at low growth
+
+        deadFrac     = Math.max(0, Math.min(0.98, prevDF + damage - recovery));
+        deadCount    = Math.round(deadFrac * DOT_COUNT);
+        exergyNorm   = Math.min(1.0, extraction * 0.35 + deadFrac * 0.65);
+        dx_dt        = exergyNorm * X_SOLAR;
+        x_dest       = (statsRef.current.x_dest ?? 0) + dx_dt * WASM_DT;
+        metabolicFat = Math.min(1.0, deadFrac * deadFrac * 2.2);
+        s_gen        = dx_dt / 298.15;   // Gouy-Stodola approximation (T₀ = 298.15 K)
+        capital      = Math.max(0, 1.0 - deadFrac) * 100;
+
+        // Phase thresholds (match PHASE_LABEL array)
+        if      (deadFrac >= 0.85) phase = PH.FINAL;
+        else if (deadFrac >= 0.55) phase = PH.COLLAPSE;
+        else if (deadFrac >= 0.30) phase = PH.OVERSHOOT;
+        else if (deadFrac >= 0.10) phase = PH.EXTRACTION;
+        else                       phase = PH.HOMEOSTASIS;
+      }
 
       // Trophic cascade velocity: rate of change of dead fraction (smoothed)
       const prevDead  = prevDeadRef.current;
@@ -454,18 +491,15 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
       trophicVRef.current  = trophicV;
 
       // Update refs for rAF loop
-      phaseRef.current        = data.phase ?? 0;
-      metabolicFatRef.current = data.metabolic_fat ?? 0;
+      phaseRef.current        = phase;
+      metabolicFatRef.current = metabolicFat;
       deadFracRef.current     = deadFrac;
       exergyNormRef.current   = exergyNorm;
-      statsRef.current = {
-        viable: data.viable ?? 0, dead: deadCount, capital: data.capital ?? 0,
-        s_gen: data.s_gen ?? 0, x_dest: data.x_dest ?? 0, dx_dt: data.dx_dest_dt ?? 0,
-      };
+      statsRef.current = { viable: DOT_COUNT - deadCount, dead: deadCount, capital, s_gen, x_dest, dx_dt };
 
       // SARG coherence
-      const sargState = { phase: data.phase ?? 0, deadFrac, exergyNorm, trophicV, metabolicFat: data.metabolic_fat ?? 0 };
-      const sarg = computeSARG(data.phase ?? 0, sargState);
+      const sargState = { phase, deadFrac, exergyNorm, trophicV, metabolicFat };
+      const sarg = computeSARG(phase, sargState);
 
       // ── Layer 3.3.3 – Double-Bind mandate detection ───────────────────
       if (gr >= 2.0 && !mandateActiveRef.current) {
@@ -478,7 +512,6 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
 
       let newPenalty = 0;
       let newPenaltyMsg = '';
-      const phase = data.phase ?? 0;
       if (mandateActiveRef.current && gr < 2.0 && phase < PH.COLLAPSE) {
         if (gr < 1.0)      { newPenalty = 3; newPenaltyMsg = DOUBLE_BIND[2].msg; }
         else if (gr < 1.5) { newPenalty = 2; newPenaltyMsg = DOUBLE_BIND[1].msg; }
@@ -498,14 +531,14 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
         }
       }
 
-      // React state updates (10 Hz – no perf concern)
+      // React state updates (10 Hz)
       setUiPhase(phase);
-      setUiStats({ viable: DOT_COUNT - deadCount, dead: deadCount, capital: data.capital ?? 0, s_gen: data.s_gen ?? 0, x_dest: data.x_dest ?? 0, dx_dt: data.dx_dest_dt ?? 0 });
+      setUiStats({ viable: DOT_COUNT - deadCount, dead: deadCount, capital, s_gen, x_dest, dx_dt });
       setUiSarg(sarg);
-      setUiMetrics({ metabolicFat: data.metabolic_fat ?? 0, trophicV, deadFrac, exergyNorm });
+      setUiMetrics({ metabolicFat, trophicV, deadFrac, exergyNorm });
 
       // ── Phase transition terminal logs ────────────────────────────────
-      const newPhase = data.phase ?? 0;
+      const newPhase = phase;
       if (newPhase !== prevPhaseRef.current) {
         const now = new Date().toLocaleTimeString('en-US', { hour12: false });
         if (newPhase === PH.EXTRACTION) {
@@ -514,7 +547,7 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
         }
         if (newPhase === PH.OVERSHOOT) {
           onLog?.({ time: now, msg: '> PARADOX LAYER 5.5.5.5.5 \u2013 DIMENSIONAL SINGULARITY', rust: true });
-          onLog?.({ time: now, msg: `  dx_dest/dt = ${(data.dx_dest_dt ?? 0).toFixed(2)} TW  |  SARG = ${sarg.sarg.toFixed(2)}  |  coherence decaying`, rust: true });
+          onLog?.({ time: now, msg: `  dx_dest/dt = ${dx_dt.toFixed(2)} TW  |  SARG = ${sarg.sarg.toFixed(2)}  |  coherence decaying`, rust: true });
         }
         if (newPhase === PH.COLLAPSE) {
           onLog?.({ time: now, msg: '> LAYER 6.6.6.6.6.6 \u2013 CONVERGENCE PHYSICS: observation accelerates collapse', rust: true });
@@ -529,8 +562,7 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
 
       // ── Collapse error flooding ───────────────────────────────────────
       if (newPhase >= PH.COLLAPSE) {
-        const fat = data.metabolic_fat ?? 0;
-        const floodChance = fat < 0.5 ? 0.06 : fat < 0.8 ? 0.18 : 0.35;
+        const floodChance = metabolicFat < 0.5 ? 0.06 : metabolicFat < 0.8 ? 0.18 : 0.35;
         if (Math.random() < floodChance) {
           const now = new Date().toLocaleTimeString('en-US', { hour12: false });
           const msg = ERROR_MSGS[Math.floor(Math.random() * ERROR_MSGS.length)];
