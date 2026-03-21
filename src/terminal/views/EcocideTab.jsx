@@ -882,7 +882,7 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
   const sliderColor = penaltyLevel >= 2 ? '#cc2200' : penaltyLevel === 1 ? '#cc6600' : uiPhase >= PH.OVERSHOOT ? '#ff4400' : '#7ab800';
 
   return (
-    <div className="flex flex-col h-full bg-black font-mono select-none overflow-hidden">
+    <div className="flex flex-col bg-black font-mono select-none">
 
       {/* ── Header ── */}
       <div className="shrink-0 flex items-center gap-3 px-4 py-2 border-b border-[#1a2d00]/70 tracking-widest uppercase overflow-hidden"
@@ -905,7 +905,7 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
       </div>
 
       {/* ── Main area: Canvas + Overlays ── */}
-      <div className="flex-1 relative overflow-hidden">
+      <div className="relative overflow-hidden w-full" style={{ height: 'clamp(200px, 45vw, 420px)' }}>
         <canvas
           ref={canvasRef}
           style={{ width: '100%', height: '100%', display: 'block' }}
@@ -915,7 +915,7 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
         <div
           className="absolute left-0 top-0 bottom-0 overflow-y-auto pointer-events-none"
           style={{
-            width: '310px',
+            width: 'min(310px, 55vw)',
             background: 'linear-gradient(90deg, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.45) 70%, rgba(0,0,0,0) 100%)',
             textShadow: glitchShadow,
             overflow: 'hidden',
@@ -1021,7 +1021,7 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
       </div>
 
       {/* ── Three-variable gauges + stats ── */}
-      <div className="shrink-0 grid grid-cols-4 gap-x-4 items-start px-4 py-2 border-t border-[#111a00]/60 tracking-widest uppercase overflow-hidden"
+      <div className="shrink-0 grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 items-start px-4 py-2 border-t border-[#111a00]/60 tracking-widest uppercase overflow-hidden"
            style={{ color: '#3a5a10', textShadow: glitchShadow, fontWeight: 800, fontSize: '10.5px' }}>
 
         {/* METABOLIC_RIFT */}
