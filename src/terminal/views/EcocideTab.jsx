@@ -1188,7 +1188,8 @@ function EcoIndex({ articles, onOpenArticle }) {
     const raw = articles.filter(isEcoArticle);
     const byTitle = new Map();
     for (const a of raw) {
-      const key = (a.title || a.id).toLowerCase();
+      // Strip leading emoji / non-ASCII so "🌿 FLORA..." and "FLORA..." collide
+      const key = (a.title || a.id).replace(/^[\p{Emoji}\s]+/u, '').toLowerCase().trim();
       const existing = byTitle.get(key);
       if (!existing || (a.tags || []).length > (existing.tags || []).length) {
         byTitle.set(key, a);
