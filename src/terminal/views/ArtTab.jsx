@@ -130,6 +130,7 @@ const SPHERE_K  = 0.50;     // sphereR = SPHERE_K × min(w, h) — larger sphere
 export default function ArtTab({ onRunKernel, onCueNode, associativeField, spectralBridges, boneFusions, probeNode, manualFusions = [], onManualFusion, orthogonalBridges = [], onOrthogonalBridge }) {
   const canvasRef    = useRef(null);
   const containerRef = useRef(null);
+  const feigTitleRef = useRef(null);
   const rafRef       = useRef(null);
   const dimsRef      = useRef({ w: 900, h: 620 });
   const hoveredRef   = useRef(null);
@@ -1128,12 +1129,44 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           0%,100% { background-position: 0% 50%; }
           50%      { background-position: 100% 50%; }
         }
+        @keyframes at-feigReveal {
+          0%   { opacity: 0; filter: brightness(4) blur(8px); letter-spacing: 0.5em; }
+          25%  { opacity: 1; filter: brightness(2.8) blur(2px); letter-spacing: 0.2em; }
+          55%  { opacity: 0.65; filter: brightness(3.2) blur(0px); letter-spacing: 0.06em; }
+          78%  { opacity: 1; filter: brightness(1.5) blur(0px); letter-spacing: 0.02em; }
+          100% { opacity: 1; filter: brightness(1) blur(0px); letter-spacing: normal; }
+        }
+        @keyframes at-feigGlow {
+          0%, 100% { text-shadow: 0 0 8px rgba(255,215,0,0.2), 0 0 20px rgba(255,215,0,0); }
+          50%      { text-shadow: 0 0 12px rgba(255,215,0,0.45), 0 0 32px rgba(217,70,239,0.2); }
+        }
+        @keyframes at-feigHueShift {
+          0%, 100% { --feig-accent: #d946ef; }
+          50%      { --feig-accent: #8b5cf6; }
+        }
+        @keyframes at-feigSpark {
+          0%   { transform: scale(1); filter: brightness(1); }
+          15%  { transform: scale(1.025); filter: brightness(3); }
+          40%  { transform: scale(1.01); filter: brightness(1.6); }
+          100% { transform: scale(1); filter: brightness(1); }
+        }
       `}</style>
 
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-amber-900/40 pb-4 mb-6">
         <div>
-          <h2 className="text-2xl md:text-4xl font-bold mb-1 tracking-tight flex items-center gap-3">
+          <h2
+            className="text-2xl md:text-4xl font-bold mb-1 tracking-tight flex items-center gap-3 cursor-pointer select-none"
+            onClick={() => {
+              const el = feigTitleRef.current;
+              if (!el) return;
+              el.style.animation = 'none';
+              void el.offsetWidth;
+              el.style.animation = 'at-feigSpark 0.5s cubic-bezier(0.16,1,0.3,1) forwards';
+              setTimeout(() => { if (el) el.style.animation = ''; }, 550);
+            }}
+            ref={feigTitleRef}
+          >
             <Waves
               className="w-6 h-6 md:w-8 md:h-8 shrink-0"
               style={{ color: '#FFD700', filter: 'drop-shadow(0 0 8px rgba(255,215,0,0.6))' }}
@@ -1141,9 +1174,13 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             <span
               className="text-transparent bg-clip-text"
               style={{
-                backgroundImage: 'linear-gradient(90deg, #FF8C00, #FFD700, #d946ef, #FFD700, #FF8C00)',
-                backgroundSize:  '400% auto',
-                animation:       'at-shimmer 3.5s ease-in-out infinite',
+                backgroundImage: selectedNode === 'feigenbaum'
+                  ? 'linear-gradient(90deg, #FFD700, #fff, #FFD700, #d946ef, #FFD700)'
+                  : 'linear-gradient(90deg, #FF8C00, #FFD700, #8b5cf6, #d946ef, #FFD700, #FF8C00)',
+                backgroundSize: '400% auto',
+                animation: 'at-feigReveal 1s cubic-bezier(0.7,0,0.3,1) forwards, at-shimmer 3.5s cubic-bezier(0.7,0,0.3,1) 1s infinite, at-feigGlow 5s ease-in-out 1.2s infinite',
+                transition: 'background-image 0.4s ease',
+                ...(selectedNode === 'feigenbaum' ? { filter: 'brightness(1.8)', textShadow: '0 0 18px rgba(255,215,0,0.7), 0 0 40px rgba(255,215,0,0.3)' } : {}),
               }}
             >feigenbaum_fade</span>
           </h2>

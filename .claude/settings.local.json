@@ -22,7 +22,12 @@
       "WebSearch",
       "Bash(curl -s \"https://raw.githubusercontent.com/dollspace-gay/Tesseract-Vault/main/src/crypto/signatures.rs\" | head -200)",
       "Bash(curl -s \"https://raw.githubusercontent.com/dollspace-gay/Tesseract-Vault/main/src/crypto/kdf.rs\" | head -200)",
-      "Bash(curl -s \"https://raw.githubusercontent.com/dollspace-gay/Tesseract-Vault/main/src/crypto/signatures.rs\")"
+      "Bash(curl -s \"https://raw.githubusercontent.com/dollspace-gay/Tesseract-Vault/main/src/crypto/signatures.rs\")",
+      "Bash(git cherry-pick:*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(where npm:*)",
+      "Bash(where node:*)",
+      "Bash(ls F:/scale_9.4/node_modules/.bin/vite*)"
     ]
   }
 }

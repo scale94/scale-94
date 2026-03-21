@@ -138,6 +138,13 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
         0%   { opacity: 0; transform: scale(0.85); filter: blur(4px); }
         100% { opacity: 1; transform: scale(1);    filter: blur(0); }
       }
+      @keyframes sk-activeModulesReveal {
+        0%   { opacity: 0; filter: brightness(4) blur(6px); letter-spacing: 0.4em; }
+        30%  { opacity: 1; filter: brightness(2.5) blur(1px); letter-spacing: 0.15em; }
+        60%  { opacity: 0.7; filter: brightness(3) blur(0px); letter-spacing: 0.05em; }
+        80%  { opacity: 1; filter: brightness(1.6) blur(0px); letter-spacing: 0.02em; }
+        100% { opacity: 1; filter: brightness(1) blur(0px); letter-spacing: normal; }
+      }
       @keyframes sk-treeGlow {
         0%, 100% { filter: drop-shadow(0 0 3px rgba(6,182,212,0.4)); }
         50%       { filter: drop-shadow(0 0 10px rgba(6,182,212,1)) drop-shadow(0 0 20px rgba(6,182,212,0.35)); }
@@ -298,7 +305,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
               style={{
                 backgroundImage: 'linear-gradient(90deg, #06b6d4, #d946ef, #39ff14)',
                 backgroundSize: '200% auto',
-                animation: 'sk-kernelShimmer 3s ease-in-out infinite',
+                animation: 'sk-activeModulesReveal 0.9s cubic-bezier(0.16,1,0.3,1) forwards, sk-kernelShimmer 3s ease-in-out 0.9s infinite',
               }}
             >active_modules</span>
           </h3>
