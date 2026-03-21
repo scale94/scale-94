@@ -32,7 +32,8 @@
       "Bash(grep -r \"run_ecocide\\\\|ecocide\\\\|ECOCIDE\" F:/scale_9.4/src/wasm/ F:/scale_9.4/*.rs F:/scale_9.4/src/*.rs)",
       "Bash(git push:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(wasm-pack --version)"
     ]
   }
 }
