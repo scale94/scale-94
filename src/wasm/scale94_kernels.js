@@ -380,6 +380,71 @@ export function classified_params() {
 }
 
 /**
+ * Compare two nodes by zero-based index.
+ *
+ * Returns a JSON string:
+ * ```json
+ * {
+ *   "sim": 0.8734,
+ *   "topDims": [
+ *     { "name": "synchrony",   "contribution": 0.0625, "vA": 0.25, "vB": 0.25 },
+ *     { "name": "spatial",     "contribution": 0.0423, "vA": 0.65, "vB": 0.65 },
+ *     { "name": "stochastic",  "contribution": 0.0200, "vA": 0.20, "vB": 0.10 }
+ *   ]
+ * }
+ * ```
+ * @param {number} idx_a
+ * @param {number} idx_b
+ * @returns {string}
+ */
+export function compare_nodes(idx_a, idx_b) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.compare_nodes(idx_a, idx_b);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * Compute period-doubling bifurcation children.
+ *
+ * `degrees_json` — JSON array of u32 connection degrees, one per node (length = N_NODES).
+ *
+ * Returns a JSON array of child specs for nodes in the top 15% by degree:
+ * ```json
+ * [
+ *   {
+ *     "parentIdx": 12,
+ *     "childFeatures": [0.2987, 1.0000, 0.2532, ...]
+ *   },
+ *   ...
+ * ]
+ * ```
+ * The JS layer is responsible for sphere placement, color inheritance, and birth animation.
+ * @param {string} degrees_json
+ * @returns {string}
+ */
+export function compute_bifurcation_children(degrees_json) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(degrees_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.compute_bifurcation_children(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
  * Generate an ML-KEM-768 keypair. Stores the typed keypair in WASM memory
  * for subsequent seal/open calls. Returns formatted log + DATA: JSON with
  * hex-encoded ek (public) and dk (private).

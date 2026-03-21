@@ -41,3 +41,4 @@ pub mod spectral_bridge;     // run_spectral_bridge (Cross-Cluster Topology Disc
 pub mod enclave;             // enclave_keygen, enclave_seal, enclave_open (ML-KEM-768 + AES-256-GCM real encrypt/decrypt)
 pub mod text_probe;          // run_text_probe (16D concept fingerprinting · cosine projection into kernel space)
 pub mod bone_fusion;         // run_bone_fusion (Conceptual Singularity Engine v6.6.6.6.6.6 · 16D Tensor Fusion Foundation)
+pub mod compare_nodes;       // compare_nodes, compute_bifurcation_children (16D cosine similarity + Feigenbaum bifurcation)
