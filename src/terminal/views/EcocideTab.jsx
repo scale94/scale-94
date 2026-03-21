@@ -319,6 +319,65 @@ function growthToGdp(growthRate, deadFrac) {
   return Math.min(12.0, 1.0 + growthRate / bioCap);
 }
 
+// ── GrowthSlider — pointer-event custom track, works on iPad ─────────────────
+function GrowthSlider({ value, disabled, color, mandateActive, onChange }) {
+  const trackRef = useRef(null);
+  const MIN = 0, MAX = 10;
+
+  const valueFromEvent = useCallback((e) => {
+    const rect = trackRef.current.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    return Math.round((MIN + ratio * (MAX - MIN)) * 10) / 10;
+  }, []);
+
+  const handlePointer = useCallback((e) => {
+    if (disabled) return;
+    e.preventDefault();
+    onChange(valueFromEvent(e));
+    const move = (me) => { me.preventDefault(); onChange(valueFromEvent(me)); };
+    const up   = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', move, { passive: false });
+    window.addEventListener('pointerup', up);
+  }, [disabled, onChange, valueFromEvent]);
+
+  const pct = ((value - MIN) / (MAX - MIN)) * 100;
+  const mandatePct = ((2.0 - MIN) / (MAX - MIN)) * 100;
+
+  return (
+    <div className="flex-1 relative" style={{ height: '28px', display: 'flex', alignItems: 'center' }}>
+      {/* Track */}
+      <div
+        ref={trackRef}
+        onPointerDown={handlePointer}
+        style={{
+          width: '100%', height: '4px', background: '#1a2d00', position: 'relative',
+          cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.25 : 1,
+          touchAction: 'none', userSelect: 'none',
+        }}
+      >
+        {/* Fill */}
+        <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${pct}%`, background: color, transition: 'background 0.3s' }} />
+        {/* Thumb */}
+        <div style={{
+          position: 'absolute', top: '50%', left: `${pct}%`,
+          transform: 'translate(-50%, -50%)',
+          width: '14px', height: '14px', borderRadius: '50%',
+          background: color, boxShadow: `0 0 8px ${color}88`,
+          transition: 'background 0.3s, box-shadow 0.3s',
+        }} />
+        {/* 2.0% mandate marker */}
+        <div style={{ position: 'absolute', top: '-4px', left: `${mandatePct}%`, width: '1px', height: '12px', background: mandateActive ? '#cc440088' : '#4a680044' }} />
+        <div style={{
+          position: 'absolute', top: '12px', left: `${mandatePct}%`,
+          transform: 'translateX(-50%)', fontSize: '7px', letterSpacing: '0.1em',
+          color: mandateActive ? '#cc4400' : '#3a5000', fontWeight: 800, whiteSpace: 'nowrap',
+        }}>2.0%</div>
+      </div>
+    </div>
+  );
+}
+
 // ── EcocideTab ───────────────────────────────────────────────────────────────
 
 export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
@@ -441,7 +500,7 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
 
       // React state updates (10 Hz – no perf concern)
       setUiPhase(phase);
-      setUiStats({ viable: data.viable ?? 0, dead: deadCount, capital: data.capital ?? 0, s_gen: data.s_gen ?? 0, x_dest: data.x_dest ?? 0, dx_dt: data.dx_dest_dt ?? 0 });
+      setUiStats({ viable: DOT_COUNT - deadCount, dead: deadCount, capital: data.capital ?? 0, s_gen: data.s_gen ?? 0, x_dest: data.x_dest ?? 0, dx_dt: data.dx_dest_dt ?? 0 });
       setUiSarg(sarg);
       setUiMetrics({ metabolicFat: data.metabolic_fat ?? 0, trophicV, deadFrac, exergyNorm });
 
@@ -983,6 +1042,24 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
 
       </div>
 
+      {/* ── Explanation panel ── */}
+      <div className="shrink-0 px-4 py-2 border-t border-[#1a2d00]/40 bg-black overflow-hidden">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-1" style={{ fontSize: '10px', fontWeight: 800, color: '#3a5a10', lineHeight: '1.7', letterSpacing: '0.06em' }}>
+          <div>
+            <span style={{ color: '#5a8a20' }}>RIVER → CANAL</span>
+            {'  '}Drag the slider up. Watch the clean river (deep blue) degrade into toxic canal (brown algae, oil slick) as growth outpaces regeneration.
+          </div>
+          <div>
+            <span style={{ color: '#5a8a20' }}>GROWTH_MANDATE</span>
+            {'  '}Each % point = compounding extraction pressure on the biosphere. Above 2.0% the mandate locks in. Drop below it and the double-bind fires social penalties.
+          </div>
+          <div>
+            <span style={{ color: '#5a8a20' }}>SARG / PARADOXES</span>
+            {'  '}Biosphere Coherence score (0–10). Each paradox that tips to VIOLATED drains it. At zero: Lindblad decoherence — the system cannot self-repair.
+          </div>
+        </div>
+      </div>
+
       {/* ── Layer 3.3.3 – GROWTH_MANDATE Slider ── */}
       <div className="shrink-0 px-4 pt-3 pb-1 border-t border-[#1a2d00]/60 bg-black overflow-hidden"
            style={{ textShadow: glitchShadow }}>
@@ -991,38 +1068,15 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
           <span className="tracking-widest uppercase shrink-0" style={{ color: sliderColor, fontSize: '13px', fontWeight: 800 }}>
             GROWTH_MANDATE
           </span>
-          <div className="flex-1 relative">
-            <input
-              type="range"
-              min={0}
-              max={10}
-              step={0.1}
-              value={growthRate}
-              disabled={isCollapse}
-              onChange={e => setGrowthRate(parseFloat(e.target.value))}
-              className="w-full h-[2px] bg-[#1a2d00] rounded-none appearance-none cursor-pointer
-                         disabled:opacity-25 disabled:cursor-not-allowed
-                         [&::-webkit-slider-thumb]:appearance-none
-                         [&::-webkit-slider-thumb]:w-3
-                         [&::-webkit-slider-thumb]:h-3
-                         [&::-webkit-slider-thumb]:bg-current
-                         [&::-webkit-slider-thumb]:cursor-pointer"
-              style={{ accentColor: sliderColor, color: sliderColor }}
-            />
-            {/* 2.0% mandate marker */}
-            <div
-              className="absolute top-[-3px] pointer-events-none"
-              style={{ left: '20%', width: '1px', height: '8px', background: mandateActive ? '#cc440088' : '#4a680044' }}
-            />
-            <div
-              className="absolute top-[6px] pointer-events-none text-[6px] tracking-wider"
-              style={{ left: '20%', transform: 'translateX(-50%)', color: mandateActive ? '#cc4400' : '#3a5000' }}
-            >
-              2.0%
-            </div>
-          </div>
+          <GrowthSlider
+            value={growthRate}
+            disabled={isCollapse}
+            color={sliderColor}
+            mandateActive={mandateActive}
+            onChange={setGrowthRate}
+          />
           <span
-            className="w-14 text-right"
+            className="w-14 text-right shrink-0"
             style={{ color: sliderColor, fontSize: '16px', fontWeight: 800 }}
           >
             {growthRate.toFixed(1)}%
