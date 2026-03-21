@@ -1152,7 +1152,17 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
 function EcoIndex({ articles, onOpenArticle }) {
   const [search, setSearch] = useState('');
   const ecoArticles = useMemo(() => {
-    const list = articles.filter(isEcoArticle);
+    // Filter, then deduplicate by title — keep the entry with the most tags
+    const raw = articles.filter(isEcoArticle);
+    const byTitle = new Map();
+    for (const a of raw) {
+      const key = (a.title || a.id).toLowerCase();
+      const existing = byTitle.get(key);
+      if (!existing || (a.tags || []).length > (existing.tags || []).length) {
+        byTitle.set(key, a);
+      }
+    }
+    let list = [...byTitle.values()];
     if (!search.trim()) return list;
     const q = search.toLowerCase();
     return list.filter(a =>
@@ -1161,6 +1171,9 @@ function EcoIndex({ articles, onOpenArticle }) {
       (a.tags     || []).some(t => t.toLowerCase().includes(q))
     );
   }, [articles, search]);
+
+  const BOTANICAL_TAGS = new Set(['Botany','Ecology','Autochthony','Biocoenosis','Biodiversity','ecological','biodiversity']);
+  const isBotanical = (a) => (a.tags || []).some(t => BOTANICAL_TAGS.has(t));
 
   if (!articles.length) return null;
 
@@ -1200,7 +1213,7 @@ function EcoIndex({ articles, onOpenArticle }) {
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="font-bold text-sm truncate group-hover:text-lime-300 transition-colors" style={{ color: '#7ab800' }}>
-                    {article.title || article.id}
+                    {isBotanical(article) && <span className="mr-1">🌿</span>}{article.title || article.id}
                   </div>
                   {article.subtitle && (
                     <div className="text-xs mt-0.5 truncate" style={{ color: 'rgba(122,184,0,0.45)' }}>{article.subtitle}</div>
