@@ -109,6 +109,42 @@ export function analyzeEdge(idA, idB) {
   return { sim: cosineSim(fA, fB), drivers: topDrivers(fA, fB, 4) };
 }
 
+// ── Resonance comparison engine ───────────────────────────────────────────────
+// JS mirror of compare_nodes.rs — runs on the JS thread until WASM is compiled.
+//
+// Computes Σ(A[i]·B[i]) / (|A|·|B|) across the full 16D tensor space, then
+// returns the top 3 dimensions of conceptual coalescence for UI rendering.
+//
+// Used by Resonance Mode (Shift-Click two nodes to enter comparison state).
+export function compareNodes(idA, idB) {
+  const iA = NODE_IDX[idA], iB = NODE_IDX[idB];
+  if (iA == null || iB == null) return null;
+  const fA = FEATURES[iA];
+  const fB = FEATURES[iB];
+  const sim = cosineSim(fA, fB);
+  const topDims = DIM_NAMES
+    .map((name, i) => ({
+      name,
+      weight:       (fA[i] + fB[i]) / 2,     // mean magnitude
+      contribution:  fA[i] * fB[i],           // dot-product component
+      vA: fA[i],
+      vB: fB[i],
+    }))
+    .filter(d => d.contribution > 0.01)
+    .sort((a, b) => b.contribution - a.contribution)
+    .slice(0, 3);
+  return { sim, topDims };
+}
+
+// ── Period-doubling bifurcation (JS layer) ────────────────────────────────────
+// Computes ±2.5% tensor drift for a child node inheriting a parent's 16D feature
+// vector. Mirrors the xorshift logic in compute_bifurcation_children() in Rust.
+export function jitterFeatures(parentId) {
+  const iA = NODE_IDX[parentId];
+  if (iA == null) return null;
+  return FEATURES[iA].map(v => Math.max(0, Math.min(1, v + (Math.random() - 0.5) * 0.05)));
+}
+
 // ── Layer 4.4.4.4 — full 16D tensor manifest ─────────────────────────────────
 
 export function analyzeFullEdge(idA, idB) {

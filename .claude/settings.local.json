@@ -27,7 +27,12 @@
       "mcp__Claude_Preview__preview_start",
       "Bash(where npm:*)",
       "Bash(where node:*)",
-      "Bash(ls F:/scale_9.4/node_modules/.bin/vite*)"
+      "Bash(ls F:/scale_9.4/node_modules/.bin/vite*)",
+      "Bash(find F:/scale_9.4/src/wasm -type f -name *.rs)",
+      "Bash(grep -r \"run_ecocide\\\\|ecocide\\\\|ECOCIDE\" F:/scale_9.4/src/wasm/ F:/scale_9.4/*.rs F:/scale_9.4/src/*.rs)",
+      "Bash(git push:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

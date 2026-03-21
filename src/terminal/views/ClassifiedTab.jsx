@@ -389,6 +389,15 @@ function triggerDownload(bytes, filename) {
   URL.revokeObjectURL(url);
 }
 
+// ── Key session history (sessionStorage so it survives hot-reload, resets per tab) ──
+const SESSION_HISTORY_KEY = 'cr_key_sessions';
+function loadKeyHistory() {
+  try { return JSON.parse(sessionStorage.getItem(SESSION_HISTORY_KEY) ?? '[]'); } catch { return []; }
+}
+function saveKeyHistory(hist) {
+  try { sessionStorage.setItem(SESSION_HISTORY_KEY, JSON.stringify(hist.slice(-6))); } catch {}
+}
+
 // ── Key generation phase ──────────────────────────────────────────────────────
 function KeygenPhase() {
   const [visibleLines, setVisibleLines] = useState([]);
@@ -397,6 +406,7 @@ function KeygenPhase() {
   const [wasmError,    setWasmError]    = useState(null);
   const [keypair,      setKeypair]      = useState(null);   // { ekHex, dkHex }
   const [downloaded,   setDownloaded]   = useState({ ek: false, dk: false });
+  const [keyHistory,   setKeyHistory]   = useState(() => loadKeyHistory());
 
   useEffect(() => {
     const timers = KEYGEN_LINES.map((line, i) =>
@@ -419,6 +429,17 @@ function KeygenPhase() {
       if (dkHex.length !== 4800) throw new Error(`dk: ${dkHex.length / 2}B (expected 2400B)`);
       setKeypair({ ekHex, dkHex });
       setWasmState('done');
+      // Record this session in history
+      const entry = {
+        ts:       Date.now(),
+        ekPrefix: ekHex.slice(0, 16).toUpperCase(),
+        sessionId: Math.random().toString(36).slice(2, 10).toUpperCase(),
+      };
+      setKeyHistory(prev => {
+        const next = [...prev, entry].slice(-6);
+        saveKeyHistory(next);
+        return next;
+      });
     } catch (err) {
       setWasmError(err.message);
       setWasmState('error');
@@ -541,6 +562,32 @@ function KeygenPhase() {
           </div>
           <div className="text-orange-600/20 text-[8px]">
             type <span className="text-orange-500/40">run classified</span> for the time-locked AES-GCM decryption enclave
+          </div>
+        </div>
+      )}
+
+      {/* ── Key session history timeline ──────────────────────────────────── */}
+      {keyHistory.length > 0 && (
+        <div className="border border-orange-900/20 bg-black/40 rounded-sm p-3">
+          <div className="text-[8px] tracking-widest text-orange-600/40 uppercase mb-2 flex items-center gap-1.5">
+            <Activity className="w-2.5 h-2.5" />
+            KEY SESSION HISTORY · this window only
+          </div>
+          <div className="space-y-1">
+            {keyHistory.map((h, i) => {
+              const ts = new Date(h.ts).toLocaleTimeString('en-US', { hour12: false });
+              const isCurrent = i === keyHistory.length - 1;
+              return (
+                <div key={h.sessionId} className="flex items-center gap-2 font-mono text-[8px]">
+                  <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${isCurrent ? 'bg-orange-400' : 'bg-orange-900/60'}`}
+                       style={isCurrent ? { boxShadow: '0 0 5px rgba(249,115,22,0.8)' } : {}} />
+                  <span className="text-orange-600/30 tabular-nums w-16 shrink-0">{ts}</span>
+                  <span className="text-orange-900/50">{h.sessionId}</span>
+                  <span className="text-orange-600/20 font-mono tracking-wider">{h.ekPrefix}…</span>
+                  {isCurrent && <span className="text-orange-400/60 ml-auto">[current]</span>}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

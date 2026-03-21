@@ -396,6 +396,7 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
   const prevPhaseRef    = useRef(PH.HOMEOSTASIS);
   const deadFracRef     = useRef(0);
   const exergyNormRef   = useRef(0);
+  const sargHistoryRef  = useRef([]);          // SARG sparkline buffer (80 readings @ 10 Hz = 8 s)
 
   // Layer 3.3.3 – Double-Bind state
   const mandateActiveRef = useRef(false);
@@ -535,6 +536,10 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
       setUiPhase(phase);
       setUiStats({ viable: DOT_COUNT - deadCount, dead: deadCount, capital, s_gen, x_dest, dx_dt });
       setUiSarg(sarg);
+      // Accumulate sparkline history (capped at 80 ticks ≈ 8 s of data)
+      const _hist = sargHistoryRef.current;
+      _hist.push(sarg.sarg);
+      if (_hist.length > 80) _hist.shift();
       setUiMetrics({ metabolicFat, trophicV, deadFrac, exergyNorm });
 
       // ── Phase transition terminal logs ────────────────────────────────
@@ -586,6 +591,8 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
     const simH      = coarse ? 72  : SIM_H;
     const stepsPerF = coarse ? 2   : STEPS_PER_FRAME;
     const warmup    = coarse ? 120 : WARMUP_STEPS;
+    // Adaptive step count — ratchets down under frame pressure, recovers when idle
+    let dynSteps = stepsPerF;
 
     // Offscreen simulation canvas
     const simCanvas = document.createElement('canvas');
@@ -607,6 +614,7 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
 
     function draw() {
       rafRef.current = requestAnimationFrame(draw);
+      const _frameStart = performance.now();
 
       const dpr = Math.min(devicePixelRatio, 2);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -640,7 +648,7 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
       const currentGS = gsRef.current;
       if (currentGS && phase < PH.FINAL) {
         const gp = gsParams(phase, deadFrac, exergyNorm, trophicV, metabolicFat);
-        const steps = phase >= PH.COLLAPSE ? Math.min(3, stepsPerF) : stepsPerF;
+        const steps = phase >= PH.COLLAPSE ? Math.min(3, dynSteps) : dynSteps;
         stepGS(currentGS, gp.f, gp.k, gp.Du, gp.Dv, steps);
       }
 
@@ -788,6 +796,13 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
         ctx.fillStyle = `rgba(180,0,0,${pAlpha})`;
         ctx.fillRect(0, 0, W, H);
       }
+
+      // ── Adaptive GS step count: ratchet based on render time ─────────
+      // Excludes the intentional metabolicFat busy-wait (that's part of the art).
+      // Shrinks dynSteps when render > 28 ms, grows back when render < 12 ms.
+      const _renderMs = performance.now() - _frameStart;
+      if (_renderMs > 28 && dynSteps > 1) dynSteps = Math.max(1, dynSteps - 1);
+      else if (_renderMs < 12 && dynSteps < stepsPerF) dynSteps = Math.min(stepsPerF, dynSteps + 1);
     }
 
     draw();
@@ -831,6 +846,7 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
     setUiPhase(0);
     setUiStats({ viable: DOT_COUNT, dead: 0, capital: 0, s_gen: 0, x_dest: 0, dx_dt: 0 });
     setUiSarg({ sarg: 10.0, coherence: 1.0, activated: 0, violated: 0 });
+    sargHistoryRef.current = [];
     setUiMetrics({ metabolicFat: 0, trophicV: 0, deadFrac: 0, exergyNorm: 0 });
     setMandateActive(false);
     setPenaltyLevel(0);
@@ -1146,7 +1162,25 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
            style={{ textShadow: glitchShadow }}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4 tracking-wide" style={{ color: '#3a5a10', lineHeight: '1.5', fontSize: '10.5px', fontWeight: 800 }}>
-            <span>
+            <span className="flex items-center gap-1.5">
+              {sargHistoryRef.current.length > 4 && (() => {
+                const hist = sargHistoryRef.current;
+                const sw = 54, sh = 13;
+                const mn = Math.min(...hist);
+                const range = Math.max(...hist) - mn;
+                const r = range < 0.05 ? 0.05 : range;
+                const pts = hist.map((v, i) => {
+                  const x = ((i / Math.max(hist.length - 1, 1)) * sw).toFixed(1);
+                  const y = (sh - 1 - ((v - mn) / r) * (sh - 2.5)).toFixed(1);
+                  return `${x},${y}`;
+                }).join(' ');
+                const sc = uiSarg.sarg > 7 ? '#3a7a10' : uiSarg.sarg > 4 ? '#c8860a' : '#cc2200';
+                return (
+                  <svg width={sw} height={sh} style={{ display: 'inline-block', verticalAlign: 'middle', opacity: 0.9, flexShrink: 0 }}>
+                    <polyline points={pts} fill="none" stroke={sc} strokeWidth="1.2" strokeLinejoin="round" />
+                  </svg>
+                );
+              })()}
               SARG = {uiSarg.sarg.toFixed(2)} / 10.00
             </span>
             <span style={{ color: uiStats.dx_dt > X_SOLAR ? '#cc2200' : '#3a5a10' }}>

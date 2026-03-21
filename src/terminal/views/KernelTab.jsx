@@ -44,6 +44,23 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
   const tapCountRef     = useRef(0);
   const longPressRef    = useRef(null);
 
+  // ── tty0 mobile expand ────────────────────────────────────────────────────
+  // On mobile, tap the [LOGS] button to expand the tty0 panel to 60vh.
+  // Auto-expands briefly when a kernel run completes (loadingKernel → null).
+  const [mobileLogExpanded, setMobileLogExpanded] = useState(false);
+
+  // Auto-expand tty0 on mobile when a kernel run completes
+  const prevLoadingRef = useRef(null);
+  useEffect(() => {
+    if (prevLoadingRef.current && !loadingKernel) {
+      // Kernel just finished — pop open the log panel for 5 s
+      setMobileLogExpanded(true);
+      const t = setTimeout(() => setMobileLogExpanded(false), 5000);
+      return () => clearTimeout(t);
+    }
+    prevLoadingRef.current = loadingKernel;
+  }, [loadingKernel]);
+
   // ── tty0 idle fade ─────────────────────────────────────────────────────────
   // Fades to opacity-20 after 4s of no touch on the tty0 panel.
   // Any touch on the tty0 wakes it back to full opacity.
@@ -172,6 +189,10 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
       @keyframes sk-ttyPulse {
         0%, 100% { border-color: rgba(6,182,212,0.18); }
         50%       { border-color: rgba(6,182,212,0.4); }
+      }
+      @keyframes sk-logSlideUp {
+        from { transform: translateY(100%); opacity: 0; }
+        to   { transform: translateY(0);    opacity: 1; }
       }
       .axiom-item:hover { box-shadow: inset 3px 0 0 #39ff14, inset 0 0 24px rgba(57,255,20,0.04); }
       /* Mobile tty0: hidden scrollbar */
@@ -362,8 +383,14 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
 
       {/* ── Bottom apex: /dev/tty0 — centered, triangle point ─────────────── */}
       <div
-        className={`fixed bottom-14 left-0 right-0 h-36 z-40 md:relative md:bottom-auto md:left-auto md:right-auto md:h-auto md:flex-[4] md:min-h-0 border-t border-cyan-900/40 md:border md:border-cyan-900/30 md:rounded-lg flex flex-col md:mx-auto md:w-3/5 overflow-hidden bg-black/95 md:bg-black/50 backdrop-blur-sm transition-opacity duration-500 ${!mobileChrome ? 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto' : ''}`}
-        style={{ animation: 'sk-ttyPulse 4s ease-in-out infinite', willChange: 'opacity, transform', transform: 'translateZ(0)' }}
+        className={`fixed bottom-14 left-0 right-0 z-40 md:relative md:bottom-auto md:left-auto md:right-auto md:h-auto md:flex-[4] md:min-h-0 border-t border-cyan-900/40 md:border md:border-cyan-900/30 md:rounded-lg flex flex-col md:mx-auto md:w-3/5 overflow-hidden bg-black/95 md:bg-black/50 backdrop-blur-sm transition-[height,opacity] duration-300 ${!mobileChrome ? 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto' : ''}`}
+        style={{
+          animation:   'sk-ttyPulse 4s ease-in-out infinite',
+          willChange:  'opacity, transform',
+          transform:   'translateZ(0)',
+          // Mobile: toggle between compact (h-36) and expanded (60vh)
+          height:      mobileLogExpanded ? 'min(60vh, 480px)' : '9rem',
+        }}
       >
         {/* Header strip — double-tap + long-tap here to activate mobile keyboard */}
         <div
@@ -399,6 +426,14 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
           <span className="text-[9px] font-bold tracking-widest text-cyan-900/35 ml-auto hidden md:block shrink-0">
             run · help · list · breach · tags
           </span>
+          {/* Mobile-only: expand/collapse logs panel */}
+          <button
+            className="md:hidden ml-auto shrink-0 text-[9px] font-black tracking-widest border border-cyan-900/40 px-2 py-0.5 rounded-sm transition-colors"
+            style={{ color: mobileLogExpanded ? '#39ff14' : 'rgba(6,182,212,0.45)', borderColor: mobileLogExpanded ? 'rgba(57,255,20,0.4)' : 'rgba(6,182,212,0.2)' }}
+            onClick={() => setMobileLogExpanded(v => !v)}
+          >
+            {mobileLogExpanded ? 'LOGS ▼' : 'LOGS ▲'}
+          </button>
         </div>
 
         {/* Log output */}
