@@ -745,7 +745,7 @@ const App = () => {
 
   return (
     <div className={`min-h-screen font-mono selection:bg-fuchsia-900 selection:text-white flex flex-col overflow-hidden relative transition-colors duration-700 ${selectedArticle || architectThesis ? 'bg-[#09090b]' : 'bg-black'} ${relicMode ? 'relic-mode' : ''}`}
-      style={{ animation: 'terminal-flicker 7s ease-in-out infinite' }}
+      style={{ animation: activeTab === 'art' ? 'none' : 'terminal-flicker 7s ease-in-out infinite' }}
       onTouchStart={showMobileChrome}
       onTouchEnd={hideMobileChromeAfterDelay}
       onTouchCancel={hideMobileChromeAfterDelay}
@@ -858,7 +858,7 @@ const App = () => {
           if (e.target === e.currentTarget && e.animationName === 'kernel-reveal-scale') setBootAnimDone(true);
         }}
       >
-        <OctagonGrid visible={!selectedArticle && !architectThesis && !tagCloudView} />
+        <OctagonGrid visible={!selectedArticle && !architectThesis && !tagCloudView && activeTab !== 'art'} />
 
       {/* ── Global article search overlay (⌘K) ───────────────────────────── */}
       {globalSearchOpen && (

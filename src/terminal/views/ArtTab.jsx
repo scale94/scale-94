@@ -19,6 +19,8 @@ import { useSomaGraph, CLUSTER_ANCHORS } from '../hooks/useSomaGraph';
 import { useKineticEdges }                from '../hooks/useKineticEdges';
 import { useAssociativeField }            from '../hooks/useAssociativeField';
 import { useTemporalMemory }              from '../hooks/useTemporalMemory';
+import { useMorphogenesis }               from '../hooks/useMorphogenesis';
+import { useSpectralLight }               from '../hooks/useSpectralLight';
 import {
   NODES, NODE_IDX, FEATURES, DIM_NAMES,
   cosineSim, topDrivers, analyzeEdge, findOrthogonalNode,
@@ -31,85 +33,124 @@ import { ecoDataFeed } from '../data/EcoDataFeed';
 // ── Particle Ecology ────────────────────────────────────────────────────────
 // Lightweight particle pool for edge energy flow, node bursts, and bifurcation trails.
 // All particles are depth-sorted and rendered additively in the draw loop.
-const MAX_PARTICLES = 200;
+const MAX_PARTICLES = 400;
+
+// ── Particle pool — flat SoA layout, ring-buffer allocation ─────────────────
+// Each particle has: position (x,y,z on unit sphere), velocity (vx,vy,vz),
+// life (0→maxLife frames), hue (0-360), sat (0-100), size (px), and a
+// hueTarget for smooth in-flight color blending.
 
 function createParticlePool() {
   return {
-    xs: new Float32Array(MAX_PARTICLES),
-    ys: new Float32Array(MAX_PARTICLES),
-    zs: new Float32Array(MAX_PARTICLES),
-    vxs: new Float32Array(MAX_PARTICLES),
-    vys: new Float32Array(MAX_PARTICLES),
-    vzs: new Float32Array(MAX_PARTICLES),
-    lifes: new Float32Array(MAX_PARTICLES),    // 0→1, dies at 1
-    maxLifes: new Float32Array(MAX_PARTICLES),
-    hues: new Float32Array(MAX_PARTICLES),
-    sizes: new Float32Array(MAX_PARTICLES),
-    count: 0,
+    xs:        new Float32Array(MAX_PARTICLES),
+    ys:        new Float32Array(MAX_PARTICLES),
+    zs:        new Float32Array(MAX_PARTICLES),
+    vxs:       new Float32Array(MAX_PARTICLES),
+    vys:       new Float32Array(MAX_PARTICLES),
+    vzs:       new Float32Array(MAX_PARTICLES),
+    lifes:     new Float32Array(MAX_PARTICLES),   // current age (frames)
+    maxLifes:  new Float32Array(MAX_PARTICLES),   // total lifespan
+    hues:      new Float32Array(MAX_PARTICLES),   // current hue
+    hueTargets:new Float32Array(MAX_PARTICLES),   // blend destination hue
+    sats:      new Float32Array(MAX_PARTICLES),   // saturation
+    sizes:     new Float32Array(MAX_PARTICLES),   // base radius (px)
+    next: 0,   // ring write head
+    count: 0,  // live count
   };
 }
 
-function emitParticle(pool, x, y, z, vx, vy, vz, hue, size, maxLife) {
-  if (pool.count >= MAX_PARTICLES) {
-    // Recycle oldest
-    const oldest = pool.count % MAX_PARTICLES;
-    pool.count = oldest;
-  }
-  const i = pool.count;
-  pool.xs[i] = x;  pool.ys[i] = y;  pool.zs[i] = z;
+function emitParticle(pool, x, y, z, vx, vy, vz, hue, hueTarget, sat, size, maxLife) {
+  const i = pool.next % MAX_PARTICLES;
+  pool.next = (i + 1) % MAX_PARTICLES;
+  pool.xs[i] = x;   pool.ys[i] = y;   pool.zs[i] = z;
   pool.vxs[i] = vx; pool.vys[i] = vy; pool.vzs[i] = vz;
   pool.lifes[i] = 0;
   pool.maxLifes[i] = maxLife;
   pool.hues[i] = hue;
+  pool.hueTargets[i] = hueTarget;
+  pool.sats[i] = sat;
   pool.sizes[i] = size;
   pool.count = Math.min(pool.count + 1, MAX_PARTICLES);
 }
 
-function stepParticles(pool, dt) {
-  let alive = 0;
-  for (let i = 0; i < pool.count; i++) {
-    pool.lifes[i] += dt;
+function stepParticles(pool) {
+  // In-place update — no compaction (avoids index aliasing bug)
+  // Dead particles (life >= maxLife) are simply skipped during render.
+  // Ring buffer naturally recycles slots.
+  for (let i = 0; i < MAX_PARTICLES; i++) {
     if (pool.lifes[i] >= pool.maxLifes[i]) continue;
-    // Integrate position
-    pool.xs[alive] = pool.xs[i] + pool.vxs[i] * dt;
-    pool.ys[alive] = pool.ys[i] + pool.vys[i] * dt;
-    pool.zs[alive] = pool.zs[i] + pool.vzs[i] * dt;
-    pool.vxs[alive] = pool.vxs[i] * 0.97;  // drag
-    pool.vys[alive] = pool.vys[i] * 0.97;
-    pool.vzs[alive] = pool.vzs[i] * 0.97;
-    pool.lifes[alive] = pool.lifes[i];
-    pool.maxLifes[alive] = pool.maxLifes[i];
-    pool.hues[alive] = pool.hues[i];
-    pool.sizes[alive] = pool.sizes[i];
-    alive++;
+    pool.lifes[i] += 1;
+    pool.xs[i] += pool.vxs[i];
+    pool.ys[i] += pool.vys[i];
+    pool.zs[i] += pool.vzs[i];
+    pool.vxs[i] *= 0.964;  // drag
+    pool.vys[i] *= 0.964;
+    pool.vzs[i] *= 0.964;
+    // Hue drift toward target (smooth color blend)
+    const dh = pool.hueTargets[i] - pool.hues[i];
+    const shortPath = dh > 180 ? dh - 360 : dh < -180 ? dh + 360 : dh;
+    pool.hues[i] += shortPath * 0.018;
   }
-  pool.count = alive;
 }
 
-function emitNodeBurst(pool, x, y, z, hue, count) {
+// ── Idle ambient emitter — slow-drifting particles across the sphere ─────────
+// Colors cycle through a warm→cool palette independent of user interaction.
+let _idleHueDrift = 0;
+function emitIdleParticles(pool, nodes) {
+  _idleHueDrift = (_idleHueDrift + 0.18) % 360;
+  // Pick a random live node as origin
+  if (!nodes || nodes.length === 0) return;
+  const n = nodes[Math.floor(Math.random() * nodes.length)];
+  const hue = _idleHueDrift;
+  const hueTarget = (_idleHueDrift + 40 + Math.random() * 80) % 360;
+  const theta = Math.random() * Math.PI * 2;
+  const phi   = Math.acos(Math.random() * 2 - 1);
+  const speed = 0.0005 + Math.random() * 0.0012;
+  emitParticle(pool,
+    n.x + (Math.random() - 0.5) * 0.08,
+    n.y + (Math.random() - 0.5) * 0.08,
+    n.z + (Math.random() - 0.5) * 0.08,
+    Math.sin(phi) * Math.cos(theta) * speed,
+    Math.sin(phi) * Math.sin(theta) * speed,
+    Math.cos(phi) * speed,
+    hue, hueTarget,
+    55 + Math.random() * 30,   // sat
+    0.6 + Math.random() * 0.8, // size
+    120 + Math.random() * 180  // life
+  );
+}
+
+// ── Click burst — radial explosion from node, hue = node cluster color ───────
+function emitNodeBurst(pool, x, y, z, hue, hueTarget, count) {
   for (let i = 0; i < count; i++) {
     const theta = Math.random() * Math.PI * 2;
-    const phi = Math.acos(Math.random() * 2 - 1);
-    const speed = 0.002 + Math.random() * 0.006;
-    emitParticle(pool,
-      x, y, z,
+    const phi   = Math.acos(Math.random() * 2 - 1);
+    const speed = 0.003 + Math.random() * 0.009;
+    emitParticle(pool, x, y, z,
       Math.sin(phi) * Math.cos(theta) * speed,
       Math.sin(phi) * Math.sin(theta) * speed,
       Math.cos(phi) * speed,
-      hue, 1.5 + Math.random() * 2, 60 + Math.random() * 90
+      hue, hueTarget,
+      75 + Math.random() * 20,
+      1.2 + Math.random() * 2.2,
+      90 + Math.random() * 100
     );
   }
 }
 
-function emitEdgeParticles(pool, ax, ay, az, bx, by, bz, hue, count) {
+// ── Edge stream — particles flowing along an edge ────────────────────────────
+function emitEdgeParticles(pool, ax, ay, az, bx, by, bz, hue, hueTarget, count) {
   for (let i = 0; i < count; i++) {
     const t = Math.random();
     emitParticle(pool,
       ax + (bx - ax) * t, ay + (by - ay) * t, az + (bz - az) * t,
-      (bx - ax) * 0.003 + (Math.random() - 0.5) * 0.001,
-      (by - ay) * 0.003 + (Math.random() - 0.5) * 0.001,
-      (bz - az) * 0.003 + (Math.random() - 0.5) * 0.001,
-      hue, 1.0 + Math.random() * 1.5, 40 + Math.random() * 60
+      (bx - ax) * 0.002 + (Math.random() - 0.5) * 0.0008,
+      (by - ay) * 0.002 + (Math.random() - 0.5) * 0.0008,
+      (bz - az) * 0.002 + (Math.random() - 0.5) * 0.0008,
+      hue, hueTarget,
+      65 + Math.random() * 20,
+      0.8 + Math.random() * 1.2,
+      60 + Math.random() * 70
     );
   }
 }
@@ -329,6 +370,29 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   const [playback, setPlayback] = useState(false);
   const [peerCount, setPeerCount] = useState(0);
 
+  // ── Morphogenetic Sphere (living Voronoi topology) ─────────────────────
+  const {
+    morphRef, stepMorphogenesis, getCells, getMesh,
+    cellCount, onDivision, onApoptosis, getDivisionHistory,
+  } = useMorphogenesis({ fieldRef, phaseRegime });
+
+  // ── Spectral PCA Light (eigenvalue → visible wavelength) ──────────────
+  const {
+    spectralRef, stepSpectral, getNodeColor: getSpectralColor,
+    getAmbientColor, getParticipationRatio, getEigenspectrum,
+    getSpectralFlux, getPCDirections,
+  } = useSpectralLight({ fieldRef, features: FEATURES, nodeCount: NODES.length });
+
+  // ── Morphogenesis callbacks ───────────────────────────────────────────
+  useEffect(() => {
+    onDivision.current = (parentId, child1Id, child2Id) => {
+      if (audioInitRef.current) somaAudio.playResonance?.({ freq: 660, overtone: 3, sim: 0.9 });
+    };
+    onApoptosis.current = (deadId, absorberId) => {
+      if (audioInitRef.current) somaAudio.playNode?.('drk_entropy', { soft: true });
+    };
+  }, [onDivision, onApoptosis]);
+
   // ── Eco data modulations ──────────────────────────────────────────────
   const ecoModRef = useRef(new Float32Array(16));
 
@@ -343,6 +407,9 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       audioInitRef.current = true;
     }
   }, []);
+
+  // ── State-driven background flash (bifurcation / orthogonal events) ────────
+  const bgFlashRef = useRef(0); // decays from 1→0 over ~200ms
 
   // ── Manual fusion state machine ────────────────────────────────────────────
   // fusionSourceRef: read by draw loop (no re-render), set in sync with state
@@ -534,15 +601,32 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     // Hard cap: max 4 concurrent effects — drop oldest to prevent perf abuse
     if (geomEffectsRef.current.length >= 4) geomEffectsRef.current.shift();
 
+    // Palette: left-click → cluster hue, right-click → complementary shift, idle → drift
+    const clusterHue = node ? (NODE_COLORS[node.id]?.hue ?? Math.random() * 360) : Math.random() * 360;
+    const hueBase    = opts.hueOverride ?? clusterHue;
+    const hueTarget  = opts.hueTarget   ?? (hueBase + (opts.rightClick ? 180 : 90) + Math.random() * 60) % 360;
+
     geomEffectsRef.current.push({
       id:        Date.now() + Math.random(),
       nodeIds:   localIds.slice(0, nodeLimit),
       life:      0,
       maxLife:   coarse ? Math.min(maxLife, 150) : maxLife,
-      hueBase:   Math.random() * 360,
+      hueBase,
+      hueTarget,
       intensity: coarse ? Math.min(intensity, 0.7) : intensity,
       coarse,
     });
+
+    // Emit particle burst from live physics node position
+    if (node) {
+      const liveNode = stateRef.current?.nodes?.find(n => n.id === node.id);
+      if (liveNode) {
+        emitNodeBurst(particlesRef.current, liveNode.x, liveNode.y, liveNode.z,
+          hueBase, hueTarget, opts.soft ? 10 : 22
+        );
+      }
+    }
+
     if (node) { fireNode(node.id); ensureAudio(); somaAudio.playNode(node.id); }
   }, [fireNode, ensureAudio]);
 
@@ -683,6 +767,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       stepGraph();
       stepEdges();
       stepField();
+      stepMorphogenesis();
+      stepSpectral();
 
       // ── Apply Hopfield activations to node energies ──────────────────────
       if (fieldRef.current) {
@@ -710,21 +796,25 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
       // ── Step particle ecology ─────────────────────────────────────────────
       const pool = particlesRef.current;
-      stepParticles(pool, 1);
+      stepParticles(pool);
       particleFrameRef.current++;
+      const pFrame = particleFrameRef.current;
 
       // Emit edge energy particles every ~8 frames on high-energy edges
-      if (es && particleFrameRef.current % 8 === 0) {
+      if (es && pFrame % 8 === 0) {
         for (const e of es) {
           if (e.pulse < 0.2) continue;
           const iA = nodes.findIndex(n => n.id === e.aId);
           const iB = nodes.findIndex(n => n.id === e.bId);
           if (iA < 0 || iB < 0) continue;
           const colA = NODE_COLORS[e.aId];
+          const colB = NODE_COLORS[e.bId];
+          const hue = colA?.hue ?? 30;
+          const hueTarget = colB?.hue ?? (hue + 60) % 360;
           emitEdgeParticles(pool,
             nodes[iA].x, nodes[iA].y, nodes[iA].z,
             nodes[iB].x, nodes[iB].y, nodes[iB].z,
-            colA?.h ?? 30, 2
+            hue, hueTarget, 2
           );
         }
       }
@@ -733,15 +823,56 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       for (const n of nodes) {
         if (n.energy > 0.7 && Math.random() < 0.15) {
           const col = NODE_COLORS[n.id];
-          emitNodeBurst(pool, n.x, n.y, n.z, col?.h ?? 30, 3);
+          const hue = col?.hue ?? 30;
+          const hueTarget = (hue + 120 + Math.random() * 60) % 360;
+          emitNodeBurst(pool, n.x, n.y, n.z, hue, hueTarget, 3);
         }
       }
 
       // ── Clear with trail fade ─────────────────────────────────────────────
       const dpr = window.devicePixelRatio || 1;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.fillStyle = immersiveRef.current ? 'rgba(0,0,0,0.28)' : 'rgba(0,0,0,0.18)';
+      ctx.fillStyle = immersiveRef.current ? 'rgba(0,0,0,0.32)' : 'rgba(0,0,0,0.72)';
       ctx.fillRect(0, 0, w, h);
+
+      // ── State-driven flash — brief anthracite grid on bifurcation events ──
+      if (bgFlashRef.current > 0.005) {
+        const flash = bgFlashRef.current;
+        bgFlashRef.current *= 0.92; // exponential decay ~200ms
+        const fAlpha = flash * 0.08;
+        ctx.strokeStyle = `rgba(58,58,62,${fAlpha.toFixed(4)})`;
+        ctx.lineWidth = 0.5;
+        // Draw a hex grid that only appears during events
+        const gridStep = 28;
+        for (let gy = 0; gy < h; gy += gridStep * 0.866) {
+          const row = Math.floor(gy / (gridStep * 0.866));
+          const offset = (row % 2) * gridStep * 0.5;
+          for (let gx = offset; gx < w; gx += gridStep) {
+            ctx.beginPath();
+            for (let k = 0; k < 6; k++) {
+              const angle = Math.PI / 3 * k - Math.PI / 6;
+              const hx = gx + Math.cos(angle) * gridStep * 0.5;
+              const hy = gy + Math.sin(angle) * gridStep * 0.5;
+              k === 0 ? ctx.moveTo(hx, hy) : ctx.lineTo(hx, hy);
+            }
+            ctx.closePath();
+            ctx.stroke();
+          }
+        }
+      }
+
+      // ── Spectral ambient — immersive mode only, otherwise pure black ────
+      if (immersiveRef.current) {
+        const _ambient = getAmbientColor();
+        if (_ambient) {
+          const _aGrd = ctx.createRadialGradient(w/2, h/2, sphereR * 0.3, w/2, h/2, sphereR * 1.6);
+          const _intensity = Math.min(1, (_ambient[3] ?? 0.08)) * 0.10;
+          _aGrd.addColorStop(0, `rgba(38,38,42,${_intensity.toFixed(3)})`);
+          _aGrd.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = _aGrd;
+          ctx.fillRect(0, 0, w, h);
+        }
+      }
 
       // ── Sphere wireframe ghost ────────────────────────────────────────────
       // Subtle equator ellipse as spatial anchor
@@ -772,6 +903,27 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         ctx.fillStyle = hslAlpha(col, al);
         ctx.fillText(CLUSTERS[key].label.toUpperCase(), p.sx, p.sy - 52 * p.scale);
       });
+
+      // ── Voronoi Mesh — suppressed in default view, only in immersive mode ──
+      // The tessellation competes with node data at normal scale; reserve for
+      // full-screen immersive where the geometry reads as texture not noise.
+      if (immersiveRef.current) {
+        const meshLines = getMesh();
+        if (meshLines && meshLines.length > 0) {
+          ctx.lineWidth = 0.5;
+          for (const seg of meshLines) {
+            const pA = project(seg.a[0], seg.a[1], seg.a[2], w, h, sphereR, focal);
+            const pB = project(seg.b[0], seg.b[1], seg.b[2], w, h, sphereR, focal);
+            if (pA.depth < -0.3 && pB.depth < -0.3) continue;
+            const opacity = Math.max(0, Math.min(1, (pA.depth + pB.depth) * 0.5 + 0.5)) * (seg.opacity ?? 0.12);
+            ctx.strokeStyle = `rgba(58,58,62,${(opacity * 0.5).toFixed(3)})`;
+            ctx.beginPath();
+            ctx.moveTo(pA.sx, pA.sy);
+            ctx.lineTo(pB.sx, pB.sy);
+            ctx.stroke();
+          }
+        }
+      }
 
       // ── Edges (depth-sorted by average node depth) ────────────────────────
       if (es) {
@@ -942,8 +1094,12 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           live.push(eff);
 
           const t     = eff.life / eff.maxLife;
-          const alpha = Math.sin(t * Math.PI) * (eff.intensity ?? 1.0);
-          const hue0  = (eff.hueBase + eff.life * 1.8) % 360;
+          // Smooth cubic alpha — fast in, hold, cubic out
+          const alphaRaw = t < 0.1 ? t / 0.1 : t > 0.65 ? Math.pow(1 - (t - 0.65) / 0.35, 2) : 1.0;
+          const alpha = alphaRaw * (eff.intensity ?? 1.0);
+          // Hue smoothly fades from hueBase → hueTarget over the effect lifetime
+          const dh = ((eff.hueTarget ?? eff.hueBase) - eff.hueBase + 540) % 360 - 180;
+          const hue0 = (eff.hueBase + dh * t) % 360;
 
           // Project effect nodes using precomputed index map
           const effProj = eff.nodeIds.map(id => {
@@ -963,8 +1119,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
               for (let k = 0; k < spectralN; k++) {
                 const hue  = (hue0 + k * 48) % 360;
-                const lAlpha = alpha * 0.28 * (1 - k * 0.06);
-                const offset = (k - 3) * 2.2;
+                const lAlpha = alpha * 0.85 * (1 - k * 0.07);
+                const offset = (k - 3) * 2.8;
 
                 // Control point pulled toward sphere center — creates interior arc illusion
                 const midX = (pA.sx + pB.sx) / 2;
@@ -972,8 +1128,16 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
                 const cpx  = midX + (cx - midX) * 0.55 + offset * 2;
                 const cpy  = midY + (cy - midY) * 0.55 + offset * 1.4;
 
-                ctx.strokeStyle = `hsla(${hue},100%,65%,${lAlpha.toFixed(3)})`;
-                ctx.lineWidth   = 0.7;
+                // Wide glow pass
+                ctx.strokeStyle = `hsla(${hue},100%,65%,${(lAlpha * 0.4).toFixed(3)})`;
+                ctx.lineWidth   = 5 - k * 0.4;
+                ctx.beginPath();
+                ctx.moveTo(pA.sx + offset, pA.sy + offset * 0.6);
+                ctx.quadraticCurveTo(cpx, cpy, pB.sx + offset, pB.sy + offset * 0.6);
+                ctx.stroke();
+                // Sharp core pass
+                ctx.strokeStyle = `hsla(${hue},100%,88%,${lAlpha.toFixed(3)})`;
+                ctx.lineWidth   = 1.2;
                 ctx.beginPath();
                 ctx.moveTo(pA.sx + offset, pA.sy + offset * 0.6);
                 ctx.quadraticCurveTo(cpx, cpy, pB.sx + offset, pB.sy + offset * 0.6);
@@ -985,8 +1149,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           // Sacred polygon outline (cyclic ring) through effect nodes
           if (effProj.length >= 3) {
             const polyHue = (hue0 + 180) % 360;
-            ctx.strokeStyle = `hsla(${polyHue},100%,75%,${(alpha * 0.18).toFixed(3)})`;
-            ctx.lineWidth   = 1.2;
+            ctx.strokeStyle = `hsla(${polyHue},100%,88%,${(alpha * 0.72).toFixed(3)})`;
+            ctx.lineWidth   = 1.6;
             ctx.beginPath();
             ctx.moveTo(effProj[0].sx, effProj[0].sy);
             for (let i = 1; i < effProj.length; i++) ctx.lineTo(effProj[i].sx, effProj[i].sy);
@@ -997,7 +1161,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           // Star spokes — lines from sphere center to each effect node
           for (const ep of effProj) {
             const spokeHue = (hue0 + Math.atan2(ep.sy - cy, ep.sx - cx) * (180 / Math.PI) + 360) % 360;
-            ctx.strokeStyle = `hsla(${spokeHue},90%,70%,${(alpha * 0.12).toFixed(3)})`;
+            ctx.strokeStyle = `hsla(${spokeHue},95%,82%,${(alpha * 0.52).toFixed(3)})`;
             ctx.lineWidth   = 0.5;
             ctx.beginPath();
             ctx.moveTo(cx, cy);
@@ -1057,6 +1221,29 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         if (n.bleedAmount > 0 && n.bleedFrom) {
           const srcCol = NODE_COLORS[n.bleedFrom];
           if (srcCol) renderCol = lerpColor(col, srcCol, n.bleedAmount * 0.7);
+        }
+
+        // Spectral PCA tint — shift hue based on eigenvalue-to-wavelength mapping
+        const _spc = getSpectralColor(i);
+        if (_spc && renderCol.hue != null) {
+          const flux = getSpectralFlux();
+          const blend = 0.08 + flux * 0.15; // very subtle 8-23% spectral influence
+          // Convert spectral [r,g,b,a] (0-1 floats) to approximate hue shift
+          const _sr = _spc[0], _sg = _spc[1], _sb = _spc[2];
+          const _sMax = Math.max(_sr, _sg, _sb), _sMin = Math.min(_sr, _sg, _sb);
+          let _sHue = 0;
+          if (_sMax > _sMin) {
+            const _d = _sMax - _sMin;
+            if (_sMax === _sr) _sHue = ((_sg - _sb) / _d + 6) % 6 * 60;
+            else if (_sMax === _sg) _sHue = ((_sb - _sr) / _d + 2) * 60;
+            else _sHue = ((_sr - _sg) / _d + 4) * 60;
+          }
+          renderCol = {
+            hue: renderCol.hue + (_sHue - renderCol.hue) * blend,
+            sat: renderCol.sat + ((_sMax - _sMin) / Math.max(_sMax, 0.001) * 100 - renderCol.sat) * blend * 0.3,
+            lit: renderCol.lit,
+            hsl: renderCol.hsl,
+          };
         }
 
         // Glow halo
@@ -1226,25 +1413,54 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         }
       }
 
-      // ── Particle Ecology: depth-sorted additive rendering ─────────────────
-      if (pool.count > 0) {
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        for (let pi = 0; pi < pool.count; pi++) {
-          const [prx, pry, prz] = applyM(M, pool.xs[pi], pool.ys[pi], pool.zs[pi]);
-          const pp = project(prx, pry, prz, w, h, sphereR, focal);
-          const lifeT = pool.lifes[pi] / pool.maxLifes[pi];
-          const alpha = Math.sin(lifeT * Math.PI) * 0.7;  // fade in/out
-          if (alpha < 0.01) continue;
-          const sz = pool.sizes[pi] * pp.scale;
-          const hue = pool.hues[pi];
-          ctx.fillStyle = `hsla(${hue},90%,70%,${alpha.toFixed(3)})`;
-          ctx.beginPath();
-          ctx.arc(pp.sx, pp.sy, sz, 0, Math.PI * 2);
-          ctx.fill();
+      // ── Idle ambient particle emission (~2 per frame) ────────────────────
+      if (pFrame % 3 === 0) emitIdleParticles(pool, nodes);
+      if (pFrame % 7 === 0) emitIdleParticles(pool, nodes);
+
+      // ── Particle render — additive, smooth sin fade, radial glow ─────────
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      for (let pi = 0; pi < MAX_PARTICLES; pi++) {
+        if (pool.lifes[pi] >= pool.maxLifes[pi] || pool.maxLifes[pi] === 0) continue;
+        const lifeT = pool.lifes[pi] / pool.maxLifes[pi];
+        // Smooth cubic fade: ramp in over first 15%, hold, ramp out last 30%
+        let alpha;
+        if (lifeT < 0.15) {
+          alpha = (lifeT / 0.15) * (lifeT / 0.15); // quadratic ease-in
+        } else if (lifeT > 0.70) {
+          alpha = Math.pow(1 - (lifeT - 0.70) / 0.30, 2.2); // power ease-out
+        } else {
+          alpha = 1.0;
         }
-        ctx.restore();
+        alpha *= 0.55;
+        if (alpha < 0.004) continue;
+
+        const [prx, pry, prz] = applyM(M, pool.xs[pi], pool.ys[pi], pool.zs[pi]);
+        const pp = project(prx, pry, prz, w, h, sphereR, focal);
+        if (pp.depth < -0.6) continue; // cull deep back-face
+
+        const sz   = Math.max(0.4, pool.sizes[pi] * pp.scale);
+        const hue  = pool.hues[pi];
+        const sat  = pool.sats[pi];
+
+        // Soft radial glow — two concentric draws
+        const glowR = sz * 3.5;
+        const gGrd = ctx.createRadialGradient(pp.sx, pp.sy, 0, pp.sx, pp.sy, glowR);
+        gGrd.addColorStop(0,   `hsla(${hue|0},${sat|0}%,82%,${alpha.toFixed(3)})`);
+        gGrd.addColorStop(0.4, `hsla(${hue|0},${sat|0}%,65%,${(alpha*0.5).toFixed(3)})`);
+        gGrd.addColorStop(1,   `hsla(${hue|0},${sat|0}%,50%,0)`);
+        ctx.fillStyle = gGrd;
+        ctx.beginPath();
+        ctx.arc(pp.sx, pp.sy, glowR, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Hard core
+        ctx.fillStyle = `hsla(${hue|0},${sat|0}%,92%,${(alpha * 0.8).toFixed(3)})`;
+        ctx.beginPath();
+        ctx.arc(pp.sx, pp.sy, sz, 0, Math.PI * 2);
+        ctx.fill();
       }
+      ctx.restore();
 
       // ── Immersive Mode: bloom post-process + vignette ─────────────────────
       if (immersiveRef.current) {
@@ -1477,7 +1693,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         ensureAudio(); somaAudio.playNode(node.id);
         // Broadcast to peers
         if (somaPresence.connected) somaPresence.sendFire(node.id);
-        spawnEffect(node.id, { soft: true });   // attractor click → soft geometry pulse
+        spawnEffect(node.id, { soft: true, rightClick: false });   // left-click → cluster hue burst
         // Label cascade — record seed + neighbors for the draw loop
         const nbs = new Set(ADJ[node.id] ?? []);
         nbs.add(node.id);
@@ -1505,7 +1721,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     const result = findOrthogonalNode(node.id, edgeSet);
     if (result) {
       onOrthogonalBridge(node.id, result);
-      spawnEffect(node.id, { soft: true });
+      bgFlashRef.current = 0.7; // orthogonal bridge → brief void flash
+      spawnEffect(node.id, { soft: false, rightClick: true });  // right-click → complementary hue burst
     }
   }, [canvasCoords, nodeAt, onOrthogonalBridge, activeEdges, spawnEffect]);
 
@@ -1606,6 +1823,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       setPhaseRegime(event.to);
       setPhaseR(event.r);
       setPhaseLyap(event.lyapunov);
+      // State-driven flash — the void acknowledges the transition
+      bgFlashRef.current = event.to === 'CHAOS' ? 1.0 : 0.6;
       // Sonify phase transitions
       if (audioInitRef.current) {
         somaAudio.playBifurcation(event.to === 'CHAOS' ? 6 : event.to === 'PERIOD_8' ? 4 : 2);
@@ -1678,25 +1897,6 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
 
       <style>{`
-        @keyframes at-shimmer {
-          0%,100% { background-position: 0% 50%; }
-          50%      { background-position: 100% 50%; }
-        }
-        @keyframes at-feigReveal {
-          0%   { opacity: 0; filter: brightness(4) blur(8px); letter-spacing: 0.5em; }
-          25%  { opacity: 1; filter: brightness(2.8) blur(2px); letter-spacing: 0.2em; }
-          55%  { opacity: 0.65; filter: brightness(3.2) blur(0px); letter-spacing: 0.06em; }
-          78%  { opacity: 1; filter: brightness(1.5) blur(0px); letter-spacing: 0.02em; }
-          100% { opacity: 1; filter: brightness(1) blur(0px); letter-spacing: normal; }
-        }
-        @keyframes at-feigGlow {
-          0%, 100% { text-shadow: 0 0 8px rgba(255,215,0,0.2), 0 0 20px rgba(255,215,0,0); }
-          50%      { text-shadow: 0 0 12px rgba(255,215,0,0.45), 0 0 32px rgba(217,70,239,0.2); }
-        }
-        @keyframes at-feigHueShift {
-          0%, 100% { --feig-accent: #d946ef; }
-          50%      { --feig-accent: #8b5cf6; }
-        }
         @keyframes at-feigSpark {
           0%   { transform: scale(1); filter: brightness(1); }
           15%  { transform: scale(1.025); filter: brightness(3); }
@@ -1722,18 +1922,26 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           >
             <Waves
               className="w-6 h-6 md:w-8 md:h-8 shrink-0"
-              style={{ color: '#FFD700', filter: 'drop-shadow(0 0 8px rgba(255,215,0,0.6))' }}
+              style={{
+                color: selectedNode === 'feigenbaum' ? '#FFD700' : '#FF8C00',
+                filter: selectedNode === 'feigenbaum'
+                  ? 'drop-shadow(0 0 8px rgba(255,215,0,0.85)) drop-shadow(0 0 3px rgba(255,215,0,1))'
+                  : 'drop-shadow(0 0 8px rgba(255,140,0,0.7)) drop-shadow(0 0 16px rgba(217,70,239,0.4))',
+                transition: 'color 0.4s ease, filter 0.4s ease',
+              }}
             />
             <span
               className="text-transparent bg-clip-text"
               style={{
                 backgroundImage: selectedNode === 'feigenbaum'
-                  ? 'linear-gradient(90deg, #FFD700, #fff, #FFD700, #d946ef, #FFD700)'
-                  : 'linear-gradient(90deg, #FF8C00, #FFD700, #8b5cf6, #d946ef, #FFD700, #FF8C00)',
-                backgroundSize: '400% auto',
-                animation: 'at-feigReveal 1s cubic-bezier(0.7,0,0.3,1) forwards, at-shimmer 3.5s cubic-bezier(0.7,0,0.3,1) 1s infinite, at-feigGlow 5s ease-in-out 1.2s infinite',
+                  ? 'linear-gradient(90deg, #FFD700, #fff700, #FFD700)'
+                  : 'linear-gradient(90deg, #FF8C00, #FFD700, #d946ef, #FFD700, #FF8C00)',
+                backgroundSize: '100% auto',
+                animation: 'none',
                 transition: 'background-image 0.4s ease',
-                ...(selectedNode === 'feigenbaum' ? { filter: 'brightness(1.8)', textShadow: '0 0 18px rgba(255,215,0,0.7), 0 0 40px rgba(255,215,0,0.3)' } : {}),
+                filter: selectedNode === 'feigenbaum'
+                  ? 'drop-shadow(0 0 18px rgba(255,215,0,0.9)) drop-shadow(0 0 6px rgba(255,215,0,1))'
+                  : 'drop-shadow(0 0 10px rgba(255,140,0,0.7)) drop-shadow(0 0 24px rgba(217,70,239,0.35))',
               }}
             >feigenbaum_fade</span>
           </h2>
@@ -2067,6 +2275,15 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         </div>
         <div className="mt-1" style={{ color: 'rgba(255,255,255,0.20)' }}>
           {'  ── Hopfield associative memory · logistic map x→rx(1-x) · genuine period-doubling cascade ──'}
+        </div>
+        <div className="mt-2 flex gap-4 flex-wrap" style={{ color: 'rgba(255,255,255,0.45)' }}>
+          <span>{'PR = '}<span style={{ color: 'rgba(100,200,255,0.85)' }}>{(getParticipationRatio?.() ?? 0).toFixed(2)}</span>
+            {' '}<span style={{ color: 'rgba(255,255,255,0.25)' }}>{(getParticipationRatio?.() ?? 0) < 3 ? '[MONOCHROMATIC]' : (getParticipationRatio?.() ?? 0) < 6 ? '[TRICHROMATIC]' : '[FULL SPECTRUM]'}</span></span>
+          <span>{'cells = '}<span style={{ color: 'rgba(34,197,94,0.8)' }}>{cellCount()}</span></span>
+          <span>{'flux = '}<span style={{ color: 'rgba(255,180,0,0.8)' }}>{(getSpectralFlux?.() ?? 0).toFixed(4)}</span></span>
+        </div>
+        <div className="mt-1" style={{ color: 'rgba(255,255,255,0.15)' }}>
+          {'  ── morphogenetic Voronoi · PCA eigenspectrum → visible light · participation ratio ──'}
         </div>
       </div>
 
