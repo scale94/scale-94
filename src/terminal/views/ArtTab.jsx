@@ -13,16 +13,20 @@
 // Color system: deterministic hash HSL via kernelColorMap.js
 
 import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react';
-import { Waves, Volume2, VolumeX, Maximize, Minimize } from 'lucide-react';
+import { Waves, Volume2, VolumeX, Maximize, Minimize, Circle, Download, Radio, Clock, Wifi } from 'lucide-react';
 import { nodeColor, lerpColor, hslAlpha } from '../data/kernelColorMap';
 import { useSomaGraph, CLUSTER_ANCHORS } from '../hooks/useSomaGraph';
 import { useKineticEdges }                from '../hooks/useKineticEdges';
+import { useAssociativeField }            from '../hooks/useAssociativeField';
+import { useTemporalMemory }              from '../hooks/useTemporalMemory';
 import {
   NODES, NODE_IDX, FEATURES, DIM_NAMES,
   cosineSim, topDrivers, analyzeEdge, findOrthogonalNode,
   compareNodes, jitterFeatures,
 } from '../data/nodeFeatures';
 import { somaAudio } from '../audio/SomaAudio';
+import { somaPresence } from '../audio/SomaPresence';
+import { ecoDataFeed } from '../data/EcoDataFeed';
 
 // ── Particle Ecology ────────────────────────────────────────────────────────
 // Lightweight particle pool for edge energy flow, node bursts, and bifurcation trails.
@@ -299,6 +303,34 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   // ── Particle Ecology ────────────────────────────────────────────────────
   const particlesRef = useRef(createParticlePool());
   const particleFrameRef = useRef(0);     // frame counter for edge particle emission
+
+  // ── Associative Field (Hopfield + Feigenbaum) ──────────────────────────
+  const {
+    fieldRef, stepField, perturbNode: perturbField,
+    getEnergy: getFieldEnergy, getPhase, getLyapunov, getBasins,
+    onPhaseTransition,
+  } = useAssociativeField({ nodes: NODES, adj: ADJ });
+
+  // ── Temporal Memory (recording + playback) ────────────────────────────
+  const {
+    memoryRef, recordSnapshot,
+    isRecording: tmIsRecording, isPlayback: tmIsPlayback,
+    playbackFrame: tmPlaybackFrame,
+    startPlayback, stopPlayback, togglePlayback,
+    seekTo, getSnapshot, getSnapshotCount,
+    playbackSpeed, setPlaybackSpeed, exportTimeline,
+  } = useTemporalMemory();
+
+  // ── Phase regime display ──────────────────────────────────────────────
+  const [phaseRegime, setPhaseRegime] = useState('STABLE');
+  const [phaseR, setPhaseR] = useState(2.8);
+  const [phaseLyap, setPhaseLyap] = useState(0);
+  const [recording, setRecording] = useState(false);
+  const [playback, setPlayback] = useState(false);
+  const [peerCount, setPeerCount] = useState(0);
+
+  // ── Eco data modulations ──────────────────────────────────────────────
+  const ecoModRef = useRef(new Float32Array(16));
 
   // ── Audio state ─────────────────────────────────────────────────────────
   const [audioMuted, setAudioMuted] = useState(true);
@@ -650,6 +682,20 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       // ── Step simulations ──────────────────────────────────────────────────
       stepGraph();
       stepEdges();
+      stepField();
+
+      // ── Apply Hopfield activations to node energies ──────────────────────
+      if (fieldRef.current) {
+        const acts = fieldRef.current.activations;
+        for (let i = 0; i < Math.min(nodes.length, acts.length); i++) {
+          nodes[i].energy = Math.max(nodes[i].energy, acts[i] * 0.6);
+        }
+      }
+
+      // ── Record temporal snapshot (every ~30 frames) ──────────────────────
+      if (tmIsRecording.current) {
+        recordSnapshot(stateRef, edgeStateRef, fieldRef);
+      }
 
       // ── Project all nodes ─────────────────────────────────────────────────
       const proj = nodes.map(n => {
@@ -1425,7 +1471,12 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
         // Right-click is handled by contextmenu (fusion state machine) — ignore here
         fireNode(node.id);
+        // Perturb Hopfield field — genuine associative activation propagation
+        const nodeIdx_ = NODE_IDX[node.id];
+        if (nodeIdx_ != null) perturbField(nodeIdx_);
         ensureAudio(); somaAudio.playNode(node.id);
+        // Broadcast to peers
+        if (somaPresence.connected) somaPresence.sendFire(node.id);
         spawnEffect(node.id, { soft: true });   // attractor click → soft geometry pulse
         // Label cascade — record seed + neighbors for the draw loop
         const nbs = new Set(ADJ[node.id] ?? []);
@@ -1522,7 +1573,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     const node = nodeAt(p.x, p.y);
     if (!node) return;
     fireNode(node.id);
+    // Perturb Hopfield field from touch
+    const _touchIdx = NODE_IDX[node.id];
+    if (_touchIdx != null) perturbField(_touchIdx);
     ensureAudio(); somaAudio.playNode(node.id);
+    if (somaPresence.connected) somaPresence.sendFire(node.id);
     spawnEffect(node.id, { soft: true });
     // Label cascade — record seed + neighbors for the draw loop
     const nbs = new Set(ADJ[node.id] ?? []);
@@ -1532,7 +1587,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     if (onCueNode && nodeIdx >= 0) onCueNode(nodeIdx);
     setSelectedNode(node.id);
     setLockedEdge(null);
-  }, [canvasCoords, nodeAt, fireNode, spawnEffect, onCueNode, ensureAudio]);
+  }, [canvasCoords, nodeAt, fireNode, spawnEffect, onCueNode, ensureAudio, perturbField]);
 
   // ── CSS vars for DOM elements outside canvas ──────────────────────────────
   useEffect(() => {
@@ -1544,6 +1599,45 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       el.style.setProperty(`--node-color-${node.id}`, NODE_COLORS[node.id].hsl);
     });
   }, [associativeField]);
+
+  // ── Phase transition callback — drives topology + audio ─────────────────
+  useEffect(() => {
+    onPhaseTransition.current = (event) => {
+      setPhaseRegime(event.to);
+      setPhaseR(event.r);
+      setPhaseLyap(event.lyapunov);
+      // Sonify phase transitions
+      if (audioInitRef.current) {
+        somaAudio.playBifurcation(event.to === 'CHAOS' ? 6 : event.to === 'PERIOD_8' ? 4 : 2);
+      }
+      // Broadcast to peers
+      if (somaPresence.connected) {
+        somaPresence.sendPhase(event.to, event.r, event.lyapunov);
+      }
+    };
+  }, [onPhaseTransition]);
+
+  // ── Eco data feed — modulate features from live environmental data ─────
+  useEffect(() => {
+    ecoDataFeed.startPolling(300000); // poll every 5 min
+    ecoDataFeed.fetchLatest().then(() => {
+      const mod = ecoDataFeed.getModulations();
+      ecoModRef.current.set(mod);
+    }).catch(() => {});
+    const interval = setInterval(() => {
+      const mod = ecoDataFeed.getModulations();
+      ecoModRef.current.set(mod);
+    }, 60000); // refresh modulations every minute
+    return () => { ecoDataFeed.stopPolling(); clearInterval(interval); };
+  }, []);
+
+  // ── Presence — peer count updater ─────────────────────────────────────
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (somaPresence.connected) setPeerCount(somaPresence.peerCount);
+    }, 2000);
+    return () => clearInterval(interval);
+  }, []);
 
   // ── Immersive Mode keyboard handler ('I' key toggle) ───────────────────
   useEffect(() => {
@@ -1561,6 +1655,19 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         if (!audioInitRef.current) { somaAudio.init(); audioInitRef.current = true; }
         const muted = somaAudio.toggleMute();
         setAudioMuted(muted);
+      }
+      // 'R' toggles temporal recording
+      if (e.key === 'r' || e.key === 'R') {
+        const wasRecording = tmIsRecording.current;
+        tmIsRecording.current = !wasRecording;
+        setRecording(!wasRecording);
+        if (!wasRecording) somaAudio.startRecording?.();
+        else somaAudio.stopRecording?.();
+      }
+      // 'T' toggles timeline playback
+      if (e.key === 't' || e.key === 'T') {
+        togglePlayback();
+        setPlayback(tmIsPlayback.current);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -1642,6 +1749,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             {orthogonalBridges.length ? ` · ⊥ ${orthogonalBridges.length} orthogonal` : ''}
             {probeNode ? ` · ⊕ probe` : ''}
             {bifurcCount > 0 ? ` · ⌥ +${bifurcCount} children` : ''}
+            {` · ${phaseRegime}`}
           </span>
           <span className="border border-cyan-900/30 px-3 py-1 rounded-sm text-cyan-400/50">
             drag · click → attractor · shift-click → ◈ resonance · right-click → ⊥
@@ -1695,6 +1803,55 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
               ? <Minimize className="w-3.5 h-3.5 inline" />
               : <Maximize className="w-3.5 h-3.5 inline" />}
           </button>
+          {/* Recording toggle */}
+          <button
+            onClick={() => {
+              const wasRec = tmIsRecording.current;
+              tmIsRecording.current = !wasRec;
+              setRecording(!wasRec);
+              if (!wasRec) somaAudio.startRecording?.();
+              else somaAudio.stopRecording?.();
+            }}
+            className="px-2 py-1 rounded-sm border transition-all duration-200"
+            style={{
+              borderColor: recording ? 'rgba(239,68,68,0.6)' : 'rgba(255,140,0,0.2)',
+              color: recording ? 'rgba(239,68,68,0.9)' : 'rgba(255,140,0,0.4)',
+              background: recording ? 'rgba(239,68,68,0.08)' : 'transparent',
+            }}
+            title="Record timeline (R)"
+          >
+            <Circle className="w-3 h-3 inline" style={recording ? { fill: 'currentColor' } : {}} />
+          </button>
+          {/* Timeline playback toggle */}
+          <button
+            onClick={() => { togglePlayback(); setPlayback(tmIsPlayback.current); }}
+            className="px-2 py-1 rounded-sm border border-amber-900/30 text-amber-400/40 hover:border-amber-500/50 hover:text-amber-300/70 transition-all duration-200"
+            title="Timeline playback (T)"
+          >
+            <Clock className="w-3.5 h-3.5 inline" />
+          </button>
+          {/* MIDI export */}
+          <button
+            onClick={() => {
+              const midi = somaAudio.exportMIDI?.();
+              if (!midi) return;
+              const blob = new Blob([midi], { type: 'audio/midi' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url; a.download = `soma-score-${Date.now()}.mid`;
+              a.click(); URL.revokeObjectURL(url);
+            }}
+            className="px-2 py-1 rounded-sm border border-amber-900/30 text-amber-400/40 hover:border-amber-500/50 hover:text-amber-300/70 transition-all duration-200"
+            title="Export MIDI score"
+          >
+            <Download className="w-3.5 h-3.5 inline" />
+          </button>
+          {/* Peer count indicator */}
+          {peerCount > 0 && (
+            <span className="px-2 py-1 rounded-sm border border-cyan-900/30 text-cyan-400/50 text-[10px]">
+              <Wifi className="w-3 h-3 inline mr-1" />{peerCount}
+            </span>
+          )}
         </div>
       </div>
 
@@ -1862,6 +2019,55 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         <span className="ml-auto text-xs font-mono tracking-widest" style={{ color: 'rgba(255,140,0,0.3)' }}>
           entropy is structural
         </span>
+      </div>
+
+      {/* ── ARIA live region for screen readers ──────────────────────────── */}
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {`Feigenbaum sphere. ${NODES.length + bifurcCount} nodes, ${activeEdges.length} edges. `}
+        {`Phase regime: ${phaseRegime}. Control parameter r = ${phaseR.toFixed(3)}. `}
+        {`Lyapunov exponent: ${phaseLyap.toFixed(4)}. `}
+        {selectedNode ? `Selected node: ${selectedNode}. ` : ''}
+        {recording ? 'Recording timeline. ' : ''}
+        {playback ? 'Playing back timeline. ' : ''}
+        {peerCount > 0 ? `${peerCount} connected peers. ` : ''}
+      </div>
+
+      {/* ── Phase regime + Feigenbaum dynamics readout ──────────────────── */}
+      <div
+        className="mt-3 border rounded-sm p-3 font-mono text-[10px] leading-relaxed"
+        style={{
+          borderColor: phaseRegime === 'CHAOS' ? 'rgba(239,68,68,0.4)' : 'rgba(255,215,0,0.15)',
+          background: phaseRegime === 'CHAOS'
+            ? 'linear-gradient(135deg, rgba(0,0,0,0.88), rgba(239,68,68,0.06), rgba(0,0,0,0.88))'
+            : 'linear-gradient(135deg, rgba(0,0,0,0.88), rgba(255,215,0,0.03), rgba(0,0,0,0.88))',
+        }}
+        role="region"
+        aria-label="Feigenbaum dynamics"
+      >
+        <div className="flex items-center justify-between">
+          <div style={{ color: phaseRegime === 'CHAOS' ? 'rgba(239,68,68,0.9)' : 'rgba(255,215,0,0.7)' }}>
+            {'> [FEIGENBAUM_DYNAMICS] :: '}
+            <span style={{
+              color: phaseRegime === 'CHAOS' ? 'rgba(239,68,68,0.95)' : 'rgba(255,255,255,0.8)',
+              textShadow: phaseRegime === 'CHAOS' ? '0 0 8px rgba(239,68,68,0.5)' : 'none',
+            }}>
+              {phaseRegime}
+            </span>
+          </div>
+          <span style={{ color: 'rgba(255,255,255,0.25)' }}>
+            {recording && '● REC  '}{playback && '▶ PLAY'}
+          </span>
+        </div>
+        <div className="mt-1 flex gap-4 flex-wrap" style={{ color: 'rgba(255,255,255,0.45)' }}>
+          <span>{'r = '}<span style={{ color: 'rgba(255,215,0,0.85)' }}>{phaseR.toFixed(6)}</span></span>
+          <span>{'λ = '}<span style={{ color: phaseLyap > 0 ? 'rgba(239,68,68,0.9)' : 'rgba(34,197,94,0.8)' }}>{phaseLyap.toFixed(6)}</span>
+            {' '}<span style={{ color: 'rgba(255,255,255,0.25)' }}>{phaseLyap > 0.01 ? '[CHAOTIC]' : phaseLyap > -0.01 ? '[MARGINAL]' : '[PERIODIC]'}</span></span>
+          <span>{'E = '}<span style={{ color: 'rgba(167,139,250,0.8)' }}>{(getFieldEnergy?.() ?? 0).toFixed(4)}</span></span>
+          <span>{'δ = '}<span style={{ color: 'rgba(255,215,0,0.5)' }}>{'4.669201609'}</span></span>
+        </div>
+        <div className="mt-1" style={{ color: 'rgba(255,255,255,0.20)' }}>
+          {'  ── Hopfield associative memory · logistic map x→rx(1-x) · genuine period-doubling cascade ──'}
+        </div>
       </div>
 
       {/* ── Resonance Mode readout ──────────────────────────────────────────── */}

@@ -13,6 +13,10 @@
 //   somaAudio.playEdge(idA, idB);   // edge dyad
 //   somaAudio.playBifurcation(n);   // cascade sweep
 //   somaAudio.setEnergy(0-1);       // modulate ambient drone
+//   somaAudio.startRecording();     // begin event capture
+//   somaAudio.stopRecording();      // end capture, get events
+//   somaAudio.exportMIDI();         // Standard MIDI File (Uint8Array)
+//   somaAudio.exportScore();        // JSON graphic score
 
 import { NODES, NODE_IDX, FEATURES, DIM_NAMES } from '../data/nodeFeatures';
 
@@ -23,6 +27,24 @@ const CLUSTER_FREQ = {
   phys:   164.81,       // E3       — perfect fifth above A
   crypto: 196.00,       // G3       — minor seventh
   drk:    130.81,       // C3       — minor third
+};
+
+// ── MIDI note mapping per cluster ────────────────────────────────────────────
+const CLUSTER_MIDI_NOTE = {
+  eco:    45,  // A2
+  sync:   50,  // D3
+  phys:   52,  // E3
+  crypto: 55,  // G3
+  drk:    48,  // C3
+};
+
+// ── MIDI channel per cluster ─────────────────────────────────────────────────
+const CLUSTER_MIDI_CH = {
+  eco:    0,
+  sync:   1,
+  phys:   2,
+  crypto: 3,
+  drk:    4,
 };
 
 // ── Dimension-to-modulation mapping ─────────────────────────────────────────
@@ -47,6 +69,76 @@ const DIM_MAP = {
   economic:       'compression',   // dynamic range
 };
 
+// ── MIDI helpers ─────────────────────────────────────────────────────────────
+
+/**
+ * Encode an integer as MIDI variable-length quantity.
+ * @param {number} value — non-negative integer
+ * @returns {number[]} — array of bytes
+ */
+function midiVarLength(value) {
+  if (value < 0) value = 0;
+  const bytes = [];
+  bytes.unshift(value & 0x7F);
+  value >>= 7;
+  while (value > 0) {
+    bytes.unshift((value & 0x7F) | 0x80);
+    value >>= 7;
+  }
+  return bytes;
+}
+
+/**
+ * Build a MIDI track chunk (MTrk) from an array of raw event bytes.
+ * Each element in `events` is already a complete MIDI event with delta-time prefix.
+ * Appends the mandatory End-of-Track meta event.
+ * @param {number[][]} events — array of byte-arrays
+ * @returns {Uint8Array}
+ */
+function buildTrackChunk(events) {
+  // Flatten all events + append end-of-track
+  const endOfTrack = [0x00, 0xFF, 0x2F, 0x00];
+  const body = [];
+  for (const ev of events) {
+    for (const b of ev) body.push(b);
+  }
+  for (const b of endOfTrack) body.push(b);
+
+  const header = [
+    0x4D, 0x54, 0x72, 0x6B, // "MTrk"
+    (body.length >> 24) & 0xFF,
+    (body.length >> 16) & 0xFF,
+    (body.length >> 8) & 0xFF,
+    body.length & 0xFF,
+  ];
+  const chunk = new Uint8Array(header.length + body.length);
+  chunk.set(header, 0);
+  chunk.set(body, header.length);
+  return chunk;
+}
+
+/**
+ * Convert seconds to MIDI ticks at 120 BPM, 480 ticks/quarter.
+ * @param {number} seconds
+ * @returns {number}
+ */
+function secondsToTicks(seconds) {
+  // 120 BPM = 2 beats/sec → 960 ticks/sec
+  return Math.max(0, Math.round(seconds * 960));
+}
+
+/**
+ * Compute feature tensor magnitude (L2 norm) clamped to 0-1.
+ * @param {Float32Array|number[]} feat
+ * @returns {number}
+ */
+function featureMagnitude(feat) {
+  let sum = 0;
+  for (let i = 0; i < feat.length; i++) sum += feat[i] * feat[i];
+  // Normalise: typical max magnitude ~4 for 16-dim unit features
+  return Math.min(1, Math.sqrt(sum) / 4);
+}
+
 class SomaAudioEngine {
   constructor() {
     this.ctx = null;
@@ -60,6 +152,11 @@ class SomaAudioEngine {
     this._energy = 0.3;
     this._muted = false;
     this._volume = 0.35;
+
+    // ── Recording state ────────────────────────────────────────────────────
+    this._recording = false;
+    this._recordedEvents = [];
+    this._recordStartTime = 0;
   }
 
   // ── Initialize on first user gesture ──────────────────────────────────────
@@ -267,6 +364,21 @@ class SomaAudioEngine {
     carrier.stop(now + totalDur);
     modulator.stop(now + totalDur);
 
+    // ── Record event ──────────────────────────────────────────────────────
+    if (this._recording) {
+      this._recordedEvents.push({
+        time: now - this._recordStartTime,
+        type: 'node',
+        nodeId,
+        cluster: node.cluster,
+        freq: baseFreq,
+        duration: attack + decay + release,
+        velocity: featureMagnitude(feat),
+        midiNote: CLUSTER_MIDI_NOTE[node.cluster] || 48,
+        attack, decay, sustain, release,
+      });
+    }
+
     // Cleanup
     const cleanup = () => {
       try { carrier.disconnect(); modulator.disconnect(); filter.disconnect();
@@ -316,6 +428,25 @@ class SomaAudioEngine {
       setTimeout(() => {
         try { osc.disconnect(); env.disconnect(); pan.disconnect(); } catch {}
       }, 750);
+    }
+
+    // ── Record event ──────────────────────────────────────────────────────
+    if (this._recording) {
+      this._recordedEvents.push({
+        time: now - this._recordStartTime,
+        type: 'edge',
+        nodeIdA: idA,
+        nodeIdB: idB,
+        clusterA: nA.cluster,
+        clusterB: nB.cluster,
+        freqA: fA,
+        freqB: fB * interval,
+        duration: 0.6,
+        similarity,
+        velocity: similarity,
+        midiNoteA: CLUSTER_MIDI_NOTE[nA.cluster] || 48,
+        midiNoteB: CLUSTER_MIDI_NOTE[nB.cluster] || 48,
+      });
     }
   }
 
@@ -369,6 +500,27 @@ class SomaAudioEngine {
               env.disconnect(); modG.disconnect(); } catch {}
       }, (delay + 0.65) * 1000);
     }
+
+    // ── Record event ──────────────────────────────────────────────────────
+    if (this._recording) {
+      const clamped = Math.min(childCount, 6);
+      const notes = [];
+      for (let i = 0; i < clamped; i++) {
+        const freq = 880 / Math.pow(2, i * 0.5);
+        // Map descending frequencies to MIDI notes (A5=81 descending)
+        const midiNote = Math.max(21, Math.min(108,
+          Math.round(69 + 12 * Math.log2(freq / 440))));
+        notes.push({ delay: i * 0.08, freq, midiNote });
+      }
+      this._recordedEvents.push({
+        time: now - this._recordStartTime,
+        type: 'bifurcation',
+        childCount: clamped,
+        notes,
+        duration: (clamped - 1) * 0.08 + 0.5,
+        velocity: 0.8,
+      });
+    }
   }
 
   // ── Resonance ping: crystalline tone when two nodes are compared ──────────
@@ -404,9 +556,273 @@ class SomaAudioEngine {
     osc.start(now); osc2.start(now);
     osc.stop(now + 1.6); osc2.stop(now + 2.1);
 
+    // ── Record event ──────────────────────────────────────────────────────
+    if (this._recording) {
+      const midiNote = Math.max(21, Math.min(108,
+        Math.round(69 + 12 * Math.log2(freq / 440))));
+      this._recordedEvents.push({
+        time: now - this._recordStartTime,
+        type: 'resonance',
+        freq,
+        freqOvertone: freq * (similarity > 0.7 ? 2 : 1.5),
+        duration: 1.5,
+        similarity,
+        velocity: similarity,
+        midiNote,
+      });
+    }
+
     setTimeout(() => {
       try { osc.disconnect(); osc2.disconnect(); env.disconnect(); env2.disconnect(); } catch {}
     }, 2200);
+  }
+
+  // ── Recording: capture audio events with timestamps ───────────────────────
+
+  /**
+   * Begin recording all audio events (node plays, edge dyads, bifurcations,
+   * resonances) with timestamps relative to the recording start.
+   */
+  startRecording() {
+    if (!this.initialized) return;
+    this._recording = true;
+    this._recordedEvents = [];
+    this._recordStartTime = this.ctx.currentTime;
+  }
+
+  /**
+   * Stop recording and return the list of recorded events.
+   * @returns {{ time: number, type: string }[]}
+   */
+  stopRecording() {
+    this._recording = false;
+    return this._recordedEvents.slice(); // return copy
+  }
+
+  // ── MIDI export: Standard MIDI File format 1 ──────────────────────────────
+
+  /**
+   * Convert the recorded event list to a Standard MIDI File (SMF format 1)
+   * as a Uint8Array. Produces a valid .mid file openable in any DAW.
+   *
+   * Track layout:
+   *   Track 0 — tempo map (120 BPM)
+   *   Track 1 — node activations (channels 0-4 per cluster)
+   *   Track 2 — edge dyads (channels 5-6)
+   *   Track 3 — bifurcation cascades (channel 9, drum)
+   *
+   * @returns {Uint8Array}
+   */
+  exportMIDI() {
+    const events = this._recordedEvents;
+    const TPQN = 480; // ticks per quarter note
+
+    // ── Track 0: Tempo map ────────────────────────────────────────────────
+    const tempoEvents = [];
+    // Tempo meta event: 120 BPM = 500000 μs/beat
+    const usPerBeat = 500000;
+    tempoEvents.push([
+      0x00,                     // delta time 0
+      0xFF, 0x51, 0x03,         // tempo meta event, length 3
+      (usPerBeat >> 16) & 0xFF,
+      (usPerBeat >> 8) & 0xFF,
+      usPerBeat & 0xFF,
+    ]);
+    // Time signature: 4/4
+    tempoEvents.push([
+      0x00,
+      0xFF, 0x58, 0x04,
+      0x04, 0x02, 0x18, 0x08,
+    ]);
+    const track0 = buildTrackChunk(tempoEvents);
+
+    // ── Track 1: Node activations ─────────────────────────────────────────
+    const nodeEvents = events
+      .filter(e => e.type === 'node')
+      .sort((a, b) => a.time - b.time);
+
+    const track1Evts = [];
+    let lastTick1 = 0;
+    for (const ev of nodeEvents) {
+      const tick = secondsToTicks(ev.time);
+      const delta = Math.max(0, tick - lastTick1);
+      const ch = CLUSTER_MIDI_CH[ev.cluster] != null ? CLUSTER_MIDI_CH[ev.cluster] : 0;
+      const note = ev.midiNote || 48;
+      const vel = Math.max(1, Math.min(127, Math.round(ev.velocity * 127)));
+      const durTicks = Math.max(1, secondsToTicks(ev.duration));
+
+      // Note On
+      const deltaBytes = midiVarLength(delta);
+      track1Evts.push([...deltaBytes, 0x90 | ch, note, vel]);
+
+      // Note Off after duration
+      const offDelta = midiVarLength(durTicks);
+      track1Evts.push([...offDelta, 0x80 | ch, note, 0x00]);
+
+      lastTick1 = tick + durTicks;
+    }
+    const track1 = buildTrackChunk(track1Evts);
+
+    // ── Track 2: Edge dyads ───────────────────────────────────────────────
+    const edgeEvents = events
+      .filter(e => e.type === 'edge')
+      .sort((a, b) => a.time - b.time);
+
+    const track2Evts = [];
+    let lastTick2 = 0;
+    for (const ev of edgeEvents) {
+      const tick = secondsToTicks(ev.time);
+      const delta = Math.max(0, tick - lastTick2);
+      const noteA = ev.midiNoteA || 48;
+      const noteB = ev.midiNoteB || 48;
+      const vel = Math.max(1, Math.min(127, Math.round(ev.velocity * 127)));
+      const durTicks = Math.max(1, secondsToTicks(ev.duration));
+
+      // Note On for both notes (channel 5 and 6), delta only on first
+      const deltaBytes = midiVarLength(delta);
+      track2Evts.push([...deltaBytes, 0x90 | 5, noteA, vel]);
+      track2Evts.push([0x00, 0x90 | 6, noteB, vel]);   // simultaneous (delta 0)
+
+      // Note Off for both after duration
+      const offDelta = midiVarLength(durTicks);
+      track2Evts.push([...offDelta, 0x80 | 5, noteA, 0x00]);
+      track2Evts.push([0x00, 0x80 | 6, noteB, 0x00]);
+
+      lastTick2 = tick + durTicks;
+    }
+    const track2 = buildTrackChunk(track2Evts);
+
+    // ── Track 3: Bifurcation cascades (channel 9 — GM drum) ──────────────
+    const bifEvents = events
+      .filter(e => e.type === 'bifurcation')
+      .sort((a, b) => a.time - b.time);
+
+    const track3Evts = [];
+    let lastTick3 = 0;
+    for (const ev of bifEvents) {
+      const baseTick = secondsToTicks(ev.time);
+      for (let i = 0; i < ev.notes.length; i++) {
+        const n = ev.notes[i];
+        const noteTick = baseTick + secondsToTicks(n.delay);
+        const delta = Math.max(0, noteTick - lastTick3);
+        // Clamp to valid MIDI drum range
+        const drumNote = Math.max(27, Math.min(87, n.midiNote));
+        const vel = Math.max(1, Math.min(127, Math.round(ev.velocity * 127)));
+        const noteDurTicks = Math.max(1, secondsToTicks(0.4));
+
+        const deltaBytes = midiVarLength(delta);
+        track3Evts.push([...deltaBytes, 0x99, drumNote, vel]); // 0x99 = NoteOn ch9
+        const offDelta = midiVarLength(noteDurTicks);
+        track3Evts.push([...offDelta, 0x89, drumNote, 0x00]);  // 0x89 = NoteOff ch9
+
+        lastTick3 = noteTick + noteDurTicks;
+      }
+    }
+    const track3 = buildTrackChunk(track3Evts);
+
+    // ── MThd header ───────────────────────────────────────────────────────
+    const numTracks = 4;
+    const header = new Uint8Array([
+      0x4D, 0x54, 0x68, 0x64,  // "MThd"
+      0x00, 0x00, 0x00, 0x06,  // header length = 6
+      0x00, 0x01,              // format 1
+      (numTracks >> 8) & 0xFF, numTracks & 0xFF,
+      (TPQN >> 8) & 0xFF, TPQN & 0xFF,
+    ]);
+
+    // ── Concatenate all chunks ────────────────────────────────────────────
+    const totalLen = header.length + track0.length + track1.length +
+                     track2.length + track3.length;
+    const midi = new Uint8Array(totalLen);
+    let offset = 0;
+    midi.set(header, offset); offset += header.length;
+    midi.set(track0, offset); offset += track0.length;
+    midi.set(track1, offset); offset += track1.length;
+    midi.set(track2, offset); offset += track2.length;
+    midi.set(track3, offset); offset += track3.length;
+
+    return midi;
+  }
+
+  // ── Graphic score export ──────────────────────────────────────────────────
+
+  /**
+   * Return a JSON-serialisable graphic score representation of recorded events.
+   * Each entry is suitable for rendering as a visual timeline / graphic notation.
+   * @returns {{ time: number, type: string, nodeId?: string, cluster?: string,
+   *             freq: number, duration: number, velocity: number, midiNote: number }[]}
+   */
+  exportScore() {
+    const score = [];
+    for (const ev of this._recordedEvents) {
+      switch (ev.type) {
+        case 'node':
+          score.push({
+            time: ev.time,
+            type: 'node',
+            nodeId: ev.nodeId,
+            cluster: ev.cluster,
+            freq: ev.freq,
+            duration: ev.duration,
+            velocity: ev.velocity,
+            midiNote: ev.midiNote,
+          });
+          break;
+
+        case 'edge':
+          // Two simultaneous notes for the dyad
+          score.push({
+            time: ev.time,
+            type: 'edge',
+            nodeId: ev.nodeIdA,
+            cluster: ev.clusterA,
+            freq: ev.freqA,
+            duration: ev.duration,
+            velocity: ev.velocity,
+            midiNote: ev.midiNoteA,
+          });
+          score.push({
+            time: ev.time,
+            type: 'edge',
+            nodeId: ev.nodeIdB,
+            cluster: ev.clusterB,
+            freq: ev.freqB,
+            duration: ev.duration,
+            velocity: ev.velocity,
+            midiNote: ev.midiNoteB,
+          });
+          break;
+
+        case 'bifurcation':
+          for (const n of ev.notes) {
+            score.push({
+              time: ev.time + n.delay,
+              type: 'bifurcation',
+              nodeId: undefined,
+              cluster: undefined,
+              freq: n.freq,
+              duration: 0.4,
+              velocity: ev.velocity,
+              midiNote: n.midiNote,
+            });
+          }
+          break;
+
+        case 'resonance':
+          score.push({
+            time: ev.time,
+            type: 'resonance',
+            nodeId: undefined,
+            cluster: undefined,
+            freq: ev.freq,
+            duration: ev.duration,
+            velocity: ev.velocity,
+            midiNote: ev.midiNote,
+          });
+          break;
+      }
+    }
+    return score.sort((a, b) => a.time - b.time);
   }
 
   // ── Energy modulation: controls drone intensity + filter ──────────────────
@@ -451,6 +867,8 @@ class SomaAudioEngine {
       this.ctx = null;
     }
     this.initialized = false;
+    this._recording = false;
+    this._recordedEvents = [];
   }
 }
 
