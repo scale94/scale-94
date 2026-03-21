@@ -614,7 +614,6 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
 
     function draw() {
       rafRef.current = requestAnimationFrame(draw);
-      const _frameStart = performance.now();
 
       const dpr = Math.min(devicePixelRatio, 2);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -644,11 +643,14 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
         while (performance.now() - s < busyMs) {}
       }
 
+      // ── Adaptive step timing starts AFTER the intentional busy-wait ──
+      const _frameStart = performance.now();
+
       // ── Gray-Scott step with thermodynamic coupling ───────────────────
       const currentGS = gsRef.current;
       if (currentGS && phase < PH.FINAL) {
         const gp = gsParams(phase, deadFrac, exergyNorm, trophicV, metabolicFat);
-        const steps = phase >= PH.COLLAPSE ? Math.min(3, dynSteps) : dynSteps;
+        const steps = phase >= PH.COLLAPSE ? Math.min(3, stepsPerF) : dynSteps;
         stepGS(currentGS, gp.f, gp.k, gp.Du, gp.Dv, steps);
       }
 
