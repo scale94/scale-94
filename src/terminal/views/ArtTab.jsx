@@ -13,7 +13,7 @@
 // Color system: deterministic hash HSL via kernelColorMap.js
 
 import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react';
-import { Waves } from 'lucide-react';
+import { Waves, Volume2, VolumeX, Maximize, Minimize } from 'lucide-react';
 import { nodeColor, lerpColor, hslAlpha } from '../data/kernelColorMap';
 import { useSomaGraph, CLUSTER_ANCHORS } from '../hooks/useSomaGraph';
 import { useKineticEdges }                from '../hooks/useKineticEdges';
@@ -22,6 +22,93 @@ import {
   cosineSim, topDrivers, analyzeEdge, findOrthogonalNode,
   compareNodes, jitterFeatures,
 } from '../data/nodeFeatures';
+import { somaAudio } from '../audio/SomaAudio';
+
+// ── Particle Ecology ────────────────────────────────────────────────────────
+// Lightweight particle pool for edge energy flow, node bursts, and bifurcation trails.
+// All particles are depth-sorted and rendered additively in the draw loop.
+const MAX_PARTICLES = 200;
+
+function createParticlePool() {
+  return {
+    xs: new Float32Array(MAX_PARTICLES),
+    ys: new Float32Array(MAX_PARTICLES),
+    zs: new Float32Array(MAX_PARTICLES),
+    vxs: new Float32Array(MAX_PARTICLES),
+    vys: new Float32Array(MAX_PARTICLES),
+    vzs: new Float32Array(MAX_PARTICLES),
+    lifes: new Float32Array(MAX_PARTICLES),    // 0→1, dies at 1
+    maxLifes: new Float32Array(MAX_PARTICLES),
+    hues: new Float32Array(MAX_PARTICLES),
+    sizes: new Float32Array(MAX_PARTICLES),
+    count: 0,
+  };
+}
+
+function emitParticle(pool, x, y, z, vx, vy, vz, hue, size, maxLife) {
+  if (pool.count >= MAX_PARTICLES) {
+    // Recycle oldest
+    const oldest = pool.count % MAX_PARTICLES;
+    pool.count = oldest;
+  }
+  const i = pool.count;
+  pool.xs[i] = x;  pool.ys[i] = y;  pool.zs[i] = z;
+  pool.vxs[i] = vx; pool.vys[i] = vy; pool.vzs[i] = vz;
+  pool.lifes[i] = 0;
+  pool.maxLifes[i] = maxLife;
+  pool.hues[i] = hue;
+  pool.sizes[i] = size;
+  pool.count = Math.min(pool.count + 1, MAX_PARTICLES);
+}
+
+function stepParticles(pool, dt) {
+  let alive = 0;
+  for (let i = 0; i < pool.count; i++) {
+    pool.lifes[i] += dt;
+    if (pool.lifes[i] >= pool.maxLifes[i]) continue;
+    // Integrate position
+    pool.xs[alive] = pool.xs[i] + pool.vxs[i] * dt;
+    pool.ys[alive] = pool.ys[i] + pool.vys[i] * dt;
+    pool.zs[alive] = pool.zs[i] + pool.vzs[i] * dt;
+    pool.vxs[alive] = pool.vxs[i] * 0.97;  // drag
+    pool.vys[alive] = pool.vys[i] * 0.97;
+    pool.vzs[alive] = pool.vzs[i] * 0.97;
+    pool.lifes[alive] = pool.lifes[i];
+    pool.maxLifes[alive] = pool.maxLifes[i];
+    pool.hues[alive] = pool.hues[i];
+    pool.sizes[alive] = pool.sizes[i];
+    alive++;
+  }
+  pool.count = alive;
+}
+
+function emitNodeBurst(pool, x, y, z, hue, count) {
+  for (let i = 0; i < count; i++) {
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(Math.random() * 2 - 1);
+    const speed = 0.002 + Math.random() * 0.006;
+    emitParticle(pool,
+      x, y, z,
+      Math.sin(phi) * Math.cos(theta) * speed,
+      Math.sin(phi) * Math.sin(theta) * speed,
+      Math.cos(phi) * speed,
+      hue, 1.5 + Math.random() * 2, 60 + Math.random() * 90
+    );
+  }
+}
+
+function emitEdgeParticles(pool, ax, ay, az, bx, by, bz, hue, count) {
+  for (let i = 0; i < count; i++) {
+    const t = Math.random();
+    emitParticle(pool,
+      ax + (bx - ax) * t, ay + (by - ay) * t, az + (bz - az) * t,
+      (bx - ax) * 0.003 + (Math.random() - 0.5) * 0.001,
+      (by - ay) * 0.003 + (Math.random() - 0.5) * 0.001,
+      (bz - az) * 0.003 + (Math.random() - 0.5) * 0.001,
+      hue, 1.0 + Math.random() * 1.5, 40 + Math.random() * 60
+    );
+  }
+}
 
 // ── Graph topology ────────────────────────────────────────────────────────────
 
@@ -203,6 +290,27 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   // ── Period-Doubling / Bifurcation ─────────────────────────────────────────
   const [bifurcCount, setBifurcCount] = useState(0);   // total child nodes spawned
   const birthMapRef = useRef(new Map());                // childId → {parentId, px, py, pz, t0}
+
+  // ── Immersive Mode (fullscreen + bloom + vignette) ──────────────────────
+  const [immersive, setImmersive]       = useState(false);
+  const bloomCanvasRef  = useRef(null);   // offscreen canvas for bloom post-process
+  const immersiveRef    = useRef(false);  // RAF-safe mirror
+
+  // ── Particle Ecology ────────────────────────────────────────────────────
+  const particlesRef = useRef(createParticlePool());
+  const particleFrameRef = useRef(0);     // frame counter for edge particle emission
+
+  // ── Audio state ─────────────────────────────────────────────────────────
+  const [audioMuted, setAudioMuted] = useState(true);
+  const audioInitRef = useRef(false);
+
+  // ── Audio: init on first interaction ────────────────────────────────────
+  const ensureAudio = useCallback(() => {
+    if (!audioInitRef.current) {
+      somaAudio.init();
+      audioInitRef.current = true;
+    }
+  }, []);
 
   // ── Manual fusion state machine ────────────────────────────────────────────
   // fusionSourceRef: read by draw loop (no re-render), set in sync with state
@@ -403,8 +511,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       intensity: coarse ? Math.min(intensity, 0.7) : intensity,
       coarse,
     });
-    if (node) fireNode(node.id);
-  }, [fireNode]);
+    if (node) { fireNode(node.id); ensureAudio(); somaAudio.playNode(node.id); }
+  }, [fireNode, ensureAudio]);
 
   const handleRunKernel = useCallback((alias) => {
     spawnEffect(alias);
@@ -475,7 +583,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     }
 
     setBifurcCount(c => c + spawned.length);
-  }, [activeEdges, triggerBifurcation]);
+    ensureAudio(); somaAudio.playBifurcation(spawned.length);
+  }, [activeEdges, triggerBifurcation, ensureAudio]);
 
   // ── Push incoming attractor data ─────────────────────────────────────────
   useEffect(() => {
@@ -490,7 +599,9 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     if (!el) return;
     const obs = new ResizeObserver(entries => {
       const W = Math.floor(entries[0].contentRect.width);
-      const H = Math.floor(Math.min(Math.max(W * 0.65, 360), 580));
+      const H = immersiveRef.current
+        ? Math.floor(entries[0].contentRect.height || window.innerHeight)
+        : Math.floor(Math.min(Math.max(W * 0.65, 360), 580));
       dimsRef.current = { w: W, h: H };
       if (canvasRef.current) {
         const dpr = window.devicePixelRatio || 1;
@@ -551,10 +662,39 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       const sortedNodeIdx = nodes.map((_, i) => i)
         .sort((a, b) => proj[a].depth - proj[b].depth);
 
+      // ── Step particle ecology ─────────────────────────────────────────────
+      const pool = particlesRef.current;
+      stepParticles(pool, 1);
+      particleFrameRef.current++;
+
+      // Emit edge energy particles every ~8 frames on high-energy edges
+      if (es && particleFrameRef.current % 8 === 0) {
+        for (const e of es) {
+          if (e.pulse < 0.2) continue;
+          const iA = nodes.findIndex(n => n.id === e.aId);
+          const iB = nodes.findIndex(n => n.id === e.bId);
+          if (iA < 0 || iB < 0) continue;
+          const colA = NODE_COLORS[e.aId];
+          emitEdgeParticles(pool,
+            nodes[iA].x, nodes[iA].y, nodes[iA].z,
+            nodes[iB].x, nodes[iB].y, nodes[iB].z,
+            colA?.h ?? 30, 2
+          );
+        }
+      }
+
+      // Emit burst particles from high-energy nodes
+      for (const n of nodes) {
+        if (n.energy > 0.7 && Math.random() < 0.15) {
+          const col = NODE_COLORS[n.id];
+          emitNodeBurst(pool, n.x, n.y, n.z, col?.h ?? 30, 3);
+        }
+      }
+
       // ── Clear with trail fade ─────────────────────────────────────────────
       const dpr = window.devicePixelRatio || 1;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.fillStyle = 'rgba(0,0,0,0.18)';
+      ctx.fillStyle = immersiveRef.current ? 'rgba(0,0,0,0.28)' : 'rgba(0,0,0,0.18)';
       ctx.fillRect(0, 0, w, h);
 
       // ── Sphere wireframe ghost ────────────────────────────────────────────
@@ -1040,6 +1180,60 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         }
       }
 
+      // ── Particle Ecology: depth-sorted additive rendering ─────────────────
+      if (pool.count > 0) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        for (let pi = 0; pi < pool.count; pi++) {
+          const [prx, pry, prz] = applyM(M, pool.xs[pi], pool.ys[pi], pool.zs[pi]);
+          const pp = project(prx, pry, prz, w, h, sphereR, focal);
+          const lifeT = pool.lifes[pi] / pool.maxLifes[pi];
+          const alpha = Math.sin(lifeT * Math.PI) * 0.7;  // fade in/out
+          if (alpha < 0.01) continue;
+          const sz = pool.sizes[pi] * pp.scale;
+          const hue = pool.hues[pi];
+          ctx.fillStyle = `hsla(${hue},90%,70%,${alpha.toFixed(3)})`;
+          ctx.beginPath();
+          ctx.arc(pp.sx, pp.sy, sz, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      // ── Immersive Mode: bloom post-process + vignette ─────────────────────
+      if (immersiveRef.current) {
+        // Bloom: draw blurred copy with additive blend
+        let bloomCvs = bloomCanvasRef.current;
+        if (!bloomCvs) {
+          bloomCvs = document.createElement('canvas');
+          bloomCanvasRef.current = bloomCvs;
+        }
+        // Bloom at half resolution for performance
+        const bw = Math.floor(w / 2), bh = Math.floor(h / 2);
+        if (bloomCvs.width !== bw || bloomCvs.height !== bh) {
+          bloomCvs.width = bw; bloomCvs.height = bh;
+        }
+        const bCtx = bloomCvs.getContext('2d');
+        bCtx.clearRect(0, 0, bw, bh);
+        bCtx.filter = 'blur(12px) brightness(1.2)';
+        bCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, bw, bh);
+        bCtx.filter = 'none';
+
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = 0.15;
+        ctx.drawImage(bloomCvs, 0, 0, bw, bh, 0, 0, w, h);
+        ctx.globalAlpha = 1;
+        ctx.restore();
+
+        // Cinematic vignette
+        const vigGrd = ctx.createRadialGradient(w / 2, h / 2, sphereR * 0.6, w / 2, h / 2, Math.max(w, h) * 0.7);
+        vigGrd.addColorStop(0, 'rgba(0,0,0,0)');
+        vigGrd.addColorStop(1, 'rgba(0,0,0,0.65)');
+        ctx.fillStyle = vigGrd;
+        ctx.fillRect(0, 0, w, h);
+      }
+
       rafRef.current = requestAnimationFrame(draw);
     };
 
@@ -1221,6 +1415,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             const result = compareNodes(next[0], next[1]);
             resonanceResultRef.current = result;
             setResonanceResult(result);
+            ensureAudio(); somaAudio.playResonance(result?.sim ?? 0.5);
           } else {
             resonanceResultRef.current = null;
             setResonanceResult(null);
@@ -1230,6 +1425,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
         // Right-click is handled by contextmenu (fusion state machine) — ignore here
         fireNode(node.id);
+        ensureAudio(); somaAudio.playNode(node.id);
         spawnEffect(node.id, { soft: true });   // attractor click → soft geometry pulse
         // Label cascade — record seed + neighbors for the draw loop
         const nbs = new Set(ADJ[node.id] ?? []);
@@ -1326,6 +1522,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     const node = nodeAt(p.x, p.y);
     if (!node) return;
     fireNode(node.id);
+    ensureAudio(); somaAudio.playNode(node.id);
     spawnEffect(node.id, { soft: true });
     // Label cascade — record seed + neighbors for the draw loop
     const nbs = new Set(ADJ[node.id] ?? []);
@@ -1335,7 +1532,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     if (onCueNode && nodeIdx >= 0) onCueNode(nodeIdx);
     setSelectedNode(node.id);
     setLockedEdge(null);
-  }, [canvasCoords, nodeAt, fireNode, spawnEffect, onCueNode]);
+  }, [canvasCoords, nodeAt, fireNode, spawnEffect, onCueNode, ensureAudio]);
 
   // ── CSS vars for DOM elements outside canvas ──────────────────────────────
   useEffect(() => {
@@ -1347,6 +1544,28 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       el.style.setProperty(`--node-color-${node.id}`, NODE_COLORS[node.id].hsl);
     });
   }, [associativeField]);
+
+  // ── Immersive Mode keyboard handler ('I' key toggle) ───────────────────
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.key === 'i' || e.key === 'I') {
+        setImmersive(prev => {
+          const next = !prev;
+          immersiveRef.current = next;
+          return next;
+        });
+      }
+      // 'M' toggles audio mute
+      if (e.key === 'm' || e.key === 'M') {
+        if (!audioInitRef.current) { somaAudio.init(); audioInitRef.current = true; }
+        const muted = somaAudio.toggleMute();
+        setAudioMuted(muted);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -1456,14 +1675,34 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           >
             ⌥ bifurcate
           </button>
+          {/* Audio toggle */}
+          <button
+            onClick={() => { ensureAudio(); const m = somaAudio.toggleMute(); setAudioMuted(m); }}
+            className="px-2 py-1 rounded-sm border border-amber-900/30 text-amber-400/40 hover:border-amber-500/50 hover:text-amber-300/70 transition-all duration-200"
+            title="Toggle sonification (M)"
+          >
+            {audioMuted
+              ? <VolumeX className="w-3.5 h-3.5 inline" />
+              : <Volume2 className="w-3.5 h-3.5 inline" />}
+          </button>
+          {/* Immersive mode toggle */}
+          <button
+            onClick={() => { setImmersive(p => { const n = !p; immersiveRef.current = n; return n; }); }}
+            className="px-2 py-1 rounded-sm border border-amber-900/30 text-amber-400/40 hover:border-amber-500/50 hover:text-amber-300/70 transition-all duration-200"
+            title="Immersive mode — bloom + vignette (I)"
+          >
+            {immersive
+              ? <Minimize className="w-3.5 h-3.5 inline" />
+              : <Maximize className="w-3.5 h-3.5 inline" />}
+          </button>
         </div>
       </div>
 
       {/* Sphere canvas — frameless, front and center */}
       <div
         ref={containerRef}
-        className="w-full overflow-hidden"
-        style={{ background: '#000', position: 'relative' }}
+        className={`w-full overflow-hidden${immersive ? ' fixed inset-0 z-50' : ''}`}
+        style={{ background: '#000', position: immersive ? 'fixed' : 'relative' }}
       >
         <canvas
           ref={canvasRef}
