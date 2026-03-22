@@ -94,6 +94,20 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   const bloomCanvasRef  = useRef(null);   // offscreen canvas for bloom post-process
   const immersiveRef    = useRef(false);  // RAF-safe mirror
 
+  // ── Jury Awakening (choreographed first-impression sequence) ────────────
+  // Phase 0 (0-4s): Genesis cascade — nodes light up cluster by cluster
+  // Phase 1 (4-8s): Beacon pulse — one node glows as invitation
+  // Phase 2 (8s+):  Auto-ignition — system self-fires 3 nodes with audio
+  // Phase 3:        Complete — normal interaction mode
+  const awakeningRef = useRef({
+    phase: 0,
+    t0: performance.now(),
+    interacted: false,      // true after first user gesture on canvas
+    autoFiredNodes: [],     // nodes auto-ignited during phase 2
+    beaconIdx: Math.floor(Math.random() * NODES.length),  // random beacon node
+    breathPhase: 0,         // continuous breath oscillation
+  });
+
   // ── Particle Ecology ────────────────────────────────────────────────────
   const particlesRef = useRef(createParticlePool());
   const particleFrameRef = useRef(0);     // frame counter for edge particle emission
@@ -542,7 +556,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
       const { nodes } = s;
       const { w, h }  = dimsRef.current;
-      const sphereR   = Math.min(w, h) * SPHERE_K;
+      // Sphere breath: subtle ±2% radius oscillation, stronger during awakening
+      const aw = awakeningRef.current;
+      const breathAmp = aw.phase < 3 ? 0.025 : 0.012;
+      const breathMod = 1 + Math.sin(aw.breathPhase) * breathAmp;
+      const sphereR   = Math.min(w, h) * SPHERE_K * breathMod;
       const focal     = sphereR * FOCAL_K;
 
       // ── Update rotation ───────────────────────────────────────────────────
@@ -573,6 +591,86 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         const scrollPush = entropyRef.current[0];  // CH_SCROLL
         if (scrollPush > 0.01) {
           fieldRef.current.r = Math.min(3.999, fieldRef.current.r + scrollPush * 0.003);
+        }
+      }
+
+      // ── Jury Awakening state machine ────────────────────────────────────
+      {
+        const aw = awakeningRef.current;
+        const elapsed = (performance.now() - aw.t0) / 1000;  // seconds since mount
+        aw.breathPhase += 0.015;  // continuous breath oscillation (~0.9Hz)
+
+        if (aw.phase === 0 && elapsed < 4.0) {
+          // Phase 0: Genesis cascade — inject energy cluster by cluster
+          // Each cluster lights up over ~0.8s window, staggered across 4s
+          const clusterOrder = ['eco', 'sync', 'phys', 'crypto', 'drk'];
+          for (let ci = 0; ci < clusterOrder.length; ci++) {
+            const clStart = ci * 0.7;       // stagger: 0, 0.7, 1.4, 2.1, 2.8s
+            const clEnd   = clStart + 1.0;
+            if (elapsed >= clStart && elapsed < clEnd) {
+              const t = (elapsed - clStart) / 1.0;  // 0→1 within this cluster's window
+              for (const n of nodes) {
+                if (n.cluster === clusterOrder[ci]) {
+                  // Smooth energy ramp: ease-in-out
+                  const easeT = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+                  n.energy = Math.max(n.energy, easeT * 0.45);
+                }
+              }
+            }
+          }
+          // Emit genesis particles from awakening nodes
+          if (particleFrameRef.current % 6 === 0) {
+            for (const n of nodes) {
+              if (n.energy > 0.2 && Math.random() < 0.3) {
+                const col = NODE_COLORS[n.id];
+                emitNodeBurst(particlesRef.current, n.x, n.y, n.z,
+                  col?.hue ?? 30, (col?.hue ?? 30 + 90) % 360, 2);
+              }
+            }
+          }
+        } else if (aw.phase === 0 && elapsed >= 4.0) {
+          aw.phase = 1;  // → beacon
+        }
+
+        if (aw.phase === 1 && !aw.interacted) {
+          // Phase 1 (4-8s): Beacon pulse — one node breathes as invitation
+          const beaconNode = nodes[aw.beaconIdx % nodes.length];
+          if (beaconNode) {
+            const pulse = 0.4 + 0.4 * Math.sin(elapsed * 2.5);  // ~0.4Hz breathing
+            beaconNode.energy = Math.max(beaconNode.energy, pulse);
+          }
+          if (elapsed >= 8.0) aw.phase = 2;  // → auto-ignition
+        }
+
+        if (aw.phase === 2 && !aw.interacted) {
+          // Phase 2 (8s+): Auto-ignition — fire 3 nodes in 1s intervals
+          const ignitionStart = 8.0;
+          const ignitionNodes = [
+            nodes[aw.beaconIdx % nodes.length],
+            nodes[(aw.beaconIdx + 7) % nodes.length],  // different cluster likely
+            nodes[(aw.beaconIdx + 15) % nodes.length],
+          ];
+          for (let fi = 0; fi < ignitionNodes.length; fi++) {
+            const fireAt = ignitionStart + fi * 1.0;
+            const n = ignitionNodes[fi];
+            if (n && elapsed >= fireAt && !aw.autoFiredNodes.includes(n.id)) {
+              aw.autoFiredNodes.push(n.id);
+              n.energy = 1.0;
+              // Fire with audio (auto-init on first auto-fire)
+              ensureAudio();
+              somaAudio.playNode(n.id);
+              fireNode(n.id);
+              spawnEffect(n.id, { soft: true });
+              // Label cascade for auto-fired node
+              const nbs = new Set(ADJ[n.id] ?? []);
+              nbs.add(n.id);
+              firedRef.current = { seedId: n.id, neighborIds: nbs, t0: performance.now() };
+              // Perturb Hopfield field
+              const idx_ = NODE_IDX[n.id];
+              if (idx_ != null) perturbField(idx_);
+            }
+          }
+          if (aw.autoFiredNodes.length >= 3) aw.phase = 3;
         }
       }
 
@@ -699,6 +797,22 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         grad.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, w, h);
+      }
+
+      // ── Genesis glow — radial bloom from center during awakening phase 0 ──
+      if (aw.phase === 0) {
+        const genesisT = (performance.now() - aw.t0) / 4000;  // 0→1 over 4s
+        const genesisAlpha = Math.max(0, 0.06 * (1 - genesisT));
+        if (genesisAlpha > 0.002) {
+          const gx = w / 2, gy = h / 2;
+          const gRad = sphereR * (0.6 + genesisT * 0.8);
+          const gGrad = ctx.createRadialGradient(gx, gy, 0, gx, gy, gRad);
+          gGrad.addColorStop(0, `rgba(255,215,0,${genesisAlpha.toFixed(4)})`);
+          gGrad.addColorStop(0.5, `rgba(217,70,239,${(genesisAlpha * 0.4).toFixed(4)})`);
+          gGrad.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = gGrad;
+          ctx.fillRect(0, 0, w, h);
+        }
       }
 
       // ── State-driven flash — brief anthracite grid on bifurcation events ──
@@ -1260,6 +1374,30 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         ctx.fillStyle = isHov ? renderCol.hsl : hslAlpha(renderCol, coreAlpha);
         ctx.fill();
 
+        // ── Awakening beacon ring — pulsing invitation during phase 1 ──────
+        if (aw.phase === 1 && i === (aw.beaconIdx % nodes.length)) {
+          const beaconT = performance.now() * 0.001;
+          const ringPulse = 0.3 + 0.7 * Math.pow(Math.sin(beaconT * 2.5), 2);
+          const ringR = radius + (8 + ringPulse * 8) * p.scale;
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          // Outer expanding ring
+          ctx.beginPath();
+          ctx.arc(p.sx, p.sy, ringR, 0, Math.PI * 2);
+          ctx.strokeStyle = `hsla(${renderCol.hue ?? 40},90%,75%,${(ringPulse * 0.35 * depthAlpha).toFixed(3)})`;
+          ctx.lineWidth = 2 * p.scale;
+          ctx.stroke();
+          // Inner glow
+          const beaconGrd = ctx.createRadialGradient(p.sx, p.sy, radius, p.sx, p.sy, ringR);
+          beaconGrd.addColorStop(0, `hsla(${renderCol.hue ?? 40},80%,70%,${(ringPulse * 0.15).toFixed(3)})`);
+          beaconGrd.addColorStop(1, 'hsla(0,0%,0%,0)');
+          ctx.fillStyle = beaconGrd;
+          ctx.beginPath();
+          ctx.arc(p.sx, p.sy, ringR, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
         // ── Chimera state halo — phase-locked clusters glow in unison ──────
         {
           const _chim = getNodeChimeraState(i);
@@ -1742,6 +1880,23 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           return;   // don't fire normal click in resonance mode
         }
 
+        // ── Mark awakening as interacted (first-touch crescendo) ──────────
+        if (!awakeningRef.current.interacted) {
+          awakeningRef.current.interacted = true;
+          awakeningRef.current.phase = 3;
+          // First-touch crescendo: extra particle burst + energy surge
+          const liveNode = stateRef.current?.nodes?.find(n => n.id === node.id);
+          if (liveNode) {
+            emitNodeBurst(particlesRef.current, liveNode.x, liveNode.y, liveNode.z,
+              NODE_COLORS[node.id]?.hue ?? 30, (NODE_COLORS[node.id]?.hue ?? 30 + 180) % 360, 40);
+          }
+          // Energy pulse through all connected nodes
+          const nbs_ = ADJ[node.id] ?? [];
+          for (const nbId of nbs_) {
+            const nb = stateRef.current?.nodes?.find(n => n.id === nbId);
+            if (nb) nb.energy = Math.min(1, nb.energy + 0.5);
+          }
+        }
         // Right-click is handled by contextmenu (fusion state machine) — ignore here
         fireNode(node.id);
         // Perturb Hopfield field — genuine associative activation propagation
@@ -1797,7 +1952,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   const handleTouchStart = useCallback((e) => {
     const t = e.touches[0];
     if (!t) return;
-    dragRef.current = { active: true, lastX: t.clientX, lastY: t.clientY, vx: 0, vy: 0 };
+    dragRef.current = { active: true, lastX: t.clientX, lastY: t.clientY, vx: 0, vy: 0, startX: t.clientX, startY: t.clientY };
     // Long-press (500ms) → manual fusion step
     const p = canvasCoords(t.clientX, t.clientY);
     if (p) {
@@ -1843,10 +1998,24 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     dragRef.current.active = false;
     const t = e.changedTouches[0];
     if (!t) return;
+    // Skip node fire if this was a drag (movement > 8px)
+    const tdx = t.clientX - (dragRef.current.startX ?? t.clientX);
+    const tdy = t.clientY - (dragRef.current.startY ?? t.clientY);
+    if (Math.abs(tdx) > 8 || Math.abs(tdy) > 8) return;
     const p    = canvasCoords(t.clientX, t.clientY);
     if (!p) return;
     const node = nodeAt(p.x, p.y);
     if (!node) return;
+    // ── Mark awakening as interacted (touch) ──────────────────────────
+    if (!awakeningRef.current.interacted) {
+      awakeningRef.current.interacted = true;
+      awakeningRef.current.phase = 3;
+      const liveNode = stateRef.current?.nodes?.find(n => n.id === node.id);
+      if (liveNode) {
+        emitNodeBurst(particlesRef.current, liveNode.x, liveNode.y, liveNode.z,
+          NODE_COLORS[node.id]?.hue ?? 30, (NODE_COLORS[node.id]?.hue ?? 30 + 180) % 360, 40);
+      }
+    }
     fireNode(node.id);
     // Perturb Hopfield field from touch
     const _touchIdx = NODE_IDX[node.id];
@@ -1920,8 +2089,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         exergyRate:    exergyRate    ?? 0,
       };
     };
-    ecocideBus.on(handler);
-    return () => ecocideBus.off(handler);
+    const unsub = ecocideBus.on(handler);
+    return unsub;
   }, []);
 
   // ── Presence — peer count updater ─────────────────────────────────────
@@ -2198,7 +2367,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           ref={canvasRef}
           width={900}
           height={620}
-          style={{ display: 'block', width: '100%', height: 'auto', cursor: 'grab' }}
+          style={{ display: 'block', width: '100%', height: 'auto', cursor: 'grab', touchAction: 'none' }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
