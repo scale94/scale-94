@@ -79,6 +79,12 @@
       "title": "ᛟ PROTOCOL_AQUA · THE CHRONO-ACTUARY"
     }
   ],
+  "arapaima-gigas": [
+    {
+      "id": "FFB-1.0",
+      "title": "FISH SCALE KERNEL · THE FEIGENBAUM BIFURCATION"
+    }
+  ],
   "ARCHITECTS": [
     {
       "id": "SERAPHINE-KERNEL-V15.5.5",
@@ -263,6 +269,18 @@
       "title": "FISH SCALE KERNEL V1.1.1.1"
     }
   ],
+  "bifurcation": [
+    {
+      "id": "FFB-1.0",
+      "title": "FISH SCALE KERNEL · THE FEIGENBAUM BIFURCATION"
+    }
+  ],
+  "BIFURCATION": [
+    {
+      "id": "FFSK-9.9.9.9.9.9.9.9.9",
+      "title": "FISH SCALE KERNEL · 12.0.0 · THE FEIGENBAUM BIFURCATION"
+    }
+  ],
   "BIOCOENOSIS": [
     {
       "id": "BIODIVERSITY-KERNEL-1.0.1",
@@ -333,6 +351,12 @@
       "title": "PROTOCOL_94 // BOSONIC_DEFENSE_KERNEL (V.2.0)"
     }
   ],
+  "bouligand": [
+    {
+      "id": "FFB-1.0",
+      "title": "FISH SCALE KERNEL · THE FEIGENBAUM BIFURCATION"
+    }
+  ],
   "BRIDGE": [
     {
       "id": "BRIDGE-KERNEL-1.0",
@@ -365,6 +389,12 @@
     {
       "id": "NECROMANTIC-EMPEROR-KERNEL-V1-0",
       "title": "NECROMANTIC EMPEROR KERNEL V1 0"
+    }
+  ],
+  "chaos-theory": [
+    {
+      "id": "FFB-1.0",
+      "title": "FISH SCALE KERNEL · THE FEIGENBAUM BIFURCATION"
     }
   ],
   "CHRONOS": [
@@ -921,6 +951,18 @@
       "title": "SCALE Y KERNEL 1.1"
     }
   ],
+  "feigenbaum": [
+    {
+      "id": "FFB-1.0",
+      "title": "FISH SCALE KERNEL · THE FEIGENBAUM BIFURCATION"
+    }
+  ],
+  "FEIGENBAUM": [
+    {
+      "id": "FFSK-9.9.9.9.9.9.9.9.9",
+      "title": "FISH SCALE KERNEL · 12.0.0 · THE FEIGENBAUM BIFURCATION"
+    }
+  ],
   "FERMIONIC": [
     {
       "id": "FISH-SCALE-KERNEL-11.7.0",
@@ -967,6 +1009,10 @@
     {
       "id": "FISH-SCALE-KERNEL-11.8",
       "title": "FISH SCALE KERNEL · 11.8.0 · THE ECO-QUANTUM TOPOLOGY"
+    },
+    {
+      "id": "FFSK-9.9.9.9.9.9.9.9.9",
+      "title": "FISH SCALE KERNEL · 12.0.0 · THE FEIGENBAUM BIFURCATION"
     },
     {
       "id": "NECROMANTIC-EMPEROR-KERNEL-V1-0",
@@ -1523,6 +1569,12 @@
       "title": "FISH SCALE KERNEL 11.7.0"
     }
   ],
+  "moiré-superlattice": [
+    {
+      "id": "FFB-1.0",
+      "title": "FISH SCALE KERNEL · THE FEIGENBAUM BIFURCATION"
+    }
+  ],
   "MUSCHI": [
     {
       "id": "FSQ-11.6",
@@ -1581,6 +1633,12 @@
     {
       "id": "NOCTURNAL-NIGHT-KERNEL-V-22.2.2-1",
       "title": "☢️ KERNEL_COMPILATION: THE_NIGHT_SHIFT_V2.5 ☢️"
+    }
+  ],
+  "nonlinear-dynamics": [
+    {
+      "id": "FFB-1.0",
+      "title": "FISH SCALE KERNEL · THE FEIGENBAUM BIFURCATION"
     }
   ],
   "NUCLEAR": [
@@ -2021,6 +2079,12 @@
       "title": "SERAPHINE-8.8.8.8.8.8.8.8: A DUAL-KERNEL ARCHITECTURE FOR MEASURING AND MAXIMISING CROSS-DOMAIN ANALOGICAL COHERENCE"
     }
   ],
+  "scalar-sovereignty": [
+    {
+      "id": "FFB-1.0",
+      "title": "FISH SCALE KERNEL · THE FEIGENBAUM BIFURCATION"
+    }
+  ],
   "Scale": [
     {
       "id": "SCALE-Y-KERNEL-1-0-1",
@@ -2031,6 +2095,10 @@
     {
       "id": "FISH-SCALE-KERNEL-11.8",
       "title": "FISH SCALE KERNEL · 11.8.0 · THE ECO-QUANTUM TOPOLOGY"
+    },
+    {
+      "id": "FFSK-9.9.9.9.9.9.9.9.9",
+      "title": "FISH SCALE KERNEL · 12.0.0 · THE FEIGENBAUM BIFURCATION"
     },
     {
       "id": "SSS-7.7.7.7.7.7.7",
@@ -2559,6 +2627,10 @@
     {
       "id": "FISH-SCALE-KERNEL-11.8",
       "title": "FISH SCALE KERNEL · 11.8.0 · THE ECO-QUANTUM TOPOLOGY"
+    },
+    {
+      "id": "FFSK-9.9.9.9.9.9.9.9.9",
+      "title": "FISH SCALE KERNEL · 12.0.0 · THE FEIGENBAUM BIFURCATION"
     }
   ],
   "TAMAM": [
@@ -2641,6 +2713,12 @@
     {
       "id": "FUSION-PLASMA-KERNEL-1.0",
       "title": "FUSION PLASMA KERNEL · 1.0.0 · PLASMA SOVEREIGNTY AUDIT"
+    }
+  ],
+  "thermodynamic-governance": [
+    {
+      "id": "FFB-1.0",
+      "title": "FISH SCALE KERNEL · THE FEIGENBAUM BIFURCATION"
     }
   ],
   "thermodynamics": [

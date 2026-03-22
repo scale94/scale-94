@@ -192,6 +192,24 @@
     "len": "0 WDS"
   },
   {
+    "id": "FFSK-9.9.9.9.9.9.9.9.9",
+    "type": "kernel_doc",
+    "date": "2026-03-22",
+    "lastModified": "2026-03-22",
+    "title": "FISH SCALE KERNEL · 12.0.0 · THE FEIGENBAUM BIFURCATION",
+    "subtitle": "ᛟ Systemless Root · Thermodynamic Chaos Branch",
+    "status": "ACTIVE",
+    "readTime": "3 min read",
+    "tags": [
+      "FISH",
+      "SCALE",
+      "FEIGENBAUM",
+      "BIFURCATION",
+      "Systemless"
+    ],
+    "len": "665 WDS"
+  },
+  {
     "id": "NECROMANCER-KERNEL-9.9.9.9",
     "type": "kernel_doc",
     "date": "2026-03-07",
@@ -822,6 +840,28 @@
       "CognitiveLoad"
     ],
     "len": "0 WDS"
+  },
+  {
+    "id": "FFB-1.0",
+    "type": "kernel_doc",
+    "date": "2026-03-22",
+    "lastModified": "2026-03-22",
+    "title": "FISH SCALE KERNEL · THE FEIGENBAUM BIFURCATION",
+    "subtitle": "Systemless Root · Thermodynamic Chaos Branch",
+    "status": "ACTIVE",
+    "readTime": "10 min read",
+    "tags": [
+      "feigenbaum",
+      "bifurcation",
+      "bouligand",
+      "chaos-theory",
+      "thermodynamic-governance",
+      "moiré-superlattice",
+      "nonlinear-dynamics",
+      "scalar-sovereignty",
+      "arapaima-gigas"
+    ],
+    "len": "2035 WDS"
   },
   {
     "id": "FUSION-PLASMA-KERNEL-1.0",
@@ -1785,7 +1825,7 @@
     "id": "SERAPHINE-8.8.8.8.8.8.8.8-ANALOGY-RESEARCH",
     "type": "research",
     "date": "2026-03-14",
-    "lastModified": "2026-03-14",
+    "lastModified": "2026-03-15",
     "title": "CROSS-DOMAIN ANALOGICAL DISTANCE IN 16D FEATURE SPACE — SERAPHINE-8.8.8.8.8.8.8.8 TRIAD ANALYSIS",
     "subtitle": "Seraphine-8.8.8.8.8.8.8.8 — Three Fusion Triads",
     "status": "ACTIVE",
@@ -1800,13 +1840,13 @@
       "cryptography",
       "flow-state"
     ],
-    "len": "0 WDS"
+    "len": "2560 WDS"
   },
   {
     "id": "SERAPHINE-8.8.8.8.8.8.8.8-PAPER",
     "type": "research",
     "date": "2026-03-14",
-    "lastModified": "2026-03-14",
+    "lastModified": "2026-03-15",
     "title": "SERAPHINE-8.8.8.8.8.8.8.8: A DUAL-KERNEL ARCHITECTURE FOR MEASURING AND MAXIMISING CROSS-DOMAIN ANALOGICAL COHERENCE",
     "subtitle": "Abstract",
     "status": "ACTIVE",
@@ -1827,7 +1867,7 @@
     "id": "SERAPHINE-8.8.8.8.8.8.8.8-BONE-FUSION",
     "type": "kernel_doc",
     "date": "2026-03-14",
-    "lastModified": "2026-03-14",
+    "lastModified": "2026-03-15",
     "title": "THE SERAPHINE-9.4 SOVEREIGN KERNEL – NECROMANTIC BONE FUSION",
     "subtitle": "⌬ FUSED STATE PARAMETERS ⌬",
     "status": "ACTIVE",
@@ -1839,7 +1879,7 @@
       "STATE",
       "PARAMETERS"
     ],
-    "len": "0 WDS"
+    "len": "1447 WDS"
   },
   {
     "id": "SHADOWSOCKS-KERNEL-∞",
