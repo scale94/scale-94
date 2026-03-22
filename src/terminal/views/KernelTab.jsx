@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Database, GitBranch, Shield, Cpu } from 'lucide-react';
 
 // ── Mini rotating sphere hero canvas ────────────────────────────────────────
-function useMiniSphere(canvasRef) {
+function useMiniSphere(canvasRef, fireRef) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -13,28 +13,85 @@ function useMiniSphere(canvasRef) {
     const dots = Array.from({ length: 12 }, (_, i) => {
       const phi = Math.acos(1 - 2 * (i + 0.5) / 12);
       const theta = Math.PI * (1 + Math.sqrt(5)) * i;
-      return { phi, theta };
+      return { phi, theta, energy: 0 };
     });
-    let raf;
+    // Burst particles spawned on fire
+    const particles = [];
+    let raf, lastFireTs = 0;
     const draw = (t) => {
       ctx.clearRect(0, 0, W, H);
       const rot = t * 0.0008;
-      // wireframe circle
+
+      // Check for fire trigger
+      const fire = fireRef?.current;
+      if (fire && fire.ts > lastFireTs) {
+        lastFireTs = fire.ts;
+        // Energize all dots in a staggered cascade
+        dots.forEach((d, idx) => { d.energy = 1.0 - idx * 0.055; });
+        // Spawn particles from each dot's projected position (like feigenbaum tab)
+        dots.forEach((d, i) => {
+          const sp = Math.sin(d.phi);
+          const x3 = sp * Math.cos(d.theta + t * 0.0008);
+          const z3 = sp * Math.sin(d.theta + t * 0.0008);
+          const y3 = Math.cos(d.phi);
+          const scale = 1 / (1.8 - z3 * 0.5);
+          const sx = cx + x3 * R * scale;
+          const sy = cy + y3 * R * scale;
+          const col = colors[i % 3];
+          const burst = z3 > -0.3 ? 6 : 2; // more from front-facing dots
+          for (let p = 0; p < burst; p++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 0.6 + Math.random() * 2.2;
+            particles.push({
+              x: sx, y: sy,
+              vx: Math.cos(angle) * speed,
+              vy: Math.sin(angle) * speed,
+              life: 0.7 + Math.random() * 0.3,
+              maxLife: 0.7 + Math.random() * 0.3,
+              size: 1.2 + Math.random() * 2.0,
+              col,
+            });
+          }
+        });
+        // Cap pool to prevent runaway growth
+        if (particles.length > 300) particles.splice(0, particles.length - 300);
+      }
+
+      // Wireframe ring — glow stronger when any dot has energy
+      const maxEnergy = Math.max(0, ...dots.map(d => d.energy));
+      const ringAlpha = 0.12 + maxEnergy * 0.25;
       ctx.beginPath();
       ctx.arc(cx, cy, R, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(6,182,212,0.12)';
-      ctx.lineWidth = 1;
+      ctx.strokeStyle = `rgba(6,182,212,${ringAlpha.toFixed(3)})`;
+      ctx.lineWidth = 1 + maxEnergy * 1.5;
       ctx.stroke();
-      // equator ellipse
+      // Equator ellipse
       ctx.beginPath();
       for (let a = 0; a <= Math.PI * 2; a += 0.05) {
         const x = cx + R * Math.cos(a);
         const y = cy + R * 0.35 * Math.sin(a);
         a === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
       }
-      ctx.strokeStyle = 'rgba(57,255,20,0.08)';
+      ctx.strokeStyle = `rgba(57,255,20,${(0.08 + maxEnergy * 0.12).toFixed(3)})`;
       ctx.stroke();
-      // dots
+      // Burst particles drawn first — dots render on top so they're always visible
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vx *= 0.96;
+        p.vy *= 0.96;
+        p.life -= 0.018;
+        if (p.life <= 0) { particles.splice(i, 1); continue; }
+        const lifeRatio = p.life / (p.maxLife ?? 1.0);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, (p.size ?? 1.5) * lifeRatio, 0, Math.PI * 2);
+        ctx.fillStyle = p.col;
+        ctx.globalAlpha = lifeRatio * 0.75;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+      // Dots — halos first pass (atmosphere), then cores on top
       dots.forEach((d, i) => {
         const sp = Math.sin(d.phi);
         const x3 = sp * Math.cos(d.theta + rot);
@@ -43,20 +100,35 @@ function useMiniSphere(canvasRef) {
         const scale = 1 / (1.8 - z3 * 0.5);
         const sx = cx + x3 * R * scale;
         const sy = cy + y3 * R * scale;
-        const r = (2.5 + scale * 2) * (0.6 + z3 * 0.4);
+        const baseR = (2.5 + scale * 2) * (0.6 + z3 * 0.4);
+        const r = baseR + d.energy * 3;
         const col = colors[i % 3];
+        // Subtle halo — kept small so dot core stays distinct
+        if (d.energy > 0.05) {
+          const haloR = r + d.energy * 6;
+          ctx.beginPath();
+          ctx.arc(sx, sy, haloR, 0, Math.PI * 2);
+          ctx.fillStyle = col;
+          ctx.globalAlpha = d.energy * 0.12;
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+        // Dot core — always drawn last so it's never covered
         ctx.beginPath();
         ctx.arc(sx, sy, Math.max(1, r), 0, Math.PI * 2);
         ctx.fillStyle = col;
-        ctx.globalAlpha = 0.5 + z3 * 0.5;
+        ctx.globalAlpha = 0.5 + z3 * 0.5 + d.energy * 0.5;
         ctx.fill();
         ctx.globalAlpha = 1;
+        // Decay energy
+        d.energy *= 0.96;
+        if (d.energy < 0.01) d.energy = 0;
       });
       raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [canvasRef]);
+  }, [canvasRef, fireRef]);
 }
 
 // ── Lyapunov sparkline canvas ───────────────────────────────────────────────
@@ -135,9 +207,20 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
   const sphereCanvasRef        = useRef(null); // desktop
   const sphereCanvasMobileRef  = useRef(null); // mobile
   const sparklineCanvasRef     = useRef(null);
-  useMiniSphere(sphereCanvasRef);
-  useMiniSphere(sphereCanvasMobileRef);
+  // sphereFireRef: write { ts: Date.now() } to trigger a burst on both spheres
+  const sphereFireRef = useRef(null);
+  useMiniSphere(sphereCanvasRef,       sphereFireRef);
+  useMiniSphere(sphereCanvasMobileRef, sphereFireRef);
   useLyapunovSparkline(sparklineCanvasRef);
+
+  // Fire sphere on kernel-complete (loadingKernel → null transition)
+  const prevKernelRef = useRef(null);
+  useEffect(() => {
+    if (prevKernelRef.current && !loadingKernel) {
+      sphereFireRef.current = { ts: Date.now() };
+    }
+    prevKernelRef.current = loadingKernel;
+  }, [loadingKernel]);
 
   // ── Gesture-gated mobile keyboard ─────────────────────────────────────────
   // Activation: double-tap + long-tap on the tty0 header strip.
@@ -298,6 +381,22 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
         from { transform: translateY(100%); opacity: 0; }
         to   { transform: translateY(0);    opacity: 1; }
       }
+      @keyframes sk-kernelGlow {
+        0%, 100% { text-shadow: 0 0 8px rgba(255,215,0,0.2), 0 0 20px rgba(255,140,0,0); }
+        50%      { text-shadow: 0 0 14px rgba(255,215,0,0.5), 0 0 36px rgba(255,140,0,0.25), 0 0 56px rgba(217,70,239,0.12); }
+      }
+      @keyframes sk-ttyTitleReveal {
+        0%   { opacity: 0; letter-spacing: 0.4em; filter: blur(12px) brightness(3); }
+        25%  { opacity: 1; filter: brightness(2.8) blur(2px); letter-spacing: 0.2em; }
+        55%  { opacity: 0.65; filter: brightness(3.2) blur(0px); letter-spacing: 0.06em; }
+        78%  { opacity: 1; filter: brightness(1.5) blur(0px); letter-spacing: 0.02em; }
+        100% { opacity: 1; filter: brightness(1) blur(0px); letter-spacing: normal; }
+      }
+      @keyframes sk-loadFlash {
+        0%   { background-color: rgba(6,182,212,0); box-shadow: none; }
+        15%  { background-color: rgba(6,182,212,0.15); box-shadow: inset 0 0 30px rgba(6,182,212,0.12), 0 0 12px rgba(6,182,212,0.3); }
+        100% { background-color: rgba(6,182,212,0); box-shadow: none; }
+      }
       .axiom-item:hover { box-shadow: inset 3px 0 0 #39ff14, inset 0 0 24px rgba(57,255,20,0.04); }
       /* Mobile tty0: hidden scrollbar */
       @media (max-width: 767px) {
@@ -324,15 +423,36 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
             className="w-8 h-8 shrink-0"
             style={{ color: '#FFD700', animation: 'sk-cpuYellowReveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards, sk-cpuYellowGlow 2.5s ease-in-out 0.8s infinite' }}
           />
-          <span
-            className="text-transparent bg-clip-text text-2xl md:text-4xl"
-            style={{
-              backgroundImage: 'linear-gradient(90deg, #FF8C00, #FFD700, #FFFF00, #FFD700, #FF8C00)',
-              backgroundSize: '400% auto',
-              animation: 'sk-kernelTextReveal 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards, sk-kernelShimmer 2.5s ease-in-out infinite'
-            }}
-          >
-            system_kernel
+          <span style={{ position: 'relative', display: 'inline-block' }} className="text-2xl md:text-4xl">
+            {/* Glow layer — blurred duplicate beneath for ambient halo */}
+            <span
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                color: '#FFD700',
+                filter: 'blur(10px) opacity(0.7)',
+                transition: 'filter 0.4s ease',
+                userSelect: 'none',
+                pointerEvents: 'none',
+                fontWeight: 'inherit',
+                fontSize: 'inherit',
+                letterSpacing: 'inherit',
+              }}
+            >system_kernel</span>
+            {/* Visible gradient text with triple animation chain */}
+            <span
+              className="text-transparent bg-clip-text"
+              style={{
+                backgroundImage: 'linear-gradient(90deg, #FF8C00, #FFD700, #FFFF00, #d946ef, #FFD700, #FF8C00)',
+                backgroundSize: '400% auto',
+                animation: 'sk-ttyTitleReveal 1s cubic-bezier(0.7,0,0.3,1) forwards, sk-kernelShimmer 3.5s cubic-bezier(0.7,0,0.3,1) 1s infinite, sk-kernelGlow 5s ease-in-out 1.2s infinite',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                color: 'transparent',
+              }}
+            >system_kernel</span>
           </span>
         </h2>
         <div
@@ -389,7 +509,14 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
             />
             <span
               className="text-transparent bg-clip-text"
-              style={{ backgroundImage: 'linear-gradient(90deg, #8B5CF6, #D946EF, #A855F7)', opacity: 0, animation: 'sk-axiomHeadReveal 1s cubic-bezier(0.16,1,0.3,1) 0.2s forwards' }}
+              style={{
+                backgroundImage: 'linear-gradient(90deg, #8B5CF6, #D946EF, #A855F7, #8B5CF6)',
+                backgroundSize: '300% auto',
+                opacity: 0,
+                animation: 'sk-axiomHeadReveal 1s cubic-bezier(0.16,1,0.3,1) 0.2s forwards, sk-kernelShimmer 4s ease-in-out 1.2s infinite',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}
             >axiomatic_core</span>
           </h3>
           <div className="space-y-3 overflow-y-auto custom-scrollbar pr-1 flex-1 min-h-0">
@@ -449,14 +576,17 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
                 <li
                   key={kernel.id}
                   onClick={() => {
+                    sphereFireRef.current = { ts: Date.now() };
                     handleKernelClick && handleKernelClick(kernel);
                     if (mobileAutoRun && window.matchMedia('(max-width: 767px)').matches) {
                       setTimeout(() => mobileAutoRun(kernel.id), 900);
                     }
                   }}
                   className={`flex flex-wrap justify-between items-center gap-y-2 border-b pb-3 mb-1 cursor-pointer p-2 rounded transition-all group gap-2
-                    ${isLoading ? 'bg-cyan-900/20 border-cyan-400/60 shadow-[inset_0_0_20px_rgba(34,211,238,0.08)] backdrop-blur-sm animate-pulse' : 'border-cyan-900/20 hover:bg-cyan-900/10'}`}
-                  style={{ animation: `sk-kernelModuleIn 0.22s ease-out ${idx * 40}ms both` }}
+                    ${isLoading ? 'border-cyan-400/60 backdrop-blur-sm' : 'border-cyan-900/20 hover:bg-cyan-900/10'}`}
+                  style={{ animation: isLoading
+                    ? `sk-loadFlash 1.2s cubic-bezier(0.16,1,0.3,1) forwards, sk-kernelModuleIn 0.22s ease-out ${idx * 40}ms both`
+                    : `sk-kernelModuleIn 0.22s ease-out ${idx * 40}ms both` }}
                 >
                   <div className="flex-1 min-w-0 overflow-hidden">
                     <div
@@ -473,14 +603,14 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
                   </div>
                   <div className="flex items-center gap-1 shrink-0 ml-auto">
                     <div
-                      onClick={(e) => { e.stopPropagation(); handleKernelClick && handleKernelClick(kernel); }}
+                      onClick={(e) => { e.stopPropagation(); sphereFireRef.current = { ts: Date.now() }; handleKernelClick && handleKernelClick(kernel); }}
                       className={`text-[9px] font-bold px-1.5 py-0.5 rounded-sm border tracking-widest whitespace-nowrap transition-all cursor-pointer ${isLoading ? 'bg-cyan-900/30 border-cyan-400 text-cyan-300' : 'bg-transparent border-cyan-500/60 text-cyan-500 hover:border-cyan-400 hover:text-cyan-300'}`}
                     >
                       {isLoading ? '...' : '[load]'}
                     </div>
                     <button
                       aria-label={`Run ${kernel.name}`}
-                      onClick={(e) => { e.stopPropagation(); mobileAutoRun && mobileAutoRun(kernel.id); resetTtyFade(); }}
+                      onClick={(e) => { e.stopPropagation(); sphereFireRef.current = { ts: Date.now() }; mobileAutoRun && mobileAutoRun(kernel.id); resetTtyFade(); }}
                       className="text-[9px] font-bold px-1.5 py-0.5 rounded-sm border border-fuchsia-500/60 text-fuchsia-400 bg-transparent hover:bg-fuchsia-500/10 hover:border-fuchsia-400 hover:text-fuchsia-300 tracking-widest whitespace-nowrap transition-all active:scale-95"
                     >
                       [run]
@@ -533,7 +663,16 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
             </div>
             <span className={`text-[9px] font-black ${isCritical ? 'text-red-500/70' : 'text-cyan-900/35'}`}>{ramPct}%</span>
           </div>
-          <span className="text-[#39ff14] tracking-widest font-mono text-xs font-bold shrink-0">/dev/tty0</span>
+          <span
+            className="tracking-widest font-mono text-xs font-bold shrink-0 text-transparent bg-clip-text"
+            style={{
+              backgroundImage: 'linear-gradient(90deg, #39ff14, #06b6d4, #39ff14)',
+              backgroundSize: '200% auto',
+              animation: 'sk-kernelShimmer 4s ease-in-out infinite',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+            }}
+          >/dev/tty0</span>
           <span className="text-[9px] font-bold tracking-widest text-cyan-900/35 shrink-0">system kernel logs</span>
           <span className="text-[9px] font-bold tracking-widest text-cyan-900/35 ml-auto hidden md:block shrink-0">
             run · help · list · breach · tags
@@ -559,7 +698,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
               <span className={`mr-2 ${l.rust ? 'text-cyan-300' : 'text-cyan-500'}`}>{l.time}</span>– {l.msg}
               {l.btn && (
                 <button
-                  onClick={() => { mobileAutoRun && mobileAutoRun(l.btn.cmd); resetTtyFade(); }}
+                  onClick={() => { sphereFireRef.current = { ts: Date.now() }; mobileAutoRun && mobileAutoRun(l.btn.cmd); resetTtyFade(); }}
                   className="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-sm border border-fuchsia-500/60 text-fuchsia-400 bg-transparent hover:bg-fuchsia-500/10 hover:border-fuchsia-400 active:scale-95 tracking-widest whitespace-nowrap transition-all"
                 >
                   [{l.btn.label}]

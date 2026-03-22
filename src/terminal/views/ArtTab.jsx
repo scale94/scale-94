@@ -550,9 +550,12 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     const ctx = canvas.getContext('2d');
 
     const draw = () => {
+      // ── Always re-schedule first so an exception never kills the loop ──────
+      rafRef.current = requestAnimationFrame(draw);
       const s  = stateRef.current;
       const es = edgeStateRef.current;
-      if (!s) { rafRef.current = requestAnimationFrame(draw); return; }
+      if (!s) return;
+      try {
 
       const { nodes } = s;
       const { w, h }  = dimsRef.current;
@@ -1690,8 +1693,9 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         ctx.fillStyle = vigGrd;
         ctx.fillRect(0, 0, w, h);
       }
-
-      rafRef.current = requestAnimationFrame(draw);
+      } catch (err) {
+        console.error('[ArtTab] draw error (loop continues):', err);
+      }
     };
 
     rafRef.current = requestAnimationFrame(draw);
@@ -2033,6 +2037,26 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     setLockedEdge(null);
   }, [canvasCoords, nodeAt, fireNode, spawnEffect, onCueNode, ensureAudio, perturbField]);
 
+  // ── Non-passive touch listeners on canvas ────────────────────────────────
+  // React 19 attaches delegated events at root level; browsers may treat them
+  // as passive, making e.preventDefault() inside synthetic handlers a no-op.
+  // Registering { passive: false } directly on the canvas guarantees that:
+  //   1. touchmove scroll is suppressed while dragging the sphere
+  //   2. touchend e.preventDefault() actually blocks iOS/Android synthetic
+  //      mousemove→mousedown→mouseup→click cascade that double-fires nodes
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+    canvas.addEventListener('touchmove',  handleTouchMove,  { passive: false });
+    canvas.addEventListener('touchend',   handleTouchEnd,   { passive: false });
+    return () => {
+      canvas.removeEventListener('touchstart', handleTouchStart);
+      canvas.removeEventListener('touchmove',  handleTouchMove);
+      canvas.removeEventListener('touchend',   handleTouchEnd);
+    };
+  }, [handleTouchStart, handleTouchMove, handleTouchEnd]);
+
   // ── CSS vars for DOM elements outside canvas ──────────────────────────────
   useEffect(() => {
     const el = containerRef.current;
@@ -2373,9 +2397,6 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseLeave}
           onContextMenu={handleContextMenu}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
         />
 
         {/* ── Node hover tooltip ───────────────────────────────────────────── */}

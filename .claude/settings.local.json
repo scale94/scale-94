@@ -33,7 +33,26 @@
       "Bash(git push:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(wasm-pack --version)"
+      "Bash(wasm-pack --version)",
+      "Bash(npx vite:*)",
+      "Bash(netstat -ano)",
+      "Bash(taskkill //F //PID 57772)",
+      "Bash(gh pr:*)",
+      "Bash(curl -s http://localhost:5173)",
+      "Bash(taskkill /f /im node.exe)",
+      "Bash(taskkill /f /pid 4532)",
+      "Bash(findstr \":5173 \")",
+      "Bash(findstr LISTEN)",
+      "Bash(wc -l src/terminal/views/*.jsx src/terminal/App.jsx)",
+      "Bash(npx --yes acorn --ecma2020 --module --allow-import-export-everywhere --jsx src/terminal/views/SurveillanceTab.jsx)",
+      "Bash(xargs grep:*)",
+      "Bash(grep -r \"import.*crypto\\\\|require.*crypto\" F:/scale_9.4/src --include=*.js --include=*.jsx --include=*.ts --include=*.tsx)",
+      "Bash(grep -n \"import.*wasm\\\\|from.*wasm\\\\|scale94_kernels\\\\|initWasm\" src/terminal/views/*.jsx src/terminal/hooks/*.js)",
+      "Read(//c/Users/raul-/.claude//**)",
+      "Read(//c/Users/raul-/AppData/Local/Temp/claude//**)",
+      "Bash(taskkill /PID 26088 /F)",
+      "Bash(git checkout:*)",
+      "Bash(git merge:*)"
     ]
   }
 }
