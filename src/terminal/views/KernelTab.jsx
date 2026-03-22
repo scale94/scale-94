@@ -479,17 +479,28 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
           className="block md:hidden mt-3"
           style={{ width: 120, height: 120 }} />
       </div>
-      <div className="flex items-center gap-2 md:gap-4 mt-2 md:mt-0 shrink-0 flex-wrap">
-        <div className="flex items-center gap-2 text-xs border border-cyan-500/30 px-2 md:px-3 py-1 bg-cyan-900/10 text-cyan-400 rounded-sm">
+      {/* Mobile badges — shown below title on mobile only */}
+      <div className="flex items-center gap-2 mt-2 flex-wrap md:hidden">
+        <div className="flex items-center gap-2 text-xs border border-cyan-500/30 px-2 py-1 bg-cyan-900/10 text-cyan-400 rounded-sm">
           <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(34,211,238,1)]"></div> operational
-          <canvas ref={sparklineCanvasRef} width={120} height={24} className="ml-2 hidden md:block" style={{ width: 120, height: 24 }} />
         </div>
-        <div className="flex items-center gap-2 text-xs border border-[#39ff14]/30 px-2 md:px-3 py-1 bg-green-900/10 text-[#39ff14] rounded-sm shadow-[0_0_6px_rgba(57,255,20,0.15)]">
+        <div className="flex items-center gap-2 text-xs border border-[#39ff14]/30 px-2 py-1 bg-green-900/10 text-[#39ff14] rounded-sm shadow-[0_0_6px_rgba(57,255,20,0.15)]">
           <Shield className="w-3 h-3" /> leviathan: active
         </div>
       </div>
-      {/* Desktop sphere — right-aligned in the header row */}
-      <canvas ref={sphereCanvasRef} width={180} height={180} className="hidden md:block shrink-0" style={{ width: 180, height: 180 }} />
+      {/* Desktop: sphere on top, badges below */}
+      <div className="hidden md:flex flex-col items-end gap-2 shrink-0">
+        <canvas ref={sphereCanvasRef} width={180} height={180} style={{ width: 180, height: 180 }} />
+        <div className="flex items-center gap-3 flex-wrap justify-end">
+          <div className="flex items-center gap-2 text-xs border border-cyan-500/30 px-3 py-1 bg-cyan-900/10 text-cyan-400 rounded-sm">
+            <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(34,211,238,1)]"></div> operational
+            <canvas ref={sparklineCanvasRef} width={120} height={24} className="ml-2" style={{ width: 120, height: 24 }} />
+          </div>
+          <div className="flex items-center gap-2 text-xs border border-[#39ff14]/30 px-3 py-1 bg-green-900/10 text-[#39ff14] rounded-sm shadow-[0_0_6px_rgba(57,255,20,0.15)]">
+            <Shield className="w-3 h-3" /> leviathan: active
+          </div>
+        </div>
+      </div>
     </div>
 
     {/*
