@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { KeyRound, ShieldCheck, Activity, Lock, Unlock, AlertTriangle } from 'lucide-react';
+import { loadWasm } from '../../wasm/wasmSingleton';
 
 // ── Hex rain characters ──────────────────────────────────────────────────────
 const HEX_CHARS = '0123456789ABCDEF'.split('');
@@ -736,8 +737,7 @@ function KeygenPhase() {
   const handleInitiate = useCallback(async () => {
     setWasmState('running');
     try {
-      const mod = await import('../../wasm/scale94_kernels.js');
-      await mod.default({ module_or_path: '/wasm/scale94_kernels_bg.wasm' });
+      const mod = await loadWasm();
       const output = mod.run_classified(1);
       const { ekHex, dkHex } = parseMLKemKeypair(output);
       if (ekHex.length !== 2368) throw new Error(`ek: ${ekHex.length / 2}B (expected 1184B)`);
@@ -1001,8 +1001,7 @@ function FileVault() {
     addLog('SEAL: initializing WASM runtime...', 'text-orange-400/60');
 
     try {
-      const mod = await import('../../wasm/scale94_kernels.js');
-      await mod.default({ module_or_path: '/wasm/scale94_kernels_bg.wasm' });
+      const mod = await loadWasm();
 
       addLog('SEAL: Argon2id KDF — deriving 256-bit master key...', 'text-cyan-400/60');
       addLog(`SEAL: input ${file.size.toLocaleString()} bytes — ${file.name}`, 'text-orange-400/60');
@@ -1040,8 +1039,7 @@ function FileVault() {
     addLog('UNSEAL: initializing WASM runtime...', 'text-orange-400/60');
 
     try {
-      const mod = await import('../../wasm/scale94_kernels.js');
-      await mod.default({ module_or_path: '/wasm/scale94_kernels_bg.wasm' });
+      const mod = await loadWasm();
 
       addLog('UNSEAL: Argon2id KDF — rederiving master key from passphrase...', 'text-cyan-400/60');
       addLog(`UNSEAL: sealed envelope ${file.size.toLocaleString()} bytes`, 'text-orange-400/60');

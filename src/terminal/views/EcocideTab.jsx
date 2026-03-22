@@ -38,6 +38,7 @@
 import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { ChevronRight, Filter, X, AlertTriangle } from 'lucide-react';
 import wasmRegistry from '../../wasm/wasm.generated';
+import { loadWasm } from '../../wasm/wasmSingleton';
 
 // ── Coupling Event Bus ─────────────────────────────────────────────────────
 // Simple pub/sub for cross-tab phase coupling.
@@ -288,34 +289,6 @@ function gsParams(phase, deadFrac, exergyNorm, trophicV, metabolicFat) {
   Dv = Math.max(0.030, Math.min(0.120, Dv));
 
   return { f, k, Du, Dv };
-}
-
-// ── WASM Loader ──────────────────────────────────────────────────────────────
-
-let _wasmMod   = null;
-let _wasmReady = false;
-let _wasmWaiters = [];
-
-async function loadWasm() {
-  if (_wasmReady) return _wasmMod;
-  return new Promise((resolve, reject) => {
-    _wasmWaiters.push({ resolve, reject });
-    if (_wasmWaiters.length > 1) return;
-    (async () => {
-      try {
-        const mod   = await import('../../wasm/scale94_kernels.js');
-        const entry = Object.values(wasmRegistry).find(e => e.wasmUrl);
-        const url   = entry?.wasmUrl ?? '/wasm/scale94_kernels_bg.wasm';
-        await mod.default({ module_or_path: url });
-        _wasmMod   = mod;
-        _wasmReady = true;
-        _wasmWaiters.forEach(w => w.resolve(mod));
-      } catch (err) {
-        _wasmWaiters.forEach(w => w.reject(err));
-      }
-      _wasmWaiters = [];
-    })();
-  });
 }
 
 // ── Layer 3.3.3 – Growth-to-Extraction Conversion ───────────────────────────

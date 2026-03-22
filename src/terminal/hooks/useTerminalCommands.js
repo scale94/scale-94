@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { normalizeQuery } from '../lib/normalize';
 import wasmRegistry from '../../wasm/wasm.generated';
+import { loadWasm } from '../../wasm/wasmSingleton';
 
 /**
  * useTerminalCommands
@@ -286,8 +287,7 @@ export default function useTerminalCommands({
           ].slice(-2000));
           (async () => {
             try {
-              const mod = await import('../../wasm/scale94_kernels.js');
-              await mod.default({ module_or_path: '/wasm/scale94_kernels_bg.wasm' });
+              const mod = await loadWasm();
               const result   = mod.boot_leviathan_benchmark(100000.0, 100.0);
               const lines    = result.split('\n');
               const doneTime = new Date().toLocaleTimeString('en-US', { hour12: false });
@@ -335,9 +335,7 @@ export default function useTerminalCommands({
           ].slice(-2000));
           (async () => {
             try {
-              const mod = await import('../../wasm/scale94_kernels.js');
-              const wasmUrl = wasmEntry.wasmUrl ?? wasmEntry.module.replace(/\.js$/, '_bg.wasm');
-              await mod.default({ module_or_path: wasmUrl });
+              const mod = await loadWasm();
               const callArgs = [...(wasmEntry.args ?? [])];
               if (wasmEntry.argMap) {
                 for (const [flag, idx] of Object.entries(wasmEntry.argMap)) {

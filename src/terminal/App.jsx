@@ -28,6 +28,7 @@ function chunkFileName(id) {
 
 // Components
 import OctagonGrid          from './components/OctagonGrid';
+import { WasmErrorBoundary } from './components/WasmErrorBoundary';
 import BootSequence         from './components/BootSequence';
 import BreachProtocol       from './components/BreachProtocol';
 import KuramotoVisualizer   from './components/KuramotoVisualizer';
@@ -1114,25 +1115,27 @@ const App = () => {
 
           {/* Art Tab — Fade Doctrine Graph // Ars Electronica 2027 */}
           {activeTab === 'art' && !selectedArticle && !architectThesis && (
-            <ArtTab
-              associativeField={associativeField}
-              spectralBridges={spectralBridges}
-              boneFusions={boneFusions}
-              manualFusions={manualFusions}
-              onManualFusion={handleManualFusion}
-              orthogonalBridges={orthogonalBridges}
-              onOrthogonalBridge={handleOrthogonalBridge}
-              probeNode={probeNode}
-              onRunKernel={(alias) => {
-                const now = new Date().toLocaleTimeString('en-US', { hour12: false });
-                dispatchCommand('run', alias, `run ${alias}`, now);
-              }}
-              onCueNode={(nodeIdx) => {
-                const now = new Date().toLocaleTimeString('en-US', { hour12: false });
-                const q = `associative_field --seed ${nodeIdx} --beta 2.5 --probes 30`;
-                dispatchCommand('run', q, `run ${q}`, now);
-              }}
-            />
+            <WasmErrorBoundary>
+              <ArtTab
+                associativeField={associativeField}
+                spectralBridges={spectralBridges}
+                boneFusions={boneFusions}
+                manualFusions={manualFusions}
+                onManualFusion={handleManualFusion}
+                orthogonalBridges={orthogonalBridges}
+                onOrthogonalBridge={handleOrthogonalBridge}
+                probeNode={probeNode}
+                onRunKernel={(alias) => {
+                  const now = new Date().toLocaleTimeString('en-US', { hour12: false });
+                  dispatchCommand('run', alias, `run ${alias}`, now);
+                }}
+                onCueNode={(nodeIdx) => {
+                  const now = new Date().toLocaleTimeString('en-US', { hour12: false });
+                  const q = `associative_field --seed ${nodeIdx} --beta 2.5 --probes 30`;
+                  dispatchCommand('run', q, `run ${q}`, now);
+                }}
+              />
+            </WasmErrorBoundary>
           )}
 
           {/* Ecocide Tab — biocoenosis · atmospheric entropy · thermodynamic law */}
@@ -1149,7 +1152,9 @@ const App = () => {
 
           {/* Cryptography Tab — ML-KEM-768 PQC + Gray-Scott kernel reference */}
           {activeTab === 'cryptography' && !selectedArticle && !architectThesis && (
-            <ClassifiedTab session={classifiedSession} />
+            <WasmErrorBoundary>
+              <ClassifiedTab session={classifiedSession} />
+            </WasmErrorBoundary>
           )}
 
           {/* Article Detail */}

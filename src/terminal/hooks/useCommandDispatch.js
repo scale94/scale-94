@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import wasmRegistry    from '../../wasm/wasm.generated';
+import { loadWasm } from '../../wasm/wasmSingleton';
 import kernelBuildsData from '../data/kernelBuilds';
 import { normalizeQuery } from '../../lib/normalize';
 import { formatKernelHelp, formatRunHelp } from '../commands/runHelpers';
@@ -210,9 +211,7 @@ export function useCommandDispatch(ctx) {
         (async () => {
           try {
             // eslint-disable-next-line import/no-unresolved
-            const mod = await import('../../wasm/scale94_kernels.js');
-            const wasmUrl = wasmEntry.wasmUrl ?? wasmEntry.module.replace(/\.js$/, '_bg.wasm');
-            await mod.default({ module_or_path: wasmUrl });
+            const mod = await loadWasm();
 
             const t0 = performance.now();
             let result;
@@ -454,7 +453,7 @@ export function useCommandDispatch(ctx) {
               // the payload has been delivered. Best-effort — silently skipped
               // if the WASM instance is not live (e.g. direct verify after reload).
               try {
-                const mod = await import('../../wasm/scale94_kernels.js');
+                const mod = await loadWasm();
                 const flushResult = mod.log_entropy_flush();
                 const tf = new Date().toLocaleTimeString('en-US', { hour12: false });
                 setSystemLogs(prev => [
@@ -484,10 +483,7 @@ export function useCommandDispatch(ctx) {
       log(`COMMAND: ${rawCmd}`);
       (async () => {
         try {
-          const mod = await import('../../wasm/scale94_kernels.js');
-          const wasmEntry = Object.values(wasmRegistry).find(e => e.fn === 'run_spectral_bridge');
-          const wasmUrl = wasmEntry?.wasmUrl ?? '/wasm/scale94_kernels_bg.wasm';
-          await mod.default({ module_or_path: wasmUrl });
+          const mod = await loadWasm();
           const t0 = performance.now();
           const result = mod.enclave_keygen();
           const elapsed = (performance.now() - t0).toFixed(4);
@@ -524,10 +520,7 @@ export function useCommandDispatch(ctx) {
       log(`COMMAND: ${rawCmd}`);
       (async () => {
         try {
-          const mod = await import('../../wasm/scale94_kernels.js');
-          const wasmEntry = Object.values(wasmRegistry).find(e => e.wasmUrl);
-          const wasmUrl = wasmEntry?.wasmUrl ?? '/wasm/scale94_kernels_bg.wasm';
-          await mod.default({ module_or_path: wasmUrl });
+          const mod = await loadWasm();
           const t0 = performance.now();
           const result = mod.enclave_seal(query);
           const elapsed = (performance.now() - t0).toFixed(4);
@@ -557,10 +550,7 @@ export function useCommandDispatch(ctx) {
       log(`COMMAND: ${rawCmd}`);
       (async () => {
         try {
-          const mod = await import('../../wasm/scale94_kernels.js');
-          const wasmEntry = Object.values(wasmRegistry).find(e => e.wasmUrl);
-          const wasmUrl = wasmEntry?.wasmUrl ?? '/wasm/scale94_kernels_bg.wasm';
-          await mod.default({ module_or_path: wasmUrl });
+          const mod = await loadWasm();
           const t0 = performance.now();
           const result = mod.enclave_open(query);
           const elapsed = (performance.now() - t0).toFixed(4);
@@ -595,10 +585,7 @@ export function useCommandDispatch(ctx) {
       );
       (async () => {
         try {
-          const mod = await import('../../wasm/scale94_kernels.js');
-          const wasmEntry = Object.values(wasmRegistry).find(e => e.wasmUrl);
-          const wasmUrl = wasmEntry?.wasmUrl ?? '/wasm/scale94_kernels_bg.wasm';
-          await mod.default({ module_or_path: wasmUrl });
+          const mod = await loadWasm();
           const t0 = performance.now();
           const result = mod.run_text_probe(query);
           const elapsed = (performance.now() - t0).toFixed(4);
@@ -955,8 +942,7 @@ export function useCommandDispatch(ctx) {
           const encoder  = new TextEncoder();
           const rawBytes = encoder.encode(payload);
 
-          const mod = await import('../../wasm/scale94_kernels.js');
-          await mod.default({ module_or_path: '/wasm/scale94_kernels_bg.wasm' });
+          const mod = await loadWasm();
 
           const t0       = performance.now();
           const sealed   = mod.seal_markdown(rawBytes, passphrase);

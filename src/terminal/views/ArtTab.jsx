@@ -14,7 +14,7 @@
 
 import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { Waves, Volume2, VolumeX, Maximize, Minimize, Circle, Download, Radio, Clock, Wifi } from 'lucide-react';
-import { nodeColor, lerpColor, hslAlpha } from '../data/kernelColorMap';
+import { lerpColor, hslAlpha } from '../data/kernelColorMap';
 import { useSomaGraph, CLUSTER_ANCHORS } from '../hooks/useSomaGraph';
 import { useKineticEdges }                from '../hooks/useKineticEdges';
 import { useAssociativeField }            from '../hooks/useAssociativeField';
@@ -30,272 +30,18 @@ import {
 import { somaAudio } from '../audio/SomaAudio';
 import { somaPresence } from '../audio/SomaPresence';
 import { ecoDataFeed } from '../data/EcoDataFeed';
-
-// ── Particle Ecology ────────────────────────────────────────────────────────
-// Lightweight particle pool for edge energy flow, node bursts, and bifurcation trails.
-// All particles are depth-sorted and rendered additively in the draw loop.
-const MAX_PARTICLES = 400;
-
-// ── Particle pool — flat SoA layout, ring-buffer allocation ─────────────────
-// Each particle has: position (x,y,z on unit sphere), velocity (vx,vy,vz),
-// life (0→maxLife frames), hue (0-360), sat (0-100), size (px), and a
-// hueTarget for smooth in-flight color blending.
-
-function createParticlePool() {
-  return {
-    xs:        new Float32Array(MAX_PARTICLES),
-    ys:        new Float32Array(MAX_PARTICLES),
-    zs:        new Float32Array(MAX_PARTICLES),
-    vxs:       new Float32Array(MAX_PARTICLES),
-    vys:       new Float32Array(MAX_PARTICLES),
-    vzs:       new Float32Array(MAX_PARTICLES),
-    lifes:     new Float32Array(MAX_PARTICLES),   // current age (frames)
-    maxLifes:  new Float32Array(MAX_PARTICLES),   // total lifespan
-    hues:      new Float32Array(MAX_PARTICLES),   // current hue
-    hueTargets:new Float32Array(MAX_PARTICLES),   // blend destination hue
-    sats:      new Float32Array(MAX_PARTICLES),   // saturation
-    sizes:     new Float32Array(MAX_PARTICLES),   // base radius (px)
-    next: 0,   // ring write head
-    count: 0,  // live count
-  };
-}
-
-function emitParticle(pool, x, y, z, vx, vy, vz, hue, hueTarget, sat, size, maxLife) {
-  const i = pool.next % MAX_PARTICLES;
-  pool.next = (i + 1) % MAX_PARTICLES;
-  pool.xs[i] = x;   pool.ys[i] = y;   pool.zs[i] = z;
-  pool.vxs[i] = vx; pool.vys[i] = vy; pool.vzs[i] = vz;
-  pool.lifes[i] = 0;
-  pool.maxLifes[i] = maxLife;
-  pool.hues[i] = hue;
-  pool.hueTargets[i] = hueTarget;
-  pool.sats[i] = sat;
-  pool.sizes[i] = size;
-  pool.count = Math.min(pool.count + 1, MAX_PARTICLES);
-}
-
-function stepParticles(pool) {
-  // In-place update — no compaction (avoids index aliasing bug)
-  // Dead particles (life >= maxLife) are simply skipped during render.
-  // Ring buffer naturally recycles slots.
-  for (let i = 0; i < MAX_PARTICLES; i++) {
-    if (pool.lifes[i] >= pool.maxLifes[i]) continue;
-    pool.lifes[i] += 1;
-    pool.xs[i] += pool.vxs[i];
-    pool.ys[i] += pool.vys[i];
-    pool.zs[i] += pool.vzs[i];
-    pool.vxs[i] *= 0.964;  // drag
-    pool.vys[i] *= 0.964;
-    pool.vzs[i] *= 0.964;
-    // Hue drift toward target (smooth color blend)
-    const dh = pool.hueTargets[i] - pool.hues[i];
-    const shortPath = dh > 180 ? dh - 360 : dh < -180 ? dh + 360 : dh;
-    pool.hues[i] += shortPath * 0.018;
-  }
-}
-
-// ── Idle ambient emitter — slow-drifting particles across the sphere ─────────
-// Colors cycle through a warm→cool palette independent of user interaction.
-let _idleHueDrift = 0;
-function emitIdleParticles(pool, nodes) {
-  _idleHueDrift = (_idleHueDrift + 0.18) % 360;
-  // Pick a random live node as origin
-  if (!nodes || nodes.length === 0) return;
-  const n = nodes[Math.floor(Math.random() * nodes.length)];
-  const hue = _idleHueDrift;
-  const hueTarget = (_idleHueDrift + 40 + Math.random() * 80) % 360;
-  const theta = Math.random() * Math.PI * 2;
-  const phi   = Math.acos(Math.random() * 2 - 1);
-  const speed = 0.0005 + Math.random() * 0.0012;
-  emitParticle(pool,
-    n.x + (Math.random() - 0.5) * 0.08,
-    n.y + (Math.random() - 0.5) * 0.08,
-    n.z + (Math.random() - 0.5) * 0.08,
-    Math.sin(phi) * Math.cos(theta) * speed,
-    Math.sin(phi) * Math.sin(theta) * speed,
-    Math.cos(phi) * speed,
-    hue, hueTarget,
-    55 + Math.random() * 30,   // sat
-    0.6 + Math.random() * 0.8, // size
-    120 + Math.random() * 180  // life
-  );
-}
-
-// ── Click burst — radial explosion from node, hue = node cluster color ───────
-function emitNodeBurst(pool, x, y, z, hue, hueTarget, count) {
-  for (let i = 0; i < count; i++) {
-    const theta = Math.random() * Math.PI * 2;
-    const phi   = Math.acos(Math.random() * 2 - 1);
-    const speed = 0.003 + Math.random() * 0.009;
-    emitParticle(pool, x, y, z,
-      Math.sin(phi) * Math.cos(theta) * speed,
-      Math.sin(phi) * Math.sin(theta) * speed,
-      Math.cos(phi) * speed,
-      hue, hueTarget,
-      75 + Math.random() * 20,
-      1.2 + Math.random() * 2.2,
-      90 + Math.random() * 100
-    );
-  }
-}
-
-// ── Edge stream — particles flowing along an edge ────────────────────────────
-function emitEdgeParticles(pool, ax, ay, az, bx, by, bz, hue, hueTarget, count) {
-  for (let i = 0; i < count; i++) {
-    const t = Math.random();
-    emitParticle(pool,
-      ax + (bx - ax) * t, ay + (by - ay) * t, az + (bz - az) * t,
-      (bx - ax) * 0.002 + (Math.random() - 0.5) * 0.0008,
-      (by - ay) * 0.002 + (Math.random() - 0.5) * 0.0008,
-      (bz - az) * 0.002 + (Math.random() - 0.5) * 0.0008,
-      hue, hueTarget,
-      65 + Math.random() * 20,
-      0.8 + Math.random() * 1.2,
-      60 + Math.random() * 70
-    );
-  }
-}
-
-// ── Graph topology ────────────────────────────────────────────────────────────
-
-const CLUSTERS = {
-  eco:    { label: 'ecological'   },
-  sync:   { label: 'synchrony'    },
-  phys:   { label: 'physics'      },
-  crypto: { label: 'cryptography' },
-  drk:    { label: 'drk'          },
-};
-
-// NODES imported from nodeFeatures.js
-
-// Intra-cluster edges — same cluster, always present
-const INTRA_EDGES = [
-  ['biocoenosis', 'replicator'], ['biocoenosis', 'grayscott'],
-  ['daly',        'chrono'],     ['daly',        'atmospheric'], ['chrono', 'atmospheric'],
-  ['kuramoto',    'ceei'],       ['kuramoto',    'soma91'],
-  ['soma91',      'soma_plus'],  ['soma91',      'leviathan'],   ['leviathan', 'cynic'],
-  ['feigenbaum',  'ising'],      ['feigenbaum',  'bosonic'],
-  ['ising',       'bosonic'],    ['bosonic',     'seraphine'],   ['seraphine', 'fusion'],
-  ['ising',       'magic_angle_1p1'],                           // condensed matter pair
-  ['bosonic',     'magic_angle_1p1'],                           // quantum phase pair
-  ['pitch_black_steel', 'fusion'],                              // extreme material conditions
-  ['pitch_black_steel', 'seraphine'],                           // mineralization bridge
-  ['classified',  'pqhash'],     ['classified',  'dh_ec'],
-  ['classified',  'polymorph_pqc'], ['pqhash', 'polymorph_pqc'], // PQC cluster
-  ['white_irid',  'bouligand_36'],                              // same organism
-  ['white_irid',  'biocoenosis'],                               // biological systems
-  ['zero_effort_flow', 'necromantic'],                          // drk experiential
-  ['pragmatic',   'soma_kernel'],['soma_kernel', 'strangler'],
-  ['strangler',   'necromantic'],['strangler',   'surveillance'],
-];
-
-// Default cross-cluster bridges — replaced when spectral_bridge kernel runs
-const DEFAULT_CROSS_EDGES = [
-  ['soma91',      'pragmatic'],
-  ['kuramoto',    'feigenbaum'],
-  ['biocoenosis', 'ceei'],
-  ['seraphine',   'pqhash'],
-  ['leviathan',   'surveillance'],
-  ['grayscott',   'ising'],
-  ['daly',        'ceei'],
-  // ── Seraphine-8.8.8.8.8.8.8.8 fusion pair bridges ──
-  ['white_irid',       'pitch_black_steel'], // Pair 1: biological ↔ industrial toughness (cos 0.855)
-  ['bouligand_36',     'polymorph_pqc'],     // Pair 2: rotation ↔ lattice defense (cos 0.611)
-  ['magic_angle_1p1',  'zero_effort_flow'],  // Pair 3: threshold superconductivity ↔ flow (cos 0.863)
-];
-
-// Full static edge list for physics (always includes all defaults for spring forces)
-const ALL_EDGES = [...INTRA_EDGES, ...DEFAULT_CROSS_EDGES];
-const EDGES = ALL_EDGES;  // backward compat for edge count display
-
-const ADJ = {};
-NODES.forEach(n => { ADJ[n.id] = []; });
-ALL_EDGES.forEach(([a, b]) => { ADJ[a]?.push(b); ADJ[b]?.push(a); });
-
-// Pre-compute per-node colors once — immutable
-const NODE_COLORS = Object.fromEntries(
-  NODES.map(n => [n.id, nodeColor(n.id, n.cluster)])
-);
-const CLUSTER_COLORS = Object.fromEntries(
-  Object.keys(CLUSTERS).map(k => [k, nodeColor(k, k)])
-);
-
-// ── Dynamic node registries (Period-Doubling bifurcation) ─────────────────────
-// Module-level Maps so the RAF draw loop can read without React re-renders.
-// Populated by handleBifurcate; cleared on initState (sphere reset).
-const dynColorMap    = new Map();   // childId → color object (same shape as NODE_COLORS values)
-const dynFeaturesMap = new Map();   // childId → Float32Array[16]
-
-// analyzeEdge, cosineSim, topDrivers, NODES, FEATURES, NODE_IDX, DIM_NAMES — imported from nodeFeatures.js
-
-// ── 3D math ───────────────────────────────────────────────────────────────────
-
-// Build flat row-major 3×3 rotation matrix (Y then X rotation)
-function buildRotMatrix(rx, ry) {
-  const cx = Math.cos(rx), sx = Math.sin(rx);
-  const cy = Math.cos(ry), sy = Math.sin(ry);
-  return [
-     cy,       0,    sy,
-     sx * sy,  cx,  -sx * cy,
-    -cx * sy,  sx,   cx * cy,
-  ];
-}
-
-// Apply rotation matrix M to vector (x, y, z)
-function applyM(M, x, y, z) {
-  return [
-    M[0] * x + M[1] * y + M[2] * z,
-    M[3] * x + M[4] * y + M[5] * z,
-    M[6] * x + M[7] * y + M[8] * z,
-  ];
-}
-
-// Perspective project rotated coords onto canvas
-function project(rx, ry, rz, w, h, sphereR, focal) {
-  const scale = focal / (focal + rz * sphereR);
-  return {
-    sx:    w / 2 + rx * sphereR * scale,
-    sy:    h / 2 - ry * sphereR * scale,   // flip Y: canvas Y is down
-    depth: rz,                              // [-1, +1] — used for alpha/size
-    scale,
-  };
-}
-
-// ── Query projection ──────────────────────────────────────────────────────────
-// Maps a free-text query to the 16D feature space via keyword presence scoring,
-// then ranks all NODES by cosine similarity. Used by `query <text>` in the
-// geometry terminal and automatically populates the sphere probe visualisation.
-const DIM_KEYWORDS = {
-  dynamical:      ['dynamic', 'chaos', 'attractor', 'bifurcation', 'lorenz', 'orbit'],
-  nonlinearity:   ['nonlinear', 'feedback', 'complex', 'sensitivity', 'instability'],
-  dimensionality: ['dimension', 'manifold', 'space', 'embedding', 'topology', 'high-dim'],
-  criticality:    ['critical', 'phase transition', 'threshold', 'tipping', 'metastable'],
-  entropy:        ['entropy', 'disorder', 'uncertainty', 'heat', 'dissipation'],
-  synchrony:      ['sync', 'synchrony', 'coherence', 'coupled', 'kuramoto', 'phase lock'],
-  conservation:   ['conservation', 'invariant', 'symmetry', 'energy', 'conserved'],
-  temporal:       ['time', 'temporal', 'delay', 'memory', 'history', 'chronological'],
-  spatial:        ['spatial', 'pattern', 'turing', 'reaction', 'diffusion', 'field'],
-  stochastic:     ['random', 'stochastic', 'noise', 'probability', 'monte carlo'],
-  game_theory:    ['game', 'strategy', 'equilibrium', 'payoff', 'competition', 'nash'],
-  thermodynamic:  ['thermodynamic', 'exergy', 'temperature', 'carnot', 'boltzmann', 'heat'],
-  information:    ['information', 'bit', 'encoding', 'compression', 'shannon', 'kolmogorov'],
-  cryptographic:  ['crypto', 'key', 'quantum', 'post-quantum', 'hash', 'lattice', 'kem', 'inefficien'],
-  biological:     ['bio', 'ecology', 'species', 'evolution', 'organism', 'ecosystem', 'ecocide', 'life'],
-  economic:       ['economic', 'gdp', 'growth', 'capital', 'market', 'extraction', 'monetary'],
-};
-
-function _queryProject(text) {
-  const lower = text.toLowerCase();
-  const qVec = DIM_NAMES.map(dim => (DIM_KEYWORDS[dim] ?? []).some(kw => lower.includes(kw)) ? 1.0 : 0.0);
-  const qNorm = Math.sqrt(qVec.reduce((s, v) => s + v * v, 0));
-  if (qNorm < 1e-12) { const n = DIM_NAMES.length; qVec.fill(1 / Math.sqrt(n)); }
-  else { for (let i = 0; i < qVec.length; i++) qVec[i] /= qNorm; }
-  const sims = NODES.map((n, i) => ({
-    id: n.id, label: n.label, cluster: n.cluster,
-    sim: cosineSim(qVec, FEATURES[i] ?? []),
-  })).sort((a, b) => b.sim - a.sim);
-  return { query: text, probe_vector: qVec, similarities: sims };
-}
+import { ecocideBus } from './EcocideTab';
+import {
+  MAX_PARTICLES,
+  createParticlePool, emitParticle, stepParticles,
+  emitIdleParticles, emitNodeBurst, emitEdgeParticles,
+} from '../art/artParticles';
+import { buildRotMatrix, applyM, project } from '../art/artMath';
+import {
+  CLUSTERS, INTRA_EDGES, DEFAULT_CROSS_EDGES, ALL_EDGES, ADJ,
+  NODE_COLORS, CLUSTER_COLORS, dynColorMap, dynFeaturesMap,
+  DIM_KEYWORDS, queryProject,
+} from '../art/artGraph';
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -304,10 +50,11 @@ const FOCAL_K   = 2.8;      // focal = FOCAL_K × sphereR — controls perspecti
 const SPHERE_K  = 0.50;     // sphereR = SPHERE_K × min(w, h) — larger sphere, front and center
 
 export default function ArtTab({ onRunKernel, onCueNode, associativeField, spectralBridges, boneFusions, probeNode, manualFusions = [], onManualFusion, orthogonalBridges = [], onOrthogonalBridge }) {
-  const canvasRef    = useRef(null);
-  const containerRef = useRef(null);
-  const feigTitleRef = useRef(null);
-  const rafRef       = useRef(null);
+  const canvasRef      = useRef(null);
+  const containerRef   = useRef(null);
+  const feigTitleRef   = useRef(null);
+  const feigSparkTimer = useRef(null);   // guards at-feigSpark cleanup race
+  const rafRef         = useRef(null);
   const dimsRef      = useRef({ w: 900, h: 620 });
   const hoveredRef   = useRef(null);
   const [hoveredEdge, setHoveredEdge] = useState(null);  // { aId, bId, cosSim, drivers, isSpectralBridge }
@@ -408,6 +155,12 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
   // ── Eco data modulations ──────────────────────────────────────────────
   const ecoModRef = useRef(new Float32Array(16));
+
+  // ── Ecocide bus state — metabolicRift/exergyRate from EcocideTab WASM ────
+  // Stored in ref so RAF draw loop can read without re-renders.
+  // metabolicRift [0,1]: carbon overload → reddish tint on sphere background
+  // exergyRate    [0,1]: energy dissipation → sphere pulse intensity
+  const ecocideStateRef = useRef({ metabolicRift: 0, exergyRate: 0, phase: 'STABLE' });
 
   // ── Audio state ─────────────────────────────────────────────────────────
   const [audioMuted, setAudioMuted] = useState(true);
@@ -658,7 +411,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     if (raw.startsWith('query ')) {
       const qText = raw.slice(6).trim();
       if (qText) {
-        const result = _queryProject(qText);
+        const result = queryProject(qText);
         probeNodeRef.current = result;
         setQueryResult(result);
         setLastCmd(`query: ${qText.slice(0, 22)}`);
@@ -733,7 +486,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         : Math.floor(Math.min(Math.max(W * 0.65, 360), 580));
       dimsRef.current = { w: W, h: H };
       if (canvasRef.current) {
-        const dpr = window.devicePixelRatio || 1;
+        // Cap at 1.5× on high-DPR mobile (iPad Pro = 2×) to preserve battery
+        const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
         canvasRef.current.width  = W * dpr;
         canvasRef.current.height = H * dpr;
         canvasRef.current.style.width  = W + 'px';
@@ -870,10 +624,27 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       }
 
       // ── Clear with trail fade ─────────────────────────────────────────────
-      const dpr = window.devicePixelRatio || 1;
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.fillStyle = immersiveRef.current ? 'rgba(0,0,0,0.32)' : 'rgba(0,0,0,0.72)';
+      // Ecocide tint: metabolicRift bleeds a faint crimson into the void
+      const { metabolicRift, exergyRate } = ecocideStateRef.current;
+      const riftR = Math.round(metabolicRift * 28);  // max +28 red channel
+      const riftA = immersiveRef.current ? 0.32 : 0.72;
+      if (metabolicRift > 0.05) {
+        ctx.fillStyle = `rgba(${riftR},0,0,${riftA.toFixed(2)})`;
+      } else {
+        ctx.fillStyle = immersiveRef.current ? 'rgba(0,0,0,0.32)' : 'rgba(0,0,0,0.72)';
+      }
       ctx.fillRect(0, 0, w, h);
+      // Exergy pulse: faint radial glow from centre that breathes with dissipation
+      if (exergyRate > 0.1) {
+        const gx = w / 2, gy = h / 2;
+        const grad = ctx.createRadialGradient(gx, gy, 0, gx, gy, Math.min(w, h) * 0.55);
+        grad.addColorStop(0, `rgba(217,70,239,${(exergyRate * 0.06).toFixed(3)})`);
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, w, h);
+      }
 
       // ── State-driven flash — brief anthracite grid on bifurcation events ──
       if (bgFlashRef.current > 0.005) {
@@ -1994,6 +1765,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   }, []);
 
   const handleTouchEnd = useCallback((e) => {
+    e.preventDefault();  // prevent synthesized mousemove/mousedown/mouseup cascade on iOS/Android
     clearTimeout(longPressRef.current);
     dragRef.current.active = false;
     const t = e.changedTouches[0];
@@ -2063,6 +1835,22 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     return () => { ecoDataFeed.stopPolling(); clearInterval(interval); };
   }, []);
 
+  // ── EcocideBus subscription — live metabolic/exergy from EcocideTab ──────
+  // When EcocideTab is mounted in the same session, it emits ECOCIDE_PHASE
+  // events on each WASM tick. We modulate sphere tint + pulse from these.
+  useEffect(() => {
+    const handler = ({ type, phase, metabolicRift, exergyRate }) => {
+      if (type !== 'ECOCIDE_PHASE') return;
+      ecocideStateRef.current = {
+        phase:         phase         ?? 'STABLE',
+        metabolicRift: metabolicRift ?? 0,
+        exergyRate:    exergyRate    ?? 0,
+      };
+    };
+    ecocideBus.on(handler);
+    return () => ecocideBus.off(handler);
+  }, []);
+
   // ── Presence — peer count updater ─────────────────────────────────────
   useEffect(() => {
     const interval = setInterval(() => {
@@ -2126,10 +1914,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             onClick={() => {
               const el = feigTitleRef.current;
               if (!el) return;
+              clearTimeout(feigSparkTimer.current);
               el.style.animation = 'none';
               void el.offsetWidth;
               el.style.animation = 'at-feigSpark 0.5s cubic-bezier(0.16,1,0.3,1) forwards';
-              setTimeout(() => { if (el) el.style.animation = ''; }, 550);
+              feigSparkTimer.current = setTimeout(() => { if (el) el.style.animation = ''; }, 550);
             }}
             ref={feigTitleRef}
           >
