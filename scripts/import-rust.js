@@ -834,6 +834,34 @@ const KERNEL_MAP = [
     type:    'rust',
     aliases: ['bone', 'fusion', 'bone_fusion', 'singularity', 'tensor', 'tensor_fusion', '6666'],
   },
+  {
+    // Erdős–Rényi G(N,p) network under progressive node removal.
+    // Union-Find (path compression + union by rank) tracks the giant component.
+    // Two attack modes: 0=random failure, 1=targeted hub-first disruption.
+    // Molloy-Reed critical threshold: f_c = 1 − 1/(κ−1), κ = ⟨k²⟩/⟨k⟩
+    // n_nodes:       args[0]  flags: --n, --nodes, --network
+    // mean_degree:   args[1]  flags: --degree, --k, --mean_degree
+    // attack_mode:   args[2]  flags: --attack, --mode, --targeted
+    // removal_steps: args[3]  flags: --steps, --resolution, --fidelity
+    id:      'PERCOLATION-KERNEL-1.0',
+    fn:      'run_percolation',
+    args:    [200, 4, 0, 20],
+    argMap:  {
+      n: 0, nodes: 0, network: 0,
+      degree: 1, k: 1, mean_degree: 1,
+      attack: 2, mode: 2, targeted: 2,
+      steps: 3, resolution: 3, fidelity: 3,
+    },
+    params: [
+      { name: 'n_nodes',       default: 200, desc: 'network size — number of nodes (20–1000)' },
+      { name: 'mean_degree',   default: 4,   desc: '⟨k⟩ average connections per node — 1=sparse, 4=typical, 12=dense (1–20)' },
+      { name: 'attack_mode',   default: 0,   desc: 'removal strategy: 0=random failure, 1=targeted hub-first attack' },
+      { name: 'removal_steps', default: 20,  desc: 'resolution of the removal sweep — number of snapshots (5–40)' },
+    ],
+    label:   'Network Percolation / Resilience Kernel v1.0',
+    type:    'rust',
+    aliases: ['percolation', 'resilience', 'network', 'fragility', 'perc', 'giant_component', 'gcc', 'erdos', 'molloyreed', 'fragmentation'],
+  },
 ];
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
