@@ -62,7 +62,7 @@ const isEcoArticle = (a) => a?.tags?.some(t => ECO_TAGS.has(t));
 const SIM_W = 256;
 const SIM_H = 144;
 const STEPS_PER_FRAME = 6;
-const WARMUP_STEPS    = 400;
+const WARMUP_STEPS    = 600;
 
 // ── WASM interface constants ─────────────────────────────────────────────────
 const DOT_COUNT = 2048;           // kept for WASM kernel compat
@@ -166,28 +166,18 @@ function createGS(w, h) {
   const U1 = new Float32Array(n).fill(1.0);
   const V1 = new Float32Array(n).fill(0.0);
 
-  // Deterministic PRNG for seed placement
+  // Deterministic PRNG
   let rng = 0xDEAD_BEEF;
   const lcg = () => { rng = (Math.imul(rng, 1664525) + 1013904223) >>> 0; return rng / 0xFFFFFFFF; };
 
-  // Seed: grid of small perturbation patches – future Turing patterns
-  const spacingX = Math.floor(w / 9);
-  const spacingY = Math.floor(h / 5);
-  for (let gy = 1; gy < 5; gy++) {
-    for (let gx = 1; gx < 9; gx++) {
-      const cx = Math.floor(gx * spacingX + (lcg() - 0.5) * spacingX * 0.4);
-      const cy = Math.floor(gy * spacingY + (lcg() - 0.5) * spacingY * 0.4);
-      const patchR = 2 + Math.floor(lcg() * 3);
-      for (let dy = -patchR; dy <= patchR; dy++) {
-        for (let dx = -patchR; dx <= patchR; dx++) {
-          const x = (cx + dx + w) % w;
-          const y = (cy + dy + h) % h;
-          const idx = y * w + x;
-          U0[idx] = 0.50;
-          V0[idx] = 0.25;
-        }
-      }
-    }
+  // Dense noise seed — fills entire grid with small V perturbations.
+  // This excites all spatial frequencies simultaneously, letting the Turing
+  // instability select and amplify the dominant wavelength much faster than
+  // sparse patches (which need 3–5× more warmup steps to spread across the domain).
+  for (let i = 0; i < n; i++) {
+    const v = lcg() < 0.12 ? 0.25 + lcg() * 0.20 : lcg() * 0.02;
+    V0[i] = v;
+    U0[i] = 1.0 - v * 0.5;
   }
 
   return { U: [U0, U1], V: [V0, V1], w, h, cur: 0 };
@@ -480,7 +470,10 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
 
         deadFrac     = Math.max(0, Math.min(0.98, prevDF + damage - recovery));
         deadCount    = Math.round(deadFrac * DOT_COUNT);
-        exergyNorm   = Math.min(1.0, extraction * 0.35 + deadFrac * 0.65);
+        // EMA-smooth exergyNorm so it ramps up gradually rather than jumping
+        // instantly from 0 → 0.875 on the first tick (which causes a harsh visual skip).
+        const rawExergyNorm = Math.min(1.0, extraction * 0.35 + deadFrac * 0.65);
+        exergyNorm   = exergyNormRef.current + (rawExergyNorm - exergyNormRef.current) * 0.04;
         dx_dt        = exergyNorm * X_SOLAR;
         x_dest       = (statsRef.current.x_dest ?? 0) + dx_dt * WASM_DT;
         metabolicFat = Math.min(1.0, deadFrac * deadFrac * 2.2);
@@ -605,7 +598,7 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
     const simW      = coarse ? 128 : SIM_W;
     const simH      = coarse ? 72  : SIM_H;
     const stepsPerF = coarse ? 2   : STEPS_PER_FRAME;
-    const warmup    = coarse ? 120 : WARMUP_STEPS;
+    const warmup    = coarse ? 200 : WARMUP_STEPS;
     // Adaptive step count — ratchets down under frame pressure, recovers when idle
     let dynSteps = stepsPerF;
 
