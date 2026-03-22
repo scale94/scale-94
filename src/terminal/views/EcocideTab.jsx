@@ -398,7 +398,9 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
   const [penaltyMsg,   setPenaltyMsg]   = useState('');
   const [lastViralMsg, setLastViralMsg] = useState('');
 
-  const growthRateRef = useRef(2.5);
+  const growthRateRef  = useRef(2.5);
+  const wasmStuckRef   = useRef(false);  // true if WASM state is stale (bypasses to JS integrator)
+  const firstTickRef   = useRef(true);   // detect stale WASM on first tick only
   useEffect(() => { growthRateRef.current = growthRate; }, [growthRate]);
 
   // ── WASM load ─────────────────────────────────────────────────────────────
@@ -415,15 +417,41 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
     if (!wasmReady) return;
     const wasm = wasmRef.current;
 
+    // Reset stale-detection state for this mount cycle.
+    firstTickRef.current = true;
+    wasmStuckRef.current = false;
+
+    // Attempt to reset WASM Rust static state before the first tick.
+    // NOTE: run_ecocide with reset=1.0 may not fully reinitialize the singleton —
+    // the first-tick probe below detects and handles persistent stale state.
+    try { wasm.run_ecocide(1.0, WASM_DT, 1.0); } catch { /* non-fatal */ }
+
     tickRef.current = setInterval(() => {
       const gr = growthRateRef.current;
 
       // ── Try WASM run_ecocide; fall back to JS integrator if unavailable ──
       let deadCount, deadFrac, exergyNorm, phase, metabolicFat, x_dest, dx_dt, capital, s_gen;
 
+      // On the first tick, probe WASM for stale state (persistent singleton may
+      // carry FINAL_STATE from a previous session despite the reset calls).
+      if (firstTickRef.current && !wasmStuckRef.current) {
+        firstTickRef.current = false;
+        try {
+          const probe = wasm.run_ecocide(1.0, WASM_DT, 1.0);
+          const probeData = probe ? JSON.parse(probe) : null;
+          if (probeData && (probeData.phase ?? 0) > PH.HOMEOSTASIS && deadFracRef.current < 0.05) {
+            // WASM returned a collapsed state while JS refs are fresh — singleton is stale.
+            // Force JS integrator for this session so animation starts at HOMEOSTASIS.
+            wasmStuckRef.current = true;
+          }
+        } catch { wasmStuckRef.current = true; }
+      }
+
       let wasmOk = false;
       let raw;
-      try { raw = wasm.run_ecocide(growthToGdp(gr, deadFracRef.current), WASM_DT, 0.0); wasmOk = true; } catch { /* fall through */ }
+      if (!wasmStuckRef.current) {
+        try { raw = wasm.run_ecocide(growthToGdp(gr, deadFracRef.current), WASM_DT, 0.0); wasmOk = true; } catch { /* fall through */ }
+      }
 
       if (wasmOk && raw) {
         let data;

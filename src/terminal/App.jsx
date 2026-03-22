@@ -1302,6 +1302,9 @@ const App = () => {
         <button onClick={() => handleNav('~/system/cryptography', 'cryptography')} aria-label="Cryptography" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'cryptography' ? 'text-orange-400' : 'text-orange-400/50'}`}>
           <KeyRound className="w-5 h-5" />
         </button>
+        <button onClick={() => handleNav('~/system/ecocide', 'ecocide')} aria-label="Ecocide" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'ecocide' ? 'text-lime-400' : 'text-lime-400/50'}`}>
+          <Leaf className="w-5 h-5" />
+        </button>
         <button onClick={() => handleNav('~/system/art', 'art')} aria-label="Art" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'art' ? 'text-amber-400' : 'text-amber-400/40'}`}>
           <Waves className="w-5 h-5" />
         </button>

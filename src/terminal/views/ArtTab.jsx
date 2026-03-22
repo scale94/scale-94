@@ -23,6 +23,7 @@ import { useMorphogenesis }               from '../hooks/useMorphogenesis';
 import { useSpectralLight }               from '../hooks/useSpectralLight';
 import { useAnalogicalReasoning }         from '../hooks/useAnalogicalReasoning';
 import { useVisitorEntropy }             from '../hooks/useVisitorEntropy';
+import { useCollectiveR }               from '../hooks/useCollectiveR';
 import { useTemporalArchaeology }        from '../hooks/useTemporalArchaeology';
 import {
   NODES, NODE_IDX, FEATURES, DIM_NAMES,
@@ -193,6 +194,14 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     }
   }, []);
 
+  // ── Audio: suspend on unmount (tab switch), resume on mount ─────────────
+  useEffect(() => {
+    if (audioInitRef.current) somaAudio.resume();
+    return () => {
+      if (audioInitRef.current) somaAudio.suspend();
+    };
+  }, []);
+
   // ── State-driven background flash (bifurcation / orthogonal events) ────────
   const bgFlashRef = useRef(0); // decays from 1→0 over ~200ms
 
@@ -211,6 +220,10 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
   // ── Visitor as Perturbation ─────────────────────────────────────────────
   const { entropyRef, stepEntropy } = useVisitorEntropy({ hoveredRef, dragRef });
+
+  // ── Bifurcation Conductor + Collective Perturbation ───────────────────
+  const { stateRef: collectiveRef, setConductor, feedPeerEntropy, stepCollectiveR } = useCollectiveR();
+  const peerCursorEntropyRef = useRef(0);  // aggregate peer cursor movement, fed each frame
 
   // ── Temporal Archaeology (initial positions ref, populated async) ────────
   const initialPositionsRef = useRef(null);
@@ -595,6 +608,16 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         if (scrollPush > 0.01) {
           fieldRef.current.r = Math.min(3.999, fieldRef.current.r + scrollPush * 0.003);
         }
+      }
+
+      // ── Bifurcation Conductor + Collective Perturbation ──────────────────
+      feedPeerEntropy(somaPresence.peerCount, peerCursorEntropyRef.current);
+      stepCollectiveR(fieldRef);
+
+      // ── Broadcast cursor to peers (rotation-derived, throttled internally) ──
+      if (somaPresence.connected) {
+        const rx = rotRef.current.rx, ry = rotRef.current.ry;
+        somaPresence.sendCursor(Math.sin(ry), Math.sin(rx), Math.cos(ry));
       }
 
       // ── Jury Awakening state machine ────────────────────────────────────
@@ -1660,6 +1683,70 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       }
       ctx.restore();
 
+      // ── Bifurcation Conductor (hair-thin right-edge whisker) ────────────────
+      {
+        const cState = collectiveRef.current;
+        const stripW = 3;
+        const stripX = w - 6;
+        const stripY = h * 0.20;
+        const stripH = h * 0.60;
+        const cY     = cState.conductorY;  // 0=stable(bottom), 1=chaos(top)
+
+        ctx.save();
+
+        // Only show anything when actively dragging or when peers push
+        const dragging = conductorDragRef.current;
+        const peerPush = cState.collectiveR > 0.0003;
+        const visible  = dragging || peerPush;
+
+        // Dot at current r position — always present but nearly invisible
+        const thumbY = stripY + stripH - (stripH * cY);
+        const hue = cY > 0.85 ? 0 : cY > 0.6 ? 30 : 210;
+        const dotR = dragging ? 3 : 1.5;
+        ctx.globalAlpha = visible ? 0.35 : 0.04;
+        ctx.fillStyle = `hsl(${hue}, 50%, 55%)`;
+        ctx.beginPath();
+        ctx.arc(stripX + stripW / 2, thumbY, dotR, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (visible) {
+          // Ghost track — only while interacting
+          ctx.globalAlpha = 0.06;
+          ctx.strokeStyle = '#666';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(stripX + stripW / 2, stripY);
+          ctx.lineTo(stripX + stripW / 2, stripY + stripH);
+          ctx.stroke();
+
+          // Fill line from bottom to current r
+          const fillH = stripH * cY;
+          if (fillH > 1) {
+            ctx.globalAlpha = dragging ? 0.12 : 0.06;
+            ctx.strokeStyle = `hsla(${hue}, 40%, 50%, 1)`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(stripX + stripW / 2, stripY + stripH);
+            ctx.lineTo(stripX + stripW / 2, stripY + stripH - fillH);
+            ctx.stroke();
+          }
+        }
+
+        // Collective perturbation: faint glow when peers push
+        if (peerPush) {
+          const ga = Math.min(0.15, cState.collectiveR * 60);
+          ctx.globalAlpha = ga;
+          ctx.shadowColor = `hsl(${hue}, 70%, 50%)`;
+          ctx.shadowBlur = 6;
+          ctx.beginPath();
+          ctx.arc(stripX + stripW / 2, thumbY, dotR + 1, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.shadowBlur = 0;
+        }
+
+        ctx.restore();
+      }
+
       // ── Immersive Mode: bloom post-process + vignette ─────────────────────
       if (immersiveRef.current) {
         // Bloom: draw blurred copy with additive blend
@@ -1778,12 +1865,47 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     return bestEdge;
   }, [getProjected]);
 
-  // ── Mouse/touch handlers (ref-mutating — no React re-renders) ────────────
-  const handleMouseDown = useCallback((e) => {
-    dragRef.current = { active: true, lastX: e.clientX, lastY: e.clientY, vx: 0, vy: 0 };
+  // ── Conductor hit-test helper ───────────────────────────────────────────
+  const conductorDragRef = useRef(false);
+  const conductorHit = useCallback((cx, cy) => {
+    const { w, h } = dimsRef.current;
+    const stripW = 3, stripX = w - 6;
+    const stripY = h * 0.20, stripH = h * 0.60;
+    // Generous hitbox: 18px padding — thin whisker needs a forgiving touch target
+    if (cx >= stripX - 18 && cx <= stripX + stripW + 18 && cy >= stripY - 12 && cy <= stripY + stripH + 12) {
+      // Return normalized 0 (bottom=stable) to 1 (top=chaos)
+      return Math.max(0, Math.min(1, 1 - (cy - stripY) / stripH));
+    }
+    return null;
   }, []);
 
+  // ── Mouse/touch handlers (ref-mutating — no React re-renders) ────────────
+  const handleMouseDown = useCallback((e) => {
+    const p = canvasCoords(e.clientX, e.clientY);
+    if (p) {
+      const cVal = conductorHit(p.x, p.y);
+      if (cVal !== null) {
+        conductorDragRef.current = true;
+        setConductor(cVal);
+        e.preventDefault();
+        return;
+      }
+    }
+    dragRef.current = { active: true, lastX: e.clientX, lastY: e.clientY, vx: 0, vy: 0 };
+  }, [canvasCoords, conductorHit, setConductor]);
+
   const handleMouseMove = useCallback((e) => {
+    // Conductor drag takes priority
+    if (conductorDragRef.current) {
+      const p = canvasCoords(e.clientX, e.clientY);
+      if (p) {
+        const { w, h } = dimsRef.current;
+        const stripY = h * 0.20, stripH = h * 0.60;
+        const cVal = Math.max(0, Math.min(1, 1 - (p.y - stripY) / stripH));
+        setConductor(cVal);
+      }
+      return;
+    }
     const drag = dragRef.current;
     if (drag.active) {
       const dx = e.clientX - drag.lastX;
@@ -1835,9 +1957,15 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         if (canvasRef.current) canvasRef.current.style.cursor = edge ? 'crosshair' : drag.active ? 'grabbing' : 'grab';
       }
     }
-  }, [canvasCoords, nodeAt, edgeAt, lockedEdge]);
+  }, [canvasCoords, nodeAt, edgeAt, lockedEdge, setConductor]);
 
   const handleMouseUp = useCallback((e) => {
+    // Release conductor if dragging
+    if (conductorDragRef.current) {
+      conductorDragRef.current = false;
+      setConductor(null);  // spring-decay back
+      return;
+    }
     dragRef.current.active = false;
     // Check if this was a click (not a drag)
     const dx = e.clientX - dragRef.current.lastX;
@@ -1921,7 +2049,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         setLockedEdge(null);
       }
     }
-  }, [canvasCoords, nodeAt, edgeAt, fireNode, spawnEffect, onCueNode, onRunKernel]);
+  }, [canvasCoords, nodeAt, edgeAt, fireNode, spawnEffect, onCueNode, onRunKernel, setConductor]);
 
   const handleContextMenu = useCallback((e) => {
     e.preventDefault();
@@ -1943,6 +2071,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   }, [canvasCoords, nodeAt, onOrthogonalBridge, activeEdges, spawnEffect]);
 
   const handleMouseLeave = useCallback(() => {
+    if (conductorDragRef.current) { conductorDragRef.current = false; setConductor(null); }
     dragRef.current.active = false;
     hoveredRef.current = null;
     clearTimeout(edgeDebounceRef.current);
@@ -1951,11 +2080,22 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     setHoveredEdge(null);
     setLockedEdge(null);
     if (canvasRef.current) canvasRef.current.style.cursor = 'grab';
-  }, []);
+  }, [setConductor]);
 
   const handleTouchStart = useCallback((e) => {
     const t = e.touches[0];
     if (!t) return;
+    // Conductor strip intercept
+    const pCond = canvasCoords(t.clientX, t.clientY);
+    if (pCond) {
+      const cVal = conductorHit(pCond.x, pCond.y);
+      if (cVal !== null) {
+        conductorDragRef.current = true;
+        setConductor(cVal);
+        e.preventDefault();
+        return;
+      }
+    }
     dragRef.current = { active: true, lastX: t.clientX, lastY: t.clientY, vx: 0, vy: 0, startX: t.clientX, startY: t.clientY };
     // Long-press (500ms) → manual fusion step
     const p = canvasCoords(t.clientX, t.clientY);
@@ -1978,11 +2118,24 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         }, 500);
       }
     }
-  }, [canvasCoords, nodeAt, onManualFusion]);
+  }, [canvasCoords, nodeAt, onManualFusion, conductorHit, setConductor]);
 
   const handleTouchMove = useCallback((e) => {
     clearTimeout(longPressRef.current);
     e.preventDefault();
+    // Conductor drag
+    if (conductorDragRef.current) {
+      const t = e.touches[0];
+      if (t) {
+        const p = canvasCoords(t.clientX, t.clientY);
+        if (p) {
+          const { h } = dimsRef.current;
+          const stripY = h * 0.20, stripH = h * 0.60;
+          setConductor(Math.max(0, Math.min(1, 1 - (p.y - stripY) / stripH)));
+        }
+      }
+      return;
+    }
     const t    = e.touches[0];
     const drag = dragRef.current;
     if (!t || !drag.active) return;
@@ -1994,11 +2147,13 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     drag.vy     = dx * 0.005;
     drag.lastX  = t.clientX;
     drag.lastY  = t.clientY;
-  }, []);
+  }, [canvasCoords, setConductor]);
 
   const handleTouchEnd = useCallback((e) => {
     e.preventDefault();  // prevent synthesized mousemove/mousedown/mouseup cascade on iOS/Android
     clearTimeout(longPressRef.current);
+    // Release conductor
+    if (conductorDragRef.current) { conductorDragRef.current = false; setConductor(null); return; }
     dragRef.current.active = false;
     const t = e.changedTouches[0];
     if (!t) return;
@@ -2035,7 +2190,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     if (onCueNode && nodeIdx >= 0) onCueNode(nodeIdx);
     setSelectedNode(node.id);
     setLockedEdge(null);
-  }, [canvasCoords, nodeAt, fireNode, spawnEffect, onCueNode, ensureAudio, perturbField]);
+  }, [canvasCoords, nodeAt, fireNode, spawnEffect, onCueNode, ensureAudio, perturbField, setConductor]);
 
   // ── Non-passive touch listeners on canvas ────────────────────────────────
   // React 19 attaches delegated events at root level; browsers may treat them
@@ -2117,12 +2272,40 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     return unsub;
   }, []);
 
-  // ── Presence — peer count updater ─────────────────────────────────────
+  // ── Presence — peer count updater + collective cursor entropy ──────────
   useEffect(() => {
     const interval = setInterval(() => {
       if (somaPresence.connected) setPeerCount(somaPresence.peerCount);
     }, 2000);
-    return () => clearInterval(interval);
+
+    // Track peer cursor movement for collective perturbation
+    const prevCursors = new Map();  // userId → {x,y,z}
+    somaPresence.onPeerCursor = (userId, x, y, z) => {
+      const prev = prevCursors.get(userId);
+      if (prev) {
+        const dx = x - prev.x, dy = y - prev.y, dz = z - prev.z;
+        const movement = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        // Accumulate into entropy ref (EMA-smoothed in the hook)
+        peerCursorEntropyRef.current = Math.min(1,
+          peerCursorEntropyRef.current + movement * 0.5);
+      }
+      prevCursors.set(userId, { x, y, z });
+    };
+    somaPresence.onPeerLeave = (userId) => {
+      prevCursors.delete(userId);
+    };
+
+    // Decay peer cursor entropy when no updates arrive
+    const decayInterval = setInterval(() => {
+      peerCursorEntropyRef.current *= 0.92;
+    }, 200);
+
+    return () => {
+      clearInterval(interval);
+      clearInterval(decayInterval);
+      somaPresence.onPeerCursor = null;
+      somaPresence.onPeerLeave = null;
+    };
   }, []);
 
   // ── Immersive Mode keyboard handler ('I' key toggle) ───────────────────

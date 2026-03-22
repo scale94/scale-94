@@ -1022,6 +1022,20 @@ class SomaAudioEngine {
   get muted() { return this._muted; }
   get volume() { return this._volume; }
 
+  /** Suspend audio context — silences all output without destroying nodes. */
+  suspend() {
+    if (this.ctx && this.ctx.state === 'running') {
+      this.ctx.suspend().catch(() => {});
+    }
+  }
+
+  /** Resume audio context after suspend. */
+  resume() {
+    if (this.ctx && this.ctx.state === 'suspended' && !this._muted) {
+      this.ctx.resume().catch(() => {});
+    }
+  }
+
   // ── Cleanup ───────────────────────────────────────────────────────────────
   dispose() {
     // Stop continuous layer oscillators

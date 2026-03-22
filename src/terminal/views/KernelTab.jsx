@@ -392,6 +392,19 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
         78%  { opacity: 1; filter: brightness(1.5) blur(0px); letter-spacing: 0.02em; }
         100% { opacity: 1; filter: brightness(1) blur(0px); letter-spacing: normal; }
       }
+      @keyframes sk-ttyRainbow {
+        0%   { background-position: 0% center; }
+        100% { background-position: 400% center; }
+      }
+      @keyframes sk-ttyRainbowGlow {
+        0%   { text-shadow: 0 0 8px rgba(255,0,128,0.8),   0 0 20px rgba(255,0,128,0.4); }
+        17%  { text-shadow: 0 0 8px rgba(255,140,0,0.8),   0 0 20px rgba(255,140,0,0.4); }
+        33%  { text-shadow: 0 0 8px rgba(57,255,20,0.8),   0 0 20px rgba(57,255,20,0.4); }
+        50%  { text-shadow: 0 0 8px rgba(6,182,212,0.8),   0 0 20px rgba(6,182,212,0.4); }
+        67%  { text-shadow: 0 0 8px rgba(139,92,246,0.8),  0 0 20px rgba(139,92,246,0.4); }
+        83%  { text-shadow: 0 0 8px rgba(217,70,239,0.8),  0 0 20px rgba(217,70,239,0.4); }
+        100% { text-shadow: 0 0 8px rgba(255,0,128,0.8),   0 0 20px rgba(255,0,128,0.4); }
+      }
       @keyframes sk-loadFlash {
         0%   { background-color: rgba(6,182,212,0); box-shadow: none; }
         15%  { background-color: rgba(6,182,212,0.15); box-shadow: inset 0 0 30px rgba(6,182,212,0.12), 0 0 12px rgba(6,182,212,0.3); }
@@ -710,7 +723,16 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
 
         {/* Desktop inline command input */}
         <div className="hidden md:flex items-center gap-2 px-4 py-2 border-t border-cyan-900/20 shrink-0 bg-black/60">
-          <span className="text-fuchsia-500 text-xs font-bold tracking-widest shrink-0 select-none">tty0:~$</span>
+          <span
+            className="text-xs font-black tracking-widest shrink-0 select-none text-transparent bg-clip-text"
+            style={{
+              backgroundImage: 'linear-gradient(90deg, #ff0080, #ff8c00, #39ff14, #06b6d4, #8b5cf6, #e879f9, #ff0080, #ff8c00, #39ff14)',
+              backgroundSize: '400% auto',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              animation: 'sk-ttyRainbow 6s linear infinite, sk-ttyRainbowGlow 6s linear infinite',
+            }}
+          >tty0:~$</span>
           <input
             type="text"
             value={commandInput}
@@ -728,7 +750,16 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
         {/* Mobile keyboard — gesture-gated: double-tap + long-tap on header to unlock */}
         {mobileInputVisible && (
           <div className="md:hidden flex items-center gap-2 px-4 py-2 border-t border-fuchsia-900/40 shrink-0 bg-black/90">
-            <span className="text-fuchsia-500 text-xs font-bold tracking-widest shrink-0 select-none">tty0:~$</span>
+            <span
+            className="text-xs font-black tracking-widest shrink-0 select-none text-transparent bg-clip-text"
+            style={{
+              backgroundImage: 'linear-gradient(90deg, #ff0080, #ff8c00, #39ff14, #06b6d4, #8b5cf6, #e879f9, #ff0080, #ff8c00, #39ff14)',
+              backgroundSize: '400% auto',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              animation: 'sk-ttyRainbow 6s linear infinite, sk-ttyRainbowGlow 6s linear infinite',
+            }}
+          >tty0:~$</span>
             <input
               ref={mobileInputRef}
               type="text"
