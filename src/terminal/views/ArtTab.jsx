@@ -22,6 +22,8 @@ import { useTemporalMemory }              from '../hooks/useTemporalMemory';
 import { useMorphogenesis }               from '../hooks/useMorphogenesis';
 import { useSpectralLight }               from '../hooks/useSpectralLight';
 import { useAnalogicalReasoning }         from '../hooks/useAnalogicalReasoning';
+import { useVisitorEntropy }             from '../hooks/useVisitorEntropy';
+import { useTemporalArchaeology }        from '../hooks/useTemporalArchaeology';
 import {
   NODES, NODE_IDX, FEATURES, DIM_NAMES,
   cosineSim, topDrivers, analyzeEdge, findOrthogonalNode,
@@ -46,6 +48,9 @@ import {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 const AUTO_SPIN = 0.0025;   // rad/frame continuous Y rotation
+
+// Cluster base frequencies for edge sonification (mirrors SomaAudio CLUSTER_FREQ)
+const CLUSTER_FREQ_MAP = { eco: 110, sync: 146.83, phys: 164.81, crypto: 196, drk: 130.81 };
 const FOCAL_K   = 2.8;      // focal = FOCAL_K × sphereR — controls perspective depth
 const SPHERE_K  = 0.50;     // sphereR = SPHERE_K × min(w, h) — larger sphere, front and center
 
@@ -190,6 +195,12 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   // Drag state
   const dragRef = useRef({ active: false, lastX: 0, lastY: 0, vx: 0, vy: 0 });
 
+  // ── Visitor as Perturbation ─────────────────────────────────────────────
+  const { entropyRef, stepEntropy } = useVisitorEntropy({ hoveredRef, dragRef });
+
+  // ── Temporal Archaeology (initial positions ref, populated async) ────────
+  const initialPositionsRef = useRef(null);
+
   // Dynamic cross-cluster edges — computed by spectral_bridge kernel, or default
   // Bone fusion edges + manual fusions are merged in when available
   const activeEdges = useMemo(() => {
@@ -310,7 +321,25 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   const {
     stateRef, initState, step: stepGraph,
     fireNode, applyAttractor, triggerOverwrite, triggerBifurcation,
-  } = useSomaGraph({ nodes: NODES, adj: ADJ });
+  } = useSomaGraph({ nodes: NODES, adj: ADJ, modulationRef: entropyRef, initialPositionsRef });
+
+  // ── Temporal Archaeology (IndexedDB persistence of sphere state) ──────
+  const { archaeologyRef } = useTemporalArchaeology({ stateRef, fieldRef, entropyRef });
+
+  // Populate initialPositionsRef from archaeology when loaded
+  useEffect(() => {
+    const check = () => {
+      const arch = archaeologyRef.current;
+      if (arch?.loaded && arch.ghostPositions) {
+        initialPositionsRef.current = arch.ghostPositions;
+      }
+    };
+    check();
+    // Poll briefly in case async IDB load finishes after mount
+    const timer = setInterval(check, 200);
+    setTimeout(() => clearInterval(timer), 3000);
+    return () => clearInterval(timer);
+  }, [archaeologyRef]);
 
   const {
     edgeStateRef, stepEdges, applyAttractor: applyEdgeAttractor,
@@ -537,6 +566,15 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       stepMorphogenesis();
       stepSpectral();
       stepReasoning();
+      stepEntropy();
+
+      // ── Visitor entropy → Hopfield r acceleration (scroll channel) ─────────
+      if (fieldRef.current && entropyRef.current) {
+        const scrollPush = entropyRef.current[0];  // CH_SCROLL
+        if (scrollPush > 0.01) {
+          fieldRef.current.r = Math.min(3.999, fieldRef.current.r + scrollPush * 0.003);
+        }
+      }
 
       // ── Throttled reasoning state push (every ~60 frames ≈ 2s) ──────────
       if (particleFrameRef.current % 60 === 0) {
@@ -546,6 +584,23 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         setAnalogyCount(_ac);
         setChimeraActive(_cz);
         setGestaltQuality(_gq);
+      }
+
+      // ── Continuous sonification (every 4 frames ≈ 15Hz) ──────────────────
+      if (audioInitRef.current && particleFrameRef.current % 4 === 0 && fieldRef.current) {
+        const f = fieldRef.current;
+        const es = edgeStateRef.current;
+        somaAudio.stepContinuous({
+          r: f.r ?? 2.8,
+          activations: f.activations ?? null,
+          participationRatio: getParticipationRatio(),
+          spectralFlux: getSpectralFlux(),
+          edgePulses: es?.filter(e => e.pulse > 0.3).map(e => ({
+            pulse: e.pulse,
+            freq: (CLUSTER_FREQ_MAP[NODES[NODE_IDX[e.aId]]?.cluster] || 130) * 1.5,
+            pan: ((NODE_IDX[e.aId] ?? 0) - (NODE_IDX[e.bId] ?? 0)) / 31,
+          })) ?? null,
+        });
       }
 
       // ── Apply Hopfield activations to node energies ──────────────────────
@@ -701,6 +756,24 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       ctx.beginPath();
       ctx.ellipse(w / 2, h / 2, vRx, vRy, 0, 0, Math.PI * 2);
       ctx.stroke();
+
+      // ── Temporal archaeology: ghost trails from previous session ──────────
+      const arch = archaeologyRef.current;
+      if (arch?.loaded && arch.ghostPositions) {
+        const gp = arch.ghostPositions;
+        ctx.save();
+        for (let i = 0; i < 31 && i * 3 + 2 < gp.length; i++) {
+          const [grx, gry, grz] = applyM(M, gp[i * 3], gp[i * 3 + 1], gp[i * 3 + 2]);
+          if (grz < -0.3) continue;  // back-face cull
+          const gp2 = project(grx, gry, grz, w, h, sphereR, focal);
+          const ghostAlpha = Math.max(0, grz) * 0.07;
+          ctx.beginPath();
+          ctx.arc(gp2.sx, gp2.sy, 3 * gp2.scale, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(180,180,220,${ghostAlpha.toFixed(3)})`;
+          ctx.fill();
+        }
+        ctx.restore();
+      }
 
       // ── Cluster ghost labels (projected anchor positions) ─────────────────
       ctx.textAlign = 'center';
@@ -1898,6 +1971,21 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
 
       <style>{`
+        @keyframes at-shimmer {
+          0%,100% { background-position: 0% 50%; }
+          50%      { background-position: 100% 50%; }
+        }
+        @keyframes at-feigReveal {
+          0%   { opacity: 0; filter: brightness(4) blur(8px); letter-spacing: 0.5em; }
+          25%  { opacity: 1; filter: brightness(2.8) blur(2px); letter-spacing: 0.2em; }
+          55%  { opacity: 0.65; filter: brightness(3.2) blur(0px); letter-spacing: 0.06em; }
+          78%  { opacity: 1; filter: brightness(1.5) blur(0px); letter-spacing: 0.02em; }
+          100% { opacity: 1; filter: brightness(1) blur(0px); letter-spacing: normal; }
+        }
+        @keyframes at-feigGlow {
+          0%, 100% { text-shadow: 0 0 8px rgba(255,215,0,0.2), 0 0 20px rgba(255,215,0,0); }
+          50%      { text-shadow: 0 0 12px rgba(255,215,0,0.45), 0 0 32px rgba(217,70,239,0.2); }
+        }
         @keyframes at-feigSpark {
           0%   { transform: scale(1); filter: brightness(1); }
           15%  { transform: scale(1.025); filter: brightness(3); }
@@ -1965,14 +2053,16 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
               <span
                 style={{
                   backgroundImage: selectedNode === 'feigenbaum'
-                    ? 'linear-gradient(90deg, #FFD700, #fff700, #FFD700)'
-                    : 'linear-gradient(90deg, #FF8C00, #FFD700, #d946ef, #FFD700, #FF8C00)',
-                  backgroundSize: '200% auto',
+                    ? 'linear-gradient(90deg, #FFD700, #fff, #FFD700, #d946ef, #FFD700)'
+                    : 'linear-gradient(90deg, #FF8C00, #FFD700, #8b5cf6, #d946ef, #FFD700, #FF8C00)',
+                  backgroundSize: '400% auto',
+                  animation: 'at-feigReveal 1s cubic-bezier(0.7,0,0.3,1) forwards, at-shimmer 3.5s cubic-bezier(0.7,0,0.3,1) 1s infinite, at-feigGlow 5s ease-in-out 1.2s infinite',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   backgroundClip: 'text',
                   color: 'transparent',
                   transition: 'background-image 0.4s ease',
+                  ...(selectedNode === 'feigenbaum' ? { filter: 'brightness(1.8)', textShadow: '0 0 18px rgba(255,215,0,0.7), 0 0 40px rgba(255,215,0,0.3)' } : {}),
                 }}
               >feigenbaum_fade</span>
             </span>

@@ -53,30 +53,39 @@ function tangentialOnly(vx, vy, vz, nx, ny, nz) {
  *   applyAttractor  — (data) → void
  *   triggerOverwrite— (sourceId, targetId) → void
  */
-export function useSomaGraph({ nodes, adj }) {
+export function useSomaGraph({ nodes, adj, modulationRef, initialPositionsRef }) {
   const stateRef = useRef(null);
 
   const initState = useCallback(() => {
-    const simNodes = nodes.map(n => {
-      const a = CLUSTER_ANCHORS[n.cluster] ?? CLUSTER_ANCHORS.drk;
+    const saved = initialPositionsRef?.current;  // Float32Array(31*3) or null
+    const simNodes = nodes.map((n, i) => {
+      let nx, ny, nz;
 
-      // Scatter node near its cluster anchor on the sphere surface
-      // by applying a small random tangential offset then re-normalizing
-      const tx = (Math.random() - 0.5);
-      const ty = (Math.random() - 0.5);
-      const tz = (Math.random() - 0.5);
-      // Remove radial component of the perturbation
-      const dot = tx * a.x + ty * a.y + tz * a.z;
-      const px  = tx - dot * a.x;
-      const py  = ty - dot * a.y;
-      const pz  = tz - dot * a.z;
-      const pLen = Math.sqrt(px * px + py * py + pz * pz) || 1;
-      const sc   = 0.40;
-      const [nx, ny, nz] = norm3(
-        a.x + (px / pLen) * sc,
-        a.y + (py / pLen) * sc,
-        a.z + (pz / pLen) * sc,
-      );
+      if (saved && saved.length >= (i + 1) * 3) {
+        // Temporal archaeology: restore from previous session with slight jitter
+        const jit = () => (Math.random() - 0.5) * 0.03;
+        [nx, ny, nz] = norm3(saved[i * 3] + jit(), saved[i * 3 + 1] + jit(), saved[i * 3 + 2] + jit());
+      } else {
+        const a = CLUSTER_ANCHORS[n.cluster] ?? CLUSTER_ANCHORS.drk;
+
+        // Scatter node near its cluster anchor on the sphere surface
+        // by applying a small random tangential offset then re-normalizing
+        const tx = (Math.random() - 0.5);
+        const ty = (Math.random() - 0.5);
+        const tz = (Math.random() - 0.5);
+        // Remove radial component of the perturbation
+        const dot = tx * a.x + ty * a.y + tz * a.z;
+        const px  = tx - dot * a.x;
+        const py  = ty - dot * a.y;
+        const pz  = tz - dot * a.z;
+        const pLen = Math.sqrt(px * px + py * py + pz * pz) || 1;
+        const sc   = 0.40;
+        [nx, ny, nz] = norm3(
+          a.x + (px / pLen) * sc,
+          a.y + (py / pLen) * sc,
+          a.z + (pz / pLen) * sc,
+        );
+      }
 
       return {
         ...n,
@@ -88,7 +97,7 @@ export function useSomaGraph({ nodes, adj }) {
       };
     });
     stateRef.current = { nodes: simNodes, frame: 0 };
-  }, [nodes]);
+  }, [nodes, initialPositionsRef]);
 
   const step = useCallback(() => {
     const s = stateRef.current;
@@ -136,10 +145,12 @@ export function useSomaGraph({ nodes, adj }) {
         fz += (dz / d) * str;
       }
 
-      // Integrate
-      n.vx = (n.vx + fx * DT) * DRAG;
-      n.vy = (n.vy + fy * DT) * DRAG;
-      n.vz = (n.vz + fz * DT) * DRAG;
+      // Integrate — visitor entropy modulates drag (channel 3)
+      const mod = modulationRef?.current;
+      const effectiveDrag = mod ? DRAG + (mod[3] || 0) * 0.08 : DRAG;
+      n.vx = (n.vx + fx * DT) * effectiveDrag;
+      n.vy = (n.vy + fy * DT) * effectiveDrag;
+      n.vz = (n.vz + fz * DT) * effectiveDrag;
       n.x += n.vx;
       n.y += n.vy;
       n.z += n.vz;
@@ -152,8 +163,9 @@ export function useSomaGraph({ nodes, adj }) {
       const [tvx, tvy, tvz] = tangentialOnly(n.vx, n.vy, n.vz, nx, ny, nz);
       n.vx = tvx; n.vy = tvy; n.vz = tvz;
 
-      // Energy decay + ambient flicker
-      n.energy = Math.max(0, n.energy - 0.0035);
+      // Energy decay + ambient flicker — visitor idle cooling (channel 2) accelerates decay
+      const decayRate = mod ? 0.0035 * (1 + (mod[2] || 0) * 2.0) : 0.0035;
+      n.energy = Math.max(0, n.energy - decayRate);
       if (Math.random() < 0.0025) n.energy = Math.min(1, n.energy + 0.28);
 
       // Overwrite bleed decay
@@ -162,7 +174,7 @@ export function useSomaGraph({ nodes, adj }) {
         if (n.bleedAmount <= 0) n.bleedFrom = null;
       }
     }
-  }, [nodes, adj]);
+  }, [nodes, adj, modulationRef]);
 
   const fireNode = useCallback((id) => {
     const s = stateRef.current;

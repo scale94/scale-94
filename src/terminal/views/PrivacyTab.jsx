@@ -30,7 +30,7 @@ const VECTORS = [
     sev:      0,
     status:   'NULL',
     actor:    'scale-9.4',
-    detail:   'Zero cookies set. No localStorage behavioral tracking. Session history is ephemeral — cleared on tab close or refresh. No persistent client-side identity constructed.',
+    detail:   'Zero cookies set. No localStorage behavioral tracking. Session history is ephemeral — cleared on tab close or refresh. No persistent client-side identity constructed. IndexedDB stores anonymous sphere simulation memory (node positions, phase state) between visits — no identity data is captured or linked across sessions.',
     scope:    'CLIENT_ENCLAVE',
   },
   {

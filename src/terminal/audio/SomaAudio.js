@@ -198,6 +198,9 @@ class SomaAudioEngine {
     // Ambient drone
     this._startDrone();
 
+    // Continuous sonification layers (state-driven, parameter-modulated)
+    this._startContinuousLayers();
+
     this.initialized = true;
   }
 
@@ -825,6 +828,165 @@ class SomaAudioEngine {
     return score.sort((a, b) => a.time - b.time);
   }
 
+  // ── Continuous sonification layers ──────────────────────────────────────────
+  // Created once in init(), parameter-modulated via stepContinuous() from RAF.
+  // All interpolation via setTargetAtTime — native audio thread, zero JS per sample.
+
+  _startContinuousLayers() {
+    const now = this.ctx.currentTime;
+
+    // ── Layer 1: Bifurcation FM drone voice ──────────────────────────────────
+    // r value modulates FM depth and drone filter brightness
+    this._bifurcFM = this.ctx.createOscillator();
+    this._bifurcFM.type = 'sine';
+    this._bifurcFM.frequency.value = 82.41;  // E2
+
+    this._bifurcFMmod = this.ctx.createOscillator();
+    this._bifurcFMmod.type = 'sine';
+    this._bifurcFMmod.frequency.value = 82.41 * 1.5;  // B2 (perfect fifth)
+
+    this._bifurcFMmodGain = this.ctx.createGain();
+    this._bifurcFMmodGain.gain.value = 0;  // mod index starts silent
+
+    this._bifurcFMmod.connect(this._bifurcFMmodGain);
+    this._bifurcFMmodGain.connect(this._bifurcFM.frequency);
+
+    this._bifurcFMenv = this.ctx.createGain();
+    this._bifurcFMenv.gain.value = 0.025;  // quiet layer
+
+    this._bifurcFM.connect(this._bifurcFMenv);
+    this._bifurcFMenv.connect(this.master);
+
+    this._bifurcFM.start(now);
+    this._bifurcFMmod.start(now);
+
+    // ── Layer 2: Phase consonance — 3 oscillators that drift in/out of tune ──
+    this._phaseOscs = [];
+    const phaseFreqs = [220, 329.63, 440];  // A3, E4, A4 (octave + fifth)
+    for (let i = 0; i < 3; i++) {
+      const osc = this.ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = phaseFreqs[i];
+      const g = this.ctx.createGain();
+      g.gain.value = 0;  // start silent, activated by stepContinuous
+      osc.connect(g);
+      g.connect(this.master);
+      osc.start(now);
+      this._phaseOscs.push({ osc, gain: g });
+    }
+
+    // ── Layer 3: Spectral dimensionality — filtered noise texture ────────────
+    const specNoiseLen = this.ctx.sampleRate * 2;
+    const specNoiseBuf = this.ctx.createBuffer(1, specNoiseLen, this.ctx.sampleRate);
+    const specNoiseData = specNoiseBuf.getChannelData(0);
+    for (let i = 0; i < specNoiseLen; i++) specNoiseData[i] = Math.random() * 2 - 1;
+
+    this._specNoise = this.ctx.createBufferSource();
+    this._specNoise.buffer = specNoiseBuf;
+    this._specNoise.loop = true;
+
+    this._specFilter = this.ctx.createBiquadFilter();
+    this._specFilter.type = 'bandpass';
+    this._specFilter.frequency.value = 200;
+    this._specFilter.Q.value = 12;
+
+    this._specGain = this.ctx.createGain();
+    this._specGain.gain.value = 0;  // start silent
+
+    this._specNoise.connect(this._specFilter);
+    this._specFilter.connect(this._specGain);
+    this._specGain.connect(this.master);
+    this._specNoise.start(now);
+
+    // ── Layer 4: Spatial edge flow — 4 micro-tone voice pool ─────────────────
+    this._edgeVoices = [];
+    for (let i = 0; i < 4; i++) {
+      const osc = this.ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.value = 440;
+      const pan = this.ctx.createStereoPanner();
+      pan.pan.value = 0;
+      const env = this.ctx.createGain();
+      env.gain.value = 0;
+      osc.connect(env);
+      env.connect(pan);
+      pan.connect(this.master);
+      osc.start(now);
+      this._edgeVoices.push({ osc, panner: pan, env });
+    }
+    this._edgeVoiceIdx = 0;
+    this._contInitialized = true;
+  }
+
+  // ── Per-frame continuous sonification step ──────────────────────────────────
+  // Called from ArtTab RAF loop every 4 frames (~15Hz).
+  // Receives simulation state snapshot; smoothly ramps audio parameters.
+  stepContinuous({ r, activations, participationRatio, spectralFlux, edgePulses }) {
+    if (!this.initialized || !this._contInitialized || this._muted) return;
+    const now = this.ctx.currentTime;
+
+    // ── Layer 1: Bifurcation drone modulation ─────────────────────────────────
+    const rNorm = Math.max(0, Math.min(1, (r - 1.0) / 3.0));
+    // FM modulation depth scales with r
+    this._bifurcFMmodGain.gain.setTargetAtTime(82 * rNorm * 4, now, 0.3);
+    // Drone filter brightness tracks r (overrides setEnergy for this param)
+    if (this.droneFilter) {
+      this.droneFilter.frequency.setTargetAtTime(80 + rNorm * 720, now, 0.3);
+    }
+    // FM voice volume — fades in as r increases
+    this._bifurcFMenv.gain.setTargetAtTime(0.01 + rNorm * 0.025, now, 0.3);
+
+    // ── Layer 2: Phase consonance (Kuramoto order parameter) ──────────────────
+    if (activations && activations.length > 0) {
+      // Compute phase coherence: treat activations as phases on unit circle
+      let sumCos = 0, sumSin = 0;
+      const N = activations.length;
+      for (let i = 0; i < N; i++) {
+        const theta = (activations[i] || 0) * Math.PI * 2;
+        sumCos += Math.cos(theta);
+        sumSin += Math.sin(theta);
+      }
+      const coherence = Math.sqrt(sumCos * sumCos + sumSin * sumSin) / N;
+
+      const detuneMax = (1 - coherence) * 15;  // cents
+      for (let i = 0; i < this._phaseOscs.length; i++) {
+        const { osc, gain } = this._phaseOscs[i];
+        // Slowly drifting detune based on coherence
+        const drift = Math.sin(now * (0.1 + i * 0.07)) * detuneMax;
+        osc.detune.setTargetAtTime(drift, now, 0.2);
+        // Volume scales with coherence — more coherent = louder harmonics
+        gain.gain.setTargetAtTime(0.004 + coherence * 0.009, now, 0.3);
+      }
+    }
+
+    // ── Layer 3: Spectral dimensionality texture ──────────────────────────────
+    if (participationRatio != null) {
+      const prNorm = Math.min(1, Math.max(0, (participationRatio - 1) / 15));
+      const specFreq = 200 + prNorm * 1800;
+      const specQ = Math.max(1, 12 - prNorm * 11);
+      const fluxMod = (spectralFlux || 0) * 400;
+      this._specFilter.frequency.setTargetAtTime(specFreq + fluxMod, now, 0.5);
+      this._specFilter.Q.setTargetAtTime(specQ, now, 0.5);
+      // Volume: quiet but present
+      this._specGain.gain.setTargetAtTime(0.008 + prNorm * 0.012, now, 0.4);
+    }
+
+    // ── Layer 4: Spatial edge flow micro-tones ────────────────────────────────
+    if (edgePulses) {
+      for (const ep of edgePulses) {
+        if (ep.pulse < 0.3) continue;
+        const voice = this._edgeVoices[this._edgeVoiceIdx];
+        this._edgeVoiceIdx = (this._edgeVoiceIdx + 1) % 4;
+        voice.osc.frequency.setValueAtTime(ep.freq, now);
+        voice.panner.pan.setValueAtTime(Math.max(-1, Math.min(1, ep.pan)), now);
+        voice.env.gain.cancelScheduledValues(now);
+        voice.env.gain.setValueAtTime(0, now);
+        voice.env.gain.linearRampToValueAtTime(0.035 * ep.pulse, now + 0.01);
+        voice.env.gain.linearRampToValueAtTime(0, now + 0.06);
+      }
+    }
+  }
+
   // ── Energy modulation: controls drone intensity + filter ──────────────────
   setEnergy(e) {
     this._energy = Math.max(0, Math.min(1, e));
@@ -862,6 +1024,16 @@ class SomaAudioEngine {
 
   // ── Cleanup ───────────────────────────────────────────────────────────────
   dispose() {
+    // Stop continuous layer oscillators
+    try {
+      if (this._bifurcFM) this._bifurcFM.stop();
+      if (this._bifurcFMmod) this._bifurcFMmod.stop();
+      if (this._specNoise) this._specNoise.stop();
+      if (this._phaseOscs) this._phaseOscs.forEach(p => p.osc.stop());
+      if (this._edgeVoices) this._edgeVoices.forEach(v => v.osc.stop());
+    } catch { /* already stopped */ }
+    this._contInitialized = false;
+
     if (this.ctx) {
       this.ctx.close().catch(() => {});
       this.ctx = null;
