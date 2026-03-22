@@ -911,11 +911,16 @@ function run() {
     log(wasmOk ? '  → public/wasm/scale94_kernels_bg.wasm' : '  ⚠ WASM binary missing');
 
     // Copy JS bindings to src/wasm/ (Vite processes these as proper ES modules)
-    const jsSrc  = path.join(PKG_DIR, 'scale94_kernels.js');
-    const jsDest = path.join(JS_OUT,  'scale94_kernels.js');
+    // Also copy to public/wasm/ — package.json there declares it as the module
+    // main entry, so both copies must stay in sync or run_* lookups will fail.
+    const jsSrc      = path.join(PKG_DIR,   'scale94_kernels.js');
+    const jsDest     = path.join(JS_OUT,    'scale94_kernels.js');
+    const jsDestPub  = path.join(WASM_OUT,  'scale94_kernels.js');
     if (fs.existsSync(jsSrc)) {
       fs.copyFileSync(jsSrc, jsDest);
+      fs.copyFileSync(jsSrc, jsDestPub);
       log(`✓ Copied → src/wasm/scale94_kernels.js`);
+      log(`✓ Copied → public/wasm/scale94_kernels.js`);
     } else {
       console.warn('  ⚠ Not found in pkg/: scale94_kernels.js');
     }
