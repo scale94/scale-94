@@ -974,6 +974,26 @@ export function run_necromantic_simulation(resonance_seed, n_cycles, amplitude) 
 }
 
 /**
+ * @param {number} n_nodes
+ * @param {number} mean_degree
+ * @param {number} attack_mode
+ * @param {number} removal_steps
+ * @returns {string}
+ */
+export function run_percolation(n_nodes, mean_degree, attack_mode, removal_steps) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_percolation(n_nodes, mean_degree, attack_mode, removal_steps);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * Run the Phonemic Drift analysis.
  *
  * * `seed`        — PRNG seed (0 → uses internal default)

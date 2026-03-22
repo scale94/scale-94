@@ -42,3 +42,4 @@ pub mod enclave;             // enclave_keygen, enclave_seal, enclave_open (ML-K
 pub mod text_probe;          // run_text_probe (16D concept fingerprinting · cosine projection into kernel space)
 pub mod bone_fusion;         // run_bone_fusion (Conceptual Singularity Engine v6.6.6.6.6.6 · 16D Tensor Fusion Foundation)
 pub mod compare_nodes;       // compare_nodes, compute_bifurcation_children (16D cosine similarity + Feigenbaum bifurcation)
+pub mod percolation;         // run_percolation (Erdős–Rényi network resilience · Molloy-Reed critical threshold · targeted vs random attack)

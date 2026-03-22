@@ -6,6 +6,8 @@ export function resolveWasmAlias(kernelId) {
   const id = kernelId.toUpperCase();
 
   // ── Direct / near-direct matches ───────────────────────────────────────────
+  if (id.includes('PERCOLATION') || id.includes('RESILIENCE') ||
+      id.includes('FRAGILITY') || id.includes('GIANT-COMPONENT'))   return 'percolation';
   if (id.includes('DALY'))                                           return 'daly';
   if (id.includes('CEEI') || id.includes('ALLOCATION-ENGINE'))      return 'ceei';
   if (id.includes('SOMA-PLUS') || id.includes('SOMA_PLUS'))         return 'soma_plus';
@@ -68,9 +70,10 @@ export function resolveWasmAlias(kernelId) {
       id.includes('NEK-'))                                           return 'necromantic';
 
   // ── Biodiversity / biocoenosis / mycelial / ecology ─────────────────────────
+  if (id.includes('MYCELIAL') || id.includes('UNDERGROUND-THERMO') ||
+      id.startsWith('UTK'))                                          return 'percolation';
   if (id.includes('BIODIVERSITY') || id.includes('BIOCOENOSIS') ||
-      id.includes('MYCELIAL') || id.includes('FLORA') ||
-      id.includes('UNDERGROUND-THERMO') || id.startsWith('UTK'))    return 'biocoenosis';
+      id.includes('FLORA'))                                          return 'biocoenosis';
 
   // ── Pragmatic / DRK / focus / nocturnal / tectonic ──────────────────────────
   if (id.includes('PRAGMATIC') || id.includes('DRK') ||

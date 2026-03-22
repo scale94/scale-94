@@ -356,6 +356,8 @@ export function run_mesantropy(solar_yield: number, signal_depth: number, n_agen
  */
 export function run_necromantic_simulation(resonance_seed: number, n_cycles: number, amplitude: number): string;
 
+export function run_percolation(n_nodes: number, mean_degree: number, attack_mode: number, removal_steps: number): string;
+
 /**
  * Run the Phonemic Drift analysis.
  *
@@ -534,6 +536,7 @@ export interface InitOutput {
     readonly run_kuramoto_synchrony: (a: number, b: number, c: number, d: number) => [number, number];
     readonly run_mesantropy: (a: number, b: number, c: number) => [number, number];
     readonly run_necromantic_simulation: (a: number, b: number, c: number) => [number, number];
+    readonly run_percolation: (a: number, b: number, c: number, d: number) => [number, number];
     readonly run_phonemic_drift: (a: number, b: number, c: number) => [number, number];
     readonly run_pqhash_analysis: (a: number, b: number, c: number, d: number) => [number, number];
     readonly run_pragmatic_type: (a: number, b: number, c: number, d: number) => [number, number];
