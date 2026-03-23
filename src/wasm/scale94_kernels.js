@@ -841,6 +841,37 @@ export function run_feigenbaum_cascade(r_start, r_end, warmup, samples) {
 }
 
 /**
+ * Fish Scale Kernel — Feigenbaum-Bouligand Coupled Architecture v12.1.0
+ *
+ * Maps the universal period-doubling cascade onto Bouligand helicoidal armor.
+ * Computes armor density, saponification windows, sanctuary nodes, and
+ * Moir\u{00E9} interference spectrum across the full bifurcation topology.
+ *
+ * Parameters:
+ *   r_pressure       : thermodynamic pressure coefficient (0.0–4.0)
+ *   max_layers       : maximum Bouligand armor layers to resolve (1–64)
+ *   theta_offset     : interlaminar rotation angle in degrees (1–90, default 36)
+ *   burn_sensitivity : saponification window width multiplier (0.1–2.0)
+ * @param {number} r_pressure
+ * @param {number} max_layers
+ * @param {number} theta_offset
+ * @param {number} burn_sensitivity
+ * @returns {string}
+ */
+export function run_fish_scale(r_pressure, max_layers, theta_offset, burn_sensitivity) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_fish_scale(r_pressure, max_layers, theta_offset, burn_sensitivity);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * Run the Fusion Plasma sovereign audit engine.
  *
  * temp_kev:       ion temperature in keV                  (default 10.0)
@@ -919,6 +950,37 @@ export function run_kuramoto_synchrony(n_oscillators, coupling, freq_spread, tim
 }
 
 /**
+ * Latent Space Collider – SCALING Module v1.0.0
+ *
+ * Collides two conceptual domains in simulated 1536-dimensional latent space.
+ * Computes cosine similarity, cross-attention, orthogonal projection, and
+ * outputs a synthesized concept chimera.
+ *
+ * Parameters:
+ *   domain_a      : index of first conceptual domain (0–15)
+ *   domain_b      : index of second conceptual domain (0–15)
+ *   attn_heads    : simulated attention head count (1–64, affects entropy)
+ *   temperature   : softmax temperature – sharpness of conceptual focus (0.1–5.0)
+ * @param {number} domain_a
+ * @param {number} domain_b
+ * @param {number} attn_heads
+ * @param {number} temperature
+ * @returns {string}
+ */
+export function run_latent_collider(domain_a, domain_b, attn_heads, temperature) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_latent_collider(domain_a, domain_b, attn_heads, temperature);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * SCALAR SOVEREIGNTY + MESANTROPY ENGINE
  *
  * Simulates N agents through Substrate (3.3.3) and Detonation (4.4.4.4) phases.
@@ -965,6 +1027,36 @@ export function run_necromantic_simulation(resonance_seed, n_cycles, amplitude) 
     let deferred1_1;
     try {
         const ret = wasm.run_necromantic_simulation(resonance_seed, n_cycles, amplitude);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * Panopticon Percolation Engine – SURVEILLANCE Module v1.0.0
+ *
+ * Monte Carlo simulation of dragnet contagion through 44 indexed
+ * surveillance legislative instruments.
+ *
+ * Parameters:
+ *   infection_prob : global infection probability multiplier (0.1–2.0)
+ *   origin_node    : patient zero – starting legislative node (0–43)
+ *   n_simulations  : Monte Carlo ensemble size (1–200)
+ *   seed           : PRNG seed for reproducibility (any positive integer)
+ * @param {number} infection_prob
+ * @param {number} origin_node
+ * @param {number} n_simulations
+ * @param {number} seed
+ * @returns {string}
+ */
+export function run_panopticon_percolation(infection_prob, origin_node, n_simulations, seed) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_panopticon_percolation(infection_prob, origin_node, n_simulations, seed);
         deferred1_0 = ret[0];
         deferred1_1 = ret[1];
         return getStringFromWasm0(ret[0], ret[1]);

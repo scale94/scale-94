@@ -43,3 +43,6 @@ pub mod text_probe;          // run_text_probe (16D concept fingerprinting · co
 pub mod bone_fusion;         // run_bone_fusion (Conceptual Singularity Engine v6.6.6.6.6.6 · 16D Tensor Fusion Foundation)
 pub mod compare_nodes;       // compare_nodes, compute_bifurcation_children (16D cosine similarity + Feigenbaum bifurcation)
 pub mod percolation;         // run_percolation (Erdős–Rényi network resilience · Molloy-Reed critical threshold · targeted vs random attack)
+pub mod fish_scale;          // run_fish_scale (Feigenbaum-Bouligand Coupled Architecture · Arapaima armor · Moiré interference · v12.1.0)
+pub mod latent_collider;     // run_latent_collider (Latent Space Collider · SCALING Module · 1536D cross-attention synthesis)
+pub mod panopticon_percolation; // run_panopticon_percolation (Panopticon Percolation · SURVEILLANCE Module · dragnet contagion Monte Carlo)

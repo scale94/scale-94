@@ -529,6 +529,7 @@ class SomaAudioEngine {
   // ── Resonance ping: crystalline tone when two nodes are compared ──────────
   playResonance(similarity) {
     if (!this.initialized || this._muted) return;
+    if (!Number.isFinite(similarity)) return; // guard against NaN from dynamic nodes
     if (this.ctx.state === 'suspended') this.ctx.resume();
 
     const now = this.ctx.currentTime;

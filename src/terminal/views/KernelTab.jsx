@@ -215,11 +215,21 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
 
   // Fire sphere on kernel-complete (loadingKernel → null transition)
   const prevKernelRef = useRef(null);
+  // isSpinning stays true for one full rotation (0.9s) after loadingKernel clears,
+  // so the branch icon completes its cycle and lands at 0° before switching to glow.
+  const [isSpinning, setIsSpinning] = useState(false);
+  const spinTimerRef = useRef(null);
   useEffect(() => {
-    if (prevKernelRef.current && !loadingKernel) {
+    if (loadingKernel) {
+      clearTimeout(spinTimerRef.current);
+      setIsSpinning(true);
+    } else if (prevKernelRef.current) {
+      // kernel just finished — let the icon complete one last rotation
+      spinTimerRef.current = setTimeout(() => setIsSpinning(false), 900);
       sphereFireRef.current = { ts: Date.now() };
     }
     prevKernelRef.current = loadingKernel;
+    return () => clearTimeout(spinTimerRef.current);
   }, [loadingKernel]);
 
   // ── Gesture-gated mobile keyboard ─────────────────────────────────────────
@@ -352,6 +362,10 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
       @keyframes sk-treeGlow {
         0%, 100% { filter: drop-shadow(0 0 3px rgba(6,182,212,0.4)); }
         50%       { filter: drop-shadow(0 0 10px rgba(6,182,212,1)) drop-shadow(0 0 20px rgba(6,182,212,0.35)); }
+      }
+      @keyframes sk-branchSpin {
+        0%   { transform: rotate(0deg);   filter: drop-shadow(0 0 6px rgba(6,182,212,0.9)); }
+        100% { transform: rotate(360deg); filter: drop-shadow(0 0 12px rgba(6,182,212,1)) drop-shadow(0 0 24px rgba(6,182,212,0.4)); }
       }
       @keyframes sk-axiomBreath {
         0%, 100% { box-shadow: 0 0 6px rgba(57,255,20,0.06), inset 0 0 20px rgba(0,0,0,0.4); }
@@ -582,7 +596,9 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
           <h3 className="text-base font-bold mb-4 flex items-center gap-2 shrink-0">
             <GitBranch
               className="w-4 h-4 shrink-0 text-[#06b6d4]"
-              style={{ animation: 'sk-kernelIconReveal 0.8s cubic-bezier(0.16,1,0.3,1) forwards, sk-treeGlow 2.5s ease-in-out 0.8s infinite' }}
+              style={{ animation: isSpinning
+                ? 'sk-branchSpin 0.9s linear infinite'
+                : 'sk-kernelIconReveal 0.8s cubic-bezier(0.16,1,0.3,1) forwards, sk-treeGlow 2.5s ease-in-out 0.8s infinite' }}
             />
             <span
               className="text-transparent bg-clip-text"

@@ -390,6 +390,83 @@ const KERNEL_MAP = [
     aliases: ['feigenbaum', 'bifurcation', 'chaos', 'logistic', 'cascade', 'period_doubling', 'logistic_map'],
   },
   {
+    // Fish Scale Kernel — Feigenbaum-Bouligand Coupled Architecture v12.1.0
+    // r_pressure:       args[0]  flags: --pressure, --r
+    // max_layers:       args[1]  flags: --layers, --depth
+    // theta_offset:     args[2]  flags: --theta, --angle
+    // burn_sensitivity: args[3]  flags: --burn, --sensitivity
+    id:      'FISH-SCALE-KERNEL-12.1.0',
+    fn:      'run_fish_scale',
+    args:    [3.8, 32.0, 36.0, 1.0],
+    argMap:  {
+      pressure: 0, r: 0, r_pressure: 0,
+      layers: 1, depth: 1, max_layers: 1, n: 1,
+      theta: 2, angle: 2, rotation: 2, offset: 2,
+      burn: 3, sensitivity: 3, saponification: 3,
+    },
+    params: [
+      { name: 'r_pressure',       default: 3.8,  desc: 'thermodynamic pressure coefficient — sovereign node load (0–4)' },
+      { name: 'max_layers',       default: 32.0, desc: 'maximum Bouligand armor layers to resolve (1–64)' },
+      { name: 'theta_offset',     default: 36.0, desc: 'interlaminar rotation angle in degrees — Arapaima-derived (1–90)' },
+      { name: 'burn_sensitivity', default: 1.0,  desc: 'saponification window width multiplier — Chemical Burn grip (0.1–2.0)' },
+    ],
+    label:   'Fish Scale Kernel \u{00B7} Feigenbaum-Bouligand v12.1.0',
+    type:    'rust',
+    aliases: ['fish_scale', 'fish', 'scale', 'bouligand', 'arapaima', 'armor', 'feigenbaum_fish', 'fsk', 'moire'],
+  },
+  {
+    // Latent Space Collider — SCALING Module v1.0.0
+    // Collides two conceptual domains in simulated 1536-dimensional latent space.
+    // domain_a:      args[0]  flags: --domain_a, --a
+    // domain_b:      args[1]  flags: --domain_b, --b
+    // attn_heads:    args[2]  flags: --heads, --attention
+    // temperature:   args[3]  flags: --temp, --temperature
+    id:      'LATENT-SPACE-COLLIDER-1.0',
+    fn:      'run_latent_collider',
+    args:    [0.0, 1.0, 8.0, 1.0],
+    argMap:  {
+      domain_a: 0, a: 0, source: 0,
+      domain_b: 1, b: 1, target: 1,
+      heads: 2, attention: 2, attn: 2,
+      temp: 3, temperature: 3, t: 3,
+    },
+    params: [
+      { name: 'domain_a',    default: 0.0, desc: 'first conceptual domain index (0–15) — see domain index in output' },
+      { name: 'domain_b',    default: 1.0, desc: 'second conceptual domain index (0–15) — collision partner' },
+      { name: 'attn_heads',  default: 8.0, desc: 'simulated attention head count (1–64) — affects entropy decomposition' },
+      { name: 'temperature', default: 1.0, desc: 'softmax temperature — sharpness of conceptual focus (0.1–5.0)' },
+    ],
+    label:   'Latent Space Collider \u{00B7} SCALING Module v1.0.0',
+    type:    'rust',
+    aliases: ['collider', 'latent', 'latent_collider', 'scaling', 'collision', 'cross_attention', 'chimera', 'synthesis'],
+  },
+  {
+    // Panopticon Percolation Engine — SURVEILLANCE Module v1.0.0
+    // Monte Carlo dragnet contagion through 44 legislative instruments.
+    // infection_prob: args[0]  flags: --infection, --p
+    // origin_node:   args[1]  flags: --origin, --patient_zero
+    // n_simulations: args[2]  flags: --sims, --monte_carlo
+    // seed:          args[3]  flags: --seed
+    id:      'PANOPTICON-PERCOLATION-1.0',
+    fn:      'run_panopticon_percolation',
+    args:    [1.0, 0.0, 50.0, 42.0],
+    argMap:  {
+      infection: 0, p: 0, probability: 0,
+      origin: 1, patient_zero: 1, node: 1,
+      sims: 2, monte_carlo: 2, n: 2, ensemble: 2,
+      seed: 3, rng: 3,
+    },
+    params: [
+      { name: 'infection_prob', default: 1.0,  desc: 'global infection probability multiplier (0.1–2.0)' },
+      { name: 'origin_node',    default: 0.0,  desc: 'patient zero — starting legislative node index (0–43)' },
+      { name: 'n_simulations',  default: 50.0, desc: 'Monte Carlo ensemble size (1–200)' },
+      { name: 'seed',           default: 42.0, desc: 'PRNG seed for reproducibility' },
+    ],
+    label:   'Panopticon Percolation \u{00B7} SURVEILLANCE Module v1.0.0',
+    type:    'rust',
+    aliases: ['panopticon', 'dragnet', 'surveillance_percolation', 'simulate_dragnet', 'panoptic', 'contagion', 'legislative'],
+  },
+  {
     // Strangler Fig Transition Protocol — 4-parameter free function.
     // initial_adoption: args[0]  flags: --adoption, --seed
     // growth_rate:      args[1]  flags: --growth, --rate

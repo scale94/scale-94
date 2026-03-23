@@ -312,6 +312,21 @@ export function run_evolutionary_replicator(benefit: number, cost: number, punis
 export function run_feigenbaum_cascade(r_start: number, r_end: number, warmup: number, samples: number): string;
 
 /**
+ * Fish Scale Kernel — Feigenbaum-Bouligand Coupled Architecture v12.1.0
+ *
+ * Maps the universal period-doubling cascade onto Bouligand helicoidal armor.
+ * Computes armor density, saponification windows, sanctuary nodes, and
+ * Moir\u{00E9} interference spectrum across the full bifurcation topology.
+ *
+ * Parameters:
+ *   r_pressure       : thermodynamic pressure coefficient (0.0–4.0)
+ *   max_layers       : maximum Bouligand armor layers to resolve (1–64)
+ *   theta_offset     : interlaminar rotation angle in degrees (1–90, default 36)
+ *   burn_sensitivity : saponification window width multiplier (0.1–2.0)
+ */
+export function run_fish_scale(r_pressure: number, max_layers: number, theta_offset: number, burn_sensitivity: number): string;
+
+/**
  * Run the Fusion Plasma sovereign audit engine.
  *
  * temp_kev:       ion temperature in keV                  (default 10.0)
@@ -330,6 +345,21 @@ export function run_fusion_plasma(temp_kev: number, density: number, tau_e: numb
 export function run_ising_consensus(lattice_size: number, temperature: number, external_field: number, mc_steps: number): string;
 
 export function run_kuramoto_synchrony(n_oscillators: number, coupling: number, freq_spread: number, timesteps: number): string;
+
+/**
+ * Latent Space Collider – SCALING Module v1.0.0
+ *
+ * Collides two conceptual domains in simulated 1536-dimensional latent space.
+ * Computes cosine similarity, cross-attention, orthogonal projection, and
+ * outputs a synthesized concept chimera.
+ *
+ * Parameters:
+ *   domain_a      : index of first conceptual domain (0–15)
+ *   domain_b      : index of second conceptual domain (0–15)
+ *   attn_heads    : simulated attention head count (1–64, affects entropy)
+ *   temperature   : softmax temperature – sharpness of conceptual focus (0.1–5.0)
+ */
+export function run_latent_collider(domain_a: number, domain_b: number, attn_heads: number, temperature: number): string;
 
 /**
  * SCALAR SOVEREIGNTY + MESANTROPY ENGINE
@@ -355,6 +385,20 @@ export function run_mesantropy(solar_yield: number, signal_depth: number, n_agen
  *   amplitude      : BPM modulation amplitude multiplier (0.1–3.0)
  */
 export function run_necromantic_simulation(resonance_seed: number, n_cycles: number, amplitude: number): string;
+
+/**
+ * Panopticon Percolation Engine – SURVEILLANCE Module v1.0.0
+ *
+ * Monte Carlo simulation of dragnet contagion through 44 indexed
+ * surveillance legislative instruments.
+ *
+ * Parameters:
+ *   infection_prob : global infection probability multiplier (0.1–2.0)
+ *   origin_node    : patient zero – starting legislative node (0–43)
+ *   n_simulations  : Monte Carlo ensemble size (1–200)
+ *   seed           : PRNG seed for reproducibility (any positive integer)
+ */
+export function run_panopticon_percolation(infection_prob: number, origin_node: number, n_simulations: number, seed: number): string;
 
 export function run_percolation(n_nodes: number, mean_degree: number, attack_mode: number, removal_steps: number): string;
 
@@ -531,11 +575,14 @@ export interface InitOutput {
     readonly run_dh_ec_kernel: (a: number, b: number) => [number, number];
     readonly run_evolutionary_replicator: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly run_feigenbaum_cascade: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly run_fish_scale: (a: number, b: number, c: number, d: number) => [number, number];
     readonly run_fusion_plasma: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => [number, number];
     readonly run_ising_consensus: (a: number, b: number, c: number, d: number) => [number, number];
     readonly run_kuramoto_synchrony: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly run_latent_collider: (a: number, b: number, c: number, d: number) => [number, number];
     readonly run_mesantropy: (a: number, b: number, c: number) => [number, number];
     readonly run_necromantic_simulation: (a: number, b: number, c: number) => [number, number];
+    readonly run_panopticon_percolation: (a: number, b: number, c: number, d: number) => [number, number];
     readonly run_percolation: (a: number, b: number, c: number, d: number) => [number, number];
     readonly run_phonemic_drift: (a: number, b: number, c: number) => [number, number];
     readonly run_pqhash_analysis: (a: number, b: number, c: number, d: number) => [number, number];

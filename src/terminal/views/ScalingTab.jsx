@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Hexagon, ChevronRight, Globe, MessageSquare, Zap, FileText, Cpu } from 'lucide-react';
+import LatentCollider from './LatentCollider';
 
 // ── Gold particle burst system ──────────────────────────────────────────────
 function useParticleBurst(canvasRef) {
@@ -166,6 +167,9 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, loadKernel }) => {
         </div>
       </div>
 
+      {/* ── Latent Space Collider (hero section) ── */}
+      <LatentCollider />
+
       {/* ── Main Service Grid ── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         {/* SEED_KERNEL */}
@@ -288,7 +292,7 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, loadKernel }) => {
       >
         <div className="mb-5">
           <div className="text-lg sm:text-xl font-bold uppercase tracking-widest mb-1" style={{ opacity: 0, animation: 'sc-headReveal 0.5s cubic-bezier(0.16,1,0.3,1) 1.45s both, sc-headColor 9s ease-in-out 3s infinite' }}>RUN COMMAND MANUAL V2.1</div>
-          <div className="text-[10px] text-fuchsia-500/60 font-mono uppercase tracking-widest">// WASM KERNEL INTERFACE · 34 KERNELS · SOMA-9.4</div>
+          <div className="text-[10px] text-fuchsia-500/60 font-mono uppercase tracking-widest">// WASM KERNEL INTERFACE · 38 KERNELS · SOMA-9.4</div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 font-mono text-[11px]">

@@ -34,6 +34,8 @@ import { somaAudio } from '../audio/SomaAudio';
 import { somaPresence } from '../audio/SomaPresence';
 import { ecoDataFeed } from '../data/EcoDataFeed';
 import { ecocideBus } from './EcocideTab';
+import { colliderBus } from './LatentCollider';
+import { nodeColor }   from '../data/kernelColorMap';
 import {
   MAX_PARTICLES,
   createParticlePool, emitParticle, stepParticles,
@@ -1080,8 +1082,9 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
           const na   = nodes[iA], nb = nodes[iB];
           const pA   = proj[iA],  pB = proj[iB];
-          const colA = NODE_COLORS[e.aId];
-          const colB = NODE_COLORS[e.bId];
+          if (!pA || !pB) continue;   // dynamic node not yet projected this frame
+          const colA = NODE_COLORS[e.aId] ?? dynColorMap.get(e.aId);
+          const colB = NODE_COLORS[e.bId] ?? dynColorMap.get(e.bId);
 
           // Spectral bridge detection — computed bridges get cosine similarity boost
           const simMap = bridgeSimilarityRef.current;
@@ -1181,6 +1184,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           const rResult = resonanceResultRef.current;
           const sim     = rResult?.sim ?? 0.5;
           const pRA = proj[rIA], pRB = proj[rIB];
+          if (!pRA || !pRB) { /* dynamic node not yet projected — skip */ } else {
           const avgScale = (pRA.scale + pRB.scale) / 2;
 
           ctx.save();
@@ -1209,6 +1213,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
           ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
           ctx.restore();
+        } // else — close proj guard
         }
       }
 
@@ -1319,6 +1324,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         // ── Birth animation: ease child from parent position over 400ms ──────
         // Uses cubic-bezier ease-out: 1 - (1-t)³ — matches CSS ease-out cubic
         let p = proj[i];
+        if (!p) continue;   // dynamic node not yet projected this frame
         const _birth = birthMapRef.current.get(n.id);
         if (_birth) {
           const _elapsed = performance.now() - _birth.t0;
@@ -2271,6 +2277,87 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     const unsub = ecocideBus.on(handler);
     return unsub;
   }, []);
+
+  // ── ColliderBus subscription — chimera injection from Scaling tab ─────
+  // When the Latent Space Collider synthesizes a chimera, it emits the result
+  // here. We inject the chimera as a new node on the sphere, positioned between
+  // its two parent nodes, with a blended 16D feature tensor.
+  useEffect(() => {
+    const handler = (data) => {
+      if (data.type !== 'CHIMERA_SYNTHESIS') return;
+      const s = stateRef.current;
+      if (!s) return;
+
+      const { parentNodeA, parentNodeB, cluster, chimeraName,
+              cosine, novelty, coherence, viability, hueA, hueB } = data;
+
+      // ── Derive chimera ID from the two parent domain names ────────
+      const chiId = `chimera_${parentNodeA}_${parentNodeB}`;
+
+      // Don't inject the same chimera twice in a session
+      if (s.nodes.some(n => n.id === chiId)) {
+        // Re-energize instead
+        const existing = s.nodes.find(n => n.id === chiId);
+        if (existing) { existing.energy = 1.0; existing.bleedAmount = 0.8; }
+        return;
+      }
+
+      // ── Position: midpoint of parent nodes on sphere surface ──────
+      const nodeA = s.nodes.find(n => n.id === parentNodeA);
+      const nodeB = s.nodes.find(n => n.id === parentNodeB);
+      const anchorA = nodeA ?? CLUSTER_ANCHORS[cluster] ?? CLUSTER_ANCHORS.phys;
+      const anchorB = nodeB ?? CLUSTER_ANCHORS[cluster] ?? CLUSTER_ANCHORS.phys;
+      const mx = (anchorA.x + anchorB.x) / 2 + (Math.random() - 0.5) * 0.1;
+      const my = (anchorA.y + anchorB.y) / 2 + (Math.random() - 0.5) * 0.1;
+      const mz = (anchorA.z + anchorB.z) / 2 + (Math.random() - 0.5) * 0.1;
+      const len = Math.sqrt(mx * mx + my * my + mz * mz) || 1;
+
+      // ── Synthesize 16D feature tensor from parents ────────────────
+      const iA = NODE_IDX[parentNodeA];
+      const iB = NODE_IDX[parentNodeB];
+      if (iA != null && iB != null) {
+        const fA = FEATURES[iA];
+        const fB = FEATURES[iB];
+        // Weighted blend: novelty controls interpolation toward orthogonal projection
+        const w = novelty; // high novelty → more of the orthogonal component
+        const chiFeats = new Array(16);
+        for (let i = 0; i < 16; i++) {
+          const blend = (fA[i] + fB[i]) / 2;
+          const ortho = Math.abs(fA[i] - fB[i]);
+          chiFeats[i] = Math.min(1, blend * (1 - w * 0.4) + ortho * w * 0.6);
+        }
+        dynFeaturesMap.set(chiId, chiFeats);
+      }
+
+      // ── Color: blend of the two domain hues ───────────────────────
+      const chiColor = nodeColor(chiId, cluster);
+      dynColorMap.set(chiId, chiColor);
+
+      // ── Inject node into physics simulation ───────────────────────
+      s.nodes.push({
+        id:          chiId,
+        cluster,
+        x: mx / len, y: my / len, z: mz / len,
+        vx: 0, vy: 0, vz: 0,
+        energy:      1.0,          // full birth flash
+        bleedFrom:   parentNodeA,  // bleeds parent A color initially
+        bleedAmount: 0.9,
+      });
+
+      // Register birth animation
+      birthMapRef.current.set(chiId, {
+        parentId: parentNodeA,
+        px: anchorA.x, py: anchorA.y, pz: anchorA.z,
+        t0: performance.now(),
+      });
+
+      setBifurcCount(c => c + 1);
+      ensureAudio(); somaAudio.playBifurcation(1);
+    };
+
+    const unsub = colliderBus.on(handler);
+    return unsub;
+  }, [ensureAudio]);
 
   // ── Presence — peer count updater + collective cursor entropy ──────────
   useEffect(() => {

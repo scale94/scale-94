@@ -42,11 +42,15 @@ export const run_daly_thermo_simulation: (a: number, b: number, c: number, d: nu
 export const run_dh_ec_kernel: (a: number, b: number) => [number, number];
 export const run_evolutionary_replicator: (a: number, b: number, c: number, d: number, e: number) => [number, number];
 export const run_feigenbaum_cascade: (a: number, b: number, c: number, d: number) => [number, number];
+export const run_fish_scale: (a: number, b: number, c: number, d: number) => [number, number];
 export const run_fusion_plasma: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => [number, number];
 export const run_ising_consensus: (a: number, b: number, c: number, d: number) => [number, number];
 export const run_kuramoto_synchrony: (a: number, b: number, c: number, d: number) => [number, number];
+export const run_latent_collider: (a: number, b: number, c: number, d: number) => [number, number];
 export const run_mesantropy: (a: number, b: number, c: number) => [number, number];
 export const run_necromantic_simulation: (a: number, b: number, c: number) => [number, number];
+export const run_panopticon_percolation: (a: number, b: number, c: number, d: number) => [number, number];
+export const run_percolation: (a: number, b: number, c: number, d: number) => [number, number];
 export const run_phonemic_drift: (a: number, b: number, c: number) => [number, number];
 export const run_pqhash_analysis: (a: number, b: number, c: number, d: number) => [number, number];
 export const run_pragmatic_type: (a: number, b: number, c: number, d: number) => [number, number];
