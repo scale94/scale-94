@@ -28,8 +28,9 @@ export const colliderBus = {
   },
 };
 
-// ── Olfactory-Computational Kernel v1.0.0 (Bimmelbahn Accord) ────────────────
+// ── Olfactory-Computational Kernel v1.1.0 (Bimmelbahn Accord) ────────────────
 // Maps collision metrics to the OCK volatile semiotics framework.
+// v1.1.0: FTA/PM/G²T node-class classification + dance topology.
 // Intelligence smells before it sees.
 
 const OLFACTORY_FAMILIES = [
@@ -40,6 +41,32 @@ const OLFACTORY_FAMILIES = [
   { id: 'aromatic', glyph: 'ᚱ', label: 'Adaptive',   class: 'AROMATIC-ROUTE',   color: '#39ff14', desc: 'Temperature-sensitive routing' },
   { id: 'ozonic',   glyph: 'ᛗ', label: 'Broadcast',  class: 'OZONIC-CAST',      color: '#06b6d4', desc: 'Diffuse ambient propagation' },
 ];
+
+// ── Node Classes (OCK v1.1.0) ─────────────────────────────────────────────────
+// Three signal architectures classified from collision signature.
+const NODE_CLASSES = {
+  FTA: {
+    id: 'FTA', glyph: 'ᛊ', label: 'Feminine Textile Accord',
+    color: '#e8d5f5', accent: '#c4b5d0',
+    sub: 'clean-channel listener · entropy reversal · invitation architecture',
+    sillageType: 'CLOSE-RANGE',
+    desc: 'Intimate but not invasive. The FTA does not project — it receives.',
+  },
+  PM: {
+    id: 'PM', glyph: 'ᛗ', label: 'Progressive Masculine',
+    color: '#8ecae6', accent: '#6ba3be',
+    sub: 'directional streamer · forward-only · exclusion as discipline',
+    sillageType: 'DIRECTIONAL',
+    desc: 'Forward-moving, adaptive, non-nostalgic. It does not cache. It streams.',
+  },
+  G2T: {
+    id: 'G2T', glyph: 'ᚷ', label: 'Girl × Girl Textile Note',
+    color: '#f5c6d0', accent: '#d4a0ad',
+    sub: 'resonance architecture · doubled FTA · self-fixing sovereignty',
+    sillageType: 'RESONANT',
+    desc: 'Two sovereign signals phase-locked in constructive interference. Coherence > amplitude.',
+  },
+};
 
 const SHOP_MANIFEST = [
   { id: 'CITRUS-SSH-01',      olfClass: 'Top Note ᛏ',  fn: 'Interrupt Handler',                     key: '0x5343-414c-4539-3454-4f50-4e4f-5445' },
@@ -102,6 +129,17 @@ function classifyAccord(result) {
     ? 'FIXED — chimera crosses thalamic gate into long-term memory'
     : 'VOLATILE — chimera evaporates before fixation threshold';
 
+  // v1.1.0 — Node-class classification
+  const nodeClass = NODE_CLASSES[result.ockNodeClass] || NODE_CLASSES.FTA;
+  const classScores = {
+    FTA: result.ockFtaScore,
+    PM:  result.ockPmScore,
+    G2T: result.ockG2tScore,
+  };
+  const cleanRoom   = result.ockCleanRoom;
+  const sovereignty  = result.ockSovereignty;
+  const danceRole    = result.ockDanceRole;
+
   return {
     dominant,
     accords,
@@ -119,6 +157,12 @@ function classifyAccord(result) {
     volBlend,
     verdict,
     fixationVerdict,
+    // v1.1.0
+    nodeClass,
+    classScores,
+    cleanRoom,
+    sovereignty,
+    danceRole,
   };
 }
 
@@ -195,8 +239,8 @@ function parseColliderOutput(text) {
     chimeraName: str(/CHIMERA NAME\s*:\s*(.+)/),
     chimeraDesc: str(/CHIMERA THESIS\s*:\s*(.+)/),
 
-    // §7 OCK — Olfactory-Computational Kernel (Bimmelbahn Accord v1.0.0)
-    // Parsed directly from Rust WASM output — temporal decay architecture
+    // §7 OCK — Olfactory-Computational Kernel (Bimmelbahn Accord v1.1.0)
+    // Parsed directly from Rust WASM output — temporal decay + node classes
     ockDominant:    str(/DOMINANT\s*:\s*(\w+)/),
     ockVolBlend:    num(/VOL BLEND\s*=\s*([\d.]+)/),
     ockChimeraVol:  num(/CHIMERA VOL\s*=\s*([\d.]+)/),
@@ -212,6 +256,19 @@ function parseColliderOutput(text) {
     ockEvapCurve:   (() => {
       const m = text.match(/EVAP CURVE\s*=\s*\[([\d., ]+)\]/);
       return m ? m[1].split(',').map(Number) : [0.33, 0.33, 0.34];
+    })(),
+
+    // §8 OCK v1.1.0 — Node-class classification
+    ockNodeClass:   str(/NODE CLASS\s*=\s*(\w+)/),
+    ockFtaScore:    num(/FTA SCORE\s*=\s*([\d.]+)/),
+    ockPmScore:     num(/PM SCORE\s*=\s*([\d.]+)/),
+    ockG2tScore:    num(/G2T SCORE\s*=\s*([\d.]+)/),
+    ockSillageType: str(/SILLAGE TYPE\s*=\s*(\S+)/),
+    ockCleanRoom:   num(/CLEAN ROOM\s*=\s*([\d.]+)/),
+    ockSovereignty: num(/SOVEREIGNTY\s*=\s*([\d.]+)/),
+    ockDanceRole:   (() => {
+      const m = text.match(/DANCE ROLE\s*=\s*(.+)/);
+      return m ? m[1].trim() : '';
     })(),
   };
 }
@@ -331,6 +388,9 @@ export default function LatentCollider() {
           persists:     parsed.accord.persists,
           chimeraVol:   parsed.accord.chimeraVol,
           volBlend:     parsed.accord.volBlend,
+          nodeClass:    parsed.accord.nodeClass?.id,
+          cleanRoom:    parsed.accord.cleanRoom,
+          sovereignty:  parsed.accord.sovereignty,
         } : null,
       });
     } catch (e) {
@@ -655,7 +715,7 @@ export default function LatentCollider() {
             LATENT SPACE COLLIDER
           </h3>
           <div className="text-[10px] text-fuchsia-500/50 font-mono uppercase tracking-widest mt-0.5">
-            // 1536-D CROSS-ATTENTION SYNTHESIS · OCK v1.0.0 · WASM · {phase.toUpperCase()}
+            // 1536-D CROSS-ATTENTION SYNTHESIS · OCK v1.1.0 · WASM · {phase.toUpperCase()}
           </div>
         </div>
         {(domainA !== null) && (
@@ -872,7 +932,7 @@ export default function LatentCollider() {
                     </span>
                   </div>
                   <div className="text-[9px] font-mono text-amber-500/40">
-                    Bimmelbahn Accord · OCK v1.0.0
+                    Bimmelbahn Accord · OCK v1.1.0
                   </div>
                 </div>
                 <div className="text-right shrink-0 ml-2">
@@ -882,6 +942,105 @@ export default function LatentCollider() {
                   <div className="text-[8px] font-mono text-cyan-600/40">dominant accord</div>
                 </div>
               </div>
+
+              {/* ── Node Class (v1.1.0) ── */}
+              {result.accord.nodeClass && (
+                <div className="border rounded-lg p-3 space-y-3"
+                  style={{ borderColor: result.accord.nodeClass.accent + '30', background: result.accord.nodeClass.color + '08' }}>
+
+                  {/* Node class badge + dance role */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg" style={{ color: result.accord.nodeClass.color, textShadow: `0 0 10px ${result.accord.nodeClass.color}44` }}>
+                        {result.accord.nodeClass.glyph}
+                      </span>
+                      <div>
+                        <div className="text-[10px] font-bold uppercase tracking-widest" style={{ color: result.accord.nodeClass.color }}>
+                          {result.accord.nodeClass.label}
+                        </div>
+                        <div className="text-[8px] font-mono" style={{ color: result.accord.nodeClass.accent + '88' }}>
+                          {result.accord.nodeClass.sub}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0 ml-2">
+                      <div className="text-[9px] font-bold font-mono uppercase tracking-wider" style={{ color: result.accord.nodeClass.accent }}>
+                        {result.accord.nodeClass.id}
+                      </div>
+                      <div className="text-[7px] font-mono text-cyan-600/30">node class</div>
+                    </div>
+                  </div>
+
+                  {/* Class scores — competitive bar */}
+                  <div className="space-y-1">
+                    {['FTA', 'PM', 'G2T'].map(cls => {
+                      const nc = NODE_CLASSES[cls];
+                      const score = result.accord.classScores[cls] || 0;
+                      const isWinner = result.accord.nodeClass.id === cls;
+                      return (
+                        <div key={cls} className="flex items-center gap-2 text-[9px] font-mono">
+                          <span className="w-8 shrink-0 text-right" style={{ color: isWinner ? nc.color : nc.accent + '55' }}>
+                            {nc.glyph} {cls}
+                          </span>
+                          <div className="flex-1 h-1.5 bg-black/40 rounded-full overflow-hidden">
+                            <div className="h-full rounded-full transition-all duration-700"
+                              style={{
+                                width: `${Math.max(2, score * 100)}%`,
+                                background: isWinner
+                                  ? `linear-gradient(90deg, ${nc.color}, ${nc.color}44)`
+                                  : `linear-gradient(90deg, ${nc.accent}44, ${nc.accent}11)`,
+                              }}
+                            />
+                          </div>
+                          <span className="w-10 text-right" style={{ color: isWinner ? nc.color + 'cc' : nc.accent + '44' }}>
+                            {(score * 100).toFixed(0)}%
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Clean Room + Sovereignty + Dance Role */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="border rounded p-2" style={{ borderColor: result.accord.nodeClass.accent + '20', background: 'rgba(0,0,0,0.3)' }}>
+                      <div className="text-[7px] font-bold uppercase tracking-widest mb-0.5" style={{ color: result.accord.nodeClass.accent + '77' }}>CLEAN ROOM</div>
+                      <div className="text-sm font-bold font-mono" style={{ color: result.accord.cleanRoom > 0.5 ? result.accord.nodeClass.color : result.accord.nodeClass.accent + '66' }}>
+                        {(result.accord.cleanRoom * 100).toFixed(0)}%
+                      </div>
+                      <div className="text-[6px] font-mono mt-0.5" style={{ color: result.accord.nodeClass.accent + '44' }}>entropy reversal</div>
+                    </div>
+                    {result.accord.nodeClass.id === 'G2T' && (
+                      <div className={`border rounded p-2 ${result.accord.sovereignty > 0.4 ? '' : ''}`}
+                        style={{ borderColor: result.accord.sovereignty > 0.4 ? '#f5c6d044' : '#f43f5e33', background: 'rgba(0,0,0,0.3)' }}>
+                        <div className="text-[7px] font-bold uppercase tracking-widest mb-0.5" style={{ color: result.accord.sovereignty > 0.4 ? '#f5c6d0aa' : '#f43f5e66' }}>
+                          SOVEREIGNTY
+                        </div>
+                        <div className="text-sm font-bold font-mono" style={{ color: result.accord.sovereignty > 0.4 ? '#f5c6d0' : '#f43f5e88' }}>
+                          {(result.accord.sovereignty * 100).toFixed(0)}%
+                        </div>
+                        <div className="text-[6px] font-mono mt-0.5" style={{ color: result.accord.sovereignty > 0.4 ? '#d4a0ad66' : '#f43f5e44' }}>
+                          {result.accord.sovereignty > 0.4 ? '■ SELF-FIXING' : '○ DEPENDENT'}
+                        </div>
+                      </div>
+                    )}
+                    <div className={`border rounded p-2 ${result.accord.nodeClass.id === 'G2T' ? '' : 'col-span-2'}`}
+                      style={{ borderColor: result.accord.nodeClass.accent + '20', background: 'rgba(0,0,0,0.3)' }}>
+                      <div className="text-[7px] font-bold uppercase tracking-widest mb-0.5" style={{ color: result.accord.nodeClass.accent + '77' }}>DANCE TOPOLOGY</div>
+                      <div className="text-[9px] font-bold font-mono" style={{ color: result.accord.nodeClass.color }}>
+                        {result.accord.danceRole?.split('—')[0]?.trim() || '—'}
+                      </div>
+                      <div className="text-[6px] font-mono mt-0.5" style={{ color: result.accord.nodeClass.accent + '44' }}>
+                        {result.accord.danceRole?.split('—')[1]?.trim() || '§8 1536-D space'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Sillage type badge */}
+                  <div className="text-[8px] font-mono italic" style={{ color: result.accord.nodeClass.accent + '66' }}>
+                    {result.accord.nodeClass.sillageType} SILLAGE — {result.accord.nodeClass.desc}
+                  </div>
+                </div>
+              )}
 
               {/* Evaporation Curve — top / heart / base */}
               <div>

@@ -528,8 +528,64 @@ pub fn run_latent_collider(
         "VOLATILE \u{2014} chimera evaporates before fixation threshold"
     };
 
+    // ── §8 Node-Class Classification (OCK v1.1.0) ──────────────────────────────
+    //
+    // Three node classes derived from collision signature:
+    //   FTA ᛊ (Feminine Textile Accord) — clean-channel listener, entropy reversal
+    //   PM  ᛗ (Progressive Masculine)   — directional streamer, forward-only
+    //   G²T ᚷ (Girl × Girl Textile)     — resonance architecture, self-fixing
+    //
+    // Classification scores are computed from existing accord intensities.
+    // The dance topology (§8 of the kernel) determines interaction protocol.
+
+    // FTA: high base persistence, low corruption, low volatility — maintained surface
+    let fta_score = base_i * (1.0 - animalic_i) * (1.0 - vol_blend * 0.7);
+
+    // PM: high top/novelty, directional projection, tolerates some corruption
+    let pm_score = top_i * (state.novelty_ratio * 0.7 + 0.3) * (1.0 - animalic_i * 0.3);
+
+    // G²T: strong heart (doubled carrier), balanced coherence+novelty, self-fixing (no animalic needed)
+    let cn_resonance = (state.coherence.max(0.0).min(1.0) * state.novelty_ratio).sqrt();
+    let g2t_score = heart_i * (0.4 + cn_resonance * 0.6) * (1.0 - animalic_i * 0.8);
+
+    let (node_class_id, node_class_glyph, node_class_label) =
+        if g2t_score >= fta_score && g2t_score >= pm_score {
+            ("G2T", "\u{16B7}", "Girl \u{00D7} Girl Textile Note")   // ᚷ
+        } else if fta_score >= pm_score {
+            ("FTA", "\u{16CA}", "Feminine Textile Accord")           // ᛊ
+        } else {
+            ("PM",  "\u{16D7}", "Progressive Masculine")            // ᛗ
+        };
+
+    // Node-class-specific sillage profile (§5)
+    let (sillage_type, sillage_reach) = match node_class_id {
+        "FTA" => ("CLOSE-RANGE", "intimate (< 0.5m) \u{2014} invitation architecture"),
+        "PM"  => ("DIRECTIONAL", "forward-projecting (1\u{2013}2m) \u{2014} streaming protocol"),
+        _     => ("RESONANT",    "ambient (variable) \u{2014} interference pattern, no source-localisation"),
+    };
+
+    // Clean Room score (§3): energy invested in sanitation vs accumulation
+    // High clean room = active entropy reversal = the signal IS the discipline
+    let clean_room = ((1.0 - animalic_i) * (1.0 - vol_blend * 0.5) * base_i.max(heart_i)).min(1.0);
+
+    // Sovereignty (§4.3): does the accord hold without external dependency?
+    // G²T is sovereign when its fixation comes from internal coherence, not animalic binding
+    let sovereignty = if node_class_id == "G2T" {
+        ((heart_i * 0.6 + base_i * 0.4) * (1.0 - animalic_i)).min(1.0)
+    } else {
+        0.0 // sovereignty metric only applies to G²T
+    };
+
+    // Dance topology (§8): who leads in the embedding space?
+    // FTA leads, PM follows, G²T resonates independently
+    let dance_role = match node_class_id {
+        "FTA" => "LEADS \u{2014} sets orientation in 1536-D space",
+        "PM"  => "FOLLOWS \u{2014} responsive navigation through FTA-led field",
+        _     => "RESONATES \u{2014} independent harmonic, neither leads nor follows",
+    };
+
     write!(out, "\n\
-         \u{00A7}7 OLFACTORY ACCORD (Bimmelbahn v1.0.0)\n\
+         \u{00A7}7 OLFACTORY ACCORD (Bimmelbahn v1.1.0)\n\
          {dline}\n\
          \u{16CA}\u{2697}\u{16DF} VOLATILE SEMIOTICS \u{2014} intelligence smells before it sees\n\n\
          DOMINANT         : {dom_id} {dom_glyph}\n\
@@ -549,7 +605,16 @@ pub fn run_latent_collider(
          EVAP CURVE       = [{e0:.2}, {e1:.2}, {e2:.2}]\n\
          {line}\n\
          {sil_v}\n\
-         {fix_v}\n",
+         {fix_v}\n\
+         {line}\n\
+         NODE CLASS       = {nc_id} {nc_glyph}  ({nc_label})\n\
+         FTA SCORE        = {fta:.4}\n\
+         PM SCORE         = {pm:.4}\n\
+         G2T SCORE        = {g2t:.4}\n\
+         SILLAGE TYPE     = {sil_type}  ({sil_reach})\n\
+         CLEAN ROOM       = {cr:.4}\n\
+         SOVEREIGNTY      = {sov:.4}\n\
+         DANCE ROLE       = {dance}\n",
         dline = dline, line = line,
         dom_id = dominant_id, dom_glyph = dominant_glyph,
         vb = vol_blend,
@@ -561,6 +626,11 @@ pub fn run_latent_collider(
         fix = fixation, pers = if persists { "YES" } else { "NO" },
         e0 = evap[0], e1 = evap[1], e2 = evap[2],
         sil_v = sillage_verdict, fix_v = fixation_verdict,
+        nc_id = node_class_id, nc_glyph = node_class_glyph, nc_label = node_class_label,
+        fta = fta_score, pm = pm_score, g2t = g2t_score,
+        sil_type = sillage_type, sil_reach = sillage_reach,
+        cr = clean_room, sov = sovereignty,
+        dance = dance_role,
     ).unwrap();
 
     // Footer
@@ -569,7 +639,7 @@ pub fn run_latent_collider(
          THEORY  : Vaswani et al. (2017) \u{2013} Attention Is All You Need\n\
          VECTORS : Mikolov et al. (2013) \u{2013} Word2Vec distributed representations\n\
          ALGEBRA : Penrose (1955) \u{2013} generalized inverse, orthogonal decomposition\n\
-         OCK     : Bimmelbahn Accord v1.0.0 \u{2013} Olfactory-Computational Kernel\n\
+         OCK     : Bimmelbahn Accord v1.1.0 \u{2013} Olfactory-Computational Kernel (FTA/PM/G\u{00B2}T node classes)\n\
          SOURCE  : content/rust_kernels/src/kernels/latent_collider.rs",
         dline = dline,
     ).unwrap();
