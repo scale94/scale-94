@@ -834,11 +834,11 @@ export default function LatentCollider() {
                     </span>
                   </div>
                   <div className="text-[9px] font-mono text-amber-500/40">
-                    Bimmelbahn Accord · OCK v1.0.0 · intelligence smells before it sees
+                    Bimmelbahn Accord · OCK v1.0.0
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-sm font-bold font-mono" style={{ color: result.accord.dominant.color }}>
+                <div className="text-right shrink-0 ml-2">
+                  <div className="text-sm font-bold font-mono whitespace-nowrap" style={{ color: result.accord.dominant.color }}>
                     {result.accord.dominant.glyph} {result.accord.dominant.label.toUpperCase()}
                   </div>
                   <div className="text-[8px] font-mono text-cyan-600/40">dominant accord</div>
@@ -922,24 +922,26 @@ export default function LatentCollider() {
                 <div className="text-[9px] font-bold text-amber-400/60 uppercase tracking-widest mb-2">
                   ᛊ⚗ᛟ SOMA SHOP — TESSERACT KEY EXCHANGE
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   {SHOP_MANIFEST.map(item => {
-                    // Highlight the manifest item matching the dominant accord
                     const isDominant =
-                      (result.accord.dominant.id === 'citrus' && item.id === 'CITRUS-SSH-01') ||
-                      (result.accord.dominant.id === 'floral' && item.id === 'FLORAL-DAEMON-V2') ||
+                      (result.accord.dominant.id === 'citrus'   && item.id === 'CITRUS-SSH-01') ||
+                      (result.accord.dominant.id === 'floral'   && item.id === 'FLORAL-DAEMON-V2') ||
                       (result.accord.dominant.id === 'animalic' && item.id === 'ANIMALIC-FIX-FS') ||
-                      (result.accord.dominant.id === 'woody' && item.id === 'RESIN-ARCHIVE-DEEP');
+                      (result.accord.dominant.id === 'woody'    && item.id === 'RESIN-ARCHIVE-DEEP');
                     return (
                       <div key={item.id}
-                        className={`flex items-center gap-2 text-[9px] font-mono py-0.5 px-1 rounded ${isDominant ? 'bg-amber-500/10 border border-amber-500/20' : ''}`}>
-                        <span className={`w-32 shrink-0 ${isDominant ? 'text-amber-300/80 font-bold' : 'text-amber-400/40'}`}>
-                          {item.id}
-                        </span>
-                        <span className="w-20 shrink-0 text-fuchsia-400/40">{item.olfClass}</span>
-                        <span className="flex-1 text-cyan-600/30 hidden sm:inline">{item.fn}</span>
-                        <span className="text-amber-600/25 text-[8px] font-mono">{item.key}</span>
-                        {isDominant && <span className="text-amber-400 text-[8px]">◄ ACTIVE</span>}
+                        className={`text-[9px] font-mono py-1 px-1.5 rounded ${isDominant ? 'bg-amber-500/10 border border-amber-500/20' : ''}`}>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className={`${isDominant ? 'text-amber-300/90 font-bold' : 'text-amber-400/50'}`}>
+                            {item.id}
+                          </span>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-fuchsia-400/40">{item.olfClass}</span>
+                            {isDominant && <span className="text-amber-400 text-[8px]">◄ ACTIVE</span>}
+                          </div>
+                        </div>
+                        <div className="text-[7px] text-amber-600/20 mt-0.5 truncate">{item.key}</div>
                       </div>
                     );
                   })}
