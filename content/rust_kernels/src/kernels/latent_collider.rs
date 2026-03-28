@@ -126,6 +126,12 @@ struct CollisionState {
     synthesis_norm:      f64,    // ‖S‖ = ‖P_⊥‖ × cos(θ)^(1/3)
     coherence:           f64,    // 1 – attention_entropy / ln(d_k)
     viability:           f64,    // synthesis_norm × coherence – will this chimera survive?
+
+    // Interaction terms (v1.2.0) – off-diagonal property tensor
+    interference:        f64,    // sparsity × curvature cross-product
+    catalysis:           f64,    // volatility × curvature geometric mean
+    resonance_freq:      f64,    // harmonic mean of domain densities
+    turbulence:          f64,    // volatility_delta × interference
 }
 
 // ── Simulated vector generation ──────────────────────────────────────────────
@@ -199,8 +205,42 @@ fn simulate_collision(a: &ConceptDomain, b: &ConceptDomain) -> CollisionState {
     // Max sparsity range: 0.74 - 0.28 = 0.46.  Max curvature range: 0.96 - 0.15 = 0.81.
     let sparsity_delta  = (a.sparsity - b.sparsity).abs();
     let curvature_delta = (a.curvature - b.curvature).abs();
+    let volatility_delta = (a.volatility - b.volatility).abs();
     let property_novelty = (sparsity_delta + curvature_delta) / (0.46 + 0.81); // → [0, 1]
     let novelty = property_novelty.clamp(0.0, 1.0);
+
+    // ── Interaction terms (v1.2.0) ──────────────────────────────────────────
+    // Cross-products between domain properties reveal emergent collision dynamics
+    // that single-axis metrics miss. These are the "off-diagonal" terms in the
+    // property tensor — where the interesting physics lives.
+    //
+    // Interference: sparsity_A × curvature_B + sparsity_B × curvature_A
+    //   High when one domain is sparse and the other is curved — the sparse domain
+    //   has room for the curved domain to project into its null dimensions.
+    let interference = (a.sparsity * b.curvature + b.sparsity * a.curvature) / 2.0;
+
+    // Catalysis: volatility × curvature geometric mean of the pair
+    //   High volatility + high curvature = fast-moving signal through warped space.
+    //   The chimera acts as a catalyst — it accelerates conceptual phase transitions.
+    let catalysis = ((a.volatility * b.curvature).sqrt()
+                   + (b.volatility * a.curvature).sqrt()) / 2.0;
+
+    // Resonance frequency: harmonic mean of (1 - sparsity) values
+    //   Dense dimensions resonate; sparse dimensions absorb. The resonance frequency
+    //   is the rate at which the two domains can exchange information — analogous to
+    //   the natural frequency of a coupled oscillator system.
+    let density_a = 1.0 - a.sparsity;
+    let density_b = 1.0 - b.sparsity;
+    let resonance_freq = if density_a > 0.01 && density_b > 0.01 {
+        2.0 * density_a * density_b / (density_a + density_b) // harmonic mean
+    } else {
+        0.0
+    };
+
+    // Turbulence: volatility_delta × interference — how chaotic is the chimera?
+    //   When parents have different evaporation rates AND their properties cross-talk,
+    //   the chimera is turbulent — it generates novel structure through instability.
+    let turbulence = volatility_delta * interference;
 
     // Synthesis: the chimera lives in the orthogonal complement
     let synth_norm = residual_norm * cosine.abs().powf(1.0 / 3.0);
@@ -223,6 +263,10 @@ fn simulate_collision(a: &ConceptDomain, b: &ConceptDomain) -> CollisionState {
         synthesis_norm:     synth_norm,
         coherence,
         viability,
+        interference,
+        catalysis,
+        resonance_freq,
+        turbulence,
     }
 }
 
@@ -661,6 +705,21 @@ pub fn run_latent_collider(
         "axial \u{00B7} balanced \u{00B7} transitional"
     };
 
+    // ── §10 Interaction Terms (v1.2.0) ─────────────────────────────────────────
+    write!(out, "\n\
+         \u{00A7}10 INTERACTION TERMS (v1.2.0)\n\
+         {line}\n\
+         INTERFERENCE     = {interf:.4}  (sparsity \u{00D7} curvature cross-product)\n\
+         CATALYSIS        = {cat:.4}  (volatility \u{00D7} curvature geometric mean)\n\
+         RESONANCE FREQ   = {res:.4}  (harmonic mean of domain densities)\n\
+         TURBULENCE       = {turb:.4}  (volatility\u{0394} \u{00D7} interference)\n",
+        line = line,
+        interf = state.interference,
+        cat = state.catalysis,
+        res = state.resonance_freq,
+        turb = state.turbulence,
+    ).unwrap();
+
     write!(out, "\n\
          \u{00A7}7 OLFACTORY ACCORD (Bimmelbahn v1.1.0)\n\
          {dline}\n\
@@ -720,6 +779,7 @@ pub fn run_latent_collider(
          VECTORS : Mikolov et al. (2013) \u{2013} Word2Vec distributed representations\n\
          ALGEBRA : Penrose (1955) \u{2013} generalized inverse, orthogonal decomposition\n\
          OCK     : Bimmelbahn Accord v1.1.0 \u{2013} Olfactory-Computational Kernel (RTA/DPA/R\u{00B2}A node classes + polarity)\n\
+         INTERACT: v1.2.0 \u{2013} off-diagonal property tensor (interference, catalysis, resonance, turbulence)\n\
          SOURCE  : content/rust_kernels/src/kernels/latent_collider.rs",
         dline = dline,
     ).unwrap();

@@ -273,6 +273,12 @@ function parseColliderOutput(text) {
       return m ? m[1].split(',').map(Number) : [0.33, 0.33, 0.34];
     })(),
 
+    // §10 Interaction terms (v1.2.0)
+    interference:   num(/INTERFERENCE\s*=\s*([\d.]+)/),
+    catalysis:      num(/CATALYSIS\s*=\s*([\d.]+)/),
+    resonanceFreq:  num(/RESONANCE FREQ\s*=\s*([\d.]+)/),
+    turbulence:     num(/TURBULENCE\s*=\s*([\d.]+)/),
+
     // §8 OCK v1.1.0 — Node-class classification
     ockNodeClass:   str(/NODE CLASS\s*=\s*(\w+)/),
     ockRtaScore:    num(/RTA SCORE\s*=\s*([\d.]+)/),
@@ -371,6 +377,8 @@ export default function LatentCollider() {
 
       parsed.nodeIdA = nodeIdA;
       parsed.nodeIdB = nodeIdB;
+      parsed._domainNameA = DOMAINS[a].name;
+      parsed._domainNameB = DOMAINS[b].name;
 
       // ── OCK: Olfactory accord classification ───────────────────────
       parsed.accord = classifyAccord(parsed);
@@ -736,7 +744,7 @@ export default function LatentCollider() {
             LATENT SPACE COLLIDER
           </h3>
           <div className="text-[10px] text-fuchsia-500/50 font-mono uppercase tracking-widest mt-0.5">
-            // 1536-D CROSS-ATTENTION SYNTHESIS · OCK v1.1.0 · WASM · {phase.toUpperCase()}
+            // 1536-D CROSS-ATTENTION SYNTHESIS · OCK v1.1.0 · INTERACT v1.2.0 · WASM · {phase.toUpperCase()}
           </div>
         </div>
         {(domainA !== null) && (
@@ -1335,6 +1343,67 @@ export default function LatentCollider() {
                         <p className="text-fuchsia-300/35 leading-relaxed">{pq.question}</p>
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ── v1.2.0: Interaction Terms strip ── */}
+              {(narrative.meta.interference > 0 || narrative.meta.catalysis > 0) && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-amber-500/10">
+                  <MetricCard label="INTERFERENCE" value={narrative.meta.interference.toFixed(3)} sub="sparsity × curvature" color="#f59e0b" />
+                  <MetricCard label="CATALYSIS" value={narrative.meta.catalysis.toFixed(3)} sub="volatility × curvature" color="#f59e0b" />
+                  <MetricCard label="RESONANCE" value={narrative.meta.resonanceFreq.toFixed(3)} sub="density harmonic mean" color="#06b6d4" />
+                  <MetricCard label="TURBULENCE" value={narrative.meta.turbulence.toFixed(4)} sub="volΔ × interference" color={narrative.meta.turbulence > 0.04 ? '#f43f5e' : '#06b6d4'} />
+                </div>
+              )}
+
+              {/* ── v1.2.0: Prompt Fragments — the prompt engineer's output ── */}
+              {narrative.promptFragments && narrative.promptFragments.length > 0 && (
+                <div className="border-t border-[#39ff14]/15 pt-4">
+                  <div className="text-[10px] font-bold text-[#39ff14]/80 uppercase tracking-widest mb-3">
+                    PROMPT FRAGMENTS — copy-paste seeds
+                  </div>
+                  <div className="space-y-2.5">
+                    {narrative.promptFragments.map((frag, i) => (
+                      <div key={i} className="group relative border border-[#39ff14]/15 bg-[#39ff14]/[0.02] rounded p-3 hover:border-[#39ff14]/30 transition-colors">
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <span className="text-[8px] font-bold text-[#39ff14]/50 uppercase tracking-wider">
+                            {frag.source}
+                          </span>
+                          <button
+                            onClick={() => navigator.clipboard?.writeText(frag.text)}
+                            className="text-[8px] font-mono text-[#39ff14]/30 hover:text-[#39ff14]/80 uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            COPY
+                          </button>
+                        </div>
+                        <p className="text-[11px] font-mono text-[#39ff14]/60 leading-relaxed">
+                          {frag.text}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ── v1.2.0: Synthesis Directive — the master prompt ── */}
+              {narrative.synthesisDirective && (
+                <div className="border-t border-cyan-500/15 pt-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-[10px] font-bold text-cyan-400/80 uppercase tracking-widest">
+                      SYNTHESIS DIRECTIVE
+                    </div>
+                    <button
+                      onClick={() => navigator.clipboard?.writeText(narrative.synthesisDirective)}
+                      className="text-[8px] font-mono text-cyan-400/30 hover:text-cyan-400/80 uppercase tracking-wider transition-colors px-2 py-0.5 border border-cyan-500/20 rounded hover:border-cyan-500/40"
+                    >
+                      COPY PROMPT
+                    </button>
+                  </div>
+                  <div className="border border-cyan-500/20 bg-cyan-900/[0.06] rounded-lg p-4">
+                    <p className="text-[11px] font-mono text-cyan-200/70 leading-relaxed">
+                      {narrative.synthesisDirective}
+                    </p>
                   </div>
                 </div>
               )}
