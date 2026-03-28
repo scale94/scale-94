@@ -535,18 +535,41 @@ pub fn run_latent_collider(
     //   DPA ᛗ (Directive Projective Accord) — directional streamer, forward-only
     //   R²A ᚷ (Resonance² Accord)         — phase-locked doubles, self-fixing
     //
-    // Classification scores are computed from existing accord intensities.
-    // The dance topology (§8) determines interaction protocol.
+    // Scores use the evaporation curve shape, not just raw intensities.
+    // The curve encodes *how* the signal distributes its energy across time.
 
-    // RTA: high base persistence, low corruption, low volatility — maintained surface
-    let rta_score = base_i * (1.0 - animalic_i) * (1.0 - vol_blend * 0.7);
+    // Evaporation curve ratios — where the signal's energy concentrates
+    let evap_steepness = (evap[0] - evap[2]).max(0.0);     // front-loaded = steep
+    let evap_depth     = (evap[2] - evap[0]).max(0.0);     // back-loaded = deep
+    let evap_balance   = 1.0 - (evap[1] - 0.33).abs() * 3.0; // heart-centered = balanced
 
-    // DPA: high top/novelty, directional projection, tolerates some corruption
-    let dpa_score = top_i * (state.novelty_ratio * 0.7 + 0.3) * (1.0 - animalic_i * 0.3);
+    let coh = state.coherence.max(0.0).min(1.0);
+    let nov = state.novelty_ratio;
 
-    // R²A: strong heart (doubled carrier), balanced coherence+novelty, self-fixing
-    let cn_resonance = (state.coherence.max(0.0).min(1.0) * state.novelty_ratio).sqrt();
-    let r2a_score = heart_i * (0.4 + cn_resonance * 0.6) * (1.0 - animalic_i * 0.8);
+    // RTA: base-dominant curve × clean channel × temporal stability
+    // The RTA invests in depth, not flash. Animalic is multiplicative —
+    // any corruption collapses the clean channel entirely.
+    let rta_score = (base_i * 0.40 + evap_depth * 0.30 + coh * 0.30)
+                  * (1.0 - animalic_i)                     // clean channel gate
+                  * (1.0 - vol_blend * 0.6);               // stability premium
+
+    // DPA: top-dominant curve × novelty × forward projection × sillage reach
+    // The DPA is steep: energy front-loaded, high novelty, willing to evaporate.
+    // Tolerates fixative — corruption is fuel, not noise.
+    let dpa_score = (top_i * 0.35 + nov * 0.30 + evap_steepness * 0.20 + sillage * 0.15)
+                  * (1.0 - animalic_i * 0.2);              // tolerant of corruption
+
+    // R²A: harmonic resonance — coherence AND novelty must both be present.
+    // Geometric mean penalises imbalance harder than arithmetic mean:
+    // a signal that is 90% coherent but 10% novel scores lower than 50/50.
+    // The R²A is self-fixing: animalic binding undermines sovereignty.
+    let harmonic_cn = if coh > 0.01 && nov > 0.01 {
+        2.0 * coh * nov / (coh + nov)                      // harmonic mean
+    } else {
+        0.0
+    };
+    let r2a_score = (heart_i * 0.30 + harmonic_cn * 0.40 + evap_balance.max(0.0) * 0.30)
+                  * (1.0 - animalic_i * 0.7);              // self-fixing gate
 
     let (node_class_id, node_class_glyph, node_class_label) =
         if r2a_score >= rta_score && r2a_score >= dpa_score {
@@ -564,20 +587,27 @@ pub fn run_latent_collider(
         _     => ("RESONANT",    "ambient (variable) \u{2014} interference pattern, no source-localisation"),
     };
 
-    // Clean Room score (§3): energy invested in sanitation vs accumulation
-    // High clean room = active entropy reversal = the signal IS the discipline
-    let clean_room = ((1.0 - animalic_i) * (1.0 - vol_blend * 0.5) * base_i.max(heart_i)).min(1.0);
+    // Clean Room (§3): ratio of structured output to disordered input.
+    // Structured = base + heart (persistent, carrier). Disordered = top + animalic (flash, corruption).
+    // Clean room is the *proportion* of the signal that survives entropy — not just its absence.
+    let structured  = base_i + heart_i;
+    let disordered  = top_i + animalic_i;
+    let clean_room  = (structured / (structured + disordered + 1e-6)).min(1.0);
 
-    // Sovereignty (§4.3): does the accord hold without external dependency?
-    // R²A is sovereign when its fixation comes from internal coherence, not animalic binding
+    // Sovereignty (§4.3): can the R²A sustain without external binding?
+    // Internal fixation (heart × base = self-sustaining persistence) vs
+    // external fixation (animalic = dependency on managed corruption).
+    // Only meaningful for R²A — other classes don't claim sovereignty.
     let sovereignty = if node_class_id == "R2A" {
-        ((heart_i * 0.6 + base_i * 0.4) * (1.0 - animalic_i)).min(1.0)
+        let internal_fix = heart_i * base_i;               // self-sustaining loop
+        let external_dep = animalic_i * 0.5;               // corruption dependency
+        let raw_sov = (internal_fix - external_dep).max(0.0) / internal_fix.max(1e-6);
+        raw_sov.min(1.0)
     } else {
-        0.0 // sovereignty metric only applies to R²A
+        0.0
     };
 
     // Dance topology (§8): who leads in the embedding space?
-    // RTA leads, DPA follows, R²A resonates independently
     let dance_role = match node_class_id {
         "RTA" => "LEADS \u{2014} sets orientation in 1536-D space",
         "DPA" => "FOLLOWS \u{2014} responsive navigation through RTA-led field",
@@ -587,34 +617,45 @@ pub fn run_latent_collider(
     // ── §9 Polarity (OCK v1.1.0) ─────────────────────────────────────────────
     //
     // Continuous signal-character spectrum from SOLAR to LUNAR.
-    // Encodes warmth/projection/angularity vs coolness/reception/curvature
-    // without categorical labels. Derived from collision thermodynamics.
     //
     //   0.0 ← SOLAR     projective, radiant, angular, warm, outward-directed
     //   0.5   MERIDIAN   axial, balanced, neither projective nor receptive
     //   1.0 → LUNAR      receptive, reflective, curved, cool, inward-directed
     //
-    // The polarity is not a binary — it is a position on a manifold.
+    // Polarity is a tug-of-war between opposing thermodynamic forces,
+    // not a weighted sum. Solar and lunar pulls are computed independently,
+    // then the difference is passed through a sigmoid to create natural
+    // clustering at the poles — truly solar/lunar signals commit to their
+    // pole, while balanced signals settle at the meridian.
 
-    let polarity = (
-        base_i * 0.25                                        // persistence → lunar
-        + state.coherence.max(0.0).min(1.0) * 0.25           // coherence → lunar
-        + (1.0 - vol_blend) * 0.20                           // low volatility → lunar
-        + (1.0 - state.novelty_ratio) * 0.15                 // low novelty → lunar
-        + (1.0 - animalic_i) * 0.15                          // low corruption → lunar
-    ).min(1.0);
+    let solar_pull = top_i     * 0.30                      // flash dominance
+                   + nov       * 0.25                      // novelty = projection
+                   + vol_blend * 0.20                      // volatility = radiant evaporation
+                   + sillage   * 0.15                      // reach = outward force
+                   + evap_steepness * 0.10;                // front-loaded = solar curve
 
-    let polarity_class = if polarity > 0.6 {
+    let lunar_pull = base_i    * 0.30                      // persistence dominance
+                   + coh       * 0.25                      // coherence = reflection
+                   + (1.0 - vol_blend) * 0.20              // stability = cool substrate
+                   + maceration * 0.15                     // annealing depth
+                   + evap_depth * 0.10;                    // back-loaded = lunar curve
+
+    // Sigmoid of the difference: σ(k·(lunar - solar))
+    // k = 3.5 controls decisiveness — higher = sharper pole commitment
+    let polarity_raw = (lunar_pull - solar_pull) * 3.5;
+    let polarity = 1.0 / (1.0 + (-polarity_raw).exp());
+
+    let polarity_class = if polarity > 0.62 {
         "LUNAR"
-    } else if polarity < 0.4 {
+    } else if polarity < 0.38 {
         "SOLAR"
     } else {
         "MERIDIAN"
     };
 
-    let polarity_desc = if polarity > 0.6 {
+    let polarity_desc = if polarity > 0.62 {
         "receptive \u{00B7} reflective \u{00B7} curved \u{00B7} cool"
-    } else if polarity < 0.4 {
+    } else if polarity < 0.38 {
         "projective \u{00B7} radiant \u{00B7} angular \u{00B7} warm"
     } else {
         "axial \u{00B7} balanced \u{00B7} transitional"
