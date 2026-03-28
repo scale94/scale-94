@@ -216,16 +216,22 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
   // Fire sphere on kernel-complete (loadingKernel → null transition)
   const prevKernelRef = useRef(null);
   // isSpinning stays true for one full rotation (0.9s) after loadingKernel clears,
-  // so the branch icon completes its cycle and lands at 0° before switching to glow.
-  const [isSpinning, setIsSpinning] = useState(false);
+  // so the branch icon completes its cycle and lands at 0° before the deceleration phase.
+  const [isSpinning,  setIsSpinning]  = useState(false);
+  const [isStopping,  setIsStopping]  = useState(false);
+  const [isFading,    setIsFading]    = useState(false);
   const spinTimerRef = useRef(null);
   useEffect(() => {
     if (loadingKernel) {
       clearTimeout(spinTimerRef.current);
+      setIsStopping(false);
       setIsSpinning(true);
     } else if (prevKernelRef.current) {
-      // kernel just finished — let the icon complete one last rotation
-      spinTimerRef.current = setTimeout(() => setIsSpinning(false), 900);
+      // kernel just finished — wait for the icon to land at 0°, then decelerate
+      spinTimerRef.current = setTimeout(() => {
+        setIsSpinning(false);
+        setIsStopping(true);
+      }, 900);
       sphereFireRef.current = { ts: Date.now() };
     }
     prevKernelRef.current = loadingKernel;
@@ -366,6 +372,15 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
       @keyframes sk-branchSpin {
         0%   { transform: rotate(0deg);   filter: drop-shadow(0 0 6px rgba(6,182,212,0.9)); }
         100% { transform: rotate(360deg); filter: drop-shadow(0 0 12px rgba(6,182,212,1)) drop-shadow(0 0 24px rgba(6,182,212,0.4)); }
+      }
+      @keyframes sk-branchSpinStop {
+        0%   { transform: rotate(0deg);   filter: drop-shadow(0 0 12px rgba(6,182,212,1)) drop-shadow(0 0 24px rgba(6,182,212,0.4)); }
+        100% { transform: rotate(360deg); filter: drop-shadow(0 0 3px rgba(6,182,212,0.4)); }
+      }
+      @keyframes sk-branchClickFade {
+        0%   { opacity: 1;    filter: drop-shadow(0 0 4px rgba(6,182,212,0.5)); }
+        35%  { opacity: 0.04; filter: drop-shadow(0 0 0px rgba(6,182,212,0));   }
+        100% { opacity: 1;    filter: drop-shadow(0 0 8px rgba(6,182,212,0.8)); }
       }
       @keyframes sk-axiomBreath {
         0%, 100% { box-shadow: 0 0 6px rgba(57,255,20,0.06), inset 0 0 20px rgba(0,0,0,0.4); }
@@ -596,8 +611,16 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
           <h3 className="text-base font-bold mb-4 flex items-center gap-2 shrink-0">
             <GitBranch
               className="w-4 h-4 shrink-0 text-[#06b6d4]"
+              onAnimationEnd={(e) => {
+                if (e.animationName === 'sk-branchSpinStop') setIsStopping(false);
+                if (e.animationName === 'sk-branchClickFade') setIsFading(false);
+              }}
               style={{ animation: isSpinning
                 ? 'sk-branchSpin 0.9s linear infinite'
+                : isStopping
+                ? 'sk-branchSpinStop 1.4s cubic-bezier(0.08, 0.6, 0.12, 1.0) forwards'
+                : isFading
+                ? 'sk-branchClickFade 0.35s ease-out'
                 : 'sk-kernelIconReveal 0.8s cubic-bezier(0.16,1,0.3,1) forwards, sk-treeGlow 2.5s ease-in-out 0.8s infinite' }}
             />
             <span
@@ -616,6 +639,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
                 <li
                   key={kernel.id}
                   onClick={() => {
+                    setIsFading(true);
                     sphereFireRef.current = { ts: Date.now() };
                     handleKernelClick && handleKernelClick(kernel);
                     if (mobileAutoRun && window.matchMedia('(max-width: 767px)').matches) {
@@ -643,7 +667,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
                   </div>
                   <div className="flex items-center gap-1 shrink-0 ml-auto">
                     <div
-                      onClick={(e) => { e.stopPropagation(); sphereFireRef.current = { ts: Date.now() }; handleKernelClick && handleKernelClick(kernel); }}
+                      onClick={(e) => { e.stopPropagation(); setIsFading(true); sphereFireRef.current = { ts: Date.now() }; handleKernelClick && handleKernelClick(kernel); }}
                       className={`text-[9px] font-bold px-1.5 py-0.5 rounded-sm border tracking-widest whitespace-nowrap transition-all cursor-pointer ${isLoading ? 'bg-cyan-900/30 border-cyan-400 text-cyan-300' : 'bg-transparent border-cyan-500/60 text-cyan-500 hover:border-cyan-400 hover:text-cyan-300'}`}
                     >
                       {isLoading ? '...' : '[load]'}

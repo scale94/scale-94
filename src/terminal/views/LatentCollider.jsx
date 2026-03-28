@@ -4,6 +4,7 @@ import {
   FEATURES, NODE_IDX, DIM_NAMES,
   cosineSim, topDrivers, analyzeFullEdge, extractParadoxes,
 } from '../data/nodeFeatures';
+import { useColliderNarrative } from '../hooks/useColliderNarrative';
 
 // ── Collider Event Bus ───────────────────────────────────────────────────────
 // Cross-tab coupling: emits chimera synthesis results so the Art tab sphere
@@ -26,6 +27,85 @@ export const colliderBus = {
     return () => { this._listeners = this._listeners.filter(f => f !== fn); };
   },
 };
+
+// ── Olfactory-Computational Kernel v1.0.0 (Bimmelbahn Accord) ────────────────
+// Maps collision metrics to the OCK volatile semiotics framework.
+// Intelligence smells before it sees.
+
+const OLFACTORY_FAMILIES = [
+  { id: 'citrus',   glyph: 'ᛏ', label: 'Top Note',  class: 'CITRUS-SSH',       color: '#FFD700', desc: 'Flash-evaporation interrupt handler' },
+  { id: 'floral',   glyph: 'ᚺ', label: 'Heart Note', class: 'FLORAL-DAEMON',    color: '#d946ef', desc: 'Persistent carrier signal' },
+  { id: 'woody',    glyph: 'ᛒ', label: 'Base Note',  class: 'RESIN-ARCHIVE',    color: '#8B4513', desc: 'Deep-time persistent storage' },
+  { id: 'animalic', glyph: 'ᛊ', label: 'Fixative',   class: 'ANIMALIC-FIX-FS',  color: '#f43f5e', desc: 'Managed corruption binding agent' },
+  { id: 'aromatic', glyph: 'ᚱ', label: 'Adaptive',   class: 'AROMATIC-ROUTE',   color: '#39ff14', desc: 'Temperature-sensitive routing' },
+  { id: 'ozonic',   glyph: 'ᛗ', label: 'Broadcast',  class: 'OZONIC-CAST',      color: '#06b6d4', desc: 'Diffuse ambient propagation' },
+];
+
+const SHOP_MANIFEST = [
+  { id: 'CITRUS-SSH-01',      olfClass: 'Top Note ᛏ',  fn: 'Interrupt Handler',                     key: '0x5343-414c-4539-3454-4f50-4e4f-5445' },
+  { id: 'FLORAL-DAEMON-V2',   olfClass: 'Heart Note ᚺ', fn: 'Persistent Process',                    key: '0x4249-4d4d-454c-4241-484e-4845-4152' },
+  { id: 'ANIMALIC-FIX-FS',    olfClass: 'Animalic',     fn: 'Fish Scale Fixative',                   key: '0x434f-5252-5550-5449-4f4e-4241-5345' },
+  { id: 'RESIN-ARCHIVE-DEEP', olfClass: 'Resinous',     fn: 'Cold Storage',                          key: '0x4445-4550-5449-4d45-5349-474e-414c' },
+];
+
+// Classify a collision result into its olfactory accord
+function classifyAccord(result) {
+  if (!result) return null;
+  const { novelty, coherence, viability, paradoxes, postSaponificationSim } = result;
+  const paradoxCount = paradoxes?.length || 0;
+
+  // ── Accord decomposition: what fraction is top/heart/base/animalic
+  // Top note: novelty-dominant, low coherence — bright flash, no persistence
+  const topIntensity = Math.min(1, novelty * 1.2) * (1 - coherence * 0.5);
+  // Heart note: balanced novelty+coherence — the carrier signal
+  const heartIntensity = Math.min(1, coherence * 0.8 + novelty * 0.3);
+  // Base note: high coherence, low novelty — deep structural resonance
+  const baseIntensity = Math.min(1, coherence * 1.1) * (1 - novelty * 0.4);
+  // Animalic: paradox density — managed corruption that binds
+  const animalicIntensity = Math.min(1, paradoxCount / 12);
+
+  // ── Sillage = signal reach at low concentration (viability-derived)
+  const sillage = viability != null ? Math.min(10, viability) / 10 : 0;
+
+  // ── Maceration residual: post-saponification sim → annealing depth
+  const maceration = postSaponificationSim != null ? postSaponificationSim : 0;
+
+  // ── Dominant accord
+  const accords = [
+    { family: 'citrus',   intensity: topIntensity },
+    { family: 'floral',   intensity: heartIntensity },
+    { family: 'woody',    intensity: baseIntensity },
+    { family: 'animalic', intensity: animalicIntensity },
+  ];
+  accords.sort((a, b) => b.intensity - a.intensity);
+  const dominant = OLFACTORY_FAMILIES.find(f => f.id === accords[0].family);
+
+  // ── Evaporation curve: [top, heart, base] normalized
+  const total = topIntensity + heartIntensity + baseIntensity || 1;
+  const evapCurve = [topIntensity / total, heartIntensity / total, baseIntensity / total];
+
+  // ── Bimmelbahn permeability: how much ambient contamination the signal carries
+  // High novelty + high paradox = permeable transport (Bimmelbahn open-window topology)
+  const permeability = Math.min(1, (novelty * 0.6 + paradoxCount * 0.04));
+
+  return {
+    dominant,
+    accords,
+    sillage,
+    maceration,
+    evapCurve,
+    permeability,
+    topIntensity,
+    heartIntensity,
+    baseIntensity,
+    animalicIntensity,
+    verdict: sillage > 0.6
+      ? 'HIGH SILLAGE — signal propagates beyond the wearer'
+      : sillage > 0.3
+      ? 'MODERATE SILLAGE — detectable within conversational radius'
+      : 'LOW SILLAGE — intimate projection only',
+  };
+}
 
 // ── Domain library (mirrors the 16 domains in latent_collider.rs) ────────────
 const DOMAINS = [
@@ -134,6 +214,7 @@ export default function LatentCollider() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [phase, setPhase] = useState('idle');
+  const narrative = useColliderNarrative(result);
 
   // ── Run the WASM collision ─────────────────────────────────────────────────
   const runCollision = useCallback(async (a, b) => {
@@ -181,6 +262,9 @@ export default function LatentCollider() {
       parsed.nodeIdA = nodeIdA;
       parsed.nodeIdB = nodeIdB;
 
+      // ── OCK: Olfactory accord classification ───────────────────────
+      parsed.accord = classifyAccord(parsed);
+
       metricsRef.current = parsed;
       setResult(parsed);
       setPhase('colliding');
@@ -204,6 +288,12 @@ export default function LatentCollider() {
         viability:   parsed.viability,
         hueA:        DOMAINS[a].hue,
         hueB:        DOMAINS[b].hue,
+        accord:      parsed.accord ? {
+          dominant:     parsed.accord.dominant.id,
+          sillage:      parsed.accord.sillage,
+          permeability: parsed.accord.permeability,
+          evapCurve:    parsed.accord.evapCurve,
+        } : null,
       });
     } catch (e) {
       console.error('[COLLIDER] WASM error:', e);
@@ -384,10 +474,26 @@ export default function LatentCollider() {
           ps.push(createParticle(
             cx + Math.cos(angle) * radius,
             cy + Math.sin(angle) * radius,
-            (hueA + hueB) / 2, // blended hue
+            (hueA + hueB) / 2, // blended hue — volatile decomposition
             Math.cos(angle + Math.PI / 2) * 0.5,
             Math.sin(angle + Math.PI / 2) * 0.5,
             'chimera'
+          ));
+        }
+      }
+
+      // ── OCK: Vapor trail particles (sillage visualization) ────────────
+      // Rising wisps that represent the accord's volatile decomposition
+      if (ph === 'colliding' && t > 60 && t < 140 && t % 6 === 0) {
+        const vaporX = cx + (Math.random() - 0.5) * 50;
+        // Amber/gold hue for olfactory layer
+        if (ps.length < MAX_PARTICLES) {
+          ps.push(createParticle(
+            vaporX, cy + 10,
+            40, // amber hue
+            (Math.random() - 0.5) * 0.3,
+            -(0.3 + Math.random() * 0.8), // rises upward
+            'chimera' // reuse chimera type for the glow effect
           ));
         }
       }
@@ -511,7 +617,7 @@ export default function LatentCollider() {
             LATENT SPACE COLLIDER
           </h3>
           <div className="text-[10px] text-fuchsia-500/50 font-mono uppercase tracking-widest mt-0.5">
-            // 1536-D CROSS-ATTENTION SYNTHESIS · WASM · {phase.toUpperCase()}
+            // 1536-D CROSS-ATTENTION SYNTHESIS · OCK v1.0.0 · WASM · {phase.toUpperCase()}
           </div>
         </div>
         {(domainA !== null) && (
@@ -710,6 +816,228 @@ export default function LatentCollider() {
               <div className="text-[9px] font-mono text-[#39ff14]/30">
                 All dimensional tensions resolved within 32 saponification rounds. These domains are geometrically compatible.
               </div>
+            </div>
+          )}
+
+          {/* ── Volatile Semiotics — OCK Olfactory Accord ── */}
+          {result.accord && (
+            <div className="border-t border-amber-500/20 pt-5 space-y-4"
+              style={{ opacity: 0, animation: 'sc-cardReveal 0.6s cubic-bezier(0.16,1,0.3,1) 0.2s forwards' }}>
+
+              {/* Header */}
+              <div className="flex items-baseline justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-base" style={{ textShadow: '0 0 8px rgba(255,215,0,0.6)' }}>ᛊ⚗ᛟ</span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: result.accord.dominant.color }}>
+                      VOLATILE SEMIOTICS
+                    </span>
+                  </div>
+                  <div className="text-[9px] font-mono text-amber-500/40">
+                    Bimmelbahn Accord · OCK v1.0.0 · intelligence smells before it sees
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm font-bold font-mono" style={{ color: result.accord.dominant.color }}>
+                    {result.accord.dominant.glyph} {result.accord.dominant.label.toUpperCase()}
+                  </div>
+                  <div className="text-[8px] font-mono text-cyan-600/40">dominant accord</div>
+                </div>
+              </div>
+
+              {/* Evaporation Curve — top / heart / base */}
+              <div>
+                <div className="text-[9px] font-bold text-amber-400/60 uppercase tracking-widest mb-2">
+                  EVAPORATION CURVE
+                </div>
+                <div className="space-y-1.5">
+                  {[
+                    { label: 'TOP ᛏ',   val: result.accord.topIntensity,      pct: result.accord.evapCurve[0], color: '#FFD700', sub: 'citrus · flash · <15min' },
+                    { label: 'HEART ᚺ',  val: result.accord.heartIntensity,    pct: result.accord.evapCurve[1], color: '#d946ef', sub: 'floral · carrier · 4hr' },
+                    { label: 'BASE ᛒ',   val: result.accord.baseIntensity,     pct: result.accord.evapCurve[2], color: '#8B4513', sub: 'resinous · archive · days' },
+                  ].map(n => (
+                    <div key={n.label} className="flex items-center gap-2 text-[10px] font-mono">
+                      <span className="w-16 shrink-0 text-right" style={{ color: n.color + 'aa' }}>{n.label}</span>
+                      <div className="flex-1 h-2 bg-black/40 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full transition-all duration-700"
+                          style={{
+                            width: `${Math.max(2, n.pct * 100)}%`,
+                            background: `linear-gradient(90deg, ${n.color}, ${n.color}44)`,
+                          }}
+                        />
+                      </div>
+                      <span className="w-10 text-right text-amber-300/40">{(n.val * 100).toFixed(0)}%</span>
+                      <span className="w-32 text-left text-cyan-600/25 text-[8px] hidden sm:inline">{n.sub}</span>
+                    </div>
+                  ))}
+                  {/* Animalic fixative — separate: managed corruption */}
+                  <div className="flex items-center gap-2 text-[10px] font-mono mt-1 pt-1 border-t border-amber-900/15">
+                    <span className="w-16 shrink-0 text-right text-rose-400/60">FIX ᛊ</span>
+                    <div className="flex-1 h-2 bg-black/40 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full transition-all duration-700"
+                        style={{
+                          width: `${Math.max(2, result.accord.animalicIntensity * 100)}%`,
+                          background: 'linear-gradient(90deg, #f43f5e, #f43f5e44)',
+                        }}
+                      />
+                    </div>
+                    <span className="w-10 text-right text-rose-300/40">{(result.accord.animalicIntensity * 100).toFixed(0)}%</span>
+                    <span className="w-32 text-left text-cyan-600/25 text-[8px] hidden sm:inline">animalic · fixative · corruption</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Sillage + Maceration + Permeability strip */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="border border-amber-900/20 bg-black/30 rounded p-2.5">
+                  <div className="text-[8px] font-bold text-amber-500/50 uppercase tracking-widest mb-1">SILLAGE</div>
+                  <div className="text-base font-bold font-mono" style={{ color: result.accord.sillage > 0.6 ? '#FFD700' : result.accord.sillage > 0.3 ? '#d946ef' : '#06b6d4' }}>
+                    {(result.accord.sillage * 100).toFixed(0)}%
+                  </div>
+                  <div className="text-[8px] font-mono text-amber-600/30 mt-0.5">signal reach</div>
+                </div>
+                <div className="border border-amber-900/20 bg-black/30 rounded p-2.5">
+                  <div className="text-[8px] font-bold text-amber-500/50 uppercase tracking-widest mb-1">MACERATION</div>
+                  <div className="text-base font-bold font-mono text-amber-400/70">
+                    {result.accord.maceration.toFixed(4)}
+                  </div>
+                  <div className="text-[8px] font-mono text-amber-600/30 mt-0.5">annealing depth</div>
+                </div>
+                <div className="border border-amber-900/20 bg-black/30 rounded p-2.5">
+                  <div className="text-[8px] font-bold text-amber-500/50 uppercase tracking-widest mb-1">PERMEABILITY</div>
+                  <div className="text-base font-bold font-mono" style={{ color: result.accord.permeability > 0.6 ? '#39ff14' : '#06b6d4' }}>
+                    {(result.accord.permeability * 100).toFixed(0)}%
+                  </div>
+                  <div className="text-[8px] font-mono text-amber-600/30 mt-0.5">bimmelbahn Δ</div>
+                </div>
+              </div>
+
+              {/* Sillage verdict */}
+              <div className="text-[9px] font-mono text-amber-400/40 italic">
+                {result.accord.verdict}
+              </div>
+
+              {/* SOMA Shop Manifest — Tesseract Key Exchange */}
+              <div className="border border-amber-500/15 bg-amber-900/5 rounded-lg p-3">
+                <div className="text-[9px] font-bold text-amber-400/60 uppercase tracking-widest mb-2">
+                  ᛊ⚗ᛟ SOMA SHOP — TESSERACT KEY EXCHANGE
+                </div>
+                <div className="space-y-1">
+                  {SHOP_MANIFEST.map(item => {
+                    // Highlight the manifest item matching the dominant accord
+                    const isDominant =
+                      (result.accord.dominant.id === 'citrus' && item.id === 'CITRUS-SSH-01') ||
+                      (result.accord.dominant.id === 'floral' && item.id === 'FLORAL-DAEMON-V2') ||
+                      (result.accord.dominant.id === 'animalic' && item.id === 'ANIMALIC-FIX-FS') ||
+                      (result.accord.dominant.id === 'woody' && item.id === 'RESIN-ARCHIVE-DEEP');
+                    return (
+                      <div key={item.id}
+                        className={`flex items-center gap-2 text-[9px] font-mono py-0.5 px-1 rounded ${isDominant ? 'bg-amber-500/10 border border-amber-500/20' : ''}`}>
+                        <span className={`w-32 shrink-0 ${isDominant ? 'text-amber-300/80 font-bold' : 'text-amber-400/40'}`}>
+                          {item.id}
+                        </span>
+                        <span className="w-20 shrink-0 text-fuchsia-400/40">{item.olfClass}</span>
+                        <span className="flex-1 text-cyan-600/30 hidden sm:inline">{item.fn}</span>
+                        <span className="text-amber-600/25 text-[8px] font-mono">{item.key}</span>
+                        {isDominant && <span className="text-amber-400 text-[8px]">◄ ACTIVE</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="text-[8px] font-mono text-amber-600/20 mt-2 space-y-0.5">
+                  <div>§ TRANSMUTE: raw input of Grey World Noise → distilled through the alembic</div>
+                  <div>§ ANNEALING: data must sit in darkness for one week to reach stable accord</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Decay Products — narrative synthesis ── */}
+          {narrative && (
+            <div className="border-t border-cyan-500/20 pt-5 space-y-4"
+              style={{ opacity: 0, animation: 'sc-cardReveal 0.6s cubic-bezier(0.16,1,0.3,1) 0.3s forwards' }}>
+
+              {/* Regime + Thesis */}
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="text-[10px] font-bold text-[#39ff14]/80 uppercase tracking-widest">
+                    DECAY PRODUCTS
+                  </div>
+                  {narrative.archetype && (
+                    <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-sm border border-cyan-500/30 text-cyan-400/70 tracking-wider">
+                      {narrative.archetype}
+                    </span>
+                  )}
+                  <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-sm border border-fuchsia-500/30 text-fuchsia-400/60 tracking-wider">
+                    {narrative.register}
+                  </span>
+                </div>
+                <p className="text-[11px] font-mono text-cyan-200/60 leading-relaxed">
+                  {narrative.thesis}
+                </p>
+              </div>
+
+              {/* Shared Ground */}
+              {narrative.sharedGround && (
+                <div>
+                  <div className="text-[9px] font-bold text-[#39ff14]/50 uppercase tracking-widest mb-1">
+                    SHARED GROUND
+                  </div>
+                  <p className="text-[10px] font-mono text-[#39ff14]/40 leading-relaxed">
+                    {narrative.sharedGround.narrative}
+                  </p>
+                </div>
+              )}
+
+              {/* Innovation Frontier */}
+              {narrative.frontier && (
+                <div>
+                  <div className="text-[9px] font-bold text-cyan-400/50 uppercase tracking-widest mb-1">
+                    INNOVATION FRONTIER
+                  </div>
+                  <p className="text-[10px] font-mono text-cyan-400/40 leading-relaxed">
+                    {narrative.frontier.narrative}
+                  </p>
+                </div>
+              )}
+
+              {/* Prompt Angles */}
+              {narrative.angles.length > 0 && (
+                <div>
+                  <div className="text-[9px] font-bold text-fuchsia-400/60 uppercase tracking-widest mb-2">
+                    SEMANTIC VECTORS — {narrative.angles.length} angles extracted
+                  </div>
+                  <div className="space-y-3">
+                    {narrative.angles.map((angle, i) => (
+                      <div key={i} className="border border-fuchsia-500/15 bg-fuchsia-900/5 rounded p-3">
+                        <div className="text-[9px] font-bold text-fuchsia-300/70 uppercase tracking-wider mb-1">
+                          {angle.tag}
+                        </div>
+                        <p className="text-[10px] font-mono text-fuchsia-200/40 leading-relaxed">
+                          {angle.vector}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Paradox Questions */}
+              {narrative.paradoxQuestions.length > 0 && (
+                <div>
+                  <div className="text-[9px] font-bold text-fuchsia-500/50 uppercase tracking-widest mb-2">
+                    OPEN QUESTIONS — irreducible tensions
+                  </div>
+                  <div className="space-y-1.5">
+                    {narrative.paradoxQuestions.map((pq, i) => (
+                      <div key={i} className="flex gap-2 text-[10px] font-mono">
+                        <span className="text-fuchsia-500/40 shrink-0">▸</span>
+                        <p className="text-fuchsia-300/35 leading-relaxed">{pq.question}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
