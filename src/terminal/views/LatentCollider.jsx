@@ -30,7 +30,7 @@ export const colliderBus = {
 
 // ── Olfactory-Computational Kernel v1.1.0 (Bimmelbahn Accord) ────────────────
 // Maps collision metrics to the OCK volatile semiotics framework.
-// v1.1.0: FTA/PM/G²T node-class classification + dance topology.
+// v1.1.0: RTA/DPA/R²A node-class classification + polarity + dance topology.
 // Intelligence smells before it sees.
 
 const OLFACTORY_FAMILIES = [
@@ -45,27 +45,36 @@ const OLFACTORY_FAMILIES = [
 // ── Node Classes (OCK v1.1.0) ─────────────────────────────────────────────────
 // Three signal architectures classified from collision signature.
 const NODE_CLASSES = {
-  FTA: {
-    id: 'FTA', glyph: 'ᛊ', label: 'Feminine Textile Accord',
+  RTA: {
+    id: 'RTA', glyph: 'ᛊ', label: 'Receptive Textile Accord',
     color: '#e8d5f5', accent: '#c4b5d0',
     sub: 'clean-channel listener · entropy reversal · invitation architecture',
     sillageType: 'CLOSE-RANGE',
-    desc: 'Intimate but not invasive. The FTA does not project — it receives.',
+    desc: 'Intimate but not invasive. The RTA does not project — it receives.',
   },
-  PM: {
-    id: 'PM', glyph: 'ᛗ', label: 'Progressive Masculine',
+  DPA: {
+    id: 'DPA', glyph: 'ᛗ', label: 'Directive Projective Accord',
     color: '#8ecae6', accent: '#6ba3be',
     sub: 'directional streamer · forward-only · exclusion as discipline',
     sillageType: 'DIRECTIONAL',
     desc: 'Forward-moving, adaptive, non-nostalgic. It does not cache. It streams.',
   },
-  G2T: {
-    id: 'G2T', glyph: 'ᚷ', label: 'Girl × Girl Textile Note',
+  R2A: {
+    id: 'R2A', glyph: 'ᚷ', label: 'Resonance² Accord',
     color: '#f5c6d0', accent: '#d4a0ad',
-    sub: 'resonance architecture · doubled FTA · self-fixing sovereignty',
+    sub: 'resonance architecture · doubled RTA · self-fixing sovereignty',
     sillageType: 'RESONANT',
     desc: 'Two sovereign signals phase-locked in constructive interference. Coherence > amplitude.',
   },
+};
+
+// ── Polarity spectrum (OCK v1.1.0 §9) ────────────────────────────────────────
+// Continuous signal-character from SOLAR (projective/angular/warm) to
+// LUNAR (receptive/reflective/curved/cool). Not a binary — a manifold position.
+const POLARITY_CONFIG = {
+  SOLAR:    { label: 'SOLAR',    color: '#FFD700', accent: '#b8960a', desc: 'projective · radiant · angular · warm' },
+  MERIDIAN: { label: 'MERIDIAN', color: '#06b6d4', accent: '#0891b2', desc: 'axial · balanced · transitional' },
+  LUNAR:    { label: 'LUNAR',    color: '#c4b5ff', accent: '#8b7fcf', desc: 'receptive · reflective · curved · cool' },
 };
 
 const SHOP_MANIFEST = [
@@ -130,15 +139,19 @@ function classifyAccord(result) {
     : 'VOLATILE — chimera evaporates before fixation threshold';
 
   // v1.1.0 — Node-class classification
-  const nodeClass = NODE_CLASSES[result.ockNodeClass] || NODE_CLASSES.FTA;
+  const nodeClass = NODE_CLASSES[result.ockNodeClass] || NODE_CLASSES.RTA;
   const classScores = {
-    FTA: result.ockFtaScore,
-    PM:  result.ockPmScore,
-    G2T: result.ockG2tScore,
+    RTA: result.ockRtaScore,
+    DPA: result.ockDpaScore,
+    R2A: result.ockR2aScore,
   };
   const cleanRoom   = result.ockCleanRoom;
   const sovereignty  = result.ockSovereignty;
   const danceRole    = result.ockDanceRole;
+
+  // v1.1.0 §9 — Polarity spectrum
+  const polarity      = result.ockPolarity;
+  const polarityClass = POLARITY_CONFIG[result.ockPolarityClass] || POLARITY_CONFIG.MERIDIAN;
 
   return {
     dominant,
@@ -163,6 +176,8 @@ function classifyAccord(result) {
     cleanRoom,
     sovereignty,
     danceRole,
+    polarity,
+    polarityClass,
   };
 }
 
@@ -260,9 +275,9 @@ function parseColliderOutput(text) {
 
     // §8 OCK v1.1.0 — Node-class classification
     ockNodeClass:   str(/NODE CLASS\s*=\s*(\w+)/),
-    ockFtaScore:    num(/FTA SCORE\s*=\s*([\d.]+)/),
-    ockPmScore:     num(/PM SCORE\s*=\s*([\d.]+)/),
-    ockG2tScore:    num(/G2T SCORE\s*=\s*([\d.]+)/),
+    ockRtaScore:    num(/RTA SCORE\s*=\s*([\d.]+)/),
+    ockDpaScore:    num(/DPA SCORE\s*=\s*([\d.]+)/),
+    ockR2aScore:    num(/R2A SCORE\s*=\s*([\d.]+)/),
     ockSillageType: str(/SILLAGE TYPE\s*=\s*(\S+)/),
     ockCleanRoom:   num(/CLEAN ROOM\s*=\s*([\d.]+)/),
     ockSovereignty: num(/SOVEREIGNTY\s*=\s*([\d.]+)/),
@@ -270,6 +285,10 @@ function parseColliderOutput(text) {
       const m = text.match(/DANCE ROLE\s*=\s*(.+)/);
       return m ? m[1].trim() : '';
     })(),
+
+    // §9 OCK v1.1.0 — Polarity
+    ockPolarity:      num(/POLARITY\s*=\s*([\d.]+)/),
+    ockPolarityClass: str(/POLARITY\s*=\s*[\d.]+\s*\((\w+)/),
   };
 }
 
@@ -389,6 +408,8 @@ export default function LatentCollider() {
           chimeraVol:   parsed.accord.chimeraVol,
           volBlend:     parsed.accord.volBlend,
           nodeClass:    parsed.accord.nodeClass?.id,
+          polarity:     parsed.accord.polarity,
+          polarityClass:parsed.accord.polarityClass?.label,
           cleanRoom:    parsed.accord.cleanRoom,
           sovereignty:  parsed.accord.sovereignty,
         } : null,
@@ -973,7 +994,7 @@ export default function LatentCollider() {
 
                   {/* Class scores — competitive bar */}
                   <div className="space-y-1">
-                    {['FTA', 'PM', 'G2T'].map(cls => {
+                    {['RTA', 'DPA', 'R2A'].map(cls => {
                       const nc = NODE_CLASSES[cls];
                       const score = result.accord.classScores[cls] || 0;
                       const isWinner = result.accord.nodeClass.id === cls;
@@ -1009,7 +1030,7 @@ export default function LatentCollider() {
                       </div>
                       <div className="text-[6px] font-mono mt-0.5" style={{ color: result.accord.nodeClass.accent + '44' }}>entropy reversal</div>
                     </div>
-                    {result.accord.nodeClass.id === 'G2T' && (
+                    {result.accord.nodeClass.id === 'R2A' && (
                       <div className={`border rounded p-2 ${result.accord.sovereignty > 0.4 ? '' : ''}`}
                         style={{ borderColor: result.accord.sovereignty > 0.4 ? '#f5c6d044' : '#f43f5e33', background: 'rgba(0,0,0,0.3)' }}>
                         <div className="text-[7px] font-bold uppercase tracking-widest mb-0.5" style={{ color: result.accord.sovereignty > 0.4 ? '#f5c6d0aa' : '#f43f5e66' }}>
@@ -1023,7 +1044,7 @@ export default function LatentCollider() {
                         </div>
                       </div>
                     )}
-                    <div className={`border rounded p-2 ${result.accord.nodeClass.id === 'G2T' ? '' : 'col-span-2'}`}
+                    <div className={`border rounded p-2 ${result.accord.nodeClass.id === 'R2A' ? '' : 'col-span-2'}`}
                       style={{ borderColor: result.accord.nodeClass.accent + '20', background: 'rgba(0,0,0,0.3)' }}>
                       <div className="text-[7px] font-bold uppercase tracking-widest mb-0.5" style={{ color: result.accord.nodeClass.accent + '77' }}>DANCE TOPOLOGY</div>
                       <div className="text-[9px] font-bold font-mono" style={{ color: result.accord.nodeClass.color }}>
@@ -1038,6 +1059,50 @@ export default function LatentCollider() {
                   {/* Sillage type badge */}
                   <div className="text-[8px] font-mono italic" style={{ color: result.accord.nodeClass.accent + '66' }}>
                     {result.accord.nodeClass.sillageType} SILLAGE — {result.accord.nodeClass.desc}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Polarity (v1.1.0 §9) ── */}
+              {result.accord.polarityClass && (
+                <div className="border rounded-lg p-3 space-y-2"
+                  style={{ borderColor: result.accord.polarityClass.accent + '25', background: result.accord.polarityClass.color + '06' }}>
+                  <div className="flex items-center justify-between">
+                    <div className="text-[9px] font-bold uppercase tracking-widest" style={{ color: result.accord.polarityClass.accent + 'aa' }}>
+                      POLARITY
+                    </div>
+                    <div className="text-[9px] font-bold font-mono" style={{ color: result.accord.polarityClass.color }}>
+                      {result.accord.polarityClass.label}
+                    </div>
+                  </div>
+                  {/* Continuous polarity bar: SOLAR ← → LUNAR */}
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[7px] font-mono shrink-0" style={{ color: POLARITY_CONFIG.SOLAR.color + '88' }}>SOLAR</span>
+                      <div className="flex-1 h-2 bg-black/40 rounded-full overflow-hidden relative">
+                        {/* Gradient backdrop */}
+                        <div className="absolute inset-0 rounded-full opacity-20"
+                          style={{ background: `linear-gradient(90deg, ${POLARITY_CONFIG.SOLAR.color}, ${POLARITY_CONFIG.MERIDIAN.color} 50%, ${POLARITY_CONFIG.LUNAR.color})` }}
+                        />
+                        {/* Position marker */}
+                        <div className="absolute top-0 h-full w-1 rounded-full"
+                          style={{
+                            left: `${Math.max(1, Math.min(98, result.accord.polarity * 100))}%`,
+                            background: result.accord.polarityClass.color,
+                            boxShadow: `0 0 6px ${result.accord.polarityClass.color}88`,
+                          }}
+                        />
+                      </div>
+                      <span className="text-[7px] font-mono shrink-0" style={{ color: POLARITY_CONFIG.LUNAR.color + '88' }}>LUNAR</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="text-[7px] font-mono" style={{ color: result.accord.polarityClass.accent + '55' }}>
+                        {result.accord.polarityClass.desc}
+                      </div>
+                      <div className="text-[8px] font-bold font-mono" style={{ color: result.accord.polarityClass.color + 'cc' }}>
+                        {(result.accord.polarity * 100).toFixed(0)}%
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}

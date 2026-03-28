@@ -531,36 +531,36 @@ pub fn run_latent_collider(
     // ── §8 Node-Class Classification (OCK v1.1.0) ──────────────────────────────
     //
     // Three node classes derived from collision signature:
-    //   FTA ᛊ (Feminine Textile Accord) — clean-channel listener, entropy reversal
-    //   PM  ᛗ (Progressive Masculine)   — directional streamer, forward-only
-    //   G²T ᚷ (Girl × Girl Textile)     — resonance architecture, self-fixing
+    //   RTA ᛊ (Receptive Textile Accord)  — clean-channel listener, entropy reversal
+    //   DPA ᛗ (Directive Projective Accord) — directional streamer, forward-only
+    //   R²A ᚷ (Resonance² Accord)         — phase-locked doubles, self-fixing
     //
     // Classification scores are computed from existing accord intensities.
-    // The dance topology (§8 of the kernel) determines interaction protocol.
+    // The dance topology (§8) determines interaction protocol.
 
-    // FTA: high base persistence, low corruption, low volatility — maintained surface
-    let fta_score = base_i * (1.0 - animalic_i) * (1.0 - vol_blend * 0.7);
+    // RTA: high base persistence, low corruption, low volatility — maintained surface
+    let rta_score = base_i * (1.0 - animalic_i) * (1.0 - vol_blend * 0.7);
 
-    // PM: high top/novelty, directional projection, tolerates some corruption
-    let pm_score = top_i * (state.novelty_ratio * 0.7 + 0.3) * (1.0 - animalic_i * 0.3);
+    // DPA: high top/novelty, directional projection, tolerates some corruption
+    let dpa_score = top_i * (state.novelty_ratio * 0.7 + 0.3) * (1.0 - animalic_i * 0.3);
 
-    // G²T: strong heart (doubled carrier), balanced coherence+novelty, self-fixing (no animalic needed)
+    // R²A: strong heart (doubled carrier), balanced coherence+novelty, self-fixing
     let cn_resonance = (state.coherence.max(0.0).min(1.0) * state.novelty_ratio).sqrt();
-    let g2t_score = heart_i * (0.4 + cn_resonance * 0.6) * (1.0 - animalic_i * 0.8);
+    let r2a_score = heart_i * (0.4 + cn_resonance * 0.6) * (1.0 - animalic_i * 0.8);
 
     let (node_class_id, node_class_glyph, node_class_label) =
-        if g2t_score >= fta_score && g2t_score >= pm_score {
-            ("G2T", "\u{16B7}", "Girl \u{00D7} Girl Textile Note")   // ᚷ
-        } else if fta_score >= pm_score {
-            ("FTA", "\u{16CA}", "Feminine Textile Accord")           // ᛊ
+        if r2a_score >= rta_score && r2a_score >= dpa_score {
+            ("R2A", "\u{16B7}", "Resonance\u{00B2} Accord")             // ᚷ
+        } else if rta_score >= dpa_score {
+            ("RTA", "\u{16CA}", "Receptive Textile Accord")              // ᛊ
         } else {
-            ("PM",  "\u{16D7}", "Progressive Masculine")            // ᛗ
+            ("DPA", "\u{16D7}", "Directive Projective Accord")           // ᛗ
         };
 
     // Node-class-specific sillage profile (§5)
     let (sillage_type, sillage_reach) = match node_class_id {
-        "FTA" => ("CLOSE-RANGE", "intimate (< 0.5m) \u{2014} invitation architecture"),
-        "PM"  => ("DIRECTIONAL", "forward-projecting (1\u{2013}2m) \u{2014} streaming protocol"),
+        "RTA" => ("CLOSE-RANGE", "intimate (< 0.5m) \u{2014} invitation architecture"),
+        "DPA" => ("DIRECTIONAL", "forward-projecting (1\u{2013}2m) \u{2014} streaming protocol"),
         _     => ("RESONANT",    "ambient (variable) \u{2014} interference pattern, no source-localisation"),
     };
 
@@ -569,19 +569,55 @@ pub fn run_latent_collider(
     let clean_room = ((1.0 - animalic_i) * (1.0 - vol_blend * 0.5) * base_i.max(heart_i)).min(1.0);
 
     // Sovereignty (§4.3): does the accord hold without external dependency?
-    // G²T is sovereign when its fixation comes from internal coherence, not animalic binding
-    let sovereignty = if node_class_id == "G2T" {
+    // R²A is sovereign when its fixation comes from internal coherence, not animalic binding
+    let sovereignty = if node_class_id == "R2A" {
         ((heart_i * 0.6 + base_i * 0.4) * (1.0 - animalic_i)).min(1.0)
     } else {
-        0.0 // sovereignty metric only applies to G²T
+        0.0 // sovereignty metric only applies to R²A
     };
 
     // Dance topology (§8): who leads in the embedding space?
-    // FTA leads, PM follows, G²T resonates independently
+    // RTA leads, DPA follows, R²A resonates independently
     let dance_role = match node_class_id {
-        "FTA" => "LEADS \u{2014} sets orientation in 1536-D space",
-        "PM"  => "FOLLOWS \u{2014} responsive navigation through FTA-led field",
+        "RTA" => "LEADS \u{2014} sets orientation in 1536-D space",
+        "DPA" => "FOLLOWS \u{2014} responsive navigation through RTA-led field",
         _     => "RESONATES \u{2014} independent harmonic, neither leads nor follows",
+    };
+
+    // ── §9 Polarity (OCK v1.1.0) ─────────────────────────────────────────────
+    //
+    // Continuous signal-character spectrum from SOLAR to LUNAR.
+    // Encodes warmth/projection/angularity vs coolness/reception/curvature
+    // without categorical labels. Derived from collision thermodynamics.
+    //
+    //   0.0 ← SOLAR     projective, radiant, angular, warm, outward-directed
+    //   0.5   MERIDIAN   axial, balanced, neither projective nor receptive
+    //   1.0 → LUNAR      receptive, reflective, curved, cool, inward-directed
+    //
+    // The polarity is not a binary — it is a position on a manifold.
+
+    let polarity = (
+        base_i * 0.25                                        // persistence → lunar
+        + state.coherence.max(0.0).min(1.0) * 0.25           // coherence → lunar
+        + (1.0 - vol_blend) * 0.20                           // low volatility → lunar
+        + (1.0 - state.novelty_ratio) * 0.15                 // low novelty → lunar
+        + (1.0 - animalic_i) * 0.15                          // low corruption → lunar
+    ).min(1.0);
+
+    let polarity_class = if polarity > 0.6 {
+        "LUNAR"
+    } else if polarity < 0.4 {
+        "SOLAR"
+    } else {
+        "MERIDIAN"
+    };
+
+    let polarity_desc = if polarity > 0.6 {
+        "receptive \u{00B7} reflective \u{00B7} curved \u{00B7} cool"
+    } else if polarity < 0.4 {
+        "projective \u{00B7} radiant \u{00B7} angular \u{00B7} warm"
+    } else {
+        "axial \u{00B7} balanced \u{00B7} transitional"
     };
 
     write!(out, "\n\
@@ -608,13 +644,15 @@ pub fn run_latent_collider(
          {fix_v}\n\
          {line}\n\
          NODE CLASS       = {nc_id} {nc_glyph}  ({nc_label})\n\
-         FTA SCORE        = {fta:.4}\n\
-         PM SCORE         = {pm:.4}\n\
-         G2T SCORE        = {g2t:.4}\n\
+         RTA SCORE        = {rta:.4}\n\
+         DPA SCORE        = {dpa:.4}\n\
+         R2A SCORE        = {r2a:.4}\n\
          SILLAGE TYPE     = {sil_type}  ({sil_reach})\n\
          CLEAN ROOM       = {cr:.4}\n\
          SOVEREIGNTY      = {sov:.4}\n\
-         DANCE ROLE       = {dance}\n",
+         DANCE ROLE       = {dance}\n\
+         {line}\n\
+         POLARITY         = {pol:.4}  ({pol_class} \u{2014} {pol_desc})\n",
         dline = dline, line = line,
         dom_id = dominant_id, dom_glyph = dominant_glyph,
         vb = vol_blend,
@@ -627,10 +665,11 @@ pub fn run_latent_collider(
         e0 = evap[0], e1 = evap[1], e2 = evap[2],
         sil_v = sillage_verdict, fix_v = fixation_verdict,
         nc_id = node_class_id, nc_glyph = node_class_glyph, nc_label = node_class_label,
-        fta = fta_score, pm = pm_score, g2t = g2t_score,
+        rta = rta_score, dpa = dpa_score, r2a = r2a_score,
         sil_type = sillage_type, sil_reach = sillage_reach,
         cr = clean_room, sov = sovereignty,
         dance = dance_role,
+        pol = polarity, pol_class = polarity_class, pol_desc = polarity_desc,
     ).unwrap();
 
     // Footer
@@ -639,7 +678,7 @@ pub fn run_latent_collider(
          THEORY  : Vaswani et al. (2017) \u{2013} Attention Is All You Need\n\
          VECTORS : Mikolov et al. (2013) \u{2013} Word2Vec distributed representations\n\
          ALGEBRA : Penrose (1955) \u{2013} generalized inverse, orthogonal decomposition\n\
-         OCK     : Bimmelbahn Accord v1.1.0 \u{2013} Olfactory-Computational Kernel (FTA/PM/G\u{00B2}T node classes)\n\
+         OCK     : Bimmelbahn Accord v1.1.0 \u{2013} Olfactory-Computational Kernel (RTA/DPA/R\u{00B2}A node classes + polarity)\n\
          SOURCE  : content/rust_kernels/src/kernels/latent_collider.rs",
         dline = dline,
     ).unwrap();

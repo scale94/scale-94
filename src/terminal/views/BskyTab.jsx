@@ -434,7 +434,7 @@ const BskyTab = () => {
         <span className="absolute bottom-0 left-0 w-4 h-4 border-b border-l border-sky-500/40 pointer-events-none" />
         <span className="absolute bottom-0 right-0 w-4 h-4 border-b border-r border-sky-500/40 pointer-events-none" />
 
-        <div className="relative z-10 grid grid-cols-[auto_1fr_auto] gap-6 items-center">
+        <div className="relative z-10 grid grid-cols-[auto_1fr] sm:grid-cols-[auto_1fr_auto] gap-4 sm:gap-6 items-center">
           {/* Avatar */}
           <div className="relative shrink-0">
             <div className="w-16 h-16 rounded-full bg-black border-2 border-sky-500/40 flex items-center justify-center"
@@ -466,21 +466,21 @@ const BskyTab = () => {
             </a>
           </div>
 
-          {/* Stats */}
-          <div className="flex gap-8 shrink-0">
+          {/* Stats — stacks below identity on mobile, sits beside on sm+ */}
+          <div className="col-span-2 sm:col-span-1 flex gap-6 sm:gap-8 shrink-0 justify-end">
             {[
               { label: 'FOLLOWERS', value: bskyStats?.followers ?? (loading ? '…' : '—') },
               { label: 'FOLLOWING', value: bskyStats?.following ?? (loading ? '…' : '—') },
               { label: 'POSTS',     value: bskyStats?.posts     ?? (loading ? '…' : '—') },
             ].map(({ label, value }) => (
-              <div key={label} className="flex flex-col items-end gap-1">
+              <div key={label} className="flex flex-col items-center sm:items-end gap-1">
                 <div
-                  className="text-2xl font-bold font-mono tabular-nums text-sky-300"
+                  className="text-xl sm:text-2xl font-bold font-mono tabular-nums text-sky-300"
                   style={{ animation: 'bk-statGlow 3s ease-in-out infinite' }}
                 >
                   {value}
                 </div>
-                <div className="text-[8px] text-sky-400/30 uppercase tracking-[0.2em]">{label}</div>
+                <div className="text-[7px] sm:text-[8px] text-sky-400/30 uppercase tracking-[0.2em]">{label}</div>
               </div>
             ))}
           </div>
