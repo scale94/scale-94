@@ -190,7 +190,16 @@ fn simulate_collision(a: &ConceptDomain, b: &ConceptDomain) -> CollisionState {
     // The projection norm tells us how much of A is NOT explained by B
     let proj_scalar   = if norm_b > 1e-12 { dot / (norm_b * norm_b) } else { 0.0 };
     let residual_norm = (norm_a_sq - proj_scalar * proj_scalar * norm_b_sq).max(0.0).sqrt();
-    let novelty       = if norm_a > 1e-12 { residual_norm / norm_a } else { 0.0 };
+
+    // Novelty: in 1536-D space, geometric residual (sin θ) is always ≈ 1.0
+    // because random high-dimensional vectors are near-orthogonal by construction.
+    // Ground novelty in actual domain property distance (sparsity + curvature delta),
+    // normalized by the maximum possible property distance across the domain library.
+    // Max sparsity range: 0.74 - 0.28 = 0.46.  Max curvature range: 0.96 - 0.15 = 0.81.
+    let sparsity_delta  = (a.sparsity - b.sparsity).abs();
+    let curvature_delta = (a.curvature - b.curvature).abs();
+    let property_novelty = (sparsity_delta + curvature_delta) / (0.46 + 0.81); // → [0, 1]
+    let novelty = property_novelty.clamp(0.0, 1.0);
 
     // Synthesis: the chimera lives in the orthogonal complement
     let synth_norm = residual_norm * cosine.abs().powf(1.0 / 3.0);
