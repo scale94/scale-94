@@ -1015,6 +1015,15 @@ function run() {
     const wasmOk = copyPkgFile('scale94_kernels_bg.wasm');
     log(wasmOk ? '  → public/wasm/scale94_kernels_bg.wasm' : '  ⚠ WASM binary missing');
 
+    // Also copy to src/wasm/ — Vite resolves the glue JS's import.meta.url to
+    // src/wasm/, so the .wasm binary must exist there too during dev mode.
+    const wasmSrcCopy = path.join(JS_OUT, 'scale94_kernels_bg.wasm');
+    const wasmPkgPath = path.join(PKG_DIR, 'scale94_kernels_bg.wasm');
+    if (fs.existsSync(wasmPkgPath)) {
+      fs.copyFileSync(wasmPkgPath, wasmSrcCopy);
+      log('  → src/wasm/scale94_kernels_bg.wasm (dev mirror)');
+    }
+
     // Copy JS bindings to src/wasm/ (Vite processes these as proper ES modules)
     // Also copy to public/wasm/ — package.json there declares it as the module
     // main entry, so both copies must stay in sync or run_* lookups will fail.

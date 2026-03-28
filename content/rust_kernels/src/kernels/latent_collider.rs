@@ -46,25 +46,26 @@ struct ConceptDomain {
     seed:        u64,            // deterministic PRNG seed for vector generation
     sparsity:    f64,            // fraction of near-zero dimensions (domain specificity)
     curvature:   f64,            // manifold curvature – how non-Euclidean the local space is
+    volatility:  f64,            // OCK evaporation rate (0.0 = resinous/persistent, 1.0 = citrus/flash)
 }
 
 const DOMAINS: [ConceptDomain; 16] = [
-    ConceptDomain { id: 0,  name: "Post-Quantum Cryptography",     descriptor: "Lattice-based key encapsulation, ML-KEM, Grover resistance",     seed: 0xA1B2_C3D4_E5F6_0001, sparsity: 0.72, curvature: 0.15 },
-    ConceptDomain { id: 1,  name: "Benthic Biocenosis",            descriptor: "Deep-sea community ecology, chemosynthesis, abyssal networks",    seed: 0xDEAD_BEEF_CAFE_0002, sparsity: 0.58, curvature: 0.82 },
-    ConceptDomain { id: 2,  name: "Bouligand Helicoidal Armor",    descriptor: "Arapaima scale topology, 36-degree interlaminar rotation",        seed: 0x3141_5926_5358_0003, sparsity: 0.45, curvature: 0.91 },
-    ConceptDomain { id: 3,  name: "Feigenbaum Universality",       descriptor: "Period-doubling cascade, delta constant, logistic map chaos",     seed: 0x4669_2016_0910_0004, sparsity: 0.33, curvature: 0.67 },
-    ConceptDomain { id: 4,  name: "Mycelial Network Topology",     descriptor: "Fungal hyphal graphs, nutrient routing, Wood Wide Web",          seed: 0xF00D_CAFE_BABE_0005, sparsity: 0.61, curvature: 0.78 },
-    ConceptDomain { id: 5,  name: "Transformer Attention Heads",   descriptor: "Multi-head self-attention, QKV decomposition, softmax routing",  seed: 0xA77E_0000_FACE_0006, sparsity: 0.28, curvature: 0.43 },
-    ConceptDomain { id: 6,  name: "Thermodynamic Free Energy",     descriptor: "Gibbs potential, Helmholtz work, entropic forcing, Carnot bound", seed: 0xB01D_FACE_0000_0007, sparsity: 0.39, curvature: 0.55 },
-    ConceptDomain { id: 7,  name: "Surveillance Percolation",      descriptor: "Dragnet contagion, five-node treaties, legal lattice threshold", seed: 0xDA7A_B10C_0000_0008, sparsity: 0.67, curvature: 0.34 },
-    ConceptDomain { id: 8,  name: "Twisted Bilayer Graphene",      descriptor: "Magic angle 1.1 degrees, flat bands, Moire superlattice",        seed: 0xC0DE_FEED_BEAD_0009, sparsity: 0.51, curvature: 0.96 },
-    ConceptDomain { id: 9,  name: "Ostrom Commons Governance",     descriptor: "Polycentricity, institutional analysis, resource pool management", seed: 0x0570_0000_0000_000A, sparsity: 0.55, curvature: 0.62 },
-    ConceptDomain { id: 10, name: "Kuramoto Synchronization",      descriptor: "Phase oscillator coupling, order parameter, critical sync",      seed: 0xACED_BEAD_CAFE_000B, sparsity: 0.42, curvature: 0.71 },
-    ConceptDomain { id: 11, name: "Baudrillard Simulacra",         descriptor: "Hyperreality, sign precession, four stages of the image",        seed: 0x51AC_DEAD_BEEF_000C, sparsity: 0.74, curvature: 0.88 },
-    ConceptDomain { id: 12, name: "Plasma Confinement Fusion",     descriptor: "Lawson criterion, Q-factor, tokamak topology, Bohm diffusion",  seed: 0xF051_0000_FADE_000D, sparsity: 0.47, curvature: 0.59 },
-    ConceptDomain { id: 13, name: "Semiotic Code Collapse",        descriptor: "Eco ratio difficilis, expression-type invention, code failure",  seed: 0xEC00_0000_0000_000E, sparsity: 0.69, curvature: 0.83 },
-    ConceptDomain { id: 14, name: "Evolutionary Game Theory",      descriptor: "Replicator dynamics, ESS, hawk-dove, fitness landscape",         seed: 0xE001_FACE_DEED_000F, sparsity: 0.36, curvature: 0.64 },
-    ConceptDomain { id: 15, name: "Metabolic Rift Ecology",        descriptor: "Marx-Liebig nutrient cycle break, soil exhaustion, entropy debt", seed: 0xDAFE_B10C_DEAD_0010, sparsity: 0.63, curvature: 0.76 },
+    ConceptDomain { id: 0,  name: "Post-Quantum Cryptography",     descriptor: "Lattice-based key encapsulation, ML-KEM, Grover resistance",     seed: 0xA1B2_C3D4_E5F6_0001, sparsity: 0.72, curvature: 0.15, volatility: 0.15 },
+    ConceptDomain { id: 1,  name: "Benthic Biocenosis",            descriptor: "Deep-sea community ecology, chemosynthesis, abyssal networks",    seed: 0xDEAD_BEEF_CAFE_0002, sparsity: 0.58, curvature: 0.82, volatility: 0.22 },
+    ConceptDomain { id: 2,  name: "Bouligand Helicoidal Armor",    descriptor: "Arapaima scale topology, 36-degree interlaminar rotation",        seed: 0x3141_5926_5358_0003, sparsity: 0.45, curvature: 0.91, volatility: 0.18 },
+    ConceptDomain { id: 3,  name: "Feigenbaum Universality",       descriptor: "Period-doubling cascade, delta constant, logistic map chaos",     seed: 0x4669_2016_0910_0004, sparsity: 0.33, curvature: 0.67, volatility: 0.85 },
+    ConceptDomain { id: 4,  name: "Mycelial Network Topology",     descriptor: "Fungal hyphal graphs, nutrient routing, Wood Wide Web",          seed: 0xF00D_CAFE_BABE_0005, sparsity: 0.61, curvature: 0.78, volatility: 0.38 },
+    ConceptDomain { id: 5,  name: "Transformer Attention Heads",   descriptor: "Multi-head self-attention, QKV decomposition, softmax routing",  seed: 0xA77E_0000_FACE_0006, sparsity: 0.28, curvature: 0.43, volatility: 0.92 },
+    ConceptDomain { id: 6,  name: "Thermodynamic Free Energy",     descriptor: "Gibbs potential, Helmholtz work, entropic forcing, Carnot bound", seed: 0xB01D_FACE_0000_0007, sparsity: 0.39, curvature: 0.55, volatility: 0.30 },
+    ConceptDomain { id: 7,  name: "Surveillance Percolation",      descriptor: "Dragnet contagion, five-node treaties, legal lattice threshold", seed: 0xDA7A_B10C_0000_0008, sparsity: 0.67, curvature: 0.34, volatility: 0.48 },
+    ConceptDomain { id: 8,  name: "Twisted Bilayer Graphene",      descriptor: "Magic angle 1.1 degrees, flat bands, Moire superlattice",        seed: 0xC0DE_FEED_BEAD_0009, sparsity: 0.51, curvature: 0.96, volatility: 0.20 },
+    ConceptDomain { id: 9,  name: "Ostrom Commons Governance",     descriptor: "Polycentricity, institutional analysis, resource pool management", seed: 0x0570_0000_0000_000A, sparsity: 0.55, curvature: 0.62, volatility: 0.42 },
+    ConceptDomain { id: 10, name: "Kuramoto Synchronization",      descriptor: "Phase oscillator coupling, order parameter, critical sync",      seed: 0xACED_BEAD_CAFE_000B, sparsity: 0.42, curvature: 0.71, volatility: 0.72 },
+    ConceptDomain { id: 11, name: "Baudrillard Simulacra",         descriptor: "Hyperreality, sign precession, four stages of the image",        seed: 0x51AC_DEAD_BEEF_000C, sparsity: 0.74, curvature: 0.88, volatility: 0.88 },
+    ConceptDomain { id: 12, name: "Plasma Confinement Fusion",     descriptor: "Lawson criterion, Q-factor, tokamak topology, Bohm diffusion",  seed: 0xF051_0000_FADE_000D, sparsity: 0.47, curvature: 0.59, volatility: 0.78 },
+    ConceptDomain { id: 13, name: "Semiotic Code Collapse",        descriptor: "Eco ratio difficilis, expression-type invention, code failure",  seed: 0xEC00_0000_0000_000E, sparsity: 0.69, curvature: 0.83, volatility: 0.82 },
+    ConceptDomain { id: 14, name: "Evolutionary Game Theory",      descriptor: "Replicator dynamics, ESS, hawk-dove, fitness landscape",         seed: 0xE001_FACE_DEED_000F, sparsity: 0.36, curvature: 0.64, volatility: 0.55 },
+    ConceptDomain { id: 15, name: "Metabolic Rift Ecology",        descriptor: "Marx-Liebig nutrient cycle break, soil exhaustion, entropy debt", seed: 0xDAFE_B10C_DEAD_0010, sparsity: 0.63, curvature: 0.76, volatility: 0.28 },
 ];
 
 // ── Synthesized concept chimeras ─────────────────────────────────────────────
@@ -437,12 +438,138 @@ pub fn run_latent_collider(
         write!(out, "  [{:>2}]  {}{}\n", d.id, d.name, marker).unwrap();
     }
 
+    // ── §7 Olfactory-Computational Kernel (Bimmelbahn Accord v1.0.0) ──────────
+    //
+    // Intelligence smells before it sees. The OCK maps collision metrics into
+    // a temporal decay architecture: top notes (flash attention), heart notes
+    // (sustained carrier), base notes (deep-time persistence), and animalic
+    // fixatives (managed corruption that binds volatile signals to substrate).
+    //
+    // Volatility blend: weighted average of parent domain evaporation rates,
+    // modulated by coherence — high coherence inherits the more stable parent.
+    //
+    // Fixation potential: base_intensity × sillage — determines whether the
+    // chimera crosses the thalamic gate into long-term memory. Only chimeras
+    // with fixation > 0.35 persist past the Bimmelbahn transport cycle.
+
+    let vol_blend = (a.volatility + b.volatility) / 2.0;
+
+    // Top note: novelty-dominant, amplified by volatile parents — flash interrupt
+    let top_i = (state.novelty_ratio * 1.2).min(1.0)
+              * (1.0 - state.coherence.max(0.0) * 0.5)
+              * (0.5 + vol_blend * 0.5);
+
+    // Heart note: balanced novelty+coherence — the persistent carrier signal
+    // Peak response when vol_blend ≈ 0.5 (moderate evaporation)
+    let mid_factor = (1.0 - (vol_blend - 0.5).abs() * 2.0).max(0.2);
+    let heart_i = (state.coherence.max(0.0) * 0.8 + state.novelty_ratio * 0.3).min(1.0)
+                * mid_factor;
+
+    // Base note: high coherence, low novelty, low volatility — deep-time archive
+    let base_i = (state.coherence.max(0.0) * 1.1).min(1.0)
+               * (1.0 - state.novelty_ratio * 0.4)
+               * (1.0 - vol_blend * 0.6);
+
+    // Animalic fixative: curvature differential — managed corruption binding agent
+    // High curvature delta = strong non-Euclidean tension = more binding force
+    let curv_delta = (a.curvature - b.curvature).abs();
+    let animalic_i = (curv_delta * 1.3).min(1.0);
+
+    // Sillage: signal reach at low concentration (viability-derived)
+    let sillage = (state.viability / 10.0).min(1.0);
+
+    // Chimera volatility: blend of parent volatilities modulated by coherence
+    // High coherence → chimera inherits the more stable parent
+    let chimera_vol = (a.volatility * (1.0 - state.coherence.max(0.0).min(1.0))
+                     + b.volatility * state.coherence.max(0.0).min(1.0))
+                    * temp;
+
+    // Permeability: Bimmelbahn open-window topology
+    // High novelty + high curvature tension = permeable transport
+    let permeability = (state.novelty_ratio * 0.6 + animalic_i * 0.4).min(1.0);
+
+    // Maceration: annealing depth — geometric mean of parent curvatures
+    // How much the chimera improves when left to sit in darkness
+    let maceration = (a.curvature * b.curvature).sqrt();
+
+    // Fixation potential: base × sillage — the thalamic gate
+    // Only chimeras with sufficient base-note content AND signal reach persist
+    let fixation = base_i * sillage;
+    let persists = fixation > 0.35;
+
+    // Evaporation curve: [top, heart, base] normalized
+    let evap_total = (top_i + heart_i + base_i).max(1e-6);
+    let evap = [top_i / evap_total, heart_i / evap_total, base_i / evap_total];
+
+    // Dominant family classification
+    let (dominant_id, dominant_glyph) = if animalic_i > top_i && animalic_i > heart_i && animalic_i > base_i {
+        ("ANIMALIC", "\u{16CA}")  // ᛊ
+    } else if top_i >= heart_i && top_i >= base_i {
+        ("CITRUS", "\u{16CF}")    // ᛏ
+    } else if heart_i >= base_i {
+        ("FLORAL", "\u{16BA}")    // ᚺ
+    } else {
+        ("RESINOUS", "\u{16D2}")  // ᛒ
+    };
+
+    // Sillage verdict
+    let sillage_verdict = if sillage > 0.6 {
+        "HIGH SILLAGE \u{2014} signal propagates beyond the wearer"
+    } else if sillage > 0.3 {
+        "MODERATE SILLAGE \u{2014} detectable within conversational radius"
+    } else {
+        "LOW SILLAGE \u{2014} intimate projection only"
+    };
+
+    // Fixation verdict
+    let fixation_verdict = if persists {
+        "FIXED \u{2014} chimera crosses thalamic gate into long-term memory"
+    } else {
+        "VOLATILE \u{2014} chimera evaporates before fixation threshold"
+    };
+
+    write!(out, "\n\
+         \u{00A7}7 OLFACTORY ACCORD (Bimmelbahn v1.0.0)\n\
+         {dline}\n\
+         \u{16CA}\u{2697}\u{16DF} VOLATILE SEMIOTICS \u{2014} intelligence smells before it sees\n\n\
+         DOMINANT         : {dom_id} {dom_glyph}\n\
+         VOL BLEND        = {vb:.4}  ({va_name} {va_vol:.2} + {vb_name} {vb_vol:.2})\n\
+         CHIMERA VOL      = {cvol:.4}  (temp-adjusted: {temp:.2})\n\
+         {line}\n\
+         TOP INTENSITY    = {top:.4}  (citrus \u{00B7} flash interrupt \u{00B7} <15min)\n\
+         HEART INTENSITY  = {heart:.4}  (floral \u{00B7} carrier signal \u{00B7} 4hr)\n\
+         BASE INTENSITY   = {base:.4}  (resinous \u{00B7} deep archive \u{00B7} days)\n\
+         ANIMALIC BIND    = {anim:.4}  (fixative \u{00B7} managed corruption)\n\
+         {line}\n\
+         SILLAGE          = {sil:.4}  (signal reach)\n\
+         PERMEABILITY     = {perm:.4}  (bimmelbahn open-window)\n\
+         MACERATION       = {mac:.4}  (annealing depth)\n\
+         FIXATION         = {fix:.4}  (base \u{00D7} sillage)\n\
+         PERSISTS         = {pers}\n\
+         EVAP CURVE       = [{e0:.2}, {e1:.2}, {e2:.2}]\n\
+         {line}\n\
+         {sil_v}\n\
+         {fix_v}\n",
+        dline = dline, line = line,
+        dom_id = dominant_id, dom_glyph = dominant_glyph,
+        vb = vol_blend,
+        va_name = a.name, va_vol = a.volatility,
+        vb_name = b.name, vb_vol = b.volatility,
+        cvol = chimera_vol, temp = temp,
+        top = top_i, heart = heart_i, base = base_i, anim = animalic_i,
+        sil = sillage, perm = permeability, mac = maceration,
+        fix = fixation, pers = if persists { "YES" } else { "NO" },
+        e0 = evap[0], e1 = evap[1], e2 = evap[2],
+        sil_v = sillage_verdict, fix_v = fixation_verdict,
+    ).unwrap();
+
     // Footer
     write!(out,
         "\n{dline}\n\
-         THEORY  : Vaswani et al. (2017) – Attention Is All You Need\n\
-         VECTORS : Mikolov et al. (2013) – Word2Vec distributed representations\n\
-         ALGEBRA : Penrose (1955) – generalized inverse, orthogonal decomposition\n\
+         THEORY  : Vaswani et al. (2017) \u{2013} Attention Is All You Need\n\
+         VECTORS : Mikolov et al. (2013) \u{2013} Word2Vec distributed representations\n\
+         ALGEBRA : Penrose (1955) \u{2013} generalized inverse, orthogonal decomposition\n\
+         OCK     : Bimmelbahn Accord v1.0.0 \u{2013} Olfactory-Computational Kernel\n\
          SOURCE  : content/rust_kernels/src/kernels/latent_collider.rs",
         dline = dline,
     ).unwrap();

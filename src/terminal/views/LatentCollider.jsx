@@ -48,29 +48,40 @@ const SHOP_MANIFEST = [
   { id: 'RESIN-ARCHIVE-DEEP', olfClass: 'Resinous',     fn: 'Cold Storage',                          key: '0x4445-4550-5449-4d45-5349-474e-414c' },
 ];
 
-// Classify a collision result into its olfactory accord
+// ── Classify collision into olfactory accord (Rust-computed via §7) ──────────
+// The OCK classification now runs inside the WASM kernel where it has direct
+// access to both domains' volatility, sparsity, and curvature properties.
+// JS-side paradox count modulates the animalic fixative as a secondary input.
 function classifyAccord(result) {
   if (!result) return null;
-  const { novelty, coherence, viability, paradoxes, postSaponificationSim } = result;
-  const paradoxCount = paradoxes?.length || 0;
+  const paradoxCount = result.paradoxes?.length || 0;
 
-  // ── Accord decomposition: what fraction is top/heart/base/animalic
-  // Top note: novelty-dominant, low coherence — bright flash, no persistence
-  const topIntensity = Math.min(1, novelty * 1.2) * (1 - coherence * 0.5);
-  // Heart note: balanced novelty+coherence — the carrier signal
-  const heartIntensity = Math.min(1, coherence * 0.8 + novelty * 0.3);
-  // Base note: high coherence, low novelty — deep structural resonance
-  const baseIntensity = Math.min(1, coherence * 1.1) * (1 - novelty * 0.4);
-  // Animalic: paradox density — managed corruption that binds
-  const animalicIntensity = Math.min(1, paradoxCount / 12);
+  // Use Rust-computed OCK values (§7 output)
+  const topIntensity     = result.ockTop;
+  const heartIntensity   = result.ockHeart;
+  const baseIntensity    = result.ockBase;
+  // Animalic: blend Rust curvature-based value with JS paradox density
+  const animalicIntensity = Math.min(1, result.ockAnimalic * 0.7 + (paradoxCount / 12) * 0.3);
 
-  // ── Sillage = signal reach at low concentration (viability-derived)
-  const sillage = viability != null ? Math.min(10, viability) / 10 : 0;
+  const sillage       = result.ockSillage;
+  const maceration    = result.ockMaceration;
+  const evapCurve     = result.ockEvapCurve;
+  const permeability  = result.ockPermeability;
+  const fixation      = result.ockFixation;
+  const persists      = result.ockPersists;
+  const chimeraVol    = result.ockChimeraVol;
+  const volBlend      = result.ockVolBlend;
 
-  // ── Maceration residual: post-saponification sim → annealing depth
-  const maceration = postSaponificationSim != null ? postSaponificationSim : 0;
+  // Dominant family from Rust classification
+  const dominantMap = {
+    CITRUS:   'citrus',
+    FLORAL:   'floral',
+    RESINOUS: 'woody',
+    ANIMALIC: 'animalic',
+  };
+  const dominantId = dominantMap[result.ockDominant] || 'citrus';
+  const dominant = OLFACTORY_FAMILIES.find(f => f.id === dominantId);
 
-  // ── Dominant accord
   const accords = [
     { family: 'citrus',   intensity: topIntensity },
     { family: 'floral',   intensity: heartIntensity },
@@ -78,15 +89,18 @@ function classifyAccord(result) {
     { family: 'animalic', intensity: animalicIntensity },
   ];
   accords.sort((a, b) => b.intensity - a.intensity);
-  const dominant = OLFACTORY_FAMILIES.find(f => f.id === accords[0].family);
 
-  // ── Evaporation curve: [top, heart, base] normalized
-  const total = topIntensity + heartIntensity + baseIntensity || 1;
-  const evapCurve = [topIntensity / total, heartIntensity / total, baseIntensity / total];
+  // Sillage verdict
+  const verdict = sillage > 0.6
+    ? 'HIGH SILLAGE — signal propagates beyond the wearer'
+    : sillage > 0.3
+    ? 'MODERATE SILLAGE — detectable within conversational radius'
+    : 'LOW SILLAGE — intimate projection only';
 
-  // ── Bimmelbahn permeability: how much ambient contamination the signal carries
-  // High novelty + high paradox = permeable transport (Bimmelbahn open-window topology)
-  const permeability = Math.min(1, (novelty * 0.6 + paradoxCount * 0.04));
+  // Fixation verdict — the thalamic gate
+  const fixationVerdict = persists
+    ? 'FIXED — chimera crosses thalamic gate into long-term memory'
+    : 'VOLATILE — chimera evaporates before fixation threshold';
 
   return {
     dominant,
@@ -99,11 +113,12 @@ function classifyAccord(result) {
     heartIntensity,
     baseIntensity,
     animalicIntensity,
-    verdict: sillage > 0.6
-      ? 'HIGH SILLAGE — signal propagates beyond the wearer'
-      : sillage > 0.3
-      ? 'MODERATE SILLAGE — detectable within conversational radius'
-      : 'LOW SILLAGE — intimate projection only',
+    fixation,
+    persists,
+    chimeraVol,
+    volBlend,
+    verdict,
+    fixationVerdict,
   };
 }
 
@@ -179,6 +194,25 @@ function parseColliderOutput(text) {
     vClass:      str(/CLASS\s*:\s*(\w+)/),
     chimeraName: str(/CHIMERA NAME\s*:\s*(.+)/),
     chimeraDesc: str(/CHIMERA THESIS\s*:\s*(.+)/),
+
+    // §7 OCK — Olfactory-Computational Kernel (Bimmelbahn Accord v1.0.0)
+    // Parsed directly from Rust WASM output — temporal decay architecture
+    ockDominant:    str(/DOMINANT\s*:\s*(\w+)/),
+    ockVolBlend:    num(/VOL BLEND\s*=\s*([\d.]+)/),
+    ockChimeraVol:  num(/CHIMERA VOL\s*=\s*([\d.]+)/),
+    ockTop:         num(/TOP INTENSITY\s*=\s*([\d.]+)/),
+    ockHeart:       num(/HEART INTENSITY\s*=\s*([\d.]+)/),
+    ockBase:        num(/BASE INTENSITY\s*=\s*([\d.]+)/),
+    ockAnimalic:    num(/ANIMALIC BIND\s*=\s*([\d.]+)/),
+    ockSillage:     num(/SILLAGE\s*=\s*([\d.]+)/),
+    ockPermeability:num(/PERMEABILITY\s*=\s*([\d.]+)/),
+    ockMaceration:  num(/MACERATION\s*=\s*([\d.]+)/),
+    ockFixation:    num(/FIXATION\s*=\s*([\d.]+)/),
+    ockPersists:    str(/PERSISTS\s*=\s*(\w+)/) === 'YES',
+    ockEvapCurve:   (() => {
+      const m = text.match(/EVAP CURVE\s*=\s*\[([\d., ]+)\]/);
+      return m ? m[1].split(',').map(Number) : [0.33, 0.33, 0.34];
+    })(),
   };
 }
 
@@ -293,6 +327,10 @@ export default function LatentCollider() {
           sillage:      parsed.accord.sillage,
           permeability: parsed.accord.permeability,
           evapCurve:    parsed.accord.evapCurve,
+          fixation:     parsed.accord.fixation,
+          persists:     parsed.accord.persists,
+          chimeraVol:   parsed.accord.chimeraVol,
+          volBlend:     parsed.accord.volBlend,
         } : null,
       });
     } catch (e) {
@@ -887,34 +925,70 @@ export default function LatentCollider() {
                 </div>
               </div>
 
-              {/* Sillage + Maceration + Permeability strip */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="border border-amber-900/20 bg-black/30 rounded p-2.5">
+              {/* Volatility blend strip */}
+              <div className="flex items-center gap-2 text-[10px] font-mono">
+                <span className="w-16 shrink-0 text-right text-amber-400/50">VOL ⚗</span>
+                <div className="flex-1 h-2 bg-black/40 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full transition-all duration-700"
+                    style={{
+                      width: `${Math.max(2, result.accord.volBlend * 100)}%`,
+                      background: `linear-gradient(90deg, #06b6d4, #FFD700 50%, #f43f5e)`,
+                    }}
+                  />
+                </div>
+                <span className="w-10 text-right text-amber-300/40">{(result.accord.volBlend * 100).toFixed(0)}%</span>
+                <span className="w-28 text-left text-cyan-600/25 text-[8px] hidden sm:inline">
+                  {result.accord.volBlend < 0.35 ? 'resinous blend' : result.accord.volBlend > 0.65 ? 'volatile blend' : 'balanced blend'}
+                </span>
+              </div>
+
+              {/* Sillage + Fixation + Permeability + Maceration strip */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="border border-amber-900/20 bg-black/30 rounded p-2">
                   <div className="text-[8px] font-bold text-amber-500/50 uppercase tracking-widest mb-1">SILLAGE</div>
-                  <div className="text-base font-bold font-mono" style={{ color: result.accord.sillage > 0.6 ? '#FFD700' : result.accord.sillage > 0.3 ? '#d946ef' : '#06b6d4' }}>
+                  <div className="text-sm font-bold font-mono" style={{ color: result.accord.sillage > 0.6 ? '#FFD700' : result.accord.sillage > 0.3 ? '#d946ef' : '#06b6d4' }}>
                     {(result.accord.sillage * 100).toFixed(0)}%
                   </div>
-                  <div className="text-[8px] font-mono text-amber-600/30 mt-0.5">signal reach</div>
+                  <div className="text-[7px] font-mono text-amber-600/30 mt-0.5">signal reach</div>
                 </div>
-                <div className="border border-amber-900/20 bg-black/30 rounded p-2.5">
-                  <div className="text-[8px] font-bold text-amber-500/50 uppercase tracking-widest mb-1">MACERATION</div>
-                  <div className="text-base font-bold font-mono text-amber-400/70">
-                    {result.accord.maceration.toFixed(4)}
+                <div className={`border rounded p-2 ${result.accord.persists ? 'border-[#39ff14]/30 bg-[#39ff14]/5' : 'border-rose-900/20 bg-rose-900/5'}`}>
+                  <div className="text-[8px] font-bold uppercase tracking-widest mb-1"
+                    style={{ color: result.accord.persists ? '#39ff14aa' : '#f43f5e88' }}>
+                    FIXATION
                   </div>
-                  <div className="text-[8px] font-mono text-amber-600/30 mt-0.5">annealing depth</div>
+                  <div className="text-sm font-bold font-mono" style={{ color: result.accord.persists ? '#39ff14' : '#f43f5e' }}>
+                    {(result.accord.fixation * 100).toFixed(0)}%
+                  </div>
+                  <div className="text-[7px] font-mono mt-0.5"
+                    style={{ color: result.accord.persists ? '#39ff1466' : '#f43f5e44' }}>
+                    {result.accord.persists ? '■ PERSISTS' : '○ VOLATILE'}
+                  </div>
                 </div>
-                <div className="border border-amber-900/20 bg-black/30 rounded p-2.5">
+                <div className="border border-amber-900/20 bg-black/30 rounded p-2">
                   <div className="text-[8px] font-bold text-amber-500/50 uppercase tracking-widest mb-1">PERMEABILITY</div>
-                  <div className="text-base font-bold font-mono" style={{ color: result.accord.permeability > 0.6 ? '#39ff14' : '#06b6d4' }}>
+                  <div className="text-sm font-bold font-mono" style={{ color: result.accord.permeability > 0.6 ? '#39ff14' : '#06b6d4' }}>
                     {(result.accord.permeability * 100).toFixed(0)}%
                   </div>
-                  <div className="text-[8px] font-mono text-amber-600/30 mt-0.5">bimmelbahn Δ</div>
+                  <div className="text-[7px] font-mono text-amber-600/30 mt-0.5">bimmelbahn Δ</div>
+                </div>
+                <div className="border border-amber-900/20 bg-black/30 rounded p-2">
+                  <div className="text-[8px] font-bold text-amber-500/50 uppercase tracking-widest mb-1">MACERATION</div>
+                  <div className="text-sm font-bold font-mono text-amber-400/70">
+                    {result.accord.maceration.toFixed(4)}
+                  </div>
+                  <div className="text-[7px] font-mono text-amber-600/30 mt-0.5">annealing depth</div>
                 </div>
               </div>
 
-              {/* Sillage verdict */}
-              <div className="text-[9px] font-mono text-amber-400/40 italic">
-                {result.accord.verdict}
+              {/* Verdicts */}
+              <div className="space-y-1">
+                <div className="text-[9px] font-mono text-amber-400/40 italic">
+                  {result.accord.verdict}
+                </div>
+                <div className="text-[9px] font-mono italic"
+                  style={{ color: result.accord.persists ? '#39ff1466' : '#f43f5e55' }}>
+                  {result.accord.fixationVerdict}
+                </div>
               </div>
 
               {/* SOMA Shop Manifest — Tesseract Key Exchange */}

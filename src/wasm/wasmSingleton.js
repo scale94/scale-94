@@ -21,7 +21,7 @@ export async function loadWasm() {
         const mod   = await import('./scale94_kernels.js');
         const entry = Object.values(wasmRegistry).find(e => e.wasmUrl);
         const url   = entry?.wasmUrl ?? '/wasm/scale94_kernels_bg.wasm';
-        await mod.default({ module_or_path: url });
+        await mod.default(url);
         _mod   = mod;
         _ready = true;
         _waiters.forEach(w => w.resolve(mod));
@@ -34,4 +34,14 @@ export async function loadWasm() {
   });
 
   return _initPromise;
+}
+
+// HMR: invalidate singleton when WASM module is hot-replaced
+if (import.meta.hot) {
+  import.meta.hot.accept('./scale94_kernels.js', () => {
+    _mod = null; _ready = false; _initPromise = null; _waiters = [];
+  });
+  import.meta.hot.accept('./wasm.generated', () => {
+    _mod = null; _ready = false; _initPromise = null; _waiters = [];
+  });
 }
