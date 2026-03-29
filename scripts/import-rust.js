@@ -939,6 +939,37 @@ const KERNEL_MAP = [
     type:    'rust',
     aliases: ['percolation', 'resilience', 'network', 'fragility', 'perc', 'giant_component', 'gcc', 'erdos', 'molloyreed', 'fragmentation'],
   },
+  {
+    // Olfactory-Computational Kernel v1.0.0 — Bimmelbahn Accord
+    // top:         args[0]  flash signal intensity (0–1)
+    // heart:       args[1]  persistent carrier intensity (0–1)
+    // base:        args[2]  deep-time archive intensity (0–1)
+    // corruption:  args[3]  animalic fixative / managed corruption (0–1)
+    // temperature: args[4]  ambient evaporation modulator (0–1; 0.5=20°C)
+    // preset:      args[5]  signal preset index (-1=manual, 0–7=preset)
+    id:      'OCK-1.0.0',
+    fn:      'run_ock',
+    args:    [0.55, 0.65, 0.50, 0.25, 0.5, -1],
+    argMap:  {
+      top: 0, flash: 0, interrupt: 0,
+      heart: 1, carrier: 1, daemon: 1,
+      base: 2, archive: 2, residual: 2,
+      corruption: 3, animalic: 3, fixative: 3,
+      temperature: 4, temp: 4, ambient: 4,
+      preset: 5, profile: 5, mode: 5,
+    },
+    params: [
+      { name: 'top',         default: 0.55, desc: 'top note intensity — flash interrupt signal (0–1)' },
+      { name: 'heart',       default: 0.65, desc: 'heart note intensity — persistent carrier daemon (0–1)' },
+      { name: 'base',        default: 0.50, desc: 'base note intensity — deep-time archive (0–1)' },
+      { name: 'corruption',  default: 0.25, desc: 'animalic fixative — managed corruption binding agent (0–1)' },
+      { name: 'temperature', default: 0.5,  desc: 'ambient temperature — evaporation modulator (0=cold, 0.5=20°C, 1=hot)' },
+      { name: 'preset',      default: -1,   desc: 'signal preset: -1=manual, 0=viral, 1=monolith, 2=daemon, 3=bimmelbahn, 4=ice, 5=animalic, 6=balanced, 7=ai-perfume' },
+    ],
+    label:   'Olfactory-Computational Kernel v1.0.0 · Bimmelbahn Accord',
+    type:    'rust',
+    aliases: ['ock', 'olfactory', 'bimmelbahn', 'accord', 'volatile', 'sillage', 'perfume', 'fixation', 'maceration', 'koc'],
+  },
 ];
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────

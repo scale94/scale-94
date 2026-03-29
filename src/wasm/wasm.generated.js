@@ -455,6 +455,18 @@ const wasmRegistry = {
     wasmUrl: "/wasm/scale94_kernels_bg.wasm?v=b62459e0",
     aliases: ["percolation","resilience","network","fragility","perc","giant_component","gcc","erdos","molloyreed","fragmentation"],
     params:  [{"name":"n_nodes","default":200,"desc":"network size — number of nodes (20–1000)"},{"name":"mean_degree","default":4,"desc":"⟨k⟩ average connections per node — 1=sparse, 4=typical, 12=dense (1–20)"},{"name":"attack_mode","default":0,"desc":"removal strategy: 0=random failure, 1=targeted hub-first attack"},{"name":"removal_steps","default":20,"desc":"resolution of the removal sweep — number of snapshots (5–40)"}],
+  },
+  "OCK-1.0.0": {
+    id:      "OCK-1.0.0",
+    fn:      "run_ock",
+    args:    [0.55,0.65,0.5,0.25,0.5,-1],
+    argMap:  {"top":0,"flash":0,"interrupt":0,"heart":1,"carrier":1,"daemon":1,"base":2,"archive":2,"residual":2,"corruption":3,"animalic":3,"fixative":3,"temperature":4,"temp":4,"ambient":4,"preset":5,"profile":5,"mode":5},
+    label:   "Olfactory-Computational Kernel v1.0.0 · Bimmelbahn Accord",
+    type:    'rust',
+    module:  "/wasm/scale94_kernels.js",
+    wasmUrl: "/wasm/scale94_kernels_bg.wasm?v=b62459e0",
+    aliases: ["ock","olfactory","bimmelbahn","accord","volatile","sillage","perfume","fixation","maceration","koc"],
+    params:  [{"name":"top","default":0.55,"desc":"top note intensity — flash interrupt signal (0–1)"},{"name":"heart","default":0.65,"desc":"heart note intensity — persistent carrier daemon (0–1)"},{"name":"base","default":0.5,"desc":"base note intensity — deep-time archive (0–1)"},{"name":"corruption","default":0.25,"desc":"animalic fixative — managed corruption binding agent (0–1)"},{"name":"temperature","default":0.5,"desc":"ambient temperature — evaporation modulator (0=cold, 0.5=20°C, 1=hot)"},{"name":"preset","default":-1,"desc":"signal preset: -1=manual, 0=viral, 1=monolith, 2=daemon, 3=bimmelbahn, 4=ice, 5=animalic, 6=balanced, 7=ai-perfume"}],
   }
 };
 
