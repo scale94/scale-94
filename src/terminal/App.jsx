@@ -4,6 +4,11 @@
 // esbuild (Vite dev). Keep all imports at the top to guarantee identical
 // module evaluation order in both environments.
 import React, { useState, useEffect, useRef, useLayoutEffect, useMemo, useCallback, lazy, Suspense } from 'react';
+
+// Locale-independent HH:MM:SS — toLocaleTimeString strips hours on some mobile browsers
+const fmtTime = (d = new Date()) =>
+  `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+
 import { Hexagon, Cpu, Lock, Scale, Eye, ShieldAlert, KeyRound, Waves, Radio, Leaf } from 'lucide-react';
 
 // Data — static (authored, always bundled)
@@ -156,7 +161,7 @@ const App = () => {
   // All outputs are pure JSON — no module evaluation, cache-first in the SW.
   useEffect(() => {
     (async () => {
-      const now = new Date().toLocaleTimeString('en-US', { hour12: false });
+      const now = fmtTime();
       try {
         appendSystemLog({ time: now, msg: 'SYSTEM_KERNEL_LOG: Fetching kernel manifest...' });
         const manifest = await fetch('/kernel/manifest.json?_=' + Date.now()).then(r => {
@@ -184,7 +189,7 @@ const App = () => {
         const academicArticles    = Array.isArray(academicJson)    ? academicJson.map(a    => ({ ...a, loadContent: makeLoadContent(a) })) : [];
         const legislationArticles = Array.isArray(legislationJson) ? legislationJson.map(a => ({ ...a, loadContent: makeLoadContent(a) })) : [];
 
-        const laterTime = new Date().toLocaleTimeString('en-US', { hour12: false });
+        const laterTime = fmtTime();
         appendSystemLog({ time: laterTime, msg: `SYSTEM_KERNEL_LOG: Manifest loaded // ${manifest.generated ?? 'no timestamp'}` });
         appendSystemLog({ time: laterTime, msg: `SYSTEM_KERNEL_LOG: ${generatedArticles.length} kernels // ${academicArticles.length} academic // ${legislationArticles.length} legislation // tags index ready` });
 
@@ -200,7 +205,7 @@ const App = () => {
             const wasmBuf = await fetch(`/wasm/scale94_kernels_bg.wasm?v=${sha8}`).then(r => r.arrayBuffer());
             const hashBuf = await crypto.subtle.digest('SHA-256', wasmBuf);
             const hex     = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
-            const vt      = new Date().toLocaleTimeString('en-US', { hour12: false });
+            const vt      = fmtTime();
             if (hex === manifest.bosonic_lattice.sha256) {
               appendSystemLog({ time: vt, msg: `WASM_INTEGRITY: OK // SHA-256 verified`, rust: true });
             } else {
@@ -210,7 +215,7 @@ const App = () => {
         }
       } catch (err) {
         console.warn('[KERNEL_LOG] Manifest fetch failed:', err.message);
-        const laterTime = new Date().toLocaleTimeString('en-US', { hour12: false });
+        const laterTime = fmtTime();
         appendSystemLog({ time: laterTime, msg: 'SYSTEM_KERNEL_LOG: WARNING — manifest unavailable // degraded mode' });
         appendSystemLog({ time: laterTime, msg: '  Kernel registry operating from local cache.' });
         setDynamicData({ generatedArticles: [], academicArticles: [], legislationArticles: [], tagIndex: {}, systemArticles: {}, manifest: {} });
@@ -469,13 +474,13 @@ const App = () => {
 
     setLoadingKernel(kernel.id);
     const now = new Date();
-    appendSystemLog({ time: now.toLocaleTimeString('en-US', { hour12: false }), msg: `Initializing ${kernel.name}...` });
+    appendSystemLog({ time: fmtTime(now), msg: `Initializing ${kernel.name}...` });
 
     setTimeout(async () => {
       if (token.aborted) return;
 
       const later = new Date();
-      appendSystemLog({ time: later.toLocaleTimeString('en-US', { hour12: false }), msg: `${kernel.name} loaded successfully.` });
+      appendSystemLog({ time: fmtTime(later), msg: `${kernel.name} loaded successfully.` });
       setLoadingKernel(null);
 
       if (kernel.articleId) {
@@ -497,10 +502,10 @@ const App = () => {
             window.scrollTo(0, 0);
           }
         } else {
-          if (!token.aborted) appendSystemLog({ time: later.toLocaleTimeString('en-US', { hour12: false }), msg: `ERROR: Article ID '${kernel.articleId}' not found.` });
+          if (!token.aborted) appendSystemLog({ time: fmtTime(later), msg: `ERROR: Article ID '${kernel.articleId}' not found.` });
         }
       } else {
-        if (!token.aborted) appendSystemLog({ time: later.toLocaleTimeString('en-US', { hour12: false }), msg: `NOTICE: No public file attached.` });
+        if (!token.aborted) appendSystemLog({ time: fmtTime(later), msg: `NOTICE: No public file attached.` });
       }
     }, 1200);
   }, [loadingKernel, appendSystemLog, articles]);
@@ -547,14 +552,14 @@ const App = () => {
     loadAbortRef.current = token;
 
     setLoadingSignal(story.id);
-    const t1 = new Date().toLocaleTimeString('en-US', { hour12: false });
+    const t1 = fmtTime();
     appendSystemLog({ time: t1, msg: `SIGNAL_INGEST: Acquiring "${story.title}"...` });
 
     try {
       const article = story.loadContent ? await story.loadContent() : story;
       if (token.aborted) return;
 
-      const t2 = new Date().toLocaleTimeString('en-US', { hour12: false });
+      const t2 = fmtTime();
       appendSystemLog({ time: t2, msg: `SIGNAL_INGEST_SUCCESS: ${story.id}` });
       setLoadingSignal(null);
       setOriginTab('transmission');
@@ -567,7 +572,7 @@ const App = () => {
       }
     } catch (err) {
       if (token.aborted) return;
-      const t2 = new Date().toLocaleTimeString('en-US', { hour12: false });
+      const t2 = fmtTime();
       console.error('[KERNEL_LOG] Transmission load failed:', story.id, err);
       appendSystemLog({ time: t2, msg: `ERROR: SIGNAL_INGEST_FAIL — ${story.id}` });
       setLoadingSignal(null);
@@ -630,7 +635,7 @@ const App = () => {
   // Resolves the most topically relevant WASM alias for every kernel via mobileWasmMap.
   const mobileAutoRun = useCallback((kernelId) => {
     const alias = wasmRegistry[kernelId] ? kernelId : resolveWasmAlias(kernelId);
-    const now = new Date().toLocaleTimeString('en-US', { hour12: false });
+    const now = fmtTime();
     dispatchCommand('run', alias, `run ${alias}`, now);
   }, [dispatchCommand]);
 
@@ -639,7 +644,7 @@ const App = () => {
     setOrthogonalBridges(prev => [...prev, {
       idA: sourceId, idB: result.id, sim: result.sim, divergentDims: result.divergentDims,
     }]);
-    const now = new Date().toLocaleTimeString('en-US', { hour12: false });
+    const now = fmtTime();
     appendSystemLog({ time: now, msg: `[DIVERGENCE_ENGINE] :: Forced orthogonal bridge generated :: ${sourceId.toUpperCase()} <-> ${result.id.toUpperCase()} :: Cosine Similarity: ${result.sim.toFixed(4)}`, rust: true });
     if (result.divergentDims?.length) {
       appendSystemLog({ time: now, msg: `  [DIVERGENT_DIMS] :: ${result.divergentDims.map(d => `${d.name}(Δ${d.delta.toFixed(3)})`).join(' · ')}`, rust: true });
@@ -649,7 +654,7 @@ const App = () => {
   // Manual fusion handler — operator-forged edges from /art long-press (mobile)
   const handleManualFusion = useCallback((idA, idB, analysis) => {
     setManualFusions(prev => [...prev, { idA, idB, sim: analysis.sim, drivers: analysis.drivers }]);
-    const now  = new Date().toLocaleTimeString('en-US', { hour12: false });
+    const now  = fmtTime();
     const bars = '▓'.repeat(Math.round(analysis.sim * 5)) + '░'.repeat(5 - Math.round(analysis.sim * 5));
     appendSystemLog({ time: now, msg: `[MANUAL_FUSION] :: ${idA} ↔ ${idB}` });
     appendSystemLog({ time: now, msg: `  [COSINE] :: ${analysis.sim.toFixed(4)} ${bars}` });
@@ -740,7 +745,7 @@ const App = () => {
       setHistoryIdx(-1);
       setSavedInput('');
     }
-    const now = new Date().toLocaleTimeString('en-US', { hour12: false });
+    const now = fmtTime();
     dispatchCommand(action, query, rawCmd, now);
   };
 
@@ -761,7 +766,7 @@ const App = () => {
           onClose={() => setBreachOpen(false)}
           onSuccess={() => {
             setBreachOpen(false);
-            const t = new Date().toLocaleTimeString('en-US', { hour12: false });
+            const t = fmtTime();
             setSystemLogs(prev => [...prev,
               { time: t, msg: `  BREACH_COMPLETE :: ICE dissolved — DATAMINE daemons uploaded`, rust: true },
               { time: t, msg: `  REWARD: ACCESS GRANTED // Militech Mantis neutralized`, rust: true },
@@ -1126,11 +1131,11 @@ const App = () => {
                 onOrthogonalBridge={handleOrthogonalBridge}
                 probeNode={probeNode}
                 onRunKernel={(alias) => {
-                  const now = new Date().toLocaleTimeString('en-US', { hour12: false });
+                  const now = fmtTime();
                   dispatchCommand('run', alias, `run ${alias}`, now);
                 }}
                 onCueNode={(nodeIdx) => {
-                  const now = new Date().toLocaleTimeString('en-US', { hour12: false });
+                  const now = fmtTime();
                   const q = `associative_field --seed ${nodeIdx} --beta 2.5 --probes 30`;
                   dispatchCommand('run', q, `run ${q}`, now);
                 }}
