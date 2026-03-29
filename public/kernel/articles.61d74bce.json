@@ -899,7 +899,7 @@
       "thermodynamics",
       "signal-processing"
     ],
-    "len": "1302 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "KINETIC-STATECRAFT-KERNEL-1.0",
@@ -946,24 +946,6 @@
       "INDUSTRIAL"
     ],
     "len": "0 WDS"
-  },
-  {
-    "id": "OCK-1.0",
-    "type": "kernel_doc",
-    "date": "2026-03-29",
-    "lastModified": "2026-03-28",
-    "title": "OLFACTORY-COMPUTATIONAL KERNEL V1.0.0 (BIMMELBAHN ACCORD)",
-    "subtitle": "Abstract",
-    "status": "ACTIVE",
-    "readTime": "7 min read",
-    "tags": [
-      "OLFACTORY-COMPUTATIONAL",
-      "Accord",
-      "Abstract",
-      "Architecture",
-      "Volatile"
-    ],
-    "len": "1337 WDS"
   },
   {
     "id": "QR-1.0",

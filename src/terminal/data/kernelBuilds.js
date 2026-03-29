@@ -158,7 +158,6 @@ const kernelBuilds = [
   { id: "LITHIUM-ION-WIZARD-KERNEL-1.-0-1", articleId: "LITHIUM-ION-WIZARD-KERNEL-1.-0-1", name: "LITHIUM_ION_WIZARD_KERNEL_1__0_1", status: "ACTIVE", desc: "LITHIUM ION WIZARD KERNEL 1. 0 1" },
   { id: "MM-3.3.3", articleId: "MM-3.3.3", name: "MASCULINE_MESANTROPY_3_3_3", status: "ACTIVE", desc: "1.0 THE AXIOMATIC CORE" },
   { id: "NFDK-4.4.4", articleId: "NFDK-4.4.4", name: "NUCLEAR_FUSION_DETONATION_KERNEL_4_4_4_4", status: "ACTIVE", desc: "ᛟ 1.0 THE AXIOMATIC CORE [LOCKED]" },
-  { id: "OCK-1.0", articleId: "OCK-1.0", name: "OLFACTORY_COMPUTATIONAL_KERNEL_V1_0_0", status: "ACTIVE", desc: "Abstract" },
   { id: "QR-1.0", articleId: "QR-1.0", name: "QUANTUM_PHYSICS_FOR_RUST_REACT_WEBSITE", status: "ACTIVE", desc: "**1\\. Fundamental Mathematical Frameworks and Theoretical Physics Models**" },
   { id: "RUN-COMMAND-MANUAL", articleId: "RUN-COMMAND-MANUAL", name: "RUN_COMMAND_MANUAL", status: "ACTIVE", desc: "Direct Interface to Compiled Rust Simulations — scale_9.4 Terminal" },
   { id: "SCALE-KERNEL-FRAMEWORK-FULL", articleId: "SCALE-KERNEL-FRAMEWORK-FULL", name: "SCALE_KERNEL_FRAMEWORK_FULL", status: "ACTIVE", desc: "☠ Full Corpus Synthesis · Render Prompt Architecture ☠" },

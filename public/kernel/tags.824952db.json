@@ -9,22 +9,10 @@
       "title": "SERAPHINE-8.8.8.8.8.8.8.8: A DUAL-KERNEL ARCHITECTURE FOR MEASURING AND MAXIMISING CROSS-DOMAIN ANALOGICAL COHERENCE"
     }
   ],
-  "Abstract": [
-    {
-      "id": "OCK-1.0",
-      "title": "OLFACTORY-COMPUTATIONAL KERNEL V1.0.0 (BIMMELBAHN ACCORD)"
-    }
-  ],
   "ACCESS": [
     {
       "id": "SCALE-RENDER-PROMPT",
       "title": "SCALE RENDER PROMPT"
-    }
-  ],
-  "Accord": [
-    {
-      "id": "OCK-1.0",
-      "title": "OLFACTORY-COMPUTATIONAL KERNEL V1.0.0 (BIMMELBAHN ACCORD)"
     }
   ],
   "ACTIVE": [
@@ -127,10 +115,6 @@
     {
       "id": "KINETIC-STATECRAFT-KERNEL-1.0",
       "title": "KINETIC STATECRAFT KERNEL 1.0"
-    },
-    {
-      "id": "OCK-1.0",
-      "title": "OLFACTORY-COMPUTATIONAL KERNEL V1.0.0 (BIMMELBAHN ACCORD)"
     },
     {
       "id": "TAMAM-KERNEL-V1.0",
@@ -1701,12 +1685,6 @@
       "title": "OLFACTORY-COMPUTATIONAL KERNEL"
     }
   ],
-  "OLFACTORY-COMPUTATIONAL": [
-    {
-      "id": "OCK-1.0",
-      "title": "OLFACTORY-COMPUTATIONAL KERNEL V1.0.0 (BIMMELBAHN ACCORD)"
-    }
-  ],
   "Ontological": [
     {
       "id": "NECROMANCER-FISH-SCALE-FIGHT-CLUB-KERNEL-1",
@@ -2905,12 +2883,6 @@
     {
       "id": "SERAPHINE-KERNEL-V15.5.5",
       "title": "SERAPHINE KERNEL V15.5.5"
-    }
-  ],
-  "Volatile": [
-    {
-      "id": "OCK-1.0",
-      "title": "OLFACTORY-COMPUTATIONAL KERNEL V1.0.0 (BIMMELBAHN ACCORD)"
     }
   ],
   "Wicken": [
