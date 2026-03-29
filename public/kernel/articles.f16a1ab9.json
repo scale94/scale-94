@@ -207,7 +207,7 @@
       "BIFURCATION",
       "Systemless"
     ],
-    "len": "665 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "NECROMANCER-KERNEL-9.9.9.9",
@@ -861,7 +861,7 @@
       "scalar-sovereignty",
       "arapaima-gigas"
     ],
-    "len": "2035 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "FUSION-PLASMA-KERNEL-1.0",
@@ -880,6 +880,26 @@
       "LAWSON"
     ],
     "len": "0 WDS"
+  },
+  {
+    "id": "KOC-1.0.0",
+    "type": "kernel_doc",
+    "date": "2026-03-28",
+    "lastModified": "2026-03-28",
+    "title": "OLFACTORY-COMPUTATIONAL KERNEL",
+    "subtitle": "Codename: Bimmelbahn Accord",
+    "status": "ACTIVE",
+    "readTime": "7 min read",
+    "tags": [
+      "kernel",
+      "olfactory",
+      "computational",
+      "AI",
+      "perfume",
+      "thermodynamics",
+      "signal-processing"
+    ],
+    "len": "1302 WDS"
   },
   {
     "id": "KINETIC-STATECRAFT-KERNEL-1.0",
@@ -926,6 +946,24 @@
       "INDUSTRIAL"
     ],
     "len": "0 WDS"
+  },
+  {
+    "id": "OCK-1.0",
+    "type": "kernel_doc",
+    "date": "2026-03-29",
+    "lastModified": "2026-03-28",
+    "title": "OLFACTORY-COMPUTATIONAL KERNEL V1.0.0 (BIMMELBAHN ACCORD)",
+    "subtitle": "Abstract",
+    "status": "ACTIVE",
+    "readTime": "7 min read",
+    "tags": [
+      "OLFACTORY-COMPUTATIONAL",
+      "Accord",
+      "Abstract",
+      "Architecture",
+      "Volatile"
+    ],
+    "len": "1337 WDS"
   },
   {
     "id": "QR-1.0",
@@ -1840,7 +1878,7 @@
       "cryptography",
       "flow-state"
     ],
-    "len": "2560 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "SERAPHINE-8.8.8.8.8.8.8.8-PAPER",
@@ -1861,7 +1899,7 @@
       "fade-doctrine",
       "ars-electronica"
     ],
-    "len": "4804 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "SERAPHINE-8.8.8.8.8.8.8.8-BONE-FUSION",
@@ -1879,7 +1917,7 @@
       "STATE",
       "PARAMETERS"
     ],
-    "len": "1447 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "SHADOWSOCKS-KERNEL-∞",
