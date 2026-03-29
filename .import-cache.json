@@ -454,5 +454,11 @@
   "content/soma_kernel/FSK_feigenbaum_bifurcation_12_1_0.md:mtime": 1774184401131.349,
   "content/soma_kernel/FSK_feigenbaum_bifurcation_12_1_0.md:meta": "{\"id\":\"FFB-1.0\",\"type\":\"kernel_doc\",\"date\":\"2026-03-22\",\"lastModified\":\"2026-03-22\",\"title\":\"FISH SCALE KERNEL · THE FEIGENBAUM BIFURCATION\",\"subtitle\":\"Systemless Root · Thermodynamic Chaos Branch\",\"status\":\"ACTIVE\",\"readTime\":\"10 min read\",\"tags\":[\"feigenbaum\",\"bifurcation\",\"bouligand\",\"chaos-theory\",\"thermodynamic-governance\",\"moiré-superlattice\",\"nonlinear-dynamics\",\"scalar-sovereignty\",\"arapaima-gigas\"]}",
   "content/soma_kernel/feigenbaum_fish_scale_kernel-v9.9.9.9.9.9.9.9.9.md": "865723145489d4fd07152b304b44cdfd7a7f65d7",
-  "content/soma_kernel/FSK_feigenbaum_bifurcation_12_1_0.md": "ec53fa2d1bf56b2a86fcedc356a27b94879933fd"
+  "content/soma_kernel/FSK_feigenbaum_bifurcation_12_1_0.md": "ec53fa2d1bf56b2a86fcedc356a27b94879933fd",
+  "content/soma_kernel/kernel-olfactory-computational-v1.0.0.md:mtime": 1774713006051.8125,
+  "content/soma_kernel/kernel-olfactory-computational-v1.0.0.md:meta": "{\"id\":\"KOC-1.0.0\",\"type\":\"kernel_doc\",\"date\":\"2026-03-28\",\"lastModified\":\"2026-03-28\",\"title\":\"OLFACTORY-COMPUTATIONAL KERNEL\",\"subtitle\":\"Codename: Bimmelbahn Accord\",\"status\":\"ACTIVE\",\"readTime\":\"7 min read\",\"tags\":[\"kernel\",\"olfactory\",\"computational\",\"AI\",\"perfume\",\"thermodynamics\",\"signal-processing\"]}",
+  "content/soma_kernel/OLFACTORY-COMPUTATIONAL-KERNEL-V1_0_0.md:mtime": 1774771553180.5974,
+  "content/soma_kernel/OLFACTORY-COMPUTATIONAL-KERNEL-V1_0_0.md:meta": "{\"id\":\"OCK-1.0\",\"type\":\"kernel_doc\",\"date\":\"2026-03-29\",\"lastModified\":\"2026-03-29\",\"title\":\"OLFACTORY-COMPUTATIONAL KERNEL V1.0.0 (BIMMELBAHN ACCORD)\",\"subtitle\":\"Abstract\",\"status\":\"ACTIVE\",\"readTime\":\"7 min read\",\"tags\":[\"OLFACTORY-COMPUTATIONAL\",\"Accord\",\"Abstract\",\"Architecture\",\"Volatile\"]}",
+  "content/soma_kernel/kernel-olfactory-computational-v1.0.0.md": "20708f5715b1cc610d15367d473a8cb192c9613d",
+  "content/soma_kernel/OLFACTORY-COMPUTATIONAL-KERNEL-V1_0_0.md": "f0cd05a3a6ca02e65824c6d9859b1d413d09fb3f"
 }

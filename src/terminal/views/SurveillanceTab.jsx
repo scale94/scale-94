@@ -1,28 +1,14 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { ShieldAlert, ChevronRight, Globe, Filter, AlertTriangle, X, Activity } from 'lucide-react';
 
-// ── Approximate geo coordinates for threat map (viewBox 800×400 Mercator-ish) ──
-const REGION_GEO = {
-  UK: [380, 130], EU: [400, 150], US: [180, 170], AU: [680, 320],
-  CA: [170, 120], DE: [410, 145], FR: [390, 160], SE: [415, 110],
-  IE: [365, 135], NL: [400, 140], NZ: [740, 340], BE: [395, 148],
+// ── Region lon/lat centres for threat map (projected via geoNaturalEarth1) ───
+const REGION_LONLAT = {
+  UK: [-3, 54], EU: [10, 50], US: [-98, 38], AU: [134, -25],
+  CA: [-96, 60], DE: [10, 51], FR: [2, 46], SE: [15, 62],
+  IE: [-8, 53], NL: [5.3, 52.1], NZ: [172, -41], BE: [4, 50.8],
 };
 
-// Simplified continent outlines for the threat map
-const CONTINENT_PATHS = [
-  // North America (simplified)
-  'M90,100 L130,80 L200,85 L250,100 L260,140 L240,180 L210,210 L180,240 L160,230 L140,200 L100,180 L80,150 Z',
-  // South America
-  'M190,250 L220,240 L240,260 L250,300 L240,340 L220,370 L200,380 L180,360 L175,320 L180,280 Z',
-  // Europe
-  'M370,100 L420,90 L440,100 L445,130 L430,160 L410,170 L390,165 L375,150 L365,130 Z',
-  // Africa
-  'M380,180 L420,175 L450,200 L460,250 L450,300 L430,330 L400,340 L380,320 L370,280 L365,230 Z',
-  // Asia
-  'M450,80 L550,70 L650,90 L700,120 L690,170 L650,200 L580,210 L520,190 L480,160 L450,130 Z',
-  // Australia
-  'M650,280 L710,270 L740,290 L740,320 L720,340 L680,340 L660,320 L650,300 Z',
-];
+import { WORLD_POLYS, GRATICULE_PATH, EQUATOR_PATH, toMapXY } from '../data/worldMapPolys';
 
 // ── Severity colour palette (mirrors import-legislation.js threat palette) ──
 const SEV = {
@@ -272,33 +258,46 @@ const SurveillanceTab = ({ legislationArticles = [], onOpenLaw }) => {
           </div>
           <svg viewBox="0 0 800 400" className="w-full" style={{ height: 200 }} xmlns="http://www.w3.org/2000/svg">
             <defs>
-              <style>{`
-                @keyframes sv-dotPulse {
-                  0%, 100% { r: var(--base-r); opacity: 0.85; }
-                  50%       { r: calc(var(--base-r) + 3px); opacity: 1; }
-                }
-              `}</style>
+              <linearGradient id="sv-scan-grad" x1="0" x2="1" y1="0" y2="0">
+                <stop offset="0%"   stopColor="rgba(249,115,22,0)" />
+                <stop offset="50%"  stopColor="rgba(249,115,22,0.35)" />
+                <stop offset="100%" stopColor="rgba(249,115,22,0)" />
+              </linearGradient>
             </defs>
-            {/* Continent outlines */}
-            {CONTINENT_PATHS.map((d, i) => (
-              <path key={i} d={d} fill="none" stroke="rgba(249,115,22,0.15)" strokeWidth="1.5" />
+            {/* Ocean background */}
+            <rect x="0" y="0" width="800" height="400" fill="rgba(249,115,22,0.015)" />
+            {/* Natural Earth graticule (curved grid lines) */}
+            <path d={GRATICULE_PATH} fill="none" stroke="rgba(249,115,22,0.07)" strokeWidth="0.45">
+              <animate attributeName="opacity" values="0.7;1;0.7" dur="5s" repeatCount="indefinite" />
+            </path>
+            {/* Equator — slightly brighter */}
+            <path d={EQUATOR_PATH} fill="none" stroke="rgba(249,115,22,0.18)" strokeWidth="0.7" />
+            {/* Land masses */}
+            {WORLD_POLYS.map((d, i) => (
+              <path key={i} d={d} fill="rgba(249,115,22,0.07)" stroke="rgba(249,115,22,0.28)" strokeWidth="0.8" strokeLinejoin="round" />
             ))}
+            {/* Radar scan line */}
+            <rect x="0" y="0" width="8" height="400" fill="url(#sv-scan-grad)" opacity="0.5">
+              <animateTransform attributeName="transform" type="translate"
+                from="-8 0" to="808 0" dur="6s" repeatCount="indefinite" />
+            </rect>
             {/* Threat dots per region */}
             {Object.entries(regionThreats).map(([code, maxSev]) => {
-              const coords = REGION_GEO[code];
-              if (!coords) return null;
+              const lonlat = REGION_LONLAT[code];
+              if (!lonlat) return null;
+              const [cx, cy] = toMapXY(lonlat[0], lonlat[1]);
               const r = 4 + maxSev * 2;
               const color = SEV_HEX[maxSev] || '#6b7280';
               return (
                 <g key={code}>
-                  <circle cx={coords[0]} cy={coords[1]} r={r + 4} fill={color} opacity="0.15">
+                  <circle cx={cx} cy={cy} r={r + 4} fill={color} opacity="0.15">
                     <animate attributeName="r" values={`${r + 2};${r + 8};${r + 2}`} dur="2.5s" repeatCount="indefinite" />
                     <animate attributeName="opacity" values="0.15;0.05;0.15" dur="2.5s" repeatCount="indefinite" />
                   </circle>
-                  <circle cx={coords[0]} cy={coords[1]} r={r} fill={color} opacity="0.85">
+                  <circle cx={cx} cy={cy} r={r} fill={color} opacity="0.85">
                     <animate attributeName="r" values={`${r};${r + 2};${r}`} dur="2.5s" repeatCount="indefinite" />
                   </circle>
-                  <text x={coords[0]} y={coords[1] + r + 12} textAnchor="middle" fill={color} fontSize="9" fontFamily="monospace" opacity="0.6">
+                  <text x={cx} y={cy + r + 12} textAnchor="middle" fill={color} fontSize="9" fontFamily="monospace" opacity="0.6">
                     {code}
                   </text>
                 </g>

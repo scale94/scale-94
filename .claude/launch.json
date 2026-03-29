@@ -4,9 +4,8 @@
     {
       "name": "scale94-dev",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["node_modules/vite/bin/vite.js"],
-      "port": 5173,
-      "autoPort": true
+      "runtimeArgs": ["node_modules/vite/bin/vite.js", "--port", "5174"],
+      "port": 5174
     }
   ]
 }

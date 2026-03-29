@@ -36,9 +36,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
-import { ChevronRight, Filter, X, AlertTriangle } from 'lucide-react';
+import { ChevronRight, Filter, X, AlertTriangle, Globe } from 'lucide-react';
 import wasmRegistry from '../../wasm/wasm.generated';
 import { loadWasm } from '../../wasm/wasmSingleton';
+import { WORLD_POLYS, GRATICULE_PATH, EQUATOR_PATH, toMapXY } from '../data/worldMapPolys';
 
 // ── Coupling Event Bus ─────────────────────────────────────────────────────
 // Simple pub/sub for cross-tab phase coupling.
@@ -57,6 +58,23 @@ const ECO_TAGS = new Set([
   'Sustainability','Ecocide','ecological','biodiversity','atmospheric',
 ]);
 const isEcoArticle = (a) => a?.tags?.some(t => ECO_TAGS.has(t));
+
+// ── Ecological stress hotspots (lon, lat, severity 1–5, label) ──────────────
+const ECO_HOTSPOTS = [
+  { lon: -60, lat: -3,  sev: 5, label: 'AMAZON'    },
+  { lon: 22,  lat: 0,   sev: 4, label: 'CONGO'     },
+  { lon: 115, lat: 1,   sev: 5, label: 'BORNEO'    },
+  { lon: 149, lat: -18, sev: 4, label: 'GBR'       },
+  { lon: 0,   lat: 76,  sev: 5, label: 'ARCTIC'    },
+  { lon: 47,  lat: -19, sev: 4, label: 'MADAGASCAR' },
+  { lon: 10,  lat: 13,  sev: 3, label: 'SAHEL'     },
+  { lon: 100, lat: 30,  sev: 3, label: 'HIMALAYA'  },
+  { lon: -70, lat: -65, sev: 5, label: 'ANTARCTIC' },
+  { lon: 135, lat: -25, sev: 3, label: 'OUTBACK'   },
+  { lon: -90, lat: 45,  sev: 3, label: 'GREAT LAKES' },
+  { lon: 30,  lat: -2,  sev: 4, label: 'RIFT VALLEY' },
+];
+const ECO_SEV_HEX = { 5: '#dc2626', 4: '#ea580c', 3: '#ca8a04', 2: '#65a30d', 1: '#16a34a' };
 
 // ── Simulation grid ──────────────────────────────────────────────────────────
 const SIM_W = 256;
@@ -1215,6 +1233,58 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
             [RESET_SIMULATION]
           </button>
         </div>
+      </div>
+
+      {/* ── Ecological Stress Map ──────────────────────────────────────── */}
+      <div className="mt-4 border rounded-sm p-3 overflow-hidden" style={{ borderColor: 'rgba(57,255,20,0.12)', background: 'rgba(0,0,0,0.3)' }}>
+        <div className="text-[9px] font-mono tracking-widest uppercase mb-2 flex items-center gap-2" style={{ color: 'rgba(57,255,20,0.4)' }}>
+          <Globe className="w-2.5 h-2.5" /> BIOSPHERE STRESS DISTRIBUTION
+        </div>
+        <svg viewBox="0 0 800 400" className="w-full" style={{ height: 200 }} xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="eco-scan-grad" x1="0" x2="1" y1="0" y2="0">
+              <stop offset="0%"   stopColor="rgba(57,255,20,0)" />
+              <stop offset="50%"  stopColor="rgba(57,255,20,0.25)" />
+              <stop offset="100%" stopColor="rgba(57,255,20,0)" />
+            </linearGradient>
+          </defs>
+          {/* Ocean background */}
+          <rect x="0" y="0" width="800" height="400" fill="rgba(57,255,20,0.012)" />
+          {/* Natural Earth graticule (curved grid lines) */}
+          <path d={GRATICULE_PATH} fill="none" stroke="rgba(57,255,20,0.06)" strokeWidth="0.45">
+            <animate attributeName="opacity" values="0.6;1;0.6" dur="6s" repeatCount="indefinite" />
+          </path>
+          {/* Equator — slightly brighter */}
+          <path d={EQUATOR_PATH} fill="none" stroke="rgba(57,255,20,0.16)" strokeWidth="0.7" />
+          {/* Land masses */}
+          {WORLD_POLYS.map((d, i) => (
+            <path key={i} d={d} fill="rgba(57,255,20,0.05)" stroke="rgba(57,255,20,0.22)" strokeWidth="0.8" strokeLinejoin="round" />
+          ))}
+          {/* Radar scan line */}
+          <rect x="0" y="0" width="8" height="400" fill="url(#eco-scan-grad)" opacity="0.45">
+            <animateTransform attributeName="transform" type="translate"
+              from="-8 0" to="808 0" dur="7s" repeatCount="indefinite" />
+          </rect>
+          {ECO_HOTSPOTS.map(({ lon, lat, sev, label }) => {
+            const [cx, cy] = toMapXY(lon, lat);
+            const r = 3 + sev * 1.5;
+            const color = ECO_SEV_HEX[sev] || '#65a30d';
+            return (
+              <g key={label}>
+                <circle cx={cx} cy={cy} r={r + 4} fill={color} opacity="0.12">
+                  <animate attributeName="r" values={`${r + 2};${r + 8};${r + 2}`} dur="3s" repeatCount="indefinite" />
+                  <animate attributeName="opacity" values="0.12;0.04;0.12" dur="3s" repeatCount="indefinite" />
+                </circle>
+                <circle cx={cx} cy={cy} r={r} fill={color} opacity="0.8">
+                  <animate attributeName="r" values={`${r};${r + 2};${r}`} dur="3s" repeatCount="indefinite" />
+                </circle>
+                <text x={cx} y={cy + r + 11} textAnchor="middle" fill={color} fontSize="7" fontFamily="monospace" opacity="0.55">
+                  {label}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
       </div>
 
       {/* ── Eco-Kernel Index ────────────────────────────────────────────── */}
