@@ -1,14 +1,28 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { ShieldAlert, ChevronRight, Globe, Filter, AlertTriangle, X, Activity } from 'lucide-react';
+import WorldMap from '../components/WorldMap';
+import { toMapXY } from '../data/worldMapPolys';
 
-// ── Region lon/lat centres for threat map (projected via geoNaturalEarth1) ───
+// ── Region lon/lat centres (projected via geoNaturalEarth1) ─────────────────
 const REGION_LONLAT = {
   UK: [-3, 54], EU: [10, 50], US: [-98, 38], AU: [134, -25],
   CA: [-96, 60], DE: [10, 51], FR: [2, 46], SE: [15, 62],
   IE: [-8, 53], NL: [5.3, 52.1], NZ: [172, -41], BE: [4, 50.8],
 };
 
-import { WORLD_POLYS, GRATICULE_PATH, EQUATOR_PATH, toMapXY } from '../data/worldMapPolys';
+// ── Pixel nudges for the dense European cluster ───────────────────────────────
+// At global scale, UK/EU/DE/NL/BE/IE/FR all project within ~30×17 viewBox px.
+// These offsets spread dots into readable positions without distorting the map.
+const REGION_NUDGE = {
+  IE: [-30,   2],   // far west
+  UK: [-14, -16],   // northwest
+  NL: [  8, -18],   // north
+  BE: [ -2,  14],   // south of center
+  DE: [ 20,  -8],   // northeast
+  EU: [ 28,  10],   // east (virtual label — sits outside the tight cluster)
+  FR: [-10,  22],   // southwest
+  SE: [  6, -22],   // high north
+};
 
 // ── Severity colour palette (mirrors import-legislation.js threat palette) ──
 const SEV = {
@@ -256,40 +270,23 @@ const SurveillanceTab = ({ legislationArticles = [], onOpenLaw }) => {
           <div className="text-[9px] font-mono tracking-widest text-orange-400/40 uppercase mb-2 flex items-center gap-2">
             <Globe className="w-2.5 h-2.5" /> THREAT DISTRIBUTION MAP
           </div>
-          <svg viewBox="0 0 800 400" className="w-full" style={{ height: 200 }} xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <linearGradient id="sv-scan-grad" x1="0" x2="1" y1="0" y2="0">
-                <stop offset="0%"   stopColor="rgba(249,115,22,0)" />
-                <stop offset="50%"  stopColor="rgba(249,115,22,0.35)" />
-                <stop offset="100%" stopColor="rgba(249,115,22,0)" />
-              </linearGradient>
-            </defs>
-            {/* Ocean background */}
-            <rect x="0" y="0" width="800" height="400" fill="rgba(249,115,22,0.015)" />
-            {/* Natural Earth graticule (curved grid lines) */}
-            <path d={GRATICULE_PATH} fill="none" stroke="rgba(249,115,22,0.07)" strokeWidth="0.45">
-              <animate attributeName="opacity" values="0.7;1;0.7" dur="5s" repeatCount="indefinite" />
-            </path>
-            {/* Equator — slightly brighter */}
-            <path d={EQUATOR_PATH} fill="none" stroke="rgba(249,115,22,0.18)" strokeWidth="0.7" />
-            {/* Land masses */}
-            {WORLD_POLYS.map((d, i) => (
-              <path key={i} d={d} fill="rgba(249,115,22,0.07)" stroke="rgba(249,115,22,0.28)" strokeWidth="0.8" strokeLinejoin="round" />
-            ))}
-            {/* Radar scan line */}
-            <rect x="0" y="0" width="8" height="400" fill="url(#sv-scan-grad)" opacity="0.5">
-              <animateTransform attributeName="transform" type="translate"
-                from="-8 0" to="808 0" dur="6s" repeatCount="indefinite" />
-            </rect>
-            {/* Threat dots per region */}
+          <WorldMap palette="orange" height={200} scanDur={6}>
             {Object.entries(regionThreats).map(([code, maxSev]) => {
               const lonlat = REGION_LONLAT[code];
               if (!lonlat) return null;
-              const [cx, cy] = toMapXY(lonlat[0], lonlat[1]);
-              const r = 4 + maxSev * 2;
+              const [bx, by] = toMapXY(lonlat[0], lonlat[1]);
+              const nudge   = REGION_NUDGE[code] || [0, 0];
+              const cx = bx + nudge[0];
+              const cy = by + nudge[1];
+              const r     = 4 + maxSev * 2;
               const color = SEV_HEX[maxSev] || '#6b7280';
               return (
                 <g key={code}>
+                  {/* Leader line from nudged dot back to true geographic position */}
+                  {(nudge[0] !== 0 || nudge[1] !== 0) && (
+                    <line x1={bx} y1={by} x2={cx} y2={cy}
+                      stroke={color} strokeWidth="0.6" strokeDasharray="2,2" opacity="0.3" />
+                  )}
                   <circle cx={cx} cy={cy} r={r + 4} fill={color} opacity="0.15">
                     <animate attributeName="r" values={`${r + 2};${r + 8};${r + 2}`} dur="2.5s" repeatCount="indefinite" />
                     <animate attributeName="opacity" values="0.15;0.05;0.15" dur="2.5s" repeatCount="indefinite" />
@@ -297,13 +294,13 @@ const SurveillanceTab = ({ legislationArticles = [], onOpenLaw }) => {
                   <circle cx={cx} cy={cy} r={r} fill={color} opacity="0.85">
                     <animate attributeName="r" values={`${r};${r + 2};${r}`} dur="2.5s" repeatCount="indefinite" />
                   </circle>
-                  <text x={cx} y={cy + r + 12} textAnchor="middle" fill={color} fontSize="9" fontFamily="monospace" opacity="0.6">
+                  <text x={cx} y={cy + r + 11} textAnchor="middle" fill={color} fontSize="9" fontFamily="monospace" opacity="0.6">
                     {code}
                   </text>
                 </g>
               );
             })}
-          </svg>
+          </WorldMap>
         </div>
       )}
 
