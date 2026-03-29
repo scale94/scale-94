@@ -66,6 +66,32 @@ const DOMAINS: [ConceptDomain; 16] = [
     ConceptDomain { id: 13, name: "Semiotic Code Collapse",        descriptor: "Eco ratio difficilis, expression-type invention, code failure",  seed: 0xEC00_0000_0000_000E, sparsity: 0.69, curvature: 0.83, volatility: 0.82 },
     ConceptDomain { id: 14, name: "Evolutionary Game Theory",      descriptor: "Replicator dynamics, ESS, hawk-dove, fitness landscape",         seed: 0xE001_FACE_DEED_000F, sparsity: 0.36, curvature: 0.64, volatility: 0.55 },
     ConceptDomain { id: 15, name: "Metabolic Rift Ecology",        descriptor: "Marx-Liebig nutrient cycle break, soil exhaustion, entropy debt", seed: 0xDAFE_B10C_DEAD_0010, sparsity: 0.63, curvature: 0.76, volatility: 0.28 },
+
+];
+
+// ── BLOCK II: Elemental Domains (v1.2.0) — 21st-century periodic table ──────
+// Second 16D block. Each element is framed as a conceptual domain — a lens
+// through which the 21st century's material constraints become visible.
+// The collision of an elemental domain with a conceptual domain from Block I
+// produces chimeras that bridge matter and abstraction.
+
+const ELEM_DOMAINS: [ConceptDomain; 16] = [
+    ConceptDomain { id: 0,  name: "Radon Infiltration Dynamics",      descriptor: "Rn-222 alpha decay, basement percolation, invisible dosimetry, soil-gas transport",               seed: 0xAD0B_FADE_8600_0011, sparsity: 0.70, curvature: 0.45, volatility: 0.95 },
+    ConceptDomain { id: 1,  name: "Lithium Extraction Ecology",       descriptor: "Li-ion energy storage, brine evaporation ponds, Atacama salt flat depletion, bipolar pharmacology", seed: 0x11A7_BA77_FACE_0012, sparsity: 0.40, curvature: 0.73, volatility: 0.60 },
+    ConceptDomain { id: 2,  name: "Silicon Gate Logic",               descriptor: "Semiconductor band gap, MOSFET switching, sand-to-chip pipeline, Moore's law endgame",             seed: 0x51C0_BEAD_0000_0013, sparsity: 0.25, curvature: 0.38, volatility: 0.35 },
+    ConceptDomain { id: 3,  name: "Carbon Allotropic Collapse",       descriptor: "Diamond/graphite/graphene/fullerene phase space, sp2-sp3 hybridization, climate forcing agent",     seed: 0xCA4B_0000_DEAD_0014, sparsity: 0.30, curvature: 0.92, volatility: 0.45 },
+    ConceptDomain { id: 4,  name: "Cobalt Supply Chain Conflict",     descriptor: "DRC artisanal mining, LiCoO2 cathode chemistry, conflict mineral traceability, blue pigment",       seed: 0xC0BA_17DA_BEEF_0015, sparsity: 0.65, curvature: 0.52, volatility: 0.68 },
+    ConceptDomain { id: 5,  name: "Phosphorus Depletion Crisis",      descriptor: "Peak phosphorus, Moroccan reserve monopoly, ATP energy currency, eutrophication runoff",            seed: 0xF0F0_DA7A_CAFE_0016, sparsity: 0.53, curvature: 0.69, volatility: 0.50 },
+    ConceptDomain { id: 6,  name: "Uranium Critical Mass",            descriptor: "U-235 fission chain reaction, enrichment cascades, critical mass geometry, Oklo natural reactor",   seed: 0x0235_F15C_DEAD_0017, sparsity: 0.48, curvature: 0.85, volatility: 0.90 },
+    ConceptDomain { id: 7,  name: "Gallium Arsenide Photonics",       descriptor: "III-V semiconductor, laser diode substrate, 5G RF front-end, space-grade solar cells",              seed: 0x6A11_FACE_A45E_0018, sparsity: 0.34, curvature: 0.48, volatility: 0.42 },
+    ConceptDomain { id: 8,  name: "Neodymium Magnetic Monopoly",      descriptor: "NdFeB permanent magnets, wind turbine generators, Chinese rare earth leverage, Halbach arrays",     seed: 0x0D60_BEEF_CAFE_0019, sparsity: 0.57, curvature: 0.66, volatility: 0.32 },
+    ConceptDomain { id: 9,  name: "Helium-3 Scarcity Horizon",        descriptor: "Lunar regolith mining, neutron detector shortage, dilution refrigerator coolant, fusion fuel",      seed: 0x4E03_DEAD_FADE_001A, sparsity: 0.78, curvature: 0.40, volatility: 0.25 },
+    ConceptDomain { id: 10, name: "Mercury Phase Boundary",           descriptor: "Liquid metal at STP, Minamata bioaccumulation, amalgam dissolution, thermometric standard",         seed: 0x8680_FADE_BEAD_001B, sparsity: 0.62, curvature: 0.77, volatility: 0.75 },
+    ConceptDomain { id: 11, name: "Plutonium Proliferation Geometry",  descriptor: "Pu-239 implosion lens, pit geometry, subcritical testing, MOX fuel cycle, nuclear archaeology",    seed: 0xF094_DEAD_CAFE_001C, sparsity: 0.73, curvature: 0.90, volatility: 0.88 },
+    ConceptDomain { id: 12, name: "Copper Electrification Bottleneck", descriptor: "Grid conductor scarcity, Chilean open-pit extraction, antimicrobial surfaces, Faraday cage",       seed: 0xC0FF_BEAD_0000_001D, sparsity: 0.38, curvature: 0.50, volatility: 0.40 },
+    ConceptDomain { id: 13, name: "Nitrogen Fixation Collapse",       descriptor: "Haber-Bosch energy debt, rhizobial symbiosis disruption, reactive nitrogen cascade, dead zones",    seed: 0x0A7E_CAFE_DEAD_001E, sparsity: 0.50, curvature: 0.72, volatility: 0.55 },
+    ConceptDomain { id: 14, name: "Tungsten Densification Regime",    descriptor: "Highest melting point, kinetic penetrator physics, X-ray shielding, filament obsolescence",         seed: 0x7407_BEAD_FACE_001F, sparsity: 0.44, curvature: 0.58, volatility: 0.18 },
+    ConceptDomain { id: 15, name: "Iodine Thyroid Cascade",           descriptor: "I-131 fallout bioaccumulation, thyroid uptake, Chernobyl potassium iodide, Lugol's solution",      seed: 0x10D1_DEAD_BABE_0020, sparsity: 0.60, curvature: 0.63, volatility: 0.82 },
 ];
 
 // ── Synthesized concept chimeras ─────────────────────────────────────────────
@@ -99,6 +125,36 @@ const CHIMERAS: &[(usize, usize, &str, &str)] = &[
      "Commons governance as evolutionary game – polycentric institutions as evolutionarily stable strategies on a fitness landscape"),
     (2, 0, "Bouligand Lattice Cipher",
      "Post-quantum key encapsulation whose algebraic lattice mirrors the 36-degree interlaminar rotation of Arapaima dermal armor"),
+
+    // ── Cross-block chimeras: element × concept ──────────────────────────────
+    (16, 7, "Radon Panopticon Dosimetry",
+     "Surveillance infrastructure whose detection threshold follows Rn-222 decay kinetics – the state monitors what it cannot see, accumulating invisible evidence until the dose becomes lethal"),
+    (17, 15, "Lithium Metabolic Rift",
+     "Atacama brine extraction as Marx-Liebig nutrient cycle break – the battery revolution exhausts the salt flat's water table the way industrial farming exhausts topsoil"),
+    (18, 5, "Silicon Attention Substrate",
+     "MOSFET gates as physical instantiation of transformer attention heads – each transistor switch is a binary attention score, and the chip is a frozen softmax"),
+    (19, 8, "Carbon Graphene Allotropy",
+     "Twisted bilayer graphene as one phase in carbon's allotropic state space – the magic angle is where sp2 hybridization discovers flat-band superconductivity"),
+    (20, 9, "Cobalt Commons Extraction",
+     "Ostrom governance applied to DRC artisanal mining – polycentric institutions as the only viable alternative to conflict mineral supply chains"),
+    (21, 14, "Phosphorus Replicator Collapse",
+     "Peak phosphorus as evolutionary game theory bottleneck – agricultural fitness landscapes collapse when the limiting nutrient exits the cycle"),
+    (22, 12, "Uranium Plasma Confinement",
+     "Fission and fusion as dual criticality thresholds – uranium chain reaction geometry vs. tokamak plasma confinement, both pursuing the same Q-factor from opposite directions"),
+    (16, 6, "Radon Thermodynamic Infiltration",
+     "Rn-222 soil-gas transport as a thermodynamic free energy problem – the gas follows the Gibbs potential gradient through foundation cracks"),
+    (22, 3, "Uranium Feigenbaum Cascade",
+     "Fission chain reaction as period-doubling bifurcation – each neutron generation is a Feigenbaum iteration approaching the critical mass delta constant"),
+    (17, 4, "Lithium Mycelial Extraction",
+     "Brine evaporation ponds as mycelial nutrient routing in reverse – the lithium triangle's water table is a Wood Wide Web being drained from above"),
+    (23, 0, "Gallium Quantum Channel",
+     "GaAs photonic substrate for post-quantum key distribution – III-V semiconductor laser diodes as the physical layer of lattice-based cryptography"),
+    (26, 10, "Mercury Kuramoto Phase",
+     "Liquid metal at STP as a Kuramoto synchronization anomaly – mercury's atoms are phase-locked in a liquid state where they should be solid, collective disorder as ground state"),
+    (27, 11, "Plutonium Simulacra Geometry",
+     "Nuclear weapon pit geometry as Baudrillardian hyperobject – the warhead is a simulacrum that precedes its referent, deterrence requires the sign to be more real than the thing"),
+    (29, 13, "Nitrogen Semiotic Fixation",
+     "Haber-Bosch as semiotic code collapse – the industrial fixation of N2 broke the sign-referent relationship between soil fertility and biological nitrogen cycling"),
 ];
 
 // ── Mathematical state for the collision ─────────────────────────────────────
@@ -295,8 +351,8 @@ fn find_chimera(id_a: usize, id_b: usize) -> (&'static str, &'static str) {
 /// outputs a synthesized concept chimera.
 ///
 /// Parameters:
-///   domain_a      : index of first conceptual domain (0–15)
-///   domain_b      : index of second conceptual domain (0–15)
+///   domain_a      : global domain index (0–15 = Block I conceptual, 16–31 = Block II elemental)
+///   domain_b      : global domain index (0–15 = Block I conceptual, 16–31 = Block II elemental)
 ///   attn_heads    : simulated attention head count (1–64, affects entropy)
 ///   temperature   : softmax temperature – sharpness of conceptual focus (0.1–5.0)
 #[wasm_bindgen]
@@ -306,13 +362,14 @@ pub fn run_latent_collider(
     attn_heads:  f64,
     temperature: f64,
 ) -> String {
-    let id_a  = (domain_a as usize).clamp(0, 15);
-    let id_b  = (domain_b as usize).clamp(0, 15);
+    let id_a  = (domain_a as usize).clamp(0, 31);
+    let id_b  = (domain_b as usize).clamp(0, 31);
     let heads = (attn_heads as usize).clamp(1, 64);
     let temp  = temperature.clamp(0.1, 5.0);
 
-    let a = &DOMAINS[id_a];
-    let b = &DOMAINS[id_b];
+    // Resolve global ID → (block, local_index)
+    let a = if id_a < 16 { &DOMAINS[id_a] } else { &ELEM_DOMAINS[id_a - 16] };
+    let b = if id_b < 16 { &DOMAINS[id_b] } else { &ELEM_DOMAINS[id_b - 16] };
 
     // ── Compute collision ────────────────────────────────────────────────────
     let state = simulate_collision(a, b);
@@ -475,11 +532,20 @@ pub fn run_latent_collider(
         line = line,
     ).unwrap();
 
+    write!(out, "  BLOCK I \u{2014} CONCEPTUAL\n").unwrap();
     for d in &DOMAINS {
         let marker = if d.id == id_a { " \u{25C4} A" }
                 else if d.id == id_b { " \u{25C4} B" }
                 else { "" };
         write!(out, "  [{:>2}]  {}{}\n", d.id, d.name, marker).unwrap();
+    }
+    write!(out, "  BLOCK II \u{2014} ELEMENTAL\n").unwrap();
+    for d in &ELEM_DOMAINS {
+        let global_id = d.id + 16;
+        let marker = if global_id == id_a { " \u{25C4} A" }
+                else if global_id == id_b { " \u{25C4} B" }
+                else { "" };
+        write!(out, "  [{:>2}]  {}{}\n", global_id, d.name, marker).unwrap();
     }
 
     // ── §7 Olfactory-Computational Kernel (Bimmelbahn Accord v1.0.0) ──────────

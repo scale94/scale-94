@@ -201,6 +201,30 @@ const DOMAINS = [
   { id: 15, name: 'Metabolic Rift Ecology',         short: 'RIFT',      hue: 80  },
 ];
 
+// ── Block II: Elemental Domains (v1.2.0) — 21st-century periodic table ───────
+const ELEM_DOMAINS = [
+  { id: 16, name: 'Radon Infiltration Dynamics',      short: 'Rn',   hue: 55  },
+  { id: 17, name: 'Lithium Extraction Ecology',       short: 'Li',   hue: 150 },
+  { id: 18, name: 'Silicon Gate Logic',               short: 'Si',   hue: 210 },
+  { id: 19, name: 'Carbon Allotropic Collapse',       short: 'C',    hue: 0   },
+  { id: 20, name: 'Cobalt Supply Chain Conflict',     short: 'Co',   hue: 230 },
+  { id: 21, name: 'Phosphorus Depletion Crisis',      short: 'P',    hue: 100 },
+  { id: 22, name: 'Uranium Critical Mass',            short: 'U',    hue: 50  },
+  { id: 23, name: 'Gallium Arsenide Photonics',       short: 'GaAs', hue: 185 },
+  { id: 24, name: 'Neodymium Magnetic Monopoly',      short: 'Nd',   hue: 295 },
+  { id: 25, name: 'Helium-3 Scarcity Horizon',        short: 'He³',  hue: 60  },
+  { id: 26, name: 'Mercury Phase Boundary',           short: 'Hg',   hue: 330 },
+  { id: 27, name: 'Plutonium Proliferation Geometry',  short: 'Pu',   hue: 15  },
+  { id: 28, name: 'Copper Electrification Bottleneck', short: 'Cu',   hue: 25  },
+  { id: 29, name: 'Nitrogen Fixation Collapse',       short: 'N',    hue: 110 },
+  { id: 30, name: 'Tungsten Densification Regime',    short: 'W',    hue: 240 },
+  { id: 31, name: 'Iodine Thyroid Cascade',           short: 'I',    hue: 270 },
+];
+
+// Unified lookup by id — keeps DOMAINS array untouched for animation code
+const ALL_DOMAINS = [...DOMAINS, ...ELEM_DOMAINS];
+const domainById = (id) => ALL_DOMAINS.find(d => d.id === id);
+
 // ── Domain → sphere node mapping ─────────────────────────────────────────────
 // Maps each collider domain index to the closest sphere node ID and cluster.
 // Used to derive the chimera's 16D feature tensor and cluster assignment.
@@ -221,6 +245,23 @@ const DOMAIN_SPHERE_MAP = [
   /* 13 SEMIO    */ { nodeId: 'soma_kernel',  cluster: 'drk'    },
   /* 14 EVOL     */ { nodeId: 'replicator',   cluster: 'eco'    },
   /* 15 RIFT     */ { nodeId: 'necromantic',  cluster: 'drk'    },
+  // ── Block II: Elemental Domains ──────────────────────────────────────────
+  /* 16 Rn       */ { nodeId: 'surveillance', cluster: 'drk'    },
+  /* 17 Li       */ { nodeId: 'necromantic',  cluster: 'drk'    },
+  /* 18 Si       */ { nodeId: 'seraphine',    cluster: 'phys'   },
+  /* 19 C        */ { nodeId: 'magic_angle_1p1', cluster: 'phys'},
+  /* 20 Co       */ { nodeId: 'ceei',         cluster: 'sync'   },
+  /* 21 P        */ { nodeId: 'biocoenosis',  cluster: 'eco'    },
+  /* 22 U        */ { nodeId: 'fusion',       cluster: 'phys'   },
+  /* 23 GaAs     */ { nodeId: 'pqhash',       cluster: 'crypto' },
+  /* 24 Nd       */ { nodeId: 'kuramoto',     cluster: 'sync'   },
+  /* 25 He³      */ { nodeId: 'atmospheric',  cluster: 'eco'    },
+  /* 26 Hg       */ { nodeId: 'feigenbaum',   cluster: 'phys'   },
+  /* 27 Pu       */ { nodeId: 'pragmatic',    cluster: 'drk'    },
+  /* 28 Cu       */ { nodeId: 'replicator',   cluster: 'eco'    },
+  /* 29 N        */ { nodeId: 'soma_kernel',  cluster: 'drk'    },
+  /* 30 W        */ { nodeId: 'bouligand_36', cluster: 'eco'    },
+  /* 31 I        */ { nodeId: 'strangler',    cluster: 'drk'    },
 ];
 
 // ── Parse the WASM kernel text output into structured data ───────────────────
@@ -377,8 +418,8 @@ export default function LatentCollider() {
 
       parsed.nodeIdA = nodeIdA;
       parsed.nodeIdB = nodeIdB;
-      parsed._domainNameA = DOMAINS[a].name;
-      parsed._domainNameB = DOMAINS[b].name;
+      parsed._domainNameA = domainById(a).name;
+      parsed._domainNameB = domainById(b).name;
 
       // ── OCK: Olfactory accord classification ───────────────────────
       parsed.accord = classifyAccord(parsed);
@@ -404,8 +445,8 @@ export default function LatentCollider() {
         novelty:     parsed.novelty,
         coherence:   parsed.coherence,
         viability:   parsed.viability,
-        hueA:        DOMAINS[a].hue,
-        hueB:        DOMAINS[b].hue,
+        hueA:        domainById(a).hue,
+        hueB:        domainById(b).hue,
         accord:      parsed.accord ? {
           dominant:     parsed.accord.dominant.id,
           sillage:      parsed.accord.sillage,
@@ -522,8 +563,8 @@ export default function LatentCollider() {
       ctx.beginPath(); ctx.moveTo(cx, cy - 20); ctx.lineTo(cx, cy + 20); ctx.stroke();
 
       // ── Beamlines (when domains are selected) ──────────────────────────
-      const hueA = domainA !== null ? DOMAINS[domainA].hue : 280;
-      const hueB = domainB !== null ? DOMAINS[domainB].hue : 120;
+      const hueA = domainA !== null ? domainById(domainA).hue : 280;
+      const hueB = domainB !== null ? domainById(domainB).hue : 120;
 
       if (domainA !== null) {
         const beamAlpha = ph === 'accelerating' ? 0.3 + Math.sin(t * 0.15) * 0.15 : 0.12;
@@ -535,7 +576,7 @@ export default function LatentCollider() {
         ctx.fillStyle = `hsla(${hueA}, 80%, 70%, 0.6)`;
         ctx.font = '9px monospace';
         ctx.textAlign = 'left';
-        ctx.fillText(DOMAINS[domainA].short, 8, cy - 8);
+        ctx.fillText(domainById(domainA).short, 8, cy - 8);
       }
 
       if (domainB !== null) {
@@ -547,7 +588,7 @@ export default function LatentCollider() {
         ctx.fillStyle = `hsla(${hueB}, 80%, 70%, 0.6)`;
         ctx.font = '9px monospace';
         ctx.textAlign = 'right';
-        ctx.fillText(DOMAINS[domainB].short, w - 8, cy - 8);
+        ctx.fillText(domainById(domainB).short, w - 8, cy - 8);
       }
 
       // ── Spawn particles based on phase ─────────────────────────────────
@@ -788,8 +829,11 @@ export default function LatentCollider() {
         )}
       </div>
 
-      {/* ── Domain Grid ── */}
-      <div className="grid grid-cols-4 sm:grid-cols-8 gap-1.5 mt-3">
+      {/* ── Domain Grid — Block I: Conceptual ── */}
+      <div className="text-[8px] font-mono text-fuchsia-500/40 uppercase tracking-widest mt-3 mb-1">
+        BLOCK I — CONCEPTUAL
+      </div>
+      <div className="grid grid-cols-4 sm:grid-cols-8 gap-1.5">
         {DOMAINS.map(d => {
           const isA = domainA === d.id;
           const isB = domainB === d.id;
@@ -821,14 +865,50 @@ export default function LatentCollider() {
         })}
       </div>
 
+      {/* ── Domain Grid — Block II: Elemental ── */}
+      <div className="text-[8px] font-mono text-amber-500/40 uppercase tracking-widest mt-3 mb-1">
+        BLOCK II — ELEMENTAL
+      </div>
+      <div className="grid grid-cols-4 sm:grid-cols-8 gap-1.5">
+        {ELEM_DOMAINS.map(d => {
+          const isA = domainA === d.id;
+          const isB = domainB === d.id;
+          const selected = isA || isB;
+          const disabled = phase === 'accelerating' || phase === 'colliding';
+
+          return (
+            <button
+              key={d.id}
+              onClick={() => !disabled && handleSelect(d.id)}
+              disabled={disabled}
+              className={`
+                text-[9px] font-mono uppercase tracking-wider py-2 px-1 rounded border transition-all
+                ${selected
+                  ? 'border-amber-500/60 bg-amber-900/20 text-amber-300'
+                  : 'border-amber-900/20 bg-black/30 text-amber-600/60 hover:border-amber-600/40 hover:text-amber-400 hover:bg-amber-900/10'}
+                ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
+              `}
+              title={d.name}
+              style={selected ? { boxShadow: `0 0 12px hsla(${d.hue}, 70%, 50%, 0.3)` } : {}}
+            >
+              <div className="font-bold" style={selected ? { color: `hsl(${d.hue}, 70%, 65%)` } : {}}>
+                {d.short}
+              </div>
+              {isA && <div className="text-[7px] text-fuchsia-500 mt-0.5">A</div>}
+              {isB && <div className="text-[7px] text-cyan-500 mt-0.5">B</div>}
+            </button>
+          );
+        })}
+      </div>
+
       {/* ── Selected domains display ── */}
       {domainA !== null && (
         <div className="flex items-center gap-3 mt-3 text-[10px] font-mono">
-          <span className="text-fuchsia-400">A: {DOMAINS[domainA].name}</span>
+          <span className="text-fuchsia-400">A: {domainById(domainA).name}</span>
           {domainB !== null && (
             <>
               <span className="text-cyan-700">×</span>
-              <span className="text-cyan-400">B: {DOMAINS[domainB].name}</span>
+              <span className="text-cyan-400">B: {domainById(domainB).name}</span>
             </>
           )}
           {domainB === null && (
