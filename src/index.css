@@ -271,13 +271,21 @@ html, body {
    from that point, covering the screen before dissolving to reveal the kernel
    tab behind it. Arc: uncut stasis (boot) → press S → creation (kernel).
    No clip-path (buggy on iOS Safari flex containers). Pure scale + opacity. */
-/* Boot singularity → kernel tab expansion (Blender S-key spring) */
+/* Boot singularity → kernel tab expansion (Blender 5.1 S-key cube scale)
+   perspective() as transform fn keeps depth local — no parent wrapper needed.
+   Pure uniform scale3d: no tilt, no rotation. The perspective foreshortening
+   makes near edges expand faster than far edges — identical to Blender viewport
+   camera watching a selected cube grow under S-key.
+   Easing: expo-out (fast ignition, imperceptibly long deceleration tail). */
 @keyframes kernel-reveal-scale {
-  0%   { transform: scale(0.02); opacity: 0; }
-  5%   { opacity: 1; }
-  62%  { transform: scale(1.018); }
-  80%  { transform: scale(0.997); }
-  100% { transform: scale(1); opacity: 1; }
+  0%   { transform: perspective(900px) scale3d(0.01,0.01,0.01); opacity: 0; }
+  6%   { opacity: 1; }
+  100% { transform: perspective(900px) scale3d(1,1,1); opacity: 1; }
+}
+@keyframes kernel-collapse-scale {
+  0%   { transform: perspective(900px) scale3d(1,1,1); opacity: 1; }
+  60%  { opacity: 1; }
+  100% { transform: perspective(900px) scale3d(0.01,0.01,0.01); opacity: 0; }
 }
 
 

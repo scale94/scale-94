@@ -852,8 +852,8 @@ const App = () => {
           bootAnimDone
             ? {}
             : bootRevealed
-              ? { animation: 'kernel-reveal-scale 0.62s cubic-bezier(0.34,1.56,0.64,1) both', transformOrigin: 'center center' }
-              : { transform: 'scale(0.02)', opacity: 0, transformOrigin: 'center center' }
+              ? { animation: 'kernel-reveal-scale 0.65s cubic-bezier(0.16,1,0.3,1) both', transformOrigin: 'center center' }
+              : { transform: 'perspective(900px) scale3d(0.01,0.01,0.01)', opacity: 0, transformOrigin: 'center center' }
         }
         onAnimationEnd={(e) => {
           if (e.target === e.currentTarget && e.animationName === 'kernel-reveal-scale') setBootAnimDone(true);
