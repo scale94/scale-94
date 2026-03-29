@@ -257,12 +257,13 @@ fn simulate_collision(a: &ConceptDomain, b: &ConceptDomain) -> CollisionState {
     // Novelty: in 1536-D space, geometric residual (sin θ) is always ≈ 1.0
     // because random high-dimensional vectors are near-orthogonal by construction.
     // Ground novelty in actual domain property distance (sparsity + curvature delta),
-    // normalized by the maximum possible property distance across the domain library.
-    // Max sparsity range: 0.74 - 0.28 = 0.46.  Max curvature range: 0.96 - 0.15 = 0.81.
+    // normalized by the maximum possible property distance across both domain blocks.
+    // Block I+II sparsity range: 0.78 (He³) - 0.25 (Si) = 0.53
+    // Block I+II curvature range: 0.96 (Feigenbaum) - 0.15 (Benthic) = 0.81
     let sparsity_delta  = (a.sparsity - b.sparsity).abs();
     let curvature_delta = (a.curvature - b.curvature).abs();
     let volatility_delta = (a.volatility - b.volatility).abs();
-    let property_novelty = (sparsity_delta + curvature_delta) / (0.46 + 0.81); // → [0, 1]
+    let property_novelty = (sparsity_delta + curvature_delta) / (0.53 + 0.81); // → [0, 1]
     let novelty = property_novelty.clamp(0.0, 1.0);
 
     // ── Interaction terms (v1.2.0) ──────────────────────────────────────────

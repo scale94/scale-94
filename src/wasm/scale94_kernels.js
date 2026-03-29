@@ -957,8 +957,8 @@ export function run_kuramoto_synchrony(n_oscillators, coupling, freq_spread, tim
  * outputs a synthesized concept chimera.
  *
  * Parameters:
- *   domain_a      : index of first conceptual domain (0–15)
- *   domain_b      : index of second conceptual domain (0–15)
+ *   domain_a      : global domain index (0–15 = Block I conceptual, 16–31 = Block II elemental)
+ *   domain_b      : global domain index (0–15 = Block I conceptual, 16–31 = Block II elemental)
  *   attn_heads    : simulated attention head count (1–64, affects entropy)
  *   temperature   : softmax temperature – sharpness of conceptual focus (0.1–5.0)
  * @param {number} domain_a
@@ -1027,6 +1027,37 @@ export function run_necromantic_simulation(resonance_seed, n_cycles, amplitude) 
     let deferred1_1;
     try {
         const ret = wasm.run_necromantic_simulation(resonance_seed, n_cycles, amplitude);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * Run the Olfactory-Computational Kernel.
+ *
+ * Parameters:
+ *   top         : top note intensity — flash signal strength (0.0–1.0)
+ *   heart       : heart note intensity — persistent carrier (0.0–1.0)
+ *   base        : base note intensity — deep-time archive (0.0–1.0)
+ *   corruption  : animalic fixative level — managed corruption (0.0–1.0)
+ *   temperature : ambient temperature — affects evaporation rates (0.0–1.0; 0.5 = 20°C)
+ *   preset      : signal preset index (-1 = use manual params, 0–7 = preset)
+ * @param {number} top
+ * @param {number} heart
+ * @param {number} base
+ * @param {number} corruption
+ * @param {number} temperature
+ * @param {number} preset
+ * @returns {string}
+ */
+export function run_ock(top, heart, base, corruption, temperature, preset) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_ock(top, heart, base, corruption, temperature, preset);
         deferred1_0 = ret[0];
         deferred1_1 = ret[1];
         return getStringFromWasm0(ret[0], ret[1]);

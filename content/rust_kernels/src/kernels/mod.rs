@@ -46,3 +46,4 @@ pub mod percolation;         // run_percolation (Erdős–Rényi network resilie
 pub mod fish_scale;          // run_fish_scale (Feigenbaum-Bouligand Coupled Architecture · Arapaima armor · Moiré interference · v12.1.0)
 pub mod latent_collider;     // run_latent_collider (Latent Space Collider · SCALING Module · 1536D cross-attention synthesis)
 pub mod panopticon_percolation; // run_panopticon_percolation (Panopticon Percolation · SURVEILLANCE Module · dragnet contagion Monte Carlo)
+pub mod ock;                     // run_ock (Olfactory-Computational Kernel v1.0.0 · Bimmelbahn Accord · volatile semiotics)
