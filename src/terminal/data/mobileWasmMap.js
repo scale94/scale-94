@@ -97,6 +97,11 @@ export function resolveWasmAlias(kernelId) {
   // ── SOMA builds ──────────────────────────────────────────────────────────────
   if (id.includes('SOMA'))                                           return 'soma_kernel';
 
+  // ── Olfactory-Computational / Bimmelbahn ─────────────────────────────────────
+  if (id.includes('OLFACTORY') || id.includes('OCK') || id.includes('KOC') ||
+      id.includes('BIMMELBAHN') || id.includes('ACCORD') ||
+      id.includes('SILLAGE') || id.includes('VOLATILE-SEM'))          return 'ock';
+
   // ── Default: system banner ───────────────────────────────────────────────────
   return 'soma91';
 }
