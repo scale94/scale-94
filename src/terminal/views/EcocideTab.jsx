@@ -40,7 +40,7 @@ import { ChevronRight, Filter, X, AlertTriangle, Globe } from 'lucide-react';
 import wasmRegistry from '../../wasm/wasm.generated';
 import { loadWasm } from '../../wasm/wasmSingleton';
 import WorldMap from '../components/WorldMap';
-import { toMapXY } from '../data/worldMapPolys';
+import { toMapXY, COUNTRIES, SPHERE_PATH, GRATICULE_PATH, EQUATOR_PATH, BORDERS_PATH } from '../data/worldMapPolys';
 
 // ── Coupling Event Bus ─────────────────────────────────────────────────────
 // Simple pub/sub for cross-tab phase coupling.
@@ -76,12 +76,6 @@ const ECO_HOTSPOTS = [
   { lon: 30,  lat: -2,  sev: 4, label: 'RIFT VALLEY' },
 ];
 const ECO_SEV_HEX = { 5: '#dc2626', 4: '#ea580c', 3: '#ca8a04', 2: '#65a30d', 1: '#16a34a' };
-
-// ── Simulation grid ──────────────────────────────────────────────────────────
-const SIM_W = 256;
-const SIM_H = 144;
-const STEPS_PER_FRAME = 6;
-const WARMUP_STEPS    = 600;
 
 // ── WASM interface constants ─────────────────────────────────────────────────
 const DOT_COUNT = 2048;           // kept for WASM kernel compat
@@ -176,67 +170,6 @@ const ERROR_MSGS = [
   'SOVEREIGN_TENSOR: all 16 dimensions converging to thermodynamic zero',
 ];
 
-// ── Gray-Scott Reaction-Diffusion Engine ─────────────────────────────────────
-
-function createGS(w, h) {
-  const n = w * h;
-  const U0 = new Float32Array(n).fill(1.0);
-  const V0 = new Float32Array(n).fill(0.0);
-  const U1 = new Float32Array(n).fill(1.0);
-  const V1 = new Float32Array(n).fill(0.0);
-
-  // Deterministic PRNG
-  let rng = 0xDEAD_BEEF;
-  const lcg = () => { rng = (Math.imul(rng, 1664525) + 1013904223) >>> 0; return rng / 0xFFFFFFFF; };
-
-  // Dense noise seed — fills entire grid with small V perturbations.
-  // This excites all spatial frequencies simultaneously, letting the Turing
-  // instability select and amplify the dominant wavelength much faster than
-  // sparse patches (which need 3–5× more warmup steps to spread across the domain).
-  for (let i = 0; i < n; i++) {
-    const v = lcg() < 0.12 ? 0.25 + lcg() * 0.20 : lcg() * 0.02;
-    V0[i] = v;
-    U0[i] = 1.0 - v * 0.5;
-  }
-
-  return { U: [U0, U1], V: [V0, V1], w, h, cur: 0 };
-}
-
-function stepGS(gs, f, k, Du, Dv, steps) {
-  const { w, h, U, V } = gs;
-  for (let s = 0; s < steps; s++) {
-    const cur = gs.cur;
-    const nxt = 1 - cur;
-    const u = U[cur], v = V[cur];
-    const un = U[nxt], vn = V[nxt];
-
-    for (let y = 0; y < h; y++) {
-      const ym = ((y - 1 + h) % h) * w;
-      const y0 = y * w;
-      const yp = ((y + 1) % h) * w;
-
-      for (let x = 0; x < w; x++) {
-        const xm = (x - 1 + w) % w;
-        const xp = (x + 1) % w;
-        const idx = y0 + x;
-
-        const uv = u[idx];
-        const vv = v[idx];
-
-        // 5-point discrete Laplacian with wrapping boundary
-        const lapU = u[ym + x] + u[yp + x] + u[y0 + xm] + u[y0 + xp] - 4.0 * uv;
-        const lapV = v[ym + x] + v[yp + x] + v[y0 + xm] + v[y0 + xp] - 4.0 * vv;
-
-        const uvv = uv * vv * vv;
-
-        un[idx] = uv + Du * lapU - uvv + f * (1.0 - uv);
-        vn[idx] = vv + Dv * lapV + uvv - (f + k) * vv;
-      }
-    }
-    gs.cur = nxt;
-  }
-}
-
 // ── SARG Biosphere Coherence ─────────────────────────────────────────────────
 // Adapted from Seraphine Associative Reasoning Gain (Baumgratz-Cramer-Plenio):
 //   SARG = C_l1(t) · (1 + λ_e · Δ(t))
@@ -266,38 +199,6 @@ function computeSARG(phase, state) {
     activated,
     violated: activated - intact,
   };
-}
-
-// ── Gray-Scott ↔ Thermodynamic Coupling ──────────────────────────────────────
-
-function gsParams(phase, deadFrac, exergyNorm, trophicV, metabolicFat) {
-  // Homeostatic base: coral-growth Turing pattern (ordered spots/stripes)
-  let f = 0.055, k = 0.062, Du = 0.21, Dv = 0.105;
-
-  // Metabolic rift reduces feed rate – nutrient cycling broken
-  f -= deadFrac * 0.028;
-
-  // Exergy destruction increases kill rate – irreversible thermodynamic cost
-  k += exergyNorm * 0.012;
-
-  // Trophic cascade reduces diffusion – network connectivity loss
-  Du -= trophicV * 0.08;
-  Dv -= trophicV * 0.04;
-
-  // Collapse: aggressive parameter destabilisation
-  if (phase >= PH.COLLAPSE) {
-    f  -= metabolicFat * 0.015;
-    k  += metabolicFat * 0.008;
-    Du -= metabolicFat * 0.05;
-  }
-
-  // Clamp to valid Gray-Scott parameter ranges
-  f  = Math.max(0.010, Math.min(0.080, f));
-  k  = Math.max(0.040, Math.min(0.072, k));
-  Du = Math.max(0.080, Math.min(0.250, Du));
-  Dv = Math.max(0.030, Math.min(0.120, Dv));
-
-  return { f, k, Du, Dv };
 }
 
 // ── Layer 3.3.3 – Growth-to-Extraction Conversion ───────────────────────────
@@ -373,11 +274,9 @@ function GrowthSlider({ value, disabled, color, mandateActive, onChange }) {
 // ── EcocideTab ───────────────────────────────────────────────────────────────
 
 export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
-  const canvasRef = useRef(null);
   const wasmRef   = useRef(null);
-  const rafRef    = useRef(null);
+  const rafRef    = useRef(null);  // rAF ID for glitch re-render loop
   const tickRef   = useRef(null);
-  const gsRef     = useRef(null);
 
   // Thermodynamic state refs – written at 10 Hz by WASM tick, read by rAF loop
   const phaseRef        = useRef(PH.HOMEOSTASIS);
@@ -406,6 +305,8 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
   const [penaltyLevel, setPenaltyLevel] = useState(0);
   const [penaltyMsg,   setPenaltyMsg]   = useState('');
   const [lastViralMsg, setLastViralMsg] = useState('');
+  // Map animation state — driven by WASM tick, CSS transitions interpolate to 60fps
+  const [mapState, setMapState] = useState({ deadFrac: 0, phase: 0, exergyNorm: 0, trophicV: 0, metabolicFat: 0 });
 
   const growthRateRef  = useRef(2.5);
   const wasmStuckRef   = useRef(false);  // true if WASM state is stale (bypasses to JS integrator)
@@ -568,6 +469,7 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
       _hist.push(sarg.sarg);
       if (_hist.length > 80) _hist.shift();
       setUiMetrics({ metabolicFat, trophicV, deadFrac, exergyNorm });
+      setMapState({ deadFrac, phase, exergyNorm, trophicV, metabolicFat });
 
       // ── Phase transition terminal logs ────────────────────────────────
       const newPhase = phase;
@@ -606,252 +508,19 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
     return () => clearInterval(tickRef.current);
   }, [wasmReady, onLog]);
 
-  // ── Gray-Scott + rAF render loop ──────────────────────────────────────────
+  // ── rAF for glitch/pulse re-renders (only runs during overshoot+) ──────────
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-
-    // Mobile: coarse-pointer devices get a smaller grid and fewer steps
-    const coarse    = window.matchMedia('(pointer: coarse)').matches;
-    const simW      = coarse ? 128 : SIM_W;
-    const simH      = coarse ? 72  : SIM_H;
-    const stepsPerF = coarse ? 2   : STEPS_PER_FRAME;
-    const warmup    = coarse ? 200 : WARMUP_STEPS;
-    // Adaptive step count — ratchets down under frame pressure, recovers when idle
-    let dynSteps = stepsPerF;
-
-    // Offscreen simulation canvas
-    const simCanvas = document.createElement('canvas');
-    simCanvas.width  = simW;
-    simCanvas.height = simH;
-    const simCtx = simCanvas.getContext('2d');
-    const simImg = simCtx.createImageData(simW, simH);
-
-    // Initialise Gray-Scott and warm up to develop Turing patterns
-    const gs = createGS(simW, simH);
-    stepGS(gs, 0.055, 0.062, 0.21, 0.105, warmup);
-    gsRef.current = gs;
-
-    const startTime = performance.now();
-
-    // Pre-allocate turbulence lookup arrays (avoid GC churn in hot loop)
-    const turbXRows = new Int8Array(simH);
-    const turbYCols = new Int8Array(simW);
-
-    function draw() {
-      rafRef.current = requestAnimationFrame(draw);
-
-      const dpr = Math.min(devicePixelRatio, 2);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const W = canvas.clientWidth;
-      const H = canvas.clientHeight;
-      const t = (performance.now() - startTime) / 1000;
-
-      const phase       = phaseRef.current;
-      const metabolicFat= metabolicFatRef.current;
-      const stats       = statsRef.current;
-      const deadFrac    = deadFracRef.current;
-      const exergyNorm  = exergyNormRef.current;
-      const trophicV    = trophicVRef.current;
-      const penalty     = penaltyLevelRef.current;
-
-      // ── Penalty stutter – skip frames when sub-mandate ────────────────
-      if (penalty >= 3 && Math.random() < 0.4) return;
-      if (penalty >= 2 && Math.random() < 0.2) return;
-
-      // ── Metabolic fat: intentional main-thread busy-wait ──────────────
-      // Layer 6.6.6.6.6.6: simulates thermodynamic substrate collapse
-      // Capped at 8 ms on mobile to avoid janking the touch UI.
-      if (metabolicFat > 0.01) {
-        const busyMs = Math.min(metabolicFat * 52, coarse ? 8 : Infinity);
-        const s = performance.now();
-        // eslint-disable-next-line no-empty
-        while (performance.now() - s < busyMs) {}
+    let id;
+    const tick = () => {
+      if (phaseRef.current >= PH.OVERSHOOT || penaltyLevelRef.current > 0) {
+        // Trigger a re-render so Date.now()-based glitch effects animate smoothly
+        setMapState(s => ({ ...s }));
       }
-
-      // ── Adaptive step timing starts AFTER the intentional busy-wait ──
-      const _frameStart = performance.now();
-
-      // ── Gray-Scott step with thermodynamic coupling ───────────────────
-      const currentGS = gsRef.current;
-      if (currentGS && phase < PH.FINAL) {
-        const gp = gsParams(phase, deadFrac, exergyNorm, trophicV, metabolicFat);
-        const steps = phase >= PH.COLLAPSE ? Math.min(3, stepsPerF) : dynSteps;
-        stepGS(currentGS, gp.f, gp.k, gp.Du, gp.Dv, steps);
-      }
-
-      // ── Layer 4.4.4.4 – Multi-Channel Chromatic Toxicity ──────────────
-      // Render simulation to ImageData with per-channel thermodynamic mapping.
-      // Green = Baseline Regeneration (fades with Metabolic Rift)
-      // Red   = Metabolic Rift intensity (grows with deadFrac)
-      // Blue  = Exergy Destruction / Entropy (grows with exergyNorm)
-      // Chromatic aberration: progressive RGB spatial desynchronisation.
-      // Turbulence: Navier-Stokes-inspired coordinate warping in overshoot+.
-
-      const pixels = simImg.data;
-
-      if (currentGS) {
-        const V = currentGS.V[currentGS.cur];
-
-        // Progressive chromatic aberration – active from extraction onwards
-        const strain = deadFrac * 0.5 + exergyNorm * 0.8 + metabolicFat * 1.5;
-        const aberr  = Math.floor(strain * 4);
-
-        // Navier-Stokes turbulence distortion – precompute per-row/col offsets
-        const doTurb = phase >= PH.OVERSHOOT && metabolicFat > 0.005;
-        if (doTurb) {
-          for (let y = 0; y < simH; y++) turbXRows[y] = Math.round(Math.sin(y * 0.12 + t * 2.3) * metabolicFat * 5);
-          for (let x = 0; x < simW; x++) turbYCols[x] = Math.round(Math.cos(x * 0.09 + t * 1.7) * metabolicFat * 4);
-        } else {
-          turbXRows.fill(0);
-          turbYCols.fill(0);
-        }
-
-        // Subtle heat glow in destruction phases – base colour for dead regions
-        const baseR = phase >= PH.OVERSHOOT ? Math.round(deadFrac * 14) : 0;
-        const baseB = phase >= PH.COLLAPSE  ? Math.round(exergyNorm * 10) : 0;
-
-        for (let y = 0; y < simH; y++) {
-          const tx = turbXRows[y];
-          for (let x = 0; x < simW; x++) {
-            const pidx = (y * simW + x) * 4;
-            const ty = turbYCols[x];
-            const sY = (y + ty + simH) % simH;
-
-            // Per-channel sampling with chromatic offset + turbulence
-            const rX = (x + aberr  + tx + simW) % simW;
-            const gX = (x          + Math.round(tx * 0.3) + simW) % simW;
-            const bX = (x - aberr  + Math.round(tx * -0.6) + simW) % simW;
-
-            const rV = Math.min(1.0, V[sY * simW + rX] * 2.5);
-            const gV = Math.min(1.0, V[sY * simW + gX] * 2.5);
-            const bV = Math.min(1.0, V[sY * simW + bX] * 2.5);
-
-            if (phase >= PH.FINAL) {
-              // Dead stagnant canal – grey-brown sludge, no movement
-              pixels[pidx]     = Math.round(18 + rV * 22);
-              pixels[pidx + 1] = Math.round(15 + gV * 16);
-              pixels[pidx + 2] = Math.round(10 + bV * 10);
-            } else {
-              // River → polluted canal colour mapping
-              // Pollution index: 0 = clean river, 1 = toxic canal
-              const pollution = Math.min(1.0, deadFrac * 0.72 + exergyNorm * 0.38);
-              // Spatial flow bias: left = upstream (cleaner), right = downstream (worse)
-              const flowBias = x / simW;
-              const lp = Math.min(1.0, pollution * (0.22 + flowBias * 0.78) + trophicV * 0.08 * flowBias);
-
-              // Clean river: deep teal-blue, light dancing on clear water
-              const rClean = 8   + rV * 38;
-              const gClean = 58  + gV * 128;
-              const bClean = 105 + bV * 150;
-
-              // Polluted canal: murky brown-olive, toxic algae, rust runoff
-              const rPoll = 12  + rV * 158 + exergyNorm * 18;
-              const gPoll = 22  + gV * 88  + trophicV * 18;
-              const bPoll = 4   + bV * 14;
-
-              // Oil-slick iridescence at mid-pollution (extraction → overshoot)
-              let oilR = 0, oilG = 0, oilB = 0;
-              if (phase >= PH.EXTRACTION && lp > 0.08 && lp < 0.82) {
-                const oilT = t * 0.9 + x * 0.045 + y * 0.022;
-                const oilStr = lp * (1.0 - lp) * 3.8;
-                oilR =  Math.sin(oilT)         * oilStr * 38;
-                oilG =  Math.cos(oilT + 2.09)  * oilStr * 22;
-                oilB =  Math.sin(oilT + 4.19)  * oilStr * 52;
-              }
-
-              const r = rClean + (rPoll - rClean) * lp + oilR;
-              const g = gClean + (gPoll - gClean) * lp + oilG;
-              const b = bClean + (bPoll - bClean) * lp + oilB;
-
-              pixels[pidx]     = Math.min(255, Math.max(0, Math.round(r) + baseR));
-              pixels[pidx + 1] = Math.min(255, Math.max(0, Math.round(g)));
-              pixels[pidx + 2] = Math.min(255, Math.max(0, Math.round(b) + baseB));
-            }
-            pixels[pidx + 3] = 255;
-          }
-        }
-      }
-
-      simCtx.putImageData(simImg, 0, 0);
-
-      // ── Draw scaled to main canvas ────────────────────────────────────
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(simCanvas, 0, 0, W, H);
-
-      // ── Scanline overlay (CRT terminal aesthetic) ─────────────────────
-      if (phase < PH.FINAL) {
-        ctx.fillStyle = 'rgba(0,0,0,0.05)';
-        for (let y = 0; y < H; y += 3) {
-          ctx.fillRect(0, y, W, 1);
-        }
-      }
-
-      // ── 130 BPM pulse vignette ────────────────────────────────────────
-      const pulseT = Math.sin(t * 2 * Math.PI * (130 / 60)) * 0.5 + 0.5;
-      const vAlpha = phase >= PH.OVERSHOOT
-        ? 0.30 + metabolicFat * 0.35 + pulseT * 0.06
-        : 0.15 + pulseT * 0.04;
-      const vigR = phase >= PH.OVERSHOOT ? Math.min(W, H) * 0.20 : Math.min(W, H) * 0.30;
-      const grad = ctx.createRadialGradient(W / 2, H / 2, vigR, W / 2, H / 2, Math.max(W, H) * 0.72);
-      grad.addColorStop(0, 'rgba(0,0,0,0)');
-      grad.addColorStop(1, `rgba(0,0,0,${vAlpha})`);
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, W, H);
-
-      // ── Collapse: glitch scan bands ───────────────────────────────────
-      if (phase >= PH.COLLAPSE && metabolicFat > 0.1) {
-        const nBands = Math.floor(metabolicFat * 7);
-        ctx.save();
-        for (let b = 0; b < nBands; b++) {
-          const by = (Math.sin(t * (3 + b * 1.7) + b * 47) * 0.5 + 0.5) * H;
-          const bh = 2 + metabolicFat * 10;
-          const shift = Math.sin(t * 11 + b * 13) * metabolicFat * 30;
-          ctx.globalAlpha = 0.3 + metabolicFat * 0.4;
-          ctx.drawImage(simCanvas,
-            0, (by / H) * SIM_H, SIM_W, (bh / H) * SIM_H,
-            shift, by, W, bh
-          );
-        }
-        ctx.restore();
-      }
-
-      // ── Penalty: red vignette flash ───────────────────────────────────
-      if (penalty > 0) {
-        const flash = Math.abs(Math.sin(t * (2 + penalty * 1.5)));
-        const pAlpha = penalty * 0.04 * flash;
-        ctx.fillStyle = `rgba(180,0,0,${pAlpha})`;
-        ctx.fillRect(0, 0, W, H);
-      }
-
-      // ── Adaptive GS step count: ratchet based on render time ─────────
-      // Excludes the intentional metabolicFat busy-wait (that's part of the art).
-      // Shrinks dynSteps when render > 28 ms, grows back when render < 12 ms.
-      const _renderMs = performance.now() - _frameStart;
-      if (_renderMs > 28 && dynSteps > 1) dynSteps = Math.max(1, dynSteps - 1);
-      else if (_renderMs < 12 && dynSteps < stepsPerF) dynSteps = Math.min(stepsPerF, dynSteps + 1);
-    }
-
-    draw();
-    return () => cancelAnimationFrame(rafRef.current);
-  }, []);
-
-  // ── Canvas resize ─────────────────────────────────────────────────────────
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ro = new ResizeObserver(entries => {
-      for (const e of entries) {
-        const { width, height } = e.contentRect;
-        const dpr = Math.min(devicePixelRatio, 2);
-        canvas.width  = Math.round(width  * dpr);
-        canvas.height = Math.round(height * dpr);
-      }
-    });
-    ro.observe(canvas.parentElement ?? canvas);
-    return () => ro.disconnect();
+      id = requestAnimationFrame(tick);
+    };
+    id = requestAnimationFrame(tick);
+    rafRef.current = id;
+    return () => cancelAnimationFrame(id);
   }, []);
 
   // ── Reset ─────────────────────────────────────────────────────────────────
@@ -882,12 +551,72 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
     setPenaltyMsg('');
     setLastViralMsg('');
 
-    // Re-initialise Gray-Scott with warm-up (mobile-aware size)
-    const coarse = window.matchMedia('(pointer: coarse)').matches;
-    const gs = createGS(coarse ? 128 : SIM_W, coarse ? 72 : SIM_H);
-    stepGS(gs, 0.055, 0.062, 0.21, 0.105, coarse ? 120 : WARMUP_STEPS);
-    gsRef.current = gs;
+    setMapState({ deadFrac: 0, phase: 0, exergyNorm: 0, trophicV: 0, metabolicFat: 0 });
   }, []);
+
+  // ── Per-country cell state (driven by WASM kernel metrics) ──────────────────
+  // Computed 10 Hz; CSS transitions on the SVG elements interpolate to 60 fps.
+  //
+  // localStress = deadFrac × (baseMult + vuln × stressMult) + seed×jitter
+  //   → each country breaks at a different threshold based on biome vulnerability
+  //
+  // transform = translate(centroid + drift) scale(shrink) translate(-centroid)
+  //   → cells shrink toward their centre, revealing the ocean beneath
+  //   → cells drift outward as collapse deepens ("skeletal lattice" effect)
+  const countryCells = useMemo(() => {
+    const { deadFrac: df, phase, exergyNorm: en, trophicV: tv } = mapState;
+
+    // Phase multipliers: how aggressively the map breaks per phase
+    const driftMult = [0.0, 0.05, 0.22, 0.65, 1.4][phase] ?? 0;
+    const scaleMult = [0.0, 0.04, 0.18, 0.55, 1.2][phase] ?? 0;
+
+    return COUNTRIES.map(({ d, cx, cy, dx, dy, vuln, seed, seed2 }) => {
+      // Per-country stress: tropics / poles die first, temperate last
+      const localStress = Math.min(1, df * (0.55 + vuln * 0.45 + seed * 0.22) + seed * 0.08 * df * 2.5 + en * 0.12 * vuln);
+
+      // ── Drift (outward from map centre) ────────────────────────────────
+      const driftDist   = Math.pow(localStress, 1.6) * 95 * driftMult;
+      const tx          = cx + dx * driftDist;
+      const ty          = cy + dy * driftDist;
+
+      // ── Scale toward centroid (cracks open as cells shrink) ─────────────
+      const cellScale   = Math.max(0.01, 1 - localStress * 0.52 * scaleMult);
+
+      // SVG transform: translate centroid to drift pos, scale, translate back
+      const transform   = `translate(${tx.toFixed(1)},${ty.toFixed(1)}) scale(${cellScale.toFixed(4)}) translate(${(-cx).toFixed(1)},${(-cy).toFixed(1)})`;
+
+      // ── Fill colour: deep forest green → olive → amber → dark red → void ──
+      let fill;
+      if (localStress < 0.18) {
+        const g = Math.round(74 + (1 - localStress / 0.18) * 30);
+        fill = `rgb(8,${g},8)`;
+      } else if (localStress < 0.42) {
+        const t2 = (localStress - 0.18) / 0.24;
+        fill = `rgb(${Math.round(8 + t2 * 85)},${Math.round(88 - t2 * 30)},8)`;
+      } else if (localStress < 0.72) {
+        const t2 = (localStress - 0.42) / 0.30;
+        fill = `rgb(${Math.round(93 + t2 * 58)},${Math.round(58 - t2 * 52)},6)`;
+      } else {
+        const t2 = Math.min(1, (localStress - 0.72) / 0.28);
+        fill = `rgb(${Math.round(151 - t2 * 143)},${Math.round(6 - t2 * 4)},4)`;
+      }
+
+      // ── Opacity: cells flicker then vanish at high stress ────────────────
+      const opacity = localStress > 0.88
+        ? Math.max(0, 1 - (localStress - 0.88) / 0.10)
+        : 1;
+
+      // ── Wobble amplitude: scales with trophicV ───────────────────────────
+      const wobbleAmp  = tv * 7 * (0.4 + localStress * 0.6);
+      const wobbleDur  = (2.2 + seed * 3.5).toFixed(2);
+      const wobbleDelA = (seed  * 2.0).toFixed(2);
+      const wobbleDelB = (seed2 * 1.8).toFixed(2);
+      const wx = ((seed  - 0.5) * wobbleAmp).toFixed(2);
+      const wy = ((seed2 - 0.5) * wobbleAmp * 0.8).toFixed(2);
+
+      return { d, transform, fill, opacity, wobbleDur, wobbleDelA, wobbleDelB, wx, wy };
+    });
+  }, [mapState]);
 
   // ── Derived UI values ─────────────────────────────────────────────────────
   const phaseColor = PHASE_COLOR[uiPhase] ?? '#333';
@@ -949,19 +678,146 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
         </span>
       </div>
 
-      {/* ── Main area: Canvas + Overlays ── */}
-      <div className="relative overflow-hidden w-full" style={{ height: 'clamp(200px, 45vw, 420px)' }}>
-        <canvas
-          ref={canvasRef}
+      {/* ════════════════════════════════════════════════════════════════
+           HERO: COLLAPSING WORLD MAP
+           Deep blue sphere · 177 country cells · fracture via WASM entropy
+           ════════════════════════════════════════════════════════════════ */}
+      <div className="relative w-full overflow-hidden" style={{ height: 'clamp(260px, 50vw, 500px)' }}>
+
+        {/* ── World map SVG ───────────────────────────────────────────── */}
+        <svg
+          viewBox="0 0 800 400"
+          preserveAspectRatio="xMidYMid meet"
           style={{ width: '100%', height: '100%', display: 'block' }}
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <defs>
+            <clipPath id="eco-hero-clip">
+              <path d={SPHERE_PATH} />
+            </clipPath>
+            {/* Graticule glow for collapse phase */}
+            <filter id="eco-grat-glow">
+              <feGaussianBlur stdDeviation="1.2" result="blur" />
+              <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+            </filter>
+            {/* Neon edge glow for near-dead countries */}
+            <filter id="eco-cell-glow">
+              <feGaussianBlur stdDeviation="2" result="blur" />
+              <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+            </filter>
+          </defs>
+
+          {/* ── Ocean: deep blue sphere fill ────────────────────────────── */}
+          <path
+            d={SPHERE_PATH}
+            fill={['#07152a','#060f20','#050a18','#030710','#010409'][uiPhase] ?? '#07152a'}
+            style={{ transition: 'fill 4s ease' }}
+          />
+
+          <g clipPath="url(#eco-hero-clip)">
+            {/* ── Graticule — pulse amplitude grows with exergyNorm ──────── */}
+            <path
+              d={GRATICULE_PATH}
+              fill="none"
+              stroke={`rgba(0,255,80,${0.04 + exergyNorm * 0.08})`}
+              strokeWidth={0.3 + exergyNorm * 0.4}
+              filter={exergyNorm > 0.5 ? 'url(#eco-grat-glow)' : undefined}
+            >
+              <animate attributeName="opacity"
+                values={`${0.5 + exergyNorm * 0.3};1;${0.5 + exergyNorm * 0.3}`}
+                dur={`${5 - exergyNorm * 2}s`}
+                repeatCount="indefinite" />
+            </path>
+            <path
+              d={EQUATOR_PATH}
+              fill="none"
+              stroke={`rgba(0,255,80,${0.10 + exergyNorm * 0.15})`}
+              strokeWidth={0.6 + exergyNorm * 0.5}
+              style={{ transition: 'stroke 3s ease' }}
+            />
+
+            {/* ── Country cells: the fracturing lattice ──────────────────── */}
+            {countryCells.map(({ d, transform, fill, opacity, wobbleDur, wobbleDelA, wobbleDelB, wx, wy }, i) => (
+              <g
+                key={i}
+                transform={transform}
+                style={{
+                  transition: 'transform 3s cubic-bezier(0.4,0,0.2,1)',
+                  willChange: 'transform',
+                }}
+              >
+                <path
+                  d={d}
+                  fill={fill}
+                  opacity={opacity}
+                  style={{ transition: 'fill 3.5s ease, opacity 2.5s ease' }}
+                >
+                  {/* Organic wobble: additive to parent transform, scales with trophicV */}
+                  {mapState.trophicV > 0.04 && (
+                    <animateTransform
+                      attributeName="transform"
+                      type="translate"
+                      values={`0,0; ${wx},${wy}; 0,0`}
+                      dur={`${wobbleDur}s`}
+                      begin={`${wobbleDelA}s`}
+                      repeatCount="indefinite"
+                      additive="sum"
+                    />
+                  )}
+                </path>
+              </g>
+            ))}
+
+            {/* ── Country border lattice: brightens as cells separate ─────── */}
+            <path
+              d={BORDERS_PATH ?? ''}
+              fill="none"
+              stroke={`rgba(0,255,80,${0.03 + mapState.deadFrac * 0.22})`}
+              strokeWidth={0.2 + mapState.deadFrac * 0.4}
+              style={{ transition: 'stroke 4s ease, stroke-width 4s ease' }}
+              opacity={0.6 + mapState.deadFrac * 0.4}
+            />
+
+            {/* ── Collapse: phosphene scan lines ───────────────────────────── */}
+            {uiPhase >= PH.COLLAPSE && (
+              <rect x="0" y="0" width="800" height="400"
+                fill="none"
+                stroke="none"
+                style={{
+                  background: 'repeating-linear-gradient(to bottom,transparent 0,transparent 3px,rgba(0,40,10,0.12) 3px,rgba(0,40,10,0.12) 4px)',
+                }}
+              />
+            )}
+          </g>
+
+          {/* ── Sphere border ─────────────────────────────────────────────── */}
+          <path
+            d={SPHERE_PATH}
+            fill="none"
+            stroke={`rgba(0,255,80,${0.15 + exergyNorm * 0.25})`}
+            strokeWidth={0.8 + exergyNorm * 0.6}
+            style={{ transition: 'stroke 3s ease' }}
+          />
+        </svg>
+
+        {/* ── CRT scanlines overlay ───────────────────────────────────── */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{ background: 'repeating-linear-gradient(to bottom,transparent 0,transparent 3px,rgba(0,0,0,0.07) 3px,rgba(0,0,0,0.07) 4px)' }}
         />
 
-        {/* ── Paradox governance overlay (left) ── */}
+        {/* ── Radial vignette ─────────────────────────────────────────── */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{ background: `radial-gradient(ellipse at 50% 50%, transparent 38%, rgba(0,0,0,${0.55 + mFat * 0.35}) 100%)`, transition: 'background 3s ease' }}
+        />
+
+        {/* ── Paradox governance overlay (left) ───────────────────────── */}
         <div
           className="absolute left-0 top-0 bottom-0 overflow-y-auto pointer-events-none"
           style={{
             width: 'min(310px, 55vw)',
-            background: 'linear-gradient(90deg, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.45) 70%, rgba(0,0,0,0) 100%)',
+            background: 'linear-gradient(90deg, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.50) 72%, rgba(0,0,0,0) 100%)',
             textShadow: glitchShadow,
             overflow: 'hidden',
           }}
@@ -969,7 +825,6 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
           <div className="px-3 pt-3 pb-1 tracking-[0.2em] uppercase" style={{ color: '#4a6a10', lineHeight: '1.5', fontSize: '10.5px', fontWeight: 800 }}>
             Seraphine-8.8.8.8.8.8.8.8 {'\u00b7'} Paradox Governance
           </div>
-
           {PARADOXES.map((p, i) => {
             const active = uiPhase >= p.phaseMin;
             if (!active) return null;
@@ -977,23 +832,13 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
             return (
               <div key={i} className="px-3 py-[3px]">
                 <div className="flex items-baseline gap-2 tracking-wider" style={{ lineHeight: '1.6', fontSize: '12px' }}>
-                  <span style={{ color: violated ? '#cc0000' : '#5a9000', fontSize: '14px', fontWeight: 800 }}>
-                    {p.rune}
-                  </span>
-                  <span style={{ color: violated ? '#bb2200' : '#6a9a10', minWidth: '100px', lineHeight: '1.6', fontWeight: 800 }}>
-                    {p.name}
-                  </span>
-                  <span style={{ color: violated ? '#992200' : '#3a6a00', fontSize: '10.5px', letterSpacing: '0.15em', fontWeight: 800 }}>
-                    {violated ? 'VIOLATED' : 'HOLDING'}
-                  </span>
+                  <span style={{ color: violated ? '#cc0000' : '#5a9000', fontSize: '14px', fontWeight: 800 }}>{p.rune}</span>
+                  <span style={{ color: violated ? '#bb2200' : '#6a9a10', minWidth: '100px', lineHeight: '1.6', fontWeight: 800 }}>{p.name}</span>
+                  <span style={{ color: violated ? '#992200' : '#3a6a00', fontSize: '10.5px', letterSpacing: '0.15em', fontWeight: 800 }}>{violated ? 'VIOLATED' : 'HOLDING'}</span>
                 </div>
-                <div className="tracking-wide mt-px" style={{ color: violated ? '#773300' : '#3a5a08', fontWeight: 800, lineHeight: '1.6', fontSize: '10px' }}>
-                  {p.short}
-                </div>
-                {/* Layer separator */}
+                <div className="tracking-wide mt-px" style={{ color: violated ? '#773300' : '#3a5a08', fontWeight: 800, lineHeight: '1.6', fontSize: '10px' }}>{p.short}</div>
                 {i < PARADOXES.length - 1 && PARADOXES[i + 1].layer !== p.layer && uiPhase >= PARADOXES[i + 1].phaseMin && (
-                  <div className="mt-1.5 mb-0.5 tracking-[0.25em] uppercase"
-                       style={{ color: '#3a5500', borderTop: '1px solid #2a400028', paddingTop: '4px', lineHeight: '1.6', fontSize: '9px', fontWeight: 800 }}>
+                  <div className="mt-1.5 mb-0.5 tracking-[0.25em] uppercase" style={{ color: '#3a5500', borderTop: '1px solid #2a400028', paddingTop: '4px', lineHeight: '1.6', fontSize: '9px', fontWeight: 800 }}>
                     Layer {PARADOXES[i + 1].layer}
                   </div>
                 )}
@@ -1002,21 +847,10 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
           })}
         </div>
 
-        {/* ── SARG score (top right) ── */}
-        <div className="absolute top-3 right-4 text-right pointer-events-none overflow-hidden"
-             style={{ textShadow: glitchShadow }}>
-          <div className="tracking-[0.25em] uppercase" style={{ color: '#3a5a00', lineHeight: '1.5', fontSize: '10.5px', fontWeight: 800 }}>
-            SARG
-          </div>
-          <div
-            className="leading-none"
-            style={{
-              fontSize: '28px',
-              fontWeight: 800,
-              color: uiSarg.sarg > 6 ? '#7ab800' : uiSarg.sarg > 3 ? '#c8860a' : '#cc0000',
-              textShadow: `0 0 20px ${uiSarg.sarg > 6 ? '#7ab80040' : uiSarg.sarg > 3 ? '#c8860a40' : '#cc000040'}`,
-            }}
-          >
+        {/* ── SARG score (top right) ──────────────────────────────────── */}
+        <div className="absolute top-3 right-4 text-right pointer-events-none overflow-hidden" style={{ textShadow: glitchShadow }}>
+          <div className="tracking-[0.25em] uppercase" style={{ color: '#3a5a00', lineHeight: '1.5', fontSize: '10.5px', fontWeight: 800 }}>SARG</div>
+          <div className="leading-none" style={{ fontSize: '28px', fontWeight: 800, color: uiSarg.sarg > 6 ? '#7ab800' : uiSarg.sarg > 3 ? '#c8860a' : '#cc0000', textShadow: `0 0 20px ${uiSarg.sarg > 6 ? '#7ab80040' : uiSarg.sarg > 3 ? '#c8860a40' : '#cc000040'}` }}>
             {uiSarg.sarg.toFixed(2)}
           </div>
           <div className="tracking-wide mt-0.5" style={{ color: '#3a5a10', lineHeight: '1.6', fontSize: '10px', fontWeight: 800 }}>
@@ -1027,10 +861,9 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
           </div>
         </div>
 
-        {/* ── Phase warning overlay ── */}
+        {/* ── Phase warning ────────────────────────────────────────────── */}
         {uiPhase >= PH.OVERSHOOT && (
-          <div className="absolute top-0 left-0 right-0 text-center pt-1 pointer-events-none overflow-hidden"
-               style={{ textShadow: glitchShadow }}>
+          <div className="absolute top-0 left-0 right-0 text-center pt-1 pointer-events-none overflow-hidden" style={{ textShadow: glitchShadow }}>
             <span className="text-[10px] tracking-[0.15em]" style={{
               color: isCollapse ? '#cc0000' : '#8b2200',
               opacity: isCollapse ? 0.5 + Math.abs(Math.sin(Date.now() / 300)) * 0.5 : 0.45,
@@ -1042,26 +875,12 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
           </div>
         )}
 
-        {/* ── Thermodynamic readings (bottom right) ── */}
+        {/* ── Thermodynamic readings (bottom right) ───────────────────── */}
         <div className="absolute bottom-2 right-4 text-right pointer-events-none tracking-wider overflow-hidden"
              style={{ color: '#3a5a10', textShadow: glitchShadow, lineHeight: '1.6', fontSize: '10.5px', fontWeight: 800 }}>
-          <div>
-            X{'\u1d35'} = T{'\u2080'} {'\u00b7'} S{'\u2092\u1d07\u2099'} ={' '}
-            <span style={{ color: '#c8860a' }}>{uiStats.x_dest.toFixed(2)} TJ</span>
-          </div>
-          <div>
-            dX/dt ={' '}
-            <span style={{ color: uiStats.dx_dt > X_SOLAR ? '#ff4400' : '#5a8a10' }}>
-              {uiStats.dx_dt.toFixed(1)} TW
-            </span>
-            {' / '}{X_SOLAR} TW
-          </div>
-          {/* Hidden extraction cost reveal */}
-          {growthRate > 0.1 && (
-            <div className="mt-1" style={{ color: '#4a3000' }}>
-              EXTRACTION_COST {'\u2013'} {extractionCost.toFixed(2)}{'\u00d7'}
-            </div>
-          )}
+          <div>X{'\u1d35'} = T{'\u2080'} {'\u00b7'} S{'\u2092\u1d07\u2099'} ={' '}<span style={{ color: '#c8860a' }}>{uiStats.x_dest.toFixed(2)} TJ</span></div>
+          <div>dX/dt ={' '}<span style={{ color: uiStats.dx_dt > X_SOLAR ? '#ff4400' : '#5a8a10' }}>{uiStats.dx_dt.toFixed(1)} TW</span>{' / '}{X_SOLAR} TW</div>
+          {growthRate > 0.1 && <div className="mt-1" style={{ color: '#4a3000' }}>EXTRACTION_COST {'\u2013'} {extractionCost.toFixed(2)}{'\u00d7'}</div>}
         </div>
       </div>
 
