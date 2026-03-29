@@ -9,10 +9,22 @@
       "title": "SERAPHINE-8.8.8.8.8.8.8.8: A DUAL-KERNEL ARCHITECTURE FOR MEASURING AND MAXIMISING CROSS-DOMAIN ANALOGICAL COHERENCE"
     }
   ],
+  "Abstract": [
+    {
+      "id": "OCK-1.0",
+      "title": "OLFACTORY-COMPUTATIONAL KERNEL V1.0.0 (BIMMELBAHN ACCORD)"
+    }
+  ],
   "ACCESS": [
     {
       "id": "SCALE-RENDER-PROMPT",
       "title": "SCALE RENDER PROMPT"
+    }
+  ],
+  "Accord": [
+    {
+      "id": "OCK-1.0",
+      "title": "OLFACTORY-COMPUTATIONAL KERNEL V1.0.0 (BIMMELBAHN ACCORD)"
     }
   ],
   "ACTIVE": [
@@ -43,12 +55,6 @@
     {
       "id": "LINE-PICASSO-KERNEL-V17",
       "title": "LINE PIKASSO // KERNEL V17"
-    }
-  ],
-  "AI": [
-    {
-      "id": "KOC-1.0.0",
-      "title": "OLFACTORY-COMPUTATIONAL KERNEL"
     }
   ],
   "ALIGNMENT": [
@@ -115,6 +121,10 @@
     {
       "id": "KINETIC-STATECRAFT-KERNEL-1.0",
       "title": "KINETIC STATECRAFT KERNEL 1.0"
+    },
+    {
+      "id": "OCK-1.0",
+      "title": "OLFACTORY-COMPUTATIONAL KERNEL V1.0.0 (BIMMELBAHN ACCORD)"
     },
     {
       "id": "TAMAM-KERNEL-V1.0",
@@ -545,12 +555,6 @@
     {
       "id": "NECROMANCER-FISH-SCALE-FIGHT-CLUB-KERNEL-1",
       "title": "PROJECT TYLER-MONARCH: THE COMPREHENSIVE ONTOLOGICAL SPECIFICATION OF THE NECROMANCER FISH SCALE FIGHT CLUB KERNEL"
-    }
-  ],
-  "computational": [
-    {
-      "id": "KOC-1.0.0",
-      "title": "OLFACTORY-COMPUTATIONAL KERNEL"
     }
   ],
   "Concept": [
@@ -1319,10 +1323,6 @@
       "title": "ᛟ PROTOCOL_AQUA · THE CHRONO-ACTUARY"
     },
     {
-      "id": "KOC-1.0.0",
-      "title": "OLFACTORY-COMPUTATIONAL KERNEL"
-    },
-    {
       "id": "CDK-1.0-1",
       "title": "ᛟ COLEMAK-DH KERNEL · KINETIC METALLURGY"
     },
@@ -1679,10 +1679,10 @@
       "title": "SOMA KERNEL 12G"
     }
   ],
-  "olfactory": [
+  "OLFACTORY-COMPUTATIONAL": [
     {
-      "id": "KOC-1.0.0",
-      "title": "OLFACTORY-COMPUTATIONAL KERNEL"
+      "id": "OCK-1.0",
+      "title": "OLFACTORY-COMPUTATIONAL KERNEL V1.0.0 (BIMMELBAHN ACCORD)"
     }
   ],
   "Ontological": [
@@ -1799,12 +1799,6 @@
     {
       "id": "SYNT-1.0",
       "title": "COMPREHENSIVE ANALYSIS OF TECHNICAL SOVEREIGNTY, PERFORMANCE DIAGNOSTICS, AND STRATEGIC HUMAN CAPITAL ARCHITECTURE"
-    }
-  ],
-  "perfume": [
-    {
-      "id": "KOC-1.0.0",
-      "title": "OLFACTORY-COMPUTATIONAL KERNEL"
     }
   ],
   "PHASE": [
@@ -2297,12 +2291,6 @@
       "title": "⟁ THE UNDERGROUND THERMODYNAMICISTS"
     }
   ],
-  "signal-processing": [
-    {
-      "id": "KOC-1.0.0",
-      "title": "OLFACTORY-COMPUTATIONAL KERNEL"
-    }
-  ],
   "SIGNATURE": [
     {
       "id": "TECTONIC-DISCHARGE-KERNEL",
@@ -2761,10 +2749,6 @@
       "title": "ᛟ PROTOCOL_AQUA · THE CHRONO-ACTUARY"
     },
     {
-      "id": "KOC-1.0.0",
-      "title": "OLFACTORY-COMPUTATIONAL KERNEL"
-    },
-    {
       "id": "SKC-1.0",
       "title": "ᛟ THE SCALE94 KERNEL CODEX"
     }
@@ -2883,6 +2867,12 @@
     {
       "id": "SERAPHINE-KERNEL-V15.5.5",
       "title": "SERAPHINE KERNEL V15.5.5"
+    }
+  ],
+  "Volatile": [
+    {
+      "id": "OCK-1.0",
+      "title": "OLFACTORY-COMPUTATIONAL KERNEL V1.0.0 (BIMMELBAHN ACCORD)"
     }
   ],
   "Wicken": [
