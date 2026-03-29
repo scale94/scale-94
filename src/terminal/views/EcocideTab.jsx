@@ -812,14 +812,13 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
           style={{ background: `radial-gradient(ellipse at 50% 50%, transparent 38%, rgba(0,0,0,${0.55 + mFat * 0.35}) 100%)`, transition: 'background 3s ease' }}
         />
 
-        {/* ── Paradox governance overlay (left) ───────────────────────── */}
+        {/* ── Paradox governance overlay — desktop only ───────────────── */}
         <div
-          className="absolute left-0 top-0 bottom-0 overflow-y-auto pointer-events-none"
+          className="absolute left-0 top-0 bottom-0 overflow-hidden pointer-events-none hidden md:block"
           style={{
-            width: 'min(310px, 55vw)',
+            width: '280px',
             background: 'linear-gradient(90deg, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.50) 72%, rgba(0,0,0,0) 100%)',
             textShadow: glitchShadow,
-            overflow: 'hidden',
           }}
         >
           <div className="px-3 pt-3 pb-1 tracking-[0.2em] uppercase" style={{ color: '#4a6a10', lineHeight: '1.5', fontSize: '10.5px', fontWeight: 800 }}>
@@ -833,10 +832,10 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
               <div key={i} className="px-3 py-[3px]">
                 <div className="flex items-baseline gap-2 tracking-wider" style={{ lineHeight: '1.6', fontSize: '12px' }}>
                   <span style={{ color: violated ? '#cc0000' : '#5a9000', fontSize: '14px', fontWeight: 800 }}>{p.rune}</span>
-                  <span style={{ color: violated ? '#bb2200' : '#6a9a10', minWidth: '100px', lineHeight: '1.6', fontWeight: 800 }}>{p.name}</span>
-                  <span style={{ color: violated ? '#992200' : '#3a6a00', fontSize: '10.5px', letterSpacing: '0.15em', fontWeight: 800 }}>{violated ? 'VIOLATED' : 'HOLDING'}</span>
+                  <span style={{ color: violated ? '#bb2200' : '#6a9a10', minWidth: '80px', lineHeight: '1.6', fontWeight: 800 }}>{p.name}</span>
+                  <span style={{ color: violated ? '#992200' : '#3a6a00', fontSize: '10px', letterSpacing: '0.12em', fontWeight: 800 }}>{violated ? 'VIOLATED' : 'HOLDING'}</span>
                 </div>
-                <div className="tracking-wide mt-px" style={{ color: violated ? '#773300' : '#3a5a08', fontWeight: 800, lineHeight: '1.6', fontSize: '10px' }}>{p.short}</div>
+                <div className="tracking-wide mt-px" style={{ color: violated ? '#773300' : '#3a5a08', fontWeight: 800, lineHeight: '1.5', fontSize: '9.5px' }}>{p.short}</div>
                 {i < PARADOXES.length - 1 && PARADOXES[i + 1].layer !== p.layer && uiPhase >= PARADOXES[i + 1].phaseMin && (
                   <div className="mt-1.5 mb-0.5 tracking-[0.25em] uppercase" style={{ color: '#3a5500', borderTop: '1px solid #2a400028', paddingTop: '4px', lineHeight: '1.6', fontSize: '9px', fontWeight: 800 }}>
                     Layer {PARADOXES[i + 1].layer}
@@ -847,36 +846,49 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
           })}
         </div>
 
-        {/* ── SARG score (top right) ──────────────────────────────────── */}
-        <div className="absolute top-3 right-4 text-right pointer-events-none overflow-hidden" style={{ textShadow: glitchShadow }}>
-          <div className="tracking-[0.25em] uppercase" style={{ color: '#3a5a00', lineHeight: '1.5', fontSize: '10.5px', fontWeight: 800 }}>SARG</div>
-          <div className="leading-none" style={{ fontSize: '28px', fontWeight: 800, color: uiSarg.sarg > 6 ? '#7ab800' : uiSarg.sarg > 3 ? '#c8860a' : '#cc0000', textShadow: `0 0 20px ${uiSarg.sarg > 6 ? '#7ab80040' : uiSarg.sarg > 3 ? '#c8860a40' : '#cc000040'}` }}>
+        {/* ── SARG score ──────────────────────────────────────────────────
+             Desktop: top-right with full detail
+             Mobile:  bottom-left, number only — avoids collision with map  */}
+        <div
+          className="absolute pointer-events-none overflow-hidden
+                     bottom-2 left-3 text-left
+                     md:top-3 md:right-4 md:bottom-auto md:left-auto md:text-right"
+          style={{ textShadow: glitchShadow }}
+        >
+          {/* Label — hidden on mobile to save vertical space */}
+          <div className="hidden md:block tracking-[0.25em] uppercase" style={{ color: '#3a5a00', lineHeight: '1.5', fontSize: '10.5px', fontWeight: 800 }}>SARG</div>
+          <div className="leading-none" style={{ fontSize: '24px', fontWeight: 800, color: uiSarg.sarg > 6 ? '#7ab800' : uiSarg.sarg > 3 ? '#c8860a' : '#cc0000', textShadow: `0 0 20px ${uiSarg.sarg > 6 ? '#7ab80040' : uiSarg.sarg > 3 ? '#c8860a40' : '#cc000040'}` }}>
+            <span className="md:hidden" style={{ fontSize: '10px', fontWeight: 800, opacity: 0.6, letterSpacing: '0.2em' }}>SARG </span>
             {uiSarg.sarg.toFixed(2)}
           </div>
-          <div className="tracking-wide mt-0.5" style={{ color: '#3a5a10', lineHeight: '1.6', fontSize: '10px', fontWeight: 800 }}>
+          {/* Detail lines — desktop only */}
+          <div className="hidden md:block tracking-wide mt-0.5" style={{ color: '#3a5a10', lineHeight: '1.6', fontSize: '10px', fontWeight: 800 }}>
             C{'\u2097\u2081'} = {uiSarg.coherence.toFixed(3)} {'\u00b7'} {uiSarg.violated}/{uiSarg.activated} violated
           </div>
-          <div className="tracking-wide" style={{ color: '#2d4a08', lineHeight: '1.6', fontSize: '9px', fontWeight: 800 }}>
+          <div className="hidden md:block tracking-wide" style={{ color: '#2d4a08', lineHeight: '1.6', fontSize: '9px', fontWeight: 800 }}>
             {'\u0394'}(t) = {(1 - deadFrac).toFixed(3)} {'\u00b7'} {'\u03bb'}{'\u2091'} = 0.85
           </div>
         </div>
 
-        {/* ── Phase warning ────────────────────────────────────────────── */}
+        {/* ── Phase warning — bottom-centre, truncated on mobile ────────── */}
         {uiPhase >= PH.OVERSHOOT && (
-          <div className="absolute top-0 left-0 right-0 text-center pt-1 pointer-events-none overflow-hidden" style={{ textShadow: glitchShadow }}>
-            <span className="text-[10px] tracking-[0.15em]" style={{
-              color: isCollapse ? '#cc0000' : '#8b2200',
-              opacity: isCollapse ? 0.5 + Math.abs(Math.sin(Date.now() / 300)) * 0.5 : 0.45,
-            }}>
+          <div className="absolute bottom-8 md:bottom-auto md:top-0 left-0 right-0 text-center px-2 md:pt-1 pointer-events-none overflow-hidden" style={{ textShadow: glitchShadow }}>
+            <span
+              className="block truncate text-[9px] md:text-[10px] tracking-[0.1em] md:tracking-[0.15em]"
+              style={{
+                color: isCollapse ? '#cc0000' : '#8b2200',
+                opacity: isCollapse ? 0.5 + Math.abs(Math.sin(Date.now() / 300)) * 0.5 : 0.45,
+              }}
+            >
               {isCollapse
-                ? '\u2013 LINDBLAD DECOHERENCE DOMINANT \u2013 ALL PARADOXES CONVERGING TO VIOLATION \u2013'
-                : '\u2013 EXERGY OVERSHOOT \u2013 BIOSPHERE COHERENCE DEGRADING \u2013'}
+                ? '\u2013 LINDBLAD DECOHERENCE DOMINANT \u2013 PARADOXES CONVERGING \u2013'
+                : '\u2013 EXERGY OVERSHOOT \u2013 COHERENCE DEGRADING \u2013'}
             </span>
           </div>
         )}
 
-        {/* ── Thermodynamic readings (bottom right) ───────────────────── */}
-        <div className="absolute bottom-2 right-4 text-right pointer-events-none tracking-wider overflow-hidden"
+        {/* ── Thermodynamic readings — desktop only ───────────────────── */}
+        <div className="hidden md:block absolute bottom-2 right-4 text-right pointer-events-none tracking-wider overflow-hidden"
              style={{ color: '#3a5a10', textShadow: glitchShadow, lineHeight: '1.6', fontSize: '10.5px', fontWeight: 800 }}>
           <div>X{'\u1d35'} = T{'\u2080'} {'\u00b7'} S{'\u2092\u1d07\u2099'} ={' '}<span style={{ color: '#c8860a' }}>{uiStats.x_dest.toFixed(2)} TJ</span></div>
           <div>dX/dt ={' '}<span style={{ color: uiStats.dx_dt > X_SOLAR ? '#ff4400' : '#5a8a10' }}>{uiStats.dx_dt.toFixed(1)} TW</span>{' / '}{X_SOLAR} TW</div>
