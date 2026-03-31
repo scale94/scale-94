@@ -616,7 +616,7 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
 
       return { d, transform, fill, opacity, wobbleDur, wobbleDelA, wobbleDelB, wx, wy };
     });
-  }, [mapState]);
+  }, [mapState.deadFrac, mapState.phase, mapState.exergyNorm, mapState.trophicV]);
 
   // ── Derived UI values ─────────────────────────────────────────────────────
   const phaseColor = PHASE_COLOR[uiPhase] ?? '#333';

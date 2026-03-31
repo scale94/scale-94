@@ -1315,6 +1315,10 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
       // ── Nodes (depth-sorted, near drawn last = on top) ────────────────────
       const hov = hoveredRef.current;
+      const _resNodes = resonanceNodesRef.current;
+      const _resActive = resonanceModeRef.current && _resNodes.length > 0;
+      const _resNodeSet = _resActive ? new Set(_resNodes) : null;
+      const _spectralFlux = getSpectralFlux();
       for (const i of sortedNodeIdx) {
         const n   = nodes[i];
         // Dynamic nodes (bifurcation children) fall back to dynColorMap
@@ -1350,9 +1354,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         let depthAlpha = Math.max(0.08, (p.depth + 1) * 0.5);
 
         // ── Resonance dimming: non-selected nodes → 10% opacity ──────────────
-        const _resNodes = resonanceNodesRef.current;
-        const _resActive = resonanceModeRef.current && _resNodes.length > 0;
-        const _isResNode = _resActive && _resNodes.includes(n.id);
+        const _isResNode = _resActive && _resNodeSet.has(n.id);
         if (_resActive && !_isResNode) depthAlpha *= 0.10;
 
         const radius = (5 + energy * 4) * p.scale;
@@ -1367,7 +1369,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         // Spectral PCA tint — shift hue based on eigenvalue-to-wavelength mapping
         const _spc = getSpectralColor(i);
         if (_spc && renderCol.hue != null) {
-          const flux = getSpectralFlux();
+          const flux = _spectralFlux;
           const blend = 0.08 + flux * 0.15; // very subtle 8-23% spectral influence
           // Convert spectral [r,g,b,a] (0-1 floats) to approximate hue shift
           const _sr = _spc[0], _sg = _spc[1], _sb = _spc[2];
