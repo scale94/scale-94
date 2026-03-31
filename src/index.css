@@ -283,6 +283,12 @@ html, body {
   4%   { opacity: 1; }
   100% { transform: perspective(900px) scale3d(1,1,1); opacity: 1; }
 }
+/* Mobile: cube starts oversized (bleeds past viewport) and settles inward */
+@keyframes kernel-reveal-scale-mobile {
+  0%   { transform: scale3d(1.8,1.8,1.8); opacity: 0; }
+  8%   { opacity: 1; }
+  100% { transform: scale3d(1,1,1); opacity: 1; }
+}
 @keyframes kernel-collapse-scale {
   0%   { transform: perspective(900px) scale3d(1,1,1); opacity: 1; }
   60%  { opacity: 1; }

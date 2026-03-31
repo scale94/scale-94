@@ -853,15 +853,24 @@ const App = () => {
       {/* ── Terminal content — springs up from singularity after boot ────────── */}
       <div
         className="flex flex-col flex-grow"
-        style={
-          bootAnimDone
-            ? {}
-            : bootRevealed
-              ? { animation: 'kernel-reveal-scale 2s cubic-bezier(0.65,0,0.35,1) both', transformOrigin: 'center center', willChange: 'transform, opacity' }
-              : { transform: 'perspective(900px) scale3d(0.01,0.01,0.01)', opacity: 0, transformOrigin: 'center center' }
-        }
+        style={(() => {
+          if (bootAnimDone) return {};
+          const mobile = window.innerWidth <= 768;
+          if (bootRevealed) return {
+            animation: `${mobile ? 'kernel-reveal-scale-mobile' : 'kernel-reveal-scale'} 2s cubic-bezier(0.65,0,0.35,1) both`,
+            transformOrigin: 'center center',
+            willChange: 'transform, opacity',
+          };
+          return {
+            transform: mobile ? 'scale3d(1.8,1.8,1.8)' : 'perspective(900px) scale3d(0.01,0.01,0.01)',
+            opacity: 0,
+            transformOrigin: 'center center',
+          };
+        })()}
         onAnimationEnd={(e) => {
-          if (e.target === e.currentTarget && e.animationName === 'kernel-reveal-scale') setBootAnimDone(true);
+          if (e.target === e.currentTarget &&
+            (e.animationName === 'kernel-reveal-scale' || e.animationName === 'kernel-reveal-scale-mobile'))
+            setBootAnimDone(true);
         }}
       >
         <OctagonGrid visible={!selectedArticle && !architectThesis && !tagCloudView && activeTab !== 'art'} />
