@@ -267,19 +267,20 @@ html, body {
 }
 
 /* ── Default cube expand — boot singularity → kernel tab reveal ────────────
-   The boot card collapses to a point. This SAME rectangular form then expands
-   from that point, covering the screen before dissolving to reveal the kernel
-   tab behind it. Arc: uncut stasis (boot) → press S → creation (kernel).
-   No clip-path (buggy on iOS Safari flex containers). Pure scale + opacity. */
-/* Boot singularity → kernel tab expansion (Blender 5.1 S-key cube scale)
-   perspective() as transform fn keeps depth local — no parent wrapper needed.
-   Pure uniform scale3d: no tilt, no rotation. The perspective foreshortening
-   makes near edges expand faster than far edges — identical to Blender viewport
-   camera watching a selected cube grow under S-key.
-   Easing: expo-out (fast ignition, imperceptibly long deceleration tail). */
+   Arc: uncut stasis (boot) → press S → creation (kernel).
+   No clip-path (buggy on iOS Safari flex containers). Pure scale + opacity.
+
+   Easing: sine ease-in-out (cubic-bezier(0.65,0,0.35,1)) over 2 s.
+   At this duration, sine ease-in-out distributes motion symmetrically —
+   the cube accelerates through the middle of the scale range and decelerates
+   at both ends, identical to watching a physical object materialize in
+   Blender viewport under S-key at playback speed.
+
+   DEV NOTE: HMR preserves bootAnimDone=true across saves.
+   The animation WILL work — hard-refresh (Ctrl+Shift+R) to preview changes. */
 @keyframes kernel-reveal-scale {
   0%   { transform: perspective(900px) scale3d(0.01,0.01,0.01); opacity: 0; }
-  6%   { opacity: 1; }
+  4%   { opacity: 1; }
   100% { transform: perspective(900px) scale3d(1,1,1); opacity: 1; }
 }
 @keyframes kernel-collapse-scale {
