@@ -460,7 +460,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
     <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-cyan-900/50 pb-3 mb-4 shrink-0">
 
       <div>
-        <h2 className="text-4xl font-bold mb-1 tracking-tight flex items-center gap-3">
+        <h2 className="text-4xl font-bold mb-3 tracking-tight flex items-center gap-3">
           <Cpu
             className="w-8 h-8 shrink-0"
             style={{ color: '#FFD700', animation: 'sk-cpuYellowReveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards, sk-cpuYellowGlow 2.5s ease-in-out 0.8s infinite' }}
@@ -498,7 +498,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
           </span>
         </h2>
         <div
-          className="text-xs md:text-sm font-bold tracking-widest"
+          className="text-sm md:text-base font-bold tracking-widest"
           style={{ color: '#fb923c', opacity: 0, animation: 'sk-subReveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.35s forwards' }}
         >
           version: soma-9.1 // build: gaia // ostrom_protocol
@@ -510,10 +510,10 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
       </div>
       {/* Mobile badges — shown below title on mobile only */}
       <div className="flex items-center gap-2 mt-2 flex-wrap md:hidden">
-        <div className="flex items-center gap-2 text-xs border border-cyan-500/30 px-2 py-1 bg-cyan-900/10 text-cyan-400 rounded-sm">
+        <div className="flex items-center gap-2 text-xs border border-cyan-500/30 px-3 py-1 bg-cyan-900/10 text-cyan-400 rounded-sm font-mono">
           <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(34,211,238,1)]"></div> operational
         </div>
-        <div className="flex items-center gap-2 text-xs border border-[#39ff14]/30 px-2 py-1 bg-green-900/10 text-[#39ff14] rounded-sm shadow-[0_0_6px_rgba(57,255,20,0.15)]">
+        <div className="flex items-center gap-2 text-xs border border-[#39ff14]/30 px-3 py-1 bg-green-900/10 text-[#39ff14] rounded-sm shadow-[0_0_6px_rgba(57,255,20,0.15)] font-mono">
           <Shield className="w-3 h-3" /> leviathan: active
         </div>
       </div>
@@ -646,8 +646,8 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
                       setTimeout(() => mobileAutoRun(kernel.id), 900);
                     }
                   }}
-                  className={`flex flex-wrap justify-between items-center gap-y-2 border-b pb-3 mb-1 cursor-pointer p-2 rounded transition-all group gap-2
-                    ${isLoading ? 'border-cyan-400/60 backdrop-blur-sm' : 'border-cyan-900/20 hover:bg-cyan-900/10'}`}
+                  className={`flex flex-wrap justify-between items-center gap-y-2 border-b border-l-2 pb-3 mb-1 cursor-pointer p-2 pl-3 rounded transition-all group gap-2
+                    ${isLoading ? 'border-cyan-400/60 border-l-cyan-400/60 backdrop-blur-sm' : 'border-cyan-900/20 border-l-transparent hover:border-l-cyan-500/40 hover:bg-cyan-900/10'}`}
                   style={{ animation: isLoading
                     ? `sk-loadFlash 1.2s cubic-bezier(0.16,1,0.3,1) forwards, sk-kernelModuleIn 0.22s ease-out ${idx * 40}ms both`
                     : `sk-kernelModuleIn 0.22s ease-out ${idx * 40}ms both` }}
@@ -668,7 +668,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
                   <div className="flex items-center gap-1 shrink-0 ml-auto">
                     <div
                       onClick={(e) => { e.stopPropagation(); setIsFading(true); sphereFireRef.current = { ts: Date.now() }; handleKernelClick && handleKernelClick(kernel); }}
-                      className={`text-[9px] font-bold px-1.5 py-0.5 rounded-sm border tracking-widest whitespace-nowrap transition-all cursor-pointer ${isLoading ? 'bg-cyan-900/30 border-cyan-400 text-cyan-300' : 'bg-transparent border-cyan-500/60 text-cyan-500 hover:border-cyan-400 hover:text-cyan-300'}`}
+                      className={`text-[9px] font-bold px-1.5 py-0.5 rounded-sm border tracking-widest whitespace-nowrap transition-all cursor-pointer ${isLoading ? 'bg-cyan-900/30 border-cyan-400 text-cyan-300' : 'bg-transparent border-cyan-500/60 text-cyan-500 hover:bg-cyan-500/10 hover:border-cyan-400 hover:text-cyan-300'}`}
                     >
                       {isLoading ? '...' : '[load]'}
                     </div>

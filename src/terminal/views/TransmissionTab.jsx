@@ -297,10 +297,10 @@ const TransmissionTab = ({ stories, onSelect, loadingSignal }) => {
                       </circle>
                       {/* Vertical drop line to axis */}
                       <line x1={x} y1={y} x2={x} y2={H - 14}
-                        stroke="rgba(217,70,239,0.15)" strokeWidth="0.5" strokeDasharray="2,3" />
+                        stroke="rgba(217,70,239,0.35)" strokeWidth="0.8" strokeDasharray="2,3" />
                       {/* Date label */}
                       <text x={x} y={H - 4} textAnchor="middle"
-                        fill="rgba(217,70,239,0.45)" fontSize="7" fontFamily="monospace">
+                        fill="rgba(217,70,239,0.7)" fontSize="8" fontFamily="monospace" letterSpacing="0.04em">
                         {s.date?.slice(0, 7) || '?'}
                       </text>
                     </g>

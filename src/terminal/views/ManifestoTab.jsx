@@ -32,7 +32,7 @@ const ManifestoTab = ({ systemArticles = {} }) => {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-cyan-900/50 pb-4 mb-8">
         <div>
-          <h2 className="text-xl sm:text-2xl md:text-4xl font-bold mb-1 tracking-tight flex items-center gap-3">
+          <h2 className="text-xl sm:text-2xl md:text-4xl font-bold mb-3 tracking-tight flex items-center gap-3">
             <Eye
               className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 shrink-0 text-cyan-400"
               style={{ animation: 'mn-iconReveal 0.8s cubic-bezier(0.16,1,0.3,1) forwards, mn-iconPulse 5s ease-in-out 0.8s infinite' }}

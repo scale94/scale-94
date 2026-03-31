@@ -1312,7 +1312,7 @@ export default function LatentCollider() {
         {/* Idle state prompt */}
         {phase === 'idle' && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="text-center">
+            <div className="text-center border border-dashed border-fuchsia-500/20 rounded-sm px-10 py-6">
               <div className="text-[11px] font-mono text-fuchsia-500/40 uppercase tracking-widest animate-pulse">
                 SELECT TWO DOMAINS TO COLLIDE
               </div>
