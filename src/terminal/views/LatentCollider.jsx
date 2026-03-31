@@ -5,6 +5,7 @@ import {
   cosineSim, topDrivers, analyzeFullEdge, extractParadoxes,
 } from '../data/nodeFeatures';
 import { useColliderNarrative } from '../hooks/useColliderNarrative';
+import { useProductionThreshold } from '../hooks/useProductionThreshold';
 
 // ── Collider Event Bus ───────────────────────────────────────────────────────
 // Cross-tab coupling: emits chimera synthesis results so the Art tab sphere
@@ -653,6 +654,9 @@ export default function LatentCollider() {
   const [tesseract,  setTesseract]  = useState(null);
   const [acquired,  setAcquired]  = useState(false);
 
+  // ── Persistent production threshold (Vercel KV via /api/transmute/threshold) ─
+  const serverThreshold = useProductionThreshold();
+
   const handleCrystallize = useCallback(async () => {
     if (!result || domainA === null || domainB === null) return;
     const card = buildPerfumeCard(domainA, domainB, result);
@@ -700,13 +704,12 @@ export default function LatentCollider() {
       console.error('[TESSERACT] RSA-OAEP encryption failed:', e);
     }
 
-    // ── Discord webhook — asymmetric encrypted dispatch ──────────────────
-    const webhookUrl = import.meta.env.VITE_CRYSTAL_WEBHOOK;
-    if (!webhookUrl || isDupe) return;
+    // ── Persistent order dispatch → /api/transmute/order ────────────────
+    if (isDupe) return;
 
-    const tHash = tesseract?.hash || '—';
-    const sovereignRatio = 100; // €100
-    const g2tAllocation  = +(sovereignRatio * 0.10).toFixed(2); // 10% for Ukraine
+    const tHash          = tesseract?.hash || '—';
+    const sovereignRatio = 100;
+    const g2tAllocation  = +(sovereignRatio * 0.10).toFixed(2);
 
     const noteBlock = [
       `ᛏ TOP    ${card.topNotes.join(' · ')}`,
@@ -720,7 +723,6 @@ export default function LatentCollider() {
       `NODE CLASS     ${card.nodeClass}`,
       `POLARITY       ${card.polLabel || 'MERIDIAN'}`,
       `DOM / SEC      ${card.dom.toUpperCase()} × ${card.sec.toUpperCase()}`,
-      `THRESHOLD      ${newCount} / ${PRODUCTION_THRESHOLD}`,
     ].join('\n');
 
     const vaultBlock = [
@@ -732,48 +734,40 @@ export default function LatentCollider() {
       `G²T→UA       €${g2tAllocation} (10%)`,
     ].join('\n');
 
-    // Truncate encrypted payload for Discord embed (max 1024 chars per field)
     const encTrunc = encryptedPayload.length > 900
       ? encryptedPayload.slice(0, 900) + '…'
       : encryptedPayload;
 
-    const payload = {
-      username: 'LATENT COLLIDER',
-      embeds: [{
-        title: '◈ TESSERACT TRANSMUTATION INITIATED',
-        description: `\`\`\`\n${card.name}\n\`\`\``,
-        color: 0xD4AF37,
-        fields: [
-          {
-            name:   '§ TESSERACT VAULT IDENTITY',
-            value:  `\`\`\`\n${vaultBlock}\n\`\`\``,
-            inline: false,
-          },
-          {
-            name:   '§07 PUBLIC SCENT PROFILE',
-            value:  `\`\`\`\n${noteBlock}\n\`\`\``,
-            inline: false,
-          },
-          {
-            name:   '§ PHYSICAL PROPERTIES',
-            value:  `\`\`\`\n${physBlock}\n\`\`\``,
-            inline: false,
-          },
-          {
-            name:   '§ ENCRYPTED FORMULA (RSA-OAEP-2048)',
-            value:  `\`\`\`\n${encTrunc}\n\`\`\``,
-            inline: false,
-          },
-        ],
-        footer: { text: `accord id: ${card.id}  ·  tesseract protocol  ·  formula vaulted  ·  G²T ${g2tAllocation}€→UA` },
-        timestamp: new Date().toISOString(),
-      }],
-    };
+    const orderBody = JSON.stringify({
+      formulaId:        card.id,
+      formulaHash:      tHash,
+      encryptedPayload: encTrunc,
+      sovereignRatio,
+      g2tAmount:        g2tAllocation,
+      cardName:         card.name,
+      noteBlock,
+      physBlock,
+      vaultBlock,
+    });
 
-    fetch(webhookUrl, {
+    // HMAC-SHA256 sign the body (Web Crypto API, timing-safe)
+    let sig = '';
+    try {
+      const secret = import.meta.env.VITE_TRANSMUTE_WEBHOOK_SECRET;
+      if (secret) {
+        const key = await crypto.subtle.importKey(
+          'raw', new TextEncoder().encode(secret),
+          { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'],
+        );
+        const buf = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(orderBody));
+        sig = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+      }
+    } catch { /* signing failed — send unsigned, server will accept in dev mode */ }
+
+    fetch('/api/transmute/order', {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(payload),
+      headers: { 'Content-Type': 'application/json', 'x-transmute-signature': sig },
+      body:    orderBody,
     }).catch(() => { /* silent — notification is best-effort */ });
   }, [crystal, tesseract]);
 
@@ -2024,12 +2018,16 @@ export default function LatentCollider() {
           tesseract={tesseract}
           acquired={acquired}
           onRegister={() => handleAcquire(crystal.id)}
+          serverCount={serverThreshold.current}
+          serverTarget={serverThreshold.target}
         />
       ) : crystal && (
         <CrystallizeCard
           card={crystal}
           acquired={acquired}
           onRegister={() => handleAcquire(crystal.id)}
+          serverCount={serverThreshold.current}
+          serverTarget={serverThreshold.target}
         />
       )}
     </div>
@@ -2156,11 +2154,9 @@ function PerfumeBottleSVG({ nodeClass, hA, hB }) {
 }
 
 // ── Crystallize Card component ─────────────────────────────────────────────────
-function CrystallizeCard({ card, acquired, onRegister }) {
-  const getCount = () => {
-    try { return parseInt(localStorage.getItem('ck_count') || '0', 10); }
-    catch { return 0; }
-  };
+function CrystallizeCard({ card, acquired, onRegister, serverCount, serverTarget }) {
+  const getCount  = () => serverCount  != null ? serverCount  : (() => { try { return parseInt(localStorage.getItem('ck_count') || '0', 10); } catch { return 0; } })();
+  const getTarget = () => serverTarget != null ? serverTarget : PRODUCTION_THRESHOLD;
 
   const NOTE_LAYERS = [
     { key: 'top',   label: 'TOP NOTES',   glyph: 'ᛏ', notes: card.topNotes,   color: '#FFD700', sub: '0–30 min',    pct: card.evap[0] },
@@ -2277,17 +2273,17 @@ function CrystallizeCard({ card, acquired, onRegister }) {
                 ✦ INTEREST LOGGED
               </div>
               <div className="text-[9px] font-mono mb-3" style={{ color: 'rgba(255,215,0,0.42)' }}>
-                PRODUCTION THRESHOLD — {getCount()} / {PRODUCTION_THRESHOLD}
+                PRODUCTION THRESHOLD — {getCount()} / {getTarget()}
               </div>
               <div className="w-full h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,215,0,0.1)' }}>
                 <div className="h-full rounded-full"
                   style={{
-                    width: `${Math.min(100, (getCount() / PRODUCTION_THRESHOLD) * 100)}%`,
+                    width: `${Math.min(100, (getCount() / getTarget()) * 100)}%`,
                     background: 'linear-gradient(90deg,rgba(255,215,0,0.3),rgba(255,215,0,0.8))',
                     transition: 'width 1s ease',
                   }} />
               </div>
-              {getCount() >= PRODUCTION_THRESHOLD && (
+              {getCount() >= getTarget() && (
                 <div className="text-[9px] font-bold font-mono mt-2" style={{ color: '#FFD700' }}>
                   ■ THRESHOLD REACHED — PRODUCTION UNDER CONSIDERATION
                 </div>
@@ -2303,11 +2299,9 @@ function CrystallizeCard({ card, acquired, onRegister }) {
 }
 
 // ── Tesseract Card — cryptographic identity layer ───────────────────────────
-function TesseractCard({ card, tesseract, acquired, onRegister }) {
-  const getCount = () => {
-    try { return parseInt(localStorage.getItem('ck_count') || '0', 10); }
-    catch { return 0; }
-  };
+function TesseractCard({ card, tesseract, acquired, onRegister, serverCount, serverTarget }) {
+  const getCount  = () => serverCount  != null ? serverCount  : (() => { try { return parseInt(localStorage.getItem('ck_count') || '0', 10); } catch { return 0; } })();
+  const getTarget = () => serverTarget != null ? serverTarget : PRODUCTION_THRESHOLD;
 
   const mid = Math.round((card.hueA + card.hueB) / 2);
   const { hash, encryptedFormula } = tesseract;
@@ -2524,17 +2518,17 @@ function TesseractCard({ card, tesseract, acquired, onRegister }) {
                 </div>
               </div>
               <div className="text-[9px] font-mono mb-3" style={{ color: 'rgba(255,215,0,0.42)' }}>
-                PRODUCTION THRESHOLD — {getCount()} / {PRODUCTION_THRESHOLD}
+                PRODUCTION THRESHOLD — {getCount()} / {getTarget()}
               </div>
               <div className="w-full h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,215,0,0.1)' }}>
                 <div className="h-full rounded-full"
                   style={{
-                    width: `${Math.min(100, (getCount() / PRODUCTION_THRESHOLD) * 100)}%`,
+                    width: `${Math.min(100, (getCount() / getTarget()) * 100)}%`,
                     background: 'linear-gradient(90deg,rgba(255,215,0,0.3),rgba(255,215,0,0.8))',
                     transition: 'width 1s ease',
                   }} />
               </div>
-              {getCount() >= PRODUCTION_THRESHOLD && (
+              {getCount() >= getTarget() && (
                 <div className="text-[9px] font-bold font-mono mt-2" style={{ color: '#FFD700' }}>
                   ■ THRESHOLD REACHED — SYNTHESIS UNDER CONSIDERATION
                 </div>
