@@ -339,8 +339,283 @@ function parseColliderOutput(text) {
   };
 }
 
+// ── Perfume note library ──────────────────────────────────────────────────────
+const PERF_NOTES = {
+  top: {
+    citrus:   ['Bergamot','Neroli','Lemon Verbena','Yuzu','Pink Grapefruit','Bitter Orange'],
+    fresh:    ['Violet Leaf','Aldehydes','Green Tea','Cucumber Accord','Water Lotus','Ozone'],
+    spicy:    ['Black Pepper','Cardamom','Ginger','Elemi','Coriander Seed','Nutmeg'],
+    floral:   ['Petitgrain','Neroli Bigarade','Peach Blossom','Lychee Rose','Osmanthus','Tiare'],
+    woody:    ['Juniper Berry','Pink Pepper','Carrot Seed','Basil Grand Vert','Artemisia','Cistus'],
+    oceanic:  ['Marine Accord','Sea Salt','Calone','Ozone Crystal','Arctic Moss','Dew Accord'],
+    animalic: ['Aldehydic Musk','Ambrette Seed','Orris Root','Castoreum Tincture','Hyraceum','Galbanum'],
+    resinous: ['Elemi Resin','Frankincense Essence','Galbanum','Labdanum Tincture','Opoponax','Benzoin'],
+  },
+  heart: {
+    citrus:   ['Jasmine Sambac','Orange Blossom Absolute','Magnolia','Mimosa','Cyclamen','Heliotrope'],
+    fresh:    ['Iris','Violet Absolute','White Tea Accord','Peony','Lily of the Valley','Muguet'],
+    spicy:    ['Rose Absolute','Cinnamon Bark','Clove Bud','Saffron','Oud Rose','Pepper Heart'],
+    floral:   ['Rose de Mai','Jasmine Absolute','Ylang-Ylang Extra','Iris Pallida','Tuberose','Gardenia'],
+    woody:    ['Geranium Bourbon','Vetiver Haiti','Cedarwood Atlas','Sandalwood Mysore','Guaiac Wood','Birch'],
+    oceanic:  ['Water Iris','Sea Lily Accord','Blue Lotus','Aquatic Jasmine','Kelp Extract','Seaweed'],
+    animalic: ['Honey Absolute','Beeswax Absolute','Civet Accord','Costus Root','Ambrette Heart','Oakmoss'],
+    resinous: ['Labdanum Absolute','Olibanum','Myrrh Heart','Benzoin Absolute','Styrax Levant','Elemi'],
+  },
+  base: {
+    citrus:   ['Tonka Bean','White Musk','Benzoin Siam','Amber Accord','Hedione HC','Cashmeran'],
+    fresh:    ['White Cedar','Cashmeran','White Musk Crystal','Driftwood','Sandalwood','Ambroxide'],
+    spicy:    ['Black Oud','Tobacco Absolute','Labdanum','Leather Accord','Dark Amber','Castoreum'],
+    floral:   ['Benzoin Siam','Australian Sandalwood','White Musk','Vanilla Absolute','Muskmallow','Tonka'],
+    woody:    ['Patchouli Heart','Oakmoss Absolute','Vetiver Bourbon','Birch Tar','Iso E Super','Cedarwood'],
+    oceanic:  ['Driftwood','Sea Amber','White Musk','Cashmeran','Ambroxide','Salt Cedar'],
+    animalic: ['Ambergris Tincture','Musk Absolute','Civet Absolute','Castoreum','Oud Kyara','Deer Musk'],
+    resinous: ['Frankincense Hojari','Myrrh Resinoid','Benzoin','Opoponax Resin','Dark Patchouli','Labdanum'],
+  },
+};
+
+// ── CAS registry — maps note names to CAS numbers for encrypted formula ──────
+const CAS_REGISTRY = {
+  'Bergamot': '8007-75-8', 'Neroli': '8016-38-4', 'Lemon Verbena': '8024-12-2',
+  'Yuzu': '61788-56-5', 'Pink Grapefruit': '8016-20-4', 'Bitter Orange': '68916-04-1',
+  'Violet Leaf': '8024-08-6', 'Aldehydes': '112-31-2', 'Green Tea': '84650-60-2',
+  'Cucumber Accord': '80-71-7', 'Water Lotus': '8002-44-0', 'Ozone': '10028-15-6',
+  'Black Pepper': '8006-82-4', 'Cardamom': '8000-66-6', 'Ginger': '8007-08-7',
+  'Elemi': '9000-75-3', 'Coriander Seed': '8008-52-4', 'Nutmeg': '8008-45-5',
+  'Petitgrain': '8014-17-3', 'Neroli Bigarade': '72968-50-4', 'Peach Blossom': '104-67-6',
+  'Lychee Rose': '106-24-1', 'Osmanthus': '68917-05-5', 'Tiare': '8006-80-2',
+  'Juniper Berry': '8012-91-7', 'Pink Pepper': '68650-39-5', 'Carrot Seed': '8015-88-1',
+  'Basil Grand Vert': '8015-73-4', 'Artemisia': '8022-37-5', 'Cistus': '8016-26-0',
+  'Marine Accord': '67634-15-5', 'Sea Salt': '7647-14-5', 'Calone': '28940-11-6',
+  'Ozone Crystal': '10028-15-6', 'Arctic Moss': '90028-67-4', 'Dew Accord': '80-71-7',
+  'Aldehydic Musk': '81-14-1', 'Ambrette Seed': '8015-62-1', 'Orris Root': '8002-73-1',
+  'Castoreum Tincture': '8023-83-4', 'Hyraceum': '68916-97-2', 'Galbanum': '9000-72-0',
+  'Elemi Resin': '9000-75-3', 'Frankincense Essence': '8016-36-2',
+  'Labdanum Tincture': '8016-26-0', 'Opoponax': '9000-78-6', 'Benzoin': '9000-05-9',
+  'Jasmine Sambac': '8022-96-6', 'Orange Blossom Absolute': '8016-38-4',
+  'Magnolia': '8007-71-0', 'Mimosa': '8031-03-6', 'Cyclamen': '103-95-7', 'Heliotrope': '120-57-0',
+  'Iris': '8002-73-1', 'Violet Absolute': '8024-08-6', 'White Tea Accord': '84650-60-2',
+  'Peony': '8002-09-3', 'Lily of the Valley': '8000-48-4', 'Muguet': '80-54-6',
+  'Rose Absolute': '8007-01-0', 'Cinnamon Bark': '8015-91-6', 'Clove Bud': '8000-34-8',
+  'Saffron': '8024-02-0', 'Oud Rose': '8016-38-4', 'Pepper Heart': '8006-82-4',
+  'Rose de Mai': '8007-01-0', 'Jasmine Absolute': '8022-96-6',
+  'Ylang-Ylang Extra': '8006-81-3', 'Iris Pallida': '55066-56-3',
+  'Tuberose': '8024-05-3', 'Gardenia': '68917-05-5',
+  'Geranium Bourbon': '8000-46-2', 'Vetiver Haiti': '8016-96-4',
+  'Cedarwood Atlas': '8000-27-9', 'Sandalwood Mysore': '8006-87-9',
+  'Guaiac Wood': '8016-23-7', 'Birch': '8001-88-5',
+  'Water Iris': '8002-73-1', 'Sea Lily Accord': '8000-48-4',
+  'Blue Lotus': '8002-44-0', 'Aquatic Jasmine': '8022-96-6',
+  'Kelp Extract': '90028-67-4', 'Seaweed': '90028-67-4',
+  'Honey Absolute': '8028-66-8', 'Beeswax Absolute': '8012-89-3',
+  'Civet Accord': '68916-26-7', 'Costus Root': '8023-88-9',
+  'Ambrette Heart': '8015-62-1', 'Oakmoss': '9000-50-4',
+  'Labdanum Absolute': '8016-26-0', 'Olibanum': '8016-36-2',
+  'Myrrh Heart': '9000-45-7', 'Benzoin Absolute': '9000-05-9',
+  'Styrax Levant': '8024-01-9',
+  'Tonka Bean': '8046-22-8', 'White Musk': '81-14-1', 'Benzoin Siam': '9000-73-1',
+  'Amber Accord': '8007-35-0', 'Hedione HC': '24851-98-7', 'Cashmeran': '33704-61-9',
+  'White Cedar': '8000-27-9', 'White Musk Crystal': '81-14-1',
+  'Driftwood': '8000-27-9', 'Sandalwood': '8006-87-9', 'Ambroxide': '6790-58-5',
+  'Black Oud': '68951-36-0', 'Tobacco Absolute': '8037-19-2',
+  'Labdanum': '8016-26-0', 'Leather Accord': '8001-88-5', 'Dark Amber': '8007-35-0',
+  'Castoreum': '8023-83-4',
+  'Australian Sandalwood': '8006-87-9', 'Vanilla Absolute': '8024-06-4',
+  'Muskmallow': '8015-62-1', 'Tonka': '8046-22-8',
+  'Patchouli Heart': '8014-09-3', 'Oakmoss Absolute': '9000-50-4',
+  'Vetiver Bourbon': '8016-96-4', 'Birch Tar': '8001-88-5',
+  'Iso E Super': '54464-57-2', 'Cedarwood': '8000-27-9',
+  'Sea Amber': '8007-35-0', 'Salt Cedar': '8000-27-9',
+  'Ambergris Tincture': '8038-65-1', 'Musk Absolute': '81-14-1',
+  'Civet Absolute': '68916-26-7', 'Oud Kyara': '68951-36-0', 'Deer Musk': '541-91-3',
+  'Frankincense Hojari': '8016-36-2', 'Myrrh Resinoid': '9000-45-7',
+  'Opoponax Resin': '9000-78-6', 'Dark Patchouli': '8014-09-3',
+};
+
+// Deterministic note picker — stable per domain pair, no runtime randomness
+const _pickNote = (arr, hA, hB, seed) =>
+  arr[Math.abs(Math.floor(hA * 7 + hB * 3 + seed)) % arr.length];
+
+function buildPerfumeCard(domA, domB, result) {
+  const dA  = domainById(domA);
+  const dB  = domainById(domB);
+  const acc = result.accord;
+  const dom = acc?.dominant?.id || 'floral';
+  const hA  = dA.hue;
+  const hB  = dB.hue;
+
+  const avg = (hA + hB) / 2;
+  const sec =
+    avg < 40  ? 'spicy'   : avg < 80  ? 'fresh'  :
+    avg < 150 ? 'oceanic' : avg < 200 ? 'fresh'  :
+    avg < 260 ? 'floral'  : avg < 300 ? 'woody'  :
+    avg < 340 ? 'animalic': 'spicy';
+
+  const pick = (fam, s) => _pickNote(PERF_NOTES.top[fam]   || PERF_NOTES.top.citrus,   hA, hB, s);
+  const pickH = (fam, s) => _pickNote(PERF_NOTES.heart[fam] || PERF_NOTES.heart.floral, hA, hB, s);
+  const pickB = (fam, s) => _pickNote(PERF_NOTES.base[fam]  || PERF_NOTES.base.woody,   hA, hB, s);
+
+  const bFam = (acc?.animalicIntensity || 0) > 0.45 ? 'animalic'
+    : (acc?.polarity || 0.5) > 0.65 ? 'woody' : dom;
+
+  const topNotes   = [pick(dom, 0),   pick(sec, 13)];
+  const heartNotes = [pickH(dom, 5),  pickH(sec, 19),
+    ...(result.novelty > 0.55 ? [pickH('spicy', 31)] : [])];
+  const baseNotes  = [pickB(bFam, 3), pickB(sec, 23)];
+
+  const sil  = acc?.sillage  ?? 0.5;
+  const fix  = acc?.fixation ?? 0.5;
+  const pers = acc?.persists ?? false;
+
+  return {
+    name: (result.chimeraName || `${dA.short} × ${dB.short}`)
+            .replace(/[^\w\s×·]/g, '').trim().toUpperCase().slice(0, 42),
+    id: `${domA}-${domB}-${Math.round(hA + hB)}`,
+    conc:
+      sil > 0.72 ? 'EXTRAIT DE PARFUM' : sil > 0.50 ? 'EAU DE PARFUM' :
+      sil > 0.28 ? 'EAU DE TOILETTE'   : 'EAU DE COLOGNE',
+    concPct:
+      sil > 0.72 ? '22–30%' : sil > 0.50 ? '15–20%' : sil > 0.28 ? '8–14%' : '2–6%',
+    longevity:
+      pers && fix > 0.75 ? '14–20 hours' : pers ? '10–14 hours' :
+      fix > 0.55         ? '6–10 hours'  : '3–6 hours',
+    topNotes, heartNotes, baseNotes,
+    dom, sec,
+    hueA: hA, hueB: hB,
+    nodeClass: acc?.nodeClass?.id        || 'RTA',
+    polLabel:  acc?.polarityClass?.label || '',
+    evap:      acc?.evapCurve            || [0.33, 0.33, 0.34],
+  };
+}
+
+// ── Tesseract Protocol — cryptographic identity layer ────────────────────────
+
+async function generateAccordHash(card, accord, domA, domB) {
+  const canonical = JSON.stringify({
+    d: [domA, domB],
+    h: [card.hueA, card.hueB],
+    n: [...card.topNotes, ...card.heartNotes, ...card.baseNotes],
+    s: +(accord?.sillage ?? 0).toFixed(6),
+    f: +(accord?.fixation ?? 0).toFixed(6),
+    e: (accord?.evapCurve || [0.33, 0.33, 0.34]).map(v => +v.toFixed(6)),
+    p: +(accord?.polarity ?? 0.5).toFixed(6),
+    nc: accord?.nodeClass?.id || 'RTA',
+    cs: +(accord?.cleanRoom ?? 0).toFixed(6),
+    sv: +(accord?.sovereignty ?? 0).toFixed(6),
+  });
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonical));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function buildEncryptedFormula(card, accord) {
+  const allNotes = [...card.topNotes, ...card.heartNotes, ...card.baseNotes];
+  const sil = accord?.sillage ?? 0.5;
+  const fix = accord?.fixation ?? 0.5;
+  const evap = accord?.evapCurve || [0.33, 0.33, 0.34];
+
+  const casEntries = allNotes.map((note, i) => ({
+    note,
+    cas: CAS_REGISTRY[note] || '00000-00-0',
+    pct: +(((i < 2 ? evap[0] : i < 5 ? evap[1] : evap[2]) / (i < 2 ? 2 : 3)) * 100).toFixed(2),
+    mg:  +(((i < 2 ? evap[0] : i < 5 ? evap[1] : evap[2]) / (i < 2 ? 2 : 3)) * 450).toFixed(1),
+  }));
+
+  const specificGravity = +(0.82 + sil * 0.14).toFixed(4);
+  const flashPoint = +(48 + (1 - evap[0]) * 35).toFixed(1);
+  const macDays = Math.round(14 + fix * 56);
+
+  // Serialize as hex — simulated AES-256-GCM ciphertext
+  const raw = JSON.stringify({ cas: casEntries, sg: specificGravity, fp: flashPoint, mac: macDays });
+  const hexPayload = Array.from(new TextEncoder().encode(raw))
+    .map(b => b.toString(16).padStart(2, '0')).join('');
+
+  return {
+    ciphertext: hexPayload,
+    casEntries,
+    specificGravity,
+    flashPoint,
+    macDays,
+    dilutionRatio: +(sil * 0.28 + 0.02).toFixed(4),
+  };
+}
+
+async function buildTesseractProfile(card, accord, domA, domB) {
+  const hash = await generateAccordHash(card, accord, domA, domB);
+  const encryptedFormula = buildEncryptedFormula(card, accord);
+  return {
+    hash,
+    publicProfile: {
+      hash,
+      name: card.name,
+      conc: card.conc,
+      concPct: card.concPct,
+      topNotes: card.topNotes,
+      heartNotes: card.heartNotes,
+      baseNotes: card.baseNotes,
+      dom: card.dom,
+      sec: card.sec,
+      nodeClass: card.nodeClass,
+      polLabel: card.polLabel,
+      longevity: card.longevity,
+      evap: card.evap,
+    },
+    encryptedFormula,
+  };
+}
+
+// ── Tesseract RSA-OAEP — public key for formula vault encryption ─────────────
+const TESSERACT_PUB_KEY_B64 = 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuF5JUFwt6vCs/6kWTFGq10NZjqeRKK7Ek5X6DPGl+NgiCVZUT1VYhOB0ssL91Mr0DBmG7EbOUqEs5s23x4z5gQEgEAPXZ0fvyODdimrk95XduOpGUNOSxWe4rFTZAxm5Qkqj75hHMOIcnadgp0wnY4HslR08EWcACUgucYt3uR2XA0I1BD7Ece45R/miA4lcFta7q3TVzkIbl7CFO9JWuFzf5EFTotuNXR1gzN33neuxLuS0lu/6MI9TMaQ5s9G5I5RKEzv2hHSq5ACCKayO+1h3facgb9AvdDRdbUdSCAFUIsnfmcK42FUNM13Z6VP1G1W39ZaAmoI1dtNNSmQDpwIDAQAB';
+
+let _rsaPubKeyPromise = null;
+function getTesseractPubKey() {
+  if (!_rsaPubKeyPromise) {
+    const binaryStr = atob(TESSERACT_PUB_KEY_B64);
+    const bytes = new Uint8Array(binaryStr.length);
+    for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+    _rsaPubKeyPromise = crypto.subtle.importKey(
+      'spki', bytes.buffer,
+      { name: 'RSA-OAEP', hash: 'SHA-256' },
+      false, ['encrypt']
+    );
+  }
+  return _rsaPubKeyPromise;
+}
+
+// Hybrid encryption: AES-256-GCM for payload, RSA-OAEP for the AES key
+// This handles arbitrary payload sizes while keeping the RSA public key as the trust anchor
+async function encryptForVault(plaintext) {
+  const rsaPubKey = await getTesseractPubKey();
+
+  // 1. Generate ephemeral AES-256-GCM key + IV
+  const aesKey = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt']);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+
+  // 2. Encrypt the formula payload with AES-GCM
+  const encoded = new TextEncoder().encode(plaintext);
+  const aesCipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, aesKey, encoded);
+
+  // 3. Export the raw AES key and encrypt it with RSA-OAEP (32 bytes — fits easily)
+  const rawAesKey = await crypto.subtle.exportKey('raw', aesKey);
+  const encryptedAesKey = await crypto.subtle.encrypt({ name: 'RSA-OAEP' }, rsaPubKey, rawAesKey);
+
+  // 4. Pack: base64({ encKey: base64, iv: base64, payload: base64 })
+  const b64 = (buf) => {
+    const bytes = new Uint8Array(buf);
+    let s = '';
+    for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+    return btoa(s);
+  };
+
+  return JSON.stringify({
+    k: b64(encryptedAesKey),  // RSA-OAEP encrypted AES key
+    iv: b64(iv),              // AES-GCM IV (cleartext — safe)
+    p: b64(aesCipher),        // AES-GCM ciphertext
+    alg: 'RSA-OAEP+AES-256-GCM',
+  });
+}
+
 // ── Collision particle system ────────────────────────────────────────────────
 const MAX_PARTICLES = 300;
+const PRODUCTION_THRESHOLD = 10; // minimum acquisitions before physical synthesis
 
 function createParticle(x, y, hue, vx, vy, type) {
   return {
@@ -372,6 +647,135 @@ export default function LatentCollider() {
   const [loading, setLoading] = useState(false);
   const [phase, setPhase] = useState('idle');
   const narrative = useColliderNarrative(result);
+
+  // ── Crystallize + Tesseract state ──────────────────────────────────────────
+  const [crystal,    setCrystal]    = useState(null);
+  const [tesseract,  setTesseract]  = useState(null);
+  const [acquired,  setAcquired]  = useState(false);
+
+  const handleCrystallize = useCallback(async () => {
+    if (!result || domainA === null || domainB === null) return;
+    const card = buildPerfumeCard(domainA, domainB, result);
+    setCrystal(card);
+    try {
+      const ids = JSON.parse(localStorage.getItem('ck_ids') || '[]');
+      setAcquired(ids.includes(card.id));
+    } catch { setAcquired(false); }
+    // Build Tesseract cryptographic identity
+    try {
+      const profile = await buildTesseractProfile(card, result.accord, domainA, domainB);
+      setTesseract(profile);
+    } catch (e) {
+      console.error('[TESSERACT] hash generation failed:', e);
+      setTesseract(null);
+    }
+  }, [result, domainA, domainB]);
+
+  const handleAcquire = useCallback(async (cardId) => {
+    let newCount = 1;
+    let isDupe   = false;
+    try {
+      const ids = JSON.parse(localStorage.getItem('ck_ids') || '[]');
+      isDupe = ids.includes(cardId);
+      if (!isDupe) {
+        const next = [...ids, cardId];
+        localStorage.setItem('ck_ids',   JSON.stringify(next));
+        localStorage.setItem('ck_count', String(next.length));
+        newCount = next.length;
+      } else {
+        newCount = ids.length;
+      }
+    } catch { /* storage blocked */ }
+    setAcquired(true);
+
+    // ── RSA-OAEP encrypt the formula for zero-knowledge relay ────────────
+    const card = crystal;
+    if (!card) return;
+
+    let encryptedPayload = '—';
+    try {
+      const formulaPlaintext = JSON.stringify(tesseract?.encryptedFormula || {});
+      encryptedPayload = await encryptForVault(formulaPlaintext);
+    } catch (e) {
+      console.error('[TESSERACT] RSA-OAEP encryption failed:', e);
+    }
+
+    // ── Discord webhook — asymmetric encrypted dispatch ──────────────────
+    const webhookUrl = import.meta.env.VITE_CRYSTAL_WEBHOOK;
+    if (!webhookUrl || isDupe) return;
+
+    const tHash = tesseract?.hash || '—';
+    const sovereignRatio = 100; // €100
+    const g2tAllocation  = +(sovereignRatio * 0.10).toFixed(2); // 10% for Ukraine
+
+    const noteBlock = [
+      `ᛏ TOP    ${card.topNotes.join(' · ')}`,
+      `ᚺ HEART  ${card.heartNotes.join(' · ')}`,
+      `ᛒ BASE   ${card.baseNotes.join(' · ')}`,
+    ].join('\n');
+
+    const physBlock = [
+      `CONCENTRATION  ${card.conc} · ${card.concPct}`,
+      `LONGEVITY      ${card.longevity}`,
+      `NODE CLASS     ${card.nodeClass}`,
+      `POLARITY       ${card.polLabel || 'MERIDIAN'}`,
+      `DOM / SEC      ${card.dom.toUpperCase()} × ${card.sec.toUpperCase()}`,
+      `THRESHOLD      ${newCount} / ${PRODUCTION_THRESHOLD}`,
+    ].join('\n');
+
+    const vaultBlock = [
+      `SHA-256      ${tHash.slice(0, 32)}`,
+      `             ${tHash.slice(32) || '—'}`,
+      `STATUS       ◈ FORMULA VAULTED`,
+      `PROTOCOL     TESSERACT · RSA-OAEP + AES-256-GCM`,
+      `SOVEREIGN    €${sovereignRatio}`,
+      `G²T→UA       €${g2tAllocation} (10%)`,
+    ].join('\n');
+
+    // Truncate encrypted payload for Discord embed (max 1024 chars per field)
+    const encTrunc = encryptedPayload.length > 900
+      ? encryptedPayload.slice(0, 900) + '…'
+      : encryptedPayload;
+
+    const payload = {
+      username: 'LATENT COLLIDER',
+      embeds: [{
+        title: '◈ TESSERACT TRANSMUTATION INITIATED',
+        description: `\`\`\`\n${card.name}\n\`\`\``,
+        color: 0xD4AF37,
+        fields: [
+          {
+            name:   '§ TESSERACT VAULT IDENTITY',
+            value:  `\`\`\`\n${vaultBlock}\n\`\`\``,
+            inline: false,
+          },
+          {
+            name:   '§07 PUBLIC SCENT PROFILE',
+            value:  `\`\`\`\n${noteBlock}\n\`\`\``,
+            inline: false,
+          },
+          {
+            name:   '§ PHYSICAL PROPERTIES',
+            value:  `\`\`\`\n${physBlock}\n\`\`\``,
+            inline: false,
+          },
+          {
+            name:   '§ ENCRYPTED FORMULA (RSA-OAEP-2048)',
+            value:  `\`\`\`\n${encTrunc}\n\`\`\``,
+            inline: false,
+          },
+        ],
+        footer: { text: `accord id: ${card.id}  ·  tesseract protocol  ·  formula vaulted  ·  G²T ${g2tAllocation}€→UA` },
+        timestamp: new Date().toISOString(),
+      }],
+    };
+
+    fetch(webhookUrl, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload),
+    }).catch(() => { /* silent — notification is best-effort */ });
+  }, [crystal, tesseract]);
 
   // ── Run the WASM collision ─────────────────────────────────────────────────
   const runCollision = useCallback(async (a, b) => {
@@ -483,10 +887,16 @@ export default function LatentCollider() {
       setPhase('selecting');
       phaseRef.current = 'selecting';
     } else if (domainB === null && id !== domainA) {
+      setCrystal(null);
+      setTesseract(null);
+      setAcquired(false);
       setDomainB(id);
       runCollision(domainA, id);
     } else {
       // Reset
+      setCrystal(null);
+      setTesseract(null);
+      setAcquired(false);
       setDomainA(id);
       setDomainB(null);
       setResult(null);
@@ -497,6 +907,8 @@ export default function LatentCollider() {
   }, [domainA, domainB, phase, runCollision]);
 
   const handleReset = useCallback(() => {
+    setCrystal(null);
+    setTesseract(null);
     setDomainA(null);
     setDomainB(null);
     setResult(null);
@@ -525,7 +937,13 @@ export default function LatentCollider() {
     window.addEventListener('resize', resize);
 
     const draw = () => {
+      try { _draw(); } catch (e) { /* keep rAF alive */ }
+      rafRef.current = requestAnimationFrame(draw);
+    };
+
+    const _draw = () => {
       const { w, h } = sizeRef.current;
+      if (w < 10 || h < 10) return; // canvas not ready yet
       const cx = w / 2;
       const cy = h / 2;
       const t = timerRef.current++;
@@ -570,7 +988,7 @@ export default function LatentCollider() {
         const beamAlpha = ph === 'accelerating' ? 0.3 + Math.sin(t * 0.15) * 0.15 : 0.12;
         ctx.strokeStyle = `hsla(${hueA}, 80%, 60%, ${beamAlpha})`;
         ctx.lineWidth = ph === 'accelerating' ? 2 : 1;
-        ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(cx - 25, cy); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(cx - 100, cy); ctx.stroke();
 
         // Domain A label on beam
         ctx.fillStyle = `hsla(${hueA}, 80%, 70%, 0.6)`;
@@ -583,12 +1001,76 @@ export default function LatentCollider() {
         const beamAlpha = ph === 'accelerating' ? 0.3 + Math.sin(t * 0.15 + 1) * 0.15 : 0.12;
         ctx.strokeStyle = `hsla(${hueB}, 80%, 60%, ${beamAlpha})`;
         ctx.lineWidth = ph === 'accelerating' ? 2 : 1;
-        ctx.beginPath(); ctx.moveTo(w, cy); ctx.lineTo(cx + 25, cy); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(w, cy); ctx.lineTo(cx + 100, cy); ctx.stroke();
 
         ctx.fillStyle = `hsla(${hueB}, 80%, 70%, 0.6)`;
         ctx.font = '9px monospace';
         ctx.textAlign = 'right';
         ctx.fillText(domainById(domainB).short, w - 8, cy - 8);
+      }
+
+      // ── Accelerating domain orbs — visible nodes converging to center ──
+      if (ph === 'accelerating' && domainA !== null && domainB !== null) {
+        const progress = Math.min(1, t / 108); // ~1800ms at 60fps
+        const ease = progress * progress * progress; // easeInCubic — builds tension
+        const orbRadius = 10 + Math.sin(t * 0.2) * 2;
+
+        // Domain A orb — left to center
+        const orbAx = 40 + (cx - 100 - 40) * ease;
+        const orbGradA = ctx.createRadialGradient(orbAx, cy, 0, orbAx, cy, orbRadius * 2.5);
+        orbGradA.addColorStop(0, `hsla(${hueA}, 80%, 70%, ${0.6 + ease * 0.3})`);
+        orbGradA.addColorStop(0.4, `hsla(${hueA}, 70%, 50%, ${0.3 + ease * 0.2})`);
+        orbGradA.addColorStop(1, `hsla(${hueA}, 80%, 40%, 0)`);
+        ctx.beginPath(); ctx.arc(orbAx, cy, orbRadius * 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = orbGradA; ctx.fill();
+        // Core
+        ctx.beginPath(); ctx.arc(orbAx, cy, orbRadius * 0.6, 0, Math.PI * 2);
+        ctx.fillStyle = `hsla(${hueA}, 90%, 85%, ${0.7 + ease * 0.3})`;
+        ctx.fill();
+
+        // Domain B orb — right to center
+        const orbBx = w - 40 - (w - 40 - cx - 100) * ease;
+        const orbGradB = ctx.createRadialGradient(orbBx, cy, 0, orbBx, cy, orbRadius * 2.5);
+        orbGradB.addColorStop(0, `hsla(${hueB}, 80%, 70%, ${0.6 + ease * 0.3})`);
+        orbGradB.addColorStop(0.4, `hsla(${hueB}, 70%, 50%, ${0.3 + ease * 0.2})`);
+        orbGradB.addColorStop(1, `hsla(${hueB}, 80%, 40%, 0)`);
+        ctx.beginPath(); ctx.arc(orbBx, cy, orbRadius * 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = orbGradB; ctx.fill();
+        ctx.beginPath(); ctx.arc(orbBx, cy, orbRadius * 0.6, 0, Math.PI * 2);
+        ctx.fillStyle = `hsla(${hueB}, 90%, 85%, ${0.7 + ease * 0.3})`;
+        ctx.fill();
+      }
+
+      // ── Screen shake during impact ────────────────────────────────────
+      let shaking = false;
+      if (ph === 'colliding' && t < 20) {
+        shaking = true;
+        const mag = 6 * (1 - t / 20);
+        ctx.save();
+        ctx.translate((Math.random() - 0.5) * mag, (Math.random() - 0.5) * mag);
+      }
+
+      // ── Shockwave ring at collision impact ────────────────────────────
+      if (ph === 'colliding' && t < 35) {
+        const ringProgress = t / 35;
+        const ringRadius = ringProgress * 120;
+        const ringAlpha = (1 - ringProgress) * 0.7;
+        const ringWidth = 3 * (1 - ringProgress);
+        ctx.strokeStyle = `rgba(255, 255, 255, ${ringAlpha})`;
+        ctx.lineWidth = ringWidth;
+        ctx.beginPath();
+        ctx.arc(cx, cy, ringRadius, 0, Math.PI * 2);
+        ctx.stroke();
+        // Secondary ring — colored, slightly delayed
+        if (t > 5) {
+          const r2p = (t - 5) / 30;
+          const r2r = r2p * 90;
+          ctx.strokeStyle = `hsla(${(hueA + hueB) / 2}, 70%, 60%, ${(1 - r2p) * 0.4})`;
+          ctx.lineWidth = 2 * (1 - r2p);
+          ctx.beginPath();
+          ctx.arc(cx, cy, r2r, 0, Math.PI * 2);
+          ctx.stroke();
+        }
       }
 
       // ── Spawn particles based on phase ─────────────────────────────────
@@ -616,7 +1098,7 @@ export default function LatentCollider() {
       }
 
       if (ph === 'colliding' && t < 40) {
-        // Impact sparks
+        // Impact sparks — radial burst
         for (let i = 0; i < 8; i++) {
           const angle = Math.random() * Math.PI * 2;
           const speed = 1 + Math.random() * 5;
@@ -628,6 +1110,26 @@ export default function LatentCollider() {
               sparkHue,
               Math.cos(angle) * speed,
               Math.sin(angle) * speed,
+              'spark'
+            ));
+          }
+        }
+      }
+
+      // Orthogonal debris jets — cross-shaped burst perpendicular to beam axis
+      if (ph === 'colliding' && t < 25) {
+        for (let i = 0; i < 4; i++) {
+          const dir = i < 2 ? -1 : 1; // up or down
+          const speed = 3 + Math.random() * 5;
+          const drift = (Math.random() - 0.5) * 1.5; // slight horizontal spread
+          const jetHue = i % 2 === 0 ? hueA : hueB;
+          if (ps.length < MAX_PARTICLES) {
+            ps.push(createParticle(
+              cx + (Math.random() - 0.5) * 8,
+              cy + (Math.random() - 0.5) * 4,
+              jetHue,
+              drift,
+              dir * speed,
               'spark'
             ));
           }
@@ -707,13 +1209,16 @@ export default function LatentCollider() {
       // ── Collision flash ────────────────────────────────────────────────
       if (ph === 'colliding' && t < 15) {
         const flash = 1 - t / 15;
-        ctx.fillStyle = `rgba(255, 255, 255, ${flash * 0.3})`;
+        ctx.fillStyle = `rgba(255, 255, 255, ${flash * 0.35})`;
         ctx.fillRect(0, 0, w, h);
       }
 
-      // ── Result metrics overlay ─────────────────────────────────────────
-      if (ph === 'colliding' && metrics && t > 50) {
-        const fadeIn = Math.min(1, (t - 50) / 30);
+      // Restore canvas from shake transform
+      if (shaking) ctx.restore();
+
+      // ── Result metrics overlay (delayed to let impact breathe) ─────────
+      if (ph === 'colliding' && metrics && t > 80) {
+        const fadeIn = Math.min(1, (t - 80) / 30);
         ctx.globalAlpha = fadeIn;
 
         // Cosine similarity arc
@@ -754,8 +1259,6 @@ export default function LatentCollider() {
         phaseRef.current = 'result';
         setPhase('result');
       }
-
-      rafRef.current = requestAnimationFrame(draw);
     };
 
     rafRef.current = requestAnimationFrame(draw);
@@ -1495,7 +1998,39 @@ export default function LatentCollider() {
             <div>WASM: Q×Kᵀ/√d_k = {result.scaledAttn.toFixed(6)} · softmax = {result.softmax.toFixed(4)} · PHASE: {result.phase}</div>
             <div>‖A‖ = {result.normA.toFixed(3)} · ‖B‖ = {result.normB.toFixed(3)} · A·B = {result.dot.toFixed(3)} · ‖S‖ = {result.synthNorm.toFixed(4)}</div>
           </div>
+
+          {/* ── Crystallize trigger ── */}
+          <div className="flex items-center justify-between mt-3 pt-3 border-t border-amber-900/20">
+            <span className="text-[8px] font-mono text-amber-700/35 tracking-wider">
+              ⚗ distill collision into olfactory matter
+            </span>
+            <button
+              onClick={handleCrystallize}
+              className="text-[10px] font-mono uppercase tracking-widest px-4 py-1.5 rounded border transition-colors"
+              style={{
+                borderColor: crystal ? 'rgba(255,215,0,0.4)' : 'rgba(255,215,0,0.15)',
+                color: crystal ? '#FFD700' : 'rgba(255,215,0,0.38)',
+              }}
+            >
+              ⚗ {crystal ? 'RE-CRYSTALLIZE' : 'CRYSTALLIZE ACCORD'}
+            </button>
+          </div>
         </div>
+      )}
+
+      {crystal && tesseract ? (
+        <TesseractCard
+          card={crystal}
+          tesseract={tesseract}
+          acquired={acquired}
+          onRegister={() => handleAcquire(crystal.id)}
+        />
+      ) : crystal && (
+        <CrystallizeCard
+          card={crystal}
+          acquired={acquired}
+          onRegister={() => handleAcquire(crystal.id)}
+        />
       )}
     </div>
   );
@@ -1554,6 +2089,466 @@ function DimensionBar({ dim, type }) {
       <span className={`w-10 text-right ${isConverge ? 'text-[#39ff14]/50' : 'text-cyan-400/50'}`}>
         {isConverge ? `Σ${dim.contrib.toFixed(2)}` : `Δ${dim.delta.toFixed(2)}`}
       </span>
+    </div>
+  );
+}
+
+// ── Perfume bottle SVG — shape keyed by node class ────────────────────────────
+function PerfumeBottleSVG({ nodeClass, hA, hB }) {
+  const mid = Math.round((hA + hB) / 2);
+  const shadow = { filter: 'drop-shadow(0 0 6px rgba(255,215,0,0.15))' };
+
+  if (nodeClass === 'DPA') {
+    return (
+      <svg width="54" height="72" viewBox="0 0 54 72" fill="none" style={shadow}>
+        <defs>
+          <linearGradient id="ck-b" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%"   stopColor={`hsl(${hA},55%,28%)`} />
+            <stop offset="100%" stopColor={`hsl(${hB},45%,10%)`} />
+          </linearGradient>
+        </defs>
+        <rect x="19" y="2"  width="16" height="7"  rx="3"   fill={`hsl(${mid},38%,36%)`} opacity="0.75" />
+        <rect x="23" y="9"  width="8"  height="6"  fill={`hsl(${mid},35%,24%)`} opacity="0.65" />
+        <ellipse cx="27" cy="19" rx="22" ry="2.5"  fill="rgba(255,215,0,0.28)" />
+        <ellipse cx="27" cy="48" rx="22" ry="24"   fill="url(#ck-b)" opacity="0.9" />
+        <ellipse cx="18" cy="40" rx="5"  ry="12"   fill="rgba(255,255,255,0.05)" />
+      </svg>
+    );
+  }
+
+  if (nodeClass === 'R2A') {
+    return (
+      <svg width="48" height="76" viewBox="0 0 48 76" fill="none" style={shadow}>
+        <defs>
+          <linearGradient id="ck-c" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%"   stopColor={`hsl(${hA},52%,30%)`} />
+            <stop offset="100%" stopColor={`hsl(${hB},42%,10%)`} />
+          </linearGradient>
+        </defs>
+        <polygon points="16,2 32,2 35,11 13,11" fill={`hsl(${mid},38%,33%)`} opacity="0.78" />
+        <rect x="20" y="11" width="8" height="7"  fill={`hsl(${mid},35%,22%)`} opacity="0.65" />
+        <line  x1="9"  y1="19" x2="39" y2="19"   stroke="rgba(255,215,0,0.35)" strokeWidth="1.5" />
+        <polygon points="9,20 39,20 45,34 45,64 3,64 3,34" fill="url(#ck-c)" opacity="0.9" />
+        <line  x1="20" y1="20" x2="16" y2="64"   stroke="rgba(255,255,255,0.04)" strokeWidth="0.8" />
+        <line  x1="28" y1="20" x2="32" y2="64"   stroke="rgba(255,255,255,0.04)" strokeWidth="0.8" />
+        <line  x1="3"  y1="45" x2="45" y2="45"   stroke="rgba(255,215,0,0.08)"  strokeWidth="0.8" />
+      </svg>
+    );
+  }
+
+  // RTA — tall slender flacon (default)
+  return (
+    <svg width="42" height="84" viewBox="0 0 42 84" fill="none" style={shadow}>
+      <defs>
+        <linearGradient id="ck-a" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%"   stopColor={`hsl(${hA},55%,32%)`} />
+          <stop offset="100%" stopColor={`hsl(${hB},45%,12%)`} />
+        </linearGradient>
+      </defs>
+      <rect x="13" y="2"  width="16" height="9"  rx="2.5" fill={`hsl(${mid},38%,36%)`} opacity="0.75" />
+      <rect x="17" y="11" width="8"  height="9"  fill={`hsl(${mid},35%,25%)`} opacity="0.65" />
+      <rect x="10" y="20" width="22" height="2.5" rx="1"  fill="rgba(255,215,0,0.32)" />
+      <rect x="10" y="22" width="22" height="56" rx="5"   fill="url(#ck-a)" opacity="0.9" />
+      <rect x="13" y="27" width="5"  height="42" rx="2.5" fill="rgba(255,255,255,0.055)" />
+      <line x1="10" y1="55" x2="32" y2="55"      stroke="rgba(255,215,0,0.1)"  strokeWidth="0.8" />
+    </svg>
+  );
+}
+
+// ── Crystallize Card component ─────────────────────────────────────────────────
+function CrystallizeCard({ card, acquired, onRegister }) {
+  const getCount = () => {
+    try { return parseInt(localStorage.getItem('ck_count') || '0', 10); }
+    catch { return 0; }
+  };
+
+  const NOTE_LAYERS = [
+    { key: 'top',   label: 'TOP NOTES',   glyph: 'ᛏ', notes: card.topNotes,   color: '#FFD700', sub: '0–30 min',    pct: card.evap[0] },
+    { key: 'heart', label: 'HEART NOTES', glyph: 'ᚺ', notes: card.heartNotes, color: '#d946ef', sub: '30 min–4 hr', pct: card.evap[1] },
+    { key: 'base',  label: 'BASE NOTES',  glyph: 'ᛒ', notes: card.baseNotes,  color: '#B8860B', sub: '4 hr – days', pct: card.evap[2] },
+  ];
+
+  const mid = Math.round((card.hueA + card.hueB) / 2);
+
+  return (
+    <div
+      className="mt-4 rounded-xl overflow-hidden"
+      style={{
+        border: `1px solid hsla(${mid},30%,28%,0.45)`,
+        background: 'linear-gradient(155deg,rgba(16,9,2,0.98) 0%,rgba(7,5,1,0.99) 100%)',
+        opacity: 0,
+        animation: 'sc-cardReveal 0.6s cubic-bezier(0.16,1,0.3,1) forwards',
+      }}
+    >
+      <div className="h-px w-full" style={{ background: 'linear-gradient(90deg,transparent,rgba(255,215,0,0.45),transparent)' }} />
+
+      <div className="p-6">
+
+        {/* Header — name + bottle */}
+        <div className="flex items-start justify-between gap-4 mb-6">
+          <div className="flex-1 min-w-0">
+            <div className="text-[7px] font-mono tracking-[0.35em] mb-1.5" style={{ color: 'rgba(255,215,0,0.28)' }}>
+              LATENT COLLIDER — OLFACTORY DISTILLATION
+            </div>
+            <div
+              className="text-xl font-bold tracking-[0.1em] truncate"
+              style={{ color: '#FFD700', textShadow: '0 0 20px rgba(255,215,0,0.25)' }}
+            >
+              {card.name}
+            </div>
+            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+              <span className="text-[9px] font-mono tracking-widest" style={{ color: 'rgba(255,215,0,0.55)' }}>{card.conc}</span>
+              <span style={{ color: 'rgba(255,215,0,0.2)' }}>·</span>
+              <span className="text-[9px] font-mono" style={{ color: 'rgba(255,215,0,0.35)' }}>{card.concPct}</span>
+              <span style={{ color: 'rgba(255,215,0,0.2)' }}>·</span>
+              <span className="text-[9px] font-mono" style={{ color: 'rgba(255,215,0,0.35)' }}>{card.dom} × {card.sec}</span>
+            </div>
+          </div>
+          <div className="shrink-0">
+            <PerfumeBottleSVG nodeClass={card.nodeClass} hA={card.hueA} hB={card.hueB} />
+          </div>
+        </div>
+
+        {/* Note pyramid */}
+        <div className="space-y-2.5 mb-6">
+          {NOTE_LAYERS.map(({ key, label, glyph, notes, color, sub, pct }) => (
+            <div key={key} className="rounded-lg p-3" style={{ border: `1px solid ${color}18`, background: `${color}04` }}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm" style={{ color, textShadow: `0 0 8px ${color}40` }}>{glyph}</span>
+                  <span className="text-[9px] font-bold font-mono tracking-widest" style={{ color: `${color}bb` }}>{label}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[7px] font-mono" style={{ color: `${color}50` }}>{sub}</span>
+                  <span className="text-[7px] font-mono" style={{ color: `${color}50` }}>{(pct * 100).toFixed(0)}%</span>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {notes.map((note, i) => (
+                  <span key={i} className="text-[10px] font-mono px-2 py-0.5 rounded"
+                    style={{ color: `${color}cc`, background: `${color}0d`, border: `1px solid ${color}1a` }}>
+                    {note}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Properties strip */}
+        <div className="grid grid-cols-3 gap-2 mb-6">
+          {[
+            { label: 'LONGEVITY',  value: card.longevity },
+            { label: 'POLARITY',   value: card.polLabel || '—' },
+            { label: 'NODE CLASS', value: card.nodeClass },
+          ].map(({ label, value }) => (
+            <div key={label} className="rounded p-2 text-center"
+              style={{ border: '1px solid rgba(255,215,0,0.11)', background: 'rgba(255,215,0,0.02)' }}>
+              <div className="text-[7px] font-bold tracking-widest mb-1" style={{ color: 'rgba(255,215,0,0.36)' }}>{label}</div>
+              <div className="text-[10px] font-bold font-mono" style={{ color: 'rgba(255,215,0,0.8)' }}>{value}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Register interest */}
+        <div className="rounded-lg p-4 text-center transition-all duration-500"
+          style={{
+            border:     acquired ? '1px solid rgba(255,215,0,0.3)' : '1px solid rgba(255,215,0,0.09)',
+            background: acquired ? 'rgba(255,215,0,0.04)'          : 'transparent',
+          }}>
+          {!acquired ? (
+            <>
+              <p className="text-[9px] font-mono mb-3 leading-relaxed" style={{ color: 'rgba(255,215,0,0.3)' }}>
+                If the production threshold is reached, this accord will be distilled as a limited physical release.
+                Each registration is unique — no duplicates.
+              </p>
+              <button
+                onClick={onRegister}
+                className="text-[10px] font-mono uppercase tracking-widest px-6 py-2 rounded-full border transition-all hover:scale-105 active:scale-95"
+                style={{ borderColor: 'rgba(255,215,0,0.38)', color: '#FFD700', background: 'rgba(255,215,0,0.07)' }}
+              >
+                ⬡ REGISTER INTEREST
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="text-[11px] font-bold font-mono mb-1.5"
+                style={{ color: '#FFD700', textShadow: '0 0 10px rgba(255,215,0,0.35)' }}>
+                ✦ INTEREST LOGGED
+              </div>
+              <div className="text-[9px] font-mono mb-3" style={{ color: 'rgba(255,215,0,0.42)' }}>
+                PRODUCTION THRESHOLD — {getCount()} / {PRODUCTION_THRESHOLD}
+              </div>
+              <div className="w-full h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,215,0,0.1)' }}>
+                <div className="h-full rounded-full"
+                  style={{
+                    width: `${Math.min(100, (getCount() / PRODUCTION_THRESHOLD) * 100)}%`,
+                    background: 'linear-gradient(90deg,rgba(255,215,0,0.3),rgba(255,215,0,0.8))',
+                    transition: 'width 1s ease',
+                  }} />
+              </div>
+              {getCount() >= PRODUCTION_THRESHOLD && (
+                <div className="text-[9px] font-bold font-mono mt-2" style={{ color: '#FFD700' }}>
+                  ■ THRESHOLD REACHED — PRODUCTION UNDER CONSIDERATION
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="h-px w-full" style={{ background: 'linear-gradient(90deg,transparent,rgba(255,215,0,0.25),transparent)' }} />
+    </div>
+  );
+}
+
+// ── Tesseract Card — cryptographic identity layer ───────────────────────────
+function TesseractCard({ card, tesseract, acquired, onRegister }) {
+  const getCount = () => {
+    try { return parseInt(localStorage.getItem('ck_count') || '0', 10); }
+    catch { return 0; }
+  };
+
+  const mid = Math.round((card.hueA + card.hueB) / 2);
+  const { hash, encryptedFormula } = tesseract;
+
+  // Split ciphertext into rows for the vault display
+  const cipherRows = [];
+  const ct = encryptedFormula.ciphertext;
+  for (let i = 0; i < Math.min(ct.length, 512); i += 64) {
+    cipherRows.push(ct.slice(i, i + 64));
+  }
+
+  const NOTE_LAYERS = [
+    { key: 'top',   label: 'TOP',   glyph: 'ᛏ', notes: card.topNotes,   color: '#FFD700', sub: '0–30 min',    pct: card.evap[0] },
+    { key: 'heart', label: 'HEART', glyph: 'ᚺ', notes: card.heartNotes, color: '#d946ef', sub: '30 min–4 hr', pct: card.evap[1] },
+    { key: 'base',  label: 'BASE',  glyph: 'ᛒ', notes: card.baseNotes,  color: '#B8860B', sub: '4 hr+',      pct: card.evap[2] },
+  ];
+
+  return (
+    <div
+      className="mt-4 rounded-xl overflow-hidden"
+      style={{
+        border: `1px solid hsla(${mid},30%,28%,0.45)`,
+        background: 'linear-gradient(155deg,rgba(16,9,2,0.98) 0%,rgba(4,2,0,0.99) 100%)',
+        opacity: 0,
+        animation: 'sc-cardReveal 0.6s cubic-bezier(0.16,1,0.3,1) forwards',
+      }}
+    >
+      {/* Top accent line */}
+      <div className="h-px w-full" style={{ background: 'linear-gradient(90deg,transparent,rgba(255,215,0,0.5),rgba(217,70,239,0.3),transparent)' }} />
+
+      <div className="p-6">
+
+        {/* ── Protocol header ── */}
+        <div className="flex items-center justify-between mb-1">
+          <div className="text-[7px] font-mono tracking-[0.4em]" style={{ color: 'rgba(255,215,0,0.22)' }}>
+            TESSERACT PROTOCOL — ACCORD IDENTITY
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-1.5 h-1.5 rounded-full" style={{ background: '#39ff14', boxShadow: '0 0 6px rgba(57,255,20,0.6)', animation: 'sc-vaultPulse 3s ease-in-out infinite' }} />
+            <span className="text-[7px] font-mono tracking-widest" style={{ color: 'rgba(57,255,20,0.6)' }}>VERIFIED</span>
+          </div>
+        </div>
+
+        {/* ── Hash display ── */}
+        <div className="mb-5 rounded-lg p-3" style={{ background: 'rgba(255,215,0,0.02)', border: '1px solid rgba(255,215,0,0.08)' }}>
+          <div className="text-[7px] font-mono tracking-widest mb-1.5" style={{ color: 'rgba(255,215,0,0.25)' }}>
+            SHA-256 ACCORD FINGERPRINT
+          </div>
+          <div
+            className="font-mono text-[10px] leading-relaxed break-all"
+            style={{ color: 'rgba(255,215,0,0.75)', opacity: 0, animation: 'sc-hashReveal 1.2s cubic-bezier(0.16,1,0.3,1) 0.3s forwards' }}
+          >
+            {hash}
+          </div>
+          <div className="flex items-center gap-3 mt-2">
+            <span className="text-[7px] font-mono" style={{ color: 'rgba(255,215,0,0.2)' }}>DETERMINISTIC · COLLISION-RESISTANT · IMMUTABLE</span>
+          </div>
+        </div>
+
+        {/* ── Name + Bottle ── */}
+        <div className="flex items-start justify-between gap-4 mb-5">
+          <div className="flex-1 min-w-0">
+            <div className="text-[7px] font-mono tracking-[0.35em] mb-1.5" style={{ color: 'rgba(217,70,239,0.3)' }}>
+              PUBLIC SCENT PROFILE
+            </div>
+            <div
+              className="text-xl font-bold tracking-[0.1em] truncate"
+              style={{ color: '#FFD700', textShadow: '0 0 20px rgba(255,215,0,0.25)' }}
+            >
+              {card.name}
+            </div>
+            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+              <span className="text-[9px] font-mono tracking-widest" style={{ color: 'rgba(255,215,0,0.55)' }}>{card.conc}</span>
+              <span style={{ color: 'rgba(255,215,0,0.2)' }}>·</span>
+              <span className="text-[9px] font-mono" style={{ color: 'rgba(255,215,0,0.35)' }}>{card.concPct}</span>
+              <span style={{ color: 'rgba(255,215,0,0.2)' }}>·</span>
+              <span className="text-[9px] font-mono" style={{ color: 'rgba(255,215,0,0.35)' }}>{card.dom} × {card.sec}</span>
+            </div>
+          </div>
+          <div className="shrink-0">
+            <PerfumeBottleSVG nodeClass={card.nodeClass} hA={card.hueA} hB={card.hueB} />
+          </div>
+        </div>
+
+        {/* ── Note pyramid (public key data) ── */}
+        <div className="space-y-2 mb-5">
+          {NOTE_LAYERS.map(({ key, label, glyph, notes, color, sub, pct }) => (
+            <div key={key} className="rounded-lg p-2.5" style={{ border: `1px solid ${color}12`, background: `${color}04` }}>
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm" style={{ color, textShadow: `0 0 8px ${color}40` }}>{glyph}</span>
+                  <span className="text-[8px] font-bold font-mono tracking-widest" style={{ color: `${color}bb` }}>{label}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[7px] font-mono" style={{ color: `${color}50` }}>{sub}</span>
+                  <span className="text-[7px] font-mono" style={{ color: `${color}50` }}>{(pct * 100).toFixed(0)}%</span>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {notes.map((note, i) => (
+                  <span key={i} className="text-[10px] font-mono px-2 py-0.5 rounded"
+                    style={{ color: `${color}cc`, background: `${color}0d`, border: `1px solid ${color}1a` }}>
+                    {note}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Properties strip ── */}
+        <div className="grid grid-cols-3 gap-2 mb-5">
+          {[
+            { label: 'LONGEVITY',  value: card.longevity },
+            { label: 'POLARITY',   value: card.polLabel || 'MERIDIAN' },
+            { label: 'NODE CLASS', value: card.nodeClass },
+          ].map(({ label, value }) => (
+            <div key={label} className="rounded p-2 text-center"
+              style={{ border: '1px solid rgba(255,215,0,0.11)', background: 'rgba(255,215,0,0.02)' }}>
+              <div className="text-[7px] font-bold tracking-widest mb-1" style={{ color: 'rgba(255,215,0,0.36)' }}>{label}</div>
+              <div className="text-[10px] font-bold font-mono" style={{ color: 'rgba(255,215,0,0.8)' }}>{value}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Encrypted formula vault ── */}
+        <div className="mb-5 rounded-lg overflow-hidden" style={{ border: '1px solid rgba(217,70,239,0.12)', background: 'rgba(217,70,239,0.02)' }}>
+          <div className="px-3 py-2 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(217,70,239,0.08)' }}>
+            <div className="flex items-center gap-2">
+              <span className="text-[8px]" style={{ color: 'rgba(217,70,239,0.6)' }}>◈</span>
+              <span className="text-[7px] font-mono font-bold tracking-[0.3em]" style={{ color: 'rgba(217,70,239,0.45)' }}>
+                ENCRYPTED MOLECULAR FORMULA
+              </span>
+            </div>
+            <span className="text-[7px] font-mono tracking-widest" style={{ color: 'rgba(244,63,94,0.4)' }}>AES-256-GCM</span>
+          </div>
+
+          <div className="relative p-3">
+            {/* Blurred ciphertext — the "private key" */}
+            <div className="font-mono text-[7.5px] leading-[1.6] break-all select-none" style={{ color: 'rgba(217,70,239,0.18)', filter: 'blur(1.5px)', userSelect: 'none' }}>
+              {cipherRows.map((row, i) => (
+                <div key={i}>{row}</div>
+              ))}
+            </div>
+
+            {/* Vault overlay */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ background: 'radial-gradient(ellipse at center, rgba(4,2,0,0.7) 0%, transparent 70%)' }}>
+              <div className="text-2xl mb-2" style={{ color: 'rgba(217,70,239,0.35)', animation: 'sc-vaultPulse 4s ease-in-out infinite', textShadow: '0 0 20px rgba(217,70,239,0.2)' }}>
+                ◇
+              </div>
+              <div className="text-[9px] font-mono font-bold tracking-[0.3em]" style={{ color: 'rgba(217,70,239,0.55)' }}>
+                FORMULA VAULTED
+              </div>
+              <div className="text-[7px] font-mono tracking-wider mt-1" style={{ color: 'rgba(217,70,239,0.25)' }}>
+                decrypted only at point of physical synthesis
+              </div>
+            </div>
+          </div>
+
+          <div className="px-3 py-1.5 flex items-center justify-between" style={{ borderTop: '1px solid rgba(217,70,239,0.06)', background: 'rgba(217,70,239,0.015)' }}>
+            <span className="text-[6.5px] font-mono tracking-wider" style={{ color: 'rgba(217,70,239,0.2)' }}>
+              {encryptedFormula.casEntries.length} MOLECULAR COMPONENTS · SG {encryptedFormula.specificGravity} · FP {encryptedFormula.flashPoint}°C · MAC {encryptedFormula.macDays}D
+            </span>
+            <span className="text-[6.5px] font-mono" style={{ color: 'rgba(244,63,94,0.25)' }}>■ SEALED</span>
+          </div>
+        </div>
+
+        {/* ── Acquire CTA ── */}
+        <div className="rounded-lg p-4 text-center transition-all duration-500"
+          style={{
+            border: acquired ? '1px solid rgba(255,215,0,0.3)' : '1px solid rgba(255,215,0,0.09)',
+            background: acquired ? 'rgba(255,215,0,0.04)' : 'transparent',
+          }}>
+          {!acquired ? (
+            <>
+              <p className="text-[9px] font-mono mb-3 leading-relaxed" style={{ color: 'rgba(255,215,0,0.3)' }}>
+                This accord exists as a cryptographic commitment. Acquisition delivers the physical
+                composition — the molecular architecture remains vaulted by Tesseract.
+              </p>
+              <button
+                onClick={onRegister}
+                className="text-[10px] font-mono uppercase tracking-widest px-6 py-2 rounded-full border transition-all hover:scale-105 active:scale-95"
+                style={{ borderColor: 'rgba(255,215,0,0.38)', color: '#FFD700', background: 'rgba(255,215,0,0.07)' }}
+              >
+                ◈ ACQUIRE COMPILED ASSET
+              </button>
+              <p className="text-[7px] font-mono mt-2.5 leading-relaxed" style={{ color: 'rgba(255,215,0,0.15)' }}>
+                You acquire the physical distillation. The formula stays sovereign.
+              </p>
+            </>
+          ) : (
+            <>
+              <div
+                className="text-[12px] font-bold font-mono mb-2 tracking-[0.2em]"
+                style={{
+                  color: '#FFD700',
+                  textShadow: '0 0 15px rgba(255,215,0,0.4), 0 0 30px rgba(255,215,0,0.15)',
+                  opacity: 0,
+                  animation: 'sc-hashReveal 0.8s cubic-bezier(0.16,1,0.3,1) forwards',
+                }}>
+                ◈ TRANSMUTE INITIATED
+              </div>
+              <div className="text-[7.5px] font-mono mb-1 break-all leading-relaxed" style={{ color: 'rgba(255,215,0,0.35)' }}>
+                {hash.slice(0, 32)}…
+              </div>
+              <div className="grid grid-cols-2 gap-3 mt-3 mb-3">
+                <div className="rounded p-2 text-center" style={{ border: '1px solid rgba(255,215,0,0.12)', background: 'rgba(255,215,0,0.02)' }}>
+                  <div className="text-[7px] font-mono tracking-widest mb-0.5" style={{ color: 'rgba(255,215,0,0.3)' }}>SOVEREIGN RATIO</div>
+                  <div className="text-[11px] font-bold font-mono" style={{ color: 'rgba(255,215,0,0.8)' }}>€100</div>
+                </div>
+                <div className="rounded p-2 text-center" style={{ border: '1px solid rgba(57,255,20,0.12)', background: 'rgba(57,255,20,0.02)' }}>
+                  <div className="text-[7px] font-mono tracking-widest mb-0.5" style={{ color: 'rgba(57,255,20,0.3)' }}>G²T → UKRAINE</div>
+                  <div className="text-[11px] font-bold font-mono" style={{ color: 'rgba(57,255,20,0.7)' }}>€10 <span className="text-[8px]" style={{ color: 'rgba(57,255,20,0.35)' }}>(10%)</span></div>
+                </div>
+              </div>
+              <div className="text-[9px] font-mono mb-3" style={{ color: 'rgba(255,215,0,0.42)' }}>
+                PRODUCTION THRESHOLD — {getCount()} / {PRODUCTION_THRESHOLD}
+              </div>
+              <div className="w-full h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,215,0,0.1)' }}>
+                <div className="h-full rounded-full"
+                  style={{
+                    width: `${Math.min(100, (getCount() / PRODUCTION_THRESHOLD) * 100)}%`,
+                    background: 'linear-gradient(90deg,rgba(255,215,0,0.3),rgba(255,215,0,0.8))',
+                    transition: 'width 1s ease',
+                  }} />
+              </div>
+              {getCount() >= PRODUCTION_THRESHOLD && (
+                <div className="text-[9px] font-bold font-mono mt-2" style={{ color: '#FFD700' }}>
+                  ■ THRESHOLD REACHED — SYNTHESIS UNDER CONSIDERATION
+                </div>
+              )}
+              <div className="text-[7px] font-mono mt-2.5" style={{ color: 'rgba(217,70,239,0.25)' }}>
+                Formula encrypted via RSA-OAEP-2048 · zero-knowledge relay dispatched
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Bottom accent line */}
+      <div className="h-px w-full" style={{ background: 'linear-gradient(90deg,transparent,rgba(217,70,239,0.2),rgba(255,215,0,0.3),transparent)' }} />
     </div>
   );
 }

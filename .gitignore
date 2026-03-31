@@ -1,3 +1,8 @@
+# Tesseract private key + decryptor — NEVER commit
+tesseract_private.pem
+decrypt_formula.js
+*.pem
+
 Logs
 
 logs

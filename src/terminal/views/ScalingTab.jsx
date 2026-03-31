@@ -140,6 +140,14 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, loadKernel }) => {
           75%  { color: #d946ef; }
           100% { color: #d946ef; }
         }
+        @keyframes sc-vaultPulse {
+          0%, 100% { opacity: 0.6; filter: drop-shadow(0 0 3px rgba(255,215,0,0.15)); }
+          50%      { opacity: 1;   filter: drop-shadow(0 0 8px rgba(255,215,0,0.4)); }
+        }
+        @keyframes sc-hashReveal {
+          from { opacity: 0; filter: blur(6px); letter-spacing: 0.3em; }
+          to   { opacity: 1; filter: blur(0);   letter-spacing: normal; }
+        }
       `}</style>
 
       {/* ── Header ── */}
