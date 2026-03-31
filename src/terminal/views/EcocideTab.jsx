@@ -75,7 +75,14 @@ const ECO_HOTSPOTS = [
   { lon: -90, lat: 45,  sev: 3, label: 'GREAT LAKES' },
   { lon: 30,  lat: -2,  sev: 4, label: 'RIFT VALLEY' },
 ];
-const ECO_SEV_HEX = { 5: '#dc2626', 4: '#ea580c', 3: '#ca8a04', 2: '#65a30d', 1: '#16a34a' };
+const ECO_SEV_HEX   = { 5: '#dc2626', 4: '#ea580c', 3: '#ca8a04', 2: '#65a30d', 1: '#16a34a' };
+const ECO_SEV_LABEL = {
+  5: 'CRITICAL — systemic collapse risk',
+  4: 'SEVERE — acute ecosystem stress',
+  3: 'ELEVATED — chronic degradation',
+  2: 'MODERATE — measurable pressure',
+  1: 'MONITORED — early-stage indicators',
+};
 
 // ── WASM interface constants ─────────────────────────────────────────────────
 const DOT_COUNT = 2048;           // kept for WASM kernel compat
@@ -307,6 +314,7 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
   const [lastViralMsg, setLastViralMsg] = useState('');
   // Map animation state — driven by WASM tick, CSS transitions interpolate to 60fps
   const [mapState, setMapState] = useState({ deadFrac: 0, phase: 0, exergyNorm: 0, trophicV: 0, metabolicFat: 0 });
+  const [activeSpot, setActiveSpot] = useState(null);
 
   const growthRateRef  = useRef(2.5);
   const wasmStuckRef   = useRef(false);  // true if WASM state is stale (bypasses to JS integrator)
@@ -1078,7 +1086,13 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
             const r     = 3 + sev * 1.5;
             const color = ECO_SEV_HEX[sev] || '#65a30d';
             return (
-              <g key={label}>
+              <g
+                key={label}
+                style={{ cursor: 'pointer' }}
+                onMouseEnter={() => setActiveSpot({ label, sev, cx, cy, color })}
+                onMouseLeave={() => setActiveSpot(null)}
+                onClick={() => setActiveSpot(s => s?.label === label ? null : { label, sev, cx, cy, color })}
+              >
                 <circle cx={cx} cy={cy} r={r + 4} fill={color} opacity="0.12">
                   <animate attributeName="r" values={`${r + 2};${r + 8};${r + 2}`} dur="3s" repeatCount="indefinite" />
                   <animate attributeName="opacity" values="0.12;0.04;0.12" dur="3s" repeatCount="indefinite" />
@@ -1092,6 +1106,22 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
               </g>
             );
           })}
+          {activeSpot && (() => {
+            const { cx, cy, color, label, sev } = activeSpot;
+            const tw = 148, th = 34;
+            let tx = cx + 12;
+            let ty = cy - th - 8;
+            if (tx + tw > 790) tx = cx - tw - 12;
+            if (ty < 4) ty = cy + 12;
+            return (
+              <g key="tooltip" pointerEvents="none">
+                <rect x={tx} y={ty} width={tw} height={th} rx="2"
+                  fill="rgba(0,0,0,0.88)" stroke={color} strokeWidth="0.7" strokeOpacity="0.7" />
+                <text x={tx + 7} y={ty + 12} fill={color} fontSize="8.5" fontFamily="monospace" fontWeight="bold" opacity="0.95">{label}</text>
+                <text x={tx + 7} y={ty + 26} fill={color} fontSize="6.5" fontFamily="monospace" opacity="0.65">{ECO_SEV_LABEL[sev]}</text>
+              </g>
+            );
+          })()}
         </WorldMap>
       </div>
 
