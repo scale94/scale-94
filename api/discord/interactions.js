@@ -12,6 +12,7 @@
 
 import { createPublicKey, verify } from 'crypto';
 import { kv } from '@vercel/kv';
+import { waitUntil } from '@vercel/functions';
 
 const BOT_TOKEN  = process.env.DISCORD_BOT_TOKEN;
 const PUBLIC_KEY = process.env.DISCORD_APPLICATION_PUBLIC_KEY;
@@ -145,8 +146,8 @@ export default async function handler(req, res) {
     // Type 6: DEFERRED_UPDATE_MESSAGE — acknowledge within 3s, edit later
     res.status(200).json({ type: 6 });
 
-    // Everything below happens asynchronously after the 3s response window
-    ;(async () => {
+    // Keep the serverless function alive while we do async work after the response
+    waitUntil((async () => {
       const order = await kv.hgetall(`order:${orderId}`);
       if (!order) return;
 
@@ -182,7 +183,7 @@ export default async function handler(req, res) {
         application_id, token,
         `✓ Order \`${orderId.slice(0, 8)}…\` → **${STATE_LABEL[nextState]}**`,
       );
-    })();
+    })());
 
     return;
   }
