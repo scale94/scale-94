@@ -9,7 +9,7 @@ import React, { useState, useEffect, useRef, useLayoutEffect, useMemo, useCallba
 const fmtTime = (d = new Date()) =>
   `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
 
-import { Hexagon, Cpu, Lock, Scale, Eye, ShieldAlert, KeyRound, Waves, Radio, Leaf } from 'lucide-react';
+import { Hexagon, Cpu, Lock, Scale, Eye, ShieldAlert, KeyRound, Waves, Radio, Leaf, Moon } from 'lucide-react';
 
 // Data — static (authored, always bundled)
 import kernelAxioms    from './data/kernelAxioms';
@@ -71,6 +71,7 @@ const ArticleView     = lazy(() => import('./views/ArticleView'));
 const ThesisView      = lazy(() => import('./views/ThesisView'));
 const TransmissionTab = lazy(() => import('./views/TransmissionTab'));
 const TagCloudView    = lazy(() => import('./views/TagCloudView'));
+const LunarTab        = lazy(() => import('./views/LunarTab'));
 
 // formatKernelHelp, formatRunHelp, CMD_MANIFEST → src/terminal/commands/runHelpers.js
 
@@ -1024,6 +1025,8 @@ const App = () => {
 
             <button aria-label="Ecocide" aria-current={activeTab === 'ecocide' ? 'page' : undefined} onClick={() => handleNav('~/system/ecocide', 'ecocide')} className={`${activeTab === 'ecocide' ? 'text-black shadow-[0_0_14px_rgba(122,184,0,0.55)] border-b-2 border-lime-300/70' : 'hover:text-white hover:bg-[#1a2d00]/40'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`} style={activeTab === 'ecocide' ? { background: 'linear-gradient(90deg,#7ab800,#3d5c00)' } : { color: 'rgba(122,184,0,0.5)' }}><Leaf className="w-3 h-3" /> /Ecocide</button>
 
+            <button aria-label="Lunar" aria-current={activeTab === 'lunar' ? 'page' : undefined} onClick={() => handleNav('~/system/lunar', 'lunar')} className={`${activeTab === 'lunar' ? 'bg-violet-900 text-violet-100 shadow-[0_0_12px_rgba(139,92,246,0.5)] border-b-2 border-violet-300/70' : 'text-violet-400/50 hover:text-violet-200 hover:bg-violet-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><Moon className="w-3 h-3" /> /Lunar</button>
+
             {/* Global search button */}
             <button
               aria-label="Search articles (⌘K)"
@@ -1164,6 +1167,11 @@ const App = () => {
                 setCurrentPath(`~/system/ecocide/${article.id}`);
               }}
             />
+          )}
+
+          {/* Lunar Tab — circalunar fragrance protocol */}
+          {activeTab === 'lunar' && !selectedArticle && !architectThesis && (
+            <LunarTab />
           )}
 
           {/* Cryptography Tab — ML-KEM-768 PQC + Gray-Scott kernel reference */}
@@ -1323,6 +1331,9 @@ const App = () => {
         </button>
         <button onClick={() => handleNav('~/system/ecocide', 'ecocide')} aria-label="Ecocide" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'ecocide' ? 'text-lime-400' : 'text-lime-400/50'}`}>
           <Leaf className="w-5 h-5" />
+        </button>
+        <button onClick={() => handleNav('~/system/lunar', 'lunar')} aria-label="Lunar" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'lunar' ? 'text-violet-400' : 'text-violet-400/40'}`}>
+          <Moon className="w-5 h-5" />
         </button>
         {/* Mobile search button */}
         <button
