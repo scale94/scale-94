@@ -12,6 +12,17 @@ export const CLUSTERS = {
   phys:   { label: 'physics'      },
   crypto: { label: 'cryptography' },
   drk:    { label: 'drk'          },
+  phil:   { label: 'philosophy'   },
+  math:   { label: 'mathematics'  },
+  chem:   { label: 'chemistry'    },
+  bio:    { label: 'biology'      },
+  hum:    { label: 'humanities'   },
+  ling:   { label: 'linguistics'  },
+  cogn:   { label: 'cognitive'    },
+  aesth:  { label: 'aesthetics'   },
+  topo:   { label: 'topology'     },
+  meta:   { label: 'metasystems'  },
+  synth:  { label: 'synthesis'    },
 };
 
 // Intra-cluster edges — same cluster, always present
@@ -35,6 +46,69 @@ export const INTRA_EDGES = [
   ['strangler',   'necromantic'],['strangler',   'surveillance'],
 ];
 
+// ── Intra-sector edges — new sectors (Scale 16.16) ──────────────────────────
+const NEW_INTRA_EDGES = [
+  // phil
+  ['episteme',       'aporia'],         ['episteme',        'modal_logic'],
+  ['categorical_imp','virtue_ethics'],   ['dialectic',       'process_phil'],
+  ['phenomenal',     'dasein'],          ['phenomenal',      'qualia_bind'],
+  ['rhizome',        'mereology'],       ['wittgenstein',    'pragmatism'],
+  ['absurdist',      'ubuntu'],          ['modal_logic',     'godel'],
+  // math
+  ['grothendieck',   'galois'],          ['grothendieck',    'langlands'],
+  ['riemann_zeta',   'cantor'],          ['mandelbrot',      'chaos_attractor'],
+  ['fourier',        'ergodic'],         ['bayesian',        'nash_equil'],
+  ['poincare',       'knot_invariant'],  ['cellular_auto',   'p_vs_np'],
+  ['godel',          'cantor'],          ['langlands',       'riemann_zeta'],
+  // chem
+  ['chirality',      'aroma_receptor'],  ['retrosynthesis',  'click_chem'],
+  ['catalysis',      'redox'],           ['polymer_fold',    'supramolecular'],
+  ['photochem',      'phase_diagram'],   ['maillard',        'terpene'],
+  ['volatility',     'drydown'],         ['crystal_lattice', 'coord_chem'],
+  ['electrospray',   'volatility'],      ['terpene',         'aroma_receptor'],
+  // bio
+  ['crispr',         'epigenetic'],      ['morphogen',       'axon_guidance'],
+  ['microbiome',     'quorum'],          ['apoptosis',       'telomere'],
+  ['prion',          'polymer_fold'],    ['endosymbiont',    'horizontal_xfer'],
+  ['neurotransmit',  'olfactory_bulb'],  ['circadian_bio',   'circadian'],
+  ['extremophile',   'permafrost'],      ['vomeronasal',     'olfactory_bulb'],
+  // hum
+  ['longue_duree',   'collective_mem'],  ['oral_tradition',  'mytheme'],
+  ['palimpsest',     'archive_fever'],   ['diaspora',        'orientalism'],
+  ['cargo_cult',     'liminality'],      ['gift_economy',    'potlatch'],
+  ['thick_desc',     'subaltern'],       ['perfume_hist',    'synesthesia_cul'],
+  // ling
+  ['saussure',       'peirce_sign'],     ['chomsky_tree',    'pragmatics'],
+  ['sapir_whorf',    'metaphor_engine'], ['phonaestheme',    'prosody'],
+  ['prototype',      'corpus'],          ['pidgin',          'etymology'],
+  ['glossopoeia',    'translation'],     ['olfactory_lexicon','deixis'],
+  // cogn
+  ['predictive_brain','global_workspace'],['binding_problem', 'attention_schema'],
+  ['mirror_neuron',  'embodied_cog'],    ['enactive',        'affordance'],
+  ['default_mode',   'proustian'],       ['hippocampal',     'piriform'],
+  ['weber_fechner',  'mcgurk'],          ['chunking',        'blindsight'],
+  // aesth
+  ['sublime',        'je_ne_sais_quoi'], ['wabi_sabi',       'patina'],
+  ['synesthetic',    'umami'],           ['golden_ratio',    'accord_theory'],
+  ['negative_space', 'camp'],            ['terroir',         'headspace_tech'],
+  ['sillage_theory', 'drydown'],         ['base_note',       'accord_theory'],
+  // topo
+  ['mobius',         'klein_bottle'],     ['euler_char',      'betti_number'],
+  ['homology',       'cobordism'],        ['fiber_bundle',    'geodesic'],
+  ['simplex',        'persistent_hom'],   ['hyperbolic',      'voronoi'],
+  ['graph_laplacian','tda_mapper'],       ['winding_number',  'morse_theory'],
+  // meta
+  ['autopoiesis',    'cybernetic'],       ['stigmergy',       'swarm'],
+  ['soc_critical',   'edge_chaos'],       ['downward_cause',  'holarchy'],
+  ['dissipative',    'phase_trans'],       ['strange_loop',    'bootstrap'],
+  ['attractor_land', 'scale_free'],       ['teleology',       'omega_point'],
+  // synth
+  ['analogy',        'isomorphism'],      ['bisociation',     'metaphor_bridge'],
+  ['consilience',    'transdiscipline'],  ['abduction',       'decay_engine'],
+  ['boundary_object','translation_layer'],['resonance_bridge','chimera_forge'],
+  ['polysemy',       'ock_v2'],           ['hybrid_vigor',    'omega_collider'],
+];
+
 // Default cross-cluster bridges — replaced when spectral_bridge kernel runs
 export const DEFAULT_CROSS_EDGES = [
   ['soma91',      'pragmatic'],
@@ -48,10 +122,26 @@ export const DEFAULT_CROSS_EDGES = [
   ['white_irid',       'pitch_black_steel'], // Pair 1: biological ↔ industrial toughness (cos 0.855)
   ['bouligand_36',     'polymorph_pqc'],     // Pair 2: rotation ↔ lattice defense (cos 0.611)
   ['magic_angle_1p1',  'zero_effort_flow'],  // Pair 3: threshold superconductivity ↔ flow (cos 0.863)
+  // ── Scale 16.16 cross-sector bridges ──
+  ['episteme',         'bayesian'],          // phil ↔ math
+  ['chirality',        'olfactory_bulb'],    // chem ↔ bio
+  ['piriform',         'proustian'],         // cogn ↔ cogn (intra but cross-cluster feel)
+  ['saussure',         'wittgenstein'],      // ling ↔ phil
+  ['accord_theory',    'terpene'],           // aesth ↔ chem
+  ['autopoiesis',      'mycorrhizal'],       // meta ↔ eco
+  ['mobius',           'poincare'],           // topo ↔ math
+  ['chimera_forge',    'omega_collider'],     // synth (internal keystone)
+  ['longue_duree',     'simulacra'],          // hum ↔ drk
+  ['neurotransmit',    'predictive_brain'],   // bio ↔ cogn
+  ['metaphor_engine',  'bisociation'],        // ling ↔ synth
+  ['sublime',          'dasein'],             // aesth ↔ phil
+  ['percolation',      'scale_free'],         // phys ↔ meta
+  ['zkp_circuit',      'modal_logic'],        // crypto ↔ phil
+  ['olfactory_lexicon','perfume_hist'],        // ling ↔ hum
 ];
 
 // Full static edge list for physics (always includes all defaults for spring forces)
-export const ALL_EDGES = [...INTRA_EDGES, ...DEFAULT_CROSS_EDGES];
+export const ALL_EDGES = [...INTRA_EDGES, ...NEW_INTRA_EDGES, ...DEFAULT_CROSS_EDGES];
 
 export const ADJ = {};
 NODES.forEach(n => { ADJ[n.id] = []; });
@@ -92,6 +182,23 @@ export const DIM_KEYWORDS = {
   cryptographic:  ['crypto', 'key', 'quantum', 'post-quantum', 'hash', 'lattice', 'kem', 'inefficien'],
   biological:     ['bio', 'ecology', 'species', 'evolution', 'organism', 'ecosystem', 'ecocide', 'life'],
   economic:       ['economic', 'gdp', 'growth', 'capital', 'market', 'extraction', 'monetary'],
+  // ── Extended dims [16..31] — 256-cluster cognitive expansion ──
+  epistemological: ['epistemic', 'knowledge', 'justified', 'belief', 'gettier', 'truth'],
+  metaphysical:   ['metaphysics', 'ontology', 'causation', 'being', 'substance', 'modal'],
+  ethical:        ['ethics', 'moral', 'virtue', 'deontological', 'normative', 'justice'],
+  phenomenological:['phenomenology', 'qualia', 'consciousness', 'intentionality', 'experience'],
+  algebraic:      ['algebra', 'group', 'ring', 'field', 'category', 'functor', 'morphism'],
+  topological:    ['topology', 'manifold', 'homology', 'homotopy', 'continuous', 'fiber'],
+  statistical:    ['statistics', 'bayesian', 'regression', 'inference', 'distribution', 'estimator'],
+  linguistic:     ['language', 'grammar', 'syntax', 'semantics', 'morphology', 'phonology'],
+  historical:     ['history', 'archive', 'epoch', 'civilization', 'colonial', 'memory'],
+  aesthetic:      ['aesthetic', 'beauty', 'sublime', 'taste', 'art', 'fragrance', 'perfume'],
+  cognitive:      ['cognitive', 'neural', 'brain', 'attention', 'perception', 'memory'],
+  chemical:       ['chemical', 'molecular', 'reaction', 'bond', 'synthesis', 'compound'],
+  quantum:        ['quantum', 'superposition', 'entanglement', 'wave function', 'planck'],
+  emergent:       ['emergence', 'self-organization', 'complex system', 'swarm', 'collective'],
+  semiotic:       ['semiotic', 'sign', 'symbol', 'meaning', 'signifier', 'interpretation'],
+  synthetic:      ['synthetic', 'interdisciplinary', 'fusion', 'integration', 'bridge', 'chimera'],
 };
 
 export function queryProject(text) {

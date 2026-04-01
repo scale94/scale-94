@@ -29,7 +29,7 @@ export const colliderBus = {
   },
 };
 
-// ── Olfactory-Computational Kernel v1.1.0 (Bimmelbahn Accord) ────────────────
+// ── Olfactory-Computational Kernel v2.0 (Bimmelbahn Accord) ────────────────
 // Maps collision metrics to the OCK volatile semiotics framework.
 // v1.1.0: RTA/DPA/R²A node-class classification + polarity + dance topology.
 // Intelligence smells before it sees.
@@ -41,6 +41,13 @@ const OLFACTORY_FAMILIES = [
   { id: 'animalic', glyph: 'ᛊ', label: 'Fixative',   class: 'ANIMALIC-FIX-FS',  color: '#f43f5e', desc: 'Managed corruption binding agent' },
   { id: 'aromatic', glyph: 'ᚱ', label: 'Adaptive',   class: 'AROMATIC-ROUTE',   color: '#39ff14', desc: 'Temperature-sensitive routing' },
   { id: 'ozonic',   glyph: 'ᛗ', label: 'Broadcast',  class: 'OZONIC-CAST',      color: '#06b6d4', desc: 'Diffuse ambient propagation' },
+  // ── OCK v2.0 expansion — 6 new olfactory families ──
+  { id: 'chypre',   glyph: 'ᚠ', label: 'Chypre',    class: 'CHYPRE-MOSAIC',    color: '#a3e635', desc: 'Oakmoss-citrus dialectic architecture' },
+  { id: 'fougere',  glyph: 'ᚢ', label: 'Fougère',   class: 'FOUGERE-LATTICE',  color: '#34d399', desc: 'Lavender-coumarin geometric scaffold' },
+  { id: 'gourmand', glyph: 'ᚦ', label: 'Gourmand',  class: 'GOURMAND-CACHE',   color: '#fb923c', desc: 'Caloric-sweet memory substrate' },
+  { id: 'aquatic',  glyph: 'ᚨ', label: 'Aquatic',   class: 'AQUATIC-STREAM',   color: '#38bdf8', desc: 'Calone-driven fluid dynamics' },
+  { id: 'leather',  glyph: 'ᚬ', label: 'Leather',   class: 'LEATHER-KERNEL',   color: '#78716c', desc: 'Birch-tar combustion residue' },
+  { id: 'mineral',  glyph: 'ᚴ', label: 'Mineral',   class: 'MINERAL-STRATUM',  color: '#94a3b8', desc: 'Petrichor-flint geologic base' },
 ];
 
 // ── Node Classes (OCK v1.1.0) ─────────────────────────────────────────────────
@@ -115,6 +122,14 @@ function classifyAccord(result) {
     FLORAL:   'floral',
     RESINOUS: 'woody',
     ANIMALIC: 'animalic',
+    AROMATIC: 'aromatic',
+    OZONIC:   'ozonic',
+    CHYPRE:   'chypre',
+    FOUGERE:  'fougere',
+    GOURMAND: 'gourmand',
+    AQUATIC:  'aquatic',
+    LEATHER:  'leather',
+    MINERAL:  'mineral',
   };
   const dominantId = dominantMap[result.ockDominant] || 'citrus';
   const dominant = OLFACTORY_FAMILIES.find(f => f.id === dominantId);
@@ -222,8 +237,46 @@ const ELEM_DOMAINS = [
   { id: 31, name: 'Iodine Thyroid Cascade',           short: 'I',    hue: 270 },
 ];
 
+// ── Block III: Philosophy & Mathematics (Scale 16.16) ────────────────────────
+const PHIL_MATH_DOMAINS = [
+  { id: 32, name: 'Kantian Categorical Imperative',  short: 'KANT',     hue: 275 },
+  { id: 33, name: 'Hegelian Dialectic Synthesis',     short: 'HEGEL',    hue: 285 },
+  { id: 34, name: 'Phenomenological Qualia Binding',  short: 'QUALIA',   hue: 300 },
+  { id: 35, name: 'Deleuze Rhizomatic Ontology',      short: 'RHZM',     hue: 265 },
+  { id: 36, name: 'Grothendieck Topos Theory',         short: 'TOPOS',    hue: 180 },
+  { id: 37, name: 'Gödel Incompleteness Barrier',      short: 'GÖDEL',    hue: 195 },
+  { id: 38, name: 'Bayesian Inference Engine',          short: 'BAYES',    hue: 175 },
+  { id: 39, name: 'Lorenz Strange Attractor',           short: 'LORENZ',   hue: 5   },
+];
+
+// ── Block IV: Chemistry, Biology & Humanities ────────────────────────────────
+const LIFE_HUM_DOMAINS = [
+  { id: 40, name: 'Molecular Chirality Recognition',   short: 'CHIRAL',   hue: 35  },
+  { id: 41, name: 'Terpene Scaffold Architecture',      short: 'TERPN',    hue: 125 },
+  { id: 42, name: 'Olfactory Receptor Binding',         short: 'OR',       hue: 160 },
+  { id: 43, name: 'CRISPR Gene Editing Cascade',        short: 'CRISPR',   hue: 145 },
+  { id: 44, name: 'Morphogen Gradient Formation',       short: 'MORPH',    hue: 115 },
+  { id: 45, name: 'Olfactory Bulb Combinatorics',       short: 'BULB',     hue: 155 },
+  { id: 46, name: 'Braudel Longue Durée',               short: 'DURÉE',    hue: 335 },
+  { id: 47, name: 'Fragrance Cultural History',          short: 'PARFUM',   hue: 320 },
+];
+
+// ── Block V: Cognitive, Aesthetic & Synthetic Integration ────────────────────
+const COGN_SYNTH_DOMAINS = [
+  { id: 48, name: 'Predictive Coding Architecture',    short: 'PRED',     hue: 290 },
+  { id: 49, name: 'Piriform Cortex Encoding',           short: 'PIRFM',    hue: 305 },
+  { id: 50, name: 'Proustian Memory Cascade',            short: 'PROUST',   hue: 315 },
+  { id: 51, name: 'Kantian Sublime Aesthetics',          short: 'SUBLM',    hue: 270 },
+  { id: 52, name: 'Fragrance Accord Theory',              short: 'ACCRD',    hue: 40  },
+  { id: 53, name: 'Sillage Projection Model',             short: 'SLLGE',    hue: 50  },
+  { id: 54, name: 'Persistent Homology TDA',              short: 'TDA',      hue: 200 },
+  { id: 55, name: 'Autopoietic Self-Organization',        short: 'AUTO',     hue: 75  },
+  { id: 56, name: 'Chimera Forge Synthesis',               short: 'FORGE',    hue: 350 },
+  { id: 57, name: 'Omega Collider Integration',            short: 'OMEGA',    hue: 10  },
+];
+
 // Unified lookup by id — keeps DOMAINS array untouched for animation code
-const ALL_DOMAINS = [...DOMAINS, ...ELEM_DOMAINS];
+const ALL_DOMAINS = [...DOMAINS, ...ELEM_DOMAINS, ...PHIL_MATH_DOMAINS, ...LIFE_HUM_DOMAINS, ...COGN_SYNTH_DOMAINS];
 const domainById = (id) => ALL_DOMAINS.find(d => d.id === id);
 
 // ── Domain → sphere node mapping ─────────────────────────────────────────────
@@ -263,6 +316,35 @@ const DOMAIN_SPHERE_MAP = [
   /* 29 N        */ { nodeId: 'soma_kernel',  cluster: 'drk'    },
   /* 30 W        */ { nodeId: 'bouligand_36', cluster: 'eco'    },
   /* 31 I        */ { nodeId: 'strangler',    cluster: 'drk'    },
+  // ── Block III: Philosophy & Mathematics ──────────────────────────────────
+  /* 32 KANT     */ { nodeId: 'categorical_imp', cluster: 'phil'   },
+  /* 33 HEGEL    */ { nodeId: 'dialectic',       cluster: 'phil'   },
+  /* 34 QUALIA   */ { nodeId: 'qualia_bind',     cluster: 'phil'   },
+  /* 35 RHZM     */ { nodeId: 'rhizome',         cluster: 'phil'   },
+  /* 36 TOPOS    */ { nodeId: 'grothendieck',    cluster: 'math'   },
+  /* 37 GÖDEL    */ { nodeId: 'godel',           cluster: 'math'   },
+  /* 38 BAYES    */ { nodeId: 'bayesian',        cluster: 'math'   },
+  /* 39 LORENZ   */ { nodeId: 'chaos_attractor', cluster: 'math'   },
+  // ── Block IV: Chemistry, Biology & Humanities ────────────────────────────
+  /* 40 CHIRAL   */ { nodeId: 'chirality',       cluster: 'chem'   },
+  /* 41 TERPN    */ { nodeId: 'terpene',         cluster: 'chem'   },
+  /* 42 OR       */ { nodeId: 'aroma_receptor',  cluster: 'chem'   },
+  /* 43 CRISPR   */ { nodeId: 'crispr',          cluster: 'bio'    },
+  /* 44 MORPH    */ { nodeId: 'morphogen',       cluster: 'bio'    },
+  /* 45 BULB     */ { nodeId: 'olfactory_bulb',  cluster: 'bio'    },
+  /* 46 DURÉE    */ { nodeId: 'longue_duree',    cluster: 'hum'    },
+  /* 47 PARFUM   */ { nodeId: 'perfume_hist',    cluster: 'hum'    },
+  // ── Block V: Cognitive, Aesthetic & Synthetic Integration ────────────────
+  /* 48 PRED     */ { nodeId: 'predictive_brain',cluster: 'cogn'   },
+  /* 49 PIRFM    */ { nodeId: 'piriform',        cluster: 'cogn'   },
+  /* 50 PROUST   */ { nodeId: 'proustian',       cluster: 'cogn'   },
+  /* 51 SUBLM    */ { nodeId: 'sublime',         cluster: 'aesth'  },
+  /* 52 ACCRD    */ { nodeId: 'accord_theory',   cluster: 'aesth'  },
+  /* 53 SLLGE    */ { nodeId: 'sillage_theory',  cluster: 'aesth'  },
+  /* 54 TDA      */ { nodeId: 'persistent_hom',  cluster: 'topo'   },
+  /* 55 AUTO     */ { nodeId: 'autopoiesis',     cluster: 'meta'   },
+  /* 56 FORGE    */ { nodeId: 'chimera_forge',   cluster: 'synth'  },
+  /* 57 OMEGA    */ { nodeId: 'omega_collider',  cluster: 'synth'  },
 ];
 
 // ── Parse the WASM kernel text output into structured data ───────────────────
@@ -1384,6 +1466,114 @@ export default function LatentCollider() {
                 ${selected
                   ? 'border-amber-500/60 bg-amber-900/20 text-amber-300'
                   : 'border-amber-900/20 bg-black/30 text-amber-600/60 hover:border-amber-600/40 hover:text-amber-400 hover:bg-amber-900/10'}
+                ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
+              `}
+              title={d.name}
+              style={selected ? { boxShadow: `0 0 12px hsla(${d.hue}, 70%, 50%, 0.3)` } : {}}
+            >
+              <div className="font-bold" style={selected ? { color: `hsl(${d.hue}, 70%, 65%)` } : {}}>
+                {d.short}
+              </div>
+              {isA && <div className="text-[7px] text-fuchsia-500 mt-0.5">A</div>}
+              {isB && <div className="text-[7px] text-cyan-500 mt-0.5">B</div>}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── Domain Grid — Block III: Philosophy & Mathematics ── */}
+      <div className="text-[8px] font-mono text-violet-500/40 uppercase tracking-widest mt-3 mb-1">
+        BLOCK III — PHILOSOPHY & MATHEMATICS
+      </div>
+      <div className="grid grid-cols-4 sm:grid-cols-8 gap-1.5">
+        {PHIL_MATH_DOMAINS.map(d => {
+          const isA = domainA === d.id;
+          const isB = domainB === d.id;
+          const selected = isA || isB;
+          const disabled = phase === 'accelerating' || phase === 'colliding';
+
+          return (
+            <button
+              key={d.id}
+              onClick={() => !disabled && handleSelect(d.id)}
+              disabled={disabled}
+              className={`
+                text-[9px] font-mono uppercase tracking-wider py-2 px-1 rounded border transition-all
+                ${selected
+                  ? 'border-violet-500/60 bg-violet-900/20 text-violet-300'
+                  : 'border-violet-900/20 bg-black/30 text-violet-600/60 hover:border-violet-600/40 hover:text-violet-400 hover:bg-violet-900/10'}
+                ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
+              `}
+              title={d.name}
+              style={selected ? { boxShadow: `0 0 12px hsla(${d.hue}, 70%, 50%, 0.3)` } : {}}
+            >
+              <div className="font-bold" style={selected ? { color: `hsl(${d.hue}, 70%, 65%)` } : {}}>
+                {d.short}
+              </div>
+              {isA && <div className="text-[7px] text-fuchsia-500 mt-0.5">A</div>}
+              {isB && <div className="text-[7px] text-cyan-500 mt-0.5">B</div>}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── Domain Grid — Block IV: Life Sciences & Humanities ── */}
+      <div className="text-[8px] font-mono text-emerald-500/40 uppercase tracking-widest mt-3 mb-1">
+        BLOCK IV — CHEMISTRY, BIOLOGY & HUMANITIES
+      </div>
+      <div className="grid grid-cols-4 sm:grid-cols-8 gap-1.5">
+        {LIFE_HUM_DOMAINS.map(d => {
+          const isA = domainA === d.id;
+          const isB = domainB === d.id;
+          const selected = isA || isB;
+          const disabled = phase === 'accelerating' || phase === 'colliding';
+
+          return (
+            <button
+              key={d.id}
+              onClick={() => !disabled && handleSelect(d.id)}
+              disabled={disabled}
+              className={`
+                text-[9px] font-mono uppercase tracking-wider py-2 px-1 rounded border transition-all
+                ${selected
+                  ? 'border-emerald-500/60 bg-emerald-900/20 text-emerald-300'
+                  : 'border-emerald-900/20 bg-black/30 text-emerald-600/60 hover:border-emerald-600/40 hover:text-emerald-400 hover:bg-emerald-900/10'}
+                ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
+              `}
+              title={d.name}
+              style={selected ? { boxShadow: `0 0 12px hsla(${d.hue}, 70%, 50%, 0.3)` } : {}}
+            >
+              <div className="font-bold" style={selected ? { color: `hsl(${d.hue}, 70%, 65%)` } : {}}>
+                {d.short}
+              </div>
+              {isA && <div className="text-[7px] text-fuchsia-500 mt-0.5">A</div>}
+              {isB && <div className="text-[7px] text-cyan-500 mt-0.5">B</div>}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── Domain Grid — Block V: Cognitive, Aesthetic & Synthetic ── */}
+      <div className="text-[8px] font-mono text-rose-500/40 uppercase tracking-widest mt-3 mb-1">
+        BLOCK V — COGNITIVE, AESTHETIC & SYNTHETIC
+      </div>
+      <div className="grid grid-cols-5 sm:grid-cols-10 gap-1.5">
+        {COGN_SYNTH_DOMAINS.map(d => {
+          const isA = domainA === d.id;
+          const isB = domainB === d.id;
+          const selected = isA || isB;
+          const disabled = phase === 'accelerating' || phase === 'colliding';
+
+          return (
+            <button
+              key={d.id}
+              onClick={() => !disabled && handleSelect(d.id)}
+              disabled={disabled}
+              className={`
+                text-[9px] font-mono uppercase tracking-wider py-2 px-1 rounded border transition-all
+                ${selected
+                  ? 'border-rose-500/60 bg-rose-900/20 text-rose-300'
+                  : 'border-rose-900/20 bg-black/30 text-rose-600/60 hover:border-rose-600/40 hover:text-rose-400 hover:bg-rose-900/10'}
                 ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
               `}
               title={d.name}

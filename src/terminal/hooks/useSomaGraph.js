@@ -17,14 +17,27 @@ const DT   = 0.45;
 const DRAG = 0.86;
 
 // Cluster anchor positions on the unit sphere.
-// Spread across front hemisphere; DRK anchored to the back pole.
-// Pre-normalized unit vectors.
+// 16 sectors distributed across the full sphere surface.
+// Pre-normalized unit vectors (x² + y² + z² ≈ 1).
 export const CLUSTER_ANCHORS = {
+  // ── Legacy 5 sectors (preserved exactly) ──
   eco:    { x: -0.609, y:  0.508, z:  0.609 },  // upper-left  front
   sync:   { x:  0.609, y:  0.508, z:  0.609 },  // upper-right front
   phys:   { x: -0.609, y: -0.508, z:  0.609 },  // lower-left  front
   crypto: { x:  0.609, y: -0.508, z:  0.609 },  // lower-right front
   drk:    { x:  0.000, y:  0.000, z: -1.000 },  // back pole
+  // ── New 11 sectors (back hemisphere + equatorial band) ──
+  phil:   { x: -0.507, y:  0.710, z: -0.489 },  // upper-back-left
+  math:   { x:  0.507, y:  0.710, z: -0.489 },  // upper-back-right
+  chem:   { x:  0.800, y:  0.000, z: -0.600 },  // right-equator-back
+  bio:    { x: -0.800, y:  0.000, z: -0.600 },  // left-equator-back
+  hum:    { x:  0.000, y:  1.000, z:  0.000 },  // top pole
+  ling:   { x:  0.707, y:  0.500, z:  0.000 },  // upper-right equator
+  cogn:   { x: -0.507, y: -0.710, z: -0.489 },  // lower-back-left
+  aesth:  { x: -0.707, y:  0.500, z:  0.000 },  // upper-left equator
+  topo:   { x:  0.707, y: -0.500, z:  0.000 },  // lower-right equator
+  meta:   { x:  0.507, y: -0.710, z: -0.489 },  // lower-back-right
+  synth:  { x:  0.000, y: -1.000, z:  0.000 },  // bottom pole
 };
 
 // Normalize a 3-vector to unit length
