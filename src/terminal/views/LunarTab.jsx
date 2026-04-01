@@ -282,11 +282,13 @@ function renderMoon(ctx, W, H, lunarAge) {
   const sunDirZ = -Math.cos(phaseAngle); // Z component (toward viewer is +Z)
 
   // ── Render moon pixel by pixel ──
+  // Use 2px step on large canvases for mobile perf (>250px rendered size)
+  const step = W > 500 ? 2 : 1;
   const imgData = ctx.createImageData(W, H);
   const data = imgData.data;
 
-  for (let py = 0; py < H; py++) {
-    for (let px = 0; px < W; px++) {
+  for (let py = 0; py < H; py += step) {
+    for (let px = 0; px < W; px += step) {
       const dx = (px - cx) / R, dy = (py - cy) / R;
       const r2 = dx * dx + dy * dy;
       if (r2 > 1.0) continue;
@@ -352,11 +354,16 @@ function renderMoon(ctx, W, H, lunarAge) {
       const gg = Math.round(lum * 245 * warmth);
       const bb = Math.round(lum * 240);
 
-      const idx = (py * W + px) * 4;
-      data[idx] = rr;
-      data[idx + 1] = gg;
-      data[idx + 2] = bb;
-      data[idx + 3] = 255;
+      // Fill step×step block for performance on high-DPR mobile
+      for (let sy = 0; sy < step && py + sy < H; sy++) {
+        for (let sx = 0; sx < step && px + sx < W; sx++) {
+          const idx = ((py + sy) * W + (px + sx)) * 4;
+          data[idx] = rr;
+          data[idx + 1] = gg;
+          data[idx + 2] = bb;
+          data[idx + 3] = 255;
+        }
+      }
     }
   }
 
@@ -373,26 +380,30 @@ function renderMoon(ctx, W, H, lunarAge) {
   ctx.fill();
 }
 
-function LunarCanvas({ lunarAge, size = 340 }) {
+function LunarCanvas({ lunarAge }) {
   const canvasRef = useRef(null);
+  const containerRef = useRef(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    const dpr = window.devicePixelRatio || 1;
+    const container = containerRef.current;
+    if (!canvas || !container) return;
+    // Responsive: fit container width, cap at 340px
+    const size = Math.min(container.offsetWidth, 340);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2); // cap DPR for perf on mobile
     canvas.width = size * dpr;
     canvas.height = size * dpr;
+    canvas.style.width = size + 'px';
+    canvas.style.height = size + 'px';
     const ctx = canvas.getContext('2d');
     ctx.scale(dpr, dpr);
     renderMoon(ctx, size, size, lunarAge);
-  }, [lunarAge, size]);
+  }, [lunarAge]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      style={{ width: size, height: size }}
-      className="mx-auto rounded-lg"
-    />
+    <div ref={containerRef} className="w-full flex justify-center">
+      <canvas ref={canvasRef} className="rounded-lg" />
+    </div>
   );
 }
 
@@ -400,7 +411,7 @@ function LunarCanvas({ lunarAge, size = 340 }) {
 
 function PhaseSelector({ currentAge, onSelectPhase, selectedPhaseId }) {
   return (
-    <div className="flex justify-center gap-1.5 mt-3">
+    <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2 mt-3 px-2">
       {PHASES.map(p => {
         const isCurrent = currentAge >= p.range[0] && currentAge < p.range[1];
         const isSelected = p.id === selectedPhaseId;
@@ -409,12 +420,13 @@ function PhaseSelector({ currentAge, onSelectPhase, selectedPhaseId }) {
             key={p.id}
             onClick={() => onSelectPhase(p.id)}
             className={`
-              w-8 h-8 rounded-full flex items-center justify-center text-sm transition-all duration-200
+              w-9 h-9 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-base sm:text-sm
+              transition-all duration-200 touch-manipulation
               ${isSelected
                 ? 'bg-violet-500/20 ring-1 ring-violet-400/50 shadow-[0_0_8px_rgba(139,92,246,0.3)]'
                 : isCurrent
                   ? 'bg-white/[0.06] ring-1 ring-white/10'
-                  : 'bg-white/[0.02] hover:bg-white/[0.06]'}
+                  : 'bg-white/[0.02] hover:bg-white/[0.06] active:bg-white/[0.1]'}
             `}
             title={p.label}
           >
@@ -431,12 +443,12 @@ function PhaseSelector({ currentAge, onSelectPhase, selectedPhaseId }) {
 function ParamBar({ label, value, unit, min, max, color }) {
   const pct = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
   return (
-    <div className="flex items-center gap-2 text-[9px] font-mono">
-      <span className="w-20 text-right text-white/30 uppercase tracking-widest shrink-0">{label}</span>
-      <div className="flex-1 h-1.5 bg-white/[0.04] rounded-full overflow-hidden">
+    <div className="flex items-center gap-1.5 sm:gap-2 text-[8px] sm:text-[9px] font-mono">
+      <span className="w-14 sm:w-20 text-right text-white/30 uppercase tracking-wider sm:tracking-widest shrink-0 truncate">{label}</span>
+      <div className="flex-1 h-1.5 bg-white/[0.04] rounded-full overflow-hidden min-w-0">
         <div className={`h-full rounded-full transition-all duration-700 ${color}`} style={{ width: `${pct}%` }} />
       </div>
-      <span className="w-16 text-white/50 tabular-nums">{typeof value === 'number' ? value.toFixed(3) : value} {unit}</span>
+      <span className="w-12 sm:w-16 text-white/50 tabular-nums text-right shrink-0">{typeof value === 'number' ? value.toFixed(3) : value}</span>
     </div>
   );
 }
@@ -449,25 +461,25 @@ function AccordCard({ accord, isActive }) {
   return (
     <div
       className={`
-        border rounded-lg p-4 transition-all duration-300 cursor-pointer
+        border rounded-lg p-3 sm:p-4 transition-all duration-300 cursor-pointer
         ${isActive
           ? 'border-violet-500/40 bg-violet-950/10 shadow-[0_0_20px_rgba(139,92,246,0.08)]'
-          : 'border-white/[0.06] bg-black/40 hover:border-white/[0.12]'}
+          : 'border-white/[0.06] bg-black/40 hover:border-white/[0.12] active:bg-white/[0.03]'}
       `}
       onClick={() => setExpanded(!expanded)}
     >
-      <div className="flex items-start justify-between gap-3 mb-2">
-        <div>
-          <div className={`text-xs font-bold tracking-widest uppercase ${accord.accent}`}>
+      <div className="flex items-start justify-between gap-2 sm:gap-3 mb-2">
+        <div className="min-w-0">
+          <div className={`text-[10px] sm:text-xs font-bold tracking-widest uppercase ${accord.accent} truncate`}>
             {accord.accord}
           </div>
-          <div className="text-[9px] font-mono text-white/30 mt-0.5">
+          <div className="text-[8px] sm:text-[9px] font-mono text-white/30 mt-0.5 truncate">
             {accord.signature}
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="text-[8px] font-mono text-white/20 uppercase">{accord.concentration}</span>
-          <div className="w-12 h-1 bg-white/[0.04] rounded-full overflow-hidden">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <span className="text-[7px] sm:text-[8px] font-mono text-white/20 uppercase">{accord.concentration}</span>
+          <div className="w-10 sm:w-12 h-1 bg-white/[0.04] rounded-full overflow-hidden">
             <div className={`h-full rounded-full bg-gradient-to-r ${accord.color}`}
               style={{ width: `${accord.sillage * 100}%` }} />
           </div>
@@ -475,7 +487,7 @@ function AccordCard({ accord, isActive }) {
       </div>
 
       {/* Note pyramid */}
-      <div className="grid grid-cols-3 gap-2 mt-3">
+      <div className="grid grid-cols-3 gap-1.5 sm:gap-2 mt-3">
         <div>
           <div className="text-[7px] font-mono text-white/20 uppercase tracking-widest mb-1">TOP</div>
           {accord.top.map(n => (
@@ -530,7 +542,7 @@ export default function LunarTab() {
   );
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto mt-6 pb-16">
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto mt-4 sm:mt-6 px-2 sm:px-0 pb-16">
       <style>{`
         @keyframes ln-titleReveal {
           from { opacity: 0; transform: translateY(-8px); filter: blur(6px); }
@@ -559,11 +571,11 @@ export default function LunarTab() {
       </div>
 
       {/* ── Current State Panel ── */}
-      <div className="grid grid-cols-1 md:grid-cols-[320px_1fr] gap-6 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6 mb-8">
 
         {/* Photorealistic Moon */}
         <div className="flex flex-col items-center gap-2">
-          <LunarCanvas lunarAge={currentAge} size={300} />
+          <LunarCanvas lunarAge={currentAge} />
           <PhaseSelector
             currentAge={currentAge}
             onSelectPhase={setSelectedPhaseId}
@@ -628,7 +640,7 @@ export default function LunarTab() {
       </div>
 
       {/* ── Selected Accord Detail ── */}
-      <div className="mt-8 border border-violet-500/20 rounded-lg bg-violet-950/5 p-5">
+      <div className="mt-8 border border-violet-500/20 rounded-lg bg-violet-950/5 p-3 sm:p-5">
         <div className="flex items-center gap-2 mb-3">
           <Eye className="w-3.5 h-3.5 text-violet-400/60" />
           <span className="text-[10px] font-mono font-bold text-violet-400/80 uppercase tracking-widest">
