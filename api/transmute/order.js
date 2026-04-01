@@ -62,6 +62,11 @@ function buildEmbed(order, state = 'QUEUED') {
       { name: '§ VAULT IDENTITY',  value: `\`\`\`\n${order.vaultBlock}\n\`\`\``,   inline: false },
       { name: '§ SCENT PROFILE',   value: `\`\`\`\n${order.noteBlock}\n\`\`\``,    inline: false },
       { name: '§ PROPERTIES',      value: `\`\`\`\n${order.physBlock}\n\`\`\``,    inline: false },
+      ...(order.contactSignal || order.contactEmail ? [{
+        name:  '§ CONTACT',
+        value: `\`\`\`\n${order.contactSignal ? `SIGNAL  ${order.contactSignal}\n` : ''}${order.contactEmail ? `EMAIL   ${order.contactEmail}` : ''}\`\`\``,
+        inline: false,
+      }] : []),
       { name: '§ ORDER ID',        value: `\`${order.id}\``,                        inline: false },
     ],
     footer:    { text: `tesseract protocol · scale94 · ${order.createdAt}` },
@@ -92,9 +97,13 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST')   return res.status(405).end();
 
-  const rawBody = JSON.stringify(req.body);
-  const sig     = req.headers['x-transmute-signature'];
+  // Read raw bytes — HMAC is over the exact wire bytes, not re-serialised JSON
+  const chunks = [];
+  for await (const chunk of req) chunks.push(chunk);
+  const rawBody = Buffer.concat(chunks).toString('utf-8');
+  const body    = JSON.parse(rawBody);
 
+  const sig = req.headers['x-transmute-signature'];
   if (!verifySignature(rawBody, sig)) {
     return res.status(401).json({ error: 'Invalid signature' });
   }
@@ -103,7 +112,8 @@ export default async function handler(req, res) {
     formulaId, formulaHash, encryptedPayload,
     sovereignRatio, g2tAmount,
     cardName, noteBlock, physBlock, vaultBlock,
-  } = req.body;
+    contact,
+  } = body;
 
   if (!formulaHash) return res.status(400).json({ error: 'formulaHash required' });
 
@@ -127,6 +137,8 @@ export default async function handler(req, res) {
     noteBlock:        noteBlock        ?? '—',
     physBlock:        physBlock        ?? '—',
     vaultBlock:       vaultBlock       ?? '—',
+    contactSignal:    contact?.signal  || '',
+    contactEmail:     contact?.email   || '',
     fulfillmentState: 'QUEUED',
     paymentStatus:    'PENDING',
     createdAt,

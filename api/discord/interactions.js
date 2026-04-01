@@ -111,13 +111,19 @@ export default async function handler(req, res) {
 
   const signature = req.headers['x-signature-ed25519']  ?? '';
   const timestamp = req.headers['x-signature-timestamp'] ?? '';
-  const rawBody   = JSON.stringify(req.body);
+
+  // Read raw bytes from the stream — Discord signs the exact wire bytes,
+  // not a re-serialised JSON string, so we cannot use JSON.stringify(req.body).
+  const chunks = [];
+  for await (const chunk of req) chunks.push(chunk);
+  const rawBody = Buffer.concat(chunks).toString('utf-8');
+  const body    = JSON.parse(rawBody);
 
   if (!verifyDiscordSignature(signature, timestamp, rawBody)) {
     return res.status(401).send('Invalid signature');
   }
 
-  const { type, data, token, application_id } = req.body;
+  const { type, data, token, application_id } = body;
 
   // Type 1: PING — Discord sends this to verify the endpoint during setup
   if (type === 1) return res.status(200).json({ type: 1 });

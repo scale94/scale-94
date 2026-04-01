@@ -675,7 +675,7 @@ export default function LatentCollider() {
     }
   }, [result, domainA, domainB]);
 
-  const handleAcquire = useCallback(async (cardId) => {
+  const handleAcquire = useCallback(async (cardId, contact = {}) => {
     let newCount = 1;
     let isDupe   = false;
     try {
@@ -748,6 +748,7 @@ export default function LatentCollider() {
       noteBlock,
       physBlock,
       vaultBlock,
+      contact:          { signal: contact.signal || '', email: contact.email || '' },
     });
 
     // HMAC-SHA256 sign the body (Web Crypto API, timing-safe)
@@ -2017,7 +2018,7 @@ export default function LatentCollider() {
           card={crystal}
           tesseract={tesseract}
           acquired={acquired}
-          onRegister={() => handleAcquire(crystal.id)}
+          onRegister={contact => handleAcquire(crystal.id, contact)}
           serverCount={serverThreshold.current}
           serverTarget={serverThreshold.target}
         />
@@ -2025,7 +2026,7 @@ export default function LatentCollider() {
         <CrystallizeCard
           card={crystal}
           acquired={acquired}
-          onRegister={() => handleAcquire(crystal.id)}
+          onRegister={contact => handleAcquire(crystal.id, contact)}
           serverCount={serverThreshold.current}
           serverTarget={serverThreshold.target}
         />
@@ -2153,8 +2154,83 @@ function PerfumeBottleSVG({ nodeClass, hA, hB }) {
   );
 }
 
+// ── Contact form — shared by both CrystallizeCard and TesseractCard ────────────
+function ContactForm({ onSubmit, label }) {
+  const [signal, setSignal] = useState('');
+  const [email,  setEmail]  = useState('');
+  const canSubmit = signal.trim() || email.trim();
+
+  const inputStyle = {
+    borderColor: 'rgba(255,215,0,0.22)',
+    color: '#FFD700',
+    caretColor: '#FFD700',
+    background: 'rgba(255,215,0,0.03)',
+    outline: 'none',
+    fontFamily: 'inherit',
+  };
+
+  return (
+    <div className="space-y-2.5 text-left w-full">
+      <div className="text-[8px] font-mono text-center uppercase tracking-[0.25em] mb-3"
+        style={{ color: 'rgba(255,215,0,0.38)' }}>
+        CONTACT FOR DELIVERY
+      </div>
+
+      {/* Signal */}
+      <div>
+        <div className="text-[8px] font-mono mb-1 uppercase tracking-widest" style={{ color: 'rgba(255,215,0,0.3)' }}>
+          ◎ SIGNAL
+        </div>
+        <input
+          type="text"
+          value={signal}
+          onChange={e => setSignal(e.target.value)}
+          placeholder="@handle"
+          className="w-full text-[10px] font-mono px-3 py-1.5 rounded border"
+          style={inputStyle}
+        />
+      </div>
+
+      {/* Email */}
+      <div>
+        <div className="text-[8px] font-mono mb-1 uppercase tracking-widest" style={{ color: 'rgba(255,215,0,0.3)' }}>
+          ✉ EMAIL
+        </div>
+        <input
+          type="email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          placeholder="address@domain.com"
+          className="w-full text-[10px] font-mono px-3 py-1.5 rounded border"
+          style={inputStyle}
+        />
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-3 pt-1">
+        <button
+          onClick={() => onSubmit({ signal: signal.trim(), email: email.trim() })}
+          disabled={!canSubmit}
+          className="flex-1 text-[10px] font-mono uppercase tracking-widest px-4 py-1.5 rounded-full border transition-all hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
+          style={{ borderColor: 'rgba(255,215,0,0.38)', color: '#FFD700', background: 'rgba(255,215,0,0.07)' }}
+        >
+          {label}
+        </button>
+        <button
+          onClick={() => onSubmit({})}
+          className="text-[8px] font-mono uppercase tracking-widest transition-colors hover:opacity-70"
+          style={{ color: 'rgba(255,215,0,0.28)' }}
+        >
+          SKIP
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Crystallize Card component ─────────────────────────────────────────────────
 function CrystallizeCard({ card, acquired, onRegister, serverCount, serverTarget }) {
+  const [showForm, setShowForm] = useState(false);
   const getCount  = () => serverCount  != null ? serverCount  : (() => { try { return parseInt(localStorage.getItem('ck_count') || '0', 10); } catch { return 0; } })();
   const getTarget = () => serverTarget != null ? serverTarget : PRODUCTION_THRESHOLD;
 
@@ -2258,13 +2334,20 @@ function CrystallizeCard({ card, acquired, onRegister, serverCount, serverTarget
                 If the production threshold is reached, this accord will be distilled as a limited physical release.
                 Each registration is unique — no duplicates.
               </p>
-              <button
-                onClick={onRegister}
-                className="text-[10px] font-mono uppercase tracking-widest px-6 py-2 rounded-full border transition-all hover:scale-105 active:scale-95"
-                style={{ borderColor: 'rgba(255,215,0,0.38)', color: '#FFD700', background: 'rgba(255,215,0,0.07)' }}
-              >
-                ⬡ REGISTER INTEREST
-              </button>
+              {showForm ? (
+                <ContactForm
+                  label="⬡ REGISTER INTEREST"
+                  onSubmit={contact => { setShowForm(false); onRegister(contact); }}
+                />
+              ) : (
+                <button
+                  onClick={() => setShowForm(true)}
+                  className="text-[10px] font-mono uppercase tracking-widest px-6 py-2 rounded-full border transition-all hover:scale-105 active:scale-95"
+                  style={{ borderColor: 'rgba(255,215,0,0.38)', color: '#FFD700', background: 'rgba(255,215,0,0.07)' }}
+                >
+                  ⬡ REGISTER INTEREST
+                </button>
+              )}
             </>
           ) : (
             <>
@@ -2300,6 +2383,7 @@ function CrystallizeCard({ card, acquired, onRegister, serverCount, serverTarget
 
 // ── Tesseract Card — cryptographic identity layer ───────────────────────────
 function TesseractCard({ card, tesseract, acquired, onRegister, serverCount, serverTarget }) {
+  const [showForm, setShowForm] = useState(false);
   const getCount  = () => serverCount  != null ? serverCount  : (() => { try { return parseInt(localStorage.getItem('ck_count') || '0', 10); } catch { return 0; } })();
   const getTarget = () => serverTarget != null ? serverTarget : PRODUCTION_THRESHOLD;
 
@@ -2481,16 +2565,25 @@ function TesseractCard({ card, tesseract, acquired, onRegister, serverCount, ser
                 This accord exists as a cryptographic commitment. Acquisition delivers the physical
                 composition — the molecular architecture remains vaulted by Tesseract.
               </p>
-              <button
-                onClick={onRegister}
-                className="text-[10px] font-mono uppercase tracking-widest px-6 py-2 rounded-full border transition-all hover:scale-105 active:scale-95"
-                style={{ borderColor: 'rgba(255,215,0,0.38)', color: '#FFD700', background: 'rgba(255,215,0,0.07)' }}
-              >
-                ◈ ACQUIRE COMPILED ASSET
-              </button>
-              <p className="text-[7px] font-mono mt-2.5 leading-relaxed" style={{ color: 'rgba(255,215,0,0.15)' }}>
-                You acquire the physical distillation. The formula stays sovereign.
-              </p>
+              {showForm ? (
+                <ContactForm
+                  label="◈ ACQUIRE COMPILED ASSET"
+                  onSubmit={contact => { setShowForm(false); onRegister(contact); }}
+                />
+              ) : (
+                <>
+                  <button
+                    onClick={() => setShowForm(true)}
+                    className="text-[10px] font-mono uppercase tracking-widest px-6 py-2 rounded-full border transition-all hover:scale-105 active:scale-95"
+                    style={{ borderColor: 'rgba(255,215,0,0.38)', color: '#FFD700', background: 'rgba(255,215,0,0.07)' }}
+                  >
+                    ◈ ACQUIRE COMPILED ASSET
+                  </button>
+                  <p className="text-[7px] font-mono mt-2.5 leading-relaxed" style={{ color: 'rgba(255,215,0,0.15)' }}>
+                    You acquire the physical distillation. The formula stays sovereign.
+                  </p>
+                </>
+              )}
             </>
           ) : (
             <>
