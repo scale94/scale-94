@@ -275,8 +275,24 @@ const COGN_SYNTH_DOMAINS = [
   { id: 57, name: 'Omega Collider Integration',            short: 'OMEGA',    hue: 10  },
 ];
 
+// ── Block VI: Fish Scale Doctrine ─────────────────────────────────────────────
+const FSK_DOMAINS = [
+  { id: 58, name: 'Arapaima Biological Armor',        short: 'ARAPA',    hue: 0   },
+  { id: 59, name: 'Bouligand Helicoidal Defense',      short: 'BOULG²',   hue: 30  },
+  { id: 60, name: 'Plata o Plomo Logic Gate',           short: 'PoPL',     hue: 340 },
+  { id: 61, name: 'Fermion-Boson Shell Theory',         short: 'SHELL',    hue: 45  },
+  { id: 62, name: 'Scalar Sovereignty Invariance',      short: 'SCLR',     hue: 55  },
+  { id: 63, name: 'Eco Aesthetics Dialectic',            short: 'ECO·A',    hue: 310 },
+  { id: 64, name: 'Eco Semiotics Axiom of Lie',          short: 'ECO·S',    hue: 200 },
+  { id: 65, name: 'Necromantic Engine Synthesis',         short: 'NECRO',    hue: 270 },
+  { id: 66, name: 'Tyler Monarch Fight Club',             short: 'TYLER',    hue: 350 },
+  { id: 67, name: 'Moiré Flat Band Emergence',            short: 'MOIRÉ',    hue: 170 },
+  { id: 68, name: 'Purity-Corruption Paradox',             short: 'PURITY',   hue: 15  },
+  { id: 69, name: '1995 Rave Legacy Substrate',            short: 'RAVE',     hue: 280 },
+];
+
 // Unified lookup by id — keeps DOMAINS array untouched for animation code
-const ALL_DOMAINS = [...DOMAINS, ...ELEM_DOMAINS, ...PHIL_MATH_DOMAINS, ...LIFE_HUM_DOMAINS, ...COGN_SYNTH_DOMAINS];
+const ALL_DOMAINS = [...DOMAINS, ...ELEM_DOMAINS, ...PHIL_MATH_DOMAINS, ...LIFE_HUM_DOMAINS, ...COGN_SYNTH_DOMAINS, ...FSK_DOMAINS];
 const domainById = (id) => ALL_DOMAINS.find(d => d.id === id);
 
 // ── Domain → sphere node mapping ─────────────────────────────────────────────
@@ -345,6 +361,19 @@ const DOMAIN_SPHERE_MAP = [
   /* 55 AUTO     */ { nodeId: 'autopoiesis',     cluster: 'meta'   },
   /* 56 FORGE    */ { nodeId: 'chimera_forge',   cluster: 'synth'  },
   /* 57 OMEGA    */ { nodeId: 'omega_collider',  cluster: 'synth'  },
+  // ── Block VI: Fish Scale Doctrine ────────────────────────────────────────
+  /* 58 ARAPA    */ { nodeId: 'arapaima',        cluster: 'fsk'    },
+  /* 59 BOULG²   */ { nodeId: 'bouligand_fsk',   cluster: 'fsk'    },
+  /* 60 PoPL     */ { nodeId: 'plata_plomo',     cluster: 'fsk'    },
+  /* 61 SHELL    */ { nodeId: 'shell_theory',    cluster: 'fsk'    },
+  /* 62 SCLR     */ { nodeId: 'scalar_sov',      cluster: 'fsk'    },
+  /* 63 ECO·A    */ { nodeId: 'eco_aesthetics',  cluster: 'fsk'    },
+  /* 64 ECO·S    */ { nodeId: 'eco_semiotics',   cluster: 'fsk'    },
+  /* 65 NECRO    */ { nodeId: 'necro_engine',    cluster: 'fsk'    },
+  /* 66 TYLER    */ { nodeId: 'tyler_monarch',   cluster: 'fsk'    },
+  /* 67 MOIRÉ    */ { nodeId: 'moire_fsk',       cluster: 'fsk'    },
+  /* 68 PURITY   */ { nodeId: 'purity_paradox',  cluster: 'fsk'    },
+  /* 69 RAVE     */ { nodeId: 'rave_legacy',     cluster: 'fsk'    },
 ];
 
 // ── Parse the WASM kernel text output into structured data ───────────────────
@@ -863,13 +892,84 @@ export default function LatentCollider() {
     timerRef.current = 0;
 
     try {
-      const mod = await loadWasm();
       // Delay so the acceleration animation plays
       await new Promise(r => setTimeout(r, 1800));
-      const raw = mod.run_latent_collider(a, b, 8.0, 1.0);
-      const parsed = parseColliderOutput(raw);
 
-      // ── 16D feature-space analysis via sphere node mapping ────────
+      let parsed;
+      const wasmSupported = a < 32 && b < 32;
+
+      if (wasmSupported) {
+        // Legacy domains 0-31: run through WASM latent collider
+        const mod = await loadWasm();
+        const raw = mod.run_latent_collider(a, b, 8.0, 1.0);
+        parsed = parseColliderOutput(raw);
+      } else {
+        // Extended domains 32+: JS-only collision from 32D feature tensors
+        const mapA = DOMAIN_SPHERE_MAP[a], mapB = DOMAIN_SPHERE_MAP[b];
+        const idxA = NODE_IDX[mapA.nodeId], idxB = NODE_IDX[mapB.nodeId];
+        const fA = FEATURES[idxA], fB = FEATURES[idxB];
+        const sim = cosineSim(fA, fB);
+        const angle = Math.acos(Math.min(1, Math.max(-1, sim))) * (180 / Math.PI);
+        const nA = Math.sqrt(fA.reduce((s, v) => s + v * v, 0));
+        const nB = Math.sqrt(fB.reduce((s, v) => s + v * v, 0));
+        const dot = fA.reduce((s, v, i) => s + v * fB[i], 0);
+        const novelty = 1 - sim;
+        const coherence = sim;
+        const viability = (sim + novelty) / 2;
+        const dNameA = domainById(a).short, dNameB = domainById(b).short;
+
+        // Synthesize OCK values from feature vectors
+        const topI = (fA[4] + fB[4]) / 2;       // entropy → volatility
+        const heartI = (fA[5] + fB[5]) / 2;      // synchrony → persistence
+        const baseI = (fA[11] + fB[11]) / 2;     // thermodynamic → weight
+        const animalicI = (fA[14] + fB[14]) / 2; // biological → animalic
+        const sillage = Math.min(1, (nA + nB) / 8);
+        const fixation = sim > 0.5 ? 0.7 : 0.3;
+
+        // Determine dominant family from feature profile
+        const familyScores = [
+          { key: 'CITRUS',   score: topI },
+          { key: 'FLORAL',   score: heartI },
+          { key: 'RESINOUS', score: baseI },
+          { key: 'ANIMALIC', score: animalicI },
+          { key: 'OZONIC',   score: (fA[8] + fB[8]) / 2 },
+          { key: 'CHYPRE',   score: (fA[25] + fB[25]) / 2 },
+          { key: 'MINERAL',  score: (fA[27] + fB[27]) / 2 },
+        ];
+        familyScores.sort((x, y) => y.score - x.score);
+
+        parsed = {
+          cosine: sim, angle, normA: nA, normB: nB, dot,
+          rawAttn: dot, scaledAttn: dot / Math.sqrt(32), softmax: sim,
+          entropy: -sim * Math.log2(Math.max(sim, 0.001)), projNorm: novelty,
+          novelty, synthNorm: (nA + nB) / 2, coherence, viability,
+          phase: sim > 0.7 ? 'FUSION' : sim > 0.4 ? 'RESONANCE' : 'ORTHOGONAL',
+          vClass: sim > 0.7 ? 'CONVERGENT' : sim > 0.4 ? 'COMPLEMENTARY' : 'DIVERGENT',
+          chimeraName: `${dNameA}×${dNameB}`,
+          chimeraDesc: `Cross-domain collision between ${domainById(a).name} and ${domainById(b).name}`,
+          // OCK values
+          ockDominant: familyScores[0].key,
+          ockVolBlend: sillage, ockChimeraVol: (topI + heartI + baseI) / 3,
+          ockTop: topI, ockHeart: heartI, ockBase: baseI,
+          ockAnimalic: animalicI, ockSillage: sillage,
+          ockPermeability: Math.min(1, novelty * 1.5),
+          ockMaceration: fixation * 0.8, ockFixation: fixation,
+          ockPersists: fixation > 0.5, ockEvapCurve: [topI, heartI, baseI],
+          // Node class — derive from feature balance
+          ockNodeClass: heartI > topI && heartI > baseI ? 'R2A' : topI > baseI ? 'DPA' : 'RTA',
+          ockRtaScore: baseI, ockDpaScore: topI, ockR2aScore: heartI,
+          ockCleanRoom: 1 - animalicI, ockSovereignty: sim,
+          ockDanceRole: sim > 0.7 ? 'LEAD-FOLLOW SYNCHRONIZED' : 'INDEPENDENT ORBIT',
+          ockPolarity: (topI - baseI + 1) / 2,
+          ockPolarityClass: topI > baseI ? 'SOLAR' : baseI > topI ? 'LUNAR' : 'MERIDIAN',
+          // Interaction terms
+          interference: Math.abs(nA - nB) / Math.max(nA, nB, 0.01),
+          catalysis: sim * novelty * 4, resonanceFreq: (nA + nB) * 50,
+          turbulence: novelty * 0.8,
+        };
+      }
+
+      // ── 32D feature-space analysis via sphere node mapping ────────
       const nodeIdA = DOMAIN_SPHERE_MAP[a].nodeId;
       const nodeIdB = DOMAIN_SPHERE_MAP[b].nodeId;
       const fullEdge = analyzeFullEdge(nodeIdA, nodeIdB);
@@ -1580,6 +1680,42 @@ export default function LatentCollider() {
               style={selected ? { boxShadow: `0 0 12px hsla(${d.hue}, 70%, 50%, 0.3)` } : {}}
             >
               <div className="font-bold" style={selected ? { color: `hsl(${d.hue}, 70%, 65%)` } : {}}>
+                {d.short}
+              </div>
+              {isA && <div className="text-[7px] text-fuchsia-500 mt-0.5">A</div>}
+              {isB && <div className="text-[7px] text-cyan-500 mt-0.5">B</div>}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── Domain Grid — Block VI: Fish Scale Doctrine ── */}
+      <div className="text-[8px] font-mono text-gray-400/60 uppercase tracking-widest mt-3 mb-1">
+        BLOCK VI — FISH SCALE DOCTRINE
+      </div>
+      <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5">
+        {FSK_DOMAINS.map(d => {
+          const isA = domainA === d.id;
+          const isB = domainB === d.id;
+          const selected = isA || isB;
+          const disabled = phase === 'accelerating' || phase === 'colliding';
+
+          return (
+            <button
+              key={d.id}
+              onClick={() => !disabled && handleSelect(d.id)}
+              disabled={disabled}
+              className={`
+                text-[9px] font-mono uppercase tracking-wider py-2 px-1 rounded border transition-all
+                ${selected
+                  ? 'border-gray-400/60 bg-gray-800/30 text-gray-200'
+                  : 'border-gray-700/30 bg-black/30 text-gray-500/60 hover:border-gray-500/40 hover:text-gray-300 hover:bg-gray-800/10'}
+                ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
+              `}
+              title={d.name}
+              style={selected ? { boxShadow: `0 0 12px hsla(${d.hue}, 50%, 50%, 0.3)` } : {}}
+            >
+              <div className="font-bold" style={selected ? { color: `hsl(${d.hue}, 60%, 65%)` } : {}}>
                 {d.short}
               </div>
               {isA && <div className="text-[7px] text-fuchsia-500 mt-0.5">A</div>}

@@ -57,6 +57,7 @@ const CLUSTER_FREQ_MAP = {
   eco: 110, sync: 146.83, phys: 164.81, crypto: 196, drk: 130.81,
   phil: 174.61, math: 220, chem: 155.56, bio: 138.59, hum: 185,
   ling: 207.65, cogn: 233.08, aesth: 261.63, topo: 246.94, meta: 293.66, synth: 277.18,
+  fsk: 311.13,
 };
 
 // Sector colors for 16-sector 256-node sphere (Scale 16.16)
@@ -64,6 +65,7 @@ const SECTOR_COLORS = {
   eco: '#22c55e', sync: '#3b82f6', phys: '#f59e0b', crypto: '#ef4444', drk: '#6b7280',
   phil: '#8b5cf6', math: '#06b6d4', chem: '#f97316', bio: '#10b981', hum: '#ec4899',
   ling: '#14b8a6', cogn: '#a855f7', aesth: '#e879f9', topo: '#0ea5e9', meta: '#fbbf24', synth: '#f43f5e',
+  fsk: '#c0c0c0',
 };
 const FOCAL_K   = 2.8;      // focal = FOCAL_K × sphereR — controls perspective depth
 const SPHERE_K  = 0.42;     // sphereR = SPHERE_K × min(w, h) — larger sphere, front and center

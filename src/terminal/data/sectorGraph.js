@@ -25,6 +25,7 @@ export const SECTOR_ADJACENCY = new Map([
   ['topo',   ['math',   'meta',  'synth',  'ling'  ]],
   ['meta',   ['crypto', 'cogn',  'topo',   'synth' ]],
   ['synth',  ['hum',    'ling',  'topo',   'meta'  ]],
+  ['fsk',    ['eco',    'drk',   'chem',   'aesth' ]],
 ]);
 
 // ── Sector colors ───────────────────────────────────────────────────────────
@@ -45,6 +46,7 @@ export const SECTOR_COLORS = new Map([
   ['topo',   '#0ea5e9'],
   ['meta',   '#fbbf24'],
   ['synth',  '#f43f5e'],
+  ['fsk',    '#c0c0c0'],
 ]);
 
 // ── sectorNodes(sectorId) ───────────────────────────────────────────────────

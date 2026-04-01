@@ -23,6 +23,7 @@ export const CLUSTERS = {
   topo:   { label: 'topology'     },
   meta:   { label: 'metasystems'  },
   synth:  { label: 'synthesis'    },
+  fsk:    { label: 'fish scale'   },
 };
 
 // Intra-cluster edges — same cluster, always present
@@ -107,6 +108,15 @@ const NEW_INTRA_EDGES = [
   ['consilience',    'transdiscipline'],  ['abduction',       'decay_engine'],
   ['boundary_object','translation_layer'],['resonance_bridge','chimera_forge'],
   ['polysemy',       'ock_v2'],           ['hybrid_vigor',    'omega_collider'],
+  // fsk (Fish Scale Doctrine)
+  ['arapaima',        'bouligand_fsk'],    ['arapaima',         'shell_theory'],
+  ['plata_plomo',     'levamisole'],       ['plata_plomo',      'purity_paradox'],
+  ['shell_theory',    'moire_fsk'],        ['shell_theory',     'scalar_sov'],
+  ['eco_aesthetics',  'eco_semiotics'],    ['eco_aesthetics',   'purity_paradox'],
+  ['levamisole',      'purity_paradox'],   ['sokushinbutsu',    'necro_engine'],
+  ['pdw_filter',      'tyler_monarch'],    ['tyler_monarch',    'rave_legacy'],
+  ['moire_fsk',       'bouligand_fsk'],    ['colemak_topo',     'scalar_sov'],
+  ['necro_engine',    'rave_legacy'],
 ];
 
 // Default cross-cluster bridges — replaced when spectral_bridge kernel runs
@@ -138,6 +148,16 @@ export const DEFAULT_CROSS_EDGES = [
   ['percolation',      'scale_free'],         // phys ↔ meta
   ['zkp_circuit',      'modal_logic'],        // crypto ↔ phil
   ['olfactory_lexicon','perfume_hist'],        // ling ↔ hum
+  // ── Fish Scale cross-sector bridges ──
+  ['arapaima',         'biocoenosis'],         // fsk ↔ eco (biological armor)
+  ['bouligand_fsk',    'bouligand_36'],        // fsk ↔ eco (helicoidal pair)
+  ['moire_fsk',        'magic_angle_1p1'],     // fsk ↔ phys (twisted bilayer)
+  ['necro_engine',     'necromantic'],          // fsk ↔ drk (resurrection)
+  ['eco_semiotics',    'saussure'],             // fsk ↔ ling (sign theory)
+  ['eco_aesthetics',   'sublime'],              // fsk ↔ aesth (beauty theory)
+  ['shell_theory',     'bosonic'],              // fsk ↔ phys (fermion/boson)
+  ['plata_plomo',      'moloch'],               // fsk ↔ drk (coordination trap)
+  ['levamisole',       'chirality'],            // fsk ↔ chem (molecular exploit)
 ];
 
 // Full static edge list for physics (always includes all defaults for spring forces)

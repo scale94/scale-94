@@ -38,6 +38,7 @@ export const CLUSTER_ANCHORS = {
   topo:   { x:  0.707, y: -0.500, z:  0.000 },  // lower-right equator
   meta:   { x:  0.507, y: -0.710, z: -0.489 },  // lower-back-right
   synth:  { x:  0.000, y: -1.000, z:  0.000 },  // bottom pole
+  fsk:    { x:  0.000, y:  0.000, z:  1.000 },  // front pole (center stage)
 };
 
 // Normalize a 3-vector to unit length
