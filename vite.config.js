@@ -25,9 +25,9 @@ export default defineConfig({
         // Explicit naming prevents Rollup 4 from emitting .df.js "dynamic-format" wrappers
         // that some servers / Firefox Android fail to load correctly.
         chunkFileNames: 'assets/[name]-[hash].js',
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          lucide: ['lucide-react'],
+        manualChunks(id) {
+          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) return 'vendor';
+          if (id.includes('node_modules/lucide-react')) return 'lucide';
         },
       },
     },
