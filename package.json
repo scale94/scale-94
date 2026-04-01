@@ -21,6 +21,7 @@
     "spawn": "node scripts/spawn.js"
   },
   "dependencies": {
+    "@upstash/redis": "^1.37.0",
     "@vercel/analytics": "^1.6.1",
     "@vercel/kv": "^3.0.0",
     "@vercel/speed-insights": "^2.0.0",
@@ -48,6 +49,6 @@
     "semver": "^7.7.4",
     "tailwindcss": "^3.3.3",
     "tailwindcss-animate": "^1.0.7",
-    "vite": "^4.4.5"
+    "vite": "^8.0.3"
   }
 }

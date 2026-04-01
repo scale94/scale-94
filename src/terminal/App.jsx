@@ -1083,11 +1083,13 @@ const App = () => {
 
           {/* Scaling Tab */}
           {activeTab === 'scaling' && !selectedArticle && !architectThesis && (
-            <ScalingTab
-              setArchitectThesis={setArchitectThesis}
-              setCurrentPath={setCurrentPath}
-              loadKernel={handleNeuralLink}
-            />
+            <WasmErrorBoundary>
+              <ScalingTab
+                setArchitectThesis={setArchitectThesis}
+                setCurrentPath={setCurrentPath}
+                loadKernel={handleNeuralLink}
+              />
+            </WasmErrorBoundary>
           )}
 
           {/* Architect Thesis View */}

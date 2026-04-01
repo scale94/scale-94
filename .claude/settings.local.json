@@ -86,7 +86,10 @@
       "Bash(npm install:*)",
       "Bash(sed -i \"s/new Date\\(\\)\\\\.toLocaleTimeString\\(''en-US'', { hour12: false }\\)/fmtTime\\(\\)/g\" src/terminal/App.jsx)",
       "Bash(sed -i \"s/now\\\\.toLocaleTimeString\\(''en-US'', { hour12: false }\\)/fmtTime\\(now\\)/g\" src/terminal/App.jsx)",
-      "Bash(sed -i \"s/later\\\\.toLocaleTimeString\\(''en-US'', { hour12: false }\\)/fmtTime\\(later\\)/g\" src/terminal/App.jsx)"
+      "Bash(sed -i \"s/later\\\\.toLocaleTimeString\\(''en-US'', { hour12: false }\\)/fmtTime\\(later\\)/g\" src/terminal/App.jsx)",
+      "Bash(python3 -c \":*)",
+      "Bash(node -e \":*)",
+      "Bash(grep -r \"kernel.*panic\\\\|panic.*kernel\" /f/scale_9.4/src --include=*.js --include=*.jsx)"
     ]
   }
 }

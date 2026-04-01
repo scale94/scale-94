@@ -1083,6 +1083,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           const na   = nodes[iA], nb = nodes[iB];
           const pA   = proj[iA],  pB = proj[iB];
           if (!pA || !pB) continue;   // dynamic node not yet projected this frame
+          if (!isFinite(pA.sx) || !isFinite(pA.sy) || !isFinite(pB.sx) || !isFinite(pB.sy)) continue; // guard non-finite projection coords
           const colA = NODE_COLORS[e.aId] ?? dynColorMap.get(e.aId);
           const colB = NODE_COLORS[e.bId] ?? dynColorMap.get(e.bId);
 
@@ -1184,7 +1185,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           const rResult = resonanceResultRef.current;
           const sim     = rResult?.sim ?? 0.5;
           const pRA = proj[rIA], pRB = proj[rIB];
-          if (!pRA || !pRB) { /* dynamic node not yet projected — skip */ } else {
+          if (!pRA || !pRB) { /* dynamic node not yet projected — skip */ } else
+          if (!isFinite(pRA.sx) || !isFinite(pRA.sy) || !isFinite(pRB.sx) || !isFinite(pRB.sy)) { /* non-finite coords — skip */ } else {
           const avgScale = (pRA.scale + pRB.scale) / 2;
 
           ctx.save();
@@ -1348,6 +1350,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           }
         }
 
+        if (!isFinite(p.sx) || !isFinite(p.sy)) continue; // guard non-finite projection coords
         const isHov     = n.id === hov;
         const energy    = n.energy + (isHov ? 0.55 : 0);
         // Depth cuing: nodes on the back are smaller + dimmer
