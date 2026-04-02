@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, lazy, Suspense } from 'react';
+const CoordinatePicker = lazy(() => import('./CoordinatePicker'));
 import { PARAM_RANGES, VALID_DEPENDENCIES, validateSubmission } from '../../ledger/verdictModel';
 
 const DEPENDENCY_LABELS = {
@@ -23,6 +24,7 @@ export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch,
     notes: '',
   });
   const [errors, setErrors] = useState([]);
+  const [showMap, setShowMap] = useState(false);
 
   useEffect(() => {
     if (apiData) {
@@ -84,6 +86,29 @@ export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch,
               className="w-full bg-black border border-teal-900/40 text-teal-100 font-mono text-sm px-3 py-2 rounded-sm focus:border-teal-500 focus:outline-none transition-colors"
             />
           </div>
+        </div>
+        <div className="mt-2">
+          <button
+            onClick={() => setShowMap(!showMap)}
+            className="text-[9px] font-mono text-teal-600 hover:text-teal-400 uppercase tracking-widest transition-colors"
+          >
+            {showMap ? '[ - ] HIDE MAP' : '[ + ] SELECT ON MAP'}
+          </button>
+          {showMap && (
+            <Suspense fallback={<div className="h-[280px] flex items-center justify-center font-mono text-xs text-gray-600">Loading map...</div>}>
+              <div className="mt-2">
+                <CoordinatePicker
+                  lat={Number(form.lat) || null}
+                  lon={Number(form.lon) || null}
+                  onSelect={(lat, lon) => {
+                    update('lat', lat.toFixed(6));
+                    update('lon', lon.toFixed(6));
+                  }}
+                  onClose={() => setShowMap(false)}
+                />
+              </div>
+            </Suspense>
+          )}
         </div>
         <input
           type="text" placeholder="Site name (optional)"
