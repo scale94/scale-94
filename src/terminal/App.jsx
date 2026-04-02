@@ -1096,15 +1096,36 @@ const App = () => {
         <Suspense fallback={<div className="text-cyan-400 font-mono tracking-widest animate-pulse p-8">{'// LOADING MODULE...'}</div>}>
         <div className="max-w-[1800px] mx-auto">
           {/* Path breadcrumb — hidden on kernel home (tty0 is the nav there) */}
-          {!(activeTab === 'kernel' && !selectedArticle && !architectThesis && !tagCloudView) && (
-            <div className="mb-8 flex items-center text-sm font-bold tracking-wider min-w-0 overflow-hidden border-b border-cyan-900/20 pb-3">
-              <span className="mr-2 text-fuchsia-500">scale@node:</span>
-              <span className="text-cyan-300">{currentPath}</span>
-              {selectedArticle && <span className="ml-0 text-cyan-400">/{selectedArticle.id}</span>}
-              {architectThesis && <span className="ml-0 text-cyan-400">/thesis_log</span>}
-              <span className="animate-pulse ml-2 inline-block w-2 h-4 bg-fuchsia-500 align-middle shadow-[0_0_8px_rgba(217,70,239,0.8)]"></span>
-            </div>
-          )}
+          {!(activeTab === 'kernel' && !selectedArticle && !architectThesis && !tagCloudView) && (() => {
+            const _bc = {
+              kernel:       { prompt: 'text-cyan-400',    path: 'text-cyan-300',    cursor: 'bg-cyan-400',    border: 'border-cyan-500/25',  glow: '0 0 18px rgba(6,182,212,0.25), 0 0 4px rgba(6,182,212,0.4)',      cursorGlow: '0 0 10px rgba(6,182,212,0.8)',      pathGlow: '0 0 6px rgba(6,182,212,0.3)' },
+              bsky:         { prompt: 'text-sky-400',     path: 'text-sky-300',     cursor: 'bg-sky-400',     border: 'border-sky-500/25',   glow: '0 0 18px rgba(56,189,248,0.25), 0 0 4px rgba(56,189,248,0.4)',    cursorGlow: '0 0 10px rgba(56,189,248,0.8)',     pathGlow: '0 0 6px rgba(56,189,248,0.3)' },
+              manifesto:    { prompt: 'text-violet-400',  path: 'text-violet-300',  cursor: 'bg-violet-400',  border: 'border-violet-500/25',glow: '0 0 18px rgba(139,92,246,0.25), 0 0 4px rgba(139,92,246,0.4)',    cursorGlow: '0 0 10px rgba(139,92,246,0.8)',     pathGlow: '0 0 6px rgba(139,92,246,0.3)' },
+              transmission: { prompt: 'text-purple-400',  path: 'text-purple-300',  cursor: 'bg-purple-400',  border: 'border-purple-500/25',glow: '0 0 18px rgba(168,85,247,0.25), 0 0 4px rgba(168,85,247,0.4)',    cursorGlow: '0 0 10px rgba(168,85,247,0.8)',     pathGlow: '0 0 6px rgba(168,85,247,0.3)' },
+              scaling:      { prompt: 'text-fuchsia-400', path: 'text-fuchsia-300', cursor: 'bg-fuchsia-400', border: 'border-fuchsia-500/25',glow: '0 0 18px rgba(217,70,239,0.25), 0 0 4px rgba(217,70,239,0.4)',   cursorGlow: '0 0 10px rgba(217,70,239,0.8)',     pathGlow: '0 0 6px rgba(217,70,239,0.3)' },
+              privacy:      { prompt: 'text-rose-400',    path: 'text-rose-300',    cursor: 'bg-rose-400',    border: 'border-rose-500/25',  glow: '0 0 18px rgba(244,63,94,0.2), 0 0 4px rgba(244,63,94,0.35)',     cursorGlow: '0 0 10px rgba(244,63,94,0.8)',      pathGlow: '0 0 6px rgba(244,63,94,0.3)' },
+              surveillance: { prompt: 'text-red-400',     path: 'text-red-300',     cursor: 'bg-red-400',     border: 'border-red-500/25',   glow: '0 0 18px rgba(248,113,113,0.2), 0 0 4px rgba(248,113,113,0.35)', cursorGlow: '0 0 10px rgba(248,113,113,0.8)',    pathGlow: '0 0 6px rgba(248,113,113,0.3)' },
+              cryptography: { prompt: 'text-orange-400',  path: 'text-orange-300',  cursor: 'bg-orange-400',  border: 'border-orange-500/25',glow: '0 0 18px rgba(249,115,22,0.25), 0 0 4px rgba(249,115,22,0.4)',   cursorGlow: '0 0 10px rgba(249,115,22,0.8)',     pathGlow: '0 0 6px rgba(249,115,22,0.3)' },
+              art:          { prompt: 'text-amber-400',   path: 'text-amber-300',   cursor: 'bg-amber-400',   border: 'border-amber-500/25', glow: '0 0 18px rgba(255,215,0,0.25), 0 0 4px rgba(255,215,0,0.4)',     cursorGlow: '0 0 10px rgba(255,215,0,0.8)',      pathGlow: '0 0 6px rgba(255,215,0,0.3)' },
+              ecocide:      { prompt: 'text-lime-400',    path: 'text-lime-300',    cursor: 'bg-lime-400',    border: 'border-lime-500/25',  glow: '0 0 18px rgba(122,184,0,0.25), 0 0 4px rgba(122,184,0,0.4)',    cursorGlow: '0 0 10px rgba(122,184,0,0.8)',      pathGlow: '0 0 6px rgba(122,184,0,0.3)' },
+              lunar:        { prompt: 'text-violet-400',  path: 'text-violet-300',  cursor: 'bg-violet-400',  border: 'border-violet-500/25',glow: '0 0 18px rgba(139,92,246,0.25), 0 0 4px rgba(139,92,246,0.4)',    cursorGlow: '0 0 10px rgba(139,92,246,0.8)',     pathGlow: '0 0 6px rgba(139,92,246,0.3)' },
+            };
+            const t = _bc[activeTab] || _bc.kernel;
+            return (
+              <div
+                className="breadcrumb-fade mb-8 flex items-center text-sm font-bold tracking-wider min-w-0 overflow-hidden pb-3"
+              >
+                <span className={`mr-2 ${t.prompt}`} style={{ textShadow: t.pathGlow }}>scale@node:</span>
+                <span className={t.path} style={{ textShadow: t.pathGlow }}>{currentPath}</span>
+                {selectedArticle && <span className={`ml-0 ${t.path}`} style={{ textShadow: t.pathGlow }}>/{selectedArticle.id}</span>}
+                {architectThesis && <span className={`ml-0 ${t.path}`} style={{ textShadow: t.pathGlow }}>/thesis_log</span>}
+                <span
+                  className={`animate-pulse ml-2 inline-block w-2 h-4 ${t.cursor} align-middle`}
+                  style={{ boxShadow: t.cursorGlow }}
+                />
+              </div>
+            );
+          })()}
 
           {/* Kernel Tab */}
           {activeTab === 'kernel' && !selectedArticle && !tagCloudView && (

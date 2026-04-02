@@ -392,6 +392,19 @@ main [class*="border"][class*="rounded"]:hover {
   animation: tab-fade-v2 0.6s cubic-bezier(0.7, 0, 0.3, 1) both;
 }
 
+/* 5b. Breadcrumb fade — sibling of tab-fade-v2, tuned for single-line UX highlight.
+   Sharper brightness spike (2.0×), tighter blur (4px), minimal vertical drift (4px).
+   The glow box-shadow on the parent gets its own fade-in via opacity. */
+@keyframes breadcrumb-fade {
+  0%   { opacity: 0;    filter: brightness(2.0) blur(4px); transform: translateY(4px); }
+  30%  { opacity: 0.9;  filter: brightness(1.5) blur(1px); transform: translateY(1px); }
+  65%  { opacity: 1;    filter: brightness(1.1) blur(0px); transform: translateY(0); }
+  100% { opacity: 1;    filter: brightness(1) blur(0px); transform: translateY(0); }
+}
+.breadcrumb-fade {
+  animation: breadcrumb-fade 0.5s cubic-bezier(0.7, 0, 0.3, 1) both;
+}
+
 /* 6. Tab-switch glitch burst — single 150ms chromatic flash */
 @keyframes tab-glitch {
   0%   { clip-path: inset(0); transform: translate(0); }
