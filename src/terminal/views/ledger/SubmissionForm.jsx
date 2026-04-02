@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { PARAM_RANGES, VALID_DEPENDENCIES, validateSubmission } from '../../ledger/verdictModel';
 
 const DEPENDENCY_LABELS = {
@@ -7,7 +7,7 @@ const DEPENDENCY_LABELS = {
   attested:  'ATTESTED — uploaded dataset with provenance claim',
 };
 
-export default function SubmissionForm({ onSubmit, loading, apiData }) {
+export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch, apiLoading, apiError }) {
   const [form, setForm] = useState({
     lat: apiData?.lat ?? '',
     lon: apiData?.lon ?? '',
@@ -23,6 +23,22 @@ export default function SubmissionForm({ onSubmit, loading, apiData }) {
     notes: '',
   });
   const [errors, setErrors] = useState([]);
+
+  useEffect(() => {
+    if (apiData) {
+      setForm(prev => {
+        const next = { ...prev, dependency: 'external' };
+        if (apiData.lat) next.lat = apiData.lat;
+        if (apiData.lon) next.lon = apiData.lon;
+        for (const key of Object.keys(PARAM_RANGES)) {
+          if (apiData[key] !== null && apiData[key] !== undefined) {
+            next[key] = apiData[key];
+          }
+        }
+        return next;
+      });
+    }
+  }, [apiData]);
 
   const update = useCallback((field, value) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -75,6 +91,27 @@ export default function SubmissionForm({ onSubmit, loading, apiData }) {
           className="w-full mt-2 bg-black border border-teal-900/20 text-gray-400 font-mono text-xs px-3 py-1.5 rounded-sm focus:border-teal-500 focus:outline-none transition-colors"
         />
       </div>
+
+      {/* API Fetch */}
+      {form.lat && form.lon && onApiFetch && (
+        <div className="flex gap-2 mt-2">
+          <button
+            onClick={() => onApiFetch(Number(form.lat), Number(form.lon), 'usgs')}
+            disabled={apiLoading}
+            className="text-[9px] font-mono text-teal-600 hover:text-teal-400 uppercase tracking-widest border border-teal-900/30 px-2 py-1 rounded-sm transition-colors disabled:opacity-30"
+          >
+            {apiLoading ? '...' : 'PULL USGS'}
+          </button>
+          <button
+            onClick={() => onApiFetch(Number(form.lat), Number(form.lon), 'eea')}
+            disabled={apiLoading}
+            className="text-[9px] font-mono text-teal-600 hover:text-teal-400 uppercase tracking-widest border border-teal-900/30 px-2 py-1 rounded-sm transition-colors disabled:opacity-30"
+          >
+            {apiLoading ? '...' : 'PULL EEA'}
+          </button>
+          {apiError && <span className="text-[9px] font-mono text-red-500">{apiError}</span>}
+        </div>
+      )}
 
       {/* Parameters */}
       <div>

@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import SubmissionForm from './ledger/SubmissionForm';
+import { fetchUSGS, fetchEEA } from '../ledger/apiIngest';
 import VerdictCard from './ledger/VerdictCard';
 import { createVerdict } from '../ledger/verdictModel';
 import { storeVerdict, getAllVerdicts, getVerdictCount } from '../ledger/verdictStore';
@@ -14,6 +15,9 @@ export default function LedgerTab() {
   const [loading, setLoading] = useState(false);
   const [verdictCount, setVerdictCount] = useState(0);
   const [view, setView] = useState('submit'); // 'submit' | 'archive'
+  const [apiData, setApiData] = useState(null);
+  const [apiLoading, setApiLoading] = useState(false);
+  const [apiError, setApiError] = useState(null);
 
   useEffect(() => {
     getAllVerdicts().then(setVerdicts);
@@ -42,6 +46,23 @@ export default function LedgerTab() {
       console.error('Audit execution failed:', err);
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  const handleApiFetch = useCallback(async (lat, lon, source) => {
+    setApiLoading(true);
+    setApiError(null);
+    try {
+      const result = source === 'usgs' ? await fetchUSGS(lat, lon) : await fetchEEA(lat, lon);
+      if (result.error) {
+        setApiError(result.error);
+      } else {
+        setApiData({ ...result.params, lat, lon, source: result.source, retrievedAt: result.retrievedAt });
+      }
+    } catch (err) {
+      setApiError(err.message);
+    } finally {
+      setApiLoading(false);
     }
   }, []);
 
@@ -89,7 +110,14 @@ export default function LedgerTab() {
 
       {/* Content */}
       {view === 'submit' && (
-        <SubmissionForm onSubmit={handleSubmit} loading={loading} />
+        <SubmissionForm
+          onSubmit={handleSubmit}
+          loading={loading}
+          apiData={apiData}
+          onApiFetch={handleApiFetch}
+          apiLoading={apiLoading}
+          apiError={apiError}
+        />
       )}
 
       {view === 'archive' && (
