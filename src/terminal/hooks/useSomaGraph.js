@@ -206,8 +206,11 @@ export function useSomaGraph({ nodes, adj, modulationRef, initialPositionsRef })
   const applyAttractor = useCallback((data) => {
     const s = stateRef.current;
     if (!s || !data?.act) return;
-    s.nodes.forEach((n, i) => {
-      const act    = data.act[i] ?? 0;
+    // Map by node ID → global FEATURES index, not sim-array position
+    const idxMap = data.idxMap; // { nodeId → activations index }
+    s.nodes.forEach((n) => {
+      const idx = idxMap?.[n.id];
+      const act = idx != null ? (data.act[idx] ?? 0) : 0;
       const target = Math.max(0, act);
       n.energy = Math.min(1, n.energy + (target - n.energy) * 0.04);
     });

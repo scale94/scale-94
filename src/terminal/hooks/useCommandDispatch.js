@@ -279,9 +279,20 @@ export function useCommandDispatch(ctx) {
             }
 
             // Post-associative-field hook — feed attractor state into ArtTab
+            // Rust kernel returns 25 activations indexed by its NODE_LABELS order.
+            // Attach an idxMap so applyAttractor can match by node ID, not array position.
             if (wasmEntry.id === 'ASSOCIATIVE-FIELD-1.0' && setAssociativeField && dataMatch) {
               try {
                 const data = JSON.parse(dataMatch[1]);
+                // Rust NODE_LABELS order (25 nodes) — must match associative_field.rs exactly
+                const RUST_NODE_ORDER = [
+                  'biocoenosis','atmospheric','chrono','daly','replicator','grayscott',
+                  'kuramoto','ceei','soma91','soma_plus','leviathan','cynic',
+                  'feigenbaum','ising','bosonic','seraphine','fusion',
+                  'classified','pqhash','dh_ec',
+                  'pragmatic','soma_kernel','strangler','surveillance','necromantic',
+                ];
+                data.idxMap = Object.fromEntries(RUST_NODE_ORDER.map((id, i) => [id, i]));
                 setAssociativeField(data);
               } catch (_) { /* malformed DATA: — ignore */ }
             }

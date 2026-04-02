@@ -2,7 +2,30 @@
 // Depends on nodeFeatures and kernelColorMap; everything else is pure data/logic.
 
 import { nodeColor }                                    from '../data/kernelColorMap';
-import { NODES, cosineSim, FEATURES, DIM_NAMES }        from '../data/nodeFeatures';
+import { NODES, NODE_IDX, cosineSim, FEATURES, DIM_NAMES } from '../data/nodeFeatures';
+
+// ── Sphere core set ──────────────────────────────────────────────────────────
+// The original 31 curated nodes that live on the sphere at init.
+// New nodes enter ONLY through collision/chimera injection at runtime.
+// Full 272-node NODES array is preserved for lookups, collider, and Scaling tab.
+const SPHERE_IDS = new Set([
+  // eco (6)
+  'biocoenosis', 'atmospheric', 'chrono', 'daly', 'replicator', 'grayscott',
+  // sync (6)
+  'kuramoto', 'ceei', 'soma91', 'soma_plus', 'leviathan', 'cynic',
+  // phys (5 + 3 extensions)
+  'feigenbaum', 'ising', 'bosonic', 'seraphine', 'fusion',
+  'pitch_black_steel', 'magic_angle_1p1',
+  // crypto (3 + 1 extension)
+  'classified', 'pqhash', 'dh_ec', 'polymorph_pqc',
+  // drk (5 + 1 extension)
+  'pragmatic', 'soma_kernel', 'strangler', 'surveillance', 'necromantic',
+  'zero_effort_flow',
+  // eco extensions
+  'white_irid', 'bouligand_36',
+]);
+export const SPHERE_NODES = NODES.filter(n => SPHERE_IDS.has(n.id));
+export const SPHERE_NODE_IDX = Object.fromEntries(SPHERE_NODES.map((n, i) => [n.id, i]));
 
 // ── Graph topology ────────────────────────────────────────────────────────────
 
@@ -160,12 +183,19 @@ export const DEFAULT_CROSS_EDGES = [
   ['levamisole',       'chirality'],            // fsk ↔ chem (molecular exploit)
 ];
 
-// Full static edge list for physics (always includes all defaults for spring forces)
+// Full static edge list (all 272-node sectors — used by Scaling tab, collider)
 export const ALL_EDGES = [...INTRA_EDGES, ...NEW_INTRA_EDGES, ...DEFAULT_CROSS_EDGES];
 
 export const ADJ = {};
 NODES.forEach(n => { ADJ[n.id] = []; });
 ALL_EDGES.forEach(([a, b]) => { ADJ[a]?.push(b); ADJ[b]?.push(a); });
+
+// ── Sphere-only edges and adjacency (31-node core set) ──────────────────────
+// Only edges where BOTH endpoints live in SPHERE_IDS.
+export const SPHERE_EDGES = ALL_EDGES.filter(([a, b]) => SPHERE_IDS.has(a) && SPHERE_IDS.has(b));
+export const SPHERE_ADJ = {};
+SPHERE_NODES.forEach(n => { SPHERE_ADJ[n.id] = []; });
+SPHERE_EDGES.forEach(([a, b]) => { SPHERE_ADJ[a]?.push(b); SPHERE_ADJ[b]?.push(a); });
 
 // Pre-compute per-node colors once — immutable
 export const NODE_COLORS = Object.fromEntries(

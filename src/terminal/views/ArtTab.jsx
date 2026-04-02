@@ -45,6 +45,7 @@ import { buildRotMatrix, applyM, project } from '../art/artMath';
 import { stepAwakening, drawGenesisGlow, drawBeaconRing, drawConductor } from '../art/artAwakening';
 import {
   CLUSTERS, INTRA_EDGES, DEFAULT_CROSS_EDGES, ALL_EDGES, ADJ,
+  SPHERE_NODES, SPHERE_ADJ, SPHERE_EDGES,
   NODE_COLORS, CLUSTER_COLORS, dynColorMap, dynFeaturesMap,
   DIM_KEYWORDS, queryProject,
 } from '../art/artGraph';
@@ -121,7 +122,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     t0: performance.now(),
     interacted: false,      // true after first user gesture on canvas
     autoFiredNodes: [],     // nodes auto-ignited during phase 2
-    beaconIdx: Math.floor(Math.random() * NODES.length),  // random beacon node
+    beaconIdx: Math.floor(Math.random() * SPHERE_NODES.length),  // random beacon node
     breathPhase: 0,         // continuous breath oscillation
   });
 
@@ -134,7 +135,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     fieldRef, stepField, perturbNode: perturbField,
     getEnergy: getFieldEnergy, getPhase, getLyapunov, getBasins,
     onPhaseTransition,
-  } = useAssociativeField({ nodes: NODES, adj: ADJ });
+  } = useAssociativeField({ nodes: SPHERE_NODES, adj: SPHERE_ADJ });
 
   // ── Temporal Memory (recording + playback) ────────────────────────────
   const {
@@ -165,7 +166,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     spectralRef, stepSpectral, getNodeColor: getSpectralColor,
     getAmbientColor, getParticipationRatio, getEigenspectrum,
     getSpectralFlux, getPCDirections,
-  } = useSpectralLight({ fieldRef, features: FEATURES, nodeCount: NODES.length });
+  } = useSpectralLight({ fieldRef, features: FEATURES, nodeCount: SPHERE_NODES.length });
 
   // ── Analogical Reasoning (SME-lite + Gestalt completion + Chimera) ──────
   const {
@@ -248,8 +249,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   // Bone fusion edges + manual fusions are merged in when available
   const activeEdges = useMemo(() => {
     const base = !spectralBridges?.bridges?.length
-      ? [...INTRA_EDGES, ...DEFAULT_CROSS_EDGES]
-      : [...INTRA_EDGES, ...spectralBridges.bridges
+      ? [...SPHERE_EDGES]
+      : [...SPHERE_EDGES, ...spectralBridges.bridges
           .map(([a, b]) => [NODES[a]?.id, NODES[b]?.id])
           .filter(([a, b]) => a && b)];
 
@@ -344,7 +345,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   // ── Per-node edge analysis (computed on click, not on hover) ──────────────
   const selectedNodeEdges = useMemo(() => {
     if (!selectedNode) return null;
-    const neighbors = ADJ[selectedNode] ?? [];
+    const neighbors = SPHERE_ADJ[selectedNode] ?? [];
     if (!neighbors.length) return null;
     const simMap = bridgeSimilarityRef.current;
     return neighbors.map(nbId => {
@@ -364,7 +365,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   const {
     stateRef, initState, step: stepGraph,
     fireNode, applyAttractor, triggerOverwrite, triggerBifurcation,
-  } = useSomaGraph({ nodes: NODES, adj: ADJ, modulationRef: entropyRef, initialPositionsRef });
+  } = useSomaGraph({ nodes: SPHERE_NODES, adj: SPHERE_ADJ, modulationRef: entropyRef, initialPositionsRef });
 
   // ── Temporal Archaeology (IndexedDB persistence of sphere state) ──────
   const { archaeologyRef } = useTemporalArchaeology({ stateRef, fieldRef, entropyRef });
@@ -386,7 +387,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
   const {
     edgeStateRef, stepEdges, applyAttractor: applyEdgeAttractor,
-  } = useKineticEdges({ edges: activeEdges, nodes: NODES });
+  } = useKineticEdges({ edges: activeEdges, nodes: SPHERE_NODES });
 
   // ── Fired-node label cascade ──────────────────────────────────────────────
   // When a node is clicked, store its neighborhood so the draw loop can
@@ -411,23 +412,23 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     );
 
     // Degree-scaled intensity: hub nodes (many edges) get stronger, longer effects
-    const degree   = node ? (ADJ[node.id]?.length ?? 1) : 2;
+    const degree   = node ? (SPHERE_ADJ[node.id]?.length ?? 1) : 2;
     const maxLife  = opts.soft ? 120 : Math.min(300, 140 + degree * 18);
     const intensity = opts.soft ? 0.55 : Math.min(1.0, 0.55 + degree * 0.07);
 
     // Core neighborhood
     const localIds = node
-      ? [...new Set([node.id, ...(ADJ[node.id] ?? [])])]
-      : NODES.slice(0, 5).map(n => n.id);
+      ? [...new Set([node.id, ...(SPHERE_ADJ[node.id] ?? [])])]
+      : SPHERE_NODES.slice(0, 5).map(n => n.id);
 
     // Cross-cluster bridges: pick 1-2 nodes from other clusters for sacred geometry
     if (node && !opts.soft) {
       const otherClusters = [...new Set(
-        NODES.filter(n => n.cluster !== node.cluster).map(n => n.cluster)
+        SPHERE_NODES.filter(n => n.cluster !== node.cluster).map(n => n.cluster)
       )];
       // One bridge per foreign cluster, up to 2
       for (const cl of otherClusters.slice(0, 2)) {
-        const bridge = NODES.find(n => n.cluster === cl && !localIds.includes(n.id));
+        const bridge = SPHERE_NODES.find(n => n.cluster === cl && !localIds.includes(n.id));
         if (bridge) localIds.push(bridge.id);
       }
     }
@@ -512,7 +513,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   const handleBifurcate = useCallback(() => {
     // Build degree map from current active edge set
     const degreeMap = {};
-    NODES.forEach(n => { degreeMap[n.id] = 0; });
+    SPHERE_NODES.forEach(n => { degreeMap[n.id] = 0; });
     activeEdges.forEach(([a, b]) => {
       degreeMap[a] = (degreeMap[a] ?? 0) + 1;
       degreeMap[b] = (degreeMap[b] ?? 0) + 1;
@@ -544,7 +545,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   useEffect(() => {
     if (!associativeField) return;
     applyAttractor(associativeField);
-    applyEdgeAttractor(associativeField, NODES, triggerOverwrite);
+    applyEdgeAttractor(associativeField, SPHERE_NODES, triggerOverwrite);
   }, [associativeField, applyAttractor, applyEdgeAttractor, triggerOverwrite]);
 
   // ── Resize observer ───────────────────────────────────────────────────────
@@ -678,10 +679,15 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       }
 
       // ── Apply Hopfield activations to node energies ──────────────────────
+      // activations array is indexed by the full NODES (272) positions,
+      // so look up each sim node's global index via NODE_IDX.
       if (fieldRef.current) {
         const acts = fieldRef.current.activations;
-        for (let i = 0; i < Math.min(nodes.length, acts.length); i++) {
-          nodes[i].energy = Math.max(nodes[i].energy, acts[i] * 0.6);
+        for (const n of nodes) {
+          const gi = NODE_IDX[n.id];
+          if (gi != null && gi < acts.length) {
+            n.energy = Math.max(n.energy, acts[gi] * 0.6);
+          }
         }
       }
 
@@ -2394,7 +2400,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         </div>
         <div className="flex flex-wrap items-center gap-2 mt-3 md:mt-0 text-xs font-bold font-mono tracking-widest">
           <span className="border border-amber-900/40 px-3 py-1 rounded-sm" style={{ color: 'rgba(251,191,36,0.5)' }}>
-            {NODES.length + bifurcCount} nodes · {activeEdges.length} edges
+            {SPHERE_NODES.length + bifurcCount} nodes · {activeEdges.length} edges
             {spectralBridges ? ` · spectral` : ''}
             {boneFusions ? ` · fused` : ''}
             {orthogonalBridges.length ? ` · ⊥ ${orthogonalBridges.length} orthogonal` : ''}
@@ -2674,7 +2680,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
       {/* ── ARIA live region for screen readers ──────────────────────────── */}
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-        {`Feigenbaum sphere. ${NODES.length + bifurcCount} nodes, ${activeEdges.length} edges. `}
+        {`Feigenbaum sphere. ${SPHERE_NODES.length + bifurcCount} nodes, ${activeEdges.length} edges. `}
         {`Phase regime: ${phaseRegime}. Control parameter r = ${phaseR.toFixed(3)}. `}
         {`Lyapunov exponent: ${phaseLyap.toFixed(4)}. `}
         {selectedNode ? `Selected node: ${selectedNode}. ` : ''}
