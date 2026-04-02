@@ -18,6 +18,69 @@ export class BiocoenosisKernel {
     register_species(count: number): void;
 }
 
+export class CleanRoom {
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Run the full decimation pipeline.
+     *
+     * # Arguments
+     * - `node_count`    -- total nodes in the graph this frame
+     * - `edge_src`      -- flat array of edge source indices (length = E)
+     * - `edge_dst`      -- flat array of edge destination indices (length = E)
+     * - `edge_weights`  -- flat array of edge weights (length = E), or empty for uniform weight
+     * - `energy_state`  -- system energy 0.0..1.0 (< 0.5 triggers constrained cap)
+     *
+     * # Returns
+     * Number of survivors. Read the survivor indices via `get_survivors()`.
+     *
+     * # Complexity
+     * O(E) to build degree/weight tables +
+     * O(N) to scan for orphans +
+     * O(S log S) to sort survivors by centrality.
+     * Total: O(E + N + S log S) -- well within a 16ms frame budget for N < 512.
+     */
+    decimate(node_count: number, edge_src: Uint32Array, edge_dst: Uint32Array, edge_weights: Float64Array, energy_state: number): number;
+    /**
+     * Return diagnostic stats from the last decimation as JSON.
+     * Lightweight -- no allocations beyond the output string.
+     */
+    diagnostics(node_count: number, edge_count: number, energy_state: number): string;
+    /**
+     * Read the survivor array after `decimate()`.
+     * Returns a copy as a JS-visible `Uint32Array`.
+     */
+    get_survivors(): Uint32Array;
+    /**
+     * Check if a specific node index survived the last decimation.
+     * O(log S) binary search on the sorted survivor array.
+     */
+    is_visible(idx: number): boolean;
+    /**
+     * Create a new CleanRoom filter pre-allocated for `max_nodes`.
+     * Typical: `CleanRoom::new(512)` -- covers any realistic graph expansion.
+     */
+    constructor(max_nodes: number);
+    /**
+     * Return the degree of a node from the last decimation pass.
+     * Useful for JS-side styling (thicker edges for high-degree nodes).
+     */
+    node_degree(idx: number): number;
+    /**
+     * Return the accumulated edge weight of a node from the last pass.
+     */
+    node_weight(idx: number): number;
+    /**
+     * Override the constrained-mode node cap.
+     */
+    set_constrained_cap(cap: number): void;
+    /**
+     * Override the minimum edge threshold for orphan pruning.
+     * Nodes with degree < `min_edges` are culled.
+     */
+    set_min_edges(min_edges: number): void;
+}
+
 /**
  * Stateful Gray-Scott kernel — grid persists between compute_steps() calls.
  * Each call continues the simulation from where the last left off.
@@ -354,12 +417,14 @@ export function run_kuramoto_synchrony(n_oscillators: number, coupling: number, 
  * outputs a synthesized concept chimera.
  *
  * Parameters:
- *   domain_a      : index of first conceptual domain (0–15)
- *   domain_b      : index of second conceptual domain (0–15)
+ *   domain_a      : global domain index (0–15 = Block I conceptual, 16–31 = Block II elemental)
+ *   domain_b      : global domain index (0–15 = Block I conceptual, 16–31 = Block II elemental)
  *   attn_heads    : simulated attention head count (1–64, affects entropy)
  *   temperature   : softmax temperature – sharpness of conceptual focus (0.1–5.0)
  */
 export function run_latent_collider(domain_a: number, domain_b: number, attn_heads: number, temperature: number): string;
+
+export function run_lunar_phase(unix_ms: number): string;
 
 /**
  * SCALAR SOVEREIGNTY + MESANTROPY ENGINE
@@ -385,6 +450,19 @@ export function run_mesantropy(solar_yield: number, signal_depth: number, n_agen
  *   amplitude      : BPM modulation amplitude multiplier (0.1–3.0)
  */
 export function run_necromantic_simulation(resonance_seed: number, n_cycles: number, amplitude: number): string;
+
+/**
+ * Run the Olfactory-Computational Kernel.
+ *
+ * Parameters:
+ *   top         : top note intensity — flash signal strength (0.0–1.0)
+ *   heart       : heart note intensity — persistent carrier (0.0–1.0)
+ *   base        : base note intensity — deep-time archive (0.0–1.0)
+ *   corruption  : animalic fixative level — managed corruption (0.0–1.0)
+ *   temperature : ambient temperature — affects evaporation rates (0.0–1.0; 0.5 = 20°C)
+ *   preset      : signal preset index (-1 = use manual params, 0–7 = preset)
+ */
+export function run_ock(top: number, heart: number, base: number, corruption: number, temperature: number, preset: number): string;
 
 /**
  * Panopticon Percolation Engine – SURVEILLANCE Module v1.0.0
@@ -535,6 +613,7 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly __wbg_biocoenosiskernel_free: (a: number, b: number) => void;
+    readonly __wbg_cleanroom_free: (a: number, b: number) => void;
     readonly __wbg_grayscottkernel_free: (a: number, b: number) => void;
     readonly __wbg_necromanticengine_free: (a: number, b: number) => void;
     readonly __wbg_somakernel_free: (a: number, b: number) => void;
@@ -549,6 +628,15 @@ export interface InitOutput {
     readonly boot_soma55: () => [number, number];
     readonly boot_thermosphere_protocol: (a: number, b: number, c: number) => [number, number];
     readonly classified_params: () => any;
+    readonly cleanroom_decimate: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => number;
+    readonly cleanroom_diagnostics: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly cleanroom_get_survivors: (a: number) => [number, number];
+    readonly cleanroom_is_visible: (a: number, b: number) => number;
+    readonly cleanroom_new: (a: number) => number;
+    readonly cleanroom_node_degree: (a: number, b: number) => number;
+    readonly cleanroom_node_weight: (a: number, b: number) => number;
+    readonly cleanroom_set_constrained_cap: (a: number, b: number) => void;
+    readonly cleanroom_set_min_edges: (a: number, b: number) => void;
     readonly compare_nodes: (a: number, b: number) => [number, number];
     readonly compute_bifurcation_children: (a: number, b: number) => [number, number];
     readonly enclave_keygen: () => [number, number];
@@ -580,8 +668,10 @@ export interface InitOutput {
     readonly run_ising_consensus: (a: number, b: number, c: number, d: number) => [number, number];
     readonly run_kuramoto_synchrony: (a: number, b: number, c: number, d: number) => [number, number];
     readonly run_latent_collider: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly run_lunar_phase: (a: number) => [number, number];
     readonly run_mesantropy: (a: number, b: number, c: number) => [number, number];
     readonly run_necromantic_simulation: (a: number, b: number, c: number) => [number, number];
+    readonly run_ock: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
     readonly run_panopticon_percolation: (a: number, b: number, c: number, d: number) => [number, number];
     readonly run_percolation: (a: number, b: number, c: number, d: number) => [number, number];
     readonly run_phonemic_drift: (a: number, b: number, c: number) => [number, number];

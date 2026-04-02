@@ -28,6 +28,7 @@
 //   GrayScottKernel::compute_steps() → Reaction-Diffusion PDE (Ars Electronica 2027)
 //   run_classified()               → ML-KEM-768 Post-Quantum KEM (FIPS 203)
 //
+//   run_lunar_phase()              → True Astronomical Lunar Phase (Meeus ch.47-48)
 //   run_percolation()              → Network Percolation / Resilience Kernel
 //
 // Build with: wasm-pack build --target web

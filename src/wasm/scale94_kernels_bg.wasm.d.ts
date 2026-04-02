@@ -2,6 +2,7 @@
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
 export const __wbg_biocoenosiskernel_free: (a: number, b: number) => void;
+export const __wbg_cleanroom_free: (a: number, b: number) => void;
 export const __wbg_grayscottkernel_free: (a: number, b: number) => void;
 export const __wbg_necromanticengine_free: (a: number, b: number) => void;
 export const __wbg_somakernel_free: (a: number, b: number) => void;
@@ -16,6 +17,15 @@ export const boot_leviathan_benchmark: (a: number, b: number) => [number, number
 export const boot_soma55: () => [number, number];
 export const boot_thermosphere_protocol: (a: number, b: number, c: number) => [number, number];
 export const classified_params: () => any;
+export const cleanroom_decimate: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => number;
+export const cleanroom_diagnostics: (a: number, b: number, c: number, d: number) => [number, number];
+export const cleanroom_get_survivors: (a: number) => [number, number];
+export const cleanroom_is_visible: (a: number, b: number) => number;
+export const cleanroom_new: (a: number) => number;
+export const cleanroom_node_degree: (a: number, b: number) => number;
+export const cleanroom_node_weight: (a: number, b: number) => number;
+export const cleanroom_set_constrained_cap: (a: number, b: number) => void;
+export const cleanroom_set_min_edges: (a: number, b: number) => void;
 export const compare_nodes: (a: number, b: number) => [number, number];
 export const compute_bifurcation_children: (a: number, b: number) => [number, number];
 export const enclave_keygen: () => [number, number];
@@ -47,8 +57,10 @@ export const run_fusion_plasma: (a: number, b: number, c: number, d: number, e: 
 export const run_ising_consensus: (a: number, b: number, c: number, d: number) => [number, number];
 export const run_kuramoto_synchrony: (a: number, b: number, c: number, d: number) => [number, number];
 export const run_latent_collider: (a: number, b: number, c: number, d: number) => [number, number];
+export const run_lunar_phase: (a: number) => [number, number];
 export const run_mesantropy: (a: number, b: number, c: number) => [number, number];
 export const run_necromantic_simulation: (a: number, b: number, c: number) => [number, number];
+export const run_ock: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
 export const run_panopticon_percolation: (a: number, b: number, c: number, d: number) => [number, number];
 export const run_percolation: (a: number, b: number, c: number, d: number) => [number, number];
 export const run_phonemic_drift: (a: number, b: number, c: number) => [number, number];

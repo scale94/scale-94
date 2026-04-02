@@ -15,22 +15,35 @@
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Moon, Sun, Droplets, Wind, Eye, ChevronRight, Thermometer } from 'lucide-react';
+import { loadWasm } from '../../wasm/wasmSingleton';
 
 // ── Lunar Phase Engine ───────────────────────────────────────────────────────
-// Deterministic synodic month calculation. Reference epoch: 2000-01-06 18:14 UTC
-// (known new moon). Synodic period: 29.53058770576 days.
+// Primary: WASM kernel (Meeus astronomical algorithms, ~10″ longitude accuracy).
+// Fallback: naive synodic cosine model (used while WASM loads).
 
 const SYNODIC_PERIOD = 29.53058770576;
 const REFERENCE_NEW_MOON = new Date('2000-01-06T18:14:00Z').getTime();
 
-function getLunarAge(date = new Date()) {
+function getLunarAgeFallback(date = new Date()) {
   const diff = (date.getTime() - REFERENCE_NEW_MOON) / 86400000;
   return ((diff % SYNODIC_PERIOD) + SYNODIC_PERIOD) % SYNODIC_PERIOD;
 }
 
-function getLunarIllumination(age) {
-  // Approximation: illumination follows a cosine curve over the synodic month
+function getLunarIlluminationFallback(age) {
   return (1 - Math.cos((age / SYNODIC_PERIOD) * 2 * Math.PI)) / 2;
+}
+
+// ── WASM-backed true astronomical computation ────────────────────────────────
+// Returns { age, illumination, phaseAngle, phaseId, phaseName, phaseGlyph, env }
+// or null if WASM is not ready yet.
+
+let _wasmMod = null;
+function getLunarFromWasm(date = new Date()) {
+  if (!_wasmMod) return null;
+  try {
+    const json = _wasmMod.run_lunar_phase(date.getTime());
+    return JSON.parse(json);
+  } catch { return null; }
 }
 
 const PHASES = [
@@ -52,9 +65,9 @@ function getPhase(age) {
 // Six measurable parameters that modulate fragrance perception and volatility.
 // Values derived from lunar phase position in the synodic cycle.
 
-function getEnvironmentalParams(age) {
+function getEnvironmentalParamsFallback(age) {
   const t = age / SYNODIC_PERIOD; // normalized [0, 1)
-  const illum = getLunarIllumination(age);
+  const illum = getLunarIlluminationFallback(age);
 
   return {
     // Melatonin suppression index: peaks at full moon (Cajochen 2013)
@@ -502,32 +515,196 @@ function LunarCanvas({ lunarAge }) {
 }
 
 // ── Phase Selector Ring (overlay on moon) ────────────────────────────────────
+// Desktop: click toggles info popover + selects phase. Hover shows glyph highlight.
+// Mobile:  tap opens popover; tap elsewhere or second tap dismisses.
+//          Long-press (300ms) locks the popover open until explicit dismiss.
 
 function PhaseSelector({ currentAge, onSelectPhase, selectedPhaseId }) {
+  const [infoPhaseId, setInfoPhaseId] = useState(null);
+  const containerRef = useRef(null);
+  const longPressTimer = useRef(null);
+  const longPressTriggered = useRef(false);
+
+  // Dismiss popover on outside click/touch
+  useEffect(() => {
+    if (!infoPhaseId) return;
+    function dismiss(e) {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setInfoPhaseId(null);
+      }
+    }
+    document.addEventListener('pointerdown', dismiss);
+    return () => document.removeEventListener('pointerdown', dismiss);
+  }, [infoPhaseId]);
+
+  // Find accord data for popover
+  const infoAccord = infoPhaseId
+    ? LUNAR_ACCORDS.find(a => a.phase === infoPhaseId)
+    : null;
+  const infoPhase = infoPhaseId
+    ? PHASES.find(p => p.id === infoPhaseId)
+    : null;
+
+  function handleClick(p) {
+    // If long-press just fired, skip the click
+    if (longPressTriggered.current) {
+      longPressTriggered.current = false;
+      return;
+    }
+    onSelectPhase(p.id);
+    setInfoPhaseId(prev => prev === p.id ? null : p.id);
+  }
+
+  function handleTouchStart(p) {
+    longPressTriggered.current = false;
+    longPressTimer.current = setTimeout(() => {
+      longPressTriggered.current = true;
+      onSelectPhase(p.id);
+      setInfoPhaseId(p.id);
+    }, 300);
+  }
+
+  function handleTouchEnd() {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }
+
   return (
-    <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2 mt-3 px-2">
-      {PHASES.map(p => {
-        const isCurrent = currentAge >= p.range[0] && currentAge < p.range[1];
-        const isSelected = p.id === selectedPhaseId;
-        return (
-          <button
-            key={p.id}
-            onClick={() => onSelectPhase(p.id)}
-            className={`
-              w-9 h-9 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-base sm:text-sm
-              transition-all duration-200 touch-manipulation
-              ${isSelected
-                ? 'bg-violet-500/20 ring-1 ring-violet-400/50 shadow-[0_0_8px_rgba(139,92,246,0.3)]'
-                : isCurrent
-                  ? 'bg-white/[0.06] ring-1 ring-white/10'
-                  : 'bg-white/[0.02] hover:bg-white/[0.06] active:bg-white/[0.1]'}
-            `}
-            title={p.label}
-          >
-            {p.glyph}
-          </button>
-        );
-      })}
+    <div ref={containerRef} className="relative mt-3 px-2">
+      <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2">
+        {PHASES.map(p => {
+          const isCurrent = currentAge >= p.range[0] && currentAge < p.range[1];
+          const isSelected = p.id === selectedPhaseId;
+          const isInfoOpen = p.id === infoPhaseId;
+          return (
+            <button
+              key={p.id}
+              onClick={() => handleClick(p)}
+              onTouchStart={() => handleTouchStart(p)}
+              onTouchEnd={handleTouchEnd}
+              onTouchCancel={handleTouchEnd}
+              className={`
+                w-9 h-9 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-base sm:text-sm
+                transition-all duration-200 touch-manipulation select-none
+                ${isInfoOpen
+                  ? 'bg-violet-500/30 ring-1 ring-violet-400/60 scale-110 shadow-[0_0_12px_rgba(139,92,246,0.4)]'
+                  : isSelected
+                    ? 'bg-violet-500/20 ring-1 ring-violet-400/50 shadow-[0_0_8px_rgba(139,92,246,0.3)]'
+                    : isCurrent
+                      ? 'bg-white/[0.06] ring-1 ring-white/10'
+                      : 'bg-white/[0.02] hover:bg-white/[0.06] active:bg-white/[0.1]'}
+              `}
+              aria-label={p.label}
+              aria-expanded={isInfoOpen}
+            >
+              {p.glyph}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── Info Popover ── */}
+      {infoAccord && infoPhase && (
+        <div
+          className="
+            absolute left-1/2 -translate-x-1/2 mt-2 z-30 w-[calc(100vw-2rem)] sm:w-80
+            border border-violet-500/30 rounded-lg bg-black/90 backdrop-blur-md
+            shadow-[0_4px_24px_rgba(0,0,0,0.6),0_0_12px_rgba(139,92,246,0.15)]
+            p-3 sm:p-4
+            animate-[ln-popoverIn_0.2s_ease-out_forwards]
+          "
+          role="tooltip"
+        >
+          {/* Phase header */}
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">{infoPhase.glyph}</span>
+              <div>
+                <div className="text-[11px] sm:text-xs font-bold font-mono text-white/80 uppercase tracking-wider">
+                  {infoPhase.label}
+                </div>
+                <div className="text-[8px] font-mono text-white/30">
+                  Day {infoPhase.range[0].toFixed(1)}–{infoPhase.range[1].toFixed(1)} of {SYNODIC_PERIOD.toFixed(1)}
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={(e) => { e.stopPropagation(); setInfoPhaseId(null); }}
+              className="w-6 h-6 rounded-full bg-white/[0.05] hover:bg-white/[0.12] active:bg-white/[0.18]
+                flex items-center justify-center text-[10px] text-white/30 hover:text-white/60
+                transition-colors touch-manipulation"
+              aria-label="Close"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Accord info */}
+          <div className={`text-[10px] font-mono font-bold uppercase tracking-widest mb-1.5 ${infoAccord.accent}`}>
+            {infoAccord.accord}
+          </div>
+          <div className="text-[9px] font-mono text-white/40 mb-2 leading-relaxed">
+            {infoAccord.signature}
+          </div>
+
+          {/* Quick stats row */}
+          <div className="grid grid-cols-3 gap-2 mb-2">
+            <div className="border border-white/[0.06] rounded bg-white/[0.02] px-2 py-1.5 text-center">
+              <div className="text-[7px] font-mono text-white/20 uppercase tracking-widest">CONC.</div>
+              <div className="text-[10px] font-mono text-white/60 mt-0.5">{infoAccord.concentration}</div>
+            </div>
+            <div className="border border-white/[0.06] rounded bg-white/[0.02] px-2 py-1.5 text-center">
+              <div className="text-[7px] font-mono text-white/20 uppercase tracking-widest">SILLAGE</div>
+              <div className="text-[10px] font-mono text-white/60 mt-0.5">{(infoAccord.sillage * 100).toFixed(0)}%</div>
+            </div>
+            <div className="border border-white/[0.06] rounded bg-white/[0.02] px-2 py-1.5 text-center">
+              <div className="text-[7px] font-mono text-white/20 uppercase tracking-widest">NOTES</div>
+              <div className="text-[10px] font-mono text-white/60 mt-0.5">
+                {infoAccord.top.length + infoAccord.heart.length + infoAccord.base.length}
+              </div>
+            </div>
+          </div>
+
+          {/* Note pyramid compact — s-tier staggered flare */}
+          <div className="grid grid-cols-3 gap-1.5 text-[8px] font-mono">
+            <div className="ln-col-flare" style={{ animationDelay: '0.08s' }}>
+              <div className="text-[7px] text-cyan-500/50 uppercase tracking-widest mb-0.5">TOP</div>
+              {infoAccord.top.map((n, i) => (
+                <div key={n} className="ln-note-flare text-cyan-400/50 leading-relaxed truncate"
+                  style={{ animationDelay: `${0.12 + i * 0.06}s` }}>{n}</div>
+              ))}
+            </div>
+            <div className="ln-col-flare" style={{ animationDelay: '0.16s' }}>
+              <div className="text-[7px] text-fuchsia-500/50 uppercase tracking-widest mb-0.5">HEART</div>
+              {infoAccord.heart.map((n, i) => (
+                <div key={n} className="ln-note-flare text-fuchsia-400/50 leading-relaxed truncate"
+                  style={{ animationDelay: `${0.20 + i * 0.06}s` }}>{n}</div>
+              ))}
+            </div>
+            <div className="ln-col-flare" style={{ animationDelay: '0.24s' }}>
+              <div className="text-[7px] text-amber-500/50 uppercase tracking-widest mb-0.5">BASE</div>
+              {infoAccord.base.map((n, i) => (
+                <div key={n} className="ln-note-flare text-amber-400/50 leading-relaxed truncate"
+                  style={{ animationDelay: `${0.28 + i * 0.06}s` }}>{n}</div>
+              ))}
+            </div>
+          </div>
+
+          {/* Mechanism excerpt */}
+          <div className="mt-2 pt-2 border-t border-white/[0.05]">
+            <p className="text-[8px] font-mono text-white/25 leading-relaxed line-clamp-3">
+              {infoAccord.mechanism}
+            </p>
+          </div>
+
+          {/* Mobile hint */}
+          <div className="mt-2 text-[7px] font-mono text-white/10 text-center sm:hidden">
+            TAP ELSEWHERE TO DISMISS · LONG-PRESS TO LOCK
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -580,24 +757,27 @@ function AccordCard({ accord, isActive }) {
         </div>
       </div>
 
-      {/* Note pyramid */}
+      {/* Note pyramid — s-tier staggered flare */}
       <div className="grid grid-cols-3 gap-1.5 sm:gap-2 mt-3">
-        <div>
+        <div className="ln-col-flare" style={{ animationDelay: '0.05s' }}>
           <div className="text-[7px] font-mono text-white/20 uppercase tracking-widest mb-1">TOP</div>
-          {accord.top.map(n => (
-            <div key={n} className="text-[8px] font-mono text-cyan-400/60 leading-relaxed">{n}</div>
+          {accord.top.map((n, i) => (
+            <div key={n} className="ln-note-flare text-[8px] font-mono text-cyan-400/60 leading-relaxed"
+              style={{ animationDelay: `${0.10 + i * 0.07}s` }}>{n}</div>
           ))}
         </div>
-        <div>
+        <div className="ln-col-flare" style={{ animationDelay: '0.15s' }}>
           <div className="text-[7px] font-mono text-white/20 uppercase tracking-widest mb-1">HEART</div>
-          {accord.heart.map(n => (
-            <div key={n} className="text-[8px] font-mono text-fuchsia-400/60 leading-relaxed">{n}</div>
+          {accord.heart.map((n, i) => (
+            <div key={n} className="ln-note-flare text-[8px] font-mono text-fuchsia-400/60 leading-relaxed"
+              style={{ animationDelay: `${0.20 + i * 0.07}s` }}>{n}</div>
           ))}
         </div>
-        <div>
+        <div className="ln-col-flare" style={{ animationDelay: '0.25s' }}>
           <div className="text-[7px] font-mono text-white/20 uppercase tracking-widest mb-1">BASE</div>
-          {accord.base.map(n => (
-            <div key={n} className="text-[8px] font-mono text-amber-400/60 leading-relaxed">{n}</div>
+          {accord.base.map((n, i) => (
+            <div key={n} className="ln-note-flare text-[8px] font-mono text-amber-400/60 leading-relaxed"
+              style={{ animationDelay: `${0.30 + i * 0.07}s` }}>{n}</div>
           ))}
         </div>
       </div>
@@ -623,15 +803,27 @@ function AccordCard({ accord, isActive }) {
 
 export default function LunarTab() {
   const [now, setNow] = useState(() => new Date());
+  const [wasmReady, setWasmReady] = useState(false);
+
+  // Load WASM kernel on mount
+  useEffect(() => {
+    loadWasm().then(mod => { _wasmMod = mod; setWasmReady(true); }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(id);
   }, []);
-  const currentAge = useMemo(() => getLunarAge(now), [now]);
-  const currentPhase = useMemo(() => getPhase(currentAge), [currentAge]);
-  const illumination = useMemo(() => getLunarIllumination(currentAge), [currentAge]);
-  const envParams = useMemo(() => getEnvironmentalParams(currentAge), [currentAge]);
+
+  // True astronomical values from WASM, with naive JS fallback
+  const lunarData = useMemo(() => getLunarFromWasm(now), [now, wasmReady]);
+
+  const currentAge = lunarData?.age ?? getLunarAgeFallback(now);
+  const currentPhase = lunarData
+    ? { id: lunarData.phaseId, label: lunarData.phaseName, glyph: lunarData.phaseGlyph, range: [0, 0] }
+    : getPhase(currentAge);
+  const illumination = lunarData?.illumination ?? getLunarIlluminationFallback(currentAge);
+  const envParams = lunarData?.env ?? getEnvironmentalParamsFallback(currentAge);
 
   const [selectedPhaseId, setSelectedPhaseId] = useState(currentPhase.id);
 
@@ -651,6 +843,24 @@ export default function LunarTab() {
           0%, 100% { opacity: 0.6; }
           50%      { opacity: 1; }
         }
+        @keyframes ln-popoverIn {
+          from { opacity: 0; transform: translate(-50%, 4px) scale(0.96); }
+          to   { opacity: 1; transform: translate(-50%, 0) scale(1); }
+        }
+        @keyframes ln-noteFlare {
+          0%   { opacity: 0;    filter: brightness(2.2) blur(4px); transform: translateY(6px); }
+          40%  { opacity: 0.9;  filter: brightness(1.5) blur(0.8px); transform: translateY(1.5px); }
+          75%  { opacity: 1;    filter: brightness(1.12) blur(0px); transform: translateY(0); }
+          100% { opacity: 1;    filter: brightness(1) blur(0px); transform: translateY(0); }
+        }
+        @keyframes ln-columnFlare {
+          0%   { opacity: 0;    filter: brightness(1.6) blur(3px); transform: translateY(8px); }
+          35%  { opacity: 0.85; filter: brightness(1.3) blur(0.5px); transform: translateY(2px); }
+          70%  { opacity: 1;    filter: brightness(1.08) blur(0px); transform: translateY(0); }
+          100% { opacity: 1;    filter: brightness(1) blur(0px); transform: translateY(0); }
+        }
+        .ln-note-flare { opacity: 0; animation: ln-noteFlare 0.45s cubic-bezier(0.7, 0, 0.3, 1) forwards; }
+        .ln-col-flare  { opacity: 0; animation: ln-columnFlare 0.5s cubic-bezier(0.7, 0, 0.3, 1) forwards; }
       `}</style>
 
       {/* ── Header ── */}
@@ -817,8 +1027,8 @@ export default function LunarTab() {
       {/* ── Footer ── */}
       <div className="mt-8 pt-4 border-t border-white/[0.03] text-[8px] font-mono text-white/10 leading-relaxed">
         <p>
-          LUNAR FRAGRANCE PROTOCOL v1.0 — All recommendations derived from measurable environmental parameters.
-          Synodic period: {SYNODIC_PERIOD.toFixed(5)} days. Reference epoch: J2000.0 new moon (2000-01-06T18:14Z).
+          LUNAR FRAGRANCE PROTOCOL v2.0 — {wasmReady ? 'Meeus astronomical algorithm (WASM)' : 'synodic fallback'}.
+          Phase engine: Jean Meeus, <i>Astronomical Algorithms</i> 2nd ed. (1998), ch.47–48. 60-term periodic series, ~10″ longitude accuracy.
           Circalunar olfactory modulation: Cajochen C. et al., "Evidence that the Lunar Cycle Influences Human Sleep",
           Current Biology 23(15), 2013. Barometric tidal forcing: Chapman S. & Lindzen R., "Atmospheric Tides", 1970.
         </p>

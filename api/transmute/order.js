@@ -57,7 +57,8 @@ function buildEmbed(order, state = 'QUEUED') {
     color:       COLOR[state] ?? 0xD4AF37,
     fields: [
       { name: '§ STATE',           value: STATE_LABEL[state],                       inline: true  },
-      { name: '§ SOVEREIGN RATIO', value: `€${order.sovereignRatio}`,               inline: true  },
+      { name: '§ TIER',            value: order.tierLabel || order.tierSize || '50ml', inline: true },
+      { name: '§ SOVEREIGN',      value: `€${order.sovereignRatio}`,                inline: true  },
       { name: '§ G²T → UA',        value: `€${order.g2tAmount}`,                    inline: true  },
       { name: '§ VAULT IDENTITY',  value: `\`\`\`\n${order.vaultBlock}\n\`\`\``,   inline: false },
       { name: '§ SCENT PROFILE',   value: `\`\`\`\n${order.noteBlock}\n\`\`\``,    inline: false },
@@ -111,6 +112,7 @@ export default async function handler(req, res) {
   const {
     formulaId, formulaHash, encryptedPayload,
     sovereignRatio, g2tAmount,
+    tierSize, tierLabel,
     cardName, noteBlock, physBlock, vaultBlock,
     contact,
   } = body;
@@ -133,6 +135,8 @@ export default async function handler(req, res) {
     encryptedPayload: encryptedPayload ?? '—',
     sovereignRatio:   sovereignRatio   ?? 100,
     g2tAmount:        g2tAmount        ?? 10,
+    tierSize:         tierSize         ?? '50ml',
+    tierLabel:        tierLabel        ?? '50 ml · SOVEREIGN',
     cardName:         cardName         ?? '—',
     noteBlock:        noteBlock        ?? '—',
     physBlock:        physBlock        ?? '—',

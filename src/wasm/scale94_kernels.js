@@ -58,6 +58,141 @@ export class BiocoenosisKernel {
 }
 if (Symbol.dispose) BiocoenosisKernel.prototype[Symbol.dispose] = BiocoenosisKernel.prototype.free;
 
+export class CleanRoom {
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        CleanRoomFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_cleanroom_free(ptr, 0);
+    }
+    /**
+     * Run the full decimation pipeline.
+     *
+     * # Arguments
+     * - `node_count`    -- total nodes in the graph this frame
+     * - `edge_src`      -- flat array of edge source indices (length = E)
+     * - `edge_dst`      -- flat array of edge destination indices (length = E)
+     * - `edge_weights`  -- flat array of edge weights (length = E), or empty for uniform weight
+     * - `energy_state`  -- system energy 0.0..1.0 (< 0.5 triggers constrained cap)
+     *
+     * # Returns
+     * Number of survivors. Read the survivor indices via `get_survivors()`.
+     *
+     * # Complexity
+     * O(E) to build degree/weight tables +
+     * O(N) to scan for orphans +
+     * O(S log S) to sort survivors by centrality.
+     * Total: O(E + N + S log S) -- well within a 16ms frame budget for N < 512.
+     * @param {number} node_count
+     * @param {Uint32Array} edge_src
+     * @param {Uint32Array} edge_dst
+     * @param {Float64Array} edge_weights
+     * @param {number} energy_state
+     * @returns {number}
+     */
+    decimate(node_count, edge_src, edge_dst, edge_weights, energy_state) {
+        const ptr0 = passArray32ToWasm0(edge_src, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passArray32ToWasm0(edge_dst, wasm.__wbindgen_malloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passArrayF64ToWasm0(edge_weights, wasm.__wbindgen_malloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ret = wasm.cleanroom_decimate(this.__wbg_ptr, node_count, ptr0, len0, ptr1, len1, ptr2, len2, energy_state);
+        return ret >>> 0;
+    }
+    /**
+     * Return diagnostic stats from the last decimation as JSON.
+     * Lightweight -- no allocations beyond the output string.
+     * @param {number} node_count
+     * @param {number} edge_count
+     * @param {number} energy_state
+     * @returns {string}
+     */
+    diagnostics(node_count, edge_count, energy_state) {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const ret = wasm.cleanroom_diagnostics(this.__wbg_ptr, node_count, edge_count, energy_state);
+            deferred1_0 = ret[0];
+            deferred1_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * Read the survivor array after `decimate()`.
+     * Returns a copy as a JS-visible `Uint32Array`.
+     * @returns {Uint32Array}
+     */
+    get_survivors() {
+        const ret = wasm.cleanroom_get_survivors(this.__wbg_ptr);
+        var v1 = getArrayU32FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+        return v1;
+    }
+    /**
+     * Check if a specific node index survived the last decimation.
+     * O(log S) binary search on the sorted survivor array.
+     * @param {number} idx
+     * @returns {boolean}
+     */
+    is_visible(idx) {
+        const ret = wasm.cleanroom_is_visible(this.__wbg_ptr, idx);
+        return ret !== 0;
+    }
+    /**
+     * Create a new CleanRoom filter pre-allocated for `max_nodes`.
+     * Typical: `CleanRoom::new(512)` -- covers any realistic graph expansion.
+     * @param {number} max_nodes
+     */
+    constructor(max_nodes) {
+        const ret = wasm.cleanroom_new(max_nodes);
+        this.__wbg_ptr = ret >>> 0;
+        CleanRoomFinalization.register(this, this.__wbg_ptr, this);
+        return this;
+    }
+    /**
+     * Return the degree of a node from the last decimation pass.
+     * Useful for JS-side styling (thicker edges for high-degree nodes).
+     * @param {number} idx
+     * @returns {number}
+     */
+    node_degree(idx) {
+        const ret = wasm.cleanroom_node_degree(this.__wbg_ptr, idx);
+        return ret >>> 0;
+    }
+    /**
+     * Return the accumulated edge weight of a node from the last pass.
+     * @param {number} idx
+     * @returns {number}
+     */
+    node_weight(idx) {
+        const ret = wasm.cleanroom_node_weight(this.__wbg_ptr, idx);
+        return ret;
+    }
+    /**
+     * Override the constrained-mode node cap.
+     * @param {number} cap
+     */
+    set_constrained_cap(cap) {
+        wasm.cleanroom_set_constrained_cap(this.__wbg_ptr, cap);
+    }
+    /**
+     * Override the minimum edge threshold for orphan pruning.
+     * Nodes with degree < `min_edges` are culled.
+     * @param {number} min_edges
+     */
+    set_min_edges(min_edges) {
+        wasm.cleanroom_set_min_edges(this.__wbg_ptr, min_edges);
+    }
+}
+if (Symbol.dispose) CleanRoom.prototype[Symbol.dispose] = CleanRoom.prototype.free;
+
 /**
  * Stateful Gray-Scott kernel — grid persists between compute_steps() calls.
  * Each call continues the simulation from where the last left off.
@@ -981,6 +1116,23 @@ export function run_latent_collider(domain_a, domain_b, attn_heads, temperature)
 }
 
 /**
+ * @param {number} unix_ms
+ * @returns {string}
+ */
+export function run_lunar_phase(unix_ms) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_lunar_phase(unix_ms);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * SCALAR SOVEREIGNTY + MESANTROPY ENGINE
  *
  * Simulates N agents through Substrate (3.3.3) and Detonation (4.4.4.4) phases.
@@ -1587,6 +1739,9 @@ function __wbg_get_imports() {
 const BiocoenosisKernelFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_biocoenosiskernel_free(ptr >>> 0, 1));
+const CleanRoomFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_cleanroom_free(ptr >>> 0, 1));
 const GrayScottKernelFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_grayscottkernel_free(ptr >>> 0, 1));
@@ -1603,14 +1758,35 @@ function addToExternrefTable0(obj) {
     return idx;
 }
 
+function getArrayU32FromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return getUint32ArrayMemory0().subarray(ptr / 4, ptr / 4 + len);
+}
+
 function getArrayU8FromWasm0(ptr, len) {
     ptr = ptr >>> 0;
     return getUint8ArrayMemory0().subarray(ptr / 1, ptr / 1 + len);
 }
 
+let cachedFloat64ArrayMemory0 = null;
+function getFloat64ArrayMemory0() {
+    if (cachedFloat64ArrayMemory0 === null || cachedFloat64ArrayMemory0.byteLength === 0) {
+        cachedFloat64ArrayMemory0 = new Float64Array(wasm.memory.buffer);
+    }
+    return cachedFloat64ArrayMemory0;
+}
+
 function getStringFromWasm0(ptr, len) {
     ptr = ptr >>> 0;
     return decodeText(ptr, len);
+}
+
+let cachedUint32ArrayMemory0 = null;
+function getUint32ArrayMemory0() {
+    if (cachedUint32ArrayMemory0 === null || cachedUint32ArrayMemory0.byteLength === 0) {
+        cachedUint32ArrayMemory0 = new Uint32Array(wasm.memory.buffer);
+    }
+    return cachedUint32ArrayMemory0;
 }
 
 let cachedUint8ArrayMemory0 = null;
@@ -1634,9 +1810,23 @@ function isLikeNone(x) {
     return x === undefined || x === null;
 }
 
+function passArray32ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 4, 4) >>> 0;
+    getUint32ArrayMemory0().set(arg, ptr / 4);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
+}
+
 function passArray8ToWasm0(arg, malloc) {
     const ptr = malloc(arg.length * 1, 1) >>> 0;
     getUint8ArrayMemory0().set(arg, ptr / 1);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
+}
+
+function passArrayF64ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 8, 8) >>> 0;
+    getFloat64ArrayMemory0().set(arg, ptr / 8);
     WASM_VECTOR_LEN = arg.length;
     return ptr;
 }
@@ -1711,6 +1901,8 @@ let wasmModule, wasm;
 function __wbg_finalize_init(instance, module) {
     wasm = instance.exports;
     wasmModule = module;
+    cachedFloat64ArrayMemory0 = null;
+    cachedUint32ArrayMemory0 = null;
     cachedUint8ArrayMemory0 = null;
     wasm.__wbindgen_start();
     return wasm;

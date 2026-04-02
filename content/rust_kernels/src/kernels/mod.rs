@@ -48,3 +48,4 @@ pub mod latent_collider;     // run_latent_collider (Latent Space Collider · SC
 pub mod panopticon_percolation; // run_panopticon_percolation (Panopticon Percolation · SURVEILLANCE Module · dragnet contagion Monte Carlo)
 pub mod ock;                     // run_ock (Olfactory-Computational Kernel v1.0.0 · Bimmelbahn Accord · volatile semiotics)
 pub mod clean_room;              // CleanRoom (stateful decimation filter · orphan pruning · energy-aware downsampling)
+pub mod lunar;                   // run_lunar_phase (Meeus astronomical algorithm · true phase angle · sub-1% illumination accuracy)

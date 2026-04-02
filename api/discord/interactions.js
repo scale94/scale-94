@@ -77,7 +77,8 @@ function buildEmbed(order, state) {
     color:       COLOR[state] ?? 0xD4AF37,
     fields: [
       { name: '§ STATE',           value: STATE_LABEL[state],                      inline: true  },
-      { name: '§ SOVEREIGN RATIO', value: `€${order.sovereignRatio}`,              inline: true  },
+      { name: '§ TIER',            value: order.tierLabel || order.tierSize || '50ml', inline: true },
+      { name: '§ SOVEREIGN',      value: `€${order.sovereignRatio}`,               inline: true  },
       { name: '§ G²T → UA',        value: `€${order.g2tAmount}`,                   inline: true  },
       { name: '§ VAULT IDENTITY',  value: `\`\`\`\n${order.vaultBlock}\n\`\`\``,  inline: false },
       { name: '§ SCENT PROFILE',   value: `\`\`\`\n${order.noteBlock}\n\`\`\``,   inline: false },

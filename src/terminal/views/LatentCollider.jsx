@@ -730,6 +730,12 @@ async function encryptForVault(plaintext) {
 const MAX_PARTICLES = 300;
 const PRODUCTION_THRESHOLD = 10; // minimum acquisitions before physical synthesis
 
+// ── Pricing tiers — size / price / G²T allocation (10%) ─────────────────────
+const TIERS = [
+  { id: 'discovery', label: '10 ml · DISCOVERY',  size: '10ml', price: 25,  g2t: 2.50 },
+  { id: 'sovereign', label: '50 ml · SOVEREIGN',  size: '50ml', price: 100, g2t: 10   },
+];
+
 function createParticle(x, y, hue, vx, vy, type) {
   return {
     x, y, vx, vy,
@@ -764,7 +770,8 @@ export default function LatentCollider() {
   // ── Crystallize + Tesseract state ──────────────────────────────────────────
   const [crystal,    setCrystal]    = useState(null);
   const [tesseract,  setTesseract]  = useState(null);
-  const [acquired,  setAcquired]  = useState(false);
+  const [acquired,     setAcquired]     = useState(false);
+  const [selectedTier, setSelectedTier] = useState(TIERS[0]);
 
   // ── Persistent production threshold (Vercel KV via /api/transmute/threshold) ─
   const serverThreshold = useProductionThreshold();
@@ -790,7 +797,7 @@ export default function LatentCollider() {
     }
   }, [result, domainA, domainB]);
 
-  const handleAcquire = useCallback(async (cardId, contact = {}) => {
+  const handleAcquire = useCallback(async (cardId, contact = {}, tier = TIERS[1]) => {
     let newCount = 1;
     let isDupe   = false;
     try {
@@ -806,6 +813,7 @@ export default function LatentCollider() {
       }
     } catch { /* storage blocked */ }
     setAcquired(true);
+    setSelectedTier(tier);
 
     // ── RSA-OAEP encrypt the formula for zero-knowledge relay ────────────
     const card = crystal;
@@ -823,8 +831,8 @@ export default function LatentCollider() {
     if (isDupe) return;
 
     const tHash          = tesseract?.hash || '—';
-    const sovereignRatio = 100;
-    const g2tAllocation  = +(sovereignRatio * 0.10).toFixed(2);
+    const sovereignRatio = tier.price;
+    const g2tAllocation  = tier.g2t;
 
     const noteBlock = [
       `ᛏ TOP    ${card.topNotes.join(' · ')}`,
@@ -845,6 +853,7 @@ export default function LatentCollider() {
       `             ${tHash.slice(32) || '—'}`,
       `STATUS       ◈ FORMULA VAULTED`,
       `PROTOCOL     TESSERACT · RSA-OAEP + AES-256-GCM`,
+      `TIER         ${tier.size} · ${tier.label}`,
       `SOVEREIGN    €${sovereignRatio}`,
       `G²T→UA       €${g2tAllocation} (10%)`,
     ].join('\n');
@@ -859,6 +868,8 @@ export default function LatentCollider() {
       encryptedPayload: encTrunc,
       sovereignRatio,
       g2tAmount:        g2tAllocation,
+      tierSize:         tier.size,
+      tierLabel:        tier.label,
       cardName:         card.name,
       noteBlock,
       physBlock,
@@ -2348,7 +2359,8 @@ export default function LatentCollider() {
           card={crystal}
           tesseract={tesseract}
           acquired={acquired}
-          onRegister={contact => handleAcquire(crystal.id, contact)}
+          selectedTier={selectedTier}
+          onRegister={(contact, tier) => handleAcquire(crystal.id, contact, tier)}
           serverCount={serverThreshold.current}
           serverTarget={serverThreshold.target}
           orderStatus={orderStatus}
@@ -2357,7 +2369,8 @@ export default function LatentCollider() {
         <CrystallizeCard
           card={crystal}
           acquired={acquired}
-          onRegister={contact => handleAcquire(crystal.id, contact)}
+          selectedTier={selectedTier}
+          onRegister={(contact, tier) => handleAcquire(crystal.id, contact, tier)}
           serverCount={serverThreshold.current}
           serverTarget={serverThreshold.target}
           orderStatus={orderStatus}
@@ -2490,6 +2503,7 @@ function PerfumeBottleSVG({ nodeClass, hA, hB }) {
 function ContactForm({ onSubmit, label }) {
   const [signal, setSignal] = useState('');
   const [email,  setEmail]  = useState('');
+  const [tier,   setTier]   = useState(TIERS[0]);
   const canSubmit = signal.trim() || email.trim();
 
   const inputStyle = {
@@ -2505,7 +2519,40 @@ function ContactForm({ onSubmit, label }) {
     <div className="space-y-2.5 text-left w-full">
       <div className="text-[8px] font-mono text-center uppercase tracking-[0.25em] mb-3"
         style={{ color: 'rgba(255,215,0,0.38)' }}>
-        CONTACT FOR DELIVERY
+        SELECT SIZE + CONTACT FOR DELIVERY
+      </div>
+
+      {/* Tier selector */}
+      <div className="grid grid-cols-2 gap-2 mb-1">
+        {TIERS.map(t => (
+          <button
+            key={t.id}
+            onClick={() => setTier(t)}
+            className="rounded border py-2.5 px-2 text-center transition-all"
+            style={{
+              borderColor: tier.id === t.id ? 'rgba(255,215,0,0.5)'  : 'rgba(255,215,0,0.12)',
+              background:  tier.id === t.id ? 'rgba(255,215,0,0.07)' : 'transparent',
+              boxShadow:   tier.id === t.id ? '0 0 12px rgba(255,215,0,0.15)' : 'none',
+            }}
+          >
+            <div className="text-[10px] font-mono font-bold tracking-wider"
+              style={{ color: tier.id === t.id ? '#FFD700' : 'rgba(255,215,0,0.4)' }}>
+              {t.size}
+            </div>
+            <div className="text-[12px] font-bold font-mono mt-0.5"
+              style={{ color: tier.id === t.id ? '#FFD700' : 'rgba(255,215,0,0.5)', textShadow: tier.id === t.id ? '0 0 10px rgba(255,215,0,0.3)' : 'none' }}>
+              €{t.price}
+            </div>
+            <div className="text-[7px] font-mono tracking-wider mt-0.5"
+              style={{ color: 'rgba(255,215,0,0.25)' }}>
+              {t.id === 'discovery' ? 'DISCOVERY' : 'SOVEREIGN'}
+            </div>
+            <div className="text-[6.5px] font-mono mt-0.5"
+              style={{ color: 'rgba(57,255,20,0.35)' }}>
+              G²T €{t.g2t}
+            </div>
+          </button>
+        ))}
       </div>
 
       {/* Signal */}
@@ -2541,7 +2588,7 @@ function ContactForm({ onSubmit, label }) {
       {/* Actions */}
       <div className="flex items-center gap-3 pt-1">
         <button
-          onClick={() => onSubmit({ signal: signal.trim(), email: email.trim() })}
+          onClick={() => onSubmit({ signal: signal.trim(), email: email.trim() }, tier)}
           disabled={!canSubmit}
           className="flex-1 text-[10px] font-mono uppercase tracking-widest px-4 py-1.5 rounded-full border transition-all hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
           style={{ borderColor: 'rgba(255,215,0,0.38)', color: '#FFD700', background: 'rgba(255,215,0,0.07)' }}
@@ -2549,7 +2596,7 @@ function ContactForm({ onSubmit, label }) {
           {label}
         </button>
         <button
-          onClick={() => onSubmit({})}
+          onClick={() => onSubmit({}, tier)}
           className="text-[8px] font-mono uppercase tracking-widest transition-colors hover:opacity-70"
           style={{ color: 'rgba(255,215,0,0.28)' }}
         >
@@ -2583,7 +2630,7 @@ function FulfillmentBadge({ state }) {
 }
 
 // ── Crystallize Card component ─────────────────────────────────────────────────
-function CrystallizeCard({ card, acquired, onRegister, serverCount, serverTarget, orderStatus }) {
+function CrystallizeCard({ card, acquired, selectedTier, onRegister, serverCount, serverTarget, orderStatus }) {
   const [showForm, setShowForm] = useState(false);
   const getCount  = () => serverCount  != null ? serverCount  : (() => { try { return parseInt(localStorage.getItem('ck_count') || '0', 10); } catch { return 0; } })();
   const getTarget = () => serverTarget != null ? serverTarget : PRODUCTION_THRESHOLD;
@@ -2691,7 +2738,7 @@ function CrystallizeCard({ card, acquired, onRegister, serverCount, serverTarget
               {showForm ? (
                 <ContactForm
                   label="⬡ REGISTER INTEREST"
-                  onSubmit={contact => { setShowForm(false); onRegister(contact); }}
+                  onSubmit={(contact, tier) => { setShowForm(false); onRegister(contact, tier); }}
                 />
               ) : (
                 <button
@@ -2737,7 +2784,7 @@ function CrystallizeCard({ card, acquired, onRegister, serverCount, serverTarget
 }
 
 // ── Tesseract Card — cryptographic identity layer ───────────────────────────
-function TesseractCard({ card, tesseract, acquired, onRegister, serverCount, serverTarget, orderStatus }) {
+function TesseractCard({ card, tesseract, acquired, selectedTier, onRegister, serverCount, serverTarget, orderStatus }) {
   const [showForm, setShowForm] = useState(false);
   const getCount  = () => serverCount  != null ? serverCount  : (() => { try { return parseInt(localStorage.getItem('ck_count') || '0', 10); } catch { return 0; } })();
   const getTarget = () => serverTarget != null ? serverTarget : PRODUCTION_THRESHOLD;
@@ -2923,7 +2970,7 @@ function TesseractCard({ card, tesseract, acquired, onRegister, serverCount, ser
               {showForm ? (
                 <ContactForm
                   label="◈ ACQUIRE COMPILED ASSET"
-                  onSubmit={contact => { setShowForm(false); onRegister(contact); }}
+                  onSubmit={(contact, tier) => { setShowForm(false); onRegister(contact, tier); }}
                 />
               ) : (
                 <>
@@ -2956,14 +3003,18 @@ function TesseractCard({ card, tesseract, acquired, onRegister, serverCount, ser
               <div className="text-[7.5px] font-mono mb-1 break-all leading-relaxed" style={{ color: 'rgba(255,215,0,0.35)' }}>
                 {hash.slice(0, 32)}…
               </div>
-              <div className="grid grid-cols-2 gap-3 mt-3 mb-3">
+              <div className="grid grid-cols-3 gap-2 mt-3 mb-3">
                 <div className="rounded p-2 text-center" style={{ border: '1px solid rgba(255,215,0,0.12)', background: 'rgba(255,215,0,0.02)' }}>
-                  <div className="text-[7px] font-mono tracking-widest mb-0.5" style={{ color: 'rgba(255,215,0,0.3)' }}>SOVEREIGN RATIO</div>
-                  <div className="text-[11px] font-bold font-mono" style={{ color: 'rgba(255,215,0,0.8)' }}>€100</div>
+                  <div className="text-[7px] font-mono tracking-widest mb-0.5" style={{ color: 'rgba(255,215,0,0.3)' }}>TIER</div>
+                  <div className="text-[10px] font-bold font-mono" style={{ color: 'rgba(255,215,0,0.8)' }}>{selectedTier.size}</div>
+                </div>
+                <div className="rounded p-2 text-center" style={{ border: '1px solid rgba(255,215,0,0.12)', background: 'rgba(255,215,0,0.02)' }}>
+                  <div className="text-[7px] font-mono tracking-widest mb-0.5" style={{ color: 'rgba(255,215,0,0.3)' }}>SOVEREIGN</div>
+                  <div className="text-[11px] font-bold font-mono" style={{ color: 'rgba(255,215,0,0.8)' }}>€{selectedTier.price}</div>
                 </div>
                 <div className="rounded p-2 text-center" style={{ border: '1px solid rgba(57,255,20,0.12)', background: 'rgba(57,255,20,0.02)' }}>
-                  <div className="text-[7px] font-mono tracking-widest mb-0.5" style={{ color: 'rgba(57,255,20,0.3)' }}>G²T → UKRAINE</div>
-                  <div className="text-[11px] font-bold font-mono" style={{ color: 'rgba(57,255,20,0.7)' }}>€10 <span className="text-[8px]" style={{ color: 'rgba(57,255,20,0.35)' }}>(10%)</span></div>
+                  <div className="text-[7px] font-mono tracking-widest mb-0.5" style={{ color: 'rgba(57,255,20,0.3)' }}>G²T → UA</div>
+                  <div className="text-[11px] font-bold font-mono" style={{ color: 'rgba(57,255,20,0.7)' }}>€{selectedTier.g2t}</div>
                 </div>
               </div>
               <div className="text-[9px] font-mono mb-3" style={{ color: 'rgba(255,215,0,0.42)' }}>
