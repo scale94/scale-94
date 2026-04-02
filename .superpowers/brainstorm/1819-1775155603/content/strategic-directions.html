@@ -1,0 +1,261 @@
+<style>
+  .direction-card {
+    border: 1px solid rgba(6, 182, 212, 0.3);
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 20px;
+    background: rgba(6, 182, 212, 0.03);
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .direction-card:hover {
+    border-color: rgba(6, 182, 212, 0.7);
+    background: rgba(6, 182, 212, 0.06);
+  }
+  .direction-card.selected {
+    border-color: #06b6d4;
+    background: rgba(6, 182, 212, 0.1);
+  }
+  .direction-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #06b6d4;
+    margin-bottom: 8px;
+    font-family: monospace;
+  }
+  .direction-title {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    color: #e2e8f0;
+  }
+  .direction-thesis {
+    font-style: italic;
+    color: #94a3b8;
+    margin-bottom: 16px;
+    font-size: 14px;
+    line-height: 1.6;
+    border-left: 2px solid rgba(6, 182, 212, 0.3);
+    padding-left: 12px;
+  }
+  .direction-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .detail-block h4 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #06b6d4;
+    margin-bottom: 6px;
+    font-family: monospace;
+  }
+  .detail-block ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .detail-block li {
+    font-size: 13px;
+    color: #cbd5e1;
+    padding: 3px 0;
+    line-height: 1.5;
+  }
+  .detail-block li::before {
+    content: ">";
+    color: #06b6d4;
+    margin-right: 8px;
+    font-family: monospace;
+  }
+  .ars-context {
+    border: 1px solid rgba(251, 191, 36, 0.25);
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 28px;
+    background: rgba(251, 191, 36, 0.03);
+  }
+  .ars-context h3 {
+    color: #fbbf24;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 8px;
+    font-family: monospace;
+  }
+  .ars-context p {
+    color: #94a3b8;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .risk-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .risk-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #64748b;
+    font-family: monospace;
+    width: 80px;
+  }
+  .risk-track {
+    flex: 1;
+    height: 4px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .risk-fill {
+    height: 100%;
+    border-radius: 2px;
+  }
+  .risk-fill.low { width: 30%; background: #22c55e; }
+  .risk-fill.med { width: 60%; background: #fbbf24; }
+  .risk-fill.high { width: 85%; background: #ef4444; }
+  .vs-divider {
+    text-align: center;
+    color: #334155;
+    font-size: 12px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    padding: 8px 0;
+    font-family: monospace;
+  }
+</style>
+
+<h2>SCALE94 > ARS ELECTRONICA 2027</h2>
+<p class="subtitle">Three strategic directions. Which orbit do you want to explore?</p>
+
+<div class="ars-context">
+  <h3>What wins Golden Nica (Interactive Art +)</h3>
+  <p>The jury rewards work that <strong>changes conditions for others</strong>, not just work that is technically brilliant in isolation. Recent winners: Forensic Architecture (counter-forensics as public infrastructure), Lauren Lee McCarthy (social algorithms made visible through lived performance), Tega Brain & Julian Oliver (environmental sensing as governance). The pattern: <strong>the work must be a tool that others wield, not a monument they admire.</strong></p>
+</div>
+
+<div class="direction-card" data-choice="a" onclick="toggleSelect(this)">
+  <div class="direction-label">Direction A</div>
+  <div class="direction-title">THE OPEN LEDGER</div>
+  <div class="direction-thesis">"The terminal becomes a public audit infrastructure. Anyone can submit a river. Anyone can run a permit ruling. The thermodynamic verdicts accumulate into a planetary ledger that no government issued and no corporation controls."</div>
+  <div class="direction-details">
+    <div class="detail-block">
+      <h4>What changes</h4>
+      <ul>
+        <li>Real hydrological data ingestion (API or manual)</li>
+        <li>Public, immutable verdict archive (CAS)</li>
+        <li>Verdicts become citable counter-evidence</li>
+        <li>Community-submitted kernel parameters</li>
+      </ul>
+    </div>
+    <div class="detail-block">
+      <h4>Ars argument</h4>
+      <ul>
+        <li>Forensic Architecture lineage (counter-forensics)</li>
+        <li>Tool others wield, not monument to admire</li>
+        <li>Real political utility beyond gallery</li>
+        <li>Scales: 1 river or 10,000 rivers</li>
+      </ul>
+    </div>
+  </div>
+  <div class="risk-bar">
+    <span class="risk-label">Ambition</span>
+    <div class="risk-track"><div class="risk-fill high"></div></div>
+  </div>
+  <div class="risk-bar">
+    <span class="risk-label">Scope risk</span>
+    <div class="risk-track"><div class="risk-fill med"></div></div>
+  </div>
+  <div class="risk-bar">
+    <span class="risk-label">Ars fit</span>
+    <div class="risk-track"><div class="risk-fill high"></div></div>
+  </div>
+</div>
+
+<div class="vs-divider">- - - or - - -</div>
+
+<div class="direction-card" data-choice="b" onclick="toggleSelect(this)">
+  <div class="direction-label">Direction B</div>
+  <div class="direction-title">THE INSTALLATION BODY</div>
+  <div class="direction-thesis">"The terminal leaves the browser and enters physical space. A room-scale installation where the visitor IS the thermodynamic input. Their body heat, their breath CO2, their movement entropy become kernel parameters. The room audits the visitor."</div>
+  <div class="direction-details">
+    <div class="detail-block">
+      <h4>What changes</h4>
+      <ul>
+        <li>Sensor array: temperature, CO2, motion, sound</li>
+        <li>Physical terminal (CRT or projection)</li>
+        <li>Visitor biometrics as kernel input parameters</li>
+        <li>Room-scale Gray-Scott on walls/floor</li>
+      </ul>
+    </div>
+    <div class="detail-block">
+      <h4>Ars argument</h4>
+      <ul>
+        <li>Embodied interaction (not just screen)</li>
+        <li>Visitor confronted with their own thermodynamic cost</li>
+        <li>Spectacular for jury walkthroughs</li>
+        <li>Installation art tradition at Ars</li>
+      </ul>
+    </div>
+  </div>
+  <div class="risk-bar">
+    <span class="risk-label">Ambition</span>
+    <div class="risk-track"><div class="risk-fill high"></div></div>
+  </div>
+  <div class="risk-bar">
+    <span class="risk-label">Scope risk</span>
+    <div class="risk-track"><div class="risk-fill high"></div></div>
+  </div>
+  <div class="risk-bar">
+    <span class="risk-label">Ars fit</span>
+    <div class="risk-track"><div class="risk-fill high"></div></div>
+  </div>
+</div>
+
+<div class="vs-divider">- - - or - - -</div>
+
+<div class="direction-card" data-choice="c" onclick="toggleSelect(this)">
+  <div class="direction-label">Direction C</div>
+  <div class="direction-title">THE KERNEL COMMONS</div>
+  <div class="direction-thesis">"Others compile their own theories into kernels and submit them to the terminal. The 23 kernels become 230. The Axiomatic Core remains — but the theories it governs are no longer one architect's. The terminal becomes a commons for executable thought."</div>
+  <div class="direction-details">
+    <div class="detail-block">
+      <h4>What changes</h4>
+      <ul>
+        <li>Kernel submission protocol (Rust -> WASM)</li>
+        <li>Peer review / verification pipeline</li>
+        <li>Contributor attribution in CAS manifest</li>
+        <li>LatentCollider operates on foreign kernels</li>
+      </ul>
+    </div>
+    <div class="detail-block">
+      <h4>Ars argument</h4>
+      <ul>
+        <li>Digital commons / open infrastructure</li>
+        <li>Scales beyond single author</li>
+        <li>Others' theories enter collision space</li>
+        <li>"Theory that cannot be compiled" becomes a shared standard</li>
+      </ul>
+    </div>
+  </div>
+  <div class="risk-bar">
+    <span class="risk-label">Ambition</span>
+    <div class="risk-track"><div class="risk-fill high"></div></div>
+  </div>
+  <div class="risk-bar">
+    <span class="risk-label">Scope risk</span>
+    <div class="risk-track"><div class="risk-fill high"></div></div>
+  </div>
+  <div class="risk-bar">
+    <span class="risk-label">Ars fit</span>
+    <div class="risk-track"><div class="risk-fill med"></div></div>
+  </div>
+</div>
+
+<div style="margin-top: 24px; padding: 16px; border: 1px solid rgba(100, 116, 139, 0.2); border-radius: 6px;">
+  <p style="color: #64748b; font-size: 12px; line-height: 1.6; margin: 0;">
+    These are not mutually exclusive. You could combine elements. But I need to know which <strong>gravity well</strong> pulls hardest — that determines where we invest depth. Click the one that resonates most, or tell me in the terminal what you're actually drawn to.
+  </p>
+</div>

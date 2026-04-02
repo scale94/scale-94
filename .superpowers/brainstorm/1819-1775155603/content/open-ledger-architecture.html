@@ -1,0 +1,390 @@
+<style>
+  * { box-sizing: border-box; }
+  .arch-diagram {
+    background: #0a0a0f;
+    border: 1px solid rgba(6, 182, 212, 0.2);
+    border-radius: 8px;
+    padding: 32px;
+    margin: 20px 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .arch-diagram::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 0%, rgba(6, 182, 212, 0.04) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .layer {
+    border: 1px solid rgba(6, 182, 212, 0.15);
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 12px;
+    position: relative;
+  }
+  .layer-label {
+    position: absolute;
+    top: -9px;
+    left: 12px;
+    background: #0a0a0f;
+    padding: 0 8px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #06b6d4;
+    font-family: monospace;
+  }
+  .layer-content {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+  .node {
+    background: rgba(6, 182, 212, 0.06);
+    border: 1px solid rgba(6, 182, 212, 0.2);
+    border-radius: 4px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: #cbd5e1;
+    font-family: monospace;
+    flex: 1;
+    min-width: 140px;
+  }
+  .node-title {
+    color: #06b6d4;
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+  .node-desc {
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.4;
+  }
+  .flow-arrow {
+    text-align: center;
+    color: #334155;
+    font-family: monospace;
+    font-size: 18px;
+    margin: 4px 0;
+    letter-spacing: 4px;
+  }
+  .verdict-example {
+    background: #0a0a0f;
+    border: 1px solid rgba(251, 191, 36, 0.25);
+    border-radius: 6px;
+    padding: 20px;
+    margin: 20px 0;
+    font-family: monospace;
+    font-size: 12px;
+    line-height: 1.8;
+    color: #cbd5e1;
+  }
+  .verdict-example .key { color: #06b6d4; }
+  .verdict-example .val { color: #e2e8f0; }
+  .verdict-example .warn { color: #fbbf24; }
+  .verdict-example .deny { color: #ef4444; font-weight: 700; }
+  .verdict-example .ok { color: #22c55e; }
+  .phase-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 20px 0;
+  }
+  .phase-card {
+    border: 1px solid rgba(6, 182, 212, 0.15);
+    border-radius: 6px;
+    padding: 16px;
+  }
+  .phase-num {
+    font-size: 32px;
+    font-weight: 200;
+    color: rgba(6, 182, 212, 0.3);
+    font-family: monospace;
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+  .phase-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #e2e8f0;
+    margin-bottom: 6px;
+  }
+  .phase-desc {
+    font-size: 12px;
+    color: #94a3b8;
+    line-height: 1.5;
+  }
+  .phase-tag {
+    display: inline-block;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    margin-top: 8px;
+    font-family: monospace;
+  }
+  .tag-ship { background: rgba(34, 197, 94, 0.1); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.2); }
+  .tag-stretch { background: rgba(251, 191, 36, 0.1); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.2); }
+  .tag-aspire { background: rgba(217, 70, 239, 0.1); color: #d946ef; border: 1px solid rgba(217, 70, 239, 0.2); }
+  .section-break {
+    border-top: 1px solid rgba(100, 116, 139, 0.1);
+    margin: 28px 0;
+  }
+  .commons-preview {
+    border: 1px dashed rgba(217, 70, 239, 0.25);
+    border-radius: 6px;
+    padding: 16px;
+    margin: 20px 0;
+  }
+  .commons-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #d946ef;
+    font-family: monospace;
+    margin-bottom: 8px;
+  }
+  .timeline {
+    display: flex;
+    gap: 0;
+    margin: 20px 0;
+    position: relative;
+  }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: rgba(6, 182, 212, 0.15);
+  }
+  .tl-node {
+    flex: 1;
+    text-align: center;
+    position: relative;
+    padding-top: 24px;
+  }
+  .tl-node::before {
+    content: '';
+    position: absolute;
+    top: calc(50% - 20px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #06b6d4;
+    border: 2px solid #0a0a0f;
+  }
+  .tl-date {
+    font-size: 11px;
+    color: #06b6d4;
+    font-family: monospace;
+    font-weight: 700;
+  }
+  .tl-label {
+    font-size: 10px;
+    color: #64748b;
+    margin-top: 4px;
+    line-height: 1.3;
+  }
+</style>
+
+<h2>THE OPEN LEDGER</h2>
+<p class="subtitle">Architecture for a sovereign planetary audit infrastructure</p>
+
+<!-- SYSTEM ARCHITECTURE -->
+<div class="arch-diagram">
+  <div class="layer">
+    <div class="layer-label">Input Layer</div>
+    <div class="layer-content">
+      <div class="node">
+        <div class="node-title">Manual Entry</div>
+        <div class="node-desc">Structured form: coordinates, temp, DO, BOD, flow, discharge params. Human is the sensor. <strong>dependency: sovereign</strong></div>
+      </div>
+      <div class="node">
+        <div class="node-title">Open API Ingest</div>
+        <div class="node-desc">USGS NWIS, EEA Waterbase, national monitoring. Auto-pull by coordinates. <strong>dependency: external</strong></div>
+      </div>
+      <div class="node">
+        <div class="node-title">Community Upload</div>
+        <div class="node-desc">CSV/JSON field data from citizen science, NGOs, researchers. <strong>dependency: attested</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flow-arrow">|||</div>
+
+  <div class="layer">
+    <div class="layer-label">Kernel Layer (WASM — runs in visitor's browser)</div>
+    <div class="layer-content">
+      <div class="node">
+        <div class="node-title">Chrono-Actuary</div>
+        <div class="node-desc">5-module sovereign audit: Streeter-Phelps, van't Hoff, Redfield, Manning, Langelier</div>
+      </div>
+      <div class="node">
+        <div class="node-title">Atmospheric</div>
+        <div class="node-desc">Climate projection overlay. IPCC trajectory correction for end-of-license state</div>
+      </div>
+      <div class="node">
+        <div class="node-title">Trophic Cascade</div>
+        <div class="node-desc">Biodiversity impact propagation. Food web stress assessment</div>
+      </div>
+      <div class="node">
+        <div class="node-title">Future Kernels...</div>
+        <div class="node-desc">Community-authored (Phase 2). Soil, ocean, air quality, deforestation</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flow-arrow">|||</div>
+
+  <div class="layer">
+    <div class="layer-label">Verdict Layer</div>
+    <div class="layer-content">
+      <div class="node">
+        <div class="node-title">Permit Ruling</div>
+        <div class="node-desc">APPROVED / CONDITIONAL / REJECTED / EMERGENCY_VETO — thermodynamic verdict, not recommendation</div>
+      </div>
+      <div class="node">
+        <div class="node-title">Audit Ledger</div>
+        <div class="node-desc">Full line-item breakdown: each module's contribution, threshold crossings, cascade effects</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flow-arrow">|||</div>
+
+  <div class="layer">
+    <div class="layer-label">Archive Layer (CAS — Content-Addressable Storage)</div>
+    <div class="layer-content">
+      <div class="node">
+        <div class="node-title">Verdict Hash</div>
+        <div class="node-desc">SHA-256 of full verdict + input params + kernel version. Immutable. Citable. Timestamped.</div>
+      </div>
+      <div class="node">
+        <div class="node-title">Public Ledger</div>
+        <div class="node-desc">Accumulated verdicts indexed by coordinates, watershed, date. The planetary audit trail.</div>
+      </div>
+      <div class="node">
+        <div class="node-title">Counter-Evidence API</div>
+        <div class="node-desc">Machine-readable verdict export. Embeddable in legal filings, journalism, activism.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- VERDICT EXAMPLE -->
+<h3 style="color: #e2e8f0; margin-top: 28px;">Example: A Public Verdict</h3>
+<p class="subtitle">What a real audit record looks like in the ledger</p>
+
+<div class="verdict-example">
+  <span class="key">VERDICT</span> <span class="deny">EMERGENCY_VETO</span><br>
+  <span class="key">hash:</span> <span class="val">a7f3c9...2e81d4</span><br>
+  <span class="key">timestamp:</span> <span class="val">2027-06-14T09:31:22Z</span><br>
+  <span class="key">coordinates:</span> <span class="val">48.2082°N, 16.3738°E</span> <span style="color:#64748b;">// Danube, Vienna reach</span><br>
+  <span class="key">dependency:</span> <span class="warn">external</span> <span style="color:#64748b;">// EEA Waterbase</span><br>
+  <span class="key">kernel:</span> <span class="val">chrono-actuary v2.1.0 (wasm-sha256: 8b2f...)</span><br>
+  <span class="key">input.temp:</span> <span class="val">24.3°C</span><br>
+  <span class="key">input.do:</span> <span class="val">4.1 mg/L</span> <span class="warn">← DEBT_SPIRAL</span><br>
+  <span class="key">input.bod:</span> <span class="val">22 mg/L</span> <span class="deny">← THERMAL_ARSON</span><br>
+  <span class="key">ipcc_correction:</span> <span class="val">+2.8°C (SSP2-4.5, 2075)</span><br>
+  <span class="key">effective_thermal_load:</span> <span class="deny">+27.1°C</span><br>
+  <span class="key">ruling:</span> <span class="deny">Thermal rent exceeds biocapacity. Permit structurally insolvent.</span><br>
+  <br>
+  <span style="color:#64748b;">// This verdict is immutable. It can be cited, embedded, challenged —</span><br>
+  <span style="color:#64748b;">// but it cannot be silently revised. The river said what it said.</span>
+</div>
+
+<div class="section-break"></div>
+
+<!-- IMPLEMENTATION PHASES -->
+<h3 style="color: #e2e8f0;">Build Sequence</h3>
+<p class="subtitle">What ships, in what order, before the 2027 submission deadline</p>
+
+<div class="phase-grid">
+  <div class="phase-card">
+    <div class="phase-num">01</div>
+    <div class="phase-title">Structured Input Protocol</div>
+    <div class="phase-desc">Replace CLI flags with a structured submission interface. Coordinates picker (map or manual). Parameter form with validation. Dependency classification (sovereign / external / attested). All still runs client-side in WASM.</div>
+    <span class="phase-tag tag-ship">Ship first</span>
+  </div>
+  <div class="phase-card">
+    <div class="phase-num">02</div>
+    <div class="phase-title">Verdict Archive (CAS Extension)</div>
+    <div class="phase-desc">Extend existing SHA-256 CAS pipeline to store verdicts. Each verdict gets a permanent hash. Public manifest of all accumulated rulings. No database — flat CAS chunks, same architecture as kernel docs.</div>
+    <span class="phase-tag tag-ship">Ship first</span>
+  </div>
+  <div class="phase-card">
+    <div class="phase-num">03</div>
+    <div class="phase-title">Open API Ingest</div>
+    <div class="phase-desc">USGS NWIS + EEA Waterbase connectors. User enters coordinates or river name → terminal pulls latest readings → runs audit. Dependency flag auto-set to "external". Graceful fallback to manual if API is down.</div>
+    <span class="phase-tag tag-stretch">Stretch</span>
+  </div>
+  <div class="phase-card">
+    <div class="phase-num">04</div>
+    <div class="phase-title">Counter-Evidence Export</div>
+    <div class="phase-desc">Machine-readable verdict export: JSON-LD, PDF audit report, embeddable widget. Designed for journalists, lawyers, activists, researchers. A verdict becomes a citable artifact with a permanent URL.</div>
+    <span class="phase-tag tag-stretch">Stretch</span>
+  </div>
+</div>
+
+<div class="section-break"></div>
+
+<!-- COMMONS PREVIEW -->
+<div class="commons-preview">
+  <div class="commons-label">Phase 2 Preview — The Kernel Commons</div>
+  <p style="color: #94a3b8; font-size: 13px; line-height: 1.6; margin: 0;">
+    Once the ledger proves the infrastructure works on real data, the <strong style="color: #d946ef;">Kernel Commons</strong> opens: a submission protocol where others compile their own theories into WASM kernels. Soil scientists submit soil carbon auditors. Marine biologists submit ocean acidification models. Urban planners submit heat island assessors. Each new kernel inherits the same CAS provenance, the same verdict format, the same Axiomatic Core governance. The LatentCollider begins colliding <em>foreign thought</em> — theories you didn't write, producing chimeras you didn't predict.
+  </p>
+</div>
+
+<!-- TIMELINE -->
+<h3 style="color: #e2e8f0;">Timeline to Ars 2027</h3>
+<p class="subtitle">Submission deadline is typically March. Working backward.</p>
+
+<div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin: 24px 0; text-align: center;">
+  <div>
+    <div style="font-size: 24px; font-weight: 200; color: rgba(6, 182, 212, 0.4); font-family: monospace;">Q2</div>
+    <div style="font-size: 11px; color: #06b6d4; font-family: monospace; font-weight: 700;">2026</div>
+    <div style="font-size: 10px; color: #94a3b8; margin-top: 4px; line-height: 1.4;">Structured input<br>+ verdict CAS</div>
+    <div style="width: 100%; height: 3px; background: #22c55e; margin-top: 8px; border-radius: 2px;"></div>
+  </div>
+  <div>
+    <div style="font-size: 24px; font-weight: 200; color: rgba(6, 182, 212, 0.4); font-family: monospace;">Q3</div>
+    <div style="font-size: 11px; color: #06b6d4; font-family: monospace; font-weight: 700;">2026</div>
+    <div style="font-size: 10px; color: #94a3b8; margin-top: 4px; line-height: 1.4;">API ingest<br>+ first public verdicts</div>
+    <div style="width: 100%; height: 3px; background: #fbbf24; margin-top: 8px; border-radius: 2px;"></div>
+  </div>
+  <div>
+    <div style="font-size: 24px; font-weight: 200; color: rgba(6, 182, 212, 0.4); font-family: monospace;">Q4</div>
+    <div style="font-size: 11px; color: #06b6d4; font-family: monospace; font-weight: 700;">2026</div>
+    <div style="font-size: 10px; color: #94a3b8; margin-top: 4px; line-height: 1.4;">Counter-evidence export<br>+ ledger accumulation</div>
+    <div style="width: 100%; height: 3px; background: #fbbf24; margin-top: 8px; border-radius: 2px;"></div>
+  </div>
+  <div>
+    <div style="font-size: 24px; font-weight: 200; color: rgba(6, 182, 212, 0.4); font-family: monospace;">Q1</div>
+    <div style="font-size: 11px; color: #06b6d4; font-family: monospace; font-weight: 700;">2027</div>
+    <div style="font-size: 10px; color: #94a3b8; margin-top: 4px; line-height: 1.4;">Kernel Commons<br>protocol opens</div>
+    <div style="width: 100%; height: 3px; background: #d946ef; margin-top: 8px; border-radius: 2px;"></div>
+  </div>
+  <div>
+    <div style="font-size: 24px; font-weight: 200; color: rgba(6, 182, 212, 0.4); font-family: monospace;">MAR</div>
+    <div style="font-size: 11px; color: #06b6d4; font-family: monospace; font-weight: 700;">2027</div>
+    <div style="font-size: 10px; color: #94a3b8; margin-top: 4px; line-height: 1.4;">Ars submission<br>+ artist statement v2</div>
+    <div style="width: 100%; height: 3px; background: #ef4444; margin-top: 8px; border-radius: 2px;"></div>
+  </div>
+</div>
+
+<div style="margin-top: 24px; padding: 16px; border: 1px solid rgba(100, 116, 139, 0.15); border-radius: 6px;">
+  <p style="color: #94a3b8; font-size: 12px; line-height: 1.7; margin: 0;">
+    <strong style="color: #e2e8f0;">The Ars argument becomes:</strong> "This terminal has issued N thermodynamic verdicts on M rivers across K countries. None were requested by a government. None can be silently revised. The equations are the authority. The ledger is the evidence. And now — others are compiling their own theories into it."
+  </p>
+</div>

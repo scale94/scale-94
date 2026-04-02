@@ -2282,5 +2282,19 @@
     "readTime": "1 min read",
     "tags": [],
     "len": "0 WDS"
+  },
+  {
+    "id": "SHADOWSOCKS-KERNEL-_",
+    "type": "kernel_doc",
+    "date": "2026-04-02",
+    "title": "SHADOWSOCKS KERNEL ",
+    "subtitle": "",
+    "status": "ACTIVE",
+    "readTime": "",
+    "tags": [
+      "SHADOWSOCKS",
+      "KERNEL"
+    ],
+    "len": "379 WDS"
   }
 ]
