@@ -2756,7 +2756,7 @@ function CrystallizeCard({ card, acquired, selectedTier, onRegister, serverCount
                 style={{ color: '#FFD700', textShadow: '0 0 10px rgba(255,215,0,0.35)' }}>
                 ✦ INTEREST LOGGED
               </div>
-              {orderStatus && <FulfillmentBadge state={orderStatus.fulfillmentState} />}
+              {orderStatus?.fulfillmentState && <FulfillmentBadge state={orderStatus.fulfillmentState} />}
               <div className="text-[9px] font-mono mb-3" style={{ color: 'rgba(255,215,0,0.42)' }}>
                 PRODUCTION THRESHOLD — {getCount()} / {getTarget()}
               </div>
@@ -2999,7 +2999,7 @@ function TesseractCard({ card, tesseract, acquired, selectedTier, onRegister, se
                 }}>
                 ◈ TRANSMUTE INITIATED
               </div>
-              {orderStatus && <FulfillmentBadge state={orderStatus.fulfillmentState} />}
+              {orderStatus?.fulfillmentState && <FulfillmentBadge state={orderStatus.fulfillmentState} />}
               <div className="text-[7.5px] font-mono mb-1 break-all leading-relaxed" style={{ color: 'rgba(255,215,0,0.35)' }}>
                 {hash.slice(0, 32)}…
               </div>

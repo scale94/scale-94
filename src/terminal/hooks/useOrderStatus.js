@@ -9,7 +9,24 @@ const POLL_MS = 20_000;
 const LS_KEY  = 'ck_order_hashes'; // JSON array of formulaHash strings
 
 export function useOrderStatus(activeHash) {
-  const [status, setStatus] = useState(null); // { fulfillmentState, orderId, createdAt }
+  // Resolve hash: use live session hash, or fall back to localStorage
+  const resolvedHash = activeHash || getStoredHash(null);
+  const [status, setStatus] = useState(() => {
+    // Hydrate from localStorage cache if available
+    if (!resolvedHash) return null;
+    try {
+      const cached = localStorage.getItem(`ck_order_status_${resolvedHash}`);
+      return cached ? JSON.parse(cached) : null;
+    } catch { return null; }
+  });
+  const [trackedHash, setTrackedHash] = useState(resolvedHash);
+
+  // Update tracked hash when it changes
+  useEffect(() => {
+    if (resolvedHash && resolvedHash !== trackedHash) {
+      setTrackedHash(resolvedHash);
+    }
+  }, [resolvedHash, trackedHash]);
 
   const fetchStatus = useCallback(async (hash) => {
     if (!hash) return;
@@ -18,13 +35,17 @@ export function useOrderStatus(activeHash) {
       if (!res.ok) return;
       const data = await res.json();
       setStatus(data);
+      // Persist to localStorage so returning visitors see their last status
+      try {
+        localStorage.setItem(`ck_order_status_${hash}`, JSON.stringify(data));
+      } catch { /* storage blocked */ }
     } catch { /* silent */ }
   }, []);
 
   useEffect(() => {
-    if (!activeHash) { setStatus(null); return; }
+    if (!trackedHash) { setStatus(null); return; }
 
-    fetchStatus(activeHash);
+    fetchStatus(trackedHash);
 
     // Stop polling once SHIPPED
     const id = setInterval(() => {
@@ -33,15 +54,17 @@ export function useOrderStatus(activeHash) {
           clearInterval(id);
           return prev;
         }
-        fetchStatus(activeHash);
+        fetchStatus(trackedHash);
         return prev;
       });
     }, POLL_MS);
 
     return () => clearInterval(id);
-  }, [activeHash, fetchStatus]);
+  }, [trackedHash, fetchStatus]);
 
-  return status;
+  // Return null if no status data, so consumers' null-checks still work
+  if (!status) return trackedHash ? { fulfillmentState: null, hash: trackedHash } : null;
+  return { ...status, hash: trackedHash };
 }
 
 // Persist a formulaHash to localStorage after order dispatch
