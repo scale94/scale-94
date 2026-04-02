@@ -1,0 +1,343 @@
+<style>
+  * { box-sizing: border-box; }
+
+  .concept-card {
+    border: 1px solid rgba(20, 184, 166, 0.2);
+    border-radius: 6px;
+    padding: 20px;
+    margin-bottom: 24px;
+    background: rgba(20, 184, 166, 0.02);
+    position: relative;
+    overflow: hidden;
+  }
+  .concept-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(20, 184, 166, 0.4), transparent);
+  }
+  .concept-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    color: #14b8a6;
+    font-family: monospace;
+    margin-bottom: 10px;
+  }
+  .concept-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #e2e8f0;
+    margin-bottom: 8px;
+  }
+  .concept-desc {
+    font-size: 13px;
+    color: #94a3b8;
+    line-height: 1.7;
+    margin-bottom: 16px;
+  }
+  .visual-ref {
+    font-size: 10px;
+    color: #0d9488;
+    font-family: monospace;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* Mock canvas areas */
+  .canvas-mock {
+    background: #050810;
+    border: 1px solid rgba(20, 184, 166, 0.1);
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+  }
+  .canvas-mock::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(0,0,0,0.5) 100%);
+    pointer-events: none;
+  }
+
+  /* World map mockup */
+  .map-canvas {
+    height: 320px;
+    background:
+      radial-gradient(circle at 30% 40%, rgba(20,184,166,0.08) 0%, transparent 30%),
+      radial-gradient(circle at 70% 55%, rgba(20,184,166,0.05) 0%, transparent 25%),
+      radial-gradient(circle at 45% 30%, rgba(239,68,68,0.06) 0%, transparent 20%),
+      #050810;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Verdict pulse mockup */
+  .verdict-pulse {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    position: absolute;
+    animation: vp-pulse 2s ease-in-out infinite;
+  }
+  .verdict-pulse::before {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    border: 1px solid;
+    animation: vp-ring 2s ease-out infinite;
+    opacity: 0;
+  }
+  .vp-green { background: #22c55e; box-shadow: 0 0 12px rgba(34,197,94,0.6); }
+  .vp-green::before { border-color: rgba(34,197,94,0.3); }
+  .vp-red { background: #ef4444; box-shadow: 0 0 16px rgba(239,68,68,0.7); }
+  .vp-red::before { border-color: rgba(239,68,68,0.4); }
+  .vp-yellow { background: #eab308; box-shadow: 0 0 12px rgba(234,179,8,0.5); }
+  .vp-yellow::before { border-color: rgba(234,179,8,0.3); }
+
+  @keyframes vp-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.4); }
+  }
+  @keyframes vp-ring {
+    0% { transform: scale(1); opacity: 0.6; }
+    100% { transform: scale(3); opacity: 0; }
+  }
+
+  /* Audit cascade mockup */
+  .cascade-mock {
+    height: 200px;
+    background: #050810;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 20px;
+  }
+  .module-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+    font-family: monospace;
+    font-size: 10px;
+  }
+  .module-name {
+    width: 120px;
+    color: #64748b;
+    text-align: right;
+    letter-spacing: 1px;
+  }
+  .module-track {
+    flex: 1;
+    height: 3px;
+    background: rgba(20,184,166,0.1);
+    border-radius: 2px;
+    overflow: hidden;
+    position: relative;
+  }
+  .module-fill {
+    height: 100%;
+    border-radius: 2px;
+    animation: mf-sweep 1.5s ease-out forwards;
+    position: relative;
+  }
+  .module-fill::after {
+    content: '';
+    position: absolute;
+    right: 0; top: -2px; bottom: -2px;
+    width: 6px;
+    border-radius: 50%;
+    filter: blur(2px);
+  }
+  .mf-ok { background: linear-gradient(90deg, rgba(20,184,166,0.2), #14b8a6); }
+  .mf-ok::after { background: #14b8a6; }
+  .mf-warn { background: linear-gradient(90deg, rgba(234,179,8,0.2), #eab308); }
+  .mf-warn::after { background: #eab308; }
+  .mf-crit { background: linear-gradient(90deg, rgba(239,68,68,0.2), #ef4444); }
+  .mf-crit::after { background: #ef4444; }
+  .module-val {
+    width: 80px;
+    color: #94a3b8;
+    font-size: 10px;
+  }
+
+  @keyframes mf-sweep {
+    from { width: 0; }
+  }
+
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 16px 0;
+  }
+  .compare-box {
+    border: 1px solid rgba(100,116,139,0.15);
+    border-radius: 4px;
+    padding: 12px;
+  }
+  .compare-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-family: monospace;
+    margin-bottom: 8px;
+  }
+  .compare-bad { color: #ef4444; border-color: rgba(239,68,68,0.15); }
+  .compare-good { color: #14b8a6; border-color: rgba(20,184,166,0.15); }
+
+  .scanline-overlay {
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(to bottom, transparent 0, transparent 3px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px);
+    pointer-events: none;
+  }
+
+  .section-divider {
+    border-top: 1px solid rgba(20,184,166,0.08);
+    margin: 32px 0;
+  }
+</style>
+
+<h2>LEDGER TAB — VISUAL UPGRADE</h2>
+<p class="subtitle">Three visual layers that bring the Ledger to scale94 quality</p>
+
+<!-- LAYER 1: VERDICT MAP -->
+<div class="concept-card">
+  <div class="concept-label">Layer 1 — Hero Canvas</div>
+  <div class="concept-title">THE VERDICT MAP</div>
+  <div class="concept-desc">
+    A dark-tiles world map rendered on Canvas2D (reusing the d3-geo + topojson stack from EcocideTab's world map).
+    As verdicts accumulate, they appear as <strong>pulsing markers</strong> — green for APPROVED, amber for CONDITIONAL,
+    red for REJECTED/EMERGENCY_VETO. Each marker has a radial pulse ring that decays over time.
+    The map is the first thing you see. It answers: <em>"Where has the terminal issued rulings?"</em>
+    Empty at first — that emptiness is the invitation.
+  </div>
+
+  <div class="canvas-mock map-canvas">
+    <div class="scanline-overlay"></div>
+    <!-- Mockup verdict markers -->
+    <div class="verdict-pulse vp-red" style="top:35%;left:42%"></div>
+    <div class="verdict-pulse vp-green" style="top:52%;left:28%"></div>
+    <div class="verdict-pulse vp-yellow" style="top:40%;left:65%"></div>
+    <div class="verdict-pulse vp-red" style="top:30%;left:48%"></div>
+    <div class="verdict-pulse vp-green" style="top:58%;left:72%"></div>
+    <div class="verdict-pulse vp-red" style="top:45%;left:55%"></div>
+    <div style="position:absolute;bottom:12px;left:16px;font-family:monospace;font-size:9px;color:rgba(20,184,166,0.3);letter-spacing:2px;text-transform:uppercase;z-index:1;">
+      6 verdicts · 4 watersheds · 3 countries
+    </div>
+    <div style="position:absolute;top:12px;right:16px;font-family:monospace;font-size:9px;color:rgba(20,184,166,0.25);letter-spacing:2px;text-transform:uppercase;z-index:1;">
+      THE OPEN LEDGER v1.0
+    </div>
+  </div>
+
+  <div class="visual-ref" style="margin-top:12px;">
+    Precedent: EcocideTab world map (d3-geo + topojson + SVG hotspots) · adapted to Canvas2D with verdict markers
+  </div>
+</div>
+
+<!-- LAYER 2: AUDIT CASCADE -->
+<div class="concept-card">
+  <div class="concept-label">Layer 2 — Execution Visualization</div>
+  <div class="concept-title">THE AUDIT CASCADE</div>
+  <div class="concept-desc">
+    When an audit runs, you don't just see a result card appear. You see the <strong>five Chrono-Actuary modules
+    execute sequentially</strong> — each one sweeps a progress bar, reveals its contribution to the verdict,
+    and the final ruling crystallizes at the end. The computation IS the visual.
+    Staggered reveals (0.3s per module). Color shifts from teal (safe) through amber (stress) to red (arson).
+  </div>
+
+  <div class="canvas-mock cascade-mock">
+    <div class="scanline-overlay"></div>
+    <div class="module-bar">
+      <div class="module-name">STREETER-PHELPS</div>
+      <div class="module-track"><div class="module-fill mf-ok" style="width:65%;animation-delay:0s"></div></div>
+      <div class="module-val" style="color:#14b8a6">DO: 6.2 mg/L</div>
+    </div>
+    <div class="module-bar">
+      <div class="module-name">VAN'T HOFF</div>
+      <div class="module-track"><div class="module-fill mf-warn" style="width:78%;animation-delay:0.3s"></div></div>
+      <div class="module-val" style="color:#eab308">ΔT: +4.2°C</div>
+    </div>
+    <div class="module-bar">
+      <div class="module-name">REDFIELD</div>
+      <div class="module-track"><div class="module-fill mf-ok" style="width:42%;animation-delay:0.6s"></div></div>
+      <div class="module-val" style="color:#14b8a6">N:P = 14:1</div>
+    </div>
+    <div class="module-bar">
+      <div class="module-name">MANNING</div>
+      <div class="module-track"><div class="module-fill mf-warn" style="width:55%;animation-delay:0.9s"></div></div>
+      <div class="module-val" style="color:#eab308">Q: 0.08 m³/s</div>
+    </div>
+    <div class="module-bar">
+      <div class="module-name">LANGELIER</div>
+      <div class="module-track"><div class="module-fill mf-crit" style="width:92%;animation-delay:1.2s"></div></div>
+      <div class="module-val" style="color:#ef4444">LSI: −2.1</div>
+    </div>
+    <div style="margin-top:16px;text-align:center;">
+      <span style="font-family:monospace;font-size:14px;font-weight:bold;color:#ef4444;letter-spacing:4px;text-shadow:0 0 20px rgba(239,68,68,0.4);">EMERGENCY_VETO</span>
+    </div>
+  </div>
+
+  <div class="visual-ref" style="margin-top:12px;">
+    Precedent: ClassifiedTab key generation cascade · EcocideTab phase progression bars
+  </div>
+</div>
+
+<!-- LAYER 3: REVEAL CHOREOGRAPHY -->
+<div class="concept-card">
+  <div class="concept-label">Layer 3 — Choreography</div>
+  <div class="concept-title">PHASE-DRIVEN REVEAL</div>
+  <div class="concept-desc">
+    The Ledger tab doesn't load — it <strong>boots</strong>. Like every other tab on scale94:
+  </div>
+
+  <div style="font-family:monospace;font-size:11px;color:#94a3b8;line-height:2;padding:12px;background:rgba(0,0,0,0.3);border-radius:4px;margin-bottom:16px;">
+    <span style="color:#0d9488">Phase 0</span> <span style="color:#334155">(0.0s)</span> — Map canvas fades in from black, graticule lines draw themselves<br>
+    <span style="color:#0d9488">Phase 1</span> <span style="color:#334155">(0.8s)</span> — Existing verdict markers pulse in (staggered 50ms per marker)<br>
+    <span style="color:#0d9488">Phase 2</span> <span style="color:#334155">(1.5s)</span> — Header text reveals with letter-spacing animation (like Feigenbaum title)<br>
+    <span style="color:#0d9488">Phase 3</span> <span style="color:#334155">(2.0s)</span> — Submission form slides up from below with blur(8px)→blur(0) transition<br>
+    <span style="color:#0d9488">Phase 4</span> <span style="color:#334155">(on submit)</span> — Audit cascade plays, then verdict marker drops onto the map with a particle burst
+  </div>
+
+  <div class="visual-ref">
+    Precedent: ArtTab Jury Awakening · ScalingTab staggered card reveals · ClassifiedTab boot sequence
+  </div>
+</div>
+
+<div class="section-divider"></div>
+
+<!-- BEFORE/AFTER -->
+<h3 style="color:#e2e8f0;margin-bottom:16px;">Before vs. After</h3>
+
+<div class="compare-grid">
+  <div class="compare-box compare-bad">
+    <div class="compare-label">Current Ledger</div>
+    <div style="font-size:12px;color:#94a3b8;line-height:1.6;">
+      Form fields → submit → card appears<br>
+      No canvas · No particles · No choreography<br>
+      No map · No audit visualization<br>
+      Looks like a settings page on someone else's site
+    </div>
+  </div>
+  <div class="compare-box compare-good">
+    <div class="compare-label">Upgraded Ledger</div>
+    <div style="font-size:12px;color:#94a3b8;line-height:1.6;">
+      Dark world map as hero with verdict pulses<br>
+      5-module audit cascade on execution<br>
+      Phase-driven boot choreography<br>
+      Particle burst when verdict drops on map<br>
+      Scanline + vignette post-processing<br>
+      <strong style="color:#14b8a6">Feels like scale94</strong>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:24px;padding:16px;border:1px solid rgba(20,184,166,0.15);border-radius:6px;">
+  <p style="color:#94a3b8;font-size:12px;line-height:1.7;margin:0;">
+    <strong style="color:#e2e8f0;">Implementation note:</strong> The world map can reuse the existing <code>d3-geo</code> + <code>topojson-client</code> dependencies already in package.json. The audit cascade is pure CSS animation + staggered reveals. The particle burst follows the exact pattern from ArtTab's <code>emitNodeBurst()</code>. Total new code: ~600-800 lines in a new <code>LedgerCanvas.jsx</code> component. The form and verdict cards stay — they just become one layer in a richer composition.
+  </p>
+</div>

@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import SubmissionForm from './ledger/SubmissionForm';
 import LedgerMap from './ledger/LedgerMap';
+import LedgerParticles from './ledger/LedgerParticles';
 import AuditCascade from './ledger/AuditCascade';
 import { fetchUSGS, fetchEEA } from '../ledger/apiIngest';
 import { generateJsonLd, generatePdf, generateEmbedHtml } from '../ledger/exportFormats';
@@ -10,6 +11,7 @@ import { storeVerdict, getAllVerdicts, getVerdictCount } from '../ledger/verdict
 import { ledgerBus } from '../ledger/ledgerBus';
 import { loadWasm } from '../../wasm/wasmSingleton';
 import wasmRegistry from '../../wasm/wasm.generated';
+import { toMapXY } from '../data/worldMapPolys';
 
 const CHRONO_ENTRY = wasmRegistry['CHRONO-ACTUARY-KERNEL-2.0'];
 
@@ -51,6 +53,23 @@ const LEDGER_STYLES = `
   0%, 100% { opacity: 0.03; }
   50%      { opacity: 0.07; }
 }
+@keyframes lt-energyLine {
+  0%   { width: 0; opacity: 0; }
+  20%  { opacity: 1; }
+  100% { width: 100%; opacity: 0.5; }
+}
+@keyframes lt-energyPulse {
+  0%, 100% { opacity: 0.3; filter: brightness(1); }
+  50%      { opacity: 0.8; filter: brightness(1.5); }
+}
+@keyframes lt-countReveal {
+  0%   { opacity: 0; transform: translateY(4px) scale(0.95); filter: blur(2px); }
+  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+@keyframes lt-viewToggleIn {
+  0%   { opacity: 0; transform: translateX(-8px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
 `;
 
 export default function LedgerTab() {
@@ -74,6 +93,8 @@ export default function LedgerTab() {
   const [latestHash, setLatestHash] = useState(null);
 
   const stylesInjected = useRef(false);
+  const particlesRef = useRef(null);
+  const mapContainerRef = useRef(null);
 
   // ── Boot sequence ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -129,6 +150,18 @@ export default function LedgerTab() {
     setLatestHash(cascadeVerdict.hash);
     setView('archive');
     ledgerBus.emit({ type: 'VERDICT_ISSUED', verdict: cascadeVerdict });
+
+    // Fire particle burst at the verdict's map position
+    if (particlesRef.current && cascadeVerdict.coordinates && mapContainerRef.current) {
+      const { lat, lon } = cascadeVerdict.coordinates;
+      const [svgX, svgY] = toMapXY(lon, lat);
+      const rect = mapContainerRef.current.getBoundingClientRect();
+      // Convert SVG viewBox coords (800x400) to pixel coords
+      const px = (svgX / 800) * rect.width;
+      const py = (svgY / 400) * rect.height;
+      particlesRef.current.burst(px, py, cascadeVerdict.status);
+    }
+
     // Reset cascade after a beat
     setTimeout(() => {
       setCascadeVisible(false);
@@ -170,10 +203,10 @@ export default function LedgerTab() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="max-w-5xl mx-auto relative">
+    <div className="max-w-5xl mx-auto relative px-3 sm:px-0">
       {/* Ambient glow behind the map */}
       <div
-        className="absolute -top-20 left-1/2 -translate-x-1/2 w-[600px] h-[400px] pointer-events-none"
+        className="absolute -top-20 left-1/2 -translate-x-1/2 w-[300px] sm:w-[600px] h-[300px] sm:h-[400px] pointer-events-none"
         style={{
           background: 'radial-gradient(ellipse at 50% 40%, rgba(20,184,166,0.04) 0%, transparent 70%)',
           animation: 'lt-glowPulse 6s ease-in-out infinite',
@@ -181,13 +214,15 @@ export default function LedgerTab() {
       />
 
       {/* ── Hero: Verdict Map ─────────────────────────────────────────────── */}
-      <div className="mb-6 relative">
+      <div className="mb-6 relative" ref={mapContainerRef}>
         <LedgerMap
           verdicts={verdicts}
           latestHash={latestHash}
           height={320}
           booted={mapBooted}
         />
+        {/* Particle burst canvas overlay */}
+        <LedgerParticles ref={particlesRef} />
         {/* Vignette overlay */}
         <div
           className="absolute inset-0 pointer-events-none rounded-sm"
@@ -216,7 +251,7 @@ export default function LedgerTab() {
             <span className="text-[10px] font-mono uppercase tracking-[4px] text-teal-600">The Open Ledger</span>
             <span className="text-[10px] font-mono text-gray-600">v1.0</span>
           </div>
-          <h1 className="text-xl font-bold font-mono text-teal-300 tracking-wider mb-2">
+          <h1 className="text-sm sm:text-xl font-bold font-mono text-teal-300 tracking-wider mb-2">
             THERMODYNAMIC AUDIT INFRASTRUCTURE
           </h1>
         </div>
@@ -233,9 +268,36 @@ export default function LedgerTab() {
         {verdictCount > 0 && titleBooted && (
           <div
             className="mt-2 text-[10px] font-mono text-teal-700 tracking-widest"
-            style={{ animation: 'lt-subtitleFade 0.6s 0.6s cubic-bezier(0.16,1,0.3,1) both' }}
+            style={{ animation: 'lt-countReveal 0.6s 0.8s cubic-bezier(0.16,1,0.3,1) both' }}
           >
             {verdictCount} VERDICT{verdictCount !== 1 ? 'S' : ''} ISSUED
+          </div>
+        )}
+        {/* Energy line separator */}
+        {titleBooted && (
+          <div className="mt-4 relative h-[1px]">
+            <div
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                height: '1px',
+                background: 'linear-gradient(90deg, rgba(20,184,166,0.6), rgba(20,184,166,0.1), transparent)',
+                animation: 'lt-energyLine 1.2s 0.5s cubic-bezier(0.16,1,0.3,1) both',
+              }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: '-1px',
+                width: '60px',
+                height: '3px',
+                background: 'linear-gradient(90deg, rgba(20,184,166,0.4), transparent)',
+                filter: 'blur(2px)',
+                animation: 'lt-energyPulse 3s 1.5s ease-in-out infinite both',
+              }}
+            />
           </div>
         )}
       </div>

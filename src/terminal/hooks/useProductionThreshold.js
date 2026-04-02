@@ -25,10 +25,23 @@ export function useProductionThreshold() {
       try {
         const res = await fetch('/api/transmute/threshold');
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const { current, target } = await res.json();
-        if (!cancelled) setThreshold({ current, target, loaded: true });
+        const data = await res.json();
+        const serverCurrent = data.current ?? 0;
+        const serverTarget  = data.target  ?? 10;
+        // Reconcile: use whichever count is higher (local vs server)
+        // to avoid resetting user progress when API is stale
+        const localCount = (() => {
+          try { return parseInt(localStorage.getItem('ck_count') || '0', 10); } catch { return 0; }
+        })();
+        const best = Math.max(serverCurrent, localCount);
+        if (!cancelled) {
+          setThreshold({ current: best, target: serverTarget, loaded: true });
+          // Persist reconciled value back to localStorage
+          try { localStorage.setItem('ck_count', String(best)); } catch {}
+        }
       } catch {
-        // API unavailable — keep current value (localStorage fallback stays)
+        // API unavailable — promote localStorage fallback to loaded state
+        if (!cancelled) setThreshold(prev => ({ ...prev, loaded: true }));
       }
     }
 

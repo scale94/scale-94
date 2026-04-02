@@ -96,6 +96,45 @@ const STYLES = `
     50%       { opacity: 1; }
   }
 
+  @keyframes ac-shockwave {
+    0%   { transform: scale(0.3); opacity: 0.7; border-width: 3px; }
+    100% { transform: scale(3.5); opacity: 0; border-width: 0.5px; }
+  }
+
+  @keyframes ac-screenFlash {
+    0%   { opacity: 0.15; }
+    100% { opacity: 0; }
+  }
+
+  @keyframes ac-barGlint {
+    0%   { left: -20%; opacity: 0; }
+    20%  { opacity: 0.6; }
+    100% { left: 120%; opacity: 0; }
+  }
+
+  .ac-shockwave {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: 3px solid;
+    pointer-events: none;
+    animation: ac-shockwave 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    left: 50%;
+    top: 50%;
+    transform-origin: center;
+    margin-left: -30px;
+    margin-top: -30px;
+  }
+
+  .ac-screen-flash {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    animation: ac-screenFlash 0.5s ease-out forwards;
+    z-index: 5;
+  }
+
   .ac-bar-fill {
     height: 100%;
     width: 0%;
@@ -121,10 +160,43 @@ const STYLES = `
   }
 `;
 
+// ── Glitch text scramble hook ─────────────────────────────────────────────────
+const GLITCH_CHARS = '█▓▒░╬╠╣╚╗┃┣┫▄▀▌▐⌐¬¡«»░▒▓';
+function useGlitchText(target, active, duration = 700) {
+  const [text, setText] = useState('');
+  const rafRef = useRef(null);
+  useEffect(() => {
+    if (!active || !target) { setText(''); return; }
+    const start = performance.now();
+    const chars = target.split('');
+    function tick() {
+      const elapsed = performance.now() - start;
+      const progress = Math.min(elapsed / duration, 1);
+      const resolved = Math.floor(progress * chars.length);
+      let out = '';
+      for (let i = 0; i < chars.length; i++) {
+        if (i < resolved) {
+          out += chars[i];
+        } else {
+          out += GLITCH_CHARS[Math.floor(Math.random() * GLITCH_CHARS.length)];
+        }
+      }
+      setText(out);
+      if (progress < 1) rafRef.current = requestAnimationFrame(tick);
+      else setText(target);
+    }
+    rafRef.current = requestAnimationFrame(tick);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, [active, target, duration]);
+  return text;
+}
+
 export default function AuditCascade({ verdict, visible, onComplete }) {
   const [verdictVisible, setVerdictVisible] = useState(false);
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
+  const status = verdict?.status || 'UNKNOWN';
+  const glitchText = useGlitchText(status, verdictVisible, 800);
 
   // Reset and re-run whenever visible flips to true
   useEffect(() => {
@@ -150,7 +222,6 @@ export default function AuditCascade({ verdict, visible, onComplete }) {
   if (!verdict || !visible) return null;
 
   const input   = verdict.input  || {};
-  const status  = verdict.status || 'UNKNOWN';
   const glowCfg = STATUS_GLOW[status] || { color: '#6b7280', shadow: '0 0 16px rgba(107,114,128,0.3)' };
 
   return (
@@ -162,7 +233,7 @@ export default function AuditCascade({ verdict, visible, onComplete }) {
           background: 'rgba(5,8,16,0.96)',
           border: '1px solid rgba(20,184,166,0.12)',
           borderRadius: '2px',
-          padding: '20px 24px',
+          padding: '16px 12px',
           position: 'relative',
           overflow: 'hidden',
         }}
@@ -284,8 +355,21 @@ export default function AuditCascade({ verdict, visible, onComplete }) {
                       background: `linear-gradient(90deg, ${colors.hex}22, ${colors.hex})`,
                       boxShadow:  `0 0 6px ${colors.hex}66`,
                       borderRadius: '1px',
+                      position: 'relative',
+                      overflow: 'hidden',
                     }}
-                  />
+                  >
+                    {/* Glint shimmer */}
+                    <div style={{
+                      position: 'absolute',
+                      top: 0,
+                      width: '30px',
+                      height: '100%',
+                      background: `linear-gradient(90deg, transparent, ${colors.hex}88, transparent)`,
+                      animation: `ac-barGlint 1.2s ${fillDelay + SWEEP_MS}ms ease-out forwards`,
+                      filter: 'blur(2px)',
+                    }} />
+                  </div>
                 </div>
               </div>
             );
@@ -303,12 +387,24 @@ export default function AuditCascade({ verdict, visible, onComplete }) {
               borderTop: `1px solid ${glowCfg.color}22`,
             }}
           >
-            {/* Status */}
+            {/* Shockwave ring */}
+            <div
+              className="ac-shockwave"
+              style={{ borderColor: glowCfg.color }}
+            />
+
+            {/* Screen flash */}
+            <div
+              className="ac-screen-flash"
+              style={{ background: `radial-gradient(ellipse at 50% 50%, ${glowCfg.color}30, transparent 70%)` }}
+            />
+
+            {/* Status — glitch scramble resolve */}
             <div
               className="ac-verdict"
               style={{
                 fontFamily: 'monospace',
-                fontSize: '18px',
+                fontSize: 'clamp(14px, 4vw, 18px)',
                 fontWeight: 'bold',
                 letterSpacing: '0.3em',
                 color: glowCfg.color,
@@ -317,7 +413,7 @@ export default function AuditCascade({ verdict, visible, onComplete }) {
                 marginBottom: '8px',
               }}
             >
-              {status}
+              {glitchText || status}
             </div>
 
             {/* Glow underline */}

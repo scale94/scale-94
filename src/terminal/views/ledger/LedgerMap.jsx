@@ -2,7 +2,7 @@
 // Renders animated pulse markers for each verdict using the shared WorldMap component.
 // Follows the EcocideTab marker pattern exactly.
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import WorldMap from '../../components/WorldMap';
 import { toMapXY } from '../../data/worldMapPolys';
 
@@ -50,6 +50,24 @@ function buildSummary(verdicts) {
 //   booted      — boolean, controls fade-in animation
 const LedgerMap = ({ verdicts = [], latestHash = null, height = 320, booted = true }) => {
   const [tooltip, setTooltip] = useState(null); // { cx, cy, verdict }
+  const [revealCount, setRevealCount] = useState(0);
+
+  // Stagger markers in during boot — 60ms apart
+  useEffect(() => {
+    if (!booted || verdicts.length === 0) return;
+    if (revealCount >= verdicts.length) return;
+    const timer = setTimeout(() => {
+      setRevealCount(prev => Math.min(prev + 1, verdicts.length));
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [booted, revealCount, verdicts.length]);
+
+  // Ensure new verdicts added after boot are immediately visible
+  useEffect(() => {
+    if (booted && revealCount > 0 && revealCount < verdicts.length) {
+      setRevealCount(verdicts.length);
+    }
+  }, [verdicts.length]);
 
   const summary = buildSummary(verdicts);
 
@@ -66,10 +84,17 @@ const LedgerMap = ({ verdicts = [], latestHash = null, height = 320, booted = tr
         position: 'relative',
       }}
     >
+      <style>{`
+        @keyframes ledger-marker-pop {
+          0%   { opacity: 0; transform: scale(0.3); }
+          60%  { opacity: 1; transform: scale(1.3); }
+          100% { opacity: 1; transform: scale(1); }
+        }
+      `}</style>
       <WorldMap palette="green" height={height} scanDur={9}>
 
-        {/* ── Verdict markers ─────────────────────────────────────────── */}
-        {verdicts.map((verdict) => {
+        {/* ── Verdict markers — staggered reveal on boot ────────────── */}
+        {verdicts.slice(0, revealCount).map((verdict, idx) => {
           const { hash, status, coordinates, input, timestamp } = verdict;
           if (!coordinates) return null;
 
@@ -82,7 +107,13 @@ const LedgerMap = ({ verdicts = [], latestHash = null, height = 320, booted = tr
           return (
             <g
               key={hash || `${lat}-${lon}`}
-              style={{ cursor: 'pointer' }}
+              style={{
+                cursor: 'pointer',
+                opacity: 0,
+                animation: `ledger-marker-pop 0.4s ${idx * 0.06}s cubic-bezier(0.16,1,0.3,1) forwards`,
+                transformBox: 'fill-box',
+                transformOrigin: 'center',
+              }}
               onMouseEnter={() => setTooltip({ cx, cy, verdict })}
               onMouseLeave={() => setTooltip(null)}
             >

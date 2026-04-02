@@ -8,12 +8,60 @@ const STATUS_COLORS = {
   UNKNOWN:        { text: 'text-gray-400', border: 'border-gray-800/30', glow: '' },
 };
 
+const CARD_STYLES = `
+@keyframes vc-borderGlow {
+  0%, 100% { border-color: var(--vc-border-base); }
+  50% { border-color: var(--vc-border-glow); }
+}
+@keyframes vc-hashReveal {
+  0%   { opacity: 0; letter-spacing: 4px; filter: blur(2px); }
+  100% { opacity: 1; letter-spacing: 1px; filter: blur(0); }
+}
+`;
+
+const STATUS_BORDER = {
+  APPROVED:       { base: 'rgba(34,197,94,0.15)', glow: 'rgba(34,197,94,0.35)' },
+  CONDITIONAL:    { base: 'rgba(234,179,8,0.15)', glow: 'rgba(234,179,8,0.35)' },
+  REJECTED:       { base: 'rgba(239,68,68,0.15)', glow: 'rgba(239,68,68,0.35)' },
+  EMERGENCY_VETO: { base: 'rgba(239,68,68,0.2)', glow: 'rgba(239,68,68,0.45)' },
+  UNKNOWN:        { base: 'rgba(107,114,128,0.15)', glow: 'rgba(107,114,128,0.25)' },
+};
+
 export default function VerdictCard({ verdict, onExport }) {
   const [expanded, setExpanded] = useState(false);
   const colors = STATUS_COLORS[verdict.status] || STATUS_COLORS.UNKNOWN;
+  const borderCfg = STATUS_BORDER[verdict.status] || STATUS_BORDER.UNKNOWN;
 
   return (
-    <div className={`border ${colors.border} ${colors.glow} rounded-sm p-4 bg-black/50 transition-all duration-300`}>
+    <>
+    <style>{CARD_STYLES}</style>
+    <div
+      className={`border ${colors.border} ${colors.glow} rounded-sm p-4 bg-black/50 transition-all duration-300`}
+      style={{
+        '--vc-border-base': borderCfg.base,
+        '--vc-border-glow': borderCfg.glow,
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.animation = 'vc-borderGlow 2s ease-in-out infinite';
+        e.currentTarget.style.boxShadow = colors.glow.replace('shadow-[', '').replace(']', '');
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.animation = 'none';
+        e.currentTarget.style.boxShadow = '';
+      }}
+    >
+      {/* Subtle top edge light */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: '1px',
+        background: `linear-gradient(90deg, transparent, ${borderCfg.glow}, transparent)`,
+        opacity: 0.6,
+      }} />
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
@@ -40,7 +88,7 @@ export default function VerdictCard({ verdict, onExport }) {
       </div>
 
       {/* Key metrics */}
-      <div className="grid grid-cols-4 gap-2 mb-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
         {[
           ['TEMP', verdict.input?.temp, 'C'],
           ['DO', verdict.input?.do, 'mg/L'],
@@ -68,7 +116,7 @@ export default function VerdictCard({ verdict, onExport }) {
             {verdict.ruling}
           </pre>
           {onExport && (
-            <div className="mt-3 flex gap-2">
+            <div className="mt-3 flex flex-wrap gap-2">
               <button onClick={() => onExport(verdict, 'json')} className="text-[9px] font-mono text-teal-600 hover:text-teal-400 uppercase tracking-widest border border-teal-900/30 px-2 py-1 rounded-sm transition-colors">JSON-LD</button>
               <button onClick={() => onExport(verdict, 'pdf')} className="text-[9px] font-mono text-teal-600 hover:text-teal-400 uppercase tracking-widest border border-teal-900/30 px-2 py-1 rounded-sm transition-colors">PDF</button>
               <button onClick={() => onExport(verdict, 'embed')} className="text-[9px] font-mono text-teal-600 hover:text-teal-400 uppercase tracking-widest border border-teal-900/30 px-2 py-1 rounded-sm transition-colors">EMBED</button>
@@ -77,5 +125,6 @@ export default function VerdictCard({ verdict, onExport }) {
         </div>
       )}
     </div>
+    </>
   );
 }

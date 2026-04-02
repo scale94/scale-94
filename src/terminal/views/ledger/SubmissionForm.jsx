@@ -166,7 +166,15 @@ export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch,
         <div className="text-[10px] uppercase tracking-[3px] text-teal-500 font-mono mb-3">Data Supply Chain</div>
         <div className="space-y-2">
           {VALID_DEPENDENCIES.map(dep => (
-            <label key={dep} className="flex items-center gap-3 cursor-pointer group">
+            <div
+              key={dep}
+              role="radio"
+              aria-checked={form.dependency === dep}
+              tabIndex={0}
+              onClick={() => update('dependency', dep)}
+              onKeyDown={e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); update('dependency', dep); } }}
+              className="flex items-center gap-3 cursor-pointer group"
+            >
               <div className={`w-3 h-3 border rounded-full flex items-center justify-center transition-colors ${form.dependency === dep ? 'border-teal-400 bg-teal-400' : 'border-gray-600 group-hover:border-teal-600'}`}>
                 {form.dependency === dep && <div className="w-1.5 h-1.5 bg-black rounded-full" />}
               </div>
@@ -174,7 +182,7 @@ export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch,
                 <span className={form.dependency === dep ? 'text-teal-300' : 'text-gray-400'}>{dep.toUpperCase()}</span>
                 <span className="text-gray-600 ml-2">— {DEPENDENCY_LABELS[dep].split('—')[1]}</span>
               </span>
-            </label>
+            </div>
           ))}
         </div>
       </div>
