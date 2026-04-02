@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import SubmissionForm from './ledger/SubmissionForm';
 import { fetchUSGS, fetchEEA } from '../ledger/apiIngest';
+import { generateJsonLd, generatePdf, generateEmbedHtml } from '../ledger/exportFormats';
 import VerdictCard from './ledger/VerdictCard';
 import { createVerdict } from '../ledger/verdictModel';
 import { storeVerdict, getAllVerdicts, getVerdictCount } from '../ledger/verdictStore';
@@ -66,6 +67,21 @@ export default function LedgerTab() {
     }
   }, []);
 
+  const handleExport = useCallback(async (verdict, format) => {
+    if (format === 'json') {
+      const blob = new Blob([generateJsonLd(verdict)], { type: 'application/ld+json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `verdict-${verdict.hash?.slice(0, 12)}.jsonld`;
+      a.click(); URL.revokeObjectURL(url);
+    } else if (format === 'pdf') {
+      await generatePdf(verdict);
+    } else if (format === 'embed') {
+      const html = generateEmbedHtml(verdict);
+      await navigator.clipboard.writeText(html);
+    }
+  }, []);
+
   return (
     <div className="max-w-4xl mx-auto">
       {/* Header */}
@@ -128,7 +144,7 @@ export default function LedgerTab() {
             </div>
           ) : (
             verdicts.map(v => (
-              <VerdictCard key={v.hash} verdict={v} />
+              <VerdictCard key={v.hash} verdict={v} onExport={handleExport} />
             ))
           )}
         </div>
