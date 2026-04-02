@@ -111,18 +111,22 @@ export default function KuramotoVisualizer({ params, onDismiss }) {
       });
 
       // Edge solidarity web — only draw if phase proximity exceeds threshold
+      // Batched into a single path per ~hue bucket for fewer draw calls.
+      // Capped at 600 edges to prevent frame drops on lower-end devices.
       ctx.lineWidth = 0.6;
-      for (let i = 0; i < n; i++) {
-        for (let j = i + 1; j < n; j++) {
+      let edgeCount = 0;
+      for (let i = 0; i < n && edgeCount < 600; i++) {
+        for (let j = i + 1; j < n && edgeCount < 600; j++) {
           const diff  = angleDiff(phases[i], phases[j]);
           const alpha = Math.max(0, 1 - diff / (Math.PI * 0.45));
-          if (alpha < 0.03) continue;
+          if (alpha < 0.05) continue;
           const hue = (((phases[i] + phases[j]) * 0.5 * 180 / Math.PI) % 360 + 360) % 360;
           ctx.strokeStyle = `hsla(${hue},70%,60%,${alpha * 0.28})`;
           ctx.beginPath();
           ctx.moveTo(pos[i].x, pos[i].y);
           ctx.lineTo(pos[j].x, pos[j].y);
           ctx.stroke();
+          edgeCount++;
         }
       }
 

@@ -45,7 +45,10 @@ export default function AmbientParticles() {
       particles.push(createParticle(w, h));
     }
 
+    let paused = false;
+
     function frame() {
+      if (paused) return;
       ctx.clearRect(0, 0, w, h);
       for (const p of particles) {
         p.x += p.vx;
@@ -66,9 +69,21 @@ export default function AmbientParticles() {
     }
     raf = requestAnimationFrame(frame);
 
+    function onVis() {
+      if (document.hidden) {
+        paused = true;
+        cancelAnimationFrame(raf);
+      } else {
+        paused = false;
+        raf = requestAnimationFrame(frame);
+      }
+    }
+    document.addEventListener('visibilitychange', onVis);
+
     window.addEventListener('resize', resize);
     return () => {
       cancelAnimationFrame(raf);
+      document.removeEventListener('visibilitychange', onVis);
       window.removeEventListener('resize', resize);
     };
   }, []);

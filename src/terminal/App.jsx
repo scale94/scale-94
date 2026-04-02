@@ -159,6 +159,18 @@ const App = () => {
   const tagIndex     = useMemo(() => dynamicData?.tagIndex      ?? {}, [dynamicData]);
   const systemArticles = dynamicData?.systemArticles ?? {};
 
+  // Memoized global search results — avoids re-filtering the full article corpus on every keystroke render
+  const globalSearchResults = useMemo(() => {
+    const q = globalSearchQuery.trim();
+    if (!q) return null;
+    const nq = normalizeQuery(q);
+    const tokens = nq.split(' ');
+    return articles.filter(a => {
+      const hay = normalizeQuery([a.title ?? a.id, a.id, ...(a.tags ?? [])].join(' '));
+      return tokens.every(t => hay.includes(t));
+    }).slice(0, 10);
+  }, [globalSearchQuery, articles]);
+
   // ── Manifest bootstrap ────────────────────────────────────────────────────────
   // Fetch /kernel/manifest.json on mount, then parallel-fetch all hashed datasets.
   // All outputs are pure JSON — no module evaluation, cache-first in the SW.
@@ -968,26 +980,17 @@ const App = () => {
             </div>
 
             {/* Results area */}
-            {(() => {
-              const q = globalSearchQuery.trim();
-              if (!q) return (
+            {!globalSearchResults ? (
                 <div style={{ padding: '24px 16px', textAlign: 'center', fontFamily: 'monospace', fontSize: '9px', color: 'rgba(57,255,20,0.18)', letterSpacing: '0.14em' }}>
                   TYPE TO SEARCH ALL ARTICLES · MANIFESTO · TRANSMISSION · ECO-KERNEL
                 </div>
-              );
-              const nq = norm(q);
-              const results = articles.filter(a => {
-                const hay = norm([a.title ?? a.id, a.id, ...(a.tags ?? [])].join(' '));
-                return nq.split(' ').every(t => hay.includes(t));
-              }).slice(0, 10);
-              if (!results.length) return (
+            ) : !globalSearchResults.length ? (
                 <div style={{ padding: '24px 16px', textAlign: 'center', fontFamily: 'monospace', fontSize: '10px', color: 'rgba(57,255,20,0.20)' }}>
                   no matches
                 </div>
-              );
-              return (
+            ) : (
                 <ul style={{ maxHeight: '300px', overflowY: 'auto' }}>
-                  {results.map(a => {
+                  {globalSearchResults.map(a => {
                     const isEco = a?.tags?.some(t =>
                       ['Ecology','Botany','Biodiversity','Atmospheric','Climate','Ecocide','ecological'].includes(t)
                     );
@@ -1022,8 +1025,7 @@ const App = () => {
                     );
                   })}
                 </ul>
-              );
-            })()}
+            )}
 
             {/* Footer hint */}
             <div style={{ padding: '6px 16px', borderTop: '1px solid rgba(57,255,20,0.07)', fontFamily: 'monospace', fontSize: '8px', color: 'rgba(57,255,20,0.15)', letterSpacing: '0.10em', display: 'flex', justifyContent: 'space-between' }}>
@@ -1289,21 +1291,18 @@ const App = () => {
             >
               <span className={`text-[9px] font-black tracking-widest ${isCritical ? 'text-red-500' : 'text-cyan-900/60'}`}>RAM</span>
               <div className="flex gap-0">
-                {Array.from({ length: 100 }).map((_, i) => {
-                  const filled = i < ramPct;
-                  return (
-                    <div
-                      key={i}
-                      className={`w-px h-[10px] transition-all duration-700${isCritical && filled ? ' animate-pulse' : ''}`}
-                      style={{
-                        background: filled
-                          ? (isCritical ? '#ef4444' : isWarning ? '#f59e0b' : '#39ff14')
-                          : 'rgba(6,182,212,0.08)',
-                        boxShadow: filled && !isCritical && !isWarning ? '0 0 3px rgba(57,255,20,0.4)' : 'none',
-                      }}
-                    />
-                  );
-                })}
+                {Array.from({ length: 100 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className={`w-px h-[10px] transition-all duration-700 ${
+                      i < ramPct
+                        ? isCritical  ? 'ram-bar-critical animate-pulse'
+                        : isWarning   ? 'ram-bar-warning'
+                        :               'ram-bar-filled'
+                        :               'ram-bar-empty'
+                    }`}
+                  />
+                ))}
               </div>
               <span className={`text-[9px] font-black ${isCritical ? 'text-red-500/70' : 'text-cyan-900/40'}`}>{ramPct}%</span>
             </div>

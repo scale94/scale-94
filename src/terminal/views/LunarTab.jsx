@@ -383,21 +383,115 @@ function renderMoon(ctx, W, H, lunarAge) {
 function LunarCanvas({ lunarAge }) {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
+  const moonBufferRef = useRef(null);  // offscreen canvas for static moon render
+  const starsRef = useRef([]);         // star twinkle state
 
   useEffect(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
     if (!canvas || !container) return;
-    // Responsive: fit container width, cap at 340px
+
     const size = Math.min(container.offsetWidth, 340);
-    const dpr = Math.min(window.devicePixelRatio || 1, 2); // cap DPR for perf on mobile
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = size * dpr;
     canvas.height = size * dpr;
     canvas.style.width = size + 'px';
     canvas.style.height = size + 'px';
+
+    // Render moon once to offscreen buffer
+    const offscreen = document.createElement('canvas');
+    offscreen.width = size * dpr;
+    offscreen.height = size * dpr;
+    const offCtx = offscreen.getContext('2d');
+    offCtx.scale(dpr, dpr);
+    renderMoon(offCtx, size, size, lunarAge);
+    moonBufferRef.current = offscreen;
+
+    // Generate stars for twinkling overlay
+    const cx = size / 2, cy = size / 2, R = size * 0.38;
+    const stars = [];
+    for (let i = 0; i < 120; i++) {
+      const sx = hash(i + 900, 7) * size;
+      const sy = hash(i + 900, 8) * size;
+      const dx = sx - cx, dy = sy - cy;
+      if (dx * dx + dy * dy < (R + 12) * (R + 12)) continue;
+      stars.push({
+        x: sx, y: sy,
+        baseAlpha: 0.15 + hash(i + 900, 9) * 0.5,
+        radius: hash(i + 900, 10) > 0.92 ? 1.4 : hash(i + 900, 10) > 0.7 ? 0.9 : 0.5,
+        phase: hash(i + 900, 11) * Math.PI * 2,
+        speed: 0.3 + hash(i + 900, 12) * 1.2,
+        r: Math.round(200 + hash(i + 900, 13) * 55),
+        g: Math.round(200 + hash(i + 900, 13) * 45),
+        b: Math.round(220 + (1 - hash(i + 900, 13)) * 35),
+      });
+    }
+    starsRef.current = stars;
+
     const ctx = canvas.getContext('2d');
-    ctx.scale(dpr, dpr);
-    renderMoon(ctx, size, size, lunarAge);
+    let raf;
+    let t0 = performance.now();
+
+    function animate(now) {
+      const elapsed = (now - t0) / 1000; // seconds
+
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, size, size);
+
+      // Slow libration: ±1.5px drift, like the real moon's apparent wobble
+      const libX = Math.sin(elapsed * 0.15) * 1.5;
+      const libY = Math.cos(elapsed * 0.11) * 1.0;
+
+      // Draw cached moon with libration offset
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0); // reset to pixel space for drawImage
+      ctx.drawImage(offscreen, libX * dpr, libY * dpr);
+      ctx.restore();
+
+      // Twinkling stars
+      for (const s of stars) {
+        const twinkle = 0.5 + 0.5 * Math.sin(elapsed * s.speed + s.phase);
+        const a = s.baseAlpha * (0.4 + twinkle * 0.6);
+        ctx.fillStyle = `rgba(${s.r},${s.g},${s.b},${a})`;
+        ctx.beginPath();
+        ctx.arc(s.x + libX * 0.3, s.y + libY * 0.3, s.radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Atmospheric glow pulse around moon
+      const glowIntensity = 0.025 + 0.015 * Math.sin(elapsed * 0.4);
+      const glowR = R * (1.05 + 0.02 * Math.sin(elapsed * 0.25));
+      const limbGrad = ctx.createRadialGradient(
+        cx + libX, cy + libY, R * 0.88,
+        cx + libX, cy + libY, glowR
+      );
+      limbGrad.addColorStop(0, 'transparent');
+      limbGrad.addColorStop(0.5, `rgba(160, 160, 220, ${glowIntensity})`);
+      limbGrad.addColorStop(1, 'transparent');
+      ctx.fillStyle = limbGrad;
+      ctx.beginPath();
+      ctx.arc(cx + libX, cy + libY, glowR, 0, Math.PI * 2);
+      ctx.fill();
+
+      raf = requestAnimationFrame(animate);
+    }
+    raf = requestAnimationFrame(animate);
+
+    // Pause when tab not visible
+    function onVis() {
+      if (document.hidden) {
+        cancelAnimationFrame(raf);
+      } else {
+        t0 = performance.now();
+        raf = requestAnimationFrame(animate);
+      }
+    }
+    document.addEventListener('visibilitychange', onVis);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      document.removeEventListener('visibilitychange', onVis);
+    };
   }, [lunarAge]);
 
   return (

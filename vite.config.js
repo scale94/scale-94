@@ -28,6 +28,8 @@ export default defineConfig({
         manualChunks(id) {
           if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) return 'vendor';
           if (id.includes('node_modules/lucide-react')) return 'lucide';
+          if (id.includes('node_modules/d3-geo') || id.includes('node_modules/topojson')) return 'geo';
+          if (id.includes('node_modules/dompurify')) return 'sanitizer';
         },
       },
     },
