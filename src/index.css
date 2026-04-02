@@ -301,3 +301,108 @@ html, body {
    - Gradient shimmer is now animate-shimmer-fast / animate-shimmer-slow
      via tailwind.config.js theme.extend — guaranteed in production bundle */
 
+
+/* ── Visual upgrades ─────────────────────────────────────────────────────── */
+
+/* 1. CRT scanline + vignette overlay — very subtle, pure atmosphere */
+.crt-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+}
+.crt-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 1px,
+    rgba(0, 0, 0, 0.03) 1px,
+    rgba(0, 0, 0, 0.03) 2px
+  );
+}
+.crt-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.35) 100%);
+}
+
+/* 2. Scroll-linked card glow — cards brighten on viewport entry */
+@keyframes scroll-glow-in {
+  from {
+    opacity: 0.7;
+    transform: translateY(8px);
+    filter: brightness(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: brightness(1);
+  }
+}
+.scroll-glow {
+  animation: scroll-glow-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* 3. Typed cursor — blinking block at end of section headers */
+@keyframes cursor-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+.typed-cursor::after {
+  content: '';
+  display: inline-block;
+  width: 0.5em;
+  height: 1.1em;
+  background: #06b6d4;
+  margin-left: 0.3em;
+  vertical-align: text-bottom;
+  animation: cursor-blink 1s steps(1) infinite;
+}
+
+/* 4. Hover distortion on interactive cards — auto-applied to bordered rounded
+   elements inside main. The skew is nearly imperceptible but adds physical weight. */
+main [class*="border"][class*="rounded"] {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+main [class*="border"][class*="rounded"]:hover {
+  transform: skewY(-0.3deg) scale(1.005);
+  box-shadow: 0 0 20px rgba(6, 182, 212, 0.08);
+}
+
+/* 5. Tab-switch glitch burst — single 150ms chromatic flash */
+@keyframes tab-glitch {
+  0%   { clip-path: inset(0); transform: translate(0); }
+  15%  { clip-path: polygon(0 15%, 100% 15%, 100% 22%, 0 22%); transform: translate(-3px, 0); }
+  30%  { clip-path: polygon(0 60%, 100% 60%, 100% 68%, 0 68%); transform: translate(4px, 0); }
+  50%  { clip-path: polygon(0 35%, 100% 35%, 100% 42%, 0 42%); transform: translate(-2px, 0); }
+  70%  { clip-path: polygon(0 78%, 100% 78%, 100% 84%, 0 84%); transform: translate(3px, 0); }
+  100% { clip-path: inset(0); transform: translate(0); }
+}
+.tab-glitch-burst {
+  animation: tab-glitch 150ms steps(1) 1;
+}
+/* Cyan + lime ghost layers for glitch burst */
+.tab-glitch-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 48;
+  mix-blend-mode: screen;
+  opacity: 0;
+}
+.tab-glitch-burst .tab-glitch-cyan {
+  opacity: 1;
+  background: rgba(6, 182, 212, 0.04);
+  animation: tab-glitch 150ms steps(1) 1;
+}
+.tab-glitch-burst .tab-glitch-lime {
+  opacity: 1;
+  background: rgba(57, 255, 20, 0.03);
+  animation: tab-glitch 150ms steps(1) 1 25ms;
+}
+

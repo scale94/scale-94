@@ -12,7 +12,7 @@
 //   /wasm/**                       → cache-first, eternal
 //   HTML / navigation              → network-first, SPA fallback to '/'
 
-const CACHE_VERSION = 'scale94-v6'; // bumped: total sovereignty — analytics purged, /_vercel/ excluded
+const CACHE_VERSION = 'scale94-v7'; // bumped: visual upgrades, LunarTab date fix
 
 // Content-addressed patterns — safe to cache forever.
 const IMMUTABLE_PATTERN = /\/assets\/[^/?]+\.(js|css)(\?.*)?$/;

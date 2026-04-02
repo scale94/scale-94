@@ -528,7 +528,12 @@ function AccordCard({ accord, isActive }) {
 // ── LunarTab Component ───────────────────────────────────────────────────────
 
 export default function LunarTab() {
-  const now = useMemo(() => new Date(), []);
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
   const currentAge = useMemo(() => getLunarAge(now), [now]);
   const currentPhase = useMemo(() => getPhase(currentAge), [currentAge]);
   const illumination = useMemo(() => getLunarIllumination(currentAge), [currentAge]);

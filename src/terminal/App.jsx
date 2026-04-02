@@ -10,6 +10,7 @@ const fmtTime = (d = new Date()) =>
   `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
 
 import { Hexagon, Cpu, Lock, Scale, Eye, ShieldAlert, KeyRound, Waves, Radio, Leaf, Moon } from 'lucide-react';
+import AmbientParticles from './components/AmbientParticles';
 
 // Data — static (authored, always bundled)
 import kernelAxioms    from './data/kernelAxioms';
@@ -89,6 +90,7 @@ const App = () => {
   const [searchFilter, setSearchFilter] = useState('');
   const [loadingKernel,  setLoadingKernel]  = useState(null);
   const [loadingSignal,  setLoadingSignal]  = useState(null);
+  const [tabGlitch, setTabGlitch] = useState(false);
   const [originTab, setOriginTab] = useState('kernel');
   const [architectThesis, setArchitectThesis] = useState(false);
   const [tagCloudView,    setTagCloudView]    = useState(false);
@@ -459,6 +461,32 @@ const App = () => {
     };
   }, [selectedArticle, activeTab, filteredBuilds.length]);
 
+  // ── Scroll-linked glow: cards brighten + slide up on viewport entry ─────
+  useEffect(() => {
+    if (!bootAnimDone || !mainRef.current) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('scroll-glow');
+            observer.unobserve(entry.target);
+          }
+        }
+      },
+      { root: mainRef.current, threshold: 0.08 }
+    );
+    // Observe all bordered cards inside main
+    const cards = mainRef.current.querySelectorAll('[class*="border"][class*="rounded"]');
+    for (const card of cards) {
+      if (!card.classList.contains('scroll-glow')) {
+        card.style.opacity = '0.7';
+        card.style.filter = 'brightness(0.85)';
+        observer.observe(card);
+      }
+    }
+    return () => observer.disconnect();
+  }, [bootAnimDone, activeTab, selectedArticle]);
+
   // Handle loading a kernel module.
   // Abort-token pattern: each click mints a new token object. If a second click
   // arrives while the first is still in the 1200ms timeout window (shouldn't
@@ -591,7 +619,13 @@ const App = () => {
 
   const handleNav = useCallback((path, tab) => {
     setCurrentPath(path);
-    setActiveTab(tab);
+    setActiveTab(prev => {
+      if (prev !== tab) {
+        setTabGlitch(true);
+        setTimeout(() => setTabGlitch(false), 180);
+      }
+      return tab;
+    });
     setSelectedArticle(null);
     setArchitectThesis(false);
     setTagCloudView(false);
@@ -757,6 +791,16 @@ const App = () => {
       onTouchEnd={hideMobileChromeAfterDelay}
       onTouchCancel={hideMobileChromeAfterDelay}
     >
+
+      {/* ── Ambient visual layers ──────────────────────────────────────────── */}
+      {bootAnimDone && <AmbientParticles />}
+      <div className="crt-overlay" aria-hidden="true" />
+      {tabGlitch && (
+        <div className="tab-glitch-burst" aria-hidden="true">
+          <div className="tab-glitch-layer tab-glitch-cyan" />
+          <div className="tab-glitch-layer tab-glitch-lime" />
+        </div>
+      )}
 
       {/* ── Boot sequence — unmounts when onDone fires ─────────────────────── */}
       {bootSequence && <BootSequence onDone={handleBootDone} />}
