@@ -80,6 +80,13 @@ export function useCommandDispatch(ctx) {
 
       const [baseCmd, ...flagTokens] = query.split(' ').filter(Boolean);
 
+      // ── run ledger ────────────────────────────────────────────────────────
+      if (baseCmd === 'ledger' || baseCmd === 'audit' || baseCmd === 'open_ledger') {
+        handleNav('~/system/ledger', 'ledger');
+        executeCommand(rawCmd, `Switching to The Open Ledger...`);
+        return;
+      }
+
       // Standalone commands that are not WASM kernels
       if (['breach', 'relic'].includes(baseCmd.toLowerCase())) {
         log(`COMMAND: ${rawCmd}`);
