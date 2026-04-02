@@ -5,7 +5,7 @@ const ManifestoTab = ({ systemArticles = {} }) => {
   const manifesto = systemArticles['MANIFESTO'];
   const thesis = systemArticles['ARCHITECT-THESIS'];
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
+    <div className="tab-fade-v2 relative">
       <style>{`
         @keyframes mn-reveal {
           from { opacity: 0; transform: translateY(-8px); filter: blur(6px); }

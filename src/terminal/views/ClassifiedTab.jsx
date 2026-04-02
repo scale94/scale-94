@@ -1298,7 +1298,7 @@ function LockedPhase({ onInitiateEnclave }) {
   const [phase, setPhase] = useState('collect'); // 'collect' | 'generating'
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-6xl mx-auto mt-8 relative">
+    <div className="tab-fade-v2 max-w-6xl mx-auto mt-8 relative">
       <style>{RUST_STYLES}</style>
 
       {/* CRT scanline overlay */}

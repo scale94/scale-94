@@ -51,7 +51,7 @@ const TransmissionTab = ({ stories, onSelect, loadingSignal }) => {
   const WAVE_DOT    = useMemo(() => makeWave(800,  30, 9, 3), []); // fewer periods for dot baseline
 
   return (
-    <div className="animate-in fade-in duration-500 relative">
+    <div className="tab-fade-v2 relative">
 
       {/* ── [1] ONE-SHOT SCANLINE SWEEP ──────────────────────────────────────
           A fuchsia phosphor bar descends the page once on mount, as if the

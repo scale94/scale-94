@@ -2295,7 +2295,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   }, []);
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="tab-fade-v2">
 
       <style>{`
         @keyframes at-shimmer {

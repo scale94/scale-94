@@ -664,7 +664,7 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
   const sliderColor = penaltyLevel >= 2 ? '#cc2200' : penaltyLevel === 1 ? '#cc6600' : uiPhase >= PH.OVERSHOOT ? '#ff4400' : '#7ab800';
 
   return (
-    <div className="flex flex-col bg-black font-mono select-none">
+    <div className="tab-fade-v2 flex flex-col bg-black font-mono select-none">
 
       {/* ── Header ── */}
       <div className="shrink-0 flex items-center gap-3 px-4 py-2 border-b border-[#1a2d00]/70 tracking-widest uppercase overflow-hidden"

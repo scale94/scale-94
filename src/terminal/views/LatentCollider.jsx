@@ -6,6 +6,7 @@ import {
 } from '../data/nodeFeatures';
 import { useColliderNarrative } from '../hooks/useColliderNarrative';
 import { useProductionThreshold } from '../hooks/useProductionThreshold';
+import { useOrderStatus, storeOrderHash } from '../hooks/useOrderStatus';
 
 // ── Collider Event Bus ───────────────────────────────────────────────────────
 // Cross-tab coupling: emits chimera synthesis results so the Art tab sphere
@@ -768,6 +769,9 @@ export default function LatentCollider() {
   // ── Persistent production threshold (Vercel KV via /api/transmute/threshold) ─
   const serverThreshold = useProductionThreshold();
 
+  // ── Order fulfillment status (polls KV via /api/transmute/status) ─
+  const orderStatus = useOrderStatus(tesseract?.hash);
+
   const handleCrystallize = useCallback(async () => {
     if (!result || domainA === null || domainB === null) return;
     const card = buildPerfumeCard(domainA, domainB, result);
@@ -880,7 +884,7 @@ export default function LatentCollider() {
       method:  'POST',
       headers: { 'Content-Type': 'application/json', 'x-transmute-signature': sig },
       body:    orderBody,
-    }).catch(() => { /* silent — notification is best-effort */ });
+    }).then(() => { storeOrderHash(tHash); }).catch(() => { /* silent — notification is best-effort */ });
   }, [crystal, tesseract]);
 
   // ── Run the WASM collision ─────────────────────────────────────────────────
@@ -2347,6 +2351,7 @@ export default function LatentCollider() {
           onRegister={contact => handleAcquire(crystal.id, contact)}
           serverCount={serverThreshold.current}
           serverTarget={serverThreshold.target}
+          orderStatus={orderStatus}
         />
       ) : crystal && (
         <CrystallizeCard
@@ -2355,6 +2360,7 @@ export default function LatentCollider() {
           onRegister={contact => handleAcquire(crystal.id, contact)}
           serverCount={serverThreshold.current}
           serverTarget={serverThreshold.target}
+          orderStatus={orderStatus}
         />
       )}
     </div>
@@ -2554,8 +2560,30 @@ function ContactForm({ onSubmit, label }) {
   );
 }
 
+// ── Fulfillment status badge — mirrors Discord state machine ──────────────────
+const FULFILLMENT = {
+  QUEUED:       { glyph: '⬡', label: 'QUEUED',       color: '#D4AF37' },
+  ACKNOWLEDGED: { glyph: '◎', label: 'ACKNOWLEDGED', color: '#06B6D4' },
+  MACERATING:   { glyph: '⚗', label: 'MACERATING',  color: '#D946EF' },
+  SHIPPED:      { glyph: '✦', label: 'SHIPPED',      color: '#39FF14' },
+};
+
+function FulfillmentBadge({ state }) {
+  const s = FULFILLMENT[state];
+  if (!s) return null;
+  return (
+    <div className="flex items-center justify-center gap-2 mb-2 py-1.5 rounded"
+      style={{ border: `1px solid ${s.color}25`, background: `${s.color}08` }}>
+      <span className="text-[10px]" style={{ color: s.color, textShadow: `0 0 8px ${s.color}50` }}>{s.glyph}</span>
+      <span className="text-[9px] font-mono font-bold tracking-[0.2em]" style={{ color: `${s.color}cc` }}>
+        {s.label}
+      </span>
+    </div>
+  );
+}
+
 // ── Crystallize Card component ─────────────────────────────────────────────────
-function CrystallizeCard({ card, acquired, onRegister, serverCount, serverTarget }) {
+function CrystallizeCard({ card, acquired, onRegister, serverCount, serverTarget, orderStatus }) {
   const [showForm, setShowForm] = useState(false);
   const getCount  = () => serverCount  != null ? serverCount  : (() => { try { return parseInt(localStorage.getItem('ck_count') || '0', 10); } catch { return 0; } })();
   const getTarget = () => serverTarget != null ? serverTarget : PRODUCTION_THRESHOLD;
@@ -2681,6 +2709,7 @@ function CrystallizeCard({ card, acquired, onRegister, serverCount, serverTarget
                 style={{ color: '#FFD700', textShadow: '0 0 10px rgba(255,215,0,0.35)' }}>
                 ✦ INTEREST LOGGED
               </div>
+              {orderStatus && <FulfillmentBadge state={orderStatus.fulfillmentState} />}
               <div className="text-[9px] font-mono mb-3" style={{ color: 'rgba(255,215,0,0.42)' }}>
                 PRODUCTION THRESHOLD — {getCount()} / {getTarget()}
               </div>
@@ -2708,7 +2737,7 @@ function CrystallizeCard({ card, acquired, onRegister, serverCount, serverTarget
 }
 
 // ── Tesseract Card — cryptographic identity layer ───────────────────────────
-function TesseractCard({ card, tesseract, acquired, onRegister, serverCount, serverTarget }) {
+function TesseractCard({ card, tesseract, acquired, onRegister, serverCount, serverTarget, orderStatus }) {
   const [showForm, setShowForm] = useState(false);
   const getCount  = () => serverCount  != null ? serverCount  : (() => { try { return parseInt(localStorage.getItem('ck_count') || '0', 10); } catch { return 0; } })();
   const getTarget = () => serverTarget != null ? serverTarget : PRODUCTION_THRESHOLD;
@@ -2923,6 +2952,7 @@ function TesseractCard({ card, tesseract, acquired, onRegister, serverCount, ser
                 }}>
                 ◈ TRANSMUTE INITIATED
               </div>
+              {orderStatus && <FulfillmentBadge state={orderStatus.fulfillmentState} />}
               <div className="text-[7.5px] font-mono mb-1 break-all leading-relaxed" style={{ color: 'rgba(255,215,0,0.35)' }}>
                 {hash.slice(0, 32)}…
               </div>

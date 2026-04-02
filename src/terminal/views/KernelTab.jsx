@@ -308,7 +308,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
   }, []);
 
   return (
-  <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 relative md:flex md:flex-col md:h-[calc(100dvh-200px)] md:min-h-[540px]">
+  <div className="tab-fade-v2 relative md:flex md:flex-col md:h-[calc(100dvh-200px)] md:min-h-[540px]">
 
     <style>{`
       @keyframes sk-kernelTextReveal {

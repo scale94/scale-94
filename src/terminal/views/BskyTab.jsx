@@ -313,7 +313,7 @@ const BskyTab = () => {
   }, []);
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-6xl mx-auto mt-8">
+    <div className="tab-fade-v2 max-w-6xl mx-auto mt-8">
 
       <style>{`
         @keyframes bk-float {

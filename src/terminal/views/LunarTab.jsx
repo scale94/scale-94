@@ -641,7 +641,7 @@ export default function LunarTab() {
   );
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto mt-4 sm:mt-6 px-2 sm:px-0 pb-16">
+    <div className="tab-fade-v2 max-w-5xl mx-auto mt-4 sm:mt-6 px-2 sm:px-0 pb-16">
       <style>{`
         @keyframes ln-titleReveal {
           from { opacity: 0; transform: translateY(-8px); filter: blur(6px); }
