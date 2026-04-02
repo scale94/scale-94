@@ -44,6 +44,7 @@ import useSystemLog           from './hooks/useSystemLog';
 import { useCommandDispatch } from './hooks/useCommandDispatch';
 import { useAutocomplete }    from './hooks/useAutocomplete';
 import { useEcologicalRam }   from './hooks/useEcologicalRam';
+import { getVerdictCount }    from './ledger/verdictStore';
 import { normalizeQuery }     from '../lib/normalize';
 
 // KernelTab — static import (landing tab, always needed, avoids .df.js chunk on Firefox Android)
@@ -229,6 +230,11 @@ const App = () => {
             }
           } catch { /* non-fatal — validation best-effort */ }
         }
+        getVerdictCount().then(count => {
+          if (count > 0) {
+            appendSystemLog({ time: fmtTime(), msg: `  OPEN LEDGER: ${count} verdict${count !== 1 ? 's' : ''} in archive`, rust: true });
+          }
+        });
       } catch (err) {
         console.warn('[KERNEL_LOG] Manifest fetch failed:', err.message);
         const laterTime = fmtTime();
