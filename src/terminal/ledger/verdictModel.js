@@ -47,10 +47,26 @@ export function createVerdict(input, kernelOutput, kernelId) {
       audit = parsed;
     } catch { /* keep defaults */ }
   }
-  const statusMatch = kernelOutput.match(/PERMIT_STATUS:\s*(\S+)/);
-  if (statusMatch && status === 'UNKNOWN') {
-    status = statusMatch[1];
+  // Match "PERMIT: [REJECTED]" or "PERMIT: [GRANTED]" etc.
+  if (status === 'UNKNOWN') {
+    const permitMatch = kernelOutput.match(/PERMIT:\s*\[(\w+)]/);
+    if (permitMatch) status = permitMatch[1];
   }
+  // Legacy fallback: "PERMIT_STATUS: REJECTED"
+  if (status === 'UNKNOWN') {
+    const statusMatch = kernelOutput.match(/PERMIT_STATUS:\s*(\S+)/);
+    if (statusMatch) status = statusMatch[1];
+  }
+  // Map kernel permit codes to display statuses
+  const STATUS_MAP = {
+    GRANTED:        'APPROVED',
+    APPROVED:       'APPROVED',
+    CONDITIONAL:    'CONDITIONAL',
+    DEFERRED:       'CONDITIONAL',
+    REJECTED:       'REJECTED',
+    EMERGENCY_VETO: 'EMERGENCY_VETO',
+  };
+  status = STATUS_MAP[status] || status;
 
   return {
     status,

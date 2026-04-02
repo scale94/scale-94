@@ -70,6 +70,33 @@ const LEDGER_STYLES = `
   0%   { opacity: 0; transform: translateX(-8px); }
   100% { opacity: 1; transform: translateX(0); }
 }
+
+/* ── Lunar eclipse sweep (CSS-only, div-based) ───────────────────────── */
+@keyframes lt-eclipseUmbra {
+  0%   { left: -50%; opacity: 0; }
+  8%   { opacity: 1; }
+  50%  { left: 25%; }
+  92%  { opacity: 1; }
+  100% { left: 100%; opacity: 0; }
+}
+@keyframes lt-eclipseDarken {
+  0%   { opacity: 0; }
+  12%  { opacity: 0.5; }
+  50%  { opacity: 0.65; }
+  88%  { opacity: 0.5; }
+  100% { opacity: 0; }
+}
+@keyframes lt-eclipseCorona {
+  0%   { left: -50%; opacity: 0; }
+  8%   { opacity: 0.5; }
+  50%  { left: 25%; }
+  92%  { opacity: 0.5; }
+  100% { left: 100%; opacity: 0; }
+}
+@keyframes lt-eclipseLift {
+  0%   { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.05); }
+}
 `;
 
 export default function LedgerTab() {
@@ -223,6 +250,74 @@ export default function LedgerTab() {
         />
         {/* Particle burst canvas overlay */}
         <LedgerParticles ref={particlesRef} />
+
+        {/* ── Lunar eclipse overlay ──────────────────────────────────── */}
+        {cascadeVisible && (
+          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 3, overflow: 'hidden' }}>
+            {/* Base darkening wash — entire map dims */}
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                background: '#000',
+                animation: 'lt-eclipseDarken 3.2s ease-in-out forwards',
+              }}
+            />
+
+            {/* Umbra — the core shadow disc sweeping left→right */}
+            <div
+              style={{
+                position: 'absolute',
+                top: '-30%',
+                width: '60%',
+                height: '160%',
+                borderRadius: '50%',
+                background: 'radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.85) 40%, rgba(0,0,0,0.3) 70%, transparent 100%)',
+                animation: 'lt-eclipseUmbra 3.2s ease-in-out forwards',
+              }}
+            />
+
+            {/* Corona — faint teal ring trailing the umbra */}
+            <div
+              style={{
+                position: 'absolute',
+                top: '-40%',
+                width: '70%',
+                height: '180%',
+                borderRadius: '50%',
+                background: 'radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(20,184,166,0.08) 50%, rgba(20,184,166,0.03) 65%, transparent 80%)',
+                animation: 'lt-eclipseCorona 3.2s ease-in-out forwards',
+                filter: 'blur(8px)',
+              }}
+            />
+
+            {/* Diamond ring highlight — thin bright edge at umbra border */}
+            <div
+              style={{
+                position: 'absolute',
+                top: '-30%',
+                width: '60%',
+                height: '160%',
+                borderRadius: '50%',
+                boxShadow: 'inset 0 0 30px rgba(20,184,166,0.06), 0 0 60px rgba(20,184,166,0.04)',
+                animation: 'lt-eclipseUmbra 3.2s ease-in-out forwards',
+              }}
+            />
+          </div>
+        )}
+
+        {/* Eclipse lift — teal flash as light returns after cascade */}
+        {!cascadeVisible && latestHash && (
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              zIndex: 3,
+              background: 'radial-gradient(ellipse at 50% 50%, rgba(20,184,166,0.15), transparent 70%)',
+              animation: 'lt-eclipseLift 0.8s ease-out forwards',
+            }}
+          />
+        )}
+
         {/* Vignette overlay */}
         <div
           className="absolute inset-0 pointer-events-none rounded-sm"
