@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { PARAM_RANGES } from '../../ledger/verdictModel';
+import { paramSeverity, discreteSeverity } from './severityEngine';
 
 const STATUS_COLORS = {
   APPROVED:       { text: 'text-green-400', border: 'border-green-800/30', glow: 'shadow-[0_0_12px_rgba(34,197,94,0.1)]' },
@@ -25,6 +27,23 @@ const STATUS_BORDER = {
   REJECTED:       { base: 'rgba(239,68,68,0.15)', glow: 'rgba(239,68,68,0.35)' },
   EMERGENCY_VETO: { base: 'rgba(239,68,68,0.2)', glow: 'rgba(239,68,68,0.45)' },
   UNKNOWN:        { base: 'rgba(107,114,128,0.15)', glow: 'rgba(107,114,128,0.25)' },
+};
+
+const SIGNAL_COLORS = {
+  GREEN:     '#22c55e',
+  AMBER:     '#eab308',
+  RED:       '#ef4444',
+  VETO:      '#ef4444',
+  EMERGENCY: '#dc2626',
+  UNKNOWN:   '#6b7280',
+};
+
+const MODULE_SHORT = ['O2', 'THERM', 'NUTR', 'FLOW', 'LSI'];
+
+const SEV_DOT_COLORS = {
+  safe:     '#14b8a6',
+  stress:   '#f59e0b',
+  critical: '#ef4444',
 };
 
 export default function VerdictCard({ verdict, onExport }) {
@@ -87,19 +106,54 @@ export default function VerdictCard({ verdict, onExport }) {
         <span className="text-teal-700">hash:</span> {verdict.hash?.slice(0, 12)}...{verdict.hash?.slice(-8)}
       </div>
 
-      {/* Key metrics */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
-        {[
-          ['TEMP', verdict.input?.temp, 'C'],
-          ['DO', verdict.input?.do, 'mg/L'],
-          ['BOD', verdict.input?.bod, 'mg/L'],
-          ['DT', verdict.input?.dt, 'C'],
-        ].map(([label, val, unit]) => (
-          <div key={label} className="text-center">
-            <div className="text-[9px] font-mono text-gray-600 uppercase tracking-widest">{label}</div>
-            <div className="text-sm font-mono text-teal-300">{val}<span className="text-gray-600 text-[9px] ml-0.5">{unit}</span></div>
-          </div>
-        ))}
+      {/* Module status indicators */}
+      {verdict.audit?.modules?.length > 0 && (
+        <div className="flex gap-3 mb-3">
+          {verdict.audit.modules.map((mod, i) => (
+            <div key={mod.key} className="flex items-center gap-1.5">
+              <div
+                style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  background: SIGNAL_COLORS[mod.signal] || SIGNAL_COLORS.UNKNOWN,
+                  boxShadow: `0 0 4px ${SIGNAL_COLORS[mod.signal] || SIGNAL_COLORS.UNKNOWN}66`,
+                }}
+              />
+              <span className="text-[8px] font-mono text-gray-600 tracking-wider">
+                {MODULE_SHORT[i] || mod.key}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* All 7 parameters with severity indicators */}
+      <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 mb-3">
+        {Object.entries(PARAM_RANGES).map(([key, range]) => {
+          const val = verdict.input?.[key];
+          const sev = paramSeverity(key, val);
+          const level = discreteSeverity(sev);
+          const dotColor = val !== undefined ? SEV_DOT_COLORS[level] : 'rgba(107,114,128,0.3)';
+          return (
+            <div key={key} className="text-center">
+              <div className="text-[8px] font-mono text-gray-600 uppercase tracking-widest flex items-center justify-center gap-1">
+                {key}
+                <span style={{
+                  display: 'inline-block',
+                  width: '4px',
+                  height: '4px',
+                  borderRadius: '50%',
+                  background: dotColor,
+                }} />
+              </div>
+              <div className="text-xs font-mono text-teal-300">
+                {val !== undefined ? val : '—'}
+                <span className="text-gray-600 text-[8px] ml-0.5">{range.unit}</span>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Expandable ruling */}
