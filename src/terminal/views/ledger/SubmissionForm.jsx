@@ -1,12 +1,51 @@
 import { useState, useCallback, useEffect, lazy, Suspense } from 'react';
 const CoordinatePicker = lazy(() => import('./CoordinatePicker'));
 import { PARAM_RANGES, VALID_DEPENDENCIES, validateSubmission } from '../../ledger/verdictModel';
+import RiverPulse from './RiverPulse';
+import { paramSeverity, discreteSeverity } from './severityEngine';
 
 const DEPENDENCY_LABELS = {
   sovereign: 'SOVEREIGN — user-supplied measurements',
   external:  'EXTERNAL — pulled from monitoring API',
   attested:  'ATTESTED — uploaded dataset with provenance claim',
 };
+
+const SEV_DOT_COLORS = {
+  safe:     '#14b8a6',
+  stress:   '#f59e0b',
+  critical: '#ef4444',
+};
+
+const SEV_DOT_STYLES = `
+@keyframes sev-dot-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50%      { transform: scale(1.4); opacity: 1; }
+}
+`;
+
+function SeverityDot({ paramKey, value }) {
+  const sev = paramSeverity(paramKey, value);
+  const level = discreteSeverity(sev);
+  const color = SEV_DOT_COLORS[level];
+  const hasValue = value !== '' && value !== undefined && value !== null;
+
+  return (
+    <span
+      style={{
+        display: 'inline-block',
+        width: '6px',
+        height: '6px',
+        borderRadius: '50%',
+        background: hasValue ? color : 'rgba(107,114,128,0.3)',
+        boxShadow: hasValue && sev > 0.3 ? `0 0 6px ${color}88` : 'none',
+        transition: 'background 0.4s ease, box-shadow 0.4s ease',
+        animation: hasValue && sev > 0.5 ? 'sev-dot-pulse 1.5s ease-in-out infinite' : 'none',
+        marginLeft: '6px',
+        verticalAlign: 'middle',
+      }}
+    />
+  );
+}
 
 export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch, apiLoading, apiError }) {
   const [form, setForm] = useState({
@@ -66,6 +105,7 @@ export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch,
 
   return (
     <div className="space-y-6">
+      <style>{SEV_DOT_STYLES}</style>
       {/* Coordinates */}
       <div>
         <div className="text-[10px] uppercase tracking-[3px] text-teal-500 font-mono mb-3">Coordinates</div>
@@ -138,6 +178,9 @@ export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch,
         </div>
       )}
 
+      {/* River Pulse — live parameter visualization */}
+      <RiverPulse params={form} />
+
       {/* Parameters */}
       <div>
         <div className="text-[10px] uppercase tracking-[3px] text-teal-500 font-mono mb-3">Audit Parameters</div>
@@ -146,6 +189,7 @@ export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch,
             <div key={key}>
               <label className="block text-[10px] uppercase tracking-widest text-gray-500 font-mono mb-1">
                 {range.label} <span className="text-gray-600">({range.unit})</span>
+                <SeverityDot paramKey={key} value={form[key]} />
               </label>
               <input
                 type="number" step="any"
