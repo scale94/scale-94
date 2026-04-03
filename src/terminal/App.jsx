@@ -9,7 +9,7 @@ import React, { useState, useEffect, useRef, useLayoutEffect, useMemo, useCallba
 const fmtTime = (d = new Date()) =>
   `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
 
-import { Hexagon, Cpu, Lock, Scale, Eye, ShieldAlert, KeyRound, Waves, Radio, Leaf, Moon, Droplets } from 'lucide-react';
+import { Hexagon, Cpu, Lock, Scale, Eye, ShieldAlert, KeyRound, Waves, Radio, Leaf, Moon, Droplets, Flame } from 'lucide-react';
 import AmbientParticles from './components/AmbientParticles';
 
 // Data — static (authored, always bundled)
@@ -76,6 +76,7 @@ const TagCloudView    = lazy(() => import('./views/TagCloudView'));
 const LunarTab        = lazy(() => import('./views/LunarTab'));
 const LedgerTab       = lazy(() => import('./views/LedgerTab'));
 const FluidTab        = lazy(() => import('./views/FluidTab'));
+const ThermalTab      = lazy(() => import('./views/ThermalTab'));
 
 // formatKernelHelp, formatRunHelp, CMD_MANIFEST → src/terminal/commands/runHelpers.js
 
@@ -1083,6 +1084,8 @@ const App = () => {
 
             <button aria-label="Fluid" aria-current={activeTab === 'fluid' ? 'page' : undefined} onClick={() => handleNav('~/system/fluid', 'fluid')} className={`${activeTab === 'fluid' ? 'bg-indigo-600 text-white shadow-[0_0_12px_rgba(99,102,241,0.5)]' : 'text-indigo-400/60 hover:text-indigo-200 hover:bg-indigo-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><Droplets className="w-3 h-3" /> /Fluid</button>
 
+            <button aria-label="Thermal" aria-current={activeTab === 'thermal' ? 'page' : undefined} onClick={() => handleNav('~/system/thermal', 'thermal')} className={`${activeTab === 'thermal' ? 'bg-orange-600 text-white shadow-[0_0_12px_rgba(249,115,22,0.5)]' : 'text-orange-400/60 hover:text-orange-200 hover:bg-orange-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><Flame className="w-3 h-3" /> /Thermal</button>
+
             <button aria-label="Ledger" aria-current={activeTab === 'ledger' ? 'page' : undefined} onClick={() => handleNav('~/system/ledger', 'ledger')} className={`${activeTab === 'ledger' ? 'text-black shadow-[0_0_14px_rgba(20,184,166,0.6)]' : 'hover:text-white hover:bg-teal-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`} style={activeTab === 'ledger' ? { background: 'linear-gradient(90deg,#0d9488,#14b8a6)' } : { color: 'rgba(20,184,166,0.5)' }}>ᛟ /Ledger</button>
 
             {/* Global search button */}
@@ -1122,6 +1125,7 @@ const App = () => {
               ecocide:      { prompt: 'text-lime-400',    path: 'text-lime-300',    cursor: 'bg-lime-400',    border: 'border-lime-500/25',  glow: '0 0 18px rgba(122,184,0,0.25), 0 0 4px rgba(122,184,0,0.4)',    cursorGlow: '0 0 10px rgba(122,184,0,0.8)',      pathGlow: '0 0 6px rgba(122,184,0,0.3)' },
               lunar:        { prompt: 'text-violet-400',  path: 'text-violet-300',  cursor: 'bg-violet-400',  border: 'border-violet-500/25',glow: '0 0 18px rgba(139,92,246,0.25), 0 0 4px rgba(139,92,246,0.4)',    cursorGlow: '0 0 10px rgba(139,92,246,0.8)',     pathGlow: '0 0 6px rgba(139,92,246,0.3)' },
               fluid:        { prompt: 'text-indigo-400',  path: 'text-indigo-300',  cursor: 'bg-indigo-400',  border: 'border-indigo-500/25', glow: '0 0 18px rgba(99,102,241,0.25), 0 0 4px rgba(99,102,241,0.4)',    cursorGlow: '0 0 10px rgba(99,102,241,0.8)',     pathGlow: '0 0 6px rgba(99,102,241,0.3)' },
+              thermal:      { prompt: 'text-orange-400',  path: 'text-orange-300',  cursor: 'bg-orange-400',  border: 'border-orange-500/25', glow: '0 0 18px rgba(249,115,22,0.25), 0 0 4px rgba(249,115,22,0.4)',    cursorGlow: '0 0 10px rgba(249,115,22,0.8)',     pathGlow: '0 0 6px rgba(249,115,22,0.3)' },
               ledger:       { prompt: 'text-teal-400',    path: 'text-teal-300',    cursor: 'bg-teal-400',    border: 'border-teal-500/25',  glow: '0 0 18px rgba(20,184,166,0.25), 0 0 4px rgba(20,184,166,0.4)',   cursorGlow: '0 0 10px rgba(20,184,166,0.8)',     pathGlow: '0 0 6px rgba(20,184,166,0.3)' },
             };
             const t = _bc[activeTab] || _bc.kernel;
@@ -1258,6 +1262,11 @@ const App = () => {
           {/* Fluid Tab — bioluminescent particle dynamics */}
           {activeTab === 'fluid' && !selectedArticle && !architectThesis && (
             <FluidTab />
+          )}
+
+          {/* Thermal Tab — incandescent convection dynamics */}
+          {activeTab === 'thermal' && !selectedArticle && !architectThesis && (
+            <ThermalTab />
           )}
 
           {/* Ledger Tab — The Open Ledger · Thermodynamic Audit Infrastructure */}
@@ -1427,6 +1436,9 @@ const App = () => {
         </button>
         <button onClick={() => handleNav('~/system/fluid', 'fluid')} aria-label="Fluid" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'fluid' ? 'text-indigo-400' : 'text-indigo-400/50'}`}>
           <Droplets className="w-5 h-5" />
+        </button>
+        <button onClick={() => handleNav('~/system/thermal', 'thermal')} aria-label="Thermal" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'thermal' ? 'text-orange-400' : 'text-orange-400/50'}`}>
+          <Flame className="w-5 h-5" />
         </button>
         <button onClick={() => handleNav('~/system/ledger', 'ledger')} aria-label="Ledger" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'ledger' ? 'text-teal-400' : 'text-teal-400/50'}`}><span className="text-xs">ᛟ</span></button>
         {/* Mobile search button */}
