@@ -76,7 +76,7 @@ export default function FluidControls({ params, onChange, fps, particleCount }) 
       </div>
 
       {/* System status readout */}
-      <div className="mt-2 pt-3 border-t border-white/[0.05]">
+      <div className="mt-4 pt-3 border-t border-white/[0.05]">
         <div className="text-[7px] font-mono text-white/20 uppercase tracking-widest mb-2">
           ── SYSTEM STATUS ──────────
         </div>

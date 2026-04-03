@@ -100,7 +100,7 @@ export default function FluidTab() {
           knot boundary. Ars Electronica 2027.
         </p>
 
-        <div className="border-b border-indigo-900/30 pb-4 mb-0" />
+        <div className="border-b border-indigo-900/30 pb-4 mb-6" />
       </div>
 
       {/* ── Main: Controls + Canvas ─────────────────────────────────────── */}
@@ -119,7 +119,7 @@ export default function FluidTab() {
         <div
           className="w-full rounded-sm overflow-hidden"
           style={{
-            height: isMobile ? 'calc(100vh - 480px)' : 'calc(100vh - 260px)',
+            height: isMobile ? 'calc(100vh - 420px)' : 'calc(100vh - 260px)',
             minHeight: '300px',
             background: '#000000',
             touchAction: 'none',

@@ -122,9 +122,10 @@ const vertexShader = /* glsl */ `
                      + binormal * (sin(angle) * rad + gravBinormal);
 
     // ── Per-particle granular jitter (sand shimmer) ──
-    float jx = snoise(vec3(aPhase * 100.0, uTime * 1.5, 0.0)) * 0.012;
-    float jy = snoise(vec3(0.0, aPhase * 100.0, uTime * 1.5)) * 0.012;
-    float jz = snoise(vec3(uTime * 1.5, 0.0, aPhase * 100.0)) * 0.012;
+    vec3 basePos = center + localOffset;
+    float jx = snoise(basePos * 8.0 + vec3(uTime, 0.0, 0.0)) * 0.012;
+    float jy = snoise(basePos * 8.0 + vec3(0.0, uTime, 0.0)) * 0.012;
+    float jz = snoise(basePos * 8.0 + vec3(0.0, 0.0, uTime)) * 0.012;
 
     // ── Subtle curl drift (environmental, not primary) ──
     vec3 curl = curlNoise(center * 2.0 + uTime * 0.1) * uCurlAmp;
