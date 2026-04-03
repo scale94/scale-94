@@ -32,30 +32,35 @@ function Slider({ label, value, min, max, step, onChange, format }) {
   }, []);
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1">
       <div className="flex justify-between items-baseline">
-        <span className="text-[8px] font-mono text-indigo-400/60 uppercase tracking-widest">{label}</span>
-        <span className="text-[10px] font-mono text-indigo-300">{format ? format(value) : value.toFixed(2)}</span>
+        <span className="text-[11px] font-mono text-indigo-400/60 uppercase tracking-widest">{label}</span>
+        <span className="text-xs font-mono text-indigo-300">{format ? format(value) : value.toFixed(2)}</span>
       </div>
+      {/* Outer div provides 44px tall touch target; inner track is visual only */}
       <div
-        ref={trackRef}
-        className="w-full h-[4px] bg-indigo-950/50 rounded-full relative cursor-pointer"
-        style={{ touchAction: 'none' }}
+        className="w-full flex items-center cursor-pointer"
+        style={{ touchAction: 'none', height: '44px' }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
       >
-        {/* Fill */}
         <div
-          className="absolute left-0 top-0 h-full bg-indigo-500 rounded-full"
-          style={{ width: `${pct}%`, boxShadow: '0 0 8px rgba(99,102,241,0.4)' }}
-        />
-        {/* Thumb */}
-        <div
-          className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-indigo-400 pointer-events-none"
-          style={{ left: `${pct}%`, transform: `translate(-50%, -50%)`, boxShadow: '0 0 8px rgba(99,102,241,0.6)' }}
-        />
+          ref={trackRef}
+          className="w-full h-[4px] bg-indigo-950/50 rounded-full relative"
+        >
+          {/* Fill */}
+          <div
+            className="absolute left-0 top-0 h-full bg-indigo-500 rounded-full"
+            style={{ width: `${pct}%`, boxShadow: '0 0 8px rgba(99,102,241,0.4)' }}
+          />
+          {/* Thumb */}
+          <div
+            className="absolute top-1/2 w-4 h-4 rounded-full bg-indigo-400 pointer-events-none"
+            style={{ left: `${pct}%`, transform: `translate(-50%, -50%)`, boxShadow: '0 0 8px rgba(99,102,241,0.6)' }}
+          />
+        </div>
       </div>
     </div>
   );
@@ -77,7 +82,7 @@ export default function FluidControls({ params, onChange, fps, particleCount }) 
 
       {/* System status readout */}
       <div className="mt-4 pt-3 border-t border-white/[0.05]">
-        <div className="text-[7px] font-mono text-white/20 uppercase tracking-widest mb-2">
+        <div className="text-[9px] font-mono text-white/20 uppercase tracking-widest mb-2">
           ── SYSTEM STATUS ──────────
         </div>
         <div className="space-y-0.5">
@@ -86,7 +91,7 @@ export default function FluidControls({ params, onChange, fps, particleCount }) 
             ['PARTICLES', particleCount.toLocaleString()],
             ['DRAW CALLS', '2'],
           ].map(([label, val]) => (
-            <div key={label} className="flex justify-between text-[8px] font-mono">
+            <div key={label} className="flex justify-between text-[10px] font-mono">
               <span className="text-white/20">{label}</span>
               <span className="text-indigo-400/40">{val}</span>
             </div>

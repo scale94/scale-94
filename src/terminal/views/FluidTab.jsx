@@ -1,4 +1,4 @@
-import { Suspense, useState, useCallback, useMemo } from 'react';
+import { Suspense, useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import FluidScene from '../fluid/FluidScene';
 import FluidControls from '../fluid/FluidControls';
@@ -28,6 +28,26 @@ export default function FluidTab() {
       densityTimer.current = setTimeout(() => setLiveDensity(next.density), 200);
     }
   }, [params.density, densityTimer]);
+
+  // Adaptive quality: auto-reduce density on mobile if FPS sustains below 30
+  const fpsAdaptive = useRef({ history: [], adjusted: false });
+  useEffect(() => {
+    if (!isMobile || fps === 0) return;
+    const ad = fpsAdaptive.current;
+    ad.history.push(fps);
+    if (ad.history.length > 60) ad.history.shift(); // rolling ~1s window
+    if (!ad.adjusted && ad.history.length >= 60) {
+      const avg = ad.history.reduce((a, b) => a + b, 0) / ad.history.length;
+      if (avg < 30) {
+        ad.adjusted = true;
+        setParams(p => {
+          const reduced = Math.max(2000, Math.round(p.density * 0.75 / 500) * 500);
+          setLiveDensity(reduced);
+          return { ...p, density: reduced };
+        });
+      }
+    }
+  }, [fps]);
 
   return (
     <div className="max-w-[1800px] mx-auto">
@@ -119,7 +139,9 @@ export default function FluidTab() {
         <div
           className="w-full rounded-sm overflow-hidden"
           style={{
-            height: isMobile ? 'calc(100vh - 420px)' : 'calc(100vh - 260px)',
+            height: isMobile
+              ? 'calc(100svh - 420px - env(safe-area-inset-bottom, 0px))'
+              : 'calc(100svh - 260px)',
             minHeight: '300px',
             background: '#000000',
             touchAction: 'none',
