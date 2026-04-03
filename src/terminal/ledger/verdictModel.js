@@ -13,6 +13,96 @@ const PARAM_RANGES = {
 
 export { PARAM_RANGES, VALID_DEPENDENCIES };
 
+const SIGNAL_RE = /\[.*?(GREEN|AMBER|RED|VETO|EMERGENCY)\]/;
+const MODULE_HEADERS = [
+  { key: 'do_ledger',   pattern: /MODULE 01.*DISSOLVED OXYGEN/  },
+  { key: 'thermal',     pattern: /MODULE 02.*THERMAL RENT/      },
+  { key: 'nutrient',    pattern: /MODULE 03.*NUTRIENT DEBT/     },
+  { key: 'hydraulic',   pattern: /MODULE 04.*HYDRAULIC/         },
+  { key: 'langelier',   pattern: /MODULE 05.*LANGELIER/         },
+];
+
+const MODULE_LABELS = {
+  do_ledger: 'DISSOLVED OXYGEN',
+  thermal:   'THERMAL RENT',
+  nutrient:  'NUTRIENT DEBT',
+  hydraulic: 'HYDRAULIC SOVEREIGNTY',
+  langelier: 'LANGELIER INDEX',
+};
+
+export function parseKernelOutput(text) {
+  if (!text || typeof text !== 'string') {
+    return { modules: [], fiscal: {}, permit: 'UNKNOWN', ruling: '' };
+  }
+
+  const lines = text.split('\n');
+  const modules = [];
+
+  for (let mi = 0; mi < MODULE_HEADERS.length; mi++) {
+    const { key, pattern } = MODULE_HEADERS[mi];
+    const startIdx = lines.findIndex(l => pattern.test(l));
+    if (startIdx === -1) continue;
+
+    let endIdx = lines.length;
+    for (let j = startIdx + 1; j < lines.length; j++) {
+      if (/^──\s*MODULE\s+\d|^──\s*FISCAL|^──\s*RULING/.test(lines[j])) {
+        endIdx = j;
+        break;
+      }
+    }
+
+    const section = lines.slice(startIdx, endIdx).join('\n');
+
+    let signal = 'UNKNOWN';
+    const sigMatch = section.match(SIGNAL_RE);
+    if (sigMatch) signal = sigMatch[1];
+
+    let status = '';
+    const statusMatch = section.match(/STATUS:\s*(\S+)/);
+    const arrowMatch = section.match(/→\s+(\S+)/);
+    if (statusMatch) status = statusMatch[1];
+    else if (arrowMatch) status = arrowMatch[1];
+
+    const values = {};
+    const numericRe = /([A-Z_]+):\s+([-+]?\d+\.?\d*)/g;
+    let m;
+    while ((m = numericRe.exec(section)) !== null) {
+      values[m[1]] = parseFloat(m[2]);
+    }
+
+    modules.push({ key, label: MODULE_LABELS[key], signal, status, values });
+  }
+
+  const fiscal = {};
+  const fiscalRe = /([A-Z_]+):\s+([-+]?\d[\d,]*)\s*EUR/g;
+  let fm;
+  while ((fm = fiscalRe.exec(text)) !== null) {
+    fiscal[fm[1]] = parseInt(fm[2].replace(/,/g, ''), 10);
+  }
+
+  let permit = 'UNKNOWN';
+  const permitMatch = text.match(/PERMIT:\s*\[(\w+)]/);
+  if (permitMatch) permit = permitMatch[1];
+  // Legacy fallback: "PERMIT_STATUS: APPROVED"
+  if (permit === 'UNKNOWN') {
+    const legacyMatch = text.match(/PERMIT_STATUS:\s*(\S+)/);
+    if (legacyMatch) permit = legacyMatch[1];
+  }
+
+  let ruling = '';
+  const rulingIdx = lines.findIndex(l => /^──\s*RULING/.test(l));
+  if (rulingIdx !== -1) {
+    const rulingLines = [];
+    for (let i = rulingIdx + 1; i < lines.length; i++) {
+      if (/^PERMIT:/.test(lines[i])) break;
+      if (lines[i].trim()) rulingLines.push(lines[i].trim());
+    }
+    ruling = rulingLines.join(' ');
+  }
+
+  return { modules, fiscal, permit, ruling };
+}
+
 export function validateSubmission(input) {
   const errors = [];
   for (const field of REQUIRED_FIELDS) {
@@ -37,27 +127,8 @@ export function validateSubmission(input) {
 }
 
 export function createVerdict(input, kernelOutput, kernelId) {
-  let status = 'UNKNOWN';
-  let audit = {};
-  const dataMatch = kernelOutput.match(/DATA:(\{[\s\S]*\})$/);
-  if (dataMatch) {
-    try {
-      const parsed = JSON.parse(dataMatch[1]);
-      status = parsed.status || status;
-      audit = parsed;
-    } catch { /* keep defaults */ }
-  }
-  // Match "PERMIT: [REJECTED]" or "PERMIT: [GRANTED]" etc.
-  if (status === 'UNKNOWN') {
-    const permitMatch = kernelOutput.match(/PERMIT:\s*\[(\w+)]/);
-    if (permitMatch) status = permitMatch[1];
-  }
-  // Legacy fallback: "PERMIT_STATUS: REJECTED"
-  if (status === 'UNKNOWN') {
-    const statusMatch = kernelOutput.match(/PERMIT_STATUS:\s*(\S+)/);
-    if (statusMatch) status = statusMatch[1];
-  }
-  // Map kernel permit codes to display statuses
+  const parsed = parseKernelOutput(kernelOutput);
+
   const STATUS_MAP = {
     GRANTED:        'APPROVED',
     APPROVED:       'APPROVED',
@@ -66,7 +137,7 @@ export function createVerdict(input, kernelOutput, kernelId) {
     REJECTED:       'REJECTED',
     EMERGENCY_VETO: 'EMERGENCY_VETO',
   };
-  status = STATUS_MAP[status] || status;
+  const status = STATUS_MAP[parsed.permit] || parsed.permit;
 
   return {
     status,
@@ -75,7 +146,7 @@ export function createVerdict(input, kernelOutput, kernelId) {
     kernelId,
     timestamp: new Date().toISOString(),
     input: { ...input },
-    audit,
+    audit: parsed,
     ruling: kernelOutput.split('\n').filter(l => !l.startsWith('DATA:')).join('\n'),
   };
 }
