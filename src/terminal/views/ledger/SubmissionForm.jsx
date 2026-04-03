@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, lazy, Suspense } from 'react';
+import { useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react';
 const CoordinatePicker = lazy(() => import('./CoordinatePicker'));
 import { PARAM_RANGES, VALID_DEPENDENCIES, validateSubmission } from '../../ledger/verdictModel';
 import RiverPulse from './RiverPulse';
@@ -64,6 +64,7 @@ export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch,
   });
   const [errors, setErrors] = useState([]);
   const [showMap, setShowMap] = useState(false);
+  const formRef = useRef(null);
 
   useEffect(() => {
     if (apiData) {
@@ -100,6 +101,10 @@ export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch,
     }
     if (emptyErrors.length > 0) {
       setErrors(emptyErrors);
+      // Scroll to first error field so it's visible on mobile
+      const firstField = emptyErrors[0].field;
+      const el = formRef.current?.querySelector(`[data-field="${firstField}"]`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
     const numericForm = { ...form };
@@ -111,6 +116,9 @@ export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch,
     const validationErrors = validateSubmission(numericForm);
     if (validationErrors.length > 0) {
       setErrors(validationErrors);
+      const firstField = validationErrors[0].field;
+      const el = formRef.current?.querySelector(`[data-field="${firstField}"]`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
     onSubmit(numericForm);
@@ -119,13 +127,13 @@ export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch,
   const fieldError = (field) => errors.find(e => e.field === field)?.message;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" ref={formRef}>
       <style>{SEV_DOT_STYLES}</style>
       {/* Coordinates */}
       <div>
         <div className="text-[10px] uppercase tracking-[3px] text-teal-500 font-mono mb-3">Coordinates</div>
         <div className="grid grid-cols-2 gap-3">
-          <div>
+          <div data-field="lat">
             <label className="block text-[10px] uppercase tracking-widest text-gray-500 font-mono mb-1">Latitude</label>
             <input
               type="number" step="any" placeholder="48.2082"
@@ -136,7 +144,7 @@ export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch,
               <div className="text-red-400 text-[10px] font-mono mt-1">{fieldError('lat')}</div>
             )}
           </div>
-          <div>
+          <div data-field="lon">
             <label className="block text-[10px] uppercase tracking-widest text-gray-500 font-mono mb-1">Longitude</label>
             <input
               type="number" step="any" placeholder="16.3738"
@@ -207,7 +215,7 @@ export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch,
         <div className="text-[10px] uppercase tracking-[3px] text-teal-500 font-mono mb-3">Audit Parameters</div>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
           {Object.entries(PARAM_RANGES).map(([key, range]) => (
-            <div key={key}>
+            <div key={key} data-field={key}>
               <label className="block text-[10px] uppercase tracking-widest text-gray-500 font-mono mb-1">
                 {range.label} <span className="text-gray-600">({range.unit})</span>
                 <SeverityDot paramKey={key} value={form[key]} />
@@ -261,6 +269,13 @@ export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch,
           className="w-full bg-black border border-teal-900/20 text-gray-400 font-mono text-xs px-3 py-2 rounded-sm focus:border-teal-500 focus:outline-none transition-colors resize-none"
         />
       </div>
+
+      {/* Error summary — visible near submit button on mobile */}
+      {errors.length > 0 && (
+        <div className="text-red-400 text-[10px] font-mono border border-red-900/30 bg-red-950/20 rounded-sm px-3 py-2">
+          {errors.length} field{errors.length !== 1 ? 's' : ''} required — {errors.map(e => e.field).join(', ')}
+        </div>
+      )}
 
       {/* Submit */}
       <button
