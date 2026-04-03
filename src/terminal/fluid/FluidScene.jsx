@@ -3,7 +3,7 @@ import { OrbitControls, Environment } from '@react-three/drei';
 import GlassKnot from './GlassKnot';
 import ParticleFlow from './ParticleFlow';
 
-export default function FluidScene() {
+export default function FluidScene({ isMobile = false }) {
   const controlsRef = useRef();
   const idleTimer = useRef(null);
 
@@ -29,8 +29,8 @@ export default function FluidScene() {
       {/* Transmission material needs an environment to refract */}
       <Environment preset="night" />
 
-      <GlassKnot />
-      <ParticleFlow />
+      <GlassKnot isMobile={isMobile} />
+      <ParticleFlow isMobile={isMobile} />
 
       <OrbitControls
         ref={controlsRef}

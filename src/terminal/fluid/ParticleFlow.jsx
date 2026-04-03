@@ -171,9 +171,11 @@ const fragmentShader = /* glsl */ `
 `;
 
 // ── Component ──────────────────────────────────────────────────────────────
-const PARTICLE_COUNT = 10000;
+const PARTICLE_COUNT_DESKTOP = 10000;
+const PARTICLE_COUNT_MOBILE  = 4000;
 
-export default function ParticleFlow() {
+export default function ParticleFlow({ isMobile = false }) {
+  const PARTICLE_COUNT = isMobile ? PARTICLE_COUNT_MOBILE : PARTICLE_COUNT_DESKTOP;
   const meshRef = useRef();
   const materialRef = useRef();
 
@@ -196,7 +198,7 @@ export default function ParticleFlow() {
     }
 
     return { positions, phases, radii, offsets };
-  }, []);
+  }, [PARTICLE_COUNT]);
 
   // Advance time uniform each frame
   useFrame((_, delta) => {
