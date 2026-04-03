@@ -69,7 +69,7 @@ knot boundary. Ars Electronica 2027.
 | Label | Key | Range | Default | Mobile Default | Shader Uniform |
 |-------|-----|-------|---------|----------------|----------------|
 | FLOW VELOCITY | `speed` | 0.01–0.20 | 0.08 | 0.08 | `uSpeed` |
-| CURRENT INTENSITY | `curlAmp` | 0.00–0.20 | 0.06 | 0.06 | `uCurlAmp` |
+| CURRENT DRIFT | `curlAmp` | 0.00–0.20 | 0.02 | 0.02 | `uCurlAmp` |
 | LUMINANCE DENSITY | `density` | 2000–12000 | 10000 | 4000 | particle count (buffer rebuild) |
 | SIGNAL DEPTH | `tubeRadius` | 0.10–0.40 | 0.32 | 0.32 | `uTubeRadius` |
 | CHROMATIC DRIFT | `chromatic` | -1.0–1.0 | 0.0 | 0.0 | `uChromatic` |
@@ -100,6 +100,31 @@ DRAW CALLS  2
 
 ## Particle Rendering Changes
 
+### Animation Feel: Sand, Not Liquid
+
+The simulation must feel like luminous sand grains cascading through a glass sculpture — not fluid swirling in a pipe. Key differences from v1:
+
+**Primary motion:** Tangential drift along the knot centerline (particles flow forward) + a gravity bias vector `(0, -1, 0)` projected onto the local Frenet frame. Particles gently fall along the lower curves of the knot, accumulate briefly at the nadir, then cascade forward.
+
+**Secondary motion:** Small per-particle noise jitter (NOT curl noise swirl). Each particle has a unique high-frequency displacement — `snoise(position * 8.0 + uTime) * 0.012` — that gives granular texture. The particles shimmer and jostle independently like sand grains, never moving in uniform streams.
+
+**Curl noise role:** Demoted from primary driver to subtle environmental perturbation. Amplitude reduced from `0.06` to `0.02` default. It adds gentle drift variation, not visible swirl.
+
+### Pure Color Fade Harmony
+
+Color is completely decoupled from velocity. Each particle cycles slowly through the bioluminescent palette based on its phase and time:
+
+```glsl
+float hue = fract(aPhase + uTime * 0.05 + uChromatic * 0.33);
+vec3 color = hue < 0.333
+  ? mix(magenta, violet, hue * 3.0)
+  : hue < 0.666
+    ? mix(violet, cyan, (hue - 0.333) * 3.0)
+    : mix(cyan, magenta, (hue - 0.666) * 3.0);
+```
+
+All 10,000 particles drift through magenta → violet → cyan → magenta at different phase offsets, creating a living gradient that breathes. The `uChromatic` slider shifts the global phase offset — the entire field smoothly rotates through hue space.
+
 ### Sharper Sprites
 Current fragment shader uses soft Gaussian `exp(-d * d * 3.0)` — particles blur into a solid mass.
 
@@ -107,25 +132,16 @@ New fragment shader alpha computation:
 ```glsl
 float alpha = smoothstep(1.0, 0.3, d);
 ```
-This creates a bright solid core with a tight halo — each particle reads as a distinct luminous dot.
+This creates a bright solid core with a tight halo — each particle reads as a distinct luminous grain.
 
 ### Smaller Point Size
 Current vertex shader: `gl_PointSize = (3.0 + aRadius * 3.0) * (300.0 / -mvPosition.z);`
 
 New: `gl_PointSize = (1.5 + aRadius * 2.0) * (300.0 / -mvPosition.z);`
-Range: 1.5–3.5px screen-space. Individual pixels visible at distance.
+Range: 1.5–3.5px screen-space. Individual grains visible at distance.
 
 ### Higher Alpha
 Fragment shader final alpha: `0.95` (was `0.85`). Crisper dots.
-
-### Chromatic Drift Uniform
-New `uChromatic` uniform shifts the three-stop gradient:
-```glsl
-uniform float uChromatic;
-// ...
-float t = clamp(vSpeed + uChromatic * 0.3, 0.0, 1.0);
-```
-Negative values bias warm (more magenta), positive bias cool (more cyan).
 
 ## New Uniforms in ShaderMaterial
 
@@ -133,7 +149,7 @@ Negative values bias warm (more magenta), positive bias cool (more cyan).
 uniforms: {
   uTime:       { value: 0 },
   uSpeed:      { value: 0.08 },
-  uCurlAmp:    { value: 0.06 },
+  uCurlAmp:    { value: 0.02 },
   uTubeRadius: { value: 0.32 },
   uChromatic:  { value: 0.0 },
 }
