@@ -3,7 +3,6 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
 // ── Torus Knot parametric helpers ──────────────────────────────────────────
-// p=2, q=3 trefoil knot. Returns centerline point at parameter t ∈ [0, 1].
 function knotPoint(t, R = 1, r = 0.4) {
   const phi = t * Math.PI * 2;
   const p = 2, q = 3;
@@ -13,29 +12,20 @@ function knotPoint(t, R = 1, r = 0.4) {
   return [x, y, z];
 }
 
-// Tangent via finite difference (normalized)
-function knotTangent(t, R = 1, r = 0.4) {
-  const dt = 0.0001;
-  const [ax, ay, az] = knotPoint(t, R, r);
-  const [bx, by, bz] = knotPoint(t + dt, R, r);
-  const dx = bx - ax, dy = by - ay, dz = bz - az;
-  const len = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
-  return [dx / len, dy / len, dz / len];
-}
-
 // ── GLSL Shaders ───────────────────────────────────────────────────────────
 const vertexShader = /* glsl */ `
   uniform float uTime;
   uniform float uSpeed;
+  uniform float uCurlAmp;
+  uniform float uTubeRadius;
+  uniform float uChromatic;
   attribute float aPhase;
   attribute float aRadius;
   attribute float aOffset;
-  varying float vSpeed;
-  varying float vLife;
+  varying float vHue;
+  varying float vBrightness;
 
-  //
   // 3D simplex noise (Stefan Gustavson)
-  //
   vec4 permute(vec4 x){ return mod(((x*34.0)+1.0)*x, 289.0); }
   float snoise(vec3 v){
     const vec2  C = vec2(1.0/6.0, 1.0/3.0);
@@ -81,7 +71,7 @@ const vertexShader = /* glsl */ `
     return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
   }
 
-  // Curl noise — divergence-free 3D field from simplex noise
+  // Curl noise — demoted to subtle environmental drift
   vec3 curlNoise(vec3 p) {
     float e = 0.1;
     float n1 = snoise(p + vec3(e, 0, 0));
@@ -90,10 +80,11 @@ const vertexShader = /* glsl */ `
     float n4 = snoise(p - vec3(0, e, 0));
     float n5 = snoise(p + vec3(0, 0, e));
     float n6 = snoise(p - vec3(0, 0, e));
-    float x = (n4 - n3) - (n6 - n5);
-    float y = (n6 - n5) - (n2 - n1);
-    float z = (n2 - n1) - (n4 - n3);
-    return normalize(vec3(x, y, z)) * 0.5;
+    return vec3(
+      (n4 - n3) - (n6 - n5),
+      (n6 - n5) - (n2 - n1),
+      (n2 - n1) - (n4 - n3)
+    ) * 0.5;
   }
 
   // Torus knot centerline (p=2, q=3)
@@ -109,119 +100,151 @@ const vertexShader = /* glsl */ `
   }
 
   void main() {
-    // Advance parametric position along knot
+    // ── Primary motion: tangential drift along knot ──
     float t = fract(aPhase + uTime * uSpeed * (0.6 + aOffset * 0.4));
-
-    // Centerline position
     vec3 center = knotCenter(t);
 
-    // Tangent via finite difference
+    // Tangent + local Frenet frame
     vec3 tangent = normalize(knotCenter(t + 0.001) - center);
-
-    // Build a local frame (Frenet-like)
     vec3 up = abs(tangent.y) < 0.99 ? vec3(0, 1, 0) : vec3(1, 0, 0);
     vec3 normal = normalize(cross(tangent, up));
     vec3 binormal = cross(tangent, normal);
 
-    // Offset inside tube — spiral with curl noise perturbation
-    float angle = aOffset * 6.283185307 + uTime * 0.5;
-    float rad = aRadius * 0.32; // max ~0.32, tube radius is 0.4
-    vec3 localOffset = normal * cos(angle) * rad + binormal * sin(angle) * rad;
+    // ── Gravity bias: project world-down onto local frame ──
+    vec3 gravity = vec3(0.0, -1.0, 0.0);
+    float gravNormal = dot(gravity, normal) * 0.015;
+    float gravBinormal = dot(gravity, binormal) * 0.015;
 
-    // Add curl noise turbulence
-    vec3 curl = curlNoise(center * 2.0 + uTime * 0.15) * 0.06;
+    // ── Tube offset: sand-grain position inside tube ──
+    float angle = aOffset * 6.283185307;
+    float rad = aRadius * uTubeRadius;
+    vec3 localOffset = normal * (cos(angle) * rad + gravNormal)
+                     + binormal * (sin(angle) * rad + gravBinormal);
 
-    vec3 pos = center + localOffset + curl;
+    // ── Per-particle granular jitter (sand shimmer) ──
+    float jx = snoise(vec3(aPhase * 100.0, uTime * 1.5, 0.0)) * 0.012;
+    float jy = snoise(vec3(0.0, aPhase * 100.0, uTime * 1.5)) * 0.012;
+    float jz = snoise(vec3(uTime * 1.5, 0.0, aPhase * 100.0)) * 0.012;
 
-    // Velocity proxy — how much curl noise displaces this particle
-    vSpeed = length(curl) * 10.0 + aOffset * 0.3;
-    vLife = aPhase;
+    // ── Subtle curl drift (environmental, not primary) ──
+    vec3 curl = curlNoise(center * 2.0 + uTime * 0.1) * uCurlAmp;
+
+    vec3 pos = center + localOffset + vec3(jx, jy, jz) + curl;
+
+    // ── Harmonic color cycling ──
+    vHue = fract(aPhase + uTime * 0.05 + uChromatic * 0.33);
+    vBrightness = 0.8 + 0.2 * sin(aPhase * 6.283185307 + uTime * 0.3);
 
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-    gl_PointSize = (3.0 + aRadius * 3.0) * (300.0 / -mvPosition.z);
+    gl_PointSize = (1.5 + aRadius * 2.0) * (300.0 / -mvPosition.z);
     gl_Position = projectionMatrix * mvPosition;
   }
 `;
 
 const fragmentShader = /* glsl */ `
-  varying float vSpeed;
-  varying float vLife;
+  varying float vHue;
+  varying float vBrightness;
 
   void main() {
-    // Soft radial Gaussian sprite
+    // Sharp sprite — bright core with tight halo
     float d = length(gl_PointCoord - 0.5) * 2.0;
-    float alpha = exp(-d * d * 3.0);
+    float alpha = smoothstep(1.0, 0.3, d);
     if (alpha < 0.01) discard;
 
-    // Bioluminescent gradient: magenta → violet → cyan
-    vec3 magenta = vec3(1.0, 0.0, 0.667);   // #ff00aa
-    vec3 violet  = vec3(0.533, 0.267, 1.0);  // #8844ff
-    vec3 cyan    = vec3(0.0, 1.0, 0.8);      // #00ffcc
+    // Bioluminescent palette: magenta → violet → cyan → magenta
+    vec3 magenta = vec3(1.0, 0.0, 0.667);
+    vec3 violet  = vec3(0.533, 0.267, 1.0);
+    vec3 cyan    = vec3(0.0, 1.0, 0.8);
 
-    float t = clamp(vSpeed, 0.0, 1.0);
-    vec3 color = t < 0.5
-      ? mix(magenta, violet, t * 2.0)
-      : mix(violet, cyan, (t - 0.5) * 2.0);
+    float h = vHue;
+    vec3 color = h < 0.333
+      ? mix(magenta, violet, h * 3.0)
+      : h < 0.666
+        ? mix(violet, cyan, (h - 0.333) * 3.0)
+        : mix(cyan, magenta, (h - 0.666) * 3.0);
 
-    // Slight brightness variation by phase
-    color *= 0.8 + 0.4 * sin(vLife * 6.283185307);
+    color *= vBrightness;
 
-    gl_FragColor = vec4(color, alpha * 0.85);
+    gl_FragColor = vec4(color, alpha * 0.95);
   }
 `;
 
 // ── Component ──────────────────────────────────────────────────────────────
-const PARTICLE_COUNT_DESKTOP = 10000;
-const PARTICLE_COUNT_MOBILE  = 4000;
+function buildBuffers(count) {
+  const positions = new Float32Array(count * 3);
+  const phases    = new Float32Array(count);
+  const radii     = new Float32Array(count);
+  const offsets   = new Float32Array(count);
+  for (let i = 0; i < count; i++) {
+    const t = Math.random();
+    const [x, y, z] = knotPoint(t);
+    positions[i * 3]     = x;
+    positions[i * 3 + 1] = y;
+    positions[i * 3 + 2] = z;
+    phases[i]  = t;
+    radii[i]   = Math.random();
+    offsets[i]  = Math.random();
+  }
+  return { positions, phases, radii, offsets };
+}
 
-export default function ParticleFlow({ isMobile = false }) {
-  const PARTICLE_COUNT = isMobile ? PARTICLE_COUNT_MOBILE : PARTICLE_COUNT_DESKTOP;
-  const meshRef = useRef();
+export default function ParticleFlow({
+  isMobile = false,
+  speed = 0.08,
+  curlAmp = 0.02,
+  tubeRadius = 0.32,
+  chromatic = 0.0,
+  density = null,
+  onFps = null,
+}) {
+  const PARTICLE_COUNT = density ?? (isMobile ? 4000 : 10000);
+  const pointsRef = useRef();
   const materialRef = useRef();
+  const fpsFrames = useRef(0);
+  const fpsTime = useRef(0);
 
-  // Build particle attribute buffers once
-  const { positions, phases, radii, offsets } = useMemo(() => {
-    const positions = new Float32Array(PARTICLE_COUNT * 3);
-    const phases    = new Float32Array(PARTICLE_COUNT);
-    const radii     = new Float32Array(PARTICLE_COUNT);
-    const offsets   = new Float32Array(PARTICLE_COUNT);
+  const buffers = useMemo(() => buildBuffers(PARTICLE_COUNT), [PARTICLE_COUNT]);
 
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
-      const t = Math.random();
-      const [x, y, z] = knotPoint(t);
-      positions[i * 3]     = x;
-      positions[i * 3 + 1] = y;
-      positions[i * 3 + 2] = z;
-      phases[i]  = t;
-      radii[i]   = Math.random();
-      offsets[i]  = Math.random();
-    }
-
-    return { positions, phases, radii, offsets };
-  }, [PARTICLE_COUNT]);
-
-  // Advance time uniform each frame
+  // Update uniforms from props each frame + FPS counter
   useFrame((_, delta) => {
-    if (materialRef.current) {
-      materialRef.current.uniforms.uTime.value += delta;
+    const mat = materialRef.current;
+    if (mat) {
+      mat.uniforms.uTime.value += delta;
+      mat.uniforms.uSpeed.value = speed;
+      mat.uniforms.uCurlAmp.value = curlAmp;
+      mat.uniforms.uTubeRadius.value = tubeRadius;
+      mat.uniforms.uChromatic.value = chromatic;
+    }
+    // FPS counter — report once per second
+    if (onFps) {
+      fpsFrames.current++;
+      fpsTime.current += delta;
+      if (fpsTime.current >= 1) {
+        onFps(Math.round(fpsFrames.current / fpsTime.current));
+        fpsFrames.current = 0;
+        fpsTime.current = 0;
+      }
     }
   });
 
   return (
-    <points ref={meshRef} frustumCulled={false}>
-      <bufferGeometry>
-        <bufferAttribute attach="attributes-position" array={positions} count={PARTICLE_COUNT} itemSize={3} />
-        <bufferAttribute attach="attributes-aPhase"    array={phases}    count={PARTICLE_COUNT} itemSize={1} />
-        <bufferAttribute attach="attributes-aRadius"   array={radii}     count={PARTICLE_COUNT} itemSize={1} />
-        <bufferAttribute attach="attributes-aOffset"   array={offsets}   count={PARTICLE_COUNT} itemSize={1} />
+    <points ref={pointsRef} frustumCulled={false}>
+      <bufferGeometry key={PARTICLE_COUNT}>
+        <bufferAttribute attach="attributes-position" array={buffers.positions} count={PARTICLE_COUNT} itemSize={3} />
+        <bufferAttribute attach="attributes-aPhase"    array={buffers.phases}    count={PARTICLE_COUNT} itemSize={1} />
+        <bufferAttribute attach="attributes-aRadius"   array={buffers.radii}     count={PARTICLE_COUNT} itemSize={1} />
+        <bufferAttribute attach="attributes-aOffset"   array={buffers.offsets}   count={PARTICLE_COUNT} itemSize={1} />
       </bufferGeometry>
       <shaderMaterial
         ref={materialRef}
         vertexShader={vertexShader}
         fragmentShader={fragmentShader}
         uniforms={{
-          uTime:  { value: 0 },
-          uSpeed: { value: 0.08 },
+          uTime:       { value: 0 },
+          uSpeed:      { value: speed },
+          uCurlAmp:    { value: curlAmp },
+          uTubeRadius: { value: tubeRadius },
+          uChromatic:  { value: chromatic },
         }}
         transparent
         blending={THREE.AdditiveBlending}
