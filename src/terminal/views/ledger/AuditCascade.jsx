@@ -9,6 +9,24 @@ const MODULES = [
   { key: 'langelier',       label: 'LANGELIER',        param: 'lsi',     unit: 'LSI'  },
 ];
 
+// Map parsed audit module keys to cascade module indices
+const MODULE_KEY_MAP = {
+  do_ledger: 0,
+  thermal:   1,
+  nutrient:  2,
+  hydraulic: 3,
+  langelier: 4,
+};
+
+const SIGNAL_COLORS = {
+  GREEN:     '#22c55e',
+  AMBER:     '#eab308',
+  RED:       '#ef4444',
+  VETO:      '#ef4444',
+  EMERGENCY: '#dc2626',
+  UNKNOWN:   '#6b7280',
+};
+
 const STAGGER_MS  = 300;
 const SWEEP_MS    = 800;
 const VERDICT_DELAY_MS = MODULES.length * STAGGER_MS + SWEEP_MS + 200;
@@ -222,6 +240,12 @@ export default function AuditCascade({ verdict, visible, onComplete }) {
   if (!verdict || !visible) return null;
 
   const input   = verdict.input  || {};
+  const parsedModules = verdict.audit?.modules || [];
+  const parsedByIdx = {};
+  for (const pm of parsedModules) {
+    const idx = MODULE_KEY_MAP[pm.key];
+    if (idx !== undefined) parsedByIdx[idx] = pm;
+  }
   const glowCfg = STATUS_GLOW[status] || { color: '#6b7280', shadow: '0 0 16px rgba(107,114,128,0.3)' };
 
   return (
@@ -313,15 +337,31 @@ export default function AuditCascade({ verdict, visible, onComplete }) {
                     marginBottom: '4px',
                   }}
                 >
-                  <span
-                    style={{
-                      fontFamily: 'monospace',
-                      fontSize: '10px',
-                      color: 'rgba(156,163,175,0.7)',
-                      letterSpacing: '1px',
-                    }}
-                  >
-                    {mod.label}
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span
+                      style={{
+                        fontFamily: 'monospace',
+                        fontSize: '10px',
+                        color: 'rgba(156,163,175,0.7)',
+                        letterSpacing: '1px',
+                      }}
+                    >
+                      {mod.label}
+                    </span>
+                    {parsedByIdx[i] && (
+                      <span
+                        style={{
+                          fontFamily: 'monospace',
+                          fontSize: '8px',
+                          letterSpacing: '2px',
+                          color: SIGNAL_COLORS[parsedByIdx[i].signal] || SIGNAL_COLORS.UNKNOWN,
+                          opacity: verdictVisible ? 1 : 0,
+                          transition: 'opacity 0.5s ease',
+                        }}
+                      >
+                        {parsedByIdx[i].signal}
+                      </span>
+                    )}
                   </span>
                   <span
                     style={{
@@ -428,7 +468,7 @@ export default function AuditCascade({ verdict, visible, onComplete }) {
             />
 
             {/* Ruling snippet */}
-            {verdict.ruling && (
+            {(verdict.audit?.ruling || verdict.ruling) && (
               <div
                 className="ac-ruling"
                 style={{ '--ac-ruling-delay': '300ms' }}
@@ -447,7 +487,9 @@ export default function AuditCascade({ verdict, visible, onComplete }) {
                     WebkitMaskImage: 'linear-gradient(to bottom, black 60%, transparent 100%)',
                   }}
                 >
-                  {verdict.ruling.trim().slice(0, 240)}
+                  {verdict.audit?.ruling
+                    ? verdict.audit.ruling
+                    : verdict.ruling?.trim().slice(0, 240)}
                 </pre>
               </div>
             )}
