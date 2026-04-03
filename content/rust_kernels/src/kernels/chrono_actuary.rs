@@ -170,7 +170,7 @@ pub fn run_chrono_actuary(
     let (permit_code, ruling) = if emergency_count > 0 {
         (
             "EMERGENCY_VETO",
-            "Immediate cessation order. DO below life-support threshold. \
+            "Immediate cessation order. Emergency threshold breached. \
              The River Sovereign invokes emergency powers. No conditions apply.",
         )
     } else if veto_count > 0 {
@@ -201,8 +201,40 @@ pub fn run_chrono_actuary(
 
     // ── ECOLOGICAL DEBT MONETISATION ──────────────────────────────────────────
     // Order-of-magnitude fiscal audit (EUR, indicative)
-    let do_debt = if do_min < 6.0 {
-        (6.0 - do_min) * 50_000.0
+    //
+    // DO debt must account for post-discharge temperature: thermal delta
+    // reduces DO saturation, worsening the oxygen sag downstream.
+    let post_temp = temp_c + delta_t;
+    let post_t_k = post_temp + 273.15;
+    let post_do_sat = f64::exp(
+        -139.344_11
+            + (157_570.1 / post_t_k)
+            - (66_423_080.0 / (post_t_k * post_t_k))
+            + (1.243_8e10 / (post_t_k * post_t_k * post_t_k))
+            - (8.621_949e11 / (post_t_k * post_t_k * post_t_k * post_t_k)),
+    );
+    let post_k_d = 0.23 * f64::powf(1.047, post_temp - 20.0);
+    let post_k_r = 0.40 * f64::powf(1.024, post_temp - 20.0);
+    let post_d_0 = f64::max(0.0, post_do_sat - do_conc);
+    let post_t_crit = if (post_k_r - post_k_d).abs() > 1e-9 && bod_load > 0.0 {
+        let inner = (post_k_r / post_k_d) * (1.0 - post_d_0 * (post_k_r - post_k_d) / (post_k_d * bod_load));
+        if inner > 0.0 {
+            f64::max(0.01, (1.0 / (post_k_r - post_k_d)) * inner.ln())
+        } else {
+            1.0
+        }
+    } else {
+        1.0
+    };
+    let post_deficit = (post_k_d * bod_load / (post_k_r - post_k_d))
+        * (f64::exp(-post_k_d * post_t_crit) - f64::exp(-post_k_r * post_t_crit))
+        + post_d_0 * f64::exp(-post_k_r * post_t_crit);
+    let post_do_min = f64::max(0.0, post_do_sat - post_deficit);
+
+    // Use the worse of baseline and post-discharge DO for debt calculation
+    let effective_do_min = f64::min(do_min, post_do_min);
+    let do_debt = if effective_do_min < 6.0 {
+        (6.0 - effective_do_min) * 50_000.0
     } else {
         0.0
     };
@@ -212,8 +244,12 @@ pub fn run_chrono_actuary(
         0.0
     };
     let nutrient_debt = if epi > 1.0 { epi * 120_000.0 } else { 0.0 };
+    // Flood liability: low-flow regimes (< 0.30 Tennant) with any thermal load,
+    // OR extreme flow events (> 10× Qmean) indicating flood-regime liability
     let flood_liability = if flow_ratio < 0.30 && delta_t > 0.0 {
         delta_t * 200_000.0
+    } else if flow_ratio > 10.0 {
+        (flow_ratio - 10.0) * 30_000.0
     } else {
         0.0
     };

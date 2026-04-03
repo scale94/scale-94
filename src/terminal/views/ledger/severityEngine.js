@@ -2,8 +2,6 @@
 // Severity: 0 = perfectly safe, 1 = maximally critical
 // Used by: RiverPulse, SubmissionForm severity dots, AuditCascade
 
-import { PARAM_RANGES } from '../../ledger/verdictModel';
-
 const PARAM_KEYS = ['temp', 'do', 'bod', 'dt', 'epi', 'nitrate', 'flow'];
 
 // Params where HIGHER value = HEALTHIER (inverted severity)

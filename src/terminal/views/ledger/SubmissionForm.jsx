@@ -87,6 +87,21 @@ export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch,
   }, []);
 
   const handleSubmit = useCallback(() => {
+    // Catch empty fields BEFORE Number() converts '' → 0
+    const emptyErrors = [];
+    for (const key of Object.keys(PARAM_RANGES)) {
+      if (form[key] === '' || form[key] === undefined || form[key] === null) {
+        emptyErrors.push({ field: key, message: `${PARAM_RANGES[key].label} is required` });
+      }
+    }
+    if (form.lat === '' || form.lon === '') {
+      if (form.lat === '') emptyErrors.push({ field: 'lat', message: 'Latitude is required' });
+      if (form.lon === '') emptyErrors.push({ field: 'lon', message: 'Longitude is required' });
+    }
+    if (emptyErrors.length > 0) {
+      setErrors(emptyErrors);
+      return;
+    }
     const numericForm = { ...form };
     for (const key of Object.keys(PARAM_RANGES)) {
       numericForm[key] = Number(numericForm[key]);
@@ -115,16 +130,22 @@ export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch,
             <input
               type="number" step="any" placeholder="48.2082"
               value={form.lat} onChange={e => update('lat', e.target.value)}
-              className="w-full bg-black border border-teal-900/40 text-teal-100 font-mono text-sm px-3 py-2 rounded-sm focus:border-teal-500 focus:outline-none transition-colors"
+              className={`w-full bg-black border ${fieldError('lat') ? 'border-red-500' : 'border-teal-900/40'} text-teal-100 font-mono text-sm px-3 py-2 rounded-sm focus:border-teal-500 focus:outline-none transition-colors`}
             />
+            {fieldError('lat') && (
+              <div className="text-red-400 text-[10px] font-mono mt-1">{fieldError('lat')}</div>
+            )}
           </div>
           <div>
             <label className="block text-[10px] uppercase tracking-widest text-gray-500 font-mono mb-1">Longitude</label>
             <input
               type="number" step="any" placeholder="16.3738"
               value={form.lon} onChange={e => update('lon', e.target.value)}
-              className="w-full bg-black border border-teal-900/40 text-teal-100 font-mono text-sm px-3 py-2 rounded-sm focus:border-teal-500 focus:outline-none transition-colors"
+              className={`w-full bg-black border ${fieldError('lon') ? 'border-red-500' : 'border-teal-900/40'} text-teal-100 font-mono text-sm px-3 py-2 rounded-sm focus:border-teal-500 focus:outline-none transition-colors`}
             />
+            {fieldError('lon') && (
+              <div className="text-red-400 text-[10px] font-mono mt-1">{fieldError('lon')}</div>
+            )}
           </div>
         </div>
         <div className="mt-2">
