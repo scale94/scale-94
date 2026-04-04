@@ -1,5 +1,6 @@
 import { useRef, useCallback } from 'react';
 import { OrbitControls, Environment } from '@react-three/drei';
+import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import GlassHearth from './GlassHearth';
 import ThermalFlow from './ThermalFlow';
 
@@ -28,15 +29,17 @@ export default function ThermalScene({
 
   return (
     <>
-      <color attach="background" args={['#080300']} />
+      <color attach="background" args={['#060100']} />
 
-      {/* Warm base glow beneath the flame */}
-      <pointLight position={[0, -1.4, 0]}  intensity={3.5}  color="#ff3800" distance={4}   decay={2} />
-      {/* Secondary cooler mid-flame light */}
-      <pointLight position={[0,  0.4, 0]}  intensity={1.2}  color="#ff8c00" distance={5}   decay={2} />
-      {/* Subtle cool backlight for Möbius glass refraction */}
-      <pointLight position={[2,  3,   2]}  intensity={0.35} color="#ffcc80" distance={10}  decay={2} />
-      <ambientLight intensity={0.08} color="#ff4500" />
+      {/* Primary combustion source — intense base heat */}
+      <pointLight position={[0, -1.6, 0]}  intensity={5.0}  color="#ff2800" distance={4}   decay={2} />
+      {/* Mid-flame orange warmth */}
+      <pointLight position={[0,  0.5, 0]}  intensity={1.8}  color="#ff7000" distance={5}   decay={2} />
+      {/* Cool shadow rim from above — makes darks darker */}
+      <pointLight position={[0,  4.0, 0]}  intensity={0.15} color="#1a0a00" distance={8}   decay={2} />
+      {/* Subtle side fill so Möbius glass catches light */}
+      <pointLight position={[3,  0.5, 2]}  intensity={0.4}  color="#c04000" distance={7}   decay={2} />
+      <ambientLight intensity={0.05} color="#1a0500" />
 
       <Environment preset="sunset" />
 
@@ -61,6 +64,16 @@ export default function ThermalScene({
         onStart={handleInteractionStart}
         onEnd={handleInteractionEnd}
       />
+
+      {/* Fire bloom: threshold high enough to preserve colour gradient, low enough for white-hot core */}
+      <EffectComposer>
+        <Bloom
+          luminanceThreshold={0.22}
+          luminanceSmoothing={0.90}
+          intensity={isMobile ? 0.8 : 1.6}
+          mipmapBlur={!isMobile}
+        />
+      </EffectComposer>
     </>
   );
 }

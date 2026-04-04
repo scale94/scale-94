@@ -148,7 +148,7 @@ export default function FluidTab() {
           }}
         >
           <Canvas
-            camera={{ position: [0, 0, 3.5], fov: 50 }}
+            camera={{ position: isMobile ? [0, 0.3, 4.5] : [1.2, 1.8, 2.8], fov: isMobile ? 50 : 46 }}
             dpr={dpr}
             gl={{ antialias: !isMobile, alpha: false, powerPreference: 'high-performance' }}
           >

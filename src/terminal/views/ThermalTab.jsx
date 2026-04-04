@@ -144,7 +144,7 @@ export default function ThermalTab() {
           }}
         >
           <Canvas
-            camera={{ position: [0, 0.6, 4.8], fov: 52 }}
+            camera={{ position: isMobile ? [0, 0.4, 5.5] : [0.4, -0.6, 4.6], fov: isMobile ? 52 : 55 }}
             dpr={dpr}
             gl={{ antialias: !isMobile, alpha: false, powerPreference: 'high-performance' }}
           >
