@@ -148,6 +148,7 @@ const vertexShader = /* glsl */ `
 `;
 
 const fragmentShader = /* glsl */ `
+  uniform float uOpacity;
   varying float vAge;
   varying float vTemp;
   varying float vAlpha;
@@ -185,7 +186,7 @@ const fragmentShader = /* glsl */ `
     // Additive blending: accumulation of many particles IS the glow.
     // Keep per-particle contribution tiny so the color ramp shows through.
     float finalAlpha = alpha * vAlpha * (0.006 + vTemp * 0.012);
-    gl_FragColor = vec4(col, finalAlpha);
+    gl_FragColor = vec4(col, finalAlpha * uOpacity);
   }
 `;
 
@@ -220,12 +221,13 @@ function buildBuffers(count) {
 
 // ── Component ──────────────────────────────────────────────────────────────
 export default function ThermalFlow({
-  isMobile    = false,
-  speed       = 0.13,
-  turbulence  = 0.40,
-  flameWidth  = 0.85,
-  density     = null,
-  onFps       = null,
+  isMobile          = false,
+  speed             = 0.13,
+  turbulence        = 0.40,
+  flameWidth        = 0.85,
+  density           = null,
+  onFps             = null,
+  opacityMultiplier = 1,
 }) {
   const PARTICLE_COUNT = density ?? (isMobile ? 4000 : 10000);
   const materialRef = useRef();
@@ -241,6 +243,7 @@ export default function ThermalFlow({
       mat.uniforms.uSpeed.value       = speed;
       mat.uniforms.uTurbulence.value  = turbulence;
       mat.uniforms.uFlameWidth.value  = flameWidth;
+      mat.uniforms.uOpacity.value     = opacityMultiplier;
     }
     if (onFps) {
       fpsFrames.current++;
@@ -274,6 +277,7 @@ export default function ThermalFlow({
           uTurbulence:   { value: turbulence },
           uFlameWidth:   { value: flameWidth },
           uPointSizeMax: { value: isMobile ? 32.0 : 64.0 },
+          uOpacity:      { value: opacityMultiplier },
         }}
         transparent
         blending={THREE.AdditiveBlending}
