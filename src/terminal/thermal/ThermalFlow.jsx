@@ -8,6 +8,7 @@ const vertexShader = /* glsl */ `
   uniform float uSpeed;
   uniform float uTurbulence;
   uniform float uFlameWidth;
+  uniform float uPointSizeMax;
 
   attribute float aPhase;     // per-particle lifecycle offset [0,1)
   attribute float aSpeed;     // per-particle speed multiplier [0,1]
@@ -140,7 +141,8 @@ const vertexShader = /* glsl */ `
     float emberShrink = mix(1.0, 0.5, aEmber);
 
     vec4 mvPos = modelViewMatrix * vec4(pos, 1.0);
-    gl_PointSize = baseSize * sizeFactor * emberShrink * (280.0 / -mvPos.z);
+    float depth  = max(-mvPos.z, 0.5);
+    gl_PointSize = min(baseSize * sizeFactor * emberShrink * (80.0 / depth), uPointSizeMax);
     gl_Position  = projectionMatrix * mvPos;
   }
 `;
@@ -151,9 +153,10 @@ const fragmentShader = /* glsl */ `
   varying float vAlpha;
 
   void main(){
-    // Circular soft sprite
-    float d = length(gl_PointCoord - 0.5) * 2.0;
-    float alpha = smoothstep(1.0, 0.1, d);
+    // Circular soft sprite — clamp PointCoord for mobile driver safety
+    vec2  pc    = clamp(gl_PointCoord, vec2(0.0), vec2(1.0));
+    float d     = length(pc - 0.5) * 2.0;
+    float alpha = 1.0 - smoothstep(0.1, 1.0, d);
     if (alpha < 0.004) discard;
 
     // ── Full blackbody radiation spectrum ────────────────────────────────
@@ -161,42 +164,27 @@ const fragmentShader = /* glsl */ `
     // Stops: blue-white, white, yellow-white, yellow, orange, red, crimson, dark, ash
     float t = 1.0 - clamp(vTemp, 0.0, 1.0);
 
+    // Hot particles are saturated yellow/orange (NOT white).
+    // White core appears from additive accumulation only.
     vec3 col;
-    if (t < 0.08) {
-      // Plasma core: blue-white
-      col = mix(vec3(0.62, 0.78, 1.00), vec3(1.00, 0.99, 0.97), t / 0.08);
-    } else if (t < 0.20) {
-      // White-hot
-      col = mix(vec3(1.00, 0.99, 0.97), vec3(1.00, 0.97, 0.82), (t-0.08)/0.12);
-    } else if (t < 0.33) {
-      // Yellow-white → pure yellow
-      col = mix(vec3(1.00, 0.97, 0.82), vec3(1.00, 0.91, 0.15), (t-0.20)/0.13);
-    } else if (t < 0.48) {
-      // Yellow → deep orange
-      col = mix(vec3(1.00, 0.91, 0.15), vec3(1.00, 0.45, 0.03), (t-0.33)/0.15);
-    } else if (t < 0.63) {
-      // Orange → blood red
-      col = mix(vec3(1.00, 0.45, 0.03), vec3(0.82, 0.08, 0.02), (t-0.48)/0.15);
-    } else if (t < 0.77) {
-      // Red → deep crimson
-      col = mix(vec3(0.82, 0.08, 0.02), vec3(0.45, 0.01, 0.01), (t-0.63)/0.14);
+    if (t < 0.18) {
+      col = mix(vec3(1.00, 0.82, 0.10), vec3(1.00, 0.60, 0.05), t / 0.18);
+    } else if (t < 0.38) {
+      col = mix(vec3(1.00, 0.60, 0.05), vec3(1.00, 0.30, 0.02), (t-0.18)/0.20);
+    } else if (t < 0.58) {
+      col = mix(vec3(1.00, 0.30, 0.02), vec3(0.75, 0.06, 0.01), (t-0.38)/0.20);
+    } else if (t < 0.75) {
+      col = mix(vec3(0.75, 0.06, 0.01), vec3(0.38, 0.01, 0.01), (t-0.58)/0.17);
     } else if (t < 0.90) {
-      // Crimson → near-black ember
-      col = mix(vec3(0.45, 0.01, 0.01), vec3(0.10, 0.005, 0.003), (t-0.77)/0.13);
+      col = mix(vec3(0.38, 0.01, 0.01), vec3(0.09, 0.004, 0.002), (t-0.75)/0.15);
     } else {
-      // Dead ash
-      col = mix(vec3(0.10, 0.005, 0.003), vec3(0.04, 0.025, 0.020), (t-0.90)/0.10);
+      col = mix(vec3(0.09, 0.004, 0.002), vec3(0.035, 0.022, 0.018), (t-0.90)/0.10);
     }
 
-    // Boost luminance for hot regions
-    float glow = 1.0 + vTemp * 1.8;
-    col *= glow;
-
-    // Brighter, tighter core highlight
-    float coreBoost = smoothstep(0.55, 0.0, d) * vTemp * 2.5;
-    col += vec3(coreBoost * 0.9, coreBoost * 0.7, coreBoost * 0.4);
-
-    float finalAlpha = alpha * vAlpha * (0.35 + vTemp * 0.65);
+    if (any(isnan(col)) || any(isinf(col))) discard;
+    // Additive blending: accumulation of many particles IS the glow.
+    // Keep per-particle contribution tiny so the color ramp shows through.
+    float finalAlpha = alpha * vAlpha * (0.006 + vTemp * 0.012);
     gl_FragColor = vec4(col, finalAlpha);
   }
 `;
@@ -281,10 +269,11 @@ export default function ThermalFlow({
         vertexShader={vertexShader}
         fragmentShader={fragmentShader}
         uniforms={{
-          uTime:       { value: Math.random() * 120 },
-          uSpeed:      { value: speed },
-          uTurbulence: { value: turbulence },
-          uFlameWidth: { value: flameWidth },
+          uTime:         { value: Math.random() * 120 },
+          uSpeed:        { value: speed },
+          uTurbulence:   { value: turbulence },
+          uFlameWidth:   { value: flameWidth },
+          uPointSizeMax: { value: isMobile ? 32.0 : 64.0 },
         }}
         transparent
         blending={THREE.AdditiveBlending}
