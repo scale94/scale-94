@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Database, GitBranch, Shield, Cpu } from 'lucide-react';
 
 // ── Mini rotating sphere hero canvas ────────────────────────────────────────
@@ -246,6 +247,12 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
   const lastTapTimeRef  = useRef(0);
   const tapCountRef     = useRef(0);
   const longPressRef    = useRef(null);
+
+  // Portal the fixed terminal to body on mobile to bypass ancestor transform containing blocks.
+  // On desktop (md:) the element uses relative positioning so no portal needed.
+  const ttyPortalTarget = useRef(
+    typeof window !== 'undefined' && window.innerWidth < 768 ? document.body : null
+  );
 
   // ── tty0 mobile expand ────────────────────────────────────────────────────
   // On mobile, tap the [LOGS] button to expand the tty0 panel to 60vh.
@@ -688,147 +695,152 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
       </div>
 
       {/* ── Bottom apex: /dev/tty0 — centered, triangle point ─────────────── */}
-      <div
-        className={`fixed bottom-14 left-0 right-0 z-40 md:relative md:bottom-auto md:left-auto md:right-auto md:h-auto md:flex-[4] md:min-h-0 border-t border-cyan-900/40 md:border md:border-cyan-900/30 md:rounded-lg flex flex-col md:mx-auto md:w-3/5 overflow-hidden bg-black/95 md:bg-black/50 backdrop-blur-sm transition-[height,opacity] duration-300 ${!mobileChrome ? 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto' : ''}`}
-        style={{
-          animation:   'sk-ttyPulse 4s ease-in-out infinite',
-          willChange:  'opacity, transform',
-          transform:   'translateZ(0)',
-          // Mobile: toggle between compact (h-36) and expanded (60vh)
-          height:      mobileLogExpanded ? 'min(60vh, 480px)' : '9rem',
-        }}
-      >
-        {/* Header strip — double-tap + long-tap here to activate mobile keyboard */}
-        <div
-          className="flex items-center gap-3 px-4 py-2 border-b border-cyan-900/20 shrink-0"
-          onTouchStart={handleTtyHeaderTouchStart}
-          onTouchEnd={handleTtyHeaderTouchEnd}
-          onTouchCancel={handleTtyHeaderTouchEnd}
-        >
-          {/* RAM bar — left side of tty0 header */}
-          <div className="flex items-center gap-1.5 shrink-0" title={`ECO-RAM: ${ramPct}%`}>
-            <span className={`text-[9px] font-black tracking-widest ${isCritical ? 'text-red-500' : 'text-cyan-900/50'}`}>RAM</span>
-            <div className="flex gap-0">
-              {Array.from({ length: 100 }).map((_, i) => {
-                const filled = i < ramPct;
-                return (
-                  <div
-                    key={i}
-                    className={`w-px h-[8px]${isCritical && filled ? ' animate-pulse' : ''}`}
-                    style={{
-                      background: filled
-                        ? (isCritical ? '#ef4444' : isWarning ? '#f59e0b' : '#39ff14')
-                        : 'rgba(6,182,212,0.07)',
-                      boxShadow: filled && !isCritical && !isWarning ? '0 0 2px rgba(57,255,20,0.35)' : 'none',
-                    }}
-                  />
-                );
-              })}
-            </div>
-            <span className={`text-[9px] font-black ${isCritical ? 'text-red-500/70' : 'text-cyan-900/35'}`}>{ramPct}%</span>
-          </div>
-          <span
-            className="tracking-widest font-mono text-xs font-bold shrink-0 text-transparent bg-clip-text"
+      {(() => {
+        const ttyEl = (
+          <div
+            className={`fixed bottom-14 left-0 right-0 z-40 md:relative md:bottom-auto md:left-auto md:right-auto md:h-auto md:flex-[4] md:min-h-0 border-t border-cyan-900/40 md:border md:border-cyan-900/30 md:rounded-lg flex flex-col md:mx-auto md:w-3/5 overflow-hidden bg-black/95 md:bg-black/50 backdrop-blur-sm transition-[height,opacity] duration-300 ${!mobileChrome ? 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto' : ''}`}
             style={{
-              backgroundImage: 'linear-gradient(90deg, #39ff14, #06b6d4, #39ff14)',
-              backgroundSize: '200% auto',
-              animation: 'sk-kernelShimmer 4s ease-in-out infinite',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
+              animation:   'sk-ttyPulse 4s ease-in-out infinite',
+              willChange:  'opacity, transform',
+              transform:   'translateZ(0)',
+              // Mobile: toggle between compact (h-36) and expanded (60vh)
+              height:      mobileLogExpanded ? 'min(60vh, 480px)' : '9rem',
             }}
-          >/dev/tty0</span>
-          <span className="text-[9px] font-bold tracking-widest text-cyan-900/35 shrink-0">system kernel logs</span>
-          <span className="text-[9px] font-bold tracking-widest text-cyan-900/35 ml-auto hidden md:block shrink-0">
-            run · help · list · breach · tags
-          </span>
-          {/* Mobile-only: expand/collapse logs panel */}
-          <button
-            className="md:hidden ml-auto shrink-0 text-[9px] font-black tracking-widest border border-cyan-900/40 px-2 py-0.5 rounded-sm transition-colors"
-            style={{ color: mobileLogExpanded ? '#39ff14' : 'rgba(6,182,212,0.45)', borderColor: mobileLogExpanded ? 'rgba(57,255,20,0.4)' : 'rgba(6,182,212,0.2)' }}
-            onClick={() => setMobileLogExpanded(v => !v)}
           >
-            {mobileLogExpanded ? 'LOGS ▼' : 'LOGS ▲'}
-          </button>
-        </div>
-
-        {/* Log output */}
-        <div
-          ref={logRef}
-          className="sk-tty0-logs overflow-y-auto text-xs px-4 py-2 bg-black/70 font-mono custom-scrollbar flex-1 min-h-0"
-          onTouchMove={resetTtyFade}
-        >
-          {visibleLogs.map((l, i) => (
-            <div key={`${l.time}-${i}`} className={`mb-1 break-words ${l.rust ? 'text-emerald-400' : 'text-[#39ff14]'}`}>
-              <span className={`mr-2 ${l.rust ? 'text-cyan-300' : 'text-cyan-500'}`}>{l.time}</span>– {l.msg}
-              {l.btn && (
-                <button
-                  onClick={() => { sphereFireRef.current = { ts: Date.now() }; mobileAutoRun && mobileAutoRun(l.btn.cmd); resetTtyFade(); }}
-                  className="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-sm border border-fuchsia-500/60 text-fuchsia-400 bg-transparent hover:bg-fuchsia-500/10 hover:border-fuchsia-400 active:scale-95 tracking-widest whitespace-nowrap transition-all"
-                >
-                  [{l.btn.label}]
-                </button>
-              )}
+            {/* Header strip — double-tap + long-tap here to activate mobile keyboard */}
+            <div
+              className="flex items-center gap-3 px-4 py-2 border-b border-cyan-900/20 shrink-0"
+              onTouchStart={handleTtyHeaderTouchStart}
+              onTouchEnd={handleTtyHeaderTouchEnd}
+              onTouchCancel={handleTtyHeaderTouchEnd}
+            >
+              {/* RAM bar — left side of tty0 header */}
+              <div className="flex items-center gap-1.5 shrink-0" title={`ECO-RAM: ${ramPct}%`}>
+                <span className={`text-[9px] font-black tracking-widest ${isCritical ? 'text-red-500' : 'text-cyan-900/50'}`}>RAM</span>
+                <div className="flex gap-0">
+                  {Array.from({ length: 100 }).map((_, i) => {
+                    const filled = i < ramPct;
+                    return (
+                      <div
+                        key={i}
+                        className={`w-px h-[8px]${isCritical && filled ? ' animate-pulse' : ''}`}
+                        style={{
+                          background: filled
+                            ? (isCritical ? '#ef4444' : isWarning ? '#f59e0b' : '#39ff14')
+                            : 'rgba(6,182,212,0.07)',
+                          boxShadow: filled && !isCritical && !isWarning ? '0 0 2px rgba(57,255,20,0.35)' : 'none',
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+                <span className={`text-[9px] font-black ${isCritical ? 'text-red-500/70' : 'text-cyan-900/35'}`}>{ramPct}%</span>
+              </div>
+              <span
+                className="tracking-widest font-mono text-xs font-bold shrink-0 text-transparent bg-clip-text"
+                style={{
+                  backgroundImage: 'linear-gradient(90deg, #39ff14, #06b6d4, #39ff14)',
+                  backgroundSize: '200% auto',
+                  animation: 'sk-kernelShimmer 4s ease-in-out infinite',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}
+              >/dev/tty0</span>
+              <span className="text-[9px] font-bold tracking-widest text-cyan-900/35 shrink-0">system kernel logs</span>
+              <span className="text-[9px] font-bold tracking-widest text-cyan-900/35 ml-auto hidden md:block shrink-0">
+                run · help · list · breach · tags
+              </span>
+              {/* Mobile-only: expand/collapse logs panel */}
+              <button
+                className="md:hidden ml-auto shrink-0 text-[9px] font-black tracking-widest border border-cyan-900/40 px-2 py-0.5 rounded-sm transition-colors"
+                style={{ color: mobileLogExpanded ? '#39ff14' : 'rgba(6,182,212,0.45)', borderColor: mobileLogExpanded ? 'rgba(57,255,20,0.4)' : 'rgba(6,182,212,0.2)' }}
+                onClick={() => setMobileLogExpanded(v => !v)}
+              >
+                {mobileLogExpanded ? 'LOGS ▼' : 'LOGS ▲'}
+              </button>
             </div>
-          ))}
-        </div>
 
-        {/* Desktop inline command input */}
-        <div className="hidden md:flex items-center gap-2 px-4 py-2 border-t border-cyan-900/20 shrink-0 bg-black/60">
-          <span
-            className="text-xs font-black tracking-widest shrink-0 select-none text-transparent bg-clip-text"
-            style={{
-              backgroundImage: 'linear-gradient(90deg, #ff0080, #ff8c00, #39ff14, #06b6d4, #8b5cf6, #e879f9, #ff0080, #ff8c00, #39ff14)',
-              backgroundSize: '400% auto',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              animation: 'sk-ttyRainbow 6s linear infinite, sk-ttyRainbowGlow 6s linear infinite',
-            }}
-          >tty0:~$</span>
-          <input
-            type="text"
-            value={commandInput}
-            onChange={onCommandInputChange}
-            onKeyDown={onCommandKeyDown}
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="none"
-            spellCheck={false}
-            className="bg-transparent border-none outline-none flex-grow text-cyan-400 text-xs font-bold font-mono placeholder-cyan-900/40"
-            placeholder="enter command…"
-          />
-        </div>
+            {/* Log output */}
+            <div
+              ref={logRef}
+              className="sk-tty0-logs overflow-y-auto text-xs px-4 py-2 bg-black/70 font-mono custom-scrollbar flex-1 min-h-0"
+              onTouchMove={resetTtyFade}
+            >
+              {visibleLogs.map((l, i) => (
+                <div key={`${l.time}-${i}`} className={`mb-1 break-words ${l.rust ? 'text-emerald-400' : 'text-[#39ff14]'}`}>
+                  <span className={`mr-2 ${l.rust ? 'text-cyan-300' : 'text-cyan-500'}`}>{l.time}</span>– {l.msg}
+                  {l.btn && (
+                    <button
+                      onClick={() => { sphereFireRef.current = { ts: Date.now() }; mobileAutoRun && mobileAutoRun(l.btn.cmd); resetTtyFade(); }}
+                      className="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-sm border border-fuchsia-500/60 text-fuchsia-400 bg-transparent hover:bg-fuchsia-500/10 hover:border-fuchsia-400 active:scale-95 tracking-widest whitespace-nowrap transition-all"
+                    >
+                      [{l.btn.label}]
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
 
-        {/* Mobile keyboard — gesture-gated: double-tap + long-tap on header to unlock */}
-        {mobileInputVisible && (
-          <div className="md:hidden flex items-center gap-2 px-4 py-2 border-t border-fuchsia-900/40 shrink-0 bg-black/90">
-            <span
-            className="text-xs font-black tracking-widest shrink-0 select-none text-transparent bg-clip-text"
-            style={{
-              backgroundImage: 'linear-gradient(90deg, #ff0080, #ff8c00, #39ff14, #06b6d4, #8b5cf6, #e879f9, #ff0080, #ff8c00, #39ff14)',
-              backgroundSize: '400% auto',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              animation: 'sk-ttyRainbow 6s linear infinite, sk-ttyRainbowGlow 6s linear infinite',
-            }}
-          >tty0:~$</span>
-            <input
-              ref={mobileInputRef}
-              type="text"
-              inputMode="text"
-              value={commandInput}
-              onChange={onCommandInputChange}
-              onKeyDown={onCommandKeyDown}
-              onBlur={() => setMobileInputVisible(false)}
-              autoComplete="off"
-              autoCorrect="off"
-              autoCapitalize="none"
-              spellCheck={false}
-              className="bg-transparent border-none outline-none flex-grow text-cyan-400 text-xs font-bold font-mono placeholder-cyan-900/40"
-              placeholder="enter command…"
-            />
+            {/* Desktop inline command input */}
+            <div className="hidden md:flex items-center gap-2 px-4 py-2 border-t border-cyan-900/20 shrink-0 bg-black/60">
+              <span
+                className="text-xs font-black tracking-widest shrink-0 select-none text-transparent bg-clip-text"
+                style={{
+                  backgroundImage: 'linear-gradient(90deg, #ff0080, #ff8c00, #39ff14, #06b6d4, #8b5cf6, #e879f9, #ff0080, #ff8c00, #39ff14)',
+                  backgroundSize: '400% auto',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  animation: 'sk-ttyRainbow 6s linear infinite, sk-ttyRainbowGlow 6s linear infinite',
+                }}
+              >tty0:~$</span>
+              <input
+                type="text"
+                value={commandInput}
+                onChange={onCommandInputChange}
+                onKeyDown={onCommandKeyDown}
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                className="bg-transparent border-none outline-none flex-grow text-cyan-400 text-xs font-bold font-mono placeholder-cyan-900/40"
+                placeholder="enter command…"
+              />
+            </div>
+
+            {/* Mobile keyboard — gesture-gated: double-tap + long-tap on header to unlock */}
+            {mobileInputVisible && (
+              <div className="md:hidden flex items-center gap-2 px-4 py-2 border-t border-fuchsia-900/40 shrink-0 bg-black/90">
+                <span
+                className="text-xs font-black tracking-widest shrink-0 select-none text-transparent bg-clip-text"
+                style={{
+                  backgroundImage: 'linear-gradient(90deg, #ff0080, #ff8c00, #39ff14, #06b6d4, #8b5cf6, #e879f9, #ff0080, #ff8c00, #39ff14)',
+                  backgroundSize: '400% auto',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  animation: 'sk-ttyRainbow 6s linear infinite, sk-ttyRainbowGlow 6s linear infinite',
+                }}
+              >tty0:~$</span>
+                <input
+                  ref={mobileInputRef}
+                  type="text"
+                  inputMode="text"
+                  value={commandInput}
+                  onChange={onCommandInputChange}
+                  onKeyDown={onCommandKeyDown}
+                  onBlur={() => setMobileInputVisible(false)}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  className="bg-transparent border-none outline-none flex-grow text-cyan-400 text-xs font-bold font-mono placeholder-cyan-900/40"
+                  placeholder="enter command…"
+                />
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        );
+        return ttyPortalTarget.current ? createPortal(ttyEl, ttyPortalTarget.current) : ttyEl;
+      })()}
 
     </div>
   </div>
