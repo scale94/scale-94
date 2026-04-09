@@ -373,6 +373,16 @@ const App = () => {
     setBootRevealed(true);
   }, []);
 
+  // Fallback: guarantee bootAnimDone is set after the animation duration (2s + buffer).
+  // onAnimationEnd is unreliable on iOS Safari when a CSS transform is active on the
+  // same element — the transform creates a containing block that breaks fixed children,
+  // so we must clear it promptly regardless of whether the event fires.
+  useEffect(() => {
+    if (!bootRevealed) return;
+    const t = setTimeout(() => setBootAnimDone(true), 2200);
+    return () => clearTimeout(t);
+  }, [bootRevealed]);
+
   // Network status — drives the OFFLINE MODE indicator.
   useEffect(() => {
     const goOnline  = () => setIsOnline(true);
@@ -927,7 +937,6 @@ const App = () => {
           if (bootRevealed) return {
             animation: `${mobile ? 'kernel-reveal-scale-mobile' : 'kernel-reveal-scale'} 2s cubic-bezier(0.65,0,0.35,1) both`,
             transformOrigin: 'center center',
-            willChange: 'transform, opacity',
           };
           return {
             transform: mobile ? 'scale3d(1.8,1.8,1.8)' : 'perspective(900px) scale3d(0.01,0.01,0.01)',
