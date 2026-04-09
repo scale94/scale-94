@@ -137,6 +137,7 @@ const vertexShader = /* glsl */ `
 `;
 
 const fragmentShader = /* glsl */ `
+  uniform float uOpacity;
   varying float vStrata;
   varying float vAlpha;
 
@@ -176,7 +177,7 @@ const fragmentShader = /* glsl */ `
     float sparkle = smoothstep(0.4, 0.0, d) * (1.0 - vStrata) * 1.2;
     col += vec3(sparkle * 0.5, sparkle * 0.4, sparkle * 0.2);
 
-    gl_FragColor = vec4(col, alpha * vAlpha * (0.5 + (1.0 - vStrata) * 0.4));
+    gl_FragColor = vec4(col, alpha * vAlpha * (0.5 + (1.0 - vStrata) * 0.4) * uOpacity);
   }
 `;
 
@@ -210,12 +211,13 @@ function buildBuffers(count) {
 
 // ── Component ──────────────────────────────────────────────────────────────
 export default function SedimentFlow({
-  isMobile      = false,
-  speed         = 0.08,
-  turbulence    = 0.25,
-  eruptStrength = 0.8,
-  density       = null,
-  onFps         = null,
+  isMobile          = false,
+  speed             = 0.08,
+  turbulence        = 0.25,
+  eruptStrength     = 0.8,
+  density           = null,
+  onFps             = null,
+  opacityMultiplier = 1,
 }) {
   const PARTICLE_COUNT = density ?? (isMobile ? 4000 : 10000);
   const materialRef = useRef();
@@ -231,6 +233,7 @@ export default function SedimentFlow({
       mat.uniforms.uSpeed.value          = speed;
       mat.uniforms.uTurbulence.value     = turbulence;
       mat.uniforms.uEruptStrength.value  = eruptStrength;
+      mat.uniforms.uOpacity.value        = opacityMultiplier;
     }
     if (onFps) {
       fpsFrames.current++;
@@ -263,6 +266,7 @@ export default function SedimentFlow({
           uSpeed:         { value: speed },
           uTurbulence:    { value: turbulence },
           uEruptStrength: { value: eruptStrength },
+          uOpacity:       { value: opacityMultiplier },
         }}
         transparent
         blending={THREE.AdditiveBlending}
