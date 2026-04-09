@@ -59,12 +59,12 @@ function buildMobiusGeometry(segments = 128, width = 0.45) {
   return geometry;
 }
 
-export default function GlassHearth({ isMobile = false }) {
+export default function GlassHearth({ isMobile = false, visible = true }) {
   const geometry = useMemo(() => buildMobiusGeometry(isMobile ? 64 : 128, 0.42), [isMobile]);
 
   return (
     // Rotated flat — Möbius lies horizontal like a hearth ring; fire rises through it
-    <mesh geometry={geometry} rotation={[Math.PI / 2, 0, 0.4]}>
+    <mesh geometry={geometry} rotation={[Math.PI / 2, 0, 0.4]} visible={visible}>
       <MeshTransmissionMaterial
         backside
         samples={isMobile ? 2 : 8}

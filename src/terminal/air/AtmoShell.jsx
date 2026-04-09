@@ -1,8 +1,8 @@
 import { MeshTransmissionMaterial } from '@react-three/drei';
 
-export default function AtmoShell({ isMobile = false }) {
+export default function AtmoShell({ isMobile = false, visible = true }) {
   return (
-    <mesh>
+    <mesh visible={visible}>
       <sphereGeometry args={[1.45, isMobile ? 32 : 64, isMobile ? 16 : 32]} />
       <MeshTransmissionMaterial
         backside

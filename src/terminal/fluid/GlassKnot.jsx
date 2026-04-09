@@ -1,8 +1,8 @@
 import { MeshTransmissionMaterial } from '@react-three/drei';
 
-export default function GlassKnot({ isMobile = false }) {
+export default function GlassKnot({ isMobile = false, visible = true }) {
   return (
-    <mesh>
+    <mesh visible={visible}>
       <torusKnotGeometry args={[1, 0.4, isMobile ? 128 : 256, isMobile ? 16 : 32, 2, 3]} />
       <MeshTransmissionMaterial
         backside

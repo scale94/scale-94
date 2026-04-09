@@ -1,8 +1,8 @@
 import { MeshTransmissionMaterial } from '@react-three/drei';
 
-export default function CrystalGeode({ isMobile = false }) {
+export default function CrystalGeode({ isMobile = false, visible = true }) {
   return (
-    <mesh scale={[1.4, 1.4, 1.4]}>
+    <mesh scale={[1.4, 1.4, 1.4]} visible={visible}>
       {/* detail=2 → 320 triangular faces — properly crystalline */}
       <icosahedronGeometry args={[1, 2]} />
       <MeshTransmissionMaterial
