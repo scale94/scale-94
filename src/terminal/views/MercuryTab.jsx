@@ -103,9 +103,10 @@ export default function MercuryTab() {
         <div className="border-b border-gray-800/40 pb-4 mb-6" />
       </div>
 
-      {/* Main: Controls + Canvas */}
+      {/* Main: canvas is centerpiece — appears first on mobile, right column on desktop */}
       <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4">
-        <div>
+        {/* Controls — order-last on mobile (below canvas), order-first on desktop (left sidebar) */}
+        <div className="order-last lg:order-first">
           <MercuryControls
             activePhase={activePhase}
             params={mergedParams}
@@ -114,8 +115,9 @@ export default function MercuryTab() {
             particleCount={liveDensity}
           />
         </div>
+        {/* Canvas — order-first on mobile so it's the first thing you see */}
         <div
-          className="w-full rounded-sm overflow-hidden"
+          className="order-first lg:order-last w-full rounded-sm overflow-hidden"
           style={{
             height: isMobile
               ? 'calc(100svh - 420px - env(safe-area-inset-bottom, 0px))'
