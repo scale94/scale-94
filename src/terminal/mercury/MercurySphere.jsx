@@ -3,6 +3,9 @@ import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 
+// Day-side light ref is set on the group and positioned to face the active orbit node,
+// creating the planet Mercury illumination: one bright hemisphere, one in shadow.
+
 // Cardinal positions: N=air, E=thermal, S=earth, W=fluid
 const ORBIT_NODES = [
   { phase: 'air',     angle: Math.PI / 2,        symbol: '△', color: '#38bdf8' },
@@ -22,8 +25,9 @@ export default function MercurySphere({
   onNodeTap,
   sargScore = 1.0,
 }) {
-  const sphereRef = useRef();
-  const ringRef   = useRef();
+  const sphereRef  = useRef();
+  const ringRef    = useRef();
+  const dayLightRef = useRef();
   const orbitAngleRef = useRef(0);
   const cycleCountRef = useRef(0);
 
@@ -40,35 +44,67 @@ export default function MercurySphere({
       ringRef.current.rotation.z = orbitAngleRef.current;
     }
 
+    // Day-side directional light tracks the active (lit) orbit node —
+    // creates planet Mercury's illuminated hemisphere facing the node.
+    if (dayLightRef.current) {
+      const litNode = ORBIT_NODES.find(n => n.phase === litPhase);
+      const nodeAngle = litNode ? litNode.angle + orbitAngleRef.current : 0;
+      dayLightRef.current.position.set(
+        Math.cos(nodeAngle) * 4,
+        Math.sin(nodeAngle) * 4,
+        2
+      );
+    }
+
     if (sphereRef.current) {
       const { elongation } = sphereState;
       const litNode = ORBIT_NODES.find(n => n.phase === litPhase);
       const targetAngle = litNode ? litNode.angle + orbitAngleRef.current : 0;
-
       const scaleX = 1 + elongation * 0.15 * Math.cos(targetAngle);
       const scaleY = 1 + elongation * 0.15 * Math.sin(targetAngle);
       sphereRef.current.scale.set(scaleX, scaleY, 1);
     }
   });
 
-  const activeNode  = ORBIT_NODES.find(n => n.phase === activePhase);
-  const pendingNode = ORBIT_NODES.find(n => n.phase === pendingPhase) ?? activeNode;
+  const activeNode   = ORBIT_NODES.find(n => n.phase === activePhase);
+  const pendingNode  = ORBIT_NODES.find(n => n.phase === pendingPhase) ?? activeNode;
   const activeColor  = new THREE.Color(activeNode?.color  ?? '#6366f1');
   const pendingColor = new THREE.Color(pendingNode?.color ?? '#6366f1');
   const sphereColor  = activeColor.clone().lerp(pendingColor, sphereState.colorBlend);
 
   const finalReflectivity = Math.min(1, sargScore) * sphereState.reflectivity;
 
+  // Day-side light color: element hue at 15%, chrome at 85% — pure chrome during consolidation
+  const dayLightColor = new THREE.Color(activeNode?.color ?? '#c8c8d8')
+    .lerp(new THREE.Color('#c8c8d8'), 0.85 + sphereState.chromePhase * 0.15);
+
   return (
     <group>
-      {/* Mercury sphere */}
+      {/* Day-side directional light — positioned in useFrame toward active node */}
+      <directionalLight
+        ref={dayLightRef}
+        color={dayLightColor}
+        intensity={2.5 + sphereState.chromePhase * 1.5}
+        castShadow={false}
+      />
+      {/* Night-side fill — deep cold shadow, very dim */}
+      <directionalLight
+        position={[-3, -3, -2]}
+        color="#0a0a18"
+        intensity={0.15}
+      />
+
+      {/* Mercury sphere — ~80px equivalent in world space */}
       <mesh ref={sphereRef}>
-        <sphereGeometry args={[0.5, 32, 32]} />
-        <meshStandardMaterial
+        <sphereGeometry args={[0.75, 64, 64]} />
+        <meshPhysicalMaterial
           color={sphereColor}
-          metalness={0.95}
-          roughness={Math.max(0.02, 0.5 - finalReflectivity * 0.45)}
-          envMapIntensity={finalReflectivity * 2}
+          metalness={0.98}
+          roughness={Math.max(0.02, 0.35 - finalReflectivity * 0.3)}
+          reflectivity={finalReflectivity}
+          clearcoat={0.8}
+          clearcoatRoughness={0.1}
+          envMapIntensity={finalReflectivity * 3}
         />
       </mesh>
 

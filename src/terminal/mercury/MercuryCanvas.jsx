@@ -1,7 +1,7 @@
 import { Suspense, useRef, useCallback } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment } from '@react-three/drei';
-import { EffectComposer, Bloom } from '@react-three/postprocessing';
+import * as THREE from 'three';
 
 import ParticleFlow    from '../fluid/ParticleFlow';
 import GlassKnot       from '../fluid/GlassKnot';
@@ -15,7 +15,7 @@ import MercurySphere   from './MercurySphere';
 import usePhaseTransition from './usePhaseTransition';
 
 const isMobile = typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
-const GHOST_DENSITY = isMobile ? 1000 : 2500;
+const GHOST_DENSITY = isMobile ? 150 : 300;
 
 export default function MercuryCanvas({
   params,
@@ -53,11 +53,15 @@ export default function MercuryCanvas({
   }, []);
 
   const densityFor = (phase) =>
-    phase === activePhase ? (params.density ?? (isMobile ? 4000 : 10000)) : GHOST_DENSITY;
+    phase === activePhase ? (params.density ?? (isMobile ? 600 : 1200)) : GHOST_DENSITY;
+
+  // Active phase capped at 0.45 — additive blending accumulates fast, sphere must remain legible
+  const opacityFor = (phase) =>
+    Math.min(phase === activePhase ? 0.45 : 0.12, phaseOpacities[phase]);
 
   return (
     <Canvas
-      camera={{ position: isMobile ? [0, 0, 5] : [1.5, 1.5, 3.5], fov: isMobile ? 50 : 46 }}
+      camera={{ position: isMobile ? [0, 0, 6] : [0, 0, 5], fov: isMobile ? 48 : 42 }}
       dpr={dpr}
       gl={{ antialias: !isMobile, alpha: false, powerPreference: 'high-performance' }}
       style={{ background: '#000' }}
@@ -68,6 +72,7 @@ export default function MercuryCanvas({
         <pointLight position={[-2, -2, 1]} intensity={0.6} color="#1a1a2e" />
         <Environment preset="night" />
 
+        {/* NormalBlending: prevents additive accumulation to white in multi-system canvas */}
         <ParticleFlow
           isMobile={isMobile}
           speed={params.speed}
@@ -75,10 +80,12 @@ export default function MercuryCanvas({
           tubeRadius={params.tubeRadius ?? 0.32}
           chromatic={params.chromatic ?? 0}
           density={densityFor('fluid')}
-          opacityMultiplier={phaseOpacities.fluid}
+          opacityMultiplier={opacityFor('fluid')}
+          blending={THREE.NormalBlending}
           onFps={activePhase === 'fluid' ? onFps : null}
         />
-        <GlassKnot isMobile={isMobile} visible={activePhase === 'fluid'} />
+        {/* Boundary geometries hidden — the Mercury sphere is the visual anchor */}
+        <GlassKnot isMobile={isMobile} visible={false} />
 
         <ThermalFlow
           isMobile={isMobile}
@@ -86,10 +93,11 @@ export default function MercuryCanvas({
           turbulence={params.turbulence ?? 0.4}
           flameWidth={params.flameWidth ?? 0.85}
           density={densityFor('thermal')}
-          opacityMultiplier={phaseOpacities.thermal}
+          opacityMultiplier={opacityFor('thermal')}
+          blending={THREE.NormalBlending}
           onFps={activePhase === 'thermal' ? onFps : null}
         />
-        <GlassHearth isMobile={isMobile} visible={activePhase === 'thermal'} />
+        <GlassHearth isMobile={isMobile} visible={false} />
 
         <SedimentFlow
           isMobile={isMobile}
@@ -97,10 +105,11 @@ export default function MercuryCanvas({
           turbulence={params.turbulence ?? 0.25}
           eruptStrength={params.eruptStrength ?? 0.8}
           density={densityFor('earth')}
-          opacityMultiplier={phaseOpacities.earth}
+          opacityMultiplier={opacityFor('earth')}
+          blending={THREE.NormalBlending}
           onFps={activePhase === 'earth' ? onFps : null}
         />
-        <CrystalGeode isMobile={isMobile} visible={activePhase === 'earth'} />
+        <CrystalGeode isMobile={isMobile} visible={false} />
 
         <AtmosphericFlow
           isMobile={isMobile}
@@ -108,10 +117,11 @@ export default function MercuryCanvas({
           turbulence={params.turbulence ?? 0.18}
           spread={params.spread ?? 1.0}
           density={densityFor('air')}
-          opacityMultiplier={phaseOpacities.air}
+          opacityMultiplier={opacityFor('air')}
+          blending={THREE.NormalBlending}
           onFps={activePhase === 'air' ? onFps : null}
         />
-        <AtmoShell isMobile={isMobile} visible={activePhase === 'air'} />
+        <AtmoShell isMobile={isMobile} visible={false} />
 
         <MercurySphere
           activePhase={activePhase}
@@ -133,14 +143,8 @@ export default function MercuryCanvas({
           onEnd={handleInteractionEnd}
         />
 
-        <EffectComposer>
-          <Bloom
-            luminanceThreshold={0.1}
-            luminanceSmoothing={0.9}
-            intensity={isMobile ? 0.8 : 1.4}
-            mipmapBlur={!isMobile}
-          />
-        </EffectComposer>
+        {/* No bloom in Mercury mode — four simultaneous particle systems would blow out.
+            The sphere's physical material reads fine unpostprocessed. */}
       </Suspense>
     </Canvas>
   );

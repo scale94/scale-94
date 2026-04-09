@@ -7,7 +7,7 @@ const isMobile = typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad/i
 const DEFAULT_PARAMS = {
   speed:        0.1,
   turbulence:   0.25,
-  density:      isMobile ? 4000 : 10000,
+  density:      isMobile ? 600 : 1200,
   // Fluid-specific
   curlAmp:      0.02,
   tubeRadius:   0.32,

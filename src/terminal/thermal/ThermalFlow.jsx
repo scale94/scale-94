@@ -228,6 +228,7 @@ export default function ThermalFlow({
   density           = null,
   onFps             = null,
   opacityMultiplier = 1,
+  blending = THREE.AdditiveBlending,
 }) {
   const PARTICLE_COUNT = density ?? (isMobile ? 4000 : 10000);
   const materialRef = useRef();
@@ -280,7 +281,7 @@ export default function ThermalFlow({
           uOpacity:      { value: opacityMultiplier },
         }}
         transparent
-        blending={THREE.AdditiveBlending}
+        blending={blending}
         depthWrite={false}
       />
     </points>
