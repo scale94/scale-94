@@ -70,13 +70,33 @@ export default function MercurySphere({
   const pendingNode  = ORBIT_NODES.find(n => n.phase === pendingPhase) ?? activeNode;
   const activeColor  = new THREE.Color(activeNode?.color  ?? '#6366f1');
   const pendingColor = new THREE.Color(pendingNode?.color ?? '#6366f1');
-  const sphereColor  = activeColor.clone().lerp(pendingColor, sphereState.colorBlend);
 
-  const finalReflectivity = Math.min(1, sargScore) * sphereState.reflectivity;
+  const cp = sphereState.chromePhase; // 0 = planet, 1 = liquid Hg
 
-  // Day-side light color: element hue at 15%, chrome at 85% — pure chrome during consolidation
-  const dayLightColor = new THREE.Color(activeNode?.color ?? '#c8c8d8')
-    .lerp(new THREE.Color('#c8c8d8'), 0.85 + sphereState.chromePhase * 0.15);
+  // Planet Mercury: grey rocky surface with 12% element tint
+  const planetGrey = new THREE.Color('#787878').lerp(activeColor, 0.12);
+  // Liquid mercury: pure silver chrome
+  const liquidSilver = new THREE.Color('#c4c4c8');
+  // Element re-emergence: new element hue bleeds back in on day side
+  const emergeColor = liquidSilver.clone().lerp(
+    new THREE.Color(pendingNode?.color ?? '#6366f1'), sphereState.colorBlend * 0.25
+  );
+
+  // Interpolate: rocky planet → mirror liquid Hg
+  const sphereColor = planetGrey.clone().lerp(emergeColor, cp);
+
+  // Material properties:
+  // Planet state  → rough 0.72, metalness 0.65 (rocky, diffuse, non-reflective)
+  // Liquid Hg     → rough 0.02, metalness 0.99 (mirror, perfectly smooth)
+  const roughness  = 0.72 - cp * 0.70;
+  const metalness  = 0.65 + cp * 0.34;
+  const clearcoat  = cp * 0.95;          // clearcoat only on liquid state
+  const envIntensity = (0.3 + cp * 2.7) * Math.min(1, sargScore);
+
+  // Day-side light: cool grey in planet mode, pure chrome-white in liquid mode
+  const dayLightColor = new THREE.Color('#9a9aaa').lerp(new THREE.Color('#e8e8f0'), cp);
+  // Intensity ramps up during consolidation — the "polishing" moment
+  const dayIntensity = 1.8 + cp * 2.2;
 
   return (
     <group>
@@ -84,27 +104,26 @@ export default function MercurySphere({
       <directionalLight
         ref={dayLightRef}
         color={dayLightColor}
-        intensity={2.5 + sphereState.chromePhase * 1.5}
+        intensity={dayIntensity}
         castShadow={false}
       />
-      {/* Night-side fill — deep cold shadow, very dim */}
+      {/* Night-side fill — deep cold shadow */}
       <directionalLight
         position={[-3, -3, -2]}
-        color="#0a0a18"
-        intensity={0.15}
+        color="#060610"
+        intensity={0.1}
       />
 
-      {/* Mercury sphere — ~80px equivalent in world space */}
+      {/* Mercury sphere — planet ↔ liquid Hg material transition */}
       <mesh ref={sphereRef}>
         <sphereGeometry args={[0.75, 64, 64]} />
         <meshPhysicalMaterial
           color={sphereColor}
-          metalness={0.98}
-          roughness={Math.max(0.02, 0.35 - finalReflectivity * 0.3)}
-          reflectivity={finalReflectivity}
-          clearcoat={0.8}
-          clearcoatRoughness={0.1}
-          envMapIntensity={finalReflectivity * 3}
+          metalness={metalness}
+          roughness={roughness}
+          clearcoat={clearcoat}
+          clearcoatRoughness={0.05}
+          envMapIntensity={envIntensity}
         />
       </mesh>
 
