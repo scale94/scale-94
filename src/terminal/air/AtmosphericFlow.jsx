@@ -126,6 +126,7 @@ const vertexShader = /* glsl */ `
 `;
 
 const fragmentShader = /* glsl */ `
+  uniform float uOpacity;
   varying float vAltitude;
   varying float vSpeed;
   varying float vIon;
@@ -173,7 +174,7 @@ const fragmentShader = /* glsl */ `
 
     // Alpha: deep layers very faint, only high-altitude / ionosphere reads clearly
     float alphaScale = 0.05 + vAltitude * 0.28 + vIon * 0.22;
-    gl_FragColor = vec4(col, alpha * alphaScale);
+    gl_FragColor = vec4(col, alpha * alphaScale * uOpacity);
   }
 `;
 
@@ -207,12 +208,13 @@ function buildBuffers(count) {
 
 // ── Component ──────────────────────────────────────────────────────────────
 export default function AtmosphericFlow({
-  isMobile     = false,
-  orbitalSpeed = 1.2,
-  turbulence   = 0.18,
-  spread       = 1.0,
-  density      = null,
-  onFps        = null,
+  isMobile          = false,
+  orbitalSpeed      = 1.2,
+  turbulence        = 0.18,
+  spread            = 1.0,
+  density           = null,
+  onFps             = null,
+  opacityMultiplier = 1,
 }) {
   const PARTICLE_COUNT = density ?? (isMobile ? 4000 : 10000);
   const materialRef = useRef();
@@ -228,6 +230,7 @@ export default function AtmosphericFlow({
       mat.uniforms.uOrbitalSpeed.value  = orbitalSpeed;
       mat.uniforms.uTurbulence.value    = turbulence;
       mat.uniforms.uSpread.value        = spread;
+      mat.uniforms.uOpacity.value       = opacityMultiplier;
     }
     if (onFps) {
       fpsFrames.current++;
@@ -260,6 +263,7 @@ export default function AtmosphericFlow({
           uOrbitalSpeed: { value: orbitalSpeed },
           uTurbulence:   { value: turbulence },
           uSpread:       { value: spread },
+          uOpacity:      { value: opacityMultiplier },
         }}
         transparent
         blending={THREE.AdditiveBlending}
