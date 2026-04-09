@@ -143,6 +143,7 @@ const vertexShader = /* glsl */ `
 `;
 
 const fragmentShader = /* glsl */ `
+  uniform float uOpacity;
   varying float vHue;
   varying float vBrightness;
 
@@ -166,7 +167,7 @@ const fragmentShader = /* glsl */ `
 
     color *= vBrightness;
 
-    gl_FragColor = vec4(color, alpha * 0.95);
+    gl_FragColor = vec4(color, alpha * 0.95 * uOpacity);
   }
 `;
 
@@ -197,6 +198,7 @@ export default function ParticleFlow({
   chromatic = 0.0,
   density = null,
   onFps = null,
+  opacityMultiplier = 1,
 }) {
   const PARTICLE_COUNT = density ?? (isMobile ? 4000 : 10000);
   const pointsRef = useRef();
@@ -215,6 +217,7 @@ export default function ParticleFlow({
       mat.uniforms.uCurlAmp.value = curlAmp;
       mat.uniforms.uTubeRadius.value = tubeRadius;
       mat.uniforms.uChromatic.value = chromatic;
+      mat.uniforms.uOpacity.value = opacityMultiplier;
     }
     // FPS counter — report once per second
     if (onFps) {
@@ -246,6 +249,7 @@ export default function ParticleFlow({
           uCurlAmp:    { value: curlAmp },
           uTubeRadius: { value: tubeRadius },
           uChromatic:  { value: chromatic },
+          uOpacity:    { value: opacityMultiplier },
         }}
         transparent
         blending={THREE.AdditiveBlending}
