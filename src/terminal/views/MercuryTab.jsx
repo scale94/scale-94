@@ -1,0 +1,138 @@
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import MercuryCanvas   from '../mercury/MercuryCanvas';
+import MercuryControls from '../mercury/MercuryControls';
+
+const isMobile = typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+
+const DEFAULT_PARAMS = {
+  speed:        0.1,
+  turbulence:   0.25,
+  density:      isMobile ? 4000 : 10000,
+  // Fluid-specific
+  curlAmp:      0.02,
+  tubeRadius:   0.32,
+  chromatic:    0.0,
+  // Thermal-specific
+  flameWidth:   0.85,
+  // Earth-specific
+  eruptStrength: 0.8,
+  // Air-specific
+  orbitalSpeed: 1.2,
+  spread:       1.0,
+};
+
+export default function MercuryTab() {
+  const [params, setParams]           = useState(DEFAULT_PARAMS);
+  const [activePhase, setActivePhase] = useState('fluid');
+  const [fps, setFps]                 = useState(0);
+  const [liveDensity, setLiveDensity] = useState(DEFAULT_PARAMS.density);
+  const densityTimer = useMemo(() => ({ current: null }), []);
+
+  // Debounce density changes to avoid buffer churn
+  const handleParamsChange = useCallback((next) => {
+    setParams(next);
+    if (next.density !== params.density) {
+      clearTimeout(densityTimer.current);
+      densityTimer.current = setTimeout(() => setLiveDensity(next.density), 200);
+    }
+  }, [params.density, densityTimer]);
+
+  // FPS-adaptive quality: auto-reduce density on mobile if sustained below 30fps
+  const fpsAdaptive = useRef({ history: [], adjusted: false });
+  useEffect(() => {
+    if (!isMobile || fps === 0) return;
+    const ad = fpsAdaptive.current;
+    ad.history.push(fps);
+    if (ad.history.length > 60) ad.history.shift();
+    if (!ad.adjusted && ad.history.length >= 60) {
+      const avg = ad.history.reduce((a, b) => a + b, 0) / ad.history.length;
+      if (avg < 30) {
+        ad.adjusted = true;
+        setParams(p => {
+          const reduced = Math.max(1000, Math.round(p.density * 0.75 / 500) * 500);
+          setLiveDensity(reduced);
+          return { ...p, density: reduced };
+        });
+      }
+    }
+  }, [fps]);
+
+  const mergedParams = { ...params, density: liveDensity };
+
+  return (
+    <div className="max-w-[1800px] mx-auto">
+      <style>{`
+        @keyframes hg-titleReveal {
+          0%   { opacity: 0; filter: brightness(3) blur(6px); letter-spacing: 0.4em; }
+          40%  { opacity: 1; filter: brightness(2) blur(1px); letter-spacing: 0.15em; }
+          100% { opacity: 1; filter: brightness(1) blur(0); letter-spacing: 0.05em; }
+        }
+        @keyframes hg-energyLine {
+          from { width: 0; } to { width: 100%; }
+        }
+      `}</style>
+
+      {/* Header */}
+      <div className="mb-6">
+        <h2
+          className="text-xl sm:text-2xl font-bold tracking-tight uppercase font-mono"
+          style={{
+            background: 'linear-gradient(90deg, #c0c0c0, #e8e8e8, #a0a0a0)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            animation: 'hg-titleReveal 0.8s cubic-bezier(0.16,1,0.3,1) both',
+          }}
+        >
+          ◈ Mercury
+        </h2>
+        <div
+          className="text-[9px] font-mono text-gray-500/50 uppercase tracking-[0.2em] mt-1"
+          style={{ animation: 'hg-titleReveal 0.6s 0.1s cubic-bezier(0.16,1,0.3,1) both' }}
+        >
+          {activePhase} :: phase active // perihelion precession // metallurgy of the present
+        </div>
+        <div className="mt-4 relative h-[1px]">
+          <div
+            style={{
+              position: 'absolute', left: 0, top: 0, height: '1px',
+              background: 'linear-gradient(90deg, rgba(192,192,192,0.6), rgba(192,192,192,0.1), transparent)',
+              animation: 'hg-energyLine 1.2s 0.3s cubic-bezier(0.16,1,0.3,1) both',
+            }}
+          />
+        </div>
+        <div className="border-b border-gray-800/40 pb-4 mb-6" />
+      </div>
+
+      {/* Main: Controls + Canvas */}
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4">
+        <div>
+          <MercuryControls
+            activePhase={activePhase}
+            params={mergedParams}
+            onChange={handleParamsChange}
+            fps={fps}
+            particleCount={liveDensity}
+          />
+        </div>
+        <div
+          className="w-full rounded-sm overflow-hidden"
+          style={{
+            height: isMobile
+              ? 'calc(100svh - 420px - env(safe-area-inset-bottom, 0px))'
+              : 'calc(100svh - 260px)',
+            minHeight: '300px',
+            background: '#000',
+            touchAction: 'none',
+          }}
+        >
+          <MercuryCanvas
+            params={mergedParams}
+            sargScore={1.0}
+            onPhaseChange={setActivePhase}
+            onFps={setFps}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
