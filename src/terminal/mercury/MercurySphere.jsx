@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
@@ -6,13 +6,55 @@ import * as THREE from 'three';
 // Day-side light ref is set on the group and positioned to face the active orbit node,
 // creating the planet Mercury illumination: one bright hemisphere, one in shadow.
 
-// Cardinal positions: N=air, E=thermal, S=earth, W=fluid
+// Cardinal positions: N=air, E=fire(thermal), S=earth, W=water(fluid)
+// Alchemical triangle symbols: fire=▲, water=▽, air=▲+bar, earth=▽+bar
 const ORBIT_NODES = [
-  { phase: 'air',     angle: Math.PI / 2,        symbol: '△', color: '#38bdf8' },
-  { phase: 'thermal', angle: 0,                  symbol: '⊙', color: '#f97316' },
-  { phase: 'earth',   angle: -Math.PI / 2,       symbol: '◻', color: '#d97706' },
-  { phase: 'fluid',   angle: Math.PI,            symbol: '~', color: '#6366f1' },
+  { phase: 'air',     angle: Math.PI / 2,  color: '#38bdf8', element: 'AIR',   glyph: 'air'   },
+  { phase: 'thermal', angle: 0,            color: '#f97316', element: 'FIRE',  glyph: 'fire'  },
+  { phase: 'earth',   angle: -Math.PI / 2, color: '#d97706', element: 'EARTH', glyph: 'earth' },
+  { phase: 'fluid',   angle: Math.PI,      color: '#6366f1', element: 'WATER', glyph: 'water' },
 ];
+
+// Alchemical SVG symbol paths for each element
+function ElementGlyph({ glyph, color, size = 26 }) {
+  const s = size;
+  const cx = s / 2, cy = s / 2;
+  // Triangle points
+  const up   = { x: cx, y: 2 };
+  const bl   = { x: 2,  y: s - 2 };
+  const br   = { x: s - 2, y: s - 2 };
+  const down = { x: cx, y: s - 2 };
+  const tl   = { x: 2,  y: 2 };
+  const tr   = { x: s - 2, y: 2 };
+  // Crossbar positions
+  const barY  = cy + 4;  // on lower third of upward triangle
+  const barY2 = cy - 4;  // on upper third of downward triangle
+  const barX1 = cx - s * 0.28;
+  const barX2 = cx + s * 0.28;
+
+  return (
+    <svg width={s} height={s} viewBox={`0 0 ${s} ${s}`} style={{ display: 'block', overflow: 'visible' }}>
+      {glyph === 'fire' && (
+        <polygon points={`${up.x},${up.y} ${br.x},${br.y} ${bl.x},${bl.y}`}
+          fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" />
+      )}
+      {glyph === 'water' && (
+        <polygon points={`${down.x},${down.y} ${tl.x},${tl.y} ${tr.x},${tr.y}`}
+          fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" />
+      )}
+      {glyph === 'air' && (<>
+        <polygon points={`${up.x},${up.y} ${br.x},${br.y} ${bl.x},${bl.y}`}
+          fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" />
+        <line x1={barX1} y1={barY} x2={barX2} y2={barY} stroke={color} strokeWidth={1.5} strokeLinecap="round" />
+      </>)}
+      {glyph === 'earth' && (<>
+        <polygon points={`${down.x},${down.y} ${tl.x},${tl.y} ${tr.x},${tr.y}`}
+          fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" />
+        <line x1={barX1} y1={barY2} x2={barX2} y2={barY2} stroke={color} strokeWidth={1.5} strokeLinecap="round" />
+      </>)}
+    </svg>
+  );
+}
 
 const ORBIT_RADIUS = 1.4;
 const PRECESSION_RATE = 0.3 * (Math.PI / 180); // 0.3°/s in radians
@@ -24,6 +66,7 @@ export default function MercurySphere({
   sphereState,
   onNodeTap,
   sargScore = 1.0,
+  isMobile = false,
 }) {
   const sphereRef  = useRef();
   const ringRef    = useRef();
@@ -31,9 +74,17 @@ export default function MercurySphere({
   const orbitAngleRef = useRef(0);
   const cycleCountRef = useRef(0);
 
+  // Rotation velocity tracking for sphere deformation
+  const prevAzimuthRef = useRef(null);
+  const rotVelRef      = useRef(0);     // smoothed speed (rad/s)
+  const prevAzimuthDirRef = useRef(0);  // sign: +1 right, -1 left
+
+  // Click burst state for handle animation
+  const [pressedPhase, setPressedPhase] = useState(null);
+
   const litPhase = pendingPhase ?? activePhase;
 
-  useFrame((_, delta) => {
+  useFrame(({ camera }, delta) => {
     orbitAngleRef.current += PRECESSION_RATE * delta;
     if (orbitAngleRef.current >= Math.PI * 2) {
       cycleCountRef.current++;
@@ -56,13 +107,35 @@ export default function MercurySphere({
       );
     }
 
+    // ── Rotation velocity → sphere deformation ─────────────────────────────
+    // Camera orbits on XZ plane (azimuth). Measure how fast it's spinning.
+    const azimuth = Math.atan2(camera.position.x, camera.position.z);
+    if (prevAzimuthRef.current !== null) {
+      let da = azimuth - prevAzimuthRef.current;
+      // Wrap to [-π, π]
+      if (da >  Math.PI) da -= Math.PI * 2;
+      if (da < -Math.PI) da += Math.PI * 2;
+      const speed = Math.abs(da) / Math.max(delta, 0.001);
+      rotVelRef.current = rotVelRef.current * 0.82 + speed * 0.18;
+      if (Math.abs(da) > 0.0001) prevAzimuthDirRef.current = Math.sign(da);
+    }
+    prevAzimuthRef.current = azimuth;
+
     if (sphereRef.current) {
       const { elongation } = sphereState;
       const litNode = ORBIT_NODES.find(n => n.phase === litPhase);
       const targetAngle = litNode ? litNode.angle + orbitAngleRef.current : 0;
-      const scaleX = 1 + elongation * 0.15 * Math.cos(targetAngle);
-      const scaleY = 1 + elongation * 0.15 * Math.sin(targetAngle);
-      sphereRef.current.scale.set(scaleX, scaleY, 1);
+      const baseX = 1 + elongation * 0.15 * Math.cos(targetAngle);
+      const baseY = 1 + elongation * 0.15 * Math.sin(targetAngle);
+
+      // Rotation squash: clamp to 0.22 max deformation
+      const rotDeform = Math.min(rotVelRef.current * 0.28, 0.22);
+      // Flatten horizontally, stretch vertically — rubber-ball spin feel
+      sphereRef.current.scale.set(
+        baseX * (1 - rotDeform * 0.6),
+        baseY * (1 + rotDeform * 0.4),
+        1 + rotDeform * 0.25,
+      );
     }
   });
 
@@ -154,34 +227,89 @@ export default function MercurySphere({
         })()}
 
         {/* Orbit nodes */}
-        {ORBIT_NODES.map(({ phase, angle, symbol, color }) => {
+        {ORBIT_NODES.map(({ phase, angle, color, element, glyph }) => {
           const x = Math.cos(angle) * ORBIT_RADIUS;
           const y = Math.sin(angle) * ORBIT_RADIUS;
           const isLit  = phase === litPhase;
           const nodeColor = new THREE.Color(color)
             .lerp(new THREE.Color('#c0c0c0'), sphereState.nodeChrome);
+          // Interpolate color hex for HTML elements as chromePhase changes
+          const htmlColor = '#' + nodeColor.getHexString();
+
+          const isPressed = pressedPhase === phase;
+          const hitSize   = isMobile ? 104 : 92;
 
           return (
             <group key={phase} position={[x, y, 0]}>
-              {/* Visible dot */}
+              {/* Visible 3D anchor dot */}
               <mesh>
-                <sphereGeometry args={[0.06, 12, 12]} />
+                <sphereGeometry args={[0.055, 16, 16]} />
                 <meshBasicMaterial
                   color={nodeColor}
                   transparent
-                  opacity={isLit ? 1.0 : 0.5}
+                  opacity={isLit ? 1.0 : 0.45}
                 />
               </mesh>
-              {/* Invisible 48px HTML touch target */}
+              {/* Elemental handle */}
               <Html center>
                 <div
-                  style={{ width: 48, height: 48, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  style={{
+                    width:  hitSize,
+                    height: hitSize,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 4,
+                    position: 'relative',
+                    // Press-burst: scale up + spring back
+                    transform: isPressed ? 'scale(1.38)' : 'scale(1)',
+                    transition: isPressed
+                      ? 'transform 0.08s cubic-bezier(0.16, 1, 0.3, 1)'
+                      : 'transform 0.45s cubic-bezier(0.16, 1, 0.3, 1)',
+                  }}
                   onClick={() => onNodeTap(phase)}
-                  onPointerDown={(e) => { e.stopPropagation(); onNodeTap(phase); }}
-                  aria-label={`Switch to ${phase} phase`}
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    setPressedPhase(phase);
+                    onNodeTap(phase);
+                    setTimeout(() => setPressedPhase(null), 380);
+                  }}
+                  aria-label={`${element} — switch to ${phase} phase`}
                 >
-                  <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', pointerEvents: 'none', userSelect: 'none' }}>
-                    {symbol}
+                  {/* Circular ring — bursts on press */}
+                  <div style={{
+                    position: 'absolute',
+                    inset: 0,
+                    borderRadius: '50%',
+                    border: `${isPressed ? 1.5 : 1}px solid ${htmlColor}${isLit || isPressed ? 'dd' : '44'}`,
+                    boxShadow: isPressed
+                      ? `0 0 18px ${htmlColor}99, 0 0 40px ${htmlColor}55, inset 0 0 16px ${htmlColor}33`
+                      : isLit
+                        ? `0 0 10px ${htmlColor}55, 0 0 22px ${htmlColor}28, inset 0 0 8px ${htmlColor}18`
+                        : 'none',
+                    transition: 'box-shadow 0.15s ease, border-color 0.15s ease',
+                    pointerEvents: 'none',
+                  }} />
+                  {/* Alchemical glyph */}
+                  <div style={{ pointerEvents: 'none', opacity: isLit || isPressed ? 1 : 0.45, transition: 'opacity 0.4s ease' }}>
+                    <ElementGlyph glyph={glyph} color={htmlColor} size={28} />
+                  </div>
+                  {/* Element name */}
+                  <span style={{
+                    fontSize: 7,
+                    fontFamily: 'monospace',
+                    fontWeight: 700,
+                    letterSpacing: '0.14em',
+                    color: htmlColor,
+                    opacity: isLit || isPressed ? 0.9 : 0.35,
+                    pointerEvents: 'none',
+                    userSelect: 'none',
+                    transition: 'opacity 0.4s ease',
+                    lineHeight: 1,
+                  }}>
+                    {element}
                   </span>
                 </div>
               </Html>

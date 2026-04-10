@@ -129,6 +129,7 @@ export default function MercuryCanvas({
           sphereState={sphereState}
           onNodeTap={handleNodeTap}
           sargScore={sargScore}
+          isMobile={isMobile}
         />
 
         <OrbitControls

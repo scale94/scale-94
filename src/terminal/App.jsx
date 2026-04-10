@@ -1099,10 +1099,10 @@ const App = () => {
                 ? { background: 'linear-gradient(90deg, #707070, #c0c0c0, #707070)' }
                 : { color: 'rgba(192,192,192,0.5)' }}
             >
-              ◈ /Mercury
+              <span style={{ fontSize: 12, lineHeight: 1 }}>◈</span> /Mercury
             </button>
 
-            <button aria-label="Ledger" aria-current={activeTab === 'ledger' ? 'page' : undefined} onClick={() => handleNav('~/system/ledger', 'ledger')} className={`${activeTab === 'ledger' ? 'text-black shadow-[0_0_14px_rgba(20,184,166,0.6)]' : 'hover:text-white hover:bg-teal-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`} style={activeTab === 'ledger' ? { background: 'linear-gradient(90deg,#0d9488,#14b8a6)' } : { color: 'rgba(20,184,166,0.5)' }}>ᛟ /Ledger</button>
+            <button aria-label="Ledger" aria-current={activeTab === 'ledger' ? 'page' : undefined} onClick={() => handleNav('~/system/ledger', 'ledger')} className={`${activeTab === 'ledger' ? 'text-black shadow-[0_0_14px_rgba(20,184,166,0.6)]' : 'hover:text-white hover:bg-teal-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`} style={activeTab === 'ledger' ? { background: 'linear-gradient(90deg,#0d9488,#14b8a6)' } : { color: 'rgba(20,184,166,0.5)' }}><span style={{ fontSize: 12, lineHeight: 1 }}>ᛟ</span> /Ledger</button>
 
             {/* Global search button */}
             <button
@@ -1448,11 +1448,11 @@ const App = () => {
         <button
           onClick={() => handleNav('~/system/mercury', 'mercury')}
           aria-label="Mercury"
-          className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 font-mono text-xs ${activeTab === 'mercury' ? 'text-gray-200' : 'text-gray-500/50'}`}
+          className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 font-mono ${activeTab === 'mercury' ? 'text-gray-200' : 'text-gray-500/50'}`}
         >
-          ◈
+          <span style={{ fontSize: 20, lineHeight: 1 }}>◈</span>
         </button>
-        <button onClick={() => handleNav('~/system/ledger', 'ledger')} aria-label="Ledger" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'ledger' ? 'text-teal-400' : 'text-teal-400/50'}`}><span className="text-xs">ᛟ</span></button>
+        <button onClick={() => handleNav('~/system/ledger', 'ledger')} aria-label="Ledger" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'ledger' ? 'text-teal-400' : 'text-teal-400/50'}`}><span style={{ fontSize: 20, lineHeight: 1 }}>ᛟ</span></button>
         {/* Mobile search button */}
         <button
           onClick={() => { setGlobalSearchOpen(v => !v); setGlobalSearchQuery(''); }}
