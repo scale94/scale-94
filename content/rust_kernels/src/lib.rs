@@ -24,6 +24,7 @@
 //   run_evolutionary_replicator()  → 3-strategy replicator dynamics
 //   run_ising_consensus()          → 2-D Ising social consensus field
 //   run_feigenbaum_cascade()       → Bifurcation cascade (δ = 4.6692…)
+//   run_stiller_divergence()       → Stiller Divergence v1.1.1 (volatile semiotic vs fossil record)
 //   run_dh_ec_kernel()             → DH-EC Cryptographic Architecture (Signal/Threema)
 //   GrayScottKernel::compute_steps() → Reaction-Diffusion PDE (Ars Electronica 2027)
 //   run_classified()               → ML-KEM-768 Post-Quantum KEM (FIPS 203)

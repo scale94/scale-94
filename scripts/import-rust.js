@@ -390,6 +390,30 @@ const KERNEL_MAP = [
     aliases: ['feigenbaum', 'bifurcation', 'chaos', 'logistic', 'cascade', 'period_doubling', 'logistic_map'],
   },
   {
+    // Stiller Divergence — Volatile Semiotic vs Fossil Record (STILLER_DIVERGENCE v1.1.1)
+    // Anchored to Feigenbaum fade: fossil base x* = (r−1)/r is the fixed point
+    // the identity signal either transcends (sovereign) or collapses back into (fossil gravity).
+    // r:  args[0]  flags: --r, --growth
+    // x0: args[1]  flags: --x0, --signal
+    // n:  args[2]  flags: --n, --steps
+    id:      'STILLER-DIVERGENCE-1.1.1',
+    fn:      'run_stiller_divergence',
+    args:    [3.57, 0.42, 500.0],
+    argMap:  {
+      r: 0, growth: 0,
+      x0: 1, signal: 1,
+      n: 2, steps: 2,
+    },
+    params: [
+      { name: 'r',  default: 3.57,  desc: 'growth mandate [0–4.0]; 3.57 ≈ Feigenbaum chaos onset r_∞ = 3.5699; > 3.9 = ECOCIDE' },
+      { name: 'x0', default: 0.42,  desc: 'initial signal broadcast [0.01–0.99]' },
+      { name: 'n',  default: 500.0, desc: 'iteration depth [100–2000]' },
+    ],
+    label:   'Stiller Divergence v1.1.1',
+    type:    'rust',
+    aliases: ['stiller', 'divergence', 'broadcast', 'fossil', 'vaporization', 'combustion', 'bimmelbahn', 'vitrified', 'stiller_divergence'],
+  },
+  {
     // Fish Scale Kernel — Feigenbaum-Bouligand Coupled Architecture v12.1.0
     // r_pressure:       args[0]  flags: --pressure, --r
     // max_layers:       args[1]  flags: --layers, --depth

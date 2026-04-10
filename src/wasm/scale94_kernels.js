@@ -1760,6 +1760,41 @@ export function run_spectral_bridge(threshold, max_bridges, detail) {
 }
 
 /**
+ * Run Stiller Divergence Analysis — Volatile Semiotic vs Fossil Record
+ *
+ * Translates the STILLER_DIVERGENCE kernel (v1.1.1) into a logistic-map simulation:
+ *   AXIOM.00: Identity = broadcast, not cached fossil record
+ *   AXIOM.01: Irreducible tension Δ persists — synthesis = "The Vitrified Wake"
+ *   AXIOM.02: Combustion/Vaporization split — entropic grounding vs clean-room extraction
+ *   AXIOM.03: Ecocide gate — growth > 3.9 (fully chaotic) → HOST_DEVOURED
+ *   AXIOM.04: Bimmelbahn Accord — stream forward, macerate as annealing, maintain orthogonality
+ *
+ * Anchored to the Feigenbaum fade: the fossil base x* = (r−1)/r is the fixed point
+ * the identity signal either transcends (sovereign) or collapses back into (fossil gravity).
+ *
+ * Parameters:
+ *   r  — growth mandate [0.0, 4.0]; r_∞ = 3.5699 is the Feigenbaum chaos onset
+ *   x0 — initial signal broadcast [0.01, 0.99]
+ *   n  — iteration depth [100, 2000]
+ * @param {number} r
+ * @param {number} x0
+ * @param {number} n
+ * @returns {string}
+ */
+export function run_stiller_divergence(r, x0, n) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_stiller_divergence(r, x0, n);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * Simulates the Strangler Fig transition strategy — building the new economic
  * system around the old one until the new system dominates.
  *

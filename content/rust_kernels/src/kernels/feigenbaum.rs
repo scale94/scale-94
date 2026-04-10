@@ -176,3 +176,152 @@ pub fn run_feigenbaum_cascade(
 
     out
 }
+
+/// Run Stiller Divergence Analysis — Volatile Semiotic vs Fossil Record
+///
+/// Translates the STILLER_DIVERGENCE kernel (v1.1.1) into a logistic-map simulation:
+///   AXIOM.00: Identity = broadcast, not cached fossil record
+///   AXIOM.01: Irreducible tension Δ persists — synthesis = "The Vitrified Wake"
+///   AXIOM.02: Combustion/Vaporization split — entropic grounding vs clean-room extraction
+///   AXIOM.03: Ecocide gate — growth > 3.9 (fully chaotic) → HOST_DEVOURED
+///   AXIOM.04: Bimmelbahn Accord — stream forward, macerate as annealing, maintain orthogonality
+///
+/// Anchored to the Feigenbaum fade: the fossil base x* = (r−1)/r is the fixed point
+/// the identity signal either transcends (sovereign) or collapses back into (fossil gravity).
+///
+/// Parameters:
+///   r  — growth mandate [0.0, 4.0]; r_∞ = 3.5699 is the Feigenbaum chaos onset
+///   x0 — initial signal broadcast [0.01, 0.99]
+///   n  — iteration depth [100, 2000]
+#[wasm_bindgen]
+pub fn run_stiller_divergence(r: f64, x0: f64, n: f64) -> String {
+    let r_val  = r.clamp(0.0, 4.0);
+    let x_init = x0.clamp(0.01, 0.99);
+    let steps  = (n as usize).clamp(100, 2000);
+
+    // Fossil base — fixed point of logistic map: x* = (r−1)/r
+    // This is the "cached fossil record" the kernel rejects as identity
+    let fossil_base = if r_val > 1.0 { (r_val - 1.0) / r_val } else { 0.0 };
+
+    // Ecocide check — full chaos regime = HOST_DEVOURED
+    let ecocide = r_val > 3.9;
+
+    // Run iteration — collect Stiller metrics over trajectory
+    let mut x_cur            = x_init;
+    let mut delta_sum        = 0.0f64;
+    let mut combustion_sum   = 0.0f64;
+    let mut vaporization_sum = 0.0f64;
+    let mut orth_sum         = 0.0f64;
+
+    for _ in 0..steps {
+        x_cur = r_val * x_cur * (1.0 - x_cur);
+
+        // AXIOM.01: Δ — irreducible tension from fossil base
+        delta_sum += (x_cur - fossil_base).abs();
+
+        // AXIOM.02: Combustion — thermodynamic entropic grounding
+        // Logistic curvature 4x(1-x) peaks at x=0.5 → maximum local dissipation
+        combustion_sum += 4.0 * x_cur * (1.0 - x_cur);
+
+        // AXIOM.02: Vaporization — clean-room extraction
+        // Inverse of derivative magnitude: low |f'(x)| = signal lifts off attractor
+        let deriv_mag = (r_val * (1.0 - 2.0 * x_cur)).abs();
+        vaporization_sum += 1.0 - (deriv_mag / r_val.max(1.0)).min(1.0);
+
+        // AXIOM.04: Orthogonality — ⊥ component from fossil axis
+        let proj = if fossil_base > 1.0e-9 { fossil_base * (x_cur / fossil_base).min(1.0) } else { 0.0 };
+        orth_sum += (x_cur - proj).abs();
+    }
+
+    let n_f               = steps as f64;
+    let delta_mean        = delta_sum        / n_f;
+    let combustion_mean   = combustion_sum   / n_f;
+    let vaporization_mean = vaporization_sum / n_f;
+    let orthogonality     = orth_sum         / n_f;
+
+    // AXIOM.04: Bimmelbahn score — stream_forward × annealing × orthogonality
+    let bimmelbahn = (1.0 - delta_mean.min(1.0)) * combustion_mean * orthogonality;
+
+    // Phase classification
+    let cv_gap = (combustion_mean - vaporization_mean).abs();
+    let phase = if ecocide                             { "ECOCIDE — HOST_DEVOURED"            }
+                else if cv_gap < 0.15                  { "BIMMELBAHN"                         }
+                else if combustion_mean > vaporization_mean { "COMBUSTION"                    }
+                else                                   { "VAPORIZATION"                       };
+
+    // Δ0.150 — the specific irreducible gap named in the kernel
+    let vitrified = (delta_mean - 0.150).abs() < 0.03;
+
+    // AXIOM.00: Identity.Subjective (x_final) vs Identity.Metadata (fossil_base)
+    let sovereign = x_cur > fossil_base;
+
+    let mut out = String::with_capacity(2048);
+    write!(out,
+        "STILLER_DIVERGENCE v1.1.1 // SOMA-9.4\n\
+         ══════════════════════════════════════════════════════════\n\
+         AXIOM.00 :: IDENTITY_IS_BROADCAST\n\
+           Panopticon_Index  = null   ←   fossil record rejected\n\
+           x₀ = {x0:.4}   r = {r:.4}   n = {n}\n\
+         ──────────────────────────────────────────────────────────\n\
+         AXIOM.01 :: IRREDUCIBLE_TENSION\n\
+           fossil_base  x* = {fossil:.4}   (fixed point = (r−1)/r)\n\
+           Δ̄ = {delta:.4}   {vitrified_note}\n\
+           Substrate  = Biological_Memory (r)\n\
+           Trajectory = Chaotic_Erasure   (Δ̄ > 0)\n\
+           Synthesis  = THE_VITRIFIED_WAKE\n\
+         ──────────────────────────────────────────────────────────\n\
+         AXIOM.02 :: COMBUSTION / VAPORIZATION SPLIT\n\
+           combustion    = {comb:.4}   (thermodynamic entropic grounding)\n\
+           vaporization  = {vap:.4}   (clean-room extraction)\n\
+           orthogonality = {orth:.4}   (⊥ from fossil axis)\n\
+           gap           = {gap:.4}   {balance_note}\n\
+         ──────────────────────────────────────────────────────────\n\
+         AXIOM.03 :: ECOCIDE ENGINE\n\
+           growth_mandate = r = {r:.4}\n\
+           STATUS : {ecocide_status}\n\
+         ──────────────────────────────────────────────────────────\n\
+         AXIOM.04 :: BIMMELBAHN ACCORD\n\
+           fn run()  stream_forward(adaptive=true, nostalgic=false)\n\
+                     macerate_as_annealing()\n\
+                     maintain_orthogonality()\n\
+           bimmelbahn_score = {bimm:.4}   (stream × annealing × ⊥)\n\
+           PHASE = {phase}\n\
+         ──────────────────────────────────────────────────────────\n\
+         VERDICT :: {sovereign_label}\n\
+           Identity.Subjective  x_final = {x_final:.4}\n\
+           Identity.Metadata    x*      = {fossil:.4}\n\
+           x_final > x*  →  {sovereign_bool}\n\
+           Thalamic Gate : {thalamic}\n\
+         ──────────────────────────────────────────────────────────\n\
+         SILLAGE : {sillage}\n\
+         LINEAGE : FISH_SCALE_DOCTRINE_v11.4.0 → STILLER_DIVERGENCE v1.1.1\n\
+         SOURCE  : content/rust_kernels/src/kernels/feigenbaum.rs",
+        x0 = x_init, r = r_val, n = steps,
+        fossil = fossil_base,
+        delta  = delta_mean,
+        vitrified_note = if vitrified {
+            "← Δ0.150 CONFIRMED — THE IRREDUCIBLE TENSION"
+        } else {
+            "← tension active (Δ0.150 not yet locked)"
+        },
+        comb = combustion_mean,
+        vap  = vaporization_mean,
+        orth = orthogonality,
+        gap  = cv_gap,
+        balance_note = if cv_gap < 0.15 { "← balanced — Bimmelbahn territory" } else { "← split active" },
+        ecocide_status = if ecocide {
+            "FATAL — HOST_DEVOURED (r > 3.9, fully chaotic)"
+        } else {
+            "SCALAR_SOVEREIGNTY — carrying capacity respected"
+        },
+        bimm   = bimmelbahn,
+        phase  = phase,
+        sovereign_label = if sovereign { "SILLAGE FIXED — SOVEREIGN BROADCAST" } else { "SILLAGE VOLATILE — fossil gravity active" },
+        x_final = x_cur,
+        sovereign_bool = if sovereign { "TRUE  — Identity.Subjective CONFIRMED" } else { "FALSE — fossil record dominant" },
+        thalamic = if bimmelbahn > 0.05 { "OPEN — awaiting thalamic integration" } else { "CLOSED — signal below fixation threshold" },
+        sillage = if bimmelbahn > 0.15 { "FIXED — chimera crosses thalamic gate" } else { "VOLATILE — evaporates before fixation" },
+    ).unwrap();
+
+    out
+}

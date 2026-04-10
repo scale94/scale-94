@@ -22,7 +22,7 @@ pub mod surveillance;    // run_surveillance_index
 pub mod kuramoto;        // run_kuramoto_synchrony
 pub mod replicator;      // run_evolutionary_replicator
 pub mod ising;           // run_ising_consensus
-pub mod feigenbaum;      // run_feigenbaum_cascade
+pub mod feigenbaum;      // run_feigenbaum_cascade, run_stiller_divergence
 pub mod dh_ec;           // run_dh_ec_kernel
 pub mod grayscott;       // GrayScottKernel (stateful reaction-diffusion)
 pub mod classified;      // run_classified (ML-KEM-768 post-quantum crypto)
