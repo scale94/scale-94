@@ -358,6 +358,8 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, loadKernel }) => {
               <div className="text-[10px] text-cyan-600/40 pl-2">deep-time ecological audit · DO ledger · hydraulic sovereignty</div>
               <div className="mt-2"><span className="text-fuchsia-400">run sovereign</span> <span className="text-cyan-700">[--n 21] [--gain 1.0] [--seed 0]</span></div>
               <div className="text-[10px] text-cyan-600/40 pl-2">Kuramoto → Substrate → Detonation → Superfluid → Crystalline</div>
+              <div className="mt-2"><span className="text-fuchsia-400">run stiller</span> <span className="text-cyan-700">[--r 3.57] [--x0 0.42] [--n 500]</span></div>
+              <div className="text-[10px] text-cyan-600/40 pl-2">Stiller Divergence · volatile semiotic vs fossil record · Feigenbaum fade · Bimmelbahn accord</div>
             </div>
           </div>
 

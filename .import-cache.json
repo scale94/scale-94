@@ -600,5 +600,9 @@
   "js:VIOLET-KERNEL-1.1.js": "77f793fcb94b090022c4550ee7305d4e0e3c7343",
   "content/cs2 PHD/VALVE_MONOPOLY_THESIS.md": "07326fd4ab13a173000284a3d739d5c7d0e27af0",
   "content/cs2 PHD/networking architecture cs2 vs csgo by Hyperus102.md": "f15acba7c6da790af1973a321b0911356eb710b2",
-  "content/cs2 PHD/volvo small indie company.md": "82d39800f372387634b480318f057d40c0b703bf"
+  "content/cs2 PHD/volvo small indie company.md": "82d39800f372387634b480318f057d40c0b703bf",
+  "content/soma_kernel/STILLER_DIVERGENCE_KERNEL_v1.1.1.md:mtime": 1775852097000,
+  "content/soma_kernel/STILLER_DIVERGENCE_KERNEL_v1.1.1.md:meta": "{\"id\":\"SDK-1.1.1\",\"type\":\"kernel_doc\",\"date\":\"2026-04-10\",\"lastModified\":\"2026-04-10\",\"title\":\"STILLER DIVERGENCE KERNEL V1.1.1\",\"subtitle\":\"Changelist v1.0.0 → v1.1.0\",\"status\":\"ACTIVE\",\"readTime\":\"2 min read\",\"tags\":[\"Changelist\"]}",
+  "content/soma_kernel/STILLER_DIVERGENCE_KERNEL_v1.1.1.md": "e96af93a2d994cd6a344a2209596a58160e9a070",
+  "js:SDK-1.1.1.js": "821cd1c128979b12530234f20c5f86630f7a4d97"
 }
