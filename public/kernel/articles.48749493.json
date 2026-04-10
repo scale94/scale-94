@@ -602,6 +602,20 @@
     "len": "0 WDS"
   },
   {
+    "id": "SDK-1.1.1",
+    "type": "kernel_doc",
+    "date": "2026-04-10",
+    "lastModified": "2026-04-10",
+    "title": "STILLER DIVERGENCE KERNEL V1.1.1",
+    "subtitle": "Changelist v1.0.0 → v1.1.0",
+    "status": "ACTIVE",
+    "readTime": "2 min read",
+    "tags": [
+      "Changelist"
+    ],
+    "len": "354 WDS"
+  },
+  {
     "id": "VIOLET-KERNEL-1.1",
     "type": "kernel_doc",
     "date": "2026-03-07",
@@ -943,7 +957,7 @@
       "Architecture",
       "Volatile"
     ],
-    "len": "1337 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "QR-1.0",
@@ -2282,19 +2296,5 @@
     "readTime": "1 min read",
     "tags": [],
     "len": "0 WDS"
-  },
-  {
-    "id": "SHADOWSOCKS-KERNEL-_",
-    "type": "kernel_doc",
-    "date": "2026-04-02",
-    "title": "SHADOWSOCKS KERNEL ",
-    "subtitle": "",
-    "status": "ACTIVE",
-    "readTime": "",
-    "tags": [
-      "SHADOWSOCKS",
-      "KERNEL"
-    ],
-    "len": "379 WDS"
   }
 ]
