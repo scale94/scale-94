@@ -202,7 +202,7 @@ function runClimateSim(appendSystemLog) {
   });
 }
 
-const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, loadingKernel, visibleLogs = [], logRef, searchFilter, onClearFilter, listRef, commandInput = '', onCommandInputChange, onCommandKeyDown, ramPct = 0, isCritical = false, isWarning = false, appendSystemLog, mobileChrome = true, mobileAutoRun }) => {
+const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, loadingKernel, visibleLogs = [], logRef, searchFilter, onClearFilter, listRef, commandInput = '', onCommandInputChange, onCommandKeyDown, ramPct = 0, isCritical = false, isWarning = false, appendSystemLog, mobileChrome = true, mobileAutoRun, bootDone = false }) => {
   // ── Mini sphere + sparkline canvas refs ───────────────────────────────────
   // Two sphere refs: one for the mobile canvas (below title), one for desktop
   const sphereCanvasRef        = useRef(null); // desktop
@@ -336,11 +336,11 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
         }
       }
       @keyframes sk-kernelIconReveal {
-        0% { opacity: 0; transform: rotate(-45deg) scale(0.5); filter: drop-shadow(0 0 20px #39ff14); }
+        0% { opacity: 0; transform: rotate(-45deg) scale(0.5); filter: drop-shadow(0 0 6px #39ff14); }
         100% { opacity: 1; transform: rotate(0deg) scale(1); filter: drop-shadow(0 0 8px rgba(57, 255, 20, 0.6)); }
       }
       @keyframes sk-cpuYellowReveal {
-        0% { opacity: 0; transform: rotate(-45deg) scale(0.5); filter: drop-shadow(0 0 20px #FFD700); }
+        0% { opacity: 0; transform: rotate(-45deg) scale(0.5); filter: drop-shadow(0 0 6px #FFD700); }
         100% { opacity: 1; transform: rotate(0deg) scale(1); filter: drop-shadow(0 0 8px rgba(255,215,0,0.7)); }
       }
       @keyframes sk-cpuYellowGlow {
@@ -472,37 +472,18 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
             className="w-8 h-8 shrink-0"
             style={{ color: '#FFD700', animation: 'sk-cpuYellowReveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards, sk-cpuYellowGlow 2.5s ease-in-out 0.8s infinite' }}
           />
-          <span style={{ position: 'relative', display: 'inline-block' }} className="text-2xl md:text-4xl">
-            {/* Glow layer — blurred duplicate beneath for ambient halo */}
-            <span
-              aria-hidden="true"
-              style={{
-                position: 'absolute',
-                inset: 0,
-                color: '#FFD700',
-                filter: 'blur(10px) opacity(0.7)',
-                transition: 'filter 0.4s ease',
-                userSelect: 'none',
-                pointerEvents: 'none',
-                fontWeight: 'inherit',
-                fontSize: 'inherit',
-                letterSpacing: 'inherit',
-              }}
-            >system_kernel</span>
-            {/* Visible gradient text with triple animation chain */}
-            <span
-              className="text-transparent bg-clip-text"
-              style={{
-                backgroundImage: 'linear-gradient(90deg, #FF8C00, #FFD700, #FFFF00, #d946ef, #FFD700, #FF8C00)',
-                backgroundSize: '400% auto',
-                animation: 'sk-ttyTitleReveal 1s cubic-bezier(0.7,0,0.3,1) forwards, sk-kernelShimmer 3.5s cubic-bezier(0.7,0,0.3,1) 1s infinite, sk-kernelGlow 5s ease-in-out 1.2s infinite',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-                color: 'transparent',
-              }}
-            >system_kernel</span>
-          </span>
+          <span
+            className="text-transparent bg-clip-text text-2xl md:text-4xl"
+            style={{
+              backgroundImage: 'linear-gradient(90deg, #FF8C00, #FFD700, #FFFF00, #d946ef, #FFD700, #FF8C00)',
+              backgroundSize: '400% auto',
+              animation: 'sk-ttyTitleReveal 1s cubic-bezier(0.7,0,0.3,1) forwards, sk-kernelShimmer 3.5s cubic-bezier(0.7,0,0.3,1) 1s infinite, sk-kernelGlow 5s ease-in-out 1.2s infinite',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              color: 'transparent',
+            }}
+          >system_kernel</span>
         </h2>
         <div
           className="text-sm md:text-base font-bold tracking-widest"
@@ -698,7 +679,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
       {(() => {
         const ttyEl = (
           <div
-            className={`fixed bottom-14 left-0 right-0 z-40 md:relative md:bottom-auto md:left-auto md:right-auto md:h-auto md:flex-[4] md:min-h-0 border-t border-cyan-900/40 md:border md:border-cyan-900/30 md:rounded-lg flex flex-col md:mx-auto md:w-3/5 overflow-hidden bg-black/95 md:bg-black/50 backdrop-blur-sm transition-[height,opacity] duration-300 ${!mobileChrome ? 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto' : ''}`}
+            className={`fixed bottom-14 left-0 right-0 z-40 md:relative md:bottom-auto md:left-auto md:right-auto md:h-auto md:flex-[4] md:min-h-0 border-t border-cyan-900/40 md:border md:border-cyan-900/30 md:rounded-lg flex flex-col md:mx-auto md:w-3/5 overflow-hidden bg-black/95 md:bg-black/50 backdrop-blur-sm transition-[height,opacity] duration-300 ${(!mobileChrome || !bootDone) ? 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto' : ''}`}
             style={{
               animation:   'sk-ttyPulse 4s ease-in-out infinite',
               willChange:  'opacity, transform',

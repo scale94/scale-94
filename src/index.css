@@ -57,7 +57,7 @@ html, body {
 /* CPU icon — cyberpunk yellow glow pulse */
 @keyframes bs-cpuGlow {
   0%,100% { filter: drop-shadow(0 0 4px rgba(255,215,0,0.6)); }
-  50%     { filter: drop-shadow(0 0 16px rgba(255,215,0,1)) drop-shadow(0 0 32px rgba(255,140,0,0.5)); }
+  50%     { filter: drop-shadow(0 0 12px rgba(255,215,0,1)) drop-shadow(0 0 20px rgba(255,140,0,0.35)); }
 }
 
 /* Title reveal — blur + slide up */
@@ -159,8 +159,8 @@ html, body {
 @keyframes bs-statusPop {
   0%   { opacity: 0; transform: translateX(5px) scale(0.75); }
   42%  { opacity: 1; transform: translateX(-2px) scale(1.08);
-         text-shadow: 0 0 14px currentColor, 0 0 28px currentColor; }
-  68%  { transform: translateX(0) scale(0.97); text-shadow: 0 0 6px currentColor; }
+         text-shadow: 0 0 10px currentColor, 0 0 16px currentColor; }
+  68%  { transform: translateX(0) scale(0.97); text-shadow: 0 0 4px currentColor; }
   100% { opacity: 1; transform: translateX(0) scale(1); text-shadow: none; }
 }
 

@@ -1181,6 +1181,7 @@ const App = () => {
               appendSystemLog={appendSystemLog}
               mobileChrome={mobileChrome}
               mobileAutoRun={mobileAutoRun}
+              bootDone={bootRevealed}
             />
           )}
 
