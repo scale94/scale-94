@@ -90,7 +90,12 @@
       "Bash(python3 -c \":*)",
       "Bash(node -e \":*)",
       "Bash(grep -r \"kernel.*panic\\\\|panic.*kernel\" /f/scale_9.4/src --include=*.js --include=*.jsx)",
-      "Bash(bash \"C:/Users/raul-/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/brainstorming/scripts/start-server.sh\" --project-dir \"F:/scale_9.4\")"
+      "Bash(bash \"C:/Users/raul-/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/brainstorming/scripts/start-server.sh\" --project-dir \"F:/scale_9.4\")",
+      "Bash(LC_ALL=C sed \"s/.*id:\\\\s*['\\\\\"\\\\`]\\\\\\([^'\\\\\"]*\\\\\\)['\\\\\"\\\\`].*/\\\\1/\")",
+      "Bash(]\\\\K[^'\\\\\"]*\" src/terminal/data/kernelBuilds.js | head -50)",
+      "Bash(grep -oP \"id:\\\\s*['\\\\\"`]\\\\K[^'\\\\\"]*\" src/terminal/data/kernelBuilds.js | head -50)",
+      "Bash(python3)",
+      "Bash(chcp 65001)"
     ]
   }
 }

@@ -489,7 +489,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
           className="text-sm md:text-base font-bold tracking-widest"
           style={{ color: '#fb923c', opacity: 0, animation: 'sk-subReveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.35s forwards' }}
         >
-          version: soma-9.1 // build: gaia // ostrom_protocol
+          mercury terminal // build: 9.4.castle // ostrom_protocol
         </div>
         {/* Mobile sphere — sits below the title, hidden on desktop */}
         <canvas ref={sphereCanvasMobileRef} width={180} height={180}

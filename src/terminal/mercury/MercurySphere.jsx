@@ -74,10 +74,13 @@ export default function MercurySphere({
   const orbitAngleRef = useRef(0);
   const cycleCountRef = useRef(0);
 
-  // Rotation velocity tracking for sphere deformation
+  // Rotation velocity tracking for mercury viscosity deformation
   const prevAzimuthRef = useRef(null);
-  const rotVelRef      = useRef(0);     // smoothed speed (rad/s)
-  const prevAzimuthDirRef = useRef(0);  // sign: +1 right, -1 left
+  const rotVelRef      = useRef(0);   // smoothed angular speed
+  // Spring-damper state for each axis (surface tension snap-back)
+  const deformXRef = useRef(1);
+  const deformYRef = useRef(1);
+  const deformZRef = useRef(1);
 
   // Click burst state for handle animation
   const [pressedPhase, setPressedPhase] = useState(null);
@@ -107,17 +110,18 @@ export default function MercurySphere({
       );
     }
 
-    // ── Rotation velocity → sphere deformation ─────────────────────────────
-    // Camera orbits on XZ plane (azimuth). Measure how fast it's spinning.
+    // ── Mercury viscosity deformation ────────────────────────────────────────
+    // Track camera azimuth → angular speed → oblate spheroid deformation.
+    // Real liquid mercury: high surface tension (fast snap-back), low viscosity.
+    // Spinning creates equatorial bulge (X/Z grow) + polar squash (Y shrinks).
     const azimuth = Math.atan2(camera.position.x, camera.position.z);
     if (prevAzimuthRef.current !== null) {
       let da = azimuth - prevAzimuthRef.current;
-      // Wrap to [-π, π]
       if (da >  Math.PI) da -= Math.PI * 2;
       if (da < -Math.PI) da += Math.PI * 2;
       const speed = Math.abs(da) / Math.max(delta, 0.001);
-      rotVelRef.current = rotVelRef.current * 0.82 + speed * 0.18;
-      if (Math.abs(da) > 0.0001) prevAzimuthDirRef.current = Math.sign(da);
+      // Fast EMA: velocity collapses quickly when you stop (surface tension wins)
+      rotVelRef.current = rotVelRef.current * 0.68 + speed * 0.32;
     }
     prevAzimuthRef.current = azimuth;
 
@@ -128,14 +132,22 @@ export default function MercurySphere({
       const baseX = 1 + elongation * 0.15 * Math.cos(targetAngle);
       const baseY = 1 + elongation * 0.15 * Math.sin(targetAngle);
 
-      // Rotation squash: clamp to 0.22 max deformation
-      const rotDeform = Math.min(rotVelRef.current * 0.28, 0.22);
-      // Flatten horizontally, stretch vertically — rubber-ball spin feel
-      sphereRef.current.scale.set(
-        baseX * (1 - rotDeform * 0.6),
-        baseY * (1 + rotDeform * 0.4),
-        1 + rotDeform * 0.25,
-      );
+      // Oblate deformation magnitude — up to 50% when spinning hard
+      const rotDeform = Math.min(rotVelRef.current * 0.58, 0.50);
+
+      // Target shape: oblate spheroid (equatorial bulge, polar flatten)
+      const txScale = baseX * (1 + rotDeform * 0.85); // equatorial X grows
+      const tyScale = baseY * (1 - rotDeform * 0.65); // polar Y squashes
+      const tzScale = 1     + rotDeform * 0.65;       // equatorial Z grows
+
+      // Surface tension spring: stiffness 20 → snaps back in ~3 frames at 60fps
+      const dt = Math.min(delta, 0.05);
+      const k  = Math.min(20 * dt, 0.95);
+      deformXRef.current += (txScale - deformXRef.current) * k;
+      deformYRef.current += (tyScale - deformYRef.current) * k;
+      deformZRef.current += (tzScale - deformZRef.current) * k;
+
+      sphereRef.current.scale.set(deformXRef.current, deformYRef.current, deformZRef.current);
     }
   });
 

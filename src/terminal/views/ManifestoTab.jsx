@@ -49,7 +49,7 @@ const ManifestoTab = ({ systemArticles = {} }) => {
             className="text-sm font-bold tracking-widest text-cyan-400"
             style={{ opacity: 0, animation: 'mn-subReveal 0.5s ease 0.4s forwards' }}
           >
-            manifesto // soma-9.1 // ostrom_protocol
+            manifesto // mercury-9.4 // ostrom_protocol
           </div>
         </div>
         <div className="flex items-center gap-3 mt-4 md:mt-0">

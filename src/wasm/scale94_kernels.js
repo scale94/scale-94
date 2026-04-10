@@ -745,6 +745,27 @@ export function run_bone_fusion(n_tensors, n_cycles, threshold) {
 }
 
 /**
+ * @param {number} n_nodes
+ * @param {number} edge_density
+ * @param {number} bridge_strength
+ * @param {number} samples
+ * @param {number} threshold
+ * @returns {string}
+ */
+export function run_bridge_kernel(n_nodes, edge_density, bridge_strength, samples, threshold) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_bridge_kernel(n_nodes, edge_density, bridge_strength, samples, threshold);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * Simulates a simplified A-CEEI (Approximate Competitive Equilibrium from
  * Equal Incomes) preference-based allocation market.
  *
@@ -843,6 +864,27 @@ export function run_classified(reveal) {
 }
 
 /**
+ * @param {number} n_topics
+ * @param {number} n_docs
+ * @param {number} vocab_size
+ * @param {number} alpha
+ * @param {number} iterations
+ * @returns {string}
+ */
+export function run_corpus_synthesis(n_topics, n_docs, vocab_size, alpha, iterations) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_corpus_synthesis(n_topics, n_docs, vocab_size, alpha, iterations);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * @param {number} n_agents
  * @param {number} temperature
  * @param {number} coupling
@@ -926,6 +968,27 @@ export function run_dh_ec_kernel(mode, show_details) {
     let deferred1_1;
     try {
         const ret = wasm.run_dh_ec_kernel(mode, show_details);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * @param {number} n_agents
+ * @param {number} coupling
+ * @param {number} decay
+ * @param {number} noise
+ * @param {number} steps
+ * @returns {string}
+ */
+export function run_empathy_kernel(n_agents, coupling, decay, noise, steps) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_empathy_kernel(n_agents, coupling, decay, noise, steps);
         deferred1_0 = ret[0];
         deferred1_1 = ret[1];
         return getStringFromWasm0(ret[0], ret[1]);
@@ -1045,6 +1108,48 @@ export function run_fusion_plasma(temp_kev, density, tau_e, b_field, major_radiu
 }
 
 /**
+ * @param {number} n_glyphs
+ * @param {number} zipf_exponent
+ * @param {number} mandelbrot_offset
+ * @param {number} entropy_target
+ * @param {number} tiers
+ * @returns {string}
+ */
+export function run_glyph_archive(n_glyphs, zipf_exponent, mandelbrot_offset, entropy_target, tiers) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_glyph_archive(n_glyphs, zipf_exponent, mandelbrot_offset, entropy_target, tiers);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * @param {number} n_agents
+ * @param {number} confidence_bound
+ * @param {number} convergence_rate
+ * @param {number} extremism_fraction
+ * @param {number} dimensions
+ * @returns {string}
+ */
+export function run_ideological_synthesis(n_agents, confidence_bound, convergence_rate, extremism_fraction, dimensions) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_ideological_synthesis(n_agents, confidence_bound, convergence_rate, extremism_fraction, dimensions);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * @param {number} lattice_size
  * @param {number} temperature
  * @param {number} external_field
@@ -1056,6 +1161,34 @@ export function run_ising_consensus(lattice_size, temperature, external_field, m
     let deferred1_1;
     try {
         const ret = wasm.run_ising_consensus(lattice_size, temperature, external_field, mc_steps);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * Models a 2-player repeated game with pre-commitment devices and mechanism design.
+ *
+ * coercion             threat/sanction capability index (0–10)
+ * escape_cost          cost of breaking a binding commitment (0–10)
+ * cooperation_bonus    payoff uplift when both cooperate (0–10)
+ * defection_temptation extra payoff from unilateral defection (0–10)
+ * time_horizon         number of repeated-game stages T (1–200)
+ * @param {number} coercion
+ * @param {number} escape_cost
+ * @param {number} cooperation_bonus
+ * @param {number} defection_temptation
+ * @param {number} time_horizon
+ * @returns {string}
+ */
+export function run_juridical_substrate(coercion, escape_cost, cooperation_bonus, defection_temptation, time_horizon) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_juridical_substrate(coercion, escape_cost, cooperation_bonus, defection_temptation, time_horizon);
         deferred1_0 = ret[0];
         deferred1_1 = ret[1];
         return getStringFromWasm0(ret[0], ret[1]);
@@ -1162,6 +1295,69 @@ export function run_mesantropy(solar_yield, signal_depth, n_agents) {
 }
 
 /**
+ * @param {number} n_samples
+ * @param {number} separation
+ * @param {number} noise_sigma
+ * @param {number} passes
+ * @param {number} threshold
+ * @returns {string}
+ */
+export function run_metallurgy_kernel(n_samples, separation, noise_sigma, passes, threshold) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_metallurgy_kernel(n_samples, separation, noise_sigma, passes, threshold);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * @param {number} mutation_rate
+ * @param {number} selection
+ * @param {number} seq_length
+ * @param {number} steps
+ * @param {number} sequences
+ * @returns {string}
+ */
+export function run_mutation_kernel(mutation_rate, selection, seq_length, steps, sequences) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_mutation_kernel(mutation_rate, selection, seq_length, steps, sequences);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * @param {number} grid_size
+ * @param {number} branch_prob
+ * @param {number} anastomosis
+ * @param {number} nutrients
+ * @param {number} steps
+ * @returns {string}
+ */
+export function run_mycelium_kernel(grid_size, branch_prob, anastomosis, nutrients, steps) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_mycelium_kernel(grid_size, branch_prob, anastomosis, nutrients, steps);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * Resonance trace simulation — sweeps N injection cycles through the Fish Scale
  * entropic stasis field, modulating BPM via sin(r×7)×11 with LCG noise drift.
  *
@@ -1179,6 +1375,27 @@ export function run_necromantic_simulation(resonance_seed, n_cycles, amplitude) 
     let deferred1_1;
     try {
         const ret = wasm.run_necromantic_simulation(resonance_seed, n_cycles, amplitude);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * @param {number} network_size
+ * @param {number} deletion_rate
+ * @param {number} cascade_threshold
+ * @param {number} targeted_fraction
+ * @param {number} steps
+ * @returns {string}
+ */
+export function run_network_collapse(network_size, deletion_rate, cascade_threshold, targeted_fraction, steps) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_network_collapse(network_size, deletion_rate, cascade_threshold, targeted_fraction, steps);
         deferred1_0 = ret[0];
         deferred1_1 = ret[1];
         return getStringFromWasm0(ret[0], ret[1]);
@@ -1293,6 +1510,34 @@ export function run_phonemic_drift(seed, target, drift_noise) {
 }
 
 /**
+ * Leontief Input-Output Analysis with post-scarcity automation extension.
+ *
+ * automation_rate    base automation rate per sector per period (0–1)
+ * redistribution     redistribution coefficient for UBI feasibility (0–1)
+ * demand_growth      final demand growth rate per period (0–1)
+ * n_sectors          number of economic sectors, clamped to 8
+ * t_horizon          number of time periods to simulate (1–100)
+ * @param {number} automation_rate
+ * @param {number} redistribution
+ * @param {number} demand_growth
+ * @param {number} n_sectors
+ * @param {number} t_horizon
+ * @returns {string}
+ */
+export function run_post_capitalist(automation_rate, redistribution, demand_growth, n_sectors, t_horizon) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_post_capitalist(automation_rate, redistribution, demand_growth, n_sectors, t_horizon);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * @param {number} input_bits
  * @param {number} hash_bits
  * @param {number} algorithm
@@ -1345,6 +1590,48 @@ export function run_pragmatic_type(n_agents, thermal_budget, thermal_limit, cost
 }
 
 /**
+ * @param {number} signal_dim
+ * @param {number} noise_level
+ * @param {number} rank
+ * @param {number} threshold_factor
+ * @param {number} passes
+ * @returns {string}
+ */
+export function run_purification_kernel(signal_dim, noise_level, rank, threshold_factor, passes) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_purification_kernel(signal_dim, noise_level, rank, threshold_factor, passes);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * @param {number} n_agents
+ * @param {number} threshold_mean
+ * @param {number} threshold_sigma
+ * @param {number} v_cache_bandwidth
+ * @param {number} rounds
+ * @returns {string}
+ */
+export function run_resistance_kernel(n_agents, threshold_mean, threshold_sigma, v_cache_bandwidth, rounds) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_resistance_kernel(n_agents, threshold_mean, threshold_sigma, v_cache_bandwidth, rounds);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * @param {number} n_concepts
  * @param {number} coherence
  * @param {number} decoherence_rate
@@ -1357,6 +1644,27 @@ export function run_seraphine_sarg(n_concepts, coherence, decoherence_rate, enta
     let deferred1_1;
     try {
         const ret = wasm.run_seraphine_sarg(n_concepts, coherence, decoherence_rate, entanglement, steps);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * @param {number} context_length
+ * @param {number} window_ratio
+ * @param {number} ks
+ * @param {number} compression_passes
+ * @param {number} noise_color
+ * @returns {string}
+ */
+export function run_signal_legacy(context_length, window_ratio, ks, compression_passes, noise_color) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_signal_legacy(context_length, window_ratio, ks, compression_passes, noise_color);
         deferred1_0 = ret[0];
         deferred1_1 = ret[1];
         return getStringFromWasm0(ret[0], ret[1]);
@@ -1547,6 +1855,27 @@ export function run_text_probe(text) {
         return getStringFromWasm0(ret[0], ret[1]);
     } finally {
         wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
+ * @param {number} discovery_rate
+ * @param {number} exploit_rate
+ * @param {number} patch_rate
+ * @param {number} network_size
+ * @param {number} steps
+ * @returns {string}
+ */
+export function run_zero_day(discovery_rate, exploit_rate, patch_rate, network_size, steps) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_zero_day(discovery_rate, exploit_rate, patch_rate, network_size, steps);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
     }
 }
 

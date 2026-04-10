@@ -72,26 +72,58 @@ export default function MercuryTab() {
         }
       `}</style>
 
-      {/* Header */}
+      {/* Header — Mercury Terminal · Alien Architect Vision */}
       <div className="mb-6">
-        <h2
-          className="text-xl sm:text-2xl font-bold tracking-tight uppercase font-mono"
+        <div className="flex items-start gap-3 mb-2">
+          {/* Eye architect glyph */}
+          <span
+            aria-hidden="true"
+            style={{
+              fontSize: 26,
+              lineHeight: 1,
+              color: 'rgba(192,192,192,0.4)',
+              animation: 'hg-titleReveal 1s cubic-bezier(0.16,1,0.3,1) both',
+              flexShrink: 0,
+              marginTop: 3,
+            }}
+          >◉</span>
+          <div>
+            <h2
+              className="text-xl sm:text-2xl font-bold tracking-tight uppercase font-mono"
+              style={{
+                background: 'linear-gradient(90deg, #c0c0c0, #e8e8e8, #a0a0a0)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                animation: 'hg-titleReveal 0.8s cubic-bezier(0.16,1,0.3,1) both',
+              }}
+            >
+              Mercury Terminal
+            </h2>
+            <div
+              className="text-[9px] font-mono text-gray-500/50 uppercase tracking-[0.2em] mt-0.5"
+              style={{ animation: 'hg-titleReveal 0.6s 0.1s cubic-bezier(0.16,1,0.3,1) both' }}
+            >
+              {activePhase} :: phase active // perihelion precession // metallurgy of the present
+            </div>
+          </div>
+        </div>
+
+        {/* Alien architect vision statement */}
+        <div
+          className="font-mono text-[8px] tracking-[0.12em] mb-1 leading-relaxed"
           style={{
-            background: 'linear-gradient(90deg, #c0c0c0, #e8e8e8, #a0a0a0)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            animation: 'hg-titleReveal 0.8s cubic-bezier(0.16,1,0.3,1) both',
+            color: 'rgba(192,192,192,0.2)',
+            animation: 'hg-titleReveal 0.8s 0.25s cubic-bezier(0.16,1,0.3,1) both',
           }}
         >
-          ◈ Mercury
-        </h2>
-        <div
-          className="text-[9px] font-mono text-gray-500/50 uppercase tracking-[0.2em] mt-1"
-          style={{ animation: 'hg-titleReveal 0.6s 0.1s cubic-bezier(0.16,1,0.3,1) both' }}
-        >
-          {activePhase} :: phase active // perihelion precession // metallurgy of the present
+          <span style={{ color: 'rgba(192,192,192,0.4)' }}>// ALIEN ARCHITECT</span>
+          {' '}— building fairy tale castles on mercury · surveying from perihelion · holding up the mirror
+          <br />
+          <span style={{ color: 'rgba(192,192,192,0.4)' }}>// EYE PROTOCOL</span>
+          {' '}— the observer is the instrument · four elements · one surface · humanity reflected
         </div>
-        <div className="mt-4 relative h-[1px]">
+
+        <div className="mt-3 relative h-[1px]">
           <div
             style={{
               position: 'absolute', left: 0, top: 0, height: '1px',
