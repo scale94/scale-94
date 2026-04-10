@@ -292,8 +292,23 @@ const FSK_DOMAINS = [
   { id: 69, name: '1995 Rave Legacy Substrate',            short: 'RAVE',     hue: 280 },
 ];
 
+// ── Block VII: Planet System ──────────────────────────────────────────────────
+const PLANET_DOMAINS = [
+  { id: 70, name: 'Sol Chromosphere Sovereignty',     short: '☉', hue: 45  },
+  { id: 71, name: 'Mercury Messenger Precession',     short: '☿', hue: 210 },
+  { id: 72, name: 'Venus Greenhouse Seduction',       short: '♀', hue: 30  },
+  { id: 73, name: 'Terra Biosphere Accord',           short: '⊕', hue: 120 },
+  { id: 74, name: 'Luna Tidal Synchrony',             short: '☽', hue: 220 },
+  { id: 75, name: 'Mars Iron War Geology',            short: '♂', hue: 0   },
+  { id: 76, name: 'Jupiter Storm Kingship',           short: '♃', hue: 25  },
+  { id: 77, name: 'Saturn Ring Time Compression',     short: '♄', hue: 40  },
+  { id: 78, name: 'Uranus Obliquity Doctrine',        short: '⛢', hue: 180 },
+  { id: 79, name: 'Neptune Deep Current Sovereignty', short: '♆', hue: 225 },
+  { id: 80, name: 'Pluto Underworld Threshold',       short: '♇', hue: 270 },
+];
+
 // Unified lookup by id — keeps DOMAINS array untouched for animation code
-const ALL_DOMAINS = [...DOMAINS, ...ELEM_DOMAINS, ...PHIL_MATH_DOMAINS, ...LIFE_HUM_DOMAINS, ...COGN_SYNTH_DOMAINS, ...FSK_DOMAINS];
+const ALL_DOMAINS = [...DOMAINS, ...ELEM_DOMAINS, ...PHIL_MATH_DOMAINS, ...LIFE_HUM_DOMAINS, ...COGN_SYNTH_DOMAINS, ...FSK_DOMAINS, ...PLANET_DOMAINS];
 const domainById = (id) => ALL_DOMAINS.find(d => d.id === id);
 
 // ── Domain → sphere node mapping ─────────────────────────────────────────────
@@ -375,6 +390,18 @@ const DOMAIN_SPHERE_MAP = [
   /* 67 MOIRÉ    */ { nodeId: 'moire_fsk',       cluster: 'fsk'    },
   /* 68 PURITY   */ { nodeId: 'purity_paradox',  cluster: 'fsk'    },
   /* 69 RAVE     */ { nodeId: 'rave_legacy',     cluster: 'fsk'    },
+  // ── Block VII: Planet System ─────────────────────────────────────────────
+  /* 70 SOL      */ { nodeId: 'fusion',          cluster: 'phys'   },
+  /* 71 HG       */ { nodeId: 'seraphine',       cluster: 'phys'   },
+  /* 72 VE       */ { nodeId: 'atmospheric',     cluster: 'eco'    },
+  /* 73 EA       */ { nodeId: 'biocoenosis',     cluster: 'eco'    },
+  /* 74 LU       */ { nodeId: 'kuramoto',        cluster: 'sync'   },
+  /* 75 MA       */ { nodeId: 'feigenbaum',      cluster: 'phys'   },
+  /* 76 JU       */ { nodeId: 'ceei',            cluster: 'sync'   },
+  /* 77 SA       */ { nodeId: 'bouligand_36',    cluster: 'eco'    },
+  /* 78 UR       */ { nodeId: 'magic_angle_1p1', cluster: 'phys'   },
+  /* 79 NE       */ { nodeId: 'pragmatic',       cluster: 'drk'    },
+  /* 80 PL       */ { nodeId: 'necromantic',     cluster: 'drk'    },
 ];
 
 // ── Parse the WASM kernel text output into structured data ───────────────────
