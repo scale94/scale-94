@@ -1767,6 +1767,45 @@ export default function LatentCollider() {
         })}
       </div>
 
+      {/* ── Domain Grid — Block VII: Planet System ── */}
+      <div className="text-[8px] font-mono text-indigo-500/40 uppercase tracking-widest mt-3 mb-1">
+        BLOCK VII — PLANET SYSTEM
+      </div>
+      <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5">
+        {PLANET_DOMAINS.map(d => {
+          const isA = domainA === d.id;
+          const isB = domainB === d.id;
+          const selected = isA || isB;
+          const disabled = phase === 'accelerating' || phase === 'colliding';
+
+          return (
+            <button
+              key={d.id}
+              onClick={() => !disabled && handleSelect(d.id)}
+              disabled={disabled}
+              className={`
+                text-[9px] font-mono uppercase tracking-wider py-2 px-1 rounded border transition-all
+                ${selected
+                  ? 'border-indigo-500/60 bg-indigo-900/20 text-indigo-300'
+                  : 'border-indigo-900/20 bg-black/30 text-indigo-600/60 hover:border-indigo-600/40 hover:text-indigo-400 hover:bg-indigo-900/10'}
+                ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
+              `}
+              title={d.name}
+              style={selected ? { boxShadow: `0 0 12px hsla(${d.hue}, 70%, 50%, 0.3)` } : {}}
+            >
+              <div
+                className="font-bold text-[13px] leading-none mb-1"
+                style={selected ? { color: `hsl(${d.hue}, 70%, 65%)` } : {}}
+              >
+                {d.short}
+              </div>
+              {isA && <div className="text-[7px] text-fuchsia-500 mt-0.5">A</div>}
+              {isB && <div className="text-[7px] text-cyan-500 mt-0.5">B</div>}
+            </button>
+          );
+        })}
+      </div>
+
       {/* ── Selected domains display ── */}
       {domainA !== null && (
         <div className="flex items-center gap-3 mt-3 text-[10px] font-mono">
