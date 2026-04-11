@@ -102,3 +102,19 @@ export function nodePosition(node, tensor, R) {
   const r = (0.2 + 0.75 * mag) * R;
   return polarToCartesian(angle, r);
 }
+
+/**
+ * Build an SVG path `d` attribute for a pie-slice wedge from angle
+ * `startAngle` to `endAngle` (both clockwise from 12 o'clock, radians)
+ * with outer radius `R`. Returns a string like:
+ *   "M 0 0 L x1 y1 A R R 0 <large> 1 x2 y2 Z"
+ *
+ * `sweep-flag` is always 1 (clockwise). `large-arc-flag` is 1 iff the
+ * arc spans more than π radians.
+ */
+export function wedgePath(startAngle, endAngle, R) {
+  const { x: x1, y: y1 } = polarToCartesian(startAngle, R);
+  const { x: x2, y: y2 } = polarToCartesian(endAngle, R);
+  const largeArc = (endAngle - startAngle) > Math.PI ? 1 : 0;
+  return `M 0 0 L ${x1.toFixed(3)} ${y1.toFixed(3)} A ${R} ${R} 0 ${largeArc} 1 ${x2.toFixed(3)} ${y2.toFixed(3)} Z`;
+}

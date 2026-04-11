@@ -6,6 +6,7 @@ import {
   nodeMagnitude,
   nodePosition,
   hashNodeId,
+  wedgePath,
 } from '../../src/terminal/views/manifesto/MandalaGeometry';
 
 describe('MANDALA_SECTOR_ORDER', () => {
@@ -123,5 +124,30 @@ describe('nodePosition', () => {
     expect(pos.x).toBeGreaterThan(-20);
     expect(pos.x).toBeLessThan(20);
     expect(pos.y).toBeLessThan(0);
+  });
+});
+
+describe('wedgePath', () => {
+  it('returns an SVG path string starting at the origin', () => {
+    const path = wedgePath(0, Math.PI / 2, 100);
+    expect(typeof path).toBe('string');
+    expect(path.startsWith('M 0 0')).toBe(true);
+  });
+
+  it('contains an arc command (A)', () => {
+    const path = wedgePath(0, Math.PI / 2, 100);
+    expect(path).toMatch(/\bA\b/);
+  });
+
+  it('closes back to origin (Z)', () => {
+    const path = wedgePath(0, Math.PI / 2, 100);
+    expect(path.trim().endsWith('Z')).toBe(true);
+  });
+
+  it('uses large-arc-flag=0 for arcs ≤ π and 1 for arcs > π', () => {
+    const small = wedgePath(0, Math.PI / 2, 100);   // 90°
+    const large = wedgePath(0, Math.PI * 1.5, 100); // 270°
+    expect(small).toMatch(/A\s+100\s+100\s+0\s+0\s+1/);
+    expect(large).toMatch(/A\s+100\s+100\s+0\s+1\s+1/);
   });
 });
