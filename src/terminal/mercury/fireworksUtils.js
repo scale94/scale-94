@@ -122,7 +122,7 @@ function spawnRings(x, y) {
     x, y,
     radius: 0,
     maxRadius: rand(60, 90),
-    age: 0,
+    age: i * 8,
     lifespan: randInt(60, 90),
     color: i % 2 === 0 ? palette.primary : palette.secondary[0],
   }));

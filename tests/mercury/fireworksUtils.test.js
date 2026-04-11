@@ -95,13 +95,21 @@ describe('spawnBurst', () => {
     expect(ps[0].type).toBe('shard');
   });
 
-  it('all burst particles start at age 0 with positive lifespan', () => {
-    for (const el of ['thermal', 'fluid', 'air', 'earth']) {
+  it('non-ring burst particles start at age 0 with positive lifespan', () => {
+    for (const el of ['thermal', 'fluid', 'earth']) {
       const ps = spawnBurst(el, 400, 200);
       for (const p of ps) {
         expect(p.age).toBe(0);
         expect(p.lifespan).toBeGreaterThan(0);
       }
+    }
+  });
+
+  it('air rings are staggered: each ring starts 8 frames later than previous', () => {
+    const rings = spawnBurst('air', 400, 200);
+    for (let i = 0; i < rings.length; i++) {
+      expect(rings[i].age).toBe(i * 8);
+      expect(rings[i].lifespan).toBeGreaterThan(0);
     }
   });
 });
