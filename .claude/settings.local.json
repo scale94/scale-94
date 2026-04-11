@@ -100,7 +100,8 @@
       "Bash(bash /c/Users/raul-/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/brainstorming/scripts/start-server.sh --project-dir /f/scale_9.4)",
       "Bash(awk 'NR>=380,NR<=415' F:/scale_9.4/src/terminal/views/LatentCollider.jsx)",
       "Bash(sort -t- -k2 -n)",
-      "Bash(npx vitest:*)"
+      "Bash(npx vitest:*)",
+      "Bash(ls scripts/import*.js)"
     ]
   }
 }
