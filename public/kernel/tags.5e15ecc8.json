@@ -235,6 +235,10 @@
     {
       "id": "NECROMANTIC-ARISTOCRAT-KERNEL-1.1.1.1.1",
       "title": "NECROMANTIC ARISTOCRAT KERNEL 1.1.1.1.1"
+    },
+    {
+      "id": "SDRK-1.1.1",
+      "title": "STILLER DIVERGENCE KERNEL V1.1.1"
     }
   ],
   "AXIOM": [
@@ -503,6 +507,12 @@
     {
       "id": "FADE-DOCTRINE-1.0",
       "title": "FADE DOCTRINE 1.0 // ZERO WHITE FADE — UX COLOR SEMIOTIC SYSTEM"
+    }
+  ],
+  "Command": [
+    {
+      "id": "SDRK-1.1.1",
+      "title": "STILLER DIVERGENCE KERNEL V1.1.1"
     }
   ],
   "COMMAND": [
@@ -787,6 +797,12 @@
     {
       "id": "SKC-1.0",
       "title": "ᛟ THE SCALE94 KERNEL CODEX"
+    }
+  ],
+  "DIVERGENCE": [
+    {
+      "id": "SDRK-1.1.1",
+      "title": "STILLER DIVERGENCE KERNEL V1.1.1"
     }
   ],
   "doctrine": [
@@ -1783,6 +1799,12 @@
       "title": "FISH SCALE KERNEL V1.1.1.1"
     }
   ],
+  "Parameters": [
+    {
+      "id": "SDRK-1.1.1",
+      "title": "STILLER DIVERGENCE KERNEL V1.1.1"
+    }
+  ],
   "PARAMETERS": [
     {
       "id": "SERAPHINE-8.8.8.8.8.8.8.8-BONE-FUSION",
@@ -2495,6 +2517,12 @@
     {
       "id": "SORBE-THERMODYNAMIC-BLOOM-V1",
       "title": "🌿 THE SORBE BLOOM // THERMODYNAMIC SYNTHESIS V1.0"
+    }
+  ],
+  "STILLER": [
+    {
+      "id": "SDRK-1.1.1",
+      "title": "STILLER DIVERGENCE KERNEL V1.1.1"
     }
   ],
   "STRATEGIC": [
