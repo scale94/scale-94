@@ -65,6 +65,7 @@ export default function MercurySphere({
   pendingPhase,
   sphereState,
   onNodeTap,
+  onElementFired,
   sargScore = 1.0,
   isMobile = false,
 }) {
@@ -286,6 +287,7 @@ export default function MercurySphere({
                     e.stopPropagation();
                     setPressedPhase(phase);
                     onNodeTap(phase);
+                    onElementFired?.(phase, e.clientX, e.clientY);
                     setTimeout(() => setPressedPhase(null), 380);
                   }}
                   aria-label={`${element} — switch to ${phase} phase`}
