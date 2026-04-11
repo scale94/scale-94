@@ -14,7 +14,11 @@ const MercuryFireworks = forwardRef(function MercuryFireworks(_, ref) {
     fire(element, screenX, screenY) {
       const canvas = canvasRef.current;
       if (!canvas) return;
-      const rockets = spawnRockets(element, screenX, screenY, canvas.width, canvas.height);
+      // Convert viewport coords → canvas-local coords
+      const rect = canvas.getBoundingClientRect();
+      const localX = screenX - rect.left;
+      const localY = screenY - rect.top;
+      const rockets = spawnRockets(element, localX, localY, canvas.width, canvas.height);
       // Tag each rocket with an absolute activation time
       const now = performance.now();
       rockets.forEach((r) => {
