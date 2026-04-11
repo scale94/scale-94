@@ -98,7 +98,9 @@
       "Bash(chcp 65001)",
       "Bash(find \"F:\\\\scale_9.4/src/terminal\" -type f \\\\\\( -name \"*.js\" -o -name \"*.jsx\" -o -name \"*.ts\" -o -name \"*.tsx\" \\\\\\) -exec grep -l \"cluster.*1\\\\|cluster.*2\\\\|cluster.*3\\\\|cluster.*4\\\\|cluster.*5\\\\|nodes.*cluster\" {} \\\\;)",
       "Bash(bash /c/Users/raul-/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/brainstorming/scripts/start-server.sh --project-dir /f/scale_9.4)",
-      "Bash(awk 'NR>=380,NR<=415' F:/scale_9.4/src/terminal/views/LatentCollider.jsx)"
+      "Bash(awk 'NR>=380,NR<=415' F:/scale_9.4/src/terminal/views/LatentCollider.jsx)",
+      "Bash(sort -t- -k2 -n)",
+      "Bash(npx vitest:*)"
     ]
   }
 }

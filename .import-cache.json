@@ -604,5 +604,8 @@
   "content/soma_kernel/STILLER_DIVERGENCE_KERNEL_v1.1.1.md:mtime": 1775852097000,
   "content/soma_kernel/STILLER_DIVERGENCE_KERNEL_v1.1.1.md:meta": "{\"id\":\"SDK-1.1.1\",\"type\":\"kernel_doc\",\"date\":\"2026-04-10\",\"lastModified\":\"2026-04-10\",\"title\":\"STILLER DIVERGENCE KERNEL V1.1.1\",\"subtitle\":\"Changelist v1.0.0 → v1.1.0\",\"status\":\"ACTIVE\",\"readTime\":\"2 min read\",\"tags\":[\"Changelist\"]}",
   "content/soma_kernel/STILLER_DIVERGENCE_KERNEL_v1.1.1.md": "e96af93a2d994cd6a344a2209596a58160e9a070",
-  "js:SDK-1.1.1.js": "821cd1c128979b12530234f20c5f86630f7a4d97"
+  "js:SDK-1.1.1.js": "821cd1c128979b12530234f20c5f86630f7a4d97",
+  "content/soma_kernel/STILLER-DIVERGENCE-RUN-KERNEL-1.1.1.md:mtime": 1775860624621.4954,
+  "content/soma_kernel/STILLER-DIVERGENCE-RUN-KERNEL-1.1.1.md:meta": "{\"id\":\"SDRK-1.1.1\",\"type\":\"kernel_doc\",\"date\":\"2026-04-11\",\"lastModified\":\"2026-04-10\",\"title\":\"STILLER DIVERGENCE KERNEL V1.1.1\",\"subtitle\":\"Command\",\"status\":\"ACTIVE\",\"readTime\":\"3 min read\",\"tags\":[\"STILLER\",\"DIVERGENCE\",\"Command\",\"Parameters\",\"Axiom\"]}",
+  "content/soma_kernel/STILLER-DIVERGENCE-RUN-KERNEL-1.1.1.md": "af01c76c0436b5d6a8b46c6d21edec1156331b5f"
 }
