@@ -40,6 +40,12 @@ const MercuryFireworks = forwardRef(function MercuryFireworks(_, ref) {
     if (!canvas) { rafRef.current = null; return; }
     const ctx = canvas.getContext('2d');
 
+    // Sync drawing buffer to CSS layout size each frame — avoids ResizeObserver timing
+    const cw = canvas.clientWidth;
+    const ch = canvas.clientHeight;
+    if (cw > 0 && canvas.width  !== cw) canvas.width  = cw;
+    if (ch > 0 && canvas.height !== ch) canvas.height = ch;
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.globalCompositeOperation = 'lighter';
 
@@ -150,28 +156,6 @@ const MercuryFireworks = forwardRef(function MercuryFireworks(_, ref) {
     }
   }
 
-  // ── Canvas sizing ───────────────────────────────────────────────────────────
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const parent = canvas.parentElement;
-    if (!parent) return;
-
-    // Observe the canvas itself — its CSS box is set by inset:0 on the
-    // positioned parent, so it correctly reflects parent size even when
-    // the container was inside display:none during the boot sequence.
-    const ro = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const w = Math.round(entry.contentRect.width);
-        const h = Math.round(entry.contentRect.height);
-        if (w > 0) canvas.width  = w;
-        if (h > 0) canvas.height = h;
-      }
-    });
-    ro.observe(canvas);
-    return () => ro.disconnect();
-  }, []);
-
   // ── RAF cleanup on unmount ──────────────────────────────────────────────────
   useEffect(() => {
     return () => {
@@ -189,6 +173,8 @@ const MercuryFireworks = forwardRef(function MercuryFireworks(_, ref) {
       style={{
         position: 'absolute',
         inset: 0,
+        width: '100%',
+        height: '100%',
         pointerEvents: 'none',
         zIndex: 10,
       }}
