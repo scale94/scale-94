@@ -62,3 +62,43 @@ export function nodeMagnitude(featureVector) {
   }
   return Math.sqrt(sumSq) / Math.sqrt(featureVector.length);
 }
+
+/**
+ * Deterministic hash of a node id to a float in [0, 1).
+ * Uses djb2 like kernelColorMap.js so behavior is consistent across the site.
+ */
+export function hashNodeId(id) {
+  let h = 5381;
+  for (let i = 0; i < id.length; i++) {
+    h = ((h << 5) + h + id.charCodeAt(i)) >>> 0;
+  }
+  return (h >>> 0) / 0x100000000;
+}
+
+const JITTER_RAD = 0.03;
+
+/**
+ * Cartesian SVG position for a node.
+ *
+ * Angle = sectorAngle(cluster) + deterministic jitter ±0.03 rad.
+ * Radius = (0.2 + 0.75 * nodeMagnitude(tensor)) * R.
+ *
+ * Nodes whose cluster is not on a mandala spoke (e.g. fsk) fall back
+ * to sector 0 (eco) — this keeps fsk nodes visible as ambient specks
+ * near the bouligand/arapaima neighborhood they conceptually share.
+ *
+ * @param {{id: string, cluster: string}} node
+ * @param {number[]} tensor  32-element feature vector
+ * @param {number} R         outer ring radius in px
+ * @returns {{x: number, y: number}}
+ */
+export function nodePosition(node, tensor, R) {
+  let sectorIdx = clusterToSectorIndex(node.cluster);
+  if (sectorIdx < 0) sectorIdx = 0; // fsk fallback
+  const baseAngle = sectorAngle(sectorIdx);
+  const jitter = (hashNodeId(node.id) - 0.5) * 2 * JITTER_RAD;
+  const angle = baseAngle + jitter;
+  const mag = nodeMagnitude(tensor);
+  const r = (0.2 + 0.75 * mag) * R;
+  return polarToCartesian(angle, r);
+}
