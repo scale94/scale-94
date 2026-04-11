@@ -33,26 +33,15 @@ Turn the manifesto tab into a **static radial mandala** — a pinned 2D projecti
 - No fusion, no audio, no particles — those belong to ArtTab.
 - No real PCA computation — projection is constructed (radial), not derived.
 - No edits to `nodeFeatures.js`. Read-only consumer.
-- Architect Thesis is not deleted but is demoted to a one-line status entry in the top telemetry rail.
+- Architect Thesis is not deleted but is accessed only by clicking the mandala's center HUD (§3.3), which opens it as a modal overlay.
 
 ---
 
 ## 3. Layout Architecture
 
-The tab is composed of three horizontal regions, top to bottom:
+The tab is a **single region**: the mandala fills the entire tab, edge-to-edge, on pure black. There is no telemetry rail, no transmission log, no header strip, no architect-thesis bar, no rectangular chrome of any kind. No straight lines compete with the circle's geometry — **visual harmony is the non-negotiable constraint**. All informative text that would otherwise live in rails is concentrated into a single HUD element at the mandala's center (§3.3). Everything else is deleted from this tab (§3.4).
 
-### 3.1 Telemetry Rail (top, ~46 px fixed height)
-
-Left-to-right content:
-
-- **Eye glyph** (`◉`, cyan, preserved from current header) + title `architects_architecture` in the existing gradient.
-- Subtitle line: `manifesto // mercury-9.4 // ostrom_protocol` (preserved).
-- **Observer readouts** in monospace 9px cyan: `observer: mercury · signal: 0.87 · drift: 0.011 · dim_count: 32`. `signal` and `drift` are deterministic fake telemetry values seeded from the current hover target (or a slow sine if nothing is hovered). They do not represent any real computation; they are chrome.
-- **Architect Thesis one-liner** in magenta: `architect: active · thesis: still running · since <thesis.date>`. Pulled from the `ARCHITECT-THESIS` system article's `date` field. On click, opens the full thesis in a modal (reusing the existing article modal path if available, else falls back to a simple overlay). This is the only reading path for the thesis in the new tab.
-- **Beacon counter** in magenta: `node_count: 256 · beacon_count: 42 · read: 0/42`. `read` increments as the user opens beacons during the session (not persisted).
-- **Clearance chip** on the far right (`clearance: sovereign`, preserved from current header).
-
-### 3.2 Mandala (center, fills remaining vertical space)
+### 3.2 Mandala (the entire tab)
 
 A single SVG (preferred over Canvas2D because beacons need text labels with DOM-level hit detection and the whole thing is static — no per-frame redraw needed).
 
@@ -115,21 +104,76 @@ Initial chapter → sector arc mapping (subject to refinement during implementat
 
 Total: 16 spokes mapped across 6 wedges. Ordering around the circle must be chosen so that chapters remain contiguous — §1 starts at 12 o'clock and they progress clockwise in the order above. The implementation plan must verify this mapping against `SECTORS` keys.
 
-### 3.3 Transmission Log (bottom, ~46 px fixed height)
+### 3.3 Center HUD (the `◉` glyph absorbs all chrome)
 
-- Left: `> intercept · earth.kernels · ∞ the pipeline` (decorative header line), then a second line that reacts to hover: `> hover: <beacon_id> — "<one-line-quote>"`. When nothing is hovered, shows a slowly cycling idle message pulled from a small fixed array.
-- Right: `decode: N/42 beacons read` counter and current cursor polar coordinates `(θ=X°, r=Y)` computed from mouse position relative to mandala center. Cursor coords update on mousemove and are purely decorative — reinforces the observer-watching-you feel.
+All informative text lives inside a **single circular HUD at the mandala's geometric center** — radius ~60 px on desktop, ~44 px on mobile. The HUD is the only place text appears besides beacon labels and chapter perimeter labels. It sits inside the innermost guide ring and visually reads as the mandala's pupil.
+
+**Idle state** (nothing hovered, no card open):
+
+```
+     ◉
+observer: mercury
+architect: active
+thesis: still running
+      ↻
+```
+
+- Line 1: cyan `◉` eye glyph.
+- Lines 2–4: 3 lines of 8 px monospace text, cyan 60% alpha, centered. These are the only pieces of "chrome" text that survive from the old rails.
+- Line 5: a small `↻` affordance. Clicking the glyph or the `↻` opens the architect thesis as a modal overlay (reusing whatever modal path the site already has for system articles; if none exists, the implementation plan must add the minimal thing that works). This is the only access to the thesis from this tab.
+- The whole HUD is on a 30% alpha black disk (`rgba(0,0,0,0.5)`) with a 0.5 px `#164e63` stroke matching the inner guide ring — so the text reads cleanly over whatever specks/wedges are underneath.
+
+**Hover state** (mouse over a beacon, no card open yet):
+
+```
+     ◉
+bouligand_36
+sector: eco
+"collagen lamellae
+ rotate at 36°"
+```
+
+- Line 2: beacon id, cyan bold.
+- Line 3: sector name in 7 px dim cyan.
+- Lines 4–5: the beacon's `quote` field from `manifestoBeacons.js`, wrapped to fit the HUD width (max 2 lines, truncated with `…` if longer). 8 px monospace, green `#39ff14`.
+- The HUD text swaps in place on hover; the disk and stroke do not animate. No floating label near the cursor — all feedback is centralized in the HUD. This is the unique move that differentiates from a standard tooltip.
+
+**Chapter wedge hover** (mouse over an empty wedge region, not on a beacon):
+
+```
+     ◉
+§3 BONE_FUSION
+"the engine drives
+ toward τ = 0.9990"
+```
+
+Same treatment: chapter id + a one-line chapter epigraph from `manifestoChapters.js`.
+
+**Selected state** (a card is open — see §4.2):
+HUD shows a minimal `×  close` affordance and nothing else. Acts as a second close button for users who click the center naturally. `Esc` also closes.
+
+### 3.4 What happens to the old chrome elements
+
+- **Eye glyph + `architects_architecture` title** — the glyph survives as the center HUD's top line; the title is deleted (the navigation tab strip above the view already says "manifesto").
+- **Subtitle `manifesto // mercury-9.4 // ostrom_protocol`** — deleted.
+- **Observer readouts (signal / drift / dim_count)** — deleted. Only `observer: mercury` survives as a single line of the idle HUD.
+- **Architect Thesis full content** — accessed by clicking the center HUD, which opens it as a modal overlay. No rail, no one-liner text.
+- **`clearance: sovereign` chip** — deleted.
+- **Beacon read counter** — deleted. Progress is implicit in the checkmarks on already-opened beacons (§4.2 point 6).
+- **Cursor polar coordinates readout** — deleted.
+- **Transmission log strip** — deleted. The HUD absorbs its role.
 
 ---
 
 ## 4. Interaction Model
 
-### 4.1 Hover
+### 4.1 Hover (desktop) / tap-preview (mobile)
 
-- Mouse over a beacon → beacon halo brightens from 30% to 70% alpha, label goes bold, transmission log bottom-left updates to that beacon's quote.
-- Mouse over a chapter wedge (not a beacon) → wedge gradient brightens slightly, log bottom-left shows the chapter title.
+- Mouse over a beacon → beacon halo brightens from 30% to 70% alpha, beacon radius grows by +1 px, **center HUD swaps** to show that beacon's id, sector, and quote (§3.3 hover state). No floating label near the cursor — all feedback is in the HUD.
+- Mouse over a chapter wedge (not a beacon) → wedge gradient brightens slightly, HUD swaps to chapter id + epigraph.
 - Mouse over ambient specks → no reaction (they are deliberately not interactive).
-- Mouse leaves mandala entirely → log returns to idle message.
+- Mouse leaves mandala entirely → HUD returns to idle state.
+- **Mobile:** there is no hover on touch devices, so a *single tap* on a beacon behaves as hover — it swaps the HUD and brightens the beacon but does **not** open the card. A *second tap* on the same beacon opens the card (§4.2). Tapping empty space (or the HUD) dismisses the hover preview back to idle. This two-tap pattern gives mobile users the same "read the label before committing" affordance desktop users get from hover.
 
 ### 4.2 Click (inline expansion — the primary reading mechanism)
 
@@ -143,7 +187,7 @@ Click a beacon:
    - **Close affordance:** small × in the top-right corner, and clicking outside the card also closes it.
 4. On close, card collapses back into the beacon circle, mandala un-blurs.
 5. Only one card open at a time. Clicking a second beacon while a card is open smoothly transitions the card to the new beacon (close-old + open-new, not stacked).
-6. Each unique beacon opened during the session increments `read` in the top telemetry rail and is highlighted with a small `✓` tick the rest of the session (resets on remount).
+6. Each unique beacon opened during the session is marked with a small `✓` tick next to its label for the rest of the session (resets on remount). No separate counter anywhere.
 
 ### 4.3 Chapter wedge click
 
@@ -161,30 +205,30 @@ Click a chapter wedge (in the empty region between beacons) → opens a card at 
 - No audio.
 - No particle effects.
 - No fusion, no "compare two beacons" mode.
-- No real-time data feed — `signal` / `drift` telemetry is decorative chrome only.
+- No real-time data feed, no telemetry readouts, no cursor coordinates.
+- No rectangular chrome (rails, bars, headers, footers, status chips).
 - No persistence of `read` state across sessions.
 
 ---
 
 ## 5. File / Component Decomposition
 
-To keep `ManifestoTab.jsx` focused and make each unit understandable in isolation:
+To keep the implementation focused and make each unit understandable in isolation:
 
 ```
-src/terminal/views/ManifestoTab.jsx                  (top-level, orchestrates the 3 regions)
+src/terminal/views/ManifestoTab.jsx                  (thin wrapper, mounts Mandala edge-to-edge)
 src/terminal/views/manifesto/
-    TelemetryRail.jsx                                (top bar, reads architect_thesis)
-    TransmissionLog.jsx                              (bottom bar, consumes hover state)
-    Mandala.jsx                                      (SVG mandala container, owns hover/select state)
-    MandalaGeometry.js                               (pure fns: projection, sector→arc, beacon layout)
+    Mandala.jsx                                      (SVG mandala container, owns hover/select state, renders CenterHUD + BeaconCard)
+    MandalaGeometry.js                               (pure fns: projection, sector→arc, beacon layout, hit-testing)
+    CenterHUD.jsx                                    (the ◉ pupil — idle, hover, and selected states)
     BeaconCard.jsx                                   (inline-expansion card)
 src/terminal/data/manifestoBeacons.js                (curated beacon list + quotes + chapter mapping)
 src/terminal/data/manifestoChapters.js               (6 chapters: id, title, sector arc, opening paragraph)
 ```
 
-**Why this split:** `MandalaGeometry.js` is pure and testable in isolation. `Mandala.jsx` owns transient UI state (hoverTarget, selectedBeacon). `TelemetryRail` and `TransmissionLog` are presentational — they receive hover state via props (lifted up into `ManifestoTab`) so they can't drift out of sync. `BeaconCard` is standalone so it can be styled and animated independently. `manifestoBeacons.js` and `manifestoChapters.js` are data modules, easy to edit without touching component code.
+**Why this split:** `MandalaGeometry.js` is pure and testable in isolation. `Mandala.jsx` owns transient UI state (`hoverTarget`, `selectedBeacon`) and composes the SVG plus the `CenterHUD` and `BeaconCard`. `CenterHUD` is a pure function of `{ hoverTarget, selectedBeacon, thesisArticle }` — no internal state, trivially testable. `BeaconCard` is standalone so it can be styled and animated independently. `manifestoBeacons.js` and `manifestoChapters.js` are data modules, easy to edit without touching component code.
 
-**What stays in `ManifestoTab.jsx` itself:** mount the three regions, own the hover/select state, pass it down. Target ~120 lines, down from the current ~137.
+**What stays in `ManifestoTab.jsx` itself:** receive `systemArticles` prop (for chapter text lookup) and mount `<Mandala />` at 100% width/height on a pure black background. Target ~40 lines, down from the current ~137.
 
 ---
 
@@ -200,13 +244,37 @@ src/terminal/data/manifestoChapters.js               (6 chapters: id, title, sec
 
 - If `systemArticles['MANIFESTO']` is undefined, the mandala still renders (structure-only view); beacon cards show `[manifesto content unavailable]` where quotes would go.
 - If a beacon's chapter quote is missing from the beacons data file, show the chapter's opening paragraph instead.
-- If `ARCHITECT-THESIS` is missing, the telemetry rail shows `architect: active · thesis: —` and the click does nothing (no modal).
+- If `ARCHITECT-THESIS` is missing, the center HUD line reads `thesis: —` and clicking the glyph does nothing.
 
-### 6.3 Responsive
+### 6.3 Responsive / mobile
 
-- Below 720 px viewport width (same breakpoint the current tab uses for `minWidth: 720 px`), the mandala scales down proportionally but the telemetry rail and transmission log reflow to 2 lines each to fit.
-- Below 480 px, beacon labels are hidden entirely; only beacon dots remain. Tapping a dot still opens the card.
-- The card's positioning algorithm must handle the small-viewport case by centering the card over the mandala rather than anchoring it to the beacon's coordinates.
+Mobile is a first-class target, not a fallback. The tab must feel deliberate on a phone, not a desktop layout squeezed down.
+
+**Breakpoints:**
+
+- **≥ 960 px (desktop):** outer radius `R = min(w, h) * 0.38`; center HUD radius 60 px; beacon labels 7 px visible; 256 ambient specks.
+- **720–959 px (tablet):** `R = min(w, h) * 0.42`; HUD 54 px; labels 7 px visible but shorter (strip to 10 chars, `…` if longer); ambient specks rendered at 0.8 px to stay subtle at this scale.
+- **480–719 px (large phone / portrait tablet):** `R = min(w, h) * 0.46`; HUD 48 px; **beacon labels hidden by default** — only beacon dots remain. The current hover/tap target pops its id into the HUD instead. Ambient specks stay but at 0.6 px 25% alpha.
+- **< 480 px (phone):** `R = min(w, h) * 0.48` — the mandala fills almost the entire viewport; HUD 44 px; labels hidden; ambient specks rendered at 0.5 px 20% alpha (still present, just atmospheric).
+
+**Touch interaction model** (cross-reference §4.1):
+
+1. First tap on a beacon = "preview" (equivalent to desktop hover). Center HUD swaps to show the beacon's id + quote. The beacon highlights. No card.
+2. Second tap on the same beacon = "open". Card expands in place, rest of mandala blurs.
+3. Tap outside the beacon (on empty mandala space or a different beacon) = dismiss preview / switch preview.
+4. Tap outside an open card (or the HUD `×`) = close card.
+
+This mirrors the iOS Maps-style "tap to preview, tap to commit" pattern. It prevents the #1 mobile failure mode for mandala-style interfaces: accidental selection while scrolling or exploring.
+
+**Beacon hit-box padding:** On touch devices, beacon hit boxes expand to a minimum of 36×36 px (WCAG touch target) even though the visible dot stays at ~3 px. Hit boxes must not overlap — if two beacons are closer than 36 px on a small viewport, the implementation uses nearest-neighbor hit resolution (the tap selects whichever beacon center is closest to the tap point).
+
+**Card sizing on mobile:** Below 720 px, the `BeaconCard` ignores the "anchor at beacon coordinates" rule and instead slides up from the bottom as a sheet covering the lower 60% of the viewport. The mandala above continues to blur. Tap outside the sheet or swipe it down to dismiss. This keeps the card readable on narrow screens without forcing the user to scroll inside an awkwardly-positioned floating box.
+
+**No hover → no cursor chrome:** On touch, there is no mouse cursor, so nothing in §3.3 or elsewhere can depend on a `mousemove` event. All feedback must come from tap events. The spec is already written this way — calling it out explicitly.
+
+**Orientation:** Both portrait and landscape are supported. In landscape on a phone, the mandala still scales to `min(w, h) * 0.48` — it does not stretch horizontally. The HUD sits at the geometric center regardless of orientation.
+
+**Performance budget on low-end phones:** 256 ambient specks + 42 beacons + 16 spokes + 4 rings + 6 wedges = under 350 SVG elements. This is well inside the budget for a single static SVG on any phone from the last 5 years. No per-frame redraws (no RAF loop) — the mandala is static, re-rendering only on interaction. The blur on open-card is CSS `filter` which mobile Safari / Chrome both hardware-accelerate; if measured performance is poor on a target device, the fallback is a `brightness(0.4)` without the blur.
 
 ---
 
@@ -215,7 +283,7 @@ src/terminal/data/manifestoChapters.js               (6 chapters: id, title, sec
 - **MandalaGeometry.js unit tests** — pure geometry functions, easy to snapshot: given a fixed set of nodes and a fixed sector ordering, the output coordinates are deterministic. Tests confirm jitter is stable across runs (seeded by node id hash) and sector arcs are contiguous.
 - **Beacon data integrity test** — a build-time check (could be a simple script or a Vitest test) that every `nodeId` in `manifestoBeacons.js` resolves to a real entry in `NODES`, and every `chapter` matches one of the 6 chapters in `manifestoChapters.js`.
 - **Visual regression** — the mandala is static, so a single screenshot snapshot per viewport breakpoint (desktop / tablet / mobile) is sufficient to catch layout drift. Using the Claude Preview tooling is acceptable for manual verification during implementation.
-- **Interaction tests** — hover updates transmission log, click opens a card, Esc closes, a second click swaps without stacking, Tab cycles focus.
+- **Interaction tests** — hover updates the center HUD text, click opens a card, Esc closes, a second click swaps without stacking, Tab cycles focus, double-tap on mobile opens the card after a single-tap preview.
 
 ---
 
@@ -229,5 +297,6 @@ Single atomic replacement. `ManifestoTab.jsx` is lazy-loaded from `App.jsx:55`, 
 
 1. Final beacon seed list after auditing `NODES`.
 2. Final chapter→sector arc mapping after confirming `SECTORS` key order.
-3. Whether to keep the full architect_thesis modal or inline the thesis as a 7th chapter wedge. (Current spec: keep as modal via telemetry-rail one-liner. Alternative: delete from modal and inline as "§0 · THESIS" wedge at 12 o'clock.)
-4. Whether `manifestoChapters.js` should parse chapter openings directly from `MANIFESTO.md` at build time or duplicate the text into the data file. Parsing is cleaner but adds a build-time dependency; duplication is simpler but risks drift. Recommendation: parse at build time via a small import script similar to `scripts/import-system.js`.
+3. Whether `manifestoChapters.js` should parse chapter openings directly from `MANIFESTO.md` at build time or duplicate the text into the data file. Parsing is cleaner but adds a build-time dependency; duplication is simpler but risks drift. Recommendation: parse at build time via a small import script similar to `scripts/import-system.js`.
+4. Architect thesis modal — does the site already have a reusable modal/overlay component (e.g., from the article reading path) or does the implementation plan need to add a minimal one? Plan must check before assuming.
+5. Mobile card dismiss gesture — is swipe-down necessary for V1 or is "tap outside" sufficient? Recommendation: tap-outside for V1, swipe-down as a follow-up if telemetry shows users struggling.
