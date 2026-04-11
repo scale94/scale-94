@@ -65,7 +65,7 @@ export default function MercurySphere({
   pendingPhase,
   sphereState,
   onNodeTap,
-  onElementFired,
+  onElementFired = null,
   sargScore = 1.0,
   isMobile = false,
 }) {

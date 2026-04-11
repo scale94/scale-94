@@ -29,6 +29,9 @@ export default function MercuryTab() {
   const [liveDensity, setLiveDensity] = useState(DEFAULT_PARAMS.density);
   const densityTimer = useMemo(() => ({ current: null }), []);
   const fireworksRef = useRef(null);
+  const handleElementFired = useCallback((element, screenX, screenY) => {
+    fireworksRef.current?.fire(element, screenX, screenY);
+  }, []);
 
   // Debounce density changes to avoid buffer churn
   const handleParamsChange = useCallback((next) => {
@@ -167,9 +170,7 @@ export default function MercuryTab() {
             sargScore={1.0}
             onPhaseChange={setActivePhase}
             onFps={setFps}
-            onElementFired={(element, screenX, screenY) =>
-              fireworksRef.current?.fire(element, screenX, screenY)
-            }
+            onElementFired={handleElementFired}
           />
         </div>
       </div>
