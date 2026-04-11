@@ -40,6 +40,7 @@ const MercuryFireworks = forwardRef(function MercuryFireworks(_, ref) {
     ctx.globalCompositeOperation = 'lighter';
 
     const next = [];
+    const toAdd = [];
     for (const p of particlesRef.current) {
       if (p.type === 'rocket') {
         // Respect staggered delay — skip (but keep) until activation time
@@ -72,8 +73,7 @@ const MercuryFireworks = forwardRef(function MercuryFireworks(_, ref) {
         // Explode at apex
         if (!p.hasExploded && progress >= 1) {
           p.hasExploded = true;
-          const burst = spawnBurst(p.element, p.apexX, p.apexY);
-          particlesRef.current.push(...burst);
+          toAdd.push(...spawnBurst(p.element, p.apexX, p.apexY));
         }
 
         if (!p.hasExploded || alpha >= CULL_THRESHOLD) next.push(p);
@@ -137,8 +137,9 @@ const MercuryFireworks = forwardRef(function MercuryFireworks(_, ref) {
     }
 
     particlesRef.current = next;
+    if (toAdd.length) particlesRef.current.push(...toAdd);
 
-    if (next.length > 0) {
+    if (particlesRef.current.length > 0) {
       rafRef.current = requestAnimationFrame(tick);
     } else {
       rafRef.current = null;
@@ -161,6 +162,17 @@ const MercuryFireworks = forwardRef(function MercuryFireworks(_, ref) {
     const ro = new ResizeObserver(resize);
     ro.observe(parent);
     return () => ro.disconnect();
+  }, []);
+
+  // ── RAF cleanup on unmount ──────────────────────────────────────────────────
+  useEffect(() => {
+    return () => {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      particlesRef.current = [];
+    };
   }, []);
 
   return (
