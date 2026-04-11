@@ -153,14 +153,18 @@ const MercuryFireworks = forwardRef(function MercuryFireworks(_, ref) {
     const parent = canvas.parentElement;
     if (!parent) return;
 
-    const resize = () => {
-      canvas.width  = parent.clientWidth;
-      canvas.height = parent.clientHeight;
-    };
-    resize();
-
-    const ro = new ResizeObserver(resize);
-    ro.observe(parent);
+    // Observe the canvas itself — its CSS box is set by inset:0 on the
+    // positioned parent, so it correctly reflects parent size even when
+    // the container was inside display:none during the boot sequence.
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const w = Math.round(entry.contentRect.width);
+        const h = Math.round(entry.contentRect.height);
+        if (w > 0) canvas.width  = w;
+        if (h > 0) canvas.height = h;
+      }
+    });
+    ro.observe(canvas);
     return () => ro.disconnect();
   }, []);
 
