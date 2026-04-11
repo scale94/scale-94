@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import MercuryCanvas   from '../mercury/MercuryCanvas';
-import MercuryControls from '../mercury/MercuryControls';
+import MercuryCanvas    from '../mercury/MercuryCanvas';
+import MercuryControls  from '../mercury/MercuryControls';
+import MercuryFireworks from '../mercury/MercuryFireworks';
 
 const isMobile = typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -27,6 +28,7 @@ export default function MercuryTab() {
   const [fps, setFps]                 = useState(0);
   const [liveDensity, setLiveDensity] = useState(DEFAULT_PARAMS.density);
   const densityTimer = useMemo(() => ({ current: null }), []);
+  const fireworksRef = useRef(null);
 
   // Debounce density changes to avoid buffer churn
   const handleParamsChange = useCallback((next) => {
@@ -60,7 +62,8 @@ export default function MercuryTab() {
   const mergedParams = { ...params, density: liveDensity };
 
   return (
-    <div className="max-w-[1800px] mx-auto">
+    <div className="max-w-[1800px] mx-auto" style={{ position: 'relative' }}>
+      <MercuryFireworks ref={fireworksRef} />
       <style>{`
         @keyframes hg-titleReveal {
           0%   { opacity: 0; filter: brightness(3) blur(6px); letter-spacing: 0.4em; }
@@ -164,6 +167,9 @@ export default function MercuryTab() {
             sargScore={1.0}
             onPhaseChange={setActivePhase}
             onFps={setFps}
+            onElementFired={(element, screenX, screenY) =>
+              fireworksRef.current?.fire(element, screenX, screenY)
+            }
           />
         </div>
       </div>
