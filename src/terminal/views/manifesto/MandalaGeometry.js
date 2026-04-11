@@ -38,3 +38,27 @@ export function sectorAngle(sectorIndex) {
 export function clusterToSectorIndex(clusterId) {
   return MANDALA_SECTOR_ORDER.indexOf(clusterId);
 }
+
+/**
+ * Convert polar (θ clockwise from 12 o'clock, radius r) to SVG Cartesian.
+ * SVG y grows downward, so 12 o'clock is (0, -r).
+ */
+export function polarToCartesian(angleRad, radius) {
+  return {
+    x: radius * Math.sin(angleRad),
+    y: -radius * Math.cos(angleRad),
+  };
+}
+
+/**
+ * L2 magnitude of a node's 32D feature vector, normalized by sqrt(32)
+ * so an all-ones vector gives magnitude 1. Used as the radial distance
+ * for node placement — "louder" nodes land further from center.
+ */
+export function nodeMagnitude(featureVector) {
+  let sumSq = 0;
+  for (let i = 0; i < featureVector.length; i++) {
+    sumSq += featureVector[i] * featureVector[i];
+  }
+  return Math.sqrt(sumSq) / Math.sqrt(featureVector.length);
+}
