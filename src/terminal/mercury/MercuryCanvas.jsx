@@ -22,6 +22,7 @@ export default function MercuryCanvas({
   sargScore = 1.0,
   onPhaseChange = null,
   onFps = null,
+  onElementFired = null,
 }) {
   const {
     activePhase,
@@ -128,6 +129,7 @@ export default function MercuryCanvas({
           pendingPhase={pendingPhase}
           sphereState={sphereState}
           onNodeTap={handleNodeTap}
+          onElementFired={onElementFired}
           sargScore={sargScore}
           isMobile={isMobile}
         />
