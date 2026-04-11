@@ -71,7 +71,7 @@ const MercuryFireworks = forwardRef(function MercuryFireworks(_, ref) {
           ctx.save();
           ctx.globalAlpha = alpha;
           ctx.strokeStyle = p.color;
-          ctx.lineWidth = 2;
+          ctx.lineWidth = 3;
           ctx.lineCap = 'round';
           ctx.beginPath();
           ctx.moveTo(ox, oy);
@@ -106,7 +106,7 @@ const MercuryFireworks = forwardRef(function MercuryFireworks(_, ref) {
         // Color shifts primary → secondary over lifespan
         const t = p.age / p.lifespan;
         ctx.fillStyle = t < 0.5 ? p.primary : p.secondary;
-        ctx.fillRect(p.x - 1, p.y - 3, 2, 6);
+        ctx.fillRect(p.x - 1.5, p.y - 5, 3, 10);
       }
 
       else if (p.type === 'droplet') {

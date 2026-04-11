@@ -7,12 +7,12 @@ describe('doctrineAlpha', () => {
   });
 
   it('ramps quadratically in 0–15% window', () => {
-    // at t=0.075 (halfway into ramp): alpha = 0.55 * (0.5)^2 = 0.1375
-    expect(doctrineAlpha(7.5, 100)).toBeCloseTo(0.1375, 3);
+    // at t=0.075 (halfway into ramp): alpha = 0.75 * (0.5)^2 = 0.1875
+    expect(doctrineAlpha(7.5, 100)).toBeCloseTo(0.1875, 3);
   });
 
-  it('holds base alpha 0.55 at t=0.40 (middle of hold zone)', () => {
-    expect(doctrineAlpha(40, 100)).toBeCloseTo(0.55, 3);
+  it('holds base alpha 0.75 at t=0.40 (middle of hold zone)', () => {
+    expect(doctrineAlpha(40, 100)).toBeCloseTo(0.75, 3);
   });
 
   it('is culled (< 0.004) at age === lifespan', () => {
@@ -20,17 +20,17 @@ describe('doctrineAlpha', () => {
   });
 
   it('decays with power 2.2 in 70–100% window', () => {
-    // at t=0.85: progress into decay = (0.85-0.70)/0.30 = 0.5
-    // alpha = 0.55 * (1 - 0.5)^2.2 = 0.55 * 0.5^2.2 ≈ 0.55 * 0.2176 ≈ 0.1197
-    expect(doctrineAlpha(85, 100)).toBeCloseTo(0.1197, 2);
+    // at t=0.85: decay progress = (0.85-0.70)/0.30 = 0.5
+    // alpha = 0.75 * (1 - 0.5)^2.2 = 0.75 * 0.2176 ≈ 0.1632
+    expect(doctrineAlpha(85, 100)).toBeCloseTo(0.1632, 2);
   });
 });
 
 describe('spawnRockets', () => {
-  it('returns 3–5 rockets', () => {
+  it('returns 5–8 rockets', () => {
     const rockets = spawnRockets('thermal', 400, 300, 800, 600);
-    expect(rockets.length).toBeGreaterThanOrEqual(3);
-    expect(rockets.length).toBeLessThanOrEqual(5);
+    expect(rockets.length).toBeGreaterThanOrEqual(5);
+    expect(rockets.length).toBeLessThanOrEqual(8);
   });
 
   it('each rocket has required fields', () => {
@@ -49,49 +49,49 @@ describe('spawnRockets', () => {
     }
   });
 
-  it('apex Y is in the upper 40% of screen height', () => {
+  it('apex Y is in the upper 35% of screen height', () => {
     const rockets = spawnRockets('thermal', 400, 300, 800, 600);
     for (const r of rockets) {
-      expect(r.apexY).toBeLessThanOrEqual(600 * 0.4);
+      expect(r.apexY).toBeLessThanOrEqual(600 * 0.35);
     }
   });
 
-  it('delays are staggered 80–150ms apart (ascending)', () => {
+  it('delays are staggered 60–120ms apart (ascending)', () => {
     const rockets = spawnRockets('fluid', 200, 400, 800, 600);
     for (let i = 1; i < rockets.length; i++) {
       const gap = rockets[i].delay - rockets[i - 1].delay;
-      expect(gap).toBeGreaterThanOrEqual(80);
-      expect(gap).toBeLessThanOrEqual(150);
+      expect(gap).toBeGreaterThanOrEqual(60);
+      expect(gap).toBeLessThanOrEqual(120);
     }
   });
 });
 
 describe('spawnBurst', () => {
-  it('thermal → 12–18 ember particles', () => {
+  it('thermal → 20–30 ember particles', () => {
     const ps = spawnBurst('thermal', 400, 200);
-    expect(ps.length).toBeGreaterThanOrEqual(12);
-    expect(ps.length).toBeLessThanOrEqual(18);
+    expect(ps.length).toBeGreaterThanOrEqual(20);
+    expect(ps.length).toBeLessThanOrEqual(30);
     expect(ps[0].type).toBe('ember');
   });
 
-  it('fluid → 10–14 droplet particles', () => {
+  it('fluid → 18–26 droplet particles', () => {
     const ps = spawnBurst('fluid', 400, 200);
-    expect(ps.length).toBeGreaterThanOrEqual(10);
-    expect(ps.length).toBeLessThanOrEqual(14);
+    expect(ps.length).toBeGreaterThanOrEqual(18);
+    expect(ps.length).toBeLessThanOrEqual(26);
     expect(ps[0].type).toBe('droplet');
   });
 
-  it('air → 2–3 ring particles', () => {
+  it('air → 3–5 ring particles', () => {
     const ps = spawnBurst('air', 400, 200);
-    expect(ps.length).toBeGreaterThanOrEqual(2);
-    expect(ps.length).toBeLessThanOrEqual(3);
+    expect(ps.length).toBeGreaterThanOrEqual(3);
+    expect(ps.length).toBeLessThanOrEqual(5);
     expect(ps[0].type).toBe('ring');
   });
 
-  it('earth → 8–12 shard particles', () => {
+  it('earth → 14–20 shard particles', () => {
     const ps = spawnBurst('earth', 400, 200);
-    expect(ps.length).toBeGreaterThanOrEqual(8);
-    expect(ps.length).toBeLessThanOrEqual(12);
+    expect(ps.length).toBeGreaterThanOrEqual(14);
+    expect(ps.length).toBeLessThanOrEqual(20);
     expect(ps[0].type).toBe('shard');
   });
 
@@ -105,10 +105,10 @@ describe('spawnBurst', () => {
     }
   });
 
-  it('air rings are staggered: each ring starts 8 frames later than previous', () => {
+  it('air rings are staggered: each ring starts 6 frames later than previous', () => {
     const rings = spawnBurst('air', 400, 200);
     for (let i = 0; i < rings.length; i++) {
-      expect(rings[i].age).toBe(i * 8);
+      expect(rings[i].age).toBe(i * 6);
       expect(rings[i].lifespan).toBeGreaterThan(0);
     }
   });
