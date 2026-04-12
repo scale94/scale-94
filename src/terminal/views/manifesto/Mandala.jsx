@@ -238,10 +238,21 @@ const Mandala = ({ setArchitectThesis, systemArticles }) => {
               return (
                 <g
                   key={b.nodeId}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`beacon ${b.nodeId}`}
                   onMouseEnter={() => handleBeaconEnter(b)}
                   onMouseLeave={handleBeaconLeave}
+                  onFocus={() => handleBeaconEnter(b)}
+                  onBlur={handleBeaconLeave}
                   onClick={(e) => handleBeaconClick(b, e)}
-                  style={{ cursor: 'pointer' }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setSelected(b);
+                    }
+                  }}
+                  style={{ cursor: 'pointer', outline: 'none' }}
                 >
                   {/* Invisible hit box for touch / small beacons (36x36). */}
                   <rect
