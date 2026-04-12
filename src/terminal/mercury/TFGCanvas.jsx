@@ -7,7 +7,7 @@ const isMobile = typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad/i
 
 export default function TFGCanvas() {
   return (
-    <div style={{ height: isMobile ? 360 : 500, width: '100%' }}>
+    <div style={{ height: isMobile ? 360 : 500, width: '100%', touchAction: 'none' }}>
       <Canvas
         camera={{ position: [0, 0, 7.5], fov: 45 }}
         dpr={isMobile ? [1, 1.5] : [1, 2]}

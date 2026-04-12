@@ -1,8 +1,10 @@
-import { useRef, useMemo, useEffect } from 'react';
+import { useRef, useMemo, useEffect, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { ELEMENTS } from '../data/periodicElements';
+import { loadWasm } from '../../wasm/wasmSingleton';
+import { PLANET_MAP, PLANET_COLORS, parseAstroOutput, getRuler } from './tfgAstroHelpers';
 
 const SPHERE_RADIUS = 2.8;
 const BASE_SIZE     = 0.055;
@@ -82,6 +84,14 @@ export default function TFGSphere() {
   const matRef      = useRef();
   const driftRef    = useRef(null);
 
+  // Click state
+  const [activeIdx,    setActiveIdx]    = useState(null); // clicked non-Hg element index
+  const [hgActive,     setHgActive]     = useState(false);
+  const [readingText,  setReadingText]  = useState('');
+  const ringRef     = useRef();
+  const pulseRef    = useRef({ active: false, t: 0, idx: -1 });
+  const prevTimeRef = useRef(0);
+
   const { nonHgElements, positions, phaseAlignments } = useMemo(() => {
     const els  = ELEMENTS.filter(e => e.atomicNumber !== 80);
     const pts  = fibonacciSphere(els.length, SPHERE_RADIUS);
@@ -134,6 +144,53 @@ export default function TFGSphere() {
     };
   }, [geo, mat]);
 
+  // Fetch planetary reading when a non-Hg element is clicked
+  useEffect(() => {
+    const idx = activeIdx;
+    if (idx === null) { setReadingText(''); return; }
+    const el = nonHgElements[idx];
+    setReadingText('computing...');
+    loadWasm().then(wasm => {
+      if (activeIdx !== idx) return; // stale click
+      const raw    = wasm.run_astro(Date.now());
+      const parsed = parseAstroOutput(raw);
+      const planet = PLANET_MAP[el.atomicNumber];
+      if (planet && parsed[planet]) {
+        const d = parsed[planet];
+        setReadingText(
+          `${planet.toUpperCase()} \u00b7 ${el.symbol}\n` +
+          `${d.sign} ${d.degree.toFixed(0)}\u00b0\n` +
+          `Retro: ${d.retrograde ? 'Yes \u211e' : 'No'}\n` +
+          `${d.aspect}`
+        );
+      } else {
+        const ruler = getRuler(el);
+        const d     = parsed[ruler] || {};
+        setReadingText(
+          `${el.symbol} \u2014 ruled by ${ruler}\n` +
+          (d.sign ? `${d.sign} ${(d.degree || 0).toFixed(0)}\u00b0` : '\u2014')
+        );
+      }
+    });
+  }, [activeIdx, nonHgElements]);
+
+  // Fetch Hg / Mercury reading when anchor is clicked
+  useEffect(() => {
+    if (!hgActive) { setReadingText(''); return; }
+    setReadingText('computing...');
+    loadWasm().then(wasm => {
+      const raw    = wasm.run_astro(Date.now());
+      const parsed = parseAstroOutput(raw);
+      const d      = parsed['Mercury'] || {};
+      setReadingText(
+        `MERCURY \u00b7 Hg\n` +
+        `${d.sign || '?'} ${(d.degree || 0).toFixed(0)}\u00b0\n` +
+        `Retro: ${d.retrograde ? 'Yes \u211e' : 'No'}\n` +
+        `${d.aspect || '\u2014'}`
+      );
+    });
+  }, [hgActive]);
+
   useFrame((state) => {
     const t     = state.clock.elapsedTime;
     const mesh  = meshRef.current;
@@ -143,6 +200,27 @@ export default function TFGSphere() {
     if (groupRef.current) groupRef.current.rotation.y = t * 0.04;
     if (hgLightRef.current) {
       hgLightRef.current.intensity = 0.8 + 0.4 * Math.sin(t * 2.1);
+    }
+
+    // Orbital ring rotation
+    if (ringRef.current) ringRef.current.rotation.y += 0.02;
+
+    // Pulse animation for planetary elements (scale 1→1.5→1 over 0.4s)
+    const now   = t;
+    const delta = now - prevTimeRef.current;
+    prevTimeRef.current = now;
+    const pulse = pulseRef.current;
+    if (pulse.active && mesh && pulse.idx >= 0 && pulse.idx < nonHgElements.length) {
+      pulse.t += delta;
+      const progress = Math.min(pulse.t / 0.4, 1.0);
+      const scale    = 1.0 + 0.5 * Math.sin(progress * Math.PI);
+      dummy.position.copy(positions[pulse.idx]);
+      dummy.scale.set(scale, scale, scale);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(pulse.idx, dummy.matrix);
+      mesh.instanceMatrix.needsUpdate = true;
+      dummy.scale.set(1, 1, 1); // reset for drift loop below
+      if (progress >= 1.0) pulse.active = false;
     }
 
     if (mesh && drift) {
@@ -162,9 +240,81 @@ export default function TFGSphere() {
 
   return (
     <group ref={groupRef}>
-      <instancedMesh ref={meshRef} args={[geo, mat, nonHgElements.length]} />
+      {/* Orbital ring — spawns on click, color-coded by planet */}
+      {activeIdx !== null && (() => {
+        const p   = positions[activeIdx];
+        const el  = nonHgElements[activeIdx];
+        const col = PLANET_COLORS[el.atomicNumber] ?? '#404050';
+        return (
+          <mesh ref={ringRef} position={[p.x, p.y, p.z]} rotation={[Math.PI / 6, 0, 0]}>
+            <torusGeometry args={[BASE_SIZE * 3, 0.008, 8, 48]} />
+            <meshBasicMaterial color={col} transparent opacity={0.9} />
+          </mesh>
+        );
+      })()}
 
-      <mesh position={hgPos}>
+      {hgActive && (
+        <mesh ref={ringRef} position={hgPos} rotation={[Math.PI / 6, 0, 0]}>
+          <torusGeometry args={[BASE_SIZE * 9, 0.008, 8, 48]} />
+          <meshBasicMaterial color="#f59e0b" transparent opacity={0.9} />
+        </mesh>
+      )}
+
+      {/* Reading panel — appears after WASM resolves */}
+      {readingText && (activeIdx !== null || hgActive) && (() => {
+        const p = activeIdx !== null
+          ? positions[activeIdx]
+          : { x: 0, y: SPHERE_RADIUS, z: 0 };
+        return (
+          <Html
+            position={[p.x, p.y + 0.45, p.z]}
+            style={{
+              background:    'rgba(0,0,0,0.85)',
+              border:        '1px solid rgba(217,70,239,0.4)',
+              color:         '#c0c0c0',
+              fontFamily:    'monospace',
+              fontSize:      '9px',
+              padding:       '6px 8px',
+              whiteSpace:    'pre',
+              pointerEvents: 'none',
+              userSelect:    'none',
+              borderRadius:  '3px',
+              minWidth:      '120px',
+              maxWidth:      '200px',
+              transform:     'translateX(-50%)',
+            }}
+          >
+            {readingText}
+          </Html>
+        );
+      })()}
+
+      {/* 117 non-Hg elements — single draw call */}
+      <instancedMesh
+        ref={meshRef}
+        args={[geo, mat, nonHgElements.length]}
+        onClick={(e) => {
+          e.stopPropagation();
+          const idx = e.instanceId;
+          if (idx === undefined || idx === null) return;
+          const el = nonHgElements[idx];
+          if (PLANET_MAP[el.atomicNumber]) {
+            pulseRef.current = { active: true, t: 0, idx };
+          }
+          setHgActive(false);
+          setActiveIdx(prev => prev === idx ? null : idx);
+        }}
+      />
+
+      {/* Hg anchor node — north pole, amber-gold */}
+      <mesh
+        position={hgPos}
+        onClick={(e) => {
+          e.stopPropagation();
+          setActiveIdx(null);
+          setHgActive(v => !v);
+        }}
+      >
         <sphereGeometry args={[BASE_SIZE * 3, 16, 16]} />
         <meshStandardMaterial
           color="#f59e0b"
