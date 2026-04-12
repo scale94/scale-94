@@ -7,7 +7,9 @@ import {
   nodePosition,
 } from './MandalaGeometry';
 import { MANIFESTO_CHAPTERS } from '../../data/manifestoChapters';
-import { NODES, FEATURES } from '../../data/nodeFeatures';
+import { NODES, NODE_IDX, FEATURES } from '../../data/nodeFeatures';
+import { nodeColor } from '../../data/kernelColorMap';
+import { MANIFESTO_BEACONS } from '../../data/manifestoBeacons';
 
 // Tailwind color tokens used throughout (match existing terminal palette).
 const RING_STROKE = '#164e63';
@@ -77,6 +79,26 @@ const Mandala = ({ setArchitectThesis, systemArticles }) => {
     }));
   }, [R]);
 
+  // Pre-compute beacon positions + colors.
+  const beacons = useMemo(() => {
+    return MANIFESTO_BEACONS.map(b => {
+      const idx = NODE_IDX[b.nodeId];
+      const node = NODES[idx];
+      const { x, y } = nodePosition(node, FEATURES[idx], R);
+      const color = nodeColor(b.nodeId, node.cluster);
+      return {
+        nodeId: b.nodeId,
+        chapter: b.chapter,
+        quote: b.quote,
+        cluster: node.cluster,
+        x, y,
+        color: color.hsl,
+      };
+    });
+  }, [R]);
+
+  const showLabels = minDim >= 720;
+
   return (
     <div
       ref={containerRef}
@@ -138,6 +160,42 @@ const Mandala = ({ setArchitectThesis, systemArticles }) => {
               opacity={minDim < 480 ? 0.20 : minDim < 720 ? 0.25 : 0.35}
             />
           ))}
+        </g>
+
+        {/* ── ~36 curated beacons ───────────────────────────────── */}
+        <g>
+          {beacons.map(b => {
+            // Label offset radially outward from origin.
+            const dist = Math.hypot(b.x, b.y) || 1;
+            const labelX = b.x + (b.x / dist) * 10;
+            const labelY = b.y + (b.y / dist) * 10;
+            return (
+              <g key={b.nodeId}>
+                <circle
+                  cx={b.x.toFixed(2)}
+                  cy={b.y.toFixed(2)}
+                  r="3"
+                  fill={b.color}
+                  stroke={b.color}
+                  strokeOpacity="0.3"
+                  strokeWidth="4"
+                />
+                {showLabels && (
+                  <text
+                    x={labelX.toFixed(2)}
+                    y={labelY.toFixed(2)}
+                    fill={b.color}
+                    fontFamily="monospace"
+                    fontSize="7"
+                    textAnchor={b.x >= 0 ? 'start' : 'end'}
+                    dominantBaseline="middle"
+                  >
+                    {b.nodeId}
+                  </text>
+                )}
+              </g>
+            );
+          })}
         </g>
       </svg>
     </div>
