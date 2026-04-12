@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   PLANET_MAP, PLANET_COLORS,
   parseAstroOutput, getRuler,
+  signDegreeToLon, computeAspect,
 } from '../../src/terminal/mercury/tfgAstroHelpers';
 
 describe('PLANET_MAP', () => {
@@ -71,4 +72,39 @@ describe('getRuler', () => {
   it('group 11 → Sun',     () => expect(getRuler({ group: 11,   block: 'd' })).toBe('Sun'));
   it('group 13 → Mercury', () => expect(getRuler({ group: 13,   block: 'p' })).toBe('Mercury'));
   it('group 17 → Jupiter', () => expect(getRuler({ group: 17,   block: 'p' })).toBe('Jupiter'));
+});
+
+describe('signDegreeToLon', () => {
+  it('Aries 0° → 0',          () => expect(signDegreeToLon('Aries', 0)).toBe(0));
+  it('Taurus 0° → 30',        () => expect(signDegreeToLon('Taurus', 0)).toBe(30));
+  it('Pisces 29° → 359',      () => expect(signDegreeToLon('Pisces', 29)).toBe(359));
+  it('Capricorn 10° → 280',   () => expect(signDegreeToLon('Capricorn', 10)).toBe(280));
+});
+
+describe('computeAspect', () => {
+  it('same sign/degree → Conjunct orb 0', () => {
+    const a = computeAspect('Aries', 0, 'Aries', 0);
+    expect(a).not.toBeNull();
+    expect(a.name).toBe('Conjunct');
+    expect(parseFloat(a.orb)).toBe(0);
+  });
+  it('120° apart → Trine', () => {
+    const a = computeAspect('Aries', 0, 'Leo', 0);
+    expect(a?.name).toBe('Trine');
+  });
+  it('180° apart → Opposite', () => {
+    const a = computeAspect('Aries', 0, 'Libra', 0);
+    expect(a?.name).toBe('Opposite');
+  });
+  it('no major aspect → null', () => {
+    // 45° apart — no major aspect
+    const a = computeAspect('Aries', 0, 'Taurus', 15);
+    expect(a).toBeNull();
+  });
+  it('handles wrap-around (Pisces to Aries)', () => {
+    // Pisces 25° ≈ 355°, Aries 5° = 5° → sep = 10° → within Conjunct orb 8? No, 10>8
+    // Pisces 0° = 330°, Aries 0° = 0° → sep = 30° — no major aspect
+    const a = computeAspect('Pisces', 0, 'Aries', 0);
+    expect(a).toBeNull(); // 30° is no major aspect
+  });
 });

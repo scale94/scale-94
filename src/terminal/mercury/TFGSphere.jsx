@@ -4,7 +4,7 @@ import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { ELEMENTS } from '../data/periodicElements';
 import { loadWasm } from '../../wasm/wasmSingleton';
-import { PLANET_MAP, PLANET_COLORS, parseAstroOutput, getRuler } from './tfgAstroHelpers';
+import { PLANET_MAP, PLANET_COLORS, parseAstroOutput, getRuler, computeAspect } from './tfgAstroHelpers';
 
 const SPHERE_RADIUS = 2.8;
 const BASE_SIZE     = 0.055;
@@ -84,13 +84,19 @@ export default function TFGSphere() {
   const matRef      = useRef();
   const driftRef    = useRef(null);
 
-  // Click state
-  const [activeIdx,    setActiveIdx]    = useState(null); // clicked non-Hg element index
+  // Selection state: [firstIdx, secondIdx] — null = empty slot
+  // First tap selects, second tap on different element draws a connection line.
+  // Tapping the same element deselects. Tapping a third element shifts: [1]→[0], new→[1].
+  const [selection,    setSelection]    = useState([null, null]);
   const [hgActive,     setHgActive]     = useState(false);
   const [readingText,  setReadingText]  = useState('');
+  const [astroCache,   setAstroCache]   = useState(null); // parsed run_astro output
   const ringRef     = useRef();
   const pulseRef    = useRef({ active: false, t: 0, idx: -1 });
   const prevTimeRef = useRef(0);
+
+  // Convenience: first and second selected indices
+  const [selA, selB] = selection;
 
   const { nonHgElements, positions, phaseAlignments } = useMemo(() => {
     const els  = ELEMENTS.filter(e => e.atomicNumber !== 80);
@@ -144,19 +150,66 @@ export default function TFGSphere() {
     };
   }, [geo, mat]);
 
-  // Fetch planetary reading when a non-Hg element is clicked
+  // Fetch astro data once on first selection, cache it for connection labels
   useEffect(() => {
-    const idx = activeIdx;
-    if (idx === null) { setReadingText(''); return; }
-    const el = nonHgElements[idx];
-    setReadingText('computing...');
+    if (selA === null && !hgActive) { setReadingText(''); return; }
+    if (astroCache) return; // already loaded this session
     loadWasm().then(wasm => {
-      if (activeIdx !== idx) return; // stale click
-      const raw    = wasm.run_astro(Date.now());
-      const parsed = parseAstroOutput(raw);
+      const parsed = parseAstroOutput(wasm.run_astro(Date.now()));
+      setAstroCache(parsed);
+    });
+  }, [selA, hgActive, astroCache]);
+
+  // Compute reading text from cache whenever selection or cache changes
+  useEffect(() => {
+    if (!astroCache) return;
+
+    // Two elements selected → show connection label
+    if (selA !== null && selB !== null) {
+      const elA = nonHgElements[selA];
+      const elB = nonHgElements[selB];
+      const pA  = PLANET_MAP[elA.atomicNumber];
+      const pB  = PLANET_MAP[elB.atomicNumber];
+      if (pA && pB && astroCache[pA] && astroCache[pB]) {
+        const dA = astroCache[pA];
+        const dB = astroCache[pB];
+        const asp = computeAspect(dA.sign, dA.degree, dB.sign, dB.degree);
+        setReadingText(
+          `${pA} \u2014 ${pB}\n` +
+          `${asp ? `${asp.name} (orb ${asp.orb}\u00b0)` : 'No major aspect'}\n` +
+          `${elA.symbol} ${dA.sign} ${dA.degree.toFixed(0)}\u00b0\n` +
+          `${elB.symbol} ${dB.sign} ${dB.degree.toFixed(0)}\u00b0`
+        );
+      } else {
+        const delta = Math.abs(elA.phaseAffinity - elB.phaseAffinity);
+        const ruler = (e) => PLANET_MAP[e.atomicNumber] || getRuler(e);
+        setReadingText(
+          `${elA.symbol} \u2014 ${elB.symbol}\n` +
+          `\u0394 affinity: ${(delta * 100).toFixed(0)}%\n` +
+          `${elA.symbol} ruled by ${ruler(elA)}\n` +
+          `${elB.symbol} ruled by ${ruler(elB)}`
+        );
+      }
+      return;
+    }
+
+    // Single selection → show individual reading
+    const idx = selA ?? (hgActive ? 'hg' : null);
+    if (idx === null) { setReadingText(''); return; }
+
+    if (idx === 'hg') {
+      const d = astroCache['Mercury'] || {};
+      setReadingText(
+        `MERCURY \u00b7 Hg\n` +
+        `${d.sign || '?'} ${(d.degree || 0).toFixed(0)}\u00b0\n` +
+        `Retro: ${d.retrograde ? 'Yes \u211e' : 'No'}\n` +
+        `${d.aspect || '\u2014'}`
+      );
+    } else {
+      const el     = nonHgElements[idx];
       const planet = PLANET_MAP[el.atomicNumber];
-      if (planet && parsed[planet]) {
-        const d = parsed[planet];
+      if (planet && astroCache[planet]) {
+        const d = astroCache[planet];
         setReadingText(
           `${planet.toUpperCase()} \u00b7 ${el.symbol}\n` +
           `${d.sign} ${d.degree.toFixed(0)}\u00b0\n` +
@@ -165,31 +218,14 @@ export default function TFGSphere() {
         );
       } else {
         const ruler = getRuler(el);
-        const d     = parsed[ruler] || {};
+        const d     = astroCache[ruler] || {};
         setReadingText(
           `${el.symbol} \u2014 ruled by ${ruler}\n` +
           (d.sign ? `${d.sign} ${(d.degree || 0).toFixed(0)}\u00b0` : '\u2014')
         );
       }
-    });
-  }, [activeIdx, nonHgElements]);
-
-  // Fetch Hg / Mercury reading when anchor is clicked
-  useEffect(() => {
-    if (!hgActive) { setReadingText(''); return; }
-    setReadingText('computing...');
-    loadWasm().then(wasm => {
-      const raw    = wasm.run_astro(Date.now());
-      const parsed = parseAstroOutput(raw);
-      const d      = parsed['Mercury'] || {};
-      setReadingText(
-        `MERCURY \u00b7 Hg\n` +
-        `${d.sign || '?'} ${(d.degree || 0).toFixed(0)}\u00b0\n` +
-        `Retro: ${d.retrograde ? 'Yes \u211e' : 'No'}\n` +
-        `${d.aspect || '\u2014'}`
-      );
-    });
-  }, [hgActive]);
+    }
+  }, [selA, selB, hgActive, astroCache, nonHgElements]);
 
   useFrame((state) => {
     const t     = state.clock.elapsedTime;
@@ -240,16 +276,101 @@ export default function TFGSphere() {
 
   return (
     <group ref={groupRef}>
-      {/* Orbital ring — spawns on click, color-coded by planet */}
-      {activeIdx !== null && (() => {
-        const p   = positions[activeIdx];
-        const el  = nonHgElements[activeIdx];
+      {/* Ring on first selected element (selA) */}
+      {selA !== null && (() => {
+        const p   = positions[selA];
+        const el  = nonHgElements[selA];
         const col = PLANET_COLORS[el.atomicNumber] ?? '#404050';
         return (
           <mesh ref={ringRef} position={[p.x, p.y, p.z]} rotation={[Math.PI / 6, 0, 0]}>
             <torusGeometry args={[BASE_SIZE * 3, 0.008, 8, 48]} />
             <meshBasicMaterial color={col} transparent opacity={0.9} />
           </mesh>
+        );
+      })()}
+
+      {/* Dim ring on second selected element (selB) */}
+      {selB !== null && (() => {
+        const p   = positions[selB];
+        const el  = nonHgElements[selB];
+        const col = PLANET_COLORS[el.atomicNumber] ?? '#404050';
+        return (
+          <mesh position={[p.x, p.y, p.z]} rotation={[Math.PI / 6, 0, 0]}>
+            <torusGeometry args={[BASE_SIZE * 3, 0.008, 8, 48]} />
+            <meshBasicMaterial color={col} transparent opacity={0.55} />
+          </mesh>
+        );
+      })()}
+
+      {/* Connection line between selA and selB */}
+      {selA !== null && selB !== null && (() => {
+        const pA  = positions[selA];
+        const pB  = positions[selB];
+        const elA = nonHgElements[selA];
+        const elB = nonHgElements[selB];
+        const colA = PLANET_COLORS[elA.atomicNumber] ?? '#404050';
+        const colB = PLANET_COLORS[elB.atomicNumber] ?? '#404050';
+        // Blend the two colors by averaging hex components
+        const blend = (c1, c2) => {
+          const r1 = parseInt(c1.slice(1,3),16), g1 = parseInt(c1.slice(3,5),16), b1 = parseInt(c1.slice(5,7),16);
+          const r2 = parseInt(c2.slice(1,3),16), g2 = parseInt(c2.slice(3,5),16), b2 = parseInt(c2.slice(5,7),16);
+          return `#${Math.round((r1+r2)/2).toString(16).padStart(2,'0')}${Math.round((g1+g2)/2).toString(16).padStart(2,'0')}${Math.round((b1+b2)/2).toString(16).padStart(2,'0')}`;
+        };
+        const lineColor = blend(colA, colB);
+        const pts = new Float32Array([pA.x, pA.y, pA.z, pB.x, pB.y, pB.z]);
+        const mid = { x: (pA.x+pB.x)/2, y: (pA.y+pB.y)/2 + 0.3, z: (pA.z+pB.z)/2 };
+        return (
+          <>
+            <line>
+              <bufferGeometry>
+                <bufferAttribute attach="attributes-position" args={[pts, 3]} />
+              </bufferGeometry>
+              <lineBasicMaterial color={lineColor} transparent opacity={0.7} />
+            </line>
+            {readingText && (
+              <Html position={[mid.x, mid.y, mid.z]} style={{
+                background:    'rgba(0,0,0,0.85)',
+                border:        `1px solid ${lineColor}66`,
+                color:         '#c0c0c0',
+                fontFamily:    'monospace',
+                fontSize:      '9px',
+                padding:       '5px 7px',
+                whiteSpace:    'pre',
+                pointerEvents: 'none',
+                userSelect:    'none',
+                borderRadius:  '3px',
+                minWidth:      '120px',
+                maxWidth:      '200px',
+                transform:     'translateX(-50%)',
+              }}>
+                {readingText}
+              </Html>
+            )}
+          </>
+        );
+      })()}
+
+      {/* Single-selection reading panel (only when one element, no connection) */}
+      {readingText && (selA !== null && selB === null || hgActive) && (() => {
+        const p = selA !== null ? positions[selA] : { x: 0, y: SPHERE_RADIUS, z: 0 };
+        return (
+          <Html position={[p.x, p.y + 0.45, p.z]} style={{
+            background:    'rgba(0,0,0,0.85)',
+            border:        '1px solid rgba(217,70,239,0.4)',
+            color:         '#c0c0c0',
+            fontFamily:    'monospace',
+            fontSize:      '9px',
+            padding:       '6px 8px',
+            whiteSpace:    'pre',
+            pointerEvents: 'none',
+            userSelect:    'none',
+            borderRadius:  '3px',
+            minWidth:      '120px',
+            maxWidth:      '200px',
+            transform:     'translateX(-50%)',
+          }}>
+            {readingText}
+          </Html>
         );
       })()}
 
@@ -260,35 +381,6 @@ export default function TFGSphere() {
         </mesh>
       )}
 
-      {/* Reading panel — appears after WASM resolves */}
-      {readingText && (activeIdx !== null || hgActive) && (() => {
-        const p = activeIdx !== null
-          ? positions[activeIdx]
-          : { x: 0, y: SPHERE_RADIUS, z: 0 };
-        return (
-          <Html
-            position={[p.x, p.y + 0.45, p.z]}
-            style={{
-              background:    'rgba(0,0,0,0.85)',
-              border:        '1px solid rgba(217,70,239,0.4)',
-              color:         '#c0c0c0',
-              fontFamily:    'monospace',
-              fontSize:      '9px',
-              padding:       '6px 8px',
-              whiteSpace:    'pre',
-              pointerEvents: 'none',
-              userSelect:    'none',
-              borderRadius:  '3px',
-              minWidth:      '120px',
-              maxWidth:      '200px',
-              transform:     'translateX(-50%)',
-            }}
-          >
-            {readingText}
-          </Html>
-        );
-      })()}
-
       {/* 117 non-Hg elements — single draw call */}
       <instancedMesh
         ref={meshRef}
@@ -298,11 +390,16 @@ export default function TFGSphere() {
           const idx = e.instanceId;
           if (idx === undefined || idx === null) return;
           const el = nonHgElements[idx];
-          if (PLANET_MAP[el.atomicNumber]) {
-            pulseRef.current = { active: true, t: 0, idx };
-          }
+          if (PLANET_MAP[el.atomicNumber]) pulseRef.current = { active: true, t: 0, idx };
           setHgActive(false);
-          setActiveIdx(prev => prev === idx ? null : idx);
+          setAstroCache(null); // refresh data on new selection pair
+          setSelection(prev => {
+            const [a, b] = prev;
+            if (a === idx) return [null, null];          // deselect
+            if (a === null) return [idx, null];          // first pick
+            if (b === idx) return [a, null];             // deselect second
+            return [a, idx];                             // second pick → connection
+          });
         }}
       />
 
@@ -311,7 +408,8 @@ export default function TFGSphere() {
         position={hgPos}
         onClick={(e) => {
           e.stopPropagation();
-          setActiveIdx(null);
+          setSelection([null, null]);
+          setAstroCache(null);
           setHgActive(v => !v);
         }}
       >

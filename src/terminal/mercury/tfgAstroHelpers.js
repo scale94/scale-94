@@ -43,6 +43,42 @@ export function parseAstroOutput(raw) {
   return result;
 }
 
+const SIGN_ORDER = [
+  'Aries','Taurus','Gemini','Cancer','Leo','Virgo',
+  'Libra','Scorpio','Sagittarius','Capricorn','Aquarius','Pisces',
+];
+
+const ASPECT_DEFS = [
+  { angle: 0,   orb: 8, name: 'Conjunct' },
+  { angle: 60,  orb: 6, name: 'Sextile'  },
+  { angle: 90,  orb: 7, name: 'Square'   },
+  { angle: 120, orb: 8, name: 'Trine'    },
+  { angle: 180, orb: 8, name: 'Opposite' },
+];
+
+// Convert zodiac sign + degree to ecliptic longitude 0–360
+export function signDegreeToLon(sign, degree) {
+  const idx = SIGN_ORDER.indexOf(sign);
+  return idx < 0 ? 0 : idx * 30 + degree;
+}
+
+// Compute the tightest major aspect between two planetary positions.
+// Returns { name, orb } or null if no major aspect within orb.
+export function computeAspect(sign1, deg1, sign2, deg2) {
+  const lon1 = signDegreeToLon(sign1, deg1);
+  const lon2 = signDegreeToLon(sign2, deg2);
+  let sep = Math.abs(lon1 - lon2) % 360;
+  if (sep > 180) sep = 360 - sep;
+  let best = null;
+  for (const { angle, orb, name } of ASPECT_DEFS) {
+    const diff = Math.abs(sep - angle);
+    if (diff <= orb && (!best || diff < best.diff)) {
+      best = { name, orb: diff.toFixed(0), diff };
+    }
+  }
+  return best ? { name: best.name, orb: best.orb } : null;
+}
+
 // Ruling planet for non-planetary elements, by periodic group
 export function getRuler(element) {
   const { group, block } = element;
