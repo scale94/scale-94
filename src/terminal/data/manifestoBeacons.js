@@ -26,7 +26,7 @@ export const MANIFESTO_BEACONS = [
   { nodeId: 'chaos_attractor', chapter: 'feature_space', quote: 'dynamical axis — static equilibrium to stochastic PDE' },
 
   // ── §3 BONE FUSION ────────────────────────────────────────────────────
-  { nodeId: 'persistent_hom',  chapter: 'bone_fusion',  quote: 'topological persistence: features survive compression when structurally essential' },
+  { nodeId: 'magic_angle_1p1', chapter: 'bone_fusion',  quote: 'at exactly 1.1°, twisted bilayer graphene forms Moiré flat bands' },
   { nodeId: 'mobius',          chapter: 'bone_fusion',  quote: 'the engine drives tensors toward convergence threshold τ = 0.9990' },
   { nodeId: 'homology',        chapter: 'bone_fusion',  quote: 'saponification asks: strip metabolic cost, are these structurally equivalent?' },
   { nodeId: 'edge_chaos',      chapter: 'bone_fusion',  quote: 'the 1.1° rotation induces constructive interference without destroying tensors' },
@@ -35,7 +35,7 @@ export const MANIFESTO_BEACONS = [
   { nodeId: 'isomorphism',     chapter: 'bone_fusion',  quote: 'some systems are structurally incompatible at a level stripping cannot dissolve' },
 
   // ── §4 SARG ───────────────────────────────────────────────────────────
-  { nodeId: 'embodied_cog',    chapter: 'sarg',         quote: 'consciousness emerges from the body — neural dynamics shape phenomenal experience' },
+  { nodeId: 'seraphine',       chapter: 'sarg',         quote: 'n active clusters as a quantum density matrix in H^n' },
   { nodeId: 'global_workspace',chapter: 'sarg',         quote: 'SARG(t) = C_l1(t) · (1 + λ_e · Δ(t)) — peak at t* = 1/γ' },
   { nodeId: 'binding_problem', chapter: 'sarg',         quote: 'off-diagonal elements encode associative coherence between concepts' },
   { nodeId: 'sublime',         chapter: 'sarg',         quote: 'narrative compellingness and geometric similarity are negatively correlated' },
