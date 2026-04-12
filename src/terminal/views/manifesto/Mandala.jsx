@@ -11,6 +11,7 @@ import { NODES, NODE_IDX, FEATURES } from '../../data/nodeFeatures';
 import { nodeColor } from '../../data/kernelColorMap';
 import { MANIFESTO_BEACONS } from '../../data/manifestoBeacons';
 import CenterHUD from './CenterHUD';
+import BeaconCard from './BeaconCard';
 
 // Tailwind color tokens used throughout (match existing terminal palette).
 const RING_STROKE = '#164e63';
@@ -39,8 +40,26 @@ const Mandala = ({ setArchitectThesis, systemArticles }) => {
   const [hover, setHover] = useState(null);
   // hover shape: { type: 'beacon', data: beaconObject } | { type: 'chapter', data: chapterObject } | null
 
+  const [selected, setSelected] = useState(null);
+  // selected shape: a beacon object, or null.
+
   const handleBeaconEnter = (beacon) => setHover({ type: 'beacon', data: beacon });
   const handleBeaconLeave = () => setHover(null);
+
+  const handleBeaconClick = (beacon, e) => {
+    e?.stopPropagation?.();
+    setSelected(beacon);
+  };
+
+  const closeSelected = () => setSelected(null);
+
+  // Esc key closes.
+  useEffect(() => {
+    if (!selected) return;
+    const onKey = (e) => { if (e.key === 'Escape') closeSelected(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selected]);
 
   // Responsive outer radius (spec §6.3).
   const minDim = Math.min(width, height);
@@ -49,6 +68,8 @@ const Mandala = ({ setArchitectThesis, systemArticles }) => {
   else if (minDim < 720 && minDim >= 480) radiusScale = 0.46;
   else if (minDim < 480) radiusScale = 0.48;
   const R = minDim * radiusScale;
+
+  const isMobile = minDim < 720;
 
   const cx = width / 2;
   const cy = height / 2;
@@ -119,122 +140,155 @@ const Mandala = ({ setArchitectThesis, systemArticles }) => {
         viewBox={viewBox}
         style={{ display: 'block' }}
       >
-        {/* ── Chapter territory wedges ─────────────────────────── */}
-        <g>
-          {chapterWedges.map((w, i) => {
-            const isHovered = hover?.type === 'chapter' && hover.data.id === w.id;
-            return (
-              <path
-                key={w.id}
-                d={wedgePath(w.startAngle, w.endAngle, R)}
-                fill={w.fill}
-                stroke="none"
-                opacity={isHovered ? 2.2 : 1}
-                onMouseEnter={() => setHover({ type: 'chapter', data: CHAPTER_BY_ID[w.id] })}
-                onMouseLeave={() => setHover(null)}
-                style={{ cursor: 'pointer', pointerEvents: 'all' }}
-              />
-            );
-          })}
-        </g>
-
-        {/* ── Concentric rings ─────────────────────────────────── */}
-        <g>
-          <circle r={R} fill="none" stroke={RING_STROKE} strokeWidth="0.8" />
-          <circle r={R * 0.75} fill="none" stroke={RING_STROKE} strokeWidth="0.4" strokeDasharray="2 4" opacity="0.7" />
-          <circle r={R * 0.5} fill="none" stroke={RING_STROKE} strokeWidth="0.4" strokeDasharray="2 4" opacity="0.7" />
-          <circle r={R * 0.25} fill="none" stroke={RING_STROKE} strokeWidth="0.4" strokeDasharray="2 4" opacity="0.7" />
-        </g>
-
-        {/* ── 16 sector spokes ─────────────────────────────────── */}
-        <g>
-          {MANDALA_SECTOR_ORDER.map((_, i) => {
-            const { x, y } = polarToCartesian(sectorAngle(i), R);
-            return (
-              <line
-                key={i}
-                x1="0" y1="0"
-                x2={x.toFixed(2)} y2={y.toFixed(2)}
-                stroke={SPOKE_STROKE}
-                strokeWidth="0.3"
-                opacity="0.8"
-              />
-            );
-          })}
-        </g>
-
-        {/* ── 256 ambient specks ────────────────────────────────── */}
-        <g>
-          {specks.map(s => (
-            <circle
-              key={s.id}
-              cx={s.x.toFixed(2)}
-              cy={s.y.toFixed(2)}
-              r={minDim < 480 ? 0.5 : minDim < 720 ? 0.6 : minDim < 960 ? 0.8 : 1}
-              fill="#06b6d4"
-              opacity={minDim < 480 ? 0.20 : minDim < 720 ? 0.25 : 0.35}
-            />
-          ))}
-        </g>
-
-        {/* ── ~36 curated beacons ───────────────────────────────── */}
-        <g>
-          {beacons.map(b => {
-            const isHovered = hover?.type === 'beacon' && hover.data.nodeId === b.nodeId;
-            const dist = Math.hypot(b.x, b.y) || 1;
-            const labelX = b.x + (b.x / dist) * 10;
-            const labelY = b.y + (b.y / dist) * 10;
-            return (
-              <g
-                key={b.nodeId}
-                onMouseEnter={() => handleBeaconEnter(b)}
-                onMouseLeave={handleBeaconLeave}
-                style={{ cursor: 'pointer' }}
-              >
-                {/* Invisible hit box for touch / small beacons (36x36). */}
-                <rect
-                  x={(b.x - 18).toFixed(2)}
-                  y={(b.y - 18).toFixed(2)}
-                  width="36"
-                  height="36"
-                  fill="transparent"
+        <defs>
+          <style>{`
+            g[role="button"]:focus-visible circle {
+              stroke: #ffffff !important;
+              stroke-opacity: 0.9 !important;
+            }
+          `}</style>
+        </defs>
+        <g
+          style={{
+            filter: selected ? 'blur(3px) brightness(0.4)' : 'none',
+            transition: 'filter 250ms ease',
+          }}
+        >
+          {/* ── Chapter territory wedges ─────────────────────────── */}
+          <g>
+            {chapterWedges.map((w, i) => {
+              const isHovered = hover?.type === 'chapter' && hover.data.id === w.id;
+              return (
+                <path
+                  key={w.id}
+                  d={wedgePath(w.startAngle, w.endAngle, R)}
+                  fill={w.fill}
+                  stroke="none"
+                  opacity={isHovered ? 2.2 : 1}
+                  onMouseEnter={() => setHover({ type: 'chapter', data: CHAPTER_BY_ID[w.id] })}
+                  onMouseLeave={() => setHover(null)}
+                  style={{ cursor: 'pointer', pointerEvents: 'all' }}
                 />
-                <circle
-                  cx={b.x.toFixed(2)}
-                  cy={b.y.toFixed(2)}
-                  r={isHovered ? 4 : 3}
-                  fill={b.color}
-                  stroke={b.color}
-                  strokeOpacity={isHovered ? 0.7 : 0.3}
-                  strokeWidth="4"
+              );
+            })}
+          </g>
+
+          {/* ── Concentric rings ─────────────────────────────────── */}
+          <g>
+            <circle r={R} fill="none" stroke={RING_STROKE} strokeWidth="0.8" />
+            <circle r={R * 0.75} fill="none" stroke={RING_STROKE} strokeWidth="0.4" strokeDasharray="2 4" opacity="0.7" />
+            <circle r={R * 0.5} fill="none" stroke={RING_STROKE} strokeWidth="0.4" strokeDasharray="2 4" opacity="0.7" />
+            <circle r={R * 0.25} fill="none" stroke={RING_STROKE} strokeWidth="0.4" strokeDasharray="2 4" opacity="0.7" />
+          </g>
+
+          {/* ── 16 sector spokes ─────────────────────────────────── */}
+          <g>
+            {MANDALA_SECTOR_ORDER.map((_, i) => {
+              const { x, y } = polarToCartesian(sectorAngle(i), R);
+              return (
+                <line
+                  key={i}
+                  x1="0" y1="0"
+                  x2={x.toFixed(2)} y2={y.toFixed(2)}
+                  stroke={SPOKE_STROKE}
+                  strokeWidth="0.3"
+                  opacity="0.8"
                 />
-                {showLabels && (
-                  <text
-                    x={labelX.toFixed(2)}
-                    y={labelY.toFixed(2)}
+              );
+            })}
+          </g>
+
+          {/* ── 256 ambient specks ────────────────────────────────── */}
+          <g>
+            {specks.map(s => (
+              <circle
+                key={s.id}
+                cx={s.x.toFixed(2)}
+                cy={s.y.toFixed(2)}
+                r={minDim < 480 ? 0.5 : minDim < 720 ? 0.6 : minDim < 960 ? 0.8 : 1}
+                fill="#06b6d4"
+                opacity={minDim < 480 ? 0.20 : minDim < 720 ? 0.25 : 0.35}
+              />
+            ))}
+          </g>
+
+          {/* ── ~36 curated beacons ───────────────────────────────── */}
+          <g>
+            {beacons.map(b => {
+              const isHovered = hover?.type === 'beacon' && hover.data.nodeId === b.nodeId;
+              const dist = Math.hypot(b.x, b.y) || 1;
+              const labelX = b.x + (b.x / dist) * 10;
+              const labelY = b.y + (b.y / dist) * 10;
+              return (
+                <g
+                  key={b.nodeId}
+                  onMouseEnter={() => handleBeaconEnter(b)}
+                  onMouseLeave={handleBeaconLeave}
+                  onClick={(e) => handleBeaconClick(b, e)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  {/* Invisible hit box for touch / small beacons (36x36). */}
+                  <rect
+                    x={(b.x - 18).toFixed(2)}
+                    y={(b.y - 18).toFixed(2)}
+                    width="36"
+                    height="36"
+                    fill="transparent"
+                  />
+                  <circle
+                    cx={b.x.toFixed(2)}
+                    cy={b.y.toFixed(2)}
+                    r={isHovered ? 4 : 3}
                     fill={b.color}
-                    fontFamily="monospace"
-                    fontSize="7"
-                    fontWeight={isHovered ? 'bold' : 'normal'}
-                    textAnchor={b.x >= 0 ? 'start' : 'end'}
-                    dominantBaseline="middle"
-                  >
-                    {b.nodeId}
-                  </text>
-                )}
-              </g>
-            );
-          })}
+                    stroke={b.color}
+                    strokeOpacity={isHovered ? 0.7 : 0.3}
+                    strokeWidth="4"
+                  />
+                  {showLabels && (
+                    <text
+                      x={labelX.toFixed(2)}
+                      y={labelY.toFixed(2)}
+                      fill={b.color}
+                      fontFamily="monospace"
+                      fontSize="7"
+                      fontWeight={isHovered ? 'bold' : 'normal'}
+                      textAnchor={b.x >= 0 ? 'start' : 'end'}
+                      dominantBaseline="middle"
+                    >
+                      {b.nodeId}
+                    </text>
+                  )}
+                </g>
+              );
+            })}
+          </g>
         </g>
 
+        {/* Center HUD is NOT blurred — it absorbs the close affordance. */}
         <CenterHUD
           radius={hudRadius}
           hover={hover}
-          selected={false}
+          selected={!!selected}
           onOpenThesis={() => setArchitectThesis?.(true)}
-          onClose={undefined}
+          onClose={closeSelected}
         />
       </svg>
+
+      {selected && (
+        <>
+          {/* Click-outside overlay. */}
+          <div
+            className="absolute inset-0"
+            style={{ zIndex: 30 }}
+            onClick={closeSelected}
+          />
+          <BeaconCard
+            beacon={selected}
+            onClose={closeSelected}
+            isMobile={isMobile}
+          />
+        </>
+      )}
     </div>
   );
 };
