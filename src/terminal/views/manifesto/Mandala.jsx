@@ -10,6 +10,7 @@ import { MANIFESTO_CHAPTERS } from '../../data/manifestoChapters';
 import { NODES, NODE_IDX, FEATURES } from '../../data/nodeFeatures';
 import { nodeColor } from '../../data/kernelColorMap';
 import { MANIFESTO_BEACONS } from '../../data/manifestoBeacons';
+import CenterHUD from './CenterHUD';
 
 // Tailwind color tokens used throughout (match existing terminal palette).
 const RING_STROKE = '#164e63';
@@ -98,6 +99,7 @@ const Mandala = ({ setArchitectThesis, systemArticles }) => {
   }, [R]);
 
   const showLabels = minDim >= 720;
+  const hudRadius = minDim < 480 ? 44 : minDim < 720 ? 48 : minDim < 960 ? 54 : 60;
 
   return (
     <div
@@ -197,6 +199,14 @@ const Mandala = ({ setArchitectThesis, systemArticles }) => {
             );
           })}
         </g>
+
+        <CenterHUD
+          radius={hudRadius}
+          hover={null}
+          selected={false}
+          onOpenThesis={() => setArchitectThesis?.(true)}
+          onClose={undefined}
+        />
       </svg>
     </div>
   );
