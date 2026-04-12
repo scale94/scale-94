@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { ELEMENTS } from '../data/periodicElements';
 
 const SPHERE_RADIUS = 2.8;
-const BASE_SIZE     = 0.055;  // sphere geometry radius for each element node
+const BASE_SIZE     = 0.055;
 
 // Fibonacci sphere: distributes n points uniformly on a sphere of given radius.
 function fibonacciSphere(n, radius) {
@@ -107,10 +107,12 @@ export default function TFGSphere() {
     transparent: true,
   }), []);
 
-  matRef.current = mat;
+  // Sync matRef inside an effect — keeps render body pure
+  useEffect(() => { matRef.current = mat; }, [mat]);
 
   const dummy = useMemo(() => new THREE.Object3D(), []);
 
+  // Set initial instance matrices and initialise drift state
   useEffect(() => {
     const mesh = meshRef.current;
     if (!mesh) return;
@@ -121,11 +123,20 @@ export default function TFGSphere() {
     }
     mesh.instanceMatrix.needsUpdate = true;
     driftRef.current = new Float32Array(nonHgElements.length);
+    // dummy is a stable useMemo ref — this effect runs once on mount only
   }, [nonHgElements, positions, dummy]);
 
+  // Dispose GPU resources on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      geo.dispose();
+      mat.dispose();
+    };
+  }, [geo, mat]);
+
   useFrame((state) => {
-    const t    = state.clock.elapsedTime;
-    const mesh = meshRef.current;
+    const t     = state.clock.elapsedTime;
+    const mesh  = meshRef.current;
     const drift = driftRef.current;
 
     if (matRef.current) matRef.current.uniforms.uTime.value = t;
@@ -151,10 +162,8 @@ export default function TFGSphere() {
 
   return (
     <group ref={groupRef}>
-      {/* 117 non-Hg elements — single draw call */}
       <instancedMesh ref={meshRef} args={[geo, mat, nonHgElements.length]} />
 
-      {/* Hg anchor node — north pole, amber-gold */}
       <mesh position={hgPos}>
         <sphereGeometry args={[BASE_SIZE * 3, 16, 16]} />
         <meshStandardMaterial
@@ -180,7 +189,6 @@ export default function TFGSphere() {
         </Html>
       </mesh>
 
-      {/* Labels for locked tier only (phaseAffinity ≥ 0.70) */}
       {nonHgElements.map((el, i) => {
         if (el.phaseAffinity < 0.70) return null;
         const p = positions[i];

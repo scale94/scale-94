@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Hexagon, ChevronRight, Globe, MessageSquare, Zap, FileText, Cpu } from 'lucide-react';
 import LatentCollider from './LatentCollider';
+import TFGCanvas from '../mercury/TFGCanvas';
 
 // ── Gold particle burst system ──────────────────────────────────────────────
 function useParticleBurst(canvasRef) {
@@ -173,6 +174,18 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, loadKernel }) => {
             SOVEREIGN ARCHITECTURE // SCALE94 DEPLOYMENT STACK
           </div>
         </div>
+      </div>
+
+      {/* ── TFG Sphere (new hero) ── */}
+      <div
+        className="border-b border-fuchsia-900/40 pb-8 mb-8"
+        style={{ opacity: 0, animation: 'sc-cardReveal 0.6s cubic-bezier(0.16,1,0.3,1) 0.15s forwards' }}
+      >
+        <div className="text-[10px] font-bold text-cyan-500/70 uppercase tracking-widest mb-3 flex items-center gap-2">
+          <span style={{ color: 'rgba(192,192,192,0.5)', fontSize: 14 }}>◉</span>
+          THALAMIC FLAT-BAND GATING · HG #80 · PHASE-SELECTIVE REALITY FILTER
+        </div>
+        <TFGCanvas />
       </div>
 
       {/* ── Latent Space Collider (hero section) ── */}
