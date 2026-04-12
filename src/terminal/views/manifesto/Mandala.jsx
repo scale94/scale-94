@@ -1,11 +1,13 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import {
   MANDALA_SECTOR_ORDER,
   sectorAngle,
   polarToCartesian,
   wedgePath,
+  nodePosition,
 } from './MandalaGeometry';
 import { MANIFESTO_CHAPTERS } from '../../data/manifestoChapters';
+import { NODES, FEATURES } from '../../data/nodeFeatures';
 
 // Tailwind color tokens used throughout (match existing terminal palette).
 const RING_STROKE = '#164e63';
@@ -67,6 +69,14 @@ const Mandala = ({ setArchitectThesis, systemArticles }) => {
     });
   })();
 
+  // Pre-compute speck positions once per radius change.
+  const specks = useMemo(() => {
+    return NODES.map((n, idx) => ({
+      id: n.id,
+      ...nodePosition(n, FEATURES[idx], R),
+    }));
+  }, [R]);
+
   return (
     <div
       ref={containerRef}
@@ -114,6 +124,20 @@ const Mandala = ({ setArchitectThesis, systemArticles }) => {
               />
             );
           })}
+        </g>
+
+        {/* ── 256 ambient specks ────────────────────────────────── */}
+        <g>
+          {specks.map(s => (
+            <circle
+              key={s.id}
+              cx={s.x.toFixed(2)}
+              cy={s.y.toFixed(2)}
+              r={minDim < 480 ? 0.5 : minDim < 720 ? 0.6 : minDim < 960 ? 0.8 : 1}
+              fill="#06b6d4"
+              opacity={minDim < 480 ? 0.20 : minDim < 720 ? 0.25 : 0.35}
+            />
+          ))}
         </g>
       </svg>
     </div>
