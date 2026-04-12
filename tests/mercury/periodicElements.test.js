@@ -12,6 +12,7 @@ describe('ELEMENTS array', () => {
       expect(typeof el.name).toBe('string');
       expect(typeof el.atomicNumber).toBe('number');
       expect(typeof el.period).toBe('number');
+      expect(el.group === null || typeof el.group === 'number').toBe(true);
       expect(typeof el.block).toBe('string');
       expect(typeof el.phaseAffinity).toBe('number');
       expect(el.phaseAffinity).toBeGreaterThanOrEqual(0);
