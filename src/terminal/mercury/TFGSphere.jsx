@@ -107,10 +107,12 @@ export default function TFGSphere() {
     transparent: true,
   }), []);
 
-  matRef.current = mat;
+  // Sync matRef inside an effect — keeps render body pure
+  useEffect(() => { matRef.current = mat; }, [mat]);
 
   const dummy = useMemo(() => new THREE.Object3D(), []);
 
+  // Set initial instance matrices and initialise drift state
   useEffect(() => {
     const mesh = meshRef.current;
     if (!mesh) return;
@@ -121,7 +123,16 @@ export default function TFGSphere() {
     }
     mesh.instanceMatrix.needsUpdate = true;
     driftRef.current = new Float32Array(nonHgElements.length);
+    // dummy is a stable useMemo ref — this effect runs once on mount only
   }, [nonHgElements, positions, dummy]);
+
+  // Dispose GPU resources on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      geo.dispose();
+      mat.dispose();
+    };
+  }, [geo, mat]);
 
   useFrame((state) => {
     const t     = state.clock.elapsedTime;
