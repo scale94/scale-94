@@ -1212,7 +1212,10 @@ const App = () => {
 
           {/* Manifesto Tab */}
           {activeTab === 'manifesto' && !selectedArticle && !architectThesis && (
-            <ManifestoTab systemArticles={systemArticles} />
+            <ManifestoTab
+              systemArticles={systemArticles}
+              setArchitectThesis={setArchitectThesis}
+            />
           )}
 
           {/* Privacy Tab */}
