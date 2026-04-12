@@ -6,7 +6,7 @@ import {
   wedgePath,
   nodePosition,
 } from './MandalaGeometry';
-import { MANIFESTO_CHAPTERS } from '../../data/manifestoChapters';
+import { MANIFESTO_CHAPTERS, CHAPTER_BY_ID } from '../../data/manifestoChapters';
 import { NODES, NODE_IDX, FEATURES } from '../../data/nodeFeatures';
 import { nodeColor } from '../../data/kernelColorMap';
 import { MANIFESTO_BEACONS } from '../../data/manifestoBeacons';
@@ -121,14 +121,21 @@ const Mandala = ({ setArchitectThesis, systemArticles }) => {
       >
         {/* ── Chapter territory wedges ─────────────────────────── */}
         <g>
-          {chapterWedges.map(w => (
-            <path
-              key={w.id}
-              d={wedgePath(w.startAngle, w.endAngle, R)}
-              fill={w.fill}
-              stroke="none"
-            />
-          ))}
+          {chapterWedges.map((w, i) => {
+            const isHovered = hover?.type === 'chapter' && hover.data.id === w.id;
+            return (
+              <path
+                key={w.id}
+                d={wedgePath(w.startAngle, w.endAngle, R)}
+                fill={w.fill}
+                stroke="none"
+                opacity={isHovered ? 2.2 : 1}
+                onMouseEnter={() => setHover({ type: 'chapter', data: CHAPTER_BY_ID[w.id] })}
+                onMouseLeave={() => setHover(null)}
+                style={{ cursor: 'pointer', pointerEvents: 'all' }}
+              />
+            );
+          })}
         </g>
 
         {/* ── Concentric rings ─────────────────────────────────── */}
