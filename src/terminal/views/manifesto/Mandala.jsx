@@ -43,12 +43,37 @@ const Mandala = ({ setArchitectThesis, systemArticles }) => {
   const [selected, setSelected] = useState(null);
   // selected shape: a beacon object, or null.
 
+  // Responsive outer radius (spec §6.3).
+  const minDim = Math.min(width, height);
+  let radiusScale = 0.38;
+  if (minDim < 960 && minDim >= 720) radiusScale = 0.42;
+  else if (minDim < 720 && minDim >= 480) radiusScale = 0.46;
+  else if (minDim < 480) radiusScale = 0.48;
+  const R = minDim * radiusScale;
+
+  const isMobile = minDim < 720;
+
   const handleBeaconEnter = (beacon) => setHover({ type: 'beacon', data: beacon });
   const handleBeaconLeave = () => setHover(null);
 
   const handleBeaconClick = (beacon, e) => {
     e?.stopPropagation?.();
-    setSelected(beacon);
+    if (isMobile) {
+      // Two-tap: first tap = hover preview, second tap on same beacon = open.
+      if (hover?.type === 'beacon' && hover.data.nodeId === beacon.nodeId) {
+        setSelected(beacon);
+      } else {
+        setHover({ type: 'beacon', data: beacon });
+      }
+    } else {
+      setSelected(beacon);
+    }
+  };
+
+  const handleContainerClick = (e) => {
+    if (isMobile && !selected && e.target === e.currentTarget) {
+      setHover(null);
+    }
   };
 
   const closeSelected = () => setSelected(null);
@@ -60,16 +85,6 @@ const Mandala = ({ setArchitectThesis, systemArticles }) => {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [selected]);
-
-  // Responsive outer radius (spec §6.3).
-  const minDim = Math.min(width, height);
-  let radiusScale = 0.38;
-  if (minDim < 960 && minDim >= 720) radiusScale = 0.42;
-  else if (minDim < 720 && minDim >= 480) radiusScale = 0.46;
-  else if (minDim < 480) radiusScale = 0.48;
-  const R = minDim * radiusScale;
-
-  const isMobile = minDim < 720;
 
   const cx = width / 2;
   const cy = height / 2;
@@ -133,6 +148,7 @@ const Mandala = ({ setArchitectThesis, systemArticles }) => {
       ref={containerRef}
       className="w-full h-full bg-black relative"
       style={{ minHeight: '80vh' }}
+      onClick={handleContainerClick}
     >
       <svg
         width="100%"
