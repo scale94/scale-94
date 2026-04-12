@@ -36,6 +36,12 @@ const Mandala = ({ setArchitectThesis, systemArticles }) => {
   const containerRef = useRef(null);
   const { width, height } = useContainerSize(containerRef);
 
+  const [hover, setHover] = useState(null);
+  // hover shape: { type: 'beacon', data: beaconObject } | { type: 'chapter', data: chapterObject } | null
+
+  const handleBeaconEnter = (beacon) => setHover({ type: 'beacon', data: beacon });
+  const handleBeaconLeave = () => setHover(null);
+
   // Responsive outer radius (spec §6.3).
   const minDim = Math.min(width, height);
   let radiusScale = 0.38;
@@ -167,19 +173,32 @@ const Mandala = ({ setArchitectThesis, systemArticles }) => {
         {/* ── ~36 curated beacons ───────────────────────────────── */}
         <g>
           {beacons.map(b => {
-            // Label offset radially outward from origin.
+            const isHovered = hover?.type === 'beacon' && hover.data.nodeId === b.nodeId;
             const dist = Math.hypot(b.x, b.y) || 1;
             const labelX = b.x + (b.x / dist) * 10;
             const labelY = b.y + (b.y / dist) * 10;
             return (
-              <g key={b.nodeId}>
+              <g
+                key={b.nodeId}
+                onMouseEnter={() => handleBeaconEnter(b)}
+                onMouseLeave={handleBeaconLeave}
+                style={{ cursor: 'pointer' }}
+              >
+                {/* Invisible hit box for touch / small beacons (36x36). */}
+                <rect
+                  x={(b.x - 18).toFixed(2)}
+                  y={(b.y - 18).toFixed(2)}
+                  width="36"
+                  height="36"
+                  fill="transparent"
+                />
                 <circle
                   cx={b.x.toFixed(2)}
                   cy={b.y.toFixed(2)}
-                  r="3"
+                  r={isHovered ? 4 : 3}
                   fill={b.color}
                   stroke={b.color}
-                  strokeOpacity="0.3"
+                  strokeOpacity={isHovered ? 0.7 : 0.3}
                   strokeWidth="4"
                 />
                 {showLabels && (
@@ -189,6 +208,7 @@ const Mandala = ({ setArchitectThesis, systemArticles }) => {
                     fill={b.color}
                     fontFamily="monospace"
                     fontSize="7"
+                    fontWeight={isHovered ? 'bold' : 'normal'}
                     textAnchor={b.x >= 0 ? 'start' : 'end'}
                     dominantBaseline="middle"
                   >
@@ -202,7 +222,7 @@ const Mandala = ({ setArchitectThesis, systemArticles }) => {
 
         <CenterHUD
           radius={hudRadius}
-          hover={null}
+          hover={hover}
           selected={false}
           onOpenThesis={() => setArchitectThesis?.(true)}
           onClose={undefined}
