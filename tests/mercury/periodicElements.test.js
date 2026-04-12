@@ -55,6 +55,9 @@ describe('phaseAffinity — period 6 (0.85)', () => {
   it('Rn (#86) is 0.85', () => {
     expect(ELEMENTS[85].phaseAffinity).toBe(0.85);
   });
+  it('Ce (#58, f-block, group null) is 0.85 — null group falls through to period-6 rule', () => {
+    expect(ELEMENTS[57].phaseAffinity).toBe(0.85);
+  });
   it('all 31 non-Hg period-6 elements are 0.85', () => {
     const p6 = ELEMENTS.filter(e => e.period === 6 && e.atomicNumber !== 80);
     expect(p6).toHaveLength(31);
