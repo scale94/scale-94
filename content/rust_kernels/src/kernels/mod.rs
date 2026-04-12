@@ -64,3 +64,4 @@ pub mod post_capitalist;     // run_post_capitalist (Leontief I-O Analysis · Po
 pub mod bridge_kernel;       // run_bridge_kernel (Structural Holes · Burt 1992 · Betweenness Centrality)
 pub mod corpus_synthesis;    // run_corpus_synthesis (LDA Topic Discovery · Blei et al. 2003)
 pub mod glyph_archive;       // run_glyph_archive (Zipf-Mandelbrot Law · Huffman Coding · Archive Entropy)
+pub mod astro;                   // run_astro (planetary positions · Jean Meeus VSOP87 truncated · TFG sphere click readings)
