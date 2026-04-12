@@ -58,3 +58,4 @@ content/rust_kernels/pkg/
 
 # Brainstorm visual companion
 .superpowers/
+.claude/worktrees/
