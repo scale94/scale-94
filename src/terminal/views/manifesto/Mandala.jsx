@@ -262,6 +262,33 @@ const Mandala = ({ setArchitectThesis, systemArticles }) => {
               );
             })}
           </g>
+
+          {/* ── Chapter perimeter labels ─────────────────────────── */}
+          {minDim >= 720 && (
+            <g pointerEvents="none">
+              {chapterWedges.map((w, i) => {
+                const labelR = R * 1.05;
+                const { x, y } = polarToCartesian(w.midAngle, labelR);
+                const chapter = MANIFESTO_CHAPTERS[i];
+                return (
+                  <text
+                    key={`label-${w.id}`}
+                    x={x.toFixed(2)}
+                    y={y.toFixed(2)}
+                    fill={`hsl(${(i * 60) % 360}, 70%, 60%)`}
+                    fontFamily="monospace"
+                    fontSize="9"
+                    fontWeight="bold"
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    opacity="0.7"
+                  >
+                    {chapter.number} {chapter.title}
+                  </text>
+                );
+              })}
+            </g>
+          )}
         </g>
 
         {/* Center HUD is NOT blurred — it absorbs the close affordance. */}
