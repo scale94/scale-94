@@ -43,6 +43,8 @@ const Mandala = ({ setArchitectThesis, systemArticles }) => {
   const [selected, setSelected] = useState(null);
   // selected shape: a beacon object, or null.
 
+  const [readBeacons, setReadBeacons] = useState(() => new Set());
+
   // Responsive outer radius (spec §6.3).
   const minDim = Math.min(width, height);
   let radiusScale = 0.38;
@@ -62,11 +64,21 @@ const Mandala = ({ setArchitectThesis, systemArticles }) => {
       // Two-tap: first tap = hover preview, second tap on same beacon = open.
       if (hover?.type === 'beacon' && hover.data.nodeId === beacon.nodeId) {
         setSelected(beacon);
+        setReadBeacons(prev => {
+          const next = new Set(prev);
+          next.add(beacon.nodeId);
+          return next;
+        });
       } else {
         setHover({ type: 'beacon', data: beacon });
       }
     } else {
       setSelected(beacon);
+      setReadBeacons(prev => {
+        const next = new Set(prev);
+        next.add(beacon.nodeId);
+        return next;
+      });
     }
   };
 
@@ -283,6 +295,19 @@ const Mandala = ({ setArchitectThesis, systemArticles }) => {
                       dominantBaseline="middle"
                     >
                       {b.nodeId}
+                    </text>
+                  )}
+                  {showLabels && readBeacons.has(b.nodeId) && (
+                    <text
+                      x={(labelX + (b.x >= 0 ? 52 : -52)).toFixed(2)}
+                      y={labelY.toFixed(2)}
+                      fill="#39ff14"
+                      fontFamily="monospace"
+                      fontSize="7"
+                      textAnchor={b.x >= 0 ? 'start' : 'end'}
+                      dominantBaseline="middle"
+                    >
+                      ✓
                     </text>
                   )}
                 </g>
