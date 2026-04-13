@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { loadWasm } from '../../wasm/wasmSingleton';
+import { parseAstroOutput, PLANET_MAP } from '../mercury/tfgAstroHelpers';
 import {
   FEATURES, NODE_IDX, DIM_NAMES,
   cosineSim, topDrivers, analyzeFullEdge, extractParadoxes,
@@ -794,6 +795,8 @@ export default function LatentCollider() {
   const [phase, setPhase] = useState('idle');
   const narrative = useColliderNarrative(result);
 
+  const [colliderAstro, setColliderAstro] = useState(null);
+
   // ── Crystallize + Tesseract state ──────────────────────────────────────────
   const [crystal,    setCrystal]    = useState(null);
   const [tesseract,  setTesseract]  = useState(null);
@@ -929,9 +932,11 @@ export default function LatentCollider() {
   const runCollision = useCallback(async (a, b) => {
     setLoading(true);
     setResult(null);
+    setColliderAstro(null);
     setPhase('accelerating');
     phaseRef.current = 'accelerating';
     timerRef.current = 0;
+    colliderBus.emit({ type: 'COLLIDER_PHASE', phase: 'accelerating' });
 
     try {
       // Delay so the acceleration animation plays
@@ -1053,6 +1058,11 @@ export default function LatentCollider() {
       phaseRef.current = 'colliding';
       timerRef.current = 0;
 
+      // ── Fetch live astro data for mathematical astrology overlay ──────
+      loadWasm().then(w => {
+        try { setColliderAstro(parseAstroOutput(w.run_astro(Date.now()))); } catch {}
+      });
+
       // ── Emit chimera to Art tab sphere ────────────────────────────────
       const mapA = DOMAIN_SPHERE_MAP[a];
       const mapB = DOMAIN_SPHERE_MAP[b];
@@ -1131,11 +1141,13 @@ export default function LatentCollider() {
     setDomainA(null);
     setDomainB(null);
     setResult(null);
+    setColliderAstro(null);
     setPhase('idle');
     phaseRef.current = 'idle';
     metricsRef.current = null;
     particlesRef.current = [];
     timerRef.current = 0;
+    colliderBus.emit({ type: 'COLLIDER_PHASE', phase: 'idle' });
   }, []);
 
   // ── Canvas render loop ─────────────────────────────────────────────────────
@@ -1930,6 +1942,45 @@ export default function LatentCollider() {
               </div>
             </div>
           )}
+
+          {/* ── Mathematical Astrology Transit ── */}
+          {colliderAstro && (() => {
+            // Derive dominant planet from OCK family or planet domain selection
+            const FAMILY_PLANET = {
+              citrus: 'Mercury', floral: 'Venus', woody: 'Saturn',
+              animalic: 'Mars', aromatic: 'Jupiter', ozonic: 'Uranus',
+              chypre: 'Moon', fougere: 'Venus', gourmand: 'Jupiter',
+              aquatic: 'Neptune', leather: 'Mars', mineral: 'Saturn',
+            };
+            const PLANET_DOMAIN_NAME = { 70:'Sun',71:'Mercury',72:'Venus',74:'Moon',75:'Mars',76:'Jupiter',77:'Saturn',78:'Uranus',79:'Neptune',80:'Pluto' };
+            const pA = PLANET_DOMAIN_NAME[domainA] || (result.accord ? FAMILY_PLANET[result.accord.dominant?.id] : null) || 'Mercury';
+            const pB = PLANET_DOMAIN_NAME[domainB] || (result.accord ? FAMILY_PLANET[result.accord.dominant?.id] : null) || 'Venus';
+            const dA = colliderAstro[pA] || {};
+            const dB = colliderAstro[pB] || {};
+            const planets = [...new Set([pA, pB])].filter(p => colliderAstro[p]);
+            return (
+              <div className="border-t border-cyan-500/15 pt-4" style={{ opacity: 0, animation: 'sc-cardReveal 0.5s cubic-bezier(0.16,1,0.3,1) 0.4s forwards' }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: 'rgba(6,182,212,0.5)' }}>⊕ MATHEMATICAL ASTROLOGY · VSOP87 · JD{(Date.now()/86400000+2440587.5).toFixed(4)}</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {planets.map(p => {
+                    const d = colliderAstro[p];
+                    if (!d) return null;
+                    const isRetro = d.retrograde;
+                    return (
+                      <div key={p} className="flex items-center gap-1.5 px-2 py-1 rounded" style={{ background: 'rgba(6,182,212,0.04)', border: '1px solid rgba(6,182,212,0.12)' }}>
+                        <span className="text-[10px] font-bold font-mono" style={{ color: 'rgba(6,182,212,0.8)' }}>{p}</span>
+                        <span className="text-[9px] font-mono" style={{ color: 'rgba(192,192,192,0.5)' }}>{d.sign} {typeof d.degree === 'number' ? d.degree.toFixed(1) : '—'}°</span>
+                        {isRetro && <span className="text-[8px] font-mono" style={{ color: 'rgba(217,70,239,0.6)' }}>℞</span>}
+                        {d.aspect && <span className="text-[8px] font-mono" style={{ color: 'rgba(255,215,0,0.4)' }}>· {d.aspect}</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* ── Volatile Semiotics — OCK Olfactory Accord ── */}
           {result.accord && (

@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { ELEMENTS } from '../data/periodicElements';
 import { loadWasm } from '../../wasm/wasmSingleton';
 import { PLANET_MAP, PLANET_COLORS, parseAstroOutput, getRuler, computeAspect } from './tfgAstroHelpers';
+import { colliderBus } from '../views/LatentCollider';
 
 const SPHERE_RADIUS = 2.8;
 const BASE_SIZE     = 0.055;
@@ -54,8 +55,13 @@ const fragmentShader = /* glsl */`
   varying float vPhase;
   varying float vIdx;
 
+  // HSV → RGB so we can assign each locked element its own hue
+  vec3 hsv2rgb(float h, float s, float v) {
+    vec3 c = clamp(abs(mod(h * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0);
+    return v * mix(vec3(1.0), c, s);
+  }
+
   void main() {
-    vec3 colLocked    = vec3(0.88, 0.88, 0.90);
     vec3 colWeak      = vec3(0.25, 0.28, 0.32);
     vec3 colDissipate = vec3(0.04, 0.06, 0.08);
 
@@ -63,8 +69,10 @@ const fragmentShader = /* glsl */`
     float alpha;
 
     if (vPhase >= 0.70) {
-      float pulse = 0.88 + 0.12 * sin(uTime * 5.0 + vIdx * 0.7);
-      col   = colLocked * pulse;
+      // Each element gets its own hue from the golden-ratio sequence
+      float hue   = fract(vIdx * 0.618034 + 0.55);
+      float pulse = 0.78 + 0.22 * sin(uTime * 5.0 + vIdx * 0.7);
+      col   = hsv2rgb(hue, 0.72, pulse);
       alpha = 1.0;
     } else if (vPhase >= 0.40) {
       col   = colWeak;
@@ -91,9 +99,14 @@ export default function TFGSphere() {
   const [hgActive,     setHgActive]     = useState(false);
   const [readingText,  setReadingText]  = useState('');
   const [astroCache,   setAstroCache]   = useState(null); // parsed run_astro output
-  const ringRef     = useRef();
-  const pulseRef    = useRef({ active: false, t: 0, idx: -1 });
-  const prevTimeRef = useRef(0);
+  const ringRef            = useRef();
+  const pulseRef           = useRef({ active: false, t: 0, idx: -1 });
+  const prevTimeRef        = useRef(0);
+  const expansionRef       = useRef(1.0);
+  const expansionTargetRef = useRef(1.0);
+  const burstRef           = useRef({ active: false, t: 0 });
+  const burstMeshRef       = useRef();
+  const [burstColor, setBurstColor] = useState('#d946ef');
 
   // Convenience: first and second selected indices
   const [selA, selB] = selection;
@@ -149,6 +162,20 @@ export default function TFGSphere() {
       mat.dispose();
     };
   }, [geo, mat]);
+
+  // React to collider events: expand sphere during acceleration, burst on synthesis
+  useEffect(() => {
+    return colliderBus.on(data => {
+      if (data.type === 'COLLIDER_PHASE') {
+        expansionTargetRef.current = data.phase === 'accelerating' ? 1.28 : 1.0;
+      }
+      if (data.type === 'CHIMERA_SYNTHESIS') {
+        const hue = Math.round(((data.hueA ?? 280) + (data.hueB ?? 120)) / 2);
+        setBurstColor(`hsl(${hue}, 80%, 60%)`);
+        burstRef.current = { active: true, t: 0 };
+      }
+    });
+  }, []);
 
   // Fetch astro data once on first selection, cache it for connection labels
   useEffect(() => {
@@ -238,6 +265,14 @@ export default function TFGSphere() {
       hgLightRef.current.intensity = 0.8 + 0.4 * Math.sin(t * 2.1);
     }
 
+    // ── Sphere expansion during collider acceleration ──────────────────────
+    const expTarget = expansionTargetRef.current;
+    const expCur    = expansionRef.current;
+    const expanding = Math.abs(expTarget - expCur) > 0.0005;
+    if (expanding) {
+      expansionRef.current = expCur + (expTarget - expCur) * 0.04;
+    }
+
     // Orbital ring rotation
     if (ringRef.current) ringRef.current.rotation.y += 0.02;
 
@@ -245,6 +280,21 @@ export default function TFGSphere() {
     const now   = t;
     const delta = now - prevTimeRef.current;
     prevTimeRef.current = now;
+
+    // ── Atomizer burst (expanding wireframe sphere shell) ─────────────────
+    const burst = burstRef.current;
+    if (burst.active && burstMeshRef.current) {
+      burst.t += delta;
+      const p = Math.min(burst.t / 1.5, 1.0);
+      const s = p * 7;
+      burstMeshRef.current.scale.set(s, s, s);
+      burstMeshRef.current.material.opacity = (1 - p * p) * 0.55;
+      if (p >= 1.0) {
+        burst.active = false;
+        burstMeshRef.current.scale.set(0, 0, 0);
+        burstMeshRef.current.material.opacity = 0;
+      }
+    }
     const pulse = pulseRef.current;
     if (pulse.active && mesh && pulse.idx >= 0 && pulse.idx < nonHgElements.length) {
       pulse.t += delta;
@@ -260,11 +310,22 @@ export default function TFGSphere() {
     }
 
     if (mesh && drift) {
-      let dirty = false;
+      let dirty = expanding; // also dirty when expansion is changing
+      // Update non-drift elements when sphere is expanding/contracting
+      if (expanding) {
+        for (let i = 0; i < nonHgElements.length; i++) {
+          if (nonHgElements[i].phaseAffinity < 0.40) continue; // handled below
+          if (pulse.active && pulse.idx === i) continue;        // pulse overrides
+          dummy.position.copy(positions[i]).multiplyScalar(expansionRef.current);
+          dummy.scale.set(1, 1, 1);
+          dummy.updateMatrix();
+          mesh.setMatrixAt(i, dummy.matrix);
+        }
+      }
       for (let i = 0; i < nonHgElements.length; i++) {
         if (nonHgElements[i].phaseAffinity >= 0.40) continue;
         drift[i] = (drift[i] + 0.002) % 0.15;
-        const scale = 1 + drift[i] / SPHERE_RADIUS;
+        const scale = (1 + drift[i] / SPHERE_RADIUS) * expansionRef.current;
         dummy.position.copy(positions[i]).multiplyScalar(scale);
         dummy.updateMatrix();
         mesh.setMatrixAt(i, dummy.matrix);
@@ -276,6 +337,12 @@ export default function TFGSphere() {
 
   return (
     <group ref={groupRef}>
+      {/* Atomizer burst — wireframe sphere expanding outward on chimera synthesis */}
+      <mesh ref={burstMeshRef} scale={[0, 0, 0]}>
+        <sphereGeometry args={[0.28, 14, 14]} />
+        <meshBasicMaterial color={burstColor} transparent opacity={0} wireframe />
+      </mesh>
+
       {/* Ring on first selected element (selA) */}
       {selA !== null && (() => {
         const p   = positions[selA];
