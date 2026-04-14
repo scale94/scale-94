@@ -205,68 +205,62 @@ export default function TFGSphere() {
   useEffect(() => {
     if (!astroCache) return;
 
-    // Two elements selected → show connection label
+    // Two traits selected → alien tension analysis
     if (selA !== null && selB !== null) {
-      const elA = nonHgElements[selA];
-      const elB = nonHgElements[selB];
-      const pA  = PLANET_MAP[elA.atomicNumber];
-      const pB  = PLANET_MAP[elB.atomicNumber];
-      if (pA && pB && astroCache[pA] && astroCache[pB]) {
-        const dA = astroCache[pA];
-        const dB = astroCache[pB];
+      const traitA = traits[selA];
+      const traitB = traits[selB];
+      const pA     = TRAIT_PLANET_MAP[traitA.id];
+      const pB     = TRAIT_PLANET_MAP[traitB.id];
+      if (pA === pB) {
+        setReadingText(
+          `${pA} \u2014 INTERNAL SPLIT\n` +
+          `${traitA.label}\n\u2194 ${traitB.label}\n` +
+          `Same signal. Bifurcated output.`
+        );
+        return;
+      }
+      if (astroCache[pA] && astroCache[pB]) {
+        const dA  = astroCache[pA];
+        const dB  = astroCache[pB];
         const asp = computeAspect(dA.sign, dA.degree, dB.sign, dB.degree);
         setReadingText(
           `${pA} \u2014 ${pB}\n` +
-          `${asp ? `${asp.name} (orb ${asp.orb}\u00b0)` : 'No major aspect'}\n` +
-          `${elA.symbol} ${dA.sign} ${dA.degree.toFixed(0)}\u00b0\n` +
-          `${elB.symbol} ${dB.sign} ${dB.degree.toFixed(0)}\u00b0`
+          `${asp ? `${asp.name} (orb ${asp.orb}\u00b0)` : 'No aspect'}\n` +
+          `${traitA.label}\n\u2194 ${traitB.label}\n` +
+          alienInterpretation(asp)
         );
       } else {
-        const delta = Math.abs(elA.phaseAffinity - elB.phaseAffinity);
-        const ruler = (e) => PLANET_MAP[e.atomicNumber] || getRuler(e);
         setReadingText(
-          `${elA.symbol} \u2014 ${elB.symbol}\n` +
-          `\u0394 affinity: ${(delta * 100).toFixed(0)}%\n` +
-          `${elA.symbol} ruled by ${ruler(elA)}\n` +
-          `${elB.symbol} ruled by ${ruler(elB)}`
+          `${pA || '?'} \u2014 ${pB || '?'}\n` +
+          `${traitA.label}\n\u2194 ${traitB.label}\n` +
+          `Planetary data unavailable.`
         );
       }
       return;
     }
 
-    // Single selection → show individual reading
+    // Single selection or Hg anchor
     const idx = selA ?? (hgActive ? 'hg' : null);
     if (idx === null) { setReadingText(''); return; }
 
     if (idx === 'hg') {
       const d = astroCache['Mercury'] || {};
       setReadingText(
-        `MERCURY \u00b7 Hg\n` +
-        `${d.sign || '?'} ${(d.degree || 0).toFixed(0)}\u00b0\n` +
-        `Retro: ${d.retrograde ? 'Yes \u211e' : 'No'}\n` +
-        `${d.aspect || '\u2014'}`
+        `TRANSMISSION ORIGIN \u00b7 Hg-80\n` +
+        `MERCURY \u2014 OBSERVER STATION\n` +
+        `${d.sign || '?'} ${(d.degree || 0).toFixed(0)}\u00b0 / ${d.retrograde ? 'Retro \u211e' : 'Direct'}\n` +
+        `Signal latency: nominal.`
       );
     } else {
-      const el     = nonHgElements[idx];
-      const planet = PLANET_MAP[el.atomicNumber];
-      if (planet && astroCache[planet]) {
-        const d = astroCache[planet];
-        setReadingText(
-          `${planet.toUpperCase()} \u00b7 ${el.symbol}\n` +
-          `${d.sign} ${d.degree.toFixed(0)}\u00b0\n` +
-          `Retro: ${d.retrograde ? 'Yes \u211e' : 'No'}\n` +
-          `${d.aspect}`
-        );
-      } else {
-        const ruler = getRuler(el);
-        const d     = astroCache[ruler] || {};
-        setReadingText(
-          `${el.symbol} \u2014 ruled by ${ruler}\n` +
-          (d.sign ? `${d.sign} ${(d.degree || 0).toFixed(0)}\u00b0` : '\u2014')
-        );
-      }
+      const trait  = traits[idx];
+      const planet = TRAIT_PLANET_MAP[trait.id];
+      const d      = astroCache[planet] || {};
+      setReadingText(
+        trait.alienNote + '\n' +
+        (d.sign ? `${d.sign} ${d.degree.toFixed(0)}\u00b0 / ${d.retrograde ? 'Retro \u211e' : 'Direct'}` : '\u2014')
+      );
     }
-  }, [selA, selB, hgActive, astroCache, nonHgElements]);
+  }, [selA, selB, hgActive, astroCache, traits]);
 
   useFrame((state) => {
     const t     = state.clock.elapsedTime;
@@ -357,11 +351,11 @@ export default function TFGSphere() {
         <meshBasicMaterial color={burstColor} transparent opacity={0} wireframe />
       </mesh>
 
-      {/* Ring on first selected element (selA) */}
+      {/* Ring on first selected trait (selA) */}
       {selA !== null && (() => {
-        const p   = positions[selA];
-        const el  = nonHgElements[selA];
-        const col = PLANET_COLORS[el.atomicNumber] ?? '#404050';
+        const p      = positions[selA];
+        const traitA = traits[selA];
+        const col    = PLANET_COLORS_BY_NAME[TRAIT_PLANET_MAP[traitA.id]] ?? '#404050';
         return (
           <mesh ref={ringRef} position={[p.x, p.y, p.z]} rotation={[Math.PI / 6, 0, 0]}>
             <torusGeometry args={[BASE_SIZE * 3, 0.008, 8, 48]} />
@@ -370,11 +364,11 @@ export default function TFGSphere() {
         );
       })()}
 
-      {/* Dim ring on second selected element (selB) */}
+      {/* Dim ring on second selected trait (selB) */}
       {selB !== null && (() => {
-        const p   = positions[selB];
-        const el  = nonHgElements[selB];
-        const col = PLANET_COLORS[el.atomicNumber] ?? '#404050';
+        const p      = positions[selB];
+        const traitB = traits[selB];
+        const col    = PLANET_COLORS_BY_NAME[TRAIT_PLANET_MAP[traitB.id]] ?? '#404050';
         return (
           <mesh position={[p.x, p.y, p.z]} rotation={[Math.PI / 6, 0, 0]}>
             <torusGeometry args={[BASE_SIZE * 3, 0.008, 8, 48]} />
@@ -385,12 +379,12 @@ export default function TFGSphere() {
 
       {/* Connection line between selA and selB */}
       {selA !== null && selB !== null && (() => {
-        const pA  = positions[selA];
-        const pB  = positions[selB];
-        const elA = nonHgElements[selA];
-        const elB = nonHgElements[selB];
-        const colA = PLANET_COLORS[elA.atomicNumber] ?? '#404050';
-        const colB = PLANET_COLORS[elB.atomicNumber] ?? '#404050';
+        const pA   = positions[selA];
+        const pB   = positions[selB];
+        const elA  = traits[selA];
+        const elB  = traits[selB];
+        const colA = PLANET_COLORS_BY_NAME[TRAIT_PLANET_MAP[elA.id]] ?? '#404050';
+        const colB = PLANET_COLORS_BY_NAME[TRAIT_PLANET_MAP[elB.id]] ?? '#404050';
         // Blend the two colors by averaging hex components
         const blend = (c1, c2) => {
           const r1 = parseInt(c1.slice(1,3),16), g1 = parseInt(c1.slice(3,5),16), b1 = parseInt(c1.slice(5,7),16);
