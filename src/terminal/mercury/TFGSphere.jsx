@@ -75,8 +75,10 @@ const fragmentShader = /* glsl */`
       col   = hsv2rgb(hue, 0.72, pulse);
       alpha = 1.0;
     } else if (vPhase >= 0.40) {
-      col   = colWeak;
-      alpha = 0.85;
+      float flicker = 0.5 + 0.5 * sin(uTime * 8.0 + vIdx * 1.3);
+      float hue     = fract(vIdx * 0.618034 + 0.2);
+      col   = mix(colWeak, hsv2rgb(hue, 0.6, 0.9), flicker * 0.7);
+      alpha = 0.55 + 0.4 * flicker;
     } else {
       col   = colDissipate;
       alpha = 0.30;
@@ -308,7 +310,7 @@ export default function TFGSphere() {
       }
     }
     const pulse = pulseRef.current;
-    if (pulse.active && mesh && pulse.idx >= 0 && pulse.idx < nonHgElements.length) {
+    if (pulse.active && mesh && pulse.idx >= 0 && pulse.idx < traits.length) {
       pulse.t += delta;
       const progress = Math.min(pulse.t / 0.4, 1.0);
       const scale    = 1.0 + 0.5 * Math.sin(progress * Math.PI);
@@ -326,7 +328,7 @@ export default function TFGSphere() {
       // Update non-drift elements when sphere is expanding/contracting
       if (expanding) {
         for (let i = 0; i < nonHgElements.length; i++) {
-          if (nonHgElements[i].phaseAffinity < 0.40) continue; // handled below
+          if (traits[i].strength < 0.40) continue; // handled below
           if (pulse.active && pulse.idx === i) continue;        // pulse overrides
           dummy.position.copy(positions[i]).multiplyScalar(expansionRef.current);
           dummy.scale.set(1, 1, 1);
@@ -334,8 +336,8 @@ export default function TFGSphere() {
           mesh.setMatrixAt(i, dummy.matrix);
         }
       }
-      for (let i = 0; i < nonHgElements.length; i++) {
-        if (nonHgElements[i].phaseAffinity >= 0.40) continue;
+      for (let i = 0; i < traits.length; i++) {
+        if (traits[i].strength >= 0.40) continue;
         drift[i] = (drift[i] + 0.002) % 0.15;
         const scale = (1 + drift[i] / SPHERE_RADIUS) * expansionRef.current;
         dummy.position.copy(positions[i]).multiplyScalar(scale);
