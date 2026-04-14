@@ -12,6 +12,7 @@ import { nodeColor } from '../../data/kernelColorMap';
 import { MANIFESTO_BEACONS } from '../../data/manifestoBeacons';
 import CenterHUD from './CenterHUD';
 import BeaconCard from './BeaconCard';
+import ChapterPanel from './ChapterPanel';
 
 // Tailwind color tokens used throughout (match existing terminal palette).
 const RING_STROKE = '#164e63';
@@ -44,6 +45,8 @@ const Mandala = ({ setArchitectThesis, systemArticles }) => {
   // selected shape: a beacon object, or null.
 
   const [readBeacons, setReadBeacons] = useState(() => new Set());
+  const [selectedChapter, setSelectedChapter] = useState(null);
+  // shape: { chapter: chapterObject, index: number } | null
 
   // Responsive outer radius (spec §6.3).
   const minDim = Math.min(width, height);
@@ -90,13 +93,21 @@ const Mandala = ({ setArchitectThesis, systemArticles }) => {
 
   const closeSelected = () => setSelected(null);
 
-  // Esc key closes.
+  // Esc key closes beacon card.
   useEffect(() => {
     if (!selected) return;
     const onKey = (e) => { if (e.key === 'Escape') closeSelected(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [selected]);
+
+  // Esc also closes chapter panel.
+  useEffect(() => {
+    if (!selectedChapter) return;
+    const onKey = (e) => { if (e.key === 'Escape') setSelectedChapter(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selectedChapter]);
 
   const cx = width / 2;
   const cy = height / 2;
@@ -178,7 +189,7 @@ const Mandala = ({ setArchitectThesis, systemArticles }) => {
         </defs>
         <g
           style={{
-            filter: selected ? 'blur(3px) brightness(0.4)' : 'none',
+            filter: (selected || selectedChapter) ? 'blur(3px) brightness(0.4)' : 'none',
             transition: 'filter 250ms ease',
           }}
         >
@@ -195,6 +206,7 @@ const Mandala = ({ setArchitectThesis, systemArticles }) => {
                   opacity={isHovered ? 2.2 : 1}
                   onMouseEnter={() => setHover({ type: 'chapter', data: CHAPTER_BY_ID[w.id] })}
                   onMouseLeave={() => setHover(null)}
+                  onClick={() => setSelectedChapter({ chapter: CHAPTER_BY_ID[w.id], index: i })}
                   style={{ cursor: 'pointer', pointerEvents: 'all' }}
                 />
               );
@@ -367,6 +379,14 @@ const Mandala = ({ setArchitectThesis, systemArticles }) => {
             isMobile={isMobile}
           />
         </>
+      )}
+
+      {selectedChapter && (
+        <ChapterPanel
+          chapter={selectedChapter.chapter}
+          chapterIndex={selectedChapter.index}
+          onClose={() => setSelectedChapter(null)}
+        />
       )}
     </div>
   );
