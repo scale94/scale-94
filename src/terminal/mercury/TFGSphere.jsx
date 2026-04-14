@@ -121,7 +121,8 @@ export default function TFGSphere() {
   const expansionTargetRef = useRef(1.0);
   const burstRef           = useRef({ active: false, t: 0 });
   const burstMeshRef       = useRef();
-  const [burstColor, setBurstColor] = useState('#d946ef');
+  const [burstColor,   setBurstColor]   = useState('#d946ef');
+  const [chimeraData,  setChimeraData]  = useState(null);
 
   // Convenience: first and second selected indices
   const [selA, selB] = selection;
@@ -187,13 +188,23 @@ export default function TFGSphere() {
         const hue = Math.round(((data.hueA ?? 280) + (data.hueB ?? 120)) / 2);
         setBurstColor(`hsl(${hue}, 80%, 60%)`);
         burstRef.current = { active: true, t: 0 };
+        setChimeraData(data);
       }
     });
   }, []);
 
-  // Fetch astro data once on first selection, cache it for connection labels
+  // Immediate reading text on selection (no WASM needed)
   useEffect(() => {
     if (selA === null && !hgActive) { setReadingText(''); return; }
+    if (selA !== null && selB === null) {
+      const trait = traits[selA];
+      setReadingText(trait.alienNote);
+    }
+  }, [selA, selB, hgActive, traits]);
+
+  // Fetch astro data once on first selection, cache it for enriched labels
+  useEffect(() => {
+    if (selA === null && !hgActive) return;
     if (astroCache) return; // already loaded this session
     loadWasm().then(wasm => {
       const parsed = parseAstroOutput(wasm.run_astro(Date.now()));
@@ -321,7 +332,7 @@ export default function TFGSphere() {
       let dirty = expanding; // also dirty when expansion is changing
       // Update non-drift elements when sphere is expanding/contracting
       if (expanding) {
-        for (let i = 0; i < nonHgElements.length; i++) {
+        for (let i = 0; i < traits.length; i++) {
           if (traits[i].strength < 0.40) continue; // handled below
           if (pulse.active && pulse.idx === i) continue;        // pulse overrides
           dummy.position.copy(positions[i]).multiplyScalar(expansionRef.current);
@@ -464,8 +475,7 @@ export default function TFGSphere() {
           e.stopPropagation();
           const idx = e.instanceId;
           if (idx === undefined || idx === null) return;
-          const trait = traits[idx];
-          if (TRAIT_PLANET_MAP[trait.id]) pulseRef.current = { active: true, t: 0, idx };
+          pulseRef.current = { active: true, t: 0, idx };
           setHgActive(false);
           setSelection(prev => {
             const [a, b] = prev;
@@ -476,6 +486,47 @@ export default function TFGSphere() {
           });
         }}
       />
+
+      {/* Collider result overlay — shown when a collision has completed */}
+      {chimeraData && (() => {
+        const d   = chimeraData;
+        const hue = Math.round(((d.hueA ?? 280) + (d.hueB ?? 120)) / 2);
+        const col = `hsl(${hue}, 70%, 55%)`;
+        const fmt = (v) => (v != null ? (v * 100).toFixed(0) + '%' : '—');
+        const deg = (v) => (v != null ? v.toFixed(1) + '°' : '—');
+        return (
+          <Html position={[0, -3.6, 0]} style={{
+            background:    'rgba(4,4,12,0.92)',
+            border:        `1px solid ${col}55`,
+            color:         '#c0c8d8',
+            fontFamily:    'monospace',
+            fontSize:      '9px',
+            padding:       '7px 10px',
+            whiteSpace:    'pre',
+            pointerEvents: 'auto',
+            borderRadius:  '4px',
+            minWidth:      '240px',
+            lineHeight:    '1.5',
+            transform:     'translateX(-50%)',
+          }}>
+            <span style={{ color: col, fontWeight: 'bold', display: 'block', marginBottom: 3 }}>
+              ◈ {d.chimeraName || 'CHIMERA'}
+            </span>
+            {d._domainNameA && d._domainNameB
+              ? `${d._domainNameA}\n× ${d._domainNameB}\n`
+              : ''}
+            {`COSINE   ${deg(d.angle != null ? d.angle : null)}  ${d.cosine != null ? d.cosine.toFixed(3) : '—'}\n`}
+            {`COHERENCE ${fmt(d.coherence)}  VIABILITY ${fmt(d.viability)}\n`}
+            {`NOVELTY  ${fmt(d.novelty)}  PHASE ${d.phase || '—'}`}
+            {d.accord?.dominant ? `\nACCORD   ${d.accord.dominant}` : ''}
+            {d.accord?.polarityClass ? `  ·  ${d.accord.polarityClass}` : ''}
+            <span
+              style={{ display: 'block', marginTop: 4, color: '#404055', cursor: 'pointer' }}
+              onClick={() => setChimeraData(null)}
+            >[ dismiss ]</span>
+          </Html>
+        );
+      })()}
 
       {/* Hg anchor node — north pole, amber-gold */}
       <mesh

@@ -165,7 +165,7 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, loadKernel }) => {
                 backgroundImage: 'linear-gradient(90deg, #d946ef 0%, #7c3aed 50%, #06b6d4 100%)',
                 animation: 'sc-titleReveal 0.9s cubic-bezier(0.16,1,0.3,1) forwards',
               }}
-            >KERNEL_BUILDING_SERVICES</span>
+            >KERNEL_COMPILATION</span>
           </h2>
           <div
             className="text-xs sm:text-sm font-bold tracking-widest text-fuchsia-400/80 uppercase"
