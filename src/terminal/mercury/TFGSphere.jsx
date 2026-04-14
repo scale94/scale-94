@@ -432,7 +432,7 @@ export default function TFGSphere() {
       })()}
 
       {/* Single-selection reading panel (only when one element, no connection) */}
-      {readingText && (selA !== null && selB === null || hgActive) && (() => {
+      {readingText && ((selA !== null && selB === null) || hgActive) && (() => {
         const p = selA !== null ? positions[selA] : { x: 0, y: SPHERE_RADIUS, z: 0 };
         return (
           <Html position={[p.x, p.y + 0.45, p.z]} style={{
@@ -456,7 +456,7 @@ export default function TFGSphere() {
       })()}
 
       {hgActive && (
-        <mesh ref={ringRef} position={hgPos} rotation={[Math.PI / 6, 0, 0]}>
+        <mesh ref={ringHgRef} position={hgPos} rotation={[Math.PI / 6, 0, 0]}>
           <torusGeometry args={[BASE_SIZE * 9, 0.008, 8, 48]} />
           <meshBasicMaterial color="#f59e0b" transparent opacity={0.9} />
         </mesh>
@@ -465,15 +465,14 @@ export default function TFGSphere() {
       {/* 117 non-Hg elements — single draw call */}
       <instancedMesh
         ref={meshRef}
-        args={[geo, mat, nonHgElements.length]}
+        args={[geo, mat, traits.length]}
         onClick={(e) => {
           e.stopPropagation();
           const idx = e.instanceId;
           if (idx === undefined || idx === null) return;
-          const el = nonHgElements[idx];
-          if (PLANET_MAP[el.atomicNumber]) pulseRef.current = { active: true, t: 0, idx };
+          const trait = traits[idx];
+          if (TRAIT_PLANET_MAP[trait.id]) pulseRef.current = { active: true, t: 0, idx };
           setHgActive(false);
-          setAstroCache(null); // refresh data on new selection pair
           setSelection(prev => {
             const [a, b] = prev;
             if (a === idx) return [null, null];          // deselect
@@ -490,7 +489,6 @@ export default function TFGSphere() {
         onClick={(e) => {
           e.stopPropagation();
           setSelection([null, null]);
-          setAstroCache(null);
           setHgActive(v => !v);
         }}
       >
@@ -518,26 +516,6 @@ export default function TFGSphere() {
         </Html>
       </mesh>
 
-      {nonHgElements.map((el, i) => {
-        if (el.phaseAffinity < 0.70) return null;
-        const p = positions[i];
-        return (
-          <Html
-            key={el.atomicNumber}
-            position={[p.x, p.y, p.z]}
-            style={{
-              color: '#c0c0c0',
-              fontFamily: 'monospace',
-              fontSize: '9px',
-              whiteSpace: 'nowrap',
-              userSelect: 'none',
-              pointerEvents: 'none',
-            }}
-          >
-            {el.symbol} · {el.atomicNumber}
-          </Html>
-        );
-      })}
     </group>
   );
 }
