@@ -79,6 +79,20 @@ export function computeAspect(sign1, deg1, sign2, deg2) {
   return best ? { name: best.name, orb: best.orb } : null;
 }
 
+// Name-keyed planet colors — used by the humanity-traits sphere layer
+export const PLANET_COLORS_BY_NAME = {
+  Mercury: '#c0c0c0',
+  Sun:     '#f59e0b',
+  Moon:    '#e8e8f0',
+  Mars:    '#ef4444',
+  Venus:   '#22c55e',
+  Jupiter: '#8b5cf6',
+  Saturn:  '#78716c',
+  Uranus:  '#06b6d4',
+  Neptune: '#3b82f6',
+  Pluto:   '#dc2626',
+};
+
 // Ruling planet for non-planetary elements, by periodic group
 export function getRuler(element) {
   const { group, block } = element;
