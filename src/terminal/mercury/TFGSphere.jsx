@@ -2,9 +2,9 @@ import { useRef, useMemo, useEffect, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
-import { ELEMENTS } from '../data/periodicElements';
+import { HUMANITY_TRAITS, TRAIT_PLANET_MAP } from '../data/humanityTraits';
 import { loadWasm } from '../../wasm/wasmSingleton';
-import { PLANET_MAP, PLANET_COLORS, parseAstroOutput, getRuler, computeAspect } from './tfgAstroHelpers';
+import { PLANET_COLORS_BY_NAME, parseAstroOutput, computeAspect } from './tfgAstroHelpers';
 import { colliderBus } from '../views/LatentCollider';
 
 const SPHERE_RADIUS = 2.8;
@@ -85,6 +85,18 @@ const fragmentShader = /* glsl */`
   }
 `;
 
+function alienInterpretation(aspect) {
+  if (!aspect) return 'No resonance detected.';
+  switch (aspect.name) {
+    case 'Conjunct':  return 'Harmonic lock. Same signal.';
+    case 'Trine':     return 'Stable configuration.';
+    case 'Sextile':   return 'Cooperative tension.';
+    case 'Square':    return 'Active conflict vector.';
+    case 'Opposite':  return 'Polarity maximum.';
+    default:          return 'Pattern unclassified.';
+  }
+}
+
 export default function TFGSphere() {
   const groupRef    = useRef();
   const meshRef     = useRef();
@@ -100,6 +112,7 @@ export default function TFGSphere() {
   const [readingText,  setReadingText]  = useState('');
   const [astroCache,   setAstroCache]   = useState(null); // parsed run_astro output
   const ringRef            = useRef();
+  const ringHgRef          = useRef();
   const pulseRef           = useRef({ active: false, t: 0, idx: -1 });
   const prevTimeRef        = useRef(0);
   const expansionRef       = useRef(1.0);
@@ -111,11 +124,10 @@ export default function TFGSphere() {
   // Convenience: first and second selected indices
   const [selA, selB] = selection;
 
-  const { nonHgElements, positions, phaseAlignments } = useMemo(() => {
-    const els  = ELEMENTS.filter(e => e.atomicNumber !== 80);
-    const pts  = fibonacciSphere(els.length, SPHERE_RADIUS);
-    const pa   = new Float32Array(els.map(e => e.phaseAffinity));
-    return { nonHgElements: els, positions: pts, phaseAlignments: pa };
+  const { traits, positions, phaseAlignments } = useMemo(() => {
+    const pts = fibonacciSphere(HUMANITY_TRAITS.length, SPHERE_RADIUS);
+    const pa  = new Float32Array(HUMANITY_TRAITS.map(t => t.strength));
+    return { traits: HUMANITY_TRAITS, positions: pts, phaseAlignments: pa };
   }, []);
 
   const hgPos = useMemo(() => new THREE.Vector3(0, SPHERE_RADIUS, 0), []);
@@ -123,11 +135,11 @@ export default function TFGSphere() {
   const geo = useMemo(() => {
     const g = new THREE.SphereGeometry(BASE_SIZE, 8, 8);
     g.setAttribute('phaseAlignment', new THREE.InstancedBufferAttribute(phaseAlignments, 1));
-    const idxArr = new Float32Array(nonHgElements.length);
-    for (let i = 0; i < nonHgElements.length; i++) idxArr[i] = i;
+    const idxArr = new Float32Array(traits.length);
+    for (let i = 0; i < traits.length; i++) idxArr[i] = i;
     g.setAttribute('instanceIndex', new THREE.InstancedBufferAttribute(idxArr, 1));
     return g;
-  }, [nonHgElements, phaseAlignments]);
+  }, [traits, phaseAlignments]);
 
   const mat = useMemo(() => new THREE.ShaderMaterial({
     vertexShader,
@@ -145,15 +157,15 @@ export default function TFGSphere() {
   useEffect(() => {
     const mesh = meshRef.current;
     if (!mesh) return;
-    for (let i = 0; i < nonHgElements.length; i++) {
+    for (let i = 0; i < traits.length; i++) {
       dummy.position.copy(positions[i]);
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
     }
     mesh.instanceMatrix.needsUpdate = true;
-    driftRef.current = new Float32Array(nonHgElements.length);
-    // dummy is a stable useMemo ref — this effect runs once on mount only
-  }, [nonHgElements, positions, dummy]);
+    driftRef.current = new Float32Array(traits.length);
+    // traits and positions are stable useMemo refs — this effect runs once on mount only
+  }, [traits, positions, dummy]);
 
   // Dispose GPU resources on unmount to prevent memory leaks
   useEffect(() => {
