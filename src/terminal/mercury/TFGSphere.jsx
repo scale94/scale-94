@@ -1,4 +1,4 @@
-import { useRef, useMemo, useEffect, useState } from 'react';
+import { useRef, useMemo, useEffect, useState, useCallback } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
@@ -7,8 +7,47 @@ import { loadWasm } from '../../wasm/wasmSingleton';
 import { PLANET_COLORS_BY_NAME, parseAstroOutput, computeAspect } from './tfgAstroHelpers';
 import { colliderBus } from '../views/LatentCollider';
 
+// Fresnel atmosphere shader — silver-mercury corona at the edge of the sphere
+const ATMOS_VERT = /* glsl */`
+  varying vec3 vN;
+  varying vec3 vV;
+  void main() {
+    vN = normalize(normalMatrix * normal);
+    vec4 mvP = modelViewMatrix * vec4(position, 1.0);
+    vV = normalize(-mvP.xyz);
+    gl_Position = projectionMatrix * mvP;
+  }
+`;
+const ATMOS_FRAG = /* glsl */`
+  uniform float uTime;
+  varying vec3 vN;
+  varying vec3 vV;
+  void main() {
+    float rim = pow(1.0 - abs(dot(vN, vV)), 2.4);
+    float drift = 0.55 + 0.45 * sin(uTime * 0.65 + vN.y * 2.1);
+    // Silver-mercury gradient: cool steel at poles, faint cyan at equator
+    vec3 col = mix(vec3(0.38, 0.42, 0.52), vec3(0.12, 0.28, 0.44), drift);
+    gl_FragColor = vec4(col, rim * 0.28);
+  }
+`;
+
 const SPHERE_RADIUS = 2.8;
 const BASE_SIZE     = 0.055;
+const MAX_SPARKS    = 400;
+
+// HSL → RGB for spark color computation
+function hslToRgb(h, s, l) {
+  const a = s * Math.min(l, 1 - l);
+  const f = (n, k = (n + h * 12) % 12) => l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+  return [f(0), f(8), f(4)];
+}
+
+// Hue by category: STRENGTH → gold, PARADOX → fuchsia, WEAKNESS → cyan
+function traitHue(trait) {
+  return trait.category === 'STRENGTH' ? 44 + Math.random() * 14
+       : trait.category === 'PARADOX'  ? 280 + Math.random() * 30
+       : 185 + Math.random() * 20;
+}
 
 // Fibonacci sphere: distributes n points uniformly on a sphere of given radius.
 function fibonacciSphere(n, radius) {
@@ -124,6 +163,33 @@ export default function TFGSphere() {
   const [burstColor,   setBurstColor]   = useState('#d946ef');
   const [chimeraData,  setChimeraData]  = useState(null);
 
+  // ── Spark particle pool ───────────────────────────────────────────────────
+  const sparkPosArr = useRef(new Float32Array(MAX_SPARKS * 3).fill(9999));
+  const sparkVelArr = useRef(new Float32Array(MAX_SPARKS * 3));
+  const sparkLife   = useRef(new Float32Array(MAX_SPARKS));
+  const sparkMaxL   = useRef(new Float32Array(MAX_SPARKS));
+  const sparkHueArr = useRef(new Float32Array(MAX_SPARKS));
+  const nextSpkIdx  = useRef(0);
+  const pointsRef   = useRef();
+
+  const sparkGeo = useMemo(() => {
+    const g   = new THREE.BufferGeometry();
+    const pos = new Float32Array(MAX_SPARKS * 3).fill(9999);
+    const col = new Float32Array(MAX_SPARKS * 3);
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    g.setAttribute('color',    new THREE.BufferAttribute(col, 3));
+    return g;
+  }, []);
+
+  const sparkMat = useMemo(() => new THREE.PointsMaterial({
+    size: 0.07,
+    sizeAttenuation: true,
+    vertexColors: true,
+    blending: THREE.AdditiveBlending,
+    transparent: true,
+    depthWrite: false,
+  }), []);
+
   // Convenience: first and second selected indices
   const [selA, selB] = selection;
 
@@ -151,8 +217,20 @@ export default function TFGSphere() {
     transparent: true,
   }), []);
 
+  // Mercury corona atmosphere — Fresnel glow, rendered on the sphere's outer shell
+  const atmosMat = useMemo(() => new THREE.ShaderMaterial({
+    vertexShader:   ATMOS_VERT,
+    fragmentShader: ATMOS_FRAG,
+    uniforms: { uTime: { value: 0 } },
+    transparent: true,
+    side: THREE.BackSide,
+    depthWrite: false,
+  }), []);
+  const atmosMatRef = useRef();
+
   // Sync matRef inside an effect — keeps render body pure
   useEffect(() => { matRef.current = mat; }, [mat]);
+  useEffect(() => { atmosMatRef.current = atmosMat; }, [atmosMat]);
 
   const dummy = useMemo(() => new THREE.Object3D(), []);
 
@@ -175,8 +253,31 @@ export default function TFGSphere() {
     return () => {
       geo.dispose();
       mat.dispose();
+      atmosMat.dispose();
+      sparkGeo.dispose();
+      sparkMat.dispose();
     };
-  }, [geo, mat]);
+  }, [geo, mat, atmosMat, sparkGeo, sparkMat]);
+
+  // Emit sparks from a world-space position
+  const emitSpark = useCallback((worldPos, hue, count, speed) => {
+    for (let i = 0; i < count; i++) {
+      const idx   = nextSpkIdx.current % MAX_SPARKS;
+      nextSpkIdx.current++;
+      const theta = Math.random() * Math.PI * 2;
+      const phi   = Math.acos(2 * Math.random() - 1);
+      const spd   = (0.4 + Math.random() * 2.2) * (speed ?? 1);
+      sparkPosArr.current[idx*3]   = worldPos.x;
+      sparkPosArr.current[idx*3+1] = worldPos.y;
+      sparkPosArr.current[idx*3+2] = worldPos.z;
+      sparkVelArr.current[idx*3]   = Math.sin(phi) * Math.cos(theta) * spd;
+      sparkVelArr.current[idx*3+1] = Math.sin(phi) * Math.sin(theta) * spd;
+      sparkVelArr.current[idx*3+2] = Math.cos(phi) * spd;
+      sparkLife.current[idx] = 0;
+      sparkMaxL.current[idx] = 0.7 + Math.random() * 1.5;
+      sparkHueArr.current[idx] = hue + (Math.random() - 0.5) * 35;
+    }
+  }, []);
 
   // React to collider events: expand sphere during acceleration, burst on synthesis
   useEffect(() => {
@@ -278,8 +379,17 @@ export default function TFGSphere() {
     const mesh  = meshRef.current;
     const drift = driftRef.current;
 
-    if (matRef.current) matRef.current.uniforms.uTime.value = t;
+    if (matRef.current)    matRef.current.uniforms.uTime.value = t;
+    if (atmosMatRef.current) atmosMatRef.current.uniforms.uTime.value = t;
     if (groupRef.current) groupRef.current.rotation.y = t * 0.04;
+
+    // ── Idle ambient sparks (Feigenbaum-fade style) ───────────────────────
+    if (groupRef.current && Math.random() < 0.55) {
+      const ri  = Math.floor(Math.random() * positions.length);
+      const lp  = positions[ri].clone().multiplyScalar(expansionRef.current);
+      const wp  = lp.applyMatrix4(groupRef.current.matrixWorld);
+      emitSpark(wp, traitHue(traits[ri]), 1, 0.22);
+    }
     if (hgLightRef.current) {
       hgLightRef.current.intensity = 0.8 + 0.4 * Math.sin(t * 2.1);
     }
@@ -352,10 +462,63 @@ export default function TFGSphere() {
       }
       if (dirty) mesh.instanceMatrix.needsUpdate = true;
     }
+
+    // ── Spark particle update ──────────────────────────────────────────────
+    const posBuf = sparkGeo.attributes.position;
+    const colBuf = sparkGeo.attributes.color;
+    for (let i = 0; i < MAX_SPARKS; i++) {
+      const ml = sparkMaxL.current[i];
+      if (ml <= 0) { posBuf.array[i*3] = 9999; continue; }
+      const lf = sparkLife.current[i];
+      if (lf >= ml) {
+        sparkMaxL.current[i] = 0;
+        posBuf.array[i*3] = 9999;
+        colBuf.array[i*3] = colBuf.array[i*3+1] = colBuf.array[i*3+2] = 0;
+        continue;
+      }
+      sparkLife.current[i] += delta;
+      sparkVelArr.current[i*3]   *= 0.93;
+      sparkVelArr.current[i*3+1] *= 0.93;
+      sparkVelArr.current[i*3+2] *= 0.93;
+      posBuf.array[i*3]   += sparkVelArr.current[i*3]   * delta;
+      posBuf.array[i*3+1] += sparkVelArr.current[i*3+1] * delta;
+      posBuf.array[i*3+2] += sparkVelArr.current[i*3+2] * delta;
+      const lifeT = lf / ml;
+      let alpha;
+      if      (lifeT < 0.15) alpha = (lifeT / 0.15) ** 2;
+      else if (lifeT > 0.70) alpha = Math.pow(1 - (lifeT - 0.70) / 0.30, 2.2);
+      else                   alpha = 1.0;
+      alpha *= 0.65;
+      const [r, g, b] = hslToRgb(sparkHueArr.current[i] / 360, 0.9, 0.65);
+      colBuf.array[i*3]   = r * alpha;
+      colBuf.array[i*3+1] = g * alpha;
+      colBuf.array[i*3+2] = b * alpha;
+    }
+    posBuf.needsUpdate = true;
+    colBuf.needsUpdate = true;
   });
 
   return (
+    <>
     <group ref={groupRef}>
+      {/* ── Mercury corona — Fresnel atmosphere, silver-steel at edge of chaos ── */}
+      <mesh>
+        <sphereGeometry args={[SPHERE_RADIUS * 1.16, 36, 28]} />
+        <primitive object={atmosMat} attach="material" />
+      </mesh>
+
+      {/* ── Orbital belts — perihelion precession geometry ── */}
+      {/* Ecliptic ring: Mercury's orbital plane, 7° inclination */}
+      <mesh rotation={[Math.PI / 2, 0, 0.12]}>
+        <torusGeometry args={[SPHERE_RADIUS * 1.06, 0.005, 6, 80]} />
+        <meshBasicMaterial color="#506880" transparent opacity={0.14} depthWrite={false} />
+      </mesh>
+      {/* Precession ring: tilt marks the anomalous advance of perihelion */}
+      <mesh rotation={[Math.PI / 3.8, 0.55, 0]}>
+        <torusGeometry args={[SPHERE_RADIUS * 1.13, 0.003, 6, 80]} />
+        <meshBasicMaterial color="#304860" transparent opacity={0.09} depthWrite={false} />
+      </mesh>
+
       {/* Atomizer burst — wireframe sphere expanding outward on chimera synthesis */}
       <mesh ref={burstMeshRef} scale={[0, 0, 0]}>
         <sphereGeometry args={[0.28, 14, 14]} />
@@ -436,27 +599,73 @@ export default function TFGSphere() {
         );
       })()}
 
-      {/* Single-selection reading panel (only when one element, no connection) */}
-      {readingText && ((selA !== null && selB === null) || hgActive) && (() => {
-        const p = selA !== null ? positions[selA] : { x: 0, y: SPHERE_RADIUS, z: 0 };
+      {/* Single-selection intel card */}
+      {selA !== null && selB === null && (() => {
+        const p      = positions[selA];
+        const trait  = traits[selA];
+        const planet = TRAIT_PLANET_MAP[trait.id];
+        const d      = astroCache?.[planet] || {};
+        const catCol = trait.category === 'STRENGTH' ? '#39ff14'
+                     : trait.category === 'PARADOX'  ? '#d946ef'
+                     : '#f43f5e';
+        const bars   = Math.round(trait.strength * 10);
+        const noteLines = trait.alienNote.split('\n');
+        return (
+          <Html position={[p.x, p.y + 0.52, p.z]} style={{
+            background:  'rgba(2,2,10,0.93)',
+            border:      `1px solid ${catCol}33`,
+            borderLeft:  `2px solid ${catCol}bb`,
+            fontFamily:  'monospace',
+            fontSize:    '9px',
+            padding:     '6px 9px',
+            pointerEvents: 'none',
+            userSelect:  'none',
+            borderRadius: '2px',
+            minWidth:    '165px',
+            maxWidth:    '230px',
+            transform:   'translateX(-50%)',
+            animation:   'tfg-intel-in 0.18s ease-out both',
+          }}>
+            <style>{`
+              @keyframes tfg-intel-in {
+                from { opacity:0; transform:translateX(-50%) translateY(4px); }
+                to   { opacity:1; transform:translateX(-50%) translateY(0); }
+              }
+            `}</style>
+            <div style={{ color: catCol, fontWeight: 'bold', fontSize: 10, marginBottom: 3 }}>
+              ◈ {trait.label}
+            </div>
+            <div style={{ color: '#404055', letterSpacing: '0.04em', marginBottom: 3 }}>
+              {trait.category} · SIG {trait.strength.toFixed(2)}
+            </div>
+            <div style={{ color: catCol, opacity: 0.8, letterSpacing: '0.06em', marginBottom: 4, fontSize: 8 }}>
+              {'█'.repeat(bars)}{'░'.repeat(10 - bars)}
+            </div>
+            <div style={{ borderTop: '1px solid #1a1a28', marginBottom: 4 }} />
+            <div style={{ color: '#506070', marginBottom: 3 }}>
+              <span style={{ color: PLANET_COLORS_BY_NAME[planet] || '#607080' }}>{planet}</span>
+              {d.sign
+                ? <span style={{ color: '#404060' }}> · {d.sign} {d.degree?.toFixed(0)}°{d.retrograde ? ' ℞' : ''}</span>
+                : null}
+            </div>
+            {noteLines.slice(1).map((ln, i) => (
+              <div key={i} style={{ color: '#3a4a5a', fontSize: 8, lineHeight: '1.55' }}>{ln}</div>
+            ))}
+          </Html>
+        );
+      })()}
+
+      {/* Hg single-selection (keeps existing text) */}
+      {hgActive && readingText && (() => {
+        const p = { x: 0, y: SPHERE_RADIUS, z: 0 };
         return (
           <Html position={[p.x, p.y + 0.45, p.z]} style={{
-            background:    'rgba(0,0,0,0.85)',
-            border:        '1px solid rgba(217,70,239,0.4)',
-            color:         '#c0c0c0',
-            fontFamily:    'monospace',
-            fontSize:      '9px',
-            padding:       '6px 8px',
-            whiteSpace:    'pre',
-            pointerEvents: 'none',
-            userSelect:    'none',
-            borderRadius:  '3px',
-            minWidth:      '120px',
-            maxWidth:      '200px',
-            transform:     'translateX(-50%)',
-          }}>
-            {readingText}
-          </Html>
+            background: 'rgba(0,0,0,0.88)', border: '1px solid rgba(245,158,11,0.35)',
+            color: '#c0c0c0', fontFamily: 'monospace', fontSize: '9px',
+            padding: '6px 8px', whiteSpace: 'pre', pointerEvents: 'none',
+            userSelect: 'none', borderRadius: '3px', minWidth: '130px',
+            maxWidth: '200px', transform: 'translateX(-50%)',
+          }}>{readingText}</Html>
         );
       })()}
 
@@ -477,6 +686,13 @@ export default function TFGSphere() {
           if (idx === undefined || idx === null) return;
           pulseRef.current = { active: true, t: 0, idx };
           setHgActive(false);
+          // Spark burst at world position of clicked trait node
+          if (groupRef.current) {
+            const lp = positions[idx].clone().multiplyScalar(expansionRef.current);
+            lp.applyMatrix4(groupRef.current.matrixWorld);
+            const isBridge = selection[0] !== null && selection[0] !== idx;
+            emitSpark(lp, traitHue(traits[idx]), isBridge ? 55 : 38, isBridge ? 1.6 : 1.1);
+          }
           setSelection(prev => {
             const [a, b] = prev;
             if (a === idx) return [null, null];          // deselect
@@ -545,7 +761,7 @@ export default function TFGSphere() {
           metalness={0.9}
           roughness={0.1}
         />
-        <pointLight ref={hgLightRef} color="#f59e0b" intensity={0.8} distance={4} />
+        <pointLight ref={hgLightRef} color="#f59e0b" intensity={1.4} distance={6} />
         <Html
           position={[0.3, 0, 0]}
           style={{
@@ -561,6 +777,18 @@ export default function TFGSphere() {
         </Html>
       </mesh>
 
+      {/* Hg corona — wide diffuse halo around the anchor */}
+      <mesh position={hgPos}>
+        <sphereGeometry args={[BASE_SIZE * 10, 12, 12]} />
+        <meshBasicMaterial color="#f59e0b" transparent opacity={0.06} depthWrite={false} />
+      </mesh>
+
     </group>
+    {/* Sparks — world-space, independent of sphere rotation */}
+    <points ref={pointsRef}>
+      <primitive object={sparkGeo} attach="geometry" />
+      <primitive object={sparkMat} attach="material" />
+    </points>
+    </>
   );
 }

@@ -1127,6 +1127,7 @@ export default function LatentCollider() {
       setAcquired(false);
       setDomainB(id);
       runCollision(domainA, id);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
       // Reset
       setCrystal(null);
