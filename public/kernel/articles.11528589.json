@@ -1,18 +1,21 @@
 [
   {
-    "id": "SCALE-OPTIMIZATION-KERNEL-9.4",
+    "id": "FISH-SCALE-KERNEL11.1.1",
     "type": "kernel_doc",
     "date": "2026-03-07",
-    "lastModified": "2026-03-07",
-    "title": "SCALE OPTIMIZATION KERNEL 9.4",
-    "subtitle": "◈ 2026 GEOPOLITICAL ALIGNMENT",
+    "lastModified": "2026-05-01",
+    "title": "FISH SCALE KERNEL11.1.1",
+    "subtitle": "2.0 Integration of System Atoms",
     "status": "ACTIVE",
-    "readTime": "1 min read",
+    "readTime": "2 min read",
     "tags": [
-      "GEOPOLITICAL",
-      "ALIGNMENT"
+      "Integration",
+      "System",
+      "Atoms",
+      "Substrate",
+      "Layer"
     ],
-    "len": "0 WDS"
+    "len": "401 WDS"
   },
   {
     "id": "GSK-5.5.5",
@@ -201,42 +204,6 @@
       "Engine",
       "SYSTEM",
       "OVERVIEW"
-    ],
-    "len": "0 WDS"
-  },
-  {
-    "id": "FISH-SCALE-KERNEL",
-    "type": "kernel_doc",
-    "date": "2026-03-07",
-    "lastModified": "2026-05-01",
-    "title": "FISH SCALE KERNEL",
-    "subtitle": "1.0 Executive Boot Sequence and Architectural Thesis",
-    "status": "ACTIVE",
-    "readTime": "16 min read",
-    "tags": [
-      "Executive",
-      "Boot",
-      "Sequence",
-      "Architectural",
-      "Thesis"
-    ],
-    "len": "0 WDS"
-  },
-  {
-    "id": "HIGH-TOWER-KERNEL",
-    "type": "kernel_doc",
-    "date": "2026-03-06",
-    "lastModified": "2026-05-01",
-    "title": "🏛️ SYSTEM_MIGRATION_LOG: KERNEL_EXPORT_FINAL",
-    "subtitle": "1.0 IDENTITY & PERSONA",
-    "status": "ACTIVE",
-    "readTime": "2 min read",
-    "tags": [
-      "SYSTEM",
-      "MIGRATION",
-      "LOG",
-      "EXPORT",
-      "FINAL"
     ],
     "len": "0 WDS"
   },

@@ -5,22 +5,10 @@
       "title": "🌿 THE SORBE BLOOM // THERMODYNAMIC SYNTHESIS V1.0"
     }
   ],
-  "ALIGNMENT": [
-    {
-      "id": "SCALE-OPTIMIZATION-KERNEL-9.4",
-      "title": "SCALE OPTIMIZATION KERNEL 9.4"
-    }
-  ],
   "arapaima-gigas": [
     {
       "id": "FFB-1.0",
       "title": "FISH SCALE KERNEL · THE FEIGENBAUM BIFURCATION"
-    }
-  ],
-  "Architectural": [
-    {
-      "id": "FISH-SCALE-KERNEL",
-      "title": "FISH SCALE KERNEL"
     }
   ],
   "Architecture": [
@@ -33,6 +21,12 @@
     {
       "id": "SCALE94-KERNEL-ENCYCLOPEDIA",
       "title": "💀 SCALE94 · KERNEL ENCYCLOPEDIA"
+    }
+  ],
+  "Atoms": [
+    {
+      "id": "FISH-SCALE-KERNEL11.1.1",
+      "title": "FISH SCALE KERNEL11.1.1"
     }
   ],
   "bifurcation": [
@@ -57,12 +51,6 @@
     {
       "id": "SORBE-THERMODYNAMIC-BLOOM-V1",
       "title": "🌿 THE SORBE BLOOM // THERMODYNAMIC SYNTHESIS V1.0"
-    }
-  ],
-  "Boot": [
-    {
-      "id": "FISH-SCALE-KERNEL",
-      "title": "FISH SCALE KERNEL"
     }
   ],
   "BOOT": [
@@ -179,22 +167,10 @@
       "title": "TACTICAL CARTOGRAPHY OF DIGITAL AUTHORITARIANISM"
     }
   ],
-  "Executive": [
-    {
-      "id": "FISH-SCALE-KERNEL",
-      "title": "FISH SCALE KERNEL"
-    }
-  ],
   "EXFILTRATION": [
     {
       "id": "SHADOWSOCKS-KERNEL-∞",
       "title": "🌑 OPERATION SHADOW SOCKS: KERNEL EXFILTRATION"
-    }
-  ],
-  "EXPORT": [
-    {
-      "id": "HIGH-TOWER-KERNEL",
-      "title": "🏛️ SYSTEM_MIGRATION_LOG: KERNEL_EXPORT_FINAL"
     }
   ],
   "False": [
@@ -207,12 +183,6 @@
     {
       "id": "FFB-1.0",
       "title": "FISH SCALE KERNEL · THE FEIGENBAUM BIFURCATION"
-    }
-  ],
-  "FINAL": [
-    {
-      "id": "HIGH-TOWER-KERNEL",
-      "title": "🏛️ SYSTEM_MIGRATION_LOG: KERNEL_EXPORT_FINAL"
     }
   ],
   "FLORA": [
@@ -231,12 +201,6 @@
     {
       "id": "GSK-5.5.5",
       "title": "ᛟ THE GAIA-SCALE KERNEL: SOVEREIGN RECONSTRUCTION"
-    }
-  ],
-  "GEOPOLITICAL": [
-    {
-      "id": "SCALE-OPTIMIZATION-KERNEL-9.4",
-      "title": "SCALE OPTIMIZATION KERNEL 9.4"
     }
   ],
   "GLYPH": [
@@ -269,6 +233,12 @@
       "title": "THE CHRONOS KERNEL · V1.1 · LOOP SEVERANCE"
     }
   ],
+  "Integration": [
+    {
+      "id": "FISH-SCALE-KERNEL11.1.1",
+      "title": "FISH SCALE KERNEL11.1.1"
+    }
+  ],
   "Jeffrey": [
     {
       "id": "UTK-1.0-1",
@@ -285,16 +255,16 @@
       "title": "🌿 THE SORBE BLOOM // THERMODYNAMIC SYNTHESIS V1.0"
     }
   ],
+  "Layer": [
+    {
+      "id": "FISH-SCALE-KERNEL11.1.1",
+      "title": "FISH SCALE KERNEL11.1.1"
+    }
+  ],
   "LEGISLATION": [
     {
       "id": "SURVEILLANCE-TRACKER",
       "title": "TACTICAL CARTOGRAPHY OF DIGITAL AUTHORITARIANISM"
-    }
-  ],
-  "LOG": [
-    {
-      "id": "HIGH-TOWER-KERNEL",
-      "title": "🏛️ SYSTEM_MIGRATION_LOG: KERNEL_EXPORT_FINAL"
     }
   ],
   "Loop": [
@@ -319,12 +289,6 @@
     {
       "id": "CEEI-ALLOCATION-ENGINE",
       "title": "A-CEEI ALLOCATION ENGINE V1.0 // PREFERENCE-BASED MARKETS"
-    }
-  ],
-  "MIGRATION": [
-    {
-      "id": "HIGH-TOWER-KERNEL",
-      "title": "🏛️ SYSTEM_MIGRATION_LOG: KERNEL_EXPORT_FINAL"
     }
   ],
   "moiré-superlattice": [
@@ -433,12 +397,6 @@
       "title": "THE CIGAR HEIST"
     }
   ],
-  "Sequence": [
-    {
-      "id": "FISH-SCALE-KERNEL",
-      "title": "FISH SCALE KERNEL"
-    }
-  ],
   "Setup": [
     {
       "id": "CEEI-ALLOCATION-ENGINE",
@@ -509,6 +467,12 @@
       "title": "🌿 THE SORBE BLOOM // THERMODYNAMIC SYNTHESIS V1.0"
     }
   ],
+  "Substrate": [
+    {
+      "id": "FISH-SCALE-KERNEL11.1.1",
+      "title": "FISH SCALE KERNEL11.1.1"
+    }
+  ],
   "SURVEILLANCE": [
     {
       "id": "SURVEILLANCE-TRACKER",
@@ -521,6 +485,12 @@
       "title": "⟁ THE UNDERGROUND THERMODYNAMICISTS"
     }
   ],
+  "System": [
+    {
+      "id": "FISH-SCALE-KERNEL11.1.1",
+      "title": "FISH SCALE KERNEL11.1.1"
+    }
+  ],
   "SYSTEM": [
     {
       "id": "CEEI-ALLOCATION-ENGINE",
@@ -529,10 +499,6 @@
     {
       "id": "DALY-THERMO-SIMULATION",
       "title": "DALY THERMO SIMULATION V1.0 // THERMODYNAMIC GOVERNOR"
-    },
-    {
-      "id": "HIGH-TOWER-KERNEL",
-      "title": "🏛️ SYSTEM_MIGRATION_LOG: KERNEL_EXPORT_FINAL"
     }
   ],
   "Technical": [
@@ -551,12 +517,6 @@
     {
       "id": "ATMOSPHERIC-ENTROPY-KERNEL-3.0",
       "title": "ATMOSPHERIC ENTROPY KERNEL 3.0"
-    }
-  ],
-  "Thesis": [
-    {
-      "id": "FISH-SCALE-KERNEL",
-      "title": "FISH SCALE KERNEL"
     }
   ],
   "Transition": [
