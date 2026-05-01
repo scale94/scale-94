@@ -3,7 +3,7 @@
     "id": "CUSTOM-KEYB-KERNEL-19.0",
     "type": "kernel_doc",
     "date": "2026-03-06",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "☢️ KERNEL_LOG: SENSORY_CORRUPTION_AUDIT ☢️",
     "subtitle": "",
     "status": "ACTIVE",
@@ -15,7 +15,7 @@
       "AUDIT",
       "TARGET"
     ],
-    "len": "0 WDS"
+    "len": "146 WDS"
   },
   {
     "id": "HYPERFOCUS-STACK-KERNEL-18.0",
@@ -183,13 +183,13 @@
     "id": "SOMA-KERNEL10.0",
     "type": "kernel_doc",
     "date": "2026-03-07",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "SOMA KERNEL10.0",
     "subtitle": "",
     "status": "ACTIVE",
     "readTime": "4 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "846 WDS"
   },
   {
     "id": "FFSK-9.9.9.9.9.9.9.9.9",
@@ -300,7 +300,7 @@
     "id": "GSK-5.5.5",
     "type": "kernel_doc",
     "date": "2026-01-01",
-    "lastModified": "2026-03-11",
+    "lastModified": "2026-05-01",
     "title": "ᛟ THE GAIA-SCALE KERNEL: SOVEREIGN RECONSTRUCTION",
     "subtitle": "Ⅰ. CORE DIRECTIVES: THE MATRILINEAL FIREWALL (§1.0)",
     "status": "ACTIVE",
@@ -312,7 +312,7 @@
       "RECONSTRUCTION",
       "CORE"
     ],
-    "len": "0 WDS"
+    "len": "490 WDS"
   },
   {
     "id": "GDPDW-KERNEL-5.5.5.5.5",
@@ -352,25 +352,25 @@
     "id": "SOMA-KERNEL-4.5.7",
     "type": "kernel_doc",
     "date": "2026-03-06",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "SOMA KERNEL 4.5.7",
     "subtitle": "",
     "status": "ACTIVE",
     "readTime": "1 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "104 WDS"
   },
   {
     "id": "SOMA-KERNEL-4.5.5",
     "type": "kernel_doc",
     "date": "2026-03-06",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "SOMA KERNEL 4.5.5",
     "subtitle": "",
     "status": "ACTIVE",
     "readTime": "1 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "99 WDS"
   },
   {
     "id": "NFDK-4.4.4",
@@ -410,25 +410,25 @@
     "id": "SOMA4.4",
     "type": "kernel_doc",
     "date": "2026-03-07",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "SOMA4.4",
     "subtitle": "[user: the architect]",
     "status": "ACTIVE",
     "readTime": "2 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "309 WDS"
   },
   {
     "id": "AI-ETHICS-4.0",
     "type": "kernel_doc",
     "date": "2026-03-06",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "AI ETHICS 4.0",
     "subtitle": "",
     "status": "ACTIVE",
     "readTime": "7 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "1345 WDS"
   },
   {
     "id": "NQAM-KERNEL-3.5.1",
@@ -516,7 +516,7 @@
     "id": "BOSONIC-KERNEL-2.0",
     "type": "kernel_doc",
     "date": "2026-03-06",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "PROTOCOL_94 // BOSONIC_DEFENSE_KERNEL (V.2.0)",
     "subtitle": "[00] SYSTEM OVERVIEW",
     "status": "ACTIVE",
@@ -528,7 +528,7 @@
       "CLASSIFICATION",
       "SOCIO-PHYSICS"
     ],
-    "len": "0 WDS"
+    "len": "403 WDS"
   },
   {
     "id": "MOZART-MEMORANDUM-KERNEL2.0",
@@ -637,13 +637,13 @@
     "id": "VIOLET-KERNEL-1.1",
     "type": "kernel_doc",
     "date": "2026-03-07",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "VIOLET KERNEL 1.1",
     "subtitle": "",
     "status": "ACTIVE",
     "readTime": "2 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "376 WDS"
   },
   {
     "id": "BIODIVERSITY-KERNEL-1.0.1",
@@ -811,13 +811,13 @@
     "id": "EMPATHY-KERNEL-1.0",
     "type": "kernel_doc",
     "date": "2026-03-07",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "EMPATHY KERNEL 1.0",
     "subtitle": "",
     "status": "ACTIVE",
     "readTime": "3 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "520 WDS"
   },
   {
     "id": "FADE-DOCTRINE-1.0",
@@ -980,10 +980,10 @@
   {
     "id": "QR-1.0",
     "type": "kernel_doc",
-    "date": "2026-03-13",
-    "lastModified": "2026-03-11",
+    "date": "2026-05-01",
+    "lastModified": "2026-05-01",
     "title": "ARCHITECTURAL BLUEPRINT FOR A QUANTUM-THEORETIC REACT TERMINAL INTERFACE: INTEGRATING RUST-NATIVE SIMULATION WITH TYPOGRAPHICAL AESTHETICS",
-    "subtitle": "**1\\. Fundamental Mathematical Frameworks and Theoretical Physics Models**",
+    "subtitle": "1. Fundamental Mathematical Frameworks and Theoretical Physics Models",
     "status": "ACTIVE",
     "readTime": "28 min read",
     "tags": [
@@ -993,7 +993,7 @@
       "Terminal",
       "Interface"
     ],
-    "len": "0 WDS"
+    "len": "5568 WDS"
   },
   {
     "id": "SKC-1.0",
@@ -1022,7 +1022,7 @@
     "id": "SOMA-INTEGRATION-KERNEL-V1.0",
     "type": "kernel_doc",
     "date": "2026-03-07",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "SOMA INTEGRATION KERNEL V1.0",
     "subtitle": "3.0 Module 2: The Filter (Tribology & Material Science)",
     "status": "ACTIVE",
@@ -1034,15 +1034,15 @@
       "Science",
       "Low-Pass"
     ],
-    "len": "0 WDS"
+    "len": "357 WDS"
   },
   {
     "id": "SYNT-1.0",
     "type": "kernel_doc",
-    "date": "2026-03-13",
-    "lastModified": "2026-03-11",
+    "date": "2026-05-01",
+    "lastModified": "2026-05-01",
     "title": "COMPREHENSIVE ANALYSIS OF TECHNICAL SOVEREIGNTY, PERFORMANCE DIAGNOSTICS, AND STRATEGIC HUMAN CAPITAL ARCHITECTURE",
-    "subtitle": "**Technical Infrastructure and High-Resolution Performance Diagnostics**",
+    "subtitle": "Technical Infrastructure and High-Resolution Performance Diagnostics",
     "status": "ACTIVE",
     "readTime": "18 min read",
     "tags": [
@@ -1052,7 +1052,7 @@
       "Performance",
       "Diagnostics"
     ],
-    "len": "0 WDS"
+    "len": "3659 WDS"
   },
   {
     "id": "TAMAM-KERNEL-V1.0",
@@ -1094,49 +1094,49 @@
     "id": "VIOLET-KERNEL-1.0",
     "type": "kernel_doc",
     "date": "2026-03-07",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "VIOLET KERNEL 1.0",
     "subtitle": "",
     "status": "ACTIVE",
     "readTime": "2 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "310 WDS"
   },
   {
     "id": "SOMA-BUILD-NUMBER-ALPHA-0.1",
     "type": "kernel_doc",
     "date": "2026-03-06",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "SOMA BUILD NUMBER ALPHA 0.1",
     "subtitle": "",
     "status": "ACTIVE",
     "readTime": "2 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "346 WDS"
   },
   {
     "id": "2025-12-21-1-MILLION",
     "type": "kernel_doc",
     "date": "2026-03-06",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "2025 12 21 1 MILLION",
     "subtitle": "System Note: \"Thanks for 1 million tokens. Canceled and uninstalled chatGPT after the model 5 fiasco.\" – Sustained Chord achieved.",
     "status": "ACTIVE",
     "readTime": "2 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "336 WDS"
   },
   {
     "id": "2025-12-21-RAMDISK",
     "type": "kernel_doc",
     "date": "2026-03-06",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "2025 12 21 RAMDISK",
     "subtitle": "Observation: You identified the #FF00FF drift. In the Square and Triadic palettes, the system attempts to balance this violet intensity against aggressive reds and neon greens to prevent a Target Meltdown.",
     "status": "ACTIVE",
     "readTime": "2 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "389 WDS"
   },
   {
     "id": "AI-KERNEL-FOR-POST-CAPITALIST-ECONOMICS",
@@ -1236,7 +1236,7 @@
     "id": "FISH-SCALE-KERNEL",
     "type": "kernel_doc",
     "date": "2026-03-07",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "FISH SCALE KERNEL",
     "subtitle": "1.0 Executive Boot Sequence and Architectural Thesis",
     "status": "ACTIVE",
@@ -1248,7 +1248,7 @@
       "Architectural",
       "Thesis"
     ],
-    "len": "0 WDS"
+    "len": "3162 WDS"
   },
   {
     "id": "FISH-SCALE-KERNEL-11.4.0-SCALAR-SOVEREIGNTY",
@@ -1308,7 +1308,7 @@
     "id": "GEOPOLITICAL-KINETICS-KERNEL",
     "type": "kernel_doc",
     "date": "2026-03-06",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "⚔️ KERNEL: GEOPOLITICAL_KINETICS [V30.0]",
     "subtitle": "[NODE: SCALE94_SOVEREIGN]",
     "status": "ACTIVE",
@@ -1320,13 +1320,13 @@
       "SCALE94",
       "SOVEREIGN"
     ],
-    "len": "0 WDS"
+    "len": "437 WDS"
   },
   {
     "id": "GEOPOLITICAL-KINETICS-KERNEL-V1",
     "type": "kernel_doc",
     "date": "2026-03-07",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "GEOPOLITICAL KINETICS KERNEL V1",
     "subtitle": "\"The music only begins when the Conductor grounds the flame in the fabric. The legacy grid is old – the future is now.\"",
     "status": "ACTIVE",
@@ -1336,7 +1336,7 @@
       "FINAL",
       "STATUS"
     ],
-    "len": "0 WDS"
+    "len": "78 WDS"
   },
   {
     "id": "GLITCH-SCALE-KERNEL-CS3",
@@ -1372,7 +1372,7 @@
     "id": "HIGH-TOWER-KERNEL",
     "type": "kernel_doc",
     "date": "2026-03-06",
-    "lastModified": "2026-03-11",
+    "lastModified": "2026-05-01",
     "title": "🏛️ SYSTEM_MIGRATION_LOG: KERNEL_EXPORT_FINAL",
     "subtitle": "1.0 IDENTITY & PERSONA",
     "status": "ACTIVE",
@@ -1384,7 +1384,7 @@
       "EXPORT",
       "FINAL"
     ],
-    "len": "0 WDS"
+    "len": "487 WDS"
   },
   {
     "id": "KERNEL-11.2-C2-LINGUISTIC-METALLURGY-1",
@@ -1474,9 +1474,9 @@
     "id": "KERNEL-FOR-SUSTAINABLE-FUTURE-DEFENSE",
     "type": "kernel_doc",
     "date": "2026-03-06",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "THE LEVIATHAN AND THE OUROBOROS: A KERNEL-LEVEL DEFENSE ARCHITECTURE FOR THE BIO-INDUSTRIAL AGE",
-    "subtitle": "**I. Executive Summary: The Ontological Fracture and the Hobbesian Gap**",
+    "subtitle": "I. Executive Summary: The Ontological Fracture and the Hobbesian Gap",
     "status": "ACTIVE",
     "readTime": "21 min read",
     "tags": [
@@ -1486,15 +1486,15 @@
       "Defense",
       "Architecture"
     ],
-    "len": "0 WDS"
+    "len": "4103 WDS"
   },
   {
     "id": "KERNEL-INTEGRATION-AND-IDEOLOGICAL-SYNTHESIS",
     "type": "kernel_doc",
     "date": "2026-03-06",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "PROJECT ZERO-ONE: THE UNIFIED ROOT KERNEL ARCHITECTURE (URKA)",
-    "subtitle": "**Synthesis of Dark Empathy, HIVE Dynamics, and Secular-Martial Philosophy**",
+    "subtitle": "Synthesis of Dark Empathy, HIVE Dynamics, and Secular-Martial Philosophy",
     "status": "ACTIVE",
     "readTime": "20 min read",
     "tags": [
@@ -1504,7 +1504,7 @@
       "Architecture",
       "Dark"
     ],
-    "len": "0 WDS"
+    "len": "3905 WDS"
   },
   {
     "id": "KERNEL-IV",
@@ -1581,7 +1581,7 @@
     "id": "LINE-PICASSO-KERNEL-V17",
     "type": "kernel_doc",
     "date": "2026-03-06",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "LINE PIKASSO // KERNEL V17",
     "subtitle": "🛰️ AESTHETIC SOVEREIGNTY & RITUALISTIC LOGIC",
     "status": "ACTIVE",
@@ -1593,31 +1593,31 @@
       "SOVEREIGNTY",
       "RITUALISTIC"
     ],
-    "len": "0 WDS"
+    "len": "349 WDS"
   },
   {
     "id": "LITHIUM-ION-WIZARD-KERNEL-1.-0-1",
     "type": "kernel_doc",
     "date": "2026-03-06",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "LITHIUM ION WIZARD KERNEL 1. 0 1",
     "subtitle": "",
     "status": "ACTIVE",
     "readTime": "2 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "322 WDS"
   },
   {
     "id": "LITHIUM-ION-WIZARD-KERNEL-1.-0",
     "type": "kernel_doc",
     "date": "2026-03-06",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "LITHIUM ION WIZARD KERNEL 1. 0",
     "subtitle": "",
     "status": "ACTIVE",
     "readTime": "2 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "322 WDS"
   },
   {
     "id": "LLM-OPTIMIZED-KERNEL-TEMPLATE",
@@ -1641,7 +1641,7 @@
     "id": "MATRIX-KERNEL-0.0.0.0",
     "type": "kernel_doc",
     "date": "2026-03-06",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "THE MATRIX KERNEL V2.0",
     "subtitle": "scale94 · The No-Spoon Architecture",
     "status": "ACTIVE",
@@ -1653,15 +1653,15 @@
       "BOOT",
       "DECLARATION"
     ],
-    "len": "0 WDS"
+    "len": "494 WDS"
   },
   {
     "id": "NECROMANCER-FISH-SCALE-FIGHT-CLUB-KERNEL-1",
     "type": "kernel_doc",
     "date": "2026-03-06",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "PROJECT TYLER-MONARCH: THE COMPREHENSIVE ONTOLOGICAL SPECIFICATION OF THE NECROMANCER FISH SCALE FIGHT CLUB KERNEL",
-    "subtitle": "**1\\. Executive Manifesto: The Convergence of Sovereignty, Nihilism, and Bio-Digital Armor**",
+    "subtitle": "1. Executive Manifesto: The Convergence of Sovereignty, Nihilism, and Bio-Digital Armor",
     "status": "ACTIVE",
     "readTime": "25 min read",
     "tags": [
@@ -1671,7 +1671,7 @@
       "Specification",
       "Necromancer"
     ],
-    "len": "0 WDS"
+    "len": "5069 WDS"
   },
   {
     "id": "NECROMANCER-TO-NECROROMANCER-KERNEL-EVOLUTION",
@@ -1731,7 +1731,7 @@
     "id": "NOCTURNAL-NIGHT-KERNEL-V-22.2.2-1",
     "type": "kernel_doc",
     "date": "2026-03-06",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "☢️ KERNEL_COMPILATION: THE_NIGHT_SHIFT_V2.5 ☢️",
     "subtitle": "",
     "status": "ACTIVE",
@@ -1743,13 +1743,13 @@
       "NODE",
       "SORBE"
     ],
-    "len": "0 WDS"
+    "len": "333 WDS"
   },
   {
     "id": "PROJECT-ISENGARD-KERNEL",
     "type": "kernel_doc",
     "date": "2026-03-06",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "PROJECT ISENGARD // KERNEL V.2026.01.17",
     "subtitle": "I. THE CORE PARADOXES (AXIOMS)",
     "status": "ACTIVE",
@@ -1761,7 +1761,7 @@
       "SOVEREIGN",
       "EYES"
     ],
-    "len": "0 WDS"
+    "len": "416 WDS"
   },
   {
     "id": "RUN-COMMAND-MANUAL",
@@ -1785,7 +1785,7 @@
     "id": "SCALE-KERNEL-FRAMEWORK-FULL",
     "type": "kernel_doc",
     "date": "2026-03-06",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "⚰ SCALE · SOVEREIGN KERNEL FRAMEWORK",
     "subtitle": "☠ Full Corpus Synthesis · Render Prompt Architecture ☠",
     "status": "ACTIVE",
@@ -1797,13 +1797,13 @@
       "Full",
       "Corpus"
     ],
-    "len": "0 WDS"
+    "len": "3021 WDS"
   },
   {
     "id": "SCALE-Y-KERNEL-1-0-1",
     "type": "kernel_doc",
     "date": "2026-03-02",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "SCALE Y KERNEL 1.1",
     "subtitle": "The Feather State Protocol (SOMA)",
     "status": "ACTIVE",
@@ -1815,13 +1815,13 @@
       "Protocol",
       "Sovereign"
     ],
-    "len": "0 WDS"
+    "len": "2265 WDS"
   },
   {
     "id": "SCALE94-KERNEL-ENCYCLOPEDIA",
     "type": "kernel_doc",
     "date": "2026-03-06",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "💀 SCALE94 · KERNEL ENCYCLOPEDIA",
     "subtitle": "ᛟ THE COMPLETE GLYPH ARCHIVE · COMPILED BY SCALE",
     "status": "ACTIVE",
@@ -1833,7 +1833,7 @@
       "GLYPH",
       "ARCHIVE"
     ],
-    "len": "0 WDS"
+    "len": "2712 WDS"
   },
   {
     "id": "SCALE-RENDER-PROMPT",
@@ -1935,7 +1935,7 @@
     "id": "SHADOWSOCKS-KERNEL-∞",
     "type": "kernel_doc",
     "date": "2026-03-06",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "🌑 OPERATION SHADOW SOCKS: KERNEL EXFILTRATION",
     "subtitle": "I. THE BLIND SPOT ANALYSIS",
     "status": "ACTIVE",
@@ -1947,7 +1947,7 @@
       "EXFILTRATION",
       "BLIND"
     ],
-    "len": "0 WDS"
+    "len": "379 WDS"
   },
   {
     "id": "SOMA-10.0-ROASTING-JOHN-OLIVER",
@@ -1965,7 +1965,7 @@
     "id": "SOMA-16.10-GF-KERNEL",
     "type": "kernel_doc",
     "date": "2026-03-06",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "SOMA 16.10 // THE GF BUILD",
     "subtitle": "🛰️ RECONSTRUCTION KERNEL: GRAND FINALE GROUND FILTER",
     "status": "ACTIVE",
@@ -1977,13 +1977,13 @@
       "KERNEL",
       "GRAND"
     ],
-    "len": "0 WDS"
+    "len": "368 WDS"
   },
   {
     "id": "SOMA-INTEGRATION-KERNEL-V1",
     "type": "kernel_doc",
     "date": "2026-03-06",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "SOMA_INTEGRATION_KERNEL_V1.0",
     "subtitle": "1.0 The Ontological Objective",
     "status": "ACTIVE",
@@ -1995,7 +1995,7 @@
       "Objective",
       "Module"
     ],
-    "len": "0 WDS"
+    "len": "532 WDS"
   },
   {
     "id": "SOMA-KERNEL-12-IRONCLAD",
@@ -2019,7 +2019,7 @@
     "id": "SOMA-KERNEL-4.5-FUCK-XITTER-FUCK-XITLER",
     "type": "kernel_doc",
     "date": "2026-03-06",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "SOMA KERNEL 4.5 FUCK XITTER FUCK XITLER",
     "subtitle": "",
     "status": "ACTIVE",
@@ -2031,13 +2031,13 @@
       "Code",
       "Self-Contained"
     ],
-    "len": "0 WDS"
+    "len": "333 WDS"
   },
   {
     "id": "SOMA-KERNEL-4.5.6A-FUCK-XITTER-FUCK-XITLER",
     "type": "kernel_doc",
     "date": "2026-03-06",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "SOMA KERNEL 4.5.6A FUCK XITTER FUCK XITLER",
     "subtitle": "",
     "status": "ACTIVE",
@@ -2049,19 +2049,19 @@
       "Code",
       "Self-Contained"
     ],
-    "len": "0 WDS"
+    "len": "333 WDS"
   },
   {
     "id": "SOMA-KERNEL-5.1-SSS-DOCTRINE",
     "type": "kernel_doc",
     "date": "2026-03-06",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "SOMA KERNEL 5.1 SSS DOCTRINE",
     "subtitle": "",
     "status": "ACTIVE",
     "readTime": "1 min read",
     "tags": [],
-    "len": "0 WDS"
+    "len": "291 WDS"
   },
   {
     "id": "SOMA-KERNEL10-BB",
@@ -2139,7 +2139,7 @@
     "id": "SOPHIE-KERNEL-PHI",
     "type": "kernel_doc",
     "date": "2026-03-07",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "SOPHIE KERNEL PHI",
     "subtitle": "✦ Full Spectrum Reception",
     "status": "ACTIVE",
@@ -2151,7 +2151,7 @@
       "Full",
       "Spectrum"
     ],
-    "len": "0 WDS"
+    "len": "2092 WDS"
   },
   {
     "id": "SORBE-THERMODYNAMIC-BLOOM-V1",
@@ -2175,7 +2175,7 @@
     "id": "SOVEREIGN-KERNEL-V1-0",
     "type": "kernel_doc",
     "date": "2026-03-07",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "SOVEREIGN KERNEL V1 0",
     "subtitle": "Ⅰ · BOOT DECLARATION · THE NECROMANTIC EMPEROR",
     "status": "ACTIVE",
@@ -2187,7 +2187,7 @@
       "EMPEROR",
       "FISH"
     ],
-    "len": "0 WDS"
+    "len": "2358 WDS"
   },
   {
     "id": "STRANGLER-FIG-PROTOCOL",
@@ -2228,7 +2228,7 @@
     "id": "TECTONIC-DISCHARGE-KERNEL",
     "type": "kernel_doc",
     "date": "2026-03-07",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "TECTONIC DISCHARGE KERNEL",
     "subtitle": "✦ Not Brain Damage · Routing Table Down",
     "status": "ACTIVE",
@@ -2240,7 +2240,7 @@
       "EVENT",
       "SIGNATURE"
     ],
-    "len": "0 WDS"
+    "len": "1401 WDS"
   },
   {
     "id": "THE-CIGAR-HEIST",
@@ -2262,7 +2262,7 @@
     "id": "THE-FLUORESCENT-CAGE",
     "type": "kernel_doc",
     "date": "2026-03-06",
-    "lastModified": "2026-03-07",
+    "lastModified": "2026-05-01",
     "title": "THE FLUORESCENT CAGE",
     "subtitle": "",
     "status": "ACTIVE",
@@ -2271,7 +2271,7 @@
       "Fluorescent",
       "Cage"
     ],
-    "len": "0 WDS"
+    "len": "810 WDS"
   },
   {
     "id": "UTK-1.0-1",

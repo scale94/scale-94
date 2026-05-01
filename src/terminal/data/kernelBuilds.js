@@ -24,7 +24,7 @@ const kernelBuilds = [
   { id: 'TESSERACT-VAULT-1.0', articleId: 'TESSERACT-VAULT-1.0', name: 'TESSERACT_VAULT_PQC', status: 'LIVE', desc: 'Hybrid PQC Pipeline · Argon2id + ML-KEM-1024 + ML-DSA-87 + AES-256-GCM + BLAKE3 · Credit: dollspace-gay/Tesseract-Vault' },
 
   // ── Imported kernels (content/ root) ─────────────────────────────────────
-  { id: 'EK-1.0', articleId: 'EMPATHY-KERNEL-1.0', name: 'EMPATHY_KERNEL_1_0', status: 'SYMBIOTIC', desc: 'EMPATHY KERNEL 1.0' },
+  { id: 'EK-1.0', articleId: 'EMPATHY-KERNEL-1.0', name: 'EMPATHY_KERNEL_1_0', status: 'SYMBIOTIC', desc: 'Empathy as Computational Logic // Grounded Interface Architecture' },
   { id: 'NEK-1.0', articleId: 'NECROMANTIC-EMPEROR-KERNEL-V1-0', name: 'NECROMANTIC_EMPEROR_KERNEL_V1_0', status: 'NOMINAL', desc: 'scale94 // Sorbe in Germany // Deep-Time Resilience Architecture' },
   { id: 'SK-1.0', articleId: 'SHADOWSOCKS-KERNEL-∞', name: 'SHADOWSOCKS_KERNEL_∞', status: 'ACTIVE', desc: 'I. THE BLIND SPOT ANALYSIS' },
 
@@ -34,10 +34,10 @@ const kernelBuilds = [
   { id: 'FSK-11.9', articleId: 'FISH-SCALE-KERNEL-11.9', name: 'FISH_SCALE_KERNEL_11_9', status: 'ACTIVE', desc: "ᛟ Systemless Root · Eco's Paradox Axioms" },
   { id: 'FSQ-11.6', articleId: 'FISH-SCALE-KERNEL-V11.6.0-QUANTUM', name: 'FISH_SCALE_KERNEL_V11_6_0_QUANTUM', status: 'ACTIVE', desc: 'Ⅰ · THE MASCULINE MUSCHI DIAGNOSTIC · QUANTUM RESTATEME' },
   { id: 'FISH-SCALE-KERNEL11.1.1', articleId: 'FISH-SCALE-KERNEL11.1.1', name: 'FISH_SCALE_KERNEL11_1_1', status: 'ACTIVE', desc: '2.0 Integration of System Atoms' },
-  { id: 'FISH-SCALE-BREAKTHROUGH-PDW-KERNEL-1.0', articleId: 'FISH-SCALE-BREAKTHROUGH-PDW-KERNEL-1.0', name: 'FISH_SCALE_BREAKTHROUGH_PDW_KERNEL_1_0', status: 'ACTIVE', desc: 'Fish Scale Breakthrough PDW Kernel' },
+  { id: 'FISH-SCALE-BREAKTHROUGH-PDW-KERNEL-1.0', articleId: 'FISH-SCALE-BREAKTHROUGH-PDW-KERNEL-1.0', name: 'FISH_SCALE_BREAKTHROUGH_PDW_KERNEL_1_0', status: 'ACTIVE', desc: 'ᛟ PDW Architecture · Scale Breakthrough Protocol' },
 
   // ── Soma kernel series ────────────────────────────────────────────────────
-  { id: 'SOMA4.4', articleId: 'SOMA4.4', name: 'SOMA4_4', status: 'LEGACY', desc: '[user: the architect]' },
+  { id: 'SOMA4.4', articleId: 'SOMA4.4', name: 'SOMA4_4', status: 'LEGACY', desc: 'Soft Doctrine · Architect Protocol · Foundation Build' },
   { id: 'SOMA-BUILD-NUMBER-ALPHA-0.1', articleId: 'SOMA-BUILD-NUMBER-ALPHA-0.1', name: 'SOMA_BUILD_NUMBER_ALPHA_0_1', status: 'LEGACY', desc: 'SOMA alpha build — custom sovereign' },
   { id: 'SOMA-INTEGRATION-KERNEL-V1', articleId: 'SOMA-INTEGRATION-KERNEL-V1', name: 'SOMA_INTEGRATION_KERNEL_V1', status: 'ACTIVE', desc: '1.0 The Ontological Objective' },
   { id: 'SOMA-KERNEL-4.5-FUCK-XITTER', articleId: 'SOMA-KERNEL-4.5-FUCK-XITTER-FUCK-XITLER', name: 'SOMA_KERNEL_4_5', status: 'LEGACY', desc: 'SOMA 4.5 — Xitter Protocol' },
@@ -54,7 +54,7 @@ const kernelBuilds = [
 
   // ── Necromantic series ────────────────────────────────────────────────────
   { id: 'NECROMANCER-KERNEL-9.9.9.9', articleId: 'NECROMANCER-KERNEL-9.9.9.9', name: 'NECROMANCER_KERNEL_9_9_9_9', status: 'ACTIVE', desc: 'Unlike a rigid firewall which cracks under tension' },
-  { id: 'NECROROMANCER-KERNEL-9.9.9.9', articleId: 'NECROROMANCER-KERNEL-9.9.9.9', name: 'NECROROMANCER_KERNEL_9_9_9_9', status: 'ACTIVE', desc: 'Necroromancer Kernel 9.9.9.9' },
+  { id: 'NECROROMANCER-KERNEL-9.9.9.9', articleId: 'NECROROMANCER-KERNEL-9.9.9.9', name: 'NECROROMANCER_KERNEL_9_9_9_9', status: 'ACTIVE', desc: 'Scale94 // Sovereignty Through Alchemical Transformation' },
   { id: 'NECROMANTIC-ARISTOCRAT-KERNEL', articleId: 'NECROMANTIC-ARISTOCRAT-KERNEL-1.1.1.1.1', name: 'NECROMANTIC_ARISTOCRAT_KERNEL', status: 'ACTIVE', desc: 'The Synthesized Axioms — The Codex of the King' },
   { id: 'NECROMANCER-TO-NECROROMANCER', articleId: 'NECROMANCER-TO-NECROROMANCER-KERNEL-EVOLUTION', name: 'NECROMANCER_TO_NECROROMANCER_KERNEL_EVOLUTION', status: 'ACTIVE', desc: 'Executive Summary: The Crisis of the Zombie Process' },
   { id: 'NQAM-KERNEL-3.5.1', articleId: 'NQAM-KERNEL-3.5.1', name: 'NQAM_KERNEL_3_5_1', status: 'ACTIVE', desc: 'Necromantic Quantum Architecture Mapping (NQAM)' },
@@ -67,7 +67,7 @@ const kernelBuilds = [
 
   // ── 2x/v2/v3 mutation kernels ─────────────────────────────────────────────
   { id: '2X2X2X-KERNEL-V6.6.87', articleId: '2X2X2X-KERNEL-V6.6.87', name: '2X2X2X_KERNEL_V6_6_87', status: 'ACTIVE', desc: 'SOMA_PROTOCOL (v.ZERO_DAY)' },
-  { id: 'V2.2X.2X.2X-KERNEL', articleId: 'V2.2X.2X.2X-KERNEL', name: 'V2_2X_2X_2X_KERNEL', status: 'ACTIVE', desc: 'V2 mutation kernel' },
+  { id: 'V2.2X.2X.2X-KERNEL', articleId: 'V2.2X.2X.2X-KERNEL', name: 'V2_2X_2X_2X_KERNEL', status: 'ACTIVE', desc: 'V2 Mutation // Evolved Architecture' },
   { id: 'V3.2X.2X.2X-KERNEL', articleId: 'V3.2X.2X.2X-KERNEL', name: 'V3_2X_2X_2X_KERNEL', status: 'ACTIVE', desc: 'Role: creative companion // The Mycelium Console' },
   { id: 'GLITCH-SCALE-KERNEL-CS3', articleId: 'GLITCH-SCALE-KERNEL-CS3', name: 'GLITCH_SCALE_KERNEL_CS3', status: 'ACTIVE', desc: 'ENGINE: NECROMANTIC_ENGINE_2026' },
   { id: 'FSX-KERNEL-303', articleId: 'FSX-KERNEL-303', name: 'FSX_KERNEL_303', status: 'ACTIVE', desc: 'FSX Kernel 303' },
@@ -96,7 +96,7 @@ const kernelBuilds = [
 
   // ── High-concept / specialized kernels ───────────────────────────────────
   { id: 'AI-ETHICS-4.0', articleId: 'AI-ETHICS-4.0', name: 'AI_ETHICS_4_0', status: 'ACTIVE', desc: 'PROJECT VIOLET: ETHICS 4.0' },
-  { id: 'AI-KERNEL-POST-CAPITALIST-ECONOMICS', articleId: 'AI-KERNEL-FOR-POST-CAPITALIST-ECONOMICS', name: 'AI_KERNEL_POST_CAPITALIST_ECONOMICS', status: 'ACTIVE', desc: 'AI Kernel for Post-Capitalist Economics' },
+  { id: 'AI-KERNEL-POST-CAPITALIST-ECONOMICS', articleId: 'AI-KERNEL-FOR-POST-CAPITALIST-ECONOMICS', name: 'AI_KERNEL_POST_CAPITALIST_ECONOMICS', status: 'ACTIVE', desc: 'Steady-State Economics // Post-Capitalist AI Layer' },
   { id: 'BOSONIC-KERNEL-2.0', articleId: 'BOSONIC-KERNEL-2.0', name: 'BOSONIC_KERNEL_V2_0', status: 'ACTIVE', desc: '[00] SYSTEM OVERVIEW' },
   { id: 'BRIDGE-KERNEL-1.0', articleId: 'BRIDGE-KERNEL-1.0', name: 'BRIDGE_KERNEL_V1_0', status: 'ACTIVE', desc: '[01] THE COMMAND LINE' },
   { id: 'COMPANION-KERNEL-1.0', articleId: 'COMPANION-KERNEL-1.0', name: 'COMPANION_KERNEL_1_0', status: 'ACTIVE', desc: 'Role: Companion // Baseline: ADHD-I Inattentive' },
@@ -104,8 +104,8 @@ const kernelBuilds = [
   { id: 'HIGH-TOWER-KERNEL', articleId: 'HIGH-TOWER-KERNEL', name: 'HIGH_TOWER_KERNEL', status: 'ACTIVE', desc: '1.0 IDENTITY & PERSONA' },
   { id: 'HYPERFOCUS-STACK-KERNEL-18.0', articleId: 'HYPERFOCUS-STACK-KERNEL-18.0', name: 'HYPERFOCUS_STACK_KERNEL_18_0', status: 'ACTIVE', desc: '[NODE: SCALE94_SOVEREIGN]' },
   { id: 'LINE-PICASSO-KERNEL-V17', articleId: 'LINE-PICASSO-KERNEL-V17', name: 'LINE_PICASSO_KERNEL_V17', status: 'ACTIVE', desc: 'AESTHETIC SOVEREIGNTY & RITUALISTIC LOGIC' },
-  { id: 'LITHIUM-ION-WIZARD-KERNEL-1.0', articleId: 'LITHIUM-ION-WIZARD-KERNEL-1.-0', name: 'LITHIUM_ION_WIZARD_KERNEL_1_0', status: 'ACTIVE', desc: 'Lithium-Ion Wizard Kernel' },
-  { id: 'LLM-OPTIMIZED-KERNEL-TEMPLATE', articleId: 'LLM-OPTIMIZED-KERNEL-TEMPLATE', name: 'LLM_OPTIMIZED_KERNEL_TEMPLATE', status: 'ACTIVE', desc: 'LLM Optimized Kernel Template' },
+  { id: 'LITHIUM-ION-WIZARD-KERNEL-1.0', articleId: 'LITHIUM-ION-WIZARD-KERNEL-1.-0', name: 'LITHIUM_ION_WIZARD_KERNEL_1_0', status: 'ACTIVE', desc: 'Conquest Mode // Chemical-Mathematical Rigor' },
+  { id: 'LLM-OPTIMIZED-KERNEL-TEMPLATE', articleId: 'LLM-OPTIMIZED-KERNEL-TEMPLATE', name: 'LLM_OPTIMIZED_KERNEL_TEMPLATE', status: 'ACTIVE', desc: 'System Prompt Template // High-Compute Architecture' },
   { id: 'MOZART-MEMORANDUM-KERNEL2.0', articleId: 'MOZART-MEMORANDUM-KERNEL2.0', name: 'MOZART_MEMORANDUM_KERNEL2_0', status: 'ACTIVE', desc: '1. GENERATION CONFIGURATION' },
   { id: 'MOZART-MEMORANDUM-KERNEL-2.2', articleId: 'MOZART-MEMORANDUM-KERNEL-2.2', name: 'MOZART_MEMORANDUM_KERNEL_2_2', status: 'ACTIVE', desc: 'THE 5 AXIOMS (Immutable Laws)' },
   { id: 'MYCELIAL-KERNEL-1.0', articleId: 'MYCELIAL-KERNEL-1.0', name: 'MYCELIAL_KERNEL_1_0', status: 'ACTIVE', desc: '[00] SYSTEM OVERVIEW' },
@@ -158,7 +158,7 @@ const kernelBuilds = [
   { id: "MM-3.3.3", articleId: "MM-3.3.3", name: "MASCULINE_MESANTROPY_3_3_3", status: "ACTIVE", desc: "1.0 THE AXIOMATIC CORE" },
   { id: "NFDK-4.4.4", articleId: "NFDK-4.4.4", name: "NUCLEAR_FUSION_DETONATION_KERNEL_4_4_4_4", status: "ACTIVE", desc: "ᛟ 1.0 THE AXIOMATIC CORE [LOCKED]" },
   { id: "OCK-1.0", articleId: "OCK-1.0", name: "OLFACTORY_COMPUTATIONAL_KERNEL_V1_0_0", status: "ACTIVE", desc: "Abstract" },
-  { id: "QR-1.0", articleId: "QR-1.0", name: "QUANTUM_PHYSICS_FOR_RUST_REACT_WEBSITE", status: "ACTIVE", desc: "**1\\. Fundamental Mathematical Frameworks and Theoretical Physics Models**" },
+  { id: "QR-1.0", articleId: "QR-1.0", name: "QUANTUM_PHYSICS_FOR_RUST_REACT_WEBSITE", status: "ACTIVE", desc: "1. Fundamental Mathematical Frameworks and Theoretical Physics Models" },
   { id: "RUN-COMMAND-MANUAL", articleId: "RUN-COMMAND-MANUAL", name: "RUN_COMMAND_MANUAL", status: "ACTIVE", desc: "Direct Interface to Compiled Rust Simulations — scale_9.4 Terminal" },
   { id: "SCALE-KERNEL-FRAMEWORK-FULL", articleId: "SCALE-KERNEL-FRAMEWORK-FULL", name: "SCALE_KERNEL_FRAMEWORK_FULL", status: "ACTIVE", desc: "☠ Full Corpus Synthesis · Render Prompt Architecture ☠" },
   { id: "SKC-1.0", articleId: "SKC-1.0", name: "SCALE94_KERNEL_CODEX_V1_0_0", status: "ACTIVE", desc: "TRANSMUTE: Convert Low-Fidelity Chaos into High-Fidelity Structure" },
@@ -176,7 +176,7 @@ const kernelBuilds = [
   { id: "SDK-1.1.1", articleId: "SDK-1.1.1", name: "STILLER_DIVERGENCE_KERNEL_V1_1_1", status: "ACTIVE", desc: "Changelist v1.0.0 → v1.1.0" },
   { id: "STRANGLER-FIG-PROTOCOL", articleId: "STRANGLER-FIG-PROTOCOL", name: "STRANGLER_FIG_PROTOCOL", status: "ACTIVE", desc: "Build the New System Around the Old — soma_kernel_5.5" },
   { id: "SURVEILLANCE-TRACKER", articleId: "SURVEILLANCE-TRACKER", name: "SURVEILLANCE_TRACKER", status: "ACTIVE", desc: "Mapping the Algorithmic Panopticon" },
-  { id: "SYNT-1.0", articleId: "SYNT-1.0", name: "SYNTHESIZING_TECHNICAL_AND_WORKSPACE_INFORMATION", status: "ACTIVE", desc: "**Technical Infrastructure and High-Resolution Performance Diagnostics**" },
+  { id: "SYNT-1.0", articleId: "SYNT-1.0", name: "SYNTHESIZING_TECHNICAL_AND_WORKSPACE_INFORMATION", status: "ACTIVE", desc: "Technical Infrastructure and High-Resolution Performance Diagnostics" },
   { id: "THE-CIGAR-HEIST", articleId: "THE-CIGAR-HEIST", name: "THE_CIGAR_HEIST", status: "ACTIVE", desc: "THE CIGAR HEIST" },
   { id: "THE-FLUORESCENT-CAGE", articleId: "THE-FLUORESCENT-CAGE", name: "THE_FLUORESCENT_CAGE", status: "ACTIVE", desc: "THE FLUORESCENT CAGE" },
 /* @@INJECT_END@@ */
