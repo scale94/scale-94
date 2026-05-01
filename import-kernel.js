@@ -17,6 +17,7 @@
  *   node import-kernel.js ./my-kernels/          # scan custom dir
  *   node import-kernel.js ./my-kernels/ --dry    # preview only, no writes
  *   node import-kernel.js ./my-kernels/ --force  # bypass title-dedup guard
+ *   node import-kernel.js --push                 # commit AND push (default: commit only)
  */
 
 import fs             from 'fs';
@@ -39,9 +40,10 @@ const CONTENT_DIR = process.argv[2] && !process.argv[2].startsWith('--')
   ? path.resolve(process.argv[2])
   : path.join(__dirname, 'content', 'soma_kernel');   // default: soma_kernel/
 
-const DRY_RUN = process.argv.includes('--dry');
-const FORCE   = process.argv.includes('--force');
-const COMMIT  = process.argv.includes('--commit');
+const DRY_RUN  = process.argv.includes('--dry');
+const FORCE    = process.argv.includes('--force');
+const COMMIT   = process.argv.includes('--commit');
+const NO_PUSH  = !process.argv.includes('--push'); // push requires explicit opt-in
 
 const CHUNKS_DIR     = path.join(__dirname, 'src/terminal/data/generated_chunks');
 const BUILDS_PATH    = path.join(__dirname, 'src/terminal/data/kernelBuilds.js');
@@ -613,13 +615,17 @@ function run() {
       console.error(`  ✗ git commit failed (status ${commit.status})`);
       process.exit(commit.status ?? 1);
     }
-    console.log(`  git push`);
-    const push = spawnSync('git', ['push', 'origin', 'main'], { stdio: 'inherit' });
-    if (push.status !== 0) {
-      console.error(`  ✗ git push failed (status ${push.status})`);
-      process.exit(push.status ?? 1);
+    if (NO_PUSH) {
+      console.log(`  ✓ committed locally (run with --push to push): ${message}\n`);
+    } else {
+      console.log(`  git push`);
+      const push = spawnSync('git', ['push', 'origin', 'main'], { stdio: 'inherit' });
+      if (push.status !== 0) {
+        console.error(`  ✗ git push failed (status ${push.status})`);
+        process.exit(push.status ?? 1);
+      }
+      console.log(`  ✓ pushed: ${message}\n`);
     }
-    console.log(`  ✓ pushed: ${message}\n`);
   }
 }
 
