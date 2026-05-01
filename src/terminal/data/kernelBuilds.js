@@ -1,5 +1,6 @@
 const kernelBuilds = [
   // ── Hand-curated ──────────────────────────────────────────────────────────
+  { id: 'FISH-SCALE-11.1', articleId: 'FISH-SCALE-KERNEL11.1.1', name: 'FISH_SCALE_KERNEL11_1_1', status: 'ACTIVE', desc: 'Entropic Stasis // Necromantic Engine' },
   { id: 'FLORA-1.0', articleId: 'BIODIVERSITY-KERNEL-1.0.1', name: 'BIOCOENOSIS_KERNEL', status: 'ACTIVE', desc: 'High-Density Biodiversity // Autochthonous' },
   { id: 'EK-1.0', articleId: 'EMPATHY-KERNEL-1.0', name: 'EMPATHY_KERNEL_1_0', status: 'SYMBIOTIC', desc: 'Empathy as Computational Logic // Grounded Interface Architecture' },
   { id: 'SK-1.0', articleId: 'SHADOWSOCKS-KERNEL-∞', name: 'SHADOWSOCKS_KERNEL_∞', status: 'ACTIVE', desc: 'I. THE BLIND SPOT ANALYSIS' },
@@ -16,7 +17,6 @@ const kernelBuilds = [
   { id: "CEEI-ALLOCATION-ENGINE", articleId: "CEEI-ALLOCATION-ENGINE", name: "CEEI_ALLOCATION_ENGINE", status: "ACTIVE", desc: "The End of the Price Tag — soma_kernel_5.5" },
   { id: "CHRO-1.0", articleId: "CHRO-1.0", name: "CHRONOS_KERNEL_·_V1_1", status: "ACTIVE", desc: "Ⅰ. The Illusion of the Loop 🌀" },
   { id: "DALY-THERMO-SIMULATION", articleId: "DALY-THERMO-SIMULATION", name: "DALY_THERMO_SIMULATION", status: "ACTIVE", desc: "The Hard Constraints Engine — soma_kernel_5.5" },
-  { id: "FISH-SCALE-KERNEL11.1.1", articleId: "FISH-SCALE-KERNEL11.1.1", name: "FISH_SCALE_KERNEL11_1_1", status: "ACTIVE", desc: "2.0 Integration of System Atoms" },
   { id: "FFB-1.0", articleId: "FFB-1.0", name: "FSK_FEIGENBAUM_BIFURCATION_12_1_0", status: "ACTIVE", desc: "Systemless Root · Thermodynamic Chaos Branch" },
   { id: "GSK-5.5.5", articleId: "GSK-5.5.5", name: "GAIA_SCALE_KERNEL_5_5_5", status: "ACTIVE", desc: "Ⅰ. CORE DIRECTIVES: THE MATRILINEAL FIREWALL (§1.0)" },
   { id: "SORBE-THERMODYNAMIC-BLOOM-V1", articleId: "SORBE-THERMODYNAMIC-BLOOM-V1", name: "SORBE_THERMODYNAMIC_BLOOM_KERNEL_1_0", status: "ACTIVE", desc: "◈ THE THERMODYNAMIC IMPERATIVE" },
