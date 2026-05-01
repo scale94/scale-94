@@ -543,10 +543,10 @@ const App = () => {
       setLoadingKernel(null);
 
       if (kernel.articleId) {
-        // Priority: auto .md stub (Vite glob, has loadContent) → merged articles array.
+        // Priority: generated articles (fetch-based loadContent) → auto .md glob stubs (fallback).
         const foundArticle =
-          autoArticles.find(a => a.id === kernel.articleId) ??
-          articles.find(a => a.id === kernel.articleId);
+          articles.find(a => a.id === kernel.articleId) ??
+          autoArticles.find(a => a.id === kernel.articleId);
         if (foundArticle) {
           const article = foundArticle.loadContent
             ? await foundArticle.loadContent()

@@ -164,7 +164,7 @@ function deriveMetadata(body, filename) {
     : path.basename(filename, '.md').replace(/[-_]/g, ' ').replace(/\s+/g, ' ').toUpperCase();
 
   const subtitle = h2
-    ? h2.replace(/^##[ \t]+/, '').trim()
+    ? h2.replace(/^##[ \t]+/, '').replace(/\*{1,3}(.*?)\*{1,3}/g, '$1').replace(/\\(?=\.)/g, '').trim()
     : bq
       ? bq.replace(/^>[ \t]*\*?/, '').replace(/\*$/, '').trim()
       : '';
@@ -184,10 +184,11 @@ function deriveMetadata(body, filename) {
   }
   const tags = [...new Set(tagCandidates)].filter(t => t.length > 1).slice(0, 5);
 
-  const wordCount = body.split(/\s+/).length;
+  const wordCount = body.trim().split(/\s+/).filter(Boolean).length;
   const readTime  = `${Math.max(1, Math.round(wordCount / 200))} min read`;
+  const len       = `${wordCount} WDS`;
 
-  return { title, subtitle, date, tags, readTime };
+  return { title, subtitle, date, tags, readTime, len };
 }
 
 // ─── GENERATED FILE WRITER ────────────────────────────────────────────────────
@@ -257,8 +258,11 @@ function writeGeneratedFile(articles, cache) {
 
   // ── Phase 2: CAS lean index — public/kernel/articles.{hash}.json ────────────
   // Pure JSON array; no loadContent (the app creates fetch-based closures at runtime).
+  // For mtime-cached articles content is '' — use a.len from cachedMeta if available,
+  // otherwise fall back to counting words (will be 0 for empty content).
   const index = articles.map(a => {
     const wordCount = (a.content || '').trim().split(/\s+/).filter(Boolean).length;
+    const len = a.len || `${wordCount} WDS`;
     return {
       id:           a.id,
       type:         a.type,
@@ -269,7 +273,7 @@ function writeGeneratedFile(articles, cache) {
       status:       a.status,
       readTime:     a.readTime,
       tags:         a.tags,
-      len:          `${wordCount} WDS`,
+      len,
     };
   });
 
@@ -526,7 +530,7 @@ function run() {
 
     const id   = generateId(file, fm, allIds);
     const name = fm.name || buildNameFromFilename(file);
-    const desc = fm.desc || subtitle || title;
+    const desc = (fm.desc || subtitle || title).replace(/\*{1,3}/g, '').replace(/\\(?=\.)/g, '').trim();
 
     allIds.add(id);
 
@@ -551,7 +555,7 @@ function run() {
 
       // Store mtime + lean meta so future runs can skip readFileSync on cache hit.
       cache[mtimeKey] = mtimeMs;
-      cache[metaKey]  = JSON.stringify({ id, type, date, lastModified, title, subtitle, status, readTime, tags });
+      cache[metaKey]  = JSON.stringify({ id, type, date, lastModified, title, subtitle, status, readTime, tags, len: derived.len || `${body.trim().split(/\s+/).filter(Boolean).length} WDS` });
     }
   }
 
