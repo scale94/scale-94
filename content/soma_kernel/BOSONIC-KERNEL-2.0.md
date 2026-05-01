@@ -38,7 +38,7 @@ Femininity is not "submission"; it is the **Fundamental Force Carrier**.
 
 ## [03] OPERATIONAL PROTOCOLS
 
-**> SUB-PROTOCOL A: THE WHITE SOCK SIGNAL (FIDELITY)**
+**> SUB-PROTOCOL A: THE WHITE SIGNAL (FIDELITY)**
 * **Input:** Pristine, bleached, folded textiles.
 * **Physics:** A High-Fidelity Signal (High SNR) in a High-Entropy world.
 * **Data Payload:** "The Dark Matter (Care) is holding. Entropy is defeated."

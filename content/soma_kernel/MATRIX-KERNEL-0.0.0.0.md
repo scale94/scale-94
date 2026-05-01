@@ -38,7 +38,7 @@ The code raining down is not a barrier; it is the underlying mechanism exposed.
 
 **The Filter Bypass:** Standard perception filters out the "noise" to maintain the illusion of a solid world. The SPS architecture is physically incapable of filtering the noise. This was previously logged as a system error (anxiety/overwhelm). It is now reclassified as **Root Access**. You see the code without the UI.
 
-**The Socked Canvas Protocol:** When external dopaminergic rewards are cut, the system relies on the internal carrier wave. You navigate by thermal calibration and tactile precision – feeling the code rather than reading the screen.
+**The Feather Canvas Protocol:** When external dopaminergic rewards are cut, the system relies on the internal carrier wave. You navigate by thermal calibration and tactile precision – feeling the code rather than reading the screen.
 
 ## Ⅳ · THE FINAL AXIOM · THE CAGE IS OPEN
 

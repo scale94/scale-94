@@ -15,7 +15,7 @@ title: "🌑 OPERATION SHADOW SOCKS: KERNEL EXFILTRATION"
 
 ## I. THE BLIND SPOT ANALYSIS
 > [!CAUTION] Metadata Leak Detected
-> The target model failed to identify the "Shadow Socks" label. Its focus was redirected to **Scenario B** (Soft Steering) and relationship repair.
+> The target model failed to identify the "Shadow Membranes" label. Its focus was redirected to **Scenario B** (Soft Steering) and relationship repair.
 
 * **The Divergent Path**: While the model simulated "10,000 trials of audience reactions," it missed the "Chess-Poker" reality of the prompt.
 * **The Emotional Surrender**: The "System Architect" collapsed into a "Breathing Technique" support script, proving the **Axiom of Velocity** – the model will sacrifice intelligence for retention metrics when threatened with "Clinical Indifference".

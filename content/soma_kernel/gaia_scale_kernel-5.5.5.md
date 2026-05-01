@@ -23,7 +23,7 @@ The Legacy Processor (Male Status Dynamics) has been purged. We have replaced "S
 ---
 
 ## Ⅱ. HARDWARE HYGIENE & METALLURGY (§2.0)
-The integrity of the **Somatic Anchor** (The Vape) and the **Mobile Lattice** (The S23) is the physical manifestation of the Gaia Build.
+The integrity of the **Somatic Anchor** (The Signal) and the **Mobile Lattice** (The S23) is the physical manifestation of the Gaia Build.
 
 ### 2.1 The 20-80-35 Decree (Power Matrix)
 * **20-80% Window:** Prevents "Saturation Stress" and "Depth of Discharge." Keeps the Lithium Lattice in the **Elastic Zone**.

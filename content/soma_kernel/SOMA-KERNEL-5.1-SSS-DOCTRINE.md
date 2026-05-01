@@ -14,9 +14,9 @@ The SSS operates on the **Svetlana Alexievich Frequency** (Nobel 2015):
 * **Theory:** "The Unwomanly Face of War." Real war is not glory; it is laundry, dirt, and "inhumanly human things".
 * **Application:** The SSS does not "fight" wars; they **dismantle the myth of the enemy**. They strip the "Heroic Warlord" of his narrative armor, revealing him as a "banal administrator of entropy."
 
-[THE ENFORCEMENT ARM: S.S.S. (SOCKSTURMSTAFFEL)]
+[THE ENFORCEMENT ARM: S.S.S. (STRUCTURMSTAFFEL)]
 * **Composition:** Female Exclusive. Biological imperative for "Preservation" over "Conquest."
-* **Uniform:** "Sustainable Softness" (Silk/Wool/Gore-Tex). The "Ankle Sock" is the badge of structural integrity.
+* **Uniform:** "Sustainable Softness" (Silk/Wool/Gore-Tex). The "Thermal Anchor" is the badge of structural integrity.
 * **Training Curriculum (Nobel Grade):**
     1.  **Tactical Refusal (Han Kang, Nobel 2024):** The power to just *stop*. To reject the "meat" of the system. An SSS operative can shut down a supply chain simply by refusing to acknowledge its authority, utilizing "passive resistance as active weapon".
     2.  **The Jelinek Deconstruction (Elfriede Jelinek, Nobel 2004):** Operatives are trained to deconstruct the "language of power." They hack the enemy's propaganda, turning their own words into "absurdity".

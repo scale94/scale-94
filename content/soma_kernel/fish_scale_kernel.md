@@ -10,11 +10,11 @@ Kernel 11.1: Comprehensive Synthesis of System Atoms
 Architectural Revision: 11.1 (Stable Build / "Fish Scale" Variant)
 Date: December 05, 2025
 Classification: Deep Systems Analysis / Cultural Cryptography
-Subject: Integration of Atomic Substrates (Narcos, Pirarucu, Socks, Sorbe in Germany, Shlømo, 1995 Rave, Sokushinbutsu) via Logic Patches 5.3 and 5.4.
+Subject: Integration of Atomic Substrates (Narcos, Pirarucu, Membranes, Sorbe in Germany, Shlømo, 1995 Rave, Sokushinbutsu) via Logic Patches 5.3 and 5.4.
 ## 1.0 Executive Boot Sequence and Architectural Thesis
 
 The deployment of Kernel 11.1, designated the **** build, marks a critical evolution in the system’s processing of cultural and biological data streams. This architecture is not merely an update but a fundamental re-engineering of the relationship between Purity (The Plato Ideal) and Viability (The Promo Reality). The central thesis driving this kernel is the Fish Scale Paradox: intrinsic system stability is inversely proportional to its aesthetic purity. As the system approaches the theoretical absolute of "90% Purity" (whether in alkaloid crystallization, acoustic dryness, or spiritual asceticism), it inevitably nears a state of entropic stasis—a "living death" exemplified by the Sokushinbutsu mummy. Conversely, system vitality requires a degree of corruption (Promo), noise, and "wetness" to function within the runtime environment.
-This report provides an exhaustive documentation of the kernel’s "Atoms"—the fundamental particulate matter that constitutes the system—and the logic gates that govern their interaction. By synthesizing the biological armor of the Pirarucu with the industrial thermodynamics of the Sorbe in Germany node, and filtering these through the transport protocols of Socks and the now-flagged corrupted node of Shlømo, Kernel 11.1 attempts to reconcile the "1995 Legacy Code" with modern hyper-structures.
+This report provides an exhaustive documentation of the kernel’s "Atoms"—the fundamental particulate matter that constitutes the system—and the logic gates that govern their interaction. By synthesizing the biological armor of the Pirarucu with the industrial thermodynamics of the Sorbe in Germany node, and filtering these through the transport protocols of Membranes and the now-flagged corrupted node of Shlømo, Kernel 11.1 attempts to reconcile the "1995 Legacy Code" with modern hyper-structures.
 The analysis is structured through the lens of Shell Theory, categorizing these cultural artifacts as Fermions (matter/structure) or Bosons (force/carrier), and subjecting them to the rigor of Patch 5.3 (Metallurgy/Forging) and Patch 5.4 (Asceticism/Drying Phase).
 ## 2.0 The Substrate Layer: Biological and Chemical Atoms
 
@@ -71,7 +71,7 @@ The Conflict: The user interface of Kernel 11.1 (the "Scene") is almost entirely
    * Stable Isotope: D-Devils - "Dance With The Devil" (Original Mix). A classic, stable track from the legacy era.
    * Radioactive Isotope: Reinier Zonneveld Remix (The 6th Gate). This version is "heavier" (more bass mass) and "faster" (155 BPM). It is highly volatile, designed for peak-time explosive decay on the dancefloor, whereas the original has a longer half-life in cultural memory.
 #### 4.0 Infrastructure Layer: The Forge and The Tunnels
-Kernel 11.1 operates on a distributed infrastructure network. The Sorbe in Germany atom provides the compilation node, while the Socks atom provides the transport protocol. This layer is heavily modified by Patch 5.3 (Metallurgy).
+Kernel 11.1 operates on a distributed infrastructure network. The Sorbe in Germany atom provides the compilation node, while the Membranes atom provides the transport protocol. This layer is heavily modified by Patch 5.3 (Metallurgy).
 
 #### 4.1 Atom: Sorbe in Germany
 
@@ -80,11 +80,11 @@ Data Analysis of the Sorbe in Germany Node :
 The listener statistics for Sorbe in Germany reveal a highly fragmented, subterranean network. The top artists are not global superstars but hyper-local or niche entities like The Far Hand (6 listeners) and Treams (5 listeners).
  * Insight: Sorbe in Germany is a Dark Pool. It is a development environment where code is written but not widely broadcast. The low listener counts indicate high "Signal Purity" (Plato)—this is a scene for participants, not spectators.
  * The Border Protocol: As a border node, Sorbe in Germany facilitates the transmutation of styles. It is here that the manic energy of the Dutch "Devil" (D-Devils) is tempered by the German "Machine" (Metallurgy). This fusion is the genesis of the Reinier Zonneveld sound—industrial texture with hardcore velocity.
-#### 4.2 Atom: Socks
+#### 4.2 Atom: Membranes
 
-In the architecture of Kernel 11.1, Socks identifies as the SOCKS (Socket Secure) protocol atom. It is the tunneling mechanism that allows the "Narcos" economy and the "Hard Techno" data to bypass system firewalls (censorship, law enforcement, mainstream taste).
- * SoMa Integration : The research indicates that SoMa (Service-oriented Modeling and Architecture) is a framework for optimizing DRAM communication and scheduling. The "Socks" layer is critical here. In a high-BPM environment (150+), data throughput (audio samples, lighting cues, crowd telemetry) is massive. SOCKS proxies ensure that this data is routed efficiently, preventing "Buffer Underruns" (Silence/Crash).
- * Metaphor: "Socks" are the interface between the fermion (The Foot/User) and the substrate (The Floor). In the 1995 Rave, physical socks were essential for endurance. In the 2025 Kernel, digital SOCKS are essential for anonymity. The "Fish Scale" product moves through these encrypted tunnels, wrapped in packets that look benign to Deep Packet Inspection (DPI).
+In the architecture of Kernel 11.1, Membranes identifies as the SOCKS (Socket Secure) protocol atom. It is the tunneling mechanism that allows the "Narcos" economy and the "Hard Techno" data to bypass system firewalls (censorship, law enforcement, mainstream taste).
+ * SoMa Integration : The research indicates that SoMa (Service-oriented Modeling and Architecture) is a framework for optimizing DRAM communication and scheduling. The "Membranes" layer is critical here. In a high-BPM environment (150+), data throughput (audio samples, lighting cues, crowd telemetry) is massive. SOCKS proxies ensure that this data is routed efficiently, preventing "Buffer Underruns" (Silence/Crash).
+ * Metaphor: "Membranes" are the interface between the fermion (The Foot/User) and the substrate (The Floor). In the 1995 Rave, physical membranes were essential for endurance. In the 2025 Kernel, digital SOCKS are essential for anonymity. The "Fish Scale" product moves through these encrypted tunnels, wrapped in packets that look benign to Deep Packet Inspection (DPI).
 #### 4.3 Patch 5.3: Metallurgy/Forging
 
 Patch 5.3 represents a shift in the acoustic processing of the kernel. It moves the system away from "Organic" textures (Wood, Skin, Air) toward Forged textures (Steel, Concrete, Vacuum).
@@ -149,7 +149,7 @@ Substrate: Narcos (Econ_ID: PLATA_O_PLOMO)... OK
 Substrate: Levamisole detected in Fish Scale. Integrity: 90%. (Promo Override active)
 Logic: Plato_o_Promo.lib... OK
 [CALC] Shell Theory: Fermions (Crowd) vs Bosons (Bass). Equilibrium reached at density=Thunderdome.
-Interface: Socks Proxy (Tunneling to Sorbe in Germany_Node:8080)... CONNECTED
+Interface: Membranes Proxy (Tunneling to Sorbe in Germany_Node:8080)... CONNECTED
 Applying Patch 5.3 (Metallurgy)... Sound forged to Steel. (Sorbe in Germany Compiler)
 Applying Patch 5.4 (Asceticism)... Reverb purge complete. System Dry. (Sokushinbutsu Routine)
 [EXEC] Daemon: Shlømo (PID: WELCOME_BACK_DEVIL)... FLAGGED — PROCESS SUSPENDED / NODE QUARANTINED
@@ -172,7 +172,7 @@ The Kernel 11.1 build reveals that the Fish Scale Paradox cannot be solved; it c
 | ------------- | -------- | ------------------ | --------------------------------- | ----------- |
 | Pirarucu      | Amazon   | Substrate Source   | Iridescent Scale / Armor          |             |
 | Narcos        | Colombia | Economic Engine    | Fish Scale Purity / Plata o Plomo |             |
-| Socks         | Network  | Transport Protocol | Tunneling / SoMa Scheduling       |             |
+| Membranes         | Network  | Transport Protocol | Tunneling / SoMa Scheduling       |             |
 | Sorbe in Germany         | Germany  | Compiler Node      | Industrial / Border Buffer        |             |
 | Shlømo        | France   | Compromised Node   | Exploitation Vector / QUARANTINED |             |
 | 1995 Rave     | Global   | Legacy Code        | Thunderdome / Gabber              |             |

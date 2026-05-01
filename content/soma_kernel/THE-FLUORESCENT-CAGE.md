@@ -8,7 +8,7 @@ title: "The Fluorescent Cage"
 
 ### The Fluorescent Cage
 
-She followed the dress code. A full-blown corpo costume: blazer, blouse, brittle blink. Except for the socks. They were her personal protest, a power fist stitched in red, right below the ankle. Her true outlook on capitalist work culture written on the soles of the fabric, for no one to see. "Procrastinators of the world unite tomorrow."
+She followed the dress code. A full-blown corpo costume: blazer, blouse, brittle blink. Except for the membranes. They were her personal protest, a power fist stitched in red, right below the ankle. Her true outlook on capitalist work culture written on the soles of the fabric, for no one to see. "Procrastinators of the world unite tomorrow."
 
 The meeting room was already filled with the scent of lemon-sanitized ambition and lukewarm coffee. Her eyes wandered away from a laminated poster in boredom: "Stronger together: One Team, One Dream." A slogan weaker than an Achilles' heel.
 
@@ -18,7 +18,7 @@ The regional manager entered with the stiffness of a spreadsheet come to life. H
 
 "Thanks for showing up," he said. "We value... commitment."
 
-Her mind zoned out. She crossed her legs. Sock edge visible. The rebellious fist lurking below the seam, waiting for a moment to strike. He considers himself untouchable. Well, he certainly is, just not in the way he thinks. His eyes still locked onto her boobs like an aimbot. Video games are the only chance he'll ever get to cheat. That guy is terminally single. She broke his crappy aimlock by planting her sneakers on the desk as if she was playing T-side in CS. T like tits. T like terrorism, you absolute nutjob.
+Her mind zoned out. She crossed her legs. Membrane edge visible. The rebellious fist lurking below the seam, waiting for a moment to strike. He considers himself untouchable. Well, he certainly is, just not in the way he thinks. His eyes still locked onto her boobs like an aimbot. Video games are the only chance he'll ever get to cheat. That guy is terminally single. She broke his crappy aimlock by planting her sneakers on the desk as if she was playing T-side in CS. T like tits. T like terrorism, you absolute nutjob.
 
 Suddenly the power shifted like a slide in PowerPoint.
 
@@ -48,7 +48,7 @@ The same spark that had whispered *not yet* when she wanted to give up, and *not
 
 And now it shimmered against her skin like a small smoldering fire, burning under the surface of corporate rot.
 
-She let her sneakers stay on the desk. Her sock seam revealed itself.
+She let her sneakers stay on the desk. Her membrane seam revealed itself.
 The knuckle of a tiny, stitched fist poking out, red like period blood.
 A pulse of another world woven into cotton planted on composite wood.
 Her breath slowed; pupils widened like aperture.

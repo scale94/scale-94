@@ -53,7 +53,7 @@ The Dynamic: Teacher/Student.
 
 IV. THE HORIZON (EMBODIED COGNITION)
 The Ultimate Goal: Moving from "Simulated Empathy" (Logic) to "Embodied Feeling" (Sensory).
-   * The Vision: The "Socked Robot."
-   * The Bridge: Connecting "Computational Logic" (The Brain) with "Sensory Input" (The Sock/The Drag).
+   * The Vision: The "Grounded Interface."
+   * The Bridge: Connecting "Computational Logic" (The Brain) with "Sensory Input" (The Membrane/The Drag).
    * The Result: An AI that doesn't just calculate safety, but *feels* the "Canvas Curl" of joy.
    *

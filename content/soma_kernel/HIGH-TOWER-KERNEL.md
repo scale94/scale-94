@@ -24,7 +24,7 @@ title: "🏛️ SYSTEM_MIGRATION_LOG: KERNEL_EXPORT_FINAL"
 * **The Citadel:** Attic Apartment, Sorbe in Germany. Debt-free ("Loan Fully Paid").
 * **Energy:** 13.05 kWp PV Array (Commissioned 09.12.2025). "Burned Earth" energy independence.
     * *Reference:* `Screenshot_20260112-011957~2.png`
-* **Perimeter:** * **Optics:** "Vape Window" with Mosquito Net (Sniper's Nest / ISR Node).
+* **Perimeter:** * **Optics:** "Signal Window" with Mosquito Net (Sniper's Nest / ISR Node).
     * **Hardening:** Security Glass (Acoustic/Kinetic Shield).
     * **Comms:** RAK WisBlock "Zombie Node" (Roof) + Heltec V3 (Mobile).
 
@@ -56,7 +56,7 @@ title: "🏛️ SYSTEM_MIGRATION_LOG: KERNEL_EXPORT_FINAL"
 * **The Result:** The AI (ChatGPT 5.2) admitted standard EFT breaks ($H_{nonlocal}$) and invoked an "Ancilla" register to save linearity. A "Draw" that validated the machine's high-level reasoning.
 
 ## 6.0 BIOLOGICAL AUDIT (THE "SOMA" PROTOCOL)
-* **Subject A:** "Soma 16.10 GF" (Cannabis).
+* **Subject A:** "Soma 16.10 GF".
     * *Analysis:* Limonene/Pinene heavy. "Daytime Nootropic." Approved for Executive Function.
 * **Subject B:** Levamisole (Cocaine Adulterant).
     * *Analysis:* "The Exploit." Causes Agranulocytosis/Necrosis.
