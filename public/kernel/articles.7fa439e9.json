@@ -15,7 +15,7 @@
       "AUDIT",
       "TARGET"
     ],
-    "len": "146 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "HYPERFOCUS-STACK-KERNEL-18.0",
@@ -189,7 +189,7 @@
     "status": "ACTIVE",
     "readTime": "4 min read",
     "tags": [],
-    "len": "846 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "FFSK-9.9.9.9.9.9.9.9.9",
@@ -312,7 +312,7 @@
       "RECONSTRUCTION",
       "CORE"
     ],
-    "len": "490 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "GDPDW-KERNEL-5.5.5.5.5",
@@ -358,7 +358,7 @@
     "status": "ACTIVE",
     "readTime": "1 min read",
     "tags": [],
-    "len": "104 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "SOMA-KERNEL-4.5.5",
@@ -370,7 +370,7 @@
     "status": "ACTIVE",
     "readTime": "1 min read",
     "tags": [],
-    "len": "99 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "NFDK-4.4.4",
@@ -416,7 +416,7 @@
     "status": "ACTIVE",
     "readTime": "2 min read",
     "tags": [],
-    "len": "309 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "AI-ETHICS-4.0",
@@ -428,7 +428,7 @@
     "status": "ACTIVE",
     "readTime": "7 min read",
     "tags": [],
-    "len": "1345 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "NQAM-KERNEL-3.5.1",
@@ -528,7 +528,7 @@
       "CLASSIFICATION",
       "SOCIO-PHYSICS"
     ],
-    "len": "403 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "MOZART-MEMORANDUM-KERNEL2.0",
@@ -632,18 +632,6 @@
       "Changelist"
     ],
     "len": "0 WDS"
-  },
-  {
-    "id": "VIOLET-KERNEL-1.1",
-    "type": "kernel_doc",
-    "date": "2026-03-07",
-    "lastModified": "2026-05-01",
-    "title": "VIOLET KERNEL 1.1",
-    "subtitle": "",
-    "status": "ACTIVE",
-    "readTime": "2 min read",
-    "tags": [],
-    "len": "376 WDS"
   },
   {
     "id": "BIODIVERSITY-KERNEL-1.0.1",
@@ -817,7 +805,7 @@
     "status": "ACTIVE",
     "readTime": "3 min read",
     "tags": [],
-    "len": "520 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "FADE-DOCTRINE-1.0",
@@ -993,7 +981,7 @@
       "Terminal",
       "Interface"
     ],
-    "len": "5568 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "SKC-1.0",
@@ -1034,7 +1022,7 @@
       "Science",
       "Low-Pass"
     ],
-    "len": "357 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "SYNT-1.0",
@@ -1052,7 +1040,7 @@
       "Performance",
       "Diagnostics"
     ],
-    "len": "3659 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "TAMAM-KERNEL-V1.0",
@@ -1091,18 +1079,6 @@
     "len": "0 WDS"
   },
   {
-    "id": "VIOLET-KERNEL-1.0",
-    "type": "kernel_doc",
-    "date": "2026-03-07",
-    "lastModified": "2026-05-01",
-    "title": "VIOLET KERNEL 1.0",
-    "subtitle": "",
-    "status": "ACTIVE",
-    "readTime": "2 min read",
-    "tags": [],
-    "len": "310 WDS"
-  },
-  {
     "id": "SOMA-BUILD-NUMBER-ALPHA-0.1",
     "type": "kernel_doc",
     "date": "2026-03-06",
@@ -1112,7 +1088,7 @@
     "status": "ACTIVE",
     "readTime": "2 min read",
     "tags": [],
-    "len": "346 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "2025-12-21-1-MILLION",
@@ -1124,7 +1100,7 @@
     "status": "ACTIVE",
     "readTime": "2 min read",
     "tags": [],
-    "len": "336 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "2025-12-21-RAMDISK",
@@ -1136,7 +1112,7 @@
     "status": "ACTIVE",
     "readTime": "2 min read",
     "tags": [],
-    "len": "389 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "AI-KERNEL-FOR-POST-CAPITALIST-ECONOMICS",
@@ -1248,7 +1224,7 @@
       "Architectural",
       "Thesis"
     ],
-    "len": "3162 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "FISH-SCALE-KERNEL-11.4.0-SCALAR-SOVEREIGNTY",
@@ -1320,7 +1296,7 @@
       "SCALE94",
       "SOVEREIGN"
     ],
-    "len": "437 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "GEOPOLITICAL-KINETICS-KERNEL-V1",
@@ -1336,7 +1312,7 @@
       "FINAL",
       "STATUS"
     ],
-    "len": "78 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "GLITCH-SCALE-KERNEL-CS3",
@@ -1384,7 +1360,7 @@
       "EXPORT",
       "FINAL"
     ],
-    "len": "487 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "KERNEL-11.2-C2-LINGUISTIC-METALLURGY-1",
@@ -1486,7 +1462,7 @@
       "Defense",
       "Architecture"
     ],
-    "len": "4103 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "KERNEL-INTEGRATION-AND-IDEOLOGICAL-SYNTHESIS",
@@ -1504,7 +1480,7 @@
       "Architecture",
       "Dark"
     ],
-    "len": "3905 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "KERNEL-IV",
@@ -1593,7 +1569,7 @@
       "SOVEREIGNTY",
       "RITUALISTIC"
     ],
-    "len": "349 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "LITHIUM-ION-WIZARD-KERNEL-1.-0-1",
@@ -1605,7 +1581,7 @@
     "status": "ACTIVE",
     "readTime": "2 min read",
     "tags": [],
-    "len": "322 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "LITHIUM-ION-WIZARD-KERNEL-1.-0",
@@ -1617,7 +1593,7 @@
     "status": "ACTIVE",
     "readTime": "2 min read",
     "tags": [],
-    "len": "322 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "LLM-OPTIMIZED-KERNEL-TEMPLATE",
@@ -1653,7 +1629,7 @@
       "BOOT",
       "DECLARATION"
     ],
-    "len": "494 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "NECROMANCER-FISH-SCALE-FIGHT-CLUB-KERNEL-1",
@@ -1671,7 +1647,7 @@
       "Specification",
       "Necromancer"
     ],
-    "len": "5069 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "NECROMANCER-TO-NECROROMANCER-KERNEL-EVOLUTION",
@@ -1743,7 +1719,7 @@
       "NODE",
       "SORBE"
     ],
-    "len": "333 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "PROJECT-ISENGARD-KERNEL",
@@ -1761,7 +1737,7 @@
       "SOVEREIGN",
       "EYES"
     ],
-    "len": "416 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "RUN-COMMAND-MANUAL",
@@ -1797,7 +1773,7 @@
       "Full",
       "Corpus"
     ],
-    "len": "3021 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "SCALE-Y-KERNEL-1-0-1",
@@ -1815,7 +1791,7 @@
       "Protocol",
       "Sovereign"
     ],
-    "len": "2265 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "SCALE94-KERNEL-ENCYCLOPEDIA",
@@ -1833,7 +1809,7 @@
       "GLYPH",
       "ARCHIVE"
     ],
-    "len": "2712 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "SCALE-RENDER-PROMPT",
@@ -1947,7 +1923,7 @@
       "EXFILTRATION",
       "BLIND"
     ],
-    "len": "379 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "SOMA-10.0-ROASTING-JOHN-OLIVER",
@@ -1977,7 +1953,7 @@
       "KERNEL",
       "GRAND"
     ],
-    "len": "368 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "SOMA-INTEGRATION-KERNEL-V1",
@@ -1995,7 +1971,7 @@
       "Objective",
       "Module"
     ],
-    "len": "532 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "SOMA-KERNEL-12-IRONCLAD",
@@ -2031,7 +2007,7 @@
       "Code",
       "Self-Contained"
     ],
-    "len": "333 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "SOMA-KERNEL-4.5.6A-FUCK-XITTER-FUCK-XITLER",
@@ -2049,7 +2025,7 @@
       "Code",
       "Self-Contained"
     ],
-    "len": "333 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "SOMA-KERNEL-5.1-SSS-DOCTRINE",
@@ -2061,7 +2037,7 @@
     "status": "ACTIVE",
     "readTime": "1 min read",
     "tags": [],
-    "len": "291 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "SOMA-KERNEL10-BB",
@@ -2151,7 +2127,7 @@
       "Full",
       "Spectrum"
     ],
-    "len": "2092 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "SORBE-THERMODYNAMIC-BLOOM-V1",
@@ -2187,7 +2163,7 @@
       "EMPEROR",
       "FISH"
     ],
-    "len": "2358 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "STRANGLER-FIG-PROTOCOL",
@@ -2240,7 +2216,7 @@
       "EVENT",
       "SIGNATURE"
     ],
-    "len": "1401 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "THE-CIGAR-HEIST",
@@ -2271,7 +2247,7 @@
       "Fluorescent",
       "Cage"
     ],
-    "len": "810 WDS"
+    "len": "0 WDS"
   },
   {
     "id": "UTK-1.0-1",

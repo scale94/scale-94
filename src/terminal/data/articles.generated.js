@@ -437,22 +437,6 @@ const articles = [
     },
   },
   {
-    id: "VIOLET-KERNEL-1.1",
-    type: "kernel_doc",
-    date: "2026-03-06",
-    lastModified: "2026-03-06",
-    title: "VIOLET KERNEL 1.1",
-    subtitle: "",
-    status: "ACTIVE",
-    readTime: "2 min read",
-    tags: [],
-    len: "377 WDS",
-    loadContent: async () => {
-      const m = await import("./generated_chunks/VIOLET-KERNEL-1.1.js");
-      return Object.assign({"id":"VIOLET-KERNEL-1.1","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"VIOLET KERNEL 1.1","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"377 WDS"}, m.default);
-    },
-  },
-  {
     id: "BIODIVERSITY-KERNEL-1.0.1",
     type: "kernel_doc",
     date: "2026-03-06",
@@ -594,22 +578,6 @@ const articles = [
     loadContent: async () => {
       const m = await import("./generated_chunks/TAMAM-KERNEL-V1.0.js");
       return Object.assign({"id":"TAMAM-KERNEL-V1.0","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"THE TAMAM KERNEL V1.0","subtitle":"scale94 · Zero Fucks Given Architecture","status":"ACTIVE","readTime":"2 min read","tags":["TAMAM","Zero","Fucks","Given","Architecture"],"len":"402 WDS"}, m.default);
-    },
-  },
-  {
-    id: "VIOLET-KERNEL-1.0",
-    type: "kernel_doc",
-    date: "2026-03-06",
-    lastModified: "2026-03-06",
-    title: "VIOLET KERNEL 1.0",
-    subtitle: "",
-    status: "ACTIVE",
-    readTime: "2 min read",
-    tags: [],
-    len: "310 WDS",
-    loadContent: async () => {
-      const m = await import("./generated_chunks/VIOLET-KERNEL-1.0.js");
-      return Object.assign({"id":"VIOLET-KERNEL-1.0","type":"kernel_doc","date":"2026-03-06","lastModified":"2026-03-06","title":"VIOLET KERNEL 1.0","subtitle":"","status":"ACTIVE","readTime":"2 min read","tags":[],"len":"310 WDS"}, m.default);
     },
   },
   {

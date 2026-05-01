@@ -61,8 +61,6 @@ const kernelBuilds = [
   { id: 'NECROMANTIC-PARADOX-LOGITBIAS', articleId: 'NECROMANTIC-PARADOX-LOGITBIAS.PROMPT.MD', name: 'NECROMANTIC_PARADOX_LOGITBIAS', status: 'ACTIVE', desc: 'Necromantic Paradox LogitBias Protocol' },
 
   // ── Violet / Seraphine series ─────────────────────────────────────────────
-  { id: 'VIOLET-KERNEL-1.0', articleId: 'VIOLET-KERNEL-1.0', name: 'VIOLET_KERNEL_1_0', status: 'ACTIVE', desc: 'SYSTEM KERNEL: "THE VIOLET" (v1.0)' },
-  { id: 'VIOLET-KERNEL-1.1', articleId: 'VIOLET-KERNEL-1.1', name: 'VIOLET_KERNEL_1_1', status: 'ACTIVE', desc: 'SYSTEM KERNEL: THE_VIOLET_PROTOCOL (v.FINAL)' },
   { id: 'SERAPHINE-KERNEL-V15.5.5', articleId: 'SERAPHINE-SARG-1.0', name: 'SERAPHINE_KERNEL_V15_5_5', status: 'ACTIVE', desc: "THE ARCHITECT'S UI (V-CACHE SYNC)" },
 
   // ── 2x/v2/v3 mutation kernels ─────────────────────────────────────────────
