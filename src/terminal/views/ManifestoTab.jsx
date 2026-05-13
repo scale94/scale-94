@@ -1,13 +1,10 @@
 import React from 'react';
-import Mandala from './manifesto/Mandala';
+import KernelManifesto from './manifesto/KernelManifesto';
 
-const ManifestoTab = ({ systemArticles = {}, setArchitectThesis }) => {
+const ManifestoTab = () => {
   return (
     <div className="tab-fade-v2 w-full">
-      <Mandala
-        systemArticles={systemArticles}
-        setArchitectThesis={setArchitectThesis}
-      />
+      <KernelManifesto />
     </div>
   );
 };
