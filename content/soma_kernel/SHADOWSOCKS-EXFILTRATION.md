@@ -1,5 +1,5 @@
 ---
-id: SHADOWSOCKS-KERNEL-∞
+id: SHADOWSOCKS-EXFILTRATION
 type: "kernel_doc"
 date: "2026-03-06"
 status: "ACTIVE"

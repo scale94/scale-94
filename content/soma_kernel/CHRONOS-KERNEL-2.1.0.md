@@ -1,5 +1,5 @@
 ---
-id: CHRO-1.0
+id: CHRONOS-KERNEL-2.1.0
 type: "kernel_doc"
 date: "2026-01-12"
 status: "ACTIVE"

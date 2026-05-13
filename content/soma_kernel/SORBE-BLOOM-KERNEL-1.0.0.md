@@ -1,5 +1,5 @@
 ---
-id: SORBE-THERMODYNAMIC-BLOOM-V1
+id: SORBE-BLOOM-KERNEL-1.0.0
 type: "kernel_doc"
 date: "2026-03-06"
 status: "ACTIVE"

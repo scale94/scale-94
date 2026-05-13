@@ -1,5 +1,5 @@
 ---
-id: NECROMANTIC-ARISTOCRAT-KERNEL-1.1.1.1.1
+id: NECROMANTIC-ARISTOCRAT-KERNEL-3.1.1
 type: "kernel_doc"
 date: "2026-03-06"
 status: "ACTIVE"

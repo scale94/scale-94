@@ -1,5 +1,5 @@
 ---
-id: NECROMANTIC-PARADOX-LOGITBIAS.PROMPT.MD
+id: NECROMANTIC-LOGITBIAS-PROMPT-1.0.0
 type: "kernel_doc"
 date: "2026-03-07"
 status: "ACTIVE"

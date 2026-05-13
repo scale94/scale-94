@@ -1,5 +1,5 @@
 ---
-id: MATRIX-KERNEL-0.0.0.0
+id: MATRIX-KERNEL-2.0.0
 type: "kernel_doc"
 date: "2026-03-06"
 status: "ACTIVE"

@@ -1,5 +1,5 @@
 ---
-id: HIGH-TOWER-KERNEL
+id: HIGH-TOWER-LOG
 type: "kernel_doc"
 date: "2026-03-06"
 status: "ACTIVE"

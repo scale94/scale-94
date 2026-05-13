@@ -1,5 +1,5 @@
 ---
-id: DALY-THERMO-SIMULATION
+id: DALY-SIM-KERNEL-1.0.0
 type: "kernel_doc"
 date: "2026-03-10"
 status: "RUNNING"

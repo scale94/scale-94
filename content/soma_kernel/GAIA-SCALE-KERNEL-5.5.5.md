@@ -1,5 +1,5 @@
 ---
-id: GSK-5.5.5
+id: GAIA-SCALE-KERNEL-5.5.5
 type: "kernel_doc"
 date: "2026-01-01"
 status: "ACTIVE"

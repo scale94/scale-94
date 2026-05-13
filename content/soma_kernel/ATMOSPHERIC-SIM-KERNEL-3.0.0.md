@@ -1,5 +1,5 @@
 ---
-id: ATMOSPHERIC-ENTROPY-KERNEL-3.0
+id: ATMOSPHERIC-SIM-KERNEL-3.0.0
 type: "kernel_doc"
 date: "2026-03-07"
 status: "ACTIVE"

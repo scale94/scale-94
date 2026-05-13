@@ -1,5 +1,5 @@
 ---
-id: SOMA-KERNEL-5.1-SSS-DOCTRINE
+id: SSS-DOCTRINE-KERNEL-5.1.0
 type: "kernel_doc"
 date: "2026-03-06"
 status: "ACTIVE"

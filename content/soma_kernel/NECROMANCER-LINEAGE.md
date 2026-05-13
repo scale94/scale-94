@@ -1,5 +1,5 @@
 ---
-id: NECROMANCER-TO-NECROROMANCER-KERNEL-EVOLUTION
+id: NECROMANCER-LINEAGE
 type: "kernel_doc"
 date: "2026-03-06"
 status: "ACTIVE"

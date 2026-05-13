@@ -1,5 +1,5 @@
 ---
-id: SCALE94-KERNEL-ENCYCLOPEDIA
+id: SCALE94-ENCYCLOPEDIA
 type: "kernel_doc"
 date: "2026-03-06"
 status: "ACTIVE"

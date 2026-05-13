@@ -1,5 +1,5 @@
 ---
-id: EMPATHY-KERNEL-1.0
+id: EMPATHY-PROMPT-1.0.0
 type: "kernel_doc"
 date: "2026-03-07"
 status: "ACTIVE"

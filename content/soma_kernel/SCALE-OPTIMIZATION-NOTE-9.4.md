@@ -1,5 +1,5 @@
 ---
-id: SCALE-OPTIMIZATION-KERNEL-9.4
+id: SCALE-OPTIMIZATION-NOTE-9.4
 type: "kernel_doc"
 date: "2026-03-07"
 status: "ACTIVE"

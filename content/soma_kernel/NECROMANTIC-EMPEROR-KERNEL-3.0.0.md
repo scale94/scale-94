@@ -1,5 +1,5 @@
 ---
-id: NECROMANTIC-EMPEROR-KERNEL-V1-0
+id: NECROMANTIC-EMPEROR-KERNEL-3.0.0
 type: "kernel_doc"
 date: "2026-03-07"
 status: "ACTIVE"

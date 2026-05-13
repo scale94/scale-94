@@ -1,5 +1,5 @@
 ---
-id: FISH-SCALE-KERNEL
+id: FISH-SCALE-KERNEL-11.1.1
 type: "kernel_doc"
 date: "2026-03-07"
 status: "ACTIVE"

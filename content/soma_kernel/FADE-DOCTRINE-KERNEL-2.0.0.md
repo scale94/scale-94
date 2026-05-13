@@ -1,5 +1,5 @@
 ---
-id: FADE-DOCTRINE-1.0
+id: FADE-DOCTRINE-KERNEL-2.0.0
 type: "kernel_doc"
 date: "2026-03-13"
 status: "LIVE"

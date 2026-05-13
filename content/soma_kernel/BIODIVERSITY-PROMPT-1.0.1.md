@@ -1,5 +1,5 @@
 ---
-id: BIODIVERSITY-KERNEL-1.0.1
+id: BIODIVERSITY-PROMPT-1.0.1
 type: "kernel_doc"
 date: "2026-03-06"
 status: "ACTIVE"

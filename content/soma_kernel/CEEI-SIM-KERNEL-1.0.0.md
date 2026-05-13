@@ -1,5 +1,5 @@
 ---
-id: CEEI-ALLOCATION-ENGINE
+id: CEEI-SIM-KERNEL-1.0.0
 type: "kernel_doc"
 date: "2026-03-10"
 status: "RUNNING"
