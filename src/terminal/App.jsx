@@ -76,6 +76,7 @@ const TagCloudView    = lazy(() => import('./views/TagCloudView'));
 const LunarTab        = lazy(() => import('./views/LunarTab'));
 const LedgerTab       = lazy(() => import('./views/LedgerTab'));
 const KineticStatecraftPanel = lazy(() => import('./views/KineticStatecraftPanel'));
+const DalySimPanel           = lazy(() => import('./views/DalySimPanel'));
 const MercuryTab      = lazy(() => import('./views/MercuryTab'));
 
 // formatKernelHelp, formatRunHelp, CMD_MANIFEST → src/terminal/commands/runHelpers.js
@@ -1356,6 +1357,9 @@ const App = () => {
           {/* Inline WASM simulation panels — rendered below article content */}
           {selectedArticle?.id === 'KINETIC-STATECRAFT-KERNEL-1.0' && (
             <KineticStatecraftPanel />
+          )}
+          {selectedArticle?.id === 'DALY-SIM-KERNEL-1.0.0' && (
+            <DalySimPanel />
           )}
 
           {/* Tag Cloud */}

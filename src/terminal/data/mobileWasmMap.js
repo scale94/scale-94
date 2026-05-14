@@ -91,7 +91,8 @@ export function resolveWasmAlias(kernelId) {
   // ── Chrono adjacent / river / ecological audit ───────────────────────────────
   if (id.includes('CHRO-') || id.includes('RIVER') || id.includes('AQUA')) return 'chrono';
 
-  // ── Feigenbaum adjacent / scale-y / tenfold ─────────────────────────────────
+  // ── Feigenbaum / FSF (Fish Scale Feigenbaum) ────────────────────────────────
+  if (id === 'FSF-12.1.0' || id.startsWith('FSF-'))                            return 'feigenbaum';
   if (id.includes('SCALE-Y') || id.includes('TENFOLD') || id.includes('SYK')) return 'feigenbaum';
 
   // ── SOMA builds ──────────────────────────────────────────────────────────────
@@ -118,6 +119,18 @@ export function resolveWasmAlias(kernelId) {
   if (/BRIDGE[_\-]KERNEL/i.test(id))                                     return 'spectral_bridge';
   if (/RENDER[_\-]PROMPT|CORPUS[_\-]SYNTH|SCALE[_\-]RENDER/i.test(id)) return 'seraphine';
   if (/ENCYCLOPEDIA|GLYPH[_\-]ARCHIVE|SCALE94[_\-]KERNEL[_\-]ENC/i.test(id)) return 'associative_field';
+
+  // ── Dissipative / non-equilibrium thermodynamics ────────────────────────────
+  if (id.includes('DISSIPATIVE'))                                               return 'pragmatic';
+
+  // ── Gaia / sovereign reconstruction / civilisational ─────────────────────────
+  if (id.includes('GAIA'))                                                      return 'geopolitical';
+
+  // ── Fade Doctrine / color semiotic / entropy aesthetics ─────────────────────
+  if (id.includes('FADE'))                                                      return 'atmospheric';
+
+  // ── Origin / genesis / zero-vector ──────────────────────────────────────────
+  if (id === 'KERNEL-0.0.0.0' || id.includes('ORIGIN-VECTOR'))                 return 'zero';
 
   // ── Default: system banner ───────────────────────────────────────────────────
   return 'soma91';
