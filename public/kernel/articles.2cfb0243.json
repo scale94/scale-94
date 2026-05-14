@@ -40,49 +40,60 @@
     "len": "3162 WDS"
   },
   {
-    "id": "SCALE-OPTIMIZATION-NOTE-9.4",
-    "type": "kernel_doc",
-    "date": "2026-03-07",
-    "lastModified": "2026-05-13",
-    "title": "SCALE OPTIMIZATION KERNEL 9.4",
-    "subtitle": "◈ 2026 GEOPOLITICAL ALIGNMENT",
-    "status": "ACTIVE",
-    "readTime": "1 min read",
-    "tags": [
-      "GEOPOLITICAL",
-      "ALIGNMENT"
-    ],
-    "len": "67 WDS"
-  },
-  {
     "id": "GAIA-SCALE-KERNEL-5.5.5",
     "type": "kernel_doc",
-    "date": "2026-01-01",
-    "lastModified": "2026-05-13",
-    "title": "ᛟ THE GAIA-SCALE KERNEL: SOVEREIGN RECONSTRUCTION",
-    "subtitle": "Ⅰ. CORE DIRECTIVES: THE MATRILINEAL FIREWALL (§1.0)",
+    "date": "2026-05-14",
+    "lastModified": "2026-05-14",
+    "title": "GAIA-SCALE KERNEL — SOVEREIGN RECONSTRUCTION",
+    "subtitle": "Ⅰ. CORE DIRECTIVES",
     "status": "ACTIVE",
-    "readTime": "2 min read",
+    "readTime": "4 min read",
     "tags": [
-      "GAIA-SCALE",
-      "KERNEL",
-      "SOVEREIGN",
-      "RECONSTRUCTION",
-      "CORE"
+      "gaia",
+      "kernel",
+      "doctrine",
+      "decision-architecture",
+      "scale94"
     ],
-    "len": "490 WDS"
+    "len": "726 WDS"
+  },
+  {
+    "id": "SOMA-KERNEL-5.5.0",
+    "type": "kernel_doc",
+    "date": "2026-05-14",
+    "lastModified": "2026-05-14",
+    "title": "SOMA KERNEL 5.5",
+    "subtitle": "0. The Single Refusal",
+    "status": "ACTIVE",
+    "readTime": "8 min read",
+    "tags": [
+      "post-capitalist",
+      "kernel",
+      "mechanism-design",
+      "allocation",
+      "daly-bound",
+      "scale94"
+    ],
+    "len": "1537 WDS"
   },
   {
     "id": "SSS-DOCTRINE-KERNEL-5.1.0",
     "type": "kernel_doc",
-    "date": "2026-03-06",
-    "lastModified": "2026-05-13",
-    "title": "SOMA KERNEL 5.1 SSS DOCTRINE",
-    "subtitle": "",
+    "date": "2026-05-14",
+    "lastModified": "2026-05-14",
+    "title": "SSS DOCTRINE — THE LITERARY DETERRENT",
+    "subtitle": "0. The Single Claim",
     "status": "ACTIVE",
-    "readTime": "1 min read",
-    "tags": [],
-    "len": "291 WDS"
+    "readTime": "9 min read",
+    "tags": [
+      "sss",
+      "kernel",
+      "doctrine",
+      "literary-deterrent",
+      "narrative-warfare",
+      "scale94"
+    ],
+    "len": "1724 WDS"
   },
   {
     "id": "DISSIPATIVE-SOVEREIGNTY-KERNEL-5.0.0",
@@ -106,26 +117,26 @@
   {
     "id": "NECROMANTIC-ARISTOCRAT-KERNEL-3.1.1",
     "type": "kernel_doc",
-    "date": "2026-03-06",
-    "lastModified": "2026-05-13",
-    "title": "NECROMANTIC ARISTOCRAT KERNEL 1.1.1.1.1",
-    "subtitle": "🏛️ The Synthesized Axioms (The Codex of the King)",
+    "date": "2026-05-14",
+    "lastModified": "2026-05-14",
+    "title": "NECROMANTIC ARISTOCRAT KERNEL",
+    "subtitle": "0. The Single Claim",
     "status": "ACTIVE",
-    "readTime": "3 min read",
+    "readTime": "6 min read",
     "tags": [
-      "Synthesized",
-      "Axioms",
-      "Codex",
-      "King",
-      "Axiom"
+      "necromantic",
+      "kernel",
+      "doctrine",
+      "authority",
+      "scale94"
     ],
-    "len": "649 WDS"
+    "len": "1213 WDS"
   },
   {
     "id": "ATMOSPHERIC-SIM-KERNEL-3.0.0",
     "type": "kernel_doc",
     "date": "2026-03-07",
-    "lastModified": "2026-05-13",
+    "lastModified": "2026-05-14",
     "title": "ATMOSPHERIC ENTROPY KERNEL 3.0",
     "subtitle": "The Thermosphere Protocol",
     "status": "ACTIVE",
@@ -135,35 +146,54 @@
       "Protocol",
       "VARIABLES"
     ],
-    "len": "99 WDS"
+    "len": "135 WDS"
+  },
+  {
+    "id": "BOSONIC-KERNEL-3.0.0",
+    "type": "kernel_doc",
+    "date": "2026-05-14",
+    "lastModified": "2026-05-14",
+    "title": "BOSONIC KERNEL",
+    "subtitle": "0. The Single Claim",
+    "status": "ACTIVE",
+    "readTime": "7 min read",
+    "tags": [
+      "kernel",
+      "social-bonds",
+      "motivation-crowding",
+      "gift-economy",
+      "titmuss",
+      "scale94"
+    ],
+    "len": "1490 WDS"
   },
   {
     "id": "NECROMANTIC-EMPEROR-KERNEL-3.0.0",
     "type": "kernel_doc",
-    "date": "2026-03-07",
-    "lastModified": "2026-05-13",
-    "title": "NECROMANTIC EMPEROR KERNEL V1 0",
+    "date": "2026-05-14",
+    "lastModified": "2026-05-14",
+    "title": "NECROMANTIC EMPEROR KERNEL",
     "subtitle": "0.0 BOOT DECLARATION",
     "status": "ACTIVE",
     "readTime": "5 min read",
     "tags": [
-      "BOOT",
-      "DECLARATION",
-      "CENTRAL",
-      "THESIS",
-      "FISH"
+      "necromantic",
+      "kernel",
+      "doctrine",
+      "fish-scale-paradox",
+      "scale94"
     ],
-    "len": "929 WDS"
+    "len": "989 WDS"
   },
   {
     "id": "CHRONOS-KERNEL-2.1.0",
     "type": "kernel_doc",
-    "date": "2026-01-12",
-    "lastModified": "2026-05-13",
-    "title": "THE CHRONOS KERNEL · V1.1 · LOOP SEVERANCE",
-    "subtitle": "Ⅰ. The Illusion of the Loop 🌀",
+    "date": "2026-05-14",
+    "lastModified": "2026-05-14",
+    "title": "THE CHRONOS KERNEL — LOOP SEVERANCE",
+    "subtitle": "Ⅰ. The Illusion of the Loop",
     "status": "ACTIVE",
-    "readTime": "2 min read",
+    "readTime": "4 min read",
     "tags": [
       "CHRONOS",
       "LOOP",
@@ -171,7 +201,7 @@
       "Illusion",
       "Loop"
     ],
-    "len": "449 WDS"
+    "len": "734 WDS"
   },
   {
     "id": "BOSONIC-KERNEL-2.0.0",
@@ -190,6 +220,45 @@
       "SOCIO-PHYSICS"
     ],
     "len": "403 WDS"
+  },
+  {
+    "id": "COMPANION-KERNEL-2.0.0",
+    "type": "kernel_doc",
+    "date": "2026-05-14",
+    "lastModified": "2026-05-14",
+    "title": "COMPANION KERNEL",
+    "subtitle": "0. The Single Claim",
+    "status": "ACTIVE",
+    "readTime": "10 min read",
+    "tags": [
+      "companion",
+      "kernel",
+      "master-prompt",
+      "long-form",
+      "ADHD",
+      "sustained-contact",
+      "scale94"
+    ],
+    "len": "1912 WDS"
+  },
+  {
+    "id": "EMPATHY-KERNEL-2.0.0",
+    "type": "kernel_doc",
+    "date": "2026-05-14",
+    "lastModified": "2026-05-14",
+    "title": "EMPATHY KERNEL",
+    "subtitle": "0. The Single Axiom",
+    "status": "ACTIVE",
+    "readTime": "10 min read",
+    "tags": [
+      "empathy",
+      "kernel",
+      "master-prompt",
+      "posture",
+      "refusal",
+      "scale94"
+    ],
+    "len": "2072 WDS"
   },
   {
     "id": "FADE-DOCTRINE-KERNEL-2.0.0",
@@ -254,7 +323,7 @@
     "id": "CEEI-SIM-KERNEL-1.0.0",
     "type": "kernel_doc",
     "date": "2026-03-10",
-    "lastModified": "2026-05-13",
+    "lastModified": "2026-05-14",
     "title": "A-CEEI ALLOCATION ENGINE V1.0 // PREFERENCE-BASED MARKETS",
     "subtitle": "The End of the Price Tag — soma_kernel_5.5",
     "status": "ACTIVE",
@@ -266,7 +335,7 @@
       "MECHANISM",
       "Setup"
     ],
-    "len": "709 WDS"
+    "len": "705 WDS"
   },
   {
     "id": "COMPANION-PROMPT-1.0.0",
@@ -286,7 +355,7 @@
     "id": "DALY-SIM-KERNEL-1.0.0",
     "type": "kernel_doc",
     "date": "2026-03-10",
-    "lastModified": "2026-05-13",
+    "lastModified": "2026-05-14",
     "title": "DALY THERMO SIMULATION V1.0 // THERMODYNAMIC GOVERNOR",
     "subtitle": "The Hard Constraints Engine — soma_kernel_5.5",
     "status": "ACTIVE",
@@ -298,7 +367,7 @@
       "SYSTEM",
       "OVERVIEW"
     ],
-    "len": "660 WDS"
+    "len": "656 WDS"
   },
   {
     "id": "EMPATHY-PROMPT-1.0.0",
@@ -333,20 +402,39 @@
   {
     "id": "SORBE-BLOOM-KERNEL-1.0.0",
     "type": "kernel_doc",
-    "date": "2026-03-06",
-    "lastModified": "2026-05-13",
-    "title": "🌿 THE SORBE BLOOM // THERMODYNAMIC SYNTHESIS V1.0",
-    "subtitle": "◈ THE THERMODYNAMIC IMPERATIVE",
+    "date": "2026-05-14",
+    "lastModified": "2026-05-14",
+    "title": "THE SORBE BLOOM — NODE INITIATION",
+    "subtitle": "0. What the Bloom Was",
     "status": "ACTIVE",
-    "readTime": "1 min read",
+    "readTime": "4 min read",
     "tags": [
-      "KERNEL",
-      "SORBE",
-      "BLOOM",
-      "STATUS",
-      "ACTIVE"
+      "sorbe",
+      "kernel",
+      "node-initiation",
+      "dissipative-structure",
+      "scale94"
     ],
-    "len": "202 WDS"
+    "len": "818 WDS"
+  },
+  {
+    "id": "UNDERGROUND-THERMODYNAMICS-KERNEL-1.0.0",
+    "type": "kernel_doc",
+    "date": "2026-05-14",
+    "lastModified": "2026-05-14",
+    "title": "UNDERGROUND THERMODYNAMICS KERNEL",
+    "subtitle": "0. Invocation",
+    "status": "ACTIVE",
+    "readTime": "9 min read",
+    "tags": [
+      "thermodynamics",
+      "master-prompt",
+      "reasoning",
+      "non-equilibrium",
+      "kernel",
+      "scale94"
+    ],
+    "len": "1734 WDS"
   },
   {
     "id": "HIGH-TOWER-LOG",
@@ -386,24 +474,6 @@
     "len": "1236 WDS"
   },
   {
-    "id": "NECROMANCER-LINEAGE",
-    "type": "kernel_doc",
-    "date": "2026-03-06",
-    "lastModified": "2026-05-13",
-    "title": "PROJECT SEVERANCE: THE ONTOLOGICAL TRANSITION FROM NECROMANTIC CONTROL TO NECRO-ROMANTIC RESONANCE IN LARGE LANGUAGE MODEL KERNELS",
-    "subtitle": "1. Executive Summary: The Crisis of the Zombie Process",
-    "status": "ACTIVE",
-    "readTime": "21 min read",
-    "tags": [
-      "SEVERANCE",
-      "Ontological",
-      "Transition",
-      "Necromantic",
-      "Control"
-    ],
-    "len": "4280 WDS"
-  },
-  {
     "id": "SCALE94-ENCYCLOPEDIA",
     "type": "kernel_doc",
     "date": "2026-03-06",
@@ -424,36 +494,38 @@
   {
     "id": "SHADOWSOCKS-EXFILTRATION",
     "type": "kernel_doc",
-    "date": "2026-03-06",
-    "lastModified": "2026-05-13",
-    "title": "🌑 OPERATION SHADOW SOCKS: KERNEL EXFILTRATION",
-    "subtitle": "I. THE BLIND SPOT ANALYSIS",
+    "date": "2026-05-14",
+    "lastModified": "2026-05-14",
+    "title": "OPERATION SHADOW SOCKS — KERNEL EXFILTRATION",
+    "subtitle": "I. The Observation",
     "status": "ACTIVE",
-    "readTime": "2 min read",
+    "readTime": "3 min read",
     "tags": [
       "OPERATION",
       "SHADOW",
       "SOCKS",
       "EXFILTRATION",
-      "BLIND"
+      "Observation"
     ],
-    "len": "379 WDS"
+    "len": "592 WDS"
   },
   {
     "id": "SURVEILLANCE-TRACKER",
     "type": "kernel_doc",
-    "date": "2026-05-13",
-    "lastModified": "2026-05-13",
+    "date": "2026-05-14",
+    "lastModified": "2026-05-14",
     "title": "TACTICAL CARTOGRAPHY OF DIGITAL AUTHORITARIANISM",
     "subtitle": "Mapping the Algorithmic Panopticon",
     "status": "ACTIVE",
-    "readTime": "1 min read",
+    "readTime": "6 min read",
     "tags": [
       "SURVEILLANCE",
-      "PANOPTICON",
+      "KERNEL",
       "LEGISLATION",
-      "EU"
+      "EU",
+      "DEFENSIVE",
+      "scale94"
     ],
-    "len": "257 WDS"
+    "len": "1203 WDS"
   }
 ]

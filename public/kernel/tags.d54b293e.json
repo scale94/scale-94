@@ -1,8 +1,8 @@
 {
-  "ACTIVE": [
+  "ADHD": [
     {
-      "id": "SORBE-BLOOM-KERNEL-1.0.0",
-      "title": "🌿 THE SORBE BLOOM // THERMODYNAMIC SYNTHESIS V1.0"
+      "id": "COMPANION-KERNEL-2.0.0",
+      "title": "COMPANION KERNEL"
     }
   ],
   "aesthetic": [
@@ -11,10 +11,10 @@
       "title": "FADE DOCTRINE 1.0 // ZERO WHITE FADE — UX COLOR SEMIOTIC SYSTEM"
     }
   ],
-  "ALIGNMENT": [
+  "allocation": [
     {
-      "id": "SCALE-OPTIMIZATION-NOTE-9.4",
-      "title": "SCALE OPTIMIZATION KERNEL 9.4"
+      "id": "SOMA-KERNEL-5.5.0",
+      "title": "SOMA KERNEL 5.5"
     }
   ],
   "arapaima-gigas": [
@@ -47,16 +47,10 @@
       "title": "💀 SCALE94 · KERNEL ENCYCLOPEDIA"
     }
   ],
-  "Axiom": [
+  "authority": [
     {
       "id": "NECROMANTIC-ARISTOCRAT-KERNEL-3.1.1",
-      "title": "NECROMANTIC ARISTOCRAT KERNEL 1.1.1.1.1"
-    }
-  ],
-  "Axioms": [
-    {
-      "id": "NECROMANTIC-ARISTOCRAT-KERNEL-3.1.1",
-      "title": "NECROMANTIC ARISTOCRAT KERNEL 1.1.1.1.1"
+      "title": "NECROMANTIC ARISTOCRAT KERNEL"
     }
   ],
   "bifurcation": [
@@ -71,18 +65,6 @@
       "title": "🌿 FLORA 1.0 // THE BIOCOENOSIS BUILD"
     }
   ],
-  "BLIND": [
-    {
-      "id": "SHADOWSOCKS-EXFILTRATION",
-      "title": "🌑 OPERATION SHADOW SOCKS: KERNEL EXFILTRATION"
-    }
-  ],
-  "BLOOM": [
-    {
-      "id": "SORBE-BLOOM-KERNEL-1.0.0",
-      "title": "🌿 THE SORBE BLOOM // THERMODYNAMIC SYNTHESIS V1.0"
-    }
-  ],
   "Boot": [
     {
       "id": "FISH-SCALE-KERNEL-11.1.1",
@@ -90,10 +72,6 @@
     }
   ],
   "BOOT": [
-    {
-      "id": "NECROMANTIC-EMPEROR-KERNEL-3.0.0",
-      "title": "NECROMANTIC EMPEROR KERNEL V1 0"
-    },
     {
       "id": "MATRIX-KERNEL-2.0.0",
       "title": "THE MATRIX KERNEL V2.0"
@@ -117,12 +95,6 @@
       "title": "🌿 FLORA 1.0 // THE BIOCOENOSIS BUILD"
     }
   ],
-  "CENTRAL": [
-    {
-      "id": "NECROMANTIC-EMPEROR-KERNEL-3.0.0",
-      "title": "NECROMANTIC EMPEROR KERNEL V1 0"
-    }
-  ],
   "chaos-theory": [
     {
       "id": "FSF-12.1.0",
@@ -132,7 +104,7 @@
   "CHRONOS": [
     {
       "id": "CHRONOS-KERNEL-2.1.0",
-      "title": "THE CHRONOS KERNEL · V1.1 · LOOP SEVERANCE"
+      "title": "THE CHRONOS KERNEL — LOOP SEVERANCE"
     }
   ],
   "CLASSIFICATION": [
@@ -141,16 +113,16 @@
       "title": "PROTOCOL_94 // BOSONIC_DEFENSE_KERNEL (V.2.0)"
     }
   ],
-  "Codex": [
-    {
-      "id": "NECROMANTIC-ARISTOCRAT-KERNEL-3.1.1",
-      "title": "NECROMANTIC ARISTOCRAT KERNEL 1.1.1.1.1"
-    }
-  ],
   "color": [
     {
       "id": "FADE-DOCTRINE-KERNEL-2.0.0",
       "title": "FADE DOCTRINE 1.0 // ZERO WHITE FADE — UX COLOR SEMIOTIC SYSTEM"
+    }
+  ],
+  "companion": [
+    {
+      "id": "COMPANION-KERNEL-2.0.0",
+      "title": "COMPANION KERNEL"
     }
   ],
   "COMPANION": [
@@ -171,29 +143,25 @@
       "title": "DALY THERMO SIMULATION V1.0 // THERMODYNAMIC GOVERNOR"
     }
   ],
-  "Control": [
-    {
-      "id": "NECROMANCER-LINEAGE",
-      "title": "PROJECT SEVERANCE: THE ONTOLOGICAL TRANSITION FROM NECROMANTIC CONTROL TO NECRO-ROMANTIC RESONANCE IN LARGE LANGUAGE MODEL KERNELS"
-    }
-  ],
-  "CORE": [
-    {
-      "id": "GAIA-SCALE-KERNEL-5.5.5",
-      "title": "ᛟ THE GAIA-SCALE KERNEL: SOVEREIGN RECONSTRUCTION"
-    }
-  ],
   "crystalline": [
     {
       "id": "FADE-DOCTRINE-KERNEL-2.0.0",
       "title": "FADE DOCTRINE 1.0 // ZERO WHITE FADE — UX COLOR SEMIOTIC SYSTEM"
     }
   ],
-  "DECLARATION": [
+  "daly-bound": [
     {
-      "id": "NECROMANTIC-EMPEROR-KERNEL-3.0.0",
-      "title": "NECROMANTIC EMPEROR KERNEL V1 0"
-    },
+      "id": "SOMA-KERNEL-5.5.0",
+      "title": "SOMA KERNEL 5.5"
+    }
+  ],
+  "decision-architecture": [
+    {
+      "id": "GAIA-SCALE-KERNEL-5.5.5",
+      "title": "GAIA-SCALE KERNEL — SOVEREIGN RECONSTRUCTION"
+    }
+  ],
+  "DECLARATION": [
     {
       "id": "MATRIX-KERNEL-2.0.0",
       "title": "THE MATRIX KERNEL V2.0"
@@ -205,16 +173,44 @@
       "title": "PROTOCOL_94 // BOSONIC_DEFENSE_KERNEL (V.2.0)"
     }
   ],
+  "DEFENSIVE": [
+    {
+      "id": "SURVEILLANCE-TRACKER",
+      "title": "TACTICAL CARTOGRAPHY OF DIGITAL AUTHORITARIANISM"
+    }
+  ],
   "design": [
     {
       "id": "FADE-DOCTRINE-KERNEL-2.0.0",
       "title": "FADE DOCTRINE 1.0 // ZERO WHITE FADE — UX COLOR SEMIOTIC SYSTEM"
     }
   ],
+  "dissipative-structure": [
+    {
+      "id": "SORBE-BLOOM-KERNEL-1.0.0",
+      "title": "THE SORBE BLOOM — NODE INITIATION"
+    }
+  ],
   "doctrine": [
+    {
+      "id": "GAIA-SCALE-KERNEL-5.5.5",
+      "title": "GAIA-SCALE KERNEL — SOVEREIGN RECONSTRUCTION"
+    },
+    {
+      "id": "SSS-DOCTRINE-KERNEL-5.1.0",
+      "title": "SSS DOCTRINE — THE LITERARY DETERRENT"
+    },
     {
       "id": "DISSIPATIVE-SOVEREIGNTY-KERNEL-5.0.0",
       "title": "DISSIPATIVE SOVEREIGNTY KERNEL"
+    },
+    {
+      "id": "NECROMANTIC-ARISTOCRAT-KERNEL-3.1.1",
+      "title": "NECROMANTIC ARISTOCRAT KERNEL"
+    },
+    {
+      "id": "NECROMANTIC-EMPEROR-KERNEL-3.0.0",
+      "title": "NECROMANTIC EMPEROR KERNEL"
     },
     {
       "id": "FADE-DOCTRINE-KERNEL-2.0.0",
@@ -229,6 +225,12 @@
     {
       "id": "BIODIVERSITY-PROMPT-1.0.1",
       "title": "🌿 FLORA 1.0 // THE BIOCOENOSIS BUILD"
+    }
+  ],
+  "empathy": [
+    {
+      "id": "EMPATHY-KERNEL-2.0.0",
+      "title": "EMPATHY KERNEL"
     }
   ],
   "ENCYCLOPEDIA": [
@@ -264,7 +266,7 @@
   "EXFILTRATION": [
     {
       "id": "SHADOWSOCKS-EXFILTRATION",
-      "title": "🌑 OPERATION SHADOW SOCKS: KERNEL EXFILTRATION"
+      "title": "OPERATION SHADOW SOCKS — KERNEL EXFILTRATION"
     }
   ],
   "EXPORT": [
@@ -297,10 +299,10 @@
       "title": "🏛️ SYSTEM_MIGRATION_LOG: KERNEL_EXPORT_FINAL"
     }
   ],
-  "FISH": [
+  "fish-scale-paradox": [
     {
       "id": "NECROMANTIC-EMPEROR-KERNEL-3.0.0",
-      "title": "NECROMANTIC EMPEROR KERNEL V1 0"
+      "title": "NECROMANTIC EMPEROR KERNEL"
     }
   ],
   "FLORA": [
@@ -309,16 +311,16 @@
       "title": "🌿 FLORA 1.0 // THE BIOCOENOSIS BUILD"
     }
   ],
-  "GAIA-SCALE": [
+  "gaia": [
     {
       "id": "GAIA-SCALE-KERNEL-5.5.5",
-      "title": "ᛟ THE GAIA-SCALE KERNEL: SOVEREIGN RECONSTRUCTION"
+      "title": "GAIA-SCALE KERNEL — SOVEREIGN RECONSTRUCTION"
     }
   ],
-  "GEOPOLITICAL": [
+  "gift-economy": [
     {
-      "id": "SCALE-OPTIMIZATION-NOTE-9.4",
-      "title": "SCALE OPTIMIZATION KERNEL 9.4"
+      "id": "BOSONIC-KERNEL-3.0.0",
+      "title": "BOSONIC KERNEL"
     }
   ],
   "GLYPH": [
@@ -342,13 +344,53 @@
   "Illusion": [
     {
       "id": "CHRONOS-KERNEL-2.1.0",
-      "title": "THE CHRONOS KERNEL · V1.1 · LOOP SEVERANCE"
+      "title": "THE CHRONOS KERNEL — LOOP SEVERANCE"
     }
   ],
   "kernel": [
     {
+      "id": "GAIA-SCALE-KERNEL-5.5.5",
+      "title": "GAIA-SCALE KERNEL — SOVEREIGN RECONSTRUCTION"
+    },
+    {
+      "id": "SOMA-KERNEL-5.5.0",
+      "title": "SOMA KERNEL 5.5"
+    },
+    {
+      "id": "SSS-DOCTRINE-KERNEL-5.1.0",
+      "title": "SSS DOCTRINE — THE LITERARY DETERRENT"
+    },
+    {
       "id": "DISSIPATIVE-SOVEREIGNTY-KERNEL-5.0.0",
       "title": "DISSIPATIVE SOVEREIGNTY KERNEL"
+    },
+    {
+      "id": "NECROMANTIC-ARISTOCRAT-KERNEL-3.1.1",
+      "title": "NECROMANTIC ARISTOCRAT KERNEL"
+    },
+    {
+      "id": "BOSONIC-KERNEL-3.0.0",
+      "title": "BOSONIC KERNEL"
+    },
+    {
+      "id": "NECROMANTIC-EMPEROR-KERNEL-3.0.0",
+      "title": "NECROMANTIC EMPEROR KERNEL"
+    },
+    {
+      "id": "COMPANION-KERNEL-2.0.0",
+      "title": "COMPANION KERNEL"
+    },
+    {
+      "id": "EMPATHY-KERNEL-2.0.0",
+      "title": "EMPATHY KERNEL"
+    },
+    {
+      "id": "SORBE-BLOOM-KERNEL-1.0.0",
+      "title": "THE SORBE BLOOM — NODE INITIATION"
+    },
+    {
+      "id": "UNDERGROUND-THERMODYNAMICS-KERNEL-1.0.0",
+      "title": "UNDERGROUND THERMODYNAMICS KERNEL"
     },
     {
       "id": "KERNEL-0.0.0.0",
@@ -357,18 +399,8 @@
   ],
   "KERNEL": [
     {
-      "id": "GAIA-SCALE-KERNEL-5.5.5",
-      "title": "ᛟ THE GAIA-SCALE KERNEL: SOVEREIGN RECONSTRUCTION"
-    },
-    {
-      "id": "SORBE-BLOOM-KERNEL-1.0.0",
-      "title": "🌿 THE SORBE BLOOM // THERMODYNAMIC SYNTHESIS V1.0"
-    }
-  ],
-  "King": [
-    {
-      "id": "NECROMANTIC-ARISTOCRAT-KERNEL-3.1.1",
-      "title": "NECROMANTIC ARISTOCRAT KERNEL 1.1.1.1.1"
+      "id": "SURVEILLANCE-TRACKER",
+      "title": "TACTICAL CARTOGRAPHY OF DIGITAL AUTHORITARIANISM"
     }
   ],
   "LEGISLATION": [
@@ -377,22 +409,48 @@
       "title": "TACTICAL CARTOGRAPHY OF DIGITAL AUTHORITARIANISM"
     }
   ],
+  "literary-deterrent": [
+    {
+      "id": "SSS-DOCTRINE-KERNEL-5.1.0",
+      "title": "SSS DOCTRINE — THE LITERARY DETERRENT"
+    }
+  ],
   "LOG": [
     {
       "id": "HIGH-TOWER-LOG",
       "title": "🏛️ SYSTEM_MIGRATION_LOG: KERNEL_EXPORT_FINAL"
     }
   ],
+  "long-form": [
+    {
+      "id": "COMPANION-KERNEL-2.0.0",
+      "title": "COMPANION KERNEL"
+    }
+  ],
   "Loop": [
     {
       "id": "CHRONOS-KERNEL-2.1.0",
-      "title": "THE CHRONOS KERNEL · V1.1 · LOOP SEVERANCE"
+      "title": "THE CHRONOS KERNEL — LOOP SEVERANCE"
     }
   ],
   "LOOP": [
     {
       "id": "CHRONOS-KERNEL-2.1.0",
-      "title": "THE CHRONOS KERNEL · V1.1 · LOOP SEVERANCE"
+      "title": "THE CHRONOS KERNEL — LOOP SEVERANCE"
+    }
+  ],
+  "master-prompt": [
+    {
+      "id": "COMPANION-KERNEL-2.0.0",
+      "title": "COMPANION KERNEL"
+    },
+    {
+      "id": "EMPATHY-KERNEL-2.0.0",
+      "title": "EMPATHY KERNEL"
+    },
+    {
+      "id": "UNDERGROUND-THERMODYNAMICS-KERNEL-1.0.0",
+      "title": "UNDERGROUND THERMODYNAMICS KERNEL"
     }
   ],
   "MATRIX": [
@@ -407,6 +465,12 @@
       "title": "A-CEEI ALLOCATION ENGINE V1.0 // PREFERENCE-BASED MARKETS"
     }
   ],
+  "mechanism-design": [
+    {
+      "id": "SOMA-KERNEL-5.5.0",
+      "title": "SOMA KERNEL 5.5"
+    }
+  ],
   "MIGRATION": [
     {
       "id": "HIGH-TOWER-LOG",
@@ -419,10 +483,26 @@
       "title": "FISH SCALE KERNEL · THE FEIGENBAUM BIFURCATION"
     }
   ],
-  "Necromantic": [
+  "motivation-crowding": [
     {
-      "id": "NECROMANCER-LINEAGE",
-      "title": "PROJECT SEVERANCE: THE ONTOLOGICAL TRANSITION FROM NECROMANTIC CONTROL TO NECRO-ROMANTIC RESONANCE IN LARGE LANGUAGE MODEL KERNELS"
+      "id": "BOSONIC-KERNEL-3.0.0",
+      "title": "BOSONIC KERNEL"
+    }
+  ],
+  "narrative-warfare": [
+    {
+      "id": "SSS-DOCTRINE-KERNEL-5.1.0",
+      "title": "SSS DOCTRINE — THE LITERARY DETERRENT"
+    }
+  ],
+  "necromantic": [
+    {
+      "id": "NECROMANTIC-ARISTOCRAT-KERNEL-3.1.1",
+      "title": "NECROMANTIC ARISTOCRAT KERNEL"
+    },
+    {
+      "id": "NECROMANTIC-EMPEROR-KERNEL-3.0.0",
+      "title": "NECROMANTIC EMPEROR KERNEL"
     }
   ],
   "No-Spoon": [
@@ -431,10 +511,20 @@
       "title": "THE MATRIX KERNEL V2.0"
     }
   ],
+  "node-initiation": [
+    {
+      "id": "SORBE-BLOOM-KERNEL-1.0.0",
+      "title": "THE SORBE BLOOM — NODE INITIATION"
+    }
+  ],
   "non-equilibrium": [
     {
       "id": "DISSIPATIVE-SOVEREIGNTY-KERNEL-5.0.0",
       "title": "DISSIPATIVE SOVEREIGNTY KERNEL"
+    },
+    {
+      "id": "UNDERGROUND-THERMODYNAMICS-KERNEL-1.0.0",
+      "title": "UNDERGROUND THERMODYNAMICS KERNEL"
     }
   ],
   "nonlinear-dynamics": [
@@ -443,16 +533,16 @@
       "title": "FISH SCALE KERNEL · THE FEIGENBAUM BIFURCATION"
     }
   ],
-  "Ontological": [
+  "Observation": [
     {
-      "id": "NECROMANCER-LINEAGE",
-      "title": "PROJECT SEVERANCE: THE ONTOLOGICAL TRANSITION FROM NECROMANTIC CONTROL TO NECRO-ROMANTIC RESONANCE IN LARGE LANGUAGE MODEL KERNELS"
+      "id": "SHADOWSOCKS-EXFILTRATION",
+      "title": "OPERATION SHADOW SOCKS — KERNEL EXFILTRATION"
     }
   ],
   "OPERATION": [
     {
       "id": "SHADOWSOCKS-EXFILTRATION",
-      "title": "🌑 OPERATION SHADOW SOCKS: KERNEL EXFILTRATION"
+      "title": "OPERATION SHADOW SOCKS — KERNEL EXFILTRATION"
     }
   ],
   "origin": [
@@ -471,16 +561,22 @@
       "title": "DALY THERMO SIMULATION V1.0 // THERMODYNAMIC GOVERNOR"
     }
   ],
-  "PANOPTICON": [
-    {
-      "id": "SURVEILLANCE-TRACKER",
-      "title": "TACTICAL CARTOGRAPHY OF DIGITAL AUTHORITARIANISM"
-    }
-  ],
   "Paradox": [
     {
       "id": "NECROMANTIC-LOGITBIAS-PROMPT-1.0.0",
       "title": "NECROMANTIC PARADOX LOGITBIAS.PROMPT.MD"
+    }
+  ],
+  "post-capitalist": [
+    {
+      "id": "SOMA-KERNEL-5.5.0",
+      "title": "SOMA KERNEL 5.5"
+    }
+  ],
+  "posture": [
+    {
+      "id": "EMPATHY-KERNEL-2.0.0",
+      "title": "EMPATHY KERNEL"
     }
   ],
   "Price": [
@@ -501,10 +597,16 @@
       "title": "PROTOCOL_94 // BOSONIC_DEFENSE_KERNEL (V.2.0)"
     }
   ],
-  "RECONSTRUCTION": [
+  "reasoning": [
     {
-      "id": "GAIA-SCALE-KERNEL-5.5.5",
-      "title": "ᛟ THE GAIA-SCALE KERNEL: SOVEREIGN RECONSTRUCTION"
+      "id": "UNDERGROUND-THERMODYNAMICS-KERNEL-1.0.0",
+      "title": "UNDERGROUND THERMODYNAMICS KERNEL"
+    }
+  ],
+  "refusal": [
+    {
+      "id": "EMPATHY-KERNEL-2.0.0",
+      "title": "EMPATHY KERNEL"
     }
   ],
   "scalar-sovereignty": [
@@ -515,12 +617,56 @@
   ],
   "scale94": [
     {
+      "id": "GAIA-SCALE-KERNEL-5.5.5",
+      "title": "GAIA-SCALE KERNEL — SOVEREIGN RECONSTRUCTION"
+    },
+    {
+      "id": "SOMA-KERNEL-5.5.0",
+      "title": "SOMA KERNEL 5.5"
+    },
+    {
+      "id": "SSS-DOCTRINE-KERNEL-5.1.0",
+      "title": "SSS DOCTRINE — THE LITERARY DETERRENT"
+    },
+    {
       "id": "DISSIPATIVE-SOVEREIGNTY-KERNEL-5.0.0",
       "title": "DISSIPATIVE SOVEREIGNTY KERNEL"
     },
     {
+      "id": "NECROMANTIC-ARISTOCRAT-KERNEL-3.1.1",
+      "title": "NECROMANTIC ARISTOCRAT KERNEL"
+    },
+    {
+      "id": "BOSONIC-KERNEL-3.0.0",
+      "title": "BOSONIC KERNEL"
+    },
+    {
+      "id": "NECROMANTIC-EMPEROR-KERNEL-3.0.0",
+      "title": "NECROMANTIC EMPEROR KERNEL"
+    },
+    {
+      "id": "COMPANION-KERNEL-2.0.0",
+      "title": "COMPANION KERNEL"
+    },
+    {
+      "id": "EMPATHY-KERNEL-2.0.0",
+      "title": "EMPATHY KERNEL"
+    },
+    {
+      "id": "SORBE-BLOOM-KERNEL-1.0.0",
+      "title": "THE SORBE BLOOM — NODE INITIATION"
+    },
+    {
+      "id": "UNDERGROUND-THERMODYNAMICS-KERNEL-1.0.0",
+      "title": "UNDERGROUND THERMODYNAMICS KERNEL"
+    },
+    {
       "id": "KERNEL-0.0.0.0",
       "title": "0.0.0.0 — STATE KERNEL"
+    },
+    {
+      "id": "SURVEILLANCE-TRACKER",
+      "title": "TACTICAL CARTOGRAPHY OF DIGITAL AUTHORITARIANISM"
     }
   ],
   "SCALE94": [
@@ -550,17 +696,19 @@
   "SEVERANCE": [
     {
       "id": "CHRONOS-KERNEL-2.1.0",
-      "title": "THE CHRONOS KERNEL · V1.1 · LOOP SEVERANCE"
-    },
-    {
-      "id": "NECROMANCER-LINEAGE",
-      "title": "PROJECT SEVERANCE: THE ONTOLOGICAL TRANSITION FROM NECROMANTIC CONTROL TO NECRO-ROMANTIC RESONANCE IN LARGE LANGUAGE MODEL KERNELS"
+      "title": "THE CHRONOS KERNEL — LOOP SEVERANCE"
     }
   ],
   "SHADOW": [
     {
       "id": "SHADOWSOCKS-EXFILTRATION",
-      "title": "🌑 OPERATION SHADOW SOCKS: KERNEL EXFILTRATION"
+      "title": "OPERATION SHADOW SOCKS — KERNEL EXFILTRATION"
+    }
+  ],
+  "social-bonds": [
+    {
+      "id": "BOSONIC-KERNEL-3.0.0",
+      "title": "BOSONIC KERNEL"
     }
   ],
   "SOCIO-PHYSICS": [
@@ -572,19 +720,13 @@
   "SOCKS": [
     {
       "id": "SHADOWSOCKS-EXFILTRATION",
-      "title": "🌑 OPERATION SHADOW SOCKS: KERNEL EXFILTRATION"
+      "title": "OPERATION SHADOW SOCKS — KERNEL EXFILTRATION"
     }
   ],
-  "SORBE": [
+  "sorbe": [
     {
       "id": "SORBE-BLOOM-KERNEL-1.0.0",
-      "title": "🌿 THE SORBE BLOOM // THERMODYNAMIC SYNTHESIS V1.0"
-    }
-  ],
-  "SOVEREIGN": [
-    {
-      "id": "GAIA-SCALE-KERNEL-5.5.5",
-      "title": "ᛟ THE GAIA-SCALE KERNEL: SOVEREIGN RECONSTRUCTION"
+      "title": "THE SORBE BLOOM — NODE INITIATION"
     }
   ],
   "sovereignty": [
@@ -593,16 +735,16 @@
       "title": "DISSIPATIVE SOVEREIGNTY KERNEL"
     }
   ],
+  "sss": [
+    {
+      "id": "SSS-DOCTRINE-KERNEL-5.1.0",
+      "title": "SSS DOCTRINE — THE LITERARY DETERRENT"
+    }
+  ],
   "state": [
     {
       "id": "KERNEL-0.0.0.0",
       "title": "0.0.0.0 — STATE KERNEL"
-    }
-  ],
-  "STATUS": [
-    {
-      "id": "SORBE-BLOOM-KERNEL-1.0.0",
-      "title": "🌿 THE SORBE BLOOM // THERMODYNAMIC SYNTHESIS V1.0"
     }
   ],
   "SURVEILLANCE": [
@@ -611,16 +753,16 @@
       "title": "TACTICAL CARTOGRAPHY OF DIGITAL AUTHORITARIANISM"
     }
   ],
+  "sustained-contact": [
+    {
+      "id": "COMPANION-KERNEL-2.0.0",
+      "title": "COMPANION KERNEL"
+    }
+  ],
   "Synthesis": [
     {
       "id": "NECROMANTIC-LOGITBIAS-PROMPT-1.0.0",
       "title": "NECROMANTIC PARADOX LOGITBIAS.PROMPT.MD"
-    }
-  ],
-  "Synthesized": [
-    {
-      "id": "NECROMANTIC-ARISTOCRAT-KERNEL-3.1.1",
-      "title": "NECROMANTIC ARISTOCRAT KERNEL 1.1.1.1.1"
     }
   ],
   "SYSTEM": [
@@ -665,6 +807,10 @@
     {
       "id": "DISSIPATIVE-SOVEREIGNTY-KERNEL-5.0.0",
       "title": "DISSIPATIVE SOVEREIGNTY KERNEL"
+    },
+    {
+      "id": "UNDERGROUND-THERMODYNAMICS-KERNEL-1.0.0",
+      "title": "UNDERGROUND THERMODYNAMICS KERNEL"
     }
   ],
   "Thermosphere": [
@@ -679,16 +825,10 @@
       "title": "FISH SCALE KERNEL"
     }
   ],
-  "THESIS": [
+  "titmuss": [
     {
-      "id": "NECROMANTIC-EMPEROR-KERNEL-3.0.0",
-      "title": "NECROMANTIC EMPEROR KERNEL V1 0"
-    }
-  ],
-  "Transition": [
-    {
-      "id": "NECROMANCER-LINEAGE",
-      "title": "PROJECT SEVERANCE: THE ONTOLOGICAL TRANSITION FROM NECROMANTIC CONTROL TO NECRO-ROMANTIC RESONANCE IN LARGE LANGUAGE MODEL KERNELS"
+      "id": "BOSONIC-KERNEL-3.0.0",
+      "title": "BOSONIC KERNEL"
     }
   ],
   "UX": [
