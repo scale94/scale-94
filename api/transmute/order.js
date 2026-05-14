@@ -42,49 +42,65 @@ async function discordPost(path, body) {
 // ── Embed builder ─────────────────────────────────────────────────────────────
 function buildEmbed(order, state = 'QUEUED') {
   const COLOR = {
-    QUEUED: 0xD4AF37, ACKNOWLEDGED: 0x06B6D4,
+    QUEUED: 0x39FF14, ACKNOWLEDGED: 0x06B6D4,
     MACERATING: 0xD946EF, SHIPPED: 0x39FF14,
   };
   const STATE_LABEL = {
-    QUEUED:       '⬡  QUEUED',
+    QUEUED:       '◈  MANIFEST COMPILED',
     ACKNOWLEDGED: '◎  ACKNOWLEDGED',
     MACERATING:   '⚗  MACERATING',
     SHIPPED:      '✦  SHIPPED',
   };
+
+  const hash = order.formulaHash ?? '—';
+  const domain = order.domainPair ?? order.formulaId ?? '—';
+
+  const kernelField = [
+    '```',
+    `DOMAIN   ${domain}`,
+    `HASH     ${hash.slice(0, 32)}`,
+    `         ${hash.slice(32) || '—'}`,
+    `SPACE    1536-dim · OCK v1.1.0`,
+    `P(RECOL) < 10⁻⁷⁷`,
+    '```',
+    'Null-state origin. The collider does not create formulas — it extracts trajectories latent in the field. The vault hash is the coordinate. The accord is not invented. It is located.',
+  ].join('\n');
+
+  const fishField = [
+    '```',
+    'r < 3.000  fixed point  →  TOP   ordered',
+    'r > 3.000  period-2     →  HEART cascade',
+    'r > 3.569  chaos onset  →  BASE  attractor',
+    `δ = 4.66920160910299`,
+    '```',
+    'Feigenbaum (1975): period-doubling bifurcations converge at δ universally. Each scale compressed by δ. BASE notes are post-cascade residue — the strange attractor. The fish scale kernel is universal geometry.',
+  ].join('\n');
+
   return {
     title:       `◈ TESSERACT TRANSMUTATION // ${order.formulaId}`,
     description: `\`\`\`\n${order.cardName}\n\`\`\``,
-    color:       COLOR[state] ?? 0xD4AF37,
+    color:       COLOR[state] ?? 0x39FF14,
     fields: [
-      { name: '§ STATE',           value: STATE_LABEL[state],                       inline: true  },
-      { name: '§ TIER',            value: order.tierLabel || order.tierSize || '50ml', inline: true },
-      { name: '§ SOVEREIGN',      value: `€${order.sovereignRatio}`,                inline: true  },
-      { name: '§ G²T → UA',        value: `€${order.g2tAmount}`,                    inline: true  },
-      { name: '§ VAULT IDENTITY',  value: `\`\`\`\n${order.vaultBlock}\n\`\`\``,   inline: false },
-      { name: '§ SCENT PROFILE',   value: `\`\`\`\n${order.noteBlock}\n\`\`\``,    inline: false },
-      { name: '§ PROPERTIES',      value: `\`\`\`\n${order.physBlock}\n\`\`\``,    inline: false },
-      ...(order.contactSignal || order.contactEmail ? [{
-        name:  '§ CONTACT',
-        value: `\`\`\`\n${order.contactSignal ? `SIGNAL  ${order.contactSignal}\n` : ''}${order.contactEmail ? `EMAIL   ${order.contactEmail}` : ''}\`\`\``,
-        inline: false,
-      }] : []),
-      { name: '§ ORDER ID',        value: `\`${order.id}\``,                        inline: false },
+      { name: '§ STATE',              value: STATE_LABEL[state],                       inline: true  },
+      { name: '§ DELIVERY',           value: '`DIGITAL ASSET DOWNLOADED`',             inline: true  },
+      { name: '§ VAULT IDENTITY',     value: `\`\`\`\n${order.vaultBlock}\n\`\`\``,   inline: false },
+      { name: '§ SCENT PROFILE',      value: `\`\`\`\n${order.noteBlock}\n\`\`\``,    inline: false },
+      { name: '§ PROPERTIES',         value: `\`\`\`\n${order.physBlock}\n\`\`\``,    inline: false },
+      { name: '§ ORIGIN VECTOR',      value: kernelField,                              inline: false },
+      { name: '§ FEIGENBAUM δ',       value: fishField,                               inline: false },
+      { name: '§ ORDER ID',           value: `\`${order.id}\``,                        inline: false },
     ],
     footer:    { text: `tesseract protocol · scale94 · ${order.createdAt}` },
     timestamp: order.createdAt,
   };
 }
 
-// ── Component builder — buttons disable as state advances ─────────────────────
+// ── Component builder — single acknowledge button for digital delivery ─────────
 function buildComponents(orderId, state = 'QUEUED') {
-  const ORDER  = ['QUEUED', 'ACKNOWLEDGED', 'MACERATING', 'SHIPPED'];
-  const idx    = ORDER.indexOf(state);
   return [{
-    type: 1, // ACTION_ROW
+    type: 1,
     components: [
-      { type: 2, style: 2, label: 'Acknowledge',   custom_id: `tm:ack:${orderId}`, disabled: idx >= 1 },
-      { type: 2, style: 1, label: '⚗ Macerating', custom_id: `tm:mac:${orderId}`, disabled: idx >= 2 },
-      { type: 2, style: 3, label: '✦ Shipped',     custom_id: `tm:shp:${orderId}`, disabled: idx >= 3 },
+      { type: 2, style: 2, label: '◎ Acknowledge Receipt', custom_id: `tm:ack:${orderId}`, disabled: state !== 'QUEUED' },
     ],
   }];
 }
@@ -113,7 +129,7 @@ export default async function handler(req, res) {
     formulaId, formulaHash, encryptedPayload,
     sovereignRatio, g2tAmount,
     tierSize, tierLabel,
-    cardName, noteBlock, physBlock, vaultBlock,
+    cardName, domainPair, noteBlock, physBlock, vaultBlock,
     contact,
   } = body;
 
@@ -138,6 +154,7 @@ export default async function handler(req, res) {
     tierSize:         tierSize         ?? '50ml',
     tierLabel:        tierLabel        ?? '50 ml · SOVEREIGN',
     cardName:         cardName         ?? '—',
+    domainPair:       domainPair       ?? '—',
     noteBlock:        noteBlock        ?? '—',
     physBlock:        physBlock        ?? '—',
     vaultBlock:       vaultBlock       ?? '—',

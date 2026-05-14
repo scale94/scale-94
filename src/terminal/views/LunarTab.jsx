@@ -16,6 +16,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Moon, Sun, Droplets, Wind, Eye, ChevronRight, Thermometer } from 'lucide-react';
 import { loadWasm } from '../../wasm/wasmSingleton';
+import { parseAstroOutput, computeAspect } from '../mercury/tfgAstroHelpers';
 
 // ── Lunar Phase Engine ───────────────────────────────────────────────────────
 // Primary: WASM kernel (Meeus astronomical algorithms, ~10″ longitude accuracy).
@@ -834,11 +835,194 @@ function AccordCard({ accord, isActive }) {
   );
 }
 
+// ── Transit Matrix ────────────────────────────────────────────────────────────
+// Computes all active aspects in the current sky via Swiss Ephemeris WASM.
+// No birth chart required — current sky only. Reason to return daily.
+
+const PLANET_DATA = {
+  Sun:     { glyph: '☉', key: 'identity',       dim: 'vital current',    color: '#f59e0b' },
+  Moon:    { glyph: '☽', key: 'emotion',         dim: 'lunar field',      color: '#e8e8f0' },
+  Mercury: { glyph: '☿', key: 'cognition',       dim: 'signal layer',     color: '#c0c0c0' },
+  Venus:   { glyph: '♀', key: 'desire',          dim: 'value field',      color: '#22c55e' },
+  Mars:    { glyph: '♂', key: 'drive',           dim: 'action vector',    color: '#ef4444' },
+  Jupiter: { glyph: '♃', key: 'expansion',       dim: 'amplitude',        color: '#8b5cf6' },
+  Saturn:  { glyph: '♄', key: 'structure',       dim: 'constraint layer', color: '#a8a29e' },
+  Uranus:  { glyph: '⛢', key: 'disruption',      dim: 'frequency-shift',  color: '#06b6d4' },
+  Neptune: { glyph: '♆', key: 'dissolution',     dim: 'diffusion field',  color: '#3b82f6' },
+  Pluto:   { glyph: '♇', key: 'transformation',  dim: 'depth charge',     color: '#dc2626' },
+};
+
+const ASPECT_GLYPH = {
+  Conjunct: '⊕', Sextile: '⚹', Square: '□', Trine: '△', Opposite: '☍',
+};
+
+const ASPECT_TENSION = { Conjunct: 0, Sextile: -1, Trine: -2, Square: 1, Opposite: 2 };
+
+const ASPECT_COLOR = {
+  Conjunct: '#f59e0b', Sextile: '#22c55e', Trine: '#8b5cf6', Square: '#ef4444', Opposite: '#06b6d4',
+};
+
+const READING_OVERRIDES = {
+  'Mercury_Saturn_Conjunct': 'Cognition and structure fused. Architectural thought. Signal compressed to its essence.',
+  'Mercury_Saturn_Square':   'Signal under structural pressure. Compressed bandwidth. Clarity extracted through constraint.',
+  'Mercury_Saturn_Trine':    'Thought and structure in harmonic lock. Disciplined output. Clear signal, no noise.',
+  'Mercury_Saturn_Sextile':  'Thought and structure in cooperative flow. Precision without rigidity.',
+  'Moon_Saturn_Square':      'Emotion meets structural resistance. Feeling constrained to what is real. Productive restraint.',
+  'Moon_Saturn_Conjunct':    'Emotion and structure fused at origin. Deep seriousness. Only what is real remains.',
+  'Moon_Saturn_Trine':       'Emotion and structure in harmony. Feeling sustained by form. Grounded sensitivity.',
+  'Venus_Mars_Conjunct':     'Desire and drive fused. Creative and acquisitive forces operating as single vector.',
+  'Venus_Mars_Square':       'Desire and drive in friction. Want vs action. Tension between passive and assertive fields.',
+  'Venus_Mars_Trine':        'Desire and drive harmonically locked. Effortless creative assertion. Low friction.',
+  'Jupiter_Saturn_Conjunct': 'The great conjunction. Expansion and contraction at zero-point. New 20-year cycle initiates.',
+  'Jupiter_Saturn_Square':   'Growth impulse against structural resistance. Ambition encounters its limit conditions.',
+  'Jupiter_Saturn_Trine':    'Expansion and structure in harmonic flow. Disciplined growth. Long-cycle harvest configuration.',
+  'Saturn_Neptune_Square':   'Structure and dissolution in friction. The real vs the imagined under pressure.',
+  'Saturn_Neptune_Conjunct': 'Structure and dissolution fused. The real and the imagined operating as one field.',
+  'Saturn_Neptune_Trine':    'Structure and dissolution in flow. Form shapes the formless. Manifest vision.',
+  'Sun_Moon_Opposite':       'Lunation peak. Identity and emotion at maximum polarity. Full awareness window open.',
+  'Sun_Moon_Conjunct':       'New lunation. Identity and emotion fused. Zero-point initiates. Clean slate.',
+  'Mars_Saturn_Square':      'Drive blocked by structure. Action meets constraint. Forced efficiency or accumulated tension.',
+  'Mars_Saturn_Conjunct':    'Drive and structure fused. Disciplined action. Force channeled precisely through form.',
+  'Mars_Saturn_Trine':       'Drive and structure in harmony. Sustained effort. Methodical force builds compound results.',
+  'Jupiter_Neptune_Conjunct':'Expansion and dissolution fused. Visionary field open. Boundaries dissolved in amplitude.',
+  'Jupiter_Neptune_Square':  'Expansion vs dissolution. Optimism confronts illusion. Test of what is actually real.',
+  'Sun_Saturn_Square':       'Identity under structural pressure. Self-concept meets limitation. Necessary hardening.',
+  'Sun_Saturn_Trine':        'Identity and structure in harmony. Disciplined self-expression. Sustained long-form output.',
+  'Sun_Saturn_Conjunct':     'Identity and structure fused. The self defined through form and function. No shortcuts.',
+  'Mercury_Neptune_Square':  'Signal diffused by dissolution. Cognition under imaginal pressure. Clarity elusive.',
+  'Mercury_Neptune_Conjunct':'Thought and dissolution fused. Imaginal cognition. Signal merges with infinite field.',
+  'Mercury_Neptune_Trine':   'Thought and dissolution in harmony. Intuitive cognition. Signal flows through the imaginal.',
+  'Venus_Saturn_Square':     'Desire under structural pressure. Value field compressed. What survives is real.',
+  'Venus_Saturn_Trine':      'Desire and structure in harmony. Love through commitment. Value built through time.',
+  'Mars_Pluto_Conjunct':     'Drive and transformation fused. Extreme force vector. Deep structural change through action.',
+  'Mars_Pluto_Square':       'Drive and transformation in friction. Compulsive action. Power dynamics under pressure.',
+  'Mars_Pluto_Trine':        'Drive and transformation in harmonic flow. Regenerative force. Controlled depth.',
+  'Sun_Pluto_Square':        'Identity under transformative pressure. Deep restructuring of self-concept underway.',
+  'Sun_Pluto_Conjunct':      'Identity and transformation fused. Complete structural renewal. Ego death and rebirth vector.',
+  'Jupiter_Pluto_Conjunct':  'Expansion and transformation fused. Power and amplitude at maximum. Deep growth cycle.',
+  'Jupiter_Pluto_Square':    'Expansion vs transformation. Ambition encounters depth. Power structures challenged.',
+};
+
+function aspectReading(p1, p2, aspectName) {
+  const key = [p1, p2].sort().join('_') + '_' + aspectName;
+  if (READING_OVERRIDES[key]) return READING_OVERRIDES[key];
+  const d1 = PLANET_DATA[p1];
+  const d2 = PLANET_DATA[p2];
+  const t  = ASPECT_TENSION[aspectName] ?? 0;
+  if (t <= -1) return `${d1.key} and ${d2.key} in harmonic configuration. ${d1.dim} amplifies ${d2.dim}. Elevated output.`;
+  if (t ===  0) return `${d1.key} and ${d2.key} fused at zero-point. ${d1.dim} and ${d2.dim} operating as single vector.`;
+  if (t ===  1) return `${d1.key} under pressure from ${d2.key}. ${d1.dim} in friction with ${d2.dim}. Active resolution required.`;
+  return `${d1.key} and ${d2.key} at polarity maximum. ${d1.dim} opposed to ${d2.dim}. Awareness through tension.`;
+}
+
+function useTransits(wasmReady) {
+  const [data, setData] = useState({ transits: [], planets: {} });
+  useEffect(() => {
+    if (!wasmReady || !_wasmMod) return;
+    try {
+      const planets = parseAstroOutput(_wasmMod.run_astro(Date.now()));
+      const names   = Object.keys(PLANET_DATA);
+      const active  = [];
+      for (let i = 0; i < names.length; i++) {
+        for (let j = i + 1; j < names.length; j++) {
+          const a = planets[names[i]];
+          const b = planets[names[j]];
+          if (!a || !b) continue;
+          const asp = computeAspect(a.sign, a.degree, b.sign, b.degree);
+          if (asp) active.push({ p1: names[i], p2: names[j], aspect: asp.name, orb: parseFloat(asp.orb) });
+        }
+      }
+      active.sort((a, b) => a.orb - b.orb);
+      setData({ transits: active, planets });
+    } catch (e) { console.error('[TRANSITS]', e); }
+  }, [wasmReady]);
+  return data;
+}
+
+function TransitMatrix({ transits, planets, timestamp }) {
+  if (!transits.length) return null;
+  const ts = timestamp.toLocaleDateString('en-CA') + ' ' +
+    timestamp.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+  return (
+    <div className="mt-8 border border-violet-500/20 rounded-lg bg-black/40 overflow-hidden">
+      <div className="px-4 py-3 border-b border-violet-900/30 flex items-center justify-between">
+        <div>
+          <div className="text-[10px] font-mono font-bold text-violet-400/80 uppercase tracking-widest">
+            ◈ TRANSIT MATRIX
+          </div>
+          <div className="text-[7px] font-mono text-violet-500/40 mt-0.5">
+            // {transits.length} active aspects · orb ≤ 8° · swiss ephemeris · {ts}
+          </div>
+        </div>
+        <div className="text-[20px] text-violet-500/20 select-none">⊛</div>
+      </div>
+
+      <div className="px-4 py-2.5 border-b border-white/[0.04] bg-black/20">
+        <div className="text-[6.5px] font-mono text-white/20 uppercase tracking-widest mb-1.5">CURRENT POSITIONS</div>
+        <div className="flex flex-wrap gap-x-4 gap-y-1">
+          {Object.entries(PLANET_DATA).map(([name, p]) => {
+            const pos = planets[name];
+            if (!pos) return null;
+            return (
+              <span key={name} className="font-mono text-[8px]">
+                <span style={{ color: p.color }}>{p.glyph}</span>
+                <span className="text-white/35"> {pos.sign.slice(0, 3)} {pos.degree.toFixed(0)}°</span>
+                {pos.retrograde && <span className="text-rose-400/60"> ℞</span>}
+              </span>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="divide-y divide-white/[0.03]">
+        {transits.map(({ p1, p2, aspect, orb }, i) => {
+          const d1  = PLANET_DATA[p1];
+          const d2  = PLANET_DATA[p2];
+          const pos1 = planets[p1];
+          const pos2 = planets[p2];
+          return (
+            <div key={i} className="px-4 py-3">
+              <div className="flex items-center gap-2 flex-wrap mb-1">
+                <span className="text-[15px]" style={{ color: d1.color }}>{d1.glyph}</span>
+                <span className="font-mono text-[9px] font-bold uppercase tracking-widest"
+                  style={{ color: ASPECT_COLOR[aspect] }}>
+                  {ASPECT_GLYPH[aspect]} {aspect}
+                </span>
+                <span className="text-[15px]" style={{ color: d2.color }}>{d2.glyph}</span>
+                <span className="font-mono text-[7px] text-white/25">orb {orb}°</span>
+                <span className="font-mono text-[7px] text-white/20 ml-auto hidden sm:block">
+                  {d1.key} × {d2.key}
+                </span>
+              </div>
+              {pos1 && pos2 && (
+                <div className="text-[6.5px] font-mono text-white/20 mb-1.5">
+                  <span style={{ color: d1.color }}>{d1.glyph}</span> {pos1.sign} {pos1.degree.toFixed(1)}°{pos1.retrograde ? ' ℞' : ''}
+                  <span className="text-white/15"> · </span>
+                  <span style={{ color: d2.color }}>{d2.glyph}</span> {pos2.sign} {pos2.degree.toFixed(1)}°{pos2.retrograde ? ' ℞' : ''}
+                </div>
+              )}
+              <div className="text-[8.5px] font-mono text-white/45 leading-relaxed">
+                {aspectReading(p1, p2, aspect)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="px-4 py-2 border-t border-white/[0.04] text-[6.5px] font-mono text-white/15 leading-relaxed">
+        Orbs: Conjunct/Trine/Opposite ±8° · Square ±7° · Sextile ±6° · Positions via Swiss Ephemeris Rust WASM kernel
+      </div>
+    </div>
+  );
+}
+
 // ── LunarTab Component ───────────────────────────────────────────────────────
 
 export default function LunarTab() {
   const [now, setNow] = useState(() => new Date());
   const [wasmReady, setWasmReady] = useState(false);
+  const { transits, planets } = useTransits(wasmReady);
 
   // Load WASM kernel on mount
   useEffect(() => {
@@ -1068,6 +1252,8 @@ export default function LunarTab() {
           </p>
         </div>
       </div>
+
+      <TransitMatrix transits={transits} planets={planets} timestamp={now} />
 
       {/* ── Footer ── */}
       <div className="mt-8 pt-4 border-t border-white/[0.03] text-[8px] font-mono text-white/10 leading-relaxed">
