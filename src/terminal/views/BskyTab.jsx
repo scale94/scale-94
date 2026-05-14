@@ -643,7 +643,7 @@ const BskyTab = () => {
             <div className="flex items-center gap-2">
               <span className="text-sky-400/30">└─</span>
               <span className="text-sky-400/40">VITE_GRAPHTRACKS_DID</span>
-              <code className="text-cyan-400/70 bg-cyan-950/20 border border-cyan-900/20 px-1.5 py-0.5">[NOT SET]</code>
+              <code className="text-cyan-400/70 bg-cyan-950/20 border border-cyan-900/20 px-1.5 py-0.5">{GT_DID || '[NOT SET]'}</code>
             </div>
             <a
               href="https://github.com/graphtracks/docs"

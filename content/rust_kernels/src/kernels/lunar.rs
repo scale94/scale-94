@@ -196,14 +196,14 @@ fn sun_longitude(t: f64) -> f64 {
 
 // ── Core computation ─────────────────────────────────────────────────────────
 
-struct LunarPosition {
+pub(crate) struct LunarPosition {
     /// Geocentric ecliptic longitude (degrees)
-    longitude: f64,
+    pub(crate) longitude: f64,
     /// Geocentric ecliptic latitude (degrees)
-    latitude: f64,
+    pub(crate) latitude: f64,
 }
 
-fn compute_lunar_position(t: f64) -> LunarPosition {
+pub(crate) fn compute_lunar_position(t: f64) -> LunarPosition {
     let lp = moon_mean_longitude(t);
     let d  = moon_mean_elongation(t);
     let m  = sun_mean_anomaly(t);
