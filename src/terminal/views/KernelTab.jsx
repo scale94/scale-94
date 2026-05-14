@@ -380,9 +380,10 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
         100% { opacity: 1; filter: brightness(1) blur(0px); letter-spacing: normal; }
       }
       @keyframes sk-treeReveal {
-        0%   { opacity: 0; transform: rotate(0deg)   scale(0.5); filter: drop-shadow(0 0 14px rgba(6,182,212,1)) drop-shadow(0 0 28px rgba(6,182,212,0.4)); }
-        18%  { opacity: 1; transform: rotate(97deg)  scale(0.8); }
-        100% { opacity: 1; transform: rotate(540deg) scale(1);   filter: drop-shadow(0 0 4px rgba(6,182,212,0.4)); }
+        0%   { opacity: 0; transform: rotate(0deg)   scale(0);    filter: brightness(20)  drop-shadow(0 0 4px rgba(255,255,255,0.9)); }
+        5%   { opacity: 1; transform: rotate(27deg)  scale(0.12); filter: brightness(14)  drop-shadow(0 0 20px rgba(255,255,255,0.9)); }
+        16%  { opacity: 1; transform: rotate(86deg)  scale(0.6);  filter: brightness(4)   drop-shadow(0 0 16px rgba(6,182,212,1)) drop-shadow(0 0 32px rgba(6,182,212,0.4)); }
+        100% { opacity: 1; transform: rotate(540deg) scale(1);    filter: brightness(1)   drop-shadow(0 0 4px rgba(6,182,212,0.4)); }
       }
       @keyframes sk-treeGlow {
         0%, 100% { filter: drop-shadow(0 0 3px rgba(6,182,212,0.4)); }
