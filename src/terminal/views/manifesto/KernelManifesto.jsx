@@ -18,12 +18,17 @@ export default function KernelManifesto() {
       {/* Manifesto header — claim, not decoration */}
       <div className="mb-6">
         <div className="text-[10px] font-bold text-cyan-500/70 uppercase tracking-[0.3em] mb-3 flex items-center gap-2">
-          <span style={{ color: 'rgba(192,192,192,0.5)', fontSize: 14 }}>◉</span>
+          <span style={{ color: 'rgba(6,182,212,0.6)', fontSize: 14 }}>◉</span>
           THE LATTICE · 272 KERNELS · 16-DIMENSIONAL FEATURE SPACE
         </div>
         <h1
-          className="text-2xl sm:text-4xl font-bold tracking-tight leading-tight mb-3"
-          style={{ color: '#e0e0e0', fontFamily: 'monospace' }}
+          className="text-2xl sm:text-4xl font-bold tracking-tight leading-tight mb-3 text-transparent bg-clip-text"
+          style={{
+            backgroundImage: 'linear-gradient(90deg, #39ff14, #06b6d4, #d946ef)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            fontFamily: 'monospace',
+          }}
         >
           The most compelling analogy<br />
           has the weakest geometry.
