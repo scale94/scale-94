@@ -764,6 +764,116 @@ const TIERS = [
   { id: 'sovereign', label: '50 ml · SOVEREIGN',  size: '50ml', price: 100, g2t: 10   },
 ];
 
+// ── Tesseract Manifest ────────────────────────────────────────────────────────
+function generateManifestMarkdown(card, tesseract) {
+  const { hash, encryptedFormula } = tesseract;
+  const { specificGravity, flashPoint, macDays, dilutionRatio, ciphertext } = encryptedFormula;
+  const ts = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+
+  const evapT = (card.evap[0] * 100).toFixed(0);
+  const evapH = (card.evap[1] * 100).toFixed(0);
+  const evapB = (card.evap[2] * 100).toFixed(0);
+  const loadingPct = (dilutionRatio * 100).toFixed(1);
+
+  const domPair = card.id.split('-').slice(0, 2).map(s => s.toUpperCase()).join(' × ');
+
+  const noteLines = [
+    `ᛏ TOP    ${card.topNotes.join(' · ')}`,
+    `ᚺ HEART  ${card.heartNotes.join(' · ')}`,
+    `ᛒ BASE   ${card.baseNotes.join(' · ')}`,
+  ].join('\n');
+
+  const cRows = [];
+  const ct = ciphertext || '';
+  for (let i = 0; i < Math.min(ct.length, 512); i += 64) cRows.push(ct.slice(i, i + 64));
+  if (ct.length > 512) cRows.push(`… [${ct.length - 512} chars omitted]`);
+
+  return `# ECO_Sx TRANSMUTATION MANIFEST
+
+\`\`\`
+VAULT    ${hash}
+COMPILED ${ts}
+STATE    ◈ MANIFEST COMPILED
+\`\`\`
+
+---
+
+## ACCORD · ${card.name}
+
+\`\`\`
+${noteLines}
+
+CONC         ${card.conc} · ${card.concPct}
+LONGEVITY    ${card.longevity}
+NODE CLASS   ${card.nodeClass}
+POLARITY     ${card.polLabel || 'MERIDIAN'}
+OLFACTIVE    ${card.dom.toUpperCase()} × ${card.sec.toUpperCase()}
+EVAP CURVE   TOP ${evapT}% / HEART ${evapH}% / BASE ${evapB}%
+LOADING      ${loadingPct}%
+FLASH POINT  ${flashPoint}°C
+SG           ${specificGravity} g/ml
+MACERATION   ${macDays} days
+\`\`\`
+
+---
+
+## ORIGIN VECTOR // KERNEL 0.0.0.0
+
+KERNEL 0.0.0.0 is the null state — the origin before collision. Zero information. Only capacity.
+
+In quantum field theory the vacuum is not empty: it is the ground state of a field, seething with virtual possibility. KERNEL 0.0.0.0 is that vacuum for the accord-space. The Latent Space Collider does not create formulas — it extracts trajectories that were already latent in the field. The collision is the measurement. The measurement collapses superposition into one specific, unrepeatable configuration.
+
+The OCK v1.1.0 parameter space is the field. The domain pair is the initial condition. The vault hash is the coordinate — a SHA-256 commitment to one path through 2²⁵⁶ possible outputs. No other input to the same field produces the same coordinate. The accord is not invented. It is located.
+
+\`\`\`
+DOMAIN     ${domPair}
+HASH       ${hash.slice(0, 32)}
+           ${hash.slice(32)}
+SPACE      1536-dimensional · OCK v1.1.0
+P(RECOLL)  < 10⁻⁷⁷
+\`\`\`
+
+---
+
+## FISH SCALE GEOMETRY // FEIGENBAUM δ
+
+The three-phase evaporation — TOP ${evapT}% / HEART ${evapH}% / BASE ${evapB}% — is not aesthetic preference. It is the signature of a bifurcation cascade written in molecular volatility.
+
+Mitchell Feigenbaum (Los Alamos, 1975) discovered that in the logistic map xₙ₊₁ = r·xₙ(1−xₙ), consecutive period-doubling bifurcations converge at ratio δ = 4.66920160910299.... This constant is universal: it appears in every 1D dynamical system with a quadratic maximum, regardless of the specific map. Feigenbaum found it with a pocket calculator. It was not supposed to be there.
+
+The bifurcation sequence:
+
+\`\`\`
+r < 3.000   stable fixed point        →  TOP   (ordered · single attractor)
+r > 3.000   period-2 onset            →  HEART (quasi-periodic · cascade)
+r > 3.449   period-4 onset            ↓
+r > 3.544   period-8 ...              ↓  each interval compressed by δ
+r > 3.569   chaos onset               →  BASE  (strange attractor · emergent)
+\`\`\`
+
+Each scale of the fish scale bifurcation diagram is compressed by δ relative to the one above. The structure repeats without limit. The accord's evaporation curve maps onto the same partition: three regimes, each self-similar to the whole.
+
+BASE notes are post-cascade residue. The strange attractor. Slow, persistent, sensitive to initial conditions, structurally invariant under time. The scent that remains after everything else has bifurcated away.
+
+This is not a metaphor. Molecular volatility, governed by vapor pressure differentials (Clausius-Clapeyron equation), exhibits the same period-doubling geometry as the logistic map because both are governed by nonlinear feedback dynamics with a bounded quadratic form. The fish scale kernel does not describe the scent. It describes the geometry the scent inhabits — and that geometry is universal.
+
+---
+
+## ENCRYPTED FORMULA
+
+\`\`\`
+CIPHER  AES-256-GCM · RSA-OAEP-2048
+BLAKE3  INTEGRITY BOUND
+
+${cRows.join('\n')}
+\`\`\`
+
+---
+
+_Transmutation complete. The physical substrate is vaulted. The data is sovereign._
+`;
+}
+
 function createParticle(x, y, hue, vx, vy, type) {
   return {
     x, y, vx, vy,
@@ -881,11 +991,9 @@ export default function LatentCollider() {
     const vaultBlock = [
       `SHA-256      ${tHash.slice(0, 32)}`,
       `             ${tHash.slice(32) || '—'}`,
-      `STATUS       ◈ FORMULA VAULTED`,
+      `STATE        ◈ MANIFEST COMPILED`,
+      `DELIVERY     DIGITAL ASSET DOWNLOADED`,
       `PROTOCOL     TESSERACT · RSA-OAEP + AES-256-GCM`,
-      `TIER         ${tier.size} · ${tier.label}`,
-      `SOVEREIGN    €${sovereignRatio}`,
-      `G²T→UA       €${g2tAllocation} (10%)`,
     ].join('\n');
 
     const encTrunc = encryptedPayload.length > 900
@@ -901,6 +1009,7 @@ export default function LatentCollider() {
       tierSize:         tier.size,
       tierLabel:        tier.label,
       cardName:         card.name,
+      domainPair:       card.id.split('-').slice(0, 2).map(s => s.toUpperCase()).join(' × '),
       noteBlock,
       physBlock,
       vaultBlock,
@@ -2909,7 +3018,25 @@ function CrystallizeCard({ card, acquired, selectedTier, onRegister, serverCount
 
 // ── Tesseract Card — cryptographic identity layer ───────────────────────────
 function TesseractCard({ card, tesseract, acquired, selectedTier, onRegister, serverCount, serverTarget, orderStatus }) {
-  const [showForm, setShowForm] = useState(false);
+  const [manifestState, setManifestState] = useState(null); // null | 'compiling' | 'downloaded'
+
+  const handleDownload = async () => {
+    setManifestState('compiling');
+    await new Promise(r => setTimeout(r, 850));
+    const md = generateManifestMarkdown(card, tesseract);
+    const filename = `ECO_Sx_TRANSMUTATION_${Date.now()}.md`;
+    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setManifestState('downloaded');
+    await new Promise(r => setTimeout(r, 550));
+    onRegister({}, TIERS[1]);
+  };
+
   const getCount  = () => serverCount  != null ? serverCount  : (() => { try { return parseInt(localStorage.getItem('ck_count') || '0', 10); } catch { return 0; } })();
   const getTarget = () => serverTarget != null ? serverTarget : PRODUCTION_THRESHOLD;
 
@@ -3088,25 +3215,31 @@ function TesseractCard({ card, tesseract, acquired, selectedTier, onRegister, se
           {!acquired ? (
             <>
               <p className="text-[9px] font-mono mb-3 leading-relaxed" style={{ color: 'rgba(255,215,0,0.3)' }}>
-                This accord exists as a cryptographic commitment. Acquisition delivers the physical
-                composition — the molecular architecture remains vaulted by Tesseract.
+                This accord exists as a cryptographic data-sculpture. Acquisition compiles the
+                molecular architecture and delivers it as a sovereign digital asset — the physical
+                substrate remains vaulted.
               </p>
-              {showForm ? (
-                <ContactForm
-                  label="◈ ACQUIRE COMPILED ASSET"
-                  onSubmit={(contact, tier) => { setShowForm(false); onRegister(contact, tier); }}
-                />
+              {manifestState === 'compiling' || manifestState === 'downloaded' ? (
+                <div className="font-mono text-[10px] tracking-[0.2em] py-2" style={{ color: '#39FF14', textShadow: '0 0 10px rgba(57,255,20,0.5)' }}>
+                  {manifestState === 'compiling' ? '[COMPILING TESSERACT MANIFEST...]' : '[DOWNLOADING]'}
+                </div>
               ) : (
                 <>
                   <button
-                    onClick={() => setShowForm(true)}
+                    onClick={handleDownload}
                     className="text-[10px] font-mono uppercase tracking-widest px-6 py-2 rounded-full border transition-all hover:scale-105 active:scale-95"
-                    style={{ borderColor: 'rgba(255,215,0,0.38)', color: '#FFD700', background: 'rgba(255,215,0,0.07)' }}
+                    style={{
+                      borderColor: 'rgba(255,215,0,0.65)',
+                      color: '#FFD700',
+                      background: 'rgba(255,215,0,0.13)',
+                      textShadow: '0 0 12px rgba(255,215,0,0.5)',
+                      boxShadow: '0 0 18px rgba(255,215,0,0.08), inset 0 0 12px rgba(255,215,0,0.04)',
+                    }}
                   >
                     ◈ ACQUIRE COMPILED ASSET
                   </button>
                   <p className="text-[7px] font-mono mt-2.5 leading-relaxed" style={{ color: 'rgba(255,215,0,0.15)' }}>
-                    You acquire the physical distillation. The formula stays sovereign.
+                    The data-sculpture is compiled and transmitted. The substrate stays sovereign.
                   </p>
                 </>
               )}
@@ -3114,32 +3247,21 @@ function TesseractCard({ card, tesseract, acquired, selectedTier, onRegister, se
           ) : (
             <>
               <div
-                className="text-[12px] font-bold font-mono mb-2 tracking-[0.2em]"
+                className="text-[12px] font-bold font-mono mb-1.5 tracking-[0.2em]"
                 style={{
-                  color: '#FFD700',
-                  textShadow: '0 0 15px rgba(255,215,0,0.4), 0 0 30px rgba(255,215,0,0.15)',
+                  color: '#39FF14',
+                  textShadow: '0 0 15px rgba(57,255,20,0.4), 0 0 30px rgba(57,255,20,0.15)',
                   opacity: 0,
                   animation: 'sc-hashReveal 0.8s cubic-bezier(0.16,1,0.3,1) forwards',
                 }}>
-                ◈ TRANSMUTE INITIATED
+                ◈ MANIFEST COMPILED
+              </div>
+              <div className="text-[8px] font-mono mb-2 tracking-widest" style={{ color: 'rgba(57,255,20,0.55)' }}>
+                DELIVERY · DIGITAL ASSET DOWNLOADED
               </div>
               {orderStatus?.fulfillmentState && <FulfillmentBadge state={orderStatus.fulfillmentState} />}
-              <div className="text-[7.5px] font-mono mb-1 break-all leading-relaxed" style={{ color: 'rgba(255,215,0,0.35)' }}>
+              <div className="text-[7.5px] font-mono mb-3 break-all leading-relaxed" style={{ color: 'rgba(255,215,0,0.35)' }}>
                 {hash.slice(0, 32)}…
-              </div>
-              <div className="grid grid-cols-3 gap-2 mt-3 mb-3">
-                <div className="rounded p-2 text-center" style={{ border: '1px solid rgba(255,215,0,0.12)', background: 'rgba(255,215,0,0.02)' }}>
-                  <div className="text-[7px] font-mono tracking-widest mb-0.5" style={{ color: 'rgba(255,215,0,0.3)' }}>TIER</div>
-                  <div className="text-[10px] font-bold font-mono" style={{ color: 'rgba(255,215,0,0.8)' }}>{selectedTier.size}</div>
-                </div>
-                <div className="rounded p-2 text-center" style={{ border: '1px solid rgba(255,215,0,0.12)', background: 'rgba(255,215,0,0.02)' }}>
-                  <div className="text-[7px] font-mono tracking-widest mb-0.5" style={{ color: 'rgba(255,215,0,0.3)' }}>SOVEREIGN</div>
-                  <div className="text-[11px] font-bold font-mono" style={{ color: 'rgba(255,215,0,0.8)' }}>€{selectedTier.price}</div>
-                </div>
-                <div className="rounded p-2 text-center" style={{ border: '1px solid rgba(57,255,20,0.12)', background: 'rgba(57,255,20,0.02)' }}>
-                  <div className="text-[7px] font-mono tracking-widest mb-0.5" style={{ color: 'rgba(57,255,20,0.3)' }}>G²T → UA</div>
-                  <div className="text-[11px] font-bold font-mono" style={{ color: 'rgba(57,255,20,0.7)' }}>€{selectedTier.g2t}</div>
-                </div>
               </div>
               <div className="text-[9px] font-mono mb-3" style={{ color: 'rgba(255,215,0,0.42)' }}>
                 PRODUCTION THRESHOLD — {getCount()} / {getTarget()}
@@ -3157,8 +3279,26 @@ function TesseractCard({ card, tesseract, acquired, selectedTier, onRegister, se
                   ■ THRESHOLD REACHED — SYNTHESIS UNDER CONSIDERATION
                 </div>
               )}
+              <div className="mt-3 rounded p-3 text-left" style={{ border: '1px solid rgba(255,215,0,0.1)', background: 'rgba(0,0,0,0.35)' }}>
+                <div className="text-[7px] font-mono tracking-[0.3em] mb-2" style={{ color: 'rgba(255,215,0,0.25)' }}>
+                  § REQUEST DECRYPTION KEY
+                </div>
+                <div className="text-[8px] font-mono leading-relaxed mb-2" style={{ color: 'rgba(255,215,0,0.35)' }}>
+                  The ciphertext is in your manifest. The key is held by the vault operator.
+                </div>
+                <div className="space-y-1">
+                  <div className="flex gap-3 font-mono text-[9px]">
+                    <span style={{ color: 'rgba(255,215,0,0.28)' }}>SIGNAL</span>
+                    <span style={{ color: 'rgba(255,215,0,0.72)' }}>@scale.94</span>
+                  </div>
+                  <div className="flex gap-3 font-mono text-[9px]">
+                    <span style={{ color: 'rgba(255,215,0,0.28)' }}>EMAIL </span>
+                    <span style={{ color: 'rgba(255,215,0,0.72)' }}>scale0097@gmail.com</span>
+                  </div>
+                </div>
+              </div>
               <div className="text-[7px] font-mono mt-2.5" style={{ color: 'rgba(217,70,239,0.25)' }}>
-                Formula encrypted via RSA-OAEP-2048 · zero-knowledge relay dispatched
+                Formula encrypted via RSA-OAEP-2048 · data transmitted as sovereign digital asset
               </div>
             </>
           )}
