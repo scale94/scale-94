@@ -221,19 +221,26 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
   const [isSpinning,  setIsSpinning]  = useState(false);
   const [isStopping,  setIsStopping]  = useState(false);
   const [isFading,    setIsFading]    = useState(false);
-  const spinTimerRef = useRef(null);
+  const spinTimerRef   = useRef(null);
+  const pendingStopRef = useRef(false);
   useEffect(() => {
     if (loadingKernel) {
       clearTimeout(spinTimerRef.current);
       setIsStopping(false);
       setIsSpinning(true);
+      pendingStopRef.current = false;
     } else if (prevKernelRef.current) {
-      // kernel just finished — wait for the icon to land at 0°, then decelerate
-      spinTimerRef.current = setTimeout(() => {
-        setIsSpinning(false);
-        setIsStopping(true);
-      }, 900);
+      // Signal stop — consumed by onAnimationIteration so the icon lands at 0°
+      pendingStopRef.current = true;
       sphereFireRef.current = { ts: Date.now() };
+      // Safety fallback: 2 full spins max in case the iteration event misses
+      spinTimerRef.current = setTimeout(() => {
+        if (pendingStopRef.current) {
+          pendingStopRef.current = false;
+          setIsSpinning(false);
+          setIsStopping(true);
+        }
+      }, 1800);
     }
     prevKernelRef.current = loadingKernel;
     return () => clearTimeout(spinTimerRef.current);
@@ -371,6 +378,11 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
         60%  { opacity: 0.7; filter: brightness(3) blur(0px); letter-spacing: 0.05em; }
         80%  { opacity: 1; filter: brightness(1.6) blur(0px); letter-spacing: 0.02em; }
         100% { opacity: 1; filter: brightness(1) blur(0px); letter-spacing: normal; }
+      }
+      @keyframes sk-treeReveal {
+        0%   { opacity: 0; transform: rotate(0deg)   scale(0.5); filter: drop-shadow(0 0 14px rgba(6,182,212,1)) drop-shadow(0 0 28px rgba(6,182,212,0.4)); }
+        18%  { opacity: 1; transform: rotate(130deg) scale(0.8); }
+        100% { opacity: 1; transform: rotate(720deg) scale(1);   filter: drop-shadow(0 0 4px rgba(6,182,212,0.4)); }
       }
       @keyframes sk-treeGlow {
         0%, 100% { filter: drop-shadow(0 0 3px rgba(6,182,212,0.4)); }
@@ -599,6 +611,14 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
           <h3 className="text-base font-bold mb-4 flex items-center gap-2 shrink-0">
             <GitBranch
               className="w-4 h-4 shrink-0 text-[#06b6d4]"
+              onAnimationIteration={(e) => {
+                if (e.animationName === 'sk-branchSpin' && pendingStopRef.current) {
+                  pendingStopRef.current = false;
+                  clearTimeout(spinTimerRef.current);
+                  setIsSpinning(false);
+                  setIsStopping(true);
+                }
+              }}
               onAnimationEnd={(e) => {
                 if (e.animationName === 'sk-branchSpinStop') setIsStopping(false);
                 if (e.animationName === 'sk-branchClickFade') setIsFading(false);
@@ -609,7 +629,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
                 ? 'sk-branchSpinStop 1.4s cubic-bezier(0.08, 0.6, 0.12, 1.0) forwards'
                 : isFading
                 ? 'sk-branchClickFade 0.35s ease-out'
-                : 'sk-kernelIconReveal 0.8s cubic-bezier(0.16,1,0.3,1) forwards, sk-treeGlow 2.5s ease-in-out 0.8s infinite' }}
+                : 'sk-treeReveal 1.2s cubic-bezier(0.2, 0, 0.3, 1) forwards, sk-treeGlow 2.5s ease-in-out 1.2s infinite' }}
             />
             <span
               className="text-transparent bg-clip-text"
