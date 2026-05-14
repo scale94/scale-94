@@ -65,3 +65,4 @@ pub mod bridge_kernel;       // run_bridge_kernel (Structural Holes · Burt 1992
 pub mod corpus_synthesis;    // run_corpus_synthesis (LDA Topic Discovery · Blei et al. 2003)
 pub mod glyph_archive;       // run_glyph_archive (Zipf-Mandelbrot Law · Huffman Coding · Archive Entropy)
 pub mod astro;                   // run_astro (planetary positions · Jean Meeus VSOP87 truncated · TFG sphere click readings)
+pub mod kernel_zero;             // run_kernel_zero (Origin Vector · DHCP unspecified · genesis trajectory in 16-D feature space)

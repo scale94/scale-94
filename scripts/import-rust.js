@@ -994,6 +994,33 @@ const KERNEL_MAP = [
     type:    'rust',
     aliases: ['ock', 'olfactory', 'bimmelbahn', 'accord', 'volatile', 'sillage', 'perfume', 'fixation', 'maceration', 'koc'],
   },
+  {
+    // KERNEL 0.0.0.0 — The Origin Vector + Genesis Operation in 16-D feature space.
+    // Demonstrates the degenerate properties of the zero vector (cos = 0/0, ||0|| = 0,
+    // fixed under SO(16) rotation), then runs the Genesis Operation: inject ε in
+    // a chosen dimension and trace the trajectory by which the vector "becomes"
+    // a measurable position. Pure math, no external state, deterministic.
+    //
+    // genesis_dim: args[0]  flags: --dim, --axis, --genesis  (0–15, default 14 = biological)
+    // epsilon:     args[1]  flags: --eps, --epsilon, --step  (default 1e-3)
+    // steps:       args[2]  flags: --steps, --n, --trajectory (1–64, default 16)
+    id:      'KERNEL-0.0.0.0',
+    fn:      'run_kernel_zero',
+    args:    [14, 0.001, 16],
+    argMap:  {
+      dim: 0, axis: 0, genesis: 0, genesisdim: 0,
+      eps: 1, epsilon: 1, step: 1,
+      steps: 2, n: 2, trajectory: 2,
+    },
+    params: [
+      { name: 'genesis_dim', default: 14,    desc: 'which dim receives first ε (0–15: dynamical, nonlinearity, dimensionality, criticality, entropy, synchrony, conservation, temporal, spatial, stochastic, game_theory, thermodynamic, information, cryptographic, biological, economic)' },
+      { name: 'epsilon',     default: 0.001, desc: 'magnitude of one genesis step (small positive float)' },
+      { name: 'steps',       default: 16,    desc: 'number of ε increments to trace (1–64)' },
+    ],
+    label:   'KERNEL 0.0.0.0 · Origin Vector & Genesis Operation',
+    type:    'rust',
+    aliases: ['zero', 'origin', 'kernel_zero', 'genesis', 'apeiron', 'dhcp', 'unspecified', '0_0_0_0'],
+  },
 ];
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────

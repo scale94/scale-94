@@ -1215,6 +1215,32 @@ export function run_juridical_substrate(coercion, escape_cost, cooperation_bonus
 }
 
 /**
+ * KERNEL-0.0.0.0 — Origin Vector & Genesis Operation
+ *
+ * Args:
+ *   genesis_dim: which of the 16 dimensions receives the first ε. Clamped to
+ *                [0, 15]. Default 14 (biological — anchors to FSK).
+ *   epsilon:     the magnitude of one genesis step. Default 1e-3.
+ *   steps:       number of ε increments to trace. Default 16. Clamped 1..=64.
+ * @param {number} genesis_dim
+ * @param {number} epsilon
+ * @param {number} steps
+ * @returns {string}
+ */
+export function run_kernel_zero(genesis_dim, epsilon, steps) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_kernel_zero(genesis_dim, epsilon, steps);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * @param {number} n_oscillators
  * @param {number} coupling
  * @param {number} freq_spread

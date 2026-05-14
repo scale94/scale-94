@@ -31,6 +31,7 @@
 //
 //   run_lunar_phase()              → True Astronomical Lunar Phase (Meeus ch.47-48)
 //   run_percolation()              → Network Percolation / Resilience Kernel
+//   run_kernel_zero()              → KERNEL 0.0.0.0 — Origin Vector + Genesis Operation
 //
 // Build with: wasm-pack build --target web
 // Output:     pkg/  →  scripts/import-rust.js copies to public/wasm/
