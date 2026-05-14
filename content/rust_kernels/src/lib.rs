@@ -29,6 +29,7 @@
 //   GrayScottKernel::compute_steps() → Reaction-Diffusion PDE (Ars Electronica 2027)
 //   run_classified()               → ML-KEM-768 Post-Quantum KEM (FIPS 203)
 //
+//   run_lindblad_fade()            → Lindblad Decoherence Engine (FADE-DOCTRINE-KERNEL-2.0.0)
 //   run_lunar_phase()              → True Astronomical Lunar Phase (Meeus ch.47-48)
 //   run_percolation()              → Network Percolation / Resilience Kernel
 //   run_kernel_zero()              → KERNEL 0.0.0.0 — Origin Vector + Genesis Operation

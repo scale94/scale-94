@@ -396,6 +396,23 @@ const wasmRegistry = {
     aliases: ["pqhash","quantum_hash","post_quantum","hash_audit","grover","pq_hash","hashaudit"],
     params:  [{"name":"input_bits","default":256,"desc":"Input size in bits being hashed (e.g. 256 for a 256-bit key)"},{"name":"hash_bits","default":256,"desc":"Digest output size in bits: 128, 256, 384, or 512"},{"name":"algorithm","default":1,"desc":"Hash algorithm: 0=SHA-256, 1=SHA-3-256, 2=BLAKE3, 3=Argon2id"},{"name":"quantum_adv","default":1,"desc":"Quantum advantage era: 1.0=NISQ (current), 2.0=fault-tolerant"}],
   },
+  "FADE-DOCTRINE-KERNEL-2.0.0": {
+    id:      "FADE-DOCTRINE-KERNEL-2.0.0",
+    fn:      "run_lindblad_fade",
+    args:    [0.15,8,2.0,0.25],
+    argMap:  {"gamma":0,"g":0,"decay":0,"decohere":0,"dim":1,"n":1,"hilbert":1,"k":2,"kauffman":2,"connectivity":2,"omega":3,"drive":3,"rabi":3},
+    label:   "Lindblad Decoherence Engine v1.0.0",
+    type:    'rust',
+    module:  "/wasm/scale94_kernels.js",
+    wasmUrl: "/wasm/scale94_kernels_bg.wasm?v=4fd7d8f6",
+    aliases: ["fade","fade_doctrine","lindblad","decoherence","kauffman","sarg_window","coherence_window","doctrine"],
+    params:  [
+      {"name":"gamma","default":0.15,"desc":"decoherence rate γ ∈ [0.001, 20.0] — inverse coherence time (ℏ=1 natural units)"},
+      {"name":"hilbert_dim","default":8,"desc":"Hilbert space dimension N ∈ [2, 64] — number of accessible quantum states"},
+      {"name":"kauffman_k","default":2.0,"desc":"NK network connectivity K ∈ [1, 5] — K=2 is the critical point (edge of chaos)"},
+      {"name":"drive_omega","default":0.25,"desc":"Rabi drive Ω ∈ [0, 10] — Hamiltonian coherence pump before Lindblad dominates"},
+    ],
+  },
   "MESANTROPY-KERNEL-1.0": {
     id:      "MESANTROPY-KERNEL-1.0",
     fn:      "run_mesantropy",
