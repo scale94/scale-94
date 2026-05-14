@@ -381,8 +381,8 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
       }
       @keyframes sk-treeReveal {
         0%   { opacity: 0; transform: rotate(0deg)   scale(0.5); filter: drop-shadow(0 0 14px rgba(6,182,212,1)) drop-shadow(0 0 28px rgba(6,182,212,0.4)); }
-        18%  { opacity: 1; transform: rotate(162deg) scale(0.8); }
-        100% { opacity: 1; transform: rotate(900deg) scale(1);   filter: drop-shadow(0 0 4px rgba(6,182,212,0.4)); }
+        18%  { opacity: 1; transform: rotate(97deg)  scale(0.8); }
+        100% { opacity: 1; transform: rotate(540deg) scale(1);   filter: drop-shadow(0 0 4px rgba(6,182,212,0.4)); }
       }
       @keyframes sk-treeGlow {
         0%, 100% { filter: drop-shadow(0 0 3px rgba(6,182,212,0.4)); }
@@ -629,7 +629,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
                 ? 'sk-branchSpinStop 1.4s cubic-bezier(0.08, 0.6, 0.12, 1.0) forwards'
                 : isFading
                 ? 'sk-branchClickFade 0.35s ease-out'
-                : 'sk-treeReveal 1.2s cubic-bezier(0.2, 0, 0.3, 1) forwards, sk-treeGlow 2.5s ease-in-out 1.2s infinite' }}
+                : 'sk-treeReveal 1.5s cubic-bezier(0.2, 0, 0.3, 1) forwards, sk-treeGlow 2.5s ease-in-out 1.5s infinite' }}
             />
             <span
               className="text-transparent bg-clip-text"
