@@ -381,8 +381,8 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
       }
       @keyframes sk-treeReveal {
         0%   { opacity: 0; transform: rotate(0deg)   scale(0.5); filter: drop-shadow(0 0 14px rgba(6,182,212,1)) drop-shadow(0 0 28px rgba(6,182,212,0.4)); }
-        18%  { opacity: 1; transform: rotate(130deg) scale(0.8); }
-        100% { opacity: 1; transform: rotate(720deg) scale(1);   filter: drop-shadow(0 0 4px rgba(6,182,212,0.4)); }
+        18%  { opacity: 1; transform: rotate(162deg) scale(0.8); }
+        100% { opacity: 1; transform: rotate(900deg) scale(1);   filter: drop-shadow(0 0 4px rgba(6,182,212,0.4)); }
       }
       @keyframes sk-treeGlow {
         0%, 100% { filter: drop-shadow(0 0 3px rgba(6,182,212,0.4)); }
@@ -394,7 +394,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
       }
       @keyframes sk-branchSpinStop {
         0%   { transform: rotate(0deg);   filter: drop-shadow(0 0 12px rgba(6,182,212,1)) drop-shadow(0 0 24px rgba(6,182,212,0.4)); }
-        100% { transform: rotate(360deg); filter: drop-shadow(0 0 3px rgba(6,182,212,0.4)); }
+        100% { transform: rotate(540deg); filter: drop-shadow(0 0 3px rgba(6,182,212,0.4)); }
       }
       @keyframes sk-branchClickFade {
         0%   { opacity: 1;    filter: drop-shadow(0 0 4px rgba(6,182,212,0.5)); }
