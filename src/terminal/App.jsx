@@ -981,13 +981,18 @@ const App = () => {
           if (bootAnimDone) return {};
           const mobile = window.innerWidth <= 768;
           if (bootRevealed) return {
-            animation: `${mobile ? 'kernel-reveal-scale-mobile' : 'kernel-reveal-scale'} 2s cubic-bezier(0.65,0,0.35,1) both`,
+            // cubic-bezier(0.16,1,0.3,1): fast ease-out spring — gets moving immediately,
+            // decelerates cleanly. Replaces S-curve that held scale(0.01) for 650ms.
+            // 1.35s down from 2s — same visual beat, less GPU time at tiny scale.
+            animation: `${mobile ? 'kernel-reveal-scale-mobile' : 'kernel-reveal-scale'} 1.35s cubic-bezier(0.16,1,0.3,1) both`,
             transformOrigin: 'center center',
+            willChange: 'transform',
           };
           return {
-            transform: mobile ? 'scale3d(1.8,1.8,1.8)' : 'perspective(900px) scale3d(0.01,0.01,0.01)',
+            transform: mobile ? 'scale(1.8)' : 'scale(0.01)',
             opacity: 0,
             transformOrigin: 'center center',
+            willChange: 'transform',
           };
         })()}
         onAnimationEnd={(e) => {

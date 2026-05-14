@@ -278,21 +278,24 @@ html, body {
 
    DEV NOTE: HMR preserves bootAnimDone=true across saves.
    The animation WILL work — hard-refresh (Ctrl+Shift+R) to preview changes. */
+/* perspective() removed — plain scale is a single-pass GPU composite op.
+   perspective(900px) on the full app wrapper forced a stacking-context rebuild
+   every frame, causing the desktop lag. */
 @keyframes kernel-reveal-scale {
-  0%   { transform: perspective(900px) scale3d(0.01,0.01,0.01); opacity: 0; }
-  4%   { opacity: 1; }
-  100% { transform: perspective(900px) scale3d(1,1,1); opacity: 1; }
+  0%   { transform: scale(0.01); opacity: 0; }
+  6%   { opacity: 1; }
+  100% { transform: scale(1);    opacity: 1; }
 }
 /* Mobile: cube starts oversized (bleeds past viewport) and settles inward */
 @keyframes kernel-reveal-scale-mobile {
-  0%   { transform: scale3d(1.8,1.8,1.8); opacity: 0; }
-  8%   { opacity: 1; }
-  100% { transform: scale3d(1,1,1); opacity: 1; }
+  0%   { transform: scale(1.8); opacity: 0; }
+  10%  { opacity: 1; }
+  100% { transform: scale(1);   opacity: 1; }
 }
 @keyframes kernel-collapse-scale {
-  0%   { transform: perspective(900px) scale3d(1,1,1); opacity: 1; }
+  0%   { transform: scale(1);    opacity: 1; }
   60%  { opacity: 1; }
-  100% { transform: perspective(900px) scale3d(0.01,0.01,0.01); opacity: 0; }
+  100% { transform: scale(0.01); opacity: 0; }
 }
 
 
