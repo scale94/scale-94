@@ -104,7 +104,7 @@ export default function ChapterPanel({ chapter, chapterIndex, onClose }) {
             fontFamily:    'monospace',
             fontSize:      22,
             fontWeight:    700,
-            color:         '#e0e0e0',
+            color:         accent,
             letterSpacing: '0.04em',
             margin:        '0 0 24px 0',
             opacity:       visible ? 1 : 0,
@@ -144,7 +144,7 @@ export default function ChapterPanel({ chapter, chapterIndex, onClose }) {
         </blockquote>
 
         {/* Body — staggered sentences */}
-        <p style={{ fontFamily: 'monospace', fontSize: 13, lineHeight: 1.9, color: '#9ca3af', margin: 0 }}>
+        <p style={{ fontFamily: 'monospace', fontSize: 13, lineHeight: 1.9, color: 'rgba(57,255,20,0.75)', margin: 0 }}>
           {sentences.map((s, i) => (
             <span
               key={i}
