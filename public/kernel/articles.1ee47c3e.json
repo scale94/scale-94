@@ -3,7 +3,7 @@
     "id": "FSF-12.1.0",
     "type": "kernel_doc",
     "date": "2026-03-22",
-    "lastModified": "2026-05-13",
+    "lastModified": "2026-05-14",
     "title": "FISH SCALE KERNEL · THE FEIGENBAUM BIFURCATION",
     "subtitle": "Systemless Root · Thermodynamic Chaos Branch",
     "status": "ACTIVE",
@@ -22,22 +22,22 @@
     "len": "2035 WDS"
   },
   {
-    "id": "FISH-SCALE-KERNEL-11.1.1",
+    "id": "FISH-SCALE-KERNEL11.1.1",
     "type": "kernel_doc",
     "date": "2026-03-07",
-    "lastModified": "2026-05-13",
-    "title": "FISH SCALE KERNEL",
-    "subtitle": "1.0 Executive Boot Sequence and Architectural Thesis",
+    "lastModified": "2026-05-14",
+    "title": "FISH SCALE KERNEL11.1.1",
+    "subtitle": "2.0 Integration of System Atoms",
     "status": "ACTIVE",
-    "readTime": "16 min read",
+    "readTime": "2 min read",
     "tags": [
-      "Executive",
-      "Boot",
-      "Sequence",
-      "Architectural",
-      "Thesis"
+      "Integration",
+      "System",
+      "Atoms",
+      "Substrate",
+      "Layer"
     ],
-    "len": "3162 WDS"
+    "len": "401 WDS"
   },
   {
     "id": "GAIA-SCALE-KERNEL-5.5.5",
@@ -99,7 +99,7 @@
     "id": "DISSIPATIVE-SOVEREIGNTY-KERNEL-5.0.0",
     "type": "kernel_doc",
     "date": "2026-05-13",
-    "lastModified": "2026-05-13",
+    "lastModified": "2026-05-14",
     "title": "DISSIPATIVE SOVEREIGNTY KERNEL",
     "subtitle": "0. The Axiom",
     "status": "ACTIVE",
@@ -246,7 +246,7 @@
     "id": "FADE-DOCTRINE-KERNEL-2.0.0",
     "type": "kernel_doc",
     "date": "2026-03-13",
-    "lastModified": "2026-05-13",
+    "lastModified": "2026-05-14",
     "title": "FADE DOCTRINE 1.0 // ZERO WHITE FADE — UX COLOR SEMIOTIC SYSTEM",
     "subtitle": "Overview",
     "status": "ACTIVE",
@@ -269,7 +269,7 @@
     "id": "MATRIX-KERNEL-2.0.0",
     "type": "kernel_doc",
     "date": "2026-03-06",
-    "lastModified": "2026-05-13",
+    "lastModified": "2026-05-14",
     "title": "THE MATRIX KERNEL V2.0",
     "subtitle": "scale94 · The No-Spoon Architecture",
     "status": "ACTIVE",
@@ -287,7 +287,7 @@
     "id": "BIODIVERSITY-PROMPT-1.0.1",
     "type": "kernel_doc",
     "date": "2026-03-06",
-    "lastModified": "2026-05-13",
+    "lastModified": "2026-05-14",
     "title": "🌿 FLORA 1.0 // THE BIOCOENOSIS BUILD",
     "subtitle": "(Advanced Ecological Habitat & Species Architecture)",
     "status": "ACTIVE",
@@ -338,14 +338,30 @@
     "len": "656 WDS"
   },
   {
+    "id": "KINETIC-STATECRAFT-KERNEL-1.0",
+    "type": "kernel_doc",
+    "date": "2026-03-07",
+    "lastModified": "2026-05-14",
+    "title": "KINETIC STATECRAFT KERNEL 1.0",
+    "subtitle": "The Architecture of Coercion",
+    "status": "ACTIVE",
+    "readTime": "1 min read",
+    "tags": [
+      "Architecture",
+      "Coercion",
+      "VARIABLES"
+    ],
+    "len": "95 WDS"
+  },
+  {
     "id": "NECROMANTIC-LOGITBIAS-PROMPT-1.0.0",
     "type": "kernel_doc",
     "date": "2026-03-07",
-    "lastModified": "2026-05-13",
+    "lastModified": "2026-05-14",
     "title": "NECROMANTIC PARADOX LOGITBIAS.PROMPT.MD",
     "subtitle": "Your Role",
     "status": "ACTIVE",
-    "readTime": "2 min read",
+    "readTime": "1 min read",
     "tags": [
       "TASK",
       "ARCHITECTURE",
@@ -353,7 +369,7 @@
       "Paradox",
       "Synthesis"
     ],
-    "len": "313 WDS"
+    "len": "292 WDS"
   },
   {
     "id": "SORBE-BLOOM-KERNEL-1.0.0",
@@ -396,7 +412,7 @@
     "id": "HIGH-TOWER-LOG",
     "type": "kernel_doc",
     "date": "2026-03-06",
-    "lastModified": "2026-05-13",
+    "lastModified": "2026-05-14",
     "title": "🏛️ SYSTEM_MIGRATION_LOG: KERNEL_EXPORT_FINAL",
     "subtitle": "1.0 IDENTITY & PERSONA",
     "status": "ACTIVE",
@@ -414,7 +430,7 @@
     "id": "KERNEL-0.0.0.0",
     "type": "kernel_doc",
     "date": "2026-05-13",
-    "lastModified": "2026-05-13",
+    "lastModified": "2026-05-14",
     "title": "0.0.0.0 — STATE KERNEL",
     "subtitle": "The Origin Vector",
     "status": "ACTIVE",
@@ -433,7 +449,7 @@
     "id": "SCALE94-ENCYCLOPEDIA",
     "type": "kernel_doc",
     "date": "2026-03-06",
-    "lastModified": "2026-05-13",
+    "lastModified": "2026-05-14",
     "title": "💀 SCALE94 · KERNEL ENCYCLOPEDIA",
     "subtitle": "ᛟ THE COMPLETE GLYPH ARCHIVE · COMPILED BY SCALE",
     "status": "ACTIVE",

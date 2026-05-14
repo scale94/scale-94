@@ -23,16 +23,14 @@
       "title": "FISH SCALE KERNEL · THE FEIGENBAUM BIFURCATION"
     }
   ],
-  "Architectural": [
-    {
-      "id": "FISH-SCALE-KERNEL-11.1.1",
-      "title": "FISH SCALE KERNEL"
-    }
-  ],
   "Architecture": [
     {
       "id": "MATRIX-KERNEL-2.0.0",
       "title": "THE MATRIX KERNEL V2.0"
+    },
+    {
+      "id": "KINETIC-STATECRAFT-KERNEL-1.0",
+      "title": "KINETIC STATECRAFT KERNEL 1.0"
     }
   ],
   "ARCHITECTURE": [
@@ -45,6 +43,12 @@
     {
       "id": "SCALE94-ENCYCLOPEDIA",
       "title": "💀 SCALE94 · KERNEL ENCYCLOPEDIA"
+    }
+  ],
+  "Atoms": [
+    {
+      "id": "FISH-SCALE-KERNEL11.1.1",
+      "title": "FISH SCALE KERNEL11.1.1"
     }
   ],
   "authority": [
@@ -63,12 +67,6 @@
     {
       "id": "BIODIVERSITY-PROMPT-1.0.1",
       "title": "🌿 FLORA 1.0 // THE BIOCOENOSIS BUILD"
-    }
-  ],
-  "Boot": [
-    {
-      "id": "FISH-SCALE-KERNEL-11.1.1",
-      "title": "FISH SCALE KERNEL"
     }
   ],
   "BOOT": [
@@ -99,6 +97,12 @@
     {
       "id": "CHRONOS-KERNEL-2.1.0",
       "title": "THE CHRONOS KERNEL — LOOP SEVERANCE"
+    }
+  ],
+  "Coercion": [
+    {
+      "id": "KINETIC-STATECRAFT-KERNEL-1.0",
+      "title": "KINETIC STATECRAFT KERNEL 1.0"
     }
   ],
   "color": [
@@ -233,12 +237,6 @@
       "title": "TACTICAL CARTOGRAPHY OF DIGITAL AUTHORITARIANISM"
     }
   ],
-  "Executive": [
-    {
-      "id": "FISH-SCALE-KERNEL-11.1.1",
-      "title": "FISH SCALE KERNEL"
-    }
-  ],
   "EXFILTRATION": [
     {
       "id": "SHADOWSOCKS-EXFILTRATION",
@@ -323,6 +321,12 @@
       "title": "THE CHRONOS KERNEL — LOOP SEVERANCE"
     }
   ],
+  "Integration": [
+    {
+      "id": "FISH-SCALE-KERNEL11.1.1",
+      "title": "FISH SCALE KERNEL11.1.1"
+    }
+  ],
   "kernel": [
     {
       "id": "GAIA-SCALE-KERNEL-5.5.5",
@@ -377,6 +381,12 @@
     {
       "id": "SURVEILLANCE-TRACKER",
       "title": "TACTICAL CARTOGRAPHY OF DIGITAL AUTHORITARIANISM"
+    }
+  ],
+  "Layer": [
+    {
+      "id": "FISH-SCALE-KERNEL11.1.1",
+      "title": "FISH SCALE KERNEL11.1.1"
     }
   ],
   "LEGISLATION": [
@@ -651,12 +661,6 @@
       "title": "FADE DOCTRINE 1.0 // ZERO WHITE FADE — UX COLOR SEMIOTIC SYSTEM"
     }
   ],
-  "Sequence": [
-    {
-      "id": "FISH-SCALE-KERNEL-11.1.1",
-      "title": "FISH SCALE KERNEL"
-    }
-  ],
   "Setup": [
     {
       "id": "CEEI-SIM-KERNEL-1.0.0",
@@ -711,6 +715,12 @@
       "title": "0.0.0.0 — STATE KERNEL"
     }
   ],
+  "Substrate": [
+    {
+      "id": "FISH-SCALE-KERNEL11.1.1",
+      "title": "FISH SCALE KERNEL11.1.1"
+    }
+  ],
   "SURVEILLANCE": [
     {
       "id": "SURVEILLANCE-TRACKER",
@@ -727,6 +737,12 @@
     {
       "id": "NECROMANTIC-LOGITBIAS-PROMPT-1.0.0",
       "title": "NECROMANTIC PARADOX LOGITBIAS.PROMPT.MD"
+    }
+  ],
+  "System": [
+    {
+      "id": "FISH-SCALE-KERNEL11.1.1",
+      "title": "FISH SCALE KERNEL11.1.1"
     }
   ],
   "SYSTEM": [
@@ -783,12 +799,6 @@
       "title": "ATMOSPHERIC ENTROPY KERNEL 3.0"
     }
   ],
-  "Thesis": [
-    {
-      "id": "FISH-SCALE-KERNEL-11.1.1",
-      "title": "FISH SCALE KERNEL"
-    }
-  ],
   "titmuss": [
     {
       "id": "BOSONIC-KERNEL-3.0.0",
@@ -805,6 +815,10 @@
     {
       "id": "ATMOSPHERIC-SIM-KERNEL-3.0.0",
       "title": "ATMOSPHERIC ENTROPY KERNEL 3.0"
+    },
+    {
+      "id": "KINETIC-STATECRAFT-KERNEL-1.0",
+      "title": "KINETIC STATECRAFT KERNEL 1.0"
     }
   ]
 }

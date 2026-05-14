@@ -1,4 +1,5 @@
 ---
+id: FSF-12.1.0
 title: "Fish Scale Kernel · The Feigenbaum Bifurcation"
 subtitle: "Systemless Root · Thermodynamic Chaos Branch"
 slug: "fsk-feigenbaum-bifurcation"

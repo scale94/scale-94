@@ -75,6 +75,7 @@ const TransmissionTab = lazy(() => import('./views/TransmissionTab'));
 const TagCloudView    = lazy(() => import('./views/TagCloudView'));
 const LunarTab        = lazy(() => import('./views/LunarTab'));
 const LedgerTab       = lazy(() => import('./views/LedgerTab'));
+const KineticStatecraftPanel = lazy(() => import('./views/KineticStatecraftPanel'));
 const MercuryTab      = lazy(() => import('./views/MercuryTab'));
 
 // formatKernelHelp, formatRunHelp, CMD_MANIFEST → src/terminal/commands/runHelpers.js
@@ -128,6 +129,10 @@ const App = () => {
   // Global cross-tab article search overlay (⌘K / Ctrl+K)
   const [globalSearchOpen,  setGlobalSearchOpen]  = useState(false);
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
+  const [searchResultIdx,   setSearchResultIdx]   = useState(-1);
+  // g-leader nav mode (vim-style, Colemak-DH optimised)
+  const [gMode, setGMode] = useState(false);
+  const gModeTimerRef = useRef(null);
   // CAS dynamic data — null while manifest fetch is in-flight
   const [dynamicData,  setDynamicData]  = useState(null);
   // Mobile chrome visibility — fades out after 3s of no touch, fades in on touch
@@ -294,11 +299,13 @@ const App = () => {
   // Kernel ordering — pinned first, 5 newest by article date, rest alpha-sorted.
   // Re-runs when articles updates (i.e. once CAS data loads) so dates are available.
   const sortedBuilds = useMemo(() => {
-    const [pinned, ...rest] = kernelBuilds;
+    // pinned:true entries appear first, in their declared order
+    const pinned = kernelBuilds.filter(k => k.pinned);
+    const rest   = kernelBuilds.filter(k => !k.pinned);
     // Build article-date lookup: article.id → 'YYYY-MM-DD' (empty string if unknown)
     const dateMap = Object.fromEntries(articles.map(a => [a.id, a.date || '']));
     // Dedup by id — hand-curated entries (earlier in the array) win over inject zone
-    const seenIds = new Set([pinned.id]);
+    const seenIds = new Set(pinned.map(k => k.id));
     const uniqueRest = rest.filter(k => {
       if (seenIds.has(k.id)) return false;
       seenIds.add(k.id);
@@ -313,7 +320,7 @@ const App = () => {
     const alphaRest = annotated.slice(5)
       .sort((a, b) => a.name.localeCompare(b.name))
       .map(({ _date, ...k }) => k);
-    return [pinned, ...newest5, ...alphaRest];
+    return [...pinned, ...newest5, ...alphaRest];
   }, [articles]);
 
   // Filtered subset — used by KernelTab when a search/load filter is active.
@@ -401,7 +408,7 @@ const App = () => {
         setGlobalSearchOpen(v => !v);
         setGlobalSearchQuery('');
       }
-      if (e.key === 'Escape') setGlobalSearchOpen(false);
+      if (e.key === 'Escape') { setGlobalSearchOpen(false); setGMode(false); }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -661,6 +668,47 @@ const App = () => {
     setTagCloudView(false);
     setSearchFilter('');
   }, []);
+
+  // g-leader navigation (Colemak-DH home-row optimised)
+  const G_NAV = {
+    n: ['~/system/kernel',       'kernel'],
+    a: ['~/system/art',          'art'],
+    e: ['~/system/ecocide',      'ecocide'],
+    s: ['~/system/surveillance', 'surveillance'],
+    m: ['~/system/mercury',      'mercury'],
+    l: ['~/system/lunar',        'lunar'],
+    r: ['~/system/ledger',       'ledger'],
+    p: ['~/system/privacy',      'privacy'],
+  };
+
+  useEffect(() => {
+    const onKey = (e) => {
+      // Ignore inside inputs
+      if (['INPUT','TEXTAREA'].includes(e.target.tagName)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      if (!gMode) {
+        if (e.key === 'g') {
+          e.preventDefault();
+          setGMode(true);
+          if (gModeTimerRef.current) clearTimeout(gModeTimerRef.current);
+          gModeTimerRef.current = setTimeout(() => setGMode(false), 1500);
+        }
+        return;
+      }
+
+      // In g-mode: consume any key
+      e.preventDefault();
+      clearTimeout(gModeTimerRef.current);
+      setGMode(false);
+
+      const entry = G_NAV[e.key.toLowerCase()];
+      if (entry) handleNav(entry[0], entry[1]);
+    };
+
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [gMode, handleNav]);
 
   // Open an article from the global search overlay — routes to the right tab
   const openArticleFromSearch = useCallback((article) => {
@@ -974,7 +1022,7 @@ const App = () => {
               <input
                 autoFocus
                 value={globalSearchQuery}
-                onChange={e => setGlobalSearchQuery(e.target.value)}
+                onChange={e => { setGlobalSearchQuery(e.target.value); setSearchResultIdx(-1); }}
                 placeholder="search articles, kernels, tags…"
                 spellCheck={false}
                 style={{
@@ -988,7 +1036,20 @@ const App = () => {
                   letterSpacing: '0.04em',
                   caretColor:  '#39ff14',
                 }}
-                onKeyDown={e => e.key === 'Escape' && setGlobalSearchOpen(false)}
+                onKeyDown={e => {
+                  if (e.key === 'Escape') { setGlobalSearchOpen(false); return; }
+                  const results = globalSearchResults;
+                  if (!results?.length) return;
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    setSearchResultIdx(i => Math.min(results.length - 1, i + 1));
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    setSearchResultIdx(i => Math.max(-1, i - 1));
+                  } else if (e.key === 'Enter' && searchResultIdx >= 0) {
+                    openArticleFromSearch(results[searchResultIdx]);
+                  }
+                }}
               />
               <span
                 style={{ color: 'rgba(57,255,20,0.22)', fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.12em', cursor: 'pointer' }}
@@ -1007,7 +1068,7 @@ const App = () => {
                 </div>
             ) : (
                 <ul style={{ maxHeight: '300px', overflowY: 'auto' }}>
-                  {globalSearchResults.map(a => {
+                  {globalSearchResults.map((a, idx) => {
                     const isEco = a?.tags?.some(t =>
                       ['Ecology','Botany','Biodiversity','Atmospheric','Climate','Ecocide','ecological'].includes(t)
                     );
@@ -1015,13 +1076,14 @@ const App = () => {
                     const tabColor = tab === 'transmission' ? 'rgba(167,139,250,0.65)'
                                    : tab === 'ecocide'      ? 'rgba(122,184,0,0.70)'
                                    :                          'rgba(57,255,20,0.55)';
+                    const isSelected = idx === searchResultIdx;
                     return (
                       <li key={a.id} style={{ borderBottom: '1px solid rgba(57,255,20,0.05)' }}>
                         <button
                           className="w-full text-left flex items-start gap-3 px-4 py-2.5 transition-colors"
-                          style={{ background: 'transparent' }}
-                          onMouseEnter={e => e.currentTarget.style.background = 'rgba(57,255,20,0.04)'}
-                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                          style={{ background: isSelected ? 'rgba(57,255,20,0.07)' : 'transparent' }}
+                          onMouseEnter={() => setSearchResultIdx(idx)}
+                          onMouseLeave={() => setSearchResultIdx(i => i === idx ? -1 : i)}
                           onClick={() => openArticleFromSearch(a)}
                         >
                           <span style={{ color: tabColor, fontFamily: 'monospace', fontSize: '8px', fontWeight: 800, letterSpacing: '0.12em', marginTop: '2px', flexShrink: 0, width: '68px' }}>
@@ -1104,21 +1166,6 @@ const App = () => {
 
             <button aria-label="Ledger" aria-current={activeTab === 'ledger' ? 'page' : undefined} onClick={() => handleNav('~/system/ledger', 'ledger')} className={`${activeTab === 'ledger' ? 'text-black shadow-[0_0_14px_rgba(20,184,166,0.6)]' : 'hover:text-white hover:bg-teal-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`} style={activeTab === 'ledger' ? { background: 'linear-gradient(90deg,#0d9488,#14b8a6)' } : { color: 'rgba(20,184,166,0.5)' }}><span style={{ fontSize: 12, lineHeight: 1 }}>ᛟ</span> /Ledger</button>
 
-            {/* Global search button */}
-            <button
-              aria-label="Search articles (⌘K)"
-              onClick={() => { setGlobalSearchOpen(v => !v); setGlobalSearchQuery(''); }}
-              className="ml-2 flex items-center gap-1.5 px-2 py-1 rounded-sm transition-all duration-200 whitespace-nowrap text-[10px] tracking-widest font-bold font-mono"
-              style={{
-                border:  `1px solid ${globalSearchOpen ? 'rgba(57,255,20,0.35)' : 'rgba(57,255,20,0.12)'}`,
-                color:   globalSearchOpen ? '#39ff14' : 'rgba(57,255,20,0.38)',
-                textShadow: globalSearchOpen ? '0 0 8px rgba(57,255,20,0.5)' : 'none',
-              }}
-            >
-              <span>⌕</span>
-              <span className="hidden lg:inline">SEARCH</span>
-              <span className="hidden xl:inline text-[9px]" style={{ opacity: 0.4 }}>⌘K</span>
-            </button>
           </nav>
         </div>
       </header>
@@ -1306,6 +1353,10 @@ const App = () => {
               onNeuralLink={handleNeuralLink}
             />
           )}
+          {/* Inline WASM simulation panels — rendered below article content */}
+          {selectedArticle?.id === 'KINETIC-STATECRAFT-KERNEL-1.0' && (
+            <KineticStatecraftPanel />
+          )}
 
           {/* Tag Cloud */}
           {tagCloudView && !selectedArticle && (
@@ -1456,18 +1507,41 @@ const App = () => {
           <span style={{ fontSize: 20, lineHeight: 1 }}>◈</span>
         </button>
         <button onClick={() => handleNav('~/system/ledger', 'ledger')} aria-label="Ledger" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'ledger' ? 'text-teal-400' : 'text-teal-400/50'}`}><span style={{ fontSize: 20, lineHeight: 1 }}>ᛟ</span></button>
-        {/* Mobile search button */}
-        <button
-          onClick={() => { setGlobalSearchOpen(v => !v); setGlobalSearchQuery(''); }}
-          aria-label="Search"
-          className="flex shrink-0 w-14 items-center justify-center transition-all duration-200"
-          style={{ color: globalSearchOpen ? '#39ff14' : 'rgba(57,255,20,0.38)', textShadow: globalSearchOpen ? '0 0 10px rgba(57,255,20,0.6)' : 'none' }}
-        >
-          <span className="text-xl font-bold leading-none">⌕</span>
-        </button>
       </nav>
 
       </div>{/* end CRT content wrapper */}
+
+      {/* ── g-mode HUD ── appears when g leader key is pressed ──────────────── */}
+      {gMode && (
+        <div
+          className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-[70] pointer-events-none"
+          style={{ animation: 'sk-logIn 0.12s ease forwards' }}
+        >
+          <div
+            className="flex items-center gap-3 px-4 py-2 rounded-sm font-mono"
+            style={{
+              background:  'rgba(0,0,0,0.92)',
+              border:      '1px solid rgba(57,255,20,0.18)',
+              boxShadow:   '0 0 20px rgba(57,255,20,0.06)',
+              fontSize:    '9px',
+              letterSpacing: '0.10em',
+              color:       'rgba(57,255,20,0.45)',
+              whiteSpace:  'nowrap',
+            }}
+          >
+            <span style={{ color: '#39ff14', fontWeight: 800 }}>g·</span>
+            {[
+              ['n','kernel'], ['a','art'], ['e','eco'], ['s','surv'],
+              ['m','mercury'], ['l','lunar'], ['r','ledger'], ['p','privacy'],
+            ].map(([k, label]) => (
+              <span key={k}>
+                <span style={{ color: '#39ff14', fontWeight: 700 }}>{k}</span>
+                <span style={{ color: 'rgba(57,255,20,0.30)' }}>:{label}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
