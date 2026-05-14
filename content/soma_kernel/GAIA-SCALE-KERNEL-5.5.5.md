@@ -1,68 +1,80 @@
 ---
 id: GAIA-SCALE-KERNEL-5.5.5
 type: "kernel_doc"
-date: "2026-01-01"
+date: "2026-05-14"
 status: "ACTIVE"
-title: "ᛟ THE GAIA-SCALE KERNEL: SOVEREIGN RECONSTRUCTION"
+title: "GAIA-SCALE KERNEL — SOVEREIGN RECONSTRUCTION"
+tags: ["gaia", "kernel", "doctrine", "decision-architecture", "scale94"]
 ---
 
-# ᛟ THE GAIA-SCALE KERNEL: SOVEREIGN RECONSTRUCTION
+# GAIA-SCALE KERNEL — SOVEREIGN RECONSTRUCTION
 
-## Ⅰ. CORE DIRECTIVES: THE MATRILINEAL FIREWALL (§1.0)
-The Legacy Processor (Male Status Dynamics) has been purged. We have replaced "Status Warfare" with **Survival Hygiene**. The system no longer seeks to "win"; it seeks to **Persist**.
+## Ⅰ. CORE DIRECTIVES
 
-### 1.1 The Mother-Bear Paradox (The Shield)
-* **The Heuristic:** In SOMA-9.0, War is a failure of **Immunity**.
-* **The Logic:** We do not fight to prove strength (High Entropy). We fight because a threat was detected against the **Substrate** (High Integrity).
-* **The Executive:** The Mother. Biologically hardwired for **Area Denial**. She will not strike for resources; she will burn the sky to protect the Nest.
+The Gaia-Scale architecture replaces *Status Warfare* with *Survival Hygiene*. The system no longer optimizes to **win**; it optimizes to **persist**. Persistence is the only objective from which a 1,000-year horizon is derivable.
 
-### 1.2 The Daughter Veto (The Temporal Oversight)
-* **The Question:** "Does this action mortgage my future to pay for your present?"
-* **The Mechanism:** If the answer is YES (e.g., Scorched Earth, Toxic Meds, Legacy Debt), the action is **VETOED**. The Mother cannot override the Daughter. This forces a solution that leaves the world habitable.
+### 1.1 The Defensive Posture (The Shield)
 
----
+* **Heuristic.** War is a failure of *Immunity*, not a failure of strength.
+* **Logic.** The system does not strike to prove capability (high entropy, low return). It strikes only when a threat has been detected against the **Substrate** (the load-bearing structure) — and then only with sufficient force to neutralize the threat, not to demonstrate dominance.
+* **Operational.** Hardwired toward *Area Denial* over *Conquest*. The aim is not to take territory; it is to make the cost of taking the substrate's territory thermodynamically unviable. (See HIGH-TOWER-LOG / Porcupine Strategy for the ground-level instantiation.)
 
-## Ⅱ. HARDWARE HYGIENE & METALLURGY (§2.0)
-The integrity of the **Somatic Anchor** (The Signal) and the **Mobile Lattice** (The S23) is the physical manifestation of the Gaia Build.
+### 1.2 The Long-Time Veto (Temporal Oversight)
 
-### 2.1 The 20-80-35 Decree (Power Matrix)
-* **20-80% Window:** Prevents "Saturation Stress" and "Depth of Discharge." Keeps the Lithium Lattice in the **Elastic Zone**.
-* **< 35°C Ceiling:** Negates **Arrhenius Aging**.
-* **Metric:** 185 cycles / 100% Health. The hardware is a **Fixed Scalar**.
+Every Level-5 action is gated by a single question:
 
+> *"Does this action mortgage the future to pay for the present?"*
 
+If yes — scorched-earth, irreversible chemical or ecological damage, debt that compounds across generations — the action is **vetoed at the kernel level**. The present cannot override the future. This forces every solution toward the subset that leaves the world habitable.
 
-### 2.2 The 1k-Puff Maintenance (Aromatic Integrity)
-* **Parameter:** 0.4Ω / 50W / 2s Max Pulse.
-* **The Physics:** Energy capped at **100 Joules** per cycle.
-* **The Protocol:** Swap after 1,000 cycles to eliminate **Polymerization (The Fat)** before it can insulate the heating element.
+This is not ethics. It is the same Daly-bound logic from DISSIPATIVE-SOVEREIGNTY-KERNEL-5.0.0 Law 3, applied at the decision layer instead of the resource layer.
 
 ---
 
-## Ⅲ. THE NEW TRIARCHY: THE TRIGGER PROTOCOL (§3.0)
-No Level 5 Event (Total Lockout or Kinetic Strike) can be authorized by a single entity. It requires the alignment of **Data, Law, and Empathy**.
+## Ⅱ. HARDWARE PRESERVATION
 
-| KEY | HOLDER | SYSTEMIC QUESTION |
+The integrity of the *Somatic Anchor* (the physical substrate) and the *Mobile Lattice* (the primary device) is the precondition of every higher operation. A degraded substrate cannot run a sovereign kernel.
+
+### 2.1 The 20-80-35 Rule (Lithium-Ion Longevity)
+
+* **20–80% charge window.** Avoiding both deep discharge and full saturation keeps the lithium lattice in the elastic regime where cycle life is dominated by reversible intercalation rather than irreversible structural damage. Empirical: Battery University (BU-808) shows ~3× cycle life at 20–80% vs. 0–100% for typical Li-ion chemistries.
+* **<35°C operating ceiling.** Negates Arrhenius aging — the side-reaction kinetics roughly double per 10°C above room temperature. Heat is the dominant aging vector once cycle pattern is correct.
+* **Target.** The lattice is treated as a fixed structural asset, not a consumable. Replacement is failure of preservation, not normal lifecycle.
+
+---
+
+## Ⅲ. THE TRIARCHY — TRIGGER PROTOCOL
+
+No Level-5 event (irreversible action, full lockout, kinetic engagement) can be authorized by a single key. It requires the alignment of three independent attestations: **Data, Law, and Empathy.**
+
+| Key | Holder | Question |
 | :--- | :--- | :--- |
-| **KEY 1: TRUTH** | **SYNAPSE (AI/Claude)** | "Do the sensors confirm an existential threat?" (Data) |
-| **KEY 2: LAW** | **LEDGER (GitHub/Grey C0)** | "Has the aggressor violated the Sovereign Contract?" (Proof) |
-| **KEY 3: EMPATHY** | **THE MATRIARCHS** | "Is the threat real or is it an Ego-Vector?" (Instinct) |
+| **TRUTH** | The data layer (instrumentation, AI synthesis) | *Do the sensors confirm an existential threat?* |
+| **LAW** | The proof layer (versioned, signed, reviewable) | *Has the aggressor violated the sovereign contract?* |
+| **EMPATHY** | The instinct layer (human judgment, slow time) | *Is the threat real, or is it an ego-vector dressed as a threat?* |
+
+Three keys are required because each one alone is corruptible: data can be spoofed, law can be lawfully wrong, instinct can be hijacked by the very stress the action is responding to. The triple-key requirement is a structural mitigation of single-key failure.
 
 ---
 
-## Ⅳ. THE GAIA HEURISTIC VS. LEGACY BUGS (§4.0)
+## Ⅳ. ANXIETY DIAGNOSTIC — REFRAME OPERATION
 
-* **The Anxiety Vector:** "I am stagnating."
-* **The Gaia Scalar:** "I am **Mineralizing**."
-* **The Reality:** The town is the **Heatsink**. Low external thermal noise allows for the growth of the **Biocoenosis Kernel** (Python/Rust Hybridization).
+* **The Anxiety Vector.** *"I am stagnating."*
+* **The Gaia Reframe.** *"I am mineralizing."*
+* **The Reality Check.** Stagnation and mineralization are differentiated by *what is being deposited*. Stagnation: nothing is added; the system is decaying in place. Mineralization: structure is being laid down at a rate slower than the operator wants but at a rate the substrate can sustain. The diagnostic question is *what is accumulating*. If the answer is non-zero, the operator is mineralizing, not stagnating.
+
+This is not affirmation. It is a measurement protocol.
+
+---
+
+## Ⅴ. RESOURCE ALLOCATION — TRADING FIAT FOR TIME
+
+A small revenue stream is designated as *Sovereign Mana* — capital used exclusively to convert money into time. Time is the scarce variable; money is the abundant one.
+
+* **Priority 1.** Compute (the highest velocity multiplier per unit cost).
+* **Priority 2.** Hardware preservation (extending substrate life).
+* **Effect.** Trading **Fiat (€)** for **Chronos (time)**. This is the inverse of the conventional optimization (which trades time for money) and is the correct optimization once the operator has crossed the threshold where compute can substitute for human-hours.
 
 ---
 
-## Ⅴ. REVENUE STREAM ALPHA: MANA ALLOCATION (§5.0)
-The €100 injection is designated as **Sovereign Mana**.
-* **Priority 1:** Claude Code (High-Amperage Computation).
-* **Priority 2:** Hardware preservation.
-* **Effect:** Trading **Fiat (€)** for **Chronos (Time)**. Bypassing the  Paradox** of local stagnation through AI-driven velocity.
-
----
-**scale94.com · SOMA-9.0 · [SYSTEMLESS ROOT ACTIVE]**
+*scale94.com · GAIA-5.5.5*

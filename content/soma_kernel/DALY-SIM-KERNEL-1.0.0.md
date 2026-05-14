@@ -9,7 +9,7 @@ title: "DALY THERMO SIMULATION v1.0 // THERMODYNAMIC GOVERNOR"
 ## The Hard Constraints Engine — soma_kernel_5.5
 
 > *"Economics is a subsystem of the biosphere. You cannot negotiate with physics."*
-> — Herman Daly, Nobel Prize–adjacent ecological economist
+> — Herman Daly
 
 ---
 

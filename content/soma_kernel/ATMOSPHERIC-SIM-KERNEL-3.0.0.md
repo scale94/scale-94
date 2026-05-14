@@ -8,7 +8,7 @@ title: "ATMOSPHERIC ENTROPY KERNEL 3.0"
 
 ## The Thermosphere Protocol
 
-The Earth is a closed thermodynamic system experiencing a forced injection of low-fidelity energy (carbon). When the planetary heat sinks (oceans) saturate, the system undergoes a violent phase transition. 
+The Earth is an open thermodynamic system driven by the solar gradient — closed with respect to mass exchange but open with respect to energy. The carbon load alters the radiative balance: incoming solar shortwave is no longer matched by outgoing longwave, and the imbalance is absorbed by the heat sinks (predominantly the oceans). When sink capacity saturates, the system undergoes a violent phase transition.
 
 This kernel calculates the exact intersection between industrial momentum and atmospheric carrying capacity. 
 
