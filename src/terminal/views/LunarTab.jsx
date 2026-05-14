@@ -939,10 +939,63 @@ function useTransits(wasmReady) {
   return data;
 }
 
+function buildTransitMarkdown(transits, planets, timestamp) {
+  const ts = timestamp.toLocaleDateString('en-CA') + ' ' +
+    timestamp.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+  const lines = [
+    `# TRANSIT MATRIX · ${ts}`,
+    `> ${transits.length} active aspects · orb ≤ 8° · Swiss Ephemeris WASM`,
+    '',
+    '## CURRENT POSITIONS',
+    '',
+    '| Planet | Sign | Degree | ℞ |',
+    '| :--- | :--- | ---: | :--- |',
+    ...Object.entries(PLANET_DATA).map(([name, p]) => {
+      const pos = planets[name];
+      if (!pos) return null;
+      return `| ${p.glyph} ${name} | ${pos.sign} | ${pos.degree.toFixed(1)}° | ${pos.retrograde ? '℞' : ''} |`;
+    }).filter(Boolean),
+    '',
+    '## ACTIVE ASPECTS',
+    '',
+    ...transits.flatMap(({ p1, p2, aspect, orb }) => {
+      const d1 = PLANET_DATA[p1];
+      const d2 = PLANET_DATA[p2];
+      const pos1 = planets[p1];
+      const pos2 = planets[p2];
+      return [
+        `### ${d1.glyph} ${p1} ${ASPECT_GLYPH[aspect]} ${aspect} ${d2.glyph} ${p2}  ·  orb ${orb}°`,
+        pos1 && pos2
+          ? `*${p1} ${pos1.sign} ${pos1.degree.toFixed(1)}°${pos1.retrograde ? ' ℞' : ''} · ${p2} ${pos2.sign} ${pos2.degree.toFixed(1)}°${pos2.retrograde ? ' ℞' : ''}*`
+          : '',
+        '',
+        aspectReading(p1, p2, aspect),
+        '',
+      ];
+    }),
+    '---',
+    `*scale94 · lunar transit log · ${ts}*`,
+  ];
+
+  return lines.join('\n');
+}
+
 function TransitMatrix({ transits, planets, timestamp }) {
   if (!transits.length) return null;
   const ts = timestamp.toLocaleDateString('en-CA') + ' ' +
     timestamp.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+  function handleDownload() {
+    const md = buildTransitMarkdown(transits, planets, timestamp);
+    const blob = new Blob([md], { type: 'text/markdown' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `transit-matrix-${timestamp.toLocaleDateString('en-CA')}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   return (
     <div className="mt-8 border border-violet-500/20 rounded-lg bg-black/40 overflow-hidden">
@@ -955,7 +1008,18 @@ function TransitMatrix({ transits, planets, timestamp }) {
             // {transits.length} active aspects · orb ≤ 8° · swiss ephemeris · {ts}
           </div>
         </div>
-        <div className="text-[20px] text-violet-500/20 select-none">⊛</div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleDownload}
+            className="font-mono text-[7px] uppercase tracking-widest px-2 py-1 rounded-sm transition-all duration-200"
+            style={{ border: '1px solid rgba(139,92,246,0.25)', color: 'rgba(139,92,246,0.55)' }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(139,92,246,0.55)'; e.currentTarget.style.color = 'rgba(139,92,246,0.9)'; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(139,92,246,0.25)'; e.currentTarget.style.color = 'rgba(139,92,246,0.55)'; }}
+          >
+            ↓ .md
+          </button>
+          <div className="text-[20px] text-violet-500/20 select-none">⊛</div>
+        </div>
       </div>
 
       <div className="px-4 py-2.5 border-b border-white/[0.04] bg-black/20">

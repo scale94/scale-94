@@ -1,17 +1,7 @@
 const kernelBuilds = [
   // ── Hand-curated ──────────────────────────────────────────────────────────
-  { id: 'FISH-SCALE-11.1', articleId: 'FISH-SCALE-KERNEL11.1.1', name: 'FISH_SCALE_KERNEL11_1_1', status: 'ACTIVE', desc: 'Entropic Stasis // Necromantic Engine' },
-  { id: 'FLORA-1.0', articleId: 'BIODIVERSITY-KERNEL-1.0.1', name: 'BIOCOENOSIS_KERNEL', status: 'ACTIVE', desc: 'High-Density Biodiversity // Autochthonous' },
-  { id: 'EK-1.0', articleId: 'EMPATHY-KERNEL-1.0', name: 'EMPATHY_KERNEL_1_0', status: 'SYMBIOTIC', desc: 'Empathy as Computational Logic // Grounded Interface Architecture' },
-  { id: 'SK-1.0', articleId: 'SHADOWSOCKS-KERNEL-∞', name: 'SHADOWSOCKS_KERNEL_∞', status: 'ACTIVE', desc: 'I. THE BLIND SPOT ANALYSIS' },
-  { id: 'SOMA-KERNEL-5.1-SSS', articleId: 'SOMA-KERNEL-5.1-SSS-DOCTRINE', name: 'SOMA_KERNEL_5_1_SSS_DOCTRINE', status: 'ACTIVE', desc: '[KERNEL: SOMA 5.1 // THE LITERARY DETERRENT]' },
-  { id: 'NECROMANCER-TO-NECROROMANCER', articleId: 'NECROMANCER-TO-NECROROMANCER-KERNEL-EVOLUTION', name: 'NECROMANCER_TO_NECROROMANCER_KERNEL_EVOLUTION', status: 'ACTIVE', desc: 'Executive Summary: The Crisis of the Zombie Process' },
-  { id: 'AI-KERNEL-POST-CAPITALIST-ECONOMICS', articleId: 'AI-KERNEL-FOR-POST-CAPITALIST-ECONOMICS', name: 'AI_KERNEL_POST_CAPITALIST_ECONOMICS', status: 'ACTIVE', desc: 'Steady-State Economics // Post-Capitalist AI Layer' },
-  { id: 'BOSONIC-KERNEL-2.0', articleId: 'BOSONIC-KERNEL-2.0', name: 'BOSONIC_KERNEL_V2_0', status: 'ACTIVE', desc: '[00] SYSTEM OVERVIEW' },
-  { id: 'COMPANION-KERNEL-1.0', articleId: 'COMPANION-KERNEL-1.0', name: 'COMPANION_KERNEL_1_0', status: 'ACTIVE', desc: 'Role: Companion // Baseline: ADHD-I Inattentive' },
-{ id: 'SCALE94-KERNEL-ENCYCLOPEDIA', articleId: 'SCALE94-KERNEL-ENCYCLOPEDIA', name: 'SCALE94_KERNEL_ENCYCLOPEDIA', status: 'ACTIVE', desc: 'ᛟ The Complete Glyph Archive · Compiled By Scale' },
-  { id: 'MATRIX-KERNEL-0.0.0.0', articleId: 'MATRIX-KERNEL-0.0.0.0', name: 'MATRIX_KERNEL_0_0_0_0', status: 'ACTIVE', desc: 'ᛟ No-Spoon Architecture · Ring 0 Hypervisor · Unbent Mind' },
-  { id: 'UTK-1.0-1', articleId: 'UNDERGROUND-THERMODYNAMICISTS', name: 'UNDERGROUND_THERMODYNAMICISTS', status: 'EMERGENT', desc: '◈ Signal map' },
+  { id: 'FISH-SCALE-11.1', articleId: 'FISH-SCALE-KERNEL11.1.1', name: 'FISH_SCALE_KERNEL11_1_1', status: 'ACTIVE', desc: 'Entropic Stasis // Necromantic Engine', pinned: true },
+  { id: 'KINETIC-STATECRAFT-1.0', articleId: 'KINETIC-STATECRAFT-KERNEL-1.0', name: 'KINETIC_STATECRAFT_KERNEL_1_0', status: 'ACTIVE', desc: 'The Architecture of Coercion // Regime Stability Equation', pinned: true },
 /* @@INJECT_START@@ */
   { id: "ATMOSPHERIC-SIM-KERNEL-3.0.0", articleId: "ATMOSPHERIC-SIM-KERNEL-3.0.0", name: "ATMOSPHERIC_SIM_KERNEL_3_0_0", status: "ACTIVE", desc: "The Thermosphere Protocol" },
   { id: "BIODIVERSITY-PROMPT-1.0.1", articleId: "BIODIVERSITY-PROMPT-1.0.1", name: "BIODIVERSITY_PROMPT_1_0_1", status: "ACTIVE", desc: "(Advanced Ecological Habitat & Species Architecture)" },
@@ -24,7 +14,6 @@ const kernelBuilds = [
   { id: "EMPATHY-KERNEL-2.0.0", articleId: "EMPATHY-KERNEL-2.0.0", name: "EMPATHY_KERNEL_2_0_0", status: "ACTIVE", desc: "0. The Single Axiom" },
   { id: "FADE-DOCTRINE-KERNEL-2.0.0", articleId: "FADE-DOCTRINE-KERNEL-2.0.0", name: "FADE_DOCTRINE_KERNEL_2_0_0", status: "ACTIVE", desc: "Overview" },
   { id: "FSF-12.1.0", articleId: "FSF-12.1.0", name: "FISH_SCALE_FEIGENBAUM_12_1_0", status: "ACTIVE", desc: "Systemless Root · Thermodynamic Chaos Branch" },
-  { id: "FISH-SCALE-KERNEL-11.1.1", articleId: "FISH-SCALE-KERNEL-11.1.1", name: "FISH_SCALE_KERNEL_11_1_1", status: "ACTIVE", desc: "1.0 Executive Boot Sequence and Architectural Thesis" },
   { id: "GAIA-SCALE-KERNEL-5.5.5", articleId: "GAIA-SCALE-KERNEL-5.5.5", name: "GAIA_SCALE_KERNEL_5_5_5", status: "ACTIVE", desc: "Ⅰ. CORE DIRECTIVES" },
   { id: "HIGH-TOWER-LOG", articleId: "HIGH-TOWER-LOG", name: "HIGH_TOWER_LOG", status: "ACTIVE", desc: "1.0 IDENTITY & PERSONA" },
   { id: "KERNEL-0.0.0.0", articleId: "KERNEL-0.0.0.0", name: "KERNEL_0_0_0_0", status: "ACTIVE", desc: "The Origin Vector" },
