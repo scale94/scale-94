@@ -1904,7 +1904,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         // Perturb Hopfield field — genuine associative activation propagation
         const nodeIdx_ = NODE_IDX[node.id];
         if (nodeIdx_ != null) perturbField(nodeIdx_);
-        ensureAudio(); somaAudio.playNode(node.id);
+        ensureAudio(); somaAudio.playBeat(); somaAudio.playNode(node.id);
         // Broadcast to peers
         if (somaPresence.connected) somaPresence.sendFire(node.id);
         spawnEffect(node.id, { soft: true, rightClick: false });   // left-click → cluster hue burst
@@ -1932,13 +1932,14 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     const edgeSet = new Set(activeEdges.map(([a, b]) => a < b ? `${a}:${b}` : `${b}:${a}`));
 
     // Single-step: immediately find the most orthogonal node and forge the link
+    ensureAudio(); somaAudio.playDrop();
     const result = findOrthogonalNode(node.id, edgeSet);
     if (result) {
       onOrthogonalBridge(node.id, result);
       bgFlashRef.current = 0.7; // orthogonal bridge → brief void flash
       spawnEffect(node.id, { soft: false, rightClick: true });  // right-click → complementary hue burst
     }
-  }, [canvasCoords, nodeAt, onOrthogonalBridge, activeEdges, spawnEffect]);
+  }, [canvasCoords, nodeAt, onOrthogonalBridge, activeEdges, spawnEffect, ensureAudio]);
 
   const handleMouseLeave = useCallback(() => {
     if (conductorDragRef.current) { conductorDragRef.current = false; setConductor(null); }
@@ -1973,6 +1974,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       const node = nodeAt(p.x, p.y);
       if (node) {
         longPressRef.current = setTimeout(() => {
+          ensureAudio(); somaAudio.playDrop();
           if (navigator.vibrate) navigator.vibrate(40);
           if (!fusionSourceRef.current) {
             setFusionSource(node.id);
@@ -1988,7 +1990,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         }, 500);
       }
     }
-  }, [canvasCoords, nodeAt, onManualFusion, conductorHit, setConductor]);
+  }, [canvasCoords, nodeAt, onManualFusion, conductorHit, setConductor, ensureAudio]);
 
   const handleTouchMove = useCallback((e) => {
     clearTimeout(longPressRef.current);
@@ -2049,7 +2051,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     // Perturb Hopfield field from touch
     const _touchIdx = NODE_IDX[node.id];
     if (_touchIdx != null) perturbField(_touchIdx);
-    ensureAudio(); somaAudio.playNode(node.id);
+    ensureAudio(); somaAudio.playBeat(); somaAudio.playNode(node.id);
     if (somaPresence.connected) somaPresence.sendFire(node.id);
     spawnEffect(node.id, { soft: true });
     // Label cascade — record seed + neighbors for the draw loop

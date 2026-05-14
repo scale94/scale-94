@@ -12,6 +12,8 @@
 //   somaAudio.playNode(nodeId);     // node activation
 //   somaAudio.playEdge(idA, idB);   // edge dyad
 //   somaAudio.playBifurcation(n);   // cascade sweep
+//   somaAudio.playBeat();           // 909-style kick (left click / tap)
+//   somaAudio.playDrop();           // multi-layer heavy drop (right click / hold)
 //   somaAudio.setEnergy(0-1);       // modulate ambient drone
 //   somaAudio.startRecording();     // begin event capture
 //   somaAudio.stopRecording();      // end capture, get events
@@ -524,6 +526,127 @@ class SomaAudioEngine {
         velocity: 0.8,
       });
     }
+  }
+
+  // ── Techno beat: 909-style kick transient ────────────────────────────────
+  playBeat() {
+    if (!this.initialized || this._muted) return;
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+    const now = this.ctx.currentTime;
+
+    // Click transient — short noise burst (8ms)
+    const clickLen = Math.floor(this.ctx.sampleRate * 0.008);
+    const clickBuf = this.ctx.createBuffer(1, clickLen, this.ctx.sampleRate);
+    const clickData = clickBuf.getChannelData(0);
+    for (let i = 0; i < clickLen; i++) clickData[i] = Math.random() * 2 - 1;
+    const clickSrc = this.ctx.createBufferSource();
+    clickSrc.buffer = clickBuf;
+    const clickEnv = this.ctx.createGain();
+    clickEnv.gain.setValueAtTime(0.55, now);
+    clickEnv.gain.exponentialRampToValueAtTime(0.001, now + 0.008);
+    clickSrc.connect(clickEnv);
+    clickEnv.connect(this.master);
+    clickSrc.start(now);
+
+    // Pitch-swept sine kick body (200 Hz → 45 Hz over 180ms)
+    const kick = this.ctx.createOscillator();
+    kick.type = 'sine';
+    kick.frequency.setValueAtTime(200, now);
+    kick.frequency.exponentialRampToValueAtTime(45, now + 0.18);
+    const kickEnv = this.ctx.createGain();
+    kickEnv.gain.setValueAtTime(0, now);
+    kickEnv.gain.linearRampToValueAtTime(0.65, now + 0.002);
+    kickEnv.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
+    kick.connect(kickEnv);
+    kickEnv.connect(this.master);
+    kick.start(now);
+    kick.stop(now + 0.30);
+
+    setTimeout(() => {
+      try {
+        clickSrc.disconnect(); clickEnv.disconnect();
+        kick.disconnect(); kickEnv.disconnect();
+      } catch {}
+    }, 450);
+  }
+
+  // ── Techno drop: multi-layer heavy impact ─────────────────────────────────
+  playDrop() {
+    if (!this.initialized || this._muted) return;
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+    const now = this.ctx.currentTime;
+
+    // Layer 1: Hard kick (pitched lower, louder)
+    const kick = this.ctx.createOscillator();
+    kick.type = 'sine';
+    kick.frequency.setValueAtTime(220, now);
+    kick.frequency.exponentialRampToValueAtTime(35, now + 0.22);
+    const kickEnv = this.ctx.createGain();
+    kickEnv.gain.setValueAtTime(0, now);
+    kickEnv.gain.linearRampToValueAtTime(0.9, now + 0.002);
+    kickEnv.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+    kick.connect(kickEnv);
+    kickEnv.connect(this.master);
+    kick.start(now);
+    kick.stop(now + 0.42);
+
+    // Layer 2: Sub bass swell (40 Hz, 1.5s)
+    const sub = this.ctx.createOscillator();
+    sub.type = 'sine';
+    sub.frequency.value = 40;
+    const subEnv = this.ctx.createGain();
+    subEnv.gain.setValueAtTime(0, now);
+    subEnv.gain.linearRampToValueAtTime(0.38, now + 0.28);
+    subEnv.gain.setValueAtTime(0.38, now + 0.85);
+    subEnv.gain.linearRampToValueAtTime(0, now + 1.55);
+    sub.connect(subEnv);
+    subEnv.connect(this.master);
+    sub.start(now);
+    sub.stop(now + 1.6);
+
+    // Layer 3: Resonant noise sweep (8kHz → 120Hz bandpass whoosh)
+    const noiseLen = Math.floor(this.ctx.sampleRate * 1.2);
+    const noiseBuf = this.ctx.createBuffer(1, noiseLen, this.ctx.sampleRate);
+    const noiseData = noiseBuf.getChannelData(0);
+    for (let i = 0; i < noiseLen; i++) noiseData[i] = Math.random() * 2 - 1;
+    const noiseSrc = this.ctx.createBufferSource();
+    noiseSrc.buffer = noiseBuf;
+    const sweepFilter = this.ctx.createBiquadFilter();
+    sweepFilter.type = 'bandpass';
+    sweepFilter.frequency.setValueAtTime(8000, now);
+    sweepFilter.frequency.exponentialRampToValueAtTime(120, now + 0.8);
+    sweepFilter.Q.setValueAtTime(14, now);
+    sweepFilter.Q.linearRampToValueAtTime(3, now + 0.8);
+    const sweepEnv = this.ctx.createGain();
+    sweepEnv.gain.setValueAtTime(0.20, now);
+    sweepEnv.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+    noiseSrc.connect(sweepFilter);
+    sweepFilter.connect(sweepEnv);
+    sweepEnv.connect(this.master);
+    noiseSrc.start(now);
+
+    // Layer 4: Click transient (sharper than beat)
+    const clickLen = Math.floor(this.ctx.sampleRate * 0.008);
+    const clickBuf = this.ctx.createBuffer(1, clickLen, this.ctx.sampleRate);
+    const clickData = clickBuf.getChannelData(0);
+    for (let i = 0; i < clickLen; i++) clickData[i] = Math.random() * 2 - 1;
+    const clickSrc = this.ctx.createBufferSource();
+    clickSrc.buffer = clickBuf;
+    const clickEnv = this.ctx.createGain();
+    clickEnv.gain.setValueAtTime(0.75, now);
+    clickEnv.gain.exponentialRampToValueAtTime(0.001, now + 0.008);
+    clickSrc.connect(clickEnv);
+    clickEnv.connect(this.master);
+    clickSrc.start(now);
+
+    setTimeout(() => {
+      try {
+        kick.disconnect(); kickEnv.disconnect();
+        sub.disconnect(); subEnv.disconnect();
+        noiseSrc.disconnect(); sweepFilter.disconnect(); sweepEnv.disconnect();
+        clickSrc.disconnect(); clickEnv.disconnect();
+      } catch {}
+    }, 2000);
   }
 
   // ── Resonance ping: crystalline tone when two nodes are compared ──────────
