@@ -218,11 +218,13 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
   const prevKernelRef = useRef(null);
   // isSpinning stays true for one full rotation (0.9s) after loadingKernel clears,
   // so the branch icon completes its cycle and lands at 0° before the deceleration phase.
-  const [isSpinning,  setIsSpinning]  = useState(false);
-  const [isStopping,  setIsStopping]  = useState(false);
-  const [isFading,    setIsFading]    = useState(false);
+  const [isSpinning,     setIsSpinning]     = useState(false);
+  const [isStopping,     setIsStopping]     = useState(false);
+  const [isFading,       setIsFading]       = useState(false);
+  const [firingKernelId, setFiringKernelId] = useState(null);
   const spinTimerRef   = useRef(null);
   const pendingStopRef = useRef(false);
+  const lavaTimerRef   = useRef(null);
   useEffect(() => {
     if (loadingKernel) {
       clearTimeout(spinTimerRef.current);
@@ -427,6 +429,20 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
       @keyframes sk-logSlideUp {
         from { transform: translateY(100%); opacity: 0; }
         to   { transform: translateY(0);    opacity: 1; }
+      }
+      @keyframes sk-runLava {
+        0%   { color: #fb923c; border-color: rgba(249,115,22,0.55);
+               box-shadow: 0 0 6px rgba(249,115,22,0.25);
+               text-shadow: 0 0 4px rgba(249,115,22,0.5); }
+        18%  { color: #fff7ed; border-color: rgba(255,180,30,0.95);
+               box-shadow: 0 0 20px rgba(234,88,12,0.75), 0 0 8px rgba(255,150,0,0.5), inset 0 0 8px rgba(200,50,0,0.18);
+               text-shadow: 0 0 14px rgba(255,200,0,1); }
+        52%  { color: #f87171; border-color: rgba(220,38,38,0.85);
+               box-shadow: 0 0 28px rgba(185,28,28,0.65), inset 0 0 12px rgba(185,28,28,0.18);
+               text-shadow: 0 0 10px rgba(220,38,38,0.95); }
+        100% { color: #fb923c; border-color: rgba(249,115,22,0.55);
+               box-shadow: 0 0 6px rgba(249,115,22,0.25);
+               text-shadow: 0 0 4px rgba(249,115,22,0.5); }
       }
       @keyframes sk-kernelGlow {
         0%, 100% { text-shadow: 0 0 8px rgba(255,215,0,0.2), 0 0 20px rgba(255,140,0,0); }
@@ -681,8 +697,22 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
                     </div>
                     <button
                       aria-label={`Run ${kernel.name}`}
-                      onClick={(e) => { e.stopPropagation(); sphereFireRef.current = { ts: Date.now() }; mobileAutoRun && mobileAutoRun(kernel.id); resetTtyFade(); }}
-                      className="text-[9px] font-bold px-1.5 py-0.5 rounded-sm border border-fuchsia-500/60 text-fuchsia-400 bg-transparent hover:bg-fuchsia-500/10 hover:border-fuchsia-400 hover:text-fuchsia-300 tracking-widest whitespace-nowrap transition-all active:scale-95"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        sphereFireRef.current = { ts: Date.now() };
+                        mobileAutoRun && mobileAutoRun(kernel.id);
+                        resetTtyFade();
+                        setFiringKernelId(kernel.id);
+                        clearTimeout(lavaTimerRef.current);
+                        lavaTimerRef.current = setTimeout(() => setFiringKernelId(null), 700);
+                      }}
+                      className="text-[9px] font-bold px-1.5 py-0.5 rounded-sm border bg-transparent tracking-widest whitespace-nowrap active:scale-95"
+                      style={{
+                        borderColor:  'rgba(249,115,22,0.55)',
+                        color:        '#fb923c',
+                        textShadow:   '0 0 4px rgba(249,115,22,0.4)',
+                        animation:    firingKernelId === kernel.id ? 'sk-runLava 700ms ease-out' : undefined,
+                      }}
                     >
                       [run]
                     </button>

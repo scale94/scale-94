@@ -67,3 +67,4 @@ pub mod glyph_archive;       // run_glyph_archive (Zipf-Mandelbrot Law · Huffma
 pub mod astro;                   // run_astro (planetary positions · Jean Meeus VSOP87 truncated · TFG sphere click readings)
 pub mod kernel_zero;             // run_kernel_zero (Origin Vector · DHCP unspecified · genesis trajectory in 16-D feature space)
 pub mod transit_matrix;          // run_transit_matrix (Ptolemaic + harmonic + midpoint + decl + antiscia + dignity + lunation)
+pub mod fade_doctrine;           // run_lindblad_fade (Lindblad Decoherence · Kauffman NK criticality · SARG window)
