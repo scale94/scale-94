@@ -430,19 +430,10 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
         from { transform: translateY(100%); opacity: 0; }
         to   { transform: translateY(0);    opacity: 1; }
       }
-      @keyframes sk-runLava {
-        0%   { color: #fb923c; border-color: rgba(249,115,22,0.55);
-               box-shadow: 0 0 6px rgba(249,115,22,0.25);
-               text-shadow: 0 0 4px rgba(249,115,22,0.5); }
-        18%  { color: #fff7ed; border-color: rgba(255,180,30,0.95);
-               box-shadow: 0 0 20px rgba(234,88,12,0.75), 0 0 8px rgba(255,150,0,0.5), inset 0 0 8px rgba(200,50,0,0.18);
-               text-shadow: 0 0 14px rgba(255,200,0,1); }
-        52%  { color: #f87171; border-color: rgba(220,38,38,0.85);
-               box-shadow: 0 0 28px rgba(185,28,28,0.65), inset 0 0 12px rgba(185,28,28,0.18);
-               text-shadow: 0 0 10px rgba(220,38,38,0.95); }
-        100% { color: #fb923c; border-color: rgba(249,115,22,0.55);
-               box-shadow: 0 0 6px rgba(249,115,22,0.25);
-               text-shadow: 0 0 4px rgba(249,115,22,0.5); }
+      @keyframes sk-runExecuted {
+        0%   { filter: brightness(1);   box-shadow: none; }
+        7%   { filter: brightness(7);   box-shadow: 0 0 14px rgba(217,70,239,0.7), 0 0 4px rgba(255,255,255,0.5); }
+        100% { filter: brightness(1);   box-shadow: none; }
       }
       @keyframes sk-kernelGlow {
         0%, 100% { text-shadow: 0 0 8px rgba(255,215,0,0.2), 0 0 20px rgba(255,140,0,0); }
@@ -704,14 +695,11 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
                         resetTtyFade();
                         setFiringKernelId(kernel.id);
                         clearTimeout(lavaTimerRef.current);
-                        lavaTimerRef.current = setTimeout(() => setFiringKernelId(null), 700);
+                        lavaTimerRef.current = setTimeout(() => setFiringKernelId(null), 500);
                       }}
-                      className="text-[9px] font-bold px-1.5 py-0.5 rounded-sm border bg-transparent tracking-widest whitespace-nowrap active:scale-95"
+                      className="text-[9px] font-bold px-1.5 py-0.5 rounded-sm border border-fuchsia-500/60 text-fuchsia-400 bg-transparent hover:bg-fuchsia-500/10 hover:border-fuchsia-400 hover:text-fuchsia-300 tracking-widest whitespace-nowrap transition-colors active:scale-95"
                       style={{
-                        borderColor:  'rgba(249,115,22,0.55)',
-                        color:        '#fb923c',
-                        textShadow:   '0 0 4px rgba(249,115,22,0.4)',
-                        animation:    firingKernelId === kernel.id ? 'sk-runLava 700ms ease-out' : undefined,
+                        animation: firingKernelId === kernel.id ? 'sk-runExecuted 500ms ease-out' : undefined,
                       }}
                     >
                       [run]
