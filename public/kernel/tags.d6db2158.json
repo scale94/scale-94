@@ -77,12 +77,6 @@
       "title": "THE MATRIX KERNEL V2.0"
     }
   ],
-  "BOSONIC": [
-    {
-      "id": "BOSONIC-KERNEL-2.0.0",
-      "title": "PROTOCOL_94 // BOSONIC_DEFENSE_KERNEL (V.2.0)"
-    }
-  ],
   "bouligand": [
     {
       "id": "FSF-12.1.0",
@@ -107,12 +101,6 @@
       "title": "THE CHRONOS KERNEL — LOOP SEVERANCE"
     }
   ],
-  "CLASSIFICATION": [
-    {
-      "id": "BOSONIC-KERNEL-2.0.0",
-      "title": "PROTOCOL_94 // BOSONIC_DEFENSE_KERNEL (V.2.0)"
-    }
-  ],
   "color": [
     {
       "id": "FADE-DOCTRINE-KERNEL-2.0.0",
@@ -123,12 +111,6 @@
     {
       "id": "COMPANION-KERNEL-2.0.0",
       "title": "COMPANION KERNEL"
-    }
-  ],
-  "COMPANION": [
-    {
-      "id": "COMPANION-PROMPT-1.0.0",
-      "title": "COMPANION KERNEL 1.0"
     }
   ],
   "COMPLETE": [
@@ -165,12 +147,6 @@
     {
       "id": "MATRIX-KERNEL-2.0.0",
       "title": "THE MATRIX KERNEL V2.0"
-    }
-  ],
-  "DEFENSE": [
-    {
-      "id": "BOSONIC-KERNEL-2.0.0",
-      "title": "PROTOCOL_94 // BOSONIC_DEFENSE_KERNEL (V.2.0)"
     }
   ],
   "DEFENSIVE": [
@@ -591,12 +567,6 @@
       "title": "ATMOSPHERIC ENTROPY KERNEL 3.0"
     }
   ],
-  "PROTOCOL": [
-    {
-      "id": "BOSONIC-KERNEL-2.0.0",
-      "title": "PROTOCOL_94 // BOSONIC_DEFENSE_KERNEL (V.2.0)"
-    }
-  ],
   "reasoning": [
     {
       "id": "UNDERGROUND-THERMODYNAMICS-KERNEL-1.0.0",
@@ -709,12 +679,6 @@
     {
       "id": "BOSONIC-KERNEL-3.0.0",
       "title": "BOSONIC KERNEL"
-    }
-  ],
-  "SOCIO-PHYSICS": [
-    {
-      "id": "BOSONIC-KERNEL-2.0.0",
-      "title": "PROTOCOL_94 // BOSONIC_DEFENSE_KERNEL (V.2.0)"
     }
   ],
   "SOCKS": [

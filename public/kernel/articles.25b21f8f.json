@@ -204,24 +204,6 @@
     "len": "734 WDS"
   },
   {
-    "id": "BOSONIC-KERNEL-2.0.0",
-    "type": "kernel_doc",
-    "date": "2026-03-06",
-    "lastModified": "2026-05-13",
-    "title": "PROTOCOL_94 // BOSONIC_DEFENSE_KERNEL (V.2.0)",
-    "subtitle": "[00] SYSTEM OVERVIEW",
-    "status": "ACTIVE",
-    "readTime": "2 min read",
-    "tags": [
-      "PROTOCOL",
-      "BOSONIC",
-      "DEFENSE",
-      "CLASSIFICATION",
-      "SOCIO-PHYSICS"
-    ],
-    "len": "403 WDS"
-  },
-  {
     "id": "COMPANION-KERNEL-2.0.0",
     "type": "kernel_doc",
     "date": "2026-05-14",
@@ -338,20 +320,6 @@
     "len": "705 WDS"
   },
   {
-    "id": "COMPANION-PROMPT-1.0.0",
-    "type": "kernel_doc",
-    "date": "2026-03-06",
-    "lastModified": "2026-05-13",
-    "title": "COMPANION KERNEL 1.0",
-    "subtitle": "",
-    "status": "ACTIVE",
-    "readTime": "1 min read",
-    "tags": [
-      "COMPANION"
-    ],
-    "len": "244 WDS"
-  },
-  {
     "id": "DALY-SIM-KERNEL-1.0.0",
     "type": "kernel_doc",
     "date": "2026-03-10",
@@ -368,18 +336,6 @@
       "OVERVIEW"
     ],
     "len": "656 WDS"
-  },
-  {
-    "id": "EMPATHY-PROMPT-1.0.0",
-    "type": "kernel_doc",
-    "date": "2026-03-07",
-    "lastModified": "2026-05-13",
-    "title": "EMPATHY KERNEL 1.0",
-    "subtitle": "",
-    "status": "ACTIVE",
-    "readTime": "3 min read",
-    "tags": [],
-    "len": "520 WDS"
   },
   {
     "id": "NECROMANTIC-LOGITBIAS-PROMPT-1.0.0",
