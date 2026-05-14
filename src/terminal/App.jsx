@@ -75,6 +75,7 @@ const TransmissionTab = lazy(() => import('./views/TransmissionTab'));
 const TagCloudView    = lazy(() => import('./views/TagCloudView'));
 const LunarTab        = lazy(() => import('./views/LunarTab'));
 const LedgerTab       = lazy(() => import('./views/LedgerTab'));
+const KineticStatecraftPanel = lazy(() => import('./views/KineticStatecraftPanel'));
 const MercuryTab      = lazy(() => import('./views/MercuryTab'));
 
 // formatKernelHelp, formatRunHelp, CMD_MANIFEST → src/terminal/commands/runHelpers.js
@@ -129,6 +130,9 @@ const App = () => {
   const [globalSearchOpen,  setGlobalSearchOpen]  = useState(false);
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
   const [searchResultIdx,   setSearchResultIdx]   = useState(-1);
+  // g-leader nav mode (vim-style, Colemak-DH optimised)
+  const [gMode, setGMode] = useState(false);
+  const gModeTimerRef = useRef(null);
   // CAS dynamic data — null while manifest fetch is in-flight
   const [dynamicData,  setDynamicData]  = useState(null);
   // Mobile chrome visibility — fades out after 3s of no touch, fades in on touch
@@ -404,7 +408,7 @@ const App = () => {
         setGlobalSearchOpen(v => !v);
         setGlobalSearchQuery('');
       }
-      if (e.key === 'Escape') setGlobalSearchOpen(false);
+      if (e.key === 'Escape') { setGlobalSearchOpen(false); setGMode(false); }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -664,6 +668,47 @@ const App = () => {
     setTagCloudView(false);
     setSearchFilter('');
   }, []);
+
+  // g-leader navigation (Colemak-DH home-row optimised)
+  const G_NAV = {
+    n: ['~/system/kernel',       'kernel'],
+    a: ['~/system/art',          'art'],
+    e: ['~/system/ecocide',      'ecocide'],
+    s: ['~/system/surveillance', 'surveillance'],
+    m: ['~/system/mercury',      'mercury'],
+    l: ['~/system/lunar',        'lunar'],
+    r: ['~/system/ledger',       'ledger'],
+    p: ['~/system/privacy',      'privacy'],
+  };
+
+  useEffect(() => {
+    const onKey = (e) => {
+      // Ignore inside inputs
+      if (['INPUT','TEXTAREA'].includes(e.target.tagName)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      if (!gMode) {
+        if (e.key === 'g') {
+          e.preventDefault();
+          setGMode(true);
+          if (gModeTimerRef.current) clearTimeout(gModeTimerRef.current);
+          gModeTimerRef.current = setTimeout(() => setGMode(false), 1500);
+        }
+        return;
+      }
+
+      // In g-mode: consume any key
+      e.preventDefault();
+      clearTimeout(gModeTimerRef.current);
+      setGMode(false);
+
+      const entry = G_NAV[e.key.toLowerCase()];
+      if (entry) handleNav(entry[0], entry[1]);
+    };
+
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [gMode, handleNav]);
 
   // Open an article from the global search overlay — routes to the right tab
   const openArticleFromSearch = useCallback((article) => {
@@ -1308,6 +1353,10 @@ const App = () => {
               onNeuralLink={handleNeuralLink}
             />
           )}
+          {/* Inline WASM simulation panels — rendered below article content */}
+          {selectedArticle?.id === 'KINETIC-STATECRAFT-KERNEL-1.0' && (
+            <KineticStatecraftPanel />
+          )}
 
           {/* Tag Cloud */}
           {tagCloudView && !selectedArticle && (
@@ -1461,6 +1510,38 @@ const App = () => {
       </nav>
 
       </div>{/* end CRT content wrapper */}
+
+      {/* ── g-mode HUD ── appears when g leader key is pressed ──────────────── */}
+      {gMode && (
+        <div
+          className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-[70] pointer-events-none"
+          style={{ animation: 'sk-logIn 0.12s ease forwards' }}
+        >
+          <div
+            className="flex items-center gap-3 px-4 py-2 rounded-sm font-mono"
+            style={{
+              background:  'rgba(0,0,0,0.92)',
+              border:      '1px solid rgba(57,255,20,0.18)',
+              boxShadow:   '0 0 20px rgba(57,255,20,0.06)',
+              fontSize:    '9px',
+              letterSpacing: '0.10em',
+              color:       'rgba(57,255,20,0.45)',
+              whiteSpace:  'nowrap',
+            }}
+          >
+            <span style={{ color: '#39ff14', fontWeight: 800 }}>g·</span>
+            {[
+              ['n','kernel'], ['a','art'], ['e','eco'], ['s','surv'],
+              ['m','mercury'], ['l','lunar'], ['r','ledger'], ['p','privacy'],
+            ].map(([k, label]) => (
+              <span key={k}>
+                <span style={{ color: '#39ff14', fontWeight: 700 }}>{k}</span>
+                <span style={{ color: 'rgba(57,255,20,0.30)' }}>:{label}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

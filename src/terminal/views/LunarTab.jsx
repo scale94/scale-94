@@ -915,7 +915,7 @@ function aspectReading(p1, p2, aspectName) {
   return `${d1.key} and ${d2.key} at polarity maximum. ${d1.dim} opposed to ${d2.dim}. Awareness through tension.`;
 }
 
-function useTransits(wasmReady) {
+function useTransits(wasmReady, refreshKey) {
   const [data, setData] = useState({ transits: [], planets: {} });
   useEffect(() => {
     if (!wasmReady || !_wasmMod) return;
@@ -935,7 +935,7 @@ function useTransits(wasmReady) {
       active.sort((a, b) => a.orb - b.orb);
       setData({ transits: active, planets });
     } catch (e) { console.error('[TRANSITS]', e); }
-  }, [wasmReady]);
+  }, [wasmReady, refreshKey]);
   return data;
 }
 
@@ -981,7 +981,7 @@ function buildTransitMarkdown(transits, planets, timestamp) {
   return lines.join('\n');
 }
 
-function TransitMatrix({ transits, planets, timestamp }) {
+function TransitMatrix({ transits, planets, timestamp, onRefresh }) {
   if (!transits.length) return null;
   const ts = timestamp.toLocaleDateString('en-CA') + ' ' +
     timestamp.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
@@ -1009,6 +1009,15 @@ function TransitMatrix({ transits, planets, timestamp }) {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={onRefresh}
+            className="font-mono text-[7px] uppercase tracking-widest px-2 py-1 rounded-sm transition-all duration-200"
+            style={{ border: '1px solid rgba(139,92,246,0.25)', color: 'rgba(139,92,246,0.55)' }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(139,92,246,0.55)'; e.currentTarget.style.color = 'rgba(139,92,246,0.9)'; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(139,92,246,0.25)'; e.currentTarget.style.color = 'rgba(139,92,246,0.55)'; }}
+          >
+            ↺
+          </button>
           <button
             onClick={handleDownload}
             className="font-mono text-[7px] uppercase tracking-widest px-2 py-1 rounded-sm transition-all duration-200"
@@ -1086,7 +1095,8 @@ function TransitMatrix({ transits, planets, timestamp }) {
 export default function LunarTab() {
   const [now, setNow] = useState(() => new Date());
   const [wasmReady, setWasmReady] = useState(false);
-  const { transits, planets } = useTransits(wasmReady);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const { transits, planets } = useTransits(wasmReady, refreshKey);
 
   // Load WASM kernel on mount
   useEffect(() => {
@@ -1317,7 +1327,7 @@ export default function LunarTab() {
         </div>
       </div>
 
-      <TransitMatrix transits={transits} planets={planets} timestamp={now} />
+      <TransitMatrix transits={transits} planets={planets} timestamp={now} onRefresh={() => setRefreshKey(k => k + 1)} />
 
       {/* ── Footer ── */}
       <div className="mt-8 pt-4 border-t border-white/[0.03] text-[8px] font-mono text-white/10 leading-relaxed">
