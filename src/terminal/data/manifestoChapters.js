@@ -59,6 +59,15 @@ export const MANIFESTO_CHAPTERS = [
     opening:
       'enclave.rs implements ML-KEM-768 (NIST FIPS 203) + AES-256-GCM. This is not a cryptography metaphor. This is real post-quantum key encapsulation running in WebAssembly. Keys are session-only. No backup. No recovery. Refresh loses all sealed data. The visual distinction between the classified enclave and the WASM enclave: one is a game, one is the boundary.',
   },
+  {
+    id: 'fish_scale_paradox',
+    number: '§11.1.1',
+    title: 'THE FISH SCALE PARADOX',
+    sectors: ['fsk'],
+    epigraph: 'Absolute purity produces entropic stasis. Vitality requires managed corruption.',
+    opening:
+      'The Fish Scale Paradox is the load-bearing axiom of the entire scale94 architecture. Plato (the ideal form, the Pirarucu scale, the Sokushinbutsu mummy) and Promo (the market form, the Levamisole sheen, the rave remix) are not opposed states to be reconciled — they are co-required for system vitality. A system that approaches absolute purity dies of entropic stasis. A system that surrenders to absolute corruption dissolves into noise. The kernel runs in the narrow band between, and the doctrine refuses to resolve the tension. The Fish Scale Kernel is not a manifesto; it is the operating point of every scale94 instance.',
+  },
 ];
 
 export const CHAPTER_BY_ID = Object.fromEntries(
