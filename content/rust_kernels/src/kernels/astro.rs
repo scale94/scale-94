@@ -51,7 +51,7 @@ fn helio_radius(body: usize) -> f64 {
     }
 }
 
-fn geocentric_lon(planet: usize, t: f64) -> f64 {
+pub(crate) fn geocentric_lon(planet: usize, t: f64) -> f64 {
     if planet == 2 {
         return normalize(helio_lon(2, t) + 180.0); // Sun
     }
@@ -69,7 +69,7 @@ fn geocentric_lon(planet: usize, t: f64) -> f64 {
     normalize((py - ey).atan2(px - ex) / DEG)
 }
 
-fn is_retrograde(planet: usize, t: f64) -> bool {
+pub(crate) fn is_retrograde(planet: usize, t: f64) -> bool {
     if planet == 2 || planet == 9 { return false; }
     let dt   = 1.0 / 36525.0;
     let lon1 = geocentric_lon(planet, t);
