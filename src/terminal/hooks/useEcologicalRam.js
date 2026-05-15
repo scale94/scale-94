@@ -1,130 +1,368 @@
 // ── useEcologicalRam ─────────────────────────────────────────────────────────
-// Ecological entropy model for the RAM bar.
-// Maps terminal commands to planetary resource cost (0-100).
-// High cost → RAM drains, system throttles, log warning fires.
-// Recovery is intentionally slow — the planet heals painfully.
+// Ecological RAM model for the Mercury Terminal.
+//
+// The RAM bar is not a performance meter — it is a PLANETARY STANDING METER.
+// An alien observer at Mercury reads the lattice. Green simulations recharge it.
+// Extraction, surveillance, and brute compute drain it. Entropy drains it passively.
+//
+// Model:
+//   ramPct  — current planetary standing (0–100%), starts at 70
+//   delta   — each command applies a signed delta to ramPct
+//   passive — entropy claims 1% per 30s regardless
+//   floor   — 5% (lattice never fully collapses; signal persists)
+//   ceiling — 100%
+//
+// Positive delta (+): ecological recharge — running these restores standing
+// Negative delta (−): entropic drain     — running these costs the commons
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-// ── Cost mapping ──────────────────────────────────────────────────────────────
-// Keyed by WASM alias (first alias wins in dispatch, matches wasm.generated.js).
-// Commands not in the map get a baseline cost of 20.
-export const ECOLOGICAL_ENTROPY_MAP = {
-  // ── Idle / passive ──────────────────────────────────────────────────────────
-  idle:              2,
+// ── Delta map ─────────────────────────────────────────────────────────────────
+// Keyed by WASM alias (useCommandDispatch passes aliases[0] ?? id).
+// Every alias for a kernel maps to the same signed delta.
+// Unknown commands default to −10 (uncharted compute = mild ecological cost).
 
-  // ── Low footprint — commons, cooperation, ecological economics ──────────────
-  soma91:            5,   // static boot banner — negligible
-  banner:            5,
-  biodiversity:      10,  // Lotka-Volterra biocoenosis model
-  biocoenosis:       10,
-  ecological:        8,   // Daly thermodynamics — appropriate low cost
-  daly:              8,
-  entropy_econ:      8,
-  replicator:        12,  // Ostrom cooperative games
-  ostrom_game:       12,
-  commons:           12,
-  ceei:              15,  // allocation engine
-  allocation:        15,
-  soma_plus:         15,  // social capital
-  social_capital:    15,
-  pragmatic:         12,  // DRK Pragmatic<T> type system
-  drk:               12,
-  dh_ec:             60,  // Diffie-Hellman / ECDH key exchange
-  chrono:            35,  // deep-time ecological audit
+export const ECOLOGICAL_DELTA_MAP = {
 
-  // ── Medium footprint — simulations, economic models ─────────────────────────
-  strangler:         20,  // logistic adoption transition
-  transition:        20,
-  soma55:            20,
-  nexteconomy:       20,
-  soma_live:         28,  // live soma pilot — streaming state
-  pilot:             28,
-  somapilot:         28,
-  cynicrealist:      30,  // dissipative systems — England entropy engine
-  dissipative:       30,
-  kuramoto:          40,  // oscillator coupling
-  synchrony:         40,
-  bosonic:           45,  // quantum lattice simulation
-  bosonic_lattice:   45,
-  necromantic:       45,  // fish-scale economic power law
-  fishscale:         45,
+  // ─────────────────────────────────────────────────────────────────────────────
+  // STRONG RECHARGE  +14 to +22
+  // The commons at its best. Running these is how the lattice breathes.
+  // ─────────────────────────────────────────────────────────────────────────────
 
-  // ── High footprint — heavy compute, adversarial, surveillance ───────────────
-  feigenbaum:        55,  // chaos / period doubling cascade
-  bifurcation:       55,
-  chaos:             55,
-  ising:             58,  // Monte Carlo phase transition
-  monte_carlo:       58,
-  consensus:         58,
-  geopolitics:       62,  // geopolitical kinetics
-  kinetics:          62,
-  statecraft:        62,
-  climate:           68,  // atmospheric model — computational cost = thematic irony
-  atmospheric:       68,
-  thermosphere:      68,
-  breach:            65,  // Breach Protocol ICE penetration
-  surveillance:      75,  // panopticon — high social entropy cost
-  panopticon:        75,
+  // Daly Thermodynamic Rules — the only framework that doesn't lie about limits
+  daly:                +22,  ecological:           +22,  entropy_econ:         +22,
+  daly_rules:          +22,  daly_thermo:          +22,
 
-  // ── Critical footprint — PQC crypto, PDE solvers, stress bench ──────────────
-  grayscott:         80,  // reaction-diffusion PDE solver — heavy numerical
-  reaction_diffusion: 80,
-  turing:            80,
-  classified:        85,  // ML-KEM-768 post-quantum cryptography
-  mlkem:             85,
-  pqc:               85,
-  postquantum:       85,
-  leviathan:         90,  // vcache stress benchmark — explicit CPU burnout
-  benchmark:         90,
-  stress:            90,
-  vcache_burn:       90,
+  // Biocoenosis — species richness, Shannon entropy, the commons as living system
+  biodiversity:        +20,  biocoenosis:          +20,  species:              +20,
+  shannon_ecology:     +20,  ecology:              +20,
 
-  // ── Conceptual extremes (future kernels / thematic) ──────────────────────────
-  train_agentic_model: 95,
-  deep_research_loop:  80,
-  crypto_pow:          90,
-  local_synthesis:     10,
+  // Gaia-Scale Sovereign Reconstruction — Triarchy, 500-year mineral reserve
+  gaia_scale:          +20,  triarchy:             +20,  reconstruction:       +20,
+  mineralization:      +20,  porcupine:            +20,
+
+  // Soma Plus — care economy, ecological + social + arts contribution
+  soma_plus:           +18,  social_capital:       +18,  contribution:         +18,
+  status:              +18,  commons_engine:       +18,
+
+  // Ostrom Commons — cooperation beats defection in evolutionary time
+  replicator:          +16,  ostrom_game:          +16,  commons:              +16,
+  evolutionary:        +16,  cooperate:            +16,  altruist:             +16,
+  gametheory:          +16,
+
+  // CEEI / Roth Fair Allocation — preference-based, no envy, no waste
+  ceei:                +14,  allocation:           +14,  matching:             +14,
+  roth:                +14,  preference:           +14,  allocation_engine:    +14,
+  aceei:               +14,
+
+  // Strangler Fig — fossil system replacement; logistic transition to the sovereign
+  strangler:           +15,  transition:           +15,  stranglerfig:         +15,
+  fig:                 +15,  logistic_transition:  +15,  adoption:             +15,
+  legacy:              +15,
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // MODERATE RECHARGE  +5 to +12
+  // Monitoring, documenting, and maintaining the lattice.
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  // Sorbe Bloom — Sovereign Node Initiation, three-substrate coherence
+  sorbe:               +12,  bloom:                +12,  sorbe_bloom:          +12,
+  node_initiation:     +12,  dissipative_bloom:    +12,  substrate_coherence:  +12,
+
+  // Chrono-Actuary — deep-time ecological audit, DO ledger, river sovereignty
+  chrono:              +10,  actuary:              +10,  river_sovereign:      +10,
+  chrono_actuary:      +10,  aqua:                 +10,  protocol_aqua:        +10,
+  audit:               +10,  ecological_audit:     +10,  do_ledger:            +10,
+
+  // Underground Thermodynamics — Onsager/Bejan MEPP efficiency, entropy production
+  utk:                 +8,   underground_thermo:   +8,   mepp:                 +8,
+  onsager:             +8,   bejan:                +8,   garrett:              +8,
+  dissipative_thermo:  +8,   sigma_production:     +8,
+
+  // Kuramoto Synchrony — collective phase lock, solidarity as physics
+  kuramoto:            +8,   synchrony:            +8,   sync:                 +8,
+  oscillator:          +8,   solidarity:           +8,   coupled:              +8,
+
+  // SSS Doctrine — literary deterrent over kinetic mass (Schelling precommitment)
+  sss:                 +8,   sss_doctrine:         +8,   literary_deterrent:   +8,
+  schelling:           +8,   sock:                 +8,   deterrent:            +8,
+  ironic_calculus:     +8,
+
+  // Fish Scale v12.1.0 — Bouligand armor, Arapaima-derived biological structure
+  fish_scale:          +6,   bouligand:            +6,   arapaima:             +6,
+  armor:               +6,   feigenbaum_fish:      +6,   fsk:                  +6,
+  moire:               +6,
+
+  // Stiller Divergence — volatile semiotic vs fossil record; tracks the bifurcation
+  stiller:             +6,   divergence:           +6,   broadcast:            +6,
+  fossil:              +6,   vaporization:         +6,   combustion:           +6,
+  bimmelbahn:          +6,   vitrified:            +6,   stiller_divergence:   +6,
+
+  // Soma55 — soma_kernel_5.5 system boot, ecological economy status
+  soma55:              +6,   soma_boot:            +6,   nexteconomy:          +6,
+  sk55:                +6,   soma_kernel_55:       +6,
+
+  // Soma Live — live pilot simulation, streaming ecological state
+  soma_live:           +5,   soma_cycle:           +5,   pilot:                +5,
+  somapilot:           +5,   soma_kernel_live:     +5,
+
+  // OCK — Olfactory-Computational Kernel, volatile sovereignty, Bimmelbahn Accord
+  ock:                 +5,   olfactory:            +5,   accord:               +5,
+  volatile:            +5,   sillage:              +5,   perfume:              +5,
+  fixation:            +5,   maceration:           +5,   koc:                  +5,
+
+  // Sovereign Seven — 4-phase Kuramoto: Substrate → Detonation → Superfluid → Crystalline
+  sovereign:           +4,   seven:                +4,   crystalline:          +4,
+  sovereign_seven:     +4,   crystal_lock:         +4,   invariance:           +4,
+  seven_layers:        +4,
+
+  // Spectral Bridge — cross-cluster cosine topology discovery
+  spectral:            +4,   bridge:               +4,   spectral_bridge:      +4,
+  topology:            +4,   cosine:               +4,   fingerprint:          +4,
+  cross_cluster:       +4,   discover:             +4,
+
+  // Associative Field — Hopfield attractor basin mapping
+  associative:         +3,   field:                +3,   associative_field:    +3,
+  hopfield:            +3,   attractor:            +3,   basin:                +3,
+  assoc_field:         +3,   kernel_graph:         +3,   pattern:              +3,
+
+  // Soma 9.1 banner — negligible compute, the kernel at rest
+  soma91:              +3,   banner:               +3,   soma_91:              +3,
+  soma91_banner:       +3,
+
+  // Local synthesis — biological, sovereign, non-extractive
+  local_synthesis:     +5,
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // SLIGHT DRAIN  −8 to −18
+  // Computational overhead. Useful but costly. The lattice notices.
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  // Bosonic Lattice — quantum social bonds, gift economy, but heavy lattice compute
+  bosonic_lattice:     -10,  bosonic:              -10,  bosonickernel:        -10,
+
+  // DRK Pragmatic<T> — thermal budget consumed, tasks resolved at entropic cost
+  pragmatic:           -8,   pragmatic_type:       -8,   drk:                  -8,
+  drk_pragmatic:       -8,   thermal_resolve:      -8,   pragmatict:           -8,
+
+  // Phonemic Drift — Baudrillard simulacra; the copy begins to replace the real
+  phonemic:            -12,  drift:                -12,  bellard:              -12,
+  baudrillard:         -12,  simulacra:            -12,  phonemic_drift:       -12,
+  memory_hash:         -12,
+
+  // Percolation — modeling network fragility; you understand the fracture by mapping it
+  percolation:         -8,   resilience:           -8,   network:              -8,
+  fragility:           -8,   perc:                 -8,   giant_component:      -8,
+  gcc:                 -8,   erdos:                -8,   molloyreed:           -8,
+  fragmentation:       -8,
+
+  // Mesantropy — scalar mediocracy, eigenverbrauch drain, 3.3.3/4.4.4.4 detonation
+  mesantropy:          -15,  scalar:               -15,  detonation:           -15,
+  vectorcollapse:      -15,  eigenverbrauch:       -15,  mediocracy:           -15,
+  mesantropy_engine:   -15,
+
+  // Necromantic Emperor — Fish Scale Paradox, Plato/Promo tension, 3000 AD iron core
+  emperor:             -15,  necromantic_emperor:  -15,  fish_scale_paradox:   -15,
+  plato_promo:         -15,  fermion_boson:        -15,  vitality:             -15,
+  metallurgy:          -15,
+
+  // Necromantic Aristocrat — Gold Posture, Anti-Mercury emergency governance
+  aristocrat:          -18,  necromantic_aristocrat: -18, gold_posture:        -18,
+  reference_voltage:   -18,  anti_mercury:         -18,
+
+  // Fish Scale v11.1.1 (necromantic resonance trace — older, less structured)
+  necromantic:         -12,  fishscale:            -12,  resonance:            -12,
+  bpm:                 -12,  harmonic:             -12,
+
+  // Necromantic Logitbias — token-probability friction, pirarucu/levamisole tension
+  necromantic_logitbias: -10, logitbias:           -10,  pirarucu:             -10,
+  levamisole:          -10,
+
+  // Seraphine SARG — Lindblad decoherence, quantum density matrix, heavy compute
+  seraphine:           -12,  sarg:                 -12,  quantum_reasoning:    -12,
+  qcog:                -12,  seraph:               -12,  assoc:                -12,
+  decohere:            -12,  reasoning_gain:       -12,
+
+  // Feigenbaum — maps period-doubling route to chaos; r→4.0 is the ecocide parameter
+  feigenbaum:          -15,  bifurcation:          -15,  chaos:                -15,
+  logistic:            -15,  cascade:              -15,  period_doubling:      -15,
+  logistic_map:        -15,
+
+  // Ising — Monte Carlo social temperature; critical point is fragile
+  ising:               -18,  consensus:            -18,  opinion:              -18,
+  phase_transition:    -18,  ferromagnet:          -18,  critical:             -18,
+  monte_carlo:         -18,
+
+  // Bone Fusion — 16D tensor fusion, heavy conceptual lattice computation
+  bone:                -15,  bone_fusion:          -15,  singularity:          -15,
+  tensor:              -15,  tensor_fusion:        -15,
+
+  // Latent Collider — significant compute, but maps conceptual space
+  collider:            -10,  latent:               -10,  latent_collider:      -10,
+  scaling:             -10,  collision:            -10,  cross_attention:      -10,
+  chimera:             -10,  synthesis:            -10,
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // SIGNIFICANT DRAIN  −18 to −32
+  // Heavy compute, adversarial models, and the architecture of control.
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  // Post-Quantum Hash Audit — Grover/BHT quantum margins, heavy analysis
+  pqhash:              -18,  quantum_hash:         -18,  post_quantum:         -18,
+  hash_audit:          -18,  grover:               -18,  pq_hash:              -18,
+  hashaudit:           -18,
+
+  // Fusion Plasma — Lawson criterion, Tokamak confinement, planetary-scale energy
+  fusion:              -22,  plasma:               -22,  tokamak:              -22,
+  ignition:            -22,  lawson:               -22,  iter:                 -22,
+  fusion_plasma:       -22,  q_factor:             -22,  triple_product:       -22,
+
+  // DH-EC Cryptographic Architecture — classical + PQ key exchange overhead
+  dh_ec:               -22,  diffie:               -22,  ecdh:                 -22,
+  curve25519:          -22,  x3dh:                 -22,  signal_proto:         -22,
+  threema:             -22,  nacl:                 -22,
+
+  // Shadowsocks Exfiltration — RLHF sycophancy field, epistemic pollution model
+  shadowsocks:         -22,  sycophancy:           -22,  rlhf:                 -22,
+  channel_switch:      -22,  exfil:                -22,  affect:               -22,
+  shadow_socks:        -22,
+
+  // Atmospheric Entropy — 420ppm default carbon; observing the damage costs
+  climate:             -25,  thermosphere:         -25,  atmospheric:          -25,
+  carbon:              -25,  thermosphere_protocol: -25,  entropy:             -25,
+
+  // Gray-Scott — reaction-diffusion PDE solver, dense numerical integration
+  grayscott:           -28,  gray_scott:           -28,  reaction_diffusion:   -28,
+  turing:              -28,  morphogenesis:        -28,  pde:                  -28,
+  diffusion:           -28,
+
+  // ML-KEM-768 Classified — post-quantum key encapsulation, FIPS 203 full run
+  classified:          -28,  mlkem:                -28,  ml_kem:               -28,
+  pqc:                 -28,  postquantum:          -28,  kem:                  -28,
+  lattice_crypto:      -28,  fips203:              -28,  quantum_crypto:       -28,
+
+  // Tesseract-Vault — 5-stage hybrid PQC pipeline; the heaviest cryptographic run
+  // Argon2id → ML-KEM-1024 → ML-DSA-87 → AES-256-GCM → BLAKE3
+  tesseract:           -32,  vault:                -32,  tesseract_vault:      -32,
+  hybrid_pqc:          -32,  mlkem1024:            -32,  mldsa:                -32,
+  mldsa87:             -32,  pqc_pipeline:         -32,  argon2:               -32,
+  argon2id:            -32,  blake3:               -32,  pipeline:             -32,
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // SEVERE DRAIN  −20 to −55
+  // The architecture of extraction, control, and planetary burnout.
+  // The alien turns away. The lattice bleeds.
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  // Surveillance Index — 44 active laws; documentation of the control apparatus
+  surveillance:        -20,  governance:           -20,  surveillance_index:   -20,
+  law:                 -20,  laws:                 -20,  grey:                 -20,
+  greyc0:              -20,  legislation:          -20,
+
+  // Geopolitical Kinetics — military simulation, force application, regime stability
+  geopolitics:         -40,  statecraft:           -40,  kinetics:             -40,
+  kinetic:             -40,  regime:               -40,  geopolitical:         -40,
+  pressure:            -40,
+
+  // Panopticon Percolation — Monte Carlo legislative dragnet, 44-node contagion
+  panopticon:          -45,  dragnet:              -45,  surveillance_percolation: -45,
+  simulate_dragnet:    -45,  panoptic:             -45,  contagion:            -45,
+  legislative:         -45,
+
+  // Leviathan — explicit CPU/planetary resource burnout; V-Cache stress benchmark
+  // This one is honest about what it is.
+  leviathan:           -55,  vcache_burn:          -55,  benchmark:            -55,
+  stress:              -55,  automata:             -55,  cellular:             -55,
+  vcache:              -55,
+
+  // Breach Protocol — ICE penetration (thematic)
+  breach:              -30,
+
+  // Speculative / future kernels
+  crypto_pow:          -50,
+  train_agentic_model: -60,
+  deep_research_loop:  -25,
 };
 
-const IDLE_COST   = 2;
-const RECOVER_MS  = 3000;   // 1 cost unit shed every 3s — painfully slow
-const WARN_THRESH = 70;     // log injection threshold
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const RAM_START      = 70;   // planet already stressed — not at 100
+const RAM_FLOOR      = 5;    // lattice signal never fully collapses
+const RAM_CEIL       = 100;
+const PASSIVE_MS     = 30_000;  // entropy drains 1% per 30s
+const WARN_THRESH    = 50;      // amber threshold
+const CRIT_THRESH    = 20;      // red threshold — cascade imminent
+
+// ── Hook ──────────────────────────────────────────────────────────────────────
 
 export function useEcologicalRam({ appendSystemLog }) {
-  const [ecoCost, setEcoCost] = useState(IDLE_COST);
-  // Stable ref so the recovery interval never needs to be recreated
+  const [ramPct, setRamPct] = useState(RAM_START);
   const appendRef = useRef(appendSystemLog);
   useEffect(() => { appendRef.current = appendSystemLog; });
 
-  // Slow recovery — planet heals at 1 unit / 3s, never below idle
+  // Passive entropy drain — the planet does not rest
   useEffect(() => {
     const t = setInterval(() => {
-      setEcoCost(c => (c > IDLE_COST ? c - 1 : IDLE_COST));
-    }, RECOVER_MS);
+      setRamPct(p => Math.max(RAM_FLOOR, p - 1));
+    }, PASSIVE_MS);
     return () => clearInterval(t);
   }, []);
 
-  // Called by dispatch with a kernel alias or raw cost number
-  const applyEcoCost = useCallback((aliasOrCost) => {
-    const cost = typeof aliasOrCost === 'number'
-      ? aliasOrCost
-      : (ECOLOGICAL_ENTROPY_MAP[aliasOrCost] ?? 20);
+  const applyRamDelta = useCallback((aliasOrDelta) => {
+    const delta = typeof aliasOrDelta === 'number'
+      ? aliasOrDelta
+      : (ECOLOGICAL_DELTA_MAP[aliasOrDelta] ?? -10);
 
-    setEcoCost(Math.min(100, cost));
+    setRamPct(prev => {
+      const next = Math.max(RAM_FLOOR, Math.min(RAM_CEIL, prev + delta));
+      const t    = new Date().toLocaleTimeString('en-US', { hour12: false });
 
-    if (cost > WARN_THRESH) {
-      const t = new Date().toLocaleTimeString('en-US', { hour12: false });
-      appendRef.current({
-        time: t,
-        msg: `[ENTROPY WARNING] Planetary resource cost critical. Local RAM throttled to simulate ecological load.`,
-      });
-    }
+      if (delta > 0) {
+        // Recharge — log when meaningful (+10 or more)
+        if (delta >= 10) {
+          appendRef.current({
+            time: t,
+            msg:  `[SOVEREIGN RECHARGE] Ecological standing restored. RAM +${delta} → ${next}% · The lattice stabilises.`,
+          });
+        }
+      } else {
+        // Drain — log threshold crossings and heavy drains
+        const crossedCrit = prev >= CRIT_THRESH && next < CRIT_THRESH;
+        const crossedWarn = prev >= WARN_THRESH && next < WARN_THRESH;
+        if (crossedCrit) {
+          appendRef.current({
+            time: t,
+            msg:  `[CRITICAL ENTROPY] Planetary systems entering cascade failure. RAM ${next}% — ecological debt unserviceable.`,
+          });
+        } else if (crossedWarn) {
+          appendRef.current({
+            time: t,
+            msg:  `[ENTROPY WARNING] Observational load exceeding planetary capacity. RAM ${next}% · Run ecological simulations to restore standing.`,
+          });
+        } else if (delta <= -30) {
+          appendRef.current({
+            time: t,
+            msg:  `[ENTROPY CASCADE] Sovereign RAM −${Math.abs(delta)} → ${next}% · Planetary resource depletion registered.`,
+          });
+        }
+      }
+
+      return next;
+    });
   }, []);
 
-  const ramPct    = 100 - ecoCost;
-  const isCritical = ramPct < 20;      // < 20% RAM remaining
-  const isWarning  = ramPct < 50;      // amber zone
+  const isCritical = ramPct < CRIT_THRESH;
+  const isWarning  = ramPct < WARN_THRESH;
 
-  return { ramPct, ecoCost, applyEcoCost, isCritical, isWarning };
+  // ── Backward-compatible exports ────────────────────────────────────────────
+  // applyEcoCost: existing call sites in useCommandDispatch stay unchanged
+  // ecoCost:      used in App.jsx tooltip (title attribute)
+  return {
+    ramPct,
+    ecoCost:     100 - ramPct,
+    applyEcoCost:  applyRamDelta,   // backward compat alias
+    applyRamDelta,
+    isCritical,
+    isWarning,
+  };
 }
