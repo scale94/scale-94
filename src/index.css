@@ -39,6 +39,14 @@ html, body {
    and never reset by React re-renders.
    ─────────────────────────────────────────────────────────────────────────── */
 
+/* Prose tables — horizontal scroll on mobile instead of overflow clip */
+.prose table {
+  display: block;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+}
+
 /* Header Hexagon slow spin */
 @keyframes spin {
   from { transform: rotate(0deg); }

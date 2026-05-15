@@ -58,8 +58,8 @@ const SurveillanceTab  = lazy(() => import('./views/SurveillanceTab'));
 const BskyTab          = lazy(() => import('./views/BskyTab'));
 const EcocideTab       = lazy(() => import('./views/EcocideTab'));
 // ButterflyIcon — inline nav variant (matches BskyTab icon, no extra import needed)
-const NavButterflyIcon = () => (
-  <svg viewBox="0 0 24 24" fill="currentColor" stroke="none" className="w-3 h-3" aria-hidden="true">
+const NavButterflyIcon = ({ size = 'sm' }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" stroke="none" className={size === 'lg' ? 'w-5 h-5' : 'w-3 h-3'} aria-hidden="true">
     <path d="M11.5 11C9.5 9.5 5.5 7 2.5 8.5C0.5 9.5 1 12 4 13C6.5 13.8 9.5 13 11.5 11Z" />
     <path d="M12.5 11C14.5 9.5 18.5 7 21.5 8.5C23.5 9.5 23 12 20 13C17.5 13.8 14.5 13 12.5 11Z" />
     <path d="M11.5 13.5C9 14 4 15 3 18C2.5 19.5 4.5 21 7.5 19.5C9.5 18.5 11 16.5 11.5 13.5Z" />
@@ -1479,7 +1479,7 @@ const App = () => {
           <Cpu className="w-5 h-5" />
         </button>
         <button onClick={() => handleNav('~/system/bsky', 'bsky')} aria-label="BSKY" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'bsky' ? 'text-sky-400' : 'text-sky-400/50'}`}>
-          <NavButterflyIcon />
+          <NavButterflyIcon size="lg" />
         </button>
         <button onClick={() => handleNav('~/system/manifesto', 'manifesto')} aria-label="Manifesto" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'manifesto' ? 'text-violet-400' : 'text-violet-400/50'}`}>
           <Eye className="w-5 h-5" />
