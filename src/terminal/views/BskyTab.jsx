@@ -679,6 +679,45 @@ const BskyTab = () => {
             Curated the full AT Proto and bsky link manifest powering this tab — protocol spec, identity, data repos, dev toolkit, and ecosystem apps.
           </div>
         </div>
+
+        <div style={{ borderTop: '1px solid rgba(99,102,241,0.1)', margin: '14px 0 14px 10px' }} />
+
+        <div style={{ paddingLeft: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+            <span style={{
+              fontSize: 15, fontWeight: 900, letterSpacing: '0.12em',
+              background: 'linear-gradient(90deg, #6366f1, #38bdf8)',
+              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+            }}>GraphTracks</span>
+            <span style={{ fontSize: 9, color: '#6366f1', opacity: 0.5, letterSpacing: '0.2em' }}>·</span>
+            <a
+              href="https://graphtracks.com"
+              target="_blank" rel="noopener noreferrer"
+              style={{ fontSize: 9, color: '#6366f1', opacity: 0.7, letterSpacing: '0.15em', textDecoration: 'none', fontWeight: 700 }}
+            >graphtracks.com</a>
+            <a
+              href="https://bsky.app/profile/graphtracks.com"
+              target="_blank" rel="noopener noreferrer"
+              style={{ fontSize: 9, color: '#38bdf8', opacity: 0.6, letterSpacing: '0.15em', textDecoration: 'none', fontWeight: 700 }}
+            >@graphtracks.com</a>
+          </div>
+
+          <div style={{ fontSize: 11, color: '#e0e0e0', opacity: 0.7, marginBottom: 10, lineHeight: 1.5 }}>
+            Bluesky network analytics API.
+            Powers the TOP_POSTS engagement signal — top-post rankings, like/repost/reply data, and image embeds via the GraphTracks REST API.
+          </div>
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {['top posts', 'engagement signal', 'analytics api'].map(tag => (
+              <span key={tag} style={{
+                fontSize: 9, fontWeight: 800, letterSpacing: '0.14em',
+                color: '#6366f1', background: 'rgba(99,102,241,0.07)',
+                border: '1px solid rgba(99,102,241,0.2)',
+                padding: '3px 8px', borderRadius: 2,
+              }}>{tag}</span>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* ── Analytics engine status ──────────────────────────────────────────── */}
