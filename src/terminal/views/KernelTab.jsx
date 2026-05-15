@@ -394,14 +394,13 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
         100% { transform: rotate(360deg); filter: drop-shadow(0 0 12px rgba(6,182,212,1)) drop-shadow(0 0 24px rgba(6,182,212,0.4)); }
       }
       @keyframes sk-branchSpinStop {
-        0%   { transform: rotate(0deg);   filter: drop-shadow(0 0 12px rgba(6,182,212,1)) drop-shadow(0 0 24px rgba(6,182,212,0.4)); }
-        100% { transform: rotate(720deg); filter: drop-shadow(0 0 3px rgba(6,182,212,0.4)); }
+        0%   { transform: rotate(0deg)   scale(1); filter: drop-shadow(0 0 12px rgba(6,182,212,1)) drop-shadow(0 0 24px rgba(6,182,212,0.4)); }
+        100% { transform: rotate(720deg) scale(1); filter: drop-shadow(0 0 4px rgba(6,182,212,0.4)); }
       }
-      @keyframes sk-branchLoadSpin {
-        0%   { transform: rotate(0deg);   filter: drop-shadow(0 0 4px rgba(6,182,212,0.5)); }
-        15%  { filter: drop-shadow(0 0 20px rgba(6,182,212,1)) drop-shadow(0 0 40px rgba(6,182,212,0.7)) drop-shadow(0 0 60px rgba(6,182,212,0.3)); }
-        80%  { filter: drop-shadow(0 0 12px rgba(6,182,212,0.9)) drop-shadow(0 0 24px rgba(6,182,212,0.4)); }
-        100% { transform: rotate(720deg); filter: drop-shadow(0 0 6px rgba(6,182,212,0.5)); }
+      @keyframes sk-branchClickFade {
+        0%   { opacity: 1;    filter: drop-shadow(0 0 4px rgba(6,182,212,0.5)); }
+        35%  { opacity: 0.04; filter: drop-shadow(0 0 0px rgba(6,182,212,0));   }
+        100% { opacity: 1;    filter: drop-shadow(0 0 8px rgba(6,182,212,0.8)); }
       }
       @keyframes sk-axiomBreath {
         0%, 100% { box-shadow: 0 0 6px rgba(57,255,20,0.06), inset 0 0 20px rgba(0,0,0,0.4); }
@@ -640,14 +639,14 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
               }}
               onAnimationEnd={(e) => {
                 if (e.animationName === 'sk-branchSpinStop') setIsStopping(false);
-                if (e.animationName === 'sk-branchLoadSpin') setIsFading(false);
+                if (e.animationName === 'sk-branchClickFade') setIsFading(false);
               }}
               style={{ animation: isSpinning
                 ? 'sk-branchSpin 0.9s linear infinite'
                 : isStopping
-                ? 'sk-branchSpinStop 1.5s cubic-bezier(0.08, 0.6, 0.12, 1.0) forwards'
+                ? 'sk-branchSpinStop 1.5s cubic-bezier(0.2, 0, 0.3, 1) forwards'
                 : isFading
-                ? 'sk-branchLoadSpin 1.5s cubic-bezier(0.2, 0, 0.1, 1) forwards'
+                ? 'sk-branchClickFade 0.35s ease-out'
                 : 'sk-treeReveal 1.5s cubic-bezier(0.2, 0, 0.3, 1) forwards, sk-treeGlow 2.5s ease-in-out 1.5s infinite' }}
             />
             <span
