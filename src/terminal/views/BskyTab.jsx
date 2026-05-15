@@ -665,27 +665,63 @@ const BskyTab = () => {
             TOP_POSTS — ENGAGEMENT SIGNAL
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-            {topPosts.map((post, i) => (
-              <div key={post.id ?? i}
-                className="border border-sky-900/25 bg-black/40 p-4 hover:border-sky-500/35 hover:bg-sky-950/10 transition-all group relative overflow-hidden"
-                style={{ animation: `bk-cardReveal 0.4s cubic-bezier(0.16,1,0.3,1) ${i * 0.05 + 0.1}s both` }}
-              >
-                <span className="absolute top-0 left-0 w-3 h-3 border-t border-l border-sky-500/20 pointer-events-none" />
-                <div className="text-[9px] font-mono text-sky-400/25 mb-2 uppercase tracking-[0.2em]">
-                  SIGNAL_{String(i + 1).padStart(2, '0')}
+            {topPosts.map((post, i) => {
+              const text    = post.details?.record?.text ?? '';
+              const thumb   = post.details?.embed?.images?.[0]?.thumb ?? null;
+              const alt     = post.details?.embed?.images?.[0]?.alt   ?? '';
+              const postUrl = `https://bsky.app/profile/${BSKY_HANDLE}/post/${post.post_id}`;
+              const date    = post.indexedAt ? relativeTime(post.indexedAt) : '';
+              return (
+                <div key={post.post_id ?? i}
+                  className="border border-sky-900/25 bg-black/40 p-4 hover:border-sky-500/35 hover:bg-sky-950/10 transition-all group relative overflow-hidden flex flex-col"
+                  style={{ animation: `bk-cardReveal 0.4s cubic-bezier(0.16,1,0.3,1) ${i * 0.05 + 0.1}s both` }}
+                >
+                  <span className="absolute top-0 left-0 w-3 h-3 border-t border-l border-sky-500/20 pointer-events-none" />
+
+                  {/* Header */}
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-[9px] font-mono text-sky-400/25 uppercase tracking-[0.2em]">
+                      SIGNAL_{String(i + 1).padStart(2, '00')}
+                    </div>
+                    {date && <div className="text-[9px] font-mono text-sky-400/20">{date}</div>}
+                  </div>
+
+                  {/* Image thumbnail */}
+                  {thumb && (
+                    <div className="mb-3 overflow-hidden border border-sky-900/20">
+                      <img src={thumb} alt={alt}
+                        className="w-full object-cover max-h-36 opacity-70 group-hover:opacity-90 transition-opacity"
+                      />
+                    </div>
+                  )}
+
+                  {/* Post text */}
+                  {text && (
+                    <p className="text-[11px] text-sky-200/60 mb-3 leading-relaxed flex-1 whitespace-pre-wrap">
+                      {text}
+                    </p>
+                  )}
+
+                  {/* Footer: stats + open link */}
+                  <div className="flex items-center justify-between mt-auto pt-2 border-t border-sky-900/15">
+                    <div className="flex gap-4 text-[9px] font-mono text-sky-400/30">
+                      {post.likes    != null && <span>♡ {post.likes}</span>}
+                      {post.reposts  != null && <span>⟳ {post.reposts}</span>}
+                      {post.replies  != null && <span>⌁ {post.replies}</span>}
+                    </div>
+                    <a
+                      href={postUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[9px] font-bold tracking-widest text-sky-400/30 hover:text-sky-300/70 border border-sky-900/30 hover:border-sky-500/40 px-2 py-0.5 transition-all uppercase"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      ↗ bsky
+                    </a>
+                  </div>
                 </div>
-                {post.text && (
-                  <p className="text-[11px] text-sky-200/50 mb-3 line-clamp-3 leading-relaxed">
-                    {post.text}
-                  </p>
-                )}
-                <div className="flex gap-4 text-[9px] font-mono text-sky-400/30">
-                  {post.likes   != null && <span>♡ {post.likes}</span>}
-                  {post.reposts != null && <span>⟳ {post.reposts}</span>}
-                  {post.replies != null && <span>⌁ {post.replies}</span>}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
