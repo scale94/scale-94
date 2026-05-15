@@ -54,8 +54,8 @@ const ArticleView = ({ article, originTab, handleReturnToRoot, onNeuralLink }) =
   const accentBorder  = isAcademic ? 'border-amber-500/50'  : 'border-fuchsia-500/50';
   const accentIdColor = isAcademic ? 'text-amber-400'       : 'text-fuchsia-500';
   const accentBtn     = isAcademic
-    ? 'text-amber-600 hover:text-white border-amber-900/50 hover:border-amber-500'
-    : 'text-cyan-600 hover:text-white border-cyan-900/50 hover:border-cyan-500';
+    ? 'text-amber-600 hover:text-amber-300 border-amber-900/50 hover:border-amber-500'
+    : 'text-cyan-600 hover:text-cyan-200 border-cyan-900/50 hover:border-cyan-500';
 
   return (
   <div className="max-w-4xl mx-auto animate-in zoom-in-95 duration-300">
@@ -165,7 +165,7 @@ const ArticleView = ({ article, originTab, handleReturnToRoot, onNeuralLink }) =
         }
       </div>
 
-      <div className={`mt-16 pt-8 border-t ${isAcademic ? 'border-amber-900/30' : 'border-cyan-900/30'} flex justify-between items-center text-[10px] font-bold tracking-widest text-gray-600 uppercase`}>
+      <div className={`mt-16 pt-8 border-t ${isAcademic ? 'border-amber-900/30' : 'border-cyan-900/30'} flex justify-between items-center text-[10px] font-bold tracking-widest text-zinc-600 uppercase`}>
         <span>{isAcademic ? 'END OF THESIS // ACADEMIC ARCHIVE' : 'END OF TRANSMISSION'}</span>
         <span>SIG: {sig}</span>
       </div>

@@ -33,8 +33,8 @@ const SEV = {
   1: { border: 'border-green-500/40',  bg: 'bg-green-950/10',  text: 'text-green-400',  badge: 'bg-green-900/20 text-green-300 border border-green-700/20',   label: 'LOW' },
 };
 const SEV_DEFAULT = {
-  border: 'border-gray-700/50', bg: 'bg-gray-900/20', text: 'text-gray-400',
-  badge: 'bg-gray-800/60 text-gray-400 border border-gray-600/30', label: 'UNKNOWN',
+  border: 'border-zinc-700/50', bg: 'bg-zinc-900/20', text: 'text-zinc-400',
+  badge: 'bg-zinc-800/60 text-zinc-400 border border-zinc-600/30', label: 'UNKNOWN',
 };
 
 // Region codes match run_surveillance_index() region_code param in lib.rs

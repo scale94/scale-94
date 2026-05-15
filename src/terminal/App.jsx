@@ -586,25 +586,35 @@ const App = () => {
   }, [handleKernelClick]);
 
   // Legislation article opener — used by SurveillanceTab cards.
-  // Calls loadContent() (CAS chunk fetch) if body not yet populated, then
-  // shows the article via the standard ArticleView flow.
-  const handleLegislationSelect = useCallback(async (law) => {
+  // Strategy: navigate synchronously (inside the React event handler tick) with
+  // card metadata so the click is never a no-op, then async-enrich the article
+  // with full CAS chunk content if the chunk exists.
+  const handleLegislationSelect = useCallback((law) => {
+    if (!law) return;
+    // Cancel any in-flight kernel/transmission load so it cannot overwrite us.
     if (loadAbortRef.current) loadAbortRef.current.aborted = true;
     const token = { aborted: false };
     loadAbortRef.current = token;
-    try {
-      const article = law.loadContent ? await law.loadContent() : law;
-      if (token.aborted) return;
-      setOriginTab('surveillance');
-      setSelectedArticle(article);
-      setCurrentPath('~/system/surveillance');
-      if (mainRef.current) {
-        mainRef.current.style.scrollBehavior = 'auto';
-        mainRef.current.scrollTop = 0;
-        window.scrollTo(0, 0);
-      }
-    } catch (err) {
-      console.error('[SURVEILLANCE] Failed to load legislation article:', err);
+
+    // ── Phase 1: navigate immediately (synchronous, inside event handler) ──
+    setOriginTab('surveillance');
+    setSelectedArticle(law);          // show card metadata instantly
+    setCurrentPath('~/system/surveillance');
+    if (mainRef.current) {
+      mainRef.current.style.scrollBehavior = 'auto';
+      mainRef.current.scrollTop = 0;
+      window.scrollTo(0, 0);
+    }
+
+    // ── Phase 2: enrich with full CAS chunk body if one exists ──────────────
+    if (law.loadContent) {
+      law.loadContent()
+        .then(fullArticle => {
+          if (!token.aborted) setSelectedArticle(fullArticle);
+        })
+        .catch(() => {
+          // No chunk file for this legislation article — metadata view is fine.
+        });
     }
   }, []);
 
@@ -864,7 +874,7 @@ const App = () => {
   };
 
   return (
-    <div className={`min-h-screen font-mono selection:bg-fuchsia-900 selection:text-white flex flex-col overflow-hidden relative transition-colors duration-700 ${selectedArticle || architectThesis ? 'bg-[#09090b]' : 'bg-black'} ${relicMode ? 'relic-mode' : ''}`}
+    <div className={`min-h-screen font-mono selection:bg-fuchsia-900 selection:text-amber-300 flex flex-col overflow-hidden relative transition-colors duration-700 ${selectedArticle || architectThesis ? 'bg-[#09090b]' : 'bg-black'} ${relicMode ? 'relic-mode' : ''}`}
       style={{ animation: activeTab === 'art' ? 'none' : 'terminal-flicker 7s ease-in-out infinite' }}
       onTouchStart={showMobileChrome}
       onTouchEnd={hideMobileChromeAfterDelay}
@@ -1136,15 +1146,15 @@ const App = () => {
             <span className="hidden md:inline font-bold tracking-widest text-lg lowercase text-[#39ff14] group-hover:text-cyan-400 transition-colors">scale_9.4</span>
           </div>
           <nav aria-label="Main navigation" className="hidden md:flex items-center gap-1 text-[11px] font-bold tracking-normal overflow-x-auto shrink min-w-0" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-            <button aria-label="Kernel" aria-current={activeTab === 'kernel' ? 'page' : undefined} onClick={() => handleNav('~/system/kernel', 'kernel')} className={`${activeTab === 'kernel' ? 'bg-cyan-500 text-black shadow-[0_0_10px_rgba(6,182,212,0.5)]' : 'text-cyan-500 hover:text-white hover:bg-cyan-900/30'} px-2 py-1 transition-all duration-300 flex items-center gap-1.5 uppercase rounded-sm whitespace-nowrap`}><Cpu className="w-3 h-3" /> /Kernel</button>
+            <button aria-label="Kernel" aria-current={activeTab === 'kernel' ? 'page' : undefined} onClick={() => handleNav('~/system/kernel', 'kernel')} className={`${activeTab === 'kernel' ? 'bg-cyan-500 text-black shadow-[0_0_10px_rgba(6,182,212,0.5)]' : 'text-cyan-500 hover:text-cyan-200 hover:bg-cyan-900/30'} px-2 py-1 transition-all duration-300 flex items-center gap-1.5 uppercase rounded-sm whitespace-nowrap`}><Cpu className="w-3 h-3" /> /Kernel</button>
 
-            <button aria-label="BSKY" aria-current={activeTab === 'bsky' ? 'page' : undefined} onClick={() => handleNav('~/system/bsky', 'bsky')} className={`${activeTab === 'bsky' ? 'bg-sky-600 text-white shadow-[0_0_12px_rgba(56,189,248,0.5)]' : 'text-sky-400/80 hover:text-sky-200 hover:bg-sky-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><NavButterflyIcon /> /BSKY</button>
+            <button aria-label="BSKY" aria-current={activeTab === 'bsky' ? 'page' : undefined} onClick={() => handleNav('~/system/bsky', 'bsky')} className={`${activeTab === 'bsky' ? 'bg-sky-600 text-sky-50 shadow-[0_0_12px_rgba(56,189,248,0.5)]' : 'text-sky-400/80 hover:text-sky-200 hover:bg-sky-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><NavButterflyIcon /> /BSKY</button>
 
             <button aria-label="Manifesto" aria-current={activeTab === 'manifesto' ? 'page' : undefined} onClick={() => handleNav('~/system/manifesto', 'manifesto')} className={`${activeTab === 'manifesto' ? 'bg-violet-900 text-violet-100 shadow-[0_0_10px_rgba(139,92,246,0.5)]' : 'text-violet-400/80 hover:text-violet-200 hover:bg-violet-900/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><Eye className="w-3 h-3" /> /Manifesto</button>
 
             <button aria-label="Transmission" aria-current={activeTab === 'transmission' ? 'page' : undefined} onClick={() => handleNav('~/system/transmission', 'transmission')} className={`${activeTab === 'transmission' ? 'bg-purple-900 text-purple-100 shadow-[0_0_10px_rgba(168,85,247,0.5)]' : 'text-purple-400/80 hover:text-purple-200 hover:bg-purple-900/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm whitespace-nowrap`}>⌖ /Transmission</button>
 
-            <button aria-label="Scaling" aria-current={activeTab === 'scaling' ? 'page' : undefined} onClick={() => handleNav('~/system/scaling', 'scaling')} className={`${activeTab === 'scaling' ? 'bg-fuchsia-500 text-black shadow-[0_0_10px_rgba(217,70,239,0.5)]' : 'text-fuchsia-500 hover:text-white hover:bg-fuchsia-900/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><Scale className="w-3 h-3" /> /Scaling</button>
+            <button aria-label="Scaling" aria-current={activeTab === 'scaling' ? 'page' : undefined} onClick={() => handleNav('~/system/scaling', 'scaling')} className={`${activeTab === 'scaling' ? 'bg-fuchsia-500 text-black shadow-[0_0_10px_rgba(217,70,239,0.5)]' : 'text-fuchsia-500 hover:text-fuchsia-200 hover:bg-fuchsia-900/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><Scale className="w-3 h-3" /> /Scaling</button>
 
             <button aria-label="Privacy" aria-current={activeTab === 'privacy' ? 'page' : undefined} onClick={() => handleNav('~/system/privacy', 'privacy')} className={`${activeTab === 'privacy' ? 'bg-rose-900 text-rose-100 shadow-[0_0_10px_rgba(244,63,94,0.4)]' : 'text-rose-400/80 hover:text-rose-200 hover:bg-rose-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><Lock className="w-3 h-3" /> /Privacy</button>
 
@@ -1152,9 +1162,9 @@ const App = () => {
 
             <button aria-label="Cryptography" aria-current={activeTab === 'cryptography' ? 'page' : undefined} onClick={() => handleNav('~/system/cryptography', 'cryptography')} className={`${activeTab === 'cryptography' ? 'bg-orange-950 text-orange-200 shadow-[0_0_12px_rgba(249,115,22,0.5)]' : 'text-orange-500/70 hover:text-orange-300 hover:bg-orange-950/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><KeyRound className="w-3 h-3" /> /Cryptography</button>
 
-            <button aria-label="Art" aria-current={activeTab === 'art' ? 'page' : undefined} onClick={() => handleNav('~/system/art', 'art')} className={`${activeTab === 'art' ? 'text-black shadow-[0_0_14px_rgba(255,215,0,0.6)]' : 'hover:text-white hover:bg-amber-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`} style={activeTab === 'art' ? { background: 'linear-gradient(90deg,#FF8C00,#FFD700)' } : { color: 'rgba(251,191,36,0.6)' }}><Waves className="w-3 h-3" /> /Art</button>
+            <button aria-label="Art" aria-current={activeTab === 'art' ? 'page' : undefined} onClick={() => handleNav('~/system/art', 'art')} className={`${activeTab === 'art' ? 'text-black shadow-[0_0_14px_rgba(255,215,0,0.6)]' : 'hover:text-amber-300 hover:bg-amber-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`} style={activeTab === 'art' ? { background: 'linear-gradient(90deg,#FF8C00,#FFD700)' } : { color: 'rgba(251,191,36,0.6)' }}><Waves className="w-3 h-3" /> /Art</button>
 
-            <button aria-label="Ecocide" aria-current={activeTab === 'ecocide' ? 'page' : undefined} onClick={() => handleNav('~/system/ecocide', 'ecocide')} className={`${activeTab === 'ecocide' ? 'text-black shadow-[0_0_14px_rgba(122,184,0,0.55)]' : 'hover:text-white hover:bg-[#1a2d00]/40'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`} style={activeTab === 'ecocide' ? { background: 'linear-gradient(90deg,#7ab800,#3d5c00)' } : { color: 'rgba(122,184,0,0.5)' }}><Leaf className="w-3 h-3" /> /Ecocide</button>
+            <button aria-label="Ecocide" aria-current={activeTab === 'ecocide' ? 'page' : undefined} onClick={() => handleNav('~/system/ecocide', 'ecocide')} className={`${activeTab === 'ecocide' ? 'text-black shadow-[0_0_14px_rgba(122,184,0,0.55)]' : 'hover:text-lime-300 hover:bg-[#1a2d00]/40'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`} style={activeTab === 'ecocide' ? { background: 'linear-gradient(90deg,#7ab800,#3d5c00)' } : { color: 'rgba(122,184,0,0.5)' }}><Leaf className="w-3 h-3" /> /Ecocide</button>
 
             <button aria-label="Lunar" aria-current={activeTab === 'lunar' ? 'page' : undefined} onClick={() => handleNav('~/system/lunar', 'lunar')} className={`${activeTab === 'lunar' ? 'bg-violet-900 text-violet-100 shadow-[0_0_12px_rgba(139,92,246,0.5)]' : 'text-violet-400/50 hover:text-violet-200 hover:bg-violet-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><Moon className="w-3 h-3" /> /Lunar</button>
 
@@ -1162,7 +1172,7 @@ const App = () => {
               aria-label="Mercury"
               aria-current={activeTab === 'mercury' ? 'page' : undefined}
               onClick={() => handleNav('~/system/mercury', 'mercury')}
-              className={`${activeTab === 'mercury' ? 'text-white shadow-[0_0_14px_rgba(192,192,192,0.5)]' : 'hover:text-white hover:bg-gray-900/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}
+              className={`${activeTab === 'mercury' ? 'text-zinc-100 shadow-[0_0_14px_rgba(192,192,192,0.5)]' : 'hover:text-zinc-200 hover:bg-zinc-900/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}
               style={activeTab === 'mercury'
                 ? { background: 'linear-gradient(90deg, #707070, #c0c0c0, #707070)' }
                 : { color: 'rgba(192,192,192,0.5)' }}
@@ -1170,7 +1180,7 @@ const App = () => {
               <span style={{ fontSize: 12, lineHeight: 1 }}>◈</span> /Mercury
             </button>
 
-            <button aria-label="Ledger" aria-current={activeTab === 'ledger' ? 'page' : undefined} onClick={() => handleNav('~/system/ledger', 'ledger')} className={`${activeTab === 'ledger' ? 'text-black shadow-[0_0_14px_rgba(20,184,166,0.6)]' : 'hover:text-white hover:bg-teal-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`} style={activeTab === 'ledger' ? { background: 'linear-gradient(90deg,#0d9488,#14b8a6)' } : { color: 'rgba(20,184,166,0.5)' }}><span style={{ fontSize: 12, lineHeight: 1 }}>ᛟ</span> /Ledger</button>
+            <button aria-label="Ledger" aria-current={activeTab === 'ledger' ? 'page' : undefined} onClick={() => handleNav('~/system/ledger', 'ledger')} className={`${activeTab === 'ledger' ? 'text-black shadow-[0_0_14px_rgba(20,184,166,0.6)]' : 'hover:text-teal-200 hover:bg-teal-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`} style={activeTab === 'ledger' ? { background: 'linear-gradient(90deg,#0d9488,#14b8a6)' } : { color: 'rgba(20,184,166,0.5)' }}><span style={{ fontSize: 12, lineHeight: 1 }}>ᛟ</span> /Ledger</button>
 
           </nav>
         </div>
@@ -1193,7 +1203,7 @@ const App = () => {
               art:          { prompt: 'text-amber-400',   path: 'text-amber-300',   cursor: 'bg-amber-400',   border: 'border-amber-500/25', glow: '0 0 18px rgba(255,215,0,0.25), 0 0 4px rgba(255,215,0,0.4)',     cursorGlow: '0 0 10px rgba(255,215,0,0.8)',      pathGlow: '0 0 6px rgba(255,215,0,0.3)' },
               ecocide:      { prompt: 'text-lime-400',    path: 'text-lime-300',    cursor: 'bg-lime-400',    border: 'border-lime-500/25',  glow: '0 0 18px rgba(122,184,0,0.25), 0 0 4px rgba(122,184,0,0.4)',    cursorGlow: '0 0 10px rgba(122,184,0,0.8)',      pathGlow: '0 0 6px rgba(122,184,0,0.3)' },
               lunar:        { prompt: 'text-violet-400',  path: 'text-violet-300',  cursor: 'bg-violet-400',  border: 'border-violet-500/25',glow: '0 0 18px rgba(139,92,246,0.25), 0 0 4px rgba(139,92,246,0.4)',    cursorGlow: '0 0 10px rgba(139,92,246,0.8)',     pathGlow: '0 0 6px rgba(139,92,246,0.3)' },
-              mercury:      { prompt: 'text-gray-400', path: 'text-gray-300', cursor: 'bg-gray-400', border: 'border-gray-500/25', glow: '0 0 18px rgba(192,192,192,0.2), 0 0 4px rgba(192,192,192,0.35)', cursorGlow: '0 0 10px rgba(192,192,192,0.7)', pathGlow: '0 0 6px rgba(192,192,192,0.25)' },
+              mercury:      { prompt: 'text-zinc-400', path: 'text-zinc-300', cursor: 'bg-zinc-400', border: 'border-zinc-500/25', glow: '0 0 18px rgba(192,192,192,0.2), 0 0 4px rgba(192,192,192,0.35)', cursorGlow: '0 0 10px rgba(192,192,192,0.7)', pathGlow: '0 0 6px rgba(192,192,192,0.25)' },
               ledger:       { prompt: 'text-teal-400',    path: 'text-teal-300',    cursor: 'bg-teal-400',    border: 'border-teal-500/25',  glow: '0 0 18px rgba(20,184,166,0.25), 0 0 4px rgba(20,184,166,0.4)',   cursorGlow: '0 0 10px rgba(20,184,166,0.8)',     pathGlow: '0 0 6px rgba(20,184,166,0.3)' },
             };
             const t = _bc[activeTab] || _bc.kernel;
@@ -1244,6 +1254,7 @@ const App = () => {
               <ScalingTab
                 setArchitectThesis={setArchitectThesis}
                 setCurrentPath={setCurrentPath}
+                setOriginTab={setOriginTab}
                 loadKernel={handleNeuralLink}
               />
             </WasmErrorBoundary>
@@ -1438,9 +1449,8 @@ const App = () => {
             </div>
           )}
 
-          {/* Prompt + input — greyed out on kernel home (tty0 is primary there) */}
-          {/* TODO: remove opacity/pointer-events wrapper when kernel home footer is retired */}
-          <div className={`flex items-center gap-2 flex-grow min-w-0 transition-opacity duration-300 ${activeTab === 'kernel' && !selectedArticle && !architectThesis && !tagCloudView ? 'opacity-15 pointer-events-none select-none' : ''}`}>
+          {/* Prompt + input — active on all tabs including kernel home */}
+          <div className="flex items-center gap-2 flex-grow min-w-0">
             <span className="text-fuchsia-500 hidden md:inline shrink-0" aria-hidden="true">scale@node:~$</span>
             <span className="text-fuchsia-500 md:hidden shrink-0" aria-hidden="true">~$</span>
             <label htmlFor="terminal-input" className="sr-only">Enter terminal command</label>
@@ -1511,11 +1521,11 @@ const App = () => {
         <button
           onClick={() => handleNav('~/system/mercury', 'mercury')}
           aria-label="Mercury"
-          className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 font-mono ${activeTab === 'mercury' ? 'text-gray-200' : 'text-gray-500/50'}`}
+          className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 font-mono ${activeTab === 'mercury' ? 'text-zinc-200' : 'text-zinc-500/50'}`}
         >
-          <span style={{ fontSize: 20, lineHeight: 1 }}>◈</span>
+          <span style={{ fontSize: 24, lineHeight: 1 }}>◈</span>
         </button>
-        <button onClick={() => handleNav('~/system/ledger', 'ledger')} aria-label="Ledger" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'ledger' ? 'text-teal-400' : 'text-teal-400/50'}`}><span style={{ fontSize: 20, lineHeight: 1 }}>ᛟ</span></button>
+        <button onClick={() => handleNav('~/system/ledger', 'ledger')} aria-label="Ledger" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'ledger' ? 'text-teal-400' : 'text-teal-400/50'}`}><span style={{ fontSize: 24, lineHeight: 1 }}>ᛟ</span></button>
       </nav>
 
       </div>{/* end CRT content wrapper */}

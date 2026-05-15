@@ -67,7 +67,7 @@ function useParticleBurst(canvasRef) {
   return spawnBurst;
 }
 
-const ScalingTab = ({ setArchitectThesis, setCurrentPath, loadKernel }) => {
+const ScalingTab = ({ setArchitectThesis, setCurrentPath, setOriginTab, loadKernel }) => {
   const [copied, setCopied] = useState(false);
   const ethParticleRef = useRef(null);
   const spawnBurst = useParticleBurst(ethParticleRef);
@@ -251,8 +251,8 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, loadKernel }) => {
             A deep dive into the philosophy of creation, friction, and the Fermions/Bosons collision model.
           </p>
           <button
-            onClick={() => { setArchitectThesis(true); setCurrentPath('~/system/scaling/thesis'); }}
-            className="flex items-center gap-2 text-xs font-bold text-cyan-400 group-hover:translate-x-1 transition-transform cursor-pointer hover:text-white"
+            onClick={() => { setArchitectThesis(true); setOriginTab?.('scaling'); setCurrentPath('~/system/scaling/thesis'); }}
+            className="flex items-center gap-2 text-xs font-bold text-cyan-400 group-hover:translate-x-1 transition-transform cursor-pointer hover:text-cyan-200"
           >
             <ChevronRight className="w-4 h-4" /> LOAD THESIS LOG
           </button>
@@ -272,7 +272,7 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, loadKernel }) => {
           </div>
 
           <div className="text-[10px] font-bold text-cyan-500/70 uppercase tracking-widest mb-3 flex items-center gap-2">
-            <Cpu className="w-3 h-3" /> SERAPHINE-8.8.8.8.8.8.8.8 · FADE_DOCTRINE · SOMA-9.4
+            <Cpu className="w-3 h-3" /> SERAPHINE-8.8.8.8.8.8.8.8 · FADE_DOCTRINE · MERCURY TERMINAL
           </div>
 
           <h3 className="text-xl font-bold mb-5 leading-tight tracking-tight" style={{ opacity: 0, animation: 'sc-titleReveal 0.7s cubic-bezier(0.16,1,0.3,1) 1.3s both, sc-headColorAlt 11s ease-in-out 0.5s infinite' }}>
@@ -299,21 +299,21 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, loadKernel }) => {
 
           <button
             onClick={() => loadKernel && loadKernel('FADE-DOCTRINE-KERNEL-2.0.0')}
-            className="flex items-center gap-2 text-xs font-bold text-fuchsia-400 group-hover:translate-x-1 transition-transform cursor-pointer hover:text-white"
+            className="flex items-center gap-2 text-xs font-bold text-fuchsia-400 group-hover:translate-x-1 transition-transform cursor-pointer hover:text-fuchsia-200"
           >
             <ChevronRight className="w-4 h-4" /> READ PAPER
           </button>
         </div>
       </div>
 
-      {/* ── RUN COMMAND MANUAL V2.1 ── */}
+      {/* ── RUN COMMAND MANUAL V2.2 ── */}
       <div
         className="border-t border-cyan-900/30 pt-8 mb-8"
         style={{ opacity: 0, animation: 'sc-cardReveal 0.6s cubic-bezier(0.16,1,0.3,1) 0.8s forwards' }}
       >
         <div className="mb-5">
-          <div className="text-lg sm:text-xl font-bold uppercase tracking-widest mb-1" style={{ opacity: 0, animation: 'sc-headReveal 0.5s cubic-bezier(0.16,1,0.3,1) 1.45s both, sc-headColor 9s ease-in-out 3s infinite' }}>RUN COMMAND MANUAL V2.1</div>
-          <div className="text-[10px] text-fuchsia-500/60 font-mono uppercase tracking-widest">// WASM KERNEL INTERFACE · 38 KERNELS · SOMA-9.4</div>
+          <div className="text-lg sm:text-xl font-bold uppercase tracking-widest mb-1" style={{ opacity: 0, animation: 'sc-headReveal 0.5s cubic-bezier(0.16,1,0.3,1) 1.45s both, sc-headColor 9s ease-in-out 3s infinite' }}>RUN COMMAND MANUAL V2.2</div>
+          <div className="text-[10px] text-fuchsia-500/60 font-mono uppercase tracking-widest">// WASM KERNEL INTERFACE · 38 KERNELS · MERCURY TERMINAL</div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 font-mono text-[11px]">
@@ -398,6 +398,73 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, loadKernel }) => {
             </div>
           </div>
 
+          {/* Volatile Semiotics & Mercury Subsystems */}
+          <div className="border border-[#39ff14]/10 bg-black/30 p-4 rounded-lg md:col-span-2"
+            style={{ opacity: 0, animation: 'sc-cardReveal 0.5s cubic-bezier(0.16,1,0.3,1) 1.25s forwards' }}>
+            <div className="text-[10px] font-bold uppercase tracking-widest mb-3 pb-2 border-b border-[#39ff14]/10 flex items-center justify-between"
+              style={{ opacity: 0, animation: 'sc-headReveal 0.5s cubic-bezier(0.16,1,0.3,1) 1.8s both, sc-headColor 9s ease-in-out 6s infinite' }}>
+              <span>VOLATILE SEMIOTICS &amp; MERCURY SUBSYSTEMS</span>
+              <span className="text-[9px] text-[#39ff14]/30 font-normal normal-case tracking-normal">16 kernels</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-[#39ff14]/80">
+
+              {/* col 1 */}
+              <div className="space-y-2">
+                <div><span className="text-fuchsia-400">run ock</span> <span className="text-cyan-700">[--top 0.55] [--heart 0.65] [--base 0.50] [--preset -1]</span></div>
+                <div className="text-[10px] text-cyan-600/40 pl-2">Olfactory Computational Kernel · Bimmelbahn Accord · note pyramid + evaporation arc</div>
+
+                <div className="mt-2"><span className="text-fuchsia-400">run fish_scale</span> <span className="text-cyan-700">[--pressure 3.8] [--layers 32] [--theta 36] [--cascade N]</span></div>
+                <div className="text-[10px] text-cyan-600/40 pl-2">Feigenbaum-Bouligand armor cascade · Arapaima 36° interlaminar rotation · saponification window</div>
+
+                <div className="mt-2"><span className="text-fuchsia-400">run eco_sx</span> <span className="text-cyan-700">[--transmute top/heart/base]</span></div>
+                <div className="text-[10px] text-cyan-600/40 pl-2">ecological synthesis exchange · note pyramid transmutation · olfactory accord routing</div>
+
+                <div className="mt-2"><span className="text-fuchsia-400">run mercury</span> <span className="text-cyan-700">[--fluid-dynamics true]</span></div>
+                <div className="text-[10px] text-cyan-600/40 pl-2">Mercury Terminal native kernel · fluid topology routing · signal transmutation layer</div>
+
+                <div className="mt-2"><span className="text-fuchsia-400">run lunar_protocol</span> <span className="text-cyan-700">[--phase XYZ]</span></div>
+                <div className="text-[10px] text-cyan-600/40 pl-2">lunar cycle synchronization · phase-locked sovereign timing · nocturnal signal field</div>
+
+                <div className="mt-2"><span className="text-fuchsia-400">run sorbe</span> <span className="text-cyan-700">[--doctrinal 0.72] [--ecological 0.68] [--visual 0.75]</span></div>
+                <div className="text-[10px] text-cyan-600/40 pl-2">Sorbe Bloom · Sovereign Node Initiation · dissipative structure phase transition · Node 0108</div>
+
+                <div className="mt-2"><span className="text-fuchsia-400">run aristocrat</span> <span className="text-cyan-700">[--thermal 3.5] [--snr 0.65] [--authority 0.7]</span></div>
+                <div className="text-[10px] text-cyan-600/40 pl-2">Necromantic Aristocrat · Gold Posture · Anti-Mercury · Reference Voltage · Bouligand 36°</div>
+
+                <div className="mt-2"><span className="text-fuchsia-400">run sss</span> <span className="text-cyan-700">[--kinetic 0.0] [--freq 4] [--precommit 0.9]</span></div>
+                <div className="text-[10px] text-cyan-600/40 pl-2">SSS Doctrine · literary deterrent · Schelling ironic calculus · precommitment as sovereignty</div>
+              </div>
+
+              {/* col 2 */}
+              <div className="space-y-2">
+                <div><span className="text-fuchsia-400">run soma55</span></div>
+                <div className="text-[10px] text-cyan-600/40 pl-2">soma_kernel_5.5 boot · renewable stock + Strangler Fig · Soma Plus + Daly rules diagnostics</div>
+
+                <div className="mt-2"><span className="text-fuchsia-400">run biodiversity</span> <span className="text-cyan-700">[--n 50] [--exp 1.0] [--steps 50]</span></div>
+                <div className="text-[10px] text-cyan-600/40 pl-2">Biocoenosis simulation · Zipf rank-abundance · Shannon / Simpson entropy drift</div>
+
+                <div className="mt-2"><span className="text-fuchsia-400">run kuramoto</span> <span className="text-cyan-700">[--n 50] [--coupling 1.5] [--sigma 1.0] [--steps 500]</span></div>
+                <div className="text-[10px] text-cyan-600/40 pl-2">synchrony engine · collective phase lock · K_c critical coupling · order parameter r</div>
+
+                <div className="mt-2"><span className="text-fuchsia-400">run feigenbaum</span> <span className="text-cyan-700">[--start 2.8] [--end 4.0] [--warmup 200] [--samples 100]</span></div>
+                <div className="text-[10px] text-cyan-600/40 pl-2">bifurcation cascade · period-doubling → chaos onset r∞=3.5699 · attractor portrait</div>
+
+                <div className="mt-2"><span className="text-fuchsia-400">run ising</span> <span className="text-cyan-700">[--size 20] [--temp 2.5] [--field 0.0] [--sweeps 100]</span></div>
+                <div className="text-[10px] text-cyan-600/40 pl-2">Ising consensus field · social temperature · T_c≈2.269 phase transition · narrative field h</div>
+
+                <div className="mt-2"><span className="text-fuchsia-400">run gaia_scale</span> <span className="text-cyan-700">[--threat 3.0] [--resource 0.65] [--horizon 500]</span></div>
+                <div className="text-[10px] text-cyan-600/40 pl-2">Gaia-Scale sovereign reconstruction · Triarchy truth/law/empathy · 500-yr mineral reserve</div>
+
+                <div className="mt-2"><span className="text-fuchsia-400">run shadowsocks</span> <span className="text-cyan-700">[--affect 0.6] [--technical 0.7] [--temp 0.9]</span></div>
+                <div className="text-[10px] text-cyan-600/40 pl-2">RLHF sycophancy field · channel switch probability · affective exfiltration model</div>
+
+                <div className="mt-2"><span className="text-fuchsia-400">run emperor</span> <span className="text-cyan-700">[--plato 0.72] [--promo 0.28] [--horizon 100]</span></div>
+                <div className="text-[10px] text-cyan-600/40 pl-2">Necromantic Emperor · Fish Scale Paradox · Fermion-Boson · Iron Core · 3000 AD horizon</div>
+              </div>
+
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -408,7 +475,7 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, loadKernel }) => {
           <div className="flex items-center gap-2 text-cyan-400 font-bold mb-1">
             <Globe className="w-4 h-4" /> BSKY:
           </div>
-          <a href="https://bsky.app/profile/scale94.com" target="_blank" rel="noreferrer" className="text-cyan-300 text-sm hover:underline hover:text-white transition-colors">@scale94.com</a>
+          <a href="https://bsky.app/profile/scale94.com" target="_blank" rel="noreferrer" className="text-cyan-300 text-sm hover:underline hover:text-cyan-100 transition-colors">@scale94.com</a>
         </div>
 
         <div className="border border-fuchsia-900/30 bg-black/40 p-4 rounded-lg flex flex-col justify-center items-center hover:bg-fuchsia-900/10 transition-colors">
@@ -425,7 +492,7 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, loadKernel }) => {
           </div>
           <div className="text-[10px] text-cyan-500 font-mono mb-1 uppercase tracking-widest">eth:</div>
           <div
-            className="font-mono text-[10px] text-cyan-300 break-all select-all cursor-pointer hover:text-white transition-colors"
+            className="font-mono text-[10px] text-cyan-300 break-all select-all cursor-pointer hover:text-amber-300 transition-colors"
             title="Click to copy ETH address"
             onClick={handleCopyEth}
           >
