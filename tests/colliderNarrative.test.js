@@ -52,6 +52,43 @@ describe('detectArchetype', () => {
   });
 });
 
+describe('buildDecayArc', () => {
+  it('returns 3 beats with time labels', () => {
+    const { buildDecayArc } = __test__;
+    const card = {
+      topNotes: ['bergamot', 'neroli'],
+      heartNotes: ['jasmine sambac', 'osmanthus'],
+      baseNotes: ['vetiver', 'oud'],
+      dom: 'citrus',
+      sec: 'floral',
+      interference: null,
+    };
+    const narrative = { registerTone: 'assertive' };
+    const beats = buildDecayArc(card, narrative);
+    expect(beats).toHaveLength(3);
+    expect(beats[0].time).toBe('t = 0');
+    expect(beats[1].time).toBe('t = 30 min');
+    expect(beats[2].time).toBe('t = 4 h+');
+    expect(beats[0].notes).toEqual(['bergamot', 'neroli']);
+  });
+
+  it('flavors prose with interference label when present', () => {
+    const { buildDecayArc } = __test__;
+    const card = {
+      topNotes: ['bergamot'],
+      heartNotes: ['lapsang'],
+      baseNotes: ['vetiver'],
+      dom: 'citrus',
+      sec: 'woody',
+      interference: { label: 'SMOKED', prefix: 'Smoked' },
+    };
+    const beats = buildDecayArc(card, { registerTone: 'assertive' });
+    // At least one beat's prose should include a smoke-related word
+    const smokyBeat = beats.find(b => /smoke|veil/i.test(b.prose));
+    expect(smokyBeat).toBeTruthy();
+  });
+});
+
 describe('buildPromptFragments metric injection', () => {
   it('passes metrics object to template functions', () => {
     const { buildPromptFragments } = __test__;

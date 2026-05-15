@@ -229,6 +229,73 @@ function buildParadoxQuestions(paradoxes) {
   });
 }
 
+// ── Decay Arc — time-evolution narrative ────────────────────────────────────
+
+const PROSE_LIBRARY = {
+  top: {
+    assertive:    ['the chimera surfaces, %DOM%-forward, electric', 'first contact: %DOM% structure asserts itself', '%DOM% facets ignite first; the rest waits'],
+    connective:   ['light %DOM% threads weave the opening', 'the chimera arrives in %DOM% drift', '%DOM% notes interlace and lift'],
+    foundational: ['a quiet %DOM% prelude', '%DOM% scaffold rises', 'the chimera approaches in low %DOM%'],
+    speculative:  ['something %DOM% — provisional', 'a hint of %DOM%, hard to fix', 'the opening is %DOM%-shaped, barely'],
+  },
+  heart: {
+    assertive:    ['the floral architecture stabilizes; resinous undertones emerge', 'the heart locks: this is what the chimera actually is', '%DOM% ceded; the heart speaks its real name'],
+    connective:   ['the heart braids %DOM% through warmer threads', 'transition: %DOM% softens into the body', 'the chimera widens, settles, breathes'],
+    foundational: ['the heart holds; %DOM% recedes to scaffolding', 'core notes assemble around a %DOM% spine', 'the body declares itself, spare and load-bearing'],
+    speculative:  ['the heart is uncertain; %DOM% may not survive the hour', 'something tries to be the heart; whether it succeeds is open', 'transient %DOM% gesture in the middle phase'],
+  },
+  base: {
+    assertive:    ['what remains: the strange attractor, post-cascade', 'the base persists — the only signal time cannot dilute', 'residue: %DOM% reduced to its irreducible'],
+    connective:   ['the base diffuses; %DOM% threads outlast the body', 'late phase: %DOM% bleeds slowly into skin', 'the chimera lingers as %DOM% residue'],
+    foundational: ['the base is the foundation made audible', '%DOM% becomes geology — slow, mineral, permanent', 'what scaffolded the heart now scaffolds the wearer'],
+    speculative:  ['the base may not arrive', 'whatever remains is partial; the chimera was never finished', 'a faint %DOM% echo, then nothing'],
+  },
+};
+
+const INTERFERENCE_FLAVOR = {
+  SMOKED:       'smoke-veiled ',
+  SENSUAL:      'indolic ',
+  GEOLOGICAL:   'tectonic ',
+  ROMANTIC:     'verdant ',
+  ARCHAIC:      'tar-stained ',
+  SUBTERRANEAN: 'mineral ',
+  MARINE:       'saline ',
+};
+
+function pickProse(layer, tone, dom, interference) {
+  const bank = PROSE_LIBRARY[layer]?.[tone] || PROSE_LIBRARY[layer]?.assertive || ['the chimera continues'];
+  // Deterministic: use length sum as cheap seed
+  const seed = (dom?.length || 1) + layer.length + tone.length;
+  const phrase = bank[seed % bank.length].replaceAll('%DOM%', dom || 'the opening');
+  const flavor = interference?.label ? (INTERFERENCE_FLAVOR[interference.label] || '') : '';
+  return flavor + phrase;
+}
+
+function buildDecayArc(card, narrative) {
+  const tone = narrative?.registerTone || 'assertive';
+  const interference = card.interference || null;
+  return [
+    {
+      time:  't = 0',
+      label: '[bright opening]',
+      notes: card.topNotes,
+      prose: pickProse('top', tone, card.dom, interference),
+    },
+    {
+      time:  't = 30 min',
+      label: '[heart unfolds]',
+      notes: card.heartNotes,
+      prose: pickProse('heart', tone, card.dom, interference),
+    },
+    {
+      time:  't = 4 h+',
+      label: '[base residue]',
+      notes: card.baseNotes,
+      prose: pickProse('base', tone, card.dom, interference),
+    },
+  ];
+}
+
 // ── Prompt Fragments ──────────────────────────────────────────────────────
 // Short, evocative, directly usable prompt seeds. Each fragment is designed
 // to be pasted into an LLM as a creative constraint or conceptual seed.
@@ -511,5 +578,5 @@ export function useColliderNarrative(result) {
 }
 
 // ── Test-only exports ──────────────────────────────────────────────────────
-export const __test__ = { detectArchetype, buildPromptFragments };
+export const __test__ = { detectArchetype, buildPromptFragments, buildDecayArc };
 
