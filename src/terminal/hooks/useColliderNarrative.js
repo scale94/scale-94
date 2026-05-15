@@ -323,6 +323,21 @@ function buildPromptFragments(archetype, result, domainNameA, domainNameB) {
   const a = domainNameA;
   const b = domainNameB;
 
+  // Per-collision metrics — passed to every template invocation
+  const m = {
+    topConvDelta:  result.convergence?.[0]?.delta ?? 0,
+    topConvLabel:  DIM_SEMANTIC[result.convergence?.[0]?.name]?.tag || result.convergence?.[0]?.name || '',
+    topDivDelta:   result.divergence?.[0]?.delta ?? 0,
+    topDivLabel:   DIM_SEMANTIC[result.divergence?.[0]?.name]?.tag || result.divergence?.[0]?.name || '',
+    topParaResid:  result.paradoxes?.[0]?.residual ?? null,
+    novelty:       result.novelty ?? 0,
+    coherence:     result.coherence ?? 0,
+    viability:     result.viability ?? 0,
+    turbulence:    result.turbulence ?? 0,
+    catalysis:     result.catalysis ?? 0,
+    resonanceFreq: result.resonanceFreq || 0,
+  };
+
   // 1. Archetype-derived fragments
   const templates = archetype ? FRAGMENT_TEMPLATES[archetype.label] : null;
   if (templates) {
@@ -338,7 +353,7 @@ function buildPromptFragments(archetype, result, domainNameA, domainNameB) {
   if ((result.catalysis || 0) > 0.3) {
     fragments.push({
       source: 'CATALYSIS',
-      text: `${a} catalyzes ${b}: the collision accelerates a phase transition that neither domain could reach alone. What emerges on the other side?`,
+      text: `${a} catalyzes ${b} (catalysis ${m.catalysis.toFixed(2)}): the collision accelerates a phase transition that neither domain could reach alone. What emerges on the other side?`,
     });
   } else if ((result.interference || 0) > 0.25) {
     fragments.push({
@@ -351,15 +366,16 @@ function buildPromptFragments(archetype, result, domainNameA, domainNameB) {
   if ((result.resonanceFreq || 0) > 0.45) {
     fragments.push({
       source: 'RESONANCE',
-      text: `${a} and ${b} share a resonance frequency — they can exchange information faster than either can with any other domain. Design the protocol.`,
+      text: `${a} and ${b} share a resonance frequency (${(m.resonanceFreq * 100).toFixed(0)}% phase-lock potential) — they can exchange information faster than either can with any other domain. Design the protocol.`,
     });
   }
 
   // 4. Turbulence fragment — if the chimera is unstable/generative
   if ((result.turbulence || 0) > 0.04) {
+    const daughters = Math.round(2 + m.turbulence * 30);
     fragments.push({
       source: 'TURBULENCE',
-      text: `Turbulent chimera: the ${a} × ${b} synthesis is unstable by design. It will fragment into 3–4 daughter concepts. Name them.`,
+      text: `Turbulent chimera: the ${a} × ${b} synthesis is unstable by design. It will fragment into ${daughters} daughter concepts. Name them.`,
     });
   }
 
@@ -379,7 +395,7 @@ function buildPromptFragments(archetype, result, domainNameA, domainNameB) {
     if (sem) {
       fragments.push({
         source: 'PARADOX',
-        text: `Irreconcilable: ${a} and ${b} agree on everything except ${sem.tag.toLowerCase()}. This tension cannot be resolved — build the concept that lives inside the contradiction.`,
+        text: `Irreconcilable: ${a} and ${b} agree on everything except ${sem.tag.toLowerCase()} (residual Δ${top.residual.toFixed(3)} after 32 saponification rounds). This tension cannot be resolved — build the concept that lives inside the contradiction.`,
       });
     }
   }
@@ -495,5 +511,5 @@ export function useColliderNarrative(result) {
 }
 
 // ── Test-only exports ──────────────────────────────────────────────────────
-export const __test__ = { detectArchetype };
+export const __test__ = { detectArchetype, buildPromptFragments };
 

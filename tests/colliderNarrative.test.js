@@ -51,3 +51,23 @@ describe('detectArchetype', () => {
     expect(result.kind).toBe('pair');
   });
 });
+
+describe('buildPromptFragments metric injection', () => {
+  it('passes metrics object to template functions', () => {
+    const { buildPromptFragments } = __test__;
+    const archetype = { kind: 'pair', label: 'BIFURCATION CASCADE', thesis: '', dims: ['nonlinearity','criticality'] };
+    const result = {
+      novelty: 0.6, coherence: 0.4, viability: 5.0,
+      turbulence: 0.08, catalysis: 0.1, resonanceFreq: 0.3,
+      convergence: [{ name: 'nonlinearity', contrib: 0.5, delta: 0.1 }],
+      divergence: [{ name: 'temporal', delta: 0.87 }],
+      paradoxes: [{ name: 'spatial', residual: 0.42 }],
+    };
+    const frags = buildPromptFragments(archetype, result, 'Cosmology', 'Music');
+    // Find the turbulence fragment — it now reads delta from m
+    const turb = frags.find(f => f.source === 'TURBULENCE');
+    expect(turb).toBeTruthy();
+    // Should reference daughter-concept count derived from turbulence
+    expect(turb.text).toMatch(/\d+ daughter concepts/);
+  });
+});
