@@ -1,0 +1,19 @@
+{
+  "name": "scale94-collider-bot",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "description": "Discord bot for the Olfactory Collider — issues sovereign keys for Living Accord redemption.",
+  "scripts": {
+    "start":    "node index.js",
+    "register": "node register-commands.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "dotenv":     "^16.4.5",
+    "jose":       "^5.9.6"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
