@@ -929,6 +929,62 @@ _Transmutation complete. The physical substrate is vaulted. The data is sovereig
 `;
 }
 
+// ── 16-Beam parameter trace at collision impact ────────────────────────────
+// One beam per OCK dimension; convergence beams green-shifted, divergence
+// magenta-shifted, paradox red. Lifespan scales with magnitude.
+
+const DIM_ORDER_BEAMS = [
+  'dynamical','nonlinearity','dimensionality','criticality',
+  'entropy','synchrony','conservation','temporal',
+  'spatial','stochastic','game_theory','thermodynamic',
+  'information','cryptographic','biological','economic',
+];
+
+function buildBeams(result, hueA, hueB) {
+  if (!result) return null;
+  const beams = [];
+  for (let i = 0; i < 16; i++) {
+    const name = DIM_ORDER_BEAMS[i];
+    const conv = result.convergence?.find(d => d.name === name);
+    const div  = result.divergence?.find(d => d.name === name);
+    const para = result.paradoxes?.find(d => d.name === name);
+    let kind = 'idle', mag = 0, hue = 0;
+    if (conv)      { kind = 'conv'; mag = Math.min(1, conv.contrib);  hue = (hueA + 60) % 360; }
+    else if (div)  { kind = 'div';  mag = Math.min(1, div.delta);     hue = (hueB + 300) % 360; }
+    else if (para) { kind = 'para'; mag = Math.min(1, para.residual); hue = 350; }
+    beams.push({
+      angle: (i / 16) * Math.PI * 2 - Math.PI / 2,
+      kind, mag, hue,
+      lifespanMs: 120 + mag * 680,
+    });
+  }
+  return beams;
+}
+
+function drawDimensionBeams(ctx, beamsState, frameT, w, h) {
+  if (!beamsState || !beamsState.beams) return;
+  if (beamsState.startedAt == null) beamsState.startedAt = frameT;
+  // Convert frame counter to ms (assuming ~16ms per frame at 60fps)
+  const elapsed = (frameT - beamsState.startedAt) * 16;
+  const cx = w / 2, cy = h / 2;
+  for (const beam of beamsState.beams) {
+    if (elapsed > beam.lifespanMs) continue;
+    if (beam.mag < 0.02) continue;
+    const progress = elapsed / beam.lifespanMs;
+    const eased = 1 - (1 - progress) * (1 - progress); // easeOut
+    const length = beam.mag * Math.min(w, h) * 0.4 * eased;
+    const alpha = (1 - progress) * 0.85;
+    const x2 = cx + Math.cos(beam.angle) * length;
+    const y2 = cy + Math.sin(beam.angle) * length;
+    ctx.strokeStyle = `hsla(${beam.hue},85%,60%,${alpha})`;
+    ctx.lineWidth = 0.5 + beam.mag * 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+}
+
 function createParticle(x, y, hue, vx, vy, type) {
   return {
     x, y, vx, vy,
@@ -952,6 +1008,7 @@ export default function LatentCollider() {
   const timerRef = useRef(0);
   const metricsRef = useRef(null);
   const sizeRef = useRef({ w: 0, h: 0 });
+  const beamsRef = useRef(null); // { beams, startedAt } populated at impact
 
   const [domainA, setDomainA] = useState(null);
   const [domainB, setDomainB] = useState(null);
@@ -1226,6 +1283,9 @@ export default function LatentCollider() {
       phaseRef.current = 'colliding';
       timerRef.current = 0;
 
+      // ── 16-Beam parameter trace: build beams from this collision's OCK dims
+      beamsRef.current = { beams: buildBeams(parsed, domainById(a).hue, domainById(b).hue), startedAt: null };
+
       // ── Fetch live astro data for mathematical astrology overlay ──────
       loadWasm().then(w => {
         try { setColliderAstro(parseAstroOutput(w.run_astro(Date.now()))); } catch {}
@@ -1322,6 +1382,7 @@ export default function LatentCollider() {
     metricsRef.current = null;
     particlesRef.current = [];
     timerRef.current = 0;
+    beamsRef.current = null;
     colliderBus.emit({ type: 'COLLIDER_PHASE', phase: 'idle' });
   }, []);
 
@@ -1621,6 +1682,12 @@ export default function LatentCollider() {
 
       // Restore canvas from shake transform
       if (shaking) ctx.restore();
+
+      // ── 16-Beam parameter trace — fires from t=80 onward, each beam
+      //    decays at a rate proportional to its OCK dimension magnitude.
+      if (ph === 'colliding' && t > 80 && beamsRef.current) {
+        drawDimensionBeams(ctx, beamsRef.current, t, w, h);
+      }
 
       // ── Result metrics overlay (delayed to let impact breathe) ─────────
       if (ph === 'colliding' && metrics && t > 80) {
