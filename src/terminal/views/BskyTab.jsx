@@ -264,6 +264,7 @@ const BSKY_HANDLE = 'scale94.com';
 const BskyTab = () => {
   const [bskyStats, setBskyStats] = useState(null);
   const [topPosts,  setTopPosts]  = useState([]);
+  const [trending,  setTrending]  = useState({ topics: [], suggested: [] });
   const [loading,   setLoading]   = useState(false);
   const [fetchErr,  setFetchErr]  = useState(null);
   const [lastSync,  setLastSync]  = useState(null);
@@ -276,14 +277,20 @@ const BskyTab = () => {
     setLoading(true);
     setFetchErr(null);
     try {
-      // Always fetch profile stats from the public Bluesky API (no key needed)
-      const profile = await fetch(
-        `https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${BSKY_HANDLE}`
-      ).then(r => r.json());
+      const [profile, trendingRes] = await Promise.all([
+        fetch(`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${BSKY_HANDLE}`).then(r => r.json()),
+        fetch('https://public.api.bsky.app/xrpc/app.bsky.unspecced.getTrendingTopics?limit=20').then(r => r.json()),
+      ]);
+
       setBskyStats({
         followers: profile.followersCount ?? '—',
         following: profile.followsCount   ?? '—',
         posts:     profile.postsCount     ?? '—',
+      });
+
+      setTrending({
+        topics:    Array.isArray(trendingRes.topics)    ? trendingRes.topics    : [],
+        suggested: Array.isArray(trendingRes.suggested) ? trendingRes.suggested.slice(0, 12) : [],
       });
 
       // Top-posts require GraphTracks
@@ -486,6 +493,63 @@ const BskyTab = () => {
           </div>
         </div>
       </div>
+
+      {/* ── Network pulse ────────────────────────────────────────────────────── */}
+      {(trending.topics.length > 0 || trending.suggested.length > 0) && (
+        <div className="mb-6">
+          <div className="text-[9px] font-bold tracking-[0.3em] text-sky-400/40 uppercase mb-3 border-b border-sky-900/15 pb-2 flex items-center gap-2">
+            <Radio className="w-2.5 h-2.5 text-sky-500/60" />
+            NETWORK_PULSE
+            <span className="ml-auto text-sky-400/20 font-mono normal-case tracking-normal">bsky.app // live</span>
+          </div>
+
+          {/* Trending topics */}
+          {trending.topics.length > 0 && (
+            <div className="mb-4">
+              <div className="text-[8px] font-bold tracking-[0.25em] text-sky-400/25 uppercase mb-2">
+                TRENDING
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {trending.topics.map((t, i) => (
+                  <a
+                    key={t.topic}
+                    href={`https://bsky.app${t.link}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[10px] font-bold tracking-wide border border-sky-500/20 bg-sky-950/20 text-sky-300/60 px-2.5 py-1 hover:border-sky-400/50 hover:text-sky-200/90 hover:bg-sky-950/40 transition-all"
+                    style={{ animation: `bk-cardReveal 0.3s ease ${i * 0.03}s both` }}
+                  >
+                    {t.topic}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Suggested feeds */}
+          {trending.suggested.length > 0 && (
+            <div>
+              <div className="text-[8px] font-bold tracking-[0.25em] text-sky-400/25 uppercase mb-2">
+                COMMUNITY_FEEDS
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {trending.suggested.map((s, i) => (
+                  <a
+                    key={s.topic}
+                    href={`https://bsky.app${s.link}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[9px] font-mono tracking-wide border border-sky-900/30 bg-black/30 text-sky-400/35 px-2 py-0.5 hover:border-sky-700/50 hover:text-sky-400/60 transition-all"
+                    style={{ animation: `bk-cardReveal 0.3s ease ${i * 0.025 + 0.15}s both` }}
+                  >
+                    {s.topic}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── dollspace featured credit ────────────────────────────────────────── */}
       <div style={{
