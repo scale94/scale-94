@@ -595,6 +595,27 @@ const CAS_REGISTRY = {
 const _pickNote = (arr, hA, hB, seed) =>
   arr[Math.abs(Math.floor(hA * 7 + hB * 3 + seed)) % arr.length];
 
+// ── Family interference patterns ────────────────────────────────────────────
+// When two olfactory families collide, the chimera takes a named "interference"
+// identity instead of a generic combination. Heart-note picker biases toward
+// the interference vocabulary if those notes exist in PERF_NOTES.
+
+const FAMILY_INTERFERENCE = {
+  'citrus|woody':     { label: 'SMOKED',       prefix: 'Smoked',       notesBias: ['lapsang','cade','birch tar','smoked vetiver'] },
+  'floral|animalic':  { label: 'SENSUAL',      prefix: 'Sensual',      notesBias: ['indole','civet','hyrax','jasmine sambac'] },
+  'fresh|woody':      { label: 'GEOLOGICAL',   prefix: 'Geological',   notesBias: ['wet basalt','salt aerosol','flint','iodine'] },
+  'floral|fresh':     { label: 'ROMANTIC',     prefix: 'Romantic',     notesBias: ['galbanum','mimosa','oakmoss','rose centifolia'] },
+  'animalic|woody':   { label: 'ARCHAIC',      prefix: 'Archaic',      notesBias: ['labdanum','hyrax','tar musk','ambergris'] },
+  'animalic|spicy':   { label: 'SUBTERRANEAN', prefix: 'Subterranean', notesBias: ['petrichor','geosmin','wet stone','musk seed'] },
+  'citrus|oceanic':   { label: 'MARINE',       prefix: 'Marine',       notesBias: ['sea spray','calone','grapefruit zest','aldehyde'] },
+};
+
+function lookupInterference(domA, domB) {
+  if (!domA || !domB) return null;
+  const key = [domA, domB].map(s => s.toLowerCase()).sort().join('|');
+  return FAMILY_INTERFERENCE[key] || null;
+}
+
 function buildPerfumeCard(domA, domB, result) {
   const dA  = domainById(domA);
   const dB  = domainById(domB);
@@ -618,17 +639,31 @@ function buildPerfumeCard(domA, domB, result) {
     : (acc?.polarity || 0.5) > 0.65 ? 'woody' : dom;
 
   const topNotes   = [pick(dom, 0),   pick(sec, 13)];
-  const heartNotes = [pickH(dom, 5),  pickH(sec, 19),
+  let heartNotes = [pickH(dom, 5),  pickH(sec, 19),
     ...(result.novelty > 0.55 ? [pickH('spicy', 31)] : [])];
   const baseNotes  = [pickB(bFam, 3), pickB(sec, 23)];
+
+  // Apply interference bias — replace the second heart note with an interference
+  // note IF such a note exists in any heart family pool.
+  const interference = lookupInterference(dom, sec);
+  if (interference) {
+    const allHeartNotes = Object.values(PERF_NOTES.heart).flat();
+    const biasMatches = interference.notesBias.filter(n => allHeartNotes.includes(n));
+    if (biasMatches.length > 0) {
+      const idx = Math.abs(Math.floor(hA * 5 + hB * 11)) % biasMatches.length;
+      heartNotes[1] = biasMatches[idx];
+    }
+  }
 
   const sil  = acc?.sillage  ?? 0.5;
   const fix  = acc?.fixation ?? 0.5;
   const pers = acc?.persists ?? false;
 
   return {
-    name: (result.chimeraName || `${dA.short} × ${dB.short}`)
-            .replace(/[^\w\s×·]/g, '').trim().toUpperCase().slice(0, 42),
+    name: (interference
+      ? `${interference.prefix} ${heartNotes[0]} Chimera`
+      : (result.chimeraName || `${dA.short} × ${dB.short}`))
+        .replace(/[^\w\s×·]/g, '').trim().toUpperCase().slice(0, 42),
     id: `${domA}-${domB}-${Math.round(hA + hB)}`,
     conc:
       sil > 0.72 ? 'EXTRAIT DE PARFUM' : sil > 0.50 ? 'EAU DE PARFUM' :
@@ -644,6 +679,7 @@ function buildPerfumeCard(domA, domB, result) {
     nodeClass: acc?.nodeClass?.id        || 'RTA',
     polLabel:  acc?.polarityClass?.label || '',
     evap:      acc?.evapCurve            || [0.33, 0.33, 0.34],
+    interference,
   };
 }
 
