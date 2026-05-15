@@ -57,6 +57,23 @@ const ARCHETYPES = [
   { dims: ['dimensionality', 'criticality'],  label: 'HIGH-D PHASE TRANSITION',   thesis: 'Both domains undergo phase transitions in high-dimensional parameter spaces. The curse of dimensionality becomes a blessing: more dimensions mean more paths through the critical manifold.' },
 ];
 
+// ── Trinity archetypes ──────────────────────────────────────────────────────
+// Fired only when all 3 dims are present in convergence with substantive contribution
+// (third dim ≥ 0.6× avg of top two). Otherwise pair scoring wins.
+
+const TRINITY_ARCHETYPES = [
+  { dims: ['nonlinearity','criticality','dimensionality'], label: 'HIGH-D BIFURCATION CASCADE',  thesis: 'All three domains operate at the edge of bifurcation in a high-dimensional parameter space. Tipping points are everywhere; the chimera has many critical paths and any of them can fire.' },
+  { dims: ['biological','economic','thermodynamic'],       label: 'METABOLIC ECOLOGY',           thesis: 'Living systems allocate scarce resources under thermodynamic constraint. Fitness, value, and free energy are the same currency under three different names — the chimera trades fluently in all three.' },
+  { dims: ['information','cryptographic','dimensionality'],label: 'HIGH-D CIPHER MANIFOLD',      thesis: 'Information is encoded in high-dimensional spaces with cryptographic depth. The chimera is a manifold whose surface is plaintext and whose interior is sealed.' },
+  { dims: ['synchrony','criticality','biological'],        label: 'LIVING CRITICAL FIELD',       thesis: 'Biological systems self-organize at criticality through phase-locking. Life sustains itself by holding the field at the edge of a transition that never quite completes.' },
+  { dims: ['spatial','temporal','stochastic'],             label: 'STOCHASTIC SPACETIME',        thesis: 'The chimera lives in a spacetime where every coordinate is a probability distribution. Geometry and noise are not separable; the field is the uncertainty.' },
+  { dims: ['entropy','thermodynamic','information'],       label: "MAXWELL'S DEMON",             thesis: 'The chimera converts information into work by selecting against entropy. Every bit observed is a joule extracted; the demon does not violate the second law, it pays for it in measurement.' },
+  { dims: ['game_theory','economic','biological'],         label: 'EVOLUTIONARY MARKET',         thesis: 'Strategic agents compete for resources under selection pressure. Markets and ecosystems run the same algorithm; the chimera is what the algorithm produces when it is allowed to.' },
+  { dims: ['synchrony','conservation','dynamical'],        label: 'HAMILTONIAN ORCHESTRA',       thesis: 'Coupled oscillators conserve total energy while exchanging it. The chimera is a symphony whose instruments are bound by an invariant that none of them individually understands.' },
+  { dims: ['nonlinearity','entropy','synchrony'],          label: 'TURBULENT RESONANCE',         thesis: 'Nonlinear coupling amplifies noise into coherent structure at resonant frequencies. The chimera is the eddy that survives the cascade because it learned to ring.' },
+  { dims: ['cryptographic','information','game_theory'],   label: 'ZERO-KNOWLEDGE STRATEGY',     thesis: 'The chimera proves it knows the secret without revealing the secret. Strategic interaction over a cryptographic substrate; trust without disclosure; commitments that survive adversarial reading.' },
+];
+
 // ── Viability register ──────────────────────────────────────────────────────
 // Maps viability class to a rhetorical register that shapes the output tone.
 
