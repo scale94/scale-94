@@ -148,6 +148,19 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, loadKernel }) => {
           from { opacity: 0; filter: blur(6px); letter-spacing: 0.3em; }
           to   { opacity: 1; filter: blur(0);   letter-spacing: normal; }
         }
+        @keyframes sc-vaultShimmer {
+          0%   { color: rgba(217,70,239,0.18); filter: blur(1.5px); text-shadow: none; }
+          30%  { color: rgba(255,150,255,0.95); filter: blur(0); text-shadow: 0 0 8px rgba(217,70,239,0.6); }
+          100% { color: rgba(217,70,239,0.18); filter: blur(1.5px); text-shadow: none; }
+        }
+        .vault-shimmer { animation: sc-vaultShimmer 200ms ease-out; }
+
+        @keyframes sc-livingNote {
+          0%   { color: rgba(255,215,0,0.7); text-shadow: none; }
+          50%  { color: #39FF14; text-shadow: 0 0 12px rgba(57,255,20,0.6); }
+          100% { color: rgba(57,255,20,0.85); text-shadow: 0 0 6px rgba(57,255,20,0.3); }
+        }
+        .living-note { animation: sc-livingNote 800ms cubic-bezier(0.16,1,0.3,1) forwards; }
       `}</style>
 
       {/* ── Header ── */}
