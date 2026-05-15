@@ -3442,7 +3442,7 @@ function TesseractCard({ card, tesseract, narrative, acquired, selectedTier, onR
         </div>
 
         {/* ── Hash display ── */}
-        <div className="mb-5 rounded-lg p-3" style={{ background: 'rgba(255,215,0,0.02)', border: '1px solid rgba(255,215,0,0.08)' }}>
+        <div className="mb-5 rounded-lg p-3" style={{ background: 'rgba(255,215,0,0.02)', border: '1px solid rgba(255,215,0,0.08)', opacity: 0, animation: 'sc-cardReveal 0.4s cubic-bezier(0.16,1,0.3,1) 300ms forwards' }}>
           <div className="text-[7px] font-mono tracking-widest mb-1.5" style={{ color: 'rgba(255,215,0,0.25)' }}>
             SHA-256 ACCORD FINGERPRINT
           </div>
@@ -3455,7 +3455,7 @@ function TesseractCard({ card, tesseract, narrative, acquired, selectedTier, onR
         </div>
 
         {/* ── Name + Bottle ── */}
-        <div className="flex items-start justify-between gap-4 mb-5">
+        <div className="flex items-start justify-between gap-4 mb-5" style={{ opacity: 0, animation: 'sc-cardReveal 0.4s cubic-bezier(0.16,1,0.3,1) 500ms forwards' }}>
           <div className="flex-1 min-w-0">
             <div className="text-[7px] font-mono tracking-[0.35em] mb-1.5" style={{ color: 'rgba(217,70,239,0.3)' }}>
               PUBLIC SCENT PROFILE
@@ -3493,7 +3493,7 @@ function TesseractCard({ card, tesseract, narrative, acquired, selectedTier, onR
         </div>
 
         {/* ── Note pyramid (public key data) ── */}
-        <div className="space-y-2 mb-5">
+        <div className="space-y-2 mb-5" style={{ opacity: 0, animation: 'sc-cardReveal 0.4s cubic-bezier(0.16,1,0.3,1) 600ms forwards' }}>
           {NOTE_LAYERS.map(({ key, label, glyph, notes, color, sub, pct }) => (
             <div key={key} className="rounded-lg p-2.5" style={{ border: `1px solid ${color}12`, background: `${color}04` }}>
               <div className="flex items-center justify-between mb-1.5">
@@ -3532,7 +3532,7 @@ function TesseractCard({ card, tesseract, narrative, acquired, selectedTier, onR
         {narrative?.decayArc && <DecayArcPanel beats={narrative.decayArc} hueA={card.hueA} hueB={card.hueB} />}
 
         {/* ── Properties strip ── */}
-        <div className="grid grid-cols-3 gap-2 mb-5">
+        <div className="grid grid-cols-3 gap-2 mb-5" style={{ opacity: 0, animation: 'sc-cardReveal 0.4s cubic-bezier(0.16,1,0.3,1) 950ms forwards' }}>
           {[
             { label: 'LONGEVITY',  value: card.longevity },
             { label: 'POLARITY',   value: card.polLabel || 'MERIDIAN' },
@@ -3547,7 +3547,7 @@ function TesseractCard({ card, tesseract, narrative, acquired, selectedTier, onR
         </div>
 
         {/* ── Encrypted formula vault ── */}
-        <div className="mb-5 rounded-lg overflow-hidden" style={{ border: '1px solid rgba(217,70,239,0.12)', background: 'rgba(217,70,239,0.02)' }}>
+        <div className="mb-5 rounded-lg overflow-hidden" style={{ border: '1px solid rgba(217,70,239,0.12)', background: 'rgba(217,70,239,0.02)', opacity: 0, animation: 'sc-cardReveal 0.5s cubic-bezier(0.16,1,0.3,1) 1100ms forwards' }}>
           <div className="px-3 py-2 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(217,70,239,0.08)' }}>
             <div className="flex items-center gap-2">
               <span
@@ -3609,6 +3609,8 @@ function TesseractCard({ card, tesseract, narrative, acquired, selectedTier, onR
           style={{
             border: acquired ? '1px solid rgba(255,215,0,0.3)' : '1px solid rgba(255,215,0,0.09)',
             background: acquired ? 'rgba(255,215,0,0.04)' : 'transparent',
+            opacity: 0,
+            animation: 'sc-cardReveal 0.5s cubic-bezier(0.16,1,0.3,1) 1500ms forwards',
           }}>
           {!acquired ? (
             <>
