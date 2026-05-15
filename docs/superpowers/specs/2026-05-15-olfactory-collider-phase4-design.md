@@ -46,9 +46,51 @@ const TRINITY_ARCHETYPES = [
 
 **Detection rule.** `detectArchetype(convergence)` is updated:
 
-1. Score each trinity: sum contributions of matching dims, multiplied by `(matches/3)²`. Trinity wins only if ≥2 of 3 dims present *and* combined contribution exceeds the best-pair score by ≥1.3×.
-2. Otherwise fall back to existing pairwise scoring.
-3. Trinity match returns `{ kind: 'trinity', label, thesis, dims }`. Pair match returns `{ kind: 'pair', ... }`.
+1. **Pair scoring stays as-is** — sum contributions of matching dims, `score *= 2` when both present, find best-scoring pair (`bestPairScore`).
+2. **Trinity scoring requires full match.** For each trinity:
+   - Find all 3 dims in `convergence`. If <3 match, skip.
+   - Sort the 3 contributions descending. The third (smallest) must be ≥ `0.6 × avg(top two)` — i.e. the "third" dim must be substantively present, not a token. If not, skip.
+   - Score = sum of all 3 contributions.
+3. **Tiebreak.** Trinity wins iff `bestTrinityScore > 0.55 × bestPairScore`. The 0.55 ratio compensates for the pair's `*2` multiplier — a perfect 3-dim trinity (c1≈c2≈c3) scores ≈3c versus a doubled pair ≈4c, ratio 0.75 → trinity wins; a marginal trinity where the third dim sits at the 0.6×avg threshold scores ≈2.6c versus 4c, ratio 0.65 → still wins. Trinity loses when the third dim is genuinely weak (filtered by step 2) or when the pair has dramatically stronger top-2 dims than the trinity.
+4. Trinity match returns `{ kind: 'trinity', label, thesis, dims }`. Pair match returns `{ kind: 'pair', label, thesis, dims }`.
+
+**Reference implementation:**
+
+```js
+function detectArchetype(convergence) {
+  if (!convergence || convergence.length < 2) return null;
+
+  // Best pair (existing logic preserved)
+  let bestPair = null, bestPairScore = -1;
+  for (const arch of ARCHETYPES) {
+    let score = 0, matches = 0;
+    for (const dim of arch.dims) {
+      const found = convergence.find(d => d.name === dim);
+      if (found) { score += found.contrib; matches++; }
+    }
+    if (matches === 2) score *= 2;
+    if (matches > 0 && score > bestPairScore) { bestPairScore = score; bestPair = arch; }
+  }
+
+  // Best trinity — full match + substantive third dim required
+  let bestTrinity = null, bestTrinityScore = -1;
+  for (const arch of TRINITY_ARCHETYPES) {
+    const found = arch.dims.map(d => convergence.find(c => c.name === d)).filter(Boolean);
+    if (found.length < 3) continue;
+    const sorted = found.map(f => f.contrib).sort((a, b) => b - a);
+    const minContrib = sorted[2];
+    const avgTopTwo = (sorted[0] + sorted[1]) / 2;
+    if (minContrib < 0.6 * avgTopTwo) continue;
+    const score = sorted[0] + sorted[1] + sorted[2];
+    if (score > bestTrinityScore) { bestTrinityScore = score; bestTrinity = arch; }
+  }
+
+  if (bestTrinity && bestTrinityScore > bestPairScore * 0.55) {
+    return { kind: 'trinity', label: bestTrinity.label, thesis: bestTrinity.thesis, dims: bestTrinity.dims };
+  }
+  return bestPair ? { kind: 'pair', label: bestPair.label, thesis: bestPair.thesis, dims: bestPair.dims } : null;
+}
+```
 
 **Fragment templates.** Each trinity gets two `FRAGMENT_TEMPLATES` entries (same shape as pair archetypes).
 
@@ -205,6 +247,8 @@ bot/
 - Match `/^[0-9a-f]{8}$/i`. If invalid → ephemeral reply: `"⚠ Hash prefix must be 8 hex characters (0-9, a-f). Take it from the SHA-256 line in your manifest."`
 - Rate limit per user: 1 successful seek per accord-prefix per hour, 5 distinct prefixes per day. Stored in-memory (bot is single-instance).
 
+**Rate-limit volatility (documented limitation).** Container restarts on Railway/Fly (deploys, autoscaling, periodic recycles) reset the in-memory rate counters. A determined user could refresh limits by waiting for a deploy. For an easter-egg flow, this is acceptable — the harm ceiling is "user gets a few extra free `/seek` calls," and the protection against accidental token harvesting still works for the 99% case. Document this in `bot/README.md`. If abuse appears in practice, swap the in-memory `Map` for a Redis (Upstash) store keyed by `discordId:date` — same code shape, no architectural changes.
+
 **Issuance.** On valid input, sign a JWT with `jose`:
 
 ```js
@@ -286,7 +330,7 @@ Body: { token, accordHash, accordCard }
 **Server logic:**
 
 ```js
-import { jwtVerify } from 'jose';
+import { jwtVerify, errors as joseErrors } from 'jose';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
@@ -309,10 +353,16 @@ export default async function handler(req, res) {
     const living = computeLivingNote(payload.discordId, accordHash, accordCard);
     return res.status(200).json({ ok: true, living });
   } catch (err) {
-    return res.status(401).json({ ok: false, error: 'invalid or expired token' });
+    // Distinguish expired tokens from invalid ones — UX matters here.
+    if (err instanceof joseErrors.JWTExpired) {
+      return res.status(401).json({ ok: false, code: 'expired', error: 'Token expired. Run /seek again on Discord to receive a fresh sovereign key.' });
+    }
+    return res.status(401).json({ ok: false, code: 'invalid', error: 'Invalid sovereign key.' });
   }
 }
 ```
+
+Frontend `RedeemInput` reads `data.code` to render the appropriate copy (expired → "request a new key" affordance; invalid → "check the token, or seek again").
 
 `computeLivingNote(discordId, accordHash, card)` is implemented inline in `redeem.js` (so the secret pool is server-side only) — see §4.4.
 
