@@ -395,7 +395,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
       }
       @keyframes sk-branchSpinStop {
         0%   { transform: rotate(0deg);   filter: drop-shadow(0 0 12px rgba(6,182,212,1)) drop-shadow(0 0 24px rgba(6,182,212,0.4)); }
-        100% { transform: rotate(360deg); filter: drop-shadow(0 0 3px rgba(6,182,212,0.4)); }
+        100% { transform: rotate(720deg); filter: drop-shadow(0 0 3px rgba(6,182,212,0.4)); }
       }
       @keyframes sk-branchLoadSpin {
         0%   { transform: rotate(0deg);   filter: drop-shadow(0 0 4px rgba(6,182,212,0.5)); }
@@ -645,7 +645,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
               style={{ animation: isSpinning
                 ? 'sk-branchSpin 0.9s linear infinite'
                 : isStopping
-                ? 'sk-branchSpinStop 1.4s cubic-bezier(0.08, 0.6, 0.12, 1.0) forwards'
+                ? 'sk-branchSpinStop 1.5s cubic-bezier(0.08, 0.6, 0.12, 1.0) forwards'
                 : isFading
                 ? 'sk-branchLoadSpin 1.5s cubic-bezier(0.2, 0, 0.1, 1) forwards'
                 : 'sk-treeReveal 1.5s cubic-bezier(0.2, 0, 0.3, 1) forwards, sk-treeGlow 2.5s ease-in-out 1.5s infinite' }}
