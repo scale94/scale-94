@@ -159,6 +159,9 @@ class SomaAudioEngine {
     this._recording = false;
     this._recordedEvents = [];
     this._recordStartTime = 0;
+
+    // ── Beat clock ─────────────────────────────────────────────────────────
+    this._beatClockId = null;
   }
 
   // ── Initialize on first user gesture ──────────────────────────────────────
@@ -1111,6 +1114,31 @@ class SomaAudioEngine {
     }
   }
 
+  // ── Beat clock: rhythmic pulse at fixed BPM (ambient mode) ──────────────
+  /**
+   * Start firing playBeat() at the given BPM.
+   * @param {number} bpm      — beats per minute (default 114)
+   * @param {function} onBeat — optional visual callback fired on each beat
+   */
+  startBeatClock(bpm = 114, onBeat) {
+    this.stopBeatClock();
+    const intervalMs = Math.round(60000 / bpm);
+    const fire = () => {
+      if (this.initialized && !this._muted) this.playBeat();
+      if (onBeat) onBeat();
+    };
+    fire();  // fire immediately so beat starts on toggle
+    this._beatClockId = setInterval(fire, intervalMs);
+  }
+
+  /** Stop the beat clock. */
+  stopBeatClock() {
+    if (this._beatClockId != null) {
+      clearInterval(this._beatClockId);
+      this._beatClockId = null;
+    }
+  }
+
   // ── Energy modulation: controls drone intensity + filter ──────────────────
   setEnergy(e) {
     this._energy = Math.max(0, Math.min(1, e));
@@ -1162,6 +1190,7 @@ class SomaAudioEngine {
 
   // ── Cleanup ───────────────────────────────────────────────────────────────
   dispose() {
+    this.stopBeatClock();
     // Stop continuous layer oscillators
     try {
       if (this._bifurcFM) this._bifurcFM.stop();

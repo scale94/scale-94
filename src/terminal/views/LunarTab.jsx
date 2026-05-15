@@ -986,6 +986,8 @@ function TransitMatrix({ transits, planets, timestamp, onRefresh }) {
   const ts = timestamp.toLocaleDateString('en-CA') + ' ' +
     timestamp.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
+  const [copied, setCopied] = useState(false);
+
   function handleDownload() {
     const md = buildTransitMarkdown(transits, planets, timestamp);
     const blob = new Blob([md], { type: 'text/markdown' });
@@ -995,6 +997,14 @@ function TransitMatrix({ transits, planets, timestamp, onRefresh }) {
     a.download = `transit-matrix-${timestamp.toLocaleDateString('en-CA')}.md`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  function handleCopy() {
+    const md = buildTransitMarkdown(transits, planets, timestamp);
+    navigator.clipboard.writeText(md).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    }).catch(() => {});
   }
 
   return (
@@ -1027,7 +1037,20 @@ function TransitMatrix({ transits, planets, timestamp, onRefresh }) {
           >
             ↓ .md
           </button>
-          <div className="text-[20px] text-violet-500/20 select-none">⊛</div>
+          <button
+            onClick={handleCopy}
+            className="font-mono text-[7px] uppercase tracking-widest px-2 py-1 rounded-sm transition-all duration-200"
+            style={{
+              border:  copied ? '1px solid rgba(139,92,246,0.7)' : '1px solid rgba(139,92,246,0.25)',
+              color:   copied ? 'rgba(167,139,250,0.95)'         : 'rgba(139,92,246,0.55)',
+              background: copied ? 'rgba(139,92,246,0.08)' : 'transparent',
+            }}
+            onMouseEnter={e => { if (!copied) { e.currentTarget.style.borderColor = 'rgba(139,92,246,0.55)'; e.currentTarget.style.color = 'rgba(139,92,246,0.9)'; } }}
+            onMouseLeave={e => { if (!copied) { e.currentTarget.style.borderColor = 'rgba(139,92,246,0.25)'; e.currentTarget.style.color = 'rgba(139,92,246,0.55)'; } }}
+            title="Copy transit matrix to clipboard"
+          >
+            {copied ? '✓ copied' : '⊛ copy'}
+          </button>
         </div>
       </div>
 

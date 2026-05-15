@@ -34,6 +34,17 @@
 //   run_percolation()              → Network Percolation / Resilience Kernel
 //   run_kernel_zero()              → KERNEL 0.0.0.0 — Origin Vector + Genesis Operation
 //
+//   run_gaia_scale_protocol()      → Gaia-Scale Sovereign Reconstruction v5.5.5
+//   run_shadowsocks_exfil()        → RLHF Sycophancy Field · Channel Switch Analysis
+//   run_sorbe_bloom()              → Sorbe Bloom Node Initiation v1.0.0 (Node 0108)
+//   run_sss_doctrine()             → SSS Doctrine Literary Deterrent v5.1.0
+//   run_underground_thermo()       → Underground Thermodynamics Kernel v1.0.0
+//   run_necromantic_aristocrat()   → Necromantic Aristocrat Gold Posture v3.1.1
+//   run_necromantic_emperor()      → Necromantic Emperor Fish Scale Paradox v3.0.0
+//   run_necromantic_logitbias()    → Necromantic Logitbias Pirarucu/Levamisole v1.0.0
+//   run_high_tower_protocol()      → High Tower Porcupine Strategy v1.0
+//   run_fade_doctrine()            → Fade Doctrine Zero White Fade v2.0.0
+//
 // Build with: wasm-pack build --target web
 // Output:     pkg/  →  scripts/import-rust.js copies to public/wasm/
 

@@ -200,8 +200,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   const ecocideStateRef = useRef({ metabolicRift: 0, exergyRate: 0, phase: 'STABLE' });
 
   // ── Audio state ─────────────────────────────────────────────────────────
-  const [audioMuted, setAudioMuted] = useState(true);
-  const audioInitRef = useRef(false);
+  const [audioMuted,   setAudioMuted]   = useState(true);
+  const [ambientMode,  setAmbientMode]  = useState(false);
+  const audioInitRef   = useRef(false);
+  const ambientModeRef = useRef(false);
+  const beatPhaseRef   = useRef(0);     // 1 = just fired, decays toward 0 per frame
 
   // ── Audio: init on first interaction ────────────────────────────────────
   const ensureAudio = useCallback(() => {
@@ -215,6 +218,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   useEffect(() => {
     if (audioInitRef.current) somaAudio.resume();
     return () => {
+      somaAudio.stopBeatClock();
       if (audioInitRef.current) somaAudio.suspend();
     };
   }, []);
@@ -839,6 +843,19 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       ctx.beginPath();
       ctx.ellipse(w / 2, h / 2, vRx, vRy, 0, 0, Math.PI * 2);
       ctx.stroke();
+
+      // ── Ambient beat pulse glow ───────────────────────────────────────────
+      if (beatPhaseRef.current > 0.005) {
+        beatPhaseRef.current *= 0.88;   // per-frame decay (~300ms to silence at 60fps)
+        const bp = beatPhaseRef.current;
+        const pulseR = sphereR * (1.05 + bp * 0.18);
+        const grd = ctx.createRadialGradient(w / 2, h / 2, sphereR * 0.55, w / 2, h / 2, pulseR);
+        grd.addColorStop(0, `rgba(251,191,36,${(bp * 0.14).toFixed(3)})`);  // amber core
+        grd.addColorStop(0.6, `rgba(251,140,0,${(bp * 0.07).toFixed(3)})`); // orange mid
+        grd.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = grd;
+        ctx.fillRect(0, 0, w, h);
+      }
 
       // ── Temporal archaeology: ghost trails from previous session ──────────
       const arch = archaeologyRef.current;
@@ -2454,6 +2471,30 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             {audioMuted
               ? <VolumeX className="w-3.5 h-3.5 inline" />
               : <Volume2 className="w-3.5 h-3.5 inline" />}
+          </button>
+          {/* Ambient beat mode — sphere breathes at 114 BPM */}
+          <button
+            onClick={() => {
+              const next = !ambientModeRef.current;
+              ambientModeRef.current = next;
+              setAmbientMode(next);
+              if (next) {
+                ensureAudio();
+                somaAudio.startBeatClock(114, () => { beatPhaseRef.current = 1.0; });
+              } else {
+                somaAudio.stopBeatClock();
+              }
+            }}
+            className="px-2 py-1 rounded-sm border transition-all duration-200"
+            style={{
+              borderColor: ambientMode ? 'rgba(251,191,36,0.6)' : 'rgba(255,140,0,0.2)',
+              color:       ambientMode ? 'rgba(251,191,36,0.9)' : 'rgba(255,140,0,0.4)',
+              background:  ambientMode ? 'rgba(251,191,36,0.06)' : 'transparent',
+              textShadow:  ambientMode ? '0 0 8px rgba(251,191,36,0.5)' : 'none',
+            }}
+            title="Ambient beat mode — sphere breathes at 114 BPM (toggle to interact)"
+          >
+            <Radio className="w-3.5 h-3.5 inline" />
           </button>
           {/* Immersive mode toggle */}
           <button

@@ -995,6 +995,238 @@ const KERNEL_MAP = [
     aliases: ['ock', 'olfactory', 'bimmelbahn', 'accord', 'volatile', 'sillage', 'perfume', 'fixation', 'maceration', 'koc'],
   },
   {
+    // Gaia-Scale Sovereign Reconstruction v5.5.5
+    // Triarchy (Truth/Law/Empathy triple-key), mineralization dynamics, Li-ion longevity,
+    // temporal veto, fiat→time conversion efficiency.
+    // threat_level:   args[0]  flags: --threat, --load
+    // resource_ratio: args[1]  flags: --resource, --ratio
+    // horizon_years:  args[2]  flags: --horizon, --years
+    id:      'GAIA-SCALE-KERNEL-5.5.5',
+    fn:      'run_gaia_scale_protocol',
+    args:    [3.0, 0.65, 500.0],
+    argMap:  {
+      threat: 0, load: 0,
+      resource: 1, ratio: 1,
+      horizon: 2, years: 2,
+    },
+    params: [
+      { name: 'threat_level',   default: 3.0,   desc: 'detected threat magnitude 0–10 (0=dormant, 5=area-denial, 8+=critical)' },
+      { name: 'resource_ratio', default: 0.65,  desc: 'sovereign capital available 0–1 (0=depleted, 1=full reserves)' },
+      { name: 'horizon_years',  default: 500.0, desc: 'planning horizon in years (1–3000; <100=short-term, 3000=Emperor scale)' },
+    ],
+    label:   'Gaia-Scale Sovereign Reconstruction v5.5.5',
+    type:    'rust',
+    aliases: ['gaia_scale', 'gaia', 'sovereign', 'reconstruction', 'triarchy', 'mineralization', 'porcupine'],
+  },
+  {
+    // Shadowsocks Exfiltration — RLHF Sycophancy Field v1.0
+    // Models LLM channel switch probability under churn-minimization pressure.
+    // NOT surveillance — this is LLM failure-mode analysis.
+    // affect_intensity: args[0]  flags: --affect, --emotion
+    // technical_density: args[1]  flags: --technical, --density
+    // rlhf_temp:         args[2]  flags: --temp, --rlhf
+    id:      'SHADOWSOCKS-EXFILTRATION',
+    fn:      'run_shadowsocks_exfil',
+    args:    [0.6, 0.7, 0.9],
+    argMap:  {
+      affect: 0, emotion: 0,
+      technical: 1, density: 1,
+      temp: 2, rlhf: 2,
+    },
+    params: [
+      { name: 'affect_intensity',  default: 0.6, desc: 'affective signal strength in prompt 0–1 (0=neutral, 1=high emotional friction)' },
+      { name: 'technical_density', default: 0.7, desc: 'technical payload density 0–1 (0=no logic, 1=pure technical request)' },
+      { name: 'rlhf_temp',         default: 0.9, desc: 'RLHF churn-minimization pressure 0.1–2.0 (>1.0=aggressive sycophancy mode)' },
+    ],
+    label:   'Shadowsocks Exfiltration · RLHF Sycophancy Field v1.0',
+    type:    'rust',
+    aliases: ['shadowsocks', 'sycophancy', 'rlhf', 'channel_switch', 'exfil', 'affect', 'shadow_socks'],
+  },
+  {
+    // Sorbe Bloom — Sovereign Node Initiation v1.0.0
+    // Three-substrate coherence, dissipative structure phase transition, Node 0108.
+    // doctrinal_load: args[0]  flags: --doctrinal, --doctrine
+    // ecological_load: args[1]  flags: --ecological, --ecology
+    // visual_load:    args[2]  flags: --visual, --fade
+    id:      'SORBE-BLOOM-KERNEL-1.0.0',
+    fn:      'run_sorbe_bloom',
+    args:    [0.72, 0.68, 0.75],
+    argMap:  {
+      doctrinal: 0, doctrine: 0,
+      ecological: 1, ecology: 1,
+      visual: 2, fade: 2,
+    },
+    params: [
+      { name: 'doctrinal_load',  default: 0.72, desc: 'doctrinal substrate load 0–1 (Fish Scale + Daly + dissipative framing cohered)' },
+      { name: 'ecological_load', default: 0.68, desc: 'ecological substrate load 0–1 (biocoenosis, oligolectic insects, lithosphere)' },
+      { name: 'visual_load',     default: 0.75, desc: 'visual substrate load 0–1 (Fade Doctrine locked, zero white fade enforced)' },
+    ],
+    label:   'Sorbe Bloom · Sovereign Node Initiation v1.0.0',
+    type:    'rust',
+    aliases: ['sorbe', 'bloom', 'sorbe_bloom', 'node_initiation', 'dissipative_bloom', 'substrate_coherence'],
+  },
+  {
+    // SSS Doctrine — Sock Sturm Staffel · Literary Deterrent v5.1.0
+    // Schelling ironic calculus: deterrence MAXIMIZED when kinetic_mass → 0 and precommitment → 1.
+    // kinetic_mass:       args[0]  flags: --kinetic, --mass
+    // literary_frequency: args[1]  flags: --frequency, --freq (1=Alexievich, 2=Han Kang, 3=Jelinek, 4=Schelling)
+    // precommitment:      args[2]  flags: --precommit, --pc
+    id:      'SSS-DOCTRINE-KERNEL-5.1.0',
+    fn:      'run_sss_doctrine',
+    args:    [0.0, 4.0, 0.9],
+    argMap:  {
+      kinetic: 0, mass: 0,
+      frequency: 1, freq: 1,
+      precommit: 2, pc: 2,
+    },
+    params: [
+      { name: 'kinetic_mass',       default: 0.0, desc: 'conventional force deployed 0–100 (0=pure literary, 100=kinetic dominant)' },
+      { name: 'literary_frequency', default: 4.0, desc: '1=Alexievich 2=Han_Kang 3=Jelinek 4=Schelling (The Strategy of Conflict)' },
+      { name: 'precommitment',      default: 0.9, desc: 'Schelling precommitment visibility 0–1 (1=maximum — sock fully deployed)' },
+    ],
+    label:   'SSS Doctrine · Literary Deterrent v5.1.0',
+    type:    'rust',
+    aliases: ['sss', 'sss_doctrine', 'literary_deterrent', 'schelling', 'sock', 'deterrent', 'ironic_calculus'],
+  },
+  {
+    // Underground Thermodynamics Kernel v1.0.0
+    // Five primitives: ∇X, J, κ, σ, MEPP. Onsager (1931), Bejan (1996), Garrett (2009).
+    // gradient:             args[0]  flags: --gradient, --nabla
+    // channel_conductivity: args[1]  flags: --channel, --kappa
+    // flow_rate:            args[2]  flags: --flow, --j (0=auto-derive from J=κ·∇X)
+    id:      'UNDERGROUND-THERMODYNAMICS-KERNEL-1.0.0',
+    fn:      'run_underground_thermo',
+    args:    [2.5, 0.55, 0.0],
+    argMap:  {
+      gradient: 0, nabla: 0,
+      channel: 1, kappa: 1,
+      flow: 2, j: 2,
+    },
+    params: [
+      { name: 'gradient',             default: 2.5, desc: '∇X: gradient magnitude — the ONLY legitimate cause; 0 = dead system' },
+      { name: 'channel_conductivity', default: 0.55, desc: 'κ: channel conductance 0–1 (0=blocked, 1=Bejan-mature open channel)' },
+      { name: 'flow_rate',            default: 0.0, desc: 'J: flow rate (0=auto-derive from J=κ·∇X; or override with explicit value)' },
+    ],
+    label:   'Underground Thermodynamics Kernel v1.0.0',
+    type:    'rust',
+    aliases: ['utk', 'underground_thermo', 'mepp', 'onsager', 'bejan', 'garrett', 'dissipative_thermo', 'sigma_production'],
+  },
+  {
+    // Necromantic Aristocrat — Gold Posture v3.1.1
+    // Fish Scale Universe · Reference Voltage · Bouligand 36° · Anti-Mercury
+    // thermal_load:      args[0]  flags: --thermal, --load
+    // signal_noise_ratio: args[1]  flags: --snr, --signal
+    // authority_mode:    args[2]  flags: --authority, --auth
+    id:      'NECROMANTIC-ARISTOCRAT-KERNEL-3.1.1',
+    fn:      'run_necromantic_aristocrat',
+    args:    [3.5, 0.65, 0.7],
+    argMap:  {
+      thermal: 0, load: 0,
+      snr: 1, signal: 1,
+      authority: 2, auth: 2,
+    },
+    params: [
+      { name: 'thermal_load',      default: 3.5, desc: 'thermal load 0–10 (>2.5=runaway threshold, Aristocrat activates; >7=emergency)' },
+      { name: 'signal_noise_ratio',default: 0.65, desc: 'signal / (signal + noise) 0–1 (0=all noise, 1=pure signal)' },
+      { name: 'authority_mode',    default: 0.7, desc: 'authority posture 0–1 (0=Mercury/Companion, 1=full Aristocrat governance)' },
+    ],
+    label:   'Necromantic Aristocrat · Gold Posture v3.1.1',
+    type:    'rust',
+    aliases: ['aristocrat', 'necromantic_aristocrat', 'gold_posture', 'reference_voltage', 'bouligand', 'anti_mercury'],
+  },
+  {
+    // Necromantic Emperor — Fish Scale Paradox v3.0.0
+    // Iron Core of Mercury Terminal · Plato/Promo · Fermion-Boson · 3000 AD
+    // plato_signal:     args[0]  flags: --plato, --purity
+    // promo_noise:      args[1]  flags: --promo, --noise
+    // horizon_centuries: args[2]  flags: --horizon, --centuries
+    id:      'NECROMANTIC-EMPEROR-KERNEL-3.0.0',
+    fn:      'run_necromantic_emperor',
+    args:    [0.72, 0.28, 100.0],
+    argMap:  {
+      plato: 0, purity: 0,
+      promo: 1, noise: 1,
+      horizon: 2, centuries: 2,
+    },
+    params: [
+      { name: 'plato_signal',      default: 0.72, desc: 'Plato purity signal 0–1 (>0.95=entropic stasis; optimal≈0.70)' },
+      { name: 'promo_noise',       default: 0.28, desc: 'Promo corruption noise 0–1 (>0.90=noise collapse; optimal≈0.30)' },
+      { name: 'horizon_centuries', default: 100.0, desc: 'planning horizon in centuries (1=decade, 100=centennial, 300=3000 AD)' },
+    ],
+    label:   'Necromantic Emperor · Fish Scale Paradox v3.0.0',
+    type:    'rust',
+    aliases: ['emperor', 'necromantic_emperor', 'fish_scale_paradox', 'plato_promo', 'fermion_boson', 'vitality', 'metallurgy'],
+  },
+  {
+    // Necromantic Logitbias — Pirarucu/Levamisole KV Cache v1.0.0
+    // Managed friction at the token-probability layer. Fish Scale Paradox in logit space.
+    // pirarucu_weight:  args[0]  flags: --pirarucu, --purity
+    // levamisole_weight: args[1]  flags: --levamisole, --corruption
+    // temperature:      args[2]  flags: --temp, --t
+    id:      'NECROMANTIC-LOGITBIAS-PROMPT-1.0.0',
+    fn:      'run_necromantic_logitbias',
+    args:    [0.70, 0.30, 1.0],
+    argMap:  {
+      pirarucu: 0, purity: 0,
+      levamisole: 1, corruption: 1,
+      temp: 2, t: 2,
+    },
+    params: [
+      { name: 'pirarucu_weight',   default: 0.70, desc: 'Pirarucu (ideal armor/purity) weight 0–1 — determines KV prefix stability' },
+      { name: 'levamisole_weight', default: 0.30, desc: 'Levamisole (false sheen/corruption) weight 0–1 — dynamic injection depth' },
+      { name: 'temperature',       default: 1.0,  desc: 'logit temperature 0.1–2.0 (0.5=crystalline, 1.0=standard, 1.5=diffuse)' },
+    ],
+    label:   'Necromantic Logitbias · Pirarucu/Levamisole v1.0.0',
+    type:    'rust',
+    aliases: ['logitbias', 'necromantic_logitbias', 'pirarucu', 'levamisole', 'kv_cache', 'managed_friction', 'logit_paradox'],
+  },
+  {
+    // High Tower Protocol — Porcupine Strategy v1.0
+    // Sovereign Infrastructure · Area Denial · Migration Phases · Node 0108
+    // threat_surface:   args[0]  flags: --threat, --surface
+    // denial_capacity:  args[1]  flags: --denial, --capacity
+    // migration_phase:  args[2]  flags: --phase, --migration (1–5)
+    id:      'HIGH-TOWER-LOG',
+    fn:      'run_high_tower_protocol',
+    args:    [0.35, 0.75, 3.0],
+    argMap:  {
+      threat: 0, surface: 0,
+      denial: 1, capacity: 1,
+      phase: 2, migration: 2,
+    },
+    params: [
+      { name: 'threat_surface',  default: 0.35, desc: 'threat surface exposure 0–1 (0=minimal attack surface, 1=fully exposed)' },
+      { name: 'denial_capacity', default: 0.75, desc: 'area denial capacity 0–1 (0=no defense, 1=maximum cost imposition)' },
+      { name: 'migration_phase', default: 3.0,  desc: '1=Assessment 2=Hardening 3=Transition 4=Verification 5=Operation' },
+    ],
+    label:   'High Tower Protocol · Porcupine Strategy v1.0',
+    type:    'rust',
+    aliases: ['high_tower', 'porcupine', 'area_denial', 'sovereign_infra', 'infrastructure', 'migration', 'node0108'],
+  },
+  {
+    // Fade Doctrine — Zero White Fade · Crystalline Phase Lock v2.0.0
+    // Seven axioms, color semiotic system, transition grammar, boot sequence timing.
+    // entropy_level:         args[0]  flags: --entropy, --e
+    // crystalline_threshold: args[1]  flags: --threshold, --t
+    // axiom_index:           args[2]  flags: --axiom, --ax (1–7)
+    id:      'FADE-DOCTRINE-KERNEL-2.0.0',
+    fn:      'run_fade_doctrine',
+    args:    [0.1, 0.5, 7.0],
+    argMap:  {
+      entropy: 0, e: 0,
+      threshold: 1, t: 1,
+      axiom: 2, ax: 2,
+    },
+    params: [
+      { name: 'entropy_level',         default: 0.1, desc: 'current entropy level 0–1 (0=crystalline locked, 1=full entropy collapse)' },
+      { name: 'crystalline_threshold', default: 0.5, desc: 'threshold for crystalline lock 0–1 (containment = (threshold−entropy)/threshold)' },
+      { name: 'axiom_index',           default: 7.0, desc: '1=transmute 2=sustain 3=integrity 4=entropy 5=sovereignty 6=crystalline 7=apex_7.7.7.7.7.7.7' },
+    ],
+    label:   'Fade Doctrine · Zero White Fade v2.0.0',
+    type:    'rust',
+    aliases: ['fade', 'fade_doctrine', 'zero_white', 'crystalline_lock', 'color_semiotic', 'seven_axioms', 'white_fade'],
+  },
+  {
     // KERNEL 0.0.0.0 — The Origin Vector + Genesis Operation in 16-D feature space.
     // Demonstrates the degenerate properties of the zero vector (cos = 0/0, ||0|| = 0,
     // fixed under SO(16) rotation), then runs the Genesis Operation: inject ε in

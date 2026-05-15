@@ -1036,6 +1036,25 @@ export function run_evolutionary_replicator(benefit, cost, punishment, mutation,
 }
 
 /**
+ * @param {number} entropy_level
+ * @param {number} crystalline_threshold
+ * @param {number} axiom_index
+ * @returns {string}
+ */
+export function run_fade_doctrine(entropy_level, crystalline_threshold, axiom_index) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_fade_doctrine(entropy_level, crystalline_threshold, axiom_index);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * @param {number} r_start
  * @param {number} r_end
  * @param {number} warmup
@@ -1125,6 +1144,25 @@ export function run_fusion_plasma(temp_kev, density, tau_e, b_field, major_radiu
 }
 
 /**
+ * @param {number} threat_level
+ * @param {number} resource_ratio
+ * @param {number} horizon_years
+ * @returns {string}
+ */
+export function run_gaia_scale_protocol(threat_level, resource_ratio, horizon_years) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_gaia_scale_protocol(threat_level, resource_ratio, horizon_years);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * @param {number} n_glyphs
  * @param {number} zipf_exponent
  * @param {number} mandelbrot_offset
@@ -1137,6 +1175,25 @@ export function run_glyph_archive(n_glyphs, zipf_exponent, mandelbrot_offset, en
     let deferred1_1;
     try {
         const ret = wasm.run_glyph_archive(n_glyphs, zipf_exponent, mandelbrot_offset, entropy_target, tiers);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * @param {number} threat_surface
+ * @param {number} denial_capacity
+ * @param {number} migration_phase
+ * @returns {string}
+ */
+export function run_high_tower_protocol(threat_surface, denial_capacity, migration_phase) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_high_tower_protocol(threat_surface, denial_capacity, migration_phase);
         deferred1_0 = ret[0];
         deferred1_1 = ret[1];
         return getStringFromWasm0(ret[0], ret[1]);
@@ -1392,6 +1449,63 @@ export function run_mycelium_kernel(grid_size, branch_prob, anastomosis, nutrien
     let deferred1_1;
     try {
         const ret = wasm.run_mycelium_kernel(grid_size, branch_prob, anastomosis, nutrients, steps);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * @param {number} thermal_load
+ * @param {number} signal_noise_ratio
+ * @param {number} authority_mode
+ * @returns {string}
+ */
+export function run_necromantic_aristocrat(thermal_load, signal_noise_ratio, authority_mode) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_necromantic_aristocrat(thermal_load, signal_noise_ratio, authority_mode);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * @param {number} plato_signal
+ * @param {number} promo_noise
+ * @param {number} horizon_centuries
+ * @returns {string}
+ */
+export function run_necromantic_emperor(plato_signal, promo_noise, horizon_centuries) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_necromantic_emperor(plato_signal, promo_noise, horizon_centuries);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * @param {number} pirarucu_weight
+ * @param {number} levamisole_weight
+ * @param {number} temperature
+ * @returns {string}
+ */
+export function run_necromantic_logitbias(pirarucu_weight, levamisole_weight, temperature) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_necromantic_logitbias(pirarucu_weight, levamisole_weight, temperature);
         deferred1_0 = ret[0];
         deferred1_1 = ret[1];
         return getStringFromWasm0(ret[0], ret[1]);
@@ -1696,6 +1810,25 @@ export function run_seraphine_sarg(n_concepts, coherence, decoherence_rate, enta
 }
 
 /**
+ * @param {number} affect_intensity
+ * @param {number} technical_density
+ * @param {number} rlhf_temp
+ * @returns {string}
+ */
+export function run_shadowsocks_exfil(affect_intensity, technical_density, rlhf_temp) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_shadowsocks_exfil(affect_intensity, technical_density, rlhf_temp);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * @param {number} context_length
  * @param {number} window_ratio
  * @param {number} ks
@@ -1754,6 +1887,25 @@ export function run_soma_plus_engine(population, eco_share, social_share, arts_s
 }
 
 /**
+ * @param {number} doctrinal_load
+ * @param {number} ecological_load
+ * @param {number} visual_load
+ * @returns {string}
+ */
+export function run_sorbe_bloom(doctrinal_load, ecological_load, visual_load) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_sorbe_bloom(doctrinal_load, ecological_load, visual_load);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * Seven-Fold Crystalline Invariance Kernel
  *
  * Simulates the 4-phase progression of the SCALE_SYSTEM_KERNEL v7.7.7.7.7.7.7.
@@ -1794,6 +1946,25 @@ export function run_spectral_bridge(threshold, max_bridges, detail) {
     let deferred1_1;
     try {
         const ret = wasm.run_spectral_bridge(threshold, max_bridges, detail);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * @param {number} kinetic_mass
+ * @param {number} literary_frequency
+ * @param {number} precommitment
+ * @returns {string}
+ */
+export function run_sss_doctrine(kinetic_mass, literary_frequency, precommitment) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_sss_doctrine(kinetic_mass, literary_frequency, precommitment);
         deferred1_0 = ret[0];
         deferred1_1 = ret[1];
         return getStringFromWasm0(ret[0], ret[1]);
@@ -1933,6 +2104,25 @@ export function run_text_probe(text) {
         return getStringFromWasm0(ret[0], ret[1]);
     } finally {
         wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
+ * @param {number} gradient
+ * @param {number} channel_conductivity
+ * @param {number} flow_rate
+ * @returns {string}
+ */
+export function run_underground_thermo(gradient, channel_conductivity, flow_rate) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_underground_thermo(gradient, channel_conductivity, flow_rate);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
     }
 }
 

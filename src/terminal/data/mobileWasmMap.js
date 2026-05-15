@@ -5,6 +5,39 @@
 export function resolveWasmAlias(kernelId) {
   const id = kernelId.toUpperCase();
 
+  // ── Necromantic sub-kernels (must come before generic NECRO catch) ──────────
+  if (id.includes('NECROMANTIC-ARISTOCRAT') || id.includes('NECROMANTIC_ARISTOCRAT') ||
+      id.includes('ARISTOCRAT'))                                     return 'aristocrat';
+  if (id.includes('NECROMANTIC-EMPEROR') || id.includes('NECROMANTIC_EMPEROR') ||
+      id.includes('EMPEROR'))                                        return 'emperor';
+  if (id.includes('NECROMANTIC-LOGITBIAS') || id.includes('LOGITBIAS') ||
+      id.includes('PIRARUCU') || id.includes('LEVAMISOLE'))          return 'logitbias';
+
+  // ── Gaia-Scale (distinct from generic GAIA → geopolitical) ──────────────────
+  if (id.includes('GAIA-SCALE') || id.includes('GAIA_SCALE') ||
+      id.includes('SOVEREIGN-RECONSTRUCTION'))                       return 'gaia_scale';
+
+  // ── High Tower (distinct from cynic_realist) ─────────────────────────────────
+  if (id.includes('HIGH-TOWER') || id.includes('HIGH_TOWER'))       return 'high_tower';
+
+  // ── Shadowsocks (RLHF sycophancy — NOT surveillance) ────────────────────────
+  if (id.includes('SHADOWSOCKS') || id.includes('SHADOW-SOCKS') ||
+      id.includes('SHADOW_SOCKS') || id.includes('EXFILTRATION'))    return 'shadowsocks';
+
+  // ── Sorbe Bloom (sovereign node initiation — NOT atmospheric) ───────────────
+  if (id.includes('SORBE-BLOOM') || id.includes('SORBE_BLOOM'))     return 'sorbe_bloom';
+
+  // ── SSS Doctrine (literary deterrent — NOT ising) ───────────────────────────
+  if (id.includes('SSS-DOCTRINE') || id.includes('SSS_DOCTRINE') ||
+      id.includes('SOCK-STURM') || id.includes('LITERARY-DETERRENT')) return 'sss_doctrine';
+
+  // ── Underground Thermodynamics (UTK — NOT panopticon_percolation) ───────────
+  if (id.includes('UNDERGROUND-THERMO') || id.includes('UNDERGROUND_THERMO') ||
+      id.includes('UNDERGROUND-THERMODYNAMICS'))                     return 'utk';
+
+  // ── Fade Doctrine (color semiotic — NOT thermosphere) ───────────────────────
+  if (id.includes('FADE-DOCTRINE') || id.includes('FADE_DOCTRINE')) return 'fade_doctrine';
+
   // ── Direct / near-direct matches ───────────────────────────────────────────
   if (id.includes('PERCOLATION') || id.includes('RESILIENCE') ||
       id.includes('FRAGILITY') || id.includes('GIANT-COMPONENT'))   return 'percolation';
@@ -24,7 +57,7 @@ export function resolveWasmAlias(kernelId) {
   // ── Crypto / cryptographic ──────────────────────────────────────────────────
   if (id.includes('TESSERACT') || id.includes('TESSERACT-VAULT'))           return 'tesseract';
   if (id.includes('DH-EC') || id.includes('DH_EC') || id.includes('PQHASH') || id.includes('QUANTUM-HASH') || id.includes('HASH-AUDIT')) return 'pqhash';
-  if (id.includes('SHADOWSOCKS') || id.includes('SK-1.0'))          return 'surveillance';
+  if (id.includes('SK-1.0'))                                         return 'surveillance';
 
   // ── Phonemic / linguistic / keyboard / memory ────────────────────────────────
   if (id.includes('BELLARD') || id.includes('BAUDRILLARD') || id.includes('BBK') ||
@@ -70,8 +103,8 @@ export function resolveWasmAlias(kernelId) {
       id.includes('NEK-'))                                           return 'necromantic';
 
   // ── Biodiversity / biocoenosis / mycelial / ecology ─────────────────────────
-  if (id.includes('MYCELIAL') || id.includes('UNDERGROUND-THERMO') ||
-      id.startsWith('UTK'))                                          return 'percolation';
+  if (id.includes('MYCELIAL'))                                       return 'percolation';
+  if (id.startsWith('UTK'))                                          return 'utk';
   if (id.includes('BIODIVERSITY') || id.includes('BIOCOENOSIS') ||
       id.includes('FLORA'))                                          return 'biocoenosis';
 
@@ -123,11 +156,11 @@ export function resolveWasmAlias(kernelId) {
   // ── Dissipative / non-equilibrium thermodynamics ────────────────────────────
   if (id.includes('DISSIPATIVE'))                                               return 'pragmatic';
 
-  // ── Gaia / sovereign reconstruction / civilisational ─────────────────────────
+  // ── Gaia (generic — GAIA-SCALE already caught above) ─────────────────────────
   if (id.includes('GAIA'))                                                      return 'geopolitical';
 
-  // ── Fade Doctrine / color semiotic / entropy aesthetics ─────────────────────
-  if (id.includes('FADE'))                                                      return 'atmospheric';
+  // ── Fade (generic — FADE-DOCTRINE already caught above) ─────────────────────
+  if (id.includes('FADE'))                                                      return 'fade_doctrine';
 
   // ── Origin / genesis / zero-vector ──────────────────────────────────────────
   if (id === 'KERNEL-0.0.0.0' || id.includes('ORIGIN-VECTOR'))                 return 'zero';
