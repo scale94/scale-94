@@ -431,18 +431,21 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
         to   { transform: translateY(0);    opacity: 1; }
       }
       @keyframes sk-runLava {
-        0%   { color: #fb923c; border-color: rgba(249,115,22,0.55);
-               box-shadow: 0 0 6px rgba(249,115,22,0.25);
-               text-shadow: 0 0 4px rgba(249,115,22,0.5); }
-        18%  { color: #fff7ed; border-color: rgba(255,180,30,0.95);
-               box-shadow: 0 0 20px rgba(234,88,12,0.75), 0 0 8px rgba(255,150,0,0.5), inset 0 0 8px rgba(200,50,0,0.18);
-               text-shadow: 0 0 14px rgba(255,200,0,1); }
-        52%  { color: #f87171; border-color: rgba(220,38,38,0.85);
+        0%   { color: #8B5CF6; border-color: rgba(139,92,246,0.55);
+               box-shadow: 0 0 6px rgba(139,92,246,0.25);
+               text-shadow: 0 0 4px rgba(139,92,246,0.5); }
+        15%  { color: #ffffff; border-color: rgba(255,255,255,0.95);
+               box-shadow: 0 0 24px rgba(255,255,255,0.8), 0 0 10px rgba(200,180,255,0.6), inset 0 0 8px rgba(180,130,255,0.2);
+               text-shadow: 0 0 16px rgba(255,255,255,1), 0 0 32px rgba(200,160,255,0.8); }
+        50%  { color: #f87171; border-color: rgba(220,38,38,0.85);
                box-shadow: 0 0 28px rgba(185,28,28,0.65), inset 0 0 12px rgba(185,28,28,0.18);
                text-shadow: 0 0 10px rgba(220,38,38,0.95); }
-        100% { color: #fb923c; border-color: rgba(249,115,22,0.55);
-               box-shadow: 0 0 6px rgba(249,115,22,0.25);
-               text-shadow: 0 0 4px rgba(249,115,22,0.5); }
+        75%  { color: #fb923c; border-color: rgba(249,115,22,0.55);
+               box-shadow: 0 0 10px rgba(249,115,22,0.3);
+               text-shadow: 0 0 6px rgba(249,115,22,0.5); }
+        100% { color: #8B5CF6; border-color: rgba(139,92,246,0.55);
+               box-shadow: 0 0 6px rgba(139,92,246,0.25);
+               text-shadow: 0 0 4px rgba(139,92,246,0.5); }
       }
       @keyframes sk-kernelGlow {
         0%, 100% { text-shadow: 0 0 8px rgba(255,215,0,0.2), 0 0 20px rgba(255,140,0,0); }
@@ -708,9 +711,9 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
                       }}
                       className="text-[9px] font-bold px-1.5 py-0.5 rounded-sm border bg-transparent tracking-widest whitespace-nowrap active:scale-95"
                       style={{
-                        borderColor:  'rgba(249,115,22,0.55)',
-                        color:        '#fb923c',
-                        textShadow:   '0 0 4px rgba(249,115,22,0.4)',
+                        borderColor:  'rgba(139,92,246,0.55)',
+                        color:        '#8B5CF6',
+                        textShadow:   '0 0 4px rgba(139,92,246,0.4)',
                         animation:    firingKernelId === kernel.id ? 'sk-runLava 700ms ease-out' : undefined,
                       }}
                     >
