@@ -958,7 +958,11 @@ export default function LatentCollider() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [phase, setPhase] = useState('idle');
-  const narrative = useColliderNarrative(result);
+  const narrativeCardPreview = useMemo(() => {
+    if (!result || domainA == null || domainB == null) return null;
+    try { return buildPerfumeCard(domainA, domainB, result); } catch { return null; }
+  }, [result, domainA, domainB]);
+  const narrative = useColliderNarrative(result, narrativeCardPreview);
 
   const [colliderAstro, setColliderAstro] = useState(null);
 

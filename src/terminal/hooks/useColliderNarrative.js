@@ -503,7 +503,7 @@ function buildSynthesisDirective(archetype, register, fragments, result, domainN
   return `You are exploring the conceptual chimera of ${a} × ${b}, ${archetypeClause}. The synthesis is ${viabilityTag}. ${noveltyClause}${interactionClause} Generate 3 concrete applications, mechanisms, or hypotheses that could only exist at this intersection.`;
 }
 
-function synthesizeNarrative(result) {
+function synthesizeNarrative(result, card) {
   const { convergence, divergence, paradoxes, novelty, coherence, viability, vClass, phase } = result;
 
   // ── Archetype detection
@@ -541,6 +541,9 @@ function synthesizeNarrative(result) {
   const promptFragments = buildPromptFragments(archetype, result, nameA, nameB);
   const synthesisDirective = buildSynthesisDirective(archetype, register, promptFragments, result, nameA, nameB);
 
+  // ── Decay Arc — only computable when the perfume card is built
+  const decayArc = card ? buildDecayArc(card, { registerTone: register.tone }) : null;
+
   return {
     archetype:   archetype?.label || null,
     register:    vClass || 'UNKNOWN',
@@ -552,6 +555,7 @@ function synthesizeNarrative(result) {
     paradoxQuestions,
     promptFragments,
     synthesisDirective,
+    decayArc,
     meta: {
       novelty,
       coherence,
@@ -570,11 +574,11 @@ function synthesizeNarrative(result) {
 
 // ── Hook ────────────────────────────────────────────────────────────────────
 
-export function useColliderNarrative(result) {
+export function useColliderNarrative(result, card) {
   return useMemo(() => {
     if (!result || result.viability == null) return null;
-    return synthesizeNarrative(result);
-  }, [result]);
+    return synthesizeNarrative(result, card);
+  }, [result, card]);
 }
 
 // ── Test-only exports ──────────────────────────────────────────────────────
