@@ -27,6 +27,7 @@ const kernelBuilds = [
   { id: "SORBE-BLOOM-KERNEL-1.0.0", articleId: "SORBE-BLOOM-KERNEL-1.0.0", name: "SORBE_BLOOM_KERNEL_1_0_0", status: "ACTIVE", desc: "0. What the Bloom Was" },
   { id: "SSS-DOCTRINE-KERNEL-5.1.0", articleId: "SSS-DOCTRINE-KERNEL-5.1.0", name: "SSS_DOCTRINE_KERNEL_5_1_0", status: "ACTIVE", desc: "0. The Single Claim" },
   { id: "SURVEILLANCE-TRACKER", articleId: "SURVEILLANCE-TRACKER", name: "SURVEILLANCE_TRACKER", status: "ACTIVE", desc: "Mapping the Algorithmic Panopticon" },
+  { id: "TESSERACT-PROTOCOL-KERNEL-1.0.0", articleId: "TESSERACT-PROTOCOL-KERNEL-1.0.0", name: "TESSERACT_PROTOCOL_KERNEL_1_0_0", status: "ACTIVE", desc: "Post-Quantum Hybrid Pipeline for Olfactory Sovereignty" },
   { id: "UNDERGROUND-THERMODYNAMICS-KERNEL-1.0.0", articleId: "UNDERGROUND-THERMODYNAMICS-KERNEL-1.0.0", name: "UNDERGROUND_THERMODYNAMICS_KERNEL_1_0_0", status: "ACTIVE", desc: "0. Invocation" },
 /* @@INJECT_END@@ */
 ];

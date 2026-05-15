@@ -361,7 +361,7 @@
     "title": "NECROMANTIC PARADOX LOGITBIAS.PROMPT.MD",
     "subtitle": "Your Role",
     "status": "ACTIVE",
-    "readTime": "1 min read",
+    "readTime": "2 min read",
     "tags": [
       "TASK",
       "ARCHITECTURE",
@@ -369,7 +369,7 @@
       "Paradox",
       "Synthesis"
     ],
-    "len": "292 WDS"
+    "len": "313 WDS"
   },
   {
     "id": "SORBE-BLOOM-KERNEL-1.0.0",
@@ -388,6 +388,30 @@
       "scale94"
     ],
     "len": "818 WDS"
+  },
+  {
+    "id": "TESSERACT-PROTOCOL-KERNEL-1.0.0",
+    "type": "kernel_doc",
+    "date": "2026-05-16",
+    "lastModified": "2026-05-15",
+    "title": "TESSERACT CRYPTOGRAPHIC PROTOCOL",
+    "subtitle": "Post-Quantum Hybrid Pipeline for Olfactory Sovereignty",
+    "status": "ACTIVE",
+    "readTime": "12 min read",
+    "tags": [
+      "kernel",
+      "cryptography",
+      "post-quantum",
+      "mercury-terminal",
+      "tesseract",
+      "ML-KEM",
+      "ML-DSA",
+      "AES-GCM",
+      "BLAKE3",
+      "olfactory",
+      "sovereignty"
+    ],
+    "len": "2326 WDS"
   },
   {
     "id": "UNDERGROUND-THERMODYNAMICS-KERNEL-1.0.0",

@@ -5,6 +5,12 @@
       "title": "COMPANION KERNEL"
     }
   ],
+  "AES-GCM": [
+    {
+      "id": "TESSERACT-PROTOCOL-KERNEL-1.0.0",
+      "title": "TESSERACT CRYPTOGRAPHIC PROTOCOL"
+    }
+  ],
   "aesthetic": [
     {
       "id": "FADE-DOCTRINE-KERNEL-2.0.0",
@@ -69,6 +75,12 @@
       "title": "🌿 FLORA 1.0 // THE BIOCOENOSIS BUILD"
     }
   ],
+  "BLAKE3": [
+    {
+      "id": "TESSERACT-PROTOCOL-KERNEL-1.0.0",
+      "title": "TESSERACT CRYPTOGRAPHIC PROTOCOL"
+    }
+  ],
   "BOOT": [
     {
       "id": "MATRIX-KERNEL-2.0.0",
@@ -127,6 +139,12 @@
     {
       "id": "DALY-SIM-KERNEL-1.0.0",
       "title": "DALY THERMO SIMULATION V1.0 // THERMODYNAMIC GOVERNOR"
+    }
+  ],
+  "cryptography": [
+    {
+      "id": "TESSERACT-PROTOCOL-KERNEL-1.0.0",
+      "title": "TESSERACT CRYPTOGRAPHIC PROTOCOL"
     }
   ],
   "crystalline": [
@@ -369,6 +387,10 @@
       "title": "THE SORBE BLOOM — NODE INITIATION"
     },
     {
+      "id": "TESSERACT-PROTOCOL-KERNEL-1.0.0",
+      "title": "TESSERACT CRYPTOGRAPHIC PROTOCOL"
+    },
+    {
       "id": "UNDERGROUND-THERMODYNAMICS-KERNEL-1.0.0",
       "title": "UNDERGROUND THERMODYNAMICS KERNEL"
     },
@@ -457,10 +479,28 @@
       "title": "SOMA KERNEL 5.5"
     }
   ],
+  "mercury-terminal": [
+    {
+      "id": "TESSERACT-PROTOCOL-KERNEL-1.0.0",
+      "title": "TESSERACT CRYPTOGRAPHIC PROTOCOL"
+    }
+  ],
   "MIGRATION": [
     {
       "id": "HIGH-TOWER-LOG",
       "title": "🏛️ SYSTEM_MIGRATION_LOG: KERNEL_EXPORT_FINAL"
+    }
+  ],
+  "ML-DSA": [
+    {
+      "id": "TESSERACT-PROTOCOL-KERNEL-1.0.0",
+      "title": "TESSERACT CRYPTOGRAPHIC PROTOCOL"
+    }
+  ],
+  "ML-KEM": [
+    {
+      "id": "TESSERACT-PROTOCOL-KERNEL-1.0.0",
+      "title": "TESSERACT CRYPTOGRAPHIC PROTOCOL"
     }
   ],
   "moiré-superlattice": [
@@ -525,6 +565,12 @@
       "title": "OPERATION SHADOW SOCKS — KERNEL EXFILTRATION"
     }
   ],
+  "olfactory": [
+    {
+      "id": "TESSERACT-PROTOCOL-KERNEL-1.0.0",
+      "title": "TESSERACT CRYPTOGRAPHIC PROTOCOL"
+    }
+  ],
   "OPERATION": [
     {
       "id": "SHADOWSOCKS-EXFILTRATION",
@@ -557,6 +603,12 @@
     {
       "id": "SOMA-KERNEL-5.5.0",
       "title": "SOMA KERNEL 5.5"
+    }
+  ],
+  "post-quantum": [
+    {
+      "id": "TESSERACT-PROTOCOL-KERNEL-1.0.0",
+      "title": "TESSERACT CRYPTOGRAPHIC PROTOCOL"
     }
   ],
   "posture": [
@@ -701,6 +753,10 @@
     {
       "id": "DISSIPATIVE-SOVEREIGNTY-KERNEL-5.0.0",
       "title": "DISSIPATIVE SOVEREIGNTY KERNEL"
+    },
+    {
+      "id": "TESSERACT-PROTOCOL-KERNEL-1.0.0",
+      "title": "TESSERACT CRYPTOGRAPHIC PROTOCOL"
     }
   ],
   "sss": [
@@ -775,6 +831,12 @@
     {
       "id": "FADE-DOCTRINE-KERNEL-2.0.0",
       "title": "FADE DOCTRINE 1.0 // ZERO WHITE FADE — UX COLOR SEMIOTIC SYSTEM"
+    }
+  ],
+  "tesseract": [
+    {
+      "id": "TESSERACT-PROTOCOL-KERNEL-1.0.0",
+      "title": "TESSERACT CRYPTOGRAPHIC PROTOCOL"
     }
   ],
   "thermodynamic-governance": [
