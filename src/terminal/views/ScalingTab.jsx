@@ -298,7 +298,7 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, loadKernel }) => {
           </div>
 
           <button
-            onClick={() => loadKernel && loadKernel('SERAPHINE-8.8.8.8.8.8.8.8-PAPER')}
+            onClick={() => loadKernel && loadKernel('FADE-DOCTRINE-KERNEL-2.0.0')}
             className="flex items-center gap-2 text-xs font-bold text-fuchsia-400 group-hover:translate-x-1 transition-transform cursor-pointer hover:text-white"
           >
             <ChevronRight className="w-4 h-4" /> READ PAPER
