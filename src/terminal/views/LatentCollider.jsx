@@ -8,6 +8,7 @@ import {
 import { useColliderNarrative } from '../hooks/useColliderNarrative';
 import { useProductionThreshold } from '../hooks/useProductionThreshold';
 import { useOrderStatus, storeOrderHash } from '../hooks/useOrderStatus';
+import { buildChimeraGlyph } from './chimeraGlyph.js';
 
 // ── CopySpan — tiny clipboard helper used in Tesseract contact signals ───────
 function CopySpan({ value, color }) {
@@ -734,7 +735,7 @@ function buildEncryptedFormula(card, accord) {
   };
 }
 
-async function buildTesseractProfile(card, accord, domA, domB) {
+async function buildTesseractProfile(card, accord, domA, domB, result) {
   const hash = await generateAccordHash(card, accord, domA, domB);
   const encryptedFormula = buildEncryptedFormula(card, accord);
   return {
@@ -755,6 +756,12 @@ async function buildTesseractProfile(card, accord, domA, domB) {
       evap: card.evap,
     },
     encryptedFormula,
+    dims: result ? {
+      convergence: result.convergence || [],
+      divergence:  result.divergence  || [],
+      paradoxes:   result.paradoxes   || [],
+    } : null,
+    viability: result?.viability ?? 5,
   };
 }
 
@@ -820,7 +827,7 @@ const TIERS = [
 ];
 
 // ── Tesseract Manifest ────────────────────────────────────────────────────────
-function generateManifestMarkdown(card, tesseract) {
+function generateManifestMarkdown(card, tesseract, living = null) {
   const { hash, encryptedFormula } = tesseract;
   const { specificGravity, flashPoint, macDays, dilutionRatio, ciphertext } = encryptedFormula;
   const ts = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
@@ -922,7 +929,26 @@ BLAKE3  INTEGRITY BOUND
 
 ${cRows.join('\n')}
 \`\`\`
+${living ? `
+---
 
+## § LIVING SIGNATURE
+
+This accord carries the irreducible signature of one witness. The substituted note
+was selected from the signature-grade pool by deterministic hash of the witness's
+identity bound to this accord coordinate. The substitution is permanent for this
+witness, and unique among all possible witnesses.
+
+\`\`\`
+LAYER         ${living.layer.toUpperCase()}
+NOTE          ${living.newNote}  (was: ${living.oldNote})
+ENTROPY       ${living.editionEntropy}
+WITNESS HASH  ${living.witnessHash}
+PROTOCOL      HS256 · 24h sovereign key · server-deterministic
+\`\`\`
+
+The molecule that is yours did not exist before this transmission. It does now.
+` : ''}
 ---
 
 _Transmutation complete. The physical substrate is vaulted. The data is sovereign._
@@ -1026,6 +1052,7 @@ export default function LatentCollider() {
   // ── Crystallize + Tesseract state ──────────────────────────────────────────
   const [crystal,    setCrystal]    = useState(null);
   const [tesseract,  setTesseract]  = useState(null);
+  const [living,     setLiving]     = useState(null);
   const [acquired,     setAcquired]     = useState(false);
   const [selectedTier, setSelectedTier] = useState(TIERS[0]);
 
@@ -1045,11 +1072,18 @@ export default function LatentCollider() {
     } catch { setAcquired(false); }
     // Build Tesseract cryptographic identity
     try {
-      const profile = await buildTesseractProfile(card, result.accord, domainA, domainB);
+      const profile = await buildTesseractProfile(card, result.accord, domainA, domainB, result);
       setTesseract(profile);
+      // Hydrate living-accord state from localStorage if we've redeemed this hash before
+      try {
+        const stored = localStorage.getItem(`living:${profile.hash}`);
+        if (stored) setLiving(JSON.parse(stored));
+        else setLiving(null);
+      } catch { setLiving(null); }
     } catch (e) {
       console.error('[TESSERACT] hash generation failed:', e);
       setTesseract(null);
+      setLiving(null);
     }
   }, [result, domainA, domainB]);
 
@@ -1352,6 +1386,7 @@ export default function LatentCollider() {
     } else if (domainB === null && id !== domainA) {
       setCrystal(null);
       setTesseract(null);
+      setLiving(null);
       setAcquired(false);
       setDomainB(id);
       runCollision(domainA, id);
@@ -1360,6 +1395,7 @@ export default function LatentCollider() {
       // Reset
       setCrystal(null);
       setTesseract(null);
+      setLiving(null);
       setAcquired(false);
       setDomainA(id);
       setDomainB(null);
@@ -1373,6 +1409,7 @@ export default function LatentCollider() {
   const handleReset = useCallback(() => {
     setCrystal(null);
     setTesseract(null);
+    setLiving(null);
     setDomainA(null);
     setDomainB(null);
     setResult(null);
@@ -2717,12 +2754,18 @@ export default function LatentCollider() {
         <TesseractCard
           card={crystal}
           tesseract={tesseract}
+          narrative={narrative}
           acquired={acquired}
           selectedTier={selectedTier}
           onRegister={(contact, tier) => handleAcquire(crystal.id, contact, tier)}
           serverCount={serverThreshold.current}
           serverTarget={serverThreshold.target}
           orderStatus={orderStatus}
+          living={living}
+          onLivingRedeemed={(payload) => {
+            setLiving(payload);
+            try { localStorage.setItem(`living:${tesseract.hash}`, JSON.stringify(payload)); } catch { /* ignore */ }
+          }}
         />
       ) : crystal && (
         <CrystallizeCard
@@ -3142,6 +3185,102 @@ function CrystallizeCard({ card, acquired, selectedTier, onRegister, serverCount
   );
 }
 
+// ── RedeemInput — sovereign key redemption affordance ──────────────────────
+function RedeemInput({ accordHash, accordCard, onSuccess }) {
+  const [token, setToken]       = useState('');
+  const [status, setStatus]     = useState('idle');
+  const [error, setError]       = useState(null);
+  const [errorCode, setErrorCode] = useState(null);
+
+  const handleRedeem = async () => {
+    setStatus('loading');
+    setError(null); setErrorCode(null);
+    try {
+      const r = await fetch('/api/transmute/redeem', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ token: token.trim(), accordHash, accordCard }),
+      });
+      const data = await r.json();
+      if (!data.ok) {
+        setError(data.error || 'redemption failed');
+        setErrorCode(data.code || 'invalid');
+        setStatus('error');
+        return;
+      }
+      setStatus('done');
+      onSuccess(data.living);
+    } catch (e) {
+      setError('Network error — try again.');
+      setErrorCode('network');
+      setStatus('error');
+    }
+  };
+
+  return (
+    <div className="rounded p-3 mt-3" style={{ border: '1px solid rgba(57,255,20,0.18)', background: 'rgba(0,0,0,0.4)' }}>
+      <div className="text-[7px] font-mono tracking-[0.3em] mb-2" style={{ color: 'rgba(57,255,20,0.4)' }}>
+        § REDEEM SOVEREIGN KEY
+      </div>
+      <textarea
+        rows={3}
+        value={token}
+        onChange={e => setToken(e.target.value)}
+        placeholder="paste sovereign key from discord dm"
+        className="w-full font-mono text-[9px] p-2 mb-2 rounded"
+        style={{ background: 'rgba(0,0,0,0.6)', border: '1px solid rgba(57,255,20,0.15)', color: 'rgba(57,255,20,0.85)', resize: 'none' }}
+      />
+      <button
+        onClick={handleRedeem}
+        disabled={status === 'loading' || !token.trim()}
+        className="text-[9px] font-mono uppercase tracking-widest px-4 py-1.5 rounded-full border transition-all hover:scale-105 active:scale-95 disabled:opacity-40"
+        style={{ borderColor: 'rgba(57,255,20,0.5)', color: '#39FF14', background: 'rgba(57,255,20,0.08)' }}
+      >
+        {status === 'loading' ? '[REDEEMING…]' : '◈ REDEEM'}
+      </button>
+      {error && (
+        <div className="text-[8px] font-mono mt-2" style={{ color: errorCode === 'expired' ? 'rgba(255,215,0,0.7)' : 'rgba(244,63,94,0.7)' }}>
+          {errorCode === 'expired' ? '⏳ ' : '⚠ '}{error}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── DecayArcPanel — time-evolution narrative below the note pyramid ────────
+function DecayArcPanel({ beats, hueA, hueB }) {
+  if (!beats || beats.length === 0) return null;
+  const hueMid = ((hueA + hueB) / 2) % 360;
+  return (
+    <div className="mb-5 rounded-lg p-4" style={{ border: '1px solid rgba(255,215,0,0.1)', background: 'rgba(255,215,0,0.015)' }}>
+      <div className="text-[7px] font-mono tracking-[0.3em] mb-3" style={{ color: 'rgba(255,215,0,0.3)' }}>
+        § DECAY ARC — TIME EVOLUTION
+      </div>
+      <div className="relative h-1 mb-4">
+        <div className="absolute inset-0 rounded-full" style={{ background: `linear-gradient(90deg, hsla(${hueA},70%,55%,0.5), hsla(${hueMid},60%,50%,0.4), hsla(${hueB},50%,45%,0.3))` }} />
+        {[0.0, 0.5, 1.0].map((p, i) => (
+          <div key={i} className="absolute top-1/2 w-2 h-2 rounded-full" style={{ left: `calc(${p * 100}% - 4px)`, transform: 'translateY(-50%)', background: '#FFD700', boxShadow: '0 0 6px rgba(255,215,0,0.6)' }} />
+        ))}
+      </div>
+      <div className="space-y-2.5">
+        {beats.map((b, i) => (
+          <div key={i} className="flex gap-3 items-start" style={{ opacity: 0, animation: `sc-cardReveal 0.5s cubic-bezier(0.16,1,0.3,1) ${1.2 + i * 0.4}s forwards` }}>
+            <div className="text-[8px] font-mono tracking-widest shrink-0 w-16" style={{ color: 'rgba(255,215,0,0.5)' }}>{b.time}</div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[9px] font-mono mb-0.5" style={{ color: 'rgba(255,215,0,0.7)' }}>
+                {b.notes.slice(0, 3).join(' · ')}
+              </div>
+              <div className="text-[8px] italic" style={{ color: 'rgba(255,215,0,0.45)' }}>
+                {b.prose}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── ScramblingHash — Matrix-style cascade reveal of a SHA-256 hex hash ─────
 function ScramblingHash({ value, duration = 1400, color = 'rgba(255,215,0,0.75)' }) {
   const [chars, setChars] = useState(() => Array(value.length).fill('0'));
@@ -3233,13 +3372,17 @@ function ShimmeringCipher({ rows }) {
 }
 
 // ── Tesseract Card — cryptographic identity layer ───────────────────────────
-function TesseractCard({ card, tesseract, acquired, selectedTier, onRegister, serverCount, serverTarget, orderStatus }) {
+function TesseractCard({ card, tesseract, narrative, acquired, selectedTier, onRegister, serverCount, serverTarget, orderStatus, living, onLivingRedeemed }) {
   const [manifestState, setManifestState] = useState(null); // null | 'compiling' | 'downloaded'
+  const [vaultGlyphClicks, setVaultGlyphClicks] = useState(0);
+
+  // Reset 7-click counter when card changes
+  useEffect(() => { setVaultGlyphClicks(0); }, [card.id]);
 
   const handleDownload = async () => {
     setManifestState('compiling');
     await new Promise(r => setTimeout(r, 850));
-    const md = generateManifestMarkdown(card, tesseract);
+    const md = generateManifestMarkdown(card, tesseract, living);
     const filename = `ECO_Sx_TRANSMUTATION_${Date.now()}.md`;
     const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -3331,7 +3474,20 @@ function TesseractCard({ card, tesseract, acquired, selectedTier, onRegister, se
               <span className="text-[9px] font-mono" style={{ color: 'rgba(255,215,0,0.35)' }}>{card.dom} × {card.sec}</span>
             </div>
           </div>
-          <div className="shrink-0">
+          <div className="shrink-0 flex items-center gap-3">
+            <div
+              dangerouslySetInnerHTML={{
+                __html: buildChimeraGlyph({
+                  accordHash: hash,
+                  dims:       tesseract.dims || { convergence: [], divergence: [], paradoxes: [] },
+                  hueA:       card.hueA,
+                  hueB:       card.hueB,
+                  viability:  tesseract.viability ?? 5,
+                  nodeClass:  card.nodeClass,
+                }),
+              }}
+              style={{ width: 96, height: 96 }}
+            />
             <PerfumeBottleSVG nodeClass={card.nodeClass} hA={card.hueA} hB={card.hueB} />
           </div>
         </div>
@@ -3351,16 +3507,29 @@ function TesseractCard({ card, tesseract, acquired, selectedTier, onRegister, se
                 </div>
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {notes.map((note, i) => (
-                  <span key={i} className="text-[10px] font-mono px-2 py-0.5 rounded"
-                    style={{ color: `${color}cc`, background: `${color}0d`, border: `1px solid ${color}1a` }}>
-                    {note}
-                  </span>
-                ))}
+                {notes.map((note, i) => {
+                  const isLiving = living && living.layer === key && living.slotIdx === i;
+                  const display  = isLiving ? living.newNote : note;
+                  return (
+                    <span
+                      key={i}
+                      className={`text-[10px] font-mono px-2 py-0.5 rounded ${isLiving ? 'living-note' : ''}`}
+                      style={isLiving
+                        ? { background: 'rgba(57,255,20,0.06)', border: '1px solid rgba(57,255,20,0.3)' }
+                        : { color: `${color}cc`, background: `${color}0d`, border: `1px solid ${color}1a` }}
+                      title={isLiving ? `your signature (was: ${living.oldNote})` : undefined}
+                    >
+                      {display}
+                    </span>
+                  );
+                })}
               </div>
             </div>
           ))}
         </div>
+
+        {/* ── Decay Arc panel ── */}
+        {narrative?.decayArc && <DecayArcPanel beats={narrative.decayArc} hueA={card.hueA} hueB={card.hueB} />}
 
         {/* ── Properties strip ── */}
         <div className="grid grid-cols-3 gap-2 mb-5">
@@ -3381,7 +3550,15 @@ function TesseractCard({ card, tesseract, acquired, selectedTier, onRegister, se
         <div className="mb-5 rounded-lg overflow-hidden" style={{ border: '1px solid rgba(217,70,239,0.12)', background: 'rgba(217,70,239,0.02)' }}>
           <div className="px-3 py-2 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(217,70,239,0.08)' }}>
             <div className="flex items-center gap-2">
-              <span className="text-[8px]" style={{ color: 'rgba(217,70,239,0.6)' }}>◈</span>
+              <span
+                className="text-[8px] cursor-pointer select-none"
+                onClick={() => setVaultGlyphClicks(c => c + 1)}
+                style={{
+                  color: vaultGlyphClicks >= 4 ? 'rgba(57,255,20,0.85)' : 'rgba(217,70,239,0.6)',
+                  textShadow: vaultGlyphClicks >= 5 ? '0 0 6px rgba(57,255,20,0.5)' : 'none',
+                  transition: 'color 200ms ease, text-shadow 200ms ease',
+                }}
+              >◈</span>
               <span className="text-[7px] font-mono font-bold tracking-[0.3em]" style={{ color: 'rgba(217,70,239,0.45)' }}>
                 ENCRYPTED MOLECULAR FORMULA
               </span>
@@ -3415,6 +3592,18 @@ function TesseractCard({ card, tesseract, acquired, selectedTier, onRegister, se
           </div>
         </div>
 
+        {/* ── Living Accord badge (when redeemed) ── */}
+        {living && (
+          <div className="text-center mb-3" style={{ opacity: 0, animation: 'sc-hashReveal 0.8s cubic-bezier(0.16,1,0.3,1) forwards' }}>
+            <div className="text-[10px] font-bold font-mono tracking-[0.25em]" style={{ color: '#39FF14', textShadow: '0 0 12px rgba(57,255,20,0.5)' }}>
+              ◈ LIVING ACCORD · YOUR SIGNATURE
+            </div>
+            <div className="text-[7px] font-mono tracking-widest mt-1" style={{ color: 'rgba(57,255,20,0.45)' }}>
+              ENTROPY {living.editionEntropy} · WITNESS {living.witnessHash}
+            </div>
+          </div>
+        )}
+
         {/* ── Acquire CTA ── */}
         <div className="rounded-lg p-4 text-center transition-all duration-500"
           style={{
@@ -3445,7 +3634,7 @@ function TesseractCard({ card, tesseract, acquired, selectedTier, onRegister, se
                       boxShadow: '0 0 18px rgba(255,215,0,0.08), inset 0 0 12px rgba(255,215,0,0.04)',
                     }}
                   >
-                    ◈ ACQUIRE COMPILED ASSET
+                    {living ? '◈ ACQUIRE LIVING ASSET' : '◈ ACQUIRE COMPILED ASSET'}
                   </button>
                   <p className="text-[7px] font-mono mt-2.5 leading-relaxed" style={{ color: 'rgba(255,215,0,0.15)' }}>
                     The data-sculpture is compiled and transmitted. The substrate stays sovereign.
@@ -3512,6 +3701,15 @@ function TesseractCard({ card, tesseract, acquired, selectedTier, onRegister, se
             </>
           )}
         </div>
+
+        {/* ── Hidden RedeemInput — appears after 7 vault-glyph clicks ── */}
+        {vaultGlyphClicks >= 7 && !living && (
+          <RedeemInput
+            accordHash={hash}
+            accordCard={card}
+            onSuccess={onLivingRedeemed}
+          />
+        )}
       </div>
 
       {/* Bottom accent line */}
