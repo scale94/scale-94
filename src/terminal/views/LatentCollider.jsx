@@ -3075,6 +3075,96 @@ function CrystallizeCard({ card, acquired, selectedTier, onRegister, serverCount
   );
 }
 
+// ── ScramblingHash — Matrix-style cascade reveal of a SHA-256 hex hash ─────
+function ScramblingHash({ value, duration = 1400, color = 'rgba(255,215,0,0.75)' }) {
+  const [chars, setChars] = useState(() => Array(value.length).fill('0'));
+
+  useEffect(() => {
+    let raf;
+    const start = performance.now();
+    const settleAt = value.split('').map((_, i) => (i / value.length) * (duration - 200));
+    const HEX = '0123456789abcdef';
+    const tick = (now) => {
+      const t = now - start;
+      const next = value.split('').map((real, i) => {
+        if (t >= settleAt[i]) return real;
+        return HEX[Math.floor(Math.random() * 16)];
+      });
+      setChars(next);
+      if (t < duration) raf = requestAnimationFrame(tick);
+      else setChars(value.split(''));
+    };
+    raf = requestAnimationFrame(tick);
+    return () => { if (raf) cancelAnimationFrame(raf); };
+  }, [value, duration]);
+
+  return (
+    <div className="font-mono text-[10px] leading-relaxed break-all" style={{ color }}>
+      {chars.join('')}
+    </div>
+  );
+}
+
+// ── ShimmeringCipher — vault ciphertext with transient decrypt flickers ────
+function ShimmeringCipher({ rows }) {
+  const [shimmers, setShimmers] = useState({});
+  const HEX = '0123456789abcdef';
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      setShimmers(prev => {
+        const next = { ...prev };
+        for (const key of Object.keys(next)) {
+          if (next[key].expiresAt < now) delete next[key];
+        }
+        for (let n = 0; n < 2; n++) {
+          const r = Math.floor(Math.random() * rows.length);
+          const c = Math.floor(Math.random() * (rows[r]?.length || 1));
+          const key = `${r}-${c}`;
+          if (!next[key]) {
+            next[key] = { char: HEX[Math.floor(Math.random() * 16)], expiresAt: now + 200 };
+          }
+        }
+        return next;
+      });
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [rows.length]);
+
+  // Cleanup expired shimmers periodically
+  useEffect(() => {
+    const cleanup = setInterval(() => {
+      const now = Date.now();
+      setShimmers(prev => {
+        const next = { ...prev };
+        let dirty = false;
+        for (const key of Object.keys(next)) {
+          if (next[key].expiresAt < now) { delete next[key]; dirty = true; }
+        }
+        return dirty ? next : prev;
+      });
+    }, 250);
+    return () => clearInterval(cleanup);
+  }, []);
+
+  return (
+    <div className="font-mono text-[7.5px] leading-[1.6] break-all select-none" style={{ color: 'rgba(217,70,239,0.18)', filter: 'blur(1.5px)', userSelect: 'none' }}>
+      {rows.map((row, r) => (
+        <div key={r}>
+          {row.split('').map((ch, c) => {
+            const sh = shimmers[`${r}-${c}`];
+            if (sh && sh.expiresAt > Date.now()) {
+              return <span key={c} className="vault-shimmer">{sh.char}</span>;
+            }
+            return <span key={c}>{ch}</span>;
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── Tesseract Card — cryptographic identity layer ───────────────────────────
 function TesseractCard({ card, tesseract, acquired, selectedTier, onRegister, serverCount, serverTarget, orderStatus }) {
   const [manifestState, setManifestState] = useState(null); // null | 'compiling' | 'downloaded'
@@ -3146,11 +3236,8 @@ function TesseractCard({ card, tesseract, acquired, selectedTier, onRegister, se
           <div className="text-[7px] font-mono tracking-widest mb-1.5" style={{ color: 'rgba(255,215,0,0.25)' }}>
             SHA-256 ACCORD FINGERPRINT
           </div>
-          <div
-            className="font-mono text-[10px] leading-relaxed break-all"
-            style={{ color: 'rgba(255,215,0,0.75)', opacity: 0, animation: 'sc-hashReveal 1.2s cubic-bezier(0.16,1,0.3,1) 0.3s forwards' }}
-          >
-            {hash}
+          <div style={{ opacity: 0, animation: 'sc-hashReveal 0.4s cubic-bezier(0.16,1,0.3,1) 0.3s forwards' }}>
+            <ScramblingHash value={hash} duration={1400} />
           </div>
           <div className="flex items-center gap-3 mt-2">
             <span className="text-[7px] font-mono" style={{ color: 'rgba(255,215,0,0.2)' }}>DETERMINISTIC · COLLISION-RESISTANT · IMMUTABLE</span>
@@ -3236,12 +3323,8 @@ function TesseractCard({ card, tesseract, acquired, selectedTier, onRegister, se
           </div>
 
           <div className="relative p-3">
-            {/* Blurred ciphertext — the "private key" */}
-            <div className="font-mono text-[7.5px] leading-[1.6] break-all select-none" style={{ color: 'rgba(217,70,239,0.18)', filter: 'blur(1.5px)', userSelect: 'none' }}>
-              {cipherRows.map((row, i) => (
-                <div key={i}>{row}</div>
-              ))}
-            </div>
+            {/* Blurred ciphertext — the "private key" (with transient decrypt shimmer) */}
+            <ShimmeringCipher rows={cipherRows} />
 
             {/* Vault overlay */}
             <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ background: 'radial-gradient(ellipse at center, rgba(4,2,0,0.7) 0%, transparent 70%)' }}>
