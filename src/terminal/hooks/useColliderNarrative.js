@@ -89,30 +89,35 @@ const REGISTERS = {
 function detectArchetype(convergence) {
   if (!convergence || convergence.length < 2) return null;
 
-  const convNames = new Set(convergence.map(d => d.name));
-  let best = null, bestScore = -1;
-
+  // Best pair (existing logic preserved)
+  let bestPair = null, bestPairScore = -1;
   for (const arch of ARCHETYPES) {
-    // Score: sum of contributions for matching dims, bonus for both present
-    let score = 0;
-    let matches = 0;
+    let score = 0, matches = 0;
     for (const dim of arch.dims) {
       const found = convergence.find(d => d.name === dim);
-      if (found) {
-        score += found.contrib;
-        matches++;
-      }
+      if (found) { score += found.contrib; matches++; }
     }
-    // Both dims present = strong match (multiply by 2)
     if (matches === 2) score *= 2;
-    // At least one dim must match
-    if (matches > 0 && score > bestScore) {
-      bestScore = score;
-      best = arch;
-    }
+    if (matches > 0 && score > bestPairScore) { bestPairScore = score; bestPair = arch; }
   }
 
-  return best;
+  // Best trinity — full match + substantive third dim
+  let bestTrinity = null, bestTrinityScore = -1;
+  for (const arch of TRINITY_ARCHETYPES) {
+    const found = arch.dims.map(d => convergence.find(c => c.name === d)).filter(Boolean);
+    if (found.length < 3) continue;
+    const sorted = found.map(f => f.contrib).sort((a, b) => b - a);
+    const minContrib = sorted[2];
+    const avgTopTwo = (sorted[0] + sorted[1]) / 2;
+    if (minContrib < 0.6 * avgTopTwo) continue;
+    const score = sorted[0] + sorted[1] + sorted[2];
+    if (score > bestTrinityScore) { bestTrinityScore = score; bestTrinity = arch; }
+  }
+
+  if (bestTrinity && bestTrinityScore > bestPairScore * 0.55) {
+    return { kind: 'trinity', label: bestTrinity.label, thesis: bestTrinity.thesis, dims: bestTrinity.dims };
+  }
+  return bestPair ? { kind: 'pair', label: bestPair.label, thesis: bestPair.thesis, dims: bestPair.dims } : null;
 }
 
 function buildSharedGround(convergence) {
@@ -488,3 +493,7 @@ export function useColliderNarrative(result) {
     return synthesizeNarrative(result);
   }, [result]);
 }
+
+// ── Test-only exports ──────────────────────────────────────────────────────
+export const __test__ = { detectArchetype };
+
