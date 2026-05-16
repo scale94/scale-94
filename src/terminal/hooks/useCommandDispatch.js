@@ -208,7 +208,7 @@ export function useCommandDispatch(ctx) {
             if (parsedFlags[flag] !== undefined) callArgs[idx] = parsedFlags[flag];
           }
         }
-        applyEcoCost(wasmEntry.aliases?.[0] ?? wasmEntry.id);
+        const ecoAlias = wasmEntry.aliases?.[0] ?? wasmEntry.id;
         logs(
           `  WASM_BOOT :: ${wasmEntry.label}`,
           `  MODULE: ${wasmEntry.module}`,
@@ -267,6 +267,7 @@ export function useCommandDispatch(ctx) {
                       { time: t, msg: `  ──────────────────────────────────────────`, rust: true },
                       { time: t, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE  ·  EXEC_TIME: ${elapsed}ms`, rust: true },
                     ].slice(-2000));
+                    applyEcoCost(ecoAlias);
                   }
                 }, i * 22);
               });
@@ -278,6 +279,7 @@ export function useCommandDispatch(ctx) {
                 { time: now,      msg: `  ──────────────────────────────────────────`, rust: true },
                 { time: doneTime, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE  ·  EXEC_TIME: ${elapsed}ms`, rust: true },
               ].slice(-2000));
+              applyEcoCost(ecoAlias);
             }
 
 

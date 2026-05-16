@@ -800,8 +800,8 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
               onTouchMove={resetTtyFade}
             >
               {visibleLogs.map((l, i) => (
-                <div key={`${l.time}-${i}`} className={`mb-1 break-words ${l.rust ? 'text-emerald-400' : 'text-[#39ff14]'}`}>
-                  <span className={`mr-2 ${l.rust ? 'text-cyan-300' : 'text-cyan-500'}`}>{l.time}</span>– {l.msg}
+                <div key={`${l.time}-${i}`} className={`mb-1 break-words ${l.color ? '' : l.rust ? 'text-emerald-400' : 'text-[#39ff14]'}`} style={l.color ? { color: l.color } : undefined}>
+                  <span className={`mr-2 ${l.rust ? 'text-cyan-300' : 'text-cyan-500'}`} style={l.color ? { color: 'rgb(103 232 249 / 0.7)' } : undefined}>{l.time}</span>– {l.msg}
                   {l.btn && (
                     <button
                       onClick={() => { sphereFireRef.current = { ts: Date.now() }; mobileAutoRun && mobileAutoRun(l.btn.cmd); resetTtyFade(); }}

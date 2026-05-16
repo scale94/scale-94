@@ -293,62 +293,175 @@ const PASSIVE_MS     = 30_000;  // entropy drains 1% per 30s
 const WARN_THRESH    = 50;      // amber threshold
 const CRIT_THRESH    = 20;      // red threshold — cascade imminent
 
+// ── Environmental flavor — short contextual notes per kernel ──────────────────
+// Shown on every per-run ECO: line to illustrate what the computation does to the planet.
+// Keyed by the primary alias (aliases[0]) that useCommandDispatch passes.
+const ECO_FLAVOR = {
+  // Recharge — the commons breathing
+  daly:         'thermodynamic truth applied · steady-state economics: active',
+  biodiversity: 'shannon entropy mapped · species richness index: rising',
+  gaia_scale:   '500-year mineral reserve protocol · triarchy structure: engaged',
+  soma_plus:    'care economy indexed · social + ecological + arts: registered',
+  replicator:   'ostrom commons verified · cooperation: dominant strategy confirmed',
+  ceei:         'preference-fair allocation computed · envy-free distribution: active',
+  strangler:    'fossil system displaced · logistic transition to sovereign: logged',
+  sorbe:        'sovereign node bloom initiated · three-substrate coherence: achieved',
+  chrono:       'river sovereignty asserted · deep-time DO ledger: updated',
+  kuramoto:     'collective phase-lock achieved · solidarity as physics: confirmed',
+  utk:          'onsager/bejan MEPP efficiency applied · entropy production: minimised',
+  sss:          'schelling precommitment registered · literary deterrent: active',
+  fish_scale:   'bouligand armor structure mapped · arapaima gradient: layered',
+  stiller:      'volatile semiotic divergence indexed · fossil record: separating',
+  ock:          'volatile sovereignty calibrated · sillage: persistent · accord: recorded',
+  sovereign:    'four-phase kuramoto lock · substrate → detonation → superfluid → crystalline',
+  spectral:     'cross-cluster cosine topology mapped · bridge: active',
+  associative:  'hopfield attractor basin computed · pattern: stable',
+  soma91:       'soma kernel at rest · carrier signal: nominal · the lattice holds',
+  soma55:       'soma_kernel_5.5 boot cycle · ecological economy status: indexed',
+  soma_live:    'live pilot simulation streaming · ecological state: observed',
+
+  // Drain — surveillance and control
+  panopticon:   '44-node legislative dragnet simulated · the commons: surveilled',
+  surveillance: '44 active laws indexed · the architecture of control: documented',
+  geopolitics:  'kinetic pressure calculated · regime stability: modeled · the planet militarised',
+  leviathan:    'V-Cache thermal ceiling breached · planetary CPU: burning at capacity',
+  breach:       'ICE penetration initiated · the commons: punctured',
+
+  // Drain — adversarial / necromantic
+  shadowsocks:  'RLHF sycophancy field mapped · epistemic pollution: modeled · truth: diluted',
+  emperor:      'fish scale paradox engaged · plato/promo tension unresolved · 3000 AD iron core: warned',
+  aristocrat:   'gold posture activated · anti-mercury emergency protocol: armed · the commons: threatened',
+  feigenbaum:   'period-doubling route to chaos mapped · r→4.0 is the ecocide parameter',
+  ising:        'social temperature at critical point · ferromagnet: fragile · consensus: collapsing',
+  mesantropy:   'scalar mediocracy calculated · eigenverbrauch drain: logged · 4.4.4.4 detonation: approaching',
+  bone:         '16-dimensional tensor fusion executed · conceptual lattice: heavy',
+  collider:     'conceptual collision computed · latent space: mapped at ecological cost',
+  phonemic:     'baudrillard simulacra propagating · the copy begins to replace the real',
+  seraphine:    'lindblad decoherence modeled · quantum density matrix: collapsed',
+  percolation:  'network fragility mapped · you understand the fracture by mapping it',
+  bosonic:      'quantum social bonds computed · gift economy: taxed',
+
+  // Drain — crypto / compute
+  tesseract:    'argon2id → ML-KEM-1024 → ML-DSA-87 → AES-256-GCM → BLAKE3 · post-quantum overhead: maximum',
+  classified:   'ML-KEM-768 lattice operations · FIPS 203 full run · quantum margins: computed',
+  grayscott:    'reaction-diffusion PDE integrated · turing morphogenesis: simulated at cost',
+  fusion:       'lawson criterion approached · tokamak confinement: active · thermal budget: consumed',
+  dh_ec:        'curve25519 + x3dh key exchange computed · classical crypto overhead: logged',
+  pqhash:       'grover/BHT quantum margins audited · post-quantum hash security: calculated',
+  climate:      '420ppm default · thermosphere protocol: active · observing the damage costs',
+  pragmatic:    'thermal task resolution at entropic cost · compute budget: spent',
+};
+
+// Fallback flavor by delta range — for aliases not in ECO_FLAVOR
+const ecoFlavorFallback = (delta) => {
+  if (delta >= 14) return 'strong ecological commons contribution · the lattice: recharged';
+  if (delta >= 6)  return 'ecological standing: improved · lattice signal: stronger';
+  if (delta >= 1)  return 'minor recharge registered · lattice: nominal';
+  if (delta >= -12) return 'moderate planetary cost registered · lattice: stressed';
+  if (delta >= -25) return 'significant ecological debt incurred · the lattice: burdened';
+  return 'severe planetary extraction logged · sovereign standing: critical';
+};
+
+// Per-run line color — keyed by severity of drain (not threshold messages)
+const ecoRunColor = (delta) => {
+  if (delta > 0)    return '#00FFAA'; // spring — recharge
+  if (delta >= -15) return undefined;  // default terminal green — mild drain
+  if (delta >= -28) return '#FFD700'; // gold — significant drain
+  return '#FF4400';                   // red-orange — severe drain
+};
+
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
 export function useEcologicalRam({ appendSystemLog }) {
   const [ramPct, setRamPct] = useState(RAM_START);
+  // ramPctRef mirrors state synchronously so applyRamDelta can read current
+  // value without stale closure — avoids calling side effects inside setState updater
+  const ramPctRef = useRef(RAM_START);
   const appendRef = useRef(appendSystemLog);
   useEffect(() => { appendRef.current = appendSystemLog; });
 
   // Passive entropy drain — the planet does not rest
   useEffect(() => {
     const t = setInterval(() => {
-      setRamPct(p => Math.max(RAM_FLOOR, p - 1));
+      const next = Math.max(RAM_FLOOR, ramPctRef.current - 1);
+      ramPctRef.current = next;
+      setRamPct(next);
     }, PASSIVE_MS);
     return () => clearInterval(t);
   }, []);
 
   const applyRamDelta = useCallback((aliasOrDelta) => {
-    const delta = typeof aliasOrDelta === 'number'
+    const delta   = typeof aliasOrDelta === 'number'
       ? aliasOrDelta
       : (ECOLOGICAL_DELTA_MAP[aliasOrDelta] ?? -10);
+    const alias   = typeof aliasOrDelta === 'string' ? aliasOrDelta : null;
+    const aliasUp = alias ? alias.toUpperCase() : null;
+    const flavor  = (alias && ECO_FLAVOR[alias]) || ecoFlavorFallback(delta);
 
-    setRamPct(prev => {
-      const next = Math.max(RAM_FLOOR, Math.min(RAM_CEIL, prev + delta));
-      const t    = new Date().toLocaleTimeString('en-US', { hour12: false });
+    // Read and update ref synchronously — side effects fire here, not inside setState
+    const prev = ramPctRef.current;
+    const next = Math.max(RAM_FLOOR, Math.min(RAM_CEIL, prev + delta));
+    ramPctRef.current = next;
+    setRamPct(next);
 
-      if (delta > 0) {
-        // Recharge — log when meaningful (+10 or more)
-        if (delta >= 10) {
-          appendRef.current({
-            time: t,
-            msg:  `[SOVEREIGN RECHARGE] Ecological standing restored. RAM +${delta} → ${next}% · The lattice stabilises.`,
-          });
-        }
-      } else {
-        // Drain — log threshold crossings and heavy drains
-        const crossedCrit = prev >= CRIT_THRESH && next < CRIT_THRESH;
-        const crossedWarn = prev >= WARN_THRESH && next < WARN_THRESH;
-        if (crossedCrit) {
-          appendRef.current({
-            time: t,
-            msg:  `[CRITICAL ENTROPY] Planetary systems entering cascade failure. RAM ${next}% — ecological debt unserviceable.`,
-          });
-        } else if (crossedWarn) {
-          appendRef.current({
-            time: t,
-            msg:  `[ENTROPY WARNING] Observational load exceeding planetary capacity. RAM ${next}% · Run ecological simulations to restore standing.`,
-          });
-        } else if (delta <= -30) {
-          appendRef.current({
-            time: t,
-            msg:  `[ENTROPY CASCADE] Sovereign RAM −${Math.abs(delta)} → ${next}% · Planetary resource depletion registered.`,
-          });
-        }
+    const t = new Date().toLocaleTimeString('en-US', { hour12: false });
+
+    // ── Per-run ECO: line — fires on every drain; recharge when ≥+10 ──────────
+    // Shows the environmental cost/benefit of each individual command.
+    const alreadyAtFloor = prev === RAM_FLOOR;
+    if (delta < 0 && !alreadyAtFloor) {
+      appendRef.current({
+        time:  t,
+        color: ecoRunColor(delta),
+        msg:   `[ECO:${delta}] ${aliasUp ?? 'COMPUTE'} // ${flavor} · RAM ${prev}% → ${next}%`,
+      });
+    } else if (delta >= 10) {
+      appendRef.current({
+        time:  t,
+        color: '#00FFAA',
+        msg:   `[ECO:+${delta}] ${aliasUp ?? 'ECOLOGICAL'} // ${flavor} · RAM ${prev}% → ${next}%`,
+      });
+    }
+
+    // ── Threshold / event messages ────────────────────────────────────────────
+    // These fire on top of the per-run line at critical moments.
+    if (delta < 0) {
+      const crossedFloor = prev > RAM_FLOOR && next === RAM_FLOOR;
+      const crossedCrit  = !crossedFloor && prev >= CRIT_THRESH && next < CRIT_THRESH;
+      const crossedWarn  = !crossedCrit  && prev >= WARN_THRESH && next < WARN_THRESH;
+
+      if (alreadyAtFloor) {
+        appendRef.current({
+          time:  t,
+          color: '#FF0088', // magenta — the doctrine screams
+          msg:   `[RAM:EXHAUSTED] // planetary commons at minimum threshold · ${next}% floor signal only · the lattice cannot absorb further extraction · run: daly / ecological / gaia_scale`,
+        });
+      } else if (crossedFloor) {
+        appendRef.current({
+          time:  t,
+          color: '#FF0088',
+          msg:   `[LATTICE:FLOOR] // entropy has claimed all but the carrier signal — RAM ${next}% · the alien turns away · sovereign commons: silent`,
+        });
+      } else if (crossedCrit) {
+        appendRef.current({
+          time:  t,
+          color: '#FF4400', // red-orange — cascade doctrine
+          msg:   `[CASCADE IMMINENT] // RAM ${next}% · the lattice fractures · extraction without reciprocity is a terminal state · run: daly / ecological / ostrom_game`,
+        });
+      } else if (crossedWarn) {
+        appendRef.current({
+          time:  t,
+          color: '#FFD700', // gold — observer registers imbalance
+          msg:   `[LATTICE STRAIN] // planetary commons under load — ${next}% remaining · the observer registers imbalance · restore: daly / gaia_scale / replicator`,
+        });
+      } else if (delta <= -30) {
+        appendRef.current({
+          time:  t,
+          color: '#AA00FF', // violet — deep system drain
+          msg:   `[ENTROPIC CASCADE −${Math.abs(delta)}] // RAM ${next}%${aliasUp ? ` · ledger records: ${aliasUp}` : ''} · planetary debt accumulates`,
+        });
       }
-
-      return next;
-    });
+    }
   }, []);
 
   const isCritical = ramPct < CRIT_THRESH;
