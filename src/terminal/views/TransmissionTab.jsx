@@ -372,7 +372,7 @@ const TransmissionTab = ({ stories, onSelect, loadingSignal }) => {
                   </div>
 
                   {/* [3] Title — gets glitch animation on hover via .tx-title CSS rule */}
-                  <h2 className={`tx-title text-[11pt] font-bold tracking-tight mb-2 leading-snug transition-colors ${isLoading ? 'text-white animate-pulse' : 'text-fuchsia-300 group-hover:text-white'}`}>
+                  <h2 className={`tx-title text-[11pt] font-bold tracking-tight mb-2 leading-snug transition-colors ${isLoading ? 'text-amber-300 animate-pulse' : 'text-fuchsia-300 group-hover:text-fuchsia-100'}`}>
                     {story.title}
                   </h2>
 

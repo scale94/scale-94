@@ -27,7 +27,7 @@ export default function KernelManifesto() {
             backgroundImage: 'linear-gradient(90deg, #39ff14, #06b6d4, #d946ef)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
-            fontFamily: 'monospace',
+            fontFamily: "'Geist Mono', ui-monospace, monospace",
           }}
         >
           The most compelling analogy<br />
@@ -77,7 +77,7 @@ export default function KernelManifesto() {
             <button
               key={c.id}
               onClick={() => setChapter(c)}
-              className="px-2.5 py-1 border rounded-sm transition-colors hover:bg-white/5"
+              className="px-2.5 py-1 border rounded-sm transition-colors hover:bg-zinc-200/5"
               style={{
                 borderColor: `hsla(${hue}, 70%, 60%, 0.3)`,
                 color: `hsla(${hue}, 70%, 70%, 0.85)`,

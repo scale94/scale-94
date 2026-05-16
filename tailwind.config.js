@@ -15,6 +15,13 @@ export default {
   ],
   theme: {
     extend: {
+      // Geist Sans + Geist Mono — The Geist Mandate (OPUS GUILD 4.7)
+      // font-sans → Geist Sans (UI chrome, headers, navigation)
+      // font-mono → Geist Mono (article body, kernel IDs, lattice coordinates)
+      fontFamily: {
+        sans: ['Geist Sans', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        mono: ['Geist Mono', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+      },
       // Gradient shimmer keyframe + utilities — defined here so they are
       // guaranteed in the production CSS bundle (Tailwind generates them as
       // first-class utilities, unlike custom index.css classes which can be

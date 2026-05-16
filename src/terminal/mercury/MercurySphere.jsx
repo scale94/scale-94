@@ -313,7 +313,7 @@ export default function MercurySphere({
                   {/* Element name */}
                   <span style={{
                     fontSize: 7,
-                    fontFamily: 'monospace',
+                    fontFamily: "'Geist Mono', ui-monospace, monospace",
                     fontWeight: 700,
                     letterSpacing: '0.14em',
                     color: htmlColor,

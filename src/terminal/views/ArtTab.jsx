@@ -2589,7 +2589,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
               border:      '1px solid rgba(255,215,0,0.20)',
               borderRadius: '3px',
               padding:     '6px 10px',
-              fontFamily:  'monospace',
+              fontFamily: "'Geist Mono', ui-monospace, monospace",
               fontSize:    '9px',
               lineHeight:  '1.65',
               letterSpacing: '0.04em',
@@ -2625,7 +2625,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         >
           <span style={{
             color:      'rgba(255,215,0,0.35)',
-            fontFamily: 'monospace',
+            fontFamily: "'Geist Mono', ui-monospace, monospace",
             fontSize:   '10px',
             letterSpacing: '0.1em',
             whiteSpace: 'nowrap',
@@ -2633,7 +2633,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           }}>
             {lastCmd ? `↳ ${lastCmd}` : 'geometry_shell'}
           </span>
-          <span style={{ color: 'rgba(255,215,0,0.7)', fontFamily: 'monospace', fontSize: '13px' }}>▸</span>
+          <span style={{ color: 'rgba(255,215,0,0.7)', fontFamily: "'Geist Mono', ui-monospace, monospace", fontSize: '13px' }}>▸</span>
           <input
             value={termInput}
             onChange={e => setTermInput(e.target.value)}
@@ -2646,7 +2646,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
               border:      'none',
               outline:     'none',
               color:       'rgba(255,215,0,0.85)',
-              fontFamily:  'monospace',
+              fontFamily: "'Geist Mono', ui-monospace, monospace",
               fontSize:    '12px',
               letterSpacing: '0.06em',
               caretColor:  '#FFD700',
@@ -2673,7 +2673,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             </div>
             <button
               onClick={() => { probeNodeRef.current = null; setQueryResult(null); }}
-              style={{ color: 'rgba(167,139,250,0.5)', fontFamily: 'monospace', fontSize: '10px', background: 'none', border: 'none', cursor: 'pointer' }}
+              style={{ color: 'rgba(167,139,250,0.5)', fontFamily: "'Geist Mono', ui-monospace, monospace", fontSize: '10px', background: 'none', border: 'none', cursor: 'pointer' }}
               onMouseEnter={e => e.target.style.color = 'rgba(167,139,250,0.9)'}
               onMouseLeave={e => e.target.style.color = 'rgba(167,139,250,0.5)'}
             >[CLEAR]</button>

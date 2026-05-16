@@ -205,7 +205,7 @@ export default function KernelSphere({ onChapterSelect }) {
             zIndexRange={[10, 0]}
             style={{
               color: c.chapter ? '#c8c8d4' : '#3a3a48',
-              fontFamily: 'monospace',
+              fontFamily: "'Geist Mono', ui-monospace, monospace",
               fontSize: '9px',
               letterSpacing: '0.15em',
               textTransform: 'uppercase',
@@ -227,7 +227,7 @@ export default function KernelSphere({ onChapterSelect }) {
           zIndexRange={[10, 0]}
           style={{
             color: '#9ca3af',
-            fontFamily: 'monospace',
+            fontFamily: "'Geist Mono', ui-monospace, monospace",
             fontSize: '9px',
             whiteSpace: 'nowrap',
             userSelect: 'none',

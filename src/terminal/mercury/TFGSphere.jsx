@@ -581,7 +581,7 @@ export default function TFGSphere() {
                 background:    'rgba(0,0,0,0.85)',
                 border:        `1px solid ${lineColor}66`,
                 color:         '#c0c0c0',
-                fontFamily:    'monospace',
+                fontFamily: "'Geist Mono', ui-monospace, monospace",
                 fontSize:      '9px',
                 padding:       '5px 7px',
                 whiteSpace:    'pre',
@@ -615,7 +615,7 @@ export default function TFGSphere() {
             background:  'rgba(2,2,10,0.93)',
             border:      `1px solid ${catCol}33`,
             borderLeft:  `2px solid ${catCol}bb`,
-            fontFamily:  'monospace',
+            fontFamily: "'Geist Mono', ui-monospace, monospace",
             fontSize:    '9px',
             padding:     '6px 9px',
             pointerEvents: 'none',
@@ -661,7 +661,7 @@ export default function TFGSphere() {
         return (
           <Html position={[p.x, p.y + 0.45, p.z]} style={{
             background: 'rgba(0,0,0,0.88)', border: '1px solid rgba(245,158,11,0.35)',
-            color: '#c0c0c0', fontFamily: 'monospace', fontSize: '9px',
+            color: '#c0c0c0', fontFamily: "'Geist Mono', ui-monospace, monospace", fontSize: '9px',
             padding: '6px 8px', whiteSpace: 'pre', pointerEvents: 'none',
             userSelect: 'none', borderRadius: '3px', minWidth: '130px',
             maxWidth: '200px', transform: 'translateX(-50%)',
@@ -715,7 +715,7 @@ export default function TFGSphere() {
             background:    'rgba(4,4,12,0.92)',
             border:        `1px solid ${col}55`,
             color:         '#c0c8d8',
-            fontFamily:    'monospace',
+            fontFamily: "'Geist Mono', ui-monospace, monospace",
             fontSize:      '9px',
             padding:       '7px 10px',
             whiteSpace:    'pre',
@@ -766,7 +766,7 @@ export default function TFGSphere() {
           position={[0.3, 0, 0]}
           style={{
             color: '#f59e0b',
-            fontFamily: 'monospace',
+            fontFamily: "'Geist Mono', ui-monospace, monospace",
             fontSize: '9px',
             whiteSpace: 'nowrap',
             userSelect: 'none',

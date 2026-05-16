@@ -83,7 +83,7 @@ export default function ChapterPanel({ chapter, chapterIndex, onClose }) {
         {/* Chapter number */}
         <div
           style={{
-            fontFamily:    'monospace',
+            fontFamily: "'Geist Mono', ui-monospace, monospace",
             fontSize:      11,
             fontWeight:    700,
             color:         accent,
@@ -101,7 +101,7 @@ export default function ChapterPanel({ chapter, chapterIndex, onClose }) {
         {/* Title */}
         <h2
           style={{
-            fontFamily:    'monospace',
+            fontFamily: "'Geist Mono', ui-monospace, monospace",
             fontSize:      22,
             fontWeight:    700,
             color:         accent,
@@ -132,7 +132,7 @@ export default function ChapterPanel({ chapter, chapterIndex, onClose }) {
             margin:      '0 0 24px 0',
             paddingLeft: 12,
             borderLeft:  `2px solid ${accent}44`,
-            fontFamily:  'monospace',
+            fontFamily: "'Geist Mono', ui-monospace, monospace",
             fontSize:    13,
             fontStyle:   'italic',
             color:       accent,
@@ -144,7 +144,7 @@ export default function ChapterPanel({ chapter, chapterIndex, onClose }) {
         </blockquote>
 
         {/* Body — staggered sentences */}
-        <p style={{ fontFamily: 'monospace', fontSize: 13, lineHeight: 1.9, color: 'rgba(232,121,249,0.75)', margin: 0 }}>
+        <p style={{ fontFamily: "'Geist Mono', ui-monospace, monospace", fontSize: 13, lineHeight: 1.9, color: 'rgba(232,121,249,0.75)', margin: 0 }}>
           {sentences.map((s, i) => (
             <span
               key={i}

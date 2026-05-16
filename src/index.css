@@ -2,6 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Geist typeface — variable fonts, self-hosted ────────────────────────────
+   Geist Sans  : UI chrome, headers, sidebar, navigation
+   Geist Mono  : Article body, kernel IDs, lattice coordinates, code
+   Both are variable (wt 100–900) loaded from /public/fonts/ — no FOIT.
+   font-display: swap keeps text visible during load.
+   ──────────────────────────────────────────────────────────────────────────── */
+@font-face {
+  font-family: 'Geist Sans';
+  src: url('/fonts/Geist-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('/fonts/GeistMono-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* Kill mobile horizontal scroll at the root */
 html, body {
   overflow-x: hidden;

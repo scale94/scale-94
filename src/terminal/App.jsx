@@ -1044,7 +1044,7 @@ const App = () => {
               className="flex items-center gap-3 px-4 py-3"
               style={{ borderBottom: '1px solid rgba(57,255,20,0.10)' }}
             >
-              <span style={{ color: 'rgba(57,255,20,0.35)', fontFamily: 'monospace', fontSize: '14px' }}>⌕</span>
+              <span style={{ color: 'rgba(57,255,20,0.35)', fontFamily: "'Geist Mono', ui-monospace, monospace", fontSize: '14px' }}>⌕</span>
               <input
                 autoFocus
                 value={globalSearchQuery}
@@ -1057,7 +1057,7 @@ const App = () => {
                   border:      'none',
                   outline:     'none',
                   color:       '#39ff14',
-                  fontFamily:  'monospace',
+                  fontFamily: "'Geist Mono', ui-monospace, monospace",
                   fontSize:    '13px',
                   letterSpacing: '0.04em',
                   caretColor:  '#39ff14',
@@ -1078,18 +1078,18 @@ const App = () => {
                 }}
               />
               <span
-                style={{ color: 'rgba(57,255,20,0.22)', fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.12em', cursor: 'pointer' }}
+                style={{ color: 'rgba(57,255,20,0.22)', fontFamily: "'Geist Mono', ui-monospace, monospace", fontSize: '10px', letterSpacing: '0.12em', cursor: 'pointer' }}
                 onClick={() => setGlobalSearchOpen(false)}
               >ESC</span>
             </div>
 
             {/* Results area */}
             {!globalSearchResults ? (
-                <div style={{ padding: '24px 16px', textAlign: 'center', fontFamily: 'monospace', fontSize: '9px', color: 'rgba(57,255,20,0.18)', letterSpacing: '0.14em' }}>
+                <div style={{ padding: '24px 16px', textAlign: 'center', fontFamily: "'Geist Mono', ui-monospace, monospace", fontSize: '9px', color: 'rgba(57,255,20,0.18)', letterSpacing: '0.14em' }}>
                   TYPE TO SEARCH ALL ARTICLES · MANIFESTO · TRANSMISSION · ECO-KERNEL
                 </div>
             ) : !globalSearchResults.length ? (
-                <div style={{ padding: '24px 16px', textAlign: 'center', fontFamily: 'monospace', fontSize: '10px', color: 'rgba(57,255,20,0.20)' }}>
+                <div style={{ padding: '24px 16px', textAlign: 'center', fontFamily: "'Geist Mono', ui-monospace, monospace", fontSize: '10px', color: 'rgba(57,255,20,0.20)' }}>
                   no matches
                 </div>
             ) : (
@@ -1112,15 +1112,15 @@ const App = () => {
                           onMouseLeave={() => setSearchResultIdx(i => i === idx ? -1 : i)}
                           onClick={() => openArticleFromSearch(a)}
                         >
-                          <span style={{ color: tabColor, fontFamily: 'monospace', fontSize: '8px', fontWeight: 800, letterSpacing: '0.12em', marginTop: '2px', flexShrink: 0, width: '68px' }}>
+                          <span style={{ color: tabColor, fontFamily: "'Geist Mono', ui-monospace, monospace", fontSize: '8px', fontWeight: 800, letterSpacing: '0.12em', marginTop: '2px', flexShrink: 0, width: '68px' }}>
                             {tab.toUpperCase()}
                           </span>
                           <span style={{ flex: 1, minWidth: 0 }}>
-                            <span style={{ color: 'rgba(57,255,20,0.88)', fontFamily: 'monospace', fontSize: '12px', fontWeight: 700, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <span style={{ color: 'rgba(57,255,20,0.88)', fontFamily: "'Geist Mono', ui-monospace, monospace", fontSize: '12px', fontWeight: 700, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {a.title ?? a.id}
                             </span>
                             {a.tags?.length > 0 && (
-                              <span style={{ color: 'rgba(57,255,20,0.22)', fontFamily: 'monospace', fontSize: '9px' }}>
+                              <span style={{ color: 'rgba(57,255,20,0.22)', fontFamily: "'Geist Mono', ui-monospace, monospace", fontSize: '9px' }}>
                                 {a.tags.slice(0, 4).join(' · ')}
                               </span>
                             )}
@@ -1133,7 +1133,7 @@ const App = () => {
             )}
 
             {/* Footer hint */}
-            <div style={{ padding: '6px 16px', borderTop: '1px solid rgba(57,255,20,0.07)', fontFamily: 'monospace', fontSize: '8px', color: 'rgba(57,255,20,0.15)', letterSpacing: '0.10em', display: 'flex', justifyContent: 'space-between' }}>
+            <div style={{ padding: '6px 16px', borderTop: '1px solid rgba(57,255,20,0.07)', fontFamily: "'Geist Mono', ui-monospace, monospace", fontSize: '8px', color: 'rgba(57,255,20,0.15)', letterSpacing: '0.10em', display: 'flex', justifyContent: 'space-between' }}>
               <span>SCALE_9.4 // KERNEL SEARCH</span>
               <span>↑↓ navigate · ↵ open · esc close</span>
             </div>

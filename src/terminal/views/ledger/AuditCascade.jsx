@@ -300,7 +300,7 @@ export default function AuditCascade({ verdict, visible, onComplete }) {
           style={{
             position: 'relative',
             zIndex: 1,
-            fontFamily: 'monospace',
+            fontFamily: "'Geist Mono', ui-monospace, monospace",
             fontSize: '9px',
             letterSpacing: '4px',
             color: 'rgba(20,184,166,0.5)',
@@ -340,7 +340,7 @@ export default function AuditCascade({ verdict, visible, onComplete }) {
                   <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span
                       style={{
-                        fontFamily: 'monospace',
+                        fontFamily: "'Geist Mono', ui-monospace, monospace",
                         fontSize: '10px',
                         color: 'rgba(156,163,175,0.7)',
                         letterSpacing: '1px',
@@ -351,7 +351,7 @@ export default function AuditCascade({ verdict, visible, onComplete }) {
                     {parsedByIdx[i] && (
                       <span
                         style={{
-                          fontFamily: 'monospace',
+                          fontFamily: "'Geist Mono', ui-monospace, monospace",
                           fontSize: '8px',
                           letterSpacing: '2px',
                           color: SIGNAL_COLORS[parsedByIdx[i].signal] || SIGNAL_COLORS.UNKNOWN,
@@ -365,7 +365,7 @@ export default function AuditCascade({ verdict, visible, onComplete }) {
                   </span>
                   <span
                     style={{
-                      fontFamily: 'monospace',
+                      fontFamily: "'Geist Mono', ui-monospace, monospace",
                       fontSize: '11px',
                       color: colors.text,
                       letterSpacing: '1px',
@@ -443,7 +443,7 @@ export default function AuditCascade({ verdict, visible, onComplete }) {
             <div
               className="ac-verdict"
               style={{
-                fontFamily: 'monospace',
+                fontFamily: "'Geist Mono', ui-monospace, monospace",
                 fontSize: 'clamp(14px, 4vw, 18px)',
                 fontWeight: 'bold',
                 letterSpacing: '0.3em',
@@ -475,7 +475,7 @@ export default function AuditCascade({ verdict, visible, onComplete }) {
               >
                 <pre
                   style={{
-                    fontFamily: 'monospace',
+                    fontFamily: "'Geist Mono', ui-monospace, monospace",
                     fontSize: '10px',
                     color: 'rgba(156,163,175,0.6)',
                     lineHeight: '1.6',
@@ -500,7 +500,7 @@ export default function AuditCascade({ verdict, visible, onComplete }) {
                 className="ac-ruling"
                 style={{
                   '--ac-ruling-delay': '500ms',
-                  fontFamily: 'monospace',
+                  fontFamily: "'Geist Mono', ui-monospace, monospace",
                   fontSize: '9px',
                   color: 'rgba(107,114,128,0.5)',
                   letterSpacing: '1px',
