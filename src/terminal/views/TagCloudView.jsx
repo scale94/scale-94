@@ -12,14 +12,14 @@ function tierClasses(count, max) {
     return { color: 'text-fuchsia-400 border-fuchsia-400/30 bg-fuchsia-950/20', size: 'text-[10px] font-semibold' };
   if (count >= 2)
     return { color: 'text-[#39ff14] border-[#39ff14]/20 bg-black/40',   size: 'text-[10px]' };
-  return   { color: 'text-gray-500 border-gray-700/40 bg-black/20',     size: 'text-[9px]' };
+  return   { color: 'text-zinc-500 border-zinc-700/40 bg-black/20',     size: 'text-[9px]' };
 }
 
 const LEGEND = [
   { color: 'text-cyan-300',    label: 'HIGH_SIGNAL'  },
   { color: 'text-fuchsia-400', label: 'MID_SIGNAL'   },
   { color: 'text-[#39ff14]',   label: 'ACTIVE'       },
-  { color: 'text-gray-500',    label: 'TRACE'        },
+  { color: 'text-zinc-500',    label: 'TRACE'        },
 ];
 
 const TagCloudView = ({ handleReturnToRoot, tagIndex }) => {
@@ -41,7 +41,7 @@ const TagCloudView = ({ handleReturnToRoot, tagIndex }) => {
     <div className="max-w-4xl mx-auto animate-in zoom-in-95 duration-300">
       <button
         onClick={handleReturnToRoot}
-        className="mb-8 flex items-center text-xs font-bold tracking-widest text-cyan-600 hover:text-white transition-colors border border-cyan-900/50 hover:border-cyan-500 px-3 py-2 -ml-2 w-fit uppercase bg-[#09090b] rounded-sm"
+        className="mb-8 flex items-center text-xs font-bold tracking-widest text-cyan-600 hover:text-cyan-200 transition-colors border border-cyan-900/50 hover:border-cyan-500 px-3 py-2 -ml-2 w-fit uppercase bg-[#09090b] rounded-sm"
       >
         <ArrowLeft className="w-3 h-3 mr-2" /> Return_To_KERNEL
       </button>
@@ -74,7 +74,7 @@ const TagCloudView = ({ handleReturnToRoot, tagIndex }) => {
 
         <div className="flex flex-wrap gap-6 pt-6 border-t border-cyan-900/20 text-[10px] font-bold tracking-widest uppercase">
           {LEGEND.map(({ color, label }) => (
-            <span key={label} className="flex items-center gap-2 text-gray-600">
+            <span key={label} className="flex items-center gap-2 text-zinc-600">
               <span className={`${color} text-sm leading-none`}>■</span>
               {label}
             </span>

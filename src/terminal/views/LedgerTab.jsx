@@ -344,14 +344,14 @@ export default function LedgerTab() {
         >
           <div className="flex items-center gap-3 mb-2">
             <span className="text-[10px] font-mono uppercase tracking-[4px] text-teal-600">The Open Ledger</span>
-            <span className="text-[10px] font-mono text-gray-600">v1.0</span>
+            <span className="text-[10px] font-mono text-zinc-600">v1.0</span>
           </div>
           <h1 className="text-sm sm:text-xl font-bold font-mono text-teal-300 tracking-wider mb-2">
             THERMODYNAMIC AUDIT INFRASTRUCTURE
           </h1>
         </div>
         <p
-          className="text-xs font-mono text-gray-500 leading-relaxed max-w-2xl"
+          className="text-xs font-mono text-zinc-500 leading-relaxed max-w-2xl"
           style={{
             opacity: titleBooted ? 1 : 0,
             animation: titleBooted ? 'lt-subtitleFade 0.8s 0.4s cubic-bezier(0.16,1,0.3,1) both' : 'none',
@@ -423,7 +423,7 @@ export default function LedgerTab() {
             <button
               onClick={() => setView('submit')}
               className={`text-[10px] font-mono uppercase tracking-[3px] pb-1 transition-colors ${
-                view === 'submit' ? 'text-teal-300 border-b border-teal-500' : 'text-gray-600 hover:text-teal-500'
+                view === 'submit' ? 'text-teal-300 border-b border-teal-500' : 'text-zinc-600 hover:text-teal-500'
               }`}
             >
               Submit Audit
@@ -431,7 +431,7 @@ export default function LedgerTab() {
             <button
               onClick={() => setView('archive')}
               className={`text-[10px] font-mono uppercase tracking-[3px] pb-1 transition-colors ${
-                view === 'archive' ? 'text-teal-300 border-b border-teal-500' : 'text-gray-600 hover:text-teal-500'
+                view === 'archive' ? 'text-teal-300 border-b border-teal-500' : 'text-zinc-600 hover:text-teal-500'
               }`}
             >
               Verdict Archive ({verdictCount})
@@ -453,7 +453,7 @@ export default function LedgerTab() {
           {view === 'archive' && (
             <div className="space-y-4">
               {verdicts.length === 0 ? (
-                <div className="text-center py-12 font-mono text-gray-600 text-sm">
+                <div className="text-center py-12 font-mono text-zinc-600 text-sm">
                   No verdicts issued yet. Submit your first audit.
                 </div>
               ) : (

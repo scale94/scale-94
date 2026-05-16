@@ -33,11 +33,11 @@ export default function KineticStatecraftPanel() {
       </div>
 
       {/* Sliders */}
-      <div className="px-4 py-4 border-b border-white/[0.04] space-y-4">
+      <div className="px-4 py-4 border-b border-zinc-600/[0.04] space-y-4">
         {/* SANCTION PRESSURE */}
         <div>
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[8px] font-mono text-white/30 uppercase tracking-widest">
+            <span className="text-[8px] font-mono text-zinc-500 uppercase tracking-widest">
               SANCTION PRESSURE
             </span>
             <span className="text-[9px] font-mono text-red-300/70">
@@ -59,7 +59,7 @@ export default function KineticStatecraftPanel() {
         {/* GRID RESILIENCE */}
         <div>
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[8px] font-mono text-white/30 uppercase tracking-widest">
+            <span className="text-[8px] font-mono text-zinc-500 uppercase tracking-widest">
               GRID RESILIENCE
             </span>
             <span className="text-[9px] font-mono text-red-300/70">
@@ -81,7 +81,7 @@ export default function KineticStatecraftPanel() {
         {/* PROPAGANDA INDEX */}
         <div>
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[8px] font-mono text-white/30 uppercase tracking-widest">
+            <span className="text-[8px] font-mono text-zinc-500 uppercase tracking-widest">
               PROPAGANDA INDEX
             </span>
             <span className="text-[9px] font-mono text-red-300/70">
@@ -112,7 +112,7 @@ export default function KineticStatecraftPanel() {
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-2 border-t border-white/[0.04] text-[6.5px] font-mono text-white/15">
+      <div className="px-4 py-2 border-t border-zinc-600/[0.04] text-[6.5px] font-mono text-zinc-600">
         WASM · boot_geopolitical_kinetics · kinetic-statecraft-kernel-1.0
       </div>
     </div>

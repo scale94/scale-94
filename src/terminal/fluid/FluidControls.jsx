@@ -72,7 +72,7 @@ export default function FluidControls({ params, onChange, fps, particleCount }) 
 
   return (
     <div className="space-y-3">
-      <div className="border border-white/[0.05] rounded-lg bg-black/30 p-3 space-y-3">
+      <div className="border border-zinc-600/[0.05] rounded-lg bg-black/30 p-3 space-y-3">
         <Slider label="Flow Velocity"    value={params.speed}      min={0.01} max={0.20} step={0.005} onChange={set('speed')} />
         <Slider label="Current Drift"    value={params.curlAmp}    min={0.00} max={0.20} step={0.005} onChange={set('curlAmp')} />
         <Slider label="Luminance Density" value={params.density}   min={2000} max={12000} step={500}  onChange={set('density')} format={(v) => Math.round(v).toLocaleString()} />
@@ -81,8 +81,8 @@ export default function FluidControls({ params, onChange, fps, particleCount }) 
       </div>
 
       {/* System status readout */}
-      <div className="mt-4 pt-3 border-t border-white/[0.05]">
-        <div className="text-[9px] font-mono text-white/20 uppercase tracking-widest mb-2">
+      <div className="mt-4 pt-3 border-t border-zinc-600/[0.05]">
+        <div className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-2">
           ── SYSTEM STATUS ──────────
         </div>
         <div className="space-y-0.5">
@@ -92,7 +92,7 @@ export default function FluidControls({ params, onChange, fps, particleCount }) 
             ['DRAW CALLS', '2'],
           ].map(([label, val]) => (
             <div key={label} className="flex justify-between text-[10px] font-mono">
-              <span className="text-white/20">{label}</span>
+              <span className="text-zinc-600">{label}</span>
               <span className="text-indigo-400/40">{val}</span>
             </div>
           ))}

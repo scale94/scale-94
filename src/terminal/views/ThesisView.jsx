@@ -6,7 +6,7 @@ const ThesisView = ({ handleReturnToRoot, systemArticles = {} }) => {
   const thesis = systemArticles['ARCHITECT-THESIS'];
   return (
   <div className="max-w-4xl mx-auto animate-in zoom-in-95 duration-300">
-    <button onClick={handleReturnToRoot} className="mb-8 flex items-center text-xs font-bold tracking-widest text-fuchsia-600 hover:text-white transition-colors border border-fuchsia-900/50 hover:border-fuchsia-500 px-3 py-2 -ml-2 w-fit uppercase bg-[#09090b] rounded-sm">
+    <button onClick={handleReturnToRoot} className="mb-8 flex items-center text-xs font-bold tracking-widest text-fuchsia-600 hover:text-fuchsia-200 transition-colors border border-fuchsia-900/50 hover:border-fuchsia-500 px-3 py-2 -ml-2 w-fit uppercase bg-[#09090b] rounded-sm">
       <ArrowLeft className="w-3 h-3 mr-2" /> Return_To_SCALING
     </button>
 
@@ -31,7 +31,7 @@ const ThesisView = ({ handleReturnToRoot, systemArticles = {} }) => {
         dangerouslySetInnerHTML={{ __html: thesis?.html ?? '' }}
       />
 
-      <div className="mt-16 pt-8 border-t border-fuchsia-900/30 flex justify-between items-center text-[10px] font-bold tracking-widest text-gray-600 uppercase">
+      <div className="mt-16 pt-8 border-t border-fuchsia-900/30 flex justify-between items-center text-[10px] font-bold tracking-widest text-zinc-600 uppercase">
         <span>THESIS_COMPLETE</span>
         <span>SIG: {Math.random().toString(36).substring(7)}</span>
       </div>

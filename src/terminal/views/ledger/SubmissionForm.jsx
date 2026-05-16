@@ -134,7 +134,7 @@ export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch,
         <div className="text-[10px] uppercase tracking-[3px] text-teal-500 font-mono mb-3">Coordinates</div>
         <div className="grid grid-cols-2 gap-3">
           <div data-field="lat">
-            <label className="block text-[10px] uppercase tracking-widest text-gray-500 font-mono mb-1">Latitude</label>
+            <label className="block text-[10px] uppercase tracking-widest text-zinc-500 font-mono mb-1">Latitude</label>
             <input
               type="number" step="any" placeholder="48.2082"
               value={form.lat} onChange={e => update('lat', e.target.value)}
@@ -145,7 +145,7 @@ export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch,
             )}
           </div>
           <div data-field="lon">
-            <label className="block text-[10px] uppercase tracking-widest text-gray-500 font-mono mb-1">Longitude</label>
+            <label className="block text-[10px] uppercase tracking-widest text-zinc-500 font-mono mb-1">Longitude</label>
             <input
               type="number" step="any" placeholder="16.3738"
               value={form.lon} onChange={e => update('lon', e.target.value)}
@@ -164,7 +164,7 @@ export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch,
             {showMap ? '[ - ] HIDE MAP' : '[ + ] SELECT ON MAP'}
           </button>
           {showMap && (
-            <Suspense fallback={<div className="h-[280px] flex items-center justify-center font-mono text-xs text-gray-600">Loading map...</div>}>
+            <Suspense fallback={<div className="h-[280px] flex items-center justify-center font-mono text-xs text-zinc-600">Loading map...</div>}>
               <div className="mt-2">
                 <CoordinatePicker
                   lat={Number(form.lat) || null}
@@ -182,7 +182,7 @@ export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch,
         <input
           type="text" placeholder="Site name (optional)"
           value={form.siteName} onChange={e => update('siteName', e.target.value)}
-          className="w-full mt-2 bg-black border border-teal-900/20 text-gray-400 font-mono text-xs px-3 py-1.5 rounded-sm focus:border-teal-500 focus:outline-none transition-colors"
+          className="w-full mt-2 bg-black border border-teal-900/20 text-zinc-400 font-mono text-xs px-3 py-1.5 rounded-sm focus:border-teal-500 focus:outline-none transition-colors"
         />
       </div>
 
@@ -216,8 +216,8 @@ export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch,
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
           {Object.entries(PARAM_RANGES).map(([key, range]) => (
             <div key={key} data-field={key}>
-              <label className="block text-[10px] uppercase tracking-widest text-gray-500 font-mono mb-1">
-                {range.label} <span className="text-gray-600">({range.unit})</span>
+              <label className="block text-[10px] uppercase tracking-widest text-zinc-500 font-mono mb-1">
+                {range.label} <span className="text-zinc-600">({range.unit})</span>
                 <SeverityDot paramKey={key} value={form[key]} />
               </label>
               <input
@@ -248,12 +248,12 @@ export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch,
               onKeyDown={e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); update('dependency', dep); } }}
               className="flex items-center gap-3 cursor-pointer group"
             >
-              <div className={`w-3 h-3 border rounded-full flex items-center justify-center transition-colors ${form.dependency === dep ? 'border-teal-400 bg-teal-400' : 'border-gray-600 group-hover:border-teal-600'}`}>
+              <div className={`w-3 h-3 border rounded-full flex items-center justify-center transition-colors ${form.dependency === dep ? 'border-teal-400 bg-teal-400' : 'border-zinc-600 group-hover:border-teal-600'}`}>
                 {form.dependency === dep && <div className="w-1.5 h-1.5 bg-black rounded-full" />}
               </div>
               <span className="text-xs font-mono">
-                <span className={form.dependency === dep ? 'text-teal-300' : 'text-gray-400'}>{dep.toUpperCase()}</span>
-                <span className="text-gray-600 ml-2">— {DEPENDENCY_LABELS[dep].split('—')[1]}</span>
+                <span className={form.dependency === dep ? 'text-teal-300' : 'text-zinc-400'}>{dep.toUpperCase()}</span>
+                <span className="text-zinc-600 ml-2">— {DEPENDENCY_LABELS[dep].split('—')[1]}</span>
               </span>
             </div>
           ))}
@@ -266,7 +266,7 @@ export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch,
           placeholder="Notes (optional) — site context, data source, observation conditions"
           value={form.notes} onChange={e => update('notes', e.target.value)}
           rows={2}
-          className="w-full bg-black border border-teal-900/20 text-gray-400 font-mono text-xs px-3 py-2 rounded-sm focus:border-teal-500 focus:outline-none transition-colors resize-none"
+          className="w-full bg-black border border-teal-900/20 text-zinc-400 font-mono text-xs px-3 py-2 rounded-sm focus:border-teal-500 focus:outline-none transition-colors resize-none"
         />
       </div>
 

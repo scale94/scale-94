@@ -419,7 +419,7 @@ const BskyTab = () => {
           <div className={`flex items-center gap-2 text-[9px] font-bold tracking-widest border px-3 py-1.5 uppercase ${
             bskyStats
               ? 'border-sky-500/30 bg-sky-950/20 text-sky-400'
-              : 'border-gray-700/20 bg-black/20 text-gray-600'
+              : 'border-zinc-700/20 bg-black/20 text-zinc-600'
           }`}>
             <div className="relative flex items-center justify-center">
               <div className={`w-1.5 h-1.5 rounded-full ${bskyStats ? 'bg-sky-400' : 'bg-gray-600'}`} />

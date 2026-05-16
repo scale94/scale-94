@@ -106,7 +106,7 @@ export default function MercuryTab() {
               Mercury Terminal
             </h2>
             <div
-              className="text-[9px] font-mono text-gray-500/50 uppercase tracking-[0.2em] mt-0.5"
+              className="text-[9px] font-mono text-zinc-500/50 uppercase tracking-[0.2em] mt-0.5"
               style={{ animation: 'hg-titleReveal 0.6s 0.1s cubic-bezier(0.16,1,0.3,1) both' }}
             >
               {activePhase} :: phase active // perihelion precession // metallurgy of the present

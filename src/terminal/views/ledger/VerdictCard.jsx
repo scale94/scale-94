@@ -7,7 +7,7 @@ const STATUS_COLORS = {
   CONDITIONAL:    { text: 'text-yellow-400', border: 'border-yellow-800/30', glow: 'shadow-[0_0_12px_rgba(234,179,8,0.1)]' },
   REJECTED:       { text: 'text-red-400', border: 'border-red-800/30', glow: 'shadow-[0_0_12px_rgba(239,68,68,0.1)]' },
   EMERGENCY_VETO: { text: 'text-red-500', border: 'border-red-700/40', glow: 'shadow-[0_0_16px_rgba(239,68,68,0.15)]' },
-  UNKNOWN:        { text: 'text-gray-400', border: 'border-gray-800/30', glow: '' },
+  UNKNOWN:        { text: 'text-zinc-400', border: 'border-zinc-800/30', glow: '' },
 };
 
 const CARD_STYLES = `
@@ -85,24 +85,24 @@ export default function VerdictCard({ verdict, onExport }) {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
           <span className={`font-mono text-sm font-bold tracking-wider ${colors.text}`}>{verdict.status}</span>
-          <span className="text-[10px] font-mono text-gray-600 tracking-wider">
+          <span className="text-[10px] font-mono text-zinc-600 tracking-wider">
             {verdict.dependency?.toUpperCase()}
           </span>
         </div>
-        <span className="text-[10px] font-mono text-gray-600">
+        <span className="text-[10px] font-mono text-zinc-600">
           {new Date(verdict.timestamp).toISOString().replace('T', ' ').slice(0, 19)} UTC
         </span>
       </div>
 
       {/* Coordinates + Hash */}
-      <div className="font-mono text-xs text-gray-400 mb-2">
+      <div className="font-mono text-xs text-zinc-400 mb-2">
         <span className="text-teal-600">coordinates:</span>{' '}
         {verdict.coordinates.lat.toFixed(4)}, {verdict.coordinates.lon.toFixed(4)}
         {verdict.input?.siteName && (
-          <span className="text-gray-500 ml-2">// {verdict.input.siteName}</span>
+          <span className="text-zinc-500 ml-2">// {verdict.input.siteName}</span>
         )}
       </div>
-      <div className="font-mono text-[10px] text-gray-600 mb-3">
+      <div className="font-mono text-[10px] text-zinc-600 mb-3">
         <span className="text-teal-700">hash:</span> {verdict.hash?.slice(0, 12)}...{verdict.hash?.slice(-8)}
       </div>
 
@@ -120,7 +120,7 @@ export default function VerdictCard({ verdict, onExport }) {
                   boxShadow: `0 0 4px ${SIGNAL_COLORS[mod.signal] || SIGNAL_COLORS.UNKNOWN}66`,
                 }}
               />
-              <span className="text-[8px] font-mono text-gray-600 tracking-wider">
+              <span className="text-[8px] font-mono text-zinc-600 tracking-wider">
                 {MODULE_SHORT[i] || mod.key}
               </span>
             </div>
@@ -137,7 +137,7 @@ export default function VerdictCard({ verdict, onExport }) {
           const dotColor = val !== undefined ? SEV_DOT_COLORS[level] : 'rgba(107,114,128,0.3)';
           return (
             <div key={key} className="text-center">
-              <div className="text-[8px] font-mono text-gray-600 uppercase tracking-widest flex items-center justify-center gap-1">
+              <div className="text-[8px] font-mono text-zinc-600 uppercase tracking-widest flex items-center justify-center gap-1">
                 {key}
                 <span style={{
                   display: 'inline-block',
@@ -149,7 +149,7 @@ export default function VerdictCard({ verdict, onExport }) {
               </div>
               <div className="text-xs font-mono text-teal-300">
                 {val !== undefined ? val : '—'}
-                <span className="text-gray-600 text-[8px] ml-0.5">{range.unit}</span>
+                <span className="text-zinc-600 text-[8px] ml-0.5">{range.unit}</span>
               </div>
             </div>
           );
@@ -166,7 +166,7 @@ export default function VerdictCard({ verdict, onExport }) {
 
       {expanded && (
         <div className="mt-3 border-t border-teal-900/20 pt-3">
-          <pre className="font-mono text-[11px] text-gray-400 whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto">
+          <pre className="font-mono text-[11px] text-zinc-400 whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto">
             {verdict.ruling}
           </pre>
           {onExport && (

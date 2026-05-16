@@ -225,8 +225,8 @@ const LUNAR_ACCORDS = [
     base:   ['Driftwood', 'Cedarwood Atlas', 'Flint Accord'],
     concentration: 'EDT',
     sillage: 0.42,
-    color: 'from-slate-800/30 to-zinc-900/30',
-    accent: 'text-slate-400',
+    color: 'from-zinc-800/30 to-zinc-900/30',
+    accent: 'text-zinc-400',
   },
   {
     phase: 'waning-crescent',
@@ -629,8 +629,8 @@ function PhaseSelector({ currentAge, onSelectPhase, selectedPhaseId }) {
                   : isSelected
                     ? 'bg-violet-500/20 ring-1 ring-violet-400/50 shadow-[0_0_8px_rgba(139,92,246,0.3)]'
                     : isCurrent
-                      ? 'bg-white/[0.06] ring-1 ring-white/10'
-                      : 'bg-white/[0.02] hover:bg-white/[0.06] active:bg-white/[0.1]'}
+                      ? 'bg-zinc-200/[0.06] ring-1 ring-zinc-500/10'
+                      : 'bg-zinc-200/[0.02] hover:bg-zinc-200/[0.06] active:bg-zinc-200/[0.1]'}
               `}
               aria-label={p.label}
               aria-expanded={isInfoOpen}
@@ -658,18 +658,18 @@ function PhaseSelector({ currentAge, onSelectPhase, selectedPhaseId }) {
             <div className="flex items-center gap-2">
               <span className="text-lg">{infoPhase.glyph}</span>
               <div>
-                <div className="text-[11px] sm:text-xs font-bold font-mono text-white/80 uppercase tracking-wider">
+                <div className="text-[11px] sm:text-xs font-bold font-mono text-zinc-200 uppercase tracking-wider">
                   {infoPhase.label}
                 </div>
-                <div className="text-[8px] font-mono text-white/30">
+                <div className="text-[8px] font-mono text-zinc-500">
                   Day {infoPhase.range[0].toFixed(1)}–{infoPhase.range[1].toFixed(1)} of {SYNODIC_PERIOD.toFixed(1)}
                 </div>
               </div>
             </div>
             <button
               onClick={(e) => { e.stopPropagation(); setInfoPhaseId(null); }}
-              className="w-6 h-6 rounded-full bg-white/[0.05] hover:bg-white/[0.12] active:bg-white/[0.18]
-                flex items-center justify-center text-[10px] text-white/30 hover:text-white/60
+              className="w-6 h-6 rounded-full bg-zinc-200/[0.05] hover:bg-zinc-200/[0.12] active:bg-zinc-200/[0.18]
+                flex items-center justify-center text-[10px] text-zinc-500 hover:text-zinc-300
                 transition-colors touch-manipulation"
               aria-label="Close"
             >
@@ -681,23 +681,23 @@ function PhaseSelector({ currentAge, onSelectPhase, selectedPhaseId }) {
           <div className={`text-[10px] font-mono font-bold uppercase tracking-widest mb-1.5 ${infoAccord.accent}`}>
             {infoAccord.accord}
           </div>
-          <div className="text-[9px] font-mono text-white/40 mb-2 leading-relaxed">
+          <div className="text-[9px] font-mono text-zinc-400 mb-2 leading-relaxed">
             {infoAccord.signature}
           </div>
 
           {/* Quick stats row */}
           <div className="grid grid-cols-3 gap-2 mb-2">
-            <div className="border border-white/[0.06] rounded bg-white/[0.02] px-2 py-1.5 text-center">
-              <div className="text-[7px] font-mono text-white/20 uppercase tracking-widest">CONC.</div>
-              <div className="text-[10px] font-mono text-white/60 mt-0.5">{infoAccord.concentration}</div>
+            <div className="border border-zinc-600/[0.06] rounded bg-zinc-200/[0.02] px-2 py-1.5 text-center">
+              <div className="text-[7px] font-mono text-zinc-600 uppercase tracking-widest">CONC.</div>
+              <div className="text-[10px] font-mono text-zinc-300 mt-0.5">{infoAccord.concentration}</div>
             </div>
-            <div className="border border-white/[0.06] rounded bg-white/[0.02] px-2 py-1.5 text-center">
-              <div className="text-[7px] font-mono text-white/20 uppercase tracking-widest">SILLAGE</div>
-              <div className="text-[10px] font-mono text-white/60 mt-0.5">{(infoAccord.sillage * 100).toFixed(0)}%</div>
+            <div className="border border-zinc-600/[0.06] rounded bg-zinc-200/[0.02] px-2 py-1.5 text-center">
+              <div className="text-[7px] font-mono text-zinc-600 uppercase tracking-widest">SILLAGE</div>
+              <div className="text-[10px] font-mono text-zinc-300 mt-0.5">{(infoAccord.sillage * 100).toFixed(0)}%</div>
             </div>
-            <div className="border border-white/[0.06] rounded bg-white/[0.02] px-2 py-1.5 text-center">
-              <div className="text-[7px] font-mono text-white/20 uppercase tracking-widest">NOTES</div>
-              <div className="text-[10px] font-mono text-white/60 mt-0.5">
+            <div className="border border-zinc-600/[0.06] rounded bg-zinc-200/[0.02] px-2 py-1.5 text-center">
+              <div className="text-[7px] font-mono text-zinc-600 uppercase tracking-widest">NOTES</div>
+              <div className="text-[10px] font-mono text-zinc-300 mt-0.5">
                 {infoAccord.top.length + infoAccord.heart.length + infoAccord.base.length}
               </div>
             </div>
@@ -729,14 +729,14 @@ function PhaseSelector({ currentAge, onSelectPhase, selectedPhaseId }) {
           </div>
 
           {/* Mechanism excerpt */}
-          <div className="mt-2 pt-2 border-t border-white/[0.05]">
-            <p className="text-[8px] font-mono text-white/25 leading-relaxed line-clamp-3">
+          <div className="mt-2 pt-2 border-t border-zinc-600/[0.05]">
+            <p className="text-[8px] font-mono text-zinc-500 leading-relaxed line-clamp-3">
               {infoAccord.mechanism}
             </p>
           </div>
 
           {/* Mobile hint */}
-          <div className="mt-2 text-[7px] font-mono text-white/10 text-center sm:hidden">
+          <div className="mt-2 text-[7px] font-mono text-zinc-700 text-center sm:hidden">
             TAP ELSEWHERE TO DISMISS · LONG-PRESS TO LOCK
           </div>
         </div>
@@ -751,11 +751,11 @@ function ParamBar({ label, value, unit, min, max, color }) {
   const pct = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
   return (
     <div className="flex items-center gap-1.5 sm:gap-2 text-[8px] sm:text-[9px] font-mono">
-      <span className="w-14 sm:w-20 text-right text-white/30 uppercase tracking-wider sm:tracking-widest shrink-0 truncate">{label}</span>
-      <div className="flex-1 h-1.5 bg-white/[0.04] rounded-full overflow-hidden min-w-0">
+      <span className="w-14 sm:w-20 text-right text-zinc-500 uppercase tracking-wider sm:tracking-widest shrink-0 truncate">{label}</span>
+      <div className="flex-1 h-1.5 bg-zinc-200/[0.04] rounded-full overflow-hidden min-w-0">
         <div className={`h-full rounded-full transition-all duration-700 ${color}`} style={{ width: `${pct}%` }} />
       </div>
-      <span className="w-12 sm:w-16 text-white/50 tabular-nums text-right shrink-0">{typeof value === 'number' ? value.toFixed(3) : value}</span>
+      <span className="w-12 sm:w-16 text-zinc-400 tabular-nums text-right shrink-0">{typeof value === 'number' ? value.toFixed(3) : value}</span>
     </div>
   );
 }
@@ -771,7 +771,7 @@ function AccordCard({ accord, isActive }) {
         border rounded-lg p-3 sm:p-4 transition-all duration-300 cursor-pointer
         ${isActive
           ? 'border-violet-500/40 bg-violet-950/10 shadow-[0_0_20px_rgba(139,92,246,0.08)]'
-          : 'border-white/[0.06] bg-black/40 hover:border-white/[0.12] active:bg-white/[0.03]'}
+          : 'border-zinc-600/[0.06] bg-black/40 hover:border-zinc-600/[0.12] active:bg-zinc-200/[0.03]'}
       `}
       onClick={() => setExpanded(!expanded)}
     >
@@ -780,13 +780,13 @@ function AccordCard({ accord, isActive }) {
           <div className={`text-[10px] sm:text-xs font-bold tracking-widest uppercase ${accord.accent} truncate`}>
             {accord.accord}
           </div>
-          <div className="text-[8px] sm:text-[9px] font-mono text-white/30 mt-0.5 truncate">
+          <div className="text-[8px] sm:text-[9px] font-mono text-zinc-500 mt-0.5 truncate">
             {accord.signature}
           </div>
         </div>
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          <span className="text-[7px] sm:text-[8px] font-mono text-white/20 uppercase">{accord.concentration}</span>
-          <div className="w-10 sm:w-12 h-1 bg-white/[0.04] rounded-full overflow-hidden">
+          <span className="text-[7px] sm:text-[8px] font-mono text-zinc-600 uppercase">{accord.concentration}</span>
+          <div className="w-10 sm:w-12 h-1 bg-zinc-200/[0.04] rounded-full overflow-hidden">
             <div className={`h-full rounded-full bg-gradient-to-r ${accord.color}`}
               style={{ width: `${accord.sillage * 100}%` }} />
           </div>
@@ -796,21 +796,21 @@ function AccordCard({ accord, isActive }) {
       {/* Note pyramid — s-tier staggered flare */}
       <div className="grid grid-cols-3 gap-1.5 sm:gap-2 mt-3">
         <div className="ln-col-flare" style={{ animationDelay: '0.05s' }}>
-          <div className="text-[7px] font-mono text-white/20 uppercase tracking-widest mb-1">TOP</div>
+          <div className="text-[7px] font-mono text-zinc-600 uppercase tracking-widest mb-1">TOP</div>
           {accord.top.map((n, i) => (
             <div key={n} className="ln-note-flare text-[8px] font-mono text-cyan-400/60 leading-relaxed"
               style={{ animationDelay: `${0.10 + i * 0.07}s` }}>{n}</div>
           ))}
         </div>
         <div className="ln-col-flare" style={{ animationDelay: '0.15s' }}>
-          <div className="text-[7px] font-mono text-white/20 uppercase tracking-widest mb-1">HEART</div>
+          <div className="text-[7px] font-mono text-zinc-600 uppercase tracking-widest mb-1">HEART</div>
           {accord.heart.map((n, i) => (
             <div key={n} className="ln-note-flare text-[8px] font-mono text-fuchsia-400/60 leading-relaxed"
               style={{ animationDelay: `${0.20 + i * 0.07}s` }}>{n}</div>
           ))}
         </div>
         <div className="ln-col-flare" style={{ animationDelay: '0.25s' }}>
-          <div className="text-[7px] font-mono text-white/20 uppercase tracking-widest mb-1">BASE</div>
+          <div className="text-[7px] font-mono text-zinc-600 uppercase tracking-widest mb-1">BASE</div>
           {accord.base.map((n, i) => (
             <div key={n} className="ln-note-flare text-[8px] font-mono text-amber-400/60 leading-relaxed"
               style={{ animationDelay: `${0.30 + i * 0.07}s` }}>{n}</div>
@@ -820,9 +820,9 @@ function AccordCard({ accord, isActive }) {
 
       {/* Mechanism (expandable) */}
       {expanded && (
-        <div className="mt-3 pt-3 border-t border-white/[0.05]">
-          <div className="text-[7px] font-mono text-white/15 uppercase tracking-widest mb-1">MECHANISM</div>
-          <p className="text-[9px] font-mono text-white/40 leading-relaxed">{accord.mechanism}</p>
+        <div className="mt-3 pt-3 border-t border-zinc-600/[0.05]">
+          <div className="text-[7px] font-mono text-zinc-600 uppercase tracking-widest mb-1">MECHANISM</div>
+          <p className="text-[9px] font-mono text-zinc-400 leading-relaxed">{accord.mechanism}</p>
         </div>
       )}
 
@@ -1054,8 +1054,8 @@ function TransitMatrix({ transits, planets, timestamp, onRefresh }) {
         </div>
       </div>
 
-      <div className="px-4 py-2.5 border-b border-white/[0.04] bg-black/20">
-        <div className="text-[6.5px] font-mono text-white/20 uppercase tracking-widest mb-1.5">CURRENT POSITIONS</div>
+      <div className="px-4 py-2.5 border-b border-zinc-600/[0.04] bg-black/20">
+        <div className="text-[6.5px] font-mono text-zinc-600 uppercase tracking-widest mb-1.5">CURRENT POSITIONS</div>
         <div className="flex flex-wrap gap-x-4 gap-y-1">
           {Object.entries(PLANET_DATA).map(([name, p]) => {
             const pos = planets[name];
@@ -1063,7 +1063,7 @@ function TransitMatrix({ transits, planets, timestamp, onRefresh }) {
             return (
               <span key={name} className="font-mono text-[8px]">
                 <span style={{ color: p.color }}>{p.glyph}</span>
-                <span className="text-white/35"> {pos.sign.slice(0, 3)} {pos.degree.toFixed(0)}°</span>
+                <span className="text-zinc-500"> {pos.sign.slice(0, 3)} {pos.degree.toFixed(0)}°</span>
                 {pos.retrograde && <span className="text-rose-400/60"> ℞</span>}
               </span>
             );
@@ -1071,7 +1071,7 @@ function TransitMatrix({ transits, planets, timestamp, onRefresh }) {
         </div>
       </div>
 
-      <div className="divide-y divide-white/[0.03]">
+      <div className="divide-y divide-zinc-700/[0.03]">
         {transits.map(({ p1, p2, aspect, orb }, i) => {
           const d1  = PLANET_DATA[p1];
           const d2  = PLANET_DATA[p2];
@@ -1086,19 +1086,19 @@ function TransitMatrix({ transits, planets, timestamp, onRefresh }) {
                   {ASPECT_GLYPH[aspect]} {aspect}
                 </span>
                 <span className="text-[15px]" style={{ color: d2.color }}>{d2.glyph}</span>
-                <span className="font-mono text-[7px] text-white/25">orb {orb}°</span>
-                <span className="font-mono text-[7px] text-white/20 ml-auto hidden sm:block">
+                <span className="font-mono text-[7px] text-zinc-500">orb {orb}°</span>
+                <span className="font-mono text-[7px] text-zinc-600 ml-auto hidden sm:block">
                   {d1.key} × {d2.key}
                 </span>
               </div>
               {pos1 && pos2 && (
-                <div className="text-[6.5px] font-mono text-white/20 mb-1.5">
+                <div className="text-[6.5px] font-mono text-zinc-600 mb-1.5">
                   <span style={{ color: d1.color }}>{d1.glyph}</span> {pos1.sign} {pos1.degree.toFixed(1)}°{pos1.retrograde ? ' ℞' : ''}
-                  <span className="text-white/15"> · </span>
+                  <span className="text-zinc-600"> · </span>
                   <span style={{ color: d2.color }}>{d2.glyph}</span> {pos2.sign} {pos2.degree.toFixed(1)}°{pos2.retrograde ? ' ℞' : ''}
                 </div>
               )}
-              <div className="text-[8.5px] font-mono text-white/45 leading-relaxed">
+              <div className="text-[8.5px] font-mono text-zinc-400 leading-relaxed">
                 {aspectReading(p1, p2, aspect)}
               </div>
             </div>
@@ -1106,7 +1106,7 @@ function TransitMatrix({ transits, planets, timestamp, onRefresh }) {
         })}
       </div>
 
-      <div className="px-4 py-2 border-t border-white/[0.04] text-[6.5px] font-mono text-white/15 leading-relaxed">
+      <div className="px-4 py-2 border-t border-zinc-600/[0.04] text-[6.5px] font-mono text-zinc-600 leading-relaxed">
         Orbs: Conjunct/Trine/Opposite ±8° · Square ±7° · Sextile ±6° · Positions via Swiss Ephemeris Rust WASM kernel
       </div>
     </div>
@@ -1217,10 +1217,10 @@ export default function LunarTab() {
             selectedPhaseId={selectedPhaseId}
           />
           <div className="text-center mt-1">
-            <div className="text-[10px] font-mono font-bold text-white/70 uppercase tracking-widest">
+            <div className="text-[10px] font-mono font-bold text-zinc-200 uppercase tracking-widest">
               {currentPhase.glyph} {currentPhase.label}
             </div>
-            <div className="text-[9px] font-mono text-white/30 mt-0.5">
+            <div className="text-[9px] font-mono text-zinc-500 mt-0.5">
               {(illumination * 100).toFixed(1)}% illuminated · day {currentAge.toFixed(1)} / {SYNODIC_PERIOD.toFixed(1)}
             </div>
             <div className="text-[8px] font-mono text-violet-500/40 mt-1">
@@ -1230,8 +1230,8 @@ export default function LunarTab() {
         </div>
 
         {/* Environmental Parameters */}
-        <div className="border border-white/[0.05] rounded-lg bg-black/30 p-4">
-          <div className="text-[8px] font-mono text-white/20 uppercase tracking-[0.2em] mb-3">
+        <div className="border border-zinc-600/[0.05] rounded-lg bg-black/30 p-4">
+          <div className="text-[8px] font-mono text-zinc-600 uppercase tracking-[0.2em] mb-3">
             ENVIRONMENTAL MODULATORS — CURRENT READINGS
           </div>
           <div className="space-y-2.5">
@@ -1248,7 +1248,7 @@ export default function LunarTab() {
             <ParamBar label="ΔSKIN T°" value={envParams.skinTempDelta} unit="°C"
               min={-0.15} max={0.15} color="bg-gradient-to-r from-orange-600 to-red-500" />
           </div>
-          <div className="mt-3 pt-2 border-t border-white/[0.04] text-[7px] font-mono text-white/15 leading-relaxed">
+          <div className="mt-3 pt-2 border-t border-zinc-600/[0.04] text-[7px] font-mono text-zinc-600 leading-relaxed">
             Cajochen et al. (2013) Current Biology · Pietrowsky et al. (2014) Chronobiology Int. · Herrmann et al. (2010) Atmos. Chem. Phys.
           </div>
         </div>
@@ -1256,10 +1256,10 @@ export default function LunarTab() {
 
       {/* ── Accord Grid ── */}
       <div className="mb-4">
-        <div className="text-[9px] font-mono text-white/20 uppercase tracking-[0.2em] mb-3">
+        <div className="text-[9px] font-mono text-zinc-600 uppercase tracking-[0.2em] mb-3">
           SYNODIC FRAGRANCE MAP — 8 PHASE ACCORDS
         </div>
-        <div className="text-[8px] font-mono text-white/10 mb-4">
+        <div className="text-[8px] font-mono text-zinc-700 mb-4">
           Click any phase on the wheel or card below. Active phase highlighted.
         </div>
       </div>
@@ -1285,8 +1285,8 @@ export default function LunarTab() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Volatility curve */}
-          <div className="border border-white/[0.04] rounded bg-black/30 p-3">
-            <div className="text-[7px] font-mono text-white/20 uppercase tracking-widest mb-2">EVAPORATION CURVE</div>
+          <div className="border border-zinc-600/[0.04] rounded bg-black/30 p-3">
+            <div className="text-[7px] font-mono text-zinc-600 uppercase tracking-widest mb-2">EVAPORATION CURVE</div>
             <div className="flex items-end gap-1 h-16">
               {[
                 { label: 'T', pct: selectedAccord.top.length * 25, color: 'bg-cyan-500/60' },
@@ -1296,55 +1296,55 @@ export default function LunarTab() {
                 <div key={b.label} className="flex-1 flex flex-col items-center gap-1">
                   <div className={`w-full rounded-sm ${b.color} transition-all duration-500`}
                     style={{ height: `${Math.min(100, b.pct)}%` }} />
-                  <span className="text-[7px] font-mono text-white/20">{b.label}</span>
+                  <span className="text-[7px] font-mono text-zinc-600">{b.label}</span>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Projection metrics */}
-          <div className="border border-white/[0.04] rounded bg-black/30 p-3">
-            <div className="text-[7px] font-mono text-white/20 uppercase tracking-widest mb-2">PROJECTION</div>
+          <div className="border border-zinc-600/[0.04] rounded bg-black/30 p-3">
+            <div className="text-[7px] font-mono text-zinc-600 uppercase tracking-widest mb-2">PROJECTION</div>
             <div className="space-y-2">
               <div className="flex justify-between text-[9px] font-mono">
-                <span className="text-white/30">SILLAGE</span>
-                <span className="text-white/60">{(selectedAccord.sillage * 100).toFixed(0)}%</span>
+                <span className="text-zinc-500">SILLAGE</span>
+                <span className="text-zinc-300">{(selectedAccord.sillage * 100).toFixed(0)}%</span>
               </div>
               <div className="flex justify-between text-[9px] font-mono">
-                <span className="text-white/30">CONCENTRATION</span>
-                <span className="text-white/60">{selectedAccord.concentration}</span>
+                <span className="text-zinc-500">CONCENTRATION</span>
+                <span className="text-zinc-300">{selectedAccord.concentration}</span>
               </div>
               <div className="flex justify-between text-[9px] font-mono">
-                <span className="text-white/30">ILLUMINATION</span>
-                <span className="text-white/60">{(illumination * 100).toFixed(1)}%</span>
+                <span className="text-zinc-500">ILLUMINATION</span>
+                <span className="text-zinc-300">{(illumination * 100).toFixed(1)}%</span>
               </div>
             </div>
           </div>
 
           {/* Molecular families */}
-          <div className="border border-white/[0.04] rounded bg-black/30 p-3">
-            <div className="text-[7px] font-mono text-white/20 uppercase tracking-widest mb-2">NOTE COUNT</div>
+          <div className="border border-zinc-600/[0.04] rounded bg-black/30 p-3">
+            <div className="text-[7px] font-mono text-zinc-600 uppercase tracking-widest mb-2">NOTE COUNT</div>
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-cyan-500/60" />
-                <span className="text-[9px] font-mono text-white/40">Top: {selectedAccord.top.length} molecules</span>
+                <span className="text-[9px] font-mono text-zinc-400">Top: {selectedAccord.top.length} molecules</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-fuchsia-500/60" />
-                <span className="text-[9px] font-mono text-white/40">Heart: {selectedAccord.heart.length} molecules</span>
+                <span className="text-[9px] font-mono text-zinc-400">Heart: {selectedAccord.heart.length} molecules</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-amber-500/60" />
-                <span className="text-[9px] font-mono text-white/40">Base: {selectedAccord.base.length} molecules</span>
+                <span className="text-[9px] font-mono text-zinc-400">Base: {selectedAccord.base.length} molecules</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Mechanism */}
-        <div className="mt-4 pt-3 border-t border-white/[0.04]">
-          <div className="text-[7px] font-mono text-white/15 uppercase tracking-widest mb-1">MECHANISM</div>
-          <p className="text-[10px] font-mono text-white/40 leading-relaxed">
+        <div className="mt-4 pt-3 border-t border-zinc-600/[0.04]">
+          <div className="text-[7px] font-mono text-zinc-600 uppercase tracking-widest mb-1">MECHANISM</div>
+          <p className="text-[10px] font-mono text-zinc-400 leading-relaxed">
             {selectedAccord.mechanism}
           </p>
         </div>
@@ -1353,7 +1353,7 @@ export default function LunarTab() {
       <TransitMatrix transits={transits} planets={planets} timestamp={now} onRefresh={() => setRefreshKey(k => k + 1)} />
 
       {/* ── Footer ── */}
-      <div className="mt-8 pt-4 border-t border-white/[0.03] text-[8px] font-mono text-white/10 leading-relaxed">
+      <div className="mt-8 pt-4 border-t border-zinc-600/[0.03] text-[8px] font-mono text-zinc-700 leading-relaxed">
         <p>
           LUNAR FRAGRANCE PROTOCOL v2.0 — {wasmReady ? 'Meeus astronomical algorithm (WASM)' : 'synodic fallback'}.
           Phase engine: Jean Meeus, <i>Astronomical Algorithms</i> 2nd ed. (1998), ch.47–48. 60-term periodic series, ~10″ longitude accuracy.
