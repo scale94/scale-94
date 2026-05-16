@@ -889,7 +889,7 @@ const App = () => {
 
       {/* ── Ambient visual layers ──────────────────────────────────────────── */}
       {bootAnimDone && <AmbientParticles />}
-      <div className="crt-overlay" aria-hidden="true" />
+      <div className={`crt-overlay${isCritical ? ' crt-critical' : isWarning ? ' crt-warning' : ''}`} aria-hidden="true" />
       {tabGlitch && (
         <div className="tab-glitch-burst" aria-hidden="true">
           <div className="tab-glitch-layer tab-glitch-cyan" />

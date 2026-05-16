@@ -202,6 +202,17 @@ function runClimateSim(appendSystemLog) {
   });
 }
 
+// ── Doctrine-tiered RAM color ─────────────────────────────────────────────────
+// Mirrors the ECO message palette — healthy green degrades through gold,
+// red-orange, and magenta as planetary standing collapses.
+const ramColor = (pct) => {
+  if (pct >= 70) return '#39ff14'; // neon green  — commons breathing
+  if (pct >= 50) return '#88FF00'; // yellow-lime — mild strain
+  if (pct >= 35) return '#FFD700'; // gold        — observer notices
+  if (pct >= 20) return '#FF4400'; // red-orange  — cascade doctrine
+  return '#FF0088';                // magenta     — floor signal
+};
+
 const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, loadingKernel, visibleLogs = [], logRef, searchFilter, onClearFilter, listRef, commandInput = '', onCommandInputChange, onCommandKeyDown, ramPct = 0, isCritical = false, isWarning = false, appendSystemLog, mobileChrome = true, mobileAutoRun, bootDone = false }) => {
   // ── Mini sphere + sparkline canvas refs ───────────────────────────────────
   // Two sphere refs: one for the mobile canvas (below title), one for desktop
@@ -425,6 +436,18 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
       @keyframes sk-ttyPulse {
         0%, 100% { border-color: rgba(6,182,212,0.18); }
         50%       { border-color: rgba(6,182,212,0.4); }
+      }
+      @keyframes sk-ttyPulseWarn {
+        0%, 100% { border-color: rgba(255,215,0,0.18); }
+        50%       { border-color: rgba(255,215,0,0.48); }
+      }
+      @keyframes sk-ttyPulseCrit {
+        0%, 100% { border-color: rgba(255,0,136,0.22); }
+        50%       { border-color: rgba(255,0,136,0.58); }
+      }
+      @keyframes eco-log-in {
+        0%   { opacity: 0; transform: translateX(-6px); }
+        100% { opacity: 1; transform: translateX(0); }
       }
       @keyframes sk-logSlideUp {
         from { transform: translateY(100%); opacity: 0; }
@@ -733,10 +756,19 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
           <div
             className={`fixed bottom-14 left-0 right-0 z-40 md:relative md:bottom-auto md:left-auto md:right-auto md:h-auto md:flex-[4] md:min-h-0 border-t border-cyan-900/40 md:border md:border-cyan-900/30 md:rounded-lg flex flex-col md:mx-auto md:w-3/5 overflow-hidden bg-black/95 md:bg-black/50 backdrop-blur-sm transition-[height,opacity] duration-300 ${(!mobileChrome || !bootDone) ? 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto' : ''}`}
             style={{
-              animation:   'sk-ttyPulse 4s ease-in-out infinite',
+              animation:  isCritical
+                ? 'sk-ttyPulseCrit 1.5s ease-in-out infinite'
+                : isWarning
+                ? 'sk-ttyPulseWarn 2.5s ease-in-out infinite'
+                : 'sk-ttyPulse 4s ease-in-out infinite',
+              boxShadow:  isCritical
+                ? '0 0 0 1px rgba(255,0,136,0.2), 0 -8px 32px rgba(255,0,136,0.12), inset 0 0 20px rgba(255,0,136,0.04)'
+                : isWarning
+                ? '0 0 0 1px rgba(255,215,0,0.14), 0 -6px 24px rgba(255,215,0,0.08)'
+                : undefined,
+              transition:  'box-shadow 1.2s ease',
               willChange:  'opacity, transform',
               transform:   'translateZ(0)',
-              // Mobile: toggle between compact (h-36) and expanded (60vh)
               height:      mobileLogExpanded ? 'min(60vh, 480px)' : '9rem',
             }}
           >
@@ -748,26 +780,26 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
               onTouchCancel={handleTtyHeaderTouchEnd}
             >
               {/* RAM bar — left side of tty0 header */}
-              <div className="flex items-center gap-1.5 shrink-0" title={`ECO-RAM: ${ramPct}%`}>
-                <span className={`text-[9px] font-black tracking-widest ${isCritical ? 'text-red-500' : 'text-cyan-900/50'}`}>RAM</span>
+              <div className="flex items-center gap-1.5 shrink-0" title={`ECO-RAM: ${ramPct}% active`}>
+                <span className="text-[9px] font-black tracking-widest" style={{ color: ramColor(ramPct), transition: 'color 1s ease' }}>RAM</span>
                 <div className="flex gap-0">
                   {Array.from({ length: 100 }).map((_, i) => {
                     const filled = i < ramPct;
+                    const col    = ramColor(ramPct);
                     return (
                       <div
                         key={i}
                         className={`w-px h-[8px]${isCritical && filled ? ' animate-pulse' : ''}`}
                         style={{
-                          background: filled
-                            ? (isCritical ? '#ef4444' : isWarning ? '#f59e0b' : '#39ff14')
-                            : 'rgba(6,182,212,0.07)',
-                          boxShadow: filled && !isCritical && !isWarning ? '0 0 2px rgba(57,255,20,0.35)' : 'none',
+                          background:  filled ? col : 'rgba(6,182,212,0.07)',
+                          boxShadow:   filled ? `0 0 2px ${col}55` : 'none',
+                          transition:  'background 1s ease, box-shadow 1s ease',
                         }}
                       />
                     );
                   })}
                 </div>
-                <span className={`text-[9px] font-black ${isCritical ? 'text-red-500/70' : 'text-cyan-900/35'}`}>{ramPct}%</span>
+                <span className="text-[9px] font-black" style={{ color: `${ramColor(ramPct)}99`, transition: 'color 1s ease' }}>{ramPct}%</span>
               </div>
               <span
                 className="tracking-widest font-mono text-xs font-bold shrink-0 text-transparent bg-clip-text"
@@ -800,7 +832,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
               onTouchMove={resetTtyFade}
             >
               {visibleLogs.map((l, i) => (
-                <div key={`${l.time}-${i}`} className={`mb-1 break-words ${l.color ? '' : l.rust ? 'text-emerald-400' : 'text-[#39ff14]'}`} style={l.color ? { color: l.color } : undefined}>
+                <div key={`${l.time}-${i}`} className={`mb-1 break-words ${l.color ? '' : l.rust ? 'text-emerald-400' : 'text-[#39ff14]'}`} style={l.color ? { color: l.color, animation: 'eco-log-in 0.28s ease-out both' } : undefined}>
                   <span className={`mr-2 ${l.rust ? 'text-cyan-300' : 'text-cyan-500'}`} style={l.color ? { color: 'rgb(103 232 249 / 0.7)' } : undefined}>{l.time}</span>– {l.msg}
                   {l.btn && (
                     <button
@@ -818,7 +850,14 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
             <div className="hidden md:flex items-center gap-2 px-4 py-2 border-t border-cyan-900/20 shrink-0 bg-black/60">
               <span
                 className="text-xs font-black tracking-widest shrink-0 select-none text-transparent bg-clip-text"
-                style={{
+                style={isCritical ? {
+                  backgroundImage: 'linear-gradient(90deg, #FF0088, #FF4400, #FFD700, #FF4400, #FF0088)',
+                  backgroundSize: '300% auto',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  animation: 'sk-ttyRainbow 1.2s linear infinite',
+                  filter: 'drop-shadow(0 0 5px rgba(255,0,136,0.7))',
+                } : {
                   backgroundImage: 'linear-gradient(90deg, #ff0080, #ff8c00, #39ff14, #06b6d4, #8b5cf6, #e879f9, #ff0080, #ff8c00, #39ff14)',
                   backgroundSize: '400% auto',
                   WebkitBackgroundClip: 'text',
@@ -845,7 +884,14 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
               <div className="md:hidden flex items-center gap-2 px-4 py-2 border-t border-fuchsia-900/40 shrink-0 bg-black/90">
                 <span
                 className="text-xs font-black tracking-widest shrink-0 select-none text-transparent bg-clip-text"
-                style={{
+                style={isCritical ? {
+                  backgroundImage: 'linear-gradient(90deg, #FF0088, #FF4400, #FFD700, #FF4400, #FF0088)',
+                  backgroundSize: '300% auto',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  animation: 'sk-ttyRainbow 1.2s linear infinite',
+                  filter: 'drop-shadow(0 0 5px rgba(255,0,136,0.7))',
+                } : {
                   backgroundImage: 'linear-gradient(90deg, #ff0080, #ff8c00, #39ff14, #06b6d4, #8b5cf6, #e879f9, #ff0080, #ff8c00, #39ff14)',
                   backgroundSize: '400% auto',
                   WebkitBackgroundClip: 'text',
