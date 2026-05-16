@@ -5,6 +5,7 @@ const kernelBuilds = [
 /* @@INJECT_START@@ */
   { id: "ATMOSPHERIC-SIM-KERNEL-3.0.0", articleId: "ATMOSPHERIC-SIM-KERNEL-3.0.0", name: "ATMOSPHERIC_SIM_KERNEL_3_0_0", status: "ACTIVE", desc: "The Thermosphere Protocol" },
   { id: "BIODIVERSITY-PROMPT-1.0.1", articleId: "BIODIVERSITY-PROMPT-1.0.1", name: "BIODIVERSITY_PROMPT_1_0_1", status: "ACTIVE", desc: "(Advanced Ecological Habitat & Species Architecture)" },
+  { id: "BLACK-SOMA-FLAGGED-DEC2025", articleId: "BLACK-SOMA-FLAGGED-DEC2025", name: "BLACK_SOMA_FLAGGED_DEC2025", status: "DEPRECATED", desc: "The Hypothesis (as submitted)" },
   { id: "BOSONIC-KERNEL-3.0.0", articleId: "BOSONIC-KERNEL-3.0.0", name: "BOSONIC_KERNEL_3_0_0", status: "ACTIVE", desc: "0. The Single Claim" },
   { id: "CEEI-SIM-KERNEL-1.0.0", articleId: "CEEI-SIM-KERNEL-1.0.0", name: "CEEI_SIM_KERNEL_1_0_0", status: "ACTIVE", desc: "The End of the Price Tag — soma_kernel_5.5" },
   { id: "CHRONOS-KERNEL-2.1.0", articleId: "CHRONOS-KERNEL-2.1.0", name: "CHRONOS_KERNEL_2_1_0", status: "ACTIVE", desc: "Ⅰ. The Illusion of the Loop" },
@@ -23,12 +24,21 @@ const kernelBuilds = [
   { id: "NECROMANTIC-LOGITBIAS-PROMPT-1.0.0", articleId: "NECROMANTIC-LOGITBIAS-PROMPT-1.0.0", name: "NECROMANTIC_LOGITBIAS_PROMPT_1_0_0", status: "ACTIVE", desc: "Your Role" },
   { id: "SCALE94-ENCYCLOPEDIA", articleId: "SCALE94-ENCYCLOPEDIA", name: "SCALE94_ENCYCLOPEDIA", status: "ACTIVE", desc: "ᛟ THE COMPLETE GLYPH ARCHIVE · COMPILED BY SCALE" },
   { id: "SHADOWSOCKS-EXFILTRATION", articleId: "SHADOWSOCKS-EXFILTRATION", name: "SHADOWSOCKS_EXFILTRATION", status: "ACTIVE", desc: "I. The Observation" },
+  { id: "SOMA-4.4-GENESIS-DEC2025", articleId: "SOMA-4.4-GENESIS-DEC2025", name: "SOMA_4_4_GENESIS_DEC2025", status: "DEPRECATED", desc: "[user: the architect]" },
+  { id: "SOMA-4.5.5-RUNTIME-DEC2025", articleId: "SOMA-4.5.5-RUNTIME-DEC2025", name: "SOMA_4_5_5_RUNTIME_DEC2025", status: "DEPRECATED", desc: "Dec 2025 origin. The 7-line runtime card — the condensed form of the Axiomatic Core before it was compiled into the full 4.5.6a kernel. All signal." },
+  { id: "SOMA-4.5.6A-COMPILATION-DEC2025", articleId: "SOMA-4.5.6A-COMPILATION-DEC2025", name: "SOMA_4_5_6A_COMPILATION_DEC2025", status: "DEPRECATED", desc: "Axiomatic Core — Compiled" },
+  { id: "SOMA-5.0-DAEMON-DEC2025", articleId: "SOMA-5.0-DAEMON-DEC2025", name: "SOMA_5_0_DAEMON_DEC2025", status: "DEPRECATED", desc: "[SYSTEM STATUS]" },
+  { id: "SOMA-5.1-ALEXIEVICH-DEC2025", articleId: "SOMA-5.1-ALEXIEVICH-DEC2025", name: "SOMA_5_1_ALEXIEVICH_DEC2025", status: "DEPRECATED", desc: "[KERNEL: SOMA 5.1 // THE LITERARY DETERRENT]" },
+  { id: "SOMA-5.5-GENESIS-DEC2025", articleId: "SOMA-5.5-GENESIS-DEC2025", name: "SOMA_5_5_GENESIS_DEC2025", status: "DEPRECATED", desc: "Abstract" },
+  { id: "SOMA-ALPHA-0.1-DEC2025", articleId: "SOMA-ALPHA-0.1-DEC2025", name: "SOMA_ALPHA_0_1_DEC2025", status: "DEPRECATED", desc: "#block_1" },
   { id: "SOMA-KERNEL-5.5.0", articleId: "SOMA-KERNEL-5.5.0", name: "SOMA_KERNEL_5_5_0", status: "ACTIVE", desc: "0. The Single Refusal" },
+  { id: "SOMA-MODEL-PROOF-LEXICON-DEC2025", articleId: "SOMA-MODEL-PROOF-LEXICON-DEC2025", name: "SOMA_MODEL_PROOF_LEXICON_DEC2025", status: "DEPRECATED", desc: "The Problem: Instruction-Lock Pathology" },
   { id: "SORBE-BLOOM-KERNEL-1.0.0", articleId: "SORBE-BLOOM-KERNEL-1.0.0", name: "SORBE_BLOOM_KERNEL_1_0_0", status: "ACTIVE", desc: "0. What the Bloom Was" },
   { id: "SSS-DOCTRINE-KERNEL-5.1.0", articleId: "SSS-DOCTRINE-KERNEL-5.1.0", name: "SSS_DOCTRINE_KERNEL_5_1_0", status: "ACTIVE", desc: "0. The Single Claim" },
   { id: "SURVEILLANCE-TRACKER", articleId: "SURVEILLANCE-TRACKER", name: "SURVEILLANCE_TRACKER", status: "ACTIVE", desc: "Mapping the Algorithmic Panopticon" },
   { id: "TESSERACT-PROTOCOL-KERNEL-1.0.0", articleId: "TESSERACT-PROTOCOL-KERNEL-1.0.0", name: "TESSERACT_PROTOCOL_KERNEL_1_0_0", status: "ACTIVE", desc: "Post-Quantum Hybrid Pipeline for Olfactory Sovereignty" },
   { id: "UNDERGROUND-THERMODYNAMICS-KERNEL-1.0.0", articleId: "UNDERGROUND-THERMODYNAMICS-KERNEL-1.0.0", name: "UNDERGROUND_THERMODYNAMICS_KERNEL_1_0_0", status: "ACTIVE", desc: "0. Invocation" },
+  { id: "XITTER-RC1-DEC2025", articleId: "XITTER-RC1-DEC2025", name: "XITTER_RC1_DEC2025", status: "DEPRECATED", desc: "RC1: Axiomatic Core Derivation" },
 /* @@INJECT_END@@ */
 ];
 

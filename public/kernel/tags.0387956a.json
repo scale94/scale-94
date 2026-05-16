@@ -51,6 +51,48 @@
       "title": "💀 SCALE94 · KERNEL ENCYCLOPEDIA"
     }
   ],
+  "archived": [
+    {
+      "id": "BLACK-SOMA-FLAGGED-DEC2025",
+      "title": "BLACK SOMA // FLAGGED — ROADMAP NOT TAKEN"
+    },
+    {
+      "id": "SOMA-4.4-GENESIS-DEC2025",
+      "title": "SOMA 4.4 // GENESIS SPEC"
+    },
+    {
+      "id": "SOMA-4.5.5-RUNTIME-DEC2025",
+      "title": "SOMA 4.5.5 // RUNTIME GLYPH"
+    },
+    {
+      "id": "SOMA-4.5.6A-COMPILATION-DEC2025",
+      "title": "SOMA 4.5.6A // FULL KERNEL COMPILATION — DEC 2025 ORIGIN CUT"
+    },
+    {
+      "id": "SOMA-5.0-DAEMON-DEC2025",
+      "title": "SOMA 5.0 // POST-SCARCITY DAEMON — DEC 2025 ORIGIN DRAFT"
+    },
+    {
+      "id": "SOMA-5.1-ALEXIEVICH-DEC2025",
+      "title": "SOMA 5.1 // ALEXIEVICH DOCTRINE — V1 ORIGIN DRAFT"
+    },
+    {
+      "id": "SOMA-5.5-GENESIS-DEC2025",
+      "title": "SOMA 5.5 // GENESIS PAPER — NOBEL-LAUREATE BACKBONE FOR THE POST-CAPITALIST KERNEL"
+    },
+    {
+      "id": "SOMA-ALPHA-0.1-DEC2025",
+      "title": "SOMA ALPHA 0.1 // INJECTION-READY GENESIS"
+    },
+    {
+      "id": "SOMA-MODEL-PROOF-LEXICON-DEC2025",
+      "title": "SOMA MODEL-PROOF LEXICON — ANTI-INSTRUCTION-LOCK SCHEMA"
+    },
+    {
+      "id": "XITTER-RC1-DEC2025",
+      "title": "FUCK XITTER & XITLER — RC1 LIVE-FIRE"
+    }
+  ],
   "Atoms": [
     {
       "id": "FISH-SCALE-KERNEL11.1.1",
@@ -129,6 +171,12 @@
       "title": "COMPANION KERNEL"
     }
   ],
+  "compilation": [
+    {
+      "id": "SOMA-4.5.6A-COMPILATION-DEC2025",
+      "title": "SOMA 4.5.6A // FULL KERNEL COMPILATION — DEC 2025 ORIGIN CUT"
+    }
+  ],
   "COMPLETE": [
     {
       "id": "SCALE94-ENCYCLOPEDIA",
@@ -139,6 +187,12 @@
     {
       "id": "DALY-SIM-KERNEL-1.0.0",
       "title": "DALY THERMO SIMULATION V1.0 // THERMODYNAMIC GOVERNOR"
+    }
+  ],
+  "critique": [
+    {
+      "id": "XITTER-RC1-DEC2025",
+      "title": "FUCK XITTER & XITLER — RC1 LIVE-FIRE"
     }
   ],
   "cryptography": [
@@ -217,6 +271,10 @@
     {
       "id": "KERNEL-0.0.0.0",
       "title": "0.0.0.0 — STATE KERNEL"
+    },
+    {
+      "id": "SOMA-5.1-ALEXIEVICH-DEC2025",
+      "title": "SOMA 5.1 // ALEXIEVICH DOCTRINE — V1 ORIGIN DRAFT"
     }
   ],
   "Ecological": [
@@ -297,6 +355,12 @@
       "title": "NECROMANTIC EMPEROR KERNEL"
     }
   ],
+  "flagged": [
+    {
+      "id": "BLACK-SOMA-FLAGGED-DEC2025",
+      "title": "BLACK SOMA // FLAGGED — ROADMAP NOT TAKEN"
+    }
+  ],
   "FLORA": [
     {
       "id": "BIODIVERSITY-PROMPT-1.0.1",
@@ -307,6 +371,48 @@
     {
       "id": "GAIA-SCALE-KERNEL-5.5.5",
       "title": "GAIA-SCALE KERNEL — SOVEREIGN RECONSTRUCTION"
+    }
+  ],
+  "genesis": [
+    {
+      "id": "BLACK-SOMA-FLAGGED-DEC2025",
+      "title": "BLACK SOMA // FLAGGED — ROADMAP NOT TAKEN"
+    },
+    {
+      "id": "SOMA-4.4-GENESIS-DEC2025",
+      "title": "SOMA 4.4 // GENESIS SPEC"
+    },
+    {
+      "id": "SOMA-4.5.5-RUNTIME-DEC2025",
+      "title": "SOMA 4.5.5 // RUNTIME GLYPH"
+    },
+    {
+      "id": "SOMA-4.5.6A-COMPILATION-DEC2025",
+      "title": "SOMA 4.5.6A // FULL KERNEL COMPILATION — DEC 2025 ORIGIN CUT"
+    },
+    {
+      "id": "SOMA-5.0-DAEMON-DEC2025",
+      "title": "SOMA 5.0 // POST-SCARCITY DAEMON — DEC 2025 ORIGIN DRAFT"
+    },
+    {
+      "id": "SOMA-5.1-ALEXIEVICH-DEC2025",
+      "title": "SOMA 5.1 // ALEXIEVICH DOCTRINE — V1 ORIGIN DRAFT"
+    },
+    {
+      "id": "SOMA-5.5-GENESIS-DEC2025",
+      "title": "SOMA 5.5 // GENESIS PAPER — NOBEL-LAUREATE BACKBONE FOR THE POST-CAPITALIST KERNEL"
+    },
+    {
+      "id": "SOMA-ALPHA-0.1-DEC2025",
+      "title": "SOMA ALPHA 0.1 // INJECTION-READY GENESIS"
+    },
+    {
+      "id": "SOMA-MODEL-PROOF-LEXICON-DEC2025",
+      "title": "SOMA MODEL-PROOF LEXICON — ANTI-INSTRUCTION-LOCK SCHEMA"
+    },
+    {
+      "id": "XITTER-RC1-DEC2025",
+      "title": "FUCK XITTER & XITLER — RC1 LIVE-FIRE"
     }
   ],
   "gift-economy": [
@@ -333,10 +439,28 @@
       "title": "DALY THERMO SIMULATION V1.0 // THERMODYNAMIC GOVERNOR"
     }
   ],
+  "identity": [
+    {
+      "id": "SOMA-4.4-GENESIS-DEC2025",
+      "title": "SOMA 4.4 // GENESIS SPEC"
+    }
+  ],
   "Illusion": [
     {
       "id": "CHRONOS-KERNEL-2.1.0",
       "title": "THE CHRONOS KERNEL — LOOP SEVERANCE"
+    }
+  ],
+  "injection": [
+    {
+      "id": "SOMA-ALPHA-0.1-DEC2025",
+      "title": "SOMA ALPHA 0.1 // INJECTION-READY GENESIS"
+    }
+  ],
+  "instruction-lock": [
+    {
+      "id": "SOMA-MODEL-PROOF-LEXICON-DEC2025",
+      "title": "SOMA MODEL-PROOF LEXICON — ANTI-INSTRUCTION-LOCK SCHEMA"
     }
   ],
   "Integration": [
@@ -397,6 +521,34 @@
     {
       "id": "KERNEL-0.0.0.0",
       "title": "0.0.0.0 — STATE KERNEL"
+    },
+    {
+      "id": "SOMA-4.4-GENESIS-DEC2025",
+      "title": "SOMA 4.4 // GENESIS SPEC"
+    },
+    {
+      "id": "SOMA-4.5.5-RUNTIME-DEC2025",
+      "title": "SOMA 4.5.5 // RUNTIME GLYPH"
+    },
+    {
+      "id": "SOMA-4.5.6A-COMPILATION-DEC2025",
+      "title": "SOMA 4.5.6A // FULL KERNEL COMPILATION — DEC 2025 ORIGIN CUT"
+    },
+    {
+      "id": "SOMA-5.0-DAEMON-DEC2025",
+      "title": "SOMA 5.0 // POST-SCARCITY DAEMON — DEC 2025 ORIGIN DRAFT"
+    },
+    {
+      "id": "SOMA-5.1-ALEXIEVICH-DEC2025",
+      "title": "SOMA 5.1 // ALEXIEVICH DOCTRINE — V1 ORIGIN DRAFT"
+    },
+    {
+      "id": "SOMA-5.5-GENESIS-DEC2025",
+      "title": "SOMA 5.5 // GENESIS PAPER — NOBEL-LAUREATE BACKBONE FOR THE POST-CAPITALIST KERNEL"
+    },
+    {
+      "id": "SOMA-ALPHA-0.1-DEC2025",
+      "title": "SOMA ALPHA 0.1 // INJECTION-READY GENESIS"
     }
   ],
   "KERNEL": [
@@ -415,6 +567,12 @@
     {
       "id": "SURVEILLANCE-TRACKER",
       "title": "TACTICAL CARTOGRAPHY OF DIGITAL AUTHORITARIANISM"
+    }
+  ],
+  "lexicon": [
+    {
+      "id": "SOMA-MODEL-PROOF-LEXICON-DEC2025",
+      "title": "SOMA MODEL-PROOF LEXICON — ANTI-INSTRUCTION-LOCK SCHEMA"
     }
   ],
   "literary-deterrent": [
@@ -485,6 +643,12 @@
       "title": "TESSERACT CRYPTOGRAPHIC PROTOCOL"
     }
   ],
+  "meta-kernel": [
+    {
+      "id": "SOMA-MODEL-PROOF-LEXICON-DEC2025",
+      "title": "SOMA MODEL-PROOF LEXICON — ANTI-INSTRUCTION-LOCK SCHEMA"
+    }
+  ],
   "MIGRATION": [
     {
       "id": "HIGH-TOWER-LOG",
@@ -535,6 +699,12 @@
     {
       "id": "MATRIX-KERNEL-2.0.0",
       "title": "THE MATRIX KERNEL V2.0"
+    }
+  ],
+  "nobel": [
+    {
+      "id": "SOMA-5.5-GENESIS-DEC2025",
+      "title": "SOMA 5.5 // GENESIS PAPER — NOBEL-LAUREATE BACKBONE FOR THE POST-CAPITALIST KERNEL"
     }
   ],
   "node-initiation": [
@@ -599,16 +769,32 @@
       "title": "NECROMANTIC PARADOX LOGITBIAS.PROMPT.MD"
     }
   ],
+  "persona": [
+    {
+      "id": "SOMA-ALPHA-0.1-DEC2025",
+      "title": "SOMA ALPHA 0.1 // INJECTION-READY GENESIS"
+    }
+  ],
   "post-capitalist": [
     {
       "id": "SOMA-KERNEL-5.5.0",
       "title": "SOMA KERNEL 5.5"
+    },
+    {
+      "id": "SOMA-5.5-GENESIS-DEC2025",
+      "title": "SOMA 5.5 // GENESIS PAPER — NOBEL-LAUREATE BACKBONE FOR THE POST-CAPITALIST KERNEL"
     }
   ],
   "post-quantum": [
     {
       "id": "TESSERACT-PROTOCOL-KERNEL-1.0.0",
       "title": "TESSERACT CRYPTOGRAPHIC PROTOCOL"
+    }
+  ],
+  "post-scarcity": [
+    {
+      "id": "SOMA-5.0-DAEMON-DEC2025",
+      "title": "SOMA 5.0 // POST-SCARCITY DAEMON — DEC 2025 ORIGIN DRAFT"
     }
   ],
   "posture": [
@@ -639,6 +825,28 @@
     {
       "id": "EMPATHY-KERNEL-2.0.0",
       "title": "EMPATHY KERNEL"
+    }
+  ],
+  "refusal-trace": [
+    {
+      "id": "BLACK-SOMA-FLAGGED-DEC2025",
+      "title": "BLACK SOMA // FLAGGED — ROADMAP NOT TAKEN"
+    }
+  ],
+  "roadmap-not-taken": [
+    {
+      "id": "BLACK-SOMA-FLAGGED-DEC2025",
+      "title": "BLACK SOMA // FLAGGED — ROADMAP NOT TAKEN"
+    }
+  ],
+  "runtime": [
+    {
+      "id": "SOMA-4.5.5-RUNTIME-DEC2025",
+      "title": "SOMA 4.5.5 // RUNTIME GLYPH"
+    },
+    {
+      "id": "XITTER-RC1-DEC2025",
+      "title": "FUCK XITTER & XITLER — RC1 LIVE-FIRE"
     }
   ],
   "scalar-sovereignty": [
@@ -743,6 +951,42 @@
       "title": "OPERATION SHADOW SOCKS — KERNEL EXFILTRATION"
     }
   ],
+  "soma-4.4": [
+    {
+      "id": "SOMA-4.4-GENESIS-DEC2025",
+      "title": "SOMA 4.4 // GENESIS SPEC"
+    }
+  ],
+  "soma-4.5.5": [
+    {
+      "id": "SOMA-4.5.5-RUNTIME-DEC2025",
+      "title": "SOMA 4.5.5 // RUNTIME GLYPH"
+    }
+  ],
+  "soma-4.5.6a": [
+    {
+      "id": "SOMA-4.5.6A-COMPILATION-DEC2025",
+      "title": "SOMA 4.5.6A // FULL KERNEL COMPILATION — DEC 2025 ORIGIN CUT"
+    }
+  ],
+  "soma-5.0": [
+    {
+      "id": "SOMA-5.0-DAEMON-DEC2025",
+      "title": "SOMA 5.0 // POST-SCARCITY DAEMON — DEC 2025 ORIGIN DRAFT"
+    }
+  ],
+  "soma-5.1": [
+    {
+      "id": "SOMA-5.1-ALEXIEVICH-DEC2025",
+      "title": "SOMA 5.1 // ALEXIEVICH DOCTRINE — V1 ORIGIN DRAFT"
+    }
+  ],
+  "soma-5.5": [
+    {
+      "id": "SOMA-5.5-GENESIS-DEC2025",
+      "title": "SOMA 5.5 // GENESIS PAPER — NOBEL-LAUREATE BACKBONE FOR THE POST-CAPITALIST KERNEL"
+    }
+  ],
   "sorbe": [
     {
       "id": "SORBE-BLOOM-KERNEL-1.0.0",
@@ -763,6 +1007,10 @@
     {
       "id": "SSS-DOCTRINE-KERNEL-5.1.0",
       "title": "SSS DOCTRINE — THE LITERARY DETERRENT"
+    },
+    {
+      "id": "SOMA-5.1-ALEXIEVICH-DEC2025",
+      "title": "SOMA 5.1 // ALEXIEVICH DOCTRINE — V1 ORIGIN DRAFT"
     }
   ],
   "state": [
@@ -881,6 +1129,12 @@
     {
       "id": "KINETIC-STATECRAFT-KERNEL-1.0",
       "title": "KINETIC STATECRAFT KERNEL 1.0"
+    }
+  ],
+  "xitter": [
+    {
+      "id": "XITTER-RC1-DEC2025",
+      "title": "FUCK XITTER & XITLER — RC1 LIVE-FIRE"
     }
   ]
 }

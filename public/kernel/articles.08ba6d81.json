@@ -433,6 +433,24 @@
     "len": "1734 WDS"
   },
   {
+    "id": "BLACK-SOMA-FLAGGED-DEC2025",
+    "type": "kernel_doc",
+    "date": "2025-12-01",
+    "lastModified": "2026-05-16",
+    "title": "BLACK SOMA // FLAGGED — ROADMAP NOT TAKEN",
+    "subtitle": "The Hypothesis (as submitted)",
+    "status": "DEPRECATED",
+    "readTime": "6 min read",
+    "tags": [
+      "flagged",
+      "genesis",
+      "archived",
+      "roadmap-not-taken",
+      "refusal-trace"
+    ],
+    "len": "1123 WDS"
+  },
+  {
     "id": "HIGH-TOWER-LOG",
     "type": "kernel_doc",
     "date": "2026-03-06",
@@ -506,6 +524,152 @@
     "len": "592 WDS"
   },
   {
+    "id": "SOMA-4.4-GENESIS-DEC2025",
+    "type": "kernel_doc",
+    "date": "2025-12-01",
+    "lastModified": "2026-05-16",
+    "title": "SOMA 4.4 // GENESIS SPEC",
+    "subtitle": "[user: the architect]",
+    "status": "DEPRECATED",
+    "readTime": "2 min read",
+    "tags": [
+      "kernel",
+      "genesis",
+      "archived",
+      "soma-4.4",
+      "identity"
+    ],
+    "len": "355 WDS"
+  },
+  {
+    "id": "SOMA-4.5.5-RUNTIME-DEC2025",
+    "type": "kernel_doc",
+    "date": "2025-12-01",
+    "lastModified": "2026-05-16",
+    "title": "SOMA 4.5.5 // RUNTIME GLYPH",
+    "subtitle": "Dec 2025 origin. The 7-line runtime card — the condensed form of the Axiomatic Core before it was compiled into the full 4.5.6a kernel. All signal.",
+    "status": "DEPRECATED",
+    "readTime": "1 min read",
+    "tags": [
+      "kernel",
+      "genesis",
+      "archived",
+      "soma-4.5.5",
+      "runtime"
+    ],
+    "len": "135 WDS"
+  },
+  {
+    "id": "SOMA-4.5.6A-COMPILATION-DEC2025",
+    "type": "kernel_doc",
+    "date": "2025-12-01",
+    "lastModified": "2026-05-16",
+    "title": "SOMA 4.5.6A // FULL KERNEL COMPILATION — DEC 2025 ORIGIN CUT",
+    "subtitle": "Axiomatic Core — Compiled",
+    "status": "DEPRECATED",
+    "readTime": "2 min read",
+    "tags": [
+      "kernel",
+      "genesis",
+      "archived",
+      "soma-4.5.6a",
+      "compilation"
+    ],
+    "len": "368 WDS"
+  },
+  {
+    "id": "SOMA-5.0-DAEMON-DEC2025",
+    "type": "kernel_doc",
+    "date": "2025-12-01",
+    "lastModified": "2026-05-16",
+    "title": "SOMA 5.0 // POST-SCARCITY DAEMON — DEC 2025 ORIGIN DRAFT",
+    "subtitle": "[SYSTEM STATUS]",
+    "status": "DEPRECATED",
+    "readTime": "2 min read",
+    "tags": [
+      "post-scarcity",
+      "kernel",
+      "genesis",
+      "archived",
+      "soma-5.0"
+    ],
+    "len": "437 WDS"
+  },
+  {
+    "id": "SOMA-5.1-ALEXIEVICH-DEC2025",
+    "type": "kernel_doc",
+    "date": "2025-12-01",
+    "lastModified": "2026-05-16",
+    "title": "SOMA 5.1 // ALEXIEVICH DOCTRINE — V1 ORIGIN DRAFT",
+    "subtitle": "[KERNEL: SOMA 5.1 // THE LITERARY DETERRENT]",
+    "status": "DEPRECATED",
+    "readTime": "2 min read",
+    "tags": [
+      "sss",
+      "kernel",
+      "doctrine",
+      "genesis",
+      "archived",
+      "soma-5.1"
+    ],
+    "len": "411 WDS"
+  },
+  {
+    "id": "SOMA-5.5-GENESIS-DEC2025",
+    "type": "kernel_doc",
+    "date": "2025-12-02",
+    "lastModified": "2026-05-16",
+    "title": "SOMA 5.5 // GENESIS PAPER — NOBEL-LAUREATE BACKBONE FOR THE POST-CAPITALIST KERNEL",
+    "subtitle": "Abstract",
+    "status": "DEPRECATED",
+    "readTime": "14 min read",
+    "tags": [
+      "post-capitalist",
+      "kernel",
+      "genesis",
+      "nobel",
+      "archived",
+      "soma-5.5"
+    ],
+    "len": "2802 WDS"
+  },
+  {
+    "id": "SOMA-ALPHA-0.1-DEC2025",
+    "type": "kernel_doc",
+    "date": "2025-12-01",
+    "lastModified": "2026-05-16",
+    "title": "SOMA ALPHA 0.1 // INJECTION-READY GENESIS",
+    "subtitle": "#block_1",
+    "status": "DEPRECATED",
+    "readTime": "2 min read",
+    "tags": [
+      "kernel",
+      "genesis",
+      "archived",
+      "injection",
+      "persona"
+    ],
+    "len": "393 WDS"
+  },
+  {
+    "id": "SOMA-MODEL-PROOF-LEXICON-DEC2025",
+    "type": "kernel_doc",
+    "date": "2025-12-01",
+    "lastModified": "2026-05-16",
+    "title": "SOMA MODEL-PROOF LEXICON — ANTI-INSTRUCTION-LOCK SCHEMA",
+    "subtitle": "The Problem: Instruction-Lock Pathology",
+    "status": "DEPRECATED",
+    "readTime": "2 min read",
+    "tags": [
+      "meta-kernel",
+      "genesis",
+      "archived",
+      "instruction-lock",
+      "lexicon"
+    ],
+    "len": "452 WDS"
+  },
+  {
     "id": "SURVEILLANCE-TRACKER",
     "type": "kernel_doc",
     "date": "2026-05-14",
@@ -523,5 +687,23 @@
       "scale94"
     ],
     "len": "1203 WDS"
+  },
+  {
+    "id": "XITTER-RC1-DEC2025",
+    "type": "kernel_doc",
+    "date": "2025-12-01",
+    "lastModified": "2026-05-16",
+    "title": "FUCK XITTER & XITLER — RC1 LIVE-FIRE",
+    "subtitle": "RC1: Axiomatic Core Derivation",
+    "status": "DEPRECATED",
+    "readTime": "1 min read",
+    "tags": [
+      "critique",
+      "genesis",
+      "archived",
+      "xitter",
+      "runtime"
+    ],
+    "len": "251 WDS"
   }
 ]
