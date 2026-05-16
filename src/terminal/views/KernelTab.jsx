@@ -499,6 +499,10 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
         15%  { background-color: rgba(6,182,212,0.15); box-shadow: inset 0 0 30px rgba(6,182,212,0.12), 0 0 12px rgba(6,182,212,0.3); }
         100% { background-color: rgba(6,182,212,0); box-shadow: none; }
       }
+      @keyframes sk-kernelLoading {
+        0%, 100% { box-shadow: 0 0 0 1px rgba(6,182,212,0.1),  inset 0 0 12px rgba(6,182,212,0.03); }
+        50%      { box-shadow: 0 0 0 1px rgba(6,182,212,0.38), inset 0 0 22px rgba(6,182,212,0.09), 0 0 18px rgba(6,182,212,0.09); }
+      }
       .axiom-item:hover { box-shadow: inset 3px 0 0 #39ff14, inset 0 0 24px rgba(57,255,20,0.04); }
       /* Mobile tty0: hidden scrollbar */
       @media (max-width: 767px) {
@@ -698,16 +702,20 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
                   className={`flex flex-wrap justify-between items-center gap-y-2 border-b border-l-2 pb-3 mb-1 cursor-pointer p-2 pl-3 rounded transition-all group gap-2
                     ${isLoading ? 'border-cyan-400/60 border-l-cyan-400/60 backdrop-blur-sm' : 'border-cyan-900/20 border-l-transparent hover:border-l-cyan-500/40 hover:bg-cyan-900/10'}`}
                   style={{ animation: isLoading
-                    ? `sk-loadFlash 1.2s cubic-bezier(0.16,1,0.3,1) forwards, sk-kernelModuleIn 0.22s ease-out ${idx * 40}ms both`
+                    ? `sk-loadFlash 1.2s cubic-bezier(0.16,1,0.3,1) forwards, sk-kernelModuleIn 0.22s ease-out ${idx * 40}ms both, sk-kernelLoading 2s ease-in-out 1.2s infinite`
                     : `sk-kernelModuleIn 0.22s ease-out ${idx * 40}ms both` }}
                 >
                   <div className="flex-1 min-w-0 overflow-hidden">
                     <div
                       className="font-bold text-sm mb-0.5 truncate text-transparent bg-clip-text"
                       style={{
-                        backgroundImage: 'linear-gradient(90deg, #39ff14, #06b6d4, #d946ef, #ef4444, #38bdf8, #39ff14)',
+                        backgroundImage: isLoading
+                          ? 'linear-gradient(90deg, #06b6d4, #00FFAA, #39ff14, #06b6d4, #00FFAA, #06b6d4)'
+                          : 'linear-gradient(90deg, #39ff14, #06b6d4, #d946ef, #ef4444, #38bdf8, #39ff14)',
                         backgroundSize: '300% auto',
-                        animation: 'sk-moduleNameShimmer 3.5s ease-in-out infinite',
+                        animation: isLoading
+                          ? 'sk-moduleNameShimmer 1.1s linear infinite'
+                          : 'sk-moduleNameShimmer 3.5s ease-in-out infinite',
                       }}
                     >{kernel.name}</div>
                     <div className="text-xs text-[#39ff14] font-bold tracking-wide truncate opacity-70">

@@ -207,12 +207,21 @@ const BootSequence = ({ onDone }) => {
               // Prompt — arc color at 80% opacity
               const promptColor = isThreat ? '#FF6B00' : `${arcColor}CC`;
 
-              // Line animation — crystalline gets white-flash lock, entropy flickers
+              // Line animation — crystalline gets white-flash lock, entropy flickers.
+              // Normal lines rotate through three depth variants (far/mid/near) so
+              // the sequence feels like data packets arriving at different distances
+              // rather than identical stamps: heavier transmissions from further out.
+              const lineVariants = [
+                ['bs-lineIn-far',  '0.26s'],  // 0, 3, 6, 9  — heavy packet, far
+                ['bs-lineIn',      '0.18s'],  // 1, 4, 7, 10 — standard
+                ['bs-lineIn-near', '0.13s'],  // 2, 5, 8     — light telemetry, close
+              ];
+              const [lineKf, lineDur] = lineVariants[i % 3];
               const animation = isCrystalline
                 ? `bs-crystalline-lock 0.55s ease-out ${axiomDelay(i)}ms forwards`
                 : isThreat
                 ? `bs-entropy-in 0.28s ease-out ${axiomDelay(i)}ms forwards`
-                : `bs-lineIn 0.18s ease-out ${axiomDelay(i)}ms forwards`;
+                : `${lineKf} ${lineDur} ease-out ${axiomDelay(i)}ms forwards`;
 
               // Status tag pop — 300ms cadence, decoupled from line slide,
               // aligned with rainbow perimeter arc progress across 3600ms.
