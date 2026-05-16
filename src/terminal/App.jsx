@@ -382,9 +382,15 @@ const App = () => {
   // onAnimationEnd is unreliable on iOS Safari when a CSS transform is active on the
   // same element — the transform creates a containing block that breaks fixed children,
   // so we must clear it promptly regardless of whether the event fires.
+  //
+  // Mobile: skip the reveal animation entirely (no scale transition) — the GPU cannot
+  // composite a full-app scale + canvas rAF loops simultaneously without jank.
+  // bootAnimDone resolves in 50ms so AmbientParticles and scroll observers activate
+  // promptly. Desktop keeps the full 2200ms fallback window.
   useEffect(() => {
     if (!bootRevealed) return;
-    const t = setTimeout(() => setBootAnimDone(true), 2200);
+    const mobile = window.innerWidth <= 768;
+    const t = setTimeout(() => setBootAnimDone(true), mobile ? 50 : 2200);
     return () => clearTimeout(t);
   }, [bootRevealed]);
 
@@ -760,7 +766,7 @@ const App = () => {
   const mobileAutoRun = useCallback((kernelId) => {
     const alias = wasmRegistry[kernelId] ? kernelId : resolveWasmAlias(kernelId);
     const now = fmtTime();
-    dispatchCommand('run', alias, `run ${alias}`, now);
+    dispatchCommand('run', alias, `run ${alias}`, now, { eco: true });
   }, [dispatchCommand]);
 
   // Orthogonal bridge handler — DIVERGENCE_ENGINE auto-forged links from right-click
@@ -990,14 +996,18 @@ const App = () => {
         style={(() => {
           if (bootAnimDone) return {};
           const mobile = window.innerWidth <= 768;
-          if (bootRevealed) return {
-            // cubic-bezier(0.16,1,0.3,1): fast ease-out spring — gets moving immediately,
-            // decelerates cleanly. Replaces S-curve that held scale(0.01) for 650ms.
-            // 1.35s down from 2s — same visual beat, less GPU time at tiny scale.
-            animation: `${mobile ? 'kernel-reveal-scale-mobile' : 'kernel-reveal-scale'} 1.35s cubic-bezier(0.16,1,0.3,1) both`,
-            transformOrigin: 'center center',
-            willChange: 'transform',
-          };
+          if (bootRevealed) {
+            // Mobile: skip scale animation entirely — GPU cannot composite a full-app
+            // scale transform + canvas rAF loops simultaneously without jank.
+            // bootAnimDone resolves in 50ms via the fallback timeout above.
+            if (mobile) return {};
+            // Desktop: ease-out spring — fast start, clean deceleration.
+            return {
+              animation: 'kernel-reveal-scale 1.35s cubic-bezier(0.16,1,0.3,1) both',
+              transformOrigin: 'center center',
+              willChange: 'transform',
+            };
+          }
           return {
             transform: mobile ? 'scale(1.8)' : 'scale(0.01)',
             opacity: 0,

@@ -48,7 +48,7 @@ export function useCommandDispatch(ctx) {
     clearTimeout(relicTimeoutRef.current);
   }, []);
 
-  return useCallback((action, query, rawCmd, now) => {
+  return useCallback((action, query, rawCmd, now, opts) => {
     const {
       articles, classifiedSession, transmissionStories, tagIndex, systemArticles, activeTab,
       setSystemLogs, setClassifiedSession, setActiveTab, setSelectedArticle,
@@ -267,7 +267,7 @@ export function useCommandDispatch(ctx) {
                       { time: t, msg: `  ──────────────────────────────────────────`, rust: true },
                       { time: t, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE  ·  EXEC_TIME: ${elapsed}ms`, rust: true },
                     ].slice(-2000));
-                    applyEcoCost(ecoAlias);
+                    if (opts?.eco) applyEcoCost(ecoAlias);
                   }
                 }, i * 22);
               });
@@ -279,7 +279,7 @@ export function useCommandDispatch(ctx) {
                 { time: now,      msg: `  ──────────────────────────────────────────`, rust: true },
                 { time: doneTime, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE  ·  EXEC_TIME: ${elapsed}ms`, rust: true },
               ].slice(-2000));
-              applyEcoCost(ecoAlias);
+              if (opts?.eco) applyEcoCost(ecoAlias);
             }
 
 
