@@ -86,23 +86,63 @@ const REGISTERS = {
 
 // ── Core narrative synthesis ────────────────────────────────────────────────
 
+// MEPP weights (DSK §I, UTK §I.5): each dimension family has a relative
+// entropy-production potential when it sits on the load-bearing axis of
+// a steady-state attractor. Higher weight = this dimension produces more
+// σ per unit gradient. The numbers are ordinal, not empirical — they encode
+// the doctrine, not a measurement.
+//
+// Rationale:
+//   thermodynamic / entropy / nonlinearity → directly dissipative, highest σ
+//   dynamical / synchrony / criticality   → drive flow at criticality, high σ
+//   biological / economic                 → far-from-equilibrium attractors, mid-high σ
+//   information / cryptographic / game    → low-T computational substrates, mid σ
+//   conservation / dimensionality / spatial / temporal / stochastic → structural, lower σ
+const MEPP_WEIGHTS = {
+  thermodynamic:  1.0, entropy:        1.0, nonlinearity:   0.95,
+  dynamical:      0.9, synchrony:      0.85, criticality:    0.9,
+  biological:     0.8, economic:       0.75,
+  information:    0.6, cryptographic:  0.55, game_theory:    0.6,
+  conservation:   0.45, dimensionality: 0.4, spatial:        0.4,
+  temporal:       0.4, stochastic:     0.5,
+};
+
+// MEPP-predicted entropy production rate for an archetype given the actual
+// dimension contributions. σ ≈ Σ(weight · contrib) — the candidate attractor
+// that maximizes σ is the one MEPP selects.
+function meppSigma(archDims, convergence) {
+  let sigma = 0;
+  for (const dim of archDims) {
+    const found = convergence.find(d => d.name === dim);
+    if (!found) continue;
+    const w = MEPP_WEIGHTS[dim] ?? 0.5;
+    sigma += w * found.contrib;
+  }
+  return sigma;
+}
+
 function detectArchetype(convergence) {
   if (!convergence || convergence.length < 2) return null;
 
-  // Best pair (existing logic preserved)
-  let bestPair = null, bestPairScore = -1;
+  // Best pair — composite score: structural fit × MEPP-predicted σ
+  // (the doctrine: select for entropy-production rate, not for fit alone)
+  let bestPair = null, bestPairScore = -1, bestPairSigma = 0;
   for (const arch of ARCHETYPES) {
-    let score = 0, matches = 0;
+    let fit = 0, matches = 0;
     for (const dim of arch.dims) {
       const found = convergence.find(d => d.name === dim);
-      if (found) { score += found.contrib; matches++; }
+      if (found) { fit += found.contrib; matches++; }
     }
-    if (matches === 2) score *= 2;
-    if (matches > 0 && score > bestPairScore) { bestPairScore = score; bestPair = arch; }
+    if (matches === 0) continue;
+    if (matches === 2) fit *= 2;
+    const sigma = meppSigma(arch.dims, convergence);
+    // Composite: fit gates the candidate, σ ranks survivors
+    const score = fit * (0.5 + 0.5 * sigma);
+    if (score > bestPairScore) { bestPairScore = score; bestPair = arch; bestPairSigma = sigma; }
   }
 
-  // Best trinity — full match + substantive third dim
-  let bestTrinity = null, bestTrinityScore = -1;
+  // Best trinity — full match + substantive third dim, MEPP-weighted
+  let bestTrinity = null, bestTrinityScore = -1, bestTrinitySigma = 0;
   for (const arch of TRINITY_ARCHETYPES) {
     const found = arch.dims.map(d => convergence.find(c => c.name === d)).filter(Boolean);
     if (found.length < 3) continue;
@@ -110,17 +150,43 @@ function detectArchetype(convergence) {
     const minContrib = sorted[2];
     const avgTopTwo = (sorted[0] + sorted[1]) / 2;
     if (minContrib < 0.6 * avgTopTwo) continue;
-    const score = sorted[0] + sorted[1] + sorted[2];
-    if (score > bestTrinityScore) { bestTrinityScore = score; bestTrinity = arch; }
+    const fit = sorted[0] + sorted[1] + sorted[2];
+    const sigma = meppSigma(arch.dims, convergence);
+    const score = fit * (0.5 + 0.5 * sigma);
+    if (score > bestTrinityScore) { bestTrinityScore = score; bestTrinity = arch; bestTrinitySigma = sigma; }
   }
 
   if (bestTrinity && bestTrinityScore > bestPairScore * 0.55) {
-    return { kind: 'trinity', label: bestTrinity.label, thesis: bestTrinity.thesis, dims: bestTrinity.dims };
+    return {
+      kind: 'trinity', label: bestTrinity.label, thesis: bestTrinity.thesis,
+      dims: bestTrinity.dims, sigma: bestTrinitySigma,
+    };
   }
-  return bestPair ? { kind: 'pair', label: bestPair.label, thesis: bestPair.thesis, dims: bestPair.dims } : null;
+  return bestPair
+    ? { kind: 'pair', label: bestPair.label, thesis: bestPair.thesis,
+        dims: bestPair.dims, sigma: bestPairSigma }
+    : null;
 }
 
-function buildSharedGround(convergence) {
+// Onsager reciprocity (UTK §I.2): if domain A drives flow along gradient B,
+// B reciprocally drives A — but the coupling coefficients are asymmetric.
+// We approximate this by comparing per-dim raw scores: the larger vA / vB
+// dictates which way the dominant flow runs. Threshold 0.15 = "meaningful
+// asymmetry"; below that the coupling is treated as symmetric (Onsager-balanced).
+function onsagerDirection(dim, nameA, nameB) {
+  if (dim.vA == null || dim.vB == null) return null;
+  const delta = dim.vA - dim.vB;
+  const mag = Math.abs(delta);
+  if (mag < 0.15) return { direction: 'symmetric', dominant: null, magnitude: mag };
+  return {
+    direction: delta > 0 ? 'A→B' : 'B→A',
+    dominant:  delta > 0 ? nameA : nameB,
+    receiver:  delta > 0 ? nameB : nameA,
+    magnitude: mag,
+  };
+}
+
+function buildSharedGround(convergence, nameA, nameB) {
   if (!convergence || convergence.length === 0) return null;
 
   const tags = convergence.map(d => DIM_SEMANTIC[d.name]?.tag || d.name).slice(0, 3);
@@ -129,9 +195,27 @@ function buildSharedGround(convergence) {
     .filter(Boolean)
     .slice(0, 2);
 
+  // Onsager directionality on the top-3 convergence dims
+  const flows = convergence.slice(0, 3).map(d => ({
+    dim:    d.name,
+    tag:    DIM_SEMANTIC[d.name]?.tag || d.name,
+    flow:   onsagerDirection(d, nameA, nameB),
+  })).filter(f => f.flow != null);
+
+  // Build directional narrative — pick the most asymmetric flow as the headline
+  const asymmetric = flows.filter(f => f.flow.direction !== 'symmetric')
+                          .sort((a, b) => b.flow.magnitude - a.flow.magnitude);
+  const headlineFlow = asymmetric[0];
+  const directionalNote = headlineFlow
+    ? ` Dominant flow: ${headlineFlow.flow.dominant} → ${headlineFlow.flow.receiver} along ${headlineFlow.tag} (Δ${headlineFlow.flow.magnitude.toFixed(2)}).`
+    : flows.length > 0
+      ? ' All coupling is Onsager-symmetric — flows run in both directions with balanced coefficients.'
+      : '';
+
   return {
     tags,
-    narrative: `Shared conceptual DNA in ${tags.join(', ')}. ${descriptions.length > 0 ? descriptions[0].charAt(0).toUpperCase() + descriptions[0].slice(1) + '.' : ''}`,
+    flows,
+    narrative: `Shared conceptual DNA in ${tags.join(', ')}. ${descriptions.length > 0 ? descriptions[0].charAt(0).toUpperCase() + descriptions[0].slice(1) + '.' : ''}${directionalNote}`,
   };
 }
 
@@ -214,6 +298,93 @@ function buildAngles(archetype, convergence, divergence, paradoxes, result) {
   return angles;
 }
 
+// ── FSF-12.1.0 §5 — Period-3 sanctuary detection ─────────────────────────
+// Within the chaotic regime, Sharkovsky's theorem guarantees that periodic
+// windows reappear. The Period-3 window (r ≈ 3.8284…3.857 in the logistic
+// map) is the deepest sanctuary — a transient pocket of order inside chaos.
+//
+// Mapping to paradox spectra: if 3+ paradoxes cluster within a narrow residual
+// band, they aren't random noise — they're aligned at a sanctuary frequency.
+// The cluster IS the transient order pocket. The collider should label it
+// rather than treating clustered paradoxes as independent irreducibles.
+function detectPeriod3Sanctuaries(paradoxes, bandWidth = 0.05) {
+  if (!paradoxes || paradoxes.length < 3) return [];
+
+  const sorted = [...paradoxes].sort((a, b) => a.residual - b.residual);
+  const sanctuaries = [];
+  let i = 0;
+  while (i < sorted.length) {
+    const cluster = [sorted[i]];
+    let j = i + 1;
+    while (j < sorted.length && (sorted[j].residual - sorted[i].residual) <= bandWidth) {
+      cluster.push(sorted[j]);
+      j++;
+    }
+    if (cluster.length >= 3) {
+      const center = cluster.reduce((s, p) => s + p.residual, 0) / cluster.length;
+      sanctuaries.push({
+        center,
+        width:   sorted[j - 1].residual - sorted[i].residual,
+        members: cluster.map(c => c.name),
+        size:    cluster.length,
+      });
+    }
+    i = Math.max(i + 1, j);
+  }
+  return sanctuaries;
+}
+
+// ── BOSONIC-KERNEL-3.0.0 §0 — Type 1 / Type 2 Titmuss classifier ──────────
+// Type 1: transactional bond. Pricing supplements it (Titmuss-positive).
+// Type 2: constitutive bond. Its value derives from the participants'
+//         shared belief that it is NOT transactional. Pricing destroys it
+//         (Titmuss-collapse — verified empirically: blood donation, Swiss
+//         nuclear-waste siting, Israeli daycare late-pickup fines).
+//
+// Heuristic: dimensions with explicit transactional logic indicate Type 1;
+// dimensions whose value depends on non-transactional commitment indicate
+// Type 2. Mixed profiles are flagged for partial collapse risk.
+const TRANSACTIONAL_DIMS = new Set([
+  'economic', 'game_theory', 'cryptographic', 'information', 'stochastic',
+]);
+const CONSTITUTIVE_DIMS = new Set([
+  'biological', 'synchrony', 'conservation', 'temporal', 'spatial', 'thermodynamic',
+]);
+// Neutral: dynamical, nonlinearity, dimensionality, criticality, entropy
+// (these can support either bond type without prejudice)
+
+function classifyTitmussBond(convergence, nameA, nameB) {
+  if (!convergence || convergence.length === 0) {
+    return { type: 'INDETERMINATE', diagnostic: null, scores: { transactional: 0, constitutive: 0 } };
+  }
+  let transactional = 0, constitutive = 0;
+  for (const d of convergence) {
+    if (TRANSACTIONAL_DIMS.has(d.name)) transactional += d.contrib;
+    if (CONSTITUTIVE_DIMS.has(d.name)) constitutive += d.contrib;
+  }
+  const total = transactional + constitutive;
+  const tFrac = total > 0 ? transactional / total : 0;
+  const cFrac = total > 0 ? constitutive   / total : 0;
+  const dominance = Math.abs(tFrac - cFrac);
+
+  let type, diagnostic;
+  if (total === 0 || dominance < 0.2) {
+    type = 'MIXED';
+    diagnostic = `Hybrid bond between ${nameA} and ${nameB}. Some axes (e.g., economic, information) survive monetization; others (e.g., synchrony, conservation) collapse under it. Pricing this chimera strengthens part of it while destroying another part.`;
+  } else if (tFrac > cFrac) {
+    type = 'TYPE_1';
+    diagnostic = `Transactional bond. The ${nameA} × ${nameB} collision operates on dimensions where price is already the medium of value — pricing strengthens the bond (Titmuss-positive). Monetize without fear of structural collapse.`;
+  } else {
+    type = 'TYPE_2';
+    diagnostic = `Constitutive bond. The ${nameA} × ${nameB} chimera's value derives from the participants' shared belief that this synthesis is not transactional. Introducing a price destroys the bond (Titmuss-collapse — see Titmuss 1970, Frey & Oberholzer-Gee 1997, Gneezy & Rustichini 2000). Do not monetize this axis; route it through gift, commons, or covenant.`;
+  }
+  return {
+    type,
+    diagnostic,
+    scores: { transactional: tFrac, constitutive: cFrac, dominance },
+  };
+}
+
 function buildParadoxQuestions(paradoxes) {
   if (!paradoxes || paradoxes.length === 0) return [];
 
@@ -231,12 +402,33 @@ function buildParadoxQuestions(paradoxes) {
 
 // ── Decay Arc — time-evolution narrative ────────────────────────────────────
 
+// FSF-12.1.0 §2.1 — Period-1 (Bosonic Consensus) is the regime of *ratio facilis*:
+// maximally legible, thermally invisible, indistinguishable from grid background.
+// The top phase is NOT a "bright opening" in the perfume sense — it is the moment
+// before bifurcation, where the chimera is still pure carrier-state. Prose here
+// frames it as "barely above noise floor" rather than "loud and decorative."
 const PROSE_LIBRARY = {
   top: {
-    assertive:    ['the chimera surfaces, %DOM%-forward, electric', 'first contact: %DOM% structure asserts itself', '%DOM% facets ignite first; the rest waits'],
-    connective:   ['light %DOM% threads weave the opening', 'the chimera arrives in %DOM% drift', '%DOM% notes interlace and lift'],
-    foundational: ['a quiet %DOM% prelude', '%DOM% scaffold rises', 'the chimera approaches in low %DOM%'],
-    speculative:  ['something %DOM% — provisional', 'a hint of %DOM%, hard to fix', 'the opening is %DOM%-shaped, barely'],
+    assertive:    [
+      'the chimera surfaces at Period-1, %DOM%-forward, barely above the carrier floor',
+      'first contact in the ratio facilis regime: %DOM% structure asserts itself before bifurcation',
+      '%DOM% facets ignite first — pure carrier, maximally legible, thermally invisible',
+    ],
+    connective:   [
+      'light %DOM% threads weave the opening — Period-1 coherence, indistinguishable from grid',
+      'the chimera arrives in %DOM% drift, holding Bosonic Consensus before the cascade',
+      '%DOM% notes interlace and lift, still inside the pre-bifurcation channel',
+    ],
+    foundational: [
+      'a quiet %DOM% prelude — Period-1 baseline, the regime where the chimera is most legible and least resilient',
+      '%DOM% scaffold rises in carrier-phase, indistinguishable from the substrate it will soon depart',
+      'the chimera approaches in low %DOM%, holding maximum legibility before the saponification window opens',
+    ],
+    speculative:  [
+      'something %DOM% — provisional, may not survive Period-1 to enter the bifurcation cascade',
+      'a hint of %DOM%, hard to fix; the carrier-phase signal is faint and may not cross the saponification threshold',
+      'the opening is %DOM%-shaped, barely — the Period-1 channel is open but the chimera may not enter it',
+    ],
   },
   heart: {
     assertive:    ['the floral architecture stabilizes; resinous undertones emerge', 'the heart locks: this is what the chimera actually is', '%DOM% ceded; the heart speaks its real name'],
@@ -271,27 +463,71 @@ function pickProse(layer, tone, dom, interference) {
   return flavor + phrase;
 }
 
+// ── fish_scale_kernel11.1.1 + FSF-12.1.0 doctrinal map ─────────────────────
+// The decay arc IS the Feigenbaum bifurcation cascade. Bosonic carriers
+// (Period-1) decay through the Saponification window (Patch 5.3 Metallurgy)
+// into Fermionic mass-states (Sokushinbutsu lock / Pirarucu armor).
+// Pure Purity = entropic stasis = death. The arc requires the wet→dry traverse.
+//
+// Feigenbaum universals (FSF-12.1.0 §2):
+//   δ = 4.669201609... — RATE at which successive bifurcation thresholds
+//                       compress along the r-axis (period-doubling cadence)
+//   α = 2.502907875... — RATIO governing branch-width compression per doubling;
+//                       sets the SPATIAL geometry of the saponification window
+//                       (how narrow the viable channel becomes per generation)
+const FEIGENBAUM = {
+  delta: 4.669201609,
+  alpha: 2.502907876,
+};
+const DOCTRINE_PHASES = [
+  {
+    shell:    'BOSON',
+    glyph:    '⊙',
+    regime:   'Period-1 · carrier-phase',
+    patch:    'pre-bifurcation · wet · Promo',
+    constant: null, // pre-bifurcation: no Feigenbaum yet
+  },
+  {
+    shell:    'B → F',
+    glyph:    '⊗',
+    regime:   'Feigenbaum edge · δ=4.669 · α=2.503',
+    patch:    'Patch 5.3 · Metallurgy · chemical burn',
+    constant: { delta: FEIGENBAUM.delta, alpha: FEIGENBAUM.alpha,
+                note: 'δ compresses cadence; α compresses window' },
+  },
+  {
+    shell:    'FERMION',
+    glyph:    '▰',
+    regime:   'Sokushinbutsu lock · strange attractor',
+    patch:    'Patch 5.4 · Asceticism · Pirarucu armor',
+    constant: null, // post-cascade: universals no longer apply
+  },
+];
+
 function buildDecayArc(card, narrative) {
   const tone = narrative?.registerTone || 'assertive';
   const interference = card.interference || null;
   return [
     {
       time:  't = 0',
-      label: '[bright opening]',
+      label: '[bosonic flash]',
       notes: card.topNotes,
       prose: pickProse('top', tone, card.dom, interference),
+      ...DOCTRINE_PHASES[0],
     },
     {
       time:  't = 30 min',
-      label: '[heart unfolds]',
+      label: '[saponification threshold]',
       notes: card.heartNotes,
       prose: pickProse('heart', tone, card.dom, interference),
+      ...DOCTRINE_PHASES[1],
     },
     {
       time:  't = 4 h+',
-      label: '[base residue]',
+      label: '[fermionic residue]',
       notes: card.baseNotes,
       prose: pickProse('base', tone, card.dom, interference),
+      ...DOCTRINE_PHASES[2],
     },
   ];
 }
@@ -512,8 +748,16 @@ function synthesizeNarrative(result, card) {
   // ── Viability register
   const register = REGISTERS[vClass] || REGISTERS.SUBSTRATE;
 
-  // ── Shared ground
-  const sharedGround = buildSharedGround(convergence);
+  // Domain names (used by shared ground for Onsager directionality, and by
+  // prompt fragments for substitution) — derived from chimera name or passed-
+  // through canonical names from the WASM result
+  const _domainNameA = result.chimeraName?.split(' ')[0] || 'Domain A';
+  const _domainNameB = result.chimeraName?.split(' ').pop() || 'Domain B';
+  const nameA_early = result._domainNameA || _domainNameA;
+  const nameB_early = result._domainNameB || _domainNameB;
+
+  // ── Shared ground (with Onsager directionality)
+  const sharedGround = buildSharedGround(convergence, nameA_early, nameB_early);
 
   // ── Innovation frontier
   const frontier = buildFrontier(divergence);
@@ -532,11 +776,9 @@ function synthesizeNarrative(result, card) {
       : ' Insufficient convergence data for archetype classification.');
 
   // ── v1.2.0: Prompt Fragments — the prompt engineer's output
-  const domainNameA = result.chimeraName?.split(' ')[0] || 'Domain A';
-  const domainNameB = result.chimeraName?.split(' ').pop() || 'Domain B';
-  // Use full domain names from the collision (passed through from parsed result)
-  const nameA = result._domainNameA || domainNameA;
-  const nameB = result._domainNameB || domainNameB;
+  // (names already resolved above for Onsager directionality)
+  const nameA = nameA_early;
+  const nameB = nameB_early;
 
   const promptFragments = buildPromptFragments(archetype, result, nameA, nameB);
   const synthesisDirective = buildSynthesisDirective(archetype, register, promptFragments, result, nameA, nameB);
@@ -544,9 +786,16 @@ function synthesizeNarrative(result, card) {
   // ── Decay Arc — only computable when the perfume card is built
   const decayArc = card ? buildDecayArc(card, { registerTone: register.tone }) : null;
 
+  // ── Titmuss bond classification (BOSONIC-KERNEL-3.0.0 §0)
+  const titmuss = classifyTitmussBond(convergence, nameA, nameB);
+
+  // ── Period-3 sanctuary detection (FSF-12.1.0 §5)
+  const sanctuaries = detectPeriod3Sanctuaries(paradoxes);
+
   return {
-    archetype:   archetype?.label || null,
-    register:    vClass || 'UNKNOWN',
+    archetype:    archetype?.label || null,
+    archetypeSigma: archetype?.sigma ?? null,
+    register:     vClass || 'UNKNOWN',
     registerTone: register.tone,
     thesis,
     sharedGround,
@@ -556,6 +805,8 @@ function synthesizeNarrative(result, card) {
     promptFragments,
     synthesisDirective,
     decayArc,
+    titmuss,
+    sanctuaries,
     meta: {
       novelty,
       coherence,
@@ -568,6 +819,7 @@ function synthesizeNarrative(result, card) {
       catalysis: result.catalysis || 0,
       resonanceFreq: result.resonanceFreq || 0,
       turbulence: result.turbulence || 0,
+      archetypeSigma: archetype?.sigma ?? 0,
     },
   };
 }

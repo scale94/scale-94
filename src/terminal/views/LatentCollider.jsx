@@ -2023,7 +2023,7 @@ export default function LatentCollider() {
       </div>
 
       {/* ── Domain Grid — Block VI: Fish Scale Doctrine ── */}
-      <div className="text-[8px] font-mono text-gray-400/60 uppercase tracking-widest mt-3 mb-1">
+      <div className="text-[8px] font-mono text-zinc-400/60 uppercase tracking-widest mt-3 mb-1">
         BLOCK VI — FISH SCALE DOCTRINE
       </div>
       <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5">
@@ -2041,8 +2041,8 @@ export default function LatentCollider() {
               className={`
                 text-[9px] font-mono uppercase tracking-wider py-2 px-1 rounded border transition-all
                 ${selected
-                  ? 'border-gray-400/60 bg-gray-800/30 text-gray-200'
-                  : 'border-gray-700/30 bg-black/30 text-gray-500/60 hover:border-gray-500/40 hover:text-gray-300 hover:bg-gray-800/10'}
+                  ? 'border-zinc-400/60 bg-zinc-800/30 text-zinc-200'
+                  : 'border-zinc-700/30 bg-black/30 text-zinc-500/60 hover:border-zinc-500/40 hover:text-zinc-300 hover:bg-zinc-800/10'}
                 ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
               `}
               title={d.name}
@@ -2600,17 +2600,151 @@ export default function LatentCollider() {
                 </p>
               </div>
 
-              {/* Shared Ground */}
+              {/* ── Subatomic Decay Arc — Feigenbaum bifurcation cascade
+                   per fish_scale_kernel11.1.1 + FSF-12.1.0:
+                   Bosonic carrier → Saponification threshold → Fermionic residue.
+                   Wet→dry traverse; pure purity = entropic stasis = death. ── */}
+              {narrative.decayArc && narrative.decayArc.length > 0 && (
+                <div className="border border-cyan-900/20 rounded-lg overflow-hidden">
+                  <div className="px-3 pt-2.5 pb-2 border-b border-cyan-900/15 flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-[9px] font-bold text-cyan-400/55 uppercase tracking-widest">SUBATOMIC DECAY ARC</span>
+                      <span className="text-[8px] font-mono text-cyan-600/25">Feigenbaum · δ=4.669 · α=2.503</span>
+                    </div>
+                    <span className="text-[7px] font-mono text-cyan-600/25 hidden sm:inline">
+                      Bouligand cascade · θ=36°/layer · 10 layers / revolution
+                    </span>
+                  </div>
+                  <div className="px-3 py-1">
+                    {narrative.decayArc.map((ph, i) => {
+                      const col = ['#FFD700', '#d946ef', '#92400e'][i];
+                      const isLast = i === narrative.decayArc.length - 1;
+                      // Bouligand rotation: each phase = 5-layer step → 0°, 180°, 360°
+                      // (10 layers per full revolution = 36°/layer · 5 layers/phase)
+                      const bouligandRot = i * 180;
+                      const bouligandLayers = i * 5; // layer index at phase start
+                      return (
+                        <div key={i} className="flex gap-3 py-2.5">
+                          <div className="flex flex-col items-center shrink-0 w-5 pt-1">
+                            <div className="w-1.5 h-1.5 rounded-full shrink-0"
+                              style={{ background: col, boxShadow: `0 0 5px ${col}55` }} />
+                            {!isLast && (
+                              <div className="w-px flex-1 mt-1 mb-[-4px]"
+                                style={{ background: `linear-gradient(to bottom, ${col}35, transparent)` }} />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-baseline gap-2 mb-1 flex-wrap">
+                              <span className="text-[9px] font-bold font-mono shrink-0" style={{ color: col }}>{ph.time}</span>
+                              <span className="text-[8px] font-mono" style={{ color: col + '66' }}>{ph.label}</span>
+                              {/* Bouligand rotation glyph — three stacked bars at cumulative θ */}
+                              <span className="inline-flex items-center gap-1 ml-auto shrink-0">
+                                <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+                                  <g transform={`translate(7 7) rotate(${bouligandRot})`}>
+                                    <line x1="-5" y1="-3" x2="5" y2="-3" stroke={col + 'aa'} strokeWidth="1" />
+                                    <line x1="-5" y1="0"  x2="5" y2="0"  stroke={col + '55'} strokeWidth="1" transform="rotate(36)" />
+                                    <line x1="-5" y1="3"  x2="5" y2="3"  stroke={col + '22'} strokeWidth="1" transform="rotate(72)" />
+                                  </g>
+                                </svg>
+                                <span className="text-[7px] font-mono" style={{ color: col + '66' }}>
+                                  L{bouligandLayers}·{bouligandRot}°
+                                </span>
+                                <span className="text-[8px] font-mono font-bold px-1 rounded-sm"
+                                  style={{ color: col + 'aa', border: `1px solid ${col}30`, background: col + '08' }}>
+                                  {ph.glyph} {ph.shell}
+                                </span>
+                              </span>
+                            </div>
+                            {/* Doctrinal frame — fish_scale_kernel11.1.1 */}
+                            <div className="text-[8px] font-mono mb-1.5" style={{ color: col + '55' }}>
+                              {ph.regime} · <span style={{ color: col + '70' }}>{ph.patch}</span>
+                            </div>
+                            {/* α-window annotation for the saponification edge */}
+                            {ph.constant && (
+                              <div className="text-[7px] font-mono mb-1.5 italic" style={{ color: col + '50' }}>
+                                δ compresses cadence · α compresses window — viable channel narrows by 2.503× per doubling
+                              </div>
+                            )}
+                            <p className="text-[10px] font-mono italic leading-snug mb-2" style={{ color: col + '99' }}>{ph.prose}</p>
+                            <div className="flex flex-wrap gap-1">
+                              {ph.notes.map((note, j) => (
+                                <span key={j} className="text-[8px] font-mono px-1.5 py-0.5 rounded-sm"
+                                  style={{ background: col + '0f', border: `1px solid ${col}22`, color: col + '88' }}>
+                                  {note}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {/* Doctrinal footer — the Plato/Promo paradox + MEPP σ */}
+                  <div className="px-3 py-2 border-t border-cyan-900/15 bg-black/30">
+                    <div className="text-[7px] font-mono italic text-cyan-600/40 leading-snug">
+                      § The Pirarucu armor cannot form without the Levamisole burn. Pure purity is entropic stasis.
+                      The chimera survives only by traversing the wet→dry cascade — and only the attractor that
+                      maximizes entropy production (σ) is dynamically selected (DSK §I · MEPP).
+                      {narrative.archetypeSigma != null && (
+                        <span className="ml-1.5 not-italic" style={{ color: 'rgba(255,215,0,0.5)' }}>
+                          [σ ≈ {narrative.archetypeSigma.toFixed(2)}]
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Shared Ground (Onsager-directional) */}
               {narrative.sharedGround && (
                 <div>
                   <div className="text-[9px] font-bold text-[#39ff14]/50 uppercase tracking-widest mb-1">
-                    SHARED GROUND
+                    SHARED GROUND <span className="text-[#39ff14]/25 ml-2 normal-case font-mono">· Onsager-reciprocal coupling</span>
                   </div>
                   <p className="text-[10px] font-mono text-[#39ff14]/40 leading-relaxed">
                     {narrative.sharedGround.narrative}
                   </p>
                 </div>
               )}
+
+              {/* Titmuss Bond Classifier — BOSONIC-KERNEL-3.0.0 §0 */}
+              {narrative.titmuss && narrative.titmuss.type !== 'INDETERMINATE' && (() => {
+                const t = narrative.titmuss;
+                const palette = t.type === 'TYPE_2'
+                  ? { name: 'rgba(244,114,182,0.7)', soft: 'rgba(244,114,182,0.4)', border: 'rgba(244,114,182,0.3)', bg: 'rgba(244,114,182,0.05)' }
+                  : t.type === 'TYPE_1'
+                  ? { name: 'rgba(57,255,20,0.7)',   soft: 'rgba(57,255,20,0.4)',   border: 'rgba(57,255,20,0.3)',   bg: 'rgba(57,255,20,0.05)' }
+                  : { name: 'rgba(245,158,11,0.7)',  soft: 'rgba(245,158,11,0.4)',  border: 'rgba(245,158,11,0.3)',  bg: 'rgba(245,158,11,0.05)' };
+                const label = t.type === 'TYPE_1' ? 'TYPE 1 · TRANSACTIONAL BOND'
+                            : t.type === 'TYPE_2' ? 'TYPE 2 · CONSTITUTIVE BOND'
+                            : 'MIXED · HYBRID BOND';
+                const tPct = (t.scores.transactional * 100).toFixed(0);
+                const cPct = (t.scores.constitutive * 100).toFixed(0);
+                return (
+                  <div className="rounded-lg p-3 border" style={{ borderColor: palette.border, background: palette.bg }}>
+                    <div className="flex items-baseline justify-between gap-2 mb-1.5 flex-wrap">
+                      <div className="text-[9px] font-bold uppercase tracking-widest" style={{ color: palette.name }}>
+                        {label}
+                      </div>
+                      <div className="text-[7px] font-mono" style={{ color: palette.soft }}>
+                        BOSONIC-KERNEL-3.0.0 · Titmuss test
+                      </div>
+                    </div>
+                    <p className="text-[10px] font-mono leading-relaxed mb-2" style={{ color: palette.soft }}>
+                      {t.diagnostic}
+                    </p>
+                    {/* T vs C split bar */}
+                    <div className="flex items-center gap-2 text-[8px] font-mono">
+                      <span style={{ color: 'rgba(57,255,20,0.6)' }}>T {tPct}%</span>
+                      <div className="flex-1 h-1.5 rounded-full overflow-hidden flex" style={{ background: 'rgba(0,0,0,0.4)' }}>
+                        <div style={{ width: `${tPct}%`, background: 'linear-gradient(90deg, rgba(57,255,20,0.7), rgba(57,255,20,0.3))' }} />
+                        <div style={{ width: `${cPct}%`, background: 'linear-gradient(90deg, rgba(244,114,182,0.3), rgba(244,114,182,0.7))' }} />
+                      </div>
+                      <span style={{ color: 'rgba(244,114,182,0.6)' }}>C {cPct}%</span>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Innovation Frontier */}
               {narrative.frontier && (
@@ -2662,6 +2796,34 @@ export default function LatentCollider() {
                 </div>
               )}
 
+              {/* Period-3 Sanctuaries — FSF-12.1.0 §5: transient order pockets inside chaos */}
+              {narrative.sanctuaries && narrative.sanctuaries.length > 0 && (
+                <div className="rounded-lg p-3 border border-emerald-500/20 bg-emerald-900/5">
+                  <div className="flex items-baseline justify-between gap-2 mb-1.5 flex-wrap">
+                    <div className="text-[9px] font-bold uppercase tracking-widest text-emerald-400/70">
+                      PERIOD-3 SANCTUARIES · {narrative.sanctuaries.length} detected
+                    </div>
+                    <div className="text-[7px] font-mono text-emerald-500/40">
+                      FSF-12.1.0 §5 · Sharkovsky window
+                    </div>
+                  </div>
+                  <div className="text-[9px] font-mono text-emerald-500/50 leading-relaxed mb-2">
+                    Not all paradoxes are independent. When ≥3 residuals cluster within a narrow band, they aren't noise — they're aligned at a sanctuary frequency. Each cluster is a transient ordered pocket inside the chaotic regime: order recurs.
+                  </div>
+                  <div className="space-y-1.5">
+                    {narrative.sanctuaries.map((s, i) => (
+                      <div key={i} className="flex items-baseline gap-2 text-[9px] font-mono">
+                        <span className="text-emerald-400/70 shrink-0 w-14">≈ {s.center.toFixed(3)}</span>
+                        <span className="text-emerald-500/40 shrink-0">±{(s.width / 2).toFixed(3)}</span>
+                        <span className="text-emerald-300/50 truncate">
+                          {s.size}× cluster: {s.members.join(' · ')}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* ── v1.2.0: Interaction Terms strip ── */}
               {(narrative.meta.interference > 0 || narrative.meta.catalysis > 0) && (
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-amber-500/10">
@@ -2682,9 +2844,28 @@ export default function LatentCollider() {
                     {narrative.promptFragments.map((frag, i) => (
                       <div key={i} className="group relative border border-[#39ff14]/15 bg-[#39ff14]/[0.02] rounded p-3 hover:border-[#39ff14]/30 transition-colors">
                         <div className="flex items-center justify-between gap-2 mb-1.5">
-                          <span className="text-[8px] font-bold text-[#39ff14]/50 uppercase tracking-wider">
-                            {frag.source}
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[8px] font-bold text-[#39ff14]/50 uppercase tracking-wider">
+                              {frag.source}
+                            </span>
+                            {/* Metric provenance chip — shows which raw signal generated this fragment */}
+                            {(() => {
+                              const m = narrative.meta;
+                              const chip = (val, col) => (
+                                <span className="text-[7px] font-mono px-1 py-px rounded-sm"
+                                  style={{ color: col + '66', border: `1px solid ${col}22`, background: col + '0a' }}>
+                                  {val}
+                                </span>
+                              );
+                              if (frag.source === 'ARCHETYPE')    return chip(`ν=${(m.novelty * 100).toFixed(0)}%`, '#39ff14');
+                              if (frag.source === 'CATALYSIS')    return chip(m.catalysis.toFixed(2), '#f59e0b');
+                              if (frag.source === 'INTERFERENCE') return chip(m.interference.toFixed(2), '#f59e0b');
+                              if (frag.source === 'RESONANCE')    return chip(m.resonanceFreq.toFixed(3), '#06b6d4');
+                              if (frag.source === 'TURBULENCE')   return chip(m.turbulence.toFixed(4), '#f43f5e');
+                              if (frag.source === 'PARADOX')      return chip(`${m.paradoxCount}p`, '#d946ef');
+                              return null;
+                            })()}
+                          </div>
                           <button
                             onClick={() => navigator.clipboard?.writeText(frag.text)}
                             className="text-[8px] font-mono text-[#39ff14]/30 hover:text-[#39ff14]/80 uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity"
@@ -3248,13 +3429,21 @@ function RedeemInput({ accordHash, accordCard, onSuccess }) {
 }
 
 // ── DecayArcPanel — time-evolution narrative below the note pyramid ────────
+// Doctrinal annotations from FSF-12.1.0 + fish_scale_kernel11.1.1:
+// shell, glyph, regime, patch flow through from useColliderNarrative buildDecayArc.
+// Bouligand layer-index (L0/L5/L10) visualized via per-phase 36°-stack glyph.
 function DecayArcPanel({ beats, hueA, hueB }) {
   if (!beats || beats.length === 0) return null;
   const hueMid = ((hueA + hueB) / 2) % 360;
   return (
     <div className="mb-5 rounded-lg p-4" style={{ border: '1px solid rgba(255,215,0,0.1)', background: 'rgba(255,215,0,0.015)' }}>
-      <div className="text-[7px] font-mono tracking-[0.3em] mb-3" style={{ color: 'rgba(255,215,0,0.3)' }}>
-        § DECAY ARC — TIME EVOLUTION
+      <div className="flex items-baseline justify-between gap-2 mb-3 flex-wrap">
+        <div className="text-[7px] font-mono tracking-[0.3em]" style={{ color: 'rgba(255,215,0,0.3)' }}>
+          § DECAY ARC · FEIGENBAUM CASCADE
+        </div>
+        <div className="text-[7px] font-mono" style={{ color: 'rgba(255,215,0,0.25)' }}>
+          Bouligand θ=36°/L · δ=4.669 · α=2.503
+        </div>
       </div>
       <div className="relative h-1 mb-4">
         <div className="absolute inset-0 rounded-full" style={{ background: `linear-gradient(90deg, hsla(${hueA},70%,55%,0.5), hsla(${hueMid},60%,50%,0.4), hsla(${hueB},50%,45%,0.3))` }} />
@@ -3263,19 +3452,44 @@ function DecayArcPanel({ beats, hueA, hueB }) {
         ))}
       </div>
       <div className="space-y-2.5">
-        {beats.map((b, i) => (
-          <div key={i} className="flex gap-3 items-start" style={{ opacity: 0, animation: `sc-cardReveal 0.5s cubic-bezier(0.16,1,0.3,1) ${1.2 + i * 0.4}s forwards` }}>
-            <div className="text-[8px] font-mono tracking-widest shrink-0 w-16" style={{ color: 'rgba(255,215,0,0.5)' }}>{b.time}</div>
-            <div className="flex-1 min-w-0">
-              <div className="text-[9px] font-mono mb-0.5" style={{ color: 'rgba(255,215,0,0.7)' }}>
-                {b.notes.slice(0, 3).join(' · ')}
-              </div>
-              <div className="text-[8px] italic" style={{ color: 'rgba(255,215,0,0.45)' }}>
-                {b.prose}
+        {beats.map((b, i) => {
+          const bouligandRot = i * 180; // 0°, 180°, 360° across 3 phases
+          const layerIdx = i * 5;
+          return (
+            <div key={i} className="flex gap-3 items-start" style={{ opacity: 0, animation: `sc-cardReveal 0.5s cubic-bezier(0.16,1,0.3,1) ${1.2 + i * 0.4}s forwards` }}>
+              <div className="text-[8px] font-mono tracking-widest shrink-0 w-16" style={{ color: 'rgba(255,215,0,0.5)' }}>{b.time}</div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-baseline gap-2 mb-0.5 flex-wrap">
+                  <div className="text-[9px] font-mono" style={{ color: 'rgba(255,215,0,0.7)' }}>
+                    {b.notes.slice(0, 3).join(' · ')}
+                  </div>
+                  <span className="inline-flex items-center gap-1 ml-auto shrink-0">
+                    <svg width="12" height="12" viewBox="0 0 14 14" aria-hidden="true">
+                      <g transform={`translate(7 7) rotate(${bouligandRot})`}>
+                        <line x1="-5" y1="-3" x2="5" y2="-3" stroke="rgba(255,215,0,0.7)" strokeWidth="1" />
+                        <line x1="-5" y1="0"  x2="5" y2="0"  stroke="rgba(255,215,0,0.4)" strokeWidth="1" transform="rotate(36)" />
+                        <line x1="-5" y1="3"  x2="5" y2="3"  stroke="rgba(255,215,0,0.2)" strokeWidth="1" transform="rotate(72)" />
+                      </g>
+                    </svg>
+                    {b.shell && (
+                      <span className="text-[7px] font-mono font-bold px-1 rounded-sm" style={{ color: 'rgba(255,215,0,0.65)', border: '1px solid rgba(255,215,0,0.2)' }}>
+                        {b.glyph} {b.shell} · L{layerIdx}
+                      </span>
+                    )}
+                  </span>
+                </div>
+                {b.regime && (
+                  <div className="text-[7px] font-mono mb-0.5" style={{ color: 'rgba(255,215,0,0.4)' }}>
+                    {b.regime} · <span style={{ color: 'rgba(255,215,0,0.55)' }}>{b.patch}</span>
+                  </div>
+                )}
+                <div className="text-[8px] italic" style={{ color: 'rgba(255,215,0,0.45)' }}>
+                  {b.prose}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
