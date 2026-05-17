@@ -135,7 +135,7 @@ function Facet({ node }: FacetProps) {
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 pointer-events-none">
         <div className="flex items-center gap-1">
           <span className={`text-[7px] ${enc.cls}`}>{enc.glyph}</span>
-          <span className="text-[8px] font-mono font-bold tracking-[0.15em] text-white/80 uppercase">
+          <span className="text-[8px] font-mono font-bold tracking-[0.15em] text-zinc-200 uppercase">
             {node.id}
           </span>
         </div>
@@ -143,7 +143,7 @@ function Facet({ node }: FacetProps) {
           <span className={`text-[7px] ${POLARITY_ACCENT[node.polarity]}`}>
             {POLARITY_GLYPH[node.polarity]}
           </span>
-          <span className="text-[6px] font-mono text-white/30 tracking-widest">
+          <span className="text-[6px] font-mono text-zinc-500 tracking-widest">
             {node.coordinates}
           </span>
         </div>

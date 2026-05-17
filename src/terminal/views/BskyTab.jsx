@@ -591,7 +591,7 @@ const BskyTab = () => {
             >github</a>
           </div>
 
-          <div style={{ fontSize: 11, color: '#e0e0e0', opacity: 0.7, marginBottom: 10, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 11, color: '#d4d4d8', opacity: 0.7, marginBottom: 10, lineHeight: 1.5 }}>
             Repo kindly provided.{' '}
             <a
               href="https://github.com/dollspace-gay/Tesseract-Vault"
@@ -637,7 +637,7 @@ const BskyTab = () => {
             >github</a>
           </div>
 
-          <div style={{ fontSize: 11, color: '#e0e0e0', opacity: 0.7, marginBottom: 10, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 11, color: '#d4d4d8', opacity: 0.7, marginBottom: 10, lineHeight: 1.5 }}>
             Surveillance legislation tracker.{' '}
             <a
               href="https://github.com/grey-c0/legislation"
@@ -674,7 +674,7 @@ const BskyTab = () => {
             >psingletary.com</a>
           </div>
 
-          <div style={{ fontSize: 11, color: '#e0e0e0', opacity: 0.7, marginBottom: 10, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 11, color: '#d4d4d8', opacity: 0.7, marginBottom: 10, lineHeight: 1.5 }}>
             AT Protocol + Bluesky resource links.
             Curated the full AT Proto and bsky link manifest powering this tab — protocol spec, identity, data repos, dev toolkit, and ecosystem apps.
           </div>
@@ -702,7 +702,7 @@ const BskyTab = () => {
             >@graphtracks.com</a>
           </div>
 
-          <div style={{ fontSize: 11, color: '#e0e0e0', opacity: 0.7, marginBottom: 10, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 11, color: '#d4d4d8', opacity: 0.7, marginBottom: 10, lineHeight: 1.5 }}>
             Bluesky network analytics API.
             Powers the TOP_POSTS engagement signal — top-post rankings, like/repost/reply data, and image embeds via the GraphTracks REST API.
           </div>

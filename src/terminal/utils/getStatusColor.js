@@ -6,12 +6,12 @@ const getStatusColor = (status) => {
     case 'STABLE':       return 'border-blue-400 text-blue-400 shadow-[0_0_5px_rgba(96,165,250,0.3)]';
     case 'PROPOSED':     return 'border-fuchsia-400 text-fuchsia-400 shadow-[0_0_5px_rgba(232,121,249,0.3)]';
     case 'FROZEN':       return 'border-indigo-400 text-indigo-400 shadow-[0_0_5px_rgba(129,140,248,0.3)]';
-    case 'ARCHIVED':     return 'border-gray-500 text-gray-500';
-    case 'LEGACY':       return 'border-gray-600 text-gray-600';
+    case 'ARCHIVED':     return 'border-zinc-500 text-zinc-500';
+    case 'LEGACY':       return 'border-zinc-600 text-zinc-600';
     // Canonical statuses written by import-kernel.js Level 9
     case 'EXPERIMENTAL': return 'border-fuchsia-500 text-fuchsia-500 shadow-[0_0_5px_rgba(217,70,239,0.3)]';
-    case 'DEPRECATED':   return 'border-gray-500 text-gray-500';
-    default:             return 'border-gray-500 text-gray-500';
+    case 'DEPRECATED':   return 'border-zinc-500 text-zinc-500';
+    default:             return 'border-zinc-500 text-zinc-500';
   }
 };
 
