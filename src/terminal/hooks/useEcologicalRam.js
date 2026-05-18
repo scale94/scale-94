@@ -307,6 +307,35 @@ export const SAFE_ALIAS_TO_KERNEL = {
   gametheory: 'replicator',
 };
 
+// ── Lattice Protocol — localStorage persistence ──────────────────────────────
+export const LATTICE_STORAGE_KEY = 'scale94_lattice_protocol';
+
+export const defaultLatticeState = () => ({
+  attemptCount: 0,
+  foundSafes:   [],    // serialized as array; treated as set in logic
+  unlocked:     false,
+  failed:       false,
+  lastRefillAt: 0,
+  hintSeen:     false,
+});
+
+export function readLatticeState() {
+  try {
+    const raw = localStorage.getItem(LATTICE_STORAGE_KEY);
+    if (!raw) return defaultLatticeState();
+    const parsed = JSON.parse(raw);
+    return { ...defaultLatticeState(), ...parsed };
+  } catch (_) {
+    return defaultLatticeState();
+  }
+}
+
+export function writeLatticeState(state) {
+  try {
+    localStorage.setItem(LATTICE_STORAGE_KEY, JSON.stringify(state));
+  } catch (_) { /* quota or private mode — silently no-op */ }
+}
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const RAM_START      = 70;   // planet already stressed — not at 100
