@@ -53,6 +53,7 @@ export function useCommandDispatch(ctx) {
       articles, classifiedSession, transmissionStories, tagIndex, systemArticles, activeTab,
       setSystemLogs, setClassifiedSession, setActiveTab, setSelectedArticle,
       setSearchFilter, setCurrentPath, setRelicMode, setBreachOpen, applyEcoCost,
+      applyRefill, latticeState,
       setOriginTab, setArchitectThesis, setTagCloudView,
       appendSystemLog, handleNav, handleKernelClick, handleTransmissionSelect,
       loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField, setSpectralBridges, setEnclaveKeys, setProbeNode, setBoneFusions,
@@ -75,6 +76,32 @@ export function useCommandDispatch(ctx) {
 
       if (!query) {
         executeCommand(rawCmd, `RUN_FAIL :: No target specified. Try: run vcache_burn | run climate | run bosonic`);
+        return;
+      }
+
+      // ── run re$$ill ──────────────────────────────────────────────────────
+      // The Lattice Protocol cheat. Permanent unlock via localStorage. 60s cooldown.
+      // Intercepted before WASM lookup so the $$ characters don't trip normalization.
+      if (query.trim().toLowerCase() === 're$$ill') {
+        const outcome = applyRefill();
+        log(`COMMAND: ${rawCmd}`);
+        if (outcome.ok) {
+          logs(
+            `  RE$$ILL :: planetary RAM restored to 100%`,
+            `  the cheat is honored · the cooldown begins · 60s until next refill`,
+          );
+        } else if (outcome.reason === 'locked') {
+          logs(
+            `  RE$$ILL_LOCKED :: cryptographic key not bound`,
+            `  find the 3 commons kernels in 3 attempts to unlock`,
+          );
+        } else if (outcome.reason === 'cooldown') {
+          const remaining = Math.ceil(outcome.remainingMs / 1000);
+          logs(
+            `  RE$$ILL_COOLDOWN :: ${remaining}s remaining`,
+            `  the lattice replenishes on geological time`,
+          );
+        }
         return;
       }
 
@@ -267,7 +294,7 @@ export function useCommandDispatch(ctx) {
                       { time: t, msg: `  ──────────────────────────────────────────`, rust: true },
                       { time: t, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE  ·  EXEC_TIME: ${elapsed}ms`, rust: true },
                     ].slice(-2000));
-                    if (opts?.eco) applyEcoCost(ecoAlias);
+                    applyEcoCost(ecoAlias);
                   }
                 }, i * 22);
               });
@@ -279,7 +306,7 @@ export function useCommandDispatch(ctx) {
                 { time: now,      msg: `  ──────────────────────────────────────────`, rust: true },
                 { time: doneTime, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE  ·  EXEC_TIME: ${elapsed}ms`, rust: true },
               ].slice(-2000));
-              if (opts?.eco) applyEcoCost(ecoAlias);
+              applyEcoCost(ecoAlias);
             }
 
 

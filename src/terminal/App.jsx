@@ -141,7 +141,7 @@ const App = () => {
 
   const { appendSystemLog, setSystemLogs, visibleLogs, logRef } = useSystemLog();
   // RAM — ecological entropy model §1.3: cost maps to planetary footprint
-  const { ramPct, ecoCost, applyEcoCost, isCritical, isWarning } = useEcologicalRam({ appendSystemLog });
+  const { ramPct, ecoCost, applyEcoCost, applyRefill, latticeState, isCritical, isWarning } = useEcologicalRam({ appendSystemLog });
 
   // ── CAS dynamic data derivation ──────────────────────────────────────────────
   // Merge priority (highest → lowest):
@@ -754,7 +754,7 @@ const App = () => {
   const dispatchCommand = useCommandDispatch({
     articles, classifiedSession, transmissionStories, tagIndex, systemArticles, activeTab,
     setSystemLogs, setClassifiedSession, setActiveTab, setSelectedArticle,
-    setSearchFilter, setCurrentPath, setRelicMode, setBreachOpen, applyEcoCost,
+    setSearchFilter, setCurrentPath, setRelicMode, setBreachOpen, applyEcoCost, applyRefill, latticeState,
     setOriginTab, setArchitectThesis, setTagCloudView,
     appendSystemLog, handleNav, handleKernelClick, handleTransmissionSelect,
     loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField, setSpectralBridges, setEnclaveKeys, setProbeNode, setBoneFusions,
