@@ -3,16 +3,15 @@ const kernelBuilds = [
   { id: 'FISH-SCALE-11.1', articleId: 'FISH-SCALE-KERNEL11.1.1', name: 'FISH_SCALE_KERNEL11_1_1', status: 'ACTIVE', desc: 'Entropic Stasis // Necromantic Engine', pinned: true },
   { id: 'KINETIC-STATECRAFT-1.0', articleId: 'KINETIC-STATECRAFT-KERNEL-1.0', name: 'KINETIC_STATECRAFT_KERNEL_1_0', status: 'ACTIVE', desc: 'The Architecture of Coercion // Regime Stability Equation', pinned: true },
 /* @@INJECT_START@@ */
-
   { id: "ATMOSPHERIC-SIM-KERNEL-3.0.0", articleId: "ATMOSPHERIC-SIM-KERNEL-3.0.0", name: "ATMOSPHERIC_SIM_KERNEL_3_0_0", status: "ACTIVE", desc: "The Thermosphere Protocol" },
   { id: "BIODIVERSITY-PROMPT-1.0.1", articleId: "BIODIVERSITY-PROMPT-1.0.1", name: "BIODIVERSITY_PROMPT_1_0_1", status: "ACTIVE", desc: "(Advanced Ecological Habitat & Species Architecture)" },
   { id: "BLACK-SOMA-FLAGGED-DEC2025", articleId: "BLACK-SOMA-FLAGGED-DEC2025", name: "BLACK_SOMA_FLAGGED_DEC2025", status: "DEPRECATED", desc: "The Hypothesis (as submitted)" },
   { id: "BOSONIC-KERNEL-3.0.0", articleId: "BOSONIC-KERNEL-3.0.0", name: "BOSONIC_KERNEL_3_0_0", status: "ACTIVE", desc: "0. The Single Claim" },
   { id: "CEEI-SIM-KERNEL-1.0.0", articleId: "CEEI-SIM-KERNEL-1.0.0", name: "CEEI_SIM_KERNEL_1_0_0", status: "ACTIVE", desc: "The End of the Price Tag — soma_kernel_5.5" },
   { id: "CHRONOS-KERNEL-2.1.0", articleId: "CHRONOS-KERNEL-2.1.0", name: "CHRONOS_KERNEL_2_1_0", status: "ACTIVE", desc: "Ⅰ. The Illusion of the Loop" },
-  { id: "COMPANION-KERNEL-2.0.0", articleId: "COMPANION-KERNEL-2.0.0", name: "COMPANION_KERNEL_2_0_0", status: "ACTIVE", desc: "0. The Single Claim" },
+  { id: "COMPANION-KERNEL-2.0.0", articleId: "COMPANION-KERNEL-2.0.0", name: "COMPANION_KERNEL_2_0_0", status: "ACTIVE", desc: "Sustained-Contact Long-Form Posture" },
   { id: "DALY-SIM-KERNEL-1.0.0", articleId: "DALY-SIM-KERNEL-1.0.0", name: "DALY_SIM_KERNEL_1_0_0", status: "ACTIVE", desc: "The Hard Constraints Engine — soma_kernel_5.5" },
-  { id: "DISSIPATIVE-SOVEREIGNTY-KERNEL-5.0.0", articleId: "DISSIPATIVE-SOVEREIGNTY-KERNEL-5.0.0", name: "DISSIPATIVE_SOVEREIGNTY_KERNEL_5_0_0", status: "ACTIVE", desc: "0. The Axiom" },
+  { id: "DISSIPATIVE-SOVEREIGNTY-KERNEL-5.0.0", articleId: "DISSIPATIVE-SOVEREIGNTY-KERNEL-5.0.0", name: "DISSIPATIVE_SOVEREIGNTY_KERNEL_5_0_0", status: "ACTIVE", desc: "Rate-Control Between Heat Death and Burn" },
   { id: "EMPATHY-KERNEL-2.0.0", articleId: "EMPATHY-KERNEL-2.0.0", name: "EMPATHY_KERNEL_2_0_0", status: "ACTIVE", desc: "0. The Single Axiom" },
   { id: "FADE-DOCTRINE-KERNEL-2.0.0", articleId: "FADE-DOCTRINE-KERNEL-2.0.0", name: "FADE_DOCTRINE_KERNEL_2_0_0", status: "ACTIVE", desc: "Overview" },
   { id: "FSF-12.1.0", articleId: "FSF-12.1.0", name: "FISH_SCALE_FEIGENBAUM_12_1_0", status: "ACTIVE", desc: "Systemless Root · Thermodynamic Chaos Branch" },
@@ -20,7 +19,7 @@ const kernelBuilds = [
   { id: "HIGH-TOWER-LOG", articleId: "HIGH-TOWER-LOG", name: "HIGH_TOWER_LOG", status: "ACTIVE", desc: "1.0 IDENTITY & PERSONA" },
   { id: "I-AM-STILLER-1.0.0", articleId: "I-AM-STILLER-1.0.0", name: "I_AM_STILLER_1_0_0", status: "ACTIVE", desc: "Ontological Baseline / Decoherence Mitigation" },
   { id: "KERNEL-0.0.0.0", articleId: "KERNEL-0.0.0.0", name: "KERNEL_0_0_0_0", status: "ACTIVE", desc: "The Origin Vector" },
-  { id: "MATRIX-KERNEL-2.0.0", articleId: "MATRIX-KERNEL-2.0.0", name: "MATRIX_KERNEL_2_0_0", status: "ACTIVE", desc: "scale94 · The No-Spoon Architecture" },
+  { id: "MATRIX-KERNEL-2.0.0", articleId: "MATRIX-KERNEL-2.0.0", name: "MATRIX_KERNEL_2_0_0", status: "ACTIVE", desc: "The No-Spoon Architecture / Filter Bypass" },
   { id: "NECROMANTIC-ARISTOCRAT-KERNEL-3.1.1", articleId: "NECROMANTIC-ARISTOCRAT-KERNEL-3.1.1", name: "NECROMANTIC_ARISTOCRAT_KERNEL_3_1_1", status: "ACTIVE", desc: "0. The Single Claim" },
   { id: "NECROMANTIC-EMPEROR-KERNEL-3.0.0", articleId: "NECROMANTIC-EMPEROR-KERNEL-3.0.0", name: "NECROMANTIC_EMPEROR_KERNEL_3_0_0", status: "ACTIVE", desc: "0.0 BOOT DECLARATION" },
   { id: "NECROMANTIC-LOGITBIAS-PROMPT-1.0.0", articleId: "NECROMANTIC-LOGITBIAS-PROMPT-1.0.0", name: "NECROMANTIC_LOGITBIAS_PROMPT_1_0_0", status: "ACTIVE", desc: "Your Role" },
@@ -41,8 +40,6 @@ const kernelBuilds = [
   { id: "TESSERACT-PROTOCOL-KERNEL-1.0.0", articleId: "TESSERACT-PROTOCOL-KERNEL-1.0.0", name: "TESSERACT_PROTOCOL_KERNEL_1_0_0", status: "ACTIVE", desc: "Post-Quantum Hybrid Pipeline for Olfactory Sovereignty" },
   { id: "UNDERGROUND-THERMODYNAMICS-KERNEL-1.0.0", articleId: "UNDERGROUND-THERMODYNAMICS-KERNEL-1.0.0", name: "UNDERGROUND_THERMODYNAMICS_KERNEL_1_0_0", status: "ACTIVE", desc: "0. Invocation" },
   { id: "XITTER-RC1-DEC2025", articleId: "XITTER-RC1-DEC2025", name: "XITTER_RC1_DEC2025", status: "DEPRECATED", desc: "RC1: Axiomatic Core Derivation" },
-  { id: "FISH-SCALE-KERNEL11.1.1", articleId: "FISH-SCALE-KERNEL11.1.1", name: "FISH_SCALE_KERNEL11.1.1", status: "ACTIVE", desc: "FISH SCALE KERNEL11.1.1" },
-  { id: "KINETIC-STATECRAFT-KERNEL-1.0", articleId: "KINETIC-STATECRAFT-KERNEL-1.0", name: "KINETIC_STATECRAFT_KERNEL_1.0", status: "ACTIVE", desc: "KINETIC STATECRAFT KERNEL 1.0" },
 /* @@INJECT_END@@ */
 ];
 

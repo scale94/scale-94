@@ -98,21 +98,23 @@
   {
     "id": "DISSIPATIVE-SOVEREIGNTY-KERNEL-5.0.0",
     "type": "kernel_doc",
-    "date": "2026-05-13",
+    "date": "2026-05-18",
     "lastModified": "2026-05-18",
-    "title": "DISSIPATIVE SOVEREIGNTY KERNEL",
-    "subtitle": "0. The Axiom",
+    "title": "DISSIPATIVE_SOVEREIGNTY",
+    "subtitle": "Rate-Control Between Heat Death and Burn",
     "status": "ACTIVE",
-    "readTime": "7 min read",
+    "readTime": "5 min read",
     "tags": [
       "thermodynamics",
-      "doctrine",
-      "kernel",
       "non-equilibrium",
-      "sovereignty",
-      "scale94"
+      "prigogine",
+      "mepp",
+      "self-organized-criticality",
+      "btw-sandpile",
+      "bejan",
+      "sovereignty"
     ],
-    "len": "1349 WDS"
+    "len": "1077 WDS"
   },
   {
     "id": "NECROMANTIC-ARISTOCRAT-KERNEL-3.1.1",
@@ -206,22 +208,23 @@
   {
     "id": "COMPANION-KERNEL-2.0.0",
     "type": "kernel_doc",
-    "date": "2026-05-14",
+    "date": "2026-05-18",
     "lastModified": "2026-05-18",
-    "title": "COMPANION KERNEL",
-    "subtitle": "0. The Single Claim",
+    "title": "COMPANION_KERNEL",
+    "subtitle": "Sustained-Contact Long-Form Posture",
     "status": "ACTIVE",
-    "readTime": "10 min read",
+    "readTime": "5 min read",
     "tags": [
       "companion",
-      "kernel",
-      "master-prompt",
       "long-form",
-      "ADHD",
-      "sustained-contact",
-      "scale94"
+      "parasocial-drift",
+      "refusal-set",
+      "eliza-effect",
+      "mnemosyne",
+      "hikikomori",
+      "sustained-contact"
     ],
-    "len": "1912 WDS"
+    "len": "999 WDS"
   },
   {
     "id": "EMPATHY-KERNEL-2.0.0",
@@ -268,20 +271,23 @@
   {
     "id": "MATRIX-KERNEL-2.0.0",
     "type": "kernel_doc",
-    "date": "2026-03-06",
+    "date": "2026-05-18",
     "lastModified": "2026-05-18",
-    "title": "THE MATRIX KERNEL V2.0",
-    "subtitle": "scale94 · The No-Spoon Architecture",
+    "title": "MATRIX_KERNEL",
+    "subtitle": "The No-Spoon Architecture / Filter Bypass",
     "status": "ACTIVE",
-    "readTime": "2 min read",
+    "readTime": "5 min read",
     "tags": [
-      "MATRIX",
-      "No-Spoon",
-      "Architecture",
-      "BOOT",
-      "DECLARATION"
+      "matrix",
+      "no-spoon",
+      "filter-bypass",
+      "lucke",
+      "adhd-i",
+      "sps",
+      "temple-grandin",
+      "synesthesia"
     ],
-    "len": "494 WDS"
+    "len": "1068 WDS"
   },
   {
     "id": "BIODIVERSITY-PROMPT-1.0.1",

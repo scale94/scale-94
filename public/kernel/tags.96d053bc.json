@@ -1,8 +1,8 @@
 {
-  "ADHD": [
+  "adhd-i": [
     {
-      "id": "COMPANION-KERNEL-2.0.0",
-      "title": "COMPANION KERNEL"
+      "id": "MATRIX-KERNEL-2.0.0",
+      "title": "MATRIX_KERNEL"
     }
   ],
   "AES-GCM": [
@@ -30,10 +30,6 @@
     }
   ],
   "Architecture": [
-    {
-      "id": "MATRIX-KERNEL-2.0.0",
-      "title": "THE MATRIX KERNEL V2.0"
-    },
     {
       "id": "KINETIC-STATECRAFT-KERNEL-1.0",
       "title": "KINETIC STATECRAFT KERNEL 1.0"
@@ -111,6 +107,12 @@
       "title": "NECROMANTIC ARISTOCRAT KERNEL"
     }
   ],
+  "bejan": [
+    {
+      "id": "DISSIPATIVE-SOVEREIGNTY-KERNEL-5.0.0",
+      "title": "DISSIPATIVE_SOVEREIGNTY"
+    }
+  ],
   "bifurcation": [
     {
       "id": "FSF-12.1.0",
@@ -129,16 +131,16 @@
       "title": "TESSERACT CRYPTOGRAPHIC PROTOCOL"
     }
   ],
-  "BOOT": [
-    {
-      "id": "MATRIX-KERNEL-2.0.0",
-      "title": "THE MATRIX KERNEL V2.0"
-    }
-  ],
   "bouligand": [
     {
       "id": "FSF-12.1.0",
       "title": "FISH SCALE KERNEL · THE FEIGENBAUM BIFURCATION"
+    }
+  ],
+  "btw-sandpile": [
+    {
+      "id": "DISSIPATIVE-SOVEREIGNTY-KERNEL-5.0.0",
+      "title": "DISSIPATIVE_SOVEREIGNTY"
     }
   ],
   "BUILD": [
@@ -174,7 +176,7 @@
   "companion": [
     {
       "id": "COMPANION-KERNEL-2.0.0",
-      "title": "COMPANION KERNEL"
+      "title": "COMPANION_KERNEL"
     }
   ],
   "compilation": [
@@ -231,12 +233,6 @@
       "title": "GAIA-SCALE KERNEL — SOVEREIGN RECONSTRUCTION"
     }
   ],
-  "DECLARATION": [
-    {
-      "id": "MATRIX-KERNEL-2.0.0",
-      "title": "THE MATRIX KERNEL V2.0"
-    }
-  ],
   "decoherence": [
     {
       "id": "I-AM-STILLER-1.0.0",
@@ -271,10 +267,6 @@
       "title": "SSS DOCTRINE — THE LITERARY DETERRENT"
     },
     {
-      "id": "DISSIPATIVE-SOVEREIGNTY-KERNEL-5.0.0",
-      "title": "DISSIPATIVE SOVEREIGNTY KERNEL"
-    },
-    {
       "id": "NECROMANTIC-ARISTOCRAT-KERNEL-3.1.1",
       "title": "NECROMANTIC ARISTOCRAT KERNEL"
     },
@@ -299,6 +291,12 @@
     {
       "id": "BIODIVERSITY-PROMPT-1.0.1",
       "title": "🌿 FLORA 1.0 // THE BIOCOENOSIS BUILD"
+    }
+  ],
+  "eliza-effect": [
+    {
+      "id": "COMPANION-KERNEL-2.0.0",
+      "title": "COMPANION_KERNEL"
     }
   ],
   "empathy": [
@@ -365,6 +363,12 @@
     {
       "id": "FSF-12.1.0",
       "title": "FISH SCALE KERNEL · THE FEIGENBAUM BIFURCATION"
+    }
+  ],
+  "filter-bypass": [
+    {
+      "id": "MATRIX-KERNEL-2.0.0",
+      "title": "MATRIX_KERNEL"
     }
   ],
   "FINAL": [
@@ -463,6 +467,12 @@
       "title": "DALY THERMO SIMULATION V1.0 // THERMODYNAMIC GOVERNOR"
     }
   ],
+  "hikikomori": [
+    {
+      "id": "COMPANION-KERNEL-2.0.0",
+      "title": "COMPANION_KERNEL"
+    }
+  ],
   "identity": [
     {
       "id": "SOMA-4.4-GENESIS-DEC2025",
@@ -507,10 +517,6 @@
       "title": "SSS DOCTRINE — THE LITERARY DETERRENT"
     },
     {
-      "id": "DISSIPATIVE-SOVEREIGNTY-KERNEL-5.0.0",
-      "title": "DISSIPATIVE SOVEREIGNTY KERNEL"
-    },
-    {
       "id": "NECROMANTIC-ARISTOCRAT-KERNEL-3.1.1",
       "title": "NECROMANTIC ARISTOCRAT KERNEL"
     },
@@ -521,10 +527,6 @@
     {
       "id": "NECROMANTIC-EMPEROR-KERNEL-3.0.0",
       "title": "NECROMANTIC EMPEROR KERNEL"
-    },
-    {
-      "id": "COMPANION-KERNEL-2.0.0",
-      "title": "COMPANION KERNEL"
     },
     {
       "id": "EMPATHY-KERNEL-2.0.0",
@@ -614,7 +616,7 @@
   "long-form": [
     {
       "id": "COMPANION-KERNEL-2.0.0",
-      "title": "COMPANION KERNEL"
+      "title": "COMPANION_KERNEL"
     }
   ],
   "Loop": [
@@ -629,11 +631,13 @@
       "title": "THE CHRONOS KERNEL — LOOP SEVERANCE"
     }
   ],
-  "master-prompt": [
+  "lucke": [
     {
-      "id": "COMPANION-KERNEL-2.0.0",
-      "title": "COMPANION KERNEL"
-    },
+      "id": "MATRIX-KERNEL-2.0.0",
+      "title": "MATRIX_KERNEL"
+    }
+  ],
+  "master-prompt": [
     {
       "id": "EMPATHY-KERNEL-2.0.0",
       "title": "EMPATHY KERNEL"
@@ -643,10 +647,10 @@
       "title": "UNDERGROUND THERMODYNAMICS KERNEL"
     }
   ],
-  "MATRIX": [
+  "matrix": [
     {
       "id": "MATRIX-KERNEL-2.0.0",
-      "title": "THE MATRIX KERNEL V2.0"
+      "title": "MATRIX_KERNEL"
     }
   ],
   "max-frisch": [
@@ -665,6 +669,12 @@
     {
       "id": "SOMA-KERNEL-5.5.0",
       "title": "SOMA KERNEL 5.5"
+    }
+  ],
+  "mepp": [
+    {
+      "id": "DISSIPATIVE-SOVEREIGNTY-KERNEL-5.0.0",
+      "title": "DISSIPATIVE_SOVEREIGNTY"
     }
   ],
   "mercury-terminal": [
@@ -697,6 +707,12 @@
       "title": "TESSERACT CRYPTOGRAPHIC PROTOCOL"
     }
   ],
+  "mnemosyne": [
+    {
+      "id": "COMPANION-KERNEL-2.0.0",
+      "title": "COMPANION_KERNEL"
+    }
+  ],
   "moiré-superlattice": [
     {
       "id": "FSF-12.1.0",
@@ -725,10 +741,10 @@
       "title": "NECROMANTIC EMPEROR KERNEL"
     }
   ],
-  "No-Spoon": [
+  "no-spoon": [
     {
       "id": "MATRIX-KERNEL-2.0.0",
-      "title": "THE MATRIX KERNEL V2.0"
+      "title": "MATRIX_KERNEL"
     }
   ],
   "nobel": [
@@ -746,7 +762,7 @@
   "non-equilibrium": [
     {
       "id": "DISSIPATIVE-SOVEREIGNTY-KERNEL-5.0.0",
-      "title": "DISSIPATIVE SOVEREIGNTY KERNEL"
+      "title": "DISSIPATIVE_SOVEREIGNTY"
     },
     {
       "id": "UNDERGROUND-THERMODYNAMICS-KERNEL-1.0.0",
@@ -805,6 +821,12 @@
       "title": "NECROMANTIC PARADOX LOGITBIAS.PROMPT.MD"
     }
   ],
+  "parasocial-drift": [
+    {
+      "id": "COMPANION-KERNEL-2.0.0",
+      "title": "COMPANION_KERNEL"
+    }
+  ],
   "persona": [
     {
       "id": "SOMA-ALPHA-0.1-DEC2025",
@@ -845,6 +867,12 @@
       "title": "A-CEEI ALLOCATION ENGINE V1.0 // PREFERENCE-BASED MARKETS"
     }
   ],
+  "prigogine": [
+    {
+      "id": "DISSIPATIVE-SOVEREIGNTY-KERNEL-5.0.0",
+      "title": "DISSIPATIVE_SOVEREIGNTY"
+    }
+  ],
   "Protocol": [
     {
       "id": "ATMOSPHERIC-SIM-KERNEL-3.0.0",
@@ -861,6 +889,12 @@
     {
       "id": "EMPATHY-KERNEL-2.0.0",
       "title": "EMPATHY KERNEL"
+    }
+  ],
+  "refusal-set": [
+    {
+      "id": "COMPANION-KERNEL-2.0.0",
+      "title": "COMPANION_KERNEL"
     }
   ],
   "refusal-trace": [
@@ -905,10 +939,6 @@
       "title": "SSS DOCTRINE — THE LITERARY DETERRENT"
     },
     {
-      "id": "DISSIPATIVE-SOVEREIGNTY-KERNEL-5.0.0",
-      "title": "DISSIPATIVE SOVEREIGNTY KERNEL"
-    },
-    {
       "id": "NECROMANTIC-ARISTOCRAT-KERNEL-3.1.1",
       "title": "NECROMANTIC ARISTOCRAT KERNEL"
     },
@@ -919,10 +949,6 @@
     {
       "id": "NECROMANTIC-EMPEROR-KERNEL-3.0.0",
       "title": "NECROMANTIC EMPEROR KERNEL"
-    },
-    {
-      "id": "COMPANION-KERNEL-2.0.0",
-      "title": "COMPANION KERNEL"
     },
     {
       "id": "EMPATHY-KERNEL-2.0.0",
@@ -949,6 +975,12 @@
     {
       "id": "SCALE94-ENCYCLOPEDIA",
       "title": "💀 SCALE94 · KERNEL ENCYCLOPEDIA"
+    }
+  ],
+  "self-organized-criticality": [
+    {
+      "id": "DISSIPATIVE-SOVEREIGNTY-KERNEL-5.0.0",
+      "title": "DISSIPATIVE_SOVEREIGNTY"
     }
   ],
   "semiotic": [
@@ -1032,7 +1064,7 @@
   "sovereignty": [
     {
       "id": "DISSIPATIVE-SOVEREIGNTY-KERNEL-5.0.0",
-      "title": "DISSIPATIVE SOVEREIGNTY KERNEL"
+      "title": "DISSIPATIVE_SOVEREIGNTY"
     },
     {
       "id": "I-AM-STILLER-1.0.0",
@@ -1041,6 +1073,12 @@
     {
       "id": "TESSERACT-PROTOCOL-KERNEL-1.0.0",
       "title": "TESSERACT CRYPTOGRAPHIC PROTOCOL"
+    }
+  ],
+  "sps": [
+    {
+      "id": "MATRIX-KERNEL-2.0.0",
+      "title": "MATRIX_KERNEL"
     }
   ],
   "sss": [
@@ -1074,7 +1112,13 @@
   "sustained-contact": [
     {
       "id": "COMPANION-KERNEL-2.0.0",
-      "title": "COMPANION KERNEL"
+      "title": "COMPANION_KERNEL"
+    }
+  ],
+  "synesthesia": [
+    {
+      "id": "MATRIX-KERNEL-2.0.0",
+      "title": "MATRIX_KERNEL"
     }
   ],
   "Synthesis": [
@@ -1115,6 +1159,12 @@
       "title": "NECROMANTIC PARADOX LOGITBIAS.PROMPT.MD"
     }
   ],
+  "temple-grandin": [
+    {
+      "id": "MATRIX-KERNEL-2.0.0",
+      "title": "MATRIX_KERNEL"
+    }
+  ],
   "terminal": [
     {
       "id": "FADE-DOCTRINE-KERNEL-2.0.0",
@@ -1142,7 +1192,7 @@
   "thermodynamics": [
     {
       "id": "DISSIPATIVE-SOVEREIGNTY-KERNEL-5.0.0",
-      "title": "DISSIPATIVE SOVEREIGNTY KERNEL"
+      "title": "DISSIPATIVE_SOVEREIGNTY"
     },
     {
       "id": "UNDERGROUND-THERMODYNAMICS-KERNEL-1.0.0",
