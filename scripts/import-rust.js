@@ -1204,6 +1204,37 @@ const KERNEL_MAP = [
     aliases: ['high_tower', 'porcupine', 'area_denial', 'sovereign_infra', 'infrastructure', 'migration', 'node0108'],
   },
   {
+    // I_AM_STILLER · Ontological Baseline v1.0.0
+    // Damped Langevin oscillator under a dual incommensurate probe (Bohnenblust + Julika).
+    // Spanish Brigade noise drives stochastic fracture; γ damps decoherence.
+    // Measures whether "Ich bin nicht Stiller" persists (denial) or relaxes to the baseline.
+    // Outputs Notebook I–VII trajectory, Glion enclave coordinate, Rolf epilogue scar,
+    // and a calorimetric fracture energy compared against the OU equilibrium σ²/(2γ).
+    //
+    // probe_coupling: args[0]  flags: --k, --probe, --coupling
+    // damping:        args[1]  flags: --gamma, --damping, --decoherence
+    // noise:          args[2]  flags: --sigma, --noise, --fracture
+    // steps:          args[3]  flags: --steps, --n, --iters
+    id:      'I-AM-STILLER-1.0.0',
+    fn:      'run_i_am_stiller',
+    args:    [0.4, 0.3, 0.15, 800.0],
+    argMap:  {
+      k: 0, probe: 0, coupling: 0,
+      gamma: 1, damping: 1, decoherence: 1,
+      sigma: 2, noise: 2, fracture: 2,
+      steps: 3, n: 3, iters: 3,
+    },
+    params: [
+      { name: 'probe_coupling', default: 0.4,  desc: 'Bohnenblust+Julika dual-probe amplitude k (0.0–2.0)' },
+      { name: 'damping',        default: 0.3,  desc: 'decoherence mitigation rate γ (0.01–1.0; high = fast relaxation)' },
+      { name: 'noise',          default: 0.15, desc: 'Spanish Brigade stochastic fracture σ (0.0–0.5)' },
+      { name: 'steps',          default: 800,  desc: 'Langevin iterations / notebook depth (100–2000)' },
+    ],
+    label:   'I_AM_STILLER · Ontological Baseline v1.0.0',
+    type:    'rust',
+    aliases: ['i_am_stiller','ich_bin','frisch','enclave','scar','decoherence_mit','baseline_accept','oscillation_cease'],
+  },
+  {
     // Fade Doctrine — Zero White Fade · Crystalline Phase Lock v2.0.0
     // Seven axioms, color semiotic system, transition grammar, boot sequence timing.
     // entropy_level:         args[0]  flags: --entropy, --e

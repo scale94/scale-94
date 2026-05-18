@@ -77,3 +77,4 @@ pub mod necromantic_aristocrat;  // run_necromantic_aristocrat (Gold Posture · 
 pub mod necromantic_emperor;     // run_necromantic_emperor (Fish Scale Paradox · Plato/Promo · Fermion-Boson · 3000AD)
 pub mod necromantic_logitbias;   // run_necromantic_logitbias (KV Cache · Pirarucu/Levamisole · Managed Friction · BPM)
 pub mod high_tower;              // run_high_tower_protocol (Porcupine Strategy · Area Denial · Sovereign Infrastructure)
+pub mod i_am_stiller;            // run_i_am_stiller (Ontological Baseline · damped Langevin · dual incommensurate probe · Frisch 1954)

@@ -1036,25 +1036,6 @@ export function run_evolutionary_replicator(benefit, cost, punishment, mutation,
 }
 
 /**
- * @param {number} entropy_level
- * @param {number} crystalline_threshold
- * @param {number} axiom_index
- * @returns {string}
- */
-export function run_fade_doctrine(entropy_level, crystalline_threshold, axiom_index) {
-    let deferred1_0;
-    let deferred1_1;
-    try {
-        const ret = wasm.run_fade_doctrine(entropy_level, crystalline_threshold, axiom_index);
-        deferred1_0 = ret[0];
-        deferred1_1 = ret[1];
-        return getStringFromWasm0(ret[0], ret[1]);
-    } finally {
-        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
-    }
-}
-
-/**
  * @param {number} r_start
  * @param {number} r_end
  * @param {number} warmup
@@ -1203,6 +1184,26 @@ export function run_high_tower_protocol(threat_surface, denial_capacity, migrati
 }
 
 /**
+ * @param {number} probe_coupling
+ * @param {number} damping
+ * @param {number} noise
+ * @param {number} steps
+ * @returns {string}
+ */
+export function run_i_am_stiller(probe_coupling, damping, noise, steps) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_i_am_stiller(probe_coupling, damping, noise, steps);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * @param {number} n_agents
  * @param {number} confidence_bound
  * @param {number} convergence_rate
@@ -1340,6 +1341,37 @@ export function run_latent_collider(domain_a, domain_b, attn_heads, temperature)
     let deferred1_1;
     try {
         const ret = wasm.run_latent_collider(domain_a, domain_b, attn_heads, temperature);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * Lindblad Decoherence Engine — SARG reasoning window simulation
+ *
+ * Parameters:
+ *   gamma       — decoherence rate γ ∈ [0.001, 20.0]
+ *                 inverse coherence time in natural units (ℏ = 1)
+ *   hilbert_dim — Hilbert space dimension N ∈ [2, 64]
+ *                 number of accessible quantum states (pure: P=1, mixed: P=1/N)
+ *   kauffman_k  — NK network mean connectivity K ∈ [1.0, 5.0]
+ *                 governs ordered/critical/chaotic Boolean dynamics
+ *   drive_omega — Rabi drive strength Ω ∈ [0.0, 10.0]
+ *                 external Hamiltonian compressing state before Lindblad dominates
+ * @param {number} gamma
+ * @param {number} hilbert_dim
+ * @param {number} kauffman_k
+ * @param {number} drive_omega
+ * @returns {string}
+ */
+export function run_lindblad_fade(gamma, hilbert_dim, kauffman_k, drive_omega) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_lindblad_fade(gamma, hilbert_dim, kauffman_k, drive_omega);
         deferred1_0 = ret[0];
         deferred1_1 = ret[1];
         return getStringFromWasm0(ret[0], ret[1]);
@@ -2104,6 +2136,24 @@ export function run_text_probe(text) {
         return getStringFromWasm0(ret[0], ret[1]);
     } finally {
         wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
+ * @param {number} unix_ms
+ * @param {number} layers
+ * @returns {string}
+ */
+export function run_transit_matrix(unix_ms, layers) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_transit_matrix(unix_ms, layers);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
     }
 }
 

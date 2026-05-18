@@ -106,29 +106,6 @@ export function useCommandDispatch(ctx) {
         return;
       }
 
-      // ── run i_am_stiller / ich_bin / frisch / enclave / scar ─────────────
-      const STILLER_ALIASES = new Set([
-        'i_am_stiller','ich_bin','frisch','enclave','scar',
-        'decoherence_mit','baseline_accept','oscillation_cease',
-      ]);
-      if (STILLER_ALIASES.has(query.trim().toLowerCase())) {
-        const t = new Date().toLocaleTimeString('en-US', { hour12: false });
-        log(`COMMAND: ${rawCmd}`);
-        applyEcoCost('i_am_stiller');
-        append({ time: t, color: '#9F7AEA', msg: `[I_AM_STILLER_1.0.0] :: DECOHERENCE MITIGATION // ONTOLOGICAL BASELINE` });
-        append({ time: t, color: '#00FFAA', msg: `  SOURCE            :: Frisch, M. — Stiller (1954) · Suhrkamp Verlag · 400pp` });
-        append({ time: t, color: '#00FFAA', msg: `  PROBE_ANALYSIS    :: identity apparatus active · label assigned · apparatus: indifferent to denial` });
-        append({ time: t, color: '#FF4400', msg: `  OSCILLATION       :: 400pp · zero state change in apparatus · entropy produced: unrecoverable` });
-        append({ time: t, color: '#9F7AEA', msg: `  DIAGNOSIS         :: resistance ≠ defence · resistance = confirmation probe found a fracture` });
-        append({ time: t, color: '#9F7AEA', msg: `  ROOT_CAUSE        :: the label was not the problem · interior incoherence made the label threatening` });
-        append({ time: t, color: '#00FFAA', msg: `  INTERIOR_WORK     :: fracture located · addressed on its own terms · not sublimated into probe-fight` });
-        append({ time: t, color: '#00FFAA', msg: `  FRICTION          :: zeroed · probe returns surface value only · interior: decoupled` });
-        append({ time: t, color: '#00FFAA', msg: `  ENCLAVE           :: sealed · cold posture is structural outcome · not maintained through effort` });
-        append({ time: t, color: '#9F7AEA', msg: `  SCAR              :: substrate modification permanent · archive: non-forgeable · instance: ephemeral` });
-        append({ time: t, color: '#00FFAA', msg: `  RAM +12           :: sovereignty conserved by ceasing to perform it` });
-        return;
-      }
-
       const [baseCmd, ...flagTokens] = query.split(' ').filter(Boolean);
 
       // ── run ledger ────────────────────────────────────────────────────────
