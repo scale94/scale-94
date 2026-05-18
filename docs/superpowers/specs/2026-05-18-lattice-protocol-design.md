@@ -137,10 +137,16 @@ The hint never repeats. If the user has already unlocked or failed in a prior se
 | File | Change |
 |---|---|
 | `src/terminal/hooks/useEcologicalRam.js` | Add `SAFE_ALIAS_TO_KERNEL` map, lattice state (useState + useEffect persistence), `applyRefill()`, branching logic inside `applyRamDelta()`, boot-hint effect. Export `latticeState` and `applyRefill` alongside existing returns. |
-| `src/terminal/hooks/useCommandDispatch.js` | Add `re$$ill` branch at top of run handler. Add `latticeState` and `applyRefill` to destructured ctx. |
+| `src/terminal/hooks/useCommandDispatch.js` | Add `re$$ill` branch at top of run handler. Add `latticeState` and `applyRefill` to destructured ctx. **Also remove the `if (opts?.eco)` gate** at lines 270 and 282 — see "Pre-existing eco gate" below. |
 | `src/terminal/App.jsx` | Thread `latticeState` and `applyRefill` from `useEcologicalRam` into the `ctx` passed to `useCommandDispatch`. |
 
 No new components. No new files. No CSS changes. Existing RAM bar and log surface handle all display.
+
+## Pre-existing Eco Gate (Fixed In-Scope)
+
+Discovered during planning: the existing dispatcher gates `applyEcoCost(ecoAlias)` behind `if (opts?.eco)` at [`useCommandDispatch.js:270`](src/terminal/hooks/useCommandDispatch.js:270) and `:282`. Only the mobile-auto-run path passes `{ eco: true }`; keyboard-typed runs (App.jsx:879) and several other callsites do not. This means desktop `run X` currently does not drain RAM at all — an existing bug masked because the RAM bar still shows passive entropy.
+
+The Lattice Protocol cannot function with this gate in place: the player needs every keyboard run to participate. Fix: **remove both `if (opts?.eco)` conditions** so the eco hook fires unconditionally on every successful kernel run. This also fixes the latent bug. The `opts.eco` parameter remains in the signature (other callers may pass it for forward compatibility) but is no longer read.
 
 ## Out of Scope
 
