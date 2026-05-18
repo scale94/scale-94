@@ -628,10 +628,7 @@ const wasmRegistry = {
     wasmUrl: "/wasm/scale94_kernels_bg.wasm?v=77f63f92",
     aliases: ["zero","origin","kernel_zero","genesis","apeiron","dhcp","unspecified","0_0_0_0"],
     params:  [{"name":"genesis_dim","default":14,"desc":"which dim receives first ε (0–15: dynamical, nonlinearity, dimensionality, criticality, entropy, synchrony, conservation, temporal, spatial, stochastic, game_theory, thermodynamic, information, cryptographic, biological, economic)"},{"name":"epsilon","default":0.001,"desc":"magnitude of one genesis step (small positive float)"},{"name":"steps","default":16,"desc":"number of ε increments to trace (1–64)"}],
-  }
-};
-
-// Boot diagnostic — logs registered kernel IDs to the browser console.
+  },
   "I-AM-STILLER-1.0.0": {
     id:      "I-AM-STILLER-1.0.0",
     fn:      null,
@@ -640,7 +637,7 @@ const wasmRegistry = {
     label:   "I_AM_STILLER · Ontological Baseline v1.0.0",
     type:    'display',
     aliases: ["i_am_stiller","ich_bin","frisch","enclave","scar","decoherence_mit","baseline_accept","oscillation_cease"],
-  },
+  }
 };
 
 if (typeof console !== 'undefined') {
