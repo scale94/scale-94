@@ -454,6 +454,21 @@ export function useEcologicalRam({ appendSystemLog }) {
     return () => clearInterval(t);
   }, []);
 
+  // Boot hint — runs once when the game is still in play and the hint has
+  // never been shown. Marks hintSeen so it never repeats. Suppressed once
+  // the user has either unlocked or failed.
+  useEffect(() => {
+    const lat = latticeRef.current;
+    if (lat.hintSeen || lat.unlocked || lat.failed) return;
+    const t = new Date().toLocaleTimeString('en-US', { hour12: false });
+    appendRef.current({
+      time:  t,
+      color: '#9F7AEA', // violet — ambient protocol hint
+      msg:   `[LATTICE_PROTOCOL] :: 3 kernels honor the commons — find them in 3 attempts to unlock 're$$ill'`,
+    });
+    updateLattice({ ...lat, hintSeen: true });
+  }, [updateLattice]);
+
   const applyRamDelta = useCallback((aliasOrDelta) => {
     const alias   = typeof aliasOrDelta === 'string' ? aliasOrDelta : null;
     const aliasUp = alias ? alias.toUpperCase() : null;

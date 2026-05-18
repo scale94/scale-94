@@ -185,6 +185,43 @@ describe('useEcologicalRam — lattice game branching', () => {
   });
 });
 
+describe('useEcologicalRam — boot hint', () => {
+  beforeEach(() => { localStorage.clear(); });
+
+  it('emits the LATTICE_PROTOCOL hint once on first mount', () => {
+    const { logs } = setup();
+    const hint = logs.find(l => l.msg.includes('[LATTICE_PROTOCOL]'));
+    expect(hint).toBeDefined();
+    expect(hint.msg).toContain('3 kernels honor the commons');
+    expect(hint.msg).toContain("'re$$ill'");
+  });
+
+  it('persists hintSeen so the hint does not repeat on next mount', () => {
+    setup(); // first mount
+    const { logs } = setup(); // second mount — fresh hook, same localStorage
+    const hint = logs.find(l => l.msg.includes('[LATTICE_PROTOCOL]'));
+    expect(hint).toBeUndefined();
+  });
+
+  it('suppresses the hint when already unlocked', () => {
+    localStorage.setItem('scale94_lattice_protocol', JSON.stringify({
+      attemptCount: 3, foundSafes: ['daly','biodiversity','replicator'], unlocked: true,
+      failed: false, lastRefillAt: 0, hintSeen: false,
+    }));
+    const { logs } = setup();
+    expect(logs.find(l => l.msg.includes('[LATTICE_PROTOCOL]'))).toBeUndefined();
+  });
+
+  it('suppresses the hint when already failed', () => {
+    localStorage.setItem('scale94_lattice_protocol', JSON.stringify({
+      attemptCount: 3, foundSafes: ['daly'], unlocked: false, failed: true,
+      lastRefillAt: 0, hintSeen: false,
+    }));
+    const { logs } = setup();
+    expect(logs.find(l => l.msg.includes('[LATTICE_PROTOCOL]'))).toBeUndefined();
+  });
+});
+
 describe('useEcologicalRam — applyRefill', () => {
   beforeEach(() => { localStorage.clear(); });
 
