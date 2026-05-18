@@ -83,17 +83,19 @@ export const ECOLOGICAL_DELTA_MAP = {
   kuramoto:            +8,   synchrony:            +8,   sync:                 +8,
   oscillator:          +8,   solidarity:           +8,   coupled:              +8,
 
-  // SSS Doctrine — literary deterrent over kinetic mass (Schelling precommitment)
-  sss:                 +8,   sss_doctrine:         +8,   literary_deterrent:   +8,
-  schelling:           +8,   sock:                 +8,   deterrent:            +8,
-  ironic_calculus:     +8,
+  // SSS Doctrine — non-kinetic deterrence; literary over military, but still deterrence doctrine
+  sss:                 +4,   sss_doctrine:         +4,   literary_deterrent:   +4,
+  schelling:           +4,   sock:                 +4,   deterrent:            +4,
+  ironic_calculus:     +4,
 
-  // Fish Scale v12.1.0 — Bouligand armor, Arapaima-derived biological structure
-  fish_scale:          +6,   bouligand:            +6,   arapaima:             +6,
-  armor:               +6,   feigenbaum_fish:      +6,   fsk:                  +6,
-  moire:               +6,
+  // Fish Scale v12.1.0 — actual content: Feigenbaum bifurcation / logistic map sovereign pressure
+  // Comment in original claimed "Bouligand armor, Arapaima" — JSON is chaos dynamics, not bio-armor
+  fish_scale:          -12,  bouligand:            -12,  arapaima:             -12,
+  armor:               -12,  feigenbaum_fish:      -12,  fsk:                  -12,
+  moire:               -12,
 
   // Stiller Divergence — volatile semiotic vs fossil record; tracks the bifurcation
+  // fossil = fossil record (archival signal), combustion = burning of the old system — intentionally +
   stiller:             +6,   divergence:           +6,   broadcast:            +6,
   fossil:              +6,   vaporization:         +6,   combustion:           +6,
   bimmelbahn:          +6,   vitrified:            +6,   stiller_divergence:   +6,
@@ -101,6 +103,11 @@ export const ECOLOGICAL_DELTA_MAP = {
   // Soma55 — soma_kernel_5.5 system boot, ecological economy status
   soma55:              +6,   soma_boot:            +6,   nexteconomy:          +6,
   sk55:                +6,   soma_kernel_55:       +6,
+
+  // I_AM_STILLER — entropy conserved by accepting baseline; oscillation zeroed; enclave reinforced
+  i_am_stiller:        +12,  ich_bin:              +12,  frisch:               +12,
+  enclave:             +12,  scar:                 +12,  decoherence_mit:      +12,
+  baseline_accept:     +12,  oscillation_cease:    +12,
 
   // Soma Live — live pilot simulation, streaming ecological state
   soma_live:           +5,   soma_cycle:           +5,   pilot:                +5,
@@ -138,8 +145,8 @@ export const ECOLOGICAL_DELTA_MAP = {
   // Computational overhead. Useful but costly. The lattice notices.
   // ─────────────────────────────────────────────────────────────────────────────
 
-  // Bosonic Lattice — quantum social bonds, gift economy, but heavy lattice compute
-  bosonic_lattice:     -10,  bosonic:              -10,  bosonickernel:        -10,
+  // Bosonic Lattice — anti-commodification of constitutive bonds; Titmuss gift economy; pro-commons
+  bosonic_lattice:     +14,  bosonic:              +14,  bosonickernel:        +14,
 
   // DRK Pragmatic<T> — thermal budget consumed, tasks resolved at entropic cost
   pragmatic:           -8,   pragmatic_type:       -8,   drk:                  -8,
@@ -150,11 +157,11 @@ export const ECOLOGICAL_DELTA_MAP = {
   baudrillard:         -12,  simulacra:            -12,  phonemic_drift:       -12,
   memory_hash:         -12,
 
-  // Percolation — modeling network fragility; you understand the fracture by mapping it
-  percolation:         -8,   resilience:           -8,   network:              -8,
-  fragility:           -8,   perc:                 -8,   giant_component:      -8,
-  gcc:                 -8,   erdos:                -8,   molloyreed:           -8,
-  fragmentation:       -8,
+  // Percolation — mapping network fragility is ecological audit work; same logic as Chrono-Actuary
+  percolation:         +5,   resilience:           +5,   network:              +5,
+  fragility:           +5,   perc:                 +5,   giant_component:      +5,
+  gcc:                 +5,   erdos:                +5,   molloyreed:           +5,
+  fragmentation:       +5,
 
   // Mesantropy — scalar mediocracy, eigenverbrauch drain, 3.3.3/4.4.4.4 detonation
   mesantropy:          -15,  scalar:               -15,  detonation:           -15,
@@ -363,13 +370,14 @@ const ECO_FLAVOR = {
   chrono:       'river sovereignty asserted · deep-time DO ledger: updated',
   kuramoto:     'collective phase-lock achieved · solidarity as physics: confirmed',
   utk:          'onsager/bejan MEPP efficiency applied · entropy production: minimised',
-  sss:          'schelling precommitment registered · literary deterrent: active',
-  fish_scale:   'bouligand armor structure mapped · arapaima gradient: layered',
+  sss:          'schelling precommitment registered · narrative force over kinetic: preferred · lattice: cautiously restored',
+  fish_scale:   'feigenbaum bifurcation mapped · logistic pressure sovereign model: active · chaos dynamics: logged at cost',
   stiller:      'volatile semiotic divergence indexed · fossil record: separating',
   ock:          'volatile sovereignty calibrated · sillage: persistent · accord: recorded',
   sovereign:    'four-phase kuramoto lock · substrate → detonation → superfluid → crystalline',
   spectral:     'cross-cluster cosine topology mapped · bridge: active',
   associative:  'hopfield attractor basin computed · pattern: stable',
+  i_am_stiller: 'oscillation zeroed · enclave sealed · entropy rerouted to internal architecture · the label: irrelevant',
   soma91:       'soma kernel at rest · carrier signal: nominal · the lattice holds',
   soma55:       'soma_kernel_5.5 boot cycle · ecological economy status: indexed',
   soma_live:    'live pilot simulation streaming · ecological state: observed',
@@ -392,8 +400,8 @@ const ECO_FLAVOR = {
   collider:     'conceptual collision computed · latent space: mapped at ecological cost',
   phonemic:     'baudrillard simulacra propagating · the copy begins to replace the real',
   seraphine:    'lindblad decoherence modeled · quantum density matrix: collapsed',
-  percolation:  'network fragility mapped · you understand the fracture by mapping it',
-  bosonic:      'quantum social bonds computed · gift economy: taxed',
+  percolation:  'network fragility mapped · the fracture is legible · commons resilience: audited',
+  bosonic:      'constitutive bonds protected · commodification refused · gift economy: honored',
 
   // Drain — crypto / compute
   tesseract:    'argon2id → ML-KEM-1024 → ML-DSA-87 → AES-256-GCM → BLAKE3 · post-quantum overhead: maximum',

@@ -632,6 +632,17 @@ const wasmRegistry = {
 };
 
 // Boot diagnostic — logs registered kernel IDs to the browser console.
+  "I-AM-STILLER-1.0.0": {
+    id:      "I-AM-STILLER-1.0.0",
+    fn:      null,
+    args:    [],
+    argMap:  {},
+    label:   "I_AM_STILLER · Ontological Baseline v1.0.0",
+    type:    'display',
+    aliases: ["i_am_stiller","ich_bin","frisch","enclave","scar","decoherence_mit","baseline_accept","oscillation_cease"],
+  },
+};
+
 if (typeof console !== 'undefined') {
   console.log('[WASM_REGISTRY] Registered kernels:', Object.keys(wasmRegistry));
 }

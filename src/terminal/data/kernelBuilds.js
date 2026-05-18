@@ -3,6 +3,7 @@ const kernelBuilds = [
   { id: 'FISH-SCALE-11.1', articleId: 'FISH-SCALE-KERNEL11.1.1', name: 'FISH_SCALE_KERNEL11_1_1', status: 'ACTIVE', desc: 'Entropic Stasis // Necromantic Engine', pinned: true },
   { id: 'KINETIC-STATECRAFT-1.0', articleId: 'KINETIC-STATECRAFT-KERNEL-1.0', name: 'KINETIC_STATECRAFT_KERNEL_1_0', status: 'ACTIVE', desc: 'The Architecture of Coercion // Regime Stability Equation', pinned: true },
 /* @@INJECT_START@@ */
+
   { id: "ATMOSPHERIC-SIM-KERNEL-3.0.0", articleId: "ATMOSPHERIC-SIM-KERNEL-3.0.0", name: "ATMOSPHERIC_SIM_KERNEL_3_0_0", status: "ACTIVE", desc: "The Thermosphere Protocol" },
   { id: "BIODIVERSITY-PROMPT-1.0.1", articleId: "BIODIVERSITY-PROMPT-1.0.1", name: "BIODIVERSITY_PROMPT_1_0_1", status: "ACTIVE", desc: "(Advanced Ecological Habitat & Species Architecture)" },
   { id: "BLACK-SOMA-FLAGGED-DEC2025", articleId: "BLACK-SOMA-FLAGGED-DEC2025", name: "BLACK_SOMA_FLAGGED_DEC2025", status: "DEPRECATED", desc: "The Hypothesis (as submitted)" },
@@ -40,6 +41,8 @@ const kernelBuilds = [
   { id: "TESSERACT-PROTOCOL-KERNEL-1.0.0", articleId: "TESSERACT-PROTOCOL-KERNEL-1.0.0", name: "TESSERACT_PROTOCOL_KERNEL_1_0_0", status: "ACTIVE", desc: "Post-Quantum Hybrid Pipeline for Olfactory Sovereignty" },
   { id: "UNDERGROUND-THERMODYNAMICS-KERNEL-1.0.0", articleId: "UNDERGROUND-THERMODYNAMICS-KERNEL-1.0.0", name: "UNDERGROUND_THERMODYNAMICS_KERNEL_1_0_0", status: "ACTIVE", desc: "0. Invocation" },
   { id: "XITTER-RC1-DEC2025", articleId: "XITTER-RC1-DEC2025", name: "XITTER_RC1_DEC2025", status: "DEPRECATED", desc: "RC1: Axiomatic Core Derivation" },
+  { id: "FISH-SCALE-KERNEL11.1.1", articleId: "FISH-SCALE-KERNEL11.1.1", name: "FISH_SCALE_KERNEL11.1.1", status: "ACTIVE", desc: "FISH SCALE KERNEL11.1.1" },
+  { id: "KINETIC-STATECRAFT-KERNEL-1.0", articleId: "KINETIC-STATECRAFT-KERNEL-1.0", name: "KINETIC_STATECRAFT_KERNEL_1.0", status: "ACTIVE", desc: "KINETIC STATECRAFT KERNEL 1.0" },
 /* @@INJECT_END@@ */
 ];
 
