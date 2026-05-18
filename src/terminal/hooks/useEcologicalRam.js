@@ -432,6 +432,17 @@ export function useEcologicalRam({ appendSystemLog }) {
   const appendRef = useRef(appendSystemLog);
   useEffect(() => { appendRef.current = appendSystemLog; });
 
+  // ── Lattice Protocol state ─────────────────────────────────────────────────
+  const [latticeState, setLatticeState] = useState(() => readLatticeState());
+  const latticeRef = useRef(latticeState);
+  useEffect(() => { latticeRef.current = latticeState; }, [latticeState]);
+
+  const updateLattice = useCallback((next) => {
+    latticeRef.current = next;
+    setLatticeState(next);
+    writeLatticeState(next);
+  }, []);
+
   // Passive entropy drain — the planet does not rest
   useEffect(() => {
     const t = setInterval(() => {
@@ -443,78 +454,105 @@ export function useEcologicalRam({ appendSystemLog }) {
   }, []);
 
   const applyRamDelta = useCallback((aliasOrDelta) => {
-    const delta   = typeof aliasOrDelta === 'number'
-      ? aliasOrDelta
-      : (ECOLOGICAL_DELTA_MAP[aliasOrDelta] ?? -10);
     const alias   = typeof aliasOrDelta === 'string' ? aliasOrDelta : null;
     const aliasUp = alias ? alias.toUpperCase() : null;
-    const flavor  = (alias && ECO_FLAVOR[alias]) || ecoFlavorFallback(delta);
+    const numericDelta = typeof aliasOrDelta === 'number'
+      ? aliasOrDelta
+      : (ECOLOGICAL_DELTA_MAP[aliasOrDelta] ?? -10);
 
-    // Read and update ref synchronously — side effects fire here, not inside setState
     const prev = ramPctRef.current;
-    const next = Math.max(RAM_FLOOR, Math.min(RAM_CEIL, prev + delta));
-    ramPctRef.current = next;
-    setRamPct(next);
+    const t    = new Date().toLocaleTimeString('en-US', { hour12: false });
+    const lat  = latticeRef.current;
+    const gameActive = !lat.unlocked && !lat.failed && alias !== null;
 
-    const t = new Date().toLocaleTimeString('en-US', { hour12: false });
+    // ── Branch A: game over (or numeric delta — passive entropy) ──────────────
+    if (!gameActive) {
+      const flavor = (alias && ECO_FLAVOR[alias]) || ecoFlavorFallback(numericDelta);
+      const next   = Math.max(RAM_FLOOR, Math.min(RAM_CEIL, prev + numericDelta));
+      ramPctRef.current = next;
+      setRamPct(next);
 
-    // ── Per-run ECO: line — fires on every drain; recharge when ≥+10 ──────────
-    // Shows the environmental cost/benefit of each individual command.
-    const alreadyAtFloor = prev === RAM_FLOOR;
-    if (delta < 0 && !alreadyAtFloor) {
-      appendRef.current({
-        time:  t,
-        color: ecoRunColor(delta),
-        msg:   `[ECO:${delta}] ${aliasUp ?? 'COMPUTE'} // ${flavor} · RAM ${prev}% → ${next}%`,
-      });
-    } else if (delta >= 10) {
-      appendRef.current({
-        time:  t,
-        color: '#00FFAA',
-        msg:   `[ECO:+${delta}] ${aliasUp ?? 'ECOLOGICAL'} // ${flavor} · RAM ${prev}% → ${next}%`,
-      });
-    }
-
-    // ── Threshold / event messages ────────────────────────────────────────────
-    // These fire on top of the per-run line at critical moments.
-    if (delta < 0) {
-      const crossedFloor = prev > RAM_FLOOR && next === RAM_FLOOR;
-      const crossedCrit  = !crossedFloor && prev >= CRIT_THRESH && next < CRIT_THRESH;
-      const crossedWarn  = !crossedCrit  && prev >= WARN_THRESH && next < WARN_THRESH;
-
-      if (alreadyAtFloor) {
-        appendRef.current({
-          time:  t,
-          color: '#FF0088', // magenta — the doctrine screams
-          msg:   `[RAM:EXHAUSTED] // planetary commons at minimum threshold · ${next}% floor signal only · the lattice cannot absorb further extraction · run: daly / ecological / gaia_scale`,
-        });
-      } else if (crossedFloor) {
-        appendRef.current({
-          time:  t,
-          color: '#FF0088',
-          msg:   `[LATTICE:FLOOR] // entropy has claimed all but the carrier signal — RAM ${next}% · the alien turns away · sovereign commons: silent`,
-        });
-      } else if (crossedCrit) {
-        appendRef.current({
-          time:  t,
-          color: '#FF4400', // red-orange — cascade doctrine
-          msg:   `[CASCADE IMMINENT] // RAM ${next}% · the lattice fractures · extraction without reciprocity is a terminal state · run: daly / ecological / ostrom_game`,
-        });
-      } else if (crossedWarn) {
-        appendRef.current({
-          time:  t,
-          color: '#FFD700', // gold — observer registers imbalance
-          msg:   `[LATTICE STRAIN] // planetary commons under load — ${next}% remaining · the observer registers imbalance · restore: daly / gaia_scale / replicator`,
-        });
-      } else if (delta <= -30) {
-        appendRef.current({
-          time:  t,
-          color: '#AA00FF', // violet — deep system drain
-          msg:   `[ENTROPIC CASCADE −${Math.abs(delta)}] // RAM ${next}%${aliasUp ? ` · ledger records: ${aliasUp}` : ''} · planetary debt accumulates`,
-        });
+      const alreadyAtFloor = prev === RAM_FLOOR;
+      if (numericDelta < 0 && !alreadyAtFloor) {
+        appendRef.current({ time: t, color: ecoRunColor(numericDelta),
+          msg: `[ECO:${numericDelta}] ${aliasUp ?? 'COMPUTE'} // ${flavor} · RAM ${prev}% → ${next}%` });
+      } else if (numericDelta >= 10) {
+        appendRef.current({ time: t, color: '#00FFAA',
+          msg: `[ECO:+${numericDelta}] ${aliasUp ?? 'ECOLOGICAL'} // ${flavor} · RAM ${prev}% → ${next}%` });
       }
+      if (numericDelta < 0) {
+        const crossedFloor = prev > RAM_FLOOR && next === RAM_FLOOR;
+        const crossedCrit  = !crossedFloor && prev >= CRIT_THRESH && next < CRIT_THRESH;
+        const crossedWarn  = !crossedCrit  && prev >= WARN_THRESH && next < WARN_THRESH;
+        if (alreadyAtFloor) {
+          appendRef.current({ time: t, color: '#FF0088',
+            msg: `[RAM:EXHAUSTED] // planetary commons at minimum threshold · ${next}% floor signal only · the lattice cannot absorb further extraction · run: daly / ecological / gaia_scale` });
+        } else if (crossedFloor) {
+          appendRef.current({ time: t, color: '#FF0088',
+            msg: `[LATTICE:FLOOR] // entropy has claimed all but the carrier signal — RAM ${next}% · the alien turns away · sovereign commons: silent` });
+        } else if (crossedCrit) {
+          appendRef.current({ time: t, color: '#FF4400',
+            msg: `[CASCADE IMMINENT] // RAM ${next}% · the lattice fractures · extraction without reciprocity is a terminal state · run: daly / ecological / ostrom_game` });
+        } else if (crossedWarn) {
+          appendRef.current({ time: t, color: '#FFD700',
+            msg: `[LATTICE STRAIN] // planetary commons under load — ${next}% remaining · the observer registers imbalance · restore: daly / gaia_scale / replicator` });
+        } else if (numericDelta <= -30) {
+          appendRef.current({ time: t, color: '#AA00FF',
+            msg: `[ENTROPIC CASCADE −${Math.abs(numericDelta)}] // RAM ${next}%${aliasUp ? ` · ledger records: ${aliasUp}` : ''} · planetary debt accumulates` });
+        }
+      }
+      return;
     }
-  }, []);
+
+    // ── Branch B: game active ─────────────────────────────────────────────────
+    const safeKernel = SAFE_ALIAS_TO_KERNEL[alias];
+    const newAttempt = lat.attemptCount + 1;
+    const remaining  = Math.max(0, 3 - newAttempt);
+
+    if (safeKernel) {
+      // Safe hit — apply normal recharge, record discovery
+      const next = Math.max(RAM_FLOOR, Math.min(RAM_CEIL, prev + numericDelta));
+      ramPctRef.current = next;
+      setRamPct(next);
+
+      const alreadyFound  = lat.foundSafes.includes(safeKernel);
+      const newFoundSafes = alreadyFound ? lat.foundSafes : [...lat.foundSafes, safeKernel];
+      const count         = newFoundSafes.length;
+
+      if (alreadyFound) {
+        appendRef.current({ time: t, color: '#FFD700',
+          msg: `[LATTICE:HONORED] :: ${aliasUp} already registered · ${count} of 3 found · ${remaining} attempt${remaining === 1 ? '' : 's'} remaining` });
+      } else {
+        appendRef.current({ time: t, color: '#00FFAA',
+          msg: `[LATTICE:HONORED] :: ${aliasUp} registered · ${count} of 3 found · ${remaining} attempt${remaining === 1 ? '' : 's'} remaining` });
+      }
+
+      const nowUnlocked = count === 3;
+      const nowFailed   = !nowUnlocked && newAttempt >= 3;
+      if (nowUnlocked) {
+        appendRef.current({ time: t, color: '#00FFAA',
+          msg: `[RE$$ILL:UNLOCKED] :: cryptographic key bound to local node · 'run re$$ill' now available · cooldown 60s` });
+      } else if (nowFailed) {
+        appendRef.current({ time: t, color: '#FF0088',
+          msg: `[LATTICE:SILENT] :: protocol window closed · re$$ill key sealed · the alien remembers` });
+      }
+      updateLattice({ ...lat, attemptCount: newAttempt, foundSafes: newFoundSafes, unlocked: nowUnlocked, failed: nowFailed });
+      return;
+    }
+
+    // Non-safe hit — wipe to 0 (bypass floor for this single wipe)
+    ramPctRef.current = 0;
+    setRamPct(0);
+    appendRef.current({ time: t, color: '#FF0088',
+      msg: `[LATTICE:ZEROED] :: ${aliasUp} // extractive compute detected · planetary commons collapsed · ${remaining} attempt${remaining === 1 ? '' : 's'} remaining` });
+
+    const nowFailed = newAttempt >= 3 && lat.foundSafes.length < 3;
+    if (nowFailed) {
+      appendRef.current({ time: t, color: '#FF0088',
+        msg: `[LATTICE:SILENT] :: protocol window closed · re$$ill key sealed · the alien remembers` });
+    }
+    updateLattice({ ...lat, attemptCount: newAttempt, failed: nowFailed });
+  }, [updateLattice]);
 
   const isCritical = ramPct < CRIT_THRESH;
   const isWarning  = ramPct < WARN_THRESH;
@@ -529,5 +567,6 @@ export function useEcologicalRam({ appendSystemLog }) {
     applyRamDelta,
     isCritical,
     isWarning,
+    latticeState,
   };
 }
