@@ -311,12 +311,13 @@ export const SAFE_ALIAS_TO_KERNEL = {
 export const LATTICE_STORAGE_KEY = 'scale94_lattice_protocol';
 
 export const defaultLatticeState = () => ({
-  attemptCount: 0,
-  foundSafes:   [],    // serialized as array; treated as set in logic
-  unlocked:     false,
-  failed:       false,
-  lastRefillAt: 0,
-  hintSeen:     false,
+  attemptCount:        0,
+  foundSafes:          [],    // serialized as array; treated as set in logic
+  unlocked:            false,
+  failed:              false,
+  failedAcknowledged:  false,
+  lastRefillAt:        0,
+  hintSeen:            false,
 });
 
 export function readLatticeState() {
@@ -447,9 +448,21 @@ export function useEcologicalRam({ appendSystemLog }) {
   // Passive entropy drain — the planet does not rest
   useEffect(() => {
     const t = setInterval(() => {
-      const next = Math.max(RAM_FLOOR, ramPctRef.current - 1);
+      const prev = ramPctRef.current;
+      const next = Math.max(RAM_FLOOR, prev - 1);
       ramPctRef.current = next;
       setRamPct(next);
+      const ts = new Date().toLocaleTimeString('en-US', { hour12: false });
+      if (prev > RAM_FLOOR && next === RAM_FLOOR) {
+        appendRef.current({ time: ts, color: '#FF0088',
+          msg: `[ENTROPY:FLOOR] :: passive drain has reached the carrier signal — RAM ${next}% · the lattice holds by geometry alone · run: daly / ecological / gaia_scale` });
+      } else if (prev >= CRIT_THRESH && next < CRIT_THRESH) {
+        appendRef.current({ time: ts, color: '#FF4400',
+          msg: `[ENTROPY:CRITICAL] :: ambient decay crossed threshold — RAM ${next}% · the commons fractures under thermal load · sovereign standing: endangered` });
+      } else if (prev >= WARN_THRESH && next < WARN_THRESH) {
+        appendRef.current({ time: ts, color: '#FFD700',
+          msg: `[ENTROPY:WARNING] :: passive extraction at 50% — RAM ${next}% · the planet registers imbalance · restore: daly / gaia_scale / replicator` });
+      }
     }, PASSIVE_MS);
     return () => clearInterval(t);
   }, []);
@@ -483,6 +496,11 @@ export function useEcologicalRam({ appendSystemLog }) {
 
     // ── Branch A: game over (or numeric delta — passive entropy) ──────────────
     if (!gameActive) {
+      if (lat.failed && !lat.failedAcknowledged && alias !== null) {
+        appendRef.current({ time: t, color: '#660033',
+          msg: `[LATTICE:SEALED] :: the protocol window is closed — this session carries the debt · re$$ill key: inaccessible` });
+        updateLattice({ ...lat, failedAcknowledged: true });
+      }
       const flavor = (alias && ECO_FLAVOR[alias]) || ecoFlavorFallback(numericDelta);
       const next   = Math.max(RAM_FLOOR, Math.min(RAM_CEIL, prev + numericDelta));
       ramPctRef.current = next;
@@ -583,8 +601,10 @@ export function useEcologicalRam({ appendSystemLog }) {
     return { ok: true };
   }, [updateLattice]);
 
-  const isCritical = ramPct < CRIT_THRESH;
-  const isWarning  = ramPct < WARN_THRESH;
+  const isCritical    = ramPct < CRIT_THRESH;
+  const isWarning     = ramPct < WARN_THRESH;
+  const isRefillReady = latticeState.unlocked &&
+    (Date.now() - latticeState.lastRefillAt) >= REFILL_COOLDOWN_MS;
 
   // ── Backward-compatible exports ────────────────────────────────────────────
   // applyEcoCost: existing call sites in useCommandDispatch stay unchanged
@@ -597,6 +617,7 @@ export function useEcologicalRam({ appendSystemLog }) {
     applyRefill,
     isCritical,
     isWarning,
+    isRefillReady,
     latticeState,
   };
 }

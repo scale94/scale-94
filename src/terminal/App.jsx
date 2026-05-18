@@ -141,7 +141,7 @@ const App = () => {
 
   const { appendSystemLog, setSystemLogs, visibleLogs, logRef } = useSystemLog();
   // RAM — ecological entropy model §1.3: cost maps to planetary footprint
-  const { ramPct, ecoCost, applyEcoCost, applyRefill, latticeState, isCritical, isWarning } = useEcologicalRam({ appendSystemLog });
+  const { ramPct, ecoCost, applyEcoCost, applyRefill, latticeState, isCritical, isWarning, isRefillReady } = useEcologicalRam({ appendSystemLog });
 
   // ── CAS dynamic data derivation ──────────────────────────────────────────────
   // Merge priority (highest → lowest):
@@ -1440,7 +1440,7 @@ const App = () => {
               className="hidden md:flex items-center gap-1.5 shrink-0 mr-1"
               title={`ECO-RAM: ${ramPct}% active // planetary cost: ${ecoCost}/100`}
             >
-              <span className={`text-[9px] font-black tracking-widest ${isCritical ? 'text-red-500' : 'text-cyan-900/60'}`}>RAM</span>
+              <span className={`text-[9px] font-black tracking-widest ${isCritical ? 'text-red-500' : isWarning ? 'text-yellow-400/80' : 'text-cyan-900/60'}`}>RAM</span>
               <div className="flex gap-0">
                 {Array.from({ length: 100 }).map((_, i) => (
                   <div
@@ -1455,7 +1455,10 @@ const App = () => {
                   />
                 ))}
               </div>
-              <span className={`text-[9px] font-black ${isCritical ? 'text-red-500/70' : 'text-cyan-900/40'}`}>{ramPct}%</span>
+              <span className={`text-[9px] font-black ${isCritical ? 'text-red-500/70' : isWarning ? 'text-yellow-400/60' : 'text-cyan-900/40'}`}>{ramPct}%</span>
+              {isRefillReady && (
+                <span className="text-[9px] text-fuchsia-400 animate-pulse" title="run re$$ill — lattice refill ready">◆</span>
+              )}
             </div>
           )}
 

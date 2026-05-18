@@ -89,6 +89,7 @@ export function useCommandDispatch(ctx) {
           logs(
             `  RE$$ILL :: planetary RAM restored to 100%`,
             `  the cheat is honored · the cooldown begins · 60s until next refill`,
+            `  ◆ the alien smiles — briefly`,
           );
         } else if (outcome.reason === 'locked') {
           logs(
