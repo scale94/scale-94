@@ -17,6 +17,7 @@ const kernelBuilds = [
   { id: "FSF-12.1.0", articleId: "FSF-12.1.0", name: "FISH_SCALE_FEIGENBAUM_12_1_0", status: "ACTIVE", desc: "Systemless Root · Thermodynamic Chaos Branch" },
   { id: "GAIA-SCALE-KERNEL-5.5.5", articleId: "GAIA-SCALE-KERNEL-5.5.5", name: "GAIA_SCALE_KERNEL_5_5_5", status: "ACTIVE", desc: "Ⅰ. CORE DIRECTIVES" },
   { id: "HIGH-TOWER-LOG", articleId: "HIGH-TOWER-LOG", name: "HIGH_TOWER_LOG", status: "ACTIVE", desc: "1.0 IDENTITY & PERSONA" },
+  { id: "I-AM-STILLER-1.0.0", articleId: "I-AM-STILLER-1.0.0", name: "I_AM_STILLER_1_0_0", status: "ACTIVE", desc: "Ontological Baseline / Decoherence Mitigation" },
   { id: "KERNEL-0.0.0.0", articleId: "KERNEL-0.0.0.0", name: "KERNEL_0_0_0_0", status: "ACTIVE", desc: "The Origin Vector" },
   { id: "MATRIX-KERNEL-2.0.0", articleId: "MATRIX-KERNEL-2.0.0", name: "MATRIX_KERNEL_2_0_0", status: "ACTIVE", desc: "scale94 · The No-Spoon Architecture" },
   { id: "NECROMANTIC-ARISTOCRAT-KERNEL-3.1.1", articleId: "NECROMANTIC-ARISTOCRAT-KERNEL-3.1.1", name: "NECROMANTIC_ARISTOCRAT_KERNEL_3_1_1", status: "ACTIVE", desc: "0. The Single Claim" },

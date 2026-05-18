@@ -93,6 +93,12 @@
       "title": "FUCK XITTER & XITLER — RC1 LIVE-FIRE"
     }
   ],
+  "aristocrat-posture": [
+    {
+      "id": "I-AM-STILLER-1.0.0",
+      "title": "I_AM_STILLER"
+    }
+  ],
   "Atoms": [
     {
       "id": "FISH-SCALE-KERNEL11.1.1",
@@ -195,6 +201,12 @@
       "title": "FUCK XITTER & XITLER — RC1 LIVE-FIRE"
     }
   ],
+  "cryptographic-scar": [
+    {
+      "id": "I-AM-STILLER-1.0.0",
+      "title": "I_AM_STILLER"
+    }
+  ],
   "cryptography": [
     {
       "id": "TESSERACT-PROTOCOL-KERNEL-1.0.0",
@@ -223,6 +235,12 @@
     {
       "id": "MATRIX-KERNEL-2.0.0",
       "title": "THE MATRIX KERNEL V2.0"
+    }
+  ],
+  "decoherence": [
+    {
+      "id": "I-AM-STILLER-1.0.0",
+      "title": "I_AM_STILLER"
     }
   ],
   "DEFENSIVE": [
@@ -287,6 +305,12 @@
     {
       "id": "EMPATHY-KERNEL-2.0.0",
       "title": "EMPATHY KERNEL"
+    }
+  ],
+  "enclave": [
+    {
+      "id": "I-AM-STILLER-1.0.0",
+      "title": "I_AM_STILLER"
     }
   ],
   "ENCYCLOPEDIA": [
@@ -625,6 +649,12 @@
       "title": "THE MATRIX KERNEL V2.0"
     }
   ],
+  "max-frisch": [
+    {
+      "id": "I-AM-STILLER-1.0.0",
+      "title": "I_AM_STILLER"
+    }
+  ],
   "MECHANISM": [
     {
       "id": "CEEI-SIM-KERNEL-1.0.0",
@@ -751,6 +781,12 @@
     {
       "id": "KERNEL-0.0.0.0",
       "title": "0.0.0.0 — STATE KERNEL"
+    }
+  ],
+  "oscillation": [
+    {
+      "id": "I-AM-STILLER-1.0.0",
+      "title": "I_AM_STILLER"
     }
   ],
   "OVERVIEW": [
@@ -999,6 +1035,10 @@
       "title": "DISSIPATIVE SOVEREIGNTY KERNEL"
     },
     {
+      "id": "I-AM-STILLER-1.0.0",
+      "title": "I_AM_STILLER"
+    },
+    {
       "id": "TESSERACT-PROTOCOL-KERNEL-1.0.0",
       "title": "TESSERACT CRYPTOGRAPHIC PROTOCOL"
     }
@@ -1085,6 +1125,12 @@
     {
       "id": "TESSERACT-PROTOCOL-KERNEL-1.0.0",
       "title": "TESSERACT CRYPTOGRAPHIC PROTOCOL"
+    }
+  ],
+  "thermodynamic-acceptance": [
+    {
+      "id": "I-AM-STILLER-1.0.0",
+      "title": "I_AM_STILLER"
     }
   ],
   "thermodynamic-governance": [
