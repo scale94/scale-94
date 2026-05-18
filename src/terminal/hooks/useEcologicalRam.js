@@ -344,6 +344,7 @@ const RAM_CEIL       = 100;
 const PASSIVE_MS     = 30_000;  // entropy drains 1% per 30s
 const WARN_THRESH    = 50;      // amber threshold
 const CRIT_THRESH    = 20;      // red threshold — cascade imminent
+const REFILL_COOLDOWN_MS = 60_000;
 
 // ── Environmental flavor — short contextual notes per kernel ──────────────────
 // Shown on every per-run ECO: line to illustrate what the computation does to the planet.
@@ -554,6 +555,19 @@ export function useEcologicalRam({ appendSystemLog }) {
     updateLattice({ ...lat, attemptCount: newAttempt, failed: nowFailed });
   }, [updateLattice]);
 
+  const applyRefill = useCallback(() => {
+    const lat = latticeRef.current;
+    if (!lat.unlocked) return { ok: false, reason: 'locked' };
+    const elapsed = Date.now() - lat.lastRefillAt;
+    if (elapsed < REFILL_COOLDOWN_MS) {
+      return { ok: false, reason: 'cooldown', remainingMs: REFILL_COOLDOWN_MS - elapsed };
+    }
+    ramPctRef.current = RAM_CEIL;
+    setRamPct(RAM_CEIL);
+    updateLattice({ ...lat, lastRefillAt: Date.now() });
+    return { ok: true };
+  }, [updateLattice]);
+
   const isCritical = ramPct < CRIT_THRESH;
   const isWarning  = ramPct < WARN_THRESH;
 
@@ -565,6 +579,7 @@ export function useEcologicalRam({ appendSystemLog }) {
     ecoCost:     100 - ramPct,
     applyEcoCost:  applyRamDelta,   // backward compat alias
     applyRamDelta,
+    applyRefill,
     isCritical,
     isWarning,
     latticeState,

@@ -184,3 +184,46 @@ describe('useEcologicalRam — lattice game branching', () => {
     expect(logs.find(l => l.msg.includes('[LATTICE:ZEROED]'))).toBeUndefined();
   });
 });
+
+describe('useEcologicalRam — applyRefill', () => {
+  beforeEach(() => { localStorage.clear(); });
+
+  it('returns { ok: false, reason: "locked" } when not unlocked', () => {
+    const { result } = setup();
+    let outcome;
+    act(() => { outcome = result.current.applyRefill(); });
+    expect(outcome).toEqual({ ok: false, reason: 'locked' });
+    expect(result.current.ramPct).toBe(70);
+  });
+
+  it('refills to 100 when unlocked and cooldown elapsed', () => {
+    localStorage.setItem('scale94_lattice_protocol', JSON.stringify({
+      attemptCount: 3, foundSafes: ['daly','biodiversity','replicator'], unlocked: true,
+      failed: false, lastRefillAt: 0, hintSeen: true,
+    }));
+    const { result } = setup();
+    // Drain a bit first
+    act(() => { result.current.applyRamDelta(-20); });
+    expect(result.current.ramPct).toBe(50);
+    let outcome;
+    act(() => { outcome = result.current.applyRefill(); });
+    expect(outcome.ok).toBe(true);
+    expect(result.current.ramPct).toBe(100);
+    expect(result.current.latticeState.lastRefillAt).toBeGreaterThan(0);
+  });
+
+  it('returns { ok: false, reason: "cooldown", remainingMs } if within 60s', () => {
+    const recent = Date.now() - 10_000; // 10s ago
+    localStorage.setItem('scale94_lattice_protocol', JSON.stringify({
+      attemptCount: 3, foundSafes: ['daly','biodiversity','replicator'], unlocked: true,
+      failed: false, lastRefillAt: recent, hintSeen: true,
+    }));
+    const { result } = setup();
+    let outcome;
+    act(() => { outcome = result.current.applyRefill(); });
+    expect(outcome.ok).toBe(false);
+    expect(outcome.reason).toBe('cooldown');
+    expect(outcome.remainingMs).toBeGreaterThan(45_000);
+    expect(outcome.remainingMs).toBeLessThanOrEqual(50_000);
+  });
+});
