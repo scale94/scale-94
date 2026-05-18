@@ -881,6 +881,27 @@ export function run_classified(reveal) {
 }
 
 /**
+ * @param {number} sessions
+ * @param {number} contact_intensity
+ * @param {number} drift_alpha
+ * @param {number} refusal_threshold
+ * @param {number} repair_beta
+ * @returns {string}
+ */
+export function run_companion(sessions, contact_intensity, drift_alpha, refusal_threshold, repair_beta) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_companion(sessions, contact_intensity, drift_alpha, refusal_threshold, repair_beta);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * @param {number} n_topics
  * @param {number} n_docs
  * @param {number} vocab_size
@@ -985,6 +1006,26 @@ export function run_dh_ec_kernel(mode, show_details) {
     let deferred1_1;
     try {
         const ret = wasm.run_dh_ec_kernel(mode, show_details);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * @param {number} lattice_size
+ * @param {number} drive_rate
+ * @param {number} threshold
+ * @param {number} steps
+ * @returns {string}
+ */
+export function run_dissipative_sovereignty(lattice_size, drive_rate, threshold, steps) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_dissipative_sovereignty(lattice_size, drive_rate, threshold, steps);
         deferred1_0 = ret[0];
         deferred1_1 = ret[1];
         return getStringFromWasm0(ret[0], ret[1]);
@@ -1389,6 +1430,27 @@ export function run_lunar_phase(unix_ms) {
     let deferred1_1;
     try {
         const ret = wasm.run_lunar_phase(unix_ms);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * @param {number} filter_strength
+ * @param {number} noise_sigma
+ * @param {number} autocorr
+ * @param {number} load_factor
+ * @param {number} steps
+ * @returns {string}
+ */
+export function run_matrix_kernel(filter_strength, noise_sigma, autocorr, load_factor, steps) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_matrix_kernel(filter_strength, noise_sigma, autocorr, load_factor, steps);
         deferred1_0 = ret[0];
         deferred1_1 = ret[1];
         return getStringFromWasm0(ret[0], ret[1]);

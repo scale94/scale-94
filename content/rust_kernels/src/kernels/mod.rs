@@ -78,3 +78,6 @@ pub mod necromantic_emperor;     // run_necromantic_emperor (Fish Scale Paradox 
 pub mod necromantic_logitbias;   // run_necromantic_logitbias (KV Cache · Pirarucu/Levamisole · Managed Friction · BPM)
 pub mod high_tower;              // run_high_tower_protocol (Porcupine Strategy · Area Denial · Sovereign Infrastructure)
 pub mod i_am_stiller;            // run_i_am_stiller (Ontological Baseline · damped Langevin · dual incommensurate probe · Frisch 1954)
+pub mod companion;               // run_companion (Sustained-Contact Long-Form Posture · session memory + parasocial drift)
+pub mod dissipative_sovereignty; // run_dissipative_sovereignty (BTW sandpile · MEPP · self-organized criticality · Prigogine 1947)
+pub mod matrix_kernel;           // run_matrix_kernel (No-Spoon Architecture · filter bypass · signal/noise inversion · ADHD-I/SPS)

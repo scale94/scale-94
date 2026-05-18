@@ -62,7 +62,7 @@ const KERNEL_MAP = [
     // n_species:     args[0]  flags: --n, --species
     // diversity_exp: args[1]  flags: --exp, --diversity, --zipf
     // timesteps:     args[2]  flags: --steps, --t, --timesteps
-    id:      'BIODIVERSITY-KERNEL-1.0.1',
+    id:      'BIODIVERSITY-PROMPT-1.0.1',
     fn:      'run_biocoenosis_simulation',
     args:    [50.0, 1.0, 50.0],
     argMap:  { n: 0, species: 0, nspecies: 0, exp: 1, diversity: 1, zipf: 1, steps: 2, timesteps: 2, t: 2 },
@@ -100,7 +100,7 @@ const KERNEL_MAP = [
     // coupling:  args[1]  flags: --coupling, --trust
     // thermal:   args[2]  flags: --thermal, --temp
     // price_fix: args[3]  flags: --price, --price-fix
-    id:      'BOSONIC-KERNEL-2.0',
+    id:      'BOSONIC-KERNEL-3.0.0',
     fn:      'boot_bosonic_lattice',
     args:    [8.0, 0.8, 0.35, 0.0],
     argMap:  { nodes: 0, n: 0, coupling: 1, trust: 1, thermal: 2, temp: 2, price: 3, pricefix: 3 },
@@ -127,7 +127,7 @@ const KERNEL_MAP = [
     // carbon_ppm:      args[0]  flags: --carbon, --ppm, --carbon-ppm
     // industrial_drag: args[1]  flags: --drag, --industrial, --industrial-drag
     // ocean_sink:      args[2]  flags: --sink, --ocean, --ocean-sink
-    id:      'ATMOSPHERIC-ENTROPY-KERNEL-3.0',
+    id:      'ATMOSPHERIC-SIM-KERNEL-3.0.0',
     fn:      'boot_thermosphere_protocol',
     args:    [420.0, 2.5, 0.6],
     argMap:  { carbon: 0, ppm: 0, 'carbonppm': 0, drag: 1, industrial: 1, 'industrialdrag': 1, sink: 2, ocean: 2, 'oceansink': 2 },
@@ -187,7 +187,7 @@ const KERNEL_MAP = [
     // soma_kernel_5.5 top-level boot diagnostic — zero-parameter free function.
     // Runs a high-level status check across all four sub-systems at defaults.
     // No flags needed: run soma55
-    id:      'SOMA-KERNEL-5.5',
+    id:      'SOMA-KERNEL-5.5.0',
     fn:      'boot_soma55',
     args:    [],
     argMap:  {},
@@ -205,7 +205,7 @@ const KERNEL_MAP = [
     // nr_depletion: args[4]   flags: --depletion, --nr
     // substitution: args[5]   flags: --substitution, --sub
     // years:        args[6]   flags: --years, --horizon
-    id:      'DALY-THERMO-SIMULATION',
+    id:      'DALY-SIM-KERNEL-1.0.0',
     fn:      'run_daly_thermo_simulation',
     args:    [80.0, 30.0, 55000.0, 11000.0, 0.025, 0.008, 100.0],
     argMap:  {
@@ -236,7 +236,7 @@ const KERNEL_MAP = [
     // goods:      args[1]  flags: --goods, --m
     // inequality: args[2]  flags: --inequality, --gini
     // diversity:  args[3]  flags: --diversity, --div
-    id:      'CEEI-ALLOCATION-ENGINE',
+    id:      'CEEI-SIM-KERNEL-1.0.0',
     fn:      'run_ceei_allocation_engine',
     args:    [20.0, 8.0, 0.3, 0.7],
     argMap:  {
@@ -419,7 +419,7 @@ const KERNEL_MAP = [
     // max_layers:       args[1]  flags: --layers, --depth
     // theta_offset:     args[2]  flags: --theta, --angle
     // burn_sensitivity: args[3]  flags: --burn, --sensitivity
-    id:      'FISH-SCALE-KERNEL-12.1.0',
+    id:      'FSF-12.1.0',
     fn:      'run_fish_scale',
     args:    [3.8, 32.0, 36.0, 1.0],
     argMap:  {
@@ -522,7 +522,7 @@ const KERNEL_MAP = [
     //                4=data_retention 5=worker_surveillance 6=platform_mandated_scanning
     //                7=traffic_retention 8=age_verification
     // threshold:     0–5 (minimum severity; 0 = all entries)
-    id:     'SURVEILLANCE-INDEX-1.0',
+    id:     'SURVEILLANCE-TRACKER',
     fn:     'run_surveillance_index',
     args:   [0, 0, 0],
     argMap: {
@@ -689,7 +689,7 @@ const KERNEL_MAP = [
     // lsi:           args[7]  flags: --lsi, --langelier
     // license_years: args[8]  flags: --years, --license
     // human_profit:  args[9]  flags: --profit, --eur
-    id:      'CHRONO-ACTUARY-KERNEL-2.0',
+    id:      'CHRONOS-KERNEL-2.1.0',
     fn:      'run_chrono_actuary',
     args:    [15.0, 8.5, 5.0, 2.0, 0.8, 2.0, 0.4, 0.1, 30.0, 1_000_000.0],
     argMap:  {
@@ -1233,6 +1233,150 @@ const KERNEL_MAP = [
     label:   'I_AM_STILLER · Ontological Baseline v1.0.0',
     type:    'rust',
     aliases: ['i_am_stiller','ich_bin','frisch','enclave','scar','decoherence_mit','baseline_accept','oscillation_cease'],
+  },
+  {
+    // EMPATHY-KERNEL-2.0.0 — Emotional Contagion Network (Hatfield 1993 + de Waal 2008)
+    // N agents with valence v_i ∈ [-1,1] and arousal a_i ∈ [0,1]; emotional contagion via
+    // empathic-distance weights w_ij; Kuramoto r on valence phases φ_i = π·v_i.
+    // n_agents:  args[0]  flags: --n, --agents
+    // coupling:  args[1]  flags: --k, --coupling
+    // decay:     args[2]  flags: --decay, --d
+    // noise:     args[3]  flags: --noise, --eta
+    // steps:     args[4]  flags: --steps, --t
+    id:      'EMPATHY-KERNEL-2.0.0',
+    fn:      'run_empathy_kernel',
+    args:    [16.0, 1.5, 0.2, 0.08, 400.0],
+    argMap:  {
+      n: 0, agents: 0,
+      k: 1, coupling: 1,
+      decay: 2, d: 2,
+      noise: 3, eta: 3,
+      steps: 4, t: 4,
+    },
+    params: [
+      { name: 'n_agents', default: 16.0, desc: 'agents in contagion network (4–64)' },
+      { name: 'coupling', default: 1.5,  desc: 'contagion coupling K (0.0–5.0)' },
+      { name: 'decay',    default: 0.2,  desc: 'emotional decay rate (0.01–1.0)' },
+      { name: 'noise',    default: 0.08, desc: 'stochastic noise amplitude (0.0–0.5)' },
+      { name: 'steps',    default: 400,  desc: 'Euler time steps (50–2000)' },
+    ],
+    label:   'Empathy Kernel · Emotional Contagion v2.0.0',
+    type:    'rust',
+    aliases: ['empathy','empathy_kernel','contagion','hatfield','de_waal','kuramoto_empathy','valence'],
+  },
+  {
+    // SCALE94-ENCYCLOPEDIA — Zipf-Mandelbrot Glyph Archive (compiled lexicon)
+    // Hierarchical information taxonomy over N glyphs; Shannon entropy + Huffman code lengths.
+    // n_glyphs:          args[0]  flags: --n, --glyphs
+    // zipf_exponent:     args[1]  flags: --s, --zipf, --exponent
+    // mandelbrot_offset: args[2]  flags: --q, --mandelbrot, --offset
+    // entropy_target:    args[3]  flags: --h, --entropy, --target
+    // tiers:             args[4]  flags: --tiers, --hierarchy
+    id:      'SCALE94-ENCYCLOPEDIA',
+    fn:      'run_glyph_archive',
+    args:    [120.0, 1.0, 2.7, 6.0, 5.0],
+    argMap:  {
+      n: 0, glyphs: 0,
+      s: 1, zipf: 1, exponent: 1,
+      q: 2, mandelbrot: 2, offset: 2,
+      h: 3, entropy: 3, target: 3,
+      tiers: 4, hierarchy: 4,
+    },
+    params: [
+      { name: 'n_glyphs',          default: 120.0, desc: 'glyph types in archive (10–200)' },
+      { name: 'zipf_exponent',     default: 1.0,   desc: 'Zipf-Mandelbrot spectral exponent s (0.5–2.5; 1.0=natural)' },
+      { name: 'mandelbrot_offset', default: 2.7,   desc: 'Mandelbrot offset q (0.0–5.0)' },
+      { name: 'entropy_target',    default: 6.0,   desc: 'target entropy in bits (0.5–8.0)' },
+      { name: 'tiers',             default: 5,     desc: 'hierarchy tiers (2–8)' },
+    ],
+    label:   'Scale94 Encyclopedia · Glyph Archive (Zipf-Mandelbrot)',
+    type:    'rust',
+    aliases: ['encyclopedia','scale94_encyclopedia','glyph_archive','zipf','mandelbrot','huffman','lexicon'],
+  },
+  {
+    // COMPANION-KERNEL-2.0.0 — Sustained-Contact Long-Form Posture
+    // Two-state Langevin over N discrete sessions; tracks trust load T and parasocial
+    // index P. Refusals fire when P > θ_R ("the kernel names the drift").
+    // sessions:           args[0]  flags: --sessions, --n
+    // contact_intensity:  args[1]  flags: --contact, --intensity
+    // drift_alpha:        args[2]  flags: --alpha, --drift
+    // refusal_threshold:  args[3]  flags: --theta, --refusal
+    // repair_beta:        args[4]  flags: --beta, --repair
+    id:      'COMPANION-KERNEL-2.0.0',
+    fn:      'run_companion',
+    args:    [40.0, 0.6, 0.18, 0.45, 0.30],
+    argMap:  {
+      sessions: 0, n: 0,
+      contact: 1, intensity: 1,
+      alpha: 2, drift: 2,
+      theta: 3, refusal: 3,
+      beta: 4, repair: 4,
+    },
+    params: [
+      { name: 'sessions',          default: 40.0, desc: 'sessions to simulate (5–200)' },
+      { name: 'contact_intensity', default: 0.6,  desc: 'per-session contact heaviness (0.0–1.0)' },
+      { name: 'drift_alpha',       default: 0.18, desc: 'parasocial drift accumulation rate (0.0–1.0)' },
+      { name: 'refusal_threshold', default: 0.45, desc: 'P threshold above which kernel names it (0.05–1.0)' },
+      { name: 'repair_beta',       default: 0.30, desc: 'correction strength when refusal fires (0.0–1.0)' },
+    ],
+    label:   'Companion Kernel · Sustained-Contact Posture v2.0.0',
+    type:    'rust',
+    aliases: ['companion','companion_kernel','sustained_contact','parasocial_drift','refusal_set'],
+  },
+  {
+    // DISSIPATIVE-SOVEREIGNTY-KERNEL-5.0.0 — Sovereignty as Dissipation-Rate Control
+    // Bak–Tang–Wiesenfeld sandpile on N×N grid; avalanche-size power law τ; MEPP score.
+    // lattice_size: args[0]  flags: --n, --size, --lattice
+    // drive_rate:   args[1]  flags: --eps, --drive, --rate
+    // threshold:    args[2]  flags: --theta, --threshold
+    // steps:        args[3]  flags: --steps, --t
+    id:      'DISSIPATIVE-SOVEREIGNTY-KERNEL-5.0.0',
+    fn:      'run_dissipative_sovereignty',
+    args:    [16.0, 0.5, 4.0, 1500.0],
+    argMap:  {
+      n: 0, size: 0, lattice: 0,
+      eps: 1, drive: 1, rate: 1,
+      theta: 2, threshold: 2,
+      steps: 3, t: 3,
+    },
+    params: [
+      { name: 'lattice_size', default: 16.0,   desc: 'sites per side N (8–32; lattice has N² sites)' },
+      { name: 'drive_rate',   default: 0.5,    desc: 'ε — probability of grain-add per step (0.0–1.0)' },
+      { name: 'threshold',    default: 4.0,    desc: 'θ — toppling threshold (3.0–6.0)' },
+      { name: 'steps',        default: 1500.0, desc: 'simulation steps (200–5000)' },
+    ],
+    label:   'Dissipative Sovereignty · BTW Sandpile + MEPP v5.0.0',
+    type:    'rust',
+    aliases: ['dissipative','dissipative_sovereignty','btw','sandpile','mepp','criticality','prigogine'],
+  },
+  {
+    // MATRIX-KERNEL-2.0.0 — The No-Spoon Architecture / Filter Bypass
+    // Signal + AR(1) noise pass through filter F; SPS gain when fatigue low; cage_render coeff.
+    // filter_strength: args[0]  flags: --F, --filter
+    // noise_sigma:     args[1]  flags: --sigma, --noise
+    // autocorr:        args[2]  flags: --a, --autocorr
+    // load_factor:     args[3]  flags: --load, --fatigue
+    // steps:           args[4]  flags: --steps, --t
+    id:      'MATRIX-KERNEL-2.0.0',
+    fn:      'run_matrix_kernel',
+    args:    [0.2, 0.8, 0.55, 0.10, 1200.0],
+    argMap:  {
+      f: 0, filter: 0,
+      sigma: 1, noise: 1,
+      a: 2, autocorr: 2,
+      load: 3, fatigue: 3,
+      steps: 4, t: 4,
+    },
+    params: [
+      { name: 'filter_strength', default: 0.2,    desc: 'F — Matrix compliance (0.0=full bypass, 1.0=full filter)' },
+      { name: 'noise_sigma',     default: 0.8,    desc: 'σ_n — environmental noise amplitude (0.0–2.0)' },
+      { name: 'autocorr',        default: 0.55,   desc: 'a — noise autocorrelation (0.0–0.95; structure in the lücke)' },
+      { name: 'load_factor',     default: 0.10,   desc: 'fatigue accumulation rate (0.0–1.0)' },
+      { name: 'steps',           default: 1200.0, desc: 'simulation steps (200–4000)' },
+    ],
+    label:   'Matrix Kernel · No-Spoon Architecture v2.0.0',
+    type:    'rust',
+    aliases: ['matrix','matrix_kernel','no_spoon','filter_bypass','lucke','unbent','sps','adhd_i'],
   },
   {
     // Fade Doctrine — Zero White Fade · Crystalline Phase Lock v2.0.0
