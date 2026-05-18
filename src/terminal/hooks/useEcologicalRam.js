@@ -284,6 +284,29 @@ export const ECOLOGICAL_DELTA_MAP = {
   deep_research_loop:  -25,
 };
 
+// ── Lattice Protocol — safe-kernel alias map ─────────────────────────────────
+// The three kernels rooted in peer-reviewed ecological math. Every other
+// `run X` zeroes the RAM bar; finding all three in ≤3 attempts unlocks re$$ill.
+//
+// daly         — Herman Daly steady-state thermodynamic economics
+// biodiversity — Shannon-Wiener entropy H = -Σ pᵢ ln(pᵢ)
+// replicator   — Maynard Smith replicator dynamics + Ostrom commons
+
+export const SAFE_KERNELS = ['daly', 'biodiversity', 'replicator'];
+
+export const SAFE_ALIAS_TO_KERNEL = {
+  // daly cluster
+  daly: 'daly', ecological: 'daly', entropy_econ: 'daly',
+  daly_rules: 'daly', daly_thermo: 'daly',
+  // biodiversity cluster
+  biodiversity: 'biodiversity', biocoenosis: 'biodiversity', species: 'biodiversity',
+  shannon_ecology: 'biodiversity', ecology: 'biodiversity',
+  // replicator cluster
+  replicator: 'replicator', ostrom_game: 'replicator', commons: 'replicator',
+  evolutionary: 'replicator', cooperate: 'replicator', altruist: 'replicator',
+  gametheory: 'replicator',
+};
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const RAM_START      = 70;   // planet already stressed — not at 100
