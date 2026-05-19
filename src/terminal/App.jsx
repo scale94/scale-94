@@ -862,21 +862,32 @@ const App = () => {
     }
   };
 
+  // Shared command-execution path: used by the terminal keydown handler
+  // AND the phantom-typing hooks (tour + possession). Parses the raw command
+  // the same way submitCommand does, then dispatches.
+  const runRawCommand = useCallback((raw) => {
+    const rawCmd = (raw ?? '').trim();
+    if (!rawCmd) return;
+    const cmdParts = rawCmd.toLowerCase().split(' ').filter(Boolean);
+    const action = cmdParts[0]
+      ? (cmdParts[0].startsWith('/') ? cmdParts[0].substring(1) : cmdParts[0])
+      : '';
+    const query = cmdParts.slice(1).join(' ');
+    const now = fmtTime();
+    dispatchCommand(action, query, rawCmd, now);
+  }, [dispatchCommand]);
+
   const submitCommand = () => {
     setSuggestions([]);
     setActiveSugg(-1);
     const rawCmd = commandInput.trim();
-    const cmdParts = rawCmd.toLowerCase().split(' ').filter(Boolean);
-    const action = cmdParts[0] ? (cmdParts[0].startsWith('/') ? cmdParts[0].substring(1) : cmdParts[0]) : '';
-    const query = cmdParts.slice(1).join(' ');
     setCommandInput('');
     if (rawCmd) {
       setCmdHistory(prev => [rawCmd, ...prev].slice(0, 50));
       setHistoryIdx(-1);
       setSavedInput('');
     }
-    const now = fmtTime();
-    dispatchCommand(action, query, rawCmd, now);
+    runRawCommand(rawCmd);
   };
 
   return (
