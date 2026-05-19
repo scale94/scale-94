@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect } from 'react';
+import { useRef, useCallback, useEffect, useMemo } from 'react';
 
 /**
  * usePhantomTyper — state-based phantom typing for the terminal command input.
@@ -39,5 +39,7 @@ export default function usePhantomTyper({ setCommandInput, runRawCommand }) {
     return true;
   }, [setCommandInput, runRawCommand]);
 
-  return { typeAndSubmit, cancel };
+  // Stable object identity so consumers can safely include `phantom` in
+  // useEffect dependency arrays without retriggering on every render.
+  return useMemo(() => ({ typeAndSubmit, cancel }), [typeAndSubmit, cancel]);
 }
