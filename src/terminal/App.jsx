@@ -944,8 +944,8 @@ const App = () => {
         </div>
       )}
 
-      {/* ── Gate overlay — shown on first load (sessionStorage empty) ──────── */}
-      {gateState === null && (
+      {/* ── Gate overlay — shown after boot completes on first load ─────────── */}
+      {gateState === null && !bootSequence && (
         <GateOverlay onResult={(passed) => persistGateState(passed ? 'passed' : 'failed')} />
       )}
 
