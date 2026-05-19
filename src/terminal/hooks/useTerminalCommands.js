@@ -165,6 +165,30 @@ export default function useTerminalCommands({
     } else if (action === 'about' || action === 'manifesto') {
       handleNav('~/system/manifesto', 'manifesto');
       executeCommand(rawCmd, "Switching directory to /system/manifesto...");
+    } else if (action === 'bsky') {
+      handleNav('~/system/bsky', 'bsky');
+      executeCommand(rawCmd, "Switching directory to /system/bsky...");
+    } else if (action === 'surveillance') {
+      handleNav('~/system/surveillance', 'surveillance');
+      executeCommand(rawCmd, "Switching directory to /system/surveillance...");
+    } else if (action === 'cryptography' || action === 'crypto') {
+      handleNav('~/system/cryptography', 'cryptography');
+      executeCommand(rawCmd, "Switching directory to /system/cryptography...");
+    } else if (action === 'art') {
+      handleNav('~/system/art', 'art');
+      executeCommand(rawCmd, "Switching directory to /system/art...");
+    } else if (action === 'ecocide') {
+      handleNav('~/system/ecocide', 'ecocide');
+      executeCommand(rawCmd, "Switching directory to /system/ecocide...");
+    } else if (action === 'lunar') {
+      handleNav('~/system/lunar', 'lunar');
+      executeCommand(rawCmd, "Switching directory to /system/lunar...");
+    } else if (action === 'mercury') {
+      handleNav('~/system/mercury', 'mercury');
+      executeCommand(rawCmd, "Switching directory to /system/mercury...");
+    } else if (action === 'ledger') {
+      handleNav('~/system/ledger', 'ledger');
+      executeCommand(rawCmd, "Switching directory to /system/ledger...");
     } else if (action === 'thesis') {
       handleNav('~/system/scaling/thesis', 'scaling');
       setArchitectThesis(true);
@@ -240,7 +264,7 @@ export default function useTerminalCommands({
       setCurrentPath(`~/system/kernel?q=${query.replace(/ /g, '_')}`);
       executeCommand(rawCmd, `Applying search filter to kernel index: "${query}".`);
     } else if (action === 'help') {
-      executeCommand(rawCmd, "Commands: load [term], list, search [term], home/kernel, scaling, transmission, manifesto, privacy, thesis, clear, help. ↑↓ history.");
+      executeCommand(rawCmd, "Commands: load [term], list, search [term], run [kernel], home/kernel, scaling, transmission, manifesto, privacy, bsky, surveillance, cryptography, art, ecocide, lunar, mercury, ledger, thesis, clear, help. ↑↓ history.");
     } else if (action === 'run') {
       // ── WASM-exclusive executor ─────────────────────────────────────────────
       const currentRegistry = wasmRegistry;
