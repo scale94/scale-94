@@ -213,7 +213,7 @@ const ramColor = (pct) => {
   return '#FF0088';                // magenta     — floor signal
 };
 
-const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, loadingKernel, visibleLogs = [], logRef, searchFilter, onClearFilter, listRef, commandInput = '', onCommandInputChange, onCommandKeyDown, ramPct = 0, isCritical = false, isWarning = false, appendSystemLog, mobileChrome = true, mobileAutoRun, bootDone = false }) => {
+const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, loadingKernel, visibleLogs = [], logRef, searchFilter, onClearFilter, listRef, commandInput = '', onCommandInputChange, onCommandKeyDown, ramPct = 0, isCritical = false, isWarning = false, appendSystemLog, mobileChrome = true, mobileAutoRun, bootDone = false, possessionActive = false }) => {
   // ── Mini sphere + sparkline canvas refs ───────────────────────────────────
   // Two sphere refs: one for the mobile canvas (below title), one for desktop
   const sphereCanvasRef        = useRef(null); // desktop
@@ -878,11 +878,12 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
                 value={commandInput}
                 onChange={onCommandInputChange}
                 onKeyDown={onCommandKeyDown}
+                readOnly={possessionActive}
                 autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="none"
                 spellCheck={false}
-                className="bg-transparent border-none outline-none flex-grow text-cyan-400 text-xs font-bold font-mono placeholder-cyan-900/40"
+                className={`bg-transparent border-none outline-none flex-grow text-cyan-400 text-xs font-bold font-mono placeholder-cyan-900/40${possessionActive ? ' ring-1 ring-red-500/60' : ''}`}
                 placeholder="enter command…"
               />
             </div>
@@ -915,11 +916,12 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
                   onChange={onCommandInputChange}
                   onKeyDown={onCommandKeyDown}
                   onBlur={() => setMobileInputVisible(false)}
+                  readOnly={possessionActive}
                   autoComplete="off"
                   autoCorrect="off"
                   autoCapitalize="none"
                   spellCheck={false}
-                  className="bg-transparent border-none outline-none flex-grow text-cyan-400 text-xs font-bold font-mono placeholder-cyan-900/40"
+                  className={`bg-transparent border-none outline-none flex-grow text-cyan-400 text-xs font-bold font-mono placeholder-cyan-900/40${possessionActive ? ' ring-1 ring-red-500/60' : ''}`}
                   placeholder="enter command…"
                 />
               </div>

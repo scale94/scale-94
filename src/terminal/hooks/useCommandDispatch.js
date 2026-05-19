@@ -456,6 +456,31 @@ export function useCommandDispatch(ctx) {
       executeCommand(rawCmd, "Switching directory to /system/manifesto...");
       return;
     }
+    if (action === 'art' || action === 'graph' || action === 'fade') {
+      handleNav('~/system/art', 'art');
+      executeCommand(rawCmd, "Switching directory to /system/art...");
+      return;
+    }
+    if (action === 'ecocide') {
+      handleNav('~/system/ecocide', 'ecocide');
+      executeCommand(rawCmd, "Switching directory to /system/ecocide...");
+      return;
+    }
+    if (action === 'lunar') {
+      handleNav('~/system/lunar', 'lunar');
+      executeCommand(rawCmd, "Switching directory to /system/lunar...");
+      return;
+    }
+    if (action === 'mercury') {
+      handleNav('~/system/mercury', 'mercury');
+      executeCommand(rawCmd, "Switching directory to /system/mercury...");
+      return;
+    }
+    if (action === 'ledger' || action === 'audit' || action === 'verdicts') {
+      handleNav('~/system/ledger', 'ledger');
+      executeCommand(rawCmd, "Switching directory to /system/ledger...");
+      return;
+    }
     if (action === 'thesis') {
       handleNav('~/system/scaling/thesis', 'scaling');
       setArchitectThesis(true);

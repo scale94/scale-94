@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import wasmRegistry from '../../wasm/wasm.generated';
+import { ECOLOGICAL_DELTA_MAP } from './useEcologicalRam';
 
 const DURATION_MS    = 60_000;
 const MIN_GAP_MS     = 800;
@@ -19,10 +20,21 @@ const INTRUSION_LINES = [
   'INTRUSION_DETECTED :: user attention captured',
 ];
 
+// Alien takeover only runs draining kernels — possession must not restore RAM.
+// Look up via aliases (same keys as ECOLOGICAL_DELTA_MAP). Default delta = -10.
+function kernelDrains(entry) {
+  if (!entry?.aliases) return true;
+  for (const alias of entry.aliases) {
+    const delta = ECOLOGICAL_DELTA_MAP[alias];
+    if (delta !== undefined && delta > 0) return false;
+  }
+  return true;
+}
+
 function pickRandomKernel() {
   const ids = Object.values(wasmRegistry)
-    .map(e => e.id)
-    .filter(id => !EXCLUDED_KERNELS.has(id));
+    .filter(e => !EXCLUDED_KERNELS.has(e.id) && kernelDrains(e))
+    .map(e => e.id);
   if (ids.length === 0) return null;
   return ids[Math.floor(Math.random() * ids.length)];
 }

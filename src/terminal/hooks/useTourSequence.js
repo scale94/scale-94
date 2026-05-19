@@ -36,14 +36,14 @@ export default function useTourSequence({ active, phantom, inputRef, appendSyste
     hasRunRef.current = true;
     cancelledRef.current = false;
 
-    const inputEl = inputRef.current;
+    // Listen on document so mobile inputs (not connected to inputRef) also cancel.
     const handler = (e) => {
       if (e.isTrusted) {
         cancelledRef.current = true;
         phantomRef.current?.cancel();
       }
     };
-    inputEl?.addEventListener('keydown', handler);
+    document.addEventListener('keydown', handler);
 
     (async () => {
       try {
@@ -67,7 +67,7 @@ export default function useTourSequence({ active, phantom, inputRef, appendSyste
     return () => {
       cancelledRef.current = true;
       phantomRef.current?.cancel();
-      inputEl?.removeEventListener('keydown', handler);
+      document.removeEventListener('keydown', handler);
     };
   }, [active, inputRef]);
 }
