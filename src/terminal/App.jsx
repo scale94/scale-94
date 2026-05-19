@@ -47,6 +47,7 @@ import { useAutocomplete }    from './hooks/useAutocomplete';
 import { useEcologicalRam }   from './hooks/useEcologicalRam';
 import { getVerdictCount }    from './ledger/verdictStore';
 import { normalizeQuery }     from '../lib/normalize';
+import { getGateState, setGateState } from './lib/gateStorage';
 
 // KernelTab — static import (landing tab, always needed, avoids .df.js chunk on Firefox Android)
 import KernelTab from './views/KernelTab';
@@ -139,6 +140,14 @@ const App = () => {
   const [dynamicData,  setDynamicData]  = useState(null);
   // Mobile chrome visibility — fades out after 3s of no touch, fades in on touch
   const [mobileChrome, setMobileChrome] = useState(true);
+  // Gate + possession state
+  const [gateState, _setGateStateInternal] = useState(() => getGateState()); // null | 'passed' | 'failed'
+  const [possessionActive, setPossessionActive] = useState(false);
+
+  const persistGateState = useCallback((value) => {
+    _setGateStateInternal(value);
+    setGateState(value);
+  }, []);
 
   const { appendSystemLog, setSystemLogs, visibleLogs, logRef } = useSystemLog();
   // RAM — ecological entropy model §1.3: cost maps to planetary footprint
@@ -907,6 +916,11 @@ const App = () => {
           <div className="tab-glitch-layer tab-glitch-cyan" />
           <div className="tab-glitch-layer tab-glitch-lime" />
         </div>
+      )}
+
+      {/* ── Gate overlay — shown on first load (sessionStorage empty) ──────── */}
+      {gateState === null && (
+        <GateOverlay onResult={(passed) => persistGateState(passed ? 'passed' : 'failed')} />
       )}
 
       {/* ── Boot sequence — unmounts when onDone fires ─────────────────────── */}
