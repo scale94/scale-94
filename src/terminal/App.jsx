@@ -38,14 +38,19 @@ import { WasmErrorBoundary } from './components/WasmErrorBoundary';
 import BootSequence         from './components/BootSequence';
 import BreachProtocol       from './components/BreachProtocol';
 import KuramotoVisualizer   from './components/KuramotoVisualizer';
+import GateOverlay from './components/GateOverlay';
 
 // Hooks
 import useSystemLog           from './hooks/useSystemLog';
 import { useCommandDispatch } from './hooks/useCommandDispatch';
 import { useAutocomplete }    from './hooks/useAutocomplete';
 import { useEcologicalRam }   from './hooks/useEcologicalRam';
+import usePhantomTyper        from './hooks/usePhantomTyper';
+import useTourSequence        from './hooks/useTourSequence';
+import usePossessionSequence  from './hooks/usePossessionSequence';
 import { getVerdictCount }    from './ledger/verdictStore';
 import { normalizeQuery }     from '../lib/normalize';
+import { getGateState, setGateState } from './lib/gateStorage';
 
 // KernelTab — static import (landing tab, always needed, avoids .df.js chunk on Firefox Android)
 import KernelTab from './views/KernelTab';
@@ -138,6 +143,16 @@ const App = () => {
   const [dynamicData,  setDynamicData]  = useState(null);
   // Mobile chrome visibility — fades out after 3s of no touch, fades in on touch
   const [mobileChrome, setMobileChrome] = useState(true);
+  // Gate + possession state
+  const [gateState, _setGateStateInternal] = useState(() => getGateState()); // null | 'passed' | 'failed'
+  const [possessionActive, setPossessionActive] = useState(false);
+  const [possessionCountdown, setPossessionCountdown] = useState(0);
+
+  const persistGateState = useCallback((value) => {
+    justResolvedGate.current = true;
+    _setGateStateInternal(value);
+    setGateState(value);
+  }, []);
 
   const { appendSystemLog, setSystemLogs, visibleLogs, logRef } = useSystemLog();
   // RAM — ecological entropy model §1.3: cost maps to planetary footprint
@@ -256,6 +271,8 @@ const App = () => {
   const kernelListRef = useRef(null); // ref to the scrollable <ul> in KernelTab
   const prevSelectedArticleRef = useRef(null); // tracks previous selectedArticle for mobile scroll logic
   const mobileChromeTimerRef = useRef(null);
+  const terminalInputRef = useRef(null);  // ref to the footer terminal input
+  const justResolvedGate = useRef(false); // true only in the render cycle after gate resolves
   // Scroll persistence: sessionStorage survives tab switches and hot-reloads.
   // The ref is a write-through cache so we never pay a sessionStorage read on
   // every scroll event — only on restore.
@@ -862,21 +879,51 @@ const App = () => {
     }
   };
 
+  // Shared command-execution path: used by the terminal keydown handler
+  // AND the phantom-typing hooks (tour + possession). Parses the raw command
+  // the same way submitCommand does, then dispatches.
+  const runRawCommand = useCallback((raw) => {
+    const rawCmd = (raw ?? '').trim();
+    if (!rawCmd) return;
+    const cmdParts = rawCmd.toLowerCase().split(' ').filter(Boolean);
+    const action = cmdParts[0]
+      ? (cmdParts[0].startsWith('/') ? cmdParts[0].substring(1) : cmdParts[0])
+      : '';
+    const query = cmdParts.slice(1).join(' ');
+    const now = fmtTime();
+    dispatchCommand(action, query, rawCmd, now);
+  }, [dispatchCommand]);
+
+  const phantom = usePhantomTyper({ setCommandInput, runRawCommand });
+
+  useTourSequence({
+    active: gateState === 'passed' && justResolvedGate.current && !possessionActive,
+    phantom,
+    inputRef: terminalInputRef,
+    appendSystemLog,
+    onDone: () => { /* one-shot */ },
+  });
+
+  usePossessionSequence({
+    active: gateState === 'failed' && justResolvedGate.current,
+    phantom,
+    appendSystemLog,
+    setPossessionActive,
+    setPossessionCountdown,
+    onDone: () => { justResolvedGate.current = false; },
+  });
+
   const submitCommand = () => {
     setSuggestions([]);
     setActiveSugg(-1);
     const rawCmd = commandInput.trim();
-    const cmdParts = rawCmd.toLowerCase().split(' ').filter(Boolean);
-    const action = cmdParts[0] ? (cmdParts[0].startsWith('/') ? cmdParts[0].substring(1) : cmdParts[0]) : '';
-    const query = cmdParts.slice(1).join(' ');
     setCommandInput('');
     if (rawCmd) {
       setCmdHistory(prev => [rawCmd, ...prev].slice(0, 50));
       setHistoryIdx(-1);
       setSavedInput('');
     }
-    const now = fmtTime();
-    dispatchCommand(action, query, rawCmd, now);
+    runRawCommand(rawCmd);
   };
 
   return (
@@ -895,6 +942,11 @@ const App = () => {
           <div className="tab-glitch-layer tab-glitch-cyan" />
           <div className="tab-glitch-layer tab-glitch-lime" />
         </div>
+      )}
+
+      {/* ── Gate overlay — shown on first load (sessionStorage empty) ──────── */}
+      {gateState === null && (
+        <GateOverlay onResult={(passed) => persistGateState(passed ? 'passed' : 'failed')} />
       )}
 
       {/* ── Boot sequence — unmounts when onDone fires ─────────────────────── */}
@@ -1463,21 +1515,28 @@ const App = () => {
           )}
 
           {/* Prompt + input — active on all tabs including kernel home */}
-          <div className="flex items-center gap-2 flex-grow min-w-0">
+          <div className="flex items-center gap-2 flex-grow min-w-0 relative">
+            {possessionActive && (
+              <div className="absolute bottom-full left-0 right-0 mb-0.5 font-mono text-[11px] text-red-400 uppercase tracking-widest px-2">
+                ⚠ TERMINAL COMPROMISED :: T-{String(possessionCountdown).padStart(2, '0')} s
+              </div>
+            )}
             <span className="text-fuchsia-500 hidden md:inline shrink-0" aria-hidden="true">scale@node:~$</span>
             <span className="text-fuchsia-500 md:hidden shrink-0" aria-hidden="true">~$</span>
             <label htmlFor="terminal-input" className="sr-only">Enter terminal command</label>
             <input
               id="terminal-input"
+              ref={terminalInputRef}
               type="text"
               value={commandInput}
+              readOnly={possessionActive}
               onChange={handleInputChange}
               onKeyDown={handleCommand}
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="none"
               spellCheck={false}
-              className="bg-transparent border-none outline-none flex-grow text-cyan-400 placeholder-cyan-900/50 font-bold"
+              className={`bg-transparent border-none outline-none flex-grow text-cyan-400 placeholder-cyan-900/50 font-bold${possessionActive ? ' ring-1 ring-red-500/60 border-red-500/60' : ''}`}
               placeholder="enter command (e.g. load soma-9.0)"
             />
             <button
