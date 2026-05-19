@@ -47,6 +47,7 @@ import { useAutocomplete }    from './hooks/useAutocomplete';
 import { useEcologicalRam }   from './hooks/useEcologicalRam';
 import usePhantomTyper        from './hooks/usePhantomTyper';
 import useTourSequence        from './hooks/useTourSequence';
+import usePossessionSequence  from './hooks/usePossessionSequence';
 import { getVerdictCount }    from './ledger/verdictStore';
 import { normalizeQuery }     from '../lib/normalize';
 import { getGateState, setGateState } from './lib/gateStorage';
@@ -145,6 +146,7 @@ const App = () => {
   // Gate + possession state
   const [gateState, _setGateStateInternal] = useState(() => getGateState()); // null | 'passed' | 'failed'
   const [possessionActive, setPossessionActive] = useState(false);
+  const [possessionCountdown, setPossessionCountdown] = useState(0);
 
   const persistGateState = useCallback((value) => {
     justResolvedGate.current = true;
@@ -902,6 +904,15 @@ const App = () => {
     onDone: () => { /* one-shot */ },
   });
 
+  usePossessionSequence({
+    active: gateState === 'failed' && justResolvedGate.current,
+    phantom,
+    appendSystemLog,
+    setPossessionActive,
+    setPossessionCountdown,
+    onDone: () => { justResolvedGate.current = false; },
+  });
+
   const submitCommand = () => {
     setSuggestions([]);
     setActiveSugg(-1);
@@ -1504,7 +1515,12 @@ const App = () => {
           )}
 
           {/* Prompt + input — active on all tabs including kernel home */}
-          <div className="flex items-center gap-2 flex-grow min-w-0">
+          <div className="flex items-center gap-2 flex-grow min-w-0 relative">
+            {possessionActive && (
+              <div className="absolute bottom-full left-0 right-0 mb-0.5 font-mono text-[11px] text-red-400 uppercase tracking-widest px-2">
+                ⚠ TERMINAL COMPROMISED :: T-{String(possessionCountdown).padStart(2, '0')} s
+              </div>
+            )}
             <span className="text-fuchsia-500 hidden md:inline shrink-0" aria-hidden="true">scale@node:~$</span>
             <span className="text-fuchsia-500 md:hidden shrink-0" aria-hidden="true">~$</span>
             <label htmlFor="terminal-input" className="sr-only">Enter terminal command</label>
@@ -1513,13 +1529,14 @@ const App = () => {
               ref={terminalInputRef}
               type="text"
               value={commandInput}
+              readOnly={possessionActive}
               onChange={handleInputChange}
               onKeyDown={handleCommand}
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="none"
               spellCheck={false}
-              className="bg-transparent border-none outline-none flex-grow text-cyan-400 placeholder-cyan-900/50 font-bold"
+              className={`bg-transparent border-none outline-none flex-grow text-cyan-400 placeholder-cyan-900/50 font-bold${possessionActive ? ' ring-1 ring-red-500/60 border-red-500/60' : ''}`}
               placeholder="enter command (e.g. load soma-9.0)"
             />
             <button
