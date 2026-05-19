@@ -45,6 +45,8 @@ import useSystemLog           from './hooks/useSystemLog';
 import { useCommandDispatch } from './hooks/useCommandDispatch';
 import { useAutocomplete }    from './hooks/useAutocomplete';
 import { useEcologicalRam }   from './hooks/useEcologicalRam';
+import usePhantomTyper        from './hooks/usePhantomTyper';
+import useTourSequence        from './hooks/useTourSequence';
 import { getVerdictCount }    from './ledger/verdictStore';
 import { normalizeQuery }     from '../lib/normalize';
 import { getGateState, setGateState } from './lib/gateStorage';
@@ -145,6 +147,7 @@ const App = () => {
   const [possessionActive, setPossessionActive] = useState(false);
 
   const persistGateState = useCallback((value) => {
+    justResolvedGate.current = true;
     _setGateStateInternal(value);
     setGateState(value);
   }, []);
@@ -266,6 +269,8 @@ const App = () => {
   const kernelListRef = useRef(null); // ref to the scrollable <ul> in KernelTab
   const prevSelectedArticleRef = useRef(null); // tracks previous selectedArticle for mobile scroll logic
   const mobileChromeTimerRef = useRef(null);
+  const terminalInputRef = useRef(null);  // ref to the footer terminal input
+  const justResolvedGate = useRef(false); // true only in the render cycle after gate resolves
   // Scroll persistence: sessionStorage survives tab switches and hot-reloads.
   // The ref is a write-through cache so we never pay a sessionStorage read on
   // every scroll event — only on restore.
@@ -887,6 +892,16 @@ const App = () => {
     dispatchCommand(action, query, rawCmd, now);
   }, [dispatchCommand]);
 
+  const phantom = usePhantomTyper({ setCommandInput, runRawCommand });
+
+  useTourSequence({
+    active: gateState === 'passed' && justResolvedGate.current && !possessionActive,
+    phantom,
+    inputRef: terminalInputRef,
+    appendSystemLog,
+    onDone: () => { /* one-shot */ },
+  });
+
   const submitCommand = () => {
     setSuggestions([]);
     setActiveSugg(-1);
@@ -1495,6 +1510,7 @@ const App = () => {
             <label htmlFor="terminal-input" className="sr-only">Enter terminal command</label>
             <input
               id="terminal-input"
+              ref={terminalInputRef}
               type="text"
               value={commandInput}
               onChange={handleInputChange}
