@@ -1,6 +1,6 @@
 export const GATE_PROMPT = 'from perihelion, growth reads as ___';
 
-export const ACCEPTED_ANSWERS = ['noise', 'decay', 'dying'];
+export const ACCEPTED_ANSWERS = ['bargain'];
 
 export function normalizeGateAnswer(text) {
   if (text == null) return '';

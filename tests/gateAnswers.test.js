@@ -7,13 +7,12 @@ describe('gateAnswers', () => {
   });
 
   it('exports the accepted set', () => {
-    expect(ACCEPTED_ANSWERS).toEqual(['noise', 'decay', 'dying']);
+    expect(ACCEPTED_ANSWERS).toEqual(['bargain']);
   });
 
   describe('normalizeGateAnswer', () => {
-    it('lowercases', () => expect(normalizeGateAnswer('NOISE')).toBe('noise'));
-    it('trims whitespace', () => expect(normalizeGateAnswer('  decay  ')).toBe('decay'));
-    it('collapses inner whitespace to single space', () => expect(normalizeGateAnswer('dy ing')).toBe('dy ing'));
+    it('lowercases', () => expect(normalizeGateAnswer('BARGAIN')).toBe('bargain'));
+    it('trims whitespace', () => expect(normalizeGateAnswer('  bargain  ')).toBe('bargain'));
     it('handles null/undefined', () => {
       expect(normalizeGateAnswer(null)).toBe('');
       expect(normalizeGateAnswer(undefined)).toBe('');
@@ -21,14 +20,14 @@ describe('gateAnswers', () => {
   });
 
   describe('isAcceptedAnswer', () => {
-    it('accepts canonical "noise"', () => expect(isAcceptedAnswer('noise')).toBe(true));
-    it('accepts canonical "decay"', () => expect(isAcceptedAnswer('decay')).toBe(true));
-    it('accepts canonical "dying"', () => expect(isAcceptedAnswer('dying')).toBe(true));
-    it('accepts uppercase NOISE', () => expect(isAcceptedAnswer('NOISE')).toBe(true));
-    it('accepts whitespace-padded " decay "', () => expect(isAcceptedAnswer(' decay ')).toBe(true));
+    it('accepts canonical "bargain"', () => expect(isAcceptedAnswer('bargain')).toBe(true));
+    it('accepts uppercase BARGAIN', () => expect(isAcceptedAnswer('BARGAIN')).toBe(true));
+    it('accepts whitespace-padded " bargain "', () => expect(isAcceptedAnswer(' bargain ')).toBe(true));
     it('rejects empty string', () => expect(isAcceptedAnswer('')).toBe(false));
     it('rejects null', () => expect(isAcceptedAnswer(null)).toBe(false));
     it('rejects "growth"', () => expect(isAcceptedAnswer('growth')).toBe(false));
-    it('rejects partial match "noi"', () => expect(isAcceptedAnswer('noi')).toBe(false));
+    it('rejects retired "noise"', () => expect(isAcceptedAnswer('noise')).toBe(false));
+    it('rejects retired "decay"', () => expect(isAcceptedAnswer('decay')).toBe(false));
+    it('rejects partial match "barg"', () => expect(isAcceptedAnswer('barg')).toBe(false));
   });
 });

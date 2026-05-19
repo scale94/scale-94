@@ -93,16 +93,24 @@ export default function GateOverlay({ onResult }) {
           </div>
 
           {/* Prompt with chromatic aberration */}
-          <div
-            className="font-mono font-black text-center leading-snug"
-            style={{
-              fontSize: 'clamp(1.1rem, 4vw, 2rem)',
-              color: '#ff2244',
-              animation: 'gate-chroma 1.8s ease-in-out infinite',
-              letterSpacing: '0.04em',
-            }}
-          >
-            {GATE_PROMPT}
+          <div className="flex flex-col items-center gap-2 w-full">
+            <div
+              className="font-mono font-black text-center leading-snug"
+              style={{
+                fontSize: 'clamp(1.1rem, 4vw, 2rem)',
+                color: '#ff2244',
+                animation: 'gate-chroma 1.8s ease-in-out infinite',
+                letterSpacing: '0.04em',
+              }}
+            >
+              {GATE_PROMPT}
+            </div>
+            <div
+              className="font-mono text-[9px] uppercase tracking-[0.25em] text-center"
+              style={{ color: '#cc000077' }}
+            >
+              ars electronica 2027 :: negotiating humanity
+            </div>
           </div>
 
           {/* Input */}
