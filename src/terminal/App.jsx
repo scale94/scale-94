@@ -38,6 +38,7 @@ import { WasmErrorBoundary } from './components/WasmErrorBoundary';
 import BootSequence         from './components/BootSequence';
 import BreachProtocol       from './components/BreachProtocol';
 import KuramotoVisualizer   from './components/KuramotoVisualizer';
+import GateOverlay from './components/GateOverlay';
 
 // Hooks
 import useSystemLog           from './hooks/useSystemLog';
