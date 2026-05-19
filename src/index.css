@@ -27,9 +27,17 @@
 html, body {
   overflow-x: hidden;
   max-width: 100vw;
-  /* Force grayscale smoothing globally for clean subpixel rendering */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: geometricPrecision;
+}
+
+/* Re-declare on every element so GPU-composited layers (transform/opacity/filter
+   animations) don't revert to subpixel ClearType rendering */
+* {
+  -webkit-font-smoothing: inherit;
+  -moz-osx-font-smoothing: inherit;
+  text-rendering: inherit;
 }
 
 /* Custom Scrollbar — slim, low-opacity so it doesn't compete with content */

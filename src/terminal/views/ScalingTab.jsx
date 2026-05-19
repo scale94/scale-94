@@ -209,7 +209,7 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, setOriginTab, loadKern
         {/* SYSTEM_ARCH */}
         <div className="border border-fuchsia-500/30 bg-fuchsia-900/5 p-6 rounded-lg hover:border-fuchsia-400/60 transition-all group relative overflow-hidden"
           style={{ opacity: 0, animation: 'sc-cardReveal 0.5s cubic-bezier(0.16,1,0.3,1) 0.35s forwards' }}>
-          <div className="absolute top-0 right-0 bg-fuchsia-500 text-black text-[9px] font-bold px-2 py-1 uppercase tracking-wider">Recommended</div>
+          <div className="absolute top-0 right-0 bg-fuchsia-500 text-black text-[9px] font-bold px-2 py-1 uppercase tracking-wider" style={{ WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' }}>RECOMMENDED</div>
           <div className="text-lg font-bold mb-2" style={{ opacity: 0, animation: 'sc-headReveal 0.5s cubic-bezier(0.16,1,0.3,1) 0.9s both, sc-headColorAlt 9s ease-in-out 2s infinite' }}>SYSTEM_ARCH</div>
           <div className="text-[10px] font-bold text-cyan-500 uppercase tracking-widest mb-4">[STANDARD]</div>
           <p className="text-sm text-[#39ff14] mb-8 leading-relaxed h-20">
