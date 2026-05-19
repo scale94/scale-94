@@ -1307,6 +1307,7 @@ const App = () => {
               mobileChrome={mobileChrome}
               mobileAutoRun={mobileAutoRun}
               bootDone={bootRevealed}
+              possessionActive={possessionActive}
             />
           )}
 
