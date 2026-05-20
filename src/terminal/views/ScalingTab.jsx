@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Hexagon, ChevronRight, Globe, MessageSquare, Zap, FileText, Cpu, BookOpen } from 'lucide-react';
+import { Hexagon, ChevronRight, Globe, MessageSquare, Zap, FileText } from 'lucide-react';
 import LatentCollider from './LatentCollider';
 import { KERNEL_CITATIONS } from '../data/kernelCitations';
 
