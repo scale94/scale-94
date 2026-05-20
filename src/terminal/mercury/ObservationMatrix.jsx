@@ -50,9 +50,9 @@ export default function ObservationMatrix({ mercury, instruments, activePhase })
   // Keep liveRef current so the interval closure always reads fresh state
   useEffect(() => { liveRef.current = { mercury, instruments, activePhase }; });
 
-  // Minute tick — stable interval, reads live state through ref
+  // Seed one entry immediately on mount, then tick every 60s
   useEffect(() => {
-    const id = setInterval(() => {
+    const fire = () => {
       const { mercury: m, instruments: ins, activePhase: ap } = liveRef.current;
       if (!m || !ins) return;
       const entry = generateEntry({
@@ -61,7 +61,9 @@ export default function ObservationMatrix({ mercury, instruments, activePhase })
         mercury: m, instruments: ins, activePhase: ap,
       });
       setEntries(prev => [entry, ...prev].slice(0, MAX_ENTRIES));
-    }, 60_000);
+    };
+    fire();
+    const id = setInterval(fire, 60_000);
     return () => clearInterval(id);
   }, []);
 
