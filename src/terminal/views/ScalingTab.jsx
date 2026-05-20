@@ -260,51 +260,59 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, setOriginTab, loadKern
         </div>
       </div>
 
-      {/* ── Seraphine-8.8.8.8.8.8.8.8 White Paper ── */}
+      {/* ── § · The Thesis (Seraphine White Paper Monument) ──
+          Spec: 2026-05-21-scaling-tab-monument-elevation-design.md
+          Card chrome removed. Display sentence is Inter Black 900 across
+          three lines; last line "weakest geometry." in #d4a82a emphasis.
+          Attribution eyebrow above (document attribution); substrate subtitle
+          below accent line (signature). Body + CTA in terminal palette. */}
       <div
-        className="border-t border-cyan-900/30 pt-8 mb-8"
-        style={{ opacity: 0, animation: 'sc-cardReveal 0.6s cubic-bezier(0.16,1,0.3,1) 0.65s forwards' }}
+        className="border-t border-cyan-900/30 max-w-3xl mx-auto"
+        style={{
+          opacity: 0,
+          paddingTop: '80px',
+          marginBottom: '48px',
+          animation: 'sc-monumentReveal 1.5s ease-out 0.65s forwards',
+        }}
       >
-        <div className="border border-fuchsia-500/40 bg-black/60 p-8 rounded-lg hover:border-fuchsia-400/70 transition-all group relative overflow-hidden max-w-2xl mx-auto"
-          style={{ animation: 'sc-borderBreath 7s ease-in-out 1s infinite' }}
-        >
-          <div className="absolute top-0 right-0 bg-fuchsia-500/10 text-fuchsia-400 text-[9px] font-bold px-3 py-1.5 uppercase tracking-wider border-l border-b border-fuchsia-500/30">
-            WHITE PAPER · ARS ELECTRONICA 2027
-          </div>
+        <div className="sc-monument-marker" style={{ marginBottom: '12px' }}>§ · the thesis</div>
+        <div className="sc-monument-eyebrow" style={{ marginBottom: '28px' }}>white paper · ars electronica 2027</div>
 
-          <div className="text-[10px] font-bold text-cyan-500/70 uppercase tracking-widest mb-3 flex items-center gap-2">
-            <Cpu className="w-3 h-3" /> SERAPHINE-8.8.8.8.8.8.8.8 · FADE_DOCTRINE · MERCURY TERMINAL
-          </div>
+        <div className="sc-monument-display sc-monument-display--thesis" style={{ marginBottom: '6px' }}>The most compelling</div>
+        <div className="sc-monument-display sc-monument-display--thesis" style={{ marginBottom: '6px' }}>analogy has the</div>
+        <div className="sc-monument-display sc-monument-display--thesis sc-monument-display--emphasis" style={{ marginBottom: '24px' }}>weakest geometry.</div>
 
-          <h3 className="text-xl font-bold mb-5 leading-tight tracking-tight" style={{ opacity: 0, animation: 'sc-titleReveal 0.7s cubic-bezier(0.16,1,0.3,1) 1.3s both, sc-headColorAlt 11s ease-in-out 0.5s infinite' }}>
-            The most compelling analogy<br />has the weakest geometry.
-          </h3>
+        <div className="sc-monument-accent" style={{ marginBottom: '22px' }} />
 
-          <div className="space-y-3 mb-6">
-            <p className="text-sm text-[#39ff14]/90 leading-relaxed">
-              Three cross-domain analogy pairs. Feature vectors from primary literature. Cosine similarity measured in 16 dimensions.
-              The pair with the strongest narrative — Bouligand rotation ↔ ML-KEM-768 — scores <span className="text-fuchsia-400 font-bold">0.611</span>.
-              The pair that resists every intuitive description — twisted bilayer graphene ↔ cognitive flow — scores <span className="text-cyan-400 font-bold">0.863</span>.
-            </p>
-            <p className="text-sm text-cyan-400/60 leading-relaxed font-mono">
-              Narrative compellingness and geometric similarity are negatively correlated.<br />
-              This is the result. This is the architecture that found it.
-            </p>
-          </div>
+        <div className="sc-monument-subtitle" style={{ marginBottom: '20px' }}>Seraphine-8.8.8.8.8.8.8.8 · Fade Doctrine · Mercury Terminal</div>
 
-          <div className="flex items-center gap-6 text-[10px] font-mono text-cyan-600/50 mb-6">
-            <span>Seraphine SARG · Lindblad decoherence</span>
-            <span className="text-fuchsia-600/40">·</span>
-            <span>Bone Fusion v7.7.7.7.7.7.7 · Bouligand 36° + Magic Angle 1.1°</span>
-          </div>
-
-          <button
-            onClick={() => loadKernel && loadKernel('FADE-DOCTRINE-KERNEL-2.0.0')}
-            className="flex items-center gap-2 text-xs font-bold text-fuchsia-400 group-hover:translate-x-1 transition-transform cursor-pointer hover:text-fuchsia-200"
-          >
-            <ChevronRight className="w-4 h-4" /> READ PAPER
-          </button>
+        <div className="space-y-3 mb-6">
+          <p className="text-sm text-[#39ff14]/90 leading-relaxed">
+            Three cross-domain analogy pairs. Feature vectors from primary literature. Cosine similarity measured in 16 dimensions.
+            The pair with the strongest narrative — Bouligand rotation ↔ ML-KEM-768 — scores <span className="text-fuchsia-400 font-bold">0.611</span>.
+            The pair that resists every intuitive description — twisted bilayer graphene ↔ cognitive flow — scores <span className="text-cyan-400 font-bold">0.863</span>.
+          </p>
+          <p className="text-sm text-cyan-400/60 leading-relaxed font-mono">
+            Narrative compellingness and geometric similarity are negatively correlated.<br />
+            This is the result. This is the architecture that found it.
+          </p>
         </div>
+
+        <div className="flex items-center gap-6 text-[10px] font-mono text-cyan-600/50 mb-6">
+          <span>Seraphine SARG · Lindblad decoherence</span>
+          <span style={{ color: 'rgba(212,168,42,0.4)' }}>·</span>
+          <span>Bone Fusion v7.7.7.7.7.7.7 · Bouligand 36° + Magic Angle 1.1°</span>
+        </div>
+
+        <button
+          onClick={() => loadKernel && loadKernel('FADE-DOCTRINE-KERNEL-2.0.0')}
+          className="flex items-center gap-2 text-xs font-mono font-bold transition-transform cursor-pointer hover:translate-x-1"
+          style={{ color: '#d4a82a', letterSpacing: '0.1em' }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = '#e8d28a'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = '#d4a82a'; }}
+        >
+          <ChevronRight className="w-4 h-4" /> READ PAPER
+        </button>
       </div>
 
       {/* ── RUN COMMAND MANUAL V2.2 ── */}
