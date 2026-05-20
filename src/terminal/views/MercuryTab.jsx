@@ -71,8 +71,8 @@ export default function MercuryTab() {
 
   const mercuryState = useMercuryState();
   const canvasState  = useMemo(
-    () => ({ activePhase, ...mergedParams, fps }),
-    [activePhase, mergedParams, fps],
+    () => ({ activePhase, fps, ...params, density: liveDensity }),
+    [activePhase, fps, params, liveDensity],
   );
   const instruments  = useMemo(
     () => mercuryState ? computeInstruments(mercuryState, canvasState) : null,
