@@ -55,8 +55,9 @@ export default function ObservationMatrix({ mercury, instruments, activePhase })
     const fire = () => {
       const { mercury: m, instruments: ins, activePhase: ap } = liveRef.current;
       if (!m || !ins) return;
+      const trigger = m.daysToNextPerihelion < 5 ? 'perihelion_approach' : 'minute_tick';
       const entry = generateEntry({
-        trigger: 'minute_tick',
+        trigger,
         timestamp: new Date(),
         mercury: m, instruments: ins, activePhase: ap,
       });

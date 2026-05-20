@@ -1561,13 +1561,15 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           const pulse = (Math.sin(Date.now() * 0.003) + 1) * 0.5;
           const probeR = 6 * pp.scale;
           const glowR  = probeR + pulse * 14 * pp.scale;
-          const gGrd = ctx.createRadialGradient(pp.sx, pp.sy, probeR * 0.3, pp.sx, pp.sy, glowR);
-          gGrd.addColorStop(0, `rgba(167,139,250,${0.45 * depthAlpha})`);
-          gGrd.addColorStop(1, 'rgba(167,139,250,0)');
-          ctx.fillStyle = gGrd;
-          ctx.beginPath();
-          ctx.arc(pp.sx, pp.sy, glowR, 0, Math.PI * 2);
-          ctx.fill();
+          if (glowR > 0 && isFinite(pp.sx) && isFinite(pp.sy)) {
+            const gGrd = ctx.createRadialGradient(pp.sx, pp.sy, probeR * 0.3, pp.sx, pp.sy, glowR);
+            gGrd.addColorStop(0, `rgba(167,139,250,${0.45 * depthAlpha})`);
+            gGrd.addColorStop(1, 'rgba(167,139,250,0)');
+            ctx.fillStyle = gGrd;
+            ctx.beginPath();
+            ctx.arc(pp.sx, pp.sy, glowR, 0, Math.PI * 2);
+            ctx.fill();
+          }
           // Core node
           ctx.beginPath();
           ctx.arc(pp.sx, pp.sy, probeR, 0, Math.PI * 2);

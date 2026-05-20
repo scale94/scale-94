@@ -39,6 +39,10 @@ export const PHRASES = {
     'T_subsolar holds at {T}K. nothing moved. nothing was meant to.',
     'all six readings stable. the citadel adds another course.',
     'the alien architect annotates the silence with a single mark.',
+    'ion wind at nominal. earth at {d_AU} AU. the cathedral holds.',
+    'subsolar face: {T}K. the forge keep does not flinch.',
+    'the citadel has stood {daysToPerihelion}d since last perihelion. it is patient.',
+    'grief index at {grief}. the spire logs it without comment.',
   ],
 };
 

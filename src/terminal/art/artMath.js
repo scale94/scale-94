@@ -24,7 +24,8 @@ export function applyM(M, x, y, z) {
 
 // Perspective project rotated coords onto canvas
 export function project(rx, ry, rz, w, h, sphereR, focal) {
-  const scale = focal / (focal + rz * sphereR);
+  const denom = focal + rz * sphereR;
+  const scale = Math.abs(denom) > 1e-9 ? focal / denom : 0;
   return {
     sx:    w / 2 + rx * sphereR * scale,
     sy:    h / 2 - ry * sphereR * scale,   // flip Y: canvas Y is down
