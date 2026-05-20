@@ -1460,6 +1460,23 @@ export function run_matrix_kernel(filter_strength, noise_sigma, autocorr, load_f
 }
 
 /**
+ * @param {number} unix_ms
+ * @returns {string}
+ */
+export function run_mercury_state(unix_ms) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_mercury_state(unix_ms);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * SCALAR SOVEREIGNTY + MESANTROPY ENGINE
  *
  * Simulates N agents through Substrate (3.3.3) and Detonation (4.4.4.4) phases.
