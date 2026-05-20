@@ -2,6 +2,11 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import MercuryCanvas    from '../mercury/MercuryCanvas';
 import MercuryControls  from '../mercury/MercuryControls';
 import MercuryFireworks from '../mercury/MercuryFireworks';
+import InstrumentsPanel       from '../mercury/InstrumentsPanel';
+import CastleGrid             from '../mercury/CastleGrid';
+import ObservationMatrix      from '../mercury/ObservationMatrix';
+import { useMercuryState }    from '../mercury/useMercuryState';
+import { computeInstruments } from '../mercury/instruments';
 
 const isMobile = typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -63,6 +68,16 @@ export default function MercuryTab() {
   }, [fps]);
 
   const mergedParams = { ...params, density: liveDensity };
+
+  const mercuryState = useMercuryState();
+  const canvasState  = useMemo(
+    () => ({ activePhase, ...mergedParams, fps }),
+    [activePhase, mergedParams, fps],
+  );
+  const instruments  = useMemo(
+    () => mercuryState ? computeInstruments(mercuryState, canvasState) : null,
+    [mercuryState, canvasState],
+  );
 
   return (
     <div className="max-w-[1800px] mx-auto" style={{ position: 'relative' }}>
@@ -173,6 +188,42 @@ export default function MercuryTab() {
             onElementFired={handleElementFired}
           />
         </div>
+      </div>
+
+      {/* §A — Six observation instruments */}
+      <InstrumentsPanel
+        mercury={mercuryState}
+        canvas={canvasState}
+      />
+
+      {/* §B — Four fairy-tale castles */}
+      <CastleGrid
+        activePhase={activePhase}
+        mercury={mercuryState}
+        canvas={canvasState}
+      />
+
+      {/* §C — Live observation log */}
+      <ObservationMatrix
+        mercury={mercuryState}
+        instruments={instruments}
+        activePhase={activePhase}
+      />
+
+      {/* Footer — mock-discipline citations */}
+      <div className="mt-8 pt-4 border-t border-zinc-600/[0.03] text-[7px] font-mono text-zinc-700 leading-relaxed max-w-4xl">
+        <p>
+          MERCURY TERMINAL v2.0 — sub-solar temperature derived from
+          T = ((1−α)·S₀·(1/r²)/εσ)<sup>¼</sup> with Bond albedo α=0.142, emissivity ε=0.95.
+          Orbital elements: J2000 epoch, Meeus <i>Astronomical Algorithms</i> 2nd ed. ch.32.
+          Mercury rotation: 3:2 spin-orbit resonance (Pettengill &amp; Dyce 1965).
+          Solar constant S₀=1361 W/m² (Kopp &amp; Lean 2011).
+        </p>
+        <p className="mt-2 text-zinc-700/70">
+          {`// observation log compiled by the architect from perihelion · cathedral · forge · citadel · spire`}
+          <br />
+          {`// all instruments cross-referenced against the alien's own apocrypha · which refuses citation`}
+        </p>
       </div>
     </div>
   );
