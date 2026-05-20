@@ -137,11 +137,14 @@ export default function MercuryTab() {
             animation: 'hg-titleReveal 0.8s 0.25s cubic-bezier(0.16,1,0.3,1) both',
           }}
         >
-          <span style={{ color: 'rgba(192,192,192,0.4)' }}>// ALIEN ARCHITECT</span>
+          <span style={{ color: 'rgba(192,192,192,0.4)' }}>{`// ALIEN ARCHITECT`}</span>
           {' '}— building fairy tale castles on mercury · surveying from perihelion · holding up the mirror
           <br />
-          <span style={{ color: 'rgba(192,192,192,0.4)' }}>// EYE PROTOCOL</span>
+          <span style={{ color: 'rgba(192,192,192,0.4)' }}>{`// EYE PROTOCOL`}</span>
           {' '}— the observer is the instrument · four elements · one surface · humanity reflected
+          <br />
+          <span style={{ color: 'rgba(192,192,192,0.4)' }}>{`// OBSERVATION LOOP`}</span>
+          {' '}— outer cosmos × inner mirror · castles cast in real time · the log writes itself
         </div>
 
         <div className="mt-3 relative h-[1px]">
