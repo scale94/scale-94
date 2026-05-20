@@ -37,6 +37,7 @@ import OctagonGrid          from './components/OctagonGrid';
 import { WasmErrorBoundary } from './components/WasmErrorBoundary';
 import BootSequence         from './components/BootSequence';
 import BreachProtocol       from './components/BreachProtocol';
+import SanctuaryOverlay     from './components/SanctuaryOverlay';
 import KuramotoVisualizer   from './components/KuramotoVisualizer';
 import GateOverlay from './components/GateOverlay';
 
@@ -113,6 +114,8 @@ const App = () => {
   const [isOnline,     setIsOnline]     = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
   // Breach Protocol minigame
   const [breachOpen,   setBreachOpen]   = useState(false);
+  // Sanctuary — Period-3 window · hidden command + lattice-floor offer
+  const [sanctuaryOpen, setSanctuaryOpen] = useState(false);
   // Kuramoto live visual field — null when inactive, { active, n, k, sigma } when running
   const [kuramotoViz,     setKuramotoViz]     = useState(null);
   // Associative field attractor — null when inactive, { act, energy, seed, co } when computed
@@ -771,7 +774,7 @@ const App = () => {
   const dispatchCommand = useCommandDispatch({
     articles, classifiedSession, transmissionStories, tagIndex, systemArticles, activeTab,
     setSystemLogs, setClassifiedSession, setActiveTab, setSelectedArticle,
-    setSearchFilter, setCurrentPath, setRelicMode, setBreachOpen, applyEcoCost, applyRefill, latticeState,
+    setSearchFilter, setCurrentPath, setRelicMode, setBreachOpen, setSanctuaryOpen, applyEcoCost, applyRefill, latticeState,
     setOriginTab, setArchitectThesis, setTagCloudView,
     appendSystemLog, handleNav, handleKernelClick, handleTransmissionSelect,
     loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField, setSpectralBridges, setEnclaveKeys, setProbeNode, setBoneFusions,
@@ -951,6 +954,11 @@ const App = () => {
 
       {/* ── Boot sequence — unmounts when onDone fires ─────────────────────── */}
       {bootSequence && <BootSequence onDone={handleBootDone} />}
+
+      {/* ── Sanctuary overlay (Period-3 window) ─────────────────────────────── */}
+      {sanctuaryOpen && (
+        <SanctuaryOverlay onClose={() => setSanctuaryOpen(false)} />
+      )}
 
       {/* ── Breach Protocol overlay ─────────────────────────────────────────── */}
       {breachOpen && (

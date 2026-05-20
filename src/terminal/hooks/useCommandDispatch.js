@@ -53,7 +53,7 @@ export function useCommandDispatch(ctx) {
     const {
       articles, classifiedSession, transmissionStories, tagIndex, systemArticles, activeTab,
       setSystemLogs, setClassifiedSession, setActiveTab, setSelectedArticle,
-      setSearchFilter, setCurrentPath, setRelicMode, setBreachOpen, applyEcoCost,
+      setSearchFilter, setCurrentPath, setRelicMode, setBreachOpen, setSanctuaryOpen, applyEcoCost,
       applyRefill, latticeState,
       setOriginTab, setArchitectThesis, setTagCloudView,
       appendSystemLog, handleNav, handleKernelClick, handleTransmissionSelect,
@@ -123,6 +123,18 @@ export function useCommandDispatch(ctx) {
           `  RUN_REDIRECT :: '${baseCmd}' is a standalone command, not a WASM kernel.`,
           `  Type '${baseCmd.toLowerCase()}' directly to execute it.`,
         );
+        return;
+      }
+
+      // ── run sanctuary — Period-3 window (hidden) ──────────────────────────
+      // Treat `run sanctuary` exactly like the bare `sanctuary` command — the
+      // user shouldn't have to know which form is canonical.
+      if (baseCmd.toLowerCase() === 'sanctuary') {
+        log(`COMMAND: ${rawCmd}`);
+        logs(
+          `  SANCTUARY :: Period-3 window opening · the chaos has a still center`,
+        );
+        setSanctuaryOpen?.(true);
         return;
       }
 
@@ -1112,6 +1124,20 @@ export function useCommandDispatch(ctx) {
           { time: t, msg: `  Shannon entropy: H = 4.721 bits – engram partially intact` },
         ].slice(-2000));
       }, 5000);
+      return;
+    }
+
+    // ── sanctuary ─────────────────────────────────────────────────────────────
+    // Period-3 window. Hidden command — discoverable via:
+    //   1. Direct typing (`sanctuary` or `run sanctuary`)
+    //   2. The lattice-floor offer log line (see useEcologicalRam.js)
+    // No autocomplete entry, no menu hint. Stillness should be earned.
+    if (action === 'sanctuary') {
+      log(`COMMAND: ${rawCmd}`);
+      logs(
+        `  SANCTUARY :: Period-3 window opening · the chaos has a still center`,
+      );
+      setSanctuaryOpen?.(true);
       return;
     }
 

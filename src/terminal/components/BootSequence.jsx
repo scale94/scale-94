@@ -61,10 +61,18 @@ const BootSequence = ({ onDone }) => {
   }, []);
 
   useEffect(() => {
-    const SPIN_MS       = 2000;
-    const FADE_START_MS = 3800;
-    const DONE_MS       = 4250;               // fast collapse — 450ms exit window
-    const EXIT_DURATION = DONE_MS - FADE_START_MS; // 450ms
+    const SPIN_MS         = 2000;
+    const FADE_START_MS   = 3800;
+    const COLLAPSE_END_MS = 4250;             // card fully collapsed to singularity
+    // ── OBSERVER beat ──────────────────────────────────────────────────────
+    // After the seraphine card collapses to a point, the alien-architect
+    // frame engages explicitly: the ◉ eye glyph blooms from the singularity,
+    // pulses once, then hands off to the terminal. This is the last pre-
+    // terminal frame the juror sees in a scrub-pass of the capture video —
+    // it tells them WHO is observing the system before they meet it.
+    const OBSERVER_START_MS = COLLAPSE_END_MS;  // glyph fade-in begins
+    const DONE_MS           = 5800;             // total boot: ~5.8s
+    const EXIT_DURATION     = COLLAPSE_END_MS - FADE_START_MS; // 450ms
 
     const t0 = performance.now();
     let raf;
@@ -79,12 +87,16 @@ const BootSequence = ({ onDone }) => {
 
         if (elapsed < FADE_START_MS) {
           squareRef.current.style.transform = `rotate(${baseDeg}deg)`;
-        } else {
+        } else if (elapsed < COLLAPSE_END_MS) {
           // Exit: ease-in collapse (accelerates into singularity — Blender S→0).
           const exitT     = Math.min((elapsed - FADE_START_MS) / EXIT_DURATION, 1);
           const exitScale = 1 - (exitT * exitT * exitT);   // ease-in cubic
           const exitDeg   = baseDeg + exitT * 180;          // slow final rotation
           squareRef.current.style.transform = `rotate(${exitDeg}deg) scale(${exitScale})`;
+        } else {
+          // After collapse: card stays at scale 0. The observer beat takes over
+          // in its own DOM layer (rendered below, independent of squareRef).
+          squareRef.current.style.transform = 'scale(0)';
         }
       }
 
@@ -105,6 +117,68 @@ const BootSequence = ({ onDone }) => {
 
   return (
     <div className="fixed inset-0 z-[100] bg-black font-mono flex items-center justify-center p-4 overflow-hidden pointer-events-none">
+      {/* ── OBSERVER beat — fires AFTER the seraphine card has collapsed.
+          The ◉ eye glyph blooms from singularity, pulses once, hands off.
+          Pure CSS animation timed to start at 4250ms (post-collapse) and
+          settle by ~5500ms. The juror's last pre-terminal scrub-frame.    */}
+      <style>{`
+        @keyframes bs-observer-bloom {
+          0%   { opacity: 0; transform: scale(0.1);  filter: blur(8px); }
+          40%  { opacity: 1; transform: scale(1.18); filter: blur(0); }
+          100% { opacity: 0.95; transform: scale(1); filter: blur(0); }
+        }
+        @keyframes bs-observer-pulse {
+          0%, 100% { text-shadow: 0 0 18px rgba(255,215,0,0.45), 0 0 4px rgba(255,215,0,0.7); }
+          50%      { text-shadow: 0 0 32px rgba(255,215,0,0.85), 0 0 8px rgba(255,215,0,0.95); }
+        }
+        @keyframes bs-observer-line {
+          0%   { opacity: 0; letter-spacing: 0.55em; filter: blur(8px); }
+          100% { opacity: 0.55; letter-spacing: 0.22em; filter: blur(0); }
+        }
+        @keyframes bs-observer-sub {
+          0%, 50% { opacity: 0; }
+          100%    { opacity: 0.35; }
+        }
+      `}</style>
+      <div
+        className="absolute inset-0 flex flex-col items-center justify-center gap-5"
+        style={{ pointerEvents: 'none' }}
+      >
+        {/* The eye glyph — emerges from where the card collapsed */}
+        <div
+          className="text-[64px] md:text-[80px] leading-none font-black"
+          style={{
+            color: '#FFD700',
+            opacity: 0,
+            animation: 'bs-observer-bloom 0.9s cubic-bezier(0.22,1,0.36,1) 4250ms forwards, bs-observer-pulse 1.6s ease-in-out 5150ms 1',
+          }}
+        >
+          ◉
+        </div>
+        {/* Frame line */}
+        <div
+          className="text-[11px] md:text-[12px] font-black tracking-[0.22em] uppercase text-center px-6"
+          style={{
+            color: '#FFD700',
+            opacity: 0,
+            animation: 'bs-observer-line 0.7s ease-out 4750ms forwards',
+          }}
+        >
+          OBSERVER :: alien architect engaged
+        </div>
+        {/* Sub-line — the build string, very faint */}
+        <div
+          className="text-[9px] font-mono tracking-widest uppercase"
+          style={{
+            color: 'rgba(255,215,0,0.5)',
+            opacity: 0,
+            animation: 'bs-observer-sub 1.0s ease-out 5050ms forwards',
+          }}
+        >
+          9.4.castle :: substrate visible
+        </div>
+      </div>
+
       <div
         ref={cardRef}
         className="w-[360px] md:w-[420px] relative flex items-stretch"

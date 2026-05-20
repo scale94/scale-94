@@ -219,6 +219,101 @@ function classifyAccord(result) {
   };
 }
 
+// ── Subatomic Decay · Phase 2 Translation Layer ──────────────────────────────
+// Parallel narrative axis to the OCK perfume layer. Same raw collision metrics,
+// different vocabulary: nuclear/particle physics. Where OCK answers "what does
+// this collision smell like?", DECAY answers "how does this collision *fall
+// apart*, and what survives?".
+//
+// Mappings (cosine = θ, paradox count = p, drivers = π):
+//   τ½  (half-life)     ← cos / (1 − cos)         · stability under measurement
+//   Q   (Q-value)       ← 1 − cos                 · energy budget freed
+//   Γ_i (branching)     ← driver contribution     · which channel mediates decay
+//   d_i (daughters)     ← residual paradoxes      · what survives saponification
+//   mode (α/β/γ/cascade) ← classification by Q × p · structural character
+//
+// The classification mode tiers:
+//   • STABLE  cos > 0.92                          — bound state, no decay
+//   • α-decay p ≥ 3 ∧ Q > 0.40                    — heavy daughter, mass loss
+//   • β-decay 0.25 < Q ≤ 0.55                     — identity transformation
+//   • γ-decay p ≤ 1 ∧ Q ≤ 0.30                    — energy release, no Δstructure
+//   • cascade everything else                     — multi-step, branching unstable
+//
+// Visual register intentionally physics-clinical — not perfume-poetic. The two
+// panels together make the same event legible in two registers, both rigorous.
+function classifyDecay(result) {
+  if (!result) return null;
+  const cos          = result.cosine ?? 0;
+  const paradoxCount = result.paradoxes?.length ?? 0;
+
+  // Half-life — cos→1 stable, cos→0 fast decay. Femto-cycles unit (fc).
+  const eps      = 0.005;
+  const halfLife = Math.min(999.9, Math.max(0.1, 1.5 * (cos + eps) / (1.0 - cos + eps)));
+
+  // Q-value — thermal residual / energy budget freed
+  const qValue = Math.max(0, 1 - cos);
+
+  // Branching ratios — top driver channels (renormalized to sum to 1)
+  const drivers = Array.isArray(result.drivers) ? result.drivers : [];
+  const total   = drivers.reduce((s, d) => s + Math.abs(d.contrib ?? 0), 0) || 1;
+  const topBranches = drivers.slice(0, 3).map(d => ({
+    channel: d.name,
+    ratio:   Math.abs(d.contrib ?? 0) / total,
+  }));
+  const accounted = topBranches.reduce((s, b) => s + b.ratio, 0);
+  if (accounted < 0.999) {
+    topBranches.push({ channel: 'remaining', ratio: Math.max(0, 1 - accounted) });
+  }
+
+  // Daughter particles — residual paradoxes that survive saponification
+  const paradoxes = Array.isArray(result.paradoxes) ? result.paradoxes : [];
+  const daughters = paradoxes.slice(0, 4).map(p => ({
+    dim:      p.name,
+    residual: p.residual,
+    note:     p.residual > 0.40 ? 'irreducible carrier'
+            : p.residual > 0.20 ? 'orthogonal residual'
+                                : 'minor remnant',
+  }));
+
+  // Decay-mode classification
+  let mode;
+  if (cos > 0.92) {
+    mode = { id: 'STABLE',  glyph: '⊙', label: 'Stable Bound State',
+             desc: 'binding energy exceeds Q-budget · no significant decay channel',
+             color: '#39ff14', accent: '#5d9c4a' };
+  } else if (paradoxCount >= 3 && qValue > 0.40) {
+    mode = { id: 'ALPHA',   glyph: 'α', label: 'α-decay',
+             desc: 'large daughter cluster · structural rearrangement · mass loss',
+             color: '#f43f5e', accent: '#9c1f3a' };
+  } else if (qValue > 0.25 && qValue <= 0.55) {
+    mode = { id: 'BETA',    glyph: 'β⁻', label: 'β-transformation',
+             desc: 'channel-mediated identity shift · weak-interaction analogue',
+             color: '#06b6d4', accent: '#0e7490' };
+  } else if (paradoxCount <= 1 && qValue <= 0.30) {
+    mode = { id: 'GAMMA',   glyph: 'γ', label: 'γ-emission',
+             desc: 'energy release without structural change · photon channel',
+             color: '#FFD700', accent: '#a07800' };
+  } else {
+    mode = { id: 'CASCADE', glyph: '⤳', label: 'Cascade decay',
+             desc: 'multi-step decay through intermediate states · branching unstable',
+             color: '#d946ef', accent: '#86198f' };
+  }
+
+  // One-line readout — the physics-measurement sentence that reads as
+  // "subatomic decay" prose. The juror's takeaway line.
+  const labelA = result._domainNameA || 'A';
+  const labelB = result._domainNameB || 'B';
+  const topChannel = topBranches[0]?.channel ?? 'unspecified';
+  const halfStr    = halfLife >= 100 ? halfLife.toFixed(0)
+                   : halfLife >= 10  ? halfLife.toFixed(1)
+                                     : halfLife.toFixed(2);
+  const readout = mode.id === 'STABLE'
+    ? `${labelA} ↔ ${labelB} · ${mode.label} · τ½ → ∞ · binding through ${topChannel} channel`
+    : `${labelA} ↔ ${labelB} · ${mode.glyph} decay through ${topChannel} channel · τ½ = ${halfStr} fc · Q = ${qValue.toFixed(3)} ΔE · ${daughters.length} residual${daughters.length === 1 ? '' : 's'} carry forward`;
+
+  return { halfLife, qValue, topBranches, daughters, mode, readout };
+}
+
 // ── Domain library (mirrors the 16 domains in latent_collider.rs) ────────────
 const DOMAINS = [
   { id: 0,  name: 'Post-Quantum Cryptography',   short: 'PQC',       hue: 280 },
@@ -1310,6 +1405,10 @@ export default function LatentCollider() {
 
       // ── OCK: Olfactory accord classification ───────────────────────
       parsed.accord = classifyAccord(parsed);
+
+      // ── Phase 2: Subatomic decay translation ───────────────────────
+      // Parallel narrative axis — same metrics, physics-decay vocabulary.
+      parsed.decay = classifyDecay(parsed);
 
       metricsRef.current = parsed;
       setResult(parsed);
@@ -2903,6 +3002,158 @@ export default function LatentCollider() {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* ── Phase 2 · Subatomic Decay translation ───────────────────── */}
+          {result.decay && (
+            <div className="border-t pt-5 space-y-3"
+              style={{
+                borderColor: result.decay.mode.accent + '40',
+                opacity: 0,
+                animation: 'sc-cardReveal 0.6s cubic-bezier(0.16,1,0.3,1) 0.35s forwards'
+              }}>
+
+              {/* Header — physics-clinical register, parallel to OCK header */}
+              <div className="flex items-baseline justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-base font-mono" style={{ color: result.decay.mode.color, textShadow: `0 0 8px ${result.decay.mode.color}66` }}>
+                      {result.decay.mode.glyph}
+                    </span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: result.decay.mode.color }}>
+                      SUBATOMIC DECAY
+                    </span>
+                  </div>
+                  <div className="text-[9px] font-mono" style={{ color: result.decay.mode.accent + 'aa' }}>
+                    Channel Spectrum · Decay v1.0
+                  </div>
+                </div>
+                <div className="text-right shrink-0 ml-2">
+                  <div className="text-sm font-bold font-mono whitespace-nowrap" style={{ color: result.decay.mode.color }}>
+                    {result.decay.mode.label}
+                  </div>
+                  <div className="text-[8px] font-mono text-cyan-600/40">decay mode</div>
+                </div>
+              </div>
+
+              {/* Three-up: τ½ · Q · top channel */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="border rounded p-2"
+                  style={{ borderColor: result.decay.mode.accent + '30', background: 'rgba(0,0,0,0.3)' }}>
+                  <div className="text-[7px] font-bold uppercase tracking-widest mb-0.5" style={{ color: result.decay.mode.accent + '99' }}>
+                    HALF-LIFE
+                  </div>
+                  <div className="text-sm font-bold font-mono" style={{ color: result.decay.mode.color }}>
+                    τ½ = {result.decay.mode.id === 'STABLE' ? '∞' : (result.decay.halfLife >= 100 ? result.decay.halfLife.toFixed(0) : result.decay.halfLife >= 10 ? result.decay.halfLife.toFixed(1) : result.decay.halfLife.toFixed(2))}
+                    {result.decay.mode.id !== 'STABLE' && <span className="text-[8px] ml-0.5" style={{ color: result.decay.mode.accent }}>fc</span>}
+                  </div>
+                  <div className="text-[7px] font-mono mt-0.5" style={{ color: result.decay.mode.accent + '66' }}>
+                    femto-cycles
+                  </div>
+                </div>
+                <div className="border rounded p-2"
+                  style={{ borderColor: result.decay.mode.accent + '30', background: 'rgba(0,0,0,0.3)' }}>
+                  <div className="text-[7px] font-bold uppercase tracking-widest mb-0.5" style={{ color: result.decay.mode.accent + '99' }}>
+                    Q-VALUE
+                  </div>
+                  <div className="text-sm font-bold font-mono" style={{ color: result.decay.mode.color }}>
+                    {result.decay.qValue.toFixed(3)}
+                    <span className="text-[8px] ml-0.5" style={{ color: result.decay.mode.accent }}>ΔE</span>
+                  </div>
+                  <div className="text-[7px] font-mono mt-0.5" style={{ color: result.decay.mode.accent + '66' }}>
+                    energy released
+                  </div>
+                </div>
+                <div className="border rounded p-2"
+                  style={{ borderColor: result.decay.mode.accent + '30', background: 'rgba(0,0,0,0.3)' }}>
+                  <div className="text-[7px] font-bold uppercase tracking-widest mb-0.5" style={{ color: result.decay.mode.accent + '99' }}>
+                    DAUGHTERS
+                  </div>
+                  <div className="text-sm font-bold font-mono" style={{ color: result.decay.mode.color }}>
+                    {result.decay.daughters.length}
+                  </div>
+                  <div className="text-[7px] font-mono mt-0.5" style={{ color: result.decay.mode.accent + '66' }}>
+                    residual carriers
+                  </div>
+                </div>
+              </div>
+
+              {/* Branching ratios — top decay channels */}
+              <div>
+                <div className="text-[8px] font-bold uppercase tracking-widest mb-1.5" style={{ color: result.decay.mode.accent + 'bb' }}>
+                  Decay Channels · Branching Ratios Γᵢ
+                </div>
+                <div className="space-y-1">
+                  {result.decay.topBranches.map((b, i) => {
+                    const isRem  = b.channel === 'remaining';
+                    const barCol = isRem ? '#475569' : result.decay.mode.color;
+                    return (
+                      <div key={i} className="flex items-center gap-2 text-[9px] font-mono">
+                        <span className="w-28 shrink-0 truncate" style={{ color: isRem ? '#64748b' : result.decay.mode.accent + 'cc' }}>
+                          {b.channel}
+                        </span>
+                        <div className="flex-1 h-1.5 bg-black/40 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full transition-all duration-700"
+                            style={{
+                              width: `${Math.max(2, b.ratio * 100)}%`,
+                              background: `linear-gradient(90deg, ${barCol}, ${barCol}44)`,
+                            }}
+                          />
+                        </div>
+                        <span className="w-12 text-right" style={{ color: isRem ? '#64748b' : result.decay.mode.color + 'cc' }}>
+                          {(b.ratio * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Daughter particles — residual paradoxes (the survivors) */}
+              {result.decay.daughters.length > 0 && (
+                <div>
+                  <div className="text-[8px] font-bold uppercase tracking-widest mb-1.5" style={{ color: result.decay.mode.accent + 'bb' }}>
+                    Daughter Particles · Post-Saponification Residuals
+                  </div>
+                  <div className="space-y-0.5 font-mono text-[9px]">
+                    {result.decay.daughters.map((d, i) => (
+                      <div key={i} className="flex items-baseline gap-2 leading-snug">
+                        <span style={{ color: result.decay.mode.accent + '88' }}>
+                          [{String(i + 1).padStart(2, '0')}]
+                        </span>
+                        <span className="w-24 shrink-0 truncate" style={{ color: result.decay.mode.color + 'cc' }}>
+                          {d.dim}
+                        </span>
+                        <span className="shrink-0" style={{ color: result.decay.mode.accent + 'aa' }}>
+                          Δ {d.residual.toFixed(3)}
+                        </span>
+                        <span className="italic" style={{ color: result.decay.mode.accent + '66' }}>
+                          — {d.note}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* The readout — single physics-measurement line */}
+              <div className="rounded p-2.5 border" style={{
+                borderColor: result.decay.mode.accent + '30',
+                background: result.decay.mode.color + '08',
+              }}>
+                <div className="text-[7px] font-bold uppercase tracking-widest mb-1" style={{ color: result.decay.mode.accent + '99' }}>
+                  Readout
+                </div>
+                <p className="text-[10px] font-mono leading-relaxed" style={{ color: result.decay.mode.color + 'dd' }}>
+                  {result.decay.readout}
+                </p>
+              </div>
+
+              {/* Mode caption — the physical character of this collision */}
+              <div className="text-[7px] font-mono italic leading-snug" style={{ color: result.decay.mode.accent + '88' }}>
+                § {result.decay.mode.desc}
+              </div>
             </div>
           )}
 

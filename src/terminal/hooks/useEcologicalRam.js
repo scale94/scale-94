@@ -325,6 +325,10 @@ export const defaultLatticeState = () => ({
   failedAcknowledged:  false,
   lastRefillAt:        0,
   hintSeen:            false,
+  // Sanctuary-offer flag — true once the user has been told about the
+  // hidden `sanctuary` command via the floor-hit log line. Surfaces the
+  // mechanic to visitors who never type it. One-shot per local node.
+  sanctuaryOffered:    false,
 });
 
 export function readLatticeState() {
@@ -453,6 +457,25 @@ export function useEcologicalRam({ appendSystemLog }) {
     writeLatticeState(next);
   }, []);
 
+  // ── Sanctuary auto-offer ──────────────────────────────────────────────────
+  // Fires exactly once per local node, the first time RAM hits (or is forced
+  // below) the carrier-signal floor. Tells the user the hidden `sanctuary`
+  // command exists. Pure log surface — does not auto-open the overlay; the
+  // user still has to type it. Stillness must be chosen.
+  const offerSanctuary = useCallback((ts) => {
+    const lat = latticeRef.current;
+    if (lat.sanctuaryOffered) return;
+    appendRef.current({
+      time:  ts,
+      color: '#9F7AEA', // same violet as the boot riddle — visually pairs
+      msg:   `[LATTICE_OFFER] :: the protocol opens a Period-3 window — type 'sanctuary' to enter the still center`,
+    });
+    const nextLat = { ...latticeRef.current, sanctuaryOffered: true };
+    latticeRef.current = nextLat;
+    setLatticeState(nextLat);
+    writeLatticeState(nextLat);
+  }, []);
+
   // Passive entropy drain — the planet does not rest
   useEffect(() => {
     const t = setInterval(() => {
@@ -464,6 +487,7 @@ export function useEcologicalRam({ appendSystemLog }) {
       if (prev > RAM_FLOOR && next === RAM_FLOOR) {
         appendRef.current({ time: ts, color: '#FF0088',
           msg: `[ENTROPY:FLOOR] :: passive drain has reached the carrier signal — RAM ${next}% · the lattice holds by geometry alone · run: daly / ecological / gaia_scale` });
+        offerSanctuary(ts);
       } else if (prev >= CRIT_THRESH && next < CRIT_THRESH) {
         appendRef.current({ time: ts, color: '#FF4400',
           msg: `[ENTROPY:CRITICAL] :: ambient decay crossed threshold — RAM ${next}% · the commons fractures under thermal load · sovereign standing: endangered` });
@@ -478,15 +502,20 @@ export function useEcologicalRam({ appendSystemLog }) {
   // Boot hint — runs once when the game is still in play and the hint has
   // never been shown. Marks hintSeen so it never repeats. Suppressed once
   // the user has either unlocked or failed.
+  //
+  // Each of the three clue lines points obliquely at one safe kernel:
+  //   I.   → run daly       (Daly steady-state thermodynamic economics)
+  //   II.  → run biodiversity (Shannon-Wiener entropy, species richness)
+  //   III. → run replicator  (Ostrom commons, cooperate/defect/altruist)
   useEffect(() => {
     const lat = latticeRef.current;
     if (lat.hintSeen || lat.unlocked || lat.failed) return;
-    const t = new Date().toLocaleTimeString('en-US', { hour12: false });
-    appendRef.current({
-      time:  t,
-      color: '#9F7AEA', // violet — ambient protocol hint
-      msg:   `[LATTICE_PROTOCOL] :: 3 kernels honor the commons — find them in 3 attempts to unlock 're$$ill'`,
-    });
+    const t      = new Date().toLocaleTimeString('en-US', { hour12: false });
+    const append = appendRef.current;
+    append({ time: t, color: '#9F7AEA', msg: `[LATTICE_PROTOCOL] :: re$$ill is locked — find the 3 kernels that honor the commons in ≤3 attempts` });
+    append({ time: t, color: '#9F7AEA', msg: `  I.   not GDP, not growth — the steady-state economist named the real cost: ecological debt is thermodynamic` });
+    append({ time: t, color: '#9F7AEA', msg: `  II.  H = −Σpᵢ ln pᵢ — Shannon encoded signals; the forest encodes species — measure the drift` });
+    append({ time: t, color: '#9F7AEA', msg: `  III. Ostrom proved it: the commons governs itself when altruists sanction defectors — run the evolution` });
     updateLattice({ ...lat, hintSeen: true });
   }, [updateLattice]);
 
@@ -532,6 +561,7 @@ export function useEcologicalRam({ appendSystemLog }) {
         } else if (crossedFloor) {
           appendRef.current({ time: t, color: '#FF0088',
             msg: `[LATTICE:FLOOR] // entropy has claimed all but the carrier signal — RAM ${next}% · the alien turns away · sovereign commons: silent` });
+          offerSanctuary(t);
         } else if (crossedCrit) {
           appendRef.current({ time: t, color: '#FF4400',
             msg: `[CASCADE IMMINENT] // RAM ${next}% · the lattice fractures · extraction without reciprocity is a terminal state · run: daly / ecological / ostrom_game` });
@@ -587,6 +617,7 @@ export function useEcologicalRam({ appendSystemLog }) {
     setRamPct(0);
     appendRef.current({ time: t, color: '#FF0088',
       msg: `[LATTICE:ZEROED] :: ${aliasUp} // extractive compute detected · planetary commons collapsed · ${remaining} attempt${remaining === 1 ? '' : 's'} remaining` });
+    offerSanctuary(t);
 
     const nowFailed = newAttempt >= 3 && lat.foundSafes.length < 3;
     if (nowFailed) {
@@ -594,7 +625,7 @@ export function useEcologicalRam({ appendSystemLog }) {
         msg: `[LATTICE:SILENT] :: protocol window closed · re$$ill key sealed · the alien remembers` });
     }
     updateLattice({ ...lat, attemptCount: newAttempt, failed: nowFailed });
-  }, [updateLattice]);
+  }, [updateLattice, offerSanctuary]);
 
   const applyRefill = useCallback(() => {
     const lat = latticeRef.current;
