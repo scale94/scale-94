@@ -162,6 +162,49 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, setOriginTab, loadKern
           100% { color: rgba(57,255,20,0.85); text-shadow: 0 0 6px rgba(57,255,20,0.3); }
         }
         .living-note { animation: sc-livingNote 800ms cubic-bezier(0.16,1,0.3,1) forwards; }
+
+        /* ── Monument pattern (Fade-Doctrine compliant) ──────────────────────
+           Modernist typography moments for the project's load-bearing claims.
+           Two-gold monochrome: #e8d28a (luminous, body) + #d4a82a (deep, emphasis).
+           No pure white anywhere. No spin, no breath, no color cycle.
+           Spec: docs/superpowers/specs/2026-05-21-scaling-tab-monument-elevation-design.md
+           ──────────────────────────────────────────────────────────────────── */
+        @keyframes sc-monumentReveal {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+        .sc-monument-marker {
+          font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+          font-size: 10px;
+          color: #d4a82a;
+          letter-spacing: 0.35em;
+          text-transform: uppercase;
+        }
+        .sc-monument-eyebrow,
+        .sc-monument-subtitle {
+          font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+          font-size: 10px;
+          color: rgba(6, 182, 212, 0.6);
+          letter-spacing: 0.25em;
+          text-transform: uppercase;
+        }
+        .sc-monument-display {
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+          font-weight: 900;
+          line-height: 0.95;
+          letter-spacing: -0.028em;
+          text-wrap: balance;
+          color: #e8d28a;
+        }
+        .sc-monument-display--thesis  { font-size: clamp(28px, 4.2vw, 52px); }
+        .sc-monument-display--heading { font-size: clamp(36px, 5.5vw, 68px); }
+        .sc-monument-display--emphasis { color: #d4a82a; }
+        .sc-monument-accent {
+          height: 2px;
+          width: 80px;
+          background: #d4a82a;
+          border: 0;
+        }
       `}</style>
 
       {/* ── Header ── */}
