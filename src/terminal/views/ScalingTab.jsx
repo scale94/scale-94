@@ -321,6 +321,7 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, setOriginTab, loadKern
         style={{ opacity: 0, animation: 'sc-cardReveal 0.6s cubic-bezier(0.16,1,0.3,1) 0.8s forwards' }}
       >
         <div className="mb-5">
+          <div className="sc-monument-marker" style={{ marginBottom: '12px' }}>§ · the kernels</div>
           <div className="text-lg sm:text-xl font-bold uppercase tracking-widest mb-1" style={{ opacity: 0, animation: 'sc-headReveal 0.5s cubic-bezier(0.16,1,0.3,1) 1.45s both, sc-headColor 9s ease-in-out 3s infinite' }}>RUN COMMAND MANUAL V2.2</div>
           <div className="text-[10px] text-fuchsia-500/60 font-mono uppercase tracking-widest">// WASM KERNEL INTERFACE · 57 KERNELS · MERCURY TERMINAL</div>
         </div>
