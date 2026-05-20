@@ -38,6 +38,7 @@ import { WasmErrorBoundary } from './components/WasmErrorBoundary';
 import BootSequence         from './components/BootSequence';
 import BreachProtocol       from './components/BreachProtocol';
 import SanctuaryOverlay     from './components/SanctuaryOverlay';
+import MercuryEyeIndicator  from './components/MercuryEyeIndicator';
 import KuramotoVisualizer   from './components/KuramotoVisualizer';
 import GateOverlay from './components/GateOverlay';
 
@@ -955,6 +956,17 @@ const App = () => {
       {/* ── Boot sequence — unmounts when onDone fires ─────────────────────── */}
       {bootSequence && <BootSequence onDone={handleBootDone} />}
 
+      {/* ── Mercury Eye — persistent observer indicator (top-right) ──────────
+          Visible across every tab. Suppressed during boot (not yet engaged),
+          Sanctuary (outside observation), and Breach (player is acting). On
+          Mercury itself, glows brighter at a faster breath cycle.            */}
+      {!bootSequence && !sanctuaryOpen && !breachOpen && (
+        <MercuryEyeIndicator
+          activeTab={activeTab}
+          onNavigate={() => handleNav('~/system/mercury', 'mercury')}
+        />
+      )}
+
       {/* ── Sanctuary overlay (Period-3 window) ─────────────────────────────── */}
       {sanctuaryOpen && (
         <SanctuaryOverlay onClose={() => setSanctuaryOpen(false)} />
@@ -1604,7 +1616,7 @@ const App = () => {
           aria-label="Mercury"
           className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 font-mono ${activeTab === 'mercury' ? 'text-zinc-200' : 'text-zinc-500/50'}`}
         >
-          <span style={{ fontSize: 24, lineHeight: 1 }}>◈</span>
+          <span style={{ fontSize: 30, lineHeight: 1 }}>◈</span>
         </button>
         <button onClick={() => handleNav('~/system/ledger', 'ledger')} aria-label="Ledger" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'ledger' ? 'text-teal-400' : 'text-teal-400/50'}`}><span style={{ fontSize: 24, lineHeight: 1 }}>ᛟ</span></button>
       </nav>

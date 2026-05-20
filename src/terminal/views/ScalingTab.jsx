@@ -192,49 +192,6 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, setOriginTab, loadKern
       {/* ── Latent Space Collider (hero section) ── */}
       <LatentCollider />
 
-      {/* ── Main Service Grid ── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        {/* SEED_KERNEL */}
-        <div className="border border-cyan-900/30 bg-black/40 p-6 rounded-lg hover:border-cyan-500/50 transition-all group relative overflow-hidden"
-          style={{ opacity: 0, animation: 'sc-cardReveal 0.5s cubic-bezier(0.16,1,0.3,1) 0.2s forwards' }}>
-          <div className="text-lg font-bold mb-2" style={{ opacity: 0, animation: 'sc-headReveal 0.5s cubic-bezier(0.16,1,0.3,1) 0.75s both, sc-headColor 9s ease-in-out 0.75s infinite' }}>SEED_KERNEL</div>
-          <div className="text-[10px] font-bold text-fuchsia-500 uppercase tracking-widest mb-4">[BASIC]</div>
-          <p className="text-sm text-[#39ff14] mb-8 leading-relaxed h-20">
-            A single, robust system prompt tailored to a specific user persona or goal.
-          </p>
-          <a href="mailto:scale0097@gmail.com" className="flex items-center gap-2 text-xs font-bold text-[#39ff14] group-hover:translate-x-1 transition-transform cursor-pointer hover:text-cyan-400">
-            <ChevronRight className="w-4 h-4" /> DEPLOY
-          </a>
-        </div>
-
-        {/* SYSTEM_ARCH */}
-        <div className="border border-fuchsia-500/30 bg-fuchsia-900/5 p-6 rounded-lg hover:border-fuchsia-400/60 transition-all group relative overflow-hidden"
-          style={{ opacity: 0, animation: 'sc-cardReveal 0.5s cubic-bezier(0.16,1,0.3,1) 0.35s forwards' }}>
-          <div className="absolute top-0 right-0 bg-fuchsia-500 text-black text-[9px] font-bold px-2 py-1 uppercase tracking-wider" style={{ WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' }}>RECOMMENDED</div>
-          <div className="text-lg font-bold mb-2" style={{ opacity: 0, animation: 'sc-headReveal 0.5s cubic-bezier(0.16,1,0.3,1) 0.9s both, sc-headColorAlt 9s ease-in-out 2s infinite' }}>SYSTEM_ARCH</div>
-          <div className="text-[10px] font-bold text-cyan-500 uppercase tracking-widest mb-4">[STANDARD]</div>
-          <p className="text-sm text-[#39ff14] mb-8 leading-relaxed h-20">
-            Full OS design. Kernel + Modules + Implementation Guide for Claude/GPT/Gemini.
-          </p>
-          <a href="mailto:scale0097@gmail.com" className="flex items-center gap-2 text-xs font-bold text-[#39ff14] group-hover:translate-x-1 transition-transform cursor-pointer hover:text-cyan-400">
-            <ChevronRight className="w-4 h-4" /> DEPLOY
-          </a>
-        </div>
-
-        {/* ENTERPRISE_PROTO */}
-        <div className="border border-cyan-900/30 bg-black/40 p-6 rounded-lg hover:border-cyan-500/50 transition-all group relative overflow-hidden"
-          style={{ opacity: 0, animation: 'sc-cardReveal 0.5s cubic-bezier(0.16,1,0.3,1) 0.5s forwards' }}>
-          <div className="text-lg font-bold mb-2" style={{ opacity: 0, animation: 'sc-headReveal 0.5s cubic-bezier(0.16,1,0.3,1) 1.05s both, sc-headColor 9s ease-in-out 4s infinite' }}>ENTERPRISE_PROTO</div>
-          <div className="text-[10px] font-bold text-fuchsia-500 uppercase tracking-widest mb-4">[PREMIUM]</div>
-          <p className="text-sm text-[#39ff14] mb-8 leading-relaxed h-20">
-            Full integration. Departmental kernels (Sales/HR) and workflow analysis.
-          </p>
-          <a href="mailto:contact@scale94.com" className="flex items-center gap-2 text-xs font-bold text-[#39ff14] group-hover:translate-x-1 transition-transform cursor-pointer hover:text-cyan-400">
-            <ChevronRight className="w-4 h-4" /> CONTACT
-          </a>
-        </div>
-      </div>
-
       {/* ── Architect Thesis ── */}
       <div
         className="border-t border-cyan-900/30 pt-8 mb-8"
