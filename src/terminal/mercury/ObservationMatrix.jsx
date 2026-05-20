@@ -14,6 +14,7 @@ export default function ObservationMatrix({ mercury, instruments, activePhase })
   const sessionStartRef = useRef(new Date());
   const prevPhaseRef = useRef(activePhase);
   const prevInstrumentsRef = useRef(instruments);
+  const liveRef = useRef({ mercury, instruments, activePhase });
 
   // Phase transit trigger
   useEffect(() => {
@@ -46,20 +47,23 @@ export default function ObservationMatrix({ mercury, instruments, activePhase })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [instruments]);
 
-  // Minute tick
+  // Keep liveRef current so the interval closure always reads fresh state
+  useEffect(() => { liveRef.current = { mercury, instruments, activePhase }; });
+
+  // Minute tick — stable interval, reads live state through ref
   useEffect(() => {
-    if (!mercury || !instruments) return;
     const id = setInterval(() => {
+      const { mercury: m, instruments: ins, activePhase: ap } = liveRef.current;
+      if (!m || !ins) return;
       const entry = generateEntry({
         trigger: 'minute_tick',
         timestamp: new Date(),
-        mercury, instruments, activePhase,
+        mercury: m, instruments: ins, activePhase: ap,
       });
       setEntries(prev => [entry, ...prev].slice(0, MAX_ENTRIES));
     }, 60_000);
     return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activePhase]);
+  }, []);
 
   const markdown = useMemo(() => buildMarkdownLog({
     entries, mercury, instruments, activePhase,

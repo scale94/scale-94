@@ -55,10 +55,13 @@ const TRIGGER_LABELS = {
 
 const PHASE_GLYPHS = { fluid: '🜍', thermal: '🜂', earth: '🜃', air: '🜁' };
 
-function pickPhrase(category, timestamp) {
+let _lastPickIdx = -1;
+function pickPhrase(category) {
   const pool = PHRASES[category] ?? PHRASES.minute_tick_quiet;
-  const seconds = Math.floor(timestamp.getTime() / 1000);
-  return pool[seconds % pool.length];
+  let idx;
+  do { idx = Math.floor(Math.random() * pool.length); } while (pool.length > 1 && idx === _lastPickIdx);
+  _lastPickIdx = idx;
+  return pool[idx];
 }
 
 function templateLine(template, mercury, instruments) {
@@ -76,7 +79,7 @@ export function generateEntry({
   trigger, timestamp, mercury, instruments, activePhase, from, to,
 }) {
   const category = trigger === 'minute_tick' ? 'minute_tick_quiet' : trigger;
-  const rawLine  = pickPhrase(category, timestamp);
+  const rawLine  = pickPhrase(category);
   const line     = templateLine(rawLine, mercury, instruments);
 
   // Build a triggerLabel that includes phase-transit detail when applicable

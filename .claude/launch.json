@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "scale94-dev",
-      "runtimeExecutable": "node",
-      "runtimeArgs": ["../../../node_modules/vite/bin/vite.js", "--port", "5174"],
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "--port", "5174"],
       "port": 5174
     }
   ]

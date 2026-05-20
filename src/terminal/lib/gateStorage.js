@@ -4,7 +4,7 @@ let memoryFallback = null;
 
 function safeStorage() {
   try {
-    return globalThis.sessionStorage;
+    return globalThis.localStorage;
   } catch {
     return null;
   }
