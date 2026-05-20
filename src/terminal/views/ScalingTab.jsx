@@ -569,21 +569,22 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, setOriginTab, loadKern
             </div>
           </div>
 
-          {/* ── Bibliography (primary literature per kernel) ─────────────────
-              The point isn't a comprehensive bibliography — it's making the
-              rigorous lineage visible. Academic jurors will scan this section
-              and immediately see the work is sourced, not vibes.            */}
-          <div className="border border-amber-900/20 bg-black/30 p-4 rounded-lg md:col-span-2"
-            style={{ opacity: 0, animation: 'sc-cardReveal 0.5s cubic-bezier(0.16,1,0.3,1) 1.55s forwards' }}>
-            <div className="text-[10px] font-bold uppercase tracking-widest mb-3 pb-2 border-b border-amber-900/20 flex items-center justify-between"
-              style={{ opacity: 0, animation: 'sc-headReveal 0.5s cubic-bezier(0.16,1,0.3,1) 2.1s both, sc-headColor 11s ease-in-out 9s infinite' }}>
-              <span className="flex items-center gap-2">
-                <BookOpen className="w-3 h-3" /> BIBLIOGRAPHY &amp; PRIMARY LITERATURE
-              </span>
-              <span className="text-[9px] text-amber-700/40 font-normal normal-case tracking-normal">
-                {KERNEL_CITATIONS.length} kernels · short-form refs
-              </span>
+          {/* ── § · Primary Literature (Bibliography Monument) ──────────────
+              Spec: 2026-05-21-scaling-tab-monument-elevation-design.md
+              Card chrome and animated header removed. The word "Bibliography"
+              IS the monument. Citations grid below is unchanged — its terminal
+              density IS the rigor it claims.                                 */}
+          <div className="md:col-span-2"
+            style={{ opacity: 0, animation: 'sc-monumentReveal 1.5s ease-out 1.55s forwards' }}>
+
+            {/* monument opening */}
+            <div style={{ paddingTop: '80px', marginBottom: '48px' }}>
+              <div className="sc-monument-marker" style={{ marginBottom: '12px' }}>§ · primary literature</div>
+              <div className="sc-monument-display sc-monument-display--heading" style={{ marginBottom: '24px' }}>Bibliography</div>
+              <div className="sc-monument-accent" style={{ marginBottom: '22px' }} />
+              <div className="sc-monument-subtitle">{KERNEL_CITATIONS.length} kernels · canonical references</div>
             </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
               {KERNEL_CITATIONS.map((c) => (
                 <div key={c.cmd} className="text-[10px] leading-relaxed">
