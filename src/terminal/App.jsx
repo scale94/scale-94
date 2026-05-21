@@ -88,6 +88,14 @@ const MercuryTab      = lazy(() => import('./views/MercuryTab'));
 
 // formatKernelHelp, formatRunHelp, CMD_MANIFEST → src/terminal/commands/runHelpers.js
 
+// ── Polarity ambient glow — color map for terminal background overlay ─────────
+const POLARITY_GLOW = {
+  SOLAR:    'rgba(255,215,0,0.13)',
+  LUNAR:    'rgba(196,181,255,0.12)',
+  MERIDIAN: 'rgba(6,182,212,0.10)',
+  CHAOTIC:  'rgba(255,40,80,0.14)',
+};
+
 const App = () => {
   const [currentPath, setCurrentPath] = useState('~/system/kernel');
   const [activeTab, setActiveTab] = useState('kernel');
@@ -290,6 +298,7 @@ const App = () => {
   // Each entry: { id: string, alias: string, t: number (epoch ms) }
   const kernelRunHistoryRef = useRef([]);
   const [lastKernelAt, setLastKernelAt] = useState(null);
+  const [lastPolarityClass, setLastPolarityClass] = useState(null);
   // Persistent WASM struct instances — keyed by wasmEntry.id.
   const activeKernels = useRef({});
 
@@ -946,6 +955,21 @@ const App = () => {
       {/* ── Ambient visual layers ──────────────────────────────────────────── */}
       {bootAnimDone && <AmbientParticles />}
       <div className={`crt-overlay${isCritical ? ' crt-critical' : isWarning ? ' crt-warning' : ''}`} aria-hidden="true" />
+      {/* ── Polarity ambient glow — radial overlay, shifts on each collision ── */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: 'fixed',
+          inset: 0,
+          pointerEvents: 'none',
+          zIndex: 1,
+          background: lastPolarityClass
+            ? `radial-gradient(ellipse 80% 60% at 50% 100%, ${POLARITY_GLOW[lastPolarityClass]} 0%, transparent 70%)`
+            : 'none',
+          opacity: lastPolarityClass ? 1 : 0,
+          transition: 'opacity 1.5s ease, background 1.5s ease',
+        }}
+      />
       {tabGlitch && (
         <div className="tab-glitch-burst" aria-hidden="true">
           <div className="tab-glitch-layer tab-glitch-cyan" />
@@ -1347,6 +1371,7 @@ const App = () => {
                 setOriginTab={setOriginTab}
                 loadKernel={handleNeuralLink}
                 kernelRunHistoryRef={kernelRunHistoryRef}
+                onPolarity={setLastPolarityClass}
               />
             </WasmErrorBoundary>
           )}
