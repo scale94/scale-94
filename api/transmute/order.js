@@ -10,6 +10,7 @@
 
 import { createHmac, timingSafeEqual } from 'crypto';
 import { kv } from '@vercel/kv';
+import { composeAlienVerdict } from '../_alien/composeVerdict.js';
 
 const WEBHOOK_SECRET = process.env.TRANSMUTE_WEBHOOK_SECRET;
 const BOT_TOKEN      = process.env.DISCORD_BOT_TOKEN;
@@ -62,7 +63,7 @@ async function discordPost(path, body) {
 }
 
 // ── Embed builder ─────────────────────────────────────────────────────────────
-function buildEmbed(order, state = 'QUEUED') {
+function buildEmbed(order, state = 'QUEUED', kernelHistory = null) {
   const COLOR = {
     QUEUED: 0x39FF14, ACKNOWLEDGED: 0x06B6D4,
     MACERATING: 0xD946EF, SHIPPED: 0x39FF14,
@@ -110,6 +111,7 @@ function buildEmbed(order, state = 'QUEUED') {
       { name: '§ PROPERTIES',         value: `\`\`\`\n${order.physBlock}\n\`\`\``,    inline: false },
       { name: '§ ORIGIN VECTOR',      value: kernelField,                              inline: false },
       { name: '§ FEIGENBAUM δ',       value: fishField,                               inline: false },
+      { name: '§ ALIEN READING',      value: `\`\`\`\n${composeAlienVerdict(kernelHistory)}\n\`\`\``, inline: false },
       { name: '§ ORDER ID',           value: `\`${order.id}\``,                        inline: false },
     ],
     footer:    { text: `tesseract protocol · scale94 · ${order.createdAt}` },
@@ -153,6 +155,7 @@ export default async function handler(req, res) {
     tierSize, tierLabel,
     cardName, domainPair, noteBlock, physBlock, vaultBlock,
     contact,
+    kernelHistory,
   } = body;
 
   if (!formulaHash) return res.status(400).json({ error: 'formulaHash required' });
@@ -206,7 +209,7 @@ export default async function handler(req, res) {
   try {
     if (BOT_TOKEN && ORDER_CHANNEL) {
       const result = await discordPost(`/channels/${ORDER_CHANNEL}/messages`, {
-        embeds:     [buildEmbed(order, 'QUEUED')],
+        embeds:     [buildEmbed(order, 'QUEUED', kernelHistory)],
         components: buildComponents(orderId, 'QUEUED'),
       });
       if (result.ok) {
