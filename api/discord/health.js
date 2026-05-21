@@ -2,7 +2,7 @@
 // GET /api/discord/health
 //
 // Operator-facing diagnostic. Runs three sequential checks:
-//   1. Are BOT_TOKEN and ORDER_CHANNEL env vars present?
+//   1. Are DISCORD_BOT_TOKEN and DISCORD_ORDER_CHANNEL_ID env vars present?
 //   2. Does GET /users/@me succeed with the bot token? (token valid)
 //   3. Does GET /channels/{ORDER_CHANNEL} succeed?         (channel reachable)
 //
@@ -25,7 +25,9 @@ async function discordGet(path) {
     return { ok: false, status: 0, error: `network: ${err.message}`, discordCode: null };
   }
   if (res.ok) {
-    return { ok: true, status: res.status, data: await res.json() };
+    let data = null;
+    try { data = await res.json(); } catch { /* tolerate empty/malformed body */ }
+    return { ok: true, status: res.status, data: data ?? {} };
   }
   let errBody = null;
   try { errBody = await res.json(); } catch { /* not JSON */ }
@@ -38,8 +40,13 @@ async function discordGet(path) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin',  process.env.ALLOWED_ORIGIN || '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  // Operator-only endpoint: no frontend integration. Only set CORS when
+  // ALLOWED_ORIGIN is explicitly configured; otherwise omit the header so
+  // arbitrary origins cannot read responses from cross-origin JS.
+  if (process.env.ALLOWED_ORIGIN) {
+    res.setHeader('Access-Control-Allow-Origin',  process.env.ALLOWED_ORIGIN);
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  }
 
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET')    return res.status(405).end();
@@ -51,7 +58,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       ok:        false,
       reason:    'env_missing',
-      detail:    `BOT_TOKEN=${BOT_TOKEN ? 'set' : 'unset'} ORDER_CHANNEL=${ORDER_CHANNEL ? 'set' : 'unset'}`,
+      detail:    `DISCORD_BOT_TOKEN=${BOT_TOKEN ? 'set' : 'unset'} DISCORD_ORDER_CHANNEL_ID=${ORDER_CHANNEL ? 'set' : 'unset'}`,
       checkedAt,
     });
   }
@@ -81,7 +88,7 @@ export default async function handler(req, res) {
       ok:     false,
       reason,
       detail: `${ch.status}:${ch.discordCode ?? '—'}:${ch.error}`,
-      bot:    { id: me.data.id, username: me.data.username },
+      bot:    { id: me.data?.id, username: me.data?.username },
       checkedAt,
     });
   }
@@ -89,8 +96,8 @@ export default async function handler(req, res) {
   // ── All checks passed ────────────────────────────────────────────────────
   return res.status(200).json({
     ok:        true,
-    bot:       { id: me.data.id, username: me.data.username },
-    channel:   { id: ch.data.id, name: ch.data.name, type: ch.data.type },
+    bot:       { id: me.data?.id, username: me.data?.username },
+    channel:   { id: ch.data?.id, name: ch.data?.name, type: ch.data?.type },
     checkedAt,
   });
 }
