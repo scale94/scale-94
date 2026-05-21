@@ -25,7 +25,9 @@ function hexLine() {
  */
 export function runPreExecTheater(appendLog, durationMs) {
   return new Promise(resolve => {
-    const interval = setInterval(() => appendLog(hexLine()), 30);
+    const interval = setInterval(() => {
+      try { appendLog(hexLine()); } catch { /* log callback errors are non-fatal */ }
+    }, 30);
     setTimeout(() => {
       clearInterval(interval);
       resolve();
