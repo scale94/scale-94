@@ -55,11 +55,11 @@ export function useCommandDispatch(ctx) {
       articles, classifiedSession, transmissionStories, tagIndex, systemArticles, activeTab,
       setSystemLogs, setClassifiedSession, setActiveTab, setSelectedArticle,
       setSearchFilter, setCurrentPath, setRelicMode, setBreachOpen, setSanctuaryOpen, applyEcoCost,
-      applyRefill, latticeState,
+      applyRefill, latticeState, ramPct,
       setOriginTab, setArchitectThesis, setTagCloudView,
       appendSystemLog, handleNav, handleKernelClick, handleTransmissionSelect,
       loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField, setSpectralBridges, setEnclaveKeys, setProbeNode, setBoneFusions,
-      fusionLog, setFusionLog,
+      fusionLog, setFusionLog, kernelRunHistoryRef,
     } = ctxRef.current;
 
     const log  = (msg, rust = false) => appendSystemLog({ time: now, msg, rust });
@@ -78,6 +78,15 @@ export function useCommandDispatch(ctx) {
 
       if (!query) {
         executeCommand(rawCmd, `RUN_FAIL :: No target specified. Try: run vcache_burn | run climate | run bosonic`);
+        return;
+      }
+
+      // ── RAM floor gate ───────────────────────────────────────────────────
+      // RAM_FLOOR = 5 — planetary commons at minimum threshold.
+      // Allow re$$ill through even at floor (it restores RAM, not consumes it).
+      if (ramPct <= 5 && query.trim().toLowerCase() !== 're$$ill') {
+        log(`COMMAND: ${rawCmd}`);
+        log(`RUN_BLOCKED :: [RAM:EXHAUSTED] — planetary commons at minimum threshold · the lattice cannot absorb further extraction · run: daly / ecological / gaia_scale`);
         return;
       }
 
@@ -310,6 +319,7 @@ export function useCommandDispatch(ctx) {
                       { time: t, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE  ·  EXEC_TIME: ${elapsed}ms`, rust: true },
                     ].slice(-2000));
                     applyEcoCost(ecoAlias);
+                    kernelRunHistoryRef?.current?.push({ id: wasmEntry.id, alias: ecoAlias, t: Date.now() });
                   }
                 }, i * 22);
               });
@@ -322,6 +332,7 @@ export function useCommandDispatch(ctx) {
                 { time: doneTime, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE  ·  EXEC_TIME: ${elapsed}ms`, rust: true },
               ].slice(-2000));
               applyEcoCost(ecoAlias);
+              kernelRunHistoryRef?.current?.push({ id: wasmEntry.id, alias: ecoAlias, t: Date.now() });
             }
 
 

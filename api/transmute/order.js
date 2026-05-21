@@ -10,6 +10,7 @@
 
 import { createHmac, timingSafeEqual } from 'crypto';
 import { kv } from '@vercel/kv';
+import { composeAlienVerdict } from '../_alien/composeVerdict.js';
 
 const WEBHOOK_SECRET = process.env.TRANSMUTE_WEBHOOK_SECRET;
 const BOT_TOKEN      = process.env.DISCORD_BOT_TOKEN;
@@ -27,20 +28,42 @@ function verifySignature(rawBody, sig) {
 }
 
 // ── Discord REST ──────────────────────────────────────────────────────────────
+// Returns structured result so the caller can distinguish HTTP-level failures
+// (bad token, missing channel, no permission) from successes. Never throws —
+// network failures, malformed bodies, and HTTP errors all return a plain
+// object. The previous null-return-on-failure shape silently swallowed
+// 401/403/404 from Discord, leaving the operator blind to config drift.
 async function discordPost(path, body) {
-  const res = await fetch(`${DISCORD_API}${path}`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bot ${BOT_TOKEN}`,
-      'Content-Type':  'application/json',
-    },
-    body: JSON.stringify(body),
-  });
-  return res.ok ? res.json() : null;
+  let res;
+  try {
+    res = await fetch(`${DISCORD_API}${path}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bot ${BOT_TOKEN}`,
+        'Content-Type':  'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    return { ok: false, status: 0, error: `network: ${err.message}`, discordCode: null };
+  }
+  if (res.ok) {
+    let data = null;
+    try { data = await res.json(); } catch { /* tolerate empty/malformed body */ }
+    return { ok: true, status: res.status, data: data ?? {} };
+  }
+  let errBody = null;
+  try { errBody = await res.json(); } catch { /* not JSON */ }
+  return {
+    ok:          false,
+    status:      res.status,
+    error:       errBody?.message || res.statusText,
+    discordCode: errBody?.code ?? null,
+  };
 }
 
 // ── Embed builder ─────────────────────────────────────────────────────────────
-function buildEmbed(order, state = 'QUEUED') {
+function buildEmbed(order, state = 'QUEUED', kernelHistory = null) {
   const COLOR = {
     QUEUED: 0x39FF14, ACKNOWLEDGED: 0x06B6D4,
     MACERATING: 0xD946EF, SHIPPED: 0x39FF14,
@@ -88,6 +111,7 @@ function buildEmbed(order, state = 'QUEUED') {
       { name: '§ PROPERTIES',         value: `\`\`\`\n${order.physBlock}\n\`\`\``,    inline: false },
       { name: '§ ORIGIN VECTOR',      value: kernelField,                              inline: false },
       { name: '§ FEIGENBAUM δ',       value: fishField,                               inline: false },
+      { name: '§ ALIEN READING',      value: `\`\`\`\n${composeAlienVerdict(kernelHistory)}\n\`\`\``, inline: false },
       { name: '§ ORDER ID',           value: `\`${order.id}\``,                        inline: false },
     ],
     footer:    { text: `tesseract protocol · scale94 · ${order.createdAt}` },
@@ -131,6 +155,7 @@ export default async function handler(req, res) {
     tierSize, tierLabel,
     cardName, domainPair, noteBlock, physBlock, vaultBlock,
     contact,
+    kernelHistory,
   } = body;
 
   if (!formulaHash) return res.status(400).json({ error: 'formulaHash required' });
@@ -175,19 +200,35 @@ export default async function handler(req, res) {
   await kv.setnx('threshold:current', 0);
   await kv.setnx('threshold:target',  10);
 
-  // Post Discord embed with action buttons (requires Bot token, not webhook)
-  if (BOT_TOKEN && ORDER_CHANNEL) {
-    try {
-      const msg = await discordPost(`/channels/${ORDER_CHANNEL}/messages`, {
-        embeds:     [buildEmbed(order, 'QUEUED')],
+  // Post Discord embed with action buttons (requires Bot token, not webhook).
+  // Failures persist on the order record so the operator can triage post-hoc
+  // via Vercel's KV dashboard. Orders are valid regardless of embed delivery —
+  // a failed post does not roll back the order. The whole block is wrapped
+  // in try/catch so a KV outage during diagnostic persistence cannot break
+  // the 201 contract — the order is already saved at line 190.
+  try {
+    if (BOT_TOKEN && ORDER_CHANNEL) {
+      const result = await discordPost(`/channels/${ORDER_CHANNEL}/messages`, {
+        embeds:     [buildEmbed(order, 'QUEUED', kernelHistory)],
         components: buildComponents(orderId, 'QUEUED'),
       });
-      if (msg?.id) {
-        await kv.hset(`order:${orderId}`, { discordMessageId: msg.id });
+      if (result.ok) {
+        if (result.data?.id) {
+          await kv.hset(`order:${orderId}`, { discordMessageId: result.data.id });
+        }
+      } else {
+        console.error('[transmute/order] Discord post failed:',
+          `status=${result.status} code=${result.discordCode ?? '—'} error=${result.error}`);
+        await kv.hset(`order:${orderId}`, {
+          discordError:   `${result.status}:${result.discordCode ?? '—'}:${result.error}`,
+          discordErrorAt: new Date().toISOString(),
+        });
       }
-    } catch (e) {
-      console.error('[transmute/order] Discord post failed:', e.message);
+    } else {
+      console.error('[transmute/order] BOT_TOKEN or ORDER_CHANNEL env not set — embed skipped');
     }
+  } catch (err) {
+    console.error('[transmute/order] diagnostic persistence failed (non-fatal):', err.message);
   }
 
   return res.status(201).json({ orderId, status: 'QUEUED' });

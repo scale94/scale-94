@@ -286,6 +286,9 @@ const App = () => {
   // Abort token for handleKernelClick — invalidates in-flight loads when a
   // new one is started (e.g. user rapidly clicks two kernels in quick succession).
   const loadAbortRef = useRef(null);
+  // Kernel run history — per-page-load, fed to the alien verdict on Crystallize order.
+  // Each entry: { id: string, alias: string, t: number (epoch ms) }
+  const kernelRunHistoryRef = useRef([]);
   // Persistent WASM struct instances — keyed by wasmEntry.id.
   const activeKernels = useRef({});
 
@@ -775,11 +778,11 @@ const App = () => {
   const dispatchCommand = useCommandDispatch({
     articles, classifiedSession, transmissionStories, tagIndex, systemArticles, activeTab,
     setSystemLogs, setClassifiedSession, setActiveTab, setSelectedArticle,
-    setSearchFilter, setCurrentPath, setRelicMode, setBreachOpen, setSanctuaryOpen, applyEcoCost, applyRefill, latticeState,
+    setSearchFilter, setCurrentPath, setRelicMode, setBreachOpen, setSanctuaryOpen, applyEcoCost, applyRefill, latticeState, ramPct,
     setOriginTab, setArchitectThesis, setTagCloudView,
     appendSystemLog, handleNav, handleKernelClick, handleTransmissionSelect,
     loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField, setSpectralBridges, setEnclaveKeys, setProbeNode, setBoneFusions,
-    fusionLog, setFusionLog,
+    fusionLog, setFusionLog, kernelRunHistoryRef,
   });
 
   // Mobile auto-run — fires a WASM kernel automatically when a card is tapped on mobile.
@@ -1339,6 +1342,7 @@ const App = () => {
                 setCurrentPath={setCurrentPath}
                 setOriginTab={setOriginTab}
                 loadKernel={handleNeuralLink}
+                kernelRunHistoryRef={kernelRunHistoryRef}
               />
             </WasmErrorBoundary>
           )}

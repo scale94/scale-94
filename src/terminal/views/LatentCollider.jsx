@@ -1121,7 +1121,7 @@ function createParticle(x, y, hue, vx, vy, type) {
 // COMPONENT
 // ══════════════════════════════════════════════════════════════════════════════
 
-export default function LatentCollider() {
+export default function LatentCollider({ kernelRunHistoryRef } = {}) {
   const canvasRef = useRef(null);
   const rafRef = useRef(null);
   const particlesRef = useRef([]);
@@ -1259,6 +1259,7 @@ export default function LatentCollider() {
       physBlock,
       vaultBlock,
       contact:          { signal: contact.signal || '', email: contact.email || '' },
+      kernelHistory:    (kernelRunHistoryRef?.current ?? []).slice(-30),
     });
 
     // HMAC-SHA256 sign the body (Web Crypto API, timing-safe)
@@ -1280,7 +1281,7 @@ export default function LatentCollider() {
       headers: { 'Content-Type': 'application/json', 'x-transmute-signature': sig },
       body:    orderBody,
     }).then(() => { storeOrderHash(tHash); }).catch(() => { /* silent — notification is best-effort */ });
-  }, [crystal, tesseract]);
+  }, [crystal, tesseract, kernelRunHistoryRef]);
 
   // ── Run the WASM collision ─────────────────────────────────────────────────
   const runCollision = useCallback(async (a, b) => {

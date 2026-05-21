@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Hexagon, ChevronRight, Globe, MessageSquare, Zap, FileText, Cpu, BookOpen } from 'lucide-react';
+import { Hexagon, ChevronRight, Globe, MessageSquare, Zap, FileText } from 'lucide-react';
 import LatentCollider from './LatentCollider';
 import { KERNEL_CITATIONS } from '../data/kernelCitations';
 
@@ -68,7 +68,7 @@ function useParticleBurst(canvasRef) {
   return spawnBurst;
 }
 
-const ScalingTab = ({ setArchitectThesis, setCurrentPath, setOriginTab, loadKernel }) => {
+const ScalingTab = ({ setArchitectThesis, setCurrentPath, setOriginTab, loadKernel, kernelRunHistoryRef }) => {
   const [copied, setCopied] = useState(false);
   const ethParticleRef = useRef(null);
   const spawnBurst = useParticleBurst(ethParticleRef);
@@ -162,6 +162,49 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, setOriginTab, loadKern
           100% { color: rgba(57,255,20,0.85); text-shadow: 0 0 6px rgba(57,255,20,0.3); }
         }
         .living-note { animation: sc-livingNote 800ms cubic-bezier(0.16,1,0.3,1) forwards; }
+
+        /* ── Monument pattern (Fade-Doctrine compliant) ──────────────────────
+           Modernist typography moments for the project's load-bearing claims.
+           Two-gold monochrome: #e8d28a (luminous, body) + #d4a82a (deep, emphasis).
+           No pure white anywhere. No spin, no breath, no color cycle.
+           Spec: docs/superpowers/specs/2026-05-21-scaling-tab-monument-elevation-design.md
+           ──────────────────────────────────────────────────────────────────── */
+        @keyframes sc-monumentReveal {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+        .sc-monument-marker {
+          font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+          font-size: 10px;
+          color: #d4a82a;
+          letter-spacing: 0.35em;
+          text-transform: uppercase;
+        }
+        .sc-monument-eyebrow,
+        .sc-monument-subtitle {
+          font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+          font-size: 10px;
+          color: rgba(6, 182, 212, 0.6);
+          letter-spacing: 0.25em;
+          text-transform: uppercase;
+        }
+        .sc-monument-display {
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+          font-weight: 900;
+          line-height: 0.95;
+          letter-spacing: -0.028em;
+          text-wrap: balance;
+          color: #e8d28a;
+        }
+        .sc-monument-display--thesis  { font-size: clamp(28px, 4.2vw, 52px); }
+        .sc-monument-display--heading { font-size: clamp(36px, 5.5vw, 68px); }
+        .sc-monument-display--emphasis { color: #d4a82a; }
+        .sc-monument-accent {
+          height: 2px;
+          width: 80px;
+          background: #d4a82a;
+          border: 0;
+        }
       `}</style>
 
       {/* ── Header ── */}
@@ -190,7 +233,7 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, setOriginTab, loadKern
       </div>
 
       {/* ── Latent Space Collider (hero section) ── */}
-      <LatentCollider />
+      <LatentCollider kernelRunHistoryRef={kernelRunHistoryRef} />
 
       {/* ── Architect Thesis ── */}
       <div
@@ -217,51 +260,59 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, setOriginTab, loadKern
         </div>
       </div>
 
-      {/* ── Seraphine-8.8.8.8.8.8.8.8 White Paper ── */}
+      {/* ── § · The Thesis (Seraphine White Paper Monument) ──
+          Spec: 2026-05-21-scaling-tab-monument-elevation-design.md
+          Card chrome removed. Display sentence is Inter Black 900 across
+          three lines; last line "weakest geometry." in #d4a82a emphasis.
+          Attribution eyebrow above (document attribution); substrate subtitle
+          below accent line (signature). Body + CTA in terminal palette. */}
       <div
-        className="border-t border-cyan-900/30 pt-8 mb-8"
-        style={{ opacity: 0, animation: 'sc-cardReveal 0.6s cubic-bezier(0.16,1,0.3,1) 0.65s forwards' }}
+        className="border-t border-cyan-900/30 max-w-3xl mx-auto"
+        style={{
+          opacity: 0,
+          paddingTop: '80px',
+          marginBottom: '48px',
+          animation: 'sc-monumentReveal 1.5s ease-out 0.65s forwards',
+        }}
       >
-        <div className="border border-fuchsia-500/40 bg-black/60 p-8 rounded-lg hover:border-fuchsia-400/70 transition-all group relative overflow-hidden max-w-2xl mx-auto"
-          style={{ animation: 'sc-borderBreath 7s ease-in-out 1s infinite' }}
-        >
-          <div className="absolute top-0 right-0 bg-fuchsia-500/10 text-fuchsia-400 text-[9px] font-bold px-3 py-1.5 uppercase tracking-wider border-l border-b border-fuchsia-500/30">
-            WHITE PAPER · ARS ELECTRONICA 2027
-          </div>
+        <div className="sc-monument-marker" style={{ marginBottom: '12px' }}>§ · the thesis</div>
+        <div className="sc-monument-eyebrow" style={{ marginBottom: '28px' }}>white paper · ars electronica 2027</div>
 
-          <div className="text-[10px] font-bold text-cyan-500/70 uppercase tracking-widest mb-3 flex items-center gap-2">
-            <Cpu className="w-3 h-3" /> SERAPHINE-8.8.8.8.8.8.8.8 · FADE_DOCTRINE · MERCURY TERMINAL
-          </div>
+        <div className="sc-monument-display sc-monument-display--thesis" style={{ marginBottom: '6px' }}>The most compelling</div>
+        <div className="sc-monument-display sc-monument-display--thesis" style={{ marginBottom: '6px' }}>analogy has the</div>
+        <div className="sc-monument-display sc-monument-display--thesis sc-monument-display--emphasis" style={{ marginBottom: '24px' }}>weakest geometry.</div>
 
-          <h3 className="text-xl font-bold mb-5 leading-tight tracking-tight" style={{ opacity: 0, animation: 'sc-titleReveal 0.7s cubic-bezier(0.16,1,0.3,1) 1.3s both, sc-headColorAlt 11s ease-in-out 0.5s infinite' }}>
-            The most compelling analogy<br />has the weakest geometry.
-          </h3>
+        <div className="sc-monument-accent" style={{ marginBottom: '22px' }} />
 
-          <div className="space-y-3 mb-6">
-            <p className="text-sm text-[#39ff14]/90 leading-relaxed">
-              Three cross-domain analogy pairs. Feature vectors from primary literature. Cosine similarity measured in 16 dimensions.
-              The pair with the strongest narrative — Bouligand rotation ↔ ML-KEM-768 — scores <span className="text-fuchsia-400 font-bold">0.611</span>.
-              The pair that resists every intuitive description — twisted bilayer graphene ↔ cognitive flow — scores <span className="text-cyan-400 font-bold">0.863</span>.
-            </p>
-            <p className="text-sm text-cyan-400/60 leading-relaxed font-mono">
-              Narrative compellingness and geometric similarity are negatively correlated.<br />
-              This is the result. This is the architecture that found it.
-            </p>
-          </div>
+        <div className="sc-monument-subtitle" style={{ marginBottom: '20px' }}>Seraphine-8.8.8.8.8.8.8.8 · Fade Doctrine · Mercury Terminal</div>
 
-          <div className="flex items-center gap-6 text-[10px] font-mono text-cyan-600/50 mb-6">
-            <span>Seraphine SARG · Lindblad decoherence</span>
-            <span className="text-fuchsia-600/40">·</span>
-            <span>Bone Fusion v7.7.7.7.7.7.7 · Bouligand 36° + Magic Angle 1.1°</span>
-          </div>
-
-          <button
-            onClick={() => loadKernel && loadKernel('FADE-DOCTRINE-KERNEL-2.0.0')}
-            className="flex items-center gap-2 text-xs font-bold text-fuchsia-400 group-hover:translate-x-1 transition-transform cursor-pointer hover:text-fuchsia-200"
-          >
-            <ChevronRight className="w-4 h-4" /> READ PAPER
-          </button>
+        <div className="space-y-3 mb-6">
+          <p className="text-sm text-[#39ff14]/90 leading-relaxed">
+            Three cross-domain analogy pairs. Feature vectors from primary literature. Cosine similarity measured in 16 dimensions.
+            The pair with the strongest narrative — Bouligand rotation ↔ ML-KEM-768 — scores <span className="text-fuchsia-400 font-bold">0.611</span>.
+            The pair that resists every intuitive description — twisted bilayer graphene ↔ cognitive flow — scores <span className="text-cyan-400 font-bold">0.863</span>.
+          </p>
+          <p className="text-sm text-cyan-400/60 leading-relaxed font-mono">
+            Narrative compellingness and geometric similarity are negatively correlated.<br />
+            This is the result. This is the architecture that found it.
+          </p>
         </div>
+
+        <div className="flex items-center gap-6 text-[10px] font-mono text-cyan-600/50 mb-6">
+          <span>Seraphine SARG · Lindblad decoherence</span>
+          <span style={{ color: 'rgba(212,168,42,0.4)' }}>·</span>
+          <span>Bone Fusion v7.7.7.7.7.7.7 · Bouligand 36° + Magic Angle 1.1°</span>
+        </div>
+
+        <button
+          onClick={() => loadKernel && loadKernel('FADE-DOCTRINE-KERNEL-2.0.0')}
+          className="flex items-center gap-2 text-xs font-mono font-bold transition-transform cursor-pointer hover:translate-x-1"
+          style={{ color: '#d4a82a', letterSpacing: '0.1em' }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = '#e8d28a'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = '#d4a82a'; }}
+        >
+          <ChevronRight className="w-4 h-4" /> READ PAPER
+        </button>
       </div>
 
       {/* ── RUN COMMAND MANUAL V2.2 ── */}
@@ -270,6 +321,7 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, setOriginTab, loadKern
         style={{ opacity: 0, animation: 'sc-cardReveal 0.6s cubic-bezier(0.16,1,0.3,1) 0.8s forwards' }}
       >
         <div className="mb-5">
+          <div className="sc-monument-marker" style={{ marginBottom: '12px' }}>§ · the kernels</div>
           <div className="text-lg sm:text-xl font-bold uppercase tracking-widest mb-1" style={{ opacity: 0, animation: 'sc-headReveal 0.5s cubic-bezier(0.16,1,0.3,1) 1.45s both, sc-headColor 9s ease-in-out 3s infinite' }}>RUN COMMAND MANUAL V2.2</div>
           <div className="text-[10px] text-fuchsia-500/60 font-mono uppercase tracking-widest">// WASM KERNEL INTERFACE · 57 KERNELS · MERCURY TERMINAL</div>
         </div>
@@ -517,21 +569,22 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, setOriginTab, loadKern
             </div>
           </div>
 
-          {/* ── Bibliography (primary literature per kernel) ─────────────────
-              The point isn't a comprehensive bibliography — it's making the
-              rigorous lineage visible. Academic jurors will scan this section
-              and immediately see the work is sourced, not vibes.            */}
-          <div className="border border-amber-900/20 bg-black/30 p-4 rounded-lg md:col-span-2"
-            style={{ opacity: 0, animation: 'sc-cardReveal 0.5s cubic-bezier(0.16,1,0.3,1) 1.55s forwards' }}>
-            <div className="text-[10px] font-bold uppercase tracking-widest mb-3 pb-2 border-b border-amber-900/20 flex items-center justify-between"
-              style={{ opacity: 0, animation: 'sc-headReveal 0.5s cubic-bezier(0.16,1,0.3,1) 2.1s both, sc-headColor 11s ease-in-out 9s infinite' }}>
-              <span className="flex items-center gap-2">
-                <BookOpen className="w-3 h-3" /> BIBLIOGRAPHY &amp; PRIMARY LITERATURE
-              </span>
-              <span className="text-[9px] text-amber-700/40 font-normal normal-case tracking-normal">
-                {KERNEL_CITATIONS.length} kernels · short-form refs
-              </span>
+          {/* ── § · Primary Literature (Bibliography Monument) ──────────────
+              Spec: 2026-05-21-scaling-tab-monument-elevation-design.md
+              Card chrome and animated header removed. The word "Bibliography"
+              IS the monument. Citations grid below is unchanged — its terminal
+              density IS the rigor it claims.                                 */}
+          <div className="md:col-span-2"
+            style={{ opacity: 0, animation: 'sc-monumentReveal 1.5s ease-out 1.55s forwards' }}>
+
+            {/* monument opening */}
+            <div style={{ paddingTop: '80px', marginBottom: '48px' }}>
+              <div className="sc-monument-marker" style={{ marginBottom: '12px' }}>§ · primary literature</div>
+              <div className="sc-monument-display sc-monument-display--heading" style={{ marginBottom: '24px' }}>Bibliography</div>
+              <div className="sc-monument-accent" style={{ marginBottom: '22px' }} />
+              <div className="sc-monument-subtitle">{KERNEL_CITATIONS.length} kernels · canonical references</div>
             </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
               {KERNEL_CITATIONS.map((c) => (
                 <div key={c.cmd} className="text-[10px] leading-relaxed">
