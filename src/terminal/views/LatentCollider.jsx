@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { loadWasm } from '../../wasm/wasmSingleton';
-import { parseAstroOutput, PLANET_MAP } from '../mercury/tfgAstroHelpers';
+import { parseAstroOutput, PLANET_MAP, computeAspect } from '../mercury/tfgAstroHelpers';
 import {
   FEATURES, NODE_IDX, DIM_NAMES,
   cosineSim, topDrivers, analyzeFullEdge, extractParadoxes,
@@ -2344,39 +2344,92 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
 
           {/* ── Mathematical Astrology Transit ── */}
           {colliderAstro && (() => {
-            // Derive dominant planet from OCK family or planet domain selection
+            const PLANET_SYMBOLS = {
+              Sun:'☉', Moon:'☽', Mercury:'☿', Venus:'♀', Mars:'♂',
+              Jupiter:'♃', Saturn:'♄', Uranus:'♅', Neptune:'♆', Pluto:'♇',
+            };
+            const PLANET_COLORS_BY_NAME = {
+              Sun:'#f59e0b', Moon:'#e2e8f0', Mercury:'#c0c0c0', Venus:'#22c55e',
+              Mars:'#ef4444', Jupiter:'#8b5cf6', Saturn:'#a78060',
+              Uranus:'#06b6d4', Neptune:'#3b82f6', Pluto:'#dc2626',
+            };
+            const PLANET_ORDER = ['Sun','Moon','Mercury','Venus','Mars','Jupiter','Saturn','Uranus','Neptune','Pluto'];
             const FAMILY_PLANET = {
-              citrus: 'Mercury', floral: 'Venus', woody: 'Saturn',
-              animalic: 'Mars', aromatic: 'Jupiter', ozonic: 'Uranus',
-              chypre: 'Moon', fougere: 'Venus', gourmand: 'Jupiter',
-              aquatic: 'Neptune', leather: 'Mars', mineral: 'Saturn',
+              citrus:'Mercury', floral:'Venus', woody:'Saturn', animalic:'Mars',
+              aromatic:'Jupiter', ozonic:'Uranus', chypre:'Moon', fougere:'Venus',
+              gourmand:'Jupiter', aquatic:'Neptune', leather:'Mars', mineral:'Saturn',
             };
             const PLANET_DOMAIN_NAME = { 70:'Sun',71:'Mercury',72:'Venus',74:'Moon',75:'Mars',76:'Jupiter',77:'Saturn',78:'Uranus',79:'Neptune',80:'Pluto' };
             const pA = PLANET_DOMAIN_NAME[domainA] || (result.accord ? FAMILY_PLANET[result.accord.dominant?.id] : null) || 'Mercury';
             const pB = PLANET_DOMAIN_NAME[domainB] || (result.accord ? FAMILY_PLANET[result.accord.dominant?.id] : null) || 'Venus';
-            const dA = colliderAstro[pA] || {};
-            const dB = colliderAstro[pB] || {};
-            const planets = [...new Set([pA, pB])].filter(p => colliderAstro[p]);
+            const featured = new Set([pA, pB]);
+            const allPlanets = PLANET_ORDER.filter(p => colliderAstro[p]);
+
+            // Compute tight aspects (orb ≤ 4°) between all planet pairs
+            const aspects = [];
+            for (let i = 0; i < allPlanets.length; i++) {
+              for (let j = i + 1; j < allPlanets.length; j++) {
+                const a = colliderAstro[allPlanets[i]], b = colliderAstro[allPlanets[j]];
+                if (!a || !b) continue;
+                const asp = computeAspect(a.sign, a.degree, b.sign, b.degree);
+                if (asp && parseFloat(asp.orb) <= 4) aspects.push({ p1: allPlanets[i], p2: allPlanets[j], ...asp });
+              }
+            }
+
+            const jd = (Date.now()/86400000 + 2440587.5).toFixed(4);
             return (
               <div className="border-t border-cyan-500/15 pt-4" style={{ opacity: 0, animation: 'sc-cardReveal 0.5s cubic-bezier(0.16,1,0.3,1) 0.4s forwards' }}>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: 'rgba(6,182,212,0.5)' }}>⊕ MATHEMATICAL ASTROLOGY · VSOP87 · JD{(Date.now()/86400000+2440587.5).toFixed(4)}</span>
+                {/* Header */}
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: 'rgba(6,182,212,0.5)' }}>
+                    ⊕ MATHEMATICAL ASTROLOGY · VSOP87 · JD{jd}
+                  </span>
+                  <span className="text-[8px] font-mono uppercase tracking-widest" style={{ color: 'rgba(6,182,212,0.25)' }}>TRANSIT MATRIX</span>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {planets.map(p => {
+
+                {/* Planet grid — all 10 planets, 2-col, featured at full opacity */}
+                <div className="grid grid-cols-2 gap-x-6 gap-y-0.5 mb-3">
+                  {allPlanets.map(p => {
                     const d = colliderAstro[p];
                     if (!d) return null;
-                    const isRetro = d.retrograde;
+                    const col = PLANET_COLORS_BY_NAME[p];
+                    const isFeat = featured.has(p);
                     return (
-                      <div key={p} className="flex items-center gap-1.5 px-2 py-1 rounded" style={{ background: 'rgba(6,182,212,0.04)', border: '1px solid rgba(6,182,212,0.12)' }}>
-                        <span className="text-[10px] font-bold font-mono" style={{ color: 'rgba(6,182,212,0.8)' }}>{p}</span>
-                        <span className="text-[9px] font-mono" style={{ color: 'rgba(192,192,192,0.5)' }}>{d.sign} {typeof d.degree === 'number' ? d.degree.toFixed(1) : '—'}°</span>
-                        {isRetro && <span className="text-[8px] font-mono" style={{ color: 'rgba(217,70,239,0.6)' }}>℞</span>}
-                        {d.aspect && <span className="text-[8px] font-mono" style={{ color: 'rgba(255,215,0,0.4)' }}>· {d.aspect}</span>}
+                      <div key={p} className="flex items-center gap-1.5 py-[3px]" style={{ opacity: isFeat ? 1 : 0.45 }}>
+                        <span className="text-[12px] leading-none w-4 text-center" style={{ color: col }}>{PLANET_SYMBOLS[p]}</span>
+                        <span className="text-[8px] font-bold font-mono w-[52px]" style={{ color: col }}>{p.toUpperCase()}</span>
+                        <span className="text-[8px] font-mono" style={{ color: 'rgba(192,192,192,0.65)' }}>
+                          {d.sign} {typeof d.degree === 'number' ? d.degree.toFixed(1) : '—'}°
+                        </span>
+                        {d.retrograde && (
+                          <span className="text-[8px] font-mono ml-0.5" style={{ color: 'rgba(217,70,239,0.7)' }}>℞</span>
+                        )}
                       </div>
                     );
                   })}
                 </div>
+
+                {/* Aspect list — tight orbs only */}
+                {aspects.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-2 border-t border-cyan-500/10">
+                    {aspects.map((a, i) => {
+                      const isFeatAsp = featured.has(a.p1) || featured.has(a.p2);
+                      return (
+                        <div key={i} className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-mono"
+                          style={{
+                            background: isFeatAsp ? 'rgba(6,182,212,0.07)' : 'rgba(255,255,255,0.02)',
+                            border: `1px solid ${isFeatAsp ? 'rgba(6,182,212,0.2)' : 'rgba(255,255,255,0.05)'}`,
+                            color: isFeatAsp ? 'rgba(6,182,212,0.8)' : 'rgba(192,192,192,0.35)',
+                          }}>
+                          <span style={{ color: PLANET_COLORS_BY_NAME[a.p1] }}>{PLANET_SYMBOLS[a.p1]}</span>
+                          <span className="mx-0.5 uppercase tracking-wide">{a.name}</span>
+                          <span style={{ color: PLANET_COLORS_BY_NAME[a.p2] }}>{PLANET_SYMBOLS[a.p2]}</span>
+                          <span className="ml-1 opacity-50">orb {a.orb}°</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             );
           })()}
