@@ -59,7 +59,7 @@ export function useCommandDispatch(ctx) {
       setOriginTab, setArchitectThesis, setTagCloudView,
       appendSystemLog, handleNav, handleKernelClick, handleTransmissionSelect,
       loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField, setSpectralBridges, setEnclaveKeys, setProbeNode, setBoneFusions,
-      fusionLog, setFusionLog, kernelRunHistoryRef,
+      fusionLog, setFusionLog, kernelRunHistoryRef, onKernelRun,
     } = ctxRef.current;
 
     const log  = (msg, rust = false) => appendSystemLog({ time: now, msg, rust });
@@ -320,6 +320,7 @@ export function useCommandDispatch(ctx) {
                     ].slice(-2000));
                     applyEcoCost(ecoAlias);
                     kernelRunHistoryRef?.current?.push({ id: wasmEntry.id, alias: ecoAlias, t: Date.now() });
+                    onKernelRun?.(Date.now());
                   }
                 }, i * 22);
               });
@@ -333,6 +334,7 @@ export function useCommandDispatch(ctx) {
               ].slice(-2000));
               applyEcoCost(ecoAlias);
               kernelRunHistoryRef?.current?.push({ id: wasmEntry.id, alias: ecoAlias, t: Date.now() });
+              onKernelRun?.(Date.now());
             }
 
 

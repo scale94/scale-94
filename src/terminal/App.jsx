@@ -289,6 +289,7 @@ const App = () => {
   // Kernel run history — per-page-load, fed to the alien verdict on Crystallize order.
   // Each entry: { id: string, alias: string, t: number (epoch ms) }
   const kernelRunHistoryRef = useRef([]);
+  const [lastKernelAt, setLastKernelAt] = useState(null);
   // Persistent WASM struct instances — keyed by wasmEntry.id.
   const activeKernels = useRef({});
 
@@ -783,6 +784,7 @@ const App = () => {
     appendSystemLog, handleNav, handleKernelClick, handleTransmissionSelect,
     loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField, setSpectralBridges, setEnclaveKeys, setProbeNode, setBoneFusions,
     fusionLog, setFusionLog, kernelRunHistoryRef,
+    onKernelRun: setLastKernelAt,
   });
 
   // Mobile auto-run — fires a WASM kernel automatically when a card is tapped on mobile.
