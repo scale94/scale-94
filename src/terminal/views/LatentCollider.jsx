@@ -106,6 +106,7 @@ const POLARITY_CONFIG = {
   SOLAR:    { label: 'SOLAR',    color: '#FFD700', accent: '#b8960a', desc: 'projective · radiant · angular · warm' },
   MERIDIAN: { label: 'MERIDIAN', color: '#06b6d4', accent: '#0891b2', desc: 'axial · balanced · transitional' },
   LUNAR:    { label: 'LUNAR',    color: '#c4b5ff', accent: '#8b7fcf', desc: 'receptive · reflective · curved · cool' },
+  CHAOTIC:  { label: 'CHAOTIC',  color: '#ff2850', accent: '#cc1133', desc: 'divergent · high-entropy · paradox-state' },
 };
 
 const SHOP_MANIFEST = [
@@ -189,8 +190,10 @@ function classifyAccord(result) {
   const danceRole    = result.ockDanceRole;
 
   // v1.1.0 §9 — Polarity spectrum
-  const polarity      = result.ockPolarity;
-  const polarityClass = POLARITY_CONFIG[result.ockPolarityClass] || POLARITY_CONFIG.MERIDIAN;
+  const polarity          = result.ockPolarity;
+  const basePolarityClass = POLARITY_CONFIG[result.ockPolarityClass] || POLARITY_CONFIG.MERIDIAN;
+  // CHAOTIC override: high paradox count supersedes SOLAR/LUNAR/MERIDIAN
+  const polarityClass     = paradoxCount >= 2 ? POLARITY_CONFIG.CHAOTIC : basePolarityClass;
 
   return {
     dominant,
@@ -1122,7 +1125,7 @@ function createParticle(x, y, hue, vx, vy, type) {
 // COMPONENT
 // ══════════════════════════════════════════════════════════════════════════════
 
-export default function LatentCollider({ kernelRunHistoryRef } = {}) {
+export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {}) {
   const canvasRef = useRef(null);
   const rafRef = useRef(null);
   const particlesRef = useRef([]);
@@ -1429,6 +1432,7 @@ export default function LatentCollider({ kernelRunHistoryRef } = {}) {
 
       metricsRef.current = parsed;
       setResult(parsed);
+      onPolarity?.(parsed.accord?.polarityClass?.label ?? null);
       setPhase('colliding');
       phaseRef.current = 'colliding';
       timerRef.current = 0;
