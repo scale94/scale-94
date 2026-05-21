@@ -20,6 +20,7 @@ import {
   resolveNode, analyzeFullEdge, extractParadoxes, nextFusionId,
 } from '../data/nodeFeatures';
 import { setGateState } from '../lib/gateStorage';
+import { runPreExecTheater, theaterDuration } from '../utils/preExecTheater.js';
 
 // Tab name → tab id — used by `load <tabname>` guard
 const LOAD_TAB_MAP = {
@@ -271,6 +272,8 @@ export function useCommandDispatch(ctx) {
           try {
             // eslint-disable-next-line import/no-unresolved
             const mod = await loadWasm();
+
+            await runPreExecTheater(line => log(line), theaterDuration());
 
             const t0 = performance.now();
             let result;
