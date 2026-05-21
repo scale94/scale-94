@@ -59,7 +59,7 @@ export function useCommandDispatch(ctx) {
       setOriginTab, setArchitectThesis, setTagCloudView,
       appendSystemLog, handleNav, handleKernelClick, handleTransmissionSelect,
       loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField, setSpectralBridges, setEnclaveKeys, setProbeNode, setBoneFusions,
-      fusionLog, setFusionLog,
+      fusionLog, setFusionLog, kernelRunHistoryRef,
     } = ctxRef.current;
 
     const log  = (msg, rust = false) => appendSystemLog({ time: now, msg, rust });
@@ -319,6 +319,7 @@ export function useCommandDispatch(ctx) {
                       { time: t, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE  ·  EXEC_TIME: ${elapsed}ms`, rust: true },
                     ].slice(-2000));
                     applyEcoCost(ecoAlias);
+                    kernelRunHistoryRef?.current?.push({ id: wasmEntry.id, alias: ecoAlias, t: Date.now() });
                   }
                 }, i * 22);
               });
@@ -331,6 +332,7 @@ export function useCommandDispatch(ctx) {
                 { time: doneTime, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE  ·  EXEC_TIME: ${elapsed}ms`, rust: true },
               ].slice(-2000));
               applyEcoCost(ecoAlias);
+              kernelRunHistoryRef?.current?.push({ id: wasmEntry.id, alias: ecoAlias, t: Date.now() });
             }
 
 

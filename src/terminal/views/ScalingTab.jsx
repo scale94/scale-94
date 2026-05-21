@@ -68,7 +68,7 @@ function useParticleBurst(canvasRef) {
   return spawnBurst;
 }
 
-const ScalingTab = ({ setArchitectThesis, setCurrentPath, setOriginTab, loadKernel }) => {
+const ScalingTab = ({ setArchitectThesis, setCurrentPath, setOriginTab, loadKernel, kernelRunHistoryRef }) => {
   const [copied, setCopied] = useState(false);
   const ethParticleRef = useRef(null);
   const spawnBurst = useParticleBurst(ethParticleRef);
@@ -233,7 +233,7 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, setOriginTab, loadKern
       </div>
 
       {/* ── Latent Space Collider (hero section) ── */}
-      <LatentCollider />
+      <LatentCollider kernelRunHistoryRef={kernelRunHistoryRef} />
 
       {/* ── Architect Thesis ── */}
       <div
