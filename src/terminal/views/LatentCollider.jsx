@@ -9,6 +9,7 @@ import { useColliderNarrative } from '../hooks/useColliderNarrative';
 import { useProductionThreshold } from '../hooks/useProductionThreshold';
 import { useOrderStatus, storeOrderHash } from '../hooks/useOrderStatus';
 import { buildChimeraGlyph } from './chimeraGlyph.js';
+import { runPreExecTheater, theaterDuration } from '../utils/preExecTheater.js';
 
 // ── CopySpan — tiny clipboard helper used in Tesseract contact signals ───────
 function CopySpan({ value, color }) {
@@ -1149,6 +1150,8 @@ export default function LatentCollider({ kernelRunHistoryRef } = {}) {
   const [tesseract,  setTesseract]  = useState(null);
   const [living,     setLiving]     = useState(null);
   const [acquired,     setAcquired]     = useState(false);
+  const [acquiring,    setAcquiring]    = useState(false);
+  const [acquireLog,   setAcquireLog]   = useState([]);
   const [selectedTier, setSelectedTier] = useState(TIERS[0]);
 
   // ── Persistent production threshold (Vercel KV via /api/transmute/threshold) ─
@@ -1275,6 +1278,19 @@ export default function LatentCollider({ kernelRunHistoryRef } = {}) {
         sig = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
       }
     } catch { /* signing failed — send unsigned, server will accept in dev mode */ }
+
+    // ── Pre-transmit theater ─────────────────────────────────────────────────
+    setAcquiring(true);
+    setAcquireLog([]);
+    try {
+      await runPreExecTheater(
+        line => setAcquireLog(prev => [...prev, line].slice(-20)),
+        theaterDuration(),
+      );
+    } finally {
+      setAcquiring(false);
+      setAcquireLog([]);
+    }
 
     fetch('/api/transmute/order', {
       method:  'POST',
@@ -3211,6 +3227,16 @@ export default function LatentCollider({ kernelRunHistoryRef } = {}) {
           orderStatus={orderStatus}
         />
       )}
+          {acquiring && acquireLog.length > 0 && (
+            <div
+              className="font-mono text-[9px] leading-relaxed mt-3 select-none"
+              style={{ color: 'rgba(232,210,138,0.45)' }}
+            >
+              {acquireLog.map((line, i) => (
+                <div key={i}>{line}</div>
+              ))}
+            </div>
+          )}
     </div>
   );
 }
