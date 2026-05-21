@@ -319,8 +319,9 @@ export function useCommandDispatch(ctx) {
                       { time: t, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE  ·  EXEC_TIME: ${elapsed}ms`, rust: true },
                     ].slice(-2000));
                     applyEcoCost(ecoAlias);
-                    kernelRunHistoryRef?.current?.push({ id: wasmEntry.id, alias: ecoAlias, t: Date.now() });
-                    onKernelRun?.(Date.now());
+                    const runAt1 = Date.now();
+                    kernelRunHistoryRef?.current?.push({ id: wasmEntry.id, alias: ecoAlias, t: runAt1 });
+                    onKernelRun?.(runAt1);
                   }
                 }, i * 22);
               });
@@ -333,8 +334,9 @@ export function useCommandDispatch(ctx) {
                 { time: doneTime, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE  ·  EXEC_TIME: ${elapsed}ms`, rust: true },
               ].slice(-2000));
               applyEcoCost(ecoAlias);
-              kernelRunHistoryRef?.current?.push({ id: wasmEntry.id, alias: ecoAlias, t: Date.now() });
-              onKernelRun?.(Date.now());
+              const runAt2 = Date.now();
+              kernelRunHistoryRef?.current?.push({ id: wasmEntry.id, alias: ecoAlias, t: runAt2 });
+              onKernelRun?.(runAt2);
             }
 
 
