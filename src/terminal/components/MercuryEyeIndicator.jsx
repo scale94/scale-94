@@ -17,7 +17,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 
-export default function MercuryEyeIndicator({ activeTab, onNavigate, mobileChrome, lastKernelAt }) {
+export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelAt }) {
   const isOnMercury = activeTab === 'mercury';
   const [flaring,   setFlaring]   = useState(false);
   const [deepWatch, setDeepWatch] = useState(true); // true on load — no runs yet
@@ -56,7 +56,7 @@ export default function MercuryEyeIndicator({ activeTab, onNavigate, mobileChrom
 
   return (
     <div
-      className={`fixed top-3 right-3 sm:top-4 sm:right-4 z-[80] select-none cursor-pointer group transition-opacity duration-500 ${!mobileChrome ? 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto' : ''}`}
+      className="shrink-0 select-none cursor-pointer group"
       onClick={onNavigate}
       role="button"
       aria-label="Open Mercury — observer view"
