@@ -969,6 +969,8 @@ const App = () => {
         <MercuryEyeIndicator
           activeTab={activeTab}
           onNavigate={() => handleNav('~/system/mercury', 'mercury')}
+          mobileChrome={mobileChrome}
+          lastKernelAt={lastKernelAt}
         />
       )}
 

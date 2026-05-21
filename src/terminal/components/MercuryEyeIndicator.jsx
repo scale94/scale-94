@@ -4,27 +4,59 @@
 // property* of the whole work — the observer is always watching, not just
 // when you visit Mercury.
 //
-// Visual register:
-//   • Fade Doctrine two-gold: #e8d28a (body) / #d4a82a (emphasis, Mercury active)
-//   • Slow breath cycle (~11s) — subliminal presence, never demands attention
-//   • On Mercury tab itself: #d4a82a palette + faster (~8s) cycle
-//   • flare: brief brightness surge on kernel run (~1.8s)
-//   • deep-watch: dims to near-invisible (14s cycle) after 90s without a kernel run
+// Color: Fade Doctrine two-gold — #e8d28a (body) / #d4a82a (Mercury active)
 //
-// Suppression rules (handled by parent):
-//   • Hidden during BootSequence (the eye hasn't engaged yet)
-//   • Hidden during Sanctuary (the still center is *outside* observation)
-//   • Hidden during Breach (the player is acting, not being observed)
-//   • On mobile: follows header opacity fade via mobileChrome prop
+// Animation priority (highest → lowest):
+//   flare      — 1.8s surge on kernel run, then hands off to breath
+//   active     — on Mercury tab: faster (8s), brighter (#d4a82a)
+//   deep-watch — >90s since last kernel: slower (14s), dimmer (0.15–0.38)
+//   idle       — default: 11s breath (0.28–0.58)
+//
+// Mobile fade: follows header opacity via mobileChrome prop.
+// Suppression: handled by parent (boot / sanctuary / breach).
 
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
-export default function MercuryEyeIndicator({ activeTab, onNavigate }) {
+export default function MercuryEyeIndicator({ activeTab, onNavigate, mobileChrome, lastKernelAt }) {
   const isOnMercury = activeTab === 'mercury';
+  const [flaring,   setFlaring]   = useState(false);
+  const [deepWatch, setDeepWatch] = useState(true); // true on load — no runs yet
+  const prevKernelAt = useRef(null);
+
+  // ── Flare on new kernel run ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (!lastKernelAt || lastKernelAt === prevKernelAt.current) return;
+    prevKernelAt.current = lastKernelAt;
+    setFlaring(true);
+    setDeepWatch(false);
+    const t = setTimeout(() => setFlaring(false), 1800);
+    return () => clearTimeout(t);
+  }, [lastKernelAt]);
+
+  // ── Deep-watch: dim after 90s of no kernel runs ─────────────────────────────
+  useEffect(() => {
+    const elapsed = lastKernelAt ? Date.now() - lastKernelAt : Infinity;
+    if (elapsed >= 90_000) {
+      setDeepWatch(true);
+      return;
+    }
+    const remaining = 90_000 - elapsed;
+    const t = setTimeout(() => setDeepWatch(true), remaining);
+    return () => clearTimeout(t);
+  }, [lastKernelAt]);
+
+  // ── Animation priority ──────────────────────────────────────────────────────
+  const animation = flaring
+    ? 'mei-flare 1.8s ease-out forwards'
+    : isOnMercury
+      ? 'mei-breath-active 8s ease-in-out infinite'
+      : deepWatch
+        ? 'mei-breath-deep 14s ease-in-out infinite'
+        : 'mei-breath 11s ease-in-out infinite';
 
   return (
     <div
-      className="fixed top-3 right-3 sm:top-4 sm:right-4 z-[80] select-none cursor-pointer group"
+      className={`fixed top-3 right-3 sm:top-4 sm:right-4 z-[80] select-none cursor-pointer group transition-opacity duration-500 ${!mobileChrome ? 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto' : ''}`}
       onClick={onNavigate}
       role="button"
       aria-label="Open Mercury — observer view"
@@ -57,9 +89,7 @@ export default function MercuryEyeIndicator({ activeTab, onNavigate }) {
         className="text-[18px] sm:text-[20px] leading-none font-black transition-transform duration-300 group-hover:scale-110"
         style={{
           color: isOnMercury ? '#d4a82a' : '#e8d28a',
-          animation: isOnMercury
-            ? 'mei-breath-active 8s ease-in-out infinite'
-            : 'mei-breath 11s ease-in-out infinite',
+          animation,
         }}
       >
         ◉
