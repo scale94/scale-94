@@ -299,6 +299,7 @@ const App = () => {
   const kernelRunHistoryRef = useRef([]);
   const [lastKernelAt, setLastKernelAt] = useState(null);
   const [lastPolarityClass, setLastPolarityClass] = useState(null);
+  const [lastLoadAt, setLastLoadAt] = useState(null);
   // Persistent WASM struct instances — keyed by wasmEntry.id.
   const activeKernels = useRef({});
 
@@ -589,6 +590,7 @@ const App = () => {
       const later = new Date();
       appendSystemLog({ time: fmtTime(later), msg: `${kernel.name} loaded successfully.` });
       setLoadingKernel(null);
+      setLastLoadAt(Date.now());
 
       if (kernel.articleId) {
         // Priority: generated articles (fetch-based loadContent) → auto .md glob stubs (fallback).
@@ -1292,6 +1294,7 @@ const App = () => {
               activeTab={activeTab}
               onNavigate={() => handleNav('~/system/mercury', 'mercury')}
               lastKernelAt={lastKernelAt}
+              lastLoadAt={lastLoadAt}
             />
           )}
           </div>
