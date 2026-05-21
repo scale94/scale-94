@@ -28,10 +28,10 @@ function verifySignature(rawBody, sig) {
 
 // ── Discord REST ──────────────────────────────────────────────────────────────
 // Returns structured result so the caller can distinguish HTTP-level failures
-// (bad token, missing channel, no permission) from successes. Never throws on
-// HTTP errors — only on network failure. The previous null-return-on-failure
-// shape silently swallowed 401/403/404 from Discord, leaving the operator
-// blind to config drift.
+// (bad token, missing channel, no permission) from successes. Never throws —
+// network failures, malformed bodies, and HTTP errors all return a plain
+// object. The previous null-return-on-failure shape silently swallowed
+// 401/403/404 from Discord, leaving the operator blind to config drift.
 async function discordPost(path, body) {
   let res;
   try {
@@ -47,7 +47,9 @@ async function discordPost(path, body) {
     return { ok: false, status: 0, error: `network: ${err.message}`, discordCode: null };
   }
   if (res.ok) {
-    return { ok: true, status: res.status, data: await res.json() };
+    let data = null;
+    try { data = await res.json(); } catch { /* tolerate empty/malformed body */ }
+    return { ok: true, status: res.status, data: data ?? {} };
   }
   let errBody = null;
   try { errBody = await res.json(); } catch { /* not JSON */ }
@@ -198,28 +200,32 @@ export default async function handler(req, res) {
   // Post Discord embed with action buttons (requires Bot token, not webhook).
   // Failures persist on the order record so the operator can triage post-hoc
   // via Vercel's KV dashboard. Orders are valid regardless of embed delivery —
-  // a failed post does not roll back the order.
-  if (BOT_TOKEN && ORDER_CHANNEL) {
-    const result = await discordPost(`/channels/${ORDER_CHANNEL}/messages`, {
-      embeds:     [buildEmbed(order, 'QUEUED')],
-      components: buildComponents(orderId, 'QUEUED'),
-    });
-    if (result.ok) {
-      await kv.hset(`order:${orderId}`, { discordMessageId: result.data.id });
-    } else {
-      console.error('[transmute/order] Discord post failed:',
-        `status=${result.status} code=${result.discordCode ?? '—'} error=${result.error}`);
-      await kv.hset(`order:${orderId}`, {
-        discordError:   `${result.status}:${result.discordCode ?? '—'}:${result.error}`,
-        discordErrorAt: new Date().toISOString(),
+  // a failed post does not roll back the order. The whole block is wrapped
+  // in try/catch so a KV outage during diagnostic persistence cannot break
+  // the 201 contract — the order is already saved at line 190.
+  try {
+    if (BOT_TOKEN && ORDER_CHANNEL) {
+      const result = await discordPost(`/channels/${ORDER_CHANNEL}/messages`, {
+        embeds:     [buildEmbed(order, 'QUEUED')],
+        components: buildComponents(orderId, 'QUEUED'),
       });
+      if (result.ok) {
+        if (result.data?.id) {
+          await kv.hset(`order:${orderId}`, { discordMessageId: result.data.id });
+        }
+      } else {
+        console.error('[transmute/order] Discord post failed:',
+          `status=${result.status} code=${result.discordCode ?? '—'} error=${result.error}`);
+        await kv.hset(`order:${orderId}`, {
+          discordError:   `${result.status}:${result.discordCode ?? '—'}:${result.error}`,
+          discordErrorAt: new Date().toISOString(),
+        });
+      }
+    } else {
+      console.error('[transmute/order] BOT_TOKEN or ORDER_CHANNEL env not set — embed skipped');
     }
-  } else {
-    console.error('[transmute/order] BOT_TOKEN or ORDER_CHANNEL env not set — embed skipped');
-    await kv.hset(`order:${orderId}`, {
-      discordError:   'env_missing:BOT_TOKEN_or_ORDER_CHANNEL_unset',
-      discordErrorAt: new Date().toISOString(),
-    });
+  } catch (err) {
+    console.error('[transmute/order] diagnostic persistence failed (non-fatal):', err.message);
   }
 
   return res.status(201).json({ orderId, status: 'QUEUED' });
