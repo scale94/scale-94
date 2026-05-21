@@ -13,7 +13,7 @@
 //          the lattice records this and continues."
 
 // ── Kernel → thematic category map ────────────────────────────────────────────
-// 56 known kernels grouped into 7 categories. Unknown IDs fall back to 'origin'.
+// 57 known kernels grouped into 7 categories. Unknown IDs fall back to 'origin'.
 // Add new kernels to the appropriate bucket as they ship.
 const KERNEL_CATEGORIES = {
   // cascade — paradox, bifurcation, period-3, strange attractors
@@ -269,17 +269,20 @@ function pickNoun(category, seed) {
 function countCategory(history, category) {
   let n = 0;
   for (const entry of history) {
+    if (!entry?.id) continue;
     if (categoryOf(entry.id) === category) n++;
   }
   return n;
 }
 
-// Find the most-frequent category in history. Ties broken by first occurrence.
+// Find the most-frequent category in history. Ties broken by first category
+// to *reach* the peak count (strict-greater-than rule below).
 function computeDominant(history) {
   const counts = {};
   let bestCat = null;
   let bestN = 0;
   for (const entry of history) {
+    if (!entry?.id) continue;
     const c = categoryOf(entry.id);
     counts[c] = (counts[c] ?? 0) + 1;
     if (counts[c] > bestN) {
@@ -288,6 +291,19 @@ function computeDominant(history) {
     }
   }
   return bestCat;
+}
+
+// Replace common plural nouns with singular forms when n === 1. The phrase pool
+// is authored in the plural ("{n} kernels witnessed") for the common case; this
+// helper fixes grammar for the single-kernel case without forking the pool.
+function fixPlurals(line, n) {
+  if (n !== 1) return line;
+  return line
+    .replace(/\bkernels\b/g, 'kernel')
+    .replace(/\breadings\b/g, 'reading')
+    .replace(/\bapproaches\b/g, 'approach')
+    .replace(/\bqueries\b/g, 'query')
+    .replace(/\b(\d+)\s+times\b/g, '$1 time');
 }
 
 // ── Public composer ──────────────────────────────────────────────────────────
@@ -305,7 +321,10 @@ export function composeAlienVerdict(history) {
   const firstCat = categoryOf(first.id);
 
   // Line 1 — opening with kernel count
-  const opening = pickFragment(OPENINGS, seed, 0).replace('{n}', String(n));
+  const opening = fixPlurals(
+    pickFragment(OPENINGS, seed, 0).replace('{n}', String(n)),
+    n
+  );
 
   // Line 2 — interpretation of the first kernel
   const firstNoun = pickNoun(firstCat, seed);
@@ -317,8 +336,10 @@ export function composeAlienVerdict(history) {
   if (n >= 2) {
     const dominantCat = computeDominant(history);
     const dominantN = countCategory(history, dominantCat);
-    dominanceLine = pickFragment(DOMINANCE_READINGS[dominantCat], seed, 2)
-      .replace('{n}', String(dominantN));
+    dominanceLine = fixPlurals(
+      pickFragment(DOMINANCE_READINGS[dominantCat], seed, 2).replace('{n}', String(dominantN)),
+      dominantN
+    );
   }
 
   // Line 4 — closing
