@@ -149,8 +149,11 @@ export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelA
       {phrase && (
         <div
           key={phraseKey}
-          className="absolute right-full top-1/2 pr-2 pointer-events-none"
-          style={{ animation: 'mei-phrase 5.1s ease forwards' }}
+          className="absolute right-full top-1/2 px-2 py-0.5 pointer-events-none"
+          style={{
+            animation: 'mei-phrase 5.1s ease forwards',
+            background: 'rgba(0,0,0,0.88)',
+          }}
           onAnimationEnd={() => setPhrase(null)}
         >
           <span
