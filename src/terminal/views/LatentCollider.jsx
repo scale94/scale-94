@@ -3227,16 +3227,16 @@ export default function LatentCollider({ kernelRunHistoryRef } = {}) {
           orderStatus={orderStatus}
         />
       )}
-          {acquiring && acquireLog.length > 0 && (
-            <div
-              className="font-mono text-[9px] leading-relaxed mt-3 select-none"
-              style={{ color: 'rgba(232,210,138,0.45)' }}
-            >
-              {acquireLog.map((line, i) => (
-                <div key={i}>{line}</div>
-              ))}
-            </div>
-          )}
+      {acquiring && acquireLog.length > 0 && (
+        <div
+          className="font-mono text-[9px] leading-relaxed mt-3 select-none"
+          style={{ color: 'rgba(232,210,138,0.45)' }}
+        >
+          {acquireLog.map((line, i) => (
+            <div key={i}>{line}</div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
