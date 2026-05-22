@@ -13,7 +13,7 @@ import { loadWasm } from '../../wasm/wasmSingleton';
 import wasmRegistry from '../../wasm/wasm.generated';
 import { toMapXY } from '../data/worldMapPolys';
 
-const CHRONO_ENTRY = wasmRegistry['CHRONO-ACTUARY-KERNEL-2.0'];
+const CHRONO_ENTRY = wasmRegistry['CHRONOS-KERNEL-2.1.0'];
 
 // ── Boot choreography phases ──────────────────────────────────────────────────
 // Phase 0: blank
