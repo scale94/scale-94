@@ -8,6 +8,7 @@ import { MANIFESTO_CHAPTERS } from '../../data/manifestoChapters';
 const isMobile = typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
 export default function KernelManifesto() {
+  // TODO(phase-b): emit('edge', 'manifesto_opened', { chapter })
   const [chapter, setChapter] = useState(null);
   const chapterIndex = chapter
     ? MANIFESTO_CHAPTERS.findIndex(c => c.id === chapter.id)

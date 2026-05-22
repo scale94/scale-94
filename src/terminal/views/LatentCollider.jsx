@@ -1168,6 +1168,7 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
     if (!result || domainA === null || domainB === null) return;
     const card = buildPerfumeCard(domainA, domainB, result);
     setCrystal(card);
+    // TODO(phase-b): emit('essences', 'crystallized', { kind: 'order_placed', polarity: result?.accord?.polarityClass?.label ?? null })
     try {
       const ids = JSON.parse(localStorage.getItem('ck_ids') || '[]');
       setAcquired(ids.includes(card.id));
@@ -1176,6 +1177,7 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
     try {
       const profile = await buildTesseractProfile(card, result.accord, domainA, domainB, result);
       setTesseract(profile);
+      // TODO(phase-b): emit('ciphers', 'cipher_sealed', { hashPrefix: profile?.hash?.slice(0, 10) ?? '' })
       // Hydrate living-accord state from localStorage if we've redeemed this hash before
       try {
         const stored = localStorage.getItem(`living:${profile.hash}`);

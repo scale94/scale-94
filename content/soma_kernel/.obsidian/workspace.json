@@ -25,14 +25,10 @@
             "id": "ab625717bcb98a57",
             "type": "leaf",
             "state": {
-              "type": "markdown",
-              "state": {
-                "file": "feigenbaum_fish_scale_kernel-v9.9.9.9.9.9.9.9.9.md",
-                "mode": "source",
-                "source": false
-              },
+              "type": "empty",
+              "state": {},
               "icon": "lucide-file",
-              "title": "feigenbaum_fish_scale_kernel-v9.9.9.9.9.9.9.9.9"
+              "title": "New tab"
             }
           }
         ],

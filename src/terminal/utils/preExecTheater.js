@@ -24,6 +24,7 @@ function hexLine() {
  * every 30ms for `durationMs` milliseconds.
  */
 export function runPreExecTheater(appendLog, durationMs) {
+  // TODO(phase-b): emit('transmissions', 'theater_run', { durationMs })
   return new Promise(resolve => {
     const interval = setInterval(() => {
       try { appendLog(hexLine()); } catch { /* log callback errors are non-fatal */ }

@@ -681,6 +681,7 @@ export default function TFGSphere() {
         ref={meshRef}
         args={[geo, mat, traits.length]}
         onClick={(e) => {
+          // TODO(phase-b): emit('gaze', 'sphere_clicked', { sphere: 'TFG' })
           e.stopPropagation();
           const idx = e.instanceId;
           if (idx === undefined || idx === null) return;
