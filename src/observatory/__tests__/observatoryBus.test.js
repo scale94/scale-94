@@ -100,3 +100,19 @@ describe('observatoryBus', () => {
     expect(getJournal()).toHaveLength(1);
   });
 });
+
+import { renderHook, act } from '@testing-library/react';
+import { useObservatoryState } from '../useObservatoryState';
+
+describe('useObservatoryState', () => {
+  beforeEach(() => { _resetForTests(); });
+
+  it('returns totals + journal and re-renders on emit', () => {
+    const { result } = renderHook(() => useObservatoryState());
+    expect(result.current.totals.transmissions.count).toBe(0);
+
+    act(() => emit('transmissions', 'kernel_completed', { kernelId: 'x' }));
+    expect(result.current.totals.transmissions.count).toBe(1);
+    expect(result.current.journal[0].kind).toBe('kernel_completed');
+  });
+});
