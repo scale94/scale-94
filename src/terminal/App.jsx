@@ -168,7 +168,7 @@ const App = () => {
 
   const { appendSystemLog, setSystemLogs, visibleLogs, logRef } = useSystemLog();
   // RAM — ecological entropy model §1.3: cost maps to planetary footprint
-  const { ramPct, ecoCost, applyEcoCost, applyRefill, latticeState, isCritical, isWarning, isRefillReady } = useEcologicalRam({ appendSystemLog });
+  const { ramPct, ecoCost, applyEcoCost, applyRefill, applyAlienBlessing, latticeState, isCritical, isWarning, isRefillReady } = useEcologicalRam({ appendSystemLog });
 
   // ── CAS dynamic data derivation ──────────────────────────────────────────────
   // Merge priority (highest → lowest):
@@ -932,6 +932,15 @@ const App = () => {
     setPossessionCountdown,
     onDone: () => { justResolvedGate.current = false; },
   });
+
+  // When gate is passed (correct perihelion answer), the alien grants full RAM.
+  // Fires on first mount if already passed (returning visitor) and on fresh pass.
+  const alienBlessingFiredRef = useRef(false);
+  useEffect(() => {
+    if (gateState !== 'passed' || alienBlessingFiredRef.current) return;
+    alienBlessingFiredRef.current = true;
+    applyAlienBlessing();
+  }, [gateState, applyAlienBlessing]);
 
   const submitCommand = () => {
     setSuggestions([]);

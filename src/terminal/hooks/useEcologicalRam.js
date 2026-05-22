@@ -640,6 +640,18 @@ export function useEcologicalRam({ appendSystemLog }) {
     return { ok: true };
   }, [updateLattice]);
 
+  // Gate blessing — called when user answers the perihelion riddle correctly.
+  // Bypasses lattice lock; the correct answer is the alien's sign of approval.
+  const applyAlienBlessing = useCallback(() => {
+    const t = new Date().toLocaleTimeString('en-US', { hour12: false });
+    ramPctRef.current = RAM_CEIL;
+    setRamPct(RAM_CEIL);
+    const lat = latticeRef.current;
+    updateLattice({ ...lat, unlocked: true, lastRefillAt: Date.now() });
+    appendRef.current({ time: t, color: '#d4a82a',
+      msg: `[◉ ALIEN:APPROVAL] :: perihelion passage confirmed · the architect recognizes the answer · RAM ${RAM_CEIL}% · the commons: unconditionally restored` });
+  }, [updateLattice]);
+
   const isCritical    = ramPct < CRIT_THRESH;
   const isWarning     = ramPct < WARN_THRESH;
   const isRefillReady = latticeState.unlocked &&
@@ -654,6 +666,7 @@ export function useEcologicalRam({ appendSystemLog }) {
     applyEcoCost:  applyRamDelta,   // backward compat alias
     applyRamDelta,
     applyRefill,
+    applyAlienBlessing,
     isCritical,
     isWarning,
     isRefillReady,

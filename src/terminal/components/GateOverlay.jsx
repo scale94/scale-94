@@ -111,6 +111,12 @@ export default function GateOverlay({ onResult }) {
             >
               ars electronica 2027 :: negotiating humanity
             </div>
+            <div
+              className="font-mono text-[9px] tracking-[0.18em] text-center"
+              style={{ color: '#cc000055' }}
+            >
+              ∷ the word for growth lives inside the answer
+            </div>
           </div>
 
           {/* Input */}
