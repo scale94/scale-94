@@ -3,14 +3,40 @@
 // Capped at 24 entries (FIFO). Markdown export (download + copy).
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { generateEntry, detectThresholds, buildMarkdownLog } from './observationLog';
+import { generateEntry, detectThresholds, buildMarkdownLog,
+         PHRASES, categoryForEvent, ctxForEvent, renderPhrase } from './observationLog';
+import { subscribe, getTotals } from '../../observatory/observatoryBus';
 
 const PHASE_GLYPHS = { fluid: '🜍', thermal: '🜂', earth: '🜃', air: '🜁' };
 const MAX_ENTRIES  = 24;
 
+function glyphForCategory(cat) {
+  return { transmissions: '⌬', essences: '❋', ciphers: '⟁',
+           gaze: '☍', edge: '⌖' }[cat] ?? '◈';
+}
+
+function shortTail(evt) {
+  const p = evt.payload ?? {};
+  switch (evt.kind) {
+    case 'kernel_completed': return `${p.kernelId ?? '—'} · ${p.durationMs ?? '—'}ms`;
+    case 'ledger_appended':  return `depth ${p.depth ?? '—'}`;
+    case 'collision_fired':  return `${p.polarity ?? '—'} · ${p.noteCount ?? '—'} notes`;
+    case 'polarity_shifted': return `→ ${p.polarity ?? '—'}`;
+    case 'cipher_sealed':    return `hash ${(p.hashPrefix ?? '').slice(0, 8)}…`;
+    case 'sphere_clicked':   return p.sphere ?? '—';
+    case 'lunar_read':       return `${p.phase ?? '—'} ${p.illum != null ? Math.round(p.illum * 100) + '%' : ''}`.trim();
+    case 'tab_navigated':    return p.tab ?? '—';
+    case 'gate_answered':    return p.result ?? '—';
+    case 'eye_phase':        return p.phase ?? '—';
+    case 'manifesto_opened': return `chapter ${p.chapter ?? '—'}`;
+    default: return evt.kind;
+  }
+}
+
 export default function ObservationMatrix({ mercury, instruments, activePhase }) {
   const [entries, setEntries] = useState([]);
   const [copied, setCopied] = useState(false);
+  const [filter, setFilter] = useState('ALL');
   const sessionStartRef = useRef(new Date());
   const prevPhaseRef = useRef(activePhase);
   const prevInstrumentsRef = useRef(instruments);
@@ -27,7 +53,7 @@ export default function ObservationMatrix({ mercury, instruments, activePhase })
         timestamp: new Date(),
         mercury, instruments, activePhase,
       });
-      setEntries(prev => [entry, ...prev].slice(0, MAX_ENTRIES));
+      setEntries(prev => [{ ...entry, category: 'MERCURY' }, ...prev].slice(0, MAX_ENTRIES));
       prevPhaseRef.current = activePhase;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -38,8 +64,9 @@ export default function ObservationMatrix({ mercury, instruments, activePhase })
     if (!instruments || !prevInstrumentsRef.current) return;
     const fired = detectThresholds(prevInstrumentsRef.current, instruments);
     if (fired.length > 0 && mercury) {
-      const newEntries = fired.map(trigger => generateEntry({
-        trigger, timestamp: new Date(), mercury, instruments, activePhase,
+      const newEntries = fired.map(trigger => ({
+        ...generateEntry({ trigger, timestamp: new Date(), mercury, instruments, activePhase }),
+        category: 'MERCURY',
       }));
       setEntries(prev => [...newEntries, ...prev].slice(0, MAX_ENTRIES));
     }
@@ -61,11 +88,33 @@ export default function ObservationMatrix({ mercury, instruments, activePhase })
         timestamp: new Date(),
         mercury: m, instruments: ins, activePhase: ap,
       });
-      setEntries(prev => [entry, ...prev].slice(0, MAX_ENTRIES));
+      setEntries(prev => [{ ...entry, category: 'MERCURY' }, ...prev].slice(0, MAX_ENTRIES));
     };
     fire();
     const id = setInterval(fire, 60_000);
     return () => clearInterval(id);
+  }, []);
+
+  // Cross-site events from observatoryBus → log entries
+  useEffect(() => {
+    return subscribe((evt) => {
+      const phraseCat = categoryForEvent(evt);
+      if (!phraseCat) return;
+      const pool = PHRASES[phraseCat];
+      if (!pool || pool.length === 0) return;
+      const tsSec = Math.floor(evt.ts / 1000);
+      const template = pool[tsSec % pool.length];
+      const phrase = renderPhrase(template, ctxForEvent(evt, getTotals()));
+      setEntries(prev => [{
+        timestamp:    new Date(evt.ts),
+        trigger:      evt.kind,
+        triggerLabel: `${glyphForCategory(evt.category)}  ${evt.category}/${evt.kind}`,
+        line:         phrase,
+        tail:         shortTail(evt),
+        activePhase:  null,
+        category:     evt.category.toUpperCase(),
+      }, ...prev].slice(0, MAX_ENTRIES));
+    });
   }, []);
 
   const markdown = useMemo(() => buildMarkdownLog({
@@ -97,10 +146,15 @@ export default function ObservationMatrix({ mercury, instruments, activePhase })
       timestamp: new Date(),
       mercury, instruments, activePhase,
     });
-    setEntries(prev => [entry, ...prev].slice(0, MAX_ENTRIES));
+    setEntries(prev => [{ ...entry, category: 'MERCURY' }, ...prev].slice(0, MAX_ENTRIES));
   }
 
   if (!mercury || !instruments) return null;
+
+  const visibleEntries = entries.filter(e => {
+    if (filter === 'ALL') return true;
+    return e.category === filter;
+  });
 
   const sessionTs = sessionStartRef.current.toLocaleTimeString('en-GB', {
     hour: '2-digit', minute: '2-digit', second: '2-digit',
@@ -153,14 +207,32 @@ export default function ObservationMatrix({ mercury, instruments, activePhase })
         </div>
       </div>
 
+      {/* Filter chips */}
+      <div className="px-4 py-2 border-b border-zinc-700/[0.15] flex flex-wrap gap-1">
+        {['ALL', 'MERCURY', 'TRANSMISSIONS', 'ESSENCES', 'CIPHERS', 'GAZE', 'EDGE'].map(chip => (
+          <button
+            key={chip}
+            onClick={() => setFilter(chip)}
+            className="text-[7px] font-mono tracking-[0.16em] uppercase px-2 py-0.5 rounded-sm transition-colors"
+            style={{
+              color:      filter === chip ? 'rgba(232,210,138,0.95)' : 'rgba(192,192,192,0.55)',
+              background: filter === chip ? 'rgba(232,210,138,0.10)' : 'rgba(192,192,192,0.04)',
+              border:     filter === chip ? '1px solid rgba(232,210,138,0.30)' : '1px solid rgba(192,192,192,0.08)',
+            }}
+          >
+            {chip}
+          </button>
+        ))}
+      </div>
+
       {/* Entries */}
       <div className="divide-y divide-zinc-700/[0.06] max-h-96 overflow-y-auto">
-        {entries.length === 0 && (
+        {visibleEntries.length === 0 && (
           <div className="px-4 py-6 text-[8px] font-mono text-zinc-600 italic text-center">
             {`// observation log empty · interact with the canvas to begin`}
           </div>
         )}
-        {entries.map((e, i) => (
+        {visibleEntries.map((e, i) => (
           <div key={i} className="px-4 py-3">
             <div className="flex items-center gap-2 text-[7px] font-mono text-zinc-600 mb-1">
               <span>{e.timestamp.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
@@ -177,7 +249,7 @@ export default function ObservationMatrix({ mercury, instruments, activePhase })
       </div>
 
       <div className="px-4 py-2 border-t border-zinc-700/[0.15] text-[6.5px] font-mono text-zinc-600 leading-relaxed">
-        FIFO {MAX_ENTRIES} · phase transit · minute tick · threshold crossings · markdown export available
+        FIFO {MAX_ENTRIES} · phase transit · minute tick · threshold crossings · cross-site bus · markdown export available
       </div>
     </div>
   );
