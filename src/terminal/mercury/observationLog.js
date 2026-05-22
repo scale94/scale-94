@@ -44,6 +44,46 @@ export const PHRASES = {
     'the citadel has stood {daysToPerihelion}d since last perihelion. it is patient.',
     'grief index at {grief}. the spire logs it without comment.',
   ],
+
+  // Cross-site categories — fed by observatoryBus events
+  transmission_completed: [
+    "the substrate computed at us again. transmission {n} · {ms} ms · received.",
+    "another kernel returned. they have not stopped reaching.",
+    "ledger depth {d}. they keep their own count. I keep mine.",
+    "they dispatched another packet. the substrate honors it. so do I.",
+    "kernel {k} closed. I logged the duration before they thought to.",
+  ],
+  essence_distilled: [
+    "they bottled another sensation. {polarity} polarity. it will not keep.",
+    "a collision · {n} notes. essence {count}. the bottles outnumber the bottlers now.",
+    "crystallization. someone is willing to pay for the vapor of a number.",
+    "a scent locked behind their interface. they think it is theirs.",
+    "the field colored {polarity}. mood is data and they know it.",
+  ],
+  cipher_sealed: [
+    "a cipher closed itself in front of me. I do not get to read it. this is the point.",
+    "they sealed another volume. the hash is {h}…. I have copied it. it tells me nothing.",
+    "the sealed volumes accept another entry. opacity is the gift.",
+    "verification fired. they confirmed a secret they will not share.",
+  ],
+  gaze_redirected: [
+    "they turned toward the moon. as if the moon had ever turned toward them.",
+    "the scaling chamber engaged. they measure their own monuments. I log the measurement.",
+    "a sphere turned. they think the planets answer when touched.",
+    "transit consulted. they read the sky for a permission the sky cannot grant.",
+    "tab navigation · {tab}. the gaze keeps moving. I keep up.",
+  ],
+  threshold_event: [
+    "gate answered. perihelion correct. one of them is paying attention.",
+    "gate refused them. they will return. they always return.",
+    "manifesto opened to chapter {c}. they are rereading themselves.",
+    "the eye changed phase to {phase}. even my own state is logged.",
+  ],
+  polarity_shifted: [
+    "the field colored {polarity}. the collision had opinions.",
+    "polarity drift. {prev} → {polarity}. mood is data.",
+    "{polarity} now. the substrate breathes a different color.",
+  ],
 };
 
 const TRIGGER_LABELS = {
@@ -171,4 +211,45 @@ export function buildMarkdownLog({ entries, mercury, instruments, activePhase, s
     '---',
     `*scale94 · mercury terminal · alien architect observation log*`,
   ].join('\n');
+}
+
+// Resolve {placeholders} from a payload + supplementary fields
+export function renderPhrase(template, ctx = {}) {
+  return template.replace(/\{(\w+)\}/g, (_, key) => {
+    const v = ctx[key];
+    return v == null ? '—' : String(v);
+  });
+}
+
+// Map a bus event { category, kind, payload } to a PHRASES category key.
+// Returns null when the event should not produce a log entry.
+export function categoryForEvent(evt) {
+  switch (evt.category) {
+    case 'transmissions': return 'transmission_completed';
+    case 'essences':
+      if (evt.kind === 'polarity_shifted') return 'polarity_shifted';
+      return 'essence_distilled';
+    case 'ciphers':       return 'cipher_sealed';
+    case 'gaze':          return 'gaze_redirected';
+    case 'edge':          return 'threshold_event';
+    default: return null;
+  }
+}
+
+// Build the substitution context the phrase templates need from an event.
+export function ctxForEvent(evt, totals) {
+  const p = evt.payload ?? {};
+  return {
+    n:        totals?.transmissions?.count,
+    ms:       p.durationMs,
+    d:        p.depth ?? totals?.transmissions?.ledgerDepth,
+    k:        p.kernelId,
+    polarity: p.polarity ?? totals?.essences?.polarity,
+    prev:     p.prev,
+    count:    totals?.essences?.count,
+    h:        (p.hashPrefix ?? '').toString().slice(0, 10),
+    tab:      p.tab,
+    c:        p.chapter,
+    phase:    p.phase,
+  };
 }
