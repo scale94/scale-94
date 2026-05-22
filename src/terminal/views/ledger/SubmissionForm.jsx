@@ -3,6 +3,7 @@ const CoordinatePicker = lazy(() => import('./CoordinatePicker'));
 import { PARAM_RANGES, VALID_DEPENDENCIES, validateSubmission } from '../../ledger/verdictModel';
 import RiverPulse from './RiverPulse';
 import { paramSeverity, discreteSeverity } from './severityEngine';
+import { emit as emitObs, getTotals } from '../../../observatory/observatoryBus';
 
 const DEPENDENCY_LABELS = {
   sovereign: 'SOVEREIGN — user-supplied measurements',
@@ -121,6 +122,8 @@ export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch,
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
+    const prevDepth = getTotals().transmissions.ledgerDepth ?? 0;
+    emitObs('transmissions', 'ledger_appended', { depth: prevDepth + 1 });
     onSubmit(numericForm);
   }, [form, onSubmit]);
 
