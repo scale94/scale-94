@@ -1263,14 +1263,14 @@ const App = () => {
       )}
 
       <header className={`border-b border-cyan-900/30 bg-black md:bg-black/90 p-4 sticky top-0 z-40 md:backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.1)] overflow-x-hidden w-full transition-opacity duration-500 ${!mobileChrome ? 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto' : ''}`} style={{ willChange: 'opacity, transform', transform: 'translateZ(0)' }}>
-        <div className="max-w-[1800px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4 w-full min-w-0">
+        <div className="max-w-[1800px] mx-auto flex flex-row items-center justify-between gap-4 w-full min-w-0">
           <div className="flex items-center gap-2 group cursor-pointer shrink-0" onClick={() => handleNav('~/system/kernel', 'kernel')}>
             <Hexagon className="w-5 h-5 text-fuchsia-500 animate-spin-slow group-hover:text-cyan-400 transition-colors" />
             <span className="hidden md:inline font-bold tracking-widest text-lg lowercase text-[#39ff14] group-hover:text-cyan-400 transition-colors">scale_9.4</span>
           </div>
-          {/* ── Nav + Eye: wrapped so eye stays flush right of nav without overlapping ── */}
-          <div className="hidden md:flex items-center gap-3 shrink min-w-0">
-          <nav aria-label="Main navigation" className="flex items-center gap-1 text-[11px] font-bold tracking-normal overflow-x-auto shrink min-w-0" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          {/* ── Nav + Eye: wrapper visible on all sizes; nav itself hidden on mobile so the eye remains the only child ── */}
+          <div className="flex items-center gap-3 shrink min-w-0 justify-end">
+          <nav aria-label="Main navigation" className="hidden md:flex items-center gap-1 text-[11px] font-bold tracking-normal overflow-x-auto shrink min-w-0" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             <button aria-label="Kernel" aria-current={activeTab === 'kernel' ? 'page' : undefined} onClick={() => handleNav('~/system/kernel', 'kernel')} className={`${activeTab === 'kernel' ? 'bg-cyan-500 text-black shadow-[0_0_10px_rgba(6,182,212,0.5)]' : 'text-cyan-500 hover:text-cyan-200 hover:bg-cyan-900/30'} px-2 py-1 transition-all duration-300 flex items-center gap-1.5 uppercase rounded-sm whitespace-nowrap`}><Cpu className="w-3 h-3" /> /Kernel</button>
 
             <button aria-label="BSKY" aria-current={activeTab === 'bsky' ? 'page' : undefined} onClick={() => handleNav('~/system/bsky', 'bsky')} className={`${activeTab === 'bsky' ? 'bg-sky-600 text-sky-50 shadow-[0_0_12px_rgba(56,189,248,0.5)]' : 'text-sky-400/80 hover:text-sky-200 hover:bg-sky-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><NavButterflyIcon /> /BSKY</button>
