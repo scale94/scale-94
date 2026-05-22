@@ -4,6 +4,7 @@ import MercuryControls  from '../mercury/MercuryControls';
 import MercuryFireworks from '../mercury/MercuryFireworks';
 import InstrumentsPanel       from '../mercury/InstrumentsPanel';
 import CastleGrid             from '../mercury/CastleGrid';
+import CosmosRegistry         from '../mercury/CosmosRegistry';
 import ObservationMatrix      from '../mercury/ObservationMatrix';
 import { useMercuryState }    from '../mercury/useMercuryState';
 import { computeInstruments } from '../mercury/instruments';
@@ -205,6 +206,9 @@ export default function MercuryTab() {
         mercury={mercuryState}
         canvas={canvasState}
       />
+
+      {/* §D — Cosmos Registry (the alien's taxonomy of the whole site) */}
+      <CosmosRegistry />
 
       {/* §C — Live observation log */}
       <ObservationMatrix
