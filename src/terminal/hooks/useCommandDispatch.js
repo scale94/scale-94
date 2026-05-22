@@ -324,7 +324,7 @@ export function useCommandDispatch(ctx) {
                     applyEcoCost(ecoAlias);
                     const runAt1 = Date.now();
                     kernelRunHistoryRef?.current?.push({ id: wasmEntry.id, alias: ecoAlias, t: runAt1 });
-                    onKernelRun?.(runAt1);
+                    onKernelRun?.(runAt1, wasmEntry.id, elapsed);
                   }
                 }, i * 22);
               });
@@ -339,7 +339,7 @@ export function useCommandDispatch(ctx) {
               applyEcoCost(ecoAlias);
               const runAt2 = Date.now();
               kernelRunHistoryRef?.current?.push({ id: wasmEntry.id, alias: ecoAlias, t: runAt2 });
-              onKernelRun?.(runAt2);
+              onKernelRun?.(runAt2, wasmEntry.id, elapsed);
             }
 
 

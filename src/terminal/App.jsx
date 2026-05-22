@@ -41,6 +41,7 @@ import SanctuaryOverlay     from './components/SanctuaryOverlay';
 import MercuryEyeIndicator  from './components/MercuryEyeIndicator';
 import KuramotoVisualizer   from './components/KuramotoVisualizer';
 import GateOverlay from './components/GateOverlay';
+import { emit as emitObs } from '../observatory/observatoryBus';
 
 // Hooks
 import useSystemLog           from './hooks/useSystemLog';
@@ -591,6 +592,7 @@ const App = () => {
       appendSystemLog({ time: fmtTime(later), msg: `${kernel.name} loaded successfully.` });
       setLoadingKernel(null);
       setLastLoadAt(Date.now());
+      emitObs('transmissions', 'kernel_loaded', { kernelId: kernel?.id ?? kernel?.name ?? '—' });
 
       if (kernel.articleId) {
         // Priority: generated articles (fetch-based loadContent) → auto .md glob stubs (fallback).
@@ -704,6 +706,7 @@ const App = () => {
     setArchitectThesis(false);
     setTagCloudView(false);
     setActiveTab(targetTab);
+    emitObs('gaze', 'tab_navigated', { tab: targetTab });
     setCurrentPath('~/' + targetTab);
   }, [originTab]);
 
@@ -713,6 +716,7 @@ const App = () => {
       if (prev !== tab) {
         setTabGlitch(true);
         setTimeout(() => setTabGlitch(false), 180);
+        emitObs('gaze', 'tab_navigated', { tab });
       }
       return tab;
     });
@@ -776,6 +780,7 @@ const App = () => {
     const tab  = isFiction ? 'transmission' : isEco ? 'ecocide' : 'kernel';
     const path = `~/system/${tab}/${article.id}`;
     setActiveTab(tab);
+    emitObs('gaze', 'tab_navigated', { tab });
     setOriginTab(tab);
     setCurrentPath(path);
     setSelectedArticle(article);
@@ -795,7 +800,10 @@ const App = () => {
     appendSystemLog, handleNav, handleKernelClick, handleTransmissionSelect,
     loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField, setSpectralBridges, setEnclaveKeys, setProbeNode, setBoneFusions,
     fusionLog, setFusionLog, kernelRunHistoryRef,
-    onKernelRun: setLastKernelAt,
+    onKernelRun: (ts, kernelId, durationMs) => {
+      setLastKernelAt(ts);
+      emitObs('transmissions', 'kernel_completed', { kernelId: kernelId ?? '—', durationMs: durationMs ?? null });
+    },
   });
 
   // Mobile auto-run — fires a WASM kernel automatically when a card is tapped on mobile.
@@ -990,7 +998,10 @@ const App = () => {
 
       {/* ── Gate overlay — shown after boot completes on first load ─────────── */}
       {gateState === null && !bootSequence && (
-        <GateOverlay onResult={(passed) => persistGateState(passed ? 'passed' : 'failed')} />
+        <GateOverlay onResult={(passed) => {
+          persistGateState(passed ? 'passed' : 'failed');
+          emitObs('edge', 'gate_answered', { result: passed ? 'BLESSED' : 'REJECTED' });
+        }} />
       )}
 
       {/* ── Boot sequence — unmounts when onDone fires ─────────────────────── */}
@@ -1382,7 +1393,10 @@ const App = () => {
                 setOriginTab={setOriginTab}
                 loadKernel={handleNeuralLink}
                 kernelRunHistoryRef={kernelRunHistoryRef}
-                onPolarity={setLastPolarityClass}
+                onPolarity={(polarity) => {
+                  setLastPolarityClass(polarity);
+                  emitObs('essences', 'polarity_shifted', { polarity });
+                }}
               />
             </WasmErrorBoundary>
           )}

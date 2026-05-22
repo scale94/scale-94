@@ -16,6 +16,7 @@
 // Suppression: handled by parent (boot / sanctuary / breach).
 
 import React, { useState, useEffect, useRef } from 'react';
+import { emit as emitObs } from '../../observatory/observatoryBus';
 
 // ── Observer phrase pools ────────────────────────────────────────────────────
 const OBSERVER_PHRASES_LOAD = [
@@ -127,6 +128,14 @@ export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelA
     const t = setTimeout(() => setDeepWatch(true), remaining);
     return () => clearTimeout(t);
   }, [lastKernelAt]);
+
+  // ── Eye phase emit ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    const phase = flaring ? 'flaring' :
+                  isOnMercury ? 'engaged-here' :
+                  deepWatch ? 'deep-watch' : 'idle';
+    emitObs('edge', 'eye_phase', { phase });
+  }, [flaring, deepWatch, isOnMercury]);
 
   // ── Animation priority ──────────────────────────────────────────────────────
   const animation = flaring
