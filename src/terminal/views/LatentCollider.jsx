@@ -10,6 +10,7 @@ import { useProductionThreshold } from '../hooks/useProductionThreshold';
 import { useOrderStatus, storeOrderHash } from '../hooks/useOrderStatus';
 import { buildChimeraGlyph } from './chimeraGlyph.js';
 import { runPreExecTheater, theaterDuration } from '../utils/preExecTheater.js';
+import { emit as emitObs } from '../../observatory/observatoryBus';
 
 // ── CopySpan — tiny clipboard helper used in Tesseract contact signals ───────
 function CopySpan({ value, color }) {
@@ -1432,6 +1433,10 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
 
       metricsRef.current = parsed;
       setResult(parsed);
+      emitObs('essences', 'collision_fired', {
+        polarity: parsed.accord?.polarityClass?.label ?? null,
+        noteCount: Array.isArray(parsed.accord?.notes) ? parsed.accord.notes.length : null,
+      });
       onPolarity?.(parsed.accord?.polarityClass?.label ?? null);
       setPhase('colliding');
       phaseRef.current = 'colliding';

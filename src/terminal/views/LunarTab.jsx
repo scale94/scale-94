@@ -18,6 +18,7 @@ import { Moon, Sun, Droplets, Wind, Eye, ChevronRight, Thermometer } from 'lucid
 import { loadWasm } from '../../wasm/wasmSingleton';
 import { parseAstroOutput, computeAspect } from '../mercury/tfgAstroHelpers';
 import ParamBar from '../mercury/ParamBar';
+import { emit as emitObs } from '../../observatory/observatoryBus';
 
 // ── Lunar Phase Engine ───────────────────────────────────────────────────────
 // Primary: WASM kernel (Meeus astronomical algorithms, ~10″ longitude accuracy).
@@ -1168,6 +1169,17 @@ export default function LunarTab() {
   // Recompute on every render tick — Date objects defeat useMemo referential checks
   const nowMs = now.getTime();
   const lunarData = useMemo(() => getLunarFromWasm(now), [nowMs, wasmReady]);
+
+  const emittedRef = useRef(false);
+  useEffect(() => {
+    if (emittedRef.current) return;
+    if (!lunarData) return;
+    emittedRef.current = true;
+    emitObs('gaze', 'lunar_read', {
+      phase: lunarData?.phaseName ?? null,
+      illum: lunarData?.illumination ?? null,
+    });
+  }, [lunarData]);
 
   // ── Live (real-now) lunar state ─────────────────────────────────────────
   const liveAge = lunarData?.age ?? getLunarAgeFallback(now);
