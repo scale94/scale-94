@@ -33,6 +33,21 @@ function shortTail(evt) {
   }
 }
 
+function buildRegistryMarkdownBlock(totals) {
+  function fmtTs(ts) { return ts ? new Date(ts).toTimeString().slice(0, 8) : '—'; }
+  const t = totals;
+  const rows = [
+    ['TRANSMISSION LATTICE', fmtTs(t.transmissions.lastTs), `${t.transmissions.count} transmissions · ledger depth ${t.transmissions.ledgerDepth}`],
+    ['BOTTLED VOWS',         fmtTs(t.essences.lastTs),      `${t.essences.count} essences · ${t.essences.crystallized} crystallized · ${t.essences.polarity ?? '—'}`],
+    ['SEALED VOLUMES',       fmtTs(t.ciphers.lastTs),       `${t.ciphers.sealed} sealed · ${t.ciphers.unlocks} unlocks`],
+    ['BACKWARD GAZE',        fmtTs(t.gaze.lastTs),          `moon ${t.gaze.lastLunar?.phase ?? '—'} · ${t.gaze.sphereClicks} spheres`],
+    ['PERMEABLE EDGE',       fmtTs(t.edge.lastTs),          `gate ${t.edge.gate} · eye ${t.edge.eye} · manifesto ${t.edge.manifestoChapter ?? '—'}`],
+  ];
+  const header = `## COSMOS REGISTRY — session totals\n| category | last event | totals |\n| :--- | :--- | :--- |\n`;
+  const body   = rows.map(([cat, ts, totalsLine]) => `| ${cat} | ${ts} | ${totalsLine} |`).join('\n');
+  return header + body + '\n';
+}
+
 export default function ObservationMatrix({ mercury, instruments, activePhase }) {
   const [entries, setEntries] = useState([]);
   const [copied, setCopied] = useState(false);
@@ -117,10 +132,15 @@ export default function ObservationMatrix({ mercury, instruments, activePhase })
     });
   }, []);
 
-  const markdown = useMemo(() => buildMarkdownLog({
-    entries, mercury, instruments, activePhase,
-    sessionStart: sessionStartRef.current,
-  }), [entries, mercury, instruments, activePhase]);
+  const markdown = useMemo(() => {
+    const base = buildMarkdownLog({
+      entries, mercury, instruments, activePhase,
+      sessionStart: sessionStartRef.current,
+    });
+    const registryBlock = buildRegistryMarkdownBlock(getTotals());
+    // Splice the registry block between CURRENT INSTRUMENTS table and ## ENTRIES
+    return base.replace(/\n## ENTRIES\n/, `\n\n${registryBlock}\n## ENTRIES\n`);
+  }, [entries, mercury, instruments, activePhase]);
 
   function handleDownload() {
     const blob = new Blob([markdown], { type: 'text/markdown' });
