@@ -175,21 +175,21 @@ export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelA
       )}
       <style>{`
         @keyframes mei-breath {
-          0%, 100% { opacity: 0.28; text-shadow: 0 0 6px rgba(232,210,138,0.20); }
-          50%      { opacity: 0.58; text-shadow: 0 0 14px rgba(232,210,138,0.50), 0 0 4px rgba(232,210,138,0.35); }
+          0%, 100% { opacity: 0.28; }
+          50%      { opacity: 0.58; }
         }
         @keyframes mei-breath-active {
-          0%, 100% { opacity: 0.72; text-shadow: 0 0 18px rgba(212,168,42,0.65), 0 0 6px rgba(212,168,42,0.40); }
-          50%      { opacity: 0.95; text-shadow: 0 0 30px rgba(212,168,42,0.90), 0 0 10px rgba(212,168,42,0.65); }
+          0%, 100% { opacity: 0.72; }
+          50%      { opacity: 0.95; }
         }
         @keyframes mei-breath-deep {
-          0%, 100% { opacity: 0.15; text-shadow: 0 0 4px rgba(232,210,138,0.12); }
-          50%      { opacity: 0.38; text-shadow: 0 0 10px rgba(232,210,138,0.30); }
+          0%, 100% { opacity: 0.15; }
+          50%      { opacity: 0.38; }
         }
         @keyframes mei-flare {
-          0%   { opacity: 0.95; text-shadow: 0 0 28px rgba(232,210,138,0.85), 0 0 8px rgba(232,210,138,0.55); }
-          35%  { opacity: 0.82; text-shadow: 0 0 20px rgba(232,210,138,0.65); }
-          100% { opacity: 0.28; text-shadow: 0 0 6px rgba(232,210,138,0.20); }
+          0%   { opacity: 0.95; }
+          35%  { opacity: 0.82; }
+          100% { opacity: 0.28; }
         }
         @keyframes mei-tooltip-in {
           from { opacity: 0; transform: translateY(-2px); }
