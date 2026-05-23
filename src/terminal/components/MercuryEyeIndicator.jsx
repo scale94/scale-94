@@ -174,6 +174,54 @@ export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelA
         </div>
       )}
       <style>{`
+        @keyframes mei-spectrum-idle {
+          0%   { color: #06b6d4; text-shadow: 0 0 14px rgba(6,182,212,0.55),   0 0 4px rgba(6,182,212,0.3); }
+          8%   { color: #38bdf8; text-shadow: 0 0 14px rgba(56,189,248,0.55),  0 0 4px rgba(56,189,248,0.3); }
+          17%  { color: #a78bfa; text-shadow: 0 0 14px rgba(167,139,250,0.55), 0 0 4px rgba(167,139,250,0.3); }
+          25%  { color: #c084fc; text-shadow: 0 0 14px rgba(192,132,252,0.55), 0 0 4px rgba(192,132,252,0.3); }
+          33%  { color: #d946ef; text-shadow: 0 0 14px rgba(217,70,239,0.55),  0 0 4px rgba(217,70,239,0.3); }
+          38%  { color: #fb7185; text-shadow: 0 0 14px rgba(251,113,133,0.55), 0 0 4px rgba(251,113,133,0.3); }
+          43%  { color: #ef4444; text-shadow: 0 0 14px rgba(239,68,68,0.55),   0 0 4px rgba(239,68,68,0.3); }
+          48%  { color: #f97316; text-shadow: 0 0 14px rgba(249,115,22,0.55),  0 0 4px rgba(249,115,22,0.3); }
+          56%  { color: #FFD700; text-shadow: 0 0 14px rgba(255,215,0,0.55),   0 0 4px rgba(255,215,0,0.3); }
+          65%  { color: #7ab800; text-shadow: 0 0 14px rgba(122,184,0,0.55),   0 0 4px rgba(122,184,0,0.3); }
+          75%  { color: #a78bfa; text-shadow: 0 0 14px rgba(167,139,250,0.55), 0 0 4px rgba(167,139,250,0.3); }
+          85%  { color: #c0c0c0; text-shadow: 0 0 14px rgba(192,192,192,0.45), 0 0 4px rgba(192,192,192,0.3); }
+          93%  { color: #14b8a6; text-shadow: 0 0 14px rgba(20,184,166,0.55),  0 0 4px rgba(20,184,166,0.3); }
+          100% { color: #06b6d4; text-shadow: 0 0 14px rgba(6,182,212,0.55),   0 0 4px rgba(6,182,212,0.3); }
+        }
+        @keyframes mei-spectrum-active {
+          0%   { color: #06b6d4; text-shadow: 0 0 28px rgba(6,182,212,0.90),   0 0 10px rgba(6,182,212,0.6); }
+          8%   { color: #38bdf8; text-shadow: 0 0 28px rgba(56,189,248,0.90),  0 0 10px rgba(56,189,248,0.6); }
+          17%  { color: #a78bfa; text-shadow: 0 0 28px rgba(167,139,250,0.90), 0 0 10px rgba(167,139,250,0.6); }
+          25%  { color: #c084fc; text-shadow: 0 0 28px rgba(192,132,252,0.90), 0 0 10px rgba(192,132,252,0.6); }
+          33%  { color: #d946ef; text-shadow: 0 0 28px rgba(217,70,239,0.90),  0 0 10px rgba(217,70,239,0.6); }
+          38%  { color: #fb7185; text-shadow: 0 0 28px rgba(251,113,133,0.90), 0 0 10px rgba(251,113,133,0.6); }
+          43%  { color: #ef4444; text-shadow: 0 0 28px rgba(239,68,68,0.90),   0 0 10px rgba(239,68,68,0.6); }
+          48%  { color: #f97316; text-shadow: 0 0 28px rgba(249,115,22,0.90),  0 0 10px rgba(249,115,22,0.6); }
+          56%  { color: #FFD700; text-shadow: 0 0 28px rgba(255,215,0,0.90),   0 0 10px rgba(255,215,0,0.6); }
+          65%  { color: #7ab800; text-shadow: 0 0 28px rgba(122,184,0,0.90),   0 0 10px rgba(122,184,0,0.6); }
+          75%  { color: #a78bfa; text-shadow: 0 0 28px rgba(167,139,250,0.90), 0 0 10px rgba(167,139,250,0.6); }
+          85%  { color: #c0c0c0; text-shadow: 0 0 28px rgba(192,192,192,0.80), 0 0 10px rgba(192,192,192,0.6); }
+          93%  { color: #14b8a6; text-shadow: 0 0 28px rgba(20,184,166,0.90),  0 0 10px rgba(20,184,166,0.6); }
+          100% { color: #06b6d4; text-shadow: 0 0 28px rgba(6,182,212,0.90),   0 0 10px rgba(6,182,212,0.6); }
+        }
+        @keyframes mei-spectrum-deep {
+          0%   { color: #06b6d4; text-shadow: 0 0 6px rgba(6,182,212,0.22); }
+          8%   { color: #38bdf8; text-shadow: 0 0 6px rgba(56,189,248,0.22); }
+          17%  { color: #a78bfa; text-shadow: 0 0 6px rgba(167,139,250,0.22); }
+          25%  { color: #c084fc; text-shadow: 0 0 6px rgba(192,132,252,0.22); }
+          33%  { color: #d946ef; text-shadow: 0 0 6px rgba(217,70,239,0.22); }
+          38%  { color: #fb7185; text-shadow: 0 0 6px rgba(251,113,133,0.22); }
+          43%  { color: #ef4444; text-shadow: 0 0 6px rgba(239,68,68,0.22); }
+          48%  { color: #f97316; text-shadow: 0 0 6px rgba(249,115,22,0.22); }
+          56%  { color: #FFD700; text-shadow: 0 0 6px rgba(255,215,0,0.22); }
+          65%  { color: #7ab800; text-shadow: 0 0 6px rgba(122,184,0,0.22); }
+          75%  { color: #a78bfa; text-shadow: 0 0 6px rgba(167,139,250,0.22); }
+          85%  { color: #c0c0c0; text-shadow: 0 0 6px rgba(192,192,192,0.18); }
+          93%  { color: #14b8a6; text-shadow: 0 0 6px rgba(20,184,166,0.22); }
+          100% { color: #06b6d4; text-shadow: 0 0 6px rgba(6,182,212,0.22); }
+        }
         @keyframes mei-breath {
           0%, 100% { opacity: 0.28; }
           50%      { opacity: 0.58; }
