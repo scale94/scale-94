@@ -139,12 +139,12 @@ export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelA
 
   // ── Animation priority ──────────────────────────────────────────────────────
   const animation = flaring
-    ? 'mei-flare 1.8s ease-out forwards'
+    ? 'mei-spectrum-idle 52s linear infinite, mei-flare 1.8s ease-out forwards'
     : isOnMercury
-      ? 'mei-breath-active 8s ease-in-out infinite'
+      ? 'mei-spectrum-active 8s linear infinite, mei-breath-active 8s ease-in-out infinite'
       : deepWatch
-        ? 'mei-breath-deep 14s ease-in-out infinite'
-        : 'mei-breath 11s ease-in-out infinite';
+        ? 'mei-spectrum-deep 120s linear infinite, mei-breath-deep 14s ease-in-out infinite'
+        : 'mei-spectrum-idle 52s linear infinite, mei-breath 11s ease-in-out infinite';
 
   return (
     <div
@@ -253,7 +253,7 @@ export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelA
       <div
         className="text-[18px] sm:text-[20px] leading-none font-black transition-transform duration-300 group-hover:scale-110"
         style={{
-          color: isOnMercury ? '#d4a82a' : '#e8d28a',
+          color: '#06b6d4',
           animation,
         }}
       >
