@@ -46,7 +46,7 @@ describe('lattice state persistence', () => {
   });
 
   it('round-trips state through localStorage', () => {
-    const s = { attemptCount: 2, foundSafes: ['daly', 'biodiversity'], unlocked: false, failed: false, lastRefillAt: 0, hintSeen: true };
+    const s = { attemptCount: 2, foundSafes: ['daly', 'biodiversity'], unlocked: false, failed: false, failedAcknowledged: false, lastRefillAt: 0, hintSeen: true, sanctuaryOffered: false };
     writeLatticeState(s);
     expect(readLatticeState()).toEqual(s);
   });
@@ -192,8 +192,8 @@ describe('useEcologicalRam — boot hint', () => {
     const { logs } = setup();
     const hint = logs.find(l => l.msg.includes('[LATTICE_PROTOCOL]'));
     expect(hint).toBeDefined();
-    expect(hint.msg).toContain('3 kernels honor the commons');
-    expect(hint.msg).toContain("'re$$ill'");
+    expect(hint.msg).toContain('3 kernels that honor the commons');
+    expect(hint.msg).toContain('re$$ill');
   });
 
   it('persists hintSeen so the hint does not repeat on next mount', () => {
