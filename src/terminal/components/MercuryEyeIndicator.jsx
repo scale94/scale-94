@@ -4,13 +4,13 @@
 // property* of the whole work — the observer is always watching, not just
 // when you visit Mercury.
 //
-// Color: Fade Doctrine two-gold — #e8d28a (body) / #d4a82a (Mercury active)
+// Color: full nav-spectrum cycle (13 colors, kernel cyan → ledger teal → loop)
 //
 // Animation priority (highest → lowest):
-//   flare      — 1.8s surge on kernel run, then hands off to breath
-//   active     — on Mercury tab: faster (8s), brighter (#d4a82a)
-//   deep-watch — >90s since last kernel: slower (14s), dimmer (0.15–0.38)
-//   idle       — default: 11s breath (0.28–0.58)
+//   flare      — 1.8s opacity surge on kernel run, spectrum continues underneath
+//   active     — on Mercury tab: spectrum 8s vivid, breath 8s (0.72–0.95)
+//   deep-watch — >90s since last kernel: spectrum 120s dim, breath 14s (0.15–0.38)
+//   idle       — default: spectrum 52s moderate, breath 11s (0.28–0.58)
 //
 // Mobile fade: follows header opacity via mobileChrome prop.
 // Suppression: handled by parent (boot / sanctuary / breach).
