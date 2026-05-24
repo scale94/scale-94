@@ -178,7 +178,7 @@ Once the Architect Thesis card and all 6 command cards are extracted, these keyf
 - LatentCollider
 - `§ · the thesis` monument
 - Transaction Module (BSKY / Signal / ETH)
-- ManifestoTab sphere, orbit controls, chapter chips, ChapterPanel
+- ManifestoTab 3D kernel sphere (KernelSphere / Canvas / OrbitControls) — **must not be touched, resized, or moved**. The command section appends strictly below it.
 - All kernel command content (copy, layout, commands, flags) — structural move only
 
 ---
@@ -186,7 +186,7 @@ Once the Architect Thesis card and all 6 command cards are extracted, these keyf
 ## Success criteria
 
 1. First scroll of ScalingTab reads as: alien provocation → collision instrument → philosophical claim → canonical evidence. No command reference in sight.
-2. ManifestoTab: sphere and chapter map intact; scrolling past them reveals the full command reference exactly as before.
+2. ManifestoTab: 3D sphere fully intact and visually unchanged — same height, same canvas, same orbit controls. Scrolling *past* it reveals the command reference. Nothing above or around the sphere changes.
 3. Bibliography "READ PAPER" buttons work in ScalingTab (unchanged — `loadKernel` already wired).
 4. No pure white anywhere in the new `§ · transmission` monument (Fade Doctrine).
 5. The transformed Architect Thesis link opens the ThesisView overlay correctly (`setArchitectThesis(true)`).
