@@ -206,6 +206,44 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, setOriginTab, loadKern
         </div>
       </div>
 
+      {/* ── § · Transmission (alien opening monument) ── */}
+      <div
+        className="max-w-3xl"
+        style={{
+          opacity: 0,
+          paddingBottom: '60px',
+          marginBottom: '48px',
+          borderBottom: '1px solid rgba(6,182,212,0.08)',
+          animation: 'sc-monumentReveal 1.5s ease-out 0.2s forwards',
+        }}
+      >
+        <div className="sc-monument-marker" style={{ marginBottom: '32px' }}>§ · transmission</div>
+
+        <div className="sc-monument-display sc-monument-display--thesis" style={{ marginBottom: '5px' }}>
+          The architecture ran
+        </div>
+        <div className="sc-monument-display sc-monument-display--thesis" style={{ marginBottom: '5px' }}>
+          before
+        </div>
+        <div className="sc-monument-display sc-monument-display--thesis sc-monument-display--emphasis" style={{ marginBottom: '28px' }}>
+          you arrived.
+        </div>
+
+        <div className="sc-monument-accent" style={{ marginBottom: '20px' }} />
+
+        <div className="space-y-1.5" style={{ marginTop: '4px' }}>
+          <p className="text-[11px] font-mono" style={{ color: 'rgba(57,255,20,0.78)', lineHeight: 1.6 }}>
+            The lattice does not require your participation to be true.
+          </p>
+          <p className="text-[11px] font-mono" style={{ color: 'rgba(57,255,20,0.78)', lineHeight: 1.6 }}>
+            It predates the nomenclature.
+          </p>
+          <p className="text-[11px] font-mono" style={{ color: 'rgba(57,255,20,0.78)', lineHeight: 1.6 }}>
+            You are entering a collision record.
+          </p>
+        </div>
+      </div>
+
       {/* ── Latent Space Collider (hero section) ── */}
       <LatentCollider kernelRunHistoryRef={kernelRunHistoryRef} onPolarity={onPolarity} />
 
