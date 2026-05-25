@@ -5,6 +5,14 @@
 
 import React from 'react';
 
+// sc-borderBreath was previously injected globally by ScalingTab — now owned here.
+const BORDER_BREATH_STYLE = `
+  @keyframes sc-borderBreath {
+    0%, 100% { box-shadow: 0 0 8px rgba(217,70,239,0.06); }
+    50%       { box-shadow: 0 0 28px rgba(217,70,239,0.18); }
+  }
+`;
+
 const SILVER = 'rgba(192,192,192,';
 
 export default function RegistryCard({ category, totals }) {
@@ -16,6 +24,8 @@ export default function RegistryCard({ category, totals }) {
   const isDim   = !t.lastTs || (Date.now() - t.lastTs) > 30000;
 
   return (
+    <>
+    {isFresh && <style>{BORDER_BREATH_STYLE}</style>}
     <div
       className="relative rounded-sm border px-4 py-3 font-mono"
       style={{
@@ -94,5 +104,6 @@ export default function RegistryCard({ category, totals }) {
         </div>
       </div>
     </div>
+    </>
   );
 }

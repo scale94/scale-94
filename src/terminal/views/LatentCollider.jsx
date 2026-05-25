@@ -1917,6 +1917,27 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
 
   return (
     <div className="mb-10">
+      <style>{`
+        @keyframes sc-cardReveal {
+          from { opacity: 0; transform: translateY(12px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes sc-borderBreath {
+          0%, 100% { box-shadow: 0 0 8px rgba(217,70,239,0.06); }
+          50%       { box-shadow: 0 0 28px rgba(217,70,239,0.18); }
+        }
+        @keyframes sc-headReveal {
+          from { opacity: 0; transform: translateY(6px); filter: blur(4px); }
+          to   { opacity: 1; transform: translateY(0);  filter: blur(0); }
+        }
+        @keyframes sc-headColor {
+          0%   { color: #06b6d4; }
+          25%  { color: #d946ef; }
+          50%  { color: #39ff14; }
+          75%  { color: #06b6d4; }
+          100% { color: #06b6d4; }
+        }
+      `}</style>
       {/* ── Section header ── */}
       <div className="flex items-center justify-between mb-4">
         <div>
