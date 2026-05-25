@@ -323,7 +323,7 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, setOriginTab, loadKern
 
       {/* ── Transaction Module ── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-8 border-t border-cyan-900/30 mt-8"
-        style={{ opacity: 0, animation: 'sc-cardReveal 0.6s cubic-bezier(0.16,1,0.3,1) 1.1s forwards' }}>
+        style={{ opacity: 0, animation: 'sc-monumentReveal 1.5s ease-out 1.8s forwards' }}>
         <div className="border border-cyan-900/30 bg-black/40 p-4 rounded-lg flex flex-col justify-center items-center hover:bg-cyan-900/10 transition-colors">
           <div className="flex items-center gap-2 text-cyan-400 font-bold mb-1">
             <Globe className="w-4 h-4" /> BSKY:
