@@ -209,29 +209,27 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, setOriginTab, loadKern
       {/* ── Latent Space Collider (hero section) ── */}
       <LatentCollider kernelRunHistoryRef={kernelRunHistoryRef} onPolarity={onPolarity} />
 
-      {/* ── Architect Thesis ── */}
-      <div
-        className="border-t border-cyan-900/30 pt-8 mb-8"
-        style={{ opacity: 0, animation: 'sc-cardReveal 0.6s cubic-bezier(0.16,1,0.3,1) 0.5s forwards' }}
-      >
-        <div
-          className="border border-fuchsia-500/30 bg-fuchsia-900/5 p-6 rounded-lg hover:border-fuchsia-400/60 transition-all group relative overflow-hidden max-w-2xl mx-auto"
-          style={{ animation: 'sc-borderBreath 6s ease-in-out infinite' }}
+      {/* ── Architect Thesis — bare gold text link ── */}
+      <div className="border-t border-cyan-900/30 py-8">
+        <button
+          onClick={() => { setArchitectThesis(true); setOriginTab?.('scaling'); setCurrentPath('~/system/scaling/thesis'); }}
+          className="flex flex-col gap-1 group cursor-pointer"
         >
-          <div className="text-xl font-bold mb-1 tracking-tight" style={{ opacity: 0, animation: 'sc-headReveal 0.5s cubic-bezier(0.16,1,0.3,1) 1.15s both, sc-headColorAlt 9s ease-in-out 1s infinite' }}>ARCHITECT_THESIS</div>
-          <div className="text-[10px] font-bold text-cyan-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-            CORE PROTOCOL (IDENTITY)
-          </div>
-          <p className="text-sm text-[#39ff14] mb-4 leading-relaxed">
-            A deep dive into the philosophy of creation, friction, and the Fermions/Bosons collision model.
-          </p>
-          <button
-            onClick={() => { setArchitectThesis(true); setOriginTab?.('scaling'); setCurrentPath('~/system/scaling/thesis'); }}
-            className="flex items-center gap-2 text-xs font-bold text-cyan-400 group-hover:translate-x-1 transition-transform cursor-pointer hover:text-cyan-200"
+          <span
+            className="flex items-center gap-2 text-xs font-mono font-bold tracking-[0.12em] uppercase transition-colors"
+            style={{ color: '#d4a82a' }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#e8d28a'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = '#d4a82a'; }}
           >
-            <ChevronRight className="w-4 h-4" /> LOAD THESIS LOG
-          </button>
-        </div>
+            <ChevronRight className="w-4 h-4" /> LOAD ARCHITECT THESIS LOG
+          </span>
+          <span
+            className="text-[9px] font-mono tracking-[0.22em] uppercase"
+            style={{ color: 'rgba(6,182,212,0.35)', paddingLeft: '20px' }}
+          >
+            Core Protocol · Identity · Fermion/Boson collision model
+          </span>
+        </button>
       </div>
 
       {/* ── § · The Thesis (Seraphine White Paper Monument) ──
