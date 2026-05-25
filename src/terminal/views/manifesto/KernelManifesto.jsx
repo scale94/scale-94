@@ -4,7 +4,6 @@ import { OrbitControls } from '@react-three/drei';
 import KernelSphere from './KernelSphere';
 import ChapterPanel from './ChapterPanel';
 import { MANIFESTO_CHAPTERS } from '../../data/manifestoChapters';
-import { KERNEL_CITATIONS } from '../../data/kernelCitations';
 
 const isMobile = typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
