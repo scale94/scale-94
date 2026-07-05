@@ -38,3 +38,47 @@ export function expand(vec16) {
   }
   return out;
 }
+
+// ── Partition (locked calibration) ──────────────────────────────────────────
+export const SOCIAL_DIMS = ['synchrony', 'temporal', 'game_theory', 'information', 'cryptographic', 'economic'];
+const SOCIAL_IDX = new Set(SOCIAL_DIMS.map(n => DIM_NAMES.indexOf(n)));
+const N_SOCIAL = SOCIAL_DIMS.length;          // 6
+const N_BIO = DIMS - N_SOCIAL;                // 10
+
+// collide(A₁₅₃₆, B₁₅₃₆) — the WASM-replaceable contract.
+// Returns { cosine, byDim, energies: {social, bio}, trajectory, dominantDim }.
+export function collide(a, b) {
+  let dot = 0, na = 0, nb = 0;
+  const byDim = new Array(DIMS).fill(0);
+  for (let d = 0; d < DIMS; d++) {
+    let e = 0;
+    for (let k = 0; k < BLOCK; k++) {
+      const i = d * BLOCK + k;
+      dot += a[i] * b[i];
+      na += a[i] * a[i];
+      nb += b[i] * b[i];
+      const r = a[i] - b[i]; // residual component
+      e += r * r;
+    }
+    byDim[d] = e;
+  }
+  const cosine = dot / (Math.sqrt(na * nb) || 1);
+
+  // Mean energy per dim, strictly — removes the 6/10 partition-size bias.
+  let sumSocial = 0, sumBio = 0;
+  let dominantDim = 0, dominantE = -1;
+  for (let d = 0; d < DIMS; d++) {
+    if (SOCIAL_IDX.has(d)) sumSocial += byDim[d]; else sumBio += byDim[d];
+    if (byDim[d] > dominantE) { dominantE = byDim[d]; dominantDim = d; }
+  }
+  const social = sumSocial / N_SOCIAL;
+  const bio = sumBio / N_BIO;
+
+  return {
+    cosine,
+    byDim,
+    energies: { social, bio },
+    trajectory: social >= bio ? 'FOUNDATION' : 'CEILING',
+    dominantDim,
+  };
+}
