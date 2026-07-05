@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mulberry32, expand, collide, EXPANDED, BLOCK, SOCIAL_DIMS } from '../councilCollider';
+import { mulberry32, expand, collide, EXPANDED, BLOCK, SOCIAL_DIMS, pickPair, composeLine } from '../councilCollider';
 
 describe('mulberry32', () => {
   it('is deterministic per seed and in [0,1)', () => {
@@ -106,6 +106,66 @@ describe('collide', () => {
       for (let k = 0; k < BLOCK; k++) s += e[d * BLOCK + k] ** 2;
       if (d === 3) expect(s).toBeGreaterThan(0);
       else expect(s).toBe(0);
+    }
+  });
+});
+
+describe('pickPair', () => {
+  it('returns two distinct indices in [0,16), deterministic per ordinal', () => {
+    for (let o = 0; o < 40; o++) {
+      const [a, b] = pickPair(o);
+      expect(a).not.toBe(b);
+      expect(a).toBeGreaterThanOrEqual(0); expect(a).toBeLessThan(16);
+      expect(b).toBeGreaterThanOrEqual(0); expect(b).toBeLessThan(16);
+      expect(pickPair(o)).toEqual([a, b]);
+    }
+  });
+
+  it('bias index is always included and never paired with itself', () => {
+    for (let o = 0; o < 20; o++) {
+      const [a, b] = pickPair(o, 7);
+      expect(a).toBe(7);
+      expect(b).not.toBe(7);
+    }
+  });
+});
+
+describe('composeLine', () => {
+  const mindA = {
+    dimIndex: 0, dimName: 'dynamical', anchorName: 'Donella Meadows',
+    coreEquation: 'dX/dt = inflow − outflow',
+    systemDirective: 'Leverage Point Location / Paradigm Stack Intervention',
+    epigraph: 'The highest leverage is the paradigm the system arises from.',
+    excerpt: 'A system is a set of things interconnected in a way that produces its own pattern of behavior over time.',
+  };
+  const mindB = {
+    dimIndex: 4, dimName: 'entropy', anchorName: 'Nicholas Georgescu-Roegen',
+    coreEquation: 'ΔS > 0  per production cycle',
+    systemDirective: 'Entropy Debt Accounting / Irreversibility Audit',
+    epigraph: 'Every economic act is an irreversible burn.',
+    excerpt: 'The economic process is entropic in all its material fibers.',
+  };
+  const collision = { trajectory: 'CEILING', dominantDim: 4 };
+
+  it('same (pair, ordinal) → identical line; different ordinal → different line', () => {
+    const l1 = composeLine(mindA, mindB, collision, 3);
+    const l2 = composeLine(mindA, mindB, collision, 3);
+    const l3 = composeLine(mindA, mindB, collision, 4);
+    expect(l1).toBe(l2);
+    expect(l1).not.toBe(l3);
+  });
+
+  it('contains surnames, dominant dim readout, trajectory arrow, and a spliced clause', () => {
+    const l = composeLine(mindA, mindB, collision, 0);
+    expect(l).toContain('MEADOWS × GEORGESCU-ROEGEN');
+    expect(l).toContain('dim:04 entropy');
+    expect(l).toContain('▲ BIOPHYSICAL CEILING');
+    expect(l).toMatch(/"[^"]{10,}"/); // quoted generative splice present
+  });
+
+  it('clamps line length', () => {
+    for (let o = 0; o < 30; o++) {
+      expect(composeLine(mindA, mindB, collision, o).length).toBeLessThanOrEqual(180);
     }
   });
 });

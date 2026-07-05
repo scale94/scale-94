@@ -47,6 +47,8 @@ const N_BIO = DIMS - N_SOCIAL;                // 10
 
 // collide(A₁₅₃₆, B₁₅₃₆) — the WASM-replaceable contract.
 // Returns { cosine, byDim, energies: {social, bio}, trajectory, dominantDim }.
+// Contract: inputs are assumed finite (no NaN/Infinity guards) — a future
+// Rust/WASM port must uphold the same precondition, not replicate UB.
 export function collide(a, b) {
   let dot = 0, na = 0, nb = 0;
   const byDim = new Array(DIMS).fill(0);
@@ -78,7 +80,68 @@ export function collide(a, b) {
     cosine,
     byDim,
     energies: { social, bio },
-    trajectory: social >= bio ? 'FOUNDATION' : 'CEILING',
+    trajectory: social >= bio ? 'FOUNDATION' : 'CEILING', // tie → FOUNDATION (locked)
     dominantDim,
   };
+}
+
+// ── Ambient pair scheduler ───────────────────────────────────────────────────
+// Indices are positions 0..15 (caller maps to its seated array). biasIdx,
+// when set, is guaranteed the first slot (click override).
+export function pickPair(ordinal, biasIdx = null) {
+  const rng = mulberry32(0x5CA1E ^ Math.imul(ordinal + 1, 2654435761));
+  const a = biasIdx != null ? biasIdx : Math.floor(rng() * DIMS);
+  let b = Math.floor(rng() * (DIMS - 1));
+  if (b >= a) b += 1;
+  return [a, b];
+}
+
+// ── Generative narrative splice (locked calibration) ─────────────────────────
+// Fragments from BOTH minds, template grammar, seeded per (pair, ordinal):
+// every collision event yields a different line; replay is reproducible.
+const MAX_LINE = 180;
+
+const clauses = (s) => (s || '').split(/[;,.—·]/).map(t => t.trim()).filter(t => t.length > 3);
+
+function fragmentPool(mind) {
+  return [
+    ...clauses(mind.epigraph),
+    ...mind.systemDirective.split(' / ').map(s => s.trim()),
+    ...clauses(mind.excerpt),
+  ];
+}
+
+function equationTerms(mind) {
+  return mind.coreEquation.split(/\s+/).filter(t => t.length > 1);
+}
+
+const surname = (mind) => mind.anchorName.split(' ').pop().toUpperCase();
+
+export function composeLine(mindA, mindB, collision, ordinal) {
+  const rng = mulberry32(
+    Math.imul(mindA.dimIndex * 31 + mindB.dimIndex + 1, 1009) + ordinal
+  );
+  const pick = (arr) => arr[Math.floor(rng() * arr.length)];
+
+  const fragA = pick(fragmentPool(mindA));
+  const fragB = pick(fragmentPool(mindB));
+  const eq = pick([...equationTerms(mindA), ...equationTerms(mindB)]);
+
+  const spliced = pick([
+    `${fragA} ⇌ ${fragB}`,
+    `${fragB}, until ${fragA.toLowerCase()}`,
+    `${fragA} — where ${eq} — ${fragB.toLowerCase()}`,
+    `${eq}: ${fragA.toLowerCase()}; ${fragB.toLowerCase()}`,
+  ]);
+
+  const arrow = collision.trajectory === 'FOUNDATION'
+    ? '▼ SOCIAL FOUNDATION' : '▲ BIOPHYSICAL CEILING';
+  const dd = String(collision.dominantDim).padStart(2, '0');
+  const hex = (ordinal & 0xff).toString(16).padStart(2, '0').toUpperCase();
+
+  let line = `[0x${hex}] ${surname(mindA)} × ${surname(mindB)} dim:${dd} ${DIM_NAMES[collision.dominantDim]} ${arrow} "${spliced}"`;
+  if (line.length > MAX_LINE) {
+    line = line.slice(0, MAX_LINE - 2) + '…"';
+  }
+  return line;
 }
