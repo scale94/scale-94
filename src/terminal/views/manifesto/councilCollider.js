@@ -117,6 +117,8 @@ function equationTerms(mind) {
 
 const surname = (mind) => mind.anchorName.split(' ').pop().toUpperCase();
 
+// Seed is NOT symmetric in (mindA, mindB) — always pass the pair in the same
+// order that produced `collision`, or the generated line changes.
 export function composeLine(mindA, mindB, collision, ordinal) {
   const rng = mulberry32(
     Math.imul(mindA.dimIndex * 31 + mindB.dimIndex + 1, 1009) + ordinal
