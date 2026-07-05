@@ -55,6 +55,9 @@ export function useCouncilCollider({ seated, enabled }) {
     let scale = 1;
 
     const resize = () => {
+      // Guard the zero-size edge (display:none ancestor): a 0-width canvas
+      // yields scale=0 and silently draws everything at a point.
+      if (!canvas.clientWidth || !canvas.clientHeight) return;
       const dpr = window.devicePixelRatio || 1;
       canvas.width = canvas.clientWidth * dpr;
       canvas.height = canvas.clientHeight * dpr;
@@ -200,6 +203,9 @@ export function useCouncilCollider({ seated, enabled }) {
       sim.phase = 'IDLE';
       sim.particles = [];
     };
+    // seated/expanded MUST be referentially stable across renders (CouncilRing
+    // memoizes seated with [] deps — load-bearing). If that memo breaks, this
+    // effect tears down and restarts every render and the sim never advances.
   }, [running, seated, expanded]);
 
   return { canvasRef, activePairIds, lastCollision, onNodeClick };
