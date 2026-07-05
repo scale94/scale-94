@@ -537,10 +537,16 @@ export function composeLine(mindA, mindB, collision, ordinal) {
   const dd = String(collision.dominantDim).padStart(2, '0');
   const hex = (ordinal & 0xff).toString(16).padStart(2, '0').toUpperCase();
 
-  const line = `[COLLISION 0x${hex}] ${surname(mindA)} × ${surname(mindB)} · residual peaks dim:${dd} ${DIM_NAMES[collision.dominantDim]} · TRAJECTORY ${arrow} · "${spliced}"`;
-  return line.length > MAX_LINE ? line.slice(0, MAX_LINE - 1) + '…' : line;
+  const prefix = `[COLLISION 0x${hex}] ${surname(mindA)} × ${surname(mindB)} · residual peaks dim:${dd} ${DIM_NAMES[collision.dominantDim]} · TRAJECTORY ${arrow} · `;
+  // Clamp the splice, not the whole line: format literals and both quotes
+  // must survive (a whole-line clamp would conflict with the test regex).
+  const budget = MAX_LINE - prefix.length - 2;
+  const clipped = spliced.length > budget ? spliced.slice(0, budget - 1) + '…' : spliced;
+  return `${prefix}"${clipped}"`;
 }
 ```
+
+> **Amendment (during execution):** the original whole-line clamp (`line.slice(0, MAX_LINE - 1) + '…'`) conflicted with the test regex `/"[^"]{10,}"/` whenever the splice overflowed — truncation destroyed the closing quote. Resolution: clamp the spliced fragment to the remaining budget so the format literals and both quotes always survive. Also, the Task 3 test `collide(mk(0), mk(1))` was corrected to `collide(mk(2), mk(5))` — dims 0 and 1 are both biophysical, so `energies.social` was provably 0 and the `> 0` assertion unsatisfiable.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
