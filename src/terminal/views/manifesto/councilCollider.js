@@ -139,9 +139,10 @@ export function composeLine(mindA, mindB, collision, ordinal) {
   const dd = String(collision.dominantDim).padStart(2, '0');
   const hex = (ordinal & 0xff).toString(16).padStart(2, '0').toUpperCase();
 
-  let line = `[0x${hex}] ${surname(mindA)} × ${surname(mindB)} dim:${dd} ${DIM_NAMES[collision.dominantDim]} ${arrow} "${spliced}"`;
-  if (line.length > MAX_LINE) {
-    line = line.slice(0, MAX_LINE - 2) + '…"';
-  }
-  return line;
+  const prefix = `[COLLISION 0x${hex}] ${surname(mindA)} × ${surname(mindB)} · residual peaks dim:${dd} ${DIM_NAMES[collision.dominantDim]} · TRAJECTORY ${arrow} · `;
+  // Clamp the splice, not the whole line: format literals and both quotes
+  // must survive (plan's whole-line clamp conflicted with its own test regex).
+  const budget = MAX_LINE - prefix.length - 2;
+  const clipped = spliced.length > budget ? spliced.slice(0, budget - 1) + '…' : spliced;
+  return `${prefix}"${clipped}"`;
 }
