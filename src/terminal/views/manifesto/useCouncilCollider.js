@@ -191,11 +191,14 @@ export function useCouncilCollider({ seated, enabled }) {
     };
 
     rafRef.current = requestAnimationFrame(draw);
+    // simRef holds a stable object (mutated, never reassigned) — capturing it
+    // satisfies react-hooks/exhaustive-deps for the cleanup without behavior change.
+    const sim = simRef.current;
     return () => {
       cancelAnimationFrame(rafRef.current);
       ro.disconnect();
-      simRef.current.phase = 'IDLE';
-      simRef.current.particles = [];
+      sim.phase = 'IDLE';
+      sim.particles = [];
     };
   }, [running, seated, expanded]);
 
