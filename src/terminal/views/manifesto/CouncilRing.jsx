@@ -172,7 +172,10 @@ export default function CouncilRing() {
   // Desktop
   return (
     <div style={{ width: '100%', background: '#04040a', border: '1px solid rgba(120,140,200,0.12)', borderRadius: 4 }}>
-      <svg viewBox="0 0 640 640" style={{ width: '100%', height: 'auto', display: 'block' }}>
+      {/* viewBox widened horizontally (−170..810) so long anchor labels on both
+          arcs (e.g. "Nicholas Georgescu-Roegen", "D'Arcy Wentworth Thompson")
+          have margin and are not clipped by the SVG edge; ring stays centered on 320. */}
+      <svg viewBox="-170 0 980 640" style={{ width: '100%', height: 'auto', display: 'block' }}>
         <RingScaffold />
         {seated.map(m => (
           <Node key={m.dimIndex} mind={m} active={false} onSelect={setSelected} />
