@@ -770,27 +770,34 @@ export function jitterFeatures(parentId) {
   return FEATURES[iA].map(v => Math.max(0, Math.min(1, v + (Math.random() - 0.5) * 0.05)));
 }
 
-// ── Layer 4.4.4.4 — full 32D tensor manifest ─────────────────────────────────
+// ── Layer 4.4.4.4 — full tensor manifest (vector core + ID delegation) ───────
+export function fullEdgeFromVectors(fA, fB) {
+  const len = Math.min(fA.length, fB.length);
+  const sim = cosineSim(fA, fB);
+  const dims = [];
+  for (let i = 0; i < len; i++) {
+    dims.push({
+      name: DIM_NAMES[i] || `dim_${i}`, i,
+      vA: fA[i], vB: fB[i],
+      delta: Math.abs(fA[i] - fB[i]),
+      contrib: fA[i] * fB[i],
+    });
+  }
+  const drivers = [...dims].sort((a, b) => b.contrib - a.contrib).slice(0, 5);
+  return { sim, dims, drivers };
+}
+
 export function analyzeFullEdge(idA, idB) {
   const iA = NODE_IDX[idA], iB = NODE_IDX[idB];
   if (iA == null || iB == null) return null;
-  const fA = FEATURES[iA], fB = FEATURES[iB];
-  const sim = cosineSim(fA, fB);
-  const dims = DIM_NAMES.map((name, i) => ({
-    name, i,
-    vA: fA[i], vB: fB[i],
-    delta: Math.abs(fA[i] - fB[i]),
-    contrib: fA[i] * fB[i],
-  }));
-  const drivers = [...dims].sort((a, b) => b.contrib - a.contrib).slice(0, 5);
-  return { idA, idB, sim, dims, drivers };
+  const core = fullEdgeFromVectors(FEATURES[iA], FEATURES[iB]);
+  return { idA, idB, ...core };
 }
 
-// ── Layer 5.5.5.5.5 — paradox extraction (64-iteration, 32D) ─────────────────
-export function extractParadoxes(idA, idB) {
-  const iA = NODE_IDX[idA], iB = NODE_IDX[idB];
-  if (iA == null || iB == null) return null;
-  const fA = [...FEATURES[iA]], fB = [...FEATURES[iB]];
+// ── Layer 5.5.5.5.5 — paradox extraction (vector core + ID delegation) ───────
+export function paradoxesFromVectors(vecA, vecB) {
+  const len = Math.min(vecA.length, vecB.length);
+  const fA = Array.from(vecA).slice(0, len), fB = Array.from(vecB).slice(0, len);
   const origDeltas = fA.map((v, i) => Math.abs(v - fB[i]));
 
   for (let iter = 0; iter < 64; iter++) {
@@ -804,12 +811,55 @@ export function extractParadoxes(idA, idB) {
   }
 
   const finalSim = cosineSim(fA, fB);
-  const paradoxes = DIM_NAMES
-    .map((name, i) => ({ name, i, residual: Math.abs(fA[i] - fB[i]), original: origDeltas[i] }))
+  const paradoxes = fA
+    .map((v, i) => ({ name: DIM_NAMES[i] || `dim_${i}`, i, residual: Math.abs(v - fB[i]), original: origDeltas[i] }))
     .filter(d => d.residual > 0.08)
     .sort((a, b) => b.residual - a.residual);
 
-  return { idA, idB, finalSim, paradoxes };
+  return { finalSim, paradoxes };
+}
+
+export function extractParadoxes(idA, idB) {
+  const iA = NODE_IDX[idA], iB = NODE_IDX[idB];
+  if (iA == null || iB == null) return null;
+  const core = paradoxesFromVectors(FEATURES[iA], FEATURES[iB]);
+  return { idA, idB, ...core };
+}
+
+// ── FSF-12.1.0 §5 — Period-3 sanctuary detection ─────────────────────────
+// Within the chaotic regime, Sharkovsky's theorem guarantees that periodic
+// windows reappear. The Period-3 window (r ≈ 3.8284…3.857 in the logistic
+// map) is the deepest sanctuary — a transient pocket of order inside chaos.
+//
+// Mapping to paradox spectra: if 3+ paradoxes cluster within a narrow residual
+// band, they aren't random noise — they're aligned at a sanctuary frequency.
+// The cluster IS the transient order pocket. The collider should label it
+// rather than treating clustered paradoxes as independent irreducibles.
+export function detectPeriod3Sanctuaries(paradoxes, bandWidth = 0.05) {
+  if (!paradoxes || paradoxes.length < 3) return [];
+
+  const sorted = [...paradoxes].sort((a, b) => a.residual - b.residual);
+  const sanctuaries = [];
+  let i = 0;
+  while (i < sorted.length) {
+    const cluster = [sorted[i]];
+    let j = i + 1;
+    while (j < sorted.length && (sorted[j].residual - sorted[i].residual) <= bandWidth) {
+      cluster.push(sorted[j]);
+      j++;
+    }
+    if (cluster.length >= 3) {
+      const center = cluster.reduce((s, p) => s + p.residual, 0) / cluster.length;
+      sanctuaries.push({
+        center,
+        width:   sorted[j - 1].residual - sorted[i].residual,
+        members: cluster.map(c => c.name),
+        size:    cluster.length,
+      });
+    }
+    i = Math.max(i + 1, j);
+  }
+  return sanctuaries;
 }
 
 // ── Orthogonal bridge search ──────────────────────────────────────────────────

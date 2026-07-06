@@ -8,6 +8,7 @@
 
 import { useMemo } from 'react';
 import { DIM_SEMANTIC } from '../data/dimSemantics';
+import { detectPeriod3Sanctuaries } from '../data/nodeFeatures';
 
 // ── Convergence archetypes ──────────────────────────────────────────────────
 // Detected from the top convergence dims. Scored by pairwise presence.
@@ -273,42 +274,6 @@ function buildAngles(archetype, convergence, divergence, paradoxes, result) {
   }
 
   return angles;
-}
-
-// ── FSF-12.1.0 §5 — Period-3 sanctuary detection ─────────────────────────
-// Within the chaotic regime, Sharkovsky's theorem guarantees that periodic
-// windows reappear. The Period-3 window (r ≈ 3.8284…3.857 in the logistic
-// map) is the deepest sanctuary — a transient pocket of order inside chaos.
-//
-// Mapping to paradox spectra: if 3+ paradoxes cluster within a narrow residual
-// band, they aren't random noise — they're aligned at a sanctuary frequency.
-// The cluster IS the transient order pocket. The collider should label it
-// rather than treating clustered paradoxes as independent irreducibles.
-function detectPeriod3Sanctuaries(paradoxes, bandWidth = 0.05) {
-  if (!paradoxes || paradoxes.length < 3) return [];
-
-  const sorted = [...paradoxes].sort((a, b) => a.residual - b.residual);
-  const sanctuaries = [];
-  let i = 0;
-  while (i < sorted.length) {
-    const cluster = [sorted[i]];
-    let j = i + 1;
-    while (j < sorted.length && (sorted[j].residual - sorted[i].residual) <= bandWidth) {
-      cluster.push(sorted[j]);
-      j++;
-    }
-    if (cluster.length >= 3) {
-      const center = cluster.reduce((s, p) => s + p.residual, 0) / cluster.length;
-      sanctuaries.push({
-        center,
-        width:   sorted[j - 1].residual - sorted[i].residual,
-        members: cluster.map(c => c.name),
-        size:    cluster.length,
-      });
-    }
-    i = Math.max(i + 1, j);
-  }
-  return sanctuaries;
 }
 
 // ── BOSONIC-KERNEL-3.0.0 §0 — Type 1 / Type 2 Titmuss classifier ──────────
