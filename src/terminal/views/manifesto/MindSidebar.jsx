@@ -11,6 +11,8 @@ export default function MindSidebar({ mind, side, hue, onDossier }) {
       </div>
     );
   }
+  // hue must be a 6-digit hex string (see CouncilRing arcHue) — the alpha
+  // suffixes below (`${accent}44`) silently break on hsl()/named colors.
   const accent = hue || '#FFD700';
   return (
     <div style={{ border: `1px solid ${accent}44`, borderRadius: 4, padding: '12px 12px 14px', fontFamily: MONO, background: '#04040a', maxHeight: 420, overflowY: 'auto', textAlign: side === 'right' ? 'right' : 'left' }}>
@@ -18,7 +20,7 @@ export default function MindSidebar({ mind, side, hue, onDossier }) {
         [dim:{String(mind.dimIndex).padStart(2, '0')}] {mind.dimName}
       </div>
       <div style={{ fontSize: 15, color: '#FFD700', fontWeight: 700, marginTop: 3 }}>{mind.anchorName}</div>
-      <div style={{ fontSize: 9, color: 'rgba(232,232,240,0.5)', marginTop: 2 }}>{mind.era} · {mind.caste.toUpperCase()}</div>
+      <div style={{ fontSize: 9, color: 'rgba(232,232,240,0.5)', marginTop: 2 }}>{mind.era} · {mind.caste?.toUpperCase() ?? '?'}</div>
       <div style={{ fontSize: 12, color: '#FFD700', marginTop: 10 }}>{mind.coreEquation}</div>
       <div style={{ fontSize: 9, color: 'rgba(0,255,170,0.6)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 8 }}>▸ {mind.systemDirective}</div>
       <div style={{ fontSize: 10, color: 'rgba(232,232,240,0.75)', fontStyle: 'italic', marginTop: 10, lineHeight: 1.5 }}>&ldquo;{mind.epigraph}&rdquo;</div>
