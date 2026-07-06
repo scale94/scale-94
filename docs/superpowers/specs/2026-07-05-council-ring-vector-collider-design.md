@@ -63,11 +63,12 @@ where `φ(d, k)` is a seeded integer-hash phase. No runtime randomness; stable a
 
 ### Collision
 
-`collide(A, B) → { cosine, residual, energies, trajectory, dominantDim }`
+`collide(A, B) → { cosine, byDim, energies, trajectory, dominantDim }`
 
 - `cosine` — 1536-D cosine similarity of the two expanded vectors.
-- `residual` — `A₁₅₃₆ − B₁₅₃₆`.
-- Per-dim energy `e_d` — sum of squares over dim `d`'s 96-component block of the residual.
+- `byDim` — 16-entry array of per-dim residual energy `e_d` (sum of squares over dim `d`'s 96-component block of `A₁₅₃₆ − B₁₅₃₆`).
+
+> **As-built amendment:** the original spec returned the raw 1536-float `residual` vector; the shipped contract returns the reduced `byDim` energies instead — no consumer needs the raw vector, and the reduced form is what the UI, narrative, and bus actually use. A future Rust/WASM port must implement the shipped `byDim` contract, not the original wording. Also as-built: `keyWorks` was authored into the schema as deferred foundation data (per the locked scope) and has no consumer yet; `excerpt` is live in the narrative fragment pool.
 
 ### Partition & ejection (locked calibration)
 
