@@ -5,7 +5,9 @@ import React from 'react';
 export default function CopySpan({ value, color }) {
   const [copied, setCopied] = React.useState(false);
   const handleClick = () => {
-    navigator.clipboard.writeText(value).then(() => {
+    // Guarded per codebase convention (see ScalingTab) — clipboard is
+    // undefined in insecure contexts; a bare call would throw on click.
+    navigator.clipboard?.writeText(value).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1200);
     });
