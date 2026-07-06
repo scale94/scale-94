@@ -3,6 +3,8 @@ import { SIXTEEN_MINDS } from '../../data/sixteenMinds';
 import { seatAngle, polarToXY, angleToNearestSeatIndex } from './councilRingMath';
 import SixteenPanel from './SixteenPanel';
 import { useCouncilCollider } from './useCouncilCollider';
+import MindSidebar from './MindSidebar';
+import CouncilSynthesisPanel from './CouncilSynthesisPanel';
 
 const CX = 320, CY = 320;
 const R_CEILING = 290;    // biophysical ceiling (outer)
@@ -27,6 +29,16 @@ function useIsMobile() {
     return () => window.removeEventListener('resize', onResize);
   }, []);
   return mobile;
+}
+
+function useIsNarrow() {
+  const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.innerWidth < 1100);
+  useEffect(() => {
+    const onResize = () => setNarrow(window.innerWidth < 1100);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  return narrow;
 }
 
 // Build seated minds once: each mind gets an absolute ring angle + arc hue.
@@ -85,11 +97,24 @@ export default function CouncilRing() {
   const [selected, setSelected] = useState(null);
 
   const collider = useCouncilCollider({ seated, enabled: !isMobile });
+  const isNarrow = useIsNarrow();
   const { onNodeClick } = collider; // stable useCallback — plain identifier satisfies exhaustive-deps
   const handleSelect = useCallback((mind) => {
-    setSelected(mind);
-    onNodeClick(mind);
+    onNodeClick(mind); // selection is the primary verb — dossier moved to [dossier] affordances
   }, [onNodeClick]);
+  const openDossier = useCallback((mind) => setSelected(mind), []);
+
+  // Output notification (spec §3): visible from SYNTHESIZED until the panel
+  // has been scrolled into view.
+  const [alertDismissed, setAlertDismissed] = useState(false);
+  useEffect(() => {
+    if (collider.mode !== 'SYNTHESIZED') { setAlertDismissed(false); return; }
+    const panel = document.getElementById('council-synthesis-panel');
+    if (!panel) return;
+    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) setAlertDismissed(true); });
+    io.observe(panel);
+    return () => io.disconnect();
+  }, [collider.mode, collider.synthesisRecord?.id]);
 
   // Mobile rotation state
   const [rotation, setRotation] = useState(0);
@@ -136,7 +161,7 @@ export default function CouncilRing() {
     return (
       <div>
         {/* Crosshair-visible upper segment */}
-        <div style={{ height: 360, overflow: 'hidden', position: 'relative', background: '#04040a', border: '1px solid rgba(120,140,200,0.12)', borderRadius: 4 }}>
+        <div style={{ height: 360, overflow: 'hidden', position: 'relative', background: '#04040a', border: '1px solid rgba(120,140,200,0.12)', borderRadius: 4, padding: '0 6px' }}>
           {/* Gold crosshair at 12 o'clock */}
           <div style={{ position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)', zIndex: 3, color: '#FFD700', fontFamily: MONO, fontSize: 14 }}>▼</div>
           <svg
@@ -164,10 +189,10 @@ export default function CouncilRing() {
         >
           {activeMind && (
             <>
-              <div style={{ fontSize: 10, color: activeMind.hue, letterSpacing: '0.2em' }}>[dim:{String(activeMind.dimIndex).padStart(2, '0')}] {activeMind.dimName}</div>
-              <div style={{ fontSize: 16, color: activeMind.caste === 'canon' ? '#FFD700' : '#00FFAA', fontWeight: 700, marginTop: 2 }}>{activeMind.anchorName}</div>
-              <div style={{ fontSize: 14, color: '#FFD700', marginTop: 6 }}>{activeMind.coreEquation}</div>
-              <div style={{ fontSize: 9, color: 'rgba(0,255,170,0.55)', letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 6 }}>▸ {activeMind.systemDirective}</div>
+              <div style={{ fontSize: 10, color: activeMind.hue, letterSpacing: '0.2em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>[dim:{String(activeMind.dimIndex).padStart(2, '0')}] {activeMind.dimName}</div>
+              <div style={{ fontSize: 'clamp(13px, 4vw, 16px)', color: activeMind.caste === 'canon' ? '#FFD700' : '#00FFAA', fontWeight: 700, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{activeMind.anchorName}</div>
+              <div style={{ fontSize: 'clamp(11px, 3.5vw, 14px)', color: '#FFD700', marginTop: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{activeMind.coreEquation}</div>
+              <div style={{ fontSize: 9, color: 'rgba(0,255,170,0.55)', letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>▸ {activeMind.systemDirective}</div>
             </>
           )}
         </div>
@@ -177,40 +202,104 @@ export default function CouncilRing() {
     );
   }
 
-  // Desktop — canvas collider layer sits UNDER the SVG (SVG has no background
-  // fill, so trails show through; nodes/labels/hit-targets stay on top).
+  // Desktop — 3-column grid: sidebars flank the torus while a pair is selected
+  // (spec §3). Canvas renders UNDER the SVG. Torus cell has min-width:0 and
+  // overflow:hidden on the CANVAS wrapper only; SVG keeps its full widened
+  // viewBox so labels never clip (spec §7). Sidebars are grid siblings.
+  const showSidebars = collider.mode !== 'AMBIENT';
+  const [mindA, mindB] = collider.pairMinds || [collider.armedMind, null];
+  const hueOf = (m) => (m ? seated.find(s => s.dimIndex === m.dimIndex)?.hue : null);
+
   return (
-    <div style={{ width: '100%', background: '#04040a', border: '1px solid rgba(120,140,200,0.12)', borderRadius: 4 }}>
-      <div style={{ position: 'relative' }}>
-        <canvas
-          ref={collider.canvasRef}
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
-        />
-        {/* viewBox widened horizontally (−170..810) so long anchor labels on both
-            arcs (e.g. "Nicholas Georgescu-Roegen", "D'Arcy Wentworth Thompson")
-            have margin and are not clipped by the SVG edge; ring stays centered on 320. */}
-        <svg viewBox="-170 0 980 640" style={{ width: '100%', height: 'auto', display: 'block', position: 'relative' }}>
-          <RingScaffold />
-          {seated.map(m => (
-            <Node
-              key={m.dimIndex}
-              mind={m}
-              active={collider.activePairIds.includes(m.dimIndex)}
-              onSelect={handleSelect}
+    <div style={{ width: '100%' }}>
+      <div style={{ background: '#04040a', border: '1px solid rgba(120,140,200,0.12)', borderRadius: 4 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: showSidebars && !isNarrow ? 'minmax(190px, 230px) minmax(0, 1fr) minmax(190px, 230px)' : 'minmax(0, 1fr)', gap: 12, padding: showSidebars && !isNarrow ? '12px' : 0, alignItems: 'start' }}>
+          {showSidebars && !isNarrow && (
+            <MindSidebar mind={mindA} side="left" hue={hueOf(mindA)} onDossier={openDossier} />
+          )}
+          <div style={{ position: 'relative', minWidth: 0, overflow: 'hidden' }}>
+            <canvas
+              ref={collider.canvasRef}
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
             />
-          ))}
-        </svg>
-      </div>
-      {/* Narrative strip — fixed height, no layout shift */}
-      <div style={{ height: 44, padding: '8px 14px', borderTop: '1px solid rgba(120,140,200,0.12)', fontFamily: MONO, fontSize: 11, overflow: 'hidden', display: 'flex', alignItems: 'center' }}>
-        {collider.lastCollision ? (
-          <span style={{ color: collider.lastCollision.trajectory === 'FOUNDATION' ? '#FF0088' : '#00FFAA', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-            {collider.lastCollision.line}
-          </span>
-        ) : (
-          <span style={{ color: 'rgba(120,140,200,0.4)', letterSpacing: '0.2em' }}>◉ COUNCIL COLLIDER · AWAITING FIRST EVENT</span>
+            {/* viewBox widened horizontally (−170..810) so long anchor labels on both
+                arcs (e.g. "Nicholas Georgescu-Roegen", "D'Arcy Wentworth Thompson")
+                have margin and are not clipped by the SVG edge; ring stays centered on 320. */}
+            <svg viewBox="-170 0 980 640" style={{ width: '100%', height: 'auto', display: 'block', position: 'relative' }}>
+              <RingScaffold />
+              {seated.map(m => (
+                <Node
+                  key={m.dimIndex}
+                  mind={m}
+                  active={
+                    collider.mode === 'ARMED'
+                      ? collider.armedMind?.dimIndex === m.dimIndex
+                      : collider.activePairIds.includes(m.dimIndex)
+                  }
+                  onSelect={handleSelect}
+                />
+              ))}
+            </svg>
+          </div>
+          {showSidebars && !isNarrow && (
+            <MindSidebar mind={mindB} side="right" hue={hueOf(mindB)} onDossier={openDossier} />
+          )}
+        </div>
+
+        {/* Narrow viewports: sidebars stack below the torus (spec §3) */}
+        {showSidebars && isNarrow && (
+          <div style={{ display: 'flex', gap: 12, padding: '0 12px 12px' }}>
+            <div style={{ flex: 1, minWidth: 0 }}><MindSidebar mind={mindA} side="left" hue={hueOf(mindA)} onDossier={openDossier} /></div>
+            <div style={{ flex: 1, minWidth: 0 }}><MindSidebar mind={mindB} side="right" hue={hueOf(mindB)} onDossier={openDossier} /></div>
+          </div>
+        )}
+
+        {/* ARMED banner */}
+        {collider.mode === 'ARMED' && (
+          <div style={{ padding: '6px 14px', fontFamily: MONO, fontSize: 10, letterSpacing: '0.18em', color: '#FFD700', borderTop: '1px solid rgba(255,215,0,0.25)', display: 'flex', gap: 14, alignItems: 'center' }}>
+            ⌖ ARMED: {collider.armedMind?.anchorName.split(' ').pop().toUpperCase()} · SELECT SECOND MIND
+            <button onClick={() => openDossier(collider.armedMind)} style={{ background: 'none', border: 'none', color: 'rgba(120,140,200,0.8)', fontFamily: MONO, fontSize: 9, cursor: 'pointer' }}>[dossier]</button>
+            <button onClick={collider.disarm} style={{ background: 'none', border: 'none', color: 'rgba(255,0,136,0.8)', fontFamily: MONO, fontSize: 9, cursor: 'pointer' }}>[disarm]</button>
+          </div>
+        )}
+
+        {/* Ticker strip — fixed height, no layout shift */}
+        <div style={{ height: 44, padding: '8px 14px', borderTop: '1px solid rgba(120,140,200,0.12)', fontFamily: MONO, fontSize: 11, overflow: 'hidden', display: 'flex', alignItems: 'center' }}>
+          {collider.lastCollision ? (
+            <span style={{ display: 'inline-block', minWidth: 0, color: collider.lastCollision.trajectory === 'FOUNDATION' ? '#FF0088' : '#00FFAA', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+              {collider.lastCollision.line}
+            </span>
+          ) : (
+            <span style={{ color: 'rgba(120,140,200,0.4)', letterSpacing: '0.2em' }}>◉ COUNCIL COLLIDER · AWAITING FIRST EVENT</span>
+          )}
+        </div>
+
+        {/* Output notification (spec §3) */}
+        {collider.mode === 'SYNTHESIZED' && !alertDismissed && (
+          <div
+            onClick={() => document.getElementById('council-synthesis-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            style={{ padding: '8px 14px', fontFamily: MONO, fontSize: 11, letterSpacing: '0.2em', textAlign: 'center', cursor: 'pointer', color: collider.synthesisRecord?.metrics.trajectory === 'FOUNDATION' ? '#FF0088' : '#00FFAA', borderTop: '1px solid rgba(120,140,200,0.12)', animation: 'council-alert-pulse 1.2s ease-in-out infinite' }}
+          >
+            ▼ {'//'} SYSTEM_OUTPUT_READY :: SCROLL_DOWN_FOR_SYNTHESIS ▼
+          </div>
         )}
       </div>
+
+      {/* Breakdown panel (spec §6) — below the ring container */}
+      {collider.mode === 'SYNTHESIZED' && collider.synthesisRecord && (
+        <CouncilSynthesisPanel
+          record={collider.synthesisRecord}
+          minds={seated}
+          onDossier={openDossier}
+          onReset={collider.reset}
+        />
+      )}
+
+      <style>{`
+        @keyframes council-alert-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+        @media (prefers-reduced-motion: reduce) { [style*="council-alert-pulse"] { animation: none !important; } }
+      `}</style>
+
       {selected && <SixteenPanel mind={selected} onClose={() => setSelected(null)} />}
     </div>
   );
