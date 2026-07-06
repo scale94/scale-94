@@ -27,7 +27,9 @@ export function councilReducer(state, action) {
     case 'RESET':
       return initialCouncilState;
     case 'HYDRATE':
-      return action.state;
+      // Spread over defaults so a partial payload can never yield an
+      // inconsistent shape (e.g. pair: undefined instead of null).
+      return { ...initialCouncilState, ...action.state };
     default:
       return state;
   }
