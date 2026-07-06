@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { SIXTEEN_MINDS } from '../../data/sixteenMinds';
 import { seatAngle, polarToXY, angleToNearestSeatIndex } from './councilRingMath';
 import SixteenPanel from './SixteenPanel';
+import { useCouncilCollider } from './useCouncilCollider';
 
 const CX = 320, CY = 320;
 const R_CEILING = 290;    // biophysical ceiling (outer)
@@ -82,6 +83,12 @@ export default function CouncilRing() {
   const seated = useSeatedMinds();
   const isMobile = useIsMobile();
   const [selected, setSelected] = useState(null);
+
+  const collider = useCouncilCollider({ seated, enabled: !isMobile });
+  const handleSelect = useCallback((mind) => {
+    setSelected(mind);
+    collider.onNodeClick(mind);
+  }, [collider.onNodeClick]);
 
   // Mobile rotation state
   const [rotation, setRotation] = useState(0);
@@ -169,18 +176,40 @@ export default function CouncilRing() {
     );
   }
 
-  // Desktop
+  // Desktop — canvas collider layer sits UNDER the SVG (SVG has no background
+  // fill, so trails show through; nodes/labels/hit-targets stay on top).
   return (
     <div style={{ width: '100%', background: '#04040a', border: '1px solid rgba(120,140,200,0.12)', borderRadius: 4 }}>
-      {/* viewBox widened horizontally (−170..810) so long anchor labels on both
-          arcs (e.g. "Nicholas Georgescu-Roegen", "D'Arcy Wentworth Thompson")
-          have margin and are not clipped by the SVG edge; ring stays centered on 320. */}
-      <svg viewBox="-170 0 980 640" style={{ width: '100%', height: 'auto', display: 'block' }}>
-        <RingScaffold />
-        {seated.map(m => (
-          <Node key={m.dimIndex} mind={m} active={false} onSelect={setSelected} />
-        ))}
-      </svg>
+      <div style={{ position: 'relative' }}>
+        <canvas
+          ref={collider.canvasRef}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
+        />
+        {/* viewBox widened horizontally (−170..810) so long anchor labels on both
+            arcs (e.g. "Nicholas Georgescu-Roegen", "D'Arcy Wentworth Thompson")
+            have margin and are not clipped by the SVG edge; ring stays centered on 320. */}
+        <svg viewBox="-170 0 980 640" style={{ width: '100%', height: 'auto', display: 'block', position: 'relative' }}>
+          <RingScaffold />
+          {seated.map(m => (
+            <Node
+              key={m.dimIndex}
+              mind={m}
+              active={collider.activePairIds.includes(m.dimIndex)}
+              onSelect={handleSelect}
+            />
+          ))}
+        </svg>
+      </div>
+      {/* Narrative strip — fixed height, no layout shift */}
+      <div style={{ height: 44, padding: '8px 14px', borderTop: '1px solid rgba(120,140,200,0.12)', fontFamily: MONO, fontSize: 11, overflow: 'hidden', display: 'flex', alignItems: 'center' }}>
+        {collider.lastCollision ? (
+          <span style={{ color: collider.lastCollision.trajectory === 'FOUNDATION' ? '#FF0088' : '#00FFAA', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+            {collider.lastCollision.line}
+          </span>
+        ) : (
+          <span style={{ color: 'rgba(120,140,200,0.4)', letterSpacing: '0.2em' }}>◉ COUNCIL COLLIDER · AWAITING FIRST EVENT</span>
+        )}
+      </div>
       {selected && <SixteenPanel mind={selected} onClose={() => setSelected(null)} />}
     </div>
   );
