@@ -28,6 +28,7 @@ describe('synthesize — determinism & completeness', () => {
     expect(r.sections.angles.length).toBeGreaterThanOrEqual(2);
     expect(r.sections.angles.length).toBeLessThanOrEqual(4);
     expect(r.sections.openQuestions.length).toBeGreaterThan(0);
+    expect(Array.isArray(r.sections.sanctuaries)).toBe(true);
     expect(r.sections.seeds.length).toBeGreaterThanOrEqual(3);
     expect(r.sections.seeds.length).toBeLessThanOrEqual(5);
     expect(typeof r.directive).toBe('string');
@@ -59,6 +60,16 @@ describe('synthesize — determinism & completeness', () => {
     const r2 = runPair(0, 4, 2);
     expect(r1.sections.seeds.map(s => s.text)).not.toEqual(r2.sections.seeds.map(s => s.text));
   });
+
+  it('equation splice never emits unbalanced-bracket or trailing-colon fragments', () => {
+    const r = runPair(13, 14); // Turing × Margulis — punctuated equations
+    const splice = r.sections.angles.find(a => a.tag === 'FORMAL SPLICE');
+    if (splice) {
+      expect(splice.vector).not.toMatch(/[(⟨[{][^)⟩\]}]*\s(against|:)/); // no orphaned opener
+      expect(splice.vector).not.toContain('::');
+      expect(splice.vector).not.toMatch(/,\s+against/);
+    }
+  });
 });
 
 describe('synthesize — SKS §1 polymorphic guest path', () => {
@@ -68,6 +79,7 @@ describe('synthesize — SKS §1 polymorphic guest path', () => {
     const result = collide(expand(g.profile), expand(m.profile));
     const r = synthesize(g, m, result, 0);
     expect(r.pair[0]).toEqual({ kind: 'guest', label: 'PERSONAL KERNEL' });
+    expect(r.pair[1]).toEqual({ kind: 'mind', dimIndex: 4, anchorName: mindByDim(4).anchorName });
     expect(r.sections.sharedGround.fields.length).toBeGreaterThan(0);
     expect(r.sections.seeds.length).toBeGreaterThanOrEqual(3);
     expect(r.directive).toContain('PERSONAL KERNEL');
@@ -78,5 +90,14 @@ describe('synthesize — SKS §1 polymorphic guest path', () => {
     const g2 = guestEntry('G2', new Float32Array(16).fill(0.2).map((v, i) => (i > 11 ? 0.9 : v)));
     const result = collide(expand(g1.profile), expand(g2.profile));
     expect(() => synthesize(g1, g2, result, 0)).not.toThrow();
+  });
+
+  it('all-zero guest profile passes: no crash, seeds >= 3, valid record', () => {
+    const g = guestEntry('VOID', new Float32Array(16));
+    const m = mindEntry(mindByDim(7));
+    const result = collide(expand(g.profile), expand(m.profile));
+    const r = synthesize(g, m, result, 0);
+    expect(r.sections.seeds.length).toBeGreaterThanOrEqual(3);
+    expect(JSON.parse(JSON.stringify(r))).toEqual(JSON.parse(JSON.stringify(r)));
   });
 });

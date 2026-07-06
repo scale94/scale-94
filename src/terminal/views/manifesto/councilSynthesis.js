@@ -47,8 +47,20 @@ function textPool(entry) {
   ];
 }
 
+// Equation tokens: strip trailing punctuation and drop tokens with unbalanced
+// brackets so punctuated equations (e.g. 'U(⟨M, w⟩) = M(w)') never yield
+// orphaned fragments like 'U(⟨M,' in the FORMAL SPLICE angle.
+const bracketBalanced = (t) => {
+  const opens = (t.match(/[(⟨[{]/g) || []).length;
+  const closes = (t.match(/[)⟩\]}]/g) || []).length;
+  return opens === closes;
+};
+
 function equationTerms(entry) {
-  return (entry.texts?.equation || '').split(/\s+/).filter(t => t.length > 1);
+  return (entry.texts?.equation || '')
+    .split(/\s+/)
+    .map(t => t.replace(/[,;:]+$/g, ''))
+    .filter(t => t.length > 1 && bracketBalanced(t));
 }
 
 // Pick with fallback: thinker fragment if the pool has one, else dim-semantic phrasing.
