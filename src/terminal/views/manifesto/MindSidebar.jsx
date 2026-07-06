@@ -21,8 +21,8 @@ export default function MindSidebar({ mind, side, hue, onDossier }) {
       <div style={{ fontSize: 9, color: 'rgba(232,232,240,0.5)', marginTop: 2 }}>{mind.era} · {mind.caste.toUpperCase()}</div>
       <div style={{ fontSize: 12, color: '#FFD700', marginTop: 10 }}>{mind.coreEquation}</div>
       <div style={{ fontSize: 9, color: 'rgba(0,255,170,0.6)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 8 }}>▸ {mind.systemDirective}</div>
-      <div style={{ fontSize: 10, color: 'rgba(232,232,240,0.75)', fontStyle: 'italic', marginTop: 10, lineHeight: 1.5 }}>&quot;{mind.epigraph}&quot;</div>
-      <div style={{ fontSize: 10, color: `${accent}bb`, marginTop: 8, lineHeight: 1.5 }}>&quot;{mind.excerpt}&quot;</div>
+      <div style={{ fontSize: 10, color: 'rgba(232,232,240,0.75)', fontStyle: 'italic', marginTop: 10, lineHeight: 1.5 }}>&ldquo;{mind.epigraph}&rdquo;</div>
+      <div style={{ fontSize: 10, color: `${accent}bb`, marginTop: 8, lineHeight: 1.5 }}>&ldquo;{mind.excerpt}&rdquo;</div>
       <button
         onClick={() => onDossier(mind)}
         style={{ marginTop: 12, background: 'none', border: `1px solid ${accent}55`, borderRadius: 3, color: accent, fontFamily: MONO, fontSize: 9, letterSpacing: '0.15em', padding: '3px 10px', cursor: 'pointer' }}
