@@ -47,8 +47,9 @@ describe('councilLedger', () => {
     expect(councilLedger.list()).toHaveLength(LEDGER_CAP);
   });
 
-  it('persists to localStorage and rehydrates on fresh instance', () => {
+  it('persists to localStorage under LEDGER_KEY and rehydrates on fresh instance', () => {
     councilLedger.append(synthRecord('s1', 0));
+    expect(localStorage.getItem(LEDGER_KEY)).toBeTruthy();
     councilLedger._resetForTests({ keepStorage: true });
     expect(councilLedger.list()).toHaveLength(1);
     expect(councilLedger.list()[0].id).toBe('s1');
