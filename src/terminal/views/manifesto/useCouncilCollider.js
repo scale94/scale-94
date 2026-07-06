@@ -220,6 +220,11 @@ export function useCouncilCollider({ seated, enabled }) {
 
     // Animation gate (spec §1): synthesis computes ONLY after EJECT completes.
     const completeUserSynthesis = () => {
+      // Mirror the reducer's SYNTHESIS_READY guard: if the user RESET (or
+      // otherwise left FIRING) mid-flight, the synthesis must not be recorded —
+      // a SYNTHESIS appended after RESET would win the ledger walk-back and
+      // resurrect the panel the user explicitly cleared (SKS §3).
+      if (uiRef.current.mode !== 'FIRING') return;
       const sim = simRef.current;
       const [ia, ib] = sim.pair;
       const entryA = mindEntry(seated[ia]);
@@ -296,7 +301,9 @@ export function useCouncilCollider({ seated, enabled }) {
           sim.t0 = now;
         }
       } else if (sim.phase === 'COOLDOWN') {
-        if (t >= T_COOLDOWN) sim.phase = 'IDLE';
+        // A staged user pair skips the dead cooldown — the second click should
+        // feel instant (spec §1); ambient-to-ambient keeps the full breather.
+        if (t >= T_COOLDOWN || (mode === 'FIRING' && sim.userPair)) sim.phase = 'IDLE';
       }
 
       rafRef.current = requestAnimationFrame(draw);
