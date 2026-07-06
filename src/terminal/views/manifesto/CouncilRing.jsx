@@ -32,9 +32,9 @@ function useIsMobile() {
 }
 
 function useIsNarrow() {
-  const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.innerWidth < 1100);
+  const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.innerWidth < 1200);
   useEffect(() => {
-    const onResize = () => setNarrow(window.innerWidth < 1100);
+    const onResize = () => setNarrow(window.innerWidth < 1200);
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
@@ -210,11 +210,21 @@ export default function CouncilRing() {
   const [mindA, mindB] = collider.pairMinds || [collider.armedMind, null];
   const hueOf = (m) => (m ? seated.find(s => s.dimIndex === m.dimIndex)?.hue : null);
 
+  // Flanking sidebars inside the manifesto's max-w-6xl column would squeeze
+  // the torus to ~578px (7px labels — verified illegible). While flanking, the
+  // ring box breaks out to near-viewport width; SixteenPanel and the synthesis
+  // panel stay siblings OUTSIDE this box (transform creates a containing
+  // block for fixed-position descendants).
+  const flanking = showSidebars && !isNarrow;
+  const breakout = flanking
+    ? { width: 'min(94vw, 1360px)', marginLeft: '50%', transform: 'translateX(-50%)' }
+    : {};
+
   return (
     <div style={{ width: '100%' }}>
-      <div style={{ background: '#04040a', border: '1px solid rgba(120,140,200,0.12)', borderRadius: 4 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: showSidebars && !isNarrow ? 'minmax(190px, 230px) minmax(0, 1fr) minmax(190px, 230px)' : 'minmax(0, 1fr)', gap: 12, padding: showSidebars && !isNarrow ? '12px' : 0, alignItems: 'start' }}>
-          {showSidebars && !isNarrow && (
+      <div style={{ background: '#04040a', border: '1px solid rgba(120,140,200,0.12)', borderRadius: 4, ...breakout }}>
+        <div style={{ display: 'grid', gridTemplateColumns: flanking ? 'minmax(170px, 200px) minmax(0, 1fr) minmax(170px, 200px)' : 'minmax(0, 1fr)', gap: 12, padding: flanking ? '12px' : 0, alignItems: 'start' }}>
+          {flanking && (
             <MindSidebar mind={mindA} side="left" hue={hueOf(mindA)} onDossier={openDossier} />
           )}
           <div style={{ position: 'relative', minWidth: 0, overflow: 'hidden' }}>
@@ -241,7 +251,7 @@ export default function CouncilRing() {
               ))}
             </svg>
           </div>
-          {showSidebars && !isNarrow && (
+          {flanking && (
             <MindSidebar mind={mindB} side="right" hue={hueOf(mindB)} onDossier={openDossier} />
           )}
         </div>
