@@ -85,10 +85,11 @@ export default function CouncilRing() {
   const [selected, setSelected] = useState(null);
 
   const collider = useCouncilCollider({ seated, enabled: !isMobile });
+  const { onNodeClick } = collider; // stable useCallback — plain identifier satisfies exhaustive-deps
   const handleSelect = useCallback((mind) => {
     setSelected(mind);
-    collider.onNodeClick(mind);
-  }, [collider.onNodeClick]);
+    onNodeClick(mind);
+  }, [onNodeClick]);
 
   // Mobile rotation state
   const [rotation, setRotation] = useState(0);
