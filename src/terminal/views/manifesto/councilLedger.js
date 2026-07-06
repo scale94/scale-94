@@ -20,12 +20,16 @@ function loadFromStorage() {
 
 function saveToStorage(log) {
   try {
+    // Single active tab assumed (installation context) — concurrent tabs
+    // sharing this key are last-writer-wins, no merge.
     localStorage.setItem(LEDGER_KEY, JSON.stringify(log));
   } catch {
     // quota / privacy mode — in-memory log remains authoritative for the session
   }
 }
 
+// NaN/undefined are not valid record field values — JSON silently turns NaN
+// into null and drops undefined. Upstream producers must emit finite numbers.
 const deepCopy = (x) => JSON.parse(JSON.stringify(x));
 
 export const councilLedger = {

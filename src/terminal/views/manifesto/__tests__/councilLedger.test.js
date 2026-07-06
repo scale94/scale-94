@@ -87,6 +87,13 @@ describe('councilLedger', () => {
     expect(councilLedger.deriveUiState().mode).toBe('AMBIENT');
   });
 
+  it('deriveUiState: FIRE events are transitional — walk-back skips them', () => {
+    councilLedger.append(armEvent(5));
+    councilLedger.append({ v: 1, kind: 'EVENT', event: 'FIRE', ts: Date.now(), subject: { kind: 'pair', dims: [5, 9] } });
+    // Reload mid-flight lands on the prior decisive state (ARMED), not FIRING.
+    expect(councilLedger.deriveUiState()).toEqual({ mode: 'ARMED', armed: { kind: 'mind', dimIndex: 5 }, record: null });
+  });
+
   it('deriveUiState: DISARM after ARM → AMBIENT', () => {
     councilLedger.append(armEvent(3));
     councilLedger.append({ v: 1, kind: 'EVENT', event: 'DISARM', ts: Date.now(), subject: { kind: 'mind', dimIndex: 3 } });
