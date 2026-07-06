@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { SIXTEEN_MINDS, mindProfile } from '../../../data/sixteenMinds';
+import { SIXTEEN_MINDS } from '../../../data/sixteenMinds';
 import { expand, collide } from '../councilCollider';
 import { mindEntry, guestEntry, synthesize } from '../councilSynthesis';
 
