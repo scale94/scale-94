@@ -134,3 +134,71 @@ export const healingSargLift = (sarg, H) =>
 // at://did:plc:xxx/app.bsky.feed.post/rkey → bsky.app permalink
 export const postUrl = (signal) =>
   `https://bsky.app/profile/${signal.handle}/post/${signal.uri.split('/').pop()}`;
+
+// ── AppView response parsing ──────────────────────────────────────────────────
+export function parseSearchResponse(json) {
+  const posts = Array.isArray(json?.posts) ? json.posts : [];
+  return posts
+    .map(p => ({
+      uri: p?.uri ?? null,
+      handle: p?.author?.handle ?? '',
+      displayName: p?.author?.displayName ?? '',
+      text: p?.record?.text ?? '',
+      createdAt: p?.record?.createdAt ?? p?.indexedAt ?? null,
+      likes: p?.likeCount ?? 0,
+      reposts: p?.repostCount ?? 0,
+      replies: p?.replyCount ?? 0,
+    }))
+    .filter(p => p.uri && p.text);
+}
+
+// ── localStorage cache ────────────────────────────────────────────────────────
+export const ENGINE_STORAGE_KEY = 'scale94_inverse_engine';
+
+export function readEngineCache(now = Date.now()) {
+  try {
+    const raw = localStorage.getItem(ENGINE_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed?.version !== 1 || typeof parsed.harvestedAt !== 'number') return null;
+    return { ...parsed, stale: now - parsed.harvestedAt > ENGINE_TUNING.TTL_MS };
+  } catch { return null; }
+}
+
+export function writeEngineCache(data) {
+  try {
+    localStorage.setItem(ENGINE_STORAGE_KEY, JSON.stringify({ version: 1, ...data }));
+  } catch { /* quota or private mode — silently no-op */ }
+}
+
+// ── Harvest orchestration ─────────────────────────────────────────────────────
+// The ONLY network surface of the engine: 3 unauthenticated searchPosts calls
+// against the free public AppView. fetchFn is injectable for tests.
+const SEARCH_BASE = 'https://public.api.bsky.app/xrpc/app.bsky.feed.searchPosts';
+
+export async function harvest(fetchFn = fetch, now = Date.now()) {
+  const probes = activeProbeGroup(now);
+  const results = await Promise.allSettled(probes.map(q =>
+    fetchFn(`${SEARCH_BASE}?q=${encodeURIComponent(q)}&sort=latest&limit=${ENGINE_TUNING.PROBE_LIMIT}&lang=en`)
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+  ));
+  if (results.every(r => r.status === 'rejected')) {
+    throw new Error('all probes failed');
+  }
+  const rawPosts = results.flatMap(r => r.status === 'fulfilled' ? parseSearchResponse(r.value) : []);
+  const seen = new Set();
+  const unique = rawPosts.filter(p => !seen.has(p.uri) && seen.add(p.uri));
+  const scored = subthresholdFilter(unique, now)
+    .map(scorePost)
+    .sort((a, b) => b.contribution - a.contribution);
+  const H = healingIndex(scored);
+  const S = sicknessCap(scored);
+  return {
+    harvestedAt: now,
+    probesUsed: probes,
+    signals: scored,
+    healingIndex: H,
+    sicknessCap: S,
+    bandwidth: bandwidth(H, S),
+  };
+}

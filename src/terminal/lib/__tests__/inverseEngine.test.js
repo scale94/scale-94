@@ -1,9 +1,10 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import {
   ENGINE_TUNING, PROBE_GROUPS, HEALING_LEXICON,
   lexiconScore, sicknessScore, inverseViralityWeight, scorePost,
   subthresholdFilter, healingIndex, sicknessCap, bandwidth,
   activeProbeGroup, healingGrowthOffset, healingSargLift, postUrl,
+  parseSearchResponse, readEngineCache, writeEngineCache, ENGINE_STORAGE_KEY, harvest,
 } from '../inverseEngine';
 
 const NOW = Date.parse('2026-07-07T12:00:00Z');
@@ -163,5 +164,99 @@ describe('lexicon sanity', () => {
     for (const term of ['mutual aid', 'rewild', 'permaculture', 'seed library']) {
       expect(lexiconScore(`we love ${term} here`, HEALING_LEXICON)).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('parseSearchResponse', () => {
+  const appViewJson = {
+    posts: [{
+      uri: 'at://did:plc:abc/app.bsky.feed.post/3k1',
+      author: { handle: 'gardener.bsky.social', displayName: 'Gardener' },
+      record: { text: 'seed library open', createdAt: '2026-07-05T10:00:00Z' },
+      likeCount: 2, repostCount: 1, replyCount: 0,
+      indexedAt: '2026-07-05T10:00:01Z',
+    }, {
+      uri: null, // malformed — must be skipped
+      record: { text: 'ghost' },
+    }],
+  };
+  it('maps AppView posts to signal shape, skipping malformed entries', () => {
+    const parsed = parseSearchResponse(appViewJson);
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0]).toEqual({
+      uri: 'at://did:plc:abc/app.bsky.feed.post/3k1',
+      handle: 'gardener.bsky.social', displayName: 'Gardener',
+      text: 'seed library open', createdAt: '2026-07-05T10:00:00Z',
+      likes: 2, reposts: 1, replies: 0,
+    });
+  });
+  it('returns [] for junk payloads', () => {
+    expect(parseSearchResponse(null)).toEqual([]);
+    expect(parseSearchResponse({})).toEqual([]);
+  });
+});
+
+describe('engine cache', () => {
+  beforeEach(() => localStorage.removeItem(ENGINE_STORAGE_KEY));
+  it('round-trips and flags staleness by TTL', () => {
+    writeEngineCache({ harvestedAt: NOW, signals: [], healingIndex: 40, sicknessCap: 0, bandwidth: 40, probesUsed: [] });
+    expect(readEngineCache(NOW + 1000).stale).toBe(false);
+    expect(readEngineCache(NOW + ENGINE_TUNING.TTL_MS + 1).stale).toBe(true);
+  });
+  it('returns null for absent, garbage, or wrong-version cache', () => {
+    expect(readEngineCache(NOW)).toBeNull();
+    localStorage.setItem(ENGINE_STORAGE_KEY, 'not json');
+    expect(readEngineCache(NOW)).toBeNull();
+    localStorage.setItem(ENGINE_STORAGE_KEY, JSON.stringify({ version: 99, harvestedAt: NOW }));
+    expect(readEngineCache(NOW)).toBeNull();
+  });
+});
+
+describe('harvest', () => {
+  const okResponse = (posts) => Promise.resolve({ ok: true, json: () => Promise.resolve({ posts }) });
+  const appViewPost = (i, over = {}) => ({
+    uri: `at://did:plc:abc/app.bsky.feed.post/${i}`,
+    author: { handle: `author${i}.bsky.social`, displayName: `A${i}` },
+    record: { text: 'community garden mutual aid day', createdAt: daysAgo(1) },
+    likeCount: 1, repostCount: 0, replyCount: 0,
+    ...over,
+  });
+
+  it('fires exactly 3 probe calls and aggregates a scored, sorted result', async () => {
+    const calls = [];
+    const fetchFn = (url) => { calls.push(url); return okResponse([appViewPost(calls.length)]); };
+    const result = await harvest(fetchFn, NOW);
+    expect(calls).toHaveLength(3);
+    for (const url of calls) {
+      expect(url).toContain('public.api.bsky.app/xrpc/app.bsky.feed.searchPosts');
+      expect(url).toContain('sort=latest');
+    }
+    expect(result.signals.length).toBe(3);
+    expect(result.healingIndex).toBeGreaterThan(0);
+    expect(result.harvestedAt).toBe(NOW);
+    expect(result.probesUsed).toEqual(activeProbeGroup(NOW));
+    // sorted by contribution, descending
+    const c = result.signals.map(s => s.contribution);
+    expect([...c].sort((a, b) => b - a)).toEqual(c);
+  });
+
+  it('tolerates partial probe failure', async () => {
+    let n = 0;
+    const fetchFn = () => (++n === 2)
+      ? Promise.reject(new Error('net down'))
+      : okResponse([appViewPost(n)]);
+    const result = await harvest(fetchFn, NOW);
+    expect(result.signals.length).toBe(2);
+  });
+
+  it('throws when all probes fail (caller keeps stale cache)', async () => {
+    const fetchFn = () => Promise.reject(new Error('offline'));
+    await expect(harvest(fetchFn, NOW)).rejects.toThrow();
+  });
+
+  it('dedupes identical uris returned by overlapping probes', async () => {
+    const fetchFn = () => okResponse([appViewPost(1)]);
+    const result = await harvest(fetchFn, NOW);
+    expect(result.signals.length).toBe(1);
   });
 });
