@@ -56,7 +56,7 @@ function useSeatedMinds() {
   }, []);
 }
 
-function Node({ mind, active, onSelect }) {
+function Node({ mind, active, onSelect, showLabel = true }) {
   const { x, y } = polarToXY(mind.angle, R_SEAT, CX, CY);
   const labelSide = mind.angle > 180 ? 'end' : 'start';
   const dx = mind.angle > 180 ? -12 : 12;
@@ -69,12 +69,20 @@ function Node({ mind, active, onSelect }) {
     >
       <circle cx={x} cy={y} r={active ? 9 : 6} fill={fill} stroke={mind.casteStroke} strokeWidth={active ? 2.5 : 1.5}
         style={{ transition: 'r 160ms, fill 80ms' }} />
-      <text x={x + dx} y={y - 4} textAnchor={labelSide} fontFamily={MONO} fontSize={12} fill={active ? '#FFD700' : '#e8e8f0'} style={{ pointerEvents: 'none' }}>
-        {mind.anchorName}
-      </text>
-      <text x={x + dx} y={y + 10} textAnchor={labelSide} fontFamily={MONO} fontSize={9} fill={`${mind.hue}bb`} style={{ pointerEvents: 'none' }}>
-        [dim:{String(mind.dimIndex).padStart(2, '0')}] {mind.dimName}
-      </text>
+      {/* Mobile's crosshair window crops horizontally by design (a porthole
+          reveal, not a bug) — SVG <text> has no ellipsis, so any label near
+          the crop edge hard-clips mid-glyph. Labels are desktop-only; the
+          fixed telemetry panel below the wheel is mobile's full-text readout. */}
+      {showLabel && (
+        <>
+          <text x={x + dx} y={y - 4} textAnchor={labelSide} fontFamily={MONO} fontSize={12} fill={active ? '#FFD700' : '#e8e8f0'} style={{ pointerEvents: 'none' }}>
+            {mind.anchorName}
+          </text>
+          <text x={x + dx} y={y + 10} textAnchor={labelSide} fontFamily={MONO} fontSize={9} fill={`${mind.hue}bb`} style={{ pointerEvents: 'none' }}>
+            [dim:{String(mind.dimIndex).padStart(2, '0')}] {mind.dimName}
+          </text>
+        </>
+      )}
     </g>
   );
 }
@@ -175,7 +183,7 @@ export default function CouncilRing() {
               <RingScaffold />
               {seated.map((m, i) => (
                 <g key={m.dimIndex} transform={`rotate(${-rotation} ${polarToXY(m.angle, R_SEAT, CX, CY).x} ${polarToXY(m.angle, R_SEAT, CX, CY).y})`}>
-                  <Node mind={m} active={i === activeIndex} onSelect={setSelected} />
+                  <Node mind={m} active={i === activeIndex} onSelect={setSelected} showLabel={false} />
                 </g>
               ))}
             </g>
