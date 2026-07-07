@@ -54,6 +54,7 @@ const InverseEngine = () => {
           {status === 'error' && (
             <button
               onClick={runHarvest}
+              aria-label="Retry harvest"
               className="text-[9px] font-bold tracking-widest uppercase text-fuchsia-400/60 border border-fuchsia-900/40 px-3 py-1.5 hover:text-fuchsia-300 hover:border-fuchsia-500/40 transition-colors"
             >
               ⌖ RETRY HARVEST
@@ -100,17 +101,17 @@ const InverseEngine = () => {
                     <span className="text-fuchsia-900">SUBTHRESHOLD_{String(i + 1).padStart(2, '0')}</span>
                     <span className="text-fuchsia-400/25">{s.createdAt ? relTime(s.createdAt) : ''}</span>
                   </div>
-                  <p className="text-[11px] text-fuchsia-200/60 leading-relaxed mb-3 flex-1 whitespace-pre-wrap">
+                  <p className="text-[11px] text-fuchsia-200/60 leading-relaxed mb-3 flex-1 whitespace-pre-wrap break-words">
                     {s.text}
                   </p>
                   <div className="flex items-center justify-between pt-2 border-t border-fuchsia-900/15 text-[9px] font-mono">
                     <span className="text-fuchsia-400/35 truncate">@{s.handle}</span>
                     <div className="flex items-center gap-3 shrink-0 ml-2">
                       <span className="text-fuchsia-400/25" title="healing score × inverse-virality weight">
-                        ⌁{s.healingScore} ×{s.weight.toFixed(2)}
+                        ⌁{s.healingScore ?? 0} ×{(s.weight ?? 0).toFixed(2)}
                       </span>
-                      <span className="text-fuchsia-400/20">♡{s.likes} ⟳{s.reposts}</span>
-                      <a href={postUrl(s)} target="_blank" rel="noreferrer"
+                      <span className="text-fuchsia-400/20">♡{s.likes ?? 0} ⟳{s.reposts ?? 0}</span>
+                      <a href={postUrl(s)} target="_blank" rel="noreferrer" aria-label="Open post on Bluesky"
                         className="text-fuchsia-400/40 hover:text-fuchsia-300 border border-fuchsia-900/30 hover:border-fuchsia-500/40 px-1.5 py-0.5 uppercase tracking-widest transition-all">
                         ↗
                       </a>
