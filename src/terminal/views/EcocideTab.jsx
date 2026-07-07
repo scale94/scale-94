@@ -41,6 +41,8 @@ import wasmRegistry from '../../wasm/wasm.generated';
 import { loadWasm } from '../../wasm/wasmSingleton';
 import WorldMap from '../components/WorldMap';
 import { toMapXY, COUNTRIES, SPHERE_PATH, GRATICULE_PATH, EQUATOR_PATH, BORDERS_PATH } from '../data/worldMapPolys';
+import { readHealing, subscribeHealing } from '../lib/healingSignal';
+import { healingGrowthOffset, healingSargLift } from '../lib/inverseEngine';
 
 // ── Coupling Event Bus ─────────────────────────────────────────────────────
 // Simple pub/sub for cross-tab phase coupling.
@@ -321,6 +323,12 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
   const firstTickRef   = useRef(true);   // detect stale WASM on first tick only
   useEffect(() => { growthRateRef.current = growthRate; }, [growthRate]);
 
+  // ── TRANSMISSION healing signal — Inverse Extinction Engine coupling ──────
+  const [healingIdx, setHealingIdx] = useState(() => readHealing()?.healingIndex ?? 0);
+  const healingRef = useRef(healingIdx);
+  useEffect(() => { healingRef.current = healingIdx; }, [healingIdx]);
+  useEffect(() => subscribeHealing(sig => setHealingIdx(sig?.healingIndex ?? 0)), []);
+
   // ── WASM load ─────────────────────────────────────────────────────────────
   useEffect(() => {
     loadWasm().then(mod => {
@@ -345,7 +353,8 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
     try { wasm.run_ecocide(1.0, WASM_DT, 1.0); } catch { /* non-fatal */ }
 
     tickRef.current = setInterval(() => {
-      const gr = growthRateRef.current;
+      // Effective rate = slider − TRANSMISSION healing offset (slider untouched)
+      const gr = Math.max(0, growthRateRef.current - healingGrowthOffset(healingRef.current));
 
       // ── Try WASM run_ecocide; fall back to JS integrator if unavailable ──
       let deadCount, deadFrac, exergyNorm, phase, metabolicFat, x_dest, dx_dt, capital, s_gen;
@@ -433,6 +442,8 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
       // SARG coherence
       const sargState = { phase, deadFrac, exergyNorm, trophicV, metabolicFat };
       const sarg = computeSARG(phase, sargState);
+      // TRANSMISSION coupling: healing harvest lifts biosphere coherence (≤ +15%)
+      sarg.sarg = healingSargLift(sarg.sarg, healingRef.current);
 
       // ── Layer 3.3.3 – Double-Bind mandate detection ───────────────────
       if (gr >= 2.0 && !mandateActiveRef.current) {
@@ -997,6 +1008,15 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
           >
             {growthRate.toFixed(1)}%
           </span>
+          {healingIdx > 0 && (
+            <span
+              className="shrink-0 hidden sm:inline"
+              title="Inverse Extinction Engine — healing harvest reduces the effective mandate"
+              style={{ color: '#d946ef', fontSize: '9px', fontWeight: 800, letterSpacing: '0.1em', opacity: 0.75 }}
+            >
+              [TRANSMISSION_OFFSET −{healingGrowthOffset(healingIdx).toFixed(2)}%]
+            </span>
+          )}
         </div>
       </div>
 
