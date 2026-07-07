@@ -29,6 +29,8 @@ export const PROBE_GROUPS = [
   ['permaculture', 'community land trust', 'tool library'],
 ];
 
+// Multi-word terms deliberately stack with their single-word components
+// ('seed library' 3 + 'library' 1 = 4) — compound signals score louder.
 export const HEALING_LEXICON = {
   'mutual aid': 3, 'seed library': 3, 'community garden': 3, 'food forest': 3,
   'tool library': 3, 'repair cafe': 3, 'land back': 3,
@@ -54,9 +56,10 @@ const termRegex = (term) => new RegExp(`\\b${escapeRe(term)}\\b`, 'i');
 
 export function lexiconScore(text, lexicon) {
   if (!text) return 0;
+  const t = text.replace(/[‘’]/g, "'"); // curly → straight apostrophes (mobile keyboards)
   let score = 0;
   for (const [term, weight] of Object.entries(lexicon)) {
-    if (termRegex(term).test(text)) score += weight;
+    if (termRegex(term).test(t)) score += weight;
   }
   return score;
 }

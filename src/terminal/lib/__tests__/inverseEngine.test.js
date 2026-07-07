@@ -32,6 +32,9 @@ describe('lexicon matcher', () => {
     expect(lexiconScore('', { free: 1 })).toBe(0);
     expect(lexiconScore(null, { free: 1 })).toBe(0);
   });
+  it('compound terms stack with their single-word components (deliberate layering)', () => {
+    expect(lexiconScore('our seed library is open', HEALING_LEXICON)).toBe(4);
+  });
 });
 
 describe('sickness scoring', () => {
@@ -46,6 +49,10 @@ describe('sickness scoring', () => {
   });
   it('scores panic lexicon terms', () => {
     expect(sicknessScore('total outrage, we are doomed')).toBeGreaterThan(0);
+  });
+  it('matches the apostrophe clickbait term across straight and curly quotes', () => {
+    expect(sicknessScore("you won't believe what happened")).toBeGreaterThanOrEqual(3);
+    expect(sicknessScore('you won’t believe what happened')).toBeGreaterThanOrEqual(3);
   });
 });
 
