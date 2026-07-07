@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import HackerText from '../components/HackerText';
 import { normalizeQuery } from '../../lib/normalize';
+import InverseEngine from './transmission/InverseEngine';
 
 /**
  * TransmissionTab — fiction / signal archive
@@ -180,6 +181,9 @@ const TransmissionTab = ({ stories, onSelect, loadingSignal }) => {
           </p>
         )}
       </div>
+
+      {/* ── Inverse Extinction Engine — live subthreshold harvest ───────── */}
+      <InverseEngine />
 
       {/* ── [2] OSCILLOSCOPE TIMELINE ─────────────────────────────────────────
           Phosphor-green/fuchsia CRT display. A sine wave scrolls left
