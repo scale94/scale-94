@@ -66,6 +66,8 @@ Desktop upper view becomes a 3-column grid when a pair is (partially) selected:
 - `ARMED`: left card only; right column shows a dim placeholder frame (`AWAITING SECOND MIND`).
 - Below ~1100px viewport the grid stacks: sidebars render as two compact cards side-by-side under the torus instead of flanking it (no clipping, no squeeze).
 
+> **As-built amendment (browser-verified):** the manifesto column is capped at `max-w-6xl` (1152px), which squeezed the flanked torus to ~578px — node labels rendered at 7.1px, verified illegible. As shipped: while sidebars flank, the ring box breaks out of the content column to `min(94vw, 1360px)` (centered via `margin-left: 50%; transform: translateX(-50%)` — note the transform creates a containing block, so SixteenPanel and the synthesis panel deliberately stay siblings *outside* this box); sidebar columns tightened to `minmax(170px, 200px)`; and the stacking breakpoint moved from 1100px to **1200px**. Result: labels ≥ 8.9px in every flanking configuration, 10.6px at 1400px viewports.
+
 ### Output notification (scroll affordance)
 
 The instant the animation gate opens (transition to `SYNTHESIZED`), a high-visibility alert bar renders at the base of the upper container:
