@@ -124,7 +124,15 @@ Vitest units (all pure logic):
 - Order-body redaction — `noteBlock` built from a redacted card contains censor lines while the serialized `encryptedFormula` remains complete.
 - Existing suite (351) stays green; SurveillanceTab index parity verified in-browser.
 
-Browser verification: crystallize at current corpus (exposure likely low — verify strip renders or is cleanly absent), temporarily inflate threat in dev to force redactions, verify censor bars, sovereign view toggle, order body redaction, privacy tab live readouts, offline degradation (block the legislation fetch).
+### Tunability contract
+
+The resistance weights (0.7/0.3) and the six thresholds (15/30/45/60/75/90) are the aesthetic dial of the whole layer. They live as named constants in **one block** at the top of `sovereignty.js` (`RESISTANCE_WEIGHTS`, `REDACTION_MAP`); unit tests parameterize against these constants rather than hardcoding their values, so retuning is a one-line change that does not break the suite.
+
+### Calibration verification (acceptance criterion)
+
+The "typical" resistance is an estimate until measured — the OCK scalars (`ockSovereignty`, `ockCleanRoom`) come from the Rust kernel and their real distribution is unverified. After wiring, sample a spread of real collisions (≥10 distinct domain pairs) in the browser and record the exposure distribution. **Acceptance: at the current corpus index (61), the majority of ordinary compiles land in the 15–40 exposure window — one to two vaulted field groups.** Friction visible, artifact never blinded. If the kernel skews high (most cards compile clean, critique invisible) or low (blackout-heavy), retune the §7 constants and re-sample — the intended band is the tested property, not a hoped-for side effect.
+
+Browser verification: crystallize at current corpus (verify strip renders or is cleanly absent), temporarily inflate threat in dev to force redactions, verify censor bars, sovereign view toggle, order body redaction, privacy tab live readouts, offline degradation (block the legislation fetch), and the calibration sampling above.
 
 ## Module summary
 
