@@ -12,6 +12,8 @@ import { buildChimeraGlyph } from './chimeraGlyph.js';
 import { runPreExecTheater, theaterDuration } from '../utils/preExecTheater.js';
 import { emit as emitObs } from '../../observatory/observatoryBus';
 import CopySpan from '../components/CopySpan';
+import { getPanopticonState } from '../lib/panopticon';
+import { assessSovereignty, redactCard, publishAssessment, transitTag } from '../lib/sovereignty';
 
 // ── Collider Event Bus ───────────────────────────────────────────────────────
 // Cross-tab coupling: emits chimera synthesis results so the Art tab sphere
@@ -1139,6 +1141,7 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
   const [acquiring,    setAcquiring]    = useState(false);
   const [acquireLog,   setAcquireLog]   = useState([]);
   const [selectedTier, setSelectedTier] = useState(TIERS[0]);
+  const [sovereignView, setSovereignView] = useState(false);
 
   // ── Persistent production threshold (Vercel KV via /api/transmute/threshold) ─
   const serverThreshold = useProductionThreshold();
@@ -1158,6 +1161,26 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
     // Build Tesseract cryptographic identity
     try {
       const profile = await buildTesseractProfile(card, result.accord, domainA, domainB, result);
+
+      // ── Sovereignty assessment — stage 5: panopticon load on this compile ──
+      // Never blocks or breaks crystallize (spec §6): failure degrades to the
+      // OFFLINE verdict. The encryptedFormula above was built from the FULL
+      // card — the vault always holds the complete formula.
+      try {
+        const { index, lawCount } = getPanopticonState();
+        const assessment = assessSovereignty({ panopticonIndex: index, accord: result.accord });
+        profile.sovereignty = { ...assessment, panopticonIndexAtSeal: index, lawCount, sealedAt: Date.now() };
+      } catch (e) {
+        console.error('[SOVEREIGNTY] assessment failed:', e);
+        profile.sovereignty = {
+          threat: null, resistance: 0, exposure: 0, redactions: [],
+          verdict: 'PANOPTICON OFFLINE — SEALED WITHOUT ASSESSMENT',
+          panopticonIndexAtSeal: null, lawCount: 0, sealedAt: Date.now(),
+        };
+      }
+      publishAssessment(profile.sovereignty);
+      setSovereignView(false);
+
       setTesseract(profile);
       // TODO(phase-b): emit('ciphers', 'cipher_sealed', { hashPrefix: profile?.hash?.slice(0, 10) ?? '' })
       // Hydrate living-accord state from localStorage if we've redeemed this hash before
@@ -1195,6 +1218,13 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
     const card = crystal;
     if (!card) return;
 
+    // ── Sovereignty: plaintext leaving the browser ships redacted; the
+    // RSA-OAEP encryptedPayload below already carries the complete formula
+    // (redacted-in-transit, complete-in-vault — spec §3).
+    const sovereignty = tesseract?.sovereignty;
+    const redactionList = sovereignty?.redactions ?? [];
+    const txCard = redactionList.length ? redactCard(card, redactionList) : card;
+
     let encryptedPayload = '—';
     try {
       const formulaPlaintext = JSON.stringify(tesseract?.encryptedFormula || {});
@@ -1211,17 +1241,17 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
     const g2tAllocation  = tier.g2t;
 
     const noteBlock = [
-      `ᛏ TOP    ${card.topNotes.join(' · ')}`,
-      `ᚺ HEART  ${card.heartNotes.join(' · ')}`,
-      `ᛒ BASE   ${card.baseNotes.join(' · ')}`,
+      `ᛏ TOP    ${txCard.topNotes.join(' · ')}${transitTag(redactionList, 'topNotes')}`,
+      `ᚺ HEART  ${txCard.heartNotes.join(' · ')}${transitTag(redactionList, 'heartNotes')}`,
+      `ᛒ BASE   ${txCard.baseNotes.join(' · ')}${transitTag(redactionList, 'baseNotes')}`,
     ].join('\n');
 
     const physBlock = [
-      `CONCENTRATION  ${card.conc} · ${card.concPct}`,
-      `LONGEVITY      ${card.longevity}`,
-      `NODE CLASS     ${card.nodeClass}`,
-      `POLARITY       ${card.polLabel || 'MERIDIAN'}`,
-      `DOM / SEC      ${card.dom.toUpperCase()} × ${card.sec.toUpperCase()}`,
+      `CONCENTRATION  ${txCard.conc} · ${txCard.concPct}${transitTag(redactionList, 'concPct')}`,
+      `LONGEVITY      ${txCard.longevity}${transitTag(redactionList, 'longevity')}`,
+      `NODE CLASS     ${txCard.nodeClass}${transitTag(redactionList, 'nodeClass')}`,
+      `POLARITY       ${txCard.polLabel || 'MERIDIAN'}${transitTag(redactionList, 'polLabel')}`,
+      `DOM / SEC      ${txCard.dom.toUpperCase()} × ${txCard.sec.toUpperCase()}`,
     ].join('\n');
 
     const vaultBlock = [
@@ -1230,6 +1260,7 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
       `STATE        ◈ MANIFEST COMPILED`,
       `DELIVERY     DIGITAL ASSET DOWNLOADED`,
       `PROTOCOL     TESSERACT · RSA-OAEP + AES-256-GCM`,
+      `SOVEREIGNTY  EXPOSURE ${sovereignty?.exposure ?? '—'}/100 · ${redactionList.length} FIELDS VAULTED`,
     ].join('\n');
 
     const encTrunc = encryptedPayload.length > 900
@@ -1249,6 +1280,15 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
       noteBlock,
       physBlock,
       vaultBlock,
+      sovereignty: sovereignty
+        ? {
+            threat: sovereignty.threat,
+            resistance: sovereignty.resistance,
+            exposure: sovereignty.exposure,
+            redactionCount: redactionList.length,
+            panopticonIndexAtSeal: sovereignty.panopticonIndexAtSeal,
+          }
+        : null,
       contact:          { signal: contact.signal || '', email: contact.email || '' },
       kernelHistory:    (kernelRunHistoryRef?.current ?? []).slice(-30),
     });
@@ -3268,7 +3308,15 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
 
       {crystal && tesseract ? (
         <TesseractCard
-          card={crystal}
+          card={
+            tesseract.sovereignty?.redactions?.length && !sovereignView
+              ? redactCard(crystal, tesseract.sovereignty.redactions)
+              : crystal
+          }
+          fullCard={crystal}
+          sovereignty={tesseract.sovereignty}
+          sovereignView={sovereignView}
+          onToggleSovereignView={() => setSovereignView((v) => !v)}
           tesseract={tesseract}
           narrative={narrative}
           acquired={acquired}
@@ -3931,7 +3979,7 @@ function ShimmeringCipher({ rows }) {
 }
 
 // ── Tesseract Card — cryptographic identity layer ───────────────────────────
-function TesseractCard({ card, tesseract, narrative, acquired, selectedTier, onRegister, serverCount, serverTarget, orderStatus, living, onLivingRedeemed }) {
+function TesseractCard({ card, fullCard = card, sovereignty = null, sovereignView = false, onToggleSovereignView, tesseract, narrative, acquired, selectedTier, onRegister, serverCount, serverTarget, orderStatus, living, onLivingRedeemed }) {
   const [manifestState, setManifestState] = useState(null); // null | 'compiling' | 'downloaded'
   const [vaultGlyphClicks, setVaultGlyphClicks] = useState(0);
 
@@ -3941,7 +3989,7 @@ function TesseractCard({ card, tesseract, narrative, acquired, selectedTier, onR
   const handleDownload = async () => {
     setManifestState('compiling');
     await new Promise(r => setTimeout(r, 850));
-    const md = generateManifestMarkdown(card, tesseract, living);
+    const md = generateManifestMarkdown(fullCard, tesseract, living); // local file = client enclave: always complete
     const filename = `ECO_Sx_TRANSMUTATION_${Date.now()}.md`;
     const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -3969,9 +4017,9 @@ function TesseractCard({ card, tesseract, narrative, acquired, selectedTier, onR
   }
 
   const NOTE_LAYERS = [
-    { key: 'top',   label: 'TOP',   glyph: 'ᛏ', notes: card.topNotes,   color: '#FFD700', sub: '0–30 min',    pct: card.evap[0] },
-    { key: 'heart', label: 'HEART', glyph: 'ᚺ', notes: card.heartNotes, color: '#d946ef', sub: '30 min–4 hr', pct: card.evap[1] },
-    { key: 'base',  label: 'BASE',  glyph: 'ᛒ', notes: card.baseNotes,  color: '#B8860B', sub: '4 hr+',      pct: card.evap[2] },
+    { key: 'top',   label: 'TOP',   glyph: 'ᛏ', field: 'topNotes',   notes: card.topNotes,   color: '#FFD700', sub: '0–30 min',    pct: card.evap[0] },
+    { key: 'heart', label: 'HEART', glyph: 'ᚺ', field: 'heartNotes', notes: card.heartNotes, color: '#d946ef', sub: '30 min–4 hr', pct: card.evap[1] },
+    { key: 'base',  label: 'BASE',  glyph: 'ᛒ', field: 'baseNotes',  notes: card.baseNotes,  color: '#B8860B', sub: '4 hr+',      pct: card.evap[2] },
   ];
 
   return (
@@ -4013,6 +4061,31 @@ function TesseractCard({ card, tesseract, narrative, acquired, selectedTier, onR
           </div>
         </div>
 
+        {/* ── Sovereignty strip (spec §4) — omitted entirely on a clean compile ── */}
+        {sovereignty && (sovereignty.redactions.length > 0 || sovereignty.threat === null) && (
+          <div
+            className="mb-5 rounded-lg p-3 flex items-center justify-between gap-3 flex-wrap"
+            style={{ border: '1px solid rgba(244,63,94,0.25)', background: 'rgba(244,63,94,0.04)' }}
+          >
+            <span className="text-[8px] font-mono tracking-widest" style={{ color: 'rgba(244,63,94,0.85)' }}>
+              {sovereignty.threat === null
+                ? '⛨ PANOPTICON OFFLINE — SEALED WITHOUT ASSESSMENT'
+                : `⛨ THREAT ${sovereignty.threat} · RESISTANCE ${sovereignty.resistance} · EXPOSURE ${sovereignty.exposure} · ${sovereignty.redactions.length} FIELDS VAULTED`}
+            </span>
+            {sovereignty.redactions.length > 0 && (
+              <button
+                onClick={onToggleSovereignView}
+                className="text-[8px] font-mono tracking-widest px-2 py-1 rounded-sm"
+                style={{ border: '1px solid rgba(6,182,212,0.4)', color: '#06b6d4', background: 'none', cursor: 'pointer' }}
+              >
+                {sovereignView
+                  ? '◈ SOVEREIGN VIEW · decrypted in client enclave — never transits'
+                  : '[SOVEREIGN VIEW]'}
+              </button>
+            )}
+          </div>
+        )}
+
         {/* ── Name + Bottle ── */}
         <div className="flex items-start justify-between gap-4 mb-5" style={{ opacity: 0, animation: 'sc-cardReveal 0.4s cubic-bezier(0.16,1,0.3,1) 500ms forwards' }}>
           <div className="flex-1 min-w-0">
@@ -4053,16 +4126,23 @@ function TesseractCard({ card, tesseract, narrative, acquired, selectedTier, onR
 
         {/* ── Note pyramid (public key data) ── */}
         <div className="space-y-2 mb-5" style={{ opacity: 0, animation: 'sc-cardReveal 0.4s cubic-bezier(0.16,1,0.3,1) 600ms forwards' }}>
-          {NOTE_LAYERS.map(({ key, label, glyph, notes, color, sub, pct }) => (
+          {NOTE_LAYERS.map(({ key, label, glyph, field, notes, color, sub, pct }) => (
             <div key={key} className="rounded-lg p-2.5" style={{ border: `1px solid ${color}12`, background: `${color}04` }}>
               <div className="flex items-center justify-between mb-1.5">
                 <div className="flex items-center gap-2">
                   <span className="text-sm" style={{ color, textShadow: `0 0 8px ${color}40` }}>{glyph}</span>
                   <span className="text-[8px] font-bold font-mono tracking-widest" style={{ color: `${color}bb` }}>{label}</span>
+                  {card.__redacted?.includes(field) && (
+                    <span className="text-[7px] font-mono tracking-widest" style={{ color: 'rgba(244,63,94,0.7)' }}>
+                      [{sovereignty?.redactions?.find((r) => r.field === field)?.vectorId}]
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-[7px] font-mono" style={{ color: `${color}50` }}>{sub}</span>
-                  <span className="text-[7px] font-mono" style={{ color: `${color}50` }}>{(pct * 100).toFixed(0)}%</span>
+                  <span className="text-[7px] font-mono" style={{ color: `${color}50` }}>
+                    {card.__redacted?.includes('evap') ? '██' : `${(pct * 100).toFixed(0)}%`}
+                  </span>
                 </div>
               </div>
               <div className="flex flex-wrap gap-1.5">
@@ -4088,7 +4168,18 @@ function TesseractCard({ card, tesseract, narrative, acquired, selectedTier, onR
         </div>
 
         {/* ── Decay Arc panel ── */}
-        {narrative?.decayArc && <DecayArcPanel beats={narrative.decayArc} hueA={card.hueA} hueB={card.hueB} />}
+        {/* Decay arc mirrors the display card's censorship — beats are ordered top/heart/base */}
+        {narrative?.decayArc && (
+          <DecayArcPanel
+            beats={
+              card.__redacted
+                ? narrative.decayArc.map((b, i) => ({ ...b, notes: [card.topNotes, card.heartNotes, card.baseNotes][i] ?? b.notes }))
+                : narrative.decayArc
+            }
+            hueA={card.hueA}
+            hueB={card.hueB}
+          />
+        )}
 
         {/* ── Properties strip ── */}
         <div className="grid grid-cols-3 gap-2 mb-5" style={{ opacity: 0, animation: 'sc-cardReveal 0.4s cubic-bezier(0.16,1,0.3,1) 950ms forwards' }}>
@@ -4267,7 +4358,7 @@ function TesseractCard({ card, tesseract, narrative, acquired, selectedTier, onR
         {vaultGlyphClicks >= 7 && !living && (
           <RedeemInput
             accordHash={hash}
-            accordCard={card}
+            accordCard={fullCard} // sovereign key = decryption right: redemption always carries the complete card
             onSuccess={onLivingRedeemed}
           />
         )}
