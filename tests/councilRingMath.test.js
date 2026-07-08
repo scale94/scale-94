@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   seatAngle,
   polarToXY,
-  angleToNearestSeatIndex,
 } from '../src/terminal/views/manifesto/councilRingMath.js';
 
 describe('seatAngle', () => {
@@ -40,16 +39,5 @@ describe('polarToXY', () => {
     const { x, y } = polarToXY(90, 100, 200, 200);
     expect(x).toBeCloseTo(300, 5);
     expect(y).toBeCloseTo(200, 5);
-  });
-});
-
-describe('angleToNearestSeatIndex', () => {
-  const seats = [10, 40, 90, 200, 340];
-  it('returns the seat under the crosshair with zero rotation', () => {
-    expect(angleToNearestSeatIndex(0, seats)).toBe(0);
-  });
-
-  it('accounts for ring rotation', () => {
-    expect(angleToNearestSeatIndex(80, seats)).toBe(4);
   });
 });

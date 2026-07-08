@@ -23,22 +23,3 @@ export function polarToXY(angleDeg, radius, cx, cy) {
     y: cy + radius * Math.sin(rad),
   };
 }
-
-function angularDistance(a, b) {
-  const d = Math.abs(((a - b) % 360 + 360) % 360);
-  return Math.min(d, 360 - d);
-}
-
-export function angleToNearestSeatIndex(rotationDeg, seatAngles) {
-  let best = 0;
-  let bestDist = Infinity;
-  seatAngles.forEach((seat, i) => {
-    const effective = ((seat + rotationDeg) % 360 + 360) % 360;
-    const dist = angularDistance(effective, 0);
-    if (dist < bestDist) {
-      bestDist = dist;
-      best = i;
-    }
-  });
-  return best;
-}
