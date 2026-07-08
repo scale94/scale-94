@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Lock, Shield, Eye, Database, ShieldAlert, AlertTriangle, CheckCircle, XCircle, Activity } from 'lucide-react';
+import { getPanopticonState, subscribePanopticon } from '../lib/panopticon';
+import { getLastAssessment, subscribeSovereignty, REDACTION_MAP } from '../lib/sovereignty';
 
 // ── Threat vector data — mirrors the surveillance kernel's worldview ──────────
 const VECTORS = [
@@ -74,14 +76,14 @@ const SEV_MAP = {
   5: { border: 'border-red-500/80',    bg: 'bg-red-950/30',     text: 'text-red-400',    badge: 'bg-red-900/50 text-red-300 border border-red-700/50',           label: 'CRITICAL', icon: XCircle      },
 };
 
-// Panopticon Index: Σ(sev²) / (n × 25) × 100
-const panopticonScore = Math.round(
-  VECTORS.reduce((acc, v) => acc + v.sev * v.sev, 0) / (VECTORS.length * 25) * 100
-);
-
 // ─────────────────────────────────────────────────────────────────────────────
 
 const PrivacyTab = ({ systemArticles = {} }) => {
+  const [pan, setPan]   = useState(getPanopticonState);
+  const [last, setLast] = useState(getLastAssessment);
+  useEffect(() => subscribePanopticon(setPan), []);
+  useEffect(() => subscribeSovereignty(setLast), []);
+  const panopticonScore = pan.index; // null until the legislation corpus registers
   const privacy = systemArticles['PRIVACY-PROTOCOL'];
   return (
     <div className="tab-fade-v2 relative">
@@ -172,7 +174,7 @@ const PrivacyTab = ({ systemArticles = {} }) => {
                         stroke="#06b6d4" strokeWidth="2" opacity="0.6" />
                   <text x={(arrow.x1 + arrow.x2) / 2} y={42} textAnchor="middle"
                         fill="#06b6d4" fontSize="8" fontFamily="monospace" opacity="0.6">
-                    NO DATA
+                    {`NO DATA${last?.redactions?.length ? ` · ${last.redactions.length} VAULTED` : ''}`}
                   </text>
                 </g>
               )}
@@ -253,20 +255,35 @@ const PrivacyTab = ({ systemArticles = {} }) => {
                 className="text-3xl font-bold font-mono tabular-nums text-cyan-400"
                 style={{ animation: 'pt-scoreGlow 3s ease-in-out infinite' }}
               >
-                {panopticonScore}
+                {panopticonScore ?? '—'}
               </div>
-              <div className="text-[8px] tracking-widest text-orange-400/40 uppercase">/ 100 · P-INDEX</div>
+              <div className="text-[8px] tracking-widest text-orange-400/40 uppercase">
+                {panopticonScore == null ? 'CORPUS OFFLINE' : '/ 100 · LIVE P-INDEX'}
+              </div>
             </div>
           </div>
 
           {/* Context blurb */}
           <div className="px-6 py-4 border-b border-orange-900/20 text-xs font-mono text-orange-400/60 leading-relaxed">
             <span className="text-orange-500">{'>_'}</span>{' '}
-            The Panopticon is no longer architectural — it is infrastructural. This assessment maps the data exposure surface of{' '}
-            <span className="text-orange-300 font-bold">scale-9.4</span> using the same severity framework as the{' '}
-            <span className="text-orange-300 font-bold">SURVEILLANCE_INDEX</span> kernel.
-            Threat score: <span className="text-cyan-400 font-bold">Σ(sev²) / (n × 25) × 100</span>.
-            A score of <span className="text-cyan-400 font-bold">{panopticonScore}/100</span> reflects an operator-controlled surface of near-zero active surveillance — the residual exposure is infrastructure-layer, outside this node's jurisdiction.
+            The Panopticon is no longer architectural — it is infrastructural. This score is computed{' '}
+            <span className="text-orange-300 font-bold">live</span> over the{' '}
+            <span className="text-orange-300 font-bold">{pan.lawCount}</span> active statutes of the{' '}
+            <span className="text-orange-300 font-bold">SURVEILLANCE_INDEX</span> corpus —{' '}
+            <span className="text-cyan-400 font-bold">Σ(sev²) / (n × 25) × 100</span> — the same number the
+            surveillance kernel renders. It is the environmental load every crystallized accord is assessed
+            against: exposure above a vector&apos;s threshold vaults that vector&apos;s fields behind the censor bar.
+          </div>
+
+          {/* Last sovereignty assessment (spec §5) */}
+          <div className="px-6 py-3 border-b border-orange-900/20 text-[10px] font-mono tracking-widest" style={{ color: 'rgba(6,182,212,0.7)' }}>
+            {last
+              ? `LAST ASSESSMENT ▸ EXPOSURE ${last.exposure} · ${last.redactions.length} FIELDS VAULTED${
+                  last.redactions.length
+                    ? ` · VECTORS FIRED: ${[...new Set(last.redactions.map((r) => r.vectorId))].join(' + ')}`
+                    : ''
+                }`
+              : 'NO COMPILATION ASSESSED THIS SESSION'}
           </div>
 
           {/* Vector cards */}
@@ -302,6 +319,14 @@ const PrivacyTab = ({ systemArticles = {} }) => {
                       <div className="text-[11px] font-mono text-orange-300/70 leading-relaxed">
                         {v.detail}
                       </div>
+                      {(() => {
+                        const m = REDACTION_MAP.find((e) => e.vectorId === v.id);
+                        return m ? (
+                          <div className="mt-2 text-[9px] font-mono tracking-widest text-cyan-400/50">
+                            CLAIMS AT EXPOSURE ≥ {m.threshold} ▸ {m.fields.join(' · ')}
+                          </div>
+                        ) : null;
+                      })()}
                     </div>
                   </div>
                 </div>
