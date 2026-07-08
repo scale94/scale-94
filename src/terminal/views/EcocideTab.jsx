@@ -645,8 +645,10 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
   // Paradox state for display
   const sargState = { phase: uiPhase, deadFrac, exergyNorm, trophicV: tV, metabolicFat: mFat };
 
-  // Computed extraction cost – shows hidden GDP the operator is actually demanding
-  const extractionCost = growthToGdp(growthRate, deadFrac);
+  // Computed extraction cost – shows hidden GDP the operator is actually demanding.
+  // Uses the same healing-offset effective rate as the simulation tick, so the
+  // readout matches what [TRANSMISSION_OFFSET] is actually feeding the WASM kernel.
+  const extractionCost = growthToGdp(Math.max(0, growthRate - healingGrowthOffset(healingIdx)), deadFrac);
 
   // ── Plywood Paradox containment ─────────────────────────────────────────────
   // Glyphs are statically anchored. Chromatic aberration is delivered exclusively
