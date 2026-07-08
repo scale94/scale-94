@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { ShieldAlert, ChevronRight, Globe, Filter, AlertTriangle, X, Activity } from 'lucide-react';
 import WorldMap from '../components/WorldMap';
 import { toMapXY } from '../data/worldMapPolys';
+import { computePanopticonIndex } from '../lib/panopticon';
 
 // ── Region lon/lat centres (projected via geoNaturalEarth1) ─────────────────
 const REGION_LONLAT = {
@@ -83,15 +84,11 @@ const SurveillanceTab = ({ legislationArticles = [], onOpenLaw }) => {
   const [category, setCategory] = useState('ALL');
   const [minSev,   setMinSev]   = useState(0);
 
-  // ── Panopticon Index — Σ(sev²) / (n × 25) × 100 ─────────────────────────
-  const panopticonIndex = useMemo(() => {
-    if (!legislationArticles.length) return 0;
-    const sum = legislationArticles.reduce((acc, a) => {
-      const s = parseInt(a.severity, 10) || 0;
-      return acc + s * s;
-    }, 0);
-    return Math.min(100, Math.round(sum / (legislationArticles.length * 25) * 100));
-  }, [legislationArticles]);
+  // ── Panopticon Index — shared formula home: src/terminal/lib/panopticon.js ─
+  const panopticonIndex = useMemo(
+    () => computePanopticonIndex(legislationArticles),
+    [legislationArticles]
+  );
 
   // ── Filtered + sorted law list ────────────────────────────────────────────
   const filtered = useMemo(() => {

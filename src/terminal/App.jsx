@@ -54,6 +54,7 @@ import usePossessionSequence  from './hooks/usePossessionSequence';
 import { getVerdictCount }    from './ledger/verdictStore';
 import { normalizeQuery }     from '../lib/normalize';
 import { getGateState, setGateState } from './lib/gateStorage';
+import { setPanopticonCorpus } from './lib/panopticon';
 
 // KernelTab — static import (landing tab, always needed, avoids .df.js chunk on Firefox Android)
 import KernelTab from './views/KernelTab';
@@ -246,6 +247,12 @@ const App = () => {
         appendSystemLog({ time: laterTime, msg: `SYSTEM_KERNEL_LOG: ${generatedArticles.length} kernels // ${academicArticles.length} academic // ${legislationArticles.length} legislation // tags index ready` });
 
         setDynamicData({ generatedArticles, academicArticles, legislationArticles, tagIndex: tagsJson, systemArticles: systemJson, manifest });
+
+        // Register the legislation corpus with the shared panopticon module —
+        // SurveillanceTab, PrivacyTab, and the sovereignty assessment all read
+        // this single score (spec §1). Until this line runs, index is null
+        // (degraded mode: compiles seal without assessment).
+        setPanopticonCorpus(legislationArticles);
 
         // ── WASM integrity check ─────────────────────────────────────────────
         // Fetch the WASM binary and verify its SHA-256 against the manifest entry.
