@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { SIXTEEN_MINDS } from '../../data/sixteenMinds';
-import { seatAngle, polarToXY, angleToNearestSeatIndex } from './councilRingMath';
+import { seatAngle, polarToXY } from './councilRingMath';
 import SixteenPanel from './SixteenPanel';
 import { useCouncilCollider } from './useCouncilCollider';
 import MindSidebar from './MindSidebar';
@@ -104,7 +104,7 @@ export default function CouncilRing() {
   const isMobile = useIsMobile();
   const [selected, setSelected] = useState(null);
 
-  const collider = useCouncilCollider({ seated, enabled: !isMobile });
+  const collider = useCouncilCollider({ seated, enabled: true });
   const isNarrow = useIsNarrow();
   const { onNodeClick } = collider; // stable useCallback — plain identifier satisfies exhaustive-deps
   const handleSelect = useCallback((mind) => {
@@ -123,92 +123,6 @@ export default function CouncilRing() {
     io.observe(panel);
     return () => io.disconnect();
   }, [collider.mode, collider.synthesisRecord?.id]);
-
-  // Mobile rotation state
-  const [rotation, setRotation] = useState(0);
-  const dragRef = useRef({ dragging: false, startAngle: 0, startRotation: 0 });
-
-  const seatAngles = useMemo(() => seated.map(m => m.angle), [seated]);
-  const activeIndex = useMemo(
-    () => (isMobile ? angleToNearestSeatIndex(rotation, seatAngles) : -1),
-    [isMobile, rotation, seatAngles]
-  );
-  const activeMind = activeIndex >= 0 ? seated[activeIndex] : null;
-
-  const pointerAngle = useCallback((touch, rect) => {
-    const px = touch.clientX - rect.left - rect.width / 2;
-    const py = touch.clientY - rect.top - rect.height / 2;
-    return (Math.atan2(py, px) * 180) / Math.PI;
-  }, []);
-
-  const onTouchStart = useCallback((e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    dragRef.current = {
-      dragging: true,
-      startAngle: pointerAngle(e.touches[0], rect),
-      startRotation: rotation,
-    };
-  }, [rotation, pointerAngle]);
-
-  const onTouchMove = useCallback((e) => {
-    if (!dragRef.current.dragging) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const now = pointerAngle(e.touches[0], rect);
-    setRotation(dragRef.current.startRotation + (now - dragRef.current.startAngle));
-  }, [pointerAngle]);
-
-  const onTouchEnd = useCallback(() => {
-    dragRef.current.dragging = false;
-    // Snap so the nearest seat sits exactly under the crosshair (0°).
-    const idx = angleToNearestSeatIndex(rotation, seatAngles);
-    const target = -seatAngles[idx];
-    setRotation(((target % 360) + 360) % 360);
-  }, [rotation, seatAngles]);
-
-  if (isMobile) {
-    return (
-      <div>
-        {/* Crosshair-visible upper segment */}
-        <div style={{ height: 360, overflow: 'hidden', position: 'relative', background: '#04040a', border: '1px solid rgba(120,140,200,0.12)', borderRadius: 4, padding: '0 6px' }}>
-          {/* Gold crosshair at 12 o'clock */}
-          <div style={{ position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)', zIndex: 3, color: '#FFD700', fontFamily: MONO, fontSize: 14 }}>▼</div>
-          <svg
-            viewBox="0 0 640 640"
-            style={{ width: '200%', marginLeft: '-50%', display: 'block', touchAction: 'none' }}
-            onTouchStart={onTouchStart}
-            onTouchMove={onTouchMove}
-            onTouchEnd={onTouchEnd}
-          >
-            <g transform={`rotate(${rotation} ${CX} ${CY})`}>
-              <RingScaffold />
-              {seated.map((m, i) => (
-                <g key={m.dimIndex} transform={`rotate(${-rotation} ${polarToXY(m.angle, R_SEAT, CX, CY).x} ${polarToXY(m.angle, R_SEAT, CX, CY).y})`}>
-                  <Node mind={m} active={i === activeIndex} onSelect={setSelected} showLabel={false} />
-                </g>
-              ))}
-            </g>
-          </svg>
-        </div>
-
-        {/* Fixed-height telemetry panel — no layout shift, no keyboard */}
-        <div
-          onClick={() => activeMind && setSelected(activeMind)}
-          style={{ minHeight: 132, height: 132, marginTop: 10, padding: '12px 14px', background: '#04040a', border: `1px solid ${activeMind ? (activeMind.caste === 'canon' ? '#FFD700' : '#00FFAA') : 'rgba(120,140,200,0.12)'}33`, borderRadius: 4, fontFamily: MONO, cursor: 'pointer', overflow: 'hidden' }}
-        >
-          {activeMind && (
-            <>
-              <div style={{ fontSize: 10, color: activeMind.hue, letterSpacing: '0.2em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>[dim:{String(activeMind.dimIndex).padStart(2, '0')}] {activeMind.dimName}</div>
-              <div style={{ fontSize: 'clamp(13px, 4vw, 16px)', color: activeMind.caste === 'canon' ? '#FFD700' : '#00FFAA', fontWeight: 700, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{activeMind.anchorName}</div>
-              <div style={{ fontSize: 'clamp(11px, 3.5vw, 14px)', color: '#FFD700', marginTop: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{activeMind.coreEquation}</div>
-              <div style={{ fontSize: 9, color: 'rgba(0,255,170,0.55)', letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>▸ {activeMind.systemDirective}</div>
-            </>
-          )}
-        </div>
-
-        {selected && <SixteenPanel mind={selected} onClose={() => setSelected(null)} />}
-      </div>
-    );
-  }
 
   // Desktop — 3-column grid: sidebars flank the torus while a pair is selected
   // (spec §3). Canvas renders UNDER the SVG. Torus cell has min-width:0 and
