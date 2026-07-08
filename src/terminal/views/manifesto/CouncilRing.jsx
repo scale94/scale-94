@@ -67,12 +67,16 @@ function Node({ mind, active, onSelect, showLabel = true }) {
       onClick={() => onSelect(mind)}
       data-testid={`node-${mind.dimIndex}`}
     >
+      {/* Invisible touch target — 44px diameter, independent of the visible
+          dot's radius (6/9px), so mobile taps satisfy WCAG 2.5.5 without
+          growing the ring's visual density. */}
+      <circle cx={x} cy={y} r={22} fill="transparent" />
       <circle cx={x} cy={y} r={active ? 9 : 6} fill={fill} stroke={mind.casteStroke} strokeWidth={active ? 2.5 : 1.5}
-        style={{ transition: 'r 160ms, fill 80ms' }} />
-      {/* Mobile's crosshair window crops horizontally by design (a porthole
-          reveal, not a bug) — SVG <text> has no ellipsis, so any label near
-          the crop edge hard-clips mid-glyph. Labels are desktop-only; the
-          fixed telemetry panel below the wheel is mobile's full-text readout. */}
+        style={{ transition: 'r 160ms, fill 80ms', pointerEvents: 'none' }} />
+      {/* Labels are suppressed on mobile widths (showLabel=false, passed by
+          the caller) — 8-9px SVG text has no ellipsis and would clip or
+          overlap between closely-spaced touch targets. Full name/dim surface
+          via the ARMED banner and the synthesis panel's pair header instead. */}
       {showLabel && (
         <>
           <text x={x + dx} y={y - 4} textAnchor={labelSide} fontFamily={MONO} fontSize={12} fill={active ? '#FFD700' : '#e8e8f0'} style={{ pointerEvents: 'none' }}>
@@ -169,6 +173,7 @@ export default function CouncilRing() {
                       : collider.activePairIds.includes(m.dimIndex)
                   }
                   onSelect={handleSelect}
+                  showLabel={!isMobile}
                 />
               ))}
             </svg>
