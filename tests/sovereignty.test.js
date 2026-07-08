@@ -127,7 +127,10 @@ describe('redactCard', () => {
 
 describe('transitTag', () => {
   it('annotates a redacted field with its claiming vector', () => {
-    const a = assessSovereignty({ panopticonIndex: 45, accord: accordOf(0, 0) }); // heartNotes fires at 45
+    // Parameterized against REDACTION_MAP so threshold retunes don't break this:
+    // exposure exactly at COOKIE_STATUS's threshold fires heartNotes but not topNotes.
+    const cookie = REDACTION_MAP.find((e) => e.vectorId === 'COOKIE_STATUS');
+    const a = assessSovereignty({ panopticonIndex: cookie.threshold, accord: accordOf(0, 0) });
     expect(transitTag(a.redactions, 'heartNotes')).toBe(' [COOKIE_STATUS]');
     expect(transitTag(a.redactions, 'topNotes')).toBe('');
     expect(transitTag(null, 'heartNotes')).toBe('');

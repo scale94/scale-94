@@ -7,18 +7,26 @@
 // ── Tunability contract (spec §7) ────────────────────────────────────────────
 // These constants are the aesthetic dial of the whole layer. Retuning is a
 // one-line change here; the unit suite parameterizes against these exports.
-// Target: at corpus index ~61, ordinary compiles land at exposure 15–40
-// (one to two vaulted field groups) — friction visible, artifact never blinded.
+// Target: at corpus index ~61, the majority of ordinary compiles show one to
+// two vaulted field groups — friction visible, artifact never blinded.
+//
+// Calibrated 2026-07-08 against 10 sampled collisions: the Rust OCK scalars
+// are bimodal (combined resistance either ~12–30 or ~56–85 at the original
+// 0.7/0.3 weights), which left half of all compiles fully clean and none in
+// the target band. The 0.4/0.15 weights compress that spread so the
+// high-resistance cluster still feels friction, and the 55/70/85/95 upper
+// thresholds keep the low-resistance cluster at 1–2 vaulted groups while
+// reserving deep redactions (base/top notes) for a genuinely worse corpus.
 
-export const RESISTANCE_WEIGHTS = { sovereignty: 0.7, cleanRoom: 0.3 };
+export const RESISTANCE_WEIGHTS = { sovereignty: 0.4, cleanRoom: 0.15 };
 
 export const REDACTION_MAP = [
   { threshold: 15, vectorId: 'VERCEL_ANALYTICS',       category: 'behavioral_telemetry', fields: ['evap'] },
   { threshold: 30, vectorId: 'SERVER_LOG_RETENTION',   category: 'traffic_retention',    fields: ['longevity', 'concPct'] },
-  { threshold: 45, vectorId: 'COOKIE_STATUS',          category: 'behavioral_tracking',  fields: ['heartNotes'] },
-  { threshold: 60, vectorId: 'CLASSIFIED_CHALLENGE',   category: 'ephemeral_session',    fields: ['nodeClass', 'polLabel'] },
-  { threshold: 75, vectorId: 'EXTERNAL_LINK_EXPOSURE', category: 'third_party_handoff',  fields: ['baseNotes'] },
-  { threshold: 90, vectorId: 'LOCAL_EXECUTION',        category: 'local_execution',      fields: ['topNotes'] },
+  { threshold: 55, vectorId: 'COOKIE_STATUS',          category: 'behavioral_tracking',  fields: ['heartNotes'] },
+  { threshold: 70, vectorId: 'CLASSIFIED_CHALLENGE',   category: 'ephemeral_session',    fields: ['nodeClass', 'polLabel'] },
+  { threshold: 85, vectorId: 'EXTERNAL_LINK_EXPOSURE', category: 'third_party_handoff',  fields: ['baseNotes'] },
+  { threshold: 95, vectorId: 'LOCAL_EXECUTION',        category: 'local_execution',      fields: ['topNotes'] },
 ];
 
 export const CENSOR = '██████';
