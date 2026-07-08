@@ -174,7 +174,10 @@ export function writeEngineCache(data) {
 // ── Harvest orchestration ─────────────────────────────────────────────────────
 // The ONLY network surface of the engine: 3 unauthenticated searchPosts calls
 // against the free public AppView. fetchFn is injectable for tests.
-const SEARCH_BASE = 'https://public.api.bsky.app/xrpc/app.bsky.feed.searchPosts';
+// NOTE: api.bsky.app, not public.api.bsky.app — the CDN AppView 403s the
+// searchPosts lexicon (verified 2026-07-08); the main AppView serves it
+// unauthenticated with CORS.
+const SEARCH_BASE = 'https://api.bsky.app/xrpc/app.bsky.feed.searchPosts';
 
 export async function harvest(fetchFn = fetch, now = Date.now()) {
   const probes = activeProbeGroup(now);

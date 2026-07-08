@@ -19,8 +19,11 @@ doc calls the platform's moral anchor.
 
 1. **Zero GraphTracks calls.** GraphTracks (`api.graphtracks.com`) remains
    exclusively the BSKY tab's top-posts panel. The engine uses only the free
-   public Bluesky AppView (`public.api.bsky.app`), unauthenticated — the same
-   endpoint family the BSKY tab already uses for trending topics.
+   public Bluesky AppView, unauthenticated. *(Amended 2026-07-08: the search
+   endpoint lives on `api.bsky.app` — the CDN mirror `public.api.bsky.app`
+   returns 403 for the `searchPosts` lexicon. Both are Bluesky's free public
+   AppView surface; profile/trending calls in the BSKY tab stay on
+   `public.api.bsky.app`.)*
 2. **Bounded API footprint.** Max 3 `searchPosts` calls per harvest; max one
    harvest per client per 8-hour TTL window. Cache-first render.
 3. **No backend.** Static Vite site; everything runs in the browser.
@@ -78,7 +81,7 @@ so all visitors in the same 8h window fire the same probes (cache-friendly,
 predictable load).
 
 **Fetch.** For each of the 3 probes in the active group:
-`GET https://public.api.bsky.app/xrpc/app.bsky.feed.searchPosts?q=<probe>&sort=latest&limit=25&lang=en`
+`GET https://api.bsky.app/xrpc/app.bsky.feed.searchPosts?q=<probe>&sort=latest&limit=25&lang=en`
 (fired in parallel; each response ≤ 25 posts). Failures per-probe are tolerated —
 the harvest proceeds with whatever returned.
 

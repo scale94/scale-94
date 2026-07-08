@@ -228,7 +228,7 @@ describe('harvest', () => {
     const result = await harvest(fetchFn, NOW);
     expect(calls).toHaveLength(3);
     for (const url of calls) {
-      expect(url).toContain('public.api.bsky.app/xrpc/app.bsky.feed.searchPosts');
+      expect(url).toContain('https://api.bsky.app/xrpc/app.bsky.feed.searchPosts');
       expect(url).toContain('sort=latest');
     }
     expect(result.signals.length).toBe(3);
