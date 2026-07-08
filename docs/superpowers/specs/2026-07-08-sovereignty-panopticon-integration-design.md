@@ -68,10 +68,12 @@ assessSovereignty({ panopticonIndex, accord }) → {
 |---|---|---|---|
 | 15 | `VERCEL_ANALYTICS` | behavioral_telemetry | `evap` |
 | 30 | `SERVER_LOG_RETENTION` | traffic_retention | `longevity`, `concPct` |
-| 45 | `COOKIE_STATUS` | behavioral_tracking | `heartNotes` |
-| 60 | `CLASSIFIED_CHALLENGE` | ephemeral_session | `nodeClass`, `polLabel` |
-| 75 | `EXTERNAL_LINK_EXPOSURE` | third_party_handoff | `baseNotes` |
-| 90 | `LOCAL_EXECUTION` | local_execution | `topNotes` |
+| 55 | `COOKIE_STATUS` | behavioral_tracking | `heartNotes` |
+| 70 | `CLASSIFIED_CHALLENGE` | ephemeral_session | `nodeClass`, `polLabel` |
+| 85 | `EXTERNAL_LINK_EXPOSURE` | third_party_handoff | `baseNotes` |
+| 95 | `LOCAL_EXECUTION` | local_execution | `topNotes` |
+
+> **As-built calibration (2026-07-08, browser-sampled):** the draft thresholds (15/30/45/60/75/90) and weights (0.7/0.3) missed the acceptance band — the Rust OCK scalars proved bimodal (combined resistance ~12–30 or ~56–85), leaving 5/10 sampled compiles fully clean and only 2/10 in-band. As shipped: `RESISTANCE_WEIGHTS = { sovereignty: 0.4, cleanRoom: 0.15 }` and the thresholds above. Re-sampled across the same 10 domain pairs: **8/10 compiles at 1–2 vaulted groups, 1 clean (exposure 14), 1 at 3 groups (exposure 55), 0 blackouts** — acceptance met. Deep redactions (`baseNotes`/`topNotes`) remain unreachable until the legislative corpus index itself exceeds ~85: the world has to get worse before the engine censors deeper.
 
 - `name`, `id`, `conc`, `dom`, `sec`, and the Tesseract `hash` are **never redacted** — the state always sees *that* the artifact exists; it can't read its interior. (`conc` tier stays public; only the percentage is retained metadata.)
 - Redaction is cumulative: at exposure 62, everything with threshold ≤ 60 is redacted.
