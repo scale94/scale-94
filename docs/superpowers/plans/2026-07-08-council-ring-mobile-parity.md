@@ -294,18 +294,59 @@ git commit -m "feat(council-ring): 44px touch targets on ring nodes, suppress la
 
 **Files:**
 - Modify: `src/terminal/views/manifesto/councilRingMath.js`
+- Modify: `tests/councilRingMath.test.js`
 
-- [ ] **Step 1: Confirm no remaining callers**
+> **Amendment (found during Task 1 code review):** the plan's original Step 1 grepped only `src/`, but `tests/councilRingMath.test.js` — outside `src/` — imports and directly unit-tests `angleToNearestSeatIndex`. Deleting the function without updating this test file would break `npm test`. This task now covers both files.
+
+- [ ] **Step 1: Confirm no remaining callers outside the test file**
 
 Run:
 
 ```bash
-grep -rn "angleToNearestSeatIndex" src/
+grep -rn "angleToNearestSeatIndex" --include="*.js" --include="*.jsx" . | grep -v node_modules
 ```
 
-Expected: no output (Task 1 Step 1 removed the only import/call site).
+Expected: exactly one match, in `tests/councilRingMath.test.js` (Task 1 Step 1 already removed the only production import/call site in `src/`). If anything else turns up, stop and report it — the plan didn't anticipate it.
 
-- [ ] **Step 2: Delete the dead function and its private helper**
+- [ ] **Step 2: Remove the `angleToNearestSeatIndex` tests and import**
+
+In `tests/councilRingMath.test.js`, change the import (currently):
+
+```js
+import {
+  seatAngle,
+  polarToXY,
+  angleToNearestSeatIndex,
+} from '../src/terminal/views/manifesto/councilRingMath.js';
+```
+
+to:
+
+```js
+import {
+  seatAngle,
+  polarToXY,
+} from '../src/terminal/views/manifesto/councilRingMath.js';
+```
+
+Then delete this entire block from the end of the file:
+
+```js
+describe('angleToNearestSeatIndex', () => {
+  const seats = [10, 40, 90, 200, 340];
+  it('returns the seat under the crosshair with zero rotation', () => {
+    expect(angleToNearestSeatIndex(0, seats)).toBe(0);
+  });
+
+  it('accounts for ring rotation', () => {
+    expect(angleToNearestSeatIndex(80, seats)).toBe(4);
+  });
+});
+```
+
+The `seatAngle` and `polarToXY` describe blocks above it in the same file are untouched.
+
+- [ ] **Step 3: Delete the dead function and its private helper from the source file**
 
 In `src/terminal/views/manifesto/councilRingMath.js`, delete:
 
@@ -332,10 +373,18 @@ export function angleToNearestSeatIndex(rotationDeg, seatAngles) {
 
 `angularDistance` has no other callers (only used by `angleToNearestSeatIndex`), so it is removed too. The file's remaining exports (`seatAngle`, `polarToXY`) are unaffected.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Run the test suite to confirm the deletion is clean**
 
 ```bash
-git add src/terminal/views/manifesto/councilRingMath.js
+npm test
+```
+
+Expected: 351 tests passing (353 minus the 2 removed `angleToNearestSeatIndex` tests) — no import errors, no failures. The file's `seatAngle`/`polarToXY` describe blocks (5 tests) still run.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/terminal/views/manifesto/councilRingMath.js tests/councilRingMath.test.js
 git commit -m "chore(council-ring): remove dead angleToNearestSeatIndex/angularDistance"
 ```
 
