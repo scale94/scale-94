@@ -19,6 +19,7 @@ import { loadWasm } from '../../wasm/wasmSingleton';
 import { parseAstroOutput, computeAspect } from '../mercury/tfgAstroHelpers';
 import ParamBar from '../mercury/ParamBar';
 import { emit as emitObs } from '../../observatory/observatoryBus';
+import { LUNAR_ACCORDS } from '../data/lunarAccords';
 
 // ── Lunar Phase Engine ───────────────────────────────────────────────────────
 // Primary: WASM kernel (Meeus astronomical algorithms, ~10″ longitude accuracy).
@@ -137,113 +138,6 @@ function getEnvironmentalParamsFallback(age) {
 // ── Fragrance Recommendation Engine ──────────────────────────────────────────
 // Maps environmental parameters to molecular families and specific accords.
 // Recommendations prioritize volatility-appropriate notes for current conditions.
-
-const LUNAR_ACCORDS = [
-  {
-    phase: 'new',
-    accord: 'DARK INCUBATION',
-    signature: 'Animalic-resinous base dominance',
-    mechanism: 'Minimal photodegradation + peak melatonin → deep olfactory processing favors complex base notes. Low albedo preserves photosensitive musks.',
-    top:    ['Black Pepper CO₂', 'Elemi Resin'],
-    heart:  ['Oud Assam', 'Costus Root Absolute'],
-    base:   ['Ambergris Tincture', 'Labdanum Absolute', 'Castoreum'],
-    concentration: 'EXTRAIT',
-    sillage: 0.35,
-    color: 'from-neutral-800/40 to-neutral-950/60',
-    accent: 'text-neutral-400',
-  },
-  {
-    phase: 'waxing-crescent',
-    accord: 'GREEN EMERGENCE',
-    signature: 'Herbaceous-citrus ascending volatility',
-    mechanism: 'Rising photonic flux begins terpene activation. Increasing melatonin suppression shifts perception toward brighter frequencies. Skin warming accelerates top note projection.',
-    top:    ['Bergamot Calabria', 'Violet Leaf Absolute'],
-    heart:  ['Geranium Bourbon', 'White Tea Accord'],
-    base:   ['Vetiver Haiti', 'White Musk'],
-    concentration: 'EDP',
-    sillage: 0.48,
-    color: 'from-emerald-900/30 to-cyan-900/30',
-    accent: 'text-emerald-400',
-  },
-  {
-    phase: 'first-quarter',
-    accord: 'ANGULAR CITRUS',
-    signature: 'Sharp aldehyde-citrus architecture',
-    mechanism: 'Neap tide humidity trough → reduced ambient moisture → aldehyde projection sharpens. Cortisol trough enhances preference for clean, directional notes.',
-    top:    ['Yuzu Zest', 'Aldehydes C-11'],
-    heart:  ['Neroli Bigarade', 'Iris Pallida Butter'],
-    base:   ['Cashmeran', 'Ambroxide'],
-    concentration: 'EDT',
-    sillage: 0.62,
-    color: 'from-cyan-800/30 to-blue-900/30',
-    accent: 'text-cyan-400',
-  },
-  {
-    phase: 'waxing-gibbous',
-    accord: 'FLORAL AMPLIFICATION',
-    signature: 'Indolic white floral expansion',
-    mechanism: 'Rising illumination increases terpene photolysis → jasmine indoles become more prominent. Humidity climbing toward spring tide peak amplifies diffusion radius.',
-    top:    ['Pink Grapefruit', 'Petitgrain'],
-    heart:  ['Jasmine Sambac Absolute', 'Tuberose Enfleurage', 'Ylang Extra'],
-    base:   ['Sandalwood Mysore', 'Benzoin Siam'],
-    concentration: 'EDP',
-    sillage: 0.71,
-    color: 'from-fuchsia-900/30 to-violet-900/30',
-    accent: 'text-fuchsia-400',
-  },
-  {
-    phase: 'full',
-    accord: 'MAXIMUM PROJECTION',
-    signature: 'Pan-spectrum radiance · peak sillage',
-    mechanism: 'Peak melatonin suppression → broadband olfactory sensitivity. Maximum photonic flux → fastest terpene turnover. Spring tide humidity peak → maximum diffusion coefficient. Skin temperature apex → highest evaporation rate.',
-    top:    ['Bergamot Neroli', 'Lemon Verbena', 'Osmanthus'],
-    heart:  ['Rose de Mai Absolute', 'Jasmine Grandiflorum', 'Orange Blossom'],
-    base:   ['Tonka Bean', 'Australian Sandalwood', 'Musk Accord'],
-    concentration: 'EDP',
-    sillage: 0.88,
-    color: 'from-amber-800/30 to-yellow-900/20',
-    accent: 'text-amber-300',
-  },
-  {
-    phase: 'waning-gibbous',
-    accord: 'RESINOUS DESCENT',
-    signature: 'Balsamic warmth · amber deepening',
-    mechanism: 'Declining photonic flux slows terpene degradation → heavier molecules persist longer. Cortisol rising → olfactory preference shifts toward comfort-associated balsamic notes.',
-    top:    ['Cardamom Guatemala', 'Saffron Threads'],
-    heart:  ['Rose Absolute', 'Cinnamon Bark CO₂'],
-    base:   ['Frankincense Hojari', 'Myrrh Resinoid', 'Dark Amber'],
-    concentration: 'EXTRAIT',
-    sillage: 0.65,
-    color: 'from-orange-900/30 to-amber-950/30',
-    accent: 'text-orange-400',
-  },
-  {
-    phase: 'last-quarter',
-    accord: 'MINERAL STILLNESS',
-    signature: 'Ozonic-mineral transparency',
-    mechanism: 'Neap tide humidity minimum → dry atmospheric boundary layer. Minimal moisture reduces diffusion, favoring close-range mineral and ozonic accords. Cortisol peak → grounding preference.',
-    top:    ['Marine Accord', 'Cucumber Distillate'],
-    heart:  ['Water Iris', 'Violet Absolute'],
-    base:   ['Driftwood', 'Cedarwood Atlas', 'Flint Accord'],
-    concentration: 'EDT',
-    sillage: 0.42,
-    color: 'from-zinc-800/30 to-zinc-900/30',
-    accent: 'text-zinc-400',
-  },
-  {
-    phase: 'waning-crescent',
-    accord: 'SMOKE DISSOLUTION',
-    signature: 'Incense-leather terminal phase',
-    mechanism: 'Near-zero albedo → maximum molecular stability of heavy aromatics. Peak melatonin → heightened limbic sensitivity to smoke and leather compounds. Approaching new moon recalibration.',
-    top:    ['Pink Pepper', 'Juniper Berry'],
-    heart:  ['Birch Tar', 'Tobacco Absolute'],
-    base:   ['Leather Accord', 'Opoponax Resin', 'Patchouli Heart'],
-    concentration: 'EXTRAIT',
-    sillage: 0.38,
-    color: 'from-stone-800/30 to-neutral-900/40',
-    accent: 'text-stone-400',
-  },
-];
 
 // ── Cross-system mapping (Phase 4 polish) ────────────────────────────────────
 // Per-phase OCK olfactory family — surfaces the bridge between Lunar's
