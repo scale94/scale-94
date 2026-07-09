@@ -16,7 +16,7 @@ function makeTotals() {
     transmissions: { count: 0, ledgerDepth: 0, last: null, lastTs: 0 },
     essences:      { count: 0, crystallized: 0, polarity: null, last: null, lastTs: 0 },
     ciphers:       { sealed: 0, verifies: 0, unlocks: 0, last: null, lastTs: 0 },
-    gaze:          { sphereClicks: 0, lastLunar: null, lastScaling: null, last: null, lastTs: 0 },
+    gaze:          { sphereClicks: 0, lastLunar: null, lastScaling: null, tabsVisited: {}, last: null, lastTs: 0 },
     edge:          { gate: 'UNANSWERED', eye: 'idle', manifestoChapter: null, last: null, lastTs: 0 },
   };
 }
@@ -76,6 +76,8 @@ function updateTotals(evt) {
       if (evt.kind === 'sphere_clicked') t.sphereClicks++;
       if (evt.kind === 'lunar_read')     t.lastLunar     = evt.payload;
       if (evt.kind === 'scaling_visit')  t.lastScaling   = evt.payload;
+      if (evt.kind === 'tab_navigated' && evt.payload.tab)
+        t.tabsVisited[evt.payload.tab] = (t.tabsVisited[evt.payload.tab] || 0) + 1;
       break;
     case 'edge':
       if (evt.kind === 'gate_answered')    t.gate             = evt.payload.result;
