@@ -298,7 +298,10 @@ const BskyTab = () => {
         const headers = { 'X-API-Key': GT_KEY };
         const base    = `${GT_BASE}/v1/api/networks/${GT_NETWORK}/accounts/${GT_DID}`;
         const top = await fetch(`${base}/top-posts`, { headers }).then(r => r.json());
-        setTopPosts(Array.isArray(top) ? top.slice(0, 6) : []);
+        const live = Array.isArray(top)
+          ? top.filter(p => p.details?.record?.text || p.details?.embed?.images?.length)
+          : [];
+        setTopPosts(live.slice(0, 6));
       }
 
       setLastSync(new Date().toLocaleTimeString());
