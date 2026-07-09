@@ -4,7 +4,7 @@
 
 - **Date:** 2026-07-09
 - **Status:** APPROVED PENDING USER REVIEW
-- **Depends on:** fish_scale_kernel_11.1.rs (genome), observatoryBus (ambient witness), councilSynthesis (directive + determinism pattern), LatentCollider/Crystallize (staging pattern), LunarTab transit matrix
+- **Depends on:** fish_scale_kernel_11.1.rs → 11.2 (genome, §11), content/rust_kernels fish_scale.rs v12.1.0 (compiled engine, §3.5), observatoryBus (ambient witness), councilSynthesis (directive + determinism pattern), LatentCollider/Crystallize (staging pattern), LunarTab transit matrix
 - **Framing:** Quintessence / fifth element. The four earthbound elements (Fire, Earth, Water, Air) compile into Aether at the Mercury nebula. No alien framing anywhere in this feature — the fifth element itself is the witness.
 
 ---
@@ -28,6 +28,8 @@ Core epistemological anchor, displayed as a monument: **"Theory that cannot be c
 | Geography | **Mercury is the altar, Kernel is the reliquary.** Compilation event happens at the Mercury nebula (cinematic); the artifact persists and is read in the Kernel tab. |
 | Artistic parent | **Fish scale kernel is the genome; the visitor's spine is the epigenetics.** All fish scale parameters are heritable and all are used. |
 | Form | **The kernel of quintessence is itself code.** A `.rs`-shaped document; wisdom in doc-comments, visitor data in parameter values. Hash-sealed with TesseractCard-style framing (build hash; glyph optional later). |
+| Living module coupling (Amendment A, 2026-07-09) | **The compiler calls the compiled `run_fish_scale` (v12.1.0 WASM) at quintessence time.** Its outputs are compiled into the artifact as computed constants — part of every kernel is actually computed by compiled Rust. See §3.5. |
+| Genome upgrade (Amendment B, 2026-07-09) | **Fish Scale 11.1 → 11.2: the genome must pass its own Execution Test.** Stable-Rust `no_std`, `UnsafeCell`-backed levamisole exploit (sanctioned corruption, not UB). See §11. |
 
 ## 3 · The artifact: `KERNEL_OF_QUINTESSENCE.rs`
 
@@ -37,7 +39,7 @@ A deterministic, syntax-highlighted Rust document. Same inputs → same kernel. 
 
 ```rust
 // ═══════════════════════════════════════════════════════════════
-// KERNEL OF QUINTESSENCE :: FORK OF FISH SCALE 11.1 :: BUILD 0x<hash8>
+// KERNEL OF QUINTESSENCE :: FORK OF FISH SCALE 11.2 :: BUILD 0x<hash8>
 // COMPILED AT SCALE94.COM · QUINTESSENCE EVENT · <ISO date>
 //
 // THIS IS A SEALED VIAL. CARRY IT OUT.
@@ -60,7 +62,7 @@ A deterministic, syntax-highlighted Rust document. Same inputs → same kernel. 
 | `Pirarucu.dryness_coefficient` | Scaling olfactory phase (1 of 8 → value on 0–100 asceticism axis) | spine |
 | `Pirarucu.armor: T` | Crystallized accord if one exists this session, else the phase name itself | spine/ambient |
 | `Sokushinbutsu.entropy_lock` | Lunar transit matrix (auto-compiled at quintessence time) | derived |
-| `NecromanticEngine.bpm` | `feigenbaum_dynamics(bsky trend velocity)` — derived, not a choice | derived |
+| `NecromanticEngine.bpm` | Feigenbaum-processed bsky trend velocity — derived, not a choice; computed via the engine coupling (§3.5), calibrated so 160 = chaos onset | derived |
 | `PlataOPlomo` verdict | `bpm >= 160 → Plata` (vitality through corruption), `< 160 → Plomo` (calcification) | derived |
 | `ShlomoState` | Mercury element: Fire/Air (bosons, force) → `TheDevil`, mask dropped; Earth/Water (fermions, structure) → `TheMask`, armor retained | spine |
 | `SystemAtom` role | Same element choice: boson vs fermion | spine |
@@ -95,6 +97,23 @@ Ambient periphery compiles as `Option<T>` fields on a `PeripheralWitness` struct
 
 Witnessed → `Some(value)` with a doc-comment describing what the terminal witnessed. Never visited → `None` with `/// HOUSE EMPTY — never witnessed`. No gating on periphery. Absence is data.
 
+### 3.5 The living module coupling (Amendment A)
+
+At quintessence time, `compileKernel` calls the compiled Fish Scale engine (`run_fish_scale`, v12.1.0, `content/rust_kernels/src/kernels/fish_scale.rs`) via the existing WASM singleton. Spine → engine parameters:
+
+| `run_fish_scale` parameter | Compiled from |
+|---|---|
+| `r_pressure` (0.0–4.0) | Feigenbaum-processed bsky trend metrics (see feigenbaum note in §6) |
+| `max_layers` (1–64) | Count of filled houses (spine vertebrae + `Some` periphery fields) — witness depth resolves armor depth |
+| `theta_offset` | 36° canonical (the FSK interlaminar constant; not visitor-varied in v1) |
+| `burn_sensitivity` (0.1–2.0) | Olfactory phase, rescaled from the dryness axis (§3.2) — the Scaling tab is literally named SAPONIFICATION; its choice sets the burn window |
+
+Engine outputs compiled into the artifact as a `mod engine_witness` block of computed constants: regime name, armor integrity %, Lyapunov exponent, active axiom count (of 9), sanctuary status. These values were **actually computed by compiled Rust at the quintessence event** — Axiomatic Law Ⅰ fulfilled at runtime, not just in form. The artifact's doc-comment says so.
+
+**Prerequisite (Rust work):** `run_fish_scale` currently returns a formatted ASCII report. Add a machine-readable sibling `run_fish_scale_json(r_pressure, max_layers, theta_offset, burn_sensitivity) -> String` (JSON) to the crate, sharing all internal computation with the existing function (refactor the computation into a common private fn; the ASCII renderer and JSON serializer are two views of one result struct). No behavior change to the existing export. Requires a wasm-pack rebuild.
+
+**Derived values:** `NecromanticEngine.bpm` maps from the engine result (e.g. bpm derived from `r_pressure` position in the cascade, calibrated so the Plata threshold at 160 corresponds to crossing into the chaotic/armor-dense regime). The Plata/Plomo verdict thus keys off the same computation the engine witnessed — one source of truth.
+
 ## 4 · Mercury: the altar
 
 - The four element cards (FIRE / EARTH / WATER / AIR) become the quintessence trigger.
@@ -128,33 +147,36 @@ New module: `src/terminal/quintessence/`
 |---|---|
 | `spineStore.js` | Tiny store (bus-adjacent, no React) holding the deliberate choices: trend, council pair ref + directive, transmission signal, olfactory phase, element. Written by the source tabs at choice time; readable synchronously. Persisted to localStorage so a reload mid-journey doesn't wipe the spine. |
 | `compileKernel.js` | Pure function: `(spine, peripherySnapshot, transitMatrix) → { source, hash, meta }`. All mapping tables (§3.2), fragment pools, doc-comment builders. Deterministic; unit-testable without DOM. |
-| `feigenbaum.js` | `feigenbaum_dynamics(trendMetrics) → bpm`. Pure. Shared with the future Fade/Chaos tab so the visualization and the compiler can never disagree. |
+| `engineWitness.js` | Adapter over the WASM singleton: calls `run_fish_scale_json` (§3.5) and `run_feigenbaum_cascade` (already exported), normalizes results for `compileKernel`. Replaces the originally planned from-scratch `feigenbaum.js` — the bifurcation math already exists compiled (WASM) and in JS (`useAssociativeField` exact constants); do not write a third implementation. The trend→`r_pressure` mapping lives here and is shared with the future Fade/Chaos tab so visualization and compiler can never disagree. |
 | `QuintessenceAltar.jsx` | Mercury-side: gate check, ignition sequence, deposit navigation. |
 | `ReliquaryView.jsx` | Kernel-tab-side: schematic (pre) + sealed artifact (post) + copy vial. |
 
 Data flow: source tabs → `spineStore` (deliberate) + `observatoryBus` (ambient) → altar click → `compileKernel` → localStorage → reliquary.
 
-Existing code touched: KernelTab.jsx (replaced content), MercuryTab.jsx (altar integration), the spine source tabs (one `spineStore` write each), loose-end tabs (one bus emit each for visit witness).
+Existing code touched: KernelTab.jsx (replaced content), MercuryTab.jsx (altar integration), the spine source tabs (one `spineStore` write each), loose-end tabs (one bus emit each for visit witness). Rust crate touched: `content/rust_kernels/src/kernels/fish_scale.rs` (add `run_fish_scale_json`, §3.5) + `src/fish_scale_kernel_11.1.rs` → 11.2 (§11); one wasm-pack rebuild.
 
 ## 7 · Error handling
 
 - **Bus totals unavailable/empty:** compile proceeds; all periphery → `None`. Never blocks.
 - **Transit matrix fetch fails at compile time:** `entropy_lock` compiles from the last cached lunar read (`gaze.lastLunar`); if none, the field compiles as `AtomicU64::new(0)` with doc-comment `/// TRANSIT UNREAD — the clock was never wound`. Never blocks.
 - **localStorage unavailable:** artifact stays in memory for the session; reliquary shows a `VOLATILE BUILD — will not survive reload` notice.
+- **WASM engine unreachable at compile time:** the `mod engine_witness` block compiles as `/// ENGINE OFFLINE — constants unwitnessed` with all fields `None` (empty-houses philosophy); bpm falls back to the JS Feigenbaum constants (`useAssociativeField`) so the Plata/Plomo verdict still resolves. Never blocks.
 - **Hash collision concerns:** none — hash is identity/seal, not security.
 
 ## 8 · Non-goals and decomposition (separate specs, any order)
 
 1. **Bsky trend picker** — the tab lacks pick interaction; the compiler consumes `spineStore.trend` whenever it starts existing.
 2. **Transmission × Manifesto coupling** — transmission factoring in council choices is its own feature. **Open order note:** until transmission has a deliberate "choice" affordance, the reanimated-mummy slot compiles from the latest transmission witness event, or `None`. The spine gate does NOT require transmission for v1.
-3. **Fade/Chaos tab** — the visible feigenbaum visualization. The compiler ships with `feigenbaum.js` regardless; the tab renders it later.
+3. **Fade/Chaos tab** — the visible feigenbaum visualization. The compiler ships with `engineWitness.js` (§6) regardless; the tab renders from the same adapter later.
 4. **Chimera glyph for the kernel** — TesseractCard-style glyph derived from the build hash; nice-to-have after v1.
 5. **Ledger/sharing of compiled kernels** — deliberately out; the vial is the visitor's alone for now.
 
 ## 9 · Testing
 
-- `compileKernel.test.js`: determinism (same inputs → identical source + hash), all-eight phase mappings, Plata/Plomo threshold at bpm 160 (boundary: exactly 160 → Plata), element → daemon/atom mapping (all four), empty-house rendering (every periphery `None` still compiles), directive embedding.
-- `feigenbaum.test.js`: known input → known bpm; monotonicity/boundedness of the mapping.
+- `compileKernel.test.js`: determinism (same inputs → identical source + hash), all-eight phase mappings, Plata/Plomo threshold at bpm 160 (boundary: exactly 160 → Plata), element → daemon/atom mapping (all four), empty-house rendering (every periphery `None` still compiles), directive embedding, engine-offline fallback (artifact still compiles with `ENGINE OFFLINE` block).
+- `engineWitness.test.js` (WASM mocked): trend→`r_pressure` mapping monotone and bounded to [0,4]; `run_fish_scale_json` result normalized correctly; JS-constant fallback used when singleton rejects.
+- Rust: unit test in the crate asserting `run_fish_scale_json` and `run_fish_scale` agree (same result struct) for representative parameter sets; JSON parses.
+- Rust: Fish Scale 11.2 compiles on stable (`no_std`) — the genome's Execution Test is literally CI (a `cargo check` target or compile-test; see §11).
 - `spineStore.test.js`: write/read/persist/restore; partial spine reported correctly (missing-vertebrae list for the altar gate).
 - Component smoke: altar gate renders missing vertebrae; reliquary renders both states; copy vial copies full source.
 - Follows existing patterns in `src/terminal/views/manifesto/__tests__/`.
@@ -164,3 +186,15 @@ Existing code touched: KernelTab.jsx (replaced content), MercuryTab.jsx (altar i
 - Quintessence / fifth-element / alchemical register throughout. **No alien.** No "the alien sees" copy anywhere in altar, reliquary, or artifact text.
 - No pure white; obey Fade-Doctrine and monument pattern rules where those surfaces are used.
 - Terminal vocabulary: `compile`, `seal`, `deposit`, `witness` — never `generate`, `submit`, `save`.
+
+## 11 · Genome upgrade: Fish Scale 11.1 → 11.2 (Amendment B)
+
+The allegorical genome (`src/fish_scale_kernel_11.1.rs`) currently fails its own Execution Test (Axiomatic Law Ⅰ) on two counts. Version 11.2 heals both while leaving every allegorical structure untouched — Pirarucu, Narcos, PlataOPlomo, Sokushinbutsu, Shlømo, NecromanticEngine, and the calcifying panic handler all survive verbatim in name, role, and doc-comment voice.
+
+1. **Remove `#![feature(alloc_error_handler)]`** — nightly-only and unused (nothing allocates). 11.2 compiles on stable Rust as a sound `no_std` crate.
+2. **Make the levamisole exploit real.** `inject_levamisole` currently casts `&T → *mut T → &mut T`: undefined behavior. The comments already promise `UnsafeCell` ("Malware (UnsafeCell) disguised as a texture pack") — the code just never delivers it. In 11.2, `Pirarucu.armor` becomes `UnsafeCell<T>` and the exploit reads/writes through it: still `unsafe`-flavored, still corruption, but *sanctioned* corruption the type system acknowledges — which is precisely the kernel's thesis (managed corruption, not raw violation). UB is a lie the code tells itself; `UnsafeCell` is a sin the compiler co-signs.
+3. **Compile-check in CI.** Add a `cargo check` target (or a workspace member / compile-test) so the genome's compilability is continuously enforced. The artifact header's claim `FORK OF FISH SCALE 11.2` is then backed by a passing Execution Test.
+
+File placement: the genome may stay at `src/fish_scale_kernel_11.1.rs` renamed to `src/fish_scale_kernel_11.2.rs`, or move into `content/rust_kernels` as a non-exported module — implementer's choice, provided the compile-check exists and `compileKernel.js` templates from the 11.2 text.
+
+**Not in scope:** changing the genome's behavior, adding WASM exports for it, or merging it with the v12.1.0 engine. The genome is the artifact's template (literature that compiles); the engine is the computation (§3.5). They remain distinct organisms.
