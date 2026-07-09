@@ -66,6 +66,22 @@ describe('observatoryBus', () => {
     expect(getTotals().gaze.lastLunar.phase).toBe('waxing crescent');
   });
 
+  it('totals.gaze.tabsVisited starts empty', () => {
+    expect(getTotals().gaze.tabsVisited).toEqual({});
+  });
+
+  it('totals.gaze.tabsVisited records distinct visited tabs with counts', () => {
+    emit('gaze', 'tab_navigated', { tab: 'ecocide' });
+    emit('gaze', 'tab_navigated', { tab: 'ecocide' });
+    emit('gaze', 'tab_navigated', { tab: 'privacy' });
+    expect(getTotals().gaze.tabsVisited).toEqual({ ecocide: 2, privacy: 1 });
+  });
+
+  it('totals.gaze.tabsVisited ignores tab_navigated without a tab payload', () => {
+    emit('gaze', 'tab_navigated', {});
+    expect(getTotals().gaze.tabsVisited).toEqual({});
+  });
+
   it('totals.edge tracks gate, eye, manifesto chapter', () => {
     emit('edge', 'gate_answered', { result: 'BLESSED' });
     emit('edge', 'eye_phase', { phase: 'engaged-here' });
