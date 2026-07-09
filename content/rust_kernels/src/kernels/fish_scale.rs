@@ -316,28 +316,28 @@ fn evaluate_axioms(r: f64, layers: &[BouligandLayer], lyapunov: f64, has_sanctua
     ]
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// WASM ENTRY POINT
-// ══════════════════════════════════════════════════════════════════════════════
+// ── Shared audit: one computation, two views (ASCII + JSON) ──────────────────
+struct FishScaleAudit {
+    r: f64,
+    n_lay: usize,
+    theta: f64,
+    lyapunov: f64,
+    period: usize,
+    layers: Vec<BouligandLayer>,
+    saponi: SaponificationWindow,
+    sanctuaries: Vec<(f64, f64)>,
+    moire: Vec<MoireAnalysis>,
+    regime_name: &'static str,
+    regime_desc: &'static str,
+    total_armor: f64,
+    integrity: f64,
+    in_sanctuary: bool,
+    burn_status: &'static str,
+    burn_proximity: f64,
+    deltas: (f64, f64, f64),
+}
 
-/// Fish Scale Kernel — Feigenbaum-Bouligand Coupled Architecture v12.1.0
-///
-/// Maps the universal period-doubling cascade onto Bouligand helicoidal armor.
-/// Computes armor density, saponification windows, sanctuary nodes, and
-/// Moir\u{00E9} interference spectrum across the full bifurcation topology.
-///
-/// Parameters:
-///   r_pressure       : thermodynamic pressure coefficient (0.0–4.0)
-///   max_layers       : maximum Bouligand armor layers to resolve (1–64)
-///   theta_offset     : interlaminar rotation angle in degrees (1–90, default 36)
-///   burn_sensitivity : saponification window width multiplier (0.1–2.0)
-#[wasm_bindgen]
-pub fn run_fish_scale(
-    r_pressure:       f64,
-    max_layers:       f64,
-    theta_offset:     f64,
-    burn_sensitivity: f64,
-) -> String {
+fn audit_fish_scale(r_pressure: f64, max_layers: f64, theta_offset: f64, burn_sensitivity: f64) -> FishScaleAudit {
     let r      = r_pressure.clamp(0.0, 4.0);
     let n_lay  = (max_layers as usize).clamp(1, 64);
     let theta  = theta_offset.clamp(1.0, 90.0);
@@ -396,6 +396,38 @@ pub fn run_fish_scale(
         (r - saponi.r_end) / (4.0 - saponi.r_end).max(0.001)
     };
 
+    FishScaleAudit {
+        r, n_lay, theta, lyapunov, period, layers, saponi, sanctuaries, moire,
+        regime_name, regime_desc, total_armor, integrity, in_sanctuary,
+        burn_status, burn_proximity, deltas: (delta1, delta2, delta3),
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// WASM ENTRY POINT
+// ══════════════════════════════════════════════════════════════════════════════
+
+/// Fish Scale Kernel — Feigenbaum-Bouligand Coupled Architecture v12.1.0
+///
+/// Maps the universal period-doubling cascade onto Bouligand helicoidal armor.
+/// Computes armor density, saponification windows, sanctuary nodes, and
+/// Moir\u{00E9} interference spectrum across the full bifurcation topology.
+///
+/// Parameters:
+///   r_pressure       : thermodynamic pressure coefficient (0.0–4.0)
+///   max_layers       : maximum Bouligand armor layers to resolve (1–64)
+///   theta_offset     : interlaminar rotation angle in degrees (1–90, default 36)
+///   burn_sensitivity : saponification window width multiplier (0.1–2.0)
+#[wasm_bindgen]
+pub fn run_fish_scale(
+    r_pressure:       f64,
+    max_layers:       f64,
+    theta_offset:     f64,
+    burn_sensitivity: f64,
+) -> String {
+    let a = audit_fish_scale(r_pressure, max_layers, theta_offset, burn_sensitivity);
+    let n_active = a.layers.len();
+
     // ── Render output ────────────────────────────────────────────────────────
     let mut out = String::with_capacity(5000);
 
@@ -423,11 +455,11 @@ pub fn run_fish_scale(
          DIAGNOSIS  : {desc}\n\
          PERIOD     : {period}\n\
          LYAPUNOV   : {lyap:.6}  [{lyap_class}]\n",
-        r = r, regime = regime_name, desc = regime_desc,
-        period = if period > 64 { ">64 (APERIODIC)".to_string() } else { format!("{}", period) },
-        lyap = lyapunov,
-        lyap_class = if lyapunov > 0.01 { "CHAOTIC \u{2014} sensitive dependence confirmed" }
-                     else if lyapunov > -0.01 { "MARGINAL \u{2014} bifurcation boundary" }
+        r = a.r, regime = a.regime_name, desc = a.regime_desc,
+        period = if a.period > 64 { ">64 (APERIODIC)".to_string() } else { format!("{}", a.period) },
+        lyap = a.lyapunov,
+        lyap_class = if a.lyapunov > 0.01 { "CHAOTIC \u{2014} sensitive dependence confirmed" }
+                     else if a.lyapunov > -0.01 { "MARGINAL \u{2014} bifurcation boundary" }
                      else { "PERIODIC \u{2014} stable attractor convergence" },
     ).unwrap();
 
@@ -443,7 +475,7 @@ pub fn run_fish_scale(
            \u{03B4}\u{2083} = (r\u{2084}\u{2212}r\u{2083})/(r\u{2085}\u{2212}r\u{2084}) = {d3:.9}  \u{2192} \u{03B4} = {delta:.9}\n",
         line = "\u{2500}".repeat(59),
         delta = DELTA, alpha = ALPHA,
-        d1 = delta1, d2 = delta2, d3 = delta3,
+        d1 = a.deltas.0, d2 = a.deltas.1, d3 = a.deltas.2,
     ).unwrap();
 
     // §3 — Bouligand Armor Stack
@@ -455,12 +487,12 @@ pub fn run_fish_scale(
          INTEGRITY      : {integrity:.1}%\n\n\
          DEPTH  PERIOD  r_ONSET         \u{03B8}_ABS    Z_ELEV   WIDTH     DENSITY\n",
         line = "\u{2500}".repeat(59),
-        theta = theta, rev = (360.0 / theta).round() as usize,
-        n_active = n_active, n_lay = n_lay,
-        density = total_armor, integrity = integrity,
+        theta = a.theta, rev = (360.0 / a.theta).round() as usize,
+        n_active = n_active, n_lay = a.n_lay,
+        density = a.total_armor, integrity = a.integrity,
     ).unwrap();
 
-    for layer in &layers {
+    for layer in &a.layers {
         let period_str = if layer.period > 64 {
             ">64".to_string()
         } else {
@@ -476,7 +508,7 @@ pub fn run_fish_scale(
 
     // §3.1 — Armor cross-section visualization
     write!(out, "\n  ARMOR CROSS-SECTION (top = deepest, densest layer):\n").unwrap();
-    let cross_section = render_armor_cross_section(&layers, 48);
+    let cross_section = render_armor_cross_section(&a.layers, 48);
     out.push_str(&cross_section);
 
     // §4 — Saponification Window
@@ -490,10 +522,10 @@ pub fn run_fish_scale(
          BURN STATUS  : {status}\n\
          PROXIMITY    : {prox:.4}  (0 = inside window, >1 = far)\n",
         line = "\u{2500}".repeat(59),
-        r_s = saponi.r_start, r_e = saponi.r_end,
-        width = saponi.width, opt = saponi.optimal_r,
-        grip = saponi.grip_factor, status = burn_status,
-        prox = burn_proximity,
+        r_s = a.saponi.r_start, r_e = a.saponi.r_end,
+        width = a.saponi.width, opt = a.saponi.optimal_r,
+        grip = a.saponi.grip_factor, status = a.burn_status,
+        prox = a.burn_proximity,
     ).unwrap();
 
     // §5 — Sanctuary Nodes
@@ -503,21 +535,21 @@ pub fn run_fish_scale(
          Li & Yorke (1975): Period three implies chaos. Chaos implies period three.\n\
          SANCTUARY COUNT : {n_sanc}\n",
         line = "\u{2500}".repeat(59),
-        n_sanc = sanctuaries.len(),
+        n_sanc = a.sanctuaries.len(),
     ).unwrap();
 
-    if sanctuaries.is_empty() {
+    if a.sanctuaries.is_empty() {
         write!(out, "  (no period-3 windows detected in scanned range)\n").unwrap();
     } else {
-        for (i, &(s, e)) in sanctuaries.iter().enumerate().take(8) {
-            let inside = r >= s && r <= e;
+        for (i, &(s, e)) in a.sanctuaries.iter().enumerate().take(8) {
+            let inside = a.r >= s && a.r <= e;
             write!(out, "  S{}: r \u{2208} [{:.6}, {:.6}]  width={:.6}{}\n",
                 i, s, e, e - s,
                 if inside { "  \u{25C4} YOU ARE HERE" } else { "" },
             ).unwrap();
         }
     }
-    if in_sanctuary {
+    if a.in_sanctuary {
         write!(out,
             "  STATUS: SANCTUARY ACTIVE \u{2014} triadic crystallization. Cache maintenance interval.\n",
         ).unwrap();
@@ -533,7 +565,7 @@ pub fn run_fish_scale(
     ).unwrap();
 
     let mut any_magic = false;
-    for m in &moire {
+    for m in &a.moire {
         let note = if m.near_alignment {
             "STRUCTURAL REINFORCEMENT"
         } else if m.near_magic {
@@ -559,7 +591,7 @@ pub fn run_fish_scale(
     }
 
     // §7 — Paradox Axioms
-    let axioms = evaluate_axioms(r, &layers, lyapunov, in_sanctuary || !sanctuaries.is_empty());
+    let axioms = evaluate_axioms(a.r, &a.layers, a.lyapunov, a.in_sanctuary || !a.sanctuaries.is_empty());
     write!(out, "\n\
          \u{00A7}7 PARADOX AXIOMS\n\
          {line}\n",
@@ -592,10 +624,64 @@ pub fn run_fish_scale(
          PHYSICS : Bistritzer & MacDonald (2011) \u{2014} twisted bilayer graphene magic angle\n\
          SOURCE  : content/rust_kernels/src/kernels/fish_scale.rs",
         dline = "\u{2550}".repeat(59),
-        r = r, n_active = n_active, density = total_armor,
-        integrity = integrity, regime = regime_name,
-        lyap = lyapunov, axiom_count = active_count,
+        r = a.r, n_active = n_active, density = a.total_armor,
+        integrity = a.integrity, regime = a.regime_name,
+        lyap = a.lyapunov, axiom_count = active_count,
     ).unwrap();
 
     out
+}
+
+/// Machine-readable sibling of run_fish_scale (Quintessence Compiler, spec §3.5).
+/// Same computation, JSON view. Field names are load-bearing for engineWitness.js.
+#[wasm_bindgen]
+pub fn run_fish_scale_json(
+    r_pressure: f64, max_layers: f64, theta_offset: f64, burn_sensitivity: f64,
+) -> String {
+    let a = audit_fish_scale(r_pressure, max_layers, theta_offset, burn_sensitivity);
+    serde_json::json!({
+        "v": "12.1.0",
+        "r": a.r,
+        "regime": a.regime_name,
+        "regime_desc": a.regime_desc,
+        "period": a.period,
+        "lyapunov": a.lyapunov,
+        "layers": a.layers.len(),
+        "armor_density": a.total_armor,
+        "integrity": a.integrity,
+        "in_sanctuary": a.in_sanctuary,
+        "axioms_active": evaluate_axioms(a.r, &a.layers, a.lyapunov,
+            a.in_sanctuary || !a.sanctuaries.is_empty())
+            .iter().filter(|x| x.1).count(),
+        "saponification": {
+            "r_start": a.saponi.r_start, "r_end": a.saponi.r_end,
+            "optimal_r": a.saponi.optimal_r, "status": a.burn_status,
+            "proximity": a.burn_proximity,
+        },
+    }).to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn json_export_parses_and_matches_ascii_regime() {
+        let ascii = run_fish_scale(3.8, 32.0, 36.0, 1.0);
+        let json_s = run_fish_scale_json(3.8, 32.0, 36.0, 1.0);
+        let v: serde_json::Value = serde_json::from_str(&json_s).expect("valid JSON");
+        let regime = v["regime"].as_str().unwrap();
+        assert!(ascii.contains(regime), "ASCII output should contain regime {regime}");
+        assert!(v["integrity"].as_f64().unwrap() >= 0.0);
+        assert!(v["axioms_active"].as_u64().unwrap() <= 9);
+        assert!(v["lyapunov"].is_number());
+        assert!(v["in_sanctuary"].is_boolean());
+        assert!(v["layers"].as_u64().unwrap() >= 1);
+    }
+
+    #[test]
+    fn json_deterministic() {
+        assert_eq!(run_fish_scale_json(3.2, 16.0, 36.0, 0.8),
+                   run_fish_scale_json(3.2, 16.0, 36.0, 0.8));
+    }
 }

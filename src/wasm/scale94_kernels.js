@@ -1128,6 +1128,28 @@ export function run_fish_scale(r_pressure, max_layers, theta_offset, burn_sensit
 }
 
 /**
+ * Machine-readable sibling of run_fish_scale (Quintessence Compiler, spec §3.5).
+ * Same computation, JSON view. Field names are load-bearing for engineWitness.js.
+ * @param {number} r_pressure
+ * @param {number} max_layers
+ * @param {number} theta_offset
+ * @param {number} burn_sensitivity
+ * @returns {string}
+ */
+export function run_fish_scale_json(r_pressure, max_layers, theta_offset, burn_sensitivity) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_fish_scale_json(r_pressure, max_layers, theta_offset, burn_sensitivity);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * Run the Fusion Plasma sovereign audit engine.
  *
  * temp_kev:       ion temperature in keV                  (default 10.0)

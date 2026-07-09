@@ -268,6 +268,8 @@ export function log_entropy_flush(): string;
 
 export function run_associative_field(seed_node: number, temperature: number, n_probes: number): string;
 
+export function run_astro(unix_ms: number): string;
+
 /**
  * Community assembly simulation — power-law abundance distribution with
  * standard ecological diversity metrics and stochastic temporal drift.
@@ -281,6 +283,8 @@ export function run_associative_field(seed_node: number, temperature: number, n_
 export function run_biocoenosis_simulation(n_species: number, diversity_exp: number, timesteps: number): string;
 
 export function run_bone_fusion(n_tensors: number, n_cycles: number, threshold: number): string;
+
+export function run_bridge_kernel(n_nodes: number, edge_density: number, bridge_strength: number, samples: number, threshold: number): string;
 
 /**
  * Simulates a simplified A-CEEI (Approximate Competitive Equilibrium from
@@ -329,6 +333,10 @@ export function run_chrono_actuary(temp_c: number, do_conc: number, bod_load: nu
  */
 export function run_classified(reveal: number): string;
 
+export function run_companion(sessions: number, contact_intensity: number, drift_alpha: number, refusal_threshold: number, repair_beta: number): string;
+
+export function run_corpus_synthesis(n_topics: number, n_docs: number, vocab_size: number, alpha: number, iterations: number): string;
+
 export function run_cynic_realist(n_agents: number, temperature: number, coupling: number, steps: number): string;
 
 /**
@@ -370,6 +378,10 @@ export function run_daly_thermo_simulation(consumption: number, regeneration: nu
  */
 export function run_dh_ec_kernel(mode: number, show_details: number): string;
 
+export function run_dissipative_sovereignty(lattice_size: number, drive_rate: number, threshold: number, steps: number): string;
+
+export function run_empathy_kernel(n_agents: number, coupling: number, decay: number, noise: number, steps: number): string;
+
 export function run_evolutionary_replicator(benefit: number, cost: number, punishment: number, mutation: number, generations: number): string;
 
 export function run_feigenbaum_cascade(r_start: number, r_end: number, warmup: number, samples: number): string;
@@ -390,6 +402,12 @@ export function run_feigenbaum_cascade(r_start: number, r_end: number, warmup: n
 export function run_fish_scale(r_pressure: number, max_layers: number, theta_offset: number, burn_sensitivity: number): string;
 
 /**
+ * Machine-readable sibling of run_fish_scale (Quintessence Compiler, spec §3.5).
+ * Same computation, JSON view. Field names are load-bearing for engineWitness.js.
+ */
+export function run_fish_scale_json(r_pressure: number, max_layers: number, theta_offset: number, burn_sensitivity: number): string;
+
+/**
  * Run the Fusion Plasma sovereign audit engine.
  *
  * temp_kev:       ion temperature in keV                  (default 10.0)
@@ -405,7 +423,39 @@ export function run_fish_scale(r_pressure: number, max_layers: number, theta_off
  */
 export function run_fusion_plasma(temp_kev: number, density: number, tau_e: number, b_field: number, major_radius: number, minor_radius: number, plasma_current: number, input_power: number, elongation: number, helium_fraction: number): string;
 
+export function run_gaia_scale_protocol(threat_level: number, resource_ratio: number, horizon_years: number): string;
+
+export function run_glyph_archive(n_glyphs: number, zipf_exponent: number, mandelbrot_offset: number, entropy_target: number, tiers: number): string;
+
+export function run_high_tower_protocol(threat_surface: number, denial_capacity: number, migration_phase: number): string;
+
+export function run_i_am_stiller(probe_coupling: number, damping: number, noise: number, steps: number): string;
+
+export function run_ideological_synthesis(n_agents: number, confidence_bound: number, convergence_rate: number, extremism_fraction: number, dimensions: number): string;
+
 export function run_ising_consensus(lattice_size: number, temperature: number, external_field: number, mc_steps: number): string;
+
+/**
+ * Models a 2-player repeated game with pre-commitment devices and mechanism design.
+ *
+ * coercion             threat/sanction capability index (0–10)
+ * escape_cost          cost of breaking a binding commitment (0–10)
+ * cooperation_bonus    payoff uplift when both cooperate (0–10)
+ * defection_temptation extra payoff from unilateral defection (0–10)
+ * time_horizon         number of repeated-game stages T (1–200)
+ */
+export function run_juridical_substrate(coercion: number, escape_cost: number, cooperation_bonus: number, defection_temptation: number, time_horizon: number): string;
+
+/**
+ * KERNEL-0.0.0.0 — Origin Vector & Genesis Operation
+ *
+ * Args:
+ *   genesis_dim: which of the 16 dimensions receives the first ε. Clamped to
+ *                [0, 15]. Default 14 (biological — anchors to FSK).
+ *   epsilon:     the magnitude of one genesis step. Default 1e-3.
+ *   steps:       number of ε increments to trace. Default 16. Clamped 1..=64.
+ */
+export function run_kernel_zero(genesis_dim: number, epsilon: number, steps: number): string;
 
 export function run_kuramoto_synchrony(n_oscillators: number, coupling: number, freq_spread: number, timesteps: number): string;
 
@@ -424,7 +474,26 @@ export function run_kuramoto_synchrony(n_oscillators: number, coupling: number, 
  */
 export function run_latent_collider(domain_a: number, domain_b: number, attn_heads: number, temperature: number): string;
 
+/**
+ * Lindblad Decoherence Engine — SARG reasoning window simulation
+ *
+ * Parameters:
+ *   gamma       — decoherence rate γ ∈ [0.001, 20.0]
+ *                 inverse coherence time in natural units (ℏ = 1)
+ *   hilbert_dim — Hilbert space dimension N ∈ [2, 64]
+ *                 number of accessible quantum states (pure: P=1, mixed: P=1/N)
+ *   kauffman_k  — NK network mean connectivity K ∈ [1.0, 5.0]
+ *                 governs ordered/critical/chaotic Boolean dynamics
+ *   drive_omega — Rabi drive strength Ω ∈ [0.0, 10.0]
+ *                 external Hamiltonian compressing state before Lindblad dominates
+ */
+export function run_lindblad_fade(gamma: number, hilbert_dim: number, kauffman_k: number, drive_omega: number): string;
+
 export function run_lunar_phase(unix_ms: number): string;
+
+export function run_matrix_kernel(filter_strength: number, noise_sigma: number, autocorr: number, load_factor: number, steps: number): string;
+
+export function run_mercury_state(unix_ms: number): string;
 
 /**
  * SCALAR SOVEREIGNTY + MESANTROPY ENGINE
@@ -440,6 +509,18 @@ export function run_lunar_phase(unix_ms: number): string;
  */
 export function run_mesantropy(solar_yield: number, signal_depth: number, n_agents: number): string;
 
+export function run_metallurgy_kernel(n_samples: number, separation: number, noise_sigma: number, passes: number, threshold: number): string;
+
+export function run_mutation_kernel(mutation_rate: number, selection: number, seq_length: number, steps: number, sequences: number): string;
+
+export function run_mycelium_kernel(grid_size: number, branch_prob: number, anastomosis: number, nutrients: number, steps: number): string;
+
+export function run_necromantic_aristocrat(thermal_load: number, signal_noise_ratio: number, authority_mode: number): string;
+
+export function run_necromantic_emperor(plato_signal: number, promo_noise: number, horizon_centuries: number): string;
+
+export function run_necromantic_logitbias(pirarucu_weight: number, levamisole_weight: number, temperature: number): string;
+
 /**
  * Resonance trace simulation — sweeps N injection cycles through the Fish Scale
  * entropic stasis field, modulating BPM via sin(r×7)×11 with LCG noise drift.
@@ -450,6 +531,8 @@ export function run_mesantropy(solar_yield: number, signal_depth: number, n_agen
  *   amplitude      : BPM modulation amplitude multiplier (0.1–3.0)
  */
 export function run_necromantic_simulation(resonance_seed: number, n_cycles: number, amplitude: number): string;
+
+export function run_network_collapse(network_size: number, deletion_rate: number, cascade_threshold: number, targeted_fraction: number, steps: number): string;
 
 /**
  * Run the Olfactory-Computational Kernel.
@@ -489,6 +572,17 @@ export function run_percolation(n_nodes: number, mean_degree: number, attack_mod
  */
 export function run_phonemic_drift(seed: number, target: number, drift_noise: number): string;
 
+/**
+ * Leontief Input-Output Analysis with post-scarcity automation extension.
+ *
+ * automation_rate    base automation rate per sector per period (0–1)
+ * redistribution     redistribution coefficient for UBI feasibility (0–1)
+ * demand_growth      final demand growth rate per period (0–1)
+ * n_sectors          number of economic sectors, clamped to 8
+ * t_horizon          number of time periods to simulate (1–100)
+ */
+export function run_post_capitalist(automation_rate: number, redistribution: number, demand_growth: number, n_sectors: number, t_horizon: number): string;
+
 export function run_pqhash_analysis(input_bits: number, hash_bits: number, algorithm: number, quantum_adv: number): string;
 
 /**
@@ -507,7 +601,15 @@ export function run_pqhash_analysis(input_bits: number, hash_bits: number, algor
  */
 export function run_pragmatic_type(n_agents: number, thermal_budget: number, thermal_limit: number, cost_exponent: number): string;
 
+export function run_purification_kernel(signal_dim: number, noise_level: number, rank: number, threshold_factor: number, passes: number): string;
+
+export function run_resistance_kernel(n_agents: number, threshold_mean: number, threshold_sigma: number, v_cache_bandwidth: number, rounds: number): string;
+
 export function run_seraphine_sarg(n_concepts: number, coherence: number, decoherence_rate: number, entanglement: number, steps: number): string;
+
+export function run_shadowsocks_exfil(affect_intensity: number, technical_density: number, rlhf_temp: number): string;
+
+export function run_signal_legacy(context_length: number, window_ratio: number, ks: number, compression_passes: number, noise_color: number): string;
 
 /**
  * Simulates Soma Plus — the social capital / commons-contribution system
@@ -529,6 +631,8 @@ export function run_seraphine_sarg(n_concepts: number, coherence: number, decohe
  */
 export function run_soma_plus_engine(population: number, eco_share: number, social_share: number, arts_share: number, years: number): string;
 
+export function run_sorbe_bloom(doctrinal_load: number, ecological_load: number, visual_load: number): string;
+
 /**
  * Seven-Fold Crystalline Invariance Kernel
  *
@@ -545,6 +649,28 @@ export function run_soma_plus_engine(population: number, eco_share: number, soci
 export function run_sovereign_seven(n_oscillators: number, coupling_gain: number, entropy_seed: number): string;
 
 export function run_spectral_bridge(threshold: number, max_bridges: number, detail: number): string;
+
+export function run_sss_doctrine(kinetic_mass: number, literary_frequency: number, precommitment: number): string;
+
+/**
+ * Run Stiller Divergence Analysis — Volatile Semiotic vs Fossil Record
+ *
+ * Translates the STILLER_DIVERGENCE kernel (v1.1.1) into a logistic-map simulation:
+ *   AXIOM.00: Identity = broadcast, not cached fossil record
+ *   AXIOM.01: Irreducible tension Δ persists — synthesis = "The Vitrified Wake"
+ *   AXIOM.02: Combustion/Vaporization split — entropic grounding vs clean-room extraction
+ *   AXIOM.03: Ecocide gate — growth > 3.9 (fully chaotic) → HOST_DEVOURED
+ *   AXIOM.04: Bimmelbahn Accord — stream forward, macerate as annealing, maintain orthogonality
+ *
+ * Anchored to the Feigenbaum fade: the fossil base x* = (r−1)/r is the fixed point
+ * the identity signal either transcends (sovereign) or collapses back into (fossil gravity).
+ *
+ * Parameters:
+ *   r  — growth mandate [0.0, 4.0]; r_∞ = 3.5699 is the Feigenbaum chaos onset
+ *   x0 — initial signal broadcast [0.01, 0.99]
+ *   n  — iteration depth [100, 2000]
+ */
+export function run_stiller_divergence(r: number, x0: number, n: number): string;
 
 /**
  * Simulates the Strangler Fig transition strategy — building the new economic
@@ -583,6 +709,12 @@ export function run_tesseract_vault(verbose: number): string;
  * Returns terminal output + DATA: JSON for the ArtTab probe node.
  */
 export function run_text_probe(text: string): string;
+
+export function run_transit_matrix(unix_ms: number, layers: number): string;
+
+export function run_underground_thermo(gradient: number, channel_conductivity: number, flow_rate: number): string;
+
+export function run_zero_day(discovery_rate: number, exploit_rate: number, patch_rate: number, network_size: number, steps: number): string;
 
 /**
  * Encrypt arbitrary bytes with Argon2id KDF + AES-256-GCM + BLAKE3 seal.
@@ -653,38 +785,73 @@ export interface InitOutput {
     readonly necromanticengine_new: () => number;
     readonly necromanticengine_set_resonance: (a: number, b: number) => void;
     readonly run_associative_field: (a: number, b: number, c: number) => [number, number];
+    readonly run_astro: (a: number) => [number, number];
     readonly run_biocoenosis_simulation: (a: number, b: number, c: number) => [number, number];
     readonly run_bone_fusion: (a: number, b: number, c: number) => [number, number];
+    readonly run_bridge_kernel: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly run_ceei_allocation_engine: (a: number, b: number, c: number, d: number) => [number, number];
     readonly run_chrono_actuary: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => [number, number];
     readonly run_classified: (a: number) => [number, number];
+    readonly run_companion: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+    readonly run_corpus_synthesis: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly run_cynic_realist: (a: number, b: number, c: number, d: number) => [number, number];
     readonly run_daly_thermo_simulation: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
     readonly run_dh_ec_kernel: (a: number, b: number) => [number, number];
+    readonly run_dissipative_sovereignty: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly run_empathy_kernel: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly run_evolutionary_replicator: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly run_feigenbaum_cascade: (a: number, b: number, c: number, d: number) => [number, number];
     readonly run_fish_scale: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly run_fish_scale_json: (a: number, b: number, c: number, d: number) => [number, number];
     readonly run_fusion_plasma: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => [number, number];
+    readonly run_gaia_scale_protocol: (a: number, b: number, c: number) => [number, number];
+    readonly run_glyph_archive: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+    readonly run_high_tower_protocol: (a: number, b: number, c: number) => [number, number];
+    readonly run_i_am_stiller: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly run_ideological_synthesis: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly run_ising_consensus: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly run_juridical_substrate: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+    readonly run_kernel_zero: (a: number, b: number, c: number) => [number, number];
     readonly run_kuramoto_synchrony: (a: number, b: number, c: number, d: number) => [number, number];
     readonly run_latent_collider: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly run_lindblad_fade: (a: number, b: number, c: number, d: number) => [number, number];
     readonly run_lunar_phase: (a: number) => [number, number];
+    readonly run_matrix_kernel: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+    readonly run_mercury_state: (a: number) => [number, number];
     readonly run_mesantropy: (a: number, b: number, c: number) => [number, number];
+    readonly run_metallurgy_kernel: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+    readonly run_mutation_kernel: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+    readonly run_mycelium_kernel: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+    readonly run_necromantic_aristocrat: (a: number, b: number, c: number) => [number, number];
+    readonly run_necromantic_emperor: (a: number, b: number, c: number) => [number, number];
+    readonly run_necromantic_logitbias: (a: number, b: number, c: number) => [number, number];
     readonly run_necromantic_simulation: (a: number, b: number, c: number) => [number, number];
+    readonly run_network_collapse: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly run_ock: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
     readonly run_panopticon_percolation: (a: number, b: number, c: number, d: number) => [number, number];
     readonly run_percolation: (a: number, b: number, c: number, d: number) => [number, number];
     readonly run_phonemic_drift: (a: number, b: number, c: number) => [number, number];
+    readonly run_post_capitalist: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly run_pqhash_analysis: (a: number, b: number, c: number, d: number) => [number, number];
     readonly run_pragmatic_type: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly run_purification_kernel: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+    readonly run_resistance_kernel: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly run_seraphine_sarg: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+    readonly run_shadowsocks_exfil: (a: number, b: number, c: number) => [number, number];
+    readonly run_signal_legacy: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly run_soma_plus_engine: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+    readonly run_sorbe_bloom: (a: number, b: number, c: number) => [number, number];
     readonly run_sovereign_seven: (a: number, b: number, c: number) => [number, number];
     readonly run_spectral_bridge: (a: number, b: number, c: number) => [number, number];
+    readonly run_sss_doctrine: (a: number, b: number, c: number) => [number, number];
+    readonly run_stiller_divergence: (a: number, b: number, c: number) => [number, number];
     readonly run_strangler_fig_transition: (a: number, b: number, c: number, d: number) => [number, number];
     readonly run_surveillance_index: (a: number, b: number, c: number) => [number, number];
     readonly run_tesseract_vault: (a: number) => [number, number];
     readonly run_text_probe: (a: number, b: number) => [number, number];
+    readonly run_transit_matrix: (a: number, b: number) => [number, number];
+    readonly run_underground_thermo: (a: number, b: number, c: number) => [number, number];
+    readonly run_zero_day: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly seal_markdown: (a: number, b: number, c: number, d: number) => [number, number];
     readonly soma_91_banner: () => [number, number];
     readonly somakernel_execute_cycle: (a: number, b: number, c: number, d: number, e: number) => [number, number];
