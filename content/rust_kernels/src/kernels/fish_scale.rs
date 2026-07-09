@@ -318,25 +318,29 @@ fn evaluate_axioms(r: f64, layers: &[BouligandLayer], lyapunov: f64, has_sanctua
 
 // ── Shared audit: one computation, two views (ASCII + JSON) ──────────────────
 struct FishScaleAudit {
-    r: f64,
-    n_lay: usize,
-    theta: f64,
-    lyapunov: f64,
-    period: usize,
-    layers: Vec<BouligandLayer>,
-    saponi: SaponificationWindow,
-    sanctuaries: Vec<(f64, f64)>,
-    moire: Vec<MoireAnalysis>,
-    regime_name: &'static str,
-    regime_desc: &'static str,
-    total_armor: f64,
-    integrity: f64,
-    in_sanctuary: bool,
-    burn_status: &'static str,
-    burn_proximity: f64,
-    deltas: (f64, f64, f64),
+    r: f64,                        // clamped thermodynamic pressure (0.0–4.0)
+    n_lay: usize,                  // clamped max_layers input (1–64) — resolution ceiling, NOT layers.len()
+    theta: f64,                    // clamped interlaminar rotation angle, degrees (1–90)
+    lyapunov: f64,                 // Lyapunov exponent λ at r (>0 = chaotic)
+    period: usize,                 // estimated attractor period (>64 ≈ aperiodic)
+    layers: Vec<BouligandLayer>,   // resolved Bouligand armor stack (len ≤ n_lay)
+    saponi: SaponificationWindow,  // Chemical Burn window bounds + optimal grip point
+    sanctuaries: Vec<(f64, f64)>,  // period-3 Li-Yorke windows scanned in [r_∞, 4.0]
+    moire: Vec<MoireAnalysis>,     // inter-layer angular interference spectrum
+    regime_name: &'static str,     // Fish Scale taxonomy label (classify_regime)
+    regime_desc: &'static str,     // one-line diagnosis for the regime
+    total_armor: f64,              // cumulative armor density of the deepest layer
+    integrity: f64,                // armor integrity score 0–100
+    in_sanctuary: bool,            // r currently inside a scanned sanctuary window
+    burn_status: &'static str,     // PRE-WINDOW / ACTIVE WINDOW / POST-WINDOW
+    burn_proximity: f64,           // 0 = inside window; grows with distance (>1 = far)
+    deltas: (f64, f64, f64),       // (δ₁, δ₂, δ₃) convergence toward DELTA
 }
 
+/// Single source of truth for the Fish Scale kernel's computation.
+/// Consumed by both views — the ASCII renderer (`run_fish_scale`) and the
+/// JSON export (`run_fish_scale_json`). Any change to the physics belongs
+/// here so the two outputs can never drift apart.
 fn audit_fish_scale(r_pressure: f64, max_layers: f64, theta_offset: f64, burn_sensitivity: f64) -> FishScaleAudit {
     let r      = r_pressure.clamp(0.0, 4.0);
     let n_lay  = (max_layers as usize).clamp(1, 64);
