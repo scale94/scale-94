@@ -675,6 +675,7 @@ function AccordCard({ accord, isActive }) {
   // Re-render on spine writes so the compile-phase state stays in sync.
   const [, forceSpine] = useReducer(x => x + 1, 0);
   useEffect(() => subscribeSpine(forceSpine), []);
+  const phaseCompiled = getSpine().phase === accord.accord;
 
   return (
     <div
@@ -751,12 +752,12 @@ function AccordCard({ accord, isActive }) {
         type="button"
         onClick={(e) => { e.stopPropagation(); setPhase(accord.accord); }}
         className={`mt-3 w-full text-[9px] font-mono tracking-[0.25em] uppercase border px-2 py-1.5 transition-colors ${
-          getSpine().phase === accord.accord
+          phaseCompiled
             ? 'border-amber-400/60 text-amber-300'
             : 'border-zinc-700/60 text-zinc-500 hover:border-zinc-500/60 hover:text-zinc-300'
         }`}
       >
-        {getSpine().phase === accord.accord ? '◈ phase compiled' : 'compile phase →'}
+        {phaseCompiled ? '◈ phase compiled' : 'compile phase →'}
       </button>
 
       {/* Mechanism — full text, expandable */}

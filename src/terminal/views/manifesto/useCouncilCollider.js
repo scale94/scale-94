@@ -231,16 +231,19 @@ export function useCouncilCollider({ seated, enabled }) {
       const entryA = mindEntry(seated[ia]);
       const entryB = mindEntry(seated[ib]);
       const record = synthesize(entryA, entryB, sim.collideResult, sim.ordinal);
-      // Quintessence spine: the council collision is a deliberate vertebra (spec §3.2)
-      setCouncil({
-        pair: record.pair.map(p => p.kind === 'mind' ? p.anchorName : p.label),
-        directive: record.directive,
-        trajectory: record.metrics.trajectory,
-        paradoxCount: record.sections.openQuestions.length,
-      });
       councilLedger.append(record);
       councilBus.emit({ type: 'COUNCIL_SYNTHESIS', recordId: record.id, ordinal: sim.ordinal, ts: record.ts });
       dispatch({ type: 'SYNTHESIS_READY', record });
+      // Quintessence spine: the council collision is a deliberate vertebra (spec §3.2).
+      // Guarded + after the primary pipeline: a spine write must never break synthesis.
+      try {
+        setCouncil({
+          pair: record.pair.map(p => p.kind === 'mind' ? p.anchorName : p.label),
+          directive: record.directive,
+          trajectory: record.metrics.trajectory,
+          paradoxCount: record.sections.openQuestions.length,
+        });
+      } catch (_) { /* the spine is ancillary — synthesis must not fail on it */ }
     };
 
     const dot = (x, y, r, color) => {
