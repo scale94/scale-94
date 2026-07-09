@@ -41,8 +41,9 @@ export function setTrend(trend) {
 }
 
 export function setCouncil(council) {
-  // From the SYNTHESIS record (councilSynthesis.js): pair labels, directive,
-  // trajectory, count of surviving paradoxes.
+  // Projected from the SYNTHESIS record (councilSynthesis.js) by the caller:
+  // pair = record.pair labels, directive = record.directive,
+  // trajectory = record.metrics.trajectory, paradoxCount = record.sections.openQuestions.length.
   write({ council: {
     pair: council.pair, directive: council.directive,
     trajectory: council.trajectory, paradoxCount: council.paradoxCount ?? 0,
@@ -73,9 +74,12 @@ export function subscribeSpine(fn) {
 }
 
 export function _resetSpineForTests(opts = {}) {
-  if (!opts.keepStorage) { try { globalThis.localStorage?.removeItem(STORAGE_KEY); } catch (_) {} }
-  spine = restore();
-  if (!opts.keepStorage) spine = emptySpine();
+  if (opts.keepStorage) {
+    spine = restore();
+  } else {
+    try { globalThis.localStorage?.removeItem(STORAGE_KEY); } catch (_) {}
+    spine = emptySpine();
+  }
   listeners.clear();
 }
 
