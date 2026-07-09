@@ -13,13 +13,14 @@
 // Fragrance recommendations are derived from molecular volatility curves
 // modulated by these six empirically measurable environmental parameters.
 
-import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef, useReducer } from 'react';
 import { Moon, Sun, Droplets, Wind, Eye, ChevronRight, Thermometer } from 'lucide-react';
 import { loadWasm } from '../../wasm/wasmSingleton';
 import { parseAstroOutput, computeAspect } from '../mercury/tfgAstroHelpers';
 import ParamBar from '../mercury/ParamBar';
 import { emit as emitObs } from '../../observatory/observatoryBus';
 import { LUNAR_ACCORDS } from '../data/lunarAccords';
+import { setPhase, getSpine, subscribeSpine } from '../quintessence/spineStore';
 
 // ── Lunar Phase Engine ───────────────────────────────────────────────────────
 // Primary: WASM kernel (Meeus astronomical algorithms, ~10″ longitude accuracy).
@@ -671,6 +672,9 @@ function PhaseSelector({ currentAge, onSelectPhase, selectedPhaseId }) {
 
 function AccordCard({ accord, isActive }) {
   const [expanded, setExpanded] = useState(false);
+  // Re-render on spine writes so the compile-phase state stays in sync.
+  const [, forceSpine] = useReducer(x => x + 1, 0);
+  useEffect(() => subscribeSpine(forceSpine), []);
 
   return (
     <div
@@ -741,6 +745,19 @@ function AccordCard({ accord, isActive }) {
         <span className="text-violet-400/45">closest OCK family:</span>
         <span className="text-violet-300/65">{LUNAR_OCK_FAMILY[accord.phase]}</span>
       </div>
+
+      {/* Quintessence spine: compile this phase as the olfactory vertebra (spec §3.2) */}
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setPhase(accord.accord); }}
+        className={`mt-3 w-full text-[9px] font-mono tracking-[0.25em] uppercase border px-2 py-1.5 transition-colors ${
+          getSpine().phase === accord.accord
+            ? 'border-amber-400/60 text-amber-300'
+            : 'border-zinc-700/60 text-zinc-500 hover:border-zinc-500/60 hover:text-zinc-300'
+        }`}
+      >
+        {getSpine().phase === accord.accord ? '◈ phase compiled' : 'compile phase →'}
+      </button>
 
       {/* Mechanism — full text, expandable */}
       {expanded && (
