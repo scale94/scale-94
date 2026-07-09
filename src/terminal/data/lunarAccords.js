@@ -110,7 +110,7 @@ export const LUNAR_ACCORDS = [
 ];
 
 // Spec §3.2: olfactory phase → Pirarucu.dryness_coefficient (asceticism axis).
-// Monotone along the incubation→stillness arc.
+// Values per design spec §3.2 — keyed by accord name, independent of the array's synodic order.
 export const DRYNESS = {
   'DARK INCUBATION': 12,
   'GREEN EMERGENCE': 24,

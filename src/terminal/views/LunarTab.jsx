@@ -135,10 +135,6 @@ function getEnvironmentalParamsFallback(age) {
   };
 }
 
-// ── Fragrance Recommendation Engine ──────────────────────────────────────────
-// Maps environmental parameters to molecular families and specific accords.
-// Recommendations prioritize volatility-appropriate notes for current conditions.
-
 // ── Cross-system mapping (Phase 4 polish) ────────────────────────────────────
 // Per-phase OCK olfactory family — surfaces the bridge between Lunar's
 // circalunar accords and the OCK (Bimmelbahn) classification used by
