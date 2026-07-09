@@ -911,7 +911,7 @@ const TIERS = [
 ];
 
 // ── Tesseract Manifest ────────────────────────────────────────────────────────
-function generateManifestMarkdown(card, tesseract, living = null) {
+function generateManifestMarkdown(card, tesseract, living = null, result = null, narrative = null) {
   const { hash, encryptedFormula } = tesseract;
   const { specificGravity, flashPoint, macDays, dilutionRatio, ciphertext } = encryptedFormula;
   const ts = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
@@ -963,45 +963,66 @@ MACERATION   ${macDays} days
 
 ---
 
-## ORIGIN VECTOR // KERNEL 0.0.0.0
-
-KERNEL 0.0.0.0 is the null state — the origin before collision. Zero information. Only capacity.
-
-In quantum field theory the vacuum is not empty: it is the ground state of a field, seething with virtual possibility. KERNEL 0.0.0.0 is that vacuum for the accord-space. The Latent Space Collider does not create formulas — it extracts trajectories that were already latent in the field. The collision is the measurement. The measurement collapses superposition into one specific, unrepeatable configuration.
-
-The OCK v1.1.0 parameter space is the field. The domain pair is the initial condition. The vault hash is the coordinate — a SHA-256 commitment to one path through 2²⁵⁶ possible outputs. No other input to the same field produces the same coordinate. The accord is not invented. It is located.
+## COLLISION MANIFOLD // RAW VECTOR MATRIX
 
 \`\`\`
-DOMAIN     ${domPair}
-HASH       ${hash.slice(0, 32)}
-           ${hash.slice(32)}
-SPACE      1536-dimensional · OCK v1.1.0
-P(RECOLL)  < 10⁻⁷⁷
+DOMAIN         ${domPair}
+NODE PAIR      ${result?.nodeIdA ?? '—'} × ${result?.nodeIdB ?? '—'}
+HASH           ${hash.slice(0, 32)}
+               ${hash.slice(32)}
+SPACE          1536-dimensional · OCK v1.1.0
+P(RECOLL)      < 10⁻⁷⁷
+
+COS(θ)         ${result?.cosine != null ? result.cosine.toFixed(4) : '—'}
+θ              ${result?.angle != null ? result.angle.toFixed(1) + '°' : '—'}
+SPHERE SIM     ${result?.sphereSim != null ? result.sphereSim.toFixed(4) : '—'}
+NOVELTY        ${result?.novelty != null ? (result.novelty * 100).toFixed(0) + '%' : '—'}  (‖P⊥‖ = ${result?.projNorm != null ? result.projNorm.toFixed(3) : '—'})
+COHERENCE      ${result?.coherence != null ? result.coherence.toFixed(4) : '—'}  (H = ${result?.entropy != null ? result.entropy.toFixed(3) : '—'})
+POST-SAPON.    ${result?.postSaponificationSim != null ? result.postSaponificationSim.toFixed(4) : '—'}  (32 iter · 7% decay)
+VIABILITY      ${result?.vClass ?? '—'}  (${result?.viability != null ? result.viability.toFixed(4) : '—'})
+ARCHETYPE      ${narrative?.archetype ?? '—'}${narrative?.archetypeSigma != null ? `  [σ ≈ ${narrative.archetypeSigma.toFixed(2)}]` : ''}
 \`\`\`
 
 ---
 
-## FISH SCALE GEOMETRY // FEIGENBAUM δ
-
-The three-phase evaporation — TOP ${evapT}% / HEART ${evapH}% / BASE ${evapB}% — is not aesthetic preference. It is the signature of a bifurcation cascade written in molecular volatility.
-
-Mitchell Feigenbaum (Los Alamos, 1975) discovered that in the logistic map xₙ₊₁ = r·xₙ(1−xₙ), consecutive period-doubling bifurcations converge at ratio δ = 4.66920160910299.... This constant is universal: it appears in every 1D dynamical system with a quadratic maximum, regardless of the specific map. Feigenbaum found it with a pocket calculator. It was not supposed to be there.
-
-The bifurcation sequence:
+## FISH SCALE GEOMETRY // DIMENSIONAL MATRIX
 
 \`\`\`
-r < 3.000   stable fixed point        →  TOP   (ordered · single attractor)
-r > 3.000   period-2 onset            →  HEART (quasi-periodic · cascade)
-r > 3.449   period-4 onset            ↓
-r > 3.544   period-8 ...              ↓  each interval compressed by δ
-r > 3.569   chaos onset               →  BASE  (strange attractor · emergent)
+EVAP CURVE     TOP ${evapT}% / HEART ${evapH}% / BASE ${evapB}%
 \`\`\`
 
-Each scale of the fish scale bifurcation diagram is compressed by δ relative to the one above. The structure repeats without limit. The accord's evaporation curve maps onto the same partition: three regimes, each self-similar to the whole.
+### CONVERGENCE AXES — shared conceptual DNA
+\`\`\`
+${(result?.convergence || []).map(d => `${d.name.toUpperCase().padEnd(16)} contrib=${d.contrib.toFixed(3)}  vA=${d.vA.toFixed(3)}  vB=${d.vB.toFixed(3)}`).join('\n') || '—'}
+\`\`\`
 
-BASE notes are post-cascade residue. The strange attractor. Slow, persistent, sensitive to initial conditions, structurally invariant under time. The scent that remains after everything else has bifurcated away.
+### DIVERGENCE AXES — maximum orthogonality
+\`\`\`
+${(result?.divergence || []).map(d => `${d.name.toUpperCase().padEnd(16)} Δ=${d.delta.toFixed(3)}  vA=${d.vA.toFixed(3)}  vB=${d.vB.toFixed(3)}`).join('\n') || '—'}
+\`\`\`
 
-This is not a metaphor. Molecular volatility, governed by vapor pressure differentials (Clausius-Clapeyron equation), exhibits the same period-doubling geometry as the logistic map because both are governed by nonlinear feedback dynamics with a bounded quadratic form. The fish scale kernel does not describe the scent. It describes the geometry the scent inhabits — and that geometry is universal.
+### IRREDUCIBLE PARADOXES — survive 32× saponification
+\`\`\`
+${(result?.paradoxes || []).map(p => `${p.name.toUpperCase().padEnd(16)} residual=${p.residual.toFixed(3)}  original_Δ=${p.original.toFixed(3)}`).join('\n') || '—'}
+\`\`\`
+
+### PERIOD-3 SANCTUARIES — transient order pockets in chaos
+\`\`\`
+${(narrative?.sanctuaries || []).map(s => `center=${s.center.toFixed(3)}  width=${s.width.toFixed(3)}  size=${s.size}  members=[${s.members.join(', ')}]`).join('\n') || '— none detected —'}
+\`\`\`
+
+### CLUSTER METRICS
+\`\`\`
+INTERFERENCE   ${narrative?.meta?.interference != null ? narrative.meta.interference.toFixed(3) : '—'}  (sparsity × curvature)
+CATALYSIS      ${narrative?.meta?.catalysis != null ? narrative.meta.catalysis.toFixed(3) : '—'}  (volatility × curvature)
+RESONANCE      ${narrative?.meta?.resonanceFreq != null ? narrative.meta.resonanceFreq.toFixed(3) : '—'}  (density harmonic mean)
+TURBULENCE     ${narrative?.meta?.turbulence != null ? narrative.meta.turbulence.toFixed(4) : '—'}  (volΔ × interference)
+\`\`\`
+
+### SUBATOMIC DECAY ARC — Feigenbaum bifurcation cascade (δ=4.669 · α=2.503)
+\`\`\`
+${(narrative?.decayArc || []).map(ph => `${ph.time.padEnd(12)} ${ph.glyph} ${ph.shell.padEnd(10)} ${ph.regime}\n${''.padEnd(13)} ${ph.patch}\n${''.padEnd(13)} notes=[${ph.notes.join(', ')}]`).join('\n\n') || '—'}
+\`\`\`
 
 ---
 
@@ -1032,11 +1053,7 @@ PROTOCOL      HS256 · 24h sovereign key · server-deterministic
 \`\`\`
 
 The molecule that is yours did not exist before this transmission. It does now.
-` : ''}
----
-
-_Transmutation complete. The physical substrate is vaulted. The data is sovereign._
-`;
+` : ''}`;
 }
 
 // ── 16-Beam parameter trace at collision impact ────────────────────────────
@@ -3319,6 +3336,7 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
           onToggleSovereignView={() => setSovereignView((v) => !v)}
           tesseract={tesseract}
           narrative={narrative}
+          result={result}
           acquired={acquired}
           selectedTier={selectedTier}
           onRegister={(contact, tier) => handleAcquire(crystal.id, contact, tier)}
@@ -3979,7 +3997,7 @@ function ShimmeringCipher({ rows }) {
 }
 
 // ── Tesseract Card — cryptographic identity layer ───────────────────────────
-function TesseractCard({ card, fullCard = card, sovereignty = null, sovereignView = false, onToggleSovereignView, tesseract, narrative, acquired, selectedTier, onRegister, serverCount, serverTarget, orderStatus, living, onLivingRedeemed }) {
+function TesseractCard({ card, fullCard = card, sovereignty = null, sovereignView = false, onToggleSovereignView, tesseract, narrative, result, acquired, selectedTier, onRegister, serverCount, serverTarget, orderStatus, living, onLivingRedeemed }) {
   const [manifestState, setManifestState] = useState(null); // null | 'compiling' | 'downloaded'
   const [vaultGlyphClicks, setVaultGlyphClicks] = useState(0);
 
@@ -3989,7 +4007,7 @@ function TesseractCard({ card, fullCard = card, sovereignty = null, sovereignVie
   const handleDownload = async () => {
     setManifestState('compiling');
     await new Promise(r => setTimeout(r, 850));
-    const md = generateManifestMarkdown(fullCard, tesseract, living); // local file = client enclave: always complete
+    const md = generateManifestMarkdown(fullCard, tesseract, living, result, narrative); // local file = client enclave: always complete
     const filename = `ECO_Sx_TRANSMUTATION_${Date.now()}.md`;
     const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
