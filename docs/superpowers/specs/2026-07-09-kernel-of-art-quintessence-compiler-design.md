@@ -1,4 +1,6 @@
-# KERNEL OF ART · QUINTESSENCE COMPILER — Design Spec
+# KERNEL OF QUINTESSENCE · THE QUINTESSENCE COMPILER — Design Spec
+
+> **Naming (2026-07-09):** The artifact is the **KERNEL OF QUINTESSENCE** — not "kernel of art." Quintessence is literal: the fifth essence, distilled from the four elements plus the visitor's spine. Every occurrence of the artifact name below uses this form; the file the visitor carries out is `KERNEL_OF_QUINTESSENCE.rs`.
 
 - **Date:** 2026-07-09
 - **Status:** APPROVED PENDING USER REVIEW
@@ -25,9 +27,9 @@ Core epistemological anchor, displayed as a monument: **"Theory that cannot be c
 | Input scope | **Tight spine, ambient periphery.** Deliberate choices are required; loose-end tabs feed in only via observatoryBus witness. Absence is data ("empty houses"). |
 | Geography | **Mercury is the altar, Kernel is the reliquary.** Compilation event happens at the Mercury nebula (cinematic); the artifact persists and is read in the Kernel tab. |
 | Artistic parent | **Fish scale kernel is the genome; the visitor's spine is the epigenetics.** All fish scale parameters are heritable and all are used. |
-| Form | **The kernel of art is itself code.** A `.rs`-shaped document; wisdom in doc-comments, visitor data in parameter values. Hash-sealed with TesseractCard-style framing (build hash; glyph optional later). |
+| Form | **The kernel of quintessence is itself code.** A `.rs`-shaped document; wisdom in doc-comments, visitor data in parameter values. Hash-sealed with TesseractCard-style framing (build hash; glyph optional later). |
 
-## 3 · The artifact: `KERNEL_OF_ART.rs`
+## 3 · The artifact: `KERNEL_OF_QUINTESSENCE.rs`
 
 A deterministic, syntax-highlighted Rust document. Same inputs → same kernel. No `Math.random()`; seeded PRNG only (mulberry32, same discipline as `councilSynthesis.js`). Structure:
 
@@ -35,7 +37,7 @@ A deterministic, syntax-highlighted Rust document. Same inputs → same kernel. 
 
 ```rust
 // ═══════════════════════════════════════════════════════════════
-// KERNEL OF ART :: FORK OF FISH SCALE 11.1 :: BUILD 0x<hash8>
+// KERNEL OF QUINTESSENCE :: FORK OF FISH SCALE 11.1 :: BUILD 0x<hash8>
 // COMPILED AT SCALE94.COM · QUINTESSENCE EVENT · <ISO date>
 //
 // THIS IS A SEALED VIAL. CARRY IT OUT.
@@ -113,7 +115,7 @@ Two states.
 
 ### 5.2 After compilation — the sealed artifact
 
-- Full syntax-highlighted code view of `KERNEL_OF_ART.rs`.
+- Full syntax-highlighted code view of `KERNEL_OF_QUINTESSENCE.rs`.
 - Seal line: full SHA-256 build hash + compile timestamp + element sigil.
 - **Copy-vial affordance:** one click copies the entire artifact text (the LLM prompt) to clipboard.
 - Persisted to `localStorage` (key: `quintessence_kernel_v1`); survives reload. Recompiling (new session, new choices) overwrites after a confirm — the reliquary holds one kernel at a time.
