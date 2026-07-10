@@ -1,7 +1,7 @@
 // src/terminal/mercury/QuintessenceAltar.jsx — the altar (spec §4).
 // Four elements · one click · the quintessence compiles. The nebula ignites
 // only when the deliberate spine exists; otherwise absences are named.
-import { useEffect, useReducer, useState } from 'react';
+import { useEffect, useReducer, useRef, useState } from 'react';
 import { getSpine, setElement, missingVertebrae, subscribeSpine } from '../quintessence/spineStore';
 import { snapshotPeriphery } from '../quintessence/periphery';
 import { witnessEngine, trendToPressure } from '../quintessence/engineWitness';
@@ -22,22 +22,30 @@ export default function QuintessenceAltar({ onDeposited }) {
   const [, force] = useReducer(x => x + 1, 0);
   const [stage, setStage] = useState(-1);          // -1 idle, 0..5 compiling, 6 done
   const [result, setResult] = useState(null);
+  const alive = useRef(true);
+  const igniting = useRef(false);
+  useEffect(() => () => { alive.current = false; }, []);
   useEffect(() => subscribeSpine(force), []);
 
   const missing = missingVertebrae();
   const armed = missing.length === 0 && stage === -1;
 
   async function ignite(elementId) {
-    if (!armed) return;
+    if (!armed || igniting.current) return;
     // Spec §5.2: the reliquary holds one kernel at a time — recompile confirms.
     try {
       if (localStorage.getItem(STORAGE_KEY) &&
           !window.confirm('the reliquary holds one kernel · recompile and overwrite the seal?')) return;
     } catch (_) { /* no storage → nothing to overwrite */ }
+    igniting.current = true;
     setElement(elementId);
     const spine = getSpine();
     const periphery = snapshotPeriphery();
-    for (let s = 0; s < 3; s++) { setStage(s); await new Promise(r => setTimeout(r, 650)); }
+    for (let s = 0; s < 3; s++) {
+      setStage(s);
+      await new Promise(r => setTimeout(r, 650));
+      if (!alive.current) return;
+    }
     const filledHouses = Object.values(periphery.houses).filter(Boolean).length
       + ['ciphers', 'transmissions', 'essences', 'lunarRead'].filter(k => periphery[k]).length
       + 4; // the four spine vertebrae themselves
@@ -46,13 +54,20 @@ export default function QuintessenceAltar({ onDeposited }) {
       maxLayers: Math.max(4, filledHouses),
       burnSensitivity: Math.max(0.1, Math.min(2.0, drynessFor(spine.phase) / 50)),
     });
-    for (let s = 3; s < 6; s++) { setStage(s); await new Promise(r => setTimeout(r, 650)); }
+    if (!alive.current) return;
+    for (let s = 3; s < 6; s++) {
+      setStage(s);
+      await new Promise(r => setTimeout(r, 650));
+      if (!alive.current) return;
+    }
     const artifact = await compileKernel(spine, periphery, engine);
+    if (!alive.current) return;
     let volatile = false;
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(artifact)); }
     catch (_) { volatile = true; }
     setResult(volatile ? { ...artifact, meta: { ...artifact.meta, volatile: true } } : artifact);
     setStage(6);
+    igniting.current = false;
   }
 
   return (
@@ -87,7 +102,7 @@ export default function QuintessenceAltar({ onDeposited }) {
       )}
 
       {stage >= 0 && stage < 6 && (
-        <div className="font-mono text-[10px] tracking-[0.25em] text-amber-300/90 uppercase py-6">
+        <div aria-live="polite" className="font-mono text-[10px] tracking-[0.25em] text-amber-300/90 uppercase py-6">
           {STAGES.slice(0, stage + 1).map(s => <div key={s} className="mb-1">✓ {s}</div>)}
         </div>
       )}
@@ -105,6 +120,10 @@ export default function QuintessenceAltar({ onDeposited }) {
           <button type="button" onClick={() => onDeposited?.()}
             className="mt-2 border border-amber-400/60 text-amber-200 font-mono text-[10px] tracking-[0.3em] uppercase px-4 py-2 hover:bg-amber-950/30">
             deposited in reliquary →
+          </button>
+          <button type="button" onClick={() => { setResult(null); setStage(-1); }}
+            className="mt-2 ml-3 text-zinc-500 font-mono text-[9px] tracking-[0.25em] lowercase hover:text-zinc-300">
+            the altar cools →
           </button>
         </div>
       )}
