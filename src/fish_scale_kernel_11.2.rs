@@ -1,12 +1,14 @@
 #![no_std]
-#![feature(alloc_error_handler)]
 #![allow(dead_code)]
 
 // -----------------------------------------------------------------------------
-// FISH SCALE KERNEL 11.1.1 :: RUST IMPLEMENTATION
+// FISH SCALE KERNEL 11.2 :: RUST IMPLEMENTATION
 // -----------------------------------------------------------------------------
 // Thesis: Absolute Purity (Safe Rust) leads to entropic stasis (Deadlock/Death).
 // System vitality requires "Corruption" (Unsafe/Interior Mutability).
+// 11.2 (Quintessence era): the genome now passes its own Execution Test.
+// Stable no_std. The levamisole exploit corrupts through UnsafeCell —
+// sanctioned corruption the type system co-signs, not undefined behavior.
 // -----------------------------------------------------------------------------
 
 use core::sync::atomic::{AtomicU64, Ordering};
@@ -33,8 +35,9 @@ trait SystemAtom {
 /// In Rust terms, this is immutable data protected by the compiler.
 struct Pirarucu<T> {
     /// The "Scale" is the protective mineralized layer.
-    /// It is physically dry and resistant to entropy.
-    armor: T,
+    /// It is physically dry and resistant to entropy — but the armor is
+    /// an UnsafeCell: the corruption channel ships inside the purity.
+    armor: UnsafeCell<T>,
     /// Patch 5.4 (Drying): Ensures structural integrity.
     dryness_coefficient: u8,
 }
@@ -44,7 +47,7 @@ impl<T> Pirarucu<T> {
     /// Warning: A purely immutable system cannot evolve. It is a statue.
     pub fn new_pristine(data: T) -> Self {
         Self {
-            armor: data,
+            armor: UnsafeCell::new(data),
             dryness_coefficient: 100, // Maximum Asceticism
         }
     }
@@ -76,15 +79,13 @@ impl Narcos {
     /// to achieve "Wetness" (Mutability) and system vitality.
     ///
     /// # Safety
-    /// This is chemically violent. It bypasses the borrow checker's "Purity".
+    /// This is chemically violent — but sanctioned. UnsafeCell is the one
+    /// channel through which the compiler permits mutation behind armor.
+    /// Caller must guarantee no aliased access during the injection.
     pub unsafe fn inject_levamisole<T>(target: &Pirarucu<T>) -> &mut T {
-        // We cast the immutable "Dry" reference to a raw pointer,
-        // stripping the "Fish Scale" armor to modify the flesh beneath.
-        let const_ptr = &target.armor as *const T;
-        let mut_ptr = const_ptr as *mut T;
-        
-        // The sheen of the "False Fish Scale".
-        &mut *mut_ptr
+        // The sheen of the "False Fish Scale" — interior mutability,
+        // the corruption the type system co-signs.
+        &mut *target.armor.get()
     }
 }
 
@@ -173,7 +174,7 @@ impl NecromanticEngine {
         // 1. Attempt to access the Ideal Form (Plato).
         // Without corruption, this is just a read-only operation.
         // It is "Safe", but it is "Stasis".
-        let _view = &ideal.armor;
+        let _view = ideal.armor.get();
 
         // 2. Introduce the Paradox (Plata o Plomo).
         // To maintain vitality, we must violate the armor.
@@ -189,7 +190,7 @@ impl NecromanticEngine {
                 // 3. Execute the Levamisole Exploit (Promo).
                 // We inject the "wetness" (mutability) into the "dry" system.
                 unsafe {
-                    let corrupted_state = Narcos::inject_levamisole(ideal);
+                    let _corrupted_state = Narcos::inject_levamisole(ideal);
                     // The system is now chemically and acoustically dry,
                     // yet artificially alive through the exploit.
                     self.friction_coefficient += 1.0;
