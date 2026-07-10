@@ -6,6 +6,7 @@ import InstrumentsPanel       from '../mercury/InstrumentsPanel';
 import CastleGrid             from '../mercury/CastleGrid';
 import CosmosRegistry         from '../mercury/CosmosRegistry';
 import ObservationMatrix      from '../mercury/ObservationMatrix';
+import QuintessenceAltar       from '../mercury/QuintessenceAltar';
 import { useMercuryState }    from '../mercury/useMercuryState';
 import { computeInstruments } from '../mercury/instruments';
 
@@ -28,7 +29,7 @@ const DEFAULT_PARAMS = {
   spread:       1.0,
 };
 
-export default function MercuryTab() {
+export default function MercuryTab({ onNavigateToKernel }) {
   const [params, setParams]           = useState(DEFAULT_PARAMS);
   const [activePhase, setActivePhase] = useState('fluid');
   const [fps, setFps]                 = useState(0);
@@ -206,6 +207,9 @@ export default function MercuryTab() {
         mercury={mercuryState}
         canvas={canvasState}
       />
+
+      {/* §B.5 — The Quintessence Altar (spec §4): the compile trigger */}
+      <QuintessenceAltar onDeposited={onNavigateToKernel} />
 
       {/* §D — Cosmos Registry (the alien's taxonomy of the whole site) */}
       <CosmosRegistry />
