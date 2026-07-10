@@ -39,41 +39,49 @@ export default function QuintessenceAltar({ onDeposited }) {
           !window.confirm('the reliquary holds one kernel · recompile and overwrite the seal?')) return;
     } catch (_) { /* no storage → nothing to overwrite */ }
     igniting.current = true;
-    setElement(elementId);
-    const spine = getSpine();
-    const periphery = snapshotPeriphery();
-    for (let s = 0; s < 3; s++) {
-      setStage(s);
-      await new Promise(r => setTimeout(r, 650));
+    try {
+      setElement(elementId);
+      const spine = getSpine();
+      const periphery = snapshotPeriphery();
+      for (let s = 0; s < 3; s++) {
+        setStage(s);
+        await new Promise(r => setTimeout(r, 650));
+        if (!alive.current) return;
+      }
+      const filledHouses = Object.values(periphery.houses).filter(Boolean).length
+        + ['ciphers', 'transmissions', 'essences', 'lunarRead'].filter(k => periphery[k]).length
+        + 4; // the four spine vertebrae themselves
+      const engine = await witnessEngine({
+        rPressure: trendToPressure(spine.trend.velocity),
+        maxLayers: Math.max(4, filledHouses),
+        burnSensitivity: Math.max(0.1, Math.min(2.0, drynessFor(spine.phase) / 50)),
+      });
       if (!alive.current) return;
-    }
-    const filledHouses = Object.values(periphery.houses).filter(Boolean).length
-      + ['ciphers', 'transmissions', 'essences', 'lunarRead'].filter(k => periphery[k]).length
-      + 4; // the four spine vertebrae themselves
-    const engine = await witnessEngine({
-      rPressure: trendToPressure(spine.trend.velocity),
-      maxLayers: Math.max(4, filledHouses),
-      burnSensitivity: Math.max(0.1, Math.min(2.0, drynessFor(spine.phase) / 50)),
-    });
-    if (!alive.current) return;
-    for (let s = 3; s < 6; s++) {
-      setStage(s);
-      await new Promise(r => setTimeout(r, 650));
+      for (let s = 3; s < 6; s++) {
+        setStage(s);
+        await new Promise(r => setTimeout(r, 650));
+        if (!alive.current) return;
+      }
+      const artifact = await compileKernel(spine, periphery, engine);
       if (!alive.current) return;
+      let volatile = false;
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(artifact)); }
+      catch (_) {
+        volatile = true;
+        // spec §7: storage refused the seal — hold the vial in memory so the
+        // reliquary can still read it. Evaporates on reload, as VOLATILE must.
+        holdVolatile({ ...artifact, meta: { ...artifact.meta, volatile: true } });
+      }
+      setResult(volatile ? { ...artifact, meta: { ...artifact.meta, volatile: true } } : artifact);
+      setStage(6);
+    } catch (err) {
+      // The one link that can throw is compileKernel (crypto.subtle on a
+      // non-secure origin). The altar must never brick: cool down, name nothing.
+      if (import.meta.env?.DEV) console.debug('[quintessence] compile failed at the altar:', err);
+      if (alive.current) { setResult(null); setStage(-1); }
+    } finally {
+      igniting.current = false;
     }
-    const artifact = await compileKernel(spine, periphery, engine);
-    if (!alive.current) return;
-    let volatile = false;
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(artifact)); }
-    catch (_) {
-      volatile = true;
-      // spec §7: storage refused the seal — hold the vial in memory so the
-      // reliquary can still read it. Evaporates on reload, as VOLATILE must.
-      holdVolatile({ ...artifact, meta: { ...artifact.meta, volatile: true } });
-    }
-    setResult(volatile ? { ...artifact, meta: { ...artifact.meta, volatile: true } } : artifact);
-    setStage(6);
-    igniting.current = false;
   }
 
   return (

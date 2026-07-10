@@ -98,7 +98,7 @@ mod engine_witness {
 /// instruments; the verdict below resolved from the calibration constant.
 mod engine_witness { /* every field None */ }`;
 
-  const lunarComment = periphery.lunarRead
+  const lunarComment = periphery.lunarRead && typeof periphery.lunarRead.illum === 'number'
     ? `/// wound with the transit: ${periphery.lunarRead.phase} · ${(periphery.lunarRead.illum * 100).toFixed(1)}% illuminated`
     : `/// TRANSIT UNREAD — the clock was never wound`;
 
