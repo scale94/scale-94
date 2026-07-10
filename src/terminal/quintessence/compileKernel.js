@@ -65,7 +65,12 @@ function houseLine(name, value, describe) {
  */
 export async function compileKernel(spine, periphery, engine, opts = {}) {
   const compiledAt = opts.compiledAt ?? new Date().toISOString();
-  const canonical = JSON.stringify({ spine, periphery, engine, compiledAt });
+  // Canonical = deep-sorted keys, so semantically identical inputs always
+  // hash identically regardless of how a caller assembled the objects.
+  const canonical = JSON.stringify({ spine, periphery, engine, compiledAt }, (k, v) =>
+    v && typeof v === 'object' && !Array.isArray(v)
+      ? Object.keys(v).sort().reduce((acc, key) => { acc[key] = v[key]; return acc; }, {})
+      : v);
   const hash = await sha256Hex(canonical);
   const rng = mulberry32(seedFrom(hash));
 
@@ -81,7 +86,7 @@ export async function compileKernel(spine, periphery, engine, opts = {}) {
 /// Computed by compiled Rust at the quintessence event — not narrated, executed.
 /// run_fish_scale(r=${r.toFixed(4)}, layers=witness depth, θ=36°, burn←${spine.phase})
 mod engine_witness {
-    pub const REGIME: &str        = "${engine.regime}";
+    pub const REGIME: &str        = ${JSON.stringify(engine.regime)};
     pub const INTEGRITY_PCT: f64  = ${engine.integrity};
     pub const LYAPUNOV: f64       = ${engine.lyapunov};
     pub const AXIOMS_ACTIVE: u8   = ${engine.axiomsActive}; // of 9
