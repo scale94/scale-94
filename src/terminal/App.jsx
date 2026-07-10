@@ -14,6 +14,7 @@ import AmbientParticles from './components/AmbientParticles';
 
 // Data — static (authored, always bundled)
 import kernelBuilds    from './data/kernelBuilds';
+import kernelAxioms    from './data/kernelAxioms';       // the 7 axiomatic_core laws
 import _somaArticles   from './data/articles.soma';   // hand-curated soma kernel entries
 import _miscArticles   from './data/articles.misc';   // hand-curated misc/fiction entries
 import autoArticles    from './data/loadArticles';    // Vite glob .md stubs (dev fallback)
@@ -167,7 +168,7 @@ const App = () => {
     setGateState(value);
   }, []);
 
-  const { appendSystemLog, setSystemLogs } = useSystemLog();
+  const { appendSystemLog, setSystemLogs, visibleLogs, logRef } = useSystemLog();
   // RAM — ecological entropy model §1.3: cost maps to planetary footprint
   const { ramPct, ecoCost, applyEcoCost, applyRefill, applyAlienBlessing, latticeState, isCritical, isWarning, isRefillReady } = useEcologicalRam({ appendSystemLog });
 
@@ -675,6 +676,13 @@ const App = () => {
       emitObs('transmissions', 'kernel_completed', { kernelId: kernelId ?? '—', durationMs: durationMs ?? null });
     },
   });
+
+  // Mobile [run] / tap-to-run bridge for the KernelTab active_modules list.
+  const mobileAutoRun = useCallback((kernelId) => {
+    const alias = wasmRegistry[kernelId] ? kernelId : resolveWasmAlias(kernelId);
+    const now = fmtTime();
+    dispatchCommand('run', alias, `run ${alias}`, now, { eco: true });
+  }, [dispatchCommand]);
 
   // Orthogonal bridge handler — DIVERGENCE_ENGINE auto-forged links from right-click
   const handleOrthogonalBridge = useCallback((sourceId, result) => {
@@ -1222,7 +1230,26 @@ const App = () => {
 
           {/* Kernel Tab */}
           {activeTab === 'kernel' && !selectedArticle && !tagCloudView && (
-            <KernelTab />
+            <KernelTab
+              kernelAxioms={kernelAxioms}
+              kernelBuilds={kernelBuilds}
+              handleKernelClick={handleKernelClick}
+              loadingKernel={loadingKernel}
+              visibleLogs={visibleLogs}
+              logRef={logRef}
+              commandInput={commandInput}
+              onCommandInputChange={handleInputChange}
+              onCommandKeyDown={handleCommand}
+              ramPct={ramPct}
+              isCritical={isCritical}
+              isWarning={isWarning}
+              appendSystemLog={appendSystemLog}
+              mobileChrome={mobileChrome}
+              mobileAutoRun={mobileAutoRun}
+              bootDone={bootRevealed}
+              possessionActive={possessionActive}
+              onNavigateToMercury={() => handleNav('~/system/mercury', 'mercury')}
+            />
           )}
 
           {/* Scaling Tab */}
@@ -1326,7 +1353,7 @@ const App = () => {
 
           {/* Mercury — unified elemental phase simulation */}
           {activeTab === 'mercury' && !selectedArticle && !architectThesis && (
-            <MercuryTab onNavigateToKernel={() => handleNav('~/system/kernel', 'kernel')} />
+            <MercuryTab />
           )}
 
           {/* Ledger Tab — The Open Ledger · Thermodynamic Audit Infrastructure */}

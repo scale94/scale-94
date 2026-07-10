@@ -152,7 +152,7 @@ export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelA
       onClick={onNavigate}
       role="button"
       aria-label="Open Mercury — observer view"
-      title="◉ OBSERVER :: alien architect engaged"
+      title="◉ OBSERVE"
     >
       {/* ── Observer phrase — extends leftward from the eye on kernel load/run ── */}
       {phrase && (
@@ -266,7 +266,7 @@ export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelA
       >
         <div className="text-[9px] font-mono tracking-[0.2em] uppercase whitespace-nowrap text-right"
           style={{ color: 'rgba(232,210,138,0.75)' }}>
-          OBSERVER :: alien architect
+          ◉ OBSERVE
         </div>
         <div className="text-[8px] font-mono whitespace-nowrap text-right mt-0.5"
           style={{ color: 'rgba(232,210,138,0.4)' }}>

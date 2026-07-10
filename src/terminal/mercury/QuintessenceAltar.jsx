@@ -133,7 +133,7 @@ export default function QuintessenceAltar({ onDeposited }) {
           )}
           <button type="button" onClick={() => onDeposited?.()}
             className="mt-2 border border-amber-400/60 text-amber-200 font-mono text-[10px] tracking-[0.3em] uppercase px-4 py-2 hover:bg-amber-950/30">
-            deposited in reliquary →
+            view the seal ↓
           </button>
           <button type="button" onClick={() => { setResult(null); setStage(-1); }}
             className="mt-2 ml-3 text-zinc-500 font-mono text-[9px] tracking-[0.25em] lowercase hover:text-zinc-300">

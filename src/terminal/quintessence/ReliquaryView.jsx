@@ -4,9 +4,8 @@
 import { useEffect, useReducer, useRef, useState } from 'react';
 import { getSpine, subscribeSpine, missingVertebrae } from './spineStore';
 import { snapshotPeriphery } from './periphery';
-import { heldVolatile } from './volatileHold';
 import { subscribe as subscribeBus } from '../../observatory/observatoryBus';
-import { STORAGE_KEY } from '../mercury/QuintessenceAltar';
+import { loadSealedArtifact } from './sealedArtifact';
 
 const MONUMENT_CSS = `
 /* ── Monument pattern (Fade-Doctrine compliant) ──────────────────────
@@ -53,19 +52,6 @@ const MONUMENT_CSS = `
 }
 `;
 
-function loadArtifact() {
-  // The volatile hold first: it can only exist in THIS session, so when present
-  // it is always the most recent compile (covers quota-exceeded recompiles over
-  // an older persisted seal). Otherwise the sealed vial from storage (spec §7).
-  const held = heldVolatile();
-  if (held) return held;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch (_) { /* unwitnessed */ }
-  return null;
-}
-
 const slot = (label, filled, preview) => ({ label, filled, preview });
 
 export default function ReliquaryView() {
@@ -79,7 +65,7 @@ export default function ReliquaryView() {
   useEffect(() => subscribeBus(() => queueMicrotask(force)), []);
   useEffect(() => () => clearTimeout(copyTimer.current), []);
 
-  const artifact = loadArtifact();
+  const artifact = loadSealedArtifact();
 
   if (artifact) {
     const copyVial = async () => {

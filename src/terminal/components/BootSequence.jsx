@@ -164,7 +164,7 @@ const BootSequence = ({ onDone }) => {
             animation: 'bs-observer-line 0.7s ease-out 4750ms forwards',
           }}
         >
-          OBSERVER :: alien architect engaged
+          ◉ OBSERVE
         </div>
         {/* Sub-line — the build string, very faint */}
         <div
