@@ -54,13 +54,16 @@ const MONUMENT_CSS = `
 `;
 
 function loadArtifact() {
-  // The sealed vial first; if storage refused the seal, the in-memory
-  // volatile hold (spec §7) — which evaporates on reload, as it must.
+  // The volatile hold first: it can only exist in THIS session, so when present
+  // it is always the most recent compile (covers quota-exceeded recompiles over
+  // an older persisted seal). Otherwise the sealed vial from storage (spec §7).
+  const held = heldVolatile();
+  if (held) return held;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return JSON.parse(raw);
-  } catch (_) { /* fall through to the volatile hold */ }
-  return heldVolatile();
+  } catch (_) { /* unwitnessed */ }
+  return null;
 }
 
 const slot = (label, filled, preview) => ({ label, filled, preview });

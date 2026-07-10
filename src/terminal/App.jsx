@@ -13,7 +13,6 @@ import { Hexagon, Cpu, Lock, Scale, Eye, ShieldAlert, KeyRound, Waves, Radio, Le
 import AmbientParticles from './components/AmbientParticles';
 
 // Data — static (authored, always bundled)
-import kernelAxioms    from './data/kernelAxioms';
 import kernelBuilds    from './data/kernelBuilds';
 import _somaArticles   from './data/articles.soma';   // hand-curated soma kernel entries
 import _miscArticles   from './data/articles.misc';   // hand-curated misc/fiction entries
@@ -168,7 +167,7 @@ const App = () => {
     setGateState(value);
   }, []);
 
-  const { appendSystemLog, setSystemLogs, visibleLogs, logRef } = useSystemLog();
+  const { appendSystemLog, setSystemLogs } = useSystemLog();
   // RAM — ecological entropy model §1.3: cost maps to planetary footprint
   const { ramPct, ecoCost, applyEcoCost, applyRefill, applyAlienBlessing, latticeState, isCritical, isWarning, isRefillReady } = useEcologicalRam({ appendSystemLog });
 
@@ -332,78 +331,10 @@ const App = () => {
     [dynamicData, articles],
   );
 
-  // Kernel ordering — pinned first, 5 newest by article date, rest alpha-sorted.
-  // Re-runs when articles updates (i.e. once CAS data loads) so dates are available.
-  const sortedBuilds = useMemo(() => {
-    // pinned:true entries appear first, in their declared order
-    const pinned = kernelBuilds.filter(k => k.pinned);
-    const rest   = kernelBuilds.filter(k => !k.pinned);
-    // Build article-date lookup: article.id → 'YYYY-MM-DD' (empty string if unknown)
-    const dateMap = Object.fromEntries(articles.map(a => [a.id, a.date || '']));
-    // Dedup by id — hand-curated entries (earlier in the array) win over inject zone
-    const seenIds = new Set(pinned.map(k => k.id));
-    const uniqueRest = rest.filter(k => {
-      if (seenIds.has(k.id)) return false;
-      seenIds.add(k.id);
-      return true;
-    });
-    // Annotate each entry with its article date, then partition
-    const annotated = uniqueRest.map(k => ({ ...k, _date: dateMap[k.articleId] || '' }));
-    // Sort descending by date so newest articles float to the top
-    annotated.sort((a, b) => (b._date > a._date ? 1 : b._date < a._date ? -1 : 0));
-    // Top 5 become the "latest" strip; remainder gets alphabetical sort on name
-    const newest5   = annotated.slice(0, 5).map(({ _date, ...k }) => k);
-    const alphaRest = annotated.slice(5)
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .map(({ _date, ...k }) => k);
-    return [...pinned, ...newest5, ...alphaRest];
-  }, [articles]);
-
-  // Filtered subset — used by KernelTab when a search/load filter is active.
-  // norm is a stable module-level function — no useCallback wrapper needed.
-  // Tag-awareness: also surfaces kernels whose articleId appears in tagIndex
-  // entries that match the query — gives `search QUANTUM` access to tag data.
-  //
-  // Sophie search (Φ.Φ.Φ.Φ — full spectrum reception):
-  // Query is split into tokens on whitespace. All tokens must match (AND).
-  // Each token is tested against the full id+name+desc haystack independently,
-  // so "scalar sovereign" and "sovereign scalar" both resolve correctly.
-  const norm = normalizeQuery;
-  const filteredBuilds = useMemo(() => {
-    if (!searchFilter) return sortedBuilds;
-    const tokens = searchFilter.trim().split(/\s+/).map(norm).filter(Boolean);
-    if (!tokens.length) return sortedBuilds;
-
-    // Text match — all tokens must appear somewhere in id / name / desc
-    const textMatchIds = new Set(
-      sortedBuilds
-        .filter(k => {
-          const haystack = [k.id, k.name, k.desc || ''].map(norm).join(' ');
-          return tokens.every(t => haystack.includes(t));
-        })
-        .map(k => k.id)
-    );
-
-    // Tag match: collect articleIds from tagIndex entries where every token
-    // appears in the tag name (single-token queries work as before)
-    const tagArticleIds = new Set(
-      Object.entries(tagIndex)
-        .filter(([tag]) => { const n = norm(tag); return tokens.every(t => n.includes(t)); })
-        .flatMap(([, kernels]) => kernels.map(k => k.id))
-    );
-
-    if (tagArticleIds.size === 0) {
-      return sortedBuilds.filter(k => textMatchIds.has(k.id));
-    }
-
-    // Merge — deduplicated, preserving sortedBuilds order
-    const seen = new Set();
-    return sortedBuilds.filter(k => {
-      if (seen.has(k.id)) return false;
-      seen.add(k.id);
-      return textMatchIds.has(k.id) || tagArticleIds.has(k.articleId);
-    });
-  }, [sortedBuilds, searchFilter, norm, tagIndex]);
+  // The legacy kernel-list ordering + Sophie-search memos (sortedBuilds /
+  // filteredBuilds) retired with the KernelTab relic content — the reliquary
+  // replaced the list (spec §5.1). kernelBuilds itself stays live for command
+  // dispatch; searchFilter stays live for the footer terminal.
 
 
   // Boot completion is signalled by BootSequence itself via onDone — App.jsx no
@@ -742,14 +673,6 @@ const App = () => {
       emitObs('transmissions', 'kernel_completed', { kernelId: kernelId ?? '—', durationMs: durationMs ?? null });
     },
   });
-
-  // Mobile auto-run — fires a WASM kernel automatically when a card is tapped on mobile.
-  // Resolves the most topically relevant WASM alias for every kernel via mobileWasmMap.
-  const mobileAutoRun = useCallback((kernelId) => {
-    const alias = wasmRegistry[kernelId] ? kernelId : resolveWasmAlias(kernelId);
-    const now = fmtTime();
-    dispatchCommand('run', alias, `run ${alias}`, now, { eco: true });
-  }, [dispatchCommand]);
 
   // Orthogonal bridge handler — DIVERGENCE_ENGINE auto-forged links from right-click
   const handleOrthogonalBridge = useCallback((sourceId, result) => {
