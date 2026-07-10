@@ -1,9 +1,10 @@
 // src/terminal/quintessence/ReliquaryView.jsx — the reliquary (spec §5).
 // Pre-compile: monument + live schematic of the unfinished kernel.
 // Post-compile: the sealed artifact, full code view, copy vial.
-import { useEffect, useReducer, useState } from 'react';
+import { useEffect, useReducer, useRef, useState } from 'react';
 import { getSpine, subscribeSpine, missingVertebrae } from './spineStore';
 import { snapshotPeriphery } from './periphery';
+import { heldVolatile } from './volatileHold';
 import { subscribe as subscribeBus } from '../../observatory/observatoryBus';
 import { STORAGE_KEY } from '../mercury/QuintessenceAltar';
 
@@ -53,8 +54,13 @@ const MONUMENT_CSS = `
 `;
 
 function loadArtifact() {
-  try { const raw = localStorage.getItem(STORAGE_KEY); return raw ? JSON.parse(raw) : null; }
-  catch (_) { return null; }
+  // The sealed vial first; if storage refused the seal, the in-memory
+  // volatile hold (spec §7) — which evaporates on reload, as it must.
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (_) { /* fall through to the volatile hold */ }
+  return heldVolatile();
 }
 
 const slot = (label, filled, preview) => ({ label, filled, preview });
@@ -62,14 +68,21 @@ const slot = (label, filled, preview) => ({ label, filled, preview });
 export default function ReliquaryView() {
   const [, force] = useReducer(x => x + 1, 0);
   const [copied, setCopied] = useState(false);
+  const copyTimer = useRef(null);
   useEffect(() => subscribeSpine(force), []);
   useEffect(() => subscribeBus(force), []);
+  useEffect(() => () => clearTimeout(copyTimer.current), []);
 
   const artifact = loadArtifact();
 
   if (artifact) {
     const copyVial = async () => {
-      try { await navigator.clipboard.writeText(artifact.source); setCopied(true); setTimeout(() => setCopied(false), 2000); }
+      try {
+        await navigator.clipboard.writeText(artifact.source);
+        setCopied(true);
+        clearTimeout(copyTimer.current);
+        copyTimer.current = setTimeout(() => setCopied(false), 2000);
+      }
       catch (_) { /* clipboard denied — the pre below remains selectable */ }
     };
     return (

@@ -6,6 +6,7 @@ import { getSpine, setElement, missingVertebrae, subscribeSpine } from '../quint
 import { snapshotPeriphery } from '../quintessence/periphery';
 import { witnessEngine, trendToPressure } from '../quintessence/engineWitness';
 import { compileKernel } from '../quintessence/compileKernel';
+import { holdVolatile } from '../quintessence/volatileHold';
 import { drynessFor } from '../data/lunarAccords';
 
 const ELEMENTS = [
@@ -64,7 +65,12 @@ export default function QuintessenceAltar({ onDeposited }) {
     if (!alive.current) return;
     let volatile = false;
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(artifact)); }
-    catch (_) { volatile = true; }
+    catch (_) {
+      volatile = true;
+      // spec §7: storage refused the seal — hold the vial in memory so the
+      // reliquary can still read it. Evaporates on reload, as VOLATILE must.
+      holdVolatile({ ...artifact, meta: { ...artifact.meta, volatile: true } });
+    }
     setResult(volatile ? { ...artifact, meta: { ...artifact.meta, volatile: true } } : artifact);
     setStage(6);
     igniting.current = false;

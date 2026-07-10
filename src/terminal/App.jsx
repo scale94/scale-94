@@ -288,17 +288,9 @@ const App = () => {
   }, [appendSystemLog]);
 
   const mainRef = useRef(null);
-  const kernelListRef = useRef(null); // ref to the scrollable <ul> in KernelTab
-  const prevSelectedArticleRef = useRef(null); // tracks previous selectedArticle for mobile scroll logic
   const mobileChromeTimerRef = useRef(null);
   const terminalInputRef = useRef(null);  // ref to the footer terminal input
   const justResolvedGate = useRef(false); // true only in the render cycle after gate resolves
-  // Scroll persistence: sessionStorage survives tab switches and hot-reloads.
-  // The ref is a write-through cache so we never pay a sessionStorage read on
-  // every scroll event — only on restore.
-  const kernelScrollCache = useRef(
-    Number(sessionStorage.getItem('kernelScrollY') || 0)
-  );
   // Abort token for handleKernelClick — invalidates in-flight loads when a
   // new one is started (e.g. user rapidly clicks two kernels in quick succession).
   const loadAbortRef = useRef(null);
@@ -474,29 +466,10 @@ const App = () => {
     document.documentElement.scrollTop = 0;
   }, []);
 
-  // Scroll to top on navigation — mobile-aware surgical patch:
-  // On desktop (> 768 px) always scroll to top.
-  // On mobile (≤ 768 px) skip the scroll-to-top when returning to the kernel
-  // list from an article so the user lands near Active Modules, not Axiomatic Core.
+  // Scroll to top on navigation.
+  // (The mobile returning-to-kernel smooth-scroll branch died with the legacy
+  // KernelTab list — the reliquary has no #kernel-container to land on.)
   useLayoutEffect(() => {
-    const isMobile = window.innerWidth <= 768;
-    const returningToKernel =
-      isMobile &&
-      prevSelectedArticleRef.current !== null &&
-      selectedArticle === null &&
-      activeTab === 'kernel';
-
-    prevSelectedArticleRef.current = selectedArticle;
-
-    if (returningToKernel) {
-      // Smooth-scroll to the Active Modules container so user lands in context.
-      requestAnimationFrame(() => {
-        const el = document.getElementById('kernel-container');
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
-      return;
-    }
-
     if (mainRef.current) {
       mainRef.current.style.scrollBehavior = 'auto';
       mainRef.current.scrollTop = 0;
@@ -504,49 +477,6 @@ const App = () => {
     window.scrollTo(0, 0);
     document.documentElement.scrollTop = 0;
   }, [currentPath, selectedArticle?.id, activeTab, architectThesis, tagCloudView]);
-
-  // Continuously track the kernel list scroll position via a passive onScroll
-  // listener attached directly to the overflow-y-auto <ul>.
-  // Re-attaches whenever the KernelTab mounts/unmounts (selectedArticle or
-  // activeTab change), because the ref is null while the list is not in the DOM.
-  useEffect(() => {
-    const el = kernelListRef.current;
-    if (!el) return;
-    const save = () => {
-      const top = el.scrollTop;
-      kernelScrollCache.current = top;
-      sessionStorage.setItem('kernelScrollY', top);
-    };
-    el.addEventListener('scroll', save, { passive: true });
-    return () => el.removeEventListener('scroll', save);
-  }, [activeTab, selectedArticle]);
-
-  // Restore kernel list scroll position when returning from an article or tab.
-  // Double-rAF: first frame = layout committed, second frame = paint committed.
-  // A single rAF races on some rendering paths where the flex-grow <ul> hasn't
-  // computed its final scrollHeight yet; the second frame guarantees it has.
-  // filteredBuilds.length as a dep re-fires if the list contents change size.
-  useLayoutEffect(() => {
-    if (selectedArticle || activeTab !== 'kernel') return;
-    // Read from sessionStorage first (survives tab switches); fall back to cache.
-    const saved =
-      Number(sessionStorage.getItem('kernelScrollY') || 0) ||
-      kernelScrollCache.current;
-    if (!saved) return;
-
-    let raf2;
-    const raf1 = requestAnimationFrame(() => {
-      raf2 = requestAnimationFrame(() => {
-        const el = kernelListRef.current;
-        if (!el) return;
-        el.scrollTop = saved;
-      });
-    });
-    return () => {
-      cancelAnimationFrame(raf1);
-      cancelAnimationFrame(raf2);
-    };
-  }, [selectedArticle, activeTab, filteredBuilds.length]);
 
   // ── Scroll-linked glow: cards brighten + slide up on viewport entry ─────
   useEffect(() => {
@@ -1367,28 +1297,7 @@ const App = () => {
 
           {/* Kernel Tab */}
           {activeTab === 'kernel' && !selectedArticle && !tagCloudView && (
-            <KernelTab
-              kernelAxioms={kernelAxioms}
-              kernelBuilds={filteredBuilds}
-              handleKernelClick={handleKernelClick}
-              loadingKernel={loadingKernel}
-              visibleLogs={visibleLogs}
-              logRef={logRef}
-              searchFilter={searchFilter}
-              onClearFilter={() => setSearchFilter('')}
-              listRef={kernelListRef}
-              commandInput={commandInput}
-              onCommandInputChange={handleInputChange}
-              onCommandKeyDown={handleCommand}
-              ramPct={ramPct}
-              isCritical={isCritical}
-              isWarning={isWarning}
-              appendSystemLog={appendSystemLog}
-              mobileChrome={mobileChrome}
-              mobileAutoRun={mobileAutoRun}
-              bootDone={bootRevealed}
-              possessionActive={possessionActive}
-            />
+            <KernelTab />
           )}
 
           {/* Scaling Tab */}
