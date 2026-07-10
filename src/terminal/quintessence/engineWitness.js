@@ -4,8 +4,10 @@
 // below exists only for calibration and offline bpm fallback.
 import { loadWasm } from '../../wasm/wasmSingleton';
 
-// Feigenbaum point r_∞ — matches R_INF in fish_scale.rs and R_CHAOS in
-// useAssociativeField.js. bpm 160 (the Plata threshold) sits exactly here.
+// Feigenbaum point r_∞ — byte-identical to R_INF in fish_scale.rs (the
+// engine this adapter fronts). useAssociativeField.js carries a slightly
+// different truncation (…70944); the Rust engine's value is canonical here.
+// bpm 160 (the Plata threshold) sits exactly at this r.
 export const R_CHAOS = 3.569945671877;
 
 const THETA_FSK = 36.0; // canonical interlaminar angle, not visitor-varied in v1
@@ -25,9 +27,11 @@ export function pressureToBpm(r) {
  */
 export async function witnessEngine({ rPressure, maxLayers, burnSensitivity }) {
   try {
+    const r = Number(rPressure), lay = Number(maxLayers), burn = Number(burnSensitivity);
+    if (!Number.isFinite(r) || !Number.isFinite(lay) || !Number.isFinite(burn)) return null;
     const mod = await loadWasm();
     if (typeof mod?.run_fish_scale_json !== 'function') return null;
-    const raw = mod.run_fish_scale_json(rPressure, maxLayers, THETA_FSK, burnSensitivity);
+    const raw = mod.run_fish_scale_json(r, lay, THETA_FSK, burn);
     const j = JSON.parse(raw);
     return {
       regime: j.regime,
@@ -39,7 +43,8 @@ export async function witnessEngine({ rPressure, maxLayers, burnSensitivity }) {
       layers: j.layers,
       burnStatus: j.saponification?.status ?? null,
     };
-  } catch (_) {
+  } catch (err) {
+    if (import.meta.env?.DEV) console.debug('[quintessence] engine witness unavailable:', err);
     return null;
   }
 }
