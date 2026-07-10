@@ -21,7 +21,7 @@
     "rust:import": "node scripts/import-rust.js",
     "rust:registry": "node scripts/import-rust.js --registry-only",
     "spawn": "node scripts/spawn.js",
-    "check:genome": "rustc --edition 2021 --crate-name fish_scale_kernel_11_2 --crate-type rlib --emit=metadata -o target-genome-check.rmeta src/fish_scale_kernel_11.2.rs && node -e \"require('fs').unlinkSync('target-genome-check.rmeta')\""
+    "check:genome": "node -e \"require('fs').mkdirSync('target',{recursive:true})\" && rustc --edition 2021 --crate-type rlib --crate-name fish_scale_kernel_11_2 --emit=metadata -o target/genome-check.rmeta src/fish_scale_kernel_11.2.rs && node -e \"require('fs').unlinkSync('target/genome-check.rmeta')\""
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
