@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { emit, _resetForTests } from '../../../observatory/observatoryBus';
 import { snapshotPeriphery } from '../periphery';
 
@@ -30,5 +30,28 @@ describe('snapshotPeriphery', () => {
     expect(p.essences).toEqual({ collisions: 1, crystallized: 1, polarity: 'RADIANT' });
     expect(p.lunarRead).toEqual({ phase: 'Waxing Gibbous', illum: 0.82 });
     expect(p.houses).toEqual({ ecocide: null, ledger: null, privacy: 1, surveillance: null });
+  });
+
+  it('ledger-only transmissions witness has lastKernel null', () => {
+    emit('transmissions', 'ledger_appended', { depth: 1 });
+    const p = snapshotPeriphery();
+    expect(p.transmissions).toEqual({ count: 0, ledgerDepth: 1, lastKernel: null });
+  });
+
+  it('a throwing bus compiles as an unwitnessed session', async () => {
+    const { snapshotPeriphery: snap } = await (async () => {
+      vi.resetModules();
+      vi.doMock('../../../observatory/observatoryBus', () => ({
+        getTotals: () => { throw new Error('dead bus'); },
+        getJournal: () => { throw new Error('dead bus'); },
+      }));
+      const mod = await import('../periphery');
+      vi.doUnmock('../../../observatory/observatoryBus');
+      return mod;
+    })();
+    expect(snap()).toEqual({
+      ciphers: null, transmissions: null, essences: null,
+      lunarRead: null, houses: { ecocide: null, ledger: null, privacy: null, surveillance: null },
+    });
   });
 });

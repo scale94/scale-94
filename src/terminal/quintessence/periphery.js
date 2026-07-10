@@ -1,5 +1,6 @@
 // src/terminal/quintessence/periphery.js — the ambient witness (spec §3.4).
-// Reads observatoryBus totals at compile time. null = empty house = Option::None.
+// Reads observatoryBus totals + journal at compile time (the journal scan finds
+// the last kernel_completed regardless of event order). null = empty house = Option::None.
 // Never blocks, never throws: a dead bus compiles as an unwitnessed session.
 import { getTotals, getJournal } from '../../observatory/observatoryBus';
 
