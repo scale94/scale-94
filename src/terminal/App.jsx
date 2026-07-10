@@ -584,7 +584,9 @@ const App = () => {
       if (prev !== tab) {
         setTabGlitch(true);
         setTimeout(() => setTabGlitch(false), 180);
-        emitObs('gaze', 'tab_navigated', { tab });
+        // Deferred: this updater runs during render, and a synchronous bus emit
+        // here setStates any mounted subscriber mid-render (React error).
+        setTimeout(() => emitObs('gaze', 'tab_navigated', { tab }), 0);
       }
       return tab;
     });

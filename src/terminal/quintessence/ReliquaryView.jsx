@@ -72,8 +72,11 @@ export default function ReliquaryView() {
   const [, force] = useReducer(x => x + 1, 0);
   const [copied, setCopied] = useState(false);
   const copyTimer = useRef(null);
-  useEffect(() => subscribeSpine(force), []);
-  useEffect(() => subscribeBus(force), []);
+  // Deferred re-render: bus/spine events may fire during another component's
+  // render (e.g. an emit inside a state updater) — a microtask keeps our
+  // setState out of that render phase.
+  useEffect(() => subscribeSpine(() => queueMicrotask(force)), []);
+  useEffect(() => subscribeBus(() => queueMicrotask(force)), []);
   useEffect(() => () => clearTimeout(copyTimer.current), []);
 
   const artifact = loadArtifact();
