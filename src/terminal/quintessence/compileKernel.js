@@ -52,8 +52,8 @@ const CORRUPTION_LINES = [
 
 function houseLine(name, value, describe) {
   return value == null
-    ? `    /// HOUSE EMPTY — never witnessed\n    ${name}: None,`
-    : `    /// ${describe}\n    ${name}: Some(${JSON.stringify(value).replace(/"/g, '\\"')}),`;
+    ? `    // HOUSE EMPTY — never witnessed\n    ${name}: None,`
+    : `    ${name}: Some(${JSON.stringify(describe)}),`;
 }
 
 // ── main ─────────────────────────────────────────────────────────────────────
@@ -154,8 +154,16 @@ ${engineBlock}
 
 /// THE PERIPHERAL WITNESS — what the terminal saw without being asked.
 /// Empty houses are part of the portrait. Absence is data.
-struct PeripheralWitness;
-mod peripheral_witness {
+struct PeripheralWitness {
+    ciphers: Option<&'static str>,
+    transmissions: Option<&'static str>,
+    essences: Option<&'static str>,
+    house_ecocide: Option<&'static str>,
+    house_ledger: Option<&'static str>,
+    house_privacy: Option<&'static str>,
+    house_surveillance: Option<&'static str>,
+}
+const WITNESS: PeripheralWitness = PeripheralWitness {
 ${houseLine('ciphers', periphery.ciphers, `cryptographic proof: ${periphery.ciphers?.verifies ?? 0} verified · ${periphery.ciphers?.unlocks ?? 0} unlocked · ${periphery.ciphers?.sealed ?? 0} sealed`)}
 ${houseLine('transmissions', periphery.transmissions, `${periphery.transmissions?.count ?? 0} kernels completed · ledger depth ${periphery.transmissions?.ledgerDepth ?? 0}`)}
 ${houseLine('essences', periphery.essences, `${periphery.essences?.collisions ?? 0} collisions · ${periphery.essences?.crystallized ?? 0} crystallized`)}
@@ -163,7 +171,7 @@ ${houseLine('house_ecocide', periphery.houses.ecocide, `entered ${periphery.hous
 ${houseLine('house_ledger', periphery.houses.ledger, `entered ${periphery.houses.ledger}×`)}
 ${houseLine('house_privacy', periphery.houses.privacy, `entered ${periphery.houses.privacy}×`)}
 ${houseLine('house_surveillance', periphery.houses.surveillance, `entered ${periphery.houses.surveillance}×`)}
-}
+};
 
 /// **PANIC HANDLER** — inherited verbatim from the genome.
 /// When this system fails, it does not crash — it calcifies.
