@@ -26,10 +26,10 @@ The peripheral witness currently reduces four of the site's richest surfaces to 
 | Emit | From | Reducer effect on `totals` |
 |---|---|---|
 | `gaze / art_resonance { sim }` | ArtTab, where `setResonanceResult(result)` fires with a non-null result (~ArtTab.jsx:1895) | `gaze.art.resonances++`, `gaze.art.lastSim = sim` |
-| `gaze / art_bifurcation { total }` | ArtTab, both bifurcation spawn sites (~ArtTab.jsx:544, :2239) | `gaze.art.bifurcations = total` (latest running total wins) |
-| `gaze / art_chimera {}` | ArtTab, where `setChimeraActive` first becomes truthy (~ArtTab.jsx:664) | `gaze.art.chimeras++` |
-| `gaze / ecocide_phase { phase, metabolicRift, exergyRate }` | EcocideTab, beside `ecocideBus.emit` (EcocideTab.jsx:484) | `gaze.lastEcocide = payload` |
-| `transmissions / verdict_issued { verdict }` | LedgerTab, beside `ledgerBus.emit` (LedgerTab.jsx:179) | `transmissions.verdict = verdict` |
+| `gaze / art_bifurcation { count }` | ArtTab, both bifurcation spawn sites (~ArtTab.jsx:544, :2239), delta per spawn | `gaze.art.bifurcations += count` (reducer accumulates — no ref bookkeeping in the tab) |
+| `gaze / art_chimera {}` | ArtTab, where `setChimeraActive` first becomes truthy (~ArtTab.jsx:664; ref-guarded — the block runs in a throttled rAF loop) | `gaze.art.chimeras++` |
+| `gaze / ecocide_phase { phase, metabolicRift, exergyRate }` | EcocideTab, beside `ecocideBus.emit` (EcocideTab.jsx:484), **on phase transition only** (ref-guarded — the site ticks at 10 Hz; the journal witnesses transitions, not the tick) | `gaze.lastEcocide = payload` |
+| `transmissions / verdict_issued { verdict }` | LedgerTab, beside `ledgerBus.emit` (LedgerTab.jsx:179); payload is `cascadeVerdict.status` — the compact enum APPROVED / CONDITIONAL / REJECTED / EMERGENCY_VETO from `verdictModel.js` | `transmissions.verdict = verdict` |
 | `gaze / scaling_visit {}` | ScalingTab, mount effect (the reducer for this kind already exists — the emitter never did) | `gaze.lastScaling = payload` (existing reducer line) |
 
 `gaze.art` initializes lazily on first art event (`{ resonances: 0, lastSim: null, bifurcations: 0, chimeras: 0 }`); `makeTotals()` gains `lastEcocide: null` on gaze and `verdict: null` on transmissions so the shape is declared, not implicit.
@@ -61,7 +61,7 @@ The art fallback distinguishes "entered the sphere but never touched it" (visits
 ### 5.2 House lines
 
 - `house_art`: interactions witnessed → `Some("chimera fused ×1 · 14 bifurcations · resonance 0.83")` (omitting zero-count parts); visits-only → `Some("entered 2× · the sphere untouched")`; never → `None`.
-- `house_ledger`: `Some("entered 1× · verdict GUILTY")` — verdict part only when `ledgerVerdict` exists. A verdict with zero recorded visits still compiles the house (the verdict IS a visit witnessed).
+- `house_ledger`: `Some("entered 1× · verdict REJECTED")` — verdict part only when `ledgerVerdict` exists (vocabulary: APPROVED / CONDITIONAL / REJECTED / EMERGENCY_VETO). A verdict with zero recorded visits still compiles the house (the verdict IS a visit witnessed).
 - `house_ecocide`: `Some("entered 3× · phase COLLAPSE · metabolic rift 0.72")` — sim part only when `ecocideSim` exists; same visit-less rule.
 - `house_privacy` / `house_surveillance`: unchanged.
 
