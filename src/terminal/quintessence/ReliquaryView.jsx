@@ -6,6 +6,7 @@ import { getSpine, subscribeSpine, missingVertebrae } from './spineStore';
 import { snapshotPeriphery } from './periphery';
 import { subscribe as subscribeBus } from '../../observatory/observatoryBus';
 import { loadSealedArtifact } from './sealedArtifact';
+import { ownerOf } from './taxonomyRegistry';
 
 const MONUMENT_CSS = `
 /* ── Monument pattern (Fade-Doctrine compliant) ──────────────────────
@@ -52,7 +53,7 @@ const MONUMENT_CSS = `
 }
 `;
 
-const slot = (label, filled, preview) => ({ label, filled, preview });
+const slot = (id, label, filled, preview) => ({ id, label, filled, preview });
 
 export default function ReliquaryView() {
   const [, force] = useReducer(x => x + 1, 0);
@@ -107,18 +108,18 @@ export default function ReliquaryView() {
   const spine = getSpine();
   const p = snapshotPeriphery();
   const slots = [
-    slot('narcos payload · bsky trend',       !!spine.trend,   spine.trend?.label),
-    slot('friction pair · council',           !!spine.council, spine.council?.pair?.join(' × ')),
-    slot('dryness · olfactory phase',         !!spine.phase,   spine.phase),
-    slot('entropy_lock · lunar transit',      !!p.lunarRead,   p.lunarRead ? `${p.lunarRead.phase}` : null),
-    slot('mummy · transmission',              !!p.transmissions, p.transmissions?.lastKernel),
-    slot('daemon · element',                  !!spine.element, spine.element),
-    slot('house: ciphers',                    !!p.ciphers,     p.ciphers && `${p.ciphers.verifies} verified`),
-    slot('house: essences',                   !!p.essences,    p.essences && `${p.essences.collisions} collisions`),
-    slot('house: ecocide',                    !!p.houses.ecocide, p.houses.ecocide && `entered ${p.houses.ecocide}×`),
-    slot('house: ledger',                     !!p.houses.ledger, p.houses.ledger && `entered ${p.houses.ledger}×`),
-    slot('house: privacy',                    !!p.houses.privacy, p.houses.privacy && `entered ${p.houses.privacy}×`),
-    slot('house: surveillance',               !!p.houses.surveillance, p.houses.surveillance && `entered ${p.houses.surveillance}×`),
+    slot('narcos_payload',      'narcos payload · bsky trend',   !!spine.trend,   spine.trend?.label),
+    slot('council_pair',        'friction pair · council',       !!spine.council, spine.council?.pair?.join(' × ')),
+    slot('pirarucu',            'dryness · olfactory phase',     !!spine.phase,   spine.phase),
+    slot('entropy_lock',        'entropy_lock · lunar transit',  !!p.lunarRead,   p.lunarRead ? `${p.lunarRead.phase}` : null),
+    slot('house_transmissions', 'mummy · transmission',          !!p.transmissions, p.transmissions?.lastKernel),
+    slot('daemon',              'daemon · element',              !!spine.element, spine.element),
+    slot('house_ciphers',       'house: ciphers',                !!p.ciphers,     p.ciphers && `${p.ciphers.verifies} verified`),
+    slot('house_essences',      'house: essences',               !!p.essences,    p.essences && `${p.essences.collisions} collisions`),
+    slot('house_ecocide',       'house: ecocide',                !!p.houses.ecocide, p.houses.ecocide && `entered ${p.houses.ecocide}×`),
+    slot('house_ledger',        'house: ledger',                 !!p.houses.ledger, p.houses.ledger && `entered ${p.houses.ledger}×`),
+    slot('house_privacy',       'house: privacy',                !!p.houses.privacy, p.houses.privacy && `entered ${p.houses.privacy}×`),
+    slot('house_surveillance',  'house: surveillance',           !!p.houses.surveillance, p.houses.surveillance && `entered ${p.houses.surveillance}×`),
   ];
   const missing = missingVertebrae();
 
@@ -142,11 +143,16 @@ export default function ReliquaryView() {
       <div className="font-mono text-[11px] leading-relaxed border border-zinc-800/70 bg-black/60 p-5">
         <div className="text-zinc-500 mb-3">{'// KERNEL OF QUINTESSENCE :: awaiting quintessence event'}</div>
         {slots.map(s => (
-          <div key={s.label} className="flex gap-3 mb-1">
+          <div key={s.label} className="flex gap-3 mb-1 items-baseline">
             <span className={s.filled ? 'text-amber-300' : 'text-zinc-700'}>
               {s.filled ? `Some(${s.preview})` : 'None'}
             </span>
             <span className="text-zinc-600">{'// ' + s.label}{!s.filled && ' · awaiting witness'}</span>
+            {ownerOf(s.id) && (
+              <span className="ml-auto text-zinc-700 text-[9px] tracking-[0.15em] whitespace-nowrap">
+                read by ⟨{ownerOf(s.id)}⟩
+              </span>
+            )}
           </div>
         ))}
       </div>
