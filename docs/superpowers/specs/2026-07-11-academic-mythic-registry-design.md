@@ -44,6 +44,7 @@ A lens renders as one tagged doc-comment line inside the existing structure comm
 | `ShlomoState` daemon | **Cognitive Science ⇄ Mythology** | Overlap | daemon (TheMask/TheDevil) |
 | `Pirarucu` armor + dryness (replaces part of the Narcos/armor comments) | **Chemistry ⇄ Alchemy** | Overlap | dryness 0–100 |
 | `Narcos` payload (replaces `CORRUPTION_LINES`) | **Semiotics** | Soft sciences | trend velocity |
+| `use core::…` imports (the kernel's grammar) | **Linguistics** | Soft sciences | — (the artifact's own syntax read as a dead tongue that executes) |
 | `Sokushinbutsu` entropy lock | **Astronomy ⇄ Astrology** | Overlap | lunar illumination (or unread) |
 | `NecromanticEngine` | **Psychology** | Soft sciences | bpm (160 = chaos onset) |
 | Council pair line | **Philosophy** | Humanities | paradox count |
