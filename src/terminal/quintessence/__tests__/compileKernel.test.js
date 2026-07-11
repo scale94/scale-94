@@ -92,4 +92,28 @@ describe('compileKernel', () => {
     expect(source).toContain('#[panic_handler]');
     expect(source).toContain('core::hint::spin_loop()');
   });
+
+  it('every faculty tag appears in the artifact (registry spec §4)', async () => {
+    const { source } = await compileKernel(FULL_SPINE, FULL_PERIPHERY, ENGINE, OPTS);
+    const TAGS = [
+      'LITERATURE & PHILOLOGY', 'PHILOSOPHY', 'AESTHETICS', 'HISTORY', 'RELIGIOUS STUDIES',
+      'SEMIOTICS', 'PSYCHOLOGY', 'SOCIOLOGY', 'ANTHROPOLOGY', 'LINGUISTICS', 'ECONOMICS',
+      'ASTRONOMY ⇄ ASTROLOGY', 'CHEMISTRY ⇄ ALCHEMY', 'COGNITIVE SCIENCE ⇄ MYTHOLOGY', 'LINGUISTICS ⇄ HERMETICS',
+    ];
+    for (const tag of TAGS) expect(source, tag).toContain(`⟨${tag}⟩`);
+  });
+
+  it('engine_witness stays unlensed — computed, not narrated (registry spec §4)', async () => {
+    const { source } = await compileKernel(FULL_SPINE, FULL_PERIPHERY, ENGINE, OPTS);
+    const start = source.indexOf('mod engine_witness');
+    const end = source.indexOf('THE PERIPHERAL WITNESS');
+    expect(start).toBeGreaterThan(-1);
+    expect(source.slice(start, end)).not.toContain('⟨');
+  });
+
+  it('multi-slot owners emit one grouped lens line (HISTORY, SOCIOLOGY)', async () => {
+    const { source } = await compileKernel(FULL_SPINE, FULL_PERIPHERY, ENGINE, OPTS);
+    expect(source.match(/⟨HISTORY⟩/g)).toHaveLength(1);
+    expect(source.match(/⟨SOCIOLOGY⟩/g)).toHaveLength(1);
+  });
 });
