@@ -49,7 +49,7 @@ export default function QuintessenceAltar({ onDeposited }) {
         if (!alive.current) return;
       }
       const filledHouses = Object.values(periphery.houses).filter(Boolean).length
-        + ['ciphers', 'transmissions', 'essences', 'lunarRead'].filter(k => periphery[k]).length
+        + ['ciphers', 'transmissions', 'essences', 'lunarRead', 'art'].filter(k => periphery[k]).length
         + 4; // the four spine vertebrae themselves
       const engine = await witnessEngine({
         rPressure: trendToPressure(spine.trend.velocity),
