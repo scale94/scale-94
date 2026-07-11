@@ -43,6 +43,7 @@ import WorldMap from '../components/WorldMap';
 import { toMapXY, COUNTRIES, SPHERE_PATH, GRATICULE_PATH, EQUATOR_PATH, BORDERS_PATH } from '../data/worldMapPolys';
 import { readHealing, subscribeHealing } from '../lib/healingSignal';
 import { healingGrowthOffset, healingSargLift } from '../lib/inverseEngine';
+import { emit as emitObs } from '../../observatory/observatoryBus';
 
 // ── Coupling Event Bus ─────────────────────────────────────────────────────
 // Simple pub/sub for cross-tab phase coupling.
@@ -297,6 +298,7 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
   const deadFracRef     = useRef(0);
   const exergyNormRef   = useRef(0);
   const sargHistoryRef  = useRef([]);          // SARG sparkline buffer (80 readings @ 10 Hz = 8 s)
+  const obsPhaseRef     = useRef(null);        // observatory: witness phase transitions, not the 10 Hz tick
 
   // Layer 3.3.3 – Double-Bind state
   const mandateActiveRef = useRef(false);
@@ -482,6 +484,10 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
 
       // ── Coupling: emit phase data for ArtTab Hopfield field ───────────
       ecocideBus.emit({ type: 'ECOCIDE_PHASE', phase, metabolicRift: metabolicFat, exergyRate: exergyNorm });
+      if (phase !== obsPhaseRef.current) {
+        obsPhaseRef.current = phase;
+        emitObs('gaze', 'ecocide_phase', { phase, metabolicRift: metabolicFat, exergyRate: exergyNorm });
+      }
 
       // Accumulate sparkline history (capped at 80 ticks ≈ 8 s of data)
       const _hist = sargHistoryRef.current;

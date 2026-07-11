@@ -35,6 +35,7 @@ import { somaPresence } from '../audio/SomaPresence';
 import { ecoDataFeed } from '../data/EcoDataFeed';
 import { ecocideBus } from './EcocideTab';
 import { colliderBus } from './LatentCollider';
+import { emit as emitObs } from '../../observatory/observatoryBus';
 import { nodeColor }   from '../data/kernelColorMap';
 import {
   MAX_PARTICLES,
@@ -188,6 +189,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   // ── Analogical reasoning display state (throttled from RAF) ──────────
   const [analogyCount, setAnalogyCount] = useState(0);
   const [chimeraActive, setChimeraActive] = useState(false);
+  const chimeraWitnessedRef = useRef(false); // observatory: witness the first chimera only
   const [gestaltQuality, setGestaltQuality] = useState(0);
 
   // ── Eco data modulations ──────────────────────────────────────────────
@@ -542,6 +544,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     }
 
     setBifurcCount(c => c + spawned.length);
+    emitObs('gaze', 'art_bifurcation', { count: spawned.length });
     ensureAudio(); somaAudio.playBifurcation(spawned.length);
   }, [activeEdges, triggerBifurcation, ensureAudio]);
 
@@ -662,6 +665,10 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         const _gq = getCompletionQuality();
         setAnalogyCount(_ac);
         setChimeraActive(_cz);
+        if (_cz && !chimeraWitnessedRef.current) {
+          chimeraWitnessedRef.current = true;
+          emitObs('gaze', 'art_chimera', {});
+        }
         setGestaltQuality(_gq);
       }
 
@@ -1893,6 +1900,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             const result = compareNodes(next[0], next[1]);
             resonanceResultRef.current = result;
             setResonanceResult(result);
+            emitObs('gaze', 'art_resonance', { sim: result?.sim ?? null });
             ensureAudio(); somaAudio.playResonance(result?.sim ?? 0.5);
           } else {
             resonanceResultRef.current = null;
@@ -2237,6 +2245,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       });
 
       setBifurcCount(c => c + 1);
+      emitObs('gaze', 'art_bifurcation', { count: 1 });
       ensureAudio(); somaAudio.playBifurcation(1);
     };
 
