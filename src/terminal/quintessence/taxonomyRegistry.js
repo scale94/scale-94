@@ -79,9 +79,24 @@ export const TAXONOMY = [
     id: 'aesthetics',
     tier: 'HUMANITIES',
     tag: 'AESTHETICS',
-    owns: ['house_essences'],
-    band: (ctx) => (ctx?.periphery?.essences ? 'witnessed' : 'absent'),
-    detail: null,
+    owns: ['house_essences', 'house_art'],
+    // Entering the sphere counts as witnessing form, even untouched (deep-periphery spec §5.3).
+    band: (ctx) => ((ctx?.periphery?.essences || ctx?.periphery?.art) ? 'witnessed' : 'absent'),
+    detail: (ctx) => {
+      const a = ctx?.periphery?.art;
+      const e = ctx?.periphery?.essences;
+      if (a && a.visits == null) {
+        const parts = [
+          a.chimeras ? `${a.chimeras} chimera${a.chimeras === 1 ? '' : 's'}` : null,
+          a.bifurcations ? `${a.bifurcations} bifurcation${a.bifurcations === 1 ? '' : 's'}` : null,
+          a.lastSim != null ? `resonance ${Number(a.lastSim).toFixed(2)}` : null,
+        ].filter(Boolean);
+        if (parts.length) return parts.join(' · ');
+      }
+      if (e) return `${e.crystallized ?? 0} crystallized`;
+      if (a) return 'the sphere seen, unengaged';
+      return null;
+    },
     pools: {
       witnessed: {
         FIRE:  ['form struck at collision heat · beauty as controlled burn',
@@ -111,8 +126,9 @@ export const TAXONOMY = [
     tag: 'HISTORY',
     owns: ['house_transmissions', 'house_ledger'],
     band: (ctx) =>
-      (ctx?.periphery?.transmissions || ctx?.periphery?.houses?.ledger) ? 'witnessed' : 'absent',
-    detail: null,
+      (ctx?.periphery?.transmissions || ctx?.periphery?.houses?.ledger || ctx?.periphery?.ledgerVerdict) ? 'witnessed' : 'absent',
+    detail: (ctx) =>
+      (ctx?.periphery?.ledgerVerdict ? `the cascade ruled ${ctx.periphery.ledgerVerdict}` : null),
     pools: {
       witnessed: {
         FIRE:  ['events set alight and logged · the chronicle gains a bright entry',
@@ -250,9 +266,13 @@ export const TAXONOMY = [
     owns: ['house_ecocide', 'house_privacy', 'house_surveillance'],
     band: (ctx) => {
       const h = ctx?.periphery?.houses ?? {};
-      return (h.ecocide || h.privacy || h.surveillance) ? 'witnessed' : 'absent';
+      return (h.ecocide || h.privacy || h.surveillance || ctx?.periphery?.ecocideSim) ? 'witnessed' : 'absent';
     },
-    detail: null,
+    detail: (ctx) => {
+      const s = ctx?.periphery?.ecocideSim;
+      if (!s) return null;
+      return s.rift != null ? `metabolic rift ${Number(s.rift).toFixed(2)} at ${s.phase}` : `phase ${s.phase} witnessed`;
+    },
     pools: {
       witnessed: {
         FIRE:  ['the institutions entered with the lights on · friction inspected at source',
@@ -283,9 +303,9 @@ export const TAXONOMY = [
     owns: ['witness_intro'],
     band: (ctx) => {
       const n = ctx?.meta?.filledHouses ?? 0;
-      return n < 3 ? 'sparse' : n < 6 ? 'attended' : 'dense';
+      return n < 3 ? 'sparse' : n < 7 ? 'attended' : 'dense'; // 9 houses since deep periphery
     },
-    detail: (ctx) => `${ctx?.meta?.filledHouses ?? 0} of 8 houses witnessed`,
+    detail: (ctx) => `${ctx?.meta?.filledHouses ?? 0} of 9 houses witnessed`,
     pools: {
       sparse: {
         FIRE:  ['a brief visitation · the fieldworker logs a passing flame',

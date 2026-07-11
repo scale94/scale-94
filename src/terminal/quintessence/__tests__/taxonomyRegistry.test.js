@@ -108,7 +108,8 @@ describe('lensFor — the reading', () => {
     const withFilled = n => ({ ...CTX, meta: { ...CTX.meta, filledHouses: n } });
     expect(at('witness_intro', withFilled(2))).toBe('sparse');
     expect(at('witness_intro', withFilled(3))).toBe('attended');
-    expect(at('witness_intro', withFilled(6))).toBe('dense');
+    expect(at('witness_intro', withFilled(6))).toBe('attended'); // shifted: 9 houses now
+    expect(at('witness_intro', withFilled(7))).toBe('dense');
   });
 
   it('unknown slot returns a tagged fallback, does not throw', () => {
@@ -119,5 +120,53 @@ describe('lensFor — the reading', () => {
   it('never throws on a hollow ctx — degrades to a valid reading', () => {
     const line = lensFor('narcos_payload', { spine: {} }, mulberry32(7));
     expect(line).toMatch(/^⟨SEMIOTICS⟩ /); // velocity→0→murmur, element→AIR default
+  });
+});
+
+describe('deep periphery — enriched readings', () => {
+  const entry = slot => TAXONOMY.find(d => d.owns.includes(slot));
+  const withPeriphery = patch => ({ ...CTX, periphery: { ...CTX.periphery, ...patch } });
+  const BARE_HOUSES = { ecocide: null, ledger: null, privacy: null, surveillance: null };
+
+  it('aesthetics owns house_art and reads art OR essences as witnessed', () => {
+    expect(ownerOf('house_art')).toBe('AESTHETICS');
+    const aesthetics = entry('house_essences');
+    expect(aesthetics.band(withPeriphery({ essences: null, art: null }))).toBe('absent');
+    expect(aesthetics.band(withPeriphery({ essences: null, art: { visits: 2 } }))).toBe('witnessed');
+    expect(aesthetics.band(withPeriphery({ art: null }))).toBe('witnessed'); // essences present in CTX
+  });
+
+  it('aesthetics detail: art interactions → essences → visits-only → null', () => {
+    const aesthetics = entry('house_essences');
+    expect(aesthetics.detail(withPeriphery({ art: { resonances: 1, lastSim: 0.83, bifurcations: 0, chimeras: 1 } })))
+      .toBe('1 chimera · resonance 0.83');
+    expect(aesthetics.detail(withPeriphery({ art: null }))).toBe('1 crystallized');
+    expect(aesthetics.detail(withPeriphery({ essences: null, art: { visits: 2 } })))
+      .toBe('the sphere seen, unengaged');
+    expect(aesthetics.detail(withPeriphery({ essences: null, art: null }))).toBeNull();
+  });
+
+  it('sociology: band counts ecocideSim, detail interpolates the rift', () => {
+    const sociology = entry('house_ecocide');
+    expect(sociology.band(withPeriphery({ houses: BARE_HOUSES, ecocideSim: null }))).toBe('absent');
+    expect(sociology.band(withPeriphery({ houses: BARE_HOUSES, ecocideSim: { phase: 'COLLAPSE', rift: 0.72 } }))).toBe('witnessed');
+    expect(sociology.detail(withPeriphery({ ecocideSim: { phase: 'COLLAPSE', rift: 0.72 } })))
+      .toBe('metabolic rift 0.72 at COLLAPSE');
+    expect(sociology.detail(withPeriphery({ ecocideSim: { phase: 'COLLAPSE', rift: null } })))
+      .toBe('phase COLLAPSE witnessed');
+    expect(sociology.detail(withPeriphery({ ecocideSim: null }))).toBeNull();
+  });
+
+  it('history: band counts ledgerVerdict, detail names the ruling', () => {
+    const history = entry('house_ledger');
+    expect(history.band(withPeriphery({ transmissions: null, houses: BARE_HOUSES, ledgerVerdict: null }))).toBe('absent');
+    expect(history.band(withPeriphery({ transmissions: null, houses: BARE_HOUSES, ledgerVerdict: 'REJECTED' }))).toBe('witnessed');
+    expect(history.detail(withPeriphery({ ledgerVerdict: 'REJECTED' }))).toBe('the cascade ruled REJECTED');
+    expect(history.detail(withPeriphery({ ledgerVerdict: null }))).toBeNull();
+  });
+
+  it('anthropology denominator is 9', () => {
+    const anthro = entry('witness_intro');
+    expect(anthro.detail({ ...CTX, meta: { ...CTX.meta, filledHouses: 6 } })).toBe('6 of 9 houses witnessed');
   });
 });
