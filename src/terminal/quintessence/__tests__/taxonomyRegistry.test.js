@@ -1,6 +1,7 @@
 // src/terminal/quintessence/__tests__/taxonomyRegistry.test.js — the faculty roster (spec §8).
 import { describe, it, expect } from 'vitest';
-import { TAXONOMY, ownerOf } from '../taxonomyRegistry';
+import { TAXONOMY, ownerOf, lensFor } from '../taxonomyRegistry';
+import { mulberry32 } from '../../views/manifesto/councilCollider';
 
 const TINTS = ['FIRE', 'WATER', 'AIR', 'EARTH'];
 
@@ -38,5 +39,85 @@ describe('taxonomyRegistry — completeness', () => {
     expect(ownerOf('house_ledger')).toBe('HISTORY');
     expect(ownerOf('house_privacy')).toBe('SOCIOLOGY');
     expect(ownerOf('not_a_slot')).toBeNull();
+  });
+});
+
+const CTX = {
+  spine: {
+    trend: { label: 'degrowth', velocity: 0.9 },
+    council: { pair: ['ELINOR OSTROM', 'NORBERT WIENER'], directive: 'd', trajectory: 'FOUNDATION', paradoxCount: 3 },
+    phase: 'SMOKE DISSOLUTION',
+    element: 'FIRE',
+  },
+  periphery: {
+    ciphers: { sealed: 1, verifies: 2, unlocks: 1 },
+    transmissions: { count: 4, ledgerDepth: 2, lastKernel: 'FSF-12.1.0' },
+    essences: { collisions: 2, crystallized: 1, polarity: 'RADIANT' },
+    lunarRead: { phase: 'Waxing Gibbous', illum: 0.82 },
+    houses: { ecocide: 1, ledger: null, privacy: 3, surveillance: null },
+  },
+  meta: { dryness: 85, bpm: 172, verdict: 'PLATA', daemon: 'TheDevil', filledHouses: 6 },
+};
+
+describe('lensFor — the reading', () => {
+  it('is deterministic: same ctx + seed → identical line', () => {
+    const a = lensFor('narcos_payload', CTX, mulberry32(42));
+    const b = lensFor('narcos_payload', CTX, mulberry32(42));
+    expect(a).toBe(b);
+    expect(a).toMatch(/^⟨SEMIOTICS⟩ /);
+  });
+
+  it('interpolates the visitor value as detail', () => {
+    const line = lensFor('narcos_payload', CTX, mulberry32(1));
+    expect(line).toContain('velocity 0.90 read as murmur');
+    const astro = lensFor('entropy_lock', CTX, mulberry32(1));
+    expect(astro).toContain('82.0% illuminated');
+  });
+
+  it('band edges land as documented (spec §5)', () => {
+    const at = (slot, ctx) => {
+      const entry = TAXONOMY.find(d => d.owns.includes(slot));
+      return entry.band(ctx);
+    };
+    const withVelocity = v => ({ ...CTX, spine: { ...CTX.spine, trend: { label: 't', velocity: v } } });
+    expect(at('narcos_payload', withVelocity(0.99))).toBe('murmur');
+    expect(at('narcos_payload', withVelocity(1))).toBe('current');
+    expect(at('narcos_payload', withVelocity(3))).toBe('panic');
+
+    const withDryness = d => ({ ...CTX, meta: { ...CTX.meta, dryness: d } });
+    expect(at('pirarucu', withDryness(39))).toBe('green');
+    expect(at('pirarucu', withDryness(40))).toBe('burn');
+    expect(at('pirarucu', withDryness(70))).toBe('mineral');
+
+    const withIllum = i => ({ ...CTX, periphery: { ...CTX.periphery, lunarRead: i == null ? null : { phase: 'p', illum: i } } });
+    expect(at('entropy_lock', withIllum(0.24))).toBe('dark');
+    expect(at('entropy_lock', withIllum(0.25))).toBe('crescent');
+    expect(at('entropy_lock', withIllum(0.5))).toBe('gibbous');
+    expect(at('entropy_lock', withIllum(0.75))).toBe('full');
+    expect(at('entropy_lock', withIllum(null))).toBe('absent');
+
+    const withBpm = b => ({ ...CTX, meta: { ...CTX.meta, bpm: b } });
+    expect(at('necromantic_engine', withBpm(159))).toBe('calcifying');
+    expect(at('necromantic_engine', withBpm(160))).toBe('chaotic'); // mirrors the Plata threshold
+
+    const withParadox = n => ({ ...CTX, spine: { ...CTX.spine, council: { ...CTX.spine.council, paradoxCount: n } } });
+    expect(at('council_pair', withParadox(0))).toBe('monolith');
+    expect(at('council_pair', withParadox(1))).toBe('dialectic');
+    expect(at('council_pair', withParadox(2))).toBe('polyphony');
+
+    const withFilled = n => ({ ...CTX, meta: { ...CTX.meta, filledHouses: n } });
+    expect(at('witness_intro', withFilled(2))).toBe('sparse');
+    expect(at('witness_intro', withFilled(3))).toBe('attended');
+    expect(at('witness_intro', withFilled(6))).toBe('dense');
+  });
+
+  it('unknown slot returns a tagged fallback, does not throw', () => {
+    const line = lensFor('not_a_slot', CTX, mulberry32(7));
+    expect(line).toBe('⟨UNREGISTERED⟩ the reading resists its instrument');
+  });
+
+  it('never throws on a hollow ctx — degrades to a valid reading', () => {
+    const line = lensFor('narcos_payload', { spine: {} }, mulberry32(7));
+    expect(line).toMatch(/^⟨SEMIOTICS⟩ /); // velocity→0→murmur, element→AIR default
   });
 });

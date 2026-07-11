@@ -536,3 +536,26 @@ export function ownerOf(slotId) {
   const entry = TAXONOMY.find(d => d.owns.includes(slotId));
   return entry ? entry.tag : null;
 }
+
+/**
+ * The reading (spec §5): band → tint → seeded pick → tagged line.
+ * Deterministic under a seeded rng. Never throws, never blocks a compile:
+ * unknown slots and missing pools degrade to a tagged fallback fragment.
+ * Returns the line WITHOUT the `/// ` prefix — the caller owns the comment form.
+ */
+export function lensFor(slotId, ctx, rng) {
+  const entry = TAXONOMY.find(d => d.owns.includes(slotId));
+  if (!entry) return `⟨UNREGISTERED⟩ ${FALLBACK_FRAGMENT}`;
+
+  let band = null;
+  try { band = entry.band(ctx); } catch (_) { band = null; }
+
+  const tint = ctx?.spine?.element ?? TINT_DEFAULT;
+  const pool = entry.pools[band]?.[tint] ?? entry.pools[band]?.[TINT_DEFAULT];
+  const fragment = pool?.length ? pool[Math.floor(rng() * pool.length)] : FALLBACK_FRAGMENT;
+
+  let detail = null;
+  try { detail = entry.detail ? entry.detail(ctx, band) : null; } catch (_) { detail = null; }
+
+  return `⟨${entry.tag}⟩ ${fragment}${detail ? ' · ' + detail : ''}`;
+}
