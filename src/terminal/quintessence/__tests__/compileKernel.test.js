@@ -16,6 +16,9 @@ const FULL_PERIPHERY = {
   essences: { collisions: 2, crystallized: 1, polarity: 'RADIANT' },
   lunarRead: { phase: 'Waxing Gibbous', illum: 0.82 },
   houses: { ecocide: 1, ledger: null, privacy: 3, surveillance: null },
+  art: { resonances: 1, lastSim: 0.83, bifurcations: 14, chimeras: 1 },
+  ecocideSim: { phase: 'COLLAPSE', rift: 0.72 },
+  ledgerVerdict: 'REJECTED',
 };
 
 const ENGINE = {
@@ -73,10 +76,12 @@ describe('compileKernel', () => {
 
   it('empty houses compile as None with the witness comment', async () => {
     const bare = { ciphers: null, transmissions: null, essences: null, lunarRead: null,
-                   houses: { ecocide: null, ledger: null, privacy: null, surveillance: null } };
+                   houses: { ecocide: null, ledger: null, privacy: null, surveillance: null },
+                   art: null, ecocideSim: null, ledgerVerdict: null };
     const { source } = await compileKernel(FULL_SPINE, bare, ENGINE, OPTS);
     expect(source).toContain('HOUSE EMPTY — never witnessed');
     expect(source).toContain('ciphers: None');
+    expect(source).toContain('house_art: None');
     expect(source).toContain('TRANSIT UNREAD — the clock was never wound');
     expect(source).toContain('AtomicU64::new(0)');
   });
@@ -115,5 +120,19 @@ describe('compileKernel', () => {
     const { source } = await compileKernel(FULL_SPINE, FULL_PERIPHERY, ENGINE, OPTS);
     expect(source.match(/⟨HISTORY⟩/g)).toHaveLength(1);
     expect(source.match(/⟨SOCIOLOGY⟩/g)).toHaveLength(1);
+  });
+
+  it('deep periphery: house_art compiles all three states (spec §5.2)', async () => {
+    const a = await compileKernel(FULL_SPINE, FULL_PERIPHERY, ENGINE, OPTS);
+    expect(a.source).toContain('house_art: Some("chimera fused ×1 · 14 bifurcations · resonance 0.83")');
+    const visitsOnly = { ...FULL_PERIPHERY, art: { visits: 2 } };
+    const b = await compileKernel(FULL_SPINE, visitsOnly, ENGINE, OPTS);
+    expect(b.source).toContain('house_art: Some("entered 2× · the sphere untouched")');
+  });
+
+  it('deep periphery: ledger and ecocide houses carry their testimony', async () => {
+    const { source } = await compileKernel(FULL_SPINE, FULL_PERIPHERY, ENGINE, OPTS);
+    expect(source).toContain('house_ledger: Some("verdict REJECTED")'); // verdict alone fills the house
+    expect(source).toContain('house_ecocide: Some("entered 1× · phase COLLAPSE · metabolic rift 0.72")');
   });
 });

@@ -68,7 +68,7 @@ export async function compileKernel(spine, periphery, engine, opts = {}) {
   const [mindA, mindB] = spine.council.pair;
 
   const filledHouses =
-    [periphery.ciphers, periphery.transmissions, periphery.essences, periphery.lunarRead]
+    [periphery.ciphers, periphery.transmissions, periphery.essences, periphery.lunarRead, periphery.art]
       .filter(Boolean).length +
     Object.values(periphery.houses).filter(Boolean).length;
   // The faculty's reading context (registry spec §6). Assembled AFTER the hash:
@@ -94,6 +94,28 @@ mod engine_witness { /* every field None */ }`;
   const lunarComment = periphery.lunarRead && typeof periphery.lunarRead.illum === 'number'
     ? `/// wound with the transit: ${periphery.lunarRead.phase} · ${(periphery.lunarRead.illum * 100).toFixed(1)}% illuminated`
     : `/// TRANSIT UNREAD — the clock was never wound`;
+
+  // Deep periphery (spec 2026-07-11 §5.2): enriched house testimony.
+  // A missing part is omitted; a witnessed house never renders an empty line.
+  const artDesc = periphery.art
+    ? (periphery.art.visits != null
+        ? `entered ${periphery.art.visits}× · the sphere untouched`
+        : [periphery.art.chimeras ? `chimera fused ×${periphery.art.chimeras}` : null,
+           periphery.art.bifurcations ? `${periphery.art.bifurcations} bifurcation${periphery.art.bifurcations === 1 ? '' : 's'}` : null,
+           periphery.art.lastSim != null ? `resonance ${Number(periphery.art.lastSim).toFixed(2)}` : null,
+          ].filter(Boolean).join(' · ') || 'the sphere touched')
+    : null;
+  const ledgerValue = periphery.houses.ledger ?? periphery.ledgerVerdict ?? null;
+  const ledgerDesc = [
+    periphery.houses.ledger ? `entered ${periphery.houses.ledger}×` : null,
+    periphery.ledgerVerdict ? `verdict ${periphery.ledgerVerdict}` : null,
+  ].filter(Boolean).join(' · ');
+  const ecocideValue = periphery.houses.ecocide ?? periphery.ecocideSim ?? null;
+  const ecocideDesc = [
+    periphery.houses.ecocide ? `entered ${periphery.houses.ecocide}×` : null,
+    periphery.ecocideSim ? `phase ${periphery.ecocideSim.phase}` : null,
+    periphery.ecocideSim?.rift != null ? `metabolic rift ${Number(periphery.ecocideSim.rift).toFixed(2)}` : null,
+  ].filter(Boolean).join(' · ');
 
   const source = `\
 // ═══════════════════════════════════════════════════════════════
@@ -167,6 +189,7 @@ struct PeripheralWitness {
     transmissions: Option<&'static str>,
     house_ledger: Option<&'static str>,
     essences: Option<&'static str>,
+    house_art: Option<&'static str>,
     house_ecocide: Option<&'static str>,
     house_privacy: Option<&'static str>,
     house_surveillance: Option<&'static str>,
@@ -176,11 +199,12 @@ const WITNESS: PeripheralWitness = PeripheralWitness {
 ${houseLine('ciphers', periphery.ciphers, `cryptographic proof: ${periphery.ciphers?.verifies ?? 0} verified · ${periphery.ciphers?.unlocks ?? 0} unlocked · ${periphery.ciphers?.sealed ?? 0} sealed`)}
     // ${lensFor('house_transmissions', ctx, rng)}
 ${houseLine('transmissions', periphery.transmissions, `${periphery.transmissions?.count ?? 0} kernels completed · ledger depth ${periphery.transmissions?.ledgerDepth ?? 0}`)}
-${houseLine('house_ledger', periphery.houses.ledger, `entered ${periphery.houses.ledger}×`)}
+${houseLine('house_ledger', ledgerValue, ledgerDesc)}
     // ${lensFor('house_essences', ctx, rng)}
 ${houseLine('essences', periphery.essences, `${periphery.essences?.collisions ?? 0} collisions · ${periphery.essences?.crystallized ?? 0} crystallized`)}
+${houseLine('house_art', periphery.art, artDesc)}
     // ${lensFor('house_ecocide', ctx, rng)}
-${houseLine('house_ecocide', periphery.houses.ecocide, `entered ${periphery.houses.ecocide}×`)}
+${houseLine('house_ecocide', ecocideValue, ecocideDesc)}
 ${houseLine('house_privacy', periphery.houses.privacy, `entered ${periphery.houses.privacy}×`)}
 ${houseLine('house_surveillance', periphery.houses.surveillance, `entered ${periphery.houses.surveillance}×`)}
 };
