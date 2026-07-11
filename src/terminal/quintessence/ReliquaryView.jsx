@@ -116,8 +116,9 @@ export default function ReliquaryView() {
     slot('daemon',              'daemon · element',              !!spine.element, spine.element),
     slot('house_ciphers',       'house: ciphers',                !!p.ciphers,     p.ciphers && `${p.ciphers.verifies} verified`),
     slot('house_essences',      'house: essences',               !!p.essences,    p.essences && `${p.essences.collisions} collisions`),
-    slot('house_ecocide',       'house: ecocide',                !!p.houses.ecocide, p.houses.ecocide && `entered ${p.houses.ecocide}×`),
-    slot('house_ledger',        'house: ledger',                 !!p.houses.ledger, p.houses.ledger && `entered ${p.houses.ledger}×`),
+    slot('house_art',           'house: art',                    !!p.art,         p.art && (p.art.visits != null ? `entered ${p.art.visits}×` : (p.art.chimeras ? `${p.art.chimeras} chimera${p.art.chimeras === 1 ? '' : 's'}` : 'touched'))),
+    slot('house_ecocide',       'house: ecocide',                !!(p.houses.ecocide || p.ecocideSim), p.ecocideSim?.phase ?? (p.houses.ecocide && `entered ${p.houses.ecocide}×`)),
+    slot('house_ledger',        'house: ledger',                 !!(p.houses.ledger || p.ledgerVerdict), p.ledgerVerdict ?? (p.houses.ledger && `entered ${p.houses.ledger}×`)),
     slot('house_privacy',       'house: privacy',                !!p.houses.privacy, p.houses.privacy && `entered ${p.houses.privacy}×`),
     slot('house_surveillance',  'house: surveillance',           !!p.houses.surveillance, p.houses.surveillance && `entered ${p.houses.surveillance}×`),
   ];

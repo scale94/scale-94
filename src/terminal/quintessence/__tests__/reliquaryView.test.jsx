@@ -45,4 +45,10 @@ describe('ReliquaryView — the faculty roster on the schematic', () => {
     expect(matches).toHaveLength(3); // ecocide, privacy, surveillance
     expect(container.textContent.match(/read by ⟨HISTORY⟩/g)).toHaveLength(2); // mummy·transmission, ledger
   });
+
+  it('the art house appears with its reader', () => {
+    const text = container.textContent;
+    expect(text).toContain('house: art');
+    expect(text.match(/read by ⟨AESTHETICS⟩/g)).toHaveLength(2); // essences + art
+  });
 });
