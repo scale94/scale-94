@@ -13,10 +13,10 @@ const JOURNAL_MAX = 256;
 
 function makeTotals() {
   return {
-    transmissions: { count: 0, ledgerDepth: 0, last: null, lastTs: 0 },
+    transmissions: { count: 0, ledgerDepth: 0, verdict: null, last: null, lastTs: 0 },
     essences:      { count: 0, crystallized: 0, polarity: null, last: null, lastTs: 0 },
     ciphers:       { sealed: 0, verifies: 0, unlocks: 0, last: null, lastTs: 0 },
-    gaze:          { sphereClicks: 0, lastLunar: null, lastScaling: null, tabsVisited: {}, last: null, lastTs: 0 },
+    gaze:          { sphereClicks: 0, lastLunar: null, lastScaling: null, tabsVisited: {}, art: null, lastEcocide: null, last: null, lastTs: 0 },
     edge:          { gate: 'UNANSWERED', eye: 'idle', manifestoChapter: null, last: null, lastTs: 0 },
   };
 }
@@ -48,6 +48,12 @@ export function _resetForTests() {
   totals = makeTotals();
 }
 
+// gaze.art initializes lazily on the first art event, whatever kind arrives first.
+function ensureArt(t) {
+  if (!t.art) t.art = { resonances: 0, lastSim: null, bifurcations: 0, chimeras: 0 };
+  return t.art;
+}
+
 function updateTotals(evt) {
   const t = totals[evt.category];
   if (!t) return;
@@ -58,6 +64,7 @@ function updateTotals(evt) {
       if (evt.kind === 'kernel_completed') t.count++;
       if (evt.kind === 'ledger_appended')
         t.ledgerDepth = evt.payload.depth ?? t.ledgerDepth + 1;
+      if (evt.kind === 'verdict_issued') t.verdict = evt.payload.verdict ?? t.verdict;
       break;
     case 'essences':
       if (evt.kind === 'collision_fired') {
@@ -78,6 +85,14 @@ function updateTotals(evt) {
       if (evt.kind === 'scaling_visit')  t.lastScaling   = evt.payload;
       if (evt.kind === 'tab_navigated' && evt.payload.tab)
         t.tabsVisited[evt.payload.tab] = (t.tabsVisited[evt.payload.tab] || 0) + 1;
+      if (evt.kind === 'art_resonance') {
+        const a = ensureArt(t);
+        a.resonances++;
+        if (typeof evt.payload.sim === 'number') a.lastSim = evt.payload.sim;
+      }
+      if (evt.kind === 'art_bifurcation') ensureArt(t).bifurcations += evt.payload.count ?? 1;
+      if (evt.kind === 'art_chimera')     ensureArt(t).chimeras++;
+      if (evt.kind === 'ecocide_phase')   t.lastEcocide = evt.payload;
       break;
     case 'edge':
       if (evt.kind === 'gate_answered')    t.gate             = evt.payload.result;
