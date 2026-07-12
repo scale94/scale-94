@@ -21,6 +21,7 @@ import {
 } from '../data/nodeFeatures';
 import { setGateState } from '../lib/gateStorage';
 import { runPreExecTheater, theaterDuration } from '../utils/preExecTheater.js';
+import { doctrineLogLines } from '../data/kernelDoctrines';
 
 // Tab name → tab id — used by `load <tabname>` guard
 const LOAD_TAB_MAP = {
@@ -318,6 +319,7 @@ export function useCommandDispatch(ctx) {
                   if (i === lines.length - 1) {
                     setSystemLogs(prev => [
                       ...prev,
+                      ...doctrineLogLines(wasmEntry.id, t),
                       { time: t, msg: `  ──────────────────────────────────────────`, rust: true },
                       { time: t, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE  ·  EXEC_TIME: ${elapsed}ms`, rust: true },
                     ].slice(-2000));
@@ -333,6 +335,7 @@ export function useCommandDispatch(ctx) {
                 ...prev,
                 { time: now,      msg: `  ── KERNEL OUTPUT ─────────────────────────`, rust: true },
                 ...lines.map(l => ({ time: now, msg: `  ${l}`, rust: true })),
+                ...doctrineLogLines(wasmEntry.id, now),
                 { time: now,      msg: `  ──────────────────────────────────────────`, rust: true },
                 { time: doneTime, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE  ·  EXEC_TIME: ${elapsed}ms`, rust: true },
               ].slice(-2000));
