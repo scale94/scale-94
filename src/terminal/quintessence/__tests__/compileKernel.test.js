@@ -16,7 +16,8 @@ const FULL_PERIPHERY = {
   essences: { collisions: 2, crystallized: 1, polarity: 'RADIANT' },
   lunarRead: { phase: 'Waxing Gibbous', illum: 0.82 },
   houses: { ecocide: 1, ledger: null, privacy: 3, surveillance: null },
-  art: { resonances: 1, lastSim: 0.83, bifurcations: 14, chimeras: 1 },
+  art: { resonances: 1, lastSim: 0.83, bifurcations: 14, chimeras: 1,
+         lastR: 3.72, lyapunov: 0.021, regime: 'CHAOS' },
   ecocideSim: { phase: 'COLLAPSE', rift: 0.72 },
   ledgerVerdict: 'REJECTED',
 };
@@ -81,7 +82,7 @@ describe('compileKernel', () => {
     const { source } = await compileKernel(FULL_SPINE, bare, ENGINE, OPTS);
     expect(source).toContain('HOUSE EMPTY — never witnessed');
     expect(source).toContain('ciphers: None');
-    expect(source).toContain('house_art: None');
+    expect(source).toContain('house_chaos: None');
     expect(source).toContain('TRANSIT UNREAD — the clock was never wound');
     expect(source).toContain('AtomicU64::new(0)');
   });
@@ -122,12 +123,31 @@ describe('compileKernel', () => {
     expect(source.match(/⟨SOCIOLOGY⟩/g)).toHaveLength(1);
   });
 
-  it('deep periphery: house_art compiles all three states (spec §5.2)', async () => {
+  it('deep periphery: house_chaos compiles all three states (spec §5.2 + chaos spec §3)', async () => {
     const a = await compileKernel(FULL_SPINE, FULL_PERIPHERY, ENGINE, OPTS);
-    expect(a.source).toContain('house_art: Some("chimera fused ×1 · 14 bifurcations · resonance 0.83")');
+    expect(a.source).toContain('house_chaos: Some("chimera fused ×1 · 14 bifurcations · resonance 0.83 · sphere r 3.72 λ +0.021 CHAOS")');
     const visitsOnly = { ...FULL_PERIPHERY, art: { visits: 2 } };
     const b = await compileKernel(FULL_SPINE, visitsOnly, ENGINE, OPTS);
-    expect(b.source).toContain('house_art: Some("entered 2× · the sphere untouched")');
+    expect(b.source).toContain('house_chaos: Some("entered 2× · the sphere untouched")');
+    const never = { ...FULL_PERIPHERY, art: null };
+    const c = await compileKernel(FULL_SPINE, never, ENGINE, OPTS);
+    expect(c.source).toContain('house_chaos: None');
+  });
+
+  it('twin cascade: Δr line compares sphere r against the trend-driven engine r (chaos spec §3)', async () => {
+    // trendToPressure(0.9) = 2.8 + 1.2·0.9 = 3.88 · sphere r 3.72 → trailed by 0.16
+    const trailed = await compileKernel(FULL_SPINE, FULL_PERIPHERY, ENGINE, OPTS);
+    expect(trailed.source).toContain('the sphere trailed the world by Δr 0.16');
+
+    const ahead = await compileKernel(FULL_SPINE,
+      { ...FULL_PERIPHERY, art: { ...FULL_PERIPHERY.art, lastR: 3.95 } }, ENGINE, OPTS);
+    expect(ahead.source).toContain('the sphere ran ahead of the world by Δr +0.07');
+
+    // sphere never phase-witnessed → the absence is named
+    const silent = await compileKernel(FULL_SPINE,
+      { ...FULL_PERIPHERY, art: { resonances: 1, lastSim: 0.83, bifurcations: 14, chimeras: 1,
+                                  lastR: null, lyapunov: null, regime: null } }, ENGINE, OPTS);
+    expect(silent.source).toContain('the twin cascade never spoke');
   });
 
   it('deep periphery: ledger and ecocide houses carry their testimony', async () => {
