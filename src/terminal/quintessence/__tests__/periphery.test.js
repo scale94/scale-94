@@ -64,7 +64,21 @@ describe('snapshotPeriphery', () => {
     emit('gaze', 'art_resonance', { sim: 0.83 });
     emit('gaze', 'art_bifurcation', { count: 14 });
     emit('gaze', 'art_chimera', {});
-    expect(snapshotPeriphery().art).toEqual({ resonances: 1, lastSim: 0.83, bifurcations: 14, chimeras: 1 });
+    expect(snapshotPeriphery().art).toEqual({
+      resonances: 1, lastSim: 0.83, bifurcations: 14, chimeras: 1,
+      lastR: null, lyapunov: null, regime: null,
+    });
+  });
+
+  it('witnesses the sphere cascade: art_regime → lastR / lyapunov / regime', () => {
+    emit('gaze', 'art_regime', { r: 3.72, lyapunov: 0.021, regime: 'CHAOS' });
+    const p = snapshotPeriphery();
+    expect(p.art.lastR).toBe(3.72);
+    expect(p.art.lyapunov).toBe(0.021);
+    expect(p.art.regime).toBe('CHAOS');
+    // a later transition overwrites — the seal reads the LAST witnessed state
+    emit('gaze', 'art_regime', { r: 2.91, lyapunov: -0.4, regime: 'STABLE' });
+    expect(snapshotPeriphery().art.regime).toBe('STABLE');
   });
 
   it('deep periphery: ecocideSim and ledgerVerdict witness the signals', () => {

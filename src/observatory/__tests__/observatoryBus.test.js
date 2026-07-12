@@ -122,12 +122,18 @@ describe('observatoryBus', () => {
     emit('gaze', 'art_bifurcation', { count: 3 });
     emit('gaze', 'art_bifurcation', { count: 1 });
     emit('gaze', 'art_chimera', {});
-    expect(getTotals().gaze.art).toEqual({ resonances: 1, lastSim: 0.83, bifurcations: 4, chimeras: 1 });
+    expect(getTotals().gaze.art).toEqual({
+      resonances: 1, lastSim: 0.83, bifurcations: 4, chimeras: 1,
+      lastR: null, lyapunov: null, regime: null,
+    });
   });
 
   it('art events lazily initialize gaze.art in any order', () => {
     emit('gaze', 'art_chimera', {});
-    expect(getTotals().gaze.art).toEqual({ resonances: 0, lastSim: null, bifurcations: 0, chimeras: 1 });
+    expect(getTotals().gaze.art).toEqual({
+      resonances: 0, lastSim: null, bifurcations: 0, chimeras: 1,
+      lastR: null, lyapunov: null, regime: null,
+    });
   });
 
   it('art_resonance without a numeric sim keeps the prior lastSim', () => {

@@ -48,7 +48,8 @@ export function snapshotPeriphery() {
     // art distinguishes "entered but never touched" (visits-only) from "never came" (null).
     art: g?.art
       ? { resonances: g.art.resonances || 0, lastSim: g.art.lastSim ?? null,
-          bifurcations: g.art.bifurcations || 0, chimeras: g.art.chimeras || 0 }
+          bifurcations: g.art.bifurcations || 0, chimeras: g.art.chimeras || 0,
+          lastR: g.art.lastR ?? null, lyapunov: g.art.lyapunov ?? null, regime: g.art.regime ?? null }
       : ((g?.tabsVisited?.art || 0) > 0 ? { visits: g.tabsVisited.art } : null),
     ecocideSim: g?.lastEcocide && g.lastEcocide.phase != null
       ? { phase: g.lastEcocide.phase,

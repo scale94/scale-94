@@ -50,7 +50,8 @@ export function _resetForTests() {
 
 // gaze.art initializes lazily on the first art event, whatever kind arrives first.
 function ensureArt(t) {
-  if (!t.art) t.art = { resonances: 0, lastSim: null, bifurcations: 0, chimeras: 0 };
+  if (!t.art) t.art = { resonances: 0, lastSim: null, bifurcations: 0, chimeras: 0,
+                        lastR: null, lyapunov: null, regime: null };
   return t.art;
 }
 
@@ -92,6 +93,12 @@ function updateTotals(evt) {
       }
       if (evt.kind === 'art_bifurcation') ensureArt(t).bifurcations += evt.payload.count ?? 1;
       if (evt.kind === 'art_chimera')     ensureArt(t).chimeras++;
+      if (evt.kind === 'art_regime') {
+        const a = ensureArt(t);
+        if (typeof evt.payload.r === 'number')        a.lastR    = evt.payload.r;
+        if (typeof evt.payload.lyapunov === 'number') a.lyapunov = evt.payload.lyapunov;
+        if (evt.payload.regime)                       a.regime   = evt.payload.regime;
+      }
       if (evt.kind === 'ecocide_phase')   t.lastEcocide = evt.payload;
       break;
     case 'edge':
