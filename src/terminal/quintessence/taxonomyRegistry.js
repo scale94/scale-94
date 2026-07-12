@@ -79,7 +79,7 @@ export const TAXONOMY = [
     id: 'aesthetics',
     tier: 'HUMANITIES',
     tag: 'AESTHETICS',
-    owns: ['house_essences', 'house_art'],
+    owns: ['house_essences', 'house_chaos'],
     // Entering the sphere counts as witnessing form, even untouched (deep-periphery spec §5.3).
     band: (ctx) => ((ctx?.periphery?.essences || ctx?.periphery?.art) ? 'witnessed' : 'absent'),
     detail: (ctx) => {
@@ -90,6 +90,7 @@ export const TAXONOMY = [
           a.chimeras ? `${a.chimeras} chimera${a.chimeras === 1 ? '' : 's'}` : null,
           a.bifurcations ? `${a.bifurcations} bifurcation${a.bifurcations === 1 ? '' : 's'}` : null,
           a.lastSim != null ? `resonance ${Number(a.lastSim).toFixed(2)}` : null,
+          a.regime ? `regime ${a.regime}` : null,
         ].filter(Boolean);
         if (parts.length) return parts.join(' · ');
       }

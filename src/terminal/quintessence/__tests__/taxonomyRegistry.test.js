@@ -128,8 +128,8 @@ describe('deep periphery — enriched readings', () => {
   const withPeriphery = patch => ({ ...CTX, periphery: { ...CTX.periphery, ...patch } });
   const BARE_HOUSES = { ecocide: null, ledger: null, privacy: null, surveillance: null };
 
-  it('aesthetics owns house_art and reads art OR essences as witnessed', () => {
-    expect(ownerOf('house_art')).toBe('AESTHETICS');
+  it('aesthetics owns house_chaos and reads art OR essences as witnessed', () => {
+    expect(ownerOf('house_chaos')).toBe('AESTHETICS');
     const aesthetics = entry('house_essences');
     expect(aesthetics.band(withPeriphery({ essences: null, art: null }))).toBe('absent');
     expect(aesthetics.band(withPeriphery({ essences: null, art: { visits: 2 } }))).toBe('witnessed');
@@ -144,6 +144,14 @@ describe('deep periphery — enriched readings', () => {
     expect(aesthetics.detail(withPeriphery({ essences: null, art: { visits: 2 } })))
       .toBe('the sphere seen, unengaged');
     expect(aesthetics.detail(withPeriphery({ essences: null, art: null }))).toBeNull();
+  });
+
+  it('aesthetics detail speaks cascade vocabulary when the regime was witnessed', () => {
+    const aesthetics = entry('house_essences');
+    expect(aesthetics.detail(withPeriphery({
+      art: { resonances: 1, lastSim: 0.83, bifurcations: 0, chimeras: 1,
+             lastR: 3.72, lyapunov: 0.021, regime: 'CHAOS' },
+    }))).toBe('1 chimera · resonance 0.83 · regime CHAOS');
   });
 
   it('sociology: band counts ecocideSim, detail interpolates the rift', () => {
