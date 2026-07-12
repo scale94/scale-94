@@ -19,7 +19,6 @@ import { formatKernelHelp, formatRunHelp } from '../commands/runHelpers';
 import {
   resolveNode, analyzeFullEdge, extractParadoxes, nextFusionId,
 } from '../data/nodeFeatures';
-import { setGateState } from '../lib/gateStorage';
 import { runPreExecTheater, theaterDuration } from '../utils/preExecTheater.js';
 import { doctrineLogLines } from '../data/kernelDoctrines';
 
@@ -1160,20 +1159,6 @@ export function useCommandDispatch(ctx) {
         `  SANCTUARY :: Period-3 window opening · the chaos has a still center`,
       );
       setSanctuaryOpen?.(true);
-      return;
-    }
-
-    // ── reset_gate ────────────────────────────────────────────────────────────
-    // Dev utility — clears the localStorage gate flag so the entry ceremony
-    // fires again on next load. Not in autocomplete; not discoverable by users.
-    if (action === 'reset_gate') {
-      log(`COMMAND: ${rawCmd}`);
-      setGateState(null);
-      logs(
-        `  GATE_RESET :: scale94.gate cleared from localStorage`,
-        `  Reloading in 600ms — the gate will fire on next mount...`,
-      );
-      setTimeout(() => window.location.reload(), 600);
       return;
     }
 

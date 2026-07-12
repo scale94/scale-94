@@ -40,7 +40,6 @@ import BreachProtocol       from './components/BreachProtocol';
 import SanctuaryOverlay     from './components/SanctuaryOverlay';
 import MercuryEyeIndicator  from './components/MercuryEyeIndicator';
 import KuramotoVisualizer   from './components/KuramotoVisualizer';
-import GateOverlay from './components/GateOverlay';
 import { emit as emitObs } from '../observatory/observatoryBus';
 
 // Hooks
@@ -48,12 +47,8 @@ import useSystemLog           from './hooks/useSystemLog';
 import { useCommandDispatch } from './hooks/useCommandDispatch';
 import { useAutocomplete }    from './hooks/useAutocomplete';
 import { useEcologicalRam }   from './hooks/useEcologicalRam';
-import usePhantomTyper        from './hooks/usePhantomTyper';
-import useTourSequence        from './hooks/useTourSequence';
-import usePossessionSequence  from './hooks/usePossessionSequence';
 import { getVerdictCount }    from './ledger/verdictStore';
 import { normalizeQuery }     from '../lib/normalize';
-import { getGateState, setGateState } from './lib/gateStorage';
 import { setPanopticonCorpus } from './lib/panopticon';
 
 // KernelTab — static import (landing tab, always needed, avoids .df.js chunk on Firefox Android)
@@ -157,20 +152,9 @@ const App = () => {
   const [dynamicData,  setDynamicData]  = useState(null);
   // Mobile chrome visibility — fades out after 3s of no touch, fades in on touch
   const [mobileChrome, setMobileChrome] = useState(true);
-  // Gate + possession state
-  const [gateState, _setGateStateInternal] = useState(() => getGateState()); // null | 'passed' | 'failed'
-  const [possessionActive, setPossessionActive] = useState(false);
-  const [possessionCountdown, setPossessionCountdown] = useState(0);
-
-  const persistGateState = useCallback((value) => {
-    justResolvedGate.current = true;
-    _setGateStateInternal(value);
-    setGateState(value);
-  }, []);
-
   const { appendSystemLog, setSystemLogs, visibleLogs, logRef } = useSystemLog();
   // RAM — ecological entropy model §1.3: cost maps to planetary footprint
-  const { ramPct, ecoCost, applyEcoCost, applyRefill, applyAlienBlessing, latticeState, isCritical, isWarning, isRefillReady } = useEcologicalRam({ appendSystemLog });
+  const { ramPct, ecoCost, applyEcoCost, applyRefill, latticeState, isCritical, isWarning, isRefillReady } = useEcologicalRam({ appendSystemLog });
 
   // ── CAS dynamic data derivation ──────────────────────────────────────────────
   // Merge priority (highest → lowest):
@@ -290,7 +274,6 @@ const App = () => {
   const mainRef = useRef(null);
   const mobileChromeTimerRef = useRef(null);
   const terminalInputRef = useRef(null);  // ref to the footer terminal input
-  const justResolvedGate = useRef(false); // true only in the render cycle after gate resolves
   // Abort token for handleKernelClick — invalidates in-flight loads when a
   // new one is started (e.g. user rapidly clicks two kernels in quick succession).
   const loadAbortRef = useRef(null);
@@ -777,9 +760,8 @@ const App = () => {
     }
   };
 
-  // Shared command-execution path: used by the terminal keydown handler
-  // AND the phantom-typing hooks (tour + possession). Parses the raw command
-  // the same way submitCommand does, then dispatches.
+  // Shared command-execution path: parses the raw command the same way
+  // submitCommand does, then dispatches.
   const runRawCommand = useCallback((raw) => {
     const rawCmd = (raw ?? '').trim();
     if (!rawCmd) return;
@@ -791,34 +773,6 @@ const App = () => {
     const now = fmtTime();
     dispatchCommand(action, query, rawCmd, now);
   }, [dispatchCommand]);
-
-  const phantom = usePhantomTyper({ setCommandInput, runRawCommand });
-
-  useTourSequence({
-    active: gateState === 'passed' && justResolvedGate.current && !possessionActive,
-    phantom,
-    inputRef: terminalInputRef,
-    appendSystemLog,
-    onDone: () => { /* one-shot */ },
-  });
-
-  usePossessionSequence({
-    active: gateState === 'failed' && justResolvedGate.current,
-    phantom,
-    appendSystemLog,
-    setPossessionActive,
-    setPossessionCountdown,
-    onDone: () => { justResolvedGate.current = false; },
-  });
-
-  // When gate is passed (correct perihelion answer), the alien grants full RAM.
-  // Fires on first mount if already passed (returning visitor) and on fresh pass.
-  const alienBlessingFiredRef = useRef(false);
-  useEffect(() => {
-    if (gateState !== 'passed' || alienBlessingFiredRef.current) return;
-    alienBlessingFiredRef.current = true;
-    applyAlienBlessing();
-  }, [gateState, applyAlienBlessing]);
 
   const submitCommand = () => {
     setSuggestions([]);
@@ -864,14 +818,6 @@ const App = () => {
           <div className="tab-glitch-layer tab-glitch-cyan" />
           <div className="tab-glitch-layer tab-glitch-lime" />
         </div>
-      )}
-
-      {/* ── Gate overlay — shown after boot completes on first load ─────────── */}
-      {gateState === null && !bootSequence && (
-        <GateOverlay onResult={(passed) => {
-          persistGateState(passed ? 'passed' : 'failed');
-          emitObs('edge', 'gate_answered', { result: passed ? 'BLESSED' : 'REJECTED' });
-        }} />
       )}
 
       {/* ── Boot sequence — unmounts when onDone fires ─────────────────────── */}
@@ -1247,7 +1193,6 @@ const App = () => {
               mobileChrome={mobileChrome}
               mobileAutoRun={mobileAutoRun}
               bootDone={bootRevealed}
-              possessionActive={possessionActive}
               onNavigateToMercury={() => handleNav('~/system/mercury', 'mercury')}
             />
           )}
@@ -1463,11 +1408,6 @@ const App = () => {
 
           {/* Prompt + input — active on all tabs including kernel home */}
           <div className="flex items-center gap-2 flex-grow min-w-0 relative">
-            {possessionActive && (
-              <div className="absolute bottom-full left-0 right-0 mb-0.5 font-mono text-[11px] text-red-400 uppercase tracking-widest px-2">
-                ⚠ TERMINAL COMPROMISED :: T-{String(possessionCountdown).padStart(2, '0')} s
-              </div>
-            )}
             <span className="text-fuchsia-500 hidden md:inline shrink-0" aria-hidden="true">scale@node:~$</span>
             <span className="text-fuchsia-500 md:hidden shrink-0" aria-hidden="true">~$</span>
             <label htmlFor="terminal-input" className="sr-only">Enter terminal command</label>
@@ -1476,14 +1416,13 @@ const App = () => {
               ref={terminalInputRef}
               type="text"
               value={commandInput}
-              readOnly={possessionActive}
               onChange={handleInputChange}
               onKeyDown={handleCommand}
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="none"
               spellCheck={false}
-              className={`bg-transparent border-none outline-none flex-grow text-cyan-400 placeholder-cyan-900/50 font-bold${possessionActive ? ' ring-1 ring-red-500/60 border-red-500/60' : ''}`}
+              className="bg-transparent border-none outline-none flex-grow text-cyan-400 placeholder-cyan-900/50 font-bold"
               placeholder="enter command (e.g. load soma-9.0)"
             />
             <button
