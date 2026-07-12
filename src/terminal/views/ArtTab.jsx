@@ -36,6 +36,8 @@ import { ecoDataFeed } from '../data/EcoDataFeed';
 import { ecocideBus } from './EcocideTab';
 import { colliderBus } from './LatentCollider';
 import { emit as emitObs } from '../../observatory/observatoryBus';
+import { getSpine } from '../quintessence/spineStore';
+import { trendToPressure, R_CHAOS } from '../quintessence/engineWitness';
 import { nodeColor }   from '../data/kernelColorMap';
 import {
   MAX_PARTICLES,
@@ -2128,6 +2130,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       setPhaseRegime(event.to);
       setPhaseR(event.r);
       setPhaseLyap(event.lyapunov);
+      // Quintessence witness (chaos spec §3) — the sphere's cascade testifies
+      emitObs('gaze', 'art_regime', { r: event.r, lyapunov: event.lyapunov, regime: event.to });
       // State-driven flash — the void acknowledges the transition
       bgFlashRef.current = event.to === 'CHAOS' ? 1.0 : 0.6;
       // Sonify phase transitions
@@ -2776,6 +2780,30 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           <span>{'E = '}<span style={{ color: 'rgba(167,139,250,0.8)' }}>{(getFieldEnergy?.() ?? 0).toFixed(4)}</span></span>
           <span>{'δ = '}<span style={{ color: 'rgba(255,215,0,0.5)' }}>{'4.669201609'}</span></span>
         </div>
+        {/* Twin cascade (chaos spec §4) — sphere r vs the trend-driven engine r.
+          * Reads getSpine() at render: the tab remounts on every tab switch,
+          * so the armed trend is always fresh. No subscription needed. */}
+        {(() => {
+          const trend   = getSpine().trend;
+          const engineR = trend ? trendToPressure(trend.velocity) : null;
+          const dr      = engineR != null ? phaseR - engineR : null;
+          return (
+            <div className="mt-1 flex gap-4 flex-wrap" style={{ color: 'rgba(255,255,255,0.45)' }}>
+              <span>{'CASCADE ∷ sphere r='}<span style={{ color: 'rgba(255,215,0,0.85)' }}>{phaseR.toFixed(3)}</span></span>
+              <span>{'engine r='}
+                {engineR != null
+                  ? <span style={{ color: 'rgba(212,168,42,0.9)' }}>{engineR.toFixed(3)}</span>
+                  : <span style={{ color: 'rgba(255,255,255,0.25)' }}>∅ unwitnessed</span>}
+              </span>
+              {dr != null && (
+                <span>{'Δr='}<span style={{ color: dr >= 0 ? 'rgba(239,68,68,0.9)' : 'rgba(34,197,94,0.8)' }}>
+                  {(dr >= 0 ? '+' : '') + dr.toFixed(3)}
+                </span></span>
+              )}
+              <span>{'r∞='}<span style={{ color: 'rgba(255,215,0,0.5)' }}>{R_CHAOS.toFixed(4)}</span></span>
+            </div>
+          );
+        })()}
         <div className="mt-1" style={{ color: 'rgba(255,255,255,0.20)' }}>
           {'  ── Hopfield associative memory · logistic map x→rx(1-x) · genuine period-doubling cascade ──'}
         </div>
