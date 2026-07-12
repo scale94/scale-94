@@ -7,6 +7,7 @@ import { snapshotPeriphery } from '../quintessence/periphery';
 import { witnessEngine, trendToPressure } from '../quintessence/engineWitness';
 import { compileKernel } from '../quintessence/compileKernel';
 import { holdVolatile } from '../quintessence/volatileHold';
+import { STORAGE_KEY } from '../quintessence/sealedArtifact';
 import { drynessFor } from '../data/lunarAccords';
 
 const ELEMENTS = [
@@ -17,7 +18,6 @@ const ELEMENTS = [
 ];
 
 const STAGES = ['SPINE READ', 'PERIPHERY WITNESSED', 'ENGINE FIRED', 'HASH PRECIPITATED', 'VERDICT', 'SEALED'];
-export const STORAGE_KEY = 'quintessence_kernel_v1';
 
 export default function QuintessenceAltar({ onDeposited }) {
   const [, force] = useReducer(x => x + 1, 0);
