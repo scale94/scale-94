@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Database, GitBranch, Shield, Cpu } from 'lucide-react';
 import { getSpine, subscribeSpine, missingVertebrae } from '../quintessence/spineStore';
 import { subscribe as subscribeBus } from '../../observatory/observatoryBus';
-import { loadSealedArtifact } from '../quintessence/sealedArtifact';
+import { loadSealedArtifact, clearSealedArtifact } from '../quintessence/sealedArtifact';
 
 // ── Mini rotating sphere hero canvas ────────────────────────────────────────
 function useMiniSphere(canvasRef, fireRef) {
@@ -265,6 +265,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
   const spinTimerRef   = useRef(null);
   const pendingStopRef = useRef(false);
   const lavaTimerRef   = useRef(null);
+  const [breakingSeal, setBreakingSeal] = useState(false);
   useEffect(() => {
     if (loadingKernel) {
       clearTimeout(spinTimerRef.current);
@@ -808,28 +809,64 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
              * one quintessence kernel; [load ↗] carries the visitor to the seal.
              * Pre-compile it is the vertebrae assembly meter — never dead space. */}
             {artifact ? (
-              <li
-                onClick={toMercury}
-                className="flex flex-wrap justify-between items-center gap-y-2 border-b border-l-2 pb-3 mb-1 cursor-pointer p-2 pl-3 rounded transition-all group gap-2 border-amber-900/30 border-l-amber-500/50 hover:bg-amber-950/20"
-                style={{ animation: 'sk-kernelModuleIn 0.22s ease-out 40ms both' }}
-              >
-                <div className="flex-1 min-w-0 overflow-hidden">
-                  <div className="font-bold text-sm mb-0.5 truncate" style={{ color: '#e8d28a', textShadow: '0 0 8px rgba(212,168,42,0.25)' }}>
-                    QUINTESSENCE_KERNEL_0x{artifact.hash.slice(0, 8).toUpperCase()}
+              breakingSeal ? (
+                <li
+                  className="flex flex-wrap justify-between items-center gap-y-2 border-b border-l-2 pb-3 mb-1 p-2 pl-3 rounded gap-2 border-red-900/40 border-l-red-500/60 bg-red-950/10"
+                  style={{ animation: 'sk-kernelModuleIn 0.22s ease-out both' }}
+                >
+                  <div className="flex-1 min-w-0 overflow-hidden">
+                    <div className="font-bold text-sm mb-0.5 truncate" style={{ color: '#f87171', textShadow: '0 0 8px rgba(239,68,68,0.25)' }}>
+                      break seal 0x{artifact.hash.slice(0, 8).toUpperCase()}?
+                    </div>
+                    <div className="text-[11px] font-bold tracking-wide truncate" style={{ color: 'rgba(248,113,113,0.6)' }}>
+                      the vial is destroyed · the altar re-arms · this cannot be undone
+                    </div>
                   </div>
-                  <div className="text-xs font-bold tracking-wide truncate" style={{ color: 'rgba(212,168,42,0.78)' }}>
-                    the fifth essence · {(artifact.meta.element || 'sealed').toLowerCase()} · verdict {artifact.meta.verdict}
+                  <div className="flex items-center gap-1 shrink-0 ml-auto">
+                    <button
+                      onClick={() => { clearSealedArtifact(); setBreakingSeal(false); toMercury(); }}
+                      className="text-[9px] font-bold px-1.5 py-0.5 rounded-sm border tracking-widest whitespace-nowrap transition-all cursor-pointer border-red-500/70 text-red-300 hover:bg-red-500/10 hover:border-red-300"
+                    >
+                      [forge anew]
+                    </button>
+                    <button
+                      onClick={() => setBreakingSeal(false)}
+                      className="text-[9px] font-bold px-1.5 py-0.5 rounded-sm border tracking-widest whitespace-nowrap transition-all cursor-pointer border-zinc-600/60 text-zinc-400 hover:bg-zinc-800/40"
+                    >
+                      [keep]
+                    </button>
                   </div>
-                </div>
-                <div className="flex items-center gap-1 shrink-0 ml-auto">
-                  <div
-                    onClick={(e) => { e.stopPropagation(); toMercury(); }}
-                    className="text-[9px] font-bold px-1.5 py-0.5 rounded-sm border tracking-widest whitespace-nowrap transition-all cursor-pointer border-amber-500/60 text-amber-300 hover:bg-amber-500/10 hover:border-amber-300"
-                  >
-                    [load ↗]
+                </li>
+              ) : (
+                <li
+                  onClick={toMercury}
+                  className="flex flex-wrap justify-between items-center gap-y-2 border-b border-l-2 pb-3 mb-1 cursor-pointer p-2 pl-3 rounded transition-all group gap-2 border-amber-900/30 border-l-amber-500/50 hover:bg-amber-950/20"
+                  style={{ animation: 'sk-kernelModuleIn 0.22s ease-out 40ms both' }}
+                >
+                  <div className="flex-1 min-w-0 overflow-hidden">
+                    <div className="font-bold text-sm mb-0.5 truncate" style={{ color: '#e8d28a', textShadow: '0 0 8px rgba(212,168,42,0.25)' }}>
+                      QUINTESSENCE_KERNEL_0x{artifact.hash.slice(0, 8).toUpperCase()}
+                    </div>
+                    <div className="text-xs font-bold tracking-wide truncate" style={{ color: 'rgba(212,168,42,0.78)' }}>
+                      the fifth essence · {(artifact.meta.element || 'sealed').toLowerCase()} · verdict {artifact.meta.verdict}
+                    </div>
                   </div>
-                </div>
-              </li>
+                  <div className="flex items-center gap-1 shrink-0 ml-auto">
+                    <div
+                      onClick={(e) => { e.stopPropagation(); setBreakingSeal(true); }}
+                      className="text-[9px] font-bold px-1.5 py-0.5 rounded-sm border tracking-widest whitespace-nowrap transition-all cursor-pointer border-zinc-600/50 text-zinc-400 hover:bg-red-950/30 hover:border-red-500/50 hover:text-red-300"
+                    >
+                      [compile]
+                    </div>
+                    <div
+                      onClick={(e) => { e.stopPropagation(); toMercury(); }}
+                      className="text-[9px] font-bold px-1.5 py-0.5 rounded-sm border tracking-widest whitespace-nowrap transition-all cursor-pointer border-amber-500/60 text-amber-300 hover:bg-amber-500/10 hover:border-amber-300"
+                    >
+                      [load ↗]
+                    </div>
+                  </div>
+                </li>
+              )
             ) : (
               <li
                 onClick={toMercury}
