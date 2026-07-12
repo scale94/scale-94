@@ -7,6 +7,7 @@ import { snapshotPeriphery } from './periphery';
 import { subscribe as subscribeBus } from '../../observatory/observatoryBus';
 import { loadSealedArtifact } from './sealedArtifact';
 import { ownerOf } from './taxonomyRegistry';
+import { trendToPressure } from './engineWitness';
 
 const MONUMENT_CSS = `
 /* ── Monument pattern (Fade-Doctrine compliant) ──────────────────────
@@ -116,7 +117,14 @@ export default function ReliquaryView() {
     slot('daemon',              'daemon · element',              !!spine.element, spine.element),
     slot('house_ciphers',       'house: ciphers',                !!p.ciphers,     p.ciphers && `${p.ciphers.verifies} verified`),
     slot('house_essences',      'house: essences',               !!p.essences,    p.essences && `${p.essences.collisions} collisions`),
-    slot('house_chaos',         'house: art',                    !!p.art,         p.art && (p.art.visits != null ? `entered ${p.art.visits}×` : (p.art.chimeras ? `${p.art.chimeras} chimera${p.art.chimeras === 1 ? '' : 's'}` : 'touched'))),
+    slot('house_chaos',         'house: chaos',                  !!p.art,
+      p.art && (p.art.visits != null
+        ? `entered ${p.art.visits}×`
+        : (p.art.lastR != null
+            ? `sphere r ${Number(p.art.lastR).toFixed(2)}${spine.trend
+                ? ` · Δr ${p.art.lastR - trendToPressure(spine.trend.velocity) >= 0 ? '+' : '-'}${Math.abs(p.art.lastR - trendToPressure(spine.trend.velocity)).toFixed(2)}`
+                : ''}`
+            : (p.art.chimeras ? `${p.art.chimeras} chimera${p.art.chimeras === 1 ? '' : 's'}` : 'touched')))),
     slot('house_ecocide',       'house: ecocide',                !!(p.houses.ecocide || p.ecocideSim), p.ecocideSim?.phase ?? (p.houses.ecocide && `entered ${p.houses.ecocide}×`)),
     slot('house_ledger',        'house: ledger',                 !!(p.houses.ledger || p.ledgerVerdict), p.ledgerVerdict ?? (p.houses.ledger && `entered ${p.houses.ledger}×`)),
     slot('house_privacy',       'house: privacy',                !!p.houses.privacy, p.houses.privacy && `entered ${p.houses.privacy}×`),

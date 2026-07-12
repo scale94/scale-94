@@ -4,7 +4,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import ReliquaryView from '../ReliquaryView';
-import { _resetSpineForTests } from '../spineStore';
+import { _resetSpineForTests, setTrend } from '../spineStore';
+import { emit, _resetForTests } from '../../../observatory/observatoryBus';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -46,9 +47,38 @@ describe('ReliquaryView — the faculty roster on the schematic', () => {
     expect(container.textContent.match(/read by ⟨HISTORY⟩/g)).toHaveLength(2); // mummy·transmission, ledger
   });
 
-  it('the art house appears with its reader', () => {
+  it('the chaos house appears with its reader', () => {
     const text = container.textContent;
-    expect(text).toContain('house: art');
+    expect(text).toContain('house: chaos');
     expect(text.match(/read by ⟨AESTHETICS⟩/g)).toHaveLength(2); // essences + art
+  });
+
+  it('the chaos slot shows the waiting testimony: sphere r and Δr pre-compile', () => {
+    _resetForTests();
+    emit('gaze', 'art_regime', { r: 3.72, lyapunov: 0.021, regime: 'CHAOS' });
+    setTrend({ label: 'degrowth', velocity: 0.9 });   // engine r = trendToPressure(0.9) = 3.88
+    const c2 = document.createElement('div');
+    document.body.appendChild(c2);
+    const r2 = createRoot(c2);
+    act(() => { r2.render(<ReliquaryView />); });
+    const text = c2.textContent;
+    expect(text).toContain('sphere r 3.72');
+    expect(text).toContain('Δr -0.16');   // 3.72 - 3.88 = -0.16
+    act(() => { r2.unmount(); });
+    c2.remove();
+  });
+
+  it('a witnessed sphere with no trend shows the r with no Δr suffix', () => {
+    _resetForTests();
+    emit('gaze', 'art_regime', { r: 3.72, lyapunov: 0.021, regime: 'CHAOS' });
+    const c3 = document.createElement('div');
+    document.body.appendChild(c3);
+    const r3 = createRoot(c3);
+    act(() => { r3.render(<ReliquaryView />); });
+    const text = c3.textContent;
+    expect(text).toContain('sphere r 3.72');
+    expect(text).not.toContain('Δr');
+    act(() => { r3.unmount(); });
+    c3.remove();
   });
 });
