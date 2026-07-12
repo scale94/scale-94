@@ -104,7 +104,8 @@ mod engine_witness { /* every field None */ }`;
            periphery.art.bifurcations ? `${periphery.art.bifurcations} bifurcation${periphery.art.bifurcations === 1 ? '' : 's'}` : null,
            periphery.art.lastSim != null ? `resonance ${Number(periphery.art.lastSim).toFixed(2)}` : null,
            periphery.art.lastR != null
-             ? `sphere r ${Number(periphery.art.lastR).toFixed(2)} λ ${Number(periphery.art.lyapunov ?? 0) >= 0 ? '+' : ''}${Number(periphery.art.lyapunov ?? 0).toFixed(3)} ${periphery.art.regime ?? 'UNCLASSIFIED'}`
+             ? (() => { const lyap = Number(periphery.art.lyapunov ?? 0);
+                        return `sphere r ${Number(periphery.art.lastR).toFixed(2)} λ ${lyap >= 0 ? '+' : ''}${lyap.toFixed(3)} ${periphery.art.regime ?? 'UNCLASSIFIED'}`; })()
              : null,
           ].filter(Boolean).join(' · ') || 'the sphere touched')
     : null;
@@ -112,10 +113,11 @@ mod engine_witness { /* every field None */ }`;
   // Twin cascade (chaos spec §3): the sphere's witnessed r vs the trend-driven
   // engine r — the same logistic map, run by two hands. Absence is data.
   const sphereR = periphery.art?.lastR;
-  const twinCascade = (typeof sphereR === 'number')
-    ? (sphereR - r >= 0
-        ? `the sphere ran ahead of the world by Δr +${Math.abs(sphereR - r).toFixed(2)} — the visitor's hand outpaced the network`
-        : `the sphere trailed the world by Δr ${Math.abs(sphereR - r).toFixed(2)} — the network burned faster than the visitor`)
+  const dr = typeof sphereR === 'number' ? sphereR - r : null;
+  const twinCascade = dr != null
+    ? (dr >= 0
+        ? `the sphere ran ahead of the world by Δr +${dr.toFixed(2)} — the visitor's hand outpaced the network`
+        : `the sphere trailed the world by Δr ${(-dr).toFixed(2)} — the network burned faster than the visitor`)
     : `the twin cascade never spoke — the sphere's r was never witnessed`;
   const ledgerValue = periphery.houses.ledger ?? periphery.ledgerVerdict ?? null;
   const ledgerDesc = [
