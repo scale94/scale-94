@@ -232,7 +232,7 @@ export default function MercuryTab() {
         </div>
       )}
 
-      {/* §D — Cosmos Registry (the alien's taxonomy of the whole site) */}
+      {/* §D — Cosmos Registry (the fifth element's taxonomy of the whole site) */}
       <CosmosRegistry />
 
       {/* §C — Live observation log */}
@@ -254,7 +254,7 @@ export default function MercuryTab() {
         <p className="mt-2 text-zinc-700/70">
           {`// observation log compiled by the architect from perihelion · cathedral · forge · citadel · spire`}
           <br />
-          {`// all instruments cross-referenced against the alien's own apocrypha · which refuses citation`}
+          {`// all instruments cross-referenced against the fifth element's own apocrypha · which refuses citation`}
         </p>
       </div>
     </div>

@@ -194,7 +194,7 @@ export default function ObservationMatrix({ mercury, instruments, activePhase })
             ◈ OBSERVATION MATRIX
           </div>
           <div className="text-[7px] font-mono text-zinc-600 mt-0.5">
-            {`// ${entries.length} entries · session began ${sessionTs} · alien architect`}
+            {`// ${entries.length} entries · session began ${sessionTs} · the fifth element`}
           </div>
         </div>
         <div className="flex items-center gap-2">

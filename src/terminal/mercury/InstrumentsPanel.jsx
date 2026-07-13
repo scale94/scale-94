@@ -1,4 +1,4 @@
-// InstrumentsPanel.jsx — §A: Six alien observation instruments.
+// InstrumentsPanel.jsx — §A: Six observation instruments.
 // Outer cosmos baselines × inner mirror modulators.
 
 import ParamBar from './ParamBar';

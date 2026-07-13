@@ -1,4 +1,4 @@
-// observationLog.js — Pure functions for the alien's observation log
+// observationLog.js — Pure functions for the fifth element's observation log
 //
 // Phrase pool keyed by trigger category. Entry generator. Markdown export.
 // Triggers come from MercuryTab (phase change, minute tick, threshold crossing).
@@ -38,7 +38,7 @@ export const PHRASES = {
     'filament resonates. earth at {d_AU} AU. the spire holds tone.',
     'T_subsolar holds at {T}K. nothing moved. nothing was meant to.',
     'all six readings stable. the citadel adds another course.',
-    'the alien architect annotates the silence with a single mark.',
+    'the fifth element annotates the silence with a single mark.',
     'ion wind at nominal. earth at {d_AU} AU. the cathedral holds.',
     'subsolar face: {T}K. the forge keep does not flinch.',
     'the citadel has stood {daysToPerihelion}d since last perihelion. it is patient.',
@@ -198,7 +198,7 @@ export function buildMarkdownLog({ entries, mercury, instruments, activePhase, s
 
   return [
     `# MERCURY OBSERVATION LOG · ${ts}`,
-    `> alien architect · ${entries.length} entries · session ${fmtTime(sessionStart)} → ${fmtTime(now)}`,
+    `> the fifth element · ${entries.length} entries · session ${fmtTime(sessionStart)} → ${fmtTime(now)}`,
     `> Mercury ${mercury.heliocentricDistanceAU.toFixed(3)} AU · subsolar ${mercury.subsolarTempK.toFixed(0)} K · ${glyph} ${activePhase} phase`,
     '',
     '## CURRENT INSTRUMENTS',
@@ -209,7 +209,7 @@ export function buildMarkdownLog({ entries, mercury, instruments, activePhase, s
     '## ENTRIES',
     ...entryBlocks,
     '---',
-    `*scale94 · mercury terminal · alien architect observation log*`,
+    `*scale94 · mercury terminal · the fifth element's observation log*`,
   ].join('\n');
 }
 

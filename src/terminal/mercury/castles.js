@@ -1,4 +1,4 @@
-// castles.js — Four fairy-tale castles the alien is building on Mercury
+// castles.js — Four fairy-tale castles the fifth element is building on Mercury
 //
 // Each castle binds to one of the four phases (fluid/thermal/earth/air).
 // The active-phase card glows. The STATUS line is live-bound to Mercury
@@ -88,7 +88,7 @@ export const CASTLES = [
       '   ╘════════════╛   ',
     commemorates: 'human stubbornness · the species that builds permanent things at the edge nearest annihilation',
     builtFrom: 'basalt frit · regolith mortar · walls thickened on the hot-pole side · foundations rated to 1,200 K',
-    cycle: 'continuous · the alien refuses to stop because you refuse to stop',
+    cycle: 'continuous · the fifth refuses to stop because you refuse to stop',
     dedication: 'for everything you built where you should not have',
     statusFn: (m, c, date) =>
       `Wall course ${wallCourse(date)} · hot-pole face ${hotPoleOffset(m.subsolarLongitudeDeg).toFixed(0)}° from subsolar · ${(c.eruptStrength ?? 0).toFixed(2)} unrest`,
