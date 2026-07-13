@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useInverseEngine } from '../../hooks/useInverseEngine';
 import { ENGINE_TUNING, postUrl } from '../../lib/inverseEngine';
+import { emit as emitObs } from '../../../observatory/observatoryBus';
 
 // ── Inverse Extinction Engine — TRANSMISSION live section ────────────────────
 // Subthreshold harvest display: bandwidth gauge, signal cards, harvest status.
@@ -26,6 +27,15 @@ const cacheAge = (harvestedAt) => {
 
 const InverseEngine = () => {
   const { state, status, runHarvest } = useInverseEngine();
+  const [markedUri, setMarkedUri] = useState(null);
+
+  const markSignal = (s) => {
+    setMarkedUri(s.uri);
+    emitObs('transmissions', 'signal_marked', {
+      uri: s.uri, handle: s.handle, text: (s.text ?? '').slice(0, 140),
+      healingScore: s.healingScore ?? null, weight: s.weight ?? null,
+    });
+  };
 
   const H = state?.healingIndex ?? 0;
   const S = state?.sicknessCap ?? 0;
@@ -111,6 +121,15 @@ const InverseEngine = () => {
                         ⌁{s.healingScore ?? 0} ×{(s.weight ?? 0).toFixed(2)}
                       </span>
                       <span className="text-fuchsia-400/20">♡{s.likes ?? 0} ⟳{s.reposts ?? 0}</span>
+                      <button onClick={() => markSignal(s)} aria-label="Mark this signal for kernel compile"
+                        title="mark for kernel compile"
+                        className={`px-1.5 py-0.5 uppercase tracking-widest transition-all border ${
+                          markedUri === s.uri
+                            ? 'text-amber-300 border-amber-500/50'
+                            : 'text-fuchsia-400/40 hover:text-fuchsia-300 border-fuchsia-900/30 hover:border-fuchsia-500/40'
+                        }`}>
+                        ◈
+                      </button>
                       <a href={postUrl(s)} target="_blank" rel="noreferrer" aria-label="Open post on Bluesky"
                         className="text-fuchsia-400/40 hover:text-fuchsia-300 border border-fuchsia-900/30 hover:border-fuchsia-500/40 px-1.5 py-0.5 uppercase tracking-widest transition-all">
                         ↗

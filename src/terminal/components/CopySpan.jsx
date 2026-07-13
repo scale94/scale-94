@@ -2,7 +2,7 @@
 // Tiny clipboard affordance — click to copy, brief COPIED confirmation.
 import React from 'react';
 
-export default function CopySpan({ value, color }) {
+export default function CopySpan({ value, color, onCopy }) {
   const [copied, setCopied] = React.useState(false);
   const handleClick = () => {
     // Guarded per codebase convention (see ScalingTab) — clipboard is
@@ -10,6 +10,7 @@ export default function CopySpan({ value, color }) {
     navigator.clipboard?.writeText(value).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1200);
+      onCopy?.(value);
     });
   };
   return (

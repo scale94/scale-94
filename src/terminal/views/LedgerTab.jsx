@@ -449,6 +449,7 @@ export default function LedgerTab() {
               onApiFetch={handleApiFetch}
               apiLoading={apiLoading}
               apiError={apiError}
+              verdicts={verdicts}
             />
           )}
 

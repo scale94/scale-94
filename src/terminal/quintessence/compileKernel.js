@@ -107,6 +107,11 @@ mod engine_witness { /* every field None */ }`;
              ? (() => { const lyap = Number(periphery.art.lyapunov ?? 0);
                         return `sphere r ${Number(periphery.art.lastR).toFixed(2)} λ ${lyap >= 0 ? '+' : ''}${lyap.toFixed(3)} ${periphery.art.regime ?? 'UNCLASSIFIED'}`; })()
              : null,
+           periphery.art.resonancePair
+             ? `resonance-selected ${periphery.art.resonancePair.nodeA} × ${periphery.art.resonancePair.nodeB} (${periphery.art.resonancePair.topDim ?? 'dim unknown'})`
+             : periphery.art.selectedNode
+             ? `node selected: ${periphery.art.selectedNode.id} · ${periphery.art.selectedNode.cluster ?? '?'} · dominant ${periphery.art.selectedNode.topDim ?? '?'}`
+             : null,
           ].filter(Boolean).join(' · ') || 'the sphere touched')
     : null;
 
@@ -129,7 +134,27 @@ mod engine_witness { /* every field None */ }`;
     periphery.houses.ecocide ? `entered ${periphery.houses.ecocide}×` : null,
     periphery.ecocideSim ? `phase ${periphery.ecocideSim.phase}` : null,
     periphery.ecocideSim?.rift != null ? `metabolic rift ${Number(periphery.ecocideSim.rift).toFixed(2)}` : null,
+    periphery.ecocideSim?.growthRate != null
+      ? `growth mandate ${Number(periphery.ecocideSim.growthRate).toFixed(1)}% · ${periphery.ecocideSim.mandateActive ? 'ENGAGED' : 'unengaged'}`
+      : null,
   ].filter(Boolean).join(' · ');
+  const transmissionsDesc = [
+    `${periphery.transmissions?.count ?? 0} kernels completed`,
+    `ledger depth ${periphery.transmissions?.ledgerDepth ?? 0}`,
+    periphery.transmissions?.lastSignal
+      ? `signal marked: @${periphery.transmissions.lastSignal.handle ?? '?'} "${(periphery.transmissions.lastSignal.text ?? '').slice(0, 60)}${(periphery.transmissions.lastSignal.text ?? '').length > 60 ? '…' : ''}"`
+      : null,
+  ].filter(Boolean).join(' · ');
+  const essencesDesc = [
+    `${periphery.essences?.collisions ?? 0} collisions`,
+    `${periphery.essences?.crystallized ?? 0} crystallized`,
+    periphery.essences?.lastAccord
+      ? `latest: ${periphery.essences.lastAccord.cardName ?? '?'} (${periphery.essences.lastAccord.nodeIdA ?? '?'} × ${periphery.essences.lastAccord.nodeIdB ?? '?'}) · viability ${periphery.essences.lastAccord.vClass ?? '?'} · ${periphery.essences.lastAccord.archetype ?? 'archetype unresolved'}`
+      : null,
+  ].filter(Boolean).join(' · ');
+  const manifestoDesc = periphery.manifestoFragment
+    ? `${periphery.manifestoFragment.kind} marked${periphery.manifestoFragment.tag ? ` (${periphery.manifestoFragment.tag})` : ''}: "${periphery.manifestoFragment.text.slice(0, 80)}${periphery.manifestoFragment.text.length > 80 ? '…' : ''}"`
+    : null;
 
   const source = `\
 // ═══════════════════════════════════════════════════════════════
@@ -203,6 +228,7 @@ struct PeripheralWitness {
     transmissions: Option<&'static str>,
     house_ledger: Option<&'static str>,
     essences: Option<&'static str>,
+    house_manifesto: Option<&'static str>,
     house_chaos: Option<&'static str>,
     house_ecocide: Option<&'static str>,
     house_privacy: Option<&'static str>,
@@ -212,10 +238,12 @@ const WITNESS: PeripheralWitness = PeripheralWitness {
     // ${lensFor('house_ciphers', ctx, rng)}
 ${houseLine('ciphers', periphery.ciphers, `cryptographic proof: ${periphery.ciphers?.verifies ?? 0} verified · ${periphery.ciphers?.unlocks ?? 0} unlocked · ${periphery.ciphers?.sealed ?? 0} sealed`)}
     // ${lensFor('house_transmissions', ctx, rng)}
-${houseLine('transmissions', periphery.transmissions, `${periphery.transmissions?.count ?? 0} kernels completed · ledger depth ${periphery.transmissions?.ledgerDepth ?? 0}`)}
+${houseLine('transmissions', periphery.transmissions, transmissionsDesc)}
 ${houseLine('house_ledger', ledgerValue, ledgerDesc)}
     // ${lensFor('house_essences', ctx, rng)}
-${houseLine('essences', periphery.essences, `${periphery.essences?.collisions ?? 0} collisions · ${periphery.essences?.crystallized ?? 0} crystallized`)}
+${houseLine('essences', periphery.essences, essencesDesc)}
+    // ${lensFor('house_manifesto', ctx, rng)}
+${houseLine('house_manifesto', periphery.manifestoFragment, manifestoDesc)}
 ${houseLine('house_chaos', periphery.art, artDesc)}
     // ${twinCascade}
     // ${lensFor('house_ecocide', ctx, rng)}

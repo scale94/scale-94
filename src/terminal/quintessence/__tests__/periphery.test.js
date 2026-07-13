@@ -10,7 +10,7 @@ describe('snapshotPeriphery', () => {
     expect(p).toEqual({
       ciphers: null, transmissions: null, essences: null,
       lunarRead: null, houses: { ecocide: null, ledger: null, privacy: null, surveillance: null },
-      art: null, ecocideSim: null, ledgerVerdict: null,
+      art: null, ecocideSim: null, ledgerVerdict: null, manifestoFragment: null,
     });
   });
 
@@ -27,8 +27,8 @@ describe('snapshotPeriphery', () => {
 
     const p = snapshotPeriphery();
     expect(p.ciphers).toEqual({ sealed: 0, verifies: 1, unlocks: 1 });
-    expect(p.transmissions).toEqual({ count: 1, ledgerDepth: 3, lastKernel: 'FSF-12.1.0' });
-    expect(p.essences).toEqual({ collisions: 1, crystallized: 1, polarity: 'RADIANT' });
+    expect(p.transmissions).toEqual({ count: 1, ledgerDepth: 3, lastKernel: 'FSF-12.1.0', lastSignal: null });
+    expect(p.essences).toEqual({ collisions: 1, crystallized: 1, polarity: 'RADIANT', lastAccord: null });
     expect(p.lunarRead).toEqual({ phase: 'Waxing Gibbous', illum: 0.82 });
     expect(p.houses).toEqual({ ecocide: null, ledger: null, privacy: 1, surveillance: null });
   });
@@ -36,7 +36,7 @@ describe('snapshotPeriphery', () => {
   it('ledger-only transmissions witness has lastKernel null', () => {
     emit('transmissions', 'ledger_appended', { depth: 1 });
     const p = snapshotPeriphery();
-    expect(p.transmissions).toEqual({ count: 0, ledgerDepth: 1, lastKernel: null });
+    expect(p.transmissions).toEqual({ count: 0, ledgerDepth: 1, lastKernel: null, lastSignal: null });
   });
 
   it('a throwing bus compiles as an unwitnessed session', async () => {
@@ -53,7 +53,7 @@ describe('snapshotPeriphery', () => {
     expect(snap()).toEqual({
       ciphers: null, transmissions: null, essences: null,
       lunarRead: null, houses: { ecocide: null, ledger: null, privacy: null, surveillance: null },
-      art: null, ecocideSim: null, ledgerVerdict: null,
+      art: null, ecocideSim: null, ledgerVerdict: null, manifestoFragment: null,
     });
   });
 
@@ -66,7 +66,7 @@ describe('snapshotPeriphery', () => {
     emit('gaze', 'art_chimera', {});
     expect(snapshotPeriphery().art).toEqual({
       resonances: 1, lastSim: 0.83, bifurcations: 14, chimeras: 1,
-      lastR: null, lyapunov: null, regime: null,
+      lastR: null, lyapunov: null, regime: null, selectedNode: null, resonancePair: null,
     });
   });
 
@@ -88,12 +88,12 @@ describe('snapshotPeriphery', () => {
     emit('gaze', 'ecocide_phase', { phase: 'COLLAPSE', metabolicRift: 0.72, exergyRate: 0.1 });
     emit('transmissions', 'verdict_issued', { verdict: 'REJECTED' });
     p = snapshotPeriphery();
-    expect(p.ecocideSim).toEqual({ phase: 'COLLAPSE', rift: 0.72 });
+    expect(p.ecocideSim).toEqual({ phase: 'COLLAPSE', rift: 0.72, growthRate: null, mandateActive: null });
     expect(p.ledgerVerdict).toBe('REJECTED');
   });
 
   it('deep periphery: malformed rift compiles as null, phase still witnessed', () => {
     emit('gaze', 'ecocide_phase', { phase: 'OVERSHOOT', metabolicRift: 'not-a-number' });
-    expect(snapshotPeriphery().ecocideSim).toEqual({ phase: 'OVERSHOOT', rift: null });
+    expect(snapshotPeriphery().ecocideSim).toEqual({ phase: 'OVERSHOOT', rift: null, growthRate: null, mandateActive: null });
   });
 });

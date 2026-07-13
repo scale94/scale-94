@@ -48,7 +48,7 @@ function SeverityDot({ paramKey, value }) {
   );
 }
 
-export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch, apiLoading, apiError }) {
+export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch, apiLoading, apiError, verdicts = [] }) {
   const [form, setForm] = useState({
     lat: apiData?.lat ?? '',
     lon: apiData?.lon ?? '',
@@ -87,6 +87,20 @@ export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch,
     setForm(prev => ({ ...prev, [field]: value }));
     setErrors(prev => prev.filter(e => e.field !== field));
   }, []);
+
+  const pullPrior = useCallback((hash) => {
+    const v = verdicts.find(x => x.hash === hash);
+    if (!v) return;
+    setForm(prev => ({
+      ...prev,
+      lat: v.coordinates?.lat ?? prev.lat,
+      lon: v.coordinates?.lon ?? prev.lon,
+      siteName: v.input?.siteName ?? prev.siteName,
+      dependency: v.dependency ?? prev.dependency,
+      ...Object.fromEntries(Object.keys(PARAM_RANGES).map(key => [key, v.input?.[key] ?? prev[key]])),
+    }));
+    setErrors([]);
+  }, [verdicts]);
 
   const handleSubmit = useCallback(() => {
     // Catch empty fields BEFORE Number() converts '' → 0
@@ -187,6 +201,20 @@ export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch,
           value={form.siteName} onChange={e => update('siteName', e.target.value)}
           className="w-full mt-2 bg-black border border-teal-900/20 text-zinc-400 font-mono text-xs px-3 py-1.5 rounded-sm focus:border-teal-500 focus:outline-none transition-colors"
         />
+        {verdicts.length > 0 && (
+          <select
+            defaultValue=""
+            onChange={e => { if (e.target.value) { pullPrior(e.target.value); e.target.value = ''; } }}
+            className="w-full mt-2 bg-black border border-teal-900/20 text-teal-600 font-mono text-[9px] uppercase tracking-widest px-3 py-1.5 rounded-sm focus:border-teal-500 focus:outline-none transition-colors"
+          >
+            <option value="">[ + ] PULL PRIOR ENTRY</option>
+            {verdicts.slice(0, 25).map(v => (
+              <option key={v.hash} value={v.hash}>
+                {v.input?.siteName || `${v.coordinates?.lat?.toFixed(2)}, ${v.coordinates?.lon?.toFixed(2)}`} · {new Date(v.timestamp).toLocaleDateString()} · {v.status}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       {/* API Fetch */}

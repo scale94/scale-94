@@ -1170,7 +1170,12 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
     if (!result || domainA === null || domainB === null) return;
     const card = buildPerfumeCard(domainA, domainB, result);
     setCrystal(card);
-    // TODO(phase-b): emit('essences', 'crystallized', { kind: 'order_placed', polarity: result?.accord?.polarityClass?.label ?? null })
+    emitObs('essences', 'crystallized', {
+      kind: 'order_placed', polarity: result?.accord?.polarityClass?.label ?? null,
+      cardName: card.name, nodeIdA: result?.nodeIdA ?? null, nodeIdB: result?.nodeIdB ?? null,
+      vClass: result?.vClass ?? null, viability: result?.viability ?? null,
+      archetype: narrative?.archetype ?? null,
+    });
     try {
       const ids = JSON.parse(localStorage.getItem('ck_ids') || '[]');
       setAcquired(ids.includes(card.id));

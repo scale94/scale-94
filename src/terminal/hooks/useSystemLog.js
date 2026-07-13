@@ -4,9 +4,9 @@ const MAX_SYSTEM_LOGS = 2000;
 
 export default function useSystemLog() {
   const [systemLogs, setSystemLogs] = useState([
-    { time: new Date().toLocaleTimeString('en-US', { hour12: false }), msg: "SOMA-9.1 // GAIA BUILD — kernel initializing..." },
-    { time: new Date().toLocaleTimeString('en-US', { hour12: false }), msg: "Ostrom Protocol: boundaries sealed, governance active." },
-    { time: new Date().toLocaleTimeString('en-US', { hour12: false }), msg: "Entropy Ledger synchronized. STATUS: GALLOPING" },
+    { time: new Date().toLocaleTimeString('en-US', { hour12: false }), msg: "MERCURY TERMINAL // SCALE 9.4 — kernel initializing..." },
+    { time: new Date().toLocaleTimeString('en-US', { hour12: false }), msg: "Quintessence spine: sealed, altar synchronized." },
+    { time: new Date().toLocaleTimeString('en-US', { hour12: false }), msg: "Cosmos Registry indexed. STATUS: NOMINAL" },
     { time: new Date().toLocaleTimeString('en-US', { hour12: false }), msg: "User 'scale' authenticated." },
     { time: new Date().toLocaleTimeString('en-US', { hour12: false }), msg: "──────────────────────────────────" },
     { time: new Date().toLocaleTimeString('en-US', { hour12: false }), msg: "TERMINAL READY." },

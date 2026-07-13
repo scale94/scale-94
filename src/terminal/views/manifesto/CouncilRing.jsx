@@ -5,6 +5,7 @@ import SixteenPanel from './SixteenPanel';
 import { useCouncilCollider } from './useCouncilCollider';
 import MindSidebar from './MindSidebar';
 import CouncilSynthesisPanel from './CouncilSynthesisPanel';
+import { emit as emitObs } from '../../../observatory/observatoryBus';
 
 const CX = 320, CY = 320;
 const R_CEILING = 290;    // biophysical ceiling (outer)
@@ -229,6 +230,7 @@ export default function CouncilRing() {
           minds={seated}
           onDossier={openDossier}
           onReset={collider.reset}
+          onFragmentMarked={(payload) => emitObs('gaze', 'manifesto_fragment_marked', payload)}
         />
       )}
 

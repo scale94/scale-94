@@ -13,10 +13,10 @@ const JOURNAL_MAX = 256;
 
 function makeTotals() {
   return {
-    transmissions: { count: 0, ledgerDepth: 0, verdict: null, last: null, lastTs: 0 },
-    essences:      { count: 0, crystallized: 0, polarity: null, last: null, lastTs: 0 },
+    transmissions: { count: 0, ledgerDepth: 0, verdict: null, lastSignal: null, last: null, lastTs: 0 },
+    essences:      { count: 0, crystallized: 0, polarity: null, lastAccord: null, last: null, lastTs: 0 },
     ciphers:       { sealed: 0, verifies: 0, unlocks: 0, last: null, lastTs: 0 },
-    gaze:          { sphereClicks: 0, lastLunar: null, lastScaling: null, tabsVisited: {}, art: null, lastEcocide: null, last: null, lastTs: 0 },
+    gaze:          { sphereClicks: 0, lastLunar: null, lastScaling: null, tabsVisited: {}, art: null, lastEcocide: null, lastManifestoFragment: null, last: null, lastTs: 0 },
     edge:          { gate: 'UNANSWERED', eye: 'idle', manifestoChapter: null, last: null, lastTs: 0 },
   };
 }
@@ -51,7 +51,8 @@ export function _resetForTests() {
 // gaze.art initializes lazily on the first art event, whatever kind arrives first.
 function ensureArt(t) {
   if (!t.art) t.art = { resonances: 0, lastSim: null, bifurcations: 0, chimeras: 0,
-                        lastR: null, lyapunov: null, regime: null };
+                        lastR: null, lyapunov: null, regime: null,
+                        selectedNode: null, resonancePair: null };
   return t.art;
 }
 
@@ -66,13 +67,21 @@ function updateTotals(evt) {
       if (evt.kind === 'ledger_appended')
         t.ledgerDepth = evt.payload.depth ?? t.ledgerDepth + 1;
       if (evt.kind === 'verdict_issued') t.verdict = evt.payload.verdict ?? t.verdict;
+      if (evt.kind === 'signal_marked') t.lastSignal = evt.payload;
       break;
     case 'essences':
       if (evt.kind === 'collision_fired') {
         t.count++;
         if (evt.payload.polarity) t.polarity = evt.payload.polarity;
       }
-      if (evt.kind === 'crystallized')     t.crystallized++;
+      if (evt.kind === 'crystallized') {
+        t.crystallized++;
+        if (evt.payload.cardName) {
+          t.lastAccord = { cardName: evt.payload.cardName, nodeIdA: evt.payload.nodeIdA ?? null,
+                            nodeIdB: evt.payload.nodeIdB ?? null, vClass: evt.payload.vClass ?? null,
+                            viability: evt.payload.viability ?? null, archetype: evt.payload.archetype ?? null };
+        }
+      }
       if (evt.kind === 'polarity_shifted') t.polarity = evt.payload.polarity ?? t.polarity;
       break;
     case 'ciphers':
@@ -84,12 +93,18 @@ function updateTotals(evt) {
       if (evt.kind === 'sphere_clicked') t.sphereClicks++;
       if (evt.kind === 'lunar_read')     t.lastLunar     = evt.payload;
       if (evt.kind === 'scaling_visit')  t.lastScaling   = evt.payload;
+      if (evt.kind === 'manifesto_fragment_marked') t.lastManifestoFragment = evt.payload;
       if (evt.kind === 'tab_navigated' && evt.payload.tab)
         t.tabsVisited[evt.payload.tab] = (t.tabsVisited[evt.payload.tab] || 0) + 1;
       if (evt.kind === 'art_resonance') {
         const a = ensureArt(t);
         a.resonances++;
         if (typeof evt.payload.sim === 'number') a.lastSim = evt.payload.sim;
+        if (evt.payload.nodeA && evt.payload.nodeB)
+          a.resonancePair = { nodeA: evt.payload.nodeA, nodeB: evt.payload.nodeB, topDim: evt.payload.topDim ?? null };
+      }
+      if (evt.kind === 'art_node_selected') {
+        ensureArt(t).selectedNode = { id: evt.payload.nodeId, cluster: evt.payload.cluster ?? null, topDim: evt.payload.topDim ?? null };
       }
       if (evt.kind === 'art_bifurcation') ensureArt(t).bifurcations += evt.payload.count ?? 1;
       if (evt.kind === 'art_chimera')     ensureArt(t).chimeras++;
@@ -99,7 +114,7 @@ function updateTotals(evt) {
         if (typeof evt.payload.lyapunov === 'number') a.lyapunov = evt.payload.lyapunov;
         if (evt.payload.regime)                       a.regime   = evt.payload.regime;
       }
-      if (evt.kind === 'ecocide_phase')   t.lastEcocide = evt.payload;
+      if (evt.kind === 'ecocide_phase')   t.lastEcocide = evt.payload; // includes growthRate/mandateActive (spec: chaos/ecocide compile wiring)
       break;
     case 'edge':
       if (evt.kind === 'gate_answered')    t.gate             = evt.payload.result;

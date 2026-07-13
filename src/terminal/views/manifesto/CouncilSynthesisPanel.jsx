@@ -21,7 +21,7 @@ function Section({ title, color, revealed, children }) {
 const rowStyle = { fontFamily: MONO, fontSize: 11, color: 'rgba(232,232,240,0.85)', lineHeight: 1.6, marginTop: 6 };
 const dimTagStyle = (c) => ({ color: c, fontSize: 10, letterSpacing: '0.1em' });
 
-export default function CouncilSynthesisPanel({ record, onDossier, onReset, minds }) {
+export default function CouncilSynthesisPanel({ record, onDossier, onReset, minds, onFragmentMarked }) {
   const [stage, setStage] = useState(0);
   const trajColor = record.metrics.trajectory === 'FOUNDATION' ? '#FF0088' : '#00FFAA';
 
@@ -111,14 +111,16 @@ export default function CouncilSynthesisPanel({ record, onDossier, onReset, mind
           <div key={`s${i}`} style={rowStyle}>
             <span style={dimTagStyle('#FFD700')}>⊙ SANCTUARY</span> {s.narrative}
             <div style={{ marginTop: 2 }}>
-              ⌗ <CopySpan value={s.seed} color="#FFD700" />
+              ⌗ <CopySpan value={s.seed} color="#FFD700"
+                  onCopy={(text) => onFragmentMarked?.({ text, kind: 'sanctuary', tag: s.narrative })} />
             </div>
           </div>
         ))}
         {seeds.map((s, i) => (
           <div key={`seed${i}`} style={rowStyle}>
             <span style={dimTagStyle('rgba(120,140,200,0.8)')}>[{s.source}]</span>{' '}
-            <CopySpan value={s.text} color="rgba(232,232,240,0.9)" />
+            <CopySpan value={s.text} color="rgba(232,232,240,0.9)"
+              onCopy={(text) => onFragmentMarked?.({ text, kind: 'mind_seed', tag: s.source })} />
           </div>
         ))}
       </Section>

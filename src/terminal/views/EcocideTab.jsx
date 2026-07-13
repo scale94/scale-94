@@ -486,7 +486,7 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
       ecocideBus.emit({ type: 'ECOCIDE_PHASE', phase, metabolicRift: metabolicFat, exergyRate: exergyNorm });
       if (phase !== obsPhaseRef.current) {
         obsPhaseRef.current = phase;
-        emitObs('gaze', 'ecocide_phase', { phase, metabolicRift: metabolicFat, exergyRate: exergyNorm });
+        emitObs('gaze', 'ecocide_phase', { phase, metabolicRift: metabolicFat, exergyRate: exergyNorm, growthRate: gr, mandateActive: mandateActiveRef.current });
       }
 
       // Accumulate sparkline history (capped at 80 ticks ≈ 8 s of data)

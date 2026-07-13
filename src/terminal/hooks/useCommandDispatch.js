@@ -21,6 +21,7 @@ import {
 } from '../data/nodeFeatures';
 import { runPreExecTheater, theaterDuration } from '../utils/preExecTheater.js';
 import { doctrineLogLines } from '../data/kernelDoctrines';
+import { emit as emitObs } from '../../observatory/observatoryBus';
 
 // Tab name → tab id — used by `load <tabname>` guard
 const LOAD_TAB_MAP = {
@@ -551,6 +552,7 @@ export function useCommandDispatch(ctx) {
                 decryptedAt: data.decryptedAt,
                 remainingMs: data.remainingMs,
               });
+              emitObs('ciphers', 'verify', { sessionId: data.sessionId });
               handleNav('~/system/cryptography', 'cryptography');
               setSystemLogs(prev => [...prev,
                 { time: t, msg: `  ENCLAVE_DECRYPT :: AES-256-GCM AUTH TAG VERIFIED`, rust: true },

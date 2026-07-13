@@ -1902,7 +1902,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             const result = compareNodes(next[0], next[1]);
             resonanceResultRef.current = result;
             setResonanceResult(result);
-            emitObs('gaze', 'art_resonance', { sim: result?.sim ?? null });
+            emitObs('gaze', 'art_resonance', {
+              sim: result?.sim ?? null,
+              nodeA: next[0], nodeB: next[1],
+              topDim: result?.topDims?.[0]?.name ?? null,
+            });
             ensureAudio(); somaAudio.playResonance(result?.sim ?? 0.5);
           } else {
             resonanceResultRef.current = null;
@@ -1946,6 +1950,17 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         // Show 16D analysis for this node's edges in the readout panel
         setSelectedNode(node.id);
         setLockedEdge(null);
+        {
+          const selIdx  = NODE_IDX[node.id];
+          const selFeat = selIdx != null ? FEATURES[selIdx] : null;
+          const selTopDim = selFeat
+            ? DIM_NAMES.map((nm, i) => ({ name: nm, v: selFeat[i] })).sort((a, b) => b.v - a.v)[0]
+            : null;
+          emitObs('gaze', 'art_node_selected', {
+            nodeId: node.id, cluster: node.cluster ?? null,
+            topDim: selTopDim?.name ?? null,
+          });
+        }
       }
     }
   }, [canvasCoords, nodeAt, edgeAt, fireNode, spawnEffect, onCueNode, onRunKernel, setConductor]);

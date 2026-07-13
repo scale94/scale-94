@@ -25,7 +25,7 @@ export function snapshotPeriphery() {
   const c = t?.ciphers, tr = t?.transmissions, e = t?.essences, g = t?.gaze;
 
   const ciphersSeen = (c?.sealed || 0) + (c?.verifies || 0) + (c?.unlocks || 0) > 0;
-  const transSeen   = (tr?.count || 0) + (tr?.ledgerDepth || 0) > 0;
+  const transSeen   = (tr?.count || 0) + (tr?.ledgerDepth || 0) > 0 || !!tr?.lastSignal;
   const essSeen     = (e?.count || 0) + (e?.crystallized || 0) > 0;
 
   const houses = {};
@@ -38,9 +38,9 @@ export function snapshotPeriphery() {
     ciphers: ciphersSeen
       ? { sealed: c.sealed, verifies: c.verifies, unlocks: c.unlocks } : null,
     transmissions: transSeen
-      ? { count: tr.count, ledgerDepth: tr.ledgerDepth, lastKernel: lastCompletedKernel() } : null,
+      ? { count: tr.count, ledgerDepth: tr.ledgerDepth, lastKernel: lastCompletedKernel(), lastSignal: tr.lastSignal ?? null } : null,
     essences: essSeen
-      ? { collisions: e.count, crystallized: e.crystallized, polarity: e.polarity ?? null } : null,
+      ? { collisions: e.count, crystallized: e.crystallized, polarity: e.polarity ?? null, lastAccord: e.lastAccord ?? null } : null,
     lunarRead: g?.lastLunar
       ? { phase: g.lastLunar.phase ?? null, illum: g.lastLunar.illum ?? null } : null,
     houses,
@@ -49,12 +49,16 @@ export function snapshotPeriphery() {
     art: g?.art
       ? { resonances: g.art.resonances || 0, lastSim: g.art.lastSim ?? null,
           bifurcations: g.art.bifurcations || 0, chimeras: g.art.chimeras || 0,
-          lastR: g.art.lastR ?? null, lyapunov: g.art.lyapunov ?? null, regime: g.art.regime ?? null }
+          lastR: g.art.lastR ?? null, lyapunov: g.art.lyapunov ?? null, regime: g.art.regime ?? null,
+          selectedNode: g.art.selectedNode ?? null, resonancePair: g.art.resonancePair ?? null }
       : ((g?.tabsVisited?.art || 0) > 0 ? { visits: g.tabsVisited.art } : null),
     ecocideSim: g?.lastEcocide && g.lastEcocide.phase != null
       ? { phase: g.lastEcocide.phase,
-          rift: typeof g.lastEcocide.metabolicRift === 'number' ? g.lastEcocide.metabolicRift : null }
+          rift: typeof g.lastEcocide.metabolicRift === 'number' ? g.lastEcocide.metabolicRift : null,
+          growthRate: typeof g.lastEcocide.growthRate === 'number' ? g.lastEcocide.growthRate : null,
+          mandateActive: g.lastEcocide.mandateActive ?? null }
       : null,
     ledgerVerdict: tr?.verdict ?? null,
+    manifestoFragment: g?.lastManifestoFragment ?? null,
   };
 }

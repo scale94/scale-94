@@ -124,7 +124,7 @@ describe('observatoryBus', () => {
     emit('gaze', 'art_chimera', {});
     expect(getTotals().gaze.art).toEqual({
       resonances: 1, lastSim: 0.83, bifurcations: 4, chimeras: 1,
-      lastR: null, lyapunov: null, regime: null,
+      lastR: null, lyapunov: null, regime: null, selectedNode: null, resonancePair: null,
     });
   });
 
@@ -132,7 +132,7 @@ describe('observatoryBus', () => {
     emit('gaze', 'art_chimera', {});
     expect(getTotals().gaze.art).toEqual({
       resonances: 0, lastSim: null, bifurcations: 0, chimeras: 1,
-      lastR: null, lyapunov: null, regime: null,
+      lastR: null, lyapunov: null, regime: null, selectedNode: null, resonancePair: null,
     });
   });
 
