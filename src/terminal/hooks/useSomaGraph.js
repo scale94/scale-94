@@ -264,8 +264,8 @@ export function useSomaGraph({ nodes, adj, modulationRef, initialPositionsRef })
       const childId = `${n.id}_b${Math.random().toString(36).slice(2, 6)}`;
 
       sn.push({
+        ...n,                          // inherit label/alias/cluster from parent
         id:          childId,
-        cluster:     n.cluster,        // inherit cluster → same gravity anchor
         x: cx, y: cy, z: cz,
         vx: 0,  vy: 0,  vz: 0,
         energy:      1.0,              // full birth energy → bright flash
