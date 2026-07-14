@@ -574,7 +574,7 @@ and in the existing `useEffect(() => { stateRef.current = state; … }, [state, 
 ```
 and immediately before the `float a=1.0-smoothstep(0.93,1.0,r);` line insert:
 ```
-' col*=1.0+u_pulse*0.16*sin(u_t*2.61799);',   // 2π/2.4s — the shared beat
+' col*=1.0+u_pulse*0.08*(1.0-cos(u_t*2.61799));',   // raised-cosine on 2π/2.4s — co-peaks with nav-beat's 50% keyframe
 ```
 4. Register the uniform: add `'u_pulse'` to the `['u_t','u_focus','u_irid','u_speed','c0','c1','c2','u_gaze']` array.
 5. Add to `cur`: `pulse: 0` in the `const cur = { … }` initializer; in `frame()`, after the `cur.irid` lerp add:
@@ -585,7 +585,7 @@ and immediately before the `float a=1.0-smoothstep(0.93,1.0,r);` line insert:
 ```js
       gl.uniform1f(U.u_pulse, cur.pulse);
 ```
-   and in the reduced-motion `snapRef.current` body add `cur.pulse = pulseRef.current ? 1 : 0;` before `render(0)` — but note reduced-motion renders `u_t = 0`, so the pulse term is inert there by construction (sin(0) = 0 offset — acceptable and intended: no pulse under reduced motion).
+   and in the reduced-motion `snapRef.current` body add `cur.pulse = pulseRef.current ? 1 : 0;` before `render(0)` — but note reduced-motion renders `u_t = 0`, so the pulse term is inert there by construction ((1-cos(0)) = 0, acceptable and intended: no pulse under reduced motion).
 
 - [ ] **Step 2: Pass pulse from MercuryEyeIndicator**
 

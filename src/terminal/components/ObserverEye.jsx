@@ -71,7 +71,7 @@ const FS = [
   '  rec*=1.0-smoothstep(0.90,1.0,r);',
   '  col=mix(col,rec,u_irid);',
   ' }',
-  ' col*=1.0+u_pulse*0.16*sin(u_t*2.61799);',   // 2π/2.4s — the shared beat
+  ' col*=1.0+u_pulse*0.08*(1.0-cos(u_t*2.61799));',   // raised-cosine on 2π/2.4s — co-peaks with nav-beat's 50% keyframe
   ' float a=1.0-smoothstep(0.93,1.0,r);',
   ' gl_FragColor=vec4(col,a);',
   '}'].join('\n');
