@@ -83,4 +83,39 @@ describe('QuintessenceAltar — the living altar', () => {
     act(() => { sealFor('EARTH').click(); });
     expect(onNavigate).toHaveBeenCalledWith('ecocide');
   });
+
+  it('armed: holding a seal for 1200ms starts the ignition (spine element written)', async () => {
+    vi.useFakeTimers();
+    completeSpine();
+    const seal = sealFor('FIRE');
+    act(() => { seal.dispatchEvent(new Event('pointerdown', { bubbles: true })); });
+    act(() => { vi.advanceTimersByTime(1200); });
+    // ignite() ran: the compile staging begins (grid unmounts into the stage list)
+    expect(container.textContent).toContain('SPINE READ');
+    vi.useRealTimers();
+  });
+
+  it('armed: releasing early cancels — grid intact, nothing ignites, click still walks', () => {
+    vi.useFakeTimers();
+    completeSpine();
+    const seal = sealFor('AIR');
+    act(() => { seal.dispatchEvent(new Event('pointerdown', { bubbles: true })); });
+    act(() => { vi.advanceTimersByTime(600); });
+    act(() => { seal.dispatchEvent(new Event('pointerup', { bubbles: true })); });
+    act(() => { vi.advanceTimersByTime(2000); });
+    expect(container.textContent).not.toContain('SPINE READ');
+    act(() => { seal.click(); });
+    expect(onNavigate).toHaveBeenCalledWith('transmission');
+    vi.useRealTimers();
+  });
+
+  it('keyboard: Enter opens the confirm; "walk the house" navigates', () => {
+    completeSpine();
+    const seal = sealFor('WATER');
+    act(() => { seal.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); });
+    const walk = [...container.querySelectorAll('button')].find(b => b.textContent.includes('walk the house'));
+    expect(walk).toBeTruthy();
+    act(() => { walk.click(); });
+    expect(onNavigate).toHaveBeenCalledWith('ledger');
+  });
 });

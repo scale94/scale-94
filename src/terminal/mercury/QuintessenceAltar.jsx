@@ -11,6 +11,7 @@ import { STORAGE_KEY } from '../quintessence/sealedArtifact';
 import { drynessFor } from '../data/lunarAccords';
 import { getTotals, subscribe as subscribeBus } from '../../observatory/observatoryBus';
 import ElementSeal from './ElementSeal';
+import { useHoldToSeal } from './useHoldToSeal';
 
 // Keystone (guidance spec §0): each element IS a house. Seal hue = house tab hue.
 const ELEMENTS = [
@@ -42,6 +43,9 @@ export default function QuintessenceAltar({ onDeposited, onNavigate }) {
 
   const missing = missingVertebrae();
   const armed = missing.length === 0 && stage === -1;
+
+  const hold = useHoldToSeal(elId => ignite(elId));
+  const [confirming, setConfirming] = useState(null); // element id — keyboard path
 
   async function ignite(elementId) {
     if (!armed || igniting.current) return;
@@ -122,11 +126,26 @@ export default function QuintessenceAltar({ onDeposited, onNavigate }) {
             return (
               <button key={el.id} type="button"
                 data-wet={wet ? 'true' : 'false'}
-                onClick={() => onNavigate?.(el.house)}
-                className={`border p-4 text-center font-mono transition-colors cursor-pointer ${armed
+                onPointerDown={() => { if (armed) hold.start(el.id); }}
+                onPointerUp={() => hold.cancel()}
+                onPointerLeave={() => hold.cancel()}
+                onPointerCancel={() => hold.cancel()}
+                onClick={() => { if (hold.consumedClick()) return; onNavigate?.(el.house); }}
+                onKeyDown={(e) => {
+                  if (armed && (e.key === 'Enter' || e.key === ' ')) {
+                    e.preventDefault();
+                    setConfirming(el.id);
+                  }
+                }}
+                className={`border p-4 text-center font-mono transition-colors cursor-pointer relative ${armed
                   ? 'border-amber-500/40 text-amber-200 hover:border-amber-300 hover:bg-amber-950/20'
                   : 'border-zinc-800 text-zinc-400 hover:border-zinc-600 hover:bg-zinc-900/30'}`}>
-                <ElementSeal wet={wet} tint={el.tint} armed={armed} size={72} />
+                <ElementSeal wet={wet} tint={el.tint} armed={armed}
+                  holdProgress={hold.holding === el.id ? hold.progress : 0} size={72} />
+                {hold.holding === el.id && (
+                  <div className="absolute inset-x-0 bottom-0 h-[3px] bg-amber-400/80"
+                    style={{ width: `${Math.round(hold.progress * 100)}%` }} />
+                )}
                 <div className="text-[11px] tracking-[0.3em] mt-2">{el.id}</div>
                 <div className="text-[8px] text-zinc-500 mt-1 lowercase">{el.note}</div>
               </button>
@@ -134,6 +153,28 @@ export default function QuintessenceAltar({ onDeposited, onNavigate }) {
           })}
         </div>
       )}
+
+      {stage === -1 && confirming && (() => {
+        const el = ELEMENTS.find(x => x.id === confirming);
+        return (
+          <div role="dialog" aria-label={`seal at ${el.id}?`}
+            className="mt-3 border border-amber-500/40 p-3 font-mono text-[10px] tracking-[0.2em] uppercase flex items-center gap-4">
+            <span className="text-amber-200">{el.sigil} {el.id} —</span>
+            <button type="button" autoFocus
+              onClick={() => { setConfirming(null); ignite(el.id); }}
+              className="border border-amber-400/60 px-3 py-1 text-amber-200 hover:bg-amber-950/30">
+              seal the kernel here
+            </button>
+            <button type="button"
+              onClick={() => { setConfirming(null); onNavigate?.(el.house); }}
+              className="text-zinc-400 hover:text-zinc-200 lowercase">
+              walk the house →
+            </button>
+            <button type="button" onClick={() => setConfirming(null)}
+              className="ml-auto text-zinc-600 hover:text-zinc-400 lowercase">esc</button>
+          </div>
+        );
+      })()}
 
       {stage >= 0 && stage < 6 && (
         <div aria-live="polite" className="font-mono text-[10px] tracking-[0.25em] text-amber-300/90 uppercase py-6">
