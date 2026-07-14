@@ -5,6 +5,7 @@
 // starts and never nags — a mandatory rest interlude follows every suggestion.
 import { getSpine, subscribeSpine } from './spineStore';
 import { STORAGE_KEY } from './sealedArtifact';
+import { heldVolatile } from './volatileHold';
 
 // One hue vocabulary for the whole guidance layer (mirror-flash needs all tabs).
 export const NAV_TINTS = {
@@ -43,6 +44,7 @@ function eligible() {
   const s = getSpine();
   if (s.trend || s.council || s.phase || s.element) return false;
   try { if (globalThis.localStorage?.getItem(STORAGE_KEY)) return false; } catch (_) { /* volatile is fine */ }
+  if (heldVolatile()) return false;
   return true;
 }
 

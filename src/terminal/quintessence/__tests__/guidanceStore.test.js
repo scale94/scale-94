@@ -6,6 +6,7 @@ import {
   NAV_TINTS, ELEMENT_HOUSES, _resetGuidanceForTests,
 } from '../guidanceStore';
 import { setTrend, _resetSpineForTests } from '../spineStore';
+import { STORAGE_KEY } from '../sealedArtifact';
 
 const INITIAL_REST = 15000, SUGGEST = 20000, REST_MAX = 70000;
 
@@ -96,5 +97,12 @@ describe('guidanceStore — the element curriculum', () => {
     const n = seen.length;
     vi.advanceTimersByTime(SUGGEST + REST_MAX);
     expect(seen.length).toBe(n);
+  });
+
+  it('never suggests while a sealed kernel exists', () => {
+    localStorage.setItem(STORAGE_KEY, '{"sealed":true}');
+    startGuidance();
+    vi.advanceTimersByTime(INITIAL_REST + SUGGEST + REST_MAX);
+    expect(getGuidance().suggestion).toBeNull();
   });
 });
