@@ -31,7 +31,7 @@ const DEFAULT_PARAMS = {
   spread:       1.0,
 };
 
-export default function MercuryTab() {
+export default function MercuryTab({ onNavigateTab }) {
   // The reliquary lives here now (spec §5, revised): the altar forges the seal
   // and it appears in place, below. sealNonce forces a re-read of the seal after
   // a compile; sealRef lets the altar scroll the fresh artifact into view.
@@ -221,7 +221,7 @@ export default function MercuryTab() {
       />
 
       {/* §B.5 — The Quintessence Altar (spec §4): the compile trigger */}
-      <QuintessenceAltar onDeposited={revealSeal} />
+      <QuintessenceAltar onDeposited={revealSeal} onNavigate={onNavigateTab} />
 
       {/* The seal itself — the forged artifact appears here, in place, once a
        * quintessence has been compiled (spec §5, revised: the reliquary lives on

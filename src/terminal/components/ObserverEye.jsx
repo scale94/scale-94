@@ -76,17 +76,19 @@ const FS = [
   ' gl_FragColor=vec4(col,a);',
   '}'].join('\n');
 
-export default function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, pulse = false, onClick, title, className = '', ariaLabel }) {
+export default function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, pulse = false, lens = true, constrict = null, onClick, title, className = '', ariaLabel }) {
   const canvasRef = useRef(null);
   const stateRef  = useRef(state);
   const tintRef   = useRef(tint);
   const gazeRef   = useRef(gaze);
   const pulseRef  = useRef(pulse);
+  const constrictRef = useRef(constrict);
   const snapRef   = useRef(null); // reduced-motion: repaint one frame locked to the new state
   useEffect(() => {
     stateRef.current = state; tintRef.current = tint; gazeRef.current = gaze; pulseRef.current = pulse;
+    constrictRef.current = constrict;
     snapRef.current?.();
-  }, [state, tint, gaze, pulse]);
+  }, [state, tint, gaze, pulse, constrict]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -155,7 +157,8 @@ export default function ObserverEye({ state = 'resting', size = 28, tint = null,
       const e = 1 - Math.pow(0.004, dt);
       for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) cur.cols[i][j] = lerp(cur.cols[i][j], tCols[i][j], e);
       cur.speed = lerp(cur.speed, tgt.speed, e);
-      cur.focus = lerp(cur.focus, tgt.focus, e);
+      const focusTarget = constrictRef.current != null ? Math.max(tgt.focus, constrictRef.current) : tgt.focus;
+      cur.focus = lerp(cur.focus, focusTarget, e);
       cur.irid  = lerp(cur.irid,  tgt.irid,  e);
       cur.pulse = lerp(cur.pulse, pulseRef.current ? 1 : 0, e);
       cur.gaze[0] = lerp(cur.gaze[0], tGaze[0], e);
@@ -182,7 +185,9 @@ export default function ObserverEye({ state = 'resting', size = 28, tint = null,
       if (!reduce) return;
       const { tgt, tCols, tGaze } = targets();
       cur.cols = tCols.map(c => c.slice());
-      cur.speed = tgt.speed; cur.focus = tgt.focus; cur.irid = tgt.irid;
+      cur.speed = tgt.speed;
+      cur.focus = constrictRef.current != null ? Math.max(tgt.focus, constrictRef.current) : tgt.focus;
+      cur.irid = tgt.irid;
       cur.pulse = pulseRef.current ? 1 : 0;
       cur.gaze = tGaze.slice();
       render(0);
@@ -205,19 +210,21 @@ export default function ObserverEye({ state = 'resting', size = 28, tint = null,
       title={title}
       style={{ width: size, height: size, position: 'relative', display: 'grid', placeItems: 'center', cursor: onClick ? 'pointer' : 'default', flexShrink: 0 }}
     >
-      <svg viewBox="0 0 280 280" aria-hidden="true"
-        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible', pointerEvents: 'none' }}>
-        <defs>
-          <linearGradient id="oe-hex" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#e8edf2" stopOpacity=".85" />
-            <stop offset="0.5" stopColor="#7d8b94" stopOpacity=".5" />
-            <stop offset="1" stopColor="#cfd8de" stopOpacity=".75" />
-          </linearGradient>
-        </defs>
-        <polygon points="140,30 236,85 236,195 140,250 44,195 44,85" fill="none" stroke="url(#oe-hex)" strokeWidth="1.3" />
-        <polygon points="140,44 224,92 224,188 140,236 56,188 56,92" fill="none" stroke="#9fb0b8" strokeWidth="0.5" strokeOpacity=".3" />
-      </svg>
-      <canvas ref={canvasRef} style={{ position: 'relative', zIndex: 2, width: Math.round(size * 0.58), height: Math.round(size * 0.58), display: 'block' }} />
+      {lens && (
+        <svg viewBox="0 0 280 280" aria-hidden="true"
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible', pointerEvents: 'none' }}>
+          <defs>
+            <linearGradient id="oe-hex" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="#e8edf2" stopOpacity=".85" />
+              <stop offset="0.5" stopColor="#7d8b94" stopOpacity=".5" />
+              <stop offset="1" stopColor="#cfd8de" stopOpacity=".75" />
+            </linearGradient>
+          </defs>
+          <polygon points="140,30 236,85 236,195 140,250 44,195 44,85" fill="none" stroke="url(#oe-hex)" strokeWidth="1.3" />
+          <polygon points="140,44 224,92 224,188 140,236 56,188 56,92" fill="none" stroke="#9fb0b8" strokeWidth="0.5" strokeOpacity=".3" />
+        </svg>
+      )}
+      <canvas ref={canvasRef} style={{ position: 'relative', zIndex: 2, width: Math.round(size * (lens ? 0.58 : 0.94)), height: Math.round(size * (lens ? 0.58 : 0.94)), display: 'block' }} />
     </div>
   );
 }

@@ -9,17 +9,20 @@ import { compileKernel } from '../quintessence/compileKernel';
 import { holdVolatile } from '../quintessence/volatileHold';
 import { STORAGE_KEY } from '../quintessence/sealedArtifact';
 import { drynessFor } from '../data/lunarAccords';
+import { getTotals, subscribe as subscribeBus } from '../../observatory/observatoryBus';
+import ElementSeal from './ElementSeal';
 
+// Keystone (guidance spec §0): each element IS a house. Seal hue = house tab hue.
 const ELEMENTS = [
-  { id: 'FIRE',  sigil: '△', note: 'boson · force · the mask drops'   },
-  { id: 'AIR',   sigil: '🜁', note: 'boson · carrier · the mask drops' },
-  { id: 'EARTH', sigil: '🜃', note: 'fermion · structure · armor held' },
-  { id: 'WATER', sigil: '▽', note: 'fermion · matter · armor held'    },
+  { id: 'FIRE',  sigil: '△', house: 'art',          tint: [255, 176, 32],  note: 'boson · force · the mask drops'   },
+  { id: 'AIR',   sigil: '🜁', house: 'transmission', tint: [168, 85, 247],  note: 'boson · carrier · the mask drops' },
+  { id: 'EARTH', sigil: '🜃', house: 'ecocide',      tint: [122, 184, 0],   note: 'fermion · structure · armor held' },
+  { id: 'WATER', sigil: '▽', house: 'ledger',       tint: [20, 184, 166],  note: 'fermion · matter · armor held'    },
 ];
 
 const STAGES = ['SPINE READ', 'PERIPHERY WITNESSED', 'ENGINE FIRED', 'HASH PRECIPITATED', 'VERDICT', 'SEALED'];
 
-export default function QuintessenceAltar({ onDeposited }) {
+export default function QuintessenceAltar({ onDeposited, onNavigate }) {
   const [, force] = useReducer(x => x + 1, 0);
   const [stage, setStage] = useState(-1);          // -1 idle, 0..5 compiling, 6 done
   const [result, setResult] = useState(null);
@@ -27,6 +30,15 @@ export default function QuintessenceAltar({ onDeposited }) {
   const igniting = useRef(false);
   useEffect(() => () => { alive.current = false; }, []);
   useEffect(() => subscribeSpine(force), []);
+
+  // The seals remember (spec §5): wet = house visited, read live off the witness.
+  const readVisited = () => {
+    try { return { ...getTotals().gaze.tabsVisited }; } catch (_) { return {}; } // dead bus → all dry
+  };
+  const [visited, setVisited] = useState(readVisited);
+  useEffect(() => subscribeBus(evt => {
+    if (evt.category === 'gaze' && evt.kind === 'tab_navigated') setVisited(readVisited());
+  }), []);
 
   const missing = missingVertebrae();
   const armed = missing.length === 0 && stage === -1;
@@ -93,25 +105,33 @@ export default function QuintessenceAltar({ onDeposited }) {
         four elements are bound to the earth · the fifth is compiled from your spine
       </div>
 
-      {stage === -1 && missing.length > 0 && (
+      {stage === -1 && (missing.length > 0 ? (
         <div className="text-[10px] font-mono tracking-[0.2em] text-red-400/70 uppercase">
           SPINE INCOMPLETE · {missing.join(' · ')}
         </div>
-      )}
+      ) : (
+        <div role="status" className="text-[10px] font-mono tracking-[0.2em] text-amber-300/90 uppercase">
+          [ALTAR ARMED · HOLD AN ELEMENT TO SEAL THE KERNEL]
+        </div>
+      ))}
 
       {stage === -1 && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
-          {ELEMENTS.map(el => (
-            <button key={el.id} type="button" disabled={!armed}
-              onClick={() => ignite(el.id)}
-              className={`border p-4 text-center font-mono transition-colors ${armed
-                ? 'border-amber-500/40 text-amber-200 hover:border-amber-300 hover:bg-amber-950/20 cursor-pointer'
-                : 'border-zinc-800 text-zinc-700 cursor-not-allowed'}`}>
-              <div className="text-2xl mb-2">{el.sigil}</div>
-              <div className="text-[11px] tracking-[0.3em]">{el.id}</div>
-              <div className="text-[8px] text-zinc-500 mt-1 lowercase">{el.note}</div>
-            </button>
-          ))}
+          {ELEMENTS.map(el => {
+            const wet = (visited[el.house] || 0) > 0;
+            return (
+              <button key={el.id} type="button"
+                data-wet={wet ? 'true' : 'false'}
+                onClick={() => onNavigate?.(el.house)}
+                className={`border p-4 text-center font-mono transition-colors cursor-pointer ${armed
+                  ? 'border-amber-500/40 text-amber-200 hover:border-amber-300 hover:bg-amber-950/20'
+                  : 'border-zinc-800 text-zinc-400 hover:border-zinc-600 hover:bg-zinc-900/30'}`}>
+                <ElementSeal wet={wet} tint={el.tint} armed={armed} size={72} />
+                <div className="text-[11px] tracking-[0.3em] mt-2">{el.id}</div>
+                <div className="text-[8px] text-zinc-500 mt-1 lowercase">{el.note}</div>
+              </button>
+            );
+          })}
         </div>
       )}
 

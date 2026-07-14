@@ -1315,7 +1315,7 @@ const App = () => {
 
           {/* Mercury — unified elemental phase simulation */}
           {activeTab === 'mercury' && !selectedArticle && !architectThesis && (
-            <MercuryTab />
+            <MercuryTab onNavigateTab={(tab) => handleNav('~/system/' + tab, tab)} />
           )}
 
           {/* Ledger Tab — The Open Ledger · Thermodynamic Audit Infrastructure */}
