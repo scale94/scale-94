@@ -17,6 +17,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { emit as emitObs } from '../../observatory/observatoryBus';
+import ObserverEye from './ObserverEye';
+import { getSpine, subscribeSpine } from '../quintessence/spineStore';
+import { STORAGE_KEY } from '../quintessence/sealedArtifact';
 
 // ── Observer phrase pools ────────────────────────────────────────────────────
 const OBSERVER_PHRASES_LOAD = [
@@ -78,6 +81,14 @@ const OBSERVER_PHRASES_RUN = [
   'meaning absent · cascade nominal',
 ];
 
+// Each gated vertebra → the tab where it's marked, and that tab's hue. The eye
+// leans toward the first missing one, wearing its colour.
+const VERTEBRA = [
+  { key: 'trend',   tint: [56, 189, 248] },   // BSKY
+  { key: 'council', tint: [167, 139, 250] },  // Manifesto
+  { key: 'phase',   tint: [217, 70, 239] },   // Lunar → fuchsia (distinct from council's violet)
+];
+
 export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelAt, lastLoadAt }) {
   const isOnMercury = activeTab === 'mercury';
   const [flaring,   setFlaring]   = useState(false);
@@ -88,6 +99,19 @@ export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelA
   const lastRunIdx   = useRef(-1);
   const lastLoadIdx  = useRef(-1);
   const prevLoadAt   = useRef(null);
+  const [spine, setSpine] = useState(getSpine);
+  const [sealed, setSealed] = useState(() => { try { return !!globalThis.localStorage?.getItem(STORAGE_KEY); } catch (_) { return false; } });
+
+  // ── The eye reads the compile state and reacts (Phase 3) ────────────────────
+  // Empty spine → resting (the golden record). Mark a vertebra → leaning, aimed at
+  // the next one in that tab's hue. Full spine → armed. Sealed kernel → complete.
+  useEffect(() => subscribeSpine(setSpine), []);
+  useEffect(() => {
+    const check = () => { try { setSealed(!!globalThis.localStorage?.getItem(STORAGE_KEY)); } catch (_) {} };
+    check();
+    const id = setInterval(check, 2000);
+    return () => clearInterval(id);
+  }, []);
 
   // ── Phrase picker — anti-repeat within pool ─────────────────────────────────
   function firePhrase(pool, idxRef) {
@@ -137,14 +161,15 @@ export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelA
     emitObs('edge', 'eye_phase', { phase });
   }, [flaring, deepWatch, isOnMercury]);
 
-  // ── Animation priority ──────────────────────────────────────────────────────
-  const animation = flaring
-    ? 'mei-spectrum-idle 52s linear infinite, mei-flare 1.8s ease-out forwards'
-    : isOnMercury
-      ? 'mei-spectrum-active 8s linear infinite, mei-breath-active 8s ease-in-out infinite'
-      : deepWatch
-        ? 'mei-spectrum-deep 120s linear infinite, mei-breath-deep 14s ease-in-out infinite'
-        : 'mei-spectrum-idle 52s linear infinite, mei-breath 11s ease-in-out infinite';
+  const nextVert = VERTEBRA.find(v => !spine[v.key]);
+  const anyMarked = !!(spine.trend || spine.council || spine.phase);
+  const eyeState = flaring ? 'compiling'
+    : sealed ? 'complete'
+    : !nextVert ? 'armed'
+    : anyMarked ? 'leaning'
+    : 'resting';
+  const leanTint = eyeState === 'leaning' && nextVert ? nextVert.tint : null;
+  const leanGaze = eyeState === 'leaning' ? [0.15, -0.04] : null;
 
   return (
     <div
@@ -152,13 +177,14 @@ export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelA
       onClick={onNavigate}
       role="button"
       aria-label="Open Mercury — observer view"
-      title="◉ OBSERVE"
+      title="◉ COMPILE YOUR DENIAL"
     >
-      {/* ── Observer phrase — extends leftward from the eye on kernel load/run ── */}
+      {/* ── Observer phrase — extends rightward from the eye on kernel load/run
+          (the eye is the masthead's left edge now; leftward would run off-screen) ── */}
       {phrase && (
         <div
           key={phraseKey}
-          className="absolute right-full top-1/2 px-2 py-0.5 pointer-events-none"
+          className="absolute left-full top-1/2 px-2 py-0.5 pointer-events-none"
           style={{
             animation: 'mei-phrase 5.1s ease forwards',
             background: 'rgba(0,0,0,0.88)',
@@ -166,7 +192,7 @@ export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelA
           onAnimationEnd={() => setPhrase(null)}
         >
           <span
-            className="font-mono text-[9px] tracking-[0.12em] block text-right whitespace-nowrap"
+            className="font-mono text-[9px] tracking-[0.12em] block text-left whitespace-nowrap"
             style={{ color: 'rgba(232,210,138,0.65)' }}
           >
             {phrase}
@@ -244,31 +270,35 @@ export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelA
           to   { opacity: 1; transform: translateY(0); }
         }
         @keyframes mei-phrase {
-          0%   { opacity: 0; transform: translateX(5px) translateY(-50%); }
+          0%   { opacity: 0; transform: translateX(-5px) translateY(-50%); }
           6%   { opacity: 1; transform: translateX(0)   translateY(-50%); }
           78%  { opacity: 1; transform: translateX(0)   translateY(-50%); }
           100% { opacity: 0; transform: translateX(0)   translateY(-50%); }
         }
       `}</style>
+      {/* The living eye — WebGL nebula pupil in a hexagon lens (replaces the ◉ glyph).
+          State locks its character; `animation` / the spectrum keyframes below are now
+          dead and slated for cleanup once the eye's leaning/spine wiring lands (Phase 3-4). */}
+      <ObserverEye
+        state={eyeState}
+        tint={leanTint}
+        gaze={leanGaze}
+        size={64}
+        className="transition-transform duration-300 group-hover:scale-110"
+      />
+      {/* Tooltip — only on hover, very subtle. Pulled up under the hex's lower
+          taper so both lines stay inside the h-24 masthead (top-full + margin
+          used to clip at the header's bottom edge); left-anchored since the eye
+          now sits at the masthead's left edge. */}
       <div
-        className="text-[18px] sm:text-[20px] leading-none font-black transition-transform duration-300 group-hover:scale-110"
-        style={{
-          color: '#06b6d4',
-          animation,
-        }}
-      >
-        ◉
-      </div>
-      {/* Tooltip — only on hover, very subtle */}
-      <div
-        className="absolute right-0 top-full mt-2 pointer-events-none opacity-0 group-hover:opacity-100"
+        className="absolute left-0 top-full -mt-4 pointer-events-none opacity-0 group-hover:opacity-100"
         style={{ transition: 'opacity 0.35s ease-out 0.15s' }}
       >
-        <div className="text-[9px] font-mono tracking-[0.2em] uppercase whitespace-nowrap text-right"
+        <div className="text-[9px] font-mono tracking-[0.2em] uppercase whitespace-nowrap text-left"
           style={{ color: 'rgba(232,210,138,0.75)' }}>
-          ◉ OBSERVE
+          ◉ COMPILE YOUR DENIAL
         </div>
-        <div className="text-[8px] font-mono whitespace-nowrap text-right mt-0.5"
+        <div className="text-[8px] font-mono whitespace-nowrap text-left mt-0.5"
           style={{ color: 'rgba(232,210,138,0.4)' }}>
           {isOnMercury ? 'engaged here · 9.4.castle' : 'click → mercury'}
         </div>

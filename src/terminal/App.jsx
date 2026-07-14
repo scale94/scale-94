@@ -391,7 +391,7 @@ const App = () => {
     }
     window.scrollTo(0, 0);
     document.documentElement.scrollTop = 0;
-  }, [currentPath, selectedArticle?.id, activeTab, architectThesis, tagCloudView]);
+  }, [currentPath, selectedArticle?.id, architectThesis, tagCloudView, activeTab]);
 
   // ── Scroll-linked glow: cards brighten + slide up on viewport entry ─────
   useEffect(() => {
@@ -788,7 +788,7 @@ const App = () => {
   };
 
   return (
-    <div className={`min-h-screen font-mono selection:bg-fuchsia-900 selection:text-amber-300 flex flex-col overflow-hidden relative transition-colors duration-700 ${selectedArticle || architectThesis ? 'bg-[#09090b]' : 'bg-black'} ${relicMode ? 'relic-mode' : ''}`}
+    <div className={`h-[100dvh] font-mono selection:bg-fuchsia-900 selection:text-amber-300 flex flex-col overflow-hidden relative transition-colors duration-700 ${selectedArticle || architectThesis ? 'bg-[#09090b]' : 'bg-black'} ${relicMode ? 'relic-mode' : ''}`}
       style={{ animation: activeTab === 'art' ? 'none' : 'terminal-flicker 7s ease-in-out infinite' }}
       onTouchStart={showMobileChrome}
       onTouchEnd={hideMobileChromeAfterDelay}
@@ -921,7 +921,7 @@ const App = () => {
 
       {/* ── Terminal content — springs up from singularity after boot ────────── */}
       <div
-        className="flex flex-col flex-grow"
+        className="flex flex-col flex-grow min-h-0"
         style={(() => {
           if (bootAnimDone) return {};
           const mobile = window.innerWidth <= 768;
@@ -1078,15 +1078,19 @@ const App = () => {
         </div>
       )}
 
-      <header className={`border-b border-cyan-900/30 bg-black md:bg-black/90 p-4 sticky top-0 z-40 md:backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.1)] overflow-x-hidden w-full transition-opacity duration-500 ${!mobileChrome ? 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto' : ''}`} style={{ willChange: 'opacity, transform', transform: 'translateZ(0)' }}>
-        <div className="max-w-[1800px] mx-auto flex flex-row items-center justify-between gap-4 w-full min-w-0">
-          <div className="flex items-center gap-2 group cursor-pointer shrink-0" onClick={() => handleNav('~/system/kernel', 'kernel')}>
-            <Hexagon className="w-5 h-5 text-fuchsia-500 animate-spin-slow group-hover:text-cyan-400 transition-colors" />
-            <span className="hidden md:inline font-bold tracking-widest text-lg lowercase text-[#39ff14] group-hover:text-cyan-400 transition-colors">scale_9.4</span>
-          </div>
-          {/* ── Nav + Eye: wrapper visible on all sizes; nav itself hidden on mobile so the eye remains the only child ── */}
-          <div className="flex items-center gap-3 shrink min-w-0 justify-end">
-          <nav aria-label="Main navigation" className="hidden md:flex items-center gap-1 text-[11px] font-bold tracking-normal overflow-x-auto shrink min-w-0" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+      <header className={`border-b border-cyan-900/30 bg-black md:bg-black/90 p-4 h-24 shrink-0 sticky top-0 z-40 md:backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.1)] overflow-x-hidden w-full transition-opacity duration-500 ${!mobileChrome ? 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto' : ''}`} style={{ willChange: 'opacity, transform', transform: 'translateZ(0)' }}>
+        <div className="max-w-[1800px] mx-auto flex flex-row items-center gap-4 w-full min-w-0">
+          {/* ── The Observer eye — masthead face (top-left); the terminal's identity.
+              Wordmark dissolved to the footer per decision 10.3. ── */}
+          {!bootSequence && !sanctuaryOpen && !breachOpen && (
+            <MercuryEyeIndicator
+              activeTab={activeTab}
+              onNavigate={() => handleNav('~/system/mercury', 'mercury')}
+              lastKernelAt={lastKernelAt}
+              lastLoadAt={lastLoadAt}
+            />
+          )}
+          <nav aria-label="Main navigation" className="hidden md:flex items-center gap-1 text-[11px] font-bold tracking-normal overflow-x-auto shrink min-w-0 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             <button aria-label="Kernel" aria-current={activeTab === 'kernel' ? 'page' : undefined} onClick={() => handleNav('~/system/kernel', 'kernel')} className={`${activeTab === 'kernel' ? 'bg-cyan-500 text-black shadow-[0_0_10px_rgba(6,182,212,0.5)]' : 'text-cyan-500 hover:text-cyan-200 hover:bg-cyan-900/30'} px-2 py-1 transition-all duration-300 flex items-center gap-1.5 uppercase rounded-sm whitespace-nowrap`}><Cpu className="w-3 h-3" /> /Kernel</button>
 
             <button aria-label="BSKY" aria-current={activeTab === 'bsky' ? 'page' : undefined} onClick={() => handleNav('~/system/bsky', 'bsky')} className={`${activeTab === 'bsky' ? 'bg-sky-600 text-sky-50 shadow-[0_0_12px_rgba(56,189,248,0.5)]' : 'text-sky-400/80 hover:text-sky-200 hover:bg-sky-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><NavButterflyIcon /> /BSKY</button>
@@ -1107,37 +1111,20 @@ const App = () => {
 
             <button aria-label="Ecocide" aria-current={activeTab === 'ecocide' ? 'page' : undefined} onClick={() => handleNav('~/system/ecocide', 'ecocide')} className={`${activeTab === 'ecocide' ? 'text-black shadow-[0_0_14px_rgba(122,184,0,0.55)]' : 'hover:text-lime-300 hover:bg-[#1a2d00]/40'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`} style={activeTab === 'ecocide' ? { background: 'linear-gradient(90deg,#7ab800,#3d5c00)' } : { color: 'rgba(122,184,0,0.5)' }}><Leaf className="w-3 h-3" /> /Ecocide</button>
 
-            <button aria-label="Lunar" aria-current={activeTab === 'lunar' ? 'page' : undefined} onClick={() => handleNav('~/system/lunar', 'lunar')} className={`${activeTab === 'lunar' ? 'bg-violet-900 text-violet-100 shadow-[0_0_12px_rgba(139,92,246,0.5)]' : 'text-violet-400/50 hover:text-violet-200 hover:bg-violet-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><Moon className="w-3 h-3" /> /Lunar</button>
-
-            <button
-              aria-label="Mercury"
-              aria-current={activeTab === 'mercury' ? 'page' : undefined}
-              onClick={() => handleNav('~/system/mercury', 'mercury')}
-              className={`${activeTab === 'mercury' ? 'text-zinc-100 shadow-[0_0_14px_rgba(192,192,192,0.5)]' : 'hover:text-zinc-200 hover:bg-zinc-900/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}
-              style={activeTab === 'mercury'
-                ? { background: 'linear-gradient(90deg, #707070, #c0c0c0, #707070)' }
-                : { color: 'rgba(192,192,192,0.5)' }}
-            >
-              <span style={{ fontSize: 12, lineHeight: 1 }}>◈</span> /Mercury
-            </button>
+            {/* Mercury tab removed (Observer spec, option A) — the eye in the masthead
+                is now Mercury's sole gateway. Ledger sits before Lunar so the spectrum
+                stays monotonic without Mercury's silver bridging lime→violet→teal:
+                lime → teal → violet ends the walk where a rainbow ends. */}
 
             <button aria-label="Ledger" aria-current={activeTab === 'ledger' ? 'page' : undefined} onClick={() => handleNav('~/system/ledger', 'ledger')} className={`${activeTab === 'ledger' ? 'text-black shadow-[0_0_14px_rgba(20,184,166,0.6)]' : 'hover:text-teal-200 hover:bg-teal-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`} style={activeTab === 'ledger' ? { background: 'linear-gradient(90deg,#0d9488,#14b8a6)' } : { color: 'rgba(20,184,166,0.5)' }}><span style={{ fontSize: 12, lineHeight: 1 }}>ᛟ</span> /Ledger</button>
 
+            <button aria-label="Lunar" aria-current={activeTab === 'lunar' ? 'page' : undefined} onClick={() => handleNav('~/system/lunar', 'lunar')} className={`${activeTab === 'lunar' ? 'bg-violet-900 text-violet-100 shadow-[0_0_12px_rgba(139,92,246,0.5)]' : 'text-violet-400/50 hover:text-violet-200 hover:bg-violet-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><Moon className="w-3 h-3" /> /Lunar</button>
+
           </nav>
-          {/* ── Mercury Eye — inside nav wrapper; fades with header, never overlaps Ledger ── */}
-          {!bootSequence && !sanctuaryOpen && !breachOpen && (
-            <MercuryEyeIndicator
-              activeTab={activeTab}
-              onNavigate={() => handleNav('~/system/mercury', 'mercury')}
-              lastKernelAt={lastKernelAt}
-              lastLoadAt={lastLoadAt}
-            />
-          )}
-          </div>
         </div>
       </header>
 
-      <main ref={mainRef} className="flex-grow overflow-y-auto overflow-x-hidden p-4 pb-14 md:p-8 relative z-10 scroll-smooth" style={{ scrollPaddingTop: '100px' }}>
+      <main ref={mainRef} className="flex-grow min-h-0 overflow-y-auto overflow-x-hidden p-4 pb-14 md:p-8 relative z-10 scroll-smooth" style={{ scrollPaddingTop: '100px' }}>
         <Suspense fallback={<div className="text-cyan-400 font-mono tracking-widest animate-pulse p-8">{'// LOADING MODULE...'}</div>}>
         <div className="max-w-[1800px] mx-auto">
           {/* Path breadcrumb — hidden on kernel home (tty0 is the nav there) */}
@@ -1473,17 +1460,12 @@ const App = () => {
         <button onClick={() => handleNav('~/system/ecocide', 'ecocide')} aria-label="Ecocide" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'ecocide' ? 'text-lime-400' : 'text-lime-400/50'}`}>
           <Leaf className="w-5 h-5" />
         </button>
+        {/* Mercury button removed (Observer spec, option A) — the masthead eye is the
+            gateway on mobile too. Ledger before Lunar keeps the spectrum monotonic. */}
+        <button onClick={() => handleNav('~/system/ledger', 'ledger')} aria-label="Ledger" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'ledger' ? 'text-teal-400' : 'text-teal-400/50'}`}><span style={{ fontSize: 24, lineHeight: 1 }}>ᛟ</span></button>
         <button onClick={() => handleNav('~/system/lunar', 'lunar')} aria-label="Lunar" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'lunar' ? 'text-violet-400' : 'text-violet-400/40'}`}>
           <Moon className="w-5 h-5" />
         </button>
-        <button
-          onClick={() => handleNav('~/system/mercury', 'mercury')}
-          aria-label="Mercury"
-          className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 font-mono ${activeTab === 'mercury' ? 'text-zinc-200' : 'text-zinc-500/50'}`}
-        >
-          <span style={{ fontSize: 30, lineHeight: 1 }}>◈</span>
-        </button>
-        <button onClick={() => handleNav('~/system/ledger', 'ledger')} aria-label="Ledger" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'ledger' ? 'text-teal-400' : 'text-teal-400/50'}`}><span style={{ fontSize: 24, lineHeight: 1 }}>ᛟ</span></button>
       </nav>
 
       </div>{/* end CRT content wrapper */}
