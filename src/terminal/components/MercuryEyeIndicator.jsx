@@ -20,6 +20,7 @@ import { emit as emitObs } from '../../observatory/observatoryBus';
 import ObserverEye from './ObserverEye';
 import { getSpine, subscribeSpine } from '../quintessence/spineStore';
 import { STORAGE_KEY } from '../quintessence/sealedArtifact';
+import { resolveEyeState } from './resolveEyeState';
 
 // ── Observer phrase pools ────────────────────────────────────────────────────
 const OBSERVER_PHRASES_LOAD = [
@@ -79,14 +80,6 @@ const OBSERVER_PHRASES_RUN = [
   'all structures fall · noted',
   'perspectivism yields no accord',
   'meaning absent · cascade nominal',
-];
-
-// Each gated vertebra → the tab where it's marked, and that tab's hue. The eye
-// leans toward the first missing one, wearing its colour.
-const VERTEBRA = [
-  { key: 'trend',   tint: [56, 189, 248] },   // BSKY
-  { key: 'council', tint: [167, 139, 250] },  // Manifesto
-  { key: 'phase',   tint: [217, 70, 239] },   // Lunar → fuchsia (distinct from council's violet)
 ];
 
 export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelAt, lastLoadAt }) {
@@ -161,15 +154,9 @@ export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelA
     emitObs('edge', 'eye_phase', { phase });
   }, [flaring, deepWatch, isOnMercury]);
 
-  const nextVert = VERTEBRA.find(v => !spine[v.key]);
-  const anyMarked = !!(spine.trend || spine.council || spine.phase);
-  const eyeState = flaring ? 'compiling'
-    : sealed ? 'complete'
-    : !nextVert ? 'armed'
-    : anyMarked ? 'leaning'
-    : 'resting';
-  const leanTint = eyeState === 'leaning' && nextVert ? nextVert.tint : null;
-  const leanGaze = eyeState === 'leaning' ? [0.15, -0.04] : null;
+  // Guidance (suggestion/flash) arrives in the next task; nulls preserve today's behavior.
+  const { state: eyeState, tint: leanTint, gaze: leanGaze, pulse: eyePulse } =
+    resolveEyeState({ flaring, sealed, spine, suggestion: null, flash: null });
 
   return (
     <div
