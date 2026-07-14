@@ -41,7 +41,9 @@ import SanctuaryOverlay     from './components/SanctuaryOverlay';
 import MercuryEyeIndicator  from './components/MercuryEyeIndicator';
 import KuramotoVisualizer   from './components/KuramotoVisualizer';
 import { emit as emitObs } from '../observatory/observatoryBus';
-import { notifyNav } from './quintessence/guidanceStore';
+import { notifyNav, getGuidance as getEyeGuidance, subscribeGuidance } from './quintessence/guidanceStore';
+import { getSpine as getSpineSnap, subscribeSpine as subscribeSpineSnap } from './quintessence/spineStore';
+import { pulseTabFor } from './components/resolveEyeState';
 
 // Hooks
 import useSystemLog           from './hooks/useSystemLog';
@@ -562,6 +564,17 @@ const App = () => {
     emitObs('gaze', 'tab_navigated', { tab: targetTab });
     setCurrentPath('~/' + targetTab);
   }, [originTab]);
+
+  // ── Synced tab pulse (Observer guidance spec §4): the suggested tab breathes
+  // on the eye's 2400ms beat. sealed:false is safe — sealing requires a complete
+  // spine, and a complete spine already yields pulseTab null (armed).
+  const [eyeGuidance, setEyeGuidance] = useState(getEyeGuidance);
+  const [spineSnap, setSpineSnap] = useState(getSpineSnap);
+  useEffect(() => subscribeGuidance(setEyeGuidance), []);
+  useEffect(() => subscribeSpineSnap(() => setSpineSnap(getSpineSnap())), []);
+  const pulseTab = pulseTabFor({ sealed: false, flaring: false, spine: spineSnap, suggestion: eyeGuidance.suggestion });
+  const beatDelay = useMemo(() => `-${Math.round(performance.now() % 2400)}ms`, [pulseTab]);
+  const beat = (tab) => (pulseTab === tab ? ' nav-beat' : '');
 
   const handleNav = useCallback((path, tab) => {
     setCurrentPath(path);
@@ -1084,6 +1097,19 @@ const App = () => {
 
       <header className={`border-b border-cyan-900/30 bg-black md:bg-black/90 p-4 h-24 shrink-0 sticky top-0 z-40 md:backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.1)] overflow-x-hidden w-full transition-opacity duration-500 ${!mobileChrome ? 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto' : ''}`} style={{ willChange: 'opacity, transform', transform: 'translateZ(0)' }}>
         <div className="max-w-[1800px] mx-auto flex flex-row items-center gap-4 w-full min-w-0">
+          <style>{`
+            .nav-beat {
+              animation: nav-beat 2400ms ease-in-out infinite;
+              animation-delay: var(--beat-delay, 0ms);
+            }
+            @keyframes nav-beat {
+              0%, 100% { opacity: 0.55; filter: none; }
+              50%      { opacity: 1;    filter: drop-shadow(0 0 6px currentColor); }
+            }
+            @media (prefers-reduced-motion: reduce) {
+              .nav-beat { animation: none; }
+            }
+          `}</style>
           {/* ── The Observer eye — masthead face (top-left); the terminal's identity.
               Wordmark dissolved to the footer per decision 10.3. ── */}
           {!bootSequence && !sanctuaryOpen && !breachOpen && (
@@ -1094,14 +1120,14 @@ const App = () => {
               lastLoadAt={lastLoadAt}
             />
           )}
-          <nav aria-label="Main navigation" className="hidden md:flex items-center gap-1 text-[11px] font-bold tracking-normal overflow-x-auto shrink min-w-0 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          <nav aria-label="Main navigation" className="hidden md:flex items-center gap-1 text-[11px] font-bold tracking-normal overflow-x-auto shrink min-w-0 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', '--beat-delay': beatDelay }}>
             <button aria-label="Kernel" aria-current={activeTab === 'kernel' ? 'page' : undefined} onClick={() => handleNav('~/system/kernel', 'kernel')} className={`${activeTab === 'kernel' ? 'bg-cyan-500 text-black shadow-[0_0_10px_rgba(6,182,212,0.5)]' : 'text-cyan-500 hover:text-cyan-200 hover:bg-cyan-900/30'} px-2 py-1 transition-all duration-300 flex items-center gap-1.5 uppercase rounded-sm whitespace-nowrap`}><Cpu className="w-3 h-3" /> /Kernel</button>
 
-            <button aria-label="BSKY" aria-current={activeTab === 'bsky' ? 'page' : undefined} onClick={() => handleNav('~/system/bsky', 'bsky')} className={`${activeTab === 'bsky' ? 'bg-sky-600 text-sky-50 shadow-[0_0_12px_rgba(56,189,248,0.5)]' : 'text-sky-400/80 hover:text-sky-200 hover:bg-sky-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><NavButterflyIcon /> /BSKY</button>
+            <button aria-label="BSKY" aria-current={activeTab === 'bsky' ? 'page' : undefined} onClick={() => handleNav('~/system/bsky', 'bsky')} className={`${activeTab === 'bsky' ? 'bg-sky-600 text-sky-50 shadow-[0_0_12px_rgba(56,189,248,0.5)]' : 'text-sky-400/80 hover:text-sky-200 hover:bg-sky-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap${beat('bsky')}`}><NavButterflyIcon /> /BSKY</button>
 
-            <button aria-label="Manifesto" aria-current={activeTab === 'manifesto' ? 'page' : undefined} onClick={() => handleNav('~/system/manifesto', 'manifesto')} className={`${activeTab === 'manifesto' ? 'bg-violet-900 text-violet-100 shadow-[0_0_10px_rgba(139,92,246,0.5)]' : 'text-violet-400/80 hover:text-violet-200 hover:bg-violet-900/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><Eye className="w-3 h-3" /> /Manifesto</button>
+            <button aria-label="Manifesto" aria-current={activeTab === 'manifesto' ? 'page' : undefined} onClick={() => handleNav('~/system/manifesto', 'manifesto')} className={`${activeTab === 'manifesto' ? 'bg-violet-900 text-violet-100 shadow-[0_0_10px_rgba(139,92,246,0.5)]' : 'text-violet-400/80 hover:text-violet-200 hover:bg-violet-900/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap${beat('manifesto')}`}><Eye className="w-3 h-3" /> /Manifesto</button>
 
-            <button aria-label="Transmission" aria-current={activeTab === 'transmission' ? 'page' : undefined} onClick={() => handleNav('~/system/transmission', 'transmission')} className={`${activeTab === 'transmission' ? 'bg-purple-900 text-purple-100 shadow-[0_0_10px_rgba(168,85,247,0.5)]' : 'text-purple-400/80 hover:text-purple-200 hover:bg-purple-900/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm whitespace-nowrap`}>⌖ /Transmission</button>
+            <button aria-label="Transmission" aria-current={activeTab === 'transmission' ? 'page' : undefined} onClick={() => handleNav('~/system/transmission', 'transmission')} className={`${activeTab === 'transmission' ? 'bg-purple-900 text-purple-100 shadow-[0_0_10px_rgba(168,85,247,0.5)]' : 'text-purple-400/80 hover:text-purple-200 hover:bg-purple-900/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm whitespace-nowrap${beat('transmission')}`}>⌖ /Transmission</button>
 
             <button aria-label="Scaling" aria-current={activeTab === 'scaling' ? 'page' : undefined} onClick={() => handleNav('~/system/scaling', 'scaling')} className={`${activeTab === 'scaling' ? 'bg-fuchsia-500 text-black shadow-[0_0_10px_rgba(217,70,239,0.5)]' : 'text-fuchsia-500 hover:text-fuchsia-200 hover:bg-fuchsia-900/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><Scale className="w-3 h-3" /> /Scaling</button>
 
@@ -1111,18 +1137,18 @@ const App = () => {
 
             <button aria-label="Cryptography" aria-current={activeTab === 'cryptography' ? 'page' : undefined} onClick={() => handleNav('~/system/cryptography', 'cryptography')} className={`${activeTab === 'cryptography' ? 'bg-orange-950 text-orange-200 shadow-[0_0_12px_rgba(249,115,22,0.5)]' : 'text-orange-500/70 hover:text-orange-300 hover:bg-orange-950/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><KeyRound className="w-3 h-3" /> /Cryptography</button>
 
-            <button aria-label="Chaos" aria-current={activeTab === 'art' ? 'page' : undefined} onClick={() => handleNav('~/system/art', 'art')} className={`${activeTab === 'art' ? 'text-black shadow-[0_0_14px_rgba(255,215,0,0.6)]' : 'hover:text-amber-300 hover:bg-amber-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`} style={activeTab === 'art' ? { background: 'linear-gradient(90deg,#FF8C00,#FFD700)' } : { color: 'rgba(251,191,36,0.6)' }}><Waves className="w-3 h-3" /> /Chaos</button>
+            <button aria-label="Chaos" aria-current={activeTab === 'art' ? 'page' : undefined} onClick={() => handleNav('~/system/art', 'art')} className={`${activeTab === 'art' ? 'text-black shadow-[0_0_14px_rgba(255,215,0,0.6)]' : 'hover:text-amber-300 hover:bg-amber-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap${beat('art')}`} style={activeTab === 'art' ? { background: 'linear-gradient(90deg,#FF8C00,#FFD700)' } : { color: 'rgba(251,191,36,0.6)' }}><Waves className="w-3 h-3" /> /Chaos</button>
 
-            <button aria-label="Ecocide" aria-current={activeTab === 'ecocide' ? 'page' : undefined} onClick={() => handleNav('~/system/ecocide', 'ecocide')} className={`${activeTab === 'ecocide' ? 'text-black shadow-[0_0_14px_rgba(122,184,0,0.55)]' : 'hover:text-lime-300 hover:bg-[#1a2d00]/40'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`} style={activeTab === 'ecocide' ? { background: 'linear-gradient(90deg,#7ab800,#3d5c00)' } : { color: 'rgba(122,184,0,0.5)' }}><Leaf className="w-3 h-3" /> /Ecocide</button>
+            <button aria-label="Ecocide" aria-current={activeTab === 'ecocide' ? 'page' : undefined} onClick={() => handleNav('~/system/ecocide', 'ecocide')} className={`${activeTab === 'ecocide' ? 'text-black shadow-[0_0_14px_rgba(122,184,0,0.55)]' : 'hover:text-lime-300 hover:bg-[#1a2d00]/40'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap${beat('ecocide')}`} style={activeTab === 'ecocide' ? { background: 'linear-gradient(90deg,#7ab800,#3d5c00)' } : { color: 'rgba(122,184,0,0.5)' }}><Leaf className="w-3 h-3" /> /Ecocide</button>
 
             {/* Mercury tab removed (Observer spec, option A) — the eye in the masthead
                 is now Mercury's sole gateway. Ledger sits before Lunar so the spectrum
                 stays monotonic without Mercury's silver bridging lime→violet→teal:
                 lime → teal → violet ends the walk where a rainbow ends. */}
 
-            <button aria-label="Ledger" aria-current={activeTab === 'ledger' ? 'page' : undefined} onClick={() => handleNav('~/system/ledger', 'ledger')} className={`${activeTab === 'ledger' ? 'text-black shadow-[0_0_14px_rgba(20,184,166,0.6)]' : 'hover:text-teal-200 hover:bg-teal-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`} style={activeTab === 'ledger' ? { background: 'linear-gradient(90deg,#0d9488,#14b8a6)' } : { color: 'rgba(20,184,166,0.5)' }}><span style={{ fontSize: 12, lineHeight: 1 }}>ᛟ</span> /Ledger</button>
+            <button aria-label="Ledger" aria-current={activeTab === 'ledger' ? 'page' : undefined} onClick={() => handleNav('~/system/ledger', 'ledger')} className={`${activeTab === 'ledger' ? 'text-black shadow-[0_0_14px_rgba(20,184,166,0.6)]' : 'hover:text-teal-200 hover:bg-teal-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap${beat('ledger')}`} style={activeTab === 'ledger' ? { background: 'linear-gradient(90deg,#0d9488,#14b8a6)' } : { color: 'rgba(20,184,166,0.5)' }}><span style={{ fontSize: 12, lineHeight: 1 }}>ᛟ</span> /Ledger</button>
 
-            <button aria-label="Lunar" aria-current={activeTab === 'lunar' ? 'page' : undefined} onClick={() => handleNav('~/system/lunar', 'lunar')} className={`${activeTab === 'lunar' ? 'bg-violet-900 text-violet-100 shadow-[0_0_12px_rgba(139,92,246,0.5)]' : 'text-violet-400/50 hover:text-violet-200 hover:bg-violet-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><Moon className="w-3 h-3" /> /Lunar</button>
+            <button aria-label="Lunar" aria-current={activeTab === 'lunar' ? 'page' : undefined} onClick={() => handleNav('~/system/lunar', 'lunar')} className={`${activeTab === 'lunar' ? 'bg-violet-900 text-violet-100 shadow-[0_0_12px_rgba(139,92,246,0.5)]' : 'text-violet-400/50 hover:text-violet-200 hover:bg-violet-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap${beat('lunar')}`}><Moon className="w-3 h-3" /> /Lunar</button>
 
           </nav>
         </div>
@@ -1431,19 +1457,19 @@ const App = () => {
       <nav
         aria-label="Mobile navigation"
         className={`md:hidden fixed bottom-0 left-0 right-0 z-50 h-14 border-t border-cyan-900/40 bg-black flex overflow-x-auto transition-opacity duration-500 ${!mobileChrome ? 'opacity-0 pointer-events-none' : ''}`}
-        style={{ willChange: 'opacity, transform', transform: 'translateZ(0)', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        style={{ willChange: 'opacity, transform', transform: 'translateZ(0)', scrollbarWidth: 'none', msOverflowStyle: 'none', '--beat-delay': beatDelay }}
       >
         <style>{`nav[aria-label="Mobile navigation"]::-webkit-scrollbar { display: none; }`}</style>
         <button onClick={() => handleNav('~/system/kernel', 'kernel')} aria-label="Kernel" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'kernel' ? 'text-cyan-400' : 'text-cyan-400/50'}`}>
           <Cpu className="w-5 h-5" />
         </button>
-        <button onClick={() => handleNav('~/system/bsky', 'bsky')} aria-label="BSKY" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'bsky' ? 'text-sky-400' : 'text-sky-400/50'}`}>
+        <button onClick={() => handleNav('~/system/bsky', 'bsky')} aria-label="BSKY" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'bsky' ? 'text-sky-400' : 'text-sky-400/50'}${beat('bsky')}`}>
           <NavButterflyIcon size="lg" />
         </button>
-        <button onClick={() => handleNav('~/system/manifesto', 'manifesto')} aria-label="Manifesto" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'manifesto' ? 'text-violet-400' : 'text-violet-400/50'}`}>
+        <button onClick={() => handleNav('~/system/manifesto', 'manifesto')} aria-label="Manifesto" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'manifesto' ? 'text-violet-400' : 'text-violet-400/50'}${beat('manifesto')}`}>
           <Eye className="w-5 h-5" />
         </button>
-        <button onClick={() => handleNav('~/system/transmission', 'transmission')} aria-label="Transmission" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'transmission' ? 'text-purple-400' : 'text-purple-400/50'}`}>
+        <button onClick={() => handleNav('~/system/transmission', 'transmission')} aria-label="Transmission" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'transmission' ? 'text-purple-400' : 'text-purple-400/50'}${beat('transmission')}`}>
           <Radio className="w-5 h-5" />
         </button>
         <button onClick={() => handleNav('~/system/scaling', 'scaling')} aria-label="Scaling" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'scaling' ? 'text-fuchsia-400' : 'text-fuchsia-400/50'}`}>
@@ -1458,16 +1484,16 @@ const App = () => {
         <button onClick={() => handleNav('~/system/cryptography', 'cryptography')} aria-label="Cryptography" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'cryptography' ? 'text-orange-400' : 'text-orange-400/50'}`}>
           <KeyRound className="w-5 h-5" />
         </button>
-        <button onClick={() => handleNav('~/system/art', 'art')} aria-label="Chaos" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'art' ? 'text-amber-400' : 'text-amber-400/40'}`}>
+        <button onClick={() => handleNav('~/system/art', 'art')} aria-label="Chaos" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'art' ? 'text-amber-400' : 'text-amber-400/40'}${beat('art')}`}>
           <Waves className="w-5 h-5" />
         </button>
-        <button onClick={() => handleNav('~/system/ecocide', 'ecocide')} aria-label="Ecocide" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'ecocide' ? 'text-lime-400' : 'text-lime-400/50'}`}>
+        <button onClick={() => handleNav('~/system/ecocide', 'ecocide')} aria-label="Ecocide" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'ecocide' ? 'text-lime-400' : 'text-lime-400/50'}${beat('ecocide')}`}>
           <Leaf className="w-5 h-5" />
         </button>
         {/* Mercury button removed (Observer spec, option A) — the masthead eye is the
             gateway on mobile too. Ledger before Lunar keeps the spectrum monotonic. */}
-        <button onClick={() => handleNav('~/system/ledger', 'ledger')} aria-label="Ledger" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'ledger' ? 'text-teal-400' : 'text-teal-400/50'}`}><span style={{ fontSize: 24, lineHeight: 1 }}>ᛟ</span></button>
-        <button onClick={() => handleNav('~/system/lunar', 'lunar')} aria-label="Lunar" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'lunar' ? 'text-violet-400' : 'text-violet-400/40'}`}>
+        <button onClick={() => handleNav('~/system/ledger', 'ledger')} aria-label="Ledger" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'ledger' ? 'text-teal-400' : 'text-teal-400/50'}${beat('ledger')}`}><span style={{ fontSize: 24, lineHeight: 1 }}>ᛟ</span></button>
+        <button onClick={() => handleNav('~/system/lunar', 'lunar')} aria-label="Lunar" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'lunar' ? 'text-violet-400' : 'text-violet-400/40'}${beat('lunar')}`}>
           <Moon className="w-5 h-5" />
         </button>
       </nav>

@@ -38,7 +38,7 @@ function deriveCols(t) {
 const VS = 'attribute vec2 a;varying vec2 v;void main(){v=a;gl_Position=vec4(a,0.,1.);}';
 const FS = [
   'precision highp float;varying vec2 v;',
-  'uniform float u_t,u_focus,u_irid,u_speed;uniform vec3 c0,c1,c2;uniform vec2 u_gaze;',
+  'uniform float u_t,u_focus,u_irid,u_speed,u_pulse;uniform vec3 c0,c1,c2;uniform vec2 u_gaze;',
   'float hash(vec2 p){p=fract(p*vec2(123.34,345.45));p+=dot(p,p+34.5);return fract(p.x*p.y);}',
   'float vn(vec2 p){vec2 i=floor(p),f=fract(p);vec2 u=f*f*(3.-2.*f);',
   ' float a=hash(i),b=hash(i+vec2(1,0)),c=hash(i+vec2(0,1)),d=hash(i+vec2(1,1));',
@@ -71,20 +71,22 @@ const FS = [
   '  rec*=1.0-smoothstep(0.90,1.0,r);',
   '  col=mix(col,rec,u_irid);',
   ' }',
+  ' col*=1.0+u_pulse*0.16*sin(u_t*2.61799);',   // 2π/2.4s — the shared beat
   ' float a=1.0-smoothstep(0.93,1.0,r);',
   ' gl_FragColor=vec4(col,a);',
   '}'].join('\n');
 
-export default function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, onClick, title, className = '', ariaLabel }) {
+export default function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, pulse = false, onClick, title, className = '', ariaLabel }) {
   const canvasRef = useRef(null);
   const stateRef  = useRef(state);
   const tintRef   = useRef(tint);
   const gazeRef   = useRef(gaze);
+  const pulseRef  = useRef(pulse);
   const snapRef   = useRef(null); // reduced-motion: repaint one frame locked to the new state
   useEffect(() => {
-    stateRef.current = state; tintRef.current = tint; gazeRef.current = gaze;
+    stateRef.current = state; tintRef.current = tint; gazeRef.current = gaze; pulseRef.current = pulse;
     snapRef.current?.();
-  }, [state, tint, gaze]);
+  }, [state, tint, gaze, pulse]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -115,7 +117,7 @@ export default function ObserverEye({ state = 'resting', size = 28, tint = null,
     gl.enableVertexAttribArray(al);
     gl.vertexAttribPointer(al, 2, gl.FLOAT, false, 0, 0);
     const U = {};
-    ['u_t','u_focus','u_irid','u_speed','c0','c1','c2','u_gaze'].forEach(n => { U[n] = gl.getUniformLocation(prog, n); });
+    ['u_t','u_focus','u_irid','u_speed','u_pulse','c0','c1','c2','u_gaze'].forEach(n => { U[n] = gl.getUniformLocation(prog, n); });
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     gl.viewport(0, 0, canvas.width, canvas.height);
@@ -123,12 +125,13 @@ export default function ObserverEye({ state = 'resting', size = 28, tint = null,
     const nrm = c => new Float32Array([c[0]/255, c[1]/255, c[2]/255]);
     const lerp = (a,b,t) => a + (b-a)*t;
     const start = STATES[stateRef.current] || STATES.resting;
-    const cur = { cols: start.cols.map(c => c.slice()), speed: start.speed, focus: start.focus, irid: start.irid, gaze: start.gaze.slice() };
+    const cur = { cols: start.cols.map(c => c.slice()), speed: start.speed, focus: start.focus, irid: start.irid, gaze: start.gaze.slice(), pulse: 0 };
 
     function render(tsec) {
       gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT);
       gl.uniform1f(U.u_t, tsec); gl.uniform1f(U.u_focus, cur.focus);
       gl.uniform1f(U.u_irid, cur.irid); gl.uniform1f(U.u_speed, cur.speed);
+      gl.uniform1f(U.u_pulse, cur.pulse);
       gl.uniform3fv(U.c0, nrm(cur.cols[0])); gl.uniform3fv(U.c1, nrm(cur.cols[1])); gl.uniform3fv(U.c2, nrm(cur.cols[2]));
       gl.uniform2fv(U.u_gaze, new Float32Array(cur.gaze));
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -154,6 +157,7 @@ export default function ObserverEye({ state = 'resting', size = 28, tint = null,
       cur.speed = lerp(cur.speed, tgt.speed, e);
       cur.focus = lerp(cur.focus, tgt.focus, e);
       cur.irid  = lerp(cur.irid,  tgt.irid,  e);
+      cur.pulse = lerp(cur.pulse, pulseRef.current ? 1 : 0, e);
       cur.gaze[0] = lerp(cur.gaze[0], tGaze[0], e);
       cur.gaze[1] = lerp(cur.gaze[1], tGaze[1], e);
       render(now / 1000);
@@ -179,6 +183,7 @@ export default function ObserverEye({ state = 'resting', size = 28, tint = null,
       const { tgt, tCols, tGaze } = targets();
       cur.cols = tCols.map(c => c.slice());
       cur.speed = tgt.speed; cur.focus = tgt.focus; cur.irid = tgt.irid;
+      cur.pulse = pulseRef.current ? 1 : 0;
       cur.gaze = tGaze.slice();
       render(0);
     };

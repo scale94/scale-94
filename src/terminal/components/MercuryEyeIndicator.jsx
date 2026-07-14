@@ -272,6 +272,7 @@ export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelA
         state={eyeState}
         tint={leanTint}
         gaze={leanGaze}
+        pulse={eyePulse}
         size={64}
         className="transition-transform duration-300 group-hover:scale-110"
       />
