@@ -20,6 +20,7 @@ import { emit as emitObs } from '../../observatory/observatoryBus';
 import ObserverEye from './ObserverEye';
 import { getSpine, subscribeSpine } from '../quintessence/spineStore';
 import { STORAGE_KEY } from '../quintessence/sealedArtifact';
+import { getGuidance, subscribeGuidance, startGuidance } from '../quintessence/guidanceStore';
 import { resolveEyeState } from './resolveEyeState';
 
 // ── Observer phrase pools ────────────────────────────────────────────────────
@@ -94,6 +95,7 @@ export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelA
   const prevLoadAt   = useRef(null);
   const [spine, setSpine] = useState(getSpine);
   const [sealed, setSealed] = useState(() => { try { return !!globalThis.localStorage?.getItem(STORAGE_KEY); } catch (_) { return false; } });
+  const [guidance, setGuidance] = useState(getGuidance);
 
   // ── The eye reads the compile state and reacts (Phase 3) ────────────────────
   // Empty spine → resting (the golden record). Mark a vertebra → leaning, aimed at
@@ -105,6 +107,7 @@ export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelA
     const id = setInterval(check, 2000);
     return () => clearInterval(id);
   }, []);
+  useEffect(() => { startGuidance(); return subscribeGuidance(setGuidance); }, []);
 
   // ── Phrase picker — anti-repeat within pool ─────────────────────────────────
   function firePhrase(pool, idxRef) {
@@ -154,9 +157,8 @@ export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelA
     emitObs('edge', 'eye_phase', { phase });
   }, [flaring, deepWatch, isOnMercury]);
 
-  // Guidance (suggestion/flash) arrives in the next task; nulls preserve today's behavior.
   const { state: eyeState, tint: leanTint, gaze: leanGaze, pulse: eyePulse } =
-    resolveEyeState({ flaring, sealed, spine, suggestion: null, flash: null });
+    resolveEyeState({ flaring, sealed, spine, suggestion: guidance.suggestion, flash: guidance.flash });
 
   return (
     <div

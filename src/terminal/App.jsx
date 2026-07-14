@@ -41,6 +41,7 @@ import SanctuaryOverlay     from './components/SanctuaryOverlay';
 import MercuryEyeIndicator  from './components/MercuryEyeIndicator';
 import KuramotoVisualizer   from './components/KuramotoVisualizer';
 import { emit as emitObs } from '../observatory/observatoryBus';
+import { notifyNav } from './quintessence/guidanceStore';
 
 // Hooks
 import useSystemLog           from './hooks/useSystemLog';
@@ -570,7 +571,10 @@ const App = () => {
         setTimeout(() => setTabGlitch(false), 180);
         // Deferred: this updater runs during render, and a synchronous bus emit
         // here setStates any mounted subscriber mid-render (React error).
-        setTimeout(() => emitObs('gaze', 'tab_navigated', { tab }), 0);
+        setTimeout(() => {
+          emitObs('gaze', 'tab_navigated', { tab });
+          notifyNav(tab);
+        }, 0);
       }
       return tab;
     });
