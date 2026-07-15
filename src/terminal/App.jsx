@@ -14,6 +14,7 @@ import AmbientParticles from './components/AmbientParticles';
 
 // Data — static (authored, always bundled)
 import kernelBuilds    from './data/kernelBuilds';
+import kernelAxioms    from './data/kernelAxioms';       // the 7 axiomatic_core laws
 import _somaArticles   from './data/articles.soma';   // hand-curated soma kernel entries
 import _miscArticles   from './data/articles.misc';   // hand-curated misc/fiction entries
 import autoArticles    from './data/loadArticles';    // Vite glob .md stubs (dev fallback)
@@ -39,20 +40,18 @@ import BreachProtocol       from './components/BreachProtocol';
 import SanctuaryOverlay     from './components/SanctuaryOverlay';
 import MercuryEyeIndicator  from './components/MercuryEyeIndicator';
 import KuramotoVisualizer   from './components/KuramotoVisualizer';
-import GateOverlay from './components/GateOverlay';
 import { emit as emitObs } from '../observatory/observatoryBus';
+import { notifyNav, getGuidance as getEyeGuidance, subscribeGuidance } from './quintessence/guidanceStore';
+import { getSpine as getSpineSnap, subscribeSpine as subscribeSpineSnap } from './quintessence/spineStore';
+import { pulseTabFor } from './components/resolveEyeState';
 
 // Hooks
 import useSystemLog           from './hooks/useSystemLog';
 import { useCommandDispatch } from './hooks/useCommandDispatch';
 import { useAutocomplete }    from './hooks/useAutocomplete';
 import { useEcologicalRam }   from './hooks/useEcologicalRam';
-import usePhantomTyper        from './hooks/usePhantomTyper';
-import useTourSequence        from './hooks/useTourSequence';
-import usePossessionSequence  from './hooks/usePossessionSequence';
 import { getVerdictCount }    from './ledger/verdictStore';
 import { normalizeQuery }     from '../lib/normalize';
-import { getGateState, setGateState } from './lib/gateStorage';
 import { setPanopticonCorpus } from './lib/panopticon';
 
 // KernelTab — static import (landing tab, always needed, avoids .df.js chunk on Firefox Android)
@@ -156,20 +155,9 @@ const App = () => {
   const [dynamicData,  setDynamicData]  = useState(null);
   // Mobile chrome visibility — fades out after 3s of no touch, fades in on touch
   const [mobileChrome, setMobileChrome] = useState(true);
-  // Gate + possession state
-  const [gateState, _setGateStateInternal] = useState(() => getGateState()); // null | 'passed' | 'failed'
-  const [possessionActive, setPossessionActive] = useState(false);
-  const [possessionCountdown, setPossessionCountdown] = useState(0);
-
-  const persistGateState = useCallback((value) => {
-    justResolvedGate.current = true;
-    _setGateStateInternal(value);
-    setGateState(value);
-  }, []);
-
-  const { appendSystemLog, setSystemLogs } = useSystemLog();
+  const { appendSystemLog, setSystemLogs, visibleLogs, logRef } = useSystemLog();
   // RAM — ecological entropy model §1.3: cost maps to planetary footprint
-  const { ramPct, ecoCost, applyEcoCost, applyRefill, applyAlienBlessing, latticeState, isCritical, isWarning, isRefillReady } = useEcologicalRam({ appendSystemLog });
+  const { ramPct, ecoCost, applyEcoCost, applyRefill, latticeState, isCritical, isWarning, isRefillReady } = useEcologicalRam({ appendSystemLog });
 
   // ── CAS dynamic data derivation ──────────────────────────────────────────────
   // Merge priority (highest → lowest):
@@ -289,7 +277,6 @@ const App = () => {
   const mainRef = useRef(null);
   const mobileChromeTimerRef = useRef(null);
   const terminalInputRef = useRef(null);  // ref to the footer terminal input
-  const justResolvedGate = useRef(false); // true only in the render cycle after gate resolves
   // Abort token for handleKernelClick — invalidates in-flight loads when a
   // new one is started (e.g. user rapidly clicks two kernels in quick succession).
   const loadAbortRef = useRef(null);
@@ -407,7 +394,7 @@ const App = () => {
     }
     window.scrollTo(0, 0);
     document.documentElement.scrollTop = 0;
-  }, [currentPath, selectedArticle?.id, activeTab, architectThesis, tagCloudView]);
+  }, [currentPath, selectedArticle?.id, architectThesis, tagCloudView, activeTab]);
 
   // ── Scroll-linked glow: cards brighten + slide up on viewport entry ─────
   useEffect(() => {
@@ -578,6 +565,17 @@ const App = () => {
     setCurrentPath('~/' + targetTab);
   }, [originTab]);
 
+  // ── Synced tab pulse (Observer guidance spec §4): the suggested tab breathes
+  // on the eye's 2400ms beat. sealed:false is safe — sealing requires a complete
+  // spine, and a complete spine already yields pulseTab null (armed).
+  const [eyeGuidance, setEyeGuidance] = useState(getEyeGuidance);
+  const [spineSnap, setSpineSnap] = useState(getSpineSnap);
+  useEffect(() => subscribeGuidance(setEyeGuidance), []);
+  useEffect(() => subscribeSpineSnap(() => setSpineSnap(getSpineSnap())), []);
+  const pulseTab = pulseTabFor({ sealed: false, flaring: false, spine: spineSnap, suggestion: eyeGuidance.suggestion });
+  const beatDelay = useMemo(() => `-${Math.round(performance.now() % 2400)}ms`, [pulseTab]);
+  const beat = (tab) => (pulseTab === tab ? ' nav-beat' : '');
+
   const handleNav = useCallback((path, tab) => {
     setCurrentPath(path);
     setActiveTab(prev => {
@@ -586,7 +584,10 @@ const App = () => {
         setTimeout(() => setTabGlitch(false), 180);
         // Deferred: this updater runs during render, and a synchronous bus emit
         // here setStates any mounted subscriber mid-render (React error).
-        setTimeout(() => emitObs('gaze', 'tab_navigated', { tab }), 0);
+        setTimeout(() => {
+          emitObs('gaze', 'tab_navigated', { tab });
+          notifyNav(tab);
+        }, 0);
       }
       return tab;
     });
@@ -675,6 +676,13 @@ const App = () => {
       emitObs('transmissions', 'kernel_completed', { kernelId: kernelId ?? '—', durationMs: durationMs ?? null });
     },
   });
+
+  // Mobile [run] / tap-to-run bridge for the KernelTab active_modules list.
+  const mobileAutoRun = useCallback((kernelId) => {
+    const alias = wasmRegistry[kernelId] ? kernelId : resolveWasmAlias(kernelId);
+    const now = fmtTime();
+    dispatchCommand('run', alias, `run ${alias}`, now, { eco: true });
+  }, [dispatchCommand]);
 
   // Orthogonal bridge handler — DIVERGENCE_ENGINE auto-forged links from right-click
   const handleOrthogonalBridge = useCallback((sourceId, result) => {
@@ -769,9 +777,8 @@ const App = () => {
     }
   };
 
-  // Shared command-execution path: used by the terminal keydown handler
-  // AND the phantom-typing hooks (tour + possession). Parses the raw command
-  // the same way submitCommand does, then dispatches.
+  // Shared command-execution path: parses the raw command the same way
+  // submitCommand does, then dispatches.
   const runRawCommand = useCallback((raw) => {
     const rawCmd = (raw ?? '').trim();
     if (!rawCmd) return;
@@ -783,34 +790,6 @@ const App = () => {
     const now = fmtTime();
     dispatchCommand(action, query, rawCmd, now);
   }, [dispatchCommand]);
-
-  const phantom = usePhantomTyper({ setCommandInput, runRawCommand });
-
-  useTourSequence({
-    active: gateState === 'passed' && justResolvedGate.current && !possessionActive,
-    phantom,
-    inputRef: terminalInputRef,
-    appendSystemLog,
-    onDone: () => { /* one-shot */ },
-  });
-
-  usePossessionSequence({
-    active: gateState === 'failed' && justResolvedGate.current,
-    phantom,
-    appendSystemLog,
-    setPossessionActive,
-    setPossessionCountdown,
-    onDone: () => { justResolvedGate.current = false; },
-  });
-
-  // When gate is passed (correct perihelion answer), the alien grants full RAM.
-  // Fires on first mount if already passed (returning visitor) and on fresh pass.
-  const alienBlessingFiredRef = useRef(false);
-  useEffect(() => {
-    if (gateState !== 'passed' || alienBlessingFiredRef.current) return;
-    alienBlessingFiredRef.current = true;
-    applyAlienBlessing();
-  }, [gateState, applyAlienBlessing]);
 
   const submitCommand = () => {
     setSuggestions([]);
@@ -826,7 +805,7 @@ const App = () => {
   };
 
   return (
-    <div className={`min-h-screen font-mono selection:bg-fuchsia-900 selection:text-amber-300 flex flex-col overflow-hidden relative transition-colors duration-700 ${selectedArticle || architectThesis ? 'bg-[#09090b]' : 'bg-black'} ${relicMode ? 'relic-mode' : ''}`}
+    <div className={`h-[100dvh] font-mono selection:bg-fuchsia-900 selection:text-amber-300 flex flex-col overflow-hidden relative transition-colors duration-700 ${selectedArticle || architectThesis ? 'bg-[#09090b]' : 'bg-black'} ${relicMode ? 'relic-mode' : ''}`}
       style={{ animation: activeTab === 'art' ? 'none' : 'terminal-flicker 7s ease-in-out infinite' }}
       onTouchStart={showMobileChrome}
       onTouchEnd={hideMobileChromeAfterDelay}
@@ -856,14 +835,6 @@ const App = () => {
           <div className="tab-glitch-layer tab-glitch-cyan" />
           <div className="tab-glitch-layer tab-glitch-lime" />
         </div>
-      )}
-
-      {/* ── Gate overlay — shown after boot completes on first load ─────────── */}
-      {gateState === null && !bootSequence && (
-        <GateOverlay onResult={(passed) => {
-          persistGateState(passed ? 'passed' : 'failed');
-          emitObs('edge', 'gate_answered', { result: passed ? 'BLESSED' : 'REJECTED' });
-        }} />
       )}
 
       {/* ── Boot sequence — unmounts when onDone fires ─────────────────────── */}
@@ -967,7 +938,7 @@ const App = () => {
 
       {/* ── Terminal content — springs up from singularity after boot ────────── */}
       <div
-        className="flex flex-col flex-grow"
+        className="flex flex-col flex-grow min-h-0"
         style={(() => {
           if (bootAnimDone) return {};
           const mobile = window.innerWidth <= 768;
@@ -1124,22 +1095,39 @@ const App = () => {
         </div>
       )}
 
-      <header className={`border-b border-cyan-900/30 bg-black md:bg-black/90 p-4 sticky top-0 z-40 md:backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.1)] overflow-x-hidden w-full transition-opacity duration-500 ${!mobileChrome ? 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto' : ''}`} style={{ willChange: 'opacity, transform', transform: 'translateZ(0)' }}>
-        <div className="max-w-[1800px] mx-auto flex flex-row items-center justify-between gap-4 w-full min-w-0">
-          <div className="flex items-center gap-2 group cursor-pointer shrink-0" onClick={() => handleNav('~/system/kernel', 'kernel')}>
-            <Hexagon className="w-5 h-5 text-fuchsia-500 animate-spin-slow group-hover:text-cyan-400 transition-colors" />
-            <span className="hidden md:inline font-bold tracking-widest text-lg lowercase text-[#39ff14] group-hover:text-cyan-400 transition-colors">scale_9.4</span>
-          </div>
-          {/* ── Nav + Eye: wrapper visible on all sizes; nav itself hidden on mobile so the eye remains the only child ── */}
-          <div className="flex items-center gap-3 shrink min-w-0 justify-end">
-          <nav aria-label="Main navigation" className="hidden md:flex items-center gap-1 text-[11px] font-bold tracking-normal overflow-x-auto shrink min-w-0" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+      <header className={`border-b border-cyan-900/30 bg-black md:bg-black/90 p-4 h-24 shrink-0 sticky top-0 z-40 md:backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.1)] overflow-x-hidden w-full transition-opacity duration-500 ${!mobileChrome ? 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto' : ''}`} style={{ willChange: 'opacity, transform', transform: 'translateZ(0)' }}>
+        <div className="max-w-[1800px] mx-auto flex flex-row items-center gap-4 w-full min-w-0">
+          <style>{`
+            .nav-beat {
+              animation: nav-beat 2400ms ease-in-out infinite;
+              animation-delay: var(--beat-delay, 0ms);
+            }
+            @keyframes nav-beat {
+              0%, 100% { opacity: 0.55; filter: none; }
+              50%      { opacity: 1;    filter: drop-shadow(0 0 6px currentColor); }
+            }
+            @media (prefers-reduced-motion: reduce) {
+              .nav-beat { animation: none; }
+            }
+          `}</style>
+          {/* ── The Observer eye — masthead face (top-left); the terminal's identity.
+              Wordmark dissolved to the footer per decision 10.3. ── */}
+          {!bootSequence && !sanctuaryOpen && !breachOpen && (
+            <MercuryEyeIndicator
+              activeTab={activeTab}
+              onNavigate={() => handleNav('~/system/mercury', 'mercury')}
+              lastKernelAt={lastKernelAt}
+              lastLoadAt={lastLoadAt}
+            />
+          )}
+          <nav aria-label="Main navigation" className="hidden md:flex items-center gap-1 text-[11px] font-bold tracking-normal overflow-x-auto shrink min-w-0 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', '--beat-delay': beatDelay }}>
             <button aria-label="Kernel" aria-current={activeTab === 'kernel' ? 'page' : undefined} onClick={() => handleNav('~/system/kernel', 'kernel')} className={`${activeTab === 'kernel' ? 'bg-cyan-500 text-black shadow-[0_0_10px_rgba(6,182,212,0.5)]' : 'text-cyan-500 hover:text-cyan-200 hover:bg-cyan-900/30'} px-2 py-1 transition-all duration-300 flex items-center gap-1.5 uppercase rounded-sm whitespace-nowrap`}><Cpu className="w-3 h-3" /> /Kernel</button>
 
-            <button aria-label="BSKY" aria-current={activeTab === 'bsky' ? 'page' : undefined} onClick={() => handleNav('~/system/bsky', 'bsky')} className={`${activeTab === 'bsky' ? 'bg-sky-600 text-sky-50 shadow-[0_0_12px_rgba(56,189,248,0.5)]' : 'text-sky-400/80 hover:text-sky-200 hover:bg-sky-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><NavButterflyIcon /> /BSKY</button>
+            <button aria-label="BSKY" aria-current={activeTab === 'bsky' ? 'page' : undefined} onClick={() => handleNav('~/system/bsky', 'bsky')} className={`${activeTab === 'bsky' ? 'bg-sky-600 text-sky-50 shadow-[0_0_12px_rgba(56,189,248,0.5)]' : 'text-sky-400/80 hover:text-sky-200 hover:bg-sky-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap${beat('bsky')}`}><NavButterflyIcon /> /BSKY</button>
 
-            <button aria-label="Manifesto" aria-current={activeTab === 'manifesto' ? 'page' : undefined} onClick={() => handleNav('~/system/manifesto', 'manifesto')} className={`${activeTab === 'manifesto' ? 'bg-violet-900 text-violet-100 shadow-[0_0_10px_rgba(139,92,246,0.5)]' : 'text-violet-400/80 hover:text-violet-200 hover:bg-violet-900/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><Eye className="w-3 h-3" /> /Manifesto</button>
+            <button aria-label="Manifesto" aria-current={activeTab === 'manifesto' ? 'page' : undefined} onClick={() => handleNav('~/system/manifesto', 'manifesto')} className={`${activeTab === 'manifesto' ? 'bg-violet-900 text-violet-100 shadow-[0_0_10px_rgba(139,92,246,0.5)]' : 'text-violet-400/80 hover:text-violet-200 hover:bg-violet-900/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap${beat('manifesto')}`}><Eye className="w-3 h-3" /> /Manifesto</button>
 
-            <button aria-label="Transmission" aria-current={activeTab === 'transmission' ? 'page' : undefined} onClick={() => handleNav('~/system/transmission', 'transmission')} className={`${activeTab === 'transmission' ? 'bg-purple-900 text-purple-100 shadow-[0_0_10px_rgba(168,85,247,0.5)]' : 'text-purple-400/80 hover:text-purple-200 hover:bg-purple-900/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm whitespace-nowrap`}>⌖ /Transmission</button>
+            <button aria-label="Transmission" aria-current={activeTab === 'transmission' ? 'page' : undefined} onClick={() => handleNav('~/system/transmission', 'transmission')} className={`${activeTab === 'transmission' ? 'bg-purple-900 text-purple-100 shadow-[0_0_10px_rgba(168,85,247,0.5)]' : 'text-purple-400/80 hover:text-purple-200 hover:bg-purple-900/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm whitespace-nowrap${beat('transmission')}`}>⌖ /Transmission</button>
 
             <button aria-label="Scaling" aria-current={activeTab === 'scaling' ? 'page' : undefined} onClick={() => handleNav('~/system/scaling', 'scaling')} className={`${activeTab === 'scaling' ? 'bg-fuchsia-500 text-black shadow-[0_0_10px_rgba(217,70,239,0.5)]' : 'text-fuchsia-500 hover:text-fuchsia-200 hover:bg-fuchsia-900/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><Scale className="w-3 h-3" /> /Scaling</button>
 
@@ -1149,41 +1137,24 @@ const App = () => {
 
             <button aria-label="Cryptography" aria-current={activeTab === 'cryptography' ? 'page' : undefined} onClick={() => handleNav('~/system/cryptography', 'cryptography')} className={`${activeTab === 'cryptography' ? 'bg-orange-950 text-orange-200 shadow-[0_0_12px_rgba(249,115,22,0.5)]' : 'text-orange-500/70 hover:text-orange-300 hover:bg-orange-950/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><KeyRound className="w-3 h-3" /> /Cryptography</button>
 
-            <button aria-label="Art" aria-current={activeTab === 'art' ? 'page' : undefined} onClick={() => handleNav('~/system/art', 'art')} className={`${activeTab === 'art' ? 'text-black shadow-[0_0_14px_rgba(255,215,0,0.6)]' : 'hover:text-amber-300 hover:bg-amber-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`} style={activeTab === 'art' ? { background: 'linear-gradient(90deg,#FF8C00,#FFD700)' } : { color: 'rgba(251,191,36,0.6)' }}><Waves className="w-3 h-3" /> /Art</button>
+            <button aria-label="Chaos" aria-current={activeTab === 'art' ? 'page' : undefined} onClick={() => handleNav('~/system/art', 'art')} className={`${activeTab === 'art' ? 'text-black shadow-[0_0_14px_rgba(255,215,0,0.6)]' : 'hover:text-amber-300 hover:bg-amber-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap${beat('art')}`} style={activeTab === 'art' ? { background: 'linear-gradient(90deg,#FF8C00,#FFD700)' } : { color: 'rgba(251,191,36,0.6)' }}><Waves className="w-3 h-3" /> /Chaos</button>
 
-            <button aria-label="Ecocide" aria-current={activeTab === 'ecocide' ? 'page' : undefined} onClick={() => handleNav('~/system/ecocide', 'ecocide')} className={`${activeTab === 'ecocide' ? 'text-black shadow-[0_0_14px_rgba(122,184,0,0.55)]' : 'hover:text-lime-300 hover:bg-[#1a2d00]/40'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`} style={activeTab === 'ecocide' ? { background: 'linear-gradient(90deg,#7ab800,#3d5c00)' } : { color: 'rgba(122,184,0,0.5)' }}><Leaf className="w-3 h-3" /> /Ecocide</button>
+            <button aria-label="Ecocide" aria-current={activeTab === 'ecocide' ? 'page' : undefined} onClick={() => handleNav('~/system/ecocide', 'ecocide')} className={`${activeTab === 'ecocide' ? 'text-black shadow-[0_0_14px_rgba(122,184,0,0.55)]' : 'hover:text-lime-300 hover:bg-[#1a2d00]/40'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap${beat('ecocide')}`} style={activeTab === 'ecocide' ? { background: 'linear-gradient(90deg,#7ab800,#3d5c00)' } : { color: 'rgba(122,184,0,0.5)' }}><Leaf className="w-3 h-3" /> /Ecocide</button>
 
-            <button aria-label="Lunar" aria-current={activeTab === 'lunar' ? 'page' : undefined} onClick={() => handleNav('~/system/lunar', 'lunar')} className={`${activeTab === 'lunar' ? 'bg-violet-900 text-violet-100 shadow-[0_0_12px_rgba(139,92,246,0.5)]' : 'text-violet-400/50 hover:text-violet-200 hover:bg-violet-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><Moon className="w-3 h-3" /> /Lunar</button>
+            {/* Mercury tab removed (Observer spec, option A) — the eye in the masthead
+                is now Mercury's sole gateway. Ledger sits before Lunar so the spectrum
+                stays monotonic without Mercury's silver bridging lime→violet→teal:
+                lime → teal → violet ends the walk where a rainbow ends. */}
 
-            <button
-              aria-label="Mercury"
-              aria-current={activeTab === 'mercury' ? 'page' : undefined}
-              onClick={() => handleNav('~/system/mercury', 'mercury')}
-              className={`${activeTab === 'mercury' ? 'text-zinc-100 shadow-[0_0_14px_rgba(192,192,192,0.5)]' : 'hover:text-zinc-200 hover:bg-zinc-900/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}
-              style={activeTab === 'mercury'
-                ? { background: 'linear-gradient(90deg, #707070, #c0c0c0, #707070)' }
-                : { color: 'rgba(192,192,192,0.5)' }}
-            >
-              <span style={{ fontSize: 12, lineHeight: 1 }}>◈</span> /Mercury
-            </button>
+            <button aria-label="Ledger" aria-current={activeTab === 'ledger' ? 'page' : undefined} onClick={() => handleNav('~/system/ledger', 'ledger')} className={`${activeTab === 'ledger' ? 'text-black shadow-[0_0_14px_rgba(20,184,166,0.6)]' : 'hover:text-teal-200 hover:bg-teal-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap${beat('ledger')}`} style={activeTab === 'ledger' ? { background: 'linear-gradient(90deg,#0d9488,#14b8a6)' } : { color: 'rgba(20,184,166,0.5)' }}><span style={{ fontSize: 12, lineHeight: 1 }}>ᛟ</span> /Ledger</button>
 
-            <button aria-label="Ledger" aria-current={activeTab === 'ledger' ? 'page' : undefined} onClick={() => handleNav('~/system/ledger', 'ledger')} className={`${activeTab === 'ledger' ? 'text-black shadow-[0_0_14px_rgba(20,184,166,0.6)]' : 'hover:text-teal-200 hover:bg-teal-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`} style={activeTab === 'ledger' ? { background: 'linear-gradient(90deg,#0d9488,#14b8a6)' } : { color: 'rgba(20,184,166,0.5)' }}><span style={{ fontSize: 12, lineHeight: 1 }}>ᛟ</span> /Ledger</button>
+            <button aria-label="Lunar" aria-current={activeTab === 'lunar' ? 'page' : undefined} onClick={() => handleNav('~/system/lunar', 'lunar')} className={`${activeTab === 'lunar' ? 'bg-violet-900 text-violet-100 shadow-[0_0_12px_rgba(139,92,246,0.5)]' : 'text-violet-400/50 hover:text-violet-200 hover:bg-violet-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap${beat('lunar')}`}><Moon className="w-3 h-3" /> /Lunar</button>
 
           </nav>
-          {/* ── Mercury Eye — inside nav wrapper; fades with header, never overlaps Ledger ── */}
-          {!bootSequence && !sanctuaryOpen && !breachOpen && (
-            <MercuryEyeIndicator
-              activeTab={activeTab}
-              onNavigate={() => handleNav('~/system/mercury', 'mercury')}
-              lastKernelAt={lastKernelAt}
-              lastLoadAt={lastLoadAt}
-            />
-          )}
-          </div>
         </div>
       </header>
 
-      <main ref={mainRef} className="flex-grow overflow-y-auto overflow-x-hidden p-4 pb-14 md:p-8 relative z-10 scroll-smooth" style={{ scrollPaddingTop: '100px' }}>
+      <main ref={mainRef} className="flex-grow min-h-0 overflow-y-auto overflow-x-hidden p-4 pb-14 md:p-8 relative z-10 scroll-smooth" style={{ scrollPaddingTop: '100px' }}>
         <Suspense fallback={<div className="text-cyan-400 font-mono tracking-widest animate-pulse p-8">{'// LOADING MODULE...'}</div>}>
         <div className="max-w-[1800px] mx-auto">
           {/* Path breadcrumb — hidden on kernel home (tty0 is the nav there) */}
@@ -1222,7 +1193,25 @@ const App = () => {
 
           {/* Kernel Tab */}
           {activeTab === 'kernel' && !selectedArticle && !tagCloudView && (
-            <KernelTab />
+            <KernelTab
+              kernelAxioms={kernelAxioms}
+              kernelBuilds={kernelBuilds}
+              handleKernelClick={handleKernelClick}
+              loadingKernel={loadingKernel}
+              visibleLogs={visibleLogs}
+              logRef={logRef}
+              commandInput={commandInput}
+              onCommandInputChange={handleInputChange}
+              onCommandKeyDown={handleCommand}
+              ramPct={ramPct}
+              isCritical={isCritical}
+              isWarning={isWarning}
+              appendSystemLog={appendSystemLog}
+              mobileChrome={mobileChrome}
+              mobileAutoRun={mobileAutoRun}
+              bootDone={bootRevealed}
+              onNavigateToMercury={() => handleNav('~/system/mercury', 'mercury')}
+            />
           )}
 
           {/* Scaling Tab */}
@@ -1326,7 +1315,7 @@ const App = () => {
 
           {/* Mercury — unified elemental phase simulation */}
           {activeTab === 'mercury' && !selectedArticle && !architectThesis && (
-            <MercuryTab onNavigateToKernel={() => handleNav('~/system/kernel', 'kernel')} />
+            <MercuryTab onNavigateTab={(tab) => handleNav('~/system/' + tab, tab)} />
           )}
 
           {/* Ledger Tab — The Open Ledger · Thermodynamic Audit Infrastructure */}
@@ -1436,11 +1425,6 @@ const App = () => {
 
           {/* Prompt + input — active on all tabs including kernel home */}
           <div className="flex items-center gap-2 flex-grow min-w-0 relative">
-            {possessionActive && (
-              <div className="absolute bottom-full left-0 right-0 mb-0.5 font-mono text-[11px] text-red-400 uppercase tracking-widest px-2">
-                ⚠ TERMINAL COMPROMISED :: T-{String(possessionCountdown).padStart(2, '0')} s
-              </div>
-            )}
             <span className="text-fuchsia-500 hidden md:inline shrink-0" aria-hidden="true">scale@node:~$</span>
             <span className="text-fuchsia-500 md:hidden shrink-0" aria-hidden="true">~$</span>
             <label htmlFor="terminal-input" className="sr-only">Enter terminal command</label>
@@ -1449,14 +1433,13 @@ const App = () => {
               ref={terminalInputRef}
               type="text"
               value={commandInput}
-              readOnly={possessionActive}
               onChange={handleInputChange}
               onKeyDown={handleCommand}
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="none"
               spellCheck={false}
-              className={`bg-transparent border-none outline-none flex-grow text-cyan-400 placeholder-cyan-900/50 font-bold${possessionActive ? ' ring-1 ring-red-500/60 border-red-500/60' : ''}`}
+              className="bg-transparent border-none outline-none flex-grow text-cyan-400 placeholder-cyan-900/50 font-bold"
               placeholder="enter command (e.g. load soma-9.0)"
             />
             <button
@@ -1474,19 +1457,19 @@ const App = () => {
       <nav
         aria-label="Mobile navigation"
         className={`md:hidden fixed bottom-0 left-0 right-0 z-50 h-14 border-t border-cyan-900/40 bg-black flex overflow-x-auto transition-opacity duration-500 ${!mobileChrome ? 'opacity-0 pointer-events-none' : ''}`}
-        style={{ willChange: 'opacity, transform', transform: 'translateZ(0)', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        style={{ willChange: 'opacity, transform', transform: 'translateZ(0)', scrollbarWidth: 'none', msOverflowStyle: 'none', '--beat-delay': beatDelay }}
       >
         <style>{`nav[aria-label="Mobile navigation"]::-webkit-scrollbar { display: none; }`}</style>
         <button onClick={() => handleNav('~/system/kernel', 'kernel')} aria-label="Kernel" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'kernel' ? 'text-cyan-400' : 'text-cyan-400/50'}`}>
           <Cpu className="w-5 h-5" />
         </button>
-        <button onClick={() => handleNav('~/system/bsky', 'bsky')} aria-label="BSKY" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'bsky' ? 'text-sky-400' : 'text-sky-400/50'}`}>
+        <button onClick={() => handleNav('~/system/bsky', 'bsky')} aria-label="BSKY" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'bsky' ? 'text-sky-400' : 'text-sky-400/50'}${beat('bsky')}`}>
           <NavButterflyIcon size="lg" />
         </button>
-        <button onClick={() => handleNav('~/system/manifesto', 'manifesto')} aria-label="Manifesto" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'manifesto' ? 'text-violet-400' : 'text-violet-400/50'}`}>
+        <button onClick={() => handleNav('~/system/manifesto', 'manifesto')} aria-label="Manifesto" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'manifesto' ? 'text-violet-400' : 'text-violet-400/50'}${beat('manifesto')}`}>
           <Eye className="w-5 h-5" />
         </button>
-        <button onClick={() => handleNav('~/system/transmission', 'transmission')} aria-label="Transmission" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'transmission' ? 'text-purple-400' : 'text-purple-400/50'}`}>
+        <button onClick={() => handleNav('~/system/transmission', 'transmission')} aria-label="Transmission" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'transmission' ? 'text-purple-400' : 'text-purple-400/50'}${beat('transmission')}`}>
           <Radio className="w-5 h-5" />
         </button>
         <button onClick={() => handleNav('~/system/scaling', 'scaling')} aria-label="Scaling" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'scaling' ? 'text-fuchsia-400' : 'text-fuchsia-400/50'}`}>
@@ -1501,23 +1484,18 @@ const App = () => {
         <button onClick={() => handleNav('~/system/cryptography', 'cryptography')} aria-label="Cryptography" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'cryptography' ? 'text-orange-400' : 'text-orange-400/50'}`}>
           <KeyRound className="w-5 h-5" />
         </button>
-        <button onClick={() => handleNav('~/system/art', 'art')} aria-label="Art" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'art' ? 'text-amber-400' : 'text-amber-400/40'}`}>
+        <button onClick={() => handleNav('~/system/art', 'art')} aria-label="Chaos" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'art' ? 'text-amber-400' : 'text-amber-400/40'}${beat('art')}`}>
           <Waves className="w-5 h-5" />
         </button>
-        <button onClick={() => handleNav('~/system/ecocide', 'ecocide')} aria-label="Ecocide" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'ecocide' ? 'text-lime-400' : 'text-lime-400/50'}`}>
+        <button onClick={() => handleNav('~/system/ecocide', 'ecocide')} aria-label="Ecocide" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'ecocide' ? 'text-lime-400' : 'text-lime-400/50'}${beat('ecocide')}`}>
           <Leaf className="w-5 h-5" />
         </button>
-        <button onClick={() => handleNav('~/system/lunar', 'lunar')} aria-label="Lunar" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'lunar' ? 'text-violet-400' : 'text-violet-400/40'}`}>
+        {/* Mercury button removed (Observer spec, option A) — the masthead eye is the
+            gateway on mobile too. Ledger before Lunar keeps the spectrum monotonic. */}
+        <button onClick={() => handleNav('~/system/ledger', 'ledger')} aria-label="Ledger" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'ledger' ? 'text-teal-400' : 'text-teal-400/50'}${beat('ledger')}`}><span style={{ fontSize: 24, lineHeight: 1 }}>ᛟ</span></button>
+        <button onClick={() => handleNav('~/system/lunar', 'lunar')} aria-label="Lunar" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'lunar' ? 'text-violet-400' : 'text-violet-400/40'}${beat('lunar')}`}>
           <Moon className="w-5 h-5" />
         </button>
-        <button
-          onClick={() => handleNav('~/system/mercury', 'mercury')}
-          aria-label="Mercury"
-          className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 font-mono ${activeTab === 'mercury' ? 'text-zinc-200' : 'text-zinc-500/50'}`}
-        >
-          <span style={{ fontSize: 30, lineHeight: 1 }}>◈</span>
-        </button>
-        <button onClick={() => handleNav('~/system/ledger', 'ledger')} aria-label="Ledger" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'ledger' ? 'text-teal-400' : 'text-teal-400/50'}`}><span style={{ fontSize: 24, lineHeight: 1 }}>ᛟ</span></button>
       </nav>
 
       </div>{/* end CRT content wrapper */}
@@ -1542,7 +1520,7 @@ const App = () => {
           >
             <span style={{ color: '#39ff14', fontWeight: 800 }}>g·</span>
             {[
-              ['n','kernel'], ['a','art'], ['e','eco'], ['s','surv'],
+              ['n','kernel'], ['a','chaos'], ['e','eco'], ['s','surv'],
               ['m','mercury'], ['l','lunar'], ['r','ledger'], ['p','privacy'],
             ].map(([k, label]) => (
               <span key={k}>

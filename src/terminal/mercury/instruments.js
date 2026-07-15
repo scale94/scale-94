@@ -1,8 +1,8 @@
-// instruments.js — Six alien observation instruments
+// instruments.js — Six observation instruments
 //
 // Each instrument's displayed value = baseline(orbital) × modulator(canvas).
 // Baselines pull from Mercury's real orbital state; modulators pull from the
-// user's live canvas controls. The canvas is the alien's instrument.
+// user's live canvas controls. The canvas is the fifth element's instrument.
 
 const MAX_ORBITAL_SPEED = 2.0;   // canvas-internal scale; tune if controls change
 const REF_DENSITY       = 1200;

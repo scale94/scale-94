@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { KeyRound, ShieldCheck, Activity, Lock, Unlock, AlertTriangle } from 'lucide-react';
 import { loadWasm } from '../../wasm/wasmSingleton';
+import { emit as emitObs } from '../../observatory/observatoryBus';
 
 // ── Hex rain characters ──────────────────────────────────────────────────────
 const HEX_CHARS = '0123456789ABCDEF'.split('');
@@ -1021,6 +1022,7 @@ function FileVault() {
         action: 'encrypt',
       });
       setMode('done');
+      emitObs('ciphers', 'cipher_sealed', { filename: file.name });
     } catch (err) {
       addLog(`SEAL: ✗ ERROR — ${err.message}`, 'text-red-400/70');
       setError(err.message);
@@ -1064,6 +1066,7 @@ function FileVault() {
         action: 'decrypt',
       });
       setMode('done');
+      emitObs('ciphers', 'unlock', { filename: outName });
     } catch (err) {
       addLog(`UNSEAL: ✗ ERROR — ${err.message}`, 'text-red-400/70');
       setError(err.message);

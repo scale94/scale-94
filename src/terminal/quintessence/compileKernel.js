@@ -6,6 +6,7 @@
 import { mulberry32 } from '../views/manifesto/councilCollider';
 import { drynessFor } from '../data/lunarAccords';
 import { trendToPressure, pressureToBpm } from './engineWitness';
+import { lensFor } from './taxonomyRegistry';
 
 export const ELEMENT_MAP = {
   FIRE:  { atom: 'Boson',   daemon: 'TheDevil' },
@@ -21,8 +22,6 @@ function seedFrom(str) {
   return h >>> 0;
 }
 
-function pick(rng, arr) { return arr[Math.floor(rng() * arr.length)]; }
-
 async function sha256Hex(text) {
   const data = new TextEncoder().encode(text);
   const digest = await globalThis.crypto.subtle.digest('SHA-256', data);
@@ -35,20 +34,6 @@ function entropyLockValue(lunarRead) {
   if (!lunarRead || typeof lunarRead.illum !== 'number') return 0;
   return Math.round(lunarRead.illum * 10000) * 100;
 }
-
-// ── doc-comment voice (deterministic fragment pools) ─────────────────────────
-const VIAL_LINES = [
-  'the vial holds what the terminal could not keep',
-  'condensed from one session of witnessed pressure',
-  'a residue of filtering operations · what remains after the burn',
-  'the fifth essence · distilled from four elements and one spine',
-];
-const CORRUPTION_LINES = [
-  'purity is a statue · this payload is the pulse',
-  'the network pulse enters the armor here',
-  'vitality requires the contaminant · this is the contaminant',
-  'injected at market temperature · sheen intact',
-];
 
 function houseLine(name, value, describe) {
   return value == null
@@ -82,6 +67,14 @@ export async function compileKernel(spine, periphery, engine, opts = {}) {
   const lock    = entropyLockValue(periphery.lunarRead);
   const [mindA, mindB] = spine.council.pair;
 
+  const filledHouses =
+    [periphery.ciphers, periphery.transmissions, periphery.essences, periphery.lunarRead, periphery.art]
+      .filter(Boolean).length +
+    Object.values(periphery.houses).filter(Boolean).length;
+  // The faculty's reading context (registry spec §6). Assembled AFTER the hash:
+  // lenses are voice, not identity — hash inputs are untouched.
+  const ctx = { spine, periphery, meta: { dryness, bpm, verdict, daemon: el.daemon, filledHouses } };
+
   const engineBlock = engine ? `
 /// Computed by compiled Rust at the quintessence event — not narrated, executed.
 /// run_fish_scale(r=${r.toFixed(4)}, layers=witness depth, θ=36°, burn←${spine.phase})
@@ -102,6 +95,67 @@ mod engine_witness { /* every field None */ }`;
     ? `/// wound with the transit: ${periphery.lunarRead.phase} · ${(periphery.lunarRead.illum * 100).toFixed(1)}% illuminated`
     : `/// TRANSIT UNREAD — the clock was never wound`;
 
+  // Deep periphery (spec 2026-07-11 §5.2): enriched house testimony.
+  // A missing part is omitted; a witnessed house never renders an empty line.
+  const artDesc = periphery.art
+    ? (periphery.art.visits != null
+        ? `entered ${periphery.art.visits}× · the sphere untouched`
+        : [periphery.art.chimeras ? `chimera fused ×${periphery.art.chimeras}` : null,
+           periphery.art.bifurcations ? `${periphery.art.bifurcations} bifurcation${periphery.art.bifurcations === 1 ? '' : 's'}` : null,
+           periphery.art.lastSim != null ? `resonance ${Number(periphery.art.lastSim).toFixed(2)}` : null,
+           periphery.art.lastR != null
+             ? (() => { const lyap = Number(periphery.art.lyapunov ?? 0);
+                        return `sphere r ${Number(periphery.art.lastR).toFixed(2)} λ ${lyap >= 0 ? '+' : ''}${lyap.toFixed(3)} ${periphery.art.regime ?? 'UNCLASSIFIED'}`; })()
+             : null,
+           periphery.art.resonancePair
+             ? `resonance-selected ${periphery.art.resonancePair.nodeA} × ${periphery.art.resonancePair.nodeB} (${periphery.art.resonancePair.topDim ?? 'dim unknown'})`
+             : periphery.art.selectedNode
+             ? `node selected: ${periphery.art.selectedNode.id} · ${periphery.art.selectedNode.cluster ?? '?'} · dominant ${periphery.art.selectedNode.topDim ?? '?'}`
+             : null,
+          ].filter(Boolean).join(' · ') || 'the sphere touched')
+    : null;
+
+  // Twin cascade (chaos spec §3): the sphere's witnessed r vs the trend-driven
+  // engine r — the same logistic map, run by two hands. Absence is data.
+  const sphereR = periphery.art?.lastR;
+  const dr = typeof sphereR === 'number' ? sphereR - r : null;
+  const twinCascade = dr != null
+    ? (dr >= 0
+        ? `the sphere ran ahead of the world by Δr +${dr.toFixed(2)} — the visitor's hand outpaced the network`
+        : `the sphere trailed the world by Δr ${(-dr).toFixed(2)} — the network burned faster than the visitor`)
+    : `the twin cascade never spoke — the sphere's r was never witnessed`;
+  const ledgerValue = periphery.houses.ledger ?? periphery.ledgerVerdict ?? null;
+  const ledgerDesc = [
+    periphery.houses.ledger ? `entered ${periphery.houses.ledger}×` : null,
+    periphery.ledgerVerdict ? `verdict ${periphery.ledgerVerdict}` : null,
+  ].filter(Boolean).join(' · ');
+  const ecocideValue = periphery.houses.ecocide ?? periphery.ecocideSim ?? null;
+  const ecocideDesc = [
+    periphery.houses.ecocide ? `entered ${periphery.houses.ecocide}×` : null,
+    periphery.ecocideSim ? `phase ${periphery.ecocideSim.phase}` : null,
+    periphery.ecocideSim?.rift != null ? `metabolic rift ${Number(periphery.ecocideSim.rift).toFixed(2)}` : null,
+    periphery.ecocideSim?.growthRate != null
+      ? `growth mandate ${Number(periphery.ecocideSim.growthRate).toFixed(1)}% · ${periphery.ecocideSim.mandateActive ? 'ENGAGED' : 'unengaged'}`
+      : null,
+  ].filter(Boolean).join(' · ');
+  const transmissionsDesc = [
+    `${periphery.transmissions?.count ?? 0} kernels completed`,
+    `ledger depth ${periphery.transmissions?.ledgerDepth ?? 0}`,
+    periphery.transmissions?.lastSignal
+      ? `signal marked: @${periphery.transmissions.lastSignal.handle ?? '?'} "${(periphery.transmissions.lastSignal.text ?? '').slice(0, 60)}${(periphery.transmissions.lastSignal.text ?? '').length > 60 ? '…' : ''}"`
+      : null,
+  ].filter(Boolean).join(' · ');
+  const essencesDesc = [
+    `${periphery.essences?.collisions ?? 0} collisions`,
+    `${periphery.essences?.crystallized ?? 0} crystallized`,
+    periphery.essences?.lastAccord
+      ? `latest: ${periphery.essences.lastAccord.cardName ?? '?'} (${periphery.essences.lastAccord.nodeIdA ?? '?'} × ${periphery.essences.lastAccord.nodeIdB ?? '?'}) · viability ${periphery.essences.lastAccord.vClass ?? '?'} · ${periphery.essences.lastAccord.archetype ?? 'archetype unresolved'}`
+      : null,
+  ].filter(Boolean).join(' · ');
+  const manifestoDesc = periphery.manifestoFragment
+    ? `${periphery.manifestoFragment.kind} marked${periphery.manifestoFragment.tag ? ` (${periphery.manifestoFragment.tag})` : ''}: "${periphery.manifestoFragment.text.slice(0, 80)}${periphery.manifestoFragment.text.length > 80 ? '…' : ''}"`
+    : null;
+
   const source = `\
 // ═══════════════════════════════════════════════════════════════
 // KERNEL OF QUINTESSENCE :: FORK OF FISH SCALE 11.2 :: BUILD 0x${hash.slice(0, 8).toUpperCase()}
@@ -114,33 +168,41 @@ mod engine_witness { /* every field None */ }`;
 // ═══════════════════════════════════════════════════════════════
 #![no_std]
 
+/// ${lensFor('kernel_grammar', ctx, rng)}
 use core::sync::atomic::AtomicU64;
 use core::cell::UnsafeCell;
 
-/// ${pick(rng, VIAL_LINES)}
+/// ${lensFor('vial_header', ctx, rng)}
+/// ${lensFor('daemon', ctx, rng)}
 /// element: ${spine.element} · role: ${el.atom} · daemon compiled ${el.daemon === 'TheDevil' ? 'unmasked' : 'masked'}
 enum ShlomoState { TheMask, TheDevil }
 const DAEMON: ShlomoState = ShlomoState::${el.daemon};
 
 /// **PIRARUCU** — the armored ideal, tempered by one olfactory phase.
+/// ${lensFor('pirarucu', ctx, rng)}
 /// phase: ${spine.phase} · the burn window was set here
 struct Pirarucu<T> { armor: UnsafeCell<T>, dryness_coefficient: u8 }
 const ARMOR: &str = ${JSON.stringify(periphery.essences?.polarity ? `${spine.phase} · polarity ${periphery.essences.polarity}` : spine.phase)};
 const DRYNESS: Pirarucu<&str> = Pirarucu { armor: UnsafeCell::new(ARMOR), dryness_coefficient: ${dryness} };
 
-/// **NARCOS** — ${pick(rng, CORRUPTION_LINES)}
+/// **NARCOS** — the contaminant that keeps the system alive.
+/// ${lensFor('narcos_payload', ctx, rng)}
 /// the levamisole is the live network pulse, marked by the visitor:
 const INJECTION_PAYLOAD: &str = ${JSON.stringify(spine.trend.label)};
 const INJECTION_VELOCITY: f64 = ${spine.trend.velocity};
 
 /// **SOKUSHINBUTSU** — living death, perfectly preserved.
 ${lunarComment}
+/// ${lensFor('entropy_lock', ctx, rng)}
 static ENTROPY_LOCK: AtomicU64 = AtomicU64::new(${lock});
 
 /// **THE NECROMANTIC ENGINE** — perpetual friction, never resolution.
+/// ${lensFor('necromantic_engine', ctx, rng)}
 /// This cycle reanimates: ${periphery.transmissions?.lastKernel ?? 'no mummy — the past was left unraised'}
 /// The two forces in friction were chosen in council:
 ///   ${mindA}  ×  ${mindB}
+/// ${lensFor('council_pair', ctx, rng)}
+/// ${lensFor('council_directive', ctx, rng)}
 /// ${spine.council.directive}
 /// ${spine.council.paradoxCount} irreducible tension${spine.council.paradoxCount === 1 ? '' : 's'} survive saponification · trajectory ${spine.council.trajectory}
 struct NecromanticEngine { bpm: u32, friction_coefficient: f64 }
@@ -155,25 +217,37 @@ const VERDICT: PlataOPlomo = PlataOPlomo::${verdict === 'PLATA' ? 'Plata' : 'Plo
 ${verdict === 'PLATA'
   ? '/// vitality through corruption · the system lives compromised'
   : '/// purity chosen over life · entropic stasis · the statue wins this round'}
+/// ${lensFor('verdict', ctx, rng)}
 ${engineBlock}
 
 /// THE PERIPHERAL WITNESS — what the terminal saw without being asked.
+/// ${lensFor('witness_intro', ctx, rng)}
 /// Empty houses are part of the portrait. Absence is data.
 struct PeripheralWitness {
     ciphers: Option<&'static str>,
     transmissions: Option<&'static str>,
-    essences: Option<&'static str>,
-    house_ecocide: Option<&'static str>,
     house_ledger: Option<&'static str>,
+    essences: Option<&'static str>,
+    house_manifesto: Option<&'static str>,
+    house_chaos: Option<&'static str>,
+    house_ecocide: Option<&'static str>,
     house_privacy: Option<&'static str>,
     house_surveillance: Option<&'static str>,
 }
 const WITNESS: PeripheralWitness = PeripheralWitness {
+    // ${lensFor('house_ciphers', ctx, rng)}
 ${houseLine('ciphers', periphery.ciphers, `cryptographic proof: ${periphery.ciphers?.verifies ?? 0} verified · ${periphery.ciphers?.unlocks ?? 0} unlocked · ${periphery.ciphers?.sealed ?? 0} sealed`)}
-${houseLine('transmissions', periphery.transmissions, `${periphery.transmissions?.count ?? 0} kernels completed · ledger depth ${periphery.transmissions?.ledgerDepth ?? 0}`)}
-${houseLine('essences', periphery.essences, `${periphery.essences?.collisions ?? 0} collisions · ${periphery.essences?.crystallized ?? 0} crystallized`)}
-${houseLine('house_ecocide', periphery.houses.ecocide, `entered ${periphery.houses.ecocide}×`)}
-${houseLine('house_ledger', periphery.houses.ledger, `entered ${periphery.houses.ledger}×`)}
+    // ${lensFor('house_transmissions', ctx, rng)}
+${houseLine('transmissions', periphery.transmissions, transmissionsDesc)}
+${houseLine('house_ledger', ledgerValue, ledgerDesc)}
+    // ${lensFor('house_essences', ctx, rng)}
+${houseLine('essences', periphery.essences, essencesDesc)}
+    // ${lensFor('house_manifesto', ctx, rng)}
+${houseLine('house_manifesto', periphery.manifestoFragment, manifestoDesc)}
+${houseLine('house_chaos', periphery.art, artDesc)}
+    // ${twinCascade}
+    // ${lensFor('house_ecocide', ctx, rng)}
+${houseLine('house_ecocide', ecocideValue, ecocideDesc)}
 ${houseLine('house_privacy', periphery.houses.privacy, `entered ${periphery.houses.privacy}×`)}
 ${houseLine('house_surveillance', periphery.houses.surveillance, `entered ${periphery.houses.surveillance}×`)}
 };

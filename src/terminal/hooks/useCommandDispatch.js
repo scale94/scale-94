@@ -19,8 +19,9 @@ import { formatKernelHelp, formatRunHelp } from '../commands/runHelpers';
 import {
   resolveNode, analyzeFullEdge, extractParadoxes, nextFusionId,
 } from '../data/nodeFeatures';
-import { setGateState } from '../lib/gateStorage';
 import { runPreExecTheater, theaterDuration } from '../utils/preExecTheater.js';
+import { doctrineLogLines } from '../data/kernelDoctrines';
+import { emit as emitObs } from '../../observatory/observatoryBus';
 
 // Tab name → tab id — used by `load <tabname>` guard
 const LOAD_TAB_MAP = {
@@ -28,7 +29,7 @@ const LOAD_TAB_MAP = {
   cryptography: 'cryptography', classified: 'cryptography', pqc: 'cryptography', mlkem: 'cryptography',
   kernel: 'kernel', home: 'kernel', scaling: 'scaling', transmission: 'transmission',
   manifesto: 'manifesto', bsky: 'bsky', bluesky: 'bsky', privacy: 'privacy',
-  art: 'art', graph: 'art', fade: 'art', 'fade_doctrine': 'art', 'feigenbaum_fade': 'art', visual: 'art',
+  art: 'art', graph: 'art', fade: 'art', 'fade_doctrine': 'art', 'feigenbaum_fade': 'art', visual: 'art', chaos: 'art',
   ledger: 'ledger', audit: 'ledger', verdicts: 'ledger', 'open_ledger': 'ledger',
   mercury: 'mercury', lunar: 'lunar', moon: 'lunar',
 };
@@ -318,6 +319,7 @@ export function useCommandDispatch(ctx) {
                   if (i === lines.length - 1) {
                     setSystemLogs(prev => [
                       ...prev,
+                      ...doctrineLogLines(wasmEntry.id, t),
                       { time: t, msg: `  ──────────────────────────────────────────`, rust: true },
                       { time: t, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE  ·  EXEC_TIME: ${elapsed}ms`, rust: true },
                     ].slice(-2000));
@@ -333,6 +335,7 @@ export function useCommandDispatch(ctx) {
                 ...prev,
                 { time: now,      msg: `  ── KERNEL OUTPUT ─────────────────────────`, rust: true },
                 ...lines.map(l => ({ time: now, msg: `  ${l}`, rust: true })),
+                ...doctrineLogLines(wasmEntry.id, now),
                 { time: now,      msg: `  ──────────────────────────────────────────`, rust: true },
                 { time: doneTime, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE  ·  EXEC_TIME: ${elapsed}ms`, rust: true },
               ].slice(-2000));
@@ -549,6 +552,7 @@ export function useCommandDispatch(ctx) {
                 decryptedAt: data.decryptedAt,
                 remainingMs: data.remainingMs,
               });
+              emitObs('ciphers', 'verify', { sessionId: data.sessionId });
               handleNav('~/system/cryptography', 'cryptography');
               setSystemLogs(prev => [...prev,
                 { time: t, msg: `  ENCLAVE_DECRYPT :: AES-256-GCM AUTH TAG VERIFIED`, rust: true },
@@ -1157,20 +1161,6 @@ export function useCommandDispatch(ctx) {
         `  SANCTUARY :: Period-3 window opening · the chaos has a still center`,
       );
       setSanctuaryOpen?.(true);
-      return;
-    }
-
-    // ── reset_gate ────────────────────────────────────────────────────────────
-    // Dev utility — clears the localStorage gate flag so the entry ceremony
-    // fires again on next load. Not in autocomplete; not discoverable by users.
-    if (action === 'reset_gate') {
-      log(`COMMAND: ${rawCmd}`);
-      setGateState(null);
-      logs(
-        `  GATE_RESET :: scale94.gate cleared from localStorage`,
-        `  Reloading in 600ms — the gate will fire on next mount...`,
-      );
-      setTimeout(() => window.location.reload(), 600);
       return;
     }
 

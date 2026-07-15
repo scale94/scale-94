@@ -9,6 +9,7 @@ import VerdictCard from './ledger/VerdictCard';
 import { createVerdict } from '../ledger/verdictModel';
 import { storeVerdict, getAllVerdicts, getVerdictCount } from '../ledger/verdictStore';
 import { ledgerBus } from '../ledger/ledgerBus';
+import { emit as emitObs } from '../../observatory/observatoryBus';
 import { loadWasm } from '../../wasm/wasmSingleton';
 import wasmRegistry from '../../wasm/wasm.generated';
 import { toMapXY } from '../data/worldMapPolys';
@@ -177,6 +178,7 @@ export default function LedgerTab() {
     setLatestHash(cascadeVerdict.hash);
     setView('archive');
     ledgerBus.emit({ type: 'VERDICT_ISSUED', verdict: cascadeVerdict });
+    emitObs('transmissions', 'verdict_issued', { verdict: cascadeVerdict.status ?? 'UNKNOWN' });
 
     // Fire particle burst at the verdict's map position
     if (particlesRef.current && cascadeVerdict.coordinates && mapContainerRef.current) {
@@ -447,6 +449,7 @@ export default function LedgerTab() {
               onApiFetch={handleApiFetch}
               apiLoading={apiLoading}
               apiError={apiError}
+              verdicts={verdicts}
             />
           )}
 

@@ -43,6 +43,7 @@ import WorldMap from '../components/WorldMap';
 import { toMapXY, COUNTRIES, SPHERE_PATH, GRATICULE_PATH, EQUATOR_PATH, BORDERS_PATH } from '../data/worldMapPolys';
 import { readHealing, subscribeHealing } from '../lib/healingSignal';
 import { healingGrowthOffset, healingSargLift } from '../lib/inverseEngine';
+import { emit as emitObs } from '../../observatory/observatoryBus';
 
 // ── Coupling Event Bus ─────────────────────────────────────────────────────
 // Simple pub/sub for cross-tab phase coupling.
@@ -104,6 +105,9 @@ const PHASE_LABEL = [
   '6.6.6.6.6.6 COLLAPSE',
   '7.7.7.7.7.7.7 FINAL_STATE',
 ];
+// Observatory contract (periphery.test.js): phase travels as a NAME, not the
+// PH enum int — kernels and the reliquary print it verbatim.
+const PHASE_NAME = ['HOMEOSTASIS', 'EXTRACTION', 'OVERSHOOT', 'COLLAPSE', 'FINAL'];
 const PHASE_COLOR = ['#7ab800', '#c8860a', '#ff4400', '#cc0000', '#333333'];
 
 // ── The 13 Scientifically Proven Paradoxes of Associative Reasoning ──────────
@@ -297,6 +301,7 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
   const deadFracRef     = useRef(0);
   const exergyNormRef   = useRef(0);
   const sargHistoryRef  = useRef([]);          // SARG sparkline buffer (80 readings @ 10 Hz = 8 s)
+  const obsPhaseRef     = useRef(null);        // observatory: witness phase transitions, not the 10 Hz tick
 
   // Layer 3.3.3 – Double-Bind state
   const mandateActiveRef = useRef(false);
@@ -482,6 +487,10 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
 
       // ── Coupling: emit phase data for ArtTab Hopfield field ───────────
       ecocideBus.emit({ type: 'ECOCIDE_PHASE', phase, metabolicRift: metabolicFat, exergyRate: exergyNorm });
+      if (phase !== obsPhaseRef.current) {
+        obsPhaseRef.current = phase;
+        emitObs('gaze', 'ecocide_phase', { phase: PHASE_NAME[phase] ?? String(phase), metabolicRift: metabolicFat, exergyRate: exergyNorm, growthRate: gr, mandateActive: mandateActiveRef.current });
+      }
 
       // Accumulate sparkline history (capped at 80 ticks ≈ 8 s of data)
       const _hist = sargHistoryRef.current;

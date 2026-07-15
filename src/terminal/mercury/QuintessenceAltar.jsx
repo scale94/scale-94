@@ -7,19 +7,23 @@ import { snapshotPeriphery } from '../quintessence/periphery';
 import { witnessEngine, trendToPressure } from '../quintessence/engineWitness';
 import { compileKernel } from '../quintessence/compileKernel';
 import { holdVolatile } from '../quintessence/volatileHold';
+import { STORAGE_KEY } from '../quintessence/sealedArtifact';
 import { drynessFor } from '../data/lunarAccords';
+import { getTotals, subscribe as subscribeBus } from '../../observatory/observatoryBus';
+import ElementSeal from './ElementSeal';
+import { useHoldToSeal } from './useHoldToSeal';
 
+// Keystone (guidance spec §0): each element IS a house. Seal hue = house tab hue.
 const ELEMENTS = [
-  { id: 'FIRE',  sigil: '△', note: 'boson · force · the mask drops'   },
-  { id: 'AIR',   sigil: '🜁', note: 'boson · carrier · the mask drops' },
-  { id: 'EARTH', sigil: '🜃', note: 'fermion · structure · armor held' },
-  { id: 'WATER', sigil: '▽', note: 'fermion · matter · armor held'    },
+  { id: 'FIRE',  sigil: '△', house: 'art',          tint: [255, 176, 32],  note: 'boson · force · the mask drops'   },
+  { id: 'AIR',   sigil: '🜁', house: 'transmission', tint: [168, 85, 247],  note: 'boson · carrier · the mask drops' },
+  { id: 'EARTH', sigil: '🜃', house: 'ecocide',      tint: [122, 184, 0],   note: 'fermion · structure · armor held' },
+  { id: 'WATER', sigil: '▽', house: 'ledger',       tint: [20, 184, 166],  note: 'fermion · matter · armor held'    },
 ];
 
 const STAGES = ['SPINE READ', 'PERIPHERY WITNESSED', 'ENGINE FIRED', 'HASH PRECIPITATED', 'VERDICT', 'SEALED'];
-export const STORAGE_KEY = 'quintessence_kernel_v1';
 
-export default function QuintessenceAltar({ onDeposited }) {
+export default function QuintessenceAltar({ onDeposited, onNavigate }) {
   const [, force] = useReducer(x => x + 1, 0);
   const [stage, setStage] = useState(-1);          // -1 idle, 0..5 compiling, 6 done
   const [result, setResult] = useState(null);
@@ -28,8 +32,27 @@ export default function QuintessenceAltar({ onDeposited }) {
   useEffect(() => () => { alive.current = false; }, []);
   useEffect(() => subscribeSpine(force), []);
 
+  // The seals remember (spec §5): wet = house visited, read live off the witness.
+  const readVisited = () => {
+    try { return { ...getTotals().gaze.tabsVisited }; } catch (_) { return {}; } // dead bus → all dry
+  };
+  const [visited, setVisited] = useState(readVisited);
+  useEffect(() => subscribeBus(evt => {
+    if (evt.category === 'gaze' && evt.kind === 'tab_navigated') setVisited(readVisited());
+  }), []);
+
   const missing = missingVertebrae();
   const armed = missing.length === 0 && stage === -1;
+
+  const hold = useHoldToSeal(elId => ignite(elId));
+  const [confirming, setConfirming] = useState(null); // element id — keyboard path
+
+  // Grid remount (stage back to -1): clear the hold latch. A completed hold
+  // unmounts the grid before pointerup, so its click-swallow flag would
+  // otherwise survive and eat the first click on the fresh grid.
+  // (hold.reset is useCallback-stable; the hold wrapper object is not.)
+  const holdReset = hold.reset;
+  useEffect(() => { if (stage === -1) holdReset(); }, [stage, holdReset]);
 
   async function ignite(elementId) {
     if (!armed || igniting.current) return;
@@ -49,7 +72,7 @@ export default function QuintessenceAltar({ onDeposited }) {
         if (!alive.current) return;
       }
       const filledHouses = Object.values(periphery.houses).filter(Boolean).length
-        + ['ciphers', 'transmissions', 'essences', 'lunarRead'].filter(k => periphery[k]).length
+        + ['ciphers', 'transmissions', 'essences', 'lunarRead', 'art'].filter(k => periphery[k]).length
         + 4; // the four spine vertebrae themselves
       const engine = await witnessEngine({
         rPressure: trendToPressure(spine.trend.velocity),
@@ -93,27 +116,73 @@ export default function QuintessenceAltar({ onDeposited }) {
         four elements are bound to the earth · the fifth is compiled from your spine
       </div>
 
-      {stage === -1 && missing.length > 0 && (
+      {stage === -1 && (missing.length > 0 ? (
         <div className="text-[10px] font-mono tracking-[0.2em] text-red-400/70 uppercase">
           SPINE INCOMPLETE · {missing.join(' · ')}
         </div>
-      )}
+      ) : (
+        <div role="status" className="text-[10px] font-mono tracking-[0.2em] text-amber-300/90 uppercase">
+          [ALTAR ARMED · HOLD AN ELEMENT TO SEAL THE KERNEL]
+        </div>
+      ))}
 
       {stage === -1 && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
-          {ELEMENTS.map(el => (
-            <button key={el.id} type="button" disabled={!armed}
-              onClick={() => ignite(el.id)}
-              className={`border p-4 text-center font-mono transition-colors ${armed
-                ? 'border-amber-500/40 text-amber-200 hover:border-amber-300 hover:bg-amber-950/20 cursor-pointer'
-                : 'border-zinc-800 text-zinc-700 cursor-not-allowed'}`}>
-              <div className="text-2xl mb-2">{el.sigil}</div>
-              <div className="text-[11px] tracking-[0.3em]">{el.id}</div>
-              <div className="text-[8px] text-zinc-500 mt-1 lowercase">{el.note}</div>
-            </button>
-          ))}
+          {ELEMENTS.map(el => {
+            const wet = (visited[el.house] || 0) > 0;
+            return (
+              <button key={el.id} type="button"
+                data-wet={wet ? 'true' : 'false'}
+                onPointerDown={(e) => { if (armed && e.button === 0) hold.start(el.id); }}
+                onPointerUp={() => hold.cancel()}
+                onPointerLeave={() => hold.cancel()}
+                onPointerCancel={() => hold.cancel()}
+                onContextMenu={() => hold.cancel()}
+                onClick={() => { if (hold.consumedClick()) return; onNavigate?.(el.house); }}
+                onKeyDown={(e) => {
+                  if (armed && (e.key === 'Enter' || e.key === ' ')) {
+                    e.preventDefault();
+                    setConfirming(el.id);
+                  }
+                }}
+                className={`border p-4 text-center font-mono transition-colors cursor-pointer relative ${armed
+                  ? 'border-amber-500/40 text-amber-200 hover:border-amber-300 hover:bg-amber-950/20'
+                  : 'border-zinc-800 text-zinc-400 hover:border-zinc-600 hover:bg-zinc-900/30'}`}>
+                <ElementSeal wet={wet} tint={el.tint} armed={armed}
+                  holdProgress={hold.holding === el.id ? hold.progress : 0} size={72} />
+                {hold.holding === el.id && (
+                  <div className="absolute inset-x-0 bottom-0 h-[3px] bg-amber-400/80"
+                    style={{ width: `${Math.round(hold.progress * 100)}%` }} />
+                )}
+                <div className="text-[11px] tracking-[0.3em] mt-2">{el.id}</div>
+                <div className="text-[8px] text-zinc-500 mt-1 lowercase">{el.note}</div>
+              </button>
+            );
+          })}
         </div>
       )}
+
+      {stage === -1 && confirming && (() => {
+        const el = ELEMENTS.find(x => x.id === confirming);
+        return (
+          <div role="dialog" aria-label={`seal at ${el.id}?`}
+            className="mt-3 border border-amber-500/40 p-3 font-mono text-[10px] tracking-[0.2em] uppercase flex items-center gap-4">
+            <span className="text-amber-200">{el.sigil} {el.id} —</span>
+            <button type="button" autoFocus
+              onClick={() => { setConfirming(null); ignite(el.id); }}
+              className="border border-amber-400/60 px-3 py-1 text-amber-200 hover:bg-amber-950/30">
+              seal the kernel here
+            </button>
+            <button type="button"
+              onClick={() => { setConfirming(null); onNavigate?.(el.house); }}
+              className="text-zinc-400 hover:text-zinc-200 lowercase">
+              walk the house →
+            </button>
+            <button type="button" onClick={() => setConfirming(null)}
+              className="ml-auto text-zinc-600 hover:text-zinc-400 lowercase">esc</button>
+          </div>
+        );
+      })()}
 
       {stage >= 0 && stage < 6 && (
         <div aria-live="polite" className="font-mono text-[10px] tracking-[0.25em] text-amber-300/90 uppercase py-6">
@@ -133,7 +202,7 @@ export default function QuintessenceAltar({ onDeposited }) {
           )}
           <button type="button" onClick={() => onDeposited?.()}
             className="mt-2 border border-amber-400/60 text-amber-200 font-mono text-[10px] tracking-[0.3em] uppercase px-4 py-2 hover:bg-amber-950/30">
-            deposited in reliquary →
+            view the seal ↓
           </button>
           <button type="button" onClick={() => { setResult(null); setStage(-1); }}
             className="mt-2 ml-3 text-zinc-500 font-mono text-[9px] tracking-[0.25em] lowercase hover:text-zinc-300">

@@ -640,8 +640,8 @@ export function useEcologicalRam({ appendSystemLog }) {
     return { ok: true };
   }, [updateLattice]);
 
-  // Gate blessing — called when user answers the perihelion riddle correctly.
-  // Bypasses lattice lock; the correct answer is the alien's sign of approval.
+  // Gate blessing — called when the perihelion passage resolves.
+  // Bypasses lattice lock; full restoration of the commons.
   const applyAlienBlessing = useCallback(() => {
     const t = new Date().toLocaleTimeString('en-US', { hour12: false });
     ramPctRef.current = RAM_CEIL;
@@ -649,8 +649,22 @@ export function useEcologicalRam({ appendSystemLog }) {
     const lat = latticeRef.current;
     updateLattice({ ...lat, unlocked: true, lastRefillAt: Date.now() });
     appendRef.current({ time: t, color: '#d4a82a',
-      msg: `[◉ ALIEN:APPROVAL] :: perihelion passage confirmed · the architect recognizes the answer · RAM ${RAM_CEIL}% · the commons: unconditionally restored` });
+      msg: `[◉ OBSERVE] :: perihelion passage confirmed · RAM ${RAM_CEIL}% · the commons: unconditionally restored` });
   }, [updateLattice]);
+
+  // Legacy blessing migration: the perihelion gate is gone, but visitors who
+  // passed it were promised restoration-on-return (the old App.jsx called
+  // applyAlienBlessing whenever gateState === 'passed'). Honor the promise
+  // once, then retire the key — otherwise a returning visitor with depleted
+  // persisted RAM has no recovery path but winning the safe-hunt.
+  useEffect(() => {
+    try {
+      if (globalThis.localStorage?.getItem('scale94.gate') === 'passed') {
+        applyAlienBlessing();
+        globalThis.localStorage.removeItem('scale94.gate');
+      }
+    } catch (_) { /* no storage → no legacy state to honor */ }
+  }, [applyAlienBlessing]);
 
   const isCritical    = ramPct < CRIT_THRESH;
   const isWarning     = ramPct < WARN_THRESH;

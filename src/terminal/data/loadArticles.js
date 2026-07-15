@@ -16,8 +16,8 @@
 // ─── LAZY GLOBS ───────────────────────────────────────────────────────────────
 // Each entry is () => Promise<string>. Vite emits one async chunk per .md file;
 // content is only fetched when the user actually opens an article.
-const markdownModules    = import.meta.glob('../../../content/soma_kernel/*.md', { as: 'raw' });
-const legislationModules = import.meta.glob('../../../content/legislation/*.md', { as: 'raw' });
+const markdownModules    = import.meta.glob('../../../content/soma_kernel/*.md', { query: '?raw', import: 'default' });
+const legislationModules = import.meta.glob('../../../content/legislation/*.md', { query: '?raw', import: 'default' });
 
 // ─── Module-level regex constants ─────────────────────────────────────────────
 // Hoisted so each pattern is compiled once by the JS engine, not on every

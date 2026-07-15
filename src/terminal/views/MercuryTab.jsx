@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef, useReducer } from 'react';
 import MercuryCanvas    from '../mercury/MercuryCanvas';
 import MercuryControls  from '../mercury/MercuryControls';
 import MercuryFireworks from '../mercury/MercuryFireworks';
@@ -7,6 +7,8 @@ import CastleGrid             from '../mercury/CastleGrid';
 import CosmosRegistry         from '../mercury/CosmosRegistry';
 import ObservationMatrix      from '../mercury/ObservationMatrix';
 import QuintessenceAltar       from '../mercury/QuintessenceAltar';
+import ReliquaryView          from '../quintessence/ReliquaryView';
+import { loadSealedArtifact } from '../quintessence/sealedArtifact';
 import { useMercuryState }    from '../mercury/useMercuryState';
 import { computeInstruments } from '../mercury/instruments';
 
@@ -29,7 +31,17 @@ const DEFAULT_PARAMS = {
   spread:       1.0,
 };
 
-export default function MercuryTab({ onNavigateToKernel }) {
+export default function MercuryTab({ onNavigateTab }) {
+  // The reliquary lives here now (spec §5, revised): the altar forges the seal
+  // and it appears in place, below. sealNonce forces a re-read of the seal after
+  // a compile; sealRef lets the altar scroll the fresh artifact into view.
+  const [, bumpSeal] = useReducer(x => x + 1, 0);
+  const sealRef = useRef(null);
+  const sealedArtifact = loadSealedArtifact();
+  const revealSeal = useCallback(() => {
+    bumpSeal();
+    requestAnimationFrame(() => sealRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  }, []);
   const [params, setParams]           = useState(DEFAULT_PARAMS);
   const [activePhase, setActivePhase] = useState('fluid');
   const [fps, setFps]                 = useState(0);
@@ -95,7 +107,7 @@ export default function MercuryTab({ onNavigateToKernel }) {
         }
       `}</style>
 
-      {/* Header — Mercury Terminal · Alien Architect Vision */}
+      {/* Header — Mercury Terminal · vision statement */}
       <div className="mb-6">
         <div className="flex items-start gap-3 mb-2">
           {/* Eye architect glyph */}
@@ -131,7 +143,7 @@ export default function MercuryTab({ onNavigateToKernel }) {
           </div>
         </div>
 
-        {/* Alien architect vision statement */}
+        {/* Mercury vision statement */}
         <div
           className="font-mono text-[8px] tracking-[0.12em] mb-1 leading-relaxed"
           style={{
@@ -139,7 +151,7 @@ export default function MercuryTab({ onNavigateToKernel }) {
             animation: 'hg-titleReveal 0.8s 0.25s cubic-bezier(0.16,1,0.3,1) both',
           }}
         >
-          <span style={{ color: 'rgba(192,192,192,0.4)' }}>{`// ALIEN ARCHITECT`}</span>
+          <span style={{ color: 'rgba(192,192,192,0.4)' }}>{`// MERCURY`}</span>
           {' '}— building fairy tale castles on mercury · surveying from perihelion · holding up the mirror
           <br />
           <span style={{ color: 'rgba(192,192,192,0.4)' }}>{`// EYE PROTOCOL`}</span>
@@ -209,9 +221,18 @@ export default function MercuryTab({ onNavigateToKernel }) {
       />
 
       {/* §B.5 — The Quintessence Altar (spec §4): the compile trigger */}
-      <QuintessenceAltar onDeposited={onNavigateToKernel} />
+      <QuintessenceAltar onDeposited={revealSeal} onNavigate={onNavigateTab} />
 
-      {/* §D — Cosmos Registry (the alien's taxonomy of the whole site) */}
+      {/* The seal itself — the forged artifact appears here, in place, once a
+       * quintessence has been compiled (spec §5, revised: the reliquary lives on
+       * Mercury). The uncompiled schematic stays on the kernel tab's /dev/tty0. */}
+      {sealedArtifact && (
+        <div ref={sealRef} className="mt-4 border-t border-amber-900/20 pt-2">
+          <ReliquaryView />
+        </div>
+      )}
+
+      {/* §D — Cosmos Registry (the fifth element's taxonomy of the whole site) */}
       <CosmosRegistry />
 
       {/* §C — Live observation log */}
@@ -233,7 +254,7 @@ export default function MercuryTab({ onNavigateToKernel }) {
         <p className="mt-2 text-zinc-700/70">
           {`// observation log compiled by the architect from perihelion · cathedral · forge · citadel · spire`}
           <br />
-          {`// all instruments cross-referenced against the alien's own apocrypha · which refuses citation`}
+          {`// all instruments cross-referenced against the fifth element's own apocrypha · which refuses citation`}
         </p>
       </div>
     </div>

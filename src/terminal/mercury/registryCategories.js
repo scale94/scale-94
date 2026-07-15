@@ -1,13 +1,13 @@
 // ── registryCategories ───────────────────────────────────────────────────────
-// The five poetic categories the alien architect uses to classify the site's
+// The five poetic categories the fifth element uses to classify the site's
 // features. Each category renders as a RegistryCard in §D Cosmos Registry.
 //
 // Each entry exposes:
 //   id            — matches observatoryBus category key
-//   glyph         — alien category symbol
-//   name          — UPPERCASE alien category name
+//   glyph         — category symbol
+//   name          — UPPERCASE category name
 //   tint          — rgba palette for the glyph + [FRESH] pill
-//   members       — features the alien groups under this category
+//   members       — features grouped under this category
 //   dedication    — italic line at the bottom of the card
 //   stateLine(t)  — formats a one-line STATE summary from totals[id]
 //   lastLine(t)   — formats a one-line LAST OBSERVED summary from totals[id]
@@ -119,21 +119,18 @@ export const REGISTRY_CATEGORIES = [
     name: 'THE PERMEABLE EDGE',
     tint: 'rgba(232,210,138,1)',   // Fade Doctrine two-gold
     members: [
-      { glyph: '▣', name: 'gate',           blurb: 'perihelion question · alien RAM blessing' },
       { glyph: '◉', name: 'eye observer',   blurb: 'the persistent gaze' },
       { glyph: '❖', name: 'manifesto',      blurb: 'lattice protocol · chapter panels' },
     ],
     dedication: 'the membrane they keep testing · the gaze that does not blink',
     lastLine: (t) => {
       if (!t.last) return null;
-      if (t.last.kind === 'gate_answered')
-        return `${fmtTime(t.lastTs)}  gate · ${t.last.payload.result ?? '—'}`;
       if (t.last.kind === 'eye_phase')
         return `${fmtTime(t.lastTs)}  eye · ${t.last.payload.phase ?? '—'}`;
       if (t.last.kind === 'manifesto_opened')
         return `${fmtTime(t.lastTs)}  manifesto · chapter ${t.last.payload.chapter ?? '—'}`;
       return `${fmtTime(t.lastTs)}  ${t.last.kind}`;
     },
-    stateLine: (t) => `gate ${t.gate} · eye ${t.eye} · manifesto ${t.manifestoChapter ?? '—'}`,
+    stateLine: (t) => `eye ${t.eye} · manifesto ${t.manifestoChapter ?? '—'}`,
   },
 ];

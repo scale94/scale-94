@@ -1,7 +1,7 @@
 // ── CosmosRegistry ───────────────────────────────────────────────────────────
 // §D of the Mercury Terminal. Five RegistryCards in a responsive grid. Renders
-// the alien's taxonomy of the site; each card mirrors live state from the
-// observatoryBus.
+// the fifth element's taxonomy of the site; each card mirrors live state from
+// the observatoryBus.
 //
 // Re-renders on every emit (so freshness pulses appear within one frame) and
 // also on a 1Hz tick (so isDim/isFresh boundaries update without a new emit).
@@ -29,7 +29,7 @@ export default function CosmosRegistry() {
           ⌬ COSMOS REGISTRY — five categories of human signal
         </div>
         <div className="text-[8px] tracking-[0.14em] mt-0.5" style={{ color: SILVER + '0.35)' }}>
-          {`// alien classification of the site · live state mirrored from every surface · the observer's catalog`}
+          {`// four elements anchor the site · aether mirrors what surfaces · the fifth element's taxonomy`}
         </div>
         <div className="mt-2 h-px" style={{
           background: 'linear-gradient(90deg, rgba(192,192,192,0.35), rgba(192,192,192,0.05), transparent)',

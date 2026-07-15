@@ -4,9 +4,10 @@
 import { useEffect, useReducer, useRef, useState } from 'react';
 import { getSpine, subscribeSpine, missingVertebrae } from './spineStore';
 import { snapshotPeriphery } from './periphery';
-import { heldVolatile } from './volatileHold';
 import { subscribe as subscribeBus } from '../../observatory/observatoryBus';
-import { STORAGE_KEY } from '../mercury/QuintessenceAltar';
+import { loadSealedArtifact } from './sealedArtifact';
+import { ownerOf } from './taxonomyRegistry';
+import { trendToPressure } from './engineWitness';
 
 const MONUMENT_CSS = `
 /* ── Monument pattern (Fade-Doctrine compliant) ──────────────────────
@@ -53,20 +54,7 @@ const MONUMENT_CSS = `
 }
 `;
 
-function loadArtifact() {
-  // The volatile hold first: it can only exist in THIS session, so when present
-  // it is always the most recent compile (covers quota-exceeded recompiles over
-  // an older persisted seal). Otherwise the sealed vial from storage (spec §7).
-  const held = heldVolatile();
-  if (held) return held;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch (_) { /* unwitnessed */ }
-  return null;
-}
-
-const slot = (label, filled, preview) => ({ label, filled, preview });
+const slot = (id, label, filled, preview) => ({ id, label, filled, preview });
 
 export default function ReliquaryView() {
   const [, force] = useReducer(x => x + 1, 0);
@@ -79,7 +67,7 @@ export default function ReliquaryView() {
   useEffect(() => subscribeBus(() => queueMicrotask(force)), []);
   useEffect(() => () => clearTimeout(copyTimer.current), []);
 
-  const artifact = loadArtifact();
+  const artifact = loadSealedArtifact();
 
   if (artifact) {
     const copyVial = async () => {
@@ -121,18 +109,29 @@ export default function ReliquaryView() {
   const spine = getSpine();
   const p = snapshotPeriphery();
   const slots = [
-    slot('narcos payload · bsky trend',       !!spine.trend,   spine.trend?.label),
-    slot('friction pair · council',           !!spine.council, spine.council?.pair?.join(' × ')),
-    slot('dryness · olfactory phase',         !!spine.phase,   spine.phase),
-    slot('entropy_lock · lunar transit',      !!p.lunarRead,   p.lunarRead ? `${p.lunarRead.phase}` : null),
-    slot('mummy · transmission',              !!p.transmissions, p.transmissions?.lastKernel),
-    slot('daemon · element',                  !!spine.element, spine.element),
-    slot('house: ciphers',                    !!p.ciphers,     p.ciphers && `${p.ciphers.verifies} verified`),
-    slot('house: essences',                   !!p.essences,    p.essences && `${p.essences.collisions} collisions`),
-    slot('house: ecocide',                    !!p.houses.ecocide, p.houses.ecocide && `entered ${p.houses.ecocide}×`),
-    slot('house: ledger',                     !!p.houses.ledger, p.houses.ledger && `entered ${p.houses.ledger}×`),
-    slot('house: privacy',                    !!p.houses.privacy, p.houses.privacy && `entered ${p.houses.privacy}×`),
-    slot('house: surveillance',               !!p.houses.surveillance, p.houses.surveillance && `entered ${p.houses.surveillance}×`),
+    slot('narcos_payload',      'narcos payload · bsky trend',   !!spine.trend,   spine.trend?.label),
+    slot('council_pair',        'friction pair · council',       !!spine.council, spine.council?.pair?.join(' × ')),
+    slot('pirarucu',            'dryness · olfactory phase',     !!spine.phase,   spine.phase),
+    slot('entropy_lock',        'entropy_lock · lunar transit',  !!p.lunarRead,   p.lunarRead ? `${p.lunarRead.phase}` : null),
+    slot('house_transmissions', 'mummy · transmission',          !!p.transmissions,
+      p.transmissions?.lastKernel
+        ?? (p.transmissions?.lastSignal ? 'signal marked · no kernel yet' : null)
+        ?? (p.transmissions ? `${p.transmissions.count ?? 0} witnessed` : null)),
+    slot('daemon',              'daemon · element',              !!spine.element, spine.element),
+    slot('house_ciphers',       'house: ciphers',                !!p.ciphers,     p.ciphers && `${p.ciphers.verifies} verified`),
+    slot('house_essences',      'house: essences',               !!p.essences,    p.essences && `${p.essences.collisions} collisions`),
+    slot('house_chaos',         'house: chaos',                  !!p.art,
+      p.art && (p.art.visits != null
+        ? `entered ${p.art.visits}×`
+        : (p.art.lastR != null
+            ? `sphere r ${Number(p.art.lastR).toFixed(2)}${spine.trend
+                ? ` · Δr ${p.art.lastR - trendToPressure(spine.trend.velocity) >= 0 ? '+' : '-'}${Math.abs(p.art.lastR - trendToPressure(spine.trend.velocity)).toFixed(2)}`
+                : ''}`
+            : (p.art.chimeras ? `${p.art.chimeras} chimera${p.art.chimeras === 1 ? '' : 's'}` : 'touched')))),
+    slot('house_ecocide',       'house: ecocide',                !!(p.houses.ecocide || p.ecocideSim), p.ecocideSim?.phase ?? (p.houses.ecocide && `entered ${p.houses.ecocide}×`)),
+    slot('house_ledger',        'house: ledger',                 !!(p.houses.ledger || p.ledgerVerdict), p.ledgerVerdict ?? (p.houses.ledger && `entered ${p.houses.ledger}×`)),
+    slot('house_privacy',       'house: privacy',                !!p.houses.privacy, p.houses.privacy && `entered ${p.houses.privacy}×`),
+    slot('house_surveillance',  'house: surveillance',           !!p.houses.surveillance, p.houses.surveillance && `entered ${p.houses.surveillance}×`),
   ];
   const missing = missingVertebrae();
 
@@ -156,11 +155,16 @@ export default function ReliquaryView() {
       <div className="font-mono text-[11px] leading-relaxed border border-zinc-800/70 bg-black/60 p-5">
         <div className="text-zinc-500 mb-3">{'// KERNEL OF QUINTESSENCE :: awaiting quintessence event'}</div>
         {slots.map(s => (
-          <div key={s.label} className="flex gap-3 mb-1">
+          <div key={s.label} className="flex gap-3 mb-1 items-baseline">
             <span className={s.filled ? 'text-amber-300' : 'text-zinc-700'}>
               {s.filled ? `Some(${s.preview})` : 'None'}
             </span>
             <span className="text-zinc-600">{'// ' + s.label}{!s.filled && ' · awaiting witness'}</span>
+            {ownerOf(s.id) && (
+              <span className="ml-auto text-zinc-700 text-[9px] tracking-[0.15em] whitespace-nowrap">
+                read by ⟨{ownerOf(s.id)}⟩
+              </span>
+            )}
           </div>
         ))}
       </div>

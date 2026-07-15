@@ -1,8 +1,11 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { emit as emitObs } from '../../observatory/observatoryBus';
 import { Hexagon } from 'lucide-react';
 import LatentCollider from './LatentCollider';
 
 const ScalingTab = ({ setArchitectThesis, setCurrentPath, setOriginTab, loadKernel, kernelRunHistoryRef, onPolarity }) => {
+  // Observatory witness: the saponification arc was approached (dead channel, now wired).
+  useEffect(() => { emitObs('gaze', 'scaling_visit', {}); }, []);
   return (
     <div className="tab-fade-v2 max-w-6xl mx-auto mt-8">
       <style>{`

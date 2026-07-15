@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import { normalizeQuery } from '../lib/normalize';
 import wasmRegistry from '../../wasm/wasm.generated';
 import { loadWasm } from '../../wasm/wasmSingleton';
+import { doctrineLogLines } from '../data/kernelDoctrines';
 
 /**
  * useTerminalCommands
@@ -319,6 +320,7 @@ export default function useTerminalCommands({
                 ...prev,
                 { time: now,      msg: `  ── KERNEL OUTPUT ─────────────────────────`, rust: true },
                 ...lines.map(l => ({ time: now, msg: `  ${l}`, rust: true })),
+                ...doctrineLogLines('LEVIATHAN', now),
                 { time: now,      msg: `  ──────────────────────────────────────────`, rust: true },
                 { time: doneTime, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE`, rust: true },
               ].slice(-2000));
@@ -397,6 +399,7 @@ export default function useTerminalCommands({
                 ...prev,
                 { time: now,      msg: `  ── KERNEL OUTPUT ─────────────────────────`, rust: true },
                 ...lines.map(l => ({ time: now, msg: `  ${l}`, rust: true })),
+                ...doctrineLogLines(wasmEntry.id, now),
                 { time: now,      msg: `  ──────────────────────────────────────────`, rust: true },
                 { time: doneTime, msg: `SYSTEM_KERNEL_LOG: CALCULATION COMPLETE`, rust: true },
               ].slice(-2000));

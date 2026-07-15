@@ -82,12 +82,10 @@ describe('observatoryBus', () => {
     expect(getTotals().gaze.tabsVisited).toEqual({});
   });
 
-  it('totals.edge tracks gate, eye, manifesto chapter', () => {
-    emit('edge', 'gate_answered', { result: 'BLESSED' });
+  it('totals.edge tracks eye and manifesto chapter', () => {
     emit('edge', 'eye_phase', { phase: 'engaged-here' });
     emit('edge', 'manifesto_opened', { chapter: 7 });
     const t = getTotals().edge;
-    expect(t.gate).toBe('BLESSED');
     expect(t.eye).toBe('engaged-here');
     expect(t.manifestoChapter).toBe(7);
   });
@@ -114,6 +112,47 @@ describe('observatoryBus', () => {
     emit('phantom', 'something', { x: 1 });
     expect(received).toHaveLength(1);
     expect(getJournal()).toHaveLength(1);
+  });
+
+  it('gaze.art accumulates resonance, bifurcation deltas, chimera', () => {
+    expect(getTotals().gaze.art).toBeNull();
+    emit('gaze', 'art_resonance', { sim: 0.83 });
+    emit('gaze', 'art_bifurcation', { count: 3 });
+    emit('gaze', 'art_bifurcation', { count: 1 });
+    emit('gaze', 'art_chimera', {});
+    expect(getTotals().gaze.art).toEqual({
+      resonances: 1, lastSim: 0.83, bifurcations: 4, chimeras: 1,
+      lastR: null, lyapunov: null, regime: null, selectedNode: null, resonancePair: null,
+    });
+  });
+
+  it('art events lazily initialize gaze.art in any order', () => {
+    emit('gaze', 'art_chimera', {});
+    expect(getTotals().gaze.art).toEqual({
+      resonances: 0, lastSim: null, bifurcations: 0, chimeras: 1,
+      lastR: null, lyapunov: null, regime: null, selectedNode: null, resonancePair: null,
+    });
+  });
+
+  it('art_resonance without a numeric sim keeps the prior lastSim', () => {
+    emit('gaze', 'art_resonance', { sim: 0.5 });
+    emit('gaze', 'art_resonance', {});
+    expect(getTotals().gaze.art.resonances).toBe(2);
+    expect(getTotals().gaze.art.lastSim).toBe(0.5);
+  });
+
+  it('gaze.lastEcocide stores the latest phase payload', () => {
+    expect(getTotals().gaze.lastEcocide).toBeNull();
+    emit('gaze', 'ecocide_phase', { phase: 'OVERSHOOT', metabolicRift: 0.41, exergyRate: 0.2 });
+    emit('gaze', 'ecocide_phase', { phase: 'COLLAPSE', metabolicRift: 0.72, exergyRate: 0.1 });
+    expect(getTotals().gaze.lastEcocide.phase).toBe('COLLAPSE');
+    expect(getTotals().gaze.lastEcocide.metabolicRift).toBe(0.72);
+  });
+
+  it('transmissions.verdict stores the latest cascade ruling', () => {
+    expect(getTotals().transmissions.verdict).toBeNull();
+    emit('transmissions', 'verdict_issued', { verdict: 'REJECTED' });
+    expect(getTotals().transmissions.verdict).toBe('REJECTED');
   });
 });
 

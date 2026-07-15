@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useReducer } from 'react';
 import { Globe, ChevronRight, Zap, RefreshCw, Radio } from 'lucide-react';
+import { setTrend, getSpine, subscribeSpine } from '../quintessence/spineStore';
 
 // ── Mini AT Protocol network graph ──────────────────────────────────────────
 function ATProtoGraph() {
@@ -271,6 +272,19 @@ const BskyTab = () => {
   const [commits,   setCommits]   = useState([]);
   const [commitsLoading, setCommitsLoading] = useState(true);
 
+  // ── Quintessence spine · the trend vertebra (spec §8.1) ────────────────────
+  // Marking a trend writes it into the spine — the first of the deliberate
+  // choices the altar compiles. Re-render on spine change so the marked state
+  // (and the kernel-tab meter) stay in sync.
+  const [, forceSpine] = useReducer(x => x + 1, 0);
+  useEffect(() => subscribeSpine(forceSpine), []);
+  const markedTrend = getSpine().trend?.label ?? null;
+  const markTrend = useCallback((topic, i, total) => {
+    // Velocity from trending rank: hottest topic ≈ 1.0, coldest ≈ near 0.
+    const velocity = total > 0 ? (total - i) / total : 0.5;
+    setTrend({ label: topic, velocity, volume: null });
+  }, []);
+
   const apiEnabled = Boolean(GT_DID && GT_KEY);
 
   const fetchData = useCallback(async () => {
@@ -506,25 +520,49 @@ const BskyTab = () => {
             <span className="ml-auto text-sky-400/20 font-mono normal-case tracking-normal">bsky.app // live</span>
           </div>
 
-          {/* Trending topics */}
+          {/* Trending topics — click to mark one into the quintessence spine */}
           {trending.topics.length > 0 && (
             <div className="mb-4">
-              <div className="text-[8px] font-bold tracking-[0.25em] text-sky-400/25 uppercase mb-2">
+              <div className="text-[8px] font-bold tracking-[0.25em] text-sky-400/25 uppercase mb-2 flex items-center gap-2">
                 TRENDING
+                <span className="normal-case tracking-normal font-mono text-sky-400/20">{'// click to mark your trend'}</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {trending.topics.map((t, i) => (
-                  <a
-                    key={t.topic}
-                    href={`https://bsky.app${t.link}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[10px] font-bold tracking-wide border border-sky-500/20 bg-sky-950/20 text-sky-300/60 px-2.5 py-1 hover:border-sky-400/50 hover:text-sky-200/90 hover:bg-sky-950/40 transition-all"
-                    style={{ animation: `bk-cardReveal 0.3s ease ${i * 0.03}s both` }}
-                  >
-                    {t.topic}
-                  </a>
-                ))}
+                {trending.topics.map((t, i) => {
+                  const marked = markedTrend === t.topic;
+                  return (
+                    <span
+                      key={t.topic}
+                      className={`inline-flex items-center border transition-all ${marked
+                        ? 'border-amber-400/60 bg-amber-950/25'
+                        : 'border-sky-500/20 bg-sky-950/20 hover:border-sky-400/50 hover:bg-sky-950/40'}`}
+                      style={{ animation: `bk-cardReveal 0.3s ease ${i * 0.03}s both` }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => markTrend(t.topic, i, trending.topics.length)}
+                        aria-pressed={marked}
+                        title={marked ? 'marked into your spine' : 'mark this trend into your spine'}
+                        className={`text-[10px] font-bold tracking-wide px-2.5 py-1 transition-colors ${marked
+                          ? 'text-amber-200'
+                          : 'text-sky-300/60 hover:text-sky-200/90'}`}
+                      >
+                        {marked ? '◈ ' : ''}{t.topic}
+                      </button>
+                      <a
+                        href={`https://bsky.app${t.link}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        title="open on bsky.app"
+                        className={`text-[9px] px-1.5 py-1 border-l ${marked
+                          ? 'border-amber-400/30 text-amber-300/70 hover:text-amber-200'
+                          : 'border-sky-500/15 text-sky-400/40 hover:text-sky-200/80'}`}
+                      >
+                        ↗
+                      </a>
+                    </span>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -835,7 +873,7 @@ const BskyTab = () => {
       {/* ── Protocol layer ────────────────────────────────────────────────────── */}
       <div className="mb-6">
         <div className="text-[9px] font-bold tracking-[0.3em] text-sky-400/40 uppercase mb-3 border-b border-sky-900/15 pb-2 flex items-center gap-2">
-          <span className="text-sky-500/40">//</span>
+          <span className="text-sky-500/40">{'//'}</span>
           PROTOCOL_LAYER
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2">
@@ -863,7 +901,7 @@ const BskyTab = () => {
       {/* ── Dev toolkit ───────────────────────────────────────────────────────── */}
       <div className="mb-8">
         <div className="text-[9px] font-bold tracking-[0.3em] text-sky-400/40 uppercase mb-3 border-b border-sky-900/15 pb-2 flex items-center gap-2">
-          <span className="text-sky-500/40">//</span>
+          <span className="text-sky-500/40">{'//'}</span>
           DEV_TOOLKIT
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2">
@@ -891,7 +929,7 @@ const BskyTab = () => {
       {/* ── Ecosystem apps ────────────────────────────────────────────────────── */}
       <div className="mb-8">
         <div className="text-[9px] font-bold tracking-[0.3em] text-sky-400/40 uppercase mb-3 border-b border-sky-900/15 pb-2 flex items-center gap-2">
-          <span className="text-sky-500/40">//</span>
+          <span className="text-sky-500/40">{'//'}</span>
           ECOSYSTEM_APPS
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2">
@@ -919,7 +957,7 @@ const BskyTab = () => {
       {/* ── atproto commit feed ───────────────────────────────────────────────── */}
       <div className="mb-8">
         <div className="text-[9px] font-bold tracking-[0.3em] text-sky-400/40 uppercase mb-3 border-b border-sky-900/15 pb-2 flex items-center gap-2">
-          <span className="text-sky-500/40">//</span>
+          <span className="text-sky-500/40">{'//'}</span>
           ATPROTO_COMMITS
           <span className="ml-auto text-sky-400/20 normal-case tracking-normal font-mono">bluesky-social/atproto</span>
         </div>
@@ -967,7 +1005,7 @@ const BskyTab = () => {
       {/* ── Protocol manifest footer ─────────────────────────────────────────── */}
       <div className="border border-sky-900/15 bg-black/20 mb-6">
         <div className="px-4 py-2 border-b border-sky-900/15 text-[9px] font-bold tracking-[0.3em] text-sky-400/30 uppercase flex items-center gap-2">
-          <span className="text-sky-500/40">//</span> PROTOCOL_MANIFEST
+          <span className="text-sky-500/40">{'//'}</span> PROTOCOL_MANIFEST
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-sky-900/15">
           <div className="px-4 py-3 flex flex-col gap-1">
@@ -996,7 +1034,7 @@ const BskyTab = () => {
       {/* ── Open source credit — dollspace-gay/Tesseract-Vault ─────────────── */}
       <div className="border border-sky-900/15 bg-black/20 mb-6 px-4 py-3 flex flex-col gap-1">
         <div className="text-[9px] font-bold tracking-[0.3em] text-sky-400/30 uppercase mb-1 flex items-center gap-2">
-          <span className="text-sky-500/40">//</span> OPEN_SOURCE_CREDIT
+          <span className="text-sky-500/40">{'//'}</span> OPEN_SOURCE_CREDIT
         </div>
         <div className="text-[10px] font-mono text-sky-300/50 leading-relaxed">
           Post-quantum cryptographic pipeline kernel ported from{' '}

@@ -35,6 +35,9 @@ import { somaPresence } from '../audio/SomaPresence';
 import { ecoDataFeed } from '../data/EcoDataFeed';
 import { ecocideBus } from './EcocideTab';
 import { colliderBus } from './LatentCollider';
+import { emit as emitObs } from '../../observatory/observatoryBus';
+import { getSpine } from '../quintessence/spineStore';
+import { trendToPressure, R_CHAOS } from '../quintessence/engineWitness';
 import { nodeColor }   from '../data/kernelColorMap';
 import {
   MAX_PARTICLES,
@@ -188,6 +191,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   // ── Analogical reasoning display state (throttled from RAF) ──────────
   const [analogyCount, setAnalogyCount] = useState(0);
   const [chimeraActive, setChimeraActive] = useState(false);
+  const chimeraWitnessedRef = useRef(false); // observatory: witness the first chimera only
   const [gestaltQuality, setGestaltQuality] = useState(0);
 
   // ── Eco data modulations ──────────────────────────────────────────────
@@ -542,6 +546,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     }
 
     setBifurcCount(c => c + spawned.length);
+    emitObs('gaze', 'art_bifurcation', { count: spawned.length });
     ensureAudio(); somaAudio.playBifurcation(spawned.length);
   }, [activeEdges, triggerBifurcation, ensureAudio]);
 
@@ -662,6 +667,10 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         const _gq = getCompletionQuality();
         setAnalogyCount(_ac);
         setChimeraActive(_cz);
+        if (_cz && !chimeraWitnessedRef.current) {
+          chimeraWitnessedRef.current = true;
+          emitObs('gaze', 'art_chimera', {});
+        }
         setGestaltQuality(_gq);
       }
 
@@ -1893,6 +1902,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             const result = compareNodes(next[0], next[1]);
             resonanceResultRef.current = result;
             setResonanceResult(result);
+            emitObs('gaze', 'art_resonance', {
+              sim: result?.sim ?? null,
+              nodeA: next[0], nodeB: next[1],
+              topDim: result?.topDims?.[0]?.name ?? null,
+            });
             ensureAudio(); somaAudio.playResonance(result?.sim ?? 0.5);
           } else {
             resonanceResultRef.current = null;
@@ -1936,6 +1950,17 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         // Show 16D analysis for this node's edges in the readout panel
         setSelectedNode(node.id);
         setLockedEdge(null);
+        {
+          const selIdx  = NODE_IDX[node.id];
+          const selFeat = selIdx != null ? FEATURES[selIdx] : null;
+          const selTopDim = selFeat
+            ? DIM_NAMES.map((nm, i) => ({ name: nm, v: selFeat[i] })).sort((a, b) => b.v - a.v)[0]
+            : null;
+          emitObs('gaze', 'art_node_selected', {
+            nodeId: node.id, cluster: node.cluster ?? null,
+            topDim: selTopDim?.name ?? null,
+          });
+        }
       }
     }
   }, [canvasCoords, nodeAt, edgeAt, fireNode, spawnEffect, onCueNode, onRunKernel, setConductor]);
@@ -2120,6 +2145,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       setPhaseRegime(event.to);
       setPhaseR(event.r);
       setPhaseLyap(event.lyapunov);
+      // Quintessence witness (chaos spec §3) — the sphere's cascade testifies
+      emitObs('gaze', 'art_regime', { r: event.r, lyapunov: event.lyapunov, regime: event.to });
       // State-driven flash — the void acknowledges the transition
       bgFlashRef.current = event.to === 'CHAOS' ? 1.0 : 0.6;
       // Sonify phase transitions
@@ -2237,6 +2264,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       });
 
       setBifurcCount(c => c + 1);
+      emitObs('gaze', 'art_bifurcation', { count: 1 });
       ensureAudio(); somaAudio.playBifurcation(1);
     };
 
@@ -2767,6 +2795,30 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           <span>{'E = '}<span style={{ color: 'rgba(167,139,250,0.8)' }}>{(getFieldEnergy?.() ?? 0).toFixed(4)}</span></span>
           <span>{'δ = '}<span style={{ color: 'rgba(255,215,0,0.5)' }}>{'4.669201609'}</span></span>
         </div>
+        {/* Twin cascade (chaos spec §4) — sphere r vs the trend-driven engine r.
+          * Reads getSpine() at render: the tab remounts on every tab switch,
+          * so the armed trend is always fresh. No subscription needed. */}
+        {(() => {
+          const trend   = getSpine().trend;
+          const engineR = trend ? trendToPressure(trend.velocity) : null;
+          const dr      = engineR != null ? phaseR - engineR : null;
+          return (
+            <div className="mt-1 flex gap-4 flex-wrap" style={{ color: 'rgba(255,255,255,0.45)' }}>
+              <span>{'CASCADE ∷ sphere r='}<span style={{ color: 'rgba(255,215,0,0.85)' }}>{phaseR.toFixed(3)}</span></span>
+              <span>{'engine r='}
+                {engineR != null
+                  ? <span style={{ color: 'rgba(212,168,42,0.9)' }}>{engineR.toFixed(3)}</span>
+                  : <span style={{ color: 'rgba(255,255,255,0.25)' }}>∅ unwitnessed</span>}
+              </span>
+              {dr != null && (
+                <span>{'Δr='}<span style={{ color: dr >= 0 ? 'rgba(239,68,68,0.9)' : 'rgba(34,197,94,0.8)' }}>
+                  {(dr >= 0 ? '+' : '') + dr.toFixed(3)}
+                </span></span>
+              )}
+              <span>{'r∞='}<span style={{ color: 'rgba(255,215,0,0.5)' }}>{R_CHAOS.toFixed(4)}</span></span>
+            </div>
+          );
+        })()}
         <div className="mt-1" style={{ color: 'rgba(255,255,255,0.20)' }}>
           {'  ── Hopfield associative memory · logistic map x→rx(1-x) · genuine period-doubling cascade ──'}
         </div>

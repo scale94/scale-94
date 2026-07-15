@@ -15,7 +15,7 @@ const AXIOMS = [
   { name: 'panopticon',     field: 'surveillance', status: 'indexed',   variant: 'normal'      },
   { name: 'bsky',           field: 'social',       status: 'online',    variant: 'normal'      },
   { name: 'pqc_enclave',    field: 'cryptography', status: 'armed',     variant: 'normal'      },
-  { name: 'feigenbaum_fade', field: 'art',          status: 'rendering', variant: 'normal'      },
+  { name: 'feigenbaum_fade', field: 'chaos',        status: 'rendering', variant: 'normal'      },
 ];
 
 // 180ms base, 200ms between each axiom — keeps last line-in at ~2180ms, well before fade
@@ -164,7 +164,7 @@ const BootSequence = ({ onDone }) => {
             animation: 'bs-observer-line 0.7s ease-out 4750ms forwards',
           }}
         >
-          OBSERVER :: alien architect engaged
+          ◉ OBSERVE
         </div>
         {/* Sub-line — the build string, very faint */}
         <div
