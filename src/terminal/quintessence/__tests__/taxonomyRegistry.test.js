@@ -69,7 +69,7 @@ describe('lensFor — the reading', () => {
 
   it('interpolates the visitor value as detail', () => {
     const line = lensFor('narcos_payload', CTX, mulberry32(1));
-    expect(line).toContain('velocity 0.90 read as murmur');
+    expect(line).toContain('velocity 0.90 read as panic');
     const astro = lensFor('entropy_lock', CTX, mulberry32(1));
     expect(astro).toContain('82.0% illuminated');
   });
@@ -79,10 +79,14 @@ describe('lensFor — the reading', () => {
       const entry = TAXONOMY.find(d => d.owns.includes(slot));
       return entry.band(ctx);
     };
+    // velocity is rank-derived ∈ (0,1] (BskyTab emits (total-i)/total) —
+    // edges live on that scale: <0.35 murmur, <0.75 current, ≥0.75 panic.
     const withVelocity = v => ({ ...CTX, spine: { ...CTX.spine, trend: { label: 't', velocity: v } } });
-    expect(at('narcos_payload', withVelocity(0.99))).toBe('murmur');
-    expect(at('narcos_payload', withVelocity(1))).toBe('current');
-    expect(at('narcos_payload', withVelocity(3))).toBe('panic');
+    expect(at('narcos_payload', withVelocity(0.34))).toBe('murmur');
+    expect(at('narcos_payload', withVelocity(0.35))).toBe('current');
+    expect(at('narcos_payload', withVelocity(0.74))).toBe('current');
+    expect(at('narcos_payload', withVelocity(0.75))).toBe('panic');
+    expect(at('narcos_payload', withVelocity(1))).toBe('panic');
 
     const withDryness = d => ({ ...CTX, meta: { ...CTX.meta, dryness: d } });
     expect(at('pirarucu', withDryness(39))).toBe('green');

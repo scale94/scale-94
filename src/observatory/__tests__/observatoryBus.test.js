@@ -82,12 +82,10 @@ describe('observatoryBus', () => {
     expect(getTotals().gaze.tabsVisited).toEqual({});
   });
 
-  it('totals.edge tracks gate, eye, manifesto chapter', () => {
-    emit('edge', 'gate_answered', { result: 'BLESSED' });
+  it('totals.edge tracks eye and manifesto chapter', () => {
     emit('edge', 'eye_phase', { phase: 'engaged-here' });
     emit('edge', 'manifesto_opened', { chapter: 7 });
     const t = getTotals().edge;
-    expect(t.gate).toBe('BLESSED');
     expect(t.eye).toBe('engaged-here');
     expect(t.manifestoChapter).toBe(7);
   });

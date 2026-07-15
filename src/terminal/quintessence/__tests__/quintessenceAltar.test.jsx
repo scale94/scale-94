@@ -88,7 +88,7 @@ describe('QuintessenceAltar — the living altar', () => {
     vi.useFakeTimers();
     completeSpine();
     const seal = sealFor('FIRE');
-    act(() => { seal.dispatchEvent(new Event('pointerdown', { bubbles: true })); });
+    act(() => { seal.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 })); });
     act(() => { vi.advanceTimersByTime(1200); });
     // ignite() ran: the compile staging begins (grid unmounts into the stage list)
     expect(container.textContent).toContain('SPINE READ');
@@ -99,7 +99,7 @@ describe('QuintessenceAltar — the living altar', () => {
     vi.useFakeTimers();
     completeSpine();
     const seal = sealFor('AIR');
-    act(() => { seal.dispatchEvent(new Event('pointerdown', { bubbles: true })); });
+    act(() => { seal.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 })); });
     act(() => { vi.advanceTimersByTime(600); });
     act(() => { seal.dispatchEvent(new Event('pointerup', { bubbles: true })); });
     act(() => { vi.advanceTimersByTime(2000); });

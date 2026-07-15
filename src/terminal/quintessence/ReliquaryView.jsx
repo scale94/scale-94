@@ -113,7 +113,10 @@ export default function ReliquaryView() {
     slot('council_pair',        'friction pair · council',       !!spine.council, spine.council?.pair?.join(' × ')),
     slot('pirarucu',            'dryness · olfactory phase',     !!spine.phase,   spine.phase),
     slot('entropy_lock',        'entropy_lock · lunar transit',  !!p.lunarRead,   p.lunarRead ? `${p.lunarRead.phase}` : null),
-    slot('house_transmissions', 'mummy · transmission',          !!p.transmissions, p.transmissions?.lastKernel),
+    slot('house_transmissions', 'mummy · transmission',          !!p.transmissions,
+      p.transmissions?.lastKernel
+        ?? (p.transmissions?.lastSignal ? 'signal marked · no kernel yet' : null)
+        ?? (p.transmissions ? `${p.transmissions.count ?? 0} witnessed` : null)),
     slot('daemon',              'daemon · element',              !!spine.element, spine.element),
     slot('house_ciphers',       'house: ciphers',                !!p.ciphers,     p.ciphers && `${p.ciphers.verifies} verified`),
     slot('house_essences',      'house: essences',               !!p.essences,    p.essences && `${p.essences.collisions} collisions`),

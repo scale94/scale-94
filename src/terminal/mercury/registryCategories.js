@@ -119,21 +119,18 @@ export const REGISTRY_CATEGORIES = [
     name: 'THE PERMEABLE EDGE',
     tint: 'rgba(232,210,138,1)',   // Fade Doctrine two-gold
     members: [
-      { glyph: '▣', name: 'gate',           blurb: 'perihelion question · quintessence blessing' },
       { glyph: '◉', name: 'eye observer',   blurb: 'the persistent gaze' },
       { glyph: '❖', name: 'manifesto',      blurb: 'lattice protocol · chapter panels' },
     ],
     dedication: 'the membrane they keep testing · the gaze that does not blink',
     lastLine: (t) => {
       if (!t.last) return null;
-      if (t.last.kind === 'gate_answered')
-        return `${fmtTime(t.lastTs)}  gate · ${t.last.payload.result ?? '—'}`;
       if (t.last.kind === 'eye_phase')
         return `${fmtTime(t.lastTs)}  eye · ${t.last.payload.phase ?? '—'}`;
       if (t.last.kind === 'manifesto_opened')
         return `${fmtTime(t.lastTs)}  manifesto · chapter ${t.last.payload.chapter ?? '—'}`;
       return `${fmtTime(t.lastTs)}  ${t.last.kind}`;
     },
-    stateLine: (t) => `gate ${t.gate} · eye ${t.eye} · manifesto ${t.manifestoChapter ?? '—'}`,
+    stateLine: (t) => `eye ${t.eye} · manifesto ${t.manifestoChapter ?? '—'}`,
   },
 ];

@@ -36,7 +36,9 @@ export const TAXONOMY = [
     id: 'philosophy',
     tier: 'HUMANITIES',
     tag: 'PHILOSOPHY',
-    owns: ['council_pair'],
+    // house_manifesto: the doctrine house reads in the council's discipline —
+    // unclaimed it fell to the ⟨UNREGISTERED⟩ error lens on every artifact.
+    owns: ['council_pair', 'house_manifesto'],
     band: (ctx) => {
       const n = ctx?.spine?.council?.paradoxCount ?? 0;
       return n === 0 ? 'monolith' : n === 1 ? 'dialectic' : 'polyphony';
@@ -191,8 +193,10 @@ export const TAXONOMY = [
     tag: 'SEMIOTICS',
     owns: ['narcos_payload'],
     band: (ctx) => {
+      // velocity is rank-derived ∈ (0,1] (spineStore contract; BskyTab emits
+      // (total-i)/total) — band thresholds live on that scale.
       const v = ctx?.spine?.trend?.velocity ?? 0;
-      return v < 1 ? 'murmur' : v < 3 ? 'current' : 'panic';
+      return v < 0.35 ? 'murmur' : v < 0.75 ? 'current' : 'panic';
     },
     detail: (ctx, band) =>
       `velocity ${(ctx?.spine?.trend?.velocity ?? 0).toFixed(2)} read as ${band}`,

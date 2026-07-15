@@ -13,6 +13,20 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Pane-probe shim — automation only. The embedded preview pane reports
+      // document.hidden=true, so native rAF never fires and the rAF-driven
+      // boot stalls. Installed BEFORE the module graph so BootSequence's very
+      // first requestAnimationFrame lands on the polyfill. Inert unless on
+      // localhost with sessionStorage.__paneProbe set (session-scoped so a
+      // probe flag can never leak into a later human dev session).
+      if (location.hostname === 'localhost' && sessionStorage.getItem('__paneProbe')) {
+        Object.defineProperty(Document.prototype, 'hidden', { get() { return false; }, configurable: true });
+        Object.defineProperty(Document.prototype, 'visibilityState', { get() { return 'visible'; }, configurable: true });
+        window.requestAnimationFrame = cb => setTimeout(() => cb(performance.now()), 16);
+        window.cancelAnimationFrame = id => clearTimeout(id);
+      }
+    </script>
     <script type="module" src="/src/main.jsx"></script>
     <script>
       // Apocalypse Protocol — register Service Worker for offline-first PWA

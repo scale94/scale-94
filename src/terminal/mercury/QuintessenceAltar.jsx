@@ -47,6 +47,13 @@ export default function QuintessenceAltar({ onDeposited, onNavigate }) {
   const hold = useHoldToSeal(elId => ignite(elId));
   const [confirming, setConfirming] = useState(null); // element id — keyboard path
 
+  // Grid remount (stage back to -1): clear the hold latch. A completed hold
+  // unmounts the grid before pointerup, so its click-swallow flag would
+  // otherwise survive and eat the first click on the fresh grid.
+  // (hold.reset is useCallback-stable; the hold wrapper object is not.)
+  const holdReset = hold.reset;
+  useEffect(() => { if (stage === -1) holdReset(); }, [stage, holdReset]);
+
   async function ignite(elementId) {
     if (!armed || igniting.current) return;
     // Spec §5.2: the reliquary holds one kernel at a time — recompile confirms.
@@ -126,10 +133,11 @@ export default function QuintessenceAltar({ onDeposited, onNavigate }) {
             return (
               <button key={el.id} type="button"
                 data-wet={wet ? 'true' : 'false'}
-                onPointerDown={() => { if (armed) hold.start(el.id); }}
+                onPointerDown={(e) => { if (armed && e.button === 0) hold.start(el.id); }}
                 onPointerUp={() => hold.cancel()}
                 onPointerLeave={() => hold.cancel()}
                 onPointerCancel={() => hold.cancel()}
+                onContextMenu={() => hold.cancel()}
                 onClick={() => { if (hold.consumedClick()) return; onNavigate?.(el.house); }}
                 onKeyDown={(e) => {
                   if (armed && (e.key === 'Enter' || e.key === ' ')) {

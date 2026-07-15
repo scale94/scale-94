@@ -19,7 +19,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { emit as emitObs } from '../../observatory/observatoryBus';
 import ObserverEye from './ObserverEye';
 import { getSpine, subscribeSpine } from '../quintessence/spineStore';
-import { STORAGE_KEY } from '../quintessence/sealedArtifact';
+import { loadSealedArtifact } from '../quintessence/sealedArtifact';
 import { getGuidance, subscribeGuidance, startGuidance } from '../quintessence/guidanceStore';
 import { resolveEyeState } from './resolveEyeState';
 
@@ -94,7 +94,7 @@ export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelA
   const lastLoadIdx  = useRef(-1);
   const prevLoadAt   = useRef(null);
   const [spine, setSpine] = useState(getSpine);
-  const [sealed, setSealed] = useState(() => { try { return !!globalThis.localStorage?.getItem(STORAGE_KEY); } catch (_) { return false; } });
+  const [sealed, setSealed] = useState(() => !!loadSealedArtifact());
   const [guidance, setGuidance] = useState(getGuidance);
 
   // ── The eye reads the compile state and reacts (Phase 3) ────────────────────
@@ -102,7 +102,9 @@ export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelA
   // the next one in that tab's hue. Full spine → armed. Sealed kernel → complete.
   useEffect(() => subscribeSpine(setSpine), []);
   useEffect(() => {
-    const check = () => { try { setSealed(!!globalThis.localStorage?.getItem(STORAGE_KEY)); } catch (_) {} };
+    // One read path to the seal (sealedArtifact.js) — also sees the volatile
+    // hold when localStorage rejected the write at seal time.
+    const check = () => setSealed(!!loadSealedArtifact());
     check();
     const id = setInterval(check, 2000);
     return () => clearInterval(id);

@@ -17,7 +17,7 @@ function makeTotals() {
     essences:      { count: 0, crystallized: 0, polarity: null, lastAccord: null, last: null, lastTs: 0 },
     ciphers:       { sealed: 0, verifies: 0, unlocks: 0, last: null, lastTs: 0 },
     gaze:          { sphereClicks: 0, lastLunar: null, lastScaling: null, tabsVisited: {}, art: null, lastEcocide: null, lastManifestoFragment: null, last: null, lastTs: 0 },
-    edge:          { gate: 'UNANSWERED', eye: 'idle', manifestoChapter: null, last: null, lastTs: 0 },
+    edge:          { eye: 'idle', manifestoChapter: null, last: null, lastTs: 0 },
   };
 }
 let totals = makeTotals();
@@ -117,7 +117,6 @@ function updateTotals(evt) {
       if (evt.kind === 'ecocide_phase')   t.lastEcocide = evt.payload; // includes growthRate/mandateActive (spec: chaos/ecocide compile wiring)
       break;
     case 'edge':
-      if (evt.kind === 'gate_answered')    t.gate             = evt.payload.result;
       if (evt.kind === 'eye_phase')        t.eye              = evt.payload.phase;
       if (evt.kind === 'manifesto_opened') t.manifestoChapter = evt.payload.chapter;
       break;

@@ -50,7 +50,15 @@ export function useHoldToSeal(onComplete) {
     return d;
   }, []);
 
+  // Completion unmounts the seal grid before pointerup, so the swallowed click
+  // may never fire — without a reset the stale latch eats the first legitimate
+  // click on the next grid mount.
+  const reset = useCallback(() => {
+    done.current = false;
+    cancel();
+  }, [cancel]);
+
   useEffect(() => () => clearInterval(interval.current), []);
 
-  return { holding, progress, start, cancel, consumedClick };
+  return { holding, progress, start, cancel, consumedClick, reset };
 }

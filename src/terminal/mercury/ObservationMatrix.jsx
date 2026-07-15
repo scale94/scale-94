@@ -26,7 +26,6 @@ function shortTail(evt) {
     case 'sphere_clicked':   return p.sphere ?? '—';
     case 'lunar_read':       return `${p.phase ?? '—'} ${p.illum != null ? Math.round(p.illum * 100) + '%' : ''}`.trim();
     case 'tab_navigated':    return p.tab ?? '—';
-    case 'gate_answered':    return p.result ?? '—';
     case 'eye_phase':        return p.phase ?? '—';
     case 'manifesto_opened': return `chapter ${p.chapter ?? '—'}`;
     default: return evt.kind;
@@ -41,7 +40,7 @@ function buildRegistryMarkdownBlock(totals) {
     ['BOTTLED VOWS',         fmtTs(t.essences.lastTs),      `${t.essences.count} essences · ${t.essences.crystallized} crystallized · ${t.essences.polarity ?? '—'}`],
     ['SEALED VOLUMES',       fmtTs(t.ciphers.lastTs),       `${t.ciphers.sealed} sealed · ${t.ciphers.unlocks} unlocks`],
     ['BACKWARD GAZE',        fmtTs(t.gaze.lastTs),          `moon ${t.gaze.lastLunar?.phase ?? '—'} · ${t.gaze.sphereClicks} spheres`],
-    ['PERMEABLE EDGE',       fmtTs(t.edge.lastTs),          `gate ${t.edge.gate} · eye ${t.edge.eye} · manifesto ${t.edge.manifestoChapter ?? '—'}`],
+    ['PERMEABLE EDGE',       fmtTs(t.edge.lastTs),          `eye ${t.edge.eye} · manifesto ${t.edge.manifestoChapter ?? '—'}`],
   ];
   const header = `## COSMOS REGISTRY — session totals\n| category | last event | totals |\n| :--- | :--- | :--- |\n`;
   const body   = rows.map(([cat, ts, totalsLine]) => `| ${cat} | ${ts} | ${totalsLine} |`).join('\n');

@@ -105,6 +105,9 @@ const PHASE_LABEL = [
   '6.6.6.6.6.6 COLLAPSE',
   '7.7.7.7.7.7.7 FINAL_STATE',
 ];
+// Observatory contract (periphery.test.js): phase travels as a NAME, not the
+// PH enum int — kernels and the reliquary print it verbatim.
+const PHASE_NAME = ['HOMEOSTASIS', 'EXTRACTION', 'OVERSHOOT', 'COLLAPSE', 'FINAL'];
 const PHASE_COLOR = ['#7ab800', '#c8860a', '#ff4400', '#cc0000', '#333333'];
 
 // ── The 13 Scientifically Proven Paradoxes of Associative Reasoning ──────────
@@ -486,7 +489,7 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
       ecocideBus.emit({ type: 'ECOCIDE_PHASE', phase, metabolicRift: metabolicFat, exergyRate: exergyNorm });
       if (phase !== obsPhaseRef.current) {
         obsPhaseRef.current = phase;
-        emitObs('gaze', 'ecocide_phase', { phase, metabolicRift: metabolicFat, exergyRate: exergyNorm, growthRate: gr, mandateActive: mandateActiveRef.current });
+        emitObs('gaze', 'ecocide_phase', { phase: PHASE_NAME[phase] ?? String(phase), metabolicRift: metabolicFat, exergyRate: exergyNorm, growthRate: gr, mandateActive: mandateActiveRef.current });
       }
 
       // Accumulate sparkline history (capped at 80 ticks ≈ 8 s of data)

@@ -652,6 +652,20 @@ export function useEcologicalRam({ appendSystemLog }) {
       msg: `[◉ OBSERVE] :: perihelion passage confirmed · RAM ${RAM_CEIL}% · the commons: unconditionally restored` });
   }, [updateLattice]);
 
+  // Legacy blessing migration: the perihelion gate is gone, but visitors who
+  // passed it were promised restoration-on-return (the old App.jsx called
+  // applyAlienBlessing whenever gateState === 'passed'). Honor the promise
+  // once, then retire the key — otherwise a returning visitor with depleted
+  // persisted RAM has no recovery path but winning the safe-hunt.
+  useEffect(() => {
+    try {
+      if (globalThis.localStorage?.getItem('scale94.gate') === 'passed') {
+        applyAlienBlessing();
+        globalThis.localStorage.removeItem('scale94.gate');
+      }
+    } catch (_) { /* no storage → no legacy state to honor */ }
+  }, [applyAlienBlessing]);
+
   const isCritical    = ramPct < CRIT_THRESH;
   const isWarning     = ramPct < WARN_THRESH;
   const isRefillReady = latticeState.unlocked &&
