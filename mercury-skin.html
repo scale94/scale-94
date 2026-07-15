@@ -1,0 +1,574 @@
+<!doctype html>
+<!--
+  MERCURY SKIN — tuning mock for nightly/20260716-the-eye-observer
+
+  NOT shipped. Vite's build input is index.html only, so this root-level page is
+  served in dev and never bundled. Delete before merge (or keep as a dev tool).
+
+  Purpose: settle the ~8 constants that decide whether the sphere reads as liquid
+  mercury, using the REAL technique — real three.MeshPhysicalMaterial, real
+  onBeforeCompile graft, real dikhololo_night HDR — so whatever lands here ports
+  to mercurySkin.js as a copy-paste of the GLSL plus a defaults object.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>MERCURY SKIN — tuning mock</title>
+<script>
+  // Pane-probe shim, same trick index.html carries: the embedded preview pane
+  // reports document.hidden === true forever, so the browser suspends rAF and
+  // nothing animates. Localhost-only, so it can never affect anything real.
+  if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+    try {
+      Object.defineProperty(Document.prototype, 'hidden', { get: () => false, configurable: true });
+      Object.defineProperty(Document.prototype, 'visibilityState', { get: () => 'visible', configurable: true });
+      // Hybrid scheduler, same shape as ObserverEye.jsx: rAF is primary, a 40ms
+      // timer is the watchdog. A real visible browser resolves via rAF at 60fps
+      // and the timer never fires; a pane with rAF suppressed falls through to
+      // the watchdog at ~25fps. Probing first and swapping later doesn't work —
+      // the very first rAF registration is already lost by then.
+      const raf = window.requestAnimationFrame.bind(window);
+      window.requestAnimationFrame = (cb) => {
+        let done = false;
+        const fire = (t) => { if (!done) { done = true; cb(t); } };
+        const id = raf(fire);
+        setTimeout(() => fire(performance.now()), 40);
+        return id;
+      };
+    } catch (e) { console.warn('[mercury-skin] shim failed', e); }
+  }
+</script>
+<style>
+  :root { --ink:#c8c8d8; --dim:#6b6b7e; --acc:#818cf8; }
+  * { box-sizing: border-box; }
+  html,body { margin:0; height:100%; background:#000; color:var(--ink);
+              font-family:'Geist Mono',ui-monospace,monospace; overflow:hidden; }
+  #stage { position:fixed; inset:0; }
+  #panel {
+    position:fixed; top:0; right:0; width:330px; height:100%; overflow-y:auto;
+    background:rgba(4,4,8,.86); backdrop-filter:blur(12px);
+    border-left:1px solid rgba(129,140,248,.14); padding:14px; z-index:10;
+  }
+  #panel::-webkit-scrollbar { width:6px; }
+  #panel::-webkit-scrollbar-thumb { background:rgba(129,140,248,.3); border-radius:3px; }
+  h1 { font-size:10px; letter-spacing:.22em; color:var(--acc); margin:0 0 2px; font-weight:700; }
+  .sub { font-size:9px; color:var(--dim); margin-bottom:12px; line-height:1.5; }
+  fieldset { border:1px solid rgba(129,140,248,.12); border-radius:7px; padding:9px; margin:0 0 10px; }
+  legend { font-size:8.5px; letter-spacing:.2em; color:var(--dim); padding:0 5px; text-transform:uppercase; }
+  .row { display:flex; justify-content:space-between; align-items:baseline; font-size:9.5px; }
+  .row span:first-child { color:var(--dim); text-transform:uppercase; letter-spacing:.09em; }
+  .row span:last-child { color:var(--acc); font-variant-numeric:tabular-nums; }
+  input[type=range] { width:100%; height:16px; margin:1px 0 5px; accent-color:var(--acc); cursor:pointer; }
+  .btns { display:grid; grid-template-columns:1fr 1fr; gap:5px; }
+  button {
+    font-family:inherit; font-size:9px; letter-spacing:.11em; padding:7px 4px; cursor:pointer;
+    background:rgba(129,140,248,.07); color:var(--ink);
+    border:1px solid rgba(129,140,248,.25); border-radius:5px; transition:.12s;
+  }
+  button:hover { background:rgba(129,140,248,.2); }
+  button:active { transform:scale(.95); }
+  button.el { border-color:var(--c); color:var(--c); }
+  button.el:hover { background:color-mix(in srgb, var(--c) 18%, transparent); }
+  #hud { position:fixed; top:10px; left:12px; font-size:10px; line-height:1.7; z-index:10; pointer-events:none; }
+  #hud b { color:var(--acc); font-weight:400; font-variant-numeric:tabular-nums; }
+  #hud .warn { color:#f59e0b; }
+  #hud .bad { color:#ef4444; }
+  #out {
+    width:100%; height:120px; font-family:inherit; font-size:8.5px; line-height:1.45;
+    background:#05050a; color:#7dd3fc; border:1px solid rgba(129,140,248,.2);
+    border-radius:5px; padding:6px; resize:vertical; margin-top:5px;
+  }
+  .note { font-size:8.5px; color:var(--dim); line-height:1.5; margin-top:5px; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="hud">
+  <div><b id="fps">—</b> fps · <b id="verts">—</b> verts · dpr <b id="dpr">—</b></div>
+  <div style="color:#6b6b7e">drag to orbit · surface tension always wins</div>
+</div>
+<div id="panel">
+  <h1>◉ MERCURY SKIN</h1>
+  <div class="sub">Real MeshPhysicalMaterial + onBeforeCompile graft + dikhololo_night HDR. Tune until it feels like mercury, then EXPORT.</div>
+
+  <fieldset><legend>Fire an impulse</legend>
+    <div class="btns">
+      <button class="el" style="--c:#38bdf8" data-el="air">▲̶ AIR</button>
+      <button class="el" style="--c:#f97316" data-el="thermal">▲ FIRE</button>
+      <button class="el" style="--c:#d97706" data-el="earth">▽̶ EARTH</button>
+      <button class="el" style="--c:#6366f1" data-el="fluid">▽ WATER</button>
+    </div>
+    <div class="note">Capillary waves are dispersive: ω²=(σ/ρ)k³ — fine ripples outrun the coarse swell.</div>
+  </fieldset>
+
+  <fieldset><legend>Idle skin · alive at rest</legend>
+    <div data-s="uNoiseAmp"   data-min="0"    data-max="0.09" data-step="0.001"></div>
+    <div data-s="uNoiseScale" data-min="0.4"  data-max="6"    data-step="0.05"></div>
+    <div data-s="uWarp"       data-min="0"    data-max="2.5"  data-step="0.02"></div>
+    <div data-s="uFlow"       data-min="0"    data-max="0.6"  data-step="0.005"></div>
+  </fieldset>
+
+  <fieldset><legend>Capillary · fine band</legend>
+    <div data-s="uKFine"  data-min="4"  data-max="60"  data-step="0.5"></div>
+    <div data-s="uWFine"  data-min="1"  data-max="30"  data-step="0.2"></div>
+    <div data-s="uVFine"  data-min="0.1" data-max="6"  data-step="0.05"></div>
+    <div data-s="uAFine"  data-min="0"  data-max="0.09" data-step="0.001"></div>
+    <div data-s="uPkFine" data-min="0.03" data-max="1" data-step="0.01"></div>
+  </fieldset>
+
+  <fieldset><legend>Capillary · coarse swell</legend>
+    <div data-s="uKCoarse"  data-min="1"  data-max="24"  data-step="0.25"></div>
+    <div data-s="uWCoarse"  data-min="0.5" data-max="16" data-step="0.1"></div>
+    <div data-s="uVCoarse"  data-min="0.05" data-max="4" data-step="0.05"></div>
+    <div data-s="uACoarse"  data-min="0"  data-max="0.14" data-step="0.001"></div>
+    <div data-s="uPkCoarse" data-min="0.05" data-max="1.6" data-step="0.01"></div>
+  </fieldset>
+
+  <fieldset><legend>Surface tension · decay</legend>
+    <div data-s="uDecay"    data-min="0.2" data-max="9"  data-step="0.05"></div>
+    <div data-s="uSpread"   data-min="0"   data-max="4"  data-step="0.02"></div>
+    <div data-s="uLifetime" data-min="0.3" data-max="6"  data-step="0.05"></div>
+    <div class="note">Mercury σ=0.486 N/m (7× water), ρ=13534 kg/m³. It snaps back <i>hard</i>. High decay = truthful.</div>
+  </fieldset>
+
+  <fieldset><legend>Spin bulge · replaces scale.set()</legend>
+    <div data-s="uSpinGain"   data-min="0" data-max="0.5" data-step="0.005"></div>
+    <div data-s="uSpinSquash" data-min="0" data-max="0.5" data-step="0.005"></div>
+    <div class="row"><span>spin (live)</span><span id="spinv">0.00</span></div>
+  </fieldset>
+
+  <fieldset><legend>Phase beat</legend>
+    <div data-s="uChromePhase" data-min="0" data-max="1" data-step="0.01"></div>
+    <div data-s="uSolidRipple" data-min="0" data-max="1" data-step="0.01"></div>
+    <div data-s="uElong"       data-min="0" data-max="1" data-step="0.01"></div>
+    <div data-s="uElongGain"   data-min="0" data-max="0.4" data-step="0.005"></div>
+    <div class="note">chromePhase 0=rocky planet, 1=liquid Hg. solidRipple = how much the <i>solid</i> still ripples.</div>
+  </fieldset>
+
+  <fieldset><legend>Cost</legend>
+    <div class="row"><span>icosa detail</span><span id="detv">20</span></div>
+    <input type="range" id="det" min="4" max="40" step="1" value="20" />
+    <div class="row"><span>triangles</span><span id="tris">—</span></div>
+    <div class="row"><span>edge / radius</span><span id="edge">—</span></div>
+    <div class="btns">
+      <button id="nmode">normals: finite-diff</button>
+      <button id="dprb">dpr: desktop</button>
+    </div>
+    <div class="note">three subdivides by (detail+1)², <i>not</i> 4^detail — detail 5 is only 720 tris, coarser than the sphere we're replacing. Indexed via mergeVertices. Edge/radius is the ripple-fineness ceiling: below ~3.5% is smooth, above ~6% facets.</div>
+  </fieldset>
+
+  <fieldset><legend>Export</legend>
+    <div class="btns">
+      <button id="exp">EXPORT DEFAULTS</button>
+      <button id="rst">RESET</button>
+    </div>
+    <textarea id="out" readonly placeholder="tuned constants land here →  mercurySkin.js"></textarea>
+  </fieldset>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { RGBELoader }    from 'three/examples/jsm/loaders/RGBELoader.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+
+// The exact HDR drei's <Environment preset="night" /> resolves to, so the mirror
+// in this mock is the mirror in MercuryCanvas.
+const NIGHT_HDR = 'https://raw.githack.com/pmndrs/drei-assets/456060a26bbeb8fdf79326f224b6d99b8bcce736/hdri/dikhololo_night_1k.hdr';
+
+const RADIUS = 0.75;
+
+// ── Starting guesses. These are the point of the exercise — every one is a
+// hypothesis until you drag it. Physical intent noted; the eye is the judge.
+const DEFAULTS = {
+  uNoiseAmp: 0.014, uNoiseScale: 2.1, uWarp: 1.15, uFlow: 0.13,
+  uKFine: 26, uWFine: 11, uVFine: 1.9, uAFine: 0.012, uPkFine: 0.30,
+  uKCoarse: 8, uWCoarse: 3.4, uVCoarse: 0.8, uACoarse: 0.05, uPkCoarse: 0.62,
+  uDecay: 2.4, uSpread: 1.1, uLifetime: 2.6,
+  uSpinGain: 0.16, uSpinSquash: 0.11,
+  uChromePhase: 1.0, uSolidRipple: 0.25, uElong: 0.0, uElongGain: 0.10,
+};
+const P = { ...DEFAULTS };
+
+const LABEL = {
+  uNoiseAmp:'amplitude', uNoiseScale:'scale', uWarp:'domain warp', uFlow:'flow rate',
+  uKFine:'wavenumber k', uWFine:'omega ω', uVFine:'front speed', uAFine:'amplitude', uPkFine:'packet width',
+  uKCoarse:'wavenumber k', uWCoarse:'omega ω', uVCoarse:'front speed', uACoarse:'amplitude', uPkCoarse:'packet width',
+  uDecay:'decay rate', uSpread:'packet spread', uLifetime:'lifetime (s)',
+  uSpinGain:'equator bulge', uSpinSquash:'pole flatten',
+  uChromePhase:'chromePhase', uSolidRipple:'solid ripple', uElong:'elongation', uElongGain:'elong gain',
+};
+
+// ── GLSL ────────────────────────────────────────────────────────────────────
+// snoise is lifted verbatim from ParticleFlow.jsx — same simplex, same idiom.
+const NOISE = `
+vec4 permute(vec4 x){ return mod(((x*34.0)+1.0)*x, 289.0); }
+float snoise(vec3 v){
+  const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+  const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+  vec3 i  = floor(v + dot(v, C.yyy));
+  vec3 x0 = v - i + dot(i, C.xxx);
+  vec3 g  = step(x0.yzx, x0.xyz);
+  vec3 l  = 1.0 - g;
+  vec3 i1 = min( g.xyz, l.zxy );
+  vec3 i2 = max( g.xyz, l.zxy );
+  vec3 x1 = x0 - i1 + C.xxx;
+  vec3 x2 = x0 - i2 + C.yyy;
+  vec3 x3 = x0 - D.yyy;
+  i = mod(i, 289.0);
+  vec4 p = permute(permute(permute(
+            i.z + vec4(0.0, i1.z, i2.z, 1.0))
+          + i.y + vec4(0.0, i1.y, i2.y, 1.0))
+          + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+  float n_ = 1.0/7.0;
+  vec3 ns = n_ * D.wyz - D.xzx;
+  vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
+  vec4 x_ = floor(j * ns.z);
+  vec4 y_ = floor(j - 7.0 * x_);
+  vec4 x  = x_ * ns.x + ns.yyyy;
+  vec4 y  = y_ * ns.x + ns.yyyy;
+  vec4 h  = 1.0 - abs(x) - abs(y);
+  vec4 b0 = vec4(x.xy, y.xy);
+  vec4 b1 = vec4(x.zw, y.zw);
+  vec4 s0 = floor(b0) * 2.0 + 1.0;
+  vec4 s1 = floor(b1) * 2.0 + 1.0;
+  vec4 sh = -step(h, vec4(0.0));
+  vec4 a0 = b0.xzyw + s0.xzyw * sh.xxyy;
+  vec4 a1 = b1.xzyw + s1.xzyw * sh.zzww;
+  vec3 p0 = vec3(a0.xy, h.x);
+  vec3 p1 = vec3(a0.zw, h.y);
+  vec3 p2 = vec3(a1.xy, h.z);
+  vec3 p3 = vec3(a1.zw, h.w);
+  vec4 norm = 1.79284291400159 - 0.85373472095314 *
+              vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3));
+  p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
+  vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+  m = m * m;
+  return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
+}
+float fbm3(vec3 p){
+  float s = 0.0, a = 0.5;
+  for(int i=0;i<4;i++){ s += a*snoise(p); p *= 2.02; a *= 0.5; }
+  return s;
+}`;
+
+const HEAD = `
+uniform float uTime,uNoiseAmp,uNoiseScale,uWarp,uFlow;
+uniform float uSpin,uSpinGain,uSpinSquash;
+uniform float uElong,uElongGain; uniform vec3 uElongDir;
+uniform float uChromePhase,uSolidRipple;
+uniform vec3  uImpOrigin[4];
+uniform float uImpBirth[4];
+uniform float uImpAmp[4];
+uniform float uKFine,uKCoarse,uWFine,uWCoarse,uVFine,uVCoarse,uPkFine,uPkCoarse,uAFine,uACoarse;
+uniform float uDecay,uSpread,uLifetime,uEps,uRadius;
+uniform int   uNormalMode;
+vec3 gDisp;
+${NOISE}
+
+// Idle skin: domain-warped fbm — the eye's vocabulary, in 3D.
+float skinField(vec3 p){
+  float t = uTime * uFlow;
+  vec3 q = vec3(
+    fbm3(p*uNoiseScale + vec3(0.0, 0.0, t)),
+    fbm3(p*uNoiseScale + vec3(5.2, 1.3, t*0.9)),
+    fbm3(p*uNoiseScale + vec3(1.7, 9.2, t*1.1))
+  );
+  return fbm3(p*uNoiseScale + q*uWarp);
+}
+
+// Dispersive capillary packets. Two bands: fine outruns coarse because
+// omega ~ k^1.5 for capillary waves. Packet widens with age = dispersion.
+float capillary(vec3 n){
+  float sum = 0.0;
+  for(int i=0;i<4;i++){
+    float birth = uImpBirth[i];
+    float age = uTime - birth;
+    if(birth < 0.0 || age < 0.0 || age > uLifetime) continue;
+    float gd = acos(clamp(dot(n, uImpOrigin[i]), -1.0, 1.0));
+    float env = exp(-age*uDecay) * uImpAmp[i];
+    float sf = uPkFine   * (1.0 + age*uSpread);
+    float sc = uPkCoarse * (1.0 + age*uSpread);
+    float df = (gd - uVFine*age)/max(sf,1e-4);
+    float dc = (gd - uVCoarse*age)/max(sc,1e-4);
+    float fine   = sin(uKFine*gd   - uWFine*age)   * exp(-df*df) * uAFine;
+    float coarse = sin(uKCoarse*gd - uWCoarse*age) * exp(-dc*dc) * uACoarse;
+    sum += (fine + coarse) * env;
+  }
+  return sum;
+}
+
+float field(vec3 n){
+  float d = skinField(n) * uNoiseAmp;
+  d += capillary(n);
+  float lat = n.y;                                  // OrbitControls azimuth spins about Y
+  d += uSpin * (1.0 - lat*lat) * uSpinGain;         // equatorial bulge
+  d -= uSpin * (lat*lat)       * uSpinSquash;       // polar flatten
+  d += uElong * smoothstep(0.1, 1.0, dot(n, uElongDir)) * uElongGain;
+  // A rocky planet shouldn't ripple like liquid; the skin wakes as it melts.
+  return d * mix(uSolidRipple, 1.0, uChromePhase);
+}
+
+vec3 displaced(vec3 n){ return n * (uRadius + field(n)); }
+
+// Finite-difference normal on a pole-free icosahedron: build a tangent basis
+// from the normal itself (the ParticleFlow.jsx:109 trick), sample two neighbours.
+vec3 rebuildNormal(vec3 n, vec3 P0){
+  vec3 ref = abs(n.y) < 0.99 ? vec3(0.0,1.0,0.0) : vec3(1.0,0.0,0.0);
+  vec3 t = normalize(cross(ref, n));
+  vec3 b = cross(n, t);
+  vec3 p1 = displaced(normalize(n + t*uEps));
+  vec3 p2 = displaced(normalize(n + b*uEps));
+  return normalize(cross(p1 - P0, p2 - P0));
+}
+`;
+
+const BEGINNORMAL = `
+  vec3 mN = normalize(position);
+  gDisp = displaced(mN);
+  vec3 objectNormal = (uNormalMode == 0) ? rebuildNormal(mN, gDisp) : mN;
+#ifdef USE_TANGENT
+  vec3 objectTangent = vec3( tangent.xyz );
+#endif
+`;
+
+// ── Scene ───────────────────────────────────────────────────────────────────
+const stage = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:false, powerPreference:'high-performance' });
+renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+stage.appendChild(renderer.domElement);
+
+const scene  = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
+const camera = new THREE.PerspectiveCamera(42, innerWidth/innerHeight, 0.1, 100);
+camera.position.set(0, 0, 3.0);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.05;
+controls.minDistance = 1.6; controls.maxDistance = 7;
+controls.autoRotate = true; controls.autoRotateSpeed = 0.3;
+
+// Lighting rig copied from MercuryCanvas.jsx + MercurySphere.jsx
+scene.add(new THREE.AmbientLight(0x0a0a12, 0.12));
+const pl1 = new THREE.PointLight(0xc8c8d8, 1.5); pl1.position.set(3,3,3); scene.add(pl1);
+const pl2 = new THREE.PointLight(0x1a1a2e, 0.6); pl2.position.set(-2,-2,1); scene.add(pl2);
+const dayLight = new THREE.DirectionalLight(0xe8e8f0, 4.0); dayLight.position.set(4,0,2); scene.add(dayLight);
+const nightFill = new THREE.DirectionalLight(0x060610, 0.1); nightFill.position.set(-3,-3,-2); scene.add(nightFill);
+
+// Env: the real night HDR; RoomEnvironment only if the CDN is unreachable.
+const pmrem = new THREE.PMREMGenerator(renderer);
+new RGBELoader().load(NIGHT_HDR, (tex) => {
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  scene.environment = pmrem.fromEquirectangular(tex).texture;
+  tex.dispose();
+}, undefined, () => {
+  console.warn('[mercury-skin] night HDR unreachable — falling back to RoomEnvironment. Mirror will read BRIGHTER than production; do not trust absolute amplitudes.');
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  document.getElementById('hud').insertAdjacentHTML('beforeend',
+    '<div class="warn">⚠ HDR offline — fallback env, mirror is brighter than prod</div>');
+});
+
+// ── Material: real MeshPhysicalMaterial + the real graft ─────────────────────
+const uniforms = {
+  uTime:{value:0}, uSpin:{value:0}, uEps:{value:0.012}, uRadius:{value:RADIUS},
+  uElongDir:{value:new THREE.Vector3(1,0,0)}, uNormalMode:{value:0},
+  uImpOrigin:{value:Array.from({length:4},()=>new THREE.Vector3(0,1,0))},
+  uImpBirth:{value:new Float32Array([-1,-1,-1,-1])},
+  uImpAmp:{value:new Float32Array([0,0,0,0])},
+};
+for (const k in P) uniforms[k] = { value: P[k] };
+
+const material = new THREE.MeshPhysicalMaterial({ color:0xc4c4c8, clearcoatRoughness:0.05 });
+
+let grafted = false;
+material.onBeforeCompile = (shader) => {
+  Object.assign(shader.uniforms, uniforms);
+
+  const before = shader.vertexShader;
+  shader.vertexShader = shader.vertexShader
+    .replace('#include <common>', '#include <common>\n' + HEAD)
+    .replace('#include <beginnormal_vertex>', BEGINNORMAL)
+    .replace('#include <begin_vertex>', 'vec3 transformed = gDisp;');
+
+  // THE GUARD. onBeforeCompile patches by string replacement; if three ever
+  // renames a chunk the replace silently no-ops and you get a stock sphere back
+  // with no error. This is the assertion mercurySkin.js will carry as a test.
+  const ok = shader.vertexShader !== before
+    && shader.vertexShader.includes('gDisp = displaced(mN)')
+    && shader.vertexShader.includes('vec3 transformed = gDisp;')
+    && !shader.vertexShader.includes('#include <begin_vertex>');
+  if (!ok) {
+    console.error('[mercury-skin] GRAFT FAILED — three chunk names moved. Sphere is unpatched.');
+    document.getElementById('hud').insertAdjacentHTML('beforeend',
+      '<div class="bad">✖ GRAFT FAILED — chunk names moved, sphere is stock</div>');
+  }
+  grafted = ok;
+};
+// Without this, three may hand us a cached program from an unpatched physical material.
+material.customProgramCacheKey = () => 'mercury-skin-v1';
+
+let mesh = null;
+function buildMesh(detail) {
+  if (mesh) { mesh.geometry.dispose(); scene.remove(mesh); }
+  // IcosahedronGeometry is NON-indexed: every triangle carries its own 3 verts,
+  // so a bare detail-N icosa runs the vertex shader ~6x per actual surface point.
+  // mergeVertices() welds them back into a shared, indexed mesh — same surface,
+  // a fraction of the invocations. This is not an optimisation, it's the
+  // difference between affordable and not.
+  const raw = new THREE.IcosahedronGeometry(RADIUS, detail);
+  const geo = mergeVertices(raw);
+  raw.dispose();
+  geo.computeVertexNormals();
+  mesh = new THREE.Mesh(geo, material);
+  mesh.frustumCulled = false;
+  scene.add(mesh);
+  const verts = geo.attributes.position.count;
+  const tris  = geo.index ? geo.index.count / 3 : verts / 3;
+  document.getElementById('verts').textContent = verts.toLocaleString();
+  document.getElementById('tris').textContent  = Math.round(tris).toLocaleString();
+  // Mean edge length as a fraction of radius — the real ceiling on ripple
+  // fineness. Ripples finer than this facet, which IS the banding we're fixing.
+  const edge = Math.sqrt((4 * Math.PI * RADIUS * RADIUS) / tris) / RADIUS;
+  const el = document.getElementById('edge');
+  el.textContent = (edge * 100).toFixed(1) + '%';
+  el.className = edge < 0.035 ? '' : edge < 0.06 ? 'warn' : 'bad';
+}
+buildMesh(20);
+
+// chromePhase drives the material exactly as MercurySphere.jsx does today.
+const planetGrey   = new THREE.Color('#787878').lerp(new THREE.Color('#6366f1'), 0.12);
+const liquidSilver = new THREE.Color('#c4c4c8');
+function applyChrome(cp) {
+  material.color.copy(planetGrey).lerp(liquidSilver, cp);
+  material.roughness      = 0.72 - cp * 0.70;
+  material.metalness      = 0.65 + cp * 0.34;
+  material.clearcoat      = cp * 0.95;
+  material.envMapIntensity = 0.3 + cp * 2.7;
+  dayLight.color.copy(new THREE.Color('#9a9aaa')).lerp(new THREE.Color('#e8e8f0'), cp);
+  dayLight.intensity = 1.8 + cp * 2.2;
+}
+applyChrome(P.uChromePhase);
+
+// ── Impulses: ring buffer of 4, exactly as useCapillaryImpulses.js will be ───
+// Node angles are MercurySphere.jsx's ORBIT_NODES; the wave is born at the point
+// on the sphere nearest the tapped node.
+const NODES = { air:Math.PI/2, thermal:0, earth:-Math.PI/2, fluid:Math.PI };
+let impCursor = 0;
+function fire(el) {
+  const a = NODES[el];
+  const i = impCursor % 4; impCursor++;
+  uniforms.uImpOrigin.value[i].set(Math.cos(a), Math.sin(a), 0).normalize();
+  uniforms.uImpBirth.value[i] = uniforms.uTime.value;
+  uniforms.uImpAmp.value[i]   = 1.0;
+  uniforms.uElongDir.value.set(Math.cos(a), Math.sin(a), 0).normalize();
+}
+document.querySelectorAll('button.el').forEach(b =>
+  b.addEventListener('click', () => fire(b.dataset.el)));
+
+// ── Sliders ─────────────────────────────────────────────────────────────────
+document.querySelectorAll('[data-s]').forEach(host => {
+  const key = host.dataset.s;
+  host.innerHTML = `<div class="row"><span>${LABEL[key]}</span><span id="v_${key}"></span></div>
+    <input type="range" id="r_${key}" min="${host.dataset.min}" max="${host.dataset.max}" step="${host.dataset.step}">`;
+  const r = host.querySelector('input'), v = host.querySelector('span[id^=v_]');
+  const sync = () => {
+    r.value = P[key]; v.textContent = (+P[key]).toFixed(3);
+    if (uniforms[key]) uniforms[key].value = P[key];
+  };
+  r.addEventListener('input', () => {
+    P[key] = parseFloat(r.value); v.textContent = P[key].toFixed(3);
+    if (uniforms[key]) uniforms[key].value = P[key];
+    if (key === 'uChromePhase') applyChrome(P[key]);
+  });
+  host._sync = sync; sync();
+});
+const syncAll = () => document.querySelectorAll('[data-s]').forEach(h => h._sync());
+
+// ── Cost controls ───────────────────────────────────────────────────────────
+const det = document.getElementById('det');
+det.addEventListener('input', () => {
+  document.getElementById('detv').textContent = det.value;
+  buildMesh(+det.value);
+});
+const nmode = document.getElementById('nmode');
+nmode.addEventListener('click', () => {
+  uniforms.uNormalMode.value = uniforms.uNormalMode.value === 0 ? 1 : 0;
+  nmode.textContent = 'normals: ' + (uniforms.uNormalMode.value === 0 ? 'finite-diff' : 'cheap (sphere)');
+});
+let mobileDpr = false;
+const dprb = document.getElementById('dprb');
+function applyDpr() {
+  const d = mobileDpr ? 1.5 : Math.min(2, devicePixelRatio || 1);
+  renderer.setPixelRatio(d);
+  document.getElementById('dpr').textContent = d.toFixed(2);
+  dprb.textContent = 'dpr: ' + (mobileDpr ? 'mobile 1.5' : 'desktop');
+}
+dprb.addEventListener('click', () => { mobileDpr = !mobileDpr; applyDpr(); });
+applyDpr();
+
+// ── Export / reset ──────────────────────────────────────────────────────────
+document.getElementById('exp').addEventListener('click', () => {
+  const body = Object.keys(DEFAULTS).map(k => `  ${k}: ${(+P[k]).toFixed(4)},`).join('\n');
+  document.getElementById('out').value =
+`// tuned in mercury-skin.html — paste into mercurySkin.js
+export const SKIN_DEFAULTS = {
+${body}
+};
+// icosa detail: ${det.value}  ·  normals: ${uniforms.uNormalMode.value === 0 ? 'finite-diff' : 'cheap'}`;
+  document.getElementById('out').select();
+});
+document.getElementById('rst').addEventListener('click', () => {
+  Object.assign(P, DEFAULTS); syncAll(); applyChrome(P.uChromePhase);
+});
+
+// ── Loop ────────────────────────────────────────────────────────────────────
+// rotVel → uSpin, ported from MercurySphere.jsx:118-127 (same EMA, same feel).
+let prevAz = null, rotVel = 0, last = performance.now(), frames = 0, acc = 0;
+(function loop(now) {
+  requestAnimationFrame(loop);
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  controls.update();
+
+  const az = Math.atan2(camera.position.x, camera.position.z);
+  if (prevAz !== null) {
+    let da = az - prevAz;
+    if (da >  Math.PI) da -= Math.PI*2;
+    if (da < -Math.PI) da += Math.PI*2;
+    rotVel = rotVel*0.68 + (Math.abs(da)/Math.max(dt,0.001))*0.32;
+  }
+  prevAz = az;
+  uniforms.uSpin.value = Math.min(rotVel * 0.58, 0.50);
+  document.getElementById('spinv').textContent = uniforms.uSpin.value.toFixed(2);
+
+  uniforms.uTime.value += dt;
+  // Expire dead impulses so the shader's early-out actually pays.
+  for (let i = 0; i < 4; i++) {
+    if (uniforms.uImpBirth.value[i] >= 0 &&
+        uniforms.uTime.value - uniforms.uImpBirth.value[i] > P.uLifetime) {
+      uniforms.uImpBirth.value[i] = -1;
+    }
+  }
+
+  renderer.render(scene, camera);
+
+  frames++; acc += dt;
+  if (acc >= 0.5) {
+    const f = Math.round(frames/acc);
+    const el = document.getElementById('fps');
+    el.textContent = f;
+    el.className = f >= 50 ? '' : f >= 30 ? 'warn' : 'bad';
+    frames = 0; acc = 0;
+  }
+})(performance.now());
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+setTimeout(() => { if (!grafted) console.warn('[mercury-skin] graft never ran — material not compiled?'); }, 2000);
+</script>
+</body>
+</html>
