@@ -101,8 +101,17 @@
     <div class="note">Capillary waves are dispersive: ω²=(σ/ρ)k³ — fine ripples outrun the coarse swell.</div>
   </fieldset>
 
+  <fieldset><legend>Rayleigh body modes · the wobble</legend>
+    <div data-s="uRayAmp"   data-min="0"    data-max="0.40" data-step="0.005"></div>
+    <div data-s="uRayW"     data-min="1"    data-max="30"   data-step="0.1"></div>
+    <div data-s="uRayDecay" data-min="0.05" data-max="4"    data-step="0.01"></div>
+    <div data-s="uRayMix3"  data-min="0"    data-max="1"    data-step="0.01"></div>
+    <div data-s="uRayMix4"  data-min="0"    data-max="1"    data-step="0.01"></div>
+    <div class="note">ω<sub>ℓ</sub>²=ℓ(ℓ−1)(ℓ+2)σ/ρR³. ℓ=2 is prolate↔oblate — the drop's bounce. ℓ=3/ℓ=4 ride at exactly 1.936× and 3× and damp 2.8×/5.4× faster, so the fundamental outlives them. Mercury's viscosity is ~1.15e-7 m²/s: it rings for <i>ages</i>. Low ring-down = truthful.</div>
+  </fieldset>
+
   <fieldset><legend>Idle skin · alive at rest</legend>
-    <div data-s="uNoiseAmp"   data-min="0"    data-max="0.09" data-step="0.001"></div>
+    <div data-s="uNoiseAmp"   data-min="0"    data-max="0.20" data-step="0.001"></div>
     <div data-s="uNoiseScale" data-min="0.4"  data-max="6"    data-step="0.05"></div>
     <div data-s="uWarp"       data-min="0"    data-max="2.5"  data-step="0.02"></div>
     <div data-s="uFlow"       data-min="0"    data-max="0.6"  data-step="0.005"></div>
@@ -112,7 +121,7 @@
     <div data-s="uKFine"  data-min="4"  data-max="60"  data-step="0.5"></div>
     <div data-s="uWFine"  data-min="1"  data-max="30"  data-step="0.2"></div>
     <div data-s="uVFine"  data-min="0.1" data-max="6"  data-step="0.05"></div>
-    <div data-s="uAFine"  data-min="0"  data-max="0.09" data-step="0.001"></div>
+    <div data-s="uAFine"  data-min="0"  data-max="0.20" data-step="0.001"></div>
     <div data-s="uPkFine" data-min="0.03" data-max="1" data-step="0.01"></div>
   </fieldset>
 
@@ -120,15 +129,15 @@
     <div data-s="uKCoarse"  data-min="1"  data-max="24"  data-step="0.25"></div>
     <div data-s="uWCoarse"  data-min="0.5" data-max="16" data-step="0.1"></div>
     <div data-s="uVCoarse"  data-min="0.05" data-max="4" data-step="0.05"></div>
-    <div data-s="uACoarse"  data-min="0"  data-max="0.14" data-step="0.001"></div>
+    <div data-s="uACoarse"  data-min="0"  data-max="0.30" data-step="0.001"></div>
     <div data-s="uPkCoarse" data-min="0.05" data-max="1.6" data-step="0.01"></div>
   </fieldset>
 
   <fieldset><legend>Surface tension · decay</legend>
-    <div data-s="uDecay"    data-min="0.2" data-max="9"  data-step="0.05"></div>
-    <div data-s="uSpread"   data-min="0"   data-max="4"  data-step="0.02"></div>
-    <div data-s="uLifetime" data-min="0.3" data-max="6"  data-step="0.05"></div>
-    <div class="note">Mercury σ=0.486 N/m (7× water), ρ=13534 kg/m³. It snaps back <i>hard</i>. High decay = truthful.</div>
+    <div data-s="uDecay"    data-min="0.05" data-max="9"  data-step="0.05"></div>
+    <div data-s="uSpread"   data-min="0"    data-max="4"  data-step="0.02"></div>
+    <div data-s="uLifetime" data-min="0.3"  data-max="14" data-step="0.1"></div>
+    <div class="note">σ=0.486 N/m (7× water), ρ=13534 kg/m³. This decay is the <i>skin</i> only — capillary ripples damp ~k², so fine detail dies fast while the body keeps ringing. Lifetime gates both; raise it or you'll cut the wobble off mid-ring.</div>
   </fieldset>
 
   <fieldset><legend>Spin bulge · replaces scale.set()</legend>
@@ -182,10 +191,12 @@ const RADIUS = 0.75;
 // ── Starting guesses. These are the point of the exercise — every one is a
 // hypothesis until you drag it. Physical intent noted; the eye is the judge.
 const DEFAULTS = {
-  uNoiseAmp: 0.014, uNoiseScale: 2.1, uWarp: 1.15, uFlow: 0.13,
-  uKFine: 26, uWFine: 11, uVFine: 1.9, uAFine: 0.012, uPkFine: 0.30,
+  uNoiseAmp: 0.022, uNoiseScale: 2.1, uWarp: 1.15, uFlow: 0.13,
+  // Body wobble carries the elasticity; the skin bands are detail riding on it.
+  uRayAmp: 0.11, uRayW: 7.0, uRayDecay: 0.45, uRayMix3: 0.5, uRayMix4: 0.28,
+  uKFine: 26, uWFine: 11, uVFine: 1.9, uAFine: 0.014, uPkFine: 0.30,
   uKCoarse: 8, uWCoarse: 3.4, uVCoarse: 0.8, uACoarse: 0.05, uPkCoarse: 0.62,
-  uDecay: 2.4, uSpread: 1.1, uLifetime: 2.6,
+  uDecay: 2.4, uSpread: 1.1, uLifetime: 8.0,
   uSpinGain: 0.16, uSpinSquash: 0.11,
   uChromePhase: 1.0, uSolidRipple: 0.25, uElong: 0.0, uElongGain: 0.10,
 };
@@ -193,6 +204,7 @@ const P = { ...DEFAULTS };
 
 const LABEL = {
   uNoiseAmp:'amplitude', uNoiseScale:'scale', uWarp:'domain warp', uFlow:'flow rate',
+  uRayAmp:'wobble depth', uRayW:'ω₂ fundamental', uRayDecay:'ring-down', uRayMix3:'ℓ=3 mix', uRayMix4:'ℓ=4 mix',
   uKFine:'wavenumber k', uWFine:'omega ω', uVFine:'front speed', uAFine:'amplitude', uPkFine:'packet width',
   uKCoarse:'wavenumber k', uWCoarse:'omega ω', uVCoarse:'front speed', uACoarse:'amplitude', uPkCoarse:'packet width',
   uDecay:'decay rate', uSpread:'packet spread', uLifetime:'lifetime (s)',
@@ -262,6 +274,7 @@ uniform vec3  uImpOrigin[4];
 uniform float uImpBirth[4];
 uniform float uImpAmp[4];
 uniform float uKFine,uKCoarse,uWFine,uWCoarse,uVFine,uVCoarse,uPkFine,uPkCoarse,uAFine,uACoarse;
+uniform float uRayAmp,uRayW,uRayDecay,uRayMix3,uRayMix4;
 uniform float uDecay,uSpread,uLifetime,uEps,uRadius;
 uniform int   uNormalMode;
 vec3 gDisp;
@@ -278,30 +291,55 @@ float skinField(vec3 p){
   return fbm3(p*uNoiseScale + q*uWarp);
 }
 
-// Dispersive capillary packets. Two bands: fine outruns coarse because
-// omega ~ k^1.5 for capillary waves. Packet widens with age = dispersion.
-float capillary(vec3 n){
+// Everything an impulse does: travelling capillary packets on the skin, plus
+// Rayleigh body modes ringing through the whole drop.
+float impulseField(vec3 n){
   float sum = 0.0;
   for(int i=0;i<4;i++){
     float birth = uImpBirth[i];
     float age = uTime - birth;
     if(birth < 0.0 || age < 0.0 || age > uLifetime) continue;
-    float gd = acos(clamp(dot(n, uImpOrigin[i]), -1.0, 1.0));
-    float env = exp(-age*uDecay) * uImpAmp[i];
-    float sf = uPkFine   * (1.0 + age*uSpread);
-    float sc = uPkCoarse * (1.0 + age*uSpread);
-    float df = (gd - uVFine*age)/max(sf,1e-4);
-    float dc = (gd - uVCoarse*age)/max(sc,1e-4);
+    vec3  axis = uImpOrigin[i];
+    float amp  = uImpAmp[i];
+
+    // ── Skin: dispersive capillary packets ──────────────────────────────────
+    // omega ~ k^1.5, so the fine band outruns the coarse swell; packets widen
+    // with age, which IS dispersion. High-k ripples damp fast (~k^2) — correct
+    // for mercury, whose surface detail dies while the body keeps ringing.
+    float gd  = acos(clamp(dot(n, axis), -1.0, 1.0));
+    float env = exp(-age*uDecay);
+    float sf  = uPkFine   * (1.0 + age*uSpread);
+    float sc  = uPkCoarse * (1.0 + age*uSpread);
+    float df  = (gd - uVFine*age)/max(sf,1e-4);
+    float dc  = (gd - uVCoarse*age)/max(sc,1e-4);
     float fine   = sin(uKFine*gd   - uWFine*age)   * exp(-df*df) * uAFine;
     float coarse = sin(uKCoarse*gd - uWCoarse*age) * exp(-dc*dc) * uACoarse;
-    sum += (fine + coarse) * env;
+    sum += (fine + coarse) * env * amp;
+
+    // ── Body: Rayleigh droplet modes — the elastic wobble ───────────────────
+    // omega_l^2 = l(l-1)(l+2) * sigma / (rho R^3)  =>  w_l/w2 = sqrt(l(l-1)(l+2)/8)
+    // viscous damping ~ (l-1)(2l+1) * nu / R^2     =>  d_l/d2 = (l-1)(2l+1)/5
+    // l=2 is prolate <-> oblate: the drop's fundamental bounce. Ratios are exact,
+    // so one frequency and one damping drive all three modes in locked physical
+    // proportion — l=4 lands on exactly 3x the fundamental. Mercury's viscosity
+    // is ~1.15e-7 m^2/s, absurdly low: the high modes die first and leave the
+    // fundamental ringing, which is why real mercury never looks settled.
+    float ct = dot(n, axis);
+    float ct2 = ct*ct;
+    float y2 = 0.5   * (3.0*ct2 - 1.0);
+    float y3 = 0.5   * (5.0*ct2*ct - 3.0*ct);
+    float y4 = 0.125 * (35.0*ct2*ct2 - 30.0*ct2 + 3.0);
+    float m2 = y2 * sin(uRayW * 1.000 * age) * exp(-age * uRayDecay * 1.0);
+    float m3 = y3 * sin(uRayW * 1.936 * age) * exp(-age * uRayDecay * 2.8) * uRayMix3;
+    float m4 = y4 * sin(uRayW * 3.000 * age) * exp(-age * uRayDecay * 5.4) * uRayMix4;
+    sum += (m2 + m3 + m4) * uRayAmp * amp;
   }
   return sum;
 }
 
 float field(vec3 n){
   float d = skinField(n) * uNoiseAmp;
-  d += capillary(n);
+  d += impulseField(n);
   float lat = n.y;                                  // OrbitControls azimuth spins about Y
   d += uSpin * (1.0 - lat*lat) * uSpinGain;         // equatorial bulge
   d -= uSpin * (lat*lat)       * uSpinSquash;       // polar flatten
@@ -339,6 +377,19 @@ const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:false, powerPre
 renderer.setSize(innerWidth, innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 stage.appendChild(renderer.domElement);
+
+// three hands us the RESOLVED source here (post #include expansion) with real
+// line numbers — the only honest way to debug a grafted chunk.
+renderer.debug.onShaderError = (gl, program, vs, fs) => {
+  const src = gl.getShaderSource(vs).split('\n');
+  const log = gl.getShaderInfoLog(vs) || gl.getShaderInfoLog(fs) || '';
+  const nums = [...new Set((log.match(/ERROR: 0:(\d+)/g) || []).map(m => +m.split(':')[2]))];
+  window.__shaderErr = {
+    log: log.slice(0, 600),
+    lines: nums.slice(0, 8).map(n => `${n}: ${src[n-1]}`),
+  };
+  console.error('[mercury-skin] SHADER ERROR', window.__shaderErr);
+};
 
 const scene  = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
@@ -395,6 +446,8 @@ material.onBeforeCompile = (shader) => {
   // THE GUARD. onBeforeCompile patches by string replacement; if three ever
   // renames a chunk the replace silently no-ops and you get a stock sphere back
   // with no error. This is the assertion mercurySkin.js will carry as a test.
+  window.__dbg = { vs: shader.vertexShader, fs: shader.fragmentShader, HEAD, uniforms };
+
   const ok = shader.vertexShader !== before
     && shader.vertexShader.includes('gDisp = displaced(mN)')
     && shader.vertexShader.includes('vec3 transformed = gDisp;')
@@ -526,9 +579,14 @@ document.getElementById('rst').addEventListener('click', () => {
 // ── Loop ────────────────────────────────────────────────────────────────────
 // rotVel → uSpin, ported from MercurySphere.jsx:118-127 (same EMA, same feel).
 let prevAz = null, rotVel = 0, last = performance.now(), frames = 0, acc = 0;
-(function loop(now) {
+(function loop() {
   requestAnimationFrame(loop);
-  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  // Always read the clock here rather than trusting the callback's timestamp:
+  // rAF hands us a frame-start time while the watchdog hands us performance.now(),
+  // and mixing the two yields NEGATIVE dt, which makes the fps readout report
+  // hundreds. The fps number is the whole point of this panel — it must not lie.
+  const now = performance.now();
+  const dt = Math.max(0.0002, Math.min(0.05, (now - last) / 1000)); last = now;
   controls.update();
 
   const az = Math.atan2(camera.position.x, camera.position.z);
@@ -561,7 +619,29 @@ let prevAz = null, rotVel = 0, last = performance.now(), frames = 0, acc = 0;
     el.className = f >= 50 ? '' : f >= 30 ? 'warn' : 'bad';
     frames = 0; acc = 0;
   }
-})(performance.now());
+})();
+
+// Automation hook: with preserveDrawingBuffer:false a readback between frames
+// hits a cleared buffer, so expose a same-task read that runs immediately after
+// the draw. Nothing in the page uses this; it exists so the sphere can be
+// verified from outside without trusting a screenshot.
+window.__probe = () => new Promise((resolve) => {
+  const gl2 = renderer.getContext();
+  const orig = gl2.drawElements;
+  gl2.drawElements = function (...a) {
+    orig.apply(this, a);
+    gl2.drawElements = orig;
+    const w = gl2.drawingBufferWidth, h = gl2.drawingBufferHeight;
+    const px = new Uint8Array(w * h * 4);
+    gl2.readPixels(0, 0, w, h, gl2.RGBA, gl2.UNSIGNED_BYTE, px);
+    let lit = 0, peak = 0, sr = 0, sg = 0, sb = 0;
+    for (let i = 0; i < px.length; i += 4) {
+      const l = (px[i] + px[i+1] + px[i+2]) / 3;
+      if (l > 6) { lit++; sr += px[i]; sg += px[i+1]; sb += px[i+2]; if (l > peak) peak = l; }
+    }
+    resolve({ lit, peak, mean: lit ? [Math.round(sr/lit), Math.round(sg/lit), Math.round(sb/lit)] : null });
+  };
+});
 
 addEventListener('resize', () => {
   camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
