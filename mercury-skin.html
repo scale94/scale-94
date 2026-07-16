@@ -101,6 +101,22 @@
     <div class="note">Capillary waves are dispersive: ω²=(σ/ρ)k³ — fine ripples outrun the coarse swell.</div>
   </fieldset>
 
+  <fieldset><legend>Material · what it reflects</legend>
+    <div class="btns" style="margin-bottom:6px">
+      <button id="envb">env: night HDR</button>
+      <button id="autob">material: AUTO</button>
+    </div>
+    <div data-s="mRough"     data-min="0"   data-max="0.60" data-step="0.005"></div>
+    <div data-s="mMetal"     data-min="0"   data-max="1"    data-step="0.01"></div>
+    <div data-s="mEnvInt"    data-min="0"   data-max="6"    data-step="0.05"></div>
+    <div data-s="mClearcoat" data-min="0"   data-max="1"    data-step="0.01"></div>
+    <div class="btns" style="margin-top:6px">
+      <button id="hgb">mercury optics (73%, blue-grey)</button>
+      <button id="chromeb">chrome (silver)</button>
+    </div>
+    <div class="note">A roughness-0.02 mirror reflecting a <i>night sky</i> reflects almost nothing — every facet that catches the moon throws a hard white shard. That's the black-glass look, and it's the mirror working correctly in an empty room. Roughness blurs the env; env intensity dims it; the env switcher tests whether the void itself is the problem. AUTO drives these from chromePhase using MercurySphere.jsx's live formula — dragging any of them detaches it.</div>
+  </fieldset>
+
   <fieldset><legend>Rayleigh body modes · the wobble</legend>
     <div data-s="uRayAmp"   data-min="0"    data-max="0.40" data-step="0.005"></div>
     <div data-s="uRayW"     data-min="1"    data-max="30"   data-step="0.1"></div>
@@ -216,6 +232,10 @@ const DEFAULTS = {
   uDecay: 2.4, uSpread: 1.1, uLifetime: 8.0,
   uSpinGain: 0.16, uSpinSquash: 0.11,
   uChromePhase: 1.0, uSolidRipple: 0.25, uElong: 0.0, uElongGain: 0.10,
+  // Material. Not uniforms — these are MeshPhysicalMaterial props, driven from
+  // chromePhase by MercurySphere.jsx's formula while AUTO is on. A rippled
+  // mirror of a night sky shatters; this is the lever for that, not amplitude.
+  mRough: 0.02, mMetal: 0.99, mEnvInt: 3.0, mClearcoat: 0.95,
 };
 const P = { ...DEFAULTS };
 
@@ -227,6 +247,7 @@ const LABEL = {
   uDecay:'decay rate', uSpread:'packet spread', uLifetime:'lifetime (s)',
   uSpinGain:'equator bulge', uSpinSquash:'pole flatten',
   uChromePhase:'chromePhase', uSolidRipple:'solid ripple', uElong:'elongation', uElongGain:'elong gain',
+  mRough:'roughness', mMetal:'metalness', mEnvInt:'env intensity', mClearcoat:'clearcoat',
 };
 
 // ── GLSL ────────────────────────────────────────────────────────────────────
@@ -438,7 +459,8 @@ const nightFill = new THREE.DirectionalLight(0x060610, 0.1); nightFill.position.
 const pmrem = new THREE.PMREMGenerator(renderer);
 new RGBELoader().load(NIGHT_HDR, (tex) => {
   tex.mapping = THREE.EquirectangularReflectionMapping;
-  scene.environment = pmrem.fromEquirectangular(tex).texture;
+  nightTex = pmrem.fromEquirectangular(tex).texture;
+  if (envIdx === 0) scene.environment = nightTex;
   tex.dispose();
 }, undefined, () => {
   console.warn('[mercury-skin] night HDR unreachable — falling back to RoomEnvironment. Mirror will read BRIGHTER than production; do not trust absolute amplitudes.');
@@ -534,18 +556,42 @@ function reportNyquist() {
 }
 buildMesh(20);
 
-// chromePhase drives the material exactly as MercurySphere.jsx does today.
+// chromePhase drives the material exactly as MercurySphere.jsx does today —
+// until you touch a material slider, at which point AUTO detaches and your
+// values stand. That formula is the thing under suspicion, so it has to be
+// both faithfully reproduced AND overridable.
 const planetGrey   = new THREE.Color('#787878').lerp(new THREE.Color('#6366f1'), 0.12);
 const liquidSilver = new THREE.Color('#c4c4c8');
+// Mercury reflects ~73% across the visible band with a faint blue-grey cast —
+// it is NOT chrome (~95%, neutral). That difference is most of why CG "mercury"
+// reads as a chrome ball.
+const mercuryHg    = new THREE.Color(0xb9bcc4);
+let autoMat = true;
+
+function applyMaterial() {
+  material.roughness       = P.mRough;
+  material.metalness       = P.mMetal;
+  material.envMapIntensity = P.mEnvInt;
+  material.clearcoat       = P.mClearcoat;
+}
+
 function applyChrome(cp) {
-  material.color.copy(planetGrey).lerp(liquidSilver, cp);
-  material.roughness      = 0.72 - cp * 0.70;
-  material.metalness      = 0.65 + cp * 0.34;
-  material.clearcoat      = cp * 0.95;
-  material.envMapIntensity = 0.3 + cp * 2.7;
+  material.color.copy(planetGrey).lerp(useHgOptics ? mercuryHg : liquidSilver, cp);
+  if (autoMat) {
+    P.mRough     = 0.72 - cp * 0.70;
+    P.mMetal     = 0.65 + cp * 0.34;
+    P.mClearcoat = cp * 0.95;
+    P.mEnvInt    = 0.3 + cp * 2.7;
+    ['mRough','mMetal','mClearcoat','mEnvInt'].forEach(k => {
+      const r = document.getElementById('r_'+k), v = document.getElementById('v_'+k);
+      if (r) { r.value = P[k]; v.textContent = P[k].toFixed(3); }
+    });
+  }
+  applyMaterial();
   dayLight.color.copy(new THREE.Color('#9a9aaa')).lerp(new THREE.Color('#e8e8f0'), cp);
   dayLight.intensity = 1.8 + cp * 2.2;
 }
+let useHgOptics = false;
 applyChrome(P.uChromePhase);
 
 // ── Impulses: ring buffer of 4, exactly as useCapillaryImpulses.js will be ───
@@ -579,6 +625,10 @@ document.querySelectorAll('[data-s]').forEach(host => {
     if (uniforms[key]) uniforms[key].value = P[key];
     if (key === 'uChromePhase') applyChrome(P[key]);
     if (key === 'uNoiseScale') reportNyquist();   // scale moves the band limit too
+    if (key[0] === 'm') {          // touching a material slider detaches AUTO
+      if (autoMat) { autoMat = false; document.getElementById('autob').textContent = 'material: MANUAL'; }
+      applyMaterial();
+    }
   });
   host._sync = sync; sync();
 });
@@ -591,6 +641,44 @@ det.addEventListener('input', () => {
   buildMesh(+det.value);
   resetGpuStats();   // a min from a lighter mesh would flatter a heavier one
 });
+// ── Environment: does the void itself cause the shards? ─────────────────────
+// Swapping the night sky for a room is the direct test. If the shards dissolve
+// under a rich environment, the geometry was never wrong — there was simply
+// nothing to reflect.
+const ENVS = ['night HDR', 'room', 'none'];
+let envIdx = 0, nightTex = null, roomTex = null;
+function setEnv(i) {
+  envIdx = i % ENVS.length;
+  document.getElementById('envb').textContent = 'env: ' + ENVS[envIdx];
+  if (ENVS[envIdx] === 'none') { scene.environment = null; return; }
+  if (ENVS[envIdx] === 'room') {
+    if (!roomTex) roomTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environment = roomTex; return;
+  }
+  if (nightTex) scene.environment = nightTex;
+}
+document.getElementById('envb').addEventListener('click', () => setEnv(envIdx + 1));
+
+document.getElementById('autob').addEventListener('click', () => {
+  autoMat = !autoMat;
+  document.getElementById('autob').textContent = 'material: ' + (autoMat ? 'AUTO' : 'MANUAL');
+  applyChrome(P.uChromePhase);
+});
+
+// Mercury's actual optics vs the chrome ball it currently is.
+document.getElementById('hgb').addEventListener('click', () => {
+  useHgOptics = true;
+  autoMat = false; document.getElementById('autob').textContent = 'material: MANUAL';
+  Object.assign(P, { mRough: 0.14, mMetal: 1.0, mEnvInt: 1.6, mClearcoat: 0.0 });
+  syncAll(); applyMaterial(); applyChrome(P.uChromePhase);
+});
+document.getElementById('chromeb').addEventListener('click', () => {
+  useHgOptics = false;
+  autoMat = false; document.getElementById('autob').textContent = 'material: MANUAL';
+  Object.assign(P, { mRough: 0.02, mMetal: 0.99, mEnvInt: 3.0, mClearcoat: 0.95 });
+  syncAll(); applyMaterial(); applyChrome(P.uChromePhase);
+});
+
 const oct = document.getElementById('oct');
 oct.addEventListener('input', () => {
   uniforms.uOctaves.value = +oct.value;
