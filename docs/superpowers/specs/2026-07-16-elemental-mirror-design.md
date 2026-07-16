@@ -58,6 +58,11 @@ Element hues move out of `ORBIT_NODES` (`MercurySphere.jsx:11-16`) into a shared
 
 `MercurySphere` and `MercuryEnvironment` both import from it. Single source of truth.
 
+Each entry also carries a `horizonHeight` field (air high, fire centered, water low-mid,
+earth lowest) so per-element world placement lives in the palette, not in shader
+constants. Lookups are keyed by **phase name** (`thermal`, `fluid`, `earth`, `air`) —
+the signal the transition system actually emits.
+
 ### Changed: `MercuryCanvas.jsx`
 
 One-line swap: `<Environment preset="night" />` → `<MercuryEnvironment ... />` (plus
