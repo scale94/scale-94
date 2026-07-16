@@ -111,6 +111,10 @@
   </fieldset>
 
   <fieldset><legend>Idle skin · alive at rest</legend>
+    <div class="row"><span>fbm octaves</span><span id="octv">3</span></div>
+    <input type="range" id="oct" min="1" max="4" step="1" value="3" />
+    <div class="row"><span>verts / finest feature</span><span id="nyq">—</span></div>
+    <div class="note" id="nyqnote">Below 2 is aliasing — the mesh can't sample the wave and you get black shards instead of ripples. 8+ reads smooth. Raise icosa detail or drop an octave.</div>
     <div data-s="uNoiseAmp"   data-min="0"    data-max="0.20" data-step="0.001"></div>
     <div data-s="uNoiseScale" data-min="0.4"  data-max="6"    data-step="0.05"></div>
     <div data-s="uWarp"       data-min="0"    data-max="2.5"  data-step="0.02"></div>
@@ -263,9 +267,17 @@ float snoise(vec3 v){
   m = m * m;
   return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
 }
+// Band-limited fbm. Each octave doubles the spatial frequency; once an octave's
+// features are finer than the mesh can sample (~2 verts per feature is the hard
+// floor, ~8 to look smooth) it stops being detail and becomes aliasing noise —
+// black shards, not ripples. uOctaves is the band limit; the panel computes how
+// many verts land on the finest one so it can't be set blind.
 float fbm3(vec3 p){
   float s = 0.0, a = 0.5;
-  for(int i=0;i<4;i++){ s += a*snoise(p); p *= 2.02; a *= 0.5; }
+  for(int i=0;i<4;i++){
+    if(i >= uOctaves) break;
+    s += a*snoise(p); p *= 2.02; a *= 0.5;
+  }
   return s;
 }`;
 
@@ -281,6 +293,7 @@ uniform float uKFine,uKCoarse,uWFine,uWCoarse,uVFine,uVCoarse,uPkFine,uPkCoarse,
 uniform float uRayAmp,uRayW,uRayDecay,uRayMix3,uRayMix4;
 uniform float uDecay,uSpread,uLifetime,uEps,uRadius;
 uniform int   uNormalMode;
+uniform int   uOctaves;
 vec3 gDisp;
 ${NOISE}
 
@@ -428,7 +441,7 @@ new RGBELoader().load(NIGHT_HDR, (tex) => {
 // ── Material: real MeshPhysicalMaterial + the real graft ─────────────────────
 const uniforms = {
   uTime:{value:0}, uSpin:{value:0}, uEps:{value:0.012}, uRadius:{value:RADIUS},
-  uElongDir:{value:new THREE.Vector3(1,0,0)}, uNormalMode:{value:0},
+  uElongDir:{value:new THREE.Vector3(1,0,0)}, uNormalMode:{value:0}, uOctaves:{value:3},
   uImpOrigin:{value:Array.from({length:4},()=>new THREE.Vector3(0,1,0))},
   uImpBirth:{value:new Float32Array([-1,-1,-1,-1])},
   uImpAmp:{value:new Float32Array([0,0,0,0])},
@@ -491,6 +504,24 @@ function buildMesh(detail) {
   const el = document.getElementById('edge');
   el.textContent = (edge * 100).toFixed(1) + '%';
   el.className = edge < 0.035 ? '' : edge < 0.06 ? 'warn' : 'bad';
+  lastEdge = edge;
+  reportNyquist();
+}
+
+// How many verts land across the finest fbm octave's features. Below ~2 the
+// mesh literally cannot represent the wave and renders shards; ~8 reads smooth.
+let lastEdge = 0.038;
+function reportNyquist() {
+  const oct = uniforms.uOctaves ? uniforms.uOctaves.value : 3;
+  const freq = P.uNoiseScale * Math.pow(2.02, oct - 1);  // finest octave
+  const feature = 1 / freq;                              // radians on unit sphere
+  const vpf = feature / lastEdge;
+  const el = document.getElementById('nyq');
+  if (!el) return;
+  el.textContent = vpf.toFixed(1);
+  el.className = vpf >= 6 ? '' : vpf >= 2.5 ? 'warn' : 'bad';
+  const note = document.getElementById('nyqnote');
+  note.className = vpf >= 2.5 ? 'note' : 'note bad';
 }
 buildMesh(20);
 
@@ -538,6 +569,7 @@ document.querySelectorAll('[data-s]').forEach(host => {
     P[key] = parseFloat(r.value); v.textContent = P[key].toFixed(3);
     if (uniforms[key]) uniforms[key].value = P[key];
     if (key === 'uChromePhase') applyChrome(P[key]);
+    if (key === 'uNoiseScale') reportNyquist();   // scale moves the band limit too
   });
   host._sync = sync; sync();
 });
@@ -550,6 +582,14 @@ det.addEventListener('input', () => {
   buildMesh(+det.value);
   resetGpuStats();   // a min from a lighter mesh would flatter a heavier one
 });
+const oct = document.getElementById('oct');
+oct.addEventListener('input', () => {
+  uniforms.uOctaves.value = +oct.value;
+  document.getElementById('octv').textContent = oct.value;
+  reportNyquist();
+  resetGpuStats();
+});
+
 const nmode = document.getElementById('nmode');
 nmode.addEventListener('click', () => {
   uniforms.uNormalMode.value = uniforms.uNormalMode.value === 0 ? 1 : 0;
