@@ -39,6 +39,15 @@ function lerp(a, b, t) {
 // Effective (already blended) env palette for a given transition frame.
 // The neutral dip at peak chrome happens in the shader via uChromePhase;
 // this resolves only the element-to-element blend.
+//
+// Intentional color-space asymmetry (probe-tuned, do not "fix"): hexToRgb
+// below feeds raw sRGB byte fractions into THREE.Color.setRGB, which in
+// three r183 does no conversion — env colors reach the shader sRGB-as-linear.
+// MercurySphere reads the same palette hex via `new THREE.Color(hex)`,
+// which DOES linearize, and the shader's uNeutralColor is seeded the same
+// linearizing way — so that "tuning knob" runs on a different curve than
+// these element colors. Changing either path un-tunes the probe-verified
+// look (elemental-mirror-probe.html); leave both as-is.
 export function resolveEnvState(activePhase, pendingPhase, sphereState) {
   const active  = elementForPhase(activePhase);
   const pending = pendingPhase ? elementForPhase(pendingPhase) : active;

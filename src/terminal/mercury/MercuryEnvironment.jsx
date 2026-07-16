@@ -53,11 +53,16 @@ export const fragmentShader = /* glsl */ `
     // alone). Element chroma rides ON the floor at 0.5 gain — loud enough to
     // read on chrome, quiet enough not to wash the planet.
     float breathe = 1.0 + 0.12 * sin(uTime * 0.35);
-    float band = exp(-pow((y - uHorizonHeight) * 4.5, 2.0));
+    // x*x, not pow(x, 2.0): pow is UB in GLSL for negative bases, and the
+    // base goes negative below the horizon — NaN on some mobile GPUs, which
+    // PMREM blur then smears across the whole reflection.
+    float bd = (y - uHorizonHeight) * 4.5;
+    float band = exp(-bd * bd);
     world += (chroma * 0.5 + vec3(0.065, 0.065, 0.100)) * band * breathe;
 
     // Faint stratum below the horizon — the ground remembering the glow.
-    float stratum = exp(-pow((y - uHorizonHeight + 0.45) * 3.0, 2.0));
+    float sd = (y - uHorizonHeight + 0.45) * 3.0;
+    float stratum = exp(-sd * sd);
     world += chroma * stratum * 0.12;
 
     // Distant sources drifting on slow incommensurate orbits.
@@ -94,6 +99,10 @@ export function applyEnvState(uniforms, activePhase, pendingPhase, sphereState) 
 // when a transition STARTS (pendingPhase null -> phase); keying on
 // pendingPhase itself would remount a second time when it nulls at the
 // transition's end, churning render targets.
+// drei's internal frames counter resets on any re-render of the Environment
+// subtree, so a mobile burst can run longer than 70 frames and an idle-time
+// parent re-render buys a fresh burst (cosmetic blob time-jump); the remount
+// key is the deliberate contract regardless.
 // eslint-disable-next-line react-refresh/only-export-components -- pure key-policy helper exported for unit tests (mercuryEnvironment.test.js)
 export function nextBurst(prevBurst, prevPending, pendingPhase) {
   return pendingPhase && pendingPhase !== prevPending ? prevBurst + 1 : prevBurst;
