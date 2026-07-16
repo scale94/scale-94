@@ -163,6 +163,10 @@
       <button id="nmode">normals: finite-diff</button>
       <button id="dprb">dpr: desktop</button>
     </div>
+    <div class="row" style="margin-top:6px"><span>GPU / frame</span><span id="gpums">—</span></div>
+    <div class="row"><span>↳ mobile ÷10</span><span id="m10">—</span></div>
+    <div class="row"><span>↳ mobile ÷30</span><span id="m30">—</span></div>
+    <div class="note" id="gpunote">Raw GPU time via EXT_disjoint_timer_query — reads <i>through</i> the vsync cap, so 360fps stops hiding the real cost. Mobile rows scale by 10× / 30×; they are the SOLO sphere. Production also runs four particle systems, the night env and a clearcoat pass, so budget well under 16.7ms here.</div>
     <div class="note">three subdivides by (detail+1)², <i>not</i> 4^detail — detail 5 is only 720 tris, coarser than the sphere we're replacing. Indexed via mergeVertices. Edge/radius is the ripple-fineness ceiling: below ~3.5% is smooth, above ~6% facets.</div>
   </fieldset>
 
@@ -544,6 +548,7 @@ const det = document.getElementById('det');
 det.addEventListener('input', () => {
   document.getElementById('detv').textContent = det.value;
   buildMesh(+det.value);
+  resetGpuStats();   // a min from a lighter mesh would flatter a heavier one
 });
 const nmode = document.getElementById('nmode');
 nmode.addEventListener('click', () => {
@@ -558,7 +563,7 @@ function applyDpr() {
   document.getElementById('dpr').textContent = d.toFixed(2);
   dprb.textContent = 'dpr: ' + (mobileDpr ? 'mobile 1.5' : 'desktop');
 }
-dprb.addEventListener('click', () => { mobileDpr = !mobileDpr; applyDpr(); });
+dprb.addEventListener('click', () => { mobileDpr = !mobileDpr; applyDpr(); resetGpuStats(); });
 applyDpr();
 
 // ── Export / reset ──────────────────────────────────────────────────────────
@@ -575,6 +580,96 @@ ${body}
 document.getElementById('rst').addEventListener('click', () => {
   Object.assign(P, DEFAULTS); syncAll(); applyChrome(P.uChromePhase);
 });
+
+// ── GPU timing ──────────────────────────────────────────────────────────────
+// A vsync-capped fps only proves the GPU finishes UNDER the frame budget, never
+// by how much — 0.4ms and 2.7ms both read as "360fps" on a 360Hz display, and
+// they project to wildly different mobile outcomes. TIME_ELAPSED_EXT reads the
+// actual GPU nanoseconds for the draw, straight through the cap.
+const glc = renderer.getContext();
+const timerExt = glc.getExtension('EXT_disjoint_timer_query_webgl2')
+              || glc.getExtension('EXT_disjoint_timer_query');
+let pendingQuery = null;
+let gpuBest = Infinity;   // rolling minimum — the least-contended frame is the
+let gpuEma  = 0;          // cleanest read of true cost; EMA shows the typical.
+let gpuSamples = 0;
+let gpuRaw = [];          // every valid sample, for an honest median
+
+// Automation hook: read the numbers at source. Scraping the panel's text gets
+// you whatever it last painted (0.5s ago, possibly the previous config) — which
+// is how you end up "measuring" a heavier mesh as cheaper than a lighter one.
+window.__gpuStats = () => {
+  const s = [...gpuRaw].sort((a, b) => a - b);
+  return {
+    n: s.length,
+    median: s.length ? s[s.length >> 1] : null,
+    p10: s.length ? s[Math.floor(s.length * 0.1)] : null,
+    p90: s.length ? s[Math.floor(s.length * 0.9)] : null,
+    min: s.length ? s[0] : null,
+    max: s.length ? s[s.length - 1] : null,
+  };
+};
+
+if (!timerExt) {
+  document.getElementById('gpums').textContent = 'unsupported';
+  document.getElementById('gpunote').innerHTML =
+    '⚠ <b>EXT_disjoint_timer_query unavailable</b> — Chrome gates it behind ' +
+    '<code>chrome://flags → #enable-webgl-developer-extensions</code>. Without it the fps ' +
+    'readout is vsync-capped and CANNOT answer the mobile question. Enable it and reload.';
+  document.getElementById('gpunote').className = 'note warn';
+}
+
+function renderTimed() {
+  if (!timerExt || pendingQuery) { renderer.render(scene, camera); }
+  else {
+    const q = glc.createQuery();
+    glc.beginQuery(timerExt.TIME_ELAPSED_EXT, q);
+    renderer.render(scene, camera);
+    glc.endQuery(timerExt.TIME_ELAPSED_EXT);
+    pendingQuery = q;
+  }
+  if (!pendingQuery) return;
+  // Results land a few frames later; a "disjoint" flag means the GPU was
+  // interrupted and the sample is garbage — throw it away rather than report it.
+  const avail    = glc.getQueryParameter(pendingQuery, glc.QUERY_RESULT_AVAILABLE);
+  const disjoint = glc.getParameter(timerExt.GPU_DISJOINT_EXT);
+  if (avail) {
+    if (!disjoint) {
+      const ms = glc.getQueryParameter(pendingQuery, glc.QUERY_RESULT) / 1e6;
+      if (ms > 0) {
+        gpuEma = gpuEma ? gpuEma * 0.9 + ms * 0.1 : ms;
+        if (ms < gpuBest) gpuBest = ms;
+        gpuSamples++;
+        gpuRaw.push(ms);
+        if (gpuRaw.length > 600) gpuRaw.shift();
+      }
+    }
+    glc.deleteQuery(pendingQuery);
+    pendingQuery = null;
+  } else if (disjoint) {
+    glc.deleteQuery(pendingQuery);
+    pendingQuery = null;
+  }
+}
+
+function resetGpuStats() { gpuBest = Infinity; gpuEma = 0; gpuSamples = 0; gpuRaw = []; }
+
+function reportGpu() {
+  if (!timerExt || !gpuSamples) return;
+  const fmt = (ms) => {
+    const fps = Math.round(1000 / ms);
+    return `${ms.toFixed(2)}ms · ${fps}fps`;
+  };
+  document.getElementById('gpums').textContent =
+    `${gpuEma.toFixed(2)}ms (min ${gpuBest.toFixed(2)})`;
+  const c10 = document.getElementById('m10'), c30 = document.getElementById('m30');
+  c10.textContent = fmt(gpuEma * 10);
+  c30.textContent = fmt(gpuEma * 30);
+  // Judge against the sphere's slice of a 60fps budget, not the whole frame:
+  // production still owes four particle systems, the env and a clearcoat pass.
+  for (const [el, ms] of [[c10, gpuEma * 10], [c30, gpuEma * 30]])
+    el.className = ms < 5 ? '' : ms < 10 ? 'warn' : 'bad';
+}
 
 // ── Loop ────────────────────────────────────────────────────────────────────
 // rotVel → uSpin, ported from MercurySphere.jsx:118-127 (same EMA, same feel).
@@ -609,7 +704,7 @@ let prevAz = null, rotVel = 0, last = performance.now(), frames = 0, acc = 0;
     }
   }
 
-  renderer.render(scene, camera);
+  renderTimed();
 
   frames++; acc += dt;
   if (acc >= 0.5) {
@@ -618,6 +713,7 @@ let prevAz = null, rotVel = 0, last = performance.now(), frames = 0, acc = 0;
     el.textContent = f;
     el.className = f >= 50 ? '' : f >= 30 ? 'warn' : 'bad';
     frames = 0; acc = 0;
+    reportGpu();
   }
 })();
 
