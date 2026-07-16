@@ -3,6 +3,8 @@
 // (mirror-flash is an overlay: it beats every base state except compiling).
 import { describe, it, expect } from 'vitest';
 import { resolveEyeState, pulseTabFor } from '../resolveEyeState';
+import { VERTEBRAE } from '../../quintessence/vertebrae';
+import { NAV_TINTS } from '../../quintessence/guidanceStore';
 
 const empty  = { trend: null, council: null, phase: null, element: null };
 const trendOnly = { ...empty, trend: { label: 'x' } };
@@ -61,5 +63,31 @@ describe('resolveEyeState — the priority chain', () => {
     expect(pulseTabFor({ sealed: false, flaring: false, spine: trendOnly, suggestion: null })).toBe('manifesto');
     expect(pulseTabFor({ sealed: true, flaring: false, spine: trendOnly, suggestion: null })).toBeNull();
     expect(pulseTabFor({ sealed: false, flaring: false, spine: full, suggestion: null })).toBeNull();
+  });
+});
+
+describe('the tints the compass leans in (spec §4.1)', () => {
+  it('pins every vertebra tint — the fuchsia survived precisely because nothing asserted this', () => {
+    expect(VERTEBRAE.map(v => [v.tab, v.tint])).toEqual([
+      ['bsky',      [56, 189, 248]],   // sky-400
+      ['manifesto', [167, 139, 250]],  // violet-400
+      ['lunar',     [167, 139, 250]],  // violet-400 — was [217,70,239], /SCALING's fuchsia
+    ]);
+  });
+
+  it('no vertebra leans in /SCALING fuchsia — the exact mistake, named so it cannot recur', () => {
+    for (const v of VERTEBRAE) {
+      expect(v.tint).not.toEqual(NAV_TINTS.scaling);
+    }
+  });
+
+  it('a spine missing only the phase leans violet at /LUNAR, not fuchsia', () => {
+    const r = resolveEyeState({
+      flaring: false, sealed: false, suggestion: null, flash: null,
+      spine: { trend: { label: 'x' }, council: {}, phase: null, element: null },
+    });
+    expect(r.state).toBe('leaning');
+    expect(r.tint).toEqual([167, 139, 250]);
+    expect(r.pulseTab).toBe('lunar');
   });
 });
