@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
+import { ELEMENTS } from './elements';
 
 // Day-side light ref is set on the group and positioned to face the active orbit node,
 // creating the planet Mercury illumination: one bright hemisphere, one in shadow.
@@ -9,10 +10,10 @@ import * as THREE from 'three';
 // Cardinal positions: N=air, E=fire(thermal), S=earth, W=water(fluid)
 // Alchemical triangle symbols: fire=▲, water=▽, air=▲+bar, earth=▽+bar
 const ORBIT_NODES = [
-  { phase: 'air',     angle: Math.PI / 2,  color: '#38bdf8', element: 'AIR',   glyph: 'air'   },
-  { phase: 'thermal', angle: 0,            color: '#f97316', element: 'FIRE',  glyph: 'fire'  },
-  { phase: 'earth',   angle: -Math.PI / 2, color: '#d97706', element: 'EARTH', glyph: 'earth' },
-  { phase: 'fluid',   angle: Math.PI,      color: '#6366f1', element: 'WATER', glyph: 'water' },
+  { phase: 'air',     angle: Math.PI / 2,  color: ELEMENTS.air.color,     element: 'AIR',   glyph: 'air'   },
+  { phase: 'thermal', angle: 0,            color: ELEMENTS.thermal.color, element: 'FIRE',  glyph: 'fire'  },
+  { phase: 'earth',   angle: -Math.PI / 2, color: ELEMENTS.earth.color,   element: 'EARTH', glyph: 'earth' },
+  { phase: 'fluid',   angle: Math.PI,      color: ELEMENTS.fluid.color,   element: 'WATER', glyph: 'water' },
 ];
 
 // Alchemical SVG symbol paths for each element
@@ -154,8 +155,8 @@ export default function MercurySphere({
 
   const activeNode   = ORBIT_NODES.find(n => n.phase === activePhase);
   const pendingNode  = ORBIT_NODES.find(n => n.phase === pendingPhase) ?? activeNode;
-  const activeColor  = new THREE.Color(activeNode?.color  ?? '#6366f1');
-  const pendingColor = new THREE.Color(pendingNode?.color ?? '#6366f1');
+  const activeColor  = new THREE.Color(activeNode?.color  ?? ELEMENTS.fluid.color);
+  const pendingColor = new THREE.Color(pendingNode?.color ?? ELEMENTS.fluid.color);
 
   const cp = sphereState.chromePhase; // 0 = planet, 1 = liquid Hg
 
@@ -165,7 +166,7 @@ export default function MercurySphere({
   const liquidSilver = new THREE.Color('#c4c4c8');
   // Element re-emergence: new element hue bleeds back in on day side
   const emergeColor = liquidSilver.clone().lerp(
-    new THREE.Color(pendingNode?.color ?? '#6366f1'), sphereState.colorBlend * 0.25
+    new THREE.Color(pendingNode?.color ?? ELEMENTS.fluid.color), sphereState.colorBlend * 0.25
   );
 
   // Interpolate: rocky planet → mirror liquid Hg
