@@ -2,11 +2,12 @@
 // A procedural night environment rendered into a small cubemap via drei
 // <Environment> children mode. Replaces preset="night" (no HDR, no CDN).
 // Spec: docs/superpowers/specs/2026-07-16-elemental-mirror-design.md
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Environment } from '@react-three/drei';
 import * as THREE from 'three';
 import { NEUTRAL_NIGHT, resolveEnvState } from './elements';
+import { TUNE, registerTuningRig } from './mercuryTuning';
 
 // Exported for elemental-mirror-probe.html — the headless-pane tuning probe
 // renders this exact shader against the drei night HDR for A/B readback.
@@ -27,6 +28,14 @@ export const fragmentShader = /* glsl */ `
   uniform float uChromePhase;    // 1.0 = pure mirror: world drains to neutral
   uniform float uHorizonHeight;  // world-y of the glow band
   uniform float uTime;
+  // Tunable gains — fed from mercuryTuning.js TUNE each frame (console rig).
+  uniform float uChromaGain;
+  uniform float uFloorGain;
+  uniform float uStratumGain;
+  uniform float uBlobGain;
+  uniform float uMoonGain;
+  uniform float uBreatheSpeed;
+  uniform float uBreatheAmp;
 
   // Hash dither — a smooth gradient in a low-res cubemap is a banding
   // machine, and banding is a hard fail for this project.
@@ -52,18 +61,18 @@ export const fragmentShader = /* glsl */ `
     // hex chroma lands ~0.01 in linear space, far too dim to carry the band
     // alone). Element chroma rides ON the floor at 0.5 gain — loud enough to
     // read on chrome, quiet enough not to wash the planet.
-    float breathe = 1.0 + 0.12 * sin(uTime * 0.35);
+    float breathe = 1.0 + uBreatheAmp * sin(uTime * uBreatheSpeed);
     // x*x, not pow(x, 2.0): pow is UB in GLSL for negative bases, and the
     // base goes negative below the horizon — NaN on some mobile GPUs, which
     // PMREM blur then smears across the whole reflection.
     float bd = (y - uHorizonHeight) * 4.5;
     float band = exp(-bd * bd);
-    world += (chroma * 0.5 + vec3(0.065, 0.065, 0.100)) * band * breathe;
+    world += (chroma * uChromaGain + vec3(0.065, 0.065, 0.100) * uFloorGain) * band * breathe;
 
     // Faint stratum below the horizon — the ground remembering the glow.
     float sd = (y - uHorizonHeight + 0.45) * 3.0;
     float stratum = exp(-sd * sd);
-    world += chroma * stratum * 0.12;
+    world += chroma * stratum * uStratumGain;
 
     // Distant sources drifting on slow incommensurate orbits.
     // b2 is the moon: an HDR point (>1) so the liquid mirror always catches
@@ -71,11 +80,12 @@ export const fragmentShader = /* glsl */ `
     vec3 b1 = normalize(vec3(cos(uTime * 0.050),        0.35, sin(uTime * 0.050)));
     vec3 b2 = normalize(vec3(cos(uTime * 0.031 + 2.4),  0.28, sin(uTime * 0.031 + 2.4)));
     vec3 b3 = normalize(vec3(cos(uTime * 0.021 + 4.2), -0.25, sin(uTime * 0.021 + 4.2)));
-    world += chroma * pow(max(dot(dir, b1), 0.0), 22.0) * 0.25;
+    world += chroma * pow(max(dot(dir, b1), 0.0), 22.0) * 0.25 * uBlobGain;
     float moon = max(dot(dir, b2), 0.0);
-    world += vec3(1.60, 1.60, 1.70) * pow(moon, 260.0)   // the disc
-           + vec3(0.14, 0.14, 0.18) * pow(moon, 30.0);   // its halo
-    world += chroma * pow(max(dot(dir, b3), 0.0), 40.0) * 0.15;
+    world += (vec3(1.60, 1.60, 1.70) * pow(moon, 260.0)   // the disc
+           +  vec3(0.14, 0.14, 0.18) * pow(moon, 30.0))   // its halo
+           * uMoonGain;
+    world += chroma * pow(max(dot(dir, b3), 0.0), 40.0) * 0.15 * uBlobGain;
 
     // Dither before quantization.
     world += (hash(gl_FragCoord.xy + fract(uTime)) - 0.5) * (1.5 / 255.0);
@@ -91,7 +101,16 @@ export function applyEnvState(uniforms, activePhase, pendingPhase, sphereState) 
   const s = resolveEnvState(activePhase, pendingPhase, sphereState);
   uniforms.uElementColor.value.setRGB(...s.elementColor);
   uniforms.uChromePhase.value = s.chromePhase;
-  uniforms.uHorizonHeight.value = s.horizonHeight;
+  uniforms.uHorizonHeight.value = s.horizonHeight + TUNE.horizonLift;
+  // Tunable gains flow TUNE -> uniforms every frame, so console pokes
+  // (window.__mercuryTune) are authoritative and never fight this loop.
+  uniforms.uChromaGain.value   = TUNE.chromaGain;
+  uniforms.uFloorGain.value    = TUNE.floorGain;
+  uniforms.uStratumGain.value  = TUNE.stratumGain;
+  uniforms.uBlobGain.value     = TUNE.blobGain;
+  uniforms.uMoonGain.value     = TUNE.moonGain;
+  uniforms.uBreatheSpeed.value = TUNE.breatheSpeed;
+  uniforms.uBreatheAmp.value   = TUNE.breatheAmp;
 }
 
 // Mobile staging: the env cubemap re-renders only while a transition runs.
@@ -115,7 +134,19 @@ export default function MercuryEnvironment({ activePhase, pendingPhase, sphereSt
     uChromePhase:   { value: 0 },
     uHorizonHeight: { value: NEUTRAL_NIGHT.horizonHeight },
     uTime:          { value: 0 },
+    uChromaGain:    { value: TUNE.chromaGain },
+    uFloorGain:     { value: TUNE.floorGain },
+    uStratumGain:   { value: TUNE.stratumGain },
+    uBlobGain:      { value: TUNE.blobGain },
+    uMoonGain:      { value: TUNE.moonGain },
+    uBreatheSpeed:  { value: TUNE.breatheSpeed },
+    uBreatheAmp:    { value: TUNE.breatheAmp },
   }), []);
+
+  // Dev-only console tuning rig (window.__mercuryTune). Zero prod footprint.
+  useEffect(() => {
+    if (import.meta.env.DEV) registerTuningRig();
+  }, []);
 
   useFrame(({ clock }) => {
     uniforms.uTime.value = clock.getElapsedTime();

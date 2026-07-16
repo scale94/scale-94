@@ -1,4 +1,5 @@
 import { useRef, useReducer, useCallback, useEffect } from 'react';
+import { TUNE } from './mercuryTuning';
 
 export const PHASES = ['fluid', 'thermal', 'earth', 'air'];
 
@@ -49,8 +50,13 @@ export default function usePhaseTransition(initialPhase = 'fluid') {
 
     if (a.beat === 'consolidating') {
       const t = easeIn(elapsed / BEAT_MS.consolidating);
+      // The clouds part for the mirror: the ACTIVE phase ducks too (not just
+      // ghosts), so the chrome flash and its reflected world read through a
+      // momentary clearing instead of through the nebula. Held low through
+      // elongating/flowing (those beats don't touch opacities); the new
+      // element's cloud floods back in during emerging.
       a.phaseOpacities = Object.fromEntries(
-        PHASES.map(p => [p, p === a.activePhase ? 1.0 : lerp(0.12, 0.04, t)])
+        PHASES.map(p => [p, p === a.activePhase ? lerp(1.0, TUNE.duckActive, t) : lerp(0.12, TUNE.duckGhost, t)])
       );
       a.sphereState = { ...IDLE_SPHERE, reflectivity: lerp(1.0, 2.0, t), chromePhase: t, nodeChrome: t };
       if (elapsed >= BEAT_MS.consolidating) { a.beat = 'elongating'; a.beatStart = now; }
@@ -83,7 +89,7 @@ export default function usePhaseTransition(initialPhase = 'fluid') {
     } else if (a.beat === 'emerging') {
       const t = easeOut(elapsed / BEAT_MS.emerging);
       a.phaseOpacities = Object.fromEntries(
-        PHASES.map(p => [p, p === a.pendingPhase ? 1.0 : lerp(0.04, 0.12, t)])
+        PHASES.map(p => [p, p === a.pendingPhase ? lerp(TUNE.duckActive, 1.0, t) : lerp(TUNE.duckGhost, 0.12, t)])
       );
       a.sphereState = { ...IDLE_SPHERE, reflectivity: lerp(1.2, 1.0, t), colorBlend: 1 };
       if (elapsed >= BEAT_MS.emerging) {

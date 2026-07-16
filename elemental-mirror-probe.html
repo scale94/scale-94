@@ -43,6 +43,15 @@ const TILE = 300;
 async function main() {
   const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
   renderer.setSize(TILE, TILE, false);
+  // Match R3F <Canvas> defaults (MercuryCanvas passes no `flat`/`linear`):
+  // ACES filmic tone mapping + sRGB output. Tone mapping applies only at the
+  // final screen render (three skips it for render targets), so the env map
+  // itself stays raw — same as drei's children-mode cube RT in production.
+  // ?flat=1 restores the old no-tone-mapping behavior for comparison.
+  if (!q.get('flat')) {
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+  }
   const pmrem = new THREE.PMREMGenerator(renderer);
 
   // ── Environments ─────────────────────────────────────────────────────────

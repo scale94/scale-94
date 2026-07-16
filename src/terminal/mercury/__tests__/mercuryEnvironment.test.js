@@ -6,6 +6,7 @@ import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { applyEnvState, nextBurst } from '../MercuryEnvironment';
 import { ELEMENTS } from '../elements';
+import { TUNE } from '../mercuryTuning';
 
 function makeUniforms() {
   return {
@@ -13,6 +14,14 @@ function makeUniforms() {
     uChromePhase:   { value: 9 },
     uHorizonHeight: { value: 9 },
     uTime:          { value: 0 },
+    // Tunable gains (sentinel 9s must be overwritten from TUNE each apply)
+    uChromaGain:    { value: 9 },
+    uFloorGain:     { value: 9 },
+    uStratumGain:   { value: 9 },
+    uBlobGain:      { value: 9 },
+    uMoonGain:      { value: 9 },
+    uBreatheSpeed:  { value: 9 },
+    uBreatheAmp:    { value: 9 },
   };
 }
 
@@ -73,6 +82,34 @@ describe('applyEnvState', () => {
     uniforms.uTime.value = 42;
     applyEnvState(uniforms, 'air', null, { chromePhase: 0, colorBlend: 0 });
     expect(uniforms.uTime.value).toBe(42);
+  });
+
+  it('feeds TUNE gains into uniforms every apply (console rig is authoritative)', () => {
+    const uniforms = makeUniforms();
+    applyEnvState(uniforms, 'air', null, { chromePhase: 0, colorBlend: 0 });
+    expect(uniforms.uChromaGain.value).toBe(TUNE.chromaGain);
+    expect(uniforms.uMoonGain.value).toBe(TUNE.moonGain);
+    // A live poke lands on the very next frame
+    const prev = TUNE.blobGain;
+    try {
+      TUNE.blobGain = 2.5;
+      applyEnvState(uniforms, 'air', null, { chromePhase: 0, colorBlend: 0 });
+      expect(uniforms.uBlobGain.value).toBe(2.5);
+    } finally {
+      TUNE.blobGain = prev;
+    }
+  });
+
+  it('horizonLift offsets the driven horizon height', () => {
+    const uniforms = makeUniforms();
+    const prev = TUNE.horizonLift;
+    try {
+      TUNE.horizonLift = 0.1;
+      applyEnvState(uniforms, 'thermal', null, { chromePhase: 0, colorBlend: 0 });
+      expect(uniforms.uHorizonHeight.value).toBeCloseTo(ELEMENTS.thermal.horizonHeight + 0.1, 5);
+    } finally {
+      TUNE.horizonLift = prev;
+    }
   });
 });
 

@@ -67,6 +67,7 @@ export default function MercuryCanvas({
       dpr={dpr}
       gl={{ antialias: !isMobile, alpha: false, powerPreference: 'high-performance' }}
       style={{ background: '#000' }}
+      onCreated={(state) => { if (import.meta.env.DEV) window.__mercury = state; }}
     >
       <Suspense fallback={null}>
         <ambientLight intensity={0.12} color="#0a0a12" />
