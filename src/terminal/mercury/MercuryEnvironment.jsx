@@ -6,7 +6,7 @@ import { useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Environment } from '@react-three/drei';
 import * as THREE from 'three';
-import { NEUTRAL_NIGHT } from './elements';
+import { NEUTRAL_NIGHT, resolveEnvState } from './elements';
 
 // Exported for elemental-mirror-probe.html — the headless-pane tuning probe
 // renders this exact shader against the drei night HDR for A/B readback.
@@ -79,7 +79,16 @@ export const fragmentShader = /* glsl */ `
   }
 `;
 
-// eslint-disable-next-line no-unused-vars -- activePhase/pendingPhase/sphereState wired in the dissolution-arc task
+// Drives the env uniforms from the live phase signals. Pure w.r.t. its
+// inputs; exported so the dissolution arc is testable without WebGL.
+export function applyEnvState(uniforms, activePhase, pendingPhase, sphereState) {
+  const s = resolveEnvState(activePhase, pendingPhase, sphereState);
+  uniforms.uElementColor.value.setRGB(...s.elementColor);
+  uniforms.uChromePhase.value = s.chromePhase;
+  uniforms.uHorizonHeight.value = s.horizonHeight;
+}
+
+// eslint-disable-next-line no-unused-vars -- isMobile wired in the mobile-staging task
 export default function MercuryEnvironment({ activePhase, pendingPhase, sphereState, isMobile = false }) {
   const uniforms = useMemo(() => ({
     uElementColor:  { value: new THREE.Color(NEUTRAL_NIGHT.color) },
@@ -91,6 +100,9 @@ export default function MercuryEnvironment({ activePhase, pendingPhase, sphereSt
 
   useFrame(({ clock }) => {
     uniforms.uTime.value = clock.getElapsedTime();
+    // Ride the existing beats: chromePhase drains the world to neutral at
+    // peak mirror; colorBlend floods the pending element back in.
+    applyEnvState(uniforms, activePhase, pendingPhase, sphereState);
   });
 
   return (
