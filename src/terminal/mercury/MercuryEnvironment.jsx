@@ -81,6 +81,7 @@ export const fragmentShader = /* glsl */ `
 
 // Drives the env uniforms from the live phase signals. Pure w.r.t. its
 // inputs; exported so the dissolution arc is testable without WebGL.
+// eslint-disable-next-line react-refresh/only-export-components -- pure uniform-driver exported for unit tests (mercuryEnvironment.test.js); HMR of this module already reloads the canvas wholesale
 export function applyEnvState(uniforms, activePhase, pendingPhase, sphereState) {
   const s = resolveEnvState(activePhase, pendingPhase, sphereState);
   uniforms.uElementColor.value.setRGB(...s.elementColor);
