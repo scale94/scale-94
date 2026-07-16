@@ -34,6 +34,19 @@ describe('spineStore', () => {
     expect(() => setElement('PLASMA')).toThrow();
   });
 
+  it('rejects a council with no pair — a pairless council is malformed, and lets the mirror and the eye disagree on whether it is marked', () => {
+    expect(() => setCouncil({})).toThrow();
+    expect(() => setCouncil({ pair: [] })).toThrow();
+    expect(() => setCouncil({ pair: ['only-one'] })).toThrow();
+    // a real pair still writes
+    setCouncil({ pair: ['A', 'B'], directive: 'd', trajectory: 'CEILING', paradoxCount: 0 });
+    expect(getSpine().council.pair).toEqual(['A', 'B']);
+    // and the malformed calls left no partial state behind
+    _resetSpineForTests();
+    try { setCouncil({ pair: [] }); } catch (_) { /* expected */ }
+    expect(getSpine().council).toBeNull();
+  });
+
   it('notifies subscribers on every write', () => {
     const seen = [];
     const un = subscribeSpine(s => seen.push(s.phase));
