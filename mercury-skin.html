@@ -48,6 +48,20 @@
     position:fixed; top:0; right:0; width:330px; height:100%; overflow-y:auto;
     background:rgba(4,4,8,.86); backdrop-filter:blur(12px);
     border-left:1px solid rgba(129,140,248,.14); padding:14px; z-index:10;
+    transition:transform .18s ease;
+  }
+  /* Tucked, the sphere is alone and dead-centre — the stage is inset:0, so the
+     panel was only ever sitting on top of it. */
+  #panel.tucked { transform:translateX(100%); }
+  /* Bottom, not top: the HUD owns the top-left, and at a narrow window the
+     panel's left edge lands right on it. */
+  #tuck {
+    position:fixed; bottom:10px; right:344px; z-index:11; width:auto;
+    transition:right .18s ease;
+  }
+  #tuck.out { right:10px; }
+  @media (prefers-reduced-motion:reduce) {
+    #panel, #tuck { transition:none; }
   }
   #panel::-webkit-scrollbar { width:6px; }
   #panel::-webkit-scrollbar-thumb { background:rgba(129,140,248,.3); border-radius:3px; }
@@ -83,9 +97,10 @@
 </head>
 <body>
 <div id="stage"></div>
+<button id="tuck" title="hide the panel (H)">▸ hide</button>
 <div id="hud">
   <div><b id="fps">—</b> fps · <b id="verts">—</b> verts · dpr <b id="dpr">—</b></div>
-  <div style="color:#6b6b7e">drag to orbit · surface tension always wins</div>
+  <div style="color:#6b6b7e">drag to orbit · <b style="color:#818cf8;font-weight:400">H</b> hides the panel · surface tension always wins</div>
 </div>
 <div id="panel">
   <h1>◉ MERCURY SKIN</h1>
@@ -658,6 +673,27 @@ function setEnv(i) {
   if (nightTex) scene.environment = nightTex;
 }
 document.getElementById('envb').addEventListener('click', () => setEnv(envIdx + 1));
+
+// Tuck the panel — at a narrow window the 330px panel covers the sphere it is
+// meant to be tuning, and the eye is the instrument here. No renderer resize:
+// #stage is inset:0, so the sphere was always centred behind the panel.
+const tuckBtn = document.getElementById('tuck');
+const panelEl = document.getElementById('panel');
+function setTucked(t) {
+  panelEl.classList.toggle('tucked', t);
+  tuckBtn.classList.toggle('out', t);
+  tuckBtn.textContent = t ? '◂ panel' : '▸ hide';
+  tuckBtn.title = (t ? 'show the panel' : 'hide the panel') + ' (H)';
+}
+tuckBtn.addEventListener('click', () => setTucked(!panelEl.classList.contains('tucked')));
+addEventListener('keydown', e => {
+  // Ignore the textarea; range inputs don't consume 'h', so tuning by keyboard
+  // and tucking coexist.
+  if (e.key === 'h' || e.key === 'H') {
+    if (e.target?.tagName === 'TEXTAREA') return;
+    setTucked(!panelEl.classList.contains('tucked'));
+  }
+});
 
 document.getElementById('autob').addEventListener('click', () => {
   autoMat = !autoMat;
