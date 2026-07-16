@@ -44,6 +44,15 @@ export function setCouncil(council) {
   // Projected from the SYNTHESIS record (councilSynthesis.js) by the caller:
   // pair = record.pair labels, directive = record.directive,
   // trajectory = record.metrics.trajectory, paradoxCount = record.sections.openQuestions.length.
+  // A council is a collision between two minds; a pair with fewer than two
+  // labels is malformed. Rejecting it here (like setPhase rejects bad accords)
+  // keeps every "is this vertebra marked?" predicate agreeing: the eye and the
+  // armed-line read !!spine.council, the altar's mirror reads council.pair — a
+  // pairless-but-truthy council would arm the altar while the mirror still
+  // showed the gap. The one production caller already wraps this in try/catch.
+  if (!Array.isArray(council?.pair) || council.pair.length < 2) {
+    throw new Error('council needs a pair of two');
+  }
   write({ council: {
     pair: council.pair, directive: council.directive,
     trajectory: council.trajectory, paradoxCount: council.paradoxCount ?? 0,

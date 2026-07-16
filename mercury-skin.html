@@ -1,0 +1,967 @@
+<!doctype html>
+<!--
+  MERCURY SKIN — tuning mock for nightly/20260716-the-eye-observer
+
+  NOT shipped. Vite's build input is index.html only, so this root-level page is
+  served in dev and never bundled. Delete before merge (or keep as a dev tool).
+
+  Purpose: settle the ~8 constants that decide whether the sphere reads as liquid
+  mercury, using the REAL technique — real three.MeshPhysicalMaterial, real
+  onBeforeCompile graft, real dikhololo_night HDR — so whatever lands here ports
+  to mercurySkin.js as a copy-paste of the GLSL plus a defaults object.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>MERCURY SKIN — tuning mock</title>
+<script>
+  // Pane-probe shim, same trick index.html carries: the embedded preview pane
+  // reports document.hidden === true forever, so the browser suspends rAF and
+  // nothing animates. Localhost-only, so it can never affect anything real.
+  if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+    try {
+      Object.defineProperty(Document.prototype, 'hidden', { get: () => false, configurable: true });
+      Object.defineProperty(Document.prototype, 'visibilityState', { get: () => 'visible', configurable: true });
+      // Hybrid scheduler, same shape as ObserverEye.jsx: rAF is primary, a 40ms
+      // timer is the watchdog. A real visible browser resolves via rAF at 60fps
+      // and the timer never fires; a pane with rAF suppressed falls through to
+      // the watchdog at ~25fps. Probing first and swapping later doesn't work —
+      // the very first rAF registration is already lost by then.
+      const raf = window.requestAnimationFrame.bind(window);
+      window.requestAnimationFrame = (cb) => {
+        let done = false;
+        const fire = (t) => { if (!done) { done = true; cb(t); } };
+        const id = raf(fire);
+        setTimeout(() => fire(performance.now()), 40);
+        return id;
+      };
+    } catch (e) { console.warn('[mercury-skin] shim failed', e); }
+  }
+</script>
+<style>
+  :root { --ink:#c8c8d8; --dim:#6b6b7e; --acc:#818cf8; }
+  * { box-sizing: border-box; }
+  html,body { margin:0; height:100%; background:#000; color:var(--ink);
+              font-family:'Geist Mono',ui-monospace,monospace; overflow:hidden; }
+  #stage { position:fixed; inset:0; }
+  #panel {
+    position:fixed; top:0; right:0; width:330px; height:100%; overflow-y:auto;
+    background:rgba(4,4,8,.86); backdrop-filter:blur(12px);
+    border-left:1px solid rgba(129,140,248,.14); padding:14px; z-index:10;
+    transition:transform .18s ease;
+  }
+  /* Tucked, the sphere is alone and dead-centre — the stage is inset:0, so the
+     panel was only ever sitting on top of it. */
+  #panel.tucked { transform:translateX(100%); }
+  /* Bottom, not top: the HUD owns the top-left, and at a narrow window the
+     panel's left edge lands right on it. */
+  #tuck {
+    position:fixed; bottom:10px; right:344px; z-index:11; width:auto;
+    transition:right .18s ease;
+  }
+  #tuck.out { right:10px; }
+  @media (prefers-reduced-motion:reduce) {
+    #panel, #tuck { transition:none; }
+  }
+  #panel::-webkit-scrollbar { width:6px; }
+  #panel::-webkit-scrollbar-thumb { background:rgba(129,140,248,.3); border-radius:3px; }
+  h1 { font-size:10px; letter-spacing:.22em; color:var(--acc); margin:0 0 2px; font-weight:700; }
+  .sub { font-size:9px; color:var(--dim); margin-bottom:12px; line-height:1.5; }
+  fieldset { border:1px solid rgba(129,140,248,.12); border-radius:7px; padding:9px; margin:0 0 10px; }
+  legend { font-size:8.5px; letter-spacing:.2em; color:var(--dim); padding:0 5px; text-transform:uppercase; }
+  .row { display:flex; justify-content:space-between; align-items:baseline; font-size:9.5px; }
+  .row span:first-child { color:var(--dim); text-transform:uppercase; letter-spacing:.09em; }
+  .row span:last-child { color:var(--acc); font-variant-numeric:tabular-nums; }
+  input[type=range] { width:100%; height:16px; margin:1px 0 5px; accent-color:var(--acc); cursor:pointer; }
+  .btns { display:grid; grid-template-columns:1fr 1fr; gap:5px; }
+  button {
+    font-family:inherit; font-size:9px; letter-spacing:.11em; padding:7px 4px; cursor:pointer;
+    background:rgba(129,140,248,.07); color:var(--ink);
+    border:1px solid rgba(129,140,248,.25); border-radius:5px; transition:.12s;
+  }
+  button:hover { background:rgba(129,140,248,.2); }
+  button:active { transform:scale(.95); }
+  button.el { border-color:var(--c); color:var(--c); }
+  button.el:hover { background:color-mix(in srgb, var(--c) 18%, transparent); }
+  #hud { position:fixed; top:10px; left:12px; font-size:10px; line-height:1.7; z-index:10; pointer-events:none; }
+  #hud b { color:var(--acc); font-weight:400; font-variant-numeric:tabular-nums; }
+  #hud .warn { color:#f59e0b; }
+  #hud .bad { color:#ef4444; }
+  #out {
+    width:100%; height:120px; font-family:inherit; font-size:8.5px; line-height:1.45;
+    background:#05050a; color:#7dd3fc; border:1px solid rgba(129,140,248,.2);
+    border-radius:5px; padding:6px; resize:vertical; margin-top:5px;
+  }
+  .note { font-size:8.5px; color:var(--dim); line-height:1.5; margin-top:5px; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<button id="tuck" title="hide the panel (H)">▸ hide</button>
+<div id="hud">
+  <div><b id="fps">—</b> fps · <b id="verts">—</b> verts · dpr <b id="dpr">—</b></div>
+  <div style="color:#6b6b7e">drag to orbit · <b style="color:#818cf8;font-weight:400">H</b> hides the panel · surface tension always wins</div>
+</div>
+<div id="panel">
+  <h1>◉ MERCURY SKIN</h1>
+  <div class="sub">Real MeshPhysicalMaterial + onBeforeCompile graft + dikhololo_night HDR. Tune until it feels like mercury, then EXPORT.</div>
+
+  <fieldset><legend>Fire an impulse</legend>
+    <div class="btns">
+      <button class="el" style="--c:#38bdf8" data-el="air">▲̶ AIR</button>
+      <button class="el" style="--c:#f97316" data-el="thermal">▲ FIRE</button>
+      <button class="el" style="--c:#d97706" data-el="earth">▽̶ EARTH</button>
+      <button class="el" style="--c:#6366f1" data-el="fluid">▽ WATER</button>
+    </div>
+    <div class="note">Capillary waves are dispersive: ω²=(σ/ρ)k³ — fine ripples outrun the coarse swell.</div>
+  </fieldset>
+
+  <fieldset><legend>Material · what it reflects</legend>
+    <div class="btns" style="margin-bottom:6px">
+      <button id="envb">env: night HDR</button>
+      <button id="autob">material: AUTO</button>
+    </div>
+    <div data-s="mRough"     data-min="0"   data-max="0.60" data-step="0.005"></div>
+    <div data-s="mMetal"     data-min="0"   data-max="1"    data-step="0.01"></div>
+    <div data-s="mEnvInt"    data-min="0"   data-max="6"    data-step="0.05"></div>
+    <div data-s="mClearcoat" data-min="0"   data-max="1"    data-step="0.01"></div>
+    <div class="btns" style="margin-top:6px">
+      <button id="hgb">mercury optics (73%, blue-grey)</button>
+      <button id="chromeb">chrome (silver)</button>
+    </div>
+    <div class="note">A roughness-0.02 mirror reflecting a <i>night sky</i> reflects almost nothing — every facet that catches the moon throws a hard white shard. That's the black-glass look, and it's the mirror working correctly in an empty room. Roughness blurs the env; env intensity dims it; the env switcher tests whether the void itself is the problem. AUTO drives these from chromePhase using MercurySphere.jsx's live formula — dragging any of them detaches it.</div>
+  </fieldset>
+
+  <fieldset><legend>Rayleigh body modes · the wobble</legend>
+    <div data-s="uRayAmp"   data-min="0"    data-max="0.40" data-step="0.005"></div>
+    <div data-s="uRayW"     data-min="1"    data-max="30"   data-step="0.1"></div>
+    <div data-s="uRayDecay" data-min="0.05" data-max="4"    data-step="0.01"></div>
+    <div data-s="uRayMix3"  data-min="0"    data-max="1"    data-step="0.01"></div>
+    <div data-s="uRayMix4"  data-min="0"    data-max="1"    data-step="0.01"></div>
+    <div class="note">ω<sub>ℓ</sub>²=ℓ(ℓ−1)(ℓ+2)σ/ρR³. ℓ=2 is prolate↔oblate — the drop's bounce. ℓ=3/ℓ=4 ride at exactly 1.936× and 3× and damp 2.8×/5.4× faster, so the fundamental outlives them. Mercury's viscosity is ~1.15e-7 m²/s: it rings for <i>ages</i>. Low ring-down = truthful.</div>
+  </fieldset>
+
+  <fieldset><legend>Idle skin · alive at rest</legend>
+    <div class="row"><span>fbm octaves</span><span id="octv">3</span></div>
+    <input type="range" id="oct" min="1" max="4" step="1" value="3" />
+    <div class="row"><span>verts / finest feature</span><span id="nyq">—</span></div>
+    <div class="note" id="nyqnote">Below 2 is aliasing — the mesh can't sample the wave and you get black shards instead of ripples. 8+ reads smooth. Raise icosa detail or drop an octave.</div>
+    <div data-s="uNoiseAmp"   data-min="0"    data-max="0.20" data-step="0.001"></div>
+    <div data-s="uNoiseScale" data-min="0.4"  data-max="6"    data-step="0.05"></div>
+    <div data-s="uWarp"       data-min="0"    data-max="2.5"  data-step="0.02"></div>
+    <div data-s="uFlow"       data-min="0"    data-max="0.6"  data-step="0.005"></div>
+  </fieldset>
+
+  <fieldset><legend>Capillary · fine band</legend>
+    <div data-s="uKFine"  data-min="4"  data-max="60"  data-step="0.5"></div>
+    <div data-s="uWFine"  data-min="1"  data-max="30"  data-step="0.2"></div>
+    <div data-s="uVFine"  data-min="0.1" data-max="6"  data-step="0.05"></div>
+    <div data-s="uAFine"  data-min="0"  data-max="0.20" data-step="0.001"></div>
+    <div data-s="uPkFine" data-min="0.03" data-max="1" data-step="0.01"></div>
+  </fieldset>
+
+  <fieldset><legend>Capillary · coarse swell</legend>
+    <div data-s="uKCoarse"  data-min="1"  data-max="24"  data-step="0.25"></div>
+    <div data-s="uWCoarse"  data-min="0.5" data-max="16" data-step="0.1"></div>
+    <div data-s="uVCoarse"  data-min="0.05" data-max="4" data-step="0.05"></div>
+    <div data-s="uACoarse"  data-min="0"  data-max="0.30" data-step="0.001"></div>
+    <div data-s="uPkCoarse" data-min="0.05" data-max="1.6" data-step="0.01"></div>
+  </fieldset>
+
+  <fieldset><legend>Surface tension · decay</legend>
+    <div data-s="uDecay"    data-min="0.05" data-max="9"  data-step="0.05"></div>
+    <div data-s="uSpread"   data-min="0"    data-max="4"  data-step="0.02"></div>
+    <div data-s="uLifetime" data-min="0.3"  data-max="14" data-step="0.1"></div>
+    <div class="note">σ=0.486 N/m (7× water), ρ=13534 kg/m³. This decay is the <i>skin</i> only — capillary ripples damp ~k², so fine detail dies fast while the body keeps ringing. Lifetime gates both; raise it or you'll cut the wobble off mid-ring.</div>
+  </fieldset>
+
+  <fieldset><legend>Spin bulge · replaces scale.set()</legend>
+    <div data-s="uSpinGain"   data-min="0" data-max="0.5" data-step="0.005"></div>
+    <div data-s="uSpinSquash" data-min="0" data-max="0.5" data-step="0.005"></div>
+    <div class="row"><span>spin (live)</span><span id="spinv">0.00</span></div>
+  </fieldset>
+
+  <fieldset><legend>Phase beat</legend>
+    <div data-s="uChromePhase" data-min="0" data-max="1" data-step="0.01"></div>
+    <div data-s="uSolidRipple" data-min="0" data-max="1" data-step="0.01"></div>
+    <div data-s="uElong"       data-min="0" data-max="1" data-step="0.01"></div>
+    <div data-s="uElongGain"   data-min="0" data-max="0.4" data-step="0.005"></div>
+    <div class="note">chromePhase 0=rocky planet, 1=liquid Hg. solidRipple = how much the <i>solid</i> still ripples.</div>
+  </fieldset>
+
+  <fieldset><legend>Cost</legend>
+    <div class="row"><span>icosa detail</span><span id="detv">20</span></div>
+    <input type="range" id="det" min="4" max="40" step="1" value="20" />
+    <div class="row"><span>triangles</span><span id="tris">—</span></div>
+    <div class="row"><span>edge / radius</span><span id="edge">—</span></div>
+    <div class="btns">
+      <button id="nmode">normals: finite-diff</button>
+      <button id="dprb">dpr: desktop</button>
+    </div>
+    <div class="row" style="margin-top:6px"><span>GPU / frame</span><span id="gpums">—</span></div>
+    <div class="row"><span>↳ mobile ÷10</span><span id="m10">—</span></div>
+    <div class="row"><span>↳ mobile ÷30</span><span id="m30">—</span></div>
+    <div class="note" id="gpunote">Raw GPU time via EXT_disjoint_timer_query — reads <i>through</i> the vsync cap, so 360fps stops hiding the real cost. Mobile rows scale by 10× / 30×; they are the SOLO sphere. Production also runs four particle systems, the night env and a clearcoat pass, so budget well under 16.7ms here.</div>
+    <div class="note">three subdivides by (detail+1)², <i>not</i> 4^detail — detail 5 is only 720 tris, coarser than the sphere we're replacing. Indexed via mergeVertices. Edge/radius is the ripple-fineness ceiling: below ~3.5% is smooth, above ~6% facets.</div>
+  </fieldset>
+
+  <fieldset><legend>Device</legend>
+    <div class="row"><span>vertex highp</span><span id="vhp">—</span></div>
+    <div class="row"><span>fragment highp</span><span id="fhp">—</span></div>
+    <div class="row"><span>three precision</span><span id="tprec">—</span></div>
+    <div class="row"><span>max vert uniforms</span><span id="mvu">—</span></div>
+    <div id="gpuname" class="note">—</div>
+    <div class="note">If vertex highp is absent or low-precision, snoise's permute() (mod of large products) degenerates and the displacement becomes angular black garbage — a desktop-invisible failure.</div>
+  </fieldset>
+
+  <fieldset><legend>Export</legend>
+    <div class="btns">
+      <button id="exp">EXPORT DEFAULTS</button>
+      <button id="rst">RESET</button>
+    </div>
+    <textarea id="out" readonly placeholder="tuned constants land here →  mercurySkin.js"></textarea>
+  </fieldset>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { RGBELoader }    from 'three/examples/jsm/loaders/RGBELoader.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+
+// The exact HDR drei's <Environment preset="night" /> resolves to, so the mirror
+// in this mock is the mirror in MercuryCanvas.
+const NIGHT_HDR = 'https://raw.githack.com/pmndrs/drei-assets/456060a26bbeb8fdf79326f224b6d99b8bcce736/hdri/dikhololo_night_1k.hdr';
+
+const RADIUS = 0.75;
+
+// ── Starting guesses. These are the point of the exercise — every one is a
+// hypothesis until you drag it. Physical intent noted; the eye is the judge.
+const DEFAULTS = {
+  uNoiseAmp: 0.022, uNoiseScale: 2.1, uWarp: 1.15, uFlow: 0.13,
+  // Body wobble carries the elasticity; the skin bands are detail riding on it.
+  uRayAmp: 0.11, uRayW: 7.0, uRayDecay: 0.45, uRayMix3: 0.5, uRayMix4: 0.28,
+  uKFine: 26, uWFine: 11, uVFine: 1.9, uAFine: 0.014, uPkFine: 0.30,
+  uKCoarse: 8, uWCoarse: 3.4, uVCoarse: 0.8, uACoarse: 0.05, uPkCoarse: 0.62,
+  uDecay: 2.4, uSpread: 1.1, uLifetime: 8.0,
+  uSpinGain: 0.16, uSpinSquash: 0.11,
+  uChromePhase: 1.0, uSolidRipple: 0.25, uElong: 0.0, uElongGain: 0.10,
+  // Material. Not uniforms — these are MeshPhysicalMaterial props, driven from
+  // chromePhase by MercurySphere.jsx's formula while AUTO is on. A rippled
+  // mirror of a night sky shatters; this is the lever for that, not amplitude.
+  mRough: 0.02, mMetal: 0.99, mEnvInt: 3.0, mClearcoat: 0.95,
+};
+const P = { ...DEFAULTS };
+
+const LABEL = {
+  uNoiseAmp:'amplitude', uNoiseScale:'scale', uWarp:'domain warp', uFlow:'flow rate',
+  uRayAmp:'wobble depth', uRayW:'ω₂ fundamental', uRayDecay:'ring-down', uRayMix3:'ℓ=3 mix', uRayMix4:'ℓ=4 mix',
+  uKFine:'wavenumber k', uWFine:'omega ω', uVFine:'front speed', uAFine:'amplitude', uPkFine:'packet width',
+  uKCoarse:'wavenumber k', uWCoarse:'omega ω', uVCoarse:'front speed', uACoarse:'amplitude', uPkCoarse:'packet width',
+  uDecay:'decay rate', uSpread:'packet spread', uLifetime:'lifetime (s)',
+  uSpinGain:'equator bulge', uSpinSquash:'pole flatten',
+  uChromePhase:'chromePhase', uSolidRipple:'solid ripple', uElong:'elongation', uElongGain:'elong gain',
+  mRough:'roughness', mMetal:'metalness', mEnvInt:'env intensity', mClearcoat:'clearcoat',
+};
+
+// ── GLSL ────────────────────────────────────────────────────────────────────
+// snoise is lifted verbatim from ParticleFlow.jsx — same simplex, same idiom.
+const NOISE = `
+vec4 permute(vec4 x){ return mod(((x*34.0)+1.0)*x, 289.0); }
+float snoise(vec3 v){
+  const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+  const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+  vec3 i  = floor(v + dot(v, C.yyy));
+  vec3 x0 = v - i + dot(i, C.xxx);
+  vec3 g  = step(x0.yzx, x0.xyz);
+  vec3 l  = 1.0 - g;
+  vec3 i1 = min( g.xyz, l.zxy );
+  vec3 i2 = max( g.xyz, l.zxy );
+  vec3 x1 = x0 - i1 + C.xxx;
+  vec3 x2 = x0 - i2 + C.yyy;
+  vec3 x3 = x0 - D.yyy;
+  i = mod(i, 289.0);
+  vec4 p = permute(permute(permute(
+            i.z + vec4(0.0, i1.z, i2.z, 1.0))
+          + i.y + vec4(0.0, i1.y, i2.y, 1.0))
+          + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+  float n_ = 1.0/7.0;
+  vec3 ns = n_ * D.wyz - D.xzx;
+  vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
+  vec4 x_ = floor(j * ns.z);
+  vec4 y_ = floor(j - 7.0 * x_);
+  vec4 x  = x_ * ns.x + ns.yyyy;
+  vec4 y  = y_ * ns.x + ns.yyyy;
+  vec4 h  = 1.0 - abs(x) - abs(y);
+  vec4 b0 = vec4(x.xy, y.xy);
+  vec4 b1 = vec4(x.zw, y.zw);
+  vec4 s0 = floor(b0) * 2.0 + 1.0;
+  vec4 s1 = floor(b1) * 2.0 + 1.0;
+  vec4 sh = -step(h, vec4(0.0));
+  vec4 a0 = b0.xzyw + s0.xzyw * sh.xxyy;
+  vec4 a1 = b1.xzyw + s1.xzyw * sh.zzww;
+  vec3 p0 = vec3(a0.xy, h.x);
+  vec3 p1 = vec3(a0.zw, h.y);
+  vec3 p2 = vec3(a1.xy, h.z);
+  vec3 p3 = vec3(a1.zw, h.w);
+  vec4 norm = 1.79284291400159 - 0.85373472095314 *
+              vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3));
+  p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
+  vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+  m = m * m;
+  return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
+}
+// Band-limited fbm. Each octave doubles the spatial frequency; once an octave's
+// features are finer than the mesh can sample (~2 verts per feature is the hard
+// floor, ~8 to look smooth) it stops being detail and becomes aliasing noise —
+// black shards, not ripples. uOctaves is the band limit; the panel computes how
+// many verts land on the finest one so it can't be set blind.
+float fbm3(vec3 p){
+  float s = 0.0, a = 0.5;
+  for(int i=0;i<4;i++){
+    if(i >= uOctaves) break;
+    s += a*snoise(p); p *= 2.02; a *= 0.5;
+  }
+  return s;
+}`;
+
+const HEAD = `
+uniform float uTime,uNoiseAmp,uNoiseScale,uWarp,uFlow;
+uniform float uSpin,uSpinGain,uSpinSquash;
+uniform float uElong,uElongGain; uniform vec3 uElongDir;
+uniform float uChromePhase,uSolidRipple;
+uniform vec3  uImpOrigin[4];
+uniform float uImpBirth[4];
+uniform float uImpAmp[4];
+uniform float uKFine,uKCoarse,uWFine,uWCoarse,uVFine,uVCoarse,uPkFine,uPkCoarse,uAFine,uACoarse;
+uniform float uRayAmp,uRayW,uRayDecay,uRayMix3,uRayMix4;
+uniform float uDecay,uSpread,uLifetime,uEps,uRadius;
+uniform int   uNormalMode;
+uniform int   uOctaves;
+vec3 gDisp;
+${NOISE}
+
+// Idle skin: domain-warped fbm — the eye's vocabulary, in 3D.
+float skinField(vec3 p){
+  float t = uTime * uFlow;
+  vec3 q = vec3(
+    fbm3(p*uNoiseScale + vec3(0.0, 0.0, t)),
+    fbm3(p*uNoiseScale + vec3(5.2, 1.3, t*0.9)),
+    fbm3(p*uNoiseScale + vec3(1.7, 9.2, t*1.1))
+  );
+  return fbm3(p*uNoiseScale + q*uWarp);
+}
+
+// Everything an impulse does: travelling capillary packets on the skin, plus
+// Rayleigh body modes ringing through the whole drop.
+float impulseField(vec3 n){
+  float sum = 0.0;
+  for(int i=0;i<4;i++){
+    float birth = uImpBirth[i];
+    float age = uTime - birth;
+    if(birth < 0.0 || age < 0.0 || age > uLifetime) continue;
+    vec3  axis = uImpOrigin[i];
+    float amp  = uImpAmp[i];
+
+    // ── Skin: dispersive capillary packets ──────────────────────────────────
+    // omega ~ k^1.5, so the fine band outruns the coarse swell; packets widen
+    // with age, which IS dispersion. High-k ripples damp fast (~k^2) — correct
+    // for mercury, whose surface detail dies while the body keeps ringing.
+    float gd  = acos(clamp(dot(n, axis), -1.0, 1.0));
+    float env = exp(-age*uDecay);
+    float sf  = uPkFine   * (1.0 + age*uSpread);
+    float sc  = uPkCoarse * (1.0 + age*uSpread);
+    float df  = (gd - uVFine*age)/max(sf,1e-4);
+    float dc  = (gd - uVCoarse*age)/max(sc,1e-4);
+    float fine   = sin(uKFine*gd   - uWFine*age)   * exp(-df*df) * uAFine;
+    float coarse = sin(uKCoarse*gd - uWCoarse*age) * exp(-dc*dc) * uACoarse;
+    sum += (fine + coarse) * env * amp;
+
+    // ── Body: Rayleigh droplet modes — the elastic wobble ───────────────────
+    // omega_l^2 = l(l-1)(l+2) * sigma / (rho R^3)  =>  w_l/w2 = sqrt(l(l-1)(l+2)/8)
+    // viscous damping ~ (l-1)(2l+1) * nu / R^2     =>  d_l/d2 = (l-1)(2l+1)/5
+    // l=2 is prolate <-> oblate: the drop's fundamental bounce. Ratios are exact,
+    // so one frequency and one damping drive all three modes in locked physical
+    // proportion — l=4 lands on exactly 3x the fundamental. Mercury's viscosity
+    // is ~1.15e-7 m^2/s, absurdly low: the high modes die first and leave the
+    // fundamental ringing, which is why real mercury never looks settled.
+    float ct = dot(n, axis);
+    float ct2 = ct*ct;
+    float y2 = 0.5   * (3.0*ct2 - 1.0);
+    float y3 = 0.5   * (5.0*ct2*ct - 3.0*ct);
+    float y4 = 0.125 * (35.0*ct2*ct2 - 30.0*ct2 + 3.0);
+    float m2 = y2 * sin(uRayW * 1.000 * age) * exp(-age * uRayDecay * 1.0);
+    float m3 = y3 * sin(uRayW * 1.936 * age) * exp(-age * uRayDecay * 2.8) * uRayMix3;
+    float m4 = y4 * sin(uRayW * 3.000 * age) * exp(-age * uRayDecay * 5.4) * uRayMix4;
+    sum += (m2 + m3 + m4) * uRayAmp * amp;
+  }
+  return sum;
+}
+
+float field(vec3 n){
+  float d = skinField(n) * uNoiseAmp;
+  d += impulseField(n);
+  float lat = n.y;                                  // OrbitControls azimuth spins about Y
+  d += uSpin * (1.0 - lat*lat) * uSpinGain;         // equatorial bulge
+  d -= uSpin * (lat*lat)       * uSpinSquash;       // polar flatten
+  d += uElong * smoothstep(0.1, 1.0, dot(n, uElongDir)) * uElongGain;
+  // A rocky planet shouldn't ripple like liquid; the skin wakes as it melts.
+  return d * mix(uSolidRipple, 1.0, uChromePhase);
+}
+
+vec3 displaced(vec3 n){ return n * (uRadius + field(n)); }
+
+// Finite-difference normal on a pole-free icosahedron: build a tangent basis
+// from the normal itself (the ParticleFlow.jsx:109 trick), sample two neighbours.
+vec3 rebuildNormal(vec3 n, vec3 P0){
+  vec3 ref = abs(n.y) < 0.99 ? vec3(0.0,1.0,0.0) : vec3(1.0,0.0,0.0);
+  vec3 t = normalize(cross(ref, n));
+  vec3 b = cross(n, t);
+  vec3 p1 = displaced(normalize(n + t*uEps));
+  vec3 p2 = displaced(normalize(n + b*uEps));
+  return normalize(cross(p1 - P0, p2 - P0));
+}
+`;
+
+const BEGINNORMAL = `
+  vec3 mN = normalize(position);
+  gDisp = displaced(mN);
+  vec3 objectNormal = (uNormalMode == 0) ? rebuildNormal(mN, gDisp) : mN;
+#ifdef USE_TANGENT
+  vec3 objectTangent = vec3( tangent.xyz );
+#endif
+`;
+
+// ── Scene ───────────────────────────────────────────────────────────────────
+const stage = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:false, powerPreference:'high-performance' });
+renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+stage.appendChild(renderer.domElement);
+
+// three hands us the RESOLVED source here (post #include expansion) with real
+// line numbers — the only honest way to debug a grafted chunk.
+renderer.debug.onShaderError = (gl, program, vs, fs) => {
+  const src = gl.getShaderSource(vs).split('\n');
+  const log = gl.getShaderInfoLog(vs) || gl.getShaderInfoLog(fs) || '';
+  const nums = [...new Set((log.match(/ERROR: 0:(\d+)/g) || []).map(m => +m.split(':')[2]))];
+  window.__shaderErr = {
+    log: log.slice(0, 600),
+    lines: nums.slice(0, 8).map(n => `${n}: ${src[n-1]}`),
+  };
+  console.error('[mercury-skin] SHADER ERROR', window.__shaderErr);
+};
+
+const scene  = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
+const camera = new THREE.PerspectiveCamera(42, innerWidth/innerHeight, 0.1, 100);
+camera.position.set(0, 0, 3.0);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.05;
+controls.minDistance = 1.6; controls.maxDistance = 7;
+controls.autoRotate = true; controls.autoRotateSpeed = 0.3;
+
+// Lighting rig copied from MercuryCanvas.jsx + MercurySphere.jsx
+scene.add(new THREE.AmbientLight(0x0a0a12, 0.12));
+const pl1 = new THREE.PointLight(0xc8c8d8, 1.5); pl1.position.set(3,3,3); scene.add(pl1);
+const pl2 = new THREE.PointLight(0x1a1a2e, 0.6); pl2.position.set(-2,-2,1); scene.add(pl2);
+const dayLight = new THREE.DirectionalLight(0xe8e8f0, 4.0); dayLight.position.set(4,0,2); scene.add(dayLight);
+const nightFill = new THREE.DirectionalLight(0x060610, 0.1); nightFill.position.set(-3,-3,-2); scene.add(nightFill);
+
+// Env: the real night HDR; RoomEnvironment only if the CDN is unreachable.
+const pmrem = new THREE.PMREMGenerator(renderer);
+new RGBELoader().load(NIGHT_HDR, (tex) => {
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  nightTex = pmrem.fromEquirectangular(tex).texture;
+  if (envIdx === 0) scene.environment = nightTex;
+  tex.dispose();
+}, undefined, () => {
+  console.warn('[mercury-skin] night HDR unreachable — falling back to RoomEnvironment. Mirror will read BRIGHTER than production; do not trust absolute amplitudes.');
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  document.getElementById('hud').insertAdjacentHTML('beforeend',
+    '<div class="warn">⚠ HDR offline — fallback env, mirror is brighter than prod</div>');
+});
+
+// ── Material: real MeshPhysicalMaterial + the real graft ─────────────────────
+const uniforms = {
+  uTime:{value:0}, uSpin:{value:0}, uEps:{value:0.012}, uRadius:{value:RADIUS},
+  uElongDir:{value:new THREE.Vector3(1,0,0)}, uNormalMode:{value:0}, uOctaves:{value:3},
+  uImpOrigin:{value:Array.from({length:4},()=>new THREE.Vector3(0,1,0))},
+  uImpBirth:{value:new Float32Array([-1,-1,-1,-1])},
+  uImpAmp:{value:new Float32Array([0,0,0,0])},
+};
+for (const k in P) uniforms[k] = { value: P[k] };
+
+const material = new THREE.MeshPhysicalMaterial({ color:0xc4c4c8, clearcoatRoughness:0.05 });
+
+let grafted = false;
+material.onBeforeCompile = (shader) => {
+  Object.assign(shader.uniforms, uniforms);
+
+  const before = shader.vertexShader;
+  shader.vertexShader = shader.vertexShader
+    .replace('#include <common>', '#include <common>\n' + HEAD)
+    .replace('#include <beginnormal_vertex>', BEGINNORMAL)
+    .replace('#include <begin_vertex>', 'vec3 transformed = gDisp;');
+
+  // THE GUARD. onBeforeCompile patches by string replacement; if three ever
+  // renames a chunk the replace silently no-ops and you get a stock sphere back
+  // with no error. This is the assertion mercurySkin.js will carry as a test.
+  window.__dbg = { vs: shader.vertexShader, fs: shader.fragmentShader, HEAD, uniforms };
+
+  const ok = shader.vertexShader !== before
+    && shader.vertexShader.includes('gDisp = displaced(mN)')
+    && shader.vertexShader.includes('vec3 transformed = gDisp;')
+    && !shader.vertexShader.includes('#include <begin_vertex>');
+  if (!ok) {
+    console.error('[mercury-skin] GRAFT FAILED — three chunk names moved. Sphere is unpatched.');
+    document.getElementById('hud').insertAdjacentHTML('beforeend',
+      '<div class="bad">✖ GRAFT FAILED — chunk names moved, sphere is stock</div>');
+  }
+  grafted = ok;
+};
+// Without this, three may hand us a cached program from an unpatched physical material.
+material.customProgramCacheKey = () => 'mercury-skin-v1';
+
+let mesh = null;
+function buildMesh(detail) {
+  if (mesh) { mesh.geometry.dispose(); scene.remove(mesh); }
+  // IcosahedronGeometry is NON-indexed: every triangle carries its own 3 verts,
+  // so a bare detail-N icosa runs the vertex shader ~6x per actual surface point.
+  // mergeVertices() welds them back into a shared, indexed mesh — same surface,
+  // a fraction of the invocations. This is not an optimisation, it's the
+  // difference between affordable and not.
+  const raw = new THREE.IcosahedronGeometry(RADIUS, detail);
+  const geo = mergeVertices(raw);
+  raw.dispose();
+  geo.computeVertexNormals();
+  mesh = new THREE.Mesh(geo, material);
+  mesh.frustumCulled = false;
+  scene.add(mesh);
+  const verts = geo.attributes.position.count;
+  const tris  = geo.index ? geo.index.count / 3 : verts / 3;
+  document.getElementById('verts').textContent = verts.toLocaleString();
+  document.getElementById('tris').textContent  = Math.round(tris).toLocaleString();
+  // Mean edge length as a fraction of radius — the real ceiling on ripple
+  // fineness. Ripples finer than this facet, which IS the banding we're fixing.
+  const edge = Math.sqrt((4 * Math.PI * RADIUS * RADIUS) / tris) / RADIUS;
+  const el = document.getElementById('edge');
+  el.textContent = (edge * 100).toFixed(1) + '%';
+  el.className = edge < 0.035 ? '' : edge < 0.06 ? 'warn' : 'bad';
+  lastEdge = edge;
+  reportNyquist();
+}
+
+// How many verts land across the finest fbm octave's features. Below ~2 the
+// mesh literally cannot represent the wave and renders shards; ~8 reads smooth.
+let lastEdge = 0.038;
+function reportNyquist() {
+  const oct = uniforms.uOctaves ? uniforms.uOctaves.value : 3;
+  const freq = P.uNoiseScale * Math.pow(2.02, oct - 1);  // finest octave
+  const feature = 1 / freq;                              // radians on unit sphere
+  const vpf = feature / lastEdge;
+  const el = document.getElementById('nyq');
+  if (!el) return;
+  el.textContent = vpf.toFixed(1);
+  el.className = vpf >= 6 ? '' : vpf >= 2.5 ? 'warn' : 'bad';
+  const note = document.getElementById('nyqnote');
+  note.className = vpf >= 2.5 ? 'note' : 'note bad';
+}
+buildMesh(20);
+
+// chromePhase drives the material exactly as MercurySphere.jsx does today —
+// until you touch a material slider, at which point AUTO detaches and your
+// values stand. That formula is the thing under suspicion, so it has to be
+// both faithfully reproduced AND overridable.
+const planetGrey   = new THREE.Color('#787878').lerp(new THREE.Color('#6366f1'), 0.12);
+const liquidSilver = new THREE.Color('#c4c4c8');
+// Mercury reflects ~73% across the visible band with a faint blue-grey cast —
+// it is NOT chrome (~95%, neutral). That difference is most of why CG "mercury"
+// reads as a chrome ball.
+const mercuryHg    = new THREE.Color(0xb9bcc4);
+let autoMat = true;
+
+function applyMaterial() {
+  material.roughness       = P.mRough;
+  material.metalness       = P.mMetal;
+  material.envMapIntensity = P.mEnvInt;
+  material.clearcoat       = P.mClearcoat;
+}
+
+function applyChrome(cp) {
+  material.color.copy(planetGrey).lerp(useHgOptics ? mercuryHg : liquidSilver, cp);
+  if (autoMat) {
+    P.mRough     = 0.72 - cp * 0.70;
+    P.mMetal     = 0.65 + cp * 0.34;
+    P.mClearcoat = cp * 0.95;
+    P.mEnvInt    = 0.3 + cp * 2.7;
+    ['mRough','mMetal','mClearcoat','mEnvInt'].forEach(k => {
+      const r = document.getElementById('r_'+k), v = document.getElementById('v_'+k);
+      if (r) { r.value = P[k]; v.textContent = P[k].toFixed(3); }
+    });
+  }
+  applyMaterial();
+  dayLight.color.copy(new THREE.Color('#9a9aaa')).lerp(new THREE.Color('#e8e8f0'), cp);
+  dayLight.intensity = 1.8 + cp * 2.2;
+}
+let useHgOptics = false;
+applyChrome(P.uChromePhase);
+
+// ── Impulses: ring buffer of 4, exactly as useCapillaryImpulses.js will be ───
+// Node angles are MercurySphere.jsx's ORBIT_NODES; the wave is born at the point
+// on the sphere nearest the tapped node.
+const NODES = { air:Math.PI/2, thermal:0, earth:-Math.PI/2, fluid:Math.PI };
+let impCursor = 0;
+function fire(el) {
+  const a = NODES[el];
+  const i = impCursor % 4; impCursor++;
+  uniforms.uImpOrigin.value[i].set(Math.cos(a), Math.sin(a), 0).normalize();
+  uniforms.uImpBirth.value[i] = uniforms.uTime.value;
+  uniforms.uImpAmp.value[i]   = 1.0;
+  uniforms.uElongDir.value.set(Math.cos(a), Math.sin(a), 0).normalize();
+}
+document.querySelectorAll('button.el').forEach(b =>
+  b.addEventListener('click', () => fire(b.dataset.el)));
+
+// ── Sliders ─────────────────────────────────────────────────────────────────
+document.querySelectorAll('[data-s]').forEach(host => {
+  const key = host.dataset.s;
+  host.innerHTML = `<div class="row"><span>${LABEL[key]}</span><span id="v_${key}"></span></div>
+    <input type="range" id="r_${key}" min="${host.dataset.min}" max="${host.dataset.max}" step="${host.dataset.step}">`;
+  const r = host.querySelector('input'), v = host.querySelector('span[id^=v_]');
+  const sync = () => {
+    r.value = P[key]; v.textContent = (+P[key]).toFixed(3);
+    if (uniforms[key]) uniforms[key].value = P[key];
+  };
+  r.addEventListener('input', () => {
+    P[key] = parseFloat(r.value); v.textContent = P[key].toFixed(3);
+    if (uniforms[key]) uniforms[key].value = P[key];
+    if (key === 'uChromePhase') applyChrome(P[key]);
+    if (key === 'uNoiseScale') reportNyquist();   // scale moves the band limit too
+    if (key[0] === 'm') {          // touching a material slider detaches AUTO
+      if (autoMat) { autoMat = false; document.getElementById('autob').textContent = 'material: MANUAL'; }
+      applyMaterial();
+    }
+  });
+  host._sync = sync; sync();
+});
+const syncAll = () => document.querySelectorAll('[data-s]').forEach(h => h._sync());
+
+// ── Cost controls ───────────────────────────────────────────────────────────
+const det = document.getElementById('det');
+det.addEventListener('input', () => {
+  document.getElementById('detv').textContent = det.value;
+  buildMesh(+det.value);
+  resetGpuStats();   // a min from a lighter mesh would flatter a heavier one
+});
+// ── Environment: does the void itself cause the shards? ─────────────────────
+// Swapping the night sky for a room is the direct test. If the shards dissolve
+// under a rich environment, the geometry was never wrong — there was simply
+// nothing to reflect.
+const ENVS = ['night HDR', 'room', 'none'];
+let envIdx = 0, nightTex = null, roomTex = null;
+function setEnv(i) {
+  envIdx = i % ENVS.length;
+  document.getElementById('envb').textContent = 'env: ' + ENVS[envIdx];
+  if (ENVS[envIdx] === 'none') { scene.environment = null; return; }
+  if (ENVS[envIdx] === 'room') {
+    if (!roomTex) roomTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environment = roomTex; return;
+  }
+  if (nightTex) scene.environment = nightTex;
+}
+document.getElementById('envb').addEventListener('click', () => setEnv(envIdx + 1));
+
+// Tuck the panel — at a narrow window the 330px panel covers the sphere it is
+// meant to be tuning, and the eye is the instrument here. No renderer resize:
+// #stage is inset:0, so the sphere was always centred behind the panel.
+const tuckBtn = document.getElementById('tuck');
+const panelEl = document.getElementById('panel');
+function setTucked(t) {
+  panelEl.classList.toggle('tucked', t);
+  tuckBtn.classList.toggle('out', t);
+  tuckBtn.textContent = t ? '◂ panel' : '▸ hide';
+  tuckBtn.title = (t ? 'show the panel' : 'hide the panel') + ' (H)';
+}
+tuckBtn.addEventListener('click', () => setTucked(!panelEl.classList.contains('tucked')));
+addEventListener('keydown', e => {
+  // Ignore the textarea; range inputs don't consume 'h', so tuning by keyboard
+  // and tucking coexist.
+  if (e.key === 'h' || e.key === 'H') {
+    if (e.target?.tagName === 'TEXTAREA') return;
+    setTucked(!panelEl.classList.contains('tucked'));
+  }
+});
+
+document.getElementById('autob').addEventListener('click', () => {
+  autoMat = !autoMat;
+  document.getElementById('autob').textContent = 'material: ' + (autoMat ? 'AUTO' : 'MANUAL');
+  applyChrome(P.uChromePhase);
+});
+
+// Mercury's actual optics vs the chrome ball it currently is.
+document.getElementById('hgb').addEventListener('click', () => {
+  useHgOptics = true;
+  autoMat = false; document.getElementById('autob').textContent = 'material: MANUAL';
+  Object.assign(P, { mRough: 0.14, mMetal: 1.0, mEnvInt: 1.6, mClearcoat: 0.0 });
+  syncAll(); applyMaterial(); applyChrome(P.uChromePhase);
+});
+document.getElementById('chromeb').addEventListener('click', () => {
+  useHgOptics = false;
+  autoMat = false; document.getElementById('autob').textContent = 'material: MANUAL';
+  Object.assign(P, { mRough: 0.02, mMetal: 0.99, mEnvInt: 3.0, mClearcoat: 0.95 });
+  syncAll(); applyMaterial(); applyChrome(P.uChromePhase);
+});
+
+const oct = document.getElementById('oct');
+oct.addEventListener('input', () => {
+  uniforms.uOctaves.value = +oct.value;
+  document.getElementById('octv').textContent = oct.value;
+  reportNyquist();
+  resetGpuStats();
+});
+
+const nmode = document.getElementById('nmode');
+nmode.addEventListener('click', () => {
+  uniforms.uNormalMode.value = uniforms.uNormalMode.value === 0 ? 1 : 0;
+  nmode.textContent = 'normals: ' + (uniforms.uNormalMode.value === 0 ? 'finite-diff' : 'cheap (sphere)');
+});
+let mobileDpr = false;
+const dprb = document.getElementById('dprb');
+function applyDpr() {
+  const d = mobileDpr ? 1.5 : Math.min(2, devicePixelRatio || 1);
+  renderer.setPixelRatio(d);
+  document.getElementById('dpr').textContent = d.toFixed(2);
+  dprb.textContent = 'dpr: ' + (mobileDpr ? 'mobile 1.5' : 'desktop');
+}
+dprb.addEventListener('click', () => { mobileDpr = !mobileDpr; applyDpr(); resetGpuStats(); });
+applyDpr();
+
+// ── Export / reset ──────────────────────────────────────────────────────────
+document.getElementById('exp').addEventListener('click', () => {
+  const body = Object.keys(DEFAULTS).map(k => `  ${k}: ${(+P[k]).toFixed(4)},`).join('\n');
+  document.getElementById('out').value =
+`// tuned in mercury-skin.html — paste into mercurySkin.js
+export const SKIN_DEFAULTS = {
+${body}
+};
+// icosa detail: ${det.value}  ·  normals: ${uniforms.uNormalMode.value === 0 ? 'finite-diff' : 'cheap'}`;
+  document.getElementById('out').select();
+});
+document.getElementById('rst').addEventListener('click', () => {
+  Object.assign(P, DEFAULTS); syncAll(); applyChrome(P.uChromePhase);
+});
+
+// ── Device capability readout ───────────────────────────────────────────────
+// The phone renders black angular facets the desktop never shows. The prime
+// suspect is precision: snoise's permute() does mod(((x*34)+1)*x, 289), whose
+// intermediates get large. In mediump (~10-bit mantissa) that collapses into
+// noise, and a noise field of garbage displaces vertices into garbage. This
+// panel makes whatever device opens the page say what it actually supports.
+(function reportDevice() {
+  const gl = renderer.getContext();
+  const fmt = (stage, prec) => {
+    const p = gl.getShaderPrecisionFormat(stage, prec);
+    return p ? { bits: p.precision, range: [p.rangeMin, p.rangeMax] } : null;
+  };
+  const vhp = fmt(gl.VERTEX_SHADER, gl.HIGH_FLOAT);
+  const fhp = fmt(gl.FRAGMENT_SHADER, gl.HIGH_FLOAT);
+  const put = (id, p) => {
+    const el = document.getElementById(id);
+    if (!p || p.bits === 0) { el.textContent = 'ABSENT'; el.className = 'bad'; return; }
+    el.textContent = `${p.bits}-bit mantissa`;
+    // 23 = true fp32. Anything less in the VERTEX stage breaks the noise.
+    el.className = p.bits >= 23 ? '' : 'bad';
+  };
+  put('vhp', vhp);
+  put('fhp', fhp);
+
+  const tp = document.getElementById('tprec');
+  tp.textContent = renderer.capabilities.precision;
+  tp.className = renderer.capabilities.precision === 'highp' ? '' : 'bad';
+
+  document.getElementById('mvu').textContent = gl.getParameter(gl.MAX_VERTEX_UNIFORM_VECTORS);
+
+  const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+  document.getElementById('gpuname').textContent = dbg
+    ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)
+    : 'renderer masked';
+
+  window.__device = {
+    vertexHighp: vhp, fragmentHighp: fhp,
+    threePrecision: renderer.capabilities.precision,
+    maxVertUniforms: gl.getParameter(gl.MAX_VERTEX_UNIFORM_VECTORS),
+    gpu: dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : null,
+    isWebGL2: renderer.capabilities.isWebGL2 !== false,
+  };
+})();
+
+// ── GPU timing ──────────────────────────────────────────────────────────────
+// A vsync-capped fps only proves the GPU finishes UNDER the frame budget, never
+// by how much — 0.4ms and 2.7ms both read as "360fps" on a 360Hz display, and
+// they project to wildly different mobile outcomes. TIME_ELAPSED_EXT reads the
+// actual GPU nanoseconds for the draw, straight through the cap.
+const glc = renderer.getContext();
+const timerExt = glc.getExtension('EXT_disjoint_timer_query_webgl2')
+              || glc.getExtension('EXT_disjoint_timer_query');
+let pendingQuery = null;
+let gpuBest = Infinity;   // rolling minimum — the least-contended frame is the
+let gpuEma  = 0;          // cleanest read of true cost; EMA shows the typical.
+let gpuSamples = 0;
+let gpuRaw = [];          // every valid sample, for an honest median
+
+// Automation hook: read the numbers at source. Scraping the panel's text gets
+// you whatever it last painted (0.5s ago, possibly the previous config) — which
+// is how you end up "measuring" a heavier mesh as cheaper than a lighter one.
+window.__gpuStats = () => {
+  const s = [...gpuRaw].sort((a, b) => a - b);
+  return {
+    n: s.length,
+    median: s.length ? s[s.length >> 1] : null,
+    p10: s.length ? s[Math.floor(s.length * 0.1)] : null,
+    p90: s.length ? s[Math.floor(s.length * 0.9)] : null,
+    min: s.length ? s[0] : null,
+    max: s.length ? s[s.length - 1] : null,
+  };
+};
+
+if (!timerExt) {
+  document.getElementById('gpums').textContent = 'unsupported';
+  document.getElementById('gpunote').innerHTML =
+    '⚠ <b>EXT_disjoint_timer_query unavailable</b> — Chrome gates it behind ' +
+    '<code>chrome://flags → #enable-webgl-developer-extensions</code>. Without it the fps ' +
+    'readout is vsync-capped and CANNOT answer the mobile question. Enable it and reload.';
+  document.getElementById('gpunote').className = 'note warn';
+}
+
+function renderTimed() {
+  if (!timerExt || pendingQuery) { renderer.render(scene, camera); }
+  else {
+    const q = glc.createQuery();
+    glc.beginQuery(timerExt.TIME_ELAPSED_EXT, q);
+    renderer.render(scene, camera);
+    glc.endQuery(timerExt.TIME_ELAPSED_EXT);
+    pendingQuery = q;
+  }
+  if (!pendingQuery) return;
+  // Results land a few frames later; a "disjoint" flag means the GPU was
+  // interrupted and the sample is garbage — throw it away rather than report it.
+  const avail    = glc.getQueryParameter(pendingQuery, glc.QUERY_RESULT_AVAILABLE);
+  const disjoint = glc.getParameter(timerExt.GPU_DISJOINT_EXT);
+  if (avail) {
+    if (!disjoint) {
+      const ms = glc.getQueryParameter(pendingQuery, glc.QUERY_RESULT) / 1e6;
+      if (ms > 0) {
+        gpuEma = gpuEma ? gpuEma * 0.9 + ms * 0.1 : ms;
+        if (ms < gpuBest) gpuBest = ms;
+        gpuSamples++;
+        gpuRaw.push(ms);
+        if (gpuRaw.length > 600) gpuRaw.shift();
+      }
+    }
+    glc.deleteQuery(pendingQuery);
+    pendingQuery = null;
+  } else if (disjoint) {
+    glc.deleteQuery(pendingQuery);
+    pendingQuery = null;
+  }
+}
+
+function resetGpuStats() { gpuBest = Infinity; gpuEma = 0; gpuSamples = 0; gpuRaw = []; }
+
+function reportGpu() {
+  if (!timerExt || !gpuSamples) return;
+  const fmt = (ms) => {
+    const fps = Math.round(1000 / ms);
+    return `${ms.toFixed(2)}ms · ${fps}fps`;
+  };
+  document.getElementById('gpums').textContent =
+    `${gpuEma.toFixed(2)}ms (min ${gpuBest.toFixed(2)})`;
+  const c10 = document.getElementById('m10'), c30 = document.getElementById('m30');
+  c10.textContent = fmt(gpuEma * 10);
+  c30.textContent = fmt(gpuEma * 30);
+  // Judge against the sphere's slice of a 60fps budget, not the whole frame:
+  // production still owes four particle systems, the env and a clearcoat pass.
+  for (const [el, ms] of [[c10, gpuEma * 10], [c30, gpuEma * 30]])
+    el.className = ms < 5 ? '' : ms < 10 ? 'warn' : 'bad';
+}
+
+// ── Loop ────────────────────────────────────────────────────────────────────
+// rotVel → uSpin, ported from MercurySphere.jsx:118-127 (same EMA, same feel).
+let prevAz = null, rotVel = 0, last = performance.now(), frames = 0, acc = 0;
+(function loop() {
+  requestAnimationFrame(loop);
+  // Always read the clock here rather than trusting the callback's timestamp:
+  // rAF hands us a frame-start time while the watchdog hands us performance.now(),
+  // and mixing the two yields NEGATIVE dt, which makes the fps readout report
+  // hundreds. The fps number is the whole point of this panel — it must not lie.
+  const now = performance.now();
+  const dt = Math.max(0.0002, Math.min(0.05, (now - last) / 1000)); last = now;
+  controls.update();
+
+  const az = Math.atan2(camera.position.x, camera.position.z);
+  if (prevAz !== null) {
+    let da = az - prevAz;
+    if (da >  Math.PI) da -= Math.PI*2;
+    if (da < -Math.PI) da += Math.PI*2;
+    rotVel = rotVel*0.68 + (Math.abs(da)/Math.max(dt,0.001))*0.32;
+  }
+  prevAz = az;
+  uniforms.uSpin.value = Math.min(rotVel * 0.58, 0.50);
+  document.getElementById('spinv').textContent = uniforms.uSpin.value.toFixed(2);
+
+  uniforms.uTime.value += dt;
+  // Expire dead impulses so the shader's early-out actually pays.
+  for (let i = 0; i < 4; i++) {
+    if (uniforms.uImpBirth.value[i] >= 0 &&
+        uniforms.uTime.value - uniforms.uImpBirth.value[i] > P.uLifetime) {
+      uniforms.uImpBirth.value[i] = -1;
+    }
+  }
+
+  renderTimed();
+
+  frames++; acc += dt;
+  if (acc >= 0.5) {
+    const f = Math.round(frames/acc);
+    const el = document.getElementById('fps');
+    el.textContent = f;
+    el.className = f >= 50 ? '' : f >= 30 ? 'warn' : 'bad';
+    frames = 0; acc = 0;
+    reportGpu();
+  }
+})();
+
+// Automation hook: with preserveDrawingBuffer:false a readback between frames
+// hits a cleared buffer, so expose a same-task read that runs immediately after
+// the draw. Nothing in the page uses this; it exists so the sphere can be
+// verified from outside without trusting a screenshot.
+window.__probe = () => new Promise((resolve) => {
+  const gl2 = renderer.getContext();
+  const orig = gl2.drawElements;
+  gl2.drawElements = function (...a) {
+    orig.apply(this, a);
+    gl2.drawElements = orig;
+    const w = gl2.drawingBufferWidth, h = gl2.drawingBufferHeight;
+    const px = new Uint8Array(w * h * 4);
+    gl2.readPixels(0, 0, w, h, gl2.RGBA, gl2.UNSIGNED_BYTE, px);
+    let lit = 0, peak = 0, sr = 0, sg = 0, sb = 0;
+    for (let i = 0; i < px.length; i += 4) {
+      const l = (px[i] + px[i+1] + px[i+2]) / 3;
+      if (l > 6) { lit++; sr += px[i]; sg += px[i+1]; sb += px[i+2]; if (l > peak) peak = l; }
+    }
+    resolve({ lit, peak, mean: lit ? [Math.round(sr/lit), Math.round(sg/lit), Math.round(sb/lit)] : null });
+  };
+});
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+setTimeout(() => { if (!grafted) console.warn('[mercury-skin] graft never ran — material not compiled?'); }, 2000);
+</script>
+</body>
+</html>

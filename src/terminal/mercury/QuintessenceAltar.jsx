@@ -11,6 +11,7 @@ import { STORAGE_KEY } from '../quintessence/sealedArtifact';
 import { drynessFor } from '../data/lunarAccords';
 import { getTotals, subscribe as subscribeBus } from '../../observatory/observatoryBus';
 import ElementSeal from './ElementSeal';
+import SpineMirror from './SpineMirror';
 import { useHoldToSeal } from './useHoldToSeal';
 
 // Keystone (guidance spec §0): each element IS a house. Seal hue = house tab hue.
@@ -116,15 +117,14 @@ export default function QuintessenceAltar({ onDeposited, onNavigate }) {
         four elements are bound to the earth · the fifth is compiled from your spine
       </div>
 
-      {stage === -1 && (missing.length > 0 ? (
-        <div className="text-[10px] font-mono tracking-[0.2em] text-red-400/70 uppercase">
-          SPINE INCOMPLETE · {missing.join(' · ')}
-        </div>
-      ) : (
-        <div role="status" className="text-[10px] font-mono tracking-[0.2em] text-amber-300/90 uppercase">
+      {/* The mirror stays lit when armed: filling up and THEN arming is the payoff. */}
+      {stage === -1 && <SpineMirror spine={getSpine()} onNavigate={onNavigate} />}
+
+      {armed && (
+        <div role="status" className="mt-3 text-[10px] font-mono tracking-[0.2em] text-amber-300/90 uppercase">
           [ALTAR ARMED · HOLD AN ELEMENT TO SEAL THE KERNEL]
         </div>
-      ))}
+      )}
 
       {stage === -1 && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">

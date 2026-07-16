@@ -1,11 +1,10 @@
 // src/terminal/components/resolveEyeState.js — the eye's priority chain (spec §2).
 // Pure: no React, no WebGL — the whole chain is table-testable.
 // Order: compiling > (mirror-flash overlay) > complete > armed > compass > ambient > resting.
-const VERTEBRAE = [
-  { key: 'trend',   tab: 'bsky',      tint: [56, 189, 248] },   // BSKY sky
-  { key: 'council', tab: 'manifesto', tint: [167, 139, 250] },  // Manifesto violet
-  { key: 'phase',   tab: 'lunar',     tint: [217, 70, 239] },   // Lunar fuchsia
-];
+// The vertebra table lives in quintessence/vertebrae.js — the altar's mirror
+// reads it too, and one table is the only way the two surfaces agree.
+import { VERTEBRAE } from '../quintessence/vertebrae';
+
 const NAV_GAZE = [0.15, -0.04]; // drift toward the nav row
 
 export function resolveEyeState({ flaring, sealed, spine, suggestion, flash }) {
