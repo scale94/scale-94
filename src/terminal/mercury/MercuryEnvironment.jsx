@@ -2,7 +2,7 @@
 // A procedural night environment rendered into a small cubemap via drei
 // <Environment> children mode. Replaces preset="night" (no HDR, no CDN).
 // Spec: docs/superpowers/specs/2026-07-16-elemental-mirror-design.md
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Environment } from '@react-three/drei';
 import * as THREE from 'three';
@@ -89,7 +89,16 @@ export function applyEnvState(uniforms, activePhase, pendingPhase, sphereState) 
   uniforms.uHorizonHeight.value = s.horizonHeight;
 }
 
-// eslint-disable-next-line no-unused-vars -- isMobile wired in the mobile-staging task
+// Mobile staging: the env cubemap re-renders only while a transition runs.
+// Returns the burst counter to key <Environment> with — increments ONLY
+// when a transition STARTS (pendingPhase null -> phase); keying on
+// pendingPhase itself would remount a second time when it nulls at the
+// transition's end, churning render targets.
+// eslint-disable-next-line react-refresh/only-export-components -- pure key-policy helper exported for unit tests (mercuryEnvironment.test.js)
+export function nextBurst(prevBurst, prevPending, pendingPhase) {
+  return pendingPhase && pendingPhase !== prevPending ? prevBurst + 1 : prevBurst;
+}
+
 export default function MercuryEnvironment({ activePhase, pendingPhase, sphereState, isMobile = false }) {
   const uniforms = useMemo(() => ({
     uElementColor:  { value: new THREE.Color(NEUTRAL_NIGHT.color) },
@@ -106,8 +115,20 @@ export default function MercuryEnvironment({ activePhase, pendingPhase, sphereSt
     applyEnvState(uniforms, activePhase, pendingPhase, sphereState);
   });
 
+  // Mobile: re-render the env only while a transition runs (~800ms), then
+  // hold a static frame. Bump the key only when a transition STARTS —
+  // keying on pendingPhase directly would remount again when it nulls.
+  const burstRef = useRef(0);
+  const prevPendingRef = useRef(null);
+  burstRef.current = nextBurst(burstRef.current, prevPendingRef.current, pendingPhase);
+  prevPendingRef.current = pendingPhase;
+
   return (
-    <Environment frames={Infinity} resolution={128}>
+    <Environment
+      key={isMobile ? `burst-${burstRef.current}` : 'live'}
+      frames={isMobile ? 70 : Infinity}
+      resolution={isMobile ? 64 : 128}
+    >
       {/* Positive scale + BackSide = inverted sphere. Never negate the scale:
           that flips winding and un-inverts it. */}
       <mesh scale={50}>

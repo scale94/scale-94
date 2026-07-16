@@ -4,7 +4,7 @@
 // real THREE uniforms correctly (and touches nothing else).
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { applyEnvState } from '../MercuryEnvironment';
+import { applyEnvState, nextBurst } from '../MercuryEnvironment';
 import { ELEMENTS } from '../elements';
 
 function makeUniforms() {
@@ -73,5 +73,27 @@ describe('applyEnvState', () => {
     uniforms.uTime.value = 42;
     applyEnvState(uniforms, 'air', null, { chromePhase: 0, colorBlend: 0 });
     expect(uniforms.uTime.value).toBe(42);
+  });
+});
+
+describe('nextBurst', () => {
+  it('transition start increments', () => {
+    expect(nextBurst(0, null, 'thermal')).toBe(1);
+  });
+
+  it('steady transition does not increment', () => {
+    expect(nextBurst(1, 'thermal', 'thermal')).toBe(1);
+  });
+
+  it('transition end does not increment (double-remount regression guard)', () => {
+    expect(nextBurst(1, 'thermal', null)).toBe(1);
+  });
+
+  it('idle stays', () => {
+    expect(nextBurst(1, null, null)).toBe(1);
+  });
+
+  it('back-to-back different transition increments', () => {
+    expect(nextBurst(1, 'thermal', 'air')).toBe(2);
   });
 });
