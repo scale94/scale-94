@@ -27,10 +27,16 @@ export const TUNE = {
   breatheAmp:   0.12,
   horizonLift:  0.0,   // global offset added to the per-element horizonHeight
 
-  // usePhaseTransition cloud parting (the clouds part for the mirror)
-  duckActive:   0.008, // the sky empties for the flash — sprite overlap sums, so a
-                       // visual shutter needs ~10x below the naive opacity floor
-  duckGhost:    0.004, // ghosts to true silence during the beats
+  // usePhaseTransition cloud parting (the clouds part for the mirror).
+  // Geometry (condensation) does the clearing now; opacity is an accent —
+  // per-sprite alpha fights overlap logarithmically (coverage ~ 1-(1-a)^N)
+  // and can never empty the sky alone.
+  duckActive:   0.10,  // active phase's cloud opacity during the beats
+  duckGhost:    0.03,  // ghost phases' opacity during the beats
+
+  // Nebula condensation (the breath): pos *= 1 - c^2 in the flow shaders.
+  condenseBite:     1.0,  // max contraction; 0 disables live from the rig
+  condenseSizeBite: 0.6,  // sprite slimming en route into the drop
 };
 
 const KNOBS = Object.keys(TUNE);
