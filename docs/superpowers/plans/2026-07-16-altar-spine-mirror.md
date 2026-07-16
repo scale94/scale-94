@@ -15,7 +15,7 @@
 - **Do NOT push to origin.** Branch is `nightly/20260716-the-eye-observer`. Commit locally only. Leave the worktree clean.
 - **This touches `src/` — it is production code**, unlike `mercury-skin.html`. Held to the real bar: tests green, prod build clean.
 - **No progress counter, ever.** No `2 of 3`, no `1/3`, no "one vertebra short". Spec §2. A test enforces this.
-- **No red.** `None` is `text-zinc-700`, `Some` is `text-amber-300`. Spec §2. A test enforces this.
+- **No red in the spine mirror or the incomplete state.** `None` is `text-zinc-700`, `Some` is `text-amber-300`. Spec §2 — an unmarked vertebra is an invitation, not an error. A test enforces this at `stage === -1`. **The `VOLATILE BUILD` red at `QuintessenceAltar.jsx:199` is NOT in scope and stays** — storage refusing the seal is a real error and red is correct there. It renders only at stage 6, so the test never sees it.
 - **Never explain what a vertebra IS.** Say *where* it is filled, never *what* a phase means. Spec §2.
 - **No HUD-announcement copy** ("X ENGAGED", "SYSTEM ONLINE"). Lowercase, `·` separators, mono, low opacity except active states.
 - **Hue is decoration only.** Every fact the colour carries must also be in the `aria-label`. Spec §3.
