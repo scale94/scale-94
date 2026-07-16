@@ -17,18 +17,20 @@ import { ELEMENTS, NEUTRAL_NIGHT } from './elements';
 
 export const TUNE = {
   // MercuryEnvironment fragment-shader gains (fed to uniforms per frame)
-  chromaGain:   0.5,   // element chroma riding the horizon band
-  floorGain:    1.0,   // multiplier on the never-drains luminance floor vec3(0.065,0.065,0.100)
+  chromaGain:   0.6,   // element chroma riding the horizon band — 0.85 blows the idle
+                       // drop into a glowing lamp (CDP-verified); metal dies past ~0.7
+  floorGain:    1.15,  // multiplier on the never-drains luminance floor vec3(0.065,0.065,0.100)
   stratumGain:  0.12,  // below-horizon ground glow
   blobGain:     1.0,   // multiplier on the two element blobs (b1 0.25, b3 0.15)
-  moonGain:     1.0,   // multiplier on the HDR moon disc + halo
+  moonGain:     1.4,   // multiplier on the HDR moon disc + halo — crisp specular landmark
   breatheSpeed: 0.35,
   breatheAmp:   0.12,
   horizonLift:  0.0,   // global offset added to the per-element horizonHeight
 
   // usePhaseTransition cloud parting (the clouds part for the mirror)
-  duckActive:   0.06,  // active phase's cloud opacity during the beats
-  duckGhost:    0.04,  // ghost phases' opacity during the beats
+  duckActive:   0.008, // the sky empties for the flash — sprite overlap sums, so a
+                       // visual shutter needs ~10x below the naive opacity floor
+  duckGhost:    0.004, // ghosts to true silence during the beats
 };
 
 const KNOBS = Object.keys(TUNE);
