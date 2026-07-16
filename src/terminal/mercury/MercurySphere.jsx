@@ -171,13 +171,17 @@ export default function MercurySphere({
   // Interpolate: rocky planet → mirror liquid Hg
   const sphereColor = planetGrey.clone().lerp(emergeColor, cp);
 
-  // Material properties:
+  // Material properties (liquid endpoint = mercury optics, tuned in mercury-skin.html):
   // Planet state  → rough 0.72, metalness 0.65 (rocky, diffuse, non-reflective)
-  // Liquid Hg     → rough 0.02, metalness 0.99 (mirror, perfectly smooth)
-  const roughness  = 0.72 - cp * 0.70;
-  const metalness  = 0.65 + cp * 0.34;
-  const clearcoat  = cp * 0.95;          // clearcoat only on liquid state
-  const envIntensity = (0.3 + cp * 2.7) * Math.min(1, sargScore);
+  // Liquid Hg     → rough 0.14, metalness 1.0  (mercury ~73% reflectance, faint blue-grey)
+  // NOT rough 0.02: a near-perfect mirror of the night env reflects almost nothing and
+  // throws hard white shards on every rippled facet — the old black-glass look. 0.14 is
+  // physically truer (chrome is ~95% neutral; mercury is dimmer and blue) and it holds
+  // together the moment the surface deforms. No clearcoat — mercury is not a coated surface.
+  const roughness  = 0.72 - cp * 0.58;   // → 0.14 at liquid
+  const metalness  = 0.65 + cp * 0.35;   // → 1.00 at liquid
+  const clearcoat  = 0;
+  const envIntensity = (0.3 + cp * 1.3) * Math.min(1, sargScore); // → 1.6 at liquid (moody, tuned against preset="night")
 
   // Day-side light: cool grey in planet mode, pure chrome-white in liquid mode
   const dayLightColor = new THREE.Color('#9a9aaa').lerp(new THREE.Color('#e8e8f0'), cp);
