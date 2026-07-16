@@ -3,6 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 
+import { TUNE } from './mercuryTuning';
 import ParticleFlow    from '../fluid/ParticleFlow';
 import GlassKnot       from '../fluid/GlassKnot';
 import ThermalFlow     from '../thermal/ThermalFlow';
@@ -29,6 +30,7 @@ export default function MercuryCanvas({
     activePhase,
     pendingPhase,
     phaseOpacities,
+    phaseCondense,
     sphereState,
     triggerTransition,
   } = usePhaseTransition('fluid');
@@ -61,6 +63,9 @@ export default function MercuryCanvas({
   const opacityFor = (phase) =>
     Math.min(phase === activePhase ? 0.45 : 0.12, phaseOpacities[phase]);
 
+  // Condensation: bite applied HERE, once — shaders receive the final value.
+  const condenseFor = (phase) => phaseCondense[phase] * TUNE.condenseBite;
+
   return (
     <Canvas
       camera={{ position: isMobile ? [0, 0, 6] : [0, 0, 5], fov: isMobile ? 48 : 42 }}
@@ -91,6 +96,8 @@ export default function MercuryCanvas({
           opacityMultiplier={opacityFor('fluid')}
           blending={THREE.NormalBlending}
           onFps={activePhase === 'fluid' ? onFps : null}
+          condense={condenseFor('fluid')}
+          condenseSizeBite={TUNE.condenseSizeBite}
         />
         {/* Boundary geometries hidden — the Mercury sphere is the visual anchor */}
         <GlassKnot isMobile={isMobile} visible={false} />
@@ -104,6 +111,8 @@ export default function MercuryCanvas({
           opacityMultiplier={opacityFor('thermal')}
           blending={THREE.NormalBlending}
           onFps={activePhase === 'thermal' ? onFps : null}
+          condense={condenseFor('thermal')}
+          condenseSizeBite={TUNE.condenseSizeBite}
         />
         <GlassHearth isMobile={isMobile} visible={false} />
 
@@ -116,6 +125,8 @@ export default function MercuryCanvas({
           opacityMultiplier={opacityFor('earth')}
           blending={THREE.NormalBlending}
           onFps={activePhase === 'earth' ? onFps : null}
+          condense={condenseFor('earth')}
+          condenseSizeBite={TUNE.condenseSizeBite}
         />
         <CrystalGeode isMobile={isMobile} visible={false} />
 
@@ -128,6 +139,8 @@ export default function MercuryCanvas({
           opacityMultiplier={opacityFor('air')}
           blending={THREE.NormalBlending}
           onFps={activePhase === 'air' ? onFps : null}
+          condense={condenseFor('air')}
+          condenseSizeBite={TUNE.condenseSizeBite}
         />
         <AtmoShell isMobile={isMobile} visible={false} />
 
