@@ -8,6 +8,8 @@ const vertexShader = /* glsl */ `
   uniform float uOrbitalSpeed;
   uniform float uTurbulence;
   uniform float uSpread;
+  uniform float uCondense;
+  uniform float uCondenseSizeBite;
 
   attribute float aPhase;    // orbit phase offset [0,1)
   attribute float aSpeed;    // per-particle speed multiplier [0,1]
@@ -119,8 +121,11 @@ const vertexShader = /* glsl */ `
     // Air particles barely shrink — they persist at full size
     float baseSize = aSize * 5.0;
 
+    // Nebula condensation — see ParticleFlow.jsx for the physics note.
+    pos *= 1.0 - uCondense * uCondense;
+
     vec4 mvPos = modelViewMatrix * vec4(pos, 1.0);
-    gl_PointSize = baseSize * (260.0 / -mvPos.z);
+    gl_PointSize = baseSize * (260.0 / -mvPos.z) * (1.0 - uCondense * uCondenseSizeBite);
     gl_Position  = projectionMatrix * mvPos;
   }
 `;
@@ -215,6 +220,8 @@ export default function AtmosphericFlow({
   density           = null,
   onFps             = null,
   opacityMultiplier = 1,
+  condense = 0,
+  condenseSizeBite = 0.6,
   blending = THREE.AdditiveBlending,
 }) {
   const PARTICLE_COUNT = density ?? (isMobile ? 4000 : 10000);
@@ -232,6 +239,8 @@ export default function AtmosphericFlow({
       mat.uniforms.uTurbulence.value    = turbulence;
       mat.uniforms.uSpread.value        = spread;
       mat.uniforms.uOpacity.value       = opacityMultiplier;
+      mat.uniforms.uCondense.value         = condense;
+      mat.uniforms.uCondenseSizeBite.value = condenseSizeBite;
     }
     if (onFps) {
       fpsFrames.current++;
@@ -265,6 +274,8 @@ export default function AtmosphericFlow({
           uTurbulence:   { value: turbulence },
           uSpread:       { value: spread },
           uOpacity:      { value: opacityMultiplier },
+          uCondense:         { value: condense },
+          uCondenseSizeBite: { value: condenseSizeBite },
         }}
         transparent
         blending={blending}

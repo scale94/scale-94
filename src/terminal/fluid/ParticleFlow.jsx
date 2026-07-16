@@ -19,6 +19,8 @@ const vertexShader = /* glsl */ `
   uniform float uCurlAmp;
   uniform float uTubeRadius;
   uniform float uChromatic;
+  uniform float uCondense;
+  uniform float uCondenseSizeBite;
   attribute float aPhase;
   attribute float aRadius;
   attribute float aOffset;
@@ -136,8 +138,13 @@ const vertexShader = /* glsl */ `
     vHue = fract(aPhase + uTime * 0.05 + uChromatic * 0.33);
     vBrightness = 0.8 + 0.2 * sin(aPhase * 6.283185307 + uTime * 0.3);
 
+    // Nebula condensation: contract the post-sim field into the drop.
+    // Squared ease = gravity well (slow drift, fast swallow); the sphere's
+    // depth buffer occludes arrivals. Applies to pos, NOT the raw attribute.
+    pos *= 1.0 - uCondense * uCondense;
+
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-    gl_PointSize = (1.5 + aRadius * 2.0) * (300.0 / -mvPosition.z);
+    gl_PointSize = (1.5 + aRadius * 2.0) * (300.0 / -mvPosition.z) * (1.0 - uCondense * uCondenseSizeBite);
     gl_Position = projectionMatrix * mvPosition;
   }
 `;
@@ -199,6 +206,8 @@ export default function ParticleFlow({
   density = null,
   onFps = null,
   opacityMultiplier = 1,
+  condense = 0,
+  condenseSizeBite = 0.6,
   blending = THREE.AdditiveBlending,
 }) {
   const PARTICLE_COUNT = density ?? (isMobile ? 4000 : 10000);
@@ -219,6 +228,8 @@ export default function ParticleFlow({
       mat.uniforms.uTubeRadius.value = tubeRadius;
       mat.uniforms.uChromatic.value = chromatic;
       mat.uniforms.uOpacity.value = opacityMultiplier;
+      mat.uniforms.uCondense.value         = condense;
+      mat.uniforms.uCondenseSizeBite.value = condenseSizeBite;
     }
     // FPS counter — report once per second
     if (onFps) {
@@ -251,6 +262,8 @@ export default function ParticleFlow({
           uTubeRadius: { value: tubeRadius },
           uChromatic:  { value: chromatic },
           uOpacity:    { value: opacityMultiplier },
+          uCondense:         { value: condense },
+          uCondenseSizeBite: { value: condenseSizeBite },
         }}
         transparent
         blending={blending}
