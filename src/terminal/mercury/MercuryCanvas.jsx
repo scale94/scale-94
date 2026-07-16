@@ -1,6 +1,6 @@
 import { Suspense, useRef, useCallback } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Environment } from '@react-three/drei';
+import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 
 import ParticleFlow    from '../fluid/ParticleFlow';
@@ -12,6 +12,7 @@ import CrystalGeode    from '../earth/CrystalGeode';
 import AtmosphericFlow from '../air/AtmosphericFlow';
 import AtmoShell       from '../air/AtmoShell';
 import MercurySphere   from './MercurySphere';
+import MercuryEnvironment from './MercuryEnvironment';
 import usePhaseTransition from './usePhaseTransition';
 
 const isMobile = typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
@@ -71,7 +72,12 @@ export default function MercuryCanvas({
         <ambientLight intensity={0.12} color="#0a0a12" />
         <pointLight position={[3, 3, 3]}  intensity={1.5} color="#c8c8d8" />
         <pointLight position={[-2, -2, 1]} intensity={0.6} color="#1a1a2e" />
-        <Environment preset="night" />
+        <MercuryEnvironment
+          activePhase={activePhase}
+          pendingPhase={pendingPhase}
+          sphereState={sphereState}
+          isMobile={isMobile}
+        />
 
         {/* NormalBlending: prevents additive accumulation to white in multi-system canvas */}
         <ParticleFlow
