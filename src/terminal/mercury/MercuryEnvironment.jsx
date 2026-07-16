@@ -8,7 +8,9 @@ import { Environment } from '@react-three/drei';
 import * as THREE from 'three';
 import { NEUTRAL_NIGHT } from './elements';
 
-const vertexShader = /* glsl */ `
+// Exported for elemental-mirror-probe.html — the headless-pane tuning probe
+// renders this exact shader against the drei night HDR for A/B readback.
+export const vertexShader = /* glsl */ `
   varying vec3 vDir;
   void main() {
     // Sphere is centered on the cube camera and unrotated: object-space
@@ -18,7 +20,7 @@ const vertexShader = /* glsl */ `
   }
 `;
 
-const fragmentShader = /* glsl */ `
+export const fragmentShader = /* glsl */ `
   varying vec3 vDir;
   uniform vec3  uElementColor;   // effective (pre-blended) element chroma
   uniform vec3  uNeutralColor;   // quintessence night chroma
@@ -45,22 +47,30 @@ const fragmentShader = /* glsl */ `
     vec3 world  = mix(ground, zenith, smoothstep(-1.0, 1.0, y));
 
     // Horizon band — the world's main light source. Breathes slowly.
+    // The vec3 floor never drains with chromePhase: a mirror of a lightless
+    // night is black glass (probe-verified against the shipped dikhololo HDR;
+    // hex chroma lands ~0.01 in linear space, far too dim to carry the band
+    // alone). Element chroma rides ON the floor at 0.5 gain — loud enough to
+    // read on chrome, quiet enough not to wash the planet.
     float breathe = 1.0 + 0.12 * sin(uTime * 0.35);
     float band = exp(-pow((y - uHorizonHeight) * 4.5, 2.0));
-    world += chroma * band * 0.85 * breathe;
+    world += (chroma * 0.5 + vec3(0.065, 0.065, 0.100)) * band * breathe;
 
     // Faint stratum below the horizon — the ground remembering the glow.
     float stratum = exp(-pow((y - uHorizonHeight + 0.45) * 3.0, 2.0));
-    world += chroma * stratum * 0.18;
+    world += chroma * stratum * 0.12;
 
-    // Distant sources — three soft blobs drifting on slow incommensurate orbits.
+    // Distant sources drifting on slow incommensurate orbits.
+    // b2 is the moon: an HDR point (>1) so the liquid mirror always catches
+    // one hard specular landmark, like the shipped HDR's moon.
     vec3 b1 = normalize(vec3(cos(uTime * 0.050),        0.35, sin(uTime * 0.050)));
-    vec3 b2 = normalize(vec3(cos(uTime * 0.031 + 2.4),  0.05, sin(uTime * 0.031 + 2.4)));
+    vec3 b2 = normalize(vec3(cos(uTime * 0.031 + 2.4),  0.28, sin(uTime * 0.031 + 2.4)));
     vec3 b3 = normalize(vec3(cos(uTime * 0.021 + 4.2), -0.25, sin(uTime * 0.021 + 4.2)));
-    world += chroma * pow(max(dot(dir, b1), 0.0), 22.0) * 0.35;
-    world += mix(chroma, vec3(0.50, 0.50, 0.60), 0.5)
-                    * pow(max(dot(dir, b2), 0.0), 30.0) * 0.25;
-    world += chroma * pow(max(dot(dir, b3), 0.0), 40.0) * 0.20;
+    world += chroma * pow(max(dot(dir, b1), 0.0), 22.0) * 0.25;
+    float moon = max(dot(dir, b2), 0.0);
+    world += vec3(1.60, 1.60, 1.70) * pow(moon, 260.0)   // the disc
+           + vec3(0.14, 0.14, 0.18) * pow(moon, 30.0);   // its halo
+    world += chroma * pow(max(dot(dir, b3), 0.0), 40.0) * 0.15;
 
     // Dither before quantization.
     world += (hash(gl_FragCoord.xy + fract(uTime)) - 0.5) * (1.5 / 255.0);

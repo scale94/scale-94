@@ -1,0 +1,162 @@
+<!doctype html>
+<!--
+  ELEMENTAL MIRROR PROBE — automation-only A/B readback harness.
+
+  The embedded preview pane never paints (rAF suspended, ResizeObserver never
+  delivers), so R3F cannot boot and screenshots time out. This page renders the
+  production sphere formula SYNCHRONOUSLY (no rAF anywhere) against two
+  environments — the drei night HDR that shipped, and the procedural world from
+  MercuryEnvironment.jsx — then composites tiles onto a 2D canvas for pixel
+  readback via window.__probe*.
+
+  Query params:
+    ?state=matrix   (default) 4 tiles: HDR planet | HDR liquid | PROC planet | PROC liquid
+    ?elements=1     6 tiles: PROC neutral + PROC per element (fluid/thermal/earth/air) idle + one mid-flow
+    ?cp=<0..1>&phase=<phase>&pending=<phase>&blend=<0..1>  single custom tile pair (HDR left, PROC right)
+
+  Readback contract (poll from automation):
+    window.__probeReady  -> true when composite done
+    window.__probeError  -> error string if failed
+    window.__probeData   -> data:image/jpeg;base64 composite
+-->
+<html>
+<head><meta charset="utf-8"><title>elemental mirror probe</title>
+<style>body{background:#111;color:#9a9aaa;font:12px monospace;margin:12px}</style>
+</head>
+<body>
+<div id="status">booting…</div>
+<canvas id="composite"></canvas>
+<script type="module">
+import * as THREE from 'three';
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
+import { vertexShader, fragmentShader } from '/src/terminal/mercury/MercuryEnvironment.jsx';
+import { ELEMENTS, NEUTRAL_NIGHT, resolveEnvState } from '/src/terminal/mercury/elements.js';
+
+const status = (m) => { document.getElementById('status').textContent = m; };
+const q = new URLSearchParams(location.search);
+
+// Same HDR the drei preset resolves to (pinned in mercury-skin.html).
+const NIGHT_HDR = 'https://raw.githack.com/pmndrs/drei-assets/456060a26bbeb8fdf79326f224b6d99b8bcce736/hdri/dikhololo_night_1k.hdr';
+
+const TILE = 300;
+
+async function main() {
+  const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+  renderer.setSize(TILE, TILE, false);
+  const pmrem = new THREE.PMREMGenerator(renderer);
+
+  // ── Environments ─────────────────────────────────────────────────────────
+  status('loading night HDR…');
+  const hdrTex = await new Promise((res, rej) =>
+    new RGBELoader().load(NIGHT_HDR, res, undefined, rej));
+  const nightEnv = pmrem.fromEquirectangular(hdrTex).texture;
+
+  // Procedural world — the exact production shader, PMREM'd from a virtual
+  // scene the same way drei's children mode does.
+  const makeProcEnv = (envState, time = 7.3) => {
+    const envScene = new THREE.Scene();
+    const mat = new THREE.ShaderMaterial({
+      vertexShader, fragmentShader,
+      uniforms: {
+        uElementColor:  { value: new THREE.Color().setRGB(...envState.elementColor) },
+        uNeutralColor:  { value: new THREE.Color(NEUTRAL_NIGHT.color) },
+        uChromePhase:   { value: envState.chromePhase },
+        uHorizonHeight: { value: envState.horizonHeight },
+        uTime:          { value: time },
+      },
+      side: THREE.BackSide, depthWrite: false,
+    });
+    const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 32), mat);
+    mesh.scale.setScalar(50);
+    envScene.add(mesh);
+    const tex = pmrem.fromScene(envScene, 0).texture;
+    mat.dispose();
+    return tex;
+  };
+
+  // ── The production sphere scene (MercuryCanvas + MercurySphere formulas) ──
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color('#000000');
+  const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
+  camera.position.set(0, 0, 5);
+
+  scene.add(new THREE.AmbientLight(0x0a0a12, 0.12));
+  const p1 = new THREE.PointLight(0xc8c8d8, 1.5); p1.position.set(3, 3, 3); scene.add(p1);
+  const p2 = new THREE.PointLight(0x1a1a2e, 0.6); p2.position.set(-2, -2, 1); scene.add(p2);
+  const dayLight = new THREE.DirectionalLight(); scene.add(dayLight);
+  const nightFill = new THREE.DirectionalLight(0x060610, 0.1); nightFill.position.set(-3, -3, -2); scene.add(nightFill);
+
+  const material = new THREE.MeshPhysicalMaterial({ clearcoat: 0, clearcoatRoughness: 0.05 });
+  const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.75, 64, 64), material);
+  scene.add(sphere);
+
+  // cp = chromePhase; activeHex drives the 12% planet tint (MercurySphere.jsx formulas, verbatim values)
+  const applySphereState = (cp, activeHex) => {
+    const activeColor = new THREE.Color(activeHex);
+    const planetGrey  = new THREE.Color('#787878').lerp(activeColor, 0.12);
+    const liquid      = new THREE.Color('#c4c4c8');
+    material.color.copy(planetGrey.clone().lerp(liquid, cp));
+    material.roughness       = 0.72 - cp * 0.58;
+    material.metalness       = 0.65 + cp * 0.35;
+    material.envMapIntensity = 0.3 + cp * 1.3;
+    dayLight.color.copy(new THREE.Color('#9a9aaa').lerp(new THREE.Color('#e8e8f0'), cp));
+    dayLight.intensity = 1.8 + cp * 2.2;
+    dayLight.position.set(Math.cos(Math.PI) * 4, Math.sin(Math.PI) * 4, 2); // WATER node angle (idle default)
+  };
+
+  // ── Tile compositing ──────────────────────────────────────────────────────
+  const jobs = [];
+  const IDLE = { chromePhase: 0, colorBlend: 0 };
+  if (q.get('elements')) {
+    jobs.push(['PROC neutral cp=1', makeProcEnv(resolveEnvState(null, null, IDLE)), 1, '#c4c4c8']);
+    for (const ph of ['fluid', 'thermal', 'earth', 'air'])
+      jobs.push([`PROC ${ph} idle`, makeProcEnv(resolveEnvState(ph, null, IDLE)), 0, ELEMENTS[ph].color]);
+    jobs.push(['PROC flow water→fire', makeProcEnv(resolveEnvState('fluid', 'thermal', { chromePhase: 0.45, colorBlend: 0.6 })), 0.45, ELEMENTS.thermal.color]);
+  } else if (q.get('cp') !== null && q.get('cp') !== undefined && q.get('cp') !== '') {
+    const cp = parseFloat(q.get('cp'));
+    const st = resolveEnvState(q.get('phase') || 'fluid', q.get('pending') || null,
+      { chromePhase: cp, colorBlend: parseFloat(q.get('blend') || '0') });
+    jobs.push([`HDR cp=${cp}`, nightEnv, cp, ELEMENTS[q.get('phase') || 'fluid'].color]);
+    jobs.push([`PROC cp=${cp}`, makeProcEnv(st), cp, ELEMENTS[q.get('phase') || 'fluid'].color]);
+  } else if (q.get('neutral')) {
+    // Task-4 gate: the app pre-Task-5 runs the NEUTRAL world at every cp.
+    const water = ELEMENTS.fluid.color;
+    const neutralEnv = makeProcEnv(resolveEnvState(null, null, IDLE));
+    jobs.push(['HDR planet cp=0',     nightEnv,   0, water]);
+    jobs.push(['NEUTRAL planet cp=0', neutralEnv, 0, water]);
+    jobs.push(['HDR liquid cp=1',     nightEnv,   1, water]);
+    jobs.push(['NEUTRAL liquid cp=1', neutralEnv, 1, water]);
+  } else {
+    const water = ELEMENTS.fluid.color;
+    const neutral = makeProcEnv(resolveEnvState('fluid', null, IDLE));      // idle water world
+    const neutralPeak = makeProcEnv(resolveEnvState('fluid', null, { chromePhase: 1, colorBlend: 0 })); // full dissolve
+    jobs.push(['HDR planet cp=0',  nightEnv,     0, water]);
+    jobs.push(['HDR liquid cp=1',  nightEnv,     1, water]);
+    jobs.push(['PROC planet cp=0', neutral,      0, water]);
+    jobs.push(['PROC liquid cp=1', neutralPeak,  1, water]);
+  }
+
+  const comp = document.getElementById('composite');
+  comp.width = TILE * jobs.length; comp.height = TILE + 18;
+  const ctx = comp.getContext('2d');
+  ctx.fillStyle = '#111'; ctx.fillRect(0, 0, comp.width, comp.height);
+  ctx.font = '11px monospace';
+
+  jobs.forEach(([label, env, cp, hex], i) => {
+    status(`rendering ${label}…`);
+    scene.environment = env;
+    applySphereState(cp, hex);
+    renderer.render(scene, camera);                    // synchronous — no rAF
+    ctx.drawImage(renderer.domElement, i * TILE, 0, TILE, TILE);
+    ctx.fillStyle = '#9a9aaa'; ctx.fillText(label, i * TILE + 6, TILE + 13);
+  });
+
+  window.__probeData = comp.toDataURL('image/jpeg', 0.85);
+  window.__probeReady = true;
+  status(`done — ${jobs.length} tiles, ${Math.round(window.__probeData.length / 1024)}KB b64`);
+}
+
+main().catch(e => { window.__probeError = String(e && e.stack || e); status('ERROR ' + e); });
+</script>
+</body>
+</html>
