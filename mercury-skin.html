@@ -174,6 +174,15 @@
     <div class="note">three subdivides by (detail+1)², <i>not</i> 4^detail — detail 5 is only 720 tris, coarser than the sphere we're replacing. Indexed via mergeVertices. Edge/radius is the ripple-fineness ceiling: below ~3.5% is smooth, above ~6% facets.</div>
   </fieldset>
 
+  <fieldset><legend>Device</legend>
+    <div class="row"><span>vertex highp</span><span id="vhp">—</span></div>
+    <div class="row"><span>fragment highp</span><span id="fhp">—</span></div>
+    <div class="row"><span>three precision</span><span id="tprec">—</span></div>
+    <div class="row"><span>max vert uniforms</span><span id="mvu">—</span></div>
+    <div id="gpuname" class="note">—</div>
+    <div class="note">If vertex highp is absent or low-precision, snoise's permute() (mod of large products) degenerates and the displacement becomes angular black garbage — a desktop-invisible failure.</div>
+  </fieldset>
+
   <fieldset><legend>Export</legend>
     <div class="btns">
       <button id="exp">EXPORT DEFAULTS</button>
@@ -620,6 +629,50 @@ ${body}
 document.getElementById('rst').addEventListener('click', () => {
   Object.assign(P, DEFAULTS); syncAll(); applyChrome(P.uChromePhase);
 });
+
+// ── Device capability readout ───────────────────────────────────────────────
+// The phone renders black angular facets the desktop never shows. The prime
+// suspect is precision: snoise's permute() does mod(((x*34)+1)*x, 289), whose
+// intermediates get large. In mediump (~10-bit mantissa) that collapses into
+// noise, and a noise field of garbage displaces vertices into garbage. This
+// panel makes whatever device opens the page say what it actually supports.
+(function reportDevice() {
+  const gl = renderer.getContext();
+  const fmt = (stage, prec) => {
+    const p = gl.getShaderPrecisionFormat(stage, prec);
+    return p ? { bits: p.precision, range: [p.rangeMin, p.rangeMax] } : null;
+  };
+  const vhp = fmt(gl.VERTEX_SHADER, gl.HIGH_FLOAT);
+  const fhp = fmt(gl.FRAGMENT_SHADER, gl.HIGH_FLOAT);
+  const put = (id, p) => {
+    const el = document.getElementById(id);
+    if (!p || p.bits === 0) { el.textContent = 'ABSENT'; el.className = 'bad'; return; }
+    el.textContent = `${p.bits}-bit mantissa`;
+    // 23 = true fp32. Anything less in the VERTEX stage breaks the noise.
+    el.className = p.bits >= 23 ? '' : 'bad';
+  };
+  put('vhp', vhp);
+  put('fhp', fhp);
+
+  const tp = document.getElementById('tprec');
+  tp.textContent = renderer.capabilities.precision;
+  tp.className = renderer.capabilities.precision === 'highp' ? '' : 'bad';
+
+  document.getElementById('mvu').textContent = gl.getParameter(gl.MAX_VERTEX_UNIFORM_VECTORS);
+
+  const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+  document.getElementById('gpuname').textContent = dbg
+    ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)
+    : 'renderer masked';
+
+  window.__device = {
+    vertexHighp: vhp, fragmentHighp: fhp,
+    threePrecision: renderer.capabilities.precision,
+    maxVertUniforms: gl.getParameter(gl.MAX_VERTEX_UNIFORM_VECTORS),
+    gpu: dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : null,
+    isWebGL2: renderer.capabilities.isWebGL2 !== false,
+  };
+})();
 
 // ── GPU timing ──────────────────────────────────────────────────────────────
 // A vsync-capped fps only proves the GPU finishes UNDER the frame budget, never
