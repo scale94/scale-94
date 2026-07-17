@@ -7,6 +7,8 @@ import { mulberry32 } from '../views/manifesto/councilCollider';
 import { drynessFor } from '../data/lunarAccords';
 import { trendToPressure, pressureToBpm } from './engineWitness';
 import { lensFor } from './taxonomyRegistry';
+import { doctrineFor } from '../data/kernelDoctrines';
+import kernelBuilds from '../data/kernelBuilds';
 
 export const ELEMENT_MAP = {
   FIRE:  { atom: 'Boson',   daemon: 'TheDevil' },
@@ -39,6 +41,63 @@ function houseLine(name, value, describe) {
   return value == null
     ? `    // HOUSE EMPTY — never witnessed\n    ${name}: None,`
     : `    ${name}: Some(${JSON.stringify(describe)}),`;
+}
+
+// ── THE LINKER (spec 2026-07-17) ─────────────────────────────────────────────
+// TARGET 0: nt_success — the default build, fixed at eighteen, never linked.
+// The corpus is the library of documented divergences; the artifact links only
+// what the visitor touched. Seeded cap keeps the vial pocket-sized: picks are
+// drawn by rng, rendered in registry order.
+const BUILD_BY_ID = new Map(kernelBuilds.map(b => [b.id, b]));
+const EXTERN_CAP = 7;
+
+function seededPick(ids, cap, rng) {
+  if (ids.length <= cap) return { picks: ids, overflow: 0 };
+  const pool = ids.slice();
+  const drawn = new Set();
+  for (let i = 0; i < cap; i++) drawn.add(pool.splice(Math.floor(rng() * pool.length), 1)[0]);
+  return { picks: ids.filter(id => drawn.has(id)), overflow: ids.length - cap };
+}
+
+function crateFlags(build) {
+  const flags = [];
+  if (build.lore) flags.push('genome chapter — ancestry, not divergence');
+  if (build.status === 'DEPRECATED') flags.push('DEPRECATED — a divergence later abandoned');
+  return flags;
+}
+
+function linkerBlock(corpus, ctx, rng) {
+  const head = `/// **THE LINKER** — every build forks from the same fork point.
+/// TARGET 0: nt_success · fixed at eighteen · ships without documentation.
+/// ${lensFor('linker', ctx, rng)}`;
+  const tail = `const TARGET_LINKED: Option<&'static str> = None; // nt_success — NEVER LINKED HERE`;
+  if (!corpus) {
+    return `${head}
+// THE ARCHIVE UNENTERED — ${kernelBuilds.length} divergences unread · only TARGET 0 remains —
+// and this artifact is already not it
+${tail}`;
+  }
+  const lines = [];
+  const linked = seededPick(corpus.linked, EXTERN_CAP, rng);
+  for (const id of linked.picks) {
+    const b = BUILD_BY_ID.get(id);
+    if (!b) continue;
+    const doctrine = doctrineFor(b.id) ?? 'undoctrined · the divergence is its own gloss';
+    lines.push(`extern crate ${b.name.toLowerCase()};  // ${[doctrine, ...crateFlags(b)].join(' · ')}`);
+  }
+  if (linked.overflow) lines.push(`// +${linked.overflow} more linked`);
+  const consulted = seededPick(corpus.consulted, EXTERN_CAP, rng);
+  for (const id of consulted.picks) {
+    const b = BUILD_BY_ID.get(id);
+    if (!b) continue;
+    const flags = crateFlags(b);
+    lines.push(`// consulted, never linked: ${b.id}${flags.length ? ' · ' + flags.join(' · ') : ''}`);
+  }
+  if (consulted.overflow) lines.push(`// +${consulted.overflow} more consulted`);
+  return `${head}
+/// corpus: ${corpus.total} documented divergences from TARGET 0 · linked ${corpus.linked.length} · consulted ${corpus.consulted.length}
+${lines.join('\n')}
+${tail}`;
 }
 
 // ── main ─────────────────────────────────────────────────────────────────────
@@ -251,6 +310,8 @@ ${houseLine('house_ecocide', ecocideValue, ecocideDesc)}
 ${houseLine('house_privacy', periphery.houses.privacy, `entered ${periphery.houses.privacy}×`)}
 ${houseLine('house_surveillance', periphery.houses.surveillance, `entered ${periphery.houses.surveillance}×`)}
 };
+
+${linkerBlock(periphery.corpus ?? null, ctx, rng)}
 
 /// **PANIC HANDLER** — inherited verbatim from the genome.
 /// When this system fails, it does not crash — it calcifies.

@@ -156,3 +156,70 @@ describe('compileKernel', () => {
     expect(source).toContain('house_ecocide: Some("entered 1× · phase COLLAPSE · metabolic rift 0.72")');
   });
 });
+
+describe('THE LINKER (spec 2026-07-17)', () => {
+  const CORPUS_PERIPHERY = { ...FULL_PERIPHERY, corpus: {
+    linked: ['BOSONIC-KERNEL-3.0.0', 'SURVEILLANCE-TRACKER'],
+    consulted: ['SOMA-KERNEL-5.5.0'],
+    total: 43,
+  } };
+
+  it('renders linked crates with doctrine comments and the corpus header', async () => {
+    const { source } = await compileKernel(FULL_SPINE, CORPUS_PERIPHERY, ENGINE, OPTS);
+    expect(source).toContain('**THE LINKER**');
+    expect(source).toContain('TARGET 0: nt_success · fixed at eighteen · ships without documentation.');
+    expect(source).toContain('corpus: 43 documented divergences from TARGET 0 · linked 2 · consulted 1');
+    expect(source).toContain('extern crate bosonic_kernel_3_0_0;');
+    expect(source).toContain('trust is a condensate');
+    expect(source).toContain('extern crate surveillance_tracker;');
+    expect(source).toContain('// consulted, never linked: SOMA-KERNEL-5.5.0');
+    expect(source).toContain('⟨SOCIOLOGY ⇄ ECONOMICS⟩');
+  });
+
+  it('TARGET_LINKED is None in every variant', async () => {
+    const withCorpus = await compileKernel(FULL_SPINE, CORPUS_PERIPHERY, ENGINE, OPTS);
+    const without    = await compileKernel(FULL_SPINE, FULL_PERIPHERY, ENGINE, OPTS);
+    for (const { source } of [withCorpus, without])
+      expect(source).toContain("const TARGET_LINKED: Option<&'static str> = None; // nt_success — NEVER LINKED HERE");
+  });
+
+  it('no corpus → the archive-unentered render', async () => {
+    const { source } = await compileKernel(FULL_SPINE, FULL_PERIPHERY, ENGINE, OPTS);
+    expect(source).toContain('THE ARCHIVE UNENTERED');
+    expect(source).toContain('and this artifact is already not it');
+    expect(source).not.toContain('extern crate');
+  });
+
+  it('annotates DEPRECATED and lore builds', async () => {
+    const p = { ...FULL_PERIPHERY, corpus: {
+      linked: ['SOMA-4.4-GENESIS-DEC2025', 'ROSSIGNOL-ANDALIB-5.5.5.5'],
+      consulted: [], total: 43 } };
+    const { source } = await compileKernel(FULL_SPINE, p, ENGINE, OPTS);
+    expect(source).toContain('DEPRECATED — a divergence later abandoned');
+    expect(source).toContain('genome chapter — ancestry, not divergence');
+  });
+
+  it('caps extern lines at 7 with an overflow comment', async () => {
+    const nine = ['ATMOSPHERIC-SIM-KERNEL-3.0.0', 'BIODIVERSITY-PROMPT-1.0.1',
+      'BOSONIC-KERNEL-3.0.0', 'CEEI-SIM-KERNEL-1.0.0', 'CHRONOS-KERNEL-2.1.0',
+      'COMPANION-KERNEL-2.0.0', 'DALY-SIM-KERNEL-1.0.0',
+      'DISSIPATIVE-SOVEREIGNTY-KERNEL-5.0.0', 'EMPATHY-KERNEL-2.0.0'];
+    const p = { ...FULL_PERIPHERY, corpus: { linked: nine, consulted: [], total: 43 } };
+    const { source } = await compileKernel(FULL_SPINE, p, ENGINE, OPTS);
+    expect((source.match(/extern crate /g) || []).length).toBe(7);
+    expect(source).toContain('// +2 more linked');
+  });
+
+  it('unmatched ids fall back to the undoctrined gloss', async () => {
+    const p = { ...FULL_PERIPHERY, corpus: { linked: ['SCALE94-ENCYCLOPEDIA'], consulted: [], total: 43 } };
+    const { source } = await compileKernel(FULL_SPINE, p, ENGINE, OPTS);
+    expect(source).toContain('undoctrined · the divergence is its own gloss');
+  });
+
+  it('deterministic with corpus present', async () => {
+    const a = await compileKernel(FULL_SPINE, CORPUS_PERIPHERY, ENGINE, OPTS);
+    const b = await compileKernel(FULL_SPINE, CORPUS_PERIPHERY, ENGINE, OPTS);
+    expect(a.source).toBe(b.source);
+    expect(a.hash).toBe(b.hash);
+  });
+});
