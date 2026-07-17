@@ -327,13 +327,6 @@ export default function LedgerTab() {
             background: 'radial-gradient(ellipse at 50% 50%, transparent 45%, rgba(0,0,0,0.5) 100%)',
           }}
         />
-        {/* Scanline overlay */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background: 'repeating-linear-gradient(to bottom, transparent 0, transparent 3px, rgba(0,0,0,0.03) 3px, rgba(0,0,0,0.03) 4px)',
-          }}
-        />
       </div>
 
       {/* ── Header ────────────────────────────────────────────────────────── */}

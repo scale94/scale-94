@@ -369,15 +369,6 @@ const BskyTab = () => {
           70%  { transform: scale(1.8);  opacity: 0; }
           100% { transform: scale(1.8);  opacity: 0; }
         }
-        .bk-scanline-overlay::after {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(to bottom, transparent 50%, rgba(56,189,248,0.03) 50%);
-          background-size: 100% 4px;
-          pointer-events: none;
-          z-index: 1;
-        }
         .bk-sweep::before {
           content: '';
           position: absolute;
@@ -451,7 +442,7 @@ const BskyTab = () => {
       </div>
 
       {/* ── Profile dossier ─────────────────────────────────────────────────── */}
-      <div className="bk-scanline-overlay bk-sweep border border-sky-900/30 bg-gradient-to-br from-sky-950/20 via-black/60 to-blue-950/10 p-6 mb-6 relative overflow-hidden hover:border-sky-500/30 transition-all duration-300">
+      <div className="bk-sweep border border-sky-900/30 bg-gradient-to-br from-sky-950/20 via-black/60 to-blue-950/10 p-6 mb-6 relative overflow-hidden hover:border-sky-500/30 transition-all duration-300">
         {/* corner brackets */}
         <span className="absolute top-0 left-0 w-4 h-4 border-t border-l border-sky-500/40 pointer-events-none" />
         <span className="absolute top-0 right-0 w-4 h-4 border-t border-r border-sky-500/40 pointer-events-none" />

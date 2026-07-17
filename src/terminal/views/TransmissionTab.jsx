@@ -218,12 +218,6 @@ const TransmissionTab = ({ stories, onSelect, loadingSignal }) => {
               position: 'relative',
               boxShadow: 'inset 0 0 30px rgba(217,70,239,0.04), 0 0 12px rgba(217,70,239,0.06)',
             }}>
-              {/* Subtle CRT scanlines overlay */}
-              <div aria-hidden="true" style={{
-                position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2,
-                background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px)',
-              }} />
-
               <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet"
                 style={{ display: 'block' }}>
                 <defs>

@@ -272,14 +272,6 @@ export default function AuditCascade({ verdict, visible, onComplete }) {
             zIndex: 0,
           }}
         >
-          {/* Static scanlines */}
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,200,0.012) 2px, rgba(0,255,200,0.012) 4px)',
-            }}
-          />
           {/* Moving scan beam */}
           {visible && (
             <div

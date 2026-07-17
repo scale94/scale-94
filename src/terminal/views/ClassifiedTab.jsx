@@ -1304,13 +1304,6 @@ function LockedPhase({ onInitiateEnclave }) {
     <div className="tab-fade-v2 max-w-6xl mx-auto mt-8 relative">
       <style>{RUST_STYLES}</style>
 
-      {/* CRT scanline overlay */}
-      <div className="absolute inset-0 pointer-events-none z-40"
-        style={{
-          background: 'repeating-linear-gradient(0deg, transparent 0px, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 3px)',
-          animation: 'cr-crtFlicker 3s ease-in-out infinite',
-        }} />
-
       {/* Header */}
       <div
         className="flex flex-col md:flex-row justify-between items-start md:items-end border-b pb-4 mb-6 gap-4"
@@ -1475,13 +1468,6 @@ function ChallengedPhase({ session }) {
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto mt-8 relative">
       <style>{RUST_STYLES}</style>
-
-      {/* CRT scanline overlay */}
-      <div className="absolute inset-0 pointer-events-none z-40"
-        style={{
-          background: 'repeating-linear-gradient(0deg, transparent 0px, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 3px)',
-          animation: 'cr-crtFlicker 3s ease-in-out infinite',
-        }} />
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b pb-4 mb-6 gap-4"
            style={{ borderColor: 'rgba(194,65,12,0.4)', animation: 'cr-borderFlare 3s ease-in-out infinite' }}>
@@ -1715,13 +1701,6 @@ function UnlockedPhase({ session }) {
           </div>
         </div>
       )}
-
-      {/* ── CRT scanline overlay ── */}
-      <div className="absolute inset-0 pointer-events-none z-40"
-        style={{
-          background: 'repeating-linear-gradient(0deg, transparent 0px, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 3px)',
-          animation: 'cr-crtFlicker 3s ease-in-out infinite',
-        }} />
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b pb-4 mb-6 gap-4"
            style={{ borderColor: 'rgba(249,115,22,0.35)', animation: 'cr-borderFlare 3s ease-in-out infinite' }}>

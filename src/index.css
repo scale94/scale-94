@@ -358,24 +358,24 @@ html, body {
 
 /* ── Visual upgrades ─────────────────────────────────────────────────────── */
 
-/* 1. CRT scanline + vignette overlay — very subtle, pure atmosphere */
+/* 1. Film grain + vignette overlay — very subtle, pure atmosphere.
+   Organic animated grain, not scanlines: hard 1px repeating gradients alias
+   into colored moiré bands on fractional-DPR displays (Windows 125/150%). */
 .crt-overlay {
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 9999;
+  overflow: hidden;
 }
 .crt-overlay::before {
   content: '';
   position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent 0px,
-    transparent 1px,
-    rgba(0, 0, 0, 0.03) 1px,
-    rgba(0, 0, 0, 0.03) 2px
-  );
+  inset: -100%; /* 3× viewport so the jitter never exposes an edge */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23g)'/%3E%3C/svg%3E");
+  background-size: 240px 240px;
+  opacity: 0.05;
+  animation: film-grain-jitter 0.9s steps(1) infinite;
 }
 .crt-overlay::after {
   content: '';
@@ -383,25 +383,29 @@ html, body {
   inset: 0;
   background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.35) 100%);
 }
+@keyframes film-grain-jitter {
+  0%    { transform: translate(0, 0); }
+  12.5% { transform: translate(-2.5%, 1.5%); }
+  25%   { transform: translate(1.5%, -2%); }
+  37.5% { transform: translate(-1%, -1.5%); }
+  50%   { transform: translate(2%, 2.5%); }
+  62.5% { transform: translate(-2.5%, -0.5%); }
+  75%   { transform: translate(1%, 2%); }
+  87.5% { transform: translate(2.5%, -1.5%); }
+  100%  { transform: translate(0, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .crt-overlay::before { animation: none; }
+}
 
-/* CRT intensifies at low planetary standing — scanlines deepen, vignette tightens */
+/* Grain intensifies at low planetary standing — coarser flicker, vignette tightens */
 .crt-overlay.crt-warning::before {
-  background: repeating-linear-gradient(
-    0deg,
-    transparent 0px,
-    transparent 1px,
-    rgba(0, 0, 0, 0.06) 1px,
-    rgba(0, 0, 0, 0.06) 2px
-  );
+  opacity: 0.09;
+  animation-duration: 0.7s;
 }
 .crt-overlay.crt-critical::before {
-  background: repeating-linear-gradient(
-    0deg,
-    transparent 0px,
-    transparent 1px,
-    rgba(0, 0, 0, 0.14) 1px,
-    rgba(0, 0, 0, 0.14) 2px
-  );
+  opacity: 0.15;
+  animation-duration: 0.5s;
 }
 .crt-overlay.crt-critical::after {
   background: radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.55) 100%);

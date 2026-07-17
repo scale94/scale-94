@@ -808,16 +808,6 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
               opacity={0.6 + mapState.deadFrac * 0.4}
             />
 
-            {/* ── Collapse: phosphene scan lines ───────────────────────────── */}
-            {uiPhase >= PH.COLLAPSE && (
-              <rect x="0" y="0" width="800" height="400"
-                fill="none"
-                stroke="none"
-                style={{
-                  background: 'repeating-linear-gradient(to bottom,transparent 0,transparent 3px,rgba(0,40,10,0.12) 3px,rgba(0,40,10,0.12) 4px)',
-                }}
-              />
-            )}
           </g>
 
           {/* ── Sphere border ─────────────────────────────────────────────── */}
@@ -829,12 +819,6 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
             style={{ transition: 'stroke 3s ease' }}
           />
         </svg>
-
-        {/* ── CRT scanlines overlay ───────────────────────────────────── */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{ background: 'repeating-linear-gradient(to bottom,transparent 0,transparent 3px,rgba(0,0,0,0.07) 3px,rgba(0,0,0,0.07) 4px)' }}
-        />
 
         {/* ── Radial vignette ─────────────────────────────────────────── */}
         <div
