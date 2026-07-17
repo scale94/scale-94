@@ -5,6 +5,7 @@ const kernelBuilds = [
   { id: 'HUDELSCHUBLADE-ROUTING-1.0', articleId: 'HUDELSCHUBLADE-ROUTING-KERNEL-1.0.0', name: 'HUDELSCHUBLADE_ROUTING_KERNEL_1_0_0', status: 'ACTIVE', desc: 'Sovereign Stash // Chaos-Directory Exploit', pinned: true, lore: true },
   { id: 'BLACK-HOLE-TAXONOMY-1.0', articleId: 'BLACK-HOLE-TAXONOMY-KERNEL-1.0.0', name: 'BLACK_HOLE_TAXONOMY_KERNEL_1_0_0', status: 'ACTIVE', desc: 'The Ghosts of XDA // Deep-Kernel Necromancy', pinned: true, lore: true },
   { id: 'SEMIOTIC-SYNTHESIS-9.9.9', articleId: 'SEMIOTIC-SYNTHESIS-KERNEL-9.9.9', name: 'SEMIOTIC_SYNTHESIS_KERNEL_9_9_9', status: 'ACTIVE', desc: 'Nein Nein Nein // The Law of the Street', pinned: true, lore: true },
+  { id: 'ROSSIGNOL-ANDALIB-5.5.5.5', articleId: 'ROSSIGNOL-RUISENOR-NIGHTINGALE-ANDALIB-KERNEL-5.5.5.5', name: 'ROSSIGNOL_RUISENOR_NIGHTINGALE_ANDALIB_5_5_5_5', status: 'ACTIVE', desc: 'Four Borders, One Bird // The Fifth Compiled From the Spine', pinned: true, lore: true },
   { id: 'KINETIC-STATECRAFT-1.0', articleId: 'KINETIC-STATECRAFT-KERNEL-1.0', name: 'KINETIC_STATECRAFT_KERNEL_1_0', status: 'ACTIVE', desc: 'The Architecture of Coercion // Regime Stability Equation', pinned: true },
 /* @@INJECT_START@@ */
   { id: "ATMOSPHERIC-SIM-KERNEL-3.0.0", articleId: "ATMOSPHERIC-SIM-KERNEL-3.0.0", name: "ATMOSPHERIC_SIM_KERNEL_3_0_0", status: "ACTIVE", desc: "The Thermosphere Protocol" },

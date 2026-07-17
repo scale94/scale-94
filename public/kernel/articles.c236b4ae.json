@@ -76,6 +76,24 @@
     "len": "726 WDS"
   },
   {
+    "id": "ROSSIGNOL-RUISENOR-NIGHTINGALE-ANDALIB-KERNEL-5.5.5.5",
+    "type": "kernel_doc",
+    "date": "2026-07-17",
+    "lastModified": "2026-07-17",
+    "title": "ROSSIGNOL RUISEÑOR NIGHTINGALE ʿANDALĪB KERNEL 5.5.5.5",
+    "subtitle": "Four Borders, One Bird // The Fifth Compiled From the Spine",
+    "status": "ACTIVE",
+    "readTime": "5 min read",
+    "tags": [
+      "Integration",
+      "System",
+      "Atoms",
+      "Quintessence",
+      "Layer"
+    ],
+    "len": "961 WDS"
+  },
+  {
     "id": "SOMA-KERNEL-5.5.0",
     "type": "kernel_doc",
     "date": "2026-05-14",

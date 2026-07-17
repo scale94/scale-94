@@ -105,6 +105,10 @@
       "title": "SEMIOTIC SYNTHESIS KERNEL 9.9.9"
     },
     {
+      "id": "ROSSIGNOL-RUISENOR-NIGHTINGALE-ANDALIB-KERNEL-5.5.5.5",
+      "title": "ROSSIGNOL RUISEÑOR NIGHTINGALE ʿANDALĪB KERNEL 5.5.5.5"
+    },
+    {
       "id": "BLACK-HOLE-TAXONOMY-KERNEL-1.0.0",
       "title": "BLACK HOLE TAXONOMY KERNEL 1.0.0"
     },
@@ -531,6 +535,10 @@
       "title": "SEMIOTIC SYNTHESIS KERNEL 9.9.9"
     },
     {
+      "id": "ROSSIGNOL-RUISENOR-NIGHTINGALE-ANDALIB-KERNEL-5.5.5.5",
+      "title": "ROSSIGNOL RUISEÑOR NIGHTINGALE ʿANDALĪB KERNEL 5.5.5.5"
+    },
+    {
       "id": "BLACK-HOLE-TAXONOMY-KERNEL-1.0.0",
       "title": "BLACK HOLE TAXONOMY KERNEL 1.0.0"
     },
@@ -627,6 +635,10 @@
     {
       "id": "SEMIOTIC-SYNTHESIS-KERNEL-9.9.9",
       "title": "SEMIOTIC SYNTHESIS KERNEL 9.9.9"
+    },
+    {
+      "id": "ROSSIGNOL-RUISENOR-NIGHTINGALE-ANDALIB-KERNEL-5.5.5.5",
+      "title": "ROSSIGNOL RUISEÑOR NIGHTINGALE ʿANDALĪB KERNEL 5.5.5.5"
     },
     {
       "id": "BLACK-HOLE-TAXONOMY-KERNEL-1.0.0",
@@ -933,6 +945,12 @@
       "title": "ATMOSPHERIC ENTROPY KERNEL 3.0"
     }
   ],
+  "Quintessence": [
+    {
+      "id": "ROSSIGNOL-RUISENOR-NIGHTINGALE-ANDALIB-KERNEL-5.5.5.5",
+      "title": "ROSSIGNOL RUISEÑOR NIGHTINGALE ʿANDALĪB KERNEL 5.5.5.5"
+    }
+  ],
   "reasoning": [
     {
       "id": "UNDERGROUND-THERMODYNAMICS-KERNEL-1.0.0",
@@ -1189,6 +1207,10 @@
     {
       "id": "SEMIOTIC-SYNTHESIS-KERNEL-9.9.9",
       "title": "SEMIOTIC SYNTHESIS KERNEL 9.9.9"
+    },
+    {
+      "id": "ROSSIGNOL-RUISENOR-NIGHTINGALE-ANDALIB-KERNEL-5.5.5.5",
+      "title": "ROSSIGNOL RUISEÑOR NIGHTINGALE ʿANDALĪB KERNEL 5.5.5.5"
     },
     {
       "id": "BLACK-HOLE-TAXONOMY-KERNEL-1.0.0",
