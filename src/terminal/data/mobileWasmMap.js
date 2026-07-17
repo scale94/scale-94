@@ -42,6 +42,8 @@ export function resolveWasmAlias(kernelId) {
   if (id.includes('HUDELSCHUBLADE') || id.includes('OTROVERT'))     return 'surveillance';
   if (id.includes('BLACK-HOLE') || id.includes('BLACK_HOLE'))       return 'necromantic';
   if (id.includes('SEMIOTIC-SYNTHESIS') || id.includes('SEMIOTIC_SYNTHESIS')) return 'phonemic';
+  if (id.includes('ROSSIGNOL') || id.includes('ANDALIB') ||
+      id.includes('NIGHTINGALE'))                                    return 'associative_field';
 
   // ── Direct / near-direct matches ───────────────────────────────────────────
   if (id.includes('PERCOLATION') || id.includes('RESILIENCE') ||
