@@ -10,6 +10,20 @@ function lerp(a, b, t) { return a + (b - a) * Math.max(0, Math.min(1, t)); }
 function easeIn(t)  { const c = Math.max(0, Math.min(1, t)); return c * c; }
 function easeOut(t) { const c = Math.max(0, Math.min(1, t)); return 1 - (1 - c) * (1 - c); }
 
+// The breath's envelope: how contracted the nebula is (0 = home, 1 = inside
+// the drop) for a given beat and its already-eased progress. Pure — exported
+// for tests; the hook feeds it the same eased t it uses for opacities.
+export function condenseEnvelope(beat, easedT) {
+  if (beat === 'consolidating') return easedT;          // inhale
+  if (beat === 'elongating' || beat === 'flowing') return 1; // held — flash owns the frame
+  if (beat === 'emerging') return 1 - easedT;           // exhale: launch fast, settle slow
+  return 0;                                             // idle
+}
+
+function condenseAll(value) {
+  return Object.fromEntries(PHASES.map(p => [p, value]));
+}
+
 function idleOpacities(active) {
   return Object.fromEntries(PHASES.map(p => [p, p === active ? 1.0 : 0.12]));
 }
@@ -30,6 +44,7 @@ export default function usePhaseTransition(initialPhase = 'fluid') {
     beat: 'idle',
     beatStart: 0,
     phaseOpacities: idleOpacities(initialPhase),
+    phaseCondense: condenseAll(0),
     sphereState: { ...IDLE_SPHERE },
   });
 
@@ -58,11 +73,13 @@ export default function usePhaseTransition(initialPhase = 'fluid') {
       a.phaseOpacities = Object.fromEntries(
         PHASES.map(p => [p, p === a.activePhase ? lerp(1.0, TUNE.duckActive, t) : lerp(0.12, TUNE.duckGhost, t)])
       );
+      a.phaseCondense = condenseAll(condenseEnvelope('consolidating', t));
       a.sphereState = { ...IDLE_SPHERE, reflectivity: lerp(1.0, 2.0, t), chromePhase: t, nodeChrome: t };
       if (elapsed >= BEAT_MS.consolidating) { a.beat = 'elongating'; a.beatStart = now; }
 
     } else if (a.beat === 'elongating') {
       const t = easeOut(elapsed / BEAT_MS.elongating);
+      a.phaseCondense = condenseAll(1);
       a.sphereState = {
         ...IDLE_SPHERE,
         reflectivity: 2.0,
@@ -75,6 +92,7 @@ export default function usePhaseTransition(initialPhase = 'fluid') {
 
     } else if (a.beat === 'flowing') {
       const t = easeOut(elapsed / BEAT_MS.flowing);
+      a.phaseCondense = condenseAll(1);
       a.sphereState = {
         ...IDLE_SPHERE,
         reflectivity:   lerp(2.0, 1.2, t),
@@ -91,12 +109,14 @@ export default function usePhaseTransition(initialPhase = 'fluid') {
       a.phaseOpacities = Object.fromEntries(
         PHASES.map(p => [p, p === a.pendingPhase ? lerp(TUNE.duckActive, 1.0, t) : lerp(TUNE.duckGhost, 0.12, t)])
       );
+      a.phaseCondense = condenseAll(condenseEnvelope('emerging', t));
       a.sphereState = { ...IDLE_SPHERE, reflectivity: lerp(1.2, 1.0, t), colorBlend: 1 };
       if (elapsed >= BEAT_MS.emerging) {
         a.activePhase = a.pendingPhase;
         a.pendingPhase = null;
         a.beat = 'idle';
         a.phaseOpacities = idleOpacities(a.activePhase);
+        a.phaseCondense = condenseAll(0);
         a.sphereState = { ...IDLE_SPHERE };
         stopAnimation();
         forceRender();
@@ -127,6 +147,7 @@ export default function usePhaseTransition(initialPhase = 'fluid') {
     pendingPhase:   a.pendingPhase,
     transitionState: a.beat,
     phaseOpacities: a.phaseOpacities,
+    phaseCondense:  a.phaseCondense,
     sphereState:    a.sphereState,
     triggerTransition,
   };

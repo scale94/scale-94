@@ -1,4 +1,4 @@
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
@@ -9,6 +9,8 @@ const vertexShader = /* glsl */ `
   uniform float uTurbulence;
   uniform float uFlameWidth;
   uniform float uPointSizeMax;
+  uniform float uCondense;
+  uniform float uCondenseSizeBite;
 
   attribute float aPhase;     // per-particle lifecycle offset [0,1)
   attribute float aSpeed;     // per-particle speed multiplier [0,1]
@@ -140,9 +142,12 @@ const vertexShader = /* glsl */ `
     // Embers stay small; flame particles can be large near base
     float emberShrink = mix(1.0, 0.5, aEmber);
 
+    // Nebula condensation — see ParticleFlow.jsx for the physics note.
+    pos *= 1.0 - uCondense * uCondense;
+
     vec4 mvPos = modelViewMatrix * vec4(pos, 1.0);
     float depth  = max(-mvPos.z, 0.5);
-    gl_PointSize = min(baseSize * sizeFactor * emberShrink * (80.0 / depth), uPointSizeMax);
+    gl_PointSize = min(baseSize * sizeFactor * emberShrink * (80.0 / depth), uPointSizeMax) * (1.0 - uCondense * uCondenseSizeBite);
     gl_Position  = projectionMatrix * mvPos;
   }
 `;
@@ -186,7 +191,9 @@ const fragmentShader = /* glsl */ `
     // Additive blending: accumulation of many particles IS the glow.
     // Keep per-particle contribution tiny so the color ramp shows through.
     float finalAlpha = alpha * vAlpha * (0.006 + vTemp * 0.012);
-    gl_FragColor = vec4(col, finalAlpha * uOpacity);
+    // Banding dither — see ParticleFlow.jsx for the physics note.
+    float dither = (fract(sin(dot(gl_FragCoord.xy + gl_PointCoord * 61.803, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
+    gl_FragColor = vec4(col, finalAlpha * uOpacity + dither);
   }
 `;
 
@@ -228,6 +235,8 @@ export default function ThermalFlow({
   density           = null,
   onFps             = null,
   opacityMultiplier = 1,
+  condense = 0,
+  condenseSizeBite = 0.6,
   blending = THREE.AdditiveBlending,
 }) {
   const PARTICLE_COUNT = density ?? (isMobile ? 4000 : 10000);
@@ -237,6 +246,18 @@ export default function ThermalFlow({
 
   const buffers = useMemo(() => buildBuffers(PARTICLE_COUNT), [PARTICLE_COUNT]);
 
+  // Created ONCE — see ParticleFlow.jsx for the stale-upload-bond note.
+  const [uniforms] = useState(() => ({
+    uTime:         { value: Math.random() * 120 },
+    uSpeed:        { value: speed },
+    uTurbulence:   { value: turbulence },
+    uFlameWidth:   { value: flameWidth },
+    uPointSizeMax: { value: isMobile ? 32.0 : 64.0 },
+    uOpacity:      { value: opacityMultiplier },
+    uCondense:         { value: condense },
+    uCondenseSizeBite: { value: condenseSizeBite },
+  }));
+
   useFrame((_, delta) => {
     const mat = materialRef.current;
     if (mat) {
@@ -245,6 +266,8 @@ export default function ThermalFlow({
       mat.uniforms.uTurbulence.value  = turbulence;
       mat.uniforms.uFlameWidth.value  = flameWidth;
       mat.uniforms.uOpacity.value     = opacityMultiplier;
+      mat.uniforms.uCondense.value         = condense;
+      mat.uniforms.uCondenseSizeBite.value = condenseSizeBite;
     }
     if (onFps) {
       fpsFrames.current++;
@@ -272,14 +295,7 @@ export default function ThermalFlow({
         ref={materialRef}
         vertexShader={vertexShader}
         fragmentShader={fragmentShader}
-        uniforms={{
-          uTime:         { value: Math.random() * 120 },
-          uSpeed:        { value: speed },
-          uTurbulence:   { value: turbulence },
-          uFlameWidth:   { value: flameWidth },
-          uPointSizeMax: { value: isMobile ? 32.0 : 64.0 },
-          uOpacity:      { value: opacityMultiplier },
-        }}
+        uniforms={uniforms}
         transparent
         blending={blending}
         depthWrite={false}

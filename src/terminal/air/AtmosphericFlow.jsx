@@ -1,4 +1,4 @@
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
@@ -8,6 +8,8 @@ const vertexShader = /* glsl */ `
   uniform float uOrbitalSpeed;
   uniform float uTurbulence;
   uniform float uSpread;
+  uniform float uCondense;
+  uniform float uCondenseSizeBite;
 
   attribute float aPhase;    // orbit phase offset [0,1)
   attribute float aSpeed;    // per-particle speed multiplier [0,1]
@@ -119,8 +121,11 @@ const vertexShader = /* glsl */ `
     // Air particles barely shrink — they persist at full size
     float baseSize = aSize * 5.0;
 
+    // Nebula condensation — see ParticleFlow.jsx for the physics note.
+    pos *= 1.0 - uCondense * uCondense;
+
     vec4 mvPos = modelViewMatrix * vec4(pos, 1.0);
-    gl_PointSize = baseSize * (260.0 / -mvPos.z);
+    gl_PointSize = baseSize * (260.0 / -mvPos.z) * (1.0 - uCondense * uCondenseSizeBite);
     gl_Position  = projectionMatrix * mvPos;
   }
 `;
@@ -174,7 +179,9 @@ const fragmentShader = /* glsl */ `
 
     // Alpha: deep layers very faint, only high-altitude / ionosphere reads clearly
     float alphaScale = 0.05 + vAltitude * 0.28 + vIon * 0.22;
-    gl_FragColor = vec4(col, alpha * alphaScale * uOpacity);
+    // Banding dither — see ParticleFlow.jsx for the physics note.
+    float dither = (fract(sin(dot(gl_FragCoord.xy + gl_PointCoord * 61.803, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
+    gl_FragColor = vec4(col, alpha * alphaScale * uOpacity + dither);
   }
 `;
 
@@ -215,6 +222,8 @@ export default function AtmosphericFlow({
   density           = null,
   onFps             = null,
   opacityMultiplier = 1,
+  condense = 0,
+  condenseSizeBite = 0.6,
   blending = THREE.AdditiveBlending,
 }) {
   const PARTICLE_COUNT = density ?? (isMobile ? 4000 : 10000);
@@ -224,6 +233,17 @@ export default function AtmosphericFlow({
 
   const buffers = useMemo(() => buildBuffers(PARTICLE_COUNT), [PARTICLE_COUNT]);
 
+  // Created ONCE — see ParticleFlow.jsx for the stale-upload-bond note.
+  const [uniforms] = useState(() => ({
+    uTime:         { value: Math.random() * 100 },
+    uOrbitalSpeed: { value: orbitalSpeed },
+    uTurbulence:   { value: turbulence },
+    uSpread:       { value: spread },
+    uOpacity:      { value: opacityMultiplier },
+    uCondense:         { value: condense },
+    uCondenseSizeBite: { value: condenseSizeBite },
+  }));
+
   useFrame((_, delta) => {
     const mat = materialRef.current;
     if (mat) {
@@ -232,6 +252,8 @@ export default function AtmosphericFlow({
       mat.uniforms.uTurbulence.value    = turbulence;
       mat.uniforms.uSpread.value        = spread;
       mat.uniforms.uOpacity.value       = opacityMultiplier;
+      mat.uniforms.uCondense.value         = condense;
+      mat.uniforms.uCondenseSizeBite.value = condenseSizeBite;
     }
     if (onFps) {
       fpsFrames.current++;
@@ -259,13 +281,7 @@ export default function AtmosphericFlow({
         ref={materialRef}
         vertexShader={vertexShader}
         fragmentShader={fragmentShader}
-        uniforms={{
-          uTime:         { value: Math.random() * 100 },
-          uOrbitalSpeed: { value: orbitalSpeed },
-          uTurbulence:   { value: turbulence },
-          uSpread:       { value: spread },
-          uOpacity:      { value: opacityMultiplier },
-        }}
+        uniforms={uniforms}
         transparent
         blending={blending}
         depthWrite={false}

@@ -1,4 +1,4 @@
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
@@ -19,6 +19,8 @@ const vertexShader = /* glsl */ `
   uniform float uCurlAmp;
   uniform float uTubeRadius;
   uniform float uChromatic;
+  uniform float uCondense;
+  uniform float uCondenseSizeBite;
   attribute float aPhase;
   attribute float aRadius;
   attribute float aOffset;
@@ -136,8 +138,13 @@ const vertexShader = /* glsl */ `
     vHue = fract(aPhase + uTime * 0.05 + uChromatic * 0.33);
     vBrightness = 0.8 + 0.2 * sin(aPhase * 6.283185307 + uTime * 0.3);
 
+    // Nebula condensation: contract the post-sim field into the drop.
+    // Squared ease = gravity well (slow drift, fast swallow); the sphere's
+    // depth buffer occludes arrivals. Applies to pos, NOT the raw attribute.
+    pos *= 1.0 - uCondense * uCondense;
+
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-    gl_PointSize = (1.5 + aRadius * 2.0) * (300.0 / -mvPosition.z);
+    gl_PointSize = (1.5 + aRadius * 2.0) * (300.0 / -mvPosition.z) * (1.0 - uCondense * uCondenseSizeBite);
     gl_Position = projectionMatrix * mvPosition;
   }
 `;
@@ -167,7 +174,13 @@ const fragmentShader = /* glsl */ `
 
     color *= vBrightness;
 
-    gl_FragColor = vec4(color, alpha * 0.95 * uOpacity);
+    // 8-bit backbuffer dither: the additive falloff quantizes to 1/255 steps
+    // (terracing an OLED renders faithfully). ±0.5/255 on the alpha side so it
+    // survives the premultiply; seeded per-pixel AND per-sprite (gl_PointCoord)
+    // so overlapping sprites decorrelate instead of summing the same noise.
+    float dither = (fract(sin(dot(gl_FragCoord.xy + gl_PointCoord * 61.803, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
+
+    gl_FragColor = vec4(color, alpha * 0.95 * uOpacity + dither);
   }
 `;
 
@@ -199,6 +212,8 @@ export default function ParticleFlow({
   density = null,
   onFps = null,
   opacityMultiplier = 1,
+  condense = 0,
+  condenseSizeBite = 0.6,
   blending = THREE.AdditiveBlending,
 }) {
   const PARTICLE_COUNT = density ?? (isMobile ? 4000 : 10000);
@@ -208,6 +223,22 @@ export default function ParticleFlow({
   const fpsTime = useRef(0);
 
   const buffers = useMemo(() => buildBuffers(PARTICLE_COUNT), [PARTICLE_COUNT]);
+
+  // Uniforms are created ONCE (lazy useState). An inline object here is
+  // rebuilt every render; r3f then replaces material.uniforms, but three's
+  // compiled program keeps uploading the value-wrappers it captured at
+  // compile time — every later .value write silently stops reaching the GPU.
+  // Per-frame values flow through useFrame below.
+  const [uniforms] = useState(() => ({
+    uTime:       { value: 0 },
+    uSpeed:      { value: speed },
+    uCurlAmp:    { value: curlAmp },
+    uTubeRadius: { value: tubeRadius },
+    uChromatic:  { value: chromatic },
+    uOpacity:    { value: opacityMultiplier },
+    uCondense:         { value: condense },
+    uCondenseSizeBite: { value: condenseSizeBite },
+  }));
 
   // Update uniforms from props each frame + FPS counter
   useFrame((_, delta) => {
@@ -219,6 +250,8 @@ export default function ParticleFlow({
       mat.uniforms.uTubeRadius.value = tubeRadius;
       mat.uniforms.uChromatic.value = chromatic;
       mat.uniforms.uOpacity.value = opacityMultiplier;
+      mat.uniforms.uCondense.value         = condense;
+      mat.uniforms.uCondenseSizeBite.value = condenseSizeBite;
     }
     // FPS counter — report once per second
     if (onFps) {
@@ -244,14 +277,7 @@ export default function ParticleFlow({
         ref={materialRef}
         vertexShader={vertexShader}
         fragmentShader={fragmentShader}
-        uniforms={{
-          uTime:       { value: 0 },
-          uSpeed:      { value: speed },
-          uCurlAmp:    { value: curlAmp },
-          uTubeRadius: { value: tubeRadius },
-          uChromatic:  { value: chromatic },
-          uOpacity:    { value: opacityMultiplier },
-        }}
+        uniforms={uniforms}
         transparent
         blending={blending}
         depthWrite={false}

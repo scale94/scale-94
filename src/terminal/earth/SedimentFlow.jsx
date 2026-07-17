@@ -1,4 +1,4 @@
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
@@ -8,6 +8,8 @@ const vertexShader = /* glsl */ `
   uniform float uSpeed;
   uniform float uTurbulence;
   uniform float uEruptStrength;
+  uniform float uCondense;
+  uniform float uCondenseSizeBite;
 
   attribute float aPhase;    // lifecycle offset [0,1)
   attribute float aSpeed;    // per-particle speed [0,1]
@@ -130,8 +132,11 @@ const vertexShader = /* glsl */ `
     float baseSize   = aSize * 5.0;
     float ageFactor  = max(0.15, 1.0 - age * 0.45);
 
+    // Nebula condensation — see ParticleFlow.jsx for the physics note.
+    pos *= 1.0 - uCondense * uCondense;
+
     vec4 mvPos = modelViewMatrix * vec4(pos, 1.0);
-    gl_PointSize = baseSize * ageFactor * (280.0 / -mvPos.z);
+    gl_PointSize = baseSize * ageFactor * (280.0 / -mvPos.z) * (1.0 - uCondense * uCondenseSizeBite);
     gl_Position  = projectionMatrix * mvPos;
   }
 `;
@@ -177,7 +182,9 @@ const fragmentShader = /* glsl */ `
     float sparkle = smoothstep(0.4, 0.0, d) * (1.0 - vStrata) * 1.2;
     col += vec3(sparkle * 0.5, sparkle * 0.4, sparkle * 0.2);
 
-    gl_FragColor = vec4(col, alpha * vAlpha * (0.5 + (1.0 - vStrata) * 0.4) * uOpacity);
+    // Banding dither — see ParticleFlow.jsx for the physics note.
+    float dither = (fract(sin(dot(gl_FragCoord.xy + gl_PointCoord * 61.803, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
+    gl_FragColor = vec4(col, alpha * vAlpha * (0.5 + (1.0 - vStrata) * 0.4) * uOpacity + dither);
   }
 `;
 
@@ -218,6 +225,8 @@ export default function SedimentFlow({
   density           = null,
   onFps             = null,
   opacityMultiplier = 1,
+  condense = 0,
+  condenseSizeBite = 0.6,
   blending = THREE.AdditiveBlending,
 }) {
   const PARTICLE_COUNT = density ?? (isMobile ? 4000 : 10000);
@@ -227,6 +236,17 @@ export default function SedimentFlow({
 
   const buffers = useMemo(() => buildBuffers(PARTICLE_COUNT), [PARTICLE_COUNT]);
 
+  // Created ONCE — see ParticleFlow.jsx for the stale-upload-bond note.
+  const [uniforms] = useState(() => ({
+    uTime:          { value: Math.random() * 100 },
+    uSpeed:         { value: speed },
+    uTurbulence:    { value: turbulence },
+    uEruptStrength: { value: eruptStrength },
+    uOpacity:       { value: opacityMultiplier },
+    uCondense:         { value: condense },
+    uCondenseSizeBite: { value: condenseSizeBite },
+  }));
+
   useFrame((_, delta) => {
     const mat = materialRef.current;
     if (mat) {
@@ -235,6 +255,8 @@ export default function SedimentFlow({
       mat.uniforms.uTurbulence.value     = turbulence;
       mat.uniforms.uEruptStrength.value  = eruptStrength;
       mat.uniforms.uOpacity.value        = opacityMultiplier;
+      mat.uniforms.uCondense.value         = condense;
+      mat.uniforms.uCondenseSizeBite.value = condenseSizeBite;
     }
     if (onFps) {
       fpsFrames.current++;
@@ -262,13 +284,7 @@ export default function SedimentFlow({
         ref={materialRef}
         vertexShader={vertexShader}
         fragmentShader={fragmentShader}
-        uniforms={{
-          uTime:          { value: Math.random() * 100 },
-          uSpeed:         { value: speed },
-          uTurbulence:    { value: turbulence },
-          uEruptStrength: { value: eruptStrength },
-          uOpacity:       { value: opacityMultiplier },
-        }}
+        uniforms={uniforms}
         transparent
         blending={blending}
         depthWrite={false}
