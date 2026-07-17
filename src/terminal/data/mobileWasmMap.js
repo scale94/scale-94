@@ -38,6 +38,11 @@ export function resolveWasmAlias(kernelId) {
   // ── Fade Doctrine (color semiotic — NOT thermosphere) ───────────────────────
   if (id.includes('FADE-DOCTRINE') || id.includes('FADE_DOCTRINE')) return 'fade_doctrine';
 
+  // ── Lore kernels (genome chapters) ───────────────────────────────────────────
+  if (id.includes('HUDELSCHUBLADE') || id.includes('OTROVERT'))     return 'surveillance';
+  if (id.includes('BLACK-HOLE') || id.includes('BLACK_HOLE'))       return 'necromantic';
+  if (id.includes('SEMIOTIC-SYNTHESIS') || id.includes('SEMIOTIC_SYNTHESIS')) return 'phonemic';
+
   // ── Direct / near-direct matches ───────────────────────────────────────────
   if (id.includes('PERCOLATION') || id.includes('RESILIENCE') ||
       id.includes('FRAGILITY') || id.includes('GIANT-COMPONENT'))   return 'percolation';

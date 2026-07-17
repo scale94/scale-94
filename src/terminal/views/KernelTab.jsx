@@ -253,6 +253,8 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
   const fishScale = kernelBuilds.find(k => k.id === 'FISH-SCALE-11.1')
     || kernelBuilds.find(k => k.pinned)
     || { id: 'FISH-SCALE-11.1', articleId: 'FISH-SCALE-KERNEL11.1.1', name: 'FISH_SCALE_KERNEL11_1_1', desc: 'Entropic Stasis // Necromantic Engine' };
+  // Lore kernels — the genome's chapters, pinned between it and the ∅ slot.
+  const pinnedModules = [fishScale, ...kernelBuilds.filter(k => k.lore && k.id !== fishScale.id)];
 
   // Fire sphere on kernel-complete (loadingKernel → null transition)
   const prevKernelRef = useRef(null);
@@ -735,17 +737,18 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
             >active_modules</span>
           </h3>
           <ul className="space-y-3 text-sm font-mono text-[#39ff14] md:overflow-y-auto custom-scrollbar pr-2 md:flex-1 md:min-h-0">
-            {/* ── Fish Scale — the genome · the one pinned exhibition piece ── */}
-            {(() => {
-              const isLoading = loadingKernel === fishScale.id;
+            {/* ── Pinned exhibition pieces — the genome + its lore chapters ── */}
+            {pinnedModules.map((mod) => {
+              const isLoading = loadingKernel === mod.id;
               return (
                 <li
+                  key={mod.id}
                   onClick={() => {
                     setIsFading(true);
                     sphereFireRef.current = { ts: Date.now() };
-                    handleKernelClick && handleKernelClick(fishScale);
+                    handleKernelClick && handleKernelClick(mod);
                     if (mobileAutoRun && window.matchMedia('(max-width: 767px)').matches) {
-                      setTimeout(() => mobileAutoRun(fishScale.id), 900);
+                      setTimeout(() => mobileAutoRun(mod.id), 900);
                     }
                   }}
                   className={`flex flex-wrap justify-between items-center gap-y-2 border-b border-l-2 pb-3 mb-1 cursor-pointer p-2 pl-3 rounded transition-all group gap-2
@@ -766,26 +769,26 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
                           ? 'sk-moduleNameShimmer 1.1s linear infinite'
                           : 'sk-moduleNameShimmer 3.5s ease-in-out infinite',
                       }}
-                    >{fishScale.name}</div>
+                    >{mod.name}</div>
                     <div className="text-xs text-[#39ff14] font-bold tracking-wide truncate opacity-70">
-                      {isLoading ? 'initializing...' : fishScale.desc}
+                      {isLoading ? 'initializing...' : mod.desc}
                     </div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0 ml-auto">
                     <div
-                      onClick={(e) => { e.stopPropagation(); setIsFading(true); sphereFireRef.current = { ts: Date.now() }; handleKernelClick && handleKernelClick(fishScale); }}
+                      onClick={(e) => { e.stopPropagation(); setIsFading(true); sphereFireRef.current = { ts: Date.now() }; handleKernelClick && handleKernelClick(mod); }}
                       className={`text-[9px] font-bold px-1.5 py-0.5 rounded-sm border tracking-widest whitespace-nowrap transition-all cursor-pointer ${isLoading ? 'bg-cyan-900/30 border-cyan-400 text-cyan-300' : 'bg-transparent border-cyan-500/60 text-cyan-500 hover:bg-cyan-500/10 hover:border-cyan-400 hover:text-cyan-300'}`}
                     >
                       {isLoading ? '...' : '[load]'}
                     </div>
                     <button
-                      aria-label={`Run ${fishScale.name}`}
+                      aria-label={`Run ${mod.name}`}
                       onClick={(e) => {
                         e.stopPropagation();
                         sphereFireRef.current = { ts: Date.now() };
-                        mobileAutoRun && mobileAutoRun(fishScale.id);
+                        mobileAutoRun && mobileAutoRun(mod.id);
                         resetTtyFade();
-                        setFiringKernelId(fishScale.id);
+                        setFiringKernelId(mod.id);
                         clearTimeout(lavaTimerRef.current);
                         lavaTimerRef.current = setTimeout(() => setFiringKernelId(null), 700);
                       }}
@@ -794,7 +797,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
                         borderColor:  'rgba(139,92,246,0.55)',
                         color:        '#8B5CF6',
                         textShadow:   '0 0 4px rgba(139,92,246,0.4)',
-                        animation:    firingKernelId === fishScale.id ? 'sk-runLava 700ms ease-out' : undefined,
+                        animation:    firingKernelId === mod.id ? 'sk-runLava 700ms ease-out' : undefined,
                       }}
                     >
                       [run]
@@ -802,7 +805,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
                   </div>
                 </li>
               );
-            })()}
+            })}
 
             {/* ── The reserved slot · the fifth essence ──────────────────────
              * Empty until forged at the Mercury altar. Post-compile it holds the
