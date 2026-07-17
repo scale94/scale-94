@@ -1,4 +1,4 @@
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
@@ -231,6 +231,17 @@ export default function AtmosphericFlow({
 
   const buffers = useMemo(() => buildBuffers(PARTICLE_COUNT), [PARTICLE_COUNT]);
 
+  // Created ONCE — see ParticleFlow.jsx for the stale-upload-bond note.
+  const [uniforms] = useState(() => ({
+    uTime:         { value: Math.random() * 100 },
+    uOrbitalSpeed: { value: orbitalSpeed },
+    uTurbulence:   { value: turbulence },
+    uSpread:       { value: spread },
+    uOpacity:      { value: opacityMultiplier },
+    uCondense:         { value: condense },
+    uCondenseSizeBite: { value: condenseSizeBite },
+  }));
+
   useFrame((_, delta) => {
     const mat = materialRef.current;
     if (mat) {
@@ -268,15 +279,7 @@ export default function AtmosphericFlow({
         ref={materialRef}
         vertexShader={vertexShader}
         fragmentShader={fragmentShader}
-        uniforms={{
-          uTime:         { value: Math.random() * 100 },
-          uOrbitalSpeed: { value: orbitalSpeed },
-          uTurbulence:   { value: turbulence },
-          uSpread:       { value: spread },
-          uOpacity:      { value: opacityMultiplier },
-          uCondense:         { value: condense },
-          uCondenseSizeBite: { value: condenseSizeBite },
-        }}
+        uniforms={uniforms}
         transparent
         blending={blending}
         depthWrite={false}

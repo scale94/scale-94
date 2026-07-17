@@ -1,4 +1,4 @@
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
@@ -218,6 +218,22 @@ export default function ParticleFlow({
 
   const buffers = useMemo(() => buildBuffers(PARTICLE_COUNT), [PARTICLE_COUNT]);
 
+  // Uniforms are created ONCE (lazy useState). An inline object here is
+  // rebuilt every render; r3f then replaces material.uniforms, but three's
+  // compiled program keeps uploading the value-wrappers it captured at
+  // compile time — every later .value write silently stops reaching the GPU.
+  // Per-frame values flow through useFrame below.
+  const [uniforms] = useState(() => ({
+    uTime:       { value: 0 },
+    uSpeed:      { value: speed },
+    uCurlAmp:    { value: curlAmp },
+    uTubeRadius: { value: tubeRadius },
+    uChromatic:  { value: chromatic },
+    uOpacity:    { value: opacityMultiplier },
+    uCondense:         { value: condense },
+    uCondenseSizeBite: { value: condenseSizeBite },
+  }));
+
   // Update uniforms from props each frame + FPS counter
   useFrame((_, delta) => {
     const mat = materialRef.current;
@@ -255,16 +271,7 @@ export default function ParticleFlow({
         ref={materialRef}
         vertexShader={vertexShader}
         fragmentShader={fragmentShader}
-        uniforms={{
-          uTime:       { value: 0 },
-          uSpeed:      { value: speed },
-          uCurlAmp:    { value: curlAmp },
-          uTubeRadius: { value: tubeRadius },
-          uChromatic:  { value: chromatic },
-          uOpacity:    { value: opacityMultiplier },
-          uCondense:         { value: condense },
-          uCondenseSizeBite: { value: condenseSizeBite },
-        }}
+        uniforms={uniforms}
         transparent
         blending={blending}
         depthWrite={false}
