@@ -13,10 +13,10 @@ const JOURNAL_MAX = 256;
 
 function makeTotals() {
   return {
-    transmissions: { count: 0, ledgerDepth: 0, verdict: null, lastSignal: null, last: null, lastTs: 0 },
+    transmissions: { count: 0, ledgerDepth: 0, verdict: null, lastSignal: null, kernelsLoaded: {}, ranAliases: {}, last: null, lastTs: 0 },
     essences:      { count: 0, crystallized: 0, polarity: null, lastAccord: null, last: null, lastTs: 0 },
     ciphers:       { sealed: 0, verifies: 0, unlocks: 0, last: null, lastTs: 0 },
-    gaze:          { sphereClicks: 0, lastLunar: null, lastScaling: null, tabsVisited: {}, art: null, lastEcocide: null, lastManifestoFragment: null, last: null, lastTs: 0 },
+    gaze:          { sphereClicks: 0, lastLunar: null, lastScaling: null, tabsVisited: {}, kernelsConsulted: {}, art: null, lastEcocide: null, lastManifestoFragment: null, last: null, lastTs: 0 },
     edge:          { eye: 'idle', manifestoChapter: null, last: null, lastTs: 0 },
   };
 }
@@ -63,7 +63,17 @@ function updateTotals(evt) {
   t.lastTs = evt.ts;
   switch (evt.category) {
     case 'transmissions':
-      if (evt.kind === 'kernel_completed') t.count++;
+      if (evt.kind === 'kernel_completed') {
+        t.count++;
+        // THE LINKER (spec 2026-07-17): the wasm alias that ran, for the
+        // periphery's consulted∧ran join. '—' is the no-id placeholder.
+        const alias = evt.payload.kernelId;
+        if (alias && alias !== '—') t.ranAliases[alias] = (t.ranAliases[alias] || 0) + 1;
+      }
+      if (evt.kind === 'kernel_loaded') {
+        const id = evt.payload.kernelId;
+        if (id && id !== '—') t.kernelsLoaded[id] = (t.kernelsLoaded[id] || 0) + 1;
+      }
       if (evt.kind === 'ledger_appended')
         t.ledgerDepth = evt.payload.depth ?? t.ledgerDepth + 1;
       if (evt.kind === 'verdict_issued') t.verdict = evt.payload.verdict ?? t.verdict;
@@ -94,6 +104,8 @@ function updateTotals(evt) {
       if (evt.kind === 'lunar_read')     t.lastLunar     = evt.payload;
       if (evt.kind === 'scaling_visit')  t.lastScaling   = evt.payload;
       if (evt.kind === 'manifesto_fragment_marked') t.lastManifestoFragment = evt.payload;
+      if (evt.kind === 'kernel_consulted' && evt.payload.articleId)
+        t.kernelsConsulted[evt.payload.articleId] = (t.kernelsConsulted[evt.payload.articleId] || 0) + 1;
       if (evt.kind === 'tab_navigated' && evt.payload.tab)
         t.tabsVisited[evt.payload.tab] = (t.tabsVisited[evt.payload.tab] || 0) + 1;
       if (evt.kind === 'art_resonance') {

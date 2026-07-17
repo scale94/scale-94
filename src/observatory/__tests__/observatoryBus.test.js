@@ -156,6 +156,29 @@ describe('observatoryBus', () => {
   });
 });
 
+describe('THE LINKER accumulators (spec 2026-07-17)', () => {
+  beforeEach(() => { _resetForTests(); });
+
+  it('kernel_loaded accumulates build ids and skips the placeholder', () => {
+    emit('transmissions', 'kernel_loaded', { kernelId: 'BOSONIC-KERNEL-3.0.0' });
+    emit('transmissions', 'kernel_loaded', { kernelId: 'BOSONIC-KERNEL-3.0.0' });
+    emit('transmissions', 'kernel_loaded', { kernelId: '—' });
+    emit('transmissions', 'kernel_loaded', {});
+    expect(getTotals().transmissions.kernelsLoaded).toEqual({ 'BOSONIC-KERNEL-3.0.0': 2 });
+  });
+
+  it('kernel_completed also records the wasm alias', () => {
+    emit('transmissions', 'kernel_completed', { kernelId: 'bosonic' });
+    expect(getTotals().transmissions.ranAliases).toEqual({ bosonic: 1 });
+    expect(getTotals().transmissions.count).toBe(1); // existing counter untouched
+  });
+
+  it('gaze kernel_consulted accumulates articleIds', () => {
+    emit('gaze', 'kernel_consulted', { articleId: 'SOMA-KERNEL-5.5.0' });
+    expect(getTotals().gaze.kernelsConsulted).toEqual({ 'SOMA-KERNEL-5.5.0': 1 });
+  });
+});
+
 import { renderHook, act } from '@testing-library/react';
 import { useObservatoryState } from '../useObservatoryState';
 
