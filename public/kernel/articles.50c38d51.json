@@ -40,6 +40,24 @@
     "len": "401 WDS"
   },
   {
+    "id": "SEMIOTIC-SYNTHESIS-KERNEL-9.9.9",
+    "type": "kernel_doc",
+    "date": "2026-07-17",
+    "lastModified": "2026-07-17",
+    "title": "SEMIOTIC SYNTHESIS KERNEL 9.9.9",
+    "subtitle": "Nein Nein Nein // The Law of the Street",
+    "status": "ACTIVE",
+    "readTime": "3 min read",
+    "tags": [
+      "Integration",
+      "System",
+      "Atoms",
+      "Border",
+      "Layer"
+    ],
+    "len": "674 WDS"
+  },
+  {
     "id": "GAIA-SCALE-KERNEL-5.5.5",
     "type": "kernel_doc",
     "date": "2026-05-14",

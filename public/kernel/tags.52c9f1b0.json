@@ -101,6 +101,10 @@
       "title": "FISH SCALE KERNEL11.1.1"
     },
     {
+      "id": "SEMIOTIC-SYNTHESIS-KERNEL-9.9.9",
+      "title": "SEMIOTIC SYNTHESIS KERNEL 9.9.9"
+    },
+    {
       "id": "BLACK-HOLE-TAXONOMY-KERNEL-1.0.0",
       "title": "BLACK HOLE TAXONOMY KERNEL 1.0.0"
     },
@@ -137,6 +141,12 @@
     {
       "id": "TESSERACT-PROTOCOL-KERNEL-1.0.0",
       "title": "TESSERACT CRYPTOGRAPHIC PROTOCOL"
+    }
+  ],
+  "Border": [
+    {
+      "id": "SEMIOTIC-SYNTHESIS-KERNEL-9.9.9",
+      "title": "SEMIOTIC SYNTHESIS KERNEL 9.9.9"
     }
   ],
   "bouligand": [
@@ -517,6 +527,10 @@
       "title": "FISH SCALE KERNEL11.1.1"
     },
     {
+      "id": "SEMIOTIC-SYNTHESIS-KERNEL-9.9.9",
+      "title": "SEMIOTIC SYNTHESIS KERNEL 9.9.9"
+    },
+    {
       "id": "BLACK-HOLE-TAXONOMY-KERNEL-1.0.0",
       "title": "BLACK HOLE TAXONOMY KERNEL 1.0.0"
     },
@@ -609,6 +623,10 @@
     {
       "id": "FISH-SCALE-KERNEL11.1.1",
       "title": "FISH SCALE KERNEL11.1.1"
+    },
+    {
+      "id": "SEMIOTIC-SYNTHESIS-KERNEL-9.9.9",
+      "title": "SEMIOTIC SYNTHESIS KERNEL 9.9.9"
     },
     {
       "id": "BLACK-HOLE-TAXONOMY-KERNEL-1.0.0",
@@ -1167,6 +1185,10 @@
     {
       "id": "FISH-SCALE-KERNEL11.1.1",
       "title": "FISH SCALE KERNEL11.1.1"
+    },
+    {
+      "id": "SEMIOTIC-SYNTHESIS-KERNEL-9.9.9",
+      "title": "SEMIOTIC SYNTHESIS KERNEL 9.9.9"
     },
     {
       "id": "BLACK-HOLE-TAXONOMY-KERNEL-1.0.0",
