@@ -99,6 +99,14 @@
     {
       "id": "FISH-SCALE-KERNEL11.1.1",
       "title": "FISH SCALE KERNEL11.1.1"
+    },
+    {
+      "id": "BLACK-HOLE-TAXONOMY-KERNEL-1.0.0",
+      "title": "BLACK HOLE TAXONOMY KERNEL 1.0.0"
+    },
+    {
+      "id": "HUDELSCHUBLADE-ROUTING-KERNEL-1.0.0",
+      "title": "HUDELSCHUBLADE ROUTING KERNEL 1.0.0"
     }
   ],
   "authority": [
@@ -377,6 +385,12 @@
       "title": "🏛️ SYSTEM_MIGRATION_LOG: KERNEL_EXPORT_FINAL"
     }
   ],
+  "Firewall": [
+    {
+      "id": "HUDELSCHUBLADE-ROUTING-KERNEL-1.0.0",
+      "title": "HUDELSCHUBLADE ROUTING KERNEL 1.0.0"
+    }
+  ],
   "fish-scale-paradox": [
     {
       "id": "NECROMANTIC-EMPEROR-KERNEL-3.0.0",
@@ -501,6 +515,14 @@
     {
       "id": "FISH-SCALE-KERNEL11.1.1",
       "title": "FISH SCALE KERNEL11.1.1"
+    },
+    {
+      "id": "BLACK-HOLE-TAXONOMY-KERNEL-1.0.0",
+      "title": "BLACK HOLE TAXONOMY KERNEL 1.0.0"
+    },
+    {
+      "id": "HUDELSCHUBLADE-ROUTING-KERNEL-1.0.0",
+      "title": "HUDELSCHUBLADE ROUTING KERNEL 1.0.0"
     }
   ],
   "kernel": [
@@ -587,6 +609,14 @@
     {
       "id": "FISH-SCALE-KERNEL11.1.1",
       "title": "FISH SCALE KERNEL11.1.1"
+    },
+    {
+      "id": "BLACK-HOLE-TAXONOMY-KERNEL-1.0.0",
+      "title": "BLACK HOLE TAXONOMY KERNEL 1.0.0"
+    },
+    {
+      "id": "HUDELSCHUBLADE-ROUTING-KERNEL-1.0.0",
+      "title": "HUDELSCHUBLADE ROUTING KERNEL 1.0.0"
     }
   ],
   "LEGISLATION": [
@@ -599,6 +629,12 @@
     {
       "id": "SOMA-MODEL-PROOF-LEXICON-DEC2025",
       "title": "SOMA MODEL-PROOF LEXICON — ANTI-INSTRUCTION-LOCK SCHEMA"
+    }
+  ],
+  "Lineage": [
+    {
+      "id": "BLACK-HOLE-TAXONOMY-KERNEL-1.0.0",
+      "title": "BLACK HOLE TAXONOMY KERNEL 1.0.0"
     }
   ],
   "literary-deterrent": [
@@ -1131,6 +1167,14 @@
     {
       "id": "FISH-SCALE-KERNEL11.1.1",
       "title": "FISH SCALE KERNEL11.1.1"
+    },
+    {
+      "id": "BLACK-HOLE-TAXONOMY-KERNEL-1.0.0",
+      "title": "BLACK HOLE TAXONOMY KERNEL 1.0.0"
+    },
+    {
+      "id": "HUDELSCHUBLADE-ROUTING-KERNEL-1.0.0",
+      "title": "HUDELSCHUBLADE ROUTING KERNEL 1.0.0"
     }
   ],
   "SYSTEM": [
