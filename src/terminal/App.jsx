@@ -652,6 +652,8 @@ const App = () => {
     const path = `~/system/${tab}/${article.id}`;
     setActiveTab(tab);
     emitObs('gaze', 'tab_navigated', { tab });
+    if (tab === 'kernel' && article?.id)
+      emitObs('gaze', 'kernel_consulted', { articleId: article.id }); // THE LINKER: consult witness
     setOriginTab(tab);
     setCurrentPath(path);
     setSelectedArticle(article);
