@@ -182,7 +182,9 @@ const fragmentShader = /* glsl */ `
     float sparkle = smoothstep(0.4, 0.0, d) * (1.0 - vStrata) * 1.2;
     col += vec3(sparkle * 0.5, sparkle * 0.4, sparkle * 0.2);
 
-    gl_FragColor = vec4(col, alpha * vAlpha * (0.5 + (1.0 - vStrata) * 0.4) * uOpacity);
+    // Banding dither — see ParticleFlow.jsx for the physics note.
+    float dither = (fract(sin(dot(gl_FragCoord.xy + gl_PointCoord * 61.803, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
+    gl_FragColor = vec4(col, alpha * vAlpha * (0.5 + (1.0 - vStrata) * 0.4) * uOpacity + dither);
   }
 `;
 

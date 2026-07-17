@@ -191,7 +191,9 @@ const fragmentShader = /* glsl */ `
     // Additive blending: accumulation of many particles IS the glow.
     // Keep per-particle contribution tiny so the color ramp shows through.
     float finalAlpha = alpha * vAlpha * (0.006 + vTemp * 0.012);
-    gl_FragColor = vec4(col, finalAlpha * uOpacity);
+    // Banding dither — see ParticleFlow.jsx for the physics note.
+    float dither = (fract(sin(dot(gl_FragCoord.xy + gl_PointCoord * 61.803, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
+    gl_FragColor = vec4(col, finalAlpha * uOpacity + dither);
   }
 `;
 

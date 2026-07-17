@@ -179,7 +179,9 @@ const fragmentShader = /* glsl */ `
 
     // Alpha: deep layers very faint, only high-altitude / ionosphere reads clearly
     float alphaScale = 0.05 + vAltitude * 0.28 + vIon * 0.22;
-    gl_FragColor = vec4(col, alpha * alphaScale * uOpacity);
+    // Banding dither — see ParticleFlow.jsx for the physics note.
+    float dither = (fract(sin(dot(gl_FragCoord.xy + gl_PointCoord * 61.803, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
+    gl_FragColor = vec4(col, alpha * alphaScale * uOpacity + dither);
   }
 `;
 

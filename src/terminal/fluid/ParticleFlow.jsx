@@ -174,7 +174,13 @@ const fragmentShader = /* glsl */ `
 
     color *= vBrightness;
 
-    gl_FragColor = vec4(color, alpha * 0.95 * uOpacity);
+    // 8-bit backbuffer dither: the additive falloff quantizes to 1/255 steps
+    // (terracing an OLED renders faithfully). ±0.5/255 on the alpha side so it
+    // survives the premultiply; seeded per-pixel AND per-sprite (gl_PointCoord)
+    // so overlapping sprites decorrelate instead of summing the same noise.
+    float dither = (fract(sin(dot(gl_FragCoord.xy + gl_PointCoord * 61.803, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
+
+    gl_FragColor = vec4(color, alpha * 0.95 * uOpacity + dither);
   }
 `;
 
