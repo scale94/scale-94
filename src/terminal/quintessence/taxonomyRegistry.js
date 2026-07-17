@@ -1,7 +1,8 @@
 // src/terminal/quintessence/taxonomyRegistry.js — THE ACADEMIC & MYTHIC REGISTRY.
 // (spec: docs/superpowers/specs/2026-07-11-academic-mythic-registry-design.md)
-// Pure data + resolver, no React, no bus. Fifteen disciplines — five humanities,
-// six soft sciences, four ⇄ overlap pairs — each OWNING one or more kernel
+// Pure data + resolver, no React, no bus. Sixteen disciplines — five humanities,
+// six soft sciences, five ⇄ overlap pairs (the registry completes to the
+// council's sixteen) — each OWNING one or more kernel
 // structures and reading the visitor's value as a tagged doc-comment lens.
 // Selection is band → tint → seeded pick; deterministic under a seeded rng.
 // The element tints every register: FIRE mythic-active · WATER alchemical-
@@ -551,6 +552,55 @@ export const TAXONOMY = [
                 'the sentence is the mechanism · grammar warping its referent'],
         EARTH: ['a carved instruction · rune-logic pressed into the record',
                 'words with foundations · the directive builds where it is read'],
+      },
+    },
+  },
+  {
+    id: 'sociology_economics',
+    tier: 'OVERLAP_MATRIX',
+    tag: 'SOCIOLOGY ⇄ ECONOMICS',
+    // THE LINKER (spec 2026-07-17): the discipline that reads normative tracks
+    // and prices them. TARGET 0 = nt_success, the default build fixed at
+    // eighteen; the corpus is the library of documented divergences.
+    owns: ['linker'],
+    band: (ctx) => {
+      const c = ctx?.periphery?.corpus;
+      return !c ? 'unopened' : (c.linked?.length ? 'linked' : 'consulted');
+    },
+    detail: (ctx) => {
+      const c = ctx?.periphery?.corpus;
+      return c ? `${c.linked?.length ?? 0} linked · ${c.consulted?.length ?? 0} consulted · of ${c.total}` : null;
+    },
+    pools: {
+      unopened: {
+        FIRE:  ['the archive unentered · the default track holds its heat unchallenged',
+                'no divergence consulted · TARGET 0 warms itself on silence'],
+        WATER: ['the corpus unopened · the mainstream runs without a fork in sight',
+                'no divergence tasted · the default current carries what floats'],
+        AIR:   ['the shelf unread · the norm circulates at face value',
+                'no divergence surveyed · TARGET 0 clears without an audit'],
+        EARTH: ['the strata unopened · the paved track shows no survey marks',
+                'no divergence dug · the default settles into bedrock'],
+      },
+      consulted: {
+        FIRE:  ['divergences read by firelight · none yet taken to the forge',
+                'the archive entered warm · documentation touched, engines cold'],
+        WATER: ['divergences sampled · the fork tasted but not swum',
+                'documentation dissolved on the tongue · no current changed'],
+        AIR:   ['the divergence catalog surveyed · linkage still hypothetical',
+                'norms priced against alternatives · no contract signed'],
+        EARTH: ['the strata cored and read · no foundation moved',
+                'divergence documents unearthed · the track still paved beneath'],
+      },
+      linked: {
+        FIRE:  ['divergence linked at heat · the default target loses a customer',
+                'engines fired against TARGET 0 · the fork carries flame now'],
+        WATER: ['the fork entered and swum · the mainstream loses a tributary',
+                'divergence bound in solution · the default current runs thinner'],
+        AIR:   ['linkage on record · the norm audited and declined',
+                'extern crates in open air · the default target priced and passed over'],
+        EARTH: ['divergence load-bearing now · the paved track cracks at the join',
+                'foundations moved to forked ground · TARGET 0 keeps only its pavement'],
       },
     },
   },

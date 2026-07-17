@@ -6,13 +6,13 @@ import { mulberry32 } from '../../views/manifesto/councilCollider';
 const TINTS = ['FIRE', 'WATER', 'AIR', 'EARTH'];
 
 describe('taxonomyRegistry — completeness', () => {
-  it('seats all 15 disciplines across the three tiers (5 humanities, 6 soft sciences, 4 overlap pairs)', () => {
-    expect(TAXONOMY).toHaveLength(15);
+  it('seats all 16 disciplines across the three tiers (5 humanities, 6 soft sciences, 5 overlap pairs)', () => {
+    expect(TAXONOMY).toHaveLength(16);
     const byTier = { HUMANITIES: 0, SOFT_SCIENCES: 0, OVERLAP_MATRIX: 0 };
     for (const d of TAXONOMY) byTier[d.tier]++;
     expect(byTier.HUMANITIES).toBe(5);
     expect(byTier.SOFT_SCIENCES).toBe(6);
-    expect(byTier.OVERLAP_MATRIX).toBe(4);
+    expect(byTier.OVERLAP_MATRIX).toBe(5);
   });
 
   it('every overlap-matrix entry carries the double tag', () => {
@@ -180,5 +180,30 @@ describe('deep periphery — enriched readings', () => {
   it('anthropology denominator is 9', () => {
     const anthro = entry('witness_intro');
     expect(anthro.detail({ ...CTX, meta: { ...CTX.meta, filledHouses: 6 } })).toBe('6 of 9 houses witnessed');
+  });
+});
+
+describe('sociology_economics — THE LINKER lens (spec 2026-07-17)', () => {
+  const entry = TAXONOMY.find(d => d.id === 'sociology_economics');
+
+  it('owns the linker slot', () => {
+    expect(ownerOf('linker')).toBe('SOCIOLOGY ⇄ ECONOMICS');
+  });
+
+  it('bands unopened → consulted → linked', () => {
+    expect(entry.band({ periphery: {} })).toBe('unopened');
+    expect(entry.band({ periphery: { corpus: { linked: [], consulted: ['X'], total: 43 } } })).toBe('consulted');
+    expect(entry.band({ periphery: { corpus: { linked: ['X'], consulted: [], total: 43 } } })).toBe('linked');
+  });
+
+  it('detail prices the contact', () => {
+    expect(entry.detail({ periphery: { corpus: { linked: ['A'], consulted: ['B', 'C'], total: 43 } } }))
+      .toBe('1 linked · 2 consulted · of 43');
+    expect(entry.detail({ periphery: {} })).toBeNull();
+  });
+
+  it('lensFor renders the double tag', () => {
+    const line = lensFor('linker', { spine: { element: 'FIRE' }, periphery: {} }, mulberry32(7));
+    expect(line).toMatch(/^⟨SOCIOLOGY ⇄ ECONOMICS⟩ /);
   });
 });
