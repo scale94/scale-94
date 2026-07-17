@@ -3,8 +3,30 @@
 // the last kernel_completed regardless of event order). null = empty house = Option::None.
 // Never blocks, never throws: a dead bus compiles as an unwitnessed session.
 import { getTotals, getJournal } from '../../observatory/observatoryBus';
+import kernelBuilds from '../data/kernelBuilds';
+import { resolveWasmAlias } from '../data/mobileWasmMap';
 
 const TRACKED_HOUSES = ['ecocide', 'ledger', 'privacy', 'surveillance'];
+
+// THE LINKER (spec 2026-07-17): the corpus witness. A build is consulted when
+// its documentation was opened (kernel_loaded build id, or kernel_consulted
+// articleId); linked when, additionally, its resolved wasm alias completed a
+// run this session. Linked wins ties. Ids outside the corpus resolve to
+// nothing — sphere kernels are already witnessed in house_chaos.
+function snapshotCorpus(tr, g) {
+  const loaded   = tr?.kernelsLoaded   ? Object.keys(tr.kernelsLoaded)   : [];
+  const articles = g?.kernelsConsulted ? Object.keys(g.kernelsConsulted) : [];
+  if (!loaded.length && !articles.length) return null;
+  const ran = new Set(tr?.ranAliases ? Object.keys(tr.ranAliases) : []);
+  const loadedSet = new Set(loaded), articleSet = new Set(articles);
+  const linked = [], consulted = [];
+  for (const b of kernelBuilds) {                    // registry order = render order
+    if (!loadedSet.has(b.id) && !articleSet.has(b.articleId)) continue;
+    (ran.has(resolveWasmAlias(b.id)) ? linked : consulted).push(b.id);
+  }
+  if (!linked.length && !consulted.length) return null;
+  return { linked, consulted, total: kernelBuilds.length };
+}
 
 function lastCompletedKernel() {
   try {
@@ -60,5 +82,6 @@ export function snapshotPeriphery() {
       : null,
     ledgerVerdict: tr?.verdict ?? null,
     manifestoFragment: g?.lastManifestoFragment ?? null,
+    corpus: snapshotCorpus(tr, g),
   };
 }

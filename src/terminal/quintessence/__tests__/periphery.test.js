@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { emit, _resetForTests } from '../../../observatory/observatoryBus';
 import { snapshotPeriphery } from '../periphery';
+import kernelBuilds from '../../data/kernelBuilds';
 
 describe('snapshotPeriphery', () => {
   beforeEach(() => _resetForTests());
@@ -11,6 +12,7 @@ describe('snapshotPeriphery', () => {
       ciphers: null, transmissions: null, essences: null,
       lunarRead: null, houses: { ecocide: null, ledger: null, privacy: null, surveillance: null },
       art: null, ecocideSim: null, ledgerVerdict: null, manifestoFragment: null,
+      corpus: null,
     });
   });
 
@@ -54,6 +56,7 @@ describe('snapshotPeriphery', () => {
       ciphers: null, transmissions: null, essences: null,
       lunarRead: null, houses: { ecocide: null, ledger: null, privacy: null, surveillance: null },
       art: null, ecocideSim: null, ledgerVerdict: null, manifestoFragment: null,
+      corpus: null,
     });
   });
 
@@ -95,5 +98,45 @@ describe('snapshotPeriphery', () => {
   it('deep periphery: malformed rift compiles as null, phase still witnessed', () => {
     emit('gaze', 'ecocide_phase', { phase: 'OVERSHOOT', metabolicRift: 'not-a-number' });
     expect(snapshotPeriphery().ecocideSim).toEqual({ phase: 'OVERSHOOT', rift: null, growthRate: null, mandateActive: null });
+  });
+});
+
+describe('corpus (THE LINKER, spec 2026-07-17)', () => {
+  beforeEach(() => _resetForTests());
+
+  it('kernel_loaded consults a corpus build', () => {
+    emit('transmissions', 'kernel_loaded', { kernelId: 'BOSONIC-KERNEL-3.0.0' });
+    const p = snapshotPeriphery();
+    expect(p.corpus).toEqual({ linked: [], consulted: ['BOSONIC-KERNEL-3.0.0'], total: kernelBuilds.length });
+  });
+
+  it('kernel_consulted resolves via articleId', () => {
+    emit('gaze', 'kernel_consulted', { articleId: 'SOMA-KERNEL-5.5.0' });
+    expect(snapshotPeriphery().corpus.consulted).toEqual(['SOMA-KERNEL-5.5.0']);
+  });
+
+  it('consult + completed alias → linked (linked wins ties)', () => {
+    emit('transmissions', 'kernel_loaded', { kernelId: 'BOSONIC-KERNEL-3.0.0' });
+    emit('transmissions', 'kernel_completed', { kernelId: 'bosonic' });
+    const c = snapshotPeriphery().corpus;
+    expect(c.linked).toEqual(['BOSONIC-KERNEL-3.0.0']);
+    expect(c.consulted).toEqual([]);
+  });
+
+  it('a run without a consult does not conjure the corpus', () => {
+    emit('transmissions', 'kernel_completed', { kernelId: 'bosonic' });
+    expect(snapshotPeriphery().corpus).toBeNull();
+  });
+
+  it('non-corpus ids are ignored', () => {
+    emit('transmissions', 'kernel_loaded', { kernelId: 'kuramoto' });
+    emit('gaze', 'kernel_consulted', { articleId: 'not-a-kernel-article' });
+    expect(snapshotPeriphery().corpus).toBeNull();
+  });
+
+  it('ordering follows kernelBuilds order', () => {
+    emit('transmissions', 'kernel_loaded', { kernelId: 'SOMA-KERNEL-5.5.0' });
+    emit('transmissions', 'kernel_loaded', { kernelId: 'BOSONIC-KERNEL-3.0.0' });
+    expect(snapshotPeriphery().corpus.consulted).toEqual(['BOSONIC-KERNEL-3.0.0', 'SOMA-KERNEL-5.5.0']);
   });
 });
