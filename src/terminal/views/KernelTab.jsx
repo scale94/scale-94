@@ -5,6 +5,9 @@ import { getSpine, subscribeSpine, missingVertebrae } from '../quintessence/spin
 import { subscribe as subscribeBus } from '../../observatory/observatoryBus';
 import { loadSealedArtifact, clearSealedArtifact } from '../quintessence/sealedArtifact';
 import MercuryTerminator from '../components/MercuryTerminator';
+import MercuryTapToast from '../components/MercuryTapToast';
+import { useSevenTaps } from '../components/useSevenTaps';
+import { unlockMercuryKernel } from '../mercury/mercuryKernelUnlock';
 import { useCompileFrontier } from '../components/useCompileFrontier';
 import { legendLine } from '../components/frontier';
 
@@ -227,6 +230,12 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
   const missing = missingVertebrae();   // trend/council/phase only
   const armed   = missing.length === 0; // the altar will accept ignition
   const toMercury = () => { sphereFireRef.current = { ts: Date.now() }; onNavigateToMercury && onNavigateToMercury(); };
+  // Developer-Options gesture: 7 taps on Mercury root the bypass (systemless);
+  // a lone tap still navigates. Countdown + unlock toast render beside the planet.
+  const mercuryTaps = useSevenTaps({
+    onSingleTap: toMercury,
+    onUnlock: () => { unlockMercuryKernel(); sphereFireRef.current = { ts: Date.now() }; },
+  });
   // Fish Scale is the genome — the one pinned exhibition piece atop the panel.
   const fishScale = kernelBuilds.find(k => k.id === 'FISH-SCALE-11.1')
     || kernelBuilds.find(k => k.pinned)
@@ -583,18 +592,19 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
           style={{ width: 120, height: 120 }} />
       </div>
       {/* Desktop: Mercury — the compile frontier — over its living legend line */}
-      <div className="hidden md:flex flex-col items-end gap-2 shrink-0">
+      <div className="hidden md:flex flex-col items-end gap-2 shrink-0 relative">
         {isDesktop && (
           <MercuryTerminator
             twilight={twilight}
             day={day}
             flare={flare}
             size={180}
-            onClick={toMercury}
+            onClick={mercuryTaps.onTap}
             title="☿ mercury — the compile frontier"
             ariaLabel="Mercury — the compile frontier; click to open Mercury"
           />
         )}
+        <MercuryTapToast toast={mercuryTaps.toast} onDone={mercuryTaps.clearToast} />
         <div className="font-mono text-[10px] tracking-[0.15em] text-right select-none"
              style={{ color: 'rgba(232,210,138,0.55)' }}>
           {legendLine({ loaded, run })}
