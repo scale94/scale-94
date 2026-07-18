@@ -191,6 +191,21 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
   useMiniSphere(sphereCanvasMobileRef, sphereFireRef);
   const { twilight, day, loaded, run, flare } = useCompileFrontier(kernelBuilds.length);
 
+  // Desktop-exclusive (spec §9, non-goal "a mobile shader"): a CSS `hidden md:flex`
+  // only display:none's the WebGL Mercury — React still mounts it and boots a webgl
+  // context + rAF loop on the invisible canvas. Gate the *mount* on the md breakpoint
+  // (768px), tracking resize so crossing the breakpoint mounts/unmounts it.
+  const [isDesktop, setIsDesktop] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(min-width: 768px)');
+    const onChange = () => setIsDesktop(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
   // ── Quintessence state (spec §5) — the reserved slot + tty0 monument ───────
   // The reliquary lives on Mercury now; the dashboard only reflects its state.
   // Deferred re-render: spine/bus events may fire during another component's
@@ -569,15 +584,17 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
       </div>
       {/* Desktop: Mercury — the compile frontier — over its living legend line */}
       <div className="hidden md:flex flex-col items-end gap-2 shrink-0">
-        <MercuryTerminator
-          twilight={twilight}
-          day={day}
-          flare={flare}
-          size={180}
-          onClick={toMercury}
-          title="☿ mercury — the compile frontier"
-          ariaLabel="Mercury — the compile frontier; click to open Mercury"
-        />
+        {isDesktop && (
+          <MercuryTerminator
+            twilight={twilight}
+            day={day}
+            flare={flare}
+            size={180}
+            onClick={toMercury}
+            title="☿ mercury — the compile frontier"
+            ariaLabel="Mercury — the compile frontier; click to open Mercury"
+          />
+        )}
         <div className="font-mono text-[10px] tracking-[0.15em] text-right select-none"
              style={{ color: 'rgba(232,210,138,0.55)' }}>
           {legendLine({ loaded, run })}
