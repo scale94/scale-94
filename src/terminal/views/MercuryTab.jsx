@@ -7,6 +7,7 @@ import CastleGrid             from '../mercury/CastleGrid';
 import CosmosRegistry         from '../mercury/CosmosRegistry';
 import ObservationMatrix      from '../mercury/ObservationMatrix';
 import QuintessenceAltar       from '../mercury/QuintessenceAltar';
+import CompiledMercuryKernel     from '../mercury/CompiledMercuryKernel';
 import ReliquaryView          from '../quintessence/ReliquaryView';
 import { loadSealedArtifact } from '../quintessence/sealedArtifact';
 import { useMercuryState }    from '../mercury/useMercuryState';
@@ -222,6 +223,10 @@ export default function MercuryTab({ onNavigateTab }) {
 
       {/* §B.5 — The Quintessence Altar (spec §4): the compile trigger */}
       <QuintessenceAltar onDeposited={revealSeal} onNavigate={onNavigateTab} />
+
+      {/* The off-altar kernel — the bypass artifact, printed beside the ceremony
+       * it skipped. Renders nothing until the 7-tap root flips the flag. */}
+      <CompiledMercuryKernel />
 
       {/* The seal itself — the forged artifact appears here, in place, once a
        * quintessence has been compiled (spec §5, revised: the reliquary lives on
