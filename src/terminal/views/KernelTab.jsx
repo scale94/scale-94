@@ -182,7 +182,7 @@ const ramColor = (pct) => {
   return '#FF0088';                // magenta     — floor signal
 };
 
-const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, loadingKernel, visibleLogs = [], logRef, commandInput = '', onCommandInputChange, onCommandKeyDown, ramPct = 0, isCritical = false, isWarning = false, appendSystemLog, mobileChrome = true, mobileAutoRun, bootDone = false, onNavigateToMercury }) => {
+const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, loadingKernel, visibleLogs = [], logRef, commandInput = '', onCommandInputChange, onCommandKeyDown, suggestions = [], activeSugg = -1, paramHint = '', onSelectSuggestion, ramPct = 0, isCritical = false, isWarning = false, appendSystemLog, mobileChrome = true, mobileAutoRun, bootDone = false, onNavigateToMercury }) => {
   // ── Mini sphere + sparkline canvas refs ───────────────────────────────────
   // Two sphere refs: one for the mobile canvas (below title), one for desktop
   const sphereCanvasMobileRef  = useRef(null); // mobile
@@ -912,9 +912,9 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
               onTouchEnd={handleTtyHeaderTouchEnd}
               onTouchCancel={handleTtyHeaderTouchEnd}
             >
-              {/* RAM bar — left side of tty0 header */}
-              <div className="flex items-center gap-1.5 shrink-0" title={`ECO-RAM: ${ramPct}% active`}>
-                <span className="text-[9px] font-black tracking-widest" style={{ color: ramColor(ramPct), transition: 'color 1s ease' }}>RAM</span>
+              {/* PF bar — left side of tty0 header */}
+              <div className="flex items-center gap-1.5 shrink-0" title={`PF: ${ramPct}% available`}>
+                <span className="text-[9px] font-black tracking-widest" style={{ color: ramColor(ramPct), transition: 'color 1s ease' }}>PF</span>
                 <div className="flex gap-0">
                   {Array.from({ length: 100 }).map((_, i) => {
                     const filled = i < ramPct;
@@ -980,7 +980,39 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
             </div>
 
             {/* Desktop inline command input */}
-            <div className="hidden md:flex items-center gap-2 px-4 py-2 border-t border-cyan-900/20 shrink-0 bg-black/60">
+            <div className="hidden md:flex items-center gap-2 px-4 py-2 border-t border-cyan-900/20 shrink-0 bg-black/60 relative">
+              {/* Param hint — floats above the tty0 input while run args are typed */}
+              {paramHint && suggestions.length === 0 && (
+                <div className="absolute bottom-full left-0 right-0 mb-1 bg-black border border-fuchsia-900/40 shadow-[0_-2px_12px_rgba(217,70,239,0.1)] z-50 rounded-sm">
+                  <div className="px-4 py-2 flex items-center gap-2 text-xs font-mono">
+                    <span className="text-fuchsia-500/70 shrink-0">{'>'}</span>
+                    <span className="text-cyan-900/80 truncate">{commandInput}</span>
+                    <span className="text-fuchsia-400/60 tracking-wide">{paramHint}</span>
+                  </div>
+                </div>
+              )}
+              {/* Autocomplete dropdown — floats above the tty0 input */}
+              {suggestions.length > 0 && (
+                <div className="absolute bottom-full left-0 right-0 mb-1 bg-black border border-cyan-900/60 shadow-[0_-4px_24px_rgba(6,182,212,0.2)] z-50 rounded-sm overflow-hidden">
+                  <div className="max-h-[220px] overflow-y-auto custom-scrollbar">
+                    {suggestions.map((k, i) => (
+                      <div
+                        key={k.id}
+                        onMouseDown={(e) => { e.preventDefault(); onSelectSuggestion?.(k); }}
+                        className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer border-b border-cyan-900/20 last:border-0 transition-colors ${i === activeSugg ? 'bg-cyan-900/30 border-l-2 border-l-cyan-400' : 'hover:bg-cyan-900/10 border-l-2 border-l-transparent'}`}
+                      >
+                        <span className={`text-xs font-bold tracking-wider truncate ${i === activeSugg ? 'text-cyan-300' : 'text-cyan-400'}`}>
+                          {i === activeSugg && <span className="text-fuchsia-400 mr-1 animate-pulse">▋</span>}{k.name}
+                        </span>
+                        <span className="text-[10px] text-fuchsia-400/60 truncate ml-auto shrink-0 max-w-[50%]">{k.desc}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="px-4 py-1.5 text-[10px] text-cyan-900/70 tracking-widest border-t border-cyan-900/20 bg-black">
+                    ↑↓ navigate · Enter load · Tab complete · Esc dismiss
+                  </div>
+                </div>
+              )}
               <span
                 className="text-xs font-black tracking-widest shrink-0 select-none text-transparent bg-clip-text"
                 style={isCritical ? {

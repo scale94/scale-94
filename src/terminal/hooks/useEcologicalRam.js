@@ -1,19 +1,21 @@
 // ── useEcologicalRam ─────────────────────────────────────────────────────────
-// Ecological RAM model for the Mercury Terminal.
+// PF (Planetary compute) meter for the Mercury Terminal.
 //
-// The RAM bar is not a performance meter — it is a PLANETARY STANDING METER.
-// An alien observer at Mercury reads the lattice. Green simulations recharge it.
-// Extraction, surveillance, and brute compute drain it. Entropy drains it passively.
+// PF is not a performance meter — it is your compute budget, granted whole and
+// then spent. An alien observer at Mercury reads the lattice. Regenerative
+// simulations recharge PF; extraction, surveillance, and brute compute drain it,
+// scaled by the damage they model. Entropy drains it passively.
 //
 // Model:
-//   ramPct  — current planetary standing (0–100%), starts at 70
+//   ramPct  — current PF (0–100%), starts full at 100
 //   delta   — each command applies a signed delta to ramPct
 //   passive — entropy claims 1% per 30s regardless
-//   floor   — 5% (lattice never fully collapses; signal persists)
+//   floor   — 5% (carrier signal never fully collapses)
 //   ceiling — 100%
 //
-// Positive delta (+): ecological recharge — running these restores standing
+// Positive delta (+): ecological recharge — running these restores PF
 // Negative delta (−): entropic drain     — running these costs the commons
+// No gate, no puzzle — the meter just reflects what you run.
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 
@@ -291,72 +293,14 @@ export const ECOLOGICAL_DELTA_MAP = {
   deep_research_loop:  -25,
 };
 
-// ── Lattice Protocol — safe-kernel alias map ─────────────────────────────────
-// The three kernels rooted in peer-reviewed ecological math. Every other
-// `run X` zeroes the RAM bar; finding all three in ≤3 attempts unlocks re$$ill.
-//
-// daly         — Herman Daly steady-state thermodynamic economics
-// biodiversity — Shannon-Wiener entropy H = -Σ pᵢ ln(pᵢ)
-// replicator   — Maynard Smith replicator dynamics + Ostrom commons
-
-export const SAFE_KERNELS = ['daly', 'biodiversity', 'replicator'];
-
-export const SAFE_ALIAS_TO_KERNEL = {
-  // daly cluster
-  daly: 'daly', ecological: 'daly', entropy_econ: 'daly',
-  daly_rules: 'daly', daly_thermo: 'daly',
-  // biodiversity cluster
-  biodiversity: 'biodiversity', biocoenosis: 'biodiversity', species: 'biodiversity',
-  shannon_ecology: 'biodiversity', ecology: 'biodiversity',
-  // replicator cluster
-  replicator: 'replicator', ostrom_game: 'replicator', commons: 'replicator',
-  evolutionary: 'replicator', cooperate: 'replicator', altruist: 'replicator',
-  gametheory: 'replicator',
-};
-
-// ── Lattice Protocol — localStorage persistence ──────────────────────────────
-export const LATTICE_STORAGE_KEY = 'scale94_lattice_protocol';
-
-export const defaultLatticeState = () => ({
-  attemptCount:        0,
-  foundSafes:          [],    // serialized as array; treated as set in logic
-  unlocked:            false,
-  failed:              false,
-  failedAcknowledged:  false,
-  lastRefillAt:        0,
-  hintSeen:            false,
-  // Sanctuary-offer flag — true once the user has been told about the
-  // hidden `sanctuary` command via the floor-hit log line. Surfaces the
-  // mechanic to visitors who never type it. One-shot per local node.
-  sanctuaryOffered:    false,
-});
-
-export function readLatticeState() {
-  try {
-    const raw = localStorage.getItem(LATTICE_STORAGE_KEY);
-    if (!raw) return defaultLatticeState();
-    const parsed = JSON.parse(raw);
-    return { ...defaultLatticeState(), ...parsed };
-  } catch (_) {
-    return defaultLatticeState();
-  }
-}
-
-export function writeLatticeState(state) {
-  try {
-    localStorage.setItem(LATTICE_STORAGE_KEY, JSON.stringify(state));
-  } catch (_) { /* quota or private mode — silently no-op */ }
-}
-
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const RAM_START      = 70;   // planet already stressed — not at 100
-const RAM_FLOOR      = 5;    // lattice signal never fully collapses
+const RAM_START      = 100;  // PF starts full — the compute budget is granted whole, then spent
+const RAM_FLOOR      = 5;    // carrier signal never fully collapses
 const RAM_CEIL       = 100;
 const PASSIVE_MS     = 30_000;  // entropy drains 1% per 30s
 const WARN_THRESH    = 50;      // amber threshold
 const CRIT_THRESH    = 20;      // red threshold — cascade imminent
-const REFILL_COOLDOWN_MS = 60_000;
 
 // ── Environmental flavor — short contextual notes per kernel ──────────────────
 // Shown on every per-run ECO: line to illustrate what the computation does to the planet.
@@ -446,36 +390,6 @@ export function useEcologicalRam({ appendSystemLog }) {
   const appendRef = useRef(appendSystemLog);
   useEffect(() => { appendRef.current = appendSystemLog; });
 
-  // ── Lattice Protocol state ─────────────────────────────────────────────────
-  const [latticeState, setLatticeState] = useState(() => readLatticeState());
-  const latticeRef = useRef(latticeState);
-  useEffect(() => { latticeRef.current = latticeState; }, [latticeState]);
-
-  const updateLattice = useCallback((next) => {
-    latticeRef.current = next;
-    setLatticeState(next);
-    writeLatticeState(next);
-  }, []);
-
-  // ── Sanctuary auto-offer ──────────────────────────────────────────────────
-  // Fires exactly once per local node, the first time RAM hits (or is forced
-  // below) the carrier-signal floor. Tells the user the hidden `sanctuary`
-  // command exists. Pure log surface — does not auto-open the overlay; the
-  // user still has to type it. Stillness must be chosen.
-  const offerSanctuary = useCallback((ts) => {
-    const lat = latticeRef.current;
-    if (lat.sanctuaryOffered) return;
-    appendRef.current({
-      time:  ts,
-      color: '#9F7AEA', // same violet as the boot riddle — visually pairs
-      msg:   `[LATTICE_OFFER] :: the protocol opens a Period-3 window — type 'sanctuary' to enter the still center`,
-    });
-    const nextLat = { ...latticeRef.current, sanctuaryOffered: true };
-    latticeRef.current = nextLat;
-    setLatticeState(nextLat);
-    writeLatticeState(nextLat);
-  }, []);
-
   // Passive entropy drain — the planet does not rest
   useEffect(() => {
     const t = setInterval(() => {
@@ -486,39 +400,22 @@ export function useEcologicalRam({ appendSystemLog }) {
       const ts = new Date().toLocaleTimeString('en-US', { hour12: false });
       if (prev > RAM_FLOOR && next === RAM_FLOOR) {
         appendRef.current({ time: ts, color: '#FF0088',
-          msg: `[ENTROPY:FLOOR] :: passive drain has reached the carrier signal — RAM ${next}% · the lattice holds by geometry alone · run: daly / ecological / gaia_scale` });
-        offerSanctuary(ts);
+          msg: `[ENTROPY:FLOOR] :: passive drain has reached the carrier signal — PF ${next}% · the lattice holds by geometry alone · run: daly / ecological / gaia_scale` });
       } else if (prev >= CRIT_THRESH && next < CRIT_THRESH) {
         appendRef.current({ time: ts, color: '#FF4400',
-          msg: `[ENTROPY:CRITICAL] :: ambient decay crossed threshold — RAM ${next}% · the commons fractures under thermal load · sovereign standing: endangered` });
+          msg: `[ENTROPY:CRITICAL] :: ambient decay crossed threshold — PF ${next}% · the commons fractures under thermal load · sovereign standing: endangered` });
       } else if (prev >= WARN_THRESH && next < WARN_THRESH) {
         appendRef.current({ time: ts, color: '#FFD700',
-          msg: `[ENTROPY:WARNING] :: passive extraction at 50% — RAM ${next}% · the planet registers imbalance · restore: daly / gaia_scale / replicator` });
+          msg: `[ENTROPY:WARNING] :: passive extraction at 50% — PF ${next}% · the planet registers imbalance · restore: daly / gaia_scale / replicator` });
       }
     }, PASSIVE_MS);
     return () => clearInterval(t);
   }, []);
 
-  // Boot hint — runs once when the game is still in play and the hint has
-  // never been shown. Marks hintSeen so it never repeats. Suppressed once
-  // the user has either unlocked or failed.
-  //
-  // Each of the three clue lines points obliquely at one safe kernel:
-  //   I.   → run daly       (Daly steady-state thermodynamic economics)
-  //   II.  → run biodiversity (Shannon-Wiener entropy, species richness)
-  //   III. → run replicator  (Ostrom commons, cooperate/defect/altruist)
-  useEffect(() => {
-    const lat = latticeRef.current;
-    if (lat.hintSeen || lat.unlocked || lat.failed) return;
-    const t      = new Date().toLocaleTimeString('en-US', { hour12: false });
-    const append = appendRef.current;
-    append({ time: t, color: '#9F7AEA', msg: `[LATTICE_PROTOCOL] :: re$$ill is locked — find the 3 kernels that honor the commons in ≤3 attempts` });
-    append({ time: t, color: '#9F7AEA', msg: `  I.   not GDP, not growth — the steady-state economist named the real cost: ecological debt is thermodynamic` });
-    append({ time: t, color: '#9F7AEA', msg: `  II.  H = −Σpᵢ ln pᵢ — Shannon encoded signals; the forest encodes species — measure the drift` });
-    append({ time: t, color: '#9F7AEA', msg: `  III. Ostrom proved it: the commons governs itself when altruists sanction defectors — run the evolution` });
-    updateLattice({ ...lat, hintSeen: true });
-  }, [updateLattice]);
-
+  // ── PF meter — pure ecological drain/refill ────────────────────────────────
+  // Every command applies a signed delta. Regenerative kernels recharge PF;
+  // extractive/harmful kernels drain it, scaled by the damage they model.
+  // Clamped to [RAM_FLOOR, RAM_CEIL]. No gate, no puzzle — the meter just is.
   const applyRamDelta = useCallback((aliasOrDelta) => {
     const alias   = typeof aliasOrDelta === 'string' ? aliasOrDelta : null;
     const aliasUp = alias ? alias.toUpperCase() : null;
@@ -526,164 +423,52 @@ export function useEcologicalRam({ appendSystemLog }) {
       ? aliasOrDelta
       : (ECOLOGICAL_DELTA_MAP[aliasOrDelta] ?? -10);
 
-    const prev = ramPctRef.current;
-    const t    = new Date().toLocaleTimeString('en-US', { hour12: false });
-    const lat  = latticeRef.current;
-    const gameActive = !lat.unlocked && !lat.failed && alias !== null;
+    const prev   = ramPctRef.current;
+    const t      = new Date().toLocaleTimeString('en-US', { hour12: false });
+    const flavor = (alias && ECO_FLAVOR[alias]) || ecoFlavorFallback(numericDelta);
+    const next   = Math.max(RAM_FLOOR, Math.min(RAM_CEIL, prev + numericDelta));
+    ramPctRef.current = next;
+    setRamPct(next);
 
-    // ── Branch A: game over (or numeric delta — passive entropy) ──────────────
-    if (!gameActive) {
-      if (lat.failed && !lat.failedAcknowledged && alias !== null) {
-        appendRef.current({ time: t, color: '#660033',
-          msg: `[LATTICE:SEALED] :: the protocol window is closed — this session carries the debt · re$$ill key: inaccessible` });
-        updateLattice({ ...lat, failedAcknowledged: true });
-      }
-      const flavor = (alias && ECO_FLAVOR[alias]) || ecoFlavorFallback(numericDelta);
-      const next   = Math.max(RAM_FLOOR, Math.min(RAM_CEIL, prev + numericDelta));
-      ramPctRef.current = next;
-      setRamPct(next);
-
-      const alreadyAtFloor = prev === RAM_FLOOR;
-      if (numericDelta < 0 && !alreadyAtFloor) {
-        appendRef.current({ time: t, color: ecoRunColor(numericDelta),
-          msg: `[ECO:${numericDelta}] ${aliasUp ?? 'COMPUTE'} // ${flavor} · RAM ${prev}% → ${next}%` });
-      } else if (numericDelta >= 10) {
-        appendRef.current({ time: t, color: '#00FFAA',
-          msg: `[ECO:+${numericDelta}] ${aliasUp ?? 'ECOLOGICAL'} // ${flavor} · RAM ${prev}% → ${next}%` });
-      }
-      if (numericDelta < 0) {
-        const crossedFloor = prev > RAM_FLOOR && next === RAM_FLOOR;
-        const crossedCrit  = !crossedFloor && prev >= CRIT_THRESH && next < CRIT_THRESH;
-        const crossedWarn  = !crossedCrit  && prev >= WARN_THRESH && next < WARN_THRESH;
-        if (alreadyAtFloor) {
-          appendRef.current({ time: t, color: '#FF0088',
-            msg: `[RAM:EXHAUSTED] // planetary commons at minimum threshold · ${next}% floor signal only · the lattice cannot absorb further extraction · run: daly / ecological / gaia_scale` });
-        } else if (crossedFloor) {
-          appendRef.current({ time: t, color: '#FF0088',
-            msg: `[LATTICE:FLOOR] // entropy has claimed all but the carrier signal — RAM ${next}% · the alien turns away · sovereign commons: silent` });
-          offerSanctuary(t);
-        } else if (crossedCrit) {
-          appendRef.current({ time: t, color: '#FF4400',
-            msg: `[CASCADE IMMINENT] // RAM ${next}% · the lattice fractures · extraction without reciprocity is a terminal state · run: daly / ecological / ostrom_game` });
-        } else if (crossedWarn) {
-          appendRef.current({ time: t, color: '#FFD700',
-            msg: `[LATTICE STRAIN] // planetary commons under load — ${next}% remaining · the observer registers imbalance · restore: daly / gaia_scale / replicator` });
-        } else if (numericDelta <= -30) {
-          appendRef.current({ time: t, color: '#AA00FF',
-            msg: `[ENTROPIC CASCADE −${Math.abs(numericDelta)}] // RAM ${next}%${aliasUp ? ` · ledger records: ${aliasUp}` : ''} · planetary debt accumulates` });
-        }
-      }
-      return;
+    const alreadyAtFloor = prev === RAM_FLOOR;
+    if (numericDelta < 0 && !alreadyAtFloor) {
+      appendRef.current({ time: t, color: ecoRunColor(numericDelta),
+        msg: `[ECO:${numericDelta}] ${aliasUp ?? 'COMPUTE'} // ${flavor} · PF ${prev}% → ${next}%` });
+    } else if (numericDelta >= 10) {
+      appendRef.current({ time: t, color: '#00FFAA',
+        msg: `[ECO:+${numericDelta}] ${aliasUp ?? 'ECOLOGICAL'} // ${flavor} · PF ${prev}% → ${next}%` });
     }
-
-    // ── Branch B: game active ─────────────────────────────────────────────────
-    const safeKernel = SAFE_ALIAS_TO_KERNEL[alias];
-    const newAttempt = lat.attemptCount + 1;
-    const remaining  = Math.max(0, 3 - newAttempt);
-
-    if (safeKernel) {
-      // Safe hit — apply normal recharge, record discovery
-      const next = Math.max(RAM_FLOOR, Math.min(RAM_CEIL, prev + numericDelta));
-      ramPctRef.current = next;
-      setRamPct(next);
-
-      const alreadyFound  = lat.foundSafes.includes(safeKernel);
-      const newFoundSafes = alreadyFound ? lat.foundSafes : [...lat.foundSafes, safeKernel];
-      const count         = newFoundSafes.length;
-
-      if (alreadyFound) {
-        appendRef.current({ time: t, color: '#FFD700',
-          msg: `[LATTICE:HONORED] :: ${aliasUp} already registered · ${count} of 3 found · ${remaining} attempt${remaining === 1 ? '' : 's'} remaining` });
-      } else {
-        appendRef.current({ time: t, color: '#00FFAA',
-          msg: `[LATTICE:HONORED] :: ${aliasUp} registered · ${count} of 3 found · ${remaining} attempt${remaining === 1 ? '' : 's'} remaining` });
-      }
-
-      const nowUnlocked = count === 3;
-      const nowFailed   = !nowUnlocked && newAttempt >= 3;
-      if (nowUnlocked) {
-        appendRef.current({ time: t, color: '#00FFAA',
-          msg: `[RE$$ILL:UNLOCKED] :: cryptographic key bound to local node · 'run re$$ill' now available · cooldown 60s` });
-      } else if (nowFailed) {
+    if (numericDelta < 0) {
+      const crossedFloor = prev > RAM_FLOOR && next === RAM_FLOOR;
+      const crossedCrit  = !crossedFloor && prev >= CRIT_THRESH && next < CRIT_THRESH;
+      const crossedWarn  = !crossedCrit  && prev >= WARN_THRESH && next < WARN_THRESH;
+      if (alreadyAtFloor) {
         appendRef.current({ time: t, color: '#FF0088',
-          msg: `[LATTICE:SILENT] :: protocol window closed · re$$ill key sealed · the alien remembers` });
+          msg: `[PF:EXHAUSTED] // planetary commons at minimum threshold · ${next}% floor signal only · restore: daly / ecological / gaia_scale` });
+      } else if (crossedFloor) {
+        appendRef.current({ time: t, color: '#FF0088',
+          msg: `[PF:FLOOR] // entropy has claimed all but the carrier signal — PF ${next}% · the alien turns away · restore: daly / ecological / gaia_scale` });
+      } else if (crossedCrit) {
+        appendRef.current({ time: t, color: '#FF4400',
+          msg: `[CASCADE IMMINENT] // PF ${next}% · the commons fractures · extraction without reciprocity is a terminal state · restore: daly / ecological / ostrom_game` });
+      } else if (crossedWarn) {
+        appendRef.current({ time: t, color: '#FFD700',
+          msg: `[PF STRAIN] // planetary commons under load — ${next}% remaining · the observer registers imbalance · restore: daly / gaia_scale / replicator` });
+      } else if (numericDelta <= -30) {
+        appendRef.current({ time: t, color: '#AA00FF',
+          msg: `[ENTROPIC CASCADE −${Math.abs(numericDelta)}] // PF ${next}%${aliasUp ? ` · ledger records: ${aliasUp}` : ''} · planetary debt accumulates` });
       }
-      updateLattice({ ...lat, attemptCount: newAttempt, foundSafes: newFoundSafes, unlocked: nowUnlocked, failed: nowFailed });
-      return;
     }
-
-    // Non-safe hit — wipe to 0 (bypass floor for this single wipe)
-    ramPctRef.current = 0;
-    setRamPct(0);
-    appendRef.current({ time: t, color: '#FF0088',
-      msg: `[LATTICE:ZEROED] :: ${aliasUp} // extractive compute detected · planetary commons collapsed · ${remaining} attempt${remaining === 1 ? '' : 's'} remaining` });
-    offerSanctuary(t);
-
-    const nowFailed = newAttempt >= 3 && lat.foundSafes.length < 3;
-    if (nowFailed) {
-      appendRef.current({ time: t, color: '#FF0088',
-        msg: `[LATTICE:SILENT] :: protocol window closed · re$$ill key sealed · the alien remembers` });
-    }
-    updateLattice({ ...lat, attemptCount: newAttempt, failed: nowFailed });
-  }, [updateLattice, offerSanctuary]);
-
-  const applyRefill = useCallback(() => {
-    const lat = latticeRef.current;
-    if (!lat.unlocked) return { ok: false, reason: 'locked' };
-    const elapsed = Date.now() - lat.lastRefillAt;
-    if (elapsed < REFILL_COOLDOWN_MS) {
-      return { ok: false, reason: 'cooldown', remainingMs: REFILL_COOLDOWN_MS - elapsed };
-    }
-    ramPctRef.current = RAM_CEIL;
-    setRamPct(RAM_CEIL);
-    updateLattice({ ...lat, lastRefillAt: Date.now() });
-    return { ok: true };
-  }, [updateLattice]);
-
-  // Gate blessing — called when the perihelion passage resolves.
-  // Bypasses lattice lock; full restoration of the commons.
-  const applyAlienBlessing = useCallback(() => {
-    const t = new Date().toLocaleTimeString('en-US', { hour12: false });
-    ramPctRef.current = RAM_CEIL;
-    setRamPct(RAM_CEIL);
-    const lat = latticeRef.current;
-    updateLattice({ ...lat, unlocked: true, lastRefillAt: Date.now() });
-    appendRef.current({ time: t, color: '#d4a82a',
-      msg: `[◉ OBSERVE] :: perihelion passage confirmed · RAM ${RAM_CEIL}% · the commons: unconditionally restored` });
-  }, [updateLattice]);
-
-  // Legacy blessing migration: the perihelion gate is gone, but visitors who
-  // passed it were promised restoration-on-return (the old App.jsx called
-  // applyAlienBlessing whenever gateState === 'passed'). Honor the promise
-  // once, then retire the key — otherwise a returning visitor with depleted
-  // persisted RAM has no recovery path but winning the safe-hunt.
-  useEffect(() => {
-    try {
-      if (globalThis.localStorage?.getItem('scale94.gate') === 'passed') {
-        applyAlienBlessing();
-        globalThis.localStorage.removeItem('scale94.gate');
-      }
-    } catch (_) { /* no storage → no legacy state to honor */ }
-  }, [applyAlienBlessing]);
+  }, []);
 
   const isCritical    = ramPct < CRIT_THRESH;
   const isWarning     = ramPct < WARN_THRESH;
-  const isRefillReady = latticeState.unlocked &&
-    (Date.now() - latticeState.lastRefillAt) >= REFILL_COOLDOWN_MS;
 
-  // ── Backward-compatible exports ────────────────────────────────────────────
-  // applyEcoCost: existing call sites in useCommandDispatch stay unchanged
-  // ecoCost:      used in App.jsx tooltip (title attribute)
   return {
     ramPct,
-    ecoCost:     100 - ramPct,
-    applyEcoCost:  applyRamDelta,   // backward compat alias
+    applyEcoCost:  applyRamDelta,   // backward-compat alias for useCommandDispatch
     applyRamDelta,
-    applyRefill,
-    applyAlienBlessing,
     isCritical,
     isWarning,
-    isRefillReady,
-    latticeState,
   };
 }

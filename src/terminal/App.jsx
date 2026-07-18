@@ -157,7 +157,7 @@ const App = () => {
   const [mobileChrome, setMobileChrome] = useState(true);
   const { appendSystemLog, setSystemLogs, visibleLogs, logRef } = useSystemLog();
   // RAM — ecological entropy model §1.3: cost maps to planetary footprint
-  const { ramPct, ecoCost, applyEcoCost, applyRefill, latticeState, isCritical, isWarning, isRefillReady } = useEcologicalRam({ appendSystemLog });
+  const { ramPct, applyEcoCost, isCritical, isWarning } = useEcologicalRam({ appendSystemLog });
 
   // ── CAS dynamic data derivation ──────────────────────────────────────────────
   // Merge priority (highest → lowest):
@@ -276,7 +276,6 @@ const App = () => {
 
   const mainRef = useRef(null);
   const mobileChromeTimerRef = useRef(null);
-  const terminalInputRef = useRef(null);  // ref to the footer terminal input
   // Abort token for handleKernelClick — invalidates in-flight loads when a
   // new one is started (e.g. user rapidly clicks two kernels in quick succession).
   const loadAbortRef = useRef(null);
@@ -668,7 +667,7 @@ const App = () => {
   const dispatchCommand = useCommandDispatch({
     articles, classifiedSession, transmissionStories, tagIndex, systemArticles, activeTab,
     setSystemLogs, setClassifiedSession, setActiveTab, setSelectedArticle,
-    setSearchFilter, setCurrentPath, setRelicMode, setBreachOpen, setSanctuaryOpen, applyEcoCost, applyRefill, latticeState, ramPct,
+    setSearchFilter, setCurrentPath, setRelicMode, setBreachOpen, setSanctuaryOpen, applyEcoCost,
     setOriginTab, setArchitectThesis, setTagCloudView,
     appendSystemLog, handleNav, handleKernelClick, handleTransmissionSelect,
     loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField, setSpectralBridges, setEnclaveKeys, setProbeNode, setBoneFusions,
@@ -1205,6 +1204,10 @@ const App = () => {
               commandInput={commandInput}
               onCommandInputChange={handleInputChange}
               onCommandKeyDown={handleCommand}
+              suggestions={suggestions}
+              activeSugg={activeSugg}
+              paramHint={paramHint}
+              onSelectSuggestion={executeSuggestion}
               ramPct={ramPct}
               isCritical={isCritical}
               isWarning={isWarning}
@@ -1359,102 +1362,6 @@ const App = () => {
         </Suspense>
       </main>
 
-      <footer className="hidden md:block border-t border-cyan-900/50 p-2 bg-black/90 backdrop-blur-md z-40 shadow-[0_0_15px_rgba(6,182,212,0.1)] [overflow-x:clip] w-full">
-        <div className="max-w-[1600px] mx-auto relative flex items-center gap-2 text-sm font-bold tracking-wide min-w-0 w-full">
-
-          {/* Param hint — floats above the terminal bar when run args are being typed */}
-          {paramHint && suggestions.length === 0 && (
-            <div className="absolute bottom-full left-0 right-0 mb-1 bg-black border border-fuchsia-900/40 shadow-[0_-2px_12px_rgba(217,70,239,0.1)] z-50 rounded-sm">
-              <div className="px-4 py-2 flex items-center gap-2 text-xs font-mono">
-                <span className="text-fuchsia-500/70 shrink-0">{'>'}</span>
-                <span className="text-cyan-900/80 truncate">{commandInput}</span>
-                <span className="text-fuchsia-400/60 tracking-wide">{paramHint}</span>
-              </div>
-            </div>
-          )}
-
-          {/* Autocomplete dropdown — floats above the terminal bar */}
-          {suggestions.length > 0 && (
-            <div className="absolute bottom-full left-0 right-0 mb-1 bg-black border border-cyan-900/60 shadow-[0_-4px_24px_rgba(6,182,212,0.2)] z-50 rounded-sm overflow-hidden">
-              <div className="max-h-[220px] overflow-y-auto custom-scrollbar">
-                {suggestions.map((k, i) => (
-                  <div
-                    key={k.id}
-                    onMouseDown={(e) => { e.preventDefault(); executeSuggestion(k); }}
-                    onTouchEnd={(e) => { e.preventDefault(); executeSuggestion(k); }}
-                    className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer border-b border-cyan-900/20 last:border-0 transition-colors ${i === activeSugg ? 'bg-cyan-900/30 border-l-2 border-l-cyan-400' : 'hover:bg-cyan-900/10 border-l-2 border-l-transparent'}`}
-                  >
-                    <span className={`text-xs font-bold tracking-wider truncate ${i === activeSugg ? 'text-cyan-300' : 'text-cyan-400'}`}>
-                      {i === activeSugg && <span className="text-fuchsia-400 mr-1 animate-pulse">▋</span>}{k.name}
-                    </span>
-                    <span className="text-[10px] text-fuchsia-400/60 truncate ml-auto shrink-0 max-w-[50%]">{k.desc}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="px-4 py-1.5 text-[10px] text-cyan-900/70 tracking-widest border-t border-cyan-900/20 bg-black">
-                ↑↓ navigate · Enter load · Tab complete · Esc dismiss
-              </div>
-            </div>
-          )}
-
-          {/* RAM bar — hidden on kernel home (lives in tty0 there) */}
-          {!(activeTab === 'kernel' && !selectedArticle && !architectThesis && !tagCloudView) && (
-            <div
-              className="hidden md:flex items-center gap-1.5 shrink-0 mr-1"
-              title={`ECO-RAM: ${ramPct}% active // planetary cost: ${ecoCost}/100`}
-            >
-              <span className={`text-[9px] font-black tracking-widest ${isCritical ? 'text-red-500' : isWarning ? 'text-yellow-400/80' : 'text-cyan-900/60'}`}>RAM</span>
-              <div className="flex gap-0">
-                {Array.from({ length: 100 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className={`w-px h-[10px] transition-all duration-700 ${
-                      i < ramPct
-                        ? isCritical  ? 'ram-bar-critical animate-pulse'
-                        : isWarning   ? 'ram-bar-warning'
-                        :               'ram-bar-filled'
-                        :               'ram-bar-empty'
-                    }`}
-                  />
-                ))}
-              </div>
-              <span className={`text-[9px] font-black ${isCritical ? 'text-red-500/70' : isWarning ? 'text-yellow-400/60' : 'text-cyan-900/40'}`}>{ramPct}%</span>
-              {isRefillReady && (
-                <span className="text-[9px] text-fuchsia-400 animate-pulse" title="run re$$ill — lattice refill ready">◆</span>
-              )}
-            </div>
-          )}
-
-          {/* Prompt + input — active on all tabs including kernel home */}
-          <div className="flex items-center gap-2 flex-grow min-w-0 relative">
-            <span className="text-fuchsia-500 hidden md:inline shrink-0" aria-hidden="true">scale@node:~$</span>
-            <span className="text-fuchsia-500 md:hidden shrink-0" aria-hidden="true">~$</span>
-            <label htmlFor="terminal-input" className="sr-only">Enter terminal command</label>
-            <input
-              id="terminal-input"
-              ref={terminalInputRef}
-              type="text"
-              value={commandInput}
-              onChange={handleInputChange}
-              onKeyDown={handleCommand}
-              autoComplete="off"
-              autoCorrect="off"
-              autoCapitalize="none"
-              spellCheck={false}
-              className="bg-transparent border-none outline-none flex-grow text-cyan-400 placeholder-cyan-900/50 font-bold"
-              placeholder="enter command (e.g. load soma-9.0)"
-            />
-            <button
-              onMouseDown={(e) => { e.preventDefault(); submitCommand(); }}
-              onTouchEnd={(e) => { e.preventDefault(); submitCommand(); }}
-              aria-label="Run command"
-              className="shrink-0 px-3 py-0.5 text-xs font-black tracking-widest text-black bg-fuchsia-500 hover:bg-fuchsia-400 active:bg-fuchsia-600 transition-colors duration-150 rounded-sm select-none"
-            >
-              RUN
-            </button>
-          </div>
-        </div>
-      </footer>
       {/* ── Mobile bottom nav (hidden on desktop) ──────────────────────────── */}
       <nav
         aria-label="Mobile navigation"

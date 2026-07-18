@@ -57,7 +57,6 @@ export function useCommandDispatch(ctx) {
       articles, classifiedSession, transmissionStories, tagIndex, systemArticles, activeTab,
       setSystemLogs, setClassifiedSession, setActiveTab, setSelectedArticle,
       setSearchFilter, setCurrentPath, setRelicMode, setBreachOpen, setSanctuaryOpen, applyEcoCost,
-      applyRefill, latticeState, ramPct,
       setOriginTab, setArchitectThesis, setTagCloudView,
       appendSystemLog, handleNav, handleKernelClick, handleTransmissionSelect,
       loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField, setSpectralBridges, setEnclaveKeys, setProbeNode, setBoneFusions,
@@ -80,42 +79,6 @@ export function useCommandDispatch(ctx) {
 
       if (!query) {
         executeCommand(rawCmd, `RUN_FAIL :: No target specified. Try: run vcache_burn | run climate | run bosonic`);
-        return;
-      }
-
-      // ── RAM floor gate ───────────────────────────────────────────────────
-      // RAM_FLOOR = 5 — planetary commons at minimum threshold.
-      // Allow re$$ill through even at floor (it restores RAM, not consumes it).
-      if (ramPct <= 5 && query.trim().toLowerCase() !== 're$$ill') {
-        log(`COMMAND: ${rawCmd}`);
-        log(`RUN_BLOCKED :: [RAM:EXHAUSTED] — planetary commons at minimum threshold · the lattice cannot absorb further extraction · run: daly / ecological / gaia_scale`);
-        return;
-      }
-
-      // ── run re$$ill ──────────────────────────────────────────────────────
-      // The Lattice Protocol cheat. Permanent unlock via localStorage. 60s cooldown.
-      // Intercepted before WASM lookup so the $$ characters don't trip normalization.
-      if (query.trim().toLowerCase() === 're$$ill') {
-        const outcome = applyRefill();
-        log(`COMMAND: ${rawCmd}`);
-        if (outcome.ok) {
-          logs(
-            `  RE$$ILL :: planetary RAM restored to 100%`,
-            `  the cheat is honored · the cooldown begins · 60s until next refill`,
-            `  ◆ the alien smiles — briefly`,
-          );
-        } else if (outcome.reason === 'locked') {
-          logs(
-            `  RE$$ILL_LOCKED :: cryptographic key not bound`,
-            `  find the 3 commons kernels in 3 attempts to unlock`,
-          );
-        } else if (outcome.reason === 'cooldown') {
-          const remaining = Math.ceil(outcome.remainingMs / 1000);
-          logs(
-            `  RE$$ILL_COOLDOWN :: ${remaining}s remaining`,
-            `  the lattice replenishes on geological time`,
-          );
-        }
         return;
       }
 
