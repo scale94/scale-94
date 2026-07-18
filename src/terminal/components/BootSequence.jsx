@@ -11,7 +11,7 @@ const AXIOMS = [
   { name: 'transmission',   field: 'signal',       status: 'ok',        variant: 'normal'      },
   { name: 'entropy',        field: 'threat',       status: 'contained', variant: 'threat'      },
   { name: 'crystalline',    field: 'phase',        status: 'locked',    variant: 'crystalline' },
-  { name: '7.7.7.7.7.7.7', field: 'kernel',       status: 'active',    variant: 'apex'        },
+  { name: '9.9.9',          field: 'kernel',       status: 'active',    variant: 'apex'        },
   { name: 'panopticon',     field: 'surveillance', status: 'indexed',   variant: 'normal'      },
   { name: 'bsky',           field: 'social',       status: 'online',    variant: 'normal'      },
   { name: 'pqc_enclave',    field: 'cryptography', status: 'armed',     variant: 'normal'      },
@@ -30,7 +30,7 @@ const DOCTRINE_RAINBOW = [
   '#88FF00', //  3 yellow-lime — right-upper   (transmission)
   '#00FFAA', //  4 spring     — right/btm jxn  (entropy)
   '#00EEFF', //  5 bright-cyan — bottom-mid    (crystalline)
-  '#0088FF', //  6 sky-blue   — bottom-left    (7.7.7.7.7.7.7)
+  '#0088FF', //  6 sky-blue   — bottom-left    (9.9.9)
   '#0033FF', //  7 deep-blue  — btm/left jxn   (panopticon)
   '#4400FF', //  8 indigo     — left-mid        (bsky)
   '#AA00FF', //  9 violet     — left-upper      (pqc_enclave)
@@ -196,6 +196,11 @@ const BootSequence = ({ onDone }) => {
             borderColor:  `${frameColor}38`,
             boxShadow:    `0 0 18px ${frameColor}44, 0 0 56px ${frameColor}18`,
             transition:   'border-color 0.35s ease, box-shadow 0.35s ease',
+            // Promote to its own compositor layer so the per-rAF rotate() never
+            // fights the box-shadow/border-color repaints — without this the two
+            // share a paint pass and the spin visibly stutters on high-refresh panels.
+            willChange:   'transform',
+            backfaceVisibility: 'hidden',
           }}
         >
           {/* Rainbow perimeter — fills clockwise: top → right → bottom → left
@@ -255,7 +260,7 @@ const BootSequence = ({ onDone }) => {
                 seraphine
               </div>
               <div className="text-xs font-black tracking-[0.18em] mt-1" style={{ color: 'rgba(255,215,0,0.5)' }}>
-                7.7.7.7.7.7.7-rust kernel
+                9.9.9-rust kernel
               </div>
             </div>
           </div>

@@ -1,9 +1,12 @@
 import React, { useState, useRef, useCallback, useEffect, useReducer } from 'react';
 import { createPortal } from 'react-dom';
-import { Database, GitBranch, Shield, Cpu } from 'lucide-react';
+import { Database, GitBranch, Cpu } from 'lucide-react';
 import { getSpine, subscribeSpine, missingVertebrae } from '../quintessence/spineStore';
 import { subscribe as subscribeBus } from '../../observatory/observatoryBus';
 import { loadSealedArtifact, clearSealedArtifact } from '../quintessence/sealedArtifact';
+import MercuryTerminator from '../components/MercuryTerminator';
+import { useCompileFrontier } from '../components/useCompileFrontier';
+import { legendLine } from '../components/frontier';
 
 // ── Mini rotating sphere hero canvas ────────────────────────────────────────
 function useMiniSphere(canvasRef, fireRef) {
@@ -135,43 +138,6 @@ function useMiniSphere(canvasRef, fireRef) {
   }, [canvasRef, fireRef]);
 }
 
-// ── Lyapunov sparkline canvas ───────────────────────────────────────────────
-function useLyapunovSparkline(canvasRef) {
-  const bufRef = useRef(new Float32Array(60).fill(0));
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const W = 120, H = 24;
-    let raf, frame = 0;
-    const draw = () => {
-      frame++;
-      if (frame % 3 === 0) {
-        const buf = bufRef.current;
-        for (let i = 0; i < buf.length - 1; i++) buf[i] = buf[i + 1];
-        buf[buf.length - 1] = Math.sin(frame * 0.04) * 0.4 + Math.sin(frame * 0.11) * 0.3 + Math.sin(frame * 0.023) * 0.3;
-      }
-      ctx.clearRect(0, 0, W, H);
-      const buf = bufRef.current;
-      ctx.beginPath();
-      for (let i = 0; i < buf.length; i++) {
-        const x = (i / (buf.length - 1)) * W;
-        const y = H / 2 - buf[i] * (H * 0.4);
-        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-      }
-      ctx.strokeStyle = '#06b6d4';
-      ctx.lineWidth = 1.5;
-      ctx.shadowColor = 'rgba(6,182,212,0.6)';
-      ctx.shadowBlur = 4;
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-      raf = requestAnimationFrame(draw);
-    };
-    raf = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(raf);
-  }, [canvasRef]);
-}
-
 // ── ATMOSPHERIC-ENTROPY climate simulation — fires on SOMA-5.5 ▶ press ──────
 function runClimateSim(appendSystemLog) {
   const now   = () => new Date().toLocaleTimeString('en-US', { hour12: false });
@@ -216,17 +182,29 @@ const ramColor = (pct) => {
   return '#FF0088';                // magenta     — floor signal
 };
 
-const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, loadingKernel, visibleLogs = [], logRef, commandInput = '', onCommandInputChange, onCommandKeyDown, ramPct = 0, isCritical = false, isWarning = false, appendSystemLog, mobileChrome = true, mobileAutoRun, bootDone = false, onNavigateToMercury }) => {
+const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, loadingKernel, visibleLogs = [], logRef, commandInput = '', onCommandInputChange, onCommandKeyDown, suggestions = [], activeSugg = -1, paramHint = '', onSelectSuggestion, ramPct = 0, isCritical = false, isWarning = false, appendSystemLog, mobileChrome = true, mobileAutoRun, bootDone = false, onNavigateToMercury }) => {
   // ── Mini sphere + sparkline canvas refs ───────────────────────────────────
   // Two sphere refs: one for the mobile canvas (below title), one for desktop
-  const sphereCanvasRef        = useRef(null); // desktop
   const sphereCanvasMobileRef  = useRef(null); // mobile
-  const sparklineCanvasRef     = useRef(null);
   // sphereFireRef: write { ts: Date.now() } to trigger a burst on both spheres
   const sphereFireRef = useRef(null);
-  useMiniSphere(sphereCanvasRef,       sphereFireRef);
   useMiniSphere(sphereCanvasMobileRef, sphereFireRef);
-  useLyapunovSparkline(sparklineCanvasRef);
+  const { twilight, day, loaded, run, flare } = useCompileFrontier(kernelBuilds.length);
+
+  // Desktop-exclusive (spec §9, non-goal "a mobile shader"): a CSS `hidden md:flex`
+  // only display:none's the WebGL Mercury — React still mounts it and boots a webgl
+  // context + rAF loop on the invisible canvas. Gate the *mount* on the md breakpoint
+  // (768px), tracking resize so crossing the breakpoint mounts/unmounts it.
+  const [isDesktop, setIsDesktop] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(min-width: 768px)');
+    const onChange = () => setIsDesktop(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
 
   // ── Quintessence state (spec §5) — the reserved slot + tty0 monument ───────
   // The reliquary lives on Mercury now; the dashboard only reflects its state.
@@ -604,26 +582,22 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
           className="block md:hidden mt-3"
           style={{ width: 120, height: 120 }} />
       </div>
-      {/* Mobile badges — shown below title on mobile only */}
-      <div className="flex items-center gap-2 mt-2 flex-wrap md:hidden">
-        <div className="flex items-center gap-2 text-xs border border-cyan-500/30 px-3 py-1 bg-cyan-900/10 text-cyan-400 rounded-sm font-mono">
-          <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(34,211,238,1)]"></div> operational
-        </div>
-        <div className="flex items-center gap-2 text-xs border border-[#39ff14]/30 px-3 py-1 bg-green-900/10 text-[#39ff14] rounded-sm shadow-[0_0_6px_rgba(57,255,20,0.15)] font-mono">
-          <Shield className="w-3 h-3" /> leviathan: active
-        </div>
-      </div>
-      {/* Desktop: sphere on top, badges below */}
+      {/* Desktop: Mercury — the compile frontier — over its living legend line */}
       <div className="hidden md:flex flex-col items-end gap-2 shrink-0">
-        <canvas ref={sphereCanvasRef} width={180} height={180} style={{ width: 180, height: 180 }} />
-        <div className="flex items-center gap-3 flex-wrap justify-end">
-          <div className="flex items-center gap-2 text-xs border border-cyan-500/30 px-3 py-1 bg-cyan-900/10 text-cyan-400 rounded-sm">
-            <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(34,211,238,1)]"></div> operational
-            <canvas ref={sparklineCanvasRef} width={120} height={24} className="ml-2" style={{ width: 120, height: 24 }} />
-          </div>
-          <div className="flex items-center gap-2 text-xs border border-[#39ff14]/30 px-3 py-1 bg-green-900/10 text-[#39ff14] rounded-sm shadow-[0_0_6px_rgba(57,255,20,0.15)]">
-            <Shield className="w-3 h-3" /> leviathan: active
-          </div>
+        {isDesktop && (
+          <MercuryTerminator
+            twilight={twilight}
+            day={day}
+            flare={flare}
+            size={180}
+            onClick={toMercury}
+            title="☿ mercury — the compile frontier"
+            ariaLabel="Mercury — the compile frontier; click to open Mercury"
+          />
+        )}
+        <div className="font-mono text-[10px] tracking-[0.15em] text-right select-none"
+             style={{ color: 'rgba(232,210,138,0.55)' }}>
+          {legendLine({ loaded, run })}
         </div>
       </div>
     </div>
@@ -938,9 +912,9 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
               onTouchEnd={handleTtyHeaderTouchEnd}
               onTouchCancel={handleTtyHeaderTouchEnd}
             >
-              {/* RAM bar — left side of tty0 header */}
-              <div className="flex items-center gap-1.5 shrink-0" title={`ECO-RAM: ${ramPct}% active`}>
-                <span className="text-[9px] font-black tracking-widest" style={{ color: ramColor(ramPct), transition: 'color 1s ease' }}>RAM</span>
+              {/* PF bar — left side of tty0 header */}
+              <div className="flex items-center gap-1.5 shrink-0" title={`PF: ${ramPct}% available`}>
+                <span className="text-[9px] font-black tracking-widest" style={{ color: ramColor(ramPct), transition: 'color 1s ease' }}>PF</span>
                 <div className="flex gap-0">
                   {Array.from({ length: 100 }).map((_, i) => {
                     const filled = i < ramPct;
@@ -1006,7 +980,39 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
             </div>
 
             {/* Desktop inline command input */}
-            <div className="hidden md:flex items-center gap-2 px-4 py-2 border-t border-cyan-900/20 shrink-0 bg-black/60">
+            <div className="hidden md:flex items-center gap-2 px-4 py-2 border-t border-cyan-900/20 shrink-0 bg-black/60 relative">
+              {/* Param hint — floats above the tty0 input while run args are typed */}
+              {paramHint && suggestions.length === 0 && (
+                <div className="absolute bottom-full left-0 right-0 mb-1 bg-black border border-fuchsia-900/40 shadow-[0_-2px_12px_rgba(217,70,239,0.1)] z-50 rounded-sm">
+                  <div className="px-4 py-2 flex items-center gap-2 text-xs font-mono">
+                    <span className="text-fuchsia-500/70 shrink-0">{'>'}</span>
+                    <span className="text-cyan-900/80 truncate">{commandInput}</span>
+                    <span className="text-fuchsia-400/60 tracking-wide">{paramHint}</span>
+                  </div>
+                </div>
+              )}
+              {/* Autocomplete dropdown — floats above the tty0 input */}
+              {suggestions.length > 0 && (
+                <div className="absolute bottom-full left-0 right-0 mb-1 bg-black border border-cyan-900/60 shadow-[0_-4px_24px_rgba(6,182,212,0.2)] z-50 rounded-sm overflow-hidden">
+                  <div className="max-h-[220px] overflow-y-auto custom-scrollbar">
+                    {suggestions.map((k, i) => (
+                      <div
+                        key={k.id}
+                        onMouseDown={(e) => { e.preventDefault(); onSelectSuggestion?.(k); }}
+                        className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer border-b border-cyan-900/20 last:border-0 transition-colors ${i === activeSugg ? 'bg-cyan-900/30 border-l-2 border-l-cyan-400' : 'hover:bg-cyan-900/10 border-l-2 border-l-transparent'}`}
+                      >
+                        <span className={`text-xs font-bold tracking-wider truncate ${i === activeSugg ? 'text-cyan-300' : 'text-cyan-400'}`}>
+                          {i === activeSugg && <span className="text-fuchsia-400 mr-1 animate-pulse">▋</span>}{k.name}
+                        </span>
+                        <span className="text-[10px] text-fuchsia-400/60 truncate ml-auto shrink-0 max-w-[50%]">{k.desc}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="px-4 py-1.5 text-[10px] text-cyan-900/70 tracking-widest border-t border-cyan-900/20 bg-black">
+                    ↑↓ navigate · Enter load · Tab complete · Esc dismiss
+                  </div>
+                </div>
+              )}
               <span
                 className="text-xs font-black tracking-widest shrink-0 select-none text-transparent bg-clip-text"
                 style={isCritical ? {
