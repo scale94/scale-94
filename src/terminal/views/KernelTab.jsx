@@ -56,14 +56,13 @@ const ramColor = (pct) => {
 };
 
 const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, loadingKernel, visibleLogs = [], logRef, commandInput = '', onCommandInputChange, onCommandKeyDown, suggestions = [], activeSugg = -1, paramHint = '', onSelectSuggestion, ramPct = 0, isCritical = false, isWarning = false, appendSystemLog, mobileChrome = true, mobileAutoRun, bootDone = false, onNavigateToMercury }) => {
-  // ── Mini sphere + sparkline canvas refs ───────────────────────────────────
-  // Two sphere refs: one for the mobile canvas (below title), one for desktop
   const { twilight, day, loaded, run, flare } = useCompileFrontier(kernelBuilds.length);
 
-  // Desktop-exclusive (spec §9, non-goal "a mobile shader"): a CSS `hidden md:flex`
-  // only display:none's the WebGL Mercury — React still mounts it and boots a webgl
-  // context + rAF loop on the invisible canvas. Gate the *mount* on the md breakpoint
-  // (768px), tracking resize so crossing the breakpoint mounts/unmounts it.
+  // isDesktop gates which single MercuryTerminator WebGL context is mounted:
+  // the mobile instance renders on `!isDesktop &&`, the desktop instance on
+  // `isDesktop &&`, so exactly one ever exists. Tracks the md breakpoint
+  // (768px) via matchMedia, with a resize listener so crossing the breakpoint
+  // unmounts one instance and mounts the other.
   const [isDesktop, setIsDesktop] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
   );
