@@ -11,136 +11,6 @@ import { unlockMercuryKernel } from '../mercury/mercuryKernelUnlock';
 import { useCompileFrontier } from '../components/useCompileFrontier';
 import { legendLine } from '../components/frontier';
 
-// ── Mini rotating sphere hero canvas ────────────────────────────────────────
-function useMiniSphere(canvasRef, fireRef) {
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const W = 180, H = 180;
-    const cx = W / 2, cy = H / 2, R = 65;
-    const colors = ['#39ff14', '#06b6d4', '#d946ef'];
-    const dots = Array.from({ length: 12 }, (_, i) => {
-      const phi = Math.acos(1 - 2 * (i + 0.5) / 12);
-      const theta = Math.PI * (1 + Math.sqrt(5)) * i;
-      return { phi, theta, energy: 0 };
-    });
-    // Burst particles spawned on fire
-    const particles = [];
-    let raf, lastFireTs = 0;
-    const draw = (t) => {
-      ctx.clearRect(0, 0, W, H);
-      const rot = t * 0.0008;
-
-      // Check for fire trigger
-      const fire = fireRef?.current;
-      if (fire && fire.ts > lastFireTs) {
-        lastFireTs = fire.ts;
-        // Energize all dots in a staggered cascade
-        dots.forEach((d, idx) => { d.energy = 1.0 - idx * 0.055; });
-        // Spawn particles from each dot's projected position (like feigenbaum tab)
-        dots.forEach((d, i) => {
-          const sp = Math.sin(d.phi);
-          const x3 = sp * Math.cos(d.theta + t * 0.0008);
-          const z3 = sp * Math.sin(d.theta + t * 0.0008);
-          const y3 = Math.cos(d.phi);
-          const scale = 1 / (1.8 - z3 * 0.5);
-          const sx = cx + x3 * R * scale;
-          const sy = cy + y3 * R * scale;
-          const col = colors[i % 3];
-          const burst = z3 > -0.3 ? 6 : 2; // more from front-facing dots
-          for (let p = 0; p < burst; p++) {
-            const angle = Math.random() * Math.PI * 2;
-            const speed = 0.6 + Math.random() * 2.2;
-            particles.push({
-              x: sx, y: sy,
-              vx: Math.cos(angle) * speed,
-              vy: Math.sin(angle) * speed,
-              life: 0.7 + Math.random() * 0.3,
-              maxLife: 0.7 + Math.random() * 0.3,
-              size: 1.2 + Math.random() * 2.0,
-              col,
-            });
-          }
-        });
-        // Cap pool to prevent runaway growth
-        if (particles.length > 300) particles.splice(0, particles.length - 300);
-      }
-
-      // Wireframe ring — glow stronger when any dot has energy
-      const maxEnergy = Math.max(0, ...dots.map(d => d.energy));
-      const ringAlpha = 0.12 + maxEnergy * 0.25;
-      ctx.beginPath();
-      ctx.arc(cx, cy, R, 0, Math.PI * 2);
-      ctx.strokeStyle = `rgba(6,182,212,${ringAlpha.toFixed(3)})`;
-      ctx.lineWidth = 1 + maxEnergy * 1.5;
-      ctx.stroke();
-      // Equator ellipse
-      ctx.beginPath();
-      for (let a = 0; a <= Math.PI * 2; a += 0.05) {
-        const x = cx + R * Math.cos(a);
-        const y = cy + R * 0.35 * Math.sin(a);
-        a === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-      }
-      ctx.strokeStyle = `rgba(57,255,20,${(0.08 + maxEnergy * 0.12).toFixed(3)})`;
-      ctx.stroke();
-      // Burst particles drawn first — dots render on top so they're always visible
-      for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i];
-        p.x += p.vx;
-        p.y += p.vy;
-        p.vx *= 0.96;
-        p.vy *= 0.96;
-        p.life -= 0.018;
-        if (p.life <= 0) { particles.splice(i, 1); continue; }
-        const lifeRatio = p.life / (p.maxLife ?? 1.0);
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, (p.size ?? 1.5) * lifeRatio, 0, Math.PI * 2);
-        ctx.fillStyle = p.col;
-        ctx.globalAlpha = lifeRatio * 0.75;
-        ctx.fill();
-        ctx.globalAlpha = 1;
-      }
-      // Dots — halos first pass (atmosphere), then cores on top
-      dots.forEach((d, i) => {
-        const sp = Math.sin(d.phi);
-        const x3 = sp * Math.cos(d.theta + rot);
-        const z3 = sp * Math.sin(d.theta + rot);
-        const y3 = Math.cos(d.phi);
-        const scale = 1 / (1.8 - z3 * 0.5);
-        const sx = cx + x3 * R * scale;
-        const sy = cy + y3 * R * scale;
-        const baseR = (2.5 + scale * 2) * (0.6 + z3 * 0.4);
-        const r = baseR + d.energy * 3;
-        const col = colors[i % 3];
-        // Subtle halo — kept small so dot core stays distinct
-        if (d.energy > 0.05) {
-          const haloR = r + d.energy * 6;
-          ctx.beginPath();
-          ctx.arc(sx, sy, haloR, 0, Math.PI * 2);
-          ctx.fillStyle = col;
-          ctx.globalAlpha = d.energy * 0.12;
-          ctx.fill();
-          ctx.globalAlpha = 1;
-        }
-        // Dot core — always drawn last so it's never covered
-        ctx.beginPath();
-        ctx.arc(sx, sy, Math.max(1, r), 0, Math.PI * 2);
-        ctx.fillStyle = col;
-        ctx.globalAlpha = 0.5 + z3 * 0.5 + d.energy * 0.5;
-        ctx.fill();
-        ctx.globalAlpha = 1;
-        // Decay energy
-        d.energy *= 0.96;
-        if (d.energy < 0.01) d.energy = 0;
-      });
-      raf = requestAnimationFrame(draw);
-    };
-    raf = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(raf);
-  }, [canvasRef, fireRef]);
-}
-
 // ── ATMOSPHERIC-ENTROPY climate simulation — fires on SOMA-5.5 ▶ press ──────
 function runClimateSim(appendSystemLog) {
   const now   = () => new Date().toLocaleTimeString('en-US', { hour12: false });
@@ -186,18 +56,13 @@ const ramColor = (pct) => {
 };
 
 const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, loadingKernel, visibleLogs = [], logRef, commandInput = '', onCommandInputChange, onCommandKeyDown, suggestions = [], activeSugg = -1, paramHint = '', onSelectSuggestion, ramPct = 0, isCritical = false, isWarning = false, appendSystemLog, mobileChrome = true, mobileAutoRun, bootDone = false, onNavigateToMercury }) => {
-  // ── Mini sphere + sparkline canvas refs ───────────────────────────────────
-  // Two sphere refs: one for the mobile canvas (below title), one for desktop
-  const sphereCanvasMobileRef  = useRef(null); // mobile
-  // sphereFireRef: write { ts: Date.now() } to trigger a burst on both spheres
-  const sphereFireRef = useRef(null);
-  useMiniSphere(sphereCanvasMobileRef, sphereFireRef);
   const { twilight, day, loaded, run, flare } = useCompileFrontier(kernelBuilds.length);
 
-  // Desktop-exclusive (spec §9, non-goal "a mobile shader"): a CSS `hidden md:flex`
-  // only display:none's the WebGL Mercury — React still mounts it and boots a webgl
-  // context + rAF loop on the invisible canvas. Gate the *mount* on the md breakpoint
-  // (768px), tracking resize so crossing the breakpoint mounts/unmounts it.
+  // isDesktop gates which single MercuryTerminator WebGL context is mounted:
+  // the mobile instance renders on `!isDesktop &&`, the desktop instance on
+  // `isDesktop &&`, so exactly one ever exists. Tracks the md breakpoint
+  // (768px) via matchMedia, with a resize listener so crossing the breakpoint
+  // unmounts one instance and mounts the other.
   const [isDesktop, setIsDesktop] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
   );
@@ -229,12 +94,12 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
   ];
   const missing = missingVertebrae();   // trend/council/phase only
   const armed   = missing.length === 0; // the altar will accept ignition
-  const toMercury = () => { sphereFireRef.current = { ts: Date.now() }; onNavigateToMercury && onNavigateToMercury(); };
+  const toMercury = () => { onNavigateToMercury && onNavigateToMercury(); };
   // Developer-Options gesture: 7 taps on Mercury root the bypass (systemless);
   // a lone tap still navigates. Countdown + unlock toast render beside the planet.
   const mercuryTaps = useSevenTaps({
     onSingleTap: toMercury,
-    onUnlock: () => { unlockMercuryKernel(); sphereFireRef.current = { ts: Date.now() }; },
+    onUnlock: () => { unlockMercuryKernel(); },
   });
   // Fish Scale is the genome — the one pinned exhibition piece atop the panel.
   const fishScale = kernelBuilds.find(k => k.id === 'FISH-SCALE-11.1')
@@ -264,7 +129,6 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
     } else if (prevKernelRef.current) {
       // Signal stop — consumed by onAnimationIteration so the icon lands at 0°
       pendingStopRef.current = true;
-      sphereFireRef.current = { ts: Date.now() };
       // Safety fallback: 2 full spins max in case the iteration event misses
       spinTimerRef.current = setTimeout(() => {
         if (pendingStopRef.current) {
@@ -586,10 +450,23 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
             <span className="sk-quint-thesis--emph">DOES NOT YET EXIST AS KNOWLEDGE</span>
           </div>
         </div>
-        {/* Mobile sphere — sits below the title, hidden on desktop */}
-        <canvas ref={sphereCanvasMobileRef} width={180} height={180}
-          className="block md:hidden mt-3"
-          style={{ width: 120, height: 120 }} />
+        {/* Mobile Mercury — same compile-frontier state and tap gesture as
+         * desktop's sphere, mounted only below the md breakpoint so exactly
+         * one WebGL context ever exists. */}
+        {!isDesktop && (
+          <div className="relative mt-3" style={{ width: 120 }}>
+            <MercuryTerminator
+              twilight={twilight}
+              day={day}
+              flare={flare}
+              size={120}
+              onClick={mercuryTaps.onTap}
+              title="☿ mercury — the compile frontier"
+              ariaLabel="Mercury — the compile frontier; tap to open Mercury, 7 taps for hidden bypass"
+            />
+            <MercuryTapToast toast={mercuryTaps.toast} onDone={mercuryTaps.clearToast} />
+          </div>
+        )}
       </div>
       {/* Desktop: Mercury — the compile frontier — over its living legend line */}
       <div className="hidden md:flex flex-col items-end gap-2 shrink-0 relative">
@@ -729,7 +606,6 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
                   key={mod.id}
                   onClick={() => {
                     setIsFading(true);
-                    sphereFireRef.current = { ts: Date.now() };
                     handleKernelClick && handleKernelClick(mod);
                     if (mobileAutoRun && window.matchMedia('(max-width: 767px)').matches) {
                       setTimeout(() => mobileAutoRun(mod.id), 900);
@@ -760,7 +636,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
                   </div>
                   <div className="flex items-center gap-1 shrink-0 ml-auto">
                     <div
-                      onClick={(e) => { e.stopPropagation(); setIsFading(true); sphereFireRef.current = { ts: Date.now() }; handleKernelClick && handleKernelClick(mod); }}
+                      onClick={(e) => { e.stopPropagation(); setIsFading(true); handleKernelClick && handleKernelClick(mod); }}
                       className={`text-[9px] font-bold px-1.5 py-0.5 rounded-sm border tracking-widest whitespace-nowrap transition-all cursor-pointer ${isLoading ? 'bg-cyan-900/30 border-cyan-400 text-cyan-300' : 'bg-transparent border-cyan-500/60 text-cyan-500 hover:bg-cyan-500/10 hover:border-cyan-400 hover:text-cyan-300'}`}
                     >
                       {isLoading ? '...' : '[load]'}
@@ -769,7 +645,6 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
                       aria-label={`Run ${mod.name}`}
                       onClick={(e) => {
                         e.stopPropagation();
-                        sphereFireRef.current = { ts: Date.now() };
                         mobileAutoRun && mobileAutoRun(mod.id);
                         resetTtyFade();
                         setFiringKernelId(mod.id);
@@ -979,7 +854,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
                   <span className={`mr-2 ${l.intrusion ? 'text-red-400/70' : l.rust ? 'text-cyan-300' : 'text-cyan-500'}`} style={l.color ? { color: 'rgb(103 232 249 / 0.7)' } : undefined}>{l.time}</span>– {l.msg}
                   {l.btn && (
                     <button
-                      onClick={() => { sphereFireRef.current = { ts: Date.now() }; mobileAutoRun && mobileAutoRun(l.btn.cmd); resetTtyFade(); }}
+                      onClick={() => { mobileAutoRun && mobileAutoRun(l.btn.cmd); resetTtyFade(); }}
                       className="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-sm border border-fuchsia-500/60 text-fuchsia-400 bg-transparent hover:bg-fuchsia-500/10 hover:border-fuchsia-400 active:scale-95 tracking-widest whitespace-nowrap transition-all"
                     >
                       [{l.btn.label}]
