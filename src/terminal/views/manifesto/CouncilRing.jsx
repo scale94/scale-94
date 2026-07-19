@@ -184,6 +184,45 @@ export default function CouncilRing() {
           )}
         </div>
 
+        {/* Mobile roster — node labels are suppressed on the ring itself (8-9px
+            SVG text clips/overlaps between closely-spaced touch targets), so
+            the full set of 16 names surfaces here instead. Tapping a row is
+            the same act as tapping its node (arm/fire). */}
+        {isMobile && (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gridTemplateRows: 'repeat(8, auto)',
+            gridAutoFlow: 'column',
+            gap: '2px 10px',
+            padding: '10px 14px',
+            borderTop: '1px solid rgba(120,140,200,0.12)',
+          }}>
+            {seated.map(m => {
+              const active = collider.mode === 'ARMED'
+                ? collider.armedMind?.dimIndex === m.dimIndex
+                : collider.activePairIds.includes(m.dimIndex);
+              return (
+                <div
+                  key={m.dimIndex}
+                  onClick={() => handleSelect(m)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
+                    fontFamily: MONO, fontSize: 10, lineHeight: '18px',
+                    color: active ? '#FFD700' : '#e8e8f0',
+                    borderLeft: `2px solid ${m.casteStroke}66`, paddingLeft: 6,
+                    overflow: 'hidden', whiteSpace: 'nowrap',
+                  }}
+                >
+                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: active ? '#FFD700' : m.hue, flexShrink: 0 }} />
+                  <span style={{ opacity: 0.5, flexShrink: 0 }}>{String(m.dimIndex).padStart(2, '0')}</span>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.anchorName}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {/* Narrow viewports: sidebars stack below the torus (spec §3) */}
         {showSidebars && isNarrow && (
           <div style={{ display: 'flex', gap: 12, padding: '0 12px 12px' }}>
