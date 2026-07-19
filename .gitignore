@@ -59,3 +59,5 @@ content/rust_kernels/pkg/
 # Brainstorm visual companion
 .superpowers/
 .claude/worktrees/
+# Personal bsky archive — never ship
+archive/

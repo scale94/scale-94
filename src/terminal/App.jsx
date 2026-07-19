@@ -14,7 +14,7 @@ import AmbientParticles from './components/AmbientParticles';
 
 // Data — static (authored, always bundled)
 import kernelBuilds    from './data/kernelBuilds';
-import kernelAxioms    from './data/kernelAxioms';       // the 7 axiomatic_core laws
+import kernelAxioms    from './data/kernelAxioms';       // the 9 axiomatic_core laws
 import _somaArticles   from './data/articles.soma';   // hand-curated soma kernel entries
 import _miscArticles   from './data/articles.misc';   // hand-curated misc/fiction entries
 import autoArticles    from './data/loadArticles';    // Vite glob .md stubs (dev fallback)
