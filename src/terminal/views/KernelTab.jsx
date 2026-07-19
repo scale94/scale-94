@@ -586,10 +586,23 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
             <span className="sk-quint-thesis--emph">DOES NOT YET EXIST AS KNOWLEDGE</span>
           </div>
         </div>
-        {/* Mobile sphere — sits below the title, hidden on desktop */}
-        <canvas ref={sphereCanvasMobileRef} width={180} height={180}
-          className="block md:hidden mt-3"
-          style={{ width: 120, height: 120 }} />
+        {/* Mobile Mercury — same compile-frontier state and tap gesture as
+         * desktop's sphere, mounted only below the md breakpoint so exactly
+         * one WebGL context ever exists. */}
+        {!isDesktop && (
+          <div className="relative mt-3" style={{ width: 120 }}>
+            <MercuryTerminator
+              twilight={twilight}
+              day={day}
+              flare={flare}
+              size={120}
+              onClick={mercuryTaps.onTap}
+              title="☿ mercury — the compile frontier"
+              ariaLabel="Mercury — the compile frontier; tap to open Mercury, 7 taps for hidden bypass"
+            />
+            <MercuryTapToast toast={mercuryTaps.toast} onDone={mercuryTaps.clearToast} />
+          </div>
+        )}
       </div>
       {/* Desktop: Mercury — the compile frontier — over its living legend line */}
       <div className="hidden md:flex flex-col items-end gap-2 shrink-0 relative">
