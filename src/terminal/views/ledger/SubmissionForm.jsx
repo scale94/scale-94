@@ -4,6 +4,7 @@ import { PARAM_RANGES, VALID_DEPENDENCIES, validateSubmission } from '../../ledg
 import RiverPulse from './RiverPulse';
 import { paramSeverity, discreteSeverity } from './severityEngine';
 import { emit as emitObs, getTotals } from '../../../observatory/observatoryBus';
+import { AUDIT_PRESETS } from '../../ledger/auditPresets';
 
 const DEPENDENCY_LABELS = {
   sovereign: 'SOVEREIGN — user-supplied measurements',
@@ -102,6 +103,24 @@ export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch,
     setErrors([]);
   }, [verdicts]);
 
+  const applyPreset = useCallback((preset) => {
+    setForm(prev => ({
+      ...prev,
+      lat: preset.lat,
+      lon: preset.lon,
+      siteName: preset.siteName,
+      temp: preset.temp,
+      do: preset.do,
+      bod: preset.bod,
+      dt: preset.dt,
+      epi: preset.epi,
+      nitrate: preset.nitrate,
+      flow: preset.flow,
+      dependency: 'attested',
+    }));
+    setErrors([]);
+  }, []);
+
   const handleSubmit = useCallback(() => {
     // Catch empty fields BEFORE Number() converts '' → 0
     const emptyErrors = [];
@@ -146,6 +165,24 @@ export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch,
   return (
     <div className="space-y-6" ref={formRef}>
       <style>{SEV_DOT_STYLES}</style>
+      {/* Audit Presets */}
+      <div>
+        <div className="text-[10px] uppercase tracking-[3px] text-teal-500 font-mono mb-3">Presets</div>
+        <div className="flex flex-wrap gap-2">
+          {AUDIT_PRESETS.map(preset => (
+            <button
+              key={preset.key}
+              type="button"
+              onClick={() => applyPreset(preset)}
+              className="font-mono text-[10px] uppercase tracking-widest px-3 py-1.5 rounded-full border transition-colors hover:bg-white/5"
+              style={{ borderColor: SEV_DOT_COLORS[preset.tone], color: SEV_DOT_COLORS[preset.tone] }}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Coordinates */}
       <div>
         <div className="text-[10px] uppercase tracking-[3px] text-teal-500 font-mono mb-3">Coordinates</div>
