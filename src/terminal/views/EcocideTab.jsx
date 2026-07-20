@@ -299,6 +299,8 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
   const prevDeadRef     = useRef(0);
   const prevPhaseRef    = useRef(PH.HOMEOSTASIS);
   const deadFracRef     = useRef(0);
+  const vitalityRef     = useRef(0);     // signed vitality v ∈ [−1, +1]
+  const bloomFracRef    = useRef(0);     // max(0, v) — the heal track
   const exergyNormRef   = useRef(0);
   const sargHistoryRef  = useRef([]);          // SARG sparkline buffer (80 readings @ 10 Hz = 8 s)
   const obsPhaseRef     = useRef(null);        // observatory: witness phase transitions, not the 10 Hz tick
@@ -314,6 +316,11 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
   const [uiSarg,       setUiSarg]       = useState({ sarg: 10.0, coherence: 1.0, activated: 0, violated: 0 });
   const [uiMetrics,    setUiMetrics]    = useState({ metabolicFat: 0, trophicV: 0, deadFrac: 0, exergyNorm: 0 });
   const [growthRate,   setGrowthRate]   = useState(2.5);
+  // ── Protection levers (0..1) — inert until the degrowth gate opens ──────────
+  const [toxicityCap, setToxicityCap] = useState(0.0);
+  const [sanctuary,   setSanctuary]   = useState(0.0);
+  const [restoration, setRestoration] = useState(0.0);
+  const [nativeBio,   setNativeBio]   = useState(0.0);
   const [wasmReady,    setWasmReady]    = useState(false);
   const [mandateActive,setMandateActive]= useState(false);
   const [penaltyLevel, setPenaltyLevel] = useState(0);
@@ -327,6 +334,15 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
   const wasmStuckRef   = useRef(false);  // true if WASM state is stale (bypasses to JS integrator)
   const firstTickRef   = useRef(true);   // detect stale WASM on first tick only
   useEffect(() => { growthRateRef.current = growthRate; }, [growthRate]);
+
+  const toxicityCapRef = useRef(0.0);
+  const sanctuaryRef   = useRef(0.0);
+  const restorationRef = useRef(0.0);
+  const nativeBioRef   = useRef(0.0);
+  useEffect(() => { toxicityCapRef.current = toxicityCap; }, [toxicityCap]);
+  useEffect(() => { sanctuaryRef.current   = sanctuary;   }, [sanctuary]);
+  useEffect(() => { restorationRef.current = restoration; }, [restoration]);
+  useEffect(() => { nativeBioRef.current   = nativeBio;   }, [nativeBio]);
 
   // ── TRANSMISSION healing signal — Inverse Extinction Engine coupling ──────
   const [healingIdx, setHealingIdx] = useState(() => readHealing()?.healingIndex ?? 0);
