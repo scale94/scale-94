@@ -92,3 +92,23 @@ describe('socialPenaltyLevel — the reframed double-bind', () => {
     expect(socialPenaltyLevel(1.8, 1, 1, true)).toBe(0);
   });
 });
+
+import { REGEN_NAME, REGEN_COLOR, bloomPhase } from '../ecocideEngine';
+
+describe('regen phase ladder', () => {
+  it('names mirror the collapse ladder around HOMEOSTASIS', () => {
+    expect(REGEN_NAME[0]).toBe('HOMEOSTASIS');
+    expect(REGEN_NAME).toHaveLength(5);
+    expect(REGEN_COLOR).toHaveLength(5);
+  });
+  it('maps bloomFrac onto ascending phases', () => {
+    expect(bloomPhase(0)).toBe(0);
+    expect(bloomPhase(0.2)).toBe(1);
+    expect(bloomPhase(0.45)).toBe(2);
+    expect(bloomPhase(0.7)).toBe(3);
+    expect(bloomPhase(0.9)).toBe(4);
+  });
+  it('is monotonic non-decreasing', () => {
+    expect(bloomPhase(0.3)).toBeLessThanOrEqual(bloomPhase(0.6));
+  });
+});

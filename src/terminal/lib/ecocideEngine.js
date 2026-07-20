@@ -78,3 +78,19 @@ export function socialPenaltyLevel(growth, sanctuary, restoration, mandateActive
   const funding = Math.round((sanctuary + restoration) / 2);  // 0..1 → 0, 1
   return Math.max(0, base - funding * 2);                      // funding shaves up to 2 levels
 }
+
+// Positive mirror of the collapse ladder. Index 0 = HOMEOSTASIS (shared pivot).
+// NOTE: intentionally separate from EcocideTab's PHASE_NAME — that array is a
+// frozen observatory contract and must not gain entries.
+export const REGEN_NAME  = ['HOMEOSTASIS', 'RECOVERY', 'REWILDING', 'FLOURISHING', 'ABUNDANCE'];
+export const REGEN_COLOR = ['#7ab800', '#5fbf3a', '#3fd06a', '#7fe08a', '#d8c85a'];
+
+// bloomFrac (0..1) → regen phase index 0..4. Thresholds mirror the collapse
+// phase cuts (0.10 / 0.30 / 0.55 / 0.85) used in EcocideTab's JS integrator.
+export function bloomPhase(bloomFrac) {
+  if (bloomFrac >= 0.85) return 4;
+  if (bloomFrac >= 0.55) return 3;
+  if (bloomFrac >= 0.30) return 2;
+  if (bloomFrac >= 0.10) return 1;
+  return 0;
+}
