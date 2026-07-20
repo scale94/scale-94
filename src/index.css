@@ -374,7 +374,7 @@ html, body {
   inset: -100%; /* 3× viewport so the jitter never exposes an edge */
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23g)'/%3E%3C/svg%3E");
   background-size: 240px 240px;
-  opacity: 0.05;
+  opacity: 0.025;
   animation: film-grain-jitter 0.9s steps(1) infinite;
 }
 .crt-overlay::after {
@@ -400,11 +400,11 @@ html, body {
 
 /* Grain intensifies at low planetary standing — coarser flicker, vignette tightens */
 .crt-overlay.crt-warning::before {
-  opacity: 0.09;
+  opacity: 0.045;
   animation-duration: 0.7s;
 }
 .crt-overlay.crt-critical::before {
-  opacity: 0.15;
+  opacity: 0.08;
   animation-duration: 0.5s;
 }
 .crt-overlay.crt-critical::after {
