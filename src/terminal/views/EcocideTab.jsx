@@ -43,7 +43,7 @@ import WorldMap from '../components/WorldMap';
 import { toMapXY, COUNTRIES, SPHERE_PATH, GRATICULE_PATH, EQUATOR_PATH, BORDERS_PATH } from '../data/worldMapPolys';
 import { readHealing, subscribeHealing } from '../lib/healingSignal';
 import { healingGrowthOffset, healingSargLift } from '../lib/inverseEngine';
-import { stepVitalityHybrid, deriveFracs, socialPenaltyLevel, growthToGdp } from '../lib/ecocideEngine';
+import { stepVitalityHybrid, deriveFracs, socialPenaltyLevel, growthToGdp, bloomPhase, REGEN_NAME } from '../lib/ecocideEngine';
 import { emit as emitObs } from '../../observatory/observatoryBus';
 
 // ── Coupling Event Bus ─────────────────────────────────────────────────────
@@ -587,7 +587,7 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
   //   → cells shrink toward their centre, revealing the ocean beneath
   //   → cells drift outward as collapse deepens ("skeletal lattice" effect)
   const countryCells = useMemo(() => {
-    const { deadFrac: df, phase, exergyNorm: en, trophicV: tv } = mapState;
+    const { deadFrac: df, phase, exergyNorm: en, trophicV: tv, bloomFrac: bf = 0 } = mapState;
 
     // Phase multipliers: how aggressively the map breaks per phase
     const driftMult = [0.0, 0.05, 0.22, 0.65, 1.4][phase] ?? 0;
@@ -624,6 +624,22 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
         fill = `rgb(${Math.round(151 - t2 * 143)},${Math.round(6 - t2 * 4)},4)`;
       }
 
+      // ── Bloom branch: when vitality is positive, cells re-green past baseline ──
+      // localBloom mirrors localStress but rewards protected/rich biomes first.
+      if (bf > 0) {
+        const localBloom = Math.min(1, bf * (0.6 + (1 - vuln) * 0.4 + seed * 0.15));
+        // deep forest → vivid green → gold superbloom (nativeBio widens the palette later)
+        let r, g, b;
+        if (localBloom < 0.5) {
+          const t2 = localBloom / 0.5;
+          r = Math.round(8 + t2 * 40); g = Math.round(104 + t2 * 90); b = Math.round(8 + t2 * 20);
+        } else {
+          const t2 = (localBloom - 0.5) / 0.5;
+          r = Math.round(48 + t2 * 150); g = Math.round(194 + t2 * 20); b = Math.round(28 + t2 * 40);
+        }
+        fill = `rgb(${r},${g},${b})`;
+      }
+
       // ── Opacity: cells flicker then vanish at high stress ────────────────
       const opacity = localStress > 0.88
         ? Math.max(0, 1 - (localStress - 0.88) / 0.10)
@@ -639,12 +655,18 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
 
       return { d, transform, fill, opacity, wobbleDur, wobbleDelA, wobbleDelB, wx, wy };
     });
-  }, [mapState.deadFrac, mapState.phase, mapState.exergyNorm, mapState.trophicV]);
+  }, [mapState.deadFrac, mapState.phase, mapState.exergyNorm, mapState.trophicV, mapState.bloomFrac]);
 
   // ── Derived UI values ─────────────────────────────────────────────────────
   const phaseColor = PHASE_COLOR[uiPhase] ?? '#333';
   const isCollapse = uiPhase >= PH.COLLAPSE;
   const { deadFrac, exergyNorm, metabolicFat: mFat, trophicV: tV } = uiMetrics;
+
+  // Regen ladder label — replaces the collapse phase label while the world blooms.
+  const bloomFracUI = mapState.bloomFrac || 0;   // state-driven → re-renders correctly
+  const ladderLabel = bloomFracUI > 0.02
+    ? `${['3.3.3','4.4.4.4','5.5.5.5.5','6.6.6.6.6.6','7.7.7.7.7.7.7'][bloomPhase(bloomFracUI)]} ${REGEN_NAME[bloomPhase(bloomFracUI)]}`
+    : PHASE_LABEL[uiPhase];
 
   // Paradox state for display
   const sargState = { phase: uiPhase, deadFrac, exergyNorm, trophicV: tV, metabolicFat: mFat };
@@ -697,9 +719,9 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
         )}
         <span
           className="font-bold"
-          style={{ color: phaseColor, textShadow: `0 0 12px ${phaseColor}60` }}
+          style={{ color: bloomFracUI > 0.02 ? '#5fbf3a' : phaseColor, textShadow: `0 0 12px ${bloomFracUI > 0.02 ? '#5fbf3a' : phaseColor}60` }}
         >
-          {PHASE_LABEL[uiPhase]}
+          {ladderLabel}
         </span>
       </div>
 
@@ -1122,7 +1144,11 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
           {ECO_HOTSPOTS.map(({ lon, lat, sev, label }) => {
             const [cx, cy] = toMapXY(lon, lat);
             const r     = 3 + sev * 1.5;
-            const color = ECO_SEV_HEX[sev] || '#65a30d';
+            const stressColor = ECO_SEV_HEX[sev] || '#65a30d';
+            const bf = mapState.bloomFrac || 0;
+            const color = bf > 0.05
+              ? `rgb(${Math.round(0x3f * (1 - bf) + 0x3f * bf)}, ${Math.round(0x20 + bf * 0xb0)}, ${Math.round(0x20 + bf * 0x2a)})`
+              : stressColor;
             return (
               <g
                 key={label}
