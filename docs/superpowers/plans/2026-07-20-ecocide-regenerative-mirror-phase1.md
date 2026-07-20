@@ -486,7 +486,15 @@ Inside the 10 Hz `setInterval` tick, the block that currently computes `deadFrac
       else                       phase = PH.HOMEOSTASIS;
 ```
 
-> This removes the WASM `run_ecocide` dependency for the integrated state. Leave the `loadWasm()` effect and the first-tick probe in place for now (harmless); a later cleanup task can remove dead WASM plumbing.
+> **⚠ INFLECTION POINT — decide before writing this task.** Ripping out WASM `run_ecocide` is the single riskiest move in Phase 1. That Rust kernel supplied a specific, low-latency degradation curve that gives the original collapse its rhythmic *weight* — it is not just arithmetic. Two paths:
+>
+> **5-A (as written above): full JS replacement.** Simpler state, one source of truth, but the collapse velocity must be re-tuned (`K_EXTRACT`/`K_TOX`/`growthToGdp`) to match the WASM curve — a fragile "match by eye" audit.
+>
+> **5-B (WASM-preserving hybrid — preferred if the audit is at all close to failing):** keep `run_ecocide` driving the collapse/negative-`v` branch exactly as on `main` (its `deadFrac` *is* the collapse magnitude while `v ≤ 0`), and use the JS engine **only** for the positive/healing excursion (`bloomFrac`). Collapse velocity is then preserved *by definition*. Cost: a clean handoff seam at `v = 0` (avoid double-counting extraction damage; when healing pulls a collapsed world back, JS must drive `deadFrac` *down* since WASM won't).
+>
+> **Gate (hard):** run Step 6's side-by-side audit against `main` FIRST. If 5-A's high-growth collapse is soft/laggy/linear vs `main`, switch to 5-B before writing any downstream healing logic (Tasks 6–7). Do not proceed on a collapse that doesn't match.
+>
+> Either way, leave the `loadWasm()` effect in place; a later cleanup task removes any genuinely dead plumbing.
 
 - [ ] **Step 3: Feed `bloomFrac` into map state**
 
@@ -516,13 +524,18 @@ In `handleReset` (~line 555), add alongside the other ref resets:
     bloomFracRef.current = 0;
 ```
 
-- [ ] **Step 6: Browser-verify the bidirectional mechanic**
+- [ ] **Step 6: Browser-verify — the HARD collapse-velocity audit (halt gate)**
 
-Reload the ecocide tab in the preview.
-- Drag GROWTH to ~5% → the map should still collapse through EXTRACTION→…→FINAL exactly as before (deadFrac path intact).
-- Reset. (Protection sliders don't exist in the UI yet — verify via console) run in `javascript_tool`: temporarily set growth low and confirm `v` climbs. Since sliders are Task 6, verify the collapse path only here; confirm no console errors and the SARG/paradox panels behave.
+This is the gate the whole downstream plan hangs on. Capture `main`'s collapse FIRST, then compare.
 
-Expected: collapse trajectory visually unchanged from `main`; no console errors.
+1. On `main` (or a stash of this branch), open the ecocide tab, set GROWTH to 5%, and record the collapse: time-to-EXTRACTION, time-to-OVERSHOOT, time-to-COLLAPSE, time-to-FINAL. A short screen-capture or timestamped `deadFrac` log via `javascript_tool` is ideal.
+2. Back on this branch with 5-A in place, repeat the same 5% run and record the same milestones.
+3. **Compare velocity and rhythm, not just endpoint.** The JS curve must match `main`'s cadence — not softer, not laggier, not more linear.
+
+- If it matches: proceed. Confirm no console errors; SARG/paradox panels behave.
+- **If it does NOT match: STOP. Switch Task 5 to path 5-B (WASM-preserving hybrid) before writing any healing logic (Tasks 6–7).** Do not tune-and-hope more than one pass.
+
+Expected: collapse trajectory indistinguishable from `main` in both endpoint AND velocity; no console errors.
 
 - [ ] **Step 7: Run the full test suite (regression gate)**
 
