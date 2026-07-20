@@ -279,6 +279,36 @@ function GrowthSlider({ value, disabled, color, mandateActive, onChange }) {
   );
 }
 
+// ── ProtocolSlider — 0..1 protection lever, same pointer engine as GrowthSlider ─
+function ProtocolSlider({ label, value, color, gated, onChange }) {
+  const trackRef = useRef(null);
+  const valueFromEvent = useCallback((e) => {
+    const rect = trackRef.current.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    return Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+  }, []);
+  const handlePointer = useCallback((e) => {
+    e.preventDefault();
+    onChange(valueFromEvent(e));
+    const move = (me) => { me.preventDefault(); onChange(valueFromEvent(me)); };
+    const up   = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', move, { passive: false });
+    window.addEventListener('pointerup', up);
+  }, [onChange, valueFromEvent]);
+  const pct = value * 100;
+  return (
+    <div className="flex items-center gap-2" style={{ opacity: gated ? 0.45 : 1, transition: 'opacity 0.4s' }}>
+      <span className="shrink-0 tracking-widest uppercase" style={{ color, fontSize: '10px', fontWeight: 800, width: '104px' }}>{label}</span>
+      <div ref={trackRef} onPointerDown={handlePointer}
+        style={{ flex: 1, height: '4px', background: '#0d1a00', position: 'relative', cursor: 'pointer', touchAction: 'none', userSelect: 'none' }}>
+        <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${pct}%`, background: color, transition: 'background 0.3s' }} />
+        <div style={{ position: 'absolute', top: '50%', left: `${pct}%`, transform: 'translate(-50%,-50%)', width: '12px', height: '12px', borderRadius: '50%', background: color, boxShadow: `0 0 6px ${color}88` }} />
+      </div>
+      <span className="w-8 text-right shrink-0" style={{ color, fontSize: '11px', fontWeight: 800 }}>{Math.round(pct)}</span>
+    </div>
+  );
+}
+
 // ── EcocideTab ───────────────────────────────────────────────────────────────
 
 export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
@@ -316,6 +346,7 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
   const [sanctuary,   setSanctuary]   = useState(0.0);
   const [restoration, setRestoration] = useState(0.0);
   const [nativeBio,   setNativeBio]   = useState(0.0);
+  const [protocolOpen, setProtocolOpen] = useState(false);
   const [wasmReady,    setWasmReady]    = useState(false);
   const [mandateActive,setMandateActive]= useState(false);
   const [penaltyLevel, setPenaltyLevel] = useState(0);
@@ -1052,6 +1083,34 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
             [RESET_SIMULATION]
           </button>
         </div>
+      </div>
+
+      {/* ── PROTECTION PROTOCOL — collapsible lever cluster ── */}
+      <div className="shrink-0 px-4 pb-2 bg-black overflow-hidden">
+        <button
+          onClick={() => setProtocolOpen(o => !o)}
+          className="flex items-center gap-2 tracking-widest uppercase"
+          style={{ color: '#4a6a10', fontSize: '10px', fontWeight: 800 }}
+        >
+          <ChevronRight className="w-3 h-3" style={{ transform: protocolOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.25s' }} />
+          PROTECTION_PROTOCOL {protocolOpen ? '' : '— [ expand ]'}
+          {!protocolOpen && (sanctuary + restoration + toxicityCap + nativeBio) > 0 && (
+            <span style={{ color: '#5fbf3a' }}>● armed</span>
+          )}
+        </button>
+        {protocolOpen && (
+          <div className="mt-2 flex flex-col gap-2">
+            {growthRate >= 3.0 && (
+              <div style={{ color: '#7a5a00', fontSize: '9px', fontWeight: 800, letterSpacing: '0.08em' }}>
+                {'▶'} GATE CLOSED {'—'} protections inert above 2.0% growth. Tame throughput to unlock healing.
+              </div>
+            )}
+            <ProtocolSlider label="TOXICITY_CAP"  value={toxicityCap} color="#5a8ac0" gated={growthRate >= 3.0} onChange={setToxicityCap} />
+            <ProtocolSlider label="SANCTUARY"     value={sanctuary}   color="#5fbf3a" gated={growthRate >= 3.0} onChange={setSanctuary} />
+            <ProtocolSlider label="RESTORATION"   value={restoration} color="#3fd06a" gated={growthRate >= 3.0} onChange={setRestoration} />
+            <ProtocolSlider label="NATIVE_BIODIV" value={nativeBio}   color="#7fe08a" gated={growthRate >= 3.0} onChange={setNativeBio} />
+          </div>
+        )}
       </div>
 
       {/* ── Ecological Stress Map ──────────────────────────────────────── */}
