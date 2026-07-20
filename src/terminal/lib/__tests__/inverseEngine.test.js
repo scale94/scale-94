@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
-  ENGINE_TUNING, PROBE_GROUPS, HEALING_LEXICON,
+  ENGINE_TUNING, PROBE_GROUPS, HEALING_LEXICON, PROBE_CLUSTERS, RELEVANCE_GATE_MISS,
   lexiconScore, sicknessScore, inverseViralityWeight, scorePost,
   subthresholdFilter, healingIndex, sicknessCap, bandwidth,
-  activeProbeGroup, healingGrowthOffset, healingSargLift, postUrl,
+  activeProbeGroup, activeGroupIndex, healingGrowthOffset, healingSargLift, postUrl,
   parseSearchResponse, readEngineCache, writeEngineCache, ENGINE_STORAGE_KEY, harvest,
 } from '../inverseEngine';
 
@@ -76,6 +76,41 @@ describe('scorePost', () => {
   it('never yields negative contribution', () => {
     const s = scorePost(post({ text: 'OUTRAGE!!! PANIC!!! DOOMED!!!' }));
     expect(s.contribution).toBe(0);
+  });
+});
+
+describe('scorePost relevance gate', () => {
+  it('leaves contribution untouched when no groupIndex is given (backward compatible)', () => {
+    const s = scorePost(post());
+    expect(s.relevanceScore).toBeNull();
+    expect(s.contribution).toBeCloseTo(
+      Math.max(0, s.healingScore - s.sicknessScore) * s.weight, 6);
+  });
+  it('applies full weight when the post lands in its group cluster', () => {
+    // group 0 cluster includes "aid" and "garden"
+    const s = scorePost(post({ text: 'mutual aid and a community garden today' }), PROBE_CLUSTERS[0]);
+    expect(s.relevanceScore).toBeGreaterThan(0);
+    expect(s.contribution).toBeCloseTo(
+      Math.max(0, s.healingScore - s.sicknessScore) * s.weight, 6);
+  });
+  it('discounts contribution to RELEVANCE_GATE_MISS when off-cluster for its group', () => {
+    // healing lexicon term "free" with no group-0 cluster term present
+    const s = scorePost(post({ text: 'free stuff for everyone here' }), PROBE_CLUSTERS[0]);
+    expect(s.relevanceScore).toBe(0);
+    expect(s.contribution).toBeCloseTo(
+      Math.max(0, s.healingScore - s.sicknessScore) * s.weight * RELEVANCE_GATE_MISS, 6);
+  });
+  it('every probe cluster exists and is non-empty, one per probe group', () => {
+    expect(PROBE_CLUSTERS).toHaveLength(PROBE_GROUPS.length);
+    for (const c of PROBE_CLUSTERS) expect(Object.keys(c).length).toBeGreaterThan(0);
+  });
+});
+
+describe('activeGroupIndex', () => {
+  it('matches activeProbeGroup by index across windows', () => {
+    for (const now of [0, ENGINE_TUNING.TTL_MS, 4 * ENGINE_TUNING.TTL_MS, 7 * ENGINE_TUNING.TTL_MS]) {
+      expect(PROBE_GROUPS[activeGroupIndex(now)]).toEqual(activeProbeGroup(now));
+    }
   });
 });
 

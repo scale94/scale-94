@@ -29,6 +29,25 @@ export const PROBE_GROUPS = [
   ['permaculture', 'community land trust', 'tool library'],
 ];
 
+// One relevance cluster per PROBE_GROUP — vocabulary adjacent to that group's
+// topic, distinct from HEALING_LEXICON (general goodness). A post must land
+// in its own group's cluster to count as ON-TOPIC, not just quiet and vaguely
+// wholesome — see relevanceGate in scorePost.
+export const PROBE_CLUSTERS = [
+  { aid: 2, solidarity: 2, neighbors: 1, neighbours: 1, volunteer: 1, garden: 2,
+    compost: 1, harvest: 1, repair: 2, fix: 1, tools: 1, cafe: 1, share: 1 },
+  { watershed: 2, river: 1, restoration: 2, restore: 2, rewild: 3, rewilding: 3,
+    habitat: 1, native: 1, seed: 2, seeds: 2, pollinator: 1, wetland: 1, biodiversity: 1 },
+  { solar: 2, energy: 1, renewable: 1, 'open source': 2, ecology: 2, tools: 1,
+    library: 1, coop: 1, cooperative: 1, commons: 1, grid: 1 },
+  { permaculture: 3, agroforestry: 2, 'land trust': 2, commons: 2, cooperative: 1,
+    tool: 1, library: 1, forest: 1, regenerative: 2, soil: 1 },
+];
+
+// Fraction the gate drops relevance-blind hits to — soft, not a hard cut,
+// since the post already matched the search query itself.
+export const RELEVANCE_GATE_MISS = 0.4;
+
 // Multi-word terms deliberately stack with their single-word components
 // ('seed library' 3 + 'library' 1 = 4) — compound signals score louder.
 export const HEALING_LEXICON = {
@@ -52,7 +71,12 @@ export const SICKNESS_LEXICON = {
 };
 
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const termRegex = (term) => new RegExp(`\\b${escapeRe(term)}\\b`, 'i');
+const regexCache = new Map();
+const termRegex = (term) => {
+  let re = regexCache.get(term);
+  if (!re) { re = new RegExp(`\\b${escapeRe(term)}\\b`, 'i'); regexCache.set(term, re); }
+  return re;
+};
 
 export function lexiconScore(text, lexicon) {
   if (!text) return 0;
@@ -78,12 +102,14 @@ export function sicknessScore(text) {
 export const inverseViralityWeight = (likes, reposts) =>
   1 / Math.log(2 + (likes || 0) + (reposts || 0));
 
-export function scorePost(post) {
+export function scorePost(post, cluster = null) {
   const healingScore = lexiconScore(post.text, HEALING_LEXICON);
   const sScore = sicknessScore(post.text);
   const weight = inverseViralityWeight(post.likes, post.reposts);
-  const contribution = Math.max(0, healingScore - sScore) * weight;
-  return { ...post, healingScore, sicknessScore: sScore, weight, contribution };
+  const relevanceScore = cluster ? lexiconScore(post.text, cluster) : null;
+  const relevanceGate = cluster ? (relevanceScore > 0 ? 1 : RELEVANCE_GATE_MISS) : 1;
+  const contribution = Math.max(0, healingScore - sScore) * weight * relevanceGate;
+  return { ...post, healingScore, sicknessScore: sScore, weight, relevanceScore, contribution };
 }
 
 // Keep only what the attention economy discards: engagement ≤ cap, recent,
@@ -116,8 +142,11 @@ export function sicknessCap(scored) {
 
 export const bandwidth = (H, S) => H * (1 - ENGINE_TUNING.SICKNESS_THROTTLE * S);
 
+export const activeGroupIndex = (now = Date.now()) =>
+  Math.floor(now / ENGINE_TUNING.TTL_MS) % PROBE_GROUPS.length;
+
 export const activeProbeGroup = (now = Date.now()) =>
-  PROBE_GROUPS[Math.floor(now / ENGINE_TUNING.TTL_MS) % PROBE_GROUPS.length];
+  PROBE_GROUPS[activeGroupIndex(now)];
 
 // ── Ecocide injection math ────────────────────────────────────────────────────
 const clampH = (H) => Math.max(0, Math.min(100, H || 0));
@@ -180,7 +209,8 @@ export function writeEngineCache(data) {
 const SEARCH_BASE = 'https://api.bsky.app/xrpc/app.bsky.feed.searchPosts';
 
 export async function harvest(fetchFn = fetch, now = Date.now()) {
-  const probes = activeProbeGroup(now);
+  const groupIndex = activeGroupIndex(now);
+  const probes = PROBE_GROUPS[groupIndex];
   const results = await Promise.allSettled(probes.map(q =>
     fetchFn(`${SEARCH_BASE}?q=${encodeURIComponent(q)}&sort=latest&limit=${ENGINE_TUNING.PROBE_LIMIT}&lang=en`)
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
@@ -191,8 +221,9 @@ export async function harvest(fetchFn = fetch, now = Date.now()) {
   const rawPosts = results.flatMap(r => r.status === 'fulfilled' ? parseSearchResponse(r.value) : []);
   const seen = new Set();
   const unique = rawPosts.filter(p => !seen.has(p.uri) && seen.add(p.uri));
+  const cluster = PROBE_CLUSTERS[groupIndex];
   const scored = subthresholdFilter(unique, now)
-    .map(scorePost)
+    .map(p => scorePost(p, cluster))
     .sort((a, b) => b.contribution - a.contribution);
   const H = healingIndex(scored);
   const S = sicknessCap(scored);
