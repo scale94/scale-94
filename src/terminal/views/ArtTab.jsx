@@ -75,6 +75,19 @@ const SECTOR_COLORS = {
 const FOCAL_K   = 2.8;      // focal = FOCAL_K × sphereR — controls perspective depth
 const SPHERE_K  = 0.42;     // sphereR = SPHERE_K × min(w, h) — larger sphere, front and center
 
+// Nearest scrollable ancestor — used to manually forward vertical touch
+// gestures past the canvas (which has touch-action:none, so it never
+// natively scrolls no matter what JS does on touchmove).
+function getScrollParent(el) {
+  let node = el?.parentElement;
+  while (node) {
+    const style = window.getComputedStyle(node);
+    if (/(auto|scroll)/.test(style.overflowY) && node.scrollHeight > node.clientHeight) return node;
+    node = node.parentElement;
+  }
+  return document.scrollingElement || document.documentElement;
+}
+
 export default function ArtTab({ onRunKernel, onCueNode, associativeField, spectralBridges, boneFusions, probeNode, manualFusions = [], onManualFusion, orthogonalBridges = [], onOrthogonalBridge }) {
   const canvasRef      = useRef(null);
   const containerRef   = useRef(null);
@@ -2038,9 +2051,9 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
   const handleTouchMove = useCallback((e) => {
     clearTimeout(longPressRef.current);
-    e.preventDefault();
-    // Conductor drag
+    // Conductor drag — always vertical-intentional, always claims the gesture
     if (conductorDragRef.current) {
+      e.preventDefault();
       const t = e.touches[0];
       if (t) {
         const p = canvasCoords(t.clientX, t.clientY);
@@ -2057,6 +2070,31 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     if (!t || !drag.active) return;
     const dx = t.clientX - drag.lastX;
     const dy = t.clientY - drag.lastY;
+
+    // Direction lock: decide once per gesture whether this is a page-scroll
+    // swipe (mostly vertical) or a sphere-rotation drag (mostly horizontal).
+    // The canvas has touch-action:none so the browser will NEVER natively
+    // scroll a touch that started on it, no matter what we do here — on a
+    // viewport where the sphere fills the screen (iPad) that traps the user
+    // with zero reachable non-canvas pixels to scroll from. So a vertical
+    // gesture is forwarded to the scroll container manually instead of
+    // rotating the sphere.
+    if (drag.locked == null) {
+      const tdx = t.clientX - drag.startX;
+      const tdy = t.clientY - drag.startY;
+      if (Math.abs(tdx) + Math.abs(tdy) < 6) return; // not enough movement to classify yet
+      drag.locked = Math.abs(tdy) > Math.abs(tdx) ? 'scroll' : 'rotate';
+    }
+
+    if (drag.locked === 'scroll') {
+      const scroller = getScrollParent(canvasRef.current);
+      if (scroller) scroller.scrollTop -= dy;
+      drag.lastX = t.clientX;
+      drag.lastY = t.clientY;
+      return; // let the page scroll — do not rotate, do not preventDefault
+    }
+
+    e.preventDefault();
     rotRef.current.rx += dy * 0.005;
     rotRef.current.ry += dx * 0.005;
     drag.vx     = dy * 0.005;
