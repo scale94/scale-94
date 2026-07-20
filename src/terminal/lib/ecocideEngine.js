@@ -68,3 +68,13 @@ export function stepVitality(prevV, levers, dt) {
 export function deriveFracs(v) {
   return { deadFrac: Math.max(0, -v), bloomFrac: Math.max(0, v) };
 }
+
+// The double-bind, reframed. Dropping below the 2.0% mandate still fires social
+// penalties (naive contraction = unemployment riots), but funded protection —
+// a just transition — buys the penalty level down.
+export function socialPenaltyLevel(growth, sanctuary, restoration, mandateActive) {
+  if (!mandateActive || growth >= 2.0) return 0;
+  const base = growth < 1.0 ? 3 : growth < 1.5 ? 2 : 1;
+  const funding = Math.round((sanctuary + restoration) / 2);  // 0..1 → 0, 1
+  return Math.max(0, base - funding * 2);                      // funding shaves up to 2 levels
+}

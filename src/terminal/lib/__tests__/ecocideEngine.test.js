@@ -69,3 +69,26 @@ describe('deriveFracs — signed v split into the two display tracks', () => {
     expect(deriveFracs(0)).toEqual({ deadFrac: 0, bloomFrac: 0 });
   });
 });
+
+import { socialPenaltyLevel } from '../ecocideEngine';
+
+describe('socialPenaltyLevel — the reframed double-bind', () => {
+  it('is 0 when the mandate never engaged', () => {
+    expect(socialPenaltyLevel(1.0, 0, 0, false)).toBe(0);
+  });
+  it('is 0 when growth is at/above the mandate line', () => {
+    expect(socialPenaltyLevel(2.0, 0, 0, true)).toBe(0);
+  });
+  it('NAIVE degrowth (no protection funding) fires the full penalty', () => {
+    expect(socialPenaltyLevel(0.5, 0, 0, true)).toBe(3);
+    expect(socialPenaltyLevel(1.2, 0, 0, true)).toBe(2);
+    expect(socialPenaltyLevel(1.8, 0, 0, true)).toBe(1);
+  });
+  it('JUST TRANSITION: funded protection buys the penalty down', () => {
+    // same 0.5% growth that fired level 3 above, now with protection funded
+    expect(socialPenaltyLevel(0.5, 1, 1, true)).toBeLessThan(3);
+  });
+  it('fully funded protection can neutralise the penalty entirely', () => {
+    expect(socialPenaltyLevel(1.8, 1, 1, true)).toBe(0);
+  });
+});
