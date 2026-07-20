@@ -112,3 +112,79 @@ describe('regen phase ladder', () => {
     expect(bloomPhase(0.3)).toBeLessThanOrEqual(bloomPhase(0.6));
   });
 });
+
+import { stepVitalityHybrid } from '../ecocideEngine';
+
+describe('stepVitalityHybrid — WASM-free bidirectional integrator (preserves main collapse)', () => {
+  const dt = 0.1;
+  const noProt  = { toxicityCap: 0, sanctuary: 0, restoration: 0 };
+  const maxProt = { toxicityCap: 1, sanctuary: 1, restoration: 1 };
+
+  // Reference = main's EXACT one-way JS integrator (EcocideTab.jsx ~L420-447).
+  const refStep = (prevDF, growth) => {
+    const extraction   = Math.max(0, growthToGdp(growth, prevDF) - 1);
+    const regeneration = 0.12 * (1 - prevDF);
+    const damage       = Math.max(0, extraction * 0.055 - regeneration) * dt;
+    const recovery     = growth < 0.5 ? 0.008 * (1 - prevDF) * dt : 0;
+    return Math.max(0, Math.min(0.98, prevDF + damage - recovery));
+  };
+
+  it('COLLAPSE IDENTITY: no protection tracks main\'s integrator exactly (growth 5%)', () => {
+    let v = 0, refDF = 0;
+    for (let i = 0; i < 40; i++) {
+      v = stepVitalityHybrid(v, { growth: 5, ...noProt }, dt).v;
+      refDF = refStep(refDF, 5);
+      expect(deriveFracs(v).deadFrac).toBeCloseTo(refDF, 6);
+    }
+  });
+
+  it('COLLAPSE IDENTITY holds at low growth (recovery branch, growth 0.3%)', () => {
+    let v = -0.5, refDF = 0.5;
+    for (let i = 0; i < 20; i++) {
+      v = stepVitalityHybrid(v, { growth: 0.3, ...noProt }, dt).v;
+      refDF = refStep(refDF, 0.3);
+      expect(deriveFracs(v).deadFrac).toBeCloseTo(refDF, 6);
+    }
+  });
+
+  it('GREENWASH: max protection at 5% collapses identically to no protection', () => {
+    let vMax = 0, vNone = 0;
+    for (let i = 0; i < 30; i++) {
+      vMax  = stepVitalityHybrid(vMax,  { growth: 5, ...maxProt }, dt).v;
+      vNone = stepVitalityHybrid(vNone, { growth: 5, ...noProt  }, dt).v;
+    }
+    expect(vMax).toBeCloseTo(vNone, 6);
+    expect(vMax).toBeLessThan(0);
+  });
+
+  it('DEGROWTH KEY: max protection at 1% growth heals a collapsed world (v rises)', () => {
+    const start = -0.5;
+    expect(stepVitalityHybrid(start, { growth: 1, ...maxProt }, dt).v).toBeGreaterThan(start);
+  });
+
+  it('NAIVE GROWTH: 5% growth, no protection, drives v down', () => {
+    expect(stepVitalityHybrid(0, { growth: 5, ...noProt }, dt).v).toBeLessThan(0);
+  });
+
+  it('heals into bloom (positive v) under sustained low-growth protection', () => {
+    let v = -0.4;
+    for (let i = 0; i < 200; i++) v = stepVitalityHybrid(v, { growth: 1, ...maxProt }, dt).v;
+    expect(v).toBeGreaterThan(0);
+    expect(v).toBeLessThanOrEqual(1);
+  });
+
+  it('clamps to [-0.98, 1] — preserves main\'s 0.98 dead-ceiling', () => {
+    let v = 0;
+    for (let i = 0; i < 500; i++) v = stepVitalityHybrid(v, { growth: 10, ...noProt }, dt).v;
+    expect(v).toBeCloseTo(-0.98, 6);
+    let vb = 0.5;
+    for (let i = 0; i < 500; i++) vb = stepVitalityHybrid(vb, { growth: 0, ...maxProt }, dt).v;
+    expect(vb).toBeLessThanOrEqual(1);
+  });
+
+  it('TOXICITY_CAP throttles collapse when the gate is open (growth 2%)', () => {
+    const capped   = stepVitalityHybrid(-0.5, { growth: 2, toxicityCap: 1, sanctuary: 0, restoration: 0 }, dt).v;
+    const uncapped = stepVitalityHybrid(-0.5, { growth: 2, toxicityCap: 0, sanctuary: 0, restoration: 0 }, dt).v;
+    expect(capped).toBeGreaterThan(uncapped);
+  });
+});

@@ -13,11 +13,24 @@ export const ECO_TUNING = Object.freeze({
   GATE_HIGH:     3.0,   // % growth — at/above, healing gate fully closed
   W_SANCTUARY:   0.35,  // passive-recovery weight
   W_RESTORATION: 0.65,  // active-regeneration weight (the bloom driver)
-  K_HEAL:        0.9,    // dv/dt healing coefficient
-  K_EXTRACT:     0.6,    // dv/dt extraction-damage coefficient
-  K_TOX:         0.4,    // dv/dt toxicity-damage coefficient
+  K_HEAL:        0.9,    // dv/dt healing coefficient (legacy stepVitality only)
+  K_EXTRACT:     0.6,    // dv/dt extraction-damage coefficient (legacy stepVitality only)
+  K_TOX:         0.4,    // dv/dt toxicity-damage coefficient (legacy stepVitality only)
   V_MIN:        -1,
   V_MAX:         1,
+  // ── Hybrid integrator constants ──────────────────────────────────────────
+  // Collapse half is main's exact one-way JS integrator (EcocideTab.jsx ~L420-447):
+  // there is NO WASM ecocide kernel — run_ecocide never existed, so this arithmetic
+  // has always BEEN the collapse. These three are copied verbatim to preserve the
+  // collapse velocity tick-for-tick.
+  K_DAMAGE_JS:     0.055, // extraction → dead-fraction damage rate
+  REGEN_RATE:      0.12,  // biosphere regeneration capacity (shrinks with degradation)
+  RECOVERY_RATE:   0.008, // slow natural recovery, only below RECOVERY_GROWTH
+  RECOVERY_GROWTH: 0.5,   // % growth below which natural recovery kicks in
+  DEAD_CEIL:       0.98,  // max deadFrac — the 2% living remainder never dies
+  // Healing half (new, tunable live in-browser):
+  TOXCAP_STRENGTH: 0.6,   // how far a full toxicity cap throttles extraction damage (gated)
+  K_HEAL_JS:       0.25,  // bloom responsiveness — dv/dt per unit healingPower
 });
 
 // Smoothstep — 0 below edge0, 1 above edge1, Hermite in between.
@@ -77,6 +90,38 @@ export function socialPenaltyLevel(growth, sanctuary, restoration, mandateActive
   const base = growth < 1.0 ? 3 : growth < 1.5 ? 2 : 1;
   const funding = Math.round((sanctuary + restoration) / 2);  // 0..1 → 0, 1
   return Math.max(0, base - funding * 2);                      // funding shaves up to 2 levels
+}
+
+// ── Hybrid bidirectional integrator ─────────────────────────────────────────
+// The tick's real step. Collapse is main's EXACT one-way JS integrator (there is
+// no WASM ecocide kernel; run_ecocide never existed), so with all protection
+// levers at 0, deriveFracs(v).deadFrac reproduces main tick-for-tick. Healing is
+// the engine's gated positive excursion — the ONLY term that creates bloom (v>0).
+export function stepVitalityHybrid(prevV, levers, dt) {
+  const { growth, toxicityCap = 0, sanctuary = 0, restoration = 0 } = levers;
+  const df = Math.max(0, -prevV);                         // current deadFrac
+
+  const gate = degrowthGate(growth);                      // 0 at high growth → protections inert
+  // Collapse (main's integrator). The toxicity cap throttles extraction damage
+  // only once the gate is open — so maxed protection at high growth changes
+  // nothing (the greenwash invariant stays mechanically true).
+  const extraction   = Math.max(0, growthToGdp(growth, df) - 1.0);
+  const regeneration = ECO_TUNING.REGEN_RATE * (1.0 - df);
+  const toxThrottle  = 1 - ECO_TUNING.TOXCAP_STRENGTH * toxicityCap * gate;
+  const damage       = Math.max(0, extraction * ECO_TUNING.K_DAMAGE_JS * toxThrottle - regeneration) * dt;
+  const recovery     = growth < ECO_TUNING.RECOVERY_GROWTH
+    ? ECO_TUNING.RECOVERY_RATE * (1.0 - df) * dt : 0;
+
+  // Healing (gated) — the bloom driver.
+  const healing = healingPower(gate, sanctuary, restoration);
+  const heal    = ECO_TUNING.K_HEAL_JS * healing * dt;
+
+  let v = prevV - damage + heal;
+  // Natural recovery nudges a dead world toward baseline but never past it — no
+  // bloom without funded healing (matches main's deadFrac floor at 0).
+  if (v < 0 && recovery > 0) v = Math.min(0, v + recovery);
+  v = clamp(v, -ECO_TUNING.DEAD_CEIL, ECO_TUNING.V_MAX);
+  return { v, extraction, damage, healing, gate };
 }
 
 // Positive mirror of the collapse ladder. Index 0 = HOMEOSTASIS (shared pivot).

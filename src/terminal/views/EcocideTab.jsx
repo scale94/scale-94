@@ -43,6 +43,7 @@ import WorldMap from '../components/WorldMap';
 import { toMapXY, COUNTRIES, SPHERE_PATH, GRATICULE_PATH, EQUATOR_PATH, BORDERS_PATH } from '../data/worldMapPolys';
 import { readHealing, subscribeHealing } from '../lib/healingSignal';
 import { healingGrowthOffset, healingSargLift } from '../lib/inverseEngine';
+import { stepVitalityHybrid, deriveFracs, socialPenaltyLevel, growthToGdp } from '../lib/ecocideEngine';
 import { emit as emitObs } from '../../observatory/observatoryBus';
 
 // ── Coupling Event Bus ─────────────────────────────────────────────────────
@@ -216,14 +217,8 @@ function computeSARG(phase, state) {
 
 // ── Layer 3.3.3 – Growth-to-Extraction Conversion ───────────────────────────
 // A 2.0% growth mandate on a healthy biosphere demands moderate extraction.
-// The same 2.0% mandate on a degraded biosphere demands exponentially more.
-// bioCap = max(0.05, 1 − deadFrac × 0.92) – carrying capacity of the host.
-// gdp = 1.0 + growthRate / bioCap – extraction intensity for the WASM kernel.
-
-function growthToGdp(growthRate, deadFrac) {
-  const bioCap = Math.max(0.05, 1.0 - deadFrac * 0.92);
-  return Math.min(12.0, 1.0 + growthRate / bioCap);
-}
+// growthToGdp (the 2.0%-mandate-on-a-degraded-biosphere extraction curve) now
+// lives in ../lib/ecocideEngine as the single source of truth — imported above.
 
 // ── GrowthSlider — pointer-event custom track, works on iPad ─────────────────
 function GrowthSlider({ value, disabled, color, mandateActive, onChange }) {
@@ -326,13 +321,11 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
   const [penaltyLevel, setPenaltyLevel] = useState(0);
   const [penaltyMsg,   setPenaltyMsg]   = useState('');
   const [lastViralMsg, setLastViralMsg] = useState('');
-  // Map animation state — driven by WASM tick, CSS transitions interpolate to 60fps
-  const [mapState, setMapState] = useState({ deadFrac: 0, phase: 0, exergyNorm: 0, trophicV: 0, metabolicFat: 0 });
+  // Map animation state — driven by the 10 Hz tick, CSS transitions interpolate to 60fps
+  const [mapState, setMapState] = useState({ deadFrac: 0, phase: 0, exergyNorm: 0, trophicV: 0, metabolicFat: 0, bloomFrac: 0 });
   const [activeSpot, setActiveSpot] = useState(null);
 
   const growthRateRef  = useRef(2.5);
-  const wasmStuckRef   = useRef(false);  // true if WASM state is stale (bypasses to JS integrator)
-  const firstTickRef   = useRef(true);   // detect stale WASM on first tick only
   useEffect(() => { growthRateRef.current = growthRate; }, [growthRate]);
 
   const toxicityCapRef = useRef(0.0);
@@ -362,89 +355,45 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
   // ── WASM simulation tick at 10 Hz ─────────────────────────────────────────
   useEffect(() => {
     if (!wasmReady) return;
-    const wasm = wasmRef.current;
-
-    // Reset stale-detection state for this mount cycle.
-    firstTickRef.current = true;
-    wasmStuckRef.current = false;
-
-    // Attempt to reset WASM Rust static state before the first tick.
-    // NOTE: run_ecocide with reset=1.0 may not fully reinitialize the singleton —
-    // the first-tick probe below detects and handles persistent stale state.
-    try { wasm.run_ecocide(1.0, WASM_DT, 1.0); } catch { /* non-fatal */ }
 
     tickRef.current = setInterval(() => {
       // Effective rate = slider − TRANSMISSION healing offset (slider untouched)
       const gr = Math.max(0, growthRateRef.current - healingGrowthOffset(healingRef.current));
 
-      // ── Try WASM run_ecocide; fall back to JS integrator if unavailable ──
-      let deadCount, deadFrac, exergyNorm, phase, metabolicFat, x_dest, dx_dt, capital, s_gen;
+      // ── Bidirectional engine step ──────────────────────────────────────
+      // There is no WASM ecocide kernel (run_ecocide never existed); this hybrid
+      // integrator IS main's collapse — now reversible when the degrowth gate
+      // opens and the protection levers are funded. Signed vitality v ∈ [−0.98, 1].
+      const stepped = stepVitalityHybrid(vitalityRef.current, {
+        growth:      gr,
+        toxicityCap: toxicityCapRef.current,
+        sanctuary:   sanctuaryRef.current,
+        restoration: restorationRef.current,
+      }, WASM_DT);
+      vitalityRef.current = stepped.v;
+      const { deadFrac, bloomFrac } = deriveFracs(stepped.v);
+      bloomFracRef.current = bloomFrac;
 
-      // On the first tick, probe WASM for stale state (persistent singleton may
-      // carry FINAL_STATE from a previous session despite the reset calls).
-      if (firstTickRef.current && !wasmStuckRef.current) {
-        firstTickRef.current = false;
-        try {
-          const probe = wasm.run_ecocide(1.0, WASM_DT, 1.0);
-          const probeData = probe ? JSON.parse(probe) : null;
-          if (probeData && (probeData.phase ?? 0) > PH.HOMEOSTASIS && deadFracRef.current < 0.05) {
-            // WASM returned a collapsed state while JS refs are fresh — singleton is stale.
-            // Force JS integrator for this session so animation starts at HOMEOSTASIS.
-            wasmStuckRef.current = true;
-          }
-        } catch { wasmStuckRef.current = true; }
-      }
+      const deadCount  = Math.round(deadFrac * DOT_COUNT);
+      const extraction = stepped.extraction;
 
-      let wasmOk = false;
-      let raw;
-      if (!wasmStuckRef.current) {
-        try { raw = wasm.run_ecocide(growthToGdp(gr, deadFracRef.current), WASM_DT, 0.0); wasmOk = true; } catch { /* fall through */ }
-      }
+      // Thermodynamic HUD readouts (unchanged formulas — derived from extraction
+      // + deadFrac exactly as the prior JS integrator did).
+      const rawExergyNorm = Math.min(1.0, extraction * 0.35 + deadFrac * 0.65);
+      const exergyNorm = exergyNormRef.current + (rawExergyNorm - exergyNormRef.current) * 0.04;
+      const dx_dt   = exergyNorm * X_SOLAR;
+      const x_dest  = (statsRef.current.x_dest ?? 0) + dx_dt * WASM_DT;
+      const metabolicFat = Math.min(1.0, deadFrac * deadFrac * 2.2);
+      const s_gen   = dx_dt / 298.15;   // Gouy-Stodola approximation (T₀ = 298.15 K)
+      const capital = Math.max(0, 1.0 - deadFrac) * 100;
 
-      if (wasmOk && raw) {
-        let data;
-        try { data = JSON.parse(raw); } catch { wasmOk = false; }
-        if (wasmOk && data) {
-          deadCount    = data.dead ?? 0;
-          deadFrac     = deadCount / DOT_COUNT;
-          exergyNorm   = Math.min(1.0, (data.dx_dest_dt ?? 0) / X_SOLAR);
-          phase        = data.phase ?? 0;
-          metabolicFat = data.metabolic_fat ?? 0;
-          x_dest       = data.x_dest ?? 0;
-          dx_dt        = data.dx_dest_dt ?? 0;
-          capital      = data.capital ?? 0;
-          s_gen        = data.s_gen ?? 0;
-        }
-      }
-
-      if (!wasmOk) {
-        // ── JS ecological integrator ──────────────────────────────────────
-        // Runs at WASM_HZ (10 Hz), dt = 0.1 s
-        const prevDF    = deadFracRef.current;
-        const extraction = Math.max(0, growthToGdp(gr, prevDF) - 1.0); // excess above sustainable
-        const regeneration = 0.12 * (1.0 - prevDF);                     // regen capacity shrinks
-        const damage     = Math.max(0, extraction * 0.055 - regeneration) * WASM_DT;
-        const recovery   = gr < 0.5 ? 0.008 * (1.0 - prevDF) * WASM_DT : 0; // slow natural recovery at low growth
-
-        deadFrac     = Math.max(0, Math.min(0.98, prevDF + damage - recovery));
-        deadCount    = Math.round(deadFrac * DOT_COUNT);
-        // EMA-smooth exergyNorm so it ramps up gradually rather than jumping
-        // instantly from 0 → 0.875 on the first tick (which causes a harsh visual skip).
-        const rawExergyNorm = Math.min(1.0, extraction * 0.35 + deadFrac * 0.65);
-        exergyNorm   = exergyNormRef.current + (rawExergyNorm - exergyNormRef.current) * 0.04;
-        dx_dt        = exergyNorm * X_SOLAR;
-        x_dest       = (statsRef.current.x_dest ?? 0) + dx_dt * WASM_DT;
-        metabolicFat = Math.min(1.0, deadFrac * deadFrac * 2.2);
-        s_gen        = dx_dt / 298.15;   // Gouy-Stodola approximation (T₀ = 298.15 K)
-        capital      = Math.max(0, 1.0 - deadFrac) * 100;
-
-        // Phase thresholds (match PHASE_LABEL array)
-        if      (deadFrac >= 0.85) phase = PH.FINAL;
-        else if (deadFrac >= 0.55) phase = PH.COLLAPSE;
-        else if (deadFrac >= 0.30) phase = PH.OVERSHOOT;
-        else if (deadFrac >= 0.10) phase = PH.EXTRACTION;
-        else                       phase = PH.HOMEOSTASIS;
-      }
+      // Collapse phase (unchanged thresholds → PH enum / PHASE_NAME contract intact)
+      let phase;
+      if      (deadFrac >= 0.85) phase = PH.FINAL;
+      else if (deadFrac >= 0.55) phase = PH.COLLAPSE;
+      else if (deadFrac >= 0.30) phase = PH.OVERSHOOT;
+      else if (deadFrac >= 0.10) phase = PH.EXTRACTION;
+      else                       phase = PH.HOMEOSTASIS;
 
       // Trophic cascade velocity: rate of change of dead fraction (smoothed)
       const prevDead  = prevDeadRef.current;
@@ -475,13 +424,13 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
         onLog?.({ time: now, msg: '  WARNING \u2013 sub-mandate retreat will trigger social disintegration protocols', rust: true });
       }
 
-      let newPenalty = 0;
-      let newPenaltyMsg = '';
-      if (mandateActiveRef.current && gr < 2.0 && phase < PH.COLLAPSE) {
-        if (gr < 1.0)      { newPenalty = 3; newPenaltyMsg = DOUBLE_BIND[2].msg; }
-        else if (gr < 1.5) { newPenalty = 2; newPenaltyMsg = DOUBLE_BIND[1].msg; }
-        else               { newPenalty = 1; newPenaltyMsg = DOUBLE_BIND[0].msg; }
-      }
+      // Reframed double-bind: naive contraction still fires the penalty, but
+      // funded protection (a just transition) buys it down. Suppressed once the
+      // world has already collapsed. (see ecocideEngine.socialPenaltyLevel)
+      const newPenalty = phase < PH.COLLAPSE
+        ? socialPenaltyLevel(gr, sanctuaryRef.current, restorationRef.current, mandateActiveRef.current)
+        : 0;
+      const newPenaltyMsg = newPenalty > 0 ? DOUBLE_BIND[newPenalty - 1].msg : '';
       penaltyLevelRef.current = newPenalty;
       setPenaltyLevel(newPenalty);
       setPenaltyMsg(newPenaltyMsg);
@@ -513,7 +462,7 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
       _hist.push(sarg.sarg);
       if (_hist.length > 80) _hist.shift();
       setUiMetrics({ metabolicFat, trophicV, deadFrac, exergyNorm });
-      setMapState({ deadFrac, phase, exergyNorm, trophicV, metabolicFat });
+      setMapState({ deadFrac, phase, exergyNorm, trophicV, metabolicFat, bloomFrac });
 
       // ── Phase transition terminal logs ────────────────────────────────
       const newPhase = phase;
@@ -569,9 +518,6 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
 
   // ── Reset ─────────────────────────────────────────────────────────────────
   const handleReset = useCallback(() => {
-    const wasm = wasmRef.current;
-    if (!wasm) return;
-    wasm.run_ecocide(1.0, WASM_DT, 1.0);
     setGrowthRate(0.0);
     growthRateRef.current    = 0.0;
     phaseRef.current         = 0;
@@ -580,6 +526,8 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
     prevDeadRef.current      = 0;
     trophicVRef.current      = 0;
     deadFracRef.current      = 0;
+    vitalityRef.current      = 0;
+    bloomFracRef.current     = 0;
     exergyNormRef.current    = 0;
     penaltyLevelRef.current  = 0;
     mandateActiveRef.current = false;
@@ -595,7 +543,7 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
     setPenaltyMsg('');
     setLastViralMsg('');
 
-    setMapState({ deadFrac: 0, phase: 0, exergyNorm: 0, trophicV: 0, metabolicFat: 0 });
+    setMapState({ deadFrac: 0, phase: 0, exergyNorm: 0, trophicV: 0, metabolicFat: 0, bloomFrac: 0 });
   }, []);
 
   // ── Per-country cell state (driven by WASM kernel metrics) ──────────────────
