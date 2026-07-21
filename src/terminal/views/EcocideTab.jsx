@@ -44,6 +44,7 @@ import { toMapXY, COUNTRIES, SPHERE_PATH, GRATICULE_PATH, EQUATOR_PATH, BORDERS_
 import { readHealing, subscribeHealing } from '../lib/healingSignal';
 import { healingGrowthOffset, healingSargLift } from '../lib/inverseEngine';
 import { stepVitalityHybrid, deriveFracs, socialPenaltyLevel, growthToGdp, bloomPhase, REGEN_NAME } from '../lib/ecocideEngine';
+import { ProtectionLevers } from './ecocide/ProtectionLevers';
 import { emit as emitObs } from '../../observatory/observatoryBus';
 
 // ── Coupling Event Bus ─────────────────────────────────────────────────────
@@ -279,36 +280,6 @@ function GrowthSlider({ value, disabled, color, mandateActive, onChange }) {
   );
 }
 
-// ── ProtocolSlider — 0..1 protection lever, same pointer engine as GrowthSlider ─
-function ProtocolSlider({ label, value, color, gated, onChange }) {
-  const trackRef = useRef(null);
-  const valueFromEvent = useCallback((e) => {
-    const rect = trackRef.current.getBoundingClientRect();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    return Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-  }, []);
-  const handlePointer = useCallback((e) => {
-    e.preventDefault();
-    onChange(valueFromEvent(e));
-    const move = (me) => { me.preventDefault(); onChange(valueFromEvent(me)); };
-    const up   = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
-    window.addEventListener('pointermove', move, { passive: false });
-    window.addEventListener('pointerup', up);
-  }, [onChange, valueFromEvent]);
-  const pct = value * 100;
-  return (
-    <div className="flex items-center gap-2" style={{ opacity: gated ? 0.45 : 1, transition: 'opacity 0.4s' }}>
-      <span className="shrink-0 tracking-widest uppercase" style={{ color, fontSize: '10px', fontWeight: 800, width: '104px' }}>{label}</span>
-      <div ref={trackRef} onPointerDown={handlePointer}
-        style={{ flex: 1, height: '4px', background: '#0d1a00', position: 'relative', cursor: 'pointer', touchAction: 'none', userSelect: 'none' }}>
-        <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${pct}%`, background: color, transition: 'background 0.3s' }} />
-        <div style={{ position: 'absolute', top: '50%', left: `${pct}%`, transform: 'translate(-50%,-50%)', width: '12px', height: '12px', borderRadius: '50%', background: color, boxShadow: `0 0 6px ${color}88` }} />
-      </div>
-      <span className="w-8 text-right shrink-0" style={{ color, fontSize: '11px', fontWeight: 800 }}>{Math.round(pct)}</span>
-    </div>
-  );
-}
-
 // ── EcocideTab ───────────────────────────────────────────────────────────────
 
 export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
@@ -400,6 +371,7 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
         toxicityCap: toxicityCapRef.current,
         sanctuary:   sanctuaryRef.current,
         restoration: restorationRef.current,
+        nativeBio:   nativeBioRef.current,
       }, WASM_DT);
       vitalityRef.current = stepped.v;
       const { deadFrac, bloomFrac } = deriveFracs(stepped.v);
@@ -1127,10 +1099,16 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
                 {'▶'} GATE CLOSED {'—'} protections inert above 2.0% growth. Tame throughput to unlock healing.
               </div>
             )}
-            <ProtocolSlider label="TOXICITY_CAP"  value={toxicityCap} color="#5a8ac0" gated={growthRate >= 3.0} onChange={setToxicityCap} />
-            <ProtocolSlider label="SANCTUARY"     value={sanctuary}   color="#5fbf3a" gated={growthRate >= 3.0} onChange={setSanctuary} />
-            <ProtocolSlider label="RESTORATION"   value={restoration} color="#3fd06a" gated={growthRate >= 3.0} onChange={setRestoration} />
-            <ProtocolSlider label="NATIVE_BIODIV" value={nativeBio}   color="#7fe08a" gated={growthRate >= 3.0} onChange={setNativeBio} />
+            <ProtectionLevers
+              levers={{ toxicityCap, sanctuary, restoration, nativeBio }}
+              isGated={growthRate >= 3.0}
+              onChange={(key, val) => {
+                if (key === 'toxicityCap')      setToxicityCap(val);
+                else if (key === 'sanctuary')   setSanctuary(val);
+                else if (key === 'restoration') setRestoration(val);
+                else if (key === 'nativeBio')   setNativeBio(val);
+              }}
+            />
           </div>
         )}
       </div>
