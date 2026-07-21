@@ -45,6 +45,7 @@ import { readHealing, subscribeHealing } from '../lib/healingSignal';
 import { healingGrowthOffset, healingSargLift } from '../lib/inverseEngine';
 import { stepVitalityHybrid, deriveFracs, socialPenaltyLevel, growthToGdp, bloomPhase, REGEN_NAME } from '../lib/ecocideEngine';
 import { ProtectionLevers } from './ecocide/ProtectionLevers';
+import SeraphineScale from './ecocide/SeraphineScale';
 import { emit as emitObs } from '../../observatory/observatoryBus';
 
 // ── Coupling Event Bus ─────────────────────────────────────────────────────
@@ -897,6 +898,9 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
           <div>dX/dt ={' '}<span style={{ color: uiStats.dx_dt > X_SOLAR ? '#ff4400' : '#5a8a10' }}>{uiStats.dx_dt.toFixed(1)} TW</span>{' / '}{X_SOLAR} TW</div>
           {growthRate > 0.1 && <div className="mt-1" style={{ color: '#4a3000' }}>EXTRACTION_COST {'\u2013'} {extractionCost.toFixed(2)}{'\u00d7'}</div>}
         </div>
+
+        {/* Seraphine Scale collective payoff overlay (beam + Eye) */}
+        <SeraphineScale deadFrac={mapState.deadFrac} bloomFrac={mapState.bloomFrac} />
       </div>
 
       {/* ── Three-variable gauges + stats ── */}
