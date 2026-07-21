@@ -44,6 +44,15 @@ const popDelay = (i) => 300 + i * 300;
 // Cubic ease-out: fast start → smooth deceleration → clean stop
 const easeOut = (t) => 1 - Math.pow(1 - t, 3);
 
+// Mobile rasterizers choke on concurrent blurred box-shadow/text-shadow/filter
+// repaints far more than on the transform-driven spin itself. Desktop keeps
+// the full glow stack; mobile gets the same motion with the paint-heavy
+// glow radii trimmed. Checked once — boot is a ~6s one-shot, not worth a
+// resize listener.
+const IS_MOBILE = typeof window !== 'undefined' && window.matchMedia
+  ? window.matchMedia('(max-width: 767px)').matches
+  : false;
+
 const BootSequence = ({ onDone }) => {
   const squareRef = useRef(null);
   const cardRef   = useRef(null);
@@ -139,6 +148,26 @@ const BootSequence = ({ onDone }) => {
           0%, 50% { opacity: 0; }
           100%    { opacity: 0.35; }
         }
+        /* Mobile: same motion, cheaper paint — blur() and multi-layer
+           text-shadow are the parts that make weaker GPU rasterizers drop
+           frames, not the scale/opacity transform. Redefining the same
+           keyframe names inside this query overrides them only under 767px;
+           desktop keeps the full-strength originals above untouched. */
+        @media (max-width: 767px) {
+          @keyframes bs-observer-bloom {
+            0%   { opacity: 0; transform: scale(0.1); }
+            40%  { opacity: 1; transform: scale(1.18); }
+            100% { opacity: 0.95; transform: scale(1); }
+          }
+          @keyframes bs-observer-pulse {
+            0%, 100% { text-shadow: 0 0 8px rgba(255,215,0,0.5); }
+            50%      { text-shadow: 0 0 14px rgba(255,215,0,0.8); }
+          }
+          @keyframes bs-observer-line {
+            0%   { opacity: 0; letter-spacing: 0.55em; }
+            100% { opacity: 0.55; letter-spacing: 0.22em; }
+          }
+        }
       `}</style>
       <div
         className="absolute inset-0 flex flex-col items-center justify-center gap-5"
@@ -194,7 +223,12 @@ const BootSequence = ({ onDone }) => {
             borderWidth:  '1px',
             borderStyle:  'solid',
             borderColor:  `${frameColor}38`,
-            boxShadow:    `0 0 18px ${frameColor}44, 0 0 56px ${frameColor}18`,
+            // Mobile: single tight shadow, no 56px outer bloom — that second
+            // layer is the expensive one to rasterize on weaker GPUs and it's
+            // the one least visible on a small screen anyway.
+            boxShadow:    IS_MOBILE
+              ? `0 0 10px ${frameColor}44`
+              : `0 0 18px ${frameColor}44, 0 0 56px ${frameColor}18`,
             transition:   'border-color 0.35s ease, box-shadow 0.35s ease',
             // Promote to its own compositor layer so the per-rAF rotate() never
             // fights the box-shadow/border-color repaints — without this the two

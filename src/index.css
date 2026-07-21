@@ -96,6 +96,15 @@ html, body {
   0%,100% { filter: drop-shadow(0 0 4px rgba(255,215,0,0.6)); }
   50%     { filter: drop-shadow(0 0 12px rgba(255,215,0,1)) drop-shadow(0 0 20px rgba(255,140,0,0.35)); }
 }
+/* Mobile: single drop-shadow layer, smaller radius — two stacked
+   drop-shadow() filters pulsing for the whole boot is repaint work
+   desktop GPUs shrug off but weaker mobile rasterizers don't. */
+@media (max-width: 767px) {
+  @keyframes bs-cpuGlow {
+    0%,100% { filter: drop-shadow(0 0 3px rgba(255,215,0,0.6)); }
+    50%     { filter: drop-shadow(0 0 7px rgba(255,215,0,0.9)); }
+  }
+}
 
 /* Title reveal — blur + slide up */
 @keyframes bs-titleReveal {
@@ -207,6 +216,25 @@ html, body {
          text-shadow: 0 0 10px currentColor, 0 0 16px currentColor; }
   68%  { transform: translateX(0) scale(0.97); text-shadow: 0 0 4px currentColor; }
   100% { opacity: 1; transform: translateX(0) scale(1); text-shadow: none; }
+}
+
+/* Mobile: this pair pops 11 times over ~3.3s of the boot — each pop with a
+   double-layer text-shadow burst. Keep the slide/scale motion (that's the
+   compositable, cheap part), drop the glow burst to a single tight layer. */
+@media (max-width: 767px) {
+  @keyframes bs-crystalline-lock {
+    0%   { opacity: 0; color: #00FFAA; text-shadow: 0 0 10px rgba(0,255,170,0.6); }
+    18%  { opacity: 1; color: #00FFAA; text-shadow: 0 0 6px rgba(0,255,170,0.6); }
+    55%  { color: #FFD700; text-shadow: 0 0 5px rgba(255,215,0,0.5); }
+    100% { opacity: 1; color: #FFD700; text-shadow: none; }
+  }
+  @keyframes bs-statusPop {
+    0%   { opacity: 0; transform: translateX(5px) scale(0.75); }
+    42%  { opacity: 1; transform: translateX(-2px) scale(1.08);
+           text-shadow: 0 0 5px currentColor; }
+    68%  { transform: translateX(0) scale(0.97); }
+    100% { opacity: 1; transform: translateX(0) scale(1); text-shadow: none; }
+  }
 }
 
 /* Entropy axiom — flickers in orange, unsteady */
