@@ -1,0 +1,44 @@
+.pl-wrap { display:flex; flex-direction:column; gap:8px; }
+.pl-row { display:flex; align-items:center; gap:10px; transition:opacity .4s, filter .4s; }
+.pl-label { flex-shrink:0; width:110px; font-size:10px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+.pl-track { flex:1; height:22px; position:relative; background:#0a1400; border-radius:2px; overflow:hidden; cursor:pointer; touch-action:none; user-select:none; }
+.pl-val { width:26px; text-align:right; flex-shrink:0; font-size:11px; font-weight:800; }
+
+/* gated: dormant, paused, uninteractive */
+.pl-wrap.is-gated .pl-row { opacity:.4; filter:grayscale(100%); }
+.pl-wrap.is-gated .pl-track { pointer-events:none; cursor:not-allowed; }
+.pl-wrap.is-gated * { animation-play-state:paused !important; }
+
+/* one-shot ignition flare when the gate opens */
+.pl-wrap.pl-ignite .pl-row { animation:pl-flare .8s ease-out 1; }
+@keyframes pl-flare { 0%{filter:brightness(1);} 45%{filter:brightness(1.7);} 100%{filter:brightness(1);} }
+
+/* SEAL — churning poison sealed behind a membrane */
+.pl-tox-poison { position:absolute; inset:0; background:linear-gradient(90deg,#3a0a2a,#5a1a0a,#2a0a3a,#5a1a0a,#3a0a2a); background-size:200% 100%; animation:pl-toxchurn 3.4s linear infinite; opacity:.85; }
+@keyframes pl-toxchurn { to { background-position:200% 0; } }
+.pl-tox-membrane { position:absolute; top:0; bottom:0; left:0; background:linear-gradient(90deg,rgba(90,138,192,.34),rgba(90,138,192,.22)); border-right:1.5px solid #7fb0e0; box-shadow:inset 0 0 12px rgba(120,170,220,.25); animation:pl-membwob 4.5s ease-in-out infinite; }
+@keyframes pl-membwob { 0%,100%{ transform:translateX(0);} 50%{ transform:translateX(1.5px);} }
+
+/* BREATHE — slow respiration (opacity, not filter) + exhaling ring */
+.pl-sanc-fill { position:absolute; top:0; bottom:0; left:0; background:linear-gradient(90deg,#1a4a10,#5fbf3a); border-radius:2px; animation:pl-breathe 5.2s ease-in-out infinite; }
+@keyframes pl-breathe { 0%,100%{ opacity:.78; box-shadow:0 0 4px #5fbf3a44;} 50%{ opacity:1; box-shadow:0 0 14px #5fbf3a99;} }
+.pl-sanc-ring { position:absolute; top:50%; width:10px; height:10px; border:1px solid #5fbf3a; border-radius:50%; transform:translate(-50%,-50%); animation:pl-sancring 5.2s ease-out infinite; }
+@keyframes pl-sancring { 0%{ transform:translate(-50%,-50%) scale(.4); opacity:.9;} 70%,100%{ transform:translate(-50%,-50%) scale(3.2); opacity:0;} }
+
+/* GROW — eager sprouting tendrils (stroke-dashoffset) */
+.pl-rest-fill { position:absolute; top:0; bottom:0; left:0; overflow:hidden; border-radius:2px; background:linear-gradient(90deg,#0a3a12,#3fd06a); }
+.pl-rest-svg { position:absolute; inset:0; width:100%; height:100%; }
+.pl-rest-svg path { stroke:#9fffb0; stroke-width:1; fill:none; stroke-dasharray:40; stroke-dashoffset:40; opacity:.75; animation:pl-sprout 2.6s ease-out infinite; }
+.pl-rest-svg path:nth-child(2){animation-delay:.5s;} .pl-rest-svg path:nth-child(3){animation-delay:1s;} .pl-rest-svg path:nth-child(4){animation-delay:1.6s;}
+@keyframes pl-sprout { 0%{ stroke-dashoffset:40; opacity:0;} 25%{opacity:.85;} 100%{ stroke-dashoffset:0; opacity:0;} }
+
+/* KNIT — crystalline mesh, nodes stepping */
+.pl-nat-fill { position:absolute; top:0; bottom:0; left:0; overflow:hidden; border-radius:2px; background:linear-gradient(90deg,#123a1a,rgba(127,224,138,.18)); }
+.pl-nat-svg { position:absolute; inset:0; width:100%; height:100%; }
+.pl-nat-svg line { stroke:#7fe08a; stroke-width:.6; opacity:.35; }
+.pl-nat-svg circle { fill:#aef0b8; animation:pl-node 3.2s ease-in-out infinite; }
+@keyframes pl-node { 0%,100%{ opacity:.25;} 50%{ opacity:1;} }
+
+@media (prefers-reduced-motion: reduce) {
+  .pl-wrap * { animation:none !important; }
+}
