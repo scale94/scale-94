@@ -188,3 +188,39 @@ describe('stepVitalityHybrid — WASM-free bidirectional integrator (preserves m
     expect(capped).toBeGreaterThan(uncapped);
   });
 });
+
+describe('NATIVE_BIODIV resilience — bloom-gated relapse buffer', () => {
+  const DT = 0.1;
+
+  it('exposes a modest RESILIENCE_STRENGTH', () => {
+    expect(ECO_TUNING.RESILIENCE_STRENGTH).toBeGreaterThan(0);
+    expect(ECO_TUNING.RESILIENCE_STRENGTH).toBeLessThanOrEqual(0.5);
+  });
+
+  it('greenwash invariant: nativeBio does nothing on a never-bloomed world', () => {
+    const prevV = -0.2;               // collapsing, no earned bloom
+    const growth = 4.5;               // high extraction, gate closed
+    const base = stepVitalityHybrid(prevV, { growth, toxicityCap: 0, sanctuary: 0, restoration: 0, nativeBio: 0 }, DT);
+    const maxed = stepVitalityHybrid(prevV, { growth, toxicityCap: 0, sanctuary: 0, restoration: 0, nativeBio: 1 }, DT);
+    expect(maxed.v).toBe(base.v);     // identical to the last float
+  });
+
+  it('buffers relapse on an established bloom: nativeBio slows the drop', () => {
+    const prevV = 0.6;                // substantial earned bloom
+    const growth = 5.0;               // re-raised growth forces relapse
+    const base = stepVitalityHybrid(prevV, { growth, toxicityCap: 0, sanctuary: 0, restoration: 0, nativeBio: 0 }, DT);
+    const buffered = stepVitalityHybrid(prevV, { growth, toxicityCap: 0, sanctuary: 0, restoration: 0, nativeBio: 1 }, DT);
+    expect(buffered.v).toBeGreaterThan(base.v);
+  });
+
+  it('regression: nativeBio defaulting to 0 matches an omitted key exactly', () => {
+    // Guards the default: with nativeBio 0 (or absent) resilience === 1, so the
+    // collapse step is identical to main. Pre-existing stepVitalityHybrid tests
+    // remain the byte-for-byte pin on main's collapse velocity.
+    const prevV = -0.3;
+    const growth = 3.0;
+    const withField  = stepVitalityHybrid(prevV, { growth, toxicityCap: 0, sanctuary: 0, restoration: 0, nativeBio: 0 }, DT);
+    const withoutKey = stepVitalityHybrid(prevV, { growth, toxicityCap: 0, sanctuary: 0, restoration: 0 }, DT); // nativeBio omitted
+    expect(withField.v).toBe(withoutKey.v);
+  });
+});

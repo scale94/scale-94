@@ -31,6 +31,10 @@ export const ECO_TUNING = Object.freeze({
   // Healing half (new, tunable live in-browser):
   TOXCAP_STRENGTH: 0.6,   // how far a full toxicity cap throttles extraction damage (gated)
   K_HEAL_JS:       0.25,  // bloom responsiveness — dv/dt per unit healingPower
+  // NATIVE_BIODIV — diversity resilience. Damps damage in proportion to
+  // earned bloom (max(0, prevV)); 0 on any never-bloomed world, so the
+  // greenwash invariant holds. Stabilizer, not a second bloom driver.
+  RESILIENCE_STRENGTH: 0.3,
 });
 
 // Smoothstep — 0 below edge0, 1 above edge1, Hermite in between.
@@ -98,7 +102,7 @@ export function socialPenaltyLevel(growth, sanctuary, restoration, mandateActive
 // levers at 0, deriveFracs(v).deadFrac reproduces main tick-for-tick. Healing is
 // the engine's gated positive excursion — the ONLY term that creates bloom (v>0).
 export function stepVitalityHybrid(prevV, levers, dt) {
-  const { growth, toxicityCap = 0, sanctuary = 0, restoration = 0 } = levers;
+  const { growth, toxicityCap = 0, sanctuary = 0, restoration = 0, nativeBio = 0 } = levers;
   const df = Math.max(0, -prevV);                         // current deadFrac
 
   const gate = degrowthGate(growth);                      // 0 at high growth → protections inert
@@ -109,6 +113,14 @@ export function stepVitalityHybrid(prevV, levers, dt) {
   const regeneration = ECO_TUNING.REGEN_RATE * (1.0 - df);
   const toxThrottle  = 1 - ECO_TUNING.TOXCAP_STRENGTH * toxicityCap * gate;
   const damage       = Math.max(0, extraction * ECO_TUNING.K_DAMAGE_JS * toxThrottle - regeneration) * dt;
+
+  // NATIVE_BIODIV resilience — gated on earned bloom, not on the growth gate.
+  // A world you already healed re-collapses more slowly; a never-bloomed world
+  // (prevV <= 0) gets resilience === 1, so nativeBio changes nothing there.
+  const bloomFrac   = Math.max(0, prevV);
+  const resilience  = 1 - ECO_TUNING.RESILIENCE_STRENGTH * nativeBio * bloomFrac;
+  const dampedDamage = damage * resilience;
+
   const recovery     = growth < ECO_TUNING.RECOVERY_GROWTH
     ? ECO_TUNING.RECOVERY_RATE * (1.0 - df) * dt : 0;
 
@@ -116,7 +128,7 @@ export function stepVitalityHybrid(prevV, levers, dt) {
   const healing = healingPower(gate, sanctuary, restoration);
   const heal    = ECO_TUNING.K_HEAL_JS * healing * dt;
 
-  let v = prevV - damage + heal;
+  let v = prevV - dampedDamage + heal;
   // Natural recovery nudges a dead world toward baseline but never past it — no
   // bloom without funded healing (matches main's deadFrac floor at 0).
   if (v < 0 && recovery > 0) v = Math.min(0, v + recovery);
