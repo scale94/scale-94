@@ -1,0 +1,14 @@
+.ss-overlay { position:absolute; inset:0; pointer-events:none; z-index:5; }
+
+.ss-beam { position:absolute; left:50%; bottom:9%; width:56%; max-width:420px; transform-origin:center bottom; transition:transform .3s cubic-bezier(0.16,1,0.3,1); will-change:transform; }
+.ss-beam svg { width:100%; height:auto; display:block; }
+
+.ss-eye { position:absolute; left:50%; top:5%; transform:translateX(-50%); width:64px; height:40px; transition:opacity .3s ease-out; will-change:opacity; }
+.ss-eye svg { width:100%; height:100%; overflow:visible; }
+.ss-eye .ss-lid { fill:#000; transition:transform .3s ease-out; transform-origin:center; }
+.ss-eye .ss-iris { fill:#7fe08a; transition:transform .3s ease-out; transform-origin:center; }
+.ss-halo { position:absolute; left:50%; top:2%; transform:translateX(-50%); width:150px; height:60px; background:radial-gradient(ellipse at 50% 100%, rgba(127,224,138,.30), rgba(127,224,138,0) 70%); transition:opacity .3s ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ss-beam, .ss-eye, .ss-eye .ss-lid, .ss-eye .ss-iris, .ss-halo { transition:none; }
+}
