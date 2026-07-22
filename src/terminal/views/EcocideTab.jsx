@@ -37,7 +37,6 @@
 
 import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { ChevronRight, Filter, X, AlertTriangle, Globe } from 'lucide-react';
-import wasmRegistry from '../../wasm/wasm.generated';
 import { loadWasm } from '../../wasm/wasmSingleton';
 import WorldMap from '../components/WorldMap';
 import { toMapXY, COUNTRIES, SPHERE_PATH, GRATICULE_PATH, EQUATOR_PATH, BORDERS_PATH } from '../data/worldMapPolys';
@@ -284,7 +283,6 @@ function GrowthSlider({ value, disabled, color, mandateActive, onChange }) {
 // ── EcocideTab ───────────────────────────────────────────────────────────────
 
 export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
-  const wasmRef   = useRef(null);
   const rafRef    = useRef(null);  // rAF ID for glitch re-render loop
   const tickRef   = useRef(null);
 
@@ -319,7 +317,7 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
   const [restoration, setRestoration] = useState(0.0);
   const [nativeBio,   setNativeBio]   = useState(0.0);
   const [protocolOpen, setProtocolOpen] = useState(false);
-  const [wasmReady,    setWasmReady]    = useState(false);
+  const [bootReady,    setBootReady]    = useState(false);
   const [mandateActive,setMandateActive]= useState(false);
   const [penaltyLevel, setPenaltyLevel] = useState(0);
   const [penaltyMsg,   setPenaltyMsg]   = useState('');
@@ -346,19 +344,20 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
   useEffect(() => { healingRef.current = healingIdx; }, [healingIdx]);
   useEffect(() => subscribeHealing(sig => setHealingIdx(sig?.healingIndex ?? 0)), []);
 
-  // ── WASM load ─────────────────────────────────────────────────────────────
+  // ── Kernel bundle boot beat ───────────────────────────────────────────────
+  // Cosmetic only. The ecocide simulation never reads the WASM module — the
+  // collapse integrator is plain JS — so the tick below must NOT wait on this,
+  // or a failed fetch would leave the tab frozen at HOMEOSTASIS forever.
   useEffect(() => {
-    loadWasm().then(mod => {
-      wasmRef.current = mod;
-      try { mod.run_ecocide(1.0, WASM_DT, 1.0); } catch { /* non-fatal */ }
-      setWasmReady(true);
-    }).catch(err => console.error('[EcocideTab] WASM load failed:', err));
+    let alive = true;
+    loadWasm()
+      .catch(err => console.error('[EcocideTab] WASM load failed:', err))
+      .finally(() => { if (alive) setBootReady(true); });
+    return () => { alive = false; };
   }, []);
 
-  // ── WASM simulation tick at 10 Hz ─────────────────────────────────────────
+  // ── Simulation tick at 10 Hz ──────────────────────────────────────────────
   useEffect(() => {
-    if (!wasmReady) return;
-
     tickRef.current = setInterval(() => {
       // Effective rate = slider − TRANSMISSION healing offset (slider untouched)
       const gr = Math.max(0, growthRateRef.current - healingGrowthOffset(healingRef.current));
@@ -503,7 +502,7 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
     }, 1000 / WASM_HZ);
 
     return () => clearInterval(tickRef.current);
-  }, [wasmReady, onLog]);
+  }, [onLog]);
 
   // ── rAF for glitch/pulse re-renders (only runs during overshoot+) ──────────
   useEffect(() => {
@@ -524,6 +523,17 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
   const handleReset = useCallback(() => {
     setGrowthRate(0.0);
     growthRateRef.current    = 0.0;
+    // Disarm the protocol too. Growth drops to 0, so the degrowth gate is wide
+    // open — leaving the levers funded would bloom the "reset" world instead of
+    // returning it to homeostasis.
+    setToxicityCap(0.0);
+    setSanctuary(0.0);
+    setRestoration(0.0);
+    setNativeBio(0.0);
+    toxicityCapRef.current   = 0.0;
+    sanctuaryRef.current     = 0.0;
+    restorationRef.current   = 0.0;
+    nativeBioRef.current     = 0.0;
     phaseRef.current         = 0;
     metabolicFatRef.current  = 0;
     prevPhaseRef.current     = 0;
@@ -687,7 +697,7 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
         <span className="text-[#7ab800]/30 select-none px-0.5">|</span>
         <span className="text-[#3a5500]/60">SARG Governance</span>
         <div className="flex-1" />
-        {!wasmReady && (
+        {!bootReady && (
           <span className="text-[#4a6a00]/60 animate-pulse">KERNEL INIT...</span>
         )}
         <span
@@ -1036,7 +1046,10 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
       {/* ── Status bar ── */}
       <div className="shrink-0 px-4 py-1.5 border-t border-[#1a2d00]/40 bg-black overflow-hidden"
            style={{ textShadow: glitchShadow }}>
-        <div className="flex items-center justify-between">
+        {/* flex-wrap: at 375px the readouts (238px) + RESET (139px) exceed the
+            row, and the strip clips — RESET lost its right quarter. Wraps on
+            mobile, unchanged on desktop where both fit on one line. */}
+        <div className="flex items-center justify-between flex-wrap gap-y-1">
           <div className="flex items-center gap-4 tracking-wide" style={{ color: '#3a5a10', lineHeight: '1.5', fontSize: '10.5px', fontWeight: 800 }}>
             <span className="flex items-center gap-1.5">
               {sargHistoryRef.current.length > 4 && (() => {
