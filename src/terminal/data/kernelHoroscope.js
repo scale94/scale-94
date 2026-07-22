@@ -92,4 +92,42 @@ export const KERNEL_HOROSCOPE = {
       partial:  'The spine is unfinished and it is still yours. Unfinished is not unqualified.',
     },
   },
+
+  // Homophony cipher. The sound holds while the payload recompiles at each
+  // border. Sits at the full moon: maximum projection, zero vision.
+  semiotic: {
+    axis: 'the sound holds while the payload recompiles · reach is not vision',
+    quadrants: {
+      'DARK-WAXING': {
+        plato:  'Silence. Nothing sent, nothing to answer for.',
+        promo:  'The refusal arrives anyway. It always arrives; the only variable is what you compile it into.',
+        directive: 'Compile the refusal into something you own.',
+      },
+      'LIGHT-WAXING': {
+        plato:  'The word means one thing. Say it and be understood.',
+        promo:  'It crossed a border while you were saying it. Same sound, new payload, and the room heard the new one.',
+        directive: 'Hold the form and let the payload change.',
+      },
+      'LIGHT-WANING': {
+        plato:  'Untouchable. Maximum projection, the name carrying further than the body.',
+        promo:  'You are lit from every side and can see nothing. Reach is not vision.',
+        directive: 'Turn the lights off and count what you can still see.',
+      },
+      'DARK-WANING': {
+        plato:  'The name persists. Whatever else goes, the name was built to outlast it.',
+        promo:  'A name that outlasts the body is a monument, and monuments do not get to revise.',
+        directive: 'Say the thing that would cost you the name.',
+      },
+    },
+    paradox: {
+      harmonic: 'Sound and meaning hop together and the border opens. A translation nobody had to be taught.',
+      fused:    'Signal and self at zero-point. What you are called and what you are have stopped being separable — that is the cost, not the achievement.',
+      friction: 'Payload under pressure at the checkpoint. The sound passes; the meaning is what gets searched.',
+      polarity: 'Projection opposite perception. Everyone can find you and you cannot find the door.',
+    },
+    coda: {
+      complete: 'Four crossings, all marked. The sound held through every one.',
+      partial:  'The chain is short and the sound is intact. Short chains still cross borders.',
+    },
+  },
 };
