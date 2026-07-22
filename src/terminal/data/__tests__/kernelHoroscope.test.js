@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { KERNEL_HOROSCOPE, TENSION_CLASSES } from '../kernelHoroscope';
 import { ARC_QUADRANTS } from '../../lunar/synodic';
+import { LENSES } from '../../lunar/doctrineLens';
 
 // Grows as each lens lands. The final entry (Task 9) flips this to all five.
-const AUTHORED = ['hudelschublade', 'blackhole', 'semiotic', 'fishscale'];
+const AUTHORED = ['hudelschublade', 'blackhole', 'semiotic', 'fishscale', 'rossignol'];
 
 // Directives are imperatives. This list is deliberately broad — a hedge that
 // slips through is worse than a false positive, because the whole point of the
@@ -43,5 +44,9 @@ describe('kernelHoroscope', () => {
     const all = Object.values(KERNEL_HOROSCOPE)
       .flatMap(e => ARC_QUADRANTS.map(q => e.quadrants[q].directive));
     expect(new Set(all).size).toBe(all.length);
+  });
+
+  it('covers every lens in the wheel, and nothing else', () => {
+    expect(Object.keys(KERNEL_HOROSCOPE).sort()).toEqual(LENSES.map(l => l.id).sort());
   });
 });

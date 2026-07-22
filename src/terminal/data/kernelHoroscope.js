@@ -168,4 +168,42 @@ export const KERNEL_HOROSCOPE = {
       partial:  'Unfinished and still wet. Keep it that way longer than feels responsible.',
     },
   },
+
+  // The only lens that is not a cipher: it publishes. Seated on the return to
+  // new, where the ring closes.
+  rossignol: {
+    axis: 'one song, four tongues, identical response · purity is the label telling the truth',
+    quadrants: {
+      'DARK-WAXING': {
+        plato:  'A new start, unencumbered, nothing carried over.',
+        promo:  'You came back wearing a name you picked up somewhere else. The return is never to the same place.',
+        directive: 'Come back before you are finished.',
+      },
+      'LIGHT-WAXING': {
+        plato:  'Say it plainly and it will be understood as you meant it.',
+        promo:  'It will be understood as they need it. That is not a failure of the saying — it is what saying is for.',
+        directive: 'Let them hear it wrong and keep playing.',
+      },
+      'LIGHT-WANING': {
+        plato:  'The formula is the value. Publish it and you are left with nothing.',
+        promo:  'Published, it becomes an assay. A declared label is the only purity anyone can verify.',
+        directive: 'Publish the assay.',
+      },
+      'DARK-WANING': {
+        plato:  'One more circuit before you declare anything.',
+        promo:  'The ring is already closed. You are circling something you have finished.',
+        directive: 'Close it and say so out loud.',
+      },
+    },
+    paradox: {
+      harmonic: 'Two tongues agree without translation. The pulse crossed and nobody had to be taught it.',
+      fused:    'Departure and return at zero-point. The bird is home and foreign in the same instant, and both are correct readings.',
+      friction: 'Disclosure against advantage. Every declared gram costs you the edge and buys the only trust that compounds.',
+      polarity: 'The song opposite the name. Four languages, one response — the response was never in the language.',
+    },
+    coda: {
+      complete: 'Four marked, the ring shut. This is the reading the other four were arriving at.',
+      partial:  'The ring is open at one point. An open ring is a route, not a defect.',
+    },
+  },
 };
