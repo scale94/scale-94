@@ -724,7 +724,7 @@ const AUTHORED = ['hudelschublade'];
 
 const HEDGES = /\b(may|might|perhaps|possibly|consider|invites?|could)\b/i;
 
-export function assertEntryComplete(id) {
+function assertEntryComplete(id) {
   const e = KERNEL_HOROSCOPE[id];
   expect(e, `${id} missing from corpus`).toBeTruthy();
   expect(e.axis.length).toBeGreaterThan(10);
@@ -1654,7 +1654,9 @@ In `export default function LunarTab()`, immediately after the `selectedAccord` 
 
 ```js
   // Subscribe to spine writes so compiling a vertebra elsewhere re-reads here.
-  const [, forceSpineDoctrine] = useReducer(x => x + 1, 0);
+  // spineTick MUST be in the useMemo deps below: getSpine() is read inside the
+  // memo, so without it a spine write re-renders and returns a stale doctrine.
+  const [spineTick, forceSpineDoctrine] = useReducer(x => x + 1, 0);
   useEffect(() => subscribeSpine(forceSpineDoctrine), []);
 
   // Recompiles on every scrub tick — the doctrine is a function of the arc.
@@ -1669,7 +1671,7 @@ In `export default function LunarTab()`, immediately after the `selectedAccord` 
       planets,
       spine: getSpine(),
     }),
-    [currentAge, illumination, currentPhase.id, selectedAccord.accord, transits, planets]
+    [currentAge, illumination, currentPhase.id, selectedAccord.accord, transits, planets, spineTick]
   );
 ```
 
