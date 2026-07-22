@@ -105,8 +105,7 @@ export default function DoctrineRegister({ reading, planetData, aspectGlyph }) {
       <div className="px-4 py-2 border-t border-zinc-600/[0.04] text-[6.5px] font-mono text-zinc-600 leading-relaxed">
         moon {(provenance.illumination * 100).toFixed(1)}% ·
         day {provenance.age.toFixed(1)} ·
-        dryness {provenance.dryness} ·
-        {provenance.accord}
+        dryness {provenance.dryness} · {provenance.accord}
         {provenance.element ? ` · spine ${provenance.element}` : ''}
       </div>
     </div>
