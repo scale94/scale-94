@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { LENSES, PHASE_OWNER, phaseAffinity, transitBonus, synthesizeLunarAspect } from '../doctrineLens';
+import { LENSES, PHASE_OWNER, phaseAffinity, transitBonus, synthesizeLunarAspect, spineBonus, scoreLenses } from '../doctrineLens';
 import { PHASES, SYNODIC_PERIOD } from '../synodic';
 
 describe('doctrineLens', () => {
@@ -139,5 +139,96 @@ describe('synthesizeLunarAspect', () => {
     expect(synthesizeLunarAspect(SYNODIC_PERIOD)).toMatchObject({
       p1: 'Sun', p2: 'Moon', aspect: 'Conjunct', orb: 0, synthetic: true,
     });
+  });
+});
+
+const FULL_SPINE = {
+  trend: { label: 'x', velocity: 0.5 },
+  council: { pair: ['a', 'b'] },
+  phase: 'DARK INCUBATION',
+  element: 'FIRE',
+};
+
+describe('spineBonus', () => {
+  const hudel = LENSES.find(l => l.id === 'hudelschublade');
+  const rossignol = LENSES.find(l => l.id === 'rossignol');
+
+  it('is zero for an absent spine', () => {
+    expect(spineBonus(hudel, null, 'DARK INCUBATION', 'new')).toBe(0);
+  });
+
+  it('pays 8 for a matching element', () => {
+    expect(spineBonus(hudel, { element: 'FIRE' }, null, 'new')).toBe(8);
+    expect(spineBonus(hudel, { element: 'WATER' }, null, 'new')).toBe(0);
+  });
+
+  it('pays 4 when a compiled phase agrees with the sky and this lens owns it', () => {
+    // new moon is owned by hudelschublade
+    expect(spineBonus(hudel, { phase: 'DARK INCUBATION' }, 'DARK INCUBATION', 'new')).toBe(4);
+    // compiled a different phase than the sky is showing → nothing
+    expect(spineBonus(hudel, { phase: 'MAXIMUM PROJECTION' }, 'DARK INCUBATION', 'new')).toBe(0);
+    // right phase, but this lens does not own it
+    expect(spineBonus(rossignol, { phase: 'DARK INCUBATION' }, 'DARK INCUBATION', 'new')).toBe(0);
+  });
+
+  it('pays the closed-ring bonus to rossignol alone', () => {
+    expect(spineBonus(rossignol, FULL_SPINE, null, 'new')).toBe(6);
+    // hudelschublade gets its element match from the same spine, never the ring
+    expect(spineBonus(hudel, { ...FULL_SPINE, element: null }, null, 'new')).toBe(0);
+  });
+
+  it('caps at 15', () => {
+    const maxed = spineBonus(rossignol, { ...FULL_SPINE, element: null, phase: 'SMOKE DISSOLUTION' },
+      'SMOKE DISSOLUTION', 'waning-crescent');
+    expect(maxed).toBeLessThanOrEqual(15);
+  });
+});
+
+describe('scoreLenses', () => {
+  const base = { age: 0.5, phaseId: 'new', currentAccord: 'DARK INCUBATION', dominant: null, spine: null };
+
+  it('returns all five, sorted by total descending', () => {
+    const s = scoreLenses(base);
+    expect(s).toHaveLength(5);
+    for (let i = 1; i < s.length; i++) expect(s[i - 1].total).toBeGreaterThanOrEqual(s[i].total);
+  });
+
+  it('lets the moon alone select the lens', () => {
+    expect(scoreLenses(base)[0].id).toBe('hudelschublade');
+    expect(scoreLenses({ ...base, age: 16.5, phaseId: 'full', currentAccord: 'MAXIMUM PROJECTION' })[0].id)
+      .toBe('semiotic');
+    expect(scoreLenses({ ...base, age: 22.0, phaseId: 'last-quarter', currentAccord: 'MINERAL STILLNESS' })[0].id)
+      .toBe('fishscale');
+  });
+
+  it('reaches every one of the five somewhere on the arc', () => {
+    const seen = new Set();
+    for (let age = 0; age < SYNODIC_PERIOD; age += 0.05) {
+      seen.add(scoreLenses({ ...base, age })[0].id);
+    }
+    expect([...seen].sort()).toEqual(
+      ['blackhole', 'fishscale', 'hudelschublade', 'rossignol', 'semiotic']
+    );
+  });
+
+  it('lets a tight transit decide an overlap it could not decide on a center', () => {
+    // midway between blackhole (9.5) and semiotic (16.5)
+    const overlap = { ...base, age: 13.0, phaseId: 'waxing-gibbous', currentAccord: 'FLORAL AMPLIFICATION' };
+    const neutral = scoreLenses(overlap)[0].id;
+    const pushed  = scoreLenses({ ...overlap, dominant: { p1: 'Mercury', p2: 'Mars', aspect: 'Square', orb: 0 } })[0].id;
+    expect(pushed).toBe('semiotic');
+    expect(pushed).not.toBe(neutral);
+
+    // the same tight aspect cannot move a lens sitting on its own center
+    const onCenter = scoreLenses({ ...base, age: 22.0, phaseId: 'last-quarter',
+      currentAccord: 'MINERAL STILLNESS',
+      dominant: { p1: 'Mercury', p2: 'Mars', aspect: 'Square', orb: 0 } });
+    expect(onCenter[0].id).toBe('fishscale');
+  });
+
+  it('is deterministic', () => {
+    const a = scoreLenses({ ...base, spine: FULL_SPINE, dominant: { p1: 'Sun', p2: 'Moon', aspect: 'Conjunct', orb: 1 } });
+    const b = scoreLenses({ ...base, spine: FULL_SPINE, dominant: { p1: 'Sun', p2: 'Moon', aspect: 'Conjunct', orb: 1 } });
+    expect(a).toEqual(b);
   });
 });

@@ -88,6 +88,35 @@ const LUNAR_EXACT = [
   { at: SYNODIC_PERIOD,        name: 'Conjunct' },   // closes the wheel
 ];
 
+// Tertiary term (spec §5.3), ceiling 15. Reads the quintessence spine, so a
+// visitor who has compiled vertebrae gets a reading tilted by their own choices.
+export function spineBonus(lens, spine, currentAccord, phaseId) {
+  if (!spine) return 0;
+  let b = 0;
+  if (lens.element && spine.element === lens.element) b += 8;
+  if (spine.phase && spine.phase === currentAccord && PHASE_OWNER[phaseId] === lens.id) b += 4;
+  const closed = !!(spine.trend && spine.council && spine.phase && spine.element);
+  if (closed && lens.id === 'rossignol') b += 6;      // the ring rewards the ring
+  return Math.min(b, 15);
+}
+
+// Full score for all five, highest first. Array.prototype.sort is stable, so
+// an exact tie resolves to LENSES order — the documented tie-break.
+export function scoreLenses({ age, phaseId, currentAccord, dominant, spine }) {
+  return LENSES
+    .map(lens => {
+      const affinity = phaseAffinity(lens.center, age);
+      const transit  = transitBonus(lens, dominant);
+      const sp       = spineBonus(lens, spine, currentAccord, phaseId);
+      return {
+        id: lens.id, kernel: lens.kernel,
+        affinity, transit, spine: sp,
+        total: affinity + transit + sp,
+      };
+    })
+    .sort((a, b) => b.total - a.total);
+}
+
 export function synthesizeLunarAspect(age) {
   // Normalize onto the wheel before scanning: this function is fed by both a
   // WASM phase kernel and a UI slider, and an out-of-range age would otherwise
