@@ -2,7 +2,7 @@
 // Five lenses seated around the synodic wheel. The moon selects; the sky
 // modulates. Affinity is continuous rather than bucketed so dragging the
 // time-scrub recompiles the doctrine smoothly instead of stepping.
-import { wrappedDistance } from './synodic';
+import { wrappedDistance, SYNODIC_PERIOD } from './synodic';
 
 // Falloff width in days. 4.2 keeps each lens dominant over roughly a quarter
 // of the wheel while leaving real contest in the overlaps, which is where the
@@ -64,4 +64,42 @@ export const PHASE_OWNER = {
 export function phaseAffinity(center, age) {
   const d = wrappedDistance(age, center);
   return 100 * Math.exp(-(d * d) / (2 * SIGMA * SIGMA));
+}
+
+// Secondary term (spec §5.2), ceiling 30. Scaled by how tight the aspect is:
+// an 8 degree orb is the widest this tab ever reports, so it pays nothing.
+export function transitBonus(lens, dominant) {
+  if (!dominant) return 0;
+  const tightness = Math.min(Math.max(1 - dominant.orb / 8, 0), 1);
+  const w1 = lens.planets[dominant.p1] ?? 0;
+  const w2 = lens.planets[dominant.p2] ?? 0;
+  return 30 * tightness * ((w1 + w2) / 2);
+}
+
+// There is no null path. Lunar age IS the Sun-Moon elongation, so when the
+// ephemeris is unavailable or nothing is within orb, the moon itself supplies
+// the aspect: conjunct at new, opposite at full, square at the quarters.
+// Astronomically exact, and a reading always exists.
+const LUNAR_EXACT = [
+  { at: 0,                     name: 'Conjunct' },
+  { at: SYNODIC_PERIOD * 0.25, name: 'Square' },
+  { at: SYNODIC_PERIOD * 0.5,  name: 'Opposite' },
+  { at: SYNODIC_PERIOD * 0.75, name: 'Square' },
+  { at: SYNODIC_PERIOD,        name: 'Conjunct' },   // closes the wheel
+];
+
+export function synthesizeLunarAspect(age) {
+  let best = LUNAR_EXACT[0];
+  let bestD = Infinity;
+  for (const p of LUNAR_EXACT) {
+    const d = Math.abs(age - p.at);
+    if (d < bestD) { bestD = d; best = p; }
+  }
+  // days from exact → degrees of elongation (360 per synodic period), capped
+  // at the tab's own widest reported orb.
+  const orb = Math.min(8, (bestD / SYNODIC_PERIOD) * 360);
+  return {
+    p1: 'Sun', p2: 'Moon', aspect: best.name,
+    orb: Number(orb.toFixed(1)), synthetic: true,
+  };
 }
