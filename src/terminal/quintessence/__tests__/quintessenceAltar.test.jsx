@@ -184,6 +184,53 @@ describe('QuintessenceAltar — the living altar', () => {
     vi.useRealTimers();
   });
 
+  // Hue spec §2 — hue = provenance, gold = committed. These pin the exact
+  // failure the rule exists to prevent: a marked row whose provenance tail
+  // renders in a grey that is indistinguishable from the field comment.
+  describe('hue = provenance, gold = committed', () => {
+    const tailFor = field => mirrorRowFor(field).querySelector('.ml-auto');
+    const ruleOf = field => mirrorRowFor(field).style.borderLeftColor;
+    const GOLD = 'rgb(251, 191, 36)';
+
+    it('a marked tail wears its house hue, not grey — /BSKY reads sky', () => {
+      act(() => { setTrend({ label: 'degrowth', velocity: 0.9 }); });
+      expect(tailFor('narcos payload').textContent).toContain('marked at /BSKY');
+      expect(tailFor('narcos payload').style.color).toBe('rgb(56, 189, 248)');
+    });
+
+    it('an unmarked row wears the same house hue — absence points home too', () => {
+      expect(tailFor('dryness').style.color).toBe('rgb(167, 139, 250)');
+      expect(ruleOf('dryness')).toBe('rgb(167, 139, 250)');
+    });
+
+    it('every row carries a left rule in its house hue while assembling', () => {
+      act(() => { setTrend({ label: 'degrowth', velocity: 0.9 }); });
+      expect(ruleOf('narcos payload')).toBe('rgb(56, 189, 248)');
+      expect(ruleOf('friction pair')).toBe('rgb(167, 139, 250)');
+    });
+
+    it('armed: all three houses resolve to one gold — rule and tail together', () => {
+      completeSpine();
+      for (const field of ['narcos payload', 'friction pair', 'dryness']) {
+        expect(ruleOf(field), field).toBe(GOLD);
+        expect(tailFor(field).style.color, field).toBe(GOLD);
+      }
+    });
+
+    it('the resolution is staggered — three rows sweep, they do not blink', () => {
+      completeSpine();
+      const delays = ['narcos payload', 'friction pair', 'dryness']
+        .map(f => mirrorRowFor(f).style.transitionDelay);
+      expect(new Set(delays).size).toBe(3);
+      expect(delays[0]).toBe('0ms');
+    });
+
+    it('a dry seal still names its house — the keystone is visible before the walk', () => {
+      const rim = sealFor('EARTH').querySelector('[aria-hidden="true"]');
+      expect(rim.style.borderColor).toBe('rgba(122, 184, 0, 0.25)');
+    });
+  });
+
   it('keyboard: Enter opens the confirm; "walk the house" navigates', () => {
     completeSpine();
     const seal = sealFor('WATER');
