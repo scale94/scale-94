@@ -118,7 +118,7 @@ export default function QuintessenceAltar({ onDeposited, onNavigate }) {
       </div>
 
       {/* The mirror stays lit when armed: filling up and THEN arming is the payoff. */}
-      {stage === -1 && <SpineMirror spine={getSpine()} onNavigate={onNavigate} />}
+      {stage === -1 && <SpineMirror spine={getSpine()} armed={armed} onNavigate={onNavigate} />}
 
       {armed && (
         <div role="status" className="mt-3 text-[10px] font-mono tracking-[0.2em] text-amber-300/90 uppercase">
@@ -155,7 +155,11 @@ export default function QuintessenceAltar({ onDeposited, onNavigate }) {
                     style={{ width: `${Math.round(hold.progress * 100)}%` }} />
                 )}
                 <div className="text-[11px] tracking-[0.3em] mt-2">{el.id}</div>
-                <div className="text-[8px] text-zinc-500 mt-1 lowercase">{el.note}</div>
+                {/* Hue = provenance (hue spec §3): the note wears the house hue
+                    whether or not the altar is armed. Gold belongs to the
+                    compile, not to an element that is merely available. */}
+                <div className="text-[8px] mt-1 lowercase"
+                  style={{ color: `rgba(${el.tint[0]},${el.tint[1]},${el.tint[2]},0.6)` }}>{el.note}</div>
               </button>
             );
           })}
