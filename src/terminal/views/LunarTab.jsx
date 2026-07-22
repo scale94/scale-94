@@ -985,7 +985,7 @@ function TransitMatrix({ transits, planets, timestamp, onRefresh }) {
             if (!pos) return null;
             return (
               <span key={name} className="font-mono text-[8px]">
-                <span style={{ color: p.color }}>{p.glyph}</span>
+                <span className="glyph-astro" style={{ color: p.color }}>{p.glyph}</span>
                 <span className="text-zinc-500"> {pos.sign.slice(0, 3)} {pos.degree.toFixed(0)}°</span>
                 {pos.retrograde && <span className="text-rose-400/60"> ℞</span>}
               </span>
@@ -1003,12 +1003,12 @@ function TransitMatrix({ transits, planets, timestamp, onRefresh }) {
           return (
             <div key={i} className="px-4 py-3">
               <div className="flex items-center gap-2 flex-wrap mb-1">
-                <span className="text-[15px]" style={{ color: d1.color }}>{d1.glyph}</span>
+                <span className="glyph-astro text-[15px]" style={{ color: d1.color }}>{d1.glyph}</span>
                 <span className="font-mono text-[9px] font-bold uppercase tracking-widest"
                   style={{ color: ASPECT_COLOR[aspect] }}>
-                  {ASPECT_GLYPH[aspect]} {aspect}
+                  <span className="glyph-astro">{ASPECT_GLYPH[aspect]}</span> {aspect}
                 </span>
-                <span className="text-[15px]" style={{ color: d2.color }}>{d2.glyph}</span>
+                <span className="glyph-astro text-[15px]" style={{ color: d2.color }}>{d2.glyph}</span>
                 <span className="font-mono text-[7px] text-zinc-500">orb {orb}°</span>
                 <span className="font-mono text-[7px] text-zinc-600 ml-auto hidden sm:block">
                   {d1.key} × {d2.key}
@@ -1016,9 +1016,9 @@ function TransitMatrix({ transits, planets, timestamp, onRefresh }) {
               </div>
               {pos1 && pos2 && (
                 <div className="text-[6.5px] font-mono text-zinc-600 mb-1.5">
-                  <span style={{ color: d1.color }}>{d1.glyph}</span> {pos1.sign} {pos1.degree.toFixed(1)}°{pos1.retrograde ? ' ℞' : ''}
+                  <span className="glyph-astro" style={{ color: d1.color }}>{d1.glyph}</span> {pos1.sign} {pos1.degree.toFixed(1)}°{pos1.retrograde ? ' ℞' : ''}
                   <span className="text-zinc-600"> · </span>
-                  <span style={{ color: d2.color }}>{d2.glyph}</span> {pos2.sign} {pos2.degree.toFixed(1)}°{pos2.retrograde ? ' ℞' : ''}
+                  <span className="glyph-astro" style={{ color: d2.color }}>{d2.glyph}</span> {pos2.sign} {pos2.degree.toFixed(1)}°{pos2.retrograde ? ' ℞' : ''}
                 </div>
               )}
               <div className="text-[8.5px] font-mono text-zinc-400 leading-relaxed">

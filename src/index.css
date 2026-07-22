@@ -40,6 +40,22 @@ html, body {
   text-rendering: inherit;
 }
 
+/* ── Astronomical glyphs ────────────────────────────────────────────────────
+   Geist Mono has no planetary or aspect symbols, so ☉ ⊕ ♃ ♆ ⛢ fall out of the
+   font-mono stack and land on whatever the platform offers next — on Windows
+   that can be a CJK face, which renders ♃ as a squarish mark that reads as
+   neither Jupiter nor mono. Naming symbol faces explicitly, ahead of the
+   generic fallback, keeps the whole set in one typographic voice.
+   font-variant-emoji + VS15 hold text presentation for the codepoints that
+   have an emoji form, so planet colour comes from CSS and not from a font.
+   Scoped to a class rather than the global mono stack: widening font-mono
+   would silently re-render every other non-Geist glyph in the app. */
+.glyph-astro {
+  font-family: 'Segoe UI Symbol', 'Apple Symbols', 'Noto Sans Symbols 2',
+               'Noto Sans Symbols', 'DejaVu Sans', 'Geist Mono', ui-monospace, monospace;
+  font-variant-emoji: text;
+}
+
 /* Custom Scrollbar — slim, low-opacity so it doesn't compete with content */
 
 /* Firefox */

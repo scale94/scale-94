@@ -8,7 +8,11 @@ import { snapshotPeriphery } from '../quintessence/periphery';
 function Row({ label, children }) {
   return (
     <div className="grid grid-cols-[64px_1fr] gap-2 sm:gap-3 items-baseline">
-      <div className="text-[7px] font-mono text-violet-500/45 uppercase tracking-[0.2em] pt-0.5">
+      {/* violet-500 tops out at 4.96:1 on black even at full alpha, so the
+          quadrant labels have to move up a step to be read rather than sensed.
+          violet-400/80 lands at 5.1:1 — the same tier as the register header,
+          which is right: these name the axis, they are not decoration. */}
+      <div className="text-[7px] font-mono text-violet-400/80 uppercase tracking-[0.2em] pt-0.5">
         {label}
       </div>
       <div className="text-[9px] sm:text-[10px] font-mono text-zinc-400 leading-relaxed">
@@ -38,7 +42,9 @@ export default function DoctrineRegister({ reading, planetData, aspectGlyph }) {
         <div className="text-[10px] font-mono font-bold text-violet-400/80 uppercase tracking-widest">
           ◈ DOCTRINE REGISTER
         </div>
-        <div className="text-[7px] font-mono text-violet-500/40 mt-0.5">
+        {/* the line that declares what the register is — at 1.6:1 it was the
+            least legible text in the block, which inverted its job */}
+        <div className="text-[7px] font-mono text-violet-400/70 mt-0.5">
           // the alchemy to the chemistry above · astrology to its astronomy
         </div>
       </div>
@@ -49,16 +55,19 @@ export default function DoctrineRegister({ reading, planetData, aspectGlyph }) {
         <div className="text-[9px] sm:text-[10px] font-mono text-violet-300/80 tracking-wide break-words">
           {reading.kernel}
         </div>
-        <div className="text-[8px] font-mono text-zinc-500/70 italic mt-1 leading-relaxed">
+        {/* authored line, not provenance — the chrome around it (LENS, the
+            aspect row, the moon/day/dryness strip) stays at 2.7:1 on purpose,
+            but anything meant to be *read* clears 4:1 */}
+        <div className="text-[8px] font-mono text-zinc-500 italic mt-1 leading-relaxed">
           {reading.axis}
         </div>
         <div className="text-[7px] font-mono text-zinc-600 mt-1.5 flex items-center gap-1 flex-wrap">
           <span>selected by</span>
           <span className="text-zinc-500">{provenance.phaseId.replace(/-/g, ' ')}</span>
           <span>×</span>
-          <span style={{ color: d1?.color }}>{d1?.glyph ?? dominant.p1}</span>
-          <span className="text-zinc-500">{aspectGlyph?.[dominant.aspect] ?? ''} {dominant.aspect}</span>
-          <span style={{ color: d2?.color }}>{d2?.glyph ?? dominant.p2}</span>
+          <span className="glyph-astro" style={{ color: d1?.color }}>{d1?.glyph ?? dominant.p1}</span>
+          <span className="text-zinc-500"><span className="glyph-astro">{aspectGlyph?.[dominant.aspect] ?? ''}</span> {dominant.aspect}</span>
+          <span className="glyph-astro" style={{ color: d2?.color }}>{d2?.glyph ?? dominant.p2}</span>
           <span className="text-zinc-600">orb {dominant.orb}°</span>
           {dominant.synthetic && (
             <span className="text-zinc-700">· sun–moon elongation</span>
@@ -85,7 +94,7 @@ export default function DoctrineRegister({ reading, planetData, aspectGlyph }) {
 
       {/* spine coda */}
       <div className="px-4 py-2 border-t border-zinc-600/[0.04]">
-        <p className="text-[8px] font-mono text-zinc-500/70 italic leading-relaxed">
+        <p className="text-[8px] font-mono text-zinc-500 italic leading-relaxed">
           {reading.coda}
         </p>
       </div>
