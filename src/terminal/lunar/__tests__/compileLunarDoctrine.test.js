@@ -81,4 +81,22 @@ describe('compileLunarDoctrine', () => {
     expect(r.tension).toBe('fused');       // unknown aspect reads as zero tension
     expect(r.directive.length).toBeGreaterThan(0);
   });
+
+  it('wraps an age past the end of the cycle onto its equivalent reading', () => {
+    const wrapped = compileLunarDoctrine({ ...NEW_MOON, age: 3.47 + SYNODIC_PERIOD });
+    const base = compileLunarDoctrine({ ...NEW_MOON, age: 3.47 });
+    expect(wrapped).toEqual(base);
+  });
+
+  it('wraps a negative age rather than clamping it', () => {
+    const r = compileLunarDoctrine({ ...NEW_MOON, age: -3 });
+    expect(r.quadrant).toBe('DARK-WANING');
+  });
+
+  it('returns a well-formed reading for a non-finite age instead of throwing', () => {
+    expect(() => compileLunarDoctrine({ ...NEW_MOON, age: NaN })).not.toThrow();
+    const r = compileLunarDoctrine({ ...NEW_MOON, age: NaN });
+    expect(typeof r.directive).toBe('string');
+    expect(r.directive.trim().length).toBeGreaterThan(0);
+  });
 });
