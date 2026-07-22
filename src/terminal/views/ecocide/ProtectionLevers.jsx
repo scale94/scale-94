@@ -3,7 +3,8 @@ import './ProtectionLevers.css';
 
 // Shared pointer engine — custom track works on iPad (native range does not).
 function useLeverPointer(onChange, disabled) {
-  const trackRef = useRef(null);
+  const trackRef  = useRef(null);
+  const detachRef = useRef(null);   // tears down the in-flight drag, if any
   const valueFromEvent = useCallback((e) => {
     const rect = trackRef.current.getBoundingClientRect();
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -13,11 +14,20 @@ function useLeverPointer(onChange, disabled) {
     if (disabled) return;
     e.preventDefault();
     onChange(valueFromEvent(e));
+    detachRef.current?.();          // a second finger must not stack a drag
     const move = (me) => { me.preventDefault(); onChange(valueFromEvent(me)); };
-    const up   = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    const up   = () => detachRef.current?.();
+    detachRef.current = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      detachRef.current = null;
+    };
     window.addEventListener('pointermove', move, { passive: false });
     window.addEventListener('pointerup', up);
   }, [disabled, onChange, valueFromEvent]);
+  // Switching tabs mid-drag unmounts the levers — the window listeners have to
+  // go with them, or they keep dereferencing a detached track and throwing.
+  useEffect(() => () => detachRef.current?.(), []);
   return { trackRef, handlePointer };
 }
 
