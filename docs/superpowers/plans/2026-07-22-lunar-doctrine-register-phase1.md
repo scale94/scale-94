@@ -228,7 +228,7 @@ Create `src/terminal/lunar/__tests__/doctrineLens.test.js`:
 ```js
 import { describe, it, expect } from 'vitest';
 import { LENSES, PHASE_OWNER, phaseAffinity } from '../doctrineLens';
-import { PHASES } from '../synodic';
+import { PHASES, SYNODIC_PERIOD } from '../synodic';
 
 describe('doctrineLens', () => {
   it('holds exactly the five kernels in wheel order', () => {
@@ -262,8 +262,12 @@ describe('doctrineLens', () => {
   });
 
   it('scores identically either side of the wheel seam', () => {
-    // the whole reason wrappedDistance exists: hudelschublade sits on age 0
-    expect(phaseAffinity(0, 0.1)).toBeCloseTo(phaseAffinity(0, 29.43), 4);
+    // The whole reason wrappedDistance exists: hudelschublade sits on age 0.
+    // The mirror of age 0.1 across the seam is exactly SYNODIC_PERIOD - 0.1.
+    // Rounding that literal (e.g. to 29.43) destroys the symmetry the test
+    // exists to prove — the curve is steep here, so 0.0006 days of drift
+    // moves affinity by more than a 4-decimal tolerance allows.
+    expect(phaseAffinity(0, 0.1)).toBeCloseTo(phaseAffinity(0, SYNODIC_PERIOD - 0.1), 10);
   });
 
   it('cannot let a distant lens be overturned by the maximum modulation', () => {
