@@ -22,6 +22,8 @@ import { emit as emitObs } from '../../observatory/observatoryBus';
 import { LUNAR_ACCORDS } from '../data/lunarAccords';
 import { SYNODIC_PERIOD, PHASES, getPhase, ASPECT_TENSION } from '../lunar/synodic';
 import { setPhase, getSpine, subscribeSpine } from '../quintessence/spineStore';
+import { compileLunarDoctrine } from '../lunar/compileLunarDoctrine';
+import DoctrineRegister from '../lunar/DoctrineRegister';
 
 // ── Lunar Phase Engine ───────────────────────────────────────────────────────
 // Primary: WASM kernel (Meeus astronomical algorithms, ~10″ longitude accuracy).
@@ -1107,6 +1109,27 @@ export default function LunarTab() {
     [selectedPhaseId]
   );
 
+  // Subscribe to spine writes so compiling a vertebra elsewhere re-reads here.
+  // spineTick MUST be in the useMemo deps below: getSpine() is read inside the
+  // memo, so without it a spine write re-renders and returns a stale doctrine.
+  const [spineTick, forceSpineDoctrine] = useReducer(x => x + 1, 0);
+  useEffect(() => subscribeSpine(forceSpineDoctrine), []);
+
+  // Recompiles on every scrub tick — the doctrine is a function of the arc.
+  const doctrine = useMemo(
+    () => compileLunarDoctrine({
+      age: currentAge,
+      illumination,
+      phaseId: currentPhase.id,
+      currentAccord: LUNAR_ACCORDS.find(a => a.phase === currentPhase.id)?.accord
+        ?? selectedAccord.accord,
+      transits,
+      planets,
+      spine: getSpine(),
+    }),
+    [currentAge, illumination, currentPhase.id, selectedAccord.accord, transits, planets, spineTick]
+  );
+
   return (
     <div className="tab-fade-v2 max-w-5xl mx-auto mt-4 sm:mt-6 px-2 sm:px-0 pb-16">
       <style>{`
@@ -1196,6 +1219,9 @@ export default function LunarTab() {
             <span className="text-zinc-500/60 mt-0.5 flex items-center gap-1">
               <span>⊘</span> NO ESOTERICISM · CITED
             </span>
+            <span className="text-violet-400/60 mt-0.5 flex items-center gap-1">
+              <span>◈</span> DOCTRINE REGISTER · DECLARED
+            </span>
           </div>
         </div>
         <div className="text-[9px] font-mono text-violet-500/40 uppercase tracking-[0.2em]">
@@ -1205,6 +1231,7 @@ export default function LunarTab() {
         <div className="flex sm:hidden mt-2 text-[7px] font-mono tracking-[0.18em] uppercase gap-3">
           <span className="text-amber-400/70">⊕ PEER-REVIEWED</span>
           <span className="text-zinc-500/60">⊘ NO ESOTERICISM</span>
+          <span className="text-violet-400/60">◈ REGISTER</span>
         </div>
       </div>
 
@@ -1413,6 +1440,12 @@ export default function LunarTab() {
           </p>
         </div>
       </div>
+
+      <DoctrineRegister
+        reading={doctrine}
+        planetData={PLANET_DATA}
+        aspectGlyph={ASPECT_GLYPH}
+      />
 
       <TransitMatrix transits={transits} planets={planets} timestamp={now} onRefresh={() => setRefreshKey(k => k + 1)} />
 
