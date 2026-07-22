@@ -13,7 +13,8 @@
 // Color system: deterministic hash HSL via kernelColorMap.js
 
 import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react';
-import { Waves, Volume2, VolumeX, Maximize, Minimize, Circle, Download, Radio, Clock, Wifi } from 'lucide-react';
+import { Volume2, VolumeX, Maximize, Minimize, Circle, Download, Radio, Clock, Wifi } from 'lucide-react';
+import CascadeIcon from '../components/CascadeIcon';
 import { lerpColor, hslAlpha } from '../data/kernelColorMap';
 import { useSomaGraph, CLUSTER_ANCHORS } from '../hooks/useSomaGraph';
 import { useKineticEdges }                from '../hooks/useKineticEdges';
@@ -2435,7 +2436,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
                 transition: 'filter 0.4s ease',
               }}
             >
-              <Waves
+              <CascadeIcon
                 className="w-6 h-6 md:w-8 md:h-8"
                 style={{
                   color: selectedNode === 'feigenbaum' ? '#FFD700' : '#FF8C00',
