@@ -29,8 +29,8 @@ describe('doctrineLens', () => {
 
   it('peaks affinity at the center and falls off with distance', () => {
     expect(phaseAffinity(9.5, 9.5)).toBeCloseTo(100, 6);
-    expect(phaseAffinity(9.5, 13.7)).toBeLessThan(65);   // 1 sigma out
-    expect(phaseAffinity(9.5, 17.5)).toBeLessThan(20);   // 2 sigma out
+    expect(phaseAffinity(9.5, 12.0)).toBeLessThan(65);   // 1 sigma out (sigma 2.5)
+    expect(phaseAffinity(9.5, 14.5)).toBeLessThan(20);   // 2 sigma out
   });
 
   it('scores identically either side of the wheel seam', () => {
@@ -45,6 +45,12 @@ describe('doctrineLens', () => {
   it('cannot let a distant lens be overturned by the maximum modulation', () => {
     // a lens on its center vs a lens 8 days away, with max transit (30) + spine (15)
     expect(phaseAffinity(0, 0)).toBeGreaterThan(phaseAffinity(0, 8) + 30 + 15);
+
+    // and at the tightest seam on the wheel, which is what actually bounds SIGMA:
+    // hudelschublade (0.0) to rossignol (26.5) is 3.031 days wrapped. If a
+    // competitor that close plus both maximum bonuses can clear 100, an
+    // on-center lens loses and the moon no longer selects.
+    expect(phaseAffinity(0, 26.5) + 30 + 15).toBeLessThan(phaseAffinity(0, 0));
   });
 });
 
@@ -172,15 +178,29 @@ describe('spineBonus', () => {
   });
 
   it('pays the closed-ring bonus to rossignol alone', () => {
-    expect(spineBonus(rossignol, FULL_SPINE, null, 'new')).toBe(6);
-    // hudelschublade gets its element match from the same spine, never the ring
-    expect(spineBonus(hudel, { ...FULL_SPINE, element: null }, null, 'new')).toBe(0);
+    // rossignol takes no element, so the ring is all it can earn here
+    expect(spineBonus(rossignol, FULL_SPINE, null, 'new')).toBe(11);
+    // hudelschublade, handed the very same closed spine, gets its element match
+    // and NOTHING else — the ring is rossignol's alone. Drop the id guard and
+    // this reads 19.
+    expect(spineBonus(hudel, FULL_SPINE, null, 'new')).toBe(8);
   });
 
-  it('caps at 15', () => {
-    const maxed = spineBonus(rossignol, { ...FULL_SPINE, element: null, phase: 'SMOKE DISSOLUTION' },
-      'SMOKE DISSOLUTION', 'waning-crescent');
-    expect(maxed).toBeLessThanOrEqual(15);
+  it('does not pay the phase bonus for a spine that compiled no phase', () => {
+    // undefined === undefined is true, so without the spine.phase truthiness
+    // guard an absent compiled phase would "agree" with an absent sky accord
+    // and collect 4 points nobody earned.
+    expect(spineBonus(hudel, { element: 'FIRE' }, undefined, 'new')).toBe(8);
+  });
+
+  it('caps at 15, and only rossignol can reach it', () => {
+    // the one route to the cap: rossignol, closed spine, on the phase it owns.
+    // 11 (ring) + 4 (phase agreement) = 15 exactly — the cap binds, it is not
+    // trimming anything, and it is not dead code either.
+    expect(spineBonus(rossignol, { ...FULL_SPINE, phase: 'SMOKE DISSOLUTION' },
+      'SMOKE DISSOLUTION', 'waning-crescent')).toBe(15);
+    // every other lens tops out one rung lower: 8 (element) + 4 (phase), no ring
+    expect(spineBonus(hudel, FULL_SPINE, 'DARK INCUBATION', 'new')).toBe(12);
   });
 });
 
@@ -224,6 +244,18 @@ describe('scoreLenses', () => {
       currentAccord: 'MINERAL STILLNESS',
       dominant: { p1: 'Mercury', p2: 'Mars', aspect: 'Square', orb: 0 } });
     expect(onCenter[0].id).toBe('fishscale');
+  });
+
+  it('hands spineBonus its arguments in the right order', () => {
+    // base already sits on a phase hudelschublade owns ('new'), with the sky
+    // accord FULL_SPINE compiled. So hudelschublade must collect both spine
+    // terms: 8 (FIRE) + 4 (compiled phase agrees with the sky). Transpose
+    // currentAccord and phaseId at the call site and the 4 silently vanishes.
+    const s = scoreLenses({ ...base, spine: FULL_SPINE });
+    const byId = Object.fromEntries(s.map(r => [r.id, r]));
+    expect(byId.hudelschublade.spine).toBe(12);
+    // semiotic is AIR and owns no phase here — it earns nothing from this spine
+    expect(byId.semiotic.spine).toBe(0);
   });
 
   it('is deterministic', () => {

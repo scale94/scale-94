@@ -4,10 +4,15 @@
 // time-scrub recompiles the doctrine smoothly instead of stepping.
 import { wrappedDistance, SYNODIC_PERIOD } from './synodic';
 
-// Falloff width in days. 4.2 keeps each lens dominant over roughly a quarter
-// of the wheel while leaving real contest in the overlaps, which is where the
-// transit bonus is meant to decide.
-export const SIGMA = 4.2;
+// Falloff width in days. Not a taste knob: it is bounded above by the tightest
+// centre separation on the wheel — hudelschublade (0.0) to rossignol (26.5),
+// 3.031 days wrapped. For "the moon selects, the sky only modulates" to hold,
+// a competitor at that separation plus BOTH maximum bonuses (transit 30 +
+// spine 15) must still stay under the 100 an on-centre lens scores.
+// At 2.5 that competitor holds 47.96, so 47.96 + 45 = 92.96 < 100 — the
+// guarantee is structural, with ~7 points of margin. At 4.2 it held 77.1 and
+// an on-centre lens could be overtaken.
+export const SIGMA = 2.5;
 
 export const LENSES = [
   {
@@ -96,7 +101,11 @@ export function spineBonus(lens, spine, currentAccord, phaseId) {
   if (lens.element && spine.element === lens.element) b += 8;
   if (spine.phase && spine.phase === currentAccord && PHASE_OWNER[phaseId] === lens.id) b += 4;
   const closed = !!(spine.trend && spine.council && spine.phase && spine.element);
-  if (closed && lens.id === 'rossignol') b += 6;      // the ring rewards the ring
+  // The ring rewards the ring. 11 and not less: rossignol takes no element, so
+  // it can never earn the +8, and 11 + 4 is the only route to the documented
+  // cap of 15 — reachable by rossignol alone, with a closed spine, on the phase
+  // it owns. Every other lens tops out at 8 + 4 = 12.
+  if (closed && lens.id === 'rossignol') b += 11;
   return Math.min(b, 15);
 }
 
