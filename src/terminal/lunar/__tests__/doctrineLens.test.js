@@ -117,9 +117,22 @@ describe('synthesizeLunarAspect', () => {
     expect(mid.orb).toBeGreaterThan(0);
   });
 
-  it('normalizes ages outside [0, SYNODIC_PERIOD] onto the wheel', () => {
-    expect(synthesizeLunarAspect(1.0)).toEqual(synthesizeLunarAspect(1.0 + SYNODIC_PERIOD));
-    expect(synthesizeLunarAspect(-0.01).aspect).toBe('Conjunct');
+  it('normalizes an age past one full cycle onto the wheel instead of overshooting', () => {
+    // 1.5 periods should land at the half-period mark (Opposite, orb ~0).
+    // Without the modulo, the raw age is nearest the wheel's own end anchor
+    // (Conjunct, orb capped at 8) — so this fails without normalization.
+    const a = synthesizeLunarAspect(SYNODIC_PERIOD * 1.5);
+    expect(a.aspect).toBe('Opposite');
+    expect(a.orb).toBeCloseTo(0, 6);
+  });
+
+  it('normalizes a negative age onto the wheel instead of running off the front', () => {
+    // -0.5 periods should land at the half-period mark (Opposite, orb ~0).
+    // Without the modulo, the raw negative age is nearest the wheel's own
+    // start anchor (Conjunct) — so this fails without normalization.
+    const a = synthesizeLunarAspect(-SYNODIC_PERIOD * 0.5);
+    expect(a.aspect).toBe('Opposite');
+    expect(a.orb).toBeCloseTo(0, 6);
   });
 
   it('resolves exactly SYNODIC_PERIOD to Conjunct with orb 0', () => {
