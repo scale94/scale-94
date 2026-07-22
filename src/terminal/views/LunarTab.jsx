@@ -20,6 +20,7 @@ import { parseAstroOutput, computeAspect } from '../mercury/tfgAstroHelpers';
 import ParamBar from '../mercury/ParamBar';
 import { emit as emitObs } from '../../observatory/observatoryBus';
 import { LUNAR_ACCORDS } from '../data/lunarAccords';
+import { SYNODIC_PERIOD, PHASES, getPhase, ASPECT_TENSION } from '../lunar/synodic';
 import { setPhase, getSpine, subscribeSpine } from '../quintessence/spineStore';
 
 // ── Lunar Phase Engine ───────────────────────────────────────────────────────
@@ -28,8 +29,6 @@ import { setPhase, getSpine, subscribeSpine } from '../quintessence/spineStore';
 // The naive single-reference approach drifts ~4 days over 26 years because
 // actual lunation lengths vary (29.27–29.83 days). This table keeps the
 // fallback accurate to <6 hours through 2028.
-
-const SYNODIC_PERIOD = 29.53058770576;
 
 // Known new moon times (UTC) — source: USNO / timeanddate.com
 // Covering 2024-01 through 2028-01 so the fallback stays sharp for years.
@@ -81,24 +80,6 @@ function getLunarFromWasm(date = new Date()) {
     const json = _wasmMod.run_lunar_phase(date.getTime());
     return JSON.parse(json);
   } catch { return null; }
-}
-
-// Phase ranges tuned to astronomical convention:
-// New/Full are narrow (~1.5 day windows centered on the event),
-// quarters and crescents/gibbous fill the remaining arc.
-const PHASES = [
-  { id: 'new',              label: 'New Moon',           glyph: '🌑', range: [0, 1.11] },
-  { id: 'waxing-crescent',  label: 'Waxing Crescent',   glyph: '🌒', range: [1.11, 6.38] },
-  { id: 'first-quarter',    label: 'First Quarter',      glyph: '🌓', range: [6.38, 8.77] },
-  { id: 'waxing-gibbous',   label: 'Waxing Gibbous',    glyph: '🌔', range: [8.77, 13.65] },
-  { id: 'full',             label: 'Full Moon',          glyph: '🌕', range: [13.65, 15.88] },
-  { id: 'waning-gibbous',   label: 'Waning Gibbous',    glyph: '🌖', range: [15.88, 20.76] },
-  { id: 'last-quarter',     label: 'Last Quarter',       glyph: '🌗', range: [20.76, 23.15] },
-  { id: 'waning-crescent',  label: 'Waning Crescent',   glyph: '🌘', range: [23.15, 29.53] },
-];
-
-function getPhase(age) {
-  return PHASES.find(p => age >= p.range[0] && age < p.range[1]) || PHASES[0];
 }
 
 // ── Environmental Parameter Model ────────────────────────────────────────────
@@ -797,8 +778,6 @@ const PLANET_DATA = {
 const ASPECT_GLYPH = {
   Conjunct: '⊕', Sextile: '⚹', Square: '□', Trine: '△', Opposite: '☍',
 };
-
-const ASPECT_TENSION = { Conjunct: 0, Sextile: -1, Trine: -2, Square: 1, Opposite: 2 };
 
 const ASPECT_COLOR = {
   Conjunct: '#f59e0b', Sextile: '#22c55e', Trine: '#8b5cf6', Square: '#ef4444', Opposite: '#06b6d4',

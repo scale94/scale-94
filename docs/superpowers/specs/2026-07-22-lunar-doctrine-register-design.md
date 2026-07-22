@@ -293,8 +293,10 @@ null, fall back to canvas regardless of the stored setting.
 | `lunar/LunarShaderMoon.jsx` | WebGL host, adaptation state, fallback |
 | `lunar/MoonRendererToggle.jsx` | persisted switch + SCOTOPIC meter |
 
-`LunarTab.jsx` is already 1452 lines and gains **only** imports and mount
-points — no new logic. Nothing existing is deleted in this change.
+`LunarTab.jsx` gains imports, two mount points, and one pure extraction:
+`SYNODIC_PERIOD`, `PHASES`, `getPhase` and `ASPECT_TENSION` move to
+`lunar/synodic.js` because they are module-private and the engine needs them.
+No new logic, no behaviour change. Nothing existing is deleted.
 
 ## 10. Testing
 
