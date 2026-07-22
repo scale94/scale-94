@@ -38,9 +38,17 @@ describe('DoctrineRegister', () => {
   });
 
   it('shows provenance: illumination, day, dryness', () => {
+    const r = readingAt({ currentAccord: 'MINERAL STILLNESS' });
     renderAt({ currentAccord: 'MINERAL STILLNESS' });
+    expect(screen.getByText(new RegExp(`moon ${(r.provenance.illumination * 100).toFixed(1)}%`))).toBeTruthy();
     expect(screen.getByText(/dryness 96/)).toBeTruthy();
     expect(screen.getByText(/day 0\.4/)).toBeTruthy();
+  });
+
+  it('renders the spine coda', () => {
+    const r = readingAt();
+    renderAt();
+    expect(screen.getByText(r.coda)).toBeTruthy();
   });
 
   it('names the aspect that selected the lens, with glyphs', () => {

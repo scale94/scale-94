@@ -186,6 +186,16 @@ describe('spineBonus', () => {
     expect(spineBonus(hudel, FULL_SPINE, null, 'new')).toBe(8);
   });
 
+  it('pays nothing for the element clause when the spine element is null', () => {
+    // getSpine() never returns null for a fresh visitor — it returns
+    // { trend: null, council: null, phase: null, element: null }. rossignol's
+    // own element is also null by design (it is the fifth). Without the
+    // `lens.element &&` guard, `null === null` would be true and rossignol
+    // would collect a free +8 on every page load for every visitor who has
+    // not chosen an element yet.
+    expect(spineBonus(rossignol, { element: null }, null, 'new')).toBe(0);
+  });
+
   it('does not pay the phase bonus for a spine that compiled no phase', () => {
     // undefined === undefined is true, so without the spine.phase truthiness
     // guard an absent compiled phase would "agree" with an absent sky accord

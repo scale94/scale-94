@@ -97,7 +97,7 @@ angular distance.
 
 ```
 d = wrappedDistance(age, center, SYNODIC_PERIOD)   // ≤ 14.77
-affinity = 100 * exp(-(d*d) / (2 * SIGMA*SIGMA))   // SIGMA = 4.2
+affinity = 100 * exp(-(d*d) / (2 * SIGMA*SIGMA))   // SIGMA = 2.5
 ```
 
 Wrapping is load-bearing: HUDELSCHUBLADE at center 0.0 must score identically at
@@ -122,9 +122,14 @@ bonus     = 30 * tightness * (w[p1] + w[p2]) / 2
 | FISH SCALE | Neptune 0.9 · Venus 0.7 · Pluto 0.6 |
 | ROSSIGNOL | Jupiter 0.9 · Venus 0.8 · Sun 0.6 |
 
-Max bonus (30) cannot overturn a kernel sitting on its center (100) against a
-kernel 8 days away (≈ 16). It *can* decide the overlap zones — which is exactly
-the intent: the moon selects, the sky breaks ties.
+The binding constraint is the tightest centre separation on the wheel —
+HUDELSCHUBLADE (0.0) to ROSSIGNOL (26.5), 3.031 days. At σ = 2.5 a rival that
+close scores 47.98, so even carrying both maximum bonuses it reaches 92.98 and
+cannot overturn a lens sitting on its centre (100). σ is calibrated to that
+seam and is not independently choosable — an earlier draft used 4.2, where the
+same rival held 77.1 and the guarantee was false. The bonus *can* decide the
+overlap zones, which is exactly the intent: the moon selects, the sky breaks
+ties.
 
 **No-transit path.** If WASM is unavailable or no aspect is within orb, there is
 no null branch: lunar age *is* the Sun–Moon elongation, so synthesise
@@ -141,7 +146,7 @@ Reads `getSpine()` from
   FIRE → HUDELSCHUBLADE (chaos), AIR → SEMIOTIC 9.9.9 (transmission),
   WATER → FISH SCALE (wetness), EARTH → BLACK HOLE (bare metal). **+8**
 - `spine.phase` matches the current accord → **+4** to the kernel owning that arc.
-- all four vertebrae marked → **+6 to ROSSIGNOL only** (the closed ring).
+- all four vertebrae marked → **+11 to ROSSIGNOL only** (the closed ring).
 
 Bonuses sum, capped at 15 — so a fully-marked spine can lift ROSSIGNOL by the
 full 15 while any other kernel tops out at 12.
@@ -149,8 +154,8 @@ full 15 while any other kernel tops out at 12.
 ### 5.4 Selection
 
 Highest total wins. Deterministic tie-break: fixed kernel order (the §4 table
-order), then tightest orb. The function is pure — identical inputs always yield
-an identical reading.
+order). The function is pure — identical inputs always yield an identical
+reading.
 
 ## 6. Corpus — `data/kernelHoroscope.js`
 
