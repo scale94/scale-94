@@ -1,0 +1,44 @@
+import { describe, it, expect } from 'vitest';
+import { KERNEL_HOROSCOPE, TENSION_CLASSES } from '../kernelHoroscope';
+import { ARC_QUADRANTS } from '../../lunar/synodic';
+
+// Grows as each lens lands. The final entry (Task 9) flips this to all five.
+const AUTHORED = ['hudelschublade'];
+
+const HEDGES = /\b(may|might|perhaps|possibly|consider|invites?|could)\b/i;
+
+function assertEntryComplete(id) {
+  const e = KERNEL_HOROSCOPE[id];
+  expect(e, `${id} missing from corpus`).toBeTruthy();
+  expect(e.axis.length).toBeGreaterThan(10);
+
+  for (const q of ARC_QUADRANTS) {
+    expect(e.quadrants[q], `${id}.${q}`).toBeTruthy();
+    for (const slot of ['plato', 'promo', 'directive']) {
+      expect(e.quadrants[q][slot].trim().length, `${id}.${q}.${slot}`).toBeGreaterThan(10);
+    }
+    // directives are imperatives: one sentence, no hedging
+    expect(e.quadrants[q].directive, `${id}.${q}.directive hedges`).not.toMatch(HEDGES);
+  }
+
+  for (const t of TENSION_CLASSES) {
+    expect(e.paradox[t].trim().length, `${id}.paradox.${t}`).toBeGreaterThan(10);
+  }
+  for (const c of ['complete', 'partial']) {
+    expect(e.coda[c].trim().length, `${id}.coda.${c}`).toBeGreaterThan(10);
+  }
+}
+
+describe('kernelHoroscope', () => {
+  it('declares the four tension classes', () => {
+    expect(TENSION_CLASSES).toEqual(['harmonic', 'fused', 'friction', 'polarity']);
+  });
+
+  it.each(AUTHORED)('%s has all 19 slots filled', assertEntryComplete);
+
+  it('has no duplicate directives anywhere in the corpus', () => {
+    const all = Object.values(KERNEL_HOROSCOPE)
+      .flatMap(e => ARC_QUADRANTS.map(q => e.quadrants[q].directive));
+    expect(new Set(all).size).toBe(all.length);
+  });
+});
