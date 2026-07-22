@@ -130,4 +130,42 @@ export const KERNEL_HOROSCOPE = {
       partial:  'The chain is short and the sound is intact. Short chains still cross borders.',
     },
   },
+
+  // Counterfeit cipher. Purity is desiccation. Seated at last quarter, where
+  // DRYNESS peaks at 96 — the monument reached, and refused.
+  fishscale: {
+    axis: 'purity is desiccation · the monument is reached every cycle and refused every cycle',
+    quadrants: {
+      'DARK-WAXING': {
+        plato:  'Start clean this time. No cut, no compromise, nothing in it that should not be.',
+        promo:  'Nothing in it that should not be is nothing in it. Clean does not run.',
+        directive: 'Put something impure in it before it sets.',
+      },
+      'LIGHT-WAXING': {
+        plato:  'Discipline. The intake narrows, the edges sharpen, the thing gets truer.',
+        promo:  'Narrowing feels like precision from inside and reads as drying from outside.',
+        directive: 'Stop narrowing.',
+      },
+      'LIGHT-WANING': {
+        plato:  'Almost pure. What is left is what survived, and what survived is the real material.',
+        promo:  'What survived is what was least alive. You have been selecting for the wrong property.',
+        directive: 'Select for what moves, not for what lasts.',
+      },
+      'DARK-WANING': {
+        plato:  'The monument. Perfectly preserved, nothing left to lose, nothing left to rot.',
+        promo:  'Preserved is not alive. The cycle reaches this exact point every month and refuses to stay.',
+        directive: 'Leave the monument standing and walk.',
+      },
+    },
+    paradox: {
+      harmonic: 'Purity and preservation agree, and the agreement is a still object. Agreement at this dryness is the failure mode.',
+      fused:    'The cut and the product at zero-point. The contaminant is the texture that makes it saleable; you cannot remove it without removing the thing.',
+      friction: 'Desiccation against circulation. The drier it gets the better it keeps and the less it moves.',
+      polarity: 'Preservation opposite vitality. Maximum permanence, minimum pulse — and the cycle turns anyway.',
+    },
+    coda: {
+      complete: 'The ring closed and did not calcify. That is the entire achievement.',
+      partial:  'Unfinished and still wet. Keep it that way longer than feels responsible.',
+    },
+  },
 };

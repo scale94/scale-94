@@ -3,7 +3,7 @@ import { KERNEL_HOROSCOPE, TENSION_CLASSES } from '../kernelHoroscope';
 import { ARC_QUADRANTS } from '../../lunar/synodic';
 
 // Grows as each lens lands. The final entry (Task 9) flips this to all five.
-const AUTHORED = ['hudelschublade', 'blackhole', 'semiotic'];
+const AUTHORED = ['hudelschublade', 'blackhole', 'semiotic', 'fishscale'];
 
 // Directives are imperatives. This list is deliberately broad — a hedge that
 // slips through is worse than a false positive, because the whole point of the
