@@ -54,4 +54,42 @@ export const KERNEL_HOROSCOPE = {
       partial:  'Vertebrae unmarked. Unmarked is not empty — it is unindexed.',
     },
   },
+
+  // Depth cipher. The horizon recedes at your exact speed; the exit is to stop
+  // orbiting, not to arrive.
+  blackhole: {
+    axis: 'the horizon recedes at your exact speed · the exit is to stop orbiting',
+    quadrants: {
+      'DARK-WAXING': {
+        plato:  'The ancestor. Whoever wrote the layer you are standing on, and wrote it better.',
+        promo:  'Four words of changelog and no forwarding address.',
+        directive: 'Read the source, not the author.',
+      },
+      'LIGHT-WAXING': {
+        plato:  'Close now. Another year of this and you are the one being cited.',
+        promo:  'The horizon recedes at exactly your speed. It has never once been nearer.',
+        directive: 'Ship the thing at your current radius.',
+      },
+      'LIGHT-WANING': {
+        plato:  'You arrived. The thing you chased is in your hands and it is yours.',
+        promo:  'It is ordinary. It was always ordinary; distance was the only feature it had.',
+        directive: 'Take the credit that was never withheld, only unclaimed.',
+      },
+      'DARK-WANING': {
+        plato:  'One more orbit. The next pass is the one that catches it.',
+        promo:  'Orbit is not approach. You have held this radius for years.',
+        directive: 'Name what you can already do that you still call aspiration.',
+      },
+    },
+    paradox: {
+      harmonic: 'Two depths agree and the agreement dissolves the idol. What you admired turns out to be a technique, and techniques transfer.',
+      fused:    'You and the ancestor at zero-point. Indistinguishable from outside, which is the only place the distinction ever lived.',
+      friction: 'Drive against depth. Every increment of effort buys less distance; the asymptote is charging you for it.',
+      polarity: 'Aspiration opposite arrival. Awareness only through the gap — and the gap is the whole apparatus.',
+    },
+    coda: {
+      complete: 'The ring is closed. Nothing in it is above you.',
+      partial:  'The spine is unfinished and it is still yours. Unfinished is not unqualified.',
+    },
+  },
 };

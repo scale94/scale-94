@@ -3,9 +3,12 @@ import { KERNEL_HOROSCOPE, TENSION_CLASSES } from '../kernelHoroscope';
 import { ARC_QUADRANTS } from '../../lunar/synodic';
 
 // Grows as each lens lands. The final entry (Task 9) flips this to all five.
-const AUTHORED = ['hudelschublade'];
+const AUTHORED = ['hudelschublade', 'blackhole'];
 
-const HEDGES = /\b(may|might|perhaps|possibly|consider|invites?|could)\b/i;
+// Directives are imperatives. This list is deliberately broad — a hedge that
+// slips through is worse than a false positive, because the whole point of the
+// register is that it commits.
+const HEDGES = /\b(may|maybe|might|perhaps|possibly|possible|considers?|considered|considering|invites?|invited|inviting|could|should)\b/i;
 
 function assertEntryComplete(id) {
   const e = KERNEL_HOROSCOPE[id];
