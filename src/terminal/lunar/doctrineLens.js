@@ -73,7 +73,7 @@ export function transitBonus(lens, dominant) {
   const tightness = Math.min(Math.max(1 - dominant.orb / 8, 0), 1);
   const w1 = lens.planets[dominant.p1] ?? 0;
   const w2 = lens.planets[dominant.p2] ?? 0;
-  return 30 * tightness * ((w1 + w2) / 2);
+  return Math.min(30, 30 * tightness * ((w1 + w2) / 2));
 }
 
 // There is no null path. Lunar age IS the Sun-Moon elongation, so when the
@@ -89,10 +89,14 @@ const LUNAR_EXACT = [
 ];
 
 export function synthesizeLunarAspect(age) {
+  // Normalize onto the wheel before scanning: this function is fed by both a
+  // WASM phase kernel and a UI slider, and an out-of-range age would otherwise
+  // resolve to a confidently wrong aspect rather than an obviously wrong one.
+  const a = ((age % SYNODIC_PERIOD) + SYNODIC_PERIOD) % SYNODIC_PERIOD;
   let best = LUNAR_EXACT[0];
   let bestD = Infinity;
   for (const p of LUNAR_EXACT) {
-    const d = Math.abs(age - p.at);
+    const d = Math.abs(a - p.at);
     if (d < bestD) { bestD = d; best = p; }
   }
   // days from exact → degrees of elongation (360 per synodic period), capped

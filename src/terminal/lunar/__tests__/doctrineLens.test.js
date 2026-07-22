@@ -84,6 +84,12 @@ describe('transitBonus', () => {
     const asp = { p1: 'Neptune', p2: 'Venus', aspect: 'Trine', orb: 1 };
     expect(transitBonus(fishscale, asp)).toBeGreaterThan(transitBonus(semiotic, asp));
   });
+
+  it('caps at 30 by construction even when lens weights exceed 1.0', () => {
+    const overweighted = { id: 'synthetic', planets: { Mercury: 2.5, Mars: 2.0 } };
+    expect(transitBonus(overweighted, { p1: 'Mercury', p2: 'Mars', aspect: 'Conjunct', orb: 0 }))
+      .toBe(30);
+  });
 });
 
 describe('synthesizeLunarAspect', () => {
@@ -109,5 +115,16 @@ describe('synthesizeLunarAspect', () => {
     const mid = synthesizeLunarAspect(SYNODIC_PERIOD * 0.125);   // maximally far from any exact point
     expect(mid.orb).toBeLessThanOrEqual(8);
     expect(mid.orb).toBeGreaterThan(0);
+  });
+
+  it('normalizes ages outside [0, SYNODIC_PERIOD] onto the wheel', () => {
+    expect(synthesizeLunarAspect(1.0)).toEqual(synthesizeLunarAspect(1.0 + SYNODIC_PERIOD));
+    expect(synthesizeLunarAspect(-0.01).aspect).toBe('Conjunct');
+  });
+
+  it('resolves exactly SYNODIC_PERIOD to Conjunct with orb 0', () => {
+    expect(synthesizeLunarAspect(SYNODIC_PERIOD)).toMatchObject({
+      p1: 'Sun', p2: 'Moon', aspect: 'Conjunct', orb: 0, synthetic: true,
+    });
   });
 });
