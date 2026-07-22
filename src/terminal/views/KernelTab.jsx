@@ -829,7 +829,9 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
                   WebkitTextFillColor: 'transparent',
                 }}
               >/dev/tty0</span>
-              <span className="text-[9px] font-bold tracking-widest text-cyan-900/35 shrink-0">system kernel logs</span>
+              {/* Caption is decorative — on mobile its 99px pushed the LOGS toggle
+                  off the clipped edge of the fixed console bar. */}
+              <span className="hidden md:inline text-[9px] font-bold tracking-widest text-cyan-900/35 shrink-0">system kernel logs</span>
               <span className="text-[9px] font-bold tracking-widest text-cyan-900/35 ml-auto hidden md:block shrink-0">
                 run · help · list · breach · tags
               </span>
