@@ -10,16 +10,25 @@ import {
 const T0 = Date.UTC(2026, 6, 22, 12, 0, 0);
 const TAU = Math.PI * 2;
 
-// Measure the period of an angle function by counting wraps over a long sweep.
+// Measure the period from the span between the FIRST and LAST wrap, divided by
+// the number of complete cycles in that span. Dividing total days by an integer
+// wrap count instead (the obvious version) quantizes: over 4000 days it is off
+// by up to 0.19 days, enough to pass or fail on luck rather than correctness.
 function measuredPeriod(fn, days = 4000, stepDays = 0.01) {
   let prev = fn(T0);
+  let first = null;
+  let last = null;
   let wraps = 0;
   for (let d = stepDays; d <= days; d += stepDays) {
     const v = fn(T0 + d * DAY_MS);
-    if (v < prev) wraps++;
+    if (v < prev) {
+      if (first === null) first = d;
+      last = d;
+      wraps++;
+    }
     prev = v;
   }
-  return days / wraps;
+  return (last - first) / (wraps - 1);
 }
 
 describe('lunarEphemeris — periods', () => {
@@ -29,15 +38,15 @@ describe('lunarEphemeris — periods', () => {
   });
 
   it('mean anomaly runs on the anomalistic month', () => {
-    expect(measuredPeriod(meanAnomaly)).toBeCloseTo(ANOMALISTIC_MONTH, 1);
+    expect(measuredPeriod(meanAnomaly)).toBeCloseTo(ANOMALISTIC_MONTH, 2);
   });
 
   it('argument of latitude runs on the draconic month', () => {
-    expect(measuredPeriod(argOfLatitude)).toBeCloseTo(DRACONIC_MONTH, 1);
+    expect(measuredPeriod(argOfLatitude)).toBeCloseTo(DRACONIC_MONTH, 2);
   });
 
   it('mean elongation runs on the synodic month', () => {
-    expect(measuredPeriod(meanElongation)).toBeCloseTo(SYNODIC_PERIOD, 1);
+    expect(measuredPeriod(meanElongation)).toBeCloseTo(SYNODIC_PERIOD, 2);
   });
 
   it('keeps all three angles normalised to [0, 2pi)', () => {
