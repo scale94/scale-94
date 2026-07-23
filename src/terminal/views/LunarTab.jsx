@@ -25,6 +25,8 @@ import { setPhase, getSpine, subscribeSpine } from '../quintessence/spineStore';
 import { compileLunarDoctrine } from '../lunar/compileLunarDoctrine';
 import DoctrineRegister from '../lunar/DoctrineRegister';
 import LunarCanvas from '../lunar/LunarCanvasMoon';
+import LunarShaderMoon from '../lunar/LunarShaderMoon';
+import MoonRendererToggle, { readRenderer, writeRenderer } from '../lunar/MoonRendererToggle';
 
 // ── Lunar Phase Engine ───────────────────────────────────────────────────────
 // Primary: WASM kernel (Meeus astronomical algorithms, ~10″ longitude accuracy).
@@ -780,6 +782,7 @@ export default function LunarTab() {
   // to read 8 cards to grasp the system.
   const [scrubAge, setScrubAge] = useState(null);
   const isScrubbing = scrubAge !== null;
+  const [moonRenderer, setMoonRenderer] = useState(readRenderer);
 
   // Effective values — what the rest of the UI binds to.
   // Retains original variable names so downstream JSX is untouched.
@@ -823,6 +826,8 @@ export default function LunarTab() {
     }),
     [currentAge, illumination, currentPhase.id, selectedAccord.accord, transits, planets, spineTick]
   );
+
+  const moonTimestamp = Date.now();   // becomes scrub-aware in Task 7
 
   return (
     <div className="tab-fade-v2 max-w-5xl mx-auto mt-4 sm:mt-6 px-2 sm:px-0 pb-16">
@@ -934,7 +939,15 @@ export default function LunarTab() {
 
         {/* Photorealistic Moon */}
         <div className="flex flex-col items-center gap-2">
-          <LunarCanvas lunarAge={currentAge} />
+          {moonRenderer === 'shader'
+            ? <LunarShaderMoon
+                lunarAge={currentAge}
+                illumination={illumination}
+                timestamp={moonTimestamp}
+                size={340}
+              />
+            : <LunarCanvas lunarAge={currentAge} />}
+          <MoonRendererToggle value={moonRenderer} onChange={(v) => { setMoonRenderer(v); writeRenderer(v); }} />
           <PhaseSelector
             currentAge={currentAge}
             onSelectPhase={setSelectedPhaseId}

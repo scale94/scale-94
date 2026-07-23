@@ -214,6 +214,7 @@ function LunarCanvas({ lunarAge }) {
     offscreen.width = size * dpr;
     offscreen.height = size * dpr;
     const offCtx = offscreen.getContext('2d');
+    if (!offCtx) return; // jsdom (no `canvas` package) returns null here; real browsers never do
     offCtx.scale(dpr, dpr);
     renderMoon(offCtx, size, size, lunarAge);
     moonBufferRef.current = offscreen;
