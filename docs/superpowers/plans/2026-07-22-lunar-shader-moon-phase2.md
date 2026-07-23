@@ -510,9 +510,16 @@ describe('darkAdaptation — freeze and reduced motion', () => {
     let s = createAdaptState(0);
     for (let i = 0; i < 500; i++) s = stepAdapt(s, { dt: 0.1, illumination: 0 });
     const held = s.adapt;
-    s = stepAdapt(s, { dt: 60, illumination: 0, hidden: true });
-    s = stepAdapt(s, { dt: 0.016, illumination: 0 });
-    expect(s.adapt).toBeGreaterThan(held * 0.9);
+
+    // Illumination must CHANGE while hidden or this test cannot discriminate:
+    // with a constant illumination both variants of the hidden branch agree.
+    s = stepAdapt(s, { dt: 60, illumination: 0.9, hidden: true });
+    expect(s.adapt).toBe(held);
+
+    // Returning clamps adapt down to the new ceiling, but must NOT multiply it
+    // by BLEACH_FACTOR first. Bleached would land at ~0.150, clamped at 0.235.
+    s = stepAdapt(s, { dt: 0.016, illumination: 0.9 });
+    expect(s.adapt).toBeCloseTo(adaptCeiling(0.9), 3);
   });
 
   it('pins at the ceiling under reduced motion', () => {
@@ -577,9 +584,10 @@ export function stepAdapt(state, { dt, illumination, hidden = false, reducedMoti
 
   if (reducedMotion) return { adapt: ceiling, lastIllum: illum };
 
-  // Hidden freezes both values. Holding lastIllum is what stops the first
-  // visible frame from reading as a jump and bleaching you for no reason.
-  if (hidden) return { adapt: state.adapt, lastIllum: state.lastIllum };
+  // Hidden freezes adapt but keeps tracking illumination, so the first visible
+  // frame is not read as a jump. The bleach models a transition the viewer
+  // witnessed; a viewer with the tab hidden witnessed nothing.
+  if (hidden) return { adapt: state.adapt, lastIllum: illum };
 
   let adapt = state.adapt;
 
