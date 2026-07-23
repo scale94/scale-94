@@ -6,7 +6,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { createGL, buildProgram } from './glContext';
-import { QUAD_VS, MOON_FS } from './moonShader';
+import { QUAD_VS, MOON_FS, BAKE_FS, bakeSize } from './moonShader';
 import { createAdaptState, stepAdapt, isAtRest } from './darkAdaptation';
 import LunarCanvas from './LunarCanvasMoon';
 
@@ -48,18 +48,44 @@ export default function LunarShaderMoon({ lunarAge, illumination, timestamp, siz
     canvas.style.height = `${size}px`;
     gl.viewport(0, 0, canvas.width, canvas.height);
 
-    // Fullscreen triangle strip.
+    // Fullscreen triangle strip. Location 0 is shared by both programs
+    // (QUAD_VS declares `layout(location = 0) in vec2 aPos;`) so the same
+    // VAO/buffer drives the bake pass and the render pass.
     const vao = gl.createVertexArray();
     gl.bindVertexArray(vao);
     const buf = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buf);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
-    const aPos = gl.getAttribLocation(prog, 'aPos');
-    gl.enableVertexAttribArray(aPos);
-    gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+    // ── Pass A: bake the selenographic surface, once ──
+    const bakeProg = buildProgram(gl, QUAD_VS, BAKE_FS);
+    const [bw, bh] = bakeSize();
+    const surfaceTex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, surfaceTex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, bw, bh, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);       // lon wraps
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE); // lat does not
+
+    const fbo = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, surfaceTex, 0);
+    gl.viewport(0, 0, bw, bh);
+    gl.useProgram(bakeProg);
+    gl.bindVertexArray(vao);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.deleteFramebuffer(fbo);
+    gl.deleteProgram(bakeProg);
+    gl.viewport(0, 0, canvas.width, canvas.height);
 
     gl.useProgram(prog);
     const uRadius = gl.getUniformLocation(prog, 'uRadius');
+    const uSurface = gl.getUniformLocation(prog, 'uSurface');
 
     const reducedMotion =
       typeof window.matchMedia === 'function' &&
@@ -88,6 +114,9 @@ export default function LunarShaderMoon({ lunarAge, illumination, timestamp, siz
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);
       gl.uniform1f(uRadius, 0.78);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, surfaceTex);
+      gl.uniform1i(uSurface, 0);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
     raf = requestAnimationFrame(frame);
@@ -104,6 +133,7 @@ export default function LunarShaderMoon({ lunarAge, illumination, timestamp, siz
       gl.deleteProgram(prog);
       gl.deleteBuffer(buf);
       gl.deleteVertexArray(vao);
+      gl.deleteTexture(surfaceTex);
     };
   }, [supported, size]);
 
