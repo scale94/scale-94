@@ -109,9 +109,16 @@ describe('darkAdaptation — freeze and reduced motion', () => {
     let s = createAdaptState(0);
     for (let i = 0; i < 500; i++) s = stepAdapt(s, { dt: 0.1, illumination: 0 });
     const held = s.adapt;
-    s = stepAdapt(s, { dt: 60, illumination: 0, hidden: true });
-    s = stepAdapt(s, { dt: 0.016, illumination: 0 });
-    expect(s.adapt).toBeGreaterThan(held * 0.9);
+
+    // Illumination must CHANGE while hidden or this test cannot discriminate:
+    // with a constant illumination both variants of the hidden branch agree.
+    s = stepAdapt(s, { dt: 60, illumination: 0.9, hidden: true });
+    expect(s.adapt).toBe(held);
+
+    // Returning clamps adapt down to the new ceiling, but must NOT multiply it
+    // by BLEACH_FACTOR first. Bleached would land at ~0.150, clamped at 0.235.
+    s = stepAdapt(s, { dt: 0.016, illumination: 0.9 });
+    expect(s.adapt).toBeCloseTo(adaptCeiling(0.9), 3);
   });
 
   it('pins at the ceiling under reduced motion', () => {

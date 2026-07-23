@@ -28,9 +28,10 @@ export function stepAdapt(state, { dt, illumination, hidden = false, reducedMoti
 
   if (reducedMotion) return { adapt: ceiling, lastIllum: illum };
 
-  // Hidden freezes both values. Holding lastIllum is what stops the first
-  // visible frame from reading as a jump and bleaching you for no reason.
-  if (hidden) return { adapt: state.adapt, lastIllum: state.lastIllum };
+  // Hidden freezes adapt but keeps tracking illumination, so the first visible
+  // frame is not read as a jump. The bleach models a transition the viewer
+  // witnessed; a viewer with the tab hidden witnessed nothing.
+  if (hidden) return { adapt: state.adapt, lastIllum: illum };
 
   let adapt = state.adapt;
 
