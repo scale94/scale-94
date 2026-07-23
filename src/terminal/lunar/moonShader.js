@@ -155,6 +155,7 @@ precision highp float;
 in vec2 vScreen;
 uniform sampler2D uSurface;
 uniform float uRadius;
+uniform float uAge;
 out vec4 fragColor;
 
 const float PI = 3.14159265359;
@@ -175,8 +176,30 @@ void main() {
   vec3 nT = vec3(nxy, sqrt(max(0.0, 1.0 - dot(nxy, nxy))));
   float albedo = surf.b;
 
-  // Flat frontal light for this task -- phase arrives in Task 5.
-  fragColor = vec4(vec3(albedo * (0.55 + 0.45 * nT.z)), 1.0);
+  // Tangent frame on the sphere, so the baked normal perturbs the real normal.
+  vec3 T = normalize(cross(vec3(0.0, 1.0, 0.0), N));
+  vec3 B = cross(N, T);
+  vec3 Np = normalize(nT.x * T + nT.y * B + nT.z * N);
+
+  // Sun direction from synodic age. Matches the canvas moon's convention:
+  // age 0 puts the sun behind the moon, age 14.77 puts it behind the viewer.
+  float phase = uAge / 29.53058770576 * TAU;
+  vec3 L = normalize(vec3(-sin(phase), 0.0, -cos(phase)));
+  vec3 V = vec3(0.0, 0.0, 1.0);
+
+  // Lommel-Seeliger, not Lambert. This is why a real full moon is a flat disc
+  // edge to edge instead of a lit ball with a dark rim.
+  float mu0 = max(dot(Np, L), 0.0);
+  float mu  = max(dot(Np, V), 0.0);
+  float ls  = 2.0 * mu0 / max(mu0 + mu, 1e-4);
+
+  // Opposition surge: shadow-hiding among regolith grains spikes the
+  // brightness within a few degrees of zero phase angle.
+  float alpha = acos(clamp(-cos(phase), -1.0, 1.0));
+  float surge = 1.0 + 0.55 * exp(-alpha / 0.075);
+
+  float Ld = albedo * ls * surge;
+  fragColor = vec4(vec3(Ld), 1.0);
 }`;
 
 /** 2048x1024 desktop, halved on narrow viewports. */

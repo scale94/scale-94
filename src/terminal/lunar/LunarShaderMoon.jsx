@@ -86,6 +86,7 @@ export default function LunarShaderMoon({ lunarAge, illumination, timestamp, siz
     gl.useProgram(prog);
     const uRadius = gl.getUniformLocation(prog, 'uRadius');
     const uSurface = gl.getUniformLocation(prog, 'uSurface');
+    const uAge = gl.getUniformLocation(prog, 'uAge');
 
     const reducedMotion =
       typeof window.matchMedia === 'function' &&
@@ -114,6 +115,7 @@ export default function LunarShaderMoon({ lunarAge, illumination, timestamp, siz
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);
       gl.uniform1f(uRadius, 0.78);
+      gl.uniform1f(uAge, live.lunarAge);
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, surfaceTex);
       gl.uniform1i(uSurface, 0);
