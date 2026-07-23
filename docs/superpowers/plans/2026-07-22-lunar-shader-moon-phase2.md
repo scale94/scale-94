@@ -1648,10 +1648,14 @@ describe('ScotopicMeter', () => {
     expect(getByText('0.400')).toBeTruthy();
   });
 
-  it('clamps a value above one', () => {
-    const { container } = render(<ScotopicMeter adapt={3} />);
-    const fill = container.querySelector('[style*="width"]');
-    expect(fill.style.width).toBe('100%');
+  it('clamps a value above one to a displayed 1.000', () => {
+    // Assert on the displayed text, not the bar width: ParamBar already
+    // saturates the width to 100% internally, so a width assertion passes
+    // even if ScotopicMeter's own clamp is removed. The value text
+    // (value.toFixed(3)) is NOT saturated by ParamBar, so it is the only
+    // place ScotopicMeter's clamp is observable.
+    const { getByText } = render(<ScotopicMeter adapt={3} />);
+    expect(getByText('1.000')).toBeTruthy();
   });
 });
 ```
