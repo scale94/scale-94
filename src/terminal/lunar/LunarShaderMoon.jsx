@@ -12,7 +12,7 @@ import LunarCanvas from './LunarCanvasMoon';
 
 const REST_FRAME_MS = 1000 / 30;
 
-export default function LunarShaderMoon({ lunarAge, illumination, timestamp, size = 340 }) {
+export default function LunarShaderMoon({ lunarAge, illumination, timestamp, size = 340, onAdaptChange }) {
   const canvasRef = useRef(null);
   const [supported, setSupported] = useState(() => {
     if (typeof document === 'undefined') return false;
@@ -21,8 +21,8 @@ export default function LunarShaderMoon({ lunarAge, illumination, timestamp, siz
   });
 
   // Live props read by the rAF loop without re-running the effect.
-  const propsRef = useRef({ lunarAge, illumination, timestamp });
-  propsRef.current = { lunarAge, illumination, timestamp };
+  const propsRef = useRef({ lunarAge, illumination, timestamp, onAdaptChange });
+  propsRef.current = { lunarAge, illumination, timestamp, onAdaptChange };
 
   useEffect(() => {
     if (!supported) return;
@@ -87,6 +87,10 @@ export default function LunarShaderMoon({ lunarAge, illumination, timestamp, siz
     const uRadius = gl.getUniformLocation(prog, 'uRadius');
     const uSurface = gl.getUniformLocation(prog, 'uSurface');
     const uAge = gl.getUniformLocation(prog, 'uAge');
+    const uIllum = gl.getUniformLocation(prog, 'uIllum');
+    const uAdapt = gl.getUniformLocation(prog, 'uAdapt');
+    const uPurkinje = gl.getUniformLocation(prog, 'uPurkinje');
+    const uTime = gl.getUniformLocation(prog, 'uTime');
 
     const reducedMotion =
       typeof window.matchMedia === 'function' &&
@@ -97,6 +101,7 @@ export default function LunarShaderMoon({ lunarAge, illumination, timestamp, siz
     let hidden = document.hidden;
     let lastT = 0;
     let lastDraw = 0;
+    let lastReport = 0;
 
     function frame(now) {
       raf = requestAnimationFrame(frame);
@@ -108,6 +113,12 @@ export default function LunarShaderMoon({ lunarAge, illumination, timestamp, siz
         dt, illumination: live.illumination, hidden, reducedMotion,
       });
 
+      if (now - lastReport > 100) {
+        lastReport = now;
+        const cb = propsRef.current.onAdaptChange;
+        if (cb) cb(adaptState.adapt);
+      }
+
       // 30fps idle throttle once adaptation has settled (spec section 9).
       if (isAtRest(adaptState, live.illumination) && now - lastDraw < REST_FRAME_MS) return;
       lastDraw = now;
@@ -116,6 +127,10 @@ export default function LunarShaderMoon({ lunarAge, illumination, timestamp, siz
       gl.clear(gl.COLOR_BUFFER_BIT);
       gl.uniform1f(uRadius, 0.78);
       gl.uniform1f(uAge, live.lunarAge);
+      gl.uniform1f(uIllum, live.illumination);
+      gl.uniform1f(uAdapt, adaptState.adapt);
+      gl.uniform1f(uPurkinje, 1.0);   // author's call after review; 3.0 inverts
+      gl.uniform1f(uTime, now * 0.001);
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, surfaceTex);
       gl.uniform1i(uSurface, 0);

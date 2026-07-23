@@ -2,6 +2,7 @@
 // The SCOTOPIC meter joins this file in Task 6.
 
 import React from 'react';
+import ParamBar from '../mercury/ParamBar';
 
 export const MOON_RENDERER_KEY = 'lunar_moon_renderer_v1';
 const VALID = ['canvas', 'shader'];
@@ -30,5 +31,23 @@ export default function MoonRendererToggle({ value, onChange }) {
     >
       renderer · {value}
     </button>
+  );
+}
+
+/**
+ * Without this the 25-second adaptation ramp reads as "nothing is happening",
+ * which is a UX failure rather than a subtlety.
+ */
+export function ScotopicMeter({ adapt }) {
+  return (
+    <div className="w-full max-w-[340px] px-2">
+      <ParamBar
+        label="SCOTOPIC"
+        value={Math.max(0, Math.min(1, adapt))}
+        min={0}
+        max={1}
+        color="bg-violet-500/70"
+      />
+    </div>
   );
 }

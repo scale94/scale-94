@@ -2,7 +2,7 @@ import React from 'react';
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, cleanup, fireEvent } from '@testing-library/react';
 import MoonRendererToggle, {
-  MOON_RENDERER_KEY, readRenderer, writeRenderer,
+  MOON_RENDERER_KEY, readRenderer, writeRenderer, ScotopicMeter,
 } from '../MoonRendererToggle';
 
 afterEach(() => { localStorage.clear(); cleanup(); });
@@ -37,5 +37,23 @@ describe('MoonRendererToggle', () => {
     );
     fireEvent.click(getByRole('button'));
     expect(got).toBe('canvas');
+  });
+});
+
+describe('ScotopicMeter', () => {
+  it('renders the SCOTOPIC label', () => {
+    const { getByText } = render(<ScotopicMeter adapt={0.4} />);
+    expect(getByText(/SCOTOPIC/i)).toBeTruthy();
+  });
+
+  it('shows the adapt value to three places', () => {
+    const { getByText } = render(<ScotopicMeter adapt={0.4} />);
+    expect(getByText('0.400')).toBeTruthy();
+  });
+
+  it('clamps a value above one', () => {
+    const { container } = render(<ScotopicMeter adapt={3} />);
+    const fill = container.querySelector('[style*="width"]');
+    expect(fill.style.width).toBe('100%');
   });
 });

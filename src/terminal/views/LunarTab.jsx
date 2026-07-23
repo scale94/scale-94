@@ -26,7 +26,7 @@ import { compileLunarDoctrine } from '../lunar/compileLunarDoctrine';
 import DoctrineRegister from '../lunar/DoctrineRegister';
 import LunarCanvas from '../lunar/LunarCanvasMoon';
 import LunarShaderMoon from '../lunar/LunarShaderMoon';
-import MoonRendererToggle, { readRenderer, writeRenderer } from '../lunar/MoonRendererToggle';
+import MoonRendererToggle, { ScotopicMeter, readRenderer, writeRenderer } from '../lunar/MoonRendererToggle';
 
 // ── Lunar Phase Engine ───────────────────────────────────────────────────────
 // Primary: WASM kernel (Meeus astronomical algorithms, ~10″ longitude accuracy).
@@ -783,6 +783,7 @@ export default function LunarTab() {
   const [scrubAge, setScrubAge] = useState(null);
   const isScrubbing = scrubAge !== null;
   const [moonRenderer, setMoonRenderer] = useState(readRenderer);
+  const [moonAdapt, setMoonAdapt] = useState(0);
 
   // Effective values — what the rest of the UI binds to.
   // Retains original variable names so downstream JSX is untouched.
@@ -945,8 +946,10 @@ export default function LunarTab() {
                 illumination={illumination}
                 timestamp={moonTimestamp}
                 size={340}
+                onAdaptChange={setMoonAdapt}
               />
             : <LunarCanvas lunarAge={currentAge} />}
+          {moonRenderer === 'shader' && <ScotopicMeter adapt={moonAdapt} />}
           <MoonRendererToggle value={moonRenderer} onChange={(v) => { setMoonRenderer(v); writeRenderer(v); }} />
           <PhaseSelector
             currentAge={currentAge}

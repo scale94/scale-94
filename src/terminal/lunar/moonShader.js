@@ -156,10 +156,15 @@ in vec2 vScreen;
 uniform sampler2D uSurface;
 uniform float uRadius;
 uniform float uAge;
+uniform float uIllum;
+uniform float uAdapt;
+uniform float uPurkinje;
+uniform float uTime;
 out vec4 fragColor;
 
 const float PI = 3.14159265359;
 const float TAU = 6.28318530718;
+${NOISE_GLSL}
 
 void main() {
   vec2 p = vScreen / uRadius;
@@ -199,7 +204,46 @@ void main() {
   float surge = 1.0 + 0.55 * exp(-alpha / 0.075);
 
   float Ld = albedo * ls * surge;
-  fragColor = vec4(vec3(Ld), 1.0);
+
+  // Earthshine. Earth is behind the viewer and full when the moon is new, so
+  // this is frontal fill -- near-flat across the disc, not a shaded sphere.
+  // That flatness is why the real old-moon-in-the-new-moon's-arms reads as a
+  // disc. The half the sun refuses is not empty.
+  float earthPhase = 1.0 - uIllum;
+  float Le = albedo * 0.075 * pow(earthPhase, 1.6)
+           * (0.55 + 0.45 * N.z) * (0.20 + 0.80 * uAdapt);
+
+  float Y = Ld + Le;
+
+  // Spectral reflectance: warm anorthosite highlands, bluish basalt mare.
+  const vec3 HIGHLAND = vec3(1.00, 0.965, 0.905);
+  const vec3 MARE_TINT = vec3(0.855, 0.900, 1.000);
+  vec3 refl = mix(HIGHLAND, MARE_TINT, surf.a);
+
+  // Mesopic split. Luminance decides which visual system renders the pixel,
+  // and the thresholds RISE with adaptation, so the scotopic zone climbs up
+  // into the lit side the longer you sit still.
+  float yLo = mix(0.012, 0.10, uAdapt);
+  float yHi = mix(0.100, 0.32, uAdapt);
+  float s = 1.0 - smoothstep(yLo, yHi, Y);
+
+  // Purkinje shift: rod sensitivity peaks at 507nm, not 555nm. Reds darken,
+  // blues brighten. uPurkinje > 1.0 exaggerates past the physical value.
+  vec3 vPrime = mix(vec3(1.0), vec3(0.42, 1.00, 1.62), uPurkinje);
+  float scotLum = dot(refl * vPrime, vec3(0.33333));
+
+  const vec3 VISUAL_PURPLE = vec3(0.60, 0.53, 1.00);
+  vec3 photopic = refl * Y;
+  vec3 scotopic = VISUAL_PURPLE * scotLum * Y;
+  vec3 col = mix(photopic, scotopic, s);
+
+  // Triangular dither. Violet gradients over near-black is the worst case for
+  // OLED banding, which this project has already been bitten by.
+  float d1 = hash21(gl_FragCoord.xy + uTime);
+  float d2 = hash21(gl_FragCoord.xy + uTime + 31.7);
+  col += (d1 + d2 - 1.0) / 255.0;
+
+  fragColor = vec4(max(col, vec3(0.0)), 1.0);
 }`;
 
 /** 2048x1024 desktop, halved on narrow viewports. */
