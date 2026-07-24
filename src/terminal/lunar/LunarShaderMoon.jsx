@@ -8,6 +8,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createGL, buildProgram } from './glContext';
 import { QUAD_VS, MOON_FS, BAKE_FS, bakeSize } from './moonShader';
 import { createAdaptState, stepAdapt, isAtRest } from './darkAdaptation';
+import { libration, apparentRadiusScale } from './lunarEphemeris';
 import LunarCanvas from './LunarCanvasMoon';
 
 const REST_FRAME_MS = 1000 / 30;
@@ -91,6 +92,7 @@ export default function LunarShaderMoon({ lunarAge, illumination, timestamp, siz
     const uAdapt = gl.getUniformLocation(prog, 'uAdapt');
     const uPurkinje = gl.getUniformLocation(prog, 'uPurkinje');
     const uTime = gl.getUniformLocation(prog, 'uTime');
+    const uLibration = gl.getUniformLocation(prog, 'uLibration');
 
     const reducedMotion =
       typeof window.matchMedia === 'function' &&
@@ -125,7 +127,11 @@ export default function LunarShaderMoon({ lunarAge, illumination, timestamp, siz
 
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);
-      gl.uniform1f(uRadius, 0.78);
+      const lib = libration(live.timestamp);
+      gl.uniform2f(uLibration, lib.lon, lib.lat);
+      // 0.78 is the disc's share of the canvas at mean distance; the ephemeris
+      // scale carries the perigee-apogee swell on top of it.
+      gl.uniform1f(uRadius, 0.78 * apparentRadiusScale(live.timestamp));
       gl.uniform1f(uAge, live.lunarAge);
       gl.uniform1f(uIllum, live.illumination);
       gl.uniform1f(uAdapt, adaptState.adapt);

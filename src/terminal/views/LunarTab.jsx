@@ -21,6 +21,7 @@ import ParamBar from '../mercury/ParamBar';
 import { emit as emitObs } from '../../observatory/observatoryBus';
 import { LUNAR_ACCORDS } from '../data/lunarAccords';
 import { SYNODIC_PERIOD, PHASES, getPhase, ASPECT_TENSION } from '../lunar/synodic';
+import { timestampForScrub } from '../lunar/lunarEphemeris';
 import { setPhase, getSpine, subscribeSpine } from '../quintessence/spineStore';
 import { compileLunarDoctrine } from '../lunar/compileLunarDoctrine';
 import DoctrineRegister from '../lunar/DoctrineRegister';
@@ -828,7 +829,14 @@ export default function LunarTab() {
     [currentAge, illumination, currentPhase.id, selectedAccord.accord, transits, planets, spineTick]
   );
 
-  const moonTimestamp = Date.now();   // becomes scrub-aware in Task 7
+  // The scrub is a clock: it maps to a real forward timestamp so the moon's
+  // libration and apparent size run on their own periods (anomalistic and
+  // draconic) rather than on the synodic one the scrub sweeps. Anchored on the
+  // tab's own live age so there is no seam between live and scrubbed mode.
+  const moonTimestamp = useMemo(
+    () => (isScrubbing ? timestampForScrub(scrubAge, liveAge, Date.now()) : Date.now()),
+    [isScrubbing, scrubAge, liveAge]
+  );
 
   return (
     <div className="tab-fade-v2 max-w-5xl mx-auto mt-4 sm:mt-6 px-2 sm:px-0 pb-16">

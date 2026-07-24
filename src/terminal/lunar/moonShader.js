@@ -160,6 +160,7 @@ uniform float uIllum;
 uniform float uAdapt;
 uniform float uPurkinje;
 uniform float uTime;
+uniform vec2 uLibration;
 out vec4 fragColor;
 
 const float PI = 3.14159265359;
@@ -172,8 +173,16 @@ void main() {
   if (r2 > 1.0) discard;
 
   vec3 N = vec3(p, sqrt(max(0.0, 1.0 - r2)));
-  float lon = atan(N.x, N.z);
-  float lat = asin(clamp(N.y, -1.0, 1.0));
+
+  // Libration: rotate the view-space normal into selenographic coordinates.
+  // The moon nods; the texture does not move under it.
+  float cl = cos(-uLibration.y), sl = sin(-uLibration.y);
+  vec3 S = vec3(N.x, cl * N.y - sl * N.z, sl * N.y + cl * N.z);
+  float co = cos(-uLibration.x), so = sin(-uLibration.x);
+  S = vec3(co * S.x + so * S.z, S.y, -so * S.x + co * S.z);
+
+  float lon = atan(S.x, S.z);
+  float lat = asin(clamp(S.y, -1.0, 1.0));
   vec2 uv = vec2(lon / TAU + 0.5, lat / PI + 0.5);
 
   vec4 surf = texture(uSurface, uv);
