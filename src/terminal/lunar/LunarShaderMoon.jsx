@@ -108,6 +108,7 @@ export default function LunarShaderMoon({ lunarAge, illumination, timestamp, siz
     let lastT = 0;
     let lastDraw = 0;
     let lastReport = 0;
+    let lastReportedAdapt = -1;
 
     function frame(now) {
       raf = requestAnimationFrame(frame);
@@ -119,8 +120,9 @@ export default function LunarShaderMoon({ lunarAge, illumination, timestamp, siz
         dt, illumination: live.illumination, hidden, reducedMotion,
       });
 
-      if (now - lastReport > 100) {
+      if (now - lastReport > 100 && Math.abs(adaptState.adapt - lastReportedAdapt) > 1e-3) {
         lastReport = now;
+        lastReportedAdapt = adaptState.adapt;
         const cb = propsRef.current.onAdaptChange;
         if (cb) cb(adaptState.adapt);
       }
