@@ -43,10 +43,11 @@ export default function LunarShaderMoon({ lunarAge, illumination, timestamp, siz
     }
 
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = size * dpr;
-    canvas.height = size * dpr;
-    canvas.style.width = `${size}px`;
-    canvas.style.height = `${size}px`;
+    const canvasPx = Math.round(size * 1.25);
+    canvas.width = canvasPx * dpr;
+    canvas.height = canvasPx * dpr;
+    canvas.style.width = `${canvasPx}px`;
+    canvas.style.height = `${canvasPx}px`;
     gl.viewport(0, 0, canvas.width, canvas.height);
 
     // Fullscreen triangle strip. Location 0 is shared by both programs
@@ -85,6 +86,9 @@ export default function LunarShaderMoon({ lunarAge, illumination, timestamp, siz
     gl.viewport(0, 0, canvas.width, canvas.height);
 
     gl.useProgram(prog);
+    gl.enable(gl.BLEND);
+    // Premultiplied alpha -- the context was created with premultipliedAlpha.
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     const uRadius = gl.getUniformLocation(prog, 'uRadius');
     const uSurface = gl.getUniformLocation(prog, 'uSurface');
     const uAge = gl.getUniformLocation(prog, 'uAge');
@@ -136,7 +140,9 @@ export default function LunarShaderMoon({ lunarAge, illumination, timestamp, siz
       gl.uniform1f(uIllum, live.illumination);
       gl.uniform1f(uAdapt, adaptState.adapt);
       gl.uniform1f(uPurkinje, 1.0);   // author's call after review; 3.0 inverts
-      gl.uniform1f(uTime, now * 0.001);
+      // Frozen under reduced motion: stars stop twinkling. The dither pattern
+      // going static with it is fine -- a fixed dither is still a dither.
+      gl.uniform1f(uTime, reducedMotion ? 0 : now * 0.001);
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, surfaceTex);
       gl.uniform1i(uSurface, 0);
@@ -169,7 +175,7 @@ export default function LunarShaderMoon({ lunarAge, illumination, timestamp, siz
   }
 
   return (
-    <div data-moon-renderer="shader" className="w-full flex justify-center">
+    <div data-moon-renderer="shader" className="w-full flex justify-center -my-8">
       <canvas ref={canvasRef} />
     </div>
   );

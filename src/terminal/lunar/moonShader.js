@@ -168,9 +168,48 @@ const float TAU = 6.28318530718;
 ${NOISE_GLSL}
 
 void main() {
+  // ── Sky ──
+  vec3 sky = vec3(0.0);
+  float skyAlpha = 0.0;
+
+  // Starfield: procedural, no buffers. Brightness climbs with adaptation --
+  // the longer you sit in the dark, the more stars there are.
+  vec2 sc = vScreen * 22.0;
+  vec2 si = floor(sc);
+  vec2 sf = fract(sc) - hash22(si);
+  float starMag = hash21(si + 3.3);
+  if (starMag > 0.86) {
+    float d = length(sf);
+    float tw = 0.72 + 0.28 * sin(uTime * (0.5 + starMag) * 2.0 + starMag * 40.0);
+    float star = exp(-d * d * 90.0) * (starMag - 0.86) / 0.14;
+    vec3 temp = mix(vec3(0.78, 0.84, 1.0), vec3(1.0, 0.95, 0.86), hash21(si + 9.1));
+    float b = star * tw * (0.35 + 0.65 * uAdapt);
+    sky += temp * b;
+    skyAlpha = max(skyAlpha, b);
+  }
+
+  // Chromatic corona: the three channels fall off at slightly different radii,
+  // so the halo disperses instead of gradient-stopping.
+  float rr = length(vScreen);
+  vec3 coronaR = vec3(exp(-pow(max(rr - uRadius, 0.0) / 0.30, 1.6)), 0.0, 0.0);
+  vec3 coronaG = vec3(0.0, exp(-pow(max(rr - uRadius, 0.0) / 0.34, 1.6)), 0.0);
+  vec3 coronaB = vec3(0.0, 0.0, exp(-pow(max(rr - uRadius, 0.0) / 0.41, 1.6)));
+  vec3 corona = (coronaR + coronaG + coronaB)
+              * vec3(0.55, 0.48, 1.0) * 0.075 * (0.35 + 0.65 * uIllum);
+  sky += corona;
+  skyAlpha = max(skyAlpha, max(corona.r, max(corona.g, corona.b)) * 3.0);
+
+  // Alpha falls to zero INSIDE the canvas bounds, so there is no edge to see.
+  float vignette = 1.0 - smoothstep(0.55, 1.0, rr);
+  sky *= vignette;
+  skyAlpha *= vignette;
+
   vec2 p = vScreen / uRadius;
   float r2 = dot(p, p);
-  if (r2 > 1.0) discard;
+  if (r2 > 1.0) {
+    fragColor = vec4(sky, clamp(skyAlpha, 0.0, 1.0));
+    return;
+  }
 
   vec3 N = vec3(p, sqrt(max(0.0, 1.0 - r2)));
 
@@ -252,7 +291,7 @@ void main() {
   float d2 = hash21(gl_FragCoord.xy + uTime + 31.7);
   col += (d1 + d2 - 1.0) / 255.0;
 
-  fragColor = vec4(max(col, vec3(0.0)), 1.0);
+  fragColor = vec4(max(col, vec3(0.0)) + sky * 0.4, 1.0);
 }`;
 
 /** 2048x1024 desktop, halved on narrow viewports. */
