@@ -24,6 +24,7 @@ import { SYNODIC_PERIOD, PHASES, getPhase, ASPECT_TENSION } from '../lunar/synod
 import { timestampForScrub } from '../lunar/lunarEphemeris';
 import { setPhase, getSpine, subscribeSpine } from '../quintessence/spineStore';
 import { compileLunarDoctrine } from '../lunar/compileLunarDoctrine';
+import { usePhaseJump } from '../lunar/usePhaseJump';
 import DoctrineRegister from '../lunar/DoctrineRegister';
 import LunarCanvas from '../lunar/LunarCanvasMoon';
 import LunarShaderMoon from '../lunar/LunarShaderMoon';
@@ -793,6 +794,11 @@ export default function LunarTab() {
   const illumination = isScrubbing ? getLunarIlluminationFallback(scrubAge) : liveIllumination;
   const envParams    = isScrubbing ? getEnvironmentalParamsFallback(scrubAge) : liveEnvParams;
 
+  // Always-fresh currentAge for the phase-jump tween to start from.
+  const currentAgeRef = useRef(currentAge);
+  currentAgeRef.current = currentAge;
+  const jumpToPhase = usePhaseJump({ setScrubAge, currentAgeRef });
+
   // Sync selectedPhaseId when the actual moon phase changes (e.g. across midnight)
   const prevPhaseRef = useRef(currentPhase.id);
   const [selectedPhaseId, setSelectedPhaseId] = useState(currentPhase.id);
@@ -961,7 +967,7 @@ export default function LunarTab() {
           <MoonRendererToggle value={moonRenderer} onChange={(v) => { setMoonRenderer(v); writeRenderer(v); }} />
           <PhaseSelector
             currentAge={currentAge}
-            onSelectPhase={setSelectedPhaseId}
+            onSelectPhase={(id) => { setSelectedPhaseId(id); jumpToPhase(id); }}
             selectedPhaseId={selectedPhaseId}
           />
           <div className="text-center mt-1">
