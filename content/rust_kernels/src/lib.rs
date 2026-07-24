@@ -45,6 +45,13 @@
 //   run_high_tower_protocol()      → High Tower Porcupine Strategy v1.0
 //   run_fade_doctrine()            → Fade Doctrine Zero White Fade v2.0.0
 //
+//   ── Bespoke lore kernels (the five pinned in the kernel tab) ──
+//   run_chaos_routing()            → Hudelschublade · Chaos-Directory Exploit (entropy-cover sweep)
+//   run_deep_kernel_descent()      → Black Hole Taxonomy · branching lineage from one headless ghost
+//   run_transliteration_chain()    → Semiotic Synthesis 9.9.9 · nein→neun→999→996 sound↔meaning hops
+//   run_ring_closure()             → Rossignol-Andalib 5.5.5.5 · four-element ring closure from the spine
+//   run_fish_scale_genome()        → Fish Scale Genome · Bouligand armor + entropic stasis + saponification
+//
 // Build with: wasm-pack build --target web
 // Output:     pkg/  →  scripts/import-rust.js copies to public/wasm/
 

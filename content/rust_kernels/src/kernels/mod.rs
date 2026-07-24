@@ -6,6 +6,13 @@
 
 pub mod utils;           // shared PRNG (pub(crate), not exported to JS)
 
+// ── Bespoke lore kernels (the five pinned in the kernel tab) ─────────────────
+pub mod chaos_routing;   // run_chaos_routing (Hudelschublade · entropy-cover sweep)
+pub mod deep_kernel_descent; // run_deep_kernel_descent (Black Hole · branching lineage from one ghost)
+pub mod transliteration_chain; // run_transliteration_chain (Semiotic 9.9.9 · sound↔meaning border hops)
+pub mod ring_closure;    // run_ring_closure (Rossignol-Andalib · four-element ring closure)
+pub mod fish_scale_genome; // run_fish_scale_genome (Fish Scale genome · armor + stasis + saponification)
+
 pub mod soma;            // soma_91_banner, boot_soma55
 pub mod biocoenosis;     // BiocoenosisKernel
 pub mod necromantic;     // NecromanticEngine

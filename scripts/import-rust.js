@@ -1428,6 +1428,150 @@ const KERNEL_MAP = [
     type:    'rust',
     aliases: ['zero', 'origin', 'kernel_zero', 'genesis', 'apeiron', 'dhcp', 'unspecified', '0_0_0_0'],
   },
+
+  // ── The five bespoke lore kernels (pinned in the kernel tab) ─────────────────
+  // Keyed by the kernelBuilds card id so the card's [run] button (mobileAutoRun)
+  // resolves directly to the bespoke kernel instead of falling through
+  // resolveWasmAlias to a topically-adjacent legacy kernel.
+  {
+    // Hudelschublade — Chaos-Directory Routing. N directories with Shannon-clutter
+    // levels; a sweep whose detection falls as local entropy rises. Payload in the
+    // vault vs the chaos drawer; the Window Smile (zero-byte ACK) attenuates the loop.
+    // cover_ratio drives STASH SURVIVES / SWEEP PARSED.
+    id:      'HUDELSCHUBLADE-ROUTING-1.0',
+    fn:      'run_chaos_routing',
+    args:    [128, 0.82, 1.0, 0.2, 0.6, 5011],
+    argMap:  {
+      dirs: 0, n: 0, ndirs: 0,
+      entropy: 1, clutter: 1, host: 1, hostentropy: 1,
+      sweep: 2, aggression: 2,
+      payload: 3, size: 3, payloadsize: 3,
+      ack: 4, smile: 4, attenuation: 4,
+      seed: 5,
+    },
+    params: [
+      { name: 'n_dirs',          default: 128,  desc: 'directories in the host filesystem (2–512)' },
+      { name: 'host_entropy',    default: 0.82, desc: 'the observer’s own clutter 0–1 — the cover that shields the stash' },
+      { name: 'sweep_aggression',default: 1.0,  desc: 'security sweep intensity 0–2' },
+      { name: 'payload_size',    default: 0.2,  desc: 'contraband exposure 0–1 — larger payload is easier to detect' },
+      { name: 'ack_attenuation', default: 0.6,  desc: 'Window Smile 0–1 — zero-byte ACK that attenuates the scan loop' },
+      { name: 'seed',            default: 5011, desc: 'PRNG seed for the directory clutter distribution' },
+    ],
+    label:   'Hudelschublade Routing · Chaos-Directory Exploit v1.0',
+    type:    'rust',
+    aliases: ['hudelschublade', 'chaos_routing', 'stash', 'sovereign_stash', 'chaos_drawer'],
+  },
+  {
+    // Black Hole Taxonomy — a Galton-Watson lineage from one headless ancestor.
+    // fork/death/necromancy recurrence; ancestral_load (ghost share of the live tree)
+    // drives the arter97 verdict; caste census (noob/god/black-hole).
+    id:      'BLACK-HOLE-TAXONOMY-1.0',
+    fn:      'run_deep_kernel_descent',
+    args:    [12, 1.4, 0.2, 0.25, 0.1, 97],
+    argMap:  {
+      generations: 0, gens: 0, depth: 0,
+      fork: 1, forkrate: 1, birth: 1,
+      revival: 2, necromancy: 2, revive: 2,
+      caste: 3, castebias: 3, bias: 3,
+      opacity: 4, ghostopacity: 4, documentation: 4,
+      seed: 5,
+    },
+    params: [
+      { name: 'generations',   default: 12,   desc: 'lineage depth — generations of forks (1–64)' },
+      { name: 'fork_rate',     default: 1.4,  desc: 'children per node — >0.15 grows, <0.15 goes extinct' },
+      { name: 'revival_rate',  default: 0.2,  desc: 'necromancy 0–1 — share of dead reanimated as independent orphans' },
+      { name: 'caste_bias',    default: 0.25, desc: 'black-hole emergence bias 0–1 (higher = more bare-metal ancestors)' },
+      { name: 'ghost_opacity', default: 0.1,  desc: 'documentation of the ancestor 0–1 (low = undocumented, faith load-bearing)' },
+      { name: 'seed',          default: 97,   desc: 'PRNG seed for the branching texture' },
+    ],
+    label:   'Black Hole Taxonomy · Deep-Kernel Necromancy v1.0',
+    type:    'rust',
+    aliases: ['blackhole', 'black_hole', 'deep_kernel', 'descent', 'arter97', 'ghosts_of_xda'],
+  },
+  {
+    // Semiotic Synthesis 9.9.9 — the transliteration chain nein→neun→999→996.
+    // Each border-hop carries a sound↔meaning coupling; drift perturbs it; a hop is
+    // cut unless it clears the threshold (Patch 5.8). purity drives socks/∞.
+    id:      'SEMIOTIC-SYNTHESIS-9.9.9',
+    fn:      'run_transliteration_chain',
+    args:    [2457, 0.15, 0.5, 6, 0.9, 0.6],
+    argMap:  {
+      seed: 0, chainseed: 0,
+      drift: 1, noise: 1, driftnoise: 1,
+      coupling: 2, threshold: 2, gate: 2,
+      borders: 3, hops: 3, bordercount: 3,
+      filter: 4, temp: 4, filtertemp: 4,
+      purity: 5, floor: 5, purityfloor: 5,
+    },
+    params: [
+      { name: 'chain_seed',         default: 2457, desc: 'PRNG seed for per-hop drift (0x999)' },
+      { name: 'drift_noise',        default: 0.15, desc: 'border drift 0–1 — perturbs each hop’s sound↔meaning coupling' },
+      { name: 'coupling_threshold', default: 0.5,  desc: 'Patch 5.8 gate 0–1 — minimum co-linearity to admit a hop' },
+      { name: 'border_count',       default: 6,    desc: 'hops of the canonical chain to attempt (2–6; 6 includes the 07:33 specimen)' },
+      { name: 'filter_temp',        default: 0.9,  desc: 'sentiment-filter temperature — the misparse that files the curse as praise' },
+      { name: 'purity_floor',       default: 0.6,  desc: 'minimum purity for the chain to compile as one utterance (0–1)' },
+    ],
+    label:   'Semiotic Synthesis 9.9.9 · Transliteration Chain v1.0',
+    type:    'rust',
+    aliases: ['semiotic', 'nnn', 'nein', 'transliteration', 'nein_nein_nein'],
+  },
+  {
+    // Rossignol-Andalib 5.5.5.5 — four borders, one bird. Elemental accretion across
+    // four element-borders + a ring-closure residual over five crossings. Calibration
+    // (100 MT honest cut) tightens the ring. closure + balance drive RING CLOSES.
+    id:      'ROSSIGNOL-ANDALIB-5.5.5.5',
+    fn:      'run_ring_closure',
+    args:    [100, 0.2, 5555, 0.25, 1.0, 0.15],
+    argMap:  {
+      calibration: 0, mt: 0, calib: 0,
+      drift: 1, borderdrift: 1,
+      seed: 2, spine: 2, spineseed: 2,
+      tolerance: 3, elementtolerance: 3, balance: 3,
+      accretion: 4, gain: 4, accretiongain: 4,
+      closure: 5, threshold: 5, closurethreshold: 5,
+    },
+    params: [
+      { name: 'calibration',       default: 100,  desc: 'the honest, cut-declaring label 0–100 MT — tightens every crossing' },
+      { name: 'border_drift',      default: 0.2,  desc: 'per-crossing drift 0–1 — how far each border perturbs the bird' },
+      { name: 'spine_seed',        default: 5555, desc: 'PRNG seed — the spine the fifth is compiled from' },
+      { name: 'element_tolerance', default: 0.25, desc: 'max elemental imbalance (CV) for the four to hold (0–2)' },
+      { name: 'accretion_gain',    default: 1.0,  desc: 'payload accreted at each element-border' },
+      { name: 'closure_threshold', default: 0.15, desc: 'max closure residual (turns) for the ring to close (0–1)' },
+    ],
+    label:   'Rossignol-Andalib 5.5.5.5 · Ring Closure v1.0',
+    type:    'rust',
+    aliases: ['rossignol', 'andalib', 'nightingale', 'ring_closure', 'ruisenor', 'nachtigall'],
+  },
+  {
+    // Fish Scale Genome — the pinned genome, read as one resonance: helicoidal
+    // crack-deflection (Bouligand armor) + edge-of-death resonance (entropic stasis)
+    // + the saponification grip window, fused into GENOME INTEGRITY.
+    // Keyed by the card build id 'FISH-SCALE-11.1' — supersedes the card's old
+    // borrowed necromantic-BPM run (the FISH-SCALE-KERNEL11.1.1 article-id entry,
+    // run_necromantic_simulation, is left intact for legacy aliases + the linker).
+    id:      'FISH-SCALE-11.1',
+    fn:      'run_fish_scale_genome',
+    args:    [3.55, 32, 36, 1.0, 0.5, 11],
+    argMap:  {
+      r: 0, pressure: 0, rpressure: 0,
+      layers: 1, maxlayers: 1, plies: 1,
+      theta: 2, angle: 2, thetaoffset: 2,
+      burn: 3, sensitivity: 3, burnsensitivity: 3, saponification: 3,
+      stasis: 4, temp: 4, stasistemp: 4,
+      seed: 5, resonance: 5, resonanceseed: 5,
+    },
+    params: [
+      { name: 'r_pressure',       default: 3.55, desc: 'sovereign-node load / thermodynamic pressure (0–4; burn window centred at 3.55)' },
+      { name: 'max_layers',       default: 32,   desc: 'Bouligand helicoidal plies to stack (1–64)' },
+      { name: 'theta_offset',     default: 36,   desc: 'interlaminar rotation per ply, degrees (1–90; Arapaima ≈ 36°)' },
+      { name: 'burn_sensitivity', default: 1.0,  desc: 'saponification window width multiplier (0.1–2.0)' },
+      { name: 'stasis_temp',      default: 0.5,  desc: 'thermal state 0–1 — resonance peaks at the edge (0.5); 0 frozen, 1 dissolved' },
+      { name: 'resonance_seed',   default: 11,   desc: 'PRNG seed for the held-resonance texture' },
+    ],
+    label:   'Fish Scale Genome · Entropic Stasis / Necromantic Engine v1.0',
+    type:    'rust',
+    aliases: ['fish_genome', 'genome', 'fish_scale_genome', 'entropic_stasis', 'necromantic_engine'],
+  },
 ];
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────

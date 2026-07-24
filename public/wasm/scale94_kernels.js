@@ -815,6 +815,28 @@ export function run_ceei_allocation_engine(agents, goods, inequality, diversity)
 }
 
 /**
+ * @param {number} n_dirs
+ * @param {number} host_entropy
+ * @param {number} sweep_aggression
+ * @param {number} payload_size
+ * @param {number} ack_attenuation
+ * @param {number} seed
+ * @returns {string}
+ */
+export function run_chaos_routing(n_dirs, host_entropy, sweep_aggression, payload_size, ack_attenuation, seed) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_chaos_routing(n_dirs, host_entropy, sweep_aggression, payload_size, ack_attenuation, seed);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * Run the Chrono-Actuary deep-time audit engine.
  *
  * temp_c:        baseline water temperature °C          (default 15.0)
@@ -984,6 +1006,28 @@ export function run_daly_thermo_simulation(consumption, regeneration, waste, abs
 }
 
 /**
+ * @param {number} generations
+ * @param {number} fork_rate
+ * @param {number} revival_rate
+ * @param {number} caste_bias
+ * @param {number} ghost_opacity
+ * @param {number} seed
+ * @returns {string}
+ */
+export function run_deep_kernel_descent(generations, fork_rate, revival_rate, caste_bias, ghost_opacity, seed) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_deep_kernel_descent(generations, fork_rate, revival_rate, caste_bias, ghost_opacity, seed);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * DH-EC Cryptographic Architecture Kernel.
  *
  * mode:
@@ -1119,6 +1163,28 @@ export function run_fish_scale(r_pressure, max_layers, theta_offset, burn_sensit
     let deferred1_1;
     try {
         const ret = wasm.run_fish_scale(r_pressure, max_layers, theta_offset, burn_sensitivity);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * @param {number} r_pressure
+ * @param {number} max_layers
+ * @param {number} theta_offset
+ * @param {number} burn_sensitivity
+ * @param {number} stasis_temp
+ * @param {number} resonance_seed
+ * @returns {string}
+ */
+export function run_fish_scale_genome(r_pressure, max_layers, theta_offset, burn_sensitivity, stasis_temp, resonance_seed) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_fish_scale_genome(r_pressure, max_layers, theta_offset, burn_sensitivity, stasis_temp, resonance_seed);
         deferred1_0 = ret[0];
         deferred1_1 = ret[1];
         return getStringFromWasm0(ret[0], ret[1]);
@@ -1922,6 +1988,28 @@ export function run_resistance_kernel(n_agents, threshold_mean, threshold_sigma,
 }
 
 /**
+ * @param {number} calibration
+ * @param {number} border_drift
+ * @param {number} spine_seed
+ * @param {number} element_tolerance
+ * @param {number} accretion_gain
+ * @param {number} closure_threshold
+ * @returns {string}
+ */
+export function run_ring_closure(calibration, border_drift, spine_seed, element_tolerance, accretion_gain, closure_threshold) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_ring_closure(calibration, border_drift, spine_seed, element_tolerance, accretion_gain, closure_threshold);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * @param {number} n_concepts
  * @param {number} coherence
  * @param {number} decoherence_rate
@@ -2250,6 +2338,28 @@ export function run_transit_matrix(unix_ms, layers) {
     let deferred1_1;
     try {
         const ret = wasm.run_transit_matrix(unix_ms, layers);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * @param {number} chain_seed
+ * @param {number} drift_noise
+ * @param {number} coupling_threshold
+ * @param {number} border_count
+ * @param {number} filter_temp
+ * @param {number} purity_floor
+ * @returns {string}
+ */
+export function run_transliteration_chain(chain_seed, drift_noise, coupling_threshold, border_count, filter_temp, purity_floor) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.run_transliteration_chain(chain_seed, drift_noise, coupling_threshold, border_count, filter_temp, purity_floor);
         deferred1_0 = ret[0];
         deferred1_1 = ret[1];
         return getStringFromWasm0(ret[0], ret[1]);

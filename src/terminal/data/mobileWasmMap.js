@@ -38,12 +38,12 @@ export function resolveWasmAlias(kernelId) {
   // ── Fade Doctrine (color semiotic — NOT thermosphere) ───────────────────────
   if (id.includes('FADE-DOCTRINE') || id.includes('FADE_DOCTRINE')) return 'fade_doctrine';
 
-  // ── Lore kernels (genome chapters) ───────────────────────────────────────────
-  if (id.includes('HUDELSCHUBLADE') || id.includes('OTROVERT'))     return 'surveillance';
-  if (id.includes('BLACK-HOLE') || id.includes('BLACK_HOLE'))       return 'necromantic';
-  if (id.includes('SEMIOTIC-SYNTHESIS') || id.includes('SEMIOTIC_SYNTHESIS')) return 'phonemic';
+  // ── Lore kernels (genome chapters) — bespoke kernels, one per doctrine ───────
+  if (id.includes('HUDELSCHUBLADE') || id.includes('OTROVERT'))     return 'hudelschublade';
+  if (id.includes('BLACK-HOLE') || id.includes('BLACK_HOLE'))       return 'blackhole';
+  if (id.includes('SEMIOTIC-SYNTHESIS') || id.includes('SEMIOTIC_SYNTHESIS')) return 'semiotic';
   if (id.includes('ROSSIGNOL') || id.includes('ANDALIB') ||
-      id.includes('NIGHTINGALE'))                                    return 'associative_field';
+      id.includes('NIGHTINGALE'))                                    return 'ring_closure';
 
   // ── Direct / near-direct matches ───────────────────────────────────────────
   if (id.includes('PERCOLATION') || id.includes('RESILIENCE') ||
