@@ -129,19 +129,24 @@ describe('lunarEphemeris — scrub as clock', () => {
     expect(timestampForScrub(10.0, 10.0, NOW)).toBe(NOW);
   });
 
-  it('always maps forward, never backward', () => {
+  it('maps to the nearest time — within half a synodic month either side of now', () => {
     for (let live = 0; live < SYNODIC_PERIOD; live += 1.1) {
       for (let scrub = 0; scrub < SYNODIC_PERIOD; scrub += 1.7) {
-        expect(timestampForScrub(scrub, live, NOW)).toBeGreaterThanOrEqual(NOW);
+        const dt = (timestampForScrub(scrub, live, NOW) - NOW) / DAY_MS;
+        expect(dt).toBeGreaterThan(-SYNODIC_PERIOD / 2 - 1e-9);
+        expect(dt).toBeLessThanOrEqual(SYNODIC_PERIOD / 2 + 1e-9);
       }
     }
   });
 
-  it('never projects more than one synodic month ahead', () => {
-    for (let scrub = 0; scrub < SYNODIC_PERIOD; scrub += 0.13) {
-      const dt = (timestampForScrub(scrub, 3.0, NOW) - NOW) / DAY_MS;
-      expect(dt).toBeLessThan(SYNODIC_PERIOD + 1e-9);
-    }
+  it('is continuous across the live age (no synodic-month jump when crossing it)', () => {
+    // The whole point of nearest-projection: sweeping scrubAge through liveAge
+    // must not jump the timestamp. Just-below and just-above live differ by ~0,
+    // not by a synodic month. Forward-projection gave ~29.53 here.
+    const live = 12.0;
+    const below = timestampForScrub(live - 0.001, live, NOW);
+    const above = timestampForScrub(live + 0.001, live, NOW);
+    expect(Math.abs(above - below) / DAY_MS).toBeLessThan(0.01);
   });
 
   it('is monotonic in scrub age within a cycle, with exactly one wrap', () => {

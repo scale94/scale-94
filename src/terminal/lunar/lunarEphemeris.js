@@ -102,7 +102,16 @@ export function apparentDiameterArcmin(t) {
  * live age comes from the WASM path. Always projects forward.
  */
 export function timestampForScrub(scrubAge, liveAge, now) {
-  let delta = scrubAge - liveAge;
-  if (delta < 0) delta += SYNODIC_PERIOD;
+  // Nearest occurrence, not always-forward: map to the timestamp CLOSEST to now,
+  // so libration and apparent size stay continuous as a scrub (or a phase-click
+  // tween) crosses the live age. Forward-projection jumped a full synodic month
+  // at scrubAge === liveAge, which is ~1.07 anomalistic cycles — a visible
+  // one-frame libration/size pop. Nearest moves that discontinuity to the
+  // antipode (half a cycle away), which a shortest-path tween from live never
+  // reaches. The phase/illumination you see is identical either way — only the
+  // libration/size timestamp changes (a phase behind now shows its recent-past
+  // occurrence rather than ~26 days ahead).
+  let delta = (((scrubAge - liveAge) % SYNODIC_PERIOD) + SYNODIC_PERIOD) % SYNODIC_PERIOD; // [0, SYN)
+  if (delta > SYNODIC_PERIOD / 2) delta -= SYNODIC_PERIOD; // nearest: (-SYN/2, +SYN/2]
   return now + delta * DAY_MS;
 }
