@@ -45,7 +45,9 @@
       "Bash(git cherry-pick:*)",
       "Bash(git stash:*)",
       "Bash(npx vitest *)",
-      "PowerShell(git checkout -b feature/transmission-inverse-engine)"
+      "PowerShell(git checkout -b feature/transmission-inverse-engine)",
+      "Bash(npm test *)",
+      "Bash(bash \"C:/Users/raul-/.claude/plugins/cache/claude-plugins-official/superpowers/6.1.1/skills/subagent-driven-development/scripts/review-package\" 6a97546 88a910e)"
     ]
   }
 }
