@@ -191,9 +191,9 @@ void main() {
   // Chromatic corona: the three channels fall off at slightly different radii,
   // so the halo disperses instead of gradient-stopping.
   float rr = length(vScreen);
-  vec3 coronaR = vec3(exp(-pow(max(rr - uRadius, 0.0) / 0.30, 1.6)), 0.0, 0.0);
-  vec3 coronaG = vec3(0.0, exp(-pow(max(rr - uRadius, 0.0) / 0.34, 1.6)), 0.0);
-  vec3 coronaB = vec3(0.0, 0.0, exp(-pow(max(rr - uRadius, 0.0) / 0.41, 1.6)));
+  vec3 coronaR = vec3(exp(-pow(max(rr - uRadius, 0.0) / 0.40, 1.6)), 0.0, 0.0);
+  vec3 coronaG = vec3(0.0, exp(-pow(max(rr - uRadius, 0.0) / 0.45, 1.6)), 0.0);
+  vec3 coronaB = vec3(0.0, 0.0, exp(-pow(max(rr - uRadius, 0.0) / 0.54, 1.6)));
   vec3 corona = (coronaR + coronaG + coronaB)
               * vec3(0.55, 0.48, 1.0) * 0.075 * (0.35 + 0.65 * uIllum);
   sky += corona;
@@ -263,7 +263,7 @@ void main() {
   // That flatness is why the real old-moon-in-the-new-moon's-arms reads as a
   // disc. The half the sun refuses is not empty.
   float earthPhase = 1.0 - uIllum;
-  float Le = albedo * 0.075 * pow(earthPhase, 1.6)
+  float Le = albedo * 0.088 * pow(earthPhase, 1.6)
            * (0.55 + 0.45 * N.z) * (0.20 + 0.80 * uAdapt);
 
   float Y = Ld + Le;
