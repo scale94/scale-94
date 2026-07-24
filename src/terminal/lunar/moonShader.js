@@ -207,7 +207,12 @@ void main() {
   vec2 p = vScreen / uRadius;
   float r2 = dot(p, p);
   if (r2 > 1.0) {
-    fragColor = vec4(sky, clamp(skyAlpha, 0.0, 1.0));
+    // Premultiplied validity: alpha must cover every RGB channel, since sky
+    // sums star+corona contributions while skyAlpha tracked only their max.
+    // On the black page background this is identical; it prevents fringing if
+    // the sky ever composites over a non-black destination.
+    float a = clamp(max(skyAlpha, max(sky.r, max(sky.g, sky.b))), 0.0, 1.0);
+    fragColor = vec4(sky, a);
     return;
   }
 
@@ -291,7 +296,12 @@ void main() {
   float d2 = hash21(gl_FragCoord.xy + uTime + 31.7);
   col += (d1 + d2 - 1.0) / 255.0;
 
-  fragColor = vec4(max(col, vec3(0.0)) + sky * 0.4, 1.0);
+  // The disc is opaque foreground: no sky composited over it. The corona halo
+  // and starfield render only in the r2 > 1.0 branch, AROUND the disc, which is
+  // what produces the unboxing. Adding sky here washed the honest lit face with
+  // a center-weighted violet tint (corona is constant inside the disc, where
+  // max(rr-uRadius,0)==0), undoing the neutral-silver photopic decision.
+  fragColor = vec4(max(col, vec3(0.0)), 1.0);
 }`;
 
 /** 2048x1024 desktop, halved on narrow viewports. */
