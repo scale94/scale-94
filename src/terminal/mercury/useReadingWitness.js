@@ -8,8 +8,25 @@ import { isAbsorbed, allWitnessed, MIN_SCROLL_EVENTS } from './readingWitness';
 const BOTTOM_SLOP = 24;   // px tolerance for "reached bottom"
 const DEV = !!import.meta.env?.DEV;
 
+// The article prose reveals via a typing animation, so innerText can undercount
+// early. Track the LARGEST word count seen and derive the threshold from it, so an
+// early (small) measurement never locks in a too-easy threshold. Also re-evaluate
+// the short-article waiver against current geometry each time.
+function measureInto(stats, el) {
+  if (!el) return;
+  const words = countWords(el.innerText);
+  if (words > stats.measuredWords) {
+    stats.measuredWords = words;
+    stats.requiredSeconds = requiredSeconds(words);
+  }
+  if (el.scrollHeight <= el.clientHeight + BOTTOM_SLOP) {
+    stats.reachedBottom = true;
+    stats.scrollEvents = Math.max(stats.scrollEvents, MIN_SCROLL_EVENTS);
+  }
+}
+
 export default function useReadingWitness({ mainRef, selectedArticle, activeTab, requiredArticleIds, onWitnessed }) {
-  const statsRef = useRef(new Map());   // id -> { activeSeconds, requiredSeconds, reachedBottom, scrollEvents, measured }
+  const statsRef = useRef(new Map());   // id -> { activeSeconds, requiredSeconds, reachedBottom, scrollEvents, measuredWords }
   const completedRef = useRef(new Set());
   const firedRef = useRef(false);
   const cbRef = useRef(onWitnessed);
@@ -24,26 +41,13 @@ export default function useReadingWitness({ mainRef, selectedArticle, activeTab,
   useEffect(() => {
     if (!currentId) return;
     const el = mainRef.current;
-    const stats = statsRef.current.get(currentId) || { activeSeconds: 0, requiredSeconds: Infinity, reachedBottom: false, scrollEvents: 0, measured: false };
+    const stats = statsRef.current.get(currentId) || { activeSeconds: 0, requiredSeconds: Infinity, reachedBottom: false, scrollEvents: 0, measuredWords: 0 };
     statsRef.current.set(currentId, stats);
 
-    const measure = () => {
-      if (!el || stats.measured) return;
-      const words = countWords(el.innerText);
-      if (words <= 0) return;               // content not rendered yet; try again on scroll/tick
-      stats.requiredSeconds = requiredSeconds(words);
-      // Short article that fits without scrolling: nothing to scroll, so credit
-      // the bottom and waive the scroll-event floor (time alone decides).
-      if (el.scrollHeight <= el.clientHeight + BOTTOM_SLOP) {
-        stats.reachedBottom = true;
-        stats.scrollEvents = Math.max(stats.scrollEvents, MIN_SCROLL_EVENTS);
-      }
-      stats.measured = true;
-    };
-    measure();
+    measureInto(stats, el);
 
     const check = () => {
-      if (!stats.measured) measure();
+      measureInto(stats, el);
       if (isAbsorbed(stats)) completedRef.current.add(currentId);
       if (!firedRef.current && allWitnessed(completedRef.current, requiredArticleIds)) {
         firedRef.current = true;
@@ -70,18 +74,7 @@ export default function useReadingWitness({ mainRef, selectedArticle, activeTab,
       if (document.visibilityState !== 'visible' || !document.hasFocus()) return;
       const stats = statsRef.current.get(currentId);
       if (!stats) return;
-      if (!stats.measured) {
-        const el = mainRef.current;
-        const words = countWords(el?.innerText);
-        if (words > 0) {
-          stats.requiredSeconds = requiredSeconds(words);
-          if (el && el.scrollHeight <= el.clientHeight + BOTTOM_SLOP) {
-            stats.reachedBottom = true;
-            stats.scrollEvents = Math.max(stats.scrollEvents, MIN_SCROLL_EVENTS);
-          }
-          stats.measured = true;
-        }
-      }
+      measureInto(stats, mainRef.current);
       stats.activeSeconds += 1;
       if (isAbsorbed(stats)) completedRef.current.add(currentId);
       if (!firedRef.current && allWitnessed(completedRef.current, requiredArticleIds)) {

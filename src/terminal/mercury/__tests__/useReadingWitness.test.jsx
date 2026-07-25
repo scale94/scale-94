@@ -107,4 +107,32 @@ describe('useReadingWitness', () => {
     act(() => { vi.advanceTimersByTime(7_000); });
     expect(onWitnessed).toHaveBeenCalledTimes(1);
   });
+
+  it('does not latch a too-easy threshold from an early typing-reveal undercount', () => {
+    // The article prose reveals via a typing animation: innerText starts tiny and
+    // grows. A measure-once implementation locks requiredSeconds from the first
+    // (tiny) reading and never re-measures, making the threshold trivially small.
+    // The fix must track the MAXIMUM word count seen and re-derive the threshold.
+    const onWitnessed = vi.fn();
+    const el = makeEl({ words: 3 }); // tiny initial "typed so far" body
+    const mainRef = { current: el };
+    renderHook(() => useReadingWitness({ mainRef, selectedArticle: { id: 'K1' }, activeTab: 'kernel', requiredArticleIds: ['K1'], onWitnessed }));
+
+    // Typing animation finishes: the real body is 200 words.
+    // requiredSeconds(200) = (200/200)*60*0.55 = 33s.
+    el.innerText = Array.from({ length: 200 }, (_, i) => `w${i}`).join(' ');
+
+    // Genuine scrolling to the bottom.
+    el.scrollTop = el.scrollHeight - el.clientHeight;
+    act(() => { for (let i = 0; i < 5; i++) el._fire('scroll'); });
+
+    // Advance well past the stale 3-word threshold (~0.5s) but far below the real
+    // 33s threshold for 200 words.
+    act(() => { vi.advanceTimersByTime(5_000); });
+    expect(onWitnessed).not.toHaveBeenCalled();
+
+    // Advance past the real threshold.
+    act(() => { vi.advanceTimersByTime(30_000); });
+    expect(onWitnessed).toHaveBeenCalledTimes(1);
+  });
 });
