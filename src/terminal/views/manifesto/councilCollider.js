@@ -28,6 +28,44 @@ function phase(d, k) {
 }
 
 // 16-D → 1536-D: dim d owns block [d·96, d·96+96).
+//
+// ⚠ THE LIFT IS NOT SIMILARITY-PRESERVING. This is known, measured, and kept
+// deliberately — do not "fix" it without reading this whole comment.
+//
+// The oscillation FREQUENCY below is a function of `v`, so two minds holding
+// similar-but-unequal values in a dim beat out of phase across the 96 samples
+// instead of staying aligned. The per-block dot product is therefore a phase
+// artifact, not a similarity: exactly-equal values give cosine 1.0, and a 5%
+// gap already collapses it to ~0.
+//
+// Consequence, measured over all 120 pairs of THE SIXTEEN (2026-07-25):
+//   collide().cosine range -0.086 .. 0.268 (mean 0.025, sd 0.048)
+//   Spearman rho vs the authored `affinities` ordering = 0.027, i.e. none.
+//   It inverts the strongest authored kinships (Georgescu-Roegen×Daly is
+//   authored #1 of 120 and lands at #107; Thompson×Margulis #9 → #120).
+// ⇒ NEVER build a "kindred minds" / affinity / similarity feature on `cosine`.
+//    Rank-based selection does not rescue it — the ranks are the broken part.
+//
+// Why it stays: nothing user-facing reads this number. The Council path
+// consumes only `trajectory` (and `byDim`/`energies`, which are real residual
+// magnitudes); `metrics.cosine` and `metrics.novelty` are persisted into
+// councilLedger records but never rendered by CouncilSynthesisPanel or the
+// ring. And the faithful alternative — frequency independent of `v`, i.e. a
+// fixed JL-style basis, `v * sin((k+1)·π/BLOCK + phase(d,k))` — restores
+// fidelity so completely (rho 0.997) that the 1536-D space becomes a pure
+// rescaling of the 16-D vector, carrying no information the 16-D vector
+// lacks. Faithful == decorative. There is no variant that both preserves the
+// affinities and adds something; the texture here is the only thing the
+// expansion contributes.
+//
+// If that trade is ever revisited: the blast radius is smaller than it looks.
+// The synthesis prose is built from the raw 16-D profiles, so 5 of 6 sections
+// are bit-identical under the faithful lift; only trajectory (17/120),
+// dominantDim (64/120), `line` (70/120), `directive` and `seeds` (17/120)
+// move. Ledger records are self-contained snapshots — nothing is recomputed
+// at read time, so no migration is needed; bump the record `v` and old rows
+// stay distinguishable. The locked tripwire tests in
+// __tests__/councilCollider.test.js are the ones to delete.
 export function expand(vec16) {
   const out = new Float32Array(EXPANDED);
   for (let d = 0; d < DIMS; d++) {

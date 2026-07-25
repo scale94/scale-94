@@ -36,6 +36,82 @@ describe('expand', () => {
   });
 });
 
+// ── TRIPWIRE (measured + locked 2026-07-25) ──────────────────────────────────
+// These tests assert a LIMITATION, not a desirable property. They exist so that
+// nobody builds a "kindred minds" / similarity feature on collide().cosine, and
+// so that any future change to expand()'s harmonic law fails loudly here with a
+// pointer to the decision. See the block comment above expand() in
+// councilCollider.js. If you are deliberately making the lift faithful, these
+// two tests are the ones you must delete — read that comment first.
+describe('expand: value-frequency coupling (KNOWN LIMITATION, locked)', () => {
+  // Cosine of one 96-sample block for two minds holding va / vb in the same dim.
+  const blockCosine = (va, vb) => {
+    const a = new Float32Array(16).fill(va);
+    const b = new Float32Array(16).fill(vb);
+    const ea = expand(a), eb = expand(b);
+    let dot = 0, na = 0, nb = 0;
+    for (let k = 0; k < BLOCK; k++) {
+      dot += ea[k] * eb[k]; na += ea[k] ** 2; nb += eb[k] ** 2;
+    }
+    return dot / (Math.sqrt(na * nb) || 1);
+  };
+
+  it('aligns perfectly only when the two values are exactly equal', () => {
+    expect(blockCosine(1.0, 1.0)).toBeCloseTo(1, 6);
+    expect(blockCosine(0.6, 0.6)).toBeCloseTo(1, 6);
+    expect(blockCosine(0.05, 0.05)).toBeCloseTo(1, 6);
+  });
+
+  it('decoheres to noise once the values differ at all — cosine is not similarity', () => {
+    // Frequency is a function of v, so near-equal values beat out of phase
+    // across the block instead of staying aligned. A 5% gap is already gone.
+    expect(Math.abs(blockCosine(1.0, 0.95))).toBeLessThan(0.15);
+    expect(Math.abs(blockCosine(1.0, 0.9))).toBeLessThan(0.15);
+    expect(Math.abs(blockCosine(0.6, 0.55))).toBeLessThan(0.15);
+  });
+});
+
+describe('collide().cosine carries no authored-affinity signal (KNOWN, locked)', () => {
+  it('ranks THE SIXTEEN pairs uncorrelated with their authored 16-D affinities', async () => {
+    const { SIXTEEN_MINDS, mindProfile } = await import('../../../data/sixteenMinds');
+    const profiles = SIXTEEN_MINDS.map(mindProfile);
+    const lifted = profiles.map(expand);
+
+    const cos16 = (a, b) => {
+      let d = 0, na = 0, nb = 0;
+      for (let i = 0; i < 16; i++) { d += a[i] * b[i]; na += a[i] ** 2; nb += b[i] ** 2; }
+      return d / (Math.sqrt(na * nb) || 1);
+    };
+
+    const pairs = [];
+    for (let i = 0; i < 16; i++) {
+      for (let j = i + 1; j < 16; j++) {
+        pairs.push({ key: `${i}-${j}`, authored: cos16(profiles[i], profiles[j]), lifted: collide(lifted[i], lifted[j]).cosine });
+      }
+    }
+    expect(pairs).toHaveLength(120);
+
+    const ranks = (field) => {
+      const m = new Map();
+      [...pairs].sort((a, b) => b[field] - a[field]).forEach((p, i) => m.set(p.key, i + 1));
+      return m;
+    };
+    const rA = ranks('authored'), rL = ranks('lifted');
+    const sumD2 = pairs.reduce((s, p) => s + (rA.get(p.key) - rL.get(p.key)) ** 2, 0);
+    const rho = 1 - (6 * sumD2) / (120 * (120 * 120 - 1));
+
+    // Measured rho = 0.027. Indistinguishable from an unrelated ordering.
+    expect(Math.abs(rho)).toBeLessThan(0.2);
+
+    // And the field is crushed toward zero, so no absolute threshold is usable:
+    // any selection built on this number must be rank-based, and even then the
+    // ranks are meaningless (above). Measured range: -0.086 .. 0.268.
+    const all = pairs.map(p => p.lifted);
+    expect(Math.max(...all)).toBeLessThan(0.4);
+    expect(Math.min(...all)).toBeGreaterThan(-0.4);
+  });
+});
+
 describe('collide', () => {
   const mk = (selfDim, aff = {}) => {
     const v = new Float32Array(16).fill(0.05);
