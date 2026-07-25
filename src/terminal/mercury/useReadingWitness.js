@@ -3,10 +3,9 @@
 // when every required kernel has been genuinely read. No UI, no persistence.
 import { useEffect, useRef } from 'react';
 import { countWords, requiredSeconds } from './readingThresholds';
-import { isAbsorbed, allWitnessed } from './readingWitness';
+import { isAbsorbed, allWitnessed, MIN_SCROLL_EVENTS } from './readingWitness';
 
 const BOTTOM_SLOP = 24;   // px tolerance for "reached bottom"
-const MIN_SCROLL_EVENTS = 3;
 const DEV = !!import.meta.env?.DEV;
 
 export default function useReadingWitness({ mainRef, selectedArticle, activeTab, requiredArticleIds, onWitnessed }) {

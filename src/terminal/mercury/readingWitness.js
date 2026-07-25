@@ -1,6 +1,6 @@
 // Pure predicates deciding whether a single kernel was truly read, and whether
 // the whole pinned corpus has been witnessed.
-const MIN_SCROLL_EVENTS = 3; // guards against one instantaneous jump-to-bottom
+export const MIN_SCROLL_EVENTS = 3; // guards against one instantaneous jump-to-bottom
 
 export function isAbsorbed({ activeSeconds, requiredSeconds, reachedBottom, scrollEvents }) {
   return (

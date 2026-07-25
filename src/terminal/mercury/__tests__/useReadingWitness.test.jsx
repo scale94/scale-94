@@ -59,7 +59,11 @@ describe('useReadingWitness', () => {
     expect(onWitnessed).toHaveBeenCalledTimes(1);
   });
 
-  it('does not accrue while the tab is hidden/blurred', () => {
+  it('does not accrue while the tab is hidden/blurred (pauses, does not reset)', () => {
+    // requiredSeconds(40) = 6.6s. Below-threshold pre-hide progress (5s) must
+    // survive the hidden window; only a small remainder (2.5s) is needed after
+    // returning. A buggy reset-on-blur implementation would need the full 6.6s
+    // again after returning and would fail the final assertion.
     const onWitnessed = vi.fn();
     const el = makeEl({ words: 40 });
     const mainRef = { current: el };
@@ -67,12 +71,15 @@ describe('useReadingWitness', () => {
 
     el.scrollTop = el.scrollHeight - el.clientHeight;
     act(() => { for (let i = 0; i < 5; i++) el._fire('scroll'); });
+    act(() => { vi.advanceTimersByTime(5_000); });   // below-threshold active dwell, still visible+focused
+    expect(onWitnessed).not.toHaveBeenCalled();
+
     setFocus(false, false);                          // away
-    act(() => { vi.advanceTimersByTime(60_000); });  // a full minute away
+    act(() => { vi.advanceTimersByTime(60_000); });  // a full minute away — must not accrue
     expect(onWitnessed).not.toHaveBeenCalled();
 
     setFocus(true, true);                            // back
-    act(() => { vi.advanceTimersByTime(8_000); });
+    act(() => { vi.advanceTimersByTime(2_500); });   // small remainder: 5s + 2.5s = 7.5s > 6.6s, but 2.5s alone < 6.6s
     expect(onWitnessed).toHaveBeenCalledTimes(1);
   });
 
@@ -83,5 +90,21 @@ describe('useReadingWitness', () => {
     renderHook(() => useReadingWitness({ mainRef, selectedArticle: { id: 'K1' }, activeTab: 'lunar', requiredArticleIds: ['K1'], onWitnessed }));
     readToBottom(el, 20);
     expect(onWitnessed).not.toHaveBeenCalled();
+  });
+
+  it('credits a short article that fits without scrolling (waives the scroll-event floor) on time alone', () => {
+    // scrollable: false => scrollHeight <= clientHeight + slop, i.e. nothing to
+    // scroll. reachedBottom must be auto-true and the MIN_SCROLL_EVENTS floor
+    // waived so time-alone can still satisfy isAbsorbed — no scroll events are
+    // ever fired in this test.
+    const onWitnessed = vi.fn();
+    const el = makeEl({ words: 40, scrollable: false });
+    const mainRef = { current: el };
+    renderHook(() => useReadingWitness({ mainRef, selectedArticle: { id: 'K1' }, activeTab: 'kernel', requiredArticleIds: ['K1'], onWitnessed }));
+
+    // requiredSeconds(40) = 6.6s; activeSeconds accrues in whole-second ticks,
+    // so give a full-second margin past the threshold. No scroll events fired.
+    act(() => { vi.advanceTimersByTime(7_000); });
+    expect(onWitnessed).toHaveBeenCalledTimes(1);
   });
 });
