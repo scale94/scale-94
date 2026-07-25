@@ -66,7 +66,17 @@ export default function useReadingWitness({ mainRef, selectedArticle, activeTab,
     const stats = statsRef.current.get(currentId) || { activeSeconds: 0, requiredSeconds: Infinity, scrolledBottom: false, scrollEvents: 0, measuredWords: 0 };
     statsRef.current.set(currentId, stats);
 
-    runAbsorption(stats, el, currentId, completedRef, firedRef, cbRef, requiredArticleIds);
+    // Mount only MEASURES — it must never decide absorption. statsRef persists
+    // across navigation (it's App-lifetime, keyed by article id), so a reopened
+    // article carries over activeSeconds from a prior visit. The pinned prose
+    // reveals via a typing animation, so right at mount the pane is briefly
+    // small and the live `fits` waiver in absorbedNow is transiently true. If
+    // mount ran runAbsorption here, carried-over activeSeconds past threshold
+    // could complete the kernel through that transient window without the
+    // reader ever having scrolled to the bottom this visit. Real completion is
+    // only ever decided once content is settled: from a genuine scroll event
+    // (onScroll below) or the 1s interval tick.
+    measureInto(stats, el);
 
     const onScroll = () => {
       if (!el) return;

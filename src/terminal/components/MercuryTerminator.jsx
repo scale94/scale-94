@@ -142,6 +142,12 @@ export default function MercuryTerminator({ twilight = 0, day = 0, flare = null,
       // Retrograde event: a new token arms a one-shot double-sunrise. While it
       // runs, the terminator follows base + curve delta; then it re-attaches to
       // the true tw/day (which `cur` is already easing toward every other frame).
+      // Accepted trade-off: under reduced-motion this arming guard never fires,
+      // so an earned `retrograde` token in App.jsx is left set with no visible
+      // event and no onRetrogradeDone call (firedRef there still guards against
+      // re-earning). Reduced-motion readers simply don't get the animation; if
+      // they later disable reduced motion, the stale token may still play once
+      // on a subsequent remount.
       const r = retroRef.current;
       if (r && r.ts !== cur.retroTs && !reduce) { cur.retroTs = r.ts; cur.retroStart = now; }
       if (cur.retroStart) {

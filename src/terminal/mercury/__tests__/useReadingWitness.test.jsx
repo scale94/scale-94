@@ -165,4 +165,54 @@ describe('useReadingWitness', () => {
 
     expect(onWitnessed).toHaveBeenCalledTimes(1);
   });
+
+  it('does not complete a kernel from the transient reveal-fits window on remount (carried-over activeSeconds bypass)', () => {
+    // Regression for the mount-calls-runAbsorption bug: statsRef persists across
+    // navigation (App-lifetime, keyed by article id). A reader can accrue >=
+    // threshold activeSeconds on a scrollable article WITHOUT ever reaching the
+    // bottom (fits stays false throughout, since scrollHeight > clientHeight the
+    // whole time) — must not complete. Then on REOPEN of the same id, the pane is
+    // briefly small again (typing-reveal), so the live `fits` waiver is
+    // transiently true. If mount ran the full absorption check, the carried-over
+    // activeSeconds (already past threshold) would complete the kernel through
+    // that transient window without a real scroll-to-bottom ever happening. Mount
+    // must only measure; completion may only come from onScroll or the interval.
+    const onWitnessed = vi.fn();
+    const el = makeEl({ words: 200, scrollable: true }); // requiredSeconds(200) = 33s
+    const mainRef = { current: el };
+    let article = { id: 'K1' };
+    const { rerender } = renderHook(
+      ({ a }) => useReadingWitness({ mainRef, selectedArticle: a, activeTab: 'kernel', requiredArticleIds: ['K1'], onWitnessed }),
+      { initialProps: { a: article } }
+    );
+
+    // Accrue past threshold WITHOUT scrolling to the bottom. scrollHeight (2000)
+    // stays > clientHeight (500) throughout, so `fits` is false the whole time —
+    // must not complete.
+    act(() => { vi.advanceTimersByTime(35_000); });
+    expect(onWitnessed).not.toHaveBeenCalled();
+
+    // Simulate leaving the article (toggle to a different/no article)...
+    article = null;
+    rerender({ a: article });
+
+    // ...then reopening the SAME id while its content is briefly small again
+    // (typing-reveal on remount). scrolledBottom is still false; carried-over
+    // activeSeconds (35s) is already past the 33s threshold for this article.
+    el.scrollHeight = 400; // fits at this instant: clientHeight 500 + slop 24
+    article = { id: 'K1' };
+    rerender({ a: article });
+
+    // The remount must NOT complete the kernel via the transient fits + carried
+    // time — it may only measure.
+    expect(onWitnessed).not.toHaveBeenCalled();
+
+    // Now the real content settles back past the viewport and a genuine
+    // scroll-to-bottom happens — only now may it complete.
+    el.scrollHeight = 2000;
+    el.scrollTop = el.scrollHeight - el.clientHeight;
+    act(() => { for (let i = 0; i < 5; i++) el._fire('scroll'); });
+
+    expect(onWitnessed).toHaveBeenCalledTimes(1);
+  });
 });
