@@ -101,15 +101,15 @@ real reading each session and cannot be replayed from cache. On earning, the ret
 fires **once**. A session-level `hasFired` guard prevents re-firing if the reader keeps
 reading afterward.
 
-### Open decision for review — the "purity" gate
+### Purity gate — DECIDED (lenient)
 
-The original intent was "read all five *before even touching the other shiny tabs*."
-A hard "never navigated elsewhere" lock is fragile and false-negative-prone (read four,
-peek at Lunar, come back, finish → lost forever). **Recommended interpretation:** drop
-the permanent cross-tab lockout; keep purity where it matters — per-kernel focus (accrual
-pauses on blur) and genuine dwell. The egg is for the person who *read*, not the person
-who navigated in a particular order. **Confirm at review** whether you want the stricter
-"unbroken session, no detours" gate instead.
+The original intent was "read all five *before even touching the other shiny tabs*." A
+hard "never navigated elsewhere" lock is fragile and false-negative-prone (read four,
+peek at Lunar, come back, finish → lost forever), so it is **cut**. Purity lives where it
+matters: per-kernel focus (accrual pauses on blur/hidden) and genuine dwell. The egg is
+for the person who *read*, not the person who navigated in a particular order. There is
+**no permanent cross-tab lockout** — reading may be interrupted and resumed within the
+session.
 
 ## Architecture (isolated units)
 
