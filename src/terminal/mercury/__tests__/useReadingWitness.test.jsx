@@ -135,4 +135,34 @@ describe('useReadingWitness', () => {
     act(() => { vi.advanceTimersByTime(30_000); });
     expect(onWitnessed).toHaveBeenCalledTimes(1);
   });
+
+  it('does not permanently waive scroll-to-bottom when the pane grows past the viewport after mount', () => {
+    // At mount, the typing-reveal content is tiny and the pane fits without
+    // overflowing (scrollHeight <= clientHeight + slop). A buggy implementation
+    // latches reachedBottom=true forever at that moment. The real article grows
+    // past the viewport once typing finishes, so a genuine scroll to the bottom
+    // must still be required — the waiver must be re-evaluated against live
+    // geometry, not a stale mount-time snapshot.
+    const onWitnessed = vi.fn();
+    const el = makeEl({ words: 3 });
+    el.clientHeight = 500;
+    el.scrollHeight = 400; // fits at mount
+    const mainRef = { current: el };
+    renderHook(() => useReadingWitness({ mainRef, selectedArticle: { id: 'K1' }, activeTab: 'kernel', requiredArticleIds: ['K1'], onWitnessed }));
+
+    // Typing animation finishes: the real body is 200 words and now overflows.
+    // requiredSeconds(200) = (200/200)*60*0.55 = 33s.
+    el.innerText = Array.from({ length: 200 }, (_, i) => `w${i}`).join(' ');
+    el.scrollHeight = 2000;
+
+    // Advance well past the real 33s threshold WITHOUT ever scrolling.
+    act(() => { vi.advanceTimersByTime(40_000); });
+    expect(onWitnessed).not.toHaveBeenCalled();
+
+    // Now genuinely scroll to the bottom.
+    el.scrollTop = el.scrollHeight - el.clientHeight;
+    act(() => { for (let i = 0; i < 5; i++) el._fire('scroll'); });
+
+    expect(onWitnessed).toHaveBeenCalledTimes(1);
+  });
 });

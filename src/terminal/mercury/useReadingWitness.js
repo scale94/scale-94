@@ -10,8 +10,7 @@ const DEV = !!import.meta.env?.DEV;
 
 // The article prose reveals via a typing animation, so innerText can undercount
 // early. Track the LARGEST word count seen and derive the threshold from it, so an
-// early (small) measurement never locks in a too-easy threshold. Also re-evaluate
-// the short-article waiver against current geometry each time.
+// early (small) measurement never locks in a too-easy threshold.
 function measureInto(stats, el) {
   if (!el) return;
   const words = countWords(el.innerText);
@@ -19,14 +18,24 @@ function measureInto(stats, el) {
     stats.measuredWords = words;
     stats.requiredSeconds = requiredSeconds(words);
   }
-  if (el.scrollHeight <= el.clientHeight + BOTTOM_SLOP) {
-    stats.reachedBottom = true;
-    stats.scrollEvents = Math.max(stats.scrollEvents, MIN_SCROLL_EVENTS);
-  }
+}
+
+// Absorbed = enough active time AND (the reader really scrolled to the bottom, OR
+// the article currently fits without scrolling). The "fits" waiver is recomputed
+// every check from live geometry, so an article that is small mid-reveal but grows
+// past the viewport still requires a real scroll-to-bottom.
+function absorbedNow(stats, el) {
+  const fits = !!el && el.scrollHeight <= el.clientHeight + BOTTOM_SLOP;
+  return isAbsorbed({
+    activeSeconds: stats.activeSeconds,
+    requiredSeconds: stats.requiredSeconds,
+    reachedBottom: stats.scrolledBottom || fits,
+    scrollEvents: fits ? MIN_SCROLL_EVENTS : stats.scrollEvents,
+  });
 }
 
 export default function useReadingWitness({ mainRef, selectedArticle, activeTab, requiredArticleIds, onWitnessed }) {
-  const statsRef = useRef(new Map());   // id -> { activeSeconds, requiredSeconds, reachedBottom, scrollEvents, measuredWords }
+  const statsRef = useRef(new Map());   // id -> { activeSeconds, requiredSeconds, scrolledBottom, scrollEvents, measuredWords }
   const completedRef = useRef(new Set());
   const firedRef = useRef(false);
   const cbRef = useRef(onWitnessed);
@@ -41,14 +50,14 @@ export default function useReadingWitness({ mainRef, selectedArticle, activeTab,
   useEffect(() => {
     if (!currentId) return;
     const el = mainRef.current;
-    const stats = statsRef.current.get(currentId) || { activeSeconds: 0, requiredSeconds: Infinity, reachedBottom: false, scrollEvents: 0, measuredWords: 0 };
+    const stats = statsRef.current.get(currentId) || { activeSeconds: 0, requiredSeconds: Infinity, scrolledBottom: false, scrollEvents: 0, measuredWords: 0 };
     statsRef.current.set(currentId, stats);
 
     measureInto(stats, el);
 
     const check = () => {
       measureInto(stats, el);
-      if (isAbsorbed(stats)) completedRef.current.add(currentId);
+      if (absorbedNow(stats, el)) completedRef.current.add(currentId);
       if (!firedRef.current && allWitnessed(completedRef.current, requiredArticleIds)) {
         firedRef.current = true;
         cbRef.current?.();
@@ -59,7 +68,7 @@ export default function useReadingWitness({ mainRef, selectedArticle, activeTab,
     const onScroll = () => {
       if (!el) return;
       stats.scrollEvents += 1;
-      if (el.scrollTop + el.clientHeight >= el.scrollHeight - BOTTOM_SLOP) stats.reachedBottom = true;
+      if (el.scrollTop + el.clientHeight >= el.scrollHeight - BOTTOM_SLOP) stats.scrolledBottom = true;
       check();
     };
 
@@ -76,7 +85,7 @@ export default function useReadingWitness({ mainRef, selectedArticle, activeTab,
       if (!stats) return;
       measureInto(stats, mainRef.current);
       stats.activeSeconds += 1;
-      if (isAbsorbed(stats)) completedRef.current.add(currentId);
+      if (absorbedNow(stats, mainRef.current)) completedRef.current.add(currentId);
       if (!firedRef.current && allWitnessed(completedRef.current, requiredArticleIds)) {
         firedRef.current = true;
         cbRef.current?.();
