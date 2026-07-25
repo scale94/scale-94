@@ -40,6 +40,8 @@ import BootSequence         from './components/BootSequence';
 import BreachProtocol       from './components/BreachProtocol';
 import SanctuaryOverlay     from './components/SanctuaryOverlay';
 import MercuryEyeIndicator  from './components/MercuryEyeIndicator';
+import useReadingWitness    from './mercury/useReadingWitness';
+import { pinnedKernelArticleIds } from './mercury/pinnedKernels';
 import KuramotoVisualizer   from './components/KuramotoVisualizer';
 import { emit as emitObs } from '../observatory/observatoryBus';
 import { notifyNav, getGuidance as getEyeGuidance, subscribeGuidance } from './quintessence/guidanceStore';
@@ -101,6 +103,7 @@ const App = () => {
   const [currentPath, setCurrentPath] = useState('~/system/kernel');
   const [activeTab, setActiveTab] = useState('kernel');
   const [selectedArticle, setSelectedArticle] = useState(null);
+  const [retrograde, setRetrograde] = useState(null);
   const [bootSequence, setBootSequence] = useState(true);
   const [bootRevealed, setBootRevealed] = useState(false);
   const [bootAnimDone, setBootAnimDone]  = useState(false);
@@ -317,6 +320,13 @@ const App = () => {
     () => dynamicData?.legislationArticles ?? articles.filter(a => a.type === 'legislation'),
     [dynamicData, articles],
   );
+
+  // Reading witness (retrograde-Sun easter egg): silently accrues genuine
+  // reading time across the five pinned lore kernels; once all are witnessed,
+  // fires onWitnessed which arms the Mercury terminator's one-time recede.
+  const requiredArticleIds = useMemo(() => pinnedKernelArticleIds(kernelBuilds), [kernelBuilds]);
+  const onWitnessed = useCallback(() => setRetrograde({ ts: Date.now() }), []);
+  useReadingWitness({ mainRef, selectedArticle, activeTab, requiredArticleIds, onWitnessed });
 
   // The legacy kernel-list ordering + Sophie-search memos (sortedBuilds /
   // filteredBuilds) retired with the KernelTab relic content — the reliquary
@@ -1217,6 +1227,7 @@ const App = () => {
               mobileAutoRun={mobileAutoRun}
               bootDone={bootRevealed}
               onNavigateToMercury={() => handleNav('~/system/mercury', 'mercury')}
+              retrograde={retrograde}
             />
           )}
 

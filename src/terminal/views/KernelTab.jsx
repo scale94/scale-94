@@ -55,7 +55,7 @@ const ramColor = (pct) => {
   return '#FF0088';                // magenta     — floor signal
 };
 
-const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, loadingKernel, visibleLogs = [], logRef, commandInput = '', onCommandInputChange, onCommandKeyDown, suggestions = [], activeSugg = -1, paramHint = '', onSelectSuggestion, ramPct = 0, isCritical = false, isWarning = false, appendSystemLog, mobileChrome = true, mobileAutoRun, bootDone = false, onNavigateToMercury }) => {
+const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, loadingKernel, visibleLogs = [], logRef, commandInput = '', onCommandInputChange, onCommandKeyDown, suggestions = [], activeSugg = -1, paramHint = '', onSelectSuggestion, ramPct = 0, isCritical = false, isWarning = false, appendSystemLog, mobileChrome = true, mobileAutoRun, bootDone = false, onNavigateToMercury, retrograde = null }) => {
   const { twilight, day, loaded, run, flare } = useCompileFrontier(kernelBuilds.length);
 
   // isDesktop gates which single MercuryTerminator WebGL context is mounted:
@@ -459,6 +459,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
               twilight={twilight}
               day={day}
               flare={flare}
+              retrograde={retrograde}
               size={120}
               onClick={mercuryTaps.onTap}
               title="☿ mercury — the compile frontier"
@@ -475,6 +476,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
             twilight={twilight}
             day={day}
             flare={flare}
+            retrograde={retrograde}
             size={180}
             onClick={mercuryTaps.onTap}
             title="☿ mercury — the compile frontier"
