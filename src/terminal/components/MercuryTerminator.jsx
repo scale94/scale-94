@@ -59,18 +59,20 @@ const FS = [
   ' gl_FragColor=vec4(col,a);',
   '}'].join('\n');
 
-export default function MercuryTerminator({ twilight = 0, day = 0, flare = null, retrograde = null, size = 180, onClick, title, className = '', ariaLabel }) {
+export default function MercuryTerminator({ twilight = 0, day = 0, flare = null, retrograde = null, onRetrogradeDone = null, size = 180, onClick, title, className = '', ariaLabel }) {
   const canvasRef = useRef(null);
   const twRef = useRef(twilight);
   const dayRef = useRef(day);
   const flareRef = useRef(flare);
   const retroRef = useRef(retrograde);
+  const doneRef = useRef(onRetrogradeDone);
   const snapRef = useRef(null);
   useEffect(() => {
     twRef.current = twilight; dayRef.current = day; flareRef.current = flare;
     retroRef.current = retrograde;
+    doneRef.current = onRetrogradeDone;
     snapRef.current?.();
-  }, [twilight, day, flare, retrograde]);
+  }, [twilight, day, flare, retrograde, onRetrogradeDone]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -144,7 +146,7 @@ export default function MercuryTerminator({ twilight = 0, day = 0, flare = null,
       if (r && r.ts !== cur.retroTs && !reduce) { cur.retroTs = r.ts; cur.retroStart = now; }
       if (cur.retroStart) {
         const p = (now - cur.retroStart) / RETROGRADE_MS;
-        if (p >= 1) { cur.retroStart = 0; cur.retroTint = 0; }
+        if (p >= 1) { cur.retroStart = 0; cur.retroTint = 0; doneRef.current?.(); }
         else {
           const { delta, tint } = retrogradeCurve(p);
           cur.tw  = Math.max(0, Math.min(1, twRef.current + delta));

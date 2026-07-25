@@ -326,6 +326,10 @@ const App = () => {
   // fires onWitnessed which arms the Mercury terminator's one-time recede.
   const requiredArticleIds = useMemo(() => pinnedKernelArticleIds(kernelBuilds), [kernelBuilds]);
   const onWitnessed = useCallback(() => setRetrograde({ ts: Date.now() }), []);
+  // Cleared only when MercuryTerminator finishes an actual play-through of the
+  // event (see MercuryTerminator's onRetrogradeDone) — never on a timer, since
+  // the terminator is unmounted while the 5th article is being read.
+  const onRetrogradeDone = useCallback(() => setRetrograde(null), []);
   useReadingWitness({ mainRef, selectedArticle, activeTab, requiredArticleIds, onWitnessed });
 
   // The legacy kernel-list ordering + Sophie-search memos (sortedBuilds /
@@ -1228,6 +1232,7 @@ const App = () => {
               bootDone={bootRevealed}
               onNavigateToMercury={() => handleNav('~/system/mercury', 'mercury')}
               retrograde={retrograde}
+              onRetrogradeDone={onRetrogradeDone}
             />
           )}
 

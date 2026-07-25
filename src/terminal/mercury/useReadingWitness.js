@@ -34,6 +34,19 @@ function absorbedNow(stats, el) {
   });
 }
 
+// Shared completion path for both the scroll effect and the interval tick:
+// re-measure, mark the current article completed if absorbed, and fire the
+// witnessed callback once when every required kernel has been read.
+function runAbsorption(stats, el, currentId, completedRef, firedRef, cbRef, requiredArticleIds) {
+  measureInto(stats, el);
+  if (absorbedNow(stats, el)) completedRef.current.add(currentId);
+  if (!firedRef.current && allWitnessed(completedRef.current, requiredArticleIds)) {
+    firedRef.current = true;
+    cbRef.current?.();
+  }
+  if (DEV) console.debug('[witness]', currentId, { ...stats, done: [...completedRef.current] });
+}
+
 export default function useReadingWitness({ mainRef, selectedArticle, activeTab, requiredArticleIds, onWitnessed }) {
   const statsRef = useRef(new Map());   // id -> { activeSeconds, requiredSeconds, scrolledBottom, scrollEvents, measuredWords }
   const completedRef = useRef(new Set());
@@ -53,23 +66,13 @@ export default function useReadingWitness({ mainRef, selectedArticle, activeTab,
     const stats = statsRef.current.get(currentId) || { activeSeconds: 0, requiredSeconds: Infinity, scrolledBottom: false, scrollEvents: 0, measuredWords: 0 };
     statsRef.current.set(currentId, stats);
 
-    measureInto(stats, el);
-
-    const check = () => {
-      measureInto(stats, el);
-      if (absorbedNow(stats, el)) completedRef.current.add(currentId);
-      if (!firedRef.current && allWitnessed(completedRef.current, requiredArticleIds)) {
-        firedRef.current = true;
-        cbRef.current?.();
-      }
-      if (DEV) console.debug('[witness]', currentId, { ...stats, done: [...completedRef.current] });
-    };
+    runAbsorption(stats, el, currentId, completedRef, firedRef, cbRef, requiredArticleIds);
 
     const onScroll = () => {
       if (!el) return;
       stats.scrollEvents += 1;
       if (el.scrollTop + el.clientHeight >= el.scrollHeight - BOTTOM_SLOP) stats.scrolledBottom = true;
-      check();
+      runAbsorption(stats, el, currentId, completedRef, firedRef, cbRef, requiredArticleIds);
     };
 
     el?.addEventListener('scroll', onScroll, { passive: true });
@@ -83,13 +86,8 @@ export default function useReadingWitness({ mainRef, selectedArticle, activeTab,
       if (document.visibilityState !== 'visible' || !document.hasFocus()) return;
       const stats = statsRef.current.get(currentId);
       if (!stats) return;
-      measureInto(stats, mainRef.current);
       stats.activeSeconds += 1;
-      if (absorbedNow(stats, mainRef.current)) completedRef.current.add(currentId);
-      if (!firedRef.current && allWitnessed(completedRef.current, requiredArticleIds)) {
-        firedRef.current = true;
-        cbRef.current?.();
-      }
+      runAbsorption(stats, mainRef.current, currentId, completedRef, firedRef, cbRef, requiredArticleIds);
     }, 1000);
     return () => clearInterval(id);
   }, [currentId, mainRef, requiredArticleIds]);

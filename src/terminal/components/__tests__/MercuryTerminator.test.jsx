@@ -32,4 +32,16 @@ describe('MercuryTerminator', () => {
     rerender(<MercuryTerminator twilight={0.3} day={0.1} flare={null} retrograde={{ ts: 123 }} size={180} />);
     expect(container.querySelector('canvas')).toBeTruthy();
   });
+
+  it('accepts an onRetrogradeDone callback without throwing (jsdom, no WebGL)', () => {
+    // jsdom has no WebGL, so the rAF loop never runs and this callback never
+    // fires here — this is a prop-plumbing/no-throw smoke test only, matching
+    // the other smoke tests above. Real firing is verified in the browser.
+    const onRetrogradeDone = () => {};
+    const { container } = render(
+      <MercuryTerminator twilight={0.3} day={0.1} flare={null} retrograde={{ ts: 456 }}
+        onRetrogradeDone={onRetrogradeDone} size={180} />
+    );
+    expect(container.querySelector('canvas')).toBeTruthy();
+  });
 });
