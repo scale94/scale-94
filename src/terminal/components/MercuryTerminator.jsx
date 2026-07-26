@@ -9,6 +9,7 @@
 // reduced-motion snap. Colours echo the eye: cyan/violet twilight, gold/lime day.
 import { useEffect, useRef } from 'react';
 import { retrogradeCurve, RETROGRADE_MS } from './retrogradeCurve';
+import { useShaderCanvas } from '../gl/useShaderCanvas';
 
 const CYAN = [0.32, 0.70, 0.95];
 const GOLD = [1.0, 0.78, 0.15];
@@ -66,71 +67,62 @@ export default function MercuryTerminator({ twilight = 0, day = 0, flare = null,
   const flareRef = useRef(flare);
   const retroRef = useRef(retrograde);
   const doneRef = useRef(onRetrogradeDone);
-  const snapRef = useRef(null);
   useEffect(() => {
     twRef.current = twilight; dayRef.current = day; flareRef.current = flare;
     retroRef.current = retrograde;
     doneRef.current = onRetrogradeDone;
-    snapRef.current?.();
+    snap();
   }, [twilight, day, flare, retrograde, onRetrogradeDone]);
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const DPR = Math.min(2, window.devicePixelRatio || 1);
-    canvas.width = Math.round(size * DPR);
-    canvas.height = Math.round(size * DPR);
-    const gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: false, antialias: true });
-    if (!gl) return;
+  const curRef = useRef(null);
+  const { snap } = useShaderCanvas(canvasRef, {
+    version: 1,
+    contextOptions: { alpha: true, premultipliedAlpha: false, antialias: true },
+    strategy: 'legacy',
+    blend: 'straight',
+    vs: VS,
+    fs: FS,
+    uniforms: ['u_t', 'u_tw', 'u_day', 'u_bloom', 'u_flareCol', 'u_retro'],
+    pixelSize: size,
+    setStyleSize: false,
+    loseContextOnDispose: true,
+    label: 'MercuryTerminator',
+    dtClamp: 0.05,
+    seedLast: 'now',
+    watchdogMs: 40,
+    trackVisibility: false,
+    haltOnReducedMotion: true,
+    initialDraw: true,
+    deps: [size],
 
-    function sh(type, src) {
-      const s = gl.createShader(type);
-      gl.shaderSource(s, src); gl.compileShader(s);
-      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS) && import.meta.env?.DEV) {
-        console.error('[MercuryTerminator] shader', gl.getShaderInfoLog(s));
-      }
-      return s;
-    }
-    const prog = gl.createProgram();
-    gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS));
-    gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS));
-    gl.linkProgram(prog);
-    gl.useProgram(prog);
-    const buf = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
-    const al = gl.getAttribLocation(prog, 'a');
-    gl.enableVertexAttribArray(al);
-    gl.vertexAttribPointer(al, 2, gl.FLOAT, false, 0, 0);
-    const U = {};
-    ['u_t','u_tw','u_day','u_bloom','u_flareCol','u_retro'].forEach(k => { U[k] = gl.getUniformLocation(prog, k); });
-    gl.enable(gl.BLEND);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-    gl.viewport(0, 0, canvas.width, canvas.height);
+    // Today's effect recreates `cur` every time it re-runs. onInit fires on the
+    // same schedule, so the easing state and the GL host are rebuilt together.
+    onInit() {
+      curRef.current = {
+        tw: twRef.current, day: dayRef.current, bloom: 0, col: CYAN.slice(),
+        lastFlareTs: 0, retroTs: 0, retroStart: 0, retroTint: 0,
+      };
+    },
 
+    draw(host, { dt, tsec, now, reducedMotion }) {
+      paint(host, curRef.current, tsec, { dt, now, reducedMotion });
+    },
+
+    onSnap(host) {
+      const cur = curRef.current;
+      if (!cur) return;
+      cur.tw = twRef.current; cur.day = dayRef.current; cur.bloom = 0;
+      paint(host, cur, 0, { dt: 0, now: 0, reducedMotion: true });
+    },
+  });
+
+  function paint(host, cur, tsec, { dt, now, reducedMotion }) {
+    const { gl, U } = host;
     const lerp = (a, b, t) => a + (b - a) * t;
-    const cur = { tw: twRef.current, day: dayRef.current, bloom: 0, col: CYAN.slice(), lastFlareTs: 0, retroTs: 0, retroStart: 0, retroTint: 0 };
 
-    function render(tsec) {
-      gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
-      gl.uniform1f(U.u_t, tsec);
-      gl.uniform1f(U.u_tw, cur.tw);
-      gl.uniform1f(U.u_day, cur.day);
-      gl.uniform1f(U.u_bloom, cur.bloom);
-      gl.uniform3fv(U.u_flareCol, new Float32Array(cur.col));
-      gl.uniform1f(U.u_retro, cur.retroTint);
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-    }
-
-    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    let raf = 0, wd = 0, running = false, last = performance.now();
-
-    function frame(now) {
-      clearTimeout(wd);
-      if (!running) return;
-      const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    if (dt > 0) {
       const e = 1 - Math.pow(0.004, dt);
-      cur.tw  = lerp(cur.tw,  twRef.current,  e);
+      cur.tw = lerp(cur.tw, twRef.current, e);
       cur.day = lerp(cur.day, dayRef.current, e);
       const f = flareRef.current;
       if (f && f.ts !== cur.lastFlareTs) {
@@ -139,54 +131,34 @@ export default function MercuryTerminator({ twilight = 0, day = 0, flare = null,
         cur.col = (f.kind === 'run' ? GOLD : CYAN).slice();
       }
       cur.bloom = lerp(cur.bloom, 0, 1 - Math.pow(0.02, dt)); // ~1.5s decay
-      // Retrograde event: a new token arms a one-shot double-sunrise. While it
-      // runs, the terminator follows base + curve delta; then it re-attaches to
-      // the true tw/day (which `cur` is already easing toward every other frame).
-      // Accepted trade-off: under reduced-motion this arming guard never fires,
-      // so an earned `retrograde` token in App.jsx is left set with no visible
-      // event and no onRetrogradeDone call (firedRef there still guards against
-      // re-earning). Reduced-motion readers simply don't get the animation; if
-      // they later disable reduced motion, the stale token may still play once
-      // on a subsequent remount.
+      // Retrograde event: a new token arms a one-shot double-sunrise. While
+      // it runs the terminator follows base + curve delta, then re-attaches
+      // to the true tw/day. Under reduced motion the loop never runs, so an
+      // earned token is left set with no visible event — known, phase 2.
       const r = retroRef.current;
-      if (r && r.ts !== cur.retroTs && !reduce) { cur.retroTs = r.ts; cur.retroStart = now; }
+      if (r && r.ts !== cur.retroTs && !reducedMotion) { cur.retroTs = r.ts; cur.retroStart = now; }
       if (cur.retroStart) {
         const p = (now - cur.retroStart) / RETROGRADE_MS;
         if (p >= 1) { cur.retroStart = 0; cur.retroTint = 0; doneRef.current?.(); }
         else {
           const { delta, tint } = retrogradeCurve(p);
-          cur.tw  = Math.max(0, Math.min(1, twRef.current + delta));
+          cur.tw = Math.max(0, Math.min(1, twRef.current + delta));
           cur.day = Math.max(0, Math.min(1, dayRef.current + delta));
           cur.retroTint = tint;
         }
       }
-      render(now / 1000);
-      schedule();
     }
-    function schedule() {
-      raf = requestAnimationFrame(frame);
-      wd = setTimeout(() => { cancelAnimationFrame(raf); frame(performance.now()); }, 40);
-    }
-    function play() { if (running || reduce) return; running = true; last = performance.now(); schedule(); }
-    function stop() { running = false; cancelAnimationFrame(raf); clearTimeout(wd); }
 
-    render(0);
-    if (!reduce) play();
-
-    // Reduced motion: no swirl, but a state change still snaps the frontier.
-    snapRef.current = () => {
-      if (!reduce) return;
-      cur.tw = twRef.current; cur.day = dayRef.current; cur.bloom = 0;
-      render(0);
-    };
-
-    return () => {
-      stop();
-      snapRef.current = null;
-      const lose = gl.getExtension('WEBGL_lose_context');
-      if (lose) lose.loseContext();
-    };
-  }, [size]);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.uniform1f(U.u_t, tsec);
+    gl.uniform1f(U.u_tw, cur.tw);
+    gl.uniform1f(U.u_day, cur.day);
+    gl.uniform1f(U.u_bloom, cur.bloom);
+    gl.uniform3fv(U.u_flareCol, new Float32Array(cur.col));
+    gl.uniform1f(U.u_retro, cur.retroTint);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
 
   return (
     <div
