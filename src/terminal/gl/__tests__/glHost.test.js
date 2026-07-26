@@ -42,8 +42,14 @@ describe('createShaderHost', () => {
     // recordingGL.js getUniformLocation) so the tag carries a program-id
     // segment, not just the bare name — assert on the structure that
     // actually matters here: each entry is keyed by its uniform name.
-    expect(host.U.u_a.__tag).toMatch(/^uniform:program:\d+:u_a$/);
-    expect(host.U.u_b.__tag).toMatch(/^uniform:program:\d+:u_b$/);
+    // program:0 is deterministic here: a fresh recording stub tags its first
+    // tag-consuming call `program:0`, and createProgram() is that first call
+    // for strategy 'legacy'. Assert the exact tag, not a wildcard-program
+    // regex — a regex would still pass if an extra tag-consuming call were
+    // accidentally inserted before createProgram(), which is exactly the
+    // defect class this test exists to catch.
+    expect(host.U.u_a.__tag).toBe('uniform:program:0:u_a');
+    expect(host.U.u_b.__tag).toBe('uniform:program:0:u_b');
   });
 
   it("legacy strategy creates the program before compiling and never deletes shaders", () => {
@@ -88,6 +94,72 @@ describe('createShaderHost', () => {
     const v1 = createRecordingGL({ version: 1 });
     createShaderHost(canvasWith(v1), { ...BASE, version: 1, strategy: 'legacy' });
     expect(v1.__log.map(e => e[0])).toContain('getAttribLocation');
+  });
+
+  // The 12 tests above only ever inspect the *build* phase (compile/link
+  // order, shader deletion, VAO vs bare attribute). None of them pin down
+  // the relative order of the later uniform-harvest and blend-state groups,
+  // so all-green here was never evidence against a bug in that phase —
+  // which is exactly the class of bug Finding 1 found (legacy emitted
+  // blend before uniforms; the live components and the frozen glParity
+  // snapshot require uniforms before blend). These two tests assert the
+  // full ordered call-name sequence for each strategy so that phase can't
+  // silently reorder again.
+  //
+  // The expected sequences are derived from the *live* component source and
+  // the committed glParity snapshot, not from glHost's current output:
+  //   - legacy: MercuryTerminator.jsx / ObserverEye.jsx inline setup +
+  //     glParity.test.jsx.snap lines ~4460-4487 (MercuryTerminator init) —
+  //     createProgram → [compile VS, attach] → [compile FS, attach] →
+  //     linkProgram → useProgram → buffer/attrib setup →
+  //     getUniformLocation × N → enable(BLEND) → blendFunc → viewport.
+  //   - lunar: LunarShaderMoon.jsx uniform harvest (uRadius…uLibration) +
+  //     glParity.test.jsx.snap lines ~787-853 (LunarShaderMoon init) —
+  //     [compile VS] → [compile FS] → createProgram → attach × 2 →
+  //     linkProgram → deleteShader × 2 → getProgramParameter → viewport →
+  //     VAO/buffer/attrib setup → viewport → useProgram →
+  //     enable(BLEND) → blendFunc → getUniformLocation × N.
+  it('legacy strategy: full ordered GL call sequence for a representative config', () => {
+    const gl = createRecordingGL({ version: 1 });
+    createShaderHost(canvasWith(gl), {
+      ...BASE, version: 1, strategy: 'legacy', uniforms: ['u_a', 'u_b'],
+    });
+    const names = gl.__log.map(e => e[0]);
+    expect(names).toEqual([
+      'createProgram',
+      'createShader', 'shaderSource', 'compileShader', 'getShaderParameter', 'attachShader',
+      'createShader', 'shaderSource', 'compileShader', 'getShaderParameter', 'attachShader',
+      'linkProgram',
+      'useProgram',
+      'createBuffer', 'bindBuffer', 'bufferData',
+      'getAttribLocation', 'enableVertexAttribArray', 'vertexAttribPointer',
+      'getUniformLocation', 'getUniformLocation',
+      'enable', 'blendFunc',
+      'viewport',
+    ]);
+  });
+
+  it('lunar strategy: full ordered GL call sequence for a representative config', () => {
+    const gl = createRecordingGL({ version: 2 });
+    createShaderHost(canvasWith(gl), {
+      ...BASE, version: 2, strategy: 'lunar', uniforms: ['u_a', 'u_b'],
+    });
+    const names = gl.__log.map(e => e[0]);
+    expect(names).toEqual([
+      'createShader', 'shaderSource', 'compileShader', 'getShaderParameter',
+      'createShader', 'shaderSource', 'compileShader', 'getShaderParameter',
+      'createProgram', 'attachShader', 'attachShader',
+      'linkProgram',
+      'deleteShader', 'deleteShader',
+      'getProgramParameter',
+      'viewport',
+      'createVertexArray', 'bindVertexArray',
+      'createBuffer', 'bindBuffer', 'bufferData',
+      'enableVertexAttribArray', 'vertexAttribPointer',
+      'viewport', 'useProgram',
+      'enable', 'blendFunc',
+      'getUniformLocation', 'getUniformLocation',
+    ]);
   });
 
   it('runs onInit after quad setup and before main-program activation', () => {

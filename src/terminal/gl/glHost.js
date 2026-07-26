@@ -18,13 +18,18 @@ function compile(gl, type, src, { strategy, label }) {
   gl.compileShader(sh);
   const ok = gl.getShaderParameter(sh, gl.COMPILE_STATUS);
   if (!ok) {
-    const log = gl.getShaderInfoLog(sh);
     const kind = type === gl.VERTEX_SHADER ? 'vertex' : 'fragment';
     if (strategy === 'lunar') {
+      // Always fetch the log — the lunar path throws with the driver's
+      // message, so the log is load-bearing regardless of DEV.
+      const log = gl.getShaderInfoLog(sh);
       gl.deleteShader(sh);
       throw new Error(`[${label}] ${kind} shader failed to compile:\n${log}`);
     }
-    if (import.meta.env?.DEV) console.error(`[${label}] shader`, log);
+    // Legacy only warns, and only in DEV — matches the original inline
+    // helper exactly: getShaderInfoLog must not be called in a production
+    // build (that would be a GL call the original never makes).
+    if (import.meta.env?.DEV) console.error(`[${label}] shader`, gl.getShaderInfoLog(sh));
   }
   return sh;
 }
@@ -107,6 +112,11 @@ export function createShaderHost(canvas, {
     gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
   }
 
+  // onInit runs after quad setup and before main-program activation. Under
+  // 'lunar' the host itself restores gl.viewport(...) to the canvas and
+  // calls useProgram(prog) immediately after onInit returns — a render-to-
+  // texture pass inside onInit must NOT include its own trailing viewport
+  // restore, or it will emit a duplicate viewport call here.
   if (onInit) onInit(gl, { prog, vao, buf, canvas });
 
   if (strategy === 'lunar') {
@@ -114,18 +124,36 @@ export function createShaderHost(canvas, {
     gl.useProgram(prog);
   }
 
-  if (blend === 'straight') {
-    gl.enable(gl.BLEND);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-  } else if (blend === 'premultiplied') {
-    gl.enable(gl.BLEND);
-    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+  const harvestUniforms = () => {
+    const U = {};
+    for (const name of uniforms) U[name] = gl.getUniformLocation(prog, name);
+    return U;
+  };
+
+  const applyBlend = () => {
+    if (blend === 'straight') {
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    } else if (blend === 'premultiplied') {
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    }
+  };
+
+  // The relative order of uniform harvesting and blend-state setup is
+  // strategy-dependent — this is not arbitrary, it reproduces each live
+  // component's frozen call order exactly (see glParity snapshot):
+  //   legacy: getUniformLocation × N, then enable(BLEND)/blendFunc, then viewport
+  //   lunar:  enable(BLEND)/blendFunc, then getUniformLocation × N (viewport already restored above)
+  let U;
+  if (strategy === 'legacy') {
+    U = harvestUniforms();
+    applyBlend();
+    gl.viewport(0, 0, canvas.width, canvas.height);
+  } else {
+    applyBlend();
+    U = harvestUniforms();
   }
-
-  const U = {};
-  for (const name of uniforms) U[name] = gl.getUniformLocation(prog, name);
-
-  if (strategy === 'legacy') gl.viewport(0, 0, canvas.width, canvas.height);
 
   return {
     gl,
