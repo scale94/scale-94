@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import { createRecordingGL, installRecordingGL } from './recordingGL';
 import { driveFrames } from './driveFrames';
@@ -13,7 +13,7 @@ describe('recordingGL', () => {
     expect(gl.__log).toEqual([
       ['createProgram'],
       ['getUniformLocation', 'program:0', 'u_time'],
-      ['uniform1f', 'uniform:u_time', 0.5],
+      ['uniform1f', 'uniform:program:0:u_time', 0.5],
     ]);
   });
 
@@ -43,6 +43,28 @@ describe('recordingGL', () => {
     expect(log).toEqual([['createProgram']]);
     restore();
   });
+
+  it('tags uniform locations by owning program, not name alone', () => {
+    const gl = createRecordingGL({ version: 1 });
+    const p0 = gl.createProgram();
+    const p1 = gl.createProgram();
+    const u0 = gl.getUniformLocation(p0, 'u_t');
+    const u1 = gl.getUniformLocation(p1, 'u_t');
+    expect(u0.__tag).not.toBe(u1.__tag);
+    expect(u0.__tag).toBe('uniform:program:0:u_t');
+    expect(u1.__tag).toBe('uniform:program:1:u_t');
+  });
+
+  it('returns a stable, distinct per-name index from getAttribLocation', () => {
+    const gl = createRecordingGL({ version: 1 });
+    const p = gl.createProgram();
+    const a0 = gl.getAttribLocation(p, 'a_pos');
+    const a1 = gl.getAttribLocation(p, 'a_uv');
+    const a0Again = gl.getAttribLocation(p, 'a_pos');
+    expect(a0).toBe(0);
+    expect(a1).toBe(1);
+    expect(a0Again).toBe(0);
+  });
 });
 
 describe('driveFrames', () => {
@@ -58,5 +80,40 @@ describe('driveFrames', () => {
     expect(a.init.length).toBeGreaterThan(10);
     expect(a.frames.length).toBeGreaterThan(10);
     expect(b).toEqual(a);
+  });
+
+  it('still restores getContext and real timers when unmount throws', () => {
+    const originalGetContext = HTMLCanvasElement.prototype.getContext;
+    const mount = () => () => { throw new Error('unmount boom'); };
+
+    expect(() => driveFrames(mount, { version: 1, frames: 1 })).toThrow('unmount boom');
+
+    expect(HTMLCanvasElement.prototype.getContext).toBe(originalGetContext);
+    expect(vi.isFakeTimers()).toBe(false);
+  });
+
+  it('splits the log at the end of synchronous mount, not at the first drawArrays', () => {
+    // Synthetic mount (not a real component): draws once synchronously during
+    // mount (the "first paint"), then schedules further draws via rAF on
+    // subsequent frames. A driver that split at the first drawArrays call
+    // would misfile the mount-time draw into `frames`; the correct driver
+    // (splitting at rec.log.length right after mount() returns) keeps it in
+    // `init`.
+    const mount = () => {
+      const gl = document.createElement('canvas').getContext('webgl');
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); // synchronous first paint, still mount-time
+      const tick = () => {
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); // frame-time draw
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+      return () => {};
+    };
+
+    const { init, frames } = driveFrames(mount, { version: 1, frames: 3 });
+    const drawCount = (log) => log.filter(e => e.startsWith('drawArrays')).length;
+
+    expect(drawCount(init)).toBe(1);
+    expect(drawCount(frames)).toBeGreaterThan(0);
   });
 });

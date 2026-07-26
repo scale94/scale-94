@@ -52,6 +52,7 @@ const V2_ONLY = ['createVertexArray', 'bindVertexArray', 'deleteVertexArray', 't
 export function createRecordingGL({ version = 2 } = {}) {
   const log = [];
   let seq = 0;
+  const attribIndices = new Map();
   const gl = { ...CONSTANTS, __log: log, __version: version };
 
   const tag = (kind) => ({ __tag: `${kind}:${seq++}` });
@@ -77,10 +78,14 @@ export function createRecordingGL({ version = 2 } = {}) {
   gl.createBuffer   = () => { log.push(['createBuffer']); return tag('buffer'); };
   gl.createTexture  = () => { log.push(['createTexture']); return tag('texture'); };
   gl.createFramebuffer = () => { log.push(['createFramebuffer']); return tag('fbo'); };
-  gl.getAttribLocation = (p, n) => { log.push(['getAttribLocation', norm(p), n]); return 0; };
+  gl.getAttribLocation = (p, n) => {
+    log.push(['getAttribLocation', norm(p), n]);
+    if (!attribIndices.has(n)) attribIndices.set(n, attribIndices.size);
+    return attribIndices.get(n);
+  };
   gl.getUniformLocation = (p, n) => {
     log.push(['getUniformLocation', norm(p), n]);
-    return { __tag: `uniform:${n}` };
+    return { __tag: `uniform:${norm(p)}:${n}` };
   };
   gl.getShaderParameter  = (s, p) => { log.push(['getShaderParameter', norm(s), p]); return true; };
   gl.getProgramParameter = (p, k) => { log.push(['getProgramParameter', norm(p), k]); return true; };
