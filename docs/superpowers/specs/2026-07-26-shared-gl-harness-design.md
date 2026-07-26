@@ -160,7 +160,11 @@ Every current divergence survives phase 1 as an option, or it isn't a no-op:
 1. `version` — 1 (eye, terminator) vs 2 (moon)
 2. `contextOptions` — alpha/premultiplied/antialias/depth/stencil/powerPreference
 3. `blend` — `'straight'` vs `'premultiplied'`
-4. `onError` — `'warn'` vs `'throw'`
+4. `strategy` — `'legacy'` vs `'lunar'`. Bundles four differences that always
+   co-occur: build order (`createProgram` before vs. after compilation),
+   whether `deleteShader` is called after attach, whether link status is
+   checked, and whether a compile failure throws or warns. Two whole setup
+   strategies, not four knobs.
 5. `setStyleSize` — moon only
 6. `loseContextOnDispose` — `true` for eye/terminator, `false` for moon
 7. `watchdogMs` — `40` vs `null`
@@ -224,6 +228,23 @@ clock, libration is a pure function of `timestamp`, and no draw path calls
 This catches a swapped blend mode, a reordered `useProgram`, or a dropped
 uniform — none of which a screenshot would reliably reveal.
 
+### Init is reviewed, frames are gated
+
+Amended while writing the implementation plan. The two families do not merely
+use different *values* during setup, they use different *sequences*: the eye
+builds and activates its program, then sets up the quad; the moon builds,
+sizes, sets up the quad, bakes, and only then activates. Reproducing both
+byte-for-byte would mean parameterizing the whole setup order — over-fitting.
+
+So the log is split in two:
+
+- **`frames`** — held to byte-equality. This is where visual regressions live.
+- **`init`** — reviewed as a diff. Every moved call must be confirmed
+  order-independent. A `getUniformLocation` moving relative to a `bindBuffer`
+  is fine; a `viewport` moving before canvas sizing, a missing
+  `getUniformLocation`, a changed `blendFunc`, or a different `shaderSource`
+  hash is a bug. The adjudication is recorded in the migration commit message.
+
 ### What the goldens cannot catch
 
 The log records GL calls only. Anything that governs *whether the next frame
@@ -263,7 +284,8 @@ is a signal the dt path changed, not noise to be papered over with a tolerance.
 
 ## Done means
 
-- Call-log goldens byte-identical for all three components.
+- `frames` call-log snapshots byte-identical for all three components, and
+  every `init` snapshot diff adjudicated in its commit message.
 - The 766 existing tests still green, plus the new parity tests.
 - Author's own look at the eye, the terminator, and the moon on the live site.
 - A phase 2 backlog written as one item per flag.
