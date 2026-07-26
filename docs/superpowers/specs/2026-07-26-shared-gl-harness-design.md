@@ -108,6 +108,17 @@ because the moon's adaptation step consumes it.
 The injectable clock and rAF are what make the parity test deterministic. This
 is a load-bearing design decision, not a convenience.
 
+**Constraint: the loop must schedule the next rAF at the top of the frame,
+before invoking `onFrame`.** The moon schedules at the top; the eye and
+terminator schedule at the bottom, after drawing. This looks cosmetic and is
+not. The moon's idle throttle is an early `return` from the frame body before
+`drawArrays`, so under bottom-scheduling the first throttled frame would fail to
+queue a successor and the animation would stop permanently.
+
+The goldens cannot catch this — they record GL calls, and `requestAnimationFrame`
+is not a GL call. It therefore needs a dedicated test: drive a component past a
+throttled frame and assert the loop is still running.
+
 ### `useShaderCanvas.js` — the React seam
 
 ```js
@@ -123,8 +134,8 @@ useShaderCanvas(canvasRef, {
 ```
 
 Effect body: create host → if `null`, call `onUnsupported()` and bail → `onInit`
-→ draw one frame at `t = 0` → create loop → start unless halted → return
-dispose.
+→ draw one frame at `t = 0` **if `initialDraw`** → create loop → start unless
+halted → return dispose.
 
 `snap()` is returned so each component's existing props-sync effect can trigger
 a reduced-motion repaint, preserving the current `snapRef` pattern.
@@ -158,11 +169,17 @@ Every current divergence survives phase 1 as an option, or it isn't a no-op:
    is not counted separately
 10. `onInit` — moon only (bake pass)
 11. `onUnsupported` — moon only (Canvas2D fallback)
+12. `dtClamp` and first-frame dt — eye/terminator clamp to `0.05` and seed
+    `last = performance.now()` (first dt is small but non-zero); the moon clamps
+    to `0.25` and seeds `lastT = 0` (first dt is exactly `0`)
+13. `initialDraw` — eye and terminator call `render(0)` synchronously before
+    starting the loop; the moon does not, and paints first inside its first rAF
+    frame
 
-**Eleven knobs.** Accepted with eyes open: an over-parameterized harness can be
-worse than duplication. The justification is that each knob is a fact about the
-code that is true today whether or not it is named, and phase 2 exists to delete
-them.
+**Thirteen knobs.** Accepted with eyes open: an over-parameterized harness can
+be worse than duplication. The justification is that each knob is a fact about
+the code that is true today whether or not it is named, and phase 2 exists to
+delete them.
 
 Two candidate flags were **rejected** rather than accepted:
 
@@ -206,6 +223,22 @@ clock, libration is a pure function of `timestamp`, and no draw path calls
 
 This catches a swapped blend mode, a reordered `useProgram`, or a dropped
 uniform — none of which a screenshot would reliably reveal.
+
+### What the goldens cannot catch
+
+The log records GL calls only. Anything that governs *whether the next frame
+happens* is invisible to it: rAF scheduling position, watchdog behavior, the
+`visibilitychange` listener, teardown completeness. Those need their own
+assertions — see the scheduling constraint under `frameLoop.js`, and the
+existing listener-balance tests in
+`src/terminal/lunar/__tests__/LunarShaderMoon.test.jsx`, which should be
+generalized to all three components.
+
+Float determinism is assumed, not proved: it holds only if the harness computes
+`dt` with the same operations in the same order as the code it replaces, which
+is why the `dtClamp` and first-frame-dt divergence is a named flag rather than
+something normalized away. If a golden ever fails on a last-ulp difference, that
+is a signal the dt path changed, not noise to be papered over with a tolerance.
 
 ## Migration order
 
