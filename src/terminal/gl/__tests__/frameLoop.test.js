@@ -2,7 +2,12 @@ import { describe, it, expect, vi } from 'vitest';
 import { createFrameLoop } from '../frameLoop';
 
 function harness(opts = {}) {
-  let t = 1000;
+  // startAt lets a test start the fake clock at exactly 0 — the case that
+  // exposed the seedLast:'now' bug (performance.now() really is 0 at mount
+  // under vi.useFakeTimers()) — without disturbing every other test, which
+  // relies on the default 1000 start.
+  const { startAt = 1000, ...rest } = opts;
+  let t = startAt;
   let nextRafId = 0;
   const queue = [];
   // ids are a monotonic counter, independent of queue length, so tests can
@@ -18,7 +23,7 @@ function harness(opts = {}) {
     now: () => t,
     raf,
     caf,
-    ...opts,
+    ...rest,
   });
   const tick = (ms = 16) => {
     t += ms;
@@ -60,6 +65,21 @@ describe('createFrameLoop', () => {
     h.loop.start();
     h.tick(16);
     expect(h.frames[0].dt).toBeGreaterThan(0);
+  });
+
+  // Regression: under vi.useFakeTimers(), performance.now() is exactly 0 the
+  // first time it's read after mount — the real environment glParity.test.jsx
+  // runs in. `last` used to double as its own "seeded?" flag via truthiness,
+  // so a seedLast:'now' loop seeded with last=0 was indistinguishable from
+  // "not yet seeded" and silently reported dt=0 on its first real tick
+  // instead of ~1 frame, skipping an easing step. `seeded` must be tracked
+  // independently of `last`'s value.
+  it("seedLast 'now' first dt is non-zero even when the clock starts at exactly 0", () => {
+    const h = harness({ seedLast: 'now', startAt: 0 });
+    h.loop.start();
+    h.tick(16);
+    expect(h.frames[0].dt).toBeGreaterThan(0);
+    expect(h.frames[0].dt).toBeCloseTo(0.016, 2);
   });
 
   // The constraint from the spec. The moon's idle throttle early-returns
