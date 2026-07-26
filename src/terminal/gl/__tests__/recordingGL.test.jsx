@@ -1,8 +1,21 @@
 import { describe, it, expect, vi } from 'vitest';
+import { useEffect } from 'react';
 import { render } from '@testing-library/react';
 import { createRecordingGL, installRecordingGL } from './recordingGL';
 import { driveFrames } from './driveFrames';
 import MercuryTerminator from '../../components/MercuryTerminator';
+
+// Synthetic component (not one of the real terminal components) used only to
+// exercise driveFrames' mid-run rerender capability in isolation: a single
+// drawArrays call per commit, tagged with the current `n` prop, so a rerender
+// is trivially visible in the recorded log.
+function Probe({ n }) {
+  useEffect(() => {
+    const gl = document.createElement('canvas').getContext('webgl');
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, n);
+  }, [n]);
+  return null;
+}
 
 describe('recordingGL', () => {
   it('records calls in order with tagged handles', () => {
@@ -115,5 +128,45 @@ describe('driveFrames', () => {
 
     expect(drawCount(init)).toBe(1);
     expect(drawCount(frames)).toBeGreaterThan(0);
+  });
+
+  it('runs a scripted rerender mid-drive and its GL traffic lands in frames', () => {
+    const mount = () => {
+      const { unmount, rerender } = render(<Probe n={1} />);
+      return { unmount, rerender };
+    };
+
+    const { init, frames } = driveFrames(mount, {
+      version: 1,
+      frames: 5,
+      rerenders: [{ at: 2, element: <Probe n={2} /> }],
+    });
+
+    expect(init.some(l => l.startsWith('drawArrays'))).toBe(true);
+    // The mount-time draw (n=1) must stay in init, never in frames.
+    expect(frames).not.toContain('drawArrays(5, 0, 1)');
+    // The rerender's draw (n=2) must appear in frames, not be lost or misfiled.
+    expect(frames).toContain('drawArrays(5, 0, 2)');
+  });
+
+  it('behaves exactly as before when no rerenders are scripted', () => {
+    const mountFn = () => {
+      const { unmount } = render(<Probe n={1} />);
+      return unmount; // old-style contract: bare unmount function, no rerender
+    };
+    const mountObj = () => {
+      const { unmount, rerender } = render(<Probe n={1} />);
+      return { unmount, rerender };
+    };
+
+    const a = driveFrames(mountFn, { version: 1, frames: 4 });
+    const b = driveFrames(mountObj, { version: 1, frames: 4 });
+
+    // No rerenders scripted → the object-form mount must produce byte-identical
+    // output to the plain-function mount (rerender capability present but unused).
+    expect(b).toEqual(a);
+    // And the frame loop never draws again on its own (Probe only draws from
+    // its effect, which only re-fires on a prop change that never happens here).
+    expect(a.frames.filter(l => l.startsWith('drawArrays'))).toEqual([]);
   });
 });
