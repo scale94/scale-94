@@ -3,8 +3,11 @@ import { createFrameLoop } from '../frameLoop';
 
 function harness(opts = {}) {
   let t = 1000;
+  let nextRafId = 0;
   const queue = [];
-  const raf = (cb) => { queue.push(cb); return queue.length; };
+  // ids are a monotonic counter, independent of queue length, so tests can
+  // assert caf() receives the actual id that was pending — not just "some id".
+  const raf = vi.fn((cb) => { queue.push(cb); return ++nextRafId; });
   const caf = vi.fn();
   const frames = [];
   const loop = createFrameLoop({
@@ -22,7 +25,7 @@ function harness(opts = {}) {
     const cb = queue.shift();
     if (cb) cb(t);
   };
-  return { loop, frames, tick, queue, caf, advance: (ms) => { t += ms; } };
+  return { loop, frames, tick, queue, caf, raf, advance: (ms) => { t += ms; } };
 }
 
 describe('createFrameLoop', () => {
@@ -61,11 +64,16 @@ describe('createFrameLoop', () => {
 
   // The constraint from the spec. The moon's idle throttle early-returns
   // before drawing; under bottom-scheduling that would starve the loop.
-  it('schedules the next frame even when onFrame returns early', () => {
-    const h = harness({ onFrame: () => { return; } });
+  // A plain `return;` inside onFrame only exits onFrame's own body — it
+  // doesn't unwind through frame(), so it can't distinguish top- from
+  // bottom-scheduling. Instead observe the queue from inside the callback,
+  // which only sees length 1 if schedule() already ran before onFrame did.
+  it('schedules the next frame before onFrame runs', () => {
+    let queueLenDuringCallback;
+    const h = harness({ onFrame: () => { queueLenDuringCallback = h.queue.length; } });
     h.loop.start();
     h.tick();
-    expect(h.queue).toHaveLength(1);
+    expect(queueLenDuringCallback).toBe(1);
   });
 
   it('schedules the next frame even when onFrame throws', () => {
@@ -133,5 +141,70 @@ describe('createFrameLoop', () => {
     h.loop.stop();
     set.mockRestore();
     vi.useRealTimers();
+  });
+
+  // This is the mechanism that keeps a component rendering when a surface
+  // suppresses rAF while still compositing (embedded preview panes report
+  // `hidden` forever). Prove it by never running the queued rAF callback
+  // ourselves and advancing only real timers.
+  it('watchdog drives the frame when rAF never runs', () => {
+    vi.useFakeTimers();
+    const h = harness({ watchdogMs: 40 });
+    h.loop.start();
+    expect(h.frames).toHaveLength(0);
+    vi.advanceTimersByTime(41);
+    expect(h.frames).toHaveLength(1);
+    h.loop.stop();
+    vi.useRealTimers();
+  });
+
+  it('caf is called with the actual pending rAF id', () => {
+    const h = harness();
+    h.loop.start();
+    h.tick();
+    const pendingId = h.raf.mock.results[h.raf.mock.results.length - 1].value;
+    h.loop.stop();
+    expect(h.caf).toHaveBeenCalledWith(pendingId);
+  });
+
+  it('stop is idempotent (no double cancel, no double listener removal)', () => {
+    const remove = vi.spyOn(document, 'removeEventListener');
+    const h = harness({ trackVisibility: true });
+    h.loop.start();
+    h.tick();
+    h.loop.stop();
+    expect(h.caf).toHaveBeenCalledTimes(1);
+    expect(remove.mock.calls.filter(c => c[0] === 'visibilitychange')).toHaveLength(1);
+
+    h.loop.stop();
+    expect(h.caf).toHaveBeenCalledTimes(1);
+    expect(remove.mock.calls.filter(c => c[0] === 'visibilitychange')).toHaveLength(1);
+
+    remove.mockRestore();
+  });
+
+  it('visibilitychange reaches onFrame and reseeds last on becoming visible', () => {
+    const h = harness({ trackVisibility: true, seedLast: 'now', dtClamp: 100 });
+    try {
+      h.loop.start();
+      h.tick(16);
+      expect(h.frames[0].hidden).toBe(false);
+
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+      document.dispatchEvent(new Event('visibilitychange'));
+      h.tick(5000); // simulate 5s elapsed while hidden
+      expect(h.frames[h.frames.length - 1].hidden).toBe(true);
+
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+      document.dispatchEvent(new Event('visibilitychange'));
+      h.tick(16);
+      // If `last` had not been reseeded on becoming visible, dt here would
+      // reflect the ~5s spent hidden instead of just this 16ms tick.
+      expect(h.frames[h.frames.length - 1].hidden).toBe(false);
+      expect(h.frames[h.frames.length - 1].dt).toBeCloseTo(0.016, 2);
+    } finally {
+      h.loop.stop();
+      delete document.hidden;
+    }
   });
 });

@@ -23,6 +23,10 @@ export function createFrameLoop({
   let rafId = 0;
   let wdId = 0;
   let running = false;
+  // 0 is overloaded here: it means "not yet seeded" (falsy, take the dt=0
+  // branch below) as well as a literal zero timestamp. performance.now()
+  // returning exactly 0 is not realistically possible, so the conflation
+  // is not a live bug, but the intent is: falsy last === unseeded.
   let last = 0;
   let hidden = typeof document !== 'undefined' ? document.hidden : false;
 
