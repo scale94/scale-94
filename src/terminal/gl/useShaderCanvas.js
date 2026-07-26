@@ -4,7 +4,7 @@
 // paint one synchronous frame, start the loop, tear everything down. Owns no
 // GL state and no per-frame maths — the component supplies `draw`.
 
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { createShaderHost } from './glHost';
 import { createFrameLoop } from './frameLoop';
 
@@ -57,12 +57,27 @@ export function useShaderCanvas(canvasRef, {
     snapRef.current = reducedMotion && onSnap ? () => onSnap(host) : null;
 
     return () => {
+      // Order matters: the loop must be stopped before the host is disposed,
+      // so a frame that is already scheduled (or firing) can never draw into
+      // a program/context that dispose() has just torn down. Today's flow is
+      // synchronous end-to-end so nothing actually yields between these two
+      // statements, but that is an implementation detail, not a contract —
+      // keep the order even though no current effect can race it.
       loop.stop();
       snapRef.current = null;
       host.dispose();
     };
+    // deps controls the whole rebuild: `draw`, `onSnap`, `onUnsupported` and
+    // every hostOption are captured by this closure only at the point deps
+    // changes, not on every render. A caller that needs to react to some
+    // other prop on every render must bridge it through a ref and read the
+    // ref inside `draw` — which is exactly what the migrated components do
+    // via their own props-sync effect. Do not silence this by adding those
+    // values to the deps array; that would rebuild (and briefly blank) the
+    // GL host on every render instead of only when `deps` says to.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 
-  return { snap: () => snapRef.current?.() };
+  const snap = useCallback(() => snapRef.current?.(), []);
+  return { snap };
 }

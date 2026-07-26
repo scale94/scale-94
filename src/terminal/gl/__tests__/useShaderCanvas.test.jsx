@@ -4,6 +4,48 @@ import { render, cleanup } from '@testing-library/react';
 import { installRecordingGL } from './recordingGL';
 import { useShaderCanvas } from '../useShaderCanvas';
 
+// Order-recording spies for the teardown-ordering test below. These wrap the
+// real createShaderHost/createFrameLoop (delegating to the actual
+// implementation) and just append to `callOrder` whenever `dispose`/`stop`
+// run, so every test in this file is unaffected functionally — only the one
+// test that reads `callOrder` cares that the entries exist.
+const { callOrder } = vi.hoisted(() => ({ callOrder: [] }));
+
+vi.mock('../glHost', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    createShaderHost: (...args) => {
+      const host = actual.createShaderHost(...args);
+      if (!host) return host;
+      return {
+        ...host,
+        dispose: (...a) => {
+          callOrder.push('dispose');
+          return host.dispose(...a);
+        },
+      };
+    },
+  };
+});
+
+vi.mock('../frameLoop', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    createFrameLoop: (...args) => {
+      const loop = actual.createFrameLoop(...args);
+      return {
+        ...loop,
+        stop: (...a) => {
+          callOrder.push('stop');
+          return loop.stop(...a);
+        },
+      };
+    },
+  };
+});
+
 afterEach(cleanup);
 
 function Probe({ onReady, ...opts }) {
@@ -87,6 +129,42 @@ describe('useShaderCanvas', () => {
     expect(onSnap).toHaveBeenCalledOnce();
 
     window.matchMedia.mockRestore();
+    rec.restore();
+  });
+
+  it('stops the loop before disposing the host on unmount (teardown order)', () => {
+    // Falsifiable: swapping the two lines in the cleanup (dispose before
+    // stop) makes this test fail while every other test in this file still
+    // passes — that gap is exactly why this test exists.
+    const rec = installRecordingGL({ version: 1 });
+    const { unmount } = render(<Probe />);
+    callOrder.length = 0; // drop mount-time noise; only the unmount order matters here
+    unmount();
+    expect(callOrder).toEqual(['stop', 'dispose']);
+    rec.restore();
+  });
+
+  it('rebuilds the host when deps change', () => {
+    const rec = installRecordingGL({ version: 1 });
+    const draw = vi.fn();
+    const { rerender } = render(<Probe draw={draw} deps={[1]} />);
+    const programsAfterMount = rec.log.filter((e) => e[0] === 'createProgram').length;
+    expect(programsAfterMount).toBe(1);
+    expect(rec.log.map((e) => e[0])).not.toContain('deleteProgram');
+
+    rerender(<Probe draw={draw} deps={[2]} />);
+
+    // The old host must be torn down and a distinct new one built — not
+    // reused — when deps changes.
+    expect(rec.log.filter((e) => e[0] === 'deleteProgram').length).toBe(1);
+    expect(rec.log.filter((e) => e[0] === 'createProgram').length).toBe(2);
+
+    rerender(<Probe draw={draw} deps={[2]} />);
+
+    // Re-rendering with the SAME deps value must not rebuild.
+    expect(rec.log.filter((e) => e[0] === 'deleteProgram').length).toBe(1);
+    expect(rec.log.filter((e) => e[0] === 'createProgram').length).toBe(2);
+
     rec.restore();
   });
 });
