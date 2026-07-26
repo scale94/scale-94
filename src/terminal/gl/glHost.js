@@ -112,11 +112,17 @@ export function createShaderHost(canvas, {
     gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
   }
 
-  // onInit runs after quad setup and before main-program activation. Under
-  // 'lunar' the host itself restores gl.viewport(...) to the canvas and
-  // calls useProgram(prog) immediately after onInit returns — a render-to-
-  // texture pass inside onInit must NOT include its own trailing viewport
-  // restore, or it will emit a duplicate viewport call here.
+  // onInit runs after quad setup, and its position relative to useProgram
+  // differs by strategy:
+  //   'lunar'  — the main program is NOT yet active. The host restores
+  //              gl.viewport(...) to the canvas and calls useProgram(prog)
+  //              immediately after onInit returns, so a render-to-texture
+  //              pass inside onInit must NOT include its own trailing
+  //              viewport restore or it emits a duplicate viewport call.
+  //   'legacy' — useProgram(prog) already ran during quad setup above, so
+  //              the main program IS active and no viewport follows. Legacy
+  //              callers use onInit for non-GL work (resetting easing state
+  //              so it rebuilds on the same schedule as the host).
   if (onInit) onInit(gl, { prog, vao, buf, canvas });
 
   if (strategy === 'lunar') {
