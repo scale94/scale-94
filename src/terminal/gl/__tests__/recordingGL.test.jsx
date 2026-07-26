@@ -130,6 +130,27 @@ describe('driveFrames', () => {
     expect(drawCount(frames)).toBeGreaterThan(0);
   });
 
+  it('produces a byte-identical log across two runs when a rerender is scripted', () => {
+    const mount = () => {
+      const { unmount, rerender } = render(<Probe n={1} />);
+      return { unmount, rerender };
+    };
+    const opts = {
+      version: 1,
+      frames: 5, // `at` below must be strictly less than this
+      rerenders: [{ at: 2, element: <Probe n={2} /> }],
+    };
+
+    const a = driveFrames(mount, opts);
+    const b = driveFrames(mount, opts);
+
+    // Falsifiability check: the scripted rerender must actually produce GL
+    // traffic that shows up in `frames` — otherwise byte-identical output
+    // would be a trivial (uninformative) pass.
+    expect(a.frames).toContain('drawArrays(5, 0, 2)');
+    expect(b).toEqual(a);
+  });
+
   it('runs a scripted rerender mid-drive and its GL traffic lands in frames', () => {
     const mount = () => {
       const { unmount, rerender } = render(<Probe n={1} />);
