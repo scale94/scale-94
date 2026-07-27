@@ -17,6 +17,7 @@
 // the timer to ~1fps, which is the battery pause. Under prefers-reduced-motion
 // the swirl freezes but state changes still snap to their locked colour.
 import { useEffect, useRef } from 'react';
+import { useShaderCanvas } from '../gl/useShaderCanvas';
 
 const STATES = {
   resting:   { irid: 1, cols: [[210,220,232],[150,170,185],[120,200,220]], speed: 0.05, focus: 0.00, gaze: [0, 0] },
@@ -83,123 +84,104 @@ export default function ObserverEye({ state = 'resting', size = 28, tint = null,
   const gazeRef   = useRef(gaze);
   const pulseRef  = useRef(pulse);
   const constrictRef = useRef(constrict);
-  const snapRef   = useRef(null); // reduced-motion: repaint one frame locked to the new state
-  useEffect(() => {
-    stateRef.current = state; tintRef.current = tint; gazeRef.current = gaze; pulseRef.current = pulse;
-    constrictRef.current = constrict;
-    snapRef.current?.();
-  }, [state, tint, gaze, pulse, constrict]);
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const DPR = Math.min(2, window.devicePixelRatio || 1);
-    canvas.width = Math.round(size * DPR);
-    canvas.height = Math.round(size * DPR);
-    const gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: false, antialias: true });
-    if (!gl) return;
+  const curRef = useRef(null);
+  const { snap } = useShaderCanvas(canvasRef, {
+    version: 1,
+    contextOptions: { alpha: true, premultipliedAlpha: false, antialias: true },
+    strategy: 'legacy',
+    blend: 'straight',
+    vs: VS,
+    fs: FS,
+    uniforms: ['u_t', 'u_focus', 'u_irid', 'u_speed', 'u_pulse', 'c0', 'c1', 'c2', 'u_gaze'],
+    pixelSize: size,
+    label: 'ObserverEye',
+    dtClamp: 0.05,
+    seedLast: 'now',
+    watchdogMs: 40,
+    haltOnReducedMotion: true,
+    initialDraw: true,
+    deps: [size],
 
-    function sh(type, src) {
-      const s = gl.createShader(type);
-      gl.shaderSource(s, src); gl.compileShader(s);
-      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS) && import.meta.env?.DEV) {
-        console.error('[ObserverEye] shader', gl.getShaderInfoLog(s));
+    // Today's effect recreates `cur` every time it re-runs. onInit fires on the
+    // same schedule, so the easing state and the GL host are rebuilt together.
+    onInit() {
+      const start = STATES[stateRef.current] || STATES.resting;
+      curRef.current = {
+        cols: start.cols.map(c => c.slice()),
+        speed: start.speed, focus: start.focus, irid: start.irid,
+        gaze: start.gaze.slice(), pulse: 0,
+      };
+    },
+
+    draw(host, { dt, tsec }) {
+      const cur = curRef.current;
+      if (dt > 0) {
+        const lerp = (a, b, t) => a + (b - a) * t;
+        const { tgt, tCols, tGaze } = targets();
+        const e = 1 - Math.pow(0.004, dt);
+        for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
+          cur.cols[i][j] = lerp(cur.cols[i][j], tCols[i][j], e);
+        }
+        cur.speed = lerp(cur.speed, tgt.speed, e);
+        const focusTarget = constrictRef.current != null
+          ? Math.max(tgt.focus, constrictRef.current) : tgt.focus;
+        cur.focus = lerp(cur.focus, focusTarget, e);
+        cur.irid = lerp(cur.irid, tgt.irid, e);
+        cur.pulse = lerp(cur.pulse, pulseRef.current ? 1 : 0, e);
+        cur.gaze[0] = lerp(cur.gaze[0], tGaze[0], e);
+        cur.gaze[1] = lerp(cur.gaze[1], tGaze[1], e);
       }
-      return s;
-    }
-    const prog = gl.createProgram();
-    gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS));
-    gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS));
-    gl.linkProgram(prog);
-    gl.useProgram(prog);
-    const buf = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
-    const al = gl.getAttribLocation(prog, 'a');
-    gl.enableVertexAttribArray(al);
-    gl.vertexAttribPointer(al, 2, gl.FLOAT, false, 0, 0);
-    const U = {};
-    ['u_t','u_focus','u_irid','u_speed','u_pulse','c0','c1','c2','u_gaze'].forEach(n => { U[n] = gl.getUniformLocation(prog, n); });
-    gl.enable(gl.BLEND);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-    gl.viewport(0, 0, canvas.width, canvas.height);
+      paint(host, cur, tsec);
+    },
 
-    const nrm = c => new Float32Array([c[0]/255, c[1]/255, c[2]/255]);
-    const lerp = (a,b,t) => a + (b-a)*t;
-    const start = STATES[stateRef.current] || STATES.resting;
-    const cur = { cols: start.cols.map(c => c.slice()), speed: start.speed, focus: start.focus, irid: start.irid, gaze: start.gaze.slice(), pulse: 0 };
-
-    function render(tsec) {
-      gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT);
-      gl.uniform1f(U.u_t, tsec); gl.uniform1f(U.u_focus, cur.focus);
-      gl.uniform1f(U.u_irid, cur.irid); gl.uniform1f(U.u_speed, cur.speed);
-      gl.uniform1f(U.u_pulse, cur.pulse);
-      gl.uniform3fv(U.c0, nrm(cur.cols[0])); gl.uniform3fv(U.c1, nrm(cur.cols[1])); gl.uniform3fv(U.c2, nrm(cur.cols[2]));
-      gl.uniform2fv(U.u_gaze, new Float32Array(cur.gaze));
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-    }
-
-    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    let raf = 0, wd = 0, running = false, last = performance.now();
-
-    function targets() {
-      const tgt = STATES[stateRef.current] || STATES.resting;
-      const tCols = (stateRef.current === 'leaning' && tintRef.current) ? deriveCols(tintRef.current) : tgt.cols;
-      const tGaze = gazeRef.current || tgt.gaze;
-      return { tgt, tCols, tGaze };
-    }
-
-    function frame(now) {
-      clearTimeout(wd);
-      if (!running) return;
-      const { tgt, tCols, tGaze } = targets();
-      const dt = Math.min(0.05, (now - last) / 1000); last = now;
-      const e = 1 - Math.pow(0.004, dt);
-      for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) cur.cols[i][j] = lerp(cur.cols[i][j], tCols[i][j], e);
-      cur.speed = lerp(cur.speed, tgt.speed, e);
-      const focusTarget = constrictRef.current != null ? Math.max(tgt.focus, constrictRef.current) : tgt.focus;
-      cur.focus = lerp(cur.focus, focusTarget, e);
-      cur.irid  = lerp(cur.irid,  tgt.irid,  e);
-      cur.pulse = lerp(cur.pulse, pulseRef.current ? 1 : 0, e);
-      cur.gaze[0] = lerp(cur.gaze[0], tGaze[0], e);
-      cur.gaze[1] = lerp(cur.gaze[1], tGaze[1], e);
-      render(now / 1000);
-      schedule();
-    }
-
-    // rAF drives when the tab is composited + visible; the 40ms watchdog takes
-    // over (~25fps) where rAF is suppressed, and browser timer throttling drops
-    // it to ~1fps when the tab is genuinely hidden.
-    function schedule() {
-      raf = requestAnimationFrame(frame);
-      wd = setTimeout(() => { cancelAnimationFrame(raf); frame(performance.now()); }, 40);
-    }
-    function play() { if (running || reduce) return; running = true; last = performance.now(); schedule(); }
-    function stop() { running = false; cancelAnimationFrame(raf); clearTimeout(wd); }
-
-    render(0);                         // paint one frame immediately (also the reduced-motion frame)
-    if (!reduce) play();
-
-    // Reduced motion: no swirl, but a state change still locks in its colour.
-    snapRef.current = () => {
-      if (!reduce) return;
+    onSnap(host) {
+      // Reduced motion: no swirl, but a state change still locks in its colour.
+      const cur = curRef.current;
+      if (!cur) return;
       const { tgt, tCols, tGaze } = targets();
       cur.cols = tCols.map(c => c.slice());
       cur.speed = tgt.speed;
-      cur.focus = constrictRef.current != null ? Math.max(tgt.focus, constrictRef.current) : tgt.focus;
+      cur.focus = constrictRef.current != null
+        ? Math.max(tgt.focus, constrictRef.current) : tgt.focus;
       cur.irid = tgt.irid;
       cur.pulse = pulseRef.current ? 1 : 0;
       cur.gaze = tGaze.slice();
-      render(0);
-    };
+      paint(host, cur, 0);
+    },
+  });
 
-    return () => {
-      stop();
-      snapRef.current = null;
-      const lose = gl.getExtension('WEBGL_lose_context');
-      if (lose) lose.loseContext();
-    };
-  }, [size]);
+  function targets() {
+    const tgt = STATES[stateRef.current] || STATES.resting;
+    const tCols = (stateRef.current === 'leaning' && tintRef.current) ? deriveCols(tintRef.current) : tgt.cols;
+    const tGaze = gazeRef.current || tgt.gaze;
+    return { tgt, tCols, tGaze };
+  }
+
+  // Single controller of the GL push, shared by the frame loop and the
+  // reduced-motion snap — both must emit exactly the same call sequence.
+  function paint(host, cur, tsec) {
+    const { gl, U } = host;
+    const nrm = c => new Float32Array([c[0] / 255, c[1] / 255, c[2] / 255]);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.uniform1f(U.u_t, tsec);
+    gl.uniform1f(U.u_focus, cur.focus);
+    gl.uniform1f(U.u_irid, cur.irid);
+    gl.uniform1f(U.u_speed, cur.speed);
+    gl.uniform1f(U.u_pulse, cur.pulse);
+    gl.uniform3fv(U.c0, nrm(cur.cols[0]));
+    gl.uniform3fv(U.c1, nrm(cur.cols[1]));
+    gl.uniform3fv(U.c2, nrm(cur.cols[2]));
+    gl.uniform2fv(U.u_gaze, new Float32Array(cur.gaze));
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+
+  useEffect(() => {
+    stateRef.current = state; tintRef.current = tint; gazeRef.current = gaze; pulseRef.current = pulse;
+    constrictRef.current = constrict;
+    snap();
+  }, [state, tint, gaze, pulse, constrict]);
 
   return (
     <div
