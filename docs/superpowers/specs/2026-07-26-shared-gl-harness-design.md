@@ -1,7 +1,13 @@
 # Shared GL Harness — Design
 
 Date: 2026-07-26
-Status: approved, phase 1 not started
+Status: phase 1 complete (branch `feature/gl-harness`, 839 tests / 91 files
+green, all three components migrated, all six frozen `glParity.test.jsx`
+snapshots byte-identical, not yet merged/pushed — see `.superpowers/sdd/
+progress.md` for the task-by-task ledger). Phase 2 planned in
+`docs/superpowers/specs/2026-07-26-shared-gl-harness-phase2-backlog.md`. The
+API sketched below in "Architecture" predates implementation and differs
+from the shipped modules in three places — corrected inline where it does.
 
 ## Problem
 
@@ -69,12 +75,16 @@ createShaderHost(canvas, {
   setStyleSize,            // also write canvas.style.width/height
   blend,                   // 'straight' | 'premultiplied' | null
   loseContextOnDispose,    // bool
-  onError,                 // 'throw' | 'warn'
-}) → { gl, prog, U, draw(), dispose() } | null
+  strategy,                // 'legacy' | 'lunar' — see below (shipped in place of the
+                            // 'onError' sketch this section originally had)
+}) → { gl, prog, U, vao, buf, dispose() } | null
 ```
 
 Owns: context creation, compile + link, the fullscreen quad, uniform location
-harvesting, DPR sizing, blend setup, teardown.
+harvesting, DPR sizing, blend setup, teardown. There is no `draw()` method on
+the returned host — the caller (`useShaderCanvas.js`) owns per-frame drawing
+entirely; the host only exposes `gl`/`prog`/`U`/`vao`/`buf` for the caller's
+own draw calls plus `dispose()`.
 
 Returns `null` when no context is available; the caller decides the fallback.
 
@@ -82,20 +92,32 @@ WebGL1 takes the `attribute vec2 a` + `getAttribLocation` path. WebGL2 takes the
 VAO + `layout(location = 0)` path. Both end in the same 4-vertex
 `TRIANGLE_STRIP`.
 
-`onError: 'throw'` surfaces the driver info log as a thrown `Error` (current
-lunar behavior — a silently-null program renders black, which is
-indistinguishable from the rAF trap). `onError: 'warn'` logs in DEV and returns
-anyway (current eye/terminator behavior). Link status is checked under both;
-under `'warn'` a link failure logs rather than throws.
+As shipped, this is `strategy: 'legacy' | 'lunar'`, not the `onError: 'throw' |
+'warn'` sketched above — one flag bundles four differences that always
+co-occur (see "The flags" #4 below), not just the throw-vs-warn choice.
+`strategy: 'lunar'` surfaces the driver info log as a thrown `Error` on either
+a compile or link failure (current lunar behavior — a silently-null program
+renders black, which is indistinguishable from the rAF trap), checks link
+status, and calls `deleteShader` after attach. `strategy: 'legacy'` only warns
+(via `console.error`, and only in DEV) on a compile failure, never checks link
+status, and never deletes the shader objects after attach (current
+eye/terminator behavior).
 
 ### `frameLoop.js` — pure, no React
 
 ```js
 createFrameLoop({
   onFrame,                 // (now, dt, { hidden }) => void
+  dtClamp,                 // number — clamps a stalled frame's dt (seconds)
+  seedLast,                // 'now' | 'zero' — first-frame dt policy
   watchdogMs,              // number | null
   trackVisibility,         // bool — adds a visibilitychange listener
-  reducedMotion,           // 'halt' | 'freeze' | 'ignore'
+  haltOnReducedMotion,     // bool — as shipped, not the sketched
+                            // 'halt' | 'freeze' | 'ignore' enum: if true and
+                            // reducedMotion is true, start() never schedules
+                            // a frame at all
+  reducedMotion,           // bool — computed by the caller (useShaderCanvas,
+                            // from matchMedia) and passed in, not owned here
   now,                     // injectable clock (defaults to performance.now)
   raf, caf,                // injectable (default to window)
 }) → { start(), stop(), isRunning() }
@@ -123,10 +145,17 @@ throttled frame and assert the loop is still running.
 
 ```js
 useShaderCanvas(canvasRef, {
-  ...hostOptions,
+  ...hostOptions,          // passed straight through to createShaderHost:
+                            // version, contextOptions, vs, fs, uniforms,
+                            // pixelSize, setStyleSize, blend,
+                            // loseContextOnDispose, strategy, label
   onInit,                  // (host) => void — the moon's bake pass
-  draw,                    // (host, { now, dt, tsec, hidden }) => void
-  reducedMotion,           // 'halt' | 'freeze'
+  draw,                    // (host, { now, dt, tsec, hidden, reducedMotion }) => void
+  initialDraw,             // bool — paint synchronously at t=0 before the loop starts
+  dtClamp, seedLast, watchdogMs, trackVisibility, haltOnReducedMotion,
+                            // forwarded straight through to createFrameLoop —
+                            // as shipped, not the sketched single
+                            // 'halt' | 'freeze' reducedMotion enum
   onSnap,                  // (host) => void — reduced-motion repaint
   onUnsupported,           // () => void — the moon's setSupported(false)
   deps,                    // effect deps (all three currently key on size)
@@ -169,8 +198,9 @@ Every current divergence survives phase 1 as an option, or it isn't a no-op:
 6. `loseContextOnDispose` — `true` for eye/terminator, `false` for moon
 7. `watchdogMs` — `40` vs `null`
 8. `trackVisibility` — moon only
-9. `reducedMotion` — `'halt'` vs `'freeze'`; `onSnap` is implied by `'halt'` and
-   is not counted separately
+9. `haltOnReducedMotion` — `true` (eye, terminator) vs `false` (moon), shipped
+   as a boolean rather than the `'halt'` | `'freeze'` enum this doc originally
+   sketched; `onSnap` is implied by `true` and is not counted separately
 10. `onInit` — moon only (bake pass)
 11. `onUnsupported` — moon only (Canvas2D fallback)
 12. `dtClamp` and first-frame dt — eye/terminator clamp to `0.05` and seed

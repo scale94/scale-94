@@ -211,6 +211,37 @@ state doesn't go stale.
 `convergence.test.jsx` (`L.haltOnReducedMotion` changes from `false` to
 `true`, and `L.onSnap` changes from absent to a function).
 
+**Already measured and locked (final review's fix wave, before phase 2
+starts):** the harness migration changed ObserverEye's mount-time behavior
+under reduced motion, invisible to `glParity.test.jsx` and worth recording
+here so phase 2 doesn't re-discover or re-litigate it. Pre-migration, both
+`ObserverEye` and `MercuryTerminator` declared their props-sync `useEffect`
+*before* the GL effect; React fires effects in declaration order on mount, so
+the snap-repaint ref was still unset when props-sync ran — the mount snap was
+a guaranteed no-op. The migration (and a later backport to Mercury) moved
+`useShaderCanvas(...)` above the props-sync effect, so the hook populates the
+ref first and props-sync's `snap()` now actually fires. Measured with
+`matchMedia` forced to `{ matches: true }`:
+- old `ObserverEye`: **1** draw at mount, `c0` = `[56,189,248]/255` (raw
+  `STATES.leaning`)
+- new `ObserverEye`: **2** draws at mount, `c0` = `[56,189,248]/255` then
+  `[255,90,30]/255` (`deriveCols(tint)`)
+- `MercuryTerminator`: 1 → 2 draws, but `u_tw` identical both times — wasted
+  work only, no visual change
+
+This is a **correct** behavior change, kept deliberately: under reduced
+motion the loop never starts, so the mount frame is the image permanently
+until a prop changes, and the new behavior shows the suggested tab's hue
+instead of generic leaning-cyan (real consumers:
+`src/terminal/mercury/ElementSeal.jsx:34`,
+`src/terminal/components/MercuryEyeIndicator.jsx:273`). The same divergence
+applies to `gaze`, `constrict` and `pulse`, not just `tint`. Locked by
+`src/terminal/gl/__tests__/observerEyeReducedMotionMount.test.jsx`, which
+asserts both the draw count (2) and that the final `c0` is the tinted value,
+not merely that a second draw happened. Mercury's analogous draw-count-only
+change (wasted work, no visual delta) is not separately test-locked — a
+lower-priority follow-up if item 4's terminator work touches this path.
+
 ---
 
 ## 5. `dtClamp` / `seedLast` — pick one dt policy
@@ -552,10 +583,17 @@ Land in roughly this order, each as its own commit/PR:
 6. Item 6 (`initialDraw`) and item 5 (`dtClamp`/`seedLast`) — both need
    the author's judgment call more than a right answer; batch them since
    both are "pure drift" per the design doc.
-7. Item 4 (`reducedMotion` policy) — needs new `matchMedia`-stubbed test
-   coverage that doesn't exist yet in this codebase; do this once the
-   easing extraction (item 11) has landed so the new reduced-motion tests
-   can target the pure easing modules directly instead of the components.
+7. Item 4 (`reducedMotion` policy) — `matchMedia`-stubbed test coverage
+   already exists (`useShaderCanvas.test.jsx:119-120`'s generic `snap()
+   invokes onSnap only under reduced motion` test, plus
+   `src/terminal/gl/__tests__/observerEyeReducedMotionMount.test.jsx`, added
+   in the final review's fix wave, which locks the eye's specific mount-time
+   repaint — see item 4's own section below for the measured numbers) but
+   the moon has none of it, and nothing yet locks the retrograde-token-
+   orphan defect this item names for the terminator. Do the moon- and
+   terminator-specific coverage once the easing extraction (item 11) has
+   landed so the new reduced-motion tests can target the pure easing
+   modules directly instead of the components.
 8. Item 1 (`strategy`) — do after everything above; converging error
    surfacing is the highest-value item but also the one most likely to
    surface a latent bug in either shader, and every other item should be
