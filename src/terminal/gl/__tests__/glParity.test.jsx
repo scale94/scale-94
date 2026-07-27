@@ -190,3 +190,66 @@ for (const c of CASES) {
     });
   });
 }
+
+// ── Non-snapshot regression: the moon's idle throttle must not stall the
+// loop ───────────────────────────────────────────────────────────────────
+//
+// The LunarShaderMoon case above (60 frames, see its CASES entry and the
+// "Known gaps" note at the top of this file) never drives far enough for its
+// 30fps `isAtRest` idle throttle to engage, so the frozen snapshot is not
+// evidence this path works. That gap matters specifically because of
+// frameLoop.js's own documented hard constraint: the next rAF is scheduled
+// at the TOP of frame(), before onFrame runs, precisely so a component that
+// early-returns before drawing (this throttle) still gets a successor frame
+// queued. A GL call-log snapshot cannot see a violation of that constraint —
+// rAF is not a GL call — so this test drives real elapsed time past the
+// throttle's onset and asserts draws keep arriving afterward, i.e. the loop
+// is still alive.
+describe('GL parity — LunarShaderMoon idle-throttle liveness', () => {
+  // illumination=1 minimizes darkAdaptation's ceiling (adaptCeiling = 1 -
+  // 0.85*illum = 0.15), which minimizes the simulated time stepAdapt needs
+  // to converge within REST_EPSILON (tau=5s) -- this just reaches rest in
+  // the fewest driven frames, not the only illumination that would.
+  const element = (
+    <LunarShaderMoon
+      lunarAge={7.4}
+      illumination={1}
+      timestamp={Date.UTC(2026, 6, 22)}
+      size={340}
+    />
+  );
+
+  const countDraws = (frames) => frames.filter((l) => l.startsWith('drawArrays(')).length;
+
+  const run = (frames) =>
+    driveFrames(() => {
+      const { unmount, rerender } = render(element);
+      return { unmount, rerender };
+    }, { version: 2, frames });
+
+  it('throttle actually engages well before 1400 driven frames', () => {
+    // Every unthrottled frame draws exactly once (that's what the 60-frame
+    // case above measures). Driven 1400 frames at ~16ms/frame is ~22s of
+    // simulated time -- enough for `adapt` to settle within REST_EPSILON of
+    // the ceiling and the 30fps throttle to start skipping draws. If it
+    // never engaged, draws would equal frames exactly; measured today it
+    // does not (~1366 draws), proving the throttle actually fires and this
+    // test isn't exercising a path that never triggers.
+    const draws = countDraws(run(1400).frames);
+    expect(draws).toBeLessThan(1400);
+  });
+
+  it('keeps producing draws long after the throttle has engaged', () => {
+    // Two independent mounts driven to different lengths, both already past
+    // the point the previous test proved the throttle has started skipping.
+    // A loop that dies the first time the throttle fires (e.g. because the
+    // next frame stopped being scheduled before the throttle's early return
+    // ran) would produce the SAME draw count for both -- no amount of
+    // further simulated time could add another draw once the successor rAF
+    // was never queued. A live loop keeps adding draws as more time passes,
+    // just at ~30fps instead of every frame.
+    const shorter = countDraws(run(1400).frames);
+    const longer = countDraws(run(1800).frames);
+    expect(longer).toBeGreaterThan(shorter);
+  });
+});
