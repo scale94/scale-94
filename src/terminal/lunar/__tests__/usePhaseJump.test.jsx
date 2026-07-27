@@ -37,6 +37,28 @@ function Harness({ hookRef, onSet, startAge }) {
   return null;
 }
 
+// Harness that models React's REAL timing: setScrubAge does not write the ref.
+// In LunarTab the ref is assigned during the next render (`currentAgeRef.current
+// = currentAge`), so between a setScrubAge call and React committing it, the ref
+// still holds the previous value. `commit()` stands in for that render.
+//
+// The synchronous Harness above claims in its comment to match LunarTab; it does
+// not, and that is precisely the gap the mid-tween-click bug lived in.
+function DeferredHarness({ hookRef, onSet, startAge }) {
+  const currentAgeRef = useRef(startAge);
+  const pendingRef = useRef(null);
+  const setScrubAge = React.useCallback((v) => {
+    pendingRef.current = v;      // queued, NOT yet visible on currentAgeRef
+    onSet(v);
+  }, [onSet]);
+  hookRef.current = usePhaseJump({ setScrubAge, currentAgeRef });
+  hookRef.ageRef = currentAgeRef;
+  hookRef.commit = () => {
+    if (pendingRef.current !== null) currentAgeRef.current = pendingRef.current;
+  };
+  return null;
+}
+
 beforeEach(() => {
   rafMap = new Map();
   rafId = 0;
@@ -123,6 +145,41 @@ describe('usePhaseJump — retarget, external cancel, cleanup', () => {
     act(() => { hookRef.ageRef.current = 25; });
     act(() => { flush(200); flush(200); flush(200); });
     // The tween saw the divergence and stopped touching scrubAge:
+    expect(onSet.mock.calls.length).toBe(callsBeforeDrag);
+  });
+
+  // Regression: clicking a second phase while the first jump is still animating
+  // was silently swallowed, so the moon needed a second click. Cause: the click
+  // seeded lastSetRef from currentAgeRef, but the in-flight tween's most recent
+  // setScrubAge had not been committed yet — so one frame later React applied it,
+  // the self-cancel guard saw a mismatch, and aborted the new tween, mistaking
+  // the hook's own pending write for a manual drag.
+  it('does not swallow a click made before React commits the in-flight write', () => {
+    const onSet = vi.fn();
+    const hookRef = { current: null };
+    render(<DeferredHarness hookRef={hookRef} onSet={onSet} startAge={0} />);
+
+    act(() => { hookRef.current('full'); });          // heading to ~14.765
+    act(() => { flush(0); hookRef.commit(); });        // frame 1, committed
+    act(() => { flush(200); });                        // frame 2 writes — NOT committed
+
+    act(() => { hookRef.current('new'); });            // click lands in that window
+    act(() => { hookRef.commit(); });                  // React now applies frame 2's write
+    act(() => { flush(0); flush(400); hookRef.commit(); flush(400); hookRef.commit(); });
+
+    expect(onSet.mock.calls.at(-1)[0]).toBeCloseTo(repAgeForPhase('new'), 6);
+  });
+
+  it('still aborts on a genuine external write under deferred commits', () => {
+    const onSet = vi.fn();
+    const hookRef = { current: null };
+    render(<DeferredHarness hookRef={hookRef} onSet={onSet} startAge={0} />);
+
+    act(() => { hookRef.current('full'); });
+    act(() => { flush(0); hookRef.commit(); flush(200); hookRef.commit(); });
+    const callsBeforeDrag = onSet.mock.calls.length;
+    act(() => { hookRef.ageRef.current = 25; });        // a drag writes directly
+    act(() => { flush(200); flush(200); flush(200); });
     expect(onSet.mock.calls.length).toBe(callsBeforeDrag);
   });
 
