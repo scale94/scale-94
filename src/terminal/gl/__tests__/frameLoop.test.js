@@ -227,4 +227,35 @@ describe('createFrameLoop', () => {
       delete document.hidden;
     }
   });
+
+  // Same mechanism as the test above, but for the 'zero' policy — this is
+  // LunarShaderMoon's actual production path, and until now it was verified
+  // only by reading onVisibility's branch in frameLoop.js. 'zero' means "do
+  // not bill the user for time spent away": onVisibility resets `last` to 0
+  // and `seeded` to false on becoming visible again, so the very next frame
+  // reports dt === 0 (the unseeded value), never the real elapsed gap.
+  it("visibilitychange with seedLast 'zero' reseeds to unseeded (dt 0) on resume, not the elapsed gap", () => {
+    const h = harness({ trackVisibility: true, seedLast: 'zero', dtClamp: 100 });
+    try {
+      h.loop.start();
+      h.tick(16);
+      expect(h.frames[0].dt).toBe(0); // seedLast 'zero' — first frame is always unseeded
+
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+      document.dispatchEvent(new Event('visibilitychange'));
+      h.tick(5000); // simulate 5s elapsed while hidden
+      expect(h.frames[h.frames.length - 1].hidden).toBe(true);
+
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+      document.dispatchEvent(new Event('visibilitychange'));
+      h.tick(16);
+      // If onVisibility had not reseeded to unseeded, dt here would reflect
+      // the ~5s spent hidden (clamped to dtClamp: 100) instead of exactly 0.
+      expect(h.frames[h.frames.length - 1].hidden).toBe(false);
+      expect(h.frames[h.frames.length - 1].dt).toBe(0);
+    } finally {
+      h.loop.stop();
+      delete document.hidden;
+    }
+  });
 });
