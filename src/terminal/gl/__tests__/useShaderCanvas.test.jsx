@@ -9,7 +9,7 @@ import { useShaderCanvas } from '../useShaderCanvas';
 // implementation) and just append to `callOrder` whenever `dispose`/`stop`
 // run, so every test in this file is unaffected functionally — only the one
 // test that reads `callOrder` cares that the entries exist.
-const { callOrder } = vi.hoisted(() => ({ callOrder: [] }));
+const { callOrder, frameLoopCalls } = vi.hoisted(() => ({ callOrder: [], frameLoopCalls: [] }));
 
 vi.mock('../glHost', async (importOriginal) => {
   const actual = await importOriginal();
@@ -34,6 +34,10 @@ vi.mock('../frameLoop', async (importOriginal) => {
   return {
     ...actual,
     createFrameLoop: (...args) => {
+      // Recorded for the "forwards its options to createFrameLoop without
+      // transposition" test below — captures exactly what useShaderCanvas
+      // hands off, independent of what frameLoop.js does with it.
+      frameLoopCalls.push(args[0]);
       const loop = actual.createFrameLoop(...args);
       return {
         ...loop,
@@ -141,6 +145,36 @@ describe('useShaderCanvas', () => {
     callOrder.length = 0; // drop mount-time noise; only the unmount order matters here
     unmount();
     expect(callOrder).toEqual(['stop', 'dispose']);
+    rec.restore();
+  });
+
+  // convergence.test.jsx proves what each COMPONENT passes to
+  // useShaderCanvas; nothing previously proved useShaderCanvas forwards
+  // those values into createFrameLoop correctly. dtClamp and watchdogMs are
+  // both plain numbers, so a transposition between them (or between any of
+  // these fields) would not throw — it would just silently misconfigure the
+  // loop. Picking values that are all distinct from each other and from any
+  // default makes a swap detectable field-by-field.
+  it('forwards its options to createFrameLoop without transposition', () => {
+    const rec = installRecordingGL({ version: 1 });
+    frameLoopCalls.length = 0;
+    render(
+      <Probe
+        dtClamp={0.123}
+        watchdogMs={777}
+        seedLast="zero"
+        trackVisibility
+        haltOnReducedMotion={false}
+      />
+    );
+    expect(frameLoopCalls).toHaveLength(1);
+    const forwarded = frameLoopCalls[0];
+    expect(forwarded.dtClamp).toBe(0.123);
+    expect(forwarded.watchdogMs).toBe(777);
+    expect(forwarded.seedLast).toBe('zero');
+    expect(forwarded.trackVisibility).toBe(true);
+    expect(forwarded.haltOnReducedMotion).toBe(false);
+    expect(typeof forwarded.onFrame).toBe('function');
     rec.restore();
   });
 
