@@ -67,12 +67,6 @@ export default function MercuryTerminator({ twilight = 0, day = 0, flare = null,
   const flareRef = useRef(flare);
   const retroRef = useRef(retrograde);
   const doneRef = useRef(onRetrogradeDone);
-  useEffect(() => {
-    twRef.current = twilight; dayRef.current = day; flareRef.current = flare;
-    retroRef.current = retrograde;
-    doneRef.current = onRetrogradeDone;
-    snap();
-  }, [twilight, day, flare, retrograde, onRetrogradeDone]);
 
   const curRef = useRef(null);
   const { snap } = useShaderCanvas(canvasRef, {
@@ -159,6 +153,18 @@ export default function MercuryTerminator({ twilight = 0, day = 0, flare = null,
     gl.uniform1f(U.u_retro, cur.retroTint);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
+
+  // Props-sync: the draw loop reads live props through refs, so this effect
+  // is the only thing that keeps them current. Declared after the hook so
+  // read order matches execution order — snap() is defined above by the time
+  // this runs. (Under normal motion snap() is a no-op; it repaints only when
+  // prefers-reduced-motion has halted the loop.)
+  useEffect(() => {
+    twRef.current = twilight; dayRef.current = day; flareRef.current = flare;
+    retroRef.current = retrograde;
+    doneRef.current = onRetrogradeDone;
+    snap();
+  }, [twilight, day, flare, retrograde, onRetrogradeDone]);
 
   return (
     <div

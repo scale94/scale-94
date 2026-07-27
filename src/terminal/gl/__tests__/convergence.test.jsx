@@ -44,6 +44,14 @@ beforeEach(() => captured.clear());
 // component that omits a key inherits these, so "effective" value — not
 // merely "the key it bothered to spell out" — is what actually governs
 // behavior and is what this file compares.
+//
+// HAND-MAINTAINED MIRROR. This duplicates the real defaults rather than
+// importing them, so that a default silently changing upstream shows up
+// here as a failure instead of being absorbed. That is deliberate — but it
+// means the duplication is only useful if it stays honest: if you change a
+// default in useShaderCanvas.js or glHost.js, update this block in the same
+// commit. Left to drift, it reintroduces in miniature exactly the
+// invisible-divergence problem this whole phase exists to close.
 const HARNESS_DEFAULTS = {
   version: 1,
   contextOptions: {},

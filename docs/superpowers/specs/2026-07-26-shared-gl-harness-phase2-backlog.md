@@ -153,14 +153,29 @@ frame, but inside `draw()` the component freezes `uTime` to `0` under
 twinkling... a fixed dither is still a dither") while every other
 uniform (`uAdapt`, libration, radius) keeps updating from live props.
 
-**Which value should win:** `'halt'` (the eye/terminator policy). Beyond
-consistency, halting fixes a second, already-documented defect for free:
-`MercuryTerminator.jsx`'s retrograde arming guard
-(`if (r && r.ts !== cur.retroTs && !reducedMotion) { ... }`) only re-arms
-inside the loop, which never runs under `haltOnReducedMotion: true` — so
-today a retrograde token earned while reduced-motion is active is
-"left set with no visible event" (the component's own comment, lines
-137-138). If the moon converges to `'halt'` too, its analogous per-frame
+**Which value should win:** `'halt'` (the eye/terminator policy), on
+consistency grounds alone.
+
+**It does not fix the retrograde defect — do not skip that work.** An
+earlier draft of this item claimed converging to `'halt'` would fix
+`MercuryTerminator`'s "retrograde token left set with no visible event"
+defect for free. That has the causality backwards. Mercury is *already*
+on `haltOnReducedMotion: true` (`MercuryTerminator.jsx:94`), so the defect
+exists **because of** the current policy, not despite it; converging the
+*moon* changes nothing for Mercury. Nor would converging the other way
+help: the arming guard at `MercuryTerminator.jsx:139` is
+`if (r && r.ts !== cur.retroTs && !reducedMotion)`, which independently
+blocks arming whenever `reducedMotion` is true — so even under `'freeze'`,
+with the loop running, the token would still never arm.
+
+Fixing it requires new code in `MercuryTerminator`'s `onSnap`, which today
+(`:111-116`) never touches `retroRef` or `doneRef` at all: the snap path
+must process a pending retrograde token as a one-shot — either play it as
+a single static frame or explicitly drop it and call `onRetrogradeDone`
+so the token is cleared rather than orphaned. Treat that as its own
+sub-task with its own test, not as a side effect of the flag flip.
+
+If the moon converges to `'halt'` too, its analogous per-frame
 state (dark adaptation stepping, the 30fps idle throttle) needs the same
 audit: does anything the moon computes only inside `draw()` need to fire
 once on transition into reduced-motion, the way `onSnap` fires for the
