@@ -32,7 +32,7 @@ const CONTEXT_OPTIONS = {
 };
 
 export default function ColliderChamber({
-  phase, hueA, hueB, selA, selB, beams, metrics, phaseStartedAt,
+  phase, hueA, hueB, selA, selB, beams, metrics, phaseStartedAt, labelA, labelB,
 }) {
   const canvasRef = useRef(null);
   const wrapRef = useRef(null);
@@ -198,6 +198,47 @@ export default function ColliderChamber({
       {supported
         ? <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
         : <div className="absolute inset-0 bg-gradient-to-r from-fuchsia-950/40 via-black to-cyan-950/40" />}
+
+      {/* Readouts. These were fillText into the canvas; DOM is crisper and
+          WebGL is bad at text. Font family deliberately differs from the old
+          `9px monospace` -- that was the browser's generic mono, not the
+          project's stack (spec §7). Positions match the old canvas coords. */}
+      <div
+        data-chamber-overlay
+        className="absolute inset-0 pointer-events-none select-none font-mono"
+        style={{ fontFamily: "'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace" }}
+      >
+        {selA && labelA && (
+          <div className="absolute text-[9px]" style={{ left: 8, top: CHAMBER_H / 2 - 18, color: `hsla(${hueA},80%,70%,0.6)` }}>{labelA}</div>
+        )}
+        {selB && labelB && (
+          <div className="absolute text-[9px]" style={{ right: 8, top: CHAMBER_H / 2 - 18, color: `hsla(${hueB},80%,70%,0.6)` }}>{labelB}</div>
+        )}
+        {metrics && (
+          <>
+            <div className="absolute left-0 right-0 text-center text-[8px]" style={{ top: CHAMBER_H / 2 - 72, color: 'rgba(217,70,239,0.6)' }}>
+              NOVELTY {(metrics.novelty * 100).toFixed(0)}%
+            </div>
+            <div className="absolute" style={{ left: '50%', marginLeft: -60, top: CHAMBER_H / 2 - 60, width: 120, height: 4, background: 'rgba(255,255,255,0.1)' }}>
+              <div
+                data-novelty-fill
+                style={{
+                  width: `${(metrics.novelty * 100).toFixed(0)}%`,
+                  height: '100%',
+                  background: 'hsla(280,70%,60%,0.8)',
+                  transition: 'width 400ms cubic-bezier(0.16,1,0.3,1)',
+                }}
+              />
+            </div>
+            <div className="absolute left-0 right-0 text-center text-[10px]" style={{ top: CHAMBER_H / 2 + 50 + 33, color: 'rgba(6,182,212,0.7)' }}>
+              cos(θ) = {metrics.cosine.toFixed(4)}
+            </div>
+            <div className="absolute left-0 right-0 text-center text-[10px]" style={{ top: CHAMBER_H / 2 + 50 + 45, color: 'rgba(6,182,212,0.7)' }}>
+              θ = {metrics.angle.toFixed(1)}°
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
