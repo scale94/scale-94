@@ -209,14 +209,14 @@ export default function ColliderChamber({
         style={{ fontFamily: "'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace" }}
       >
         {selA && labelA && (
-          <div className="absolute text-[9px]" style={{ left: 8, top: CHAMBER_H / 2 - 18, color: `hsla(${hueA},80%,70%,0.6)` }}>{labelA}</div>
+          <div className="absolute text-[9px]" style={{ left: 8, top: CHAMBER_H / 2 - 15, color: `hsla(${hueA},80%,70%,0.6)` }}>{labelA}</div>
         )}
         {selB && labelB && (
-          <div className="absolute text-[9px]" style={{ right: 8, top: CHAMBER_H / 2 - 18, color: `hsla(${hueB},80%,70%,0.6)` }}>{labelB}</div>
+          <div className="absolute text-[9px]" style={{ right: 8, top: CHAMBER_H / 2 - 15, color: `hsla(${hueB},80%,70%,0.6)` }}>{labelB}</div>
         )}
         {metrics && (
           <>
-            <div className="absolute left-0 right-0 text-center text-[8px]" style={{ top: CHAMBER_H / 2 - 72, color: 'rgba(217,70,239,0.6)' }}>
+            <div className="absolute left-0 right-0 text-center text-[8px]" style={{ top: CHAMBER_H / 2 - 70, color: 'rgba(217,70,239,0.6)' }}>
               NOVELTY {(metrics.novelty * 100).toFixed(0)}%
             </div>
             <div className="absolute" style={{ left: '50%', marginLeft: -60, top: CHAMBER_H / 2 - 60, width: 120, height: 4, background: 'rgba(255,255,255,0.1)' }}>
@@ -230,10 +230,17 @@ export default function ColliderChamber({
                 }}
               />
             </div>
-            <div className="absolute left-0 right-0 text-center text-[10px]" style={{ top: CHAMBER_H / 2 + 50 + 33, color: 'rgba(6,182,212,0.7)' }}>
+            {/* Canvas fillText positioned by BASELINE; CSS top positions the
+                box top, so each of these is the old baseline minus the font's
+                ascent (~0.8em). The novelty bar above came from a fillRect,
+                which was already a top — hence no adjustment there. The theta
+                row is held 4px above its converted value because the original
+                drew its baseline at y=221 inside a 220px canvas, clipping its
+                own descenders. */}
+            <div className="absolute left-0 right-0 text-center text-[10px]" style={{ top: CHAMBER_H / 2 + 91, color: 'rgba(6,182,212,0.7)' }}>
               cos(θ) = {metrics.cosine.toFixed(4)}
             </div>
-            <div className="absolute left-0 right-0 text-center text-[10px]" style={{ top: CHAMBER_H / 2 + 50 + 45, color: 'rgba(6,182,212,0.7)' }}>
+            <div className="absolute left-0 right-0 text-center text-[10px]" style={{ top: CHAMBER_H / 2 + 99, color: 'rgba(6,182,212,0.7)' }}>
               θ = {metrics.angle.toFixed(1)}°
             </div>
           </>

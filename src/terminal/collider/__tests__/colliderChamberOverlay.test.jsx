@@ -55,4 +55,21 @@ describe('ColliderChamber DOM overlay', () => {
     // The readouts must survive the fallback -- they are DOM, not GL.
     expect(container.querySelector('[data-chamber-overlay]')).not.toBeNull();
   });
+
+  it('places each readout at its converted canvas coordinate', () => {
+    // Canvas fillText y is a BASELINE; CSS top is the box top. These are the
+    // old coordinates minus the font ascent. The bar came from a fillRect and
+    // needs no conversion. Locked numerically because an 8px drift here is
+    // invisible to every other test in this file.
+    const { container } = render(
+      <ColliderChamber {...base} metrics={{ cosine: 0.5, angle: 60, novelty: 0.42 }} />
+    );
+    const tops = [...container.querySelectorAll('[data-chamber-overlay] [style*="top"]')]
+      .map(el => el.style.top);
+    expect(tops).toContain('95px');   // domain label
+    expect(tops).toContain('40px');   // NOVELTY label
+    expect(tops).toContain('50px');   // novelty bar (fillRect origin, unconverted)
+    expect(tops).toContain('201px');  // cos(theta)
+    expect(tops).toContain('209px');  // theta, held above its 213px conversion
+  });
 });
