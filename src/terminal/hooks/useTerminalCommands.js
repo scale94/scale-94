@@ -152,9 +152,9 @@ export default function useTerminalCommands({
     if (['home', 'kernel', 'system'].includes(action)) {
       handleNav('~/system/kernel', 'kernel');
       executeCommand(rawCmd, "Switching directory to /system/kernel...");
-    } else if (['scaling', 'services', 'custom'].includes(action)) {
-      handleNav('~/system/scaling', 'scaling');
-      executeCommand(rawCmd, "Switching directory to /system/scaling...");
+    } else if (['scaling', 'scent', 'saponification', 'services', 'custom'].includes(action)) {
+      handleNav('~/system/scent', 'scaling');
+      executeCommand(rawCmd, "Switching directory to /system/scent...");
     } else if (action === 'transmission') {
       handleNav('~/system/transmission', 'transmission');
       executeCommand(rawCmd, "Switching directory to /system/transmission...");
@@ -191,7 +191,7 @@ export default function useTerminalCommands({
       handleNav('~/system/ledger', 'ledger');
       executeCommand(rawCmd, "Switching directory to /system/ledger...");
     } else if (action === 'thesis') {
-      handleNav('~/system/scaling/thesis', 'scaling');
+      handleNav('~/system/scent/thesis', 'scaling');
       setArchitectThesis(true);
       executeCommand(rawCmd, "Loading ARCHITECT_THESIS...");
     } else if (action === 'load' && query) {
@@ -265,7 +265,7 @@ export default function useTerminalCommands({
       setCurrentPath(`~/system/kernel?q=${query.replace(/ /g, '_')}`);
       executeCommand(rawCmd, `Applying search filter to kernel index: "${query}".`);
     } else if (action === 'help') {
-      executeCommand(rawCmd, "Commands: load [term], list, search [term], run [kernel], home/kernel, scaling, transmission, manifesto, privacy, bsky, surveillance, cryptography, art, ecocide, lunar, mercury, ledger, thesis, clear, help. ↑↓ history.");
+      executeCommand(rawCmd, "Commands: load [term], list, search [term], run [kernel], home/kernel, scent, transmission, manifesto, privacy, bsky, surveillance, cryptography, art, ecocide, lunar, mercury, ledger, thesis, clear, help. ↑↓ history.");
     } else if (action === 'run') {
       // ── WASM-exclusive executor ─────────────────────────────────────────────
       const currentRegistry = wasmRegistry;
