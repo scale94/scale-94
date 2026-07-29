@@ -18,6 +18,14 @@ import { FIELD_VS, FIELD_FS, FIELD_UNIFORMS } from './fieldShader';
 import { PARTICLE_VS, PARTICLE_FS, PARTICLE_UNIFORMS } from './particleShader';
 
 const CHAMBER_H = 220;
+// The reduced-motion frame: onSnap paints once and the loop never runs, so
+// this single instant is the image permanently. 1800ms is deliberately past
+// the impact flash (250ms) and the shake (333ms) — a frozen white flash is
+// the exact thing prefers-reduced-motion asks us not to show — while still
+// inside the chimera (500-2000ms) and vapor (1000-2333ms) windows and after
+// the beams and metrics arm (1333ms). So it is the calmest frame that still
+// shows what the phase actually contains.
+const SNAP_ELAPSED_MS = 1800;
 const CONTEXT_OPTIONS = {
   alpha: true, premultipliedAlpha: true, antialias: false,
   depth: false, stencil: false, powerPreference: 'low-power',
@@ -40,16 +48,15 @@ export default function ColliderChamber({
   // Live props for the loop, so draw() never re-runs the mount effect.
   const propsRef = useRef({ phase, hueA, hueB, selA, selB, beams, phaseStartedAt });
 
-  const paint = (host, tsec) => {
+  const paint = (host, elapsedMs) => {
     const { gl, U } = host;
     const p = propsRef.current;
     const P = particleRef.current;
     const { w, h } = sizeRef.current;
 
-    const elapsed = p.phaseStartedAt == null ? 0 : Math.max(0, tsec * 1000 - p.phaseStartedAt);
-    const T = phaseTiming(p.phase, elapsed);
+    const T = phaseTiming(p.phase, elapsedMs);
     const phaseId = PHASE_ID[p.phase] ?? 0;
-    const phaseT = elapsed / 1000;
+    const phaseT = elapsedMs / 1000;
     const h01a = ((p.hueA % 360) + 360) % 360 / 360;
     const h01b = ((p.hueB % 360) + 360) % 360 / 360;
 
@@ -138,11 +145,18 @@ export default function ColliderChamber({
       particleRef.current = { prog: null, vao: null, buf: null, U: null };
     },
 
-    draw(host, { tsec }) { paint(host, tsec); },
+    draw(host, { tsec }) {
+      const p = propsRef.current;
+      const elapsed = p.phaseStartedAt == null
+        ? 0
+        : Math.max(0, tsec * 1000 - p.phaseStartedAt);
+      paint(host, elapsed);
+    },
 
     // Under prefers-reduced-motion the loop never starts, so this is the only
-    // frame the chamber ever paints. It still shows the correct phase.
-    onSnap(host) { paint(host, (propsRef.current.phaseStartedAt || 0) / 1000); },
+    // frame the chamber ever paints. It must be the settled look, not the
+    // phase's first instant — see SNAP_ELAPSED_MS.
+    onSnap(host) { paint(host, SNAP_ELAPSED_MS); },
 
     deps: [],
   });

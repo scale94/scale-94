@@ -1,7 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
 import { render } from '@testing-library/react';
 import { driveFrames } from '../../gl/__tests__/driveFrames';
+import { installRecordingGL } from '../../gl/__tests__/recordingGL';
 import ColliderChamber from '../ColliderChamber';
 
 const BEAMS = Array.from({ length: 16 }, (_, i) => ({
@@ -72,5 +73,25 @@ describe('ColliderChamber GL traffic', () => {
   it('frozen GL call log', () => {
     expect(drive({ phase: 'colliding', beams: BEAMS, phaseStartedAt: 0 }, 8))
       .toMatchSnapshot();
+  });
+
+  it('paints a settled frame under reduced motion, not the impact flash', () => {
+    // onSnap's single frame is permanent when the loop is halted. At elapsed 0
+    // the colliding phase is peak flash and peak shake -- a frozen white wash
+    // is precisely what prefers-reduced-motion asks us not to render.
+    vi.stubGlobal('matchMedia', () => ({
+      matches: true, addEventListener() {}, removeEventListener() {},
+    }));
+    const rec = installRecordingGL({ version: 2 });
+    try {
+      render(<ColliderChamber {...props({ phase: 'colliding', phaseStartedAt: 0 })} />);
+      const bursts = rec.log.filter(e => e[0] === 'uniform4f' && String(e[1]).endsWith('uBurst'));
+      expect(bursts.length).toBeGreaterThan(0);
+      // uBurst is (ring1, ring2, flash, metrics). flash must be 0 by now.
+      for (const b of bursts) expect(b[4]).toBe(0);
+    } finally {
+      rec.restore();
+      vi.unstubAllGlobals();
+    }
   });
 });
