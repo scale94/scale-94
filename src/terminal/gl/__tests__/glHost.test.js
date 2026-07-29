@@ -195,4 +195,25 @@ describe('createShaderHost', () => {
     }).dispose();
     expect(off.__log.map(e => e[0])).not.toContain('loseContext');
   });
+
+  it('accepts a rectangular pixelSize and sizes both axes independently', () => {
+    vi.stubGlobal('devicePixelRatio', 2);
+    const canvas = canvasWith(createRecordingGL({ version: 2 }));
+    createShaderHost(canvas, {
+      ...BASE, version: 2, strategy: 'lunar', pixelSize: { w: 900, h: 220 },
+    });
+    expect(canvas.width).toBe(1800);
+    expect(canvas.height).toBe(440);
+    vi.unstubAllGlobals();
+  });
+
+  it('writes a rectangular style size when asked', () => {
+    const canvas = canvasWith(createRecordingGL({ version: 2 }));
+    createShaderHost(canvas, {
+      ...BASE, version: 2, strategy: 'lunar',
+      pixelSize: { w: 900, h: 220 }, setStyleSize: true,
+    });
+    expect(canvas.style.width).toBe('900px');
+    expect(canvas.style.height).toBe('220px');
+  });
 });

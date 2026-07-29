@@ -80,11 +80,14 @@ export function createShaderHost(canvas, {
   if (!gl) return null;
 
   const dpr = Math.min(2, (typeof window !== 'undefined' && window.devicePixelRatio) || 1);
-  canvas.width = Math.round(pixelSize * dpr);
-  canvas.height = Math.round(pixelSize * dpr);
+  // pixelSize is a scalar (square, the original contract) or { w, h }. The
+  // collider chamber is a 220px-tall letterbox; every prior consumer is square.
+  const size = typeof pixelSize === 'number' ? { w: pixelSize, h: pixelSize } : pixelSize;
+  canvas.width = Math.round(size.w * dpr);
+  canvas.height = Math.round(size.h * dpr);
   if (setStyleSize) {
-    canvas.style.width = `${pixelSize}px`;
-    canvas.style.height = `${pixelSize}px`;
+    canvas.style.width = `${size.w}px`;
+    canvas.style.height = `${size.h}px`;
   }
 
   let prog;
