@@ -48,6 +48,24 @@ describe('particle shader specifics', () => {
     // comment so the mitigation cannot be silently deleted.
     expect(PARTICLE_VS).toContain('INGRESS');
   });
+
+  it('gates a population by its alpha, never by its branch condition', () => {
+    // A gate in the branch condition makes a particle change population the
+    // moment its gate closes: a spark at 700ms fell through into the chimera
+    // branch, teleporting ~45% of the buffer in one frame. The role partition
+    // must be a pure function of the seed.
+    expect(PARTICLE_VS).not.toMatch(/role\s*<\s*[\d.]+\s*&&/);
+    for (const g of ['uGates.x', 'uGates.y', 'uGates.z', 'uGates.w']) {
+      expect(PARTICLE_VS).toContain(`* ${g};`);
+    }
+  });
+
+  it('rises the vapor upward in the +Y-is-up convention both passes use', () => {
+    // gl_Position maps pos.y = 0 to clip -1 (the bottom), so a rising wisp
+    // must ADD to y as it ages. `10.0 - age * 90.0` sank.
+    expect(PARTICLE_VS).toContain('age * 90.0 - 10.0');
+    expect(PARTICLE_VS).not.toContain('10.0 - age * 90.0');
+  });
 });
 
 describe('field shader specifics', () => {

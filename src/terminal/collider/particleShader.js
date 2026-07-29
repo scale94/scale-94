@@ -89,42 +89,49 @@ void main() {
     size  = 2.0 + 3.0 * h1 + 3.0 * uEase;
 
   } else {
-    // colliding / result — the same vertices, re-tasked by hash into three
-    // populations. No reallocation, no respawn bookkeeping.
+    // colliding / result — the same vertices, re-tasked by hash into four
+    // populations. The role partition is FIXED by the seed; a gate only fades
+    // its own population in and out. A gate in the branch CONDITION instead
+    // would make a particle change population the moment its gate closed:
+    // a spark at 700ms (spark gate shut, chimera gate open) fell through into
+    // the chimera branch, teleporting ~45% of the buffer from a 360px radial
+    // burst onto a 40px orbit ring in a single frame.
     float role = h2 * 2.0; // 0..2, uniform because h2 also chose the side
-    if (role < 0.9 && uGates.x > 0.5) {
+    if (role < 0.9) {
       // spark — radial burst with drag
       float ang = h1 * TAU;
       float v   = 60.0 + 300.0 * fract(h1 * 7.13);
       float k   = 1.0 - exp(-uPhaseT * 2.4);
       pos   = c + vec2(cos(ang), sin(ang)) * v * k;
-      alpha = max(0.0, 1.0 - uPhaseT * 1.5);
+      alpha = max(0.0, 1.0 - uPhaseT * 1.5) * uGates.x;
       size  = 1.5 + 2.0 * h1;
       col   = hue2rgbLocal(h1 < 0.5 ? uHue.x : uHue.y);
 
-    } else if (role < 1.1 && uGates.y > 0.5) {
+    } else if (role < 1.1) {
       // orthogonal debris jet — the cross-shaped burst
       float dir = h1 < 0.5 ? -1.0 : 1.0;
       float v   = 180.0 + 300.0 * h1;
       float k   = 1.0 - exp(-uPhaseT * 2.4);
       pos   = c + vec2(lane * 40.0 * k, dir * v * k);
-      alpha = max(0.0, 1.0 - uPhaseT * 2.4);
+      alpha = max(0.0, 1.0 - uPhaseT * 2.4) * uGates.y;
       size  = 1.5 + 2.0 * h1;
 
-    } else if (role < 1.6 && uGates.z > 0.5) {
+    } else if (role < 1.6) {
       // chimera — slow orbit at the blended hue
       float ang = uPhaseT * 1.2 + h1 * TAU;
       float rad = 15.0 + 25.0 * h1;
       pos   = c + vec2(cos(ang), sin(ang)) * rad;
-      alpha = 0.5;
+      alpha = 0.5 * uGates.z;
       size  = 5.0 + 6.0 * h1;
       col   = hue2rgbLocal(mix(uHue.x, uHue.y, 0.5));
 
-    } else if (uGates.w > 0.5) {
-      // vapor — sillage. Rises, drifts, thins.
+    } else {
+      // vapor — sillage. Rises, drifts, thins. Both passes put +Y up
+      // (pos.y = 0 maps to clip -1), so age must ADD to y; the Canvas2D
+      // original rose under canvas y-down and the sign was never flipped.
       float age = fract(h1 + uPhaseT * 0.35);
-      pos   = c + vec2((lane * 25.0) + sin(age * 4.0 + h1 * TAU) * 8.0, 10.0 - age * 90.0);
-      alpha = (1.0 - age) * 0.4;
+      pos   = c + vec2((lane * 25.0) + sin(age * 4.0 + h1 * TAU) * 8.0, age * 90.0 - 10.0);
+      alpha = (1.0 - age) * 0.4 * uGates.w;
       size  = 6.0 + 10.0 * age;
       col   = hue2rgbLocal(0.111); // amber, the olfactory layer
     }
