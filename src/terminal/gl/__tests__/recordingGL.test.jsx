@@ -78,6 +78,21 @@ describe('recordingGL', () => {
     expect(a1).toBe(1);
     expect(a0Again).toBe(0);
   });
+
+  it('records the vec4 and POINTS traffic the collider chamber emits', () => {
+    const gl = createRecordingGL({ version: 2 });
+    expect(gl.POINTS).toBe(0x0000);
+    gl.uniform4f({ __tag: 'uniform:p:uBurst' }, 1, 2, 3, 4);
+    gl.uniform4fv({ __tag: 'uniform:p:uBeams' }, new Float32Array([1, 2, 3, 4]));
+    gl.uniform3f({ __tag: 'uniform:p:uTint' }, 0.1, 0.2, 0.3);
+    gl.drawArrays(gl.POINTS, 0, 4096);
+    expect(gl.__log.slice(-4)).toEqual([
+      ['uniform4f', 'uniform:p:uBurst', 1, 2, 3, 4],
+      ['uniform4fv', 'uniform:p:uBeams', [1, 2, 3, 4]],
+      ['uniform3f', 'uniform:p:uTint', 0.1, 0.2, 0.3],
+      ['drawArrays', 0, 0, 4096],
+    ]);
+  });
 });
 
 describe('driveFrames', () => {
