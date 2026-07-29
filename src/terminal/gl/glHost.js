@@ -44,6 +44,18 @@ function buildLegacy(gl, vs, fs, label) {
   return prog;
 }
 
+// Exported: the collider chamber builds a second program for its particle
+// pass inside onInit, and LunarShaderMoon's buildBakeProgram is the same
+// compile/link/throw sequence copy-pasted. Two consumers, so it is shared
+// rather than triplicated. `strategy` is accepted for symmetry with
+// createShaderHost; only 'lunar' error handling is exposed, because a second
+// program that silently fails to compile is exactly the black-canvas failure
+// mode the harness exists to prevent.
+export function buildProgram(gl, vsSrc, fsSrc, { strategy = 'lunar', label = 'glHost' } = {}) {
+  if (strategy === 'legacy') return buildLegacy(gl, vsSrc, fsSrc, label);
+  return buildLunar(gl, vsSrc, fsSrc, label);
+}
+
 function buildLunar(gl, vsSrc, fsSrc, label) {
   const vs = compile(gl, gl.VERTEX_SHADER, vsSrc, { strategy: 'lunar', label });
   const fs = compile(gl, gl.FRAGMENT_SHADER, fsSrc, { strategy: 'lunar', label });
@@ -170,6 +182,15 @@ export function createShaderHost(canvas, {
     U,
     vao,
     buf,
+    resize(w, h) {
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+      if (setStyleSize) {
+        canvas.style.width = `${w}px`;
+        canvas.style.height = `${h}px`;
+      }
+      gl.viewport(0, 0, canvas.width, canvas.height);
+    },
     dispose() {
       // Component-owned objects first, while the program is still alive.
       if (onDispose) onDispose(gl);
