@@ -14,6 +14,8 @@ import { emit as emitObs } from '../../observatory/observatoryBus';
 import CopySpan from '../components/CopySpan';
 import { getPanopticonState } from '../lib/panopticon';
 import { assessSovereignty, redactCard, publishAssessment, transitTag } from '../lib/sovereignty';
+import ColliderChamber from '../collider/ColliderChamber';
+import { usePhaseAdvance } from '../collider/usePhaseAdvance';
 
 // ── Collider Event Bus ───────────────────────────────────────────────────────
 // Cross-tab coupling: emits chimera synthesis results so the Art tab sphere
@@ -900,8 +902,6 @@ async function encryptForVault(plaintext) {
   });
 }
 
-// ── Collision particle system ────────────────────────────────────────────────
-const MAX_PARTICLES = 300;
 const PRODUCTION_THRESHOLD = 10; // minimum acquisitions before physical synthesis
 
 // ── Pricing tiers — size / price / G²T allocation (10%) ─────────────────────
@@ -1088,53 +1088,13 @@ function buildBeams(result, hueA, hueB) {
   return beams;
 }
 
-function drawDimensionBeams(ctx, beamsState, frameT, w, h) {
-  if (!beamsState || !beamsState.beams) return;
-  if (beamsState.startedAt == null) beamsState.startedAt = frameT;
-  // Convert frame counter to ms (assuming ~16ms per frame at 60fps)
-  const elapsed = (frameT - beamsState.startedAt) * 16;
-  const cx = w / 2, cy = h / 2;
-  for (const beam of beamsState.beams) {
-    if (elapsed > beam.lifespanMs) continue;
-    if (beam.mag < 0.02) continue;
-    const progress = elapsed / beam.lifespanMs;
-    const eased = 1 - (1 - progress) * (1 - progress); // easeOut
-    const length = beam.mag * Math.min(w, h) * 0.4 * eased;
-    const alpha = (1 - progress) * 0.85;
-    const x2 = cx + Math.cos(beam.angle) * length;
-    const y2 = cy + Math.sin(beam.angle) * length;
-    ctx.strokeStyle = `hsla(${beam.hue},85%,60%,${alpha})`;
-    ctx.lineWidth = 0.5 + beam.mag * 2;
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.lineTo(x2, y2);
-    ctx.stroke();
-  }
-}
-
-function createParticle(x, y, hue, vx, vy, type) {
-  return {
-    x, y, vx, vy,
-    hue,
-    life: 1.0,
-    size: type === 'spark' ? 1.5 + Math.random() * 2 : 2 + Math.random() * 3,
-    type, // 'stream_a', 'stream_b', 'spark', 'chimera'
-    decay: type === 'spark' ? 0.03 : type === 'chimera' ? 0.005 : 0.008,
-  };
-}
-
 // ══════════════════════════════════════════════════════════════════════════════
 // COMPONENT
 // ══════════════════════════════════════════════════════════════════════════════
 
 export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {}) {
-  const canvasRef = useRef(null);
-  const rafRef = useRef(null);
-  const particlesRef = useRef([]);
   const phaseRef = useRef('idle'); // idle | selecting | accelerating | colliding | result
-  const timerRef = useRef(0);
   const metricsRef = useRef(null);
-  const sizeRef = useRef({ w: 0, h: 0 });
   const beamsRef = useRef(null); // { beams, startedAt } populated at impact
 
   const [domainA, setDomainA] = useState(null);
@@ -1142,6 +1102,7 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [phase, setPhase] = useState('idle');
+  const [phaseStart, setPhaseStart] = useState(0);
   const narrativeCardPreview = useMemo(() => {
     if (!result || domainA == null || domainB == null) return null;
     try { return buildPerfumeCard(domainA, domainB, result); } catch { return null; }
@@ -1356,7 +1317,7 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
     setColliderAstro(null);
     setPhase('accelerating');
     phaseRef.current = 'accelerating';
-    timerRef.current = 0;
+    setPhaseStart(performance.now());
     colliderBus.emit({ type: 'COLLIDER_PHASE', phase: 'accelerating' });
 
     try {
@@ -1486,10 +1447,10 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
       onPolarity?.(parsed.accord?.polarityClass?.label ?? null);
       setPhase('colliding');
       phaseRef.current = 'colliding';
-      timerRef.current = 0;
+      setPhaseStart(performance.now());
 
       // ── 16-Beam parameter trace: build beams from this collision's OCK dims
-      beamsRef.current = { beams: buildBeams(parsed, domainById(a).hue, domainById(b).hue), startedAt: null };
+      beamsRef.current = { beams: buildBeams(parsed, domainById(a).hue, domainById(b).hue), startedAt: performance.now() };
 
       // ── Fetch live astro data for mathematical astrology overlay ──────
       loadWasm().then(w => {
@@ -1588,367 +1549,20 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
     setPhase('idle');
     phaseRef.current = 'idle';
     metricsRef.current = null;
-    particlesRef.current = [];
-    timerRef.current = 0;
+    setPhaseStart(performance.now());
     beamsRef.current = null;
     colliderBus.emit({ type: 'COLLIDER_PHASE', phase: 'idle' });
   }, []);
 
-  // ── Canvas render loop ─────────────────────────────────────────────────────
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-
-    const resize = () => {
-      const rect = canvas.parentElement.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
-      ctx.scale(dpr, dpr);
-      sizeRef.current = { w: rect.width, h: rect.height };
-    };
-    resize();
-    window.addEventListener('resize', resize);
-
-    const draw = () => {
-      try { _draw(); } catch (e) { /* keep rAF alive */ }
-      rafRef.current = requestAnimationFrame(draw);
-    };
-
-    const _draw = () => {
-      const { w, h } = sizeRef.current;
-      if (w < 10 || h < 10) return; // canvas not ready yet
-      const cx = w / 2;
-      const cy = h / 2;
-      const t = timerRef.current++;
-      const ph = phaseRef.current;
-      const metrics = metricsRef.current;
-      const ps = particlesRef.current;
-
-      ctx.clearRect(0, 0, w, h);
-
-      // ── Background grid ────────────────────────────────────────────────
-      ctx.strokeStyle = 'rgba(6, 182, 212, 0.04)';
-      ctx.lineWidth = 0.5;
-      const gridSize = 40;
-      for (let x = 0; x < w; x += gridSize) {
-        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
-      }
-      for (let y = 0; y < h; y += gridSize) {
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
-      }
-
-      // ── Central collision zone ─────────────────────────────────────────
-      const pulseAlpha = 0.03 + Math.sin(t * 0.03) * 0.02;
-      const zoneRadius = ph === 'colliding' ? 60 + Math.sin(t * 0.1) * 10 : 40;
-      const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, zoneRadius);
-      grad.addColorStop(0, `rgba(217, 70, 239, ${pulseAlpha * 2})`);
-      grad.addColorStop(0.5, `rgba(6, 182, 212, ${pulseAlpha})`);
-      grad.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = grad;
-      ctx.fillRect(cx - zoneRadius, cy - zoneRadius, zoneRadius * 2, zoneRadius * 2);
-
-      // Crosshair
-      ctx.strokeStyle = `rgba(217, 70, 239, ${0.15 + Math.sin(t * 0.05) * 0.05})`;
-      ctx.lineWidth = 0.5;
-      ctx.beginPath(); ctx.moveTo(cx - 20, cy); ctx.lineTo(cx + 20, cy); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(cx, cy - 20); ctx.lineTo(cx, cy + 20); ctx.stroke();
-
-      // ── Beamlines (when domains are selected) ──────────────────────────
-      const hueA = domainA !== null ? domainById(domainA).hue : 280;
-      const hueB = domainB !== null ? domainById(domainB).hue : 120;
-
-      if (domainA !== null) {
-        const beamAlpha = ph === 'accelerating' ? 0.3 + Math.sin(t * 0.15) * 0.15 : 0.12;
-        ctx.strokeStyle = `hsla(${hueA}, 80%, 60%, ${beamAlpha})`;
-        ctx.lineWidth = ph === 'accelerating' ? 2 : 1;
-        ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(cx - 100, cy); ctx.stroke();
-
-        // Domain A label on beam
-        ctx.fillStyle = `hsla(${hueA}, 80%, 70%, 0.6)`;
-        ctx.font = '9px monospace';
-        ctx.textAlign = 'left';
-        ctx.fillText(domainById(domainA).short, 8, cy - 8);
-      }
-
-      if (domainB !== null) {
-        const beamAlpha = ph === 'accelerating' ? 0.3 + Math.sin(t * 0.15 + 1) * 0.15 : 0.12;
-        ctx.strokeStyle = `hsla(${hueB}, 80%, 60%, ${beamAlpha})`;
-        ctx.lineWidth = ph === 'accelerating' ? 2 : 1;
-        ctx.beginPath(); ctx.moveTo(w, cy); ctx.lineTo(cx + 100, cy); ctx.stroke();
-
-        ctx.fillStyle = `hsla(${hueB}, 80%, 70%, 0.6)`;
-        ctx.font = '9px monospace';
-        ctx.textAlign = 'right';
-        ctx.fillText(domainById(domainB).short, w - 8, cy - 8);
-      }
-
-      // ── Accelerating domain orbs — visible nodes converging to center ──
-      if (ph === 'accelerating' && domainA !== null && domainB !== null) {
-        const progress = Math.min(1, t / 108); // ~1800ms at 60fps
-        const ease = progress * progress * progress; // easeInCubic — builds tension
-        const orbRadius = 10 + Math.sin(t * 0.2) * 2;
-
-        // Domain A orb — left to center
-        const orbAx = 40 + (cx - 100 - 40) * ease;
-        const orbGradA = ctx.createRadialGradient(orbAx, cy, 0, orbAx, cy, orbRadius * 2.5);
-        orbGradA.addColorStop(0, `hsla(${hueA}, 80%, 70%, ${0.6 + ease * 0.3})`);
-        orbGradA.addColorStop(0.4, `hsla(${hueA}, 70%, 50%, ${0.3 + ease * 0.2})`);
-        orbGradA.addColorStop(1, `hsla(${hueA}, 80%, 40%, 0)`);
-        ctx.beginPath(); ctx.arc(orbAx, cy, orbRadius * 2.5, 0, Math.PI * 2);
-        ctx.fillStyle = orbGradA; ctx.fill();
-        // Core
-        ctx.beginPath(); ctx.arc(orbAx, cy, orbRadius * 0.6, 0, Math.PI * 2);
-        ctx.fillStyle = `hsla(${hueA}, 90%, 85%, ${0.7 + ease * 0.3})`;
-        ctx.fill();
-
-        // Domain B orb — right to center
-        const orbBx = w - 40 - (w - 40 - cx - 100) * ease;
-        const orbGradB = ctx.createRadialGradient(orbBx, cy, 0, orbBx, cy, orbRadius * 2.5);
-        orbGradB.addColorStop(0, `hsla(${hueB}, 80%, 70%, ${0.6 + ease * 0.3})`);
-        orbGradB.addColorStop(0.4, `hsla(${hueB}, 70%, 50%, ${0.3 + ease * 0.2})`);
-        orbGradB.addColorStop(1, `hsla(${hueB}, 80%, 40%, 0)`);
-        ctx.beginPath(); ctx.arc(orbBx, cy, orbRadius * 2.5, 0, Math.PI * 2);
-        ctx.fillStyle = orbGradB; ctx.fill();
-        ctx.beginPath(); ctx.arc(orbBx, cy, orbRadius * 0.6, 0, Math.PI * 2);
-        ctx.fillStyle = `hsla(${hueB}, 90%, 85%, ${0.7 + ease * 0.3})`;
-        ctx.fill();
-      }
-
-      // ── Screen shake during impact ────────────────────────────────────
-      let shaking = false;
-      if (ph === 'colliding' && t < 20) {
-        shaking = true;
-        const mag = 6 * (1 - t / 20);
-        ctx.save();
-        ctx.translate((Math.random() - 0.5) * mag, (Math.random() - 0.5) * mag);
-      }
-
-      // ── Shockwave ring at collision impact ────────────────────────────
-      if (ph === 'colliding' && t < 35) {
-        const ringProgress = t / 35;
-        const ringRadius = ringProgress * 120;
-        const ringAlpha = (1 - ringProgress) * 0.7;
-        const ringWidth = 3 * (1 - ringProgress);
-        ctx.strokeStyle = `rgba(255, 255, 255, ${ringAlpha})`;
-        ctx.lineWidth = ringWidth;
-        ctx.beginPath();
-        ctx.arc(cx, cy, ringRadius, 0, Math.PI * 2);
-        ctx.stroke();
-        // Secondary ring — colored, slightly delayed
-        if (t > 5) {
-          const r2p = (t - 5) / 30;
-          const r2r = r2p * 90;
-          ctx.strokeStyle = `hsla(${(hueA + hueB) / 2}, 70%, 60%, ${(1 - r2p) * 0.4})`;
-          ctx.lineWidth = 2 * (1 - r2p);
-          ctx.beginPath();
-          ctx.arc(cx, cy, r2r, 0, Math.PI * 2);
-          ctx.stroke();
-        }
-      }
-
-      // ── Spawn particles based on phase ─────────────────────────────────
-      if (ph === 'accelerating') {
-        // Stream from left (domain A)
-        if (t % 2 === 0 && ps.length < MAX_PARTICLES) {
-          const speed = 2 + Math.random() * 4 + t * 0.02;
-          ps.push(createParticle(
-            0, cy + (Math.random() - 0.5) * 30,
-            hueA,
-            speed, (Math.random() - 0.5) * 1.5,
-            'stream_a'
-          ));
-        }
-        // Stream from right (domain B)
-        if (t % 2 === 1 && ps.length < MAX_PARTICLES) {
-          const speed = 2 + Math.random() * 4 + t * 0.02;
-          ps.push(createParticle(
-            w, cy + (Math.random() - 0.5) * 30,
-            hueB,
-            -speed, (Math.random() - 0.5) * 1.5,
-            'stream_b'
-          ));
-        }
-      }
-
-      if (ph === 'colliding' && t < 40) {
-        // Impact sparks — radial burst
-        for (let i = 0; i < 8; i++) {
-          const angle = Math.random() * Math.PI * 2;
-          const speed = 1 + Math.random() * 5;
-          const sparkHue = Math.random() > 0.5 ? hueA : hueB;
-          if (ps.length < MAX_PARTICLES) {
-            ps.push(createParticle(
-              cx + (Math.random() - 0.5) * 10,
-              cy + (Math.random() - 0.5) * 10,
-              sparkHue,
-              Math.cos(angle) * speed,
-              Math.sin(angle) * speed,
-              'spark'
-            ));
-          }
-        }
-      }
-
-      // Orthogonal debris jets — cross-shaped burst perpendicular to beam axis
-      if (ph === 'colliding' && t < 25) {
-        for (let i = 0; i < 4; i++) {
-          const dir = i < 2 ? -1 : 1; // up or down
-          const speed = 3 + Math.random() * 5;
-          const drift = (Math.random() - 0.5) * 1.5; // slight horizontal spread
-          const jetHue = i % 2 === 0 ? hueA : hueB;
-          if (ps.length < MAX_PARTICLES) {
-            ps.push(createParticle(
-              cx + (Math.random() - 0.5) * 8,
-              cy + (Math.random() - 0.5) * 4,
-              jetHue,
-              drift,
-              dir * speed,
-              'spark'
-            ));
-          }
-        }
-      }
-
-      if (ph === 'colliding' && t > 30 && t < 120 && t % 4 === 0) {
-        // Chimera glow particles — slow orbiting
-        const angle = t * 0.08;
-        const radius = 15 + Math.random() * 25;
-        if (ps.length < MAX_PARTICLES) {
-          ps.push(createParticle(
-            cx + Math.cos(angle) * radius,
-            cy + Math.sin(angle) * radius,
-            (hueA + hueB) / 2, // blended hue — volatile decomposition
-            Math.cos(angle + Math.PI / 2) * 0.5,
-            Math.sin(angle + Math.PI / 2) * 0.5,
-            'chimera'
-          ));
-        }
-      }
-
-      // ── OCK: Vapor trail particles (sillage visualization) ────────────
-      // Rising wisps that represent the accord's volatile decomposition
-      if (ph === 'colliding' && t > 60 && t < 140 && t % 6 === 0) {
-        const vaporX = cx + (Math.random() - 0.5) * 50;
-        // Amber/gold hue for olfactory layer
-        if (ps.length < MAX_PARTICLES) {
-          ps.push(createParticle(
-            vaporX, cy + 10,
-            40, // amber hue
-            (Math.random() - 0.5) * 0.3,
-            -(0.3 + Math.random() * 0.8), // rises upward
-            'chimera' // reuse chimera type for the glow effect
-          ));
-        }
-      }
-
-      // ── Update and draw particles ──────────────────────────────────────
-      let alive = 0;
-      for (let i = 0; i < ps.length; i++) {
-        const p = ps[i];
-        if (p.life <= 0) continue;
-
-        p.x += p.vx;
-        p.y += p.vy;
-        p.vx *= 0.98;
-        p.vy *= 0.98;
-        p.life -= p.decay;
-
-        if (p.life <= 0) continue;
-        alive++;
-
-        const alpha = p.life * p.life;
-        const sat = p.type === 'chimera' ? '60%' : '80%';
-        const light = p.type === 'spark' ? '80%' : '60%';
-
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
-        ctx.fillStyle = `hsla(${p.hue}, ${sat}, ${light}, ${alpha})`;
-        ctx.fill();
-
-        // Glow for chimera particles
-        if (p.type === 'chimera') {
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, p.size * p.life * 3, 0, Math.PI * 2);
-          ctx.fillStyle = `hsla(${p.hue}, 60%, 60%, ${alpha * 0.15})`;
-          ctx.fill();
-        }
-      }
-
-      // Cull dead particles periodically
-      if (t % 60 === 0) {
-        particlesRef.current = ps.filter(p => p.life > 0);
-      }
-
-      // ── Collision flash ────────────────────────────────────────────────
-      if (ph === 'colliding' && t < 15) {
-        const flash = 1 - t / 15;
-        ctx.fillStyle = `rgba(255, 255, 255, ${flash * 0.35})`;
-        ctx.fillRect(0, 0, w, h);
-      }
-
-      // Restore canvas from shake transform
-      if (shaking) ctx.restore();
-
-      // ── 16-Beam parameter trace — fires from t=80 onward, each beam
-      //    decays at a rate proportional to its OCK dimension magnitude.
-      if (ph === 'colliding' && t > 80 && beamsRef.current) {
-        drawDimensionBeams(ctx, beamsRef.current, t, w, h);
-      }
-
-      // ── Result metrics overlay (delayed to let impact breathe) ─────────
-      if (ph === 'colliding' && metrics && t > 80) {
-        const fadeIn = Math.min(1, (t - 80) / 30);
-        ctx.globalAlpha = fadeIn;
-
-        // Cosine similarity arc
-        ctx.strokeStyle = `hsla(${(hueA + hueB) / 2}, 70%, 60%, 0.6)`;
-        ctx.lineWidth = 2;
-        const arcRadius = Math.min(w, h) * 0.15;
-        const angleRad = (metrics.angle / 180) * Math.PI;
-        ctx.beginPath();
-        ctx.arc(cx, cy + 50, arcRadius, -Math.PI / 2, -Math.PI / 2 + angleRad);
-        ctx.stroke();
-
-        // Labels
-        ctx.fillStyle = 'rgba(6, 182, 212, 0.7)';
-        ctx.font = '10px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText(`cos(θ) = ${metrics.cosine.toFixed(4)}`, cx, cy + 50 + arcRadius + 16);
-        ctx.fillText(`θ = ${metrics.angle.toFixed(1)}°`, cx, cy + 50 + arcRadius + 28);
-
-        // Novelty bar
-        const barX = cx - 60;
-        const barY = cy - 60;
-        const barW = 120;
-        const barH = 4;
-        ctx.fillStyle = 'rgba(255,255,255,0.1)';
-        ctx.fillRect(barX, barY, barW, barH);
-        ctx.fillStyle = `hsla(${280}, 70%, 60%, 0.8)`;
-        ctx.fillRect(barX, barY, barW * metrics.novelty, barH);
-        ctx.fillStyle = 'rgba(217, 70, 239, 0.6)';
-        ctx.font = '8px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText(`NOVELTY ${(metrics.novelty * 100).toFixed(0)}%`, cx, barY - 4);
-
-        ctx.globalAlpha = 1;
-      }
-
-      // Transition to result phase after animation completes
-      if (ph === 'colliding' && t > 150) {
-        phaseRef.current = 'result';
-        setPhase('result');
-      }
-    };
-
-    rafRef.current = requestAnimationFrame(draw);
-
-    return () => {
-      window.removeEventListener('resize', resize);
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
-  }, [domainA, domainB]);
+  // ── colliding -> result: a clock, not the render loop ─────────────────────
+  // See usePhaseAdvance.js: this used to fire from inside the Canvas2D
+  // draw() call, so under prefers-reduced-motion or a suspended-rAF preview
+  // pane the collision would sit in 'colliding' forever.
+  usePhaseAdvance(phase, phaseStart, () => {
+    phaseRef.current = 'result';
+    setPhase('result');
+    setPhaseStart(performance.now());
+  });
 
   // ── Viability color ────────────────────────────────────────────────────────
   const viabilityColor = useMemo(() => {
@@ -2003,15 +1617,20 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
         )}
       </div>
 
-      {/* ── Collision Chamber (canvas) ── */}
-      <div className="relative w-full border border-fuchsia-900/30 bg-black/60 rounded-lg overflow-hidden"
-        style={{ height: 220, animation: 'sc-borderBreath 8s ease-in-out infinite' }}>
-        <canvas
-          ref={canvasRef}
-          className="absolute inset-0 w-full h-full"
-          style={{ imageRendering: 'auto' }}
+      {/* ── Collision Chamber (WebGL) ── */}
+      <div className="relative">
+        <ColliderChamber
+          phase={phase}
+          hueA={domainA !== null ? domainById(domainA).hue : 280}
+          hueB={domainB !== null ? domainById(domainB).hue : 120}
+          selA={domainA !== null}
+          selB={domainB !== null}
+          labelA={domainA !== null ? domainById(domainA).short : null}
+          labelB={domainB !== null ? domainById(domainB).short : null}
+          beams={beamsRef.current?.beams ?? null}
+          metrics={phase === 'colliding' || phase === 'result' ? metricsRef.current : null}
+          phaseStartedAt={phaseStart}
         />
-        {/* Idle state prompt */}
         {phase === 'idle' && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="text-center border border-dashed border-fuchsia-500/20 rounded-sm px-10 py-6">
@@ -2024,7 +1643,6 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
             </div>
           </div>
         )}
-        {/* Loading indicator */}
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="text-[10px] font-mono text-fuchsia-400 uppercase tracking-widest animate-pulse">
