@@ -61,7 +61,7 @@ export const CMD_MANIFEST = [
   { name: 'tags',         desc: 'open tag cloud' },
   { name: 'thesis',       desc: 'load architect thesis' },
   { name: 'home',         desc: 'navigate to /kernel' },
-  { name: 'scaling',      desc: 'navigate to /scaling' },
+  { name: 'scent',        desc: 'navigate to /scent' },
   { name: 'transmission', desc: 'navigate to /transmission' },
   { name: 'manifesto',    desc: 'navigate to /manifesto' },
   { name: 'surveillance',  desc: 'navigate to /surveillance' },

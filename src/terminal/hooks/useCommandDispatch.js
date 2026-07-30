@@ -27,7 +27,7 @@ import { emit as emitObs } from '../../observatory/observatoryBus';
 const LOAD_TAB_MAP = {
   surveillance: 'surveillance', panopticon: 'surveillance', legislation: 'surveillance',
   cryptography: 'cryptography', classified: 'cryptography', pqc: 'cryptography', mlkem: 'cryptography',
-  kernel: 'kernel', home: 'kernel', scaling: 'scaling', transmission: 'transmission',
+  kernel: 'kernel', home: 'kernel', scaling: 'scaling', scent: 'scaling', saponification: 'scaling', transmission: 'transmission',
   manifesto: 'manifesto', bsky: 'bsky', bluesky: 'bsky', privacy: 'privacy',
   art: 'art', graph: 'art', fade: 'art', 'fade_doctrine': 'art', 'feigenbaum_fade': 'art', visual: 'art', chaos: 'art',
   ledger: 'ledger', audit: 'ledger', verdicts: 'ledger', 'open_ledger': 'ledger',
@@ -415,9 +415,9 @@ export function useCommandDispatch(ctx) {
       executeCommand(rawCmd, "Switching directory to /system/kernel...");
       return;
     }
-    if (['scaling', 'services', 'custom'].includes(action)) {
-      handleNav('~/system/scaling', 'scaling');
-      executeCommand(rawCmd, "Switching directory to /system/scaling...");
+    if (['scaling', 'scent', 'saponification', 'services', 'custom'].includes(action)) {
+      handleNav('~/system/scent', 'scaling');
+      executeCommand(rawCmd, "Switching directory to /system/scent...");
       return;
     }
     if (action === 'transmission') {
@@ -480,7 +480,7 @@ export function useCommandDispatch(ctx) {
       return;
     }
     if (action === 'thesis') {
-      handleNav('~/system/scaling/thesis', 'scaling');
+      handleNav('~/system/scent/thesis', 'scaling');
       setArchitectThesis(true);
       executeCommand(rawCmd, "Loading ARCHITECT_THESIS...");
       return;
@@ -940,7 +940,7 @@ export function useCommandDispatch(ctx) {
         setOriginTab(activeTab);
         setSelectedArticle(helpArticle);
       } else {
-        executeCommand(rawCmd, 'Commands: load [term], list, search [term], home/kernel, scaling, transmission, manifesto, privacy, thesis, clear, help. ↑↓ history.');
+        executeCommand(rawCmd, 'Commands: load [term], list, search [term], home/kernel, scent, transmission, manifesto, privacy, thesis, clear, help. ↑↓ history.');
       }
       return;
     }

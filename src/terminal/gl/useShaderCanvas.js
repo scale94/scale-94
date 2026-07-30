@@ -22,6 +22,7 @@ export function useShaderCanvas(canvasRef, {
   ...hostOptions
 }) {
   const snapRef = useRef(null);
+  const hostRef = useRef(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -39,6 +40,7 @@ export function useShaderCanvas(canvasRef, {
       onUnsupported?.();
       return undefined;
     }
+    hostRef.current = host;
 
     const reducedMotion =
       typeof window.matchMedia === 'function' &&
@@ -65,6 +67,7 @@ export function useShaderCanvas(canvasRef, {
       // keep the order even though no current effect can race it.
       loop.stop();
       snapRef.current = null;
+      hostRef.current = null;
       host.dispose();
     };
     // deps controls the whole rebuild: `draw`, `onSnap`, `onUnsupported` and
@@ -79,5 +82,5 @@ export function useShaderCanvas(canvasRef, {
   }, deps);
 
   const snap = useCallback(() => snapRef.current?.(), []);
-  return { snap };
+  return { snap, hostRef };
 }

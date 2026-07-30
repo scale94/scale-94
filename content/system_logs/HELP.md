@@ -8,7 +8,7 @@ date: 2026-03-11
 ## NAVIGATION
 
 * **home** / **kernel** / **system** — Return to the Kernel module browser.
-* **scaling** / **services** — Open the Kernel Building Services panel.
+* **scent** / **saponification** / **scaling** / **services** — Open the Saponification chamber.
 * **transmission** — Open the Signal/Fiction archive.
 * **manifesto** / **about** — Display the Architect Identity Protocol.
 * **privacy** — Display the Privacy Protocol.

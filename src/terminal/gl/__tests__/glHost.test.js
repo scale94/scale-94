@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createRecordingGL } from './recordingGL';
-import { createShaderHost } from '../glHost';
+import { createShaderHost, buildProgram } from '../glHost';
 
 function canvasWith(gl) {
   return { getContext: () => gl, style: {}, width: 0, height: 0 };
@@ -194,5 +194,61 @@ describe('createShaderHost', () => {
       ...BASE, version: 2, strategy: 'lunar', loseContextOnDispose: false,
     }).dispose();
     expect(off.__log.map(e => e[0])).not.toContain('loseContext');
+  });
+
+  it('accepts a rectangular pixelSize and sizes both axes independently', () => {
+    vi.stubGlobal('devicePixelRatio', 2);
+    const canvas = canvasWith(createRecordingGL({ version: 2 }));
+    createShaderHost(canvas, {
+      ...BASE, version: 2, strategy: 'lunar', pixelSize: { w: 900, h: 220 },
+    });
+    expect(canvas.width).toBe(1800);
+    expect(canvas.height).toBe(440);
+    vi.unstubAllGlobals();
+  });
+
+  it('writes a rectangular style size when asked', () => {
+    const canvas = canvasWith(createRecordingGL({ version: 2 }));
+    createShaderHost(canvas, {
+      ...BASE, version: 2, strategy: 'lunar',
+      pixelSize: { w: 900, h: 220 }, setStyleSize: true,
+    });
+    expect(canvas.style.width).toBe('900px');
+    expect(canvas.style.height).toBe('220px');
+  });
+
+  it('resize() updates the backing store and viewport without rebuilding', () => {
+    vi.stubGlobal('devicePixelRatio', 2);
+    const gl = createRecordingGL({ version: 2 });
+    const canvas = canvasWith(gl);
+    const host = createShaderHost(canvas, {
+      ...BASE, version: 2, strategy: 'lunar', pixelSize: { w: 900, h: 220 },
+    });
+    const before = gl.__log.length;
+    host.resize(400, 220);
+    expect(canvas.width).toBe(800);
+    expect(canvas.height).toBe(440);
+    // Exactly one new GL call, and it is the viewport. A rebuild would emit
+    // createShader/linkProgram here -- that is the defect this test catches.
+    expect(gl.__log.slice(before).map(e => e[0])).toEqual(['viewport']);
+    expect(gl.__log[gl.__log.length - 1]).toEqual(['viewport', 0, 0, 800, 440]);
+    vi.unstubAllGlobals();
+  });
+});
+
+describe('buildProgram', () => {
+  it('compiles, links and returns a program', () => {
+    const gl = createRecordingGL({ version: 2 });
+    const prog = buildProgram(gl, 'VS', 'FS', { strategy: 'lunar', label: 'x' });
+    expect(prog.__tag).toMatch(/^program:/);
+    expect(gl.__log.map(e => e[0])).toContain('linkProgram');
+  });
+
+  it('throws with the driver log on compile failure', () => {
+    const gl = createRecordingGL({ version: 2 });
+    gl.getShaderParameter = () => false;
+    gl.getShaderInfoLog = () => 'BOOM';
+    expect(() => buildProgram(gl, 'VS', 'FS', { strategy: 'lunar', label: 'chamber' }))
+      .toThrow(/chamber.*BOOM/s);
   });
 });

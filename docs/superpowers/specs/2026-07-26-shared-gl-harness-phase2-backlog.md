@@ -605,3 +605,35 @@ Land in roughly this order, each as its own commit/PR:
     risk, needs pixel-diff verification, and every other convergence
     should be done first so this one item's diff isn't tangled with
     unrelated changes.
+
+---
+
+## 12. Multi-program hosts — now measured, still n=2
+
+Added 2026-07-28 by the `/SCENT` collider chamber
+(`docs/superpowers/specs/2026-07-28-scent-collider-gl-design.md`).
+
+`glHost.js` builds exactly one program and one fullscreen quad. Two
+consumers now build a second program themselves inside `onInit` using the
+raw `gl` handle: `LunarShaderMoon`'s `buildBakeProgram` (render-to-texture)
+and `ColliderChamber`'s particle pass (`gl.POINTS` from its own VAO and
+attribute buffer).
+
+The shared compile/link/throw sequence has been extracted as
+`export function buildProgram(gl, vs, fs, { strategy, label })` — but the
+*second-program lifecycle* (its VAO, its buffers, its uniform harvest, its
+teardown ordering against `dispose()`) is still hand-rolled twice.
+
+**Do not extract it yet.** The two consumers' second programs differ in
+kind: the moon's is transient (built, used once, deleted inside `onInit`),
+the chamber's is persistent (built at init, bound every frame, freed in
+`onDispose`). A shared abstraction over both would have to model both
+lifecycles, which is exactly the speculative generality phase 1 existed to
+delete. Revisit at a third consumer, or at a second *persistent* one.
+
+**Also landed here, additively, with `glParity` byte-identical:**
+- `pixelSize` accepts `{ w, h }` — it was scalar-only, i.e. square canvases
+  only. Every prior consumer is square; the chamber is a 220px letterbox.
+- `host.resize(w, h)` — re-sizes the backing store and viewport without a
+  rebuild.
+- `useShaderCanvas` returns `hostRef` alongside `snap`.
