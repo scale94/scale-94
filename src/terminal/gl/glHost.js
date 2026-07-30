@@ -45,9 +45,9 @@ function buildLegacy(gl, vs, fs, label) {
 }
 
 // Exported: the collider chamber builds a second program for its particle
-// pass inside onInit, and LunarShaderMoon's buildBakeProgram is the same
-// compile/link/throw sequence copy-pasted. Two consumers, so it is shared
-// rather than triplicated. `strategy` is accepted for symmetry with
+// pass inside onInit, and LunarShaderMoon's bake pass builds a second program
+// against the same context for the same reason. Two consumers, so it is
+// shared rather than duplicated. `strategy` is accepted for symmetry with
 // createShaderHost; only 'lunar' error handling is exposed, because a second
 // program that silently fails to compile is exactly the black-canvas failure
 // mode the harness exists to prevent.

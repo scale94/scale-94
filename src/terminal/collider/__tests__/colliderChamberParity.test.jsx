@@ -62,12 +62,19 @@ describe('ColliderChamber GL traffic', () => {
       .toHaveLength(64);
   });
 
-  it('never writes state from the render loop — no drawArrays after unmount', () => {
+  it('renders past COLLIDE_MS without advancing the phase itself', () => {
+    // The branch's central rule: the render loop may READ state and must never
+    // write it. The chamber is handed phase='colliding' and never handed
+    // anything else, so if it were driving its own transition the uploaded
+    // uPhase would change partway through. 200 frames is 3200ms, well past
+    // COLLIDE_MS (2500) -- the phase must still be colliding on the last frame.
     const { frames } = drive({ phase: 'colliding', phaseStartedAt: 0 }, 200);
-    // 200 frames is 3200ms, well past COLLIDE_MS. The chamber must keep
-    // rendering the post-done state rather than tearing itself down: the
-    // transition belongs to the parent (spec 6.2).
-    expect(frames.filter(l => l.startsWith('drawArrays')).length).toBeGreaterThan(300);
+    const phases = frames
+      .filter(l => l.startsWith('uniform1f(') && l.includes(':uPhase"'))
+      .map(l => Number(l.slice(l.lastIndexOf(',') + 1, l.lastIndexOf(')'))));
+    expect(phases.length).toBeGreaterThan(100);
+    expect(new Set(phases)).toEqual(new Set([3]));   // PHASE_ID.colliding, never anything else
+    expect(frames.filter(l => l.startsWith('drawArrays')).length).toBe(400);
   });
 
   it('frozen GL call log', () => {

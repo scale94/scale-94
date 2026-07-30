@@ -9,6 +9,7 @@
 
 import React, { useRef, useState } from 'react';
 import { useShaderCanvas } from '../gl/useShaderCanvas';
+import { buildProgram } from '../gl/glHost';
 import { QUAD_VS, MOON_FS, BAKE_FS, bakeSize } from './moonShader';
 import { createAdaptState, stepAdapt, isAtRest } from './darkAdaptation';
 import { libration, apparentRadiusScale } from './lunarEphemeris';
@@ -24,37 +25,6 @@ const CONTEXT_OPTIONS = {
   stencil: false,
   powerPreference: 'low-power',
 };
-
-// The bake pass builds a second program against the same context. It uses the
-// same strict policy glContext.js used: a silently-null program renders black,
-// which is indistinguishable from the suspended-rAF trap.
-function buildBakeProgram(gl) {
-  const mk = (type, src, kind) => {
-    const sh = gl.createShader(type);
-    gl.shaderSource(sh, src);
-    gl.compileShader(sh);
-    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
-      const log = gl.getShaderInfoLog(sh);
-      gl.deleteShader(sh);
-      throw new Error(`[moonShader] ${kind} shader failed to compile:\n${log}`);
-    }
-    return sh;
-  };
-  const vs = mk(gl.VERTEX_SHADER, QUAD_VS, 'vertex');
-  const fs = mk(gl.FRAGMENT_SHADER, BAKE_FS, 'fragment');
-  const prog = gl.createProgram();
-  gl.attachShader(prog, vs);
-  gl.attachShader(prog, fs);
-  gl.linkProgram(prog);
-  gl.deleteShader(vs);
-  gl.deleteShader(fs);
-  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
-    const log = gl.getProgramInfoLog(prog);
-    gl.deleteProgram(prog);
-    throw new Error(`[moonShader] program failed to link:\n${log}`);
-  }
-  return prog;
-}
 
 export default function LunarShaderMoon({ lunarAge, illumination, timestamp, size = 340, onAdaptChange }) {
   const canvasRef = useRef(null);
@@ -97,7 +67,7 @@ export default function LunarShaderMoon({ lunarAge, illumination, timestamp, siz
       reportRef.current = { at: 0, value: -1 };
 
       // ── Pass A: bake the selenographic surface, once ──
-      const bakeProg = buildBakeProgram(gl);
+      const bakeProg = buildProgram(gl, QUAD_VS, BAKE_FS, { strategy: 'lunar', label: 'moonShader' });
       const [bw, bh] = bakeSize();
       surfaceTexRef.current = gl.createTexture();
       gl.bindTexture(gl.TEXTURE_2D, surfaceTexRef.current);
