@@ -87,7 +87,10 @@ void main() {
     pos   = vec2(x + helix.x * 0.35 + turb.x, c.y + lane * 6.0 + helix.y + turb.y);
     // INGRESS: gl.POINTS are culled on their centre, so a sprite arriving at
     // x=0 would pop in at full size. Ramp alpha over the first 3% of travel.
-    alpha = smoothstep(0.0, 0.03, s) * (0.35 + 0.65 * uEase);
+    // The second term is the EGRESS side of the same problem: without it,
+    // alpha is cut hard when fract() wraps at s -> 1, so sprites at full
+    // alpha and full size vanish at the exact centre instead of fading out.
+    alpha = smoothstep(0.0, 0.03, s) * smoothstep(1.0, 0.97, s) * (0.35 + 0.65 * uEase);
     size  = 2.0 + 3.0 * h1 + 3.0 * uEase;
 
   } else {
@@ -117,7 +120,9 @@ void main() {
     } else if (role < 1.1) {
       // orthogonal debris jet — the cross-shaped burst
       float dir = h1 < 0.5 ? -1.0 : 1.0;
-      float v   = 180.0 + 300.0 * h1;
+      // v from birth, not h1: h1 already picked the direction, so drawing the
+      // magnitude from it too makes one arm systematically longer than the other.
+      float v   = 180.0 + 300.0 * birth;
       float k   = 1.0 - exp(-uPhaseT * 2.4);
       pos   = c + vec2(lane * 40.0 * k, dir * v * k);
       alpha = max(0.0, 1.0 - uPhaseT * 2.4) * uGates.y;

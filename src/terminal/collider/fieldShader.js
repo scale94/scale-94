@@ -68,7 +68,7 @@ void main() {
   float zoneR = mix(40.0, 60.0 + 10.0 * sin(uPhaseT * 6.0), step(3.0, uPhase));
   float glow  = exp(-r / max(zoneR, 1.0));
   float pulse = 0.06 + 0.04 * sin(uPhaseT * 1.8);
-  col += mix(hue2rgb(uHue.x), hue2rgb(uHue.y), 0.5) * glow * pulse;
+  col += hue2rgb(mix(uHue.x, uHue.y, 0.5)) * glow * pulse;
 
   // crosshair
   float chx = (1.0 - smoothstep(0.0, 0.8, abs(d.y))) * (1.0 - smoothstep(18.0, 20.0, abs(d.x)));
@@ -107,7 +107,7 @@ void main() {
       if (along < 0.0 || along > len) continue;
       float perp = abs(dot(d, vec2(-dir.y, dir.x)));
       col += hue2rgb(B.z) * (1.0 - p) * 0.85
-           * (1.0 - smoothstep(0.0, 0.5 + B.y * 2.0, perp));
+           * (1.0 - smoothstep(0.0, (0.5 + B.y * 2.0) * 0.5, perp));
     }
   }
 
@@ -116,8 +116,9 @@ void main() {
 
   col += (dither(px) - 0.5) / 255.0;
 
-  // Additive blend: alpha carries luminance so unlit pixels stay transparent
-  // and the container's bg-black/60 shows through.
-  fragColor = vec4(col, clamp(dot(col, vec3(0.299, 0.587, 0.114)), 0.0, 1.0));
+  // Premultiplied output: alpha must be >= every channel or the value is out
+  // of range and compositing is implementation-defined. The channel max is the
+  // smallest alpha that satisfies that for emissive colour.
+  fragColor = vec4(col, clamp(max(col.r, max(col.g, col.b)), 0.0, 1.0));
 }
 `;

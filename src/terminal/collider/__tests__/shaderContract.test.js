@@ -71,6 +71,7 @@ describe('particle shader specifics', () => {
     expect(PARTICLE_VS).not.toContain('300.0 * fract(h1');
     expect(PARTICLE_VS).toContain('60.0 + 300.0 * birth');   // spark speed
     expect(PARTICLE_VS).toContain('15.0 + 25.0 * birth');    // chimera radius
+    expect(PARTICLE_VS).toContain('180.0 + 300.0 * birth');  // jet magnitude
   });
 
   it('rises the vapor upward in the +Y-is-up convention both passes use', () => {
