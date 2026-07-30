@@ -4,7 +4,7 @@
 // stored between frames, nothing is allocated, and replaying a collision is
 // uPhaseT = 0. That is also what makes the parity snapshot possible.
 
-export const MAX_POINT_SIZE = 32;
+export const MAX_POINT_SIZE = 64;
 
 export const PARTICLE_UNIFORMS = [
   'uRes',    // vec2  canvas size in CSS px
@@ -13,6 +13,7 @@ export const PARTICLE_UNIFORMS = [
   'uHue',    // vec2  hueA, hueB
   'uEase',   // float easeInCubic of the accelerating progress
   'uGates',  // vec4  sparkGate, jetGate, chimeraGate, vaporGate
+  'uPx',     // float device pixels per CSS pixel
 ];
 
 export const PARTICLE_VS = `#version 300 es
@@ -24,6 +25,7 @@ uniform float uPhaseT;
 uniform vec2  uHue;
 uniform float uEase;
 uniform vec4  uGates;
+uniform float uPx;
 
 out vec3  vCol;
 out float vAlpha;
@@ -145,7 +147,12 @@ void main() {
 
   vCol   = col;
   vAlpha = alpha;
-  gl_PointSize = clamp(size, 1.0, ${MAX_POINT_SIZE}.0);
+  // size is authored in CSS px like every other length here, but
+  // gl_PointSize is in FRAMEBUFFER px — so it must be scaled by the DPR or
+  // the whole particle layer renders 1/DPR too small on a HiDPI display.
+  // The clamp is applied after scaling, in device px, which is the unit the
+  // ANGLE large-point limit is actually expressed in.
+  gl_PointSize = clamp(size * uPx, 1.0, ${MAX_POINT_SIZE}.0);
   gl_Position = vec4((pos / uRes) * 2.0 - 1.0, 0.0, 1.0);
 }
 `;

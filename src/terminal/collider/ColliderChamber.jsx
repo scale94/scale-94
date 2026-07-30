@@ -96,6 +96,7 @@ export default function ColliderChamber({
     gl.uniform2f(P.U.uHue, h01a, h01b);
     gl.uniform1f(P.U.uEase, T.ease);
     gl.uniform4f(P.U.uGates, T.sparkGate, T.jetGate, T.chimeraGate, T.vaporGate);
+    gl.uniform1f(P.U.uPx, w > 0 ? host.gl.canvas.width / w : 1);
     gl.drawArrays(gl.POINTS, 0, PARTICLE_COUNT);
   };
 

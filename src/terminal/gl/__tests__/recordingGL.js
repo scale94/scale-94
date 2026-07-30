@@ -113,7 +113,13 @@ export function installRecordingGL({ version = 2 } = {}) {
   const original = HTMLCanvasElement.prototype.getContext;
   const wanted = version === 2 ? 'webgl2' : 'webgl';
   HTMLCanvasElement.prototype.getContext = function (type) {
-    return type === wanted ? gl : null;
+    if (type !== wanted) return null;
+    // Real WebGL contexts expose `.canvas` back to their originating element;
+    // this stub is a singleton shared across getContext() calls, so mirror
+    // that here. A plain property assignment, never logged, so it cannot
+    // perturb any frozen call-log snapshot.
+    gl.canvas = this;
+    return gl;
   };
   return {
     gl,

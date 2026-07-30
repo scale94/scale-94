@@ -36,8 +36,9 @@ describe.each([
 
 describe('particle shader specifics', () => {
   it('clamps gl_PointSize to avoid ANGLE large-point quirks', () => {
-    // Spec 5.3. Windows/ANGLE misrenders points above ~64px; 32 is the cap.
-    expect(MAX_POINT_SIZE).toBe(32);
+    // Spec 5.3. Windows/ANGLE misrenders points well above this; the clamp
+    // is applied in device px (after scaling by uPx), so the cap is 64.
+    expect(MAX_POINT_SIZE).toBe(64);
     expect(PARTICLE_VS).toContain('gl_PointSize');
     expect(PARTICLE_VS).toContain(`${MAX_POINT_SIZE}.0`);
   });
