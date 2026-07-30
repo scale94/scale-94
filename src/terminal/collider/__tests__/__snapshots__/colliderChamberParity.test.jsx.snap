@@ -213,7 +213,7 @@ exports[`ColliderChamber GL traffic > frozen GL call log 1`] = `
     "enableVertexAttribArray(0)",
     "vertexAttribPointer(0, 2, 5126, false, 0, 0)",
     "createShader(35633)",
-    "shaderSource("shader:5", "src:4987:abc004a9")",
+    "shaderSource("shader:5", "src:5446:79c3662e")",
     "compileShader("shader:5")",
     "getShaderParameter("shader:5", 35713)",
     "createShader(35632)",

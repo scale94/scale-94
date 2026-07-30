@@ -60,6 +60,18 @@ describe('particle shader specifics', () => {
     }
   });
 
+  it('never derives a particle angle and its radius from the same seed', () => {
+    // Both from h1 puts the whole population on a 1-D locus in the plane: the
+    // spark burst rendered as a rosette of thin arcs and the chimera orbit as a
+    // single thin ring, instead of filling a disc. Found by looking at a real
+    // browser capture -- every unit test and the frozen GL call log were green.
+    // Scrambling one of them does not help; they must come from different seed
+    // components, and `birth` is the one free during the collision.
+    expect(PARTICLE_VS).not.toContain('300.0 * fract(h1');
+    expect(PARTICLE_VS).toContain('60.0 + 300.0 * birth');   // spark speed
+    expect(PARTICLE_VS).toContain('15.0 + 25.0 * birth');    // chimera radius
+  });
+
   it('rises the vapor upward in the +Y-is-up convention both passes use', () => {
     // gl_Position maps pos.y = 0 to clip -1 (the bottom), so a rising wisp
     // must ADD to y as it ages. `10.0 - age * 90.0` sank.

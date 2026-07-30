@@ -98,9 +98,14 @@ void main() {
     // burst onto a 40px orbit ring in a single frame.
     float role = h2 * 2.0; // 0..2, uniform because h2 also chose the side
     if (role < 0.9) {
-      // spark — radial burst with drag
+      // spark — radial burst with drag.
+      // ang and v MUST come from different seed components. Driving both from
+      // h1 puts every spark on a 1-D locus in the plane — a rosette of thin
+      // arcs instead of a filled disc — however much you scramble one of them
+      // (fract(h1 * 7.13) is still a function of h1). birth is unused in this
+      // phase, so it is the free dimension.
       float ang = h1 * TAU;
-      float v   = 60.0 + 300.0 * fract(h1 * 7.13);
+      float v   = 60.0 + 300.0 * birth;
       float k   = 1.0 - exp(-uPhaseT * 2.4);
       pos   = c + vec2(cos(ang), sin(ang)) * v * k;
       alpha = max(0.0, 1.0 - uPhaseT * 1.5) * uGates.x;
@@ -117,9 +122,10 @@ void main() {
       size  = 1.5 + 2.0 * h1;
 
     } else if (role < 1.6) {
-      // chimera — slow orbit at the blended hue
+      // chimera — slow orbit at the blended hue. Same rule as the spark: rad
+      // must not come from h1, or the orbit collapses to a single thin ring.
       float ang = uPhaseT * 1.2 + h1 * TAU;
-      float rad = 15.0 + 25.0 * h1;
+      float rad = 15.0 + 25.0 * birth;
       pos   = c + vec2(cos(ang), sin(ang)) * rad;
       alpha = 0.5 * uGates.z;
       size  = 5.0 + 6.0 * h1;
