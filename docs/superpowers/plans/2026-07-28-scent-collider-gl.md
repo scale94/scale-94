@@ -13,6 +13,8 @@
 ## Global Constraints
 
 - **Test command is `npm test`** (vitest run). Single file: `npx vitest run <path>`.
+- **Baseline is 847 tests / 92 files green.** Each task states how many it adds; anything else moving is a regression.
+- **`npm run lint` is NOT clean repo-wide** — measured 2026-07-28: 559 problems, 403 errors, all pre-existing. Do not use a whole-repo lint pass as a gate; it will never be green and says nothing about your change. Instead lint only what you touched: `npx eslint <the files you changed>`, and confirm it reports zero errors for those paths. Where a step below says "run the linter", that is what it means.
 - **The six frozen `glParity` snapshots must stay byte-identical.** Never run vitest with `-u`. If `glParity.test.jsx` fails, the change was not additive — fix the change, not the snapshot.
 - **The render loop may read state and must never write it.** No `setState`, no ref mutation that drives a phase transition, inside any `draw()` callback. (Spec §6.2.)
 - **No `Math.random()` in anything the GL path touches.** Particle seeds and all per-frame values must be deterministic or the parity snapshot cannot exist.
@@ -46,6 +48,7 @@ Both are called out again at the task that implements them.
 | `src/terminal/App.jsx` | MODIFY — nav label, icon, aria-label, prompt path |
 | `src/terminal/hooks/useCommandDispatch.js` | MODIFY — `scent`/`saponification` aliases |
 | `src/terminal/hooks/useTerminalCommands.js` | MODIFY — same |
+| `src/terminal/commands/runHelpers.js` | MODIFY — `CMD_MANIFEST`, which drives the terminal's live autocomplete dropdown |
 | `content/system_logs/HELP.md` | MODIFY — help text |
 
 **A note on "route":** there is no URL router. `handleNav(path, tab)` (`App.jsx:593`) sets a *displayed prompt string* and a tab key. So "renaming the route" means changing a display string at four call sites and adding command aliases. Nothing can 404.

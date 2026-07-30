@@ -331,6 +331,48 @@ chamber container.
 ## 10. Deferred
 
 - FBO bloom pass, if the analytic glow reads flat (§5.2).
-- `glHost` multi-program support, at the second consumer (§4.3).
 - Full rename of the internal `'scaling'` key (§2).
-- The rest of `LatentCollider.jsx`'s 4394 lines.
+- The rest of `LatentCollider.jsx`'s 4012 lines. The next seam is the phase
+  graph: seven hand-maintained `phaseRef.current = X` / `setPhase(X)` /
+  `setPhaseStart(...)` triples, of which `phaseRef` now has **no readers at
+  all** — its only reader was the deleted `_draw()`. A two-line reducer would
+  delete that dead ref and make "every transition stamps its start time"
+  enforceable rather than remembered.
+- `glHost` multi-program support — see the phase-2 backlog §12. Resolved
+  partway: `buildProgram` is now shared and `LunarShaderMoon` migrated onto it.
+  The *second-program lifecycle* is still hand-rolled twice, deliberately: the
+  moon's is transient, the chamber's persistent.
+
+### 10.1 OPEN — three visuals dropped in the port, author's decision
+
+Found by the final whole-branch review, after the work shipped. All three are
+in §1's inventory of what the Canvas2D loop drew, and none reached §4/§5.1's
+pass-1 list. They were not consciously cut — nothing anywhere records a
+decision — and two carry direct evidence of being planned and abandoned:
+
+1. **The converging domain orbs.** Two radial-gradient orbs with bright cores
+   easing from the walls to ±100px of centre over the full 1800ms. This was the
+   *primary* visual of the acceleration phase; what ships is streams only.
+2. **The impact screen shake.** `colliderPhases.js` still computes `shake`, and
+   `colliderPhases.test.js` still asserts it — but nothing uploads it and
+   neither shader has a shake term. Two lines in the field shader (offset `px`
+   by a hash-driven vector scaled by `shake`) would restore it.
+3. **The cosine-similarity arc.** A stroked arc sweeping `θ` at `(cx, cy+50)`,
+   `r = min(w,h) * 0.15`. §7 correctly excluded it from the DOM migration
+   because it is a graphic, but nothing put it into pass 1 either — and
+   `ColliderChamber` uploads `T.metrics` into `uBurst.w` every frame while
+   `fieldShader` reads `.x`, `.y`, `.z` and never `.w`. That unread component
+   is the residue of this feature.
+
+Restoring any of them is cheap and self-contained. Deleting the dead `shake`
+field, its test, and the `uBurst.w` upload is cheaper still. Either is fine;
+leaving the half-built plumbing in place is not.
+
+### 10.2 Population mix changed, unrecorded
+
+The original spawned roughly 69% sparks / 22% jets / 5% chimera / 3% vapor.
+`role = h2 * 2.0` with cuts at 0.9/1.1/1.6 gives **45/10/25/20** on a buffer
+13× larger — chimera is 5× and vapor 6.7× their original *share*. Almost
+certainly the intent of "budget 4096 (from 300)", but it is the number to reach
+for if the impact ever reads weak: the sparks are faithfully sized at 1.5–3.5px
+and now compete against ~1024 chimera sprites at 5–11px.
