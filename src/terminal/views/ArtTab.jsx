@@ -46,6 +46,8 @@ import {
 } from '../art/artParticles';
 import { buildRotMatrix, applyM, project } from '../art/artMath';
 import { createBeatClock } from '../art/artBeatClock';
+import { clusterLabelState, nodeLabelState, fireExpired } from '../art/artLabels';
+import SphereLabels from '../art/SphereLabels';
 import { stepAwakening, drawGenesisGlow, drawBeaconRing, drawConductor } from '../art/artAwakening';
 import {
   CLUSTERS, INTRA_EDGES, DEFAULT_CROSS_EDGES, ALL_EDGES, ADJ,
@@ -84,6 +86,7 @@ function getScrollParent(el) {
 export default function ArtTab({ onRunKernel, onCueNode, associativeField, spectralBridges, boneFusions, probeNode, manualFusions = [], onManualFusion, orthogonalBridges = [], onOrthogonalBridge }) {
   const canvasRef      = useRef(null);
   const containerRef   = useRef(null);
+  const labelsApiRef   = useRef(null);
   const feigTitleRef   = useRef(null);
   const feigSparkTimer = useRef(null);   // guards at-feigSpark cleanup race
   const rafRef         = useRef(null);
@@ -855,16 +858,16 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       }
 
       // ── Cluster ghost labels (projected anchor positions) ─────────────────
-      ctx.textAlign = 'center';
+      const nextLabels = [];
       Object.entries(CLUSTER_ANCHORS).forEach(([key, a]) => {
         const [rx, ry, rz] = applyM(M, a.x, a.y, a.z);
-        if (rz < -0.2) return;  // skip labels on the back face
-        const p   = project(rx, ry, rz, w, h, sphereR, focal);
-        const col = CLUSTER_COLORS[key];
-        const al  = Math.max(0, rz) * 0.12;
-        ctx.font      = 'bold 9px monospace';
-        ctx.fillStyle = hslAlpha(col, al);
-        ctx.fillText(CLUSTERS[key].label.toUpperCase(), p.sx, p.sy - 52 * p.scale);
+        const p = project(rx, ry, rz, w, h, sphereR, focal);
+        const st = clusterLabelState({ rz, projected: p, text: CLUSTERS[key].label });
+        if (!st) return;
+        nextLabels.push({
+          key: `cluster:${key}`, ...st,
+          color: hslAlpha(CLUSTER_COLORS[key], 1),
+        });
       });
 
       // ── Voronoi Mesh — suppressed in default view, only in immersive mode ──
@@ -1413,53 +1416,20 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           }
         }
 
-        // ── Label rendering ────────────────────────────────────────────────
-        // Three sources of label visibility, composited:
-        //   1. Hover — always full brightness
-        //   2. High energy — natural decay after fireNode
-        //   3. Fired cascade — staggered fade-in/hold/fade-out for clicked
-        //      node and its neighbors, with the seed node firing first
-        const fired  = firedRef.current;
-        const inFire = fired && fired.neighborIds.has(n.id);
-        let fireAlpha = 0;
-        if (inFire) {
-          const elapsed = (performance.now() - fired.t0) / 1000;  // seconds
-          const isSeed  = n.id === fired.seedId;
-          // Stagger: seed appears instantly, neighbors delayed 80-200ms by index
-          const delay   = isSeed ? 0 : 0.08 + (i % 5) * 0.025;
-          const t       = elapsed - delay;
-          // Envelope: 0→0.35s fade-in, 0.35→2.5s hold, 2.5→3.5s fade-out
-          if (t < 0)          fireAlpha = 0;
-          else if (t < 0.35)  fireAlpha = t / 0.35;                         // ease in
-          else if (t < 2.5)   fireAlpha = 1.0;                              // hold
-          else if (t < 3.5)   fireAlpha = 1.0 - (t - 2.5);                 // fade out
-          else                { fireAlpha = 0; }
-          // Seed gets full brightness; neighbors get node color tint
-          fireAlpha *= (isSeed ? 0.95 : 0.80) * depthAlpha;
-          // Clear ref when all labels have faded
-          if (elapsed > 3.8) firedRef.current = null;
-        }
+        // ── Label rendering — state only; SphereLabels draws it ────────────
+        const fired = firedRef.current;
+        const elapsed = fired ? (performance.now() - fired.t0) / 1000 : 0;
+        if (fired && fireExpired(elapsed)) firedRef.current = null;
 
-        const showHover  = isHov;
-        const showEnergy = n.energy > 0.45 && p.depth > -0.1;
-        const showFire   = fireAlpha > 0.01;
-
-        if (showHover || showEnergy || showFire) {
-          // Pick highest alpha source
-          const hoverA  = showHover  ? 0.92 : 0;
-          const energyA = showEnergy ? n.energy * 0.80 * depthAlpha : 0;
-          const la      = Math.max(hoverA, energyA, fireAlpha);
-
-          const isSeed  = fired && n.id === fired.seedId;
-          const fontSize = Math.round(
-            ((showHover || isSeed) ? 10 : showFire ? 9 : 8) * p.scale
-          );
-
-          ctx.textAlign = 'center';
-          // Always render labels in the node's own cluster color
-          ctx.fillStyle = hslAlpha(renderCol, la * (showHover ? 1.0 : 0.82));
-          ctx.font = `bold ${fontSize}px monospace`;
-          ctx.fillText(n.label, p.sx, p.sy - radius - 4);
+        const st = nodeLabelState({
+          node: n, projected: p, index: i, isHovered: isHov,
+          fired, elapsed, depthAlpha, radius,
+        });
+        if (st) {
+          nextLabels.push({
+            key: `node:${n.id}`, ...st,
+            color: hslAlpha(renderCol, 1),
+          });
         }
       }
 
@@ -1556,10 +1526,15 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           ctx.fill();
           // Label
           const shortQ = probe.query.length > 22 ? probe.query.slice(0, 20) + '…' : probe.query;
-          ctx.textAlign = 'center';
-          ctx.font = `bold ${Math.round(9 * pp.scale)}px monospace`;
-          ctx.fillStyle = `rgba(221,214,254,${0.88 * depthAlpha})`;
-          ctx.fillText(`⊕ ${shortQ}`, pp.sx, pp.sy - probeR - 5);
+          nextLabels.push({
+            key: 'probe',
+            text: `⊕ ${shortQ}`,
+            x: pp.sx,
+            y: pp.sy - probeR - 5,
+            alpha: 0.88 * depthAlpha,
+            fontSize: Math.round(9 * pp.scale),
+            color: 'rgb(221,214,254)',
+          });
         }
       }
 
@@ -1648,6 +1623,9 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         ctx.fillStyle = vigGrd;
         ctx.fillRect(0, 0, w, h);
       }
+
+      // ── Hand this frame's labels to the DOM overlay ───────────────────────
+      labelsApiRef.current?.update(nextLabels);
       } catch (err) {
         console.error('[ArtTab] draw error (loop continues):', err);
       }
@@ -2553,6 +2531,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           onMouseLeave={handleMouseLeave}
           onContextMenu={handleContextMenu}
         />
+        <SphereLabels ref={labelsApiRef} />
 
         {/* ── Node hover tooltip ───────────────────────────────────────────── */}
         {hoveredTooltip && (
