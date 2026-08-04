@@ -37,7 +37,8 @@ export function useProductionThreshold() {
         if (!cancelled) {
           setThreshold({ current: best, target: serverTarget, loaded: true });
           // Persist reconciled value back to localStorage
-          try { localStorage.setItem('ck_count', String(best)); } catch {}
+          try { localStorage.setItem('ck_count', String(best)); }
+          catch { /* storage unavailable or full — the in-memory value still stands */ }
         }
       } catch {
         // API unavailable — promote localStorage fallback to loaded state

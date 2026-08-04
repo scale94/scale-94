@@ -144,21 +144,21 @@ export function resolveWasmAlias(kernelId) {
       id.includes('SILLAGE') || id.includes('VOLATILE-SEM'))          return 'ock';
 
   // ── Phase 3 kernels (2025) ────────────────────────────────────────────────────
-  if (/EK-1|EMPATHY[_\-]KERNEL/i.test(id))                              return 'cynic_realist';
-  if (/2X2X2X|ZERO[_\-]DAY|SOMA[_\-]PROTOCOL/i.test(id))               return 'necromantic';
-  if (/V[23]\.2X|MUTATION[_\-]KERNEL/i.test(id))                        return 'replicator';
-  if (/MYCELIUM[_\-]CONSOLE/i.test(id))                                  return 'biocoenosis';
-  if (/1[_\-]MILLION|RAMDISK|SIGNAL[_\-]LEGACY/i.test(id))              return 'phonemic';
-  if (/METALLURGY[_\-]KERNEL|VIOLET.*LILA|LILA.*VIOLET/i.test(id))      return 'phonemic';
-  if (/XITTER|XITLER|NETWORK[_\-]COLLAPSE/i.test(id))                   return 'percolation';
-  if (/PURIF|KERNEL[_\-]15[_\-]0/i.test(id))                            return 'spectral_bridge';
-  if (/CIVILIAN[_\-]RESIST|KERNEL[_\-]15[_\-]1/i.test(id))             return 'leviathan';
-  if (/IDEOLOG|HIVE[_\-]DYNAM|KERNEL[_\-]INTEGR/i.test(id))            return 'ising';
-  if (/JURIDICAL|KERNEL[_\-]IV\b|NO[_\-]ESCAPE/i.test(id))             return 'ceei';
-  if (/POST[_\-]CAPIT|AI[_\-]KERNEL[_\-]POST/i.test(id))               return 'ceei';
-  if (/BRIDGE[_\-]KERNEL/i.test(id))                                     return 'spectral_bridge';
-  if (/RENDER[_\-]PROMPT|CORPUS[_\-]SYNTH|SCALE[_\-]RENDER/i.test(id)) return 'seraphine';
-  if (/ENCYCLOPEDIA|GLYPH[_\-]ARCHIVE|SCALE94[_\-]KERNEL[_\-]ENC/i.test(id)) return 'associative_field';
+  if (/EK-1|EMPATHY[_-]KERNEL/i.test(id))                              return 'cynic_realist';
+  if (/2X2X2X|ZERO[_-]DAY|SOMA[_-]PROTOCOL/i.test(id))               return 'necromantic';
+  if (/V[23]\.2X|MUTATION[_-]KERNEL/i.test(id))                        return 'replicator';
+  if (/MYCELIUM[_-]CONSOLE/i.test(id))                                  return 'biocoenosis';
+  if (/1[_-]MILLION|RAMDISK|SIGNAL[_-]LEGACY/i.test(id))              return 'phonemic';
+  if (/METALLURGY[_-]KERNEL|VIOLET.*LILA|LILA.*VIOLET/i.test(id))      return 'phonemic';
+  if (/XITTER|XITLER|NETWORK[_-]COLLAPSE/i.test(id))                   return 'percolation';
+  if (/PURIF|KERNEL[_-]15[_-]0/i.test(id))                            return 'spectral_bridge';
+  if (/CIVILIAN[_-]RESIST|KERNEL[_-]15[_-]1/i.test(id))             return 'leviathan';
+  if (/IDEOLOG|HIVE[_-]DYNAM|KERNEL[_-]INTEGR/i.test(id))            return 'ising';
+  if (/JURIDICAL|KERNEL[_-]IV\b|NO[_-]ESCAPE/i.test(id))             return 'ceei';
+  if (/POST[_-]CAPIT|AI[_-]KERNEL[_-]POST/i.test(id))               return 'ceei';
+  if (/BRIDGE[_-]KERNEL/i.test(id))                                     return 'spectral_bridge';
+  if (/RENDER[_-]PROMPT|CORPUS[_-]SYNTH|SCALE[_-]RENDER/i.test(id)) return 'seraphine';
+  if (/ENCYCLOPEDIA|GLYPH[_-]ARCHIVE|SCALE94[_-]KERNEL[_-]ENC/i.test(id)) return 'associative_field';
 
   // ── Dissipative / non-equilibrium thermodynamics ────────────────────────────
   if (id.includes('DISSIPATIVE'))                                               return 'pragmatic';

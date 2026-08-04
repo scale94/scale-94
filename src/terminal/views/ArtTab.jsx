@@ -499,7 +499,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   const handleTermSubmit = useCallback((e) => {
     e.preventDefault();
     // Sanitize: only word chars, spaces, dashes — no shell metacharacters
-    const raw = termInput.trim().replace(/[^a-zA-Z0-9 _\-]/g, '').slice(0, 80);
+    const raw = termInput.trim().replace(/[^a-zA-Z0-9 _-]/g, '').slice(0, 80);
     if (!raw) return;
 
     // ── Query projection: `query <text>` maps text → 16D and ranks nodes ──
@@ -2737,7 +2737,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             <div style={{ color: 'rgba(167,139,250,0.95)' }}>
               {'> [QUERY_PROJECTION] :: '}
               <span style={{ color: 'rgba(255,255,255,0.80)' }}>
-                "{queryResult.query.slice(0, 55)}{queryResult.query.length > 55 ? '…' : ''}"
+                &quot;{queryResult.query.slice(0, 55)}{queryResult.query.length > 55 ? '…' : ''}&quot;
               </span>
             </div>
             <button

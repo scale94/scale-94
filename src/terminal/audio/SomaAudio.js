@@ -390,7 +390,8 @@ class SomaAudioEngine {
     // Cleanup
     const cleanup = () => {
       try { carrier.disconnect(); modulator.disconnect(); filter.disconnect();
-            env.disconnect(); panner.disconnect(); modGain.disconnect(); } catch {}
+            env.disconnect(); panner.disconnect(); modGain.disconnect(); }
+      catch { /* nodes already torn down by the context — nothing to release */ }
     };
     setTimeout(cleanup, (totalDur + 0.1) * 1000);
   }
@@ -434,7 +435,8 @@ class SomaAudioEngine {
       osc.stop(now + 0.65);
 
       setTimeout(() => {
-        try { osc.disconnect(); env.disconnect(); pan.disconnect(); } catch {}
+        try { osc.disconnect(); env.disconnect(); pan.disconnect(); }
+        catch { /* nodes already torn down by the context — nothing to release */ }
       }, 750);
     }
 
@@ -505,7 +507,8 @@ class SomaAudioEngine {
 
       setTimeout(() => {
         try { osc.disconnect(); mod.disconnect(); filter.disconnect();
-              env.disconnect(); modG.disconnect(); } catch {}
+              env.disconnect(); modG.disconnect(); }
+        catch { /* nodes already torn down by the context — nothing to release */ }
       }, (delay + 0.65) * 1000);
     }
 
@@ -569,7 +572,7 @@ class SomaAudioEngine {
       try {
         clickSrc.disconnect(); clickEnv.disconnect();
         kick.disconnect(); kickEnv.disconnect();
-      } catch {}
+      } catch { /* nodes already torn down by the context — nothing to release */ }
     }, 450);
   }
 
@@ -648,7 +651,7 @@ class SomaAudioEngine {
         sub.disconnect(); subEnv.disconnect();
         noiseSrc.disconnect(); sweepFilter.disconnect(); sweepEnv.disconnect();
         clickSrc.disconnect(); clickEnv.disconnect();
-      } catch {}
+      } catch { /* nodes already torn down by the context — nothing to release */ }
     }, 2000);
   }
 
@@ -703,7 +706,8 @@ class SomaAudioEngine {
     }
 
     setTimeout(() => {
-      try { osc.disconnect(); osc2.disconnect(); env.disconnect(); env2.disconnect(); } catch {}
+      try { osc.disconnect(); osc2.disconnect(); env.disconnect(); env2.disconnect(); }
+      catch { /* nodes already torn down by the context — nothing to release */ }
     }, 2200);
   }
 

@@ -172,9 +172,7 @@ export default function MercuryEnvironment({ activePhase, pendingPhase, sphereSt
       {/* Positive scale + BackSide = inverted sphere. Never negate the scale:
           that flips winding and un-inverts it. */}
       <mesh scale={50}>
-        {/* eslint-disable-next-line react/no-unknown-property */}
         <sphereGeometry args={[1, 48, 32]} />
-        {/* eslint-disable react/no-unknown-property */}
         <shaderMaterial
           vertexShader={vertexShader}
           fragmentShader={fragmentShader}
@@ -182,7 +180,6 @@ export default function MercuryEnvironment({ activePhase, pendingPhase, sphereSt
           side={THREE.BackSide}
           depthWrite={false}
         />
-        {/* eslint-enable react/no-unknown-property */}
       </mesh>
     </Environment>
   );

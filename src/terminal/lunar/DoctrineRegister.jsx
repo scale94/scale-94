@@ -45,7 +45,7 @@ export default function DoctrineRegister({ reading, planetData, aspectGlyph }) {
         {/* the line that declares what the register is — at 1.6:1 it was the
             least legible text in the block, which inverted its job */}
         <div className="text-[7px] font-mono text-violet-400/70 mt-0.5">
-          // the alchemy to the chemistry above · astrology to its astronomy
+          {'// the alchemy to the chemistry above · astrology to its astronomy'}
         </div>
       </div>
 

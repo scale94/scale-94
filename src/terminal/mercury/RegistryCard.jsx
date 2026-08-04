@@ -86,7 +86,7 @@ export default function RegistryCard({ category, totals }) {
         last observed
       </div>
       <div className="text-[8.5px] mb-2" style={{ color: SILVER + (last ? '0.7)' : '0.25)') }}>
-        {last ?? <em>// awaiting transmission</em>}
+        {last ?? <em>{'// awaiting transmission'}</em>}
       </div>
 
       {/* State */}
@@ -100,7 +100,7 @@ export default function RegistryCard({ category, totals }) {
       {/* Dedication footer */}
       <div className="border-t pt-2" style={{ borderColor: 'rgba(192,192,192,0.06)' }}>
         <div className="text-[8.5px] italic leading-snug" style={{ color: SILVER + '0.55)' }}>
-          "{dedication}"
+          &quot;{dedication}&quot;
         </div>
       </div>
     </div>

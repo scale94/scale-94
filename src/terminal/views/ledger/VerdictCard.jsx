@@ -99,7 +99,7 @@ export default function VerdictCard({ verdict, onExport }) {
         <span className="text-teal-600">coordinates:</span>{' '}
         {verdict.coordinates.lat.toFixed(4)}, {verdict.coordinates.lon.toFixed(4)}
         {verdict.input?.siteName && (
-          <span className="text-zinc-500 ml-2">// {verdict.input.siteName}</span>
+          <span className="text-zinc-500 ml-2">{'// '}{verdict.input.siteName}</span>
         )}
       </div>
       <div className="font-mono text-[10px] text-zinc-600 mb-3">

@@ -712,7 +712,8 @@ function loadKeyHistory() {
   try { return JSON.parse(sessionStorage.getItem(SESSION_HISTORY_KEY) ?? '[]'); } catch { return []; }
 }
 function saveKeyHistory(hist) {
-  try { sessionStorage.setItem(SESSION_HISTORY_KEY, JSON.stringify(hist.slice(-6))); } catch {}
+  try { sessionStorage.setItem(SESSION_HISTORY_KEY, JSON.stringify(hist.slice(-6))); }
+  catch { /* storage unavailable (private mode / blocked) — history is best-effort */ }
 }
 
 // ── Key generation phase ──────────────────────────────────────────────────────

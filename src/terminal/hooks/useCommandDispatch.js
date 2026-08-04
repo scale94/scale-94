@@ -234,7 +234,6 @@ export function useCommandDispatch(ctx) {
 
         (async () => {
           try {
-            // eslint-disable-next-line import/no-unresolved
             const mod = await loadWasm();
 
             await runPreExecTheater(line => log(line), theaterDuration());

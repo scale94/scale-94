@@ -1225,7 +1225,7 @@ function EcoIndex({ articles, onOpenArticle }) {
     <div className="mt-6 border-t pt-6" style={{ borderColor: 'rgba(122,184,0,0.2)' }}>
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div className="text-xs font-bold tracking-widest uppercase" style={{ color: 'rgba(57,255,20,0.45)' }}>
-          // eco_kernel_index · {ecoArticles.length} entries
+          {'// eco_kernel_index · '}{ecoArticles.length}{' entries'}
         </div>
         <div className="relative">
           <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3" style={{ color: 'rgba(122,184,0,0.45)' }} />
