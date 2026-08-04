@@ -32,7 +32,7 @@ import {
   compareNodes, jitterFeatures,
 } from '../data/nodeFeatures';
 import { somaAudio } from '../audio/SomaAudio';
-import { somaPresence } from '../audio/SomaPresence';
+import { somaPresence } from '../net/SomaPresence';
 import { ecoDataFeed } from '../data/EcoDataFeed';
 import { ecocideBus } from './EcocideTab';
 import { colliderBus } from './LatentCollider';
