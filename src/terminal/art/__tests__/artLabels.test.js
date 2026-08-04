@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   fireAlphaFor, nodeLabelState, clusterLabelState, fireExpired,
-  FIRE_EXPIRY, CLUSTER_LABEL_MIN_Z,
+  FIRE_FADE_IN, FIRE_EXPIRY, CLUSTER_LABEL_MIN_Z,
 } from '../artLabels';
 
 const projected = { sx: 100, sy: 200, scale: 1, depth: 0.5 };
@@ -14,7 +14,8 @@ describe('fireAlphaFor', () => {
   });
 
   it('gives the seed no delay', () => {
-    expect(fireAlphaFor({ elapsed: 0.001, isSeed: true, index: 0 })).toBeGreaterThan(0);
+    expect(fireAlphaFor({ elapsed: 0.001, isSeed: true, index: 0 }))
+      .toBeCloseTo((0.001 / FIRE_FADE_IN) * 0.95, 10);
   });
 
   it('eases in over the first 0.35s', () => {
@@ -41,6 +42,10 @@ describe('fireExpired', () => {
     expect(FIRE_EXPIRY).toBe(3.8);
     expect(fireExpired(3.7)).toBe(false);
     expect(fireExpired(3.9)).toBe(true);
+  });
+
+  it('is not expired at the boundary value itself (strict greater-than)', () => {
+    expect(fireExpired(3.8)).toBe(false);
   });
 });
 
@@ -72,6 +77,13 @@ describe('nodeLabelState', () => {
     const behind = { ...projected, depth: -0.5 };
     expect(nodeLabelState({
       ...base, node: { ...node, energy: 0.9 }, projected: behind,
+    })).toBeNull();
+  });
+
+  it('suppresses the energy source exactly at the depth cutoff (strict greater-than)', () => {
+    const atCutoff = { ...projected, depth: -0.1 };
+    expect(nodeLabelState({
+      ...base, node: { ...node, energy: 0.9 }, projected: atCutoff,
     })).toBeNull();
   });
 
@@ -118,6 +130,42 @@ describe('nodeLabelState', () => {
     const lit = nodeLabelState({ ...base, fired, elapsed: 1.0, depthAlpha: 1 });
     const dim = nodeLabelState({ ...base, fired, elapsed: 1.0, depthAlpha: 0.5 });
     expect(dim.alpha).toBeCloseTo(lit.alpha * 0.5, 5);
+  });
+
+  it('gives the fired seed font weight even when the seed is absent from neighborIds', () => {
+    // isSeed is computed independently of inFire: node.id === fired.seedId,
+    // with no requirement that neighborIds also contains it. The seed reaches
+    // font weight 10 here through the energy path, not the fire path.
+    const fired = { seedId: 'n1', neighborIds: new Set(['other']) };
+    const s = nodeLabelState({
+      ...base, fired, node: { ...node, energy: 0.9 },
+    });
+    expect(s).not.toBeNull();
+    expect(s.fontSize).toBe(10);
+  });
+
+  it('does not scale hover alpha by depth', () => {
+    const full = nodeLabelState({ ...base, isHovered: true, depthAlpha: 1 });
+    const dimmed = nodeLabelState({ ...base, isHovered: true, depthAlpha: 0.5 });
+    expect(dimmed.alpha).toBeCloseTo(full.alpha, 5);
+  });
+
+  it('scales energy alpha by depth', () => {
+    const full = nodeLabelState({ ...base, node: { ...node, energy: 0.9 }, depthAlpha: 1 });
+    const dimmed = nodeLabelState({ ...base, node: { ...node, energy: 0.9 }, depthAlpha: 0.5 });
+    expect(dimmed.alpha).toBeCloseTo(full.alpha * 0.5, 5);
+  });
+
+  it('gives a fired seed in neighborIds the seed font weight, a fired neighbour the neighbour weight', () => {
+    const seedFired = { seedId: 'n1', neighborIds: new Set(['n1']) };
+    const seed = nodeLabelState({ ...base, fired: seedFired, elapsed: 1.0 });
+    expect(seed).not.toBeNull();
+    expect(seed.fontSize).toBe(10);
+
+    const neighborFired = { seedId: 'other', neighborIds: new Set(['n1']) };
+    const neighbor = nodeLabelState({ ...base, fired: neighborFired, elapsed: 1.0 });
+    expect(neighbor).not.toBeNull();
+    expect(neighbor.fontSize).toBe(9);
   });
 });
 
