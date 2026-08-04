@@ -46,6 +46,7 @@ import {
   emitIdleParticles, emitNodeBurst, emitEdgeParticles,
 } from '../art/artParticles';
 import { buildRotMatrix, applyM, project } from '../art/artMath';
+import { createBeatClock } from '../art/artBeatClock';
 import { stepAwakening, drawGenesisGlow, drawBeaconRing, drawConductor } from '../art/artAwakening';
 import {
   CLUSTERS, INTRA_EDGES, DEFAULT_CROSS_EDGES, ALL_EDGES, ADJ,
@@ -223,6 +224,12 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   const audioInitRef   = useRef(false);
   const ambientModeRef = useRef(false);
   const beatPhaseRef   = useRef(0);     // 1 = just fired, decays toward 0 per frame
+  const beatClockRef   = useRef(null);
+  if (beatClockRef.current === null) {
+    beatClockRef.current = createBeatClock({
+      onBeat: () => { beatPhaseRef.current = 1.0; },
+    });
+  }
 
   // ── Audio: init on first interaction ────────────────────────────────────
   const ensureAudio = useCallback(() => {
@@ -237,6 +244,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     if (audioInitRef.current) somaAudio.resume();
     return () => {
       somaAudio.stopBeatClock();
+      beatClockRef.current?.stop();
       if (audioInitRef.current) somaAudio.suspend();
     };
   }, []);
@@ -2549,9 +2557,9 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
               setAmbientMode(next);
               if (next) {
                 ensureAudio();
-                somaAudio.startBeatClock(114, () => { beatPhaseRef.current = 1.0; });
+                beatClockRef.current.start();
               } else {
-                somaAudio.stopBeatClock();
+                beatClockRef.current.stop();
               }
             }}
             className="px-2 py-1 rounded-sm border transition-all duration-200"
