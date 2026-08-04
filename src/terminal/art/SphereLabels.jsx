@@ -33,7 +33,10 @@ const SphereLabels = forwardRef(function SphereLabels(_props, ref) {
         if (!el) {
           el = document.createElement('span');
           el.style.position = 'absolute';
-          el.style.transform = 'translate(-50%, -100%)';
+          // canvas fillText's y is the alphabetic baseline; this box's bottom
+          // sits at `top`. Shifting up by ~0.21em (the mono stack's descent)
+          // reproduces the same baseline instead of the box bottom.
+          el.style.transform = 'translate(-50%, calc(-100% + 0.21em))';
           el.style.whiteSpace = 'nowrap';
           host.appendChild(el);
           pool.set(l.key, el);
@@ -41,7 +44,11 @@ const SphereLabels = forwardRef(function SphereLabels(_props, ref) {
         if (el.textContent !== l.text) el.textContent = l.text;
         el.style.left = `${l.x}px`;
         el.style.top = `${l.y}px`;
-        el.style.font = `bold ${l.fontSize}px monospace`;
+        // line-height is folded into the font shorthand (rather than set
+        // separately at creation) because `font` resets any sub-property it
+        // doesn't specify — a bare `el.style.lineHeight = '1'` at creation
+        // would be clobbered by this very assignment on the same call.
+        el.style.font = `bold ${l.fontSize}px/1 monospace`;
         el.style.color = l.color;
         el.style.opacity = String(l.alpha);
       }

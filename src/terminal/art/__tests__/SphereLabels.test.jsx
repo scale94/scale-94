@@ -20,7 +20,7 @@ describe('SphereLabels', () => {
     expect(host.style.pointerEvents).toBe('none');
   });
 
-  it('creates one span per label with position, font and opacity applied', () => {
+  it('creates one span per label with position, font, color and opacity applied', () => {
     const { ref, host } = mount();
     ref.current.update([label()]);
     const spans = host.querySelectorAll('span');
@@ -29,6 +29,17 @@ describe('SphereLabels', () => {
     expect(spans[0].style.left).toBe('100px');
     expect(spans[0].style.top).toBe('200px');
     expect(spans[0].style.opacity).toBe('0.5');
+    expect(spans[0].style.color).toBe('rgb(255, 0, 0)');
+    expect(spans[0].style.font).toContain('9px');
+    expect(spans[0].style.font).toContain('monospace');
+  });
+
+  it('positions the baseline to match canvas fillText, not the box bottom', () => {
+    const { ref, host } = mount();
+    ref.current.update([label()]);
+    const span = host.querySelector('span');
+    expect(span.style.lineHeight).toBe('1');
+    expect(span.style.transform).toBe('translate(-50%, calc(-100% + 0.21em))');
   });
 
   it('reuses the same element across updates for a stable key', () => {
@@ -63,5 +74,17 @@ describe('SphereLabels', () => {
     const { ref, host } = mount();
     expect(() => ref.current.update([])).not.toThrow();
     expect(host.querySelectorAll('span')).toHaveLength(0);
+  });
+
+  it('empties the pool and removes spans from the document on unmount', () => {
+    const ref = createRef();
+    const { container, unmount } = render(<SphereLabels ref={ref} />);
+    const host = container.firstChild;
+    ref.current.update([label(), label({ key: 'node:n2', text: 'OTHER' })]);
+    expect(host.querySelectorAll('span')).toHaveLength(2);
+    const spans = Array.from(host.querySelectorAll('span'));
+    unmount();
+    expect(document.body.contains(host)).toBe(false);
+    spans.forEach(span => expect(document.body.contains(span)).toBe(false));
   });
 });
