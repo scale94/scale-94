@@ -13,7 +13,7 @@
 // Color system: deterministic hash HSL via kernelColorMap.js
 
 import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react';
-import { Maximize, Minimize, Radio, Clock, Wifi } from 'lucide-react';
+import { Maximize, Minimize, Radio, Clock, Wifi, Circle } from 'lucide-react';
 import CascadeIcon from '../components/CascadeIcon';
 import { lerpColor, hslAlpha } from '../data/kernelColorMap';
 import { useSomaGraph, CLUSTER_ANCHORS } from '../hooks/useSomaGraph';
@@ -2501,6 +2501,23 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             {immersive
               ? <Minimize className="w-3.5 h-3.5 inline" />
               : <Maximize className="w-3.5 h-3.5 inline" />}
+          </button>
+          {/* Recording toggle */}
+          <button
+            onClick={() => {
+              const wasRec = tmIsRecording.current;
+              tmIsRecording.current = !wasRec;
+              setRecording(!wasRec);
+            }}
+            className="px-2 py-1 rounded-sm border transition-all duration-200"
+            style={{
+              borderColor: recording ? 'rgba(239,68,68,0.6)' : 'rgba(255,140,0,0.2)',
+              color: recording ? 'rgba(239,68,68,0.9)' : 'rgba(255,140,0,0.4)',
+              background: recording ? 'rgba(239,68,68,0.08)' : 'transparent',
+            }}
+            title="Record timeline (R)"
+          >
+            <Circle className="w-3 h-3 inline" style={recording ? { fill: 'currentColor' } : {}} />
           </button>
           {/* Timeline playback toggle */}
           <button
