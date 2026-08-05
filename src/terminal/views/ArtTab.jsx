@@ -53,7 +53,7 @@ import {
   CLUSTERS, INTRA_EDGES, DEFAULT_CROSS_EDGES, ALL_EDGES, ADJ,
   SPHERE_NODES, SPHERE_ADJ, SPHERE_EDGES,
   NODE_COLORS, CLUSTER_COLORS, dynColorMap, dynFeaturesMap,
-  DIM_KEYWORDS, queryProject,
+  DIM_KEYWORDS, queryProject, SPHERE_LABEL,
 } from '../art/artGraph';
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -1473,17 +1473,21 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       // ── Probe node (text_probe.rs concept injection) ───────────────────────
       // Rendered after all sphere nodes so it draws on top.
       const probe = probeNodeRef.current;
-      if (probe?.similarities?.length) {
-        const top = probe.similarities.slice(0, 4);
-        // Weighted centroid of top matches in physics node positions
-        let wx = 0, wy = 0, wz = 0, wsum = 0;
-        for (const { id, sim } of top) {
+      if (probe?.anchors?.length) {
+        // Ranking spans all 272 corpus nodes; probe.anchors has already
+        // collapsed the top matches onto sphere nodes (see SPHERE_ANCHOR), so
+        // the centroid forms even when no match is on the sphere itself.
+        let wx = 0, wy = 0, wz = 0, wsum = 0, wmax = 0;
+        const tethers = [];
+        for (const { id, weight } of probe.anchors) {
           const ni = nodes.findIndex(n => n.id === id);
           if (ni < 0) continue;
-          wx += nodes[ni].x * sim;
-          wy += nodes[ni].y * sim;
-          wz += nodes[ni].z * sim;
-          wsum += sim;
+          wx += nodes[ni].x * weight;
+          wy += nodes[ni].y * weight;
+          wz += nodes[ni].z * weight;
+          wsum += weight;
+          if (weight > wmax) wmax = weight;
+          tethers.push({ ni, weight });
         }
         if (wsum > 1e-12) {
           wx /= wsum; wy /= wsum; wz /= wsum;
@@ -1492,14 +1496,12 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           const [prx, pry, prz] = applyM(M, wx, wy, wz);
           const pp = project(prx, pry, prz, w, h, sphereR, focal);
           const depthAlpha = Math.max(0.12, (prz + 1) * 0.5);
-          // Tether lines to top 3 matches
+          // Tether lines to every anchor that formed the centroid
           ctx.setLineDash([3, 5]);
-          for (const { id, sim } of top.slice(0, 3)) {
-            const ni = nodes.findIndex(n => n.id === id);
-            if (ni < 0) continue;
+          for (const { ni, weight } of tethers) {
             const pn = proj[ni];
             ctx.lineWidth = 0.9;
-            ctx.strokeStyle = `rgba(167,139,250,${sim * 0.55 * depthAlpha})`;
+            ctx.strokeStyle = `rgba(167,139,250,${(weight / wmax) * 0.55 * depthAlpha})`;
             ctx.beginPath();
             ctx.moveTo(pp.sx, pp.sy);
             ctx.lineTo(pn.sx, pn.sy);
@@ -2650,11 +2652,22 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
                 <span style={{ color: cluCol?.hsl ?? 'rgba(255,255,255,0.3)', minWidth: '80px', fontSize: '9px' }}>{CLUSTERS[n.cluster]?.label ?? n.cluster}</span>
                 <span style={{ color: 'rgba(167,139,250,0.35)', fontSize: '9px' }}>{bar}</span>
                 <span style={{ color: 'rgba(255,255,255,0.75)' }}>{n.sim.toFixed(4)}</span>
+                {n.anchor !== n.id && (
+                  <span style={{ color: 'rgba(167,139,250,0.45)', fontSize: '9px' }}>
+                    {`↦ ${SPHERE_LABEL[n.anchor] ?? n.anchor}`}
+                  </span>
+                )}
               </div>
             );
           })}
-          <div className="mt-1.5" style={{ color: 'rgba(255,255,255,0.12)' }}>
-            {'  ── sphere probe ⊕ rendered on canvas · type `clear query` to dismiss ──'}
+          <div className="mt-1.5" style={{ color: 'rgba(255,255,255,0.30)' }}>
+            {'  [SPHERE PROBE] ⊕ :: '}
+            <span style={{ color: 'rgba(196,181,253,0.85)' }}>
+              {queryResult.anchors.map(a => a.label ?? a.id).join(' · ')}
+            </span>
+          </div>
+          <div style={{ color: 'rgba(255,255,255,0.12)' }}>
+            {'  ── matches off the sphere resolve to their nearest sphere node ↦ · type `clear query` to dismiss ──'}
           </div>
         </div>
       )}
