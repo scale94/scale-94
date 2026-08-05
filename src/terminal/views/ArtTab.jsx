@@ -48,6 +48,7 @@ import { buildRotMatrix, applyM, project } from '../art/artMath';
 import { createBeatClock } from '../art/artBeatClock';
 import { clusterLabelState, nodeLabelState, fireExpired } from '../art/artLabels';
 import SphereLabels from '../art/SphereLabels';
+import SphereComposite from '../art/SphereComposite';
 import { stepAwakening, drawGenesisGlow, drawBeaconRing, drawConductor } from '../art/artAwakening';
 import {
   CLUSTERS, INTRA_EDGES, DEFAULT_CROSS_EDGES, ALL_EDGES, ADJ,
@@ -90,6 +91,10 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   const feigTitleRef   = useRef(null);
   const feigSparkTimer = useRef(null);   // guards at-feigSpark cleanup race
   const rafRef         = useRef(null);
+  // r3f's advance(), handed over by SphereComposite once its GL root exists.
+  // Null until then, and null again after unmount — the draw loop must not
+  // assume the composite is mounted.
+  const glAdvanceRef   = useRef(null);
   const dimsRef      = useRef({ w: 900, h: 620 });
   const hoveredRef   = useRef(null);
   const [hoveredEdge, setHoveredEdge] = useState(null);  // { aId, bId, cosSim, drivers, isSpectralBridge }
@@ -119,9 +124,12 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   const [bifurcCount, setBifurcCount] = useState(0);   // total child nodes spawned
   const birthMapRef = useRef(new Map());                // childId → {parentId, px, py, pz, t0}
 
-  // ── Immersive Mode (fullscreen + bloom + vignette) ──────────────────────
+  // ── Immersive Mode (fullscreen + vignette) ──────────────────────────────
+  // Bloom is no longer immersive-only and no longer lives here: it is always on
+  // and runs on the GPU in SphereComposite. Immersive still gates the Voronoi
+  // mesh, the spectral ambient, the rift alpha, the canvas height calculation
+  // and the vignette.
   const [immersive, setImmersive]       = useState(false);
-  const bloomCanvasRef  = useRef(null);   // offscreen canvas for bloom post-process
   const immersiveRef    = useRef(false);  // RAF-safe mirror
 
   // ── Jury Awakening (choreographed first-impression sequence) ────────────
@@ -1595,44 +1603,28 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       // ── Bifurcation Conductor (logic in artAwakening.js) ────────────────
       drawConductor(ctx, collectiveRef.current, conductorDragRef.current, w, h);
 
-      // ── Immersive Mode: bloom post-process + vignette ─────────────────────
-      if (immersiveRef.current) {
-        // Bloom: draw blurred copy with additive blend
-        let bloomCvs = bloomCanvasRef.current;
-        if (!bloomCvs) {
-          bloomCvs = document.createElement('canvas');
-          bloomCanvasRef.current = bloomCvs;
-        }
-        // Bloom at half resolution for performance
-        const bw = Math.floor(w / 2), bh = Math.floor(h / 2);
-        if (bloomCvs.width !== bw || bloomCvs.height !== bh) {
-          bloomCvs.width = bw; bloomCvs.height = bh;
-        }
-        const bCtx = bloomCvs.getContext('2d');
-        bCtx.clearRect(0, 0, bw, bh);
-        bCtx.filter = 'blur(12px) brightness(1.2)';
-        bCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, bw, bh);
-        bCtx.filter = 'none';
-
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        ctx.globalAlpha = 0.15;
-        ctx.drawImage(bloomCvs, 0, 0, bw, bh, 0, 0, w, h);
-        ctx.globalAlpha = 1;
-        ctx.restore();
-
-        // Cinematic vignette
-        const vigGrd = ctx.createRadialGradient(w / 2, h / 2, sphereR * 0.6, w / 2, h / 2, Math.max(w, h) * 0.7);
-        vigGrd.addColorStop(0, 'rgba(0,0,0,0)');
-        vigGrd.addColorStop(1, 'rgba(0,0,0,0.65)');
-        ctx.fillStyle = vigGrd;
-        ctx.fillRect(0, 0, w, h);
-      }
+      // ── Bloom and vignette ────────────────────────────────────────────────
+      // Both now happen on the GPU in SphereComposite, which takes this canvas
+      // as a texture. The old version blurred a half-resolution copy with
+      // ctx.filter and composited it back at 0.15 alpha, which is why it read
+      // as a smear rather than as light. Bloom is now always on; the vignette
+      // is still immersive-only.
 
       // ── Hand this frame's labels to the DOM overlay ───────────────────────
       labelsApiRef.current?.update(nextLabels);
       } catch (err) {
         console.error('[ArtTab] draw error (loop continues):', err);
+      }
+
+      // ── Composite ─────────────────────────────────────────────────────────
+      // Outside the try on purpose: if the 2D draw threw part-way, we still
+      // want the GL layer to present whatever did get drawn, exactly as the
+      // browser would have. Inside the try it would be skipped along with
+      // everything else after the throw.
+      try {
+        glAdvanceRef.current?.(performance.now());
+      } catch (err) {
+        console.error('[ArtTab] composite advance failed:', err);
       }
     };
 
@@ -1654,6 +1646,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       return { node: n, ...project(rx, ry, rz, w, h, sphereR, focal) };
     });
   }, [stateRef, dimsRef]);
+
+  // SphereComposite hands its advance() over here once the GL root exists.
+  const handleAdvanceReady = useCallback((advance) => {
+    glAdvanceRef.current = advance;
+  }, []);
 
   const canvasCoords = useCallback((clientX, clientY) => {
     const rect = canvasRef.current?.getBoundingClientRect();
@@ -2529,13 +2526,24 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           ref={canvasRef}
           width={900}
           height={620}
-          style={{ display: 'block', width: '100%', height: 'auto', cursor: 'grab', touchAction: 'none' }}
+          style={{
+            display: 'block', width: '100%', height: 'auto',
+            cursor: 'grab', touchAction: 'none',
+            position: 'relative', zIndex: 0,
+          }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseLeave}
           onContextMenu={handleContextMenu}
         />
+
+        <SphereComposite
+          sourceRef={canvasRef}
+          immersive={immersive}
+          onAdvanceReady={handleAdvanceReady}
+        />
+
         <SphereLabels ref={labelsApiRef} />
 
         {/* ── Node hover tooltip ───────────────────────────────────────────── */}

@@ -71,6 +71,8 @@ const SphereLabels = forwardRef(function SphereLabels(_props, ref) {
       style={{
         position: 'absolute', inset: 0, overflow: 'hidden',
         pointerEvents: 'none', userSelect: 'none',
+        // Above the GL bloom composite, which covers the 2D canvas.
+        zIndex: 2,
       }}
     />
   );
