@@ -66,8 +66,8 @@ export default function CompiledMercuryKernel() {
         {renderMercuryMarkdown(mercuryKernelSource)}
       </div>
       <div className="mt-4 pt-3 border-t" style={{ borderColor: 'rgba(192,192,192,0.1)' }}>
-        <div className="text-[10px] font-mono mb-1" style={{ color: 'rgba(192,192,192,0.5)' }}>// we read the fucking manual so you never have to</div>
-        <div className="text-[9px] font-mono" style={{ color: 'rgba(192,192,192,0.3)' }}>// systemless · leaves no trace · you rooted this</div>
+        <div className="text-[10px] font-mono mb-1" style={{ color: 'rgba(192,192,192,0.5)' }}>{'// we read the fucking manual so you never have to'}</div>
+        <div className="text-[9px] font-mono" style={{ color: 'rgba(192,192,192,0.3)' }}>{'// systemless · leaves no trace · you rooted this'}</div>
       </div>
     </section>
   );

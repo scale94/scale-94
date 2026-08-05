@@ -29,7 +29,10 @@ function persist() {
 function write(patch) {
   spine = { ...spine, ...patch };
   persist();
-  listeners.forEach(fn => { try { fn(spine); } catch (_) {} });
+  listeners.forEach(fn => {
+    // One throwing subscriber must not stop the rest from being notified.
+    try { fn(spine); } catch (_) { /* isolated per listener */ }
+  });
 }
 
 export function getSpine() { return { ...spine }; }
@@ -86,7 +89,8 @@ export function _resetSpineForTests(opts = {}) {
   if (opts.keepStorage) {
     spine = restore();
   } else {
-    try { globalThis.localStorage?.removeItem(STORAGE_KEY); } catch (_) {}
+    try { globalThis.localStorage?.removeItem(STORAGE_KEY); }
+    catch (_) { /* storage unavailable (private mode / blocked) — nothing to clear */ }
     spine = emptySpine();
   }
   listeners.clear();

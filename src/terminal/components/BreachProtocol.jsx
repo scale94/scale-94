@@ -134,7 +134,7 @@ const BreachProtocol = ({ onClose, onSuccess }) => {
         <div className="border-b border-cyan-900/40 px-4 md:px-6 py-3 flex justify-between items-center">
           <div className="text-[10px] tracking-widest uppercase flex items-center gap-3">
             <span className="text-fuchsia-500 font-black">BREACH_PROTOCOL</span>
-            <span className="text-cyan-900/50">//</span>
+            <span className="text-cyan-900/50">{'//'}</span>
             <span className="text-cyan-700">SCALE_9.4 ICE NODE</span>
           </div>
           <div className="flex items-center gap-4 text-[10px]">

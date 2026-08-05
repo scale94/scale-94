@@ -1454,7 +1454,8 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
 
       // ── Fetch live astro data for mathematical astrology overlay ──────
       loadWasm().then(w => {
-        try { setColliderAstro(parseAstroOutput(w.run_astro(Date.now()))); } catch {}
+        try { setColliderAstro(parseAstroOutput(w.run_astro(Date.now()))); }
+        catch { /* astro overlay is decorative — a bad parse just leaves it unset */ }
       });
 
       // ── Emit chimera to Art tab sphere ────────────────────────────────
@@ -1604,7 +1605,7 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
             LATENT SPACE COLLIDER
           </h3>
           <div className="text-[10px] text-fuchsia-500/50 font-mono uppercase tracking-widest mt-0.5">
-            // 1536-D CROSS-ATTENTION SYNTHESIS · OCK v1.1.0 · INTERACT v1.2.0 · WASM · {phase.toUpperCase()}
+            {'// 1536-D CROSS-ATTENTION SYNTHESIS · OCK v1.1.0 · INTERACT v1.2.0 · WASM · '}{phase.toUpperCase()}
           </div>
         </div>
         {(domainA !== null) && (
@@ -2671,7 +2672,7 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
                     </div>
                   </div>
                   <div className="text-[9px] font-mono text-emerald-500/50 leading-relaxed mb-2">
-                    Not all paradoxes are independent. When ≥3 residuals cluster within a narrow band, they aren't noise — they're aligned at a sanctuary frequency. Each cluster is a transient ordered pocket inside the chaotic regime: order recurs.
+                    Not all paradoxes are independent. When ≥3 residuals cluster within a narrow band, they aren&apos;t noise — they&apos;re aligned at a sanctuary frequency. Each cluster is a transient ordered pocket inside the chaotic regime: order recurs.
                   </div>
                   <div className="space-y-1.5">
                     {narrative.sanctuaries.map((s, i) => (

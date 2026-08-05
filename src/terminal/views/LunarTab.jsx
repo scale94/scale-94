@@ -603,11 +603,15 @@ function buildTransitMarkdown(transits, planets, timestamp) {
 }
 
 function TransitMatrix({ transits, planets, timestamp, onRefresh }) {
+  // Hook before the early return: `transits` starts [] and fills in from the
+  // ephemeris effect, so this component really does render both ways on one
+  // fiber. React tolerates it today only because no hook runs before the
+  // return — adding a second hook, or reordering, turns it into a throw.
+  const [copied, setCopied] = useState(false);
+
   if (!transits.length) return null;
   const ts = timestamp.toLocaleDateString('en-CA') + ' ' +
     timestamp.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-
-  const [copied, setCopied] = useState(false);
 
   function handleDownload() {
     const md = buildTransitMarkdown(transits, planets, timestamp);
@@ -636,7 +640,7 @@ function TransitMatrix({ transits, planets, timestamp, onRefresh }) {
             ◈ TRANSIT MATRIX
           </div>
           <div className="text-[7px] font-mono text-violet-500/40 mt-0.5">
-            // {transits.length} active aspects · orb ≤ 8° · swiss ephemeris · {ts}
+            {'// '}{transits.length}{' active aspects · orb ≤ 8° · swiss ephemeris · '}{ts}
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -1178,8 +1182,8 @@ export default function LunarTab() {
         <p>
           LUNAR FRAGRANCE PROTOCOL v2.0 — {wasmReady ? 'Meeus astronomical algorithm (WASM)' : 'synodic fallback'}.
           Phase engine: Jean Meeus, <i>Astronomical Algorithms</i> 2nd ed. (1998), ch.47–48. 60-term periodic series, ~10″ longitude accuracy.
-          Circalunar olfactory modulation: Cajochen C. et al., "Evidence that the Lunar Cycle Influences Human Sleep",
-          Current Biology 23(15), 2013. Barometric tidal forcing: Chapman S. & Lindzen R., "Atmospheric Tides", 1970.
+          Circalunar olfactory modulation: Cajochen C. et al., &quot;Evidence that the Lunar Cycle Influences Human Sleep&quot;,
+          Current Biology 23(15), 2013. Barometric tidal forcing: Chapman S. &amp; Lindzen R., &quot;Atmospheric Tides&quot;, 1970.
         </p>
       </div>
     </div>

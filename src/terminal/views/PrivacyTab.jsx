@@ -213,7 +213,7 @@ const PrivacyTab = ({ systemArticles = {} }) => {
             <div className="flex items-center gap-3 mb-6 pb-4 border-b border-rose-900/30 text-[10px] font-bold tracking-widest font-mono uppercase">
               <Database className="w-3 h-3 text-rose-400" />
               <span className="text-rose-400">LOG: PRIVACY-PROTOCOL</span>
-              <span className="text-rose-500/60">//</span>
+              <span className="text-rose-500/60">{'//'}</span>
               <span className="text-cyan-400">NODE: scale-9.4</span>
               <span className="ml-auto text-rose-300">STATUS: ACTIVE</span>
             </div>
