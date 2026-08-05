@@ -67,10 +67,17 @@ different worlds.
 r3f `<Canvas>` above the 2D canvas and takes the 2D output as a texture. The
 3130-line 2D draw loop is not touched. So:
 
-- the **2D canvas hash must be byte-identical** to `manifest.json` for all 21
-  states. Any change means step 2 perturbed the 2D layer, which it must not.
-- the **screenshots are expected to differ** — that is the bloom, and it is the
-  point. Compare them by eye against these references.
+There are 21 captured states: 7 states × 3 scales.
+
+- the **2D canvas hash must be byte-identical** to `manifest.json` for the 18
+  states that are not `immersive-on`. Any change means step 2 perturbed the 2D
+  layer, which it must not.
+- the 3 **`immersive-on`** states must change, because step 2 deletes the fake
+  `ctx.filter` bloom and the radial-gradient vignette from the draw loop —
+  today's only 2D post-process, and gated on `immersiveRef`, so no other state
+  is affected. That deletion is the point of the step.
+- the **screenshots are expected to differ** for every state — that is the
+  bloom, and it is the point. Compare them by eye against these references.
 
 From step 3 onward layers move off the 2D canvas, so its hash changes by design
 and the screenshots become the only visual gate.
