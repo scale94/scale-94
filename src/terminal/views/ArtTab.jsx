@@ -53,7 +53,7 @@ import {
   CLUSTERS, INTRA_EDGES, DEFAULT_CROSS_EDGES, ALL_EDGES, ADJ,
   SPHERE_NODES, SPHERE_ADJ, SPHERE_EDGES,
   NODE_COLORS, CLUSTER_COLORS, dynColorMap, dynFeaturesMap,
-  DIM_KEYWORDS, queryProject, SPHERE_LABEL,
+  DIM_KEYWORDS, queryProject, SPHERE_LABEL, sphereIndexOf,
 } from '../art/artGraph';
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -1436,8 +1436,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       // ── Manual fusion: pending targeting line + source pulse ring ─────────
       const fSrc = fusionSourceRef.current;
       if (fSrc) {
-        const si = NODE_IDX[fSrc];
-        if (si != null) {
+        // Sphere space, not corpus space: `proj` and `nodes` are the live
+        // sphere array. fusionSourceRef is set from nodeAt() hit-testing, which
+        // returns sphere nodes, so this normally resolves.
+        const si = sphereIndexOf(nodes, fSrc);
+        if (si >= 0) {
           const sp    = proj[si];
           const t     = performance.now() / 1000;
           const pulse = 0.5 + 0.5 * Math.sin(t * 5);
@@ -1480,7 +1483,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         let wx = 0, wy = 0, wz = 0, wsum = 0, wmax = 0;
         const tethers = [];
         for (const { id, weight } of probe.anchors) {
-          const ni = nodes.findIndex(n => n.id === id);
+          const ni = sphereIndexOf(nodes, id);
           if (ni < 0) continue;
           wx += nodes[ni].x * weight;
           wy += nodes[ni].y * weight;
