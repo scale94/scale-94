@@ -13,7 +13,7 @@
 // Color system: deterministic hash HSL via kernelColorMap.js
 
 import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react';
-import { Volume2, VolumeX, Maximize, Minimize, Circle, Download, Radio, Clock, Wifi } from 'lucide-react';
+import { Maximize, Minimize, Radio, Clock, Wifi, Circle } from 'lucide-react';
 import CascadeIcon from '../components/CascadeIcon';
 import { lerpColor, hslAlpha } from '../data/kernelColorMap';
 import { useSomaGraph, CLUSTER_ANCHORS } from '../hooks/useSomaGraph';
@@ -31,8 +31,7 @@ import {
   cosineSim, topDrivers, analyzeEdge, findOrthogonalNode,
   compareNodes, jitterFeatures,
 } from '../data/nodeFeatures';
-import { somaAudio } from '../audio/SomaAudio';
-import { somaPresence } from '../audio/SomaPresence';
+import { somaPresence } from '../net/SomaPresence';
 import { ecoDataFeed } from '../data/EcoDataFeed';
 import { ecocideBus } from './EcocideTab';
 import { colliderBus } from './LatentCollider';
@@ -46,25 +45,20 @@ import {
   emitIdleParticles, emitNodeBurst, emitEdgeParticles,
 } from '../art/artParticles';
 import { buildRotMatrix, applyM, project } from '../art/artMath';
+import { createBeatClock } from '../art/artBeatClock';
+import { clusterLabelState, nodeLabelState, fireExpired } from '../art/artLabels';
+import SphereLabels from '../art/SphereLabels';
 import { stepAwakening, drawGenesisGlow, drawBeaconRing, drawConductor } from '../art/artAwakening';
 import {
   CLUSTERS, INTRA_EDGES, DEFAULT_CROSS_EDGES, ALL_EDGES, ADJ,
   SPHERE_NODES, SPHERE_ADJ, SPHERE_EDGES,
   NODE_COLORS, CLUSTER_COLORS, dynColorMap, dynFeaturesMap,
-  DIM_KEYWORDS, queryProject,
+  DIM_KEYWORDS, queryProject, SPHERE_LABEL,
 } from '../art/artGraph';
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 const AUTO_SPIN = 0.0025;   // rad/frame continuous Y rotation
-
-// Cluster base frequencies for edge sonification (mirrors SomaAudio CLUSTER_FREQ)
-const CLUSTER_FREQ_MAP = {
-  eco: 110, sync: 146.83, phys: 164.81, crypto: 196, drk: 130.81,
-  phil: 174.61, math: 220, chem: 155.56, bio: 138.59, hum: 185,
-  ling: 207.65, cogn: 233.08, aesth: 261.63, topo: 246.94, meta: 293.66, synth: 277.18,
-  fsk: 311.13,
-};
 
 // Sector colors for 16-sector 256-node sphere (Scale 16.16)
 const SECTOR_COLORS = {
@@ -92,6 +86,7 @@ function getScrollParent(el) {
 export default function ArtTab({ onRunKernel, onCueNode, associativeField, spectralBridges, boneFusions, probeNode, manualFusions = [], onManualFusion, orthogonalBridges = [], onOrthogonalBridge }) {
   const canvasRef      = useRef(null);
   const containerRef   = useRef(null);
+  const labelsApiRef   = useRef(null);
   const feigTitleRef   = useRef(null);
   const feigSparkTimer = useRef(null);   // guards at-feigSpark cleanup race
   const rafRef         = useRef(null);
@@ -132,7 +127,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   // ── Jury Awakening (choreographed first-impression sequence) ────────────
   // Phase 0 (0-4s): Genesis cascade — nodes light up cluster by cluster
   // Phase 1 (4-8s): Beacon pulse — one node glows as invitation
-  // Phase 2 (8s+):  Auto-ignition — system self-fires 3 nodes with audio
+  // Phase 2 (8s+):  Auto-ignition — system self-fires 3 nodes
   // Phase 3:        Complete — normal interaction mode
   const awakeningRef = useRef({
     phase: 0,
@@ -175,7 +170,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   // ── Morphogenetic Sphere (living Voronoi topology) ─────────────────────
   const {
     morphRef, stepMorphogenesis, getCells, getMesh,
-    cellCount, onDivision, onApoptosis, getDivisionHistory,
+    cellCount, getDivisionHistory,
   } = useMorphogenesis({ fieldRef, phaseRegime });
 
   // ── Spectral PCA Light (eigenvalue → visible wavelength) ──────────────
@@ -192,16 +187,6 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     getClusterSync, getChimeraZones, getNodeChimeraState,
   } = useAnalogicalReasoning({ fieldRef });
 
-  // ── Morphogenesis callbacks ───────────────────────────────────────────
-  useEffect(() => {
-    onDivision.current = (parentId, child1Id, child2Id) => {
-      if (audioInitRef.current) somaAudio.playResonance?.({ freq: 660, overtone: 3, sim: 0.9 });
-    };
-    onApoptosis.current = (deadId, absorberId) => {
-      if (audioInitRef.current) somaAudio.playNode?.('drk_entropy', { soft: true });
-    };
-  }, [onDivision, onApoptosis]);
-
   // ── Analogical reasoning display state (throttled from RAF) ──────────
   const [analogyCount, setAnalogyCount] = useState(0);
   const [chimeraActive, setChimeraActive] = useState(false);
@@ -217,27 +202,21 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   // exergyRate    [0,1]: energy dissipation → sphere pulse intensity
   const ecocideStateRef = useRef({ metabolicRift: 0, exergyRate: 0, phase: 'STABLE' });
 
-  // ── Audio state ─────────────────────────────────────────────────────────
-  const [audioMuted,   setAudioMuted]   = useState(true);
+  // ── Beat clock state ────────────────────────────────────────────────────
   const [ambientMode,  setAmbientMode]  = useState(false);
-  const audioInitRef   = useRef(false);
   const ambientModeRef = useRef(false);
   const beatPhaseRef   = useRef(0);     // 1 = just fired, decays toward 0 per frame
+  const beatClockRef   = useRef(null);
+  if (beatClockRef.current === null) {
+    beatClockRef.current = createBeatClock({
+      onBeat: () => { beatPhaseRef.current = 1.0; },
+    });
+  }
 
-  // ── Audio: init on first interaction ────────────────────────────────────
-  const ensureAudio = useCallback(() => {
-    if (!audioInitRef.current) {
-      somaAudio.init();
-      audioInitRef.current = true;
-    }
-  }, []);
-
-  // ── Audio: suspend on unmount (tab switch), resume on mount ─────────────
+  // ── Beat clock: stop on unmount (tab switch) ─────────────────────────────
   useEffect(() => {
-    if (audioInitRef.current) somaAudio.resume();
     return () => {
-      somaAudio.stopBeatClock();
-      if (audioInitRef.current) somaAudio.suspend();
+      beatClockRef.current?.stop();
     };
   }, []);
 
@@ -488,8 +467,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       }
     }
 
-    if (node) { fireNode(node.id); ensureAudio(); somaAudio.playNode(node.id); }
-  }, [fireNode, ensureAudio]);
+    if (node) { fireNode(node.id); }
+  }, [fireNode]);
 
   const handleRunKernel = useCallback((alias) => {
     spawnEffect(alias);
@@ -561,8 +540,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
     setBifurcCount(c => c + spawned.length);
     emitObs('gaze', 'art_bifurcation', { count: spawned.length });
-    ensureAudio(); somaAudio.playBifurcation(spawned.length);
-  }, [activeEdges, triggerBifurcation, ensureAudio]);
+  }, [activeEdges, triggerBifurcation]);
 
   // ── Push incoming attractor data ─────────────────────────────────────────
   useEffect(() => {
@@ -663,8 +641,6 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       // ── Jury Awakening state machine (logic in artAwakening.js) ──────────
       const awakeningFires = stepAwakening(aw, nodes, particleFrameRef.current, particlesRef.current);
       for (const n of awakeningFires) {
-        ensureAudio();
-        somaAudio.playNode(n.id);
         fireNode(n.id);
         spawnEffect(n.id, { soft: true });
         const nbs = new Set(ADJ[n.id] ?? []);
@@ -686,23 +662,6 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           emitObs('gaze', 'art_chimera', {});
         }
         setGestaltQuality(_gq);
-      }
-
-      // ── Continuous sonification (every 4 frames ≈ 15Hz) ──────────────────
-      if (audioInitRef.current && particleFrameRef.current % 4 === 0 && fieldRef.current) {
-        const f = fieldRef.current;
-        const es = edgeStateRef.current;
-        somaAudio.stepContinuous({
-          r: f.r ?? 2.8,
-          activations: f.activations ?? null,
-          participationRatio: getParticipationRatio(),
-          spectralFlux: getSpectralFlux(),
-          edgePulses: es?.filter(e => e.pulse > 0.3).map(e => ({
-            pulse: e.pulse,
-            freq: (CLUSTER_FREQ_MAP[NODES[NODE_IDX[e.aId]]?.cluster] || 130) * 1.5,
-            pan: ((NODE_IDX[e.aId] ?? 0) - (NODE_IDX[e.bId] ?? 0)) / 31,
-          })) ?? null,
-        });
       }
 
       // ── Apply Hopfield activations to node energies ──────────────────────
@@ -899,16 +858,16 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       }
 
       // ── Cluster ghost labels (projected anchor positions) ─────────────────
-      ctx.textAlign = 'center';
+      const nextLabels = [];
       Object.entries(CLUSTER_ANCHORS).forEach(([key, a]) => {
         const [rx, ry, rz] = applyM(M, a.x, a.y, a.z);
-        if (rz < -0.2) return;  // skip labels on the back face
-        const p   = project(rx, ry, rz, w, h, sphereR, focal);
-        const col = CLUSTER_COLORS[key];
-        const al  = Math.max(0, rz) * 0.12;
-        ctx.font      = 'bold 9px monospace';
-        ctx.fillStyle = hslAlpha(col, al);
-        ctx.fillText(CLUSTERS[key].label.toUpperCase(), p.sx, p.sy - 52 * p.scale);
+        const p = project(rx, ry, rz, w, h, sphereR, focal);
+        const st = clusterLabelState({ rz, projected: p, text: CLUSTERS[key].label });
+        if (!st) return;
+        nextLabels.push({
+          key: `cluster:${key}`, ...st,
+          color: hslAlpha(CLUSTER_COLORS[key], 1),
+        });
       });
 
       // ── Voronoi Mesh — suppressed in default view, only in immersive mode ──
@@ -1457,53 +1416,20 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           }
         }
 
-        // ── Label rendering ────────────────────────────────────────────────
-        // Three sources of label visibility, composited:
-        //   1. Hover — always full brightness
-        //   2. High energy — natural decay after fireNode
-        //   3. Fired cascade — staggered fade-in/hold/fade-out for clicked
-        //      node and its neighbors, with the seed node firing first
-        const fired  = firedRef.current;
-        const inFire = fired && fired.neighborIds.has(n.id);
-        let fireAlpha = 0;
-        if (inFire) {
-          const elapsed = (performance.now() - fired.t0) / 1000;  // seconds
-          const isSeed  = n.id === fired.seedId;
-          // Stagger: seed appears instantly, neighbors delayed 80-200ms by index
-          const delay   = isSeed ? 0 : 0.08 + (i % 5) * 0.025;
-          const t       = elapsed - delay;
-          // Envelope: 0→0.35s fade-in, 0.35→2.5s hold, 2.5→3.5s fade-out
-          if (t < 0)          fireAlpha = 0;
-          else if (t < 0.35)  fireAlpha = t / 0.35;                         // ease in
-          else if (t < 2.5)   fireAlpha = 1.0;                              // hold
-          else if (t < 3.5)   fireAlpha = 1.0 - (t - 2.5);                 // fade out
-          else                { fireAlpha = 0; }
-          // Seed gets full brightness; neighbors get node color tint
-          fireAlpha *= (isSeed ? 0.95 : 0.80) * depthAlpha;
-          // Clear ref when all labels have faded
-          if (elapsed > 3.8) firedRef.current = null;
-        }
+        // ── Label rendering — state only; SphereLabels draws it ────────────
+        const fired = firedRef.current;
+        const elapsed = fired ? (performance.now() - fired.t0) / 1000 : 0;
+        if (fired && fireExpired(elapsed)) firedRef.current = null;
 
-        const showHover  = isHov;
-        const showEnergy = n.energy > 0.45 && p.depth > -0.1;
-        const showFire   = fireAlpha > 0.01;
-
-        if (showHover || showEnergy || showFire) {
-          // Pick highest alpha source
-          const hoverA  = showHover  ? 0.92 : 0;
-          const energyA = showEnergy ? n.energy * 0.80 * depthAlpha : 0;
-          const la      = Math.max(hoverA, energyA, fireAlpha);
-
-          const isSeed  = fired && n.id === fired.seedId;
-          const fontSize = Math.round(
-            ((showHover || isSeed) ? 10 : showFire ? 9 : 8) * p.scale
-          );
-
-          ctx.textAlign = 'center';
-          // Always render labels in the node's own cluster color
-          ctx.fillStyle = hslAlpha(renderCol, la * (showHover ? 1.0 : 0.82));
-          ctx.font = `bold ${fontSize}px monospace`;
-          ctx.fillText(n.label, p.sx, p.sy - radius - 4);
+        const st = nodeLabelState({
+          node: n, projected: p, index: i, isHovered: isHov,
+          fired, elapsed, depthAlpha, radius,
+        });
+        if (st) {
+          nextLabels.push({
+            key: `node:${n.id}`, ...st,
+            color: hslAlpha(renderCol, 1),
+          });
         }
       }
 
@@ -1547,17 +1473,21 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       // ── Probe node (text_probe.rs concept injection) ───────────────────────
       // Rendered after all sphere nodes so it draws on top.
       const probe = probeNodeRef.current;
-      if (probe?.similarities?.length) {
-        const top = probe.similarities.slice(0, 4);
-        // Weighted centroid of top matches in physics node positions
-        let wx = 0, wy = 0, wz = 0, wsum = 0;
-        for (const { id, sim } of top) {
+      if (probe?.anchors?.length) {
+        // Ranking spans all 272 corpus nodes; probe.anchors has already
+        // collapsed the top matches onto sphere nodes (see SPHERE_ANCHOR), so
+        // the centroid forms even when no match is on the sphere itself.
+        let wx = 0, wy = 0, wz = 0, wsum = 0, wmax = 0;
+        const tethers = [];
+        for (const { id, weight } of probe.anchors) {
           const ni = nodes.findIndex(n => n.id === id);
           if (ni < 0) continue;
-          wx += nodes[ni].x * sim;
-          wy += nodes[ni].y * sim;
-          wz += nodes[ni].z * sim;
-          wsum += sim;
+          wx += nodes[ni].x * weight;
+          wy += nodes[ni].y * weight;
+          wz += nodes[ni].z * weight;
+          wsum += weight;
+          if (weight > wmax) wmax = weight;
+          tethers.push({ ni, weight });
         }
         if (wsum > 1e-12) {
           wx /= wsum; wy /= wsum; wz /= wsum;
@@ -1566,14 +1496,12 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           const [prx, pry, prz] = applyM(M, wx, wy, wz);
           const pp = project(prx, pry, prz, w, h, sphereR, focal);
           const depthAlpha = Math.max(0.12, (prz + 1) * 0.5);
-          // Tether lines to top 3 matches
+          // Tether lines to every anchor that formed the centroid
           ctx.setLineDash([3, 5]);
-          for (const { id, sim } of top.slice(0, 3)) {
-            const ni = nodes.findIndex(n => n.id === id);
-            if (ni < 0) continue;
+          for (const { ni, weight } of tethers) {
             const pn = proj[ni];
             ctx.lineWidth = 0.9;
-            ctx.strokeStyle = `rgba(167,139,250,${sim * 0.55 * depthAlpha})`;
+            ctx.strokeStyle = `rgba(167,139,250,${(weight / wmax) * 0.55 * depthAlpha})`;
             ctx.beginPath();
             ctx.moveTo(pp.sx, pp.sy);
             ctx.lineTo(pn.sx, pn.sy);
@@ -1600,10 +1528,15 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           ctx.fill();
           // Label
           const shortQ = probe.query.length > 22 ? probe.query.slice(0, 20) + '…' : probe.query;
-          ctx.textAlign = 'center';
-          ctx.font = `bold ${Math.round(9 * pp.scale)}px monospace`;
-          ctx.fillStyle = `rgba(221,214,254,${0.88 * depthAlpha})`;
-          ctx.fillText(`⊕ ${shortQ}`, pp.sx, pp.sy - probeR - 5);
+          nextLabels.push({
+            key: 'probe',
+            text: `⊕ ${shortQ}`,
+            x: pp.sx,
+            y: pp.sy - probeR - 5,
+            alpha: 0.88 * depthAlpha,
+            fontSize: Math.round(9 * pp.scale),
+            color: 'rgb(221,214,254)',
+          });
         }
       }
 
@@ -1692,6 +1625,9 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         ctx.fillStyle = vigGrd;
         ctx.fillRect(0, 0, w, h);
       }
+
+      // ── Hand this frame's labels to the DOM overlay ───────────────────────
+      labelsApiRef.current?.update(nextLabels);
       } catch (err) {
         console.error('[ArtTab] draw error (loop continues):', err);
       }
@@ -1921,7 +1857,6 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
               nodeA: next[0], nodeB: next[1],
               topDim: result?.topDims?.[0]?.name ?? null,
             });
-            ensureAudio(); somaAudio.playResonance(result?.sim ?? 0.5);
           } else {
             resonanceResultRef.current = null;
             setResonanceResult(null);
@@ -1951,7 +1886,6 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         // Perturb Hopfield field — genuine associative activation propagation
         const nodeIdx_ = NODE_IDX[node.id];
         if (nodeIdx_ != null) perturbField(nodeIdx_);
-        ensureAudio(); somaAudio.playBeat(); somaAudio.playNode(node.id);
         // Broadcast to peers
         if (somaPresence.connected) somaPresence.sendFire(node.id);
         spawnEffect(node.id, { soft: true, rightClick: false });   // left-click → cluster hue burst
@@ -1990,14 +1924,13 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     const edgeSet = new Set(activeEdges.map(([a, b]) => a < b ? `${a}:${b}` : `${b}:${a}`));
 
     // Single-step: immediately find the most orthogonal node and forge the link
-    ensureAudio(); somaAudio.playDrop();
     const result = findOrthogonalNode(node.id, edgeSet);
     if (result) {
       onOrthogonalBridge(node.id, result);
       bgFlashRef.current = 0.7; // orthogonal bridge → brief void flash
       spawnEffect(node.id, { soft: false, rightClick: true });  // right-click → complementary hue burst
     }
-  }, [canvasCoords, nodeAt, onOrthogonalBridge, activeEdges, spawnEffect, ensureAudio]);
+  }, [canvasCoords, nodeAt, onOrthogonalBridge, activeEdges, spawnEffect]);
 
   const handleMouseLeave = useCallback(() => {
     if (conductorDragRef.current) { conductorDragRef.current = false; setConductor(null); }
@@ -2032,7 +1965,6 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       const node = nodeAt(p.x, p.y);
       if (node) {
         longPressRef.current = setTimeout(() => {
-          ensureAudio(); somaAudio.playDrop();
           if (navigator.vibrate) navigator.vibrate(40);
           if (!fusionSourceRef.current) {
             setFusionSource(node.id);
@@ -2048,7 +1980,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         }, 500);
       }
     }
-  }, [canvasCoords, nodeAt, onManualFusion, conductorHit, setConductor, ensureAudio]);
+  }, [canvasCoords, nodeAt, onManualFusion, conductorHit, setConductor]);
 
   const handleTouchMove = useCallback((e) => {
     clearTimeout(longPressRef.current);
@@ -2134,7 +2066,6 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     // Perturb Hopfield field from touch
     const _touchIdx = NODE_IDX[node.id];
     if (_touchIdx != null) perturbField(_touchIdx);
-    ensureAudio(); somaAudio.playBeat(); somaAudio.playNode(node.id);
     if (somaPresence.connected) somaPresence.sendFire(node.id);
     spawnEffect(node.id, { soft: true });
     // Label cascade — record seed + neighbors for the draw loop
@@ -2145,7 +2076,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     if (onCueNode && nodeIdx >= 0) onCueNode(nodeIdx);
     setSelectedNode(node.id);
     setLockedEdge(null);
-  }, [canvasCoords, nodeAt, fireNode, spawnEffect, onCueNode, ensureAudio, perturbField, setConductor]);
+  }, [canvasCoords, nodeAt, fireNode, spawnEffect, onCueNode, perturbField, setConductor]);
 
   // ── Non-passive touch listeners on canvas ────────────────────────────────
   // React 19 attaches delegated events at root level; browsers may treat them
@@ -2178,7 +2109,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     });
   }, [associativeField]);
 
-  // ── Phase transition callback — drives topology + audio ─────────────────
+  // ── Phase transition callback — drives topology ─────────────────────────
   useEffect(() => {
     onPhaseTransition.current = (event) => {
       setPhaseRegime(event.to);
@@ -2188,10 +2119,6 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       emitObs('gaze', 'art_regime', { r: event.r, lyapunov: event.lyapunov, regime: event.to });
       // State-driven flash — the void acknowledges the transition
       bgFlashRef.current = event.to === 'CHAOS' ? 1.0 : 0.6;
-      // Sonify phase transitions
-      if (audioInitRef.current) {
-        somaAudio.playBifurcation(event.to === 'CHAOS' ? 6 : event.to === 'PERIOD_8' ? 4 : 2);
-      }
       // Broadcast to peers
       if (somaPresence.connected) {
         somaPresence.sendPhase(event.to, event.r, event.lyapunov);
@@ -2304,12 +2231,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
       setBifurcCount(c => c + 1);
       emitObs('gaze', 'art_bifurcation', { count: 1 });
-      ensureAudio(); somaAudio.playBifurcation(1);
     };
 
     const unsub = colliderBus.on(handler);
     return unsub;
-  }, [ensureAudio]);
+  }, []);
 
   // ── Presence — peer count updater + collective cursor entropy ──────────
   useEffect(() => {
@@ -2358,19 +2284,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           return next;
         });
       }
-      // 'M' toggles audio mute
-      if (e.key === 'm' || e.key === 'M') {
-        if (!audioInitRef.current) { somaAudio.init(); audioInitRef.current = true; }
-        const muted = somaAudio.toggleMute();
-        setAudioMuted(muted);
-      }
       // 'R' toggles temporal recording
       if (e.key === 'r' || e.key === 'R') {
         const wasRecording = tmIsRecording.current;
         tmIsRecording.current = !wasRecording;
         setRecording(!wasRecording);
-        if (!wasRecording) somaAudio.startRecording?.();
-        else somaAudio.stopRecording?.();
       }
       // 'T' toggles timeline playback
       if (e.key === 't' || e.key === 'T') {
@@ -2531,16 +2449,6 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           >
             ⌥ bifurcate
           </button>
-          {/* Audio toggle */}
-          <button
-            onClick={() => { ensureAudio(); const m = somaAudio.toggleMute(); setAudioMuted(m); }}
-            className="px-2 py-1 rounded-sm border border-amber-900/30 text-amber-400/40 hover:border-amber-500/50 hover:text-amber-300/70 transition-all duration-200"
-            title="Toggle sonification (M)"
-          >
-            {audioMuted
-              ? <VolumeX className="w-3.5 h-3.5 inline" />
-              : <Volume2 className="w-3.5 h-3.5 inline" />}
-          </button>
           {/* Ambient beat mode — sphere breathes at 114 BPM */}
           <button
             onClick={() => {
@@ -2548,10 +2456,9 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
               ambientModeRef.current = next;
               setAmbientMode(next);
               if (next) {
-                ensureAudio();
-                somaAudio.startBeatClock(114, () => { beatPhaseRef.current = 1.0; });
+                beatClockRef.current.start();
               } else {
-                somaAudio.stopBeatClock();
+                beatClockRef.current.stop();
               }
             }}
             className="px-2 py-1 rounded-sm border transition-all duration-200"
@@ -2581,8 +2488,6 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
               const wasRec = tmIsRecording.current;
               tmIsRecording.current = !wasRec;
               setRecording(!wasRec);
-              if (!wasRec) somaAudio.startRecording?.();
-              else somaAudio.stopRecording?.();
             }}
             className="px-2 py-1 rounded-sm border transition-all duration-200"
             style={{
@@ -2601,22 +2506,6 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             title="Timeline playback (T)"
           >
             <Clock className="w-3.5 h-3.5 inline" />
-          </button>
-          {/* MIDI export */}
-          <button
-            onClick={() => {
-              const midi = somaAudio.exportMIDI?.();
-              if (!midi) return;
-              const blob = new Blob([midi], { type: 'audio/midi' });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url; a.download = `soma-score-${Date.now()}.mid`;
-              a.click(); URL.revokeObjectURL(url);
-            }}
-            className="px-2 py-1 rounded-sm border border-amber-900/30 text-amber-400/40 hover:border-amber-500/50 hover:text-amber-300/70 transition-all duration-200"
-            title="Export MIDI score"
-          >
-            <Download className="w-3.5 h-3.5 inline" />
           </button>
           {/* Peer count indicator */}
           {peerCount > 0 && (
@@ -2644,6 +2533,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           onMouseLeave={handleMouseLeave}
           onContextMenu={handleContextMenu}
         />
+        <SphereLabels ref={labelsApiRef} />
 
         {/* ── Node hover tooltip ───────────────────────────────────────────── */}
         {hoveredTooltip && (
@@ -2762,11 +2652,22 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
                 <span style={{ color: cluCol?.hsl ?? 'rgba(255,255,255,0.3)', minWidth: '80px', fontSize: '9px' }}>{CLUSTERS[n.cluster]?.label ?? n.cluster}</span>
                 <span style={{ color: 'rgba(167,139,250,0.35)', fontSize: '9px' }}>{bar}</span>
                 <span style={{ color: 'rgba(255,255,255,0.75)' }}>{n.sim.toFixed(4)}</span>
+                {n.anchor !== n.id && (
+                  <span style={{ color: 'rgba(167,139,250,0.45)', fontSize: '9px' }}>
+                    {`↦ ${SPHERE_LABEL[n.anchor] ?? n.anchor}`}
+                  </span>
+                )}
               </div>
             );
           })}
-          <div className="mt-1.5" style={{ color: 'rgba(255,255,255,0.12)' }}>
-            {'  ── sphere probe ⊕ rendered on canvas · type `clear query` to dismiss ──'}
+          <div className="mt-1.5" style={{ color: 'rgba(255,255,255,0.30)' }}>
+            {'  [SPHERE PROBE] ⊕ :: '}
+            <span style={{ color: 'rgba(196,181,253,0.85)' }}>
+              {queryResult.anchors.map(a => a.label ?? a.id).join(' · ')}
+            </span>
+          </div>
+          <div style={{ color: 'rgba(255,255,255,0.12)' }}>
+            {'  ── matches off the sphere resolve to their nearest sphere node ↦ · type `clear query` to dismiss ──'}
           </div>
         </div>
       )}

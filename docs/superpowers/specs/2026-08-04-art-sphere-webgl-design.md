@@ -179,7 +179,22 @@ labels sit mid-stack, leaving them in Canvas2D would block migration of every
 layer beneath them. House precedent: `5ef4b47 feat(collider): move the
 chamber readouts to DOM`.
 
-**Acceptance:** crisper, not different. Labels selectable.
+**Acceptance:** crisper, not different.
+
+**Deviation, decided during implementation:** the labels are *not* selectable.
+`SphereLabels` sets `pointer-events: none` (without which the overlay would
+swallow hover, drag-rotate and click-to-cue) and, since that already makes a
+selection drag impossible, also `user-select: none` and `aria-hidden="true"` —
+27 constantly-repositioning spans would otherwise flood the accessibility tree
+of a canvas that already carries its own text description. Selection was
+traded for pointer transparency deliberately; this is finished, not pending.
+
+**Also decided during implementation:** canvas `fillText(t, x, y)` treats `y`
+as the *alphabetic baseline*, while CSS `translate(-50%, -100%)` puts the box
+*bottom* at `y` — labels sat ~2px high until corrected. The correction lives in
+the font shorthand (`bold ${n}px/1 monospace`), **not** in a separate
+`line-height` assignment, because the per-frame `style.font` shorthand write
+resets `line-height` to `normal` and would silently undo it.
 
 ### Step 2 — Real bloom
 

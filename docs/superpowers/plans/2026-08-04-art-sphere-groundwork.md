@@ -302,7 +302,7 @@ Expected: exit 0, no unresolved import errors.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add -A src/terminal/net src/terminal/audio src/terminal/views/ArtTab.jsx
+git add src/terminal/net/SomaPresence.js src/terminal/audio/SomaPresence.js src/terminal/views/ArtTab.jsx
 git commit -m "refactor(art): move SomaPresence out of audio/
 
 It is the multiplayer layer — peer cursors, fire events, phase broadcast —
@@ -394,7 +394,7 @@ Capture a screenshot and compare against one taken before Task 1. Per spec §6, 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add -A
+git add src/terminal/views/ArtTab.jsx src/terminal/audio/SomaAudio.js
 git commit -m "refactor(art): delete the audio engine
 
 1216 lines with a single consumer, and by the author's own assessment it
@@ -710,10 +710,98 @@ numbers are the shipped ones."
 
 **Interfaces:**
 - Consumes: Task 5's `nodeLabelState`, `clusterLabelState`, `fireExpired`.
-- Produces: `<SphereLabels labelsRef={…} />`, reading an array of
-  `{ key, text, x, y, alpha, fontSize, color }` from a ref each frame.
+- Produces: `<SphereLabels ref={labelsApiRef} />` exposing one imperative
+  method, `update(labels)`, where each label is
+  `{ key, text, x, y, alpha, fontSize, color }`. The draw loop calls it once
+  per frame.
 
-- [ ] **Step 1: Write the overlay component**
+**Why imperative:** the overlay updates every frame on the piece whose entire
+migration exists to buy frame budget. Re-rendering React at 60fps to move a
+handful of spans pays reconciliation for something a direct style write does
+for free — and the rest of the draw loop already works this way.
+
+**Test file:** `src/terminal/art/__tests__/SphereLabels.test.jsx`
+
+- [ ] **Step 1: Write the failing test**
+
+Create `src/terminal/art/__tests__/SphereLabels.test.jsx`:
+
+```jsx
+import { describe, it, expect } from 'vitest';
+import { createRef } from 'react';
+import { render } from '@testing-library/react';
+import SphereLabels from '../SphereLabels';
+
+const label = (over = {}) => ({
+  key: 'node:n1', text: 'KERNEL', x: 100, y: 200,
+  alpha: 0.5, fontSize: 9, color: 'rgb(255,0,0)', ...over,
+});
+
+function mount() {
+  const ref = createRef();
+  const { container } = render(<SphereLabels ref={ref} />);
+  return { ref, host: container.firstChild };
+}
+
+describe('SphereLabels', () => {
+  it('never intercepts pointer events', () => {
+    const { host } = mount();
+    expect(host.style.pointerEvents).toBe('none');
+  });
+
+  it('creates one span per label with position, font and opacity applied', () => {
+    const { ref, host } = mount();
+    ref.current.update([label()]);
+    const spans = host.querySelectorAll('span');
+    expect(spans).toHaveLength(1);
+    expect(spans[0].textContent).toBe('KERNEL');
+    expect(spans[0].style.left).toBe('100px');
+    expect(spans[0].style.top).toBe('200px');
+    expect(spans[0].style.opacity).toBe('0.5');
+  });
+
+  it('reuses the same element across updates for a stable key', () => {
+    const { ref, host } = mount();
+    ref.current.update([label()]);
+    const first = host.querySelector('span');
+    ref.current.update([label({ x: 300, alpha: 0.9 })]);
+    const second = host.querySelector('span');
+    expect(second).toBe(first);              // reused, not recreated
+    expect(second.style.left).toBe('300px');
+    expect(second.style.opacity).toBe('0.9');
+  });
+
+  it('removes elements whose labels disappear', () => {
+    const { ref, host } = mount();
+    ref.current.update([label(), label({ key: 'node:n2', text: 'OTHER' })]);
+    expect(host.querySelectorAll('span')).toHaveLength(2);
+    ref.current.update([label()]);
+    const spans = host.querySelectorAll('span');
+    expect(spans).toHaveLength(1);
+    expect(spans[0].textContent).toBe('KERNEL');
+  });
+
+  it('clears everything when handed an empty set', () => {
+    const { ref, host } = mount();
+    ref.current.update([label()]);
+    ref.current.update([]);
+    expect(host.querySelectorAll('span')).toHaveLength(0);
+  });
+
+  it('survives being called before paint with no labels', () => {
+    const { ref, host } = mount();
+    expect(() => ref.current.update([])).not.toThrow();
+    expect(host.querySelectorAll('span')).toHaveLength(0);
+  });
+});
+```
+
+- [ ] **Step 2: Run the test to verify it fails**
+
+Run: `npx vitest run src/terminal/art/__tests__/SphereLabels.test.jsx`
+Expected: FAIL — cannot resolve `../SphereLabels`.
+
+- [ ] **Step 3: Write the overlay component**
 
 Create `src/terminal/art/SphereLabels.jsx`:
 
@@ -726,59 +814,85 @@ Create `src/terminal/art/SphereLabels.jsx`:
 // would have blocked every layer beneath them from migrating. Same move as
 // the collider chamber's readouts.
 //
+// Updates are imperative: the draw loop calls update() once per frame and the
+// elements are mutated in place. Going through React state here would put
+// reconciliation in the hot path of the one piece this whole migration exists
+// to make faster.
+//
 // Positions arrive as CSS pixels straight from the projection — the draw loop
 // projects against contentRect and applies DPR as a canvas transform.
 
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
 
-export default function SphereLabels({ labelsRef }) {
-  const [, forceRender] = useState(0);
-  const rafRef = useRef(0);
+const SphereLabels = forwardRef(function SphereLabels(_props, ref) {
+  const hostRef = useRef(null);
+  const poolRef = useRef(new Map());   // label key → span element
 
-  // The simulation owns the clock; this overlay just samples the ref each
-  // frame. Reading through a ref rather than lifting label state into React
-  // keeps the draw loop free of per-frame setState.
+  useImperativeHandle(ref, () => ({
+    update(labels) {
+      const host = hostRef.current;
+      if (!host) return;
+      const pool = poolRef.current;
+      const seen = new Set();
+
+      for (const l of labels) {
+        seen.add(l.key);
+        let el = pool.get(l.key);
+        if (!el) {
+          el = document.createElement('span');
+          el.style.position = 'absolute';
+          el.style.transform = 'translate(-50%, -100%)';
+          el.style.whiteSpace = 'nowrap';
+          host.appendChild(el);
+          pool.set(l.key, el);
+        }
+        if (el.textContent !== l.text) el.textContent = l.text;
+        el.style.left = `${l.x}px`;
+        el.style.top = `${l.y}px`;
+        el.style.font = `bold ${l.fontSize}px monospace`;
+        el.style.color = l.color;
+        el.style.opacity = String(l.alpha);
+      }
+
+      for (const [key, el] of pool) {
+        if (!seen.has(key)) { el.remove(); pool.delete(key); }
+      }
+    },
+  }), []);
+
   useEffect(() => {
-    const tick = () => {
-      forceRender(n => (n + 1) & 0xffff);
-      rafRef.current = requestAnimationFrame(tick);
-    };
-    rafRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafRef.current);
+    const pool = poolRef.current;
+    return () => { pool.forEach(el => el.remove()); pool.clear(); };
   }, []);
-
-  const labels = labelsRef.current || [];
 
   return (
     <div
+      ref={hostRef}
       aria-hidden="true"
       style={{
         position: 'absolute', inset: 0, overflow: 'hidden',
         pointerEvents: 'none', userSelect: 'none',
       }}
-    >
-      {labels.map(l => (
-        <span
-          key={l.key}
-          style={{
-            position: 'absolute',
-            left: l.x, top: l.y,
-            transform: 'translate(-50%, -100%)',
-            font: `bold ${l.fontSize}px monospace`,
-            color: l.color,
-            opacity: l.alpha,
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {l.text}
-        </span>
-      ))}
-    </div>
+    />
   );
-}
+});
+
+export default SphereLabels;
 ```
 
-- [ ] **Step 2: Collect cluster labels in the draw loop**
+- [ ] **Step 4: Run the test to verify it passes**
+
+Run: `npx vitest run src/terminal/art/__tests__/SphereLabels.test.jsx`
+Expected: PASS, 6 tests.
+
+- [ ] **Step 5: Commit the component**
+
+```bash
+git add src/terminal/art/SphereLabels.jsx src/terminal/art/__tests__/SphereLabels.test.jsx
+git commit -m "feat(art): add the DOM label overlay"
+```
+
+- [ ] **Step 6: Collect cluster labels in the draw loop**
 
 In `ArtTab.jsx`, replace the cluster ghost label block at `:901-912`. Delete
 the `ctx.textAlign` / `ctx.font` / `ctx.fillStyle` / `ctx.fillText` lines and
@@ -799,12 +913,13 @@ push state instead:
 ```
 
 Declare `const nextLabels = [];` near the top of `draw()`, before the first
-layer that contributes to it, and after the node loop assign
-`labelsRef.current = nextLabels;`.
+layer that contributes to it. The array is handed to the overlay at the very
+end of `draw()` (step 9) — after the probe label, which is pushed later in the
+frame than the node loop.
 
 Add to the `../art/artLabels` import: `clusterLabelState`, `nodeLabelState`, `fireExpired`.
 
-- [ ] **Step 3: Collect node labels in the draw loop**
+- [ ] **Step 7: Collect node labels in the draw loop**
 
 Replace the label rendering block at `ArtTab.jsx:1460-1506` — the whole
 section from the `// ── Label rendering ──` comment through the closing brace
@@ -828,7 +943,7 @@ of `if (showHover || showEnergy || showFire) { … }`:
         }
 ```
 
-- [ ] **Step 4: Move the probe label**
+- [ ] **Step 8: Move the probe label**
 
 Replace the four label lines at `ArtTab.jsx:1603-1606` (`ctx.textAlign`,
 `ctx.font`, `ctx.fillStyle`, `ctx.fillText`) — keeping the `shortQ` line above
@@ -852,29 +967,40 @@ The alpha, font size and colour are lifted directly from the lines being
 deleted: `rgba(221,214,254, 0.88 * depthAlpha)` splits into an opaque colour
 plus the `alpha` field, exactly as the cluster and node labels do.
 
-- [ ] **Step 5: Mount the overlay**
+- [ ] **Step 9: Mount the overlay and hand it the frame's labels**
 
-`labelsRef` is created beside the other refs:
+Create the ref beside the other refs:
 
 ```js
-  const labelsRef = useRef([]);
+  const labelsApiRef = useRef(null);
 ```
 
-Mount `<SphereLabels labelsRef={labelsRef} />` as a sibling immediately after
-the `<canvas>` element, inside the same positioned container so `inset: 0`
-resolves against the canvas box.
+Mount it as a sibling immediately after the `<canvas>` element, inside the
+same positioned container so `inset: 0` resolves against the canvas box:
 
-- [ ] **Step 6: Verify no canvas text remains**
+```jsx
+        <SphereLabels ref={labelsApiRef} />
+```
+
+As the **last statement in `draw()`**, before the next frame is scheduled:
+
+```js
+      labelsApiRef.current?.update(nextLabels);
+```
+
+The optional call matters — `draw()` can run before the overlay has mounted.
+
+- [ ] **Step 10: Verify no canvas text remains**
 
 Run: `grep -n "fillText\|strokeText" src/terminal/views/ArtTab.jsx`
 Expected: no output.
 
-- [ ] **Step 7: Lint, test, build**
+- [ ] **Step 11: Lint, test, build**
 
 Run: `npm run lint && npm test && npm run build`
 Expected: all exit 0.
 
-- [ ] **Step 8: Verify in the browser — acceptance gate**
+- [ ] **Step 12: Verify in the browser — acceptance gate**
 
 Open `/art` and confirm against a screenshot taken after Task 4:
 
@@ -891,10 +1017,10 @@ Open `/art` and confirm against a screenshot taken after Task 4:
 **Acceptance: crisper, not different.** Point 5 is the likely regression;
 `pointer-events: none` on the container is what prevents it.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 13: Commit**
 
 ```bash
-git add -A
+git add src/terminal/views/ArtTab.jsx
 git commit -m "feat(art): move sphere labels to a DOM overlay
 
 Text is the one layer that cannot follow the rest onto the GPU, and it sits

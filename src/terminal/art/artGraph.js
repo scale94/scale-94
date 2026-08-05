@@ -251,6 +251,45 @@ export const DIM_KEYWORDS = {
   synthetic:      ['synthetic', 'interdisciplinary', 'fusion', 'integration', 'bridge', 'chimera'],
 };
 
+// ── Sphere anchoring ─────────────────────────────────────────────────────────
+// A query is ranked against all 272 NODES, but only the 31 SPHERE_NODES have a
+// position to draw at — and the top matches are usually off-sphere entirely
+// (192 of the 272 live in a cluster with no sphere member at all, so falling
+// back to the cluster would not help). Anchor every corpus node to its nearest
+// sphere node in the same 16D feature space the ranking itself uses: sphere
+// nodes anchor to themselves, and the probe always has somewhere to land.
+const SPHERE_FEATURES = SPHERE_NODES.map(n => FEATURES[NODE_IDX[n.id]] ?? []);
+
+export const SPHERE_ANCHOR = Object.fromEntries(NODES.map((n, i) => {
+  const f = FEATURES[i] ?? [];
+  let bestId = SPHERE_NODES[0].id, bestSim = -Infinity;
+  SPHERE_FEATURES.forEach((sf, si) => {
+    const c = cosineSim(f, sf);
+    if (c > bestSim) { bestSim = c; bestId = SPHERE_NODES[si].id; }
+  });
+  return [n.id, bestId];
+}));
+
+export const SPHERE_LABEL = Object.fromEntries(SPHERE_NODES.map(n => [n.id, n.label]));
+
+// Collapse the top matches of a ranking onto the sphere: matches sharing an
+// anchor merge into one weighted point, so the probe centroid and its tethers
+// are built from the same set. Returns [{ id, label, weight, sources }] sorted
+// by descending weight.
+export function probeAnchors(similarities, topN = 4) {
+  const merged = new Map();
+  for (const { id, sim } of (similarities ?? []).slice(0, topN)) {
+    const anchorId = SPHERE_ANCHOR[id];
+    if (!anchorId || !(sim > 0)) continue;
+    const entry = merged.get(anchorId);
+    if (entry) { entry.weight += sim; entry.sources.push(id); }
+    else merged.set(anchorId, { id: anchorId, label: SPHERE_LABEL[anchorId], weight: sim, sources: [id] });
+  }
+  return [...merged.values()].sort((a, b) => b.weight - a.weight);
+}
+
+export const PROBE_ANCHOR_COUNT = 4;
+
 export function queryProject(text) {
   const lower = text.toLowerCase();
   const qVec = DIM_NAMES.map(dim => (DIM_KEYWORDS[dim] ?? []).some(kw => lower.includes(kw)) ? 1.0 : 0.0);
@@ -260,6 +299,10 @@ export function queryProject(text) {
   const sims = NODES.map((n, i) => ({
     id: n.id, label: n.label, cluster: n.cluster,
     sim: cosineSim(qVec, FEATURES[i] ?? []),
+    anchor: SPHERE_ANCHOR[n.id],
   })).sort((a, b) => b.sim - a.sim);
-  return { query: text, probe_vector: qVec, similarities: sims };
+  return {
+    query: text, probe_vector: qVec, similarities: sims,
+    anchors: probeAnchors(sims, PROBE_ANCHOR_COUNT),
+  };
 }
