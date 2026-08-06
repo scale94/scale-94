@@ -835,16 +835,15 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       bgStateRef.current.rot = { rx: rotRef.current.rx, ry: rotRef.current.ry };
 
       // ── Ambient beat pulse glow ───────────────────────────────────────────
+      // Drawn on the GPU (SphereBackground.js); the decay stays here because
+      // it is simulation state, not painting. Note the decay runs only while
+      // the pulse is audible-loud enough to draw — preserved exactly, since
+      // stepping it unconditionally would change the pulse's length.
       if (beatPhaseRef.current > 0.005) {
-        beatPhaseRef.current *= 0.88;   // per-frame decay (~300ms to silence at 60fps)
-        const bp = beatPhaseRef.current;
-        const pulseR = sphereR * (1.05 + bp * 0.18);
-        const grd = ctx.createRadialGradient(w / 2, h / 2, sphereR * 0.55, w / 2, h / 2, pulseR);
-        grd.addColorStop(0, `rgba(251,191,36,${(bp * 0.14).toFixed(3)})`);  // amber core
-        grd.addColorStop(0.6, `rgba(251,140,0,${(bp * 0.07).toFixed(3)})`); // orange mid
-        grd.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = grd;
-        ctx.fillRect(0, 0, w, h);
+        beatPhaseRef.current *= 0.88;   // 42 frames to silence, ~700ms at 60fps
+        bgStateRef.current.beat = beatPhaseRef.current;
+      } else {
+        bgStateRef.current.beat = 0;
       }
 
       // ── Temporal archaeology: ghost trails from previous session ──────────

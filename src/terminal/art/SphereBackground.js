@@ -66,13 +66,38 @@ export const COLOR_GLSL = /* glsl */`
 // wireframe against four faint-or-inactive layers is a measurable risk, and
 // the gate measures it. The rest go bottom-up.
 
-import { WIRE_ALPHA, WIRE_WIDTH } from './artBackground';
+import {
+  WIRE_ALPHA, WIRE_WIDTH,
+  BEAT_CORE_RGB, BEAT_MID_RGB, BEAT_MID_STOP,
+  BEAT_CORE_ALPHA, BEAT_MID_ALPHA, BEAT_INNER_R, BEAT_BASE_R, BEAT_SWELL_R,
+} from './artBackground';
+
+const v3 = ([r, g, b]) => `vec3(${(r / 255).toFixed(6)}, ${(g / 255).toFixed(6)}, ${(b / 255).toFixed(6)})`;
 
 // The backdrop, in sRGB. Layers are added here one commit at a time.
 export const BACKGROUND_GLSL = /* glsl */`
   uniform vec3 uRift;      // clear colour, already /255
   uniform float uSphereR;  // CSS px
   uniform vec2 uRot;       // rotation rx, ry
+  uniform float uBeat;     // beat phase, 1 = just fired
+
+  // A canvas radial gradient interpolates NON-premultiplied rgba linearly
+  // between adjacent stops, so the colour darkens toward black as it fades
+  // rather than just losing alpha. Reproducing that literally, because
+  // interpolating premultiplied instead is the classic way to make a gradient
+  // that is subtly, unfixably wrong.
+  vec4 beatGradient(float t) {
+    vec3 amber = ${v3(BEAT_CORE_RGB)};
+    vec3 orange = ${v3(BEAT_MID_RGB)};
+    float mid = float(${BEAT_MID_STOP});
+    if (t < mid) {
+      float u = t / mid;
+      return vec4(mix(amber, orange, u),
+                  mix(float(${BEAT_CORE_ALPHA}), float(${BEAT_MID_ALPHA}), u));
+    }
+    float u = (t - mid) / (1.0 - mid);
+    return vec4(mix(orange, vec3(0.0), u), mix(float(${BEAT_MID_ALPHA}), 0.0, u));
+  }
 
   // Approximate signed distance to an ellipse OUTLINE, in pixels. The exact
   // solution needs a quartic root; this is the standard gradient-normalised
@@ -105,6 +130,16 @@ export const BACKGROUND_GLSL = /* glsl */`
     col = mix(col, vec3(1.0), ellipseCoverage(p, eq, hw) * float(${WIRE_ALPHA}));
     col = mix(col, vec3(1.0), ellipseCoverage(p, vt, hw) * float(${WIRE_ALPHA}));
 
+    // ── Ambient beat pulse glow — above the wireframe in the draw loop ────
+    if (uBeat > 0.0) {
+      float r0 = uSphereR * float(${BEAT_INNER_R});
+      float r1 = uSphereR * (float(${BEAT_BASE_R}) + uBeat * float(${BEAT_SWELL_R}));
+      // Canvas clamps to the first stop inside r0 and the last stop beyond r1.
+      float t = clamp((length(p) - r0) / max(r1 - r0, 1e-6), 0.0, 1.0);
+      vec4 g = beatGradient(t);
+      col = mix(col, g.rgb, g.a * uBeat);   // alpha stops scale with the phase
+    }
+
     return col;
   }
 `;
@@ -114,6 +149,7 @@ export function backgroundUniforms() {
     uRift: { value: new THREE.Vector3(0, 0, 0) },
     uSphereR: { value: 0 },
     uRot: { value: new THREE.Vector2(0, 0) },
+    uBeat: { value: 0 },
   };
 }
 
@@ -131,4 +167,5 @@ export function syncBackgroundUniforms(uniforms, state) {
   if (rift) uniforms.uRift.value.set(rift.r / 255, rift.g / 255, rift.b / 255);
   uniforms.uSphereR.value = state.sphereR ?? 0;
   if (state.rot) uniforms.uRot.value.set(state.rot.rx, state.rot.ry);
+  uniforms.uBeat.value = state.beat ?? 0;
 }
