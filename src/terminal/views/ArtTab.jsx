@@ -50,6 +50,7 @@ import { clusterLabelState, nodeLabelState, fireExpired } from '../art/artLabels
 import SphereLabels from '../art/SphereLabels';
 import SphereComposite from '../art/SphereComposite';
 import { stepAwakening, drawGenesisGlow, drawBeaconRing, drawConductor } from '../art/artAwakening';
+import { riftTint } from '../art/artBackground';
 import {
   CLUSTERS, INTRA_EDGES, DEFAULT_CROSS_EDGES, ALL_EDGES, ADJ,
   SPHERE_NODES, SPHERE_ADJ, SPHERE_EDGES,
@@ -209,6 +210,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   // metabolicRift [0,1]: carbon overload → reddish tint on sphere background
   // exergyRate    [0,1]: energy dissipation → sphere pulse intensity
   const ecocideStateRef = useRef({ metabolicRift: 0, exergyRate: 0, phase: 'STABLE' });
+
+  // Background state published to the GL layer each frame. Written from inside
+  // the draw loop (never from render) so the backdrop is always the one that
+  // belongs to the 2D frame being composited, not the next one.
+  const bgStateRef = useRef({ rift: { r: 0, g: 0, b: 0, a: 0.72 } });
 
   // ── Beat clock state ────────────────────────────────────────────────────
   const [ambientMode,  setAmbientMode]  = useState(false);
@@ -755,16 +761,20 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       // ── Clear with trail fade ─────────────────────────────────────────────
       const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      // Ecocide tint: metabolicRift bleeds a faint crimson into the void
+      // Ecocide tint: metabolicRift bleeds a faint crimson into the void.
+      // The tint itself now lives on the GPU (SphereBackground) — this canvas
+      // no longer paints a backdrop, it erases alpha so the backdrop shows
+      // through. Fading toward a GL layer of colour K by alpha A is identical
+      // to filling with K at alpha A, which is what makes this a port and not
+      // a re-art; the equivalence is derived in SphereBackground.jsx.
       const { metabolicRift, exergyRate } = ecocideStateRef.current;
-      const riftR = Math.round(metabolicRift * 28);  // max +28 red channel
-      const riftA = immersiveRef.current ? 0.32 : 0.72;
-      if (metabolicRift > 0.05) {
-        ctx.fillStyle = `rgba(${riftR},0,0,${riftA.toFixed(2)})`;
-      } else {
-        ctx.fillStyle = immersiveRef.current ? 'rgba(0,0,0,0.32)' : 'rgba(0,0,0,0.72)';
-      }
+      const tint = riftTint(metabolicRift, immersiveRef.current);
+      bgStateRef.current.rift = tint;
+      ctx.save();
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.fillStyle = `rgba(0,0,0,${tint.a})`;
       ctx.fillRect(0, 0, w, h);
+      ctx.restore();
       // Exergy pulse: faint radial glow from centre that breathes with dissipation
       if (exergyRate > 0.1) {
         const gx = w / 2, gy = h / 2;
@@ -2566,6 +2576,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           sourceRef={canvasRef}
           immersive={immersive}
           onAdvanceReady={handleAdvanceReady}
+          bgStateRef={bgStateRef}
         />
 
         <SphereLabels ref={labelsApiRef} />

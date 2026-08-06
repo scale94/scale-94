@@ -19,7 +19,23 @@
 // failed to render, shifted, or changed brightness, which moves whole grid cells
 // by tens of units.
 
+// WHAT IS COMPARED, and why it changed at step 3.
+//
+// The signature stored in the manifest is computed in-page from the 2D canvas's
+// getImageData, summing R, G and B with NO alpha term. That was the whole
+// picture while the 2D canvas was opaque. Step 3 makes the clear a
+// `destination-out` alpha erase so the GL backdrop shows through, and from then
+// on a faded pixel keeps full-brightness straight RGB and only loses alpha —
+// the canvas signature reads invisible trails as if they were lit, and it never
+// sees the GL layers at all.
+//
+// So the gate now reads the composited SCREENSHOT that both capture sets
+// already write to disk. No re-capture is needed to compare against an older
+// baseline: its PNGs are committed alongside its manifest.
+
 import { readFile } from 'node:fs/promises';
+import { basename } from 'node:path';
+import { decodePng, signatureFromRgba } from './_png.mjs';
 
 const args = process.argv.slice(2);
 const REF = args[0];
@@ -46,6 +62,15 @@ function diff(a, b) {
   return { mean: sum / a.length, max };
 }
 
+// Signature of a capture's screenshot. Resolves the PNG against the directory
+// being compared rather than trusting the path recorded in the manifest, so a
+// baseline stays comparable after it is moved or renamed.
+async function shotSignature(dir, shot) {
+  const file = `${dir}/${basename(shot.file)}`;
+  const { width, height, data } = decodePng(await readFile(file));
+  return signatureFromRgba(data, width, height);
+}
+
 let fails = 0, checked = 0;
 const rows = [];
 
@@ -56,14 +81,15 @@ for (const scale of Object.keys(ref.scales)) {
     const r = rs.shots[state], c = cs.shots[state];
     if (!c) { rows.push(`MISSING  ${scale} ${state}`); fails++; continue; }
     checked++;
-    const d = diff(r.signature, c.signature);
-    const identical = r.canvasHash === c.canvasHash;
+    const [rSig, cSig] = await Promise.all([shotSignature(REF, r), shotSignature(CAND, c)]);
+    const d = diff(rSig, cSig);
+    const identical = r.shotHash === c.shotHash;
     const ok = d.mean <= THRESHOLD;
     if (!ok) fails++;
     rows.push(
       `${ok ? 'ok  ' : 'FAIL'}  ${scale.replace(/-\d.*/, '').padEnd(10)}${state.padEnd(16)}`
       + `mean=${d.mean.toFixed(3).padStart(8)}  max=${d.max.toFixed(1).padStart(6)}`
-      + `  ${identical ? '(2D canvas byte-identical)' : ''}`,
+      + `  ${identical ? '(screenshot byte-identical)' : ''}`,
     );
   }
 }

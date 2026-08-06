@@ -27,11 +27,52 @@ import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
 
 import { compositeDpr, COMPOSITE_STYLE, BLOOM, VIGNETTE } from './artComposite';
+import {
+  COLOR_GLSL, BACKGROUND_GLSL, backgroundUniforms, syncBackgroundUniforms,
+} from './SphereBackground';
 
-// The fullscreen quad. An orthographic camera in r3f is sized in pixels, so a
+// The composite pass. An orthographic camera in r3f is sized in pixels, so a
 // plane matching the viewport in pixels fills it exactly with no camera maths.
-function SourceQuad({ sourceRef }) {
+//
+// This does the whole composite in ONE shader: the GL background beneath, the
+// 2D canvas over it, blended in sRGB, converted to linear on the way out. See
+// SphereBackground.js for why it cannot be two blended quads.
+const COMPOSITE_VERT = /* glsl */`
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const COMPOSITE_FRAG = /* glsl */`
+  precision highp float;
+  uniform sampler2D uSource;
+  uniform vec2 uResolution;
+  varying vec2 vUv;
+  ${COLOR_GLSL}
+  ${BACKGROUND_GLSL}
+
+  void main() {
+    // uSource carries NoColorSpace, so this is the canvas's raw sRGB bytes with
+    // a real alpha channel — not decoded, because the blend below has to happen
+    // in the same space the 2D canvas composited in.
+    vec4 src = texture2D(uSource, vUv);
+    vec3 bg = sphereBackground(vUv, uResolution);
+
+    // Source-over in sRGB, exactly as the 2D clear did. src.rgb is straight
+    // (un-premultiplied) alpha, which is what a canvas upload yields.
+    vec3 srgb = mix(bg, src.rgb, src.a);
+
+    // Hand the pipeline linear working-space colour and full alpha — the same
+    // thing the opaque meshBasicMaterial wrote in step 2, so bloom is unchanged.
+    gl_FragColor = vec4(srgbToLinear(srgb), 1.0);
+  }
+`;
+
+function SourceQuad({ sourceRef, stateRef }) {
   const size = useThree(s => s.size);
+  const matRef = useRef(null);
 
   const texture = useMemo(() => {
     const el = sourceRef.current;
@@ -40,28 +81,48 @@ function SourceQuad({ sourceRef }) {
     t.minFilter = THREE.LinearFilter;      // no mipmaps: the quad is 1:1
     t.magFilter = THREE.LinearFilter;
     t.generateMipmaps = false;
-    t.colorSpace = THREE.SRGBColorSpace;   // the 2D canvas is sRGB
+    // NoColorSpace, NOT SRGBColorSpace: tagging it sRGB makes the sampler
+    // decode to linear, and the composite must run in sRGB. The conversion
+    // happens once, on the finished pixel, in the shader.
+    t.colorSpace = THREE.NoColorSpace;
     return t;
   }, [sourceRef]);
+
+  const uniforms = useMemo(() => ({
+    uSource: { value: null },
+    uResolution: { value: new THREE.Vector2(1, 1) },
+    ...backgroundUniforms(),
+  }), []);
 
   useEffect(() => () => texture?.dispose(), [texture]);
 
   // Re-upload the 2D canvas each rendered frame. This is the whole cost of the
   // composite, and it is measured rather than assumed — see the step-2 plan.
-  useFrame(() => { if (texture) texture.needsUpdate = true; });
+  useFrame(() => {
+    if (texture) texture.needsUpdate = true;
+    const m = matRef.current;
+    if (!m) return;
+    m.uniforms.uSource.value = texture;
+    m.uniforms.uResolution.value.set(size.width, size.height);
+    syncBackgroundUniforms(m.uniforms, stateRef?.current);
+  });
 
   if (!texture) return null;
 
-  // toneMapped={false} presents the 2D colours unchanged; depth is off because
-  // there is exactly one object and nothing to sort against.
+  // Opaque and unblended: the shader has already resolved the 2D canvas
+  // against the background, so there is no blend state to get wrong. Depth is
+  // off because this is the only object in the scene.
   return (
     <mesh frustumCulled={false}>
       <planeGeometry args={[size.width, size.height]} />
-      <meshBasicMaterial
-        map={texture}
-        toneMapped={false}
+      <shaderMaterial
+        ref={matRef}
+        uniforms={uniforms}
+        vertexShader={COMPOSITE_VERT}
+        fragmentShader={COMPOSITE_FRAG}
         depthTest={false}
         depthWrite={false}
+        transparent={false}
       />
     </mesh>
   );
@@ -118,17 +179,12 @@ function SizeSync({ sourceRef, wrapRef }) {
 
 // Hands r3f's advance() out to ArtTab. Must live inside <Canvas> to read the store.
 //
-// KNOWN LIMITATION, recorded rather than worked around: the deterministic
-// capture harness (scripts/determinism.mjs) replaces requestAnimationFrame with
-// a manual pump, and under it this GL layer never renders — useFrame does not
-// run and the composite stays blank. frameloop="demand" + invalidate() was tried
-// as a fix, on the theory that demand-mode schedules through rAF and would
-// therefore be pumpable; it behaves identically, so the cause is deeper in r3f's
-// loop than the frameloop mode. Both modes work correctly in a real browser.
-//
-// Consequence: the harness still gates the 2D layer, which is what step 2 needs,
-// but it is blind to the GL layer. That is fine here and NOT fine from step 3,
-// where real content moves into GL. Resolving it is a prerequisite for step 3.
+// This used to carry a "the harness cannot drive this layer" limitation. It was
+// not an r3f limitation: the capture shim froze performance.now() from page
+// load, and React's scheduler compares that against a yield deadline, so a
+// concurrent render never committed and <Canvas> never mounted its children —
+// no onCreated, no useFrame, a blank GL layer that still looked plausible.
+// scripts/determinism.mjs now boots real and virtualises afterwards. Fixed.
 function AdvanceBridge({ onAdvanceReady }) {
   const advance = useThree(s => s.advance);
   useEffect(() => {
@@ -138,7 +194,7 @@ function AdvanceBridge({ onAdvanceReady }) {
   return null;
 }
 
-export default function SphereComposite({ sourceRef, immersive, onAdvanceReady }) {
+export default function SphereComposite({ sourceRef, immersive, onAdvanceReady, bgStateRef }) {
   const dpr = useRef(compositeDpr(typeof window !== 'undefined' ? window.devicePixelRatio : 1)).current;
   const wrapRef = useRef(null);
 
@@ -179,7 +235,7 @@ export default function SphereComposite({ sourceRef, immersive, onAdvanceReady }
       >
         <AdvanceBridge onAdvanceReady={onAdvanceReady} />
         <SizeSync sourceRef={sourceRef} wrapRef={wrapRef} />
-        <SourceQuad sourceRef={sourceRef} />
+        <SourceQuad sourceRef={sourceRef} stateRef={bgStateRef} />
         <EffectComposer disableNormalPass>
           <Bloom
             luminanceThreshold={BLOOM.luminanceThreshold}
