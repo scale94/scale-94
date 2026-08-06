@@ -24,9 +24,19 @@ export const LAYER_Z = {
 };
 
 // pointerEvents:'none' is load-bearing, not cosmetic — see artComposite.test.js.
+//
+// Anchored top-left and sized in pixels rather than `inset: 0`, because the
+// sphere container is taller than the 2D canvas (it also holds the label
+// overlay). r3f measures THIS element to size its renderer, so if it covered the
+// whole container the GL buffer would be taller than the texture it presents and
+// the composite would be vertically misaligned. SizeSync writes the exact pixel
+// size each frame; these are the values before the first measurement.
 export const COMPOSITE_STYLE = {
   position: 'absolute',
-  inset: 0,
+  top: 0,
+  left: 0,
+  width: '100%',
+  height: '100%',
   zIndex: LAYER_Z.composite,
   pointerEvents: 'none',
 };

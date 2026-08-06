@@ -28,6 +28,7 @@
 //   node scripts/artBaseline.mjs [--out DIR] [--url URL]
 
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { launch } from './cdp.mjs';
 
 const arg = (name, dflt) => {
@@ -79,12 +80,44 @@ const SPHERE_RECT = `(() => { const c = ${SPHERE}; const r = c.getBoundingClient
 const SPHERE_READY = `(() => { const c = ${SPHERE};
   return !!c && c.getBoundingClientRect().width > 800; })()`;
 
+// The GL composite has mounted AND sized itself to the 2D canvas. Waiting on
+// this before virtualising is what makes the capture see the bloom layer.
+const GL_READY = `(() => {
+  const w = document.querySelector('[data-art-composite]');
+  const g = w && w.querySelector('canvas');
+  const c = ${SPHERE};
+  return !!g && !!c && g.width >= c.clientWidth * 0.9 && g.width > 800;
+})()`;
+
 const CANVAS_HASH = `(() => {
   const c = ${SPHERE}; const g = c.getContext('2d');
   const d = g.getImageData(0, 0, c.width, c.height).data;
   let h = 2166136261;
   for (let i = 0; i < d.length; i += 13) { h ^= d[i]; h = Math.imul(h, 16777619); }
   return (h >>> 0).toString(16);
+})()`;
+
+
+// A coarse perceptual signature: mean luminance over a 32x18 grid, 0-255.
+// Byte-equality is not achievable for this app (see the README), so the gate is
+// a tolerance on this instead. Coarse enough to ignore a few particles landing
+// differently, fine enough that a layer failing to render, shifting, or changing
+// brightness moves it well outside the noise floor.
+const SIGNATURE = `(() => {
+  const c = ${SPHERE}; const g = c.getContext('2d');
+  const W = c.width, H = c.height, GX = 32, GY = 18;
+  const d = g.getImageData(0, 0, W, H).data;
+  const sums = new Float64Array(GX * GY), cnt = new Float64Array(GX * GY);
+  for (let y = 0; y < H; y += 2) {
+    const gy = Math.min(GY - 1, (y * GY / H) | 0);
+    for (let x = 0; x < W; x += 2) {
+      const i = (y * W + x) * 4;
+      const lum = 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+      const k = gy * GX + Math.min(GX - 1, (x * GX / W) | 0);
+      sums[k] += lum; cnt[k]++;
+    }
+  }
+  return Array.from(sums, (v, k) => Math.round((v / (cnt[k] || 1)) * 10) / 10);
 })()`;
 
 const HOVERED = `(() => {
@@ -105,26 +138,40 @@ const clickByTitle = (frag) => `(() => {
   const b = [...document.querySelectorAll('button')].find(e => (e.title || '').includes(${JSON.stringify(frag)}));
   if (!b) return false; b.click(); return true; })()`;
 
-// ── Boot to a settled sphere on a fixed frame budget ─────────────────────────
+// ── Boot under REAL timing, then take control ───────────────────────────────
+// The determinism shim stays inert until __virtualize(). Virtualising from page
+// load stops React committing concurrent work (its scheduler compares
+// performance.now() against a yield deadline), and r3f's <Canvas> then never
+// mounts its children — the GL layer stays blank while looking fine. So the app
+// boots and mounts normally, and only the captured window is deterministic.
 async function bootToSphere(page) {
   await page.waitFor('document.querySelectorAll("canvas").length > 0', { label: 'boot canvas' });
   await sleep(2500);
-  await page.pump(120);
-  await sleep(500);
-  // Re-seed immediately before the sphere mounts. Module evaluation consumes
-  // Math.random() before any app code runs, so without this a step that merely
-  // adds a dependency shifts the RNG stream and every captured hash changes
-  // while the renderer is untouched — which is what step 2 did. Re-seeding here
-  // means the reference compares rendering, not module-graph side effects.
-  await page.eval('window.__reseed(); window.__reseedEachFrame(true);');
   if (!await page.eval(clickByText('/CHAOS'))) throw new Error('no /CHAOS nav button');
-  await sleep(1500);
-  await page.pump(300);
-  await sleep(800);
-  await page.pump(300);          // canvas sizing is rAF-driven and slow to settle
-  await sleep(500);
-  await page.pump(120);
-  if (!await page.eval(SPHERE_READY)) throw new Error('sphere never reached full size');
+  await page.waitFor(SPHERE_READY, { label: 'sphere at full size', timeoutMs: 40000 });
+  // Let the GL composite finish mounting and the awakening settle, still real-time.
+  await page.waitFor(GL_READY, { label: 'GL composite sized', timeoutMs: 40000 });
+  await sleep(4000);
+
+  await page.eval('window.__virtualize()');
+  if (!await page.eval('window.__isVirtual()')) throw new Error('shim did not virtualize');
+  // Let in-flight real-rAF loops migrate into the virtual queue. The shim wraps
+  // passthrough callbacks so they re-queue instead of being lost, but the
+  // browser still has to fire them once.
+  await sleep(150);
+
+  // Booting under real timing leaves the sphere carrying real-time history —
+  // rotation angle, node positions, particles — which differs run to run. Reset
+  // it now that the clock and RNG are ours, so the captured window is
+  // reproducible. Dev-only hook; absent from production builds.
+  if (!await page.eval('typeof window.__artHarnessReset === "function"')) {
+    throw new Error('__artHarnessReset missing — is this a production build?');
+  }
+  await page.eval('window.__reseed(); window.__artHarnessReset();');
+
+  // From here every count is a fixed constant, so the frame budget is identical
+  // on every run.
+  await page.pump(240);
 }
 
 // CDP acknowledges an input command before the renderer has processed the
@@ -200,10 +247,17 @@ async function captureScale(scale, manifest, expectFingerprint) {
   const shot = async (state) => {
     const file = `${OUT}/${scale.name}__${state}.png`;
     // Immersive re-parents the container, so re-read the box each time.
-    await page.screenshot({ path: file, clip: clipOf(await page.eval(SPHERE_RECT)) });
-    const hash = await page.eval(CANVAS_HASH);
-    shots[state] = { file, canvasHash: hash };
-    console.log(`   ${state.padEnd(18)} ${hash}`);
+    const png = await page.screenshot({ path: file, clip: clipOf(await page.eval(SPHERE_RECT)) });
+    // TWO hashes, because they gate different things.
+    //   canvasHash — the 2D canvas's own pixels. What steps 2-6 must not
+    //                perturb until they deliberately move a layer off it.
+    //   shotHash   — the COMPOSITED result, 2D under GL. From step 3 this is
+    //                the only one that sees the migrated layers at all.
+    const canvasHash = await page.eval(CANVAS_HASH);
+    const signature = await page.eval(SIGNATURE);
+    const shotHash = createHash('sha256').update(png).digest('hex').slice(0, 12);
+    shots[state] = { file, canvasHash, shotHash, signature };
+    console.log(`   ${state.padEnd(18)} 2d=${canvasHash.padEnd(9)} shot=${shotHash}`);
   };
 
   const cx = Math.round(rect.x + rect.w / 2), cy = Math.round(rect.y + rect.h / 2);

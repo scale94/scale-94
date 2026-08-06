@@ -67,53 +67,50 @@ function SourceQuad({ sourceRef }) {
   );
 }
 
-// Keep the GL drawing buffer the same size as the 2D canvas.
+// Keep the GL layer exactly the size of the 2D canvas.
 //
-// r3f normally measures its own container with a ResizeObserver, and here that
-// does not work: the page already runs several observers, one of which resizes
-// the 2D canvas, and the browser drops notifications under the resulting
-// feedback ("ResizeObserver loop completed with undelivered notifications").
-// r3f's container measured 1446x615 correctly while its internal size state
-// stayed stuck at the 14x6 the container had during the first layout, so the
-// composite rendered into a 14x6 buffer stretched over the whole sphere.
-// Confirmed not to be a frameloop artefact — it reproduced identically under
-// frameloop="always".
+// r3f sizes its renderer by measuring its own container with a ResizeObserver,
+// and on this page that measurement gets stuck: several observers already run,
+// one of them resizes the 2D canvas, and the browser drops notifications under
+// the resulting feedback ("ResizeObserver loop completed with undelivered
+// notifications"). The GL buffer stayed at the 14x6 the container had during
+// first layout. Not a frameloop artefact — identical under frameloop="always".
 //
-// So do not measure. The 2D canvas is already sized authoritatively by ArtTab's
-// own observer, and it is the box we must match exactly, so read it directly on
-// the frames we are already rendering. No extra observer, nothing to starve,
-// and it cannot drift from the texture source by construction.
-function SizeSync({ sourceRef }) {
+// Resizing the renderer directly was the first fix and it fights r3f: calling
+// setSize() on the store re-renders the subtree, which changes <Canvas>'s
+// `children`, which re-runs its layout effect, which re-applies the STALE
+// measurement — so the buffer oscillated between the right size and 14x6.
+//
+// So drive r3f's own path instead. Size the wrapper (the element r3f measures)
+// to the 2D canvas in pixels, then fire a window resize, which is what
+// react-use-measure listens to — undebounced, so it re-measures synchronously.
+// The correct size then flows to the renderer, the store, the camera and the
+// EffectComposer's render targets together, with nothing to fight.
+function SizeSync({ sourceRef, wrapRef }) {
   const gl = useThree(s => s.gl);
-  const camera = useThree(s => s.camera);
-  const setSize = useThree(s => s.setSize);
+  const tick = useRef(0);
 
   useFrame(() => {
-    const el = sourceRef.current;
-    if (!el) return;
+    const el = sourceRef.current, wrap = wrapRef.current;
+    if (!el || !wrap) return;
     const w = el.clientWidth, h = el.clientHeight;
     if (w <= 0 || h <= 0) return;
 
-    // Compare against the real drawing buffer, not a remembered value. r3f owns
-    // this canvas too, so if it ever does re-measure and set it back, the next
-    // frame corrects it instead of the two silently disagreeing forever.
+    // Compare against the REAL drawing buffer, not against what we last asked
+    // for. A single dispatch is not enough — the first one can land before r3f
+    // has attached its observer and is then never retried, which left the
+    // renderer at 14x6 while the wrapper was correctly 1446x580. Retrying until
+    // the renderer actually agrees makes this self-healing.
     const ratio = gl.getPixelRatio();
-    if (gl.domElement.width === Math.floor(w * ratio)
-     && gl.domElement.height === Math.floor(h * ratio)) return;
+    if (gl.domElement.width === Math.round(w * ratio)
+     && gl.domElement.height === Math.round(h * ratio)) { tick.current = 0; return; }
 
-    // setSize on the store alone is not enough — it updates r3f's size state,
-    // which SourceQuad and EffectComposer read, but the renderer follows r3f's
-    // *measured* size, which is the one that is stuck. Resize the renderer
-    // directly and keep the store in step.
-    gl.setSize(w, h, true);
-    setSize(w, h);
-
-    // The orthographic frustum is in pixels, matching the quad's plane.
-    if (camera.isOrthographicCamera) {
-      camera.left = -w / 2; camera.right = w / 2;
-      camera.top = h / 2;   camera.bottom = -h / 2;
-      camera.updateProjectionMatrix();
+    if (wrap.style.width !== `${w}px` || wrap.style.height !== `${h}px`) {
+      wrap.style.width = `${w}px`;
+      wrap.style.height = `${h}px`;
     }
+    // Throttle: a resize event is page-wide and a few other canvases listen.
+    if (tick.current++ % 10 === 0) window.dispatchEvent(new Event('resize'));
   });
 
   return null;
@@ -143,6 +140,7 @@ function AdvanceBridge({ onAdvanceReady }) {
 
 export default function SphereComposite({ sourceRef, immersive, onAdvanceReady }) {
   const dpr = useRef(compositeDpr(typeof window !== 'undefined' ? window.devicePixelRatio : 1)).current;
+  const wrapRef = useRef(null);
 
   return (
     // data-art-composite marks this subtree as the GL layer. From step 2 the
@@ -150,7 +148,7 @@ export default function SphereComposite({ sourceRef, immersive, onAdvanceReady }
     // to tell them apart without calling getContext() — probing with
     // getContext('2d') permanently claims an uninitialised canvas as 2D and
     // stops r3f ever getting a WebGL context on it.
-    <div style={COMPOSITE_STYLE} aria-hidden="true" data-art-composite="">
+    <div ref={wrapRef} style={COMPOSITE_STYLE} aria-hidden="true" data-art-composite="">
       <Canvas
         frameloop="never"
         dpr={dpr}
@@ -180,7 +178,7 @@ export default function SphereComposite({ sourceRef, immersive, onAdvanceReady }
         }}
       >
         <AdvanceBridge onAdvanceReady={onAdvanceReady} />
-        <SizeSync sourceRef={sourceRef} />
+        <SizeSync sourceRef={sourceRef} wrapRef={wrapRef} />
         <SourceQuad sourceRef={sourceRef} />
         <EffectComposer disableNormalPass>
           <Bloom

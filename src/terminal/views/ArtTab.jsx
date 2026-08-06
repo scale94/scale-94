@@ -1647,6 +1647,30 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     });
   }, [stateRef, dimsRef]);
 
+  // ── Dev-only harness hook ─────────────────────────────────────────────────
+  // The visual-parity harness (scripts/artBaseline.mjs) has to boot the app under
+  // REAL timing, because virtualising the clock from page load stops React
+  // committing concurrent work and r3f then never mounts. But that means the
+  // sphere's state at the moment the harness takes over — rotation, node
+  // positions, particles — carries real-time history and differs run to run.
+  //
+  // This resets the sim to its mount-time state so the captured window is
+  // reproducible. `import.meta.env.DEV` is statically false in a production
+  // build, so the whole block is dead code the bundler removes.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return undefined;
+    window.__artHarnessReset = () => {
+      rotRef.current = { rx: 0.18, ry: 0 };
+      dragRef.current = { active: false, lastX: 0, lastY: 0, vx: 0, vy: 0 };
+      particlesRef.current = createParticlePool();
+      firedRef.current = null;
+      fusionSourceRef.current = null;
+      probeNodeRef.current = null;
+      initState();
+    };
+    return () => { delete window.__artHarnessReset; };
+  }, [initState]);
+
   // SphereComposite hands its advance() over here once the GL root exists.
   const handleAdvanceReady = useCallback((advance) => {
     glAdvanceRef.current = advance;

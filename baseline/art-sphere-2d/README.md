@@ -1,3 +1,9 @@
+> **SUPERSEDED as the working reference.** These frames were captured with
+> the byte-hash harness, before it was rewritten to drive the GL layer.
+> They remain the historical pre-WebGL record; the reference that step 3
+> is measured against is `baseline/art-sphere-step2/`, and the gate is now
+> `scripts/artCompare.mjs`, not hash equality. See that dir's README.
+
 # /art sphere — pre-WebGL parity baseline
 
 Captured on `fix/art-sphere-index-space`, on top of merged `main`, **before any

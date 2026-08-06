@@ -40,9 +40,15 @@ describe('layer contract', () => {
     expect(COMPOSITE_STYLE.pointerEvents).toBe('none');
   });
 
-  it('covers the container exactly so the quad is 1:1 with the 2D canvas', () => {
+  it('anchors to the top-left of the container, not to all four edges', () => {
+    // Not `inset: 0`: the container is taller than the 2D canvas because it also
+    // holds the label overlay, and r3f sizes its renderer by measuring this
+    // element. Covering the container would make the GL buffer taller than the
+    // texture it presents.
     expect(COMPOSITE_STYLE.position).toBe('absolute');
-    expect(COMPOSITE_STYLE.inset).toBe(0);
+    expect(COMPOSITE_STYLE.top).toBe(0);
+    expect(COMPOSITE_STYLE.left).toBe(0);
+    expect(COMPOSITE_STYLE.inset).toBeUndefined();
   });
 
   it('sits at the composite layer', () => {
