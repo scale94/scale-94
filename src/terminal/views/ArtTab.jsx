@@ -828,21 +828,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       }
 
       // ── Sphere wireframe ghost ────────────────────────────────────────────
-      // Subtle equator ellipse as spatial anchor
-      const eqRx = sphereR;
-      const eqRy = sphereR * Math.abs(Math.cos(rotRef.current.rx));
-      ctx.beginPath();
-      ctx.ellipse(w / 2, h / 2, eqRx, eqRy, 0, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(255,255,255,0.03)';
-      ctx.lineWidth = 0.5;
-      ctx.stroke();
-
-      // Vertical great circle
-      const vRx = sphereR * Math.abs(Math.cos(rotRef.current.ry));
-      const vRy = sphereR;
-      ctx.beginPath();
-      ctx.ellipse(w / 2, h / 2, vRx, vRy, 0, 0, Math.PI * 2);
-      ctx.stroke();
+      // Now on the GPU (SphereBackground.js). It renders beneath this canvas,
+      // which also puts it beneath the four fainter background layers still
+      // drawn here — see the migration-order note in that file.
+      bgStateRef.current.sphereR = sphereR;
+      bgStateRef.current.rot = { rx: rotRef.current.rx, ry: rotRef.current.ry };
 
       // ── Ambient beat pulse glow ───────────────────────────────────────────
       if (beatPhaseRef.current > 0.005) {
