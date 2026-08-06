@@ -217,6 +217,30 @@ single texture object rather than reallocating. If the cost is material at
 **Acceptance:** side-by-side screenshots showing real light bleed where the
 old bloom showed a smear; frame time measured against the step-0 baseline.
 
+**DONE 2026-08-05.** Built as `art/SphereComposite.jsx` + `art/artComposite.js`.
+Four corrections this step forced on the text above:
+
+1. The DPR cap suggested here as the first optimisation **already existed** at
+   1.5x (`ArtTab.jsx` ResizeObserver), which the baseline confirms: at DPR 2 the
+   backing store is 2169x870, exactly 1446x580 x 1.5. The lever is mostly spent.
+2. "The existing draw code is not touched" cannot be literally true — the fake
+   `ctx.filter` bloom and radial vignette had to be deleted from the loop or
+   immersive would carry both. That is the only change inside `draw`, and it is
+   gated on `immersiveRef`, so exactly 3 of 21 captured states move.
+3. Loop reconciliation (SS3.2) started here **inverted**: the 2D loop drives the
+   GL canvas via `frameloop="never"` + `advance()` from its own tail, rather
+   than `useFrame` becoming the clock. SS3.2's direction is still the step-6
+   destination.
+4. Measured cost, real GPU, 1520x900 idle: +0.7ms p50 for the quad and texture
+   upload, +0.4ms more for bloom, so **+1.1ms p50 / +1.3ms p95** total. Idle p99
+   crossed the frame budget (14.7 -> 18.1ms). Full numbers and the 12-of-21
+   parity result in `baseline/art-sphere-2d/README.md`.
+
+**Blocking step 3:** the deterministic capture harness cannot drive r3f (it
+replaces rAF with a manual pump; `useFrame` never runs, in either frameloop
+mode). It gates the 2D layer only. Step 3 moves real content into GL, so this
+must be solved before step 3 starts, or step 3 ships unverified.
+
 ### Step 3 — Background slice
 
 Migrate the bottom of the stack: genesis glow, state flash grid, spectral
