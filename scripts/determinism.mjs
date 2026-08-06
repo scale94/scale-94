@@ -29,6 +29,38 @@ export const DETERMINISM_SHIM = `(() => {
   const EPOCH = 1750000000000;   // fixed wall-clock origin
 
   let s = SEED >>> 0;
+
+  // Re-seed on demand. Seeding once at document start is NOT enough: module
+  // evaluation consumes Math.random() before any app code runs, so adding a
+  // dependency shifts the whole stream and the app's own seeded state comes out
+  // different. Measured — importing three/r3f/postprocessing into ArtTab moved
+  // every captured hash while the 2D draw loop was byte-for-byte unchanged.
+  // The driver re-seeds after the module graph has loaded and before the sphere
+  // mounts, so the reference is stable across dependency changes. Without this,
+  // a "parity gate" would fail on every step of a migration that adds libraries
+  // — i.e. exactly when it is needed.
+  window.__reseed = (seed) => { s = ((seed ?? SEED) >>> 0); };
+
+  // Re-seeding once is still not enough once a GPU library is mounted. three.js
+  // calls Math.random() for every object UUID, so the composite consumes from
+  // the same global stream the simulation draws from, continuously, and the two
+  // desync. Measured: with the composite mounted, every captured hash moved even
+  // though the 2D draw loop was byte-for-byte unchanged.
+  //
+  // The app's simulation should own a private RNG rather than share the global
+  // one — but that is a source change, and a parity gate must not require
+  // rewriting the thing it is measuring.
+  //
+  // So instead: re-seed at the START of every frame. ArtTab's draw runs first
+  // and advances the composite from its own tail, so within a frame the 2D
+  // drawing always sees the same stream regardless of what the GL layer
+  // allocates afterwards. Both sides of a comparison run under the identical
+  // rule, so the 2D layer is compared honestly. It does make the sim less varied
+  // frame-to-frame than in production, which is fine for a gate and wrong for a
+  // screenshot you intend to admire.
+  let reseedEachFrame = false;
+  window.__reseedEachFrame = (on) => { reseedEachFrame = !!on; };
+
   Math.random = function () {
     s = (s + 0x6D2B79F5) >>> 0;
     let t = s;
@@ -110,6 +142,7 @@ export const DETERMINISM_SHIM = `(() => {
   window.__pump = (n) => {
     for (let i = 0; i < n; i++) {
       vnow += FRAME_MS;
+      if (reseedEachFrame) s = SEED >>> 0;
       runDueTimers();                 // timers land before the frame, as in a real tick
       const batch = queue;
       queue = [];

@@ -47,11 +47,32 @@ const SCALES = [
   { name: 'projector-1920x1080@1x', width: 1920, height: 1080, dpr: 1 },
 ];
 
-const SPHERE = `[...document.querySelectorAll('canvas')].filter(c => c.offsetParent)
-  .sort((a,b) => b.getBoundingClientRect().width - a.getBoundingClientRect().width)[0]`;
-
+// Two traps stacked on top of each other here.
+//
 // The sphere is NOT the largest canvas on the page — a hidden full-viewport
-// ambient overlay is. Selecting by area alone reads all-zero pixels.
+// ambient overlay is, so `offsetParent` filtering is required or the capture
+// reads all-zero pixels and reports a false regression.
+//
+// And from step 2 there are TWO visible canvases at exactly the same size: the
+// 2D sphere and the GL bloom composite stacked on it. Sorting by width alone
+// picks whichever the DOM happens to return first. The gate is defined on the
+// 2D canvas's content, so select it explicitly: getContext('2d') returns null
+// on a canvas that already has a WebGL context, which distinguishes them.
+// NEVER probe with getContext(). Calling getContext('2d') on a canvas that has
+// not got a context yet permanently claims it as a 2D canvas, and the WebGL
+// context r3f wants can then never be created ("Canvas has an existing context
+// of a different type"). Using it as a discriminator silently disabled the
+// composite for a whole capture run, which then produced a bloom-free set of
+// reference images that looked plausible. The harness must not be able to
+// change what it is measuring.
+//
+// SphereComposite marks its own subtree with data-art-composite, so the GL
+// canvas can be excluded structurally. (Identifying the 2D canvas by its inline
+// `cursor: grab` was tried and is wrong: ArtTab switches the cursor to
+// `pointer` over a node and the selector then finds nothing mid-capture.)
+const SPHERE = `[...document.querySelectorAll('canvas')]
+  .filter(c => c.offsetParent && !c.closest('[data-art-composite]'))
+  .sort((a,b) => b.getBoundingClientRect().width - a.getBoundingClientRect().width)[0]`;
 const SPHERE_RECT = `(() => { const c = ${SPHERE}; const r = c.getBoundingClientRect();
   return { x: r.x, y: r.y, w: r.width, h: r.height }; })()`;
 
@@ -90,6 +111,12 @@ async function bootToSphere(page) {
   await sleep(2500);
   await page.pump(120);
   await sleep(500);
+  // Re-seed immediately before the sphere mounts. Module evaluation consumes
+  // Math.random() before any app code runs, so without this a step that merely
+  // adds a dependency shifts the RNG stream and every captured hash changes
+  // while the renderer is untouched — which is what step 2 did. Re-seeding here
+  // means the reference compares rendering, not module-graph side effects.
+  await page.eval('window.__reseed(); window.__reseedEachFrame(true);');
   if (!await page.eval(clickByText('/CHAOS'))) throw new Error('no /CHAOS nav button');
   await sleep(1500);
   await page.pump(300);
