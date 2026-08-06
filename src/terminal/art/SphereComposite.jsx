@@ -67,7 +67,71 @@ function SourceQuad({ sourceRef }) {
   );
 }
 
+// Keep the GL drawing buffer the same size as the 2D canvas.
+//
+// r3f normally measures its own container with a ResizeObserver, and here that
+// does not work: the page already runs several observers, one of which resizes
+// the 2D canvas, and the browser drops notifications under the resulting
+// feedback ("ResizeObserver loop completed with undelivered notifications").
+// r3f's container measured 1446x615 correctly while its internal size state
+// stayed stuck at the 14x6 the container had during the first layout, so the
+// composite rendered into a 14x6 buffer stretched over the whole sphere.
+// Confirmed not to be a frameloop artefact — it reproduced identically under
+// frameloop="always".
+//
+// So do not measure. The 2D canvas is already sized authoritatively by ArtTab's
+// own observer, and it is the box we must match exactly, so read it directly on
+// the frames we are already rendering. No extra observer, nothing to starve,
+// and it cannot drift from the texture source by construction.
+function SizeSync({ sourceRef }) {
+  const gl = useThree(s => s.gl);
+  const camera = useThree(s => s.camera);
+  const setSize = useThree(s => s.setSize);
+
+  useFrame(() => {
+    const el = sourceRef.current;
+    if (!el) return;
+    const w = el.clientWidth, h = el.clientHeight;
+    if (w <= 0 || h <= 0) return;
+
+    // Compare against the real drawing buffer, not a remembered value. r3f owns
+    // this canvas too, so if it ever does re-measure and set it back, the next
+    // frame corrects it instead of the two silently disagreeing forever.
+    const ratio = gl.getPixelRatio();
+    if (gl.domElement.width === Math.floor(w * ratio)
+     && gl.domElement.height === Math.floor(h * ratio)) return;
+
+    // setSize on the store alone is not enough — it updates r3f's size state,
+    // which SourceQuad and EffectComposer read, but the renderer follows r3f's
+    // *measured* size, which is the one that is stuck. Resize the renderer
+    // directly and keep the store in step.
+    gl.setSize(w, h, true);
+    setSize(w, h);
+
+    // The orthographic frustum is in pixels, matching the quad's plane.
+    if (camera.isOrthographicCamera) {
+      camera.left = -w / 2; camera.right = w / 2;
+      camera.top = h / 2;   camera.bottom = -h / 2;
+      camera.updateProjectionMatrix();
+    }
+  });
+
+  return null;
+}
+
 // Hands r3f's advance() out to ArtTab. Must live inside <Canvas> to read the store.
+//
+// KNOWN LIMITATION, recorded rather than worked around: the deterministic
+// capture harness (scripts/determinism.mjs) replaces requestAnimationFrame with
+// a manual pump, and under it this GL layer never renders — useFrame does not
+// run and the composite stays blank. frameloop="demand" + invalidate() was tried
+// as a fix, on the theory that demand-mode schedules through rAF and would
+// therefore be pumpable; it behaves identically, so the cause is deeper in r3f's
+// loop than the frameloop mode. Both modes work correctly in a real browser.
+//
+// Consequence: the harness still gates the 2D layer, which is what step 2 needs,
+// but it is blind to the GL layer. That is fine here and NOT fine from step 3,
+// where real content moves into GL. Resolving it is a prerequisite for step 3.
 function AdvanceBridge({ onAdvanceReady }) {
   const advance = useThree(s => s.advance);
   useEffect(() => {
@@ -81,7 +145,12 @@ export default function SphereComposite({ sourceRef, immersive, onAdvanceReady }
   const dpr = useRef(compositeDpr(typeof window !== 'undefined' ? window.devicePixelRatio : 1)).current;
 
   return (
-    <div style={COMPOSITE_STYLE} aria-hidden="true">
+    // data-art-composite marks this subtree as the GL layer. From step 2 the
+    // container holds two canvases of identical size, and capture tooling has
+    // to tell them apart without calling getContext() — probing with
+    // getContext('2d') permanently claims an uninitialised canvas as 2D and
+    // stops r3f ever getting a WebGL context on it.
+    <div style={COMPOSITE_STYLE} aria-hidden="true" data-art-composite="">
       <Canvas
         frameloop="never"
         dpr={dpr}
@@ -96,9 +165,22 @@ export default function SphereComposite({ sourceRef, immersive, onAdvanceReady }
           premultipliedAlpha: false,
           preserveDrawingBuffer: false,
         }}
-        style={{ width: '100%', height: '100%', display: 'block' }}
+        style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'none' }}
+        onCreated={({ gl }) => {
+          // pointer-events:none on the wrapper is NOT enough. The property is
+          // inherited, but this canvas computes `auto`, which re-enables hits on
+          // it and puts it in front of the 2D canvas for elementFromPoint — so
+          // every hover, click, resonance, fusion and drag lands on the overlay
+          // and dies, while the sphere still renders perfectly.
+          //
+          // This was invisible until the sizing bug above was fixed: at 14x6 the
+          // overlay did not cover the centre of the sphere, so hit-testing
+          // happened to still work. Two bugs, one masking the other.
+          gl.domElement.style.pointerEvents = 'none';
+        }}
       >
         <AdvanceBridge onAdvanceReady={onAdvanceReady} />
+        <SizeSync sourceRef={sourceRef} />
         <SourceQuad sourceRef={sourceRef} />
         <EffectComposer disableNormalPass>
           <Bloom
