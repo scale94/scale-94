@@ -51,8 +51,9 @@ import SphereLabels from '../art/SphereLabels';
 import SphereComposite from '../art/SphereComposite';
 import { stepAwakening, drawBeaconRing, drawConductor } from '../art/artAwakening';
 import {
-  riftTint, exergyAlpha, genesisGlowState, ambientIntensity,
+  riftTint, exergyAlpha, genesisGlowState, ambientIntensity, ghostTrailAlpha,
   stepFlash, FLASH_ALPHA, FLASH_CUTOFF,
+  GHOST_COUNT, GHOST_CULL_Z, GHOST_RADIUS,
 } from '../art/artBackground';
 import {
   CLUSTERS, INTRA_EDGES, DEFAULT_CROSS_EDGES, ALL_EDGES, ADJ,
@@ -218,6 +219,9 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   // the draw loop (never from render) so the backdrop is always the one that
   // belongs to the 2D frame being composited, not the next one.
   const bgStateRef = useRef({ rift: { r: 0, g: 0, b: 0, a: 0.72 } });
+  // Projected ghost trails, xyzw per ghost. Written in place each frame so the
+  // draw loop stays off the allocation path.
+  const ghostBufRef = useRef(new Float32Array(GHOST_COUNT * 4));
 
   // ── Beat clock state ────────────────────────────────────────────────────
   const [ambientMode,  setAmbientMode]  = useState(false);
@@ -821,22 +825,28 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       }
 
       // ── Temporal archaeology: ghost trails from previous session ──────────
+      // Drawn on the GPU, but PROJECTED HERE. 31 points is a trivial upload,
+      // and moving projection into the shader is the one change that would
+      // render identically while killing every hit-test on the sphere.
       const arch = archaeologyRef.current;
+      const gbuf = ghostBufRef.current;
+      let gn = 0;
       if (arch?.loaded && arch.ghostPositions) {
         const gp = arch.ghostPositions;
-        ctx.save();
-        for (let i = 0; i < 31 && i * 3 + 2 < gp.length; i++) {
+        for (let i = 0; i < GHOST_COUNT && i * 3 + 2 < gp.length; i++) {
           const [grx, gry, grz] = applyM(M, gp[i * 3], gp[i * 3 + 1], gp[i * 3 + 2]);
-          if (grz < -0.3) continue;  // back-face cull
+          if (grz < GHOST_CULL_Z) continue;  // back-face cull
           const gp2 = project(grx, gry, grz, w, h, sphereR, focal);
-          const ghostAlpha = Math.max(0, grz) * 0.07;
-          ctx.beginPath();
-          ctx.arc(gp2.sx, gp2.sy, 3 * gp2.scale, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(180,180,220,${ghostAlpha.toFixed(3)})`;
-          ctx.fill();
+          const o = gn * 4;
+          gbuf[o]     = gp2.sx;
+          gbuf[o + 1] = gp2.sy;
+          gbuf[o + 2] = GHOST_RADIUS * gp2.scale;
+          gbuf[o + 3] = ghostTrailAlpha(grz);
+          gn++;
         }
-        ctx.restore();
       }
+      for (let i = gn; i < GHOST_COUNT; i++) gbuf[i * 4 + 3] = 0;  // clear the tail
+      bgStateRef.current.ghosts = gbuf;
 
       // ── Cluster ghost labels (projected anchor positions) ─────────────────
       const nextLabels = [];
@@ -1656,11 +1666,50 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       };
     };
 
+    // Seeds last session's node positions. The ghost trails read them from
+    // IndexedDB, which is empty in the harness's fresh profile, so that layer
+    // is invisible to every capture — same problem as the ecocide-gated ones.
+    // Passing no argument synthesises a ring, which is enough to prove the
+    // layer draws and where.
+    window.__artSetGhosts = (positions) => {
+      const arch = archaeologyRef.current;
+      if (!arch) return 0;
+      if (positions === null) { arch.ghostPositions = null; arch.loaded = false; return 0; }
+      const n = 31;
+      const out = positions ?? Array.from({ length: n * 3 }, (_, i) => {
+        const k = Math.floor(i / 3), a = (k / n) * Math.PI * 2;
+        return [Math.cos(a), Math.sin(a), 0.6][i % 3];   // front-facing ring
+      });
+      arch.ghostPositions = new Float32Array(out);
+      arch.loaded = true;
+      return arch.ghostPositions.length;
+    };
+
+    // Reads back what the draw loop last published to the GL layer. Every
+    // background layer is now a uniform rather than a canvas operation, so
+    // when one does not appear the first question is whether the state ever
+    // reached the shader — and pixels cannot answer that.
+    window.__artBgState = () => {
+      const s = bgStateRef.current, g = s.ghosts;
+      let live = 0;
+      if (g) for (let i = 0; i < g.length; i += 4) if (g[i + 3] > 0) live++;
+      return {
+        rift: s.rift, exergy: s.exergy, flash: s.flash, ambient: s.ambient,
+        beat: s.beat, genesis: s.genesis, sphereR: s.sphereR,
+        ghostsLive: live,
+        ghostFirst: g ? Array.from(g.slice(0, 8)) : null,
+        archLoaded: !!archaeologyRef.current?.loaded,
+        archLen: archaeologyRef.current?.ghostPositions?.length ?? 0,
+      };
+    };
+
     return () => {
       delete window.__artHarnessReset;
       delete window.__artSetEcocide;
+      delete window.__artSetGhosts;
+      delete window.__artBgState;
     };
-  }, [initState]);
+  }, [initState, archaeologyRef]);
 
   // SphereComposite hands its advance() over here once the GL root exists.
   const handleAdvanceReady = useCallback((advance) => {

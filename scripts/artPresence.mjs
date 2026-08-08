@@ -31,7 +31,10 @@ function lean(png, frac, pick) {
 const magenta = (r, g, b) => Math.max(0, (r + b) / 2 - g);   // 217,70,239
 const gold    = (r, g, b) => Math.max(0, (r + g) / 2 - b);   // 255,215,0
 
-const page = await launch({ url: 'http://localhost:5174/', width: 1520, height: 900 });
+// deterministic:true only INSTALLS the shim; it stays inert until
+// __virtualize(). The first three checks need real time (a 4s fade, a 114 BPM
+// beat, a 1s flash decay), so virtualisation is deferred to the ghost check.
+const page = await launch({ url: 'http://localhost:5174/', width: 1520, height: 900, deterministic: true });
 try {
   await page.waitFor('document.querySelectorAll("canvas").length > 0', { label: 'boot' });
   await sleep(2500);
@@ -106,5 +109,71 @@ try {
   console.log('FLASH GRID  (mean luminance in the far side bands)');
   console.log(`   quiet          ${quiet.toFixed(3)}`);
   console.log(`   after trigger  ${lit.toFixed(3)}`);
-  console.log(lit > quiet + 0.3 ? '   => RENDERS' : '   => NOT DETECTED');
+  console.log(lit > quiet + 0.3 ? '   => RENDERS\n' : '   => NOT DETECTED\n');
+  await sleep(1500);   // let the flash decay back out
+
 } finally { await page.close(); }
+
+// ── GHOST TRAILS: last session's positions, read from IndexedDB ───────────
+// Empty in a fresh harness profile, so this layer never draws during capture.
+//
+// Runs in its OWN page, and that is load-bearing: driven from the session
+// above, __virtualize() lands after ~20s of real rAF and pump() then fails to
+// advance the draw loop at all — measured as two byte-identical screenshots.
+//
+// THREE MORE WAYS THIS CHECK CAN LIE, all of them met while writing it:
+//   1. Mean blue-lean over the sphere is ~65x too coarse — the layer
+//      contributes 0.008 against ~0.5 of animation noise, so it reports
+//      "not detected" whether the layer works or not.
+//   2. Pixel-diffing two deterministic runs drowns in the harness's own
+//      41k-changed-pixel reproducibility floor.
+//   3. Seeding arbitrary positions gets them BACK-FACE CULLED (measured rz
+//      -1.497 against the -0.3 threshold) — the layer correctly draws nothing
+//      and the check reads it as a failure.
+//
+// So: freeze the clock, pin the rotation with __artHarnessReset (rx=0.18,
+// ry=0), stack all 31 ghosts at model (0,0,1) which is then reliably
+// front-facing, and look for the ghost colour itself. 31 source-over passes at
+// alpha 0.069 compound to 0.89, i.e. a nearly opaque (180,180,220) disc.
+const GL_READY = `(() => { const w = document.querySelector('[data-art-composite]');
+  const g = w && w.querySelector('canvas'); const c = ${SPHERE};
+  return !!g && !!c && g.width >= c.clientWidth * 0.9 && g.width > 800; })()`;
+
+const nearestGhostColour = (png) => {
+  const { width: W, height: H, data } = decodePng(png);
+  let best = 1e9;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = (y * W + x) * 4;
+    const d = Math.hypot(data[i] - 180, data[i + 1] - 180, data[i + 2] - 220);
+    if (d < best) best = d;
+  }
+  return best;
+};
+
+const g2 = await launch({ url: 'http://localhost:5174/', width: 1520, height: 900, deterministic: true });
+try {
+  await g2.waitFor('document.querySelectorAll("canvas").length > 0', { label: 'boot' });
+  await sleep(2500);
+  await g2.eval(clickText('/CHAOS'));
+  await g2.waitFor(READY, { label: 'sphere', timeoutMs: 40000 });
+  await g2.waitFor(GL_READY, { label: 'GL sized', timeoutMs: 40000 });
+  await sleep(4000);
+  await g2.eval('window.__virtualize()');
+  await sleep(150);
+
+  const r2 = await g2.eval(RECT);
+  const clip2 = { x: r2.x, y: r2.y, width: r2.w, height: r2.h, scale: 1 };
+
+  await g2.eval('window.__artSetGhosts(null); window.__reseed(); window.__artHarnessReset();');
+  await g2.pump(3);
+  const gOff = nearestGhostColour(await g2.screenshot({ clip: clip2 }));
+  await g2.eval('window.__artSetGhosts(Array.from({length:93},(_,i)=> i%3===2 ? 1 : 0))');
+  await g2.pump(3);
+  const gOn = nearestGhostColour(await g2.screenshot({ clip: clip2 }));
+  const live = JSON.parse(await g2.eval('JSON.stringify(window.__artBgState())')).ghostsLive;
+
+  console.log('GHOST TRAILS  (closest approach to the ghost colour 180,180,220)');
+  console.log(`   no session     ${gOff.toFixed(1)}`);
+  console.log(`   31 stacked     ${gOn.toFixed(1)}   (${live} live slots published)`);
+  console.log(live > 0 && gOn < gOff - 10 ? '   => RENDERS' : '   => NOT DETECTED');
+} finally { await g2.close(); }

@@ -74,6 +74,7 @@ import {
   GENESIS_CORE_RGB, GENESIS_MID_RGB, GENESIS_MID_STOP, GENESIS_MID_SCALE,
   FLASH_RGB, FLASH_WIDTH, FLASH_GRID_STEP, FLASH_ROW_K,
   AMBIENT_RGB, AMBIENT_INNER_R, AMBIENT_OUTER_R,
+  GHOST_COUNT, GHOST_RGB,
 } from './artBackground';
 
 const v3 = ([r, g, b]) => `vec3(${(r / 255).toFixed(6)}, ${(g / 255).toFixed(6)}, ${(b / 255).toFixed(6)})`;
@@ -88,6 +89,15 @@ export const BACKGROUND_GLSL = /* glsl */`
   uniform vec2 uGenesis;   // genesis glow: x = centre alpha (0 = off), y = radius px
   uniform float uFlash;    // flash grid stroke alpha, 0 = off
   uniform float uAmbient;  // spectral ambient centre alpha, 0 = off
+
+  // Last session's node positions, ALREADY PROJECTED on the CPU:
+  // xy = canvas px, z = radius px, w = alpha (0 = unused slot).
+  //
+  // Uploading 31 projected points per frame is the point of the CPU-projection
+  // invariant, not a compromise against it. Projecting in the vertex shader
+  // would render identically and silently kill every hit-test on the sphere,
+  // because the CPU would no longer know where anything is.
+  uniform vec4 uGhosts[${GHOST_COUNT}];
 
   // A two-stop canvas gradient: colour C at the centre fading to transparent
   // BLACK at the rim. The colour darkens on the way out as well as fading,
@@ -184,6 +194,9 @@ export const BACKGROUND_GLSL = /* glsl */`
                                  // full-screen grid, so the GL/canvas y flip
                                  // cancels and no flip is applied.
     float d = length(p);
+    // Canvas coordinates, origin top-left. The flash grid and the ghost trails
+    // were both laid out in these, so the GL/canvas y flip is undone once here.
+    vec2 cpos = vec2(p.x + res.x * 0.5, res.y * 0.5 - p.y);
 
     // ── Exergy pulse — ecocide bus, magenta breath from the centre ────────
     if (uExergy > 0.0) {
@@ -211,7 +224,6 @@ export const BACKGROUND_GLSL = /* glsl */`
 
     // ── State flash — anthracite hex grid on bifurcation events ───────────
     if (uFlash > 0.0) {
-      vec2 cpos = vec2(p.x + res.x * 0.5, res.y * 0.5 - p.y);   // canvas coords
       col = mix(col, ${v3(FLASH_RGB)}, flashGrid(cpos, res) * uFlash);
     }
 
@@ -248,6 +260,18 @@ export const BACKGROUND_GLSL = /* glsl */`
       col = mix(col, g.rgb, g.a * uBeat);   // alpha stops scale with the phase
     }
 
+    // ── Temporal archaeology — ghost trails from the previous session ─────
+    // Drawn last, as in the loop, each disc source-over in index order. The
+    // pixel size is hoisted out of the loop: fwidth() in non-uniform control
+    // flow is undefined, and it is constant across a fullscreen quad anyway.
+    float px = max(fwidth(cpos.x), 1e-4);
+    for (int i = 0; i < ${GHOST_COUNT}; i++) {
+      vec4 g = uGhosts[i];
+      if (g.w <= 0.0) continue;
+      float cov = 1.0 - smoothstep(-px, px, length(cpos - g.xy) - g.z);
+      col = mix(col, ${v3(GHOST_RGB)}, cov * g.w);
+    }
+
     return col;
   }
 `;
@@ -262,6 +286,9 @@ export function backgroundUniforms() {
     uGenesis: { value: new THREE.Vector2(0, 0) },
     uFlash: { value: 0 },
     uAmbient: { value: 0 },
+    // Flat xyzw per ghost. three.js accepts a Float32Array for a vec4 array,
+    // and reusing one buffer keeps this off the per-frame allocation path.
+    uGhosts: { value: new Float32Array(GHOST_COUNT * 4) },
   };
 }
 
@@ -285,4 +312,7 @@ export function syncBackgroundUniforms(uniforms, state) {
   uniforms.uGenesis.value.set(gen ? gen.alpha : 0, gen ? gen.radius : 0);
   uniforms.uFlash.value = state.flash ?? 0;
   uniforms.uAmbient.value = state.ambient ?? 0;
+  const ghosts = state.ghosts;
+  if (ghosts) uniforms.uGhosts.value.set(ghosts);
+  else uniforms.uGhosts.value.fill(0);
 }
