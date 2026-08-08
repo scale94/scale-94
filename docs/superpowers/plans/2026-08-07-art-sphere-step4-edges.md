@@ -369,7 +369,8 @@ The travelling disc on each pulsing edge. These are discs, not lines, so reuse t
 
 **This layer is invisible to the parity gate.** It needs resonance armed and two nodes shift-clicked, which no capture state does. A green run proves nothing about it.
 
-- [ ] **Step 1:** Publish its state (endpoints, similarity, glow) and render it as one more instance with a larger glow — `resonanceGlow(sim)` reaches 28, twice the base edges' maximum.
+- [ ] **Step 1:** Publish its state and render it as **TWO** instances, not one — this plan originally said "one more instance with a larger glow", and reading the block showed a wide low-alpha halo stroke followed by a narrow bright core stroke, both under `lighter`. Porting it as a single line would have dropped the halo, which is most of what makes it read as coalescence rather than as a thick edge. Widths come from `resonanceWidths(sim, avgScale)`; the core's glow is `resonanceGlow(sim)`, reaching 28 — twice the base edges' maximum, and the place a wrong glow falloff will show first.
+  Both strokes are additive: `blendSrc: THREE.SrcAlphaFactor`, `blendDst: THREE.OneFactor`, same as the prism chords in Task 6.
 - [ ] **Step 2:** Delete the 2D block.
 - [ ] **Step 3: Add a presence check** to `scripts/artPresence.mjs`. Arm resonance, shift-click two nodes found by the existing hover-grid probe, and measure. **Compute the expected signal magnitude before choosing the metric** — a mean over the sphere disc was 65× too coarse for the ghost trails and reported a working layer as broken.
 - [ ] **Step 4:** Gate, run the presence suite, commit with both results.
