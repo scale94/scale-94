@@ -70,6 +70,8 @@ import {
   WIRE_ALPHA, WIRE_WIDTH,
   BEAT_CORE_RGB, BEAT_MID_RGB, BEAT_MID_STOP,
   BEAT_CORE_ALPHA, BEAT_MID_ALPHA, BEAT_INNER_R, BEAT_BASE_R, BEAT_SWELL_R,
+  EXERGY_RGB, EXERGY_R,
+  GENESIS_CORE_RGB, GENESIS_MID_RGB, GENESIS_MID_STOP, GENESIS_MID_SCALE,
 } from './artBackground';
 
 const v3 = ([r, g, b]) => `vec3(${(r / 255).toFixed(6)}, ${(g / 255).toFixed(6)}, ${(b / 255).toFixed(6)})`;
@@ -80,6 +82,15 @@ export const BACKGROUND_GLSL = /* glsl */`
   uniform float uSphereR;  // CSS px
   uniform vec2 uRot;       // rotation rx, ry
   uniform float uBeat;     // beat phase, 1 = just fired
+  uniform float uExergy;   // exergy pulse centre alpha, 0 = off
+  uniform vec2 uGenesis;   // genesis glow: x = centre alpha (0 = off), y = radius px
+
+  // A two-stop canvas gradient: colour C at the centre fading to transparent
+  // BLACK at the rim. The colour darkens on the way out as well as fading,
+  // because canvas interpolates non-premultiplied rgba.
+  vec4 radialTwoStop(float t, vec3 c, float a0) {
+    return vec4(mix(c, vec3(0.0), t), mix(a0, 0.0, t));
+  }
 
   // A canvas radial gradient interpolates NON-premultiplied rgba linearly
   // between adjacent stops, so the colour darkens toward black as it fades
@@ -116,8 +127,35 @@ export const BACKGROUND_GLSL = /* glsl */`
 
   vec3 sphereBackground(vec2 uv, vec2 res) {
     vec3 col = uRift;
-    vec2 p = (uv - 0.5) * res;   // CSS px from centre; both ellipses are
-                                 // centred, so the GL/canvas y flip cancels.
+    vec2 p = (uv - 0.5) * res;   // CSS px from centre; every layer here is
+                                 // radially symmetric about the centre or a
+                                 // full-screen grid, so the GL/canvas y flip
+                                 // cancels and no flip is applied.
+    float d = length(p);
+
+    // ── Exergy pulse — ecocide bus, magenta breath from the centre ────────
+    if (uExergy > 0.0) {
+      float t = clamp(d / (min(res.x, res.y) * float(${EXERGY_R})), 0.0, 1.0);
+      vec4 g = radialTwoStop(t, ${v3(EXERGY_RGB)}, uExergy);
+      col = mix(col, g.rgb, g.a);
+    }
+
+    // ── Genesis glow — awakening phase 0, gold into magenta ───────────────
+    if (uGenesis.x > 0.0) {
+      float t = clamp(d / max(uGenesis.y, 1e-6), 0.0, 1.0);
+      float mid = float(${GENESIS_MID_STOP});
+      vec3 gold = ${v3(GENESIS_CORE_RGB)};
+      vec3 magenta = ${v3(GENESIS_MID_RGB)};
+      float aMid = uGenesis.x * float(${GENESIS_MID_SCALE});
+      vec4 g;
+      if (t < mid) {
+        float u = t / mid;
+        g = vec4(mix(gold, magenta, u), mix(uGenesis.x, aMid, u));
+      } else {
+        g = radialTwoStop((t - mid) / (1.0 - mid), magenta, aMid);
+      }
+      col = mix(col, g.rgb, g.a);
+    }
 
     // ── Sphere wireframe ghost — equator + vertical great circle ──────────
     // Two separate strokes in the 2D loop, so they composite source-over one
@@ -150,6 +188,8 @@ export function backgroundUniforms() {
     uSphereR: { value: 0 },
     uRot: { value: new THREE.Vector2(0, 0) },
     uBeat: { value: 0 },
+    uExergy: { value: 0 },
+    uGenesis: { value: new THREE.Vector2(0, 0) },
   };
 }
 
@@ -168,4 +208,7 @@ export function syncBackgroundUniforms(uniforms, state) {
   uniforms.uSphereR.value = state.sphereR ?? 0;
   if (state.rot) uniforms.uRot.value.set(state.rot.rx, state.rot.ry);
   uniforms.uBeat.value = state.beat ?? 0;
+  uniforms.uExergy.value = state.exergy ?? 0;
+  const gen = state.genesis;
+  uniforms.uGenesis.value.set(gen ? gen.alpha : 0, gen ? gen.radius : 0);
 }

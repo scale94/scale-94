@@ -73,21 +73,9 @@ export function stepAwakening(aw, nodes, frameCount, particles) {
 }
 
 // ── Genesis glow — radial bloom from center during awakening phase 0 ────────
-export function drawGenesisGlow(ctx, aw, w, h, sphereR) {
-  if (aw.phase !== 0) return;
-  const genesisT = (performance.now() - aw.t0) / 4000;
-  const genesisAlpha = Math.max(0, 0.035 * (1 - genesisT));
-  if (genesisAlpha < 0.002) return;
-
-  const gx = w / 2, gy = h / 2;
-  const gRad = sphereR * (0.6 + genesisT * 0.8);
-  const gGrad = ctx.createRadialGradient(gx, gy, 0, gx, gy, gRad);
-  gGrad.addColorStop(0, `rgba(255,215,0,${genesisAlpha.toFixed(4)})`);
-  gGrad.addColorStop(0.6, `rgba(217,70,239,${(genesisAlpha * 0.25).toFixed(4)})`);
-  gGrad.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = gGrad;
-  ctx.fillRect(0, 0, w, h);
-}
+// The genesis glow moved to the GPU in step 3. Its phase gate, fade and radius
+// now live in artBackground.js as the pure `genesisGlowState`, which is unit
+// tested; SphereBackground.js draws it. Nothing draws it on the 2D canvas.
 
 // ── Beacon ring — pulsing invitation during awakening phase 1 ────────────────
 // nodeCount should be passed from NODES.length

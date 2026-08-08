@@ -49,8 +49,8 @@ import { createBeatClock } from '../art/artBeatClock';
 import { clusterLabelState, nodeLabelState, fireExpired } from '../art/artLabels';
 import SphereLabels from '../art/SphereLabels';
 import SphereComposite from '../art/SphereComposite';
-import { stepAwakening, drawGenesisGlow, drawBeaconRing, drawConductor } from '../art/artAwakening';
-import { riftTint } from '../art/artBackground';
+import { stepAwakening, drawBeaconRing, drawConductor } from '../art/artAwakening';
+import { riftTint, exergyAlpha, genesisGlowState } from '../art/artBackground';
 import {
   CLUSTERS, INTRA_EDGES, DEFAULT_CROSS_EDGES, ALL_EDGES, ADJ,
   SPHERE_NODES, SPHERE_ADJ, SPHERE_EDGES,
@@ -775,18 +775,10 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       ctx.fillStyle = `rgba(0,0,0,${tint.a})`;
       ctx.fillRect(0, 0, w, h);
       ctx.restore();
-      // Exergy pulse: faint radial glow from centre that breathes with dissipation
-      if (exergyRate > 0.1) {
-        const gx = w / 2, gy = h / 2;
-        const grad = ctx.createRadialGradient(gx, gy, 0, gx, gy, Math.min(w, h) * 0.55);
-        grad.addColorStop(0, `rgba(217,70,239,${(exergyRate * 0.06).toFixed(3)})`);
-        grad.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, w, h);
-      }
-
-      // ── Genesis glow (logic in artAwakening.js) ──────────────────────────
-      drawGenesisGlow(ctx, aw, w, h, sphereR);
+      // Exergy pulse and genesis glow are both on the GPU now
+      // (SphereBackground.js); only their state is computed here.
+      bgStateRef.current.exergy = exergyAlpha(exergyRate);
+      bgStateRef.current.genesis = genesisGlowState(aw.phase, aw.t0, sphereR, performance.now());
 
       // ── State-driven flash — brief anthracite grid on bifurcation events ──
       if (bgFlashRef.current > 0.005) {
@@ -1667,7 +1659,25 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       probeNodeRef.current = null;
       initState();
     };
-    return () => { delete window.__artHarnessReset; };
+
+    // Drives the ecocide bus state directly. Three background layers are
+    // gated on inputs the capture set can never produce — the ecocide bus sits
+    // at rate 0 throughout — so a green parity run proves nothing about them:
+    // deleting the layer outright scores identically. This lets the smoke
+    // tooling switch them on and check they actually draw. It writes the same
+    // ref the real bus handler writes, so the whole path is exercised.
+    window.__artSetEcocide = ({ metabolicRift, exergyRate } = {}) => {
+      ecocideStateRef.current = {
+        ...ecocideStateRef.current,
+        metabolicRift: metabolicRift ?? ecocideStateRef.current.metabolicRift,
+        exergyRate:    exergyRate    ?? ecocideStateRef.current.exergyRate,
+      };
+    };
+
+    return () => {
+      delete window.__artHarnessReset;
+      delete window.__artSetEcocide;
+    };
   }, [initState]);
 
   // SphereComposite hands its advance() over here once the GL root exists.

@@ -14,6 +14,7 @@ import {
   BEAT_DECAY, BEAT_CUTOFF,
   GHOST_CULL_Z, GHOST_COUNT,
   stepFlash, riftTint, beatPulseAlpha, beatPulseRadius, ghostTrailAlpha,
+  exergyAlpha, genesisGlowState,
 } from '../artBackground';
 
 describe('stepFlash', () => {
@@ -100,6 +101,38 @@ describe('beatPulseAlpha', () => {
   it('swells the radius from 1.05x to 1.23x the sphere radius', () => {
     expect(beatPulseRadius(100, 0)).toBeCloseTo(105, 6);
     expect(beatPulseRadius(100, 1)).toBeCloseTo(123, 6);
+  });
+});
+
+describe('exergyAlpha', () => {
+  it('is off at or below the 0.1 threshold, and scales by 0.06 above it', () => {
+    expect(exergyAlpha(0)).toBe(0);
+    expect(exergyAlpha(0.1)).toBe(0);          // strictly greater-than in the loop
+    expect(exergyAlpha(0.5)).toBeCloseTo(0.03, 10);
+    expect(exergyAlpha(1)).toBeCloseTo(0.06, 10);
+  });
+});
+
+describe('genesisGlowState', () => {
+  it('draws nothing outside awakening phase 0', () => {
+    expect(genesisGlowState(1, 0, 100, 0)).toBeNull();
+    expect(genesisGlowState(2, 0, 100, 0)).toBeNull();
+  });
+
+  it('starts at 0.035 alpha and 0.6x radius, then grows as it fades', () => {
+    const a = genesisGlowState(0, 0, 100, 0);
+    expect(a.alpha).toBeCloseTo(0.035, 10);
+    expect(a.radius).toBeCloseTo(60, 10);
+    const b = genesisGlowState(0, 0, 100, 2000);   // halfway
+    expect(b.alpha).toBeCloseTo(0.0175, 10);
+    expect(b.radius).toBeCloseTo(100, 10);         // 0.6 + 0.5*0.8 = 1.0
+  });
+
+  it('stops drawing before the fade reaches zero, at the 0.002 cutoff', () => {
+    // 0.035*(1-t) < 0.002  =>  t > 0.94286  =>  after ~3771ms, not 4000ms.
+    expect(genesisGlowState(0, 0, 100, 3700)).not.toBeNull();
+    expect(genesisGlowState(0, 0, 100, 3800)).toBeNull();
+    expect(genesisGlowState(0, 0, 100, 99999)).toBeNull();
   });
 });
 

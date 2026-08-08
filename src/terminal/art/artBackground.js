@@ -54,6 +54,40 @@ export function riftTint(metabolicRift, immersive) {
   return { r, g: 0, b: 0, a };
 }
 
+// ── Exergy pulse ────────────────────────────────────────────────────────────
+// Ecocide bus: a faint magenta breath from the centre that tracks dissipation.
+export const EXERGY_THRESHOLD = 0.1;      // below this the layer is skipped
+export const EXERGY_RGB = [217, 70, 239];
+export const EXERGY_GAIN = 0.06;          // × exergyRate → centre alpha
+export const EXERGY_R = 0.55;             // × min(w, h) — outer radius
+
+/** Centre alpha of the exergy pulse, or 0 when the layer is off. */
+export function exergyAlpha(exergyRate) {
+  return exergyRate > EXERGY_THRESHOLD ? exergyRate * EXERGY_GAIN : 0;
+}
+
+// ── Genesis glow ────────────────────────────────────────────────────────────
+// A gold-into-magenta bloom during awakening phase 0, fading over 4s.
+export const GENESIS_DURATION_MS = 4000;
+export const GENESIS_ALPHA = 0.035;
+export const GENESIS_CUTOFF = 0.002;      // below this the layer is skipped
+export const GENESIS_CORE_RGB = [255, 215, 0];
+export const GENESIS_MID_RGB = [217, 70, 239];
+export const GENESIS_MID_STOP = 0.6;
+export const GENESIS_MID_SCALE = 0.25;    // mid-stop alpha, × the core alpha
+export const GENESIS_BASE_R = 0.6;        // × sphereR at t=0
+export const GENESIS_GROW_R = 0.8;        // × sphereR per unit t
+
+/** Genesis glow alpha and radius, or null when the layer draws nothing.
+ *  Phase-gated: it exists only during awakening phase 0. */
+export function genesisGlowState(phase, t0, sphereR, nowMs) {
+  if (phase !== 0) return null;
+  const t = (nowMs - t0) / GENESIS_DURATION_MS;
+  const alpha = Math.max(0, GENESIS_ALPHA * (1 - t));
+  if (alpha < GENESIS_CUTOFF) return null;
+  return { alpha, radius: sphereR * (GENESIS_BASE_R + t * GENESIS_GROW_R) };
+}
+
 // ── Ambient beat pulse ──────────────────────────────────────────────────────
 export const BEAT_DECAY = 0.88;       // per frame
 export const BEAT_CUTOFF = 0.005;
