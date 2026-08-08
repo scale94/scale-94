@@ -72,6 +72,7 @@ import {
   BEAT_CORE_ALPHA, BEAT_MID_ALPHA, BEAT_INNER_R, BEAT_BASE_R, BEAT_SWELL_R,
   EXERGY_RGB, EXERGY_R,
   GENESIS_CORE_RGB, GENESIS_MID_RGB, GENESIS_MID_STOP, GENESIS_MID_SCALE,
+  FLASH_RGB, FLASH_WIDTH, FLASH_GRID_STEP, FLASH_ROW_K,
 } from './artBackground';
 
 const v3 = ([r, g, b]) => `vec3(${(r / 255).toFixed(6)}, ${(g / 255).toFixed(6)}, ${(b / 255).toFixed(6)})`;
@@ -84,12 +85,61 @@ export const BACKGROUND_GLSL = /* glsl */`
   uniform float uBeat;     // beat phase, 1 = just fired
   uniform float uExergy;   // exergy pulse centre alpha, 0 = off
   uniform vec2 uGenesis;   // genesis glow: x = centre alpha (0 = off), y = radius px
+  uniform float uFlash;    // flash grid stroke alpha, 0 = off
 
   // A two-stop canvas gradient: colour C at the centre fading to transparent
   // BLACK at the rim. The colour darkens on the way out as well as fading,
   // because canvas interpolates non-premultiplied rgba.
   vec4 radialTwoStop(float t, vec3 c, float a0) {
     return vec4(mix(c, vec3(0.0), t), mix(a0, 0.0, t));
+  }
+
+  // Signed distance to a regular hexagon with FLAT top and bottom at y = +/-r
+  // (iq). The flash grid's hexagons are pointy-top — vertices at +/-30, +/-90,
+  // +/-150 degrees — so the call site swaps the axes rather than rotating.
+  float sdHexagon(vec2 p, float r) {
+    const vec3 k = vec3(-0.866025404, 0.5, 0.577350269);
+    p = abs(p);
+    p -= 2.0 * min(dot(k.xy, p), 0.0) * k.xy;
+    p -= vec2(clamp(p.x, -k.z * r, k.z * r), r);
+    return length(p) * sign(p.y);
+  }
+
+  // Coverage of the flash hex grid at a point in CANVAS coordinates (origin
+  // top-left), which is where the 2D loop laid it out. This is the one layer
+  // that is not centre-symmetric, so the GL/canvas y flip has to be undone
+  // explicitly — laying it out from the centre would mirror the row parity
+  // and shift every odd row by half a cell.
+  float flashGrid(vec2 cpos, vec2 res) {
+    float gstep = float(${FLASH_GRID_STEP});
+    float rowStep = gstep * float(${FLASH_ROW_K});
+    float apo = gstep * 0.5 * 0.866025404;   // apothem = circumradius * cos(30)
+
+    // Nearest 3x3 neighbourhood of cells. Derivatives are taken OUTSIDE the
+    // loop: fwidth() inside non-uniform control flow is undefined.
+    float best = 1e9;
+    int r0 = int(floor(cpos.y / rowStep));
+    for (int dr = -1; dr <= 1; dr++) {
+      int row = r0 + dr;
+      float gy = float(row) * rowStep;
+      float offset = mod(float(row), 2.0) * gstep * 0.5;
+      int c0 = int(floor((cpos.x - offset) / gstep + 0.5));
+      for (int dc = -1; dc <= 1; dc++) {
+        int col = c0 + dc;
+        float gx = offset + float(col) * gstep;
+        // The draw loop only emits centres with 0 <= gy < h and gx < w,
+        // starting from gx = offset. Hexagons on the top row are half off
+        // the canvas; that is faithful, not a bug.
+        bool live = (row >= 0) && (gy < res.y) && (col >= 0) && (gx < res.x);
+        vec2 q = cpos - vec2(gx, gy);
+        float d = abs(sdHexagon(vec2(q.y, q.x), apo));
+        best = min(best, live ? d : 1e9);
+      }
+    }
+
+    float hw = float(${FLASH_WIDTH}) * 0.5;
+    float aa = max(fwidth(best), 1e-4);
+    return 1.0 - smoothstep(hw - aa, hw + aa, best);
   }
 
   // A canvas radial gradient interpolates NON-premultiplied rgba linearly
@@ -157,6 +207,12 @@ export const BACKGROUND_GLSL = /* glsl */`
       col = mix(col, g.rgb, g.a);
     }
 
+    // ── State flash — anthracite hex grid on bifurcation events ───────────
+    if (uFlash > 0.0) {
+      vec2 cpos = vec2(p.x + res.x * 0.5, res.y * 0.5 - p.y);   // canvas coords
+      col = mix(col, ${v3(FLASH_RGB)}, flashGrid(cpos, res) * uFlash);
+    }
+
     // ── Sphere wireframe ghost — equator + vertical great circle ──────────
     // Two separate strokes in the 2D loop, so they composite source-over one
     // after the other rather than additively. It only matters where they
@@ -190,6 +246,7 @@ export function backgroundUniforms() {
     uBeat: { value: 0 },
     uExergy: { value: 0 },
     uGenesis: { value: new THREE.Vector2(0, 0) },
+    uFlash: { value: 0 },
   };
 }
 
@@ -211,4 +268,5 @@ export function syncBackgroundUniforms(uniforms, state) {
   uniforms.uExergy.value = state.exergy ?? 0;
   const gen = state.genesis;
   uniforms.uGenesis.value.set(gen ? gen.alpha : 0, gen ? gen.radius : 0);
+  uniforms.uFlash.value = state.flash ?? 0;
 }

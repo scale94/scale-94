@@ -14,6 +14,13 @@ export const FLASH_DECAY = 0.92;   // per frame
 export const FLASH_ALPHA = 0.08;   // stroke alpha at full flash
 export const FLASH_CUTOFF = 0.005; // below this the layer is skipped entirely
 export const FLASH_GRID_STEP = 28; // px between hex centres
+export const FLASH_RGB = [58, 58, 62];   // anthracite
+export const FLASH_WIDTH = 0.5;          // stroke width, CSS px
+// Row pitch. The draw loop wrote the literal 0.866, not sqrt(3)/2 = 0.8660254,
+// and the hexagons are 28 apart horizontally while only 24.248 tall — so this
+// grid does NOT tile. It is a scatter of separate outlines with gaps, and
+// "fixing" it into a honeycomb would be a change to the art.
+export const FLASH_ROW_K = 0.866;
 
 // NOTE: the draw loop labelled 0.92 "exponential decay ~200ms". It is not.
 // 0.92^n <= 0.005 needs 64 frames = ~1067ms at 60fps. The comment was wrong,

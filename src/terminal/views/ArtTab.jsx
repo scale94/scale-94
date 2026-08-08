@@ -50,7 +50,9 @@ import { clusterLabelState, nodeLabelState, fireExpired } from '../art/artLabels
 import SphereLabels from '../art/SphereLabels';
 import SphereComposite from '../art/SphereComposite';
 import { stepAwakening, drawBeaconRing, drawConductor } from '../art/artAwakening';
-import { riftTint, exergyAlpha, genesisGlowState } from '../art/artBackground';
+import {
+  riftTint, exergyAlpha, genesisGlowState, stepFlash, FLASH_ALPHA, FLASH_CUTOFF,
+} from '../art/artBackground';
 import {
   CLUSTERS, INTRA_EDGES, DEFAULT_CROSS_EDGES, ALL_EDGES, ADJ,
   SPHERE_NODES, SPHERE_ADJ, SPHERE_EDGES,
@@ -781,29 +783,15 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       bgStateRef.current.genesis = genesisGlowState(aw.phase, aw.t0, sphereR, performance.now());
 
       // ── State-driven flash — brief anthracite grid on bifurcation events ──
-      if (bgFlashRef.current > 0.005) {
-        const flash = bgFlashRef.current;
-        bgFlashRef.current *= 0.92; // exponential decay ~200ms
-        const fAlpha = flash * 0.08;
-        ctx.strokeStyle = `rgba(58,58,62,${fAlpha.toFixed(4)})`;
-        ctx.lineWidth = 0.5;
-        // Draw a hex grid that only appears during events
-        const gridStep = 28;
-        for (let gy = 0; gy < h; gy += gridStep * 0.866) {
-          const row = Math.floor(gy / (gridStep * 0.866));
-          const offset = (row % 2) * gridStep * 0.5;
-          for (let gx = offset; gx < w; gx += gridStep) {
-            ctx.beginPath();
-            for (let k = 0; k < 6; k++) {
-              const angle = Math.PI / 3 * k - Math.PI / 6;
-              const hx = gx + Math.cos(angle) * gridStep * 0.5;
-              const hy = gy + Math.sin(angle) * gridStep * 0.5;
-              k === 0 ? ctx.moveTo(hx, hy) : ctx.lineTo(hx, hy);
-            }
-            ctx.closePath();
-            ctx.stroke();
-          }
-        }
+      // The hex grid is on the GPU (SphereBackground.js); the decay stays here.
+      // Note it draws with the PRE-decay value, unlike the beat pulse which
+      // decays first — preserved, since it makes the first flash frame a step
+      // brighter than a post-decay reading would be.
+      if (bgFlashRef.current > FLASH_CUTOFF) {
+        bgStateRef.current.flash = bgFlashRef.current * FLASH_ALPHA;
+        bgFlashRef.current = stepFlash(bgFlashRef.current);
+      } else {
+        bgStateRef.current.flash = 0;
       }
 
       // ── Spectral ambient — immersive mode only, otherwise pure black ────

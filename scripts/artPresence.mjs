@@ -63,5 +63,48 @@ try {
   console.log('EXERGY PULSE  (magenta lean in the central disc)');
   console.log(`   rate 0   ${off.toFixed(3)}`);
   console.log(`   rate 1   ${on.toFixed(3)}`);
-  console.log(on > off + 0.2 ? '   => RENDERS' : '   => NOT DETECTED');
+  console.log(on > off + 0.2 ? '   => RENDERS\n' : '   => NOT DETECTED\n');
+  await page.eval('window.__artSetEcocide({ exergyRate: 0 })');
+  await sleep(400);
+
+  // ── FLASH GRID: bifurcation events only, never fired during capture ─────
+  // Measured in the far side bands, well outside the sphere: the hex grid is
+  // the ONLY layer that paints there, so anything else lighting up would be a
+  // bug rather than a false positive. It decays over 64 frames (~1s), so the
+  // screenshot has to follow the trigger immediately.
+  const bands = (png) => {
+    const { width: W, height: H, data } = decodePng(png);
+    let sum = 0, n = 0;
+    for (let y = 0; y < H; y += 2) for (let x = 0; x < W; x += 2) {
+      if (x > W * 0.08 && x < W * 0.92) continue;
+      const i = (y * W + x) * 4;
+      sum += 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]; n++;
+    }
+    return sum / n;
+  };
+  const quiet = bands(await page.screenshot({ clip }));
+
+  // Right-click a node -> orthogonal bridge -> bgFlash = 0.7.
+  const HOVERED = `(() => {
+    const s = [...document.querySelectorAll('span')].filter(e =>
+      e.style.position === 'absolute' && e.style.font && e.textContent);
+    let best = null;
+    for (const e of s) { const o = parseFloat(e.style.opacity || '0');
+      if (o > 0.9 && (!best || o > best.o)) best = { o, t: e.textContent }; }
+    return best && best.t; })()`;
+  let hit = null;
+  for (let r = 1; r <= 5 && !hit; r++) for (let c = 1; c <= 9 && !hit; c++) {
+    const x = Math.round(rect.x + rect.w * c / 10), y = Math.round(rect.y + rect.h * r / 6);
+    await page.hover(x, y); await sleep(70);
+    if (await page.eval(HOVERED)) hit = { x, y };
+  }
+  if (!hit) throw new Error('no node found to right-click');
+  await page.rightClick(hit.x, hit.y);
+  let lit = 0;
+  for (let i = 0; i < 4; i++) lit = Math.max(lit, bands(await page.screenshot({ clip })));
+
+  console.log('FLASH GRID  (mean luminance in the far side bands)');
+  console.log(`   quiet          ${quiet.toFixed(3)}`);
+  console.log(`   after trigger  ${lit.toFixed(3)}`);
+  console.log(lit > quiet + 0.3 ? '   => RENDERS' : '   => NOT DETECTED');
 } finally { await page.close(); }
