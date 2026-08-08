@@ -51,7 +51,8 @@ import SphereLabels from '../art/SphereLabels';
 import SphereComposite from '../art/SphereComposite';
 import { stepAwakening, drawBeaconRing, drawConductor } from '../art/artAwakening';
 import {
-  riftTint, exergyAlpha, genesisGlowState, stepFlash, FLASH_ALPHA, FLASH_CUTOFF,
+  riftTint, exergyAlpha, genesisGlowState, ambientIntensity,
+  stepFlash, FLASH_ALPHA, FLASH_CUTOFF,
 } from '../art/artBackground';
 import {
   CLUSTERS, INTRA_EDGES, DEFAULT_CROSS_EDGES, ALL_EDGES, ADJ,
@@ -795,17 +796,10 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       }
 
       // ── Spectral ambient — immersive mode only, otherwise pure black ────
-      if (immersiveRef.current) {
-        const _ambient = getAmbientColor();
-        if (_ambient) {
-          const _aGrd = ctx.createRadialGradient(w/2, h/2, sphereR * 0.3, w/2, h/2, sphereR * 1.6);
-          const _intensity = Math.min(1, (_ambient[3] ?? 0.08)) * 0.10;
-          _aGrd.addColorStop(0, `rgba(38,38,42,${_intensity.toFixed(3)})`);
-          _aGrd.addColorStop(1, 'rgba(0,0,0,0)');
-          ctx.fillStyle = _aGrd;
-          ctx.fillRect(0, 0, w, h);
-        }
-      }
+      // On the GPU now. Only the alpha channel of the ambient colour is read,
+      // exactly as before — the hue never reached the canvas.
+      const _ambient = immersiveRef.current ? getAmbientColor() : null;
+      bgStateRef.current.ambient = _ambient ? ambientIntensity(_ambient[3]) : 0;
 
       // ── Sphere wireframe ghost ────────────────────────────────────────────
       // Now on the GPU (SphereBackground.js). It renders beneath this canvas,

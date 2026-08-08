@@ -73,6 +73,7 @@ import {
   EXERGY_RGB, EXERGY_R,
   GENESIS_CORE_RGB, GENESIS_MID_RGB, GENESIS_MID_STOP, GENESIS_MID_SCALE,
   FLASH_RGB, FLASH_WIDTH, FLASH_GRID_STEP, FLASH_ROW_K,
+  AMBIENT_RGB, AMBIENT_INNER_R, AMBIENT_OUTER_R,
 } from './artBackground';
 
 const v3 = ([r, g, b]) => `vec3(${(r / 255).toFixed(6)}, ${(g / 255).toFixed(6)}, ${(b / 255).toFixed(6)})`;
@@ -86,6 +87,7 @@ export const BACKGROUND_GLSL = /* glsl */`
   uniform float uExergy;   // exergy pulse centre alpha, 0 = off
   uniform vec2 uGenesis;   // genesis glow: x = centre alpha (0 = off), y = radius px
   uniform float uFlash;    // flash grid stroke alpha, 0 = off
+  uniform float uAmbient;  // spectral ambient centre alpha, 0 = off
 
   // A two-stop canvas gradient: colour C at the centre fading to transparent
   // BLACK at the rim. The colour darkens on the way out as well as fading,
@@ -213,6 +215,18 @@ export const BACKGROUND_GLSL = /* glsl */`
       col = mix(col, ${v3(FLASH_RGB)}, flashGrid(cpos, res) * uFlash);
     }
 
+    // ── Spectral ambient — immersive only, otherwise pure black ───────────
+    // The ambient colour's RGB is deliberately ignored: the 2D loop read only
+    // its alpha channel and always painted the same anthracite. Feeding the
+    // spectral hue in here would look like a fix and would be a change.
+    if (uAmbient > 0.0) {
+      float r0 = uSphereR * float(${AMBIENT_INNER_R});
+      float r1 = uSphereR * float(${AMBIENT_OUTER_R});
+      float t = clamp((d - r0) / max(r1 - r0, 1e-6), 0.0, 1.0);
+      vec4 g = radialTwoStop(t, ${v3(AMBIENT_RGB)}, uAmbient);
+      col = mix(col, g.rgb, g.a);
+    }
+
     // ── Sphere wireframe ghost — equator + vertical great circle ──────────
     // Two separate strokes in the 2D loop, so they composite source-over one
     // after the other rather than additively. It only matters where they
@@ -247,6 +261,7 @@ export function backgroundUniforms() {
     uExergy: { value: 0 },
     uGenesis: { value: new THREE.Vector2(0, 0) },
     uFlash: { value: 0 },
+    uAmbient: { value: 0 },
   };
 }
 
@@ -269,4 +284,5 @@ export function syncBackgroundUniforms(uniforms, state) {
   const gen = state.genesis;
   uniforms.uGenesis.value.set(gen ? gen.alpha : 0, gen ? gen.radius : 0);
   uniforms.uFlash.value = state.flash ?? 0;
+  uniforms.uAmbient.value = state.ambient ?? 0;
 }
