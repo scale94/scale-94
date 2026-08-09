@@ -139,7 +139,17 @@ State the answer explicitly as one of:
 - *Edges and backdrop* — Task 4 routes the backdrop too, and step 3's "verified" status needs a correction recorded in the spec.
 - *Neither / something else* — **stop and escalate to the author.** If the numbers do not match `1.389` and `3.125`, the model in this plan is wrong and building on it would be building on a guess.
 
-Note the confound and control for it: `baseline/art-sphere-2d` predates the real-bloom change of step 2, so absolute ink differs for reasons that have nothing to do with trails. Compare the **ratio between modes** (immersive vs normal should differ by `3.125/1.389 = 2.25×` if trails are the cause) rather than the absolute ratio, and say so in the report.
+Note the confound and control for it: `baseline/art-sphere-2d` predates the real-bloom change of step 2, so absolute ink differs for reasons that have nothing to do with trails.
+
+> **CORRECTION, applied after Task 1 ran.** This step originally said to compare the ratio between modes and expect them to differ by `3.125/1.389 = 2.25×`. **That criterion was mis-derived and must not be used.** It assumes the migrated layers are 100% of frame ink; they are ~10–20% of it, so a per-layer 3.125× loss surfaces as a 7–14% total drop — a cross ratio around 0.86–0.93. The real captures measured 0.92 and 0.86, which *confirms* the model rather than refuting it. The tests that actually settled it were: per-luminance-band histograms (the loss sits in the faintest band and its mass reappears below the floor — dimming with mass conserved, not deletion), the mode asymmetry (identical commit, nothing in normal mode), and a radial profile against each layer's known footprint.
+
+**ANSWER, measured: *edges and backdrop*.** Step 3's background layers lost accumulation too. Isolating the step-3 commit alone (bloom on both sides, so it cancels), immersive-on loses **44% of its lit pixels** against a ±3% noise floor, entirely in the faintest band, with the mass reappearing sub-floor — and nothing at all happens in normal mode.
+
+The **wireframe is positively confirmed** from its own constants, not by correlation: `WIRE_ALPHA = 0.03` white accumulates to `0.03 / (1 − 0.68 × 0.97) = 0.0881` at `m = 0.32` — luminance 22.5 — and lands at 7.65 without accumulation, predicting a drop of ~14.8 on a thin locus at exactly `r = sphereR`. Measured in the 0.85–1.05 annulus: **2207 pixels down by >15, against 207 in an identical-code noise pair**; 574 vs 12 down by >30.
+
+The competing hypothesis was excluded on the same data: the spectral ambient is immersive-only, so a too-dim port of that one layer predicts the same signature. But `1.2 < r/sphereR < 1.6` is the ambient's exclusive territory (beat stops at 1.23, wireframe at 1.0, ghosts ≤1.0) and the loss there is `+0.032 / −0.005 / −0.007 / −0.012` luminance with **zero** pixels dropped by more than 5. The loss is also non-monotonic — it peaks at 0.9–1.0 where the ambient's own shape is down to 0.25 — so no single gradient explains it.
+
+**Residuals, explicitly not closed:** this confirms the wireframe and excludes the ambient; it does *not* individually confirm all six background layers. A mis-ported beat pulse covers 0–1.23 and is excluded only by shape, not footprint. Genesis, exergy and flash were inactive in these frames, so the measurement says nothing about them either way.
 
 - [ ] **Step 7: Commit**
 
@@ -369,10 +379,11 @@ The fade must use the **same** `m` the 2D canvas used on the same frame, read fr
 
 - [ ] **Step 2: Drive the fade from it.** Replace the hard-coded `0.0` with `trailSurvival(state.rift.a)`. Guard the first frame, before any state is published, with `survival = 0` — a wipe — rather than a default constant. **A wrong default here is a silently wrong brightness, and it will pass the threshold.**
 
-- [ ] **Step 3: Decide, from Task 1's numbers, which layers draw into the accumulator.** This is the one architectural choice left, and Task 1 answered it. Write the answer and the reasoning into the commit message.
-  - The **edge layer** draws into the accumulator: it lost accumulation and must get it back.
-  - The **backdrop layers** draw into the accumulator only if Task 1 measured that they lost it too. If Task 1 said *edges only*, the backdrop must render **after** the fade and **without** accumulating, or it will brighten by `1/m` and that is a re-art.
-  - If Task 1 said *edges and backdrop*, both go in, and the correction to step 3's record is part of this commit's message.
+- [ ] **Step 3: Route both the edge layer and the backdrop layers into the accumulator.** Task 1 measured *edges and backdrop*, so this is settled — see its ANSWER block above. The correction to step 3's "verified" record is part of this commit's message.
+
+**But the rift base colour must NOT accumulate, and this is the subtlety that will bite.** `sphereBackground()` starts from `vec3 col = uRift` and then composites layers over it. `uRift` is not a layer — it is the clear colour, the thing the canvas's semi-transparent fill both faded *and* repainted every frame. Feeding it through the accumulator would compound the background itself by `1/m` and wash the whole frame out, which no gate here would catch as anything other than "brighter".
+
+So split the backdrop shader's output: the rift base is written fresh each frame as the accumulator's floor, and only the layers above it accumulate. Concretely, the accumulator holds *ink over the rift*, and the fade multiplies that ink, not the base. Verify this specifically — a frame with every layer inactive (normal mode, no beat, no flash) must be **exactly** the rift colour, unchanged from today, at every pixel. If it drifts brighter over the first 40 frames, the base is accumulating.
 
 - [ ] **Step 4: Gate it, ink first.**
 

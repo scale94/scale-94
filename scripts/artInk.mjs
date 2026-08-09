@@ -186,17 +186,29 @@ for (const scale of Object.keys(ref.scales)) {
 
 // ── The reading that survives the bloom confound ────────────────────────────
 // Absolute ink moved for reasons unrelated to trails, so an absolute ratio
-// cannot settle the question. Only the clear alpha differs between the two
-// modes, so if lost accumulation is the cause the immersive ratio must sit
-// 3.125/1.389 = 2.25x below the normal one.
+// cannot settle the question. Only the clear alpha differs between the modes,
+// so a lost-accumulation signal must be mode-asymmetric.
+//
+// DO NOT read the cross column against 0.444. That figure came from the plan
+// that commissioned this script and is MIS-DERIVED: it assumes the migrated
+// layers are 100% of frame ink. They are ~10-20% of it, so a per-layer 3.125x
+// loss shows up as a 7-14% total drop — a cross ratio around 0.86-0.93, which
+// is what the real captures measured and what CONFIRMED the model rather than
+// refuting it. Scaling 0.444 by layer share is not possible from a composited
+// screenshot, which is why this column is a smell test and not a gate.
+//
+// What actually settled it: per-luminance-band histograms (the loss sits in
+// the faintest band and its mass REAPPEARS below the floor — dimming with mass
+// conserved, not deletion) and a radial profile against each layer's known
+// footprint. See .superpowers/sdd/trail-deficit.md.
 const GAIN_NORMAL = 1 / 0.72;      // 1.389
 const GAIN_IMMERSIVE = 1 / 0.32;   // 3.125
-const EXPECTED_CROSS = GAIN_NORMAL / GAIN_IMMERSIVE;   // 0.444 -> immersive falls 2.25x further
+const EXPECTED_CROSS = GAIN_NORMAL / GAIN_IMMERSIVE;   // 0.444 — see above, NOT a gate
 
 console.log(`mode rollup — ink summed per mode (${BLANK} excluded: blank frames)\n`);
 for (const [region, kr, kn] of [['disc', 'rD', 'nD'], ['frame', 'rF', 'nF']]) {
   console.log(`${`[${region}]`.padEnd(26)}${'normal ratio'.padStart(14)}${'exhibit ratio'.padStart(15)}`
-    + `${'cross (exh/norm)'.padStart(18)}   expected ${EXPECTED_CROSS.toFixed(3)} if trails`);
+    + `${'cross (exh/norm)'.padStart(18)}   (smell test only — ${EXPECTED_CROSS.toFixed(3)} is mis-derived, see source)`);
   for (const { scale, normal, exhibit } of rollup) {
     const rn = ratio(normal[kr], normal[kn]);
     const re = exhibit[kr] ? ratio(exhibit[kr], exhibit[kn]) : NaN;
