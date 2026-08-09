@@ -52,12 +52,24 @@ export const EDGE_STRIDE = 16;
  *  which are handfuls. 1024 is 64KB of scratch and cannot be reached. */
 export const MAX_EDGES = 1024;
 
-/** How many glow radii the instance quad is padded by. exp(-d/g) * 0.5 drops
- *  below 1/255 at d = 4.85g, so five radii is where the glow provably ends. */
-export const GLOW_REACH = 5.0;
+/** How many glow radii the instance quad is padded by. The shoulder is
+ *  exp(-2(d/g)^2), which drops below 1/255 at d = 1.66g. */
+export const GLOW_REACH = 1.75;
 
-/** Default shoulder coefficient for the glow stand-in. Tuned against the
- *  capture PNGs — see the step-4 task-3 report. */
+/** Alpha of the shadow the shoulder stands in for.
+ *
+ *  This is NOT the peak of the glow — the shader derives that from the line's
+ *  own width and blur radius, because that is what a gaussian does. This is the
+ *  one quantity that cannot be derived: `ctx.shadowColor` carries its own alpha
+ *  and its own hue, `fuseCos * 0.6` for a fused edge and fully opaque for the
+ *  orthogonal bridge, and sixteen floats have no room for a fourth colour. So
+ *  the shoulder borrows the gradient's colour and this stands in for its alpha.
+ *  0.5 sits between the two real values, leaving a fused edge's halo somewhat
+ *  bright and the ortho bridge's somewhat dim.
+ *
+ *  The brief's flat 0.5 peak was measured wrong by roughly 19x — see the
+ *  step-4 task-3 report. No capture state contains a fused or an orthogonal
+ *  edge, so this could only be measured against a deliberately forced one. */
 export const GLOW_K = 0.5;
 
 /**
@@ -254,13 +266,28 @@ const EDGE_FRAG = /* glsl */`
     // of sigma 5 over an 8-on/4-off pattern is continuous.
     if (vDash.x > 0.0) core *= step(mod(t * vLen, vDash.x), vDash.y);
 
-    // A soft shoulder standing in for ctx.shadowBlur. Distance is measured to
-    // the SEGMENT, not to its infinite line, so the glow rounds off past the
-    // ends the way a blurred butt cap does. step() rather than a branch keeps
-    // the divide defined when there is no glow.
+    // The shoulder standing in for ctx.shadowBlur. A canvas shadow is a real
+    // gaussian of sigma = blur/2, so this is one too: exp(-d^2 / 2sigma^2) with
+    // sigma = vGlow/2 is exp(-2 (d/vGlow)^2). The brief specified exp(-d/g),
+    // and measured against a forced-glow capture that reads wrong — the canvas
+    // halo is gone by ~1 blur radius while the exponential is still at 15% of
+    // peak two radii out, so it shows as a wide flat veil instead of a halo.
+    //
+    // Distance is measured to the SEGMENT, not to its infinite line, so the
+    // glow rounds off past the ends the way a blurred butt cap does. step()
+    // rather than a branch keeps the divide defined when there is no glow.
     float dOut = max(0.0, max(-vAlong, vAlong - vLen));
     float dSeg = length(vec2(dOut, vD));
-    float glow = exp(-dSeg / max(vGlow, 1e-3)) * uGlowK * step(0.001, vGlow);
+    float g = dSeg / max(vGlow, 1e-3);
+    // AMPLITUDE, not a taste knob. Blurring a line of width w with sigma
+    // leaves a peak of w / (sigma*sqrt(2pi)) of the original alpha; with
+    // sigma = vGlow/2 that is 1.5958 * halfW / vGlow. At the 1px widths and
+    // 6-14px blurs these edges actually use, that is ~7% — which is why the
+    // canvas halo is invisible in a capture and a flat 0.5 was ~19x too
+    // bright. min() covers the degenerate wide-line-tiny-blur case, where a
+    // blur cannot raise the peak above the line's own alpha.
+    float peak = min(uGlowK * 1.5958 * vHalfW / max(vGlow, 1e-3), 1.0);
+    float glow = peak * exp(-2.0 * g * g) * step(0.001, vGlow);
 
     float cov = clamp(core + glow * (1.0 - core), 0.0, 1.0);
     if (cov <= 0.0) discard;
