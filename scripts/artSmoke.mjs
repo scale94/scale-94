@@ -100,6 +100,33 @@ try {
   }
   check('3 hover lights a node label', !!hit, hit ? hit.lab : 'no node found on the probe grid');
 
+  // 3b. hover an EDGE, between nodes rather than on one.
+  //
+  // Step 4 moves the edge strokes to the GPU while leaving projection, the
+  // depth sort and edgeAt() on the CPU, so the failure this guards against is
+  // the exact twin of check 2's: the sphere still draws every edge and every
+  // edge hover dies. hoveredEdge never reaches the DOM — the only observable
+  // is the cursor, which handleMouseMove sets to 'crosshair' the moment
+  // edgeAt() returns a hit and to 'grab' when it does not. That makes it a
+  // direct read of the hit-test rather than of anything the renderer drew.
+  //
+  // Probed on a grid rather than aimed at one midpoint: the sphere is spinning
+  // and the node set is data-driven, so a hard-coded pair is a flake waiting
+  // to happen. Points that land on a node are rejected — nodes take priority
+  // in the handler and set 'pointer'.
+  const CURSOR = `${SPHERE}.style.cursor`;
+  let edgeHit = null;
+  for (let r = 1; r <= 7 && !edgeHit; r++) {
+    for (let c = 1; c <= 13 && !edgeHit; c++) {
+      const x = Math.round(rect.x + rect.w * c / 14), y = Math.round(rect.y + rect.h * r / 8);
+      await page.hover(x, y); await sleep(40);
+      const cur = await page.eval(CURSOR);
+      if (cur === 'crosshair') edgeHit = { x, y };
+    }
+  }
+  check('3b hover between nodes reports an edge', !!edgeHit,
+        edgeHit ? `crosshair at ${edgeHit.x},${edgeHit.y}` : 'no edge found on the probe grid');
+
   // 4. click a node -> cascade fires (canvas keeps changing)
   if (hit) {
     await page.click(hit.x, hit.y); await sleep(400);

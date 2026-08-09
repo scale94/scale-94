@@ -30,6 +30,7 @@ import { compositeDpr, COMPOSITE_STYLE, BLOOM, VIGNETTE } from './artComposite';
 import {
   COLOR_GLSL, BACKGROUND_GLSL, backgroundUniforms, syncBackgroundUniforms,
 } from './SphereBackground';
+import { createEdgeLayer, syncEdgeLayer } from './SphereEdges';
 
 // The composite pass. An orthographic camera in r3f is sized in pixels, so a
 // plane matching the viewport in pixels fills it exactly with no camera maths.
@@ -137,20 +138,31 @@ function createBackdrop() {
 
   const scene = new THREE.Scene();
   scene.add(mesh);
+
+  // The sphere's base edges, drawn INTO this target on top of the backdrop and
+  // therefore still beneath the 2D canvas. Added after the quad, and its
+  // material is `transparent`, so three's own opaque-then-transparent ordering
+  // draws it second whatever the render order says. See SphereEdges.js.
+  const edges = createEdgeLayer();
+  scene.add(edges.mesh);
+
   // The clip-space quad convention three uses for its own full-screen passes.
+  // The edge mesh ignores it — it writes gl_Position directly — which is
+  // deliberate: the CPU projects, so the camera has no part in the geometry.
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 
   return {
-    target, scene, camera, uniforms,
+    target, scene, camera, uniforms, edges,
     dispose() {
       geometry.dispose();
       material.dispose();
+      edges.dispose();
       target.dispose();
     },
   };
 }
 
-function BackdropPass({ backdrop, stateRef }) {
+function BackdropPass({ backdrop, stateRef, edgeStateRef }) {
   const gl = useThree(s => s.gl);
   const size = useThree(s => s.size);
 
@@ -159,7 +171,7 @@ function BackdropPass({ backdrop, stateRef }) {
   // one only orders this callback earlier inside the same frame. It must run
   // before SourceQuad (0) and the composer (1).
   useFrame(() => {
-    const { target, scene, camera, uniforms } = backdrop;
+    const { target, scene, camera, uniforms, edges } = backdrop;
 
     // The drawing buffer is the ground truth the screen pass samples against,
     // and it is in DEVICE px. SizeSync does not own it — it is a self-healing
@@ -176,6 +188,10 @@ function BackdropPass({ backdrop, stateRef }) {
     // every layer.
     uniforms.uResolution.value.set(size.width, size.height);
     syncBackgroundUniforms(uniforms, stateRef?.current);
+    // The edge layer carries its OWN resolution, published by the draw loop
+    // with the coordinates it projected. It must not read `size` here: see the
+    // note on createEdgeState().
+    syncEdgeLayer(edges, edgeStateRef?.current);
 
     gl.setRenderTarget(target);
     gl.render(scene, camera);
@@ -308,7 +324,7 @@ function AdvanceBridge({ onAdvanceReady }) {
   return null;
 }
 
-export default function SphereComposite({ sourceRef, immersive, onAdvanceReady, bgStateRef }) {
+export default function SphereComposite({ sourceRef, immersive, onAdvanceReady, bgStateRef, edgeGLRef }) {
   const dpr = useRef(compositeDpr(typeof window !== 'undefined' ? window.devicePixelRatio : 1)).current;
   const wrapRef = useRef(null);
 
@@ -353,7 +369,7 @@ export default function SphereComposite({ sourceRef, immersive, onAdvanceReady, 
       >
         <AdvanceBridge onAdvanceReady={onAdvanceReady} />
         <SizeSync sourceRef={sourceRef} wrapRef={wrapRef} />
-        <BackdropPass backdrop={backdrop} stateRef={bgStateRef} />
+        <BackdropPass backdrop={backdrop} stateRef={bgStateRef} edgeStateRef={edgeGLRef} />
         <SourceQuad sourceRef={sourceRef} backdropTexture={backdrop.target.texture} />
         <EffectComposer disableNormalPass>
           <Bloom

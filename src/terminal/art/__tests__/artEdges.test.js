@@ -14,6 +14,7 @@ import {
   orthoHue, orthoGlow, fusedGlow, resonanceGlow,
   pulseRingRadius, pulsePosition, edgeStops,
 } from '../artEdges';
+import { writeHsl, writeHslRgb, packAlphas, packFlags } from '../SphereEdges';
 
 describe('orthoHue', () => {
   it('completes a full rotation in 7.5s, NOT the ~6s the source comment claims', () => {
@@ -112,5 +113,93 @@ describe('edgeStops', () => {
     const [s0, s1] = edgeStops(A, B, M, 0.4, 0.2, 0);
     expect(s1.a).toBeCloseTo(0.6, 10);
     expect(s0.a).toBeCloseTo(0.6, 10);
+  });
+});
+
+// ── The CPU half of the GPU edge layer ─────────────────────────────────────
+//
+// SphereEdges.js is the only place HSL becomes RGB and the only place the
+// instance floats are packed. Neither can be checked by the pixel gate — a
+// wrong hue or a leaked bit reads as "slightly different edges", which is
+// exactly what this step is expected to produce anyway.
+
+describe('writeHsl / writeHslRgb', () => {
+  const rgb = (h, s, l) => {
+    const out = new Float32Array(3);
+    writeHsl(out, 0, h, s, l);
+    return [...out].map(v => Math.round(v * 255));
+  };
+
+  it('matches CSS hsl() on the primaries', () => {
+    expect(rgb(0,   100, 50)).toEqual([255, 0, 0]);
+    expect(rgb(120, 100, 50)).toEqual([0, 255, 0]);
+    expect(rgb(240, 100, 50)).toEqual([0, 0, 255]);
+    expect(rgb(60,  100, 50)).toEqual([255, 255, 0]);
+  });
+
+  it('handles the achromatic and clipped ends', () => {
+    expect(rgb(210, 0, 50)).toEqual([128, 128, 128]);
+    expect(rgb(210, 80, 0)).toEqual([0, 0, 0]);
+    expect(rgb(210, 80, 100)).toEqual([255, 255, 255]);
+  });
+
+  it('wraps hue rather than clamping it — the ortho bridge adds 150 to it', () => {
+    expect(rgb(370, 100, 50)).toEqual(rgb(10, 100, 50));
+    expect(rgb(-30, 100, 50)).toEqual(rgb(330, 100, 50));
+  });
+
+  it('writes at the requested offset and reads a colour object the same way', () => {
+    const out = new Float32Array(8).fill(-1);
+    writeHslRgb(out, 4, { hue: 120, sat: 100, lit: 50 });
+    expect([...out.subarray(0, 4)]).toEqual([-1, -1, -1, -1]);
+    expect([...out.subarray(4, 7)].map(v => Math.round(v * 255))).toEqual([0, 255, 0]);
+  });
+});
+
+describe('packAlphas', () => {
+  const unpack = (p) => [
+    Math.floor(p % 256),
+    Math.floor((p / 256) % 256),
+    Math.floor(p / 65536),
+  ];
+
+  it('round-trips three alphas through one float exactly', () => {
+    const p = packAlphas(0, 0.5, 1);
+    expect(unpack(p)).toEqual([0, 128, 255]);
+    expect(Number.isInteger(p)).toBe(true);
+    expect(Math.fround(p)).toBe(p);          // exact as a float32 attribute
+  });
+
+  it('clamps above 1 — baseAlpha + pulseBoost overflows and the canvas clamped too', () => {
+    expect(unpack(packAlphas(1.4, 2, 0.25))).toEqual([255, 255, 64]);
+  });
+});
+
+describe('packFlags', () => {
+  const unpack = (p) => ({
+    period: Math.floor(p % 256),
+    duty:   Math.floor((p / 256) % 256),
+    glow:   Math.floor(p / 65536) / 8,
+  });
+
+  it('keeps the dash pattern intact under a fractional glow radius', () => {
+    // The brief packed glow as `glow * 65536`, which puts a fraction under two
+    // integer fields and leaks its low bits into the dash period. In eighths
+    // every field stays an integer and the whole payload stays exact.
+    const p = packFlags(12, 8, 10.37);
+    expect(unpack(p).period).toBe(12);
+    expect(unpack(p).duty).toBe(8);
+    expect(unpack(p).glow).toBeCloseTo(10.375, 10);
+    expect(Math.fround(p)).toBe(p);
+  });
+
+  it('encodes a solid edge with no glow as zero', () => {
+    expect(packFlags(0, 0, 0)).toBe(0);
+  });
+
+  it('stays exactly representable at the largest payload it can carry', () => {
+    const p = packFlags(255, 255, 255 / 8);
+    expect(p).toBe(255 + 255 * 256 + 255 * 65536);
+    expect(Math.fround(p)).toBe(p);
   });
 });

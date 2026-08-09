@@ -49,6 +49,16 @@ import { createBeatClock } from '../art/artBeatClock';
 import { clusterLabelState, nodeLabelState, fireExpired } from '../art/artLabels';
 import SphereLabels from '../art/SphereLabels';
 import SphereComposite from '../art/SphereComposite';
+import {
+  createEdgeState, writeHsl, writeHslRgb, packAlphas, packFlags,
+  EDGE_STRIDE, MAX_EDGES,
+} from '../art/SphereEdges';
+import {
+  edgeStops, orthoHue, orthoGlow, fusedGlow,
+  ORTHO_DASH, SPECTRAL_DASH,
+  ORTHO_HUE_STEP_MID, ORTHO_HUE_STEP_END,
+  ORTHO_ALPHA_BOOST, ORTHO_MID_ALPHA_BOOST,
+} from '../art/artEdges';
 import { stepAwakening, drawBeaconRing, drawConductor } from '../art/artAwakening';
 import {
   riftTint, exergyAlpha, genesisGlowState, ambientIntensity, ghostTrailAlpha,
@@ -222,6 +232,12 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   // Projected ghost trails, xyzw per ghost. Written in place each frame so the
   // draw loop stays off the allocation path.
   const ghostBufRef = useRef(new Float32Array(GHOST_COUNT * 4));
+  // The base edges, as instance data for the GL layer: 16 floats each, in the
+  // depth-sorted order the draw loop already computed. Lazily initialised
+  // rather than passed to useRef(), which would build and throw away a 64KB
+  // buffer on every render of this component.
+  const edgeGLRef = useRef(null);
+  if (edgeGLRef.current === null) edgeGLRef.current = createEdgeState();
 
   // ── Beat clock state ────────────────────────────────────────────────────
   const [ambientMode,  setAmbientMode]  = useState(false);
@@ -994,6 +1010,18 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       }
 
       // ── Edges (depth-sorted by average node depth) ────────────────────────
+      //
+      // The strokes are on the GPU (SphereEdges.js). Everything that decides
+      // what an edge LOOKS like still happens here, and so does the depth sort
+      // and the findIndex pair beneath it — the sort is the draw order the
+      // instance buffer is written in, and the projected coordinates are what
+      // edgeAt() hit-tests against. Only the four ctx calls at the bottom of
+      // the branch became sixteen floats.
+      const eg = edgeGLRef.current;
+      eg.count = 0;
+      // The CSS space these endpoints live in, published with them so the GL
+      // layer never has to guess it from a measurement that can lag.
+      eg.w = w; eg.h = h;
       if (es) {
         // Sort edges: far first
         const sortedEdges = [...es].sort((eA, eB) => {
@@ -1043,7 +1071,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           const baseAlpha = (Math.min(na.energy, nb.energy) * 0.5 + 0.06 + spectralBoost + fusionBoost) * depthFade;
           const pulseBoost = e.pulse * 0.40;
 
-          ctx.lineWidth = (0.5 + Math.max(na.energy, nb.energy) * 0.8 + e.pulse * 1.8
+          const lineWidth = (0.5 + Math.max(na.energy, nb.energy) * 0.8 + e.pulse * 1.8
                         + (isSpectral ? cosSim * 1.2 : 0)
                         + (isFused ? fuseCos * 2.0 : 0)
                         + (isOrtho ? 2.0 : 0))
@@ -1053,47 +1081,54 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           // Fused edges: solid bright glow (mineralized bone)
           // Spectral bridges: dashed stroke for visual distinction
           // Default: solid thin
-          if (isOrtho) {
-            const ot  = Date.now() * 0.0008;
-            const hue = (ot * 60) % 360;                           // full rotation ~6s
-            const orthoAlpha = Math.min(1, baseAlpha + pulseBoost + 0.3) * depthFade;
-            const oGrd = ctx.createLinearGradient(pA.sx, pA.sy, pB.sx, pB.sy);
-            oGrd.addColorStop(0,   `hsla(${hue},100%,65%,${orthoAlpha})`);
-            oGrd.addColorStop(0.5, `hsla(${(hue + 60) % 360},100%,72%,${Math.min(1, orthoAlpha + 0.15)})`);
-            oGrd.addColorStop(1,   `hsla(${(hue + 150) % 360},100%,65%,${orthoAlpha})`);
-            ctx.strokeStyle  = oGrd;
-            ctx.shadowColor  = `hsl(${(hue + 30) % 360},100%,60%)`;
-            ctx.shadowBlur   = 10 + Math.sin(ot * 3) * 4;
-            ctx.setLineDash([8, 4]);
-            ctx.beginPath();
-            ctx.moveTo(pA.sx, pA.sy);
-            ctx.lineTo(pB.sx, pB.sy);
-            ctx.stroke();
-            ctx.setLineDash([]);
-            ctx.shadowColor = 'transparent';
-            ctx.shadowBlur  = 0;
-          } else {
-            const cMid = lerpColor(colA, colB, e.strength);
-            const grd  = ctx.createLinearGradient(pA.sx, pA.sy, pB.sx, pB.sy);
-            grd.addColorStop(0,   hslAlpha(colA, (baseAlpha + pulseBoost) * (1 - e.strength * 0.4)));
-            grd.addColorStop(0.5, hslAlpha(cMid, baseAlpha + pulseBoost));
-            grd.addColorStop(1,   hslAlpha(colB, (baseAlpha + pulseBoost) * (0.6 + e.strength * 0.4)));
-            ctx.strokeStyle = grd;
+          //
+          // All four cases now write one instance into the GL buffer instead of
+          // stroking. The gradient stops, the dash pattern and the glow radius
+          // are the same numbers; ctx.shadowBlur has no GPU equivalent and is
+          // approximated by an exponential shoulder in the fragment shader.
+          if (eg.count < MAX_EDGES) {
+            const o  = eg.count * EDGE_STRIDE;
+            const ed = eg.data;
+            ed[o] = pA.sx; ed[o + 1] = pA.sy; ed[o + 2] = pB.sx; ed[o + 3] = pB.sy;
+            ed[o + 14] = lineWidth;
 
-            if (isFused) {
-              ctx.shadowColor = hslAlpha(cMid, fuseCos * 0.6);
-              ctx.shadowBlur  = 6 + fuseCos * 8;
+            if (isOrtho) {
+              const now = Date.now();
+              const hue = orthoHue(now);
+              // orthoAlpha applies depthFade a SECOND time — baseAlpha already
+              // carries it. That is what the 2D code did; it is not a typo
+              // being fixed here.
+              const orthoAlpha = Math.min(1, baseAlpha + pulseBoost + ORTHO_ALPHA_BOOST) * depthFade;
+              writeHsl(ed, o + 4,  hue,                       100, 65);
+              writeHsl(ed, o + 7,  hue + ORTHO_HUE_STEP_MID,  100, 72);
+              writeHsl(ed, o + 10, hue + ORTHO_HUE_STEP_END,  100, 65);
+              ed[o + 13] = packAlphas(orthoAlpha,
+                                      Math.min(1, orthoAlpha + ORTHO_MID_ALPHA_BOOST),
+                                      orthoAlpha);
+              ed[o + 15] = packFlags(ORTHO_DASH[0] + ORTHO_DASH[1], ORTHO_DASH[0],
+                                     orthoGlow(now));
+            } else {
+              const cMid  = lerpColor(colA, colB, e.strength);
+              const stops = edgeStops(colA, colB, cMid, baseAlpha, pulseBoost, e.strength);
+              writeHslRgb(ed, o + 4,  stops[0].color);
+              writeHslRgb(ed, o + 7,  stops[1].color);
+              writeHslRgb(ed, o + 10, stops[2].color);
+              ed[o + 13] = packAlphas(stops[0].a, stops[1].a, stops[2].a);
+              const dashed = isSpectral && !isFused;
+              ed[o + 15] = packFlags(
+                dashed ? SPECTRAL_DASH[0] + SPECTRAL_DASH[1] : 0,
+                dashed ? SPECTRAL_DASH[0] : 0,
+                isFused ? fusedGlow(fuseCos) : 0,
+              );
             }
-            if (isSpectral && !isFused) ctx.setLineDash([4, 3]);
-            ctx.beginPath();
-            ctx.moveTo(pA.sx, pA.sy);
-            ctx.lineTo(pB.sx, pB.sy);
-            ctx.stroke();
-            if (isSpectral && !isFused) ctx.setLineDash([]);
-            if (isFused) { ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; }
+            eg.count++;
           }
 
-          // Overwrite pulse ring
+          // Overwrite pulse ring — still 2D, moves in the next commit.
+          // Known and temporary: with the strokes in GL and the rings on the
+          // canvas, every ring now composites above EVERY edge instead of
+          // interleaving with the ones drawn after it. Only visible while a
+          // cascade is in flight, and it is what the next task closes.
           if (e.pulse > 0.1) {
             const t  = e.direction >= 0 ? e.pulse : 1 - e.pulse;
             const px = pA.sx + (pB.sx - pA.sx) * t;
@@ -1703,11 +1738,25 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       };
     };
 
+    // The same question for the edge layer, which is instance data rather than
+    // uniforms. "The edges vanished" has three unrelated causes — nothing was
+    // published, it was published in the wrong coordinate space, or it was
+    // published and did not survive the blend — and only the first two are
+    // visible from here.
+    window.__artEdgeState = () => {
+      const e = edgeGLRef.current;
+      return {
+        count: e.count, w: e.w, h: e.h,
+        first: Array.from(e.data.slice(0, EDGE_STRIDE)),
+      };
+    };
+
     return () => {
       delete window.__artHarnessReset;
       delete window.__artSetEcocide;
       delete window.__artSetGhosts;
       delete window.__artBgState;
+      delete window.__artEdgeState;
     };
   }, [initState, archaeologyRef]);
 
@@ -2607,6 +2656,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           immersive={immersive}
           onAdvanceReady={handleAdvanceReady}
           bgStateRef={bgStateRef}
+          edgeGLRef={edgeGLRef}
         />
 
         <SphereLabels ref={labelsApiRef} />
