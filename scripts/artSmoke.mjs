@@ -114,6 +114,18 @@ try {
   // and the node set is data-driven, so a hard-coded pair is a flake waiting
   // to happen. Points that land on a node are rejected — nodes take priority
   // in the handler and set 'pointer'.
+  //
+  // Pinned to a fixed rotation FIRST. Without this the grid is scanned against
+  // whatever angle real-time boot happened to land on, and on a spinning
+  // sphere that has a real false-negative tail: two runs of this exact check
+  // landed their hit at 652,462 and 755,390 — different starting angles put
+  // different edges under the 91 probe points, and sometimes none of them.
+  // __artHarnessReset (dev-only harness hook) pins rotation to rx=0.18, ry=0,
+  // so the same edges sit under the same probe cells run to run. Still a real
+  // hit-test read of the live cursor, not a weakened stand-in for one.
+  await page.eval(`(() => { window.__artHarnessReset && window.__artHarnessReset(); return true; })()`);
+  await sleep(120);
+
   const CURSOR = `${SPHERE}.style.cursor`;
   let edgeHit = null;
   for (let r = 1; r <= 7 && !edgeHit; r++) {
@@ -123,6 +135,14 @@ try {
       const cur = await page.eval(CURSOR);
       if (cur === 'crosshair') edgeHit = { x, y };
     }
+  }
+  // Re-assert on a second pass: a lone true reading could still be a one-frame
+  // transient (mid-animation the cursor style write and this read are not
+  // atomic). Re-hover the same point and require the hit to hold.
+  if (edgeHit) {
+    await page.hover(edgeHit.x, edgeHit.y); await sleep(40);
+    const stillHit = (await page.eval(CURSOR)) === 'crosshair';
+    if (!stillHit) edgeHit = null;
   }
   check('3b hover between nodes reports an edge', !!edgeHit,
         edgeHit ? `crosshair at ${edgeHit.x},${edgeHit.y}` : 'no edge found on the probe grid');

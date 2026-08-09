@@ -8,13 +8,16 @@
 // same class of error that produced three wrong constants in step 3: the draw
 // loop says the ortho hue rotation takes "~6s" and the arithmetic says 7.5s.
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   ORTHO_DASH, SPECTRAL_DASH,
   orthoHue, orthoGlow, fusedGlow, resonanceGlow,
   pulseRingRadius, pulsePosition, edgeStops,
 } from '../artEdges';
-import { writeHsl, writeHslRgb, packAlphas, packFlags } from '../SphereEdges';
+import {
+  writeHsl, writeHslRgb, packAlphas, unpackAlphas, packFlags, unpackFlags,
+  syncEdgeLayer, EDGE_STRIDE, MAX_EDGES,
+} from '../SphereEdges';
 
 describe('orthoHue', () => {
   it('completes a full rotation in 7.5s, NOT the ~6s the source comment claims', () => {
@@ -156,50 +159,132 @@ describe('writeHsl / writeHslRgb', () => {
   });
 });
 
-describe('packAlphas', () => {
-  const unpack = (p) => [
-    Math.floor(p % 256),
-    Math.floor((p / 256) % 256),
-    Math.floor(p / 65536),
-  ];
+// unpackAlphas / unpackFlags are exported from SphereEdges.js specifically so
+// these tests run the SAME arithmetic EDGE_VERT does (see the comments beside
+// each in SphereEdges.js) instead of a hand-copied second implementation that
+// could silently drift from the shader.
 
+describe('packAlphas / unpackAlphas', () => {
   it('round-trips three alphas through one float exactly', () => {
     const p = packAlphas(0, 0.5, 1);
-    expect(unpack(p)).toEqual([0, 128, 255]);
+    const u = unpackAlphas(p);
+    expect(u.a0).toBeCloseTo(0, 10);
+    expect(u.a1).toBeCloseTo(128 / 255, 10);
+    expect(u.a2).toBeCloseTo(1, 10);
     expect(Number.isInteger(p)).toBe(true);
     expect(Math.fround(p)).toBe(p);          // exact as a float32 attribute
   });
 
   it('clamps above 1 — baseAlpha + pulseBoost overflows and the canvas clamped too', () => {
-    expect(unpack(packAlphas(1.4, 2, 0.25))).toEqual([255, 255, 64]);
+    const u = unpackAlphas(packAlphas(1.4, 2, 0.25));
+    expect(u.a0).toBeCloseTo(1, 10);
+    expect(u.a1).toBeCloseTo(1, 10);
+    expect(u.a2).toBeCloseTo(64 / 255, 10);
   });
 });
 
-describe('packFlags', () => {
-  const unpack = (p) => ({
-    period: Math.floor(p % 256),
-    duty:   Math.floor((p / 256) % 256),
-    glow:   Math.floor(p / 65536) / 8,
-  });
-
+describe('packFlags / unpackFlags', () => {
   it('keeps the dash pattern intact under a fractional glow radius', () => {
     // The brief packed glow as `glow * 65536`, which puts a fraction under two
     // integer fields and leaks its low bits into the dash period. In eighths
     // every field stays an integer and the whole payload stays exact.
     const p = packFlags(12, 8, 10.37);
-    expect(unpack(p).period).toBe(12);
-    expect(unpack(p).duty).toBe(8);
-    expect(unpack(p).glow).toBeCloseTo(10.375, 10);
+    const u = unpackFlags(p);
+    expect(u.dashPeriod).toBe(12);
+    expect(u.dashDuty).toBe(8);
+    expect(u.glow).toBeCloseTo(10.375, 10);
+    expect(u.isOrtho).toBe(false);
     expect(Math.fround(p)).toBe(p);
   });
 
   it('encodes a solid edge with no glow as zero', () => {
     expect(packFlags(0, 0, 0)).toBe(0);
+    expect(unpackFlags(0).isOrtho).toBe(false);
   });
 
-  it('stays exactly representable at the largest payload it can carry', () => {
-    const p = packFlags(255, 255, 255 / 8);
+  it('sets the isOrtho bit without disturbing the dash pattern or glow radius', () => {
+    const p = packFlags(12, 8, 10.37, true);
+    const u = unpackFlags(p);
+    expect(u.isOrtho).toBe(true);
+    expect(u.dashPeriod).toBe(12);
+    expect(u.dashDuty).toBe(8);
+    expect(u.glow).toBeCloseTo(10.375, 10);
+  });
+
+  // Finding: bit 23 of the packed field (the top bit of the glow byte) is
+  // free ONLY because both real glow radii top out at 14px, round(14*8) =
+  // 112 < 128. This pins that invariant so a future glow range change cannot
+  // silently collide with isOrtho.
+  it('keeps every real glow magnitude under 128, so bit 23 stays free for isOrtho', () => {
+    for (const glowPx of [fusedGlow(0), fusedGlow(1), orthoGlow(0), orthoGlow(5000)]) {
+      const packedGlowByte = Math.round(glowPx * 8);
+      expect(packedGlowByte).toBeLessThan(128);
+    }
+  });
+
+  it('clamps a runaway glow radius to 127 rather than colliding with the isOrtho bit', () => {
+    const p = packFlags(0, 0, 1000, false);
+    const u = unpackFlags(p);
+    expect(u.isOrtho).toBe(false);
+    expect(u.glow).toBeCloseTo(127 / 8, 10);
+  });
+
+  it('stays exactly representable at the largest real payload it can carry', () => {
+    const p = packFlags(255, 255, 127 / 8, true);
     expect(p).toBe(255 + 255 * 256 + 255 * 65536);
     expect(Math.fround(p)).toBe(p);
+  });
+});
+
+describe('syncEdgeLayer', () => {
+  const makeLayer = () => ({
+    mesh: { visible: true },
+    geometry: { instanceCount: -1 },
+    uniforms: {
+      uResolution: { value: { set: vi.fn() } },
+      uOrthoHue: { value: 0 },
+    },
+    buffer: { needsUpdate: false, addUpdateRange: vi.fn() },
+  });
+
+  it('a zero edge count draws nothing rather than one degenerate instance', () => {
+    const layer = makeLayer();
+    syncEdgeLayer(layer, { count: 0, w: 100, h: 100 });
+    expect(layer.mesh.visible).toBe(false);
+    expect(layer.geometry.instanceCount).toBe(0);
+  });
+
+  it('tolerates an undefined state the same way as a zero count', () => {
+    const layer = makeLayer();
+    expect(() => syncEdgeLayer(layer, undefined)).not.toThrow();
+    expect(layer.mesh.visible).toBe(false);
+    expect(layer.geometry.instanceCount).toBe(0);
+  });
+
+  it('clamps the instance count to MAX_EDGES', () => {
+    const layer = makeLayer();
+    syncEdgeLayer(layer, { count: MAX_EDGES + 500, w: 100, h: 100 });
+    expect(layer.geometry.instanceCount).toBe(MAX_EDGES);
+    expect(layer.mesh.visible).toBe(true);
+  });
+
+  it('publishes resolution, marks the buffer dirty and ranges only the written floats', () => {
+    const layer = makeLayer();
+    syncEdgeLayer(layer, { count: 3, w: 640, h: 480 });
+    expect(layer.uniforms.uResolution.value.set).toHaveBeenCalledWith(640, 480);
+    expect(layer.buffer.needsUpdate).toBe(true);
+    expect(layer.buffer.addUpdateRange).toHaveBeenCalledWith(0, 3 * EDGE_STRIDE);
+  });
+
+  it('carries the per-frame ortho hue uniform from state', () => {
+    const layer = makeLayer();
+    syncEdgeLayer(layer, { count: 1, w: 100, h: 100, orthoHue: 123.4 });
+    expect(layer.uniforms.uOrthoHue.value).toBeCloseTo(123.4, 10);
+  });
+
+  it('defaults the ortho hue uniform to 0 when state does not carry one', () => {
+    const layer = makeLayer();
+    syncEdgeLayer(layer, { count: 1, w: 100, h: 100 });
+    expect(layer.uniforms.uOrthoHue.value).toBe(0);
   });
 });

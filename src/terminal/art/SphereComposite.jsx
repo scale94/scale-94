@@ -108,7 +108,7 @@ const BACKDROP_FRAG = /* glsl */`
 // Built imperatively, NOT as an r3f <mesh>. Everything in r3f's scene graph is
 // what the EffectComposer draws to the screen — a backdrop mesh in the tree
 // would render into the target *and* be painted over the screen quad.
-function createBackdrop() {
+function createBackdrop(edgeData) {
   const target = new THREE.WebGLRenderTarget(1, 1, {
     format: THREE.RGBAFormat,
     type: THREE.UnsignedByteType,
@@ -143,7 +143,12 @@ function createBackdrop() {
   // therefore still beneath the 2D canvas. Added after the quad, and its
   // material is `transparent`, so three's own opaque-then-transparent ordering
   // draws it second whatever the render order says. See SphereEdges.js.
-  const edges = createEdgeLayer();
+  //
+  // `edgeData` (the draw loop's own published Float32Array, from
+  // createEdgeState()) becomes the mesh's OWN buffer — see createEdgeLayer's
+  // docstring — so syncEdgeLayer never copies it, it only flags the range
+  // dirty.
+  const edges = createEdgeLayer(edgeData);
   scene.add(edges.mesh);
 
   // The clip-space quad convention three uses for its own full-screen passes.
@@ -329,7 +334,10 @@ export default function SphereComposite({ sourceRef, immersive, onAdvanceReady, 
   const wrapRef = useRef(null);
 
   // Owned out here so both passes see the same object and it outlives neither.
-  const backdrop = useMemo(() => createBackdrop(), []);
+  // edgeGLRef.current is set synchronously in ArtTab's render body (see
+  // createEdgeState() there), before this child renders, so its `.data` array
+  // already exists the first time this factory runs.
+  const backdrop = useMemo(() => createBackdrop(edgeGLRef?.current?.data), [edgeGLRef]);
   useEffect(() => () => backdrop.dispose(), [backdrop]);
 
   return (

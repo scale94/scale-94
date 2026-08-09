@@ -33,7 +33,7 @@
 //   10–12  r, g, b          gradient stop 2 (at B)
 //   13     packed alphas    a0 + a1*256 + a2*65536, each quantised to 1/255
 //   14     width            stroke width in px
-//   15     packed flags     dashPeriod + dashDuty*256 + round(glow*8)*65536
+//   15     packed flags     dashPeriod + dashDuty*256 + (round(glow*8) + isOrtho*128)*65536
 //
 // Every packed field is an INTEGER. A float32 represents every integer below
 // 2^24 exactly, and all the divisors used to unpack are powers of two, so the
@@ -41,8 +41,40 @@
 // of a pixel rather than as a fraction. The brief's `glow*65536` would have put
 // a fractional field under two integer ones and leaked its low bits into the
 // dash period.
+//
+// ── isOrtho, and why it did NOT need a 17th float ──────────────────────────
+//
+// A canvas shadow's colour and alpha are set once by `ctx.shadowColor` and
+// never varied per-instance the way the stroke's gradient is — fused edges use
+// `hslAlpha(cMid, fuseCos * 0.6)`, the orthogonal bridge uses a fully opaque
+// `hue + 30`. The flat `GLOW_K` this shipped with borrowed the gradient's own
+// colour and a single alpha for both, so the ortho halo came out ~2x too dim
+// and up to 120deg off in hue (see task-3-report.md's fix wave).
+//
+// `packFlags` rounds glow to eighths and clamps it to [0, 127] — both real
+// glow radii (fusedGlow, orthoGlow) top out at 14px, i.e. round(14*8) = 112 —
+// so bit 7 of that byte (bit 23 of the packed field) is provably never set by
+// a real glow value. It carries `isOrtho` instead, and the shader picks the
+// correct shadow alpha and colour per-instance from data it already has:
+//
+//   - fused:  colour = the mid stop (vC1 IS cMid already — writeHslRgb writes
+//             stops[1].color there); alpha = fuseCos * 0.6, and fuseCos is
+//             recovered from vGlow itself, because fusedGlow() is a bijective
+//             linear map of it (fuseCos = (vGlow - FUSED_GLOW_BASE) /
+//             FUSED_GLOW_SCALE). No new data needed.
+//   - ortho:  alpha = 1.0 (constant); colour = hsl(hue + 30, 100%, 60%). Sat
+//             and lit are compile-time constants for this shadow, and the hue
+//             is the ONE thing that's per-frame, not per-instance — orthoHue
+//             is time-based and identical for every ortho edge in a frame, so
+//             it travels as a uniform (`uOrthoHue`), not a 17th packed float.
 
 import * as THREE from 'three';
+import { FUSED_GLOW_BASE, FUSED_GLOW_SCALE, ORTHO_HUE_STEP_GLOW } from './artEdges.js';
+
+/** Render an integer constant as a GLSL float literal, for injecting the
+ *  artEdges.js constants into the shader source so they stay one source of
+ *  truth instead of a second hand-copied magic number. */
+const glslFloat = (n) => (Number.isInteger(n) ? `${n}.0` : `${n}`);
 
 /** Floats per edge instance. */
 export const EDGE_STRIDE = 16;
@@ -56,21 +88,10 @@ export const MAX_EDGES = 1024;
  *  exp(-2(d/g)^2), which drops below 1/255 at d = 1.66g. */
 export const GLOW_REACH = 1.75;
 
-/** Alpha of the shadow the shoulder stands in for.
- *
- *  This is NOT the peak of the glow — the shader derives that from the line's
- *  own width and blur radius, because that is what a gaussian does. This is the
- *  one quantity that cannot be derived: `ctx.shadowColor` carries its own alpha
- *  and its own hue, `fuseCos * 0.6` for a fused edge and fully opaque for the
- *  orthogonal bridge, and sixteen floats have no room for a fourth colour. So
- *  the shoulder borrows the gradient's colour and this stands in for its alpha.
- *  0.5 sits between the two real values, leaving a fused edge's halo somewhat
- *  bright and the ortho bridge's somewhat dim.
- *
- *  The brief's flat 0.5 peak was measured wrong by roughly 19x — see the
- *  step-4 task-3 report. No capture state contains a fused or an orthogonal
- *  edge, so this could only be measured against a deliberately forced one. */
-export const GLOW_K = 0.5;
+// GLOW_K, the flat 0.5 this shipped with, is gone: it stood in for two
+// different `ctx.shadowColor` alphas (and always the wrong colour — see the
+// file header). The shader now derives the real alpha and colour per-instance
+// from the isOrtho bit instead of averaging them into one global uniform.
 
 /**
  * Allocate the buffer the draw loop writes into. Once, never per frame.
@@ -86,7 +107,10 @@ export const GLOW_K = 0.5;
  * fine.
  */
 export function createEdgeState() {
-  return { count: 0, w: 1, h: 1, data: new Float32Array(MAX_EDGES * EDGE_STRIDE) };
+  return {
+    count: 0, w: 1, h: 1, orthoHue: 0,
+    data: new Float32Array(MAX_EDGES * EDGE_STRIDE),
+  };
 }
 
 /**
@@ -132,17 +156,47 @@ export function packAlphas(a0, a1, a2) {
   return q(a0) + q(a1) * 256 + q(a2) * 65536;
 }
 
+/** The inverse of `packAlphas`, normalised back to 0–1. Exported so the tests
+ *  exercise the exact arithmetic `EDGE_VERT` runs (see `vAlpha` there)
+ *  instead of a hand-copied second implementation that could drift from it
+ *  unnoticed — see the note beside `unpackFlags`. */
+export function unpackAlphas(packed) {
+  return {
+    a0: Math.floor(packed % 256) / 255,
+    a1: Math.floor((packed / 256) % 256) / 255,
+    a2: Math.floor(packed / 65536) / 255,
+  };
+}
+
 /**
- * Dash pattern and glow radius into one float. `dashPeriod` is on+off and
- * `dashDuty` is on, both in px; a period of 0 means solid. The glow is
- * quantised to 1/8 px, which is 64 steps across the 6–14 px range the ortho
- * bridge breathes through — finer than the falloff can show.
+ * Dash pattern, glow radius and the isOrtho flag into one float. `dashPeriod`
+ * is on+off and `dashDuty` is on, both in px; a period of 0 means solid. The
+ * glow is quantised to 1/8 px, which is 64 steps across the 6–14 px range the
+ * ortho bridge breathes through — finer than the falloff can show — and
+ * clamped to [0, 127] rather than [0, 255]: both real glow radii top out at
+ * 14px (round(14*8) = 112), so bit 7 of that byte is provably never reached by
+ * a real glow value and carries `isOrtho` instead. See the file header for why
+ * that avoids a 17th float.
  */
-export function packFlags(dashPeriod, dashDuty, glow) {
+export function packFlags(dashPeriod, dashDuty, glow, isOrtho = false) {
   const p = Math.max(0, Math.min(255, Math.round(dashPeriod)));
   const d = Math.max(0, Math.min(255, Math.round(dashDuty)));
-  const g = Math.max(0, Math.min(255, Math.round(glow * 8)));
+  const g = Math.max(0, Math.min(127, Math.round(glow * 8))) + (isOrtho ? 128 : 0);
   return p + d * 256 + g * 65536;
+}
+
+/** The inverse of `packFlags`, mirroring exactly what `EDGE_VERT` unpacks
+ *  (dashPeriod/dashDuty via mod/floor, glow's top bit split off as isOrtho).
+ *  Exported so `artEdges.test.js` cannot drift from the shader's arithmetic —
+ *  see `EDGE_VERT` for the GLSL twin of this function. */
+export function unpackFlags(packed) {
+  const gByte = Math.floor(packed / 65536);
+  return {
+    dashPeriod: Math.floor(packed % 256),
+    dashDuty: Math.floor((packed / 256) % 256),
+    isOrtho: gByte >= 128,
+    glow: (gByte % 128) / 8,
+  };
 }
 
 // ── Shaders ────────────────────────────────────────────────────────────────
@@ -172,6 +226,7 @@ const EDGE_VERT = /* glsl */`
   varying float vHalfW;
   varying vec2  vDash;
   varying float vGlow;
+  varying float vIsOrtho;    // 0.0 or 1.0 — same for all 4 verts of an instance
 
   void main() {
     vec2 a = aEnds.xy;
@@ -182,11 +237,15 @@ const EDGE_VERT = /* glsl */`
     vec2 nrm = vec2(-dir.y, dir.x);
 
     // Unpack. Every divisor is a power of two and every field an integer, so
-    // these are exact for a float32 payload below 2^24.
+    // these are exact for a float32 payload below 2^24. The glow byte's top
+    // bit (>=128) is isOrtho, not magnitude — see packFlags/unpackFlags in
+    // SphereEdges.js, which this mirrors exactly.
     float f = aPack.z;
     float dashPeriod = floor(mod(f, 256.0));
     float dashDuty   = floor(mod(f / 256.0, 256.0));
-    float glow       = floor(f / 65536.0) / 8.0;
+    float gByte      = floor(f / 65536.0);
+    float isOrtho    = step(127.5, gByte);
+    float glow       = mod(gByte, 128.0) / 8.0;
 
     float p = aPack.x;
     vAlpha = vec3(floor(mod(p, 256.0)),
@@ -211,6 +270,7 @@ const EDGE_VERT = /* glsl */`
     vHalfW = halfW;
     vDash = vec2(dashPeriod, dashDuty);
     vGlow = glow;
+    vIsOrtho = isOrtho;
 
     gl_Position = vec4(pos.x / uResolution.x * 2.0 - 1.0,
                        1.0 - pos.y / uResolution.y * 2.0,
@@ -221,7 +281,10 @@ const EDGE_VERT = /* glsl */`
 const EDGE_FRAG = /* glsl */`
   precision highp float;
 
-  uniform float uGlowK;
+  // Time-based, not per-edge: orthoHue(now) is the same for every ortho edge
+  // in a frame, so it travels once as a uniform rather than 1 of 16 floats
+  // per instance. Set from SphereEdges.syncEdgeLayer.
+  uniform float uOrthoHue;
 
   varying vec3  vC0;
   varying vec3  vC1;
@@ -233,6 +296,17 @@ const EDGE_FRAG = /* glsl */`
   varying float vHalfW;
   varying vec2  vDash;
   varying float vGlow;
+  varying float vIsOrtho;
+
+  // The CSS Color 4 reference algorithm, verbatim — the GLSL twin of
+  // writeHsl() in SphereEdges.js. Used only for the ortho shadow colour,
+  // whose saturation and lightness are compile-time constants (100%, 60%);
+  // only the hue is dynamic.
+  vec3 hsl2rgb(float h, float s, float l) {
+    float a = s * min(l, 1.0 - l);
+    vec3 k = mod(vec3(0.0, 8.0, 4.0) + h / 30.0, 12.0);
+    return l - a * clamp(min(k - 3.0, 9.0 - k), -1.0, 1.0);
+  }
 
   void main() {
     // Screen-space footprint of the two varyings, taken FIRST: derivatives are
@@ -286,22 +360,51 @@ const EDGE_FRAG = /* glsl */`
     // canvas halo is invisible in a capture and a flat 0.5 was ~19x too
     // bright. min() covers the degenerate wide-line-tiny-blur case, where a
     // blur cannot raise the peak above the line's own alpha.
-    float peak = min(uGlowK * 1.5958 * vHalfW / max(vGlow, 1e-3), 1.0);
+    //
+    // shadowAlpha replaces the old flat uGlowK: it is ctx.shadowColor's own
+    // alpha, derived per-instance instead of averaged into one constant.
+    // Fused: fuseCos * 0.6, with fuseCos recovered from vGlow — fusedGlow()
+    // is a bijective linear map of it, so no extra data is needed. Ortho:
+    // always 1.0 (fully opaque), matching the original ctx.shadowColor.
+    float fuseCos = clamp((vGlow - ${glslFloat(FUSED_GLOW_BASE)}) / ${glslFloat(FUSED_GLOW_SCALE)}, 0.0, 1.0);
+    float shadowAlpha = mix(fuseCos * 0.6, 1.0, vIsOrtho);
+    float peak = min(shadowAlpha * 1.5958 * vHalfW / max(vGlow, 1e-3), 1.0);
     float glow = peak * exp(-2.0 * g * g) * step(0.001, vGlow);
 
-    float cov = clamp(core + glow * (1.0 - core), 0.0, 1.0);
-    if (cov <= 0.0) discard;
+    // The shadow's colour, separately from the stroke's — the bug this
+    // replaces used the t-varying gradient colour (col) for the glow too,
+    // which is wrong even for the fused case (the canvas shadow was a FLAT
+    // colour, not a gradient). Fused shadows are the mid stop (vC1 IS cMid
+    // already, see edgeStops()); the ortho shadow is hue+30 at fixed S/L,
+    // reconstructed here because it is the one colour that has no home in
+    // the 16-float layout otherwise.
+    vec3 shadowCol = mix(vC1, hsl2rgb(mod(uOrthoHue + ${glslFloat(ORTHO_HUE_STEP_GLOW)}, 360.0), 1.0, 0.6), vIsOrtho);
 
-    gl_FragColor = vec4(col, a * cov);
+    // Composite the core OVER the glow (two distinct colours, two distinct
+    // alphas) rather than blending one flat colour by a combined coverage —
+    // that is what let the glow's colour bug hide in the old single-cov formula.
+    float topA = a * core;
+    float botA = glow;
+    float outA = topA + botA * (1.0 - topA);
+    if (outA <= 0.0) discard;
+    vec3 outRGB = (col * topA + shadowCol * botA * (1.0 - topA)) / outA;
+
+    gl_FragColor = vec4(outRGB, outA);
   }
 `;
 
 /**
  * Build the edge mesh. Imperative, like the backdrop it joins: nothing here
  * may enter r3f's scene graph.
+ *
+ * `sharedData`, when passed, becomes the buffer's OWN backing array — the
+ * caller (SphereComposite, via `createEdgeState()`'s array) writes directly
+ * into what the GPU reads, so `syncEdgeLayer` never has to copy ~1400 floats
+ * a frame into a second, redundant buffer. Falls back to a private array so
+ * the function stays usable standalone (tests, any future non-shared caller).
  */
-export function createEdgeLayer() {
-  const data = new Float32Array(MAX_EDGES * EDGE_STRIDE);
+export function createEdgeLayer(sharedData) {
+  const data = sharedData ?? new Float32Array(MAX_EDGES * EDGE_STRIDE);
 
   const geometry = new THREE.InstancedBufferGeometry();
   // x = position along the segment (0 at A, 1 at B), y = side (-1 / +1).
@@ -325,7 +428,7 @@ export function createEdgeLayer() {
   const uniforms = {
     uResolution: { value: new THREE.Vector2(1, 1) },
     uGlowReach:  { value: GLOW_REACH },
-    uGlowK:      { value: GLOW_K },
+    uOrthoHue:   { value: 0 },
   };
 
   const material = new THREE.ShaderMaterial({
@@ -358,9 +461,17 @@ export function createEdgeLayer() {
 }
 
 /**
- * Copy this frame's edge state onto the mesh. Called from the backdrop pass,
+ * Sync this frame's edge state onto the mesh. Called from the backdrop pass,
  * before it renders, so the geometry can never be a frame behind the backdrop
  * it sits on.
+ *
+ * There is no copy here: `layer`'s buffer is built (in `createEdgeLayer`) to
+ * share its backing array with `state.data` directly, so whatever the draw
+ * loop wrote is already sitting in the GPU-bound buffer the instant it wrote
+ * it. This function's job is only to tell WebGL a sub-range of it changed —
+ * `addUpdateRange` + `needsUpdate` upload just the `count * EDGE_STRIDE`
+ * floats actually written instead of the full `MAX_EDGES * EDGE_STRIDE` — and
+ * to keep the mesh's visibility/instanceCount and per-frame uniforms current.
  *
  * A zero count sets `visible = false` rather than leaving one degenerate
  * instance to be rasterised.
@@ -370,15 +481,10 @@ export function syncEdgeLayer(layer, state) {
   layer.mesh.visible = count > 0;
   if (count === 0) { layer.geometry.instanceCount = 0; return; }
   layer.uniforms.uResolution.value.set(Math.max(state.w, 1), Math.max(state.h, 1));
+  // orthoHue(now) is one value per frame, not per edge — see EDGE_FRAG.
+  layer.uniforms.uOrthoHue.value = state.orthoHue ?? 0;
 
-  // A plain loop, not set(subarray(...)): a subarray is a fresh view object
-  // every frame, and this pass must not allocate. ~1400 floats at the real
-  // edge count.
-  const src = state.data, dst = layer.data;
-  if (src !== dst) {
-    const n = count * EDGE_STRIDE;
-    for (let i = 0; i < n; i++) dst[i] = src[i];
-  }
   layer.geometry.instanceCount = count;
+  layer.buffer.addUpdateRange(0, count * EDGE_STRIDE);
   layer.buffer.needsUpdate = true;
 }

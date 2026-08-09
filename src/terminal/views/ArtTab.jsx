@@ -1105,8 +1105,15 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
               ed[o + 13] = packAlphas(orthoAlpha,
                                       Math.min(1, orthoAlpha + ORTHO_MID_ALPHA_BOOST),
                                       orthoAlpha);
+              // isOrtho (4th arg): selects the shader's shadow alpha/colour —
+              // opaque, hue+30 — instead of the fused edge's fuseCos*0.6/cMid.
+              // See SphereEdges.js's file header.
               ed[o + 15] = packFlags(ORTHO_DASH[0] + ORTHO_DASH[1], ORTHO_DASH[0],
-                                     orthoGlow(now));
+                                     orthoGlow(now), true);
+              // orthoHue(now) is identical for every ortho edge this frame, so
+              // it rides a shader uniform rather than a 17th packed float —
+              // the last write wins, which is fine since they all agree.
+              eg.orthoHue = hue;
             } else {
               const cMid  = lerpColor(colA, colB, e.strength);
               const stops = edgeStops(colA, colB, cMid, baseAlpha, pulseBoost, e.strength);
