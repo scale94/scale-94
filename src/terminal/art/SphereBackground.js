@@ -1,10 +1,16 @@
 // SphereBackground.jsx — the sphere's backdrop, on the GPU.
 //
-// Not a mesh. This module supplies the GLSL and the uniforms that
-// SphereComposite's single composite pass uses to paint everything *beneath*
-// the 2D canvas. Step 3 moves the bottom six layers of the sphere here one at
-// a time; it starts as the clear colour alone, so the pipeline change and the
-// layer migrations are never in the same commit.
+// Not a mesh. This module supplies the GLSL and the uniforms that paint
+// everything *beneath* the 2D canvas. Step 3 moved the bottom seven layers of
+// the sphere here one at a time; it started as the clear colour alone, so the
+// pipeline change and the layer migrations were never in the same commit.
+//
+// Since step 4 this GLSL is compiled into SphereComposite's BACKDROP pass,
+// which renders it into an offscreen RGBA8 / NoColorSpace target rather than
+// evaluating it inline in the screen pass. Nothing in this file changed for
+// that: `sphereBackground(uv, res)` still takes uv in [0,1] and res in CSS px,
+// and still returns sRGB. The move exists so the edge layer has somewhere to
+// draw geometry between the backdrop and the 2D canvas.
 //
 // ── Why the backdrop had to move before any layer ──────────────────────────
 //
@@ -16,7 +22,11 @@
 // clear finally changed. The plan ordered it the other way round; that was
 // wrong.
 //
-// ── Why this is one pass and not two quads ─────────────────────────────────
+// ── Why the BLEND is one shader and not two stacked quads ──────────────────
+//
+// (Still true with the backdrop on its own pass: what moved offscreen is where
+// the backdrop is *computed*. Where it is *composited* against the 2D canvas
+// did not move, and must not.)
 //
 // The obvious build — a backdrop mesh under a `transparent` 2D quad — is
 // WRONG, and wrong in a way that passes a tolerance gate. The 2D canvas
@@ -27,7 +37,7 @@
 // nearly doubling (25.5 -> 49.3), confined to the sphere disc. It still scored
 // mean 1.285 against a threshold of 4.
 //
-// So the composite is done HERE, in sRGB, exactly as the canvas did it, and
+// So the composite is done in ONE shader, in sRGB, exactly as the canvas did it, and
 // only the finished pixel is converted to linear for the bloom pipeline. When
 // the canvas is opaque this reduces to `linear(C)`, which is precisely what
 // the step-2 meshBasicMaterial wrote — so step 2 is a special case of this
