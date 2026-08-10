@@ -437,9 +437,19 @@ export function createEdgeLayer(sharedData) {
     fragmentShader: EDGE_FRAG,
     transparent: true,
     // Source-over, in the target's raw sRGB bytes. See the header.
+    //
+    // The ALPHA channel gets its own factor pair, and that is not decoration.
+    // Since the trail commit the target holds premultiplied ink whose alpha is
+    // read by the screen pass to decide how much of the rift clear shows
+    // through. Without this, three leaves the alpha channel on the RGB factors
+    // and the destination alpha accumulates as `a*a + dst*(1-a)` — coverage
+    // squared, i.e. an edge that paints its colour correctly and then lets the
+    // backdrop bleed back through itself.
     blending: THREE.CustomBlending,
     blendSrc: THREE.SrcAlphaFactor,
     blendDst: THREE.OneMinusSrcAlphaFactor,
+    blendSrcAlpha: THREE.OneFactor,
+    blendDstAlpha: THREE.OneMinusSrcAlphaFactor,
     depthTest: false,
     depthWrite: false,
     toneMapped: false,

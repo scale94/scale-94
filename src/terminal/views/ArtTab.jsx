@@ -228,7 +228,15 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   // Background state published to the GL layer each frame. Written from inside
   // the draw loop (never from render) so the backdrop is always the one that
   // belongs to the 2D frame being composited, not the next one.
-  const bgStateRef = useRef({ rift: { r: 0, g: 0, b: 0, a: 0.72 } });
+  //
+  // Deliberately EMPTY. `rift` used to be seeded with a plausible-looking
+  // `{ r:0, g:0, b:0, a:0.72 }`, and `.a` is no longer inert: it is the erase
+  // strength that drives the GL trail fade (SphereComposite). A seeded 0.72 is
+  // a guess at normal mode, so a sphere that mounts immersive would spend its
+  // first frames fading at the wrong rate. Absent, the GL side falls back to a
+  // wipe until the draw loop publishes the real tint, which is the one wrong
+  // answer that cannot be mistaken for a right one.
+  const bgStateRef = useRef({});
   // Projected ghost trails, xyzw per ghost. Written in place each frame so the
   // draw loop stays off the allocation path.
   const ghostBufRef = useRef(new Float32Array(GHOST_COUNT * 4));
@@ -792,6 +800,12 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       // a re-art; the equivalence is derived in SphereBackground.jsx.
       const { metabolicRift, exergyRate } = ecocideStateRef.current;
       const tint = riftTint(metabolicRift, immersiveRef.current);
+      // Both halves of this object are read by the GL layer, and they are read
+      // from HERE rather than recomputed there: rgb is the clear colour the
+      // screen pass paints under the accumulated ink, and `.a` is the erase
+      // alpha that drives the trail fade. Same object, same frame, so the fill
+      // below and the fade cannot disagree — including across a mode toggle,
+      // where `a` steps 0.72 <-> 0.32 in one frame.
       bgStateRef.current.rift = tint;
       ctx.save();
       ctx.globalCompositeOperation = 'destination-out';

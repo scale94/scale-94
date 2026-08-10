@@ -330,11 +330,36 @@ async function captureScale(scale, manifest, expectFingerprint) {
   // resize that follows is rAF-driven and slow (the cold sizing above needs
   // ~480 frames). Settling with less caught the shot mid-resize, with the
   // sphere stranded at its old size inside the new viewport.
+  //
+  // Pumping alone never finished the job, and the way it failed was invisible.
+  // MEASURED, with the frame counter exposed from BackdropPass: after the
+  // toggle the GL drawing buffer stays at its PRE-immersive size for the whole
+  // settle, however long it is — 600 frames, 750 frames — and then resizes on
+  // the frame immediately after the first screenshot. r3f measures its
+  // container with a ResizeObserver, this page starves that observer of
+  // notifications (see SphereComposite's SizeSync note), and it is the
+  // screenshot's own forced layout that finally delivers one. So the shot is
+  // always the last frame before the resize, at the old buffer size.
+  //
+  // That is not cosmetic. The trail accumulator (SphereTrail.js) is reconciled
+  // against that buffer and its targets are REALLOCATED — hence emptied — when
+  // it changes, and the shot sits on the wrong side of that. With the fade on,
+  // `immersive-on` scored ratio 1.000 against a same-session control while a
+  // sweep inside the same session measured 1.23 on every settled frame: the one
+  // row that matters most for the exhibit was structurally blind.
+  //
+  // So force the delivery with a throwaway capture, then settle. Both counts
+  // stay fixed constants, so the frame budget is still identical run to run.
+  const forceResize = async () => {
+    await page.screenshot({ clip: clipOf(await page.eval(SPHERE_RECT)) });
+    await page.pump(150);
+  };
   await page.hover(away.x, away.y);
   await settle();
   await page.pump(30);
   if (!await page.eval(clickByTitle('Immersive mode'))) throw new Error('no immersive button');
   await page.pump(600);
+  await forceResize();
   await shot('immersive-on');
   await page.resetCosts();
   await page.pump(600);
@@ -342,6 +367,7 @@ async function captureScale(scale, manifest, expectFingerprint) {
 
   await page.eval(clickByTitle('Immersive mode'));
   await page.pump(600);
+  await forceResize();
   await shot('immersive-off');
 
   const errors = page.consoleErrors();

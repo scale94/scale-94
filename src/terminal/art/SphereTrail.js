@@ -40,6 +40,20 @@
 //
 // So: no conversion anywhere in this chain. The single srgbToLinear stays where
 // it is, in SphereComposite's screen pass, on the finished pixel.
+//
+// ── What the targets hold ──────────────────────────────────────────────────
+//
+// PREMULTIPLIED ink with coverage in alpha — the GL layers only, over a fully
+// transparent base. NOT the composited backdrop. The rift clear colour is
+// excluded on purpose and re-applied once, per frame, in the screen pass:
+// `bg = ink.rgb + uRift * (1 - ink.a)`. Feeding the clear through this loop
+// instead would compound it by 1/m, wash the entire frame out, and read as
+// nothing worse than "brighter" on every instrument in this repo.
+//
+// That representation is also exactly what the 2D canvas held — a premultiplied
+// 8-bit buffer with an alpha channel, over a backdrop showing through by
+// (1 - alpha) — which is why the fade below can be a single uniform scale of
+// all four channels and be right.
 
 import * as THREE from 'three';
 
@@ -62,8 +76,13 @@ const TRAIL_FADE_FRAG = /* glsl */`
   void main() {
     // Raw sRGB values in, raw sRGB values out. The 2D canvas faded in byte
     // space and so does this. Converting here is the step-3 trap.
+    //
+    // All four channels by the same scalar: on premultiplied ink that is the
+    // literal destination-out this stands in for — alpha *= (1 - m), and the
+    // premultiplied rgb rides along with it, leaving the straight colour
+    // untouched exactly as the canvas op did.
     vec4 prev = texture2D(uPrev, vUv);
-    gl_FragColor = vec4(prev.rgb, prev.a) * uSurvival;
+    gl_FragColor = prev * uSurvival;
   }
 `;
 

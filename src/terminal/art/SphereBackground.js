@@ -7,10 +7,15 @@
 //
 // Since step 4 this GLSL is compiled into SphereComposite's BACKDROP pass,
 // which renders it into an offscreen RGBA8 / NoColorSpace target rather than
-// evaluating it inline in the screen pass. Nothing in this file changed for
-// that: `sphereBackground(uv, res)` still takes uv in [0,1] and res in CSS px,
-// and still returns sRGB. The move exists so the edge layer has somewhere to
-// draw geometry between the backdrop and the 2D canvas.
+// evaluating it inline in the screen pass. `sphereBackgroundInk(uv, res)` still
+// takes uv in [0,1] and res in CSS px, and still works in sRGB. The move exists
+// so the edge layer has somewhere to draw geometry between the backdrop and the
+// 2D canvas.
+//
+// What DID change with the trail commit is what it returns: premultiplied ink
+// with coverage in alpha, the rift base excluded. See the note above
+// BACKGROUND_GLSL — that split is what lets the accumulator fade the layers
+// without compounding the clear colour underneath them.
 //
 // ── Why the backdrop had to move before any layer ──────────────────────────
 //
@@ -89,9 +94,38 @@ import {
 
 const v3 = ([r, g, b]) => `vec3(${(r / 255).toFixed(6)}, ${(g / 255).toFixed(6)}, ${(b / 255).toFixed(6)})`;
 
+// ── Ink, not colour: why this returns a premultiplied vec4 ──────────────────
+//
+// This used to start from `vec3 col = uRift` and composite every layer over it,
+// returning one opaque colour. That is wrong the moment the backdrop feeds an
+// ACCUMULATOR (SphereTrail.js), and wrong in the direction no gate reads as a
+// failure.
+//
+// `uRift` is not a layer. It is the clear — the thing the 2D loop's
+// semi-transparent fill both faded AND repainted every frame. The layers above
+// it are what compound across frames. Pushing the base through the accumulator
+// too would multiply the whole frame by 1/m (1.389x normal, 3.125x immersive)
+// and wash it out, and every instrument here would report that as "brighter".
+//
+// So the split is drawn here, at the source: this returns the layers ALONE, as
+// premultiplied ink with coverage in alpha, over a fully transparent base. The
+// rift enters once, at the very end of the chain, in SphereComposite's screen
+// pass:  bg = ink.rgb + uRift * (1 - ink.a).
+//
+// That identity is exact, not an approximation. Compositing a layer (C, a)
+// source-over onto an accumulator that already reads `ink.rgb + K(1 - ink.a)`
+// gives `C*a + (1-a)*(ink.rgb + K(1 - ink.a))`, which is precisely
+// `inkOver()`'s result re-read through the same formula — so the old
+// `col = mix(col, C, a)` chain and this one produce identical pixels for any
+// K, and only the fade can now tell them apart. Which is the point.
+//
+// The 2D canvas held exactly this: a premultiplied 8-bit buffer of ink with an
+// alpha channel, over a backdrop that showed through by (1 - alpha). Matching
+// its representation is what makes the accumulation a port rather than a
+// re-derivation.
+
 // The backdrop, in sRGB. Layers are added here one commit at a time.
 export const BACKGROUND_GLSL = /* glsl */`
-  uniform vec3 uRift;      // clear colour, already /255
   uniform float uSphereR;  // CSS px
   uniform vec2 uRot;       // rotation rx, ry
   uniform float uBeat;     // beat phase, 1 = just fired
@@ -197,8 +231,19 @@ export const BACKGROUND_GLSL = /* glsl */`
     return 1.0 - smoothstep(halfW - aa, halfW + aa, abs(d));
   }
 
-  vec3 sphereBackground(vec2 uv, vec2 res) {
-    vec3 col = uRift;
+  // Source-over of a straight-alpha layer (c, a) into a PREMULTIPLIED
+  // accumulator. The GLSL twin of the 2D canvas's own compositing, and the
+  // reason nothing here needs to know the clear colour: over a transparent
+  // base, mix(col, c, a) and this differ only by the K(1 - ink.a) term the
+  // screen pass adds back.
+  void inkOver(inout vec4 ink, vec3 c, float a) {
+    ink = vec4(c * a + ink.rgb * (1.0 - a), a + ink.a * (1.0 - a));
+  }
+
+  // Returns PREMULTIPLIED ink with coverage in alpha — the layers only, with
+  // the rift base deliberately excluded. See the note above BACKGROUND_GLSL.
+  vec4 sphereBackgroundInk(vec2 uv, vec2 res) {
+    vec4 ink = vec4(0.0);
     vec2 p = (uv - 0.5) * res;   // CSS px from centre; every layer here is
                                  // radially symmetric about the centre or a
                                  // full-screen grid, so the GL/canvas y flip
@@ -212,7 +257,7 @@ export const BACKGROUND_GLSL = /* glsl */`
     if (uExergy > 0.0) {
       float t = clamp(d / (min(res.x, res.y) * float(${EXERGY_R})), 0.0, 1.0);
       vec4 g = radialTwoStop(t, ${v3(EXERGY_RGB)}, uExergy);
-      col = mix(col, g.rgb, g.a);
+      inkOver(ink, g.rgb, g.a);
     }
 
     // ── Genesis glow — awakening phase 0, gold into magenta ───────────────
@@ -229,12 +274,12 @@ export const BACKGROUND_GLSL = /* glsl */`
       } else {
         g = radialTwoStop((t - mid) / (1.0 - mid), magenta, aMid);
       }
-      col = mix(col, g.rgb, g.a);
+      inkOver(ink, g.rgb, g.a);
     }
 
     // ── State flash — anthracite hex grid on bifurcation events ───────────
     if (uFlash > 0.0) {
-      col = mix(col, ${v3(FLASH_RGB)}, flashGrid(cpos, res) * uFlash);
+      inkOver(ink, ${v3(FLASH_RGB)}, flashGrid(cpos, res) * uFlash);
     }
 
     // ── Spectral ambient — immersive only, otherwise pure black ───────────
@@ -246,7 +291,7 @@ export const BACKGROUND_GLSL = /* glsl */`
       float r1 = uSphereR * float(${AMBIENT_OUTER_R});
       float t = clamp((d - r0) / max(r1 - r0, 1e-6), 0.0, 1.0);
       vec4 g = radialTwoStop(t, ${v3(AMBIENT_RGB)}, uAmbient);
-      col = mix(col, g.rgb, g.a);
+      inkOver(ink, g.rgb, g.a);
     }
 
     // ── Sphere wireframe ghost — equator + vertical great circle ──────────
@@ -257,8 +302,8 @@ export const BACKGROUND_GLSL = /* glsl */`
     float hw = float(${WIRE_WIDTH}) * 0.5;
     vec2 eq = vec2(uSphereR, uSphereR * abs(cos(uRot.x)));
     vec2 vt = vec2(uSphereR * abs(cos(uRot.y)), uSphereR);
-    col = mix(col, vec3(1.0), ellipseCoverage(p, eq, hw) * float(${WIRE_ALPHA}));
-    col = mix(col, vec3(1.0), ellipseCoverage(p, vt, hw) * float(${WIRE_ALPHA}));
+    inkOver(ink, vec3(1.0), ellipseCoverage(p, eq, hw) * float(${WIRE_ALPHA}));
+    inkOver(ink, vec3(1.0), ellipseCoverage(p, vt, hw) * float(${WIRE_ALPHA}));
 
     // ── Ambient beat pulse glow — above the wireframe in the draw loop ────
     if (uBeat > 0.0) {
@@ -267,7 +312,7 @@ export const BACKGROUND_GLSL = /* glsl */`
       // Canvas clamps to the first stop inside r0 and the last stop beyond r1.
       float t = clamp((length(p) - r0) / max(r1 - r0, 1e-6), 0.0, 1.0);
       vec4 g = beatGradient(t);
-      col = mix(col, g.rgb, g.a * uBeat);   // alpha stops scale with the phase
+      inkOver(ink, g.rgb, g.a * uBeat);     // alpha stops scale with the phase
     }
 
     // ── Temporal archaeology — ghost trails from the previous session ─────
@@ -279,16 +324,23 @@ export const BACKGROUND_GLSL = /* glsl */`
       vec4 g = uGhosts[i];
       if (g.w <= 0.0) continue;
       float cov = 1.0 - smoothstep(-px, px, length(cpos - g.xy) - g.z);
-      col = mix(col, ${v3(GHOST_RGB)}, cov * g.w);
+      inkOver(ink, ${v3(GHOST_RGB)}, cov * g.w);
     }
 
-    return col;
+    return ink;
   }
 `;
 
+/** The clear colour's own uniform. It lives on the SCREEN pass now, not the
+ *  backdrop — the backdrop emits ink alone and never sees the base. Kept here,
+ *  and fed by riftUniform() below, so the sRGB 0-255 → 0-1 conversion stays in
+ *  one place rather than being re-typed at the new call site. */
+export function riftUniform() {
+  return { value: new THREE.Vector3(0, 0, 0) };
+}
+
 export function backgroundUniforms() {
   return {
-    uRift: { value: new THREE.Vector3(0, 0, 0) },
     uSphereR: { value: 0 },
     uRot: { value: new THREE.Vector2(0, 0) },
     uBeat: { value: 0 },
@@ -302,18 +354,25 @@ export function backgroundUniforms() {
   };
 }
 
-/** Copy a frame's published background state into the shader's uniforms.
+/** Copy the frame's published clear colour into the screen pass's uniform.
  *
  *  The rift channel is an sRGB 0-255 level lifted straight from the 2D
  *  fillStyle it replaces, and the composite runs in sRGB, so it is passed
  *  through as a plain vector. Using THREE.Color here would invite a
  *  colour-space conversion and silently brighten the tint — the same class of
  *  bug as the one that made this a single pass.
+ *
+ *  `state.rift.a` is NOT read here. That alpha is the erase strength, and it
+ *  drives the trail fade in SphereComposite; it is not part of the colour.
  */
+export function syncRiftUniform(uniform, state) {
+  const rift = state?.rift;
+  if (rift) uniform.value.set(rift.r / 255, rift.g / 255, rift.b / 255);
+}
+
+/** Copy a frame's published background state into the backdrop's uniforms. */
 export function syncBackgroundUniforms(uniforms, state) {
   if (!state) return;
-  const rift = state.rift;
-  if (rift) uniforms.uRift.value.set(rift.r / 255, rift.g / 255, rift.b / 255);
   uniforms.uSphereR.value = state.sphereR ?? 0;
   if (state.rot) uniforms.uRot.value.set(state.rot.rx, state.rot.ry);
   uniforms.uBeat.value = state.beat ?? 0;

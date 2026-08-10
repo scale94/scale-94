@@ -29,28 +29,32 @@ import * as THREE from 'three';
 import { compositeDpr, COMPOSITE_STYLE, BLOOM, VIGNETTE } from './artComposite';
 import {
   COLOR_GLSL, BACKGROUND_GLSL, backgroundUniforms, syncBackgroundUniforms,
+  riftUniform, syncRiftUniform,
 } from './SphereBackground';
 import { createEdgeLayer, syncEdgeLayer } from './SphereEdges';
 import { createTrail, renderTrailFade } from './SphereTrail';
 import { trailSurvival } from './artTrail';
 
-// The fade is OFF this commit, and off by construction rather than by a magic
-// zero: `m = 1` is the total-erase case (see artTrail.js), so trailSurvival(1)
-// is exactly 0, the fade degenerates to a wipe, and the whole accumulator is a
-// pass-through whose output is pixel-identical to the pipeline without it.
-//
-// That is deliberate. The accumulator is a feedback loop, and a feedback loop
-// landing in the same commit as the behaviour change it enables leaves a parity
-// failure with two candidate causes. This commit builds it and proves it
-// changes nothing, and turning it on is a separate commit on purpose.
-//
-// Turning it on is NOT a one-line swap of this constant, and two things make
-// that so. `m` is per-MODE (0.72 normal, 0.32 immersive — artTrail.js), so the
-// survival value has to become a per-frame read of the published rift alpha,
-// not a module constant. And the opaque backdrop quad currently replaces every
-// texel of the accumulator each frame, so the fade cannot carry anything until
-// the rift base is split out of it — see the long note in BackdropPass.
-const TRAIL_SURVIVAL_OFF = trailSurvival(1);
+/**
+ * How much of last frame's GL ink survives into this one.
+ *
+ * `m` is the erase alpha the 2D canvas used ON THIS FRAME — per-mode, 0.72
+ * normal and 0.32 immersive — and it arrives on the same published object the
+ * canvas painted with, `state.rift.a`. Reading it from there rather than
+ * re-deriving it from an immersive flag is the whole point: the fade and the
+ * `destination-out` fill are then provably the same number, and a mode change
+ * cannot desynchronise them for a frame.
+ *
+ * Before the draw loop has published anything there is no honest value, so this
+ * returns 0 — a WIPE, which makes the accumulator a pass-through for that
+ * frame. Falling back to a constant instead would put a plausible, wrong
+ * brightness on the first frames of every capture, and the parity threshold is
+ * nowhere near tight enough to notice.
+ */
+function survivalFor(state) {
+  const m = state?.rift?.a;
+  return Number.isFinite(m) ? trailSurvival(m) : 0;
+}
 
 // The composite pass. An orthographic camera in r3f is sized in pixels, so a
 // plane matching the viewport in pixels fills it exactly with no camera maths.
@@ -74,6 +78,7 @@ const COMPOSITE_FRAG = /* glsl */`
   precision highp float;
   uniform sampler2D uSource;
   uniform sampler2D uBackdrop;
+  uniform vec3 uRift;         // the clear colour, sRGB 0-1
   varying vec2 vUv;
   ${COLOR_GLSL}
 
@@ -82,10 +87,16 @@ const COMPOSITE_FRAG = /* glsl */`
     // a real alpha channel — not decoded, because the blend below has to happen
     // in the same space the 2D canvas composited in.
     vec4 src = texture2D(uSource, vUv);
-    // uBackdrop is the offscreen target, also NoColorSpace: raw sRGB bytes, not
+    // uBackdrop is the accumulator, also NoColorSpace: raw sRGB bytes, not
     // decoded on the way in. Both quads carry PlaneGeometry uvs against an
     // unflipped ortho camera, so vUv addresses the same texel in both.
-    vec3 bg = texture2D(uBackdrop, vUv).rgb;
+    //
+    // It holds PREMULTIPLIED GL ink with coverage in alpha, and NOT the clear
+    // colour — see the note above BACKGROUND_GLSL. This is the one place the
+    // rift base enters the pipeline, written fresh from this frame's published
+    // tint, so the accumulator can never compound it.
+    vec4 ink = texture2D(uBackdrop, vUv);
+    vec3 bg = ink.rgb + uRift * (1.0 - ink.a);
 
     // Source-over in sRGB, exactly as the 2D clear did. src.rgb is straight
     // (un-premultiplied) alpha, which is what a canvas upload yields.
@@ -122,8 +133,14 @@ const BACKDROP_FRAG = /* glsl */`
   void main() {
     // sRGB, unconverted. A raw ShaderMaterial's fragment output is not touched
     // by three's output colour-space chunk, and the target is NoColorSpace, so
-    // what sphereBackground() computes is what lands in the byte buffer.
-    gl_FragColor = vec4(sphereBackground(vUv, uResolution), 1.0);
+    // what sphereBackgroundInk() computes is what lands in the byte buffer.
+    //
+    // PREMULTIPLIED ink, coverage in alpha, rift base excluded — and blended
+    // source-over into the accumulator rather than replacing it. Both halves of
+    // that matter: emitting the composited colour would push the clear through
+    // the feedback loop, and replacing would erase the fade's output before it
+    // could carry anything.
+    gl_FragColor = sphereBackgroundInk(vUv, uResolution);
   }
 `;
 
@@ -146,11 +163,31 @@ function createBackdrop(edgeData) {
     fragmentShader: BACKDROP_FRAG,
     depthTest: false,
     depthWrite: false,
-    transparent: false,
+    // This quad used to be `transparent: false`, and that single flag was what
+    // held the accumulator shut: three renders a non-transparent NormalBlending
+    // material with NoBlending, so the backdrop REPLACED every texel of the
+    // target — RGB and alpha — after the fade and before the edges. Raising
+    // `survival` while that was true changed nothing at all.
+    transparent: true,
+    // Source-over for a PREMULTIPLIED source: rgb is already scaled by its own
+    // coverage, so One (not SrcAlpha) is the correct source factor. The alpha
+    // channel gets its own pair because it is now load-bearing — it is what the
+    // screen pass uses to let the rift show through — and the default
+    // separate-alpha behaviour would square it.
+    blending: THREE.CustomBlending,
+    blendSrc: THREE.OneFactor,
+    blendDst: THREE.OneMinusSrcAlphaFactor,
+    blendSrcAlpha: THREE.OneFactor,
+    blendDstAlpha: THREE.OneMinusSrcAlphaFactor,
+    toneMapped: false,
   });
   const geometry = new THREE.PlaneGeometry(2, 2);
   const mesh = new THREE.Mesh(geometry, material);
   mesh.frustumCulled = false;
+  // Both meshes are transparent now, so three sorts them together and the
+  // painter sort's primary key is renderOrder. Explicit on BOTH, because the
+  // tiebreak below it is view-space z and both sit at the origin.
+  mesh.renderOrder = 0;
 
   const scene = new THREE.Scene();
   scene.add(mesh);
@@ -222,28 +259,25 @@ function BackdropPass({ backdrop, trail, stateRef, edgeStateRef }) {
     // it exists so the sequence stays correct if that ever changes. Do not
     // read it as the thing that makes accumulation possible.
     //
-    // ── WHAT ACTUALLY BLOCKS ACCUMULATION TODAY, read before turning the
-    //    fade on ────────────────────────────────────────────────────────────
-    // The backdrop quad is `transparent: false` with default NormalBlending,
-    // and three renders non-transparent NormalBlending materials with
-    // NoBlending. So it REPLACES every texel of this target — RGB and alpha —
-    // every frame, after the fade and before the transparent edge layer blends
-    // on top. Raising `survival` alone will therefore change nothing at all,
-    // which looks exactly like a broken accumulator and is not one.
+    // ── The three things that had to be true together ─────────────────────
+    // 1. The fade carries `survival = 1 - m` from the SAME published tint the
+    //    2D canvas erased with this frame — not a constant, not a re-derivation
+    //    from the immersive flag. See survivalFor().
+    // 2. The backdrop emits premultiplied INK with the rift base excluded, so
+    //    the clear colour cannot compound. See BACKGROUND_GLSL.
+    // 3. The backdrop BLENDS rather than replaces. It used to be
+    //    `transparent: false`, and three renders that with NoBlending, so it
+    //    overwrote every texel the fade had just written — which made raising
+    //    survival alone a provable no-op.
     //
-    // Splitting the rift BASE colour out of the accumulator is what unblocks
-    // it: the base is the clear (sphereBackground starts from `vec3 col =
-    // uRift`) and must keep being written fresh, while the layers above it
-    // must blend rather than replace. That split is a precondition for the
-    // fade doing anything, not a later refinement.
-    //
-    // With survival at 0 the fade writes black and the opaque backdrop paints
-    // over all of it, which is why this commit measures as identity.
+    // Miss any one and the render does not change; miss only (2) and it changes
+    // in the direction every instrument here reads as "brighter".
     trail.swap();
     const autoClear = gl.autoClear;
     gl.autoClear = false;
     try {
-      renderTrailFade(gl, trail, TRAIL_SURVIVAL_OFF);   // leaves trail.write bound
+      // leaves trail.write bound
+      renderTrailFade(gl, trail, survivalFor(stateRef?.current));
       gl.render(scene, camera);
     } finally {
       gl.autoClear = autoClear;
@@ -254,7 +288,7 @@ function BackdropPass({ backdrop, trail, stateRef, edgeStateRef }) {
   return null;
 }
 
-function SourceQuad({ sourceRef, trail }) {
+function SourceQuad({ sourceRef, trail, stateRef }) {
   const size = useThree(s => s.size);
   const matRef = useRef(null);
 
@@ -275,6 +309,10 @@ function SourceQuad({ sourceRef, trail }) {
   const uniforms = useMemo(() => ({
     uSource: { value: null },
     uBackdrop: { value: null },
+    // The rift base lives here, on the SCREEN pass, and nowhere else. It is the
+    // clear colour rather than a layer, so it must be written fresh every frame
+    // underneath the accumulated ink instead of being fed through the fade.
+    uRift: riftUniform(),
   }), []);
 
   useEffect(() => () => texture?.dispose(), [texture]);
@@ -292,6 +330,10 @@ function SourceQuad({ sourceRef, trail }) {
     // in place). This useFrame has priority 0 and BackdropPass has -1, so the
     // swap has already happened and this is the buffer just drawn into.
     m.uniforms.uBackdrop.value = trail.write.texture;
+    // Same ref, same frame, same object BackdropPass read its survival from —
+    // this useFrame is priority 0 and that one is -1, so the tint under the ink
+    // is always the tint the ink was faded with.
+    syncRiftUniform(m.uniforms.uRift, stateRef?.current);
   });
 
   if (!texture) return null;
@@ -435,7 +477,7 @@ export default function SphereComposite({ sourceRef, immersive, onAdvanceReady, 
         <AdvanceBridge onAdvanceReady={onAdvanceReady} />
         <SizeSync sourceRef={sourceRef} wrapRef={wrapRef} />
         <BackdropPass backdrop={backdrop} trail={trail} stateRef={bgStateRef} edgeStateRef={edgeGLRef} />
-        <SourceQuad sourceRef={sourceRef} trail={trail} />
+        <SourceQuad sourceRef={sourceRef} trail={trail} stateRef={bgStateRef} />
         <EffectComposer disableNormalPass>
           <Bloom
             luminanceThreshold={BLOOM.luminanceThreshold}
