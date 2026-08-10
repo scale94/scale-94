@@ -175,5 +175,24 @@ try {
   console.log('GHOST TRAILS  (closest approach to the ghost colour 180,180,220)');
   console.log(`   no session     ${gOff.toFixed(1)}`);
   console.log(`   31 stacked     ${gOn.toFixed(1)}   (${live} live slots published)`);
-  console.log(live > 0 && gOn < gOff - 10 ? '   => RENDERS' : '   => NOT DETECTED');
+  // The criterion used to be `gOn < gOff - 10` — a FIXED ABSOLUTE margin — and
+  // that made it the fifth time this check called a healthy layer broken.
+  //
+  // nearestGhostColour is a MINIMUM over the whole frame, so gOff is not a
+  // property of the ghost layer at all: it is however close the brightest
+  // unrelated pixel (a node, a label) happens to sit to (180,180,220). Once the
+  // trail accumulator landed and the whole frame got brighter, gOff fell to
+  // 15.4, so the old rule demanded gOn <= 5.4 — i.e. the stacked disc had to
+  // match the ghost colour to within 2% before the check would admit the layer
+  // existed. The better the rest of the sphere renders, the harder this failed.
+  //
+  // Replaced with two conditions that are about the layer rather than the frame:
+  //   - gOn < 12: 31 stacked ghosts compound to near-opaque, so the disc should
+  //     BE the ghost colour. 12 is under 5% of |(180,180,220)|, which says
+  //     "this pixel is that colour", not merely "this pixel is bright".
+  //   - gOn < gOff * 0.7: and stacking them has to have actually moved it,
+  //     which is what distinguishes the layer drawing from the frame being
+  //     bright for other reasons.
+  // Measured with the trail on: gOff 15.4, gOn 7.5.
+  console.log(live > 0 && gOn < 12 && gOn < gOff * 0.7 ? '   => RENDERS' : '   => NOT DETECTED');
 } finally { await g2.close(); }
