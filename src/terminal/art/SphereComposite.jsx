@@ -31,6 +31,20 @@ import {
   COLOR_GLSL, BACKGROUND_GLSL, backgroundUniforms, syncBackgroundUniforms,
 } from './SphereBackground';
 import { createEdgeLayer, syncEdgeLayer } from './SphereEdges';
+import { createTrail, renderTrailFade } from './SphereTrail';
+import { trailSurvival } from './artTrail';
+
+// The fade is OFF this commit, and off by construction rather than by a magic
+// zero: `m = 1` is the total-erase case (see artTrail.js), so trailSurvival(1)
+// is exactly 0, the fade degenerates to a wipe, and the whole accumulator is a
+// pass-through whose output is pixel-identical to the pipeline without it.
+//
+// That is deliberate. The accumulator is a feedback loop, and a feedback loop
+// landing in the same commit as the behaviour change it enables leaves a parity
+// failure with two candidate causes. This commit builds it and proves it
+// changes nothing; turning it on is one line here — trailSurvival of the mode's
+// real rift alpha — and it is a separate commit on purpose.
+const TRAIL_SURVIVAL_OFF = trailSurvival(1);
 
 // The composite pass. An orthographic camera in r3f is sized in pixels, so a
 // plane matching the viewport in pixels fills it exactly with no camera maths.
@@ -85,12 +99,14 @@ const COMPOSITE_FRAG = /* glsl */`
 // This commit builds that pipeline and migrates NOTHING, so a parity failure
 // here has exactly one candidate cause.
 //
-// The target is RGBA8 / UnsignedByte / NoColorSpace with no depth and no
-// stencil. NoColorSpace is load-bearing on BOTH sides: tagging the texture
-// SRGBColorSpace gives it an SRGB8_ALPHA8 internal format, so the hardware
-// would encode on write and decode on sample, and the composite below would
-// stop happening in sRGB — which is precisely the bug step 3 spent a rewrite
-// fixing, and it scored 1.285 against a threshold of 4.
+// That offscreen target is no longer this pass's own: since the trail commit it
+// is the accumulator's current `write` buffer (SphereTrail.js), which the fade
+// pass has already primed. Same format either way — RGBA8 / UnsignedByte /
+// NoColorSpace, no depth, no stencil. NoColorSpace is load-bearing on BOTH
+// sides: tagging the texture SRGBColorSpace gives it an SRGB8_ALPHA8 internal
+// format, so the hardware would encode on write and decode on sample, and the
+// composite below would stop happening in sRGB — which is precisely the bug
+// step 3 spent a rewrite fixing, and it scored 1.285 against a threshold of 4.
 const BACKDROP_FRAG = /* glsl */`
   precision highp float;
   uniform vec2 uResolution;
@@ -108,18 +124,12 @@ const BACKDROP_FRAG = /* glsl */`
 // Built imperatively, NOT as an r3f <mesh>. Everything in r3f's scene graph is
 // what the EffectComposer draws to the screen — a backdrop mesh in the tree
 // would render into the target *and* be painted over the screen quad.
+//
+// It owns no render target of its own: it is rendered INTO the accumulator's
+// write buffer. Keeping a second full-resolution RGBA8 buffer alive for a pass
+// that no longer reads or writes it would be a megabyte of dead VRAM per frame
+// of nothing.
 function createBackdrop(edgeData) {
-  const target = new THREE.WebGLRenderTarget(1, 1, {
-    format: THREE.RGBAFormat,
-    type: THREE.UnsignedByteType,
-    minFilter: THREE.LinearFilter,      // no mipmaps: sampled 1:1
-    magFilter: THREE.LinearFilter,
-    generateMipmaps: false,
-    depthBuffer: false,
-    stencilBuffer: false,
-  });
-  target.texture.colorSpace = THREE.NoColorSpace;
-
   const uniforms = {
     uResolution: { value: new THREE.Vector2(1, 1) },
     ...backgroundUniforms(),
@@ -139,8 +149,8 @@ function createBackdrop(edgeData) {
   const scene = new THREE.Scene();
   scene.add(mesh);
 
-  // The sphere's base edges, drawn INTO this target on top of the backdrop and
-  // therefore still beneath the 2D canvas. Added after the quad, and its
+  // The sphere's base edges, drawn into the same target on top of the backdrop
+  // and therefore still beneath the 2D canvas. Added after the quad, and its
   // material is `transparent`, so three's own opaque-then-transparent ordering
   // draws it second whatever the render order says. See SphereEdges.js.
   //
@@ -157,17 +167,16 @@ function createBackdrop(edgeData) {
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 
   return {
-    target, scene, camera, uniforms, edges,
+    scene, camera, uniforms, edges,
     dispose() {
       geometry.dispose();
       material.dispose();
       edges.dispose();
-      target.dispose();
     },
   };
 }
 
-function BackdropPass({ backdrop, stateRef, edgeStateRef }) {
+function BackdropPass({ backdrop, trail, stateRef, edgeStateRef }) {
   const gl = useThree(s => s.gl);
   const size = useThree(s => s.size);
 
@@ -176,16 +185,16 @@ function BackdropPass({ backdrop, stateRef, edgeStateRef }) {
   // one only orders this callback earlier inside the same frame. It must run
   // before SourceQuad (0) and the composer (1).
   useFrame(() => {
-    const { target, scene, camera, uniforms, edges } = backdrop;
+    const { scene, camera, uniforms, edges } = backdrop;
 
     // The drawing buffer is the ground truth the screen pass samples against,
     // and it is in DEVICE px. SizeSync does not own it — it is a self-healing
     // retry loop that nudges r3f into re-measuring and early-returns in several
-    // paths — so the target is reconciled here, every frame, against the canvas
-    // itself.
+    // paths — so the targets are reconciled here, every frame, against the
+    // canvas itself. setSize mutates in place and early-exits on a match.
     const w = gl.domElement.width, h = gl.domElement.height;
     if (w <= 0 || h <= 0) return;
-    if (target.width !== w || target.height !== h) target.setSize(w, h);
+    trail.setSize(w, h);
 
     // uResolution, by contrast, is CSS px: sphereBackground() does all its
     // maths in the space the 2D draw loop published (uSphereR, ghost xy, the
@@ -198,15 +207,29 @@ function BackdropPass({ backdrop, stateRef, edgeStateRef }) {
     // note on createEdgeState().
     syncEdgeLayer(edges, edgeStateRef?.current);
 
-    gl.setRenderTarget(target);
+    // Last frame's accumulation becomes this frame's source, and the fade is
+    // what stands in for the clear — so autoClear has to be OFF for the whole
+    // sequence. With it on, three would wipe the target between the fade and
+    // the backdrop and the accumulator could never carry anything: the fade
+    // would be dead code that still cost a full-screen pass. It is safe to turn
+    // off because the fade quad covers every texel of the target with
+    // NoBlending, so nothing stale can survive it.
+    //
+    // With survival at 0 the fade writes black and the opaque backdrop then
+    // paints over all of it, which is why this commit measures as identity.
+    trail.swap();
+    const autoClear = gl.autoClear;
+    gl.autoClear = false;
+    renderTrailFade(gl, trail, TRAIL_SURVIVAL_OFF);   // leaves trail.write bound
     gl.render(scene, camera);
+    gl.autoClear = autoClear;
     gl.setRenderTarget(null);
   }, -1);
 
   return null;
 }
 
-function SourceQuad({ sourceRef, backdropTexture }) {
+function SourceQuad({ sourceRef, trail }) {
   const size = useThree(s => s.size);
   const matRef = useRef(null);
 
@@ -238,8 +261,12 @@ function SourceQuad({ sourceRef, backdropTexture }) {
     const m = matRef.current;
     if (!m) return;
     m.uniforms.uSource.value = texture;
-    // The target's JS texture object survives setSize(), so this is stable.
-    m.uniforms.uBackdrop.value = backdropTexture;
+    // Read every frame, NOT taken once as a prop: `write` alternates between
+    // the two accumulation buffers, so the texture this samples changes each
+    // frame even though neither target object is ever replaced (setSize mutates
+    // in place). This useFrame has priority 0 and BackdropPass has -1, so the
+    // swap has already happened and this is the buffer just drawn into.
+    m.uniforms.uBackdrop.value = trail.write.texture;
   });
 
   if (!texture) return null;
@@ -340,6 +367,11 @@ export default function SphereComposite({ sourceRef, immersive, onAdvanceReady, 
   const backdrop = useMemo(() => createBackdrop(edgeGLRef?.current?.data), [edgeGLRef]);
   useEffect(() => () => backdrop.dispose(), [backdrop]);
 
+  // The accumulator, owned out here for the same reason: BackdropPass renders
+  // into it and SourceQuad samples it, and it must outlive neither.
+  const trail = useMemo(() => createTrail(), []);
+  useEffect(() => () => trail.dispose(), [trail]);
+
   return (
     // data-art-composite marks this subtree as the GL layer. From step 2 the
     // container holds two canvases of identical size, and capture tooling has
@@ -377,8 +409,8 @@ export default function SphereComposite({ sourceRef, immersive, onAdvanceReady, 
       >
         <AdvanceBridge onAdvanceReady={onAdvanceReady} />
         <SizeSync sourceRef={sourceRef} wrapRef={wrapRef} />
-        <BackdropPass backdrop={backdrop} stateRef={bgStateRef} edgeStateRef={edgeGLRef} />
-        <SourceQuad sourceRef={sourceRef} backdropTexture={backdrop.target.texture} />
+        <BackdropPass backdrop={backdrop} trail={trail} stateRef={bgStateRef} edgeStateRef={edgeGLRef} />
+        <SourceQuad sourceRef={sourceRef} trail={trail} />
         <EffectComposer disableNormalPass>
           <Bloom
             luminanceThreshold={BLOOM.luminanceThreshold}
