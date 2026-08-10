@@ -507,8 +507,21 @@ main [class*="border"][class*="rounded"]:hover {
   70%  { opacity: 1;    filter: brightness(1.15) blur(0px); transform: translateY(0); }
   100% { opacity: 1;    filter: brightness(1) blur(0px); transform: translateY(0); }
 }
+/* fill-mode is `backwards`, NOT `both`, and that is load-bearing.
+   `both` retains the 100% keyframe forever — `filter: brightness(1) blur(0px)`
+   and `transform: translateY(0)`. Those are visually identity, but a retained
+   filter or transform makes the element a CONTAINING BLOCK for every
+   position:fixed descendant. That silently trapped /art's immersive mode: its
+   container is `fixed inset-0`, so it should fill the viewport, and instead it
+   resolved against this wrapper — 1800x324 at a 1920x1080 viewport, the sphere
+   crammed into a letterbox strip with two thirds of the screen black. Measured
+   in every capture set going back to the pre-migration reference, so it has
+   been wrong the whole time and no pixel gate could see it.
+   `forwards` buys nothing here: the 100% keyframe is identical to the base
+   style in every property, so dropping it changes no pixels and frees fixed
+   descendants to reach the viewport. */
 .tab-fade-v2 {
-  animation: tab-fade-v2 0.6s cubic-bezier(0.7, 0, 0.3, 1) both;
+  animation: tab-fade-v2 0.6s cubic-bezier(0.7, 0, 0.3, 1) backwards;
 }
 
 /* 5b. Breadcrumb fade — sibling of tab-fade-v2, tuned for single-line UX highlight.
@@ -520,8 +533,10 @@ main [class*="border"][class*="rounded"]:hover {
   65%  { opacity: 1;    filter: brightness(1.1) blur(0px); transform: translateY(0); }
   100% { opacity: 1;    filter: brightness(1) blur(0px); transform: translateY(0); }
 }
+/* `backwards` for the same reason as .tab-fade-v2 above — this one has no
+   fixed descendants today, but it is the identical latent trap. */
 .breadcrumb-fade {
-  animation: breadcrumb-fade 0.5s cubic-bezier(0.7, 0, 0.3, 1) both;
+  animation: breadcrumb-fade 0.5s cubic-bezier(0.7, 0, 0.3, 1) backwards;
 }
 
 /* 6. Tab-switch glitch burst — single 150ms chromatic flash */
