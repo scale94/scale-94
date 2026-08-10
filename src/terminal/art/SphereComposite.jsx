@@ -42,8 +42,14 @@ import { trailSurvival } from './artTrail';
 // That is deliberate. The accumulator is a feedback loop, and a feedback loop
 // landing in the same commit as the behaviour change it enables leaves a parity
 // failure with two candidate causes. This commit builds it and proves it
-// changes nothing; turning it on is one line here — trailSurvival of the mode's
-// real rift alpha — and it is a separate commit on purpose.
+// changes nothing, and turning it on is a separate commit on purpose.
+//
+// Turning it on is NOT a one-line swap of this constant, and two things make
+// that so. `m` is per-MODE (0.72 normal, 0.32 immersive — artTrail.js), so the
+// survival value has to become a per-frame read of the published rift alpha,
+// not a module constant. And the opaque backdrop quad currently replaces every
+// texel of the accumulator each frame, so the fade cannot carry anything until
+// the rift base is split out of it — see the long note in BackdropPass.
 const TRAIL_SURVIVAL_OFF = trailSurvival(1);
 
 // The composite pass. An orthographic camera in r3f is sized in pixels, so a
@@ -207,23 +213,42 @@ function BackdropPass({ backdrop, trail, stateRef, edgeStateRef }) {
     // note on createEdgeState().
     syncEdgeLayer(edges, edgeStateRef?.current);
 
-    // Last frame's accumulation becomes this frame's source, and the fade is
-    // what stands in for the clear — so autoClear has to be OFF for the whole
-    // sequence. With it on, three would wipe the target between the fade and
-    // the backdrop and the accumulator could never carry anything: the fade
-    // would be dead code that still cost a full-screen pass. It is safe to turn
-    // off because the fade quad covers every texel of the target with
-    // NoBlending, so nothing stale can survive it.
+    // Last frame's accumulation becomes this frame's source, and the fade
+    // stands in for the clear, so nothing may wipe the target mid-sequence.
     //
-    // With survival at 0 the fade writes black and the opaque backdrop then
-    // paints over all of it, which is why this commit measures as identity.
+    // autoClear is ALREADY false here: @react-three/postprocessing sets
+    // renderer.autoClear = false when the composer initialises and never
+    // restores it. This save/restore is therefore defensive, not load-bearing —
+    // it exists so the sequence stays correct if that ever changes. Do not
+    // read it as the thing that makes accumulation possible.
+    //
+    // ── WHAT ACTUALLY BLOCKS ACCUMULATION TODAY, read before turning the
+    //    fade on ────────────────────────────────────────────────────────────
+    // The backdrop quad is `transparent: false` with default NormalBlending,
+    // and three renders non-transparent NormalBlending materials with
+    // NoBlending. So it REPLACES every texel of this target — RGB and alpha —
+    // every frame, after the fade and before the transparent edge layer blends
+    // on top. Raising `survival` alone will therefore change nothing at all,
+    // which looks exactly like a broken accumulator and is not one.
+    //
+    // Splitting the rift BASE colour out of the accumulator is what unblocks
+    // it: the base is the clear (sphereBackground starts from `vec3 col =
+    // uRift`) and must keep being written fresh, while the layers above it
+    // must blend rather than replace. That split is a precondition for the
+    // fade doing anything, not a later refinement.
+    //
+    // With survival at 0 the fade writes black and the opaque backdrop paints
+    // over all of it, which is why this commit measures as identity.
     trail.swap();
     const autoClear = gl.autoClear;
     gl.autoClear = false;
-    renderTrailFade(gl, trail, TRAIL_SURVIVAL_OFF);   // leaves trail.write bound
-    gl.render(scene, camera);
-    gl.autoClear = autoClear;
-    gl.setRenderTarget(null);
+    try {
+      renderTrailFade(gl, trail, TRAIL_SURVIVAL_OFF);   // leaves trail.write bound
+      gl.render(scene, camera);
+    } finally {
+      gl.autoClear = autoClear;
+      gl.setRenderTarget(null);
+    }
   }, -1);
 
   return null;
