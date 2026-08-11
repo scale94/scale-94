@@ -82,21 +82,85 @@ function of a harness hook, with no easing and no time term, large in area, and
 drawn at a genuinely small alpha. That last one is not optional — the stacked
 ghosts the check above uses reach alpha 0.89, where the gain is 1.08.
 
-| mode | m | drawn alpha | ratio f30/f1 | `steadyState(0.06,m)/0.06` | `fadeGain(m)` |
-|---|---|---|---|---|---|
-| normal | 0.72 | 0.06 | **1.391** | 1.357 (+2.5%) | 1.389 (+0.1%) |
-| immersive | 0.32 | 0.06 | **2.675** | 2.772 (−3.5%) | 3.125 (−14.3%) |
+| mode | m | drawn alpha | ratio f30/f1 | asserted `g(0.06)` — a **bound** | model `R(m)` | `fadeGain(m)` |
+|---|---|---|---|---|---|---|
+| normal | 0.72 | 0.06 at centre → 0 at rim | **1.386–1.408** | 1.357 (+2.1…+3.8%) | 1.370 (+1.2…+2.8%) | 1.389 (−0.2…+1.4%) |
+| immersive | 0.32 | 0.06 at centre → 0 at rim | **2.675–2.723** | 2.772 (−1.8…−3.5%) | 2.905 (−6.3…−7.9%) | 3.125 (−12.9…−14.4%) |
+
+*(seven runs of the normal row, six of the immersive one — the immersive spread
+2.675 / 2.675 / 2.675 / 2.679 / 2.685 / 2.723 is this measurement's run-to-run
+noise, i.e. ±0.9%.)*
 
 **`fadeGain` is the wrong target and the plan's "within 15% of `fadeGain(m)`"
-would have been a coin flip.** `exergyAlpha(1) = 0.06`, not 0, so the layer's own
-expectation is `steadyState(0.06, 0.32)/0.06 = 2.772`; the measured 2.675 clears
-that by 3.5% and clears `fadeGain`'s 15% band by 0.7 percentage points. The check
-asserts against `steadyState`, which is the same tested arithmetic the renderer
-fades with.
+would have been a coin flip** — it passes immersive by 0.7 percentage points. The
+check asserts on `steadyState(exergyAlpha(1), m)/exergyAlpha(1)` instead, the same
+tested arithmetic the renderer fades with.
+
+### The asserted number is a lower bound, and the measurement sits *below* it
+
+Read this before trusting the −3.5% in that table. The pulse is a **gradient**,
+and the gain `g(a) = 1/(1 − (1−m)(1−a))` *rises* as `a` falls, so the asserted
+`g(0.06)` — computed at the centre alpha, the largest alpha anywhere on the disc
+— is the **smallest** gain the pulse can show. It is a strict lower bound, not
+the expectation.
+
+The expectation is the ink-weighted average over the gradient. With `a(u) =
+0.06u`, `u = 1 − t`, first-frame ink `∝ u²` and disc area element `∝ (1−u)du`:
+
+```
+R(m) = ∫₀¹ u²(1-u)·g(0.06u) du ÷ ∫₀¹ u²(1-u) du       denominator = 1/12
+R(0.32) = 0.2420 / 0.08333 = 2.905        R(0.72) = 1.370
+```
+
+So: model **2.905**, bound **2.772**, measured **2.675–2.723**. The measurement is
+6–8% under the model and **1.8–3.5% under its own lower bound** — the model is
+violated, and that is recorded here rather than tuned away. Two mechanisms,
+neither of them measured yet:
+
+1. **8-bit quantisation moves the reading toward the bound.** Ink is read from a
+   quantised composite. Over most of the pulse's area the per-pixel first-frame
+   value is order *one byte*; where it rounds to 0 the faint outer annulus —
+   precisely the high-gain, small-`a` region — never enters either frame. That
+   drags the expectation from 2.905 down toward 2.772. It cannot push below it.
+2. **The same rounding biases the ratio down.** Round-to-nearest lifts a
+   0.5–1.5-byte frame-1 pixel proportionally more than its ~2.9× larger frame-30
+   counterpart, so `s1` is inflated relative to `s30`. This is the leading
+   candidate for the residual 3.5%; channel saturation at the pulse centre, where
+   the composite is already brightest, clips the magenta lean at frame 30 and not
+   at frame 1, and points the same way.
+
+What the check therefore defends is the **shape** — immersive in 2.7–3.1 against
+normal in 1.36–1.41, a measured separation of **1.90–1.94×** against a predicted
+2.04–2.12× — not a three-digit constant. `TOLERANCE = 0.15` brackets
+[2.675, 2.905] with room, deliberately.
+
+**If this number moves, suspect the buffer format first.** `HalfFloatType` on the
+accumulator is a one-token change already on the backlog for the OLED banding
+(plan Risk 2). It removes the quantisation floor, so it should move immersive
+*up* toward 2.905 — that would be the model finally being satisfied, not a
+regression. Whoever makes that change should expect this row to move and should
+not re-tune the tolerance to hide it.
 
 Both modes are asserted, and that is load-bearing: `survival` is read per-frame
 from the tint the 2D canvas erased with (`state.rift.a`), and hard-coding it to
-either mode's value still passes in that mode.
+either mode's value still passes in that mode. **And each row asserts the mode it
+claims to be.** Reading `m` from the page and computing `expected` from that same
+read is self-fulfilling: if the immersive toggle lands but the mode never
+engages, `m` stays 0.72, `expected` becomes 1.357, the ratio reads ~1.39 and the
+row goes green *labelled immersive*. So the rows now also assert `m ===
+RIFT_ALPHA_NORMAL` / `RIFT_ALPHA_IMMERSIVE`, that the two `m` differ, that the
+sphere grew, and that it reached ≥98% of the viewport. Verified by forcing the
+failure: with the toggle click suppressed, the row reports `MODE NEVER ENGAGED —
+expected m=0.32`, `1446x580 -> 1446x580 DID NOT GROW`, `NOT FILLED`, and the run
+exits **4/5** non-zero. Note what that same row read on its own terms: **dev
+1.0%** — the tightest deviation in the whole table. Before this fix it was the
+greenest row in the check while the exhibit mode had never once been entered.
+
+`MAX_DRIFT` is 0.02, not the 0.10 it shipped with. Drift does not cancel in the
+ratio — `s30` absorbs the whole 30-frame drift against `off1`, `s1` about 1/30 of
+it — so 0.10 could have eaten two thirds of the 0.15 tolerance budget on its own.
+Measured drift is 0.13–0.58%, so 0.02 leaves 3.4× headroom over the worst reading
+in six runs.
 
 The check also validates its own instrument. The virtual clock advances one frame
 per pump, so the sim is *not* frozen and the frame drifts under the measurement.
@@ -104,7 +168,8 @@ That drift is measured over an identical 30-frame window with the layer off:
 **0.14–0.55% of the first frame's signal**, three orders below it, and it is part
 of the verdict rather than a footnote.
 
-Reproducibility across two runs: normal 1.390 / 1.391, immersive 2.679 / 2.675.
+Reproducibility: normal 1.386 / 1.390 / 1.390 / 1.391 / 1.406 / 1.406 / 1.408,
+immersive 2.675 / 2.675 / 2.675 / 2.679 / 2.685 / 2.723.
 
 ## Ink — step 3 → this set
 
@@ -160,6 +225,19 @@ ms against a 16.7 ms budget. Measured against a **same-session control**: a
 worktree at `6401a7b` (the last commit before the accumulator existed) served on
 a second port, runs interleaved.
 
+**Provenance of `frametime-headed-gpu.json` in this directory.** It is the *last
+trail run of that interleaved series* — run 7, the "run pair 2 / this build"
+column in both tables below (idle 2.1 / 12.2 / 15.6, immersive 1.8 / 11.5 /
+14.2). It records `"gitCommit": null` because the script depended on
+`BASELINE_COMMIT` being exported and it was not, which left the file
+indistinguishable from a control-worktree run of the same script. **The value has
+deliberately not been hand-edited** — a provenance field written by hand is worth
+less than one that is missing. The script now derives commit, branch and
+tracked-dirty state from `git` itself, so any future capture carries them; the
+fix is verified by scratch runs recording
+`c8284e4 / fix/art-sphere-index-space / dirty`. This file stays as captured at
+`31bff8a`, which is what `manifest.json` beside it records.
+
 | idle draw cost | ctrl `6401a7b` | this build |
 |---|---|---|
 | run pair 1 | 2.2 / 12.2 / **15.9** | 2.1 / 12.1 / **15.2** |
@@ -178,8 +256,43 @@ figures (2.1 / 11.9 / 15.4) reproduce exactly.
 | run pair 1 | 1.8 / 11.6 / **14.8** | 1.8 / 11.6 / **14.1** |
 | run pair 2 | 1.8 / 11.7 / **15.1** | 1.8 / 11.5 / **14.2** |
 
-The exhibit mode is the *cheapest* of the three states at 1.6× the pixels, which
-says the p99 tail is not pixel-bound.
+The exhibit mode draws 1.6× the pixels of the non-immersive states and is
+**inside the noise of them**, which is the useful finding: cost here is not
+simply pixel-bound.
+
+### It read *cheapest*, and that was a confounded reading — retracted
+
+This section previously said the exhibit mode is "the cheapest of the three
+states … which says the p99 tail is not pixel-bound". That does not survive.
+**Immersive is measured last in every run**, on a machine that warms
+monotonically over the first ~5 minutes of a session with ±5 ms of p99 spread on
+identical code, and there was no re-measurement of idle at the end. An
+always-last state reading lowest is exactly what warm-up alone predicts.
+
+`artFrameTime.mjs` now carries the drift control that would have caught it: a
+**fourth** window, idle again, measured after leaving immersive, with the
+difference recorded as `drift` in the JSON and printed. Two runs of it on this
+build (draw cost p50 / p95 / p99):
+
+| run | idle | drag | immersive | idle again | p99 drift |
+|---|---|---|---|---|---|
+| A | 2.3 / 12.6 / 18.4 | 2.4 / 12.6 / 17.3 | 2.4 / 14.1 / **18.3** | 2.2 / 14.6 / 17.8 | −0.6 |
+| B | 2.6 / 15.1 / 18.9 | 3.2 / 16.0 / 20.7 | 2.7 / 15.7 / **19.0** | 2.5 / 15.6 / 19.2 | +0.3 |
+
+Immersive is **not** the cheapest state in either: it lands on top of idle (+0.1
+and −0.1 at p99) while costing +1.5 and +0.6 at p95 — and the p95 drift over run
+A alone is +2.0, larger than that. Both the old "cheapest" claim and any p95
+ordering are inside this instrument's own drift. (These two runs are a drift
+measurement, not a re-baselining: they were taken on a busier machine, ~3 ms
+higher at p99 across every state, which is the warm-up caveat restated.)
+
+**What the data supports:** the three states are indistinguishable at p50 and
+p99, and immersive is at most slightly more expensive at p95 despite 1.6× the
+pixels. So the p99 tail is not proportional to pixel count — it is GC, texture
+upload or the bloom mip chain — but "immersive is cheapest" was warm-up.
+The script now prints a ⚠ whenever |p99 drift| reaches half the spread between
+states, i.e. whenever a run cannot support an ordering claim at all. Run A trips
+it.
 
 **Said plainly, because the plan asked for it plainly:** the first three runs of
 the session read p99 **19.1 / 20.0** on this build and **16.4** on the control,

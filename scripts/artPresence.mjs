@@ -3,7 +3,7 @@
 // pass follows from deleting the layer. So: switch each one on and look.
 import { launch } from './cdp.mjs';
 import { decodePng } from './_png.mjs';
-import { exergyAlpha } from '../src/terminal/art/artBackground.js';
+import { exergyAlpha, RIFT_ALPHA_NORMAL, RIFT_ALPHA_IMMERSIVE } from '../src/terminal/art/artBackground.js';
 import { steadyState, fadeGain } from '../src/terminal/art/artTrail.js';
 
 // Every check reports through this so the run ends with a count rather than
@@ -247,33 +247,84 @@ try {
 // its a -> 0 limit. The stacked-ghost configuration the check above uses reaches
 // alpha 0.89, where the gain is 1.08 and there is nothing to see.
 //
-// ── The number this asserts, and why it is not fadeGain ───────────────────
-// exergyAlpha(1) = 0.06 at the pulse centre, falling to 0 at the rim.
+// ── The number this asserts is a BOUND, not the expectation ───────────────
+// The pulse is a gradient: exergyAlpha(1) = 0.06 at the centre, falling to 0 at
+// the rim. The gain 1/(1 - (1-m)(1-a)) RISES as a falls, so the value asserted
+// here — computed at the centre alpha — is the SMALLEST gain anywhere on the
+// disc, i.e. a strict lower bound on what the whole pulse should show.
 //
-//        immersive  m=0.32   steadyState(0.06, m)/0.06 = 2.772   fadeGain 3.125
-//        normal     m=0.72   steadyState(0.06, m)/0.06 = 1.357   fadeGain 1.389
+//        immersive  m=0.32   g(0.06) = 2.772   g(0) = fadeGain = 3.125
+//        normal     m=0.72   g(0.06) = 1.357   g(0) = fadeGain = 1.389
 //
-// MEASURED: immersive 2.679 (-3.3% vs the layer's own expectation, -14.3% vs
-// fadeGain), normal 1.390 (+2.4% / +0.1%). So a "within 15% of fadeGain" rule
-// passes in immersive by 0.7 percentage points — it would be a coin flip, not a
-// gate. This asserts against steadyState instead, which is the same tested
-// arithmetic the renderer fades with.
+// The honest expectation is the ink-weighted average over the gradient. With
+// a(u) = 0.06u, u = 1 - t, first-frame ink ∝ u², disc area element ∝ (1-u)du:
 //
-// ── Both modes, because one mode cannot catch a constant ──────────────────
+//   R(m) = ∫₀¹ u²(1-u)·g(0.06u) du ÷ ∫₀¹ u²(1-u) du       (denominator = 1/12)
+//   R(0.32) = 0.2420 / 0.08333 = 2.905        R(0.72) = 1.370
+//
+// so the model says immersive should read 2.90, bounded below by 2.772.
+//
+// MEASURED: immersive 2.675-2.723 over six runs — 6-8% under the model and
+// 1.8-3.5% under its own lower bound. Normal 1.386-1.408, i.e. 1.2-2.8% OVER its
+// 1.370. The model is therefore violated in immersive, and this is deliberately
+// not tuned away:
+//
+//   - 8-bit quantisation moves the measurement toward the centre bound. Ink is
+//     read from a quantised composite, and over most of the pulse's area the
+//     per-pixel first-frame value is order ONE BYTE. Where it rounds to 0 the
+//     faint outer annulus — precisely the high-gain, small-a region — never
+//     enters either frame, which drops the expectation from 2.90 toward 2.772.
+//   - The same rounding also biases the RATIO DOWN. Round-to-nearest inflates a
+//     0.5-1.5-byte frame-1 pixel proportionally more than its ~2.9x larger
+//     frame-30 counterpart, so s1 is lifted relative to s30. That is the leading
+//     candidate for the residual 3.5% below the bound; the pulse's centre also
+//     lands on the brightest part of the composite, where channel saturation
+//     clips the magenta lean at frame 30 and not at frame 1.
+//
+// Neither is measured here, and until one of them is, the number this check
+// defends is the SHAPE — immersive near 2.7-3.1 against normal near 1.36-1.41,
+// a separation of 1.90-1.94x measured against 2.04-2.12x predicted — not a
+// 3-digit constant. Hence TOLERANCE 15%, bracketing [2.675, 2.905] with room, and
+// hence the fadeGain column printed beside it rather than asserted on: "within
+// 15% of fadeGain(m)" (the plan's rule) passes immersive by 0.7 percentage
+// points, which is a coin flip rather than a gate.
+//
+// IF THIS NUMBER MOVES, SUSPECT THE BUFFER FORMAT FIRST. Switching the
+// accumulator to HalfFloatType — a one-token change, already on the backlog for
+// the OLED banding — removes the quantisation floor and should move immersive UP
+// toward 2.90. That would be the model being satisfied, not a regression.
+//
+// ── Both modes, and the modes must be DIFFERENT ───────────────────────────
 // `survival` is read per-frame from the tint the 2D canvas erased with
 // (`state.rift.a`). Hard-coding it to either mode's value still passes in that
 // mode. Running both is 5 seconds and makes that failure visible.
+//
+// But reading `m` from the page and computing `expected` from that same read is
+// self-fulfilling: if the immersive toggle does not engage, m stays 0.72,
+// expected becomes 1.357, the ratio reads ~1.39 and the row passes — labelled
+// `immersive`, having never once exercised the exhibit mode. So each row also
+// asserts the m it EXPECTED for its mode, and the immersive row asserts that the
+// sphere actually reached the viewport. A green row now means the mode ran.
 //
 // ── The check validates its own instrument ────────────────────────────────
 // The virtual clock advances one frame per pump, so the sim is not frozen and
 // the frame drifts underneath the measurement. That drift is measured over an
 // identical 30-frame window with the layer off, and printed as a percentage of
-// the signal. Measured 0.3-0.5%: three orders below. If that ever stops being
-// true the ratio means nothing, so it is part of the verdict rather than a note.
+// the signal. Measured 0.13-0.58% over six runs, against MAX_DRIFT 2%. If that
+// ever stops being true the ratio means nothing, so it is part of the verdict
+// rather than a note.
 const EXERGY_RATE = 1;
 const PULSE_ALPHA = exergyAlpha(EXERGY_RATE);
 const TOLERANCE = 0.15;
-const MAX_DRIFT = 0.10;      // |drift| as a fraction of the first frame's signal
+// |drift| as a fraction of the first frame's signal. Drift does NOT cancel in
+// the ratio — `s30` absorbs the whole 30-frame drift against `off1` while `s1`
+// absorbs about 1/30 of it — so at the old 0.10 an allowed drift could eat two
+// thirds of the 0.15 tolerance budget on its own. Measured drift is 0.13-0.58%,
+// so 0.02 still leaves 3.4x headroom over the worst reading yet.
+const MAX_DRIFT = 0.02;
+// The sphere must fill this fraction of the viewport for a row to be allowed to
+// call itself immersive.
+const IMMERSIVE_MIN = 0.98;
 
 // Summed magenta lean over the frame. Summed, not averaged: the pulse is a
 // broad faint gradient, and a mean over the disc divides its signal by the
@@ -303,8 +354,9 @@ try {
     const r = await t3.eval(RECT);
     return { x: r.x, y: r.y, width: r.w, height: r.h, scale: 1 };
   };
+  const viewport = await t3.eval('({ w: window.innerWidth, h: window.innerHeight })');
 
-  const riseIn = async (label) => {
+  const riseIn = async (label, wantM) => {
     const clip = await rectClip();
     const shot = async () => magentaInk(await t3.screenshot({ clip }));
     const m = JSON.parse(await t3.eval('JSON.stringify(window.__artBgState())')).rift.a;
@@ -328,14 +380,15 @@ try {
     const s1 = on1 - off1, s30 = on30 - off1;
     const expected = steadyState(PULSE_ALPHA, m) / PULSE_ALPHA;
     return {
-      label, m, s1, s30, expected,
+      label, m, wantM, s1, s30, expected,
+      w: Math.round(clip.width), h: Math.round(clip.height),
       size: `${Math.round(clip.width)}x${Math.round(clip.height)}`,
       ratio: s30 / s1,
       drift: Math.abs(off1 - off0) / Math.abs(s1),
     };
   };
 
-  const rows = [await riseIn('normal')];
+  const rows = [await riseIn('normal', RIFT_ALPHA_NORMAL)];
   if (!await t3.eval(clickTitle('Immersive mode'))) throw new Error('no immersive button');
   // The immersive resize is delivered by the screenshot's own forced layout, not
   // by pumping — see artBaseline.mjs. Without the throwaway capture the trail
@@ -343,21 +396,37 @@ try {
   await t3.pump(600);
   await t3.screenshot({ clip: await rectClip() });
   await t3.pump(150);
-  rows.push(await riseIn('immersive'));
+  rows.push(await riseIn('immersive', RIFT_ALPHA_IMMERSIVE));
 
   console.log(`TRAIL ACCUMULATION  (exergy pulse ink at frame 30 / frame 1, alpha ${PULSE_ALPHA})`);
   let ok = true;
   for (const r of rows) {
     const dev = r.ratio / r.expected - 1;
-    const pass = Math.abs(dev) <= TOLERANCE && r.drift <= MAX_DRIFT && r.s1 > 0;
+    const modeOk = r.m === r.wantM;
+    const pass = Math.abs(dev) <= TOLERANCE && r.drift <= MAX_DRIFT && r.s1 > 0 && modeOk;
     if (!pass) ok = false;
-    console.log(`   ${r.label.padEnd(10)} ${r.size.padEnd(10)} m=${r.m}`);
+    console.log(`   ${r.label.padEnd(10)} ${r.size.padEnd(10)} m=${r.m}`
+      + (modeOk ? '' : `   MODE NEVER ENGAGED — expected m=${r.wantM}`));
     console.log(`      ink f1 ${r.s1.toFixed(0).padStart(10)}   f30 ${r.s30.toFixed(0).padStart(10)}`
       + `   ratio ${r.ratio.toFixed(3)}`);
     console.log(`      expected ${r.expected.toFixed(3)} (fadeGain ${fadeGain(r.m).toFixed(3)})`
       + `   dev ${(dev * 100).toFixed(1)}%   idle drift ${(r.drift * 100).toFixed(2)}% of f1`
       + `   ${pass ? 'ok' : 'FAIL'}`);
   }
+
+  // Cross-row: the two rows must describe two different modes. `expected` is
+  // computed from the same `m` the row read back, so a row that silently stayed
+  // in normal mode agrees with itself perfectly. What it cannot fake is being
+  // DIFFERENT from the other row, or filling the screen.
+  const [norm, imm] = rows;
+  const distinct = imm.m !== norm.m;
+  const grew = imm.w > norm.w && imm.h > norm.h;
+  const fills = imm.w >= viewport.w * IMMERSIVE_MIN && imm.h >= viewport.h * IMMERSIVE_MIN;
+  console.log(`   exhibit mode   m ${norm.m} -> ${imm.m} ${distinct ? 'distinct' : 'IDENTICAL — the toggle did nothing'}`
+    + `   ·   sphere ${norm.size} -> ${imm.size} ${grew ? 'grew' : 'DID NOT GROW'}`
+    + `   ·   viewport ${viewport.w}x${viewport.h} ${fills ? 'filled' : 'NOT FILLED — letterbox, see 31bff8a'}`);
+  if (!(distinct && grew && fills)) ok = false;
+
   verdict('TRAIL ACCUMULATION', ok);
 } finally { await t3.close(); }
 
