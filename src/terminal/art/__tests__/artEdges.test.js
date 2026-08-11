@@ -16,7 +16,8 @@ import {
 } from '../artEdges';
 import {
   writeHsl, writeHslRgb, packAlphas, unpackAlphas, packFlags, unpackFlags,
-  syncEdgeLayer, discWidth, isDisc, EDGE_STRIDE, MAX_EDGES,
+  syncEdgeLayer, createEdgeLayer, discWidth, isDisc,
+  EDGE_STRIDE, EDGE_OFF, MAX_EDGES,
 } from '../SphereEdges';
 
 describe('orthoHue', () => {
@@ -123,6 +124,37 @@ describe('the disc sentinel', () => {
     // and the whole sum scales by the two endpoints' average projection.
     // (0.5 + 0.8 + 1.8 + 1.2 + 2.0 + 2.0) * 2
     expect(edgeLineWidth(1, 1, 1, 1, true, 2)).toBeCloseTo(16.6, 10);
+  });
+});
+
+// EDGE_OFF exists so the buffer's READER — artPresence.mjs, which has to find
+// the pulse rings inside the range __artEdgeState() publishes — stops spelling
+// `+ 14` itself. That only helps if EDGE_OFF cannot drift from where the GPU
+// actually reads those floats, which is decided by the InterleavedBufferAttribute
+// offsets in createEdgeLayer, not by the comment table in the file header. So
+// this asserts EDGE_OFF against the bindings themselves: rearrange the layout
+// without moving EDGE_OFF and the harness starts decoding the wrong field, and
+// this test is what says so.
+describe('EDGE_OFF', () => {
+  it('names the offsets the GPU attributes are actually bound at', () => {
+    const layer = createEdgeLayer();
+    const a = layer.geometry.attributes;
+    try {
+      expect(a.aEnds.offset).toBe(EDGE_OFF.ax);
+      expect(EDGE_OFF.ay).toBe(a.aEnds.offset + 1);
+      expect(EDGE_OFF.bx).toBe(a.aEnds.offset + 2);
+      expect(EDGE_OFF.by).toBe(a.aEnds.offset + 3);
+      expect(a.aC0.offset).toBe(EDGE_OFF.c0);
+      expect(a.aC1.offset).toBe(EDGE_OFF.c1);
+      expect(a.aC2.offset).toBe(EDGE_OFF.c2);
+      // aPack is (x = packed alphas, y = width, z = packed flags). The sentinel
+      // the harness decodes is the SIGN of aPack.y, i.e. of EDGE_OFF.width.
+      expect(a.aPack.offset).toBe(EDGE_OFF.alphas);
+      expect(EDGE_OFF.width).toBe(a.aPack.offset + 1);
+      expect(EDGE_OFF.flags).toBe(a.aPack.offset + 2);
+      // and every field lands inside one instance.
+      for (const o of Object.values(EDGE_OFF)) expect(o).toBeLessThan(EDGE_STRIDE);
+    } finally { layer.dispose(); }
   });
 });
 

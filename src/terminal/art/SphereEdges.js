@@ -106,6 +106,19 @@ const glslFloat = (n) => (Number.isInteger(n) ? `${n}.0` : `${n}`);
 /** Floats per edge instance. */
 export const EDGE_STRIDE = 16;
 
+/** The attribute layout above, as data: each field's offset in floats from an
+ *  instance's base. Exported because the buffer has a READER as well as a
+ *  writer — `window.__artEdgeState().instances` publishes the raw range and the
+ *  presence harness has to find the pulse rings in it. Restating `+ 14` there
+ *  under a comment promising the layout is not restated is how the two drift;
+ *  pair this with `isDisc()` and the harness decodes through the same names and
+ *  the same sign convention this file defines. */
+export const EDGE_OFF = Object.freeze({
+  ax: 0, ay: 1, bx: 2, by: 3,
+  c0: 4, c1: 7, c2: 10,
+  alphas: 13, width: 14, flags: 15,
+});
+
 /** Hard cap on INSTANCES uploaded in a frame — edges and pulse rings share this
  *  buffer, so an edge can cost two. 31 core nodes give ~90 edges; the rest are
  *  spectral bridges, bone fusions and operator-forged links, all of which are
@@ -212,9 +225,13 @@ export function discWidth(radius) {
   return -2 * radius;
 }
 
-/** The discriminator, mirroring `step(aPack.y, 0.0)` in EDGE_VERT exactly.
- *  Exported for the same reason as `unpackFlags`: so the invariant test runs
- *  the arithmetic the GLSL runs rather than a copy that can drift from it. */
+/** The discriminator, mirroring `step(aPack.y, 0.0)` in EDGE_VERT exactly —
+ *  which is `<= 0`, not `< 0`: `step(edge, x)` returns 1 for `x >= edge`, so a
+ *  width of exactly 0 renders as a (zero-radius) disc, not as a hairline.
+ *  Exported for the same reason as `unpackFlags`: every other reader — the
+ *  invariant test, the presence harness — asks THIS rather than re-deriving the
+ *  sign rule. `artPresence.mjs` had already drifted to `w >= 0 -> edge`, which
+ *  disagrees with the shader at exactly that boundary. */
 export function isDisc(width) {
   return width <= 0;
 }
