@@ -100,6 +100,28 @@ while (Date.now() - t0 < SECONDS * 1000) {
 const drag = await page.eval('window.__samples');
 await page.mouse('mouseReleased', cx, cy, { button: 'left', clickCount: 1 });
 
+// ── immersive ───────────────────────────────────────────────────────────────
+// The exhibit mode, and until now the one this instrument could not see. It is
+// not a cosmetic difference: immersive goes full-viewport, and since the
+// containing-block fix it really does — 1520x900 rather than the 1446x580 the
+// two states above measure, which is 1.6x the pixels through every full-screen
+// pass, and ~3.3x what it was while the letterbox bug was in force.
+//
+// There is no earlier immersive figure to compare against, deliberately: every
+// one that could have existed was captured in the letterbox strip. The 16.7 ms
+// budget is absolute, so the number stands on its own.
+await page.hover(Math.round(rect.x + 20), Math.round(rect.y + 15));
+await sleep(500);
+const immersiveOn = await page.eval(`(() => { const b = [...document.querySelectorAll('button')]
+  .find(e => (e.title || '').includes('Immersive mode')); if (!b) return false; b.click(); return true; })()`);
+if (!immersiveOn) throw new Error('no immersive button');
+await sleep(6000);                                  // rAF-driven resize, real time
+const immRect = await page.eval(`(() => { const c = ${SPHERE}; const r = c.getBoundingClientRect();
+  return { w: Math.round(r.width), h: Math.round(r.height) }; })()`);
+await page.eval('window.__reset()');
+await sleep(SECONDS * 1000);
+const immersive = await page.eval('window.__samples');
+
 const result = {
   capturedAt: new Date().toISOString(),
   gitCommit: process.env.BASELINE_COMMIT ?? null,
@@ -107,8 +129,10 @@ const result = {
   seconds: SECONDS,
   viewport: { width: 1520, height: 900, dpr: 1 },
   sphereCss: { w: Math.round(rect.w), h: Math.round(rect.h) },
+  immersiveCss: immRect,
   idle: { intervalMs: stats(idle.interval), drawCostMs: stats(idle.draw), allRafCostMs: stats(idle.all) },
   drag: { intervalMs: stats(drag.interval), drawCostMs: stats(drag.draw), allRafCostMs: stats(drag.all) },
+  immersive: { intervalMs: stats(immersive.interval), drawCostMs: stats(immersive.draw), allRafCostMs: stats(immersive.all) },
 };
 
 const label = HEADLESS ? 'headless-swiftshader' : 'headed-gpu';
@@ -125,6 +149,10 @@ console.log('\nDRAG');
 console.log(row('rAF interval ms', result.drag.intervalMs));
 console.log(row('draw cost ms', result.drag.drawCostMs));
 console.log(row('all rAF cost ms', result.drag.allRafCostMs));
+console.log(`\nIMMERSIVE  (sphere ${immRect.w}x${immRect.h})`);
+console.log(row('rAF interval ms', result.immersive.intervalMs));
+console.log(row('draw cost ms', result.immersive.drawCostMs));
+console.log(row('all rAF cost ms', result.immersive.allRafCostMs));
 console.log(`\nwrote ${OUT}/frametime-${label}.json`);
 
 await page.close();
