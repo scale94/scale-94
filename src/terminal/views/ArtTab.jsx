@@ -141,9 +141,15 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
   // ── Immersive Mode (fullscreen + vignette) ──────────────────────────────
   // Bloom is no longer immersive-only and no longer lives here: it is always on
-  // and runs on the GPU in SphereComposite. Immersive still gates the Voronoi
-  // mesh, the spectral ambient, the rift alpha, the canvas height calculation
-  // and the vignette.
+  // and runs on the GPU in SphereComposite. Immersive gates the spectral
+  // ambient, the rift alpha, the canvas height calculation and the vignette.
+  // It no longer gates the Voronoi mesh — that layer is cut, see the draw loop.
+  //
+  // Immersive is an OPTION, not the default and not the exhibit mode (author,
+  // 2026-08-11). The quintessence compilation happens on this tab in default
+  // mode and needs the command line, HUD and controls that immersive hides, so
+  // promoting immersive would cost a user who does not realise they must leave
+  // it to compile. Default stays default.
   const [immersive, setImmersive]       = useState(false);
   const immersiveRef    = useRef(false);  // RAF-safe mirror
 
@@ -192,7 +198,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
   // ── Morphogenetic Sphere (living Voronoi topology) ─────────────────────
   const {
-    morphRef, stepMorphogenesis, getCells, getMesh,
+    morphRef, stepMorphogenesis, getCells,
     cellCount, getDivisionHistory,
   } = useMorphogenesis({ fieldRef, phaseRegime });
 
@@ -891,26 +897,22 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         });
       });
 
-      // ── Voronoi Mesh — suppressed in default view, only in immersive mode ──
-      // The tessellation competes with node data at normal scale; reserve for
-      // full-screen immersive where the geometry reads as texture not noise.
-      if (immersiveRef.current) {
-        const meshLines = getMesh();
-        if (meshLines && meshLines.length > 0) {
-          ctx.lineWidth = 0.5;
-          for (const seg of meshLines) {
-            const pA = project(seg.a[0], seg.a[1], seg.a[2], w, h, sphereR, focal);
-            const pB = project(seg.b[0], seg.b[1], seg.b[2], w, h, sphereR, focal);
-            if (pA.depth < -0.3 && pB.depth < -0.3) continue;
-            const opacity = Math.max(0, Math.min(1, (pA.depth + pB.depth) * 0.5 + 0.5)) * (seg.opacity ?? 0.12);
-            ctx.strokeStyle = `rgba(58,58,62,${(opacity * 0.5).toFixed(3)})`;
-            ctx.beginPath();
-            ctx.moveTo(pA.sx, pA.sy);
-            ctx.lineTo(pB.sx, pB.sy);
-            ctx.stroke();
-          }
-        }
-      }
+      // ── Voronoi Mesh — CUT (author, 2026-08-11) ───────────────────────────
+      // The tessellation used to draw here, gated `if (immersiveRef.current)`,
+      // with the rationale "reserve for full-screen immersive where the
+      // geometry reads as texture not noise". That premise was never once
+      // tested: immersive measured 1800x324 until 31bff8a, so the mesh spent
+      // its whole life drawn into a letterbox strip. It also stayed on this
+      // canvas through the GL migration and so kept the full 3.125x immersive
+      // trail accumulation the migrated layers had lost. Fixing the containing
+      // block and restoring accumulation handed it 3.3x the area at full weight
+      // at the same time, and seen at its design size for the first time it
+      // read as noise, not texture — the author's call, and the comment's own
+      // prediction was simply wrong.
+      //
+      // The morphogenesis SIMULATION stays: `stepMorphogenesis()` still runs and
+      // `cellCount()` still feeds the `cells = N` readout in the HUD. Only the
+      // boundary-line rendering is gone, so nothing reads `getMesh()` now.
 
       // ── Analogy Filaments — thin golden threads connecting structurally similar nodes ──
       {
