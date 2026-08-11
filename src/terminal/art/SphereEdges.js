@@ -32,7 +32,8 @@
 //   7–9    r, g, b          gradient stop 1 (midpoint)
 //   10–12  r, g, b          gradient stop 2 (at B)
 //   13     packed alphas    a0 + a1*256 + a2*65536, each quantised to 1/255
-//   14     width            stroke width in px
+//   14     width            stroke width in px; NEGATIVE means a pulse ring
+//                           carrying -2 * radius — see the disc-sentinel note
 //   15     packed flags     dashPeriod + dashDuty*256 + (round(glow*8) + isOrtho*128)*65536
 //
 // Every packed field is an INTEGER. A float32 represents every integer below
@@ -67,6 +68,32 @@
 //             is the ONE thing that's per-frame, not per-instance — orthoHue
 //             is time-based and identical for every ortho edge in a frame, so
 //             it travels as a uniform (`uOrthoHue`), not a 17th packed float.
+//
+// ── The travelling pulse ring, and why a NEGATIVE width means "disc" ───────
+//
+// An edge carrying a live cascade also fills a small disc at the pulse's
+// position along it. Those rings are instances in THIS buffer, each written
+// immediately after the edge it belongs to — not a second mesh — and the reason
+// is draw order. The 2D loop stroked edge i, filled edge i's ring, then stroked
+// edge i+1, so the rings interleave through the depth sort. A second mesh draws
+// every ring after every edge, which is a different picture whenever a cascade
+// is in flight. One buffer written in loop order restores the interleave for
+// free, and both layers blend source-over, so one material serves.
+//
+// Telling the two apart costs no extra float because the stroke width's sign is
+// unused: `edgeLineWidth()` is provably positive over its whole real domain (a
+// constant 0.5 term, every other term non-negative, a strictly positive
+// projection scale — pinned by a unit test in artEdges.test.js, since a change
+// that let an edge go negative would silently start drawing it as a disc). So a
+// ring writes `width = -2 * radius` and coincident endpoints, `abs()` recovers
+// halfW for both cases, and `step(aPack.y, 0.0)` is the discriminator. The
+// fragment shader then swaps the perpendicular box filter for a radial one.
+//
+// A ring's other fields are chosen so no other branch needs to know about it:
+// the same rgb and alpha in all three gradient stops degenerate the gradient to
+// flat (and a zero-length segment puts t at 0 regardless), and `packFlags(0, 0,
+// 0)` leaves the existing `step(0.001, vGlow)` and `if (vDash.x > 0.0)` to
+// switch the glow and dash terms off with no new branch.
 
 import * as THREE from 'three';
 import { FUSED_GLOW_BASE, FUSED_GLOW_SCALE, ORTHO_HUE_STEP_GLOW } from './artEdges.js';
@@ -79,9 +106,12 @@ const glslFloat = (n) => (Number.isInteger(n) ? `${n}.0` : `${n}`);
 /** Floats per edge instance. */
 export const EDGE_STRIDE = 16;
 
-/** Hard cap on edges uploaded in a frame. 31 core nodes give ~90 edges; the
- *  rest are spectral bridges, bone fusions and operator-forged links, all of
- *  which are handfuls. 1024 is 64KB of scratch and cannot be reached. */
+/** Hard cap on INSTANCES uploaded in a frame — edges and pulse rings share this
+ *  buffer, so an edge can cost two. 31 core nodes give ~90 edges; the rest are
+ *  spectral bridges, bone fusions and operator-forged links, all of which are
+ *  handfuls. At most one ring per edge puts the worst case near 180. 1024 is
+ *  64KB of scratch and cannot be reached. (The name predates the rings and is
+ *  kept: renaming it churns four files for nothing.) */
 export const MAX_EDGES = 1024;
 
 /** How many glow radii the instance quad is padded by. The shoulder is
@@ -108,7 +138,12 @@ export const GLOW_REACH = 1.75;
  */
 export function createEdgeState() {
   return {
-    count: 0, w: 1, h: 1, orthoHue: 0,
+    // `count` is INSTANCES, edges and rings together. `rings` counts the disc
+    // instances alone and exists purely to be asserted on: a capture with no
+    // live cascade scores perfect ring parity whether the layer works or has
+    // been deleted, so the harness has to be able to ask whether any were
+    // drawn at all. Published through window.__artEdgeState().
+    count: 0, rings: 0, w: 1, h: 1, orthoHue: 0,
     data: new Float32Array(MAX_EDGES * EDGE_STRIDE),
   };
 }
@@ -166,6 +201,22 @@ export function unpackAlphas(packed) {
     a1: Math.floor((packed / 256) % 256) / 255,
     a2: Math.floor(packed / 65536) / 255,
   };
+}
+
+/**
+ * A pulse ring's radius as the width field of an edge instance. The sign IS the
+ * sentinel — see the file header — and the factor of two is there so the
+ * shader's shared `abs(aPack.y) * 0.5` recovers the radius as its halfW.
+ */
+export function discWidth(radius) {
+  return -2 * radius;
+}
+
+/** The discriminator, mirroring `step(aPack.y, 0.0)` in EDGE_VERT exactly.
+ *  Exported for the same reason as `unpackFlags`: so the invariant test runs
+ *  the arithmetic the GLSL runs rather than a copy that can drift from it. */
+export function isDisc(width) {
+  return width <= 0;
 }
 
 /**
@@ -227,6 +278,7 @@ const EDGE_VERT = /* glsl */`
   varying vec2  vDash;
   varying float vGlow;
   varying float vIsOrtho;    // 0.0 or 1.0 — same for all 4 verts of an instance
+  varying float vIsDisc;     // ditto: a pulse ring, flagged by a negative width
 
   void main() {
     vec2 a = aEnds.xy;
@@ -252,7 +304,12 @@ const EDGE_VERT = /* glsl */`
                   floor(mod(p / 256.0, 256.0)),
                   floor(p / 65536.0)) / 255.0;
 
-    float halfW = max(aPack.y, 0.0) * 0.5;
+    // abs(), not max(, 0): a NEGATIVE width is a pulse ring carrying its radius
+    // (see the file header and discWidth() below), and both cases want the
+    // magnitude. A real edge width is provably positive, so nothing else can
+    // land in the disc branch.
+    float isDisc = step(aPack.y, 0.0);
+    float halfW = abs(aPack.y) * 0.5;
 
     // Pad for the antialiasing shoulder and for however far the glow reaches.
     // The quad is expanded along the segment as well as across it, because a
@@ -271,6 +328,7 @@ const EDGE_VERT = /* glsl */`
     vDash = vec2(dashPeriod, dashDuty);
     vGlow = glow;
     vIsOrtho = isOrtho;
+    vIsDisc = isDisc;
 
     gl_Position = vec4(pos.x / uResolution.x * 2.0 - 1.0,
                        1.0 - pos.y / uResolution.y * 2.0,
@@ -297,6 +355,7 @@ const EDGE_FRAG = /* glsl */`
   varying vec2  vDash;
   varying float vGlow;
   varying float vIsOrtho;
+  varying float vIsDisc;
 
   // The CSS Color 4 reference algorithm, verbatim — the GLSL twin of
   // writeHsl() in SphereEdges.js. Used only for the ortho shadow colour,
@@ -333,7 +392,14 @@ const EDGE_FRAG = /* glsl */`
     // Butt caps, matching ctx's default lineCap.
     float cap  = clamp(vAlong / pxA + 0.5, 0.0, 1.0)
                * clamp((vLen - vAlong) / pxA + 0.5, 0.0, 1.0);
-    float core = side * cap;
+    // A pulse ring is the SAME box filter on radial distance. Its two endpoints
+    // coincide, so vAlong and vD are just the two components of the offset from
+    // the disc's centre. No cap term — a disc has no ends — and no dash: its
+    // packed period is 0, so the branch below is skipped anyway. Selected with
+    // mix() rather than an if, so the count of non-uniform branches under the
+    // derivative reads at the top of main() stays where it was.
+    float disc = clamp((vHalfW - length(vec2(vAlong, vD))) / pxD + 0.5, 0.0, 1.0);
+    float core = mix(side * cap, disc, vIsDisc);
 
     // Dash, in the same px units the canvas used, and on the CORE only: the
     // canvas dashed the stroke and then blurred it for the shadow, and a blur

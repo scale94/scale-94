@@ -5,6 +5,7 @@ import { launch } from './cdp.mjs';
 import { decodePng } from './_png.mjs';
 import { exergyAlpha, RIFT_ALPHA_NORMAL, RIFT_ALPHA_IMMERSIVE } from '../src/terminal/art/artBackground.js';
 import { steadyState, fadeGain } from '../src/terminal/art/artTrail.js';
+import { EDGE_STRIDE } from '../src/terminal/art/SphereEdges.js';
 
 // Every check reports through this so the run ends with a count rather than
 // five paragraphs a reader has to tally by eye. A failure is a non-zero exit:
@@ -429,6 +430,158 @@ try {
 
   verdict('TRAIL ACCUMULATION', ok);
 } finally { await t3.close(); }
+
+// ── PULSE RINGS: the travelling disc on a live cascade ────────────────────
+// The parity comparator cannot see this layer AT ALL, and not because it is
+// small. MEASURED: at the `fired-cascade` capture state — the one state in the
+// twenty-one that exists to catch a cascade — `window.__artEdgeState().rings`
+// is 0. The pulses are set a further ~10 frames later and are gone ~60 frames
+// after that, so every stored frame in every baseline directory was taken with
+// this layer off screen. A green comparator row for the rings is therefore
+// evidence of nothing, in either direction.
+//
+// So this check fires a cascade itself and looks at the discs.
+//
+// ── The control has to be a place the STROKE also is ──────────────────────
+// A ring rides ON its edge, and the edge widens on the very frame the ring
+// appears: lineWidth carries a `+ pulse * 1.8` term and the gradient a
+// `+ pulse * 0.40` alpha boost. So "brighter here than in the surrounding
+// annulus" is not evidence — the fattened stroke passes through the middle of
+// the disc and covers ~50% of it against ~7% of an annulus, which fakes an
+// 8-9x ratio on its own.
+//
+// Two things separate the disc from the stroke:
+//   1. MASK THE STROKE OUT. Only pixels at |perpendicular offset| >= the full
+//      edge width are sampled. The stroke's half-width is half of that, so the
+//      band is clear of it and of its antialiasing, while the disc — radius
+//      4-5.5px against a 3-4px stroke — still reaches there.
+//   2. CONTROL FURTHER ALONG THE SAME EDGE, 5 radii away, with the same mask.
+//      Same stroke, same width, same pulse boost, same bloom neighbourhood, no
+//      disc.
+//
+// The side matters. An edge is not symmetric about the ring — measured with the
+// discs suppressed, the two flanks read 12.8 and 22.7 — so the check picks the
+// flank by the ring's own MOTION (nearest ring in the previous frame) and
+// controls against the LEADING one, never whichever happens to be darker.
+//
+// ── The instrument was validated against its own null ─────────────────────
+// A `discard` on the disc branch of EDGE_FRAG, everything else untouched:
+//
+//        layer live      ring 34.3-35.2   control 12.9-15.2   ratio 2.30-2.67
+//        disc discarded  ring 15.3        control 12.8        ratio 1.20
+//
+// Note the null still publishes rings=3. State and pixels are separate
+// questions and this asserts on both. Thresholds sit between the two measured
+// populations with headroom on each side: 35% above the worst live run, 42%
+// above the null.
+const RING_RATIO = 1.7;
+const RING_EXCESS = 10;     // luminance units, 0-255. Null measured 2.5, live 19.7-21.8.
+
+// Mean luminance over the part of a disc lying clear of the edge stroke.
+function maskedMean(img, cx, cy, rad, nx, ny, band) {
+  const { width: W, height: H, data } = img;
+  let sum = 0, n = 0;
+  for (let y = Math.max(0, Math.floor(cy - rad)); y <= Math.min(H - 1, Math.ceil(cy + rad)); y++)
+    for (let x = Math.max(0, Math.floor(cx - rad)); x <= Math.min(W - 1, Math.ceil(cx + rad)); x++) {
+      if (Math.hypot(x - cx, y - cy) > rad) continue;
+      if (Math.abs((x - cx) * nx + (y - cy) * ny) < band) continue;
+      const i = (y * W + x) * 4;
+      sum += 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]; n++;
+    }
+  return { mean: sum / (n || 1), n };
+}
+
+// The rings published for this frame, each with the edge it belongs to. A ring
+// is the instance AFTER its own edge (that interleave is what keeps the depth
+// sort honest) and is flagged by a negative width — see SphereEdges.js. The
+// layout is read through EDGE_STRIDE rather than restated here.
+function ringsOf(s) {
+  const out = [];
+  for (let i = 1; i < s.count; i++) {
+    const o = i * EDGE_STRIDE, w = s.instances[o + 14];
+    if (w >= 0) continue;
+    const e = (i - 1) * EDGE_STRIDE;
+    out.push({
+      x: s.instances[o], y: s.instances[o + 1], r: Math.abs(w) / 2,
+      edgeWidth: s.instances[e + 14],
+    });
+  }
+  return out;
+}
+
+const r4 = await launch({ url: 'http://localhost:5174/', width: 1520, height: 900, deterministic: true });
+try {
+  await r4.waitFor('document.querySelectorAll("canvas").length > 0', { label: 'boot' });
+  await sleep(2500);
+  await r4.eval(clickText('/CHAOS'));
+  await r4.waitFor(READY, { label: 'sphere', timeoutMs: 40000 });
+  await r4.waitFor(GL_READY, { label: 'GL sized', timeoutMs: 40000 });
+  await sleep(4000);
+  await r4.eval('window.__virtualize()');
+  await sleep(150);
+  await r4.eval('window.__reseed(); window.__artHarnessReset();');
+  await r4.pump(240);
+
+  const rect = await r4.eval(RECT);
+  // The instance buffer's coordinates are the 2D canvas's own CSS px, so the
+  // clip's top-left IS its origin and no offset is needed. (Subtracting the
+  // viewport rect instead moved every sample ~250px and read pure background.)
+  const clip = { x: rect.x, y: rect.y, width: rect.w, height: rect.h, scale: 1 };
+
+  // (The flash check's HOVERED is scoped to its own block.)
+  const HOVERED_LABEL = `(() => {
+    const s = [...document.querySelectorAll('span')].filter(e =>
+      e.style.position === 'absolute' && e.style.font && e.textContent);
+    let best = null;
+    for (const e of s) { const o = parseFloat(e.style.opacity || '0');
+      if (o > 0.9 && (!best || o > best.o)) best = { o, t: e.textContent }; }
+    return best && best.t; })()`;
+  let hit = null;
+  for (let row = 1; row <= 5 && !hit; row++) for (let c = 1; c <= 9 && !hit; c++) {
+    const x = Math.round(rect.x + rect.w * c / 10), y = Math.round(rect.y + rect.h * row / 6);
+    await r4.hover(x, y); await sleep(70); await r4.pump(2);
+    if (await r4.eval(HOVERED_LABEL)) hit = { x, y };
+  }
+  if (!hit) throw new Error('no node found to fire');
+  await r4.click(hit.x, hit.y);
+  await sleep(800);              // absorb the kernel run, costing zero frames
+
+  const acc = { on: [0, 0], ahead: [0, 0] };
+  const add = (k, m) => { acc[k][0] += m.mean * m.n; acc[k][1] += m.n; };
+  let frames = 0, instances = 0, matched = 0, prev = [];
+  for (let f = 1; f <= 90 && frames < 14; f++) {
+    await r4.pump(1);
+    const s = JSON.parse(await r4.eval('JSON.stringify(window.__artEdgeState())'));
+    if (!s.rings) { prev = []; continue; }
+    const img = decodePng(await r4.screenshot({ clip }));
+    const now = ringsOf(s);
+    frames++; instances += s.rings;
+    for (const g of now) {
+      let bd = 30, best = null;
+      for (const p of prev) { const d = Math.hypot(p.x - g.x, p.y - g.y); if (d < bd) { bd = d; best = p; } }
+      if (!best || bd < 0.5) continue;      // first frame, or not yet moving
+      matched++;
+      const mx = (g.x - best.x) / bd, my = (g.y - best.y) / bd;
+      const band = Math.max(g.edgeWidth, 1.5), rad = g.r * 0.9, off = g.r * 5;
+      add('on',    maskedMean(img, g.x, g.y, rad, -my, mx, band));
+      add('ahead', maskedMean(img, g.x + mx * off, g.y + my * off, rad, -my, mx, band));
+    }
+    prev = now;
+  }
+  const mean = (k) => acc[k][0] / (acc[k][1] || 1);
+  const ratio = mean('on') / Math.max(mean('ahead'), 0.5);
+  const excess = mean('on') - mean('ahead');
+
+  console.log('PULSE RINGS  (masked disc luminance vs the same mask further along the edge)');
+  console.log(`   frames with rings ${frames}   ring instances ${instances}   motion-matched ${matched}`);
+  console.log(`   ring    ${mean('on').toFixed(2)}   (${acc.on[1]} px sampled)`);
+  console.log(`   control ${mean('ahead').toFixed(2)}   (${acc.ahead[1]} px sampled)`);
+  console.log(`   excess ${excess.toFixed(2)} (need ${RING_EXCESS})   ratio ${ratio.toFixed(2)} (need ${RING_RATIO})`);
+  // frames > 0 is not a formality: a run that catches no live pulse must FAIL,
+  // not pass by measuring nothing. That is the exact way this project has
+  // reported a working layer green six times.
+  verdict('PULSE RINGS', frames > 0 && matched >= 8 && ratio >= RING_RATIO && excess >= RING_EXCESS);
+} finally { await r4.close(); }
 
 // ── Tally ─────────────────────────────────────────────────────────────────
 const passed = results.filter(r => r.ok).length;

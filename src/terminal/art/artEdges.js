@@ -39,6 +39,28 @@ export function edgeStops(colA, colB, cMid, baseAlpha, pulseBoost, strength) {
   ];
 }
 
+/**
+ * Stroke width in px for a base edge, from the draw loop verbatim.
+ *
+ * Lifted out of ArtTab because the ring layer's discriminator depends on its
+ * SIGN: rings share the edge instance buffer and are told apart by a negative
+ * width (see SphereEdges.js's header), which is only sound while this can never
+ * return one. That invariant is testable only against the real formula, so the
+ * real formula has to have a home a test can import.
+ *
+ * `spectralSim` and `fuseCos` are already 0 when the edge is neither, so the
+ * loop's `isSpectral ? cosSim * 1.2 : 0` ternaries collapse into the products
+ * with no change in value. `isOrtho` carries no magnitude and stays a flag.
+ *
+ * Provably > 0 over the real domain: the leading 0.5 is positive, every other
+ * term is non-negative there, and `avgScale` is strictly positive (it is
+ * focal / (focal + rz * sphereR) with focal = 2.8 * sphereR and rz in [-1, 1]).
+ */
+export function edgeLineWidth(maxEnergy, pulse, spectralSim, fuseCos, isOrtho, avgScale) {
+  return (0.5 + maxEnergy * 0.8 + pulse * 1.8 + spectralSim * 1.2 + fuseCos * 2.0
+    + (isOrtho ? 2.0 : 0)) * avgScale;
+}
+
 // ── Orthogonal bridge — the animated rainbow edge ───────────────────────────
 export const ORTHO_TIME_SCALE = 0.0008;   // Date.now() * this = the loop's `ot`
 export const ORTHO_HUE_RATE = 60;         // degrees per unit of `ot`

@@ -12,11 +12,11 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   ORTHO_DASH, SPECTRAL_DASH,
   orthoHue, orthoGlow, fusedGlow, resonanceGlow,
-  pulseRingRadius, pulsePosition, edgeStops,
+  pulseRingRadius, pulsePosition, edgeStops, edgeLineWidth,
 } from '../artEdges';
 import {
   writeHsl, writeHslRgb, packAlphas, unpackAlphas, packFlags, unpackFlags,
-  syncEdgeLayer, EDGE_STRIDE, MAX_EDGES,
+  syncEdgeLayer, discWidth, isDisc, EDGE_STRIDE, MAX_EDGES,
 } from '../SphereEdges';
 
 describe('orthoHue', () => {
@@ -72,6 +72,57 @@ describe('pulse ring', () => {
   it('runs backwards along the edge when direction is negative', () => {
     expect(pulsePosition(0.25, 1)).toBeCloseTo(0.25, 10);
     expect(pulsePosition(0.25, -1)).toBeCloseTo(0.75, 10);
+  });
+});
+
+// ── The disc sentinel ──────────────────────────────────────────────────────
+//
+// The travelling pulse rings ride in the SAME instance buffer as the edges, one
+// immediately after the edge it belongs to, so the 2D loop's interleaved draw
+// order survives (see the header of SphereEdges.js). The discriminator is a
+// NEGATIVE stroke width, and that is only sound while a real edge can never
+// produce one — so the invariant is pinned here against the real width formula
+// and the real discriminator, not against a restatement of either.
+
+describe('the disc sentinel', () => {
+  it('encodes a radius as a negative width the shader recovers with abs/2', () => {
+    for (const r of [0.5, 2, 4.5, 9, 12.7]) {
+      expect(discWidth(r)).toBeLessThan(0);
+      expect(Math.abs(discWidth(r)) * 0.5).toBeCloseTo(r, 10);   // EDGE_VERT's halfW
+      expect(isDisc(discWidth(r))).toBe(true);
+    }
+  });
+
+  it('never mistakes a real edge width for a disc, anywhere in the input domain', () => {
+    // Every term of the width formula is non-negative over its real domain:
+    // node energy and pulse are [0,1]; spectral_bridge clamps its similarity
+    // THRESHOLD to >= 0.1 and only emits pairs at or above it, so cosSim is
+    // never negative; bone fusion's post-convergence cosine likewise. The
+    // projection scale is strictly positive and bounded — denom is
+    // sphereR*(FOCAL_K + rz) with rz in [-1,1], so scale spans
+    // [2.8/3.8, 2.8/1.8]. The leading 0.5 is what makes the product > 0.
+    for (const energy of [0, 0.37, 1])
+      for (const pulse of [0, 0.5, 1])
+        for (const sim of [0, 0.1, 1])
+          for (const fuse of [0, 0.5, 1])
+            for (const ortho of [false, true])
+              for (const scale of [2.8 / 3.8, 1, 2.8 / 1.8]) {
+                const w = edgeLineWidth(energy, pulse, sim, fuse, ortho, scale);
+                expect(w).toBeGreaterThan(0);
+                expect(isDisc(w)).toBe(false);
+              }
+  });
+
+  it('reproduces the draw loop\'s width arithmetic term by term', () => {
+    expect(edgeLineWidth(0, 0, 0, 0, false, 1)).toBeCloseTo(0.5, 10);
+    expect(edgeLineWidth(1, 0, 0, 0, false, 1)).toBeCloseTo(1.3, 10);   // + energy * 0.8
+    expect(edgeLineWidth(0, 1, 0, 0, false, 1)).toBeCloseTo(2.3, 10);   // + pulse  * 1.8
+    expect(edgeLineWidth(0, 0, 1, 0, false, 1)).toBeCloseTo(1.7, 10);   // + cosSim * 1.2
+    expect(edgeLineWidth(0, 0, 0, 1, false, 1)).toBeCloseTo(2.5, 10);   // + fuseCos * 2.0
+    expect(edgeLineWidth(0, 0, 0, 0, true,  1)).toBeCloseTo(2.5, 10);   // + 2.0 when ortho
+    // and the whole sum scales by the two endpoints' average projection.
+    // (0.5 + 0.8 + 1.8 + 1.2 + 2.0 + 2.0) * 2
+    expect(edgeLineWidth(1, 1, 1, 1, true, 2)).toBeCloseTo(16.6, 10);
   });
 });
 

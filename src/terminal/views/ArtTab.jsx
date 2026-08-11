@@ -50,14 +50,16 @@ import { clusterLabelState, nodeLabelState, fireExpired } from '../art/artLabels
 import SphereLabels from '../art/SphereLabels';
 import SphereComposite from '../art/SphereComposite';
 import {
-  createEdgeState, writeHsl, writeHslRgb, packAlphas, packFlags,
+  createEdgeState, writeHsl, writeHslRgb, packAlphas, packFlags, discWidth,
   EDGE_STRIDE, MAX_EDGES,
 } from '../art/SphereEdges';
 import {
-  edgeStops, orthoHue, orthoGlow, fusedGlow,
+  edgeStops, edgeLineWidth, orthoHue, orthoGlow, fusedGlow,
+  pulseRingRadius, pulsePosition,
   ORTHO_DASH, SPECTRAL_DASH,
   ORTHO_HUE_STEP_MID, ORTHO_HUE_STEP_END,
   ORTHO_ALPHA_BOOST, ORTHO_MID_ALPHA_BOOST,
+  PULSE_ALPHA, PULSE_DRAW_CUTOFF,
 } from '../art/artEdges';
 import { stepAwakening, drawBeaconRing, drawConductor } from '../art/artAwakening';
 import {
@@ -1027,14 +1029,15 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
       // ── Edges (depth-sorted by average node depth) ────────────────────────
       //
-      // The strokes are on the GPU (SphereEdges.js). Everything that decides
-      // what an edge LOOKS like still happens here, and so does the depth sort
-      // and the findIndex pair beneath it — the sort is the draw order the
-      // instance buffer is written in, and the projected coordinates are what
-      // edgeAt() hit-tests against. Only the four ctx calls at the bottom of
-      // the branch became sixteen floats.
+      // The strokes AND the travelling pulse rings are on the GPU
+      // (SphereEdges.js); nothing in this block touches ctx any more. Everything
+      // that decides what an edge LOOKS like still happens here, and so does the
+      // depth sort and the findIndex pair beneath it — the sort is the draw
+      // order the instance buffer is written in, and the projected coordinates
+      // are what edgeAt() hit-tests against.
       const eg = edgeGLRef.current;
       eg.count = 0;
+      eg.rings = 0;
       // The CSS space these endpoints live in, published with them so the GL
       // layer never has to guess it from a measurement that can lag.
       eg.w = w; eg.h = h;
@@ -1087,11 +1090,14 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           const baseAlpha = (Math.min(na.energy, nb.energy) * 0.5 + 0.06 + spectralBoost + fusionBoost) * depthFade;
           const pulseBoost = e.pulse * 0.40;
 
-          const lineWidth = (0.5 + Math.max(na.energy, nb.energy) * 0.8 + e.pulse * 1.8
-                        + (isSpectral ? cosSim * 1.2 : 0)
-                        + (isFused ? fuseCos * 2.0 : 0)
-                        + (isOrtho ? 2.0 : 0))
-                        * ((pA.scale + pB.scale) / 2);
+          // The width formula moved to artEdges.js unchanged. Its SIGN is now
+          // load-bearing — the pulse rings share this buffer and are told apart
+          // by a negative width — so the invariant that it is always positive
+          // needs a home a unit test can import. See SphereEdges.js's header.
+          const lineWidth = edgeLineWidth(
+            Math.max(na.energy, nb.energy), e.pulse, cosSim, fuseCos, isOrtho,
+            (pA.scale + pB.scale) / 2,
+          );
 
           // Orthogonal bridges: hue-shifting gradient (magenta↔cyan), overrides default grd
           // Fused edges: solid bright glow (mineralized bone)
@@ -1147,20 +1153,39 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             eg.count++;
           }
 
-          // Overwrite pulse ring — still 2D, moves in the next commit.
-          // Known and temporary: with the strokes in GL and the rings on the
-          // canvas, every ring now composites above EVERY edge instead of
-          // interleaving with the ones drawn after it. Only visible while a
-          // cascade is in flight, and it is what the next task closes.
-          if (e.pulse > 0.1) {
-            const t  = e.direction >= 0 ? e.pulse : 1 - e.pulse;
-            const px = pA.sx + (pB.sx - pA.sx) * t;
-            const py = pA.sy + (pB.sy - pA.sy) * t;
+          // Overwrite pulse ring — a flat disc travelling along the edge, now a
+          // second instance in the SAME buffer written immediately after its
+          // own edge. That ordering is the point: the 2D loop stroked edge i,
+          // filled edge i's ring, then stroked edge i+1, so the rings interleave
+          // through the depth sort. A separate mesh would draw them all last.
+          //
+          // The guard is deliberately the same `eg.count < MAX_EDGES` the edge
+          // uses. `count` only ever rises, so an edge that was dropped at the
+          // cap cannot have its ring written either.
+          if (e.pulse > PULSE_DRAW_CUTOFF && eg.count < MAX_EDGES) {
+            const t   = pulsePosition(e.pulse, e.direction);
+            const px  = pA.sx + (pB.sx - pA.sx) * t;
+            const py  = pA.sy + (pB.sy - pA.sy) * t;
+            // The colour of the endpoint the pulse LEFT, not the one it is
+            // heading for; and the radius scales by pA.scale alone, not by the
+            // two-endpoint average the stroke width uses. Both are the 2D
+            // behaviour, faithfully.
             const src = e.direction >= 0 ? colA : colB;
-            ctx.beginPath();
-            ctx.arc(px, py, (2 + e.pulse * 2.5) * pA.scale, 0, Math.PI * 2);
-            ctx.fillStyle = hslAlpha(src, e.pulse * depthFade * 0.9);
-            ctx.fill();
+            const a   = e.pulse * depthFade * PULSE_ALPHA;
+            const o   = eg.count * EDGE_STRIDE;
+            const ed  = eg.data;
+            // Coincident endpoints: the disc's centre. See SphereEdges.js.
+            ed[o] = px; ed[o + 1] = py; ed[o + 2] = px; ed[o + 3] = py;
+            // One colour and one alpha in all three stops, so the shader's
+            // gradient degenerates to flat rather than needing its own branch.
+            writeHslRgb(ed, o + 4,  src);
+            writeHslRgb(ed, o + 7,  src);
+            writeHslRgb(ed, o + 10, src);
+            ed[o + 13] = packAlphas(a, a, a);
+            ed[o + 14] = discWidth(pulseRingRadius(e.pulse, pA.scale));
+            ed[o + 15] = packFlags(0, 0, 0);   // no dash, no glow, not ortho
+            eg.count++;
+            eg.rings++;
           }
         }
       }
@@ -1766,11 +1791,23 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     // published, it was published in the wrong coordinate space, or it was
     // published and did not survive the blend — and only the first two are
     // visible from here.
+    //
+    // `rings` is the travelling-pulse disc count for the frame, and it answers a
+    // different question: whether the layer was ON SCREEN AT ALL when a parity
+    // number was taken. Rings only exist while a cascade is in flight, so a
+    // capture that caught none scores perfect parity for them whether they draw
+    // or are deleted — which is the failure this project has now repeated six
+    // times. Any instrument quoting a number for this layer must read this
+    // first and fail loudly on 0.
     window.__artEdgeState = () => {
       const e = edgeGLRef.current;
       return {
-        count: e.count, w: e.w, h: e.h,
+        count: e.count, rings: e.rings, w: e.w, h: e.h,
         first: Array.from(e.data.slice(0, EDGE_STRIDE)),
+        // The whole written range, so an instrument can find WHERE the rings
+        // are and look at those pixels. Decoded harness-side against
+        // EDGE_STRIDE rather than here, so there is no second layout to drift.
+        instances: Array.from(e.data.subarray(0, e.count * EDGE_STRIDE)),
       };
     };
 
