@@ -3,6 +3,17 @@
 // pass follows from deleting the layer. So: switch each one on and look.
 import { launch } from './cdp.mjs';
 import { decodePng } from './_png.mjs';
+import { exergyAlpha } from '../src/terminal/art/artBackground.js';
+import { steadyState, fadeGain } from '../src/terminal/art/artTrail.js';
+
+// Every check reports through this so the run ends with a count rather than
+// five paragraphs a reader has to tally by eye. A failure is a non-zero exit:
+// these are the only instruments that can tell "ported" from "deleted".
+const results = [];
+const verdict = (name, ok) => {
+  results.push({ name, ok });
+  console.log(ok ? '   => RENDERS\n' : '   => NOT DETECTED\n');
+};
 
 const SPHERE = `[...document.querySelectorAll('canvas')]
   .filter(c => c.offsetParent && !c.closest('[data-art-composite]'))
@@ -12,6 +23,11 @@ const RECT = `(() => { const r = ${SPHERE}.getBoundingClientRect();
   return { x: r.x, y: r.y, w: r.width, h: r.height }; })()`;
 const clickText = (p) => `(() => { const re = new RegExp(${JSON.stringify(p)}, 'i');
   const b = [...document.querySelectorAll('button')].find(e => re.test(e.innerText || ''));
+  if (!b) return false; b.click(); return true; })()`;
+// Immersive mode has no text label, only a title — and the sphere's own
+// controls are icon buttons, so matching on innerText finds nothing.
+const clickTitle = (frag) => `(() => { const b = [...document.querySelectorAll('button')]
+  .find(e => (e.title || '').includes(${JSON.stringify(frag)}));
   if (!b) return false; b.click(); return true; })()`;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -53,7 +69,7 @@ try {
   console.log('GENESIS GLOW  (gold lean in the central disc)');
   console.log(`   during phase 0   ${early.toFixed(3)}`);
   console.log(`   after it closes  ${late.toFixed(3)}`);
-  console.log(early > late + 0.15 ? '   => RENDERS\n' : '   => NOT DETECTED\n');
+  verdict('GENESIS GLOW', early > late + 0.15);
 
   // ── EXERGY PULSE: ecocide bus, never non-zero during capture ────────────
   if (!await page.eval('typeof window.__artSetEcocide === "function"')) {
@@ -66,7 +82,7 @@ try {
   console.log('EXERGY PULSE  (magenta lean in the central disc)');
   console.log(`   rate 0   ${off.toFixed(3)}`);
   console.log(`   rate 1   ${on.toFixed(3)}`);
-  console.log(on > off + 0.2 ? '   => RENDERS\n' : '   => NOT DETECTED\n');
+  verdict('EXERGY PULSE', on > off + 0.2);
   await page.eval('window.__artSetEcocide({ exergyRate: 0 })');
   await sleep(400);
 
@@ -109,7 +125,7 @@ try {
   console.log('FLASH GRID  (mean luminance in the far side bands)');
   console.log(`   quiet          ${quiet.toFixed(3)}`);
   console.log(`   after trigger  ${lit.toFixed(3)}`);
-  console.log(lit > quiet + 0.3 ? '   => RENDERS\n' : '   => NOT DETECTED\n');
+  verdict('FLASH GRID', lit > quiet + 0.3);
   await sleep(1500);   // let the flash decay back out
 
 } finally { await page.close(); }
@@ -194,5 +210,159 @@ try {
   //     which is what distinguishes the layer drawing from the frame being
   //     bright for other reasons.
   // Measured with the trail on: gOff 15.4, gOn 7.5.
-  console.log(live > 0 && gOn < 12 && gOn < gOff * 0.7 ? '   => RENDERS' : '   => NOT DETECTED');
+  verdict('GHOST TRAILS', live > 0 && gOn < 12 && gOn < gOff * 0.7);
 } finally { await g2.close(); }
+
+// ── TRAIL ACCUMULATION: the GL layers' frame-to-frame ink ─────────────────
+// The last four checks each ask "does this layer paint". This one asks whether
+// what any of them paints SURVIVES INTO THE NEXT FRAME. The 2D canvas clears
+// with `destination-out` rgba(0,0,0,m) — a partial alpha erase — so a layer
+// redrawn every frame settles well above the alpha it is drawn with. A layer
+// that moved onto the GPU drew into a target that was fully rewritten each
+// frame and lost that silently: no error, no missing geometry, just less light.
+// The 32x18 comparator scored a measured 22% edge-ink loss as 21/21 green.
+//
+// What is distinctive is not brightness — a wrong constant is also brighter —
+// but that ink must RISE over the first frames after a layer switches on and
+// then settle, at a rate set by the mode's own clear alpha.
+//
+// ── Why not whole-frame ink ────────────────────────────────────────────────
+// The obvious metric is the ratio of frame ink at n=30 to n=1, against
+// fadeGain(m). It cannot work here. The rift base is deliberately NOT in the
+// accumulator (SphereComposite adds it in the screen pass, `ink.rgb +
+// uRift*(1-ink.a)`, so the clear colour can never compound), and neither is the
+// 2D canvas, which never lost its accumulation and is most of the frame's ink.
+// Both are large constants that do not rise, and they drag any whole-frame
+// ratio toward 1.0 whatever the accumulator is doing.
+//
+// So the metric is a DIFFERENCE against the same frame with the layer off. One
+// layer is switched on, and every constant — rift base, 2D canvas, the other GL
+// layers, bloom, vignette — subtracts out.
+//
+// ── Why the exergy pulse is the probe ─────────────────────────────────────
+// It is the only migrated layer that is (a) a clean step function of a hook the
+// harness owns, with no easing and no time term, (b) large in area, and (c)
+// drawn at a genuinely SMALL alpha. That last one is not optional. The gain is
+// `steadyState(a, m)/a = 1/(1 - (1-m)(1-a))`, and `fadeGain(m) = 1/m` is only
+// its a -> 0 limit. The stacked-ghost configuration the check above uses reaches
+// alpha 0.89, where the gain is 1.08 and there is nothing to see.
+//
+// ── The number this asserts, and why it is not fadeGain ───────────────────
+// exergyAlpha(1) = 0.06 at the pulse centre, falling to 0 at the rim.
+//
+//        immersive  m=0.32   steadyState(0.06, m)/0.06 = 2.772   fadeGain 3.125
+//        normal     m=0.72   steadyState(0.06, m)/0.06 = 1.357   fadeGain 1.389
+//
+// MEASURED: immersive 2.679 (-3.3% vs the layer's own expectation, -14.3% vs
+// fadeGain), normal 1.390 (+2.4% / +0.1%). So a "within 15% of fadeGain" rule
+// passes in immersive by 0.7 percentage points — it would be a coin flip, not a
+// gate. This asserts against steadyState instead, which is the same tested
+// arithmetic the renderer fades with.
+//
+// ── Both modes, because one mode cannot catch a constant ──────────────────
+// `survival` is read per-frame from the tint the 2D canvas erased with
+// (`state.rift.a`). Hard-coding it to either mode's value still passes in that
+// mode. Running both is 5 seconds and makes that failure visible.
+//
+// ── The check validates its own instrument ────────────────────────────────
+// The virtual clock advances one frame per pump, so the sim is not frozen and
+// the frame drifts underneath the measurement. That drift is measured over an
+// identical 30-frame window with the layer off, and printed as a percentage of
+// the signal. Measured 0.3-0.5%: three orders below. If that ever stops being
+// true the ratio means nothing, so it is part of the verdict rather than a note.
+const EXERGY_RATE = 1;
+const PULSE_ALPHA = exergyAlpha(EXERGY_RATE);
+const TOLERANCE = 0.15;
+const MAX_DRIFT = 0.10;      // |drift| as a fraction of the first frame's signal
+
+// Summed magenta lean over the frame. Summed, not averaged: the pulse is a
+// broad faint gradient, and a mean over the disc divides its signal by the
+// dark majority — the identical failure that made the first ghost check 65x
+// too coarse to see its own layer.
+const magentaInk = (png) => {
+  const { width: W, height: H, data } = decodePng(png);
+  let sum = 0;
+  for (let i = 0; i < data.length; i += 4) sum += magenta(data[i], data[i + 1], data[i + 2]);
+  return sum;
+};
+
+const t3 = await launch({ url: 'http://localhost:5174/', width: 1520, height: 900, deterministic: true });
+try {
+  await t3.waitFor('document.querySelectorAll("canvas").length > 0', { label: 'boot' });
+  await sleep(2500);
+  await t3.eval(clickText('/CHAOS'));
+  await t3.waitFor(READY, { label: 'sphere', timeoutMs: 40000 });
+  await t3.waitFor(GL_READY, { label: 'GL sized', timeoutMs: 40000 });
+  await sleep(4000);
+  await t3.eval('window.__virtualize()');
+  await sleep(150);
+  await t3.eval('window.__reseed(); window.__artHarnessReset();');
+  await t3.pump(240);
+
+  const rectClip = async () => {
+    const r = await t3.eval(RECT);
+    return { x: r.x, y: r.y, width: r.w, height: r.h, scale: 1 };
+  };
+
+  const riseIn = async (label) => {
+    const clip = await rectClip();
+    const shot = async () => magentaInk(await t3.screenshot({ clip }));
+    const m = JSON.parse(await t3.eval('JSON.stringify(window.__artBgState())')).rift.a;
+
+    // Two frames 30 apart with the layer OFF: the drift control.
+    await t3.eval(`window.__artSetEcocide({ exergyRate: 0 })`);
+    await t3.pump(45);
+    const off0 = await shot();
+    await t3.pump(30);
+    const off1 = await shot();
+
+    // Switch it on, and read the first accumulated frame and the settled one.
+    await t3.eval(`window.__artSetEcocide({ exergyRate: ${EXERGY_RATE} })`);
+    await t3.pump(1);
+    const on1 = await shot();
+    await t3.pump(29);
+    const on30 = await shot();
+    await t3.eval('window.__artSetEcocide({ exergyRate: 0 })');
+    await t3.pump(60);
+
+    const s1 = on1 - off1, s30 = on30 - off1;
+    const expected = steadyState(PULSE_ALPHA, m) / PULSE_ALPHA;
+    return {
+      label, m, s1, s30, expected,
+      size: `${Math.round(clip.width)}x${Math.round(clip.height)}`,
+      ratio: s30 / s1,
+      drift: Math.abs(off1 - off0) / Math.abs(s1),
+    };
+  };
+
+  const rows = [await riseIn('normal')];
+  if (!await t3.eval(clickTitle('Immersive mode'))) throw new Error('no immersive button');
+  // The immersive resize is delivered by the screenshot's own forced layout, not
+  // by pumping — see artBaseline.mjs. Without the throwaway capture the trail
+  // targets are reallocated (emptied) on the frame after the real one.
+  await t3.pump(600);
+  await t3.screenshot({ clip: await rectClip() });
+  await t3.pump(150);
+  rows.push(await riseIn('immersive'));
+
+  console.log(`TRAIL ACCUMULATION  (exergy pulse ink at frame 30 / frame 1, alpha ${PULSE_ALPHA})`);
+  let ok = true;
+  for (const r of rows) {
+    const dev = r.ratio / r.expected - 1;
+    const pass = Math.abs(dev) <= TOLERANCE && r.drift <= MAX_DRIFT && r.s1 > 0;
+    if (!pass) ok = false;
+    console.log(`   ${r.label.padEnd(10)} ${r.size.padEnd(10)} m=${r.m}`);
+    console.log(`      ink f1 ${r.s1.toFixed(0).padStart(10)}   f30 ${r.s30.toFixed(0).padStart(10)}`
+      + `   ratio ${r.ratio.toFixed(3)}`);
+    console.log(`      expected ${r.expected.toFixed(3)} (fadeGain ${fadeGain(r.m).toFixed(3)})`
+      + `   dev ${(dev * 100).toFixed(1)}%   idle drift ${(r.drift * 100).toFixed(2)}% of f1`
+      + `   ${pass ? 'ok' : 'FAIL'}`);
+  }
+  verdict('TRAIL ACCUMULATION', ok);
+} finally { await t3.close(); }
+
+// ── Tally ─────────────────────────────────────────────────────────────────
+const passed = results.filter(r => r.ok).length;
+console.log(`PRESENCE ${passed}/${results.length}`);
+for (const r of results) if (!r.ok) console.log(`   NOT DETECTED: ${r.name}`);
+if (passed !== results.length) process.exitCode = 1;
