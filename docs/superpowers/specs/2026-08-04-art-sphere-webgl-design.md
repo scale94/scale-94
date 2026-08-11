@@ -253,6 +253,34 @@ trailing its own remaining content.
 **Known temporary state:** two independent trail decays coexist from step 3
 to step 6 and must be tuned to match. This resolves itself at step 6.
 
+> **CORRECTION (2026-08-11) — step 3 shipped without the second decay, and
+> "verified" was true for placement and false for weight.**
+>
+> This paragraph says two trail decays coexist. Only one did. The `destination-out`
+> clear is a *partial alpha erase*, so everything the 2D canvas drew after it
+> compounded — a layer redrawn at alpha `a` settles at
+> `a / (1 - (1-m)(1-a))`, i.e. `1/m` for small `a`, and `m` is per-mode (0.72
+> normal, **0.32 immersive**). Every layer step 3 moved to the GPU drew into a
+> target that *was* fully rewritten each frame, so all six lost that gain the
+> moment they moved: **1.389× normal, 3.125× immersive.**
+>
+> Measured after the fact: immersive-on was losing **44% of lit pixels**, all in
+> the faintest band, mass conserved below the floor — dimming, not deletion. The
+> loss peaks at the wireframe radius, where `WIRE_ALPHA = 0.03` predicts a
+> 22.5 → 7.65 luminance drop. Every step-3 layer rendered in the right place at
+> roughly a third of the light it should carry in the exhibit mode.
+>
+> **Nothing detected it.** The 32×18 comparator scored it 21/21 green, and so did
+> the five bespoke presence checks — they ask whether a layer paints, never
+> whether what it paints survives into the next frame. This is why the trail
+> target was pulled forward out of step 6 (author's call, 2026-08-09) and why
+> `scripts/artInk.mjs` (a summed, not averaged, ink instrument) and a sixth
+> accumulation presence check now exist. Reference set:
+> `baseline/art-sphere-trail/`.
+>
+> Step 3's cost figures stand — re-measured 2026-08-11 against a same-session
+> control and they reproduce. Its *immersive* parity claims do not: see §8.4.
+
 ### Step 4 — Edges
 
 Edges, resonance edge and prism geometry chords → line geometry with
@@ -275,6 +303,22 @@ Hit-testing is untouched — it reads the CPU array (§3.1).
 Particle ecology → instanced sprites, uploading `artParticles.js`'s existing
 `Float32Array` SoA buffers directly. The trail moves to a GL feedback buffer,
 which decays properly to black instead of silting toward grey.
+
+> **DONE EARLY (2026-08-10).** The feedback buffer was pulled forward to sit
+> under step 4, because every layer migrated from step 3 onward was silently
+> losing its accumulation without it (see the correction under step 3). It is a
+> ping-pong pair of `NoColorSpace` RGBA8 targets (`SphereTrail.js`) faded by
+> `1 - m`, with `m` read per frame from the tint the 2D canvas erased with
+> (`state.rift.a`) rather than re-derived from an immersive flag, so a mode
+> toggle cannot desynchronise the fade from the fill for a frame.
+>
+> The clear colour is **not** in the accumulator. `sphereBackgroundInk()` returns
+> premultiplied layer ink with coverage in alpha and the base enters once, in the
+> screen pass, as `ink.rgb + uRift * (1 - ink.a)`. Feeding the clear through the
+> loop instead multiplies the whole frame by `1/m` — which is indistinguishable
+> from "correct but brighter" to every instrument in this repo.
+>
+> Only the particle migration is left in this step.
 
 The 2-D canvas is now empty: delete it, its texture and the composite quad.
 
@@ -306,6 +350,40 @@ Each step is verified by:
 
 Unit tests cover extracted pure modules only. They cannot see pixels and must
 not be treated as parity evidence.
+
+**AMENDED 2026-08-11 — a tolerance gate answers "did anything move", never "is
+it right".** Item 2 above is necessary and nowhere near sufficient, and three
+signed-off steps were measured with it alone. The comparator is a mean over a
+32×18 grid, so a thin edge or a 0.03-alpha wireframe occupies a few percent of
+any cell and averages into that cell's dark majority. Demonstrated failures, all
+scored **21/21 green**:
+
+- a measured **22% edge-ink loss**;
+- an **sRGB-vs-linear** blend of the whole backdrop, at mean 1.285 against a
+  threshold of 4;
+- the entire **trail-accumulation deficit** (44% of lit pixels in immersive);
+- a pair whose `immersive-on` frames are **1800×324 vs 1920×1080** — 3.3× the
+  pixels, a different picture of a different amount of world — at mean 2.5.
+
+So every step also needs, and these are not optional:
+
+5. **`scripts/artInk.mjs`** — summed (not averaged) luminance above a floor,
+   reported whole-frame *and* disc, plus the cross-mode ratio. Half as much light
+   is half the number wherever it sits in the frame. Read frame for immersive and
+   disc for normal: disc-only ink in immersive has ±12% run-to-run noise, the
+   same size as some real signals.
+6. **Bespoke presence checks** (`scripts/artPresence.mjs`, currently 5/5) for
+   every layer the capture set structurally cannot see — five of step 3's seven
+   never draw during a capture at all, and a green comparator on them follows
+   identically from deleting the layer.
+7. **Same-session control captures.** The boot fingerprint is not reproducible
+   (8 relaunches, 8 fingerprints), so any comparison against a committed baseline
+   measures code change plus boot race, inseparably. Capture the control and the
+   candidate in one session, with the same harness.
+
+Weight every parity judgement toward **`immersive-on`**: it is the exhibit mode,
+and it is where the clear alpha (0.32 against 0.72) makes every accumulation
+error 2.25× larger.
 
 ---
 
@@ -350,6 +428,24 @@ but also changes the canvas height calculation (`:580`), the rift alpha
 (`:794`), and switches the container to `position: fixed` fullscreen
 (`:2633`). The r3f `<Canvas>` must follow all of it, not just the layer
 gating.
+
+**AND `position: fixed` was not reaching the viewport at all — fixed 31bff8a.**
+The immersive container measured **1800×324** on a 1920×1080 panel: a letterbox
+strip with two thirds of the screen black. `.tab-fade-v2` animates with
+`fill-mode: both`, so it permanently retained its 100% keyframe —
+`filter: brightness(1)` and `transform: translateY(0)`. Both are *visually
+identity*; both establish a containing block for `position: fixed` descendants,
+so `inset: 0` resolved against the tab wrapper. `.breadcrumb-fade` had the same
+latent trap. Fix: `backwards` instead of `both` — the 100% keyframe is identical
+to the element's base style in every property, so `forwards` bought nothing.
+
+Pre-existing since before the migration, and **structurally invisible to every
+pixel gate in this repo**: the gates capture *the canvas*, and the canvas was
+consistently the wrong size in all of them. Consequence: every committed
+`immersive-on` baseline before `baseline/art-sphere-trail/` — including
+`baseline/art-sphere-2d`, the pre-migration truth — is invalid, and `artInk.mjs`
+refuses those rows as `GEOMETRY MISMATCH`. Any new immersive claim needs a fresh
+reference. The exhibit now draws 3.3× the pixels it did while the bug was live.
 
 ---
 
