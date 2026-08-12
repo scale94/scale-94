@@ -3,7 +3,10 @@
 // pass follows from deleting the layer. So: switch each one on and look.
 import { launch } from './cdp.mjs';
 import { decodePng } from './_png.mjs';
-import { exergyAlpha, RIFT_ALPHA_NORMAL, RIFT_ALPHA_IMMERSIVE } from '../src/terminal/art/artBackground.js';
+import {
+  exergyAlpha, RIFT_ALPHA_NORMAL, RIFT_ALPHA_IMMERSIVE,
+  GHOST_RGB, GHOST_COUNT, GHOST_ALPHA,
+} from '../src/terminal/art/artBackground.js';
 import { steadyState, fadeGain } from '../src/terminal/art/artTrail.js';
 import {
   EDGE_STRIDE, EDGE_OFF, GLOW_REACH, isDisc, unpackAlphas, unpackFlags, ADDITIVE_LAYER,
@@ -155,22 +158,103 @@ try {
 //
 // So: freeze the clock, pin the rotation with __artHarnessReset (rx=0.18,
 // ry=0), stack all 31 ghosts at model (0,0,1) which is then reliably
-// front-facing, and look for the ghost colour itself. 31 source-over passes at
-// alpha 0.069 compound to 0.89, i.e. a nearly opaque (180,180,220) disc.
+// front-facing, and look for the ghost colour itself.
+//
+// ── THE FOURTH WAY, and the one that made this check FLAKY ────────────────
+// The statistic used to be the closest approach to (180,180,220) anywhere in
+// the frame. A MINIMUM over 700k pixels is not a property of the ghost layer:
+// it is however close the single luckiest unrelated pixel happens to sit to
+// that colour. The boot fingerprint is not deterministic — 8 relaunches, 8
+// fingerprints — so it was a lottery ticket, and it was drawn three pumps
+// after __virtualize() lands on ~6.5s of REAL-time rAF. Measured over 8
+// isolated runs of the old block: the OFF reading ranged 8.7 to 72.9, an 8x
+// spread on the denominator of its own verdict, while the ON reading came in
+// at 2.2, 5.1, 5.8, 6.0, 6.4, 7.0, 7.8 — and then 19.3, one false red in
+// eight against its `< 12` arm. The pair recorded in the old comment (15.4,
+// 7.5) is inside neither population.
+//
+// Three pumps was the other half of it. The frame is nowhere near settled
+// there: the disc's own neighbourhood measured (8,8,6) at pump 3 and
+// (191,245,240) at pump 30 in the same session. Every other check in this file
+// pumps 240 after __artHarnessReset. This one pumped 3.
+//
+// So the frame-wide minimum is gone. The layer publishes WHERE it drew —
+// __artBgState().ghostFirst is the first ghost's (sx, sy, radius, alpha) as
+// the shader received it — and the check reads that and looks THERE.
+//   - Read on the MEASURED frame, never the reset frame. The sphere keeps
+//     rotating under pump(), measured 0.44 px/frame, so by frame 240 the disc
+//     is ~79 px from where the pinned rotation put it. Sampling the reset
+//     position would read background and call the layer dead.
+//   - The statistic is the mean distance to the ghost colour over the disc's
+//     core — 0.6 of the published radius, 6-7 px — against the same disc in a
+//     frame where the layer had nothing to draw.
+//
+// ── It asserts the layer's OPACITY, not its brightness ────────────────────
+// Source-over toward a fixed colour is a contraction toward that colour. 31
+// stacked passes at the published alpha compound to C = 1 - (1-a)^31, the
+// trail accumulator lifts that to steadyState(C, m), and every pixel's
+// distance to (180,180,220) is multiplied by exactly 1 - steadyState(C, m),
+// WHATEVER WAS UNDERNEATH. That is the number asserted here, and it is why
+// this check now has no absolute margin at all: an absolute threshold is a
+// claim about the backdrop, and the backdrop is the lottery. Both of the
+// previous criteria were absolute (`gOn < gOff - 10`, then `gOn < 12`) and
+// both called a healthy layer broken.
+//
+// Being background-invariant by construction is what takes the boot
+// fingerprint out of the reading. Measured over 6 runs: 0.1300-0.1455 against
+// a model 0.1230, i.e. +5.8% to +18.4%. The residual is small, one-signed and
+// not isolated — the 2D canvas composites over this disc and the bloom pass
+// reaches it — so it is bounded rather than tuned away.
+//
+// ── Validated against its own null ────────────────────────────────────────
+// The null is the ghost inkOver, and only that, multiplied by zero in the
+// fragment shader. Every uniform is still written, so the live count, the
+// position, the radius and the alpha are byte-identical across the two builds
+// and only the pixels differ:
+//
+//        live layer (6 runs)   pull 0.1300-0.1455    dev  +5.8% to +18.4%
+//        ghost ink discarded   pull 0.9988-1.0027    dev  +712% to +716%
+//
+// The populations do not overlap. GHOST_TOL 0.35 brackets the live one with
+// room at both ends and still leaves the band's top 6x under the worst null.
+//
+// ── And the two frames have to be COMPARABLE ──────────────────────────────
+// The ratio is taken across two separate 240-frame sessions, so the check also
+// measures the annulus from 5 to 10 radii about the same centre — same
+// neighbourhood, ~1275 px, no ghost ink in it — in both. That read
+// 0.9980-1.0010 across all twelve runs above, live and null alike. If the two
+// frames ever stop being comparable there the denominator is not a control and
+// no number on this row means anything, so it is part of the verdict rather
+// than a note.
 const GL_READY = `(() => { const w = document.querySelector('[data-art-composite]');
   const g = w && w.querySelector('canvas'); const c = ${SPHERE};
   return !!g && !!c && g.width >= c.clientWidth * 0.9 && g.width > 800; })()`;
 
-const nearestGhostColour = (png) => {
-  const { width: W, height: H, data } = decodePng(png);
-  let best = 1e9;
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    const i = (y * W + x) * 4;
-    const d = Math.hypot(data[i] - 180, data[i + 1] - 180, data[i + 2] - 220);
-    if (d < best) best = d;
-  }
-  return best;
-};
+const GHOST_SETTLE = 240;     // frames — the settle count the other checks use
+const GHOST_CORE_F = 0.6;     // fraction of the published radius sampled
+const GHOST_TOL = 0.35;
+// The core runs 6-7 px, so this is a floor and not a threshold: it exists so a
+// region decoded to nowhere reads as a FAILURE rather than as a mean over an
+// empty sample, which is the guard the two blocks below also carry.
+const GHOST_MIN_PX = 4;
+const GHOST_CTL_TOL = 0.05;   // measured 0.9980-1.0010 over twelve runs
+const GHOST_STACK = `window.__artSetGhosts(Array.from({length:${GHOST_COUNT * 3}},(_,i)=> i%3===2 ? 1 : 0))`;
+
+// Mean distance to the ghost colour over an annulus [r0, r1] about (cx, cy).
+function ghostRing(img, cx, cy, r0, r1) {
+  const { width: W, height: H, data } = img;
+  const [GR, GG, GB] = GHOST_RGB;
+  let sum = 0, n = 0;
+  for (let y = Math.max(0, Math.floor(cy - r1)); y <= Math.min(H - 1, Math.ceil(cy + r1)); y++)
+    for (let x = Math.max(0, Math.floor(cx - r1)); x <= Math.min(W - 1, Math.ceil(cx + r1)); x++) {
+      const d = Math.hypot(x - cx, y - cy);
+      if (d < r0 || d > r1) continue;
+      const i = (y * W + x) * 4;
+      sum += Math.hypot(data[i] - GR, data[i + 1] - GG, data[i + 2] - GB); n++;
+    }
+  return { mean: sum / (n || 1), n };
+}
+const ghostDisc = (img, cx, cy, rad) => ghostRing(img, cx, cy, -1, rad);
 
 const g2 = await launch({ url: 'http://localhost:5174/', width: 1520, height: 900, deterministic: true });
 try {
@@ -186,37 +270,53 @@ try {
   const r2 = await g2.eval(RECT);
   const clip2 = { x: r2.x, y: r2.y, width: r2.w, height: r2.h, scale: 1 };
 
-  await g2.eval('window.__artSetGhosts(null); window.__reseed(); window.__artHarnessReset();');
-  await g2.pump(3);
-  const gOff = nearestGhostColour(await g2.screenshot({ clip: clip2 }));
-  await g2.eval('window.__artSetGhosts(Array.from({length:93},(_,i)=> i%3===2 ? 1 : 0))');
-  await g2.pump(3);
-  const gOn = nearestGhostColour(await g2.screenshot({ clip: clip2 }));
-  const live = JSON.parse(await g2.eval('JSON.stringify(window.__artBgState())')).ghostsLive;
+  // Two sessions from the same reset, the same length, differing in one bit:
+  // whether the ghost layer has anything to draw.
+  const sample = async (setup) => {
+    await g2.eval(`window.__reseed(); window.__artHarnessReset(); ${setup}`);
+    await g2.pump(GHOST_SETTLE);
+    const img = decodePng(await g2.screenshot({ clip: clip2 }));
+    const st = JSON.parse(await g2.eval('JSON.stringify(window.__artBgState())'));
+    return { img, st };
+  };
+  const off = await sample('window.__artSetGhosts(null)');
+  const on = await sample(GHOST_STACK);
 
-  console.log('GHOST TRAILS  (closest approach to the ghost colour 180,180,220)');
-  console.log(`   no session     ${gOff.toFixed(1)}`);
-  console.log(`   31 stacked     ${gOn.toFixed(1)}   (${live} live slots published)`);
-  // The criterion used to be `gOn < gOff - 10` — a FIXED ABSOLUTE margin — and
-  // that made it the fifth time this check called a healthy layer broken.
-  //
-  // nearestGhostColour is a MINIMUM over the whole frame, so gOff is not a
-  // property of the ghost layer at all: it is however close the brightest
-  // unrelated pixel (a node, a label) happens to sit to (180,180,220). Once the
-  // trail accumulator landed and the whole frame got brighter, gOff fell to
-  // 15.4, so the old rule demanded gOn <= 5.4 — i.e. the stacked disc had to
-  // match the ghost colour to within 2% before the check would admit the layer
-  // existed. The better the rest of the sphere renders, the harder this failed.
-  //
-  // Replaced with two conditions that are about the layer rather than the frame:
-  //   - gOn < 12: 31 stacked ghosts compound to near-opaque, so the disc should
-  //     BE the ghost colour. 12 is under 5% of |(180,180,220)|, which says
-  //     "this pixel is that colour", not merely "this pixel is bright".
-  //   - gOn < gOff * 0.7: and stacking them has to have actually moved it,
-  //     which is what distinguishes the layer drawing from the frame being
-  //     bright for other reasons.
-  // Measured with the trail on: gOff 15.4, gOn 7.5.
-  verdict('GHOST TRAILS', live > 0 && gOn < 12 && gOn < gOff * 0.7);
+  const [gx, gy, grad, ga] = on.st.ghostFirst;
+  const live = on.st.ghostsLive;
+  const m = on.st.rift.a;
+  const dOn = ghostDisc(on.img, gx, gy, grad * GHOST_CORE_F);
+  const dOff = ghostDisc(off.img, gx, gy, grad * GHOST_CORE_F);
+  const cOn = ghostRing(on.img, gx, gy, grad * 5, grad * 10);
+  const cOff = ghostRing(off.img, gx, gy, grad * 5, grad * 10);
+
+  const pull = dOn.mean / dOff.mean;
+  const cover = steadyState(1 - (1 - ga) ** GHOST_COUNT, m);
+  const want = 1 - cover;
+  const dev = pull / want - 1;
+  const ctl = cOn.mean / cOff.mean;
+
+  // `want` is computed from the alpha the page itself published, which is the
+  // self-fulfilling shape the TRAIL ACCUMULATION block below refuses: an alpha
+  // of ~0 would make `want` ~1 and the null would sail through. The stack is
+  // seeded at model (0,0,1) against a pinned rotation, so its depth stays well
+  // front-facing — measured rz 0.812 at frame 240 — and this floor is a guard
+  // on the arithmetic, not a measurement of the layer.
+  const alphaOk = ga >= GHOST_ALPHA * 0.5;
+  const bandOk = dOn.n >= GHOST_MIN_PX;
+  const ctlOk = Math.abs(ctl - 1) <= GHOST_CTL_TOL;
+
+  console.log('GHOST TRAILS  (the published disc, against the same disc with the layer off)');
+  console.log(`   ${live}/${GHOST_COUNT} slots live   disc r${grad.toFixed(2)} at ${gx.toFixed(1)},${gy.toFixed(1)}`
+    + `   alpha ${ga.toFixed(4)}${alphaOk ? '' : ' — TOO FAINT TO PREDICT FROM'}   m ${m}`);
+  console.log(`   core ${dOn.n}px   no session ${dOff.mean.toFixed(1)}   31 stacked ${dOn.mean.toFixed(1)}`
+    + (bandOk ? '' : `   SAMPLE UNDER ${GHOST_MIN_PX}px — not a measurement`));
+  console.log(`   pull ${pull.toFixed(4)}   expected ${want.toFixed(4)} (coverage ${cover.toFixed(4)})`
+    + `   dev ${(dev * 100).toFixed(1)}% (tol ${(GHOST_TOL * 100).toFixed(0)}%)`);
+  console.log(`   frames comparable off the disc   ${cOff.mean.toFixed(1)} -> ${cOn.mean.toFixed(1)}`
+    + `   ratio ${ctl.toFixed(4)} (${cOn.n}px)` + (ctlOk ? '' : '   NOT COMPARABLE — the ratio above is not a control'));
+  verdict('GHOST TRAILS',
+    live === GHOST_COUNT && alphaOk && bandOk && ctlOk && Math.abs(dev) <= GHOST_TOL);
 } finally { await g2.close(); }
 
 // ── TRAIL ACCUMULATION: the GL layers' frame-to-frame ink ─────────────────
