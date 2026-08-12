@@ -31,7 +31,7 @@ import {
   COLOR_GLSL, BACKGROUND_GLSL, backgroundUniforms, syncBackgroundUniforms,
   riftUniform, syncRiftUniform,
 } from './SphereBackground';
-import { createEdgeLayer, syncEdgeLayer } from './SphereEdges';
+import { createEdgeLayer, syncEdgeLayer, SRC_OVER_LAYER, ADDITIVE_LAYER } from './SphereEdges';
 import { createTrail, renderTrailFade } from './SphereTrail';
 import { trailSurvival } from './artTrail';
 
@@ -152,7 +152,7 @@ const BACKDROP_FRAG = /* glsl */`
 // write buffer. Keeping a second full-resolution RGBA8 buffer alive for a pass
 // that no longer reads or writes it would be a megabyte of dead VRAM per frame
 // of nothing.
-function createBackdrop(edgeData) {
+function createBackdrop(edgeData, additiveData) {
   const uniforms = {
     uResolution: { value: new THREE.Vector2(1, 1) },
     ...backgroundUniforms(),
@@ -201,8 +201,17 @@ function createBackdrop(edgeData) {
   // createEdgeState()) becomes the mesh's OWN buffer — see createEdgeLayer's
   // docstring — so syncEdgeLayer never copies it, it only flags the range
   // dirty.
-  const edges = createEdgeLayer(edgeData);
+  const edges = createEdgeLayer(edgeData, SRC_OVER_LAYER);
   scene.add(edges.mesh);
+
+  // The additive line layer — the resonance edge, and next the prism chords.
+  // A SECOND mesh because `lighter` is additive and the base edges are
+  // source-over, and one material cannot carry two blends. Added after the edge
+  // mesh, which is also the 2D draw order it reproduces: every edge and every
+  // pulse ring first, then these. See ADDITIVE_LAYER in SphereEdges.js for how
+  // its four blend factors follow from what this target holds.
+  const additive = createEdgeLayer(additiveData, ADDITIVE_LAYER);
+  scene.add(additive.mesh);
 
   // The clip-space quad convention three uses for its own full-screen passes.
   // The edge mesh ignores it — it writes gl_Position directly — which is
@@ -210,16 +219,17 @@ function createBackdrop(edgeData) {
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 
   return {
-    scene, camera, uniforms, edges,
+    scene, camera, uniforms, edges, additive,
     dispose() {
       geometry.dispose();
       material.dispose();
       edges.dispose();
+      additive.dispose();
     },
   };
 }
 
-function BackdropPass({ backdrop, trail, stateRef, edgeStateRef }) {
+function BackdropPass({ backdrop, trail, stateRef, edgeStateRef, additiveStateRef }) {
   const gl = useThree(s => s.gl);
   const size = useThree(s => s.size);
 
@@ -228,7 +238,7 @@ function BackdropPass({ backdrop, trail, stateRef, edgeStateRef }) {
   // one only orders this callback earlier inside the same frame. It must run
   // before SourceQuad (0) and the composer (1).
   useFrame(() => {
-    const { scene, camera, uniforms, edges } = backdrop;
+    const { scene, camera, uniforms, edges, additive } = backdrop;
 
     // The drawing buffer is the ground truth the screen pass samples against,
     // and it is in DEVICE px. SizeSync does not own it — it is a self-healing
@@ -249,6 +259,8 @@ function BackdropPass({ backdrop, trail, stateRef, edgeStateRef }) {
     // with the coordinates it projected. It must not read `size` here: see the
     // note on createEdgeState().
     syncEdgeLayer(edges, edgeStateRef?.current);
+    // Same contract, same buffer layout, its own stream — see createBackdrop.
+    syncEdgeLayer(additive, additiveStateRef?.current);
 
     // Last frame's accumulation becomes this frame's source, and the fade
     // stands in for the clear, so nothing may wipe the target mid-sequence.
@@ -423,7 +435,7 @@ function AdvanceBridge({ onAdvanceReady }) {
   return null;
 }
 
-export default function SphereComposite({ sourceRef, immersive, onAdvanceReady, bgStateRef, edgeGLRef }) {
+export default function SphereComposite({ sourceRef, immersive, onAdvanceReady, bgStateRef, edgeGLRef, addGLRef }) {
   const dpr = useRef(compositeDpr(typeof window !== 'undefined' ? window.devicePixelRatio : 1)).current;
   const wrapRef = useRef(null);
 
@@ -431,7 +443,10 @@ export default function SphereComposite({ sourceRef, immersive, onAdvanceReady, 
   // edgeGLRef.current is set synchronously in ArtTab's render body (see
   // createEdgeState() there), before this child renders, so its `.data` array
   // already exists the first time this factory runs.
-  const backdrop = useMemo(() => createBackdrop(edgeGLRef?.current?.data), [edgeGLRef]);
+  const backdrop = useMemo(
+    () => createBackdrop(edgeGLRef?.current?.data, addGLRef?.current?.data),
+    [edgeGLRef, addGLRef],
+  );
   useEffect(() => () => backdrop.dispose(), [backdrop]);
 
   // The accumulator, owned out here for the same reason: BackdropPass renders
@@ -476,7 +491,8 @@ export default function SphereComposite({ sourceRef, immersive, onAdvanceReady, 
       >
         <AdvanceBridge onAdvanceReady={onAdvanceReady} />
         <SizeSync sourceRef={sourceRef} wrapRef={wrapRef} />
-        <BackdropPass backdrop={backdrop} trail={trail} stateRef={bgStateRef} edgeStateRef={edgeGLRef} />
+        <BackdropPass backdrop={backdrop} trail={trail} stateRef={bgStateRef}
+          edgeStateRef={edgeGLRef} additiveStateRef={addGLRef} />
         <SourceQuad sourceRef={sourceRef} trail={trail} stateRef={bgStateRef} />
         <EffectComposer disableNormalPass>
           <Bloom

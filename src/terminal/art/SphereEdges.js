@@ -34,14 +34,19 @@
 //   13     packed alphas    a0 + a1*256 + a2*65536, each quantised to 1/255
 //   14     width            stroke width in px; NEGATIVE means a pulse ring
 //                           carrying -2 * radius — see the disc-sentinel note
-//   15     packed flags     dashPeriod + dashDuty*256 + (round(glow*8) + isOrtho*128)*65536
+//   15     packed flags     dashPeriod + dashDuty*256
+//                             + (round(glow * glowQuant) + isOrtho*128)*65536
 //
 // Every packed field is an INTEGER. A float32 represents every integer below
 // 2^24 exactly, and all the divisors used to unpack are powers of two, so the
-// round trip is lossless — which is why the glow radius is carried in eighths
-// of a pixel rather than as a fraction. The brief's `glow*65536` would have put
-// a fractional field under two integer ones and leaked its low bits into the
-// dash period.
+// round trip is lossless — which is why the glow radius is carried in whole
+// steps of `1 / glowQuant` px rather than as a fraction. The brief's
+// `glow*65536` would have put a fractional field under two integer ones and
+// leaked its low bits into the dash period.
+//
+// `glowQuant` is 8 for the source-over edge mesh below and 4 for the additive
+// one — a PER-MATERIAL step, for the reason set out under "The additive twin".
+// It is the one number in this table that is not the same for both meshes.
 //
 // ── isOrtho, and why it did NOT need a 17th float ──────────────────────────
 //
@@ -52,8 +57,8 @@
 // colour and a single alpha for both, so the ortho halo came out ~2x too dim
 // and up to 120deg off in hue (see task-3-report.md's fix wave).
 //
-// `packFlags` rounds glow to eighths and clamps it to [0, 127] — both real
-// glow radii (fusedGlow, orthoGlow) top out at 14px, i.e. round(14*8) = 112 —
+// `packFlags` rounds glow to this mesh's eighths and clamps it to [0, 127] —
+// both real glow radii (fusedGlow, orthoGlow) top out at 14px, round(14*8)=112 —
 // so bit 7 of that byte (bit 23 of the packed field) is provably never set by
 // a real glow value. It carries `isOrtho` instead, and the shader picks the
 // correct shadow alpha and colour per-instance from data it already has:
@@ -95,13 +100,43 @@
 // 0)` leaves the existing `step(0.001, vGlow)` and `if (vDash.x > 0.0)` to
 // switch the glow and dash terms off with no new branch.
 
+// ── The additive twin, and the one field that could not be shared ──────────
+//
+// `lighter` is additive and the base edges are source-over, so the resonance
+// edge and the prism chords cannot ride the mesh above: one material cannot
+// carry two blends. They get a SECOND mesh over the same geometry and the same
+// shader body, drawn after this one — which is also their 2D draw order, after
+// every edge and every ring.
+//
+// The one thing that could not simply be shared is the glow's quantisation.
+// The glow byte is seven bits (bit 7 is isOrtho), so at the edge mesh's 1/8 px
+// step the largest radius representable is 127/8 = 15.875 px. That covers both
+// of ITS glows — fusedGlow and orthoGlow top out at 14 — but resonanceGlow
+// reaches 28, and even the DEFAULT sim of 0.5 asks for 16. Packed at 1/8 both
+// come back as 15.875, silently, in the one layer the plan calls "the place a
+// wrong glow falloff will show first" and which no capture state arms.
+//
+// So the step is per material: `glowQuant`, a uniform on the shader side and an
+// argument on the packing side, single-sourced from the spec objects below. The
+// additive layer uses 4 — round(28*4) = 112, the same number and the same
+// headroom under 128 that round(14*8) = 112 gives the edge mesh, at a step of
+// 0.25 px the falloff cannot show. The edge mesh keeps 8 and is unmoved, which
+// is deliberate: changing it would shift every shipped ortho and fused glow,
+// i.e. a parity change smuggled into a port task.
+
 import * as THREE from 'three';
-import { FUSED_GLOW_BASE, FUSED_GLOW_SCALE, ORTHO_HUE_STEP_GLOW } from './artEdges.js';
+import {
+  FUSED_GLOW_BASE, FUSED_GLOW_SCALE, ORTHO_HUE_STEP_GLOW,
+  RESONANCE_GOLD, RESONANCE_SHADOW_ALPHA,
+} from './artEdges.js';
 
 /** Render an integer constant as a GLSL float literal, for injecting the
  *  artEdges.js constants into the shader source so they stay one source of
  *  truth instead of a second hand-copied magic number. */
 const glslFloat = (n) => (Number.isInteger(n) ? `${n}.0` : `${n}`);
+
+/** The same, for an rgb BYTE triple. */
+const glslRgb255 = (c) => `vec3(${c.map(v => glslFloat(v / 255)).join(', ')})`;
 
 /** Floats per edge instance. */
 export const EDGE_STRIDE = 16;
@@ -130,6 +165,12 @@ export const MAX_EDGES = 1024;
 /** How many glow radii the instance quad is padded by. The shoulder is
  *  exp(-2(d/g)^2), which drops below 1/255 at d = 1.66g. */
 export const GLOW_REACH = 1.75;
+
+// Steps per pixel of glow radius, per material — see the note at the top of the
+// file for why these are not one number. Both are powers of two, so the packed
+// field stays an integer and the float32 round trip stays lossless.
+const GLOW_QUANT_SRC_OVER = 8;   // 1/8 px, max 15.875 — covers 14
+const GLOW_QUANT_ADDITIVE = 4;   // 1/4 px, max 31.75  — covers 28
 
 // GLOW_K, the flat 0.5 this shipped with, is gone: it stood in for two
 // different `ctx.shadowColor` alphas (and always the wrong colour — see the
@@ -194,6 +235,18 @@ export function writeHsl(out, o, hue, sat, lit) {
   out[o + 2] = f(4);
 }
 
+/** An rgb BYTE triple into the same three floats `writeHslRgb` writes.
+ *
+ *  The resonance edge and the prism chords are authored as `rgba()` literals,
+ *  not as the HSL objects the node palette carries, so they have no hue to
+ *  convert and must not be routed through the HSL path — doing so would ask
+ *  writeHsl to read 255 as a hue in degrees. */
+export function writeRgb255(out, o, c) {
+  out[o]     = c[0] / 255;
+  out[o + 1] = c[1] / 255;
+  out[o + 2] = c[2] / 255;
+}
+
 /**
  * Three alphas into one float. Each is clamped to 0–1 first, which is not
  * tidiness: `baseAlpha + pulseBoost` can exceed 1 and the canvas clamped it
@@ -238,32 +291,37 @@ export function isDisc(width) {
 
 /**
  * Dash pattern, glow radius and the isOrtho flag into one float. `dashPeriod`
- * is on+off and `dashDuty` is on, both in px; a period of 0 means solid. The
- * glow is quantised to 1/8 px, which is 64 steps across the 6–14 px range the
- * ortho bridge breathes through — finer than the falloff can show — and
- * clamped to [0, 127] rather than [0, 255]: both real glow radii top out at
- * 14px (round(14*8) = 112), so bit 7 of that byte is provably never reached by
- * a real glow value and carries `isOrtho` instead. See the file header for why
- * that avoids a 17th float.
+ * is on+off and `dashDuty` is on, both in px; a period of 0 means solid.
+ *
+ * The glow is quantised to `1 / glowQuant` px and clamped to [0, 127] rather
+ * than [0, 255], because bit 7 of that byte carries `isOrtho` instead — see the
+ * file header for why that avoids a 17th float. `glowQuant` DEFAULTS to the
+ * source-over edge mesh's own step so every existing call site packs the byte
+ * it always packed; the additive layer passes its own (see the note at the top
+ * of the file, and `ADDITIVE_LAYER.glowQuant`). Whatever the step, the
+ * invariant is the same one: the material's largest real radius must round to
+ * under 128, or the clamp eats it silently.
  */
-export function packFlags(dashPeriod, dashDuty, glow, isOrtho = false) {
+export function packFlags(dashPeriod, dashDuty, glow, isOrtho = false,
+                          glowQuant = GLOW_QUANT_SRC_OVER) {
   const p = Math.max(0, Math.min(255, Math.round(dashPeriod)));
   const d = Math.max(0, Math.min(255, Math.round(dashDuty)));
-  const g = Math.max(0, Math.min(127, Math.round(glow * 8))) + (isOrtho ? 128 : 0);
+  const g = Math.max(0, Math.min(127, Math.round(glow * glowQuant))) + (isOrtho ? 128 : 0);
   return p + d * 256 + g * 65536;
 }
 
 /** The inverse of `packFlags`, mirroring exactly what `EDGE_VERT` unpacks
- *  (dashPeriod/dashDuty via mod/floor, glow's top bit split off as isOrtho).
- *  Exported so `artEdges.test.js` cannot drift from the shader's arithmetic —
- *  see `EDGE_VERT` for the GLSL twin of this function. */
-export function unpackFlags(packed) {
+ *  (dashPeriod/dashDuty via mod/floor, glow's top bit split off as isOrtho,
+ *  the rest divided by the material's `uGlowQuant`). Exported so
+ *  `artEdges.test.js` cannot drift from the shader's arithmetic — see
+ *  `EDGE_VERT` for the GLSL twin of this function. */
+export function unpackFlags(packed, glowQuant = GLOW_QUANT_SRC_OVER) {
   const gByte = Math.floor(packed / 65536);
   return {
     dashPeriod: Math.floor(packed % 256),
     dashDuty: Math.floor((packed / 256) % 256),
     isOrtho: gByte >= 128,
-    glow: (gByte % 128) / 8,
+    glow: (gByte % 128) / glowQuant,
   };
 }
 
@@ -283,6 +341,7 @@ const EDGE_VERT = /* glsl */`
 
   uniform vec2  uResolution; // CSS px, matching the 2D draw loop's coordinates
   uniform float uGlowReach;
+  uniform float uGlowQuant;  // steps per px of glow radius — per material
 
   varying vec3  vC0;
   varying vec3  vC1;
@@ -314,7 +373,7 @@ const EDGE_VERT = /* glsl */`
     float dashDuty   = floor(mod(f / 256.0, 256.0));
     float gByte      = floor(f / 65536.0);
     float isOrtho    = step(127.5, gByte);
-    float glow       = mod(gByte, 128.0) / 8.0;
+    float glow       = mod(gByte, 128.0) / uGlowQuant;
 
     float p = aPack.x;
     vAlpha = vec3(floor(mod(p, 256.0)),
@@ -353,7 +412,38 @@ const EDGE_VERT = /* glsl */`
   }
 `;
 
-const EDGE_FRAG = /* glsl */`
+// The shadow's colour and alpha are the ONE thing the two materials cannot
+// share, so they are injected as a snippet rather than branched on at runtime —
+// the same treatment ORTHO_HUE_STEP_GLOW already gets. Each defines exactly
+// `shadowAlpha` and `shadowCol`; everything around them, including the gaussian
+// and its amplitude, is one body of code compiled twice.
+
+// Source-over: derived per-instance from the isOrtho bit, out of data the
+// instance already carries. See the file header.
+const SHADOW_SRC_OVER = /* glsl */`
+    // Fused: fuseCos * 0.6, with fuseCos recovered from vGlow — fusedGlow()
+    // is a bijective linear map of it, so no extra data is needed. Ortho:
+    // always 1.0 (fully opaque), matching the original ctx.shadowColor.
+    float fuseCos = clamp((vGlow - ${glslFloat(FUSED_GLOW_BASE)}) / ${glslFloat(FUSED_GLOW_SCALE)}, 0.0, 1.0);
+    float shadowAlpha = mix(fuseCos * 0.6, 1.0, vIsOrtho);
+    // Fused shadows are the mid stop (vC1 IS cMid already, see edgeStops());
+    // the ortho shadow is hue+30 at fixed S/L, reconstructed here because it is
+    // the one colour that has no home in the 16-float layout otherwise.
+    vec3 shadowCol = mix(vC1, hsl2rgb(mod(uOrthoHue + ${glslFloat(ORTHO_HUE_STEP_GLOW)}, 360.0), 1.0, 0.6), vIsOrtho);
+`;
+
+// Additive: one flat style for the whole layer. The resonance core is the only
+// stroke here that HAS a shadow — the halo sets shadowBlur = 0 and the prism
+// chords set none — and its ctx.shadowColor was a flat gold, not the gradient
+// colour and not a function of anything per-instance. Those other strokes carry
+// glow = 0, and the `step(0.001, vGlow)` below already zeroes the whole shadow
+// term for them, so no per-instance flag is needed to tell them apart.
+const SHADOW_ADDITIVE = /* glsl */`
+    float shadowAlpha = ${glslFloat(RESONANCE_SHADOW_ALPHA)};
+    vec3 shadowCol = ${glslRgb255(RESONANCE_GOLD)};
+`;
+
+const edgeFrag = (shadow) => /* glsl */`
   precision highp float;
 
   // Time-based, not per-edge: orthoHue(now) is the same for every ortho edge
@@ -436,6 +526,11 @@ const EDGE_FRAG = /* glsl */`
     float dOut = max(0.0, max(-vAlong, vAlong - vLen));
     float dSeg = length(vec2(dOut, vD));
     float g = dSeg / max(vGlow, 1e-3);
+    // The shadow's colour and alpha, per material. Separate from the stroke's,
+    // which is the fix this shipped with: the bug it replaced used the
+    // t-varying gradient colour (col) for the glow too, and a canvas shadow is
+    // a FLAT colour, never a gradient.
+${shadow}
     // AMPLITUDE, not a taste knob. Blurring a line of width w with sigma
     // leaves a peak of w / (sigma*sqrt(2pi)) of the original alpha; with
     // sigma = vGlow/2 that is 1.5958 * halfW / vGlow. At the 1px widths and
@@ -445,23 +540,10 @@ const EDGE_FRAG = /* glsl */`
     // blur cannot raise the peak above the line's own alpha.
     //
     // shadowAlpha replaces the old flat uGlowK: it is ctx.shadowColor's own
-    // alpha, derived per-instance instead of averaged into one constant.
-    // Fused: fuseCos * 0.6, with fuseCos recovered from vGlow — fusedGlow()
-    // is a bijective linear map of it, so no extra data is needed. Ortho:
-    // always 1.0 (fully opaque), matching the original ctx.shadowColor.
-    float fuseCos = clamp((vGlow - ${glslFloat(FUSED_GLOW_BASE)}) / ${glslFloat(FUSED_GLOW_SCALE)}, 0.0, 1.0);
-    float shadowAlpha = mix(fuseCos * 0.6, 1.0, vIsOrtho);
+    // alpha, taken from the instance or the material instead of averaged into
+    // one constant across both.
     float peak = min(shadowAlpha * 1.5958 * vHalfW / max(vGlow, 1e-3), 1.0);
     float glow = peak * exp(-2.0 * g * g) * step(0.001, vGlow);
-
-    // The shadow's colour, separately from the stroke's — the bug this
-    // replaces used the t-varying gradient colour (col) for the glow too,
-    // which is wrong even for the fused case (the canvas shadow was a FLAT
-    // colour, not a gradient). Fused shadows are the mid stop (vC1 IS cMid
-    // already, see edgeStops()); the ortho shadow is hue+30 at fixed S/L,
-    // reconstructed here because it is the one colour that has no home in
-    // the 16-float layout otherwise.
-    vec3 shadowCol = mix(vC1, hsl2rgb(mod(uOrthoHue + ${glslFloat(ORTHO_HUE_STEP_GLOW)}, 360.0), 1.0, 0.6), vIsOrtho);
 
     // Composite the core OVER the glow (two distinct colours, two distinct
     // alphas) rather than blending one flat colour by a combined coverage —
@@ -477,16 +559,89 @@ const EDGE_FRAG = /* glsl */`
 `;
 
 /**
- * Build the edge mesh. Imperative, like the backdrop it joins: nothing here
- * may enter r3f's scene graph.
+ * The sphere's base edges and the travelling pulse rings: `ctx`'s default
+ * source-over, in the target's raw sRGB bytes.
+ *
+ * The ALPHA channel gets its own factor pair, and that is not decoration. Since
+ * the trail commit the target holds premultiplied ink whose alpha is read by
+ * the screen pass to decide how much of the rift clear shows through. Without
+ * this, three leaves the alpha channel on the RGB factors and the destination
+ * alpha accumulates as `a*a + dst*(1-a)` — coverage squared, i.e. an edge that
+ * paints its colour correctly and then lets the backdrop bleed back through
+ * itself.
+ */
+export const SRC_OVER_LAYER = Object.freeze({
+  glowQuant: GLOW_QUANT_SRC_OVER,
+  shadow: SHADOW_SRC_OVER,
+  renderOrder: 1,
+  blend: Object.freeze({
+    blendSrc: THREE.SrcAlphaFactor,
+    blendDst: THREE.OneMinusSrcAlphaFactor,
+    blendSrcAlpha: THREE.OneFactor,
+    blendDstAlpha: THREE.OneMinusSrcAlphaFactor,
+  }),
+});
+
+/**
+ * The resonance edge and (next) the prism chords: `ctx.globalCompositeOperation
+ * = 'lighter'`.
+ *
+ * ── Deriving the four factors ──────────────────────────────────────────────
+ *
+ * The accumulator holds PREMULTIPLIED layer ink with coverage in alpha, and the
+ * rift clear colour is NOT in it: the screen pass composites
+ * `bg = ink.rgb + uRift * (1 - ink.a)`. On the 2D canvas, `lighter` added light
+ * on top of a destination that ALREADY contained the rift clear, and it did not
+ * occlude it. So the GL equivalent must
+ *
+ *   1. add to `ink.rgb`, and
+ *   2. leave `ink.a` alone.
+ *
+ * The fragment shader emits STRAIGHT (un-premultiplied) rgb with coverage in
+ * alpha, so (1) is `SrcAlpha / One` — `dst.rgb + outRGB * outA` is exactly the
+ * premultiplied ink this stroke contributes. And (2) is `Zero / One`.
+ *
+ * That second pair is the one a call log cannot check and the plan warns about
+ * by name. Left at three's default the alpha channel rides the RGB factors and
+ * becomes `outA + dst.a` — a rising alpha, which the screen pass then reads as
+ * "less rift shows here", i.e. the additive stroke would SUBTRACT the clear
+ * colour from underneath itself. On the canvas that could not happen, because
+ * the clear was already in the destination; `lighter` raised its alpha too and
+ * nothing was watching that channel. Here something is.
+ *
+ * (The canvas also clamped `lighter` at 1.0 per channel. GL's One/One clamps
+ * the same way in a fixed-point RGBA8 target, so that needs nothing.)
+ */
+export const ADDITIVE_LAYER = Object.freeze({
+  glowQuant: GLOW_QUANT_ADDITIVE,
+  shadow: SHADOW_ADDITIVE,
+  // After the edge mesh. In the 2D loop the resonance edge is drawn after every
+  // edge and every pulse ring, and the chords after it; a second mesh drawn
+  // later reproduces that order exactly.
+  renderOrder: 2,
+  blend: Object.freeze({
+    blendSrc: THREE.SrcAlphaFactor,
+    blendDst: THREE.OneFactor,
+    blendSrcAlpha: THREE.ZeroFactor,
+    blendDstAlpha: THREE.OneFactor,
+  }),
+});
+
+/**
+ * Build one of the two edge meshes. Imperative, like the backdrop it joins:
+ * nothing here may enter r3f's scene graph.
  *
  * `sharedData`, when passed, becomes the buffer's OWN backing array — the
  * caller (SphereComposite, via `createEdgeState()`'s array) writes directly
  * into what the GPU reads, so `syncEdgeLayer` never has to copy ~1400 floats
  * a frame into a second, redundant buffer. Falls back to a private array so
  * the function stays usable standalone (tests, any future non-shared caller).
+ *
+ * `spec` selects the material: the blend, the glow step and the shadow snippet.
+ * Everything else — the geometry, the vertex expansion, the gradient, the box
+ * filter and the gaussian shoulder — is the same code compiled twice.
  */
-export function createEdgeLayer(sharedData) {
+export function createEdgeLayer(sharedData, spec = SRC_OVER_LAYER) {
   const data = sharedData ?? new Float32Array(MAX_EDGES * EDGE_STRIDE);
 
   const geometry = new THREE.InstancedBufferGeometry();
@@ -511,28 +666,19 @@ export function createEdgeLayer(sharedData) {
   const uniforms = {
     uResolution: { value: new THREE.Vector2(1, 1) },
     uGlowReach:  { value: GLOW_REACH },
+    uGlowQuant:  { value: spec.glowQuant },
     uOrthoHue:   { value: 0 },
   };
 
   const material = new THREE.ShaderMaterial({
     uniforms,
     vertexShader: EDGE_VERT,
-    fragmentShader: EDGE_FRAG,
+    fragmentShader: edgeFrag(spec.shadow),
     transparent: true,
-    // Source-over, in the target's raw sRGB bytes. See the header.
-    //
-    // The ALPHA channel gets its own factor pair, and that is not decoration.
-    // Since the trail commit the target holds premultiplied ink whose alpha is
-    // read by the screen pass to decide how much of the rift clear shows
-    // through. Without this, three leaves the alpha channel on the RGB factors
-    // and the destination alpha accumulates as `a*a + dst*(1-a)` — coverage
-    // squared, i.e. an edge that paints its colour correctly and then lets the
-    // backdrop bleed back through itself.
+    // See SRC_OVER_LAYER / ADDITIVE_LAYER for how each set of factors is
+    // derived from what the accumulator holds.
     blending: THREE.CustomBlending,
-    blendSrc: THREE.SrcAlphaFactor,
-    blendDst: THREE.OneMinusSrcAlphaFactor,
-    blendSrcAlpha: THREE.OneFactor,
-    blendDstAlpha: THREE.OneMinusSrcAlphaFactor,
+    ...spec.blend,
     depthTest: false,
     depthWrite: false,
     toneMapped: false,
@@ -541,7 +687,7 @@ export function createEdgeLayer(sharedData) {
 
   const mesh = new THREE.Mesh(geometry, material);
   mesh.frustumCulled = false;
-  mesh.renderOrder = 1;
+  mesh.renderOrder = spec.renderOrder;
   mesh.visible = false;
 
   return {

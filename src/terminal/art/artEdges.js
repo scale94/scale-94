@@ -142,6 +142,11 @@ export const RESONANCE_GLOW_BASE = 4;
 export const RESONANCE_GLOW_SCALE = 24;
 export const RESONANCE_DEFAULT_SIM = 0.5;   // when no result has landed yet
 
+// `ctx.shadowColor = 'rgba(255,215,0,0.9)'` — the CORE's shadow only, and a
+// flat colour rather than the gradient's. The halo sets shadowBlur = 0 and the
+// prism chords have no shadow at all, so this alpha belongs to one stroke.
+export const RESONANCE_SHADOW_ALPHA = 0.9;
+
 /** Glow radius in px for the resonance core, 4 at sim 0 rising to 28 at sim 1.
  *  Twice the base edges' maximum — this is where a wrong glow falloff shows. */
 export function resonanceGlow(sim) {
@@ -153,5 +158,32 @@ export function resonanceWidths(sim, avgScale) {
   return {
     halo: (RESONANCE_HALO_W + sim * RESONANCE_HALO_W_K) * avgScale,
     core: (RESONANCE_CORE_W + sim * RESONANCE_CORE_W_K) * avgScale,
+  };
+}
+
+/**
+ * The three gradient stops of each of the resonance edge's TWO strokes.
+ *
+ * The twin of `edgeStops()` above, and deliberately shaped the same way, but
+ * the two differ in the thing that matters: a base edge's ends are ASYMMETRIC
+ * and swing apart with strength, while both of these are symmetric — stop 0 and
+ * stop 2 are the same colour at the same alpha. Only the middle differs, and it
+ * differs per stroke: the halo's is a pale yellow, the core's is pure white.
+ *
+ * Colours are rgb BYTES here, not the HSL objects the node palette carries, so
+ * they must not be routed through writeHslRgb.
+ */
+export function resonanceStops(sim) {
+  const haloEnd = RESONANCE_HALO_END_A + sim * RESONANCE_HALO_END_K;
+  const coreEnd = RESONANCE_CORE_END_A + sim * RESONANCE_CORE_END_K;
+  return {
+    halo: {
+      c0: RESONANCE_GOLD, c1: RESONANCE_HALO_MID, c2: RESONANCE_GOLD,
+      a0: haloEnd, a1: RESONANCE_HALO_MID_A + sim * RESONANCE_HALO_MID_K, a2: haloEnd,
+    },
+    core: {
+      c0: RESONANCE_GOLD, c1: RESONANCE_CORE_MID, c2: RESONANCE_GOLD,
+      a0: coreEnd, a1: RESONANCE_CORE_MID_A + sim * RESONANCE_CORE_MID_K, a2: coreEnd,
+    },
   };
 }

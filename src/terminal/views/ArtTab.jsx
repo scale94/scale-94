@@ -50,12 +50,13 @@ import { clusterLabelState, nodeLabelState, fireExpired } from '../art/artLabels
 import SphereLabels from '../art/SphereLabels';
 import SphereComposite from '../art/SphereComposite';
 import {
-  createEdgeState, writeHsl, writeHslRgb, packAlphas, packFlags, discWidth,
-  EDGE_STRIDE, MAX_EDGES,
+  createEdgeState, writeHsl, writeHslRgb, writeRgb255, packAlphas, packFlags, discWidth,
+  ADDITIVE_LAYER, EDGE_STRIDE, MAX_EDGES,
 } from '../art/SphereEdges';
 import {
   edgeStops, edgeLineWidth, orthoHue, orthoGlow, fusedGlow,
   pulseRingRadius, pulsePosition,
+  resonanceGlow, resonanceWidths, resonanceStops, RESONANCE_DEFAULT_SIM,
   ORTHO_DASH, SPECTRAL_DASH,
   ORTHO_HUE_STEP_MID, ORTHO_HUE_STEP_END,
   ORTHO_ALPHA_BOOST, ORTHO_MID_ALPHA_BOOST,
@@ -254,6 +255,13 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   // buffer on every render of this component.
   const edgeGLRef = useRef(null);
   if (edgeGLRef.current === null) edgeGLRef.current = createEdgeState();
+  // The ADDITIVE line layer, in the same 16-float layout: the resonance edge
+  // now, the prism chords next. A separate stream because `lighter` is a
+  // different blend, not because it is a different kind of geometry — the mesh
+  // it feeds is built from the same shader. `rings` goes unused here; sharing
+  // the state factory keeps one allocation shape rather than a near-duplicate.
+  const addGLRef = useRef(null);
+  if (addGLRef.current === null) addGLRef.current = createEdgeState();
 
   // ── Beat clock state ────────────────────────────────────────────────────
   const [ambientMode,  setAmbientMode]  = useState(false);
@@ -1190,45 +1198,65 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         }
       }
 
+      // ── The additive line layer (ctx's `lighter`) ─────────────────────────
+      //
+      // A SECOND GL mesh, drawn after the edge mesh — see SphereEdges.js's
+      // ADDITIVE_LAYER. Reset here, once, before the first of its writers; the
+      // prism chords will append to the same buffer below the resonance edge,
+      // which is the order the 2D loop drew them in.
+      const ag = addGLRef.current;
+      ag.count = 0;
+      ag.w = w; ag.h = h;
+
       // ── Resonance edge (Shift-Click comparison — solid glowing coalescence) ──
+      //
+      // TWO instances, not one: a wide low-alpha halo and a narrow bright core
+      // over it. That is what makes it read as two things coalescing rather
+      // than as a thick edge, and it is the part a port loses silently — a
+      // single bright bar looks entirely plausible.
+      //
+      // What did not move: the findIndex pair, both guard clauses and the
+      // projection all stay here on the CPU. Only the ctx calls became floats.
       if (resonanceModeRef.current && resonanceNodesRef.current.length === 2) {
         const [rIdA, rIdB] = resonanceNodesRef.current;
         const rIA = nodes.findIndex(n => n.id === rIdA);
         const rIB = nodes.findIndex(n => n.id === rIdB);
         if (rIA >= 0 && rIB >= 0) {
           const rResult = resonanceResultRef.current;
-          const sim     = rResult?.sim ?? 0.5;
+          // A pair with no computed result yet draws at 0.5, not at 0.
+          const sim     = rResult?.sim ?? RESONANCE_DEFAULT_SIM;
           const pRA = proj[rIA], pRB = proj[rIB];
           if (!pRA || !pRB) { /* dynamic node not yet projected — skip */ } else
           if (!isFinite(pRA.sx) || !isFinite(pRA.sy) || !isFinite(pRB.sx) || !isFinite(pRB.sy)) { /* non-finite coords — skip */ } else {
           const avgScale = (pRA.scale + pRB.scale) / 2;
+          const widths   = resonanceWidths(sim, avgScale);
+          const stops    = resonanceStops(sim);
+          const ad       = ag.data;
 
-          ctx.save();
-          ctx.globalCompositeOperation = 'lighter';
+          // The original quantised each alpha with `.toFixed(3)` before the
+          // canvas parsed the rgba() string. packAlphas quantises to 1/255,
+          // which is coarser, so it is the dominant step and toFixed does not
+          // need reproducing — it is dropped deliberately, not by oversight.
+          const stroke = (s, width, glow) => {
+            const o = ag.count * EDGE_STRIDE;
+            ad[o] = pRA.sx; ad[o + 1] = pRA.sy; ad[o + 2] = pRB.sx; ad[o + 3] = pRB.sy;
+            // rgb BYTES, not the palette's HSL objects — see writeRgb255.
+            writeRgb255(ad, o + 4,  s.c0);
+            writeRgb255(ad, o + 7,  s.c1);
+            writeRgb255(ad, o + 10, s.c2);
+            ad[o + 13] = packAlphas(s.a0, s.a1, s.a2);
+            ad[o + 14] = width;
+            // No dash, never ortho, and the layer's OWN glow step: at the edge
+            // mesh's 1/8 px a 28px radius saturates at 15.875. See packFlags.
+            ad[o + 15] = packFlags(0, 0, glow, false, ADDITIVE_LAYER.glowQuant);
+            ag.count++;
+          };
 
-          // Outer bloom halo — wide, low alpha
-          const haloGrd = ctx.createLinearGradient(pRA.sx, pRA.sy, pRB.sx, pRB.sy);
-          haloGrd.addColorStop(0,   `rgba(255,215,0,${(0.06 + sim * 0.12).toFixed(3)})`);
-          haloGrd.addColorStop(0.5, `rgba(255,255,200,${(0.04 + sim * 0.10).toFixed(3)})`);
-          haloGrd.addColorStop(1,   `rgba(255,215,0,${(0.06 + sim * 0.12).toFixed(3)})`);
-          ctx.strokeStyle = haloGrd;
-          ctx.lineWidth   = (8 + sim * 16) * avgScale;
-          ctx.shadowBlur  = 0;
-          ctx.beginPath(); ctx.moveTo(pRA.sx, pRA.sy); ctx.lineTo(pRB.sx, pRB.sy); ctx.stroke();
-
-          // Core solid line — width and bloom scale linearly with cosine similarity
-          const coreGrd = ctx.createLinearGradient(pRA.sx, pRA.sy, pRB.sx, pRB.sy);
-          coreGrd.addColorStop(0,   `rgba(255,215,0,${(0.55 + sim * 0.45).toFixed(3)})`);
-          coreGrd.addColorStop(0.5, `rgba(255,255,255,${(0.40 + sim * 0.55).toFixed(3)})`);
-          coreGrd.addColorStop(1,   `rgba(255,215,0,${(0.55 + sim * 0.45).toFixed(3)})`);
-          ctx.strokeStyle = coreGrd;
-          ctx.lineWidth   = (1.5 + sim * 4.0) * avgScale;
-          ctx.shadowColor = `rgba(255,215,0,0.9)`;
-          ctx.shadowBlur  = 4 + sim * 24;
-          ctx.beginPath(); ctx.moveTo(pRA.sx, pRA.sy); ctx.lineTo(pRB.sx, pRB.sy); ctx.stroke();
-
-          ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
-          ctx.restore();
+          // Outer bloom halo — wide, low alpha, and shadowBlur = 0.
+          stroke(stops.halo, widths.halo, 0);
+          // Core solid line — width and bloom scale linearly with similarity.
+          // Its shadow colour/alpha are the material's, not per-instance.
+          stroke(stops.core, widths.core, resonanceGlow(sim));
         } // else — close proj guard
         }
       }
@@ -1800,7 +1828,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     // times. Any instrument quoting a number for this layer must read this
     // first and fail loudly on 0.
     window.__artEdgeState = () => {
-      const e = edgeGLRef.current;
+      const e = edgeGLRef.current, a = addGLRef.current;
       return {
         count: e.count, rings: e.rings, w: e.w, h: e.h,
         first: Array.from(e.data.slice(0, EDGE_STRIDE)),
@@ -1808,6 +1836,16 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         // are and look at those pixels. Decoded harness-side against
         // EDGE_STRIDE rather than here, so there is no second layout to drift.
         instances: Array.from(e.data.subarray(0, e.count * EDGE_STRIDE)),
+        // The additive stream, same layout, same reason: the resonance edge is
+        // even more invisible to the comparator than the rings are — no
+        // capture state arms resonance at all, so deleting the layer scores
+        // identically to shipping it. An instrument has to be able to ask
+        // whether the two strokes were written, and where they are, before it
+        // is allowed to quote a number about their pixels.
+        additive: {
+          count: a.count,
+          instances: Array.from(a.data.subarray(0, a.count * EDGE_STRIDE)),
+        },
       };
     };
 
@@ -2717,6 +2755,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           onAdvanceReady={handleAdvanceReady}
           bgStateRef={bgStateRef}
           edgeGLRef={edgeGLRef}
+          addGLRef={addGLRef}
         />
 
         <SphereLabels ref={labelsApiRef} />

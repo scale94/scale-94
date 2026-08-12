@@ -9,14 +9,17 @@
 // loop says the ortho hue rotation takes "~6s" and the arithmetic says 7.5s.
 
 import { describe, it, expect, vi } from 'vitest';
+import * as THREE from 'three';
 import {
   ORTHO_DASH, SPECTRAL_DASH,
-  orthoHue, orthoGlow, fusedGlow, resonanceGlow,
+  orthoHue, orthoGlow, fusedGlow, resonanceGlow, resonanceWidths, resonanceStops,
+  RESONANCE_GOLD, RESONANCE_HALO_MID, RESONANCE_CORE_MID, RESONANCE_SHADOW_ALPHA,
   pulseRingRadius, pulsePosition, edgeStops, edgeLineWidth,
 } from '../artEdges';
 import {
-  writeHsl, writeHslRgb, packAlphas, unpackAlphas, packFlags, unpackFlags,
+  writeHsl, writeHslRgb, writeRgb255, packAlphas, unpackAlphas, packFlags, unpackFlags,
   syncEdgeLayer, createEdgeLayer, discWidth, isDisc,
+  SRC_OVER_LAYER, ADDITIVE_LAYER,
   EDGE_STRIDE, EDGE_OFF, MAX_EDGES,
 } from '../SphereEdges';
 
@@ -202,6 +205,78 @@ describe('edgeStops', () => {
   });
 });
 
+// ── The resonance edge's two strokes ───────────────────────────────────────
+//
+// It is TWO strokes, not one: a wide low-alpha halo and then a narrow bright
+// core over it, both under `lighter`. Porting it as a single glowing line
+// renders a plausible bright bar and loses the thing that makes it read as
+// coalescence — and no capture state arms resonance, so no pixel gate on this
+// branch would say so. These assertions are transcribed from the rgba() strings
+// the canvas parsed, not from the implementation.
+
+describe('resonanceStops', () => {
+  it('is SYMMETRIC, unlike a base edge — both ends are the same colour and alpha', () => {
+    for (const sim of [0, 0.37, 1]) {
+      const { halo, core } = resonanceStops(sim);
+      for (const s of [halo, core]) {
+        expect(s.c0).toBe(s.c2);
+        expect(s.a0).toBeCloseTo(s.a2, 10);
+      }
+    }
+  });
+
+  it('reproduces the halo\'s rgba() stops: gold ends, pale-yellow middle', () => {
+    // rgba(255,215,0, 0.06 + sim*0.12) / rgba(255,255,200, 0.04 + sim*0.10)
+    const s = resonanceStops(0.5).halo;
+    expect(s.c0).toEqual(RESONANCE_GOLD);
+    expect(s.c1).toEqual(RESONANCE_HALO_MID);
+    expect(s.a0).toBeCloseTo(0.12, 10);
+    expect(s.a1).toBeCloseTo(0.09, 10);
+    const z = resonanceStops(0).halo, o = resonanceStops(1).halo;
+    expect(z.a0).toBeCloseTo(0.06, 10); expect(z.a1).toBeCloseTo(0.04, 10);
+    expect(o.a0).toBeCloseTo(0.18, 10); expect(o.a1).toBeCloseTo(0.14, 10);
+  });
+
+  it('reproduces the core\'s rgba() stops: gold ends, PURE WHITE middle', () => {
+    // rgba(255,215,0, 0.55 + sim*0.45) / rgba(255,255,255, 0.40 + sim*0.55)
+    const s = resonanceStops(0.5).core;
+    expect(s.c0).toEqual(RESONANCE_GOLD);
+    expect(s.c1).toEqual(RESONANCE_CORE_MID);
+    expect(s.a0).toBeCloseTo(0.775, 10);
+    expect(s.a1).toBeCloseTo(0.675, 10);
+    const z = resonanceStops(0).core, o = resonanceStops(1).core;
+    expect(z.a0).toBeCloseTo(0.55, 10); expect(z.a1).toBeCloseTo(0.40, 10);
+    expect(o.a0).toBeCloseTo(1.00, 10); expect(o.a1).toBeCloseTo(0.95, 10);
+  });
+
+  it('keeps the halo dim and wide against a bright narrow core, at every sim', () => {
+    // The two strokes are only distinguishable as strokes while this holds; a
+    // port that merged them into one would satisfy neither inequality.
+    for (const sim of [0, 0.5, 1]) {
+      const { halo, core } = resonanceStops(sim);
+      const w = resonanceWidths(sim, 1);
+      expect(halo.a1).toBeLessThan(core.a1 * 0.25);
+      expect(w.halo).toBeGreaterThan(w.core * 4);
+    }
+  });
+
+  it('scales both widths by the projection, from the draw loop verbatim', () => {
+    expect(resonanceWidths(0, 1)).toEqual({ halo: 8, core: 1.5 });
+    expect(resonanceWidths(1, 1)).toEqual({ halo: 24, core: 5.5 });
+    expect(resonanceWidths(1, 2)).toEqual({ halo: 48, core: 11 });
+  });
+
+  it('leaves both strokes representable after packAlphas, which is coarser than toFixed(3)', () => {
+    // The original quantised each alpha with `.toFixed(3)` before the canvas
+    // parsed the string; packAlphas quantises to 1/255, which is coarser, so
+    // it is the dominant step and toFixed does not need reproducing. What DOES
+    // need checking is that the halo's smallest alpha survives it at all.
+    const a = resonanceStops(0).halo.a1;                 // 0.04, the dimmest
+    expect(unpackAlphas(packAlphas(a, a, a)).a0).toBeCloseTo(a, 2);
+    expect(Math.round(a * 255)).toBeGreaterThan(0);
+  });
+});
+
 // ── The CPU half of the GPU edge layer ─────────────────────────────────────
 //
 // SphereEdges.js is the only place HSL becomes RGB and the only place the
@@ -316,6 +391,147 @@ describe('packFlags / unpackFlags', () => {
     const p = packFlags(255, 255, 127 / 8, true);
     expect(p).toBe(255 + 255 * 256 + 255 * 65536);
     expect(Math.fround(p)).toBe(p);
+  });
+});
+
+// ── The per-material glow quantisation ─────────────────────────────────────
+//
+// The glow byte is seven bits wide (bit 7 is isOrtho), so the largest radius it
+// can carry is 127 / quant. At the edge mesh's 1/8 px that is 15.875 px, which
+// covers both of ITS glows (14 px max) with the same headroom the isOrtho bit
+// argument rests on. The resonance core reaches 28 px and does NOT fit: it
+// would silently saturate at 15.875 — and so would the default sim of 0.5,
+// whose 16 px is already over the cap. No pixel gate on this branch can see
+// that, because no capture state arms resonance.
+//
+// So the quantisation is per material and the edge mesh keeps its own.
+
+describe('glow quantisation per material', () => {
+  it('saturates the resonance core at the edge mesh\'s 1/8 px step — the reason for a second scale', () => {
+    // Characterising the defect, not endorsing it: at quant 8 a 28px glow and a
+    // 200px glow encode identically, and so does the DEFAULT sim's 16px.
+    expect(unpackFlags(packFlags(0, 0, resonanceGlow(1))).glow).toBeCloseTo(127 / 8, 10);
+    expect(unpackFlags(packFlags(0, 0, resonanceGlow(0.5))).glow).toBeCloseTo(127 / 8, 10);
+  });
+
+  it('round-trips the resonance core\'s full range at the additive layer\'s step', () => {
+    const q = ADDITIVE_LAYER.glowQuant;
+    for (const sim of [0, 0.25, 0.5, 0.75, 1]) {
+      const g = resonanceGlow(sim);
+      const p = packFlags(0, 0, g, false, q);
+      expect(unpackFlags(p, q).glow).toBeCloseTo(g, 10);   // exact: every step is a 1/4
+      expect(unpackFlags(p, q).isOrtho).toBe(false);
+      expect(Math.fround(p)).toBe(p);
+    }
+  });
+
+  it('leaves bit 23 free at the additive step, exactly as 14px does at 1/8', () => {
+    // round(28 * 4) = 112 — the same number, and the same margin, as the edge
+    // mesh's round(14 * 8). isOrtho cannot be reached by a real resonance glow.
+    expect(Math.round(resonanceGlow(1) * ADDITIVE_LAYER.glowQuant)).toBe(112);
+    expect(Math.round(resonanceGlow(1) * ADDITIVE_LAYER.glowQuant)).toBeLessThan(128);
+  });
+
+  it('does not move the edge mesh: the default IS the source-over layer\'s scale', () => {
+    // A parity change smuggled into a port task would show up here — every
+    // shipped ortho and fused glow byte has to stay what it was.
+    expect(SRC_OVER_LAYER.glowQuant).toBe(8);
+    for (const g of [0, fusedGlow(0), fusedGlow(1), orthoGlow(0), orthoGlow(5000), 10.37]) {
+      expect(packFlags(12, 8, g, true)).toBe(packFlags(12, 8, g, true, SRC_OVER_LAYER.glowQuant));
+      expect(packFlags(12, 8, g, true)).toBe(12 + 8 * 256 + (Math.round(g * 8) + 128) * 65536);
+    }
+  });
+
+  it('still clamps a runaway radius rather than colliding with isOrtho', () => {
+    const q = ADDITIVE_LAYER.glowQuant;
+    expect(unpackFlags(packFlags(0, 0, 1000, false, q), q).glow).toBeCloseTo(127 / q, 10);
+    expect(unpackFlags(packFlags(0, 0, 1000, false, q), q).isOrtho).toBe(false);
+  });
+});
+
+// ── The additive line layer ────────────────────────────────────────────────
+//
+// `lighter` is additive and the base edges are source-over, so the resonance
+// edge (and, next, the prism chords) need a second mesh with a second blend
+// over the SAME shader. The blend is the part a call log cannot check.
+
+describe('ADDITIVE_LAYER', () => {
+  it('adds premultiplied ink to the accumulator without raising its alpha', () => {
+    // The accumulator holds premultiplied ink with coverage in alpha and the
+    // screen pass reads `ink.rgb + uRift * (1 - ink.a)`. The fragment shader
+    // emits STRAIGHT rgb with coverage in alpha, so SrcAlpha/One adds exactly
+    // `rgb * a` — and Zero/One leaves the alpha channel alone, so the rift
+    // underneath is not occluded. That last pair is the whole point: on the 2D
+    // canvas `lighter` added light over a destination that ALREADY contained
+    // the clear colour, and did not hide it.
+    const layer = createEdgeLayer(undefined, ADDITIVE_LAYER);
+    try {
+      expect(layer.material.blending).toBe(THREE.CustomBlending);
+      expect(layer.material.blendSrc).toBe(THREE.SrcAlphaFactor);
+      expect(layer.material.blendDst).toBe(THREE.OneFactor);
+      expect(layer.material.blendSrcAlpha).toBe(THREE.ZeroFactor);
+      expect(layer.material.blendDstAlpha).toBe(THREE.OneFactor);
+    } finally { layer.dispose(); }
+  });
+
+  it('draws after the source-over edges, which is the 2D draw order', () => {
+    expect(ADDITIVE_LAYER.renderOrder).toBeGreaterThan(SRC_OVER_LAYER.renderOrder);
+  });
+
+  it('leaves the source-over layer source-over', () => {
+    const layer = createEdgeLayer();
+    try {
+      expect(layer.material.blendSrc).toBe(THREE.SrcAlphaFactor);
+      expect(layer.material.blendDst).toBe(THREE.OneMinusSrcAlphaFactor);
+      expect(layer.material.blendSrcAlpha).toBe(THREE.OneFactor);
+      expect(layer.material.blendDstAlpha).toBe(THREE.OneMinusSrcAlphaFactor);
+    } finally { layer.dispose(); }
+  });
+
+  it('compiles one shader body into both materials, differing only where it must', () => {
+    // "Do not copy the GLSL into a second string." The vertex stage is shared
+    // verbatim; the fragment stage differs only in the shadow's colour/alpha.
+    const a = createEdgeLayer(undefined, ADDITIVE_LAYER);
+    const b = createEdgeLayer(undefined, SRC_OVER_LAYER);
+    try {
+      expect(a.material.vertexShader).toBe(b.material.vertexShader);
+      expect(a.material.fragmentShader).not.toBe(b.material.fragmentShader);
+      // The additive shadow is the flat gold ctx.shadowColor, not the gradient,
+      // and it is injected FROM the constant rather than retyped in GLSL.
+      expect(a.material.fragmentShader).toContain(`float shadowAlpha = ${RESONANCE_SHADOW_ALPHA};`);
+      expect(a.material.fragmentShader).not.toContain('uOrthoHue +');
+      // and the box filter, the segment-distance glow and the gaussian
+      // amplitude are the same code in both.
+      for (const shared of ['1.5958', 'exp(-2.0 * g * g)', 'float dSeg']) {
+        expect(a.material.fragmentShader).toContain(shared);
+        expect(b.material.fragmentShader).toContain(shared);
+      }
+    } finally { a.dispose(); b.dispose(); }
+  });
+
+  it('publishes its glow quantisation to the shader so the packing agrees', () => {
+    const a = createEdgeLayer(undefined, ADDITIVE_LAYER);
+    const b = createEdgeLayer();
+    try {
+      expect(a.uniforms.uGlowQuant.value).toBe(ADDITIVE_LAYER.glowQuant);
+      expect(b.uniforms.uGlowQuant.value).toBe(SRC_OVER_LAYER.glowQuant);
+    } finally { a.dispose(); b.dispose(); }
+  });
+});
+
+describe('writeRgb255', () => {
+  // The resonance strokes are authored as rgba() bytes, not as the HSL objects
+  // the node palette uses, so they must NOT go through writeHslRgb.
+  it('normalises 0-255 bytes into the 0-1 floats the attribute carries', () => {
+    const out = new Float32Array(8).fill(-1);
+    writeRgb255(out, 4, RESONANCE_GOLD);
+    expect([...out.subarray(0, 4)]).toEqual([-1, -1, -1, -1]);
+    // fround, not the raw quotient: the attribute is a Float32Array, so the
+    // exact value the GPU reads is the float32 nearest to 215/255.
+    expect(out[4]).toBe(1);
+    expect(out[5]).toBe(Math.fround(215 / 255));
+    expect(out[6]).toBe(0);
+    expect(out[7]).toBe(-1);
   });
 });
 

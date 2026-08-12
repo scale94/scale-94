@@ -5,7 +5,9 @@ import { launch } from './cdp.mjs';
 import { decodePng } from './_png.mjs';
 import { exergyAlpha, RIFT_ALPHA_NORMAL, RIFT_ALPHA_IMMERSIVE } from '../src/terminal/art/artBackground.js';
 import { steadyState, fadeGain } from '../src/terminal/art/artTrail.js';
-import { EDGE_STRIDE, EDGE_OFF, isDisc } from '../src/terminal/art/SphereEdges.js';
+import {
+  EDGE_STRIDE, EDGE_OFF, GLOW_REACH, isDisc, unpackFlags, ADDITIVE_LAYER,
+} from '../src/terminal/art/SphereEdges.js';
 
 // Every check reports through this so the run ends with a count rather than
 // five paragraphs a reader has to tally by eye. A failure is a non-zero exit:
@@ -599,6 +601,220 @@ try {
     verdict('PULSE RINGS', frames > 0 && matched >= 8 && ratio >= RING_RATIO && excess >= RING_EXCESS);
   }
 } finally { await r4.close(); }
+
+// ── RESONANCE EDGE: the shift-click coalescence bar ───────────────────────
+// The comparator cannot see this layer AT ALL, and unlike the rings there is no
+// argument to have about it: no capture state arms resonance mode, so DELETING
+// the layer scores 21/21 identically to shipping it. This check and the 2D
+// hybrid beside it are the only evidence the port produced anything.
+//
+// It is TWO strokes under `lighter`, not one — a wide low-alpha halo and then a
+// narrow bright core over it — and that is the whole reason it reads as two
+// things coalescing rather than as a thick edge. A port that drops the halo
+// renders an entirely plausible bright bar, so a metric that only reads the
+// centre of it proves nothing. Both are asserted, separately.
+//
+// ── The magnitudes, computed before the metric was chosen ─────────────────
+// The nodes this sweep lands on give sim 0.771, so the core is 4.21px wide at
+// mid alpha 0.827 of pure white, over a sphere backdrop that reads ~11. That is
+// ~211 luminance of signal against ~11 of background before the trail gain —
+// bright enough that a plain mean over the stroke's own footprint is a fine
+// instrument, and no ratio-of-ratios is needed. (The mean over the whole sphere
+// disc that the first ghost check used would have been ~65x too coarse; the bar
+// is ~600px of a ~700k-px frame.)
+//
+// The halo is 18.6px wide at mid alpha 0.118 of (255,255,200) — call it 30
+// luminance, ~1/7 of the core. Its own band cannot simply be averaged: the
+// core's gaussian shoulder is 22.5px in radius and the bloom pass smears the
+// core further, so BOTH are present out there. Measured, suppressing the halo
+// alone drops that band's excess only from 84.9 to 60.6, a 1.40x separation —
+// usable but thin.
+//
+// What the glow and the bloom cannot fake is the halo's RIM. The halo is a box
+// filter with a hard edge at its half-width; everything else in that
+// neighbourhood is smooth. So the halo's quantity is the STEP across that rim —
+// mean over [hw-2.5, hw-0.5] minus mean over [hw+0.5, hw+2.5]. Measured, that
+// separates 34.0 live from 13.5 with the halo suppressed: 2.5x.
+//
+// ── Validated against its own null, twice ─────────────────────────────────
+// Both nulls suppress pixels only — a `discard` in the additive fragment
+// shader, with the instance buffer still written — so the geometry the bands
+// are measured from is byte-identical across all three builds.
+//
+//        build                       core excess   halo rim step
+//        live (4 runs)               220.5-221.7      34.00-34.04
+//        halo discarded (glow<0.001) 214.1-214.3            13.48
+//        whole layer discarded             -1.3           -0.06
+//
+// Note the middle row: the core is untouched by the halo's absence, which is
+// what makes these two independent assertions rather than one measured twice.
+// Thresholds sit between the populations — CORE_EXCESS is 46% under the worst
+// live run, HALO_RIM_STEP is 35% under it and 63% over the null.
+//
+// ── And the instrument checks itself in-run ───────────────────────────────
+// The same rim step is measured a second time on a line displaced
+// perpendicular by the halo's half-width plus the core's full glow reach: off
+// the bar entirely, same neighbourhood, same bloom. There is no rim there, so
+// it must read ~0 (measured 0.04-0.49 across every build above). If it does
+// not, the endpoints were decoded wrong and no other number on this row means
+// anything — so it is part of the verdict, not a note.
+const CORE_EXCESS = 120;      // luminance, 0-255
+const HALO_RIM_STEP = 22;
+const RIM_CONTROL_MAX = 5;    // the off-bar rim step, which must be ~0
+
+// CDP's modifier bitmask: Alt 1, Ctrl 2, Meta 4, Shift 8. Shift-click is the
+// only way into this layer.
+const SHIFT_KEY = 8;
+
+// The toggle's own label, read straight out of the DOM. This is deliberately
+// NOT the instance buffer: the point is to establish that resonance armed and
+// that two nodes are selected from a source independent of the thing being
+// measured. A check that reads the layer's own state and then reports a number
+// about it is this project's signature failure — six occurrences.
+const RESONANCE_LABEL = `(() => { const b = [...document.querySelectorAll('button')]
+  .find(e => /resonance/i.test(e.innerText || '')); return b ? b.innerText : null; })()`;
+
+// The hover probe again — the ring check's copy is scoped to its own block.
+const HOVERED_NODE = `(() => {
+  const s = [...document.querySelectorAll('span')].filter(e =>
+    e.style.position === 'absolute' && e.style.font && e.textContent);
+  let best = null;
+  for (const e of s) { const o = parseFloat(e.style.opacity || '0');
+    if (o > 0.9 && (!best || o > best.o)) best = { o, t: e.textContent }; }
+  return best && best.t; })()`;
+
+// The two instances, decoded through EDGE_OFF / EDGE_STRIDE / isDisc exactly as
+// ringsOf() above does — one decoder for this buffer, never a second.
+function strokesOf(add) {
+  const at = (i, f) => add.instances[i * EDGE_STRIDE + f];
+  const one = (i) => ({
+    ax: at(i, EDGE_OFF.ax), ay: at(i, EDGE_OFF.ay),
+    bx: at(i, EDGE_OFF.bx), by: at(i, EDGE_OFF.by),
+    width: Math.abs(at(i, EDGE_OFF.width)),
+    isDisc: isDisc(at(i, EDGE_OFF.width)),
+    glow: unpackFlags(at(i, EDGE_OFF.flags), ADDITIVE_LAYER.glowQuant).glow,
+  });
+  // Write order, which is also draw order: halo first, core over it.
+  return { halo: one(0), core: one(1) };
+}
+
+// Mean luminance over the pixels whose perpendicular distance from the bar
+// (optionally displaced by `shift`) lies in [lo, hi]. `along` is trimmed to the
+// middle 70% so the node blobs at either end never enter any band.
+function barBand(img, s, lo, hi, shift = 0) {
+  const { width: W, height: H, data } = img;
+  const dx = s.bx - s.ax, dy = s.by - s.ay, len = Math.hypot(dx, dy);
+  if (!(len > 1)) return { mean: 0, n: 0 };
+  const ux = dx / len, uy = dy / len, nx = -uy, ny = ux;
+  const m = Math.abs(shift) + hi + 2;
+  const x0 = Math.max(0, Math.floor(Math.min(s.ax, s.bx) - m));
+  const x1 = Math.min(W - 1, Math.ceil(Math.max(s.ax, s.bx) + m));
+  const y0 = Math.max(0, Math.floor(Math.min(s.ay, s.by) - m));
+  const y1 = Math.min(H - 1, Math.ceil(Math.max(s.ay, s.by) + m));
+  let sum = 0, n = 0;
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    const rx = x - s.ax, ry = y - s.ay;
+    const along = (rx * ux + ry * uy) / len;
+    if (along < 0.15 || along > 0.85) continue;
+    const perp = Math.abs(rx * nx + ry * ny - shift);
+    if (perp < lo || perp > hi) continue;
+    const i = (y * W + x) * 4;
+    sum += 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]; n++;
+  }
+  return { mean: sum / (n || 1), n };
+}
+
+const r5 = await launch({ url: 'http://localhost:5174/', width: 1520, height: 900, deterministic: true });
+try {
+  await r5.waitFor('document.querySelectorAll("canvas").length > 0', { label: 'boot' });
+  await sleep(2500);
+  await r5.eval(clickText('/CHAOS'));
+  await r5.waitFor(READY, { label: 'sphere', timeoutMs: 40000 });
+  await r5.waitFor(GL_READY, { label: 'GL sized', timeoutMs: 40000 });
+  await sleep(4000);
+  await r5.eval('window.__virtualize()');
+  await sleep(150);
+  await r5.eval('window.__reseed(); window.__artHarnessReset();');
+  await r5.pump(240);
+
+  const rect = await r5.eval(RECT);
+  // Same as the ring check: the instance buffer's coordinates ARE the 2D
+  // canvas's CSS px, so the clip's top-left is their origin.
+  const clip = { x: rect.x, y: rect.y, width: rect.w, height: rect.h, scale: 1 };
+
+  console.log('RESONANCE EDGE  (the two strokes of the shift-click bar, each against its own control)');
+  const armed = await r5.eval(clickText('resonance'));
+  await r5.pump(2);
+  const label0 = await r5.eval(RESONANCE_LABEL);
+
+  // The hover sweep, reused from the ring check, but it has to land on two
+  // DIFFERENT nodes — shift-clicking the same one twice toggles it back off and
+  // leaves a one-node selection that draws nothing.
+  const picked = [];
+  const seen = new Set();
+  sweep:
+  for (let row = 1; row <= 5; row++) for (let c = 1; c <= 9; c++) {
+    const x = Math.round(rect.x + rect.w * c / 10), y = Math.round(rect.y + rect.h * row / 6);
+    await r5.hover(x, y); await sleep(70); await r5.pump(2);
+    const label = await r5.eval(HOVERED_NODE);
+    if (!label || seen.has(label)) continue;
+    seen.add(label);
+    await r5.click(x, y, { modifiers: SHIFT_KEY });
+    await sleep(200); await r5.pump(2);
+    picked.push(label);
+    if (picked.length === 2) break sweep;
+  }
+  await r5.pump(30);
+
+  const label2 = await r5.eval(RESONANCE_LABEL);
+  // MODE FIRST. Everything below is a confident, meaningless number if the
+  // toggle did not arm or the two shift-clicks did not land.
+  const modeOk = armed && label0 === '◈ resonance [0/2]' && label2 === '◈ resonance [2/2]';
+  console.log(`   toggle "${label0}" -> "${label2}"   nodes ${picked.join(' + ') || 'NONE'}`
+    + (modeOk ? '' : '   MODE NEVER ENGAGED — the shift-clicks did not land'));
+
+  if (!modeOk) {
+    verdict('RESONANCE EDGE', false);
+  } else {
+    const st = JSON.parse(await r5.eval('JSON.stringify(window.__artEdgeState())'));
+    const { halo, core } = strokesOf(st.additive);
+    const img = decodePng(await r5.screenshot({ clip }));
+
+    const cHW = Math.max(core.width / 2, 1), hHW = halo.width / 2;
+    // Far enough out that neither the halo nor the core's gaussian reaches:
+    // the halo's own half-width plus the full GLOW_REACH the vertex shader
+    // pads the quad by.
+    const shift = hHW + GLOW_REACH * core.glow + 4;
+
+    const coreOn = barBand(img, core, 0, cHW);
+    const coreOff = barBand(img, core, 0, cHW, shift);
+    const rimIn = barBand(img, core, hHW - 2.5, hHW - 0.5);
+    const rimOut = barBand(img, core, hHW + 0.5, hHW + 2.5);
+    const rimInC = barBand(img, core, hHW - 2.5, hHW - 0.5, shift);
+    const rimOutC = barBand(img, core, hHW + 0.5, hHW + 2.5, shift);
+
+    const coreExcess = coreOn.mean - coreOff.mean;
+    const rimStep = rimIn.mean - rimOut.mean;
+    const rimControl = rimInC.mean - rimOutC.mean;
+
+    // Two instances, both strokes (a negative width would make them discs), on
+    // the same segment. If the port ever collapses to one instance this is
+    // where it says so, before any pixel is read.
+    const shapeOk = st.additive.count === 2 && !halo.isDisc && !core.isDisc
+      && halo.width > core.width * 3 && halo.glow === 0 && core.glow > 0
+      && halo.ax === core.ax && halo.by === core.by;
+
+    console.log(`   instances ${st.additive.count}   halo w ${halo.width.toFixed(2)} glow ${halo.glow}`
+      + `   core w ${core.width.toFixed(2)} glow ${core.glow}` + (shapeOk ? '' : '   SHAPE WRONG'));
+    console.log(`   core    ${coreOn.mean.toFixed(2)} (${coreOn.n}px)   control ${coreOff.mean.toFixed(2)}`
+      + `   excess ${coreExcess.toFixed(2)} (need ${CORE_EXCESS})`);
+    console.log(`   halo rim ${rimIn.mean.toFixed(2)} in / ${rimOut.mean.toFixed(2)} out`
+      + `   step ${rimStep.toFixed(2)} (need ${HALO_RIM_STEP})`);
+    console.log(`   same rim off the bar   step ${rimControl.toFixed(2)} (must be under ${RIM_CONTROL_MAX})`);
+    verdict('RESONANCE EDGE', shapeOk && coreExcess >= CORE_EXCESS
+      && rimStep >= HALO_RIM_STEP && Math.abs(rimControl) <= RIM_CONTROL_MAX);
+  }
+} finally { await r5.close(); }
 
 // ── Tally ─────────────────────────────────────────────────────────────────
 const passed = results.filter(r => r.ok).length;
