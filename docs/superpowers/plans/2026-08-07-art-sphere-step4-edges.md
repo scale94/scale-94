@@ -377,26 +377,80 @@ The travelling disc on each pulsing edge. These are discs, not lines, so reuse t
 
 ---
 
-### Task 6: prism geometry chords
+### Task 6: prism geometry effects
+
+> **CORRECTED 2026-08-11 — this task is substantially bigger than the text below
+> described, and the brief at `.superpowers/sdd/step4-task6-brief.md` governs.**
+> Three errors, found in the pre-flight scan of Tasks 5-7:
+>
+> 1. **The chords are quadratic Bézier curves, not "ordinary line segments".**
+>    The control point is pulled 55% toward the sphere centre and the
+>    interior-arc illusion is the whole visual idea. Nothing in the pipeline can
+>    draw a curve, so this task's real content is giving the line layer a curve
+>    capability (CPU tessellation into abutting, non-overlapping butt-capped
+>    segments — they must not overlap, because the blend is additive and an
+>    overlap at a joint beads).
+> 2. **It is THREE sub-layers, not one.** The chord bundle (two passes each, a
+>    wide glow and a sharp core), a closed **sacred-polygon outline**, and
+>    **star spokes** from the sphere centre. The last two are unmentioned below
+>    and are inside the same `ctx.save()` block, so the block cannot be
+>    half-deleted.
+> 3. `MAX_EDGES` (1024 instances) **will be exceeded** — desktop fine mode is
+>    7 spectral × C(11,2) pairs × 2 passes = 770 curves per effect before
+>    tessellation — and the additive writer has no cap guard at all. An
+>    over-range `Float32Array` write is a silent no-op, so instances would
+>    vanish unreported.
+>
+> Line numbers below are stale (the block is now `:1264-1358`). The additive
+> material already exists from Task 5 (`ADDITIVE_LAYER`), with its blend factors
+> derived rather than guessed: `SrcAlpha`→`One` was superseded by `One`/`One`
+> when the composite went premultiplied, and the ALPHA pair is `Zero`/`One` —
+> additive ink must not raise the accumulator's coverage or it subtracts the
+> rift clear from underneath itself.
 
 **Files:**
-- Modify: `src/terminal/art/SphereEdges.jsx`, `src/terminal/views/ArtTab.jsx` (delete `:1153-1230`), `scripts/artPresence.mjs`
+- Modify: `src/terminal/art/SphereEdges.js`, `src/terminal/art/artEdges.js`, `src/terminal/views/ArtTab.jsx` (delete the prism block), `scripts/artPresence.mjs`
+- Create: a pure tessellation module + its tests
 
-Also invisible to the gate — command-triggered. Same treatment as Task 5.
+Also invisible to the gate — command-triggered. Same evidence standard as Task 5:
+a presence check validated against its own null, all three sub-layers asserted
+separately, the instance count asserted against the arithmetic, and a 2D-hybrid
+parity measurement beside it.
 
-- [ ] **Step 1:** Publish the chord bundle (every pair among the prism's nodes) into the same instanced buffer; these are ordinary line segments with their own colour and `lighter` blending.
-- [ ] **Step 2:** `lighter` is **additive**: use `blendSrc: THREE.SrcAlphaFactor`, `blendDst: THREE.OneFactor`, in the same sRGB target. Do not reuse the source-over material — a wrong blend factor here produces an identical GL call log and visibly different output.
-- [ ] **Step 3:** Delete the 2D block.
-- [ ] **Step 4:** Add a presence check that issues the triggering command and measures the chord bundle.
-- [ ] **Step 5:** Gate, presence suite, commit.
+---
+
+### Task 6b: the two orphan curve layers
+
+> **ADDED 2026-08-11 (author's call).** Analogy Filaments (`ArtTab.jsx:927`) and
+> Chimera boundary zones (`:975`) are quadratic-curve strokes under `lighter`
+> that belong to **no step in the spec** — not step 4, not nodes, not particles.
+> Step 6 ends "the 2-D canvas is now empty: delete it", and it would not have
+> been. Both draw in DEFAULT mode, so the Voronoi precedent (cut it, it was only
+> ever visible in immersive) does not apply; cutting them was offered and
+> declined.
+
+They reuse Task 6's tessellation and add one requirement it does not need:
+**they are dashed**, and canvas measures dash phase along the path's arc length
+from its start — with the chimera layer scrolling `lineDashOffset` over time.
+Each tessellated segment therefore needs its own arc-length offset, or the
+pattern breaks at every joint. The current 16-float instance layout has no room
+for it.
 
 ---
 
 ### Task 7: verify, measure, record
 
-- [ ] **Confirm `ctx.shadowBlur` is gone from the draw loop.** `grep -n "shadowBlur" src/terminal/views/ArtTab.jsx` must return only the copy string at `:2937`. If any remain in the loop, a layer was missed.
-- [ ] **Full interaction smoke test:** `node scripts/artSmoke.mjs` — 9/9 plus the new edge-hover check.
-- [ ] **Full presence suite:** `node scripts/artPresence.mjs` — 6/6 with the two new checks.
+> **Gate counts below are stale.** As of Task 5 the live numbers are `artSmoke`
+> **10/10** (the edge-hover check added in Task 3) and `artPresence` **7/7**
+> (PULSE RINGS from Task 4, RESONANCE from Task 5), with Task 6 and 6b each
+> adding one more. The reference baseline is `baseline/art-sphere-trail/`, **not**
+> `art-sphere-step3` — and per-task parity uses a same-session control capture
+> rather than any committed reference, because the boot fingerprint is not
+> deterministic (eight relaunches, eight fingerprints).
+
+- [ ] **Confirm `ctx.shadowBlur` is gone from the draw loop.** `grep -n "shadowBlur" src/terminal/views/ArtTab.jsx` must return only the copy string and the comments that explain the gaussian port. If any remain in the loop, a layer was missed.
+- [ ] **Full interaction smoke test:** `node scripts/artSmoke.mjs`.
+- [ ] **Full presence suite:** `node scripts/artPresence.mjs` — every check, including the ones Tasks 4-6b added.
 - [ ] **Frame time**, headed on the real GPU:
 
 ```bash
@@ -416,5 +470,5 @@ Compare against step 3's idle p50 2.1 ms / p95 11.9 ms / p99 15.4 ms. Edges are 
 - **Spec coverage.** §5 Step 4 requires edges, the resonance edge and prism chords on line geometry with per-vertex colour and real additive glow (Tasks 3–6), `ctx.shadowBlur` retired (Task 7), and the CPU depth sort kept for parity (Task 3 Step 4). §6 verification: pixel comparison per task, interaction smoke test (Task 7). §3.1: hit-testing untouched (Global Constraints, Task 3 Step 6).
 - **Deliberately not covered.** Nodes (step 5), particles and the trail feedback buffer (step 6).
 - **Risk 1 — the second render target.** It adds a full-screen write per frame. If Task 7 measures a regression, the fallback is to fold the backdrop shader back into the screen pass and render edges into the *same* target as a second draw, which needs the composite to sample its own output and is harder. Measure before optimising.
-- **Risk 2 — glow model.** `ctx.shadowBlur` is a real gaussian; `exp(-d/g)` is not. The base edges' glow is small (6–14 px) and mostly reads as thickness, but the resonance edge reaches 28 px where the difference will show. Expect to tune the `0.5` shoulder coefficient against the PNGs, and record the value chosen.
+- **Risk 2 — glow model. RESOLVED, and this plan was the wrong half of it (author, after Task 3).** `ctx.shadowBlur` IS a real gaussian of sigma = blur/2, so the shader is one too, with amplitude `min(shadowAlpha * 1.5958 * halfW / blur, 1)` — correct box-convolved-with-gaussian algebra. **Do not reintroduce `exp(-|d|/g) * 0.5`**: a flat 0.5 is independent of both line width and blur radius, which no blur kernel is, and it measured ~19x too bright. There is no coefficient to tune. The prediction that "the resonance edge reaches 28 px where the difference will show" was right for the wrong reason: 28 px did not fit the 7-bit glow byte at 1/8 px quantisation and saturated silently at 15.875 — fixed in Task 5 with a per-material `glowQuant`, leaving the shipped source-over mesh bit-identical.
 - **Risk 3 — dashes.** Canvas dashes are measured in path length from the path start; the shader measures `t * lineLen` from endpoint A. These agree for a straight two-point path, which is all of these are. If a dashed edge ever becomes a polyline, this breaks.
