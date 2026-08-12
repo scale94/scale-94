@@ -108,7 +108,13 @@
 // shader body, drawn after this one — which is also their 2D draw order, after
 // every edge and every ring.
 //
-// The one thing that could not simply be shared is the glow's quantisation.
+// Three things could not simply be shared. The shadow's colour and alpha (a
+// flat gold here, derived per-instance from the isOrtho bit there) and the
+// FINAL COMPOSITE — `lighter` adds the shadow beside the stroke where
+// source-over stacks it underneath, so this material emits premultiplied ink;
+// see COMPOSITE_ADDITIVE. Both are injected snippets, not runtime branches.
+//
+// The third is the glow's quantisation.
 // The glow byte is seven bits (bit 7 is isOrtho), so at the edge mesh's 1/8 px
 // step the largest radius representable is 127/8 = 15.875 px. That covers both
 // of ITS glows — fusedGlow and orthoGlow top out at 14 — but resonanceGlow
@@ -438,12 +444,67 @@ const SHADOW_SRC_OVER = /* glsl */`
 // colour and not a function of anything per-instance. Those other strokes carry
 // glow = 0, and the `step(0.001, vGlow)` below already zeroes the whole shadow
 // term for them, so no per-instance flag is needed to tell them apart.
+//
+// The `* a` is the SHAPE's own alpha, and it is not decoration either. A canvas
+// shadow is the blurred SHAPE bitmap tinted by shadowColor, so the stroke's
+// alpha rides through it — measured directly: at lineWidth 4.2 / shadowBlur
+// 22.5 / shadowColor alpha 0.9, the shadow 6px off the line reads 5, 11, 17, 23,
+// 29 for stroke alphas 0.2 … 1.0, i.e. exactly linear (each value is the 8-bit
+// truncation of alpha * 29). The shared amplitude below carries `shadowAlpha`
+// and the geometry but not `a`, so folding it in here is what makes this
+// material's glow the canvas's glow. It is done in the SNIPPET, not in the
+// shared line, because the source-over edge mesh is shipped pixels: it has the
+// same omission and correcting it there is a parity change this task did not
+// authorise. See the report.
 const SHADOW_ADDITIVE = /* glsl */`
-    float shadowAlpha = ${glslFloat(RESONANCE_SHADOW_ALPHA)};
+    float shadowAlpha = ${glslFloat(RESONANCE_SHADOW_ALPHA)} * a;
     vec3 shadowCol = ${glslRgb255(RESONANCE_GOLD)};
 `;
 
-const edgeFrag = (shadow) => /* glsl */`
+// The FINAL composite is the second thing the two materials cannot share, and
+// the reason is the canvas drawing model rather than anything about this layer.
+// A shadowed `ctx.stroke()` is TWO composite operations with the current
+// operator — the blurred shadow image first, then the shape — so:
+//
+//   source-over  dst2 = col*topA + (shadowCol*botA + dst*(1-botA))*(1-topA)
+//                     = col*topA + shadowCol*botA*(1-topA) + dst*(1-outA)
+//   lighter      dst2 = dst + shadowCol*botA + col*topA
+//
+// Those associate differently. Under source-over the two operations collapse
+// into a single straight-alpha (colour, coverage) pair, which is what
+// SrcAlpha/OneMinusSrcAlpha then reproduces exactly. Under `lighter` they do
+// NOT: the shadow is not underneath the stroke, it is added beside it. Emitting
+// the source-over stack and blending it with SrcAlpha/One delivers
+// `dst + col*topA + shadowCol*botA*(1-topA)`, short by `shadowCol*botA*topA` —
+// invisible at high similarity, where the core saturates anyway, and ~20% of the
+// red channel at sim 0, where `peak` is 0.269 against a mid alpha of 0.40 and
+// nothing clips. So the additive material emits PREMULTIPLIED ink instead and
+// takes One for its rgb source factor.
+const COMPOSITE_SRC_OVER = /* glsl */`
+    float outA = topA + botA * (1.0 - topA);
+    if (outA <= 0.0) discard;
+    vec3 outRGB = (col * topA + shadowCol * botA * (1.0 - topA)) / outA;
+
+    gl_FragColor = vec4(outRGB, outA);
+`;
+
+// Premultiplied, per the derivation above: exactly the two terms the canvas
+// added, in the order it added them. `outA` is still computed — it is what the
+// discard tests, and the alpha channel's own factor pair (Zero/One, see
+// ADDITIVE_LAYER) discards it afterwards regardless of what it holds.
+//
+// The halo and Task 6's chords are unaffected by the change of convention:
+// they carry glow = 0, so botA is 0 and this emits `col * topA`, which is
+// precisely what `SrcAlpha * (col*topA/topA)` used to deliver — with one
+// rounding instead of two, which is if anything closer to what the canvas did.
+const COMPOSITE_ADDITIVE = /* glsl */`
+    float outA = topA + botA * (1.0 - topA);
+    if (outA <= 0.0) discard;
+
+    gl_FragColor = vec4(col * topA + shadowCol * botA, outA);
+`;
+
+const edgeFrag = (shadow, composite) => /* glsl */`
   precision highp float;
 
   // Time-based, not per-edge: orthoHue(now) is the same for every ortho edge
@@ -545,17 +606,14 @@ ${shadow}
     float peak = min(shadowAlpha * 1.5958 * vHalfW / max(vGlow, 1e-3), 1.0);
     float glow = peak * exp(-2.0 * g * g) * step(0.001, vGlow);
 
-    // Composite the core OVER the glow (two distinct colours, two distinct
+    // Composite the core with the glow (two distinct colours, two distinct
     // alphas) rather than blending one flat colour by a combined coverage —
     // that is what let the glow's colour bug hide in the old single-cov formula.
+    // HOW they combine is per material: source-over stacks them, lighter adds
+    // them side by side. See COMPOSITE_SRC_OVER / COMPOSITE_ADDITIVE.
     float topA = a * core;
     float botA = glow;
-    float outA = topA + botA * (1.0 - topA);
-    if (outA <= 0.0) discard;
-    vec3 outRGB = (col * topA + shadowCol * botA * (1.0 - topA)) / outA;
-
-    gl_FragColor = vec4(outRGB, outA);
-  }
+${composite}  }
 `;
 
 /**
@@ -573,6 +631,7 @@ ${shadow}
 export const SRC_OVER_LAYER = Object.freeze({
   glowQuant: GLOW_QUANT_SRC_OVER,
   shadow: SHADOW_SRC_OVER,
+  composite: COMPOSITE_SRC_OVER,
   renderOrder: 1,
   blend: Object.freeze({
     blendSrc: THREE.SrcAlphaFactor,
@@ -597,9 +656,10 @@ export const SRC_OVER_LAYER = Object.freeze({
  *   1. add to `ink.rgb`, and
  *   2. leave `ink.a` alone.
  *
- * The fragment shader emits STRAIGHT (un-premultiplied) rgb with coverage in
- * alpha, so (1) is `SrcAlpha / One` — `dst.rgb + outRGB * outA` is exactly the
- * premultiplied ink this stroke contributes. And (2) is `Zero / One`.
+ * This material's fragment stage emits PREMULTIPLIED ink (see
+ * COMPOSITE_ADDITIVE for why it must — under `lighter` the shadow is not
+ * underneath the stroke), so (1) is `One / One`: `dst.rgb + gl_FragColor.rgb`,
+ * with the coverage already folded in. And (2) is `Zero / One`.
  *
  * That second pair is the one a call log cannot check and the plan warns about
  * by name. Left at three's default the alpha channel rides the RGB factors and
@@ -609,18 +669,23 @@ export const SRC_OVER_LAYER = Object.freeze({
  * the clear was already in the destination; `lighter` raised its alpha too and
  * nothing was watching that channel. Here something is.
  *
- * (The canvas also clamped `lighter` at 1.0 per channel. GL's One/One clamps
- * the same way in a fixed-point RGBA8 target, so that needs nothing.)
+ * (The canvas also clamped `lighter` at 1.0 per channel, and it clamped TWICE —
+ * once as the shadow landed in its 8-bit store, once as the shape did — where
+ * GL clamps the single sum once at the end. For a sum of non-negative terms the
+ * two agree: `min(1, a + min(1, b + d))` and `min(1, a + b + d)` are both 1
+ * whenever `b + d >= 1` and both `a + b + d` otherwise. So One/One needs
+ * nothing.)
  */
 export const ADDITIVE_LAYER = Object.freeze({
   glowQuant: GLOW_QUANT_ADDITIVE,
   shadow: SHADOW_ADDITIVE,
+  composite: COMPOSITE_ADDITIVE,
   // After the edge mesh. In the 2D loop the resonance edge is drawn after every
   // edge and every pulse ring, and the chords after it; a second mesh drawn
   // later reproduces that order exactly.
   renderOrder: 2,
   blend: Object.freeze({
-    blendSrc: THREE.SrcAlphaFactor,
+    blendSrc: THREE.OneFactor,
     blendDst: THREE.OneFactor,
     blendSrcAlpha: THREE.ZeroFactor,
     blendDstAlpha: THREE.OneFactor,
@@ -637,9 +702,10 @@ export const ADDITIVE_LAYER = Object.freeze({
  * a frame into a second, redundant buffer. Falls back to a private array so
  * the function stays usable standalone (tests, any future non-shared caller).
  *
- * `spec` selects the material: the blend, the glow step and the shadow snippet.
- * Everything else — the geometry, the vertex expansion, the gradient, the box
- * filter and the gaussian shoulder — is the same code compiled twice.
+ * `spec` selects the material: the blend, the glow step, the shadow snippet and
+ * the final composite. Everything else — the geometry, the vertex expansion,
+ * the gradient, the box filter and the gaussian shoulder — is the same code
+ * compiled twice.
  */
 export function createEdgeLayer(sharedData, spec = SRC_OVER_LAYER) {
   const data = sharedData ?? new Float32Array(MAX_EDGES * EDGE_STRIDE);
@@ -673,7 +739,7 @@ export function createEdgeLayer(sharedData, spec = SRC_OVER_LAYER) {
   const material = new THREE.ShaderMaterial({
     uniforms,
     vertexShader: EDGE_VERT,
-    fragmentShader: edgeFrag(spec.shadow),
+    fragmentShader: edgeFrag(spec.shadow, spec.composite),
     transparent: true,
     // See SRC_OVER_LAYER / ADDITIVE_LAYER for how each set of factors is
     // derived from what the accumulator holds.

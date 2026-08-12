@@ -6,8 +6,11 @@ import { decodePng } from './_png.mjs';
 import { exergyAlpha, RIFT_ALPHA_NORMAL, RIFT_ALPHA_IMMERSIVE } from '../src/terminal/art/artBackground.js';
 import { steadyState, fadeGain } from '../src/terminal/art/artTrail.js';
 import {
-  EDGE_STRIDE, EDGE_OFF, GLOW_REACH, isDisc, unpackFlags, ADDITIVE_LAYER,
+  EDGE_STRIDE, EDGE_OFF, GLOW_REACH, isDisc, unpackAlphas, unpackFlags, ADDITIVE_LAYER,
 } from '../src/terminal/art/SphereEdges.js';
+import {
+  resonanceGlow, RESONANCE_CORE_MID_A, RESONANCE_CORE_MID_K, RESONANCE_GLOW_SCALE,
+} from '../src/terminal/art/artEdges.js';
 
 // Every check reports through this so the run ends with a count rather than
 // five paragraphs a reader has to tally by eye. A failure is a non-zero exit:
@@ -662,6 +665,46 @@ const CORE_EXCESS = 120;      // luminance, 0-255
 const HALO_RIM_STEP = 22;
 const RIM_CONTROL_MAX = 5;    // the off-bar rim step, which must be ~0
 
+// Every band must actually have measured something. `barBand` returns
+// `sum / (n || 1)`, so an EMPTY sample reads as a mean of ZERO and is
+// indistinguishable from a measured black band — which turns three of the
+// numbers below into a false green: an empty coreOff makes the excess coreOn's
+// own ~233, an empty rimOut makes the step rimIn's own ~93, and two empty
+// control bands make rimControl 0, i.e. the one assertion whose entire purpose
+// is to prove the endpoints decoded correctly passes VACUOUSLY. This is the
+// same guard the PULSE RINGS block above states is "not a formality".
+// Measured: the six bands run 500-900 px; 50 is a floor, not a threshold.
+const MIN_BAND_PX = 50;
+
+// The core's glow RADIUS, pinned — not merely "> 0".
+//
+// The entire reason this task introduced a per-material glowQuant is that at the
+// edge mesh's 1/8 px step a 22.5 px radius saturates the [0,127] clamp at
+// 15.875. If the packing call in ArtTab.jsx regresses to the default
+// quantisation the byte clamps to 127, this harness decodes it at the additive
+// step as 31.75, `glow > 0` is satisfied, and the row goes GREEN — while the
+// shader draws a 31.75 px shoulder instead of a 22.5 px one and the peak drops
+// from 0.134 to 0.095. That is ~2 luminance against a 113-luminance margin on
+// CORE_EXCESS, and the rim step is measured where the core's gaussian is smooth,
+// so no pixel assertion here moves either. An instrument that reads the state it
+// exists to exercise and then declines to assert on it is this project's
+// signature failure, and this was the seventh occurrence.
+//
+// The similarity is recoverable through the decoder already imported: the core's
+// MID alpha is 0.40 + sim*0.55, so sim = (a1 - A) / K and the expected radius is
+// resonanceGlow(sim). Two quantisations sit between that and the decoded byte:
+//
+//   glow byte   round(glow * q) / q          -> +/- 0.5/4      = 0.125 px
+//   mid alpha   round(a1 * 255) / 255        -> +/- 0.5/255 on a1,
+//               / K = 0.55 -> +/- 0.00357 on sim,
+//               * RESONANCE_GLOW_SCALE = 24  -> +/- 0.0856 px
+//
+// so the bound is their sum, 0.2106 px. (The reviewer's suggested 0.125 covers
+// only the second of the two and would fail on its own arithmetic.) Against it,
+// the regression it exists to catch is 31.75 vs 22.5 — 9.25 px, a 44x margin.
+const GLOW_TOL = 0.5 / ADDITIVE_LAYER.glowQuant
+  + RESONANCE_GLOW_SCALE * (0.5 / 255) / RESONANCE_CORE_MID_K;
+
 // CDP's modifier bitmask: Alt 1, Ctrl 2, Meta 4, Shift 8. Shift-click is the
 // only way into this layer.
 const SHIFT_KEY = 8;
@@ -693,6 +736,9 @@ function strokesOf(add) {
     width: Math.abs(at(i, EDGE_OFF.width)),
     isDisc: isDisc(at(i, EDGE_OFF.width)),
     glow: unpackFlags(at(i, EDGE_OFF.flags), ADDITIVE_LAYER.glowQuant).glow,
+    // The MID gradient stop's alpha, which is where the similarity is
+    // recoverable from — see GLOW_TOL. unpackAlphas, not a second decoder.
+    midA: unpackAlphas(at(i, EDGE_OFF.alphas)).a1,
   });
   // Write order, which is also draw order: halo first, core over it.
   return { halo: one(0), core: one(1) };
@@ -797,21 +843,42 @@ try {
     const rimStep = rimIn.mean - rimOut.mean;
     const rimControl = rimInC.mean - rimOutC.mean;
 
+    // Every band, including both controls. An empty sample is a mean of zero
+    // and would sail through three of the four numbers above — see MIN_BAND_PX.
+    const bands = { coreOn, coreOff, rimIn, rimOut, rimInC, rimOutC };
+    const thin = Object.entries(bands).filter(([, b]) => b.n < MIN_BAND_PX).map(([k]) => k);
+    const bandsOk = thin.length === 0;
+
+    // The similarity the packed core actually encodes, and the radius it
+    // implies. `core.glow > 0` alone cannot tell 22.5 from a clamp-saturated
+    // 31.75 — see GLOW_TOL.
+    const simEnc = (core.midA - RESONANCE_CORE_MID_A) / RESONANCE_CORE_MID_K;
+    const glowWant = resonanceGlow(simEnc);
+    const glowErr = Math.abs(core.glow - glowWant);
+
     // Two instances, both strokes (a negative width would make them discs), on
-    // the same segment. If the port ever collapses to one instance this is
-    // where it says so, before any pixel is read.
+    // the same segment — all FOUR endpoint coordinates, since a writer that got
+    // bx or ay wrong on one instance would otherwise pass the shape gate and
+    // then be measured with mismatched geometry. If the port ever collapses to
+    // one instance this is where it says so, before any pixel is read.
     const shapeOk = st.additive.count === 2 && !halo.isDisc && !core.isDisc
-      && halo.width > core.width * 3 && halo.glow === 0 && core.glow > 0
-      && halo.ax === core.ax && halo.by === core.by;
+      && halo.width > core.width * 3 && halo.glow === 0 && glowErr <= GLOW_TOL
+      && halo.ax === core.ax && halo.ay === core.ay
+      && halo.bx === core.bx && halo.by === core.by;
 
     console.log(`   instances ${st.additive.count}   halo w ${halo.width.toFixed(2)} glow ${halo.glow}`
       + `   core w ${core.width.toFixed(2)} glow ${core.glow}` + (shapeOk ? '' : '   SHAPE WRONG'));
-    console.log(`   core    ${coreOn.mean.toFixed(2)} (${coreOn.n}px)   control ${coreOff.mean.toFixed(2)}`
+    console.log(`   sim ${simEnc.toFixed(4)} from the packed mid alpha`
+      + `   core glow ${core.glow} vs ${glowWant.toFixed(3)} expected`
+      + `   err ${glowErr.toFixed(4)} (tol ${GLOW_TOL.toFixed(4)})`);
+    console.log(`   core    ${coreOn.mean.toFixed(2)} (${coreOn.n}px)   control ${coreOff.mean.toFixed(2)} (${coreOff.n}px)`
       + `   excess ${coreExcess.toFixed(2)} (need ${CORE_EXCESS})`);
-    console.log(`   halo rim ${rimIn.mean.toFixed(2)} in / ${rimOut.mean.toFixed(2)} out`
+    console.log(`   halo rim ${rimIn.mean.toFixed(2)} (${rimIn.n}px) in / ${rimOut.mean.toFixed(2)} (${rimOut.n}px) out`
       + `   step ${rimStep.toFixed(2)} (need ${HALO_RIM_STEP})`);
-    console.log(`   same rim off the bar   step ${rimControl.toFixed(2)} (must be under ${RIM_CONTROL_MAX})`);
-    verdict('RESONANCE EDGE', shapeOk && coreExcess >= CORE_EXCESS
+    console.log(`   same rim off the bar   ${rimInC.mean.toFixed(2)} (${rimInC.n}px) / ${rimOutC.mean.toFixed(2)} (${rimOutC.n}px)`
+      + `   step ${rimControl.toFixed(2)} (must be under ${RIM_CONTROL_MAX})`
+      + (bandsOk ? '' : `   EMPTY BANDS: ${thin.join(', ')} — under ${MIN_BAND_PX}px, so their means are not measurements`));
+    verdict('RESONANCE EDGE', shapeOk && bandsOk && coreExcess >= CORE_EXCESS
       && rimStep >= HALO_RIM_STEP && Math.abs(rimControl) <= RIM_CONTROL_MAX);
   }
 } finally { await r5.close(); }

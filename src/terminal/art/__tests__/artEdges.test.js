@@ -458,16 +458,16 @@ describe('glow quantisation per material', () => {
 describe('ADDITIVE_LAYER', () => {
   it('adds premultiplied ink to the accumulator without raising its alpha', () => {
     // The accumulator holds premultiplied ink with coverage in alpha and the
-    // screen pass reads `ink.rgb + uRift * (1 - ink.a)`. The fragment shader
-    // emits STRAIGHT rgb with coverage in alpha, so SrcAlpha/One adds exactly
-    // `rgb * a` — and Zero/One leaves the alpha channel alone, so the rift
-    // underneath is not occluded. That last pair is the whole point: on the 2D
-    // canvas `lighter` added light over a destination that ALREADY contained
-    // the clear colour, and did not hide it.
+    // screen pass reads `ink.rgb + uRift * (1 - ink.a)`. This material's
+    // fragment stage emits PREMULTIPLIED rgb (see the composite tests below),
+    // so One/One adds exactly the ink it emitted — and Zero/One leaves the
+    // alpha channel alone, so the rift underneath is not occluded. That last
+    // pair is the whole point: on the 2D canvas `lighter` added light over a
+    // destination that ALREADY contained the clear colour, and did not hide it.
     const layer = createEdgeLayer(undefined, ADDITIVE_LAYER);
     try {
       expect(layer.material.blending).toBe(THREE.CustomBlending);
-      expect(layer.material.blendSrc).toBe(THREE.SrcAlphaFactor);
+      expect(layer.material.blendSrc).toBe(THREE.OneFactor);
       expect(layer.material.blendDst).toBe(THREE.OneFactor);
       expect(layer.material.blendSrcAlpha).toBe(THREE.ZeroFactor);
       expect(layer.material.blendDstAlpha).toBe(THREE.OneFactor);
@@ -498,7 +498,7 @@ describe('ADDITIVE_LAYER', () => {
       expect(a.material.fragmentShader).not.toBe(b.material.fragmentShader);
       // The additive shadow is the flat gold ctx.shadowColor, not the gradient,
       // and it is injected FROM the constant rather than retyped in GLSL.
-      expect(a.material.fragmentShader).toContain(`float shadowAlpha = ${RESONANCE_SHADOW_ALPHA};`);
+      expect(a.material.fragmentShader).toContain(`float shadowAlpha = ${RESONANCE_SHADOW_ALPHA} * a;`);
       expect(a.material.fragmentShader).not.toContain('uOrthoHue +');
       // and the box filter, the segment-distance glow and the gaussian
       // amplitude are the same code in both.
@@ -507,6 +507,142 @@ describe('ADDITIVE_LAYER', () => {
         expect(b.material.fragmentShader).toContain(shared);
       }
     } finally { a.dispose(); b.dispose(); }
+  });
+
+  // ── The final composite ──────────────────────────────────────────────────
+  //
+  // A shadowed ctx.stroke() is TWO composite operations with the current
+  // operator, the blurred shadow image and then the shape. Under source-over
+  // those collapse into one straight-alpha (colour, coverage) pair; under
+  // `lighter` they do not — the destination gets `dst + shadowCol*botA +
+  // col*topA`, with the shadow BESIDE the stroke, not underneath it. Emitting
+  // the source-over stack and blending it SrcAlpha/One is short by
+  // `shadowCol * botA * topA`, which is clipped away at high similarity and
+  // ~20% of the red channel at sim 0. So the additive material emits
+  // premultiplied ink and takes One for its rgb source factor.
+
+  it('carries the STROKE alpha into the shadow amplitude, as the canvas does', () => {
+    // A canvas shadow is the blurred SHAPE bitmap tinted by shadowColor, so the
+    // stroke's own alpha rides through it. Measured directly in Chrome, at
+    // lineWidth 4.2 / shadowBlur 22.5 / shadowColor rgba(255,215,0,0.9), the
+    // shadow 6px off the line reads 5, 11, 17, 23, 29 for stroke alphas
+    // 0.2 … 1.0 — each the 8-bit truncation of alpha * 29, i.e. exactly linear.
+    // The shared amplitude line carries `shadowAlpha` and the geometry but NOT
+    // `a`, so the additive snippet folds it in. Without it the core's glow is
+    // 1/a too bright: 2.5x at sim 0, 1.21x at the harness's 0.771.
+    const a = createEdgeLayer(undefined, ADDITIVE_LAYER);
+    const b = createEdgeLayer();
+    try {
+      expect(a.material.fragmentShader).toContain(`float shadowAlpha = ${RESONANCE_SHADOW_ALPHA} * a;`);
+      // and the source-over mesh is deliberately UNTOUCHED — it has the same
+      // omission, and correcting it there moves shipped pixels. See the report.
+      expect(b.material.fragmentShader).toContain('float shadowAlpha = mix(fuseCos * 0.6, 1.0, vIsOrtho);');
+      // the shared amplitude line itself is one string compiled twice.
+      for (const f of [a.material.fragmentShader, b.material.fragmentShader])
+        expect(f).toContain('float peak = min(shadowAlpha * 1.5958 * vHalfW / max(vGlow, 1e-3), 1.0);');
+    } finally { a.dispose(); b.dispose(); }
+  });
+
+  it('emits PREMULTIPLIED ink, because lighter adds the shadow beside the stroke', () => {
+    const a = createEdgeLayer(undefined, ADDITIVE_LAYER);
+    try {
+      // The two terms the canvas added, added — not stacked, and not divided
+      // back out by a coverage the One factor would never multiply in again.
+      expect(a.material.fragmentShader)
+        .toContain('gl_FragColor = vec4(col * topA + shadowCol * botA, outA);');
+      expect(a.material.fragmentShader).not.toContain('outRGB');
+      expect(a.material.blendSrc).toBe(THREE.OneFactor);
+    } finally { a.dispose(); }
+  });
+
+  it('leaves the source-over composite stacked and straight-alpha', () => {
+    // Shipped code: any pixel movement in the edge mesh is a regression, not a
+    // fix. The stack, the divide and the SrcAlpha factor that multiplies the
+    // coverage back in all stay exactly as they were.
+    const b = createEdgeLayer();
+    try {
+      expect(b.material.fragmentShader)
+        .toContain('vec3 outRGB = (col * topA + shadowCol * botA * (1.0 - topA)) / outA;');
+      expect(b.material.fragmentShader).toContain('gl_FragColor = vec4(outRGB, outA);');
+      expect(b.material.blendSrc).toBe(THREE.SrcAlphaFactor);
+    } finally { b.dispose(); }
+  });
+
+  it('agrees with the canvas at the two similarities the port is measured at', () => {
+    // The shader's emission, in JS, against what the canvas drawing model puts
+    // in the destination. Not a pixel test — an arithmetic one on the formula
+    // the two composite snippets encode.
+    const canvasLighter = (col, topA, shadowCol, botA) =>
+      col.map((c, i) => c * topA + shadowCol[i] * botA);
+    const emitPremult = (col, topA, shadowCol, botA) =>
+      col.map((c, i) => c * topA + shadowCol[i] * botA);          // blendSrc = One
+    const emitStraight = (col, topA, shadowCol, botA) => {        // blendSrc = SrcAlpha
+      const outA = topA + botA * (1 - topA);
+      return col.map((c, i) => (c * topA + shadowCol[i] * botA * (1 - topA)) / outA * outA);
+    };
+    const gold = RESONANCE_GOLD.map(v => v / 255);
+    for (const sim of [0, 0.771]) {
+      const halfW = resonanceWidths(sim, 1).core / 2;
+      const glow = resonanceGlow(sim);
+      const topA = resonanceStops(sim).core.a1;
+      // shadowAlpha carries the stroke's own alpha — see the amplitude test.
+      const botA = Math.min(topA * RESONANCE_SHADOW_ALPHA * 1.5958 * halfW / glow, 1);
+      const col = RESONANCE_CORE_MID.map(v => v / 255);
+      const want = canvasLighter(col, topA, gold, botA);
+      const got = emitPremult(col, topA, gold, botA);
+      const old = emitStraight(col, topA, gold, botA);
+      for (let i = 0; i < 3; i++) {
+        expect(got[i]).toBeCloseTo(want[i], 10);
+        // and the old convention was short by exactly shadowCol*botA*topA.
+        expect(want[i] - old[i]).toBeCloseTo(gold[i] * botA * topA, 10);
+      }
+    }
+  });
+
+  it('does not change the halo, whose botA is zero', () => {
+    // The one claim that makes the new convention safe for the rest of the
+    // layer: with glow = 0 the step(0.001, vGlow) zeroes botA, and premultiplied
+    // `col*topA + shadowCol*0` is the same ink SrcAlpha * (col*topA/topA) used
+    // to deliver. Task 6's chords carry no shadow either.
+    const col = RESONANCE_HALO_MID.map(v => v / 255);
+    for (const sim of [0, 0.5, 1]) {
+      const topA = resonanceStops(sim).halo.a1, botA = 0;
+      const outA = topA + botA * (1 - topA);
+      for (let i = 0; i < 3; i++) {
+        const premult = col[i] * topA + 0;
+        const straight = (col[i] * topA + 0) / outA * outA;
+        expect(premult).toBeCloseTo(straight, 10);
+      }
+    }
+  });
+
+  it('clamps to the same place the canvas does, despite clamping once not twice', () => {
+    // The canvas clamps as the shadow lands in its 8-bit store and again as the
+    // shape does; GL clamps the single sum once. For non-negative terms the two
+    // agree — min(1, a + min(1, b + d)) === min(1, a + b + d).
+    const m = v => Math.min(1, v);
+    for (const a of [0, 0.3, 0.9, 1.4])
+      for (const b of [0, 0.4, 1.1])
+        for (const d of [0, 0.6, 0.95])
+          expect(m(a + m(b + d))).toBeCloseTo(m(a + b + d), 10);
+  });
+
+  it('keeps every non-uniform branch below the derivative reads, in both materials', () => {
+    // dFdx/dFdy are undefined inside non-uniform control flow, so the shader
+    // takes both derivatives at the top of main() before anything branches.
+    // Neither shadow snippet branches today, but they are INJECTED text: a
+    // future snippet carrying an `if` that landed above the reads would be
+    // undefined behaviour SwiftShader will not surface. This pins the order.
+    for (const spec of [SRC_OVER_LAYER, ADDITIVE_LAYER]) {
+      const layer = createEdgeLayer(undefined, spec);
+      try {
+        const frag = layer.material.fragmentShader;
+        expect(frag.indexOf('dFdx')).toBeGreaterThan(-1);
+        expect(frag.indexOf('shadowAlpha')).toBeGreaterThan(-1);
+        expect(frag.indexOf('dFdx')).toBeLessThan(frag.indexOf('shadowAlpha'));
+        expect(frag.lastIndexOf('dFdy')).toBeLessThan(frag.indexOf('shadowAlpha'));
+      } finally { layer.dispose(); }
+    }
   });
 
   it('publishes its glow quantisation to the shader so the packing agrees', () => {
