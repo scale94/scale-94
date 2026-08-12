@@ -181,10 +181,33 @@ async function bootToSphere(page) {
 // fingerprint and idle frame still matched.
 const settle = () => sleep(25);
 
-// Find a node by hovering a fixed coarse grid. Constant frame cost, so it does
-// not perturb reproducibility; returns the first grid point with a node under it.
-async function findNode(page, rect, { cols = 9, rows = 5, skip = null } = {}) {
-  let hit = null;
+// Sweep a fixed coarse grid, hovering each point, and collect up to `max`
+// DISTINCT nodes. Constant frame cost — every grid point is hovered, settled and
+// pumped whatever is found — so it does not perturb reproducibility.
+//
+// `onFound` fires at the grid point where the node was seen, while the cursor is
+// still on it. That timing is the whole point. THE SPHERE ROTATES CONTINUOUSLY,
+// including under virtual time, and the sweep runs 90 frames: a point recorded
+// early and used after the sweep has finished is stale by up to 88 frames of
+// rotation. MEASURED, in the state below: the node found on grid point 12 had
+// left the front of the sphere by the end of the sweep — its label was gone from
+// the DOM altogether, and the click at its recorded position landed on empty
+// canvas. Acting at detection reduces that to zero frames.
+//
+// (The two callers that only want a position — `hover` and `fired-cascade` —
+// still take the first hit and use it afterwards. They are on the same 88-frame
+// stale path and survive it only because their nodes happen not to rotate out of
+// reach: measured drift of 32 px and 50 px on the run this comment was written
+// from. That is luck, not design, and is called out in the report; it is not
+// changed here because moving those two states would move reference images this
+// task has no mandate over.)
+//
+// `skip` is a set of labels to pass over — the fired-cascade state uses it to
+// retry on a different node — and is honoured alongside the distinctness set.
+async function findNodes(page, rect,
+                         { cols = 9, rows = 5, max = 1, onFound = null, skip = null } = {}) {
+  const hits = [];
+  const seen = new Set();
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       const x = Math.round(rect.x + rect.w * (c + 1) / (cols + 1));
@@ -192,12 +215,31 @@ async function findNode(page, rect, { cols = 9, rows = 5, skip = null } = {}) {
       await page.hover(x, y);
       await settle();
       await page.pump(2);                       // fixed cost per probe
-      if (!hit) { const lab = await page.eval(HOVERED);
-        if (lab && !(skip && skip.has(lab))) hit = { x, y, label: lab }; }
+      if (hits.length < max) {
+        const lab = await page.eval(HOVERED);   // evals advance no frames
+        if (lab && !seen.has(lab) && !(skip && skip.has(lab))) {
+          seen.add(lab);
+          hits.push({ x, y, label: lab });
+          if (onFound) await onFound({ x, y, label: lab });
+        }
+      }
     }
   }
-  return hit;
+  return hits;
 }
+
+// The original single-node call, unchanged in behaviour: first hit, whole grid
+// swept, same frame cost as before.
+async function findNode(page, rect, opts = {}) {
+  return (await findNodes(page, rect, { ...opts, max: 1 }))[0] ?? null;
+}
+
+// The resonance toggle's own DOM label, `◈ resonance [n/2]` while armed. Read
+// straight out of React's render, which is a source INDEPENDENT of the pixels
+// the shot then captures — the point being that a state named after a mode has
+// to prove it engaged before its image is worth anything.
+const RESONANCE_LABEL = `(() => { const b = [...document.querySelectorAll('button')]
+  .find(e => /resonance/i.test(e.innerText || '')); return b ? b.innerText : null; })()`;
 
 function stats(a) {
   if (!a.length) return null;
@@ -355,21 +397,58 @@ async function captureScale(scale, manifest, expectFingerprint) {
   await shot('fired-cascade');
   await page.pump(400);            // let it expire
 
-  // 6. resonance — arm the mode, then shift-click two nodes
+  // 6. resonance — arm the mode, then shift-click two DIFFERENT nodes.
+  //
+  // Two independent defects kept this state empty for the whole of steps 2-4,
+  // and either one alone is enough to empty it:
+  //
+  //   1. It called findNode TWICE. The sweep starts from the same origin every
+  //      time and returned the first hit, so both calls returned the SAME node —
+  //      and ArtTab's shift-click handler toggles (`cur.includes(node.id) ?
+  //      filter : append`), so the second click undid the first.
+  //   2. Both clicks were dispatched at coordinates recorded up to 88 frames
+  //      earlier, and the sphere rotates throughout. MEASURED: the recorded
+  //      node's label had left the DOM by the time the click was sent, and the
+  //      click landed on empty canvas — `nodeAt` returned null and the handler
+  //      took its no-node branch.
+  //
+  // So the mode was armed with ZERO nodes selected: no resonance bar, and not
+  // even the node dimming, which needs `length > 0`. Deleting the entire
+  // resonance layer scored 21/21 identically against this capture set.
+  //
+  // Both are fixed the same way, and it is the way scripts/artPresence.mjs's
+  // RESONANCE EDGE check already does it: ONE sweep that shift-clicks each
+  // distinct node at the grid point where it was found, cursor still on it.
   await page.hover(away.x, away.y);
   await settle();
   await page.pump(30);
   if (!await page.eval(clickByText('resonance'))) throw new Error('no resonance button');
   await page.pump(20);
-  const rA = await findNode(page, rect);
-  await page.click(rA.x, rA.y, { modifiers: 8 });     // 8 = Shift
-  await sleep(500);
-  await page.pump(30);
-  const rB = await findNode(page, rect);
-  await page.click(rB.x, rB.y, { modifiers: 8 });
+  const resNodes = await findNodes(page, rect, {
+    max: 2,
+    onFound: async (n) => {
+      await page.click(n.x, n.y, { modifiers: 8 });   // 8 = Shift
+      await sleep(300);
+      await page.pump(5);                             // fixed cost per selection
+    },
+  });
+  if (resNodes.length < 2) {
+    throw new Error('resonance: needed two distinct nodes on the hover grid, got '
+      + (resNodes.map(n => n.label).join(' + ') || 'none'));
+  }
   await sleep(800);                                   // resonance analysis is async
   await page.pump(45);
+  // Assert the selection from React's OWN label before the shot. That is a
+  // source independent of the pixels being captured, and without it this state
+  // reported a hovered node, a similarity and a green comparator row for four
+  // steps while holding nothing at all. Costs zero frames.
+  const resLabel = await page.eval(RESONANCE_LABEL);
+  if (resLabel !== '◈ resonance [2/2]') {
+    throw new Error(`resonance: expected two selected nodes, toggle reads "${resLabel}"`
+      + ` (clicked ${resNodes.map(n => n.label).join(' + ')})`);
+  }
   await shot('resonance');
+  console.log(`   (resonance ${resNodes.map(n => n.label).join(' + ')})`);
   await page.eval(clickByText('resonance'));       // disarm
   await page.pump(30);
 
@@ -425,6 +504,10 @@ async function captureScale(scale, manifest, expectFingerprint) {
     sphereCss: { w: Math.round(rect.w), h: Math.round(rect.h) },
     sphereBackingStore: store,
     hoveredNode: node.label,
+    // Which pair the resonance state actually compared. The similarity drives
+    // the bar's width, alpha and glow, so a run that lands on a different pair
+    // is not comparable with one that did not — this is the field that says so.
+    resonanceNodes: resNodes.map(n => n.label),
     shots,
     drawCostMs: {
       idle:      stats(idleCosts.draw ?? []),
