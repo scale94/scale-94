@@ -187,3 +187,100 @@ export function resonanceStops(sim) {
     },
   };
 }
+
+// ── Prism geometry effects ──────────────────────────────────────────────────
+// A command-triggered burst: `run <alias>` (or a left-click on a node) names a
+// neighbourhood and the sphere draws a prismatic structure through it for
+// `maxLife` frames. Three sub-layers inside one `lighter` block, and all three
+// move together or not at all:
+//
+//   1. the chord bundle — for every PAIR of projected effect nodes, and each of
+//      `spectralN` spectral lines, TWO quadratic Béziers: a wide low-alpha glow
+//      pass and a sharp bright core over it;
+//   2. the sacred polygon — one closed path through the nodes, when three or
+//      more project;
+//   3. the star spokes — one straight line from the projected sphere centre to
+//      each node.
+//
+// The envelope (`alphaRaw`), the hue drift (`hue0`) and the `eff.life` / `live`
+// bookkeeping are simulation state and stay in the draw loop. Everything here
+// is the drawing arithmetic, lifted so the GPU copy and the canvas original
+// provably read one source of truth — the same treatment the resonance edge got
+// in task 1.
+
+export const PRISM_SPECTRAL_FINE = 7;      // desktop
+export const PRISM_SPECTRAL_COARSE = 4;    // coarse pointer
+export const PRISM_HUE_STEP = 48;          // degrees between spectral lines
+export const PRISM_ALPHA_K = 0.85;         // the bundle's share of the envelope
+export const PRISM_ALPHA_FALLOFF = 0.07;   // per spectral line
+export const PRISM_OFFSET_MID = 3;         // k at which the offset is zero
+export const PRISM_OFFSET_STEP = 2.8;      // px per line, in x
+export const PRISM_END_OFF_Y = 0.6;        // the endpoints' y offset is 0.6x the x one
+export const PRISM_CP_PULL = 0.55;         // control point, toward the sphere centre
+export const PRISM_CP_OFF_X = 2;           // and then offset again, harder than the ends
+export const PRISM_CP_OFF_Y = 1.4;
+export const PRISM_SAT = 100;
+export const PRISM_GLOW_LIT = 65;
+export const PRISM_GLOW_ALPHA_K = 0.4;
+export const PRISM_GLOW_W = 5;             // - k * 0.4
+export const PRISM_GLOW_W_K = 0.4;
+export const PRISM_CORE_LIT = 88;
+export const PRISM_CORE_W = 1.2;
+
+export const PRISM_POLY_HUE_STEP = 180;    // the polygon is the bundle's complement
+export const PRISM_POLY_LIT = 88;
+export const PRISM_POLY_ALPHA_K = 0.72;
+export const PRISM_POLY_W = 1.6;
+
+export const PRISM_SPOKE_SAT = 95;
+export const PRISM_SPOKE_LIT = 82;
+export const PRISM_SPOKE_ALPHA_K = 0.52;
+export const PRISM_SPOKE_W = 0.5;
+
+// The two limits the instance budget is computed from — see MAX_ADDITIVE_EDGES
+// in SphereEdges.js. Both are enforced in ArtTab's spawnEffect: it drops the
+// oldest effect beyond PRISM_MAX_EFFECTS and slices the node list to
+// PRISM_MAX_NODES (6 on a coarse pointer, which is the smaller case).
+export const PRISM_MAX_EFFECTS = 4;
+export const PRISM_MAX_NODES = 11;
+
+/** Lateral offset of spectral line `k`, in px. Symmetric about k = 3. */
+export function prismOffset(k) {
+  return (k - PRISM_OFFSET_MID) * PRISM_OFFSET_STEP;
+}
+
+/** Alpha of spectral line `k`, from the effect's envelope alpha. The glow pass
+ *  takes PRISM_GLOW_ALPHA_K of this; the core pass takes it whole. */
+export function prismChordAlpha(alpha, k) {
+  return alpha * PRISM_ALPHA_K * (1 - k * PRISM_ALPHA_FALLOFF);
+}
+
+/** Stroke width of the glow pass for spectral line `k`. The core is constant. */
+export function prismGlowWidth(k) {
+  return PRISM_GLOW_W - k * PRISM_GLOW_W_K;
+}
+
+/**
+ * The chord's control point, into `out` as [x, y].
+ *
+ * `ax..by` are the two nodes' projected positions WITHOUT the spectral offset,
+ * and that is not a simplification: the draw loop takes its midpoint from the
+ * bare `pA.sx`/`pB.sx` and only then adds `offset * 2` and `offset * 1.4`.
+ * Deriving the midpoint from the offset endpoints instead shifts every chord's
+ * control point by up to 8.4px, which reads as the bundle fanning the wrong way.
+ *
+ * Writes into `out` rather than returning a pair: this runs up to 770 times per
+ * effect per frame and the draw loop is off the allocation path.
+ */
+export function prismControl(out, ax, ay, bx, by, cx, cy, offset) {
+  const midX = (ax + bx) / 2, midY = (ay + by) / 2;
+  out[0] = midX + (cx - midX) * PRISM_CP_PULL + offset * PRISM_CP_OFF_X;
+  out[1] = midY + (cy - midY) * PRISM_CP_PULL + offset * PRISM_CP_OFF_Y;
+  return out;
+}
+
+/** A spoke's hue: the effect's base hue rotated by the node's bearing from the
+ *  projected sphere centre, so the star reads as a colour wheel. */
+export function prismSpokeHue(hue0, dx, dy) {
+  return (hue0 + Math.atan2(dy, dx) * (180 / Math.PI) + 360) % 360;
+}

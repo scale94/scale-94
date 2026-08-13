@@ -51,8 +51,9 @@ import SphereLabels from '../art/SphereLabels';
 import SphereComposite from '../art/SphereComposite';
 import {
   createEdgeState, writeHsl, writeHslRgb, writeRgb255, packAlphas, packFlags, discWidth,
-  ADDITIVE_LAYER, EDGE_STRIDE, MAX_EDGES,
+  writePolyline, ADDITIVE_LAYER, EDGE_STRIDE, MAX_EDGES, MAX_ADDITIVE_EDGES,
 } from '../art/SphereEdges';
+import { quadSegments, tessellateQuad, CURVE_MAX_SEGMENTS } from '../art/artCurve';
 import {
   edgeStops, edgeLineWidth, orthoHue, orthoGlow, fusedGlow,
   pulseRingRadius, pulsePosition,
@@ -61,6 +62,11 @@ import {
   ORTHO_HUE_STEP_MID, ORTHO_HUE_STEP_END,
   ORTHO_ALPHA_BOOST, ORTHO_MID_ALPHA_BOOST,
   PULSE_ALPHA, PULSE_DRAW_CUTOFF,
+  prismOffset, prismChordAlpha, prismGlowWidth, prismControl, prismSpokeHue,
+  PRISM_SPECTRAL_FINE, PRISM_SPECTRAL_COARSE, PRISM_HUE_STEP, PRISM_END_OFF_Y,
+  PRISM_SAT, PRISM_GLOW_LIT, PRISM_GLOW_ALPHA_K, PRISM_CORE_LIT, PRISM_CORE_W,
+  PRISM_POLY_HUE_STEP, PRISM_POLY_LIT, PRISM_POLY_ALPHA_K, PRISM_POLY_W,
+  PRISM_SPOKE_SAT, PRISM_SPOKE_LIT, PRISM_SPOKE_ALPHA_K, PRISM_SPOKE_W,
 } from '../art/artEdges';
 import { stepAwakening, drawBeaconRing, drawConductor } from '../art/artAwakening';
 import {
@@ -86,6 +92,17 @@ const SECTOR_COLORS = {
   ling: '#14b8a6', cogn: '#a855f7', aesth: '#e879f9', topo: '#0ea5e9', meta: '#fbbf24', synth: '#f43f5e',
   fsk: '#c0c0c0',
 };
+// The prism layer's packed flag word: no dash, no glow, not ortho. Constant for
+// every one of its instances — a canvas shadow is set by ctx.shadowBlur and this
+// block never sets one — so it is packed once at module load rather than ~74000
+// times a frame. Through packFlags, not as a literal 0, so it cannot drift from
+// the layout the shader unpacks.
+const PRISM_FLAGS = packFlags(0, 0, 0, false, ADDITIVE_LAYER.glowQuant);
+
+// Once per session, not once per frame: an overflowing frame overflows 60 times
+// a second and would bury the console it is trying to be visible in.
+let prismOverflowWarned = false;
+
 const FOCAL_K   = 2.8;      // focal = FOCAL_K × sphereR — controls perspective depth
 const SPHERE_K  = 0.42;     // sphereR = SPHERE_K × min(w, h) — larger sphere, front and center
 
@@ -256,12 +273,27 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   const edgeGLRef = useRef(null);
   if (edgeGLRef.current === null) edgeGLRef.current = createEdgeState();
   // The ADDITIVE line layer, in the same 16-float layout: the resonance edge
-  // now, the prism chords next. A separate stream because `lighter` is a
+  // and the prism geometry effects. A separate stream because `lighter` is a
   // different blend, not because it is a different kind of geometry — the mesh
   // it feeds is built from the same shader. `rings` goes unused here; sharing
   // the state factory keeps one allocation shape rather than a near-duplicate.
+  //
+  // Its capacity is ~72x the edge mesh's, and that is the prism layer: every
+  // chord is a flattened quadratic, and the worst frame the sim can produce is
+  // four concurrent eleven-node effects. See MAX_ADDITIVE_EDGES for the
+  // arithmetic and for why this is a fixed preallocation rather than a buffer
+  // that grows — the array IS the GPU-bound buffer's backing store.
   const addGLRef = useRef(null);
-  if (addGLRef.current === null) addGLRef.current = createEdgeState();
+  if (addGLRef.current === null) addGLRef.current = createEdgeState(MAX_ADDITIVE_EDGES);
+  // Prism scratch, allocated once: the tessellation's point list, the control
+  // point, and writeHsl's rgb output. A full-strength frame runs the inner loop
+  // ~74000 times and the draw loop stays off the allocation path.
+  const prismPtsRef  = useRef(null);
+  if (prismPtsRef.current === null) prismPtsRef.current = new Float32Array((CURVE_MAX_SEGMENTS + 1) * 2);
+  const prismCtrlRef = useRef(null);
+  if (prismCtrlRef.current === null) prismCtrlRef.current = new Float32Array(2);
+  const prismRgbRef  = useRef(null);
+  if (prismRgbRef.current === null) prismRgbRef.current = new Float32Array(3);
 
   // ── Beat clock state ────────────────────────────────────────────────────
   const [ambientMode,  setAmbientMode]  = useState(false);
@@ -1206,6 +1238,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       // which is the order the 2D loop drew them in.
       const ag = addGLRef.current;
       ag.count = 0;
+      ag.dropped = 0;
       ag.w = w; ag.h = h;
 
       // ── Resonance edge (Shift-Click comparison — solid glowing coalescence) ──
@@ -1262,13 +1295,36 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       }
 
       // ── Prism geometry effects (inside-sphere chords, command-triggered) ────
-      // Additive blending: overlapping spectral lines ACCUMULATE light → bloom cores
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
+      //
+      // Additive blending: overlapping spectral lines ACCUMULATE light → bloom
+      // cores. All three sub-layers now write instances into the SAME additive
+      // stream the resonance edge above uses — no ctx.save()/restore() pair,
+      // because there is no longer a ctx call in here to bracket.
+      //
+      // The chords are quadratic Béziers and the line mesh draws straight
+      // segments, so each is flattened on the CPU (artCurve.js) into a run of
+      // abutting instances. What did NOT move: the projection, the ID→index
+      // map, the envelope, the hue drift and the eff.life/`live` bookkeeping
+      // are simulation state and stay here.
       {
         // Precompute ID→index map once per frame — O(1) lookup inside effect loop
         const nodeIdx = {};
         for (let i = 0; i < nodes.length; i++) nodeIdx[nodes[i].id] = i;
+
+        const pts  = prismPtsRef.current;    // tessellation scratch, xy pairs
+        const ctrl = prismCtrlRef.current;   // the control point, [x, y]
+        const rgb  = prismRgbRef.current;    // writeHsl's 3-float output
+
+        // A polyline of `m` points, then the same for one straight segment.
+        // The alphas the 2D code quantised with `.toFixed(3)` are quantised to
+        // 1/255 by packAlphas instead, which is the coarser step and therefore
+        // the dominant one — the same call made for the resonance edge above.
+        const chord = (m, a, width) =>
+          writePolyline(ag, pts, m, rgb, a, width, PRISM_FLAGS);
+        const straight = (x0, y0, x1, y1, a, width) => {
+          pts[0] = x0; pts[1] = y0; pts[2] = x1; pts[3] = y1;
+          writePolyline(ag, pts, 2, rgb, a, width, PRISM_FLAGS);
+        };
 
         const live = [];
         const cx = w / 2, cy = h / 2;     // projected sphere center
@@ -1294,68 +1350,74 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           if (effProj.length < 2) continue;
 
           // Draw prismatic chord bundle between every pair
-          // Coarse (mobile): 4 spectral lines × 6 nodes = 60 strokes/effect
-          // Fine  (desktop): 7 spectral lines × 11 nodes = 385 strokes/effect
-          const spectralN = eff.coarse ? 4 : 7;
+          // Coarse (mobile): 4 spectral lines × 6 nodes = 60 curves/effect
+          // Fine  (desktop): 7 spectral lines × 11 nodes = 770 curves/effect
+          const spectralN = eff.coarse ? PRISM_SPECTRAL_COARSE : PRISM_SPECTRAL_FINE;
           for (let a = 0; a < effProj.length; a++) {
             for (let b = a + 1; b < effProj.length; b++) {
               const pA = effProj[a], pB = effProj[b];
 
               for (let k = 0; k < spectralN; k++) {
-                const hue  = (hue0 + k * 48) % 360;
-                const lAlpha = alpha * 0.85 * (1 - k * 0.07);
-                const offset = (k - 3) * 2.8;
+                const hue    = (hue0 + k * PRISM_HUE_STEP) % 360;
+                const lAlpha = prismChordAlpha(alpha, k);
+                const offset = prismOffset(k);
 
-                // Control point pulled toward sphere center — creates interior arc illusion
-                const midX = (pA.sx + pB.sx) / 2;
-                const midY = (pA.sy + pB.sy) / 2;
-                const cpx  = midX + (cx - midX) * 0.55 + offset * 2;
-                const cpy  = midY + (cy - midY) * 0.55 + offset * 1.4;
+                // Control point pulled toward sphere center — creates interior arc
+                // illusion. From the UNSHIFTED midpoint; see prismControl().
+                prismControl(ctrl, pA.sx, pA.sy, pB.sx, pB.sy, cx, cy, offset);
+                const x0 = pA.sx + offset, y0 = pA.sy + offset * PRISM_END_OFF_Y;
+                const x1 = pB.sx + offset, y1 = pB.sy + offset * PRISM_END_OFF_Y;
+
+                // Flattened ONCE and drawn twice: both passes are the same
+                // curve, so they share the point list and therefore land on
+                // exactly the same joints.
+                const m = tessellateQuad(pts, x0, y0, ctrl[0], ctrl[1], x1, y1,
+                  quadSegments(x0, y0, ctrl[0], ctrl[1], x1, y1));
 
                 // Wide glow pass
-                ctx.strokeStyle = `hsla(${hue},100%,65%,${(lAlpha * 0.4).toFixed(3)})`;
-                ctx.lineWidth   = 5 - k * 0.4;
-                ctx.beginPath();
-                ctx.moveTo(pA.sx + offset, pA.sy + offset * 0.6);
-                ctx.quadraticCurveTo(cpx, cpy, pB.sx + offset, pB.sy + offset * 0.6);
-                ctx.stroke();
+                writeHsl(rgb, 0, hue, PRISM_SAT, PRISM_GLOW_LIT);
+                chord(m, lAlpha * PRISM_GLOW_ALPHA_K, prismGlowWidth(k));
                 // Sharp core pass
-                ctx.strokeStyle = `hsla(${hue},100%,88%,${lAlpha.toFixed(3)})`;
-                ctx.lineWidth   = 1.2;
-                ctx.beginPath();
-                ctx.moveTo(pA.sx + offset, pA.sy + offset * 0.6);
-                ctx.quadraticCurveTo(cpx, cpy, pB.sx + offset, pB.sy + offset * 0.6);
-                ctx.stroke();
+                writeHsl(rgb, 0, hue, PRISM_SAT, PRISM_CORE_LIT);
+                chord(m, lAlpha, PRISM_CORE_W);
               }
             }
           }
 
-          // Sacred polygon outline (cyclic ring) through effect nodes
+          // Sacred polygon outline (cyclic ring) through effect nodes.
+          // One closed canvas path became N separate segments, so its MITER
+          // JOINS are gone — a known, measured deviation at the corners. See
+          // the task report; it is not papered over with an invented join.
           if (effProj.length >= 3) {
-            const polyHue = (hue0 + 180) % 360;
-            ctx.strokeStyle = `hsla(${polyHue},100%,88%,${(alpha * 0.72).toFixed(3)})`;
-            ctx.lineWidth   = 1.6;
-            ctx.beginPath();
-            ctx.moveTo(effProj[0].sx, effProj[0].sy);
-            for (let i = 1; i < effProj.length; i++) ctx.lineTo(effProj[i].sx, effProj[i].sy);
-            ctx.closePath();
-            ctx.stroke();
+            const polyHue = (hue0 + PRISM_POLY_HUE_STEP) % 360;
+            writeHsl(rgb, 0, polyHue, PRISM_SAT, PRISM_POLY_LIT);
+            const polyA = alpha * PRISM_POLY_ALPHA_K;
+            for (let i = 0; i < effProj.length; i++) {
+              const p0 = effProj[i], p1 = effProj[(i + 1) % effProj.length];
+              straight(p0.sx, p0.sy, p1.sx, p1.sy, polyA, PRISM_POLY_W);
+            }
           }
 
-          // Star spokes — lines from sphere center to each effect node
+          // Star spokes — lines from sphere center to each effect node. Each was
+          // already its own beginPath/stroke, so the canvas composited them
+          // separately too: they double where they meet at the centre, there and
+          // here alike.
           for (const ep of effProj) {
-            const spokeHue = (hue0 + Math.atan2(ep.sy - cy, ep.sx - cx) * (180 / Math.PI) + 360) % 360;
-            ctx.strokeStyle = `hsla(${spokeHue},95%,82%,${(alpha * 0.52).toFixed(3)})`;
-            ctx.lineWidth   = 0.5;
-            ctx.beginPath();
-            ctx.moveTo(cx, cy);
-            ctx.lineTo(ep.sx, ep.sy);
-            ctx.stroke();
+            const spokeHue = prismSpokeHue(hue0, ep.sx - cx, ep.sy - cy);
+            writeHsl(rgb, 0, spokeHue, PRISM_SPOKE_SAT, PRISM_SPOKE_LIT);
+            straight(cx, cy, ep.sx, ep.sy, alpha * PRISM_SPOKE_ALPHA_K, PRISM_SPOKE_W);
           }
         }
         geomEffectsRef.current = live;
+        // Never quietly. MAX_ADDITIVE_EDGES is sized so this is unreachable
+        // (four concurrent eleven-node effects at the segment ceiling), so if it
+        // ever fires the arithmetic behind the cap is wrong, not the frame.
+        if (ag.dropped > 0 && !prismOverflowWarned) {
+          prismOverflowWarned = true;
+          console.error(`[art] prism overflow: ${ag.dropped} instances dropped at`
+            + ` ${ag.count}/${MAX_ADDITIVE_EDGES} — MAX_ADDITIVE_EDGES is too small`);
+        }
       }
-      ctx.restore();   // back to source-over for nodes
 
       // ── Nodes (depth-sorted, near drawn last = on top) ────────────────────
       const hov = hoveredRef.current;
@@ -1842,8 +1904,12 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         // identically to shipping it. An instrument has to be able to ask
         // whether the two strokes were written, and where they are, before it
         // is allowed to quote a number about their pixels.
+        // `dropped` is this stream's ring-count equivalent: instances the
+        // writer could not fit. A Float32Array write past the end is a silent
+        // no-op, so without this an over-cap frame renders a prism with pieces
+        // missing and every other number agreeing that nothing went wrong.
         additive: {
-          count: a.count,
+          count: a.count, dropped: a.dropped, capacity: a.data.length / EDGE_STRIDE,
           instances: Array.from(a.data.subarray(0, a.count * EDGE_STRIDE)),
         },
       };

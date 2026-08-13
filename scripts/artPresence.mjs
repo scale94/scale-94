@@ -11,8 +11,10 @@ import { steadyState, fadeGain } from '../src/terminal/art/artTrail.js';
 import {
   EDGE_STRIDE, EDGE_OFF, GLOW_REACH, isDisc, unpackAlphas, unpackFlags, ADDITIVE_LAYER,
 } from '../src/terminal/art/SphereEdges.js';
+import { CURVE_MAX_SEGMENTS } from '../src/terminal/art/artCurve.js';
 import {
   resonanceGlow, RESONANCE_CORE_MID_A, RESONANCE_CORE_MID_K, RESONANCE_GLOW_SCALE,
+  prismGlowWidth, PRISM_SPECTRAL_FINE, PRISM_GLOW_W, PRISM_CORE_W, PRISM_POLY_W, PRISM_SPOKE_W,
 } from '../src/terminal/art/artEdges.js';
 
 // Every check reports through this so the run ends with a count rather than
@@ -982,6 +984,370 @@ try {
       && rimStep >= HALO_RIM_STEP && Math.abs(rimControl) <= RIM_CONTROL_MAX);
   }
 } finally { await r5.close(); }
+
+// ── PRISM GEOMETRY: the command-triggered burst ───────────────────────────
+// Even more invisible to the comparator than the resonance edge: this layer is
+// fired by a COMMAND, no capture state issues one, and deleting all three of
+// its sub-layers scores 21/21 identically to shipping them. This check and the
+// 2D hybrid beside it are the only evidence the port produced anything.
+//
+// THREE sub-layers, and they must be asserted SEPARATELY, because a port that
+// drops the polygon or the spokes still renders a completely convincing chord
+// bundle:
+//   1. the chord bundle — for every pair of effect nodes, and each of
+//      spectralN spectral lines, TWO quadratic Beziers (a wide glow pass and a
+//      sharp core), each CPU-flattened into a run of straight instances;
+//   2. the sacred polygon — one closed ring through the nodes;
+//   3. the star spokes — one line from the projected sphere centre to each.
+// They are separable in the buffer by WIDTH, which is the one field that
+// differs between them and never collides: 0.5 spoke, 1.2 core, 1.6 polygon,
+// 5.0 down to 2.6 for the seven glow passes.
+//
+// ── The effect is asserted to have FIRED from the DOM, not the buffer ──────
+// The geometry shell echoes the command it dispatched into a span. That is the
+// resonance check's trick — a label the layer does not write — and it is what
+// stops this block reporting a confident number about a frame where nothing
+// happened. Reading the instance buffer to decide whether the instance buffer
+// is populated is this project's signature failure; it has now happened seven
+// times.
+//
+// ── The instance count is asserted against ARITHMETIC, not against zero ────
+// Given N projected effect nodes and spectralN spectral lines, the layer's
+// shape is fully determined:
+//
+//   spokes    N instances,  N polylines (they all start at the centre)
+//   polygon   N instances,  1 polyline  (a CLOSED ring: every segment's end is
+//                                        the next one's start, including the
+//                                        last, so the whole thing chains)
+//   glow      C(N,2) polylines in EACH of the spectralN width classes
+//   core      spectralN * C(N,2) polylines, all at width 1.2
+//   and       total glow segments === total core segments, because both passes
+//             flatten the SAME curve and share its point list
+//
+// N is read three independent ways — the spoke count, the polygon count, and
+// C(N,2) inverted from a glow class's polyline count — and all three must
+// agree. That is what catches a silent truncation against the cap, which is
+// also asserted directly through `dropped`.
+//
+// Counting polylines is itself the abutment test. A polyline is detected by
+// each instance's A endpoint being BIT-IDENTICAL to the previous one's B; any
+// joint that failed to abut would split a run and push the polyline count
+// above the predicted one. Under `lighter` a joint that overlaps adds twice and
+// beads, and one that gaps leaves a hole, so exact abutment is correctness
+// rather than tidiness.
+//
+// ── Validated against its own null, three times ───────────────────────────
+// Each null suppresses ONE sub-layer in PIXELS ONLY — a width-gated `discard`
+// in the additive fragment shader, instance buffer still written — so the masks
+// every band is measured through are byte-identical across all four builds.
+//
+// Measured twice, by two sessions, on the same rig (scripts/_prismMeasure.mjs
+// with scripts/_nullPatch.mjs); the second run's figures are the ones below and
+// the first run's agreed to within a unit on every cell.
+//
+//        build              chord excess   polygon excess   spoke excess
+//        live                      138.25          67.94            26.03
+//        chords discarded            8.77          88.76            22.60
+//        polygon discarded         139.84          21.60            27.66
+//        spokes discarded          138.34          68.23            13.22
+//
+// The off-diagonal is informative: suppressing the chords RAISES the polygon
+// and spoke numbers, because the chord bundle is most of what contaminates
+// their control bands. Each threshold sits between that sub-layer's own two
+// populations.
+//
+// The spoke margin is the thin one and is stated rather than hidden: 26.0 live
+// against 13.2 null, a 2.0x separation, where the chords get 16x. A spoke is
+// 0.5px wide — the faintest thing this layer draws — and its control band
+// cannot escape the chord bundle it lies inside. 19.5 sits 25% under the live
+// figure and 48% over the null.
+const PRISM_CHORD_EXCESS = 70;    // luminance, 0-255. Live 138.3, null 8.8.
+const PRISM_POLY_EXCESS = 45;     // Live 67.9, null 21.6.
+const PRISM_SPOKE_EXCESS = 19.5;  // Live 26.0, null 13.2.
+const PRISM_MIN_BAND_PX = 200;    // measured 693-34349; a floor, not a threshold
+// The alias typed into the geometry shell. Any node id works; this one resolves
+// to a six-node neighbourhood, which is enough for a polygon and 15 pairs.
+const PRISM_ALIAS = 'run kuramoto';
+
+// Every prism instance carries one of these widths and nothing else does. Read
+// from artEdges.js rather than spelled here, so a width the port changed would
+// fail to classify instead of being silently measured as another sub-layer.
+const PRISM_GLOW_WIDTHS = Array.from({ length: PRISM_SPECTRAL_FINE }, (_, k) => prismGlowWidth(k));
+const nearW = (a, b) => Math.abs(a - b) < 0.01;
+
+// Decoded through EDGE_STRIDE / EDGE_OFF / isDisc exactly as ringsOf() and
+// strokesOf() above do — one decoder for this buffer, never a second.
+function prismOf(add) {
+  const segs = { chord: [], poly: [], spoke: [] };
+  const runs = {};              // width -> polyline count
+  const runLen = {};            // width -> longest polyline, in segments
+  let prevKey = null, prevBX = null, prevBY = null, cur = 0;
+  let discs = 0, unclassified = 0, maxTurn = 0, prevUX = 0, prevUY = 0;
+  for (let i = 0; i < add.count; i++) {
+    const o = i * EDGE_STRIDE;
+    const w = add.instances[o + EDGE_OFF.width];
+    // A negative width is the pulse ring's disc sentinel. Nothing this layer
+    // writes may be one; if something is, it renders as a blob, not a stroke.
+    if (isDisc(w)) { discs++; continue; }
+    const s = {
+      ax: add.instances[o + EDGE_OFF.ax], ay: add.instances[o + EDGE_OFF.ay],
+      bx: add.instances[o + EDGE_OFF.bx], by: add.instances[o + EDGE_OFF.by], w,
+    };
+    const key = w.toFixed(3);
+    const chordW = nearW(w, PRISM_CORE_W) || PRISM_GLOW_WIDTHS.some(g => nearW(w, g));
+    // EXACT equality — that is the whole point. See the abutment note above.
+    const cont = prevKey === key && prevBX === s.ax && prevBY === s.ay;
+    const L = Math.hypot(s.bx - s.ax, s.by - s.ay);
+    const ux = L > 0 ? (s.bx - s.ax) / L : 0, uy = L > 0 ? (s.by - s.ay) / L : 0;
+    if (cont) {
+      cur++;
+      // The turn at this joint, which is what sets the size of the wedge butt
+      // caps leave where the canvas put a miter.
+      //
+      // CHORD JOINTS ONLY. The polygon is also one continuous run — a closed
+      // ring shares every endpoint — and its corners turn by tens of degrees,
+      // so folding them in here would report a POLYGON corner as if it were a
+      // tessellation joint at the 5px glow width. They are two different
+      // deviations with two different widths and they are measured apart: the
+      // polygon's corners come back through `segs.poly` and are turned into
+      // miter arithmetic by the caller.
+      if (chordW) {
+        const dot = Math.max(-1, Math.min(1, ux * prevUX + uy * prevUY));
+        maxTurn = Math.max(maxTurn, Math.acos(dot));
+      }
+    } else {
+      if (prevKey !== null) runLen[prevKey] = Math.max(runLen[prevKey] ?? 0, cur);
+      runs[key] = (runs[key] || 0) + 1;
+      cur = 1;
+    }
+    prevKey = key; prevBX = s.bx; prevBY = s.by; prevUX = ux; prevUY = uy;
+    if (nearW(w, PRISM_SPOKE_W)) segs.spoke.push(s);
+    else if (nearW(w, PRISM_POLY_W)) segs.poly.push(s);
+    else if (chordW) segs.chord.push(s);
+    else unclassified++;
+  }
+  if (prevKey !== null) runLen[prevKey] = Math.max(runLen[prevKey] ?? 0, cur);
+  return { segs, runs, runLen, discs, unclassified, maxTurn };
+}
+
+/**
+ * The polygon's LOST MITER JOINS, from the corner angles the buffer actually
+ * carries. One closed canvas path with miter joins became N butt-capped
+ * segments, so at every corner the wedge between the two end caps and the miter
+ * tip is no longer painted. This is a known deviation of the port, not a bug to
+ * be papered over with an invented join — it is measured and reported.
+ *
+ * At a corner turning by dt, with halfW = w/2 and f = dt/2:
+ *   opening  |AB|      = 2 halfW sin f        the gap between the two end caps
+ *   depth    |JM|-|Jc| = halfW (sec f - cos f)  how far the miter tip stood out
+ *   area     quad JAMB = halfW^2 tan f        the ink that is no longer laid
+ * All N corners are walked, including the closing one, which the run-based
+ * joint scan above cannot see because the run STARTS there.
+ */
+function prismMiterLoss(poly, width) {
+  const halfW = width / 2;
+  const n = poly.length;
+  const out = { corners: 0, maxTurn: 0, maxOpen: 0, maxDepth: 0, area: 0, ink: 0 };
+  if (n < 3) return out;
+  const dir = (s) => {
+    const dx = s.bx - s.ax, dy = s.by - s.ay, L = Math.hypot(dx, dy);
+    return L > 0 ? [dx / L, dy / L, L] : [0, 0, 0];
+  };
+  for (let i = 0; i < n; i++) {
+    const [px, py] = dir(poly[(i + n - 1) % n]);
+    const [qx, qy, L] = dir(poly[i]);
+    out.ink += L * width;
+    const dt = Math.acos(Math.max(-1, Math.min(1, px * qx + py * qy)));
+    if (!(dt > 0)) continue;
+    const f = dt / 2;
+    out.corners++;
+    out.maxTurn = Math.max(out.maxTurn, dt);
+    out.maxOpen = Math.max(out.maxOpen, 2 * halfW * Math.sin(f));
+    out.maxDepth = Math.max(out.maxDepth, halfW * (1 / Math.cos(f) - Math.cos(f)));
+    out.area += halfW * halfW * Math.tan(f);
+  }
+  return out;
+}
+
+// A pixel MASK along a set of segments, optionally displaced perpendicular by
+// `shift`. A mask rather than a per-segment accumulation because the chord
+// bundle overlaps itself heavily and a per-segment sum would weight a pixel by
+// how many segments happen to run through it.
+function prismBand(W, H, segs, band, shift, trim) {
+  const m = new Uint8Array(W * H);
+  for (const s of segs) {
+    const dx = s.bx - s.ax, dy = s.by - s.ay, L = Math.hypot(dx, dy);
+    if (!(L > 0.5)) continue;
+    const ux = dx / L, uy = dy / L, nx = -uy, ny = ux;
+    const ox = nx * shift, oy = ny * shift, pad = band + 2;
+    const x0 = Math.max(0, Math.floor(Math.min(s.ax, s.bx) + ox - pad));
+    const x1 = Math.min(W - 1, Math.ceil(Math.max(s.ax, s.bx) + ox + pad));
+    const y0 = Math.max(0, Math.floor(Math.min(s.ay, s.by) + oy - pad));
+    const y1 = Math.min(H - 1, Math.ceil(Math.max(s.ay, s.by) + oy + pad));
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      const rx = x - s.ax - ox, ry = y - s.ay - oy;
+      const along = (rx * ux + ry * uy) / L;
+      if (along < trim || along > 1 - trim) continue;
+      if (Math.abs(rx * nx + ry * ny) > band) continue;
+      m[y * W + x] = 1;
+    }
+  }
+  return m;
+}
+
+const prismMean = (img, mask, exclude) => {
+  const { width: W, height: H, data } = img;
+  let sum = 0, n = 0;
+  for (let i = 0; i < W * H; i++) {
+    if (!mask[i] || (exclude && exclude[i])) continue;
+    const j = i * 4;
+    sum += 0.2126 * data[j] + 0.7152 * data[j + 1] + 0.0722 * data[j + 2]; n++;
+  }
+  return { mean: sum / (n || 1), n };
+};
+
+// The geometry shell's own echo span, and the command form. Deliberately NOT
+// the instance buffer — see the note above.
+const PRISM_ECHO = `(() => { const s = [...document.querySelectorAll('span')]
+  .find(e => (e.textContent || '').startsWith('\\u21b3 ') || e.textContent === 'geometry_shell');
+  return s ? s.textContent : null; })()`;
+const PRISM_RUN = `(() => {
+  const inp = [...document.querySelectorAll('input')].find(e => /run <kernel>/.test(e.placeholder || ''));
+  if (!inp) return 'NO INPUT';
+  // React owns this input's value, so set it through the native descriptor and
+  // let React's synthetic onChange see the event.
+  const set = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+  set.call(inp, ${JSON.stringify(PRISM_ALIAS)});
+  inp.dispatchEvent(new Event('input', { bubbles: true }));
+  const f = inp.closest('form'); if (!f) return 'NO FORM';
+  f.requestSubmit(); return 'ok'; })()`;
+
+const r6 = await launch({ url: 'http://localhost:5174/', width: 1520, height: 900, deterministic: true });
+try {
+  await r6.waitFor('document.querySelectorAll("canvas").length > 0', { label: 'boot' });
+  await sleep(2500);
+  await r6.eval(clickText('/CHAOS'));
+  await r6.waitFor(READY, { label: 'sphere', timeoutMs: 40000 });
+  await r6.waitFor(GL_READY, { label: 'GL sized', timeoutMs: 40000 });
+  await sleep(4000);
+  await r6.eval('window.__virtualize()');
+  await sleep(150);
+  await r6.eval('window.__reseed(); window.__artHarnessReset();');
+  await r6.pump(240);
+
+  const rect = await r6.eval(RECT);
+  // As above: the instance buffer's coordinates ARE the 2D canvas's CSS px, so
+  // the clip's top-left is their origin and no offset is needed.
+  const clip = { x: rect.x, y: rect.y, width: rect.w, height: rect.h, scale: 1 };
+
+  console.log('PRISM GEOMETRY  (three sub-layers, each against its own displaced control)');
+  const echo0 = await r6.eval(PRISM_ECHO);
+  const fired = await r6.eval(PRISM_RUN);
+  await sleep(300);
+  // 40 frames in: the envelope ramps over the first 10% of maxLife and holds
+  // until 65%, so this sits on the plateau rather than on either ramp.
+  await r6.pump(40);
+  const echo1 = await r6.eval(PRISM_ECHO);
+
+  // FIRED FIRST. Every number below is confident and meaningless if the command
+  // never reached spawnEffect.
+  const firedOk = fired === 'ok' && echo0 === 'geometry_shell'
+    && echo1 === `↳ ${PRISM_ALIAS}`;
+  console.log(`   shell "${echo0}" -> "${echo1}"`
+    + (firedOk ? '' : `   COMMAND NEVER LANDED (submit said ${fired})`));
+
+  if (!firedOk) {
+    verdict('PRISM GEOMETRY', false);
+  } else {
+    const st = JSON.parse(await r6.eval('JSON.stringify(window.__artEdgeState())'));
+    const img = decodePng(await r6.screenshot({ clip }));
+    const { width: W, height: H } = img;
+    const { segs, runs, runLen, discs, unclassified, maxTurn } = prismOf(st.additive);
+
+    // ── The arithmetic ────────────────────────────────────────────────────
+    const N = segs.spoke.length;                       // one spoke per node
+    const pairs = (N * (N - 1)) / 2;
+    const glowRuns = PRISM_GLOW_WIDTHS.map(w => runs[w.toFixed(3)] ?? 0);
+    const coreRuns = runs[PRISM_CORE_W.toFixed(3)] ?? 0;
+    const polyRuns = runs[PRISM_POLY_W.toFixed(3)] ?? 0;
+    const spokeRuns = runs[PRISM_SPOKE_W.toFixed(3)] ?? 0;
+    const coreSegs = segs.chord.filter(s => nearW(s.w, PRISM_CORE_W)).length;
+    const glowSegs = segs.chord.length - coreSegs;
+    const countOk = N >= 3
+      && st.additive.dropped === 0 && discs === 0 && unclassified === 0
+      && segs.poly.length === N && polyRuns === 1        // ONE closed ring
+      && spokeRuns === N
+      && glowRuns.every(r => r === pairs)
+      && coreRuns === PRISM_SPECTRAL_FINE * pairs
+      && glowSegs === coreSegs                            // both passes, same curve
+      && Object.entries(runLen).every(([w, n]) =>
+        nearW(+w, PRISM_POLY_W) || nearW(+w, PRISM_SPOKE_W) || n <= CURVE_MAX_SEGMENTS);
+
+    console.log(`   ${N} nodes -> ${pairs} pairs   instances ${st.additive.count}/${st.additive.capacity}`
+      + `   dropped ${st.additive.dropped}` + (countOk ? '' : '   ARITHMETIC WRONG'));
+    console.log(`   polylines  spokes ${spokeRuns}/${N}   polygon ${polyRuns}/1 (closed ring, ${segs.poly.length}/${N} segments)`
+      + `   glow ${glowRuns.join(',')} each /${pairs}   core ${coreRuns}/${PRISM_SPECTRAL_FINE * pairs}`);
+    // The two KNOWN DEVIATIONS of this port, measured rather than asserted.
+    //
+    // 1. The tessellation's joint notch. Butt caps meeting at a turn dt leave a
+    //    wedge on the outer side where the canvas put a miter. The brief's
+    //    figure for it is the OPENING, 2*halfW*sin(dt/2) ~ w*dt/2 — the chord
+    //    between the two cap corners — and one pixel of that at the widest
+    //    stroke here (the k=0 glow pass, w = PRISM_GLOW_W) needs
+    //    dt <= 2*asin(1/PRISM_GLOW_W) = 23.07deg. The DEEPEST UNPAINTED POINT is
+    //    half that, halfW*sin(dt/2), which is what scripts/_prismNotch.mjs
+    //    measured by rasterising the ideal stroke against the emitted
+    //    rectangles (0.02px grid) — it agreed with this closed form to within
+    //    the grid step on every shape in the archetype family, so the number
+    //    printed here is a formula that has been checked against a raster rather
+    //    than one standing in for it. Both are printed; neither is asserted,
+    //    per the brief. See artCurve.js's header
+    //    for why the residual above 23.07deg is not closable by tolerance.
+    // 2. The polygon's lost miters, at its own 1.6px width — see prismMiterLoss.
+    const halfG = PRISM_GLOW_W / 2, fJ = maxTurn / 2;
+    const mit = prismMiterLoss(segs.poly, PRISM_POLY_W);
+    console.log(`   chord segments  glow ${glowSegs} = core ${coreSegs}`
+      + `   longest curve ${Math.max(...PRISM_GLOW_WIDTHS.map(w => runLen[w.toFixed(3)] ?? 0))}/${CURVE_MAX_SEGMENTS} segments`);
+    console.log(`   joint notch  worst chord turn ${(maxTurn * 180 / Math.PI).toFixed(2)}deg`
+      + `   opening ${(2 * halfG * Math.sin(fJ)).toFixed(4)}px`
+      + `   deepest unpainted ${(halfG * Math.sin(fJ)).toFixed(4)}px`
+      + `   (1px of opening at ${(2 * Math.asin(1 / PRISM_GLOW_W) * 180 / Math.PI).toFixed(2)}deg, w=${PRISM_GLOW_W})`);
+    console.log(`   lost miters  ${mit.corners} polygon corners`
+      + `   worst turn ${(mit.maxTurn * 180 / Math.PI).toFixed(2)}deg`
+      + `   worst opening ${mit.maxOpen.toFixed(3)}px  depth ${mit.maxDepth.toFixed(3)}px`
+      + `   unpainted ${mit.area.toFixed(2)}px2 of ${mit.ink.toFixed(0)}px2 (${(100 * mit.area / mit.ink).toFixed(3)}%)`);
+
+    // ── The pixels, one band per sub-layer ────────────────────────────────
+    const rows = [
+      ['chord', segs.chord, 0.8, 55, 0.00, PRISM_CHORD_EXCESS],
+      ['polygon', segs.poly, 1.2, 7, 0.12, PRISM_POLY_EXCESS],
+      ['spoke', segs.spoke, 0.8, 5, 0.30, PRISM_SPOKE_EXCESS],
+    ];
+    let pixelsOk = true, bandsOk = true;
+    for (const [name, list, band, shift, trim, need] of rows) {
+      const on = prismBand(W, H, list, band, 0, trim);
+      const a = prismBand(W, H, list, band, shift, trim);
+      const b = prismBand(W, H, list, band, -shift, trim);
+      const off = new Uint8Array(W * H);
+      for (let i = 0; i < off.length; i++) off[i] = (a[i] || b[i]) ? 1 : 0;
+      const onM = prismMean(img, on);
+      // The control excludes the layer's own band, so a control pixel is never
+      // a pixel the sub-layer painted.
+      const offM = prismMean(img, off, on);
+      const excess = onM.mean - offM.mean;
+      // An EMPTY band reads as a mean of zero and is indistinguishable from a
+      // measured black one — the same guard the two checks above carry.
+      const thin = onM.n < PRISM_MIN_BAND_PX || offM.n < PRISM_MIN_BAND_PX;
+      if (thin) bandsOk = false;
+      if (!(excess >= need)) pixelsOk = false;
+      console.log(`   ${name.padEnd(8)} ${onM.mean.toFixed(2)} (${onM.n}px)`
+        + `   control +-${shift} ${offM.mean.toFixed(2)} (${offM.n}px)`
+        + `   excess ${excess.toFixed(2)} (need ${need})`
+        + (thin ? `   BAND TOO THIN — under ${PRISM_MIN_BAND_PX}px, not a measurement` : ''));
+    }
+    verdict('PRISM GEOMETRY', countOk && bandsOk && pixelsOk);
+  }
+} finally { await r6.close(); }
 
 // ── Tally ─────────────────────────────────────────────────────────────────
 const passed = results.filter(r => r.ok).length;

@@ -134,7 +134,9 @@ import * as THREE from 'three';
 import {
   FUSED_GLOW_BASE, FUSED_GLOW_SCALE, ORTHO_HUE_STEP_GLOW,
   RESONANCE_GOLD, RESONANCE_SHADOW_ALPHA,
+  PRISM_MAX_EFFECTS, PRISM_MAX_NODES, PRISM_SPECTRAL_FINE,
 } from './artEdges.js';
+import { CURVE_MAX_SEGMENTS } from './artCurve.js';
 
 /** Render an integer constant as a GLSL float literal, for injecting the
  *  artEdges.js constants into the shader source so they stay one source of
@@ -168,6 +170,48 @@ export const EDGE_OFF = Object.freeze({
  *  kept: renaming it churns four files for nothing.) */
 export const MAX_EDGES = 1024;
 
+/**
+ * The ADDITIVE mesh's own cap, and it is three orders of magnitude larger.
+ *
+ * Until task 6 that buffer held two instances (the resonance halo and core) and
+ * had no guard at all, because two cannot overflow 1024. The prism layer is a
+ * different scale of thing: every chord is a quadratic Bézier flattened into up
+ * to CURVE_MAX_SEGMENTS straight instances, and there are a lot of chords.
+ *
+ *   pairs       C(11,2)                                = 55
+ *   curves      55 pairs x 7 spectral lines x 2 passes = 770   per effect
+ *   chords      770 x 24 segments                      = 18480 per effect
+ *   polygon     one closed path through 11 nodes       = 11
+ *   spokes      one per node                           = 11
+ *   effect      18480 + 11 + 11                        = 18502
+ *   frame       4 concurrent effects x 18502 + 2 resonance strokes
+ *
+ * = 74010 instances, i.e. a 4.7MB Float32Array. That is provably the worst
+ * frame the sim can produce — ArtTab's spawnEffect drops the oldest effect
+ * beyond four and slices each node list to eleven — and it is deliberately a
+ * FIXED preallocation rather than a buffer that grows on demand: the array is
+ * the GPU-bound InterleavedBuffer's own backing store (see createEdgeLayer's
+ * `sharedData`), so reallocating it would silently unbind the writer from the
+ * thing the GPU reads. The cost of the guarantee is 4.7MB of scratch held for a
+ * layer that is usually empty; see the task report for the sizing alternative.
+ *
+ * Reaching this number needs four simultaneous eleven-node effects, which is
+ * four clicks inside five seconds. The typical live frame is ~10000.
+ */
+const PRISM_PAIRS = (PRISM_MAX_NODES * (PRISM_MAX_NODES - 1)) / 2;
+const PRISM_PER_EFFECT =
+  PRISM_PAIRS * PRISM_SPECTRAL_FINE * 2 * CURVE_MAX_SEGMENTS   // the chord bundle
+  + PRISM_MAX_NODES                                            // the closed polygon
+  + PRISM_MAX_NODES;                                           // the star spokes
+export const MAX_ADDITIVE_EDGES = 2 + PRISM_MAX_EFFECTS * PRISM_PER_EFFECT;
+
+/** How many instances a state can hold. The array's own length IS the answer,
+ *  so a state and its capacity cannot drift; falls back to MAX_EDGES for the
+ *  hand-built states the sync tests pass in, which carry no buffer. */
+export function edgeCapacity(state) {
+  return state?.data ? state.data.length / EDGE_STRIDE : MAX_EDGES;
+}
+
 /** How many glow radii the instance quad is padded by. The shoulder is
  *  exp(-2(d/g)^2), which drops below 1/255 at d = 1.66g. */
 export const GLOW_REACH = 1.75;
@@ -196,15 +240,20 @@ const GLOW_QUANT_ADDITIVE = 4;   // 1/4 px, max 31.75  — covers 28
  * the edge layer vanished from the capture entirely while the backdrop looked
  * fine.
  */
-export function createEdgeState() {
+export function createEdgeState(capacity = MAX_EDGES) {
   return {
     // `count` is INSTANCES, edges and rings together. `rings` counts the disc
     // instances alone and exists purely to be asserted on: a capture with no
     // live cascade scores perfect ring parity whether the layer works or has
     // been deleted, so the harness has to be able to ask whether any were
     // drawn at all. Published through window.__artEdgeState().
-    count: 0, rings: 0, w: 1, h: 1, orthoHue: 0,
-    data: new Float32Array(MAX_EDGES * EDGE_STRIDE),
+    //
+    // `dropped` is the same idea one level down: instances a writer could not
+    // fit. An over-range Float32Array write is a SILENT no-op, so without a
+    // counter the failure mode is geometry that simply is not there, with the
+    // count, the draw call and the buffer all agreeing nothing went wrong.
+    count: 0, rings: 0, dropped: 0, w: 1, h: 1, orthoHue: 0,
+    data: new Float32Array(capacity * EDGE_STRIDE),
   };
 }
 
@@ -329,6 +378,55 @@ export function unpackFlags(packed, glowQuant = GLOW_QUANT_SRC_OVER) {
     isOrtho: gByte >= 128,
     glow: (gByte % 128) / glowQuant,
   };
+}
+
+/**
+ * Pack one flattened polyline into `state` as (m - 1) line-quad instances, all
+ * sharing a colour, an alpha, a width and a flag word. Returns how many were
+ * written.
+ *
+ * `pts` is `tessellateQuad`'s point list (xy pairs) and `m` its point count, so
+ * segment i runs from point i to point i+1 — which is what makes the joints
+ * EXACT. Both segments read the identical float, so butt caps meet with no
+ * overlap and no gap. That is a correctness requirement rather than tidiness:
+ * this buffer feeds the additive material, and an overlap under `lighter` adds
+ * twice and beads at every joint, where the canvas stroked the whole path once
+ * and composited it once.
+ *
+ * The gradient degenerates: the same rgb and the same alpha in all three stops,
+ * so the shader's three-stop interpolation collapses to flat with no new
+ * branch — the same trick the pulse rings use. `width` is written as handed in
+ * and must stay POSITIVE, because a negative width is the disc sentinel.
+ *
+ * Anything past capacity is COUNTED into `state.dropped`, not lost: a write
+ * past the end of a Float32Array is a no-op that reports nothing, so the only
+ * evidence a frame was truncated is the number this keeps.
+ *
+ * `rgb` is a 3-float scratch (writeHsl's output), not a fresh array per call —
+ * a full-strength frame runs this ~74000 times.
+ */
+export function writePolyline(state, pts, m, rgb, alpha, width, flags) {
+  const cap = edgeCapacity(state);
+  const data = state.data;
+  const packed = packAlphas(alpha, alpha, alpha);
+  let written = 0;
+  for (let i = 0; i + 1 < m; i++) {
+    if (state.count >= cap) { state.dropped += (m - 1) - i; break; }
+    const o = state.count * EDGE_STRIDE;
+    data[o]     = pts[i * 2];
+    data[o + 1] = pts[i * 2 + 1];
+    data[o + 2] = pts[i * 2 + 2];
+    data[o + 3] = pts[i * 2 + 3];
+    data[o + 4]  = rgb[0]; data[o + 5]  = rgb[1]; data[o + 6]  = rgb[2];
+    data[o + 7]  = rgb[0]; data[o + 8]  = rgb[1]; data[o + 9]  = rgb[2];
+    data[o + 10] = rgb[0]; data[o + 11] = rgb[1]; data[o + 12] = rgb[2];
+    data[o + 13] = packed;
+    data[o + 14] = width;
+    data[o + 15] = flags;
+    state.count++;
+    written++;
+  }
+  return written;
 }
 
 // ── Shaders ────────────────────────────────────────────────────────────────
@@ -782,7 +880,11 @@ export function createEdgeLayer(sharedData, spec = SRC_OVER_LAYER) {
  * instance to be rasterised.
  */
 export function syncEdgeLayer(layer, state) {
-  const count = Math.min(state?.count | 0, MAX_EDGES);
+  // Clamped to the STATE's own capacity, not to MAX_EDGES: the additive mesh
+  // is sized for the prism layer (MAX_ADDITIVE_EDGES, ~74000) and a blanket
+  // 1024 here would upload its first 1024 instances and drop the rest with the
+  // count, the draw call and the buffer all agreeing nothing was wrong.
+  const count = Math.min(state?.count | 0, edgeCapacity(state));
   layer.mesh.visible = count > 0;
   if (count === 0) { layer.geometry.instanceCount = 0; return; }
   layer.uniforms.uResolution.value.set(Math.max(state.w, 1), Math.max(state.h, 1));

@@ -15,12 +15,16 @@ import {
   orthoHue, orthoGlow, fusedGlow, resonanceGlow, resonanceWidths, resonanceStops,
   RESONANCE_GOLD, RESONANCE_HALO_MID, RESONANCE_CORE_MID, RESONANCE_SHADOW_ALPHA,
   pulseRingRadius, pulsePosition, edgeStops, edgeLineWidth,
+  prismOffset, prismChordAlpha, prismGlowWidth, prismControl, prismSpokeHue,
+  PRISM_CORE_W, PRISM_MAX_NODES, PRISM_MAX_EFFECTS, PRISM_SPECTRAL_FINE,
 } from '../artEdges';
+import { CURVE_MAX_SEGMENTS } from '../artCurve';
 import {
   writeHsl, writeHslRgb, writeRgb255, packAlphas, unpackAlphas, packFlags, unpackFlags,
   syncEdgeLayer, createEdgeLayer, discWidth, isDisc,
+  createEdgeState, edgeCapacity, writePolyline,
   SRC_OVER_LAYER, ADDITIVE_LAYER,
-  EDGE_STRIDE, EDGE_OFF, MAX_EDGES,
+  EDGE_STRIDE, EDGE_OFF, MAX_EDGES, MAX_ADDITIVE_EDGES,
 } from '../SphereEdges';
 
 describe('orthoHue', () => {
@@ -721,5 +725,157 @@ describe('syncEdgeLayer', () => {
     const layer = makeLayer();
     syncEdgeLayer(layer, { count: 1, w: 100, h: 100 });
     expect(layer.uniforms.uOrthoHue.value).toBe(0);
+  });
+});
+
+// ── Prism geometry effects (step 4, task 6) ────────────────────────────────
+// The command-triggered burst: a bundle of spectral quadratic chords between
+// every pair of named nodes, a closed polygon through them, and a spoke from
+// the sphere centre to each. Every number below was inline in the draw loop;
+// these tests are what stops the GPU copy and the canvas original drifting.
+
+describe('prism chord bundle', () => {
+  it('offsets the spectral lines symmetrically about k = 3', () => {
+    // offset = (k - 3) * 2.8, so the seven fine-mode lines straddle zero.
+    expect([0, 1, 2, 3, 4, 5, 6].map(prismOffset))
+      .toEqual([-8.4, -5.6, -2.8, 0, 2.8, 5.6, 8.4].map(v => expect.closeTo(v, 10)));
+  });
+
+  it('fades each successive spectral line by 7%', () => {
+    expect(prismChordAlpha(1, 0)).toBeCloseTo(0.85, 10);
+    expect(prismChordAlpha(1, 6)).toBeCloseTo(0.85 * 0.58, 10);
+    expect(prismChordAlpha(0.4, 3)).toBeCloseTo(0.4 * 0.85 * 0.79, 10);
+  });
+
+  it('narrows the glow pass with k and holds the core at a constant 1.2', () => {
+    expect([0, 3, 6].map(prismGlowWidth)).toEqual([5, 3.8, 2.6].map(v => expect.closeTo(v, 10)));
+    expect(PRISM_CORE_W).toBe(1.2);
+  });
+
+  it('pulls the control point 55% toward the sphere centre, from the UNSHIFTED midpoint', () => {
+    // The draw loop takes midX/midY from pA.sx/pB.sx WITHOUT the spectral
+    // offset, then adds offset*2 and offset*1.4 to the result. Reproducing it
+    // from the shifted endpoints instead moves every chord by up to 8.4px.
+    //   mid (200,300), centre (760,450), offset 2.8
+    //   cpx = 200 + 560*0.55 + 5.6  = 513.6
+    //   cpy = 300 + 150*0.55 + 3.92 = 386.42
+    const out = [0, 0];
+    prismControl(out, 100, 200, 300, 400, 760, 450, 2.8);
+    expect(out[0]).toBeCloseTo(513.6, 10);
+    expect(out[1]).toBeCloseTo(386.42, 10);
+  });
+
+  it('takes the spoke hue from the node\'s bearing off centre, wrapped into [0,360)', () => {
+    expect(prismSpokeHue(10, 0, 1)).toBeCloseTo(100, 10);
+    expect(prismSpokeHue(0, -1, 0)).toBeCloseTo(180, 10);
+    expect(prismSpokeHue(0, 0, -1)).toBeCloseTo(270, 10);
+    expect(prismSpokeHue(350, 0, 1)).toBeCloseTo(80, 10);
+    for (const [dx, dy] of [[1, 0], [-3, 7], [0.1, -900], [-2, -2]]) {
+      const h = prismSpokeHue(123, dx, dy);
+      expect(h).toBeGreaterThanOrEqual(0);
+      expect(h).toBeLessThan(360);
+    }
+  });
+});
+
+describe('the additive buffer capacity', () => {
+  it('leaves the source-over edge mesh exactly where it was', () => {
+    // Task 6 raises the ADDITIVE cap. Moving MAX_EDGES would resize the shipped
+    // edge mesh's buffer, which is a change this task is not allowed to make.
+    expect(MAX_EDGES).toBe(1024);
+    expect(createEdgeState().data.length).toBe(1024 * EDGE_STRIDE);
+    expect(edgeCapacity(createEdgeState())).toBe(1024);
+  });
+
+  it('provably fits the worst frame the prism layer can ask for', () => {
+    // Recomputed here from the sim's own limits rather than from the constant:
+    //   4 concurrent effects (ArtTab drops the oldest beyond that)
+    //   x 11 nodes  ->  C(11,2) = 55 pairs
+    //   x 7 spectral lines (desktop/fine)
+    //   x 2 passes (wide glow, sharp core)
+    //   x CURVE_MAX_SEGMENTS instances per curve
+    //   + 11 polygon segments + 11 spokes per effect
+    //   + the 2 resonance strokes that share this buffer
+    const pairs = (PRISM_MAX_NODES * (PRISM_MAX_NODES - 1)) / 2;
+    const perEffect = pairs * PRISM_SPECTRAL_FINE * 2 * CURVE_MAX_SEGMENTS
+      + PRISM_MAX_NODES * 2;
+    expect(MAX_ADDITIVE_EDGES).toBeGreaterThanOrEqual(2 + PRISM_MAX_EFFECTS * perEffect);
+    expect(createEdgeState(MAX_ADDITIVE_EDGES).data.length)
+      .toBe(MAX_ADDITIVE_EDGES * EDGE_STRIDE);
+  });
+
+  it('syncs the additive layer against ITS capacity, not the edge mesh\'s', () => {
+    // The regression this exists for: syncEdgeLayer used to clamp every state
+    // to MAX_EDGES. Left that way the prism layer would upload its first 1024
+    // instances and silently drop the other ~73000, with the buffer, the count
+    // and the draw call all agreeing that nothing was wrong.
+    const layer = {
+      mesh: { visible: true }, geometry: { instanceCount: -1 },
+      uniforms: { uResolution: { value: { set: vi.fn() } }, uOrthoHue: { value: 0 } },
+      buffer: { needsUpdate: false, addUpdateRange: vi.fn() },
+    };
+    const state = createEdgeState(MAX_ADDITIVE_EDGES);
+    state.count = MAX_EDGES + 500; state.w = 100; state.h = 100;
+    syncEdgeLayer(layer, state);
+    expect(layer.geometry.instanceCount).toBe(MAX_EDGES + 500);
+  });
+});
+
+describe('writePolyline', () => {
+  const RGB = new Float32Array([0.25, 0.5, 0.75]);
+  const PTS = new Float32Array([10, 20, 30, 40, 55, 60, 70, 81]);
+
+  it('turns m points into m-1 instances', () => {
+    const s = createEdgeState(16);
+    expect(writePolyline(s, PTS, 4, RGB, 0.5, 1.2, 0)).toBe(3);
+    expect(s.count).toBe(3);
+    expect(s.dropped).toBe(0);
+  });
+
+  it('shares each joint EXACTLY between the two segments that meet there', () => {
+    // Under `lighter` an overlap adds twice and beads at every joint; a gap
+    // leaves a hole. Butt caps on bit-identical endpoints are the only way the
+    // seam disappears, so this is an exact float comparison, not a closeTo.
+    const s = createEdgeState(16);
+    writePolyline(s, PTS, 4, RGB, 0.5, 1.2, 0);
+    for (let i = 0; i + 1 < s.count; i++) {
+      const a = i * EDGE_STRIDE, b = (i + 1) * EDGE_STRIDE;
+      expect(s.data[a + EDGE_OFF.bx]).toBe(s.data[b + EDGE_OFF.ax]);
+      expect(s.data[a + EDGE_OFF.by]).toBe(s.data[b + EDGE_OFF.ay]);
+    }
+  });
+
+  it('degenerates the gradient to flat and never writes a disc', () => {
+    // One colour and one alpha in all three stops, so the shader's three-stop
+    // gradient collapses with no new branch; and the width stays POSITIVE,
+    // because a negative one is the pulse ring's disc sentinel.
+    const s = createEdgeState(16);
+    writePolyline(s, PTS, 3, RGB, 0.5, 1.2, 7);
+    for (let i = 0; i < s.count; i++) {
+      const o = i * EDGE_STRIDE;
+      for (const c of [EDGE_OFF.c0, EDGE_OFF.c1, EDGE_OFF.c2]) {
+        expect([...s.data.subarray(o + c, o + c + 3)]).toEqual([0.25, 0.5, 0.75]);
+      }
+      const { a0, a1, a2 } = unpackAlphas(s.data[o + EDGE_OFF.alphas]);
+      expect(a0).toBeCloseTo(0.5, 2);
+      expect(a1).toBe(a0); expect(a2).toBe(a0);
+      // fround: the buffer is a Float32Array, so 1.2 is stored as the float32
+      // nearest to it and comes back as 1.2000000476837158.
+      expect(s.data[o + EDGE_OFF.width]).toBe(Math.fround(1.2));
+      expect(isDisc(s.data[o + EDGE_OFF.width])).toBe(false);
+      expect(s.data[o + EDGE_OFF.flags]).toBe(7);
+    }
+  });
+
+  it('COUNTS what will not fit instead of losing it silently', () => {
+    // An over-range Float32Array write is a no-op, so without this the failure
+    // mode is instances that vanish with nothing reported anywhere.
+    const s = createEdgeState(2);
+    expect(writePolyline(s, PTS, 4, RGB, 0.5, 1.2, 0)).toBe(2);
+    expect(s.count).toBe(2);
+    expect(s.dropped).toBe(1);
+    expect(writePolyline(s, PTS, 4, RGB, 0.5, 1.2, 0)).toBe(0);
+    expect(s.count).toBe(2);
+    expect(s.dropped).toBe(4);
   });
 });
