@@ -1,7 +1,7 @@
 // SphereEdges.js — the sphere's base edges, on the GPU.
 //
 // Step 4's first pixel-moving commit. The 2D draw loop no longer strokes an
-// edge; it writes sixteen floats per edge into a preallocated Float32Array and
+// edge; it writes seventeen floats per edge into a preallocated Float32Array and
 // this module draws them as one instanced quad into the backdrop target that
 // SphereComposite already owns.
 //
@@ -36,6 +36,9 @@
 //                           carrying -2 * radius — see the disc-sentinel note
 //   15     packed flags     dashPeriod + dashDuty*256
 //                             + (round(glow * glowQuant) + isOrtho*128)*65536
+//   16     dash phase       px of arc length from the PATH's start to this
+//                           instance's endpoint A, plus lineDashOffset — see
+//                           "The 17th float" below. 0 for a solid stroke.
 //
 // Every packed field is an INTEGER. A float32 represents every integer below
 // 2^24 exactly, and all the divisors used to unpack are powers of two, so the
@@ -48,7 +51,43 @@
 // one — a PER-MATERIAL step, for the reason set out under "The additive twin".
 // It is the one number in this table that is not the same for both meshes.
 //
-// ── isOrtho, and why it did NOT need a 17th float ──────────────────────────
+// ── The 17th float, and why the dash could not do without one ──────────────
+//
+// Task 6b puts two DASHED quadratic Béziers on this mesh (the analogy filaments
+// and the chimera boundary fringes). A curve here is a run of straight
+// instances, and the dash test this file shipped with was
+//
+//     step(mod(t * vLen, period), duty)
+//
+// i.e. distance from THIS INSTANCE's own endpoint A. That is exactly right for
+// one straight segment and exactly wrong for a tessellated curve: every segment
+// would restart the pattern at its own start, so the dashes bunch at every
+// joint and the effective period collapses toward the segment length as the
+// tessellation count rises. Canvas measures dash phase along the PATH's arc
+// length from the path's start, and `lineDashOffset` slides the pattern along
+// it. So each instance has to carry where it sits on that path.
+//
+// There was no room. Field 15's three bytes are full (dashPeriod, dashDuty,
+// glow+isOrtho) and field 14's sign is the disc sentinel, so the phase is a
+// 17th float. Extending EDGE_STRIDE from 16 to 17 leaves offsets 0-15 exactly
+// where they were: every existing attribute binding, every existing writer and
+// every existing reader is unmoved, and the source-over mesh's instances are
+// byte-identical in the fields it writes (it never writes field 16, and a
+// Float32Array is born zeroed). What it costs is the buffer: one sixteenth
+// more of every instance, which on the additive mesh's fixed preallocation is
+// 4.74MB -> 5.03MB before this task's own instances are counted in.
+// The alternative — a second interleaved layout for the additive material — is
+// a second decoder for the same data, which this file exists to avoid.
+//
+// The fragment then dashes with `mod(vPhase + t * vLen, period)`, and vPhase
+// carries `arcLengthAtSegmentStart + lineDashOffset` REDUCED MODULO the packed
+// period on the CPU (see the chimera writer in ArtTab). Reducing matters: the
+// chimera's offset is `performance.now() * 0.001 * 30`, which grows without
+// bound, and a float32 holding 2.6e6 px has an ulp of 0.25px — a quarter-pixel
+// quantisation of the dash phase after a day of uptime. `mod` is invariant
+// under it, so reducing first costs nothing and removes the drift.
+//
+// ── isOrtho, and why IT did not need one ───────────────────────────────────
 //
 // A canvas shadow's colour and alpha are set once by `ctx.shadowColor` and
 // never varied per-instance the way the stroke's gradient is — fused edges use
@@ -72,7 +111,7 @@
 //             and lit are compile-time constants for this shadow, and the hue
 //             is the ONE thing that's per-frame, not per-instance — orthoHue
 //             is time-based and identical for every ortho edge in a frame, so
-//             it travels as a uniform (`uOrthoHue`), not a 17th packed float.
+//             it travels as a uniform (`uOrthoHue`), not a per-instance float.
 //
 // ── The travelling pulse ring, and why a NEGATIVE width means "disc" ───────
 //
@@ -135,6 +174,7 @@ import {
   FUSED_GLOW_BASE, FUSED_GLOW_SCALE, ORTHO_HUE_STEP_GLOW,
   RESONANCE_GOLD, RESONANCE_SHADOW_ALPHA,
   PRISM_MAX_EFFECTS, PRISM_MAX_NODES, PRISM_SPECTRAL_FINE,
+  FILAMENT_MAX_DRAWN, CHIMERA_MAX_ZONES,
 } from './artEdges.js';
 import { CURVE_MAX_SEGMENTS } from './artCurve.js';
 
@@ -146,8 +186,8 @@ const glslFloat = (n) => (Number.isInteger(n) ? `${n}.0` : `${n}`);
 /** The same, for an rgb BYTE triple. */
 const glslRgb255 = (c) => `vec3(${c.map(v => glslFloat(v / 255)).join(', ')})`;
 
-/** Floats per edge instance. */
-export const EDGE_STRIDE = 16;
+/** Floats per edge instance. 17 since task 6b — see "The 17th float" above. */
+export const EDGE_STRIDE = 17;
 
 /** The attribute layout above, as data: each field's offset in floats from an
  *  instance's base. Exported because the buffer has a READER as well as a
@@ -159,7 +199,7 @@ export const EDGE_STRIDE = 16;
 export const EDGE_OFF = Object.freeze({
   ax: 0, ay: 1, bx: 2, by: 3,
   c0: 4, c1: 7, c2: 10,
-  alphas: 13, width: 14, flags: 15,
+  alphas: 13, width: 14, flags: 15, phase: 16,
 });
 
 /** Hard cap on INSTANCES uploaded in a frame — edges and pulse rings share this
@@ -186,13 +226,20 @@ export const MAX_EDGES = 1024;
  *   effect      18480 + 11 + 11                        = 18502
  *   frame       4 concurrent effects x 18502 + 2 resonance strokes
  *
- * = 74010 instances, i.e. a 4.7MB Float32Array. That is provably the worst
+ * Task 6b added two more curve layers to the same stream, both capped in the
+ * draw loop against the constants they are sized from (see artEdges.js):
+ *
+ *   filaments   96 x 2 passes x 24 segments            = 4608
+ *   fringes     136 zones x 24 segments                = 3264
+ *
+ * = 74010 + 7872 = 81882 instances, i.e. a 5.57MB Float32Array (it was 4.74MB
+ * at 74010 x 16). That is provably the worst
  * frame the sim can produce — ArtTab's spawnEffect drops the oldest effect
  * beyond four and slices each node list to eleven — and it is deliberately a
  * FIXED preallocation rather than a buffer that grows on demand: the array is
  * the GPU-bound InterleavedBuffer's own backing store (see createEdgeLayer's
  * `sharedData`), so reallocating it would silently unbind the writer from the
- * thing the GPU reads. The cost of the guarantee is 4.7MB of scratch held for a
+ * thing the GPU reads. The cost of the guarantee is 5.6MB of scratch held for a
  * layer that is usually empty; see the task report for the sizing alternative.
  *
  * Reaching this number needs four simultaneous eleven-node effects, which is
@@ -203,7 +250,11 @@ const PRISM_PER_EFFECT =
   PRISM_PAIRS * PRISM_SPECTRAL_FINE * 2 * CURVE_MAX_SEGMENTS   // the chord bundle
   + PRISM_MAX_NODES                                            // the closed polygon
   + PRISM_MAX_NODES;                                           // the star spokes
-export const MAX_ADDITIVE_EDGES = 2 + PRISM_MAX_EFFECTS * PRISM_PER_EFFECT;
+const ORPHAN_CURVES =
+  FILAMENT_MAX_DRAWN * 2 * CURVE_MAX_SEGMENTS   // glow pass + core pass
+  + CHIMERA_MAX_ZONES * CURVE_MAX_SEGMENTS;     // one pass
+export const MAX_ADDITIVE_EDGES =
+  2 + PRISM_MAX_EFFECTS * PRISM_PER_EFFECT + ORPHAN_CURVES;
 
 /** How many instances a state can hold. The array's own length IS the answer,
  *  so a state and its capacity cannot drift; falls back to MAX_EDGES for the
@@ -404,12 +455,38 @@ export function unpackFlags(packed, glowQuant = GLOW_QUANT_SRC_OVER) {
  *
  * `rgb` is a 3-float scratch (writeHsl's output), not a fresh array per call —
  * a full-strength frame runs this ~74000 times.
+ *
+ * ── phase0, and why the arc length is a RUNNING SUM ────────────────────────
+ *
+ * `phase0` is where this path starts in its dash pattern: `lineDashOffset`,
+ * already reduced modulo the period by the caller. Each instance is then
+ * written with `phase0 + (arc length from the path's start to its own endpoint
+ * A)`, accumulated with the same `Math.hypot` over the same point list the
+ * geometry is written from — so the phase and the geometry are one measurement
+ * and cannot disagree.
+ *
+ * It must be a running sum and not `i * (total / n)`: `tessellateQuad` splits
+ * at uniform PARAMETER, and equal parameter steps are not equal arc lengths on
+ * anything but a straight line (the prism's near-cusp chords vary by several
+ * times between their fastest and slowest segment). A constant step would
+ * therefore slide the pattern against the geometry along every curve.
+ *
+ * The sum tracks the POLYLINE's length, which is marginally shorter than the
+ * curve's — the chord of an arc always is. At this module's tessellation the
+ * gap is bounded by the flatness tolerance: a segment sagging by at most
+ * `tol` = 0.25px over a chord of length L is short by at most ~8tol^2/(3L),
+ * i.e. ~0.02px on a 25px segment, and artCurve.test.js pins the real figure at
+ * >= 0.999 of the true arc length at n = 24 (and never above it). Half a
+ * percent of one dash period is not observable; using the true arc length
+ * instead would make the phase disagree with the geometry that is actually
+ * drawn, which is observable.
  */
-export function writePolyline(state, pts, m, rgb, alpha, width, flags) {
+export function writePolyline(state, pts, m, rgb, alpha, width, flags, phase0 = 0) {
   const cap = edgeCapacity(state);
   const data = state.data;
   const packed = packAlphas(alpha, alpha, alpha);
   let written = 0;
+  let phase = phase0;
   for (let i = 0; i + 1 < m; i++) {
     if (state.count >= cap) { state.dropped += (m - 1) - i; break; }
     const o = state.count * EDGE_STRIDE;
@@ -423,6 +500,8 @@ export function writePolyline(state, pts, m, rgb, alpha, width, flags) {
     data[o + 13] = packed;
     data[o + 14] = width;
     data[o + 15] = flags;
+    data[o + 16] = phase;
+    phase += Math.hypot(pts[i * 2 + 2] - pts[i * 2], pts[i * 2 + 3] - pts[i * 2 + 1]);
     state.count++;
     written++;
   }
@@ -442,6 +521,7 @@ const EDGE_VERT = /* glsl */`
   attribute vec3 aC1;
   attribute vec3 aC2;
   attribute vec3 aPack;      // x = packed alphas, y = width px, z = packed flags
+  attribute float aPhase;    // px into the dash pattern at this instance's A
 
   uniform vec2  uResolution; // CSS px, matching the 2D draw loop's coordinates
   uniform float uGlowReach;
@@ -456,6 +536,7 @@ const EDGE_VERT = /* glsl */`
   varying float vLen;
   varying float vHalfW;
   varying vec2  vDash;
+  varying float vPhase;      // px of arc length from the PATH's start, at A
   varying float vGlow;
   varying float vIsOrtho;    // 0.0 or 1.0 — same for all 4 verts of an instance
   varying float vIsDisc;     // ditto: a pulse ring, flagged by a negative width
@@ -506,6 +587,9 @@ const EDGE_VERT = /* glsl */`
     vLen = len;
     vHalfW = halfW;
     vDash = vec2(dashPeriod, dashDuty);
+    // Passed through untouched: this is a PATH-space quantity, not a
+    // segment-space one, and the fragment adds its own distance-along to it.
+    vPhase = aPhase;
     vGlow = glow;
     vIsOrtho = isOrtho;
     vIsDisc = isDisc;
@@ -619,6 +703,7 @@ const edgeFrag = (shadow, composite) => /* glsl */`
   varying float vLen;
   varying float vHalfW;
   varying vec2  vDash;
+  varying float vPhase;
   varying float vGlow;
   varying float vIsOrtho;
   varying float vIsDisc;
@@ -670,7 +755,13 @@ const edgeFrag = (shadow, composite) => /* glsl */`
     // Dash, in the same px units the canvas used, and on the CORE only: the
     // canvas dashed the stroke and then blurred it for the shadow, and a blur
     // of sigma 5 over an 8-on/4-off pattern is continuous.
-    if (vDash.x > 0.0) core *= step(mod(t * vLen, vDash.x), vDash.y);
+    //
+    // vPhase is arc length from the PATH's start plus lineDashOffset, so a
+    // curve tessellated into a run of instances dashes as ONE path: segment
+    // i's phase at t = 1 is segment i+1's phase at t = 0, by construction (see
+    // writePolyline). Straight strokes carry vPhase = 0 and this reduces to the
+    // segment-local form it replaced, byte for byte.
+    if (vDash.x > 0.0) core *= step(mod(vPhase + t * vLen, vDash.x), vDash.y);
 
     // The shoulder standing in for ctx.shadowBlur. A canvas shadow is a real
     // gaussian of sigma = blur/2, so this is one too: exp(-d^2 / 2sigma^2) with
@@ -825,6 +916,11 @@ export function createEdgeLayer(sharedData, spec = SRC_OVER_LAYER) {
   geometry.setAttribute('aC1',   new THREE.InterleavedBufferAttribute(buffer, 3, 7));
   geometry.setAttribute('aC2',   new THREE.InterleavedBufferAttribute(buffer, 3, 10));
   geometry.setAttribute('aPack', new THREE.InterleavedBufferAttribute(buffer, 3, 13));
+  // The 17th float. Bound on BOTH materials even though only the additive one
+  // dashes a curve: one layout, one decoder, one shader body compiled twice —
+  // and the source-over mesh never writes it, so it reads a constant 0 and its
+  // dash term is byte-for-byte the segment-local one it always had.
+  geometry.setAttribute('aPhase', new THREE.InterleavedBufferAttribute(buffer, 1, 16));
   geometry.instanceCount = 0;
 
   const uniforms = {

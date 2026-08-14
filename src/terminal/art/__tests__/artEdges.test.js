@@ -17,8 +17,13 @@ import {
   pulseRingRadius, pulsePosition, edgeStops, edgeLineWidth,
   prismOffset, prismChordAlpha, prismGlowWidth, prismControl, prismSpokeHue,
   PRISM_CORE_W, PRISM_MAX_NODES, PRISM_MAX_EFFECTS, PRISM_SPECTRAL_FINE,
+  arcControl,
+  filamentDepthFade, filamentAlpha, filamentHue, filamentGlowWidth,
+  FILAMENT_DASH, FILAMENT_CORE_W, FILAMENT_CP_PULL, FILAMENT_MAX_DRAWN,
+  chimeraStrength, chimeraHue, chimeraFlicker, chimeraAlpha, chimeraWidth,
+  chimeraDashOffset, CHIMERA_DASH, CHIMERA_CP_PULL, CHIMERA_MAX_ZONES,
 } from '../artEdges';
-import { CURVE_MAX_SEGMENTS } from '../artCurve';
+import { CURVE_MAX_SEGMENTS, quadSegments, tessellateQuad } from '../artCurve';
 import {
   writeHsl, writeHslRgb, writeRgb255, packAlphas, unpackAlphas, packFlags, unpackFlags,
   syncEdgeLayer, createEdgeLayer, discWidth, isDisc,
@@ -159,6 +164,9 @@ describe('EDGE_OFF', () => {
       expect(a.aPack.offset).toBe(EDGE_OFF.alphas);
       expect(EDGE_OFF.width).toBe(a.aPack.offset + 1);
       expect(EDGE_OFF.flags).toBe(a.aPack.offset + 2);
+      // The 17th float, task 6b. One float, bound on BOTH materials.
+      expect(a.aPhase.offset).toBe(EDGE_OFF.phase);
+      expect(a.aPhase.itemSize).toBe(1);
       // and every field lands inside one instance.
       for (const o of Object.values(EDGE_OFF)) expect(o).toBeLessThan(EDGE_STRIDE);
     } finally { layer.dispose(); }
@@ -877,5 +885,284 @@ describe('writePolyline', () => {
     expect(writePolyline(s, PTS, 4, RGB, 0.5, 1.2, 0)).toBe(0);
     expect(s.count).toBe(2);
     expect(s.dropped).toBe(4);
+  });
+});
+
+// ── Task 6b: the dash phase, and the two orphan curve layers ───────────────
+//
+// The 17th float exists for exactly one reason: a curve on this mesh is a RUN
+// of straight instances, and a dash pattern measured from each instance's own
+// endpoint restarts at every joint. So the tests that matter are not "the field
+// is populated" — they are that the phase at segment i's END is the phase at
+// segment i+1's START, and that it is a RUNNING SUM of the real chord lengths
+// rather than i x a constant.
+
+describe('the 17th float — layout', () => {
+  it('appends the phase without moving a single existing offset', () => {
+    // The whole argument for extending the stride rather than repacking: every
+    // field the source-over mesh writes is where it always was, so its
+    // instances are byte-identical in the fields it writes. Spelled out as
+    // literals deliberately — this is the pin, not a restatement.
+    expect(EDGE_STRIDE).toBe(17);
+    expect({ ...EDGE_OFF }).toEqual({
+      ax: 0, ay: 1, bx: 2, by: 3,
+      c0: 4, c1: 7, c2: 10,
+      alphas: 13, width: 14, flags: 15, phase: 16,
+    });
+  });
+
+  it('leaves the phase at zero for every instance nobody writes one to', () => {
+    // The source-over edge mesh never writes field 16. A Float32Array is born
+    // zeroed and nothing else touches that offset, so its dash term reduces to
+    // the segment-local one it always had — which is what keeps the shipped
+    // edge dashes unmoved.
+    const s = createEdgeState(8);
+    for (const v of s.data) expect(v).toBe(0);
+    // and a solid stroke written through writePolyline with the default seed
+    // carries a phase run that starts at 0.
+    writePolyline(s, new Float32Array([0, 0, 3, 4]), 2, new Float32Array([1, 1, 1]), 1, 2, 0);
+    expect(s.data[EDGE_OFF.phase]).toBe(0);
+  });
+});
+
+describe('writePolyline — the dash phase', () => {
+  const RGB = new Float32Array([0.25, 0.5, 0.75]);
+  // 3-4-5 triangles: chord lengths 5, 10, 20 — deliberately UNEQUAL, because
+  // the failure this guards against is a constant step.
+  const PTS = new Float32Array([0, 0, 3, 4, 9, 12, 21, 28]);
+
+  it('starts at phase0 and accumulates the real chord lengths', () => {
+    const s = createEdgeState(16);
+    writePolyline(s, PTS, 4, RGB, 0.5, 1.2, 0, 2.5);
+    const ph = (i) => s.data[i * EDGE_STRIDE + EDGE_OFF.phase];
+    expect(ph(0)).toBeCloseTo(2.5, 4);
+    expect(ph(1)).toBeCloseTo(7.5, 4);    // + 5
+    expect(ph(2)).toBeCloseTo(17.5, 4);   // + 10
+  });
+
+  it('defaults phase0 to zero, so every existing call site is unchanged', () => {
+    const s = createEdgeState(16);
+    writePolyline(s, PTS, 4, RGB, 0.5, 1.2, 0);
+    expect(s.data[EDGE_OFF.phase]).toBe(0);
+  });
+
+  it('is NOT i x a constant — the steps differ because the chords do', () => {
+    // tessellateQuad splits at uniform PARAMETER, which is not uniform arc
+    // length on anything but a straight line. A phase written as i * (total/n)
+    // would pass every "the field is populated" check and slide the pattern
+    // against the geometry along the curve.
+    const s = createEdgeState(16);
+    writePolyline(s, PTS, 4, RGB, 0.5, 1.2, 0);
+    const ph = (i) => s.data[i * EDGE_STRIDE + EDGE_OFF.phase];
+    expect(ph(1) - ph(0)).toBeCloseTo(5, 4);
+    expect(ph(2) - ph(1)).toBeCloseTo(10, 4);
+    expect(ph(2) - ph(1)).not.toBeCloseTo(ph(1) - ph(0), 3);
+  });
+
+  it('makes the pattern CONTINUOUS across every joint of a real curve', () => {
+    // THE requirement. For each pair of consecutive instances, the phase the
+    // shader evaluates at the end of segment i (vPhase + vLen) must be the
+    // phase it evaluates at the start of segment i+1 (vPhase). Checked on the
+    // real tessellation of a real curve shape — the filaments' 25% pull — and
+    // through the STORED endpoints, so a writer that wrote a correct-looking
+    // phase against different geometry would fail.
+    const pts = new Float32Array((CURVE_MAX_SEGMENTS + 1) * 2);
+    const ctrl = arcControl([0, 0], 120, 640, 900, 210, 760, 450, FILAMENT_CP_PULL);
+    const q = [120, 640, ctrl[0], ctrl[1], 900, 210];
+    const m = tessellateQuad(pts, ...q, quadSegments(...q));
+    expect(m).toBeGreaterThan(3);          // it really is tessellated
+
+    const s = createEdgeState(64);
+    writePolyline(s, pts, m, RGB, 0.5, 1.2, 0, 3.25);
+    expect(s.count).toBe(m - 1);
+
+    const at = (i, f) => s.data[i * EDGE_STRIDE + f];
+    const segLen = (i) => Math.hypot(at(i, EDGE_OFF.bx) - at(i, EDGE_OFF.ax),
+                                     at(i, EDGE_OFF.by) - at(i, EDGE_OFF.ay));
+    for (let i = 0; i + 1 < s.count; i++) {
+      expect(at(i, EDGE_OFF.phase) + segLen(i)).toBeCloseTo(at(i + 1, EDGE_OFF.phase), 3);
+    }
+    // and the run is genuinely uneven, so the continuity above is not the
+    // trivial consequence of a constant step.
+    const lens = Array.from({ length: s.count }, (_, i) => segLen(i));
+    expect(Math.max(...lens) / Math.min(...lens)).toBeGreaterThan(1.2);
+  });
+
+  it('tracks the polyline own length, not the true arc length', () => {
+    // Stated rather than ignored, per the brief. The phase run must agree with
+    // the geometry that is DRAWN — the sum of the chords — which is shorter
+    // than the curve. artCurve.test.js pins that gap at under 0.1% at n = 24.
+    const pts = new Float32Array((CURVE_MAX_SEGMENTS + 1) * 2);
+    const q = [100, 100, 480, -260, 140, 90];
+    const m = tessellateQuad(pts, ...q, CURVE_MAX_SEGMENTS);
+    const s = createEdgeState(64);
+    writePolyline(s, pts, m, RGB, 0.5, 1.2, 0);
+    let poly = 0;
+    for (let i = 0; i + 1 < m; i++) {
+      poly += Math.hypot(pts[i * 2 + 2] - pts[i * 2], pts[i * 2 + 3] - pts[i * 2 + 1]);
+    }
+    const lastO = (s.count - 1) * EDGE_STRIDE;
+    const end = s.data[lastO + EDGE_OFF.phase]
+      + Math.hypot(s.data[lastO + EDGE_OFF.bx] - s.data[lastO + EDGE_OFF.ax],
+                   s.data[lastO + EDGE_OFF.by] - s.data[lastO + EDGE_OFF.ay]);
+    expect(end).toBeCloseTo(poly, 2);
+  });
+
+  it('stops accumulating when it stops writing', () => {
+    // The capacity break must not leave a half-written run behind, and the
+    // phase of an instance that was never written is not a number anyone reads.
+    const s = createEdgeState(2);
+    writePolyline(s, PTS, 4, RGB, 0.5, 1.2, 0, 1);
+    expect(s.count).toBe(2);
+    expect(s.dropped).toBe(1);
+    expect(s.data[EDGE_OFF.phase]).toBeCloseTo(1, 4);
+    expect(s.data[EDGE_STRIDE + EDGE_OFF.phase]).toBeCloseTo(6, 4);
+  });
+});
+
+describe('arcControl', () => {
+  it('pulls the midpoint the given fraction of the way to the centre', () => {
+    // mid (200,300); centre (760,450); pull 0.25 -> (340, 337.5)
+    const out = arcControl([0, 0], 100, 200, 300, 400, 760, 450, 0.25);
+    expect(out[0]).toBeCloseTo(340, 10);
+    expect(out[1]).toBeCloseTo(337.5, 10);
+  });
+
+  it('agrees with prismControl at the prism own pull and zero offset', () => {
+    // Two functions, one shape. If they ever disagree the bundles fan apart.
+    const a = arcControl([0, 0], 100, 200, 300, 400, 760, 450, 0.55);
+    const b = prismControl([0, 0], 100, 200, 300, 400, 760, 450, 0);
+    expect(a[0]).toBeCloseTo(b[0], 10);
+    expect(a[1]).toBeCloseTo(b[1], 10);
+  });
+
+  it('is the midpoint at pull 0 and the centre at pull 1', () => {
+    expect(arcControl([0, 0], 0, 0, 10, 20, 99, -5, 0)).toEqual([5, 10]);
+    expect(arcControl([0, 0], 0, 0, 10, 20, 99, -5, 1)).toEqual([99, -5]);
+  });
+});
+
+describe('analogy filaments', () => {
+  it('fades from the far cutoff to full at the near pole', () => {
+    expect(filamentDepthFade(-1)).toBeCloseTo(0, 10);
+    expect(filamentDepthFade(-0.5)).toBeCloseTo(0.25, 10);
+    expect(filamentDepthFade(1)).toBeCloseTo(1, 10);
+    // Clamped at zero rather than going negative — an alpha below zero would
+    // pack to 0 anyway, but the width would not.
+    expect(filamentDepthFade(-3)).toBe(0);
+  });
+
+  it('takes 65% of strength x depth fade', () => {
+    expect(filamentAlpha(1, 1)).toBeCloseTo(0.65, 10);
+    expect(filamentAlpha(0.4, 0.5)).toBeCloseTo(0.13, 10);
+  });
+
+  it('TRUNCATES the hue to a whole degree, and shimmers per NODE INDEX', () => {
+    // Both halves matter. The `| 0` quantises the shimmer; keying off iA is
+    // what gives each filament its own phase, and a port that keys off the
+    // loop counter instead makes the whole bundle breathe as one object.
+    for (const [t, i] of [[0, 0], [1.3, 7], [12.5, 30], [0.9, 3]]) {
+      const raw = 40 + Math.sin(t * 0.7 + i * 0.3) * 15;
+      expect(filamentHue(t, i)).toBe(raw | 0);
+      expect(Number.isInteger(filamentHue(t, i))).toBe(true);
+    }
+    // Two filaments sharing a time but not an index do NOT share a hue.
+    expect(filamentHue(0, 0)).not.toBe(filamentHue(0, 5));
+    // and it stays inside the golden band it is documented to occupy.
+    for (let t = 0; t < 20; t += 0.05) {
+      for (const i of [0, 3, 17]) {
+        expect(filamentHue(t, i)).toBeGreaterThanOrEqual(25);
+        expect(filamentHue(t, i)).toBeLessThanOrEqual(55);
+      }
+    }
+  });
+
+  it('scales the glow pass by the projection but NOT the core', () => {
+    // The asymmetry is in the original. Pinned so nobody "fixes" it.
+    expect(filamentGlowWidth(1)).toBeCloseTo(3.5, 10);
+    expect(filamentGlowWidth(1.4)).toBeCloseTo(4.9, 10);
+    expect(FILAMENT_CORE_W).toBe(0.8);
+  });
+
+  it('dashes 6 on, 8 off — on BOTH passes', () => {
+    // ctx.setLineDash([6,8]) is set before the wide pass and cleared only after
+    // the whole loop, so the sharp core is dashed too. One pattern, one flag
+    // word, both passes.
+    expect(FILAMENT_DASH).toEqual([6, 8]);
+  });
+});
+
+describe('chimera boundary fringes', () => {
+  it('doubles the boundary strength and saturates at 1', () => {
+    expect(chimeraStrength(0.2)).toBeCloseTo(0.4, 10);
+    expect(chimeraStrength(0.9)).toBe(1);
+  });
+
+  it('truncates the hue and keeps it inside the cyan band', () => {
+    for (const [t, s] of [[0, 0], [2.1, 0.7], [9.4, 1]]) {
+      expect(chimeraHue(t, s)).toBe((180 + Math.sin(t * 3.5 + s * 10) * 60) | 0);
+    }
+    for (let t = 0; t < 10; t += 0.01) {
+      expect(chimeraHue(t, 0.5)).toBeGreaterThanOrEqual(120);
+      expect(chimeraHue(t, 0.5)).toBeLessThanOrEqual(240);
+    }
+  });
+
+  it('flickers between 0.1 and 0.7, off the OTHER cluster order parameter', () => {
+    let lo = Infinity, hi = -Infinity;
+    for (let t = 0; t < 20; t += 0.001) {
+      const f = chimeraFlicker(t, 0.3);
+      lo = Math.min(lo, f); hi = Math.max(hi, f);
+    }
+    expect(lo).toBeCloseTo(0.1, 3);
+    expect(hi).toBeCloseTo(0.7, 3);
+    // syncB, not syncA: hue and brightness beat against each other.
+    expect(chimeraFlicker(1, 0)).not.toBeCloseTo(chimeraFlicker(1, 0.4), 6);
+  });
+
+  it('caps its own alpha well under 1 without a clamp', () => {
+    expect(chimeraAlpha(1, 0.7)).toBeCloseTo(0.175, 10);
+    expect(chimeraAlpha(1, 0.7)).toBeLessThan(1);
+  });
+
+  it('widens from 2 to 5 with strength, unscaled by the projection', () => {
+    expect(chimeraWidth(0)).toBeCloseTo(2, 10);
+    expect(chimeraWidth(1)).toBeCloseTo(5, 10);
+  });
+
+  it('SCROLLS the dash at 30px per second — the reason for the 17th float', () => {
+    expect(CHIMERA_DASH).toEqual([4, 6]);
+    expect(chimeraDashOffset(0)).toBe(0);
+    expect(chimeraDashOffset(2)).toBeCloseTo(60, 10);
+    // Three periods per second at a period of 10px: the pattern has to move,
+    // and it cannot move on a tessellated curve without a per-instance phase.
+    const period = CHIMERA_DASH[0] + CHIMERA_DASH[1];
+    expect(chimeraDashOffset(1) / period).toBeCloseTo(3, 10);
+  });
+
+  it('bows less far toward the centre than the filaments do', () => {
+    expect(CHIMERA_CP_PULL).toBe(0.3);
+    expect(FILAMENT_CP_PULL).toBe(0.25);
+  });
+});
+
+describe('the additive buffer capacity, with the orphan layers', () => {
+  it('fits the prism AND both orphan layers at their enforced caps', () => {
+    // Recomputed from the caps rather than from the constant, same as the
+    // prism row above. Both caps are enforced in ArtTab's draw loop, which is
+    // what makes them a ceiling instead of an estimate.
+    const pairs = (PRISM_MAX_NODES * (PRISM_MAX_NODES - 1)) / 2;
+    const perEffect = pairs * PRISM_SPECTRAL_FINE * 2 * CURVE_MAX_SEGMENTS
+      + PRISM_MAX_NODES * 2;
+    const orphans = FILAMENT_MAX_DRAWN * 2 * CURVE_MAX_SEGMENTS   // two passes each
+      + CHIMERA_MAX_ZONES * CURVE_MAX_SEGMENTS;                   // one pass each
+    expect(MAX_ADDITIVE_EDGES)
+      .toBeGreaterThanOrEqual(2 + PRISM_MAX_EFFECTS * perEffect + orphans);
+  });
+
+  it('keeps the two caps at the simulation own provable limits', () => {
+    // 6 analogies x at most 16 correspondence pairs; C(17,2) cluster pairs.
+    expect(FILAMENT_MAX_DRAWN).toBe(6 * 16);
+    expect(CHIMERA_MAX_ZONES).toBe((17 * 16) / 2);
   });
 });

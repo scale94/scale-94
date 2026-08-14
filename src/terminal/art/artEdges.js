@@ -284,3 +284,170 @@ export function prismControl(out, ax, ay, bx, by, cx, cy, offset) {
 export function prismSpokeHue(hue0, dx, dy) {
   return (hue0 + Math.atan2(dy, dx) * (180 / Math.PI) + 360) % 360;
 }
+
+/**
+ * The control point of an arc bowed toward the projected sphere centre, into
+ * `out` as [x, y]: the midpoint of AB pulled `pull` of the way to (cx, cy).
+ *
+ * Three layers draw this shape with three different pulls — the prism's chords
+ * at 0.55 (with an extra per-spectral-line offset, hence its own function
+ * above), the analogy filaments at 0.25 and the chimera fringes at 0.3. The
+ * arithmetic is one line and it is written once, because the failure mode if it
+ * drifts is a bundle that fans the wrong way rather than anything that looks
+ * like a bug.
+ */
+export function arcControl(out, ax, ay, bx, by, cx, cy, pull) {
+  const midX = (ax + bx) / 2, midY = (ay + by) / 2;
+  out[0] = midX + (cx - midX) * pull;
+  out[1] = midY + (cy - midY) * pull;
+  return out;
+}
+
+// ── Analogy filaments ───────────────────────────────────────────────────────
+// Golden threads between structurally similar nodes, under `lighter`. TWO
+// dashed passes over the SAME quadratic: a wide diffuse glow and a sharp core
+// over it — the resonance edge's shape, at a fifth of the brightness.
+//
+// `ctx.setLineDash([6,8])` is set before the wide pass and never reset between
+// the two, and only cleared after the whole loop, so BOTH passes are dashed.
+// A port that dashes only the glow looks very nearly right and is wrong.
+//
+// The core's width is a bare 0.8 while the glow's scales with the projection.
+// That asymmetry is in the original; it is recorded here rather than tidied
+// away, because tidying it would be a re-art and would show as a core that
+// thickens toward the viewer.
+
+export const FILAMENT_DEPTH_CUTOFF = -0.5;   // avgDepth below this: not drawn
+export const FILAMENT_ALPHA_K = 0.65;        // strength * depthFade * this
+export const FILAMENT_MIN_ALPHA = 0.01;      // below this: not drawn
+export const FILAMENT_HUE_BASE = 40;         // golden, swinging 25-55
+export const FILAMENT_HUE_SWING = 15;
+export const FILAMENT_HUE_RATE = 0.7;        // x seconds
+export const FILAMENT_HUE_NODE_K = 0.3;      // x the node INDEX — per-filament phase
+export const FILAMENT_CP_PULL = 0.25;        // control point, toward the centre
+export const FILAMENT_DASH = [6, 8];         // on, off — px, and NO dash offset
+
+export const FILAMENT_GLOW_SAT = 85;
+export const FILAMENT_GLOW_LIT = 65;
+export const FILAMENT_GLOW_ALPHA_K = 0.35;
+export const FILAMENT_GLOW_W = 3.5;          // x the mean projection scale
+export const FILAMENT_CORE_SAT = 90;
+export const FILAMENT_CORE_LIT = 88;
+export const FILAMENT_CORE_ALPHA_K = 0.7;
+export const FILAMENT_CORE_W = 0.8;          // a CONSTANT — see the note above
+
+/** Depth fade, 0 at the far cutoff rising to 1 at the near pole. */
+export function filamentDepthFade(avgDepth) {
+  return Math.max(0, (avgDepth + 1) * 0.5);
+}
+
+/** A filament's envelope alpha. The glow pass takes FILAMENT_GLOW_ALPHA_K of
+ *  it, the core pass FILAMENT_CORE_ALPHA_K. */
+export function filamentAlpha(strength, depthFade) {
+  return strength * depthFade * FILAMENT_ALPHA_K;
+}
+
+/**
+ * A filament's hue, in degrees, TRUNCATED to an integer.
+ *
+ * The `| 0` is in the original and it is not cosmetic: it is a truncation
+ * toward zero of a value that never goes negative here (25-55), so it is a
+ * floor, and it quantises the shimmer to whole degrees. Keying off `iA` — the
+ * node index, not the filament's position in the list — is what gives every
+ * filament its own phase; a shared phase makes the whole bundle breathe as one
+ * object, which is a different picture.
+ */
+export function filamentHue(seconds, iA) {
+  return (FILAMENT_HUE_BASE
+    + Math.sin(seconds * FILAMENT_HUE_RATE + iA * FILAMENT_HUE_NODE_K) * FILAMENT_HUE_SWING) | 0;
+}
+
+/** The glow pass's stroke width, scaled by the endpoints' mean projection. */
+export function filamentGlowWidth(avgScale) {
+  return FILAMENT_GLOW_W * avgScale;
+}
+
+// ── Chimera boundary fringes ────────────────────────────────────────────────
+// Flickering interference at the border between a phase-locked cluster and a
+// desynchronised one. One dashed quadratic per zone, between the two clusters'
+// projected centroids, under `lighter`.
+//
+// The one thing here that no other layer in this file does: the dash pattern
+// SCROLLS. `ctx.lineDashOffset = t * 30` slides it 30px/s along the path, which
+// is why the instance buffer needed a phase field at all (see SphereEdges.js's
+// "The 17th float").
+
+export const CHIMERA_STRENGTH_K = 2;         // min(1, boundaryStrength * this)
+export const CHIMERA_MIN_STRENGTH = 0.05;    // below this: not drawn
+export const CHIMERA_HUE_BASE = 180;         // cyan, swinging 120-240
+export const CHIMERA_HUE_SWING = 60;
+export const CHIMERA_HUE_RATE = 3.5;         // x seconds
+export const CHIMERA_HUE_SYNC_K = 10;        // x the A cluster's order parameter
+export const CHIMERA_FLICKER_BASE = 0.4;     // 0.1 - 0.7
+export const CHIMERA_FLICKER_SWING = 0.3;
+export const CHIMERA_FLICKER_RATE = 7;
+export const CHIMERA_FLICKER_SYNC_K = 5;     // x the B cluster's order parameter
+export const CHIMERA_ALPHA_K = 0.25;
+export const CHIMERA_SAT = 70;
+export const CHIMERA_LIT = 60;
+export const CHIMERA_W = 2;                  // + strength * CHIMERA_W_K
+export const CHIMERA_W_K = 3;
+export const CHIMERA_CP_PULL = 0.3;          // control point, toward the centre
+export const CHIMERA_DASH = [4, 6];          // on, off — px
+export const CHIMERA_DASH_RATE = 30;         // px per second of lineDashOffset
+
+/** A zone's drawing strength, saturating at 1. */
+export function chimeraStrength(boundaryStrength) {
+  return Math.min(1, boundaryStrength * CHIMERA_STRENGTH_K);
+}
+
+/** Hue in degrees, truncated — the same `| 0` the filaments carry. Keyed off
+ *  the A cluster's order parameter, so the colour reports which side is
+ *  locked rather than merely oscillating on the clock. */
+export function chimeraHue(seconds, syncA) {
+  return (CHIMERA_HUE_BASE + Math.sin(seconds * CHIMERA_HUE_RATE + syncA * CHIMERA_HUE_SYNC_K)
+    * CHIMERA_HUE_SWING) | 0;
+}
+
+/** The flicker multiplier, 0.1 to 0.7, at twice the hue's rate and keyed off
+ *  the OTHER cluster — so hue and brightness beat against each other rather
+ *  than pulsing together. */
+export function chimeraFlicker(seconds, syncB) {
+  return CHIMERA_FLICKER_BASE
+    + Math.sin(seconds * CHIMERA_FLICKER_RATE + syncB * CHIMERA_FLICKER_SYNC_K) * CHIMERA_FLICKER_SWING;
+}
+
+/** Stroke alpha. Never clamped in the original either — the product cannot
+ *  exceed 1 * 0.7 * 0.25. */
+export function chimeraAlpha(strength, flicker) {
+  return strength * flicker * CHIMERA_ALPHA_K;
+}
+
+/** Stroke width in px, 2 at strength 0 rising to 5 at strength 1. NOT scaled
+ *  by the projection — the endpoints are cluster centroids, which have no
+ *  single depth. */
+export function chimeraWidth(strength) {
+  return CHIMERA_W + strength * CHIMERA_W_K;
+}
+
+/** `ctx.lineDashOffset` in px at `seconds`. */
+export function chimeraDashOffset(seconds) {
+  return seconds * CHIMERA_DASH_RATE;
+}
+
+// ── The two orphan layers' instance budgets ─────────────────────────────────
+// Read by MAX_ADDITIVE_EDGES in SphereEdges.js and ENFORCED in ArtTab's draw
+// loop, exactly as PRISM_MAX_EFFECTS / PRISM_MAX_NODES are enforced in
+// spawnEffect — a cap the buffer is sized from has to be a cap something
+// actually applies, or it is a guess with a comment.
+//
+// Both are provably above what the simulation can produce today:
+//
+//   filaments  useAnalogicalReasoning keeps at most MAX_ANALOGIES = 6
+//              analogies, and each contributes min(|A|,|B|) correspondence
+//              pairs over clusters of 16, so at most 6 x 16 = 96. MEASURED at
+//              96 in the live harness.
+//   zones      one per ORDERED PAIR of the 17 declared clusters, C(17,2) = 136.
+//              Measured peak in a 3551-frame harness run: 49.
+export const FILAMENT_MAX_DRAWN = 96;
+export const CHIMERA_MAX_ZONES = 136;

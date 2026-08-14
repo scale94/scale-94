@@ -103,7 +103,7 @@
 //
 // So the brief's target — worst-case notch under a pixel — is NOT reachable by
 // choosing a flatness tolerance, which was the lever it named: the binding
-// shape needs n = 133, i.e. 5.5x this ceiling and 5.5x a 4.7MB preallocation,
+// shape needs n = 133, i.e. 5.5x this ceiling and 5.5x a 5.6MB preallocation,
 // for a hairpin between two nodes 20px apart. What the turn criterion buys is
 // the middle of the family, and it is worth having: over the real layer the
 // worst joint measured 48.4° before it and 35.6° after, i.e. w·Δθ/2 from 2.11px
@@ -133,7 +133,8 @@ export const CURVE_TURN_TOLERANCE = 2 * Math.asin(1 / 5);
 
 /** Hard ceiling on segments per curve. Read by SphereEdges.js to size the
  *  additive instance buffer, and the buffer is linear in it: one more segment
- *  is PRISM_MAX_EFFECTS x C(11,2) x 7 x 2 = 3080 more instances, i.e. 192 KiB
+ *  is PRISM_MAX_EFFECTS x C(11,2) x 7 x 2 + 96 x 2 + 136 = 3408 more instances,
+ *  i.e. 226 KiB
  *  of permanently held scratch per unit. Raising it is a memory decision, not a
  *  quality knob — see the header for what it would buy and what it would cost. */
 export const CURVE_MAX_SEGMENTS = 24;

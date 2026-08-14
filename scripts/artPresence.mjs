@@ -15,6 +15,7 @@ import { CURVE_MAX_SEGMENTS } from '../src/terminal/art/artCurve.js';
 import {
   resonanceGlow, RESONANCE_CORE_MID_A, RESONANCE_CORE_MID_K, RESONANCE_GLOW_SCALE,
   prismGlowWidth, PRISM_SPECTRAL_FINE, PRISM_GLOW_W, PRISM_CORE_W, PRISM_POLY_W, PRISM_SPOKE_W,
+  FILAMENT_DASH, FILAMENT_CORE_W, CHIMERA_DASH,
 } from '../src/terminal/art/artEdges.js';
 
 // Every check reports through this so the run ends with a count rather than
@@ -1348,6 +1349,357 @@ try {
     verdict('PRISM GEOMETRY', countOk && bandsOk && pixelsOk);
   }
 } finally { await r6.close(); }
+
+// ── THE TWO ORPHAN CURVE LAYERS: analogy filaments, chimera fringes ───────
+//
+// Both are dashed quadratic Béziers on the additive mesh (task 6b), and both
+// are invisible to the comparator for a reason NEITHER of the checks above has:
+// the simulation does not produce them.
+//
+// MEASURED over 3551 harness frames rather than assumed, because "is this layer
+// in the capture at all" is the question this project has now got wrong twice:
+//
+//   filaments   96 exist and ZERO are ever drawn. `fil.nodeA` indexes the
+//               272-node corpus (nodeFeatures.NODES) while the draw loop's
+//               `nodes`/`proj` are the ~31-node sphere, so `iA >= nodes.length`
+//               drops every one of them — smallest index observed, 48. That is
+//               PRE-EXISTING, the same index-space family as the /art `query`
+//               probe that never renders, and repairing it would make an
+//               invisible layer appear, i.e. a visual change rather than a port.
+//   zones       live, but only in a burst: 160 of 3551 frames, all inside the
+//               first ~200, peaking at 49 zones and strength 0.71 while the
+//               Kuramoto clusters are still finding phase. Once they lock at
+//               orderParam 1 there is no sync/async boundary left and the layer
+//               is empty for the rest of the session.
+//
+// So the harness drives `window.__artSetAnalogy`, which writes the same refs
+// the simulation writes — the same treatment __artSetEcocide and __artSetGhosts
+// already give three background layers that no capture can arm. The state is
+// asserted to have ENGAGED from what that hook reports the SIMULATION holds,
+// which is not the buffer being measured and not the pixels.
+//
+// ── Validated against three nulls ─────────────────────────────────────────
+// Each suppresses one thing in PIXELS ONLY — a dash-period-gated `discard` in
+// the additive fragment shader — so the instance buffer, and therefore every
+// band mask, is byte-identical across all four builds:
+//
+//        build                   filament excess   chimera excess
+//        live (3 runs)             18.51-19.07       13.79-13.93
+//        filaments discarded            4.23              13.64
+//        chimera discarded             18.70               7.51
+//
+// The chimera margin is the thin one and is stated rather than hidden: 13.9
+// live against 7.5 null, a 1.85x separation. Its control band cannot escape the
+// filaments and the base edges it crosses. 10.5 sits 24% under the live floor
+// and 40% over the null.
+const FIL_EXCESS = 11;      // luminance, 0-255. Live 18.5-19.1, null 4.2.
+const CHI_EXCESS = 10.5;    // Live 13.6-13.9, null 7.5.
+const FZ_MIN_BAND_PX = 800; // measured 1864-8091; a floor, not a threshold
+
+// ── The dash-continuity check, which the earlier tasks did not need ───────
+//
+// A phase field that is POPULATED BUT WRONG restarts the pattern at every joint.
+// The ink is the same and only its arrangement moves, so no luminance mean sees
+// it — MEASURED: the band excesses above move by under 9% between the correct
+// build and one with the phase deliberately reset per segment.
+//
+// A run-length histogram or a spectral peak would be the obvious instruments
+// and both degrade badly here: the sphere rotates between frames, the trail
+// accumulator holds a fading copy of where the stroke was, and the bloom pass
+// spreads it — and that degradation looks exactly like the defect. But the
+// pattern is not unknown. The instance buffer states it exactly, so this scores
+// the pixels against a PREDICTION, and against two competing predictions:
+//
+//   continuous   lit iff mod(instancePhase + d, period) < duty   (what was built)
+//   restarted    lit iff mod(d, period) < duty                   (the pre-6b form)
+//
+// Contrast is mean(lit) - mean(dark) under each, pooled over every polyline of
+// the layer, sampled in arc length with the background read from the same arc
+// position a few px to either side. The MARGIN is continuous - restarted.
+// Smear shrinks both models equally; only the phase decides which wins.
+//
+// The ANTI-PHASE row is the method's own control — the continuous model slid by
+// half a period, which must come back with the contrast REVERSED rather than
+// merely smaller, or "lit" is measuring something that is not a dash.
+//
+//        build                        filament margin   chimera margin
+//        live (3 runs, GL and 2D)        +37.7 .. +38.5   +10.1 .. +10.9
+//        dash phase reset per segment           -35.45          -17.11
+//
+const FIL_DASH_MARGIN = 15;   // live +37.7..+38.5, restarted-null -35.45
+const CHI_DASH_MARGIN = 4;    // live +10.1..+10.9, restarted-null -17.11
+
+const FIL_PERIOD = FILAMENT_DASH[0] + FILAMENT_DASH[1];
+const CHI_PERIOD = CHIMERA_DASH[0] + CHIMERA_DASH[1];
+
+// What the harness injects. `age`/`maxAge` are NOT optional: _animateFilaments
+// increments age every frame and prunes on `age < maxAge`, so a filament
+// without them prunes itself on the first step and draws nothing.
+const FZ_FILAMENTS = [
+  { nodeA: 0, nodeB: 12, strength: 1, age: 0, maxAge: 1e9 },
+  { nodeA: 3, nodeB: 19, strength: 1, age: 0, maxAge: 1e9 },
+  { nodeA: 5, nodeB: 24, strength: 1, age: 0, maxAge: 1e9 },
+  { nodeA: 8, nodeB: 17, strength: 1, age: 0, maxAge: 1e9 },
+  { nodeA: 2, nodeB: 27, strength: 1, age: 0, maxAge: 1e9 },
+  { nodeA: 10, nodeB: 22, strength: 1, age: 0, maxAge: 1e9 },
+];
+const FZ_ZONES = [
+  { clusterA: 'eco', clusterB: 'drk', boundaryStrength: 0.5, syncA: 0.9, syncB: 0.1 },
+  { clusterA: 'sync', clusterB: 'crypto', boundaryStrength: 0.5, syncA: 0.2, syncB: 0.8 },
+  { clusterA: 'phys', clusterB: 'eco', boundaryStrength: 0.5, syncA: 0.6, syncB: 0.3 },
+];
+const FZ_INJECT = `JSON.stringify(window.__artSetAnalogy({
+  filaments: ${JSON.stringify(FZ_FILAMENTS)}, zones: ${JSON.stringify(FZ_ZONES)} }))`;
+
+// Decoded through EDGE_STRIDE / EDGE_OFF / isDisc / unpackFlags exactly as
+// ringsOf(), strokesOf() and prismOf() do — one decoder for this buffer.
+//
+// Classified by the packed DASH PERIOD, the one field that separates these two
+// layers from everything else on the additive mesh: 14 filament, 10 chimera,
+// 0 for the resonance edge and all three prism sub-layers. Width then splits
+// the filament's two passes — its core is a constant 0.8 and its glow scales
+// with the projection, which never reaches that low.
+function fzOf(add) {
+  const out = { filGlow: [], filCore: [], chi: [], other: 0, discs: 0 };
+  const runs = { filGlow: 0, filCore: 0, chi: 0 };
+  let prevKey = null, prevBX = null, prevBY = null;
+  for (let i = 0; i < add.count; i++) {
+    const o = i * EDGE_STRIDE;
+    const w = add.instances[o + EDGE_OFF.width];
+    if (isDisc(w)) { out.discs++; continue; }
+    const f = unpackFlags(add.instances[o + EDGE_OFF.flags], ADDITIVE_LAYER.glowQuant);
+    const s = {
+      ax: add.instances[o + EDGE_OFF.ax], ay: add.instances[o + EDGE_OFF.ay],
+      bx: add.instances[o + EDGE_OFF.bx], by: add.instances[o + EDGE_OFF.by], w,
+      phase: add.instances[o + EDGE_OFF.phase], duty: f.dashDuty, period: f.dashPeriod,
+    };
+    let cls = null;
+    if (f.dashPeriod === FIL_PERIOD) {
+      cls = Math.abs(w - FILAMENT_CORE_W) < 0.01 ? 'filCore' : 'filGlow';
+    } else if (f.dashPeriod === CHI_PERIOD) cls = 'chi';
+    if (!cls) { out.other++; prevKey = null; continue; }
+    // EXACT abutment, as everywhere else in this file: a joint that failed to
+    // meet would split the run and push the polyline count above the predicted.
+    const key = cls + ':' + w.toFixed(3);
+    const cont = prevKey === key && prevBX === s.ax && prevBY === s.ay;
+    if (!cont) runs[cls]++;
+    s.run = cls + ':' + (runs[cls] - 1);
+    prevKey = key; prevBX = s.bx; prevBY = s.by;
+    out[cls].push(s);
+  }
+  out.runs = runs;
+  return out;
+}
+
+// Bilinear luminance read — the strokes here are 0.8px to 5px wide and land
+// between pixel centres, so a nearest-neighbour read aliases the dashes.
+function fzSample(img, x, y) {
+  const { width: W, height: H, data } = img;
+  const xi = Math.max(0, Math.min(W - 2, Math.floor(x)));
+  const yi = Math.max(0, Math.min(H - 2, Math.floor(y)));
+  const fx = x - xi, fy = y - yi;
+  const lum = (px, py) => {
+    const j = (py * W + px) * 4;
+    return 0.2126 * data[j] + 0.7152 * data[j + 1] + 0.0722 * data[j + 2];
+  };
+  return lum(xi, yi) * (1 - fx) * (1 - fy) + lum(xi + 1, yi) * fx * (1 - fy)
+    + lum(xi, yi + 1) * (1 - fx) * fy + lum(xi + 1, yi + 1) * fx * fy;
+}
+
+/** Walk one polyline in arc length, sampling the stroke and its own local
+ *  background, and carrying BOTH candidate dash phases at every sample. */
+function fzProfile(img, segs, halfW, step = 0.25) {
+  const run = [...segs].sort((a, b) => a.phase - b.phase);
+  const OFF = halfW + 5;      // where the background is read, clear of the stroke
+  const samples = [];
+  let s0 = 0;
+  for (const s of run) {
+    const dx = s.bx - s.ax, dy = s.by - s.ay, L = Math.hypot(dx, dy);
+    if (!(L > 1e-6)) continue;
+    const ux = dx / L, uy = dy / L, nx = -uy, ny = ux;
+    for (let d = 0; d < L; d += step) {
+      const px = s.ax + ux * d, py = s.ay + uy * d;
+      let peak = 0;
+      for (let o = -halfW; o <= halfW; o += 0.25) {
+        peak = Math.max(peak, fzSample(img, px + nx * o, py + ny * o));
+      }
+      const bg = (fzSample(img, px + nx * OFF, py + ny * OFF)
+        + fzSample(img, px - nx * OFF, py - ny * OFF)) / 2;
+      samples.push({ v: peak - bg, cont: s.phase + d, local: d });
+    }
+    s0 += L;
+  }
+  return { samples, total: s0 };
+}
+
+/** Mean(lit) - mean(dark) under one model. Samples within `guard` px of a
+ *  pattern edge are dropped, so partial coverage at the transitions cannot
+ *  flatten the contrast toward zero on its own. */
+function fzModel(samples, key, period, duty, shift = 0, guard = 1) {
+  let litSum = 0, litN = 0, darkSum = 0, darkN = 0;
+  for (const p of samples) {
+    const ph = ((p[key] + shift) % period + period) % period;
+    if (Math.min(ph, Math.abs(ph - duty), period - ph) < guard) continue;
+    if (ph < duty) { litSum += p.v; litN++; } else { darkSum += p.v; darkN++; }
+  }
+  return { contrast: (litN ? litSum / litN : NaN) - (darkN ? darkSum / darkN : NaN), litN, darkN };
+}
+
+const r7 = await launch({ url: 'http://localhost:5174/', width: 1520, height: 900, deterministic: true });
+try {
+  await r7.waitFor('document.querySelectorAll("canvas").length > 0', { label: 'boot' });
+  await sleep(2500);
+  await r7.eval(clickText('/CHAOS'));
+  await r7.waitFor(READY, { label: 'sphere', timeoutMs: 40000 });
+  await r7.waitFor(GL_READY, { label: 'GL sized', timeoutMs: 40000 });
+  await sleep(4000);
+  await r7.eval('window.__virtualize()');
+  await sleep(150);
+  await r7.eval('window.__reseed(); window.__artHarnessReset();');
+  // Well past the boot chimera burst, so the only zones in the frame are the
+  // injected ones and the natural layer cannot contaminate the bands.
+  await r7.pump(240);
+
+  const rect = await r7.eval(RECT);
+  const clip = { x: rect.x, y: rect.y, width: rect.w, height: rect.h, scale: 1 };
+
+  console.log('ORPHAN CURVES  (analogy filaments + chimera fringes, dashed on the additive mesh)');
+  const hasHook = await r7.eval('typeof window.__artSetAnalogy === "function"');
+  if (!hasHook) {
+    console.log('   __artSetAnalogy missing — production build?');
+    verdict('ANALOGY FILAMENTS', false);
+    verdict('CHIMERA FRINGES', false);
+  } else {
+    // The simulation's own count BEFORE anything is injected, so the note above
+    // about neither layer being reachable is a number this run took, not lore.
+    const natural = JSON.parse(await r7.eval('JSON.stringify(window.__artSetAnalogy({}))'));
+    console.log(`   simulation at frame 240: ${natural.filaments} filaments, ${natural.zones} zones`
+      + ` (neither reaches the pixels — see the note above)`);
+
+    // Inject, then pump ONE frame at a time until the writers have run: the sim
+    // rebuilds the zone list every 8 frames and the filament list every 64, and
+    // can wipe an injection before the draw loop sees it.
+    let cls = null, st = null, injected = null, tries = 0;
+    while (tries++ < 12) {
+      injected = JSON.parse(await r7.eval(FZ_INJECT));
+      await r7.pump(1);
+      st = JSON.parse(await r7.eval('JSON.stringify(window.__artEdgeState())'));
+      cls = fzOf(st.additive);
+      if (cls.filGlow.length + cls.chi.length > 0) break;
+    }
+    const img = decodePng(await r7.screenshot({ clip }));
+    const { width: W, height: H } = img;
+
+    // ENGAGED FIRST, from the simulation state rather than from the buffer or
+    // the pixels — the prism check's DOM-echo trick, one layer down.
+    const engaged = injected.filaments === FZ_FILAMENTS.length
+      && injected.zones === FZ_ZONES.length;
+    console.log(`   injected ${injected.filaments}/${FZ_FILAMENTS.length} filaments,`
+      + ` ${injected.zones}/${FZ_ZONES.length} zones after ${tries} attempt(s)`
+      + (engaged ? '' : '   STATE NEVER ENGAGED'));
+
+    // ── The arithmetic ────────────────────────────────────────────────────
+    // Each filament is ONE curve drawn TWICE (a wide glow and a sharp core over
+    // it), so the two polyline counts must be equal and the two segment counts
+    // must be equal — they share the point list. Each zone is one curve, one
+    // pass. Depth and projection can drop a filament, so the count is asserted
+    // against the two passes agreeing rather than against 6.
+    const D = cls.runs.filGlow;
+    const Z = cls.runs.chi;
+    const coreW = [...new Set(cls.filCore.map(s => s.w.toFixed(3)))];
+    const chiPhases = cls.chi.map(s => s.phase);
+    const countOk = D > 0 && Z > 0
+      && st.additive.dropped === 0 && cls.discs === 0 && cls.other === 0
+      && cls.runs.filCore === D                       // both passes, same curves
+      && cls.filGlow.length === cls.filCore.length    // and the same tessellation
+      && coreW.length === 1 && Math.abs(+coreW[0] - FILAMENT_CORE_W) < 0.001
+      && cls.filGlow.every(s => s.duty === FILAMENT_DASH[0])
+      && cls.filCore.every(s => s.duty === FILAMENT_DASH[0])   // the CORE is dashed too
+      && cls.chi.every(s => s.duty === CHIMERA_DASH[0])
+      // The scrolling offset: every chimera instance's phase is seeded from the
+      // same reduced lineDashOffset, so the smallest one in the frame is that
+      // offset and it is inside one period.
+      && Math.min(...chiPhases) >= 0 && Math.min(...chiPhases) < CHI_PERIOD;
+    console.log(`   instances ${st.additive.count}/${st.additive.capacity}   dropped ${st.additive.dropped}`
+      + `   discs ${cls.discs}   unclassified ${cls.other}` + (countOk ? '' : '   ARITHMETIC WRONG'));
+    console.log(`   polylines  filament glow ${cls.runs.filGlow} = core ${cls.runs.filCore}`
+      + `   segments ${cls.filGlow.length} = ${cls.filCore.length}`
+      + `   core width ${coreW.join(',')} (constant ${FILAMENT_CORE_W}, unscaled)`
+      + `   chimera ${Z} runs / ${cls.chi.length} segments`);
+    console.log(`   dash  filament ${FILAMENT_DASH.join('/')} on BOTH passes`
+      + `   chimera ${CHIMERA_DASH.join('/')} scrolling, offset this frame`
+      + ` ${Math.min(...chiPhases).toFixed(2)}px of ${CHI_PERIOD}`);
+
+    // ── The pixels, one band per layer ────────────────────────────────────
+    const rows = [
+      ['ANALOGY FILAMENTS', 'filament', [...cls.filGlow, ...cls.filCore], 1.2, 12, FIL_EXCESS],
+      ['CHIMERA FRINGES', 'chimera', cls.chi, 1.5, 14, CHI_EXCESS],
+    ];
+    const bandOk = {};
+    for (const [name, label, list, band, shift, need] of rows) {
+      if (!list.length) { console.log(`   ${label.padEnd(9)} NO INSTANCES`); bandOk[name] = false; continue; }
+      const on = prismBand(W, H, list, band, 0, 0.02);
+      const a = prismBand(W, H, list, band, shift, 0.02);
+      const b = prismBand(W, H, list, band, -shift, 0.02);
+      const off = new Uint8Array(W * H);
+      for (let i = 0; i < off.length; i++) off[i] = (a[i] || b[i]) ? 1 : 0;
+      const onM = prismMean(img, on);
+      const offM = prismMean(img, off, on);
+      const excess = onM.mean - offM.mean;
+      const thin = onM.n < FZ_MIN_BAND_PX || offM.n < FZ_MIN_BAND_PX;
+      bandOk[name] = excess >= need && !thin;
+      console.log(`   ${label.padEnd(9)} ${onM.mean.toFixed(2)} (${onM.n}px)`
+        + `   control +-${shift} ${offM.mean.toFixed(2)} (${offM.n}px)`
+        + `   excess ${excess.toFixed(2)} (need ${need})`
+        + (thin ? `   BAND TOO THIN — under ${FZ_MIN_BAND_PX}px, not a measurement` : ''));
+    }
+
+    // ── Dash continuity in the RENDERED FRAME ─────────────────────────────
+    const dashOk = {};
+    for (const [name, label, list, halfW, dash, need] of [
+      ['ANALOGY FILAMENTS', 'filament', cls.filGlow, 2.5, FILAMENT_DASH, FIL_DASH_MARGIN],
+      ['CHIMERA FRINGES', 'chimera', cls.chi, 2.5, CHIMERA_DASH, CHI_DASH_MARGIN],
+    ]) {
+      const P = dash[0] + dash[1];
+      const byRun = new Map();
+      for (const s of list) {
+        if (!byRun.has(s.run)) byRun.set(s.run, []);
+        byRun.get(s.run).push(s);
+      }
+      const pooled = [];
+      let total = 0;
+      for (const run of byRun.values()) {
+        const prof = fzProfile(img, run, halfW);
+        for (const s of prof.samples) pooled.push(s);
+        total += prof.total;
+      }
+      if (pooled.length < 200) { console.log(`   dash ${label}: too few samples`); dashOk[name] = false; continue; }
+      const cont = fzModel(pooled, 'cont', P, dash[0]);
+      const rest = fzModel(pooled, 'local', P, dash[0]);
+      const anti = fzModel(pooled, 'cont', P, dash[0], P / 2);
+      const margin = cont.contrast - rest.contrast;
+      // The anti-phase control has to REVERSE, not merely shrink: if the model's
+      // "lit" set is measuring something that is not a dash, sliding it half a
+      // period cannot flip the sign.
+      const reversed = anti.contrast < 0 && Math.abs(anti.contrast) > 0.5 * cont.contrast;
+      dashOk[name] = margin >= need && reversed;
+      console.log(`   dash ${label.padEnd(9)} ${byRun.size} runs, ${total.toFixed(0)}px of path,`
+        + ` ${pooled.length} samples`);
+      console.log(`        contrast  continuous ${cont.contrast.toFixed(2)}`
+        + `   restarted-per-segment ${rest.contrast.toFixed(2)}`
+        + `   MARGIN ${margin.toFixed(2)} (need ${need})`);
+      console.log(`        anti-phase control ${anti.contrast.toFixed(2)}`
+        + ` (must be under ${(-0.5 * cont.contrast).toFixed(2)})`
+        + (reversed ? '' : '   NOT REVERSED — "lit" is not measuring a dash'));
+    }
+
+    verdict('ANALOGY FILAMENTS', engaged && countOk && bandOk['ANALOGY FILAMENTS']
+      && dashOk['ANALOGY FILAMENTS']);
+    verdict('CHIMERA FRINGES', engaged && countOk && bandOk['CHIMERA FRINGES']
+      && dashOk['CHIMERA FRINGES']);
+  }
+} finally { await r7.close(); }
+
 
 // ── Tally ─────────────────────────────────────────────────────────────────
 const passed = results.filter(r => r.ok).length;

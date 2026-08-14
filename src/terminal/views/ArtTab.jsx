@@ -67,6 +67,15 @@ import {
   PRISM_SAT, PRISM_GLOW_LIT, PRISM_GLOW_ALPHA_K, PRISM_CORE_LIT, PRISM_CORE_W,
   PRISM_POLY_HUE_STEP, PRISM_POLY_LIT, PRISM_POLY_ALPHA_K, PRISM_POLY_W,
   PRISM_SPOKE_SAT, PRISM_SPOKE_LIT, PRISM_SPOKE_ALPHA_K, PRISM_SPOKE_W,
+  arcControl,
+  filamentDepthFade, filamentAlpha, filamentHue, filamentGlowWidth,
+  FILAMENT_DEPTH_CUTOFF, FILAMENT_MIN_ALPHA, FILAMENT_CP_PULL, FILAMENT_DASH,
+  FILAMENT_GLOW_SAT, FILAMENT_GLOW_LIT, FILAMENT_GLOW_ALPHA_K,
+  FILAMENT_CORE_SAT, FILAMENT_CORE_LIT, FILAMENT_CORE_ALPHA_K, FILAMENT_CORE_W,
+  FILAMENT_MAX_DRAWN,
+  chimeraStrength, chimeraHue, chimeraFlicker, chimeraAlpha, chimeraWidth,
+  chimeraDashOffset, CHIMERA_MIN_STRENGTH, CHIMERA_CP_PULL, CHIMERA_DASH,
+  CHIMERA_SAT, CHIMERA_LIT, CHIMERA_MAX_ZONES,
 } from '../art/artEdges';
 import { stepAwakening, drawBeaconRing, drawConductor } from '../art/artAwakening';
 import {
@@ -98,6 +107,18 @@ const SECTOR_COLORS = {
 // times a frame. Through packFlags, not as a literal 0, so it cannot drift from
 // the layout the shader unpacks.
 const PRISM_FLAGS = packFlags(0, 0, 0, false, ADDITIVE_LAYER.glowQuant);
+
+// The two orphan curve layers' flag words. Same story — constant per layer, so
+// packed once — but these DO dash, and the period packed here is the one the
+// dash phase must be reduced modulo (packFlags rounds it to an integer; both of
+// these patterns are already integral, so nothing is lost, but the reduction
+// still has to use THIS number and not the raw sum).
+const FILAMENT_PERIOD = FILAMENT_DASH[0] + FILAMENT_DASH[1];   // 14
+const CHIMERA_PERIOD  = CHIMERA_DASH[0] + CHIMERA_DASH[1];     // 10
+const FILAMENT_FLAGS = packFlags(FILAMENT_PERIOD, FILAMENT_DASH[0], 0, false,
+  ADDITIVE_LAYER.glowQuant);
+const CHIMERA_FLAGS = packFlags(CHIMERA_PERIOD, CHIMERA_DASH[0], 0, false,
+  ADDITIVE_LAYER.glowQuant);
 
 // Once per session, not once per frame: an overflowing frame overflows 60 times
 // a second and would bury the console it is trying to be visible in.
@@ -956,71 +977,119 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       // `cellCount()` still feeds the `cells = N` readout in the HUD. Only the
       // boundary-line rendering is gone, so nothing reads `getMesh()` now.
 
+      // ── The additive line layer (ctx's `lighter`) ─────────────────────────
+      //
+      // A SECOND GL mesh, drawn after the edge mesh — see SphereEdges.js's
+      // ADDITIVE_LAYER. Reset here, once, before the first of its writers: the
+      // analogy filaments and the chimera fringes below, then the resonance
+      // edge and the prism chords further down. That is the order the 2D loop
+      // drew them in, and instances render in buffer order.
+      //
+      // ONE DEVIATION, and it is inherent to putting these two on this mesh.
+      // The 2D loop drew them BEFORE the base edges; the additive mesh draws
+      // after the source-over one. Where an edge crosses a filament the canvas
+      // laid the edge over it (so the filament showed at 1-aEdge) and the mesh
+      // adds the filament over the edge (so it shows whole). The two differ by
+      // filamentInk * aEdge on the overlap only — both layers are thin and
+      // dashed, and the alternative is a THIRD mesh at renderOrder 0 carrying
+      // one more material for two layers. Recorded rather than hidden.
+      const ag = addGLRef.current;
+      ag.count = 0;
+      ag.dropped = 0;
+      ag.w = w; ag.h = h;
+      // Scratch shared with the prism block below: tessellation points, the
+      // control point, and writeHsl's 3-float output. Nothing here allocates.
+      const _cPts  = prismPtsRef.current;
+      const _cCtrl = prismCtrlRef.current;
+      const _cRgb  = prismRgbRef.current;
+
       // ── Analogy Filaments — thin golden threads connecting structurally similar nodes ──
+      //
+      // Two DASHED passes over the same quadratic. `ctx.setLineDash([6,8])` was
+      // set before the wide pass and cleared only after the whole loop, so the
+      // sharp core was dashed too — both passes carry FILAMENT_FLAGS here.
+      // Neither pass sets a dash offset, so both start the pattern at the
+      // path's own start: phase0 = 0.
+      //
+      // What did NOT move: `getFilaments()`, the corpus-index guard, the
+      // projection lookup and the depth fade all stay on the CPU. Only the ctx
+      // calls became floats.
       {
         const filaments = getFilaments();
         if (filaments.length > 0) {
-          ctx.save();
-          ctx.globalCompositeOperation = 'lighter';
           const _t = performance.now() * 0.001;
+          let drawn = 0;
           for (const fil of filaments) {
+            if (drawn >= FILAMENT_MAX_DRAWN) break;   // see FILAMENT_MAX_DRAWN
             const iA = fil.nodeA, iB = fil.nodeB;
+            // NOTE: fil.nodeA/nodeB are CORPUS indices (the 272-node
+            // nodeFeatures array) while `nodes`/`proj` are the ~31-node sphere.
+            // This guard therefore drops nearly every filament and mis-pairs
+            // the survivors. Pre-existing and measured — 0 of 96 filaments
+            // passed it over 3551 harness frames — and NOT this task's to fix:
+            // repairing it would make an invisible layer appear, which is a
+            // visual change, not a port. See the task report.
             if (iA >= nodes.length || iB >= nodes.length) continue;
             const pA = proj[iA], pB = proj[iB];
             if (!pA || !pB) continue;
             const avgDepth = (pA.depth + pB.depth) / 2;
-            if (avgDepth < -0.5) continue;
-            const depthFade = Math.max(0, (avgDepth + 1) * 0.5);
-            const alpha = fil.strength * depthFade * 0.65;
-            if (alpha < 0.01) continue;
+            if (avgDepth < FILAMENT_DEPTH_CUTOFF) continue;
+            const alpha = filamentAlpha(fil.strength, filamentDepthFade(avgDepth));
+            if (alpha < FILAMENT_MIN_ALPHA) continue;
 
-            // Shimmering hue based on time + node positions
-            const hue = (40 + Math.sin(_t * 0.7 + iA * 0.3) * 15) | 0; // golden range 25-55
+            // Shimmering hue based on time + node index (golden range 25-55).
+            const hue = filamentHue(_t, iA);
 
-            // Wide diffuse glow
-            ctx.strokeStyle = `hsla(${hue},85%,65%,${(alpha * 0.35).toFixed(3)})`;
-            ctx.lineWidth = 3.5 * ((pA.scale + pB.scale) / 2);
-            ctx.setLineDash([6, 8]);
-            ctx.beginPath();
-            ctx.moveTo(pA.sx, pA.sy);
-            // Slight arc toward sphere center for "inside the sphere" look
-            const midX = (pA.sx + pB.sx) / 2;
-            const midY = (pA.sy + pB.sy) / 2;
-            const cpx = midX + (w / 2 - midX) * 0.25;
-            const cpy = midY + (h / 2 - midY) * 0.25;
-            ctx.quadraticCurveTo(cpx, cpy, pB.sx, pB.sy);
-            ctx.stroke();
+            // Slight arc toward the sphere centre for the "inside" look.
+            arcControl(_cCtrl, pA.sx, pA.sy, pB.sx, pB.sy, w / 2, h / 2, FILAMENT_CP_PULL);
+            // Flattened ONCE and drawn twice, so both passes land on exactly
+            // the same joints and accumulate the same arc length.
+            const m = tessellateQuad(_cPts, pA.sx, pA.sy, _cCtrl[0], _cCtrl[1], pB.sx, pB.sy,
+              quadSegments(pA.sx, pA.sy, _cCtrl[0], _cCtrl[1], pB.sx, pB.sy));
 
-            // Sharp core
-            ctx.strokeStyle = `hsla(${hue},90%,88%,${(alpha * 0.7).toFixed(3)})`;
-            ctx.lineWidth = 0.8;
-            ctx.beginPath();
-            ctx.moveTo(pA.sx, pA.sy);
-            ctx.quadraticCurveTo(cpx, cpy, pB.sx, pB.sy);
-            ctx.stroke();
+            // Wide diffuse glow — width scales with the projection.
+            writeHsl(_cRgb, 0, hue, FILAMENT_GLOW_SAT, FILAMENT_GLOW_LIT);
+            writePolyline(ag, _cPts, m, _cRgb, alpha * FILAMENT_GLOW_ALPHA_K,
+              filamentGlowWidth((pA.scale + pB.scale) / 2), FILAMENT_FLAGS, 0);
+            // Sharp core — a CONSTANT 0.8, unscaled. That asymmetry with the
+            // pass above is in the original; see FILAMENT_CORE_W.
+            writeHsl(_cRgb, 0, hue, FILAMENT_CORE_SAT, FILAMENT_CORE_LIT);
+            writePolyline(ag, _cPts, m, _cRgb, alpha * FILAMENT_CORE_ALPHA_K,
+              FILAMENT_CORE_W, FILAMENT_FLAGS, 0);
+            drawn++;
           }
-          ctx.setLineDash([]);
-          ctx.restore();
         }
       }
 
       // ── Chimera boundary zones — flickering interference at sync/async borders ──
+      //
+      // The layer that made the 17th float necessary: `lineDashOffset = t * 30`
+      // scrolls the pattern along the path, and a tessellated curve cannot
+      // express that without carrying its own place on the path. The offset is
+      // reduced modulo the packed period here, on the CPU, so the float the
+      // shader reads stays small and exact however long the tab has been open.
+      //
+      // What did NOT move: the centroid arithmetic. It is CPU state built from
+      // `nodes` and `proj`, and it stays exactly where it was.
       {
         const zones = getChimeraZones();
         if (zones.length > 0) {
-          ctx.save();
-          ctx.globalCompositeOperation = 'lighter';
           const _ct = performance.now() * 0.001;
+          // One value for the whole layer — every zone shares the clock.
+          const dashPhase = ((chimeraDashOffset(_ct) % CHIMERA_PERIOD) + CHIMERA_PERIOD)
+            % CHIMERA_PERIOD;
+          let drawn = 0;
           for (const zone of zones) {
+            if (drawn >= CHIMERA_MAX_ZONES) break;   // see CHIMERA_MAX_ZONES
             // Find the cross-cluster edges that form this boundary
             // and render flickering interference fringes along them
-            const strength = Math.min(1, zone.boundaryStrength * 2);
-            if (strength < 0.05) continue;
+            const strength = chimeraStrength(zone.boundaryStrength);
+            if (strength < CHIMERA_MIN_STRENGTH) continue;
 
-            // Hue oscillates between the two sync states
-            const hue = (180 + Math.sin(_ct * 3.5 + zone.syncA * 10) * 60) | 0;
-            const flicker = 0.4 + Math.sin(_ct * 7 + zone.syncB * 5) * 0.3;
-            const alpha = strength * flicker * 0.25;
+            // Hue oscillates between the two sync states; brightness flickers
+            // against it off the other cluster's.
+            const hue = chimeraHue(_ct, zone.syncA);
+            const alpha = chimeraAlpha(strength, chimeraFlicker(_ct, zone.syncB));
 
             // Render a subtle pulsing arc between cluster centroids
             // (use first nodes of each cluster as rough anchors)
@@ -1047,23 +1116,15 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             cxA /= countA; cyA /= countA;
             cxB /= countB; cyB /= countB;
 
-            // Interference fringe — dashed arc with phase-shifting dash offset
-            ctx.strokeStyle = `hsla(${hue},70%,60%,${alpha.toFixed(3)})`;
-            ctx.lineWidth = 2 + strength * 3;
-            ctx.setLineDash([4, 6]);
-            ctx.lineDashOffset = _ct * 30;  // scrolling dash pattern
-            ctx.beginPath();
-            const bMidX = (cxA + cxB) / 2;
-            const bMidY = (cyA + cyB) / 2;
-            const bCpx = bMidX + (w / 2 - bMidX) * 0.3;
-            const bCpy = bMidY + (h / 2 - bMidY) * 0.3;
-            ctx.moveTo(cxA, cyA);
-            ctx.quadraticCurveTo(bCpx, bCpy, cxB, cyB);
-            ctx.stroke();
+            // Interference fringe — dashed arc with a scrolling dash offset.
+            arcControl(_cCtrl, cxA, cyA, cxB, cyB, w / 2, h / 2, CHIMERA_CP_PULL);
+            const m = tessellateQuad(_cPts, cxA, cyA, _cCtrl[0], _cCtrl[1], cxB, cyB,
+              quadSegments(cxA, cyA, _cCtrl[0], _cCtrl[1], cxB, cyB));
+            writeHsl(_cRgb, 0, hue, CHIMERA_SAT, CHIMERA_LIT);
+            writePolyline(ag, _cPts, m, _cRgb, alpha, chimeraWidth(strength),
+              CHIMERA_FLAGS, dashPhase);
+            drawn++;
           }
-          ctx.setLineDash([]);
-          ctx.lineDashOffset = 0;
-          ctx.restore();
         }
       }
 
@@ -1230,18 +1291,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         }
       }
 
-      // ── The additive line layer (ctx's `lighter`) ─────────────────────────
-      //
-      // A SECOND GL mesh, drawn after the edge mesh — see SphereEdges.js's
-      // ADDITIVE_LAYER. Reset here, once, before the first of its writers; the
-      // prism chords will append to the same buffer below the resonance edge,
-      // which is the order the 2D loop drew them in.
-      const ag = addGLRef.current;
-      ag.count = 0;
-      ag.dropped = 0;
-      ag.w = w; ag.h = h;
-
       // ── Resonance edge (Shift-Click comparison — solid glowing coalescence) ──
+      //
+      // Third writer into the additive stream `ag`, which was reset above the
+      // filaments — after them and the chimera fringes, before the prism, which
+      // is the order the 2D loop drew all four in.
       //
       // TWO instances, not one: a wide low-alpha halo and a narrow bright core
       // over it. That is what makes it read as two things coalescing rather
@@ -1282,6 +1336,14 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             // No dash, never ortho, and the layer's OWN glow step: at the edge
             // mesh's 1/8 px a 28px radius saturates at 15.875. See packFlags.
             ad[o + 15] = packFlags(0, 0, glow, false, ADDITIVE_LAYER.glowQuant);
+            // The dash phase, written EXPLICITLY even though this stroke is
+            // solid: `ag.data` is reused every frame and a slot the chimera
+            // fringes used last frame still holds their scrolling offset. The
+            // shader would ignore it (period 0 skips the dash branch), but a
+            // reader of the published buffer would not, and a stale float that
+            // only matters "because nothing looks at it" is one refactor away
+            // from mattering.
+            ad[o + 16] = 0;
             ag.count++;
           };
 
@@ -1409,12 +1471,15 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           }
         }
         geomEffectsRef.current = live;
-        // Never quietly. MAX_ADDITIVE_EDGES is sized so this is unreachable
-        // (four concurrent eleven-node effects at the segment ceiling), so if it
-        // ever fires the arithmetic behind the cap is wrong, not the frame.
+        // Never quietly, and this is the LAST writer into `ag`, so the counter
+        // it reads covers the filaments and the chimera fringes above as well
+        // as the prism. MAX_ADDITIVE_EDGES is sized so it is unreachable (four
+        // concurrent eleven-node effects at the segment ceiling, plus both
+        // orphan layers at their own caps), so if it ever fires the arithmetic
+        // behind the cap is wrong, not the frame.
         if (ag.dropped > 0 && !prismOverflowWarned) {
           prismOverflowWarned = true;
-          console.error(`[art] prism overflow: ${ag.dropped} instances dropped at`
+          console.error(`[art] additive overflow: ${ag.dropped} instances dropped at`
             + ` ${ag.count}/${MAX_ADDITIVE_EDGES} — MAX_ADDITIVE_EDGES is too small`);
         }
       }
@@ -1858,6 +1923,35 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       return arch.ghostPositions.length;
     };
 
+    // Drives the analogical-reasoning bus directly, for the same reason
+    // __artSetEcocide and __artSetGhosts exist: two layers read it that no
+    // capture state can arm.
+    //
+    // MEASURED over 3551 harness frames, which is why this is here and not an
+    // assumption:
+    //   - analogy filaments: 96 exist, 0 EVER DRAW. `fil.nodeA` is an index
+    //     into the 272-node corpus and the draw loop's `nodes` is the ~31-node
+    //     sphere, so the `iA >= nodes.length` guard drops all of them (the
+    //     smallest index seen was 48). Pre-existing, same family as the /art
+    //     `query` probe that never renders; not this task's to fix.
+    //   - chimera zones: live, but only in a burst — 160 of 3551 frames, all
+    //     inside the first ~200, peaking at 49 zones and strength 0.71 while
+    //     the clusters are still finding phase. After they lock at
+    //     orderParam 1 there is no boundary and the layer is empty forever.
+    //
+    // Writes the same refs the simulation writes, so the whole draw path is
+    // exercised. `_updateAnalogies` rebuilds the filament list every 64 frames
+    // and `_updateChimera` the zone list every 8, so an injection is good for a
+    // handful of frames — long enough to pump and capture, deliberately not
+    // sticky, because a sticky override would be a second source of truth.
+    window.__artSetAnalogy = ({ filaments, zones } = {}) => {
+      const r = reasoningRef.current;
+      if (!r) return null;
+      if (filaments) r.analogyFilaments = filaments;
+      if (zones) r.chimeraZones = zones;
+      return { filaments: r.analogyFilaments.length, zones: r.chimeraZones.length };
+    };
+
     // Reads back what the draw loop last published to the GL layer. Every
     // background layer is now a uniform rather than a canvas operation, so
     // when one does not appear the first question is whether the state ever
@@ -1919,10 +2013,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       delete window.__artHarnessReset;
       delete window.__artSetEcocide;
       delete window.__artSetGhosts;
+      delete window.__artSetAnalogy;
       delete window.__artBgState;
       delete window.__artEdgeState;
     };
-  }, [initState, archaeologyRef]);
+  }, [initState, archaeologyRef, reasoningRef]);
 
   // SphereComposite hands its advance() over here once the GL root exists.
   const handleAdvanceReady = useCallback((advance) => {
