@@ -627,19 +627,18 @@ const SHADOW_SRC_OVER = /* glsl */`
 // glow = 0, and the `step(0.001, vGlow)` below already zeroes the whole shadow
 // term for them, so no per-instance flag is needed to tell them apart.
 //
-// The `* a` is the SHAPE's own alpha, and it is not decoration either. A canvas
-// shadow is the blurred SHAPE bitmap tinted by shadowColor, so the stroke's
-// alpha rides through it — measured directly: at lineWidth 4.2 / shadowBlur
-// 22.5 / shadowColor alpha 0.9, the shadow 6px off the line reads 5, 11, 17, 23,
-// 29 for stroke alphas 0.2 … 1.0, i.e. exactly linear (each value is the 8-bit
-// truncation of alpha * 29). The shared amplitude below carries `shadowAlpha`
-// and the geometry but not `a`, so folding it in here is what makes this
-// material's glow the canvas's glow. It is done in the SNIPPET, not in the
-// shared line, because the source-over edge mesh is shipped pixels: it has the
-// same omission and correcting it there is a parity change this task did not
-// authorise. See the report.
+// `shadowAlpha` here is ctx.shadowColor's alpha ALONE. It used to read
+// `* a` as well — the stroke's own alpha, which rides through a canvas shadow
+// because the shadow is the blurred SHAPE bitmap tinted by shadowColor. That
+// factor was correct, but it was applied HERE only because Task 5 had no
+// authority to move the source-over mesh's shipped pixels, which carry the same
+// omission. Task 6c had that authority: `* a` now lives in the SHARED amplitude
+// line below and serves both materials. Putting it back here as well would
+// square it and silently halve this layer's glow — the single most likely way
+// to get this change wrong, and the reason a test asserts this snippet does not
+// mention `a` at all.
 const SHADOW_ADDITIVE = /* glsl */`
-    float shadowAlpha = ${glslFloat(RESONANCE_SHADOW_ALPHA)} * a;
+    float shadowAlpha = ${glslFloat(RESONANCE_SHADOW_ALPHA)};
     vec3 shadowCol = ${glslRgb255(RESONANCE_GOLD)};
 `;
 
@@ -792,7 +791,28 @@ ${shadow}
     // shadowAlpha replaces the old flat uGlowK: it is ctx.shadowColor's own
     // alpha, taken from the instance or the material instead of averaged into
     // one constant across both.
-    float peak = min(shadowAlpha * 1.5958 * vHalfW / max(vGlow, 1e-3), 1.0);
+    //
+    // (No backticks below this point: these lines live INSIDE the template
+    // literal that builds this shader, so one would end the string.)
+    //
+    // a is the STROKE's own alpha, and it belongs here for both materials. A
+    // canvas shadow is not a separately-coloured shape: it is the blurred SHAPE
+    // bitmap tinted by shadowColor, so the shape's alpha rides through it and a
+    // stroke drawn at alpha a casts a shadow a times as strong. Measured on a
+    // bare canvas — lineWidth 4.2, shadowBlur 22.5, shadowColor alpha 0.9,
+    // sampled 6px off the line — R reads 5, 11, 17, 23, 29 for stroke alphas
+    // 0.2 … 1.0, each the 8-bit truncation of alpha * 29. Exactly linear.
+    //
+    // It is a and not topA: coverage is the shape being convolved and is
+    // already inside the 1.5958 * halfW / blur term, so multiplying by core as
+    // well would convolve it twice. Not topA, not core.
+    //
+    // Measured against a 2D hybrid at four stroke alphas before this factor
+    // existed, the GL halo was FLAT in a where the canvas's is linear in it:
+    // ortho read 8.04 / 3.39 / 1.72 / 0.99 times the canvas at a = 0.15 / 0.30
+    // / 0.50 / 1.00, fused 6.19 / 3.32 / 2.00 / 1.04 — i.e. 1/a too bright,
+    // agreeing at a = 1 where 1/a is 1. See the Task 6c report.
+    float peak = min(shadowAlpha * a * 1.5958 * vHalfW / max(vGlow, 1e-3), 1.0);
     float glow = peak * exp(-2.0 * g * g) * step(0.001, vGlow);
 
     // Composite the core with the glow (two distinct colours, two distinct

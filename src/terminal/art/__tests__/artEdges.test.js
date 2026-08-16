@@ -510,7 +510,7 @@ describe('ADDITIVE_LAYER', () => {
       expect(a.material.fragmentShader).not.toBe(b.material.fragmentShader);
       // The additive shadow is the flat gold ctx.shadowColor, not the gradient,
       // and it is injected FROM the constant rather than retyped in GLSL.
-      expect(a.material.fragmentShader).toContain(`float shadowAlpha = ${RESONANCE_SHADOW_ALPHA} * a;`);
+      expect(a.material.fragmentShader).toContain(`float shadowAlpha = ${RESONANCE_SHADOW_ALPHA};`);
       expect(a.material.fragmentShader).not.toContain('uOrthoHue +');
       // and the box filter, the segment-distance glow and the gaussian
       // amplitude are the same code in both.
@@ -533,26 +533,48 @@ describe('ADDITIVE_LAYER', () => {
   // ~20% of the red channel at sim 0. So the additive material emits
   // premultiplied ink and takes One for its rgb source factor.
 
-  it('carries the STROKE alpha into the shadow amplitude, as the canvas does', () => {
+  it('carries the STROKE alpha into the shadow amplitude, for BOTH materials', () => {
     // A canvas shadow is the blurred SHAPE bitmap tinted by shadowColor, so the
     // stroke's own alpha rides through it. Measured directly in Chrome, at
     // lineWidth 4.2 / shadowBlur 22.5 / shadowColor rgba(255,215,0,0.9), the
     // shadow 6px off the line reads 5, 11, 17, 23, 29 for stroke alphas
     // 0.2 … 1.0 — each the 8-bit truncation of alpha * 29, i.e. exactly linear.
-    // The shared amplitude line carries `shadowAlpha` and the geometry but NOT
-    // `a`, so the additive snippet folds it in. Without it the core's glow is
-    // 1/a too bright: 2.5x at sim 0, 1.21x at the harness's 0.771.
+    //
+    // Task 5 folded `a` into the ADDITIVE snippet only, because correcting the
+    // source-over mesh moves shipped pixels and that fix wave had no authority
+    // to. Task 6c had it: `a` moved into the SHARED amplitude line, which is one
+    // string compiled twice, so both materials now carry it. Measured against a
+    // 2D hybrid at four stroke alphas, the uncorrected source-over halo was
+    // 8.04 / 3.39 / 1.72 / 0.99 times the canvas at a = 0.15 / 0.30 / 0.50 /
+    // 1.00 — flat in `a` where the canvas is linear in it, i.e. 1/a too bright.
     const a = createEdgeLayer(undefined, ADDITIVE_LAYER);
     const b = createEdgeLayer();
     try {
-      expect(a.material.fragmentShader).toContain(`float shadowAlpha = ${RESONANCE_SHADOW_ALPHA} * a;`);
-      // and the source-over mesh is deliberately UNTOUCHED — it has the same
-      // omission, and correcting it there moves shipped pixels. See the report.
-      expect(b.material.fragmentShader).toContain('float shadowAlpha = mix(fuseCos * 0.6, 1.0, vIsOrtho);');
       // the shared amplitude line itself is one string compiled twice.
       for (const f of [a.material.fragmentShader, b.material.fragmentShader])
-        expect(f).toContain('float peak = min(shadowAlpha * 1.5958 * vHalfW / max(vGlow, 1e-3), 1.0);');
+        expect(f).toContain('float peak = min(shadowAlpha * a * 1.5958 * vHalfW / max(vGlow, 1e-3), 1.0);');
+      expect(b.material.fragmentShader).toContain('float shadowAlpha = mix(fuseCos * 0.6, 1.0, vIsOrtho);');
     } finally { a.dispose(); b.dispose(); }
+  });
+
+  it('does NOT apply the stroke alpha twice on the additive material', () => {
+    // The single most likely way to get Task 6c wrong: leave Task 5's `* a` in
+    // the additive snippet while adding it to the shared line. That squares it —
+    // the resonance core's glow drops to a^2, which is 0.4x at the harness's
+    // measured parity point and silent in every other gate, since the layer only
+    // draws under Shift-Click. Asserted on the SNIPPET, not on the whole shader:
+    // the shared line legitimately mentions `a`, so a file-wide search cannot
+    // tell the two apart.
+    const a = createEdgeLayer(undefined, ADDITIVE_LAYER);
+    try {
+      const frag = a.material.fragmentShader;
+      const line = frag.split(/\r?\n/).find(l => l.includes('float shadowAlpha ='));
+      expect(line).toBeDefined();
+      expect(line.trim()).toBe(`float shadowAlpha = ${RESONANCE_SHADOW_ALPHA};`);
+      // and exactly one such definition exists, so a second snippet cannot
+      // shadow this one further down.
+      expect(frag.split('float shadowAlpha =').length - 1).toBe(1);
+    } finally { a.dispose(); }
   });
 
   it('emits PREMULTIPLIED ink, because lighter adds the shadow beside the stroke', () => {
@@ -597,7 +619,9 @@ describe('ADDITIVE_LAYER', () => {
       const halfW = resonanceWidths(sim, 1).core / 2;
       const glow = resonanceGlow(sim);
       const topA = resonanceStops(sim).core.a1;
-      // shadowAlpha carries the stroke's own alpha — see the amplitude test.
+      // The shared amplitude line carries the stroke's own alpha beside
+      // shadowAlpha — see the amplitude test. `topA` stands for `a` here: this
+      // stroke's gradient is flat, so the fragment alpha IS the mid stop.
       const botA = Math.min(topA * RESONANCE_SHADOW_ALPHA * 1.5958 * halfW / glow, 1);
       const col = RESONANCE_CORE_MID.map(v => v / 255);
       const want = canvasLighter(col, topA, gold, botA);
