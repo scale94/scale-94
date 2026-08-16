@@ -1,0 +1,146 @@
+{
+  "capturedAt": "2026-08-16T10:06:25.861Z",
+  "gitCommit": "65e62b8",
+  "gitBranch": "fix/art-sphere-index-space",
+  "gitDirty": true,
+  "url": "http://localhost:5174/",
+  "renderer": "headed chrome, real GPU",
+  "seconds": 10,
+  "viewport": {
+    "width": 1520,
+    "height": 900,
+    "dpr": 1
+  },
+  "sphereCss": {
+    "w": 1446,
+    "h": 580
+  },
+  "immersiveCss": {
+    "w": 1520,
+    "h": 900
+  },
+  "idle": {
+    "intervalMs": {
+      "n": 4694,
+      "mean": 2.13,
+      "p50": 1.8,
+      "p90": 4.7,
+      "p95": 5.8,
+      "p99": 12.5,
+      "max": 26.8
+    },
+    "drawCostMs": {
+      "n": 1565,
+      "mean": 2.75,
+      "p50": 1.9,
+      "p90": 3.3,
+      "p95": 11.3,
+      "p99": 15.2,
+      "max": 26.8
+    },
+    "allRafCostMs": {
+      "n": 4695,
+      "mean": 0.93,
+      "p50": 0,
+      "p90": 2.2,
+      "p95": 2.7,
+      "p99": 12.5,
+      "max": 26.8
+    }
+  },
+  "drag": {
+    "intervalMs": {
+      "n": 4331,
+      "mean": 2.31,
+      "p50": 2.1,
+      "p90": 5.3,
+      "p95": 6.1,
+      "p99": 13,
+      "max": 17.9
+    },
+    "drawCostMs": {
+      "n": 1444,
+      "mean": 2.89,
+      "p50": 2.2,
+      "p90": 2.9,
+      "p95": 11.7,
+      "p99": 14.7,
+      "max": 16.7
+    },
+    "allRafCostMs": {
+      "n": 4332,
+      "mean": 0.98,
+      "p50": 0,
+      "p90": 2.3,
+      "p95": 2.6,
+      "p99": 12.9,
+      "max": 16.7
+    }
+  },
+  "immersive": {
+    "intervalMs": {
+      "n": 5462,
+      "mean": 1.83,
+      "p50": 1.5,
+      "p90": 4,
+      "p95": 4.7,
+      "p99": 11.9,
+      "max": 17
+    },
+    "drawCostMs": {
+      "n": 1821,
+      "mean": 2.3,
+      "p50": 1.6,
+      "p90": 2.3,
+      "p95": 10.9,
+      "p99": 12.8,
+      "max": 15.2
+    },
+    "allRafCostMs": {
+      "n": 5463,
+      "mean": 0.78,
+      "p50": 0,
+      "p90": 1.8,
+      "p95": 2,
+      "p99": 11.9,
+      "max": 15.2
+    }
+  },
+  "idleAfter": {
+    "intervalMs": {
+      "n": 5261,
+      "mean": 1.9,
+      "p50": 1.6,
+      "p90": 4,
+      "p95": 5.1,
+      "p99": 12.1,
+      "max": 15.4
+    },
+    "drawCostMs": {
+      "n": 1754,
+      "mean": 2.44,
+      "p50": 1.8,
+      "p90": 2.4,
+      "p95": 11.1,
+      "p99": 12.8,
+      "max": 15.4
+    },
+    "allRafCostMs": {
+      "n": 5262,
+      "mean": 0.83,
+      "p50": 0,
+      "p90": 1.9,
+      "p95": 2.2,
+      "p99": 12.1,
+      "max": 15.4
+    }
+  },
+  "drift": {
+    "note": "idleAfter minus idle, same state, same code, ~40s apart. This is the floor on any cross-state comparison in this file.",
+    "drawCostMs": {
+      "p50": -0.1,
+      "p95": -0.2,
+      "p99": -2.4
+    }
+  }
+}

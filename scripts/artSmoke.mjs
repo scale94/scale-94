@@ -200,6 +200,13 @@ try {
 
   const passed = results.filter(r => r.pass).length;
   console.log(`\n${passed}/${results.length} smoke checks passed`);
+  // Name the failures in the SUMMARY, not only at the point they happen. This
+  // output is read through `tail` in every gate run in this project's history,
+  // and a "9/10" whose FAIL line has already scrolled past is a score with no
+  // finding attached — which is how one intermittent failure here stayed
+  // "unexplained" across two tasks.
+  if (passed !== results.length)
+    console.log(`   FAILED: ${results.filter(r => !r.pass).map(r => r.name).join(' | ')}`);
   if (passed !== results.length) process.exitCode = 1;
 } finally {
   await page.close();

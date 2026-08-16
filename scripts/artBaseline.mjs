@@ -183,7 +183,7 @@ const settle = () => sleep(25);
 
 // Find a node by hovering a fixed coarse grid. Constant frame cost, so it does
 // not perturb reproducibility; returns the first grid point with a node under it.
-async function findNode(page, rect, { cols = 9, rows = 5 } = {}) {
+async function findNode(page, rect, { cols = 9, rows = 5, skip = null } = {}) {
   let hit = null;
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
@@ -192,7 +192,8 @@ async function findNode(page, rect, { cols = 9, rows = 5 } = {}) {
       await page.hover(x, y);
       await settle();
       await page.pump(2);                       // fixed cost per probe
-      if (!hit) { const lab = await page.eval(HOVERED); if (lab) hit = { x, y, label: lab }; }
+      if (!hit) { const lab = await page.eval(HOVERED);
+        if (lab && !(skip && skip.has(lab))) hit = { x, y, label: lab }; }
     }
   }
   return hit;
@@ -300,10 +301,57 @@ async function captureScale(scale, manifest, expectFingerprint) {
   // real-time sleep BEFORE pumping: sleeps cost zero frames, so this settles the
   // async without advancing the cascade animation. Without it this was the one
   // state in twenty-one that failed to reproduce.
-  const fireNode = await findNode(page, rect);
-  await page.click(fireNode.x, fireNode.y);
-  await sleep(800);
-  await page.pump(25);
+  //
+  // NO PUMP COUNT CAN REACH THE PULSE RINGS, and raising 25 to 35 would not
+  // have fixed it. `__pump(n)` (scripts/determinism.mjs) runs n rAF callbacks in
+  // ONE synchronous loop and never yields, so no promise continuation, React
+  // scheduler task or worker message is delivered between those frames. The
+  // cascade's pulse is set by `applyAttractor` (useKineticEdges.js), which
+  // arrives on the ASYNC kernel result — so it can never fire inside a single
+  // pump call. Measured: pump(25), (35), (60), (100), (160), (240) after the
+  // click all give ZERO rings, and so does sleeping 1.5s, 2.5s or 4s first.
+  // Only frames INTERLEAVED with yields produce them, and each page.pump(1) is
+  // a CDP round trip, i.e. exactly such a yield. See scripts/_t7pulse2.mjs.
+  //
+  // And WHICH node is fired decides whether there is a ring at all.
+  // `applyAttractor` only sets pulse = 1.0 when one end of an edge dominates the
+  // other; on a node whose activation stays in the middle it takes the
+  // proportional branch and the pulse never clears PULSE_DRAW_CUTOFF. Measured:
+  // firing `replicator` gave 3 rings on both laptop manifests, while `ceei` —
+  // which is what the projector's grid happens to hit first — gave none in 200
+  // stepped frames. So retry on a different node rather than storing a
+  // reference that is missing the layer for one scale out of three.
+  const RINGS = '(window.__artEdgeState && window.__artEdgeState().rings) ?? -1';
+  const tried = new Set();
+  let ringsNow = 0, steps = 0, fireNode = null;
+  for (let attempt = 0; attempt < 3 && ringsNow <= 0; attempt++) {
+    fireNode = await findNode(page, rect, { skip: tried });
+    if (!fireNode) break;
+    tried.add(fireNode.label);
+    await page.click(fireNode.x, fireNode.y);
+    await sleep(800);
+    // 60 is generous: when the rings come at all they arrive after 20-24
+    // stepped frames, and when they do not, no number of frames helps.
+    for (let i = 0; i < 60 && ringsNow <= 0; i++) {
+      await page.pump(1);
+      ringsNow = Number(await page.eval(RINGS));
+      steps = i + 1;
+    }
+  }
+  // A fixed offset AFTER arrival, not a fixed count from the click. The ring
+  // DECAYS across its ~48-frame life (radius 5.39 -> 2.77 px, mid alpha 0.345
+  // -> 0.039), so what decides how it looks is frames-since-arrival. 10 keeps it
+  // near peak (alpha ~0.29) with the whole fade still ahead.
+  //
+  // The cost, stated plainly: the arrival step count varies run to run, so this
+  // state now carries a frame or two of rotation jitter that a fixed pump did
+  // not. That is the price of the reference actually containing the layer, and
+  // it is the right trade on a branch where five layers were invisible to a
+  // gate that scored them green.
+  for (let i = 0; i < 10; i++) await page.pump(1);
+  ringsNow = Number(await page.eval(RINGS));
+  if (ringsNow > 0) console.log(`   fired-cascade carries ${ringsNow} pulse ring(s) (arrived after ${steps} stepped frames, fired ${fireNode.label}, ${tried.size} node(s) tried)`);
+  else console.log(`   !! fired-cascade carries NO pulse ring — tried ${[...tried].join(', ') || 'no node'}`);
   await shot('fired-cascade');
   await page.pump(400);            // let it expire
 

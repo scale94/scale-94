@@ -290,6 +290,54 @@ per-vertex colour for the gradients and real additive glow. Retires
 Keep the CPU depth sort initially for parity, even though additive blending
 makes ordering largely moot — parity first.
 
+> **DONE 2026-08-16.** Reference set `baseline/art-sphere-step4/`, whose README
+> carries the full record. Seven tasks, not the four this section implies: the
+> pre-flight scan found that the prism chords are quadratic Béziers over THREE
+> sub-layers (chord bundle, sacred-polygon outline, star spokes) rather than the
+> "ordinary line segments" assumed here, and that two curve layers — analogy
+> filaments and chimera boundary zones — belonged to no step at all and were
+> folded in as Task 6b.
+>
+> `ctx.shadowBlur` is retired from the draw loop as specified. Seven
+> `ctx.stroke()` calls survive; five are node rings that belong to step 5, but
+> **two are straight-line strokes that no step owns** — the fusion-cursor thread
+> and the probe-centroid tethers. Step 6 ends "the 2-D canvas is now empty" and
+> it will not be. Author's call outstanding.
+>
+> **Four things this spec and its plan got wrong, all measured:**
+>
+> 1. **The glow amplitude was `1/a` too bright for the whole migration.** A
+>    canvas shadow is the blurred SHAPE bitmap tinted by `shadowColor`, so the
+>    stroke's own alpha rides through it. The shader carried `shadowAlpha` and
+>    the geometry but not `a`. Fixed in Task 6c (`65e62b8`) — the only task
+>    authorised to move shipped pixels. Against a 2D hybrid the GL halo was FLAT
+>    in `a` where the canvas's is linear in it, and the two AGREED at `a = 1`,
+>    which is exactly why every gate had been blind to it.
+> 2. **The line-count criterion is retired.** The plan predicted 3185 → ~2915 and
+>    said that a rise would mean "the layers were copied rather than moved". It
+>    rose to 3495: +258 comment, +7 blank, **+45 code**. The layers did move —
+>    zero `createLinearGradient` / `quadraticCurveTo` / `ctx.shadowColor` hits
+>    remain, which is the test that actually answers the question.
+> 3. **The cost win is small.** Idle draw cost mean 3.00 → 2.75 ms (−8.3%), with
+>    p50/p95 only 2–3× the run's own drift floor and p99 entirely inside it.
+>    "Edges are the heaviest remaining 2D work" was over-optimistic. Immersive is
+>    the better result: 2.55 → 2.30 mean, p99 14.2 → 12.8.
+> 4. **No pump count could ever have put a pulse ring in `fired-cascade`.**
+>    `__pump(n)` runs n rAF callbacks in one synchronous loop and never yields,
+>    and the cascade's pulse arrives on an async kernel result. The recorded fix
+>    (`pump(25)` → `~35`) was measured to fail at 25, 35, 60, 100, 160 and 240.
+>    The capture now interleaves yields, waits for the rings, asserts them, and
+>    retries on a different node when the fired one's attractor never dominates.
+>
+> **What the gate still cannot see**, carried into step 5: fused edges and
+> orthogonal bridges appear in no capture state at all (nothing runs `bone` or
+> forges a bridge), the resonance state shift-clicks the same node twice, and the
+> analogy filaments have never drawn in any build — `fil.nodeA` indexes the
+> 272-node corpus while the draw loop indexes the 31-node sphere. The first was
+> verified with a bespoke forge-and-capture control; the last is deliberately
+> unfixed, because making an invisible layer appear is a visual change, not a
+> port.
+
 ### Step 5 — Nodes
 
 Instanced sprites for node discs, halos, chimera state halos, awakening
