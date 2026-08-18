@@ -55,6 +55,17 @@ import {
 } from '../art/SphereEdges';
 import { quadSegments, tessellateQuad, CURVE_MAX_SEGMENTS } from '../art/artCurve';
 import {
+  nodeEnergy, depthCueAlpha, resonanceDimmed, nodeRadius, coreAlpha,
+  birthProgress, birthProject, bleedMix, spectralTint,
+  haloDraws, haloRadius, haloInnerRadius, haloAlpha,
+  chimeraSyncPulse, chimeraSyncAlpha, chimeraSyncRadius, CHIMERA_ALPHA_CUTOFF,
+  chimeraFlickRate, chimeraFlickAlpha, chimeraFlickRadius, chimeraFlickHue,
+  ghostDraws, ghostRadius, ghostOuterRadius, ghostAlpha, ghostSweep,
+  fusionPulse, fusionRingRadius, fusionRingAlpha, fusionThreadAlpha,
+  probePulse, probeDepthAlpha, probeRadius, probeGlowRadius, probeGlowInnerRadius,
+  probeCoreAlpha, probeTetherAlpha, probeCentroid,
+} from '../art/artNodes';
+import {
   edgeStops, edgeLineWidth, orthoHue, orthoGlow, fusedGlow,
   pulseRingRadius, pulsePosition,
   resonanceGlow, resonanceWidths, resonanceStops, RESONANCE_DEFAULT_SIM,
@@ -1526,73 +1537,53 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         if (!p) continue;   // dynamic node not yet projected this frame
         const _birth = birthMapRef.current.get(n.id);
         if (_birth) {
-          const _elapsed = performance.now() - _birth.t0;
-          if (_elapsed >= 400) {
+          const _prog = birthProgress(performance.now() - _birth.t0);
+          if (!_prog) {
             birthMapRef.current.delete(n.id);
           } else {
-            const _t    = _elapsed / 400;
-            const _ease = 1 - Math.pow(1 - _t, 3);
             const [_prx, _pry, _prz] = applyM(M, _birth.px, _birth.py, _birth.pz);
             const _pp = project(_prx, _pry, _prz, w, h, sphereR, focal);
-            p = {
-              sx:    _pp.sx    + (proj[i].sx    - _pp.sx)    * _ease,
-              sy:    _pp.sy    + (proj[i].sy    - _pp.sy)    * _ease,
-              depth: _pp.depth + (proj[i].depth - _pp.depth) * _ease,
-              scale: _pp.scale + (proj[i].scale - _pp.scale) * _ease,
-            };
+            p = birthProject(_pp, proj[i], _prog.ease);
             _cen.birth++;
           }
         }
 
         if (!isFinite(p.sx) || !isFinite(p.sy)) continue; // guard non-finite projection coords
         const isHov     = n.id === hov;
-        const energy    = n.energy + (isHov ? 0.55 : 0);
+        const energy    = nodeEnergy(n.energy, isHov);
         // Depth cuing: nodes on the back are smaller + dimmer
-        let depthAlpha = Math.max(0.08, (p.depth + 1) * 0.5);
+        const _cued = depthCueAlpha(p.depth);
 
         // ── Resonance dimming: non-selected nodes → 10% opacity ──────────────
         const _isResNode = _resActive && _resNodeSet.has(n.id);
-        if (_resActive && !_isResNode) { depthAlpha *= 0.10; _cen.resonanceDim++; }
+        // Counted off the RESULT, not off a second copy of the predicate: the
+        // dim is a tenth and the cue has a floor of 0.08, so the two can never
+        // coincide and the comparison cannot miss a dimmed node.
+        const depthAlpha = resonanceDimmed(_cued, _resActive, _isResNode);
+        if (depthAlpha !== _cued) _cen.resonanceDim++;
         _cen.nodes++;
 
-        const radius = (5 + energy * 4) * p.scale;
+        const radius = nodeRadius(energy, p.scale);
 
         // Overwrite bleed — temporarily radiate source color
         let renderCol = col;
         if (n.bleedAmount > 0 && n.bleedFrom) {
           const srcCol = NODE_COLORS[n.bleedFrom];
-          if (srcCol) { renderCol = lerpColor(col, srcCol, n.bleedAmount * 0.7); _cen.bleed++; }
+          if (srcCol) { renderCol = lerpColor(col, srcCol, bleedMix(n.bleedAmount)); _cen.bleed++; }
         }
 
         // Spectral PCA tint — shift hue based on eigenvalue-to-wavelength mapping
         const _spc = getSpectralColor(i);
         if (_spc && renderCol.hue != null) {
           _cen.spectral++;
-          const flux = _spectralFlux;
-          const blend = 0.08 + flux * 0.15; // very subtle 8-23% spectral influence
-          // Convert spectral [r,g,b,a] (0-1 floats) to approximate hue shift
-          const _sr = _spc[0], _sg = _spc[1], _sb = _spc[2];
-          const _sMax = Math.max(_sr, _sg, _sb), _sMin = Math.min(_sr, _sg, _sb);
-          let _sHue = 0;
-          if (_sMax > _sMin) {
-            const _d = _sMax - _sMin;
-            if (_sMax === _sr) _sHue = ((_sg - _sb) / _d + 6) % 6 * 60;
-            else if (_sMax === _sg) _sHue = ((_sb - _sr) / _d + 2) * 60;
-            else _sHue = ((_sr - _sg) / _d + 4) * 60;
-          }
-          renderCol = {
-            hue: renderCol.hue + (_sHue - renderCol.hue) * blend,
-            sat: renderCol.sat + ((_sMax - _sMin) / Math.max(_sMax, 0.001) * 100 - renderCol.sat) * blend * 0.3,
-            lit: renderCol.lit,
-            hsl: renderCol.hsl,
-          };
+          renderCol = spectralTint(renderCol, _spc, _spectralFlux);
         }
 
         // Glow halo
-        if (energy > 0.08 || n.bleedAmount > 0) {
-          const haloR = radius + (energy + n.bleedAmount * 0.4) * 16 * p.scale;
-          const hGrd  = ctx.createRadialGradient(p.sx, p.sy, radius * 0.4, p.sx, p.sy, haloR);
-          hGrd.addColorStop(0, hslAlpha(renderCol, (energy + n.bleedAmount * 0.25) * 0.38 * depthAlpha));
+        if (haloDraws(energy, n.bleedAmount)) {
+          const haloR = haloRadius(radius, energy, n.bleedAmount, p.scale);
+          const hGrd  = ctx.createRadialGradient(p.sx, p.sy, haloInnerRadius(radius), p.sx, p.sy, haloR);
+          hGrd.addColorStop(0, hslAlpha(renderCol, haloAlpha(energy, n.bleedAmount, depthAlpha)));
           hGrd.addColorStop(1, hslAlpha(renderCol, 0));
           ctx.fillStyle = hGrd;
           ctx.beginPath();
@@ -1602,10 +1593,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         }
 
         // Core sphere
-        const coreAlpha = (0.45 + energy * 0.55) * depthAlpha;
+        // A hovered core takes renderCol.hsl, which is OPAQUE — it bypasses
+        // coreAlpha and the depth cue both. See artNodes' coreIsOpaque().
         ctx.beginPath();
         ctx.arc(p.sx, p.sy, radius, 0, Math.PI * 2);
-        ctx.fillStyle = isHov ? renderCol.hsl : hslAlpha(renderCol, coreAlpha);
+        ctx.fillStyle = isHov ? renderCol.hsl : hslAlpha(renderCol, coreAlpha(energy, depthAlpha));
         ctx.fill();
         _cen.core++; if (isHov) _cen.coreHover++;
 
@@ -1621,10 +1613,10 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             const _ct = performance.now() * 0.001;
             if (_chim.isSync) {
               // Synchronized: steady warm halo pulsing at cluster phase
-              const syncPulse = 0.5 + 0.5 * Math.sin(_ct * 2 + _chim.meanPhase);
-              const syncAlpha = _chim.orderParam * syncPulse * 0.18 * depthAlpha;
-              if (syncAlpha > 0.01) {
-                const syncR = radius + 6 * p.scale;
+              const syncPulse = chimeraSyncPulse(_ct, _chim.meanPhase);
+              const syncAlpha = chimeraSyncAlpha(_chim.orderParam, syncPulse, depthAlpha);
+              if (syncAlpha > CHIMERA_ALPHA_CUTOFF) {
+                const syncR = chimeraSyncRadius(radius, p.scale);
                 ctx.beginPath();
                 ctx.arc(p.sx, p.sy, syncR, 0, Math.PI * 2);
                 ctx.strokeStyle = `hsla(45,90%,70%,${syncAlpha.toFixed(3)})`;
@@ -1634,11 +1626,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
               }
             } else if (_chim.isChimera) {
               // Chimera boundary: erratic flickering ring
-              const flickRate = 5 + _chim.orderParam * 8;
-              const flickAlpha = (0.15 + Math.sin(_ct * flickRate + i) * 0.12) * depthAlpha;
-              if (flickAlpha > 0.01) {
-                const chimR = radius + 8 * p.scale;
-                const chimHue = (200 + Math.sin(_ct * 1.3 + i * 0.7) * 40) | 0;
+              const flickRate = chimeraFlickRate(_chim.orderParam);
+              const flickAlpha = chimeraFlickAlpha(_ct, flickRate, i, depthAlpha);
+              if (flickAlpha > CHIMERA_ALPHA_CUTOFF) {
+                const chimR = chimeraFlickRadius(radius, p.scale);
+                const chimHue = chimeraFlickHue(_ct, i);
                 ctx.beginPath();
                 ctx.arc(p.sx, p.sy, chimR, 0, Math.PI * 2);
                 ctx.strokeStyle = `hsla(${chimHue},80%,60%,${flickAlpha.toFixed(3)})`;
@@ -1656,23 +1648,24 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         // ── Ghost node (Gestalt completion) — materializing outline ─────────
         {
           const _ghosts = getGhostNodes();
-          if (_ghosts && _ghosts[i] > 0.02) {
-            const ghostAlpha = _ghosts[i] * depthAlpha;
-            const ghostR = radius + 4 * p.scale + _ghosts[i] * 6 * p.scale;
+          if (_ghosts && ghostDraws(_ghosts[i])) {
+            const gAlpha = ghostAlpha(_ghosts[i], depthAlpha);
+            const ghostR = ghostRadius(radius, _ghosts[i], p.scale);
             // Double ring: inner dashed (incomplete), outer solid (materializing)
             ctx.save();
             ctx.globalCompositeOperation = 'lighter';
             // Inner ring: partial reconstruction
             ctx.beginPath();
-            ctx.arc(p.sx, p.sy, ghostR, 0, Math.PI * 2 * _ghosts[i]);
-            ctx.strokeStyle = `hsla(180,70%,75%,${(ghostAlpha * 0.5).toFixed(3)})`;
+            // The sweep IS the readout — a full circle here loses the layer.
+            ctx.arc(p.sx, p.sy, ghostR, 0, ghostSweep(_ghosts[i]));
+            ctx.strokeStyle = `hsla(180,70%,75%,${(gAlpha * 0.5).toFixed(3)})`;
             ctx.lineWidth = 1.5 * p.scale;
             ctx.stroke();
             _cen.ghostInner++;
             // Outer glow ring: completion halo
             ctx.beginPath();
-            ctx.arc(p.sx, p.sy, ghostR + 3 * p.scale, 0, Math.PI * 2);
-            ctx.strokeStyle = `hsla(180,60%,85%,${(ghostAlpha * 0.2).toFixed(3)})`;
+            ctx.arc(p.sx, p.sy, ghostOuterRadius(ghostR, p.scale), 0, Math.PI * 2);
+            ctx.strokeStyle = `hsla(180,60%,85%,${(gAlpha * 0.2).toFixed(3)})`;
             ctx.lineWidth = 3 * p.scale;
             ctx.stroke();
             _cen.ghostOuter++;
@@ -1707,12 +1700,12 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         if (si >= 0) {
           const sp    = proj[si];
           const t     = performance.now() / 1000;
-          const pulse = 0.5 + 0.5 * Math.sin(t * 5);
+          const pulse = fusionPulse(t);
           const srcCol = NODE_COLORS[fSrc];
-          const ringR  = (5 + nodes[si].energy * 4 + 8 + pulse * 6) * sp.scale;
+          const ringR  = fusionRingRadius(nodes[si].energy, pulse, sp.scale);
           // Pulsing dashed ring around locked source
           ctx.save();
-          ctx.strokeStyle = hslAlpha(srcCol, 0.55 + pulse * 0.45);
+          ctx.strokeStyle = hslAlpha(srcCol, fusionRingAlpha(pulse));
           ctx.lineWidth   = 1.5 * sp.scale;
           ctx.setLineDash([5, 4]);
           ctx.beginPath();
@@ -1725,7 +1718,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           const cur = fusionCursorRef.current;
           if (cur) {
             ctx.save();
-            ctx.strokeStyle = hslAlpha(srcCol, 0.3 + pulse * 0.15);
+            ctx.strokeStyle = hslAlpha(srcCol, fusionThreadAlpha(pulse));
             ctx.lineWidth   = 1;
             ctx.setLineDash([3, 6]);
             ctx.beginPath();
@@ -1746,44 +1739,38 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         // Ranking spans all 272 corpus nodes; probe.anchors has already
         // collapsed the top matches onto sphere nodes (see SPHERE_ANCHOR), so
         // the centroid forms even when no match is on the sphere itself.
-        let wx = 0, wy = 0, wz = 0, wsum = 0, wmax = 0;
-        const tethers = [];
-        for (const { id, weight } of probe.anchors) {
+        // `resolve` hands back the sphere position AND the projected point,
+        // because the centroid is computed in sphere space while the tethers
+        // are drawn in screen space, and re-deriving the index for the second
+        // would mean a second sphereIndexOf sweep per anchor per frame.
+        const _c = probeCentroid(probe.anchors, (id) => {
           const ni = sphereIndexOf(nodes, id);
-          if (ni < 0) continue;
-          wx += nodes[ni].x * weight;
-          wy += nodes[ni].y * weight;
-          wz += nodes[ni].z * weight;
-          wsum += weight;
-          if (weight > wmax) wmax = weight;
-          tethers.push({ ni, weight });
-        }
-        if (wsum > 1e-12) {
-          wx /= wsum; wy /= wsum; wz /= wsum;
-          const len = Math.sqrt(wx * wx + wy * wy + wz * wz);
-          if (len > 1e-12) { wx /= len; wy /= len; wz /= len; }
-          const [prx, pry, prz] = applyM(M, wx, wy, wz);
+          if (ni < 0) return null;
+          const nd = nodes[ni];
+          return { x: nd.x, y: nd.y, z: nd.z, p: proj[ni] };
+        });
+        if (_c) {
+          const [prx, pry, prz] = applyM(M, _c.x, _c.y, _c.z);
           const pp = project(prx, pry, prz, w, h, sphereR, focal);
-          const depthAlpha = Math.max(0.12, (prz + 1) * 0.5);
+          const depthAlpha = probeDepthAlpha(prz);
           // Tether lines to every anchor that formed the centroid
           ctx.setLineDash([3, 5]);
-          for (const { ni, weight } of tethers) {
-            const pn = proj[ni];
+          for (const { node: pn, weight } of _c.tethers) {
             ctx.lineWidth = 0.9;
-            ctx.strokeStyle = `rgba(167,139,250,${(weight / wmax) * 0.55 * depthAlpha})`;
+            ctx.strokeStyle = `rgba(167,139,250,${probeTetherAlpha(weight, _c.wmax, depthAlpha)})`;
             ctx.beginPath();
             ctx.moveTo(pp.sx, pp.sy);
-            ctx.lineTo(pn.sx, pn.sy);
+            ctx.lineTo(pn.p.sx, pn.p.sy);
             ctx.stroke();
             _cen.probeTether++;
           }
           ctx.setLineDash([]);
           // Pulsing glow halo
-          const pulse = (Math.sin(Date.now() * 0.003) + 1) * 0.5;
-          const probeR = 6 * pp.scale;
-          const glowR  = probeR + pulse * 14 * pp.scale;
+          const pulse = probePulse(Date.now());
+          const probeR = probeRadius(pp.scale);
+          const glowR  = probeGlowRadius(probeR, pulse, pp.scale);
           if (glowR > 0 && isFinite(pp.sx) && isFinite(pp.sy)) {
-            const gGrd = ctx.createRadialGradient(pp.sx, pp.sy, probeR * 0.3, pp.sx, pp.sy, glowR);
+            const gGrd = ctx.createRadialGradient(pp.sx, pp.sy, probeGlowInnerRadius(probeR), pp.sx, pp.sy, glowR);
             gGrd.addColorStop(0, `rgba(167,139,250,${0.45 * depthAlpha})`);
             gGrd.addColorStop(1, 'rgba(167,139,250,0)');
             ctx.fillStyle = gGrd;
@@ -1795,7 +1782,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           // Core node
           ctx.beginPath();
           ctx.arc(pp.sx, pp.sy, probeR, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(196,181,253,${(0.75 + pulse * 0.25) * depthAlpha})`;
+          ctx.fillStyle = `rgba(196,181,253,${probeCoreAlpha(pulse, depthAlpha)})`;
           ctx.fill();
           _cen.probeCore++;
           // Label

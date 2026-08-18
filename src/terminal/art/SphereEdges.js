@@ -396,6 +396,134 @@ export function isDisc(width) {
 }
 
 /**
+ * ── The disc branch's spare capacity ──────────────────────────────────────
+ *
+ * Step 5 needs a stroked RING with an inner radius, an arc sweep, an angular
+ * dash and a linear radial falloff. None of that needs a wider instance,
+ * because in the disc branch a large part of the 17-float layout is dead:
+ *
+ *   aEnds.zw  — for a disc `b == a`, so `delta` is zero; EDGE_VERT's
+ *               `dir = len > 1e-6 ? delta/len : vec2(1,0)` already falls to
+ *               the constant and `b` is never read for anything else.
+ *   aPhase    — the dash term is `mod(vPhase + t*vLen, period)` and `vLen` is
+ *               0, so it can only switch the whole instance uniformly on or
+ *               off. Useless as a dash phase, free as an angle.
+ *   aC1, aC2, — `t = vLen > 1e-6 ? ... : 0.0` is 0, so the three-stop gradient
+ *   alphas.yz   collapses to `vC0` and `vAlpha.x` alone.
+ *
+ * Eight free floats, assigned below. THE INVARIANT THIS RESTS ON: a segment
+ * instance must never take the disc branch, and a disc must never leak its
+ * repurposed fields into the segment path. The first half is `edgeLineWidth`
+ * being provably positive (see artEdges.js); the second half is EDGE_VERT
+ * forcing `len` and `dir` for discs, which lands with the shader in the next
+ * task. `discEncodingInvariant()` below is what a test asserts, so the two
+ * halves cannot drift apart.
+ *
+ * A disc with rInner = 0 and a full sweep is EXACTLY the filled disc step 4
+ * already ships — every field this adds is zero there — so the pulse rings
+ * keep writing what they always wrote.
+ */
+export const DISC_OFF = Object.freeze({
+  /** inner radius in px; 0 = filled disc, > 0 = annulus. Was aEnds.z. */
+  inner: EDGE_OFF.bx,
+  /** sweep END angle in radians; 0 means a full circle. Was aEnds.w. */
+  sweepEnd: EDGE_OFF.by,
+  /** sweep START angle in radians. Was aPhase. */
+  sweepStart: EDGE_OFF.phase,
+  /** radial-gradient inner radius in px; 0 = hard-edged, no falloff.
+   *  Was aC1.x. */
+  falloffInner: EDGE_OFF.c1,
+});
+
+/** Fields that MUST be zero on a disc instance: the two remaining floats of
+ *  aC1 and all three of aC2. Reserved rather than assigned, so a later step can
+ *  take them without a stride bump — and asserted zero so nothing quietly
+ *  starts depending on stale gradient colour left in them. */
+export const DISC_RESERVED = Object.freeze([
+  EDGE_OFF.c1 + 1, EDGE_OFF.c1 + 2,
+  EDGE_OFF.c2, EDGE_OFF.c2 + 1, EDGE_OFF.c2 + 2,
+]);
+
+/**
+ * Write one disc or ring instance. `rInner = 0` gives a filled disc; a sweep of
+ * 0 (or >= 2pi) gives a full circle.
+ *
+ * The CENTRE goes into `aEnds.xy` only. `aEnds.zw` is NOT set to the centre —
+ * it now carries the inner radius and the sweep — which is exactly why the
+ * vertex shader has to force `len` and `dir` rather than deriving them from
+ * `b - a` the way it does for a segment.
+ *
+ * *** DO NOT WIRE THIS UNTIL THE SHADER FORCES `len`. *** The pulse ring
+ * writer in ArtTab duplicates the centre into `aEnds.zw`, and that is what
+ * makes `delta` zero and `len` zero today. Writing an inner radius of 0 there
+ * instead leaves `delta = -centre`, so `len` becomes the distance from the
+ * ORIGIN: the quad expands along a hundreds-of-pixels axis, `t` starts varying,
+ * and the gradient and dash branches wake up on an instance that is supposed to
+ * be flat. The encoding and the `len`/`dir` override are one change in two
+ * files and must land together — which is why this ships unwired, with tests,
+ * and Task 3 flips the shader and the writer in the same commit.
+ */
+export function writeDisc(out, o, {
+  cx, cy, rOuter, rInner = 0, sweepStart = 0, sweepEnd = 0, falloffInner = 0,
+  rgb, alpha, flags = 0,
+}) {
+  out[o + EDGE_OFF.ax] = cx;
+  out[o + EDGE_OFF.ay] = cy;
+  out[o + DISC_OFF.inner] = rInner;
+  out[o + DISC_OFF.sweepEnd] = sweepEnd;
+  // One colour in the c0 slot; the shader reads no other stop for a disc.
+  out[o + EDGE_OFF.c0] = rgb[0];
+  out[o + EDGE_OFF.c0 + 1] = rgb[1];
+  out[o + EDGE_OFF.c0 + 2] = rgb[2];
+  out[o + DISC_OFF.falloffInner] = falloffInner;
+  for (const k of DISC_RESERVED) out[o + k] = 0;
+  // All three alphas the same, so the gradient degenerates to flat whichever
+  // branch the shader takes.
+  out[o + EDGE_OFF.alphas] = packAlphas(alpha, alpha, alpha);
+  out[o + EDGE_OFF.width] = discWidth(rOuter);
+  out[o + EDGE_OFF.flags] = flags;
+  out[o + DISC_OFF.sweepStart] = sweepStart;
+}
+
+/** The inverse of `writeDisc`, for the same reason `unpackFlags` exists: the
+ *  harness and the tests decode through this rather than restating `+ 14`. */
+export function readDisc(data, o) {
+  const width = data[o + EDGE_OFF.width];
+  return {
+    cx: data[o + EDGE_OFF.ax],
+    cy: data[o + EDGE_OFF.ay],
+    rOuter: Math.abs(width) * 0.5,
+    rInner: data[o + DISC_OFF.inner],
+    sweepStart: data[o + DISC_OFF.sweepStart],
+    sweepEnd: data[o + DISC_OFF.sweepEnd],
+    falloffInner: data[o + DISC_OFF.falloffInner],
+    alpha: unpackAlphas(data[o + EDGE_OFF.alphas]).a0,
+    isDisc: isDisc(width),
+  };
+}
+
+/**
+ * The property the whole encoding rests on, as a function a test can call:
+ * every field this repurposes lives at an offset the SEGMENT path also uses,
+ * so the two must be told apart by the width sign alone and by nothing else.
+ *
+ * Returns the list of violated invariants, empty when sound.
+ */
+export function discEncodingInvariant(data, o) {
+  const bad = [];
+  const width = data[o + EDGE_OFF.width];
+  if (!isDisc(width)) { bad.push('not a disc: width must be <= 0'); return bad; }
+  if (data[o + DISC_OFF.inner] < 0) bad.push('inner radius is negative');
+  if (data[o + DISC_OFF.inner] > Math.abs(width) * 0.5) bad.push('inner radius exceeds outer');
+  if (data[o + DISC_OFF.sweepEnd] < 0) bad.push('sweep end is negative');
+  if (data[o + DISC_OFF.falloffInner] < 0) bad.push('falloff inner is negative');
+  for (const k of DISC_RESERVED) {
+    if (data[o + k] !== 0) bad.push(`reserved float ${k} is not zero`);
+  }
+  return bad;
+}
+
+/**
  * Dash pattern, glow radius and the isOrtho flag into one float. `dashPeriod`
  * is on+off and `dashDuty` is on, both in px; a period of 0 means solid.
  *
