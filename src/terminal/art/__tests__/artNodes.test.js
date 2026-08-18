@@ -17,6 +17,7 @@ import {
   birthEase, birthProgress, birthProject, bleedMix,
   spectralBlend, rgbHue, spectralTint,
   haloDraws, haloRadius, haloInnerRadius, haloAlpha,
+  strokeAnnulus,
   beaconPulse, beaconRadius, beaconAlpha,
   chimeraSyncPulse, chimeraSyncAlpha, chimeraSyncRadius,
   chimeraFlickRate, chimeraFlickAlpha, chimeraFlickRadius, chimeraFlickHue,
@@ -222,6 +223,57 @@ describe('the glow halo — a linear ramp, not a gaussian', () => {
     // looks like a tidy-up and changes the layer.
     expect(haloRadius(0, 0, 1, 1)).toBeCloseTo(0.4 * 16, 12);
     expect(haloAlpha(0, 1, 1)).toBeCloseTo(0.25 * 0.38, 12);
+  });
+});
+
+describe('a stroked circle, as an annulus', () => {
+  it('centres the band ON the path, the way a canvas stroke does', () => {
+    // r = 20, w = 4 covers 18..22 — NOT 0..20, and not 0..22.
+    expect(strokeAnnulus(20, 4)).toEqual({ rOuter: 22, rInner: 18 });
+  });
+
+  it('keeps the band width, so the ring is as thick as the lineWidth was', () => {
+    for (const [r, w] of [[6, 1.5], [40, 1], [12.5, 3], [3, 0.5]]) {
+      const a = strokeAnnulus(r, w);
+      expect(a.rOuter - a.rInner).toBeCloseTo(w, 12);
+      expect((a.rOuter + a.rInner) / 2).toBeCloseTo(r, 12);
+    }
+  });
+
+  it('clamps the hole shut rather than going negative', () => {
+    // A stroke wider than the diameter covers the centre, which IS a filled
+    // disc — and rInner = 0 is how the encoding spells "filled". A negative
+    // inner radius would be rejected by discEncodingInvariant() instead.
+    expect(strokeAnnulus(2, 10)).toEqual({ rOuter: 7, rInner: 0 });
+    expect(strokeAnnulus(2, 4)).toEqual({ rOuter: 4, rInner: 0 });
+  });
+
+  it('survives the encoding it was built for', () => {
+    // The conversion is only worth anything if what it produces is a legal
+    // instance: an inner radius that exceeds the outer is exactly what
+    // discEncodingInvariant() rejects, and a clamp is what keeps it from one.
+    const st = createEdgeState(4);
+    const a = strokeAnnulus(6, 1.5);
+    writeDisc(st.data, 0, {
+      cx: 100, cy: 50, rOuter: a.rOuter, rInner: a.rInner,
+      hsl: { hue: 45, sat: 90, lit: 70 }, alpha: 0.18, flags: packFlags(0, 0, 0),
+    });
+    expect(discEncodingInvariant(st.data, 0)).toEqual([]);
+    const d = readDisc(st.data, 0);
+    expect(d.isDisc).toBe(true);
+    expect(d.rOuter).toBeCloseTo(6.75, 5);
+    expect(d.rInner).toBeCloseTo(5.25, 5);
+  });
+
+  it('a hole-clamped ring is byte-identical to the filled disc it becomes', () => {
+    const st = createEdgeState(4);
+    const a = strokeAnnulus(2, 10);
+    writeDisc(st.data, 0, { cx: 1, cy: 2, rOuter: a.rOuter, rInner: a.rInner,
+      rgb: [1, 1, 1], alpha: 0.5, flags: 0 });
+    writeDisc(st.data, EDGE_STRIDE, { cx: 1, cy: 2, rOuter: 7,
+      rgb: [1, 1, 1], alpha: 0.5, flags: 0 });
+    expect(Array.from(st.data.slice(0, EDGE_STRIDE)))
+      .toEqual(Array.from(st.data.slice(EDGE_STRIDE, EDGE_STRIDE * 2)));
   });
 });
 

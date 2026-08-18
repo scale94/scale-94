@@ -1709,6 +1709,398 @@ try {
 } finally { await r7.close(); }
 
 
+// ── The three node rings (step 5 task 5) ───────────────────────────────────
+//
+// The beacon ring and both chimera rings. None of the seven capture states
+// reaches any of them, so artCompare 21/21 across the task that moved them to
+// the GPU is worth exactly nothing: deleting the layer scores the same green.
+//
+// THE METRIC, and its expected size, worked out BEFORE the run — a metric too
+// coarse for its signal is this project's documented failure mode:
+//
+//   The ring is 1-2px of band at a known radius from its node. Measured
+//   through the disc probe at these exact radii (scripts/_t5rings.mjs part 4),
+//   a band of alpha 0.18 reads about 21 luminance units above the backdrop and
+//   its centre reads 0.0 — so the signal is tens of units and the hole is real
+//   at this scale, not something the bloom fills in. The chimera sync ring
+//   ships at alpha ~0.17, the flicker ring at 0.05-0.23 behind a 3-on-4-off
+//   dash (43% duty), the beacon at 0.01-0.16 depending on the node's depth.
+//   Expect a bump of ~15-20 for sync, ~4-10 for flicker, ~3-15 for the beacon.
+//
+//   So: a RADIAL BUMP. Mean luminance in the band minus the mean of the two
+//   shoulders 1.5-3.5px either side of it. That removes any smooth radial
+//   gradient — which is what the node's own halo is — and it is measured
+//   against THREE controls, because one is not enough here:
+//     - a DECOY band 6px further out in the SAME frame (same halo, same node),
+//     - the same band with the layer switched off,
+//     - and the band geometry is re-derived from each frame's own core disc,
+//       so the two frames' rotation drift cannot move the band off the ring.
+//
+// Both forcing hooks change more than their layer — __artForceBeacon puts the
+// awakening machine in phase 1, which PUMPS the beacon node's energy, and
+// __artSetChimera feeds _updateChimera, which spawns boundary zones. Neither
+// touches the ring's own radius, which is why the metric is anchored there.
+// MEASURED on the build that ships these layers, five runs each: the sync ring
+// bumps 8.4-10.5, the beacon 7.7-12.1, and the flicker ring 2.46-2.79 — thin,
+// and thin for a reason rather than by accident: its band is 0.75px against
+// the sync ring's 1.12, and a 3-on-4-off dash lights 43% of it. So 2.0 is a
+// floor with about 20% of headroom under the flicker ring, and a reading near
+// 1 there is a regression, not a bad frame.
+const RING_BUMP_MIN = 2.0;    // luminance units
+const RING_OFF_RATIO = 3;     // on-bump must beat the layer-off bump by this
+const RING_DECOY_RATIO = 2;   // ...and the same-frame decoy band by this
+
+function nodeDiscsOf(st) {
+  const out = { cores: [], halos: [], rings: [] };
+  for (let k = st.discStart ?? 0; (k + 1) * EDGE_STRIDE <= st.instances.length; k++) {
+    const o = k * EDGE_STRIDE, w = st.instances[o + EDGE_OFF.width];
+    if (!isDisc(w)) continue;
+    const d = {
+      i: k, cx: st.instances[o + EDGE_OFF.ax], cy: st.instances[o + EDGE_OFF.ay],
+      rOuter: Math.abs(w) * 0.5,
+      rInner: st.instances[o + EDGE_OFF.bx],
+      falloff: st.instances[o + EDGE_OFF.c1],
+      alpha: unpackAlphas(st.instances[o + EDGE_OFF.alphas]).a0,
+      flags: st.instances[o + EDGE_OFF.flags],
+    };
+    if (d.rInner > 0) out.rings.push(d);
+    else if (d.falloff > 0) out.halos.push(d);
+    else out.cores.push(d);
+  }
+  return out;
+}
+// Discs on the ADDITIVE mesh — only the beacon writes one.
+function addRingsOf(add) {
+  const out = [];
+  for (let k = 0; (k + 1) * EDGE_STRIDE <= add.instances.length; k++) {
+    const o = k * EDGE_STRIDE, w = add.instances[o + EDGE_OFF.width];
+    if (!isDisc(w)) continue;
+    out.push({
+      i: k, cx: add.instances[o + EDGE_OFF.ax], cy: add.instances[o + EDGE_OFF.ay],
+      rOuter: Math.abs(w) * 0.5, rInner: add.instances[o + EDGE_OFF.bx],
+      alpha: unpackAlphas(add.instances[o + EDGE_OFF.alphas]).a0,
+      flags: add.instances[o + EDGE_OFF.flags],
+    });
+  }
+  return out;
+}
+// Mean luminance over an annulus, sampled by angle and radius.
+function annulusMean(img, cx, cy, r0, r1, litOnly = null) {
+  let sum = 0, n = 0;
+  const steps = Math.max(180, Math.round(r1 * 8));
+  for (let k = 0; k < steps; k++) {
+    const th = (k / steps) * Math.PI * 2;
+    if (litOnly && !litOnly(th)) continue;
+    for (let r = r0; r <= r1; r += 0.4) {
+      const x = Math.round(cx + Math.cos(th) * r), y = Math.round(cy + Math.sin(th) * r);
+      if (x < 0 || y < 0 || x >= img.width || y >= img.height) continue;
+      const i = (y * img.width + x) * 4;
+      sum += 0.2126 * img.data[i] + 0.7152 * img.data[i + 1] + 0.0722 * img.data[i + 2];
+      n++;
+    }
+  }
+  return n ? sum / n : 0;
+}
+function radialBump(img, cx, cy, rIn, rOut, litOnly = null) {
+  const band = annulusMean(img, cx, cy, rIn, rOut, litOnly);
+  const inner = annulusMean(img, cx, cy, Math.max(0, rIn - 3.5), Math.max(0.5, rIn - 1.5), litOnly);
+  const outer = annulusMean(img, cx, cy, rOut + 1.5, rOut + 3.5, litOnly);
+  return band - (inner + outer) / 2;
+}
+
+/**
+ * Which ANGLES of a dashed ring the shader lights, mirroring EDGE_FRAG's disc
+ * branch exactly: the dash walks `rMid * theta` — arc length at the band's MID
+ * radius — and lights where `mod(dashPos, period) <= duty`. `shift` slides the
+ * pattern half a period for the anti-phase control.
+ *
+ * Averaged over the whole ring the flicker layer's bump is only ~2.4 against a
+ * floor of 2.0, because 0.75px of band behind a 3-on-4-off dash is 43% of very
+ * little. Sampling the LIT angles alone roughly doubles it AND turns the check
+ * into a test of the angular dash itself, which nothing else on this branch
+ * measures for a ring.
+ */
+function dashLit(rMid, period, duty, shift = 0) {
+  return (th) => {
+    const pos = rMid * th + shift;
+    return ((pos % period) + period) % period <= duty;
+  };
+}
+
+const r8 = await launch({ url: 'http://localhost:5174/', width: 1520, height: 900, deterministic: true });
+try {
+  await r8.waitFor('document.querySelectorAll("canvas").length > 0', { label: 'boot' });
+  await sleep(2500);
+  await r8.eval(clickText('/CHAOS'));
+  await r8.waitFor(READY, { label: 'sphere', timeoutMs: 40000 });
+  await r8.waitFor(GL_READY, { label: 'GL sized', timeoutMs: 40000 });
+  await sleep(4000);
+  await r8.eval('window.__virtualize()');
+  await sleep(150);
+  await r8.eval('window.__reseed(); window.__artHarnessReset();');
+  await r8.pump(240);   // past the boot chimera burst
+  const rect = await r8.eval(RECT);
+  const clip = { x: rect.x, y: rect.y, width: rect.w, height: rect.h, scale: 1 };
+  // Off the sphere: a hover changes the node's energy, radius and core opacity.
+  await r8.hover(Math.round(rect.x + 8), Math.round(rect.y + 8));
+  await r8.pump(10);
+
+  const state = async () => JSON.parse(await r8.eval('JSON.stringify(window.__artEdgeState())'));
+  const census = async () => JSON.parse(await r8.eval('JSON.stringify(window.__artNodeState())'));
+  const hasHooks = await r8.eval(
+    'typeof window.__artForceBeacon === "function" && typeof window.__artSetChimera === "function"');
+
+  if (!hasHooks) {
+    console.log('NODE RINGS  __artForceBeacon / __artSetChimera missing — production build?');
+    verdict('NODE BEACON RING', false);
+    verdict('CHIMERA SYNC RING', false);
+    verdict('CHIMERA FLICKER RING', false);
+  } else {
+    const clusterIds = JSON.parse(await r8.eval(
+      'JSON.stringify(Object.keys(window.__artSetChimera({}) || {}))'));
+    const setAll = (v) => 'window.__artSetChimera(' + JSON.stringify(
+      Object.fromEntries(clusterIds.map(c => [c, v]))) + ')';
+    const CHIM_OFF = { orderParam: 0, meanPhase: 0, isSync: false, isAsync: true, isChimera: false };
+
+    // ── The beacon ring ──────────────────────────────────────────────────
+    console.log('NODE BEACON RING  (additive annulus, ONE node, awakening phase 1)');
+    // Chimera OFF first. The spatial null below is the same band around every
+    // other node, and an idle frame has the sync ring live on about twenty of
+    // them — at radius + 6*scale, which is inside the offsets being sampled.
+    // Left on, the null's own spread swallows the beacon: measured, sd 5.3 and
+    // z 2.4 with the rings up, against the numbers below with them down.
+    await r8.eval(setAll(CHIM_OFF));
+    await r8.pump(2);
+    // The ring's alpha is pulse * 0.2 * depthAlpha, and the beacon fires for
+    // ONE fixed node — so how visible it is depends on where that node happens
+    // to be. Two things follow, and both are the layer's behaviour rather than
+    // a harness quirk:
+    //
+    //   A two-pass "find the peak, then wait for it to come round" cannot
+    //   work: the node rotates, the depth term drifts, and the second pass
+    //   never reaches the first pass's peak. So sample the window and KEEP the
+    //   best frame, image and buffer together, so the two cannot describe
+    //   different frames.
+    //
+    //   And a window that opens while the node is on the FAR side tops out
+    //   near alpha 0.012 — about 2 of 255 at full coverage, which is not a
+    //   measurable ring and not a failure either. Measured: one run peaked at
+    //   0.012 across the whole window and the next at 0.129. So re-open the
+    //   window, with the sphere turned further, until the layer is in a state
+    //   worth measuring — and say which attempt it took.
+    const BEACON_MIN_ALPHA = 0.05;
+    let peak = 0, ring = null, onImg = null, stOn = null, bCensus = null, tries = 0;
+    while (tries++ < 6 && !ring) {
+      if (tries > 1) { await r8.eval('window.__artForceBeacon(false)'); await r8.pump(300); }
+      await r8.eval('window.__artForceBeacon()');
+      await r8.pump(2);
+      bCensus = await census();
+      let best = 0;
+      for (let f = 0; f < 12; f++) {
+        // Re-asserted every pass: __artSetChimera is deliberately not sticky
+        // (the simulation is allowed to overwrite an injection), so a single
+        // call before a 300-frame wait leaves the sync ring back on twenty
+        // nodes and the spatial null with two members.
+        await r8.eval(setAll(CHIM_OFF));
+        await r8.pump(8);
+        const st = await state();
+        const rr = addRingsOf(st.additive).at(-1);
+        if (!rr) continue;
+        peak = Math.max(peak, rr.alpha);
+        if (rr.alpha < BEACON_MIN_ALPHA || rr.alpha <= best) continue;
+        best = rr.alpha;
+        onImg = decodePng(await r8.screenshot({ clip }));
+        ring = rr; stOn = st;
+      }
+    }
+    if (ring) console.log('   window ' + tries + ' of at most 6 put the node where the'
+      + ' ring is measurable (alpha ' + ring.alpha.toFixed(3) + ')');
+    if (!ring || bCensus.beacon !== 1) {
+      console.log('   forced; census=' + (bCensus ? bCensus.beacon : '?')
+        + ', best ring alpha over ' + (tries - 1) + ' windows: ' + peak.toFixed(3)
+        + ' (need ' + BEACON_MIN_ALPHA + ' to be worth measuring)');
+      verdict('NODE BEACON RING', false);
+    } else {
+      const core = nodeDiscsOf(stOn).cores
+        .find(d => Math.hypot(d.cx - ring.cx, d.cy - ring.cy) < 0.5);
+      // Offsets from the node's OWN core radius, so the off-frame can rebuild
+      // the same band after the sphere has turned two frames further.
+      const d0 = ring.rInner - core.rOuter, d1 = ring.rOuter - core.rOuter;
+      const onBump = radialBump(onImg, ring.cx, ring.cy, ring.rInner, ring.rOuter);
+      const decoy = radialBump(onImg, ring.cx, ring.cy, ring.rInner + 6, ring.rOuter + 6);
+      await r8.eval('window.__artForceBeacon(false)');
+      await r8.pump(2);
+      const stOff = await state();
+      const offImg = decodePng(await r8.screenshot({ clip }));
+      const core2 = nodeDiscsOf(stOff).cores
+        .reduce((b, d) => (Math.hypot(d.cx - core.cx, d.cy - core.cy)
+          < Math.hypot(b.cx - core.cx, b.cy - core.cy) ? d : b));
+      const offBump = radialBump(offImg, core2.cx, core2.cy,
+        core2.rOuter + d0, core2.rOuter + d1);
+      // A SPATIAL null, in the beacon's own frame: the same band offsets around
+      // every OTHER node. Thirty nodes give a mean and a spread, so the ring
+      // can be asked to stand out of its own frame's population rather than
+      // out of a second frame's.
+      //
+      // That is the gate here, and the layer-off number is NOT — it comes back
+      // NEGATIVE (about -1.7) for a reason that is not noise: __artForceBeacon
+      // drives the awakening machine into phase 1, which pumps this node's
+      // energy (artAwakening.js:50), so switching the ring off also shrinks and
+      // dims the halo underneath it. Gating on a control that moves a second
+      // layer would be gating on the wrong thing; it is printed, with its sign,
+      // rather than quietly dropped.
+      const onDiscs = nodeDiscsOf(stOn);
+      const others = onDiscs.cores
+        .filter(d => Math.hypot(d.cx - core.cx, d.cy - core.cy) > 0.5)
+        // ...and nothing that carries a ring of its own.
+        .filter(d => !onDiscs.rings.some(g => Math.hypot(g.cx - d.cx, g.cy - d.cy) < 0.5))
+        .map(d => radialBump(onImg, d.cx, d.cy, d.rOuter + d0, d.rOuter + d1));
+      const oMean = others.reduce((t, v) => t + v, 0) / (others.length || 1);
+      const oSd = Math.sqrt(others.reduce((t, v) => t + (v - oMean) ** 2, 0)
+        / Math.max(1, others.length - 1));
+      const z = (onBump - oMean) / (oSd || 1);
+      const ok = onBump > RING_BUMP_MIN
+        && z > 3
+        && onBump > Math.abs(decoy) * RING_DECOY_RATIO;
+      console.log('   ring alpha ' + ring.alpha.toFixed(3) + ' (peak ' + peak.toFixed(3) + '), band '
+        + ring.rInner.toFixed(1) + '..' + ring.rOuter.toFixed(1) + 'px around node ('
+        + ring.cx.toFixed(0) + ', ' + ring.cy.toFixed(0) + ')');
+      console.log('   radial bump ' + onBump.toFixed(2) + '   decoy band (+6px) ' + decoy.toFixed(2)
+        + '   (need > ' + RING_BUMP_MIN + ', > ' + RING_DECOY_RATIO + 'x decoy)');
+      console.log('   same band on the other ' + others.length + ' nodes: mean '
+        + oMean.toFixed(2) + ' sd ' + oSd.toFixed(2) + '  ->  z = ' + z.toFixed(1)
+        + ' (need > 3)');
+      console.log('   layer off, same band: ' + offBump.toFixed(2)
+        + '  — NOT a gate; phase 1 also pumps the node energy, so the halo'
+        + ' under the ring moves with it');
+      verdict('NODE BEACON RING', ok);
+    }
+    await r8.eval('window.__artForceBeacon(false)');
+    await r8.pump(2);
+
+    // ── The two chimera rings ────────────────────────────────────────────
+
+    for (const [label, verdictName, forced, key, dashed] of [
+      ['sync', 'CHIMERA SYNC RING',
+        { orderParam: 0.95, isSync: true, isAsync: false, isChimera: false }, 'chimeraSync', false],
+      ['flicker', 'CHIMERA FLICKER RING',
+        { orderParam: 0.55, isSync: false, isAsync: false, isChimera: true }, 'chimeraFlicker', true],
+    ]) {
+      console.log('CHIMERA ' + label.toUpperCase() + ' RING  (source-over annulus, '
+        + (dashed ? 'dashed [3,4]' : 'solid') + ', one per phase-locked node)');
+      // Sweep meanPhase: at a pinned clock one phase puts every cluster at the
+      // pulse's trough, and the frame comes back empty while the hook reports
+      // the layer forced on. Measured on this branch, twice.
+      // ...and the FIRST phase that draws anything is not good enough either:
+      // one that clears the cutoff by a hair leaves the rings at alpha 0.03,
+      // an eighth of what the layer ships at, and the check then fails on a
+      // frame where the layer is working. Sweep all five and keep the phase
+      // with the strongest rings — forcing a layer to a representative state,
+      // which is what the whole hook is for.
+      //
+      // Re-asserted every pump, and retried: the injection is not sticky and a
+      // single pump can land on a frame the simulation has already rebuilt.
+      // Without the retry the re-apply after the sweep came back with a census
+      // of zero on a build where the layer was drawing thirty-one rings.
+      const forceRing = async (meanPhase) => {
+        for (let k = 0; k < 8; k++) {
+          await r8.eval(setAll({ ...forced, meanPhase }));
+          await r8.pump(1);
+          const c = await census();
+          if (c[key] > 0) return { count: c[key], st: await state() };
+        }
+        return null;
+      };
+      let drew = 0, stOn = null, bestPhase = null, bestA = 0;
+      for (const meanPhase of [0.4, 1.6, 2.8, 4.0, 5.2]) {
+        const got = await forceRing(meanPhase);
+        if (!got) continue;
+        const rs = nodeDiscsOf(got.st).rings;
+        const a = rs.length ? rs.reduce((t, d) => t + d.alpha, 0) / rs.length : 0;
+        if (a > bestA) { bestA = a; bestPhase = meanPhase; drew = got.count; stOn = got.st; }
+      }
+      if (drew) {
+        const again = await forceRing(bestPhase);
+        if (again) { drew = again.count; stOn = again.st; }
+        console.log('   strongest at meanPhase ' + bestPhase + ' (mean ring alpha '
+          + bestA.toFixed(3) + ' across the five swept)');
+      }
+      if (!drew) {
+        console.log('   forced at five phases and the census never counted a ring');
+        verdict(verdictName, false);
+        continue;
+      }
+      const onImg = decodePng(await r8.screenshot({ clip }));
+      const on = nodeDiscsOf(stOn);
+      // Pair each ring with its own node's core, and keep only the rings whose
+      // band is clear of a NEIGHBOUR's core: an overlapping node puts its own
+      // edge inside the band and the bump stops being this layer's.
+      const paired = [];
+      for (const rg of on.rings) {
+        const core = on.cores.find(d => Math.hypot(d.cx - rg.cx, d.cy - rg.cy) < 0.5);
+        if (!core) continue;
+        const clash = on.cores.some(d => d !== core
+          && Math.hypot(d.cx - rg.cx, d.cy - rg.cy) < rg.rOuter + d.rOuter + 6);
+        if (!clash) paired.push({ rg, core });
+      }
+      // For the dashed ring, sample only the angles the shader lights — and
+      // measure the gaps too, as the control that a solid ring cannot pass.
+      const lit = (rg, shift = 0) => (dashed
+        ? dashLit((rg.rOuter + rg.rInner) / 2, rg.flags % 256,
+                  Math.floor(rg.flags / 256) % 256, shift)
+        : null);
+      const bumps = paired.map(({ rg }) =>
+        radialBump(onImg, rg.cx, rg.cy, rg.rInner, rg.rOuter, lit(rg)));
+      const gaps = dashed ? paired.map(({ rg }) => radialBump(onImg, rg.cx, rg.cy,
+        rg.rInner, rg.rOuter, lit(rg, (rg.flags % 256) / 2))) : [];
+      const decoys = paired.map(({ rg }) =>
+        radialBump(onImg, rg.cx, rg.cy, rg.rInner + 6, rg.rOuter + 6, lit(rg)));
+      await r8.eval(setAll(CHIM_OFF));
+      await r8.pump(2);
+      const stOff = await state();
+      const offImg = decodePng(await r8.screenshot({ clip }));
+      const offCores = nodeDiscsOf(stOff).cores;
+      const offBumps = paired.map(({ rg, core }) => {
+        const c2 = offCores.reduce((b, d) => (Math.hypot(d.cx - core.cx, d.cy - core.cy)
+          < Math.hypot(b.cx - core.cx, b.cy - core.cy) ? d : b), offCores[0]);
+        return radialBump(offImg, c2.cx, c2.cy,
+          c2.rOuter + (rg.rInner - core.rOuter), c2.rOuter + (rg.rOuter - core.rOuter), lit(rg));
+      });
+      const avg = a => (a.length ? a.reduce((s, v) => s + v, 0) / a.length : 0);
+      const onBump = avg(bumps), decoy = avg(decoys), offBump = avg(offBumps);
+      const gapBump = avg(gaps);
+      const alpha = avg(paired.map(({ rg }) => rg.alpha));
+      const period = paired.length ? paired[0].rg.flags % 256 : -1;
+      const ok = paired.length >= 4
+        && (dashed ? period === 7 : period === 0)
+        && onBump > RING_BUMP_MIN
+        && onBump > Math.abs(offBump) * RING_OFF_RATIO
+        && onBump > Math.abs(decoy) * RING_DECOY_RATIO
+        // The gaps have to be DARKER than the dashes by a clear margin. A
+        // solid ring — the failure this catches — reads the same in both.
+        && (!dashed || onBump > gapBump * 1.6);
+      console.log('   ' + drew + ' rings drawn, ' + paired.length
+        + " clear of a neighbour's core; mean alpha " + alpha.toFixed(3)
+        + '; packed dash period ' + period + ' (expect ' + (dashed ? 7 : 0) + ')');
+      console.log('   radial bump ' + onBump.toFixed(2)
+        + (dashed ? ' (dash-lit angles only)' : '')
+        + '   decoy band (+6px) ' + decoy.toFixed(2)
+        + '   layer off ' + offBump.toFixed(2)
+        + '   (need > ' + RING_BUMP_MIN + ', > ' + RING_OFF_RATIO + 'x off, > '
+        + RING_DECOY_RATIO + 'x decoy)');
+      if (dashed) {
+        console.log('   the GAPS between the dashes: ' + gapBump.toFixed(2)
+          + '   dash/gap ' + (gapBump !== 0 ? (onBump / gapBump).toFixed(2) : 'inf')
+          + ' (need > 1.6 — a solid ring reads 1.0)');
+      }
+      verdict(verdictName, ok);
+    }
+    await r8.eval(setAll(CHIM_OFF));
+    await r8.pump(2);
+  }
+} finally { await r8.close(); }
+
+
 // ── Tally ─────────────────────────────────────────────────────────────────
 const passed = results.filter(r => r.ok).length;
 console.log(`PRESENCE ${passed}/${results.length}`);

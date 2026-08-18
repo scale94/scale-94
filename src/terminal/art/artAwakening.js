@@ -5,6 +5,10 @@
 // but don't touch React state.
 
 import { NODE_COLORS } from './artGraph';
+import {
+  beaconPulse, beaconRadius, beaconAlpha,
+  BEACON_WIDTH, BEACON_HUE_FALLBACK, BEACON_SAT, BEACON_LIT,
+} from './artNodes';
 import { emitNodeBurst } from './artParticles';
 
 // ── Jury Awakening state machine ─────────────────────────────────────────────
@@ -78,27 +82,40 @@ export function stepAwakening(aw, nodes, frameCount, particles) {
 // tested; SphereBackground.js draws it. Nothing draws it on the 2D canvas.
 
 // ── Beacon ring — pulsing invitation during awakening phase 1 ────────────────
-// nodeCount should be passed from NODES.length
-// Returns true when it drew, false when the phase/index gate rejected it. The
-// return value feeds ArtTab's node census: this ring fires for ONE node during
-// ONE ~4s window, so a capture that missed it scores identical parity whether
-// the layer ships or is deleted, and only the draw site can say which happened.
-export function drawBeaconRing(ctx, aw, nodeIdx, p, radius, renderCol, depthAlpha, nodeCount) {
-  if (aw.phase !== 1 || nodeIdx !== (aw.beaconIdx % (nodeCount || 31))) return false;
+// ON THE GPU since step 5 task 5. This is now the GATE and the PARAMETERS, and
+// it touches no context: ArtTab writes the annulus into the ADDITIVE stream,
+// which is where `globalCompositeOperation = 'lighter'` went.
+//
+// nodeCount should be passed from NODES.length. Returns null when the
+// phase/index gate rejects it, and the ring's parameters when it fires — the
+// truthiness is the census signal it has always been, so a caller that only
+// asks "did it draw?" reads the same as before.
+//
+// This ring fires for ONE node during ONE ~4s window (elapsed 4.1s-8.0s of a
+// real boot), so a capture that missed it scores identical parity whether the
+// layer ships or is deleted, and only the draw site can say which happened.
+//
+// `tSeconds` is injectable so the pulse is testable without a clock; the
+// default is the wall clock the 2D version read.
+export function beaconRingState(aw, nodeIdx, p, radius, renderCol, depthAlpha,
+                                nodeCount, tSeconds = performance.now() * 0.001) {
+  if (aw.phase !== 1 || nodeIdx !== (aw.beaconIdx % (nodeCount || 31))) return null;
 
-  const beaconT = performance.now() * 0.001;
-  const ringPulse = 0.3 + 0.5 * Math.pow(Math.sin(beaconT * 2.0), 2);
-  const ringR = radius + (6 + ringPulse * 6) * p.scale;
-
-  ctx.save();
-  ctx.globalCompositeOperation = 'lighter';
-  ctx.beginPath();
-  ctx.arc(p.sx, p.sy, ringR, 0, Math.PI * 2);
-  ctx.strokeStyle = `hsla(${renderCol.hue ?? 40},70%,65%,${(ringPulse * 0.2 * depthAlpha).toFixed(3)})`;
-  ctx.lineWidth = 1.5 * p.scale;
-  ctx.stroke();
-  ctx.restore();
-  return true;
+  const pulse = beaconPulse(tSeconds);
+  return {
+    cx: p.sx,
+    cy: p.sy,
+    radius: beaconRadius(radius, pulse, p.scale),
+    width: BEACON_WIDTH * p.scale,
+    // `?? 40` — a dynamic node with no registered hue falls back rather than
+    // writing NaN into the buffer, which is what the hsla() string did too.
+    hsl: {
+      hue: renderCol.hue ?? BEACON_HUE_FALLBACK,
+      sat: BEACON_SAT,
+      lit: BEACON_LIT,
+    },
+    alpha: beaconAlpha(pulse, depthAlpha),
+  };
 }
 
 // ── Bifurcation Conductor (right-edge whisker) ───────────────────────────────

@@ -58,9 +58,11 @@ import {
   nodeEnergy, depthCueAlpha, resonanceDimmed, nodeRadius, coreAlpha,
   birthProgress, birthProject, bleedMix, spectralTint,
   coreIsOpaque, coreColorSource,
-  haloDraws, haloRadius, haloInnerRadius, haloAlpha,
+  haloDraws, haloRadius, haloInnerRadius, haloAlpha, strokeAnnulus,
   chimeraSyncPulse, chimeraSyncAlpha, chimeraSyncRadius, CHIMERA_ALPHA_CUTOFF,
   chimeraFlickRate, chimeraFlickAlpha, chimeraFlickRadius, chimeraFlickHue,
+  CHIMERA_SYNC_HSL, CHIMERA_SYNC_WIDTH,
+  CHIMERA_FLICK_DASH, CHIMERA_FLICK_WIDTH, CHIMERA_FLICK_SAT, CHIMERA_FLICK_LIT,
   ghostDraws, ghostRadius, ghostOuterRadius, ghostAlpha, ghostSweep,
   fusionPulse, fusionRingRadius, fusionRingAlpha, fusionThreadAlpha,
   probePulse, probeDepthAlpha, probeRadius, probeGlowRadius, probeGlowInnerRadius,
@@ -89,7 +91,7 @@ import {
   chimeraDashOffset, CHIMERA_MIN_STRENGTH, CHIMERA_CP_PULL, CHIMERA_DASH,
   CHIMERA_SAT, CHIMERA_LIT, CHIMERA_MAX_ZONES,
 } from '../art/artEdges';
-import { stepAwakening, drawBeaconRing, drawConductor } from '../art/artAwakening';
+import { stepAwakening, beaconRingState, drawConductor } from '../art/artAwakening';
 import {
   riftTint, exergyAlpha, genesisGlowState, ambientIntensity, ghostTrailAlpha,
   stepFlash, FLASH_ALPHA, FLASH_CUTOFF,
@@ -131,6 +133,16 @@ const FILAMENT_FLAGS = packFlags(FILAMENT_PERIOD, FILAMENT_DASH[0], 0, false,
   ADDITIVE_LAYER.glowQuant);
 const CHIMERA_FLAGS = packFlags(CHIMERA_PERIOD, CHIMERA_DASH[0], 0, false,
   ADDITIVE_LAYER.glowQuant);
+
+// The node rings' flags, packed once for the same reason. Two are solid; the
+// flicker ring's [3,4] is an ANGULAR dash — for a disc the shader walks
+// r*theta at the band's MID radius, so the pattern stays in px of arc length
+// and the dash boundaries come out radial, exactly as ctx.setLineDash draws
+// them around a stroked circle.
+const BEACON_FLAGS = packFlags(0, 0, 0, false, ADDITIVE_LAYER.glowQuant);
+const CHIMERA_SYNC_FLAGS = packFlags(0, 0, 0);
+const CHIMERA_FLICK_FLAGS = packFlags(
+  CHIMERA_FLICK_DASH[0] + CHIMERA_FLICK_DASH[1], CHIMERA_FLICK_DASH[0], 0);
 
 // Once per session, not once per frame: an overflowing frame overflows 60 times
 // a second and would bury the console it is trying to be visible in.
@@ -1527,17 +1539,6 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           }
         }
         geomEffectsRef.current = live;
-        // Never quietly, and this is the LAST writer into `ag`, so the counter
-        // it reads covers the filaments and the chimera fringes above as well
-        // as the prism. MAX_ADDITIVE_EDGES is sized so it is unreachable (four
-        // concurrent eleven-node effects at the segment ceiling, plus both
-        // orphan layers at their own caps), so if it ever fires the arithmetic
-        // behind the cap is wrong, not the frame.
-        if (ag.dropped > 0 && !prismOverflowWarned) {
-          prismOverflowWarned = true;
-          console.error(`[art] additive overflow: ${ag.dropped} instances dropped at`
-            + ` ${ag.count}/${MAX_ADDITIVE_EDGES} — MAX_ADDITIVE_EDGES is too small`);
-        }
       }
 
       // ── Nodes (depth-sorted, near drawn last = on top) ────────────────────
@@ -1655,8 +1656,32 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         }
 
         // ── Awakening beacon ring (logic in artAwakening.js) ──────────────
-        if (drawBeaconRing(ctx, aw, i, p, radius, renderCol, depthAlpha, nodes.length)) {
-          _cen.beacon++;
+        //
+        // ON THE GPU, and in the ADDITIVE stream: its 2D form set
+        // `globalCompositeOperation = 'lighter'`, and `ag` is where that blend
+        // lives. That stream composites AFTER the whole source-over one, so a
+        // near node's core no longer occludes this ring — measured in this
+        // task's report rather than assumed. Appending here puts it after the
+        // filaments, the chimera fringes, the prism and the resonance edge,
+        // which is the 2D order.
+        const _beacon = beaconRingState(aw, i, p, radius, renderCol, depthAlpha,
+                                        nodes.length);
+        if (_beacon) {
+          if (ag.count < MAX_ADDITIVE_EDGES) {
+            const _ba = strokeAnnulus(_beacon.radius, _beacon.width);
+            writeDisc(ag.data, ag.count * EDGE_STRIDE, {
+              cx: _beacon.cx, cy: _beacon.cy,
+              rOuter: _ba.rOuter, rInner: _ba.rInner,
+              hsl: _beacon.hsl, alpha: _beacon.alpha,
+              flags: BEACON_FLAGS,
+            });
+            ag.count++;
+            _cen.beacon++;
+          } else {
+            // Counted, not lost — a Float32Array write past the end is a
+            // silent no-op, and the overflow report below reads this.
+            ag.dropped++;
+          }
         }
 
         // ── Chimera state halo — phase-locked clusters glow in unison ──────
@@ -1668,29 +1693,38 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
               // Synchronized: steady warm halo pulsing at cluster phase
               const syncPulse = chimeraSyncPulse(_ct, _chim.meanPhase);
               const syncAlpha = chimeraSyncAlpha(_chim.orderParam, syncPulse, depthAlpha);
-              if (syncAlpha > CHIMERA_ALPHA_CUTOFF) {
-                const syncR = chimeraSyncRadius(radius, p.scale);
-                ctx.beginPath();
-                ctx.arc(p.sx, p.sy, syncR, 0, Math.PI * 2);
-                ctx.strokeStyle = `hsla(45,90%,70%,${syncAlpha.toFixed(3)})`;
-                ctx.lineWidth = 1.5 * p.scale;
-                ctx.stroke();
+              // Source-over, so it goes into `eg` right behind this node's own
+              // core — the order the 2D loop drew them in.
+              if (syncAlpha > CHIMERA_ALPHA_CUTOFF && eg.count < MAX_EDGES) {
+                const _sa = strokeAnnulus(chimeraSyncRadius(radius, p.scale),
+                                          CHIMERA_SYNC_WIDTH * p.scale);
+                writeDisc(eg.data, eg.count * EDGE_STRIDE, {
+                  cx: p.sx, cy: p.sy,
+                  rOuter: _sa.rOuter, rInner: _sa.rInner,
+                  hsl: CHIMERA_SYNC_HSL, alpha: syncAlpha,
+                  flags: CHIMERA_SYNC_FLAGS,
+                });
+                eg.count++;
                 _cen.chimeraSync++;
               }
             } else if (_chim.isChimera) {
               // Chimera boundary: erratic flickering ring
               const flickRate = chimeraFlickRate(_chim.orderParam);
               const flickAlpha = chimeraFlickAlpha(_ct, flickRate, i, depthAlpha);
-              if (flickAlpha > CHIMERA_ALPHA_CUTOFF) {
-                const chimR = chimeraFlickRadius(radius, p.scale);
-                const chimHue = chimeraFlickHue(_ct, i);
-                ctx.beginPath();
-                ctx.arc(p.sx, p.sy, chimR, 0, Math.PI * 2);
-                ctx.strokeStyle = `hsla(${chimHue},80%,60%,${flickAlpha.toFixed(3)})`;
-                ctx.lineWidth = 1.0 * p.scale;
-                ctx.setLineDash([3, 4]);
-                ctx.stroke();
-                ctx.setLineDash([]);
+              if (flickAlpha > CHIMERA_ALPHA_CUTOFF && eg.count < MAX_EDGES) {
+                const _fa = strokeAnnulus(chimeraFlickRadius(radius, p.scale),
+                                          CHIMERA_FLICK_WIDTH * p.scale);
+                writeDisc(eg.data, eg.count * EDGE_STRIDE, {
+                  cx: p.sx, cy: p.sy,
+                  rOuter: _fa.rOuter, rInner: _fa.rInner,
+                  hsl: {
+                    hue: chimeraFlickHue(_ct, i),
+                    sat: CHIMERA_FLICK_SAT, lit: CHIMERA_FLICK_LIT,
+                  },
+                  alpha: flickAlpha,
+                  flags: CHIMERA_FLICK_FLAGS,
+                });
+                eg.count++;
                 _cen.chimeraFlicker++;
               }
             }
@@ -1741,6 +1775,22 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             color: hslAlpha(renderCol, 1),
           });
         }
+      }
+
+      // Never quietly. This sits AFTER the node loop because the beacon ring
+      // moved into `ag` in step 5 task 5 — it was under the prism, which was
+      // then the last writer, and a check that runs before a writer certifies
+      // nothing about it. It is also out of the prism's own `if`, which only
+      // ran on a frame with a live geometric effect: the filaments, the fringes
+      // and now the beacon can all write to a frame that has none.
+      // MAX_ADDITIVE_EDGES is sized so this is unreachable (four concurrent
+      // eleven-node effects at the segment ceiling, plus both orphan layers at
+      // their own caps, plus one ring per node), so if it ever fires the
+      // arithmetic behind the cap is wrong, not the frame.
+      if (ag.dropped > 0 && !prismOverflowWarned) {
+        prismOverflowWarned = true;
+        console.error(`[art] additive overflow: ${ag.dropped} instances dropped at`
+          + ` ${ag.count}/${MAX_ADDITIVE_EDGES} — MAX_ADDITIVE_EDGES is too small`);
       }
 
       // ── Manual fusion: pending targeting line + source pulse ring ─────────

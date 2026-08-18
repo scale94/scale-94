@@ -235,6 +235,27 @@ export function haloAlpha(energy, bleedAmount, depthAlpha) {
   return (energy + bleedAmount * HALO_BLEED_ALPHA_K) * HALO_ALPHA_K * depthAlpha;
 }
 
+// ── Stroked circles, as annuli ──────────────────────────────────────────────
+//
+// Every ring in this block is `ctx.arc(r) + stroke` with a `lineWidth`, and a
+// canvas stroke is centred ON the path: it covers r - w/2 to r + w/2. The
+// shader's annulus wants those two radii, so a ring that hands `r` straight
+// through as the outer radius draws something a half-width too small AND
+// FILLED, which at a glance looks like a ring with a bright middle rather than
+// like a bug. This is the one conversion between the two representations.
+
+export function strokeAnnulus(radius, lineWidth) {
+  const half = lineWidth * 0.5;
+  return {
+    rOuter: radius + half,
+    // Clamped, not signed: a width wider than the diameter makes the canvas
+    // stroke cover the centre, which IS a filled disc, and rInner = 0 is
+    // exactly how the encoding spells that. A negative would be rejected by
+    // discEncodingInvariant() instead of rendering.
+    rInner: Math.max(0, radius - half),
+  };
+}
+
 // ── Layer 3: the awakening beacon ring ──────────────────────────────────────
 //
 // Additive. Fires for ONE node (aw.beaconIdx % nodeCount) during awakening
@@ -249,6 +270,8 @@ export const BEACON_R_PULSE_K = 6;
 export const BEACON_ALPHA_K = 0.2;
 export const BEACON_WIDTH = 1.5;
 export const BEACON_HUE_FALLBACK = 40;
+export const BEACON_SAT = 70;
+export const BEACON_LIT = 65;
 
 /** sin² rather than sin: the ring swells and returns without going dark. */
 export function beaconPulse(tSeconds) {
@@ -269,7 +292,7 @@ export const CHIMERA_SYNC_ALPHA_K = 0.18;
 export const CHIMERA_SYNC_R = 6;
 export const CHIMERA_SYNC_WIDTH = 1.5;
 export const CHIMERA_ALPHA_CUTOFF = 0.01;
-export const CHIMERA_SYNC_HSL = { h: 45, s: 90, l: 70 };
+export const CHIMERA_SYNC_HSL = Object.freeze({ hue: 45, sat: 90, lit: 70 });
 
 export function chimeraSyncPulse(tSeconds, meanPhase) {
   return 0.5 + 0.5 * Math.sin(tSeconds * 2 + meanPhase);
@@ -302,6 +325,8 @@ export const CHIMERA_FLICK_ALPHA_K = 0.12;
 export const CHIMERA_FLICK_R = 8;
 export const CHIMERA_FLICK_WIDTH = 1.0;
 export const CHIMERA_FLICK_DASH = [3, 4];
+export const CHIMERA_FLICK_SAT = 80;
+export const CHIMERA_FLICK_LIT = 60;
 export const CHIMERA_FLICK_HUE_BASE = 200;
 export const CHIMERA_FLICK_HUE_SWING = 40;
 
