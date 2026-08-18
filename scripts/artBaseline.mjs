@@ -299,8 +299,23 @@ async function captureScale(scale, manifest, expectFingerprint) {
     const canvasHash = await page.eval(CANVAS_HASH);
     const signature = await page.eval(SIGNATURE);
     const shotHash = createHash('sha256').update(png).digest('hex').slice(0, 12);
-    shots[state] = { file, canvasHash, shotHash, signature };
+    // WHICH node layers this frame actually contained, counted at each draw
+    // call (ArtTab's nodeCensusRef). Two hashes can tell you a frame changed;
+    // they cannot tell you whether the layer you are certifying was on screen
+    // at all — and eight of the node block's thirteen layers are not, in any
+    // state here. A capture that missed a layer scores perfect parity whether
+    // that layer ships or is deleted, which is the failure this project has
+    // now repeated six times. Costs zero frames: evals do not advance the
+    // clock. Absent (null) on a build predating the census.
+    const nodeCensus = JSON.parse(await page.eval(
+      'JSON.stringify(window.__artNodeState ? window.__artNodeState() : null)'));
+    shots[state] = { file, canvasHash, shotHash, signature, nodeCensus };
+    const live = nodeCensus
+      ? Object.entries(nodeCensus).filter(([, v]) => typeof v === 'number' && v > 0)
+          .map(([k]) => k).join(',')
+      : 'no census';
     console.log(`   ${state.padEnd(18)} 2d=${canvasHash.padEnd(9)} shot=${shotHash}`);
+    console.log(`   ${''.padEnd(18)} layers: ${live}`);
   };
 
   const cx = Math.round(rect.x + rect.w / 2), cy = Math.round(rect.y + rect.h / 2);

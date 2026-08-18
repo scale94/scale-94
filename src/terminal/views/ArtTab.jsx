@@ -180,6 +180,23 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   const [bifurcCount, setBifurcCount] = useState(0);   // total child nodes spawned
   const birthMapRef = useRef(new Map());                // childId → {parentId, px, py, pz, t0}
 
+  // ── Node-layer draw census ────────────────────────────────────────────────
+  // One counter per node sub-layer, incremented at the draw call itself and
+  // reset each frame, on the same precedent as `eg.rings`: a layer that never
+  // draws during a capture scores perfect parity whether it ships or is
+  // deleted, and pixels cannot tell those two apart. Eight of this block's
+  // thirteen layers are in that position (see the step 5 pre-flight scan), so
+  // before step 5 moves any of them, this is what says which ones a given
+  // capture actually contained. Counting at the draw call rather than
+  // re-deriving the conditions afterwards keeps it to ONE source of truth.
+  const nodeCensusRef = useRef({
+    nodes: 0, halo: 0, core: 0, coreHover: 0, beacon: 0,
+    chimeraSync: 0, chimeraFlicker: 0, ghostInner: 0, ghostOuter: 0,
+    birth: 0, bleed: 0, spectral: 0, resonanceDim: 0,
+    fusionRing: 0, fusionThread: 0,
+    probeTether: 0, probeHalo: 0, probeCore: 0,
+  });
+
   // ── Immersive Mode (fullscreen + vignette) ──────────────────────────────
   // Bloom is no longer immersive-only and no longer lives here: it is always on
   // and runs on the GPU in SphereComposite. Immersive gates the spectral
@@ -1490,6 +1507,13 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       const _resActive = resonanceModeRef.current && _resNodes.length > 0;
       const _resNodeSet = _resActive ? new Set(_resNodes) : null;
       const _spectralFlux = getSpectralFlux();
+      const _cen = nodeCensusRef.current;
+      _cen.nodes = 0; _cen.halo = 0; _cen.core = 0; _cen.coreHover = 0;
+      _cen.beacon = 0; _cen.chimeraSync = 0; _cen.chimeraFlicker = 0;
+      _cen.ghostInner = 0; _cen.ghostOuter = 0;
+      _cen.birth = 0; _cen.bleed = 0; _cen.spectral = 0; _cen.resonanceDim = 0;
+      _cen.fusionRing = 0; _cen.fusionThread = 0;
+      _cen.probeTether = 0; _cen.probeHalo = 0; _cen.probeCore = 0;
       for (const i of sortedNodeIdx) {
         const n   = nodes[i];
         // Dynamic nodes (bifurcation children) fall back to dynColorMap
@@ -1516,6 +1540,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
               depth: _pp.depth + (proj[i].depth - _pp.depth) * _ease,
               scale: _pp.scale + (proj[i].scale - _pp.scale) * _ease,
             };
+            _cen.birth++;
           }
         }
 
@@ -1527,7 +1552,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
         // ── Resonance dimming: non-selected nodes → 10% opacity ──────────────
         const _isResNode = _resActive && _resNodeSet.has(n.id);
-        if (_resActive && !_isResNode) depthAlpha *= 0.10;
+        if (_resActive && !_isResNode) { depthAlpha *= 0.10; _cen.resonanceDim++; }
+        _cen.nodes++;
 
         const radius = (5 + energy * 4) * p.scale;
 
@@ -1535,12 +1561,13 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         let renderCol = col;
         if (n.bleedAmount > 0 && n.bleedFrom) {
           const srcCol = NODE_COLORS[n.bleedFrom];
-          if (srcCol) renderCol = lerpColor(col, srcCol, n.bleedAmount * 0.7);
+          if (srcCol) { renderCol = lerpColor(col, srcCol, n.bleedAmount * 0.7); _cen.bleed++; }
         }
 
         // Spectral PCA tint — shift hue based on eigenvalue-to-wavelength mapping
         const _spc = getSpectralColor(i);
         if (_spc && renderCol.hue != null) {
+          _cen.spectral++;
           const flux = _spectralFlux;
           const blend = 0.08 + flux * 0.15; // very subtle 8-23% spectral influence
           // Convert spectral [r,g,b,a] (0-1 floats) to approximate hue shift
@@ -1571,6 +1598,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           ctx.beginPath();
           ctx.arc(p.sx, p.sy, haloR, 0, Math.PI * 2);
           ctx.fill();
+          _cen.halo++;
         }
 
         // Core sphere
@@ -1579,9 +1607,12 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         ctx.arc(p.sx, p.sy, radius, 0, Math.PI * 2);
         ctx.fillStyle = isHov ? renderCol.hsl : hslAlpha(renderCol, coreAlpha);
         ctx.fill();
+        _cen.core++; if (isHov) _cen.coreHover++;
 
         // ── Awakening beacon ring (logic in artAwakening.js) ──────────────
-        drawBeaconRing(ctx, aw, i, p, radius, renderCol, depthAlpha, nodes.length);
+        if (drawBeaconRing(ctx, aw, i, p, radius, renderCol, depthAlpha, nodes.length)) {
+          _cen.beacon++;
+        }
 
         // ── Chimera state halo — phase-locked clusters glow in unison ──────
         {
@@ -1599,6 +1630,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
                 ctx.strokeStyle = `hsla(45,90%,70%,${syncAlpha.toFixed(3)})`;
                 ctx.lineWidth = 1.5 * p.scale;
                 ctx.stroke();
+                _cen.chimeraSync++;
               }
             } else if (_chim.isChimera) {
               // Chimera boundary: erratic flickering ring
@@ -1614,6 +1646,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
                 ctx.setLineDash([3, 4]);
                 ctx.stroke();
                 ctx.setLineDash([]);
+                _cen.chimeraFlicker++;
               }
             }
             // Async clusters: no extra ring (they're the "noise floor")
@@ -1635,12 +1668,14 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             ctx.strokeStyle = `hsla(180,70%,75%,${(ghostAlpha * 0.5).toFixed(3)})`;
             ctx.lineWidth = 1.5 * p.scale;
             ctx.stroke();
+            _cen.ghostInner++;
             // Outer glow ring: completion halo
             ctx.beginPath();
             ctx.arc(p.sx, p.sy, ghostR + 3 * p.scale, 0, Math.PI * 2);
             ctx.strokeStyle = `hsla(180,60%,85%,${(ghostAlpha * 0.2).toFixed(3)})`;
             ctx.lineWidth = 3 * p.scale;
             ctx.stroke();
+            _cen.ghostOuter++;
             ctx.restore();
           }
         }
@@ -1685,6 +1720,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           ctx.stroke();
           ctx.setLineDash([]);
           ctx.restore();
+          _cen.fusionRing++;
           // Dashed targeting thread to cursor
           const cur = fusionCursorRef.current;
           if (cur) {
@@ -1698,6 +1734,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             ctx.stroke();
             ctx.setLineDash([]);
             ctx.restore();
+            _cen.fusionThread++;
           }
         }
       }
@@ -1738,6 +1775,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             ctx.moveTo(pp.sx, pp.sy);
             ctx.lineTo(pn.sx, pn.sy);
             ctx.stroke();
+            _cen.probeTether++;
           }
           ctx.setLineDash([]);
           // Pulsing glow halo
@@ -1752,12 +1790,14 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             ctx.beginPath();
             ctx.arc(pp.sx, pp.sy, glowR, 0, Math.PI * 2);
             ctx.fill();
+            _cen.probeHalo++;
           }
           // Core node
           ctx.beginPath();
           ctx.arc(pp.sx, pp.sy, probeR, 0, Math.PI * 2);
           ctx.fillStyle = `rgba(196,181,253,${(0.75 + pulse * 0.25) * depthAlpha})`;
           ctx.fill();
+          _cen.probeCore++;
           // Label
           const shortQ = probe.query.length > 22 ? probe.query.slice(0, 20) + '…' : probe.query;
           nextLabels.push({
@@ -1952,6 +1992,156 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       return { filaments: r.analogyFilaments.length, zones: r.chimeraZones.length };
     };
 
+    // ── Step 5 forcing hooks ────────────────────────────────────────────
+    // Eight of the node block's thirteen draw layers cannot be reached by any
+    // capture state (see .superpowers/sdd/step5-preflight.md §5), so a parity
+    // run across them is worth nothing: deleting the layer scores identically
+    // to shipping it. These exist so a control capture can SEE the layer it is
+    // being asked to certify. Same contract as __artSetEcocide and
+    // __artSetAnalogy: write the ref the real path writes, and do not be
+    // sticky — the simulation is allowed to overwrite an injection on its next
+    // step, because a sticky override is a second source of truth.
+
+    // The chimera sync/flicker rings read clusterSync, which __artSetAnalogy
+    // does NOT touch (it writes filaments and zones). Without this the two
+    // rings are unreachable from the harness.
+    window.__artSetChimera = (map) => {
+      const r = reasoningRef.current;
+      if (!r) return null;
+      for (const [cid, v] of Object.entries(map ?? {})) {
+        const cur = r.clusterSync[cid];
+        if (cur) r.clusterSync[cid] = { ...cur, ...v };
+      }
+      return Object.fromEntries(Object.entries(r.clusterSync)
+        .map(([k, v]) => [k, { orderParam: v.orderParam, isSync: v.isSync, isChimera: v.isChimera }]));
+    };
+
+    // The Gestalt ghost rings. NOT __artSetGhosts, which seeds last session's
+    // ghost TRAIL positions — a different layer entirely, and the two are one
+    // careless call site away from being confused.
+    //
+    // Organically these need a VERIFIED analogy (recon > CONVERGENCE_THRESHOLD
+    // in useAnalogicalReasoning.js), and the analogy machinery has never been
+    // observed firing on this branch — the filaments it produces are indexed
+    // into the 272-node corpus and dropped by the sphere's length guard. So
+    // this is the only way the ring layer draws at all.
+    window.__artSetGhostNodes = (values) => {
+      const r = reasoningRef.current;
+      if (!r?.ghostNodes) return 0;
+      const g = r.ghostNodes;
+      // Clearing has to take BOTH arrays down. _animateGhosts walks ghostNodes
+      // toward ghostTargets every step, so zeroing the values alone lets the
+      // animator restore them within a few frames — measured: the ghost rings
+      // leaked into every later shot of the forcing run that first found this.
+      if (values === null) {
+        g.fill(0);
+        if (r.ghostTargets) r.ghostTargets.fill(0);
+        return 0;
+      }
+      const src = values ?? Array.from({ length: g.length }, (_, i) => (i % 4 === 0 ? 0.75 : 0));
+      for (let i = 0; i < g.length; i++) g[i] = src[i] ?? 0;
+      // Hold the animator at these values for the frames about to be captured;
+      // _animateGhosts walks ghostNodes toward ghostTargets every step.
+      if (r.ghostTargets) for (let i = 0; i < g.length; i++) r.ghostTargets[i] = g[i];
+      let live = 0;
+      for (let i = 0; i < g.length; i++) if (g[i] > 0.02) live++;
+      return live;
+    };
+
+    // The fusion source pulse ring and its cursor thread. The real path is a
+    // long-press, which is a timer continuation: __pump runs its rAF callbacks
+    // in ONE synchronous loop and never yields, so no pump count can reach it.
+    // Takes an OPTIONS OBJECT so the caller never has to know a node id: an
+    // omitted `source` defaults to a real sphere node, `source: null` clears.
+    // The harness only has display LABELS to hand (they are what the DOM
+    // exposes), and a label is not an id — resolving it here keeps that
+    // confusion out of every call site.
+    window.__artForceFusion = ({ source, cursor } = {}) => {
+      const id = source === null ? null : (source ?? SPHERE_NODES[0]?.id ?? null);
+      fusionSourceRef.current = id;
+      fusionCursorRef.current = id ? (cursor ?? null) : null;
+      return { source: fusionSourceRef.current, cursor: fusionCursorRef.current };
+    };
+
+    // The probe node, its halo and its tethers. Runs the REAL projection —
+    // queryProject is the same call the `query <text>` command makes — so the
+    // anchors, weights and centroid are the shipping ones, not a fixture.
+    window.__artForceProbe = (text) => {
+      if (text === null) { probeNodeRef.current = null; return null; }
+      const result = queryProject(text ?? 'mercury');
+      probeNodeRef.current = result;
+      return { query: result?.query ?? null, anchors: result?.anchors?.length ?? 0 };
+    };
+
+    // The overwrite bleed — `renderCol` lerped toward the source node's colour.
+    // Organically this needs an overwrite event, which no capture state fires.
+    // Writes the live sphere node the draw loop reads, so the real lerp runs.
+    window.__artForceBleed = (amount = 0.8) => {
+      const ns = stateRef.current?.nodes;
+      if (!ns?.length) return 0;
+      let n = 0;
+      for (let i = 0; i < ns.length; i += 3) {
+        ns[i].bleedAmount = amount;
+        ns[i].bleedFrom = ns[(i + 1) % ns.length].id;
+        n++;
+      }
+      return n;
+    };
+
+    // The awakening beacon ring. MEASURED: it does draw organically, for one
+    // node, between elapsed 4.1s and 8.0s of a real boot — but every harness
+    // capture virtualises the clock first and lands after that window has
+    // closed, so no image of the layer exists without this. Re-opens the
+    // window in place rather than resetting the whole sim, because
+    // __artHarnessReset's behaviour is load-bearing for the reference images.
+    window.__artForceBeacon = (on = true) => {
+      const aw = awakeningRef.current;
+      if (!on) { aw.phase = 3; return { phase: aw.phase }; }
+      aw.phase = 1;
+      aw.interacted = false;
+      aw.t0 = performance.now() - 5000;   // mid-window, so stepAwakening holds it
+      return { phase: aw.phase, beaconIdx: aw.beaconIdx };
+    };
+
+    // The 400ms birth lerp. Organically this needs a bifurcation child, which
+    // no capture state spawns.
+    window.__artForceBirth = (childId, parentId) => {
+      // SPHERE_NODES, not NODES: the birth map is read against the LIVE sphere
+      // array, and a 272-corpus index or id used there is the exact confusion
+      // sphereIndexOf() exists to prevent.
+      const parent = SPHERE_NODES.find(n => n.id === parentId) ?? SPHERE_NODES[0];
+      const child  = childId ?? SPHERE_NODES[1]?.id;
+      if (!parent || !child) return null;
+      birthMapRef.current.set(child, {
+        parentId: parent.id, px: parent.x, py: parent.y, pz: parent.z,
+        t0: performance.now(),
+      });
+      return { child, parent: parent.id, size: birthMapRef.current.size };
+    };
+
+    // The node block's own census — which of the thirteen layers the LAST
+    // frame actually contained, counted at each draw call rather than
+    // re-derived from its conditions. This is the instrument the whole of
+    // step 5 leans on: `artCompare` cannot distinguish "the layer is faithful"
+    // from "the layer was never on screen", and this can.
+    //
+    // `awakening` rides along because the beacon ring's window (phase 1,
+    // elapsed 4-8s, and only while !interacted) is a timing question no static
+    // reading of the source can answer.
+    window.__artNodeState = () => ({
+      ...nodeCensusRef.current,
+      awakening: {
+        phase: awakeningRef.current.phase,
+        interacted: awakeningRef.current.interacted,
+        elapsedS: +((performance.now() - awakeningRef.current.t0) / 1000).toFixed(2),
+        beaconIdx: awakeningRef.current.beaconIdx,
+      },
+      resonance: {
+        armed: resonanceModeRef.current,
+        selected: resonanceNodesRef.current.length,
+      },
+    });
+
     // Reads back what the draw loop last published to the GL layer. Every
     // background layer is now a uniform rather than a canvas operation, so
     // when one does not appear the first question is whether the state ever
@@ -2016,8 +2206,16 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       delete window.__artSetAnalogy;
       delete window.__artBgState;
       delete window.__artEdgeState;
+      delete window.__artSetChimera;
+      delete window.__artSetGhostNodes;
+      delete window.__artForceFusion;
+      delete window.__artForceProbe;
+      delete window.__artForceBirth;
+      delete window.__artForceBeacon;
+      delete window.__artForceBleed;
+      delete window.__artNodeState;
     };
-  }, [initState, archaeologyRef, reasoningRef]);
+  }, [initState, archaeologyRef, reasoningRef, stateRef]);
 
   // SphereComposite hands its advance() over here once the GL root exists.
   const handleAdvanceReady = useCallback((advance) => {

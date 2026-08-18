@@ -79,8 +79,12 @@ export function stepAwakening(aw, nodes, frameCount, particles) {
 
 // ── Beacon ring — pulsing invitation during awakening phase 1 ────────────────
 // nodeCount should be passed from NODES.length
+// Returns true when it drew, false when the phase/index gate rejected it. The
+// return value feeds ArtTab's node census: this ring fires for ONE node during
+// ONE ~4s window, so a capture that missed it scores identical parity whether
+// the layer ships or is deleted, and only the draw site can say which happened.
 export function drawBeaconRing(ctx, aw, nodeIdx, p, radius, renderCol, depthAlpha, nodeCount) {
-  if (aw.phase !== 1 || nodeIdx !== (aw.beaconIdx % (nodeCount || 31))) return;
+  if (aw.phase !== 1 || nodeIdx !== (aw.beaconIdx % (nodeCount || 31))) return false;
 
   const beaconT = performance.now() * 0.001;
   const ringPulse = 0.3 + 0.5 * Math.pow(Math.sin(beaconT * 2.0), 2);
@@ -94,6 +98,7 @@ export function drawBeaconRing(ctx, aw, nodeIdx, p, radius, renderCol, depthAlph
   ctx.lineWidth = 1.5 * p.scale;
   ctx.stroke();
   ctx.restore();
+  return true;
 }
 
 // ── Bifurcation Conductor (right-edge whisker) ───────────────────────────────
