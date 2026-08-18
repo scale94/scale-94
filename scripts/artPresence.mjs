@@ -17,6 +17,10 @@ import {
   prismGlowWidth, PRISM_SPECTRAL_FINE, PRISM_GLOW_W, PRISM_CORE_W, PRISM_POLY_W, PRISM_SPOKE_W,
   FILAMENT_DASH, FILAMENT_CORE_W, CHIMERA_DASH,
 } from '../src/terminal/art/artEdges.js';
+import {
+  FUSION_RING_DASH, FUSION_THREAD_DASH, PROBE_TETHER_DASH,
+  PROBE_GLOW_INNER_K, PROBE_CORE_RGB, PROBE_CORE_ALPHA_BASE, PROBE_CORE_ALPHA_K,
+} from '../src/terminal/art/artNodes.js';
 
 // Every check reports through this so the run ends with a count rather than
 // five paragraphs a reader has to tally by eye. A failure is a non-zero exit:
@@ -2281,6 +2285,356 @@ try {
   }
 } finally { await r9.close(); }
 
+
+
+// ── THE TAIL: the fusion pair and the probe trio ───────────────────────────
+//
+// Five layers, and NOT ONE of them is reachable from a capture state — the
+// forcing driver's coverage table reads "idle= no" for every one, and the only
+// column that ever lights them is the forced shot itself. So artCompare 21/21
+// across this change is blind by construction and these four verdicts are the
+// whole of the evidence that the tail draws.
+//
+// ── Why every threshold here is a CONTRAST ────────────────────────────────
+//
+// Two of the five carry a dash, and a dash gives its own null for free: the
+// SAME stroke, the SAME background, sampled at the anti-phase offset. A layer
+// drawn solid scores ~0 against that; a layer not drawn at all scores ~0 too,
+// and the absolute level separates those two. Nothing here is an absolute
+// floor on brightness — the composite blooms, and an absolute bar is what made
+// three earlier harnesses on this branch report bugs that were not there.
+//
+// ── The magnitudes, computed before the metric was chosen ─────────────────
+//
+//   ring    alpha 0.55-1.0, no depth cue at all, 1.5px band. Measured 27.0,
+//           33.1 and 36.1 over three runs against a spatial null of 0.3-2.9
+//           (sd 2.9-3.4). Bar 8: a factor of three under the smallest.
+//   thread  alpha 0.30-0.45, also undimmed, 1px. Measured 31.0-38.9 in phase
+//           against -18.4 to -23.8 anti-phase. Bar 8, and 8 of separation.
+//   tethers alpha (weight/wmax) * 0.55 * depthAlpha, on a 0.9px line, and
+//           depthAlpha runs 0.12 to 1.0 — so on the far side the strongest
+//           tether is at alpha 0.05 and there is NOTHING to measure. Hence
+//           the sweep below, and hence the samples are POOLED across anchors:
+//           three separately marginal numbers is how a working layer gets
+//           called broken, measured here at -3.3 / 0.2 / 2.6 before pooling.
+//   core    checked against ITS OWN instance's alpha, not a fixed level:
+//           alpha * (the colour's luminance - the local floor). It reads
+//           HIGH — 35.4 against 22.1 — because the halo's flat inner region
+//           sits underneath the whole disc and the composite blooms. The bar
+//           is therefore a floor at 0.55 of the prediction, not a band.
+//
+// ── The forcing hooks move more than their layers ────────────────────────
+//
+// __artForceFusion resolves a node id and the ring pulses on the real clock;
+// __artForceProbe runs the REAL queryProject path and its centroid rotates
+// with the sphere. So nothing below is a cross-frame delta: every number is an
+// in-frame contrast, plus a spatial null taken from the same frame.
+const TAIL_RING_PERIOD = FUSION_RING_DASH[0] + FUSION_RING_DASH[1];       // 9
+const TAIL_RING_DUTY = FUSION_RING_DASH[0];                               // 5
+const TAIL_THREAD_PERIOD = FUSION_THREAD_DASH[0] + FUSION_THREAD_DASH[1]; // 9
+const TAIL_THREAD_DUTY = FUSION_THREAD_DASH[0];                           // 3
+const TAIL_TETHER_PERIOD = PROBE_TETHER_DASH[0] + PROBE_TETHER_DASH[1];   // 8
+const TAIL_TETHER_DUTY = PROBE_TETHER_DASH[0];                            // 3
+const RING_DASH_MIN = 8;        // measured 27.0 / 33.1 / 36.1
+const THREAD_DASH_MIN = 8;      // measured 31.0 / 34.9 / 38.9
+const TETHER_DASH_MIN = 1.0;    // measured 2.19 pooled, against -2.25 anti-phase
+const TETHER_SEP_MIN = 2.0;     // the differential, measured 4.44
+const CORE_ALPHA_FRAC = 0.55;   // measured 35.4 against 22.1 predicted
+const HALO_INNER_MIN = 1.0;     // the halo's inner third, against its own one-frame null
+const TAIL_FRAMES = 150;        // the sweep length for the probe's two bests
+
+/** Mean luminance over an annulus, restricted to the angles a model lights. */
+function tailBand(img, cx, cy, r0, r1, lit) {
+  const v = [];
+  const steps = Math.max(360, Math.round(r1 * 16));
+  for (let k = 0; k < steps; k++) {
+    const th = (k / steps) * Math.PI * 2;
+    if (lit && !lit(th)) continue;
+    for (let r = r0; r <= r1; r += 0.25) v.push(fzSample(img, cx + Math.cos(th) * r, cy + Math.sin(th) * r));
+  }
+  return v.length ? v.reduce((s, x) => s + x, 0) / v.length : NaN;
+}
+/** A stroke's peak minus its own local background, walked in arc length. Peak
+ *  across the width and not the centreline: these are 0.9-1.5px lines landing
+ *  between pixel centres, so the centreline is not reliably the brightest row. */
+function tailSeg(img, s, halfW) {
+  const dx = s.bx - s.ax, dy = s.by - s.ay, L = Math.hypot(dx, dy);
+  if (!(L > 1e-6)) return [];
+  const ux = dx / L, uy = dy / L, nx = -uy, ny = ux, off = halfW + 5;
+  const pts = [];
+  for (let d = 0; d < L; d += 0.25) {
+    const px = s.ax + ux * d, py = s.ay + uy * d;
+    let peak = 0;
+    for (let o = -halfW; o <= halfW; o += 0.25) peak = Math.max(peak, fzSample(img, px + nx * o, py + ny * o));
+    const bg = (fzSample(img, px + nx * off, py + ny * off)
+      + fzSample(img, px - nx * off, py - ny * off)) / 2;
+    pts.push({ v: peak - bg, d });
+  }
+  return pts;
+}
+/** Mean(lit) - mean(dark) under one dash model, samples within `guard` px of a
+ *  pattern edge dropped so partial coverage cannot flatten it toward zero. */
+function tailModel(pts, period, duty, shift = 0, guard = 0.75) {
+  let ls = 0, ln = 0, ds = 0, dn = 0;
+  for (const p of pts) {
+    const ph = ((p.d + shift) % period + period) % period;
+    if (Math.min(ph, Math.abs(ph - duty), period - ph) < guard) continue;
+    if (ph < duty) { ls += p.v; ln++; } else { ds += p.v; dn++; }
+  }
+  return (ln ? ls / ln : NaN) - (dn ? ds / dn : NaN);
+}
+function tailDecode(arr, k) {
+  const o = k * EDGE_STRIDE, w = arr[o + EDGE_OFF.width];
+  const f = unpackFlags(arr[o + EDGE_OFF.flags]);
+  return {
+    ax: arr[o + EDGE_OFF.ax], ay: arr[o + EDGE_OFF.ay],
+    bx: arr[o + EDGE_OFF.bx], by: arr[o + EDGE_OFF.by],
+    isDisc: isDisc(w), rOuter: Math.abs(w) * 0.5,
+    rInner: arr[o + EDGE_OFF.bx], falloff: arr[o + EDGE_OFF.c1],
+    sweepEnd: arr[o + EDGE_OFF.by], phase: arr[o + EDGE_OFF.phase],
+    period: f.dashPeriod, duty: f.dashDuty,
+    alpha: unpackAlphas(arr[o + EDGE_OFF.alphas]).a0,
+  };
+}
+const tailAll = (arr) => {
+  const out = [];
+  for (let k = 0; (k + 1) * EDGE_STRIDE <= arr.length; k++) out.push(tailDecode(arr, k));
+  return out;
+};
+
+const r10 = await launch({ url: 'http://localhost:5174/', width: 1520, height: 900, deterministic: true });
+try {
+  await r10.waitFor('document.querySelectorAll("canvas").length > 0', { label: 'boot' });
+  await sleep(2500);
+  await r10.eval(clickText('/CHAOS'));
+  await r10.waitFor(READY, { label: 'sphere', timeoutMs: 40000 });
+  await r10.waitFor(GL_READY, { label: 'GL sized', timeoutMs: 40000 });
+  await sleep(4000);
+  await r10.eval('window.__virtualize()');
+  await sleep(150);
+  await r10.eval('window.__reseed(); window.__artHarnessReset();');
+  await r10.pump(240);
+  const rect = await r10.eval(RECT);
+  const clip = { x: rect.x, y: rect.y, width: rect.w, height: rect.h, scale: 1 };
+  // Off the sphere: a hover changes a node's energy, radius and core opacity.
+  await r10.hover(Math.round(rect.x + 8), Math.round(rect.y + 8));
+  await r10.pump(10);
+
+  const shot = async () => decodePng(await r10.screenshot({ clip }));
+  const eState = async () => JSON.parse(await r10.eval(
+    'JSON.stringify((() => { const s = window.__artEdgeState(); return { inst: s.instances }; })())'));
+  const nodeCensus = async () => JSON.parse(await r10.eval('JSON.stringify(window.__artNodeState())'));
+  const hooks = await r10.eval(
+    'typeof window.__artForceFusion === "function" && typeof window.__artForceProbe === "function"');
+
+  if (!hooks) {
+    console.log('TAIL  __artForceFusion / __artForceProbe missing — production build?');
+    verdict('FUSION PULSE RING', false);
+    verdict('FUSION CURSOR THREAD', false);
+    verdict('PROBE GLOW AND CORE', false);
+    verdict('PROBE TETHERS', false);
+  } else {
+    // Chimera rings DOWN first, for the reason task 5 found: the spatial null
+    // below is the same annulus around every other node, and an idle frame
+    // carries a sync ring at radius + 6*scale on about twenty of them — which
+    // lands inside the 12-14px band the fusion ring occupies. Left up the
+    // null's spread swallows the ring; measured, sd 8.96 against sd 2.9-3.4
+    // with them down.
+    const clusters = JSON.parse(await r10.eval(
+      'JSON.stringify(Object.keys(window.__artSetChimera({}) || {}))'));
+    await r10.eval('window.__artSetChimera(' + JSON.stringify(Object.fromEntries(
+      clusters.map(c => [c, { orderParam: 0, meanPhase: 0, isSync: false, isAsync: true, isChimera: false }]))) + ')');
+    await r10.pump(4);
+
+    // ── The fusion pair ──────────────────────────────────────────────────
+    console.log('FUSION PULSE RING  (source-over annulus, angular dash '
+      + `[${FUSION_RING_DASH}] -> ${TAIL_RING_PERIOD}/${TAIL_RING_DUTY})`);
+    const cursor = { x: Math.round(rect.w * 0.8), y: Math.round(rect.h * 0.25) };
+    await r10.eval(`window.__artForceFusion({ cursor: ${JSON.stringify(cursor)} })`);
+    await r10.pump(2);
+    const cF = await nodeCensus();
+    const instF = tailAll((await eState()).inst);
+    const imgF = await shot();
+    const ring = instF.filter(d => d.isDisc && d.rInner > 0
+      && d.period === TAIL_RING_PERIOD && d.duty === TAIL_RING_DUTY).at(-1);
+    const thread = instF.filter(d => !d.isDisc
+      && d.period === TAIL_THREAD_PERIOD && d.duty === TAIL_THREAD_DUTY).at(-1);
+
+    let ringOk = false;
+    if (cF.fusionRing === 1 && ring) {
+      const rMid = (ring.rOuter + ring.rInner) / 2;
+      const lit = dashLit(rMid, TAIL_RING_PERIOD, TAIL_RING_DUTY);
+      const gap = dashLit(rMid, TAIL_RING_PERIOD, TAIL_RING_DUTY, TAIL_RING_PERIOD / 2);
+      const on = tailBand(imgF, ring.ax, ring.ay, ring.rInner, ring.rOuter, lit);
+      const off = tailBand(imgF, ring.ax, ring.ay, ring.rInner, ring.rOuter, gap);
+      // The spatial null: the same annulus, the same lit/anti-phase split,
+      // around nodes that carry no fusion ring. Any contrast there is the
+      // background's own texture rather than a dash.
+      const others = instF.filter(d => d.isDisc && d.rInner === 0 && d.falloff === 0
+        && Math.hypot(d.ax - ring.ax, d.ay - ring.ay) > 60).slice(0, 8);
+      const nulls = others.map(d => tailBand(imgF, d.ax, d.ay, ring.rInner, ring.rOuter, lit)
+        - tailBand(imgF, d.ax, d.ay, ring.rInner, ring.rOuter, gap));
+      const nm = nulls.reduce((s, v) => s + v, 0) / (nulls.length || 1);
+      const nsd = Math.sqrt(nulls.reduce((s, v) => s + (v - nm) ** 2, 0) / (nulls.length || 1));
+      const contrast = on - off;
+      console.log(`   rInner=${ring.rInner.toFixed(2)} rOuter=${ring.rOuter.toFixed(2)}`
+        + ` band=${(ring.rOuter - ring.rInner).toFixed(2)} alpha=${ring.alpha.toFixed(3)}`);
+      console.log(`   lit ${on.toFixed(2)} vs anti-phase ${off.toFixed(2)}`
+        + ` -> ${contrast.toFixed(2)}   spatial null ${nm.toFixed(2)} +- ${nsd.toFixed(2)}`
+        + `   z=${((contrast - nm) / (nsd || 1)).toFixed(1)}`);
+      ringOk = ring.sweepEnd === 0 && ring.falloff === 0
+        && contrast > RING_DASH_MIN && contrast > nm + 4 * (nsd || 1);
+    } else {
+      console.log(`   census ring=${cF.fusionRing}, buffer ${ring ? 'found' : 'EMPTY'}`);
+    }
+    verdict('FUSION PULSE RING', ringOk);
+
+    console.log('FUSION CURSOR THREAD  (straight segment, dash '
+      + `[${FUSION_THREAD_DASH}] -> ${TAIL_THREAD_PERIOD}/${TAIL_THREAD_DUTY})`);
+    let threadOk = false;
+    if (cF.fusionThread === 1 && thread && ring) {
+      const pts = tailSeg(imgF, thread, 1.5);
+      const inP = tailModel(pts, TAIL_THREAD_PERIOD, TAIL_THREAD_DUTY, 0);
+      const anti = tailModel(pts, TAIL_THREAD_PERIOD, TAIL_THREAD_DUTY, TAIL_THREAD_PERIOD / 2);
+      const ends = Math.hypot(thread.ax - ring.ax, thread.ay - ring.ay) < 0.5
+        && Math.hypot(thread.bx - cursor.x, thread.by - cursor.y) < 0.5;
+      console.log(`   node -> cursor: ${ends ? 'yes' : 'NO'}   in-phase ${inP.toFixed(2)}`
+        + `   anti-phase ${anti.toFixed(2)}`);
+      threadOk = ends && thread.phase === 0
+        && inP > THREAD_DASH_MIN && inP > anti + THREAD_DASH_MIN;
+    } else {
+      console.log(`   census thread=${cF.fusionThread}, buffer ${thread ? 'found' : 'EMPTY'}`);
+    }
+    verdict('FUSION CURSOR THREAD', threadOk);
+    await r10.eval('window.__artForceFusion({ source: null })');
+    await r10.pump(2);
+
+    // ── The probe ────────────────────────────────────────────────────────
+    //
+    // Measured against ITS OWN NULL, which the other layers on this branch
+    // could not have: clearing the probe and stepping ONE frame leaves the
+    // sphere where it was — AUTO_SPIN is 0.0025 rad, about 0.08px at the glow
+    // radius — so the difference of the two frames IS the probe and nothing
+    // else. That matters here more than anywhere: the halo reaches 30px at the
+    // pulse's peak, which is far enough to cross other nodes and their edges,
+    // and a floor-subtracted profile over that annulus reads the sphere as
+    // often as it reads the glow. Measured: the profile came back RISING
+    // outward, 4.72 to 5.25, on a frame where the layer was plainly drawing.
+    //
+    // The frame is chosen in TWO passes, buffer only in the first so it costs
+    // no screenshots. The pulse drives both the glow radius and the core's
+    // alpha, so one frame near the pulse peak serves the halo, the core and
+    // the tethers together — and their alphas are depth-cued over a factor of
+    // eight, so a probe sampled on the far side has nothing to measure at all.
+    console.log('PROBE GLOW AND CORE  (radial-falloff disc, then a filled disc)');
+    const forced = JSON.parse(await r10.eval(
+      'JSON.stringify(window.__artForceProbe("mercury"))'));
+    await r10.pump(2);
+    const probeFrame = async () => {
+      const inst = tailAll((await eState()).inst);
+      const h = inst.filter(d => d.isDisc && d.falloff > 0).at(-1);
+      if (!h) return null;
+      const c = inst.filter(d => d.isDisc && d.rInner === 0 && d.falloff === 0
+        && Math.hypot(d.ax - h.ax, d.ay - h.ay) < 0.5).at(-1);
+      if (!c) return null;
+      return { h, c, tet: inst.filter(d => !d.isDisc
+        && d.period === TAIL_TETHER_PERIOD && d.duty === TAIL_TETHER_DUTY) };
+    };
+    let aMax = 0, gMax = 0;
+    for (let f = 0; f < TAIL_FRAMES; f++) {
+      await r10.pump(1);
+      const fr = await probeFrame();
+      if (!fr) continue;
+      if (fr.c.alpha > aMax) aMax = fr.c.alpha;
+      if (fr.h.rOuter > gMax) gMax = fr.h.rOuter;
+    }
+    let live = null, took = -1, cP = null;
+    for (let f = 0; f < TAIL_FRAMES * 2 && !live; f++) {
+      await r10.pump(1);
+      const fr = await probeFrame();
+      if (!fr) continue;
+      const last = f === TAIL_FRAMES * 2 - 1;
+      if ((fr.c.alpha >= aMax * 0.85 && fr.h.rOuter >= gMax * 0.8) || last) {
+        // The census is read HERE, at the live frame — after the probe is
+        // cleared it reports zero for all three, and a verdict that read it
+        // then would fail every run on a layer that had just drawn.
+        cP = await nodeCensus();
+        // The pair, taken with nothing but a single frame between them.
+        const img = await shot();
+        await r10.eval('window.__artForceProbe(null)');
+        await r10.pump(1);
+        const nullImg = await shot();
+        live = { ...fr, img, nullImg };
+        took = f;
+      }
+    }
+
+    let glowOk = false;
+    if (live) {
+      const { h, c, img, nullImg } = live;
+      // The difference of the two frames, annulus by annulus. No floor term:
+      // the null IS the floor, measured at the same radii around the same
+      // point one frame apart.
+      const diff = (r0, r1) => tailBand(img, h.ax, h.ay, r0, r1)
+        - tailBand(nullImg, h.ax, h.ay, r0, r1);
+      const prof = [];
+      for (let r = c.rOuter + 1.5; r < h.rOuter - 0.5; r += 0.5) prof.push({ r, v: diff(r, r + 0.4) });
+      // The falloff's inner radius is asserted from the BUFFER — it is exactly
+      // 0.3 of the core radius, and a gaussian shoulder has no such number at
+      // all. The pixels are asked whether the layer is there and falls off
+      // outward. The SHAPE of the branch — flat inside, linear to zero,
+      // nothing past rOuter — is proved at 60px in scripts/_t7tail.mjs, where
+      // there is a lever long enough to tell it from a gaussian; at the 10-30px
+      // this layer actually draws at, no fit can separate the two.
+      const innerOk = Math.abs(h.falloff - c.rOuter * PROBE_GLOW_INNER_K) < 0.05;
+      const third = Math.max(1, Math.floor(prof.length / 3));
+      const mIn = prof.slice(0, third).reduce((s, p) => s + p.v, 0) / third;
+      const mOut = prof.slice(-third).reduce((s, p) => s + p.v, 0) / third;
+      const coreLum = 0.2126 * PROBE_CORE_RGB[0] + 0.7152 * PROBE_CORE_RGB[1]
+        + 0.0722 * PROBE_CORE_RGB[2];
+      // Against the instance's OWN alpha, not a fixed level. The difference
+      // image has the backdrop removed, so the prediction is alpha * colour
+      // plus whatever the halo underneath the disc adds — a floor, not a band.
+      const expect = c.alpha * coreLum;
+      const got = diff(0, c.rOuter * 0.6);
+      console.log(`   frame ${took}: glowR=${h.rOuter.toFixed(2)} of ${gMax.toFixed(2)} seen;`
+        + ` core alpha=${c.alpha.toFixed(3)} of ${aMax.toFixed(3)}`);
+      console.log(`   falloff=${h.falloff.toFixed(2)}`
+        + ` (core ${c.rOuter.toFixed(2)} x ${PROBE_GLOW_INNER_K} = ${(c.rOuter * PROBE_GLOW_INNER_K).toFixed(2)})`
+        + `   halo inner third ${mIn.toFixed(2)} -> outer third ${mOut.toFixed(2)}`);
+      console.log(`   core bump ${got.toFixed(1)} against alpha*colour = ${expect.toFixed(1)}`);
+      glowOk = cP.probeHalo === 1 && cP.probeCore === 1 && innerOk
+        && prof.length >= 4 && mIn > mOut && mIn > HALO_INNER_MIN
+        && got > expect * CORE_ALPHA_FRAC;
+    } else {
+      console.log(`   nothing with a falloff in the buffer (${forced?.anchors} anchors)`);
+    }
+    verdict('PROBE GLOW AND CORE', glowOk);
+
+    console.log('PROBE TETHERS  (straight segments, dash '
+      + `[${PROBE_TETHER_DASH}] -> ${TAIL_TETHER_PERIOD}/${TAIL_TETHER_DUTY}, pooled)`);
+    let tetherOk = false;
+    if (live && live.tet.length) {
+      const pool = [];
+      for (const t of live.tet) pool.push(...tailSeg(live.img, t, 1.5));
+      const inP = tailModel(pool, TAIL_TETHER_PERIOD, TAIL_TETHER_DUTY, 0);
+      const anti = tailModel(pool, TAIL_TETHER_PERIOD, TAIL_TETHER_DUTY, TAIL_TETHER_PERIOD / 2);
+      const fromCentroid = live.tet.every(t =>
+        Math.hypot(t.ax - live.h.ax, t.ay - live.h.ay) < 0.5);
+      console.log(`   ${live.tet.length} tethers, ${pool.length} samples;`
+        + ` all from the centroid: ${fromCentroid ? 'yes' : 'NO'}`);
+      console.log(`   in-phase ${inP.toFixed(2)}   anti-phase ${anti.toFixed(2)}`
+        + `   separation ${(inP - anti).toFixed(2)}`);
+      tetherOk = fromCentroid && cP.probeTether === live.tet.length
+        && inP > TETHER_DASH_MIN && (inP - anti) > TETHER_SEP_MIN;
+    } else {
+      console.log('   no tether segments in the buffer');
+    }
+    verdict('PROBE TETHERS', tetherOk);
+    await r10.eval('window.__artForceProbe(null)');
+    await r10.pump(2);
+  }
+} finally { await r10.close(); }
 
 // ── Tally ─────────────────────────────────────────────────────────────────
 const passed = results.filter(r => r.ok).length;

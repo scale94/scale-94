@@ -69,6 +69,9 @@ import {
   fusionPulse, fusionRingRadius, fusionRingAlpha, fusionThreadAlpha,
   probePulse, probeDepthAlpha, probeRadius, probeGlowRadius, probeGlowInnerRadius,
   probeCoreAlpha, probeTetherAlpha, probeCentroid,
+  FUSION_RING_WIDTH, FUSION_RING_DASH, FUSION_THREAD_WIDTH, FUSION_THREAD_DASH,
+  PROBE_TETHER_WIDTH, PROBE_TETHER_DASH, PROBE_GLOW_ALPHA,
+  PROBE_GLOW_RGB, PROBE_CORE_RGB,
 } from '../art/artNodes';
 import {
   edgeStops, edgeLineWidth, orthoHue, orthoGlow, fusedGlow,
@@ -146,6 +149,19 @@ const GHOST_FLAGS = packFlags(0, 0, 0, false, ADDITIVE_LAYER.glowQuant);
 const CHIMERA_SYNC_FLAGS = packFlags(0, 0, 0);
 const CHIMERA_FLICK_FLAGS = packFlags(
   CHIMERA_FLICK_DASH[0] + CHIMERA_FLICK_DASH[1], CHIMERA_FLICK_DASH[0], 0);
+
+// The tail: the fusion ring, its cursor thread and the probe. Packed once,
+// same as every layer above. The RING is an angular dash — [5,4] is period 9,
+// duty 5, and for a disc the shader measures that in px of arc length at the
+// band's mid radius. The thread and the tethers are ordinary straight-segment
+// dashes, in px along the line, and the probe's own two discs are solid.
+const FUSION_RING_FLAGS = packFlags(
+  FUSION_RING_DASH[0] + FUSION_RING_DASH[1], FUSION_RING_DASH[0], 0);
+const FUSION_THREAD_FLAGS = packFlags(
+  FUSION_THREAD_DASH[0] + FUSION_THREAD_DASH[1], FUSION_THREAD_DASH[0], 0);
+const PROBE_TETHER_FLAGS = packFlags(
+  PROBE_TETHER_DASH[0] + PROBE_TETHER_DASH[1], PROBE_TETHER_DASH[0], 0);
+const PROBE_FLAGS = packFlags(0, 0, 0);
 
 // Once per session, not once per frame: an overflowing frame overflows 60 times
 // a second and would bury the console it is trying to be visible in.
@@ -1811,6 +1827,17 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       }
 
       // ── Manual fusion: pending targeting line + source pulse ring ─────────
+      //
+      // ON THE GPU, and into `eg` — source-over, which is what the 2D form
+      // already was: neither of these ever set globalCompositeOperation.
+      //
+      // Appended HERE, after every node disc, and that placement is the whole
+      // point of the layer being last. Both of these TERMINATE on a node — the
+      // ring encircles one, the thread starts at one — and the GL composite
+      // renders under the 2D canvas, so writing them any earlier in the frame
+      // would put them behind the discs they are drawn against. They stay
+      // under the particle ecology and the conductor, which still draw on the
+      // 2D canvas after this point and always did.
       const fSrc = fusionSourceRef.current;
       if (fSrc) {
         // Sphere space, not corpus space: `proj` and `nodes` are the live
@@ -1823,37 +1850,44 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           const pulse = fusionPulse(t);
           const srcCol = NODE_COLORS[fSrc];
           const ringR  = fusionRingRadius(nodes[si].energy, pulse, sp.scale);
-          // Pulsing dashed ring around locked source
-          ctx.save();
-          ctx.strokeStyle = hslAlpha(srcCol, fusionRingAlpha(pulse));
-          ctx.lineWidth   = 1.5 * sp.scale;
-          ctx.setLineDash([5, 4]);
-          ctx.beginPath();
-          ctx.arc(sp.sx, sp.sy, ringR, 0, Math.PI * 2);
-          ctx.stroke();
-          ctx.setLineDash([]);
-          ctx.restore();
-          _cen.fusionRing++;
-          // Dashed targeting thread to cursor
+          // Pulsing dashed ring around the locked source. [5,4] is an ANGULAR
+          // dash: for a disc the shader walks rMid * theta, so the pattern
+          // stays in px of ARC LENGTH and the dash boundaries come out radial,
+          // exactly as ctx.setLineDash draws them around a stroked circle.
+          if (eg.count < MAX_EDGES) {
+            const _fr = strokeAnnulus(ringR, FUSION_RING_WIDTH * sp.scale);
+            writeDisc(eg.data, eg.count * EDGE_STRIDE, {
+              cx: sp.sx, cy: sp.sy,
+              rOuter: _fr.rOuter, rInner: _fr.rInner,
+              hsl: srcCol, alpha: fusionRingAlpha(pulse),
+              flags: FUSION_RING_FLAGS,
+            });
+            eg.count++;
+            _cen.fusionRing++;
+          }
+          // Dashed targeting thread to the cursor. An ordinary straight
+          // segment — no disc encoding, no shader change; writePolyline over
+          // two points is the same instance the base edges have always been.
           const cur = fusionCursorRef.current;
           if (cur) {
-            ctx.save();
-            ctx.strokeStyle = hslAlpha(srcCol, fusionThreadAlpha(pulse));
-            ctx.lineWidth   = 1;
-            ctx.setLineDash([3, 6]);
-            ctx.beginPath();
-            ctx.moveTo(sp.sx, sp.sy);
-            ctx.lineTo(cur.x, cur.y);
-            ctx.stroke();
-            ctx.setLineDash([]);
-            ctx.restore();
-            _cen.fusionThread++;
+            _cPts[0] = sp.sx; _cPts[1] = sp.sy;
+            _cPts[2] = cur.x; _cPts[3] = cur.y;
+            writeHsl(_cRgb, 0, srcCol.hue, srcCol.sat, srcCol.lit);
+            // The RETURN value, not an unconditional ++: past capacity
+            // writePolyline writes nothing and reports 0, and a census that
+            // counted the intent rather than the write would hide that.
+            _cen.fusionThread += writePolyline(
+              eg, _cPts, 2, _cRgb, fusionThreadAlpha(pulse),
+              FUSION_THREAD_WIDTH, FUSION_THREAD_FLAGS);
           }
         }
       }
 
       // ── Probe node (text_probe.rs concept injection) ───────────────────────
-      // Rendered after all sphere nodes so it draws on top.
+      // ON THE GPU, into `eg`, after the fusion pair above — the 2D comment
+      // here read "rendered after all sphere nodes so it draws on top", and
+      // appending last in the source-over stream is that same sentence. Only
+      // the LABEL stays behind, and it is DOM rather than canvas.
       const probe = probeNodeRef.current;
       if (probe?.anchors?.length) {
         // Ranking spans all 272 corpus nodes; probe.anchors has already
@@ -1873,39 +1907,56 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           const [prx, pry, prz] = applyM(M, _c.x, _c.y, _c.z);
           const pp = project(prx, pry, prz, w, h, sphereR, focal);
           const depthAlpha = probeDepthAlpha(prz);
-          // Tether lines to every anchor that formed the centroid
-          ctx.setLineDash([3, 5]);
+          // Tether lines to every anchor that formed the centroid. The tethers
+          // and the halo share one colour, so it is converted ONCE, through
+          // writeRgb255 — these are authored as rgba() BYTE triples, not as
+          // the palette's HSL objects, and a hand-rolled /255 at each call
+          // site is exactly where a second, drifting conversion appears.
+          writeRgb255(_cRgb, 0, PROBE_GLOW_RGB);
           for (const { node: pn, weight } of _c.tethers) {
-            ctx.lineWidth = 0.9;
-            ctx.strokeStyle = `rgba(167,139,250,${probeTetherAlpha(weight, _c.wmax, depthAlpha)})`;
-            ctx.beginPath();
-            ctx.moveTo(pp.sx, pp.sy);
-            ctx.lineTo(pn.p.sx, pn.p.sy);
-            ctx.stroke();
-            _cen.probeTether++;
+            // Each tether was its own beginPath, so each starts at dash phase
+            // 0 — which is writePolyline's default, one call per tether.
+            _cPts[0] = pp.sx;    _cPts[1] = pp.sy;
+            _cPts[2] = pn.p.sx;  _cPts[3] = pn.p.sy;
+            _cen.probeTether += writePolyline(
+              eg, _cPts, 2, _cRgb,
+              probeTetherAlpha(weight, _c.wmax, depthAlpha),
+              PROBE_TETHER_WIDTH, PROBE_TETHER_FLAGS);
           }
-          ctx.setLineDash([]);
-          // Pulsing glow halo
+          // Pulsing glow halo. A RADIAL FALLOFF — flat inside falloffInner,
+          // then linear to zero at the outer radius — because that is what
+          // createRadialGradient is. NOT the gaussian shoulder ctx.shadowBlur
+          // casts: the two agree at exactly one radius and are wrong at every
+          // other, which is the trap the node halos already paid for.
           const pulse = probePulse(Date.now());
           const probeR = probeRadius(pp.scale);
           const glowR  = probeGlowRadius(probeR, pulse, pp.scale);
-          if (glowR > 0 && isFinite(pp.sx) && isFinite(pp.sy)) {
-            const gGrd = ctx.createRadialGradient(pp.sx, pp.sy, probeGlowInnerRadius(probeR), pp.sx, pp.sy, glowR);
-            gGrd.addColorStop(0, `rgba(167,139,250,${0.45 * depthAlpha})`);
-            gGrd.addColorStop(1, 'rgba(167,139,250,0)');
-            ctx.fillStyle = gGrd;
-            ctx.beginPath();
-            ctx.arc(pp.sx, pp.sy, glowR, 0, Math.PI * 2);
-            ctx.fill();
+          if (glowR > 0 && isFinite(pp.sx) && isFinite(pp.sy)
+              && eg.count < MAX_EDGES) {
+            writeDisc(eg.data, eg.count * EDGE_STRIDE, {
+              cx: pp.sx, cy: pp.sy,
+              rOuter: glowR,
+              falloffInner: probeGlowInnerRadius(probeR),
+              rgb: _cRgb, alpha: PROBE_GLOW_ALPHA * depthAlpha,
+              flags: PROBE_FLAGS,
+            });
+            eg.count++;
             _cen.probeHalo++;
           }
-          // Core node
-          ctx.beginPath();
-          ctx.arc(pp.sx, pp.sy, probeR, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(196,181,253,${probeCoreAlpha(pulse, depthAlpha)})`;
-          ctx.fill();
-          _cen.probeCore++;
-          // Label
+          // Core node — a plain filled disc, the primitive step 4 already
+          // ships. Its own colour, so the scratch is refilled.
+          if (eg.count < MAX_EDGES) {
+            writeRgb255(_cRgb, 0, PROBE_CORE_RGB);
+            writeDisc(eg.data, eg.count * EDGE_STRIDE, {
+              cx: pp.sx, cy: pp.sy,
+              rOuter: probeR,
+              rgb: _cRgb, alpha: probeCoreAlpha(pulse, depthAlpha),
+              flags: PROBE_FLAGS,
+            });
+            eg.count++;
+            _cen.probeCore++;
+          }
+          // Label — DOM, drawn by SphereLabels. Stays.
           const shortQ = probe.query.length > 22 ? probe.query.slice(0, 20) + '…' : probe.query;
           nextLabels.push({
             key: 'probe',
