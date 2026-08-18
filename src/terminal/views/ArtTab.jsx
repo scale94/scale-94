@@ -50,8 +50,8 @@ import { clusterLabelState, nodeLabelState, fireExpired } from '../art/artLabels
 import SphereLabels from '../art/SphereLabels';
 import SphereComposite from '../art/SphereComposite';
 import {
-  createEdgeState, writeHsl, writeHslRgb, writeRgb255, packAlphas, packFlags, discWidth,
-  writePolyline, ADDITIVE_LAYER, EDGE_STRIDE, MAX_EDGES, MAX_ADDITIVE_EDGES,
+  createEdgeState, writeHsl, writeHslRgb, writeRgb255, packAlphas, packFlags,
+  writeDisc, writePolyline, ADDITIVE_LAYER, EDGE_STRIDE, MAX_EDGES, MAX_ADDITIVE_EDGES,
 } from '../art/SphereEdges';
 import { quadSegments, tessellateQuad, CURVE_MAX_SEGMENTS } from '../art/artCurve';
 import {
@@ -190,6 +190,13 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   // ── Period-Doubling / Bifurcation ─────────────────────────────────────────
   const [bifurcCount, setBifurcCount] = useState(0);   // total child nodes spawned
   const birthMapRef = useRef(new Map());                // childId → {parentId, px, py, pz, t0}
+
+  // ── Disc-probe scratch (DEV) ──────────────────────────────────────────────
+  // Synthetic disc/ring instances appended to the edge buffer, so the shader's
+  // annulus, arc-sweep, angular-dash and radial-falloff branches can be
+  // photographed BEFORE tasks 5-7 build three layers on top of them. Nothing
+  // in the app writes this; it is null in every real frame.
+  const discProbeRef = useRef(null);
 
   // ── Node-layer draw census ────────────────────────────────────────────────
   // One counter per node sub-layer, incremented at the draw call itself and
@@ -1301,21 +1308,36 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             // behaviour, faithfully.
             const src = e.direction >= 0 ? colA : colB;
             const a   = e.pulse * depthFade * PULSE_ALPHA;
-            const o   = eg.count * EDGE_STRIDE;
-            const ed  = eg.data;
-            // Coincident endpoints: the disc's centre. See SphereEdges.js.
-            ed[o] = px; ed[o + 1] = py; ed[o + 2] = px; ed[o + 3] = py;
-            // One colour and one alpha in all three stops, so the shader's
-            // gradient degenerates to flat rather than needing its own branch.
-            writeHslRgb(ed, o + 4,  src);
-            writeHslRgb(ed, o + 7,  src);
-            writeHslRgb(ed, o + 10, src);
-            ed[o + 13] = packAlphas(a, a, a);
-            ed[o + 14] = discWidth(pulseRingRadius(e.pulse, pA.scale));
-            ed[o + 15] = packFlags(0, 0, 0);   // no dash, no glow, not ortho
+            // Through writeDisc since step 5 task 3. The centre is no longer
+            // duplicated into aEnds.zw — those two floats now carry the inner
+            // radius and the sweep — and what makes that safe is EDGE_VERT
+            // forcing delta to zero for a disc. The two halves landed together
+            // and must stay together; see DISC_OFF.
+            //
+            // A pulse ring is the degenerate case of the new encoding: no inner
+            // radius, no sweep, no falloff, so every added field is 0 and the
+            // shader collapses to the filled disc it always drew.
+            writeDisc(eg.data, eg.count * EDGE_STRIDE, {
+              cx: px, cy: py,
+              rOuter: pulseRingRadius(e.pulse, pA.scale),
+              hsl: src, alpha: a,
+              flags: packFlags(0, 0, 0),   // no dash, no glow, not ortho
+            });
             eg.count++;
             eg.rings++;
           }
+        }
+      }
+
+      // Disc probe (DEV only, null in every real frame). Appended here so it
+      // shares the pulse rings' exact path into the buffer — same mesh, same
+      // material, same blend — rather than proving a shader branch through a
+      // route nothing else uses.
+      if (discProbeRef.current) {
+        for (const d of discProbeRef.current) {
+          if (eg.count >= MAX_EDGES) break;
+          writeDisc(eg.data, eg.count * EDGE_STRIDE, d);
+          eg.count++;
         }
       }
 
@@ -2060,6 +2082,17 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       return { query: result?.query ?? null, anchors: result?.anchors?.length ?? 0 };
     };
 
+    // Synthetic disc/ring instances, straight into the edge buffer. The four
+    // shader branches this exercises (inner radius, arc sweep, angular dash,
+    // radial falloff) are written in task 3 but not DRAWN by anything until
+    // tasks 5-7, so without this they would ship three tasks deep and
+    // unverified — and each of those tasks would then be debugging its own
+    // layer against an unproven primitive.
+    window.__artSetDiscProbe = (specs) => {
+      discProbeRef.current = specs && specs.length ? specs : null;
+      return discProbeRef.current ? discProbeRef.current.length : 0;
+    };
+
     // The overwrite bleed — `renderCol` lerped toward the source node's colour.
     // Organically this needs an overwrite event, which no capture state fires.
     // Writes the live sphere node the draw loop reads, so the real lerp runs.
@@ -2200,6 +2233,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       delete window.__artForceBirth;
       delete window.__artForceBeacon;
       delete window.__artForceBleed;
+      delete window.__artSetDiscProbe;
       delete window.__artNodeState;
     };
   }, [initState, archaeologyRef, reasoningRef, stateRef]);

@@ -465,16 +465,22 @@ export const DISC_RESERVED = Object.freeze([
  */
 export function writeDisc(out, o, {
   cx, cy, rOuter, rInner = 0, sweepStart = 0, sweepEnd = 0, falloffInner = 0,
-  rgb, alpha, flags = 0,
+  rgb, hsl, alpha, flags = 0,
 }) {
   out[o + EDGE_OFF.ax] = cx;
   out[o + EDGE_OFF.ay] = cy;
   out[o + DISC_OFF.inner] = rInner;
   out[o + DISC_OFF.sweepEnd] = sweepEnd;
   // One colour in the c0 slot; the shader reads no other stop for a disc.
-  out[o + EDGE_OFF.c0] = rgb[0];
-  out[o + EDGE_OFF.c0 + 1] = rgb[1];
-  out[o + EDGE_OFF.c0 + 2] = rgb[2];
+  // `hsl` takes the same colour objects every other writer here takes, so a
+  // call site never has to convert by hand — that conversion is exactly where
+  // a second, drifting implementation would appear.
+  if (hsl) writeHslRgb(out, o + EDGE_OFF.c0, hsl);
+  else {
+    out[o + EDGE_OFF.c0] = rgb[0];
+    out[o + EDGE_OFF.c0 + 1] = rgb[1];
+    out[o + EDGE_OFF.c0 + 2] = rgb[2];
+  }
   out[o + DISC_OFF.falloffInner] = falloffInner;
   for (const k of DISC_RESERVED) out[o + k] = 0;
   // All three alphas the same, so the gradient degenerates to flat whichever
@@ -667,15 +673,28 @@ const EDGE_VERT = /* glsl */`
   varying float vPhase;      // px of arc length from the PATH's start, at A
   varying float vGlow;
   varying float vIsOrtho;    // 0.0 or 1.0 — same for all 4 verts of an instance
-  varying float vIsDisc;     // ditto: a pulse ring, flagged by a negative width
+  varying float vIsDisc;     // ditto: a disc or ring, flagged by a negative width
+  // The disc branch's repurposed floats. See DISC_OFF in SphereEdges.js.
+  // x = inner radius px (0 = filled)   y = sweep start rad
+  // z = sweep end rad (0 = full circle) w = falloff inner radius px (0 = none)
+  // EVERY component is multiplied by isDisc in the vertex shader, so a segment
+  // carries vec4(0) here and every branch below it collapses to what it was.
+  varying vec4  vDisc;
 
   void main() {
     vec2 a = aEnds.xy;
-    vec2 b = aEnds.zw;
-    vec2 delta = b - a;
+
+    // Read the disc flag FIRST: a disc's aEnds.zw is not a second endpoint, it
+    // is (innerRadius, sweepEnd), so deriving delta from it would give a
+    // hundreds-of-pixels axis pointing at the ORIGIN. Forcing delta to zero
+    // here is what keeps that data out of the segment path — and it is the
+    // half of the encoding that lives in GLSL. See writeDisc().
+    float isDiscV = step(aPack.y, 0.0);
+    vec2 delta = mix(aEnds.zw - a, vec2(0.0), isDiscV);
     float len = length(delta);
     vec2 dir = len > 1e-6 ? delta / len : vec2(1.0, 0.0);
     vec2 nrm = vec2(-dir.y, dir.x);
+    vDisc = vec4(aEnds.z, aPhase, aEnds.w, aC1.x) * isDiscV;
 
     // Unpack. Every divisor is a power of two and every field an integer, so
     // these are exact for a float32 payload below 2^24. The glow byte's top
@@ -697,7 +716,7 @@ const EDGE_VERT = /* glsl */`
     // (see the file header and discWidth() below), and both cases want the
     // magnitude. A real edge width is provably positive, so nothing else can
     // land in the disc branch.
-    float isDisc = step(aPack.y, 0.0);
+    float isDisc = isDiscV;
     float halfW = abs(aPack.y) * 0.5;
 
     // Pad for the antialiasing shoulder and for however far the glow reaches.
@@ -834,6 +853,7 @@ const edgeFrag = (shadow, composite) => /* glsl */`
   varying float vGlow;
   varying float vIsOrtho;
   varying float vIsDisc;
+  varying vec4  vDisc;       // inner r, sweep start, sweep end, falloff inner
 
   // The CSS Color 4 reference algorithm, verbatim — the GLSL twin of
   // writeHsl() in SphereEdges.js. Used only for the ortho shadow colour,
@@ -870,13 +890,56 @@ const edgeFrag = (shadow, composite) => /* glsl */`
     // Butt caps, matching ctx's default lineCap.
     float cap  = clamp(vAlong / pxA + 0.5, 0.0, 1.0)
                * clamp((vLen - vAlong) / pxA + 0.5, 0.0, 1.0);
-    // A pulse ring is the SAME box filter on radial distance. Its two endpoints
+    // A disc is the SAME box filter on radial distance. Its two endpoints
     // coincide, so vAlong and vD are just the two components of the offset from
-    // the disc's centre. No cap term — a disc has no ends — and no dash: its
-    // packed period is 0, so the branch below is skipped anyway. Selected with
-    // mix() rather than an if, so the count of non-uniform branches under the
-    // derivative reads at the top of main() stays where it was.
-    float disc = clamp((vHalfW - length(vec2(vAlong, vD))) / pxD + 0.5, 0.0, 1.0);
+    // the centre. No cap term — a disc has no ends. Everything below is
+    // selected with mix() rather than an if, so the count of non-uniform
+    // branches under the derivative reads at the top of main() stays where it
+    // was, and so a SEGMENT (which carries vDisc = vec4(0)) collapses through
+    // each one to exactly the arithmetic it had before any of this existed.
+    float r = length(vec2(vAlong, vD));
+    float disc = clamp((vHalfW - r) / pxD + 0.5, 0.0, 1.0);
+
+    // ANNULUS. The hole is the same box filter with the sign flipped. The
+    // step() guard is load-bearing, not defensive: with vDisc.x = 0 the inner
+    // term evaluates to 0.5 at the exact centre (r = 0 gives 0/pxD + 0.5), so
+    // an unguarded multiply would punch a half-lit pixel through the middle of
+    // every filled disc the pulse rings draw.
+    float inner = clamp((r - vDisc.x) / pxD + 0.5, 0.0, 1.0);
+    disc *= mix(1.0, inner, step(1e-6, vDisc.x));
+
+    // RADIAL FALLOFF, for the halos. Flat inside vDisc.w, then LINEAR to zero
+    // at the outer radius — a createRadialGradient, NOT the gaussian shoulder
+    // the glow below models. The two are different falloffs AND different
+    // amplitude laws; substituting one for the other matches at exactly one
+    // radius and is wrong at every other.
+    float ramp = 1.0 - clamp((r - vDisc.w) / max(vHalfW - vDisc.w, 1e-6), 0.0, 1.0);
+    disc *= mix(1.0, ramp, step(1e-6, vDisc.w));
+
+    // ARC SWEEP, for the ghost ring, whose sweep angle IS its animation.
+    // atan(vD, vAlong) with vD along nrm and vAlong along dir reproduces the
+    // canvas angle exactly: dir is (1,0) for a disc and nrm is (0,1), which in
+    // screen space points DOWN, so increasing angle runs the same way
+    // ctx.arc does with anticlockwise unset.
+    //
+    // The shoulder is pxD/r RADIANS, i.e. one pixel of ARC LENGTH. A constant
+    // radian shoulder would be a radius-dependent pixel shoulder — thick on a
+    // small ring, invisible on a large one.
+    // Two hazards, both guarded rather than branched:
+    //   atan(0, 0) is UNDEFINED, and it is reached at the exact centre of every
+    //   filled disc. The step() adds 1.0 to x only there, giving atan(0, 1) = 0.
+    //   Without it a NaN escapes — and mix(x, NaN, 0.0) is NaN, not x, because
+    //   the spec expands mix to x*(1-a) + y*a and NaN*0 is NaN. A segment would
+    //   have inherited it through the collapse below.
+    //   mod() rather than a conditional add, so an angle of exactly 0 stays 0
+    //   instead of being pushed to 2pi and out of its own sweep.
+    float ang = mod(atan(vD, vAlong + step(r, 1e-6)) + 6.283185307179586,
+                    6.283185307179586);
+    float aaAng = pxD / max(r, 1e-6);
+    float sweep = clamp((ang - vDisc.y) / aaAng + 0.5, 0.0, 1.0)
+                * clamp((vDisc.z - ang) / aaAng + 0.5, 0.0, 1.0);
+    disc *= mix(1.0, sweep, step(1e-6, vDisc.z));
+
     float core = mix(side * cap, disc, vIsDisc);
 
     // Dash, in the same px units the canvas used, and on the CORE only: the
@@ -888,7 +951,20 @@ const edgeFrag = (shadow, composite) => /* glsl */`
     // i's phase at t = 1 is segment i+1's phase at t = 0, by construction (see
     // writePolyline). Straight strokes carry vPhase = 0 and this reduces to the
     // segment-local form it replaced, byte for byte.
-    if (vDash.x > 0.0) core *= step(mod(vPhase + t * vLen, vDash.x), vDash.y);
+    // The dash position is arc length along whatever the instance IS: px from
+    // the path start for a segment, r*theta around the circumference for a
+    // disc. The segment form cannot serve a disc — vLen is 0 there, so
+    // vPhase + t*vLen is a per-instance CONSTANT and the dash would switch the
+    // whole ring uniformly on or off instead of dashing around it.
+    // r*ang would be the fragment's OWN arc length, and r varies across the
+    // band — so the same angle sits at different dash positions on the inner
+    // and outer edge and every dash end comes out SLANTED. Measured on an
+    // 8px band at r=40 that is about a pixel of skew, and it is visible.
+    // ctx.setLineDash walks the path's CENTRELINE, so use the band's mid
+    // radius: the dash boundaries come out radial, as the canvas draws them.
+    float rMid = (vHalfW + vDisc.x) * 0.5;
+    float dashPos = mix(vPhase + t * vLen, rMid * ang, vIsDisc);
+    if (vDash.x > 0.0) core *= step(mod(dashPos, vDash.x), vDash.y);
 
     // The shoulder standing in for ctx.shadowBlur. A canvas shadow is a real
     // gaussian of sigma = blur/2, so this is one too: exp(-d^2 / 2sigma^2) with
