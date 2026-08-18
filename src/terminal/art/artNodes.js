@@ -367,8 +367,26 @@ export const GHOST_INNER_ALPHA_K = 0.5;
 export const GHOST_OUTER_ALPHA_K = 0.2;
 export const GHOST_INNER_WIDTH = 1.5;
 export const GHOST_OUTER_WIDTH = 3;
-export const GHOST_INNER_HSL = { h: 180, s: 70, l: 75 };
-export const GHOST_OUTER_HSL = { h: 180, s: 60, l: 85 };
+// The field names every colour object in this port carries, so these go
+// straight into writeHslRgb without a second conversion — which is exactly
+// where a drifting copy of the hsl-to-rgb maths would appear.
+export const GHOST_INNER_HSL = Object.freeze({ hue: 180, sat: 70, lit: 75 });
+export const GHOST_OUTER_HSL = Object.freeze({ hue: 180, sat: 60, lit: 85 });
+
+/**
+ * The inner ring's sweep as the ENCODING wants it, not as ctx.arc wants it.
+ *
+ * `writeDisc` reads a sweepEnd of 0 as "full circle" — the sentinel that lets
+ * every filled disc in the buffer carry a zero there — and the shader gates its
+ * whole sweep branch on `step(1e-6, sweepEnd)`. Passing 2pi instead would take
+ * the branch, and the branch antialiases BOTH ends of the arc: at g = 1 the
+ * start and the end land on the same angle and the seam comes out at half
+ * brightness, about a pixel of it. ctx.arc(0, 2pi) has no seam. So a complete
+ * ghost is written as a full circle, which is what it is.
+ */
+export function ghostSweepEncoded(g) {
+  return g >= 1 ? 0 : ghostSweep(g);
+}
 
 export function ghostDraws(g) {
   return g > GHOST_CUTOFF;

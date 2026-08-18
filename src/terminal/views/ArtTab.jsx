@@ -63,7 +63,9 @@ import {
   chimeraFlickRate, chimeraFlickAlpha, chimeraFlickRadius, chimeraFlickHue,
   CHIMERA_SYNC_HSL, CHIMERA_SYNC_WIDTH,
   CHIMERA_FLICK_DASH, CHIMERA_FLICK_WIDTH, CHIMERA_FLICK_SAT, CHIMERA_FLICK_LIT,
-  ghostDraws, ghostRadius, ghostOuterRadius, ghostAlpha, ghostSweep,
+  ghostDraws, ghostRadius, ghostOuterRadius, ghostAlpha, ghostSweepEncoded,
+  GHOST_INNER_HSL, GHOST_OUTER_HSL, GHOST_INNER_WIDTH, GHOST_OUTER_WIDTH,
+  GHOST_INNER_ALPHA_K, GHOST_OUTER_ALPHA_K,
   fusionPulse, fusionRingRadius, fusionRingAlpha, fusionThreadAlpha,
   probePulse, probeDepthAlpha, probeRadius, probeGlowRadius, probeGlowInnerRadius,
   probeCoreAlpha, probeTetherAlpha, probeCentroid,
@@ -140,6 +142,7 @@ const CHIMERA_FLAGS = packFlags(CHIMERA_PERIOD, CHIMERA_DASH[0], 0, false,
 // and the dash boundaries come out radial, exactly as ctx.setLineDash draws
 // them around a stroked circle.
 const BEACON_FLAGS = packFlags(0, 0, 0, false, ADDITIVE_LAYER.glowQuant);
+const GHOST_FLAGS = packFlags(0, 0, 0, false, ADDITIVE_LAYER.glowQuant);
 const CHIMERA_SYNC_FLAGS = packFlags(0, 0, 0);
 const CHIMERA_FLICK_FLAGS = packFlags(
   CHIMERA_FLICK_DASH[0] + CHIMERA_FLICK_DASH[1], CHIMERA_FLICK_DASH[0], 0);
@@ -1733,30 +1736,44 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         }
 
         // ── Ghost node (Gestalt completion) — materializing outline ─────────
+        //
+        // Both rings are `lighter`, so both go into `ag` — and AFTER the beacon
+        // above, which is the order the 2D loop drew them in. The inner ring is
+        // a PARTIAL ARC and its sweep angle is the completion readout itself:
+        // written as a full circle it would still look like a ring and the
+        // whole animation would be gone. (The 2D comment called it "dashed".
+        // It never was; it is an arc, and ghostSweepEncoded() is why.)
         {
           const _ghosts = getGhostNodes();
           if (_ghosts && ghostDraws(_ghosts[i])) {
             const gAlpha = ghostAlpha(_ghosts[i], depthAlpha);
             const ghostR = ghostRadius(radius, _ghosts[i], p.scale);
-            // Double ring: inner dashed (incomplete), outer solid (materializing)
-            ctx.save();
-            ctx.globalCompositeOperation = 'lighter';
-            // Inner ring: partial reconstruction
-            ctx.beginPath();
-            // The sweep IS the readout — a full circle here loses the layer.
-            ctx.arc(p.sx, p.sy, ghostR, 0, ghostSweep(_ghosts[i]));
-            ctx.strokeStyle = `hsla(180,70%,75%,${(gAlpha * 0.5).toFixed(3)})`;
-            ctx.lineWidth = 1.5 * p.scale;
-            ctx.stroke();
-            _cen.ghostInner++;
-            // Outer glow ring: completion halo
-            ctx.beginPath();
-            ctx.arc(p.sx, p.sy, ghostOuterRadius(ghostR, p.scale), 0, Math.PI * 2);
-            ctx.strokeStyle = `hsla(180,60%,85%,${(gAlpha * 0.2).toFixed(3)})`;
-            ctx.lineWidth = 3 * p.scale;
-            ctx.stroke();
-            _cen.ghostOuter++;
-            ctx.restore();
+            if (ag.count < MAX_ADDITIVE_EDGES) {
+              const _gi = strokeAnnulus(ghostR, GHOST_INNER_WIDTH * p.scale);
+              writeDisc(ag.data, ag.count * EDGE_STRIDE, {
+                cx: p.sx, cy: p.sy,
+                rOuter: _gi.rOuter, rInner: _gi.rInner,
+                sweepEnd: ghostSweepEncoded(_ghosts[i]),
+                hsl: GHOST_INNER_HSL, alpha: gAlpha * GHOST_INNER_ALPHA_K,
+                flags: GHOST_FLAGS,
+              });
+              ag.count++;
+              _cen.ghostInner++;
+            } else ag.dropped++;
+
+            // Outer glow ring: completion halo. Full circle, three times wide.
+            if (ag.count < MAX_ADDITIVE_EDGES) {
+              const _go = strokeAnnulus(ghostOuterRadius(ghostR, p.scale),
+                                        GHOST_OUTER_WIDTH * p.scale);
+              writeDisc(ag.data, ag.count * EDGE_STRIDE, {
+                cx: p.sx, cy: p.sy,
+                rOuter: _go.rOuter, rInner: _go.rInner,
+                hsl: GHOST_OUTER_HSL, alpha: gAlpha * GHOST_OUTER_ALPHA_K,
+                flags: GHOST_FLAGS,
+              });
+              ag.count++;
+              _cen.ghostOuter++;
+            } else ag.dropped++;
           }
         }
 

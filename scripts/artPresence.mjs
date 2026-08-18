@@ -1778,6 +1778,10 @@ function addRingsOf(add) {
     out.push({
       i: k, cx: add.instances[o + EDGE_OFF.ax], cy: add.instances[o + EDGE_OFF.ay],
       rOuter: Math.abs(w) * 0.5, rInner: add.instances[o + EDGE_OFF.bx],
+      // DISC_OFF.sweepEnd — the ghost inner ring's arc, and 0 for a full
+      // circle. Decoded here because the ghost check compares the RENDERED arc
+      // against the one the same frame wrote, never against the injection.
+      sweepEnd: add.instances[o + EDGE_OFF.by],
       alpha: unpackAlphas(add.instances[o + EDGE_OFF.alphas]).a0,
       flags: add.instances[o + EDGE_OFF.flags],
     });
@@ -2099,6 +2103,183 @@ try {
     await r8.pump(2);
   }
 } finally { await r8.close(); }
+
+
+// ── The two Gestalt ghost rings (step 5 task 6) ────────────────────────────
+//
+// The inner ring is a PARTIAL ARC and its sweep angle IS the completion
+// readout. Ported as a full circle it would still look like a ring, artCompare
+// would still read 21/21 — no capture state reaches this layer either — and
+// the whole animation would be gone. So what is checked here is the ANGLE, at
+// three completions, not whether a ring is present.
+//
+// HOW THE ANGLE IS MEASURED, and why it is not measured the obvious way.
+// Fitting the arc's extent directly (a step fit over the per-angle radial
+// bump) lands about 0.2 of a circle LONG in situ at every completion — 0.25
+// reads 0.44, 0.60 reads 0.81 — while the same fit on an ISOLATED probe arc at
+// the same radius and band comes back SHORT. Measured, `scripts/_t6ghost.mjs`:
+// the over-run is the neighbourhood, not the layer. The outer companion ring
+// is a full circle 1.5px further out and the node's own halo lies under all of
+// it, so an absolute angle is not honestly measurable here.
+//
+// WHICH of several candidate angles the frame matches best is. For each
+// candidate, score the band as the mean bump inside [0, 2pi*candidate) minus
+// the mean outside; the score has to peak at the completion the frame actually
+// wrote. That distinguishes an arc from a full circle, which is the failure
+// this layer can hide, and it is unanimous across rings in practice.
+const GHOST_CANDIDATES = [0.25, 0.6, 0.95];
+
+// Mean luminance in a thin annular wedge — the per-angle form of radialBump.
+function wedgeMean(img, cx, cy, r0, r1, th, halfAng) {
+  let s = 0, n = 0;
+  const steps = Math.max(3, Math.round((r1 - r0) / 0.4));
+  for (let a = -halfAng; a <= halfAng; a += halfAng / 2) {
+    for (let k = 0; k <= steps; k++) {
+      const r = r0 + (r1 - r0) * (k / steps);
+      const x = Math.round(cx + Math.cos(th + a) * r), y = Math.round(cy + Math.sin(th + a) * r);
+      if (x < 0 || y < 0 || x >= img.width || y >= img.height) continue;
+      const i = (y * img.width + x) * 4;
+      s += 0.2126 * img.data[i] + 0.7152 * img.data[i + 1] + 0.0722 * img.data[i + 2];
+      n++;
+    }
+  }
+  return n ? s / n : 0;
+}
+function angularBump(img, rg, th) {
+  const halfAng = 1.2 / Math.max(rg.rOuter, 1);          // ~1.2px of arc
+  const band = wedgeMean(img, rg.cx, rg.cy, rg.rInner, rg.rOuter, th, halfAng);
+  const inner = wedgeMean(img, rg.cx, rg.cy, Math.max(0, rg.rInner - 3.5),
+    Math.max(0.5, rg.rInner - 1.5), th, halfAng);
+  const outer = wedgeMean(img, rg.cx, rg.cy, rg.rOuter + 1.5, rg.rOuter + 3.5, th, halfAng);
+  return band - (inner + outer) / 2;
+}
+function ghostCandidateMatch(img, rg, N = 360) {
+  const b = [];
+  for (let k = 0; k < N; k++) b.push(angularBump(img, rg, (k / N) * Math.PI * 2));
+  const m = a => a.reduce((s, v) => s + v, 0) / a.length;
+  const scores = GHOST_CANDIDATES.map(c => {
+    const cut = Math.max(1, Math.min(N - 1, Math.round(c * N)));
+    return m(b.slice(0, cut)) - m(b.slice(cut));
+  });
+  return GHOST_CANDIDATES[scores.indexOf(Math.max(...scores))];
+}
+
+const r9 = await launch({ url: 'http://localhost:5174/', width: 1520, height: 900, deterministic: true });
+try {
+  await r9.waitFor('document.querySelectorAll("canvas").length > 0', { label: 'boot' });
+  await sleep(2500);
+  await r9.eval(clickText('/CHAOS'));
+  await r9.waitFor(READY, { label: 'sphere', timeoutMs: 40000 });
+  await r9.waitFor(GL_READY, { label: 'GL sized', timeoutMs: 40000 });
+  await sleep(4000);
+  await r9.eval('window.__virtualize()');
+  await sleep(150);
+  await r9.eval('window.__reseed(); window.__artHarnessReset();');
+  await r9.pump(240);
+  const rect = await r9.eval(RECT);
+  const clip = { x: rect.x, y: rect.y, width: rect.w, height: rect.h, scale: 1 };
+  await r9.hover(Math.round(rect.x + 8), Math.round(rect.y + 8));
+  await r9.pump(10);
+
+  const state = async () => JSON.parse(await r9.eval('JSON.stringify(window.__artEdgeState())'));
+  const census = async () => JSON.parse(await r9.eval('JSON.stringify(window.__artNodeState())'));
+  const hasHook = await r9.eval('typeof window.__artSetGhostNodes === "function"');
+
+  console.log('GESTALT GHOST RINGS  (additive; the inner one is an ARC and its sweep is the readout)');
+  if (!hasHook) {
+    console.log('   __artSetGhostNodes missing — production build?');
+    verdict('GHOST INNER RING', false);
+    verdict('GHOST OUTER RING', false);
+  } else {
+    // Every other node, so each ghosted ring has an un-ghosted neighbour.
+    const setGhosts = (g) =>
+      `window.__artSetGhostNodes(Array.from({length:64},(_,i)=> i%2===0 ? ${g} : 0))`;
+    const perG = [];
+    let innerOk = true, outerOk = true;
+    for (const g of GHOST_CANDIDATES) {
+      // Re-asserted every pump: the hook writes ghostTargets as well as
+      // ghostNodes, but the analogy sim rebuilds the targets on its own cadence
+      // and _animateGhosts then walks the values off the injection — measured,
+      // a frame asked for 0.6 and the buffer carried a sweep of 0.552.
+      for (let k = 0; k < 3; k++) { await r9.eval(setGhosts(g)); await r9.pump(1); }
+      const c = await census();
+      const st = await state();
+      const img = decodePng(await r9.screenshot({ clip }));
+      const rings = addRingsOf(st.additive).filter(d => d.rInner > 0);
+      const cores = nodeDiscsOf(st).cores;
+      if (!(c.ghostInner > 0) || rings.length < 2) {
+        console.log(`   g=${g}: forced and nothing drew (census ${c.ghostInner}/${c.ghostOuter})`);
+        innerOk = outerOk = false;
+        break;
+      }
+      // Per node: the inner ring is written first, then the outer one.
+      const inners = [], outers = [];
+      for (let k = 0; k + 1 < rings.length; k += 2) { inners.push(rings[k]); outers.push(rings[k + 1]); }
+      const written = inners[0].sweepEnd / (Math.PI * 2);
+      const sameSweep = inners.every(d => Math.abs(d.sweepEnd - inners[0].sweepEnd) < 1e-4);
+      const outerFull = outers.every(d => d.sweepEnd === 0);
+      const countOk = c.ghostInner === inners.length && c.ghostOuter === outers.length;
+
+      // Only rings bright enough to be measured, and clear of a neighbour's
+      // core. Alpha is g * depthAlpha * 0.5 and the depth cue floors at 0.08,
+      // so a back-facing node at g = 0.25 carries alpha 0.012 — about 2 of 255
+      // over a 2px band, which is absent rather than faint.
+      const aMax = Math.max(...inners.map(d => d.alpha));
+      const bright = inners.filter(rg => rg.alpha >= Math.max(0.05, aMax * 0.6)
+        && !cores.some(d => Math.hypot(d.cx - rg.cx, d.cy - rg.cy) > 0.5
+          && Math.hypot(d.cx - rg.cx, d.cy - rg.cy) < rg.rOuter + d.rOuter + 6));
+      const votes = bright.map(rg => ghostCandidateMatch(img, rg));
+      const tally = GHOST_CANDIDATES.map(cd => votes.filter(v => v === cd).length);
+      const winner = GHOST_CANDIDATES[tally.indexOf(Math.max(...tally))];
+      const bumpIn = bright.length
+        ? bright.reduce((s, rg) => s + radialBump(img, rg.cx, rg.cy, rg.rInner, rg.rOuter), 0) / bright.length
+        : 0;
+      // The outer ring, on the same nodes: a full circle three times as wide,
+      // and its band width is checked against the scale its own node implies.
+      const outerPairs = outers.filter(rg => bright.some(b =>
+        Math.hypot(b.cx - rg.cx, b.cy - rg.cy) < 0.5));
+      const bumpOut = outerPairs.length
+        ? outerPairs.reduce((s, rg) => s + radialBump(img, rg.cx, rg.cy, rg.rInner, rg.rOuter), 0) / outerPairs.length
+        : 0;
+      const widthRatio = outerPairs.length && bright.length
+        ? (outerPairs[0].rOuter - outerPairs[0].rInner) / (bright[0].rOuter - bright[0].rInner)
+        : 0;
+
+      console.log(`   g=${g}: ${c.ghostInner} inner + ${c.ghostOuter} outer;`
+        + ` buffer sweep ${written.toFixed(3)} of a circle; ${bright.length} measurable`
+        + ` (alpha up to ${aMax.toFixed(3)})`);
+      console.log(`        candidate match ` + GHOST_CANDIDATES.map((cd, k) => `${cd}:${tally[k]}`).join('  ')
+        + `  ->  ${winner}` + (Math.abs(winner - g) < 0.05 ? '' : '   WRONG ARC'));
+      console.log(`        radial bump inner ${bumpIn.toFixed(2)}   outer ${bumpOut.toFixed(2)}`
+        + `   outer/inner band ${widthRatio.toFixed(2)} (expect 2.0 — 3*scale over 1.5*scale)`);
+
+      // The render is held to the sweep THIS FRAME WROTE, not to the injected
+      // g: the two can differ by a few hundredths when _animateGhosts walks the
+      // value between the injection and the draw (measured, 0.6 -> 0.552), and
+      // holding the pixels to a number the buffer never carried is how a
+      // harness fails a build that is working.
+      const nearest = GHOST_CANDIDATES.reduce((b, cd) =>
+        (Math.abs(cd - written) < Math.abs(b - written) ? cd : b), GHOST_CANDIDATES[0]);
+      const gOk = sameSweep && countOk && Math.abs(written - g) < 0.1
+        && bright.length >= 3 && winner === nearest && bumpIn > RING_BUMP_MIN;
+      if (!gOk) innerOk = false;
+      if (!(outerFull && bumpOut > RING_BUMP_MIN && Math.abs(widthRatio - 2) < 0.35)) outerOk = false;
+      perG.push({ g, written, winner, bumpIn, bumpOut, widthRatio });
+    }
+    // A rising bump across the sweep is the layer's own alpha law (g * depth *
+    // 0.5) showing up in the pixels — one more thing a full-circle port would
+    // still pass, which is why it is not the gate on its own.
+    if (perG.length === GHOST_CANDIDATES.length) {
+      console.log('   inner bump by completion: '
+        + perG.map(p => `${p.g}->${p.bumpIn.toFixed(1)}`).join('  '));
+      if (!(perG[0].bumpIn < perG[2].bumpIn)) innerOk = false;
+    }
+    verdict('GHOST INNER RING', innerOk && perG.length === GHOST_CANDIDATES.length);
+    verdict('GHOST OUTER RING', outerOk && perG.length === GHOST_CANDIDATES.length);
+    await r9.eval('window.__artSetGhostNodes(null)');
+    await r9.pump(2);
+  }
+} finally { await r9.close(); }
 
 
 // ── Tally ─────────────────────────────────────────────────────────────────

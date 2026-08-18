@@ -22,6 +22,7 @@ import {
   chimeraSyncPulse, chimeraSyncAlpha, chimeraSyncRadius,
   chimeraFlickRate, chimeraFlickAlpha, chimeraFlickRadius, chimeraFlickHue,
   ghostDraws, ghostRadius, ghostOuterRadius, ghostAlpha, ghostSweep,
+  ghostSweepEncoded,
   fusionPulse, fusionRingRadius, fusionRingAlpha, fusionThreadAlpha,
   probePulse, probeDepthAlpha, probeRadius, probeGlowRadius, probeGlowInnerRadius,
   probeCoreAlpha, probeTetherAlpha, probeCentroid,
@@ -377,6 +378,36 @@ describe('the ghost rings — the sweep IS the animation', () => {
   it('alphas as g * depthAlpha, before each ring takes its own share', () => {
     expect(ghostAlpha(0.5, 1)).toBeCloseTo(0.5, 12);
     expect(ghostAlpha(0.5, 0.4)).toBeCloseTo(0.2, 12);
+  });
+});
+
+describe('the ghost sweep, as the encoding wants it', () => {
+  it('passes a partial arc straight through', () => {
+    for (const g of [0.05, 0.25, 0.5, 0.9, 0.999]) {
+      expect(ghostSweepEncoded(g)).toBeCloseTo(Math.PI * 2 * g, 12);
+    }
+  });
+
+  it('writes a COMPLETE ghost as a full circle, not as a sweep of 2pi', () => {
+    // 0 is the encoding's "full circle" sentinel. 2pi would take the shader's
+    // sweep branch, which antialiases both ends of the arc onto the same angle
+    // and leaves a half-lit seam ctx.arc(0, 2pi) does not have.
+    expect(ghostSweepEncoded(1)).toBe(0);
+    expect(ghostSweepEncoded(1.4)).toBe(0);
+  });
+
+  it('is a legal disc instance at every completion', () => {
+    const st = createEdgeState(4);
+    for (const g of [0.02001, 0.3, 0.75, 1]) {
+      writeDisc(st.data, 0, {
+        cx: 40, cy: 40, rOuter: 12, rInner: 10.5,
+        sweepEnd: ghostSweepEncoded(g),
+        hsl: { hue: 180, sat: 70, lit: 75 }, alpha: ghostAlpha(g, 1) * 0.5,
+        flags: packFlags(0, 0, 0),
+      });
+      expect(discEncodingInvariant(st.data, 0)).toEqual([]);
+      expect(readDisc(st.data, 0).sweepEnd).toBeCloseTo(g >= 1 ? 0 : Math.PI * 2 * g, 5);
+    }
   });
 });
 
