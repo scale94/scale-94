@@ -609,9 +609,17 @@ function maskedMean(img, cx, cy, rad, nx, ny, band) {
 // spell the test `w >= 0` and the offset `14` itself, and the copy had already
 // drifted — `isDisc` is `<= 0` (the shader's `step`), so an instance of width
 // exactly 0 was an edge here and a disc on the GPU.
+// Bounded by `discStart`, the index the WRITER publishes as the first disc
+// that is not a pulse ring. From step 5 the node halos and cores live in this
+// same buffer and are discs by the same sign rule, so an unbounded scan finds
+// 62 of them and calls them rings — measured: 129 motion-matched samples over
+// 79640px instead of 39 over 207px, and the check collapsed to ratio 1.46 on a
+// frame whose rings were perfectly fine. Falls back to `count` so this still
+// runs against a build that predates the field.
 function ringsOf(s) {
   const out = [];
-  for (let i = 1; i < s.count; i++) {
+  const end = s.discStart ?? s.count;
+  for (let i = 1; i < end; i++) {
     const o = i * EDGE_STRIDE, w = s.instances[o + EDGE_OFF.width];
     if (!isDisc(w)) continue;
     const e = (i - 1) * EDGE_STRIDE;

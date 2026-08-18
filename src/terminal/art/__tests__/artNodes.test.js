@@ -13,6 +13,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   nodeEnergy, depthCueAlpha, resonanceDimmed, nodeRadius, coreAlpha, coreIsOpaque,
+  coreColorSource,
   birthEase, birthProgress, birthProject, bleedMix,
   spectralBlend, rgbHue, spectralTint,
   haloDraws, haloRadius, haloInnerRadius, haloAlpha,
@@ -32,6 +33,7 @@ import {
   EDGE_OFF, EDGE_STRIDE, DISC_OFF, DISC_RESERVED,
 } from '../SphereEdges';
 import { edgeLineWidth } from '../artEdges';
+import { lerpColor } from '../../data/kernelColorMap';
 
 describe('depth cue, radius and core alpha', () => {
   it('adds the hover bonus before radius and alpha are derived', () => {
@@ -74,6 +76,29 @@ describe('depth cue, radius and core alpha', () => {
     expect(coreAlpha(0, 1)).toBeCloseTo(0.45, 12);
     expect(coreAlpha(1, 1)).toBeCloseTo(1.0, 12);
     expect(coreAlpha(1, 0.5)).toBeCloseTo(0.5, 12);
+  });
+
+  it('draws a HOVERED core from the PRE-SPECTRAL colour', () => {
+    // spectralTint rewrites hue and sat but passes `hsl` through untouched,
+    // and the hovered core is drawn from that string. So the one node the
+    // viewer is pointing at is the one node NOT wearing the tint. Measured
+    // firing on 31/31 nodes in every capture state, so this is not an edge
+    // case — a GL writer that takes renderCol recolours it.
+    const preTint = { hue: 100, sat: 50, lit: 60, hsl: 'hsl(100,50%,60%)' };
+    const tinted = spectralTint(preTint, [1, 0, 0, 1], 1);
+    expect(tinted.hue).not.toBeCloseTo(preTint.hue, 3);      // the tint moved it
+    expect(tinted.hsl).toBe(preTint.hsl);                    // the string did not
+    expect(coreColorSource(tinted, preTint, true)).toBe(preTint);
+    expect(coreColorSource(tinted, preTint, false)).toBe(tinted);
+  });
+
+  it('keeps the BLEED in both, because lerpColor recomputes hsl', () => {
+    // The split is spectral-only. If it were bleed too, a bleeding hovered
+    // node would show its original colour, and it does not.
+    const a = { hue: 0, sat: 100, lit: 50, hsl: 'hsl(0.0,100.0%,50.0%)' };
+    const b = { hue: 60, sat: 100, lit: 50, hsl: 'hsl(60.0,100.0%,50.0%)' };
+    const bled = lerpColor(a, b, bleedMix(1));
+    expect(bled.hsl).toBe(`hsl(${bled.hue.toFixed(1)},${bled.sat.toFixed(1)}%,${bled.lit.toFixed(1)}%)`);
   });
 
   it('flags the hovered core as opaque — it bypasses BOTH alphas', () => {

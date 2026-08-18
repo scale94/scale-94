@@ -303,7 +303,14 @@ export function createEdgeState(capacity = MAX_EDGES) {
     // fit. An over-range Float32Array write is a SILENT no-op, so without a
     // counter the failure mode is geometry that simply is not there, with the
     // count, the draw call and the buffer all agreeing nothing went wrong.
-    count: 0, rings: 0, dropped: 0, w: 1, h: 1, orthoHue: 0,
+    // `discStart` is the instance index at which discs that are NOT pulse
+    // rings begin — from step 5 the node halos and cores share this buffer,
+    // and they are discs too. Without it a reader scanning for `isDisc` finds
+    // 31 halos and 31 cores and calls them pulse rings: artPresence's ring
+    // check went from 39 motion-matched samples over 207px to 129 over 79640
+    // and collapsed, on a frame where the rings themselves were fine. The
+    // WRITER declares the boundary rather than the reader guessing it.
+    count: 0, rings: 0, discStart: 0, dropped: 0, w: 1, h: 1, orthoHue: 0,
     data: new Float32Array(capacity * EDGE_STRIDE),
   };
 }

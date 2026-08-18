@@ -78,6 +78,32 @@ export function coreIsOpaque(isHovered) {
   return !!isHovered;
 }
 
+/**
+ * WHICH colour object the core is actually drawn in — and it is not always the
+ * one the halo uses.
+ *
+ * `hslAlpha()` reads hue/sat/lit, so a non-hovered core and the halo both get
+ * the FULLY TINTED colour. A hovered core takes `renderCol.hsl`, the
+ * pre-rendered string — and `spectralTint()` passes `hsl` through UNCHANGED
+ * while rewriting hue and sat. So a hovered node is drawn in its PRE-SPECTRAL
+ * colour while everything around it is drawn post-tint.
+ *
+ * That is not a rounding difference. The census measured the spectral branch
+ * firing on 31 of 31 nodes in every capture state, so it is true of every
+ * hovered node in the shipping build.
+ *
+ * `lerpColor()` by contrast RECOMPUTES `hsl`, so the bleed is present in both.
+ * The split is spectral-only.
+ *
+ * Faithful parity means reproducing it: pass the pre-tint colour as `preTint`
+ * and this returns the object whose hue/sat/lit match the string the canvas
+ * would have used. A GL writer that just takes `renderCol` recolours the one
+ * node the viewer is pointing at.
+ */
+export function coreColorSource(renderCol, preTint, isHovered) {
+  return isHovered ? preTint : renderCol;
+}
+
 // ── Birth animation ─────────────────────────────────────────────────────────
 
 export const BIRTH_MS = 400;

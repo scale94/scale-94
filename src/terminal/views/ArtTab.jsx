@@ -57,6 +57,7 @@ import { quadSegments, tessellateQuad, CURVE_MAX_SEGMENTS } from '../art/artCurv
 import {
   nodeEnergy, depthCueAlpha, resonanceDimmed, nodeRadius, coreAlpha,
   birthProgress, birthProject, bleedMix, spectralTint,
+  coreIsOpaque, coreColorSource,
   haloDraws, haloRadius, haloInnerRadius, haloAlpha,
   chimeraSyncPulse, chimeraSyncAlpha, chimeraSyncRadius, CHIMERA_ALPHA_CUTOFF,
   chimeraFlickRate, chimeraFlickAlpha, chimeraFlickRadius, chimeraFlickHue,
@@ -1329,6 +1330,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         }
       }
 
+      // Every disc written from here on is a NODE disc (or a DEV probe), not a
+      // travelling pulse ring. Publishing the boundary is what keeps a reader
+      // scanning for `isDisc` from conflating the two.
+      eg.discStart = eg.count;
+
       // Disc probe (DEV only, null in every real frame). Appended here so it
       // shares the pulse rings' exact path into the buffer — same mesh, same
       // material, same blend — rather than proving a shader branch through a
@@ -1594,34 +1600,59 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           if (srcCol) { renderCol = lerpColor(col, srcCol, bleedMix(n.bleedAmount)); _cen.bleed++; }
         }
 
-        // Spectral PCA tint — shift hue based on eigenvalue-to-wavelength mapping
+        // Spectral PCA tint — shift hue based on eigenvalue-to-wavelength mapping.
+        // `_preTint` is kept because the HOVERED core is drawn from
+        // renderCol.hsl, which spectralTint deliberately does not rewrite. See
+        // artNodes' coreColorSource() for why that is not a rounding detail.
+        const _preTint = renderCol;
         const _spc = getSpectralColor(i);
         if (_spc && renderCol.hue != null) {
           _cen.spectral++;
           renderCol = spectralTint(renderCol, _spc, _spectralFlux);
         }
 
-        // Glow halo
-        if (haloDraws(energy, n.bleedAmount)) {
-          const haloR = haloRadius(radius, energy, n.bleedAmount, p.scale);
-          const hGrd  = ctx.createRadialGradient(p.sx, p.sy, haloInnerRadius(radius), p.sx, p.sy, haloR);
-          hGrd.addColorStop(0, hslAlpha(renderCol, haloAlpha(energy, n.bleedAmount, depthAlpha)));
-          hGrd.addColorStop(1, hslAlpha(renderCol, 0));
-          ctx.fillStyle = hGrd;
-          ctx.beginPath();
-          ctx.arc(p.sx, p.sy, haloR, 0, Math.PI * 2);
-          ctx.fill();
+        // ── Glow halo and core disc — ON THE GPU since step 5 task 3 ────────
+        //
+        // Written into `eg`, the SAME source-over stream the edges use, and
+        // written HERE rather than into a mesh of their own. Draw order is the
+        // reason: the 2D loop drew edges, then halos, then cores, then the
+        // rings; a second mesh would put every node under or over every edge
+        // at once. Appending to this buffer after the edge loop has finished
+        // preserves the order exactly, and the rings still on the 2D canvas
+        // composite on top of the GL result, which is where they were.
+        //
+        // The cap guard mirrors the pulse rings': `count` only rises, so a
+        // node dropped at the cap cannot have its core written either.
+        if (haloDraws(energy, n.bleedAmount) && eg.count < MAX_EDGES) {
+          // A createRadialGradient, expressed as the shader's falloff: flat
+          // inside the inner stop, then linear to zero at the rim.
+          writeDisc(eg.data, eg.count * EDGE_STRIDE, {
+            cx: p.sx, cy: p.sy,
+            rOuter: haloRadius(radius, energy, n.bleedAmount, p.scale),
+            falloffInner: haloInnerRadius(radius),
+            hsl: renderCol,
+            alpha: haloAlpha(energy, n.bleedAmount, depthAlpha),
+            flags: packFlags(0, 0, 0),
+          });
+          eg.count++;
           _cen.halo++;
         }
 
-        // Core sphere
-        // A hovered core takes renderCol.hsl, which is OPAQUE — it bypasses
-        // coreAlpha and the depth cue both. See artNodes' coreIsOpaque().
-        ctx.beginPath();
-        ctx.arc(p.sx, p.sy, radius, 0, Math.PI * 2);
-        ctx.fillStyle = isHov ? renderCol.hsl : hslAlpha(renderCol, coreAlpha(energy, depthAlpha));
-        ctx.fill();
-        _cen.core++; if (isHov) _cen.coreHover++;
+        if (eg.count < MAX_EDGES) {
+          // A hovered core is OPAQUE and takes its colour from BEFORE the
+          // spectral tint — both are the canvas's own behaviour, not a
+          // simplification. coreIsOpaque() / coreColorSource() name them.
+          const _hov = coreIsOpaque(isHov);
+          writeDisc(eg.data, eg.count * EDGE_STRIDE, {
+            cx: p.sx, cy: p.sy,
+            rOuter: radius,
+            hsl: coreColorSource(renderCol, _preTint, _hov),
+            alpha: _hov ? 1 : coreAlpha(energy, depthAlpha),
+            flags: packFlags(0, 0, 0),
+          });
+          eg.count++;
+          _cen.core++; if (isHov) _cen.coreHover++;
+        }
 
         // ── Awakening beacon ring (logic in artAwakening.js) ──────────────
         if (drawBeaconRing(ctx, aw, i, p, radius, renderCol, depthAlpha, nodes.length)) {
@@ -2196,7 +2227,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     window.__artEdgeState = () => {
       const e = edgeGLRef.current, a = addGLRef.current;
       return {
-        count: e.count, rings: e.rings, w: e.w, h: e.h,
+        count: e.count, rings: e.rings, discStart: e.discStart, w: e.w, h: e.h,
         first: Array.from(e.data.slice(0, EDGE_STRIDE)),
         // The whole written range, so an instrument can find WHERE the rings
         // are and look at those pixels. Decoded harness-side against
