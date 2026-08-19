@@ -110,42 +110,131 @@ try {
   // edgeAt() returns a hit and to 'grab' when it does not. That makes it a
   // direct read of the hit-test rather than of anything the renderer drew.
   //
-  // Probed on a grid rather than aimed at one midpoint: the sphere is spinning
-  // and the node set is data-driven, so a hard-coded pair is a flake waiting
-  // to happen. Points that land on a node are rejected — nodes take priority
-  // in the handler and set 'pointer'.
+  // The probe point is derived FROM THE FRAME. It used to be a fixed 7x13 grid
+  // in screen space, "pinned" first with __artHarnessReset, and that version
+  // failed about one run in three with "no edge found on the probe grid" — on
+  // the WIP build and on the stashed control alike, so a harness defect. The
+  // message was also wrong about where it broke. Measured, 9 fresh boots plus
+  // 17 in-page replays of the identical scan:
   //
-  // Pinned to a fixed rotation FIRST. Without this the grid is scanned against
-  // whatever angle real-time boot happened to land on, and on a spinning
-  // sphere that has a real false-negative tail: two runs of this exact check
-  // landed their hit at 652,462 and 755,390 — different starting angles put
-  // different edges under the 91 probe points, and sometimes none of them.
-  // __artHarnessReset (dev-only harness hook) pins rotation to rx=0.18, ry=0,
-  // so the same edges sit under the same probe cells run to run. Still a real
-  // hit-test read of the live cursor, not a weakened stand-in for one.
-  await page.eval(`(() => { window.__artHarnessReset && window.__artHarnessReset(); return true; })()`);
-  await sleep(120);
-
+  //   the 91-point grid never once failed to find an edge          0/26
+  //   EVERY failure was the second pass, re-hovering the hit point 2/9
+  //   drift of the frame under a fixed point: median 2.3px per 40ms and
+  //     5.0px per 100ms, p90 10.3px per 100ms — against edgeAt()'s 8px
+  //
+  // AUTO_SPIN is 0.0025 rad/frame and headless runs at ~130fps, so the sphere
+  // turns ~0.33 rad/s, which at sphereR 245 is ~50px/s across the cursor. And
+  // __artHarnessReset never held that still: it assigns rotRef once, and the
+  // draw loop adds the spin straight back on the next frame. It pinned the
+  // starting angle, not the rotation, so the old comment was describing a
+  // guarantee the hook does not give. A hit found at 7px is out of range by
+  // the time the same coordinates are used again ~90ms later — one hover, one
+  // sleep and two evals — which is the whole of the flake. Same family as
+  // fc2909a: a coordinate outliving the frame it was true in.
+  //
+  // So: read the edge instance buffer, take the midpoint of a segment that is
+  // drawn RIGHT NOW and clear of every node halo (nodes win the hit-test and
+  // set 'pointer'), and hover it with no sleep in between — the cursor is
+  // written synchronously inside handleMouseMove, so the dispatch ack is
+  // already the guarantee that it has been rewritten. Retries re-read the
+  // buffer rather than re-using a point, so no attempt is ever aimed at a
+  // frame that has gone. Still a real read of the live cursor.
   const CURSOR = `${SPHERE}.style.cursor`;
-  let edgeHit = null;
-  for (let r = 1; r <= 7 && !edgeHit; r++) {
-    for (let c = 1; c <= 13 && !edgeHit; c++) {
-      const x = Math.round(rect.x + rect.w * c / 14), y = Math.round(rect.y + rect.h * r / 8);
-      await page.hover(x, y); await sleep(40);
+
+  // Midpoints of the segments the GL layer drew this frame, in client coords,
+  // furthest-from-any-node first. Decoded against SphereEdges.js's layout:
+  // EDGE_STRIDE 17, EDGE_OFF ax,ay,bx,by = 0..3 and width = 14, with isDisc()
+  // being width <= 0 — the halos, the cores and the pulse rings share this
+  // buffer and none of them is a segment. The discs from `discStart` on are
+  // the node halos and cores, so their centres are the nodes on screen and
+  // there is no need for a second source for where the nodes are.
+  const EDGE_MIDPOINTS = `(() => {
+    const s = window.__artEdgeState && window.__artEdgeState();
+    if (!s) return null;
+    const c = ${SPHERE}, r = c.getBoundingClientRect();
+    const d = s.instances, S = 17;
+    const k = r.width / s.w;        // published CSS space -> live rect; normally 1
+    const nodes = [];
+    for (let i = s.discStart; i < s.count; i++) {
+      const o = i * S; if (d[o + 14] <= 0) nodes.push([d[o], d[o + 1]]);
+    }
+    const out = [];
+    for (let i = 0; i < s.count; i++) {
+      const o = i * S; if (d[o + 14] <= 0) continue;
+      const ax = d[o], ay = d[o + 1], bx = d[o + 2], by = d[o + 3];
+      if (Math.hypot(bx - ax, by - ay) < 60) continue;   // no clear middle to aim at
+      const mx = (ax + bx) / 2, my = (ay + by) / 2;
+      let nd = Infinity;
+      for (const n of nodes) nd = Math.min(nd, Math.hypot(mx - n[0], my - n[1]));
+      if (nd < 45) continue;        // inside a node's 3x-radius hitbox, which wins
+      out.push({ x: Math.round(r.left + mx * k), y: Math.round(r.top + my * k), nd: Math.round(nd) });
+    }
+    return out.sort((p, q) => q.nd - p.nd).slice(0, 6);
+  })()`;
+
+  // The far side of the same read: the point on a coarse canvas grid that is
+  // FURTHEST from every drawn segment. Hovering it must not say 'crosshair'.
+  // This replaces the old second pass, which re-hovered the hit point to rule
+  // out a one-frame transient and was itself the flake. It is the stronger
+  // assertion anyway: re-reading a point that already said 'crosshair' cannot
+  // tell a working hit-test from one stuck on, and this can.
+  const EDGE_VOID = `(() => {
+    const s = window.__artEdgeState && window.__artEdgeState();
+    if (!s) return null;
+    const c = ${SPHERE}, r = c.getBoundingClientRect();
+    const d = s.instances, S = 17, k = r.width / s.w;
+    // Confined to the sphere's own disc. A void point in the empty canvas
+    // outside it only proves the cursor is not stuck on 'crosshair'; inside,
+    // where every edge lives, it proves the hit-test discriminates by
+    // POSITION. project() centres on (w/2, h/2) and __artBgState publishes the
+    // radius the frame drew at, so this is the drawn sphere, not a guess.
+    const R = 0.9 * (window.__artBgState ? window.__artBgState().sphereR : 0);
+    const cxp = s.w / 2, cyp = s.h / 2;
+    let best = null;
+    for (let gy = 1; gy < 16; gy++) for (let gx = 1; gx < 24; gx++) {
+      const px = s.w * gx / 24, py = s.h * gy / 16;
+      if (R > 0 && Math.hypot(px - cxp, py - cyp) > R) continue;
+      let md = Infinity;
+      for (let i = 0; i < s.count; i++) {
+        const o = i * S; if (d[o + 14] <= 0) continue;
+        const ax = d[o], ay = d[o + 1], bx = d[o + 2], by = d[o + 3];
+        const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
+        if (l2 < 1) continue;
+        const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / l2));
+        md = Math.min(md, Math.hypot(px - (ax + t * dx), py - (ay + t * dy)));
+      }
+      if (!best || md > best.d) best = { x: Math.round(r.left + px * k), y: Math.round(r.top + py * k), d: md };
+    }
+    return best && { x: best.x, y: best.y, d: Math.round(best.d) };
+  })()`;
+
+  let edgeHit = null, edgeDetail = '__artEdgeState missing — dev build required';
+  for (let attempt = 1; attempt <= 8 && !edgeHit; attempt++) {
+    const cands = await page.eval(EDGE_MIDPOINTS);
+    if (!cands) break;
+    if (!cands.length) { edgeDetail = 'no segment midpoint clear of a node this frame'; continue; }
+    edgeDetail = `${cands.length} candidates, none hit`;
+    for (const p of cands) {
+      await page.hover(p.x, p.y);
+      if ((await page.eval(CURSOR)) === 'crosshair') { edgeHit = p; break; }
+    }
+    if (!edgeHit) await sleep(60);   // let the sphere turn before re-reading
+  }
+  // Negative control, from the same read: a point far from every segment must
+  // NOT report an edge.
+  let voidOk = false, voidDetail = '';
+  if (edgeHit) {
+    const v = await page.eval(EDGE_VOID);
+    if (v) {
+      await page.hover(v.x, v.y);
       const cur = await page.eval(CURSOR);
-      if (cur === 'crosshair') edgeHit = { x, y };
+      voidOk = cur !== 'crosshair';
+      voidDetail = `, void ${v.x},${v.y} (${v.d}px clear) = ${cur}`;
     }
   }
-  // Re-assert on a second pass: a lone true reading could still be a one-frame
-  // transient (mid-animation the cursor style write and this read are not
-  // atomic). Re-hover the same point and require the hit to hold.
-  if (edgeHit) {
-    await page.hover(edgeHit.x, edgeHit.y); await sleep(40);
-    const stillHit = (await page.eval(CURSOR)) === 'crosshair';
-    if (!stillHit) edgeHit = null;
-  }
-  check('3b hover between nodes reports an edge', !!edgeHit,
-        edgeHit ? `crosshair at ${edgeHit.x},${edgeHit.y}` : 'no edge found on the probe grid');
+  check('3b hover between nodes reports an edge', !!edgeHit && voidOk,
+        edgeHit ? `crosshair at ${edgeHit.x},${edgeHit.y} (${edgeHit.nd}px clear of any node)${voidDetail}`
+                : edgeDetail);
 
   // 4. click a node -> cascade fires (canvas keeps changing)
   if (hit) {
