@@ -1,0 +1,70 @@
+/art ink — summed luminance above floor 6, disc = 0.42 x min(w,h)
+  ref  baseline/t5t4wip
+  new  baseline/t5t4null
+
+── laptop-1520x900@1x ──────────────────────────────────────────────────────────────────────────────────
+state          region      ink_ref     ink_new   ratio  lit_ref  lit_new  meanLit_ref meanLit_new   note
+idle           frame      655114.2    652529.0   0.996    31393    31333        20.87       20.83   
+               disc       502804.7    502740.7   1.000    21644    21812        23.23       23.05   
+hover          frame      772180.4    776795.8   1.006    34693    35344        22.26       21.98   
+               disc       591514.2    578719.5   0.978    25552    24604        23.15       23.52   
+mid-drag       frame      642668.4    637944.8   0.993    33048    32416        19.45       19.68   
+               disc       502442.6    482658.6   0.961    24660    22396        20.37       21.55   
+fired-cascade  frame     2258181.0   2277044.9   1.008    78587    78836        28.73       28.88   
+               disc      1134622.5   1118000.1   0.985    43650    42852        25.99       26.09   
+resonance      frame     1173897.1   1167628.7   0.995    57703    57466        20.34       20.32   
+               disc      1123423.8   1125886.9   1.002    49120    49791        22.87       22.61   
+immersive-on   frame     1781512.8   1907161.3   1.071   144584   164746        12.32       11.58   <<< EXHIBIT MODE
+               disc       844948.8   1023504.3   1.211   117081   138598         7.22        7.38   
+immersive-off  frame      685368.5    729010.6   1.064    35048    37097        19.56       19.65   (blank — proves nothing)
+               disc       531453.7    575381.9   1.083    27412    29447        19.39       19.54   
+
+── laptop-1520x900@2x ──────────────────────────────────────────────────────────────────────────────────
+state          region      ink_ref     ink_new   ratio  lit_ref  lit_new  meanLit_ref meanLit_new   note
+idle           frame     2585667.5   2585447.4   1.000   125372   125144        20.62       20.66   
+               disc      2004429.9   2003079.4   0.999    89159    88773        22.48       22.56   
+hover          frame     2995786.5   2995265.0   1.000   135415   135382        22.12       22.12   
+               disc      2292734.9   2292078.6   1.000    99922    99841        22.95       22.96   
+mid-drag       frame     2499489.1   2499228.0   1.000   127861   127947        19.55       19.53   
+               disc      1983754.2   1983264.7   1.000    97371    97358        20.37       20.37   
+fired-cascade  frame     8703272.7   8714929.8   1.001   313056   313130        27.80       27.83   
+               disc      4729318.1   4730435.9   1.000   178027   177973        26.57       26.58   
+resonance      frame     4499988.2   4499871.5   1.000   231420   231469        19.45       19.44   
+               disc      4257527.4   4257563.0   1.000   193378   193523        22.02       22.00   
+immersive-on   frame     7211157.1   7483317.3   1.038   611643   661748        11.79       11.31   <<< EXHIBIT MODE
+               disc      3393458.2   3794519.9   1.118   500157   550447         6.78        6.89   
+immersive-off  frame     2823131.5   2786154.3   0.987   141912   139520        19.89       19.97   (blank — proves nothing)
+               disc      2206523.2   2177281.4   0.987   110534   108071        19.96       20.15   
+
+── projector-1920x1080@1x ──────────────────────────────────────────────────────────────────────────────
+state          region      ink_ref     ink_new   ratio  lit_ref  lit_new  meanLit_ref meanLit_new   note
+idle           frame      661825.4    653898.3   0.988    31893    31512        20.75       20.75   
+               disc       510395.6    507093.3   0.994    22454    22055        22.73       22.99   
+hover          frame      779251.6    776782.3   0.997    35696    35262        21.83       22.03   
+               disc       577635.0    581196.2   1.006    24717    24818        23.37       23.42   
+mid-drag       frame      646325.9    651221.0   1.008    33136    33333        19.51       19.54   
+               disc       488090.4    492465.6   1.009    22825    23169        21.38       21.26   
+fired-cascade  frame     2481068.7   2461419.8   0.992   100264    99752        24.75       24.68   
+               disc      1533139.7   1452491.3   0.947    55837    54826        27.46       26.49   
+resonance      frame     2487169.4   2480430.9   0.997   116319   117972        21.38       21.03   
+               disc      2110523.5   2123559.0   1.006    73356    75015        28.77       28.31   
+immersive-on   frame     2093021.9   2119008.1   1.012   247236   247239         8.47        8.57   <<< EXHIBIT MODE
+               disc      1119808.2   1173572.9   1.048   212836   215822         5.26        5.44   
+immersive-off  frame      727433.1    720196.4   0.990    37405    36879        19.45       19.53   (blank — proves nothing)
+               disc       569080.6    533101.2   0.937    28143    26532        20.22       20.09   
+
+mode rollup — ink summed per mode (immersive-off excluded: blank frames)
+
+[disc]                      normal ratio  exhibit ratio  cross (exh/norm)   (smell test only — 0.444 is mis-derived, see source)
+  laptop-1520x900@1x               0.988          1.211             1.226
+  laptop-1520x900@2x               1.000          1.118             1.118
+  projector-1920x1080@1x           0.988          1.048             1.061
+
+[frame]                     normal ratio  exhibit ratio  cross (exh/norm)   (smell test only — 0.444 is mis-derived, see source)
+  laptop-1520x900@1x               1.002          1.071             1.069
+  laptop-1520x900@2x               1.000          1.038             1.037
+  projector-1920x1080@1x           0.995          1.012             1.017
+
+
+ink = sum(luminance - floor) over pixels above the floor; lit = that pixel count.
+Self-comparison of a set against itself must read ratio 1.000 on every row.

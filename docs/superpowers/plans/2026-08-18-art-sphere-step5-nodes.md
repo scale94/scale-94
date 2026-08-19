@@ -313,16 +313,16 @@ so moving them earlier would put them behind every disc they touch.
 
 ### Task 8: verify, measure, record
 
-- [ ] Full gate sweep at all three scales, against a same-session control.
-- [ ] Frame-time comparison against the step-4 numbers in
+- [x] Full gate sweep at all three scales, against a same-session control.
+- [x] Frame-time comparison against the step-4 numbers in
       `baseline/art-sphere-step4/README.md`.
-- [ ] Confirm every layer in §1 of the pre-flight scan is either on the GPU or
+- [x] Confirm every layer in §1 of the pre-flight scan is either on the GPU or
       explicitly accounted for. The node block must contain **no** `ctx.arc`,
       `ctx.fill`, `ctx.stroke`, `createRadialGradient` or `setLineDash`.
-- [ ] Write `baseline/art-sphere-step5/README.md` in the shape of the step-4
+- [x] Write `baseline/art-sphere-step5/README.md` in the shape of the step-4
       record: what is on the GPU, **what the gates still cannot see**, the
       frame-time numbers, and every finding.
-- [ ] Update the spec's §Step 5 with an annotated block recording what the
+- [x] Update the spec's §Step 5 with an annotated block recording what the
       one-paragraph description got wrong, matching the §Step 4 precedent.
-- [ ] Update `.superpowers/sdd/progress.md`.
-- [ ] Report to the author. **Do not push or merge.**
+- [x] Update `.superpowers/sdd/progress.md`.
+- [x] Report to the author. **Do not push or merge.**

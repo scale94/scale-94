@@ -302,7 +302,10 @@ makes ordering largely moot — parity first.
 > `ctx.stroke()` calls survive; five are node rings that belong to step 5, but
 > **two are straight-line strokes that no step owns** — the fusion-cursor thread
 > and the probe-centroid tethers. Step 6 ends "the 2-D canvas is now empty" and
-> it will not be. Author's call outstanding.
+> it will not be. ~~Author's call outstanding.~~ **CLOSED 2026-08-19: the author
+> folded both into the tail of step 5, where they landed in task 7 (`9a79f83`).
+> See §Step 5.** The five node rings went with them; the node block now holds no
+> `ctx.` call at all.
 >
 > **Four things this spec and its plan got wrong, all measured:**
 >
@@ -345,6 +348,93 @@ beacon rings, Gestalt ghost outlines, the probe node and the fusion source
 pulse ring. Retires per-node `createRadialGradient`.
 
 Hit-testing is untouched — it reads the CPU array (§3.1).
+
+> **DONE 2026-08-19.** Reference set `baseline/art-sphere-step5/`, whose README
+> carries the full record. **Eight tasks, not the one this paragraph implies.**
+>
+> **Five things this section got wrong, all measured:**
+>
+> 1. **It names seven layers. The block contains THIRTEEN.** The pre-flight scan
+>    (`.superpowers/sdd/step5-preflight.md` §1) enumerated them before any plan
+>    was written. The six extra: the chimera **flicker** ring, the ghost
+>    **outer** ring, the fusion **cursor thread**, the probe **tethers**, the
+>    probe's **own glow halo**, and the node label (already DOM, out of scope).
+>    Same shape of omission step 4 hit with the prism chords.
+> 2. **"Retires per-node `createRadialGradient`" understates it.** `ctx.arc`,
+>    `ctx.fill`, `ctx.stroke` and `setLineDash` are gone from the block too. The
+>    node block (`ArtTab.jsx:1563`–`:1972`) now contains **no `ctx.` reference of
+>    any kind** outside comments. The only canvas draw calls left in the file are
+>    the particle render's, which are step 6's.
+> 3. **"chimera state halos" is TWO rings**, not one — a solid sync ring at
+>    `1.5 × scale` and an angular-**dashed** flicker ring at `1.0 × scale` with an
+>    animated hue. Different widths, different colour laws.
+> 4. **"Gestalt ghost outlines" is TWO rings, and the inner one is a partial arc
+>    whose sweep IS the animation.** The 2D comment called it "dashed" and it
+>    never was. That cost a third new shader capability (arc sweep) on top of the
+>    annulus and the angular dash.
+> 5. **Five state paths it does not mention** shape every instance written: the
+>    birth lerp, resonance dimming, the spectral tint, overwrite bleed, and the
+>    hovered core's **opaque bypass** — a hovered core takes `renderCol.hsl`,
+>    which `spectralTint()` passes through unchanged, so it draws in its
+>    *pre-spectral* colour while every node around it is post-tint.
+>
+> **What it got right, and it is the load-bearing part:** "instanced sprites",
+> and no new mesh. The annulus, the angular dash, the arc sweep and the radial
+> falloff were all encoded into floats the step-4 disc branch left provably dead.
+> `EDGE_STRIDE` is unchanged, no buffer was reallocated, both existing materials
+> are reused, and nothing after task 3 touched the shader. Hit-testing is
+> untouched as specified.
+>
+> **§Step 4's outstanding author's call is CLOSED.** The two straight-line
+> strokes that "no step owns" — the fusion-cursor thread and the probe-centroid
+> tethers — landed here in task 7 (`9a79f83`) as layers 10 and 11.
+>
+> **Cost: neutral.** Headed on the real GPU against a same-session pre-step-5
+> control, idle draw cost mean 2.81 → 2.73 ms, drag 2.87 → 2.73, immersive
+> 2.26 → 2.36. Every delta is smaller than the run's own drift control. There
+> was no reason to expect otherwise — the node layers went into buffers the edge
+> slice already uploads. **Mind the units**: `baseline/art-sphere-step4/` holds
+> numbers from two instruments 2–3× apart, a headed-GPU JSON and a headless
+> SwiftShader manifest. Read the `renderer` field before quoting a delta.
+>
+> **!! THE IMMERSIVE PIXEL ROWS ARE NOT A MEASUREMENT — and were not, for the
+> whole of steps 4 and 5 !!** `artBaseline`'s `immersive-on` and `immersive-off`
+> states are not reproducible run to run **on identical code**: full-resolution
+> luminance correlation between two runs of the same build reads **0.610** and
+> **0.082**, against **0.970** for `idle`. That same-build null is
+> *indistinguishable* from any cross-build pair (0.60–0.66), so those rows carry
+> no information about a code change at any effect size. It is a different sphere
+> rotation, confirmed by looking at the frames; the virtualised clock cannot see
+> it (`elapsedS` matches to 0.13 s) because rotation accrues per rAF frame while
+> the clock is virtual. The only two states that diverge are the only two that
+> call `forceResize()`, whose `page.screenshot` yields where `__pump` does not,
+> and severity scales with the number of calls: one, then two.
+>
+> This retires the unexplained **immersive ink deficit** that tasks 4–7 carried.
+> Task 4 measured it on `artInk`'s **disc** column, which `trail-deficit.md` §1
+> had already ruled inadmissible in immersive ("every immersive number quoted
+> below is a frame number") because the sphere overhangs the disc boundary there
+> — independently confirmed, sphere radius ~385 px against a disc of 378 px. The
+> same-build null on that column swings **±21%**; task 4's 0.69–0.84 is 16–31%
+> from unity. **Not pinned and not still open: unanswerable by this instrument.**
+> Step 6 must not inherit it. Reopening it needs a spatial null — same region,
+> same frame, layer on vs off — which task 7's probe null shows is achievable.
+>
+> **What the gate still cannot see**, measured from the node census across all 21
+> shots rather than predicted: **nine of the thirteen draw layers appear in no
+> capture state at any scale** — beacon, chimera flicker, both ghost rings, the
+> fusion ring and thread, and all three probe layers, plus the birth path. Only
+> halo, core, chimeraSync and spectral are live in an idle capture, with
+> coreHover, bleed and resonanceDim reachable in hover / fired-cascade /
+> resonance. `artCompare 21/21` across a change to any of the nine means nothing;
+> they are covered by `artPresence` (19/19) and `scripts/_nodeShot.mjs` instead.
+> The beacon has **never** been in a reference image and it is not a near miss:
+> it draws while awakening is in phase 1, `elapsed ∈ [4 s, 8 s)`, and every idle
+> shot lands at elapsed 102.27 s. Carried from step 4 and still true: fused edges
+> and ortho bridges appear in no capture state, and the analogy filaments have
+> never drawn in any build. **Now fixed since step 4 wrote it down:** the
+> resonance state no longer shift-clicks the same node twice (`fc2909a`, a step-5
+> prerequisite), so `resonanceDim` is covered.
 
 ### Step 6 — Particles and trail
 
