@@ -2082,9 +2082,39 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       rotRef.current = { rx: 0.18, ry: 0 };
       dragRef.current = { active: false, lastX: 0, lastY: 0, vx: 0, vy: 0 };
       particlesRef.current = createParticlePool();
+      particleFrameRef.current = 0;
       firedRef.current = null;
       fusionSourceRef.current = null;
       probeNodeRef.current = null;
+      // THE AWAKENING'S BREATH PHASE, which this reset used to leave alone.
+      // `breathPhase` advances 0.015 every draw from mount, and the app boots
+      // under REAL timing at ~350 unthrottled fps, so by the time the harness
+      // takes over it holds a few thousand real frames' worth of an arbitrary
+      // angle. It drives `breathMod`, which scales `sphereR`, which scales
+      // every projected node position: MEASURED, two runs of the same build
+      // began frame 0 with sphereR 247.142 vs 246.828 and every edge endpoint
+      // displaced by exactly that ratio. The graph physics has discrete
+      // thresholds (edges are born and die), so that 0.13% eventually flips one
+      // and the two runs become different worlds — which is what made the
+      // immersive rows, the LAST two states captured, uncorrelated on identical
+      // code. `particleFrameRef` above is the same kind of leak: a mount-time
+      // frame counter that gates emission by modulus.
+      //
+      // `t0` is deliberately NOT reset: elapsedS is what holds the sphere at
+      // awakening phase 3, and restarting it would replace the captured world
+      // rather than stabilise it.
+      //
+      // `beaconIdx` is a third leak of this family — drawn from Math.random at
+      // mount, i.e. before the shim is virtual, and it differs run to run in
+      // every manifest. It is deliberately LEFT ALONE. Re-drawing it here from
+      // the seeded stream consumes a value that `initState()` would otherwise
+      // have taken, which shifts every draw after it: MEASURED, that alone took
+      // `artPresence` from 19/19 to 15/19 (RESONANCE EDGE, PRISM GEOMETRY,
+      // ANALOGY FILAMENTS, CHIMERA FRINGES all undetected). It costs nothing to
+      // leave: the beacon only draws in awakening phase 1, and every capture
+      // state is at phase 3. If it is ever worth pinning, pin it to a CONSTANT
+      // — do not spend a random draw inside this reset.
+      awakeningRef.current.breathPhase = 0;
       initState();
     };
 
@@ -2322,6 +2352,21 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       return {
         rift: s.rift, exergy: s.exergy, flash: s.flash, ambient: s.ambient,
         beat: s.beat, genesis: s.genesis, sphereR: s.sphereR,
+        // WHERE THE SPHERE IS POINTING, and the two inputs that move it.
+        // The draw loop already publishes `rot` to the GL layer every frame; it
+        // just was not readable from outside, and a capture set that recorded
+        // only the virtual clock could not tell two runs apart. Reading it is
+        // what RULED THE CAMERA OUT: two runs whose immersive frames were as
+        // uncorrelated as two unrelated states (r = 0.047) recorded the SAME
+        // rx and ry at every shot, which is what redirected the search from the
+        // camera to the world. `dragV` and `hovered` are here because they are
+        // the only two things besides the frame count that move `rot` — spin is
+        // damped to 15% while a node is hovered — so a future divergence can be
+        // attributed rather than guessed at. See
+        // baseline/art-sphere-step5/README.md.
+        rot: s.rot ? { rx: s.rot.rx, ry: s.rot.ry } : null,
+        dragV: { active: dragRef.current.active, vx: dragRef.current.vx, vy: dragRef.current.vy },
+        hovered: hoveredRef.current,
         ghostsLive: live,
         ghostFirst: g ? Array.from(g.slice(0, 8)) : null,
         archLoaded: !!archaeologyRef.current?.loaded,

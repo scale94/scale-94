@@ -78,6 +78,48 @@ landed here in task 7 (`9a79f83`), as layers 10 and 11 above.
 
 ## THE IMMERSIVE ROWS ARE NOT A MEASUREMENT
 
+> **CORRECTED AND FIXED, post-step-5 task 1.** The finding below stands: these
+> two rows carried no information, and every number quoted from them was noise.
+> **Its stated MECHANISM is wrong in both halves**, and both were falsifiable
+> from artifacts already on disk when it was written:
+>
+> * *"It is a different rotation."* It is not. `rot` is now readable from
+>   `window.__artBgState()` and recorded per shot; two runs whose `immersive-off`
+>   frames correlated 0.047 held **identical `rx` and `ry` at every state**. The
+>   camera never moved. The WORLD was in a different configuration.
+> * *"A screenshot yields, so real frames run across it."* No `draw` runs
+>   outside `__pump` — after `__virtualize()` the shim queues rAF rather than
+>   scheduling it. Measured directly: real vsync frames do tick across a
+>   screenshot and **not one of them draws**. `shot()` screenshots in every
+>   state anyway, which the 0.90–0.97 rows already disproved.
+>
+> The real causes were **four**, and all of them are the same shape — something
+> outside the pump budget deciding what the world looks like, which a gate that
+> only pins the clock cannot see:
+>
+> 1. `__artHarnessReset` never cleared the awakening's `breathPhase` or
+>    `particleFrameRef`, mount-time per-frame counters the real-timed boot
+>    leaves at an arbitrary value. `breathPhase` scales `sphereR`, which scales
+>    every node position. This is the frame-0 divergence.
+> 2. The fired-cascade block's frame budget is not a constant, and every later
+>    state inherited the difference.
+> 3. The immersive resize landed on either side of the 600-frame settle by
+>    chance. `forceResize()` itself is sound; calling it *after* the settle left
+>    the settle's size to a coin flip. This is the only part of the original
+>    diagnosis that survived.
+> 4. The resonance sweep's input race, which put two frames of hover damping
+>    between two runs and became a different world three states later.
+>
+> All four are fixed. Measured over **five** full capture runs, ten pairs per
+> cell: worst pair anywhere **0.977**, every immersive cell **≥ 0.988**. One
+> pair is not evidence when the fault is intermittent — three of those four were
+> each found *after* a clean 21/21 pair had already been recorded. Full account:
+> `.superpowers/sdd/post-step5-task1-report.md`.
+>
+> Consequence for this reference set: it was captured by a harness that could
+> not repeat itself, and it contains one arbitrary draw of the breath phase.
+> Re-capture before measuring step 6 against it.
+
 The most important thing in this record, and it invalidates a chain of numbers
 four tasks long rather than adding to it.
 
@@ -151,7 +193,10 @@ The immersive disc column swings ±21% on identical code. Task 4's 0.69–0.84 i
 was measured between two frames that are not the same picture.**
 
 **Verdict: not pinned, not still open — unanswerable by this instrument, and
-retired.** It should not be inherited by step 6. If it is ever reopened it needs
+retired.** *(Post-step-5 task 1: still retired, but on this second ground only.
+The first ground — that the immersive rows carry no information — is now void;
+they are reproducible. `trail-deficit.md` §1's ruling on the disc column is
+untouched, and that is what task 4 measured on.)* It should not be inherited by step 6. If it is ever reopened it needs
 a spatial null (same region, same frame, layer on vs off), which is what task 7's
 probe null already demonstrates is possible.
 

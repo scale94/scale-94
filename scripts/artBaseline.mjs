@@ -6,18 +6,43 @@
 // the per-frame cost of the draw loop.
 //
 // Reproducibility: run under scripts/determinism.mjs, which pins Math.random,
-// the clock, timers, and frame advancement. Real-time sleeps in the driver
-// execute ZERO frames (rAF is queued, not scheduled), so every pump count below
-// is a fixed constant. Two cold launches then render byte-identical canvases —
-// which is what makes these images a pixel-diff gate rather than a mood board.
+// the clock, timers, and frame advancement. Real-time sleeps in the driver and
+// `page.screenshot` both execute ZERO frames (rAF is queued, not scheduled;
+// measured, not assumed — `scripts/_t9frames.mjs`), so every pump count below
+// is a fixed constant.
+//
+// A FIXED PUMP COUNT IS NOT THE SAME THING AS A REPRODUCIBLE PICTURE, and this
+// header used to claim it was ("two cold launches render byte-identical
+// canvases"). They do not, and the gap cost this branch a whole capture state:
+// `immersive-off` correlated 0.047 between two runs of ONE build, which is what
+// two unrelated states score, while every clock the harness recorded agreed to
+// four decimal places. Three causes, all of them the same shape — something
+// outside the pump budget deciding what the world looks like:
+//
+//   1. The app boots under REAL timing (it has to, or React never commits and
+//      r3f never mounts), and per-frame state accumulated during that boot was
+//      not reset. `breathPhase` scales `sphereR`, which scales every node
+//      position. See __artHarnessReset in ArtTab.jsx.
+//   2. The fired-cascade block's frame budget is not a constant — the shot is
+//      placed relative to an async arrival — and every later state inherited
+//      the difference. It now re-establishes a known world afterwards.
+//   3. The immersive resize is delivered by a ResizeObserver, a real browser
+//      task, so which side of the 600-frame settle it landed on was a coin
+//      flip. It is now delivered and CHECKED before the settle is spent.
+//
+// The lesson generalises past this file: a gate that only pins the clock cannot
+// see anything that does not accrue from the clock. Read `view` in the manifest
+// — rotation, sphere size, both buffer sizes — before quoting any row.
 //
 // One race survives, and it is honest to name it: module and WASM loading are
 // real-time, so the app can reach the first pump batch in one of two states.
-// Measured over repeated launches it is strictly bistable — the same two boot
-// fingerprints, never a third. So the capture GATES on the fingerprint: the
-// first run records it, later runs relaunch until they match. A comparison run
-// that cannot reach the recorded fingerprint fails loudly instead of quietly
-// diffing two different worlds.
+// The capture GATES on a boot fingerprint: the first run into an output
+// directory records it, later runs into the SAME directory relaunch until they
+// match. Note what that does not cover — two runs into two different
+// directories share no expectation at all, which is exactly the shape a
+// same-build null takes. In practice they never landed on the same fingerprint
+// and still correlated 0.98+, so the fingerprint is a coarser thing than it
+// looks; treat the bistability claim as unverified rather than inherited.
 //
 // Not covered here: wall-clock frame rate. Headless SwiftShader renders
 // Canvas2D in software and runs rAF unthrottled (~350fps), so its frame
@@ -25,7 +50,12 @@
 // done inside the draw callback, which this measures. For a true wall-clock
 // number see artFrameTime.mjs, which runs headed on the real GPU.
 //
-//   node scripts/artBaseline.mjs [--out DIR] [--url URL]
+//   node scripts/artBaseline.mjs [--out DIR] [--url URL] [--scale NAME]
+//
+// `--scale` restricts the run to one of the three SCALES below. A reference set
+// must always be captured at all three; the flag is for iterating on the
+// harness itself, where three of everything is three times the wait and none of
+// the extra information.
 
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -309,12 +339,35 @@ async function captureScale(scale, manifest, expectFingerprint) {
     // clock. Absent (null) on a build predating the census.
     const nodeCensus = JSON.parse(await page.eval(
       'JSON.stringify(window.__artNodeState ? window.__artNodeState() : null)'));
-    shots[state] = { file, canvasHash, shotHash, signature, nodeCensus };
+    // WHERE THE SPHERE IS POINTING when the shot was taken. `elapsedS` above
+    // proves the virtual clock agrees between two runs; it does NOT prove they
+    // are the same picture, because rotation does not accrue from the clock.
+    // Two same-build runs whose elapsedS matched to 0.06s at every state
+    // captured entirely different faces of the sphere in immersive, and nothing
+    // in this manifest could see it. Costs zero frames. Null on a build
+    // predating the readback.
+    const view = JSON.parse(await page.eval(
+      `JSON.stringify((() => { const b = window.__artBgState && window.__artBgState();
+        const c = ${SPHERE};
+        const g = document.querySelector('[data-art-composite] canvas');
+        return b ? { rot: b.rot, dragV: b.dragV, hovered: b.hovered,
+                     // The size the draw loop was actually projecting at, and the
+                     // two buffers behind it. Immersive changes all three, and it
+                     // changes them on a ResizeObserver — a REAL browser task —
+                     // so which pumped frame they change on is not the harness's
+                     // to choose. Recorded because sphereR is what scales every
+                     // node position, and a shot taken at a different sphereR is
+                     // a different picture at an identical rotation.
+                     sphereR: +b.sphereR.toFixed(3),
+                     canvas: c.width + 'x' + c.height,
+                     gl: g ? g.width + 'x' + g.height : null } : null; })())`));
+    shots[state] = { file, canvasHash, shotHash, signature, nodeCensus, view };
     const live = nodeCensus
       ? Object.entries(nodeCensus).filter(([, v]) => typeof v === 'number' && v > 0)
           .map(([k]) => k).join(',')
       : 'no census';
-    console.log(`   ${state.padEnd(18)} 2d=${canvasHash.padEnd(9)} shot=${shotHash}`);
+    console.log(`   ${state.padEnd(18)} 2d=${canvasHash.padEnd(9)} shot=${shotHash}`
+      + (view?.rot ? `  ry=${view.rot.ry.toFixed(4)} rx=${view.rot.rx.toFixed(4)}` : ''));
     console.log(`   ${''.padEnd(18)} layers: ${live}`);
   };
 
@@ -332,13 +385,44 @@ async function captureScale(scale, manifest, expectFingerprint) {
   await page.pump(600);
   const idleCosts = await page.frameCosts();
 
-  // 3. hover
-  const node = await findNode(page, rect);
-  if (!node) throw new Error('no node found on the hover grid');
-  await page.hover(node.x, node.y);
-  await settle();
-  await page.pump(45);
-  await shot('hover');
+  // 3. hover — SHOT AT DETECTION, cursor still on the node.
+  //
+  // It used to sweep the whole grid, then hover the recorded point afterwards.
+  // That point is stale by up to 88 frames of rotation, and `hoveredRef` is
+  // written ONLY by the pointermove handler: the single move dispatched after
+  // the sweep decides the hover for the whole state, so if the node has
+  // rotated off that pixel by then, `nodeAt` returns null and the state named
+  // after the hover layer does not contain it. Not hypothetical — this task
+  // moved the world by 0.13% and the projector scale's `hover` lost `coreHover`
+  // on the next capture, while both laptop scales kept it. The block's own
+  // comment already called the old arrangement "luck, not design".
+  //
+  // Acting at detection makes it robust rather than lucky, and it is what
+  // findNodes was given `onFound` for and what the resonance state below
+  // already does. Once the pointermove has landed on the node, no later frame
+  // can take the hover away, because nothing moves the cursor again. Frame cost
+  // is unchanged in shape: every grid point still costs the same, and the hit
+  // adds a fixed 45.
+  let hoverShot = false;
+  const node = await findNode(page, rect, {
+    onFound: async () => {
+      await settle();
+      await page.pump(45);
+      await shot('hover');
+      hoverShot = true;
+    },
+  });
+  if (!node || !hoverShot) throw new Error('no node found on the hover grid');
+  // And prove it, from the layer's own census rather than from the pixels the
+  // shot just took. A state that does not contain the layer it is named after
+  // scores perfect parity whether that layer ships or is deleted — the failure
+  // this branch has now recorded seven times. Null census = a build older than
+  // the census hook (the step-wide control is exactly that), so skip, not fail.
+  if (shots.hover.nodeCensus && !(shots.hover.nodeCensus.coreHover > 0)) {
+    throw new Error(`hover: the state does not contain coreHover (hovered ${node.label});`
+      + ` layers present: ${Object.entries(shots.hover.nodeCensus)
+          .filter(([, v]) => typeof v === 'number' && v > 0).map(([k]) => k).join(',')}`);
+  }
   console.log(`   (hovered ${node.label})`);
 
   // 4. mid-drag — held, not released, so inertia has not started
@@ -410,7 +494,34 @@ async function captureScale(scale, manifest, expectFingerprint) {
   if (ringsNow > 0) console.log(`   fired-cascade carries ${ringsNow} pulse ring(s) (arrived after ${steps} stepped frames, fired ${fireNode.label}, ${tried.size} node(s) tried)`);
   else console.log(`   !! fired-cascade carries NO pulse ring — tried ${[...tried].join(', ') || 'no node'}`);
   await shot('fired-cascade');
-  await page.pump(400);            // let it expire
+
+  // ── RE-ESTABLISH A KNOWN WORLD ───────────────────────────────────────────
+  // This is the ONLY block in the capture whose frame budget is not a fixed
+  // constant, and it says so above: the shot is placed at a fixed offset from
+  // an arrival whose own frame index is set by real async timing. MEASURED, on
+  // one pair of same-build runs at the projector scale, the rings arrived after
+  // 24 stepped frames in one and 15 in the other — and the attempt loop can add
+  // a further 90 (a whole findNode sweep) whenever the first node fired gives
+  // no ring.
+  //
+  // A frame or two of rotation jitter is what that was assumed to cost. It is
+  // not. Every state AFTER this one inherits the difference, and the sphere's
+  // graph physics has discrete thresholds — edges are born and die — so a
+  // nine-frame offset here does not stay a nine-frame offset. It became a
+  // WHOLLY DIFFERENT WORLD by the last state captured: `immersive-off` at the
+  // projector scale correlated 0.062 between two runs of one build, which is
+  // the same number two unrelated states score. `immersive-on` and the two
+  // laptop scales were already ~0.99 by then, so this was the last cause
+  // standing, and it is not about immersive at all — immersive is simply last.
+  //
+  // So do not try to make the arrival deterministic; it cannot be, and the
+  // arrival-relative shot above is the right design for the ring's own look.
+  // Take the shot, then hand the following states a world that does not depend
+  // on when it landed. `__reseed()` first, exactly as bootToSphere does, so
+  // initState's own draws start from a known stream position rather than from
+  // wherever the previous frame left it.
+  await page.eval('window.__reseed(); window.__artHarnessReset();');
+  await page.pump(400);            // let it expire, and settle the reset world
 
   // 6. resonance — arm the mode, then shift-click two DIFFERENT nodes.
   //
@@ -490,26 +601,72 @@ async function captureScale(scale, manifest, expectFingerprint) {
   // sweep inside the same session measured 1.23 on every settled frame: the one
   // row that matters most for the exhibit was structurally blind.
   //
-  // So force the delivery with a throwaway capture, then settle. Both counts
-  // stay fixed constants, so the frame budget is still identical run to run.
-  const forceResize = async () => {
-    await page.screenshot({ clip: clipOf(await page.eval(SPHERE_RECT)) });
-    await page.pump(150);
+  // So force the delivery with a throwaway capture, then settle.
+  //
+  // THAT ORDER WAS THE REMAINING RACE, and it is the reason this block was
+  // rewritten. Forcing AFTER the settle leaves the question of which size those
+  // 600 frames ran at to real timing: between the click and the pump there is
+  // only a CDP round trip, and whether React's commit lands inside it is a coin
+  // flip. MEASURED both ways in the same probe (`scripts/_t9force.mjs`) — with
+  // a real-time gap after the click the GL buffer resizes on the very first
+  // pumped frame, and with none it stays old for the whole 600-frame batch,
+  // because `__pump` never yields and the commit cannot be delivered inside it.
+  // Two same-build runs then settle at two different sizes, the graph physics
+  // reads `dimsRef` and evolves differently, and `immersive-on` correlates
+  // 0.560. It heals by `immersive-off` — the layout relaxes back — which is
+  // exactly why it read as an immersive-only, intermittent fault rather than a
+  // world that had diverged for good.
+  //
+  // So deliver the resize FIRST, at a cost of exactly one frame, and prove it
+  // landed before spending the settle. The screenshot and the real-time sleep
+  // both cost zero frames (measured: `scripts/_t9frames.mjs`); the single pump
+  // is what lets r3f apply the new size to its drawing buffer. Then the whole
+  // settle happens at one size, and the total between click and shot is the
+  // same 750 frames it always was.
+  const SIZES = `(() => { const c = ${SPHERE};
+    const g = document.querySelector('[data-art-composite] canvas');
+    return { canvas: c.width + 'x' + c.height, gl: g ? g.width + 'x' + g.height : 'none' }; })()`;
+  const deliverResize = async (label) => {
+    await page.screenshot({ clip: clipOf(await page.eval(SPHERE_RECT)) });  // forces layout
+    await sleep(250);                        // lets the observer and React commit land
+    await page.pump(1);                      // r3f applies the size inside a frame
+    const s = await page.eval(SIZES);
+    if (s.canvas !== s.gl) {
+      throw new Error(`${label}: the resize never reached the GL buffer — `
+        + `2D canvas ${s.canvas}, GL ${s.gl}. Every frame of the settle would run `
+        + `at the wrong size, and the two immersive states would stop being `
+        + `reproducible. Do not widen this check; find out why the commit is late.`);
+    }
   };
+  // And the same re-establishment the cascade block does, for the same reason.
+  // The resonance sweep hovers 45 grid points and clicks two of them, and CDP
+  // acknowledges an input before the renderer has processed it — `settle()`
+  // narrows that race but cannot close it, so an input lands in this frame or
+  // the next. MEASURED: two same-build runs left the resonance state with `ry`
+  // 0.59925 vs 0.60350, which is two frames' worth of the hover damping and
+  // nothing else. Two frames. The graph physics turned it into a wholly
+  // different configuration by `immersive-off` (r = 0.042) — the same
+  // amplification the cascade showed, from an even smaller seed.
+  //
+  // Chasing every frame-level race in an input path that races by construction
+  // is not winnable. Handing the states that must be reproducible a world that
+  // does not depend on the path is. Each reset costs an eval and a settle.
+  await page.eval('window.__reseed(); window.__artHarnessReset();');
+  await page.pump(240);
   await page.hover(away.x, away.y);
   await settle();
   await page.pump(30);
   if (!await page.eval(clickByTitle('Immersive mode'))) throw new Error('no immersive button');
-  await page.pump(600);
-  await forceResize();
+  await deliverResize('immersive-on');
+  await page.pump(749);
   await shot('immersive-on');
   await page.resetCosts();
   await page.pump(600);
   const immersiveCosts = await page.frameCosts();
 
   await page.eval(clickByTitle('Immersive mode'));
-  await page.pump(600);
-  await forceResize();
+  await deliverResize('immersive-off');
+  await page.pump(749);
   await shot('immersive-off');
 
   const errors = page.consoleErrors();
@@ -562,7 +719,10 @@ const manifest = {
   scales: {},
 };
 
-for (const s of SCALES) {
+const ONLY = arg('--scale', null);
+const RUN = ONLY ? SCALES.filter(s => s.name === ONLY) : SCALES;
+if (!RUN.length) throw new Error(`--scale ${ONLY} matches none of: ${SCALES.map(s => s.name).join(', ')}`);
+for (const s of RUN) {
   await captureScale(s, manifest, previous?.scales?.[s.name]?.bootFingerprint ?? null);
 }
 

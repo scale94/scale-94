@@ -31,6 +31,22 @@ READ FIRST, in this order:
 
 ## THE ONE THING THAT CHANGES HOW YOU MEASURE
 
+> **RESOLVED — task 1, done. Read this section for the lesson, not the state.**
+> The capture is reproducible now: five full runs of one build, ten pairs per
+> cell, worst pair anywhere **0.977**, every immersive cell **≥ 0.988**. The
+> mechanism recorded below is **wrong in both halves** — rotation was identical
+> in the runs that scored 0.047, and a screenshot costs exactly zero frames.
+> There were four real causes and they were all the same shape: something
+> outside the pump budget deciding what the world looks like. Full account:
+> `.superpowers/sdd/post-step5-task1-report.md`.
+>
+> What still applies: **every reference baseline on this branch predates the
+> fix**, including `baseline/art-sphere-step4/` and `art-sphere-step5/`. They
+> each contain one arbitrary draw of the breath phase. Re-capture a control
+> before measuring step 6 against anything — and note that `__artHarnessReset`
+> lives in `ArtTab.jsx`, so a source-swap control at an old commit is still
+> jittery unless the reset patch is carried onto the swapped-in source.
+
 **`artBaseline`'s `immersive-on` and `immersive-off` states are not reproducible
 run to run on IDENTICAL CODE.** Full-resolution luminance correlation between two
 runs of the same build, four minutes apart:
@@ -46,8 +62,9 @@ those two rows carry no information about a code change at any effect size. It i
 a different sphere **rotation**; the virtualised clock cannot see it because
 rotation accrues per rAF frame while `elapsedS` is virtual.
 
-**Do not quote `immersive-on` or `immersive-off` from `artCompare` or `artInk`
-until task 1 below is done.** They are green because they are blind.
+~~**Do not quote `immersive-on` or `immersive-off` from `artCompare` or
+`artInk` until task 1 below is done.**~~ Task 1 is done; both rows are
+measurable. Quote them against a same-build null, as with any other row.
 
 **The immersive ink deficit tasks 4–7 carried is RETIRED.** Do not re-raise it,
 do not re-measure it with another whole-frame ratio, do not treat it as a
@@ -61,7 +78,22 @@ achievable.
 
 ## THE WORK, in the author's priority order
 
-### 1. Fix `forceResize()` determinism in `scripts/artBaseline.mjs` — HIGHEST
+### 1. ~~Fix `forceResize()` determinism in `scripts/artBaseline.mjs`~~ — DONE
+
+Done. `forceResize()` was not the defect; its ORDER was one of four causes. See
+`.superpowers/sdd/post-step5-task1-report.md`. The task text below is kept
+because its reasoning about *why* this had to come before step 6 still holds,
+and because its "do not re-derive the mechanism" instruction is the thing that
+would have kept the wrong diagnosis alive — the mechanism it told the next
+session to trust was falsifiable from artifacts already on disk.
+
+Two defects were found and fixed on the way, both worth knowing about: the
+`hover` state had stopped containing `coreHover` at the projector scale (it now
+shoots at detection and asserts the layer from the census), and `artPresence`'s
+filament/zone retry could exit on half its condition, which reads exactly like a
+broken CHIMERA FRINGES layer — that one fires at unmodified HEAD too.
+
+**Original task text follows.**
 
 This is the author's call already flagged and it comes first, before step 6.
 
@@ -92,7 +124,14 @@ comparably for `immersive-on`/`immersive-off` as it does for `idle` (~0.95+). No
 **Do not** solve it by deleting the immersive states or by widening a tolerance.
 "When a metric is too coarse for its signal, fix the metric, not the bar."
 
-### 2. Fold the same-build-null check into `artCompare` — cheap, high leverage
+### 2. Fold the same-build-null check into `artCompare` — cheap, high leverage — NEXT
+
+Now the highest-priority open item. Note what task 1 added to the case for it:
+three of the four causes were each found *after* a clean 21/21 pair had already
+been recorded, so a single A-vs-B null is not enough — `scripts/_t9matrix.mjs`
+correlates one state across many sets and is what actually caught the
+intermittent ones. Whatever goes into `artCompare` should have that shape.
+
 
 `scripts/_t8align.mjs` (untracked) is the instrument that found the above. Make
 its check part of the gate so a state that is not reproducible **cannot be quoted

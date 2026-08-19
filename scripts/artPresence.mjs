@@ -1591,13 +1591,27 @@ try {
     // Inject, then pump ONE frame at a time until the writers have run: the sim
     // rebuilds the zone list every 8 frames and the filament list every 64, and
     // can wipe an injection before the draw loop sees it.
+    //
+    // WAIT FOR BOTH LISTS, not for their sum. `filGlow.length + chi.length > 0`
+    // stops the moment EITHER writer has run, and the two are on different
+    // rebuild periods — so a frame where the filaments are up and the zones
+    // have just been wiped ends the retry and CHIMERA FRINGES is then measured
+    // against an empty buffer. It reports `chimera 0 runs / 0 segments` and
+    // `ARITHMETIC WRONG`, which reads exactly like a broken layer.
+    //
+    // Latent, and phase-dependent: it needs the injection to land on an unlucky
+    // frame index. Nothing about the layers changed to expose it — the harness
+    // reset in ArtTab.jsx now clears two mount-time frame counters, which moves
+    // where frame 240 sits in those cycles, and the gate went from 19/19 on
+    // every run to 19/19 on one run in three. A retry that can exit on half its
+    // condition is not a retry; the sum hid which half.
     let cls = null, st = null, injected = null, tries = 0;
     while (tries++ < 12) {
       injected = JSON.parse(await r7.eval(FZ_INJECT));
       await r7.pump(1);
       st = JSON.parse(await r7.eval('JSON.stringify(window.__artEdgeState())'));
       cls = fzOf(st.additive);
-      if (cls.filGlow.length + cls.chi.length > 0) break;
+      if (cls.filGlow.length > 0 && cls.chi.length > 0) break;
     }
     const img = decodePng(await r7.screenshot({ clip }));
     const { width: W, height: H } = img;
