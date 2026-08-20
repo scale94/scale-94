@@ -1,15 +1,14 @@
 Continue the /art sphere Canvas2D→WebGL migration on `fix/art-sphere-index-space`
 (F:\scale_9.4).
 
-**Step 5 (nodes) is COMPLETE. Handover items 1 and 2 are COMPLETE.** Step 6
-(particles) is next, and it now has a reference it is allowed to be measured
-against — which took three attempts and produced the two largest fixes on the
-branch.
+**Steps 5 and 6 are COMPLETE.** Every node layer and the whole particle ecology
+are on the GPU. What is left on the 2-D canvas is the Bifurcation Conductor —
+which the spec does not mention and which is a step of its own.
 
-STATE: HEAD `b477fb7`, tracked tree clean, **11 commits ahead of
+STATE: HEAD `d406680`, tracked tree clean, **19 commits ahead of
 `origin/fix/art-sphere-index-space`**. The certified reference is the tree at
 `dd14af6` and is unchanged since. The ledger `.superpowers/sdd` is its own
-private repo (`scale-94-notes`), ahead at `28fec34`. `main` is untouched at
+private repo (`scale-94-notes`), ahead at `4abbce0`. `main` is untouched at
 `a54ea3e`.
 
 **Do not push, do not merge, do not touch `main`.** The author protects `main`
@@ -74,44 +73,47 @@ while the pictures disagreed completely.
 
 ## THE WORK, in order
 
-### 1. Step 6 — particles, and the spec is wrong about what follows
+### 1. THE CONDUCTOR — the actual last 2-D layer
 
-Measured against `baseline/art-sphere-step5-certified/`. Pre-flight is already
-done and is in `progress.md`; the short version:
+**Step 6 is DONE** (`fbd73de`, `e6728f6`; report in
+`.superpowers/sdd/step6-report.md`). Particles are on the GPU as two more discs
+in the additive stream, the particle block holds no canvas API, and 20/21 cells
+are admissible against the certified reference with all 21 inside the threshold.
 
-- The live block is `ArtTab.jsx:1979`–`:2021`: `ctx.save()`,
-  `globalCompositeOperation = 'lighter'`, a `createRadialGradient` glow disc and
-  an `hsla` core disc per particle, `ctx.restore()`.
-- **Particles are NOT the last 2D content.** `ArtTab.jsx:2024` calls
-  `drawConductor(ctx, …)` → `artAwakening.js`, **28 `ctx.` calls**. The spec's
-  "the 2-D canvas is now empty: delete it, its texture and the composite quad"
-  is **wrong for the third time on this branch**.
-  `baseline/art-sphere-step5/README.md` already said so — "Still 2D, for step 6:
-  the particle ecology **and the conductor**". The SPEC is the stale document.
-- The whole remaining 2D surface is four sites: `:931` `setTransform`,
-  `:947`–`:951` the `destination-out` clear, the particle block, the conductor.
-- **`_idleHueDrift` (`artParticles.js:71`) — ALREADY TRIED, AND THE MEASUREMENT
-  REFUSED IT. Do not redo it without reading this.** It is a module-level
-  mount-time accumulator `__artHarnessReset` does not touch, same class as
-  `breathPhase`, and it sets particle **hue**, so clearing it looks like an
-  obvious step-6 precondition. It was implemented, gated and measured over five
-  fresh three-scale sets: pinning the drift to 0 makes `idle`'s per-channel
-  spread **~2.5x worse** (R 0.130% → 0.352%, G 0.025% → 0.311%, B 0.164% →
-  0.321%) and improves only `fired-cascade`'s R and G. An n=2 look had suggested
-  a 50x improvement and it evaporated at n=5. Reverted.
-  **What that established, and step 6 needs to act on:** particle hue is not
-  reproducible run to run *whether the drift is pinned or not*, so
-  particle-colour parity cannot be measured off the ambient idle stream at all.
-  **Measure particles on a forced, deterministic emission.** (`__artForce*`
-  hooks already exist for other layers; this wants the same treatment.)
-- Write the plan document. Every prior step got one, and the spec's
-  one-paragraph description has understated the block **every single time** —
-  seven layers where there were thirteen in step 5, "ordinary line segments"
-  where there were quadratic Béziers over three sub-layers in step 4.
+What the spec called "the 2-D canvas is now empty" is **three sites**:
+`ArtTab.jsx:941` `setTransform`, `:957`–`:961` the `destination-out` clear, and
+`:2059` `drawConductor(ctx, …)` → `artAwakening.js`, **28 `ctx.` calls**. The
+spec is corrected (`d406680`); phase 1 ends after the conductor, not after step 6.
 
-Particles draw with `lighter` across the whole disc and are, by `artInk`'s own
-accumulation arithmetic, the layer with the most to lose in a move to a fully
-rewritten target.
+Do the conductor the way step 6 was done: pre-flight the block FIRST, because
+the spec has understated every block five times running. Note that the conductor
+is a fixed screen-space strip rather than sphere geometry, so it may not want the
+edge-instance encoding at all.
+
+**Two things step 6 leaves you.** `DISC_RESERVED` is now EMPTY — step 6 spent all
+five floats the layout reserved, so **the next one costs a stride bump**. And
+`__artForceParticles` + the `particleGlow`/`particleCore` census exist; the
+conductor deserves the same before it moves, not after.
+
+### 1b. The ink excess step 6 could not explain
+
+Normal-mode whole-frame ink is **+1.6% to +2.7%** after the migration, against
+**1.001–1.003** for step 6's provably inert changes measured the same way. So it
+is the particle layer.
+
+It tracks particle count and size — projector: 1.006 at 12 particles, 1.017 at
+89, **1.055 at fired-cascade's 147** (which also emits the largest, node-burst
+particles) — and it **flips sign in immersive** (0.997), where the standing gain
+is 3.125× instead of 1.389×. **That points at the accumulation path, not the
+rasteriser.**
+
+One hypothesis is already tested and REFUTED, so do not spend it again: the
+shader's straight-edge box filter over-inks a disc by 1/12 px² whatever its size
+(52% at R = 0.4, nothing at a node's 8–25px), and particle cores are the first
+sub-pixel discs here. The mechanism is real and is now corrected — and it moved
+the frame ratios by nothing, because particle cores are ~2% of frame ink so an
+8% correction on them is 0.16% of the frame. **The arithmetic would have said so
+before the captures.**
 
 ### 2. The spoke's 1.098 GL/2D ratio — never actually gated
 
@@ -131,6 +133,30 @@ not repeat itself. **Trap: `grep 1.098` is useless.** That string appears in
 `trail-deficit.md` as unrelated ink ratios. Also still open from that task: the
 1.526 px notch, and whether `CURVE_MAX_SEGMENTS = 24` binding routinely is
 silently coarsening the flatness guarantee.
+
+### 2b. The immersive-window race — live, and `--scale` makes it worse
+
+Still unexplained after three attempts. What is now measured:
+
+| launch | divergent sets |
+|---|---|
+| three-scale | **1 in 20** |
+| single-scale `--scale` | **6 in 20** |
+
+**`--scale` is not just a faster test, it is a ~6× harsher one**, and its own
+documentation says it costs "none of the extra information". Measure with
+three-scale captures.
+
+It hits `immersive-on` and `immersive-off` at all three scales — three different
+cells across the runs in this session — always bit-identical through the five
+earlier states, always at identical `rot`, `sphereR`, buffer sizes and edge
+count. `--write-partial` is how you proceed around it honestly: it certifies the
+cells that repeat and leaves the rest UNGATED in `artCompare`.
+
+`scripts/_t9trace.mjs` now mirrors the capture's immersive window faithfully (it
+had omitted the real `hover(away)` input, its 25 ms settle, and the 600-frame
+pump between the shots). It costs ~1 minute a run against a capture's four, and
+it is the instrument to reach for.
 
 ### 3. A whole-branch review before the branch is finished
 
@@ -206,10 +232,10 @@ replicates — the certificate names them).
 - A `git checkout HEAD -- <file>` used to test a baseline **must be restored in
   its own command**, not chained after a long-running loop.
 
-## GATES (all green at `b477fb7`)
+## GATES (all green at `d406680`)
 
 ```
-npx vitest run          1215 passed / 113 files
+npx vitest run          1249 passed / 113 files
 npm run lint            0 errors, 144 warnings (ratchet 153 — a new warning is YOURS)
 npm run build           clean
 node scripts/artSmoke.mjs        10/10
