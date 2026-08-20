@@ -11,6 +11,7 @@ import {
 } from './artNodes';
 import { emitNodeBurst } from './artParticles';
 
+import { artRandom } from './artRandom.js';
 // ── Jury Awakening state machine ─────────────────────────────────────────────
 // Advances awakening phases and injects energy into nodes.
 // Returns nothing — mutates aw (awakeningRef.current) and node energies in place.
@@ -36,7 +37,7 @@ export function stepAwakening(aw, nodes, frameCount, particles) {
     // Sparse genesis particles — every 10 frames, 15% chance per node
     if (frameCount % 10 === 0) {
       for (const n of nodes) {
-        if (n.energy > 0.2 && Math.random() < 0.15) {
+        if (n.energy > 0.2 && artRandom() < 0.15) {
           const col = NODE_COLORS[n.id];
           emitNodeBurst(particles, n.x, n.y, n.z,
             col?.hue ?? 30, (col?.hue ?? 30 + 90) % 360, 1);

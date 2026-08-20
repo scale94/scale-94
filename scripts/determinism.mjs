@@ -58,7 +58,17 @@ export const DETERMINISM_SHIM = `(() => {
   };
   const realRandom = Math.random.bind(Math);
   Math.random = function () { return virtual ? seeded() : realRandom(); };
-  window.__reseed = (seed) => { s = ((seed ?? SEED) >>> 0); };
+  // Reseeding pins BOTH streams. The sphere owns a private one now
+  // (src/terminal/art/artRandom.js) because sharing this one with three.js let
+  // GPU allocation timing decide the app's threshold decisions -- but every
+  // harness on this branch already says __reseed() to mean "pin the world", and
+  // that contract has to keep holding or the pinning silently stops covering
+  // the thing it was written for. Optional-called: the shim is injected at
+  // document start, long before ArtTab mounts and defines it.
+  window.__reseed = (seed) => {
+    s = ((seed ?? SEED) >>> 0);
+    if (window.__artSeedRandom) window.__artSeedRandom(seed);
+  };
 
   // Re-seeding once is not enough with a GPU library mounted: three.js calls
   // Math.random() for every object UUID, continuously, from the same global
@@ -69,6 +79,28 @@ export const DETERMINISM_SHIM = `(() => {
   // require rewriting the thing it measures.
   let reseedEachFrame = false;
   window.__reseedEachFrame = (on) => { reseedEachFrame = !!on; };
+
+  // DIAGNOSTIC, default OFF. Re-seed before EVERY callback rather than once a
+  // frame.
+  //
+  // Per-frame re-seeding only protects the app if the app draws FIRST, which is
+  // what the comment above assumes. MEASURED, post-step-5 task 3: the world is
+  // bit-identical across runs through all five normal states and then diverges
+  // inside the immersive blocks, at identical rotation, with the edge COUNT
+  // changing (128 vs 129). The app takes stochastic branches from this same
+  // global stream in its draw path -- Math.random() < 0.15 at ArtTab.jsx:904,
+  // Math.random() > fil.strength at :917, eight more in useSomaGraph -- and
+  // the immersive resize makes three.js reallocate render targets, i.e. draw a
+  // variable number of UUIDs from the stream. If any of that lands BEFORE the
+  // app's draw, the app's threshold decisions move and an edge is born or dies.
+  //
+  // Turning this on gives every callback the same starting offset, which
+  // removes the displacement without touching the app. It is a TEST of that
+  // mechanism, not a fix: the fix is for the app to own a private RNG. Do not
+  // capture a reference set with this on -- it changes which random values the
+  // app sees, so it is a different picture, not a more reproducible one.
+  let reseedEachCallback = false;
+  window.__reseedEachCallback = (on) => { reseedEachCallback = !!on; };
 
   // ── Clocks ────────────────────────────────────────────────────────────────
   const realPerfNow = performance.now.bind(performance);
@@ -174,13 +206,25 @@ export const DETERMINISM_SHIM = `(() => {
     if (!virtual) throw new Error('__pump called before __virtualize');
     for (let i = 0; i < n; i++) {
       vnow += FRAME_MS;
-      if (reseedEachFrame) s = SEED >>> 0;
+      if (reseedEachFrame) {
+        s = SEED >>> 0;
+        // The sphere's private stream is reseeded on the same beat as this one.
+        // Isolating the change: what moved is WHO OWNS the stream (three.js can
+        // no longer displace the app's threshold decisions), not HOW it is
+        // reseeded. Letting the private stream advance continuously here instead
+        // is a second, much larger change -- the app would see a fresh value per
+        // frame rather than the same sequence each frame, which is closer to
+        // what the browser does but is a different world, and it cost
+        // artPresence 19/19 -> 14/19 when tried.
+        if (window.__artSeedRandom) window.__artSeedRandom();
+      }
       runDueTimers();               // timers land before the frame, as in a real tick
       const batch = queue;
       queue = [];
       for (const { id, cb } of batch) {
         if (!live.has(id)) continue;
         live.delete(id);
+        if (reseedEachCallback) s = SEED >>> 0;
         const t0 = realPerfNow();
         try { cb(vnow); } catch (e) { /* app has its own try/catch; keep pumping */ }
         const dt = realPerfNow() - t0;
@@ -198,6 +242,7 @@ export const DETERMINISM_SHIM = `(() => {
     if (virtual) return vnow;
     vnow = VIRTUAL_START;
     s = ((seed ?? SEED) >>> 0);
+    if (window.__artSeedRandom) window.__artSeedRandom(seed);
     reseedEachFrame = !!rpf;
     virtual = true;
     return vnow;

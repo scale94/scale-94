@@ -31,6 +31,7 @@ import {
   cosineSim, topDrivers, analyzeEdge, findOrthogonalNode,
   compareNodes, jitterFeatures,
 } from '../data/nodeFeatures';
+import { artRandom, seedArtRandom, ART_SEED } from '../art/artRandom.js';
 import { somaPresence } from '../net/SomaPresence';
 import { ecoDataFeed } from '../data/EcoDataFeed';
 import { ecocideBus } from './EcocideTab';
@@ -271,7 +272,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     t0: performance.now(),
     interacted: false,      // true after first user gesture on canvas
     autoFiredNodes: [],     // nodes auto-ignited during phase 2
-    beaconIdx: Math.floor(Math.random() * SPHERE_NODES.length),  // random beacon node
+    beaconIdx: Math.floor(artRandom() * SPHERE_NODES.length),  // random beacon node
     breathPhase: 0,         // continuous breath oscillation
   });
 
@@ -623,12 +624,12 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     if (geomEffectsRef.current.length >= 4) geomEffectsRef.current.shift();
 
     // Palette: left-click → cluster hue, right-click → complementary shift, idle → drift
-    const clusterHue = node ? (NODE_COLORS[node.id]?.hue ?? Math.random() * 360) : Math.random() * 360;
+    const clusterHue = node ? (NODE_COLORS[node.id]?.hue ?? artRandom() * 360) : artRandom() * 360;
     const hueBase    = opts.hueOverride ?? clusterHue;
-    const hueTarget  = opts.hueTarget   ?? (hueBase + (opts.rightClick ? 180 : 90) + Math.random() * 60) % 360;
+    const hueTarget  = opts.hueTarget   ?? (hueBase + (opts.rightClick ? 180 : 90) + artRandom() * 60) % 360;
 
     geomEffectsRef.current.push({
-      id:        Date.now() + Math.random(),
+      id:        Date.now() + artRandom(),
       nodeIds:   localIds.slice(0, nodeLimit),
       life:      0,
       maxLife:   coarse ? Math.min(maxLife, 150) : maxLife,
@@ -901,10 +902,10 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
       // Emit burst particles from high-energy nodes
       for (const n of nodes) {
-        if (n.energy > 0.7 && Math.random() < 0.15) {
+        if (n.energy > 0.7 && artRandom() < 0.15) {
           const col = NODE_COLORS[n.id];
           const hue = col?.hue ?? 30;
-          const hueTarget = (hue + 120 + Math.random() * 60) % 360;
+          const hueTarget = (hue + 120 + artRandom() * 60) % 360;
           emitNodeBurst(pool, n.x, n.y, n.z, hue, hueTarget, 3);
         }
       }
@@ -914,7 +915,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         const _fils = getFilaments();
         for (const fil of _fils) {
           if (fil.strength < 0.2 || fil.nodeA >= nodes.length || fil.nodeB >= nodes.length) continue;
-          if (Math.random() > fil.strength) continue;
+          if (artRandom() > fil.strength) continue;
           const nA = nodes[fil.nodeA], nB = nodes[fil.nodeB];
           if (!nA || !nB) continue;
           emitEdgeParticles(pool,
@@ -2078,6 +2079,13 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   // build, so the whole block is dead code the bundler removes.
   useEffect(() => {
     if (!import.meta.env.DEV) return undefined;
+    // Pin the sphere's own random stream. `window.__reseed` in the determinism
+    // shim calls this, so every harness that already says "reseed" to mean "pin
+    // the world" keeps meaning it now that the world is drawn from artRandom
+    // rather than the global Math.random. Passing no seed pins it to ART_SEED,
+    // matching the shim's own default.
+    window.__artSeedRandom = (seed) => seedArtRandom(seed ?? ART_SEED);
+
     window.__artHarnessReset = () => {
       rotRef.current = { rx: 0.18, ry: 0 };
       dragRef.current = { active: false, lastX: 0, lastY: 0, vx: 0, vy: 0 };
@@ -2115,6 +2123,22 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       // state is at phase 3. If it is ever worth pinning, pin it to a CONSTANT
       // — do not spend a random draw inside this reset.
       awakeningRef.current.breathPhase = 0;
+      // THE SPHERE'S OWN RANDOM STREAM, pinned to a known offset.
+      //
+      // Everything above resets state that ACCRUES. This resets what the world
+      // is drawn FROM, and without it the rest cannot finish the job: the draw
+      // path takes threshold decisions from the stream, and until `artRandom`
+      // existed those came from the global `Math.random` that three.js also
+      // draws a UUID from for every object it allocates. MEASURED, post-step-5
+      // task 3: four captures of one build agreed bit-for-bit through all five
+      // normal states and then produced THREE DIFFERENT WORLDS at
+      // `immersive-off` — same rotation, same sphere radius, same buffer sizes,
+      // same layer census, different edge COUNT, because the immersive resize
+      // reallocates render targets and displaced the stream under a threshold.
+      //
+      // The stream is seeded from Math.random at mount, so the piece is exactly
+      // as varied as it ever was in the browser; only this reset pins it.
+      seedArtRandom(ART_SEED);
       initState();
     };
 
@@ -2415,6 +2439,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
     return () => {
       delete window.__artHarnessReset;
+      delete window.__artSeedRandom;
       delete window.__artSetEcocide;
       delete window.__artSetGhosts;
       delete window.__artSetAnalogy;
@@ -2970,9 +2995,9 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       const nodeB = s.nodes.find(n => n.id === parentNodeB);
       const anchorA = nodeA ?? CLUSTER_ANCHORS[cluster] ?? CLUSTER_ANCHORS.phys;
       const anchorB = nodeB ?? CLUSTER_ANCHORS[cluster] ?? CLUSTER_ANCHORS.phys;
-      const mx = (anchorA.x + anchorB.x) / 2 + (Math.random() - 0.5) * 0.1;
-      const my = (anchorA.y + anchorB.y) / 2 + (Math.random() - 0.5) * 0.1;
-      const mz = (anchorA.z + anchorB.z) / 2 + (Math.random() - 0.5) * 0.1;
+      const mx = (anchorA.x + anchorB.x) / 2 + (artRandom() - 0.5) * 0.1;
+      const my = (anchorA.y + anchorB.y) / 2 + (artRandom() - 0.5) * 0.1;
+      const mz = (anchorA.z + anchorB.z) / 2 + (artRandom() - 0.5) * 0.1;
       const len = Math.sqrt(mx * mx + my * my + mz * mz) || 1;
 
       // ── Synthesize 16D feature tensor from parents ────────────────

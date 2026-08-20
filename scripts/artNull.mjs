@@ -116,6 +116,38 @@ export function worstPair(planes) {
 export const shotFile = (dir, scale, state, shot) =>
   shot?.file ? `${dir}/${basename(shot.file)}` : `${dir}/${scale}__${state}.png`;
 
+// THE WORLD HASH, and why the picture correlation is not enough on its own.
+//
+// `view.world.hash` is an FNV hash over the edge layer's whole written instance
+// range — the actual projected geometry of the frame. Two runs that agree on it
+// drew the same world; two that do not, did not, whatever their pixels say.
+//
+// It is NOT here because it caught something the correlation missed. It was
+// added on that belief and the belief was wrong: in the run that prompted it
+// (post-step-5 task 3, four same-build sets) the divergent `immersive-on` world
+// also scored 0.5822 on pixels, so the correlation saw it perfectly well. That
+// is recorded rather than quietly dropped, because a mechanism assumed and not
+// checked is how this branch loses weeks.
+//
+// It earns its place for three duller reasons. It is an EQUALITY, so it has no
+// floor to argue about and cannot be tuned into agreement. It counts DISTINCT
+// worlds — "3 of 4 runs disagree" is a different diagnosis from "one outlier",
+// and the correlation's worst-pair scalar cannot tell them apart. And it is
+// recorded per state, so it says at WHICH state the runs first parted, which is
+// the question that turns a hunt into a location.
+//
+// A cell is reproducible only if the pictures agree AND the worlds agree.
+// A set captured before this field existed records no hash; that is reported as
+// unknown rather than as agreement, because "the instrument cannot see it" and
+// "the instrument checked and it matched" are the two things this branch has
+// most often confused.
+export function worldAgreement(shots) {
+  const hashes = shots.map((s) => s?.view?.world?.hash ?? null);
+  if (hashes.some((h) => h === null)) return { known: false, agree: null, hashes };
+  const distinct = [...new Set(hashes)];
+  return { known: true, agree: distinct.length === 1, hashes, distinct: distinct.length };
+}
+
 // Parse the CLI. Kept pure so the argument shape is testable: a bare token is a
 // directory unless it is the value of the flag before it.
 export function parseArgs(argv) {
@@ -180,13 +212,22 @@ async function main(argv) {
         results[scale][state] = { sets: planes.length, worst: null, note: `size mismatch ${size}` };
         continue;
       }
-      const ok = worst >= FLOOR;
+      const world = worldAgreement(manifests.map(({ m }) => m.scales?.[scale]?.shots?.[state]));
+      const picturesOk = worst >= FLOOR;
+      const ok = picturesOk && world.agree !== false;
       if (!ok) below++;
-      results[scale][state] = { sets: planes.length, worst: Number(worst.toFixed(4)), floor: FLOOR, pass: ok };
+      results[scale][state] = {
+        sets: planes.length, worst: Number(worst.toFixed(4)), floor: FLOOR, pass: ok,
+        world: world.known ? (world.agree ? 'agree' : `${world.distinct} distinct`) : 'unknown',
+      };
+      const worldNote = world.known
+        ? (world.agree ? '' : `   WORLD: ${world.distinct} distinct hashes — the runs drew different worlds`)
+        : '   (world hash unknown — set predates the readback)';
       rows.push(
         `   ${ok ? 'ok  ' : 'FAIL'} ${state.padEnd(16)} worst=${worst.toFixed(4)}`
         + `  over ${planes.length} sets / ${(planes.length * (planes.length - 1)) / 2} pairs`
-        + (ok ? '' : `   <-- ${where.join(' vs ')}`),
+        + (picturesOk ? '' : `   <-- ${where.join(' vs ')}`)
+        + worldNote,
       );
     }
   }

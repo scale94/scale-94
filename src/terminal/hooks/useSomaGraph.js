@@ -13,6 +13,7 @@
 
 import { useRef, useCallback } from 'react';
 
+import { artRandom } from '../art/artRandom.js';
 const DT   = 0.45;
 const DRAG = 0.86;
 
@@ -77,16 +78,16 @@ export function useSomaGraph({ nodes, adj, modulationRef, initialPositionsRef })
 
       if (saved && saved.length >= (i + 1) * 3) {
         // Temporal archaeology: restore from previous session with slight jitter
-        const jit = () => (Math.random() - 0.5) * 0.03;
+        const jit = () => (artRandom() - 0.5) * 0.03;
         [nx, ny, nz] = norm3(saved[i * 3] + jit(), saved[i * 3 + 1] + jit(), saved[i * 3 + 2] + jit());
       } else {
         const a = CLUSTER_ANCHORS[n.cluster] ?? CLUSTER_ANCHORS.drk;
 
         // Scatter node near its cluster anchor on the sphere surface
         // by applying a small random tangential offset then re-normalizing
-        const tx = (Math.random() - 0.5);
-        const ty = (Math.random() - 0.5);
-        const tz = (Math.random() - 0.5);
+        const tx = (artRandom() - 0.5);
+        const ty = (artRandom() - 0.5);
+        const tz = (artRandom() - 0.5);
         // Remove radial component of the perturbation
         const dot = tx * a.x + ty * a.y + tz * a.z;
         const px  = tx - dot * a.x;
@@ -105,7 +106,7 @@ export function useSomaGraph({ nodes, adj, modulationRef, initialPositionsRef })
         ...n,
         x: nx, y: ny, z: nz,   // unit sphere position
         vx: 0, vy: 0, vz: 0,
-        energy: Math.random() * 0.25,
+        energy: artRandom() * 0.25,
         bleedFrom:   null,
         bleedAmount: 0,
       };
@@ -180,7 +181,7 @@ export function useSomaGraph({ nodes, adj, modulationRef, initialPositionsRef })
       // Energy decay + ambient flicker — visitor idle cooling (channel 2) accelerates decay
       const decayRate = mod ? 0.0035 * (1 + (mod[2] || 0) * 2.0) : 0.0035;
       n.energy = Math.max(0, n.energy - decayRate);
-      if (Math.random() < 0.0025) n.energy = Math.min(1, n.energy + 0.28);
+      if (artRandom() < 0.0025) n.energy = Math.min(1, n.energy + 0.28);
 
       // Overwrite bleed decay
       if (n.bleedAmount > 0) {
@@ -257,11 +258,11 @@ export function useSomaGraph({ nodes, adj, modulationRef, initialPositionsRef })
       if ((degreeMap[n.id] ?? 0) < threshold) continue;
 
       // ±2.5% stochastic position jitter — simulates tensor drift at bifurcation
-      const jitter = () => (Math.random() - 0.5) * 0.05;
+      const jitter = () => (artRandom() - 0.5) * 0.05;
       const [cx, cy, cz] = norm3(n.x + jitter(), n.y + jitter(), n.z + jitter());
 
       // Unique child ID: parent ID + 4-char random suffix
-      const childId = `${n.id}_b${Math.random().toString(36).slice(2, 6)}`;
+      const childId = `${n.id}_b${artRandom().toString(36).slice(2, 6)}`;
 
       sn.push({
         ...n,                          // inherit label/alias/cluster from parent

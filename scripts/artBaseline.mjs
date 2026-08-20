@@ -66,6 +66,7 @@ const arg = (name, dflt) => {
   return i >= 0 ? process.argv[i + 1] : dflt;
 };
 const OUT = arg('--out', 'baseline/art-sphere-2d');
+const RESEED_CB = process.argv.includes('--reseed-per-callback');
 const URL = arg('--url', 'http://localhost:5174/');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -184,6 +185,16 @@ async function bootToSphere(page) {
   await sleep(4000);
 
   await page.eval('window.__virtualize()');
+  // DIAGNOSTIC ONLY -- see __reseedEachCallback in scripts/determinism.mjs.
+  // Gives every rAF callback the same stream offset instead of only the first
+  // one, to test whether the immersive-block divergence is the app's draw-path
+  // thresholds being displaced by three.js's UUID draws. It CHANGES WHICH
+  // RANDOM VALUES THE APP SEES, so a set captured with it is a different
+  // picture and must never be used as a reference.
+  if (RESEED_CB) {
+    await page.eval('window.__reseedEachCallback(true)');
+    console.log('   [diagnostic] __reseedEachCallback(true) -- NOT a reference capture');
+  }
   if (!await page.eval('window.__isVirtual()')) throw new Error('shim did not virtualize');
   // Let in-flight real-rAF loops migrate into the virtual queue. The shim wraps
   // passthrough callbacks so they re-queue instead of being lost, but the
@@ -346,11 +357,52 @@ async function captureScale(scale, manifest, expectFingerprint) {
     // captured entirely different faces of the sphere in immersive, and nothing
     // in this manifest could see it. Costs zero frames. Null on a build
     // predating the readback.
+    // WHAT THE WORLD ACTUALLY IS, not just where the camera is pointing.
+    //
+    // `rot` + `sphereR` + the buffer sizes were enough to rule the CAMERA out,
+    // and that is all they can do. MEASURED, post-step-5 task 3: five same-build
+    // runs recorded identical rot, identical sphereR, identical buffers and an
+    // identical layer census at every state, and one of them still produced an
+    // `immersive-off` frame that correlated 0.032 with the others — the score an
+    // unrelated state gets. Everything this manifest could see agreed while the
+    // node positions did not, so there was nothing to attribute the difference
+    // to and the search had to go through the app.
+    //
+    // `world` closes that: a hash over the edge layer's whole written instance
+    // range, which is projected node geometry, so two runs with the same hash
+    // have the same picture and two runs without it differ HERE, at this state,
+    // rather than somewhere in the four states before it. Costs zero frames —
+    // evals do not advance the clock — and needs no app change, because
+    // `__artEdgeState` already publishes the range for the ring instruments.
+    //
+    // `arch` is here because `initState()` does not lay the nodes out from the
+    // seed. It restores them from `initialPositionsRef` when the temporal
+    // archaeology has loaded and scatters them around the cluster anchors when
+    // it has not, and that load is async and real-timed. Two runs that reset at
+    // different sides of it get two different worlds from the same seed.
     const view = JSON.parse(await page.eval(
       `JSON.stringify((() => { const b = window.__artBgState && window.__artBgState();
         const c = ${SPHERE};
         const g = document.querySelector('[data-art-composite] canvas');
+        const es = window.__artEdgeState && window.__artEdgeState();
+        let world = null;
+        if (es && es.instances) {
+          let h = 2166136261 >>> 0;
+          const dv = new DataView(new ArrayBuffer(4));
+          for (let i = 0; i < es.instances.length; i++) {
+            dv.setFloat32(0, es.instances[i]);
+            const u = dv.getUint32(0);
+            h = (h ^ (u & 255)) >>> 0;        h = Math.imul(h, 16777619) >>> 0;
+            h = (h ^ ((u >>> 8) & 255)) >>> 0;  h = Math.imul(h, 16777619) >>> 0;
+            h = (h ^ ((u >>> 16) & 255)) >>> 0; h = Math.imul(h, 16777619) >>> 0;
+            h = (h ^ ((u >>> 24) & 255)) >>> 0; h = Math.imul(h, 16777619) >>> 0;
+          }
+          world = { hash: h.toString(16).padStart(8, '0'), edges: es.count,
+                    e0: es.first ? [+es.first[0].toFixed(3), +es.first[1].toFixed(3)] : null };
+        }
         return b ? { rot: b.rot, dragV: b.dragV, hovered: b.hovered,
+                     world,
+                     arch: { loaded: b.archLoaded, len: b.archLen },
                      // The size the draw loop was actually projecting at, and the
                      // two buffers behind it. Immersive changes all three, and it
                      // changes them on a ResizeObserver — a REAL browser task —
