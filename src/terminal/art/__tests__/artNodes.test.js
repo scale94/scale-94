@@ -623,3 +623,95 @@ describe('the disc branch encoding', () => {
     expect(state.data[EDGE_OFF.alphas]).toBe(packAlphas(0.6, 0.6, 0.6));
   });
 });
+
+// ── The mid gradient stop (step 6) ──────────────────────────────────────────
+//
+// The particle glow is the first disc on this branch whose 2-D gradient is a
+// COLOUR ramp rather than an alpha one: lightness 82% -> 65% -> 50%, knee at
+// 0.4. The node halo's trick of ramping coverage reproduces the alpha and
+// leaves the darkening out, so the encoding has to carry the middle stop.
+
+describe('the disc mid gradient stop', () => {
+  const state = createEdgeState(4);
+  const base = { cx: 100, cy: 200, rOuter: 12, rgb: [1, 0.5, 0.25], alpha: 0.6 };
+  const write = (over = {}) => {
+    state.data.fill(0);
+    writeDisc(state.data, 0, { ...base, ...over });
+  };
+
+  it('round-trips the stop, its colour and its alpha', () => {
+    write({ mid: { at: 0.4, rgb: [0.5, 0.25, 0.125], alpha: 0.3 } });
+    const d = readDisc(state.data, 0);
+    expect(d.mid.at).toBeCloseTo(0.4, 6);
+    expect(d.mid.rgb[0]).toBeCloseTo(0.5, 6);
+    expect(d.mid.alpha).toBeCloseTo(0.3, 2);   // packAlphas quantises to a byte
+    expect(discEncodingInvariant(state.data, 0)).toEqual([]);
+  });
+
+  it('leaves a disc WITHOUT a mid stop byte-identical to before step 6', () => {
+    // The claim the whole task rests on. Every existing disc — pulse rings,
+    // node halos, node cores, ghost rings, probe glows — goes down this path.
+    const withNull = new Float32Array(EDGE_STRIDE);
+    const without = new Float32Array(EDGE_STRIDE);
+    writeDisc(withNull, 0, { ...base, rInner: 3, falloffInner: 2, mid: null });
+    writeDisc(without, 0, { ...base, rInner: 3, falloffInner: 2 });
+    expect(Array.from(withNull)).toEqual(Array.from(without));
+  });
+
+  it('reports no mid stop as null, not as a stop sitting at zero', () => {
+    write();
+    expect(readDisc(state.data, 0).mid).toBeNull();
+  });
+
+  it('keeps all three alphas flat when there is no mid stop', () => {
+    write({ alpha: 0.4 });
+    const a = readDisc(state.data, 0);
+    expect(a.alpha).toBeCloseTo(0.4, 2);
+    expect(a.outerAlpha).toBeCloseTo(0.4, 2);
+  });
+
+  it('ends the ramp fully transparent by default, as the canvas gradient does', () => {
+    write({ mid: { at: 0.4, rgb: [1, 1, 1], alpha: 0.3 } });
+    expect(readDisc(state.data, 0).outerAlpha).toBeCloseTo(0, 2);
+  });
+
+  it('costs no float for the alpha ramp — the slots were always there', () => {
+    // packAlphas has carried three alphas since step 4; discs simply wrote them
+    // flat. Only the stop POSITION and the mid COLOUR needed reserved floats.
+    expect(DISC_OFF.midStop).toBe(EDGE_OFF.c1 + 1);
+    expect(DISC_OFF.midColor).toBe(EDGE_OFF.c2);
+    expect(EDGE_STRIDE).toBe(17);
+  });
+
+  it('leaves one reserved float still reserved', () => {
+    // The layout said a later step could take these without a stride bump.
+    // Step 6 took four of the five; the last one is still asserted zero.
+    expect(DISC_RESERVED).toEqual([EDGE_OFF.c1 + 2]);
+    write({ mid: { at: 0.4, rgb: [1, 1, 1], alpha: 0.2 } });
+    for (const k of DISC_RESERVED) expect(state.data[k]).toBe(0);
+  });
+
+  it('rejects a stop at or past the rim', () => {
+    write({ mid: { at: 1.5, rgb: [1, 1, 1], alpha: 1 } });
+    expect(discEncodingInvariant(state.data, 0)).toContain('mid stop is outside (0,1)');
+    write({ mid: { at: 1.0, rgb: [1, 1, 1], alpha: 1 } });
+    expect(discEncodingInvariant(state.data, 0)).toContain('mid stop is outside (0,1)');
+  });
+
+  it('catches a mid colour left behind with no stop', () => {
+    // The failure that draws nothing wrong: the writer changed and the reader
+    // did not, so a stale colour sits in aC2 meaning nothing.
+    write();
+    state.data[DISC_OFF.midColor] = 0.5;
+    expect(discEncodingInvariant(state.data, 0)).toContain('mid colour set with no mid stop');
+  });
+
+  it('takes the same { hue, sat, lit } objects every other writer here takes', () => {
+    // Not { h, s, l }: writeHslRgb reads hue/sat/lit, and the wrong names
+    // convert silently to NaN rather than throwing.
+    write({ mid: { at: 0.4, hsl: { hue: 210, sat: 70, lit: 65 }, alpha: 0.3 } });
+    const d = readDisc(state.data, 0);
+    expect(d.mid.rgb.every((c) => c >= 0 && c <= 1)).toBe(true);
+    expect(d.mid.rgb[2]).toBeGreaterThan(d.mid.rgb[0]);   // a blue hue
+  });
+});

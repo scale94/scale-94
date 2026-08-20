@@ -440,15 +440,26 @@ export const DISC_OFF = Object.freeze({
   /** radial-gradient inner radius in px; 0 = hard-edged, no falloff.
    *  Was aC1.x. */
   falloffInner: EDGE_OFF.c1,
+  /** MID GRADIENT STOP position, 0..1 across the radius; 0 = no mid stop, so
+   *  the disc keeps the single flat colour it always had. Was aC1.y.
+   *
+   *  Taken in step 6, from the floats the comment below promised a later step
+   *  could have. The particle glow is the first disc on this branch whose 2-D
+   *  gradient is a COLOUR ramp rather than an alpha one — lightness 82% to 65%
+   *  to 50%, knee at 0.4 — and the node halo's trick of ramping coverage
+   *  reproduces the alpha while leaving the darkening out. */
+  midStop: EDGE_OFF.c1 + 1,
+  /** MID stop colour, the three floats of aC2. Only read when midStop > 0. */
+  midColor: EDGE_OFF.c2,
 });
 
-/** Fields that MUST be zero on a disc instance: the two remaining floats of
- *  aC1 and all three of aC2. Reserved rather than assigned, so a later step can
- *  take them without a stride bump — and asserted zero so nothing quietly
- *  starts depending on stale gradient colour left in them. */
+/** Fields that MUST still be zero on a disc instance. Was five floats; step 6
+ *  took four of them for the mid gradient stop, exactly as this comment said a
+ *  later step could — without a stride bump, and the last one is still here.
+ *  Asserted zero so nothing quietly starts depending on stale gradient colour
+ *  left in it. */
 export const DISC_RESERVED = Object.freeze([
-  EDGE_OFF.c1 + 1, EDGE_OFF.c1 + 2,
-  EDGE_OFF.c2, EDGE_OFF.c2 + 1, EDGE_OFF.c2 + 2,
+  EDGE_OFF.c1 + 2,
 ]);
 
 /**
@@ -473,6 +484,15 @@ export const DISC_RESERVED = Object.freeze([
 export function writeDisc(out, o, {
   cx, cy, rOuter, rInner = 0, sweepStart = 0, sweepEnd = 0, falloffInner = 0,
   rgb, hsl, alpha, flags = 0,
+  // A MID GRADIENT STOP: { at, rgb|hsl, alpha }. Omit it and every float it
+  // would use is written zero, so a disc without one is byte-identical to the
+  // discs this file wrote before step 6 — asserted by a test, because "the old
+  // path is untouched" is exactly the claim that rots silently.
+  mid = null,
+  // The alpha at the OUTER rim. Only meaningful alongside `mid`; the canvas
+  // gradient this models ends fully transparent, which is why it defaults to 0
+  // rather than to `alpha`.
+  outerAlpha = 0,
 }) {
   out[o + EDGE_OFF.ax] = cx;
   out[o + EDGE_OFF.ay] = cy;
@@ -490,9 +510,27 @@ export function writeDisc(out, o, {
   }
   out[o + DISC_OFF.falloffInner] = falloffInner;
   for (const k of DISC_RESERVED) out[o + k] = 0;
-  // All three alphas the same, so the gradient degenerates to flat whichever
-  // branch the shader takes.
-  out[o + EDGE_OFF.alphas] = packAlphas(alpha, alpha, alpha);
+  if (mid) {
+    out[o + DISC_OFF.midStop] = mid.at;
+    if (mid.hsl) writeHslRgb(out, o + DISC_OFF.midColor, mid.hsl);
+    else {
+      out[o + DISC_OFF.midColor] = mid.rgb[0];
+      out[o + DISC_OFF.midColor + 1] = mid.rgb[1];
+      out[o + DISC_OFF.midColor + 2] = mid.rgb[2];
+    }
+    // The three stops the ramp actually has. The alpha slots were always here —
+    // discs simply wrote them flat — so the alpha half of a three-stop ramp
+    // costs no float at all.
+    out[o + EDGE_OFF.alphas] = packAlphas(alpha, mid.alpha, outerAlpha);
+  } else {
+    out[o + DISC_OFF.midStop] = 0;
+    out[o + DISC_OFF.midColor] = 0;
+    out[o + DISC_OFF.midColor + 1] = 0;
+    out[o + DISC_OFF.midColor + 2] = 0;
+    // All three alphas the same, so the gradient degenerates to flat whichever
+    // branch the shader takes.
+    out[o + EDGE_OFF.alphas] = packAlphas(alpha, alpha, alpha);
+  }
   out[o + EDGE_OFF.width] = discWidth(rOuter);
   out[o + EDGE_OFF.flags] = flags;
   out[o + DISC_OFF.sweepStart] = sweepStart;
@@ -511,6 +549,20 @@ export function readDisc(data, o) {
     sweepEnd: data[o + DISC_OFF.sweepEnd],
     falloffInner: data[o + DISC_OFF.falloffInner],
     alpha: unpackAlphas(data[o + EDGE_OFF.alphas]).a0,
+    // `null` rather than a zeroed object when there is no mid stop, so a caller
+    // cannot read a stop that was never written as one sitting at 0.
+    mid: data[o + DISC_OFF.midStop] > 0
+      ? {
+        at: data[o + DISC_OFF.midStop],
+        rgb: [
+          data[o + DISC_OFF.midColor],
+          data[o + DISC_OFF.midColor + 1],
+          data[o + DISC_OFF.midColor + 2],
+        ],
+        alpha: unpackAlphas(data[o + EDGE_OFF.alphas]).a1,
+      }
+      : null,
+    outerAlpha: unpackAlphas(data[o + EDGE_OFF.alphas]).a2,
     isDisc: isDisc(width),
   };
 }
@@ -530,6 +582,24 @@ export function discEncodingInvariant(data, o) {
   if (data[o + DISC_OFF.inner] > Math.abs(width) * 0.5) bad.push('inner radius exceeds outer');
   if (data[o + DISC_OFF.sweepEnd] < 0) bad.push('sweep end is negative');
   if (data[o + DISC_OFF.falloffInner] < 0) bad.push('falloff inner is negative');
+  // A mid stop AT the rim or outside it is not a ramp, it is a division by
+  // ~zero in the shader's second span. A stop at exactly 0 is how "no mid stop"
+  // is spelled, so the open interval is the whole of the valid range.
+  const midStop = data[o + DISC_OFF.midStop];
+  if (midStop < 0 || midStop >= 1) {
+    if (midStop !== 0) bad.push('mid stop is outside (0,1)');
+  }
+  // Colour with no stop is the failure that draws NOTHING wrong and means the
+  // writer changed while the reader did not — worth naming rather than letting
+  // it read as a disc that simply has no ramp.
+  if (midStop === 0) {
+    for (let i = 0; i < 3; i++) {
+      if (data[o + DISC_OFF.midColor + i] !== 0) {
+        bad.push('mid colour set with no mid stop');
+        break;
+      }
+    }
+  }
   for (const k of DISC_RESERVED) {
     if (data[o + k] !== 0) bad.push(`reserved float ${k} is not zero`);
   }

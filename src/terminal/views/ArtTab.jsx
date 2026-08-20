@@ -32,6 +32,11 @@ import {
   compareNodes, jitterFeatures,
 } from '../data/nodeFeatures';
 import { artRandom, seedArtRandom, ART_SEED } from '../art/artRandom.js';
+import {
+  particleAlpha, particleVisible, particleSize, particleGlowRadius,
+  particleInFront, quantHue, quantAlpha,
+  GLOW_STOPS, CORE_LIGHTNESS, CORE_ALPHA_SCALE,
+} from '../art/artParticleDraw.js';
 import { somaPresence } from '../net/SomaPresence';
 import { ecoDataFeed } from '../data/EcoDataFeed';
 import { ecocideBus } from './EcocideTab';
@@ -1986,33 +1991,27 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       ctx.globalCompositeOperation = 'lighter';
       for (let pi = 0; pi < MAX_PARTICLES; pi++) {
         if (pool.lifes[pi] >= pool.maxLifes[pi] || pool.maxLifes[pi] === 0) continue;
-        const lifeT = pool.lifes[pi] / pool.maxLifes[pi];
-        // Smooth cubic fade: ramp in over first 15%, hold, ramp out last 30%
-        let alpha;
-        if (lifeT < 0.15) {
-          alpha = (lifeT / 0.15) * (lifeT / 0.15); // quadratic ease-in
-        } else if (lifeT > 0.70) {
-          alpha = Math.pow(1 - (lifeT - 0.70) / 0.30, 2.2); // power ease-out
-        } else {
-          alpha = 1.0;
-        }
-        alpha *= 0.55;
-        if (alpha < 0.004) continue;
+        const alpha = particleAlpha(pool.lifes[pi] / pool.maxLifes[pi]);
+        if (!particleVisible(alpha)) continue;
 
         const [prx, pry, prz] = applyM(M, pool.xs[pi], pool.ys[pi], pool.zs[pi]);
         const pp = project(prx, pry, prz, w, h, sphereR, focal);
-        if (pp.depth < -0.6) continue; // cull deep back-face
+        if (!particleInFront(pp.depth)) continue;
 
-        const sz   = Math.max(0.4, pool.sizes[pi] * pp.scale);
-        const hue  = pool.hues[pi];
-        const sat  = pool.sats[pi];
+        const sz  = particleSize(pool.sizes[pi], pp.scale);
+        const hue = quantHue(pool.hues[pi]);
+        const sat = quantHue(pool.sats[pi]);
 
-        // Soft radial glow — two concentric draws
-        const glowR = sz * 3.5;
+        // Soft radial glow — a THREE-STOP ramp whose lightness falls with its
+        // alpha, and whose knee is at 0.4 rather than the midpoint. Built from
+        // GLOW_STOPS rather than restated, because step 6 has to reproduce this
+        // exact ramp on the GPU and two copies of it would drift.
+        const glowR = particleGlowRadius(sz);
         const gGrd = ctx.createRadialGradient(pp.sx, pp.sy, 0, pp.sx, pp.sy, glowR);
-        gGrd.addColorStop(0,   `hsla(${hue|0},${sat|0}%,82%,${alpha.toFixed(3)})`);
-        gGrd.addColorStop(0.4, `hsla(${hue|0},${sat|0}%,65%,${(alpha*0.5).toFixed(3)})`);
-        gGrd.addColorStop(1,   `hsla(${hue|0},${sat|0}%,50%,0)`);
+        for (const st of GLOW_STOPS) {
+          gGrd.addColorStop(st.at,
+            `hsla(${hue},${sat}%,${st.lightness}%,${quantAlpha(alpha * st.alphaScale)})`);
+        }
         ctx.fillStyle = gGrd;
         ctx.beginPath();
         ctx.arc(pp.sx, pp.sy, glowR, 0, Math.PI * 2);
@@ -2020,7 +2019,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         _pcen.particleGlow++;
 
         // Hard core
-        ctx.fillStyle = `hsla(${hue|0},${sat|0}%,92%,${(alpha * 0.8).toFixed(3)})`;
+        ctx.fillStyle =
+          `hsla(${hue},${sat}%,${CORE_LIGHTNESS}%,${quantAlpha(alpha * CORE_ALPHA_SCALE)})`;
         ctx.beginPath();
         ctx.arc(pp.sx, pp.sy, sz, 0, Math.PI * 2);
         ctx.fill();
