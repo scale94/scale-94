@@ -1,7 +1,24 @@
 # /art sphere — step 5 reference (nodes complete)
 
+> **SUPERSEDED AS A MEASUREMENT REFERENCE.** Step 6 is measured against
+> `baseline/art-sphere-step5-certified/`, captured at `9661dfa` by the harness
+> fixed in `2adc482` and carrying a five-run same-build null in its manifest.
+> This set was captured by a harness that could not repeat itself — see the
+> correction block below — so no parity claim may be measured against it.
+>
+> It is kept, unchanged, because four task reports quote numbers taken against
+> it, and it remains the accurate record of **what step 5 is**: the thirteen
+> node layers, the blend classes, the census, and the immersive correction. Only
+> the reproducibility of its own pictures is superseded.
+>
+> The two sets do not match pixel-for-pixel and that is not a regression: this
+> one holds an arbitrary draw of the awakening's breath phase, the new one holds
+> phase 0. Same build — the entire app diff between them is 45 lines of
+> DEV-gated harness getters.
+
 Captured on `fix/art-sphere-index-space` at `39204b4` with the whole node slice
-on the GPU. This is the reference **step 6 (particles)** is measured against.
+on the GPU. This was the reference **step 6 (particles)** was to be measured
+against.
 
 ```bash
 node scripts/artBaseline.mjs --out baseline/<name>
