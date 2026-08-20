@@ -35,7 +35,7 @@ import { artRandom, seedArtRandom, ART_SEED } from '../art/artRandom.js';
 import {
   particleAlpha, particleVisible, particleSize, particleGlowRadius,
   particleInFront, quantHue, quantAlpha,
-  GLOW_STOPS, CORE_LIGHTNESS, CORE_ALPHA_SCALE,
+  GLOW_STOPS, CORE_LIGHTNESS, CORE_ALPHA_SCALE, GLOW_OUTER_K,
 } from '../art/artParticleDraw.js';
 import { somaPresence } from '../net/SomaPresence';
 import { ecoDataFeed } from '../data/EcoDataFeed';
@@ -151,6 +151,11 @@ const CHIMERA_FLAGS = packFlags(CHIMERA_PERIOD, CHIMERA_DASH[0], 0, false,
 // and the dash boundaries come out radial, exactly as ctx.setLineDash draws
 // them around a stroked circle.
 const BEACON_FLAGS = packFlags(0, 0, 0, false, ADDITIVE_LAYER.glowQuant);
+// Particles carry no dash and no shadow: the glow IS the gradient, not a
+// `ctx.shadowBlur` shoulder, so the glow byte is 0. Quantised against the
+// ADDITIVE layer's own step, like the beacon — passing the source-over default
+// here would pack a byte the additive material reads at a different scale.
+const PARTICLE_FLAGS = packFlags(0, 0, 0, false, ADDITIVE_LAYER.glowQuant);
 const GHOST_FLAGS = packFlags(0, 0, 0, false, ADDITIVE_LAYER.glowQuant);
 const CHIMERA_SYNC_FLAGS = packFlags(0, 0, 0);
 const CHIMERA_FLICK_FLAGS = packFlags(
@@ -1987,8 +1992,17 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       // six times. Both sub-layers separately: a port that drops the glow and
       // keeps the core would otherwise read as present.
       const _pcen = nodeCensusRef.current;
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
+      // ON THE GPU, in the ADDITIVE stream. The 2-D form set
+      // `globalCompositeOperation = 'lighter'` and `ag` is where that blend
+      // lives. Appended after the node loop, which is where the 2-D order put
+      // it — and `lighter` COMMUTES, so position within this stream cannot
+      // change the result anyway.
+      //
+      // The accumulation gain survives: BackdropPass renders `ag` INTO the
+      // trail accumulator, so these keep the 1/m standing gain the 2-D canvas's
+      // partial `destination-out` clear gave them. That is the deficit that
+      // cost steps 3 and 4, and it is measured in this step's report rather
+      // than assumed.
       for (let pi = 0; pi < MAX_PARTICLES; pi++) {
         if (pool.lifes[pi] >= pool.maxLifes[pi] || pool.maxLifes[pi] === 0) continue;
         const alpha = particleAlpha(pool.lifes[pi] / pool.maxLifes[pi]);
@@ -2002,31 +2016,44 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         const hue = quantHue(pool.hues[pi]);
         const sat = quantHue(pool.sats[pi]);
 
-        // Soft radial glow — a THREE-STOP ramp whose lightness falls with its
-        // alpha, and whose knee is at 0.4 rather than the midpoint. Built from
-        // GLOW_STOPS rather than restated, because step 6 has to reproduce this
-        // exact ramp on the GPU and two copies of it would drift.
-        const glowR = particleGlowRadius(sz);
-        const gGrd = ctx.createRadialGradient(pp.sx, pp.sy, 0, pp.sx, pp.sy, glowR);
-        for (const st of GLOW_STOPS) {
-          gGrd.addColorStop(st.at,
-            `hsla(${hue},${sat}%,${st.lightness}%,${quantAlpha(alpha * st.alphaScale)})`);
-        }
-        ctx.fillStyle = gGrd;
-        ctx.beginPath();
-        ctx.arc(pp.sx, pp.sy, glowR, 0, Math.PI * 2);
-        ctx.fill();
+        // The cap guard mirrors the node halo's: `count` only rises, so a
+        // particle dropped at the cap cannot have its core written without its
+        // glow, which would leave a bare dot where a lit particle should be.
+        if (ag.count + 1 >= MAX_ADDITIVE_EDGES) break;
+
+        // Soft radial glow — the THREE-STOP ramp, now as one disc instance.
+        // Lightness falls with the alpha (82 -> 65 -> 50) and the knee is at
+        // 0.4, not the midpoint; the outer colour is EXTRAPOLATED from the
+        // other two rather than stored, because the three are collinear in RGB
+        // above l = 0.5. See DISC_OFF.outerK.
+        writeDisc(ag.data, ag.count * EDGE_STRIDE, {
+          cx: pp.sx, cy: pp.sy,
+          rOuter: particleGlowRadius(sz),
+          hsl: { hue, sat, lit: GLOW_STOPS[0].lightness },
+          alpha: quantAlpha(alpha * GLOW_STOPS[0].alphaScale),
+          mid: {
+            at: GLOW_STOPS[1].at,
+            hsl: { hue, sat, lit: GLOW_STOPS[1].lightness },
+            alpha: quantAlpha(alpha * GLOW_STOPS[1].alphaScale),
+          },
+          outerK: GLOW_OUTER_K,
+          outerAlpha: quantAlpha(alpha * GLOW_STOPS[2].alphaScale),
+          flags: PARTICLE_FLAGS,
+        });
+        ag.count++;
         _pcen.particleGlow++;
 
-        // Hard core
-        ctx.fillStyle =
-          `hsla(${hue},${sat}%,${CORE_LIGHTNESS}%,${quantAlpha(alpha * CORE_ALPHA_SCALE)})`;
-        ctx.beginPath();
-        ctx.arc(pp.sx, pp.sy, sz, 0, Math.PI * 2);
-        ctx.fill();
+        // Hard core — a filled disc, one colour, no ramp.
+        writeDisc(ag.data, ag.count * EDGE_STRIDE, {
+          cx: pp.sx, cy: pp.sy,
+          rOuter: sz,
+          hsl: { hue, sat, lit: CORE_LIGHTNESS },
+          alpha: quantAlpha(alpha * CORE_ALPHA_SCALE),
+          flags: PARTICLE_FLAGS,
+        });
+        ag.count++;
         _pcen.particleCore++;
       }
-      ctx.restore();
 
       // ── Bifurcation Conductor (logic in artAwakening.js) ────────────────
       drawConductor(ctx, collectiveRef.current, conductorDragRef.current, w, h);

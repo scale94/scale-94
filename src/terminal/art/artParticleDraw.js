@@ -70,3 +70,19 @@ export const quantHue = (h) => h | 0;
 
 /** What `.toFixed(3)` does to every alpha on its way into `hsla()`. */
 export const quantAlpha = (a) => Number(a.toFixed(3));
+
+// The outer stop's EXTRAPOLATION factor, derived from the three lightnesses
+// rather than written down, so it cannot drift from them.
+//
+// A disc instance has room for two colours and this ramp has three. It does not
+// need a third, because for fixed hue and saturation the CSS HSL-to-RGB map is
+// linear in lightness on each side of l = 0.5 and all three stops sit above it,
+// so the outer colour lies on the line through the other two:
+//
+//     outer = mid + (mid - c0) * k,   k = (l_mid - l_outer) / (l_c0 - l_mid)
+//
+// which for 82/65/50 is 15/17. See DISC_OFF.outerK in SphereEdges.js, where the
+// shader reads it.
+export const GLOW_OUTER_K =
+  (GLOW_STOPS[1].lightness - GLOW_STOPS[2].lightness)
+  / (GLOW_STOPS[0].lightness - GLOW_STOPS[1].lightness);

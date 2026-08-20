@@ -976,12 +976,13 @@ try {
     // bx or ay wrong on one instance would otherwise pass the shape gate and
     // then be measured with mismatched geometry. If the port ever collapses to
     // one instance this is where it says so, before any pixel is read.
-    const shapeOk = st.additive.count === 2 && !halo.isDisc && !core.isDisc
+    const shapeOk = nonParticleCount(st.additive) === 2 && !halo.isDisc && !core.isDisc
       && halo.width > core.width * 3 && halo.glow === 0 && glowErr <= GLOW_TOL
       && halo.ax === core.ax && halo.ay === core.ay
       && halo.bx === core.bx && halo.by === core.by;
 
-    console.log(`   instances ${st.additive.count}   halo w ${halo.width.toFixed(2)} glow ${halo.glow}`
+    console.log(`   instances ${nonParticleCount(st.additive)} (+${st.additive.count - nonParticleCount(st.additive)} particles)`
+      + `   halo w ${halo.width.toFixed(2)} glow ${halo.glow}`
       + `   core w ${core.width.toFixed(2)} glow ${core.glow}` + (shapeOk ? '' : '   SHAPE WRONG'));
     console.log(`   sim ${simEnc.toFixed(4)} from the packed mid alpha`
       + `   core glow ${core.glow} vs ${glowWant.toFixed(3)} expected`
@@ -1101,6 +1102,10 @@ function prismOf(add) {
     const w = add.instances[o + EDGE_OFF.width];
     // A negative width is the pulse ring's disc sentinel. Nothing this layer
     // writes may be one; if something is, it renders as a blob, not a stroke.
+    // Particles are skipped rather than counted: they are a DIFFERENT layer
+    // sharing this stream since step 6, so counting them here would report a
+    // healthy prism as arithmetically broken.
+    if (isParticleAt(add, o)) continue;
     if (isDisc(w)) { discs++; continue; }
     const s = {
       ax: add.instances[o + EDGE_OFF.ax], ay: add.instances[o + EDGE_OFF.ay],
@@ -1478,6 +1483,7 @@ function fzOf(add) {
   for (let i = 0; i < add.count; i++) {
     const o = i * EDGE_STRIDE;
     const w = add.instances[o + EDGE_OFF.width];
+    if (isParticleAt(add, o)) continue;      // a co-tenant since step 6
     if (isDisc(w)) { out.discs++; continue; }
     const f = unpackFlags(add.instances[o + EDGE_OFF.flags], ADDITIVE_LAYER.glowQuant);
     const s = {
@@ -1787,12 +1793,50 @@ function nodeDiscsOf(st) {
   }
   return out;
 }
-// Discs on the ADDITIVE mesh — only the beacon writes one.
+// IS THIS ADDITIVE INSTANCE A PARTICLE?
+//
+// Step 6 gave the additive stream a co-tenant. It used to hold one layer's
+// instances at a time, and three separate checks leaned on that: they classify
+// every instance they see and assert the arithmetic adds up, so up to 800
+// particle discs read as "instances this layer wrote and I cannot explain".
+// Every measurement still passed; the VERDICTS went to NOT DETECTED on the
+// accounting alone, which is the accounting doing its job.
+//
+// A filled disc in the additive stream is a particle. The other additive disc
+// writers — the beacon and the two ghost rings — are all annuli, and the pulse
+// ring's filled discs are in the SOURCE-OVER stream, not this one.
+// A function declaration, not a const: this is called from a check 800 lines
+// ABOVE it, and a const would sit in its temporal dead zone there.
+function isParticleAt(add, o) {
+  return isDisc(add.instances[o + EDGE_OFF.width])
+    && !(add.instances[o + EDGE_OFF.bx] > 0);
+}
+
+// How many instances in this frame are NOT particles — what `count` meant to
+// every check written before step 6.
+function nonParticleCount(add) {
+  let n = 0;
+  for (let i = 0; i < add.count; i++) if (!isParticleAt(add, i * EDGE_STRIDE)) n++;
+  return n;
+}
+
+// ANNULI on the ADDITIVE mesh — the beacon and the two ghost rings.
+//
+// This used to say "only the beacon writes one" and returned every additive
+// disc, and `.at(-1)` leaned on that to find the beacon. STEP 6 MADE IT FALSE:
+// the particle layer writes up to 800 additive discs and appends them after the
+// node loop, so the last additive disc became a particle and the beacon check
+// crashed looking for a node core underneath it.
+//
+// Filled discs are skipped, which is what the name always claimed. It is also
+// the only discriminator available — a particle and the beacon carry the same
+// flags — and it is the right one: every caller here wants a ring.
 function addRingsOf(add) {
   const out = [];
   for (let k = 0; (k + 1) * EDGE_STRIDE <= add.instances.length; k++) {
     const o = k * EDGE_STRIDE, w = add.instances[o + EDGE_OFF.width];
     if (!isDisc(w)) continue;
+    if (!(add.instances[o + EDGE_OFF.bx] > 0)) continue;   // filled disc = a particle
     out.push({
       i: k, cx: add.instances[o + EDGE_OFF.ax], cy: add.instances[o + EDGE_OFF.ay],
       rOuter: Math.abs(w) * 0.5, rInner: add.instances[o + EDGE_OFF.bx],

@@ -36,17 +36,24 @@ const clickByTitle = (frag) => `(() => {
   const b = [...document.querySelectorAll('button')].find(e => (e.title || '').includes(${JSON.stringify(frag)}));
   if (!b) return false; b.click(); return true; })()`;
 
-// Sample a band through the CENTRE of the sphere, in backing-store pixels.
-// Sampling row 0 or the top-left corner is useless: those are empty, and with
-// the destination-out clear they settle to a fixed fully-transparent value and
-// never change again — which reads as "the draw loop is dead".
-const centreBand = (ms) => `(() => {
-  const c = ${SPHERE}, g = c.getContext('2d');
-  const x = Math.max(0, (c.width >> 1) - 150), y = Math.max(0, (c.height >> 1) - 60);
-  const grab = () => g.getImageData(x, y, 300, 120).data.join(',');
-  const a = grab();
-  return new Promise(res => setTimeout(() => res(a !== grab()), ${ms}));
-})()`;
+// IS THE SPHERE STILL ANIMATING?
+//
+// This used to sample a band through the centre of the 2-D canvas with
+// getImageData. STEP 6 EMPTIED THAT CANVAS: the particles were the last moving
+// thing on it, and what is left is the destination-out clear and the conductor.
+// So the old probe reported "not animating" for a perfectly healthy sphere —
+// the gate reading the layer the migration removed, which is this branch's
+// defining failure in its smallest form.
+//
+// It reads the COMPOSITED result now, via a screenshot clipped to the sphere's
+// own box. That is the surface a viewer actually sees, it spans both canvases,
+// and it stays true wherever a future step moves a layer to.
+const composedChanges = async (page, clip, ms) => {
+  const a = await page.screenshot({ clip });
+  await new Promise(r => setTimeout(r, ms));
+  const b = await page.screenshot({ clip });
+  return !a.equals(b);
+};
 
 // The page fetches live climate data from NASA GISS and Global Forest Watch;
 // both fail CORS in headless and are pre-existing, nothing to do with the
@@ -71,6 +78,10 @@ try {
 
   const rect = await page.eval(RECT);
   const cx = Math.round(rect.x + rect.w / 2), cy = Math.round(rect.y + rect.h / 2);
+  // The sphere's own box, for the liveness probes. Clipped rather than
+  // full-viewport so that page chrome animating elsewhere cannot stand in for
+  // a sphere that has stopped.
+  const sphereClip = { x: rect.x, y: rect.y, width: rect.w, height: rect.h, scale: 1 };
 
   // 1. two canvases, GL one present
   const layers = await page.eval(`(() => {
@@ -239,19 +250,18 @@ try {
   // 4. click a node -> cascade fires (canvas keeps changing)
   if (hit) {
     await page.click(hit.x, hit.y); await sleep(400);
-    const changed = await page.eval(centreBand(200), { awaitPromise: true });
+    const changed = await composedChanges(page, sphereClip, 200);
     check('4 click fires and the sphere keeps animating', changed === true, `animating=${changed}`);
   } else check('4 click fires and the sphere keeps animating', false, 'skipped, no node');
 
   // 5. drag rotates
-  const CENTRE = `(() => { const c = ${SPHERE}, g = c.getContext('2d');
-    const x = Math.max(0, (c.width >> 1) - 150), y = Math.max(0, (c.height >> 1) - 60);
-    return g.getImageData(x, y, 300, 120).data.join(','); })()`;
-  const before = await page.eval(CENTRE);
+  // Composited, for the same reason as the liveness probes above: after step 6
+  // the 2-D canvas no longer carries anything a rotation moves.
+  const before = await page.screenshot({ clip: sphereClip });
   await page.drag(cx - 120, cy, cx + 120, cy + 40, 14);
   await sleep(400);
-  const after = await page.eval(CENTRE);
-  check('5 drag rotates the sphere', before !== after);
+  const after = await page.screenshot({ clip: sphereClip });
+  check('5 drag rotates the sphere', !before.equals(after));
 
   // 6. shift-click with resonance armed
   const armed = await page.eval(clickByText('resonance'));
@@ -273,7 +283,7 @@ try {
         `new errors=${errsAfter - errsBefore}`);
 
   // 8. still animating after the long press (the loop must not have died)
-  const alive = await page.eval(centreBand(250), { awaitPromise: true });
+  const alive = await composedChanges(page, sphereClip, 250);
   check('8 draw loop alive after long-press', alive === true);
 
   // 9. immersive on and off
