@@ -1,7 +1,7 @@
 // artNull.mjs — the same-build null. Certifies that a capture set is REPRODUCIBLE.
 //
 //   node scripts/artNull.mjs <dir> <dir> [<dir> ...] [--floor N] [--min-sets N]
-//   node scripts/artNull.mjs <dir> <dir> <dir> --write <dir>
+//   node scripts/artNull.mjs <dir> <dir> <dir> --write <dir> [--write-partial]
 //
 // WHY THIS EXISTS, and why it is a gate rather than a probe.
 //
@@ -46,6 +46,13 @@
 // PNGs: a reference set stays one picture per cell on disk, but carries its own
 // reproducibility evidence forever, and `artCompare` reads it months later
 // without re-capturing anything.
+//
+// --write-partial certifies only the cells that pass, marking the rest
+// `pass: false` so `artCompare` refuses those rows and no others. It is for a
+// set with one known-bad cell, where blocking every comparison would push the
+// next session onto `--ungated` for all 21 instead. The manifest records
+// `partial: true` and names the failing cells, so a partial certificate cannot
+// be mistaken for a whole one later.
 
 import { readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -148,8 +155,10 @@ export function worldAgreement(shots) {
   return { known: true, agree: distinct.length === 1, hashes, distinct: distinct.length };
 }
 
+const VALUE_FLAGS = new Set(['--floor', '--min-sets', '--write']);
+
 // Parse the CLI. Kept pure so the argument shape is testable: a bare token is a
-// directory unless it is the value of the flag before it.
+// directory unless it is the value of a flag that takes one.
 export function parseArgs(argv) {
   const flag = (name, dflt) => {
     const i = argv.indexOf(name);
@@ -159,12 +168,17 @@ export function parseArgs(argv) {
     floor: Number(flag('--floor', NULL_FLOOR)),
     minSets: Number(flag('--min-sets', MIN_SETS)),
     write: flag('--write', null),
-    dirs: argv.filter((a, i) => !a.startsWith('--') && !argv[i - 1]?.startsWith('--')),
+    partial: argv.includes('--write-partial'),
+    // Only the flags that TAKE a value swallow the token after them. Skipping
+    // after any `--` token silently ate a capture directory the moment a bare
+    // flag was added — `artNull a b --write-partial c` would have measured two
+    // sets and said nothing about the third.
+    dirs: argv.filter((a, i) => !a.startsWith('--') && !VALUE_FLAGS.has(argv[i - 1])),
   };
 }
 
 async function main(argv) {
-  const { floor: FLOOR, minSets: MIN, write: WRITE, dirs: DIRS } = parseArgs(argv);
+  const { floor: FLOOR, minSets: MIN, write: WRITE, partial: PARTIAL, dirs: DIRS } = parseArgs(argv);
 
   if (DIRS.length < 2) {
     console.error('usage: node scripts/artNull.mjs <dir> <dir> [<dir> ...] [--floor N] [--min-sets N] [--write <dir>]');
@@ -256,8 +270,21 @@ async function main(argv) {
       console.error(`\nrefusing to --write a certificate off ${sets} sets; the minimum is ${MIN}.`);
       return 1;
     }
-    if (below) {
-      console.error('\nrefusing to --write a certificate for a set that is not reproducible.');
+    // A set with a failing cell can still be certified for the cells that pass,
+    // but ONLY on purpose. The certificate is per shot and `artCompare` already
+    // refuses a row whose shot says `pass: false`, so a partial certificate
+    // degrades exactly one row rather than blocking the whole comparison — and
+    // that is much better than the alternative a blanket refusal invites, which
+    // is somebody quoting `--ungated` numbers for everything instead.
+    //
+    // It needs its own flag because the failure mode to avoid is a partial
+    // certificate being mistaken for a whole one months later. `partial: true`
+    // and the failing cells are named in the manifest, not just in this output.
+    if (below && !PARTIAL) {
+      console.error(`\nrefusing to --write a certificate: ${below} cell(s) are not reproducible.`);
+      console.error('Fix the cause, or pass --write-partial to certify only the cells that pass.');
+      console.error('A partial certificate leaves those cells UNGATED in artCompare, which is');
+      console.error('the honest outcome — it is not a way of lowering the bar.');
       return 1;
     }
     if (!DIRS.includes(WRITE)) {
@@ -265,25 +292,39 @@ async function main(argv) {
       return 2;
     }
     const target = manifests.find((x) => x.dir === WRITE).m;
-    let stamped = 0, worstAll = 1;
+    let stamped = 0, worstPassing = 1;
+    const failing = [];
     for (const scale of Object.keys(results)) {
       for (const [state, r] of Object.entries(results[scale])) {
         const shot = target.scales?.[scale]?.shots?.[state];
         if (!shot) continue;
         shot.repro = r;
-        if (r.worst != null && r.worst < worstAll) worstAll = r.worst;
+        if (r.pass && r.worst != null && r.worst < worstPassing) worstPassing = r.worst;
+        if (!r.pass) failing.push(`${scale} ${state}`);
         stamped++;
       }
     }
     target.repro = {
       sets, dirs: DIRS, floor: FLOOR, cells: stamped,
-      worst: Number(worstAll.toFixed(4)),
+      certified: stamped - failing.length,
+      // `worst` is the worst CERTIFIED cell. A failing cell's number is in its
+      // own shot; averaging it into the headline would let one uncertified cell
+      // make the whole set look worse than the part anybody may quote.
+      worst: Number(worstPassing.toFixed(4)),
+      partial: failing.length > 0,
+      failing,
       detectionPower: Number(power.toFixed(3)),
       measuredAt: new Date().toISOString(),
       tool: 'scripts/artNull.mjs',
     };
     await writeFile(`${WRITE}/manifest.json`, JSON.stringify(target, null, 2));
-    console.log(`\ncertified ${stamped} cells into ${WRITE}/manifest.json  (worst ${worstAll.toFixed(4)}, ${sets} sets)`);
+    console.log(`\ncertified ${stamped - failing.length}/${stamped} cells into ${WRITE}/manifest.json`
+      + `  (worst certified ${worstPassing.toFixed(4)}, ${sets} sets)`);
+    if (failing.length) {
+      console.log('PARTIAL CERTIFICATE. These cells are NOT certified and artCompare will');
+      console.log('refuse to score them — they are not measurements and must not be quoted:');
+      for (const f of failing) console.log(`   ${f}`);
+    }
   }
 
   return below ? 1 : 0;

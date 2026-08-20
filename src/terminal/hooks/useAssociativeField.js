@@ -15,6 +15,7 @@
 import { useRef, useCallback } from 'react';
 import { NODES, NODE_IDX, FEATURES, cosineSim } from '../data/nodeFeatures';
 
+import { artRandom } from '../art/artRandom.js';
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const N = NODES.length; // 31
@@ -210,7 +211,7 @@ export function useAssociativeField({ nodes, adj }) {
     }
 
     // Initialize logistic map state: x in (0,1), avoid fixed points
-    const x0 = 0.4 + Math.random() * 0.2; // start near 0.5 but not exactly
+    const x0 = 0.4 + artRandom() * 0.2; // start near 0.5 but not exactly
 
     fieldRef.current = {
       activations,
@@ -269,7 +270,7 @@ export function useAssociativeField({ nodes, adj }) {
 
     // Clamp to prevent numerical escape (can happen near r=4)
     if (f.x <= 0 || f.x >= 1 || !isFinite(f.x)) {
-      f.x = 0.5 + (Math.random() - 0.5) * 0.1;
+      f.x = 0.5 + (artRandom() - 0.5) * 0.1;
     }
 
     // ── 5. Logistic map modulates Hopfield thresholds ────────────────────

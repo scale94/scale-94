@@ -133,6 +133,25 @@ describe('parseArgs', () => {
     expect(a.minSets).toBe(4);
   });
 
+  it('defaults --write-partial off, so a partial certificate is always deliberate', () => {
+    expect(parseArgs(['a', 'b', 'c', '--write', 'a']).partial).toBe(false);
+    expect(parseArgs(['a', 'b', 'c', '--write', 'a', '--write-partial']).partial).toBe(true);
+  });
+
+  it('does not treat --write-partial as a capture directory', () => {
+    const a = parseArgs(['baseline/a', 'baseline/b', 'baseline/c', '--write-partial', '--write', 'baseline/a']);
+    expect(a.dirs).toEqual(['baseline/a', 'baseline/b', 'baseline/c']);
+    expect(a.write).toBe('baseline/a');
+  });
+
+  it('does not let a valueless flag swallow the directory after it', () => {
+    // A bare flag skipping the next token is how a capture set goes missing in
+    // silence: the run measures two dirs, reports on two dirs, and nothing says
+    // the third was dropped.
+    const a = parseArgs(['baseline/a', 'baseline/b', '--write-partial', 'baseline/c']);
+    expect(a.dirs).toEqual(['baseline/a', 'baseline/b', 'baseline/c']);
+  });
+
   it('keeps --write out of the compared set even though it names one of them', () => {
     const a = parseArgs(['baseline/a', 'baseline/b', 'baseline/c', '--write', 'baseline/a']);
     expect(a.dirs).toEqual(['baseline/a', 'baseline/b', 'baseline/c']);

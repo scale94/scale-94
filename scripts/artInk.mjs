@@ -114,9 +114,31 @@ const f = (v, w, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : '—').padStart(
 const load = async (d) => JSON.parse(await readFile(`${d}/manifest.json`, 'utf8'));
 const [ref, cand] = await Promise.all([load(REF), load(NEW)]);
 
+// PROVENANCE. This instrument always exits 0 and always will — the number it
+// produces is meant to be argued with, not to fail a build. But "not a gate"
+// must not become "the way around the gate": `artCompare` now refuses to score
+// a row from a capture set that has not been shown to repeat itself, and a set
+// that cannot be quoted there cannot be quoted here either. So each side says
+// whether it carries a same-build null, right above the numbers, where nobody
+// lifting a ratio out of this output can miss it.
+//
+// See scripts/artNull.mjs. A set predating certification reads "no null" — that
+// is "nobody measured", not "it is fine".
+const provenance = (m) => {
+  const r = m.repro;
+  if (!r) return 'NO NULL — not certified, nothing below is admissible';
+  const base = `null ${r.worst?.toFixed?.(4) ?? '?'} over ${r.sets} sets`;
+  if (r.partial) return `${base}, PARTIAL — uncertified: ${(r.failing ?? []).join(', ')}`;
+  return base;
+};
+
 console.log(`/art ink — summed luminance above floor ${FLOOR}, disc = ${DISC} x min(w,h)`);
-console.log(`  ref  ${REF}`);
-console.log(`  new  ${NEW}\n`);
+console.log(`  ref  ${REF}   [${provenance(ref)}]`);
+console.log(`  new  ${NEW}   [${provenance(cand)}]\n`);
+if (!ref.repro || !cand.repro) {
+  console.log('  One or both sets carry NO same-build null. Certify them before quoting');
+  console.log('  any ratio below:  node scripts/artNull.mjs <a> <b> <c> --write <a>\n');
+}
 
 const HEAD = `${'state'.padEnd(15)}${'region'.padEnd(7)}`
   + `${'ink_ref'.padStart(12)}${'ink_new'.padStart(12)}${'ratio'.padStart(8)}`

@@ -23,6 +23,7 @@
 import { useRef, useCallback } from 'react';
 import { NODES, NODE_IDX, FEATURES, cosineSim } from '../data/nodeFeatures';
 
+import { artRandom } from '../art/artRandom.js';
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const N = NODES.length;           // 31
@@ -471,12 +472,12 @@ export function useAnalogicalReasoning({ fieldRef }) {
     for (let i = 0; i < N; i++) original[i] = acts[i];
 
     // Occlude: zero-clamp a random subset from one side of the analogy
-    const occludeFrom = Math.random() < 0.5 ? analogy.clusterA : analogy.clusterB;
+    const occludeFrom = artRandom() < 0.5 ? analogy.clusterA : analogy.clusterB;
     const occludePool = CLUSTER_MAP[occludeFrom] ?? [];
     const occludeCount = Math.max(1, Math.floor(occludePool.length * OCCLUDE_FRACTION));
 
     // Shuffle and pick
-    const shuffled = [...occludePool].sort(() => Math.random() - 0.5);
+    const shuffled = [...occludePool].sort(() => artRandom() - 0.5);
     const occluded = new Set(shuffled.slice(0, occludeCount));
     r.occludedSet = occluded;
 
