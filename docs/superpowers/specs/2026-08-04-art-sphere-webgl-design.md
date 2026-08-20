@@ -458,9 +458,27 @@ which decays properly to black instead of silting toward grey.
 >
 > Only the particle migration is left in this step.
 
-The 2-D canvas is now empty: delete it, its texture and the composite quad.
+> **CORRECTED 2026-08-20, after step 6 shipped.** This paragraph used to read
+> "The 2-D canvas is now empty: delete it, its texture and the composite quad.
+> **Phase 1 ends here.**" It is not empty and phase 1 does not end here — the
+> THIRD time this spec has been wrong about what a step leaves behind.
+>
+> Measured at `e6728f6`, `ArtTab.jsx` still holds three `ctx.` sites:
+>
+> | site | what |
+> |---|---|
+> | `:941` | `setTransform(dpr, …)` |
+> | `:957`–`:961` | the `destination-out` partial clear |
+> | `:2059` | `drawConductor(ctx, …)` → `artAwakening.js`, **28 `ctx.` calls** |
+>
+> `baseline/art-sphere-step5/README.md` already said so — "Still 2D, for step 6:
+> the particle ecology **and the conductor**" — so the record was right and this
+> document was stale. **The Bifurcation Conductor is the last 2-D layer**, and it
+> is a step of its own: do not delete the canvas, its texture or the composite
+> quad until it has moved.
 
-**Phase 1 ends here.** The piece is DOM text over one r3f Canvas.
+**Phase 1 ends after the conductor**, not here. The piece is then DOM text over
+one r3f Canvas.
 
 ---
 
