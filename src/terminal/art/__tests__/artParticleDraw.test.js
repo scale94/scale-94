@@ -10,6 +10,7 @@ import {
   particleAlpha, particleVisible, particleSize, particleGlowRadius,
   particleInFront, quantHue, quantAlpha,
   GLOW_STOPS, CORE_LIGHTNESS, CORE_ALPHA_SCALE, ALPHA_SCALE,
+  discInkCorrection, SIZE_FLOOR,
 } from '../artParticleDraw.js';
 
 describe('particleAlpha', () => {
@@ -137,5 +138,43 @@ describe('the glow ramp', () => {
     expect(CORE_LIGHTNESS).toBe(92);
     expect(CORE_LIGHTNESS).toBeGreaterThan(GLOW_STOPS[0].lightness);
     expect(CORE_ALPHA_SCALE).toBe(0.8);
+  });
+});
+
+describe('discInkCorrection', () => {
+  it('is derived from the box filter, not tuned', () => {
+    // The shader deposits pi*(R^2 + 1/12) where the true area is pi*R^2, so the
+    // correction is R^2 / (R^2 + 1/12) exactly. Asserted against the integral
+    // rather than against remembered numbers.
+    const boxInk = (R) => {
+      let s = 0; const N = 600, W = R + 3, h = 2 * W / N;
+      for (let y = -W; y < W; y += h) for (let x = -W; x < W; x += h) {
+        const d = Math.hypot(x, y);
+        s += Math.max(0, Math.min(1, (R - d) + 0.5)) * h * h;
+      }
+      return s;
+    };
+    for (const R of [1, 2, 3, 5]) {
+      expect(discInkCorrection(R)).toBeCloseTo(Math.PI * R * R / boxInk(R), 2);
+    }
+  });
+
+  it('barely touches a node-sized disc and heavily corrects a sub-pixel one', () => {
+    // Why no earlier step needed this: node cores and halos are 8-25px.
+    expect(discInkCorrection(20)).toBeGreaterThan(0.9997);
+    expect(discInkCorrection(8)).toBeGreaterThan(0.998);
+    expect(discInkCorrection(1)).toBeCloseTo(0.9231, 4);
+    expect(discInkCorrection(SIZE_FLOOR)).toBeCloseTo(0.6575, 4);
+  });
+
+  it('never brightens — a correction for over-coverage only dims', () => {
+    for (let R = 0.1; R < 30; R += 0.1) {
+      expect(discInkCorrection(R)).toBeGreaterThan(0);
+      expect(discInkCorrection(R)).toBeLessThan(1);
+    }
+  });
+
+  it('approaches 1 as the disc grows, so it cannot distort a large layer', () => {
+    expect(discInkCorrection(1000)).toBeCloseTo(1, 6);
   });
 });

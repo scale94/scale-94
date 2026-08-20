@@ -35,7 +35,7 @@ import { artRandom, seedArtRandom, ART_SEED } from '../art/artRandom.js';
 import {
   particleAlpha, particleVisible, particleSize, particleGlowRadius,
   particleInFront, quantHue, quantAlpha,
-  GLOW_STOPS, CORE_LIGHTNESS, CORE_ALPHA_SCALE, GLOW_OUTER_K,
+  GLOW_STOPS, CORE_LIGHTNESS, CORE_ALPHA_SCALE, GLOW_OUTER_K, discInkCorrection,
 } from '../art/artParticleDraw.js';
 import { somaPresence } from '../net/SomaPresence';
 import { ecoDataFeed } from '../data/EcoDataFeed';
@@ -2044,11 +2044,17 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         _pcen.particleGlow++;
 
         // Hard core — a filled disc, one colour, no ramp.
+        //
+        // Alpha corrected for the shader's straight-edge box filter, which
+        // over-inks a disc by 1/12 px^2 whatever its size: nothing at a node
+        // core's 8-25px, and 52% at this layer's 0.4px floor. See
+        // discInkCorrection. MEASURED: without it the migration raised
+        // whole-frame ink 1.6-2.7%.
         writeDisc(ag.data, ag.count * EDGE_STRIDE, {
           cx: pp.sx, cy: pp.sy,
           rOuter: sz,
           hsl: { hue, sat, lit: CORE_LIGHTNESS },
-          alpha: quantAlpha(alpha * CORE_ALPHA_SCALE),
+          alpha: quantAlpha(alpha * CORE_ALPHA_SCALE * discInkCorrection(sz)),
           flags: PARTICLE_FLAGS,
         });
         ag.count++;

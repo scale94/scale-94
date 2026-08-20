@@ -86,3 +86,43 @@ export const quantAlpha = (a) => Number(a.toFixed(3));
 export const GLOW_OUTER_K =
   (GLOW_STOPS[1].lightness - GLOW_STOPS[2].lightness)
   / (GLOW_STOPS[0].lightness - GLOW_STOPS[1].lightness);
+
+// INK CORRECTION FOR A SUB-PIXEL DISC, and why particles are the first layer on
+// this branch that needs one.
+//
+// EDGE_FRAG covers a disc with a box filter on radial distance:
+//
+//     clamp((R - d) / pxD + 0.5, 0, 1)
+//
+// which is the coverage of a STRAIGHT edge through the rim. That is right when
+// R is large against a pixel and wrong when it is not, because a convex
+// boundary covers less than the tangent line through the same point. Integrated
+// over the plane at pxD = 1 it deposits
+//
+//     pi * (R^2 + 1/12)
+//
+// (exact for R >= 1/2, and within 0.2% below it) against a true area of pi*R^2.
+// So the filter over-inks a disc by 1/12 of a pixel^2 REGARDLESS of size —
+// negligible at the 8-25px of a node core or halo, and 52% at R = 0.4.
+//
+// MEASURED: migrating the particles raised whole-frame ink 1.6-2.7% in normal
+// mode, against 0.1-0.3% for every other step-6 change against the same
+// reference. Particle cores are max(0.4, size * scale), i.e. 0.4-3px — the
+// first sub-pixel discs this renderer has drawn.
+//
+// This scales the ALPHA so the total ink matches. It does not fix the coverage
+// SHAPE: the disc stays a fraction of a pixel softer at the rim than the canvas
+// drew it, which for a one-pixel glowing dot is not visible and is not what
+// artInk measures. The real fix is an area-accurate coverage term in the shader,
+// which would also be exact for the shape and would touch every disc; that is
+// recorded for a later step rather than smuggled into this one.
+//
+// NOT applied to the glow disc. Its ink is not pi*R^2*alpha — the ramp puts
+// alpha at ~0 exactly where the over-coverage happens, at the rim — so the flat
+// correction would wrongly dim it.
+export const BOX_FILTER_EXCESS_PX2 = 1 / 12;
+
+export function discInkCorrection(radius) {
+  const r2 = radius * radius;
+  return r2 / (r2 + BOX_FILTER_EXCESS_PX2);
+}
