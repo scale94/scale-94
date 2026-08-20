@@ -89,14 +89,20 @@ done and is in `progress.md`; the short version:
   the particle ecology **and the conductor**". The SPEC is the stale document.
 - The whole remaining 2D surface is four sites: `:931` `setTransform`,
   `:947`–`:951` the `destination-out` clear, the particle block, the conductor.
-- **Clear `_idleHueDrift` (`artParticles.js:67`) FIRST.** A module-level
-  mount-time accumulator `__artHarnessReset` does not touch — same class as
-  `breathPhase` and `particleFrameRef`, which task 1 fixed. It was MEASURED not
-  to move the captured frames (per-channel means agree to 0.1% across four runs,
-  because node cores and halos dominate the lit pixels) and so deliberately left
-  alone. But it sets particle **hue**, luminance correlation is nearly blind to
-  hue, and **step 6 is the one measurement it would corrupt.** Fix it as its own
-  change with its own measurement, then re-capture the reference.
+- **`_idleHueDrift` (`artParticles.js:71`) — ALREADY TRIED, AND THE MEASUREMENT
+  REFUSED IT. Do not redo it without reading this.** It is a module-level
+  mount-time accumulator `__artHarnessReset` does not touch, same class as
+  `breathPhase`, and it sets particle **hue**, so clearing it looks like an
+  obvious step-6 precondition. It was implemented, gated and measured over five
+  fresh three-scale sets: pinning the drift to 0 makes `idle`'s per-channel
+  spread **~2.5x worse** (R 0.130% → 0.352%, G 0.025% → 0.311%, B 0.164% →
+  0.321%) and improves only `fired-cascade`'s R and G. An n=2 look had suggested
+  a 50x improvement and it evaporated at n=5. Reverted.
+  **What that established, and step 6 needs to act on:** particle hue is not
+  reproducible run to run *whether the drift is pinned or not*, so
+  particle-colour parity cannot be measured off the ambient idle stream at all.
+  **Measure particles on a forced, deterministic emission.** (`__artForce*`
+  hooks already exist for other layers; this wants the same treatment.)
 - Write the plan document. Every prior step got one, and the spec's
   one-paragraph description has understated the block **every single time** —
   seven layers where there were thirteen in step 5, "ordinary line segments"
