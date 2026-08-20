@@ -6,9 +6,10 @@ Continue the /art sphere Canvas2D→WebGL migration on `fix/art-sphere-index-spa
 against — which took three attempts and produced the two largest fixes on the
 branch.
 
-STATE: HEAD `dd14af6`, tracked tree clean, **9 commits ahead of
-`origin/fix/art-sphere-index-space`**. The ledger `.superpowers/sdd` is its own
-private repo (`scale-94-notes`), ahead at `50f01b9`. `main` is untouched at
+STATE: HEAD `b477fb7`, tracked tree clean, **11 commits ahead of
+`origin/fix/art-sphere-index-space`**. The certified reference is the tree at
+`dd14af6` and is unchanged since. The ledger `.superpowers/sdd` is its own
+private repo (`scale-94-notes`), ahead at `28fec34`. `main` is untouched at
 `a54ea3e`.
 
 **Do not push, do not merge, do not touch `main`.** The author protects `main`
@@ -205,7 +206,7 @@ replicates — the certificate names them).
 - A `git checkout HEAD -- <file>` used to test a baseline **must be restored in
   its own command**, not chained after a long-running loop.
 
-## GATES (all green at `dd14af6`)
+## GATES (all green at `b477fb7`)
 
 ```
 npx vitest run          1215 passed / 113 files
