@@ -451,16 +451,35 @@ export const DISC_OFF = Object.freeze({
   midStop: EDGE_OFF.c1 + 1,
   /** MID stop colour, the three floats of aC2. Only read when midStop > 0. */
   midColor: EDGE_OFF.c2,
+  /** OUTER stop colour, as an EXTRAPOLATION factor rather than a colour.
+   *  Was aC1.z, the last of the five floats the layout reserved.
+   *
+   *  A three-stop ramp needs three colours and a disc has room for two. It does
+   *  not need a third FLOAT TRIPLE, though, because of what the ramp actually
+   *  is: the particle glow's stops share one hue and one saturation and differ
+   *  only in LIGHTNESS (82%, 65%, 50%). For fixed h and s the CSS HSL-to-RGB map
+   *  is linear in l on each side of l = 0.5, and all three stops sit on the
+   *  upper side, so the outer colour lies on the line through the other two:
+   *
+   *      outer = mid + (mid - c0) * k,   k = (l_mid - l_outer) / (l_c0 - l_mid)
+   *
+   *  which for 82/65/50 is 15/17 = 0.8824. Exact, not an approximation — and it
+   *  degrades safely: k = 0 gives outer = mid, which is the naive flat-tail
+   *  behaviour, so a caller that does not know about this gets the conservative
+   *  answer rather than a wrong one.
+   *
+   *  Only read when midStop > 0. */
+  outerK: EDGE_OFF.c1 + 2,
 });
 
-/** Fields that MUST still be zero on a disc instance. Was five floats; step 6
- *  took four of them for the mid gradient stop, exactly as this comment said a
- *  later step could — without a stride bump, and the last one is still here.
- *  Asserted zero so nothing quietly starts depending on stale gradient colour
- *  left in it. */
-export const DISC_RESERVED = Object.freeze([
-  EDGE_OFF.c1 + 2,
-]);
+/** Fields that MUST still be zero on a disc instance. There are none left: the
+ *  layout reserved five floats saying "a later step can take them without a
+ *  stride bump", and step 6 took all five — four for the mid gradient stop and
+ *  one for the outer stop's extrapolation factor. Kept as an empty list rather
+ *  than deleted, because `discEncodingInvariant` and three tests iterate it and
+ *  the next step to want a float should find this note rather than the absence
+ *  of one. THE NEXT ONE COSTS A STRIDE BUMP. */
+export const DISC_RESERVED = Object.freeze([]);
 
 /**
  * Write one disc or ring instance. `rInner = 0` gives a filled disc; a sweep of
@@ -489,6 +508,10 @@ export function writeDisc(out, o, {
   // discs this file wrote before step 6 — asserted by a test, because "the old
   // path is untouched" is exactly the claim that rots silently.
   mid = null,
+  // The outer stop's extrapolation factor — see DISC_OFF.outerK. Defaults to 0,
+  // which means "outer == mid": the conservative flat tail, so a caller that
+  // omits it is never silently given a wrong colour.
+  outerK = 0,
   // The alpha at the OUTER rim. Only meaningful alongside `mid`; the canvas
   // gradient this models ends fully transparent, which is why it defaults to 0
   // rather than to `alpha`.
@@ -521,8 +544,10 @@ export function writeDisc(out, o, {
     // The three stops the ramp actually has. The alpha slots were always here —
     // discs simply wrote them flat — so the alpha half of a three-stop ramp
     // costs no float at all.
+    out[o + DISC_OFF.outerK] = outerK;
     out[o + EDGE_OFF.alphas] = packAlphas(alpha, mid.alpha, outerAlpha);
   } else {
+    out[o + DISC_OFF.outerK] = 0;
     out[o + DISC_OFF.midStop] = 0;
     out[o + DISC_OFF.midColor] = 0;
     out[o + DISC_OFF.midColor + 1] = 0;
@@ -560,6 +585,7 @@ export function readDisc(data, o) {
           data[o + DISC_OFF.midColor + 2],
         ],
         alpha: unpackAlphas(data[o + EDGE_OFF.alphas]).a1,
+        outerK: data[o + DISC_OFF.outerK],
       }
       : null,
     outerAlpha: unpackAlphas(data[o + EDGE_OFF.alphas]).a2,
@@ -757,6 +783,15 @@ const EDGE_VERT = /* glsl */`
   // EVERY component is multiplied by isDisc in the vertex shader, so a segment
   // carries vec4(0) here and every branch below it collapses to what it was.
   varying vec4  vDisc;
+  // xyz = the MID gradient stop's colour   w = its position, 0..1 across the
+  // radius (0 = no mid stop, the flat single colour every disc had before step
+  // 6). Multiplied by isDisc for the same reason vDisc is: a SEGMENT carries
+  // vec4(0) and every expression that reads this collapses to what it was.
+  varying vec4  vDiscMid;
+  // The outer stop's extrapolation factor. See DISC_OFF.outerK — the ramp's
+  // three lightnesses are collinear in RGB, so the third colour is derived
+  // rather than stored.
+  varying float vOuterK;
 
   void main() {
     vec2 a = aEnds.xy;
@@ -772,6 +807,8 @@ const EDGE_VERT = /* glsl */`
     vec2 dir = len > 1e-6 ? delta / len : vec2(1.0, 0.0);
     vec2 nrm = vec2(-dir.y, dir.x);
     vDisc = vec4(aEnds.z, aPhase, aEnds.w, aC1.x) * isDiscV;
+    vDiscMid = vec4(aC2, aC1.y) * isDiscV;
+    vOuterK = aC1.z * isDiscV;
 
     // Unpack. Every divisor is a power of two and every field an integer, so
     // these are exact for a float32 payload below 2^24. The glow byte's top
@@ -929,7 +966,9 @@ const edgeFrag = (shadow, composite) => /* glsl */`
   varying float vPhase;
   varying float vGlow;
   varying float vIsOrtho;
-  varying float vIsDisc;
+varying float vIsDisc;
+  varying vec4  vDiscMid;
+  varying float vOuterK;
   varying vec4  vDisc;       // inner r, sweep start, sweep end, falloff inner
 
   // The CSS Color 4 reference algorithm, verbatim — the GLSL twin of
@@ -953,11 +992,41 @@ const edgeFrag = (shadow, composite) => /* glsl */`
 
     float t = vLen > 1e-6 ? clamp(vAlong / vLen, 0.0, 1.0) : 0.0;
 
+    // THE DISC'S OWN GRADIENT PARAMETER, for the radial ramps step 6 needs.
+    //
+    // A segment runs its gradient along the stroke. A disc has no length, so
+    // t is 0 and every disc drawn before step 6 collapsed to the first stop --
+    // which was exactly right, because their 2-D gradients were single-colour
+    // and the falloff below did the fading. The particle glow is not: it
+    // DARKENS as it fades, 82% to 65% to 50% lightness, with the knee at 0.4
+    // rather than the midpoint.
+    //
+    // So a disc carrying a mid stop drives the SAME three-stop machinery from
+    // its radial coordinate, remapped so its knee lands on the 0.5 that
+    // machinery splits at. One gradient implementation, not two — this file
+    // already lost a task to two implementations of one dash pattern.
+    float rG = length(vec2(vAlong, vD));
+    float u01 = clamp(rG / max(vHalfW, 1e-6), 0.0, 1.0);
+    float hasMid = step(1e-6, vDiscMid.w) * vIsDisc;
+    float knee = max(vDiscMid.w, 1e-6);
+    float tDisc = u01 < knee
+      ? u01 / knee * 0.5
+      : 0.5 + (u01 - knee) / max(1.0 - knee, 1e-6) * 0.5;
+    float tg = mix(t, tDisc, hasMid);
+
+    // The mid and outer colours, selected the same way. The outer one is
+    // EXTRAPOLATED: the ramp's three lightnesses are collinear in RGB for fixed
+    // hue and saturation above l = 0.5, so it lies on the line through the
+    // other two. See DISC_OFF.outerK. With vOuterK = 0 this gives outer == mid,
+    // the conservative flat tail.
+    vec3 gC1 = mix(vC1, vDiscMid.rgb, hasMid);
+    vec3 gC2 = mix(vC2, vDiscMid.rgb + (vDiscMid.rgb - vC0) * vOuterK, hasMid);
+
     // Three-stop gradient, interpolated NON-premultiplied exactly as a canvas
     // linear gradient does — the colour darkens toward the rim as it fades.
     vec3 col; float a;
-    if (t < 0.5) { float u = t / 0.5;         col = mix(vC0, vC1, u); a = mix(vAlpha.x, vAlpha.y, u); }
-    else         { float u = (t - 0.5) / 0.5; col = mix(vC1, vC2, u); a = mix(vAlpha.y, vAlpha.z, u); }
+    if (tg < 0.5) { float u = tg / 0.5;         col = mix(vC0, gC1, u); a = mix(vAlpha.x, vAlpha.y, u); }
+    else          { float u = (tg - 0.5) / 0.5; col = mix(gC1, gC2, u); a = mix(vAlpha.y, vAlpha.z, u); }
 
     // Box-filter coverage, not smoothstep. Edges are routinely thinner than a
     // pixel (width starts at 0.5) and a smoothstep shoulder spreads a 1px line
@@ -974,7 +1043,9 @@ const edgeFrag = (shadow, composite) => /* glsl */`
     // branches under the derivative reads at the top of main() stays where it
     // was, and so a SEGMENT (which carries vDisc = vec4(0)) collapses through
     // each one to exactly the arithmetic it had before any of this existed.
-    float r = length(vec2(vAlong, vD));
+    // Same radius the gradient above already measured -- one r, not two that
+    // could drift.
+    float r = rG;
     float disc = clamp((vHalfW - r) / pxD + 0.5, 0.0, 1.0);
 
     // ANNULUS. The hole is the same box filter with the sign flipped. The

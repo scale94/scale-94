@@ -604,9 +604,15 @@ describe('the disc branch encoding', () => {
     state.data[EDGE_OFF.width] = 2;   // a segment width
     expect(discEncodingInvariant(state.data, 0)[0]).toMatch(/not a disc/);
 
+    // The reserved-float check has nothing left to guard: step 6 took all five
+    // of the floats the layout set aside, exactly as it said a later step
+    // could. The check stays in `discEncodingInvariant` because the list is
+    // what a future stride bump will re-populate; what it catches NOW is a mid
+    // colour with no stop, which is the same failure one level up.
+    expect(DISC_RESERVED).toEqual([]);
     write(0);
-    state.data[DISC_RESERVED[0]] = 0.5;
-    expect(discEncodingInvariant(state.data, 0).join(' ')).toMatch(/reserved float/);
+    state.data[DISC_OFF.midColor] = 0.5;
+    expect(discEncodingInvariant(state.data, 0).join(' ')).toMatch(/mid colour set with no mid stop/);
   });
 
   it('writes at an arbitrary instance offset without touching its neighbours', () => {
@@ -683,12 +689,32 @@ describe('the disc mid gradient stop', () => {
     expect(EDGE_STRIDE).toBe(17);
   });
 
-  it('leaves one reserved float still reserved', () => {
-    // The layout said a later step could take these without a stride bump.
-    // Step 6 took four of the five; the last one is still asserted zero.
-    expect(DISC_RESERVED).toEqual([EDGE_OFF.c1 + 2]);
+  it('spends the last reserved float on the outer stop, and says so', () => {
+    // The layout reserved five floats "so a later step can take them without a
+    // stride bump". Step 6 took all five: four for the mid stop and one for the
+    // outer stop's extrapolation factor. THE NEXT ONE COSTS A STRIDE BUMP, and
+    // this test is where that is written down.
+    expect(DISC_RESERVED).toEqual([]);
+    expect(DISC_OFF.outerK).toBe(EDGE_OFF.c1 + 2);
+    expect(EDGE_STRIDE).toBe(17);
+  });
+
+  it('derives the outer colour rather than storing it', () => {
+    // Three stops, two colour slots. The particle glow's lightnesses are
+    // collinear in RGB above l = 0.5, so the third lies on the line through the
+    // other two: outer = mid + (mid - c0) * k. Asserted as arithmetic here and
+    // computed the same way in EDGE_FRAG.
+    write({ mid: { at: 0.4, rgb: [0.5, 0.5, 0.5], alpha: 0.3 }, outerK: 15 / 17 });
+    const d = readDisc(state.data, 0);
+    expect(d.mid.outerK).toBeCloseTo(0.88235, 4);
+    const c0 = [1, 0.5, 0.25];
+    const outer = d.mid.rgb.map((m, i) => m + (m - c0[i]) * d.mid.outerK);
+    expect(outer[0]).toBeCloseTo(0.5 + (0.5 - 1) * 15 / 17, 4);
+  });
+
+  it('defaults outerK to a flat tail, so an unaware caller is never given a wrong colour', () => {
     write({ mid: { at: 0.4, rgb: [1, 1, 1], alpha: 0.2 } });
-    for (const k of DISC_RESERVED) expect(state.data[k]).toBe(0);
+    expect(readDisc(state.data, 0).mid.outerK).toBe(0);
   });
 
   it('rejects a stop at or past the rim', () => {
