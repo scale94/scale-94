@@ -1574,6 +1574,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       _cen.birth = 0; _cen.bleed = 0; _cen.spectral = 0; _cen.resonanceDim = 0;
       _cen.fusionRing = 0; _cen.fusionThread = 0;
       _cen.probeTether = 0; _cen.probeHalo = 0; _cen.probeCore = 0;
+      _cen.particleGlow = 0; _cen.particleCore = 0;
       for (const i of sortedNodeIdx) {
         const n   = nodes[i];
         // Dynamic nodes (bifurcation children) fall back to dynColorMap
@@ -1976,6 +1977,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       if (pFrame % 7 === 0) emitIdleParticles(pool, nodes);
 
       // ── Particle render — additive, smooth sin fade, radial glow ─────────
+      // Counted, because a layer in no capture state scores perfect parity
+      // whether it ships or is deleted — this branch's defining failure, found
+      // six times. Both sub-layers separately: a port that drops the glow and
+      // keeps the core would otherwise read as present.
+      const _pcen = nodeCensusRef.current;
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
       for (let pi = 0; pi < MAX_PARTICLES; pi++) {
@@ -2011,12 +2017,14 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         ctx.beginPath();
         ctx.arc(pp.sx, pp.sy, glowR, 0, Math.PI * 2);
         ctx.fill();
+        _pcen.particleGlow++;
 
         // Hard core
         ctx.fillStyle = `hsla(${hue|0},${sat|0}%,92%,${(alpha * 0.8).toFixed(3)})`;
         ctx.beginPath();
         ctx.arc(pp.sx, pp.sy, sz, 0, Math.PI * 2);
         ctx.fill();
+        _pcen.particleCore++;
       }
       ctx.restore();
 
@@ -2296,6 +2304,38 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       return discProbeRef.current ? discProbeRef.current.length : 0;
     };
 
+    // Particles with KNOWN hues, positions and lives, written straight into the
+    // pool.
+    //
+    // The ambient emitter cannot serve a measurement. `_idleHueDrift`
+    // (artParticles.js:71) is a module-level mount-time accumulator the harness
+    // reset does not clear, and it sets particle HUE, so ambient particle
+    // colour differs run to run. That was measured, and clearing it was then
+    // tried and MEASURED WORSE — it makes idle's per-channel spread ~2.5x wider
+    // (see docs/superpowers/plans/handover-post-rng.md). Step 6's whole subject
+    // is a colour ramp, so the colour has to be pinned by the probe instead.
+    //
+    // Kills the pool first: a measurement of "the particles I asked for" must
+    // not be contaminated by whatever the ambient emitter left alive, and
+    // `stepParticles` skips a slot only when life >= maxLife, so zeroing
+    // maxLifes is what actually empties it.
+    window.__artForceParticles = (specs = []) => {
+      const p = particlesRef.current;
+      for (let i = 0; i < p.maxLifes.length; i++) p.maxLifes[i] = 0;
+      specs.forEach((s, i) => {
+        if (i >= p.xs.length) return;
+        p.xs[i] = s.x; p.ys[i] = s.y; p.zs[i] = s.z;
+        p.vxs[i] = 0; p.vys[i] = 0; p.vzs[i] = 0;
+        // hueTarget === hue, so stepParticles' blend is a no-op and the colour
+        // the probe asked for is the colour the frame draws.
+        p.hues[i] = s.hue; p.hueTargets[i] = s.hue;
+        p.sats[i] = s.sat; p.sizes[i] = s.size;
+        p.lifes[i] = s.life; p.maxLifes[i] = s.maxLife;
+      });
+      p.count = specs.length;
+      return p.count;
+    };
+
     // The overwrite bleed — `renderCol` lerped toward the source node's colour.
     // Organically this needs an overwrite event, which no capture state fires.
     // Writes the live sphere node the draw loop reads, so the real lerp runs.
@@ -2453,6 +2493,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       delete window.__artForceBeacon;
       delete window.__artForceBleed;
       delete window.__artSetDiscProbe;
+      delete window.__artForceParticles;
       delete window.__artNodeState;
     };
   }, [initState, archaeologyRef, reasoningRef, stateRef]);
