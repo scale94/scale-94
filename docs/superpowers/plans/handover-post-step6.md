@@ -5,8 +5,9 @@ Continue the /art sphere Canvas2D→WebGL migration on `fix/art-sphere-index-spa
 are on the GPU. One 2-D layer is left — the **Bifurcation Conductor** — and the
 spec does not mention it.
 
-STATE: HEAD `95bf1e3`, tracked tree clean, **20 commits ahead of
-`origin/fix/art-sphere-index-space`**. The ledger `.superpowers/sdd` is its own
+STATE: HEAD `21e64b7` (this file's own refresh commit), tracked tree clean,
+**22 commits ahead of `origin/fix/art-sphere-index-space`**. The last code
+commit is `e6728f6`; everything after it is documentation. The ledger `.superpowers/sdd` is its own
 private repo (`scale-94-notes`), ahead at `4abbce0`. `main` is untouched at
 `a54ea3e`.
 
