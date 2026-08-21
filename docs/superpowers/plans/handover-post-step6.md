@@ -1,11 +1,12 @@
 Continue the /art sphere Canvas2D→WebGL migration on `fix/art-sphere-index-space`
 (F:\scale_9.4).
 
-**Steps 5 and 6 are COMPLETE.** Every node layer and the whole particle ecology
-are on the GPU. One 2-D layer is left — the **Bifurcation Conductor** — and the
-spec does not mention it.
+**Steps 5, 6 and 7 are COMPLETE.** Every node layer, the whole particle ecology
+and the Bifurcation Conductor are on the GPU. **`ArtTab.jsx` is down to two
+`ctx.` sites** — `setTransform` and the `destination-out` clear — and no layer
+draws to the canvas. The spec's "the 2-D canvas is now empty" is finally true.
 
-STATE: the last CODE commit is **`e6728f6`**; every commit after it is
+STATE: the last CODE commit is **`f5ae8a5`**; every commit after it is
 documentation, and this file is the newest of them. Tracked tree clean. The
 branch is 20+ commits ahead of `origin/fix/art-sphere-index-space` — run
 `git log --oneline origin/fix/art-sphere-index-space..HEAD` for the exact list
@@ -72,81 +73,35 @@ without it the manifest agreed on everything while the pictures did not.
 
 ## THE WORK, in order
 
-### 1. THE CONDUCTOR — the last 2-D layer, and it is nearly invisible to every gate
+### 1. THE IMMERSIVE RACE — the only thing standing between here and 21/21
 
-`ArtTab.jsx:2059` calls `drawConductor(ctx, …)` → `artAwakening.js`, **28 `ctx.`
-calls**. Pre-flighted 2026-08-20; here is what is actually there, so you do not
-have to trust the spec, which has understated every block five times running.
+Step 7's parity run certified **19 of 21** cells. Both refusals were
+`immersive-off`, at 2x and at the projector scale, and this is the same race the
+last three sessions could not close. It is now the top item because nothing else
+blocks a full certificate.
 
-A fixed **screen-space strip** at `x = w − 6` (the right edge), `y` from `0.20h`
-to `0.80h` — **not sphere geometry**. Four sub-layers:
+**What step 7 added to the picture, from three fresh sets:**
 
-| # | what | primitive | alpha |
-|---|---|---|---|
-| 1 | thumb dot | filled arc, r = 1.5, or 3 while dragging | `globalAlpha` 0.3 visible / **0.03** not |
-| 2 | strip track | 1 px vertical line, `#666` | 0.05, visible only |
-| 3 | fill bar | 1 px vertical line, `hsla(hue,40%,50%)` | 0.1 dragging / 0.05, visible only |
-| 4 | peer-push glow | arc r = dotR+1 with **`ctx.shadowBlur = 4`** | ≤ 0.1, peerPush only |
+- `immersive-on` is **bit-identical across all three sets at all three scales**
+  (`7a133196`, `43b76b01`). Only `immersive-off` diverges. Earlier write-ups say
+  the race "hits `immersive-on` and `immersive-off` at all three scales" — on
+  this evidence `immersive-on` is clean, so either it has been fixed or the
+  earlier claim was over-general. **Check before inheriting it.**
+- At the projector scale one set drew **121 edges against 123**. That is a
+  genuinely different graph, not a numeric wobble — a stronger signal than
+  earlier rounds recorded, and it means the divergence happens BEFORE the edge
+  set is decided.
+- At 2x the edge count was identical (134) with three distinct world hashes, so
+  the same graph came out at different coordinates. **Those two are different
+  failures and may have different causes** — do not assume one fix covers both.
 
-**THE THING THAT MATTERS MOST.** `visible = dragging || peerPush`, and
-`peerPush = collectiveR > 0.0003`. **No capture state does either.** In every
-reference capture, three of the four sub-layers never draw at all and the fourth
-draws at alpha **0.03**. This is the seventh gate-blind layer on this branch and
-it is gate-blind *by construction*, not by accident — and it sits outside the
-sphere's disc, so `artInk`'s disc column cannot see it and the frame column
-barely can.
+Everything the older item said still stands: `--scale` is a ~6x harsher test, so
+measure with three-scale captures; `_t9trace.mjs` mirrors the immersive window
+faithfully and costs ~1 minute against a capture's four; and `3551885`'s
+write-up claims a fix its own call sites cannot deliver, so what actually
+changed between `7f5f2ce` and now is **not established**.
 
-**So build the probe before you move the layer**, exactly as step 6 did: there is
-no `__artForceConductor` yet, and it wants `{ y, dragging, collectiveR }` plus a
-census entry per sub-layer. Step 6's `__artForceParticles` (`ArtTab.jsx`, in the
-`import.meta.env.DEV` block) is the pattern, and its `_s6probe.mjs`-style
-verification — force it on, force it off, assert the census both ways — is the
-standard to meet.
-
-Three more things the pre-flight found:
-
-- It uses **`globalAlpha`**, not per-draw alpha, at four different values. The
-  instance encoding carries alpha per instance, so that maps cleanly, but the
-  values must come out of one shared law rather than be restated — see
-  `artParticleDraw.js` for the shape.
-- Sub-layer 4 uses **`ctx.shadowBlur`**, which the edge shader already models as
-  a real gaussian (`exp(-2(d/g)²)`, glow byte in `packFlags`). Do not substitute
-  the radial falloff for it: `EDGE_FRAG` has a comment saying they are different
-  falloffs AND different amplitude laws, and matching at one radius is wrong at
-  every other.
-- The thumb dot is **r = 1.5–4 px**, so `discInkCorrection` in
-  `artParticleDraw.js` applies — the shader's straight-edge box filter over-inks
-  a disc by 1/12 px² whatever its size.
-
-**`DISC_RESERVED` IS NOW EMPTY.** Step 6 spent all five floats the layout
-reserved. The next one costs a stride bump, and a test says so.
-
-After the conductor, `ArtTab.jsx` has only `:941 setTransform` and `:957`–`:961`
-the `destination-out` clear. **Then** the spec's "delete the canvas, its texture
-and the composite quad" becomes true, and phase 1 ends.
-
-### 2. The ink excess step 6 could not explain
-
-Normal-mode whole-frame ink is **+1.6% to +2.7%** after the particle migration,
-against **1.001–1.003** for step 6's provably inert changes measured the same way
-against the same reference. So it is the particle layer.
-
-It tracks particle count and size — projector: 1.006 at 12 particles, 1.017 at
-89, **1.055 at fired-cascade's 147**, which also emits the largest, node-burst
-particles — and it **flips sign in immersive** (frame 0.997), where the standing
-gain is 3.125× rather than 1.389×. **That points at the accumulation path, not
-the rasteriser.**
-
-**One hypothesis is already tested and REFUTED — do not spend it again.** The
-shader's straight-edge box filter over-inks a disc by 1/12 px² (52% at R = 0.4,
-nothing at a node's 8–25 px), and particle cores are the first sub-pixel discs
-here. The mechanism is real and is now corrected. It moved the frame ratios by
-**nothing**, because particle cores are ~2% of frame ink so an 8% correction on
-them is 0.16% of the frame. The arithmetic would have said so before three
-capture sets were spent on it: *check whether a mechanism's MAGNITUDE can account
-for the observation before you go and measure it.*
-
-### 3. The immersive-window race — live, unexplained, and `--scale` makes it worse
+**The measured detail, carried forward from the older item 3:**
 
 Three attempts have not closed it. What is measured:
 
@@ -179,7 +134,28 @@ pump between the two shots, which is why it reported 1740 identical frames while
 the capture it stood in for was splitting 3 in 8. It costs ~1 minute a run
 against a capture's four. **That is the instrument to reach for.**
 
-### 4. The spoke's 1.098 GL/2D ratio — never actually gated
+### 2. The ink excess step 6 could not explain
+
+Normal-mode whole-frame ink is **+1.6% to +2.7%** after the particle migration,
+against **1.001–1.003** for step 6's provably inert changes measured the same way
+against the same reference. So it is the particle layer.
+
+It tracks particle count and size — projector: 1.006 at 12 particles, 1.017 at
+89, **1.055 at fired-cascade's 147**, which also emits the largest, node-burst
+particles — and it **flips sign in immersive** (frame 0.997), where the standing
+gain is 3.125× rather than 1.389×. **That points at the accumulation path, not
+the rasteriser.**
+
+**One hypothesis is already tested and REFUTED — do not spend it again.** The
+shader's straight-edge box filter over-inks a disc by 1/12 px² (52% at R = 0.4,
+nothing at a node's 8–25 px), and particle cores are the first sub-pixel discs
+here. The mechanism is real and is now corrected. It moved the frame ratios by
+**nothing**, because particle cores are ~2% of frame ink so an 8% correction on
+them is 0.16% of the frame. The arithmetic would have said so before three
+capture sets were spent on it: *check whether a mechanism's MAGNITUDE can account
+for the observation before you go and measure it.*
+
+### 3. The spoke's 1.098 GL/2D ratio — never actually gated
 
 Step 4 task 6 measured the star spokes **9.8% brighter in GL than in 2D** and the
 controller dissented: a ~10% bright sub-layer must not be baked into the
@@ -196,7 +172,7 @@ string appears in `trail-deficit.md` as unrelated ink ratios. Also open from tha
 task: the 1.526 px notch, and whether `CURVE_MAX_SEGMENTS = 24` binding routinely
 is silently coarsening the flatness guarantee.
 
-### 5. A whole-branch review, and then the sweep
+### 4. A whole-branch review, and then the sweep
 
 Never run, and the debt is large. Unreviewed: step 4 task 6 (its reviewer was
 killed twice), `cbf22f1` from a parallel session, step 5 tasks 1–8, and this
@@ -205,7 +181,7 @@ session's `9661dfa`, `7f5f2ce`, `3551885`, `dd14af6`, `08a9ea5`, `590a9da`,
 change what the artwork draws its randomness from — and `dd4bf46`, which is the
 first shader change since step 4.
 
-Then sweep 142 `baseline/` dirs and 57 `scripts/_*`. Keep the instruments the
+Then sweep the `baseline/` dirs (161 now) and the `scripts/_*` (60 now). Keep the instruments the
 records reference: `_t8align`, `_t8immRot`, `_nodeShot`, `_t7tail`, `_t6ghost`,
 `_t5rings`, `_t3disc`, `_crop`, `_t9matrix`, `_t9trace` (takes `W H DPR` now),
 `_t9tracediff`, `_t9frames`, `_t9cross`, `_t9force`, `_t9shotnull`, `_t9resize`,
@@ -218,6 +194,24 @@ certificates name them).
 
 ## WHAT THIS BRANCH HAS LEARNED
 
+- **A layer that leaves the 2-D canvas can break an INSTRUMENT rather than a
+  picture.** Step 7's port refused 12 of 21 cells at pixel correlations up to
+  0.9996: the world hash is an FNV over the whole edge buffer, and moving the
+  conductor into it put a CONTINUOUS quantity (the thumb rides the Feigenbaum r)
+  inside a hash whose question is discrete. The tell was that every failing cell
+  had an identical edge count and a varying conductorY, and every passing one had
+  conductorY clamped to exactly 1. Fixed by `eg.worldCount` — **the writer
+  declares the boundary, the reader does not guess it**, as `discStart` already
+  does. When you move a layer, ask what reads the buffer, not just what draws it.
+- **`scripts/` is not linted and not tested, so every constant copied into it is
+  a live trap.** `artSmoke` carried `S = 17` and step 7's stride bump made its
+  edge hit-test scan misaligned floats — a healthy sphere reading as a dead
+  hover, 3 failures in 3 runs. `artPresence` was immune because it IMPORTS
+  `EDGE_STRIDE`. That is the whole difference. Third time on this branch.
+- **Check a fitted law's RANGE, and say it is a fit.** The disc-shadow term is
+  accurate to 0.0289 over `R/sigma in [1.25, 2]` and degrades outside it; the
+  test asserts the range as well as the error, so the next caller cannot quietly
+  inherit a number that was never measured for them.
 - **Ask what the gate can actually SEE before quoting it.** Nine of thirteen node
   layers were in no capture state; particles were in none until step 6; the
   conductor is in none now. This is the defining failure mode and it has recurred
@@ -243,7 +237,13 @@ certificates name them).
 - **A bare CLI flag must not swallow the next token** — `artNull`'s parser did,
   and would have silently dropped a capture set from a null.
 - **Backticks inside a template literal terminate the string.** Known for the
-  GLSL in `SphereEdges.js`; it bit again in `determinism.mjs` and again in step 6.
+  GLSL in `SphereEdges.js`; it bit again in `determinism.mjs`, again in step 6,
+  and TWICE in step 7 — once in a shader comment and once in a comment inside
+  `artBaseline`'s page-eval string, which cost a 12-minute capture. Writing it
+  down has not been enough; grep the hunk for a backtick before running.
+- **`artNull`'s `--write-partial` is a BARE flag.** The directory belongs to
+  `--write`: `... a b c --write a --write-partial`. Passing the directory to
+  `--write-partial` silently makes it a fourth capture set and writes nothing.
 - **`cd` in a Bash call persists** — use absolute paths.
 - **Do not edit source while a capture is running.** The dev server serves live
   files; a mid-run HMR swap makes the set untrustworthy. Discard and re-run.
@@ -254,11 +254,11 @@ certificates name them).
 - Never run vitest with `-u`. Never `git add -A`. Re-read anything in `scripts/`
   before editing it.
 
-## GATES (all green at `95bf1e3`)
+## GATES (all green at `f5ae8a5`)
 
 ```
-npx vitest run          1249 passed / 113 files
-npm run lint            0 errors, 144 warnings (ratchet 153 — a new warning is YOURS)
+npx vitest run          1273 passed / 115 files
+npm run lint            0 errors, 145 warnings (ratchet 153 — a new warning is YOURS)
 npm run build           clean
 node scripts/artSmoke.mjs        10/10
 node scripts/artPresence.mjs     19/19
