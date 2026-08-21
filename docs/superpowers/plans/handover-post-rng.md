@@ -1,3 +1,7 @@
+> **SUPERSEDED by `handover-post-step6.md`.** Step 6 shipped after this was
+> written; the conductor is what is actually left. Kept for its account of
+> the RNG fix and the gate that refused the reference three times.
+
 Continue the /art sphere Canvas2D→WebGL migration on `fix/art-sphere-index-space`
 (F:\scale_9.4).
 
