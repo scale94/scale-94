@@ -119,58 +119,171 @@ export function beaconRingState(aw, nodeIdx, p, radius, renderCol, depthAlpha,
   };
 }
 
-// ── Bifurcation Conductor (right-edge whisker) ───────────────────────────────
-export function drawConductor(ctx, collectiveState, dragging, w, h) {
-  const stripX = w - 6;
-  const stripY = h * 0.20;
-  const stripH = h * 0.60;
+// ── Bifurcation Conductor (right-edge whisker) ─────────────────────────────
+//
+// The last 2-D layer on this branch, and the one no capture state arms:
+// `visible = dragging || peerPush`, and a capture does neither. Three of the
+// four sub-layers therefore never draw in any reference image and the fourth
+// draws at alpha 0.03 — outside the sphere's disc, where artInk's disc column
+// cannot see it either. So the state is split out from the drawing FIRST, the
+// way beaconRingState above it is, for three reasons:
+//
+//   1. `drawn` is what a capture's layer census counts. Counting at the draw
+//      call rather than re-deriving the conditions afterwards keeps it to one
+//      source of truth — the precedent nodeCensusRef sets in ArtTab.
+//   2. The GL port consumes the same object the 2-D path does, so the two
+//      cannot disagree about geometry, colour or alpha.
+//   3. Every alpha and threshold is named once in CONDUCTOR below instead of
+//      being restated at four draw sites.
+//
+// This is screen space, not sphere geometry: a fixed strip at the right edge.
+// The GL edge layer writes gl_Position in clip space directly from CSS px
+// against the same uResolution the 2-D loop uses, so these coordinates port
+// across with no projection and no camera.
+
+/** Every constant the conductor draws from, named once. */
+export const CONDUCTOR = Object.freeze({
+  MARGIN_X: 6,            // px in from the right edge
+  TOP: 0.20,              // strip top as a fraction of canvas height
+  HEIGHT: 0.60,           // strip height as a fraction of canvas height
+  WIDTH: 1,               // px, both the track and the fill bar
+  DOT_R: 1.5,
+  DOT_R_DRAG: 3,
+  GLOW_PAD: 1,            // the peer-push disc is this much wider than the thumb
+  // Canvas shadowBlur is a gaussian of sigma = blur/2, and EDGE_FRAG's shoulder
+  // is exp(-2(d/g)^2), i.e. sigma = g/2. Same law, so this number ports as-is.
+  GLOW_BLUR: 4,
+  PEER_PUSH_MIN: 0.0003,
+  PEER_GLOW_GAIN: 40,
+  PEER_GLOW_MAX: 0.1,
+  MIN_FILL_H: 1,          // px; below this the fill bar is dropped, not stubbed
+  HUE_HOT: 0, HUE_WARM: 30, HUE_COOL: 210,
+  HUE_HOT_AT: 0.85, HUE_WARM_AT: 0.6,
+  ALPHA_VISIBLE: 0.3,
+  ALPHA_DORMANT: 0.03,
+  ALPHA_TRACK: 0.05,
+  ALPHA_FILL_DRAG: 0.1,
+  ALPHA_FILL: 0.05,
+  THUMB_SAT: 50, THUMB_LIT: 55,
+  FILL_SAT: 40, FILL_LIT: 50,
+  SHADOW_SAT: 70, SHADOW_LIT: 50,
+  TRACK_RGB: Object.freeze([102, 102, 102]),  // '#666'
+});
+
+/**
+ * Everything the conductor draws this frame, as data. Pure.
+ *
+ * A sub-layer that does not draw is `null` rather than a flagged object, so a
+ * caller cannot render it by forgetting to check — and `drawn` counts what a
+ * frame actually contained, which is the only thing that can tell "the layer is
+ * faithful" apart from "the layer was never on screen".
+ */
+export function conductorState(collectiveState, dragging, w, h) {
+  const C = CONDUCTOR;
+  const stripX = w - C.MARGIN_X;
+  const stripY = h * C.TOP;
+  const stripH = h * C.HEIGHT;
   const cY = collectiveState.conductorY;
 
-  const peerPush = collectiveState.collectiveR > 0.0003;
-  const visible = dragging || peerPush;
+  const peerPush = collectiveState.collectiveR > C.PEER_PUSH_MIN;
+  const visible = !!dragging || peerPush;
 
   const thumbY = stripY + stripH - (stripH * cY);
-  const hue = cY > 0.85 ? 0 : cY > 0.6 ? 30 : 210;
-  const dotR = dragging ? 3 : 1.5;
+  const hue = cY > C.HUE_HOT_AT ? C.HUE_HOT : cY > C.HUE_WARM_AT ? C.HUE_WARM : C.HUE_COOL;
+  const dotR = dragging ? C.DOT_R_DRAG : C.DOT_R;
+
+  const thumb = {
+    cx: stripX, cy: thumbY, r: dotR,
+    hsl: { hue, sat: C.THUMB_SAT, lit: C.THUMB_LIT },
+    alpha: visible ? C.ALPHA_VISIBLE : C.ALPHA_DORMANT,
+  };
+
+  let track = null;
+  let fill = null;
+  if (visible) {
+    track = {
+      x: stripX, y0: stripY, y1: stripY + stripH,
+      rgb: C.TRACK_RGB, width: C.WIDTH, alpha: C.ALPHA_TRACK,
+    };
+    const fillH = stripH * cY;
+    if (fillH > C.MIN_FILL_H) {
+      fill = {
+        x: stripX, y0: stripY + stripH, y1: stripY + stripH - fillH,
+        hsl: { hue, sat: C.FILL_SAT, lit: C.FILL_LIT },
+        width: C.WIDTH,
+        alpha: dragging ? C.ALPHA_FILL_DRAG : C.ALPHA_FILL,
+      };
+    }
+  }
+
+  let glow = null;
+  if (peerPush) {
+    glow = {
+      cx: stripX, cy: thumbY, r: dotR + C.GLOW_PAD,
+      // ctx.fill() paints the disc in fillStyle and the blur in shadowColor.
+      // They are DIFFERENT colours here, so the port needs both: a GL disc
+      // carrying one colour for core and glow would drop the distinction.
+      hsl: { hue, sat: C.THUMB_SAT, lit: C.THUMB_LIT },
+      shadowHsl: { hue, sat: C.SHADOW_SAT, lit: C.SHADOW_LIT },
+      blur: C.GLOW_BLUR,
+      alpha: Math.min(C.PEER_GLOW_MAX, collectiveState.collectiveR * C.PEER_GLOW_GAIN),
+    };
+  }
+
+  return {
+    stripX, stripY, stripH, thumbY, hue, dotR, visible, peerPush,
+    thumb, track, fill, glow,
+    drawn: {
+      thumb: 1,
+      track: track ? 1 : 0,
+      fill: fill ? 1 : 0,
+      glow: glow ? 1 : 0,
+    },
+  };
+}
+
+/** Render `conductorState` to the 2-D canvas. The call sequence is frozen in
+ *  artAwakening.test.js against a capture of the pre-refactor function. */
+export function drawConductor(ctx, collectiveState, dragging, w, h) {
+  const s = conductorState(collectiveState, dragging, w, h);
 
   ctx.save();
-  ctx.globalAlpha = visible ? 0.3 : 0.03;
-  ctx.fillStyle = `hsl(${hue}, 50%, 55%)`;
+  ctx.globalAlpha = s.thumb.alpha;
+  ctx.fillStyle = `hsl(${s.thumb.hsl.hue}, ${s.thumb.hsl.sat}%, ${s.thumb.hsl.lit}%)`;
   ctx.beginPath();
-  ctx.arc(stripX, thumbY, dotR, 0, Math.PI * 2);
+  ctx.arc(s.thumb.cx, s.thumb.cy, s.thumb.r, 0, Math.PI * 2);
   ctx.fill();
 
-  if (visible) {
-    ctx.globalAlpha = 0.05;
+  if (s.track) {
+    ctx.globalAlpha = s.track.alpha;
     ctx.strokeStyle = '#666';
-    ctx.lineWidth = 1;
+    ctx.lineWidth = s.track.width;
     ctx.beginPath();
-    ctx.moveTo(stripX, stripY);
-    ctx.lineTo(stripX, stripY + stripH);
+    ctx.moveTo(s.track.x, s.track.y0);
+    ctx.lineTo(s.track.x, s.track.y1);
     ctx.stroke();
 
-    const fillH = stripH * cY;
-    if (fillH > 1) {
-      ctx.globalAlpha = dragging ? 0.1 : 0.05;
-      ctx.strokeStyle = `hsla(${hue}, 40%, 50%, 1)`;
-      ctx.lineWidth = 1;
+    if (s.fill) {
+      ctx.globalAlpha = s.fill.alpha;
+      ctx.strokeStyle = `hsla(${s.fill.hsl.hue}, ${s.fill.hsl.sat}%, ${s.fill.hsl.lit}%, 1)`;
+      ctx.lineWidth = s.fill.width;
       ctx.beginPath();
-      ctx.moveTo(stripX, stripY + stripH);
-      ctx.lineTo(stripX, stripY + stripH - fillH);
+      ctx.moveTo(s.fill.x, s.fill.y0);
+      ctx.lineTo(s.fill.x, s.fill.y1);
       ctx.stroke();
     }
   }
 
-  if (peerPush) {
-    const ga = Math.min(0.1, collectiveState.collectiveR * 40);
-    ctx.globalAlpha = ga;
-    ctx.shadowColor = `hsl(${hue}, 70%, 50%)`;
-    ctx.shadowBlur = 4;
+  if (s.glow) {
+    ctx.globalAlpha = s.glow.alpha;
+    ctx.shadowColor = `hsl(${s.glow.shadowHsl.hue}, ${s.glow.shadowHsl.sat}%, ${s.glow.shadowHsl.lit}%)`;
+    ctx.shadowBlur = s.glow.blur;
     ctx.beginPath();
-    ctx.arc(stripX, thumbY, dotR + 1, 0, Math.PI * 2);
+    ctx.arc(s.glow.cx, s.glow.cy, s.glow.r, 0, Math.PI * 2);
     ctx.fill();
     ctx.shadowBlur = 0;
   }
 
   ctx.restore();
+  return s;
 }

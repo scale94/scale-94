@@ -256,7 +256,30 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     birth: 0, bleed: 0, spectral: 0, resonanceDim: 0,
     fusionRing: 0, fusionThread: 0,
     probeTether: 0, probeHalo: 0, probeCore: 0,
+    particleGlow: 0, particleCore: 0,
+    conductorThumb: 0, conductorTrack: 0, conductorFill: 0, conductorGlow: 0,
   });
+
+  // ── Conductor force overrides (DEV harness only) ──────────────────────────
+  // The conductor is the last layer no capture state arms, and unlike the
+  // others it cannot be forced by writing its own output: `conductorY` is
+  // recomputed from fieldRef.current.r every frame by stepCollectiveR, and
+  // `collectiveR` is recomputed from peerEntropy every frame by
+  // feedPeerEntropy. So the override sits on that function's INPUTS and the
+  // real sigmoid gate, EMA and MAX_CONTRIBUTION run from there — the same
+  // principle as __artForceParticles setting hueTarget === hue.
+  //
+  // MEASURED, and it is why this hook has to exist: with peerCount 0 the gate
+  // is sigmoid(0,3,1.5) = 0.0111, so collectiveR = entropy * 0.0111 * 0.0025
+  // and reaching the 0.0003 push threshold would need an entropy of 10.8 on a
+  // 0..1 channel. The peer-push glow is UNREACHABLE in a single browser at any
+  // legal input, not merely unlikely.
+  //
+  // `conductorY` is deliberately NOT forceable. Its only input is the
+  // Feigenbaum r, and moving r moves the graph — which would change the
+  // capture's `world` hash and make the very comparison this probe exists to
+  // serve meaningless. The probe reports the live value instead.
+  const conductorForceRef = useRef(null);
 
   // ── Immersive Mode (fullscreen + vignette) ──────────────────────────────
   // Bloom is no longer immersive-only and no longer lives here: it is always on
@@ -821,7 +844,9 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       }
 
       // ── Bifurcation Conductor + Collective Perturbation ──────────────────
-      feedPeerEntropy(somaPresence.peerCount, peerCursorEntropyRef.current);
+      const _cf = conductorForceRef.current;
+      feedPeerEntropy(_cf ? _cf.peerCount : somaPresence.peerCount,
+                      _cf ? _cf.entropy : peerCursorEntropyRef.current);
       stepCollectiveR(fieldRef);
 
       // ── Broadcast cursor to peers (rotation-derived, throttled internally) ──
@@ -1585,6 +1610,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       _cen.fusionRing = 0; _cen.fusionThread = 0;
       _cen.probeTether = 0; _cen.probeHalo = 0; _cen.probeCore = 0;
       _cen.particleGlow = 0; _cen.particleCore = 0;
+      _cen.conductorThumb = 0; _cen.conductorTrack = 0;
+      _cen.conductorFill = 0; _cen.conductorGlow = 0;
       for (const i of sortedNodeIdx) {
         const n   = nodes[i];
         // Dynamic nodes (bifurcation children) fall back to dynColorMap
@@ -2062,7 +2089,16 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       }
 
       // ── Bifurcation Conductor (logic in artAwakening.js) ────────────────
-      drawConductor(ctx, collectiveRef.current, conductorDragRef.current, w, h);
+      // Counted from the state the draw actually returned, not re-derived from
+      // its conditions — three of these four sub-layers are in no capture
+      // state, so this census is the only thing that can say whether a
+      // reference image contained them.
+      const _cst = drawConductor(ctx, collectiveRef.current,
+        conductorForceRef.current?.dragging ?? conductorDragRef.current, w, h);
+      _pcen.conductorThumb += _cst.drawn.thumb;
+      _pcen.conductorTrack += _cst.drawn.track;
+      _pcen.conductorFill  += _cst.drawn.fill;
+      _pcen.conductorGlow  += _cst.drawn.glow;
 
       // ── Bloom and vignette ────────────────────────────────────────────────
       // Both now happen on the GPU in SphereComposite, which takes this canvas
@@ -2369,6 +2405,19 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       return p.count;
     };
 
+    // The conductor — the last layer with no capture state. See
+    // conductorForceRef for why this drives feedPeerEntropy's inputs rather
+    // than writing collectiveR, and why `y` is not forceable.
+    //
+    // `dragging` also overrides conductorDragRef at the draw site, so a pointer
+    // handler cannot clear it mid-capture.
+    window.__artForceConductor = ({ dragging = false, peerCount = 5,
+                                    entropy = 1 } = {}) => {
+      conductorForceRef.current = { dragging, peerCount, entropy };
+      return conductorForceRef.current;
+    };
+    window.__artReleaseConductor = () => { conductorForceRef.current = null; };
+
     // The overwrite bleed — `renderCol` lerped toward the source node's colour.
     // Organically this needs an overwrite event, which no capture state fires.
     // Writes the live sphere node the draw loop reads, so the real lerp runs.
@@ -2435,6 +2484,16 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       resonance: {
         armed: resonanceModeRef.current,
         selected: resonanceNodesRef.current.length,
+      },
+      // The conductor's own inputs. `y` is reported rather than forced — it is
+      // a pure function of the Feigenbaum r, so a probe that set it would be
+      // moving the graph. `forced` says whether the override is live, so a
+      // capture cannot quietly record probe state as organic state.
+      conductor: {
+        y: +collectiveRef.current.conductorY.toFixed(4),
+        collectiveR: +collectiveRef.current.collectiveR.toFixed(6),
+        dragging: conductorForceRef.current?.dragging ?? conductorDragRef.current,
+        forced: !!conductorForceRef.current,
       },
     });
 
@@ -2527,6 +2586,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       delete window.__artForceBleed;
       delete window.__artSetDiscProbe;
       delete window.__artForceParticles;
+      delete window.__artForceConductor;
+      delete window.__artReleaseConductor;
       delete window.__artNodeState;
     };
   }, [initState, archaeologyRef, reasoningRef, stateRef]);
