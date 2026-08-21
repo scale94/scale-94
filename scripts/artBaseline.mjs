@@ -389,7 +389,17 @@ async function captureScale(scale, manifest, expectFingerprint) {
         if (es && es.instances) {
           let h = 2166136261 >>> 0;
           const dv = new DataView(new ArrayBuffer(4));
-          for (let i = 0; i < es.instances.length; i++) {
+          // Only the GRAPH. worldCount is the instance index at which (NO
+          // BACKTICKS: this comment is inside a template literal) screen-space
+          // furniture begins — currently the conductor, whose
+          // thumb rides the Feigenbaum r and so varies continuously between
+          // runs that drew the identical graph. Hashing it made 12 of 21 cells
+          // refuse to certify at pixel correlations up to 0.9996. Falls back to
+          // the whole buffer for a build that does not publish the boundary,
+          // which is what every capture before step 7 did.
+          const wc = Number.isFinite(es.worldCount)
+            ? es.worldCount * es.stride : es.instances.length;
+          for (let i = 0; i < wc; i++) {
             dv.setFloat32(0, es.instances[i]);
             const u = dv.getUint32(0);
             h = (h ^ (u & 255)) >>> 0;        h = Math.imul(h, 16777619) >>> 0;
@@ -398,6 +408,7 @@ async function captureScale(scale, manifest, expectFingerprint) {
             h = (h ^ ((u >>> 24) & 255)) >>> 0; h = Math.imul(h, 16777619) >>> 0;
           }
           world = { hash: h.toString(16).padStart(8, '0'), edges: es.count,
+                    worldInstances: Number.isFinite(es.worldCount) ? es.worldCount : null,
                     e0: es.first ? [+es.first[0].toFixed(3), +es.first[1].toFixed(3)] : null };
         }
         return b ? { rot: b.rot, dragV: b.dragV, hovered: b.hovered,

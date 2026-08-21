@@ -1332,6 +1332,12 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             const o  = eg.count * EDGE_STRIDE;
             const ed = eg.data;
             ed[o] = pA.sx; ed[o + 1] = pA.sy; ed[o + 2] = pB.sx; ed[o + 3] = pB.sy;
+            // Float 17 is a disc's shadow colour. This writer sets explicit
+            // indices and the buffer is reused frame to frame, so a segment
+            // landing where a disc was would inherit its colour — invisible in
+            // the render (vIsDisc mixes it out) but NOT invisible to the world
+            // hash, which reads the raw buffer.
+            ed[o + 17] = 0;
             ed[o + 14] = lineWidth;
 
             if (isOrtho) {
@@ -1483,6 +1489,10 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             // only matters "because nothing looks at it" is one refactor away
             // from mattering.
             ad[o + 16] = 0;
+            // Same for float 17, and for the same reason field 16 is zeroed
+            // here: an instance that only matters "because nothing looks at
+            // it" is one refactor away from mattering.
+            ad[o + 17] = 0;
             ag.count++;
           };
 
@@ -2114,6 +2124,23 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       // not sphere geometry: the strip sits at the right edge, and the edge
       // shader writes clip space from CSS px against the same uResolution this
       // loop uses, so these coordinates cross over with no projection at all.
+      // WHERE THE WORLD ENDS. Everything written up to here is projected sphere
+      // geometry; everything after it is the conductor, which is screen-space
+      // furniture at a fixed right-edge strip and is not part of the graph.
+      //
+      // This exists because moving the conductor into this buffer BROKE the
+      // world hash, and the gate caught it: 12 of 21 cells refused to certify
+      // with "the runs drew different worlds" at pixel correlations of 0.98 to
+      // 0.9996, and the tell was that every failing cell had an identical edge
+      // count while every passing one had conductorY clamped to exactly 1. The
+      // thumb's position is a continuous function of the Feigenbaum r, and r
+      // drifts run to run; hashing it turned a discrete question — did these
+      // two runs draw the same graph? — into a floating-point one.
+      //
+      // The WRITER declares the boundary rather than the reader guessing it,
+      // exactly as discStart does one level up.
+      eg.worldCount = eg.count;
+
       const _cst = conductorState(collectiveRef.current,
         conductorForceRef.current?.dragging ?? conductorDragRef.current, w, h);
 
@@ -2618,6 +2645,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         // misaligned floats, which read as a live sphere with a dead hover.
         // A harness-side reader should keep importing EDGE_STRIDE directly.
         stride: EDGE_STRIDE,
+        // Instances that are the projected GRAPH. `instances` still carries
+        // everything, so an instrument can look at the conductor too — but a
+        // hash meant to answer "same world?" must stop here. See the note at
+        // the write site.
+        worldCount: e.worldCount,
         first: Array.from(e.data.slice(0, EDGE_STRIDE)),
         // The whole written range, so an instrument can find WHERE the rings
         // are and look at those pixels. Decoded harness-side against

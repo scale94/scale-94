@@ -347,7 +347,14 @@ export function createEdgeState(capacity = MAX_EDGES) {
     // check went from 39 motion-matched samples over 207px to 129 over 79640
     // and collapsed, on a frame where the rings themselves were fine. The
     // WRITER declares the boundary rather than the reader guessing it.
-    count: 0, rings: 0, discStart: 0, dropped: 0, w: 1, h: 1, orthoHue: 0,
+    // `worldCount` is the same idea one step further out: the instance count
+    // that is projected GRAPH, before any screen-space furniture. The
+    // conductor's strip is fixed to the right edge and its thumb rides a
+    // continuous parameter, so a hash over the whole buffer stops answering
+    // "did these two runs draw the same graph?" — see ArtTab's write site.
+    // Defaults to count when nobody sets it, so a caller that never writes
+    // furniture gets the whole buffer and nothing changes.
+    count: 0, rings: 0, discStart: 0, worldCount: 0, dropped: 0, w: 1, h: 1, orthoHue: 0,
     data: new Float32Array(capacity * EDGE_STRIDE),
   };
 }
