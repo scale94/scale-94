@@ -186,8 +186,29 @@ const glslFloat = (n) => (Number.isInteger(n) ? `${n}.0` : `${n}`);
 /** The same, for an rgb BYTE triple. */
 const glslRgb255 = (c) => `vec3(${c.map(v => glslFloat(v / 255)).join(', ')})`;
 
-/** Floats per edge instance. 17 since task 6b — see "The 17th float" above. */
-export const EDGE_STRIDE = 17;
+/** Floats per edge instance. 18 since step 7 — see "The 18th float" below. */
+export const EDGE_STRIDE = 18;
+
+/**
+ * THE 18th FLOAT — a disc's own shadow colour, and the stride bump the layout
+ * said the next float would cost.
+ *
+ * DISC_RESERVED went empty in step 6, so this is that bump, taken deliberately
+ * rather than by overloading a slot. What needed it: the conductor's peer-push
+ * glow is the FIRST shadowed disc this renderer draws — every writeDisc call
+ * site before it passes glow = 0 — and `ctx.fill()` under a shadow paints the
+ * shape in fillStyle and the blur in shadowColor, which on that layer are two
+ * different colours (50%/55% against 70%/50%). The source-over material derives
+ * a segment's shadow colour from vC1, but on a disc those three floats are
+ * falloffInner, midStop and outerK. There is nowhere for it to go.
+ *
+ * ONE float, not three, on the precedent packAlphas and packFlags already set:
+ * hue to 1 degree and s/l to 1% is 360 + 100*512 + 100*65536 = 6,605,160, well
+ * inside float32's exact-integer range, and every divisor below is a power of
+ * two so the round trip is lossless.
+ *
+ * A segment writes 0 here and reads nothing from it.
+ */
 
 /** The attribute layout above, as data: each field's offset in floats from an
  *  instance's base. Exported because the buffer has a READER as well as a
@@ -199,8 +220,24 @@ export const EDGE_STRIDE = 17;
 export const EDGE_OFF = Object.freeze({
   ax: 0, ay: 1, bx: 2, by: 3,
   c0: 4, c1: 7, c2: 10,
-  alphas: 13, width: 14, flags: 15, phase: 16,
+  alphas: 13, width: 14, flags: 15, phase: 16, shadow: 17,
 });
+
+/** Pack an HSL triple into one float. See "The 18th float". Exact both ways. */
+export function packHsl({ hue, sat, lit }) {
+  const h = Math.max(0, Math.min(360, Math.round(hue)));
+  const s = Math.max(0, Math.min(100, Math.round(sat)));
+  const l = Math.max(0, Math.min(100, Math.round(lit)));
+  return h + s * 512 + l * 65536;
+}
+
+/** The inverse, for the tests and for anything decoding a captured buffer. */
+export function unpackHsl(packed) {
+  const lit = Math.floor(packed / 65536);
+  const rem = packed - lit * 65536;
+  const sat = Math.floor(rem / 512);
+  return { hue: rem - sat * 512, sat, lit };
+}
 
 /** Hard cap on INSTANCES uploaded in a frame — edges and pulse rings share this
  *  buffer, so an edge can cost two. 31 core nodes give ~90 edges; the rest are
@@ -508,6 +545,12 @@ export function writeDisc(out, o, {
   // discs this file wrote before step 6 — asserted by a test, because "the old
   // path is untouched" is exactly the claim that rots silently.
   mid = null,
+  // The shadow's OWN colour, for a disc drawn under a ctx.shadowBlur. The blur
+  // RADIUS still travels in `flags` (packFlags' glow byte) like a segment's;
+  // this is only the colour, which a disc has no other slot for. Omit it and
+  // float 17 is written zero — and the glow term is switched off by
+  // step(0.001, vGlow) anyway, so a disc without a blur is unaffected.
+  shadowHsl = null,
   // The outer stop's extrapolation factor — see DISC_OFF.outerK. Defaults to 0,
   // which means "outer == mid": the conservative flat tail, so a caller that
   // omits it is never silently given a wrong colour.
@@ -532,6 +575,7 @@ export function writeDisc(out, o, {
     out[o + EDGE_OFF.c0 + 2] = rgb[2];
   }
   out[o + DISC_OFF.falloffInner] = falloffInner;
+  out[o + EDGE_OFF.shadow] = shadowHsl ? packHsl(shadowHsl) : 0;
   for (const k of DISC_RESERVED) out[o + k] = 0;
   if (mid) {
     out[o + DISC_OFF.midStop] = mid.at;
@@ -738,6 +782,10 @@ export function writePolyline(state, pts, m, rgb, alpha, width, flags, phase0 = 
     data[o + 14] = width;
     data[o + 15] = flags;
     data[o + 16] = phase;
+    // Float 17 is the disc shadow colour. A segment has none, and the buffer is
+    // reused frame to frame, so leaving it would hand the next instance to land
+    // here a stale colour.
+    data[o + 17] = 0;
     phase += Math.hypot(pts[i * 2 + 2] - pts[i * 2], pts[i * 2 + 3] - pts[i * 2 + 1]);
     state.count++;
     written++;
@@ -752,6 +800,60 @@ export function writePolyline(state, pts, m, rgb, alpha, width, flags, phase0 = 
 // directly from CSS px, which keeps the camera out of the parity argument.
 // uv.y and clip y run opposite to canvas y, hence the flip.
 
+/** The CSS Color 4 HSL-to-RGB reference algorithm, as a GLSL snippet. It used
+ *  to live only in the fragment shader; step 7 needs it in the vertex shader
+ *  too, to unpack a disc's shadow colour where the attribute is still exact.
+ *  Interpolating the PACKED float across the quad would not be: 6.6e6 sits
+ *  where a float32 ulp is 0.5, so a floor()/mod() unpack in the fragment could
+ *  land a hue one step out. Unpack early, vary the small numbers. */
+const HSL2RGB_GLSL = /* glsl */`
+  vec3 hsl2rgb(float h, float s, float l) {
+    float a = s * min(l, 1.0 - l);
+    vec3 k = mod(vec3(0.0, 8.0, 4.0) + h / 30.0, 12.0);
+    return l - a * clamp(min(k - 3.0, 9.0 - k), -1.0, 1.0);
+  }
+`;
+
+// ── The blurred DISC ────────────────────────────────────────────────────────
+//
+// A canvas shadow convolves the SHAPE with a gaussian of sigma = blur/2. For a
+// stroke the shader measures distance to the SEGMENT and uses the blurred-line
+// peak, w / (sigma*sqrt(2pi)). Neither survives on a disc:
+//
+//   - `dSeg` collapses to the radius, so the gaussian peaks at the CENTRE and
+//     is already down to exp(-2) = 13.5% at the rim. A blurred disc is nearly
+//     flat across its interior and falls off OUTSIDE the rim.
+//   - the line peak is a different law entirely. A disc's is exact and closed:
+//     B(0) = 1 - exp(-R^2 / 2 sigma^2).
+//
+// MEASURED against polar quadrature of the true convolution: the segment law
+// is wrong by up to 0.85 in absolute coverage on the radii this layer uses.
+//
+// The tail is an equivalent gaussian anchored on that exact peak,
+// exp(-r^2 / 2(sigma^2 + k R^2)). The moment-matched k is 0.25 (a uniform disc
+// has per-axis variance R^2/4) and gives a max error of 0.085; k fitted over
+// the range the caller actually occupies — R/sigma in [1.25, 2], i.e. the
+// conductor's 2.5 and 4 px thumbs against sigma 2 — gives 0.0289, which at
+// that layer's alpha of 0.1 is 0.74 of 255, i.e. below one 8-bit level.
+//
+// It is a FIT over that range, not a universal law, and it degrades outside it
+// (a large disc is flat-topped, not gaussian). discShadowFit() below is the JS
+// twin, and its test asserts both the range and the error against the same
+// numeric integral rather than against this comment.
+export const DISC_SHADOW_K = 0.37;
+
+/** The JS twin of the shader's disc-shadow term — the coverage a canvas
+ *  shadow of `blur` leaves at radius `r` from the centre of a filled disc of
+ *  radius `R`, before the stroke's own alpha and shadowColor's alpha. Exists so
+ *  the test can hold it against a numeric integral of the true convolution
+ *  rather than against the shader's comment. */
+export function discShadowFit(r, R, blur) {
+  const sig2 = blur * blur * 0.25;
+  const peak = 1 - Math.exp(-(R * R) / (2 * Math.max(sig2, 1e-6)));
+  const tailVar = sig2 + DISC_SHADOW_K * R * R;
+  return peak * Math.exp(-(r * r) / (2 * Math.max(tailVar, 1e-6)));
+}
+
 const EDGE_VERT = /* glsl */`
   attribute vec4 aEnds;
   attribute vec3 aC0;
@@ -759,6 +861,7 @@ const EDGE_VERT = /* glsl */`
   attribute vec3 aC2;
   attribute vec3 aPack;      // x = packed alphas, y = width px, z = packed flags
   attribute float aPhase;    // px into the dash pattern at this instance's A
+  attribute float aShadow;   // packed HSL of a disc's shadow colour; 0 on a segment
 
   uniform vec2  uResolution; // CSS px, matching the 2D draw loop's coordinates
   uniform float uGlowReach;
@@ -773,6 +876,7 @@ const EDGE_VERT = /* glsl */`
   varying float vLen;
   varying float vHalfW;
   varying vec2  vDash;
+  varying vec3  vShadowRGB;
   varying float vPhase;      // px of arc length from the PATH's start, at A
   varying float vGlow;
   varying float vIsOrtho;    // 0.0 or 1.0 — same for all 4 verts of an instance
@@ -792,6 +896,8 @@ const EDGE_VERT = /* glsl */`
   // three lightnesses are collinear in RGB, so the third colour is derived
   // rather than stored.
   varying float vOuterK;
+
+${HSL2RGB_GLSL}
 
   void main() {
     vec2 a = aEnds.xy;
@@ -833,10 +939,27 @@ const EDGE_VERT = /* glsl */`
     float isDisc = isDiscV;
     float halfW = abs(aPack.y) * 0.5;
 
+    // A disc's shadow colour, unpacked here where aShadow is still exact.
+    // Every divisor is a power of two, mirroring packHsl() in SphereEdges.js.
+    float sl = floor(aShadow / 65536.0);
+    float srem = aShadow - sl * 65536.0;
+    float ss = floor(srem / 512.0);
+    vShadowRGB = hsl2rgb(srem - ss * 512.0, ss / 100.0, sl / 100.0);
+
     // Pad for the antialiasing shoulder and for however far the glow reaches.
     // The quad is expanded along the segment as well as across it, because a
     // blur bleeds past a butt cap; the fragment shader puts the cap back.
-    float pad = halfW + 1.0 + glow * uGlowReach;
+    //
+    // A disc's glow reaches further than a segment's, because its tail variance
+    // carries the RADIUS as well as the blur. Falling below 1/255 of the peak
+    // needs r^2 > 2(g^2/4 + k R^2) ln(255), i.e. sqrt(2.77 g^2 + 4.1 R^2) at
+    // k = 0.37 — which exceeds halfW + 1 + 1.66g once R gets large, so the
+    // segment's pad would clip it. step() keeps a glowless disc EXACTLY where
+    // it was: every disc drawn before step 7 carries glow = 0, and a 3x wider
+    // quad on all thirteen of them would be a real change smuggled in here.
+    float discReach = step(0.001, glow)
+      * sqrt(2.77 * glow * glow + 4.1 * halfW * halfW);
+    float pad = halfW + 1.0 + mix(glow * uGlowReach, discReach, isDiscV);
 
     float along = mix(-pad, len + pad, position.x);
     float off   = position.y * pad;
@@ -879,6 +1002,13 @@ const SHADOW_SRC_OVER = /* glsl */`
     // the ortho shadow is hue+30 at fixed S/L, reconstructed here because it is
     // the one colour that has no home in the 16-float layout otherwise.
     vec3 shadowCol = mix(vC1, hsl2rgb(mod(uOrthoHue + ${glslFloat(ORTHO_HUE_STEP_GLOW)}, 360.0), 1.0, 0.6), vIsOrtho);
+
+    // A DISC carries its own shadow colour in float 17, and its ctx.shadowColor
+    // is an opaque hsl(), so both are overridden here. Every disc drawn before
+    // step 7 has glow = 0, where step(0.001, vGlow) zeroes the whole shadow
+    // term, so this cannot reach any of them.
+    shadowCol = mix(shadowCol, vShadowRGB, vIsDisc);
+    shadowAlpha = mix(shadowAlpha, 1.0, vIsDisc);
 `;
 
 // Additive: one flat style for the whole layer. The resonance core is the only
@@ -901,6 +1031,13 @@ const SHADOW_SRC_OVER = /* glsl */`
 const SHADOW_ADDITIVE = /* glsl */`
     float shadowAlpha = ${glslFloat(RESONANCE_SHADOW_ALPHA)};
     vec3 shadowCol = ${glslRgb255(RESONANCE_GOLD)};
+
+    // A DISC carries its own shadow colour in float 17, and its ctx.shadowColor
+    // is an opaque hsl(), so both are overridden here. Every disc drawn before
+    // step 7 has glow = 0, where step(0.001, vGlow) zeroes the whole shadow
+    // term, so this cannot reach any of them.
+    shadowCol = mix(shadowCol, vShadowRGB, vIsDisc);
+    shadowAlpha = mix(shadowAlpha, 1.0, vIsDisc);
 `;
 
 // The FINAL composite is the second thing the two materials cannot share, and
@@ -970,16 +1107,12 @@ varying float vIsDisc;
   varying vec4  vDiscMid;
   varying float vOuterK;
   varying vec4  vDisc;       // inner r, sweep start, sweep end, falloff inner
+  varying vec3  vShadowRGB;  // a disc's own shadow colour, unpacked in the vertex
 
-  // The CSS Color 4 reference algorithm, verbatim — the GLSL twin of
-  // writeHsl() in SphereEdges.js. Used only for the ortho shadow colour,
-  // whose saturation and lightness are compile-time constants (100%, 60%);
-  // only the hue is dynamic.
-  vec3 hsl2rgb(float h, float s, float l) {
-    float a = s * min(l, 1.0 - l);
-    vec3 k = mod(vec3(0.0, 8.0, 4.0) + h / 30.0, 12.0);
-    return l - a * clamp(min(k - 3.0, 9.0 - k), -1.0, 1.0);
-  }
+  // Shared with the vertex shader, which needs it to unpack vShadowRGB. Used
+  // here for the ortho shadow colour, whose saturation and lightness are
+  // compile-time constants (100%, 60%); only the hue is dynamic.
+${HSL2RGB_GLSL}
 
   void main() {
     // Screen-space footprint of the two varyings, taken FIRST: derivatives are
@@ -1165,7 +1298,20 @@ ${shadow}
     // / 0.50 / 1.00, fused 6.19 / 3.32 / 2.00 / 1.04 — i.e. 1/a too bright,
     // agreeing at a = 1 where 1/a is 1. See the Task 6c report.
     float peak = min(shadowAlpha * a * 1.5958 * vHalfW / max(vGlow, 1e-3), 1.0);
-    float glow = peak * exp(-2.0 * g * g) * step(0.001, vGlow);
+    float glowSeg = peak * exp(-2.0 * g * g);
+
+    // THE DISC's shadow — a different distance, a different peak and a
+    // different tail. See DISC_SHADOW_K. sigma = vGlow/2 throughout, so
+    // R^2/2sigma^2 is 2R^2/vGlow^2 and the tail variance is vGlow^2/4 + k R^2.
+    // The stroke alpha and shadowAlpha ride through for the reason given above:
+    // canvas shadow is the blurred SHAPE bitmap tinted by shadowColor.
+    float sig2 = vGlow * vGlow * 0.25;
+    float peakDisc = 1.0 - exp(-vHalfW * vHalfW / (2.0 * max(sig2, 1e-6)));
+    float tailVar = sig2 + ${glslFloat(DISC_SHADOW_K)} * vHalfW * vHalfW;
+    float glowDisc = shadowAlpha * a * peakDisc
+                   * exp(-(r * r) / (2.0 * max(tailVar, 1e-6)));
+
+    float glow = mix(glowSeg, glowDisc, vIsDisc) * step(0.001, vGlow);
 
     // Composite the core with the glow (two distinct colours, two distinct
     // alphas) rather than blending one flat colour by a combined coverage —
@@ -1293,6 +1439,7 @@ export function createEdgeLayer(sharedData, spec = SRC_OVER_LAYER) {
   // and the source-over mesh never writes it, so it reads a constant 0 and its
   // dash term is byte-for-byte the segment-local one it always had.
   geometry.setAttribute('aPhase', new THREE.InterleavedBufferAttribute(buffer, 1, 16));
+  geometry.setAttribute('aShadow', new THREE.InterleavedBufferAttribute(buffer, 1, 17));
   geometry.instanceCount = 0;
 
   const uniforms = {

@@ -102,7 +102,7 @@ import {
   chimeraDashOffset, CHIMERA_MIN_STRENGTH, CHIMERA_CP_PULL, CHIMERA_DASH,
   CHIMERA_SAT, CHIMERA_LIT, CHIMERA_MAX_ZONES,
 } from '../art/artEdges';
-import { stepAwakening, beaconRingState, drawConductor } from '../art/artAwakening';
+import { stepAwakening, beaconRingState, conductorState, CONDUCTOR } from '../art/artAwakening';
 import {
   riftTint, exergyAlpha, genesisGlowState, ambientIntensity, ghostTrailAlpha,
   stepFlash, FLASH_ALPHA, FLASH_CUTOFF,
@@ -173,6 +173,22 @@ const FUSION_THREAD_FLAGS = packFlags(
 const PROBE_TETHER_FLAGS = packFlags(
   PROBE_TETHER_DASH[0] + PROBE_TETHER_DASH[1], PROBE_TETHER_DASH[0], 0);
 const PROBE_FLAGS = packFlags(0, 0, 0);
+
+// ── Bifurcation Conductor ───────────────────────────────────────────────────
+// No dash and no glow on the thumb, track and fill bar; the peer-push disc is
+// the one instance on this branch that carries a blur. The glow byte is
+// quantised at 8 steps/px for the source-over mesh, so 4px lands exactly.
+const CONDUCTOR_FLAGS = packFlags(0, 0, 0);
+const CONDUCTOR_GLOW_FLAGS = packFlags(0, 0, CONDUCTOR.GLOW_BLUR);
+// The track's '#666', as the unit rgb the shader wants. CONDUCTOR.TRACK_RGB is
+// the byte triple that CSS literal means, and a test asserts the two agree
+// rather than leaving the equivalence to a comment.
+const CONDUCTOR_TRACK_RGB = Float32Array.from(CONDUCTOR.TRACK_RGB, (v) => v / 255);
+// The fill bar is a STROKE, so its colour travels through writePolyline's rgb
+// argument rather than writeDisc's hsl. One scratch triple, reused — this runs
+// inside the draw loop and must not allocate per frame.
+const _condRgb = new Float32Array(3);
+const hslUnitRgb = (c) => { writeHslRgb(_condRgb, 0, c); return _condRgb; };
 
 // Once per session, not once per frame: an overflowing frame overflows 60 times
 // a second and would bury the console it is trying to be visible in.
@@ -2089,16 +2105,64 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       }
 
       // ── Bifurcation Conductor (logic in artAwakening.js) ────────────────
-      // Counted from the state the draw actually returned, not re-derived from
-      // its conditions — three of these four sub-layers are in no capture
-      // state, so this census is the only thing that can say whether a
-      // reference image contained them.
-      const _cst = drawConductor(ctx, collectiveRef.current,
+      // Counted at the write itself, not re-derived from the conditions —
+      // three of these four sub-layers are in no capture state, so this census
+      // is the only thing that can say whether a reference image had them.
+      //
+      // Appended LAST in the source-over stream because that is where the 2-D
+      // canvas drew it, and source-over does not commute. It is screen space,
+      // not sphere geometry: the strip sits at the right edge, and the edge
+      // shader writes clip space from CSS px against the same uResolution this
+      // loop uses, so these coordinates cross over with no projection at all.
+      const _cst = conductorState(collectiveRef.current,
         conductorForceRef.current?.dragging ?? conductorDragRef.current, w, h);
-      _pcen.conductorThumb += _cst.drawn.thumb;
-      _pcen.conductorTrack += _cst.drawn.track;
-      _pcen.conductorFill  += _cst.drawn.fill;
-      _pcen.conductorGlow  += _cst.drawn.glow;
+
+      // 1. The thumb — a filled disc, and the only sub-layer any capture on
+      // this branch has ever contained. Dormant, it draws at alpha 0.03.
+      if (eg.count < MAX_EDGES) {
+        writeDisc(eg.data, eg.count * EDGE_STRIDE, {
+          cx: _cst.thumb.cx, cy: _cst.thumb.cy, rOuter: _cst.thumb.r,
+          hsl: _cst.thumb.hsl,
+          // 1.5-4px, so the shader's straight-edge box filter over-inks it by
+          // 1/12 px^2 — the same correction step 6 derived for particle cores.
+          alpha: _cst.thumb.alpha * discInkCorrection(_cst.thumb.r),
+          flags: CONDUCTOR_FLAGS,
+        });
+        eg.count++;
+        _pcen.conductorThumb++;
+      }
+
+      // 2. the track and 3. the fill bar — 1px vertical strokes. writePolyline
+      // reports what it actually wrote, so a full buffer shows up as a census
+      // of 0 rather than as a layer that silently is not there.
+      if (_cst.track) {
+        _pcen.conductorTrack += writePolyline(eg,
+          [_cst.track.x, _cst.track.y0, _cst.track.x, _cst.track.y1], 2,
+          CONDUCTOR_TRACK_RGB, _cst.track.alpha, _cst.track.width, CONDUCTOR_FLAGS);
+      }
+      if (_cst.fill) {
+        _pcen.conductorFill += writePolyline(eg,
+          [_cst.fill.x, _cst.fill.y0, _cst.fill.x, _cst.fill.y1], 2,
+          hslUnitRgb(_cst.fill.hsl), _cst.fill.alpha, _cst.fill.width,
+          CONDUCTOR_FLAGS);
+      }
+
+      // 4. The peer-push glow — the FIRST shadowed disc this renderer draws.
+      // ctx.fill() under a shadow paints the shape in fillStyle and the blur in
+      // shadowColor, which on this layer are two different colours, so the
+      // instance carries both: the core in c0 and the shadow in float 17. See
+      // "The 18th float" and DISC_SHADOW_K in SphereEdges.js.
+      if (_cst.glow && eg.count < MAX_EDGES) {
+        writeDisc(eg.data, eg.count * EDGE_STRIDE, {
+          cx: _cst.glow.cx, cy: _cst.glow.cy, rOuter: _cst.glow.r,
+          hsl: _cst.glow.hsl,
+          shadowHsl: _cst.glow.shadowHsl,
+          alpha: _cst.glow.alpha * discInkCorrection(_cst.glow.r),
+          flags: CONDUCTOR_GLOW_FLAGS,
+        });
+        eg.count++;
+        _pcen.conductorGlow++;
+      }
 
       // ── Bloom and vignette ────────────────────────────────────────────────
       // Both now happen on the GPU in SphereComposite, which takes this canvas
@@ -2547,6 +2611,13 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       const e = edgeGLRef.current, a = addGLRef.current;
       return {
         count: e.count, rings: e.rings, discStart: e.discStart, w: e.w, h: e.h,
+        // The stride the buffers below are actually written at. Published
+        // because an IN-PAGE reader cannot import it, and the alternative is a
+        // hand-copied literal: artSmoke carried `S = 17` at two decode sites
+        // and step 7's bump to 18 turned its edge hit-test into a scan of
+        // misaligned floats, which read as a live sphere with a dead hover.
+        // A harness-side reader should keep importing EDGE_STRIDE directly.
+        stride: EDGE_STRIDE,
         first: Array.from(e.data.slice(0, EDGE_STRIDE)),
         // The whole written range, so an instrument can find WHERE the rings
         // are and look at those pixels. Decoded harness-side against

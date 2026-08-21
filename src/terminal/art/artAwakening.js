@@ -242,8 +242,19 @@ export function conductorState(collectiveState, dragging, w, h) {
   };
 }
 
-/** Render `conductorState` to the 2-D canvas. The call sequence is frozen in
- *  artAwakening.test.js against a capture of the pre-refactor function. */
+/**
+ * Render `conductorState` to the 2-D canvas.
+ *
+ * THE APP NO LONGER CALLS THIS. Step 7 moved the conductor onto the GPU and
+ * ArtTab is down to two ctx. sites, neither of them a layer. It is kept, and
+ * kept tested, because it is the ORACLE: the call sequence frozen in
+ * artAwakening.test.js is a capture of the pre-refactor function, and it is the
+ * only executable record of what this layer looked like in 2-D. Deleting it
+ * would leave the GL port with nothing to be a port OF.
+ *
+ * If the layer's appearance is ever deliberately changed, change it here too
+ * and re-freeze the golden — a silently diverging oracle is worse than none.
+ */
 export function drawConductor(ctx, collectiveState, dragging, w, h) {
   const s = conductorState(collectiveState, dragging, w, h);
 

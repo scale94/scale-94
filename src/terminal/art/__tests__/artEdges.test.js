@@ -922,16 +922,23 @@ describe('writePolyline', () => {
 // rather than i x a constant.
 
 describe('the 17th float — layout', () => {
-  it('appends the phase without moving a single existing offset', () => {
+  it('appends the phase and the disc shadow without moving an existing offset', () => {
     // The whole argument for extending the stride rather than repacking: every
     // field the source-over mesh writes is where it always was, so its
     // instances are byte-identical in the fields it writes. Spelled out as
     // literals deliberately — this is the pin, not a restatement.
-    expect(EDGE_STRIDE).toBe(17);
+    //
+    // 17 became 18 in step 7. That bump was PREDICTED here and in artNodes'
+    // "spends the last reserved float" — DISC_RESERVED went empty in step 6 and
+    // both tests said the next float would cost a stride. It did: float 17 is a
+    // disc's own shadow colour, which the conductor's peer-push glow needs and
+    // which no existing slot could hold. Offsets 0-16 are unmoved, so every
+    // instance written before step 7 is byte-identical in every field it sets.
+    expect(EDGE_STRIDE).toBe(18);
     expect({ ...EDGE_OFF }).toEqual({
       ax: 0, ay: 1, bx: 2, by: 3,
       c0: 4, c1: 7, c2: 10,
-      alphas: 13, width: 14, flags: 15, phase: 16,
+      alphas: 13, width: 14, flags: 15, phase: 16, shadow: 17,
     });
   });
 

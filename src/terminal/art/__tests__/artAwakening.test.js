@@ -135,3 +135,32 @@ describe('conductorState — the geometry and the visibility law', () => {
       .toEqual({ thumb: 1, track: 0, fill: 0, glow: 0 });
   });
 });
+
+describe('the GL port reads the same colours the 2-D path did', () => {
+  it('means exactly #666 by the track RGB triple', () => {
+    // The 2-D path emits the CSS literal '#666' (frozen in the golden above);
+    // the GL path writes CONDUCTOR.TRACK_RGB / 255. Nothing makes those two
+    // agree except this assertion, so it is here rather than in a comment.
+    expect(CONDUCTOR.TRACK_RGB).toEqual([0x66, 0x66, 0x66]);
+    expect(CONDUCTOR.TRACK_RGB.map(v => v / 255))
+      .toEqual([0x66 / 255, 0x66 / 255, 0x66 / 255]);
+  });
+
+  it('keeps the glow blur inside the source-over mesh quantisation', () => {
+    // The glow byte is 7 bits at 8 steps/px, so the largest representable
+    // radius is 127/8 = 15.875. A 4px blur lands exactly on a step.
+    expect(CONDUCTOR.GLOW_BLUR * 8).toBe(Math.round(CONDUCTOR.GLOW_BLUR * 8));
+    expect(CONDUCTOR.GLOW_BLUR * 8).toBeLessThan(128);
+  });
+
+  it('keeps every disc radius inside the range the shadow fit was made for', () => {
+    // discShadowFit is a fit over R/sigma in [1.25, 2], not a universal law.
+    // The glow disc's radius is dotR + GLOW_PAD and sigma is GLOW_BLUR/2.
+    const sigma = CONDUCTOR.GLOW_BLUR / 2;
+    for (const dotR of [CONDUCTOR.DOT_R, CONDUCTOR.DOT_R_DRAG]) {
+      const ratio = (dotR + CONDUCTOR.GLOW_PAD) / sigma;
+      expect(ratio).toBeGreaterThanOrEqual(1.25);
+      expect(ratio).toBeLessThanOrEqual(2);
+    }
+  });
+});

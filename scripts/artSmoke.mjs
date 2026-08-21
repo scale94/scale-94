@@ -154,8 +154,8 @@ try {
 
   // Midpoints of the segments the GL layer drew this frame, in client coords,
   // furthest-from-any-node first. Decoded against SphereEdges.js's layout:
-  // EDGE_STRIDE 17, EDGE_OFF ax,ay,bx,by = 0..3 and width = 14, with isDisc()
-  // being width <= 0 — the halos, the cores and the pulse rings share this
+  // EDGE_OFF ax,ay,bx,by = 0..3 and width = 14, with isDisc() being
+  // width <= 0 — the halos, the cores and the pulse rings share this
   // buffer and none of them is a segment. The discs from `discStart` on are
   // the node halos and cores, so their centres are the nodes on screen and
   // there is no need for a second source for where the nodes are.
@@ -163,7 +163,7 @@ try {
     const s = window.__artEdgeState && window.__artEdgeState();
     if (!s) return null;
     const c = ${SPHERE}, r = c.getBoundingClientRect();
-    const d = s.instances, S = 17;
+    const d = s.instances, S = s.stride;
     const k = r.width / s.w;        // published CSS space -> live rect; normally 1
     const nodes = [];
     for (let i = s.discStart; i < s.count; i++) {
@@ -193,7 +193,7 @@ try {
     const s = window.__artEdgeState && window.__artEdgeState();
     if (!s) return null;
     const c = ${SPHERE}, r = c.getBoundingClientRect();
-    const d = s.instances, S = 17, k = r.width / s.w;
+    const d = s.instances, S = s.stride, k = r.width / s.w;
     // Confined to the sphere's own disc. A void point in the empty canvas
     // outside it only proves the cursor is not stuck on 'crosshair'; inside,
     // where every edge lives, it proves the hit-test discriminates by

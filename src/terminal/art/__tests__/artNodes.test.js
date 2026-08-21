@@ -33,6 +33,7 @@ import {
   createEdgeState, writeDisc, readDisc, discEncodingInvariant,
   discWidth, isDisc, packAlphas, packFlags,
   EDGE_OFF, EDGE_STRIDE, DISC_OFF, DISC_RESERVED,
+  packHsl, unpackHsl, discShadowFit, DISC_SHADOW_K,
 } from '../SphereEdges';
 import { edgeLineWidth } from '../artEdges';
 import { lerpColor } from '../../data/kernelColorMap';
@@ -563,8 +564,8 @@ describe('the disc branch encoding', () => {
     expect(DISC_OFF.falloffInner).toBe(EDGE_OFF.c1);
   });
 
-  it('needs NO extra stride', () => {
-    expect(EDGE_STRIDE).toBe(17);
+  it('fits inside the stride, which step 7 bumped to 18 for the disc shadow', () => {
+    expect(EDGE_STRIDE).toBe(18);
     const all = [...Object.values(DISC_OFF), ...DISC_RESERVED];
     for (const k of all) expect(k).toBeLessThan(EDGE_STRIDE);
   });
@@ -686,17 +687,26 @@ describe('the disc mid gradient stop', () => {
     // flat. Only the stop POSITION and the mid COLOUR needed reserved floats.
     expect(DISC_OFF.midStop).toBe(EDGE_OFF.c1 + 1);
     expect(DISC_OFF.midColor).toBe(EDGE_OFF.c2);
-    expect(EDGE_STRIDE).toBe(17);
+    // The stride is 18 since step 7's disc shadow — which is a different float
+    // for a different layer. The claim here is that step 6's alpha ramp cost
+    // NONE, and that stays true: both offsets above are inside the first 17.
+    expect(EDGE_STRIDE).toBe(18);
+    expect(DISC_OFF.midColor + 2).toBeLessThan(17);
   });
 
-  it('spends the last reserved float on the outer stop, and says so', () => {
+  it('spends the last reserved float on the outer stop, and paid the bump it promised', () => {
     // The layout reserved five floats "so a later step can take them without a
     // stride bump". Step 6 took all five: four for the mid stop and one for the
-    // outer stop's extrapolation factor. THE NEXT ONE COSTS A STRIDE BUMP, and
-    // this test is where that is written down.
+    // outer stop's extrapolation factor, and this test recorded that THE NEXT
+    // ONE COSTS A STRIDE BUMP.
+    //
+    // Step 7 is that next one, and it paid: 17 -> 18, for a disc's own shadow
+    // colour. Kept as the record of the promise being honoured rather than
+    // rewritten as though the bump had always been there — the reserved list is
+    // still empty, so the float AFTER this one costs another.
     expect(DISC_RESERVED).toEqual([]);
     expect(DISC_OFF.outerK).toBe(EDGE_OFF.c1 + 2);
-    expect(EDGE_STRIDE).toBe(17);
+    expect(EDGE_STRIDE).toBe(18);
   });
 
   it('derives the outer colour rather than storing it', () => {
@@ -739,5 +749,108 @@ describe('the disc mid gradient stop', () => {
     const d = readDisc(state.data, 0);
     expect(d.mid.rgb.every((c) => c >= 0 && c <= 1)).toBe(true);
     expect(d.mid.rgb[2]).toBeGreaterThan(d.mid.rgb[0]);   // a blue hue
+  });
+});
+
+// ── Step 7: the 18th float, and the blurred disc ────────────────────────────
+
+describe('packHsl — the disc shadow colour in one float', () => {
+  it('round-trips every corner of the domain exactly', () => {
+    for (const hue of [0, 1, 30, 210, 359, 360]) {
+      for (const sat of [0, 1, 50, 70, 100]) {
+        for (const lit of [0, 1, 50, 55, 100]) {
+          expect(unpackHsl(packHsl({ hue, sat, lit }))).toEqual({ hue, sat, lit });
+        }
+      }
+    }
+  });
+
+  it('stays inside float32 exact-integer range', () => {
+    // The whole argument for one float instead of three: the largest payload is
+    // 360 + 100*512 + 100*65536, comfortably under 2^24, so every floor() and
+    // mod() in the vertex shader is exact.
+    expect(packHsl({ hue: 360, sat: 100, lit: 100 })).toBe(6605160);
+    expect(packHsl({ hue: 360, sat: 100, lit: 100 })).toBeLessThan(2 ** 24);
+  });
+
+  it('clamps rather than wrapping, so a bad hue cannot alias onto a good one', () => {
+    expect(unpackHsl(packHsl({ hue: -5, sat: 200, lit: -1 })))
+      .toEqual({ hue: 0, sat: 100, lit: 0 });
+  });
+
+  it('is written by writeDisc only when a shadow colour is given', () => {
+    const st = createEdgeState(4);
+    writeDisc(st.data, 0, { cx: 1, cy: 2, rOuter: 3, hsl: { hue: 0, sat: 0, lit: 50 }, alpha: 1 });
+    expect(st.data[EDGE_OFF.shadow]).toBe(0);
+    writeDisc(st.data, 0, { cx: 1, cy: 2, rOuter: 3, hsl: { hue: 0, sat: 0, lit: 50 }, alpha: 1,
+      shadowHsl: { hue: 210, sat: 70, lit: 50 } });
+    expect(unpackHsl(st.data[EDGE_OFF.shadow])).toEqual({ hue: 210, sat: 70, lit: 50 });
+  });
+});
+
+describe('discShadowFit — a canvas shadow on a FILLED DISC', () => {
+  // Ground truth: the true convolution of a uniform disc with a gaussian of
+  // sigma = blur/2, by polar quadrature. Held against the fit rather than
+  // against the shader's comment, on step 6's precedent (discInkCorrection is
+  // asserted against a numeric integral too).
+  const truth = (r, R, s, N = 400, M = 360) => {
+    let sum = 0;
+    const du = R / N, dth = (2 * Math.PI) / M;
+    for (let i = 0; i < N; i++) {
+      const u = (i + 0.5) * du;
+      let inner = 0;
+      for (let j = 0; j < M; j++) {
+        const th = (j + 0.5) * dth;
+        inner += Math.exp(-(r * r + u * u - 2 * r * u * Math.cos(th)) / (2 * s * s));
+      }
+      sum += inner * dth * u * du;
+    }
+    return sum / (2 * Math.PI * s * s);
+  };
+
+  it('has an EXACT peak — that half is closed form, not a fit', () => {
+    for (const [R, blur] of [[2.5, 4], [4, 4], [8, 4]]) {
+      expect(discShadowFit(0, R, blur))
+        .toBeCloseTo(1 - Math.exp(-(R * R) / (2 * (blur / 2) ** 2)), 12);
+      expect(discShadowFit(0, R, blur)).toBeCloseTo(truth(0, R, blur / 2), 3);
+    }
+  });
+
+  it('tracks the true profile to under 0.03 over the range the conductor uses', () => {
+    // R = dotR + GLOW_PAD is 2.5 or 4 px against sigma = 2, so R/sigma lies in
+    // [1.25, 2]. At the layer's alpha of 0.1 an error of 0.03 is 0.77 of 255 —
+    // below one 8-bit level, which is the bar this has to clear.
+    let worst = 0;
+    for (const R of [2.5, 3, 3.5, 4]) {
+      for (let k = 0; k <= 10; k++) {
+        const r = k * 2.5 * R / 10;
+        worst = Math.max(worst, Math.abs(discShadowFit(r, R, 4) - truth(r, R, 2)));
+      }
+    }
+    expect(worst).toBeLessThan(0.03);
+  });
+
+  it('beats the SEGMENT law it replaces by an order of magnitude', () => {
+    // The segment law measures distance from the disc CENTRE and uses the
+    // blurred-LINE peak. This is the measurement that justified the stride bump.
+    const segLaw = (r, R, blur) =>
+      Math.min(1.5958 * R / blur, 1) * Math.exp(-2 * (r / blur) ** 2);
+    let fitErr = 0, segErr = 0;
+    for (const R of [2.5, 4]) {
+      for (let k = 0; k <= 10; k++) {
+        const r = k * 2.5 * R / 10;
+        const t = truth(r, R, 2);
+        fitErr = Math.max(fitErr, Math.abs(discShadowFit(r, R, 4) - t));
+        segErr = Math.max(segErr, Math.abs(segLaw(r, R, 4) - t));
+      }
+    }
+    expect(segErr).toBeGreaterThan(0.25);
+    expect(fitErr).toBeLessThan(segErr / 8);
+  });
+
+  it('names its fitted constant rather than burying it in the shader', () => {
+    // 0.37, not the moment-matched 0.25 — see the note above DISC_SHADOW_K.
+    // Pinned so a future edit has to change it deliberately.
+    expect(DISC_SHADOW_K).toBe(0.37);
   });
 });
