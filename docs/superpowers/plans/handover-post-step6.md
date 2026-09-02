@@ -1,3 +1,6 @@
+**SUPERSEDED by `handover-post-step7.md`.** Kept because it holds the
+step-6 account and the conductor pre-flight. Start from the newer file.
+
 Continue the /art sphere Canvas2D→WebGL migration on `fix/art-sphere-index-space`
 (F:\scale_9.4).
 
