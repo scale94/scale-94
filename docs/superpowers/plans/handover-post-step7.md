@@ -1,3 +1,7 @@
+**SUPERSEDED by `handover-post-step7-fixes.md`.** Kept because it holds the
+step-7 account. Its five open items are all still open; start from the newer
+file, which carries them forward with what three fixes since have changed.
+
 Continue the /art sphere Canvas2D→WebGL migration on `fix/art-sphere-index-space`
 (F:\scale_9.4). Supersedes `handover-post-step6.md`.
 
