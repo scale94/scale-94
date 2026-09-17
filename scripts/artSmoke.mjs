@@ -263,6 +263,78 @@ try {
   const after = await page.screenshot({ clip: sphereClip });
   check('5 drag rotates the sphere', !before.equals(after));
 
+  // 5b/5c. A ROTATE-DRAG THAT ENDS ON A NODE MUST NOT FIRE IT.
+  //
+  // handleMouseUp's "was this a click?" test measured against
+  // dragRef.current.lastX/lastY, which handleMouseMove overwrites on every
+  // move while the drag is live — so it asked how far the pointer moved since
+  // the LAST MOUSEMOVE, which is a pixel or two for any gesture of any length.
+  // Drags of 12px and 30px released over a node fired it, readout and all.
+  // What limited it was only whether the rotation had carried a node out of
+  // nodeAt's reach before the button came up, which is why no gate caught it.
+  //
+  // The positive control is the point: `rings` staying 0 proves nothing unless
+  // a real click at the same moment makes it non-zero, and this branch has
+  // scored perfect parity on an absent layer six times.
+  const NODE_POINTS = `(() => {
+    const s = window.__artEdgeState && window.__artEdgeState();
+    if (!s) return null;
+    const c = ${SPHERE}, r = c.getBoundingClientRect();
+    const d = s.instances, S = s.stride, k = r.width / s.w;
+    const seen = [], out = [];
+    for (let i = s.discStart; i < s.count; i++) {
+      const o = i * S; if (d[o + 14] > 0) continue;
+      const x = d[o], y = d[o + 1];
+      if (seen.some(q => Math.hypot(q[0] - x, q[1] - y) < 24)) continue;
+      seen.push([x, y]);
+      if (x < 80 || y < 40 || x > s.w - 40 || y > s.h - 40) continue;  // room to drag in from
+      out.push({ x: Math.round(r.left + x * k), y: Math.round(r.top + y * k) });
+    }
+    return out;
+  })()`;
+  const ringsOver = async (ms) => {
+    let peak = 0;
+    for (let t = 0; t < ms; t += 100) {
+      await sleep(100);
+      const st = await page.eval('(window.__artEdgeState && window.__artEdgeState().rings) || 0');
+      peak = Math.max(peak, Number(st) || 0);
+    }
+    return peak;
+  };
+
+  let dragFired = null, dragDetail = 'no node with room to drag into';
+  for (let attempt = 1; attempt <= 8 && dragFired === null; attempt++) {
+    const pts = await page.eval(NODE_POINTS);
+    if (!pts || !pts.length) { await sleep(80); continue; }
+    const p = pts[attempt % pts.length];
+    const d = await page.drag(p.x - 30, p.y, p.x, p.y, 10);
+    // The drag's last move already ran handleMouseMove, which sets the cursor
+    // from nodeAt — so this is a direct read that a node IS under the release
+    // point, taken before the button comes up rather than assumed after.
+    const onNode = (await page.eval(CURSOR)) === 'pointer';
+    await d.release();
+    if (!onNode) { dragDetail = 'drag did not land on a node'; await sleep(200); continue; }
+    const peak = await ringsOver(1500);
+    dragFired = peak > 0;
+    dragDetail = `30px drag released on a node, peak rings=${peak}`;
+  }
+  check('5b a rotate-drag released on a node does not fire it', dragFired === false, dragDetail);
+
+  // The control: rings must be reachable from a real click right here, or 5b
+  // is measuring a layer that is simply not on screen.
+  let ctrlPeak = 0, ctrlDetail = 'no node found for the control click';
+  for (let attempt = 1; attempt <= 8 && ctrlPeak === 0; attempt++) {
+    const pts = await page.eval(NODE_POINTS);
+    if (!pts || !pts.length) { await sleep(80); continue; }
+    const p = pts[attempt % pts.length];
+    await page.hover(p.x, p.y);
+    if ((await page.eval(CURSOR)) !== 'pointer') { await sleep(80); continue; }
+    await page.click(p.x, p.y);
+    ctrlPeak = await ringsOver(2000);
+    ctrlDetail = `click on a node, peak rings=${ctrlPeak}`;
+  }
+  check('5c control — a real click on the same layer DOES fire it', ctrlPeak > 0, ctrlDetail);
+
   // 6. shift-click with resonance armed
   const armed = await page.eval(clickByText('resonance'));
   if (armed && hit) {

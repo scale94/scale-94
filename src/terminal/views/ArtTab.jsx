@@ -2787,7 +2787,14 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         return;
       }
     }
-    dragRef.current = { active: true, lastX: e.clientX, lastY: e.clientY, vx: 0, vy: 0 };
+    // `startX/startY` is the PRESS ORIGIN and `lastX/lastY` is the previous
+    // move — two different questions, and mouseup needs the first one. The
+    // touch path has carried both since it was written; this one did not, and
+    // handleMouseUp was measuring a gesture against the wrong number.
+    dragRef.current = {
+      active: true, lastX: e.clientX, lastY: e.clientY, vx: 0, vy: 0,
+      startX: e.clientX, startY: e.clientY,
+    };
   }, [canvasCoords, conductorHit, setConductor]);
 
   const handleMouseMove = useCallback((e) => {
@@ -2863,9 +2870,17 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       return;
     }
     dragRef.current.active = false;
-    // Check if this was a click (not a drag)
-    const dx = e.clientX - dragRef.current.lastX;
-    const dy = e.clientY - dragRef.current.lastY;
+    // Check if this was a click (not a drag) — against the PRESS ORIGIN.
+    //
+    // This measured against `lastX/lastY`, which handleMouseMove overwrites on
+    // every move while the drag is live, so it asked "how far did the pointer
+    // travel since the last mousemove" — a number that is a pixel or two for
+    // any gesture, however long. MEASURED before the fix: rotate-drags of 12px
+    // and 30px released over a node both fired it, rings and readout and all.
+    // What limited the damage was not this test but whether the rotation had
+    // carried a node out of nodeAt's reach by the time the button came up.
+    const dx = e.clientX - (dragRef.current.startX ?? e.clientX);
+    const dy = e.clientY - (dragRef.current.startY ?? e.clientY);
     if (Math.abs(dx) < 4 && Math.abs(dy) < 4) {
       const p    = canvasCoords(e.clientX, e.clientY);
       if (!p) return;
