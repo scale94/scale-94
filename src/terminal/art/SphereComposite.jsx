@@ -26,7 +26,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
 
-import { compositeDpr, COMPOSITE_STYLE, BLOOM, VIGNETTE } from './artComposite';
+import { compositeDpr, glBufferSettled, COMPOSITE_STYLE, BLOOM, VIGNETTE } from './artComposite';
 import {
   COLOR_GLSL, BACKGROUND_GLSL, backgroundUniforms, syncBackgroundUniforms,
   riftUniform, syncRiftUniform,
@@ -403,9 +403,16 @@ function SizeSync({ sourceRef, wrapRef }) {
     // has attached its observer and is then never retried, which left the
     // renderer at 14x6 while the wrapper was correctly 1446x580. Retrying until
     // the renderer actually agrees makes this self-healing.
+    //
+    // "Agrees" is to within a device pixel, not exactly: three writes
+    // `Math.floor(fractionalWidth * ratio)` and the only width readable here is
+    // an integer `clientWidth`, so exact equality is unsatisfiable at half-pixel
+    // products and the retry never stopped. See glBufferSettled.
     const ratio = gl.getPixelRatio();
-    if (gl.domElement.width === Math.round(w * ratio)
-     && gl.domElement.height === Math.round(h * ratio)) { tick.current = 0; return; }
+    if (glBufferSettled(gl.domElement.width, gl.domElement.height, w, h, ratio)) {
+      tick.current = 0;
+      return;
+    }
 
     if (wrap.style.width !== `${w}px` || wrap.style.height !== `${h}px`) {
       wrap.style.width = `${w}px`;

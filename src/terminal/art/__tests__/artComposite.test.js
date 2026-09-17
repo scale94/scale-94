@@ -8,7 +8,7 @@
 
 import { describe, it, expect } from 'vitest';
 import {
-  compositeDpr, LAYER_Z, COMPOSITE_STYLE, BLOOM, VIGNETTE,
+  compositeDpr, glBufferSettled, LAYER_Z, COMPOSITE_STYLE, BLOOM, VIGNETTE,
 } from '../artComposite';
 
 describe('compositeDpr', () => {
@@ -26,6 +26,54 @@ describe('compositeDpr', () => {
     expect(compositeDpr(-2)).toBe(1);
     expect(compositeDpr(undefined)).toBe(1);
     expect(compositeDpr(NaN)).toBe(1);
+  });
+});
+
+describe('glBufferSettled — when SizeSync is allowed to stop asking', () => {
+  // SizeSync drives r3f's own resize path and retries until the renderer
+  // agrees. The predicate it retries against has to be the number three.js can
+  // actually produce: WebGLRenderer.setSize writes
+  //   canvas.width = Math.floor( width * pixelRatio )
+  // and this asked for Math.round(clientWidth * ratio). Wherever that product
+  // lands on a half pixel the two differ by one for ever and the component
+  // dispatches a page-wide resize every ten frames for as long as the tab is
+  // open — MEASURED at window 1521 @1.5 and 1522 @1.25, ~20 events a second.
+  //
+  // The match is EXACT on purpose; see the note in artComposite.js. A one-pixel
+  // tolerance was tried and measurably changed the artwork.
+
+  it('settles when the buffer is exactly what setSize would write', () => {
+    expect(glBufferSettled(2169, 870, 1446, 580, 1.5)).toBe(true);
+    expect(glBufferSettled(1446, 580, 1446, 580, 1)).toBe(true);
+  });
+
+  it('settles on the half-pixel products that made it spin for ever', () => {
+    // 1447 x 1.5 = 2170.5: three floors to 2170, the old check rounded to 2171.
+    expect(glBufferSettled(2170, 870, 1447, 580, 1.5)).toBe(true);
+    // 1447 x 1.25 = 1808.75: floor 1808, round 1809.
+    expect(glBufferSettled(1808, 725, 1447, 580, 1.25)).toBe(true);
+    // And the immersive size at the same ratio, which is a different number
+    // from the normal one — which is why the toggle can change the answer.
+    expect(glBufferSettled(2281, 1350, 1521, 900, 1.5)).toBe(true);
+  });
+
+  it('does NOT settle for a buffer one pixel short — that one resamples', () => {
+    // The texel-for-texel contract DPR_CAP exists for. Accepting this cost
+    // every prism sub-layer ~5% of its ink and put the star spoke's presence
+    // check under its threshold. Keep retrying: it is reachable, and reached.
+    expect(glBufferSettled(2168, 870, 1446, 580, 1.5)).toBe(false);
+    expect(glBufferSettled(2169, 869, 1446, 580, 1.5)).toBe(false);
+  });
+
+  it('does NOT settle for the stuck first-layout buffer this exists to heal', () => {
+    // The renderer measured its container at 14x6 during first layout and
+    // stayed there while the wrapper was correctly 1446x580.
+    expect(glBufferSettled(14, 6, 1446, 580, 1)).toBe(false);
+  });
+
+  it('does NOT settle when only one axis has landed', () => {
+    expect(glBufferSettled(2169, 6, 1446, 580, 1.5)).toBe(false);
+    expect(glBufferSettled(14, 870, 1446, 580, 1.5)).toBe(false);
   });
 });
 
