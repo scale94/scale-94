@@ -32,6 +32,20 @@ const CHROME_CANDIDATES = [
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
+// ONE PORT PER LAUNCH, not one per process.
+//
+// This was `9333 + (process.pid % 400)` evaluated as a default argument, which
+// is a constant within a process — so every Chrome a script launched was told
+// to listen on the same port. artPresence makes six launches in a row, closing
+// each before opening the next, and Windows does not always have the previous
+// listener torn down by the time the next one binds: the new Chrome fails to
+// take the port, nothing answers /json/list, and 30s later the run dies with
+// "No CDP page target". MEASURED: five runs lost in one session, at the 2nd,
+// 4th, 4th and 6th launch — a different one each time, which is what a race
+// looks like and is why it read as "a Chrome flake".
+let portSeq = 0;
+const nextPort = () => 9333 + ((process.pid + portSeq++) % 400);
+
 async function findChrome() {
   const { existsSync } = await import('node:fs');
   const hit = CHROME_CANDIDATES.find(p => existsSync(p));
@@ -60,7 +74,7 @@ export async function launch({
   width = 1520,
   height = 900,
   dpr = 1,
-  port = 9333 + (process.pid % 400),
+  port = nextPort(),
   headless = true,
   deterministic = false,   // install the frame/RNG/clock shim before any page script
 } = {}) {
