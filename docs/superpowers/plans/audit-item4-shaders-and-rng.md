@@ -477,7 +477,11 @@ Not done, and still open:
   `main` untouched at `a54ea3e`. A push needs a new explicit command.
 - Item 1 not attempted. §6 is a lead, not a result.
 - 12 of the ~20 commits item 4 names remain unreviewed (list at the top).
-- The `baseline/` (161 dirs) and `scripts/_*` (77 files) sweep is not started.
+- The sweep is **DONE** (2026-09-18): 77 baseline sets, 35 instruments and one
+  stray file removed, 342.8 MB; 90 sets and 38 instruments kept, `_prismMeasure`
+  and `_nullPatch` among them. The keep set was derived from the records, and
+  three rules had to be added on the way — stem matching, series integrity, and
+  `repro.dirs` awareness. Details in the ledger, `item4-audit-report.md` §9.
 - §5a's stale `beaconIdx` comment and §5b's per-render draw — both untouched;
   §5b changes the world and is the author's call, not a tidy-up.
 - §4's flush-left `varying float vIsDisc;` — left alone rather than spend a

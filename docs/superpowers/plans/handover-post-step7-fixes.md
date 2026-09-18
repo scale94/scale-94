@@ -217,7 +217,20 @@ killed twice), `cbf22f1` from a parallel session, step 5 tasks 1–8, and
 artwork draws its randomness from — then `dd4bf46` and `e09ad1e`, the two shader
 changes, then `0fdae8d`, which changes when the renderer stops resizing.
 
-Then sweep 161 `baseline/` dirs and 72 `scripts/_*`. Keep the instruments the
+**THE SWEEP IS DONE, 2026-09-18** — 77 baseline sets, 35 instruments and one
+stray `scratch_head.txt` removed, 342.8 MB; 90 baseline sets and 38 instruments
+kept. The keep set was DERIVED from the records rather than taken from the list
+below, and three rules had to be added because a literal name match would have
+deleted evidence: **stem matching** (`progress.md` names replicate groups as
+`s6ref`/`s8ref`, never `s6ref-a` — that is the 1-in-20 three-scale statistic this
+handover quotes), **series integrity** (`t3f-1..4` is one null, so keeping only
+the member a sentence named destroys it), and **`repro.dirs` awareness** —
+`artInk`'s new floor and `artCompare`'s certificate both read those directories,
+so sweeping one now silently costs its set the floor it was certified against.
+Verified after: `artCompare` still reads 19/21 admissible and both ink floors
+still resolve. The list below is kept as the record of what was protected.
+
+Sweep the 161 `baseline/` dirs and 72 `scripts/_*`. Keep the instruments the
 records reference: `_t8align`, `_t8immRot`, `_nodeShot`, `_t7tail`, `_t6ghost`,
 `_t5rings`, `_t3disc`, `_crop`, `_t9matrix`, `_t9trace` (takes `W H DPR`),
 `_t9tracediff`, `_t9frames`, `_t9cross`, `_t9force`, `_t9shotnull`, `_t9resize`,
