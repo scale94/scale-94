@@ -116,10 +116,35 @@ export const COMPOSITE_STYLE = {
 // trail accumulator before this pass runs, and that belongs to the immersive
 // trail gain (artTrail.js, RIFT_ALPHA 0.72 normal against 0.32 immersive) rather
 // than to anything in this file.
+//
+// ── `intensity` 1.1 -> 0.6, chosen ON the frames at five levels ────────────
+//
+// Cutting the pyramid to five turned this into a CLEAN, ISOLATED control, which
+// it was not before. MEASURED across 1.1/1.0/0.8/0.6/0.4 at five levels, same
+// pinned world, against the same bloom-off frame:
+//
+//     far field 96-200 px   x1.001  x1.023  x1.004  x1.003  x0.993
+//     p90 of the artwork    identical at every value, and to bloom-off
+//     halo at 24-32 px     0.06029 0.05813 0.05344 0.04814 0.04200
+//     clipped px (>=254)      1434    1424    1379    1314    1269
+//
+// The far field and p90 do not move with intensity at all now, so this dial
+// only touches the near glow -- before the levels cut it was moving the wash
+// and the glow together, and no value of it could separate them.
+//
+// 0.6 keeps 63% of the old added glow at 24-32 px and takes 21% off the bloom's
+// contribution to clipping. It cannot go below 869, which is the ink.
+//
+// The author chose it by eye on `lookbook/bloom-fired-lv5-intensity-strip.png`,
+// AT DPR 1, which he confirmed is the target installation. That matters and is
+// not a detail: the pyramid is measured in DEVICE pixels, so the reach of five
+// levels in CSS pixels scales inversely with devicePixelRatio, and `compositeDpr`
+// caps at 1.5. A value picked on a 1.5x display would land ~1.5x wider on the
+// exhibit's 1x projector. Picked at 1x, it transfers.
 export const BLOOM = {
   luminanceThreshold: 0.28,
   luminanceSmoothing: 0.9,
-  intensity: 1.1,
+  intensity: 0.6,
   mipmapBlur: true,
   radius: 0.7,
   levels: 5,
