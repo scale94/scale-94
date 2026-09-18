@@ -225,7 +225,20 @@ records reference: `_t8align`, `_t8immRot`, `_nodeShot`, `_t7tail`, `_t6ghost`,
 `_lookbook`, and from this session **`_y5sync`** (published-vs-drawn overlay
 sync, the good one), `_x6sizesync` and `_x7storm` (the resize-settle counters
 that found `0fdae8d`), `_x9dragsmall` (the drag/click isolation) and
-`_x_pngwrite` (a PNG encoder; `_png.mjs` only decodes). `artFreezeProbe.js` has
+`_x_pngwrite` (a PNG encoder; `_png.mjs` only decodes).
+
+**`_prismMeasure` and `_nullPatch` are KEEP, and sweeping them would close item 3
+permanently.** They are the only instruments that can produce either half of the
+spoke's 1.098 — `_prismMeasure` is where `artPresence`'s PRISM GEOMETRY band
+statistic was developed and is what measured the GL and 2-D columns, and
+`_nullPatch` is the suppression rig those columns were measured through. Neither
+was in this list before the item-4 audit noticed it. **`_nullPatch` WRITES TO
+`src/terminal/art/SphereEdges.js`** — it splices a width-gated `discard` into
+`COMPOSITE_ADDITIVE` — so a session that dies while it is applied leaves the
+shader patched in tracked source. Check `git status` after using it; `node
+scripts/_nullPatch.mjs off` reverts.
+
+`artFreezeProbe.js` has
 no `_` prefix on purpose — it is the author-facing DevTools probe and should not
 be swept. Keep as evidence until the reports settle: `s6bis-*`, `s6t23-*`,
 `t3w-*`/`t3r-*`, `s9ref-b..e`, `s7ref-b..e`, `s7cond-*` (the world-hash failure),
@@ -339,16 +352,49 @@ say so explicitly in the ledger rather than letting it lapse.
 - Never run vitest with `-u`. Never `git add -A`. Re-read anything in `scripts/`
   before editing it.
 
-## GATES (all green at `0fdae8d`, verified 2026-09-18)
+## GATES (all green, re-verified 2026-09-18 after the item-4 audit)
 
 ```
-npx vitest run          1278 passed / 115 files
+npx vitest run          1279 passed / 115 files   (1278 at 0fdae8d; +1 is the
+                        writePolyline stride test — see below)
 npm run lint            0 errors, 145 warnings (ratchet 153 — a new warning is YOURS)
 npm run build           clean
 node scripts/artSmoke.mjs        12/12   (5b/5c are new — the drag/click regression)
 node scripts/artPresence.mjs     19/19   (twice)
 node scripts/_s7probe.mjs        11/11   (needs the dev server)
 ```
+
+**Three instrument changes from the item-4 audit, committed on this branch and
+NOT pushed.** Full findings in
+`docs/superpowers/plans/audit-item4-shaders-and-rng.md`.
+
+- **`artEdges.test.js` — the writePolyline stride test.** `writePolyline` spells
+  its fields as LITERAL offsets while only the base uses `EDGE_STRIDE`, so the
+  next stride bump would leave a stale float in a reused slot and no gate could
+  see it. The test fills the buffer with a sentinel and names any offset in
+  `[0, EDGE_STRIDE)` that survives. Proven to catch it: comment out
+  `data[o + 17] = 0` and it fails naming float 17 on all three instances.
+- **`artBaseline.mjs` — the renderer is PROBED now, not asserted.** The manifest
+  carried a hardcoded "software GL / SwiftShader" string. It was false:
+  `WEBGL_debug_renderer_info` reads **`ANGLE (NVIDIA, NVIDIA GeForce RTX 4070 Ti
+  … Direct3D11, D3D11)`**. Probed last, after every shot, so its `page.eval`
+  yield cannot move a picture; recorded per scale and once at the top, with the
+  command line moved to `launchFlags` where it belongs. Note `gitCommit` is still
+  `null` in every manifest — nothing sets `BASELINE_COMMIT`, so no set records
+  which build it is.
+- **`artInk.mjs` — every ratio now prints its SAME-BUILD FLOOR.** `artNull`
+  certifies luminance CORRELATION; `artInk` measures summed INK; the certificate
+  never said anything about the second. Measured: three sets of ONE build read
+  0.972 at laptop@1x `immersive-on` and 1.030 at projector `idle` — the latter at
+  an *agreeing world hash* with a passing null, 45,534 lit pixels against 31,385.
+  The floor comes from `repro.dirs`, which `artNull` already stamps, so no new
+  captures are needed. `--null a,b,c` overrides, `--no-null` turns it off.
+  **Consequence for item 2, and it cuts both ways:** the mode ROLLUP clears its
+  floor at all three scales (1.013/1.020/1.025 against ±0.009/±0.005/±0.008), so
+  the excess is real — but per cell the same comparison reads **20 SIGNAL, 22
+  noise of 42 rows**. `idle`, `hover`, `mid-drag` and `resonance` at laptop@1x
+  and projector are indistinguishable from re-running the same build. The excess
+  is `fired-cascade` + laptop@2x + laptop@1x immersive, not a uniform band.
 
 `npm run lint` is `eslint . --ext js,jsx` and **does not lint `.mjs` at all** —
 `scripts/` has never been in the lint gate. It DOES lint `scripts/**/*.js` as
