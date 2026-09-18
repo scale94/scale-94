@@ -163,10 +163,20 @@ async function findNodes(page, rect, { cols = 9, rows = 5, max = 1, onFound = nu
   return hits;
 }
 
+const slug = (x) => String(x).replace('.', 'p');
+const findKey = (src, key) => src.match(new RegExp('(\\n\\s*' + key + ':\\s*)([0-9.]+)(,)'));
+
 const original = readFileSync(SRC, 'utf8');
-const m = original.match(new RegExp('(\\n\\s*' + KEY + ':\\s*)([0-9.]+)(,)'));
+const m = findKey(original, KEY);
 if (!m) throw new Error('could not find BLOOM.' + KEY + ' in ' + SRC);
+// The key that is NOT moving. It is held at whatever the source says, and its
+// value goes in every filename -- see the note at the screenshot.
+const otherKey = LEVELS ? 'intensity' : 'levels';
+const om = findKey(original, otherKey);
+if (!om) throw new Error('could not find BLOOM.' + otherKey + ' in ' + SRC);
+const other = { key: otherKey, value: om[2] };
 console.log('BLOOM.' + KEY + ' is currently ' + m[2] + '   sweeping ' + VALUES.join(', ')
+  + '   with BLOOM.' + other.key + ' held at ' + other.value
   + '   state: ' + (FIRED ? 'fired (resonance + cascade + bright)' : BRIGHT ? 'bright' : 'plain'));
 mkdirSync('F:/scale_9.4/lookbook', { recursive: true });
 
@@ -306,8 +316,19 @@ async function shoot(v) {
       + '          rings: e ? e.rings : null,'
       + '          ry: b ? +b.rot.ry.toFixed(6) : null,'
       + '          sphereR: b ? +b.sphereR.toFixed(2) : null }; })())'));
+    // BOTH keys go in the name, not just the swept one. With one axis the
+    // filename was unambiguous; with two it is not, and the first intensity
+    // sweep run after `levels` moved would have silently OVERWRITTEN
+    // `bloom-fired-1p1.png` -- which is half of the same-build null pair that
+    // makes the levels numbers quotable at all. A frame set that loses its own
+    // control looks exactly like one that never had it.
+    //
+    // The frames captured before this scheme keep their names: the five
+    // `bloom-fired-lv{8,6,5,4,3}` were all at intensity 1.1, and the pair
+    // `bloom-fired-{0,1p1}` were both at levels 8.
     const tag = (FIRED ? 'fired-' : BRIGHT ? 'bright-' : '')
-      + (LEVELS ? 'lv' : '') + String(v).replace('.', 'p');
+      + (LEVELS ? 'lv' + slug(v) + '-i' + slug(other.value)
+        : 'lv' + slug(other.value) + '-i' + slug(v));
     const out = 'lookbook/bloom-' + tag + '.png';
     await page.screenshot({ path: out });
     console.log('   ' + KEY + ' ' + String(v).padEnd(6) + ' -> ' + out
