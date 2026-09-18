@@ -223,7 +223,14 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   // Null until then, and null again after unmount — the draw loop must not
   // assume the composite is mounted.
   const glAdvanceRef   = useRef(null);
-  const dimsRef      = useRef({ w: 900, h: 620 });
+  // The seed is a REAL normal-mode geometry, not a round number: the first
+  // rAF runs before the first ResizeObserver delivery, so a pair the resize
+  // path could never produce would be drawn for a frame. 620 against a
+  // normalCanvasHeight(900) of 580 made `inkScale` read 1.069 there — a 7%
+  // ink over-scale in normal mode, where item 5b's whole claim is that it is
+  // exactly 1. Derived from the same helper the observer uses, so the two
+  // cannot drift and the invariant holds from the first frame.
+  const dimsRef      = useRef({ w: 900, h: normalCanvasHeight(900) });
   const hoveredRef   = useRef(null);
   const [hoveredEdge, setHoveredEdge] = useState(null);  // { aId, bId, cosSim, drivers, isSpectralBridge }
   const [lockedEdge,  setLockedEdge]  = useState(null);  // click-locked readout (persists until click-away)
@@ -2778,19 +2785,32 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
   const nodeAt = useCallback((cx, cy) => {
     const projected = getProjected();
+    const { w, h } = dimsRef.current;
+    const ink = inkScale(w, h);
     // Sort by depth desc so we hit nearest node first
     const sorted = [...projected].sort((a, b) => b.depth - a.depth);
     for (const { node, sx, sy, depth, scale } of sorted) {
       if (depth < -0.85) continue;  // skip deeply back-face nodes
       // Forgiving hitbox: 3× visual radius — invisible bubble around each node
       // so users don't need pixel-perfect aim on a spinning sphere
-      const visualR = (5 + node.energy * 4) * scale;
+      // THROUGH nodeRadius(), not a hand-copy of it. This used to restate
+      // `(5 + energy * 4)`, which is NODE_RADIUS_BASE and
+      // NODE_RADIUS_ENERGY_K written out — so moving either constant would
+      // have resized every drawn disc and left every hit target behind, with
+      // nothing to catch it.
+      //
+      // `ink` for the same reason the draw loop applies it: item 5b scales
+      // the drawn disc by up to 1.70x in immersive, and a hitbox that did
+      // not follow made the forgiving 3x a function of display geometry
+      // (3 -> 1.77 at the projector). Targets stay proportional to the ink
+      // at every scale, which is what the 3x was chosen to mean.
+      const visualR = nodeRadius(node.energy, scale * ink);
       const r  = visualR * 3 + 10;
       const dx = sx - cx, dy = sy - cy;
       if (dx * dx + dy * dy < r * r) return node;
     }
     return null;
-  }, [getProjected]);
+  }, [getProjected, dimsRef]);
 
   // ── Edge hit-test: find nearest edge within ~8px of cursor ──────────────
   // Returns full 16D analysis payload for any edge (not just spectral bridges)
