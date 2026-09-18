@@ -954,6 +954,50 @@ describe('the 17th float — layout', () => {
     writePolyline(s, new Float32Array([0, 0, 3, 4]), 2, new Float32Array([1, 1, 1]), 1, 2, 0);
     expect(s.data[EDGE_OFF.phase]).toBe(0);
   });
+
+  it('writePolyline overwrites EVERY float of the stride, so a reused slot carries nothing stale', () => {
+    // THE TRAP THIS EXISTS TO CATCH. writePolyline spells its fields as LITERAL
+    // offsets — data[o + 14] through data[o + 17] — while only the base uses
+    // EDGE_STRIDE, and the instance buffer is reused frame to frame. Float 17
+    // is written zero for exactly that reason: a segment has no disc shadow,
+    // and leaving the slot alone would hand the next instance to land there the
+    // previous frame's colour.
+    //
+    // The test above pins the LAYOUT. Nothing pinned the WRITER's coverage of
+    // it, so when the next float costs a stride bump — which the layout test
+    // and artNodes' "spends the last reserved float" both say is coming — a
+    // missing line here would show up as a stale value in a picture and in no
+    // gate at all. This branch has paid for a hand-copied stride three times,
+    // every time in scripts/, which is neither linted nor tested. This copy is
+    // in src/, which is both, and the suite still could not see it.
+    //
+    // A SENTINEL rather than zero, deliberately: the buffer is born zeroed, so
+    // "still 0" and "written 0" read identically — and float 17's whole point
+    // is that it is written 0 on purpose. Zero cannot tell those two apart.
+    const SENTINEL = -9999;
+    const s = createEdgeState(8);
+    s.data.fill(SENTINEL);
+    const written = writePolyline(
+      s, new Float32Array([10, 20, 30, 40, 55, 60, 70, 81]), 4,
+      new Float32Array([0.25, 0.5, 0.75]), 0.5, 1.2, 0,
+    );
+    expect(written).toBe(3);
+
+    // Named rather than counted: a bare toBe(0) on a tally says a float went
+    // missing and not WHICH, and the offset is the whole diagnosis.
+    const stale = [];
+    for (let i = 0; i < written; i++) {
+      for (let f = 0; f < EDGE_STRIDE; f++) {
+        if (s.data[i * EDGE_STRIDE + f] === SENTINEL) stale.push(`instance ${i} float ${f}`);
+      }
+    }
+    expect(stale).toEqual([]);
+
+    // The control: the sentinel IS detectable where nothing wrote. Without this
+    // the assertion above passes just as well against a fill that never
+    // happened, which is the failure mode this file keeps recording.
+    expect(s.data[written * EDGE_STRIDE]).toBe(SENTINEL);
+  });
 });
 
 describe('writePolyline — the dash phase', () => {
