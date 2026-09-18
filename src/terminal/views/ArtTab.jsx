@@ -50,7 +50,9 @@ import {
   createParticlePool, emitParticle, stepParticles,
   emitIdleParticles, emitNodeBurst, emitEdgeParticles,
 } from '../art/artParticles';
-import { buildRotMatrix, applyM, project } from '../art/artMath';
+import {
+  buildRotMatrix, applyM, project, normalCanvasHeight, inkScale,
+} from '../art/artMath';
 import { createBeatClock } from '../art/artBeatClock';
 import { clusterLabelState, nodeLabelState, fireExpired } from '../art/artLabels';
 import SphereLabels from '../art/SphereLabels';
@@ -811,7 +813,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       const W = Math.floor(entries[0].contentRect.width);
       const H = immersiveRef.current
         ? Math.floor(entries[0].contentRect.height || window.innerHeight)
-        : Math.floor(Math.min(Math.max(W * 0.65, 360), 580));
+        : normalCanvasHeight(W);
       dimsRef.current = { w: W, h: H };
       if (canvasRef.current) {
         // Cap at 1.5× on high-DPR mobile (iPad Pro = 2×) to preserve battery
@@ -850,6 +852,17 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       const breathMod = 1 + Math.sin(aw.breathPhase) * breathAmp;
       const sphereR   = Math.min(w, h) * SPHERE_K * breathMod;
       const focal     = sphereR * FOCAL_K;
+      // ITEM 5b — the ink grows with the cage. `project()`'s scale is
+      // independent of sphereR, so without this every line width and disc
+      // radius keeps its normal-mode pixel size while the sphere itself
+      // gets 1.4-1.7x bigger in immersive mode. Exactly 1 outside
+      // immersive, so normal-mode pixels cannot move. See artMath.
+      //
+      // Applied to the INK ONLY, never to a position: `p.scale` also
+      // carries label offsets and the birth interpolation, and it is
+      // deliberately left alone. Every site below multiplies at the point
+      // the number becomes a width or a radius.
+      const ink       = inkScale(w, h);
 
       // ── Update rotation ───────────────────────────────────────────────────
       const drag = dragRef.current;
@@ -1081,7 +1094,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           const o = gn * 4;
           gbuf[o]     = gp2.sx;
           gbuf[o + 1] = gp2.sy;
-          gbuf[o + 2] = GHOST_RADIUS * gp2.scale;
+          gbuf[o + 2] = GHOST_RADIUS * gp2.scale * ink;
           gbuf[o + 3] = ghostTrailAlpha(grz);
           gn++;
         }
@@ -1192,12 +1205,21 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             // Wide diffuse glow — width scales with the projection.
             writeHsl(_cRgb, 0, hue, FILAMENT_GLOW_SAT, FILAMENT_GLOW_LIT);
             writePolyline(ag, _cPts, m, _cRgb, alpha * FILAMENT_GLOW_ALPHA_K,
-              filamentGlowWidth((pA.scale + pB.scale) / 2), FILAMENT_FLAGS, 0);
-            // Sharp core — a CONSTANT 0.8, unscaled. That asymmetry with the
-            // pass above is in the original; see FILAMENT_CORE_W.
+              filamentGlowWidth((pA.scale + pB.scale) / 2) * ink,
+              FILAMENT_FLAGS, 0);
+            // Sharp core — a CONSTANT 0.8, unscaled BY THE PROJECTION. That
+            // asymmetry with the pass above is in the original; see
+            // FILAMENT_CORE_W, whose note is about depth: a core that
+            // thickens toward the viewer is the thing being avoided.
+            //
+            // `ink` is a different axis and does not reintroduce it. It is
+            // ONE number for the whole frame, so every filament core stays
+            // exactly as wide as every other one and none of them varies
+            // with depth. Holding it at 0.8 while the glow over it grows is
+            // what would re-art the pair.
             writeHsl(_cRgb, 0, hue, FILAMENT_CORE_SAT, FILAMENT_CORE_LIT);
             writePolyline(ag, _cPts, m, _cRgb, alpha * FILAMENT_CORE_ALPHA_K,
-              FILAMENT_CORE_W, FILAMENT_FLAGS, 0);
+              FILAMENT_CORE_W * ink, FILAMENT_FLAGS, 0);
             drawn++;
           }
         }
@@ -1263,7 +1285,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             const m = tessellateQuad(_cPts, cxA, cyA, _cCtrl[0], _cCtrl[1], cxB, cyB,
               quadSegments(cxA, cyA, _cCtrl[0], _cCtrl[1], cxB, cyB));
             writeHsl(_cRgb, 0, hue, CHIMERA_SAT, CHIMERA_LIT);
-            writePolyline(ag, _cPts, m, _cRgb, alpha, chimeraWidth(strength),
+            writePolyline(ag, _cPts, m, _cRgb, alpha, chimeraWidth(strength) * ink,
               CHIMERA_FLAGS, dashPhase);
             drawn++;
           }
@@ -1339,7 +1361,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           // needs a home a unit test can import. See SphereEdges.js's header.
           const lineWidth = edgeLineWidth(
             Math.max(na.energy, nb.energy), e.pulse, cosSim, fuseCos, isOrtho,
-            (pA.scale + pB.scale) / 2,
+            ((pA.scale + pB.scale) / 2) * ink,
           );
 
           // Orthogonal bridges: hue-shifting gradient (magenta↔cyan), overrides default grd
@@ -1432,7 +1454,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             // shader collapses to the filled disc it always drew.
             writeDisc(eg.data, eg.count * EDGE_STRIDE, {
               cx: px, cy: py,
-              rOuter: pulseRingRadius(e.pulse, pA.scale),
+              rOuter: pulseRingRadius(e.pulse, pA.scale * ink),
               hsl: src, alpha: a,
               flags: packFlags(0, 0, 0),   // no dash, no glow, not ortho
             });
@@ -1483,7 +1505,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           const pRA = proj[rIA], pRB = proj[rIB];
           if (!pRA || !pRB) { /* dynamic node not yet projected — skip */ } else
           if (!isFinite(pRA.sx) || !isFinite(pRA.sy) || !isFinite(pRB.sx) || !isFinite(pRB.sy)) { /* non-finite coords — skip */ } else {
-          const avgScale = (pRA.scale + pRB.scale) / 2;
+          const avgScale = ((pRA.scale + pRB.scale) / 2) * ink;
           const widths   = resonanceWidths(sim, avgScale);
           const stops    = resonanceStops(sim);
           const ad       = ag.data;
@@ -1553,11 +1575,14 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         // The alphas the 2D code quantised with `.toFixed(3)` are quantised to
         // 1/255 by packAlphas instead, which is the coarser step and therefore
         // the dominant one — the same call made for the resonance edge above.
+        // Every prism width — glow, core, polygon, spoke — is a bare
+        // screen-px constant; not one of them rides the projection. So
+        // `ink` is applied HERE, once, instead of at the four call sites.
         const chord = (m, a, width) =>
-          writePolyline(ag, pts, m, rgb, a, width, PRISM_FLAGS);
+          writePolyline(ag, pts, m, rgb, a, width * ink, PRISM_FLAGS);
         const straight = (x0, y0, x1, y1, a, width) => {
           pts[0] = x0; pts[1] = y0; pts[2] = x1; pts[3] = y1;
-          writePolyline(ag, pts, 2, rgb, a, width, PRISM_FLAGS);
+          writePolyline(ag, pts, 2, rgb, a, width * ink, PRISM_FLAGS);
         };
 
         const live = [];
@@ -1699,7 +1724,13 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         if (depthAlpha !== _cued) _cen.resonanceDim++;
         _cen.nodes++;
 
-        const radius = nodeRadius(energy, p.scale);
+        // The projection scale this node's INK is drawn at. `p.scale`
+        // itself stays untouched — it also carries the label offset and
+        // the birth interpolation, which are positions, not ink. Every
+        // radius and width below is linear in this, so multiplying here is
+        // a uniform scaling of the whole node and not a reshaping of it.
+        const pInk   = p.scale * ink;
+        const radius = nodeRadius(energy, pInk);
 
         // Overwrite bleed — temporarily radiate source color
         let renderCol = col;
@@ -1736,7 +1767,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           // inside the inner stop, then linear to zero at the rim.
           writeDisc(eg.data, eg.count * EDGE_STRIDE, {
             cx: p.sx, cy: p.sy,
-            rOuter: haloRadius(radius, energy, n.bleedAmount, p.scale),
+            rOuter: haloRadius(radius, energy, n.bleedAmount, pInk),
             falloffInner: haloInnerRadius(radius),
             hsl: renderCol,
             alpha: haloAlpha(energy, n.bleedAmount, depthAlpha),
@@ -1772,7 +1803,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         // filaments, the chimera fringes, the prism and the resonance edge,
         // which is the 2D order.
         const _beacon = beaconRingState(aw, i, p, radius, renderCol, depthAlpha,
-                                        nodes.length);
+                                        nodes.length, undefined, ink);
         if (_beacon) {
           if (ag.count < MAX_ADDITIVE_EDGES) {
             const _ba = strokeAnnulus(_beacon.radius, _beacon.width);
@@ -1803,8 +1834,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
               // Source-over, so it goes into `eg` right behind this node's own
               // core — the order the 2D loop drew them in.
               if (syncAlpha > CHIMERA_ALPHA_CUTOFF && eg.count < MAX_EDGES) {
-                const _sa = strokeAnnulus(chimeraSyncRadius(radius, p.scale),
-                                          CHIMERA_SYNC_WIDTH * p.scale);
+                const _sa = strokeAnnulus(chimeraSyncRadius(radius, pInk),
+                                          CHIMERA_SYNC_WIDTH * pInk);
                 writeDisc(eg.data, eg.count * EDGE_STRIDE, {
                   cx: p.sx, cy: p.sy,
                   rOuter: _sa.rOuter, rInner: _sa.rInner,
@@ -1819,8 +1850,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
               const flickRate = chimeraFlickRate(_chim.orderParam);
               const flickAlpha = chimeraFlickAlpha(_ct, flickRate, i, depthAlpha);
               if (flickAlpha > CHIMERA_ALPHA_CUTOFF && eg.count < MAX_EDGES) {
-                const _fa = strokeAnnulus(chimeraFlickRadius(radius, p.scale),
-                                          CHIMERA_FLICK_WIDTH * p.scale);
+                const _fa = strokeAnnulus(chimeraFlickRadius(radius, pInk),
+                                          CHIMERA_FLICK_WIDTH * pInk);
                 writeDisc(eg.data, eg.count * EDGE_STRIDE, {
                   cx: p.sx, cy: p.sy,
                   rOuter: _fa.rOuter, rInner: _fa.rInner,
@@ -1851,9 +1882,9 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           const _ghosts = getGhostNodes();
           if (_ghosts && ghostDraws(_ghosts[i])) {
             const gAlpha = ghostAlpha(_ghosts[i], depthAlpha);
-            const ghostR = ghostRadius(radius, _ghosts[i], p.scale);
+            const ghostR = ghostRadius(radius, _ghosts[i], pInk);
             if (ag.count < MAX_ADDITIVE_EDGES) {
-              const _gi = strokeAnnulus(ghostR, GHOST_INNER_WIDTH * p.scale);
+              const _gi = strokeAnnulus(ghostR, GHOST_INNER_WIDTH * pInk);
               writeDisc(ag.data, ag.count * EDGE_STRIDE, {
                 cx: p.sx, cy: p.sy,
                 rOuter: _gi.rOuter, rInner: _gi.rInner,
@@ -1867,8 +1898,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
             // Outer glow ring: completion halo. Full circle, three times wide.
             if (ag.count < MAX_ADDITIVE_EDGES) {
-              const _go = strokeAnnulus(ghostOuterRadius(ghostR, p.scale),
-                                        GHOST_OUTER_WIDTH * p.scale);
+              const _go = strokeAnnulus(ghostOuterRadius(ghostR, pInk),
+                                        GHOST_OUTER_WIDTH * pInk);
               writeDisc(ag.data, ag.count * EDGE_STRIDE, {
                 cx: p.sx, cy: p.sy,
                 rOuter: _go.rOuter, rInner: _go.rInner,
@@ -1937,13 +1968,13 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           const t     = performance.now() / 1000;
           const pulse = fusionPulse(t);
           const srcCol = NODE_COLORS[fSrc];
-          const ringR  = fusionRingRadius(nodes[si].energy, pulse, sp.scale);
+          const ringR  = fusionRingRadius(nodes[si].energy, pulse, sp.scale * ink);
           // Pulsing dashed ring around the locked source. [5,4] is an ANGULAR
           // dash: for a disc the shader walks rMid * theta, so the pattern
           // stays in px of ARC LENGTH and the dash boundaries come out radial,
           // exactly as ctx.setLineDash draws them around a stroked circle.
           if (eg.count < MAX_EDGES) {
-            const _fr = strokeAnnulus(ringR, FUSION_RING_WIDTH * sp.scale);
+            const _fr = strokeAnnulus(ringR, FUSION_RING_WIDTH * sp.scale * ink);
             writeDisc(eg.data, eg.count * EDGE_STRIDE, {
               cx: sp.sx, cy: sp.sy,
               rOuter: _fr.rOuter, rInner: _fr.rInner,
@@ -1966,7 +1997,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             // counted the intent rather than the write would hide that.
             _cen.fusionThread += writePolyline(
               eg, _cPts, 2, _cRgb, fusionThreadAlpha(pulse),
-              FUSION_THREAD_WIDTH, FUSION_THREAD_FLAGS);
+              FUSION_THREAD_WIDTH * ink, FUSION_THREAD_FLAGS);
           }
         }
       }
@@ -2009,7 +2040,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             _cen.probeTether += writePolyline(
               eg, _cPts, 2, _cRgb,
               probeTetherAlpha(weight, _c.wmax, depthAlpha),
-              PROBE_TETHER_WIDTH, PROBE_TETHER_FLAGS);
+              PROBE_TETHER_WIDTH * ink, PROBE_TETHER_FLAGS);
           }
           // Pulsing glow halo. A RADIAL FALLOFF — flat inside falloffInner,
           // then linear to zero at the outer radius — because that is what
@@ -2017,8 +2048,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           // casts: the two agree at exactly one radius and are wrong at every
           // other, which is the trap the node halos already paid for.
           const pulse = probePulse(Date.now());
-          const probeR = probeRadius(pp.scale);
-          const glowR  = probeGlowRadius(probeR, pulse, pp.scale);
+          const probeR = probeRadius(pp.scale * ink);
+          const glowR  = probeGlowRadius(probeR, pulse, pp.scale * ink);
           if (glowR > 0 && isFinite(pp.sx) && isFinite(pp.sy)
               && eg.count < MAX_EDGES) {
             writeDisc(eg.data, eg.count * EDGE_STRIDE, {
@@ -2088,7 +2119,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         const pp = project(prx, pry, prz, w, h, sphereR, focal);
         if (!particleInFront(pp.depth)) continue;
 
-        const sz  = particleSize(pool.sizes[pi], pp.scale);
+        const sz  = particleSize(pool.sizes[pi], pp.scale * ink);
         const hue = quantHue(pool.hues[pi]);
         const sat = quantHue(pool.sats[pi]);
 

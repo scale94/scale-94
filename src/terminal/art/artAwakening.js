@@ -99,15 +99,19 @@ export function stepAwakening(aw, nodes, frameCount, particles) {
 // `tSeconds` is injectable so the pulse is testable without a clock; the
 // default is the wall clock the 2D version read.
 export function beaconRingState(aw, nodeIdx, p, radius, renderCol, depthAlpha,
-                                nodeCount, tSeconds = performance.now() * 0.001) {
+                                nodeCount, tSeconds = performance.now() * 0.001,
+                                ink = 1) {
   if (aw.phase !== 1 || nodeIdx !== (aw.beaconIdx % (nodeCount || 31))) return null;
 
   const pulse = beaconPulse(tSeconds);
   return {
     cx: p.sx,
     cy: p.sy,
-    radius: beaconRadius(radius, pulse, p.scale),
-    width: BEACON_WIDTH * p.scale,
+    // `ink` is item 5b's immersive ink scale, 1 everywhere else. `radius`
+    // arrives already carrying it; these two terms are the ring's OWN
+    // screen-px geometry and have to be told.
+    radius: beaconRadius(radius, pulse, p.scale * ink),
+    width: BEACON_WIDTH * p.scale * ink,
     // `?? 40` — a dynamic node with no registered hue falls back rather than
     // writing NaN into the buffer, which is what the hsla() string did too.
     hsl: {
