@@ -3619,9 +3619,31 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       </div>
 
       {/* Sphere canvas — frameless, front and center */}
+      {/*
+        IMMERSIVE IS NOT FULLSCREEN, so it must not claim the full viewport.
+        The app header (App.jsx, the `h-24` one) is `sticky top-0` and paints
+        rgba(0,0,0,0.9) with a 12px backdrop blur over whatever is beneath it.
+        With `inset-0` this container ran underneath it and two things went
+        wrong at once: MEASURED at 1920x1080, 91 px of live artwork was painted
+        over by that strip, and the sphere was centred at y 540 while the band
+        it can actually be seen in is centred at y 588 — so shrinking the radius
+        alone would have stopped the bite and left the sphere sitting high with
+        dead space under it.
+
+        Insetting below the header fixes both, and it needs no new constant in
+        the projection: `sphereR = SPHERE_K * min(w, h)`, so handing the
+        container its true height re-scales the sphere on its own. A node's
+        maximum projected offset is `FOCAL_K / sqrt(FOCAL_K^2 - 1)` = 1.0707 R,
+        not R, and that is the number the box has to hold.
+
+        `top-24` is the header's `h-24`. If that height changes, this changes
+        with it — grep `h-24` in App.jsx. Below `md` the header is opacity-0
+        for the mobile chrome, so the inset is desktop-only and small screens
+        keep today's full-bleed behaviour.
+      */}
       <div
         ref={containerRef}
-        className={`w-full overflow-hidden${immersive ? ' fixed inset-0 z-50' : ''}`}
+        className={`w-full overflow-hidden${immersive ? ' fixed inset-x-0 bottom-0 top-0 md:top-24 z-50' : ''}`}
         style={{ background: '#000', position: immersive ? 'fixed' : 'relative' }}
       >
         <canvas

@@ -435,8 +435,12 @@ const TOLERANCE = 0.15;
 // thirds of the 0.15 tolerance budget on its own. Measured drift is 0.13-0.58%,
 // so 0.02 still leaves 3.4x headroom over the worst reading yet.
 const MAX_DRIFT = 0.02;
-// The sphere must fill this fraction of the viewport for a row to be allowed to
-// call itself immersive.
+// The sphere must fill this fraction of the viewport WIDTH for a row to be
+// allowed to call itself immersive. Height is asserted EXACTLY instead -- see
+// the cross-row block, which reads the header and requires the container to be
+// inset below it to the pixel. That is stricter than a fraction, not looser:
+// 31bff8a's containing-block bug measured 1800x324 at top 192, which misses on
+// all three of width, top and height.
 const IMMERSIVE_MIN = 0.98;
 
 // Summed magenta lean over the frame. Summed, not averaged: the pulse is a
@@ -494,7 +498,7 @@ try {
     const expected = steadyState(PULSE_ALPHA, m) / PULSE_ALPHA;
     return {
       label, m, wantM, s1, s30, expected,
-      w: Math.round(clip.width), h: Math.round(clip.height),
+      w: Math.round(clip.width), h: Math.round(clip.height), y: Math.round(clip.y),
       size: `${Math.round(clip.width)}x${Math.round(clip.height)}`,
       ratio: s30 / s1,
       drift: Math.abs(off1 - off0) / Math.abs(s1),
@@ -534,10 +538,41 @@ try {
   const [norm, imm] = rows;
   const distinct = imm.m !== norm.m;
   const grew = imm.w > norm.w && imm.h > norm.h;
-  const fills = imm.w >= viewport.w * IMMERSIVE_MIN && imm.h >= viewport.h * IMMERSIVE_MIN;
+
+  // IMMERSIVE MUST REACH THE VIEWPORT, AND IT IS DELIBERATELY NOT FULLSCREEN.
+  //
+  // 31bff8a found `fixed inset-0` resolving against the tab wrapper instead of
+  // the viewport -- 1800x324 at top 192 -- and this row is the guard against
+  // that returning. It was written as "at least 98% of the viewport in both
+  // axes", which stopped being true when the container was inset below the app
+  // header so the artwork would stop being painted over: MEASURED at 1920x1080,
+  // the header is 96 px of rgba(0,0,0,0.9) and the sphere's envelope reached
+  // y 50, so the top 46 px of the artwork was under the strip, and the sphere
+  // was centred 48 px above the middle of the band it is visible in.
+  //
+  // So the height is asserted EXACTLY rather than as a fraction, against the
+  // header measured at run time. This is a tighter statement than the old one,
+  // and the bug it exists to catch misses it on all three of width, top and
+  // height. The inset is desktop-only because the component's class is
+  // `md:top-24`, so the expectation follows the same media query rather than
+  // repeating the breakpoint as a number.
+  const safe = JSON.parse(await t3.eval('JSON.stringify((() => {'
+    + ' const h = document.querySelector("header");'
+    + ' const hh = h ? Math.round(h.getBoundingClientRect().height) : 0;'
+    + ' const wide = window.matchMedia("(min-width: 768px)").matches;'
+    + ' return { headerH: hh, inset: wide ? hh : 0, wide: wide }; })())'));
+  const expTop = safe.inset;
+  const expH   = viewport.h - safe.inset;
+  const wideOk = imm.w >= viewport.w * IMMERSIVE_MIN;
+  const topOk  = Math.abs(imm.y - expTop) <= 1;
+  const heightOk = Math.abs(imm.h - expH) <= 1;
+  const fills  = wideOk && topOk && heightOk;
+
   console.log(`   exhibit mode   m ${norm.m} -> ${imm.m} ${distinct ? 'distinct' : 'IDENTICAL — the toggle did nothing'}`
-    + `   ·   sphere ${norm.size} -> ${imm.size} ${grew ? 'grew' : 'DID NOT GROW'}`
-    + `   ·   viewport ${viewport.w}x${viewport.h} ${fills ? 'filled' : 'NOT FILLED — letterbox, see 31bff8a'}`);
+    + `   ·   sphere ${norm.size} -> ${imm.size} ${grew ? 'grew' : 'DID NOT GROW'}`);
+  console.log(`   safe area      header ${safe.headerH}px, inset ${expTop}px (${safe.wide ? 'desktop' : 'mobile, no inset'})`
+    + `   ·   want ${viewport.w}x${expH} at top ${expTop}   got ${imm.w}x${imm.h} at top ${imm.y}`
+    + `   ${fills ? 'ok' : 'WRONG BOX — letterbox or bad containing block, see 31bff8a'}`);
   if (!(distinct && grew && fills)) ok = false;
 
   verdict('TRAIL ACCUMULATION', ok);
