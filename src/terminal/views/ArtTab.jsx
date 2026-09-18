@@ -16,7 +16,7 @@ import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react'
 import { Maximize, Minimize, Radio, Clock, Wifi, Circle } from 'lucide-react';
 import CascadeIcon from '../components/CascadeIcon';
 import { lerpColor, hslAlpha } from '../data/kernelColorMap';
-import { useSomaGraph, CLUSTER_ANCHORS } from '../hooks/useSomaGraph';
+import { useSomaGraph, CLUSTER_ANCHORS, __initStateLog } from '../hooks/useSomaGraph';
 import { useKineticEdges }                from '../hooks/useKineticEdges';
 import { useAssociativeField }            from '../hooks/useAssociativeField';
 import { useTemporalMemory }              from '../hooks/useTemporalMemory';
@@ -31,7 +31,7 @@ import {
   cosineSim, topDrivers, analyzeEdge, findOrthogonalNode,
   compareNodes, jitterFeatures,
 } from '../data/nodeFeatures';
-import { artRandom, seedArtRandom, ART_SEED } from '../art/artRandom.js';
+import { artRandom, seedArtRandom, artRandomState, __streamProbe, ART_SEED } from '../art/artRandom.js';
 import {
   particleAlpha, particleVisible, particleSize, particleGlowRadius,
   particleInFront, quantHue, quantAlpha,
@@ -324,6 +324,13 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     beaconIdx: Math.floor(artRandom() * SPHERE_NODES.length),  // random beacon node
     breathPhase: 0,         // continuous breath oscillation
   });
+  // DEV-ONLY INSTRUMENT. React evaluates the object literal above on EVERY
+  // render and discards all but the first, so every render of this component
+  // takes one draw from the sphere's stream via `beaconIdx`. This counts those
+  // renders so an instrument can ask whether a render landed inside a window
+  // where it would displace the world. It takes no draw of its own and
+  // `import.meta.env.DEV` is statically false in a production build.
+  if (import.meta.env.DEV) __streamProbe.renders++;
 
   // ── Particle Ecology ────────────────────────────────────────────────────
   const particlesRef = useRef(createParticlePool());
@@ -2254,6 +2261,19 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     // matching the shim's own default.
     window.__artSeedRandom = (seed) => seedArtRandom(seed ?? ART_SEED);
 
+    // Every initState call this page has made, as the artRandom stream offset
+    // at its entry. An instrument reads the LENGTH at two points and takes the
+    // delta; nothing here resets it, deliberately, because __artHarnessReset's
+    // behaviour is load-bearing for the reference images and this must not be
+    // able to change a picture. `rng` is the live stream state, so a probe can
+    // ask where the stream is without taking a draw from it.
+    window.__artInitLog = () => ({
+      calls: __initStateLog.length,
+      renders: __streamProbe.renders,
+      offsets: __initStateLog.slice(),
+      rng: artRandomState(),
+    });
+
     window.__artHarnessReset = () => {
       rotRef.current = { rx: 0.18, ry: 0 };
       dragRef.current = { active: false, lastX: 0, lastY: 0, vx: 0, vy: 0 };
@@ -2675,6 +2695,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     return () => {
       delete window.__artHarnessReset;
       delete window.__artSeedRandom;
+      delete window.__artInitLog;
       delete window.__artSetEcocide;
       delete window.__artSetGhosts;
       delete window.__artSetAnalogy;

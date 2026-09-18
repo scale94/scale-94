@@ -55,6 +55,26 @@ export function seedArtRandom(seed) {
   s = (seed >>> 0) || 0x9e3779b9;
 }
 
+// The stream's position, for instruments that need to ask "were these two runs
+// at the same offset here?". mulberry32 advances `s` by a CONSTANT per draw, so
+// the state alone identifies the position: two runs seeded alike hold the same
+// `s` if and only if they have taken the same number of draws. Deliberately a
+// getter over the existing state rather than a counter in the draw itself —
+// `artRandom` is called thousands of times a frame and the hot path stays
+// exactly the code that was measured. Reading this consumes nothing.
+export function artRandomState() {
+  return s >>> 0;
+}
+
+// WHO DISPLACED THE STREAM. A dev-only ledger, in the module whose whole
+// header is about that question. `renders` is bumped by ArtTab's render body,
+// because React evaluates the `useRef({ beaconIdx: artRandom() ... })` object
+// literal on every render and discards all but the first — so every render of
+// that component silently takes one draw from this stream. An instrument that
+// records this alongside the stream state can say whether an offset shift was
+// a render landing in the window, or something else.
+export const __streamProbe = { renders: 0 };
+
 export function artRandom() {
   s = (s + 0x6D2B79F5) >>> 0;
   let t = s;

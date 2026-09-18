@@ -13,7 +13,12 @@
 
 import { useRef, useCallback } from 'react';
 
-import { artRandom } from '../art/artRandom.js';
+import { artRandom, artRandomState, __streamProbe } from '../art/artRandom.js';
+
+// The artRandom stream offset at the entry of every initState call this page
+// has made. DEV only; see the push site. ArtTab publishes it as
+// window.__artInitLog.
+export const __initStateLog = [];
 const DT   = 0.45;
 const DRAG = 0.86;
 
@@ -72,6 +77,25 @@ export function useSomaGraph({ nodes, adj, modulationRef, initialPositionsRef })
   const stateRef = useRef(null);
 
   const initState = useCallback(() => {
+    // DEV-ONLY INSTRUMENT, and it costs nothing the world can see: one array
+    // push, no draw taken. `initState` re-scatters all 31 nodes from 124
+    // artRandom draws and the ResizeObserver calls it on EVERY resize, so the
+    // graph the capture measures depends on how many times that observer fired
+    // and at what stream offset — neither of which anything has ever recorded.
+    // `import.meta.env.DEV` is statically false in a production build, so the
+    // bundler removes this. Capped so a long-running dev tab cannot grow it
+    // without bound.
+    if (import.meta.env.DEV && __initStateLog.length < 4096) {
+      __initStateLog.push({
+        rng: artRandomState(),
+        renders: __streamProbe.renders,
+        // WHICH call site. The ResizeObserver is not the only caller — the RAF
+        // draw effect opens with initState() too — and a count alone cannot
+        // tell two callers apart.
+        via: (new Error().stack || '').split(String.fromCharCode(10)).slice(2, 5)
+          .map(l => l.trim().replace(/^at\s+/, '').replace(/\?t=\d+/, '')).join(' <- ').slice(0, 220),
+      });
+    }
     const saved = initialPositionsRef?.current;  // Float32Array(31*3) or null
     const simNodes = nodes.map((n, i) => {
       let nx, ny, nz;
