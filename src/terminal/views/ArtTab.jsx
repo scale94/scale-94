@@ -316,20 +316,36 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   // Phase 1 (4-8s): Beacon pulse — one node glows as invitation
   // Phase 2 (8s+):  Auto-ignition — system self-fires 3 nodes
   // Phase 3:        Complete — normal interaction mode
-  const awakeningRef = useRef({
+  // LAZY INITIALIZER, NOT AN EAGER ONE. React evaluates a `useRef({ ... })`
+  // object literal on EVERY render and discards all but the first, so with the
+  // eager form every render of this component silently took one draw from the
+  // sphere's private stream via `beaconIdx`. MEASURED: on `immersive-off` the
+  // ResizeObserver fires twice with no pumped frame between the callbacks, and
+  // each callback ends in `initState()`, which re-scatters all 31 nodes from
+  // 124 draws -- so whether one render landed in that gap decided the whole
+  // second layout. 21 runs at 1520x900@2x produced exactly TWO worlds, never
+  // three: `a0c3af39` on a gap of 125 draws (19 runs) and `280ffe40` on a gap
+  // of 124 (2 runs). A switch with two positions, not a chaotic process.
+  // Assigning under a null guard runs the body exactly once, at mount, which is
+  // the one draw the artwork wants -- a CONSTANT would kill the beacon's
+  // per-page-load randomness, which is visible intent in awakening phase 1.
+  const awakeningRef = useRef(null);
+  if (awakeningRef.current === null) awakeningRef.current = {
     phase: 0,
     t0: performance.now(),
     interacted: false,      // true after first user gesture on canvas
     autoFiredNodes: [],     // nodes auto-ignited during phase 2
     beaconIdx: Math.floor(artRandom() * SPHERE_NODES.length),  // random beacon node
     breathPhase: 0,         // continuous breath oscillation
-  });
-  // DEV-ONLY INSTRUMENT. React evaluates the object literal above on EVERY
-  // render and discards all but the first, so every render of this component
-  // takes one draw from the sphere's stream via `beaconIdx`. This counts those
-  // renders so an instrument can ask whether a render landed inside a window
-  // where it would displace the world. It takes no draw of its own and
-  // `import.meta.env.DEV` is statically false in a production build.
+  };
+  // DEV-ONLY INSTRUMENT. It counted the draws the eager initializer above used
+  // to take, and it is kept because it is now the EVIDENCE that they are gone:
+  // it is what proved the fix render-INDEPENDENT rather than merely lucky. 28
+  // recorded runs of the patched build produced one world and a gap of 124
+  // every time, including runs that took no render across the gap where their
+  // siblings took one -- the contrast that flipped the world before. It takes
+  // no draw of its own and `import.meta.env.DEV` is statically false in a
+  // production build.
   if (import.meta.env.DEV) __streamProbe.renders++;
 
   // ── Particle Ecology ────────────────────────────────────────────────────
@@ -2300,13 +2316,15 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       // awakening phase 3, and restarting it would replace the captured world
       // rather than stabilise it.
       //
-      // `beaconIdx` is a third leak of this family — drawn from Math.random at
-      // mount, i.e. before the shim is virtual, and it differs run to run in
-      // every manifest. It is deliberately LEFT ALONE. Re-drawing it here from
-      // the seeded stream consumes a value that `initState()` would otherwise
-      // have taken, which shifts every draw after it: MEASURED, that alone took
-      // `artPresence` from 19/19 to 15/19 (RESONANCE EDGE, PRISM GEOMETRY,
-      // ANALOGY FILAMENTS, CHIMERA FRINGES all undetected). It costs nothing to
+      // `beaconIdx` is a third leak of this family — ONE draw taken at mount,
+      // from `artRandom` since `7f5f2ce` (this comment read `Math.random` until
+      // that was corrected) and from a LAZY useRef initializer since the fix, so
+      // it is no longer one draw per render. It is deliberately LEFT ALONE here:
+      // re-drawing it in this reset from the seeded stream consumes a value that
+      // `initState()` would otherwise have taken, which shifts every draw after
+      // it: MEASURED, that alone took `artPresence` from 19/19 to 15/19
+      // (RESONANCE EDGE, PRISM GEOMETRY, ANALOGY FILAMENTS, CHIMERA FRINGES all
+      // undetected). It costs nothing to
       // leave: the beacon only draws in awakening phase 1, and every capture
       // state is at phase 3. If it is ever worth pinning, pin it to a CONSTANT
       // — do not spend a random draw inside this reset.
