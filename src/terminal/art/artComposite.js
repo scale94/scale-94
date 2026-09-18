@@ -77,12 +77,28 @@ export const COMPOSITE_STYLE = {
 // structural lines (edges, wireframe ghost) so only nodes, particles and fire
 // cascades bloom — the old fake bloom blurred everything at 0.15 alpha, which
 // is exactly why it read as a smear rather than as light.
+// `levels` is the depth of the mipmap pyramid, and it decides how FAR the bloom
+// reaches rather than how hard it hits. `MipmapBlurPass.setSize` halves at every
+// level, so at the immersive buffer of 1920x984 eight levels run
+//
+//   960x492  480x246  240x123  120x62  60x31  30x16  15x8  8x4
+//
+// and the last two are a whole-screen average. A single bright node has far too
+// little energy to show up there — MEASURED on the pinned sweep, the halo around
+// one node dies at ~110 px — but the coarse levels integrate the WHOLE frame, so
+// their contribution scales with total lit AREA. That is why a bundle of long
+// wires can raise a milky floor across the canvas when three nodes cannot.
+//
+// 8 is `BloomEffect`'s own default, which is what this prop was getting
+// implicitly before it was named here. Naming it changes no pixel and makes the
+// reach a value this file can state, test and sweep like the other four.
 export const BLOOM = {
   luminanceThreshold: 0.28,
   luminanceSmoothing: 0.9,
   intensity: 1.1,
   mipmapBlur: true,
   radius: 0.7,
+  levels: 8,
 };
 
 // Immersive only. Replaces the 2D radial-gradient vignette, which ran to

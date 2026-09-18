@@ -508,6 +508,7 @@ export default function SphereComposite({ sourceRef, immersive, onAdvanceReady, 
             intensity={BLOOM.intensity}
             mipmapBlur={BLOOM.mipmapBlur}
             radius={BLOOM.radius}
+            levels={BLOOM.levels}
           />
           {immersive
             ? <Vignette offset={VIGNETTE.offset} darkness={VIGNETTE.darkness} eskil={false} />

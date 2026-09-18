@@ -114,6 +114,17 @@ describe('effect parameters', () => {
     expect(BLOOM.mipmapBlur).toBe(true);
   });
 
+  it('states the pyramid depth rather than inheriting it', () => {
+    // `levels` was the library's implicit default (8) until it was named in
+    // artComposite. A contract, not a value: it must be a whole number of MIP
+    // levels and it must be deep enough to blur at all. What the number should
+    // BE is an aesthetic call and does not belong in a test — see the note on
+    // BLOOM for what the deep levels cost.
+    expect(Number.isInteger(BLOOM.levels)).toBe(true);
+    expect(BLOOM.levels).toBeGreaterThanOrEqual(2);
+    expect(BLOOM.levels).toBeLessThanOrEqual(9);
+  });
+
   it('keeps the vignette darkness below fully opaque', () => {
     expect(VIGNETTE.darkness).toBeGreaterThan(0);
     expect(VIGNETTE.darkness).toBeLessThan(1);
