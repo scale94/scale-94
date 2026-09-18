@@ -280,6 +280,24 @@ sync, the good one), `_x6sizesync` and `_x7storm` (the resize-settle counters
 that found `0fdae8d`), `_x9dragsmall` (the drag/click isolation) and
 `_x_pngwrite` (a PNG encoder; `_png.mjs` only decodes).
 
+**KEEP from the item-1 hunt (2026-09-18): `_z1init`** — the instrument that
+located the immersive-off divergence. It mirrors artBaseline's immersive window
+and reads `window.__artInitLog` at each phase boundary, for ~1 minute a run
+against a capture's four. Its evidence sets are **stems, and the stem is the
+measurement**: `_z1init-2x-*` (12 runs, one divergent), `_z1r-2x-*` and
+`_z1r-proj-*` (the render-counter replicates), `_z1lazy-2x-*` (the causal
+intervention), `_z1via-*` and `_z1w-*` (caller attribution). Keeping one member
+of any of these destroys the comparison that IS the finding — the same series
+integrity rule the sweep had to add for `t3f-1..4`.
+
+**`baseline/_z1init-NOTES.md` is load-bearing and must survive with them.**
+`_z1lazy-*` was captured under a SCRATCH PATCH that is reverted (`beaconIdx`
+hoisted into a lazy initializer), so it is a different world by construction and
+its hashes must never be compared against a reference; `_z1w-*` was captured
+under a per-draw `Error().stack` watch slow enough to change the timing of the
+race it measures. Without that file both sets read as ordinary captures of this
+branch, which is exactly the inheritance failure this handover keeps paying for.
+
 **`_prismMeasure` and `_nullPatch` are KEEP, and sweeping them would close item 3
 permanently.** They are the only instruments that can produce either half of the
 spoke's 1.098 — `_prismMeasure` is where `artPresence`'s PRISM GEOMETRY band
