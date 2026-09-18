@@ -132,6 +132,16 @@ way.
 
 ### 1. THE IMMERSIVE RACE — the only thing between here and 21/21
 
+> **READ `audit-item4-shaders-and-rng.md` §6 FIRST — a mechanism not considered
+> below.** `ArtTab`'s `ResizeObserver` callback ends with `initState()`, which
+> re-scatters all 31 nodes from 124 `artRandom` draws. So **every immersive
+> toggle re-lays-out the graph**, and that callback is a real browser task that
+> can only land across a yield. The capture pins the stream 270 frames before
+> `immersive-on` and **not at all** before `immersive-off`. One observer callback
+> versus two is a DIFFERENT layout, not a perturbed one — which is the "121 edges
+> against 123" signature. UNMEASURED; the cheap test is named there. It does not
+> explain the 2x failure.
+
 Step 7's parity run certified **19 of 21**. Both refusals were `immersive-off`,
 at 2x and at the projector scale. Four sessions have failed to close it.
 
@@ -164,6 +174,27 @@ sites cannot deliver, so what actually changed between `7f5f2ce` and now is
 
 ### 2. The particle ink excess step 6 could not explain
 
+> **RE-SCOPED 2026-09-18 — the numbers below were read against a floor nobody
+> had measured.** `artInk` now prints a same-build floor beside every ratio.
+> Three sets of ONE build read **0.972** at laptop@1x `immersive-on` and
+> **1.030** at projector `idle` (agreeing world hash, passing null, 45,534 lit
+> pixels against 31,385).
+>
+> The mode ROLLUP still clears its floor at all three scales, so **the excess is
+> real** — but per cell the same comparison reads **20 SIGNAL, 22 noise of 42
+> rows**. `idle`, `hover`, `mid-drag` and `resonance` at laptop@1x and projector
+> are indistinguishable from re-running the same build.
+>
+> Two claims below are therefore wrong as written. **"+1.3% to +2.5%" is a
+> SUM-WEIGHTED rollup** — `fired-cascade` alone is 41% of it at laptop@1x and
+> reads 1.037 while the other four states read 0.994–1.007. And **"it flips sign
+> in immersive" holds at two scales of three**: laptop@1x reads 1.054/1.025/1.056
+> across the three sets, the largest excess anywhere. `m` is per MODE, not per
+> SCALE, so the accumulation-path inference does not follow from its own table.
+>
+> The texel-exactness candidate is **CLOSED**: 1,337 shots, 87 sets, zero
+> mismatches. Do not spend it again.
+
 Normal-mode whole-frame ink runs **+1.3% to +2.5%** against the certified
 reference (step 7 measured 1.013–1.025; step 6 measured 1.017–1.032). Step 6's
 provably inert changes measured 1.001–1.003 the same way, so it is the particle
@@ -188,6 +219,15 @@ geometries were texel-exact when the 1.013–1.025 numbers were taken. If they
 were not, part of the excess may be this and not the particles.
 
 ### 3. The spoke's 1.098 GL/2D ratio — never actually gated
+
+> **Two costs the section below does not state.** `artPresence` can NEVER gate
+> this: its 19.5 threshold is derived as "25% under the live figure", and the
+> live figure IS the disputed GL value — the gate is calibrated on the number it
+> would judge. And there is **no 2-D prism oracle left in the source**, so
+> re-measuring needs a worktree at **`cbf22f1`** (the last commit before
+> `1174991` moved the prism to the GPU), not an instrument run at HEAD. Put that
+> cost to the author before spending it. `_prismMeasure` + `_nullPatch` are the
+> instruments; both survived the sweep.
 
 Step 4 task 6 measured the star spokes **9.8% brighter in GL than in 2D** and
 the controller dissented: a ~10% bright sub-layer must not be baked into the
