@@ -249,7 +249,27 @@ different measurement and reads 25.03–25.08 against a 19.5 bar at HEAD.
 
 ### 4. A whole-branch review, and then the sweep
 
-Never run, and the debt is large. Unreviewed: step 4 task 6 (its reviewer was
+> **CLOSED 2026-09-18. BOTH HALVES DONE — do not re-run this item.** The sweep
+> was done in a previous session (see below). The REVIEW was run at high effort
+> over the 32 changed source files (~9.9k lines) and found four confirmed
+> defects. Two were this branch's and are fixed in `8a2c6fb`: the ink scale's
+> boot invariant (`dimsRef` seeded to a geometry the resize path cannot produce,
+> so `inkScale` read 1.069 on the first frames) and `nodeAt`'s hand-copy of the
+> node radius formula, which had silently made the forgiving 3x hitbox a
+> function of display geometry once 5b scaled the ink.
+>
+> Two are PRE-EXISTING ON `main` and are deliberately NOT fixed:
+> `useAnalogicalReasoning` declares `const N = NODES.length; // 31` when NODES is
+> the 272-entry corpus, so 23 of 31 sphere nodes read another node's chimera and
+> ghost state (the first 8 coincide, which is why it survived) — backlogged,
+> because fixing it changes which nodes animate; and `artAwakening.js:43`'s
+> `(col?.hue ?? 30 + 90) % 360`, which binds as `(col?.hue ?? 120) % 360` and
+> kills the genesis burst's hue drift.
+>
+> Full write-up: `.superpowers/sdd/items-5a-5b-reference-and-item4-report.md`.
+> The list below is kept as the record of what was reviewed.
+
+Unreviewed at the time this was written: step 4 task 6 (its reviewer was
 killed twice), `cbf22f1` from a parallel session, step 5 tasks 1–8, and
 `9661dfa`, `7f5f2ce`, `3551885`, `dd14af6`, `08a9ea5`, `590a9da`, `dd4bf46`,
 `fbd73de`, `e6728f6`, `0dea8ed`, `e09ad1e`, `f5ae8a5`, **`c075540`, `7861912`,
