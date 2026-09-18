@@ -111,6 +111,38 @@ const SPHERE_RECT = `(() => { const c = ${SPHERE}; const r = c.getBoundingClient
 const SPHERE_READY = `(() => { const c = ${SPHERE};
   return !!c && c.getBoundingClientRect().width > 800; })()`;
 
+// THE RENDERER THIS SET WAS ACTUALLY CAPTURED ON — asked, not assumed.
+//
+// The manifest used to carry a hardcoded string claiming SwiftShader software
+// GL. It is not true here: headless Chrome on this rig uses the real NVIDIA
+// ANGLE/D3D11 driver, and `--enable-unsafe-swiftshader` is a permission to fall
+// back rather than an instruction to. Every set on disk therefore carries a
+// false statement about its own renderer, in the one field a later session
+// would read to answer exactly that question — and "my rig is software, the
+// author's is not" is the kind of explanation that gets reached for when a
+// number will not reproduce across machines.
+//
+// It reads the COMPOSITE's existing context rather than making one: passing the
+// same context type back to getContext returns the context three.js already
+// created, so this allocates nothing and cannot perturb the page. WEBGL_debug_
+// renderer_info is not guaranteed to be exposed, so a null is reported as
+// `unavailable` — "nobody could ask", never a guess.
+const GL_RENDERER = `(() => {
+  const g = document.querySelector('[data-art-composite] canvas');
+  if (!g) return { error: 'no composite canvas' };
+  const gl = g.getContext('webgl2') || g.getContext('webgl');
+  if (!gl) return { error: 'no GL context on the composite canvas' };
+  const ext = gl.getExtension('WEBGL_debug_renderer_info');
+  return {
+    unmaskedRenderer: ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : null,
+    unmaskedVendor:   ext ? gl.getParameter(ext.UNMASKED_VENDOR_WEBGL) : null,
+    maskedRenderer:   gl.getParameter(gl.RENDERER),
+    maskedVendor:     gl.getParameter(gl.VENDOR),
+    version:          gl.getParameter(gl.VERSION),
+    debugInfo:        ext ? 'exposed' : 'unavailable',
+  };
+})()`;
+
 // The GL composite has mounted AND sized itself to the 2D canvas. Waiting on
 // this before virtualising is what makes the capture see the bloom layer.
 const GL_READY = `(() => {
@@ -732,9 +764,19 @@ async function captureScale(scale, manifest, expectFingerprint) {
   await page.pump(749);
   await shot('immersive-off');
 
+  // Probed LAST, after every shot is taken, deliberately. A `page.eval` costs a
+  // yield, and a yield is when real browser tasks land — which is how three of
+  // post-step-5 task 1's four causes got in. Asking after the pictures are on
+  // disk means this cannot move a single one of them.
+  const gpu = await page.eval(GL_RENDERER);
+
   const errors = page.consoleErrors();
   manifest.scales[scale.name] = {
     bootFingerprint: fingerprint,
+    // Per scale as well as once at the top: the scales run in separate Chrome
+    // launches, so "they all used the same driver" is a measurement and not a
+    // given.
+    renderer: gpu,
     viewport: { width: scale.width, height: scale.height, dpr: scale.dpr },
     sphereCss: { w: Math.round(rect.w), h: Math.round(rect.h) },
     sphereBackingStore: store,
@@ -758,6 +800,16 @@ async function captureScale(scale, manifest, expectFingerprint) {
   console.log(`   draw cost idle      p50 ${manifest.scales[scale.name].drawCostMs.idle?.p50}ms  p95 ${manifest.scales[scale.name].drawCostMs.idle?.p95}ms`);
   console.log(`   draw cost drag      p50 ${manifest.scales[scale.name].drawCostMs.drag?.p50}ms  p95 ${manifest.scales[scale.name].drawCostMs.drag?.p95}ms`);
   console.log(`   draw cost immersive p50 ${manifest.scales[scale.name].drawCostMs.immersive?.p50}ms  p95 ${manifest.scales[scale.name].drawCostMs.immersive?.p95}ms`);
+  console.log(`   renderer  ${gpu.unmaskedRenderer ?? gpu.maskedRenderer ?? gpu.error}`
+    + `   (WEBGL_debug_renderer_info ${gpu.debugInfo ?? 'unreadable'})`);
+  // The first scale's answer becomes the set's headline; a later scale that
+  // disagrees is a real finding, so it is said out loud rather than overwritten.
+  if (!manifest.renderer) manifest.renderer = gpu;
+  else if (manifest.renderer.unmaskedRenderer !== gpu.unmaskedRenderer) {
+    console.log('   !! THIS SCALE RENDERED ON A DIFFERENT DRIVER than the first one.');
+    console.log(`      first ${manifest.renderer.unmaskedRenderer}  this ${gpu.unmaskedRenderer}`);
+    console.log('      The scales are not comparable. Each scale carries its own.');
+  }
   if (errors.length) console.log(`   console errors: ${errors.length}`);
 
   await page.close();
@@ -774,11 +826,20 @@ const manifest = {
   capturedAt: new Date().toISOString(),
   gitCommit: process.env.BASELINE_COMMIT ?? null,
   url: URL,
-  renderer: 'headless chrome --headless=new --enable-unsafe-swiftshader (software GL)',
+  // How Chrome was LAUNCHED. This is a fact about the command line and nothing
+  // more — in particular `--enable-unsafe-swiftshader` permits a software
+  // fallback, it does not force one. What actually drew is `renderer` below,
+  // which is probed from the page. The two used to be one hardcoded string
+  // asserting SwiftShader, which was false on this rig for every set on disk.
+  launchFlags: 'headless chrome --headless=new --enable-unsafe-swiftshader',
+  // Filled by the first captureScale from WEBGL_debug_renderer_info. Null means
+  // no scale ran, not "software".
+  renderer: null,
   deterministic: true,
   note: 'draw cost is main-thread work inside the rAF callback, in ms. Frame '
-      + 'INTERVAL is not measured here: headless software GL runs rAF '
-      + 'unthrottled, so interval is meaningless. See artFrameTime.mjs.',
+      + 'INTERVAL is not measured here: headless rAF is unthrottled, so '
+      + 'interval is meaningless. See artFrameTime.mjs. The driver that drew '
+      + 'this set is in `renderer`, probed, not assumed.',
   scales: {},
 };
 
