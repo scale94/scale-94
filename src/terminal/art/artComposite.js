@@ -90,15 +90,39 @@ export const COMPOSITE_STYLE = {
 // wires can raise a milky floor across the canvas when three nodes cannot.
 //
 // 8 is `BloomEffect`'s own default, which is what this prop was getting
-// implicitly before it was named here. Naming it changes no pixel and makes the
-// reach a value this file can state, test and sweep like the other four.
+// implicitly before it was named here.
+//
+// 5 IS MEASURED, AGAINST A BLOOM-OFF CONTROL. `scripts/_a3bloom.mjs --fired`
+// pinned one world across seven frames -- 1920x984, 103/102 edges, ry 3.617125,
+// six independent boots agreeing to the last digit -- and `scripts/_a4halo.mjs`
+// read the halo out of them:
+//
+//                          bloom off    levels 8    levels 5
+//     far field 96-200 px     x1.000      x1.074      x1.006
+//     p90 of the artwork     0.02745     0.03109     0.02745
+//
+// The pyramid's contribution to the far field is +7.4% at 8 and +0.6% at 5, and
+// p90 returns EXACTLY to its bloom-off value: five levels removes essentially
+// all of the wash the deep mips were painting across the black, and none of the
+// near glow. The instrument carries its own null -- two runs of the same build
+// agree to four decimals in the far field against an effect of up to 22% -- so
+// this is signal, not a run-to-run difference.
+//
+// WHAT IT DOES NOT DO, said here because the next reader will assume otherwise:
+// it does not dim the wire. It redistributes INWARD -- +5% at 8-16 px, +11% at
+// 16-24, +22% at 24-48 -- and clipped pixels go slightly UP, 1429 -> 1442. The
+// blown-out core is a separate problem with a separate lever: 869 of those
+// pixels clip with the bloom entirely OFF, which is ink saturating in the RGBA8
+// trail accumulator before this pass runs, and that belongs to the immersive
+// trail gain (artTrail.js, RIFT_ALPHA 0.72 normal against 0.32 immersive) rather
+// than to anything in this file.
 export const BLOOM = {
   luminanceThreshold: 0.28,
   luminanceSmoothing: 0.9,
   intensity: 1.1,
   mipmapBlur: true,
   radius: 0.7,
-  levels: 8,
+  levels: 5,
 };
 
 // Immersive only. Replaces the 2D radial-gradient vignette, which ran to
