@@ -22,6 +22,18 @@ floor**, with every step attributed rather than dialled. Four commits:
 **NOT PUSHED. `main` UNTOUCHED.** Do not push without a new explicit command —
 verification approval is not push consent.
 
+## WHAT THE FOLLOW-UP SESSION DID, 2026-09-19
+
+Re-measured **item 1**, the open bloom dial, and found that the frames this file
+offered for that decision did not contain a cascade — or normal mode. Two rig
+commits, no change to `artComposite.js` and no value chosen:
+
+    ea00596  test(art): a normal-mode path and a live cascade for the sweep
+    4be24be  test(art): the third bloom dial, and a way to hold the other two
+
+**ALSO NOT PUSHED.** Item 1 below is rewritten on the new measurements and the
+old table is gone; the traps it cost are in their own subsection.
+
 ## THE THREE CAUSES, BECAUSE "THE BLOOM WAS TOO STRONG" IS WRONG
 
 The blowout had three independent causes and only the third is what anyone
@@ -125,35 +137,109 @@ from "do I like the curve".
 
 ## WHAT IS OPEN, ranked
 
-**1. THE BLOOM DIALS — swept, and the finding is that there is nothing to fix.**
+**1. THE BLOOM DIALS — RE-MEASURED 2026-09-19. The old finding was taken off
+frames with no cascade in them. `levels` is the lever; `intensity` alone is
+not, and the gate is not.**
 
-MEASURED on `_a3bloom --fired` (pinned world, ry 3.60625, same fired nodes at
-every value), sweeping `intensity` across more than 6x:
+The first thing re-measuring produced was the reason the old numbers said what
+they said. See THE DECAYED CASCADE in the traps below: every frame this sweep
+had ever produced was immersive AND shot 160 frames after the click, by which
+time the prism fans are gone. The old table was comparing a resonance bar, node
+cores and a cage — not the blowout the dial exists to control.
 
-    intensity    0.25    0.6    0.8    1.1    1.5
-    clipped        5      5      5      5      6
-    white          0      0      0      0      0
-    ink          3.72M  4.57M  5.04M  5.35M  6.37M
+`scripts/_a3bloom.mjs` now takes `--normal`, `--live`, `--threshold` and
+`--hold=k=v`; see THE RIG below. With the cascade actually in frame the picture
+changes.
 
-**`intensity` no longer controls clipping at all.** The knee caps the output
-whatever the bloom adds, so the dial now buys glow volume and nothing else. That
-is the independence the after-bloom placement was chosen for, now confirmed.
+**CLIPPING STILL DOES NOT DISTINGUISH THE DIALS, and that part held.**
+Immersive, live cascade, frame 14: 772 clipped px at 0.6 against 979 at 1.1, of
+2.07M, zero pure white at either. Normal mode: 7 and 19. The knee caps the
+output whatever the bloom adds, exactly as the after-bloom placement was chosen
+for. **Do not choose on clipping**, in either mode.
 
-The consequence is the actionable part: `artComposite.js` records that intensity
-was cut **1.1 -> 0.6 specifically because of the blowout** in immersive ("too
-much bloom in immersive", the author's words). That blowout is gone, so the
-reason for the cut is gone. 1.1 was re-checked at the sweep and is viable again
-— the resonance bar reads as a luminous tube with its colour intact, structural
-lines stay clean, the void stays black.
+**WHAT THE DIAL MOVES IS THE FIELD BETWEEN THE STRANDS.** Measured PAIRED — the
+pixel set fixed once from the reference frame and those same pixels read in
+every other frame. Thresholding each frame on its own level instead lets the
+population move underneath the mean, and it did: see the traps.
 
-**LEFT AT 0.6. The value is an aesthetic call and the author has not made it.**
-Frames for both are in `lookbook/bloom-fired-lv5-i0p6.png` and `-i1p1.png`, plus
-crops `lookbook/dial-0p6-crop.png` / `dial-1p1-crop.png`. Whatever is chosen,
-choose it on the frames — clipping cannot distinguish them.
+    intensity 0.6 -> 1.1     interstitial mean      vs 0.6
+    immersive                55.5 -> 72.9           +31.4%
+    normal                   37.8 -> 49.7           +31.5%
 
-`luminanceThreshold` (0.28) has STILL never been swept. It is not urgent: its
-job is a binary gate above the dim structural lines and it still does that. What
-changed is the range above the gate, which is intensity's axis, not its own.
+The same proportional lift in both modes. What differs is where it STARTS —
+immersive at 55.5, normal at 37.8 — so the same 31% lands immersive at 72.9,
+and that is why the exhibit fans read milky at 1.1 while normal mode merely
+reads brighter.
+
+**`luminanceThreshold` IS NOT THE LEVER. SWEPT, AND THE ANSWER IS NO.** The
+hypothesis was that the fill is dim ink passing the 0.28 gate and being
+amplified, so a higher gate would let intensity rise without lifting the field.
+Immersive, live, intensity HELD at 1.1:
+
+    gate            0.28     0.4     0.55    0.7
+    interstitial   +31.5%  +28.8%  +26.1%  +22.2%
+    hot px          83379   82119   79567   77100
+    ink            59.88M  59.54M  58.00M  56.82M
+
+Two and a half times the gate recovers less than a third of the wash, and it
+does not recover it SELECTIVELY — hot px and ink fall with it, so it is dimming
+the bloom generally. The hypothesis was wrong: the strands filling those gaps
+are far above any gate in this range, and what spreads their energy sideways is
+the mipmap pyramid, which a gate cannot touch. The old note here said the gate
+was "not urgent" because "the range above the gate is intensity's axis, not its
+own". The first half is right for the wrong reason and the second half is the
+error — the axis that matters is neither.
+
+**`levels` IS THE LEVER, and it is selective.** Same world, same offset,
+intensity HELD at 1.1:
+
+    levels           5 (i0.6)      5       4       3       2
+    hot px              72071   83378   85720   84694   82243
+    lit px             573989  621973  453146  344704  272671
+    ink                50.56M  59.95M  50.27M  41.44M  34.49M
+    interior  mid            —  +31.2%   -9.4%  -41.4%  -65.8%
+    interior  close          —  +31.3%   +9.7%  -26.7%  -60.4%
+
+ONE LEVEL removes the whole wash — +31% becomes -9% in the open interior — and
+hot px goes UP while it does. That is the selectivity the gate could not
+produce.
+
+**The two rects disagree, and the disagreement IS the mechanism.** At levels 4
+the open interior lands BELOW the shipping frame and the space between adjacent
+strands lands slightly above it. The deep mips are what reach across the open
+interior; removing one kills the mid-range spread and barely touches the
+close-in skirt. A far-void rect beside the sphere returned ZERO px in the haze
+band at every setting — the far field is already at grain level and none of
+these three dials touch it.
+
+**THE SHORTLIST, and it is a shortlist, not a choice.** `levels 4 + intensity
+1.1` carries the SAME TOTAL INK as shipping (50.27M against 50.56M),
+redistributed into 19% more hot core with a slightly cleaner open interior.
+`levels 3 + intensity 1.1` is clearly darker than shipping at both radii with
+the cores still up, but the glow footprint shrinks 40% (574k -> 345k lit px),
+which is a change to the piece rather than a dial. `levels 2` reads hard-edged
+— the blue node loses its bloom entirely — and is not worth pursuing.
+
+**STILL AT intensity 0.6, levels 5. `artComposite.js` WAS NOT TOUCHED.** On the
+evidence, stay at 0.6 if nothing else moves, because at 1.1 the interior wash
+cannot be tuned away with the gate. If the glow at 1.1 is wanted, `levels 4` is
+how to have it.
+
+**WHAT THIS DOES NOT ESTABLISH.** One pinned world, one frame offset (14), two
+rects chosen by hand, and immersive only for the gate and levels sweeps. Enough
+to say `levels` is the lever and to shortlist 4 and 3; NOT enough to certify a
+value. Choosing wants f26/f44 and a normal-mode pass.
+
+Frames, all in `lookbook/`, 0.6 left / 1.1 right unless stated:
+
+    normal-live-dial-fan.png  -fan2.png  -ridge.png   normal mode, 2 panels
+    imm-dial-fanL.png  -fanR.png  -ridge.png          immersive, 2 panels
+    thresh-fanL.png  thresh-ridge.png                 the gate, 5 panels
+    levels-fanL.png  levels-ridge.png                 levels, 5 panels
+
+The OLD decision frames `lookbook/bloom-fired-lv5-i0p6.png` / `-i1p1.png` and
+the crops `dial-0p6-crop.png` / `dial-1p1-crop.png` are kept, but they are
+immersive frames of a decayed cascade. **Do not decide anything on them.**
 
 **2. THE STRIMER WAVEFRONT.** The author's design, and the HDR headroom its
 ">1.0 blinding head" needs now exists — it was literally impossible before, the
@@ -207,7 +293,54 @@ population had RISEN to 339,985. A third of the exhibit frame pinned one level
 off black, permanently. Half-float has no requantisation, so `f5bd2fc` removed
 it for free.
 
-## TRAPS THIS SESSION PAID FOR
+## TRAPS PAID FOR, BY SESSION
+
+### Paid for on 2026-09-19, re-measuring item 1
+
+**THE DECAYED CASCADE — the sweep was not looking at the cascade.** `_a3bloom
+--fired` spent 70 pumps and then a 90-frame bright pass before the shutter: 160
+frames after the click, and a prism effect lives `maxLife`. `_b2peak`'s header
+ALREADY RECORDS this as one of its four corrections, and excuses `_a3bloom` on
+the grounds that it is comparative — every frame decays equally, so the
+comparison survives. **That excuse holds for a NUMBER and fails for a PICTURE**,
+and item 1's whole instruction was "choose it on the frames". MEASURED, normal
+mode, moving the bright pass BEFORE the fire: lit px 165,205 -> 307,398 and ink
+5.83M -> 14.46M. More than half the frame was missing. An excuse that is valid
+for one use of an instrument is not valid for another, and the excuse was
+written down where it looked like a clearance.
+
+**AND EVERY FRAME IT HAD EVER PRODUCED WAS IMMERSIVE.** `clickImmersive` was
+unconditional. Nothing in the run output said so and the filenames did not carry
+it, so the two frames the previous version of this file offered as the
+normal-mode decision set are both exhibit frames. **A flag with no name in the
+output is a flag nobody can check.**
+
+**THE IMMERSIVE WORLD DOES NOT PIN EVERY RUN.** The first `--live` immersive
+sweep returned `world pinned: NO` — 105/104 edges against 104/103, ry 3.5285
+against 3.537, and a COMPLETELY different resonance pair and fired set. Not
+comparable; those frames were discarded unlooked-at. The second run of the
+identical command pinned, and pinned onto the SAME world as the two sweeps after
+it, which is what let five configurations be compared across four separate runs.
+This is item 1's race again. The script's own pinning check caught it — believe
+it, and never crop a pair it has refused.
+
+**A PROXY BUILT ON A LEVEL THRESHOLD SELECTS DIFFERENT PIXELS AT EVERY
+SETTING.** The first interstitial measurement gated each frame on its own max
+channel in [8,120] and reported a population that FELL from 108,712 to 92,751 px
+at an IDENTICAL mean of 55.5 — because raising the dial pushed pixels out
+through the ceiling. Fix the population ONCE from the reference frame and read
+those same pixels everywhere; paired, the same comparison reads +31.4%. This is
+`_b2peak`'s fourth correction reappearing in a different script, which is the
+tell that it is a FAMILY and not an incident.
+
+**THE NULL IS CHEAP HERE AND IT IS WORTH TAKING.** Two independent boots at an
+identical configuration read 72.9 and 73.0, and a third later read 72.8, on the
+paired measure — a noise floor of ~0.1 against effects up to 31%. Both came
+free: one from a `--hold` run whose filename collided with an earlier frame, one
+from re-shooting `levels 5` inside the levels sweep. Take the free null every
+time; it is what makes a 9% row quotable.
+
+### Paid for earlier
 
 **`artCompare` at threshold 4 can pass a change that is obvious by eye.** It is
 a mean over a 32x18 signature; the 5000x halo covered <1% of frame area, moved
@@ -245,6 +378,26 @@ four in its header.
 still easy to walk into. Use its bright-pass hooks, BEFORE the fire.
 
 ## THE RIG — additions
+
+`_a3bloom.mjs` gained four flags on 2026-09-19 (`ea00596`, `4be24be`):
+
+    --normal        skip the immersive toggle. The pumped budget is held at
+                    750 either way, so the mode is the only thing that moves
+    --live          bright pass BEFORE the fire, then shots at frames
+                    14/26/44 inside ONE boot, so the cascade is in the frame
+    --threshold     sweep luminanceThreshold, the third dial
+    --hold=k=v      pin a dial that is NOT being swept, e.g.
+                    --hold=intensity=1.1, so the gate can be asked its
+                    question at an intensity worth gating
+
+The default path is untouched and byte-identical in behaviour, so the frames
+already in `lookbook/` stay reproducible. The name now carries all three dials;
+`-t` appears only when the gate is in play. **A REMAINING HOLE:** a HELD value
+looks identical to a source value in the name, so `--hold=intensity=1.1` with a
+levels sweep writes `bloom-live-fired-lv5-i1p1-*` and overwrites an earlier
+frame at the same true configuration. Harmless when the configuration really is
+identical — it was used as a null — but copy anything worth keeping before a
+held run.
 
     scripts/_b1dome.mjs    the dome discriminator (head / nobloom / nobeat)
     scripts/_b2peak.mjs    the exposure-stop peak probe + overbright census
