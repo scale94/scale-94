@@ -31,8 +31,13 @@ commits, no change to `artComposite.js` and no value chosen:
     ea00596  test(art): a normal-mode path and a live cascade for the sweep
     4be24be  test(art): the third bloom dial, and a way to hold the other two
 
-**ALSO NOT PUSHED.** Item 1 below is rewritten on the new measurements and the
-old table is gone; the traps it cost are in their own subsection.
+Then extended: the gate and levels swept, f26 and f44 checked, and a
+normal-mode levels pass. A mode-dependent `BLOOM.levels` was proposed and then
+**rejected on its own measurements** — see item 1.
+
+**ALSO NOT PUSHED, AND NO VALUE WAS CHOSEN.** Item 1 below is rewritten on the
+new measurements and the old table is gone; the traps it cost are in their own
+subsection.
 
 ## THE THREE CAUSES, BECAUSE "THE BLOOM WAS TOO STRONG" IS WRONG
 
@@ -204,9 +209,9 @@ ONE LEVEL removes the whole wash — +31% becomes -9% in the open interior — a
 hot px goes UP while it does. That is the selectivity the gate could not
 produce.
 
-**The two rects disagree, and the disagreement IS the mechanism.** At levels 4
-the open interior lands BELOW the shipping frame and the space between adjacent
-strands lands slightly above it. The deep mips are what reach across the open
+**The two rects disagree, and the disagreement IS the mechanism.** In IMMERSIVE
+at levels 4 the open interior lands BELOW the shipping frame and the space
+between adjacent strands lands slightly above it. The deep mips are what reach across the open
 interior; removing one kills the mid-range spread and barely touches the
 close-in skirt. A far-void rect beside the sphere returned ZERO px in the haze
 band at every setting — the far field is already at grain level and none of
@@ -357,6 +362,16 @@ unconditional. Nothing in the run output said so and the filenames did not carry
 it, so the two frames the previous version of this file offered as the
 normal-mode decision set are both exhibit frames. **A flag with no name in the
 output is a flag nobody can check.**
+
+**A PROPOSAL FROM ONE OFFSET IN ONE MODE IS A HYPOTHESIS, NOT A PLAN.**
+Mode-dependent `levels` was proposed off a SINGLE immersive f14 row, the one
+where levels 4 landed below shipping. Six measurements later — two modes, three
+offsets — it was the WORSE of the two changes, because a single levels 4 keeps
+both modes inside one band and the split puts them on opposite sides of it. Two
+hypotheses died in this stretch, the gate and this one; both sounded MECHANICAL
+rather than aesthetic, which is exactly what made them believable. Checking cost
+minutes, because the frames already existed — the offsets were shot by the same
+runs and never looked at.
 
 **THE IMMERSIVE WORLD DOES NOT PIN EVERY RUN.** The first `--live` immersive
 sweep returned `world pinned: NO` — 105/104 edges against 104/103, ry 3.5285
