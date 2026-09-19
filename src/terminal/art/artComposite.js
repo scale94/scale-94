@@ -209,10 +209,29 @@ export const VIGNETTE = {
 //     input    1.0x   1.5x   2.0x   4.0x   8.0x   37x
 //     output    204    224    232    244    250   254
 //
-// while a knee of 0.9 leaves 1x-8x inside four levels of each other and a knee
-// of 0.25 buys structure by repainting a quarter of the frame. That is an
-// aesthetic decision on a real trade, so it ships as a uniform and the author
-// picks it off a strip. The default below is a starting point, not a finding.
+// Spanning 1x to 8x, knee 0.6 resolves 46 levels where knee 0.9 resolves 13.
+//
+// ── 0.6 IS CHOSEN, off the strip, by the author ────────────────────────────
+//
+// `lookbook/knee-strip/`, five values over one pinned 4-node cascade — same
+// world, same frame, grain left ON because it ships. Clipped pixels (any
+// channel at the ceiling) across the sweep:
+//
+//     no knee   9310        0.9   1073        0.6      5        0.45   0
+//
+// 0.9 recovers the broad ribbons and still whites out the densest crossings, so
+// it does not finish the job. 0.45 and 0.3 are very nearly indistinguishable
+// from 0.6 by eye, because the distribution is front-loaded — 76% of the
+// overbright lies between 1x and 2x, only 215 px exceed 8x and five exceed 32x
+// — so the extra compression is spent on a tail that barely exists while
+// lowering the identity floor and touching strictly more of the in-gamut art.
+//
+// At 0.6 the filaments stay individually resolvable THROUGH the bundle and the
+// particle cluster resolves into distinct magenta, pink and yellow points
+// instead of white blobs, which is the defect stated in the brief.
+//
+// It stays a uniform. The value is settled for normal mode; immersive peaks
+// above 64x against normal's 37x and gets its own strip.
 //
 // ── The units, which are linear and happen to agree with sRGB ──────────────
 //
