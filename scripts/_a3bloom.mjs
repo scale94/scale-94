@@ -90,6 +90,8 @@ const DEFAULTS = LEVELS ? '8,6,5,4,3' : '1.1,0.85,0.6,0.4';
 const VALUES = (process.argv[5] && !process.argv[5].startsWith('--')
   ? process.argv[5] : DEFAULTS).split(',').map(Number);
 const FIRED  = process.argv.includes('--fired');
+const NORMAL = process.argv.includes('--normal');
+const LIVE   = process.argv.includes('--live');
 const BRIGHT = FIRED || process.argv.includes('--bright');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const settle = () => sleep(25);
@@ -100,6 +102,30 @@ const settle = () => sleep(25);
 // generous rather than hopeful -- and unlike artBaseline's loop it is spent
 // whatever happens, which is what keeps the rotation constant.
 const FIRE_STEPS = 70;
+
+// -- `--live`, AND THE FRAME THIS SCRIPT COULD NOT PRODUCE UNTIL NOW --------
+// The default `--fired` order is: fire, 70 pumps, bright pass, 90 more pumps,
+// shoot. That is 160 frames after the click, and a prism effect only lives
+// `maxLife` -- so THE CASCADE IS NOT IN THE DEFAULT FRAME. `_b2peak`'s header
+// records this as one of the four corrections it needed, and excuses this
+// script on the grounds that it is comparative: every frame decays equally, so
+// a clipping comparison survives.
+//
+// That excuse holds for a NUMBER and fails for a PICTURE. The open item this
+// serves is explicitly "choose it on the frames", and the thing being chosen
+// for -- "if there's like 5 nodes being wired and fired that's when the bloom
+// gets blown out" -- is the one layer the default frame does not contain. A
+// comparison of an absent effect is not a look at it.
+//
+// So `--live` runs the bright pass BEFORE the cascade is armed and shoots at
+// offsets that bracket the live effect, one boot per value, exactly as
+// `_b2peak` does. The offsets are the same frame counts in every boot, so the
+// rotation still matches across the sweep and the pinning check below still
+// means what it says.
+//
+// The default path is untouched, deliberately: the frames already in
+// `lookbook/` were shot on it and have to stay reproducible.
+const LIVE_OFFSETS = [14, 26, 44];
 
 // How many nodes the fired pass clicks, over and above the two the resonance
 // selection holds. The author's comparison is three against five, so this side
@@ -177,6 +203,7 @@ if (!om) throw new Error('could not find BLOOM.' + otherKey + ' in ' + SRC);
 const other = { key: otherKey, value: om[2] };
 console.log('BLOOM.' + KEY + ' is currently ' + m[2] + '   sweeping ' + VALUES.join(', ')
   + '   with BLOOM.' + other.key + ' held at ' + other.value
+  + '   mode: ' + (NORMAL ? 'NORMAL' : 'immersive')
   + '   state: ' + (FIRED ? 'fired (resonance + cascade + bright)' : BRIGHT ? 'bright' : 'plain'));
 mkdirSync('F:/scale_9.4/lookbook', { recursive: true });
 
@@ -185,6 +212,15 @@ async function shoot(v) {
   await sleep(1200);                       // let vite notice the file before a cold load
   const page = await launch({ url: URL, width: W, height: H, dpr: DPR, deterministic: true });
   const notes = {};
+  const live = [];
+  // BOTH keys go in the name, not just the swept one -- see the long note at
+  // the screenshot below. `--normal` and `--live` are in it for the same
+  // reason: an immersive frame and a normal one at the same dial are different
+  // pictures, and the second run would otherwise overwrite the first.
+  const tag = (NORMAL ? 'normal-' : '') + (LIVE ? 'live-' : '')
+    + (FIRED ? 'fired-' : BRIGHT ? 'bright-' : '')
+    + (LEVELS ? 'lv' + slug(v) + '-i' + slug(other.value)
+      : 'lv' + slug(other.value) + '-i' + slug(v));
   try {
     await page.waitFor('document.querySelectorAll("canvas").length > 0', { label: 'boot canvas' });
     await sleep(2500);
@@ -206,15 +242,45 @@ async function shoot(v) {
     await sleep(25);
     await page.pump(30);
 
-    if (!await page.eval(clickImmersive)) throw new Error('no Immersive control found');
-    // The resize delivery, as artBaseline does it: a screenshot to force layout
-    // (zero frames), a real-time sleep so the observer and React's commit can
-    // land (zero frames, but it is the YIELD a real browser task needs), then
-    // one pump so r3f applies the size.
-    await page.screenshot();
-    await sleep(250);
-    await page.pump(1);
-    await page.pump(749);
+    // The bright pass, as a closure so `--live` can spend it BEFORE the fire.
+    // Both hooks are dev-only and deterministic -- the beacon is put back into
+    // awakening phase 1 with its t0 held mid-window so stepAwakening does not
+    // advance out of it, and the bleed channel is driven on every third node.
+    // Neither takes a draw from artRandom, so the world read back below is the
+    // same world either way.
+    const brightPass = async () => {
+      await page.eval('window.__artForceBeacon(true)');
+      await page.eval('window.__artForceBleed(0.85)');
+      await page.pump(90);
+    };
+
+    // -- NORMAL MODE, AND WHY IT IS NOT THE SAME PICTURE -------------------
+    // Every frame this script had produced before `--normal` existed was shot
+    // INSIDE immersive, because the toggle above used to be unconditional. The
+    // two modes differ in all three of the things a bloom value is judged on:
+    // immersive mounts <Vignette> and normal mounts nothing in its place, the
+    // trail survival is 0.32 against 0.72, and since the inkScale work the
+    // exhibit carries roughly twice the ink. So a value chosen on an immersive
+    // frame has NOT been chosen for normal mode, and the lookbook names have to
+    // say which is which or the second run silently overwrites the first.
+    //
+    // The pumped budget is held identical in both branches -- 750 either way --
+    // so the mode is the only thing that moves.
+    if (NORMAL) {
+      await page.pump(750);
+    } else {
+      if (!await page.eval(clickImmersive)) throw new Error('no Immersive control found');
+      // The resize delivery, as artBaseline does it: a screenshot to force layout
+      // (zero frames), a real-time sleep so the observer and React's commit can
+      // land (zero frames, but it is the YIELD a real browser task needs), then
+      // one pump so r3f applies the size.
+      await page.screenshot();
+      await sleep(250);
+      await page.pump(1);
+      await page.pump(749);
+    }
+
+    if (LIVE && BRIGHT) await brightPass();
 
     // ── The fired pass ────────────────────────────────────────────────────
     // Everything here runs INSIDE immersive. That was worth checking rather
@@ -282,27 +348,29 @@ async function shoot(v) {
       // A FIXED budget, spent whatever happens. Record the frame the rings
       // arrive on instead of waiting for them -- see the header.
       let rings = 0, arrivedAt = null;
-      for (let i = 0; i < FIRE_STEPS; i++) {
+      const budget = LIVE ? LIVE_OFFSETS[LIVE_OFFSETS.length - 1] : FIRE_STEPS;
+      for (let i = 0; i < budget; i++) {
         await page.pump(1);
         if (rings <= 0) {
           rings = Number(await page.eval(RINGS));
           if (rings > 0) arrivedAt = i + 1;
+        }
+        // Shoot ON the offset, inside the same boot. A second boot is a second
+        // world, which is the error this script's header spends four
+        // paragraphs on.
+        if (LIVE && LIVE_OFFSETS.includes(i + 1)) {
+          const path = 'lookbook/bloom-' + tag + '-f' + (i + 1) + '.png';
+          await page.screenshot({ path });
+          live.push({ off: i + 1, path });
         }
       }
       notes.rings = rings;
       notes.arrivedAt = arrivedAt;
     }
 
-    // The bright pass. Both hooks are dev-only and deterministic -- the beacon
-    // is put back into awakening phase 1 with its t0 held mid-window so
-    // stepAwakening does not advance out of it, and the bleed channel is driven
-    // on every third node. Neither takes a draw from artRandom, so the world
-    // measured below is still the same world.
-    if (BRIGHT) {
-      await page.eval('window.__artForceBeacon(true)');
-      await page.eval('window.__artForceBleed(0.85)');
-      await page.pump(90);
-    }
+    // The bright pass on the default path, where it trails the cascade. See
+    // `--live` at the head of this file for why that is wrong for a picture.
+    if (BRIGHT && !LIVE) await brightPass();
 
     // Read the world back OUT of the running page rather than trusting the
     // sequence. If two frames of this sweep disagree here they are not a sweep,
@@ -326,11 +394,9 @@ async function shoot(v) {
     // The frames captured before this scheme keep their names: the five
     // `bloom-fired-lv{8,6,5,4,3}` were all at intensity 1.1, and the pair
     // `bloom-fired-{0,1p1}` were both at levels 8.
-    const tag = (FIRED ? 'fired-' : BRIGHT ? 'bright-' : '')
-      + (LEVELS ? 'lv' + slug(v) + '-i' + slug(other.value)
-        : 'lv' + slug(other.value) + '-i' + slug(v));
-    const out = 'lookbook/bloom-' + tag + '.png';
-    await page.screenshot({ path: out });
+    const out = LIVE ? live.map(f => f.path).join(', ')
+      : 'lookbook/bloom-' + tag + '.png';
+    if (!LIVE) await page.screenshot({ path: out });
     console.log('   ' + KEY + ' ' + String(v).padEnd(6) + ' -> ' + out
       + '   box ' + state.box + '   edges ' + state.edges + '/' + state.world
       + '   ry ' + state.ry + '   sphereR ' + state.sphereR
