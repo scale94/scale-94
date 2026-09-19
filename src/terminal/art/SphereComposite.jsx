@@ -103,8 +103,39 @@ const COMPOSITE_FRAG = /* glsl */`
     vec3 srgb = mix(bg, src.rgb, src.a);
 
     // Hand the pipeline linear working-space colour and full alpha — the same
-    // thing the opaque meshBasicMaterial wrote in step 2, so bloom is unchanged.
-    gl_FragColor = vec4(srgbToLinear(srgb), 1.0);
+    // thing the opaque meshBasicMaterial wrote in step 2, so bloom is unchanged
+    // for everything that was already inside the gamut.
+    //
+    // ── Why the conversion is CLAMPED, and what it cost to find out ────────
+    //
+    // srgbToLinear is only defined on [0,1]. Above 1 it is an EXTRAPOLATION,
+    // and a violent one: the high branch is pow((c + 0.055) / 1.055, 2.4), so
+    //
+    //     c =  2  ->      4.9
+    //     c = 10  ->    241
+    //     c = 37  ->   5170
+    //
+    // While the accumulator was RGBA8 that branch was unreachable — the blend
+    // unit clamped at 1.0, so nothing above the gamut ever arrived here. The
+    // half-float switch made it reachable for the first time, and the measured
+    // peak of 37.15x on a 4-node cascade therefore entered the bloom's
+    // bright-extract at about FIVE THOUSAND times white.
+    //
+    // MEASURED, projector fired-cascade, same pinned world: a blob region that
+    // reads mean 7.42 in the RGBA8 reference read 52.73 with the bloom on and
+    // 7.12 with it off — and the bloom-off pixel counts above 128 and above 200
+    // came back at EXACTLY the reference numbers, 395 and 23. So the ink never
+    // moved. The halo was entirely the pyramid amplifying an extrapolation
+    // nobody had chosen.
+    //
+    // Clamping the conversion at 1 and carrying the excess linearly keeps the
+    // in-gamut path bit-identical to what shipped, and makes overbright enter
+    // the post stack PROPORTIONALLY: 37x of ink becomes 37x of light, not
+    // 5170x. That is what makes intensity and luminanceThreshold remain
+    // independent, dial-able levers instead of two ends of a runaway.
+    vec3 lin = srgbToLinear(min(srgb, vec3(1.0)))
+             + max(srgb - vec3(1.0), vec3(0.0));
+    gl_FragColor = vec4(lin, 1.0);
   }
 `;
 
