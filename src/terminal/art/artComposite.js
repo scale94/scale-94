@@ -92,6 +92,20 @@ export const COMPOSITE_STYLE = {
 // 8 is `BloomEffect`'s own default, which is what this prop was getting
 // implicitly before it was named here.
 //
+// ── THE RECORD OF HOW 5 AND 0.6 WERE ARRIVED AT ────────────────────────
+//
+// KEPT, BUT BOTH WERE SUPERSEDED ON 2026-09-20 — see the block below the next
+// one. Read them for the MECHANISM, which still holds and which the new
+// measurements independently reproduce, and not for the values.
+//
+// What they share is the flaw: every frame under them came from
+// `_a3bloom --fired` before that script could put a live cascade in a shot. It
+// toggled immersive unconditionally and opened the shutter 160 frames after the
+// fire, so the prism fans had decayed out. The far-field and halo readings are
+// still sound, because they measure the bloom's reach around whatever ink is
+// present; the CHOICES made on those frames were made without the layer the
+// dial exists to control.
+//
 // 5 IS MEASURED, AGAINST A BLOOM-OFF CONTROL. `scripts/_a3bloom.mjs --fired`
 // pinned one world across seven frames -- 1920x984, 103/102 edges, ry 3.617125,
 // six independent boots agreeing to the last digit -- and `scripts/_a4halo.mjs`
@@ -141,13 +155,76 @@ export const COMPOSITE_STYLE = {
 // levels in CSS pixels scales inversely with devicePixelRatio, and `compositeDpr`
 // caps at 1.5. A value picked on a 1.5x display would land ~1.5x wider on the
 // exhibit's 1x projector. Picked at 1x, it transfers.
+// ── 2026-09-20: `intensity` 0.6 -> 1.1 AND `levels` 5 -> 4, TOGETHER ───────
+//
+// These two moved as ONE decision and neither is defensible without the other.
+// Re-measured with a live cascade in frame (`_a3bloom --live`, which spends the
+// bright pass BEFORE the fire and shoots at f14/26/44 inside one boot) and in
+// BOTH modes (`--normal`), across three offsets, one pinned world per mode.
+//
+// WHAT 1.1 ALONE COSTS. Not clipping — the knee caps the output whatever the
+// bloom adds, so 0.6 and 1.1 differ by 772 against 979 clipped px of 2.07M
+// immersive and 7 against 19 normal, with zero pure white at any value. What it
+// costs is the FIELD BETWEEN THE STRANDS, measured paired (the pixel set fixed
+// once from the reference frame and those same pixels read everywhere, because
+// thresholding each frame on its own level lets the population move underneath
+// the mean). At levels 5 that field lifts +31% in BOTH modes, which is the
+// milky interior the author saw and the reason the dial was cut in the first
+// place.
+//
+// `luminanceThreshold` CANNOT BUY IT BACK, and this is why the gate is still
+// 0.28. Swept for the first time at a held 1.1: 0.28 -> 0.7 recovers only
+// +31.5% -> +22.2% and drags hot px 83379 -> 77100 and ink 59.88M -> 56.82M
+// down with it, i.e. it dims the bloom generally rather than sparing the field.
+// The strands filling those gaps sit far above any gate in that range. The gate
+// is not the lever and a future reader should not re-sweep it hoping otherwise.
+//
+// `levels` IS THE LEVER, AND IT IS SELECTIVE. One level down at 1.1, immersive:
+//
+//                       lv5 i0.6    lv5 i1.1   lv4 i1.1   lv3 i1.1
+//     hot px               72071       83378      85720      84694
+//     lit px              573989      621973     453146     344704
+//     ink                 50.56M      59.95M     50.27M     41.44M
+//     interior, open           —      +31.2%      -9.4%     -41.4%
+//
+// Hot px goes UP while the field comes down, which is exactly what the gate
+// could not do. This reproduces the mechanism in the superseded block above
+// from the other side: the deep mips are what reach across open space, so
+// removing one kills the mid-range spread and barely touches the close-in skirt.
+//
+// WHY ONE VALUE AND NOT ONE PER MODE. Normal mode needs a different level than
+// immersive — its sphereR is 243.84 against 413.68, so its strands sit closer
+// together in DEVICE pixels and more of its fill comes from the shallow mips
+// that 4 keeps. A per-mode split (4 immersive, 3 normal) was proposed for that
+// reason and REJECTED on measurement: at a single 4 both modes sit inside one
+// band, roughly -9% to +16% of their own previous look, while 4/3 puts them on
+// opposite sides of it — immersive at parity, normal at -22 to -30%. The split
+// widens the mode difference it was meant to close. `BLOOM` stays mode-blind.
+//
+// STABLE ACROSS OFFSETS, so none of this is one lucky frame: the lift at 1.1
+// reads +31.2 / +30.8 / +25.3% immersive and +31.7 / +31.4 / +34.6% normal at
+// f14 / f26 / f44, and the core gain at 4 holds at every one of them.
+//
+// SWEPT AT DPR 1, which is the same basis the superseded choice was made on and
+// matters for the same reason: the pyramid is measured in DEVICE pixels, so
+// four levels reach ~1.5x wider in CSS px on a 1.5x display than on the
+// exhibit's 1x projector. `compositeDpr` caps at 1.5. Picked at 1x, it
+// transfers to the installation.
+//
+// THE AUTHOR CHOSE THIS ON THE FRAMES, as he chose 0.6 before it:
+// `lookbook/opt-normal-f26.png` and `opt-imm-f26.png`, shipping | lv4 | lv3.
+//
+// NOT YET RE-BASED. The reference is still
+// `baseline/art-sphere-phase1-bloom-ink-certified` at `b8ad97f` and this change
+// moves the frame, so a re-base is owed — one capture, five sets. Until then
+// `artCompare` will read this as a regression and it is not one.
 export const BLOOM = {
   luminanceThreshold: 0.28,
   luminanceSmoothing: 0.9,
-  intensity: 0.6,
+  intensity: 1.1,
   mipmapBlur: true,
   radius: 0.7,
-  levels: 5,
+  levels: 4,
 };
 
 // Immersive only. Replaces the 2D radial-gradient vignette, which ran to
