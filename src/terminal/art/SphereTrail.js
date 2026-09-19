@@ -27,8 +27,10 @@
 //
 // ── The colour space, which is the whole risk here ─────────────────────────
 //
-// BOTH targets are RGBA8 / UnsignedByte / NoColorSpace, and that is
-// load-bearing. Tagging either one SRGBColorSpace gives it an SRGB8_ALPHA8
+// BOTH targets are RGBA16F / HalfFloat / NoColorSpace. The COLOUR SPACE is
+// what is load-bearing here, not the storage type — see createTarget() for why
+// the HalfFloat switch is not this trap, and what it buys.
+// Tagging either one SRGBColorSpace gives it an SRGB8_ALPHA8
 // internal format, so the hardware encodes on write and the sampler decodes on
 // read — and the accumulation would then compound in three's LINEAR working
 // space while the 2D canvas it is imitating faded in sRGB BYTE space. That is
@@ -87,12 +89,54 @@ const TRAIL_FADE_FRAG = /* glsl */`
 `;
 
 /** One accumulation buffer. Matches the backdrop target's settings exactly —
- *  RGBA8, no mipmaps, no depth, no stencil, NoColorSpace — because the two are
- *  links in the same chain and any difference between them is a conversion. */
+ *  RGBA16F, no mipmaps, no depth, no stencil, NoColorSpace — because the two
+ *  are links in the same chain and any difference between them is a conversion.
+ *
+ *  ── HalfFloat, and why it is NOT the step-3 colour-space trap ─────────────
+ *
+ *  The header above warns that tagging this target SRGBColorSpace makes the
+ *  hardware encode on write and decode on sample, which moves the accumulation
+ *  into three's linear working space and compounds a brightening error every
+ *  frame. That warning is about the COLOUR SPACE TAG. It is not about the
+ *  storage type, and the two are independent.
+ *
+ *  `colorSpace` stays NoColorSpace, so there is still no conversion anywhere in
+ *  this chain: these are the same sRGB-encoded numbers the byte target held,
+ *  stored with more precision and — the point — NO CLAMP AT 1.0.
+ *
+ *  Two things follow, and both are why this change exists:
+ *
+ *  1. HEADROOM. The additive layer blends INTO this target, so in RGBA8 every
+ *     overlapping ribbon saturated at 255 before the bloom pass ever sampled
+ *     it. MEASURED on a 4-effect prism cascade: 57,217 fully clipped pixels,
+ *     13% of every lit pixel in the frame, with unbroken 160px runs of pure
+ *     white. A soft-knee cannot recover that — the blend unit destroyed the
+ *     information before any fragment shader could see it. It has to not clip
+ *     in the first place.
+ *
+ *  2. THE STUCK FLOOR. The fade below writes `prev * survival` with NoBlending,
+ *     so a byte target requantises every frame with round-to-nearest. A stored
+ *     value v is then a FIXED POINT whenever round(v*s) >= v, i.e. v <= 0.5/m:
+ *
+ *         normal     m = 0.72   0.5/m = 0.694   nothing sticks
+ *         immersive  m = 0.32   0.5/m = 1.563   v = 1 STICKS FOR EVER
+ *
+ *     MEASURED, grain disabled so it could not mask the result: 330,511 px at
+ *     exactly 1/255 in immersive against 32,301 in normal, and after a further
+ *     1200 frames — some 28 half-lives at survival 0.68 — the population had
+ *     not fallen but RISEN, to 339,985. A third of the exhibit frame was pinned
+ *     one level off black, permanently. Half-float has no requantisation and
+ *     therefore no fixed point; the decay underflows to zero in ~25-43 frames.
+ *
+ *  Alpha needs no clamp. ADDITIVE_LAYER writes `blendSrcAlpha: ZeroFactor,
+ *  blendDstAlpha: OneFactor` — it never touches the alpha channel — and every
+ *  other writer is source-over, which keeps coverage in [0,1] for inputs in
+ *  [0,1]. So the screen pass's `1.0 - ink.a` cannot go negative here even
+ *  though nothing is clamping it any more. Only RGB goes over 1. */
 function createTarget() {
   const rt = new THREE.WebGLRenderTarget(1, 1, {
     format: THREE.RGBAFormat,
-    type: THREE.UnsignedByteType,
+    type: THREE.HalfFloatType,
     minFilter: THREE.LinearFilter,      // no mipmaps: sampled 1:1
     magFilter: THREE.LinearFilter,
     generateMipmaps: false,

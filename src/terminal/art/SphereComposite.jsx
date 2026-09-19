@@ -118,8 +118,10 @@ const COMPOSITE_FRAG = /* glsl */`
 //
 // That offscreen target is no longer this pass's own: since the trail commit it
 // is the accumulator's current `write` buffer (SphereTrail.js), which the fade
-// pass has already primed. Same format either way — RGBA8 / UnsignedByte /
-// NoColorSpace, no depth, no stencil. NoColorSpace is load-bearing on BOTH
+// pass has already primed. Same format either way — RGBA16F / HalfFloat /
+// NoColorSpace, no depth, no stencil. The float type is what gives the additive
+// layer room to exceed 1.0 instead of saturating in the blend unit; see
+// createTarget() in SphereTrail.js. NoColorSpace is load-bearing on BOTH
 // sides: tagging the texture SRGBColorSpace gives it an SRGB8_ALPHA8 internal
 // format, so the hardware would encode on write and decode on sample, and the
 // composite below would stop happening in sRGB — which is precisely the bug
