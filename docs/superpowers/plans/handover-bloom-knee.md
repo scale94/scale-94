@@ -212,30 +212,73 @@ close-in skirt. A far-void rect beside the sphere returned ZERO px in the haze
 band at every setting — the far field is already at grain level and none of
 these three dials touch it.
 
-**THE SHORTLIST, and it is a shortlist, not a choice.** `levels 4 + intensity
-1.1` carries the SAME TOTAL INK as shipping (50.27M against 50.56M),
-redistributed into 19% more hot core with a slightly cleaner open interior.
-`levels 3 + intensity 1.1` is clearly darker than shipping at both radii with
-the cores still up, but the glow footprint shrinks 40% (574k -> 345k lit px),
-which is a change to the piece rather than a dial. `levels 2` reads hard-edged
-— the blue node loses its bloom entirely — and is not worth pursuing.
+**CONFIRMED AT f26 AND f44, IN BOTH MODES. None of this is a frame-14
+artifact.** The lift at intensity 1.1 / levels 5 reads +31.2 / +30.8 / +25.3%
+immersive and +31.7 / +31.4 / +34.6% normal across the three offsets. The core
+gain at levels 4 holds at every offset in both modes too — immersive hot px
+53,021 -> 63,387 at f26 and 21,050 -> 27,471 at f44, normal 7,677 -> 9,141 and
+6,436 -> 7,800 — with total ink landing within ~1% of shipping each time and
+zero pure white anywhere.
 
-**STILL AT intensity 0.6, levels 5. `artComposite.js` WAS NOT TOUCHED.** On the
-evidence, stay at 0.6 if nothing else moves, because at 1.1 the interior wash
-cannot be tuned away with the gate. If the glow at 1.1 is wanted, `levels 4` is
-how to have it.
+**NORMAL MODE NEEDS A DIFFERENT LEVELS VALUE THAN IMMERSIVE, and that turned
+out to be an argument AGAINST splitting rather than for it.** Each figure is
+against its OWN mode's shipping frame in its own rect, so these are two
+within-mode comparisons, not a cross-mode one:
 
-**WHAT THIS DOES NOT ESTABLISH.** One pinned world, one frame offset (14), two
-rects chosen by hand, and immersive only for the gate and levels sweeps. Enough
-to say `levels` is the lever and to shortlist 4 and 3; NOT enough to certify a
-value. Choosing wants f26/f44 and a normal-mode pass.
+    vs shipping        f14     f26     f44
+    lv4 imm   mid     -9.4%   -2.4%   -2.4%
+    lv4 imm   close   +9.7%  +16.3%   -1.8%
+    lv4 norm  mid     +9.1%   +7.1%   +7.0%
+    lv4 norm  close  +16.3%  +14.5%  +12.8%
+    lv3 imm   mid    -41.4%  -38.8%  -33.3%
+    lv3 norm  mid    -22.4%  -25.5%  -29.9%
+
+Normal mode's `sphereR` is 243.84 against immersive's 413.68, so its strands sit
+closer together in pixels and more of the fill comes from the SHALLOW mips,
+which levels 4 keeps. That is why one level does less there.
+
+**MODE-DEPENDENT `levels` WAS PROPOSED AND IS REJECTED.** `BLOOM.levels` is a
+single build constant — `SphereComposite.jsx` passes it with no immersive
+branch, unlike the trail survival (0.72 / 0.32) and unlike `<Vignette>` — so
+splitting it 4 immersive / 3 normal was the obvious way to neutralise the
+mismatch. **The six measurements above kill it.** At a single levels 4 BOTH
+modes sit inside one narrow band, roughly -9% to +16% of their own current look.
+Splitting to 4/3 puts them on OPPOSITE SIDES of it: immersive at parity, normal
+at -22 to -30%. That widens the mode difference instead of closing it, and buys
+a new mode-dependent constant to do so. The proposal came from one offset in one
+mode; do not revive it without more than that.
+
+**THE CHOICE IS TWO OPTIONS.**
+
+    1. STAY at intensity 0.6, levels 5.  Nothing moves.
+    2. intensity 1.1, levels 4, ONE value for both modes. Both modes within a
+       modest band of today, ~20% more hot core immersive and ~19% normal,
+       total ink essentially unchanged, and the black floor drifts slightly
+       DOWN (3.44 -> 3.31 normal) rather than up.
+
+On the evidence, 2 over 1: it is the one configuration that buys core glow
+without the wash in either mode. **`artComposite.js` WAS NOT TOUCHED and no
+value was chosen — this is the author's call.**
+
+Separately and NOT as a fix for anything: `levels 3` reads in the strips as more
+DEFINITION rather than harshness — tighter halos, blacker gaps, sharper strands.
+That is a legitimate aesthetic direction for BOTH modes at once, worth a look on
+its own terms. `levels 2` reads hard-edged, the blue node loses its bloom
+entirely, and is not worth pursuing.
+
+**WHAT THIS STILL DOES NOT ESTABLISH.** One pinned world PER MODE, two rects
+chosen by hand, and one frame offset for the gate sweep. The offsets and the
+second mode are now covered; a certifying pass would want a second world.
 
 Frames, all in `lookbook/`, 0.6 left / 1.1 right unless stated:
 
     normal-live-dial-fan.png  -fan2.png  -ridge.png   normal mode, 2 panels
     imm-dial-fanL.png  -fanR.png  -ridge.png          immersive, 2 panels
     thresh-fanL.png  thresh-ridge.png                 the gate, 5 panels
-    levels-fanL.png  levels-ridge.png                 levels, 5 panels
+    levels-fanL.png  levels-ridge.png                 levels immersive, 5 panels
+    nlevels-fan.png  nlevels-ridge.png                levels normal, 4 panels
+    opt-normal-f26.png  opt-imm-f26.png               the options at f26,
+                                                      shipping | lv4 | lv3
 
 The OLD decision frames `lookbook/bloom-fired-lv5-i0p6.png` / `-i1p1.png` and
 the crops `dial-0p6-crop.png` / `dial-1p1-crop.png` are kept, but they are
