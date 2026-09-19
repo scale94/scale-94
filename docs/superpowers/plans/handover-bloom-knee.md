@@ -109,9 +109,13 @@ are meant to be at the ceiling.
 
 ## THE REFERENCE, AND WHERE PARITY STANDS
 
-**`baseline/art-sphere-phase1-bloom-ink-certified` at `b8ad97f` is STILL the
-live reference. It has NOT been re-based, deliberately** — re-basing twice is
-how attribution is lost, and the bloom dial is still open.
+**SUPERSEDED 2026-09-19. The live reference is now
+`baseline/art-sphere-phase2-bloom-dial-certified` at `d69ce75`** — five sets,
+21/21 at floor 0.95, worst 0.9767. Read its README before quoting any parity
+number: it carries the dial-isolated ink table and the correction below.
+
+`baseline/art-sphere-phase1-bloom-ink-certified` at `b8ad97f` stays on disk as
+the attribution for everything before `b506462`. It is superseded, not wrong.
 
 The final state is captured and certified as a candidate:
 `baseline/_knee-final-a` (+ `-b`, `-c` for its null), stamped `dc54693`.
@@ -129,8 +133,20 @@ expect: **normal +7 to +11%** (energy that used to be clipped away now
 survives), **exhibit -4 to -8%** (the far larger overbright there is being
 compressed). 40 SIGNAL / 2 noise of 42 graded rows.
 
-**A re-base is owed once the bloom dial is settled** — one capture, five sets,
-not two captures.
+**The re-base is DISCHARGED**, 2026-09-19, five sets in one capture event.
+
+Two things it measured contradict what was predicted here, both written up in
+the new reference README:
+
+- **`artCompare` phase 1 -> phase 2 is 21/21 ADMISSIBLE.** The dial does not
+  trip it at all. The claim that a stale reference would "read as a regression"
+  was wrong — that instrument was never going to flag a composite change of this
+  size, which is its own documented blindness.
+- **Normal-mode ink went UP, not down** (+1.3 to +18.4% dial-isolated), and
+  exhibit-mode ink did not move (all three cells grade `noise`). The predicted
+  footprint collapse is real but belongs to the KNEE work: the dial own share of
+  it is -1 to -7%. Exhibit mode got *fewer, hotter* lit pixels at flat total ink
+  — a redistribution, which a ratio of sums cannot see.
 
 ## THE NULL-KNEE TEST (design section 3.3) — PASSED
 
@@ -142,9 +158,14 @@ from "do I like the curve".
 
 ## WHAT IS OPEN, ranked
 
-**1. THE BLOOM DIALS — RE-MEASURED 2026-09-19. The old finding was taken off
-frames with no cascade in them. `levels` is the lever; `intensity` alone is
-not, and the gate is not.**
+**1. THE BLOOM DIALS — CLOSED 2026-09-20 by `b506462`** (`intensity` 1.1,
+`levels` 4, chosen by the author on the frames), and the reference re-base it
+owed is discharged. Everything below is kept for the MECHANISM and for how the
+choice was arrived at; it is no longer an open item.
+
+The original text: *re-measured 2026-09-19. The old finding was taken off frames
+with no cascade in them. `levels` is the lever; `intensity` alone is not, and
+the gate is not.*
 
 The first thing re-measuring produced was the reason the old numbers said what
 they said. See THE DECAYED CASCADE in the traps below: every frame this sweep

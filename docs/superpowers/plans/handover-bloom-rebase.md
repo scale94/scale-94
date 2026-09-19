@@ -1,5 +1,28 @@
 # Handover — the reference re-base, and nothing else
 
+> **DISCHARGED 2026-09-19.** Five sets captured at `d69ce75`, certified 21/21 at
+> floor 0.95, worst 0.9767. The live reference is now
+> `baseline/art-sphere-phase2-bloom-dial-certified`, and its README is the
+> record — read that, not this, for the numbers.
+>
+> **Two of this file's predictions were wrong, and the README says so in
+> detail.** (a) `artCompare` phase 1 -> phase 2 came back **21/21 ADMISSIBLE**,
+> so the premise that a stale reference "will read this as a regression" never
+> held — that instrument cannot see a composite change of this size, which this
+> file documents as a trap four paragraphs after predicting it. (b) Ink went
+> **UP** in normal mode, not down; step 4's stop-and-investigate fired, and the
+> investigation found the prediction mis-derived rather than the capture bad.
+> Phase 1 predates the knee work, so phase 1 -> phase 2 is knee + dial, not the
+> dial. Isolated against `_knee-final-a` at `dc54693`, the dial is normal
+> **+1.3 to +18.4%** and exhibit **flat (all three cells grade `noise`)**.
+>
+> One thing this file did not carry forward from phase 1's README:
+> `artBaseline` stamps `gitCommit` from `BASELINE_COMMIT` and nothing else. The
+> first capture came back `null` and was discarded. Left unfixed on purpose —
+> see the README's trap section.
+>
+> The rest of this file is kept as the record of what was asked for.
+
 Continue the /art sphere work on `fix/art-sphere-index-space` in `F:\scale_9.4`.
 
 NAMING: the nav label /CHAOS and the route ~/system/art are the SAME TAB.
