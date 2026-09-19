@@ -26,13 +26,14 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
 
-import { compositeDpr, glBufferSettled, COMPOSITE_STYLE, BLOOM, VIGNETTE } from './artComposite';
+import { compositeDpr, glBufferSettled, COMPOSITE_STYLE, BLOOM, VIGNETTE, KNEE } from './artComposite';
 import {
   COLOR_GLSL, BACKGROUND_GLSL, backgroundUniforms, syncBackgroundUniforms,
   riftUniform, syncRiftUniform,
 } from './SphereBackground';
 import { createEdgeLayer, syncEdgeLayer, SRC_OVER_LAYER, ADDITIVE_LAYER } from './SphereEdges';
 import { createTrail, renderTrailFade } from './SphereTrail';
+import { KneeEffect } from './SphereKnee';
 import { trailSurvival } from './artTrail';
 
 /**
@@ -494,6 +495,14 @@ export default function SphereComposite({ sourceRef, immersive, onAdvanceReady, 
   const trail = useMemo(() => createTrail(), []);
   useEffect(() => () => trail.dispose(), [trail]);
 
+  // The tail shoulder. Built once and mounted with <primitive> rather than
+  // re-created from props: <EffectComposer> rebuilds its whole pass list in a
+  // layout effect keyed on `children`, so a new Effect instance per render
+  // would tear down and rebuild the merged fragment pass every frame the
+  // parent re-renders. The knee value is driven through the uniform instead.
+  const knee = useMemo(() => new KneeEffect({ knee: KNEE.knee }), []);
+  useEffect(() => () => knee.dispose(), [knee]);
+
   return (
     // data-art-composite marks this subtree as the GL layer. From step 2 the
     // container holds two canvases of identical size, and capture tooling has
@@ -546,6 +555,13 @@ export default function SphereComposite({ sourceRef, immersive, onAdvanceReady, 
           {immersive
             ? <Vignette offset={VIGNETTE.offset} darkness={VIGNETTE.darkness} eskil={false} />
             : null}
+          {/* LAST, and that is the design. The shoulder has to run after the
+              bloom so the bright-extract sees true overbright, and after the
+              vignette so the corners are darkened before they are compressed
+              rather than after — compressing first and darkening second would
+              spend the shoulder's range on pixels the vignette then throws
+              away. See the KNEE block in artComposite.js. */}
+          <primitive object={knee} />
         </EffectComposer>
       </Canvas>
     </div>

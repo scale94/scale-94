@@ -156,3 +156,118 @@ export const VIGNETTE = {
   offset: 0.32,
   darkness: 0.65,
 };
+
+// ── The soft knee ───────────────────────────────────────────────────────────
+//
+// Runs at the composer TAIL, after <Bloom>. That placement is the whole design
+// and it is not interchangeable with putting it in the screen pass: the bloom's
+// bright-extract has to see TRUE overbright so a 30x core blooms like a 30x
+// core. Compressing before the bloom makes every overbright value arrive at the
+// threshold looking identical to 1.0, which is the one thing the half-float
+// accumulator was bought to prevent.
+//
+// ── Why the curve is IDENTITY below the knee ───────────────────────────────
+//
+// Not for taste — for attribution. MEASURED on a 4-node cascade, bloom off, at
+// the first exposure that does not clip: 63.3% of all ink never exceeds 1.0. A
+// curve that touches those values moves two thirds of the art, re-bases all 21
+// reference cells, and permanently costs us the ability to say which change
+// moved which pixel. Constrained to identity below the knee, the change can
+// only touch pixels that were already over the knee — which is the defect's own
+// footprint and nothing else.
+//
+// ── The curve ──────────────────────────────────────────────────────────────
+//
+// A hyperbolic (Reinhard) shoulder, on the MAX CHANNEL:
+//
+//     t = x - knee,  s = 1 - knee
+//     f(x) = knee + s * t / (t + s)        for x > knee
+//     f(x) = x                             otherwise
+//
+// Three properties, all of which are load-bearing:
+//
+//   - f'(knee) = 1 exactly, so the join is C1 and there is no visible crease
+//     where the compression starts. An exponential shoulder,
+//     knee + s*(1 - exp(-t/s)), is also C1 but saturates within ~3s — it puts
+//     2x and 37x on the same output level, which is precisely the "crushed to
+//     white" defect rebuilt in a nicer shader.
+//   - f -> 1 as x -> infinity, so nothing clips no matter how deep the pile.
+//   - Applied as a scale of the max channel, NOT of luminance. A luminance
+//     scale preserves hue but does not bound the channels: a saturated
+//     (6, 0, 0) has luminance 1.28, and scaling by f(L)/L leaves red far above
+//     1 and clipping anyway. Normalising by max(r,g,b) preserves the hue AND
+//     the saturation ratios while guaranteeing the result is in gamut, which is
+//     what "retain filament structure and colour fidelity" actually requires.
+//
+// ── What the knee value buys, and why it is a DIAL and not a constant ──────
+//
+// The tail is long and the display is not: 37x of range cannot be fitted into
+// the top of an 8-bit ramp with all of it distinguishable. Something is crushed
+// whatever we choose, and the knee decides WHAT. At knee 0.6 the band where 97%
+// of the overbright actually lives resolves into separate levels:
+//
+//     input    1.0x   1.5x   2.0x   4.0x   8.0x   37x
+//     output    204    224    232    244    250   254
+//
+// while a knee of 0.9 leaves 1x-8x inside four levels of each other and a knee
+// of 0.25 buys structure by repainting a quarter of the frame. That is an
+// aesthetic decision on a real trade, so it ships as a uniform and the author
+// picks it off a strip. The default below is a starting point, not a finding.
+//
+// ── The units, which are linear and happen to agree with sRGB ──────────────
+//
+// The knee runs in the composer's linear working space. Above 1.0 that is the
+// SAME number as the sRGB-encoded accumulator value, because the screen pass
+// clamps its gamma conversion at 1 and carries the excess linearly — so the
+// census figures quoted above can be read straight off this scale. Below 1.0
+// the two diverge as usual, so a knee of 0.6 linear sits at about 0.8 in sRGB,
+// i.e. higher up the ramp than it looks.
+export const KNEE = {
+  knee: 0.6,
+  // Raising this above the frame's maximum makes the curve mathematically
+  // identity everywhere, which is how the null-knee test proves the effect is
+  // a no-op outside its intended range. See SphereKnee.js.
+  enabled: true,
+};
+
+/**
+ * The soft-knee shoulder, on a single scalar channel.
+ *
+ * Exported as pure arithmetic with no three.js import so it can be unit-tested
+ * against the GLSL — ArtTab cannot be mounted in jsdom, so anything testable
+ * has to live out here. The shader in SphereKnee.js is the same expression
+ * written branchlessly; `artComposite.test.js` pins the two together.
+ *
+ * `knee` is intended to be in [0, 1). Two edges are handled explicitly rather
+ * than left to the caller, because both are reachable and one of them is a
+ * divide by zero:
+ *
+ *   - x <= knee is the identity. That is the contract, not an optimisation.
+ *   - knee >= 1 makes s = 1 - knee zero or negative, and at knee = 1.5, x = 2
+ *     the denominator t + s is EXACTLY 0. In GLSL that is an inf or a NaN
+ *     reaching the screen as a driver-dependent speck. `s` is floored at a tiny
+ *     positive epsilon so the curve degenerates to a hard clamp at `knee`
+ *     instead of exploding.
+ *
+ * The NULL-KNEE configuration is therefore not knee = 1; it is a knee ABOVE any
+ * value present in the frame, where `x <= knee` holds for every pixel and this
+ * is provably the identity. See KNEE_NULL.
+ */
+export function softKnee(x, knee) {
+  if (!(x > knee)) return x;
+  const s = Math.max(1 - knee, 1e-6);
+  const t = x - knee;
+  return knee + (s * t) / (t + s);
+}
+
+/**
+ * A knee above any value the frame can contain, so the shoulder is provably the
+ * identity for every pixel. Used by the verification plan to show this pass is
+ * a no-op outside its intended range: a capture at KNEE_NULL must be BYTE
+ * IDENTICAL to a capture with the effect absent, and if it is not, the effect
+ * is doing something other than what its curve says.
+ *
+ * The measured peak of a 4-node cascade is 37.15x, so this has five orders of
+ * magnitude of headroom over the worst state anyone has produced.
+ */
+export const KNEE_NULL = 1e6;
