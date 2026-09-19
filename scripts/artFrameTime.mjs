@@ -28,7 +28,7 @@
 //   node scripts/artFrameTime.mjs [--headless] [--seconds 10]
 
 import { mkdir, writeFile } from 'node:fs/promises';
-import { execFileSync } from 'node:child_process';
+import { gitProvenance } from './_git.mjs';
 import { launch } from './cdp.mjs';
 
 const arg = (n, d) => { const i = process.argv.indexOf(n); return i >= 0 ? process.argv[i + 1] : d; };
@@ -39,26 +39,14 @@ const URL      = arg('--url', 'http://localhost:5174/');
 const VIEW     = { width: 1520, height: 900, dpr: 1 };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-// Provenance, derived rather than declared. The committed
-// baseline/art-sphere-trail/frametime-headed-gpu.json recorded `"gitCommit":
-// null` because it depended on BASELINE_COMMIT being exported, which makes the
-// artefact indistinguishable from a control-worktree run of the same script —
-// and this project measures against same-session control worktrees as a matter
-// of routine. `git rev-parse` in the cwd answers for the worktree the server is
-// actually serving, which is the thing that needs recording.
-function gitProvenance() {
-  const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
-  try {
-    return {
-      gitCommit: git('rev-parse', '--short', 'HEAD'),
-      gitBranch: git('rev-parse', '--abbrev-ref', 'HEAD'),
-      // -uno: this repo carries untracked baseline/ scratch dirs permanently,
-      // so only tracked modifications say anything about what was measured.
-      gitDirty: git('status', '--porcelain', '-uno').length > 0,
-    };
-  } catch {
-    return { gitCommit: process.env.BASELINE_COMMIT ?? null, gitBranch: null, gitDirty: null };
-  }
+// Provenance, derived rather than declared — the reasoning that used to live
+// here now lives in `scripts/_git.mjs`, which `artBaseline` shares. This
+// wrapper keeps the field shape this script's artefact has always written:
+// `gitCommit` SHORT, which is what `frametime-headed-gpu.json` records.
+function frameTimeProvenance() {
+  const p = gitProvenance();
+  for (const w of p.warnings) console.error(`  !! ${w}`);
+  return { gitCommit: p.gitCommitShort, gitBranch: p.gitBranch, gitDirty: p.gitDirty };
 }
 
 const SPHERE = `[...document.querySelectorAll('canvas')].filter(c => c.offsetParent)
@@ -232,7 +220,7 @@ const drift = {
 
 const result = {
   capturedAt: new Date().toISOString(),
-  ...gitProvenance(),
+  ...frameTimeProvenance(),
   url: URL,
   renderer: HEADLESS ? 'headless chrome + swiftshader (SOFTWARE — not a frame budget)' : 'headed chrome, real GPU',
   seconds: SECONDS,

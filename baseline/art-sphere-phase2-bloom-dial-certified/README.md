@@ -224,7 +224,12 @@ purpose: **patching the capture rig in the middle of capturing a reference would
 mean the two references were taken by two different scripts**, and the entire
 value of this one is that the only thing separating it from phase 1 is the
 build. Porting `gitProvenance()` into `artBaseline` is worth doing and belongs
-in its own commit, after this.
+in its own commit, after this. **Done** — `scripts/_git.mjs`, shared with
+`artFrameTime`, which also adds the dirty-tree check this set had to make by
+hand. Manifests captured from then on carry `gitBranch`, `gitDirty` and
+`provenanceSource`; this set predates them and was verified clean with
+`git status --porcelain -uno` instead. The manifest is NOT backfilled — a
+certified artefact is not edited after the fact.
 
 (Phase 1's README already documents the env-var requirement under *Capture
 notes*. The handover dropped it.)

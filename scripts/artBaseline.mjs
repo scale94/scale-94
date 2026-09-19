@@ -60,6 +60,7 @@
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { launch } from './cdp.mjs';
+import { gitProvenance } from './_git.mjs';
 
 const arg = (name, dflt) => {
   const i = process.argv.indexOf(name);
@@ -69,6 +70,12 @@ const OUT = arg('--out', 'baseline/art-sphere-2d');
 const RESEED_CB = process.argv.includes('--reseed-per-callback');
 const URL = arg('--url', 'http://localhost:5174/');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// Provenance is resolved HERE, before Chrome launches, so that a dirty tree is
+// reported in the first second of the run and not after twenty minutes of
+// capture. Read `scripts/_git.mjs` for why this is derived and not declared.
+const PROVENANCE = gitProvenance();
+for (const w of PROVENANCE.warnings) console.error(`  !! ${w}`);
 
 // Three display scales. The projector is the Ars Electronica install target;
 // the retina row exists because step 2 uploads the 2D canvas as a texture every
@@ -824,7 +831,14 @@ let previous = null;
 try { previous = JSON.parse(await readFile(`${OUT}/manifest.json`, 'utf8')); } catch { /* first run */ }
 const manifest = {
   capturedAt: new Date().toISOString(),
-  gitCommit: process.env.BASELINE_COMMIT ?? null,
+  // Derived from the worktree, not from BASELINE_COMMIT. `gitDirty` is the
+  // field that says whether this capture is actually AT `gitCommit`: a stamp
+  // alone never could, and a set taken on a dirty tree used to be
+  // indistinguishable from a clean one. Null means git could not answer.
+  gitCommit: PROVENANCE.gitCommit,
+  gitBranch: PROVENANCE.gitBranch,
+  gitDirty: PROVENANCE.gitDirty,
+  provenanceSource: PROVENANCE.provenanceSource,
   url: URL,
   // How Chrome was LAUNCHED. This is a fact about the command line and nothing
   // more — in particular `--enable-unsafe-swiftshader` permits a software
