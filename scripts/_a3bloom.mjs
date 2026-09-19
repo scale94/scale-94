@@ -85,8 +85,21 @@ const W   = Number(process.argv[2] ?? 1920);
 const H   = Number(process.argv[3] ?? 1080);
 const DPR = Number(process.argv[4] ?? 1);
 const LEVELS = process.argv.includes('--levels');
-const KEY = LEVELS ? 'levels' : 'intensity';
-const DEFAULTS = LEVELS ? '8,6,5,4,3' : '1.1,0.85,0.6,0.4';
+const THRESH = process.argv.includes('--threshold');
+// `--hold k=v,k2=v2` pins keys that are NOT being swept to a chosen value
+// instead of whatever `artComposite.js` currently says. Without it a threshold
+// sweep necessarily runs at the shipped intensity, and the question the sweep
+// exists to answer -- does a higher gate let the intensity rise without lifting
+// the field between the strands -- cannot be asked at all. Held values go in
+// the filename like any other key, so a run at a held 1.1 cannot be mistaken
+// for one at the shipped 0.6.
+const HOLD = Object.fromEntries((process.argv.find(a => a.startsWith('--hold=')) || '')
+  .slice(7).split(',').filter(Boolean).map(kv => {
+    const [k, v] = kv.split('=');
+    return [k, v];
+  }));
+const KEY = THRESH ? 'luminanceThreshold' : LEVELS ? 'levels' : 'intensity';
+const DEFAULTS = THRESH ? '0.28,0.4,0.55,0.7' : LEVELS ? '8,6,5,4,3' : '1.1,0.85,0.6,0.4';
 const VALUES = (process.argv[5] && !process.argv[5].startsWith('--')
   ? process.argv[5] : DEFAULTS).split(',').map(Number);
 const FIRED  = process.argv.includes('--fired');
@@ -192,35 +205,59 @@ async function findNodes(page, rect, { cols = 9, rows = 5, max = 1, onFound = nu
 const slug = (x) => String(x).replace('.', 'p');
 const findKey = (src, key) => src.match(new RegExp('(\\n\\s*' + key + ':\\s*)([0-9.]+)(,)'));
 
+// ALL THREE DIALS, not the swept one and "the other". With two keys a filename
+// carrying both was unambiguous; with three it is not, and the note at the
+// screenshot below is the record of what an ambiguous one cost. Every key is
+// resolved for every frame -- swept, held by `--hold`, or read from source --
+// and every resolved value is available to the name.
+const KEYS = ['levels', 'intensity', 'luminanceThreshold'];
 const original = readFileSync(SRC, 'utf8');
-const m = findKey(original, KEY);
-if (!m) throw new Error('could not find BLOOM.' + KEY + ' in ' + SRC);
-// The key that is NOT moving. It is held at whatever the source says, and its
-// value goes in every filename -- see the note at the screenshot.
-const otherKey = LEVELS ? 'intensity' : 'levels';
-const om = findKey(original, otherKey);
-if (!om) throw new Error('could not find BLOOM.' + otherKey + ' in ' + SRC);
-const other = { key: otherKey, value: om[2] };
-console.log('BLOOM.' + KEY + ' is currently ' + m[2] + '   sweeping ' + VALUES.join(', ')
-  + '   with BLOOM.' + other.key + ' held at ' + other.value
+const found = {};
+for (const k of KEYS) {
+  const mm = findKey(original, k);
+  if (!mm) throw new Error('could not find BLOOM.' + k + ' in ' + SRC);
+  found[k] = mm;
+}
+for (const k of Object.keys(HOLD)) {
+  if (!KEYS.includes(k)) throw new Error('--hold: BLOOM.' + k + ' is not one of ' + KEYS.join(', '));
+  if (k === KEY) throw new Error('--hold: cannot hold ' + k + ', it is the swept key');
+  if (!/^[0-9.]+$/.test(HOLD[k])) throw new Error('--hold: ' + k + '=' + HOLD[k] + ' is not a number');
+}
+const effective = (v) => Object.fromEntries(KEYS.map(k =>
+  [k, k === KEY ? String(v) : (HOLD[k] ?? found[k][2])]));
+const patched = (v) => {
+  const eff = effective(v);
+  let src = original;
+  for (const k of KEYS) src = src.replace(found[k][0], found[k][1] + eff[k] + found[k][3]);
+  return src;
+};
+const held = KEYS.filter(k => k !== KEY)
+  .map(k => 'BLOOM.' + k + ' ' + (HOLD[k] ? HOLD[k] + ' (HELD)' : found[k][2]));
+console.log('BLOOM.' + KEY + ' is currently ' + found[KEY][2] + '   sweeping ' + VALUES.join(', ')
+  + '   with ' + held.join(', ')
   + '   mode: ' + (NORMAL ? 'NORMAL' : 'immersive')
   + '   state: ' + (FIRED ? 'fired (resonance + cascade + bright)' : BRIGHT ? 'bright' : 'plain'));
 mkdirSync('F:/scale_9.4/lookbook', { recursive: true });
 
 async function shoot(v) {
-  writeFileSync(SRC, original.replace(m[0], m[1] + v + m[3]), 'utf8');
+  writeFileSync(SRC, patched(v), 'utf8');
   await sleep(1200);                       // let vite notice the file before a cold load
   const page = await launch({ url: URL, width: W, height: H, dpr: DPR, deterministic: true });
   const notes = {};
   const live = [];
-  // BOTH keys go in the name, not just the swept one -- see the long note at
+  // EVERY key goes in the name, not just the swept one -- see the long note at
   // the screenshot below. `--normal` and `--live` are in it for the same
   // reason: an immersive frame and a normal one at the same dial are different
   // pictures, and the second run would otherwise overwrite the first.
+  //
+  // The `-t` suffix appears only when the gate is actually in play, so a plain
+  // intensity or levels sweep still writes the names the frames already in
+  // `lookbook/` were captured under and stays reproducible.
+  const eff = effective(v);
   const tag = (NORMAL ? 'normal-' : '') + (LIVE ? 'live-' : '')
     + (FIRED ? 'fired-' : BRIGHT ? 'bright-' : '')
-    + (LEVELS ? 'lv' + slug(v) + '-i' + slug(other.value)
-      : 'lv' + slug(other.value) + '-i' + slug(v));
+    + 'lv' + slug(eff.levels) + '-i' + slug(eff.intensity)
+    + (THRESH || HOLD.luminanceThreshold ? '-t' + slug(eff.luminanceThreshold) : '');
   try {
     await page.waitFor('document.querySelectorAll("canvas").length > 0', { label: 'boot canvas' });
     await sleep(2500);
