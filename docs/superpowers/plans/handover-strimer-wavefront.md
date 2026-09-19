@@ -112,9 +112,11 @@ strimer has to compose with what is already animating there.
 
 ## STATE YOU ARE INHERITING
 
-Branch `fix/art-sphere-index-space`, **NOT PUSHED, `main` UNTOUCHED.** `main` is
-also behind `origin/main`; fetch before any merge. Do not push without an
-explicit command — verification approval is not push consent.
+Branch `fix/art-sphere-index-space`, **PUSHED to origin 2026-09-20 at `5db239d`**
+(the whole knee + dial + re-base stretch went up in that one push, `f761770..5db239d`).
+**`main` is UNTOUCHED and is behind `origin/main`; fetch before any merge.**
+The branch being on origin is NOT merge consent and NOT consent for the next
+push — verification approval never is. Ask.
 
     b69c650  fix(art): derive a capture's commit from git, not from an env var
     551e9fc  test(art): re-base the reference onto the bloom dial, five sets
