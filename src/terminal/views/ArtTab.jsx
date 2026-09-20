@@ -111,6 +111,7 @@ import {
   CHIMERA_SAT, CHIMERA_LIT, CHIMERA_MAX_ZONES,
 } from '../art/artEdges';
 import { stepAwakening, beaconRingState, conductorState, CONDUCTOR } from '../art/artAwakening';
+import { compositeDpr, coarsePointer } from '../art/artComposite';
 import {
   riftTint, exergyAlpha, genesisGlowState, ambientIntensity, ghostTrailAlpha,
   stepFlash, FLASH_ALPHA, FLASH_CUTOFF,
@@ -225,6 +226,12 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   const feigTitleRef   = useRef(null);
   const feigSparkTimer = useRef(null);   // guards at-feigSpark cleanup race
   const rafRef         = useRef(null);
+  // Answered ONCE, at mount, for the same reason SphereComposite answers it
+  // once: a device does not stop being a touch device mid-session, and
+  // `matchMedia` allocates a MediaQueryList on every call — this is read from
+  // inside the draw loop, so probing it per frame would be 60 allocations a
+  // second to re-learn a constant.
+  const coarseRef      = useRef(coarsePointer());
   // r3f's advance(), handed over by SphereComposite once its GL root exists.
   // Null until then, and null again after unmount — the draw loop must not
   // assume the composite is mounted.
@@ -837,8 +844,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         : normalCanvasHeight(W);
       dimsRef.current = { w: W, h: H };
       if (canvasRef.current) {
-        // Cap at 1.5× on high-DPR mobile (iPad Pro = 2×) to preserve battery
-        const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+        // The SAME helper the GL canvas uses (SphereComposite), not a second
+        // copy of the rule: DPR_CAP's contract is that these two backing stores
+        // agree texel-for-texel, and this used to be a hand-written
+        // Math.min(dpr, 1.5) in two files that had to be kept in step by hand.
+        const dpr = compositeDpr(window.devicePixelRatio, coarseRef.current);
         canvasRef.current.width  = W * dpr;
         canvasRef.current.height = H * dpr;
         canvasRef.current.style.width  = W + 'px';
@@ -1035,7 +1045,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       }
 
       // ── Clear with trail fade ─────────────────────────────────────────────
-      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      const dpr = compositeDpr(window.devicePixelRatio, coarseRef.current);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       // Ecocide tint: metabolicRift bleeds a faint crimson into the void.
       // The tint itself now lives on the GPU (SphereBackground) — this canvas

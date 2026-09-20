@@ -6,9 +6,9 @@
 // working while the render still looks perfect. That failure mode is invisible
 // in a screenshot, so it gets a unit test instead.
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import {
-  compositeDpr, glBufferSettled, LAYER_Z, COMPOSITE_STYLE, BLOOM, VIGNETTE,
+  compositeDpr, coarsePointer, glBufferSettled, LAYER_Z, COMPOSITE_STYLE, BLOOM, VIGNETTE,
 } from '../artComposite';
 
 describe('compositeDpr', () => {
@@ -26,6 +26,48 @@ describe('compositeDpr', () => {
     expect(compositeDpr(-2)).toBe(1);
     expect(compositeDpr(undefined)).toBe(1);
     expect(compositeDpr(NaN)).toBe(1);
+  });
+
+  it('caps a coarse pointer at 1, which is the DPR the bloom was swept at', () => {
+    // Phones run 2.5-3x, so this is where the fragment count actually falls.
+    // It is not a degradation: `intensity` and `levels` were both chosen on
+    // frames captured at DPR 1 because the mipmap pyramid is measured in
+    // DEVICE pixels — see the two dated blocks in artComposite.js.
+    expect(compositeDpr(3, true)).toBe(1);
+    expect(compositeDpr(2.5, true)).toBe(1);
+    expect(compositeDpr(2, true)).toBe(1);
+  });
+
+  it('never UPSCALES a coarse pointer that is already below 1', () => {
+    expect(compositeDpr(0.75, true)).toBe(0.75);
+  });
+
+  it('leaves the fine-pointer cap alone, so the desktop reference set stands', () => {
+    // artCompare's capture rig is not a coarse pointer, so every certified
+    // cell is captured at exactly the DPR it was certified at.
+    expect(compositeDpr(2, false)).toBe(1.5);
+    expect(compositeDpr(2)).toBe(1.5);
+  });
+});
+
+describe('coarsePointer', () => {
+  const realMatchMedia = window.matchMedia;
+  afterEach(() => { window.matchMedia = realMatchMedia; });
+
+  it('is true only for (pointer: coarse)', () => {
+    window.matchMedia = (q) => ({ matches: q === '(pointer: coarse)' });
+    expect(coarsePointer()).toBe(true);
+  });
+
+  it('is false when the query does not match', () => {
+    window.matchMedia = () => ({ matches: false });
+    expect(coarsePointer()).toBe(false);
+  });
+
+  it('is false rather than throwing where matchMedia does not exist', () => {
+    // jsdom does not implement it, and neither does the capture rig's shim.
+    window.matchMedia = undefined;
+    expect(coarsePointer()).toBe(false);
   });
 });
 

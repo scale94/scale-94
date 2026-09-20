@@ -26,7 +26,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
 
-import { compositeDpr, glBufferSettled, COMPOSITE_STYLE, BLOOM, VIGNETTE, KNEE } from './artComposite';
+import { compositeDpr, coarsePointer, glBufferSettled, COMPOSITE_STYLE, BLOOM, VIGNETTE, KNEE } from './artComposite';
 import {
   COLOR_GLSL, BACKGROUND_GLSL, backgroundUniforms, syncBackgroundUniforms,
   riftUniform, syncRiftUniform,
@@ -478,7 +478,14 @@ function AdvanceBridge({ onAdvanceReady }) {
 }
 
 export default function SphereComposite({ sourceRef, immersive, onAdvanceReady, bgStateRef, edgeGLRef, addGLRef, strimerRef }) {
-  const dpr = useRef(compositeDpr(typeof window !== 'undefined' ? window.devicePixelRatio : 1)).current;
+  // Taken once, at mount, and deliberately not reactive: r3f rebuilds every
+  // render target in the composer when `dpr` changes, and a device does not
+  // stop being a touch device mid-session. ArtTab's ResizeObserver reads the
+  // SAME pair of helpers, so the two backing stores cannot disagree.
+  const dpr = useRef(compositeDpr(
+    typeof window !== 'undefined' ? window.devicePixelRatio : 1,
+    coarsePointer(),
+  )).current;
   const wrapRef = useRef(null);
 
   // Owned out here so both passes see the same object and it outlives neither.
