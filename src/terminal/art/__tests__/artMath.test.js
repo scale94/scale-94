@@ -25,8 +25,9 @@
 
 import { describe, it, expect } from 'vitest';
 import {
-  normalCanvasHeight, inkScale, project,
+  normalCanvasHeight, inkScale, project, stepAutoRotation,
   NORMAL_H_K, NORMAL_H_MIN, NORMAL_H_MAX,
+  AUTO_SPIN, ROT_DECAY_IDLE, ROT_DECAY_HOVER, ROT_HOVER_SPIN_K,
 } from '../artMath';
 
 // The ResizeObserver's own expression, transcribed from ArtTab at the time of
@@ -151,5 +152,103 @@ describe('project — the independence item 5b exists because of', () => {
     // The POSITION does move with it — the cage is genuinely bigger.
     expect(Math.abs(big.sx - 1520 / 2))
       .toBeGreaterThan(Math.abs(small.sx - 1520 / 2));
+  });
+});
+
+// ── The sphere's own rotation is stepped on the CLOCK ────────────────────────
+//
+// `AUTO_SPIN` was commented "rad/frame" and `rotRef.current.ry += spin` ran once
+// per DRAW, so the whole artwork turned at the display's refresh rate. MEASURED
+// live at 283fps before the fix: 0.7083 rad/s against an authored 0.15, a full
+// revolution in 8.9 SECONDS where it should take 41.9. On a 360Hz panel that is
+// ~7s. This is the same defect as the particle cadences and the largest one by
+// visible area — it is the entire picture, not a layer of it.
+//
+// `drag.vx *= 0.94` per draw is the same bug on the flick inertia: a throw
+// stopped roughly six times too soon.
+//
+// THE ORDER IS NOT THE PARTICLE INTEGRATOR'S. `stepParticles` adds the raw
+// velocity and THEN decays; this decays FIRST and adds the already-decayed
+// value. So the drift factor is the particle one multiplied by one more decay,
+// and dt = 1 must return `retain`, not 1. Getting that wrong is invisible at
+// 60fps in a single frame and wrong everywhere else, which is exactly the class
+// of error these tests exist to catch.
+describe('stepAutoRotation — the spin and the flick, on wall time', () => {
+  const idle = () => ({ active: false, lastX: 0, lastY: 0, vx: 0.02, vy: -0.03 });
+  const rot0 = () => ({ rx: 0.18, ry: 0 });
+
+  /** Advances `frames` steps of `dt` authored frames. */
+  const run = (frames, dt, hovered = false) => {
+    const rot = rot0(), drag = idle();
+    for (let i = 0; i < frames; i++) stepAutoRotation(rot, drag, hovered, dt);
+    return { ...rot, vx: drag.vx, vy: drag.vy };
+  };
+
+  it('is exactly the shipped arithmetic for dt = 1, idle', () => {
+    const rot = rot0(), drag = idle();
+    const vx0 = drag.vx, vy0 = drag.vy;
+    stepAutoRotation(rot, drag, false, 1);
+    expect(drag.vx).toBeCloseTo(vx0 * ROT_DECAY_IDLE, 15);
+    expect(rot.rx).toBeCloseTo(0.18 + vx0 * ROT_DECAY_IDLE, 15);
+    expect(rot.ry).toBeCloseTo(vy0 * ROT_DECAY_IDLE + AUTO_SPIN, 15);
+  });
+
+  it('is exactly the shipped arithmetic for dt = 1, hovered', () => {
+    // Time dilation: a hovered sphere damps harder and barely spins, so the
+    // user can actually hit a node. Both numbers have to survive the change.
+    const rot = rot0(), drag = idle();
+    const vy0 = drag.vy;
+    stepAutoRotation(rot, drag, true, 1);
+    expect(drag.vy).toBeCloseTo(vy0 * ROT_DECAY_HOVER, 15);
+    expect(rot.ry).toBeCloseTo(vy0 * ROT_DECAY_HOVER + AUTO_SPIN * ROT_HOVER_SPIN_K, 15);
+  });
+
+  it('turns the same angle per wall second at 60, 120 and 360Hz', () => {
+    // The headline. 0.0025 rad/frame x 60 = 0.15 rad/s — a revolution in 41.9s.
+    const spinOnly = (frames, dt) => {
+      const rot = rot0(), drag = { active: false, vx: 0, vy: 0 };
+      for (let i = 0; i < frames; i++) stepAutoRotation(rot, drag, false, dt);
+      return rot.ry;
+    };
+    expect(spinOnly(60,  1)).toBeCloseTo(0.15, 12);
+    expect(spinOnly(120, 1 / 2)).toBeCloseTo(0.15, 12);
+    expect(spinOnly(360, 1 / 6)).toBeCloseTo(0.15, 12);
+    // 2*pi / 0.15 — the authored period, stated so a future change to AUTO_SPIN
+    // has to look at what it costs in seconds.
+    expect(2 * Math.PI / 0.15).toBeCloseTo(41.9, 1);
+  });
+
+  it('lets a flick coast the same distance and die at the same time', () => {
+    const at60  = run(60,  1);
+    const at360 = run(360, 1 / 6);
+    expect(at360.vx).toBeCloseTo(at60.vx, 12);   // same speed left
+    expect(at360.rx).toBeCloseTo(at60.rx, 12);   // same distance travelled
+    expect(at360.ry).toBeCloseTo(at60.ry, 12);
+  });
+
+  it('composes exactly: N sub-steps equal one whole step', () => {
+    const whole = run(1, 1);
+    for (const n of [2, 3, 6, 10]) {
+      const split = run(n, 1 / n);
+      expect(split.rx).toBeCloseTo(whole.rx, 14);
+      expect(split.vx).toBeCloseTo(whole.vx, 14);
+      expect(split.ry).toBeCloseTo(whole.ry, 14);
+    }
+  });
+
+  it('does nothing at all while the pointer is down', () => {
+    // Dragging drives rotation from pointer deltas; this must not also run, or
+    // the drag would carry an inertia it has not been given yet.
+    const rot = rot0(), drag = { ...idle(), active: true };
+    stepAutoRotation(rot, drag, false, 1);
+    expect(rot).toEqual(rot0());
+    expect(drag.vx).toBe(0.02);
+  });
+
+  it('does nothing for dt = 0', () => {
+    const rot = rot0(), drag = idle();
+    stepAutoRotation(rot, drag, false, 0);
+    expect(rot).toEqual(rot0());
+    expect(drag.vx).toBe(0.02);
   });
 });

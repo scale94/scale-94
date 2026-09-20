@@ -51,7 +51,7 @@ import {
   emitIdleParticles, emitNodeBurst, emitEdgeParticles,
 } from '../art/artParticles';
 import {
-  buildRotMatrix, applyM, project, normalCanvasHeight, inkScale,
+  buildRotMatrix, applyM, project, normalCanvasHeight, inkScale, stepAutoRotation,
 } from '../art/artMath';
 import { createBeatClock } from '../art/artBeatClock';
 import { clusterLabelState, nodeLabelState, fireExpired } from '../art/artLabels';
@@ -111,7 +111,13 @@ import {
   CHIMERA_SAT, CHIMERA_LIT, CHIMERA_MAX_ZONES,
   humPhase, humAxis, humGain, humWave, humGlowRadius,
 } from '../art/artEdges';
-import { stepAwakening, beaconRingState, conductorState, CONDUCTOR } from '../art/artAwakening';
+import {
+  stepAwakening, resetAwakeningCadence, beaconRingState, conductorState, CONDUCTOR,
+} from '../art/artAwakening';
+import {
+  createFrameClock, stepFrameClock, resetFrameClock,
+  createRateGate, stepRateGate, resetRateGate, perFrameChance,
+} from '../art/artRateGate';
 import { compositeDpr, coarsePointer } from '../art/artComposite';
 import {
   riftTint, exergyAlpha, genesisGlowState, ambientIntensity, ghostTrailAlpha,
@@ -126,8 +132,6 @@ import {
 } from '../art/artGraph';
 
 // ── Component ─────────────────────────────────────────────────────────────────
-
-const AUTO_SPIN = 0.0025;   // rad/frame continuous Y rotation
 
 // Sector colors for 16-sector 256-node sphere (Scale 16.16)
 const SECTOR_COLORS = {
@@ -361,6 +365,10 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     beaconIdx: Math.floor(artRandom() * SPHERE_NODES.length),  // random beacon node
     breathPhase: 0,         // continuous breath oscillation
   };
+  // The genesis cascade's own clock and gate. Installed here rather than
+  // inline so this and __artHarnessReset cannot drift apart: both call the
+  // one function, which is what keeps a capture's opening frames reproducible.
+  if (awakeningRef.current.genesisGate == null) resetAwakeningCadence(awakeningRef.current);
   // DEV-ONLY INSTRUMENT. It counted the draws the eager initializer above used
   // to take, and it is kept because it is now the EVIDENCE that they are gone:
   // it is what proved the fix render-INDEPENDENT rather than merely lucky. 28
@@ -373,7 +381,29 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
   // ── Particle Ecology ────────────────────────────────────────────────────
   const particlesRef = useRef(createParticlePool());
-  const particleFrameRef = useRef(0);     // frame counter for edge particle emission
+  // ── Emission cadences, on the clock ───────────────────────────────────────
+  //
+  // This was `particleFrameRef`, a draw counter that five `% N === 0` gates
+  // read. A draw counter is not a clock: every one of those cadences ran at 2x
+  // on a 120Hz phone and 6x on his 360Hz QD-OLED, which is the /SCENT collider
+  // defect and the same one the sphere's breath carried. See artRateGate.js.
+  //
+  // ONE clock is stepped per draw and its dt handed to every gate, so the five
+  // can never disagree about when this frame is. Each gate keeps the literal it
+  // shipped with; nothing here is re-derived into a per-second rate, so 60fps
+  // is unchanged by construction.
+  //
+  // `reasoning` is PRIMED: it read the counter BEFORE the increment, so its
+  // first draw saw 0 and fired immediately. The other four read it after.
+  const particleClockRef = useRef(null);
+  if (particleClockRef.current === null) particleClockRef.current = {
+    clock:     createFrameClock(),
+    reasoning: createRateGate(60, { primed: true }),  // throttled state push, 1s
+    edge:      createRateGate(8),                     // edge energy particles
+    filament:  createRateGate(12),                    // analogy filament trail
+    idleA:     createRateGate(3),                     // idle ambient, fast beat
+    idleB:     createRateGate(7),                     // idle ambient, slow beat
+  };
 
   // ── Associative Field (Hopfield + Feigenbaum) ──────────────────────────
   const {
@@ -880,6 +910,27 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       if (!s) return;
       try {
 
+      // ── This frame's cadences ─────────────────────────────────────────────
+      //
+      // Stepped HERE, once, before anything reads them, and after the `!s`
+      // guard above — which is exactly where `particleFrameRef.current++` sat
+      // relative to that guard, so a draw that bails still advances nothing.
+      //
+      // Every gate is stepped UNCONDITIONALLY, and the branches below AND the
+      // result with their own conditions rather than wrapping the step. A gate
+      // advanced only while its branch is live is a different cadence: the
+      // counter these replace ran whether or not anyone was looking. That is
+      // the "gates belong in the alpha, not in the branch condition" rule the
+      // /SCENT collider fix already paid for once.
+      const _pc = particleClockRef.current;
+      const _nowMs = performance.now();
+      const _dtFrames = stepFrameClock(_pc.clock, _nowMs);
+      const reasoningTick = stepRateGate(_pc.reasoning, _dtFrames);
+      const edgeTick      = stepRateGate(_pc.edge,      _dtFrames);
+      const filamentTick  = stepRateGate(_pc.filament,  _dtFrames);
+      const idleTickA     = stepRateGate(_pc.idleA,     _dtFrames);
+      const idleTickB     = stepRateGate(_pc.idleB,     _dtFrames);
+
       const { nodes } = s;
       const { w, h }  = dimsRef.current;
       // Sphere breath: subtle radius oscillation
@@ -901,17 +952,14 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       const ink       = inkScale(w, h);
 
       // ── Update rotation ───────────────────────────────────────────────────
-      const drag = dragRef.current;
-      if (!drag.active) {
-        // Time dilation: when a node is hovered, dampen rotation so user can click
-        const hovered = hoveredRef.current != null;
-        const decay   = hovered ? 0.82 : 0.94;
-        const spin    = hovered ? AUTO_SPIN * 0.15 : AUTO_SPIN;
-        drag.vx *= decay;
-        drag.vy *= decay;
-        rotRef.current.rx += drag.vx;
-        rotRef.current.ry += drag.vy + spin;
-      }
+      // On the CLOCK. This added AUTO_SPIN once per DRAW, so the whole artwork
+      // turned at the display's refresh rate — MEASURED at 283fps, a full
+      // revolution in 8.9s against the authored 41.9s, and ~7s on a 360Hz
+      // panel. The flick inertia decayed per draw too, so a throw died roughly
+      // six times too soon. Time dilation on hover (damp harder, barely spin,
+      // so a node can be hit) lives inside stepAutoRotation with it.
+      stepAutoRotation(rotRef.current, dragRef.current,
+                       hoveredRef.current != null, _dtFrames);
       const M = buildRotMatrix(rotRef.current.rx, rotRef.current.ry);
 
       // ── Step simulations ──────────────────────────────────────────────────
@@ -944,7 +992,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       }
 
       // ── Jury Awakening state machine (logic in artAwakening.js) ──────────
-      const awakeningFires = stepAwakening(aw, nodes, particleFrameRef.current, particlesRef.current);
+      const awakeningFires = stepAwakening(aw, nodes, particlesRef.current, _nowMs);
       for (const n of awakeningFires) {
         fireNode(n.id);
         spawnEffect(n.id, { soft: true });
@@ -955,8 +1003,12 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         if (idx_ != null) perturbField(idx_);
       }
 
-      // ── Throttled reasoning state push (every ~60 frames ≈ 2s) ──────────
-      if (particleFrameRef.current % 60 === 0) {
+      // ── Throttled reasoning state push (every 60 authored frames = 1s) ──
+      // The comment said "~60 frames ≈ 2s" and the arithmetic never supported
+      // it: 60 frames at 60fps is ONE second. Left at 60 rather than "fixed" to
+      // 120 — the interval that shipped is the interval that shipped, and this
+      // commit moves no cadence on purpose.
+      if (reasoningTick) {
         const _ac = getAnalogies().length;
         const _cz = getChimeraZones().length > 0;
         const _gq = getCompletionQuality();
@@ -1000,12 +1052,15 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
       // ── Step particle ecology ─────────────────────────────────────────────
       const pool = particlesRef.current;
-      stepParticles(pool);
-      particleFrameRef.current++;
-      const pFrame = particleFrameRef.current;
+      // The ECOLOGY is advanced on the same dt the cadences use, so emission
+      // and decay cannot disagree about how long this frame was. While both
+      // were per-draw they CANCELLED — 6x emission into a pool that also died
+      // 6x faster kept the population roughly right and got only the tempo
+      // wrong — so converting the emitters alone made the population fall.
+      stepParticles(pool, _dtFrames);
 
-      // Emit edge energy particles every ~8 frames on high-energy edges
-      if (es && pFrame % 8 === 0) {
+      // Emit edge energy particles every 8 authored frames on high-energy edges
+      if (es && edgeTick) {
         for (const e of es) {
           if (e.pulse < 0.2) continue;
           const iA = nodes.findIndex(n => n.id === e.aId);
@@ -1023,9 +1078,16 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         }
       }
 
-      // Emit burst particles from high-energy nodes
+      // Emit burst particles from high-energy nodes.
+      //
+      // The SEVENTH cadence of this family, and the one with no modulus to
+      // grep for: this is a per-draw coin flip, so "every draw" was its rate
+      // and it fired 4.5x too often at the 270fps a headless capture reaches.
+      // What scales is the PROBABILITY, not a schedule — see perFrameChance,
+      // which returns exactly 0.15 at 60fps so the literal below still reads as
+      // the authored one.
       for (const n of nodes) {
-        if (n.energy > 0.7 && artRandom() < 0.15) {
+        if (n.energy > 0.7 && artRandom() < perFrameChance(0.15, _dtFrames)) {
           const col = NODE_COLORS[n.id];
           const hue = col?.hue ?? 30;
           const hueTarget = (hue + 120 + artRandom() * 60) % 360;
@@ -1034,7 +1096,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       }
 
       // Emit particles along analogy filaments (thin golden trail)
-      if (pFrame % 12 === 0) {
+      if (filamentTick) {
         const _fils = getFilaments();
         for (const fil of _fils) {
           if (fil.strength < 0.2 || fil.nodeA >= nodes.length || fil.nodeB >= nodes.length) continue;
@@ -1498,6 +1560,16 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
                 // renders alpha 0. The SWING above that floor scales with
                 // sphereR, which is why the radius is passed in — see
                 // HUM_GLOW in artEdges.js for why only the swing can scale.
+                //
+                // DASHED SPECTRAL BRIDGES GET ONE TOO, AND THAT IS A RULING,
+                // not an oversight. `dashed` is two lines up, and EDGE_FRAG
+                // dashes only the STROKE — `core *= step(mod(dashPos, ...))`;
+                // `glowSeg` is computed from the segment distance alone and is
+                // never gated by `vDash`. So a dashed bridge carries a
+                // CONTINUOUS halo across its own gaps at the hum's crest, at
+                // roughly 1-2% alpha for these widths. It was raised as a
+                // review finding and the author kept it: the atmospheric
+                // bridge visually grounds the dashed edges. Do not "fix" it.
                 isFused ? fusedGlow(fuseCos) : humGlowRadius(_humW, e.pulse, sphereR),
               );
             }
@@ -2169,9 +2241,13 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         }
       }
 
-      // ── Idle ambient particle emission (~2 per frame) ────────────────────
-      if (pFrame % 3 === 0) emitIdleParticles(pool, nodes);
-      if (pFrame % 7 === 0) emitIdleParticles(pool, nodes);
+      // ── Idle ambient particle emission ───────────────────────────────────
+      // Two COPRIME cadences, 3 and 7, so they coincide once every 21 authored
+      // frames — an interference pattern, not a redundant pair, and the reason
+      // both survive the conversion as separate gates instead of collapsing
+      // into one. (The old header said "~2 per frame"; it is 10 in every 21.)
+      if (idleTickA) emitIdleParticles(pool, nodes);
+      if (idleTickB) emitIdleParticles(pool, nodes);
 
       // ── Particle render — additive, smooth sin fade, radial glow ─────────
       // Counted, because a layer in no capture state scores perfect parity
@@ -2490,7 +2566,24 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       rotRef.current = { rx: 0.18, ry: 0 };
       dragRef.current = { active: false, lastX: 0, lastY: 0, vx: 0, vy: 0 };
       particlesRef.current = createParticlePool();
-      particleFrameRef.current = 0;
+      // THE EMISSION CADENCES. This line was `particleFrameRef.current = 0`,
+      // and it is the same reset for the same reason — only the state it
+      // clears is now an accumulator and a clock seed rather than an integer.
+      //
+      // The seed matters as much as the accumulator: the app boots under REAL
+      // timing, so `clock.t` holds a real-clock stamp by the time the harness
+      // takes over. Left seeded, the first virtualised frame would measure dt
+      // against it and bill the gap — clamped, but arbitrary. Cleared, the
+      // first frame after this reset bills exactly one 60fps frame, which is
+      // precisely what the old counter contributed here, so the reset's
+      // behaviour is unchanged and stays reproducible.
+      resetFrameClock(particleClockRef.current.clock);
+      for (const k of ['reasoning', 'edge', 'filament', 'idleA', 'idleB']) {
+        resetRateGate(particleClockRef.current[k]);
+      }
+      // The genesis cascade keeps its clock and gate on `aw`, for the same
+      // reason and with the same effect.
+      resetAwakeningCadence(awakeningRef.current);
       firedRef.current = null;
       fusionSourceRef.current = null;
       probeNodeRef.current = null;
@@ -2505,8 +2598,9 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       // thresholds (edges are born and die), so that 0.13% eventually flips one
       // and the two runs become different worlds — which is what made the
       // immersive rows, the LAST two states captured, uncorrelated on identical
-      // code. `particleFrameRef` above is the same kind of leak: a mount-time
-      // frame counter that gates emission by modulus.
+      // code. The emission cadences above were the same kind of leak: a
+      // mount-time frame counter that gated emission by modulus, which is now
+      // a clock and a set of accumulators — reset here for the same reason.
       //
       // `t0` is deliberately NOT reset: elapsedS is what holds the sphere at
       // awakening phase 3, and restarting it would replace the captured world
@@ -2922,6 +3016,42 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       return { count: sp.count, instances: sp.instances, w: sp.w, h: sp.h, packets };
     };
 
+    // ── The emission cadences, for a LIVE rate probe ─────────────────────
+    //
+    // This exists because the capture harness cannot answer the question this
+    // branch was opened to answer. determinism.mjs virtualises the clock at
+    // exactly 1000/60, so artCompare always renders 60fps frames and is
+    // STRUCTURALLY BLIND to refresh-rate dependence: it can prove this change
+    // did not move the 60fps picture, and it can never prove the bug is fixed.
+    //
+    // The proof has to come from a headed browser running rAF at whatever the
+    // panel gives, comparing fires-per-WALL-SECOND against the authored rate
+    // (60/period) and against what the frame counter would have produced
+    // (fps/period). `fires` is monotonic, so a caller samples twice and takes
+    // the delta; `t` is the cadence clock's own last stamp, so the window the
+    // caller measures is the window the gates actually saw.
+    window.__artCadenceState = () => {
+      const pc = particleClockRef.current;
+      const aw = awakeningRef.current;
+      const read = (g) => ({ period: g.period, fires: g.fires, acc: +g.acc.toFixed(6) });
+      return {
+        t: pc.clock.t,
+        seeded: pc.clock.seeded,
+        // Monotonic count of every particle emitted by ANY path, which is the
+        // only way to see the seventh cadence: the node-burst emitter is a
+        // per-draw coin flip with no gate, so it has no `fires` of its own.
+        emitted: particlesRef.current.emitted,
+        gates: {
+          reasoning: read(pc.reasoning),
+          edge:      read(pc.edge),
+          filament:  read(pc.filament),
+          idleA:     read(pc.idleA),
+          idleB:     read(pc.idleB),
+          genesis:   read(aw.genesisGate),
+        },
+      };
+    };
+
     // Fire a node's wavefront directly, for the harness. The alternative is a
     // hover-grid click, which costs a node-finding sweep and makes WHICH node
     // fired depend on where the grid happened to land -- so a probe of the
@@ -2937,6 +3067,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
     return () => {
       delete window.__artStrimerState;
+      delete window.__artCadenceState;
       delete window.__artFireStrimer;
       delete window.__artHarnessReset;
       delete window.__artSeedRandom;
