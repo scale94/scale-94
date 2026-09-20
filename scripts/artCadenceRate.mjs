@@ -177,6 +177,14 @@ if (a.cadence) {
   }
 }
 
+// Particles emitted per wall second, across EVERY path — including the ungated
+// node-burst emitter, which is a per-draw coin flip and so has no `fires` of its
+// own. The per-gate rows only cover the six cadences that had a modulus; this is
+// the number that says whether the whole ecology is rate-independent.
+const emitted = (a.cadence && b.cadence && a.cadence.emitted != null)
+  ? +((b.cadence.emitted - a.cadence.emitted) / secs).toFixed(2)
+  : null;
+
 const control = {
   mod3PerSec: +((b.ctl.mod3 - a.ctl.mod3) / secs).toFixed(2),
   mod8PerSec: +((b.ctl.mod8 - a.ctl.mod8) / secs).toFixed(2),
@@ -190,6 +198,7 @@ const report = {
   refreshMultipleOf60: +(fps / 60).toFixed(2),
   hasCadenceProbe: hasProbe,
   gates: rows,
+  emittedPerSec: emitted,
   control,
   particleGlow: { mean: meanGlow == null ? null : +meanGlow.toFixed(1), n: live.length },
 };
@@ -205,7 +214,8 @@ if (!rows.length) console.log('  (no __artCadenceState on this build — control
 console.log(`\n  CONTROL, frame-counted in the driver (wrong by construction):`);
 console.log(`    ++n %% 3 : ${control.mod3PerSec}/s   (authored would be 20)`);
 console.log(`    ++n %% 8 : ${control.mod8PerSec}/s   (authored would be 7.5)`);
-console.log(`\n  live particle population (mean of ${live.length}): ${report.particleGlow.mean}`);
+console.log(`\n  particles emitted ${emitted}/s   ` +
+            `live population (mean of ${live.length}): ${report.particleGlow.mean}`);
 
 if (OUT) {
   await mkdir(OUT, { recursive: true });

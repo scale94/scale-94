@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   createFrameClock, stepFrameClock, resetFrameClock,
-  createRateGate, stepRateGate, resetRateGate,
+  createRateGate, stepRateGate, resetRateGate, perFrameChance,
   GATE_FRAME_MS, GATE_DT_CLAMP_MS, GATE_EPSILON_FRAMES,
 } from '../artRateGate.js';
 
@@ -215,6 +215,39 @@ describe('stepRateGate — 60fps is the frame counter it replaces, exactly', () 
     // three orders above the residue a capture can accumulate.
     expect(GATE_EPSILON_FRAMES).toBeGreaterThan(1e-8);
     expect(GATE_EPSILON_FRAMES).toBeLessThan(1e-4);
+  });
+
+  it('scales a per-frame COIN FLIP into a rate, exactly at dt = 1', () => {
+    // Not every rate-dependent emitter has a modulus to convert. The node-burst
+    // emitter is a per-draw Bernoulli trial — `artRandom() < 0.15`, every frame,
+    // no gate at all — so "every draw" IS its period and it fired 4.5x too often
+    // at 270fps. A gate cannot express it: a period-1 gate would have to fire
+    // more than once in a clamped frame, which is the one thing stepRateGate
+    // deliberately refuses to do, and its accumulator's bound assumes period >= 3.
+    //
+    // The conversion is the PROBABILITY, not the schedule. LINEAR and not
+    // 1-(1-p)^dt: since at most one trial happens per frame, what has to be
+    // preserved is the EXPECTED COUNT per wall second, and p*dt preserves it
+    // exactly where the "at least one event" form over-counts ~8% at high
+    // refresh. It is also exact at dt = 1, where the exponential form is not.
+    expect(perFrameChance(0.15, 1)).toBe(0.15);
+    expect(perFrameChance(0.15, 1 / 6)).toBeCloseTo(0.025, 12);
+
+    // The expected count over one authored second is 60 * p at every rate.
+    for (const rate of [60, 120, 165, 360, 875]) {
+      const dt = 60 / rate;
+      const expected = rate * perFrameChance(0.15, dt);
+      expect(expected).toBeCloseTo(60 * 0.15, 9);
+    }
+  });
+
+  it('never returns a probability above 1 or below 0', () => {
+    // A fully clamped stall is 3 authored frames, so 0.15 stays far from the
+    // ceiling — but the clamp is written rather than inferred, because the
+    // caller's literal is a free parameter and 0.4 * 3 is not.
+    expect(perFrameChance(0.4, 3)).toBe(1);
+    expect(perFrameChance(0.15, 0)).toBe(0);
+    expect(perFrameChance(0.15, -1)).toBe(0);
   });
 
   it('restores its constructed phase on reset', () => {

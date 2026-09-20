@@ -115,7 +115,7 @@ import {
 } from '../art/artAwakening';
 import {
   createFrameClock, stepFrameClock, resetFrameClock,
-  createRateGate, stepRateGate, resetRateGate,
+  createRateGate, stepRateGate, resetRateGate, perFrameChance,
 } from '../art/artRateGate';
 import {
   riftTint, exergyAlpha, genesisGlowState, ambientIntensity, ghostTrailAlpha,
@@ -1042,7 +1042,12 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
       // ── Step particle ecology ─────────────────────────────────────────────
       const pool = particlesRef.current;
-      stepParticles(pool);
+      // The ECOLOGY is advanced on the same dt the cadences use, so emission
+      // and decay cannot disagree about how long this frame was. While both
+      // were per-draw they CANCELLED — 6x emission into a pool that also died
+      // 6x faster kept the population roughly right and got only the tempo
+      // wrong — so converting the emitters alone made the population fall.
+      stepParticles(pool, _dtFrames);
 
       // Emit edge energy particles every 8 authored frames on high-energy edges
       if (es && edgeTick) {
@@ -1063,9 +1068,16 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         }
       }
 
-      // Emit burst particles from high-energy nodes
+      // Emit burst particles from high-energy nodes.
+      //
+      // The SEVENTH cadence of this family, and the one with no modulus to
+      // grep for: this is a per-draw coin flip, so "every draw" was its rate
+      // and it fired 4.5x too often at the 270fps a headless capture reaches.
+      // What scales is the PROBABILITY, not a schedule — see perFrameChance,
+      // which returns exactly 0.15 at 60fps so the literal below still reads as
+      // the authored one.
       for (const n of nodes) {
-        if (n.energy > 0.7 && artRandom() < 0.15) {
+        if (n.energy > 0.7 && artRandom() < perFrameChance(0.15, _dtFrames)) {
           const col = NODE_COLORS[n.id];
           const hue = col?.hue ?? 30;
           const hueTarget = (hue + 120 + artRandom() * 60) % 360;
@@ -2961,6 +2973,10 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       return {
         t: pc.clock.t,
         seeded: pc.clock.seeded,
+        // Monotonic count of every particle emitted by ANY path, which is the
+        // only way to see the seventh cadence: the node-burst emitter is a
+        // per-draw coin flip with no gate, so it has no `fires` of its own.
+        emitted: particlesRef.current.emitted,
         gates: {
           reasoning: read(pc.reasoning),
           edge:      read(pc.edge),

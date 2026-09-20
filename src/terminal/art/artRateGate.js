@@ -137,6 +137,34 @@ export function resetRateGate(gate) {
  * change. The subtraction also bounds `acc` by construction: it can never
  * exceed one clamped frame's credit, so a stall cannot bank.
  */
+/**
+ * Scales a per-frame COIN FLIP into a rate.
+ *
+ * Not every rate-dependent emitter has a modulus to convert. The node-burst
+ * emitter in ArtTab is a per-draw Bernoulli trial — `artRandom() < 0.15`, every
+ * frame, no gate at all — so "every draw" IS its period, and it fired 4.5x too
+ * often at the 270fps a headless capture reaches.
+ *
+ * A gate cannot express it. A period-1 gate would have to fire more than once
+ * inside a clamped frame, which `stepRateGate` deliberately refuses to do, and
+ * whose accumulator is only bounded while every period is >= 3. So the thing
+ * that scales is the PROBABILITY, not the schedule.
+ *
+ * LINEAR, and not `1 - (1 - p)^dt`. At most one trial happens per frame, so
+ * what has to be preserved is the EXPECTED COUNT per wall second: `p * dt`
+ * preserves it exactly, where the "at least one event in dt" form over-counts
+ * by ~8% at high refresh (it answers a question about an interval that contains
+ * several trials, and this one contains a single trial). It is also exactly `p`
+ * at dt = 1, which the exponential form is not, so 60fps is untouched.
+ *
+ * Below 60fps this under-emits rather than banking, matching the dt clamp's
+ * policy everywhere else in this module.
+ */
+export function perFrameChance(p, dtFrames) {
+  if (!(dtFrames > 0)) return 0;
+  return Math.min(1, p * dtFrames);
+}
+
 export function stepRateGate(gate, dtFrames) {
   gate.acc += dtFrames;
   if (gate.acc + GATE_EPSILON_FRAMES >= gate.period) {
