@@ -97,17 +97,29 @@ export const PACKET_FRACTION = 0.17;
 //
 // Node positions live on a UNIT sphere (useSomaGraph strips the radial
 // velocity component every step and project() applies sphereR afterwards), so
-// a chord is at most 2. STRIMER_MS_PER_UNIT is a DIAL, and the evidence for it
-// is no longer owed: _s3strimer fired a degree-4 hub (biocoenosis) and
-// recorded lookbook/strimer/report.json, 8 chords across both modes —
-// 0.5553, 0.5964, 0.6049, 0.6178, 0.6660, 0.7262, 1.0364, 1.0579. The median
-// is 0.642, which implies ~128ms at the current dial of 200 — not the 100ms
-// spec section 5 asks the median to land on. The longest chord (ceei, ~1.04)
-// implies 207-212ms and is pinned at the DURATION_MAX_MS clamp on a routine
-// click, not an edge case. THE VALUE IS UNCHANGED AT 200 PENDING THE AUTHOR'S
-// RULING — this comment reports the measurement, it does not act on it. The
-// clamp is what makes a wrong value survivable rather than absurd, and it is
-// what keeps a degree-4 burst in unison.
+// a chord is at most 2.
+//
+// 200 IS CHOSEN, NOT DERIVED, AND IT OVERRIDES SPEC SECTION 5. That section
+// asks V to be calibrated so the median chord transits in 100ms. It was
+// measured instead of assumed: _s3strimer fired a degree-4 hub (biocoenosis)
+// and recorded lookbook/strimer/report.json, 8 chords across both modes —
+// 0.5553, 0.5964, 0.6049, 0.6178, 0.6660, 0.7262, 1.0364, 1.0579, median
+// 0.642, which is ~128ms at this dial rather than the 100ms section 5 wants.
+// The author ruled on the MOTION, in a screen recording, 2026-09-20: keep 200.
+// Faster turns the bundle from a cohesive ribbon into a nervous spark and
+// strips the weight out of the cables. Section 5's 100ms was a design-time
+// assumption made before anything moved; this is the measurement that replaced
+// it, so do not "fix" the median back toward 100 on the strength of that text.
+//
+// THE CAVEAT THAT COMES WITH THAT CHOICE: at 200 the top of the chord range
+// hits the clamp. ceei (~1.04) wants 207-212ms and gets DURATION_MAX_MS, on a
+// routine degree-4 click rather than in an edge case — so the longest edges
+// run FASTER per world unit than the short ones, and the "constant world
+// velocity" this block opens with is not in force up there. The clamp is
+// deciding those, not V. Judged acceptable on the same frames; written down
+// because a reader measuring the velocity across the chord range will find it
+// is not constant, and should find out here rather than by suspecting a bug.
+// The clamp also keeps a degree-4 burst in unison, which is its other job.
 export const STRIMER_MS_PER_UNIT = 200;
 export const DURATION_MIN_MS = 70;
 export const DURATION_MAX_MS = 160;
