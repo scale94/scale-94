@@ -451,3 +451,341 @@ export function chimeraDashOffset(seconds) {
 //              Measured peak in a 3551-frame harness run: 49.
 export const FILAMENT_MAX_DRAWN = 96;
 export const CHIMERA_MAX_ZONES = 136;
+
+// ── The wire hum ────────────────────────────────────────────────────────────
+//
+// The graph's resting pulse. Each edge's whole length brightens and dims on a
+// phase taken from its 3-D midpoint, so edges near each other in space breathe
+// together and the pattern drifts across the sphere. NOTHING travels along an
+// edge: a travelling highlight on this layer smears through the trail
+// accumulator into a comet, which is why option A needed its own
+// non-accumulating pass and this one does not.
+//
+// Applied as a multiply on `baseAlpha` in ArtTab's draw loop, which is the one
+// scalar all four edge branches derive from. That is the entire integration —
+// no shader, no 19th instance float (slot 16 is the dash phase), no pass.
+//
+// TWO THINGS ARE DELIBERATE AND WILL LOOK LIKE ARBITRARY CONSTANTS:
+//
+// `wavenumber` is NOT pi. Midpoints live on a unit sphere, so `dot(mid, axis)`
+// spans [-1, 1] and `2 * wavenumber` is the phase across the diameter. At pi
+// exactly one wavelength spans it, the poles sit in perfect antiphase, and the
+// sphere reads as a rotating two-lobe blink — the mechanical failure in
+// another costume. 2.0 puts ~0.64 of a cycle across the diameter instead.
+//
+// `axisPeriodMs` is not a small-integer multiple of `periodMs`. A fixed axis at
+// a fixed rate is a metronome, so the axis traces a slow cone; if the two
+// cycles re-phased on a low-order beat the whole pattern would visibly repeat.
+//
+// All five are AESTHETIC DIALS, to be chosen on frames rather than argued
+// about — see `scripts/_a4hum.mjs`, which sweeps `amplitude` over one breath
+// cycle the way `_a3bloom.mjs` swept the bloom.
+//
+// ── 2026-09-20: `amplitude` 0.15 -> 0.25 ────────────────────────────────────
+//
+// Raised because the effect was not visible unaided in a still, to either the
+// implementer or the author — "idle the tab and feel the mesh breathe" is the
+// real acceptance test, and a still frame cannot pass or fail it. MEASURED
+// anyway, comparing matched frame index across amplitudes: `imm-a0-w2p0-f1`
+// vs `imm-a0p22-w2p0-f1` gave meanAbs 0.3761, max 50, and 16575 pixels
+// differing by more than 2 levels against ~129k lit pixels. That is a real,
+// non-trivial delta already at 0.22 — the problem was never magnitude, it was
+// that a single frame cannot show a breath at all.
+//
+// ── 2026-09-20: `periodMs` 9000 -> 11000, for GLACIALNESS ONLY ──────────────
+//
+// This is NOT a de-tune against the sphere's rotation, and the next reader
+// will otherwise re-derive that wrong reason from the numbers alone.
+// `AUTO_SPIN` (ArtTab.jsx:130) is 0.0025 rad/FRAME, so one rotation is 2513
+// frames, and the spin's period in wall time is whatever the display's
+// refresh rate makes it: 41.9 s at 60 Hz, 20.9 s at 120 Hz, 7.0 s at 360 Hz.
+// There is no fixed `periodMs` that is reliably commensurate OR incommensurate
+// with a period that changes per monitor — chasing one against the other is
+// chasing a moving target. An apparent 1:1 beat measured earlier was an
+// artefact of a headless capture running at ~284 fps, not a property of the
+// app. 11000 was chosen purely because it reads as slower and more glacial
+// than 9000 — nothing more.
+// ── WHY 11000 BECAME 3500, AND WHY 0.25 CAME BACK ──────────────────────────
+//
+// The dated note above is kept because it is still the honest record of how
+// 0.25 / 11000 was chosen. The RATE in it was superseded by looking. The
+// amplitude went 0.25 -> 0.40 -> 0.25 and ended where it started, which is not
+// the same as never having moved: 0.40 was what the author judged the carrier
+// against, and the walk back down is measured rather than reverted. Both
+// stories are below, rate first.
+//
+// THE HYPOTHESIS. The author reported the hum as imperceptible even with the
+// sphere held STATIC, which rules out rotational masking. Two measurements
+// then ruled out the other obvious causes:
+//
+//   - It is NOT a global dimmer. The per-edge gain spread at K = 2 is already
+//     85-100% of the full swing at every point in the precession — some edges
+//     sit at peak while others sit at trough. Raising K to 10 measures the
+//     same, so wavenumber is not the lever.
+//   - It IS reaching the render. Rotation-matched frame diffs put ~37,000
+//     pixels beyond 2 levels and ~2,400-4,400 beyond 8.
+//
+// What is left is the PERCEPTUAL corner this lands in. A dormant edge is
+// `(0.5 + maxEnergy * 0.8) * avgScale` wide — roughly 0.55 to 1.15 px, a
+// sub-pixel dim line — and 11000 ms is 0.09 Hz, which is essentially DC.
+// Temporal contrast sensitivity is at its floor there and spatial sensitivity
+// falls off steeply for structures this thin. The effect modulates the least
+// perceptible attribute of the least perceptible carrier at the least
+// perceptible rate.
+//
+// 3500 ms is 0.29 Hz, toward a band the eye actually resolves, and it is a
+// human breathing rate (3-5 s) rather than the "glacial" the design asked for
+// — a word chosen at design time and never measured against anything.
+//
+// THE VERDICT, from the author looking at it: at 3500 / 0.40 the hum IS
+// pulsing and visible, "but blink-and-you-miss-it, because the wire is too
+// thin to carry it against the node bloom and grain." So the rate was HALF the
+// problem and the carrier was the other half — which is what the glow shoulder
+// below exists to fix. Both halves ship together; neither works alone.
+//
+// RULED AGAIN AFTER THE MERGE, and this is the verdict that governs: with the
+// shoulder, amplitude at 0.25, and main's clock-stepped rotation underneath —
+// a revolution in 41.9 s rather than the ~8.9 s a 283 fps panel was giving it,
+// so roughly 4.7x more dwell per edge on the visible face — the author's read
+// is "soft and gentle". That is the state these five constants are chosen for.
+// The earlier 3500 / 0.40 verdict above is kept because it is the record of
+// how the rate was settled, but it was taken against a sphere spinning five
+// times faster and an alpha carrying the whole effect; do not quote it as the
+// standing judgement.
+//
+// AMPLITUDE WAS WALKED BACK DOWN, 0.40 -> 0.25, ON MEASUREMENT.
+//
+// 0.40 was chosen while line alpha carried the entire effect. The glow
+// shoulder carries it now, so the question became how much the alpha still
+// contributes. Two instruments answer it, and only one of them can:
+//
+// THE BUFFER, which is deterministic. Rotation-matched against an
+// amplitude-0 control — the only comparison that works, because rotation moves
+// `depthFade` and therefore moves any alpha a trace samples — the hum's
+// modulation of mean a0 is 0.0038 at 0.15, 0.0064 at 0.25, 0.0102 at 0.40.
+// Per unit amplitude that is 0.0253 / 0.0256 / 0.0255: LINEAR, with no
+// saturation anywhere in the range. So 0.25 buys 62% of what 0.40 buys, and
+// nothing surprising happens between them.
+//
+// THE FRAME, which cannot resolve this. Ink swing across one pinned breath
+// reads 11.27% at amplitude 0 (the shoulder alone) against 15-17% with the
+// alpha, so the alpha is NOT redundant and is worth roughly a third of the
+// total. But two runs of the SAME build measured 15.28% and 16.51%, a
+// same-build floor of 1.23 points, which is most of the gap between 0.25 and
+// 0.40. Any claim that one of them is better by ink is noise with a number
+// attached — `artInk.mjs`'s own warning, paid for again here.
+//
+// So 0.25 is chosen on the linear buffer measurement plus the judgement that
+// the alpha is a supporting actor now, NOT on a frame-level difference that
+// this rig cannot see.
+//
+// A CORRECTION TO THE RECORD WHILE WALKING IT. The note this replaces said
+// `packAlphas` CLAMPS at 255 and a bright edge "already reaches 1.41 before the
+// hum", so a bigger amplitude would make the brightest edges DIP rather than
+// swell — flicker, not breath. MEASURED AT REST, that is not happening: maxA0
+// across the graph's edges is 0.761 at EVERY amplitude from 0.00 to 0.40,
+// nowhere near the packed clamp, and identical across the sweep because the
+// brightest edge is one with a live `e.pulse`, which `humGain` attenuates to
+// no hum at all by design. The clamp argument may still hold in a fired
+// cascade; it has not been measured there, and it is not a reason to keep the
+// amplitude low in the resting sphere.
+export const HUM = Object.freeze({
+  amplitude:    0.25,   // +/- fraction of baseAlpha; walked down from 0.40, see above
+  wavenumber:   2.0,    // radians of phase per unit of world distance
+  periodMs:     3500,   // one breath; 0.29 Hz, chosen by eye over 11000's 0.09
+  axisPeriodMs: 97000,  // one turn of the cone, ~27.7 breaths at 3500
+  axisTilt:     1.05,   // radians off +Y; ~60 deg, neither polar nor equatorial
+});
+
+/**
+ * The hum's phase at `nowMs`.
+ *
+ * ON THE CLOCK, NEVER ON A FRAME COUNT. A frame counter runs at double speed on
+ * a 120Hz display — this repo has shipped that bug once already, in the /SCENT
+ * collider. The capture harness virtualises performance.now() and advances it
+ * FRAME_MS per pump, so reading the clock costs no reproducibility.
+ */
+export function humPhase(nowMs) {
+  return (2 * Math.PI * nowMs) / HUM.periodMs;
+}
+
+/** The wave's direction at `nowMs` — a unit vector tracing a slow cone. */
+export function humAxis(nowMs) {
+  const theta = (2 * Math.PI * nowMs) / HUM.axisPeriodMs;
+  const s = Math.sin(HUM.axisTilt);
+  return { x: s * Math.cos(theta), y: Math.cos(HUM.axisTilt), z: s * Math.sin(theta) };
+}
+
+/**
+ * Clamp to [0, 1]. Non-finite input (NaN, +/-Infinity, or anything else that
+ * fails Number.isFinite) maps to 1, NOT 0 — see below.
+ *
+ * Under the old code `x < 0 ? 0 : x > 1 ? 1 : x`, NaN fails both comparisons
+ * and falls through unclamped; -Infinity hits the first branch and returns 0
+ * (the wrong end for our chosen treatment); +Infinity hits the second branch
+ * and returns 1, which is already the correct end. `activity` is `e.pulse`, a
+ * live mutable field this module does not control (useKineticEdges.js), so
+ * that input class has to be handled deliberately, not assumed away.
+ *
+ * The two treatments are NOT interchangeable: in humGain, activity 0 means
+ * full hum amplitude and activity 1 means none. Mapping corruption to 0
+ * would make a bad reading force the sphere's brightest, most visible
+ * behaviour with no way to distinguish it from a genuinely idle edge — the
+ * failure reads as MORE motion. Mapping it to 1 makes the failure silent:
+ * one edge quietly loses its hum instead. For a decorative, idle-state
+ * effect, degrading toward less motion is the safer failure than degrading
+ * toward an unverifiable amplitude spike, so non-finite input maps to 1.
+ */
+function clamp01(x) {
+  if (!Number.isFinite(x)) return 1;
+  return x < 0 ? 0 : x > 1 ? 1 : x;
+}
+
+/**
+ * The gain for one edge: 1 +/- HUM.amplitude, attenuated by `activity`.
+ *
+ * `mid` is the edge's 3-D midpoint, taken BEFORE projection. That is the
+ * load-bearing choice in the whole design: a world-space wave is anchored to
+ * the graph and rotates with it, where a screen-space one would be pinned to
+ * the viewport and the sphere would appear to slide through a fixed curtain of
+ * light. An antipodal edge has the origin for a midpoint, which is well
+ * defined here — it simply rides the global phase.
+ *
+ * `activity` defaults to 0, so every existing caller and every test written
+ * before this parameter existed sees IDENTICAL behaviour. At 1 it returns
+ * exactly 1 — no hum at all. Values outside [0, 1] are clamped to the nearer
+ * bound rather than left to overshoot the amplitude, and non-finite values
+ * (NaN, +/-Infinity, or anything else `Number.isFinite` rejects) are treated
+ * as 1 — no hum on that edge — not left to overshoot either; see clamp01's
+ * comment for why 1 and not 0.
+ *
+ * WHY THIS ATTENUATES ON `pulse` (ArtTab's `e.pulse`, passed in as `activity`)
+ * AND ON NOTHING ELSE — the design doc's section 7 proposed attenuating on
+ * `spectralBoost + fusionBoost + pulseBoost` instead, and that reads as the
+ * more complete fix. It is wrong. `spectralBoost` and `fusionBoost` are
+ * PERMANENT STRUCTURAL properties of an edge — a spectral bridge is always a
+ * spectral bridge, a fused bone stays fused — not events. Attenuating on them
+ * would mute the hum on the sphere's brightest permanent structure, the edges
+ * the eye actually rests on, and leave it only on the dim dormant edges that
+ * `depthFade` has already darkened — making the hum LESS visible, not more.
+ * `pulse` is the only genuinely transient term of the three: it is 1.0 the
+ * instant an edge is overwritten and decays back to 0 (see `e.pulse` in
+ * useKineticEdges.js), which is exactly "something just happened here, let
+ * the hum step aside for it" and nothing else in `baseAlpha` means that.
+ *
+ * The strimer cannot flicker from this under any of the design doc's options:
+ * it renders on its own non-accumulating layer, after `SourceQuad` and before
+ * the composer (SphereComposite.jsx), and never touches `baseAlpha`.
+ */
+/**
+ * The hum's signed wave for one edge, in [-1, 1], before any amplitude.
+ *
+ * Split out of humGain so the glow shoulder can ride the SAME wave as the
+ * alpha rather than a second oscillator that would drift against it.
+ */
+export function humWave(mid, axis, phase) {
+  const d = mid.x * axis.x + mid.y * axis.y + mid.z * axis.z;
+  return Math.sin(phase - HUM.wavenumber * d);
+}
+
+// ── The breathing glow shoulder ─────────────────────────────────────────────
+//
+// WHY THE FLOOR IS 6 AND NOT 0, and this is the whole reason this is viable
+// without touching certified shader code: EDGE_FRAG does NOT carry a shadow
+// alpha. It DERIVES one from the radius, on the assumption the radius came
+// from fusedGlow():
+//
+//     float fuseCos = clamp((vGlow - FUSED_GLOW_BASE) / FUSED_GLOW_SCALE, 0, 1);
+//     float shadowAlpha = mix(fuseCos * 0.6, 1.0, vIsOrtho);
+//
+// FUSED_GLOW_BASE is 6, so ANY radius at or below 6 px renders shadowAlpha 0 —
+// an invisible halo. A "breathe the glow from 0 to 5px" implementation would
+// have produced nothing at all and read as a wiring bug, not as a dial that
+// needed turning.
+//
+// Taken as a gift rather than worked around: over [6, 10] the derived alpha
+// runs [0, 0.3], so the halo's SIZE and its INTENSITY breathe together, which
+// is what a swelling glow does physically. The trough is genuinely absent
+// rather than merely small, so the resting sphere is unchanged.
+//
+// The halo colour is vC1, the edge's own mid stop, for every non-ortho
+// instance — so this tints itself and needs no colour of its own.
+//
+// ── WHY THE SWING IS A RATIO AND THE FLOOR IS NOT ──────────────────────────
+// MEASURED (`scripts/_a8glow.mjs`, both viewports, one pinned world): the
+// crest was a flat 10.000 px on a sphere of radius 410.83 AND on a phone's
+// 162.83, i.e. **2.43% of the sphere on a desktop and 6.14% on a phone** —
+// 2.5x wider relative to the artwork, with the breath's area swing going
+// 14.18% -> 26.65%. The halo was authored against one geometry and then drawn
+// at that pixel size on every other. Same class as the certified `inkScale`
+// lesson: write it as a RATIO, never a literal.
+//
+// The FLOOR cannot take the same treatment, and this is the constraint, not an
+// oversight. `FUSED_GLOW_BASE` is the shader's own zero — below it the derived
+// alpha is 0 and nothing draws at all — and it is an ABSOLUTE px constant
+// baked into EDGE_FRAG at build time. A strictly proportional radius would put
+// a phone's crest at 10 * 162.83/410.83 = 3.96 px, under that floor, and the
+// halo would not render AT ALL on the one platform this pass exists to serve.
+// Size and opacity are the same dial here; there is no freedom to scale one.
+//
+// So the swing scales and the floor stays where the shader put it. Closing the
+// rest means scaling `FUSED_GLOW_BASE`/`FUSED_GLOW_SCALE` with the sphere,
+// which is certified shader code that also governs every FUSED edge's alpha.
+//
+// ── WHY THE SWING IS SPLIT AND NOT PURELY PROPORTIONAL ─────────────────────
+// A purely proportional swing left a phone at 7.585 px and a derived alpha of
+// 0.119, against the desktop's 10 and 0.3 — SMALLER AND DIMMER, on the one
+// platform where the carrier was already weakest. That is this shader's doing,
+// not the ratio's: opacity is welded to radius, so shrinking the halo dims it.
+//
+// Raising the whole swing is not a fix either, because the same number
+// multiplies both geometries: giving the phone back its 0.3 needs a swing that
+// puts the DESKTOP crest at 16.09 px, past `ceiling`, clamped, at alpha 0.74 —
+// two and a half times the look that was actually ruled.
+//
+// So the swing has a FIXED part and a PROPORTIONAL part, and they sum back to
+// `swingPx` exactly at `refSphereR` whatever the split — which is what pins
+// the certified sphere by construction rather than by luck. `fixedShare` is
+// then the only dial, and it is honest about what it trades: 0 is purely
+// proportional (a phone goes dim), 1 is the absolute px literal this whole
+// note exists to explain. At 0.5 the phone reads 8.79 px / alpha 0.209.
+export const HUM_GLOW = Object.freeze({
+  // The swing the author ruled socks/10, in px, and the sphere he ruled it on.
+  // `refSphereR` IS a runtime denominator, which is the shape of the certified
+  // `inkScale` trap — but not the trap itself: inkScale's literal 580 stood in
+  // for a height that actually varies with width, whereas this is a fixed
+  // provenance anchor, the geometry of one capture. Its own breath-phase
+  // ambiguity is 0.6%, i.e. 0.02 px of swing, an eighth of the packed quantum.
+  swingPx: 4,
+  refSphereR: 410.83,
+  // How much of the swing ignores the sphere. 0 = purely proportional and a
+  // phone goes dim; 1 = the old absolute px literal. Chosen by the author.
+  fixedShare: 0.5,
+  // packFlags rounds glow to eighths and clamps at 127, i.e. 15.875 px. On a
+  // fixed 10 px crest that clamp was unreachable arithmetic; a proportional
+  // swing makes it reachable on a big enough wall, so it is clamped HERE where
+  // it can be seen rather than silently inside the packing.
+  ceiling: 15.875,
+});
+
+/**
+ * Glow radius in px for a base edge, from the hum's own wave.
+ *
+ * `wave` is humWave()'s [-1, 1]. `activity` is the same transient attenuation
+ * humGain takes: an edge that was just overwritten keeps its halo still rather
+ * than breathing under the pulse ring travelling along it. `sphereR` is the
+ * draw loop's own sphere radius, and it is REQUIRED — a default would be the
+ * px literal this function exists to delete, and a missing one reads as NaN in
+ * `_a8glow.mjs`'s glow probe rather than as a plausible wrong size.
+ */
+export function humGlowRadius(wave, activity = 0, sphereR) {
+  const a = 1 - clamp01(activity);
+  const { swingPx, refSphereR, fixedShare } = HUM_GLOW;
+  const swing = swingPx * (fixedShare + (1 - fixedShare) * (sphereR / refSphereR));
+  return Math.min(FUSED_GLOW_BASE + swing * a * (0.5 + 0.5 * wave), HUM_GLOW.ceiling);
+}
+
+export function humGain(mid, axis, phase, activity = 0) {
+  const effAmplitude = HUM.amplitude * (1 - clamp01(activity));
+  return 1 + effAmplitude * humWave(mid, axis, phase);
+}

@@ -22,6 +22,8 @@ import {
   FILAMENT_DASH, FILAMENT_CORE_W, FILAMENT_CP_PULL, FILAMENT_MAX_DRAWN,
   chimeraStrength, chimeraHue, chimeraFlicker, chimeraAlpha, chimeraWidth,
   chimeraDashOffset, CHIMERA_DASH, CHIMERA_CP_PULL, CHIMERA_MAX_ZONES,
+  HUM, humPhase, humAxis, humGain, humWave, humGlowRadius, HUM_GLOW,
+  FUSED_GLOW_BASE,
 } from '../artEdges';
 import { CURVE_MAX_SEGMENTS, quadSegments, tessellateQuad } from '../artCurve';
 import {
@@ -1239,5 +1241,252 @@ describe('the additive buffer capacity, with the orphan layers', () => {
     // 6 analogies x at most 16 correspondence pairs; C(17,2) cluster pairs.
     expect(FILAMENT_MAX_DRAWN).toBe(6 * 16);
     expect(CHIMERA_MAX_ZONES).toBe((17 * 16) / 2);
+  });
+});
+
+describe('the wire hum', () => {
+  it('stays inside 1 +/- the amplitude for any phase', () => {
+    const axis = { x: 0, y: 1, z: 0 };
+    for (let p = 0; p < 20; p++) {
+      const g = humGain({ x: 0.3, y: -0.2, z: 0.9 }, axis, p * 0.37);
+      expect(g).toBeGreaterThanOrEqual(1 - HUM.amplitude - 1e-12);
+      expect(g).toBeLessThanOrEqual(1 + HUM.amplitude + 1e-12);
+    }
+  });
+
+  it('guards the amplitude constant against inverting an edge', () => {
+    // Guards the constant as much as the function: an amplitude above 1 would
+    // make an edge's alpha go negative at the trough.
+    expect(HUM.amplitude).toBeLessThan(1);
+  });
+
+  it('gives edges that are close in space near-identical gain', () => {
+    // This is the whole effect: neighbours breathe together.
+    const axis = humAxis(0);
+    const a = humGain({ x: 0.50, y: 0.10, z: 0.20 }, axis, 1.0);
+    const b = humGain({ x: 0.52, y: 0.11, z: 0.21 }, axis, 1.0);
+    expect(Math.abs(a - b)).toBeLessThan(0.02);
+  });
+
+  it('separates midpoints that are far apart along the axis', () => {
+    // A wave that gives every edge the same answer is a global blink, which is
+    // the mechanical failure this design exists to avoid.
+    const axis = { x: 0, y: 1, z: 0 };
+    const near = humGain({ x: 0, y:  1, z: 0 }, axis, 0);
+    const far  = humGain({ x: 0, y: -1, z: 0 }, axis, 0);
+    expect(Math.abs(near - far)).toBeGreaterThan(0.05);
+  });
+
+  it('is NOT a front/back dipole — K is deliberately not pi', () => {
+    // At K = pi the poles sit in exact antiphase and the sphere reads as a
+    // rotating two-lobe blink. 2K must not be a multiple of 2pi.
+    const cycles = (2 * HUM.wavenumber) / (2 * Math.PI);
+    expect(Math.abs(cycles - Math.round(cycles))).toBeGreaterThan(0.1);
+  });
+
+  it('handles an antipodal edge, whose midpoint is the origin', () => {
+    const g = humGain({ x: 0, y: 0, z: 0 }, humAxis(0), 0.5);
+    expect(Number.isFinite(g)).toBe(true);
+  });
+
+  it('advances the phase on the CLOCK, not on a frame count', () => {
+    // One full period of wall time is one full turn of phase. A frame-counted
+    // version would run at double speed on a 120Hz display — the /SCENT bug.
+    const turn = humPhase(HUM.periodMs) - humPhase(0);
+    expect(turn).toBeCloseTo(2 * Math.PI, 9);
+  });
+
+  it('returns a unit axis at every time', () => {
+    for (const t of [0, 1234, 40000, 97000, 250000]) {
+      const a = humAxis(t);
+      expect(Math.hypot(a.x, a.y, a.z)).toBeCloseTo(1, 9);
+    }
+  });
+
+  it('precesses the axis — it is not a fixed direction', () => {
+    const a = humAxis(0);
+    const b = humAxis(HUM.axisPeriodMs / 4);
+    expect(Math.abs(a.x - b.x) + Math.abs(a.z - b.z)).toBeGreaterThan(0.2);
+  });
+
+  it('does not re-phase against the breath inside ten minutes', () => {
+    // The real invariant is the COMBINED repeat period, not the ratio's
+    // distance from an integer: 10.5 is half a unit from the nearest integer
+    // and still puts the whole pattern back where it started in two breaths.
+    // 97/11 is in lowest terms with denominator 11, so it repeats after 11
+    // axis turns — 1,067,000 ms, or 17.78 min. Longer than anyone looks at
+    // the sphere.
+    const gcd = (a, b) => (b ? gcd(b, a % b) : a);
+    const repeatMs = (HUM.periodMs * HUM.axisPeriodMs)
+                   / gcd(HUM.periodMs, HUM.axisPeriodMs);
+    expect(repeatMs).toBeGreaterThan(10 * 60 * 1000);
+  });
+
+  it('is deterministic — same inputs, same answer', () => {
+    const m = { x: 0.1, y: 0.2, z: 0.3 };
+    expect(humGain(m, humAxis(5000), humPhase(5000)))
+      .toBe(humGain(m, humAxis(5000), humPhase(5000)));
+  });
+
+  // ── activity: the hum attenuates on a transient, not on structure ─────────
+  // See the note at humGain's definition for why `pulse` and nothing else.
+
+  it('at activity 1, returns exactly 1 — no hum at all', () => {
+    const mid = { x: 0.50, y: 0.10, z: 0.20 };
+    const axis = humAxis(0);
+    expect(humGain(mid, axis, 1.0, 1)).toBe(1);
+  });
+
+  it('at activity 0, is identical to omitting the argument entirely', () => {
+    const mid = { x: 0.50, y: 0.10, z: 0.20 };
+    const axis = humAxis(0);
+    expect(humGain(mid, axis, 1.0, 0)).toBe(humGain(mid, axis, 1.0));
+  });
+
+  it('at activity 0.5, halves the deviation from 1 that activity 0 gives', () => {
+    const mid = { x: 0.50, y: 0.10, z: 0.20 };
+    const axis = humAxis(0);
+    const phase = 1.0;
+    const dev0 = humGain(mid, axis, phase, 0) - 1;
+    const dev5 = humGain(mid, axis, phase, 0.5) - 1;
+    expect(dev5).toBeCloseTo(dev0 * 0.5, 12);
+  });
+
+  it('clamps activity outside [0,1] rather than overshooting the gain', () => {
+    const mid = { x: 0.50, y: 0.10, z: 0.20 };
+    const axis = humAxis(0);
+    const phase = 1.0;
+    for (const activity of [-1, 2]) {
+      const g = humGain(mid, axis, phase, activity);
+      expect(g).toBeGreaterThanOrEqual(1 - HUM.amplitude - 1e-12);
+      expect(g).toBeLessThanOrEqual(1 + HUM.amplitude + 1e-12);
+    }
+    // -1 must behave exactly like 0 (clamped, not merely bounded).
+    expect(humGain(mid, axis, phase, -1)).toBe(humGain(mid, axis, phase, 0));
+    // 2 must behave exactly like 1 (clamped, not merely bounded).
+    expect(humGain(mid, axis, phase, 2)).toBe(humGain(mid, axis, phase, 1));
+  });
+
+  // ── activity: non-finite input must not poison the gain ──────────────────
+  // `activity` is `e.pulse`, a live mutable field this module does not
+  // control (useKineticEdges.js). `x < 0 ? 0 : x > 1 ? 1 : x` is FALSE on
+  // both branches for NaN, so an unclamped clamp01 lets NaN (and, for
+  // Infinity/-Infinity, a value the comparisons DO resolve but to the wrong
+  // end for our chosen treatment) reach `effAmplitude` and NaN the result.
+  it('at activity NaN, behaves exactly like activity 1 — no hum at all', () => {
+    const mid = { x: 0.50, y: 0.10, z: 0.20 };
+    const axis = humAxis(0);
+    const g = humGain(mid, axis, 1.0, NaN);
+    expect(Number.isFinite(g)).toBe(true);
+    expect(g).toBeGreaterThanOrEqual(1 - HUM.amplitude - 1e-12);
+    expect(g).toBeLessThanOrEqual(1 + HUM.amplitude + 1e-12);
+    expect(g).toBe(humGain(mid, axis, 1.0, 1));
+  });
+
+  it('at activity +Infinity, stays correct (already resolved to 1 in the old ternary)', () => {
+    // +Infinity > 1 was TRUE before the fix, so clamp01 already returned 1 — the
+    // correct end. This assertion verifies that behaviour is preserved, not that
+    // a bug was fixed. See -Infinity below for the case that WAS wrong.
+    const mid = { x: 0.50, y: 0.10, z: 0.20 };
+    const axis = humAxis(0);
+    const g = humGain(mid, axis, 1.0, Infinity);
+    expect(Number.isFinite(g)).toBe(true);
+    expect(g).toBe(humGain(mid, axis, 1.0, 1));
+  });
+
+  it('at activity -Infinity, behaves exactly like activity 1 — no hum at all', () => {
+    // -Infinity < 0 is TRUE, so a naive clamp01 would send this to 0 (full
+    // hum) rather than 1 (no hum) — the opposite of the chosen treatment.
+    const mid = { x: 0.50, y: 0.10, z: 0.20 };
+    const axis = humAxis(0);
+    const g = humGain(mid, axis, 1.0, -Infinity);
+    expect(Number.isFinite(g)).toBe(true);
+    expect(g).toBe(humGain(mid, axis, 1.0, 1));
+  });
+});
+
+describe('the breathing glow shoulder', () => {
+  // The sphere the halo was authored and ruled against: 1920x1080 immersive,
+  // where `_a8glow.mjs` measured sphereR 410.83 and the author ruled socks/10.
+  // Quoted here so the certified look has a regression lock, NOT so anything
+  // in the implementation may read a literal radius off it.
+  const CERTIFIED_R = 410.83;
+  // The phone the mobile pass measured: 390x844, coarse pointer, DPR 1.
+  const PHONE_R = 162.83;
+
+  const swingAt = (R) => humGlowRadius(1, 0, R) - FUSED_GLOW_BASE;
+
+  it('never dips below the radius where the shader draws nothing', () => {
+    // EDGE_FRAG derives shadowAlpha from the radius:
+    //   fuseCos = clamp((vGlow - FUSED_GLOW_BASE) / FUSED_GLOW_SCALE, 0, 1)
+    // so any radius at or below FUSED_GLOW_BASE renders an alpha of 0. The
+    // trough is allowed to BE 6 (absent is the intent) but never less, or the
+    // clamp would hide a sign error in the wave.
+    for (let p = 0; p < 40; p++) {
+      const r = humGlowRadius(Math.sin(p * 0.41), 0, CERTIFIED_R);
+      expect(r).toBeGreaterThanOrEqual(FUSED_GLOW_BASE);
+      expect(r).toBeLessThanOrEqual(FUSED_GLOW_BASE + HUM_GLOW.swingPx);
+    }
+  });
+
+  it('pins the crest to the authored swing on the sphere it was ruled on', () => {
+    // EXACTLY, not approximately, and by construction rather than by luck:
+    // at the reference radius the fixed and proportional parts sum back to
+    // `swingPx` whatever the split is. This is the regression lock on the
+    // socks/10 look — if this drifts, the desktop sphere has changed.
+    expect(humGlowRadius(-1, 0, CERTIFIED_R)).toBe(FUSED_GLOW_BASE);
+    expect(humGlowRadius(1, 0, CERTIFIED_R)).toBe(FUSED_GLOW_BASE + HUM_GLOW.swingPx);
+  });
+
+  it('is absent at the trough on every sphere, however small', () => {
+    for (const R of [PHONE_R, CERTIFIED_R, 40, 1200]) {
+      expect(humGlowRadius(-1, 0, R)).toBe(FUSED_GLOW_BASE);
+    }
+  });
+
+  it('keeps a fixed share of the swing off the sphere entirely', () => {
+    // A purely proportional swing left a phone at 7.585 px / alpha 0.119
+    // against the desktop's 10 / 0.3 — smaller AND dimmer, because this
+    // shader welds opacity to radius. `fixedShare` is the part that does not
+    // shrink with the sphere, so a small sphere keeps its weight.
+    expect(swingAt(0)).toBeCloseTo(HUM_GLOW.swingPx * HUM_GLOW.fixedShare, 10);
+    const pureRatio = HUM_GLOW.swingPx * (PHONE_R / CERTIFIED_R);
+    expect(swingAt(PHONE_R)).toBeGreaterThan(pureRatio);
+  });
+
+  it('scales the remaining share with the sphere, linearly', () => {
+    // The proportional half must still be proportional: equal steps in radius
+    // give equal steps in swing. A curve here would be an unauthored
+    // aesthetic, and `fixedShare` is the only dial that trades the two.
+    expect(swingAt(2 * PHONE_R) - swingAt(PHONE_R)).toBeCloseTo(swingAt(PHONE_R) - swingAt(0), 10);
+    expect(swingAt(CERTIFIED_R) - swingAt(0))
+      .toBeCloseTo(HUM_GLOW.swingPx * (1 - HUM_GLOW.fixedShare), 10);
+  });
+
+  it('never exceeds the radius the packed glow byte can carry', () => {
+    // packFlags rounds glow to eighths and clamps at 127, i.e. 15.875 px. A
+    // proportional swing makes that reachable for the first time: the clamp
+    // used to be unreachable arithmetic on a fixed 10 px crest, and an
+    // exhibition wall is exactly where the sphere gets big enough to hit it.
+    expect(humGlowRadius(1, 0, 4000)).toBeLessThanOrEqual(15.875);
+    expect(humGlowRadius(1, 0, 1e6)).toBeLessThanOrEqual(15.875);
+  });
+
+  it('takes its floor from the shader constant rather than a copy of it', () => {
+    // A second literal 6 in HUM_GLOW would drift silently the day
+    // FUSED_GLOW_BASE moves, and the drift renders as "the halo vanished".
+    expect(HUM_GLOW.floor).toBeUndefined();
+    expect(humGlowRadius(-1, 0, CERTIFIED_R)).toBe(FUSED_GLOW_BASE);
+  });
+
+  it('holds the halo still on a transient, exactly as the alpha hum does', () => {
+    expect(humGlowRadius(1, 1, CERTIFIED_R)).toBe(FUSED_GLOW_BASE);
+    expect(humGlowRadius(1, 0, CERTIFIED_R)).toBe(humGlowRadius(1, undefined, CERTIFIED_R));
+  });
+
+  it('rides the SAME wave as the alpha, not a second oscillator', () => {
+    const mid = { x: 0.2, y: -0.3, z: 0.5 }, axis = humAxis(1234), ph = humPhase(1234);
+    const w = humWave(mid, axis, ph);
+    expect(humGain(mid, axis, ph)).toBeCloseTo(1 + HUM.amplitude * w, 12);
   });
 });

@@ -109,6 +109,7 @@ import {
   chimeraStrength, chimeraHue, chimeraFlicker, chimeraAlpha, chimeraWidth,
   chimeraDashOffset, CHIMERA_MIN_STRENGTH, CHIMERA_CP_PULL, CHIMERA_DASH,
   CHIMERA_SAT, CHIMERA_LIT, CHIMERA_MAX_ZONES,
+  humPhase, humAxis, humGain, humWave, humGlowRadius,
 } from '../art/artEdges';
 import {
   stepAwakening, resetAwakeningCadence, beaconRingState, conductorState, CONDUCTOR,
@@ -117,6 +118,7 @@ import {
   createFrameClock, stepFrameClock, resetFrameClock,
   createRateGate, stepRateGate, resetRateGate, perFrameChance,
 } from '../art/artRateGate';
+import { compositeDpr, coarsePointer } from '../art/artComposite';
 import {
   riftTint, exergyAlpha, genesisGlowState, ambientIntensity, ghostTrailAlpha,
   stepFlash, FLASH_ALPHA, FLASH_CUTOFF,
@@ -229,6 +231,12 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   const feigTitleRef   = useRef(null);
   const feigSparkTimer = useRef(null);   // guards at-feigSpark cleanup race
   const rafRef         = useRef(null);
+  // Answered ONCE, at mount, for the same reason SphereComposite answers it
+  // once: a device does not stop being a touch device mid-session, and
+  // `matchMedia` allocates a MediaQueryList on every call — this is read from
+  // inside the draw loop, so probing it per frame would be 60 allocations a
+  // second to re-learn a constant.
+  const coarseRef      = useRef(coarsePointer());
   // r3f's advance(), handed over by SphereComposite once its GL root exists.
   // Null until then, and null again after unmount — the draw loop must not
   // assume the composite is mounted.
@@ -867,8 +875,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         : normalCanvasHeight(W);
       dimsRef.current = { w: W, h: H };
       if (canvasRef.current) {
-        // Cap at 1.5× on high-DPR mobile (iPad Pro = 2×) to preserve battery
-        const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+        // The SAME helper the GL canvas uses (SphereComposite), not a second
+        // copy of the rule: DPR_CAP's contract is that these two backing stores
+        // agree texel-for-texel, and this used to be a hand-written
+        // Math.min(dpr, 1.5) in two files that had to be kept in step by hand.
+        const dpr = compositeDpr(window.devicePixelRatio, coarseRef.current);
         canvasRef.current.width  = W * dpr;
         canvasRef.current.height = H * dpr;
         canvasRef.current.style.width  = W + 'px';
@@ -885,7 +896,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     initState();
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    // No 2D context is taken any more: this loop no longer draws. It computes
+    // state and writes instance buffers that the GL layer renders, and the
+    // canvas element survives only as the pointer surface and the box SizeSync
+    // measures. Asking for one would allocate a full-resolution backing store
+    // for a surface nothing paints.
 
     const draw = () => {
       // ── Always re-schedule first so an exception never kills the loop ──────
@@ -1097,8 +1112,6 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       }
 
       // ── Clear with trail fade ─────────────────────────────────────────────
-      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       // Ecocide tint: metabolicRift bleeds a faint crimson into the void.
       // The tint itself now lives on the GPU (SphereBackground) — this canvas
       // no longer paints a backdrop, it erases alpha so the backdrop shows
@@ -1113,12 +1126,14 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       // alpha that drives the trail fade. Same object, same frame, so the fill
       // below and the fade cannot disagree — including across a mode toggle,
       // where `a` steps 0.72 <-> 0.32 in one frame.
+      // The `destination-out` fillRect that used to be here is GONE, and with
+      // it the last drawing call in this loop. It erased alpha on a canvas
+      // nothing had painted since the WebGL migration — a full-screen 2-D fill
+      // per frame to make a transparent surface transparent. `tint.a` itself is
+      // load-bearing and stays: the GL trail fade reads it off the object
+      // published above, which is what keeps the fade and the ink provably the
+      // same number across a mode toggle.
       bgStateRef.current.rift = tint;
-      ctx.save();
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.fillStyle = `rgba(0,0,0,${tint.a})`;
-      ctx.fillRect(0, 0, w, h);
-      ctx.restore();
       // Exergy pulse and genesis glow are both on the GPU now
       // (SphereBackground.js); only their state is computed here.
       bgStateRef.current.exergy = exergyAlpha(exergyRate);
@@ -1401,6 +1416,12 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           return dA - dB;
         });
 
+        // Once per frame, not once per edge: every edge this frame shares one
+        // wave. `performance.now()` and not a frame counter — see humPhase.
+        const _humNow   = performance.now();
+        const _humPhase = humPhase(_humNow);
+        const _humAxis  = humAxis(_humNow);
+
         for (const e of sortedEdges) {
           const iA = nodes.findIndex(n => n.id === e.aId);
           const iB = nodes.findIndex(n => n.id === e.bId);
@@ -1435,7 +1456,36 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           const spectralBoost = isSpectral ? cosSim * 0.35 : 0;
           // Bone fusion: fused edges get an even stronger boost
           const fusionBoost   = isFused ? fuseCos * 0.5 : 0;
-          const baseAlpha = (Math.min(na.energy, nb.energy) * 0.5 + 0.06 + spectralBoost + fusionBoost) * depthFade;
+          // The wire hum. One multiply, on the one scalar all four branches
+          // below derive from, so ortho / fused / spectral / default all
+          // breathe without any of them knowing about it.
+          //
+          // The midpoint is the 3-D one — na and nb are unit-sphere positions,
+          // not the projected pA/pB — so the wave rotates WITH the graph
+          // instead of the graph sliding through it.
+          //
+          // AFTER depthFade on purpose: the hum is attenuated by depth along
+          // with everything else, so the far side of the sphere does not pulse
+          // as loudly as the near side.
+          //
+          // If the frames say otherwise, the fix is NOT to move this multiply
+          // inside the parentheses — an earlier version of this comment said so
+          // and was simply wrong. Multiplication commutes: `(sum) * depthFade *
+          // gain` and `(sum * gain) * depthFade` are the same number. A
+          // PROPORTIONAL gain cannot give a near-black edge an absolute swing
+          // at all; +/-25% of an alpha of 0.08 is +/-0.02 wherever you put the
+          // parentheses. The lever for that is an ADDITIVE term, which is what
+          // the design doc's section 7 alternative actually meant.
+          //
+          // `e.pulse` is passed as `activity` so the hum steps aside on a
+          // genuine transient (an edge that was just overwritten) without
+          // muting it on permanently-boosted structure. See humGain's doc
+          // comment in artEdges.js for why spectralBoost/fusionBoost are the
+          // wrong thing to attenuate on, even though the design doc proposed it.
+          const _humMid = { x: (na.x + nb.x) / 2, y: (na.y + nb.y) / 2, z: (na.z + nb.z) / 2 };
+          const _humW = humWave(_humMid, _humAxis, _humPhase);
+          const baseAlpha = (Math.min(na.energy, nb.energy) * 0.5 + 0.06 + spectralBoost + fusionBoost)
+                          * depthFade * humGain(_humMid, _humAxis, _humPhase, e.pulse);
           const pulseBoost = e.pulse * 0.40;
 
           // The width formula moved to artEdges.js unchanged. Its SIGN is now
@@ -1501,7 +1551,26 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
               ed[o + 15] = packFlags(
                 dashed ? SPECTRAL_DASH[0] + SPECTRAL_DASH[1] : 0,
                 dashed ? SPECTRAL_DASH[0] : 0,
-                isFused ? fusedGlow(fuseCos) : 0,
+                // The breathing glow shoulder. This slot was a flat 0, i.e. no
+                // halo at all on any dormant edge — so it INTRODUCES one
+                // rather than modulating one. It rides the SAME wave as the
+                // alpha hum, never a second oscillator that would drift.
+                // The 6 px floor is not a taste call: EDGE_FRAG derives the
+                // shadow alpha from the radius and anything at or below 6
+                // renders alpha 0. The SWING above that floor scales with
+                // sphereR, which is why the radius is passed in — see
+                // HUM_GLOW in artEdges.js for why only the swing can scale.
+                //
+                // DASHED SPECTRAL BRIDGES GET ONE TOO, AND THAT IS A RULING,
+                // not an oversight. `dashed` is two lines up, and EDGE_FRAG
+                // dashes only the STROKE — `core *= step(mod(dashPos, ...))`;
+                // `glowSeg` is computed from the segment distance alone and is
+                // never gated by `vDash`. So a dashed bridge carries a
+                // CONTINUOUS halo across its own gaps at the hum's crest, at
+                // roughly 1-2% alpha for these widths. It was raised as a
+                // review finding and the author kept it: the atmospheric
+                // bridge visually grounds the dashed edges. Do not "fix" it.
+                isFused ? fusedGlow(fuseCos) : humGlowRadius(_humW, e.pulse, sphereR),
               );
             }
             eg.count++;

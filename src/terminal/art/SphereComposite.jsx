@@ -11,9 +11,11 @@
 //    hit-tested. If it ever accepts pointer events the sphere still renders
 //    perfectly and every interaction dies silently.
 //
-// 2. ONE CanvasTexture, created once and marked needsUpdate each frame. A new
-//    texture per frame would allocate and re-upload a full GPU texture 60x a
-//    second and leak until GC.
+// 2. There is no longer a 2D source texture at all. This used to upload one
+//    CanvasTexture per frame; the canvas it sampled was measured empty at
+//    every pixel and the sample was deleted. See COMPOSITE_FRAG. The canvas
+//    ELEMENT still exists — it is the pointer surface point 1 is about, and
+//    SizeSync still measures it — it just carries no ink.
 //
 // 3. frameloop="never" plus advance() called from the tail of ArtTab's draw
 //    loop. r3f's own rAF loop is independent of ArtTab's, so with the default
@@ -26,7 +28,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
 
-import { compositeDpr, glBufferSettled, COMPOSITE_STYLE, BLOOM, VIGNETTE, KNEE } from './artComposite';
+import { compositeDpr, coarsePointer, glBufferSettled, COMPOSITE_STYLE, BLOOM, VIGNETTE, KNEE } from './artComposite';
 import {
   COLOR_GLSL, BACKGROUND_GLSL, backgroundUniforms, syncBackgroundUniforms,
   riftUniform, syncRiftUniform,
@@ -78,17 +80,33 @@ const COMPOSITE_VERT = /* glsl */`
 
 const COMPOSITE_FRAG = /* glsl */`
   precision highp float;
-  uniform sampler2D uSource;
   uniform sampler2D uBackdrop;
   uniform vec3 uRift;         // the clear colour, sRGB 0-1
   varying vec2 vUv;
   ${COLOR_GLSL}
 
   void main() {
-    // uSource carries NoColorSpace, so this is the canvas's raw sRGB bytes with
-    // a real alpha channel — not decoded, because the blend below has to happen
-    // in the same space the 2D canvas composited in.
-    vec4 src = texture2D(uSource, vUv);
+    // ── The 2-D source layer is GONE, and it was already empty ─────────────
+    //
+    // This used to sample a full-resolution CanvasTexture of ArtTab's 2-D
+    // canvas and blend it over the accumulator with
+    // mix(bg, src.rgb, src.a). That canvas carried the whole sphere once.
+    // The WebGL migration moved every layer of it onto instance buffers and
+    // the DOM label overlay, and what was left was a destination-out
+    // fillRect erasing alpha on a surface nothing painted — so src.a was
+    // zero at every pixel and the mix resolved to bg every time.
+    //
+    // MEASURED before removal, real Chrome with rAF running at 272 fps,
+    // 1920x984 = 1,889,280 pixels read back at idle, mid-cascade and after:
+    // maxAlpha 0, nonZeroAlphaPx 0, maxRGB 0 in all three.
+    // scripts/_a5srcalpha.mjs is the probe.
+    //
+    // NOT AN OPTIMISATION WITH A LOOK COST: removing a mix whose weight is
+    // provably 0 is bit-identical, which is why this is gated on artCompare
+    // against the certified reference rather than on an opinion about frames.
+    // What it buys is one canvas-to-GPU texture upload PER FRAME at full
+    // resolution, which on a tile-based mobile GPU is not a rounding error.
+    //
     // uBackdrop is the accumulator, also NoColorSpace: raw sRGB bytes, not
     // decoded on the way in. Both quads carry PlaneGeometry uvs against an
     // unflipped ortho camera, so vUv addresses the same texel in both.
@@ -98,11 +116,7 @@ const COMPOSITE_FRAG = /* glsl */`
     // rift base enters the pipeline, written fresh from this frame's published
     // tint, so the accumulator can never compound it.
     vec4 ink = texture2D(uBackdrop, vUv);
-    vec3 bg = ink.rgb + uRift * (1.0 - ink.a);
-
-    // Source-over in sRGB, exactly as the 2D clear did. src.rgb is straight
-    // (un-premultiplied) alpha, which is what a canvas upload yields.
-    vec3 srgb = mix(bg, src.rgb, src.a);
+    vec3 srgb = ink.rgb + uRift * (1.0 - ink.a);
 
     // Hand the pipeline linear working-space colour and full alpha — the same
     // thing the opaque meshBasicMaterial wrote in step 2, so bloom is unchanged
@@ -335,26 +349,16 @@ function BackdropPass({ backdrop, trail, stateRef, edgeStateRef, additiveStateRe
   return null;
 }
 
-function SourceQuad({ sourceRef, trail, stateRef }) {
+// The screen pass. Named for the 2-D source canvas it used to sample; it no
+// longer samples anything but the accumulator, because that canvas was measured
+// empty at every pixel (see COMPOSITE_FRAG). The name is kept because this is
+// still the pass that puts the composited frame on the screen, and renaming it
+// churns the four files that talk about it for nothing.
+function SourceQuad({ trail, stateRef }) {
   const size = useThree(s => s.size);
   const matRef = useRef(null);
 
-  const texture = useMemo(() => {
-    const el = sourceRef.current;
-    if (!el) return null;
-    const t = new THREE.CanvasTexture(el);
-    t.minFilter = THREE.LinearFilter;      // no mipmaps: the quad is 1:1
-    t.magFilter = THREE.LinearFilter;
-    t.generateMipmaps = false;
-    // NoColorSpace, NOT SRGBColorSpace: tagging it sRGB makes the sampler
-    // decode to linear, and the composite must run in sRGB. The conversion
-    // happens once, on the finished pixel, in the shader.
-    t.colorSpace = THREE.NoColorSpace;
-    return t;
-  }, [sourceRef]);
-
   const uniforms = useMemo(() => ({
-    uSource: { value: null },
     uBackdrop: { value: null },
     // The rift base lives here, on the SCREEN pass, and nowhere else. It is the
     // clear colour rather than a layer, so it must be written fresh every frame
@@ -362,15 +366,9 @@ function SourceQuad({ sourceRef, trail, stateRef }) {
     uRift: riftUniform(),
   }), []);
 
-  useEffect(() => () => texture?.dispose(), [texture]);
-
-  // Re-upload the 2D canvas each rendered frame. This is the whole cost of the
-  // composite, and it is measured rather than assumed — see the step-2 plan.
   useFrame(() => {
-    if (texture) texture.needsUpdate = true;
     const m = matRef.current;
     if (!m) return;
-    m.uniforms.uSource.value = texture;
     // Read every frame, NOT taken once as a prop: `write` alternates between
     // the two accumulation buffers, so the texture this samples changes each
     // frame even though neither target object is ever replaced (setSize mutates
@@ -383,10 +381,8 @@ function SourceQuad({ sourceRef, trail, stateRef }) {
     syncRiftUniform(m.uniforms.uRift, stateRef?.current);
   });
 
-  if (!texture) return null;
-
-  // Opaque and unblended: the shader has already resolved the 2D canvas
-  // against the background, so there is no blend state to get wrong. Depth is
+  // Opaque and unblended: the shader has already resolved the accumulated ink
+  // against the rift base, so there is no blend state to get wrong. Depth is
   // off because this is the only object in the scene.
   return (
     <mesh frustumCulled={false}>
@@ -478,7 +474,28 @@ function AdvanceBridge({ onAdvanceReady }) {
 }
 
 export default function SphereComposite({ sourceRef, immersive, onAdvanceReady, bgStateRef, edgeGLRef, addGLRef, strimerRef }) {
-  const dpr = useRef(compositeDpr(typeof window !== 'undefined' ? window.devicePixelRatio : 1)).current;
+  // Taken once, at mount, and deliberately not reactive: r3f rebuilds every
+  // render target in the composer when `dpr` changes, and a device does not
+  // stop being a touch device mid-session.
+  //
+  // WHAT THIS DOES NOT GUARANTEE, because an earlier version of this comment
+  // claimed it did ("ArtTab's ResizeObserver reads the SAME pair of helpers, so
+  // the two backing stores cannot disagree"). Reading the same helpers is not
+  // enough. This value is frozen at mount; ArtTab re-evaluates the same call on
+  // every resize against the CURRENT `window.devicePixelRatio`. Browser zoom
+  // changes that, and so does dragging the window to a monitor with a different
+  // scale factor — after either, the 2-D backing store moves and this one does
+  // not, for the rest of the session.
+  //
+  // Nothing renders wrongly today ONLY because the 2-D canvas no longer carries
+  // ink: no context is taken for it, so its backing store size is unobservable,
+  // and `SizeSync` compares the GL buffer against `gl.getPixelRatio()` and CSS
+  // pixels rather than against that canvas. Put anything back on that surface,
+  // or derive a size from it, and this stops being harmless.
+  const dpr = useRef(compositeDpr(
+    typeof window !== 'undefined' ? window.devicePixelRatio : 1,
+    coarsePointer(),
+  )).current;
   const wrapRef = useRef(null);
 
   // Owned out here so both passes see the same object and it outlives neither.
@@ -543,7 +560,7 @@ export default function SphereComposite({ sourceRef, immersive, onAdvanceReady, 
         <SizeSync sourceRef={sourceRef} wrapRef={wrapRef} />
         <BackdropPass backdrop={backdrop} trail={trail} stateRef={bgStateRef}
           edgeStateRef={edgeGLRef} additiveStateRef={addGLRef} />
-        <SourceQuad sourceRef={sourceRef} trail={trail} stateRef={bgStateRef} />
+        <SourceQuad trail={trail} stateRef={bgStateRef} />
         {/* The strimer. AFTER SourceQuad and BEFORE the composer: inside the
             composer's input so it gets Bloom and Knee, and outside the trail
             accumulator so it leaves zero residual. See SphereStrimer.jsx. */}

@@ -8,10 +8,44 @@
 // output instead of presenting it texel-for-texel.
 export const DPR_CAP = 1.5;
 
-export function compositeDpr(devicePixelRatio) {
+// ── 2026-09-20: coarse pointers cap at 1 ────────────────────────────────────
+//
+// Phones report 2.5-3x, and every full-screen pass in this pipeline — the trail
+// fade, the backdrop, the screen quad, the strimer, the bloom's luminance pass
+// and its whole mip pyramid, the vignette, the knee — is paid per device pixel.
+// Going 1.5 -> 1 on a phone is a 55% cut in fragment invocations across all of
+// them at once, which is the only lever that touches the entire chain.
+//
+// It is NOT a quality downgrade, and that is the argument for choosing 1 over
+// some intermediate number: `intensity` and `levels` were BOTH swept on frames
+// captured at DPR 1, twice, because the mipmap pyramid is measured in DEVICE
+// pixels and the exhibit projector is 1x. See the two dated blocks below. A
+// coarse pointer now gets the pyramid reach the dial was actually chosen on.
+//
+// The exhibit's own touchscreen, if it has one, matches `(pointer: coarse)` and
+// lands here too. That is correct rather than incidental: 1 is the installation
+// target either way.
+export const DPR_CAP_COARSE = 1;
+
+// `coarse` is passed in rather than probed here so this stays a pure function —
+// the whole reason artComposite has no three.js and no DOM in it.
+export function compositeDpr(devicePixelRatio, coarse = false) {
   const dpr = Number(devicePixelRatio);
   if (!Number.isFinite(dpr) || dpr <= 0) return 1;
-  return Math.min(dpr, DPR_CAP);
+  return Math.min(dpr, coarse ? DPR_CAP_COARSE : DPR_CAP);
+}
+
+// The one place the media query is written. Both canvases have to read the same
+// answer: DPR_CAP's whole contract is that the GL buffer and the 2-D backing
+// store agree, and two independent `matchMedia` calls in two files is exactly
+// how that drifts.
+//
+// Falsy where matchMedia does not exist — jsdom, and the capture rig's shim.
+// The rig is a fine pointer anyway, so the certified reference set is captured
+// at exactly the DPR it was certified at and none of this reaches it.
+export function coarsePointer() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+  return window.matchMedia('(pointer: coarse)').matches;
 }
 
 // Has the GL drawing buffer landed on the size the 2-D canvas is asking for?
