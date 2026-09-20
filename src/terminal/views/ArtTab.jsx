@@ -109,6 +109,7 @@ import {
   chimeraStrength, chimeraHue, chimeraFlicker, chimeraAlpha, chimeraWidth,
   chimeraDashOffset, CHIMERA_MIN_STRENGTH, CHIMERA_CP_PULL, CHIMERA_DASH,
   CHIMERA_SAT, CHIMERA_LIT, CHIMERA_MAX_ZONES,
+  humPhase, humAxis, humGain,
 } from '../art/artEdges';
 import { stepAwakening, beaconRingState, conductorState, CONDUCTOR } from '../art/artAwakening';
 import { compositeDpr, coarsePointer } from '../art/artComposite';
@@ -1353,6 +1354,12 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           return dA - dB;
         });
 
+        // Once per frame, not once per edge: every edge this frame shares one
+        // wave. `performance.now()` and not a frame counter — see humPhase.
+        const _humNow   = performance.now();
+        const _humPhase = humPhase(_humNow);
+        const _humAxis  = humAxis(_humNow);
+
         for (const e of sortedEdges) {
           const iA = nodes.findIndex(n => n.id === e.aId);
           const iB = nodes.findIndex(n => n.id === e.bId);
@@ -1387,7 +1394,21 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           const spectralBoost = isSpectral ? cosSim * 0.35 : 0;
           // Bone fusion: fused edges get an even stronger boost
           const fusionBoost   = isFused ? fuseCos * 0.5 : 0;
-          const baseAlpha = (Math.min(na.energy, nb.energy) * 0.5 + 0.06 + spectralBoost + fusionBoost) * depthFade;
+          // The wire hum. One multiply, on the one scalar all four branches
+          // below derive from, so ortho / fused / spectral / default all
+          // breathe without any of them knowing about it.
+          //
+          // The midpoint is the 3-D one — na and nb are unit-sphere positions,
+          // not the projected pA/pB — so the wave rotates WITH the graph
+          // instead of the graph sliding through it.
+          //
+          // AFTER depthFade on purpose: the hum is attenuated by depth along
+          // with everything else, so the far side of the sphere does not pulse
+          // as loudly as the near side. If the frames say otherwise, the fix is
+          // to move the multiply inside the parentheses.
+          const _humMid = { x: (na.x + nb.x) / 2, y: (na.y + nb.y) / 2, z: (na.z + nb.z) / 2 };
+          const baseAlpha = (Math.min(na.energy, nb.energy) * 0.5 + 0.06 + spectralBoost + fusionBoost)
+                          * depthFade * humGain(_humMid, _humAxis, _humPhase);
           const pulseBoost = e.pulse * 0.40;
 
           // The width formula moved to artEdges.js unchanged. Its SIGN is now
