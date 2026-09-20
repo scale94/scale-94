@@ -252,13 +252,22 @@ breath-clock work.
 
 ## Amendment B — 2026-09-20, the re-base, discharged
 
-**The live reference for this branch is now**
-`baseline/art-sphere-phase3-hum-certified-a`, captured at `4af7cfa3` — the
-amplitude walk-down, which is the last commit that moves a pixel. All five sets
-carry that same `gitCommit` stamp and the working tree was clean throughout, so
-the reference is attributable; a set stamped `null`, or two sets stamped
-differently, would mean the tree moved mid-capture and the whole reference is
-void.
+**The live reference for this branch is**
+`baseline/art-sphere-phase3-hum-merged-a`, captured at `eb83fda3` — the merge
+of `main`. All five sets carry that same `gitCommit` stamp and the working tree
+was clean throughout, so the reference is attributable; a set stamped `null`, or
+two sets stamped differently, would mean the tree moved mid-capture and the
+whole reference is void.
+
+**`baseline/art-sphere-phase3-hum-certified-*` at `4af7cfa3` is SUPERSEDED and
+must not be quoted.** It was a correct reference for the branch before the
+merge, and it was obsolete the moment `main` arrived: `main` landed `a85e8c1d`,
+which steps the sphere’s rotation on the clock, so `ry` moves — measured 3.005
+frame-counted against 3.0175 clock-stepped, a different angle and not an ulp.
+A reference captured before a change that moves every node position describes a
+picture the branch no longer draws. The sets are left on disk rather than
+deleted, because the two numbers side by side are the evidence for why a
+reference has to be re-cut after a merge and not just after a feature.
 
 ### The step Task 5 did not list, and why it is not optional
 
@@ -277,46 +286,58 @@ So the drill is three steps, not two:
 ```bash
 # 1. five sets, each stamped
 BASELINE_COMMIT=$(git rev-parse HEAD) node scripts/artBaseline.mjs \
-  --out baseline/art-sphere-phase3-hum-certified-a        # and -b -c -d -e
+  --out baseline/art-sphere-phase3-hum-merged-a           # and -b -c -d -e
 
-# 2. the same-build null, written INTO each set
-node scripts/artNull.mjs baseline/art-sphere-phase3-hum-certified-{a,b,c,d,e} \
-  --write baseline/art-sphere-phase3-hum-certified-a      # repeat per --write target
+# 2. the same-build null, written INTO each set you intend to quote
+node scripts/artNull.mjs baseline/art-sphere-phase3-hum-merged-{a,b,c,d,e} \
+  --write baseline/art-sphere-phase3-hum-merged-a         # repeat per --write target
 
 # 3. only now does the pairwise matrix mean anything
-node scripts/artCompare.mjs baseline/art-sphere-phase3-hum-certified-a \
-                            baseline/art-sphere-phase3-hum-certified-b
+node scripts/artCompare.mjs baseline/art-sphere-phase3-hum-merged-a \
+                            baseline/art-sphere-phase3-hum-merged-b
 ```
 
 ### The numbers
 
-**Reproducibility** (`artNull`, luminance correlation at full resolution, worst
-off-diagonal pair per cell, 5 sets / 10 pairs): **21/21 cells reproducible at
-floor 0.95, worst 0.9784** — `laptop-1520x900@2x idle`. For scale, the phase-2
-reference certified at 0.9767, so this reference is marginally TIGHTER than the
-one it replaces, despite the frame now carrying a time-varying hum and a
-breathing halo. Five sets detect a 1-in-3 intermittent fault 86% of the time.
+Both rounds are kept. The first was captured at `4af7cfa3` before the merge and
+is superseded; it is shown because the comparison is the point.
 
-**Stability** (`artCompare`, 32x18 signature, all ten pairs):
+**Reproducibility** (`artNull`, luminance correlation at full resolution, worst
+off-diagonal pair per cell, 5 sets / 10 pairs):
+
+| reference | commit | cells | worst cell |
+|---|---|---|---|
+| phase 2 (superseded) | `d69ce75` | 21/21 | 0.9767 |
+| phase 3, pre-merge (superseded) | `4af7cfa3` | 21/21 | 0.9784 |
+| **phase 3, merged (LIVE)** | **`eb83fda3`** | **21/21** | **0.9764** — `laptop-1520x900@2x idle` |
+
+All three sit inside a band of 0.002. The merged reference is fractionally
+looser than the pre-merge one and fractionally looser than phase 2, and that
+difference is not worth a story: it is well inside the spread these captures
+show run to run, the floor is 0.95, and five sets detect a 1-in-3 intermittent
+fault 86% of the time. What matters is that adding a time-varying hum, a
+breathing halo AND a clock-stepped rotation did not move reproducibility out of
+the band the sphere has always had.
+
+**Stability** (`artCompare`, 32x18 signature, all ten pairs, merged sets):
 
 | pair | result | worst cell mean |
 |---|---|---|
-| a-b | 21/21 ADMISSIBLE | 0.236 |
-| a-c | 21/21 ADMISSIBLE | 0.236 |
-| a-d | 21/21 ADMISSIBLE | 0.241 |
-| a-e | 21/21 ADMISSIBLE | 0.238 |
-| b-c | 21/21 ADMISSIBLE | 0.240 |
-| b-d | 21/21 ADMISSIBLE | 0.198 |
-| b-e | 21/21 ADMISSIBLE | 0.233 |
-| c-d | 21/21 ADMISSIBLE | 0.259 |
-| c-e | 21/21 ADMISSIBLE | 0.242 |
-| d-e | 21/21 ADMISSIBLE | 0.191 |
+| a-b | 21/21 ADMISSIBLE | 0.255 |
+| a-c | 21/21 ADMISSIBLE | 0.239 |
+| a-d | 21/21 ADMISSIBLE | 0.237 |
+| a-e | 21/21 ADMISSIBLE | 0.231 |
+| b-c | 21/21 ADMISSIBLE | 0.248 |
+| b-d | 21/21 ADMISSIBLE | 0.241 |
+| b-e | 21/21 ADMISSIBLE | 0.252 |
+| c-d | 21/21 ADMISSIBLE | 0.190 |
+| c-e | 21/21 ADMISSIBLE | 0.238 |
+| d-e | 21/21 ADMISSIBLE | 0.228 |
 
-**210 of 210 cells admissible. Worst cell in the whole matrix: 0.259 against a
+**210 of 210 cells admissible. Worst cell in the whole matrix: 0.255 against a
 threshold of 4**, i.e. the reference is stable to about 6% of the gate. No cell
-was unstable, so there is nothing to decide about one — had there been, it
-would be named here rather than quietly accepted.
-
+was unstable, so there is nothing to decide about one — had there been, it would
+be named here rather than quietly accepted.
 ### What this reference does NOT license
 
 It is a 60 fps picture, like every capture this repo takes: `determinism.mjs`
