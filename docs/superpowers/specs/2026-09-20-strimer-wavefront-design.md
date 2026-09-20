@@ -208,6 +208,33 @@ and the measured median is recorded in the constant's comment. The clamp exists
 because a hub fires up to four edges at once and a 2x spread in duration breaks
 the unison of the burst.
 
+> **AMENDED 2026-09-20, after the build. The paragraph above is superseded and
+> is left in place only so this reads as the record of a decision rather than as
+> something that was always true.**
+>
+> `V` was **not** calibrated to the 100ms median. It was measured and then
+> **chosen on the motion**, and the two disagree. `_s3strimer` fired a degree-4
+> hub and recorded eight chords — 0.5553, 0.5964, 0.6049, 0.6178, 0.6660,
+> 0.7262, 1.0364, 1.0579 — a median of 0.642, which at the shipped
+> `STRIMER_MS_PER_UNIT = 200` transits in **~128ms, not 100ms**. Calibrating to
+> 100ms would mean V ≈ 160.
+>
+> The author watched the effect move and ruled: **keep 200.** Faster turns the
+> bundle from a cohesive ribbon into a nervous spark and strips the weight out
+> of the cables. The 100ms above was a design-time assumption written before
+> anything moved; the motion replaced it. Do not "restore" the 100ms median on
+> the strength of this section's original text.
+>
+> **The caveat that choice carries.** At 200 the top of the chord range hits the
+> clamp: `ceei` (~1.04) wants 207-212ms and gets `DURATION_MAX_MS`, on a routine
+> degree-4 click rather than in an edge case. So the longest edges run *faster
+> per world unit* than the short ones, and the **"constant world velocity" this
+> section opens with is not in force up there** — the clamp is deciding those,
+> not V. Accepted on the same frames. Anyone measuring velocity across the chord
+> range will find it is not constant, and should find that here rather than by
+> suspecting a bug. Keeping the burst in unison is the clamp's other job and is
+> unaffected.
+
 Ease-out cubic opens at 3x the average speed and settles into the node — the
 brief's "fast, aggressive attack".
 
