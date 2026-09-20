@@ -28,6 +28,10 @@ export function createParticlePool() {
     hueTargets:new Float32Array(MAX_PARTICLES),   // blend destination hue
     sats:      new Float32Array(MAX_PARTICLES),   // saturation
     sizes:     new Float32Array(MAX_PARTICLES),   // base radius (px)
+    txs:       new Float32Array(MAX_PARTICLES),   // target x — the node it flies to
+    tys:       new Float32Array(MAX_PARTICLES),
+    tzs:       new Float32Array(MAX_PARTICLES),
+    pulls:     new Float32Array(MAX_PARTICLES),   // 0 = no target, 1 = full rate
     next: 0,   // ring write head
     count: 0,  // live count
     // DEV INSTRUMENT, monotonic and never read by the artwork. `next` is a ring
@@ -38,7 +42,8 @@ export function createParticlePool() {
   };
 }
 
-export function emitParticle(pool, x, y, z, vx, vy, vz, hue, hueTarget, sat, size, maxLife) {
+export function emitParticle(pool, x, y, z, vx, vy, vz, hue, hueTarget, sat, size, maxLife,
+                             tx = 0, ty = 0, tz = 0, pull = 0) {
   const i = pool.next % MAX_PARTICLES;
   pool.next = (i + 1) % MAX_PARTICLES;
   pool.xs[i] = x;   pool.ys[i] = y;   pool.zs[i] = z;
@@ -49,6 +54,8 @@ export function emitParticle(pool, x, y, z, vx, vy, vz, hue, hueTarget, sat, siz
   pool.hueTargets[i] = hueTarget;
   pool.sats[i] = sat;
   pool.sizes[i] = size;
+  pool.txs[i] = tx; pool.tys[i] = ty; pool.tzs[i] = tz;
+  pool.pulls[i] = pull;
   pool.count = Math.min(pool.count + 1, MAX_PARTICLES);
   pool.emitted++;      // DEV instrument only — see createParticlePool
 }
@@ -61,6 +68,12 @@ export function emitParticle(pool, x, y, z, vx, vy, vz, hue, hueTarget, sat, siz
 // be wrong.
 export const PARTICLE_DRAG = 0.964;        // velocity retained per authored frame
 export const PARTICLE_HUE_BLEND = 0.018;   // fraction of the hue gap closed per frame
+
+/**
+ * The per-frame fraction of the remaining gap a fully-pulled particle closes.
+ * `retain = 1 - PARTICLE_PULL * pulls[i]`, raised to dt.
+ */
+export const PARTICLE_PULL = 0.02;
 
 /**
  * Advances the pool by `dtFrames` AUTHORED frames.
@@ -118,6 +131,28 @@ export function stepParticles(pool, dtFrames) {
     pool.vxs[i] *= decay;  // drag
     pool.vys[i] *= decay;
     pool.vzs[i] *= decay;
+    // ARRIVAL — an exponential approach on POSITION, deliberately the same law
+    // as the hue drift below and for the same reason: it COMPOSES. N sub-steps
+    // of dt/N land exactly where one step of dt lands, so no refresh rate is
+    // privileged.
+    //
+    // A spring (`v += (T - P) * k * dt`) does not compose, and it agrees with
+    // the correct form at dt = 1 — which is precisely why a dt = 1 parity test
+    // cannot catch the difference. That is the shape of the bug that hid in
+    // the emission cadences for years.
+    //
+    // The strength scales the RATE, i.e. the base of the exponent, NOT the
+    // composed result. `(1 - k^dt) * pulls[i]` would break composition per
+    // particle while looking identical at dt = 1 — the same trap one level in.
+    // At pulls[i] = 0 the base is exactly 1, 1^dt is exactly 1, and the
+    // approach is exactly 0: every untargeted emitter is bit-identical.
+    const pull = pool.pulls[i];
+    if (pull > 0) {
+      const approach = 1 - decayOverFrames(1 - PARTICLE_PULL * pull, dtFrames);
+      pool.xs[i] += (pool.txs[i] - pool.xs[i]) * approach;
+      pool.ys[i] += (pool.tys[i] - pool.ys[i]) * approach;
+      pool.zs[i] += (pool.tzs[i] - pool.zs[i]) * approach;
+    }
     // Hue drift toward target (smooth color blend)
     const dh = pool.hueTargets[i] - pool.hues[i];
     const shortPath = dh > 180 ? dh - 360 : dh < -180 ? dh + 360 : dh;
@@ -191,7 +226,7 @@ export function emitNodeBurst(pool, x, y, z, hue, hueTarget, count) {
  */
 export const EDGE_PARTICLE_SPEED_K = 1 - PARTICLE_DRAG;
 
-export function emitEdgeParticles(pool, ax, ay, az, bx, by, bz, hue, hueTarget, count) {
+export function emitEdgeParticles(pool, ax, ay, az, bx, by, bz, hue, hueTarget, count, pull = 1) {
   for (let i = 0; i < count; i++) {
     const t = artRandom();
     emitParticle(pool,
@@ -202,7 +237,8 @@ export function emitEdgeParticles(pool, ax, ay, az, bx, by, bz, hue, hueTarget, 
       hue, hueTarget,
       65 + artRandom() * 20,
       0.8 + artRandom() * 1.2,
-      60 + artRandom() * 70
+      60 + artRandom() * 70,
+      bx, by, bz, pull
     );
   }
 }

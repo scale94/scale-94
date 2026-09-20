@@ -190,3 +190,73 @@ describe('edge particles have the range to cross their own edge', () => {
     expect(OLD / (1 - PARTICLE_DRAG)).toBeLessThan(0.06);
   });
 });
+
+describe('particle arrival — an exponential approach, not a spring', () => {
+  const seed = (pull) => {
+    const pool = createParticlePool();
+    emitParticle(pool, 0, 0, 0, 0, 0, 0, 10, 10, 50, 1, 500, 1, 0, 0, pull);
+    return pool;
+  };
+
+  it('COMPOSES: N sub-steps of dt/N land where one step of dt lands', () => {
+    // The whole reason this is a positional approach and not `v += (T-P)*k*dt`.
+    // A Euler spring does not compose, and at dt = 1 it agrees with the
+    // correct form exactly -- so a dt = 1 test would pass on the broken one.
+    const whole = seed(1);
+    stepParticles(whole, 6);
+
+    const split = seed(1);
+    for (let i = 0; i < 6; i++) stepParticles(split, 1);
+
+    expect(split.xs[0]).toBeCloseTo(whole.xs[0], 9);
+    expect(split.ys[0]).toBeCloseTo(whole.ys[0], 9);
+    expect(split.zs[0]).toBeCloseTo(whole.zs[0], 9);
+  });
+
+  it('composes at a fractional sub-step too, which is what a 360Hz panel gives', () => {
+    const whole = seed(1); stepParticles(whole, 1);
+    const split = seed(1); for (let i = 0; i < 6; i++) stepParticles(split, 1 / 6);
+    expect(split.xs[0]).toBeCloseTo(whole.xs[0], 9);
+  });
+
+  it('puts the per-particle strength INSIDE the exponent, not outside the result', () => {
+    // The trap: `approach * pulls[i]` scales the COMPOSED factor and breaks
+    // composition per particle. The strength has to scale the RATE, i.e. the
+    // base that gets raised to dt. Two particles at half strength stepped six
+    // times must still equal one step of six.
+    const whole = seed(0.5); stepParticles(whole, 6);
+    const split = seed(0.5); for (let i = 0; i < 6; i++) stepParticles(split, 1);
+    // Precision 6, not 9: xs is a Float32Array, and this path rounds to f32 on
+    // every one of the 6 sub-steps against 1 rounding for the whole step. In
+    // double precision the two forms agree to 1e-17 (MEASURED) -- the law
+    // composes exactly. At precision 9 (5e-10 absolute) that per-step f32
+    // rounding alone fails the assertion on a CORRECT implementation; the
+    // actual bug this test exists to catch (strength outside the exponent)
+    // diverges by ~1.4e-3, five orders of magnitude past this tolerance, so
+    // precision 6 still catches it with room to spare. Same convention as the
+    // pre-existing cross-rate position composition tests in this file
+    // (precision 5-7, see above).
+    expect(split.xs[0]).toBeCloseTo(whole.xs[0], 6);
+  });
+
+  it('approaches the target and never overshoots it', () => {
+    const pool = seed(1);
+    let prev = -Infinity;
+    for (let f = 0; f < 200; f++) {
+      stepParticles(pool, 1);
+      expect(pool.xs[0]).toBeLessThanOrEqual(1 + 1e-9);
+      expect(pool.xs[0]).toBeGreaterThanOrEqual(prev - 1e-9);
+      prev = pool.xs[0];
+    }
+    expect(pool.xs[0]).toBeGreaterThan(0.9);
+  });
+
+  it('is EXACTLY inert at pull = 0, so every untargeted emitter is untouched', () => {
+    const pulled = seed(0);
+    const plain = createParticlePool();
+    emitParticle(plain, 0, 0, 0, 0.01, 0, 0, 10, 10, 50, 1, 500);
+    pulled.vxs[0] = 0.01;
+    for (let i = 0; i < 50; i++) { stepParticles(pulled, 1); stepParticles(plain, 1); }
+    expect(pulled.xs[0]).toBe(plain.xs[0]);
+  });
+});
