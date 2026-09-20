@@ -197,3 +197,52 @@ rather than in isolation.
 
 **Logged, not fixed.** `breathPhase` advances per frame and runs at double
 speed on 120 Hz displays (section 4).
+
+---
+
+## Amendment A — 2026-09-20, after the dials were chosen
+
+The body above is left intact as the record of what was designed. Where this
+amendment and the body disagree, this governs.
+
+**The dials, ruled by the author.** `amplitude` 0.15 -> **0.25**, `periodMs`
+9000 -> **11000**. The other three are unchanged.
+
+**Section 7's fallback is ADOPTED, but not in the form section 7 proposed.**
+That paragraph suggested attenuating by
+`A * (1 - min(1, spectralBoost + fusionBoost + pulseBoost))`. Two of those
+three terms are wrong for the job, and the mistake is instructive enough to
+keep: `spectralBoost` and `fusionBoost` are PERMANENT STRUCTURAL properties of
+an edge — a spectral bridge is always a spectral bridge, a fused bone stays
+fused — not events. Attenuating on them mutes the hum on the sphere's
+brightest permanent structure, which is exactly where the eye rests, and
+leaves it breathing only on dim dormant edges that `depthFade` has already
+darkened. A dormant edge near 0.08 swings about 5 byte levels at amplitude
+0.25; a bright structural edge near 0.5 swings about 32. So the fallback as
+written would have made the hum LESS visible at the same time as the amplitude
+was raised to make it MORE visible.
+
+`e.pulse` is the only genuinely transient term and is the only one attenuated.
+Shipped as a fourth argument to `humGain`, defaulting to 0.
+
+**Part of that fallback's motivation was already satisfied.** The concern
+included the strimer reading as electrical flicker. It cannot: the strimer
+renders on its own non-accumulating layer after `SourceQuad` and never touches
+`baseAlpha`. Nothing the hum does can reach it.
+
+**A claim made during this work is RETRACTED.** It was reported that the
+sphere's rotation period and `HUM.periodMs` sat in a 1:1 beat at 9 s, and the
+period change was argued for on those grounds. There is no such beat.
+`AUTO_SPIN` is 0.0025 radians per FRAME, so one rotation is 2513 frames and
+its period is set by the display: 41.9 s at 60 Hz, 20.9 s at 120 Hz, 7.0 s at
+360 Hz. The 9 s reading came from a headless capture running at about 284 fps
+— an artefact of the instrument. It follows that NO fixed `periodMs` can be
+reliably commensurate or incommensurate with a period that changes per
+monitor, so "de-tune against the rotation" is not an available move. 11000 was
+taken for glacialness alone.
+
+**A defect this exposed, out of scope here.** `AUTO_SPIN` is frame-counted,
+which is the same class as the `breathPhase` bug: on a 360 Hz panel the sphere
+spins six times faster than a 60 fps design intent. `e.pulse` decays
+0.018/frame and is a third instance. None are fixed here; they belong with the
+breath-clock work.
