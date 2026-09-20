@@ -137,6 +137,42 @@ export function resetRateGate(gate) {
  * change. The subtraction also bounds `acc` by construction: it can never
  * exceed one clamped frame's credit, so a stall cannot bank.
  */
+// ── Per-frame geometric decay, as a rate ────────────────────────────────────
+//
+// Three places in the sphere multiply a quantity by a constant every draw — the
+// particle pool's drag, its hue blend, and the rotation's flick inertia — and
+// each then integrates that decaying quantity into a position. Shared here so
+// the derivation exists once: it is subtle enough to get wrong twice.
+
+/** What survives of a quantity multiplied by `retain` each authored frame. */
+export function decayOverFrames(retain, dtFrames) {
+  return Math.pow(retain, dtFrames);
+}
+
+/**
+ * How far a quantity decaying at `retain` DRIFTS over `dtFrames`, normalised so
+ * one authored frame drifts by exactly 1.
+ *
+ * This is the factor `x += v` was implicitly accumulating. `v * dt` is the
+ * formulation a reviewer reaches for and it is WRONG: velocity decays
+ * geometrically, so displacement is the integral of a decaying quantity.
+ * MEASURED, sub-stepping `v * dt` six times falls ~1.5% short per authored
+ * frame, which compounds over a particle's ~140-frame life.
+ *
+ * Two properties make this the right form, and both are asserted by tests:
+ *   - it returns EXACTLY 1 at dtFrames = 1, so 60fps is untouched;
+ *   - it COMPOSES — N steps of dt/N equal one step of dt — so no refresh rate
+ *     is privileged. (F(a+b) = F(a) + retain^a * F(b) holds for A*(r^t - 1) at
+ *     any A; A = 1/(r-1) is the one that also fixes F(1) = 1.)
+ *
+ * A caller that decays BEFORE adding — the rotation does, the particles do not
+ * — wants this multiplied by one more `decayOverFrames`, which is what makes
+ * its own dt = 1 case return `retain` rather than 1.
+ */
+export function driftOverFrames(retain, dtFrames) {
+  return (Math.pow(retain, dtFrames) - 1) / (retain - 1);
+}
+
 /**
  * Scales a per-frame COIN FLIP into a rate.
  *

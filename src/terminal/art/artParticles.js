@@ -5,6 +5,7 @@
 // a particle, and particles are the layer with the most to lose from a stream
 // something else is also drawing on — see artRandom.js.
 import { artRandom } from './artRandom.js';
+import { decayOverFrames, driftOverFrames } from './artRateGate.js';
 
 export const MAX_PARTICLES = 400;
 
@@ -98,12 +99,16 @@ export function stepParticles(pool, dtFrames) {
   // Dead particles (life >= maxLife) are simply skipped during render.
   // Ring buffer naturally recycles slots.
   if (!(dtFrames > 0)) return;          // a floored-at-zero clock passes no time
-  const decay = Math.pow(PARTICLE_DRAG, dtFrames);
-  const move = (decay - 1) / (PARTICLE_DRAG - 1);
+  const decay = decayOverFrames(PARTICLE_DRAG, dtFrames);
+  // No extra factor here: this adds the RAW velocity and decays after, so one
+  // authored frame moves by exactly 1. The rotation decays first and needs one
+  // more `retain` — see stepAutoRotation, where getting that wrong reads
+  // correctly at 60fps and nowhere else.
+  const move = driftOverFrames(PARTICLE_DRAG, dtFrames);
   // Exponential approach, for the same compositional reason: the hue gap is
   // multiplied by (1 - BLEND) each authored frame, so the fraction closed over
   // dt frames is 1 - (1 - BLEND)^dt, never BLEND * dt.
-  const blend = 1 - Math.pow(1 - PARTICLE_HUE_BLEND, dtFrames);
+  const blend = 1 - decayOverFrames(1 - PARTICLE_HUE_BLEND, dtFrames);
   for (let i = 0; i < MAX_PARTICLES; i++) {
     if (pool.lifes[i] >= pool.maxLifes[i]) continue;
     pool.lifes[i] += dtFrames;

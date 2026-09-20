@@ -51,7 +51,7 @@ import {
   emitIdleParticles, emitNodeBurst, emitEdgeParticles,
 } from '../art/artParticles';
 import {
-  buildRotMatrix, applyM, project, normalCanvasHeight, inkScale,
+  buildRotMatrix, applyM, project, normalCanvasHeight, inkScale, stepAutoRotation,
 } from '../art/artMath';
 import { createBeatClock } from '../art/artBeatClock';
 import { clusterLabelState, nodeLabelState, fireExpired } from '../art/artLabels';
@@ -130,8 +130,6 @@ import {
 } from '../art/artGraph';
 
 // ── Component ─────────────────────────────────────────────────────────────────
-
-const AUTO_SPIN = 0.0025;   // rad/frame continuous Y rotation
 
 // Sector colors for 16-sector 256-node sphere (Scale 16.16)
 const SECTOR_COLORS = {
@@ -939,17 +937,14 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       const ink       = inkScale(w, h);
 
       // ── Update rotation ───────────────────────────────────────────────────
-      const drag = dragRef.current;
-      if (!drag.active) {
-        // Time dilation: when a node is hovered, dampen rotation so user can click
-        const hovered = hoveredRef.current != null;
-        const decay   = hovered ? 0.82 : 0.94;
-        const spin    = hovered ? AUTO_SPIN * 0.15 : AUTO_SPIN;
-        drag.vx *= decay;
-        drag.vy *= decay;
-        rotRef.current.rx += drag.vx;
-        rotRef.current.ry += drag.vy + spin;
-      }
+      // On the CLOCK. This added AUTO_SPIN once per DRAW, so the whole artwork
+      // turned at the display's refresh rate — MEASURED at 283fps, a full
+      // revolution in 8.9s against the authored 41.9s, and ~7s on a 360Hz
+      // panel. The flick inertia decayed per draw too, so a throw died roughly
+      // six times too soon. Time dilation on hover (damp harder, barely spin,
+      // so a node can be hit) lives inside stepAutoRotation with it.
+      stepAutoRotation(rotRef.current, dragRef.current,
+                       hoveredRef.current != null, _dtFrames);
       const M = buildRotMatrix(rotRef.current.rx, rotRef.current.ry);
 
       // ── Step simulations ──────────────────────────────────────────────────
