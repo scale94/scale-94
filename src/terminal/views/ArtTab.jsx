@@ -36,6 +36,7 @@ import {
   particleAlpha, particleVisible, particleSize, particleGlowRadius,
   particleInFront, quantHue, quantAlpha,
   GLOW_STOPS, CORE_LIGHTNESS, CORE_ALPHA_SCALE, GLOW_OUTER_K, discInkCorrection,
+  streakTail,
 } from '../art/artParticleDraw.js';
 import { somaPresence } from '../net/SomaPresence';
 import { ecoDataFeed } from '../data/EcoDataFeed';
@@ -2393,25 +2394,52 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         // glow, which would leave a bare dot where a lit particle should be.
         if (ag.count + 1 >= MAX_ADDITIVE_EDGES) break;
 
-        // Soft radial glow — the THREE-STOP ramp, now as one disc instance.
-        // Lightness falls with the alpha (82 -> 65 -> 50) and the knee is at
-        // 0.4, not the midpoint; the outer colour is EXTRAPOLATED from the
-        // other two rather than stored, because the three are collinear in RGB
-        // above l = 0.5. See DISC_OFF.outerK.
-        writeDisc(ag.data, ag.count * EDGE_STRIDE, {
-          cx: pp.sx, cy: pp.sy,
-          rOuter: particleGlowRadius(sz),
-          hsl: { hue, sat, lit: GLOW_STOPS[0].lightness },
-          alpha: quantAlpha(alpha * GLOW_STOPS[0].alphaScale),
-          mid: {
-            at: GLOW_STOPS[1].at,
-            hsl: { hue, sat, lit: GLOW_STOPS[1].lightness },
-            alpha: quantAlpha(alpha * GLOW_STOPS[1].alphaScale),
-          },
-          outerK: GLOW_OUTER_K,
-          outerAlpha: quantAlpha(alpha * GLOW_STOPS[2].alphaScale),
-          flags: PARTICLE_FLAGS,
-        });
+        // The previous frame's projected position, so the glow can stretch
+        // along the particle's own displacement rather than sit as a disc.
+        const [qrx, qry, qrz] = applyM(M, pool.pxs[pi], pool.pys[pi], pool.pzs[pi]);
+        const qp = project(qrx, qry, qrz, w, h, sphereR, focal);
+        const _st = streakTail(pp.sx, pp.sy, qp.sx, qp.sy);
+
+        if (_st.degenerate) {
+          // Too short to be a segment — and a zero-length segment is NOT a
+          // disc. See streakTail.
+          writeDisc(ag.data, ag.count * EDGE_STRIDE, {
+            cx: pp.sx, cy: pp.sy,
+            rOuter: particleGlowRadius(sz),
+            hsl: { hue, sat, lit: GLOW_STOPS[0].lightness },
+            alpha: quantAlpha(alpha * GLOW_STOPS[0].alphaScale),
+            mid: {
+              at: GLOW_STOPS[1].at,
+              hsl: { hue, sat, lit: GLOW_STOPS[1].lightness },
+              alpha: quantAlpha(alpha * GLOW_STOPS[1].alphaScale),
+            },
+            outerK: GLOW_OUTER_K,
+            outerAlpha: quantAlpha(alpha * GLOW_STOPS[2].alphaScale),
+            flags: PARTICLE_FLAGS,
+          });
+        } else {
+          // The streak, as ONE segment: tail to head, with the gradient running
+          // dark-to-bright along it and the gaussian shoulder carrying the glow.
+          const o = ag.count * EDGE_STRIDE;
+          const ad = ag.data;
+          ad[o] = _st.x; ad[o + 1] = _st.y; ad[o + 2] = pp.sx; ad[o + 3] = pp.sy;
+          writeHsl(ad, o + 4,  hue, sat, GLOW_STOPS[2].lightness);   // tail
+          writeHsl(ad, o + 7,  hue, sat, GLOW_STOPS[1].lightness);   // mid
+          writeHsl(ad, o + 10, hue, sat, GLOW_STOPS[0].lightness);   // head
+          ad[o + 13] = packAlphas(
+            quantAlpha(alpha * GLOW_STOPS[2].alphaScale),
+            quantAlpha(alpha * GLOW_STOPS[1].alphaScale),
+            quantAlpha(alpha * GLOW_STOPS[0].alphaScale),
+          );
+          ad[o + 14] = sz;
+          ad[o + 15] = PARTICLE_FLAGS;
+          ad[o + 16] = 0;   // phase — a straight stroke starts its dash at 0
+          // Float 17 is a DISC's shadow colour. The buffer is reused frame to
+          // frame, so a segment landing where a disc was would inherit it:
+          // invisible in the render (vIsDisc mixes it out) but not invisible to
+          // the world hash, which reads the raw buffer.
+          ad[o + 17] = 0;
+        }
         ag.count++;
         _pcen.particleGlow++;
 

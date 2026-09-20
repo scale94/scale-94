@@ -126,3 +126,48 @@ export function discInkCorrection(radius) {
   const r2 = radius * radius;
   return r2 / (r2 + BOX_FILTER_EXCESS_PX2);
 }
+
+// ── Velocity-stretched streaks ──────────────────────────────────────────────
+//
+// A particle's soft glow was a disc with a three-stop RADIAL ramp. It is now a
+// SEGMENT from where the particle was last frame to where it is now, stretched
+// along that displacement — which is what the mesh's segment branch already
+// draws, with a width, a head-to-tail gradient and a gaussian shoulder. No
+// shader, no new float, and the instance count per particle stays at two.
+//
+// ONE FIDELITY LOSS, recorded rather than hidden: the disc's ramp DARKENED as
+// it faded (lightness 82 -> 65 -> 50, knee at 0.4 — see GLOW_STOPS and
+// GLOW_OUTER_K). A segment's gradient runs along its LENGTH, not radially, so
+// the shoulder is single-colour. Small on a spark, real, and not recoverable
+// without a radial term a segment does not have.
+
+/** How far the one-frame displacement is exaggerated. A frame's real
+ *  displacement is sub-pixel at any sane speed, so an un-stretched streak is a
+ *  dot; this is the knob that turns motion into a needle. Tuned by eye. */
+export const STREAK_STRETCH = 5;
+
+/** Below this stretched length in px the caller must draw the DISC instead.
+ *  See `streakTail`'s note — a zero-length segment is not a disc. */
+export const STREAK_MIN_PX = 0.75;
+
+/**
+ * The tail end of a particle's streak, in screen px, and whether it is long
+ * enough to draw as one.
+ *
+ * `degenerate` is not defensive. `isDisc()` keys on the width SIGN, so a
+ * segment written with `a == b` takes the SEGMENT path: `len` is 0, `dir`
+ * falls back to (1,0), `t` is 0, and the cap term
+ * `clamp(vAlong/pxA + 0.5) * clamp((vLen - vAlong)/pxA + 0.5)` evaluates to
+ * 0.25 at the centre. The result is a faint quarter-alpha blob exactly where a
+ * spark should be — a stalled particle rendering as a dimmer, wrongly-shaped
+ * dot, which reads as a bug in the ecology rather than in the encoding.
+ */
+export function streakTail(headX, headY, prevX, prevY) {
+  const dx = (headX - prevX) * STREAK_STRETCH;
+  const dy = (headY - prevY) * STREAK_STRETCH;
+  return {
+    x: headX - dx,
+    y: headY - dy,
+    degenerate: Math.hypot(dx, dy) < STREAK_MIN_PX,
+  };
+}

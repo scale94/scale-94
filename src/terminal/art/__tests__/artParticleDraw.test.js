@@ -11,6 +11,7 @@ import {
   particleInFront, quantHue, quantAlpha,
   GLOW_STOPS, CORE_LIGHTNESS, CORE_ALPHA_SCALE, ALPHA_SCALE,
   discInkCorrection, SIZE_FLOOR,
+  streakTail, STREAK_STRETCH, STREAK_MIN_PX,
 } from '../artParticleDraw.js';
 
 describe('particleAlpha', () => {
@@ -176,5 +177,36 @@ describe('discInkCorrection', () => {
 
   it('approaches 1 as the disc grows, so it cannot distort a large layer', () => {
     expect(discInkCorrection(1000)).toBeCloseTo(1, 6);
+  });
+});
+
+describe('velocity-stretched streaks', () => {
+  it('stretches the frame displacement by a constant factor', () => {
+    const t = streakTail(100, 100, 98, 99);
+    expect(t.x).toBeCloseTo(100 - 2 * STREAK_STRETCH, 10);
+    expect(t.y).toBeCloseTo(100 - 1 * STREAK_STRETCH, 10);
+  });
+
+  it('reports a degenerate streak rather than emitting one', () => {
+    // A zero-length SEGMENT is not a disc: isDisc() keys on the width SIGN, so
+    // `a == b` takes the segment path with len = 0, dir falls back to (1,0),
+    // and the cap term evaluates to 0.25 at vAlong = 0 -- a faint
+    // quarter-alpha blob where a spark should be. The caller must fall back to
+    // the disc path, so the law has to say so.
+    expect(streakTail(50, 50, 50, 50).degenerate).toBe(true);
+    expect(streakTail(50, 50, 49.999, 50).degenerate).toBe(true);
+    expect(streakTail(50, 50, 40, 50).degenerate).toBe(false);
+  });
+
+  it('calls a streak degenerate exactly below STREAK_MIN_PX of stretched length', () => {
+    const d = STREAK_MIN_PX / STREAK_STRETCH;
+    expect(streakTail(0, 0, d * 1.01, 0).degenerate).toBe(false);
+    expect(streakTail(0, 0, d * 0.99, 0).degenerate).toBe(true);
+  });
+
+  it('floors at a length the box filter can actually resolve', () => {
+    // Below about half a pixel the segment deposits less ink than the disc it
+    // replaced, so the fallback threshold has to sit above that.
+    expect(STREAK_MIN_PX).toBeGreaterThanOrEqual(0.5);
   });
 });

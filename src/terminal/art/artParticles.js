@@ -32,6 +32,9 @@ export function createParticlePool() {
     tys:       new Float32Array(MAX_PARTICLES),
     tzs:       new Float32Array(MAX_PARTICLES),
     pulls:     new Float32Array(MAX_PARTICLES),   // 0 = no target, 1 = full rate
+    pxs:       new Float32Array(MAX_PARTICLES),   // position at the END of the
+    pys:       new Float32Array(MAX_PARTICLES),   // previous step — the streak's
+    pzs:       new Float32Array(MAX_PARTICLES),   // tail anchor
     next: 0,   // ring write head
     count: 0,  // live count
     // DEV INSTRUMENT, monotonic and never read by the artwork. `next` is a ring
@@ -48,6 +51,10 @@ export function emitParticle(pool, x, y, z, vx, vy, vz, hue, hueTarget, sat, siz
   pool.next = (i + 1) % MAX_PARTICLES;
   pool.xs[i] = x;   pool.ys[i] = y;   pool.zs[i] = z;
   pool.vxs[i] = vx; pool.vys[i] = vy; pool.vzs[i] = vz;
+  // Seeded to the current position, not left at whatever the slot's previous
+  // occupant wrote: a newborn's streak is zero-length, which takes the disc
+  // fallback on its first frame (see streakTail's degenerate branch).
+  pool.pxs[i] = x; pool.pys[i] = y; pool.pzs[i] = z;
   pool.lifes[i] = 0;
   pool.maxLifes[i] = maxLife;
   pool.hues[i] = hue;
@@ -124,6 +131,11 @@ export function stepParticles(pool, dtFrames) {
   const blend = 1 - decayOverFrames(1 - PARTICLE_HUE_BLEND, dtFrames);
   for (let i = 0; i < MAX_PARTICLES; i++) {
     if (pool.lifes[i] >= pool.maxLifes[i]) continue;
+    // Captured before the integration, not derived from velocity afterwards:
+    // once the arrival term is in, displacement is no longer `v * move`.
+    pool.pxs[i] = pool.xs[i];
+    pool.pys[i] = pool.ys[i];
+    pool.pzs[i] = pool.zs[i];
     pool.lifes[i] += dtFrames;
     pool.xs[i] += pool.vxs[i] * move;
     pool.ys[i] += pool.vys[i] * move;
