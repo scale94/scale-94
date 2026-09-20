@@ -7,9 +7,24 @@
 // buffer the GL layer renders, once per wall-clock sample over two full breath
 // periods.
 //
-// What it proves, and what it does not. It proves the gain is being applied,
-// with the right relative amplitude and the right period. It does NOT prove the
-// result looks good — that is Task 3's sweep and the author's call.
+// WHAT IT PROVES, AND WHAT IT CANNOT — read this before quoting a number.
+//
+// It proves the gain is being applied and at roughly the right PERIOD. It
+// CANNOT measure the amplitude, and a reading from it must never be compared
+// against a reading at different dials.
+//
+// Why: the quantity it reports is max-minus-min of the mean a0 over the whole
+// window, and that is a compound of the hum AND the sphere's rotation, which
+// beat against each other. AUTO_SPIN is frame-counted, so the spin period is
+// whatever the capture's frame rate makes it (~8.8 s at the ~284 fps this rig
+// runs at, against 41.9 s on a real 60 Hz display). MEASURED, and this is the
+// trap in the open: raising amplitude 0.15 -> 0.25 made this number go DOWN,
+// 0.3585 -> 0.3211, purely because moving periodMs 9000 -> 11000 changed how
+// often the two aligned inside the window.
+//
+// To measure amplitude, hold the rotation: capture with scripts/_a4hum.mjs and
+// diff matched FRAME INDEX across amplitude values. That is the only
+// comparison on this sphere that isolates the hum.
 //
 // Runs LIVE: no --deterministic, no __virtualize. The question is what real
 // frames do over real seconds.
