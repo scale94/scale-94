@@ -61,6 +61,11 @@ import {
   createEdgeState, writeHsl, writeHslRgb, writeRgb255, packAlphas, packFlags,
   writeDisc, writePolyline, ADDITIVE_LAYER, EDGE_STRIDE, MAX_EDGES, MAX_ADDITIVE_EDGES,
 } from '../art/SphereEdges';
+import {
+  createStrimerState, spawnStrimer, stepStrimer,
+  STRIMER_STRIDE, PACKET_FRACTION, PROFILE_PACKET, PROFILE_RAIL, PROFILE_PING,
+  HEAD_GAIN, HEAD_WIDTH, RAIL_GAIN, RAIL_WIDTH, PING_GAIN, PING_RADIUS,
+} from '../art/artStrimer';
 import { quadSegments, tessellateQuad, CURVE_MAX_SEGMENTS } from '../art/artCurve';
 import {
   nodeEnergy, depthCueAlpha, resonanceDimmed, nodeRadius, coreAlpha,
@@ -455,6 +460,10 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   // that grows — the array IS the GPU-bound buffer's backing store.
   const addGLRef = useRef(null);
   if (addGLRef.current === null) addGLRef.current = createEdgeState(MAX_ADDITIVE_EDGES);
+  // The strimer pool. Created in the render body like the edge states, so its
+  // `.data` array exists before SphereComposite's factory first runs.
+  const strimerRef = useRef(null);
+  if (strimerRef.current === null) strimerRef.current = createStrimerState();
   // Prism scratch, allocated once: the tessellation's point list, the control
   // point, and writeHsl's rgb output. A full-strength frame runs the inner loop
   // ~74000 times and the draw loop stays off the allocation path.
@@ -730,7 +739,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       }
     }
 
-    if (node) { fireNode(node.id); }
+    // `opts.strimer` says a wavefront is being spawned by the caller and will
+    // deliver the neighbour bumps itself. Terminal `run` and the ambient
+    // awakening fires do NOT pass it, so they keep the instant propagation
+    // they have always had.
+    if (node) { fireNode(node.id, { neighbours: !opts.strimer }); }
   }, [fireNode]);
 
   const handleRunKernel = useCallback((alias) => {
@@ -2105,6 +2118,78 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       // whether it ships or is deleted — this branch's defining failure, found
       // six times. Both sub-layers separately: a port that drops the glow and
       // keeps the core would otherwise read as present.
+      // ── The strimer wavefront ────────────────────────────────────────────
+      // Stepped on the clock, never on a frame count: a frame counter runs at
+      // double speed on a 120Hz display, which is the /SCENT bug. The harness
+      // virtualises performance.now() and advances it FRAME_MS per __pump, so
+      // this stays bit-reproducible under a capture.
+      {
+        const sp = strimerRef.current;
+        stepStrimer(sp, performance.now());
+
+        // ARRIVALS. This is the +0.6 that used to fire instantly inside
+        // fireNode for every neighbour at once; it now lands when the packet
+        // that was sent to that neighbour actually gets there.
+        for (let k = 0; k < sp.arrivedCount; k++) {
+          const nb = nodes.find(n => n.id === sp.dstId[sp.arrived[k]]);
+          if (nb) nb.energy = Math.min(1, nb.energy + 0.6);
+        }
+
+        sp.w = w; sp.h = h;
+        sp.instances = 0;
+        for (let i = 0; i < sp.count; i++) {
+          const ia = nodes.findIndex(n => n.id === sp.srcId[i]);
+          const ib = nodes.findIndex(n => n.id === sp.dstId[i]);
+          if (ia < 0 || ib < 0) continue;
+          const pa = proj[ia], pb = proj[ib];
+          if (!pa || !pb) continue;   // dynamic node not yet projected
+          const r = sp.rgb[i * 3], g = sp.rgb[i * 3 + 1], b = sp.rgb[i * 3 + 2];
+          const scale = (pa.scale + pb.scale) * 0.5 * ink;
+
+          if (sp.phase[i] === 0) {
+            // The RAIL first, so the packet adds over it. `lighter` commutes,
+            // so this is for legibility rather than correctness.
+            let o = sp.instances * STRIMER_STRIDE;
+            sp.data[o] = pa.sx; sp.data[o + 1] = pa.sy;
+            sp.data[o + 2] = pb.sx; sp.data[o + 3] = pb.sy;
+            sp.data[o + 4] = RAIL_WIDTH * scale;
+            sp.data[o + 5] = RAIL_GAIN;
+            sp.data[o + 6] = r; sp.data[o + 7] = g; sp.data[o + 8] = b;
+            sp.data[o + 9] = PROFILE_RAIL;
+            sp.instances++;
+
+            const u = sp.u[i];
+            const hx = pa.sx + (pb.sx - pa.sx) * u;
+            const hy = pa.sy + (pb.sy - pa.sy) * u;
+            const L = Math.hypot(pb.sx - pa.sx, pb.sy - pa.sy) * PACKET_FRACTION;
+            const dx = pb.sx - pa.sx, dy = pb.sy - pa.sy;
+            const n = Math.max(Math.hypot(dx, dy), 1e-6);
+            o = sp.instances * STRIMER_STRIDE;
+            sp.data[o] = hx; sp.data[o + 1] = hy;
+            sp.data[o + 2] = hx - dx / n * L; sp.data[o + 3] = hy - dy / n * L;
+            sp.data[o + 4] = HEAD_WIDTH * scale;
+            sp.data[o + 5] = HEAD_GAIN;
+            sp.data[o + 6] = r; sp.data[o + 7] = g; sp.data[o + 8] = b;
+            sp.data[o + 9] = PROFILE_PACKET;
+            sp.instances++;
+          } else {
+            // The PING: head == tail, which the same capsule arithmetic
+            // renders as a disc. One shader, three profiles.
+            // `ping` is already the remaining fraction in [0,1] — it fades on
+            // the clock, not on a frame count. See artStrimer.js's PING_MS.
+            const k2 = sp.ping[i];
+            const o = sp.instances * STRIMER_STRIDE;
+            sp.data[o] = pb.sx; sp.data[o + 1] = pb.sy;
+            sp.data[o + 2] = pb.sx; sp.data[o + 3] = pb.sy;
+            sp.data[o + 4] = PING_RADIUS * scale;
+            sp.data[o + 5] = PING_GAIN * k2;
+            sp.data[o + 6] = r; sp.data[o + 7] = g; sp.data[o + 8] = b;
+            sp.data[o + 9] = PROFILE_PING;
+            sp.instances++;
+          }
+        }
+      }
+
       const _pcen = nodeCensusRef.current;
       // ON THE GPU, in the ADDITIVE stream. The 2-D form set
       // `globalCompositeOperation = 'lighter'` and `ag` is where that blend
@@ -2748,7 +2833,35 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       };
     };
 
+    // The strimer, for the harness. `instances` answers a different question
+    // from `count`: whether the layer had anything ON SCREEN when a number was
+    // taken. A transient that has already passed is not in the frame being
+    // graded, and this is what says so.
+    window.__artStrimerState = () => {
+      const sp = strimerRef.current;
+      const packets = [];
+      for (let i = 0; i < sp.count; i++) {
+        packets.push({
+          src: sp.srcId[i], dst: sp.dstId[i],
+          u: +sp.u[i].toFixed(4), phase: sp.phase[i], ping: +sp.ping[i].toFixed(3),
+        });
+      }
+      return { count: sp.count, instances: sp.instances, w: sp.w, h: sp.h, packets };
+    };
+
+    // Fire a node's wavefront directly, for the harness. The alternative is a
+    // hover-grid click, which costs a node-finding sweep and makes WHICH node
+    // fired depend on where the grid happened to land -- so a probe of the
+    // effect would be measuring the grid too.
+    window.__artFireStrimer = (id) => {
+      fireNode(id, { neighbours: false });
+      fireStrimer(id);
+      return strimerRef.current.count;
+    };
+
     return () => {
+      delete window.__artStrimerState;
+      delete window.__artFireStrimer;
       delete window.__artHarnessReset;
       delete window.__artSeedRandom;
       delete window.__artInitLog;
@@ -2952,6 +3065,42 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     }
   }, [canvasCoords, nodeAt, edgeAt, lockedEdge, setConductor]);
 
+  /**
+   * Spawn one packet per edge touching `id`, outward.
+   *
+   * Adjacency is SPHERE_ADJ — the 31-node, 40-edge set the sphere actually
+   * draws and fires over. (ArtTab's label cascade uses the full 272-node ADJ;
+   * the two disagree about who a node's neighbours are. Not changed here, and
+   * recorded in the design's section 10.)
+   *
+   * The chord is 3D and unprojected: that is correct parallax, and it is
+   * invariant under rotation, which is what makes the transient reproducible
+   * in a capture.
+   */
+  const fireStrimer = useCallback((id) => {
+    const st = stateRef.current;
+    const pool = strimerRef.current;
+    if (!st || !pool) return;
+    const src = st.nodes.find(n => n.id === id);
+    if (!src) return;
+    const targets = [];
+    for (const dstId of (SPHERE_ADJ[id] ?? [])) {
+      const dst = st.nodes.find(n => n.id === dstId);
+      if (!dst) continue;
+      targets.push({
+        dstId,
+        worldLen: Math.hypot(dst.x - src.x, dst.y - src.y, dst.z - src.z),
+      });
+    }
+    if (!targets.length) return;
+    spawnStrimer(pool, {
+      srcId: id,
+      targets,
+      nowMs: performance.now(),
+      colour: NODE_COLORS[id] ?? { hue: 200, sat: 90, lit: 60 },
+    });
+  }, []);
+
   const handleMouseUp = useCallback((e) => {
     // Release conductor if dragging
     if (conductorDragRef.current) {
@@ -3035,13 +3184,17 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           }
         }
         // Right-click is handled by contextmenu (fusion state machine) — ignore here
-        fireNode(node.id);
+        // The strimer delivers each neighbour's bump when its packet LANDS,
+        // so the instant loop is suppressed here. The two are one decision:
+        // suppressing without spawning would stop the graph propagating.
+        fireNode(node.id, { neighbours: false });
+        fireStrimer(node.id);
         // Perturb Hopfield field — genuine associative activation propagation
         const nodeIdx_ = NODE_IDX[node.id];
         if (nodeIdx_ != null) perturbField(nodeIdx_);
         // Broadcast to peers
         if (somaPresence.connected) somaPresence.sendFire(node.id);
-        spawnEffect(node.id, { soft: true, rightClick: false });   // left-click → cluster hue burst
+        spawnEffect(node.id, { soft: true, rightClick: false, strimer: true });   // left-click → cluster hue burst
         // Label cascade — record seed + neighbors for the draw loop
         const nbs = new Set(ADJ[node.id] ?? []);
         nbs.add(node.id);
@@ -3064,7 +3217,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         }
       }
     }
-  }, [canvasCoords, nodeAt, edgeAt, fireNode, spawnEffect, onCueNode, onRunKernel, setConductor]);
+  }, [canvasCoords, nodeAt, edgeAt, fireNode, fireStrimer, spawnEffect, onCueNode, onRunKernel, setConductor]);
 
   const handleContextMenu = useCallback((e) => {
     e.preventDefault();
@@ -3215,12 +3368,16 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           NODE_COLORS[node.id]?.hue ?? 30, (NODE_COLORS[node.id]?.hue ?? 30 + 180) % 360, 40);
       }
     }
-    fireNode(node.id);
+    // The strimer delivers each neighbour's bump when its packet LANDS,
+    // so the instant loop is suppressed here. The two are one decision:
+    // suppressing without spawning would stop the graph propagating.
+    fireNode(node.id, { neighbours: false });
+    fireStrimer(node.id);
     // Perturb Hopfield field from touch
     const _touchIdx = NODE_IDX[node.id];
     if (_touchIdx != null) perturbField(_touchIdx);
     if (somaPresence.connected) somaPresence.sendFire(node.id);
-    spawnEffect(node.id, { soft: true });
+    spawnEffect(node.id, { soft: true, strimer: true });
     // Label cascade — record seed + neighbors for the draw loop
     const nbs = new Set(ADJ[node.id] ?? []);
     nbs.add(node.id);
@@ -3229,7 +3386,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     if (onCueNode && nodeIdx >= 0) onCueNode(nodeIdx);
     setSelectedNode(node.id);
     setLockedEdge(null);
-  }, [canvasCoords, nodeAt, fireNode, spawnEffect, onCueNode, perturbField, setConductor]);
+  }, [canvasCoords, nodeAt, fireNode, fireStrimer, spawnEffect, onCueNode, perturbField, setConductor]);
 
   // ── Non-passive touch listeners on canvas ────────────────────────────────
   // React 19 attaches delegated events at root level; browsers may treat them

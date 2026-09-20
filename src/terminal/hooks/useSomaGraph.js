@@ -215,14 +215,27 @@ export function useSomaGraph({ nodes, adj, modulationRef, initialPositionsRef })
     }
   }, [nodes, adj, modulationRef]);
 
-  const fireNode = useCallback((id) => {
+  /**
+   * Fire a node: its own energy to 1, and by default its neighbours to +0.6.
+   *
+   * `neighbours` is false ONLY where a strimer will deliver those bumps on
+   * arrival instead — see the design's section 6. It defaults to true so every
+   * existing caller and every existing test is unmoved, including the ambient
+   * awakening fires, whose behaviour must not change.
+   *
+   * The pairing is the invariant worth protecting: a caller that suppresses
+   * the bump without spawning a wavefront silently stops the graph
+   * propagating. ArtTab keeps both on one flag for exactly that reason.
+   */
+  const fireNode = useCallback((id, { neighbours = true } = {}) => {
     const s = stateRef.current;
     if (!s) return;
     const n = s.nodes.find(x => x.id === id);
     if (!n) return;
     n.energy = 1;
-    const neighbours = adj[id] ?? [];
-    for (const adjId of neighbours) {
+    if (!neighbours) return;
+    const adjacent = adj[id] ?? [];
+    for (const adjId of adjacent) {
       const m = s.nodes.find(x => x.id === adjId);
       if (m) m.energy = Math.min(1, m.energy + 0.6);
     }
