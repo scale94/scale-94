@@ -14,7 +14,7 @@ import {
   ORTHO_DASH, SPECTRAL_DASH,
   orthoHue, orthoGlow, fusedGlow, resonanceGlow, resonanceWidths, resonanceStops,
   RESONANCE_GOLD, RESONANCE_HALO_MID, RESONANCE_CORE_MID, RESONANCE_SHADOW_ALPHA,
-  pulseRingRadius, pulsePosition, edgeStops, edgeLineWidth,
+  pulseRingRadius, pulsePosition, edgeStops, edgeLineWidth, EDGE_TAPER_PX,
   prismOffset, prismChordAlpha, prismGlowWidth, prismControl, prismSpokeHue,
   PRISM_CP_OFF_X, PRISM_CP_OFF_Y,
   PRISM_CORE_W, PRISM_MAX_NODES, PRISM_MAX_EFFECTS, PRISM_SPECTRAL_FINE,
@@ -720,6 +720,7 @@ describe('syncEdgeLayer', () => {
     uniforms: {
       uResolution: { value: { set: vi.fn() } },
       uOrthoHue: { value: 0 },
+      uTaperPx: { value: 0 },
     },
     buffer: { needsUpdate: false, addUpdateRange: vi.fn() },
   });
@@ -860,7 +861,7 @@ describe('the additive buffer capacity', () => {
     // and the draw call all agreeing that nothing was wrong.
     const layer = {
       mesh: { visible: true }, geometry: { instanceCount: -1 },
-      uniforms: { uResolution: { value: { set: vi.fn() } }, uOrthoHue: { value: 0 } },
+      uniforms: { uResolution: { value: { set: vi.fn() } }, uOrthoHue: { value: 0 }, uTaperPx: { value: 0 } },
       buffer: { needsUpdate: false, addUpdateRange: vi.fn() },
     };
     const state = createEdgeState(MAX_ADDITIVE_EDGES);
@@ -1550,5 +1551,54 @@ describe('the taper bit — bit 7 of the dash-duty byte', () => {
       expect(u.dashDuty).toBe(duty);
       expect(u.taper).toBe(true);
     }
+  });
+});
+
+describe('the wire taper — the uniform and the shader contract', () => {
+  it('reaches beyond a node radius so the shoulder is gone before the rim', () => {
+    // A node core is 7-10px at a 900x700 viewport and a base wire carries an
+    // 8.6-9px gaussian shoulder. The taper has to outrun the core, or the glow
+    // simply stops at the silhouette instead of dissolving into it.
+    expect(EDGE_TAPER_PX).toBeGreaterThan(10);
+  });
+
+  it('declares uTaperPx on both materials', () => {
+    for (const spec of [SRC_OVER_LAYER, ADDITIVE_LAYER]) {
+      const layer = createEdgeLayer(null, spec);
+      expect(layer.uniforms.uTaperPx).toBeDefined();
+      expect(layer.uniforms.uTaperPx.value).toBe(0);
+      layer.dispose();
+    }
+  });
+
+  it('takes the taper length from the state each frame, defaulting to 0', () => {
+    const layer = createEdgeLayer(null, SRC_OVER_LAYER);
+    const state = createEdgeState(4);
+    state.count = 1; state.w = 800; state.h = 600; state.taperPx = 17.5;
+    syncEdgeLayer(layer, state);
+    expect(layer.uniforms.uTaperPx.value).toBeCloseTo(17.5, 10);
+    delete state.taperPx;
+    syncEdgeLayer(layer, state);
+    expect(layer.uniforms.uTaperPx.value).toBe(0);
+    layer.dispose();
+  });
+
+  it('applies the taper to the GLOW only, never to the core', () => {
+    // The whole point of choosing this over a full fade: the thread stays
+    // solid to the centre so four wires visibly meet at one point under the
+    // lens. A taper on `core` would dissolve them at the rim instead.
+    const src = createEdgeLayer(null, SRC_OVER_LAYER).material.fragmentShader;
+    expect(src).toMatch(/float\s+core\s*=\s*mix\(side \* cap, disc, vIsDisc\);/);
+    expect(src).toMatch(/\* taper;/);
+    // The taper multiply must be on the `glow` line, not the `core` one.
+    const coreLine = src.split('\n').find(l => /float\s+core\s*=/.test(l));
+    expect(coreLine).not.toMatch(/taper/);
+  });
+
+  it('collapses to 1 for a disc and for any instance without the bit', () => {
+    const src = createEdgeLayer(null, SRC_OVER_LAYER).material.fragmentShader;
+    // vTaper is multiplied by (1 - vIsDisc) so a ring can never take it, and
+    // mix(1.0, ..., 0.0) is exactly 1 for every instance that omits the flag.
+    expect(src).toMatch(/mix\(1\.0, taperT, vTaper \* \(1\.0 - vIsDisc\)\)/);
   });
 });

@@ -895,6 +895,7 @@ const EDGE_VERT = /* glsl */`
   varying float vPhase;      // px of arc length from the PATH's start, at A
   varying float vGlow;
   varying float vIsOrtho;    // 0.0 or 1.0 — same for all 4 verts of an instance
+  varying float vTaper;      // 0.0 or 1.0 — bit 7 of the dash-duty byte
   varying float vIsDisc;     // ditto: a disc or ring, flagged by a negative width
   // The disc branch's repurposed floats. See DISC_OFF in SphereEdges.js.
   // x = inner radius px (0 = filled)   y = sweep start rad
@@ -937,7 +938,11 @@ ${HSL2RGB_GLSL}
     // SphereEdges.js, which this mirrors exactly.
     float f = aPack.z;
     float dashPeriod = floor(mod(f, 256.0));
-    float dashDuty   = floor(mod(f / 256.0, 256.0));
+    // The duty byte is SEVEN bits plus a flag, mirroring the glow byte above:
+    // bit 7 is the terminal-taper opt-in. See packFlags/unpackFlags.
+    float dutyByte   = floor(mod(f / 256.0, 256.0));
+    float taperBit   = step(127.5, dutyByte);
+    float dashDuty   = mod(dutyByte, 128.0);
     float gByte      = floor(f / 65536.0);
     float isOrtho    = step(127.5, gByte);
     float glow       = mod(gByte, 128.0) / uGlowQuant;
@@ -991,6 +996,7 @@ ${HSL2RGB_GLSL}
     vPhase = aPhase;
     vGlow = glow;
     vIsOrtho = isOrtho;
+    vTaper = taperBit;
     vIsDisc = isDisc;
 
     gl_Position = vec4(pos.x / uResolution.x * 2.0 - 1.0,
@@ -1106,6 +1112,10 @@ const edgeFrag = (shadow, composite) => /* glsl */`
   // per instance. Set from SphereEdges.syncEdgeLayer.
   uniform float uOrthoHue;
 
+  // The terminal taper's reach in px. Per frame, not per instance — the
+  // opt-in is the per-instance half (vTaper).
+  uniform float uTaperPx;
+
   varying vec3  vC0;
   varying vec3  vC1;
   varying vec3  vC2;
@@ -1118,6 +1128,7 @@ const edgeFrag = (shadow, composite) => /* glsl */`
   varying float vPhase;
   varying float vGlow;
   varying float vIsOrtho;
+  varying float vTaper;
 varying float vIsDisc;
   varying vec4  vDiscMid;
   varying float vOuterK;
@@ -1326,7 +1337,21 @@ ${shadow}
     float glowDisc = shadowAlpha * a * peakDisc
                    * exp(-(r * r) / (2.0 * max(tailVar, 1e-6)));
 
-    float glow = mix(glowSeg, glowDisc, vIsDisc) * step(0.001, vGlow);
+    // THE TERMINAL TAPER. The shoulder fades to nothing over the last
+    // uTaperPx at EACH end, so a wire dissolves into the node it reaches
+    // instead of stacking a full-strength 9px halo on a 7-10px dot.
+    //
+    // On the GLOW only. core above is untouched, so the thread runs solid to
+    // the exact centre and several wires visibly converge on one point --
+    // which is what this was for, and what a fade on core would destroy.
+    //
+    // Multiplied by (1.0 - vIsDisc) as well as vTaper: a ring shares this
+    // buffer and has no ends to taper, and its vAlong/vLen are a radius and a
+    // zero. mix() rather than a branch, so an instance without the flag
+    // collapses to exactly the arithmetic it had before this existed.
+    float taperT = clamp(min(vAlong, vLen - vAlong) / max(uTaperPx, 1e-3), 0.0, 1.0);
+    float taper = mix(1.0, taperT, vTaper * (1.0 - vIsDisc));
+    float glow = mix(glowSeg, glowDisc, vIsDisc) * step(0.001, vGlow) * taper;
 
     // Composite the core with the glow (two distinct colours, two distinct
     // alphas) rather than blending one flat colour by a combined coverage —
@@ -1462,6 +1487,7 @@ export function createEdgeLayer(sharedData, spec = SRC_OVER_LAYER) {
     uGlowReach:  { value: GLOW_REACH },
     uGlowQuant:  { value: spec.glowQuant },
     uOrthoHue:   { value: 0 },
+    uTaperPx:    { value: 0 },
   };
 
   const material = new THREE.ShaderMaterial({
@@ -1520,6 +1546,9 @@ export function syncEdgeLayer(layer, state) {
   layer.uniforms.uResolution.value.set(Math.max(state.w, 1), Math.max(state.h, 1));
   // orthoHue(now) is one value per frame, not per edge — see EDGE_FRAG.
   layer.uniforms.uOrthoHue.value = state.orthoHue ?? 0;
+  // 0 disables the taper for every instance regardless of the flag, which is
+  // what a caller that has not opted in gets.
+  layer.uniforms.uTaperPx.value = state.taperPx ?? 0;
 
   layer.geometry.instanceCount = count;
   layer.buffer.addUpdateRange(0, count * EDGE_STRIDE);

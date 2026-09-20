@@ -61,6 +61,26 @@ export function edgeLineWidth(maxEnergy, pulse, spectralSim, fuseCos, isOrtho, a
     + (isOrtho ? 2.0 : 0)) * avgScale;
 }
 
+/**
+ * How far back from each end of a base edge the gaussian shoulder fades out,
+ * in px before `ink` scaling.
+ *
+ * MEASURED, at a 900x700 viewport: a base wire is a 1.15-1.30px thread wearing
+ * an 8.6-9.0px gaussian coat, and a node core is 7-10px. So four wires
+ * arriving at a hub stack four shoulders that are each the size of the whole
+ * dot, lobed by the incident angles. That -- not the geometry, which has always
+ * run centre to centre -- is why a hub looked ragged.
+ *
+ * The CORE thread is deliberately not tapered. It runs solid to the exact
+ * centre, so with the lens in front of it the convergence is visible THROUGH
+ * the glass: several wires meeting at one point, which is the thing the taper
+ * was asked for in the first place.
+ *
+ * 14 is about 1.5x a node radius: far enough that the shoulder is already gone
+ * by the silhouette rather than being cut off at it.
+ */
+export const EDGE_TAPER_PX = 14;
+
 // ── Orthogonal bridge — the animated rainbow edge ───────────────────────────
 export const ORTHO_TIME_SCALE = 0.0008;   // Date.now() * this = the loop's `ot`
 export const ORTHO_HUE_RATE = 60;         // degrees per unit of `ot`
