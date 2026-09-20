@@ -532,8 +532,26 @@ export function humAxis(nowMs) {
   return { x: s * Math.cos(theta), y: Math.cos(HUM.axisTilt), z: s * Math.sin(theta) };
 }
 
-/** Clamp to [0, 1]. */
+/**
+ * Clamp to [0, 1]. Non-finite input (NaN, +/-Infinity, or anything else that
+ * fails Number.isFinite) maps to 1, NOT 0 — see below.
+ *
+ * `x < 0 ? 0 : x > 1 ? 1 : x` is FALSE on both branches for NaN, so it falls
+ * through and returns NaN unclamped. `activity` is `e.pulse`, a live mutable
+ * field this module does not control (useKineticEdges.js), so that input
+ * class has to be handled deliberately, not assumed away.
+ *
+ * The two treatments are NOT interchangeable: in humGain, activity 0 means
+ * full hum amplitude and activity 1 means none. Mapping corruption to 0
+ * would make a bad reading force the sphere's brightest, most visible
+ * behaviour with no way to distinguish it from a genuinely idle edge — the
+ * failure reads as MORE motion. Mapping it to 1 makes the failure silent:
+ * one edge quietly loses its hum instead. For a decorative, idle-state
+ * effect, degrading toward less motion is the safer failure than degrading
+ * toward an unverifiable amplitude spike, so non-finite input maps to 1.
+ */
 function clamp01(x) {
+  if (!Number.isFinite(x)) return 1;
   return x < 0 ? 0 : x > 1 ? 1 : x;
 }
 
@@ -549,8 +567,11 @@ function clamp01(x) {
  *
  * `activity` defaults to 0, so every existing caller and every test written
  * before this parameter existed sees IDENTICAL behaviour. At 1 it returns
- * exactly 1 — no hum at all. Values outside [0, 1] are clamped rather than
- * left to overshoot the amplitude.
+ * exactly 1 — no hum at all. Values outside [0, 1] are clamped to the nearer
+ * bound rather than left to overshoot the amplitude, and non-finite values
+ * (NaN, +/-Infinity, or anything else `Number.isFinite` rejects) are treated
+ * as 1 — no hum on that edge — not left to overshoot either; see clamp01's
+ * comment for why 1 and not 0.
  *
  * WHY THIS ATTENUATES ON `pulse` (ArtTab's `e.pulse`, passed in as `activity`)
  * AND ON NOTHING ELSE — the design doc's section 7 proposed attenuating on

@@ -1312,8 +1312,9 @@ describe('the wire hum', () => {
     // The real invariant is the COMBINED repeat period, not the ratio's
     // distance from an integer: 10.5 is half a unit from the nearest integer
     // and still puts the whole pattern back where it started in two breaths.
-    // 97/9 is in lowest terms with denominator 9, so it repeats after 9 axis
-    // turns — 873 s, or 14.5 min. Longer than anyone looks at the sphere.
+    // 97/11 is in lowest terms with denominator 11, so it repeats after 11
+    // axis turns — 1,067,000 ms, or 17.78 min. Longer than anyone looks at
+    // the sphere.
     const gcd = (a, b) => (b ? gcd(b, a % b) : a);
     const repeatMs = (HUM.periodMs * HUM.axisPeriodMs)
                    / gcd(HUM.periodMs, HUM.axisPeriodMs);
@@ -1363,5 +1364,39 @@ describe('the wire hum', () => {
     expect(humGain(mid, axis, phase, -1)).toBe(humGain(mid, axis, phase, 0));
     // 2 must behave exactly like 1 (clamped, not merely bounded).
     expect(humGain(mid, axis, phase, 2)).toBe(humGain(mid, axis, phase, 1));
+  });
+
+  // ── activity: non-finite input must not poison the gain ──────────────────
+  // `activity` is `e.pulse`, a live mutable field this module does not
+  // control (useKineticEdges.js). `x < 0 ? 0 : x > 1 ? 1 : x` is FALSE on
+  // both branches for NaN, so an unclamped clamp01 lets NaN (and, for
+  // Infinity/-Infinity, a value the comparisons DO resolve but to the wrong
+  // end for our chosen treatment) reach `effAmplitude` and NaN the result.
+  it('at activity NaN, behaves exactly like activity 1 — no hum at all', () => {
+    const mid = { x: 0.50, y: 0.10, z: 0.20 };
+    const axis = humAxis(0);
+    const g = humGain(mid, axis, 1.0, NaN);
+    expect(Number.isFinite(g)).toBe(true);
+    expect(g).toBeGreaterThanOrEqual(1 - HUM.amplitude - 1e-12);
+    expect(g).toBeLessThanOrEqual(1 + HUM.amplitude + 1e-12);
+    expect(g).toBe(humGain(mid, axis, 1.0, 1));
+  });
+
+  it('at activity +Infinity, behaves exactly like activity 1 — no hum at all', () => {
+    const mid = { x: 0.50, y: 0.10, z: 0.20 };
+    const axis = humAxis(0);
+    const g = humGain(mid, axis, 1.0, Infinity);
+    expect(Number.isFinite(g)).toBe(true);
+    expect(g).toBe(humGain(mid, axis, 1.0, 1));
+  });
+
+  it('at activity -Infinity, behaves exactly like activity 1 — no hum at all', () => {
+    // -Infinity < 0 is TRUE, so a naive clamp01 would send this to 0 (full
+    // hum) rather than 1 (no hum) — the opposite of the chosen treatment.
+    const mid = { x: 0.50, y: 0.10, z: 0.20 };
+    const axis = humAxis(0);
+    const g = humGain(mid, axis, 1.0, -Infinity);
+    expect(Number.isFinite(g)).toBe(true);
+    expect(g).toBe(humGain(mid, axis, 1.0, 1));
   });
 });
