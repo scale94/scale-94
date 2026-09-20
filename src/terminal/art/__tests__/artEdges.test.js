@@ -22,6 +22,7 @@ import {
   FILAMENT_DASH, FILAMENT_CORE_W, FILAMENT_CP_PULL, FILAMENT_MAX_DRAWN,
   chimeraStrength, chimeraHue, chimeraFlicker, chimeraAlpha, chimeraWidth,
   chimeraDashOffset, CHIMERA_DASH, CHIMERA_CP_PULL, CHIMERA_MAX_ZONES,
+  HUM, humPhase, humAxis, humGain,
 } from '../artEdges';
 import { CURVE_MAX_SEGMENTS, quadSegments, tessellateQuad } from '../artCurve';
 import {
@@ -1239,5 +1240,89 @@ describe('the additive buffer capacity, with the orphan layers', () => {
     // 6 analogies x at most 16 correspondence pairs; C(17,2) cluster pairs.
     expect(FILAMENT_MAX_DRAWN).toBe(6 * 16);
     expect(CHIMERA_MAX_ZONES).toBe((17 * 16) / 2);
+  });
+});
+
+describe('the wire hum', () => {
+  it('stays inside 1 +/- the amplitude for any phase', () => {
+    const axis = { x: 0, y: 1, z: 0 };
+    for (let p = 0; p < 20; p++) {
+      const g = humGain({ x: 0.3, y: -0.2, z: 0.9 }, axis, p * 0.37);
+      expect(g).toBeGreaterThanOrEqual(1 - HUM.amplitude - 1e-12);
+      expect(g).toBeLessThanOrEqual(1 + HUM.amplitude + 1e-12);
+    }
+  });
+
+  it('never returns a negative gain, which would invert an edge', () => {
+    // Guards the constant as much as the function: an amplitude above 1 would
+    // make an edge's alpha go negative at the trough.
+    expect(HUM.amplitude).toBeLessThan(1);
+  });
+
+  it('gives edges that are close in space near-identical gain', () => {
+    // This is the whole effect: neighbours breathe together.
+    const axis = humAxis(0);
+    const a = humGain({ x: 0.50, y: 0.10, z: 0.20 }, axis, 1.0);
+    const b = humGain({ x: 0.52, y: 0.11, z: 0.21 }, axis, 1.0);
+    expect(Math.abs(a - b)).toBeLessThan(0.02);
+  });
+
+  it('separates midpoints that are far apart along the axis', () => {
+    // A wave that gives every edge the same answer is a global blink, which is
+    // the mechanical failure this design exists to avoid.
+    const axis = { x: 0, y: 1, z: 0 };
+    const near = humGain({ x: 0, y:  1, z: 0 }, axis, 0);
+    const far  = humGain({ x: 0, y: -1, z: 0 }, axis, 0);
+    expect(Math.abs(near - far)).toBeGreaterThan(0.05);
+  });
+
+  it('is NOT a front/back dipole — K is deliberately not pi', () => {
+    // At K = pi the poles sit in exact antiphase and the sphere reads as a
+    // rotating two-lobe blink. 2K must not be a multiple of 2pi.
+    const cycles = (2 * HUM.wavenumber) / (2 * Math.PI);
+    expect(Math.abs(cycles - Math.round(cycles))).toBeGreaterThan(0.1);
+  });
+
+  it('handles an antipodal edge, whose midpoint is the origin', () => {
+    const g = humGain({ x: 0, y: 0, z: 0 }, humAxis(0), 0.5);
+    expect(Number.isFinite(g)).toBe(true);
+  });
+
+  it('advances the phase on the CLOCK, not on a frame count', () => {
+    // One full period of wall time is one full turn of phase. A frame-counted
+    // version would run at double speed on a 120Hz display — the /SCENT bug.
+    const turn = humPhase(HUM.periodMs) - humPhase(0);
+    expect(turn).toBeCloseTo(2 * Math.PI, 9);
+  });
+
+  it('returns a unit axis at every time', () => {
+    for (const t of [0, 1234, 40000, 97000, 250000]) {
+      const a = humAxis(t);
+      expect(Math.hypot(a.x, a.y, a.z)).toBeCloseTo(1, 9);
+    }
+  });
+
+  it('precesses the axis — it is not a fixed direction', () => {
+    const a = humAxis(0);
+    const b = humAxis(HUM.axisPeriodMs / 4);
+    expect(Math.abs(a.x - b.x) + Math.abs(a.z - b.z)).toBeGreaterThan(0.2);
+  });
+
+  it('does not re-phase against the breath inside ten minutes', () => {
+    // The real invariant is the COMBINED repeat period, not the ratio's
+    // distance from an integer: 10.5 is half a unit from the nearest integer
+    // and still puts the whole pattern back where it started in two breaths.
+    // 97/9 is in lowest terms with denominator 9, so it repeats after 9 axis
+    // turns — 873 s, or 14.5 min. Longer than anyone looks at the sphere.
+    const gcd = (a, b) => (b ? gcd(b, a % b) : a);
+    const repeatMs = (HUM.periodMs * HUM.axisPeriodMs)
+                   / gcd(HUM.periodMs, HUM.axisPeriodMs);
+    expect(repeatMs).toBeGreaterThan(10 * 60 * 1000);
+  });
+
+  it('is deterministic — same inputs, same answer', () => {
+    const m = { x: 0.1, y: 0.2, z: 0.3 };
+    expect(humGain(m, humAxis(5000), humPhase(5000)))
+      .toBe(humGain(m, humAxis(5000), humPhase(5000)));
   });
 });

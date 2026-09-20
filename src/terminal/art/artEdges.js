@@ -451,3 +451,73 @@ export function chimeraDashOffset(seconds) {
 //              Measured peak in a 3551-frame harness run: 49.
 export const FILAMENT_MAX_DRAWN = 96;
 export const CHIMERA_MAX_ZONES = 136;
+
+// ── The wire hum ────────────────────────────────────────────────────────────
+//
+// The graph's resting pulse. Each edge's whole length brightens and dims on a
+// phase taken from its 3-D midpoint, so edges near each other in space breathe
+// together and the pattern drifts across the sphere. NOTHING travels along an
+// edge: a travelling highlight on this layer smears through the trail
+// accumulator into a comet, which is why option A needed its own
+// non-accumulating pass and this one does not.
+//
+// Applied as a multiply on `baseAlpha` in ArtTab's draw loop, which is the one
+// scalar all four edge branches derive from. That is the entire integration —
+// no shader, no 19th instance float (slot 16 is the dash phase), no pass.
+//
+// TWO THINGS ARE DELIBERATE AND WILL LOOK LIKE ARBITRARY CONSTANTS:
+//
+// `wavenumber` is NOT pi. Midpoints live on a unit sphere, so `dot(mid, axis)`
+// spans [-1, 1] and `2 * wavenumber` is the phase across the diameter. At pi
+// exactly one wavelength spans it, the poles sit in perfect antiphase, and the
+// sphere reads as a rotating two-lobe blink — the mechanical failure in
+// another costume. 2.0 puts ~0.64 of a cycle across the diameter instead.
+//
+// `axisPeriodMs` is not a small-integer multiple of `periodMs`. A fixed axis at
+// a fixed rate is a metronome, so the axis traces a slow cone; if the two
+// cycles re-phased on a low-order beat the whole pattern would visibly repeat.
+//
+// All five are AESTHETIC DIALS, to be chosen on frames rather than argued
+// about — see `scripts/_a4hum.mjs`, which sweeps `amplitude` over one breath
+// cycle the way `_a3bloom.mjs` swept the bloom.
+export const HUM = Object.freeze({
+  amplitude:    0.15,   // +/- fraction of baseAlpha
+  wavenumber:   2.0,    // radians of phase per unit of world distance
+  periodMs:     9000,   // one breath
+  axisPeriodMs: 97000,  // one turn of the cone, ~10.8 breaths
+  axisTilt:     1.05,   // radians off +Y; ~60 deg, neither polar nor equatorial
+});
+
+/**
+ * The hum's phase at `nowMs`.
+ *
+ * ON THE CLOCK, NEVER ON A FRAME COUNT. A frame counter runs at double speed on
+ * a 120Hz display — this repo has shipped that bug once already, in the /SCENT
+ * collider. The capture harness virtualises performance.now() and advances it
+ * FRAME_MS per pump, so reading the clock costs no reproducibility.
+ */
+export function humPhase(nowMs) {
+  return (2 * Math.PI * nowMs) / HUM.periodMs;
+}
+
+/** The wave's direction at `nowMs` — a unit vector tracing a slow cone. */
+export function humAxis(nowMs) {
+  const theta = (2 * Math.PI * nowMs) / HUM.axisPeriodMs;
+  const s = Math.sin(HUM.axisTilt);
+  return { x: s * Math.cos(theta), y: Math.cos(HUM.axisTilt), z: s * Math.sin(theta) };
+}
+
+/**
+ * The gain for one edge: 1 +/- HUM.amplitude.
+ *
+ * `mid` is the edge's 3-D midpoint, taken BEFORE projection. That is the
+ * load-bearing choice in the whole design: a world-space wave is anchored to
+ * the graph and rotates with it, where a screen-space one would be pinned to
+ * the viewport and the sphere would appear to slide through a fixed curtain of
+ * light. An antipodal edge has the origin for a midpoint, which is well
+ * defined here — it simply rides the global phase.
+ */
+export function humGain(mid, axis, phase) {
+  const d = mid.x * axis.x + mid.y * axis.y + mid.z * axis.z;
+  return 1 + HUM.amplitude * Math.sin(phase - HUM.wavenumber * d);
+}
