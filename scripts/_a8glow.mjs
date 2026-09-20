@@ -119,26 +119,51 @@ const WORLD_STATE = '(() => {' +
   '   ry: b ? +b.rot.ry.toFixed(6) : null, sphereR: b ? +b.sphereR.toFixed(2) : null }); })()';
 
 // a0 (index 13) is the alpha hum; the flags word (index 15) carries the glow
-// radius. Both are read across `worldCount` graph edges only — the travelling
-// pulse discs share the buffer and are not what breathes.
+// radius.
+//
+// ── WHAT `worldCount` ACTUALLY SPANS, AND WHY THIS FILTERS ─────────────────
+// An earlier version of this comment said these were read "across worldCount
+// graph edges only — the travelling pulse discs share the buffer and are not
+// what breathes". That was wrong, and it was wrong in the direction that
+// corrupts the number. `eg.worldCount = eg.count` is set in ArtTab AFTER the
+// per-edge loop, and that loop writes each edge's travelling pulse ring as a
+// SECOND instance immediately after the edge itself — so rings are inside the
+// range, interleaved, not after it. Orthogonal bridges are inside it too.
+//
+// Both are actively misleading here rather than merely noisy:
+//   - an ORTHO edge is written with `orthoGlow(now)`, which is 6-14 px on its
+//     own oscillator. On a world containing one, `maxGlow` would report THAT
+//     as the hum halo's crest — replacing the exact number this branch quotes.
+//   - a RING carries glow 0, so it only dilutes `meanGlow` and inflates the
+//     denominator `visibleHalos` is read against.
+//
+// So both are excluded. A ring is told apart by its NEGATIVE width at index 14
+// (SphereEdges.js's header: rings share the buffer and are discriminated by the
+// sign), and an ortho edge by the top bit of the packed glow byte, which is the
+// same bit the shader reads as `vIsOrtho`. `eligible` is reported beside `n` so
+// the two populations can never be confused again.
 const PROBE = '(() => {' +
   ' const s = window.__artEdgeState ? window.__artEdgeState() : null;' +
   ' if (!s) return JSON.stringify({ error: "no __artEdgeState" });' +
   ' const stride = s.stride, n = s.worldCount;' +
-  ' let aSum = 0, aMin = 1, aMax = 0;' +
-  ' let gSum = 0, gMin = 1e9, gMax = -1e9, gLit = 0;' +
+  ' let aSum = 0, aMin = 1, aMax = 0, aN = 0;' +
+  ' let gSum = 0, gMin = 1e9, gMax = -1e9, gLit = 0, gN = 0;' +
+  ' let rings = 0, orthos = 0;' +
   ' for (let i = 0; i < n; i++) {' +
-  '   const a0 = Math.floor(s.instances[i * stride + 13] % 256) / 255;' +
-  '   aSum += a0; if (a0 < aMin) aMin = a0; if (a0 > aMax) aMax = a0;' +
-  '   const gByte = Math.floor(s.instances[i * stride + 15] / 65536);' +
+  '   const o = i * stride;' +
+  '   if (s.instances[o + 14] < 0) { rings++; continue; }' +
+  '   const gByte = Math.floor(s.instances[o + 15] / 65536);' +
+  '   if (gByte >= 128) { orthos++; continue; }' +
+  '   const a0 = Math.floor(s.instances[o + 13] % 256) / 255;' +
+  '   aSum += a0; aN++; if (a0 < aMin) aMin = a0; if (a0 > aMax) aMax = a0;' +
   '   const glow = (gByte % 128) / 8;' +
-  '   gSum += glow; if (glow < gMin) gMin = glow; if (glow > gMax) gMax = glow;' +
+  '   gSum += glow; gN++; if (glow < gMin) gMin = glow; if (glow > gMax) gMax = glow;' +
   '   if (glow > 6) gLit++;' +
   ' }' +
-  ' return JSON.stringify({ n,' +
-  '   meanA0: n ? +(aSum / n).toFixed(4) : null, minA0: +aMin.toFixed(4), maxA0: +aMax.toFixed(4),' +
-  '   meanGlow: n ? +(gSum / n).toFixed(4) : null,' +
-  '   minGlow: +gMin.toFixed(4), maxGlow: +gMax.toFixed(4),' +
+  ' return JSON.stringify({ n, eligible: gN, rings, orthos,' +
+  '   meanA0: aN ? +(aSum / aN).toFixed(4) : null, minA0: +aMin.toFixed(4), maxA0: +aMax.toFixed(4),' +
+  '   meanGlow: gN ? +(gSum / gN).toFixed(4) : null,' +
+  '   minGlow: gN ? +gMin.toFixed(4) : null, maxGlow: gN ? +gMax.toFixed(4) : null,' +
   '   visibleHalos: gLit }); })()';
 
 mkdirSync('F:/scale_9.4/lookbook/glow', { recursive: true });
@@ -221,7 +246,7 @@ try {
   console.log('   a0   mean per frame: ' + frames.map(f => f.probe.meanA0).join(', '));
   console.log('   glow mean per frame: ' + frames.map(f => f.probe.meanGlow).join(', '));
   console.log('   halos > 6px        : ' + frames.map(f => f.probe.visibleHalos).join(', ')
-    + '   of ' + world.worldCount);
+    + '   of ' + frames[0].probe.eligible + ' eligible (' + world.worldCount + ' instances, '+ frames[0].probe.rings + ' rings, ' + frames[0].probe.orthos + ' ortho)');
   console.log('   draw cost (CPU, ms): mean ' + drawCost.mean + '  p50 ' + drawCost.p50
     + '  p90 ' + drawCost.p90 + '  max ' + drawCost.max + '   over ' + drawCost.n + ' draws'
     + '   buckets: ' + drawCost.buckets.join(','));

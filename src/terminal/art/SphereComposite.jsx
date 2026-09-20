@@ -476,8 +476,22 @@ function AdvanceBridge({ onAdvanceReady }) {
 export default function SphereComposite({ sourceRef, immersive, onAdvanceReady, bgStateRef, edgeGLRef, addGLRef, strimerRef }) {
   // Taken once, at mount, and deliberately not reactive: r3f rebuilds every
   // render target in the composer when `dpr` changes, and a device does not
-  // stop being a touch device mid-session. ArtTab's ResizeObserver reads the
-  // SAME pair of helpers, so the two backing stores cannot disagree.
+  // stop being a touch device mid-session.
+  //
+  // WHAT THIS DOES NOT GUARANTEE, because an earlier version of this comment
+  // claimed it did ("ArtTab's ResizeObserver reads the SAME pair of helpers, so
+  // the two backing stores cannot disagree"). Reading the same helpers is not
+  // enough. This value is frozen at mount; ArtTab re-evaluates the same call on
+  // every resize against the CURRENT `window.devicePixelRatio`. Browser zoom
+  // changes that, and so does dragging the window to a monitor with a different
+  // scale factor — after either, the 2-D backing store moves and this one does
+  // not, for the rest of the session.
+  //
+  // Nothing renders wrongly today ONLY because the 2-D canvas no longer carries
+  // ink: no context is taken for it, so its backing store size is unobservable,
+  // and `SizeSync` compares the GL buffer against `gl.getPixelRatio()` and CSS
+  // pixels rather than against that canvas. Put anything back on that surface,
+  // or derive a size from it, and this stops being harmless.
   const dpr = useRef(compositeDpr(
     typeof window !== 'undefined' ? window.devicePixelRatio : 1,
     coarsePointer(),
