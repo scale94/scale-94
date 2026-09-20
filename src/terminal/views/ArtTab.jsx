@@ -1404,8 +1404,16 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           //
           // AFTER depthFade on purpose: the hum is attenuated by depth along
           // with everything else, so the far side of the sphere does not pulse
-          // as loudly as the near side. If the frames say otherwise, the fix is
-          // to move the multiply inside the parentheses.
+          // as loudly as the near side.
+          //
+          // If the frames say otherwise, the fix is NOT to move this multiply
+          // inside the parentheses — an earlier version of this comment said so
+          // and was simply wrong. Multiplication commutes: `(sum) * depthFade *
+          // gain` and `(sum * gain) * depthFade` are the same number. A
+          // PROPORTIONAL gain cannot give a near-black edge an absolute swing
+          // at all; +/-25% of an alpha of 0.08 is +/-0.02 wherever you put the
+          // parentheses. The lever for that is an ADDITIVE term, which is what
+          // the design doc's section 7 alternative actually meant.
           //
           // `e.pulse` is passed as `activity` so the hum steps aside on a
           // genuine transient (an edge that was just overwritten) without
