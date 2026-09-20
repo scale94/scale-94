@@ -7,10 +7,24 @@ or named as unmeasured. Nothing is merged and nothing is pushed.
 
 Two branches, both off `main` at `14999da`:
 
-- **`feature/chaos-mobile-and-hum`** — the real work. 12 commits. Clean tree.
-- **`wip/hum-spin-look`** — ONE experiment commit on top of it (`7b671cf8`).
-  **DO NOT MERGE THIS BRANCH.** It exists only so the author can look at the
-  hum against a correct spin speed before choosing an amplitude.
+- **`feature/chaos-mobile-and-hum`** — the real work. Clean tree.
+- **`wip/hum-spin-look`** — the experiments. **DO NOT MERGE THIS BRANCH.** It
+  exists only so the author can look at the hum before the dials are chosen.
+
+**CORRECTED 2026-09-20.** This list originally said `feature` was "12 commits"
+and that `wip` held "ONE experiment commit **on top of it**". Both were wrong
+at the moment they were written. The branches are **siblings, not a stack**:
+both fork from `3cf0d181`, and `git merge-base --is-ancestor` answers NO in
+both directions. `7b671cf8` went onto `wip` at 18:09 and this very file went
+onto `feature` at 18:12, each with `3cf0d181` as its parent — so the fork was
+opened by committing this handover. Counts ahead of `main`, each measured at
+a named commit because the tip numbers move: `3cf0d181` 14, `feature` 15 at
+`4e83466c`, `wip` 19 at `65a47955`. Re-count rather than quoting those.
+Read `handover-chaos-hum-SESSION2.md`
+for the current state; it supersedes the "Where it stopped" section below.
+
+This file was later cherry-picked onto `wip` as `e86f7919`, because
+SESSION2.md pointed at it twice while it did not exist on that branch.
 
 The SDD ledger at `.superpowers/sdd/progress.md` is the detailed record and is
 more complete than this file. The design doc is
