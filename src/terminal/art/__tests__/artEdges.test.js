@@ -22,7 +22,8 @@ import {
   FILAMENT_DASH, FILAMENT_CORE_W, FILAMENT_CP_PULL, FILAMENT_MAX_DRAWN,
   chimeraStrength, chimeraHue, chimeraFlicker, chimeraAlpha, chimeraWidth,
   chimeraDashOffset, CHIMERA_DASH, CHIMERA_CP_PULL, CHIMERA_MAX_ZONES,
-  HUM, humPhase, humAxis, humGain,
+  HUM, humPhase, humAxis, humGain, humWave, humGlowRadius, HUM_GLOW,
+  FUSED_GLOW_BASE,
 } from '../artEdges';
 import { CURVE_MAX_SEGMENTS, quadSegments, tessellateQuad } from '../artCurve';
 import {
@@ -1401,5 +1402,91 @@ describe('the wire hum', () => {
     const g = humGain(mid, axis, 1.0, -Infinity);
     expect(Number.isFinite(g)).toBe(true);
     expect(g).toBe(humGain(mid, axis, 1.0, 1));
+  });
+});
+
+describe('the breathing glow shoulder', () => {
+  // The sphere the halo was authored and ruled against: 1920x1080 immersive,
+  // where `_a8glow.mjs` measured sphereR 410.83 and the author ruled socks/10.
+  // Quoted here so the certified look has a regression lock, NOT so anything
+  // in the implementation may read a literal radius off it.
+  const CERTIFIED_R = 410.83;
+  // The phone the mobile pass measured: 390x844, coarse pointer, DPR 1.
+  const PHONE_R = 162.83;
+
+  const swingAt = (R) => humGlowRadius(1, 0, R) - FUSED_GLOW_BASE;
+
+  it('never dips below the radius where the shader draws nothing', () => {
+    // EDGE_FRAG derives shadowAlpha from the radius:
+    //   fuseCos = clamp((vGlow - FUSED_GLOW_BASE) / FUSED_GLOW_SCALE, 0, 1)
+    // so any radius at or below FUSED_GLOW_BASE renders an alpha of 0. The
+    // trough is allowed to BE 6 (absent is the intent) but never less, or the
+    // clamp would hide a sign error in the wave.
+    for (let p = 0; p < 40; p++) {
+      const r = humGlowRadius(Math.sin(p * 0.41), 0, CERTIFIED_R);
+      expect(r).toBeGreaterThanOrEqual(FUSED_GLOW_BASE);
+      expect(r).toBeLessThanOrEqual(FUSED_GLOW_BASE + HUM_GLOW.swingPx);
+    }
+  });
+
+  it('pins the crest to the authored swing on the sphere it was ruled on', () => {
+    // EXACTLY, not approximately, and by construction rather than by luck:
+    // at the reference radius the fixed and proportional parts sum back to
+    // `swingPx` whatever the split is. This is the regression lock on the
+    // socks/10 look — if this drifts, the desktop sphere has changed.
+    expect(humGlowRadius(-1, 0, CERTIFIED_R)).toBe(FUSED_GLOW_BASE);
+    expect(humGlowRadius(1, 0, CERTIFIED_R)).toBe(FUSED_GLOW_BASE + HUM_GLOW.swingPx);
+  });
+
+  it('is absent at the trough on every sphere, however small', () => {
+    for (const R of [PHONE_R, CERTIFIED_R, 40, 1200]) {
+      expect(humGlowRadius(-1, 0, R)).toBe(FUSED_GLOW_BASE);
+    }
+  });
+
+  it('keeps a fixed share of the swing off the sphere entirely', () => {
+    // A purely proportional swing left a phone at 7.585 px / alpha 0.119
+    // against the desktop's 10 / 0.3 — smaller AND dimmer, because this
+    // shader welds opacity to radius. `fixedShare` is the part that does not
+    // shrink with the sphere, so a small sphere keeps its weight.
+    expect(swingAt(0)).toBeCloseTo(HUM_GLOW.swingPx * HUM_GLOW.fixedShare, 10);
+    const pureRatio = HUM_GLOW.swingPx * (PHONE_R / CERTIFIED_R);
+    expect(swingAt(PHONE_R)).toBeGreaterThan(pureRatio);
+  });
+
+  it('scales the remaining share with the sphere, linearly', () => {
+    // The proportional half must still be proportional: equal steps in radius
+    // give equal steps in swing. A curve here would be an unauthored
+    // aesthetic, and `fixedShare` is the only dial that trades the two.
+    expect(swingAt(2 * PHONE_R) - swingAt(PHONE_R)).toBeCloseTo(swingAt(PHONE_R) - swingAt(0), 10);
+    expect(swingAt(CERTIFIED_R) - swingAt(0))
+      .toBeCloseTo(HUM_GLOW.swingPx * (1 - HUM_GLOW.fixedShare), 10);
+  });
+
+  it('never exceeds the radius the packed glow byte can carry', () => {
+    // packFlags rounds glow to eighths and clamps at 127, i.e. 15.875 px. A
+    // proportional swing makes that reachable for the first time: the clamp
+    // used to be unreachable arithmetic on a fixed 10 px crest, and an
+    // exhibition wall is exactly where the sphere gets big enough to hit it.
+    expect(humGlowRadius(1, 0, 4000)).toBeLessThanOrEqual(15.875);
+    expect(humGlowRadius(1, 0, 1e6)).toBeLessThanOrEqual(15.875);
+  });
+
+  it('takes its floor from the shader constant rather than a copy of it', () => {
+    // A second literal 6 in HUM_GLOW would drift silently the day
+    // FUSED_GLOW_BASE moves, and the drift renders as "the halo vanished".
+    expect(HUM_GLOW.floor).toBeUndefined();
+    expect(humGlowRadius(-1, 0, CERTIFIED_R)).toBe(FUSED_GLOW_BASE);
+  });
+
+  it('holds the halo still on a transient, exactly as the alpha hum does', () => {
+    expect(humGlowRadius(1, 1, CERTIFIED_R)).toBe(FUSED_GLOW_BASE);
+    expect(humGlowRadius(1, 0, CERTIFIED_R)).toBe(humGlowRadius(1, undefined, CERTIFIED_R));
+  });
+
+  it('rides the SAME wave as the alpha, not a second oscillator', () => {
+    const mid = { x: 0.2, y: -0.3, z: 0.5 }, axis = humAxis(1234), ph = humPhase(1234);
+    const w = humWave(mid, axis, ph);
+    expect(humGain(mid, axis, ph)).toBeCloseTo(1 + HUM.amplitude * w, 12);
   });
 });

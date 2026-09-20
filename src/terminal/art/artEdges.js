@@ -635,8 +635,115 @@ function clamp01(x) {
  * it renders on its own non-accumulating layer, after `SourceQuad` and before
  * the composer (SphereComposite.jsx), and never touches `baseAlpha`.
  */
-export function humGain(mid, axis, phase, activity = 0) {
+/**
+ * The hum's signed wave for one edge, in [-1, 1], before any amplitude.
+ *
+ * Split out of humGain so the glow shoulder can ride the SAME wave as the
+ * alpha rather than a second oscillator that would drift against it.
+ */
+export function humWave(mid, axis, phase) {
   const d = mid.x * axis.x + mid.y * axis.y + mid.z * axis.z;
+  return Math.sin(phase - HUM.wavenumber * d);
+}
+
+// ── The breathing glow shoulder ─────────────────────────────────────────────
+//
+// WHY THE FLOOR IS 6 AND NOT 0, and this is the whole reason this is viable
+// without touching certified shader code: EDGE_FRAG does NOT carry a shadow
+// alpha. It DERIVES one from the radius, on the assumption the radius came
+// from fusedGlow():
+//
+//     float fuseCos = clamp((vGlow - FUSED_GLOW_BASE) / FUSED_GLOW_SCALE, 0, 1);
+//     float shadowAlpha = mix(fuseCos * 0.6, 1.0, vIsOrtho);
+//
+// FUSED_GLOW_BASE is 6, so ANY radius at or below 6 px renders shadowAlpha 0 —
+// an invisible halo. A "breathe the glow from 0 to 5px" implementation would
+// have produced nothing at all and read as a wiring bug, not as a dial that
+// needed turning.
+//
+// Taken as a gift rather than worked around: over [6, 10] the derived alpha
+// runs [0, 0.3], so the halo's SIZE and its INTENSITY breathe together, which
+// is what a swelling glow does physically. The trough is genuinely absent
+// rather than merely small, so the resting sphere is unchanged.
+//
+// The halo colour is vC1, the edge's own mid stop, for every non-ortho
+// instance — so this tints itself and needs no colour of its own.
+//
+// ── WHY THE SWING IS A RATIO AND THE FLOOR IS NOT ──────────────────────────
+// MEASURED (`scripts/_a8glow.mjs`, both viewports, one pinned world): the
+// crest was a flat 10.000 px on a sphere of radius 410.83 AND on a phone's
+// 162.83, i.e. **2.43% of the sphere on a desktop and 6.14% on a phone** —
+// 2.5x wider relative to the artwork, with the breath's area swing going
+// 14.18% -> 26.65%. The halo was authored against one geometry and then drawn
+// at that pixel size on every other. Same class as the certified `inkScale`
+// lesson: write it as a RATIO, never a literal.
+//
+// The FLOOR cannot take the same treatment, and this is the constraint, not an
+// oversight. `FUSED_GLOW_BASE` is the shader's own zero — below it the derived
+// alpha is 0 and nothing draws at all — and it is an ABSOLUTE px constant
+// baked into EDGE_FRAG at build time. A strictly proportional radius would put
+// a phone's crest at 10 * 162.83/410.83 = 3.96 px, under that floor, and the
+// halo would not render AT ALL on the one platform this pass exists to serve.
+// Size and opacity are the same dial here; there is no freedom to scale one.
+//
+// So the swing scales and the floor stays where the shader put it. Closing the
+// rest means scaling `FUSED_GLOW_BASE`/`FUSED_GLOW_SCALE` with the sphere,
+// which is certified shader code that also governs every FUSED edge's alpha.
+//
+// ── WHY THE SWING IS SPLIT AND NOT PURELY PROPORTIONAL ─────────────────────
+// A purely proportional swing left a phone at 7.585 px and a derived alpha of
+// 0.119, against the desktop's 10 and 0.3 — SMALLER AND DIMMER, on the one
+// platform where the carrier was already weakest. That is this shader's doing,
+// not the ratio's: opacity is welded to radius, so shrinking the halo dims it.
+//
+// Raising the whole swing is not a fix either, because the same number
+// multiplies both geometries: giving the phone back its 0.3 needs a swing that
+// puts the DESKTOP crest at 16.09 px, past `ceiling`, clamped, at alpha 0.74 —
+// two and a half times the look that was actually ruled.
+//
+// So the swing has a FIXED part and a PROPORTIONAL part, and they sum back to
+// `swingPx` exactly at `refSphereR` whatever the split — which is what pins
+// the certified sphere by construction rather than by luck. `fixedShare` is
+// then the only dial, and it is honest about what it trades: 0 is purely
+// proportional (a phone goes dim), 1 is the absolute px literal this whole
+// note exists to explain. At 0.5 the phone reads 8.79 px / alpha 0.209.
+export const HUM_GLOW = Object.freeze({
+  // The swing the author ruled socks/10, in px, and the sphere he ruled it on.
+  // `refSphereR` IS a runtime denominator, which is the shape of the certified
+  // `inkScale` trap — but not the trap itself: inkScale's literal 580 stood in
+  // for a height that actually varies with width, whereas this is a fixed
+  // provenance anchor, the geometry of one capture. Its own breath-phase
+  // ambiguity is 0.6%, i.e. 0.02 px of swing, an eighth of the packed quantum.
+  swingPx: 4,
+  refSphereR: 410.83,
+  // How much of the swing ignores the sphere. 0 = purely proportional and a
+  // phone goes dim; 1 = the old absolute px literal. Chosen by the author.
+  fixedShare: 0.5,
+  // packFlags rounds glow to eighths and clamps at 127, i.e. 15.875 px. On a
+  // fixed 10 px crest that clamp was unreachable arithmetic; a proportional
+  // swing makes it reachable on a big enough wall, so it is clamped HERE where
+  // it can be seen rather than silently inside the packing.
+  ceiling: 15.875,
+});
+
+/**
+ * Glow radius in px for a base edge, from the hum's own wave.
+ *
+ * `wave` is humWave()'s [-1, 1]. `activity` is the same transient attenuation
+ * humGain takes: an edge that was just overwritten keeps its halo still rather
+ * than breathing under the pulse ring travelling along it. `sphereR` is the
+ * draw loop's own sphere radius, and it is REQUIRED — a default would be the
+ * px literal this function exists to delete, and a missing one reads as NaN in
+ * `_a8glow.mjs`'s glow probe rather than as a plausible wrong size.
+ */
+export function humGlowRadius(wave, activity = 0, sphereR) {
+  const a = 1 - clamp01(activity);
+  const { swingPx, refSphereR, fixedShare } = HUM_GLOW;
+  const swing = swingPx * (fixedShare + (1 - fixedShare) * (sphereR / refSphereR));
+  return Math.min(FUSED_GLOW_BASE + swing * a * (0.5 + 0.5 * wave), HUM_GLOW.ceiling);
+}
+
+export function humGain(mid, axis, phase, activity = 0) {
   const effAmplitude = HUM.amplitude * (1 - clamp01(activity));
-  return 1 + effAmplitude * Math.sin(phase - HUM.wavenumber * d);
+  return 1 + effAmplitude * humWave(mid, axis, phase);
 }

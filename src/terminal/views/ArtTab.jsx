@@ -109,7 +109,7 @@ import {
   chimeraStrength, chimeraHue, chimeraFlicker, chimeraAlpha, chimeraWidth,
   chimeraDashOffset, CHIMERA_MIN_STRENGTH, CHIMERA_CP_PULL, CHIMERA_DASH,
   CHIMERA_SAT, CHIMERA_LIT, CHIMERA_MAX_ZONES,
-  humPhase, humAxis, humGain,
+  humPhase, humAxis, humGain, humWave, humGlowRadius,
 } from '../art/artEdges';
 import { stepAwakening, beaconRingState, conductorState, CONDUCTOR } from '../art/artAwakening';
 import { compositeDpr, coarsePointer } from '../art/artComposite';
@@ -1421,6 +1421,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           // comment in artEdges.js for why spectralBoost/fusionBoost are the
           // wrong thing to attenuate on, even though the design doc proposed it.
           const _humMid = { x: (na.x + nb.x) / 2, y: (na.y + nb.y) / 2, z: (na.z + nb.z) / 2 };
+          const _humW = humWave(_humMid, _humAxis, _humPhase);
           const baseAlpha = (Math.min(na.energy, nb.energy) * 0.5 + 0.06 + spectralBoost + fusionBoost)
                           * depthFade * humGain(_humMid, _humAxis, _humPhase, e.pulse);
           const pulseBoost = e.pulse * 0.40;
@@ -1488,7 +1489,16 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
               ed[o + 15] = packFlags(
                 dashed ? SPECTRAL_DASH[0] + SPECTRAL_DASH[1] : 0,
                 dashed ? SPECTRAL_DASH[0] : 0,
-                isFused ? fusedGlow(fuseCos) : 0,
+                // The breathing glow shoulder. This slot was a flat 0, i.e. no
+                // halo at all on any dormant edge — so it INTRODUCES one
+                // rather than modulating one. It rides the SAME wave as the
+                // alpha hum, never a second oscillator that would drift.
+                // The 6 px floor is not a taste call: EDGE_FRAG derives the
+                // shadow alpha from the radius and anything at or below 6
+                // renders alpha 0. The SWING above that floor scales with
+                // sphereR, which is why the radius is passed in — see
+                // HUM_GLOW in artEdges.js for why only the swing can scale.
+                isFused ? fusedGlow(fuseCos) : humGlowRadius(_humW, e.pulse, sphereR),
               );
             }
             eg.count++;
