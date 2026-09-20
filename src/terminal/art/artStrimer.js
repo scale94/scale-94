@@ -12,9 +12,14 @@
 // ── THREE THINGS THAT WERE MEASURED, NOT CHOSEN ───────────────────────────
 //
 // 1. PACKET_FRACTION is not a style knob. At a 100ms transit the head
-//    advances 41px per frame on a 249px edge; a head narrower than that
-//    stride never overlaps itself and the effect STROBES INTO BEADS —
-//    photographed in lookbook/wake/. 0.17 IS that stride.
+//    advances 41px per frame on a 249px edge (the MEAN stride under constant
+//    velocity); a head narrower than that stride never overlaps itself and
+//    the effect STROBES INTO BEADS — photographed in lookbook/wake/. 0.17 is
+//    that mean stride, not the ease-out curve's opening stride — this module
+//    applies ease-out cubic, whose first frame alone covers ~28% of the edge
+//    at the 160ms clamp and ~42% at 100ms, well over one packet length. No
+//    beading shows in the frames, so the rail almost certainly carries it;
+//    this is a correction to the stated derivation, not a behaviour change.
 // 2. The head is WHITE and the colour lives in the tail. The knee is a
 //    max-channel Reinhard: it scales all three channels by one factor, so it
 //    preserves hue and saturation exactly and can never whiten a saturated
@@ -48,9 +53,18 @@ export const PROFILE_PING = 2;
  * Hard cap on live packets.
  *
  * MEASURED on SPHERE_ADJ 2026-09-20: 31 nodes, 40 edges, max degree 4, mean
- * 2.58. Concurrent spawns are capped at 4 by the same reasoning PRISM_MAX_EFFECTS
- * uses, so the worst case today is 16. Bifurcation adds dynamic nodes and can
- * raise degree, hence the headroom.
+ * 2.58. Nothing caps CONCURRENT SPAWNS — fireStrimer (ArtTab.jsx) spawns one
+ * packet per edge on every click, unconditionally, unlike PRISM_MAX_EFFECTS
+ * (artEdges.js), which really does bound concurrent prism effects. Rapid
+ * clicking reaches this cap in ~16 clicks inside one packet's own lifetime.
+ *
+ * What actually bounds the worst case is this constant plus the drop rule
+ * below: the buffer never overflows. But a dropped packet silently cancels
+ * its target's arrival bump (+0.6 energy, delivered when the packet lands —
+ * see stepStrimer/spawnStrimer's caller in ArtTab.jsx) — the same
+ * "suppress without spawning" failure the `{ neighbours }` contract in
+ * useSomaGraph exists to prevent, arriving through a different door. Not
+ * fixed here — a concurrency cap is a design decision, not this one.
  *
  * ENFORCED in spawnStrimer by dropping the oldest — a cap a buffer is sized
  * from has to be a cap something actually applies, or it is a guess with a
@@ -83,10 +97,17 @@ export const PACKET_FRACTION = 0.17;
 //
 // Node positions live on a UNIT sphere (useSomaGraph strips the radial
 // velocity component every step and project() applies sphereR afterwards), so
-// a chord is at most 2. STRIMER_MS_PER_UNIT is the initial value and is a DIAL
-// — _s3strimer reports the observed chord distribution so it can be set with
-// evidence. The clamp is what makes a wrong value survivable rather than
-// absurd, and it is what keeps a degree-4 burst in unison.
+// a chord is at most 2. STRIMER_MS_PER_UNIT is a DIAL, and the evidence for it
+// is no longer owed: _s3strimer fired a degree-4 hub (biocoenosis) and
+// recorded lookbook/strimer/report.json, 8 chords across both modes —
+// 0.5553, 0.5964, 0.6049, 0.6178, 0.6660, 0.7262, 1.0364, 1.0579. The median
+// is 0.642, which implies ~128ms at the current dial of 200 — not the 100ms
+// spec section 5 asks the median to land on. The longest chord (ceei, ~1.04)
+// implies 207-212ms and is pinned at the DURATION_MAX_MS clamp on a routine
+// click, not an edge case. THE VALUE IS UNCHANGED AT 200 PENDING THE AUTHOR'S
+// RULING — this comment reports the measurement, it does not act on it. The
+// clamp is what makes a wrong value survivable rather than absurd, and it is
+// what keeps a degree-4 burst in unison.
 export const STRIMER_MS_PER_UNIT = 200;
 export const DURATION_MIN_MS = 70;
 export const DURATION_MAX_MS = 160;
@@ -143,8 +164,10 @@ export function srgbToLinear01(c) {
 
 /**
  * An HSL colour object — the shape NODE_COLORS carries — to LINEAR rgb, into
- * `out`. Writes rather than returns a fresh array: this runs per packet per
- * spawn and the draw loop is off the allocation path.
+ * `out`. Writes rather than returns a fresh array: called once per spawnStrimer
+ * call, at the top before the per-target loop (every packet from one click
+ * shares the clicked node's colour), not once per packet — and the draw loop
+ * is off the allocation path either way.
  *
  * The CSS Color 4 reference implementation, matching writeHsl in
  * SphereEdges.js exactly, with srgbToLinear01 applied to each channel after.
@@ -166,9 +189,13 @@ export function hslToLinearRgb({ hue, sat, lit }, out) {
 
 // ── State ──────────────────────────────────────────────────────────────────
 
-/** Phase values for `state.phase`. */
-const PHASE_TRAVEL = 0;
-const PHASE_PING = 1;
+/**
+ * Phase values for `state.phase`. Exported so ArtTab.jsx's draw loop can
+ * compare against the name instead of the magic literal `0` — the two files
+ * cannot drift apart silently this way.
+ */
+export const PHASE_TRAVEL = 0;
+export const PHASE_PING = 1;
 
 /**
  * The pool. Parallel arrays, allocated once, never per frame — the same

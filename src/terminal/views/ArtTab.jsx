@@ -65,6 +65,7 @@ import {
   createStrimerState, spawnStrimer, stepStrimer,
   STRIMER_STRIDE, PACKET_FRACTION, PROFILE_PACKET, PROFILE_RAIL, PROFILE_PING,
   HEAD_GAIN, HEAD_WIDTH, RAIL_GAIN, RAIL_WIDTH, PING_GAIN, PING_RADIUS,
+  PHASE_TRAVEL,
 } from '../art/artStrimer';
 import { quadSegments, tessellateQuad, CURVE_MAX_SEGMENTS } from '../art/artCurve';
 import {
@@ -2152,9 +2153,12 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           const r = sp.rgb[i * 3], g = sp.rgb[i * 3 + 1], b = sp.rgb[i * 3 + 2];
           const scale = (pa.scale + pb.scale) * 0.5 * ink;
 
-          if (sp.phase[i] === 0) {
-            // The RAIL first, so the packet adds over it. `lighter` commutes,
-            // so this is for legibility rather than correctness.
+          if (sp.phase[i] === PHASE_TRAVEL) {
+            // The RAIL first, so the packet adds over it. This layer blends
+            // with GL CustomBlending One/One (SphereStrimer.jsx), which
+            // commutes exactly like the 2D canvas's `lighter` op does
+            // elsewhere in this file — so this ordering is for legibility
+            // rather than correctness.
             let o = sp.instances * STRIMER_STRIDE;
             sp.data[o] = pa.sx; sp.data[o + 1] = pa.sy;
             sp.data[o + 2] = pb.sx; sp.data[o + 3] = pb.sy;
@@ -2189,6 +2193,10 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             sp.data[o + 2] = pb.sx; sp.data[o + 3] = pb.sy;
             sp.data[o + 4] = PING_RADIUS * scale;
             sp.data[o + 5] = PING_GAIN * k2;
+            // r/g/b written for layout parity with the other two profiles,
+            // but inert: the shader forces vec3(1.0) for profile >= 1.5
+            // (SphereStrimer.jsx), so the ping is deliberately achromatic
+            // and never reads these three floats.
             sp.data[o + 6] = r; sp.data[o + 7] = g; sp.data[o + 8] = b;
             sp.data[o + 9] = PROFILE_PING;
             sp.instances++;
@@ -2861,8 +2869,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     // effect would be measuring the grid too.
     window.__artFireStrimer = (id) => {
       fireNode(id, { neighbours: false });
-      fireStrimer(id);
-      return strimerRef.current.count;
+      // The SPAWN count, not strimerRef.current.count (the whole pool's live
+      // size) — a residual in-flight packet from an earlier fire would
+      // otherwise misalign a caller's per-edge index (e.g. _s3strimer.mjs's
+      // chord table) against this call's own destinations.
+      return fireStrimer(id);
     };
 
     return () => {
@@ -3082,13 +3093,16 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
    * The chord is 3D and unprojected: that is correct parallax, and it is
    * invariant under rotation, which is what makes the transient reproducible
    * in a capture.
+   *
+   * Returns the number of packets spawned, so callers (the harness) can tell
+   * a real fire from a no-op without reading the whole pool's size.
    */
   const fireStrimer = useCallback((id) => {
     const st = stateRef.current;
     const pool = strimerRef.current;
-    if (!st || !pool) return;
+    if (!st || !pool) return 0;
     const src = st.nodes.find(n => n.id === id);
-    if (!src) return;
+    if (!src) return 0;
     const targets = [];
     for (const dstId of (SPHERE_ADJ[id] ?? [])) {
       const dst = st.nodes.find(n => n.id === dstId);
@@ -3098,8 +3112,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         worldLen: Math.hypot(dst.x - src.x, dst.y - src.y, dst.z - src.z),
       });
     }
-    if (!targets.length) return;
-    spawnStrimer(pool, {
+    if (!targets.length) return 0;
+    return spawnStrimer(pool, {
       srcId: id,
       targets,
       nowMs: performance.now(),

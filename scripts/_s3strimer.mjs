@@ -10,9 +10,15 @@
 // 44] shoots long after a 6-frame packet has landed, and a wavefront that has
 // already passed is not in the frame being graded. Grading an absent effect
 // is the trap that cost the project a whole session on the old bloom sweep.
-// So this shoots pump(1) at offsets 0-8 -- inside the transit, not after it
-// -- and FAILS LOUDLY if no frame contains a strimer instance, rather than
-// producing confident frames of nothing.
+// So this shoots pump(1) at offsets 0-SWEEP_FRAMES -- covering the WHOLE
+// transient, not just its opening -- and FAILS LOUDLY if no frame contains a
+// strimer instance, rather than producing confident frames of nothing.
+// SWEEP_FRAMES is derived below from DURATION_MAX_MS + PING_MS, not a bare
+// literal: an earlier version of this rig stopped at f<=8 (150ms), short of
+// the 227ms worst-case packet life, and as a result never once observed the
+// longest edge (ceei, chord ~1.04-1.06) actually arrive -- its
+// observedTransitMs came back null in both modes, and the ping's decay to
+// instances:0 was never photographed either.
 //
 // ── IT PATCHES NOTHING ─────────────────────────────────────────────────────
 // The feature is real now. There is no ArtTab.jsx / SphereComposite.jsx
@@ -105,6 +111,17 @@ const DURATION_MIN_MS = 70;
 const DURATION_MAX_MS = 160;
 const STRIMER_MS_PER_UNIT_CURRENT = 200; // NOT changed by this script — Amendment C.
 
+// The ping's life, mirrored as literals exactly as DURATION_MIN_MS/MAX_MS
+// above are — nothing in this rig imports artStrimer.js.
+const PING_FRAMES = 4;
+const PING_MS = PING_FRAMES * (1000 / 60);
+
+// DERIVED, not a bare literal: worst-case packet life is the full clamped
+// travel (DURATION_MAX_MS) plus the post-arrival ping (PING_MS), and pump(1)
+// advances one frame (1000/60 ms) each call. Rounding up gives the fewest
+// pumps that still cover the whole transient, with a frame of margin.
+const SWEEP_FRAMES = Math.ceil((DURATION_MAX_MS + PING_MS) / (1000 / 60)); // 14
+
 // ── Run ──────────────────────────────────────────────────────────────────
 mkdirSync(OUT, { recursive: true });
 const report = { durationClampMs: [DURATION_MIN_MS, DURATION_MAX_MS], runs: [] };
@@ -161,7 +178,7 @@ for (const mode of MODES) {
     if (!spawned) throw new Error('fired biocoenosis and got no packets');
 
     const shots = [];
-    for (let f = 0; f <= 8; f++) {
+    for (let f = 0; f <= SWEEP_FRAMES; f++) {
       await page.pump(1);
       const path = `${OUT}/${tag}-f${String(f).padStart(2, '0')}.png`;
       await page.screenshot({ path });
@@ -185,8 +202,10 @@ for (const mode of MODES) {
     // The observed transit, which is what sets STRIMER_MS_PER_UNIT. Each
     // packet's duration is the frame it first reached u = 1, times the
     // harness frame of 1000/60 ms. `null` means u never reached 1 inside
-    // this sweep's f<=8 window (150ms of travel) — itself evidence the
-    // packet's duration is at or past that, i.e. close to DURATION_MAX_MS.
+    // this sweep's SWEEP_FRAMES window (~250ms of travel, comfortably past
+    // the 227ms worst-case packet life) — which would now mean the packet's
+    // duration exceeds even DURATION_MAX_MS, not just that the window was
+    // too short to see it (the earlier f<=8/150ms window's failure mode).
     const dsts0 = shots[0].dsts;
     const transit = {};
     for (let k = 0; k < spawned; k++) {
@@ -209,6 +228,7 @@ for (const mode of MODES) {
     // a different question (did the observed frame-quantized arrival land
     // near a bound) and must never be re-merged into `clamp`.
     const FRAME_MS = 1000 / 60;
+    const sweepMs = Math.round((SWEEP_FRAMES + 1) * FRAME_MS);
     const chordByDst = {};
     dsts0.forEach((dst, k) => {
       const raw = chords[k];
@@ -217,7 +237,7 @@ for (const mode of MODES) {
       const clamp = impliedMsAtCurrentDial <= DURATION_MIN_MS ? 'AT_MIN'
         : impliedMsAtCurrentDial >= DURATION_MAX_MS ? 'AT_MAX'
         : 'unclamped';
-      const nearBoundary = t == null ? 'AT_MAX (never reached u=1 in 150ms)'
+      const nearBoundary = t == null ? `AT_MAX (never reached u=1 in ${sweepMs}ms)`
         : t <= DURATION_MIN_MS + FRAME_MS ? 'AT_MIN'
         : t >= DURATION_MAX_MS - FRAME_MS ? 'AT_MAX'
         : 'unclamped';
