@@ -110,6 +110,7 @@ import {
   chimeraDashOffset, CHIMERA_MIN_STRENGTH, CHIMERA_CP_PULL, CHIMERA_DASH,
   CHIMERA_SAT, CHIMERA_LIT, CHIMERA_MAX_ZONES,
   humPhase, humAxis, humGain, humWave, humGlowRadius,
+  EDGE_TAPER_PX,
 } from '../art/artEdges';
 import {
   stepAwakening, resetAwakeningCadence, beaconRingState, conductorState, CONDUCTOR,
@@ -1404,6 +1405,10 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       // The CSS space these endpoints live in, published with them so the GL
       // layer never has to guess it from a measurement that can lag.
       eg.w = w; eg.h = h;
+      // Scaled by `ink` for the same reason every radius in this loop is: it
+      // is one number for the whole frame, so the taper stays a fixed fraction
+      // of a node radius at every viewport.
+      eg.taperPx = EDGE_TAPER_PX * ink;
       if (es) {
         // Sort edges: far first
         const sortedEdges = [...es].sort((eA, eB) => {
@@ -1573,6 +1578,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
                 isFused ? fusedGlow(fuseCos) : humGlowRadius(_humW, e.pulse, sphereR),
               );
             }
+            // The terminal taper, on the base edges alone. Bit 7 of the
+            // dash-duty byte; see packFlags. OR'd in after the branch so both
+            // paths (ortho / default, the latter covering fused and spectral)
+            // get it from one place and neither can be missed.
+            ed[o + 15] += 128 * 256;
             eg.count++;
           }
 
