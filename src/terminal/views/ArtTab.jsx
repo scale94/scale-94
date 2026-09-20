@@ -865,7 +865,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     initState();
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    // No 2D context is taken any more: this loop no longer draws. It computes
+    // state and writes instance buffers that the GL layer renders, and the
+    // canvas element survives only as the pointer surface and the box SizeSync
+    // measures. Asking for one would allocate a full-resolution backing store
+    // for a surface nothing paints.
 
     const draw = () => {
       // ── Always re-schedule first so an exception never kills the loop ──────
@@ -1045,8 +1049,6 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       }
 
       // ── Clear with trail fade ─────────────────────────────────────────────
-      const dpr = compositeDpr(window.devicePixelRatio, coarseRef.current);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       // Ecocide tint: metabolicRift bleeds a faint crimson into the void.
       // The tint itself now lives on the GPU (SphereBackground) — this canvas
       // no longer paints a backdrop, it erases alpha so the backdrop shows
@@ -1061,12 +1063,14 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       // alpha that drives the trail fade. Same object, same frame, so the fill
       // below and the fade cannot disagree — including across a mode toggle,
       // where `a` steps 0.72 <-> 0.32 in one frame.
+      // The `destination-out` fillRect that used to be here is GONE, and with
+      // it the last drawing call in this loop. It erased alpha on a canvas
+      // nothing had painted since the WebGL migration — a full-screen 2-D fill
+      // per frame to make a transparent surface transparent. `tint.a` itself is
+      // load-bearing and stays: the GL trail fade reads it off the object
+      // published above, which is what keeps the fade and the ink provably the
+      // same number across a mode toggle.
       bgStateRef.current.rift = tint;
-      ctx.save();
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.fillStyle = `rgba(0,0,0,${tint.a})`;
-      ctx.fillRect(0, 0, w, h);
-      ctx.restore();
       // Exergy pulse and genesis glow are both on the GPU now
       // (SphereBackground.js); only their state is computed here.
       bgStateRef.current.exergy = exergyAlpha(exergyRate);
