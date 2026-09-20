@@ -480,11 +480,36 @@ export const CHIMERA_MAX_ZONES = 136;
 // All five are AESTHETIC DIALS, to be chosen on frames rather than argued
 // about — see `scripts/_a4hum.mjs`, which sweeps `amplitude` over one breath
 // cycle the way `_a3bloom.mjs` swept the bloom.
+//
+// ── 2026-09-20: `amplitude` 0.15 -> 0.25 ────────────────────────────────────
+//
+// Raised because the effect was not visible unaided in a still, to either the
+// implementer or the author — "idle the tab and feel the mesh breathe" is the
+// real acceptance test, and a still frame cannot pass or fail it. MEASURED
+// anyway, comparing matched frame index across amplitudes: `imm-a0-w2p0-f1`
+// vs `imm-a0p22-w2p0-f1` gave meanAbs 0.3761, max 50, and 16575 pixels
+// differing by more than 2 levels against ~129k lit pixels. That is a real,
+// non-trivial delta already at 0.22 — the problem was never magnitude, it was
+// that a single frame cannot show a breath at all.
+//
+// ── 2026-09-20: `periodMs` 9000 -> 11000, for GLACIALNESS ONLY ──────────────
+//
+// This is NOT a de-tune against the sphere's rotation, and the next reader
+// will otherwise re-derive that wrong reason from the numbers alone.
+// `AUTO_SPIN` (ArtTab.jsx:130) is 0.0025 rad/FRAME, so one rotation is 2513
+// frames, and the spin's period in wall time is whatever the display's
+// refresh rate makes it: 41.9 s at 60 Hz, 20.9 s at 120 Hz, 7.0 s at 360 Hz.
+// There is no fixed `periodMs` that is reliably commensurate OR incommensurate
+// with a period that changes per monitor — chasing one against the other is
+// chasing a moving target. An apparent 1:1 beat measured earlier was an
+// artefact of a headless capture running at ~284 fps, not a property of the
+// app. 11000 was chosen purely because it reads as slower and more glacial
+// than 9000 — nothing more.
 export const HUM = Object.freeze({
-  amplitude:    0.15,   // +/- fraction of baseAlpha
+  amplitude:    0.25,   // +/- fraction of baseAlpha
   wavenumber:   2.0,    // radians of phase per unit of world distance
-  periodMs:     9000,   // one breath
-  axisPeriodMs: 97000,  // one turn of the cone, ~10.8 breaths
+  periodMs:     11000,  // one breath
+  axisPeriodMs: 97000,  // one turn of the cone, ~8.8 breaths
   axisTilt:     1.05,   // radians off +Y; ~60 deg, neither polar nor equatorial
 });
 
@@ -507,8 +532,13 @@ export function humAxis(nowMs) {
   return { x: s * Math.cos(theta), y: Math.cos(HUM.axisTilt), z: s * Math.sin(theta) };
 }
 
+/** Clamp to [0, 1]. */
+function clamp01(x) {
+  return x < 0 ? 0 : x > 1 ? 1 : x;
+}
+
 /**
- * The gain for one edge: 1 +/- HUM.amplitude.
+ * The gain for one edge: 1 +/- HUM.amplitude, attenuated by `activity`.
  *
  * `mid` is the edge's 3-D midpoint, taken BEFORE projection. That is the
  * load-bearing choice in the whole design: a world-space wave is anchored to
@@ -516,8 +546,32 @@ export function humAxis(nowMs) {
  * the viewport and the sphere would appear to slide through a fixed curtain of
  * light. An antipodal edge has the origin for a midpoint, which is well
  * defined here — it simply rides the global phase.
+ *
+ * `activity` defaults to 0, so every existing caller and every test written
+ * before this parameter existed sees IDENTICAL behaviour. At 1 it returns
+ * exactly 1 — no hum at all. Values outside [0, 1] are clamped rather than
+ * left to overshoot the amplitude.
+ *
+ * WHY THIS ATTENUATES ON `pulse` (ArtTab's `e.pulse`, passed in as `activity`)
+ * AND ON NOTHING ELSE — the design doc's section 7 proposed attenuating on
+ * `spectralBoost + fusionBoost + pulseBoost` instead, and that reads as the
+ * more complete fix. It is wrong. `spectralBoost` and `fusionBoost` are
+ * PERMANENT STRUCTURAL properties of an edge — a spectral bridge is always a
+ * spectral bridge, a fused bone stays fused — not events. Attenuating on them
+ * would mute the hum on the sphere's brightest permanent structure, the edges
+ * the eye actually rests on, and leave it only on the dim dormant edges that
+ * `depthFade` has already darkened — making the hum LESS visible, not more.
+ * `pulse` is the only genuinely transient term of the three: it is 1.0 the
+ * instant an edge is overwritten and decays back to 0 (see `e.pulse` in
+ * useKineticEdges.js), which is exactly "something just happened here, let
+ * the hum step aside for it" and nothing else in `baseAlpha` means that.
+ *
+ * The strimer cannot flicker from this under any of the design doc's options:
+ * it renders on its own non-accumulating layer, after `SourceQuad` and before
+ * the composer (SphereComposite.jsx), and never touches `baseAlpha`.
  */
-export function humGain(mid, axis, phase) {
+export function humGain(mid, axis, phase, activity = 0) {
   const d = mid.x * axis.x + mid.y * axis.y + mid.z * axis.z;
-  return 1 + HUM.amplitude * Math.sin(phase - HUM.wavenumber * d);
+  const effAmplitude = HUM.amplitude * (1 - clamp01(activity));
+  return 1 + effAmplitude * Math.sin(phase - HUM.wavenumber * d);
 }

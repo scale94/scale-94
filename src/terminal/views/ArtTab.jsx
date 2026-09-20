@@ -1406,9 +1406,15 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           // with everything else, so the far side of the sphere does not pulse
           // as loudly as the near side. If the frames say otherwise, the fix is
           // to move the multiply inside the parentheses.
+          //
+          // `e.pulse` is passed as `activity` so the hum steps aside on a
+          // genuine transient (an edge that was just overwritten) without
+          // muting it on permanently-boosted structure. See humGain's doc
+          // comment in artEdges.js for why spectralBoost/fusionBoost are the
+          // wrong thing to attenuate on, even though the design doc proposed it.
           const _humMid = { x: (na.x + nb.x) / 2, y: (na.y + nb.y) / 2, z: (na.z + nb.z) / 2 };
           const baseAlpha = (Math.min(na.energy, nb.energy) * 0.5 + 0.06 + spectralBoost + fusionBoost)
-                          * depthFade * humGain(_humMid, _humAxis, _humPhase);
+                          * depthFade * humGain(_humMid, _humAxis, _humPhase, e.pulse);
           const pulseBoost = e.pulse * 0.40;
 
           // The width formula moved to artEdges.js unchanged. Its SIGN is now

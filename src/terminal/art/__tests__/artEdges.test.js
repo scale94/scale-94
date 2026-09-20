@@ -1253,7 +1253,7 @@ describe('the wire hum', () => {
     }
   });
 
-  it('never returns a negative gain, which would invert an edge', () => {
+  it('guards the amplitude constant against inverting an edge', () => {
     // Guards the constant as much as the function: an amplitude above 1 would
     // make an edge's alpha go negative at the trough.
     expect(HUM.amplitude).toBeLessThan(1);
@@ -1324,5 +1324,44 @@ describe('the wire hum', () => {
     const m = { x: 0.1, y: 0.2, z: 0.3 };
     expect(humGain(m, humAxis(5000), humPhase(5000)))
       .toBe(humGain(m, humAxis(5000), humPhase(5000)));
+  });
+
+  // ── activity: the hum attenuates on a transient, not on structure ─────────
+  // See the note at humGain's definition for why `pulse` and nothing else.
+
+  it('at activity 1, returns exactly 1 — no hum at all', () => {
+    const mid = { x: 0.50, y: 0.10, z: 0.20 };
+    const axis = humAxis(0);
+    expect(humGain(mid, axis, 1.0, 1)).toBe(1);
+  });
+
+  it('at activity 0, is identical to omitting the argument entirely', () => {
+    const mid = { x: 0.50, y: 0.10, z: 0.20 };
+    const axis = humAxis(0);
+    expect(humGain(mid, axis, 1.0, 0)).toBe(humGain(mid, axis, 1.0));
+  });
+
+  it('at activity 0.5, halves the deviation from 1 that activity 0 gives', () => {
+    const mid = { x: 0.50, y: 0.10, z: 0.20 };
+    const axis = humAxis(0);
+    const phase = 1.0;
+    const dev0 = humGain(mid, axis, phase, 0) - 1;
+    const dev5 = humGain(mid, axis, phase, 0.5) - 1;
+    expect(dev5).toBeCloseTo(dev0 * 0.5, 12);
+  });
+
+  it('clamps activity outside [0,1] rather than overshooting the gain', () => {
+    const mid = { x: 0.50, y: 0.10, z: 0.20 };
+    const axis = humAxis(0);
+    const phase = 1.0;
+    for (const activity of [-1, 2]) {
+      const g = humGain(mid, axis, phase, activity);
+      expect(g).toBeGreaterThanOrEqual(1 - HUM.amplitude - 1e-12);
+      expect(g).toBeLessThanOrEqual(1 + HUM.amplitude + 1e-12);
+    }
+    // -1 must behave exactly like 0 (clamped, not merely bounded).
+    expect(humGain(mid, axis, phase, -1)).toBe(humGain(mid, axis, phase, 0));
+    // 2 must behave exactly like 1 (clamped, not merely bounded).
+    expect(humGain(mid, axis, phase, 2)).toBe(humGain(mid, axis, phase, 1));
   });
 });
