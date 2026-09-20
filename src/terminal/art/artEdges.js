@@ -543,6 +543,16 @@ export const CHIMERA_MAX_ZONES = 136;
 // problem and the carrier was the other half — which is what the glow shoulder
 // below exists to fix. Both halves ship together; neither works alone.
 //
+// RULED AGAIN AFTER THE MERGE, and this is the verdict that governs: with the
+// shoulder, amplitude at 0.25, and main's clock-stepped rotation underneath —
+// a revolution in 41.9 s rather than the ~8.9 s a 283 fps panel was giving it,
+// so roughly 4.7x more dwell per edge on the visible face — the author's read
+// is "soft and gentle". That is the state these five constants are chosen for.
+// The earlier 3500 / 0.40 verdict above is kept because it is the record of
+// how the rate was settled, but it was taken against a sphere spinning five
+// times faster and an alpha carrying the whole effect; do not quote it as the
+// standing judgement.
+//
 // AMPLITUDE WAS WALKED BACK DOWN, 0.40 -> 0.25, ON MEASUREMENT.
 //
 // 0.40 was chosen while line alpha carried the entire effect. The glow
