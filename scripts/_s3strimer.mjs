@@ -19,9 +19,11 @@
 // string-patch here, unlike _s2layer.mjs (which probed the layer before it
 // existed) and _a3bloom.mjs (which moves a build-time constant no other path
 // reaches). Both of those are SOURCES TO READ for their launch / world-pinning
-// / immersive-toggle / canvas-rect-read / profileAlong-describe-ascii blocks,
-// carried over verbatim below -- never to be dynamically import()'d, which
-// EXECUTES their patch-and-restore against this branch's rewritten regions.
+// / immersive-toggle / canvas-rect-read blocks, carried over verbatim below
+// -- never to be dynamically import()'d, which EXECUTES their patch-and-
+// restore against this branch's rewritten regions. _s2layer.mjs also still
+// holds profileAlong/describe/ascii (screen-space luminance sampling); this
+// rig deleted its own dead copy of those -- see the note further down.
 //
 // ── THE CHORD, WITHOUT A SOURCE PATCH ──────────────────────────────────────
 // The design's dial (STRIMER_MS_PER_UNIT, artStrimer.js) is chosen from the
@@ -40,16 +42,17 @@
 // own real inputs come back as plain numbers.
 //
 // ── WHAT THIS RIG DOES NOT DO ──────────────────────────────────────────────
-// profileAlong/describe/ascii (carried over below, per the brief's Step 1)
-// sample LUMINANCE along a known SCREEN-SPACE edge. The old throwaway probe
-// had that because its ArtTab.jsx patch published ax/ay/bx/by for the one
-// edge it was watching. window.__artStrimerState() does not publish screen
-// coordinates for any packet, and reconstructing them here would mean
-// re-deriving the rotation matrix and the physics-evolved node positions --
-// exactly the "re-deriving is how the two drift" trap the brief warns about,
-// this time for a simulation instead of a script block. So this rig does NOT
-// call profileAlong: the Step 3 gate is done by looking at the PNGs directly,
-// and the numeric sweep comes straight from window.__artStrimerState()'s own
+// profileAlong/describe/ascii (screen-space LUMINANCE sampling along a known
+// edge, per the brief's Step 1) are not carried in this file at all -- see
+// the deletion note further down. The old throwaway probe had that sampler
+// because its ArtTab.jsx patch published ax/ay/bx/by for the one edge it was
+// watching. window.__artStrimerState() does not publish screen coordinates
+// for any packet, and reconstructing them here would mean re-deriving the
+// rotation matrix and the physics-evolved node positions -- exactly the
+// "re-deriving is how the two drift" trap the brief warns about, this time
+// for a simulation instead of a script block. So this rig does NOT sample
+// pixels: the Step 3 gate is done by looking at the PNGs directly, and the
+// numeric sweep comes straight from window.__artStrimerState()'s own
 // `u`/`instances`, which needs no reconstruction at all.
 //
 // Usage:  node scripts/_s3strimer.mjs [--normal|--imm]
@@ -84,60 +87,15 @@ const CLICK_IMMERSIVE = `(() => {
       + ' ' + (e.getAttribute('aria-label') || '')));
   if (!b) return false; b.click(); return true; })()`;
 
-// ── Also carried over verbatim from _s2layer.mjs. Not currently invoked --
-// see the header note above on why this rig has no screen-space edge
-// coordinates to feed them. Kept so a future pixel-domain rig does not have
-// to re-derive them.
-function profileAlong(png, ax, ay, bx, by, dpr, off, n = 80) {
-  const { width, height, data } = png;
-  const out = new Array(n);
-  for (let i = 0; i < n; i++) {
-    const t = i / (n - 1);
-    const x = Math.round((off.left + ax + (bx - ax) * t) * dpr);
-    const y = Math.round((off.top + ay + (by - ay) * t) * dpr);
-    let best = 0;
-    for (let dy = -2; dy <= 2; dy++) {
-      for (let dx = -2; dx <= 2; dx++) {
-        const px = x + dx, py = y + dy;
-        if (px < 0 || py < 0 || px >= width || py >= height) continue;
-        const o = (py * width + px) * 4;
-        const l = (0.2126 * data[o] + 0.7152 * data[o + 1] + 0.0722 * data[o + 2]) / 255;
-        if (l > best) best = l;
-      }
-    }
-    out[i] = best;
-  }
-  return out;
-}
-
-const RAMP = ' .:-=+*#%@';
-const ascii = (p, bp) => p.map((v, i) => {
-  const d = Math.max(0, v - (bp[i] ?? 0));
-  return RAMP[Math.min(RAMP.length - 1, Math.round(d * (RAMP.length - 1) / 0.6))];
-}).join('');
-
-function describe(profile, baseline, frac = 0.25) {
-  let pi = 0;
-  for (let i = 0; i < profile.length; i++) {
-    if (profile[i] - (baseline[i] ?? 0) > profile[pi] - (baseline[pi] ?? 0)) pi = i;
-  }
-  const lift = profile[pi] - (baseline[pi] ?? 0);
-  let i = pi;
-  while (i > 0 && (profile[i - 1] - (baseline[i - 1] ?? 0)) > lift * frac) i--;
-  let j = pi;
-  while (j < profile.length - 1 && (profile[j + 1] - (baseline[j + 1] ?? 0)) > lift * frac) j++;
-  return {
-    at: +(pi / (profile.length - 1)).toFixed(3),
-    peak: +profile[pi].toFixed(4),
-    lift: +lift.toFixed(4),
-    span: +((j - i) / (profile.length - 1)).toFixed(3),
-  };
-}
-
-// Silence the "declared but never used" shape of the above without deleting
-// carried-over code the brief asked for verbatim; a future pixel-domain rig
-// wires real input into these.
-void profileAlong; void ascii; void describe;
+// profileAlong/describe/ascii (screen-space luminance sampling, carried over
+// from _s2layer.mjs per the plan's Step 1) were deleted here 2026-09-20.
+// They were never called -- window.__artStrimerState() publishes no screen
+// coordinates to feed them (see the header note above) -- and the author
+// ruled against keeping them dead in a second file: _s2layer.mjs stays
+// committed, so a future rig that publishes screen coordinates is one
+// `git show` away from the sampler; carrying a verbatim copy here bought
+// nothing but a `void profileAlong; void ascii; void describe;` line whose
+// only job was silencing the unused-variable warning.
 
 // The clamp artStrimer.js's packetDuration enforces. Reported here as
 // literals so a reader does not have to open that file to see what "hitting
@@ -238,21 +196,32 @@ for (const mode of MODES) {
     console.log(tag, 'transit ms:', JSON.stringify(transit));
 
     // The observed 3D chord per edge, straight from the app's own inputs —
-    // see the Math.hypot wrap above. Reported alongside a clamp verdict:
-    // "AT_MIN"/"AT_MAX" when the corresponding transit sits within one
-    // frame (16.7ms) of the clamp bound, since a wrong dial is survivable
-    // only because of that clamp and this is the number that says whether
-    // it is doing the work.
+    // see the Math.hypot wrap above. `clamp` is the GROUND TRUTH verdict:
+    // packetDuration() clamps via Math.min/Math.max on the EXACT raw value
+    // (raw = chord * STRIMER_MS_PER_UNIT_CURRENT), so that is what `clamp`
+    // must be compared against -- never the observed transit, which is
+    // quantized to a 16.7ms frame and can cross a boundary the exact value
+    // never does. Concretely: grayscott's implied 145.2ms is genuinely
+    // below DURATION_MAX_MS (160) and never clamps, but its quantized
+    // transit of 150ms sits past DURATION_MAX_MS - FRAME_MS (143.3), which
+    // is why a transit-derived `clamp` mislabelled it AT_MAX. `nearBoundary`
+    // keeps that transit-proximity signal under its own name -- it answers
+    // a different question (did the observed frame-quantized arrival land
+    // near a bound) and must never be re-merged into `clamp`.
     const FRAME_MS = 1000 / 60;
     const chordByDst = {};
     dsts0.forEach((dst, k) => {
       const raw = chords[k];
       const t = transit[dst];
-      const clamp = t == null ? 'AT_MAX (never reached u=1 in 150ms)'
+      const impliedMsAtCurrentDial = +(raw * STRIMER_MS_PER_UNIT_CURRENT).toFixed(1);
+      const clamp = impliedMsAtCurrentDial <= DURATION_MIN_MS ? 'AT_MIN'
+        : impliedMsAtCurrentDial >= DURATION_MAX_MS ? 'AT_MAX'
+        : 'unclamped';
+      const nearBoundary = t == null ? 'AT_MAX (never reached u=1 in 150ms)'
         : t <= DURATION_MIN_MS + FRAME_MS ? 'AT_MIN'
         : t >= DURATION_MAX_MS - FRAME_MS ? 'AT_MAX'
         : 'unclamped';
-      chordByDst[dst] = { chord: +raw.toFixed(4), impliedMsAtCurrentDial: +(raw * STRIMER_MS_PER_UNIT_CURRENT).toFixed(1), observedTransitMs: t, clamp };
+      chordByDst[dst] = { chord: +raw.toFixed(4), impliedMsAtCurrentDial, observedTransitMs: t, clamp, nearBoundary };
     });
     console.log(tag, 'chord/clamp:', JSON.stringify(chordByDst, null, 1));
 
