@@ -144,15 +144,21 @@ Aesthetic dials, to be chosen on frames, not settled here:
 
 | name | start | reasoning for the start value |
 |---|---|---|
-| `HUM_AMPLITUDE` A | 0.15 | Seraphine's proposal; +/-15% on `baseAlpha` |
-| `HUM_WAVENUMBER` K | 2.0 | ~0.64 cycle across the diameter; avoids the pi dipole |
-| `HUM_PERIOD_MS` T | 9000 | "glacial" — slower than the sphere's own breath |
-| `HUM_AXIS_PERIOD_MS` P | 97000 | ~10.8x the breath, no low-order beat |
-| `HUM_AXIS_TILT` | 1.05 rad | ~60 deg cone; not polar, not equatorial |
+| `HUM.amplitude` A | 0.15 | Seraphine's proposal; +/-15% on `baseAlpha` |
+| `HUM.wavenumber` K | 2.0 | ~0.64 cycle across the diameter; avoids the pi dipole |
+| `HUM.periodMs` T | 9000 | "glacial" — slower than the sphere's own breath |
+| `HUM.axisPeriodMs` P | 97000 | 97/9 breaths; the combined pattern repeats in 14.5 min |
+| `HUM.axisTilt` | 1.05 rad | ~60 deg cone; not polar, not equatorial |
 
-All five live together as a named block in `artEdges.js`, in the same shape the
-`BLOOM` block takes in `artComposite.js`, so the strip capture can sweep them
-and the chosen values can carry their own note.
+All five live together as a frozen `HUM` block in `artEdges.js`, in the same
+shape the `BLOOM` block takes in `artComposite.js`, so the sweep can patch them
+and the chosen values can carry their own dated note.
+
+The pair T and P is chosen on the RATIO, not on either number alone. 97/9 is in
+lowest terms with a denominator of 9, so the wave direction and the breath
+re-phase only once every 9 axis turns — 873 s, about 14.5 minutes. A ratio like
+10 or 10.5 would put the whole pattern back where it started in under two
+minutes, which is inside the time somebody actually looks at the sphere.
 
 ## 7. What is NOT measured, and the two ways this can be wrong
 
