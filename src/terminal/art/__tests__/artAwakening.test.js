@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { drawConductor, conductorState, CONDUCTOR } from '../artAwakening.js';
+import {
+  drawConductor, conductorState, CONDUCTOR,
+  stepAwakening, resetAwakeningCadence, GENESIS_PERIOD_FRAMES,
+} from '../artAwakening.js';
+import { createParticlePool } from '../artParticles.js';
+import { seedArtRandom, ART_SEED } from '../artRandom.js';
 
 /** Records every ctx mutation and call in order. The conductor's 2-D form is
  *  the reference the GL port is measured against, so the refactor that splits
@@ -162,5 +167,107 @@ describe('the GL port reads the same colours the 2-D path did', () => {
       expect(ratio).toBeGreaterThanOrEqual(1.25);
       expect(ratio).toBeLessThanOrEqual(2);
     }
+  });
+});
+
+// ── The genesis cascade emits on the CLOCK, not on a frame count ─────────────
+//
+// `if (frameCount % 10 === 0)` ran the opening four seconds of the artwork six
+// times as densely on a 360Hz panel as it was authored to. This is the last of
+// the six frame-counted cadences and the only one inside a phase window, so it
+// is also the one where the error is least visible as "more particles" and most
+// visible as "the birth of the world is the wrong texture".
+describe('stepAwakening — genesis particles step on the clock', () => {
+  const T0 = 100000;          // the harness's VIRTUAL_START, deliberately
+
+  /** Phase 0 with every node already above the emission threshold, so the only
+   *  thing deciding when a particle appears is the gate and the seeded stream. */
+  const freshWorld = () => {
+    const aw = {
+      phase: 0, t0: T0, interacted: false, autoFiredNodes: [], beaconIdx: 0,
+      breathPhase: 0,
+    };
+    resetAwakeningCadence(aw);
+    const nodes = Array.from({ length: 20 }, (_, i) => ({
+      id: `n${i}`, cluster: 'eco', energy: 0.5,
+      x: i * 0.01, y: i * 0.02, z: i * 0.03,
+    }));
+    return { aw, nodes };
+  };
+
+  /** Runs `frames` draws of `dtMs` and returns both the total particles emitted
+   *  and the 1-based draws on which the pool grew. `pool.next` is the ring write
+   *  head; every run here stays well under MAX_PARTICLES so it is the count. */
+  const genesisRun = (frames, dtMs) => {
+    seedArtRandom(ART_SEED);
+    const { aw, nodes } = freshWorld();
+    const pool = createParticlePool();
+    const firedOn = [];
+    let t = T0, last = 0;
+    for (let i = 1; i <= frames; i++) {
+      t += dtMs;
+      stepAwakening(aw, nodes, pool, t);
+      if (pool.next !== last) { firedOn.push(i); last = pool.next; }
+    }
+    return { emitted: pool.next, firedOn };
+  };
+
+  it('emits the same number of genesis particles per wall-second at any rate', () => {
+    // Three seconds, inside phase 0's four-second window at every rate.
+    const at60  = genesisRun(180,  1000 / 60);
+    const at120 = genesisRun(360,  1000 / 120);
+    const at360 = genesisRun(1080, 1000 / 360);
+
+    expect(at60.emitted).toBeGreaterThan(20);     // the run actually emitted
+    expect(at60.emitted).toBeLessThan(400);       // ...and never wrapped the ring
+    // Under the frame counter the 360Hz column was 6x this.
+    expect(at120.emitted).toBe(at60.emitted);
+    expect(at360.emitted).toBe(at60.emitted);
+  });
+
+  it('draws the identical particles at any rate, not merely the same count', () => {
+    // A count can match while the stream underneath has moved — this branch's
+    // defining failure is a metric agreeing while the picture changed. Both
+    // runs must consume the seeded stream in the same order, so every particle
+    // has to land at the same place with the same hue and the same lifespan.
+    const read = (frames, dtMs) => {
+      seedArtRandom(ART_SEED);
+      const { aw, nodes } = freshWorld();
+      const pool = createParticlePool();
+      let t = T0;
+      for (let i = 1; i <= frames; i++) { t += dtMs; stepAwakening(aw, nodes, pool, t); }
+      return {
+        n: pool.next,
+        xs: Array.from(pool.xs.slice(0, pool.next)),
+        hues: Array.from(pool.hues.slice(0, pool.next)),
+        maxLifes: Array.from(pool.maxLifes.slice(0, pool.next)),
+      };
+    };
+    const a = read(180,  1000 / 60);
+    const b = read(1080, 1000 / 360);
+    expect(b.n).toBe(a.n);
+    expect(b.xs).toEqual(a.xs);
+    expect(b.hues).toEqual(a.hues);
+    expect(b.maxLifes).toEqual(a.maxLifes);
+  });
+
+  it('fires on the frames `frameCount % 10 === 0` fired on, starting at the first', () => {
+    // The counter was read BEFORE it was incremented, so draw 1 saw 0 and
+    // fired. Preserving that is why the gate is primed: it is the difference
+    // between the cascade opening on frame 1 and opening on frame 11.
+    const { firedOn } = genesisRun(60, 1000 / 60);
+    expect(firedOn[0]).toBe(1);
+    for (const f of firedOn) expect((f - 1) % GENESIS_PERIOD_FRAMES).toBe(0);
+  });
+
+  it('leaves phase 0 for phase 1 on wall time, not on draws', () => {
+    // Guards the conversion against the obvious over-reach: `elapsed` was
+    // already wall-clock and must stay that way.
+    const { aw, nodes } = freshWorld();
+    const pool = createParticlePool();
+    for (let i = 1; i <= 60; i++) stepAwakening(aw, nodes, pool, T0 + i * (1000 / 60));
+    expect(aw.phase).toBe(0);                       // 1s in
+    stepAwakening(aw, nodes, pool, T0 + 4001);
+    expect(aw.phase).toBe(1);
   });
 });

@@ -12,12 +12,62 @@ import {
 import { emitNodeBurst } from './artParticles';
 
 import { artRandom } from './artRandom.js';
+import { createFrameClock, stepFrameClock, createRateGate, stepRateGate } from './artRateGate.js';
+
+// ── The genesis cascade's emission rate ──────────────────────────────────────
+//
+// Kept as the literal that shipped, against the 60fps frame it was authored
+// for. `frameCount % 10 === 0` was "every tenth DRAW", so the opening four
+// seconds of the artwork emitted six times as densely on a 360Hz panel as it
+// was written to — the /SCENT collider defect, in the one place where it reads
+// as the wrong TEXTURE for the birth of the world rather than as "more dots".
+// See artRateGate.js for why a modulus gate needs an accumulator and not a
+// division.
+export const GENESIS_PERIOD_FRAMES = 10;
+
+/**
+ * Installs (or restores) the awakening's own cadence state on `aw`.
+ *
+ * Called from ArtTab's awakeningRef initializer AND from __artHarnessReset,
+ * which is the point: the gate's accumulator and the clock's seed are exactly
+ * the kind of state that ACCRUES from mount, and the app boots under real
+ * timing before a capture takes over. The reset that already zeroed
+ * `particleFrameRef` has to zero this for the same reason, or the capture
+ * inherits an arbitrary phase from the boot.
+ *
+ * The gate is PRIMED because the counter it replaces was read before it was
+ * incremented: `stepAwakening(aw, nodes, particleFrameRef.current, ...)` saw 0
+ * on the first draw, and `0 % 10 === 0` fired. Without priming the cascade
+ * would open ten frames late.
+ */
+export function resetAwakeningCadence(aw) {
+  aw.genesisClock = createFrameClock();
+  aw.genesisGate  = createRateGate(GENESIS_PERIOD_FRAMES, { primed: true });
+}
+
 // ── Jury Awakening state machine ─────────────────────────────────────────────
 // Advances awakening phases and injects energy into nodes.
 // Returns nothing — mutates aw (awakeningRef.current) and node energies in place.
-export function stepAwakening(aw, nodes, frameCount, particles) {
-  const elapsed = (performance.now() - aw.t0) / 1000;
+//
+// `nowMs` is injectable so the cascade is testable without a clock, the way
+// beaconRingState's `tSeconds` already is; the default is the wall clock this
+// function always read. ONE read serves both `elapsed` and the genesis cadence,
+// so the two can never disagree about when this frame is.
+//
+// The `frameCount` parameter is GONE rather than left unused: its only reader
+// was the modulus below, and the counter behind it (`particleFrameRef`) is
+// deleted with it. A caller still passing five positional arguments lands
+// `nowMs` on `particles` and fails loudly, which is the intended outcome.
+export function stepAwakening(aw, nodes, particles, nowMs = performance.now()) {
+  const elapsed = (nowMs - aw.t0) / 1000;
   aw.breathPhase += 0.015;
+
+  // Stepped UNCONDITIONALLY, outside every phase branch, because the counter it
+  // replaces was: `particleFrameRef` advanced on every draw whether or not
+  // phase 0 was reading it. A gate advanced only while its branch is live is a
+  // different cadence — this is the "gates belong in the alpha, not in the
+  // branch condition" rule the /SCENT collider fix already paid for.
+  const genesisTick = stepRateGate(aw.genesisGate, stepFrameClock(aw.genesisClock, nowMs));
 
   if (aw.phase === 0 && elapsed < 4.0) {
     // Phase 0: Genesis cascade — inject energy cluster by cluster
@@ -34,8 +84,8 @@ export function stepAwakening(aw, nodes, frameCount, particles) {
         }
       }
     }
-    // Sparse genesis particles — every 10 frames, 15% chance per node
-    if (frameCount % 10 === 0) {
+    // Sparse genesis particles — every 10 authored frames, 15% chance per node
+    if (genesisTick) {
       for (const n of nodes) {
         if (n.energy > 0.2 && artRandom() < 0.15) {
           const col = NODE_COLORS[n.id];
