@@ -1382,7 +1382,10 @@ describe('the wire hum', () => {
     expect(g).toBe(humGain(mid, axis, 1.0, 1));
   });
 
-  it('at activity +Infinity, behaves exactly like activity 1 — no hum at all', () => {
+  it('at activity +Infinity, stays correct (already resolved to 1 in the old ternary)', () => {
+    // +Infinity > 1 was TRUE before the fix, so clamp01 already returned 1 — the
+    // correct end. This assertion verifies that behaviour is preserved, not that
+    // a bug was fixed. See -Infinity below for the case that WAS wrong.
     const mid = { x: 0.50, y: 0.10, z: 0.20 };
     const axis = humAxis(0);
     const g = humGain(mid, axis, 1.0, Infinity);

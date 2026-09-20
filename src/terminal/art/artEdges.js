@@ -536,10 +536,12 @@ export function humAxis(nowMs) {
  * Clamp to [0, 1]. Non-finite input (NaN, +/-Infinity, or anything else that
  * fails Number.isFinite) maps to 1, NOT 0 — see below.
  *
- * `x < 0 ? 0 : x > 1 ? 1 : x` is FALSE on both branches for NaN, so it falls
- * through and returns NaN unclamped. `activity` is `e.pulse`, a live mutable
- * field this module does not control (useKineticEdges.js), so that input
- * class has to be handled deliberately, not assumed away.
+ * Under the old code `x < 0 ? 0 : x > 1 ? 1 : x`, NaN fails both comparisons
+ * and falls through unclamped; -Infinity hits the first branch and returns 0
+ * (the wrong end for our chosen treatment); +Infinity hits the second branch
+ * and returns 1, which is already the correct end. `activity` is `e.pulse`, a
+ * live mutable field this module does not control (useKineticEdges.js), so
+ * that input class has to be handled deliberately, not assumed away.
  *
  * The two treatments are NOT interchangeable: in humGain, activity 0 means
  * full hum amplitude and activity 1 means none. Mapping corruption to 0
