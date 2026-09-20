@@ -215,10 +215,19 @@ export const PRISM_ALPHA_K = 0.85;         // the bundle's share of the envelope
 export const PRISM_ALPHA_FALLOFF = 0.07;   // per spectral line
 export const PRISM_OFFSET_MID = 3;         // k at which the offset is zero
 export const PRISM_OFFSET_STEP = 2.8;      // px per line, in x
-export const PRISM_END_OFF_Y = 0.6;        // the endpoints' y offset is 0.6x the x one
 export const PRISM_CP_PULL = 0.55;         // control point, toward the sphere centre
-export const PRISM_CP_OFF_X = 2;           // and then offset again, harder than the ends
-export const PRISM_CP_OFF_Y = 1.4;
+// The spectral offset lives HERE ALONE. The chord's endpoints sit on the node
+// centres, so the bundle fans from a point the way dispersion actually does —
+// it used to be seven parallel copies, maximally split at exactly the place
+// they should have been converged (a 17px comb across a 14-20px dot).
+//
+// These two numbers are not a taste change: a quadratic weights its control
+// point at 1/2 at t = 0.5, so the mid-chord offset is (end + 2*cp + end)/4.
+// Moving the ends' 1.0 and 0.6 into the control point means 2 -> 3 and
+// 1.4 -> 2.0, which leaves the mid-chord fan at exactly the 1.5x and 1.0x it
+// has always been. The bundle is the same width where the rainbow reads.
+export const PRISM_CP_OFF_X = 3;
+export const PRISM_CP_OFF_Y = 2.0;
 export const PRISM_SAT = 100;
 export const PRISM_GLOW_LIT = 65;
 export const PRISM_GLOW_ALPHA_K = 0.4;

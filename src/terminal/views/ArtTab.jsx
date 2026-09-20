@@ -96,7 +96,7 @@ import {
   ORTHO_ALPHA_BOOST, ORTHO_MID_ALPHA_BOOST,
   PULSE_ALPHA, PULSE_DRAW_CUTOFF,
   prismOffset, prismChordAlpha, prismGlowWidth, prismControl, prismSpokeHue,
-  PRISM_SPECTRAL_FINE, PRISM_SPECTRAL_COARSE, PRISM_HUE_STEP, PRISM_END_OFF_Y,
+  PRISM_SPECTRAL_FINE, PRISM_SPECTRAL_COARSE, PRISM_HUE_STEP,
   PRISM_SAT, PRISM_GLOW_LIT, PRISM_GLOW_ALPHA_K, PRISM_CORE_LIT, PRISM_CORE_W,
   PRISM_POLY_HUE_STEP, PRISM_POLY_LIT, PRISM_POLY_ALPHA_K, PRISM_POLY_W,
   PRISM_SPOKE_SAT, PRISM_SPOKE_LIT, PRISM_SPOKE_ALPHA_K, PRISM_SPOKE_W,
@@ -1776,8 +1776,13 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
                 // Control point pulled toward sphere center — creates interior arc
                 // illusion. From the UNSHIFTED midpoint; see prismControl().
                 prismControl(ctrl, pA.sx, pA.sy, pB.sx, pB.sy, cx, cy, offset);
-                const x0 = pA.sx + offset, y0 = pA.sy + offset * PRISM_END_OFF_Y;
-                const x1 = pB.sx + offset, y1 = pB.sy + offset * PRISM_END_OFF_Y;
+                // The chord terminates ON the node centre. Every spectral
+                // line's offset is in the control point (PRISM_CP_OFF_X/Y), so
+                // the bundle opens from a point and closes onto one — which is
+                // what dispersion looks like, and what the polygon and the
+                // spokes already did.
+                const x0 = pA.sx, y0 = pA.sy;
+                const x1 = pB.sx, y1 = pB.sy;
 
                 // Flattened ONCE and drawn twice: both passes are the same
                 // curve, so they share the point list and therefore land on

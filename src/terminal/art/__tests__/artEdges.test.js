@@ -16,6 +16,7 @@ import {
   RESONANCE_GOLD, RESONANCE_HALO_MID, RESONANCE_CORE_MID, RESONANCE_SHADOW_ALPHA,
   pulseRingRadius, pulsePosition, edgeStops, edgeLineWidth,
   prismOffset, prismChordAlpha, prismGlowWidth, prismControl, prismSpokeHue,
+  PRISM_CP_OFF_X, PRISM_CP_OFF_Y,
   PRISM_CORE_W, PRISM_MAX_NODES, PRISM_MAX_EFFECTS, PRISM_SPECTRAL_FINE,
   arcControl,
   filamentDepthFade, filamentAlpha, filamentHue, filamentGlowWidth,
@@ -787,16 +788,27 @@ describe('prism chord bundle', () => {
   });
 
   it('pulls the control point 55% toward the sphere centre, from the UNSHIFTED midpoint', () => {
-    // The draw loop takes midX/midY from pA.sx/pB.sx WITHOUT the spectral
-    // offset, then adds offset*2 and offset*1.4 to the result. Reproducing it
-    // from the shifted endpoints instead moves every chord by up to 8.4px.
+    // The chord's ENDPOINTS now sit on the node centres and the whole spectral
+    // offset lives in the control point, so the bundle fans from a point
+    // instead of arriving as a parallel comb. The mid-chord width is
+    // unchanged: a quadratic weights its control point at 1/2 at t = 0.5, so
+    // (0 + 2*3 + 0)/4 = 1.5 is exactly what (1 + 2*2 + 1)/4 used to give.
     //   mid (200,300), centre (760,450), offset 2.8
-    //   cpx = 200 + 560*0.55 + 5.6  = 513.6
-    //   cpy = 300 + 150*0.55 + 3.92 = 386.42
+    //   cpx = 200 + 560*0.55 + 2.8*3.0 = 516.4
+    //   cpy = 300 + 150*0.55 + 2.8*2.0 = 388.1
     const out = [0, 0];
     prismControl(out, 100, 200, 300, 400, 760, 450, 2.8);
-    expect(out[0]).toBeCloseTo(513.6, 10);
-    expect(out[1]).toBeCloseTo(386.42, 10);
+    expect(out[0]).toBeCloseTo(516.4, 10);
+    expect(out[1]).toBeCloseTo(388.1, 10);
+  });
+
+  it('preserves the mid-chord fan width now that the endpoints converge', () => {
+    // The mid-chord offset contribution of a quadratic is
+    // (endOff + 2*cpOff + endOff) / 4. Before: x (1 + 4 + 1)/4 = 1.5,
+    // y (0.6 + 2.8 + 0.6)/4 = 1.0. After, with the ends at zero, the control
+    // point alone must land on the same two numbers.
+    expect((0 + 2 * PRISM_CP_OFF_X + 0) / 4).toBeCloseTo(1.5, 10);
+    expect((0 + 2 * PRISM_CP_OFF_Y + 0) / 4).toBeCloseTo(1.0, 10);
   });
 
   it('takes the spoke hue from the node\'s bearing off centre, wrapped into [0,360)', () => {
