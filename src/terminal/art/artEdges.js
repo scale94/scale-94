@@ -505,10 +505,14 @@ export const CHIMERA_MAX_ZONES = 136;
 // artefact of a headless capture running at ~284 fps, not a property of the
 // app. 11000 was chosen purely because it reads as slower and more glacial
 // than 9000 — nothing more.
-// ── WHY 0.25 / 11000 WAS REPLACED BY 0.40 / 3500 ───────────────────────────
+// ── WHY 11000 BECAME 3500, AND WHY 0.25 CAME BACK ──────────────────────────
 //
 // The dated note above is kept because it is still the honest record of how
-// 0.25 / 11000 was chosen. It was superseded by looking.
+// 0.25 / 11000 was chosen. The RATE in it was superseded by looking. The
+// amplitude went 0.25 -> 0.40 -> 0.25 and ended where it started, which is not
+// the same as never having moved: 0.40 was what the author judged the carrier
+// against, and the walk back down is measured rather than reverted. Both
+// stories are below, rate first.
 //
 // THE HYPOTHESIS. The author reported the hum as imperceptible even with the
 // sphere held STATIC, which rules out rotational masking. Two measurements
@@ -539,16 +543,44 @@ export const CHIMERA_MAX_ZONES = 136;
 // problem and the carrier was the other half — which is what the glow shoulder
 // below exists to fix. Both halves ship together; neither works alone.
 //
-// AMPLITUDE IS THE ONE DIAL STILL UNWALKED. 0.40 was chosen when line alpha
-// was carrying the entire effect. It is a supporting actor now, and the
-// shoulder is what reads — so 0.40 is very likely too much and wants walking
-// back DOWN. It ships at 0.40 only because that is the exact pair the author
-// ruled socks/10 on, and moving it would invalidate that ruling rather than
-// refine it. `packAlphas` CLAMPS at 255 and a bright edge already reaches 1.41
-// before the hum, so raising it further makes the brightest edges DIP rather
-// than swell — flicker, not breath.
+// AMPLITUDE WAS WALKED BACK DOWN, 0.40 -> 0.25, ON MEASUREMENT.
+//
+// 0.40 was chosen while line alpha carried the entire effect. The glow
+// shoulder carries it now, so the question became how much the alpha still
+// contributes. Two instruments answer it, and only one of them can:
+//
+// THE BUFFER, which is deterministic. Rotation-matched against an
+// amplitude-0 control — the only comparison that works, because rotation moves
+// `depthFade` and therefore moves any alpha a trace samples — the hum's
+// modulation of mean a0 is 0.0038 at 0.15, 0.0064 at 0.25, 0.0102 at 0.40.
+// Per unit amplitude that is 0.0253 / 0.0256 / 0.0255: LINEAR, with no
+// saturation anywhere in the range. So 0.25 buys 62% of what 0.40 buys, and
+// nothing surprising happens between them.
+//
+// THE FRAME, which cannot resolve this. Ink swing across one pinned breath
+// reads 11.27% at amplitude 0 (the shoulder alone) against 15-17% with the
+// alpha, so the alpha is NOT redundant and is worth roughly a third of the
+// total. But two runs of the SAME build measured 15.28% and 16.51%, a
+// same-build floor of 1.23 points, which is most of the gap between 0.25 and
+// 0.40. Any claim that one of them is better by ink is noise with a number
+// attached — `artInk.mjs`'s own warning, paid for again here.
+//
+// So 0.25 is chosen on the linear buffer measurement plus the judgement that
+// the alpha is a supporting actor now, NOT on a frame-level difference that
+// this rig cannot see.
+//
+// A CORRECTION TO THE RECORD WHILE WALKING IT. The note this replaces said
+// `packAlphas` CLAMPS at 255 and a bright edge "already reaches 1.41 before the
+// hum", so a bigger amplitude would make the brightest edges DIP rather than
+// swell — flicker, not breath. MEASURED AT REST, that is not happening: maxA0
+// across the graph's edges is 0.761 at EVERY amplitude from 0.00 to 0.40,
+// nowhere near the packed clamp, and identical across the sweep because the
+// brightest edge is one with a live `e.pulse`, which `humGain` attenuates to
+// no hum at all by design. The clamp argument may still hold in a fired
+// cascade; it has not been measured there, and it is not a reason to keep the
+// amplitude low in the resting sphere.
 export const HUM = Object.freeze({
-  amplitude:    0.40,   // +/- fraction of baseAlpha; see AMPLITUDE above — likely too high
+  amplitude:    0.25,   // +/- fraction of baseAlpha; walked down from 0.40, see above
   wavenumber:   2.0,    // radians of phase per unit of world distance
   periodMs:     3500,   // one breath; 0.29 Hz, chosen by eye over 11000's 0.09
   axisPeriodMs: 97000,  // one turn of the cone, ~27.7 breaths at 3500
