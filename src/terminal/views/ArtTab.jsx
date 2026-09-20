@@ -3877,6 +3877,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           bgStateRef={bgStateRef}
           edgeGLRef={edgeGLRef}
           addGLRef={addGLRef}
+          strimerRef={strimerRef}
         />
 
         <SphereLabels ref={labelsApiRef} />

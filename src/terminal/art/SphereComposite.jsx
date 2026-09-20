@@ -35,6 +35,7 @@ import { createEdgeLayer, syncEdgeLayer, SRC_OVER_LAYER, ADDITIVE_LAYER } from '
 import { createTrail, renderTrailFade } from './SphereTrail';
 import { KneeEffect } from './SphereKnee';
 import { trailSurvival } from './artTrail';
+import SphereStrimer from './SphereStrimer';
 
 /**
  * How much of last frame's GL ink survives into this one.
@@ -476,7 +477,7 @@ function AdvanceBridge({ onAdvanceReady }) {
   return null;
 }
 
-export default function SphereComposite({ sourceRef, immersive, onAdvanceReady, bgStateRef, edgeGLRef, addGLRef }) {
+export default function SphereComposite({ sourceRef, immersive, onAdvanceReady, bgStateRef, edgeGLRef, addGLRef, strimerRef }) {
   const dpr = useRef(compositeDpr(typeof window !== 'undefined' ? window.devicePixelRatio : 1)).current;
   const wrapRef = useRef(null);
 
@@ -543,6 +544,10 @@ export default function SphereComposite({ sourceRef, immersive, onAdvanceReady, 
         <BackdropPass backdrop={backdrop} trail={trail} stateRef={bgStateRef}
           edgeStateRef={edgeGLRef} additiveStateRef={addGLRef} />
         <SourceQuad sourceRef={sourceRef} trail={trail} stateRef={bgStateRef} />
+        {/* The strimer. AFTER SourceQuad and BEFORE the composer: inside the
+            composer's input so it gets Bloom and Knee, and outside the trail
+            accumulator so it leaves zero residual. See SphereStrimer.jsx. */}
+        <SphereStrimer strimerRef={strimerRef} />
         <EffectComposer disableNormalPass>
           <Bloom
             luminanceThreshold={BLOOM.luminanceThreshold}
