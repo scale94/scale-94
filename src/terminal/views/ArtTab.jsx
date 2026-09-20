@@ -71,7 +71,7 @@ import { quadSegments, tessellateQuad, CURVE_MAX_SEGMENTS } from '../art/artCurv
 import {
   nodeEnergy, depthCueAlpha, resonanceDimmed, nodeRadius, coreAlpha,
   birthProgress, birthProject, bleedMix, spectralTint,
-  coreIsOpaque, coreColorSource,
+  coreIsOpaque, coreColorSource, lensStops,
   haloDraws, haloRadius, haloInnerRadius, haloAlpha, strokeAnnulus,
   chimeraSyncPulse, chimeraSyncAlpha, chimeraSyncRadius, CHIMERA_ALPHA_CUTOFF,
   chimeraFlickRate, chimeraFlickAlpha, chimeraFlickRadius, chimeraFlickHue,
@@ -1939,11 +1939,20 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           // spectral tint — both are the canvas's own behaviour, not a
           // simplification. coreIsOpaque() / coreColorSource() name them.
           const _hov = coreIsOpaque(isHov);
+          const _lensCol = coreColorSource(renderCol, _preTint, _hov);
+          const _lens = _hov ? null : lensStops(coreAlpha(energy, depthAlpha));
           writeDisc(eg.data, eg.count * EDGE_STRIDE, {
             cx: p.sx, cy: p.sy,
             rOuter: radius,
-            hsl: coreColorSource(renderCol, _preTint, _hov),
-            alpha: _hov ? 1 : coreAlpha(energy, depthAlpha),
+            hsl: _lensCol,
+            // A hovered core stays FLAT and opaque — see coreIsOpaque().
+            alpha: _hov ? 1 : _lens.center,
+            // The same colour in the mid stop, and outerK left at 0, so the
+            // three-stop machinery carries opacity alone. Omitting `mid`
+            // entirely on hover keeps that instance byte-identical to what it
+            // has always been.
+            mid: _lens ? { at: _lens.at, hsl: _lensCol, alpha: _lens.knee } : null,
+            outerAlpha: _lens ? _lens.rim : 0,
             flags: packFlags(0, 0, 0),
           });
           eg.count++;

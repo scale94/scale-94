@@ -14,6 +14,7 @@ import { describe, it, expect } from 'vitest';
 import {
   nodeEnergy, depthCueAlpha, resonanceDimmed, nodeRadius, coreAlpha, coreIsOpaque,
   coreColorSource,
+  lensStops, LENS_CENTER_K, LENS_KNEE, LENS_KNEE_K, LENS_RIM_K,
   birthEase, birthProgress, birthProject, bleedMix,
   spectralBlend, rgbHue, spectralTint,
   haloDraws, haloRadius, haloInnerRadius, haloAlpha,
@@ -852,5 +853,71 @@ describe('discShadowFit — a canvas shadow on a FILLED DISC', () => {
     // 0.37, not the moment-matched 0.25 — see the note above DISC_SHADOW_K.
     // Pinned so a future edit has to change it deliberately.
     expect(DISC_SHADOW_K).toBe(0.37);
+  });
+});
+
+describe('the lens — the node core as smoked glass', () => {
+  it('ramps alpha UPWARD from centre to rim', () => {
+    const s = lensStops(0.8);
+    expect(s.center).toBeLessThan(s.knee);
+    expect(s.knee).toBeLessThan(s.rim);
+  });
+
+  it('keeps the rim at the flat alpha it always had', () => {
+    // LENS_RIM_K is 1.0 on purpose: the node keeps its present silhouette and
+    // only its interior opens up. A rim below 1 dims the whole node, which is
+    // a different change wearing this one's name.
+    expect(LENS_RIM_K).toBe(1);
+    expect(lensStops(0.73).rim).toBeCloseTo(0.73, 12);
+  });
+
+  it('is LINEAR in the alpha it is handed, so depth and energy still ride through', () => {
+    const a = lensStops(1.0), b = lensStops(0.25);
+    expect(a.center).toBe(LENS_CENTER_K);
+    expect(a.knee).toBe(LENS_KNEE_K);
+    expect(b.center).toBeCloseTo(a.center * 0.25, 12);
+    expect(b.knee).toBeCloseTo(a.knee * 0.25, 12);
+    expect(b.rim).toBeCloseTo(a.rim * 0.25, 12);
+  });
+
+  it('puts the knee strictly inside the disc, which discEncodingInvariant requires', () => {
+    // writeDisc's `mid.at` must land in the OPEN interval (0,1): 0 is how "no
+    // mid stop" is spelled and >= 1 is a divide by ~zero in the shader's
+    // second span.
+    expect(lensStops(1).at).toBe(LENS_KNEE);
+    expect(LENS_KNEE).toBeGreaterThan(0);
+    expect(LENS_KNEE).toBeLessThan(1);
+  });
+
+  it('approximates 1 - u^2 between the stops to within a twentieth of the range', () => {
+    // The authored curve is alpha(u) = rim + (ctr - rim)(1 - u^2). Two linear
+    // spans cannot match it exactly and do not need to; this pins how far off
+    // the fit is so a later knee change cannot quietly become a shape change.
+    const s = lensStops(1);
+    const trueA = (u) => s.rim + (s.center - s.rim) * (1 - u * u);
+    const fit = (u) => (u < LENS_KNEE
+      ? s.center + (s.knee - s.center) * (u / LENS_KNEE)
+      : s.knee + (s.rim - s.knee) * ((u - LENS_KNEE) / (1 - LENS_KNEE)));
+    let worst = 0;
+    for (let u = 0; u <= 1.0001; u += 0.01) worst = Math.max(worst, Math.abs(fit(u) - trueA(u)));
+    expect(worst).toBeLessThan(Math.abs(s.rim - s.center) * 0.05);
+  });
+
+  it('writes a real lens instance that passes discEncodingInvariant with no violations', () => {
+    // Not arithmetic in isolation: this is the actual writeDisc call site's
+    // shape — same colour in c0 and the mid stop, outerK left at 0 — round
+    // tripped through the buffer discEncodingInvariant reads.
+    const state = createEdgeState(4);
+    const col = { hue: 210, sat: 60, lit: 55 };
+    const s = lensStops(0.8);
+    writeDisc(state.data, 0, {
+      cx: 40, cy: 60, rOuter: 10,
+      hsl: col,
+      alpha: s.center,
+      mid: { at: s.at, hsl: col, alpha: s.knee },
+      outerAlpha: s.rim,
+      flags: packFlags(0, 0, 0),
+    });
+    expect(discEncodingInvariant(state.data, 0)).toEqual([]);
   });
 });

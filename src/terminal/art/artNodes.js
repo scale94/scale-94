@@ -104,6 +104,65 @@ export function coreColorSource(renderCol, preTint, isHovered) {
   return isHovered ? preTint : renderCol;
 }
 
+// ── The lens ────────────────────────────────────────────────────────────────
+//
+// The core is drawn as a three-stop RADIAL ramp with RISING alpha: transparent
+// in the middle, today's opacity at the rim. It is smoked glass, not a window —
+// the halo underneath is deliberately untouched, so the interior fills with the
+// node's own light rather than with the network behind it.
+//
+// It costs no new float. The disc branch already carries a three-stop ramp
+// (DISC_OFF.midStop / midColor / outerK, and packAlphas' three alphas), built
+// in step 6 for the particle glow, whose stops DARKEN as they fade. This writes
+// the SAME COLOUR into all three stops and leaves outerK at 0, so `outer == mid
+// == c0` and only opacity moves. No hue shift, no darkening.
+//
+// A HOVERED core does not take this path at all: coreIsOpaque() still writes a
+// flat alpha of 1 from the pre-spectral colour. Glass at rest, solid under the
+// cursor — which is also what protects the click target.
+//
+// The authored curve is alpha(u) = rim + (centre - rim)(1 - u^2), fitted with
+// the two linear spans the encoding gives. LENS_KNEE is the shoulder control:
+// a broad smoked field sits lower, a tight bright rim higher. All four are
+// tuned on the render, not derived — SAVE for LENS_KNEE_K, which is pinned
+// close to the true curve's value at the knee (see the fit-tolerance test
+// below) rather than to eye. The plan text this was built from named 0.45 /
+// 0.62; that pair cannot pass its own "approximates 1 - u^2" test for ANY
+// LENS_KNEE_K — the closest achievable fit at LENS_KNEE = 0.45 still misses
+// the 5%-of-range tolerance by about 4%. 0.5 / 0.485 is the nearest point on
+// the knee/knee-alpha grid that clears the tolerance, found by search; it
+// reads the same qualitatively (a broad interior, not a tight one) and is
+// still very much "tune on the render" territory for LENS_KNEE specifically.
+
+/** Interior opacity, as a fraction of the flat alpha the core used to carry. */
+export const LENS_CENTER_K = 0.35;
+/** Where the shoulder sits across the radius, 0..1. Must stay in the OPEN
+ *  interval — `discEncodingInvariant` rejects 0 (which spells "no mid stop")
+ *  and anything at or past 1 (a divide by ~zero in the shader's second span). */
+export const LENS_KNEE = 0.5;
+/** Opacity at the knee. */
+export const LENS_KNEE_K = 0.485;
+/** Rim opacity. ONE, deliberately: the node keeps exactly the silhouette and
+ *  the edge presence it has today, and only its interior opens. Dropping this
+ *  below 1 dims the whole node, which is a different change. */
+export const LENS_RIM_K = 1;
+
+/**
+ * The lens's three stops for a core whose flat alpha would have been `alpha`.
+ *
+ * LINEAR in `alpha`, so `depthCueAlpha`, `resonanceDimmed` and the energy term
+ * all still ride through untouched — this reshapes the disc, it does not
+ * re-derive how bright the disc is.
+ */
+export function lensStops(alpha) {
+  return {
+    center: alpha * LENS_CENTER_K,
+    knee:   alpha * LENS_KNEE_K,
+    rim:    alpha * LENS_RIM_K,
+    at:     LENS_KNEE,
+  };
+}
+
 // ── Birth animation ─────────────────────────────────────────────────────────
 
 export const BIRTH_MS = 400;
