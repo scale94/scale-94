@@ -697,23 +697,31 @@ export function discEncodingInvariant(data, o) {
  * under 128, or the clamp eats it silently.
  */
 export function packFlags(dashPeriod, dashDuty, glow, isOrtho = false,
-                          glowQuant = GLOW_QUANT_SRC_OVER) {
+                          glowQuant = GLOW_QUANT_SRC_OVER, taper = false) {
   const p = Math.max(0, Math.min(255, Math.round(dashPeriod)));
-  const d = Math.max(0, Math.min(255, Math.round(dashDuty)));
+  // SEVEN bits, not eight: bit 7 of this byte now carries the terminal-taper
+  // flag, exactly as bit 7 of the glow byte carries isOrtho. Every dash duty
+  // in this codebase is <= 8 ([4,3] [8,4] [3,4] [5,4] [3,6] [3,5] [6,8]), so
+  // nothing loses range. The clamp is to 127 rather than 255 so a caller with
+  // an out-of-range duty cannot forge the flag.
+  const d = Math.max(0, Math.min(127, Math.round(dashDuty))) + (taper ? 128 : 0);
   const g = Math.max(0, Math.min(127, Math.round(glow * glowQuant))) + (isOrtho ? 128 : 0);
   return p + d * 256 + g * 65536;
 }
 
 /** The inverse of `packFlags`, mirroring exactly what `EDGE_VERT` unpacks
- *  (dashPeriod/dashDuty via mod/floor, glow's top bit split off as isOrtho,
- *  the rest divided by the material's `uGlowQuant`). Exported so
- *  `artEdges.test.js` cannot drift from the shader's arithmetic — see
- *  `EDGE_VERT` for the GLSL twin of this function. */
+ *  (dashPeriod via mod/floor, the duty byte's top bit split off as the taper
+ *  flag, glow's top bit split off as isOrtho, the rest divided by the
+ *  material's `uGlowQuant`). Exported so `artEdges.test.js` cannot drift from
+ *  the shader's arithmetic — see `EDGE_VERT` for the GLSL twin of this
+ *  function. */
 export function unpackFlags(packed, glowQuant = GLOW_QUANT_SRC_OVER) {
   const gByte = Math.floor(packed / 65536);
+  const dByte = Math.floor((packed / 256) % 256);
   return {
     dashPeriod: Math.floor(packed % 256),
-    dashDuty: Math.floor((packed / 256) % 256),
+    dashDuty: dByte % 128,
+    taper: dByte >= 128,
     isOrtho: gByte >= 128,
     glow: (gByte % 128) / glowQuant,
   };

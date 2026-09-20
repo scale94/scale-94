@@ -403,7 +403,10 @@ describe('packFlags / unpackFlags', () => {
   });
 
   it('stays exactly representable at the largest real payload it can carry', () => {
-    const p = packFlags(255, 255, 127 / 8, true);
+    // The duty byte is seven bits since the taper flag took its top bit (see
+    // "the taper bit" describe block below), so the largest duty is 127, not
+    // 255 -- reaching a full 0xff duty byte now takes duty=127 AND taper=true.
+    const p = packFlags(255, 127, 127 / 8, true, SRC_OVER_LAYER.glowQuant, true);
     expect(p).toBe(255 + 255 * 256 + 255 * 65536);
     expect(Math.fround(p)).toBe(p);
   });
@@ -1500,5 +1503,52 @@ describe('the breathing glow shoulder', () => {
     const mid = { x: 0.2, y: -0.3, z: 0.5 }, axis = humAxis(1234), ph = humPhase(1234);
     const w = humWave(mid, axis, ph);
     expect(humGain(mid, axis, ph)).toBeCloseTo(1 + HUM.amplitude * w, 12);
+  });
+});
+
+describe('the taper bit — bit 7 of the dash-duty byte', () => {
+  it('round-trips through pack/unpack', () => {
+    const p = packFlags(8, 4, 6, false, 8, true);
+    const u = unpackFlags(p, 8);
+    expect(u.taper).toBe(true);
+    expect(u.dashPeriod).toBe(8);
+    expect(u.dashDuty).toBe(4);
+    expect(u.glow).toBeCloseTo(6, 10);
+    expect(u.isOrtho).toBe(false);
+  });
+
+  it('defaults to false, so every existing call site packs the byte it always packed', () => {
+    expect(packFlags(8, 4, 6)).toBe(packFlags(8, 4, 6, false, 8, false));
+    expect(unpackFlags(packFlags(8, 4, 6), 8).taper).toBe(false);
+  });
+
+  it('is independent of the isOrtho bit in the glow byte', () => {
+    for (const ortho of [false, true]) {
+      for (const taper of [false, true]) {
+        const u = unpackFlags(packFlags(6, 8, 10, ortho, 8, taper), 8);
+        expect(u.isOrtho).toBe(ortho);
+        expect(u.taper).toBe(taper);
+        expect(u.dashDuty).toBe(8);
+      }
+    }
+  });
+
+  it('clamps the duty to 127 so a caller cannot forge the bit', () => {
+    // The duty byte was clamped to 255 when it held a whole byte. It now holds
+    // seven bits, and a duty of 200 setting the taper flag by accident is
+    // exactly the failure this clamp exists to prevent.
+    expect(unpackFlags(packFlags(0, 200, 0, false, 8, false), 8).taper).toBe(false);
+    expect(unpackFlags(packFlags(0, 200, 0, false, 8, false), 8).dashDuty).toBe(127);
+  });
+
+  it('covers every dash duty the codebase actually uses', () => {
+    // [4,3] [8,4] [3,4] [5,4] [3,6] [3,5] [6,8] -- the whole set is <= 8, which
+    // is what makes bit 7 free. If a new dash ever needs a duty above 127 this
+    // test is where it should fail.
+    for (const duty of [3, 4, 5, 6, 8]) {
+      const u = unpackFlags(packFlags(12, duty, 4, false, 8, true), 8);
+      expect(u.dashDuty).toBe(duty);
+      expect(u.taper).toBe(true);
+    }
   });
 });
