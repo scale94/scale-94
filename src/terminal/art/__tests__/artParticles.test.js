@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   createParticlePool, emitParticle, stepParticles,
   PARTICLE_DRAG, PARTICLE_HUE_BLEND, MAX_PARTICLES,
+  emitEdgeParticles, EDGE_PARTICLE_SPEED_K,
 } from '../artParticles.js';
 
 // ── The particle ECOLOGY is integrated on the clock, not on draws ────────────
@@ -150,5 +151,42 @@ describe('stepParticles — the same wall-clock window, at any refresh rate', ()
     const pool = createParticlePool();
     stepParticles(pool, 1);
     for (let i = 0; i < MAX_PARTICLES; i++) expect(pool.lifes[i]).toBe(0);
+  });
+});
+
+describe('edge particles have the range to cross their own edge', () => {
+  it('derives its launch speed from the drag, not from a literal', () => {
+    // Total displacement under geometric drag is v0 * sum(DRAG^k) =
+    // v0 / (1 - DRAG). To cover an edge of length L in the limit, v0 must be
+    // (1 - DRAG) * L. Anything else is a number someone typed.
+    expect(EDGE_PARTICLE_SPEED_K).toBeCloseTo(1 - PARTICLE_DRAG, 12);
+  });
+
+  it('actually traverses the edge it was emitted along', () => {
+    const pool = createParticlePool();
+    // A straight unit-length edge along +x, seeded at its A end.
+    emitEdgeParticles(pool, 0, 0, 0, 1, 0, 0, 10, 20, 1);
+    const i = 0;
+    pool.xs[i] = 0; pool.ys[i] = 0; pool.zs[i] = 0;
+    // emitEdgeParticles also draws this particle's maxLife from the shared
+    // artRandom() stream (60-130 frames). stepParticles freezes a particle's
+    // position once its life reaches that cap, and 60-130 frames is only
+    // 2.2-4.7 e-foldings of PARTICLE_DRAG — not enough to reach the asymptote
+    // this test is checking. Left coupled to the random draw, this assertion
+    // fails on roughly half of all runs (MEASURED). Pinning maxLife here tests
+    // the KINEMATICS this test is actually about, without depending on an
+    // absolute value the shared stream happens to return.
+    pool.maxLifes[i] = 1000;
+    for (let f = 0; f < 400; f++) stepParticles(pool, 1);
+    // Asymptotically 1.0; 400 frames is ~14 e-foldings, so within a whisker.
+    expect(pool.xs[i]).toBeGreaterThan(0.97);
+    expect(pool.xs[i]).toBeLessThan(1.03);
+  });
+
+  it('was travelling 5.5% of an edge before this — the regression this locks out', () => {
+    // The old coefficient. Kept as an explicit number rather than a comment so
+    // that a future 'tidy the magic numbers' pass cannot quietly restore it.
+    const OLD = 0.002;
+    expect(OLD / (1 - PARTICLE_DRAG)).toBeLessThan(0.06);
   });
 });

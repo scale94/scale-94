@@ -171,14 +171,34 @@ export function emitNodeBurst(pool, x, y, z, hue, hueTarget, count) {
 }
 
 // ── Edge stream — particles flowing along an edge ────────────────────────────
+
+/**
+ * An edge particle's launch speed, as a fraction of the edge vector.
+ *
+ * DERIVED, not chosen. Velocity decays geometrically, so total displacement is
+ * `v0 * sum(DRAG^k)` = `v0 / (1 - DRAG)`. Covering an edge of length L
+ * therefore needs `v0 = (1 - DRAG) * L`, which is what this is.
+ *
+ * It used to be 0.002, i.e. 5.5% of an edge. MEASURED: drag e-folds velocity in
+ * 27.8 authored frames against lifespans of 60-130, so an edge particle spent
+ * the overwhelming majority of its visible life motionless a few percent from
+ * where it was born. The flow layer was wired, seeded along the edge and aimed
+ * A to B with the hue blending from node A's colour to node B's — and it had
+ * never once arrived, so the blend never completed either.
+ *
+ * Written against PARTICLE_DRAG rather than as a literal so the two cannot
+ * drift: change the drag and the range follows it.
+ */
+export const EDGE_PARTICLE_SPEED_K = 1 - PARTICLE_DRAG;
+
 export function emitEdgeParticles(pool, ax, ay, az, bx, by, bz, hue, hueTarget, count) {
   for (let i = 0; i < count; i++) {
     const t = artRandom();
     emitParticle(pool,
       ax + (bx - ax) * t, ay + (by - ay) * t, az + (bz - az) * t,
-      (bx - ax) * 0.002 + (artRandom() - 0.5) * 0.0008,
-      (by - ay) * 0.002 + (artRandom() - 0.5) * 0.0008,
-      (bz - az) * 0.002 + (artRandom() - 0.5) * 0.0008,
+      (bx - ax) * EDGE_PARTICLE_SPEED_K + (artRandom() - 0.5) * 0.0008,
+      (by - ay) * EDGE_PARTICLE_SPEED_K + (artRandom() - 0.5) * 0.0008,
+      (bz - az) * EDGE_PARTICLE_SPEED_K + (artRandom() - 0.5) * 0.0008,
       hue, hueTarget,
       65 + artRandom() * 20,
       0.8 + artRandom() * 1.2,
