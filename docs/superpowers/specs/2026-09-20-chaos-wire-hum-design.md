@@ -184,11 +184,12 @@ change if the frames say otherwise.
 
 ## 8. What this owes, and what it defers
 
-**A re-base is owed.** This moves the frame, so `artCompare` will read it as a
-regression and it will BE one. The live reference is
-`baseline/art-sphere-phase2-bloom-dial-certified` at `d69ce75`. Once the dials
-are chosen: one capture, five sets, same drill as the bloom dial. Until then
-every parity number on this branch is meaningless and must not be quoted.
+**~~A re-base is owed.~~ DISCHARGED — see Amendment B.** The original text is
+kept because it is still the reason the debt existed: this moves the frame, so
+`artCompare` read it as a regression and it WAS one, against the live reference
+`baseline/art-sphere-phase2-bloom-dial-certified` at `d69ce75`. Parity numbers
+on this branch were meaningless until the new reference existed. They are not
+any more.
 
 **Deferred to C.** Travelling telemetry on event-adjacent edges. It needs the
 non-accumulating layer, so it is a genuinely larger piece of work, and it wants
@@ -246,3 +247,80 @@ which is the same class as the `breathPhase` bug: on a 360 Hz panel the sphere
 spins six times faster than a 60 fps design intent. `e.pulse` decays
 0.018/frame and is a third instance. None are fixed here; they belong with the
 breath-clock work.
+
+---
+
+## Amendment B — 2026-09-20, the re-base, discharged
+
+**The live reference for this branch is now**
+`baseline/art-sphere-phase3-hum-certified-a`, captured at `4af7cfa3` — the
+amplitude walk-down, which is the last commit that moves a pixel. All five sets
+carry that same `gitCommit` stamp and the working tree was clean throughout, so
+the reference is attributable; a set stamped `null`, or two sets stamped
+differently, would mean the tree moved mid-capture and the whole reference is
+void.
+
+### The step Task 5 did not list, and why it is not optional
+
+The plan said "capture five sets, compare them pairwise, expect 21/21
+ADMISSIBLE". Run exactly that and every pair reports **0/21 ADMISSIBLE**, with
+21/21 rows marked `no-null`. `artCompare` refuses to certify a cell whose set
+does not carry a **same-build null**, and it is right to: this is the branch
+where `immersive-off` once correlated 0.047 between two runs of ONE build — the
+score two unrelated pictures get — while every clock the harness recorded
+agreed to four decimal places. A reference that has not been shown to repeat
+makes every future comparison unfalsifiable, which is worse than having no
+reference at all.
+
+So the drill is three steps, not two:
+
+```bash
+# 1. five sets, each stamped
+BASELINE_COMMIT=$(git rev-parse HEAD) node scripts/artBaseline.mjs \
+  --out baseline/art-sphere-phase3-hum-certified-a        # and -b -c -d -e
+
+# 2. the same-build null, written INTO each set
+node scripts/artNull.mjs baseline/art-sphere-phase3-hum-certified-{a,b,c,d,e} \
+  --write baseline/art-sphere-phase3-hum-certified-a      # repeat per --write target
+
+# 3. only now does the pairwise matrix mean anything
+node scripts/artCompare.mjs baseline/art-sphere-phase3-hum-certified-a \
+                            baseline/art-sphere-phase3-hum-certified-b
+```
+
+### The numbers
+
+**Reproducibility** (`artNull`, luminance correlation at full resolution, worst
+off-diagonal pair per cell, 5 sets / 10 pairs): **21/21 cells reproducible at
+floor 0.95, worst 0.9784** — `laptop-1520x900@2x idle`. For scale, the phase-2
+reference certified at 0.9767, so this reference is marginally TIGHTER than the
+one it replaces, despite the frame now carrying a time-varying hum and a
+breathing halo. Five sets detect a 1-in-3 intermittent fault 86% of the time.
+
+**Stability** (`artCompare`, 32x18 signature, all ten pairs):
+
+| pair | result | worst cell mean |
+|---|---|---|
+| a-b | 21/21 ADMISSIBLE | 0.236 |
+| a-c | 21/21 ADMISSIBLE | 0.236 |
+| a-d | 21/21 ADMISSIBLE | 0.241 |
+| a-e | 21/21 ADMISSIBLE | 0.238 |
+| b-c | 21/21 ADMISSIBLE | 0.240 |
+| b-d | 21/21 ADMISSIBLE | 0.198 |
+| b-e | 21/21 ADMISSIBLE | 0.233 |
+| c-d | 21/21 ADMISSIBLE | 0.259 |
+| c-e | 21/21 ADMISSIBLE | 0.242 |
+| d-e | 21/21 ADMISSIBLE | 0.191 |
+
+**210 of 210 cells admissible. Worst cell in the whole matrix: 0.259 against a
+threshold of 4**, i.e. the reference is stable to about 6% of the gate. No cell
+was unstable, so there is nothing to decide about one — had there been, it
+would be named here rather than quietly accepted.
+
+### What this reference does NOT license
+
+It is a 60 fps picture, like every capture this repo takes: `determinism.mjs`
+virtualises the clock at exactly 1000/60. It therefore cannot see a
+refresh-rate bug, and `AUTO_SPIN` is still frame-counted on this branch by
+deliberate choice. 21/21 ADMISSIBLE proves the 60 fps frame did not move. It
+proves nothing about 360 Hz.
