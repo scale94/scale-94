@@ -505,11 +505,53 @@ export const CHIMERA_MAX_ZONES = 136;
 // artefact of a headless capture running at ~284 fps, not a property of the
 // app. 11000 was chosen purely because it reads as slower and more glacial
 // than 9000 — nothing more.
+// ── WHY 0.25 / 11000 WAS REPLACED BY 0.40 / 3500 ───────────────────────────
+//
+// The dated note above is kept because it is still the honest record of how
+// 0.25 / 11000 was chosen. It was superseded by looking.
+//
+// THE HYPOTHESIS. The author reported the hum as imperceptible even with the
+// sphere held STATIC, which rules out rotational masking. Two measurements
+// then ruled out the other obvious causes:
+//
+//   - It is NOT a global dimmer. The per-edge gain spread at K = 2 is already
+//     85-100% of the full swing at every point in the precession — some edges
+//     sit at peak while others sit at trough. Raising K to 10 measures the
+//     same, so wavenumber is not the lever.
+//   - It IS reaching the render. Rotation-matched frame diffs put ~37,000
+//     pixels beyond 2 levels and ~2,400-4,400 beyond 8.
+//
+// What is left is the PERCEPTUAL corner this lands in. A dormant edge is
+// `(0.5 + maxEnergy * 0.8) * avgScale` wide — roughly 0.55 to 1.15 px, a
+// sub-pixel dim line — and 11000 ms is 0.09 Hz, which is essentially DC.
+// Temporal contrast sensitivity is at its floor there and spatial sensitivity
+// falls off steeply for structures this thin. The effect modulates the least
+// perceptible attribute of the least perceptible carrier at the least
+// perceptible rate.
+//
+// 3500 ms is 0.29 Hz, toward a band the eye actually resolves, and it is a
+// human breathing rate (3-5 s) rather than the "glacial" the design asked for
+// — a word chosen at design time and never measured against anything.
+//
+// THE VERDICT, from the author looking at it: at 3500 / 0.40 the hum IS
+// pulsing and visible, "but blink-and-you-miss-it, because the wire is too
+// thin to carry it against the node bloom and grain." So the rate was HALF the
+// problem and the carrier was the other half — which is what the glow shoulder
+// below exists to fix. Both halves ship together; neither works alone.
+//
+// AMPLITUDE IS THE ONE DIAL STILL UNWALKED. 0.40 was chosen when line alpha
+// was carrying the entire effect. It is a supporting actor now, and the
+// shoulder is what reads — so 0.40 is very likely too much and wants walking
+// back DOWN. It ships at 0.40 only because that is the exact pair the author
+// ruled socks/10 on, and moving it would invalidate that ruling rather than
+// refine it. `packAlphas` CLAMPS at 255 and a bright edge already reaches 1.41
+// before the hum, so raising it further makes the brightest edges DIP rather
+// than swell — flicker, not breath.
 export const HUM = Object.freeze({
-  amplitude:    0.25,   // +/- fraction of baseAlpha
+  amplitude:    0.40,   // +/- fraction of baseAlpha; see AMPLITUDE above — likely too high
   wavenumber:   2.0,    // radians of phase per unit of world distance
-  periodMs:     11000,  // one breath
-  axisPeriodMs: 97000,  // one turn of the cone, ~8.8 breaths
+  periodMs:     3500,   // one breath; 0.29 Hz, chosen by eye over 11000's 0.09
+  axisPeriodMs: 97000,  // one turn of the cone, ~27.7 breaths at 3500
   axisTilt:     1.05,   // radians off +Y; ~60 deg, neither polar nor equatorial
 });
 
