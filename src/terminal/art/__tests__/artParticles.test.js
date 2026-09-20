@@ -226,17 +226,16 @@ describe('particle arrival — an exponential approach, not a spring', () => {
     // times must still equal one step of six.
     const whole = seed(0.5); stepParticles(whole, 6);
     const split = seed(0.5); for (let i = 0; i < 6; i++) stepParticles(split, 1);
-    // Precision 6, not 9: xs is a Float32Array, and this path rounds to f32 on
+    // Precision 7, not 9: xs is a Float32Array, and this path rounds to f32 on
     // every one of the 6 sub-steps against 1 rounding for the whole step. In
     // double precision the two forms agree to 1e-17 (MEASURED) -- the law
-    // composes exactly. At precision 9 (5e-10 absolute) that per-step f32
-    // rounding alone fails the assertion on a CORRECT implementation; the
-    // actual bug this test exists to catch (strength outside the exponent)
-    // diverges by ~1.4e-3, five orders of magnitude past this tolerance, so
-    // precision 6 still catches it with room to spare. Same convention as the
-    // pre-existing cross-rate position composition tests in this file
-    // (precision 5-7, see above).
-    expect(split.xs[0]).toBeCloseTo(whole.xs[0], 6);
+    // composes exactly. One float32 ULP at this position is 3.725e-9; precision 7
+    // yields tolerance 5e-8 (13.4x that noise floor, stable). Precision 9 (5e-10)
+    // is tighter than one ULP and fails on correct implementations. The actual bug
+    // this test exists to catch (strength outside the exponent) diverges by 1.441e-3
+    // (29,000x the precision-7 tolerance), so discrimination is unaffected. Same
+    // convention as the structurally identical position-composition test at line 129.
+    expect(split.xs[0]).toBeCloseTo(whole.xs[0], 7);
   });
 
   it('approaches the target and never overshoots it', () => {
