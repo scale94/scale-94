@@ -2130,8 +2130,14 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         // ARRIVALS. This is the +0.6 that used to fire instantly inside
         // fireNode for every neighbour at once; it now lands when the packet
         // that was sent to that neighbour actually gets there.
+        //
+        // Reads arrivedDst — the destination NODE ID — not a slot index.
+        // stepStrimer compacts the pool in the same call that records
+        // arrivals, which renumbers slots after the first one it retires; a
+        // slot index read back here, after compaction, can name a different,
+        // still-travelling packet. See stepStrimer's doc comment.
         for (let k = 0; k < sp.arrivedCount; k++) {
-          const nb = nodes.find(n => n.id === sp.dstId[sp.arrived[k]]);
+          const nb = nodes.find(n => n.id === sp.arrivedDst[k]);
           if (nb) nb.energy = Math.min(1, nb.energy + 0.6);
         }
 

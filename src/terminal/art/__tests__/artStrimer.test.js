@@ -11,7 +11,7 @@ import { describe, it, expect } from 'vitest';
 import {
   easeOutCubic, packetDuration, packetProfile, srgbToLinear01, hslToLinearRgb,
   createStrimerState, spawnStrimer, stepStrimer,
-  STRIMER_MAX_PACKETS, STRIMER_STRIDE, PING_MS,
+  STRIMER_MAX_PACKETS, STRIMER_STRIDE, PING_MS, PHASE_PING,
   DURATION_MIN_MS, DURATION_MAX_MS,
 } from '../artStrimer';
 
@@ -206,7 +206,7 @@ describe('stepStrimer', () => {
     expect(s.arrivedCount).toBe(0);
     stepStrimer(s, d + 1);
     expect(s.arrivedCount).toBe(1);
-    expect(s.dstId[s.arrived[0]]).toBe('b');
+    expect(s.arrivedDst[0]).toBe('b');
     stepStrimer(s, d + 2);
     expect(s.arrivedCount).toBe(0);
   });
@@ -239,6 +239,49 @@ describe('stepStrimer', () => {
     const after = s.ping[0];
     stepStrimer(s, d + 1 + PING_MS * 0.25);
     expect(s.ping[0]).toBe(after);
+  });
+
+  it('FINDING 1 regression: an arrival reports the DESTINATION, immune to the same-call compaction', () => {
+    // The exact failure shape from the whole-branch review: a dead slot
+    // ordered BEFORE an arriving slot, with a live travelling slot after it.
+    // stepStrimer both records arrivals AND compacts the pool in the same
+    // call, renumbering every slot after the first one it removes. If
+    // arrivals were reported as pre-compaction slot indices (the old
+    // behaviour), the caller reading them back after stepStrimer returns
+    // would resolve the WRONG destination once compaction has shifted a
+    // later, still-travelling packet down into the arrived packet's old slot.
+    const s = createStrimerState();
+    const colour = { hue: 200, sat: 90, lit: 60 };
+    spawnStrimer(s, {
+      srcId: 'src', nowMs: 0, colour,
+      targets: [
+        { dstId: 'A', worldLen: 0.001 }, // dies first — clamps to the floor
+        { dstId: 'B', worldLen: 0.5 },   // arrives second, mid-band
+        { dstId: 'C', worldLen: 0.9 },   // still travelling — clamps to the ceiling
+      ],
+    });
+    const durA = s.dur[0], durB = s.dur[1], durC = s.dur[2];
+    expect(durA).toBe(DURATION_MIN_MS);
+    expect(durC).toBe(DURATION_MAX_MS);
+
+    // Step 1: A arrives and starts its ping. B and C are still travelling.
+    const t1 = durA + 1;
+    stepStrimer(s, t1);
+    expect(s.count).toBe(3);
+    expect(s.phase[0]).toBe(PHASE_PING);
+
+    // Step 2, the critical one: A's ping has run out — it dies AND gets
+    // compacted away in THIS call — while B arrives in this SAME call, and C
+    // is still travelling (never reaches slot 0 in this scenario, but its
+    // presence after B is what shifts down into B's old slot on compaction).
+    const pingEnd = t1 + PING_MS;
+    const t2 = Math.max(pingEnd + 1, durB + 1);
+    expect(t2).toBeLessThan(durC); // otherwise this scenario tests nothing
+    stepStrimer(s, t2);
+
+    expect(s.arrivedCount).toBe(1);
+    expect(s.arrivedDst[0]).toBe('B'); // NOT 'C' — that is the compaction bug
+    expect(s.count).toBe(2);           // A retired, B and C remain
   });
 
   it('survives head == tail without producing NaN', () => {

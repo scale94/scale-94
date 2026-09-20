@@ -196,9 +196,14 @@ export function createStrimerState(cap = STRIMER_MAX_PACKETS) {
     ping: new Float32Array(cap),
     // Absolute ms at which that ping dies. The clock, not a countdown.
     pingEnd: new Float64Array(cap),
-    // Arrivals this step, as slot indices. Preallocated and reused; the
-    // caller reads state.arrived[0 .. arrivedCount-1] and must not hold it.
-    arrived: new Int32Array(cap),
+    // Arrivals this step, as the ARRIVED PACKET'S DESTINATION NODE ID —
+    // deliberately not a slot index. stepStrimer compacts the pool in this
+    // same call, right after recording arrivals, which renumbers every slot
+    // after the first dead one; a recorded index read back afterward can
+    // point at a different, still-travelling packet. Preallocated and
+    // reused; the caller reads state.arrivedDst[0 .. arrivedCount-1] and
+    // must not hold it.
+    arrivedDst: new Array(cap).fill(null),
     arrivedCount: 0,
     data: new Float32Array(cap * 2 * STRIMER_STRIDE),
     instances: 0,
@@ -272,9 +277,14 @@ export function spawnStrimer(state, { srcId, targets, nowMs, colour }) {
  * determinism.mjs virtualises performance.now() and advances it by exactly
  * FRAME_MS per __pump.
  *
- * Arrivals land in state.arrived[0 .. arrivedCount-1] as slot indices, ONCE.
- * The caller delivers the target's energy bump from there — see the design's
- * section 6 for why that bump moved off fireNode.
+ * Arrivals land in state.arrivedDst[0 .. arrivedCount-1] as DESTINATION NODE
+ * IDS, ONCE. Not slot indices: this same function compacts the pool below,
+ * renumbering slots after the first one it removes, so an index recorded
+ * before compaction and read after it can name the wrong packet — the
+ * arrival bump would then land on a node that has not arrived (and get
+ * bumped again on its own arrival) while the node that actually arrived gets
+ * nothing. The caller delivers the target's energy bump from arrivedDst —
+ * see the design's section 6 for why that bump moved off fireNode.
  */
 export function stepStrimer(state, nowMs) {
   state.arrivedCount = 0;
@@ -286,7 +296,7 @@ export function stepStrimer(state, nowMs) {
         state.phase[i] = PHASE_PING;
         state.pingEnd[i] = nowMs + PING_MS;
         state.ping[i] = 1;
-        state.arrived[state.arrivedCount++] = i;
+        state.arrivedDst[state.arrivedCount++] = state.dstId[i];
       } else {
         state.u[i] = easeOutCubic(t);
       }
