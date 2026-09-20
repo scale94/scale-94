@@ -1,0 +1,286 @@
+{
+  "capturedAt": "2026-08-06T09:31:05.165Z",
+  "gitCommit": "9f6cc71",
+  "url": "http://localhost:5174/",
+  "renderer": "headless chrome --headless=new --enable-unsafe-swiftshader (software GL)",
+  "deterministic": true,
+  "note": "draw cost is main-thread work inside the rAF callback, in ms. Frame INTERVAL is not measured here: headless software GL runs rAF unthrottled, so interval is meaningless. See artFrameTime.mjs.",
+  "scales": {
+    "laptop-1520x900@1x": {
+      "bootFingerprint": "a55d97aa",
+      "viewport": {
+        "width": 1520,
+        "height": 900,
+        "dpr": 1
+      },
+      "sphereCss": {
+        "w": 1446,
+        "h": 580
+      },
+      "sphereBackingStore": {
+        "w": 1446,
+        "h": 580
+      },
+      "hoveredNode": "atmospheric",
+      "shots": {
+        "idle": {
+          "file": "baseline/art-sphere-2d/laptop-1520x900@1x__idle.png",
+          "canvasHash": "98b6f5f4"
+        },
+        "hover": {
+          "file": "baseline/art-sphere-2d/laptop-1520x900@1x__hover.png",
+          "canvasHash": "6d76ee50"
+        },
+        "mid-drag": {
+          "file": "baseline/art-sphere-2d/laptop-1520x900@1x__mid-drag.png",
+          "canvasHash": "7aaecad9"
+        },
+        "fired-cascade": {
+          "file": "baseline/art-sphere-2d/laptop-1520x900@1x__fired-cascade.png",
+          "canvasHash": "dc00ef3f"
+        },
+        "resonance": {
+          "file": "baseline/art-sphere-2d/laptop-1520x900@1x__resonance.png",
+          "canvasHash": "8a7d9dd3"
+        },
+        "immersive-on": {
+          "file": "baseline/art-sphere-2d/laptop-1520x900@1x__immersive-on.png",
+          "canvasHash": "f45a0513"
+        },
+        "immersive-off": {
+          "file": "baseline/art-sphere-2d/laptop-1520x900@1x__immersive-off.png",
+          "canvasHash": "d5b63165"
+        }
+      },
+      "drawCostMs": {
+        "idle": {
+          "n": 600,
+          "mean": 3.49,
+          "p50": 1,
+          "p95": 11.3,
+          "p99": 128,
+          "max": 359.1
+        },
+        "drag": {
+          "n": 600,
+          "mean": 4.309,
+          "p50": 1.3,
+          "p95": 13.6,
+          "p99": 80,
+          "max": 161
+        },
+        "immersive": {
+          "n": 600,
+          "mean": 2.579,
+          "p50": 1.3,
+          "p95": 12.3,
+          "p99": 22.2,
+          "max": 25.7
+        }
+      },
+      "allRafCallbacksIdle": {
+        "draw": {
+          "n": 600,
+          "mean": 3.49,
+          "p50": 1,
+          "p95": 11.3,
+          "p99": 128,
+          "max": 359.1
+        },
+        "frame": {
+          "n": 1200,
+          "mean": 0.018,
+          "p50": 0,
+          "p95": 0.1,
+          "p99": 0.1,
+          "max": 0.2
+        }
+      },
+      "consoleErrors": []
+    },
+    "laptop-1520x900@2x": {
+      "bootFingerprint": "6ceec6c4",
+      "viewport": {
+        "width": 1520,
+        "height": 900,
+        "dpr": 2
+      },
+      "sphereCss": {
+        "w": 1446,
+        "h": 580
+      },
+      "sphereBackingStore": {
+        "w": 2169,
+        "h": 870
+      },
+      "hoveredNode": "atmospheric",
+      "shots": {
+        "idle": {
+          "file": "baseline/art-sphere-2d/laptop-1520x900@2x__idle.png",
+          "canvasHash": "49f8c6ce"
+        },
+        "hover": {
+          "file": "baseline/art-sphere-2d/laptop-1520x900@2x__hover.png",
+          "canvasHash": "8b9dc0a"
+        },
+        "mid-drag": {
+          "file": "baseline/art-sphere-2d/laptop-1520x900@2x__mid-drag.png",
+          "canvasHash": "5658d5d7"
+        },
+        "fired-cascade": {
+          "file": "baseline/art-sphere-2d/laptop-1520x900@2x__fired-cascade.png",
+          "canvasHash": "d989146e"
+        },
+        "resonance": {
+          "file": "baseline/art-sphere-2d/laptop-1520x900@2x__resonance.png",
+          "canvasHash": "5bc411a5"
+        },
+        "immersive-on": {
+          "file": "baseline/art-sphere-2d/laptop-1520x900@2x__immersive-on.png",
+          "canvasHash": "792cb5c4"
+        },
+        "immersive-off": {
+          "file": "baseline/art-sphere-2d/laptop-1520x900@2x__immersive-off.png",
+          "canvasHash": "6e1372df"
+        }
+      },
+      "drawCostMs": {
+        "idle": {
+          "n": 600,
+          "mean": 4.819,
+          "p50": 1,
+          "p95": 11.2,
+          "p99": 234.9,
+          "max": 522.6
+        },
+        "drag": {
+          "n": 600,
+          "mean": 5.533,
+          "p50": 1.1,
+          "p95": 12.6,
+          "p99": 124.7,
+          "max": 280.2
+        },
+        "immersive": {
+          "n": 600,
+          "mean": 2.751,
+          "p50": 1.4,
+          "p95": 12.3,
+          "p99": 22,
+          "max": 30.1
+        }
+      },
+      "allRafCallbacksIdle": {
+        "draw": {
+          "n": 600,
+          "mean": 4.819,
+          "p50": 1,
+          "p95": 11.2,
+          "p99": 234.9,
+          "max": 522.6
+        },
+        "frame": {
+          "n": 1200,
+          "mean": 0.018,
+          "p50": 0,
+          "p95": 0.1,
+          "p99": 0.1,
+          "max": 0.2
+        }
+      },
+      "consoleErrors": []
+    },
+    "projector-1920x1080@1x": {
+      "bootFingerprint": "404ea0c2",
+      "viewport": {
+        "width": 1920,
+        "height": 1080,
+        "dpr": 1
+      },
+      "sphereCss": {
+        "w": 1800,
+        "h": 580
+      },
+      "sphereBackingStore": {
+        "w": 1800,
+        "h": 580
+      },
+      "hoveredNode": "soma_plus",
+      "shots": {
+        "idle": {
+          "file": "baseline/art-sphere-2d/projector-1920x1080@1x__idle.png",
+          "canvasHash": "6b342f55"
+        },
+        "hover": {
+          "file": "baseline/art-sphere-2d/projector-1920x1080@1x__hover.png",
+          "canvasHash": "86b89414"
+        },
+        "mid-drag": {
+          "file": "baseline/art-sphere-2d/projector-1920x1080@1x__mid-drag.png",
+          "canvasHash": "9ebd24fe"
+        },
+        "fired-cascade": {
+          "file": "baseline/art-sphere-2d/projector-1920x1080@1x__fired-cascade.png",
+          "canvasHash": "c68b4b46"
+        },
+        "resonance": {
+          "file": "baseline/art-sphere-2d/projector-1920x1080@1x__resonance.png",
+          "canvasHash": "7f7d2366"
+        },
+        "immersive-on": {
+          "file": "baseline/art-sphere-2d/projector-1920x1080@1x__immersive-on.png",
+          "canvasHash": "a5cb9ac2"
+        },
+        "immersive-off": {
+          "file": "baseline/art-sphere-2d/projector-1920x1080@1x__immersive-off.png",
+          "canvasHash": "14407f07"
+        }
+      },
+      "drawCostMs": {
+        "idle": {
+          "n": 600,
+          "mean": 3.378,
+          "p50": 1,
+          "p95": 11.1,
+          "p99": 133.9,
+          "max": 290.3
+        },
+        "drag": {
+          "n": 600,
+          "mean": 4.52,
+          "p50": 1.2,
+          "p95": 13.9,
+          "p99": 64.1,
+          "max": 170
+        },
+        "immersive": {
+          "n": 600,
+          "mean": 2.725,
+          "p50": 1.4,
+          "p95": 12.6,
+          "p99": 23.2,
+          "max": 28.1
+        }
+      },
+      "allRafCallbacksIdle": {
+        "draw": {
+          "n": 600,
+          "mean": 3.378,
+          "p50": 1,
+          "p95": 11.1,
+          "p99": 133.9,
+          "max": 290.3
+        },
+        "frame": {
+          "n": 1200,
+          "mean": 0.018,
+          "p50": 0,
+          "p95": 0.1,
+          "p99": 0.1,
+          "max": 0.2
+        }
+      },
+      "consoleErrors": []
+    }
+  }
+}

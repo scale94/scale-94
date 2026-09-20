@@ -13,6 +13,12 @@
 
 import { useRef, useCallback } from 'react';
 
+import { artRandom, artRandomState, __streamProbe } from '../art/artRandom.js';
+
+// The artRandom stream offset at the entry of every initState call this page
+// has made. DEV only; see the push site. ArtTab publishes it as
+// window.__artInitLog.
+export const __initStateLog = [];
 const DT   = 0.45;
 const DRAG = 0.86;
 
@@ -71,22 +77,41 @@ export function useSomaGraph({ nodes, adj, modulationRef, initialPositionsRef })
   const stateRef = useRef(null);
 
   const initState = useCallback(() => {
+    // DEV-ONLY INSTRUMENT, and it costs nothing the world can see: one array
+    // push, no draw taken. `initState` re-scatters all 31 nodes from 124
+    // artRandom draws and the ResizeObserver calls it on EVERY resize, so the
+    // graph the capture measures depends on how many times that observer fired
+    // and at what stream offset — neither of which anything has ever recorded.
+    // `import.meta.env.DEV` is statically false in a production build, so the
+    // bundler removes this. Capped so a long-running dev tab cannot grow it
+    // without bound.
+    if (import.meta.env.DEV && __initStateLog.length < 4096) {
+      __initStateLog.push({
+        rng: artRandomState(),
+        renders: __streamProbe.renders,
+        // WHICH call site. The ResizeObserver is not the only caller — the RAF
+        // draw effect opens with initState() too — and a count alone cannot
+        // tell two callers apart.
+        via: (new Error().stack || '').split(String.fromCharCode(10)).slice(2, 5)
+          .map(l => l.trim().replace(/^at\s+/, '').replace(/\?t=\d+/, '')).join(' <- ').slice(0, 220),
+      });
+    }
     const saved = initialPositionsRef?.current;  // Float32Array(31*3) or null
     const simNodes = nodes.map((n, i) => {
       let nx, ny, nz;
 
       if (saved && saved.length >= (i + 1) * 3) {
         // Temporal archaeology: restore from previous session with slight jitter
-        const jit = () => (Math.random() - 0.5) * 0.03;
+        const jit = () => (artRandom() - 0.5) * 0.03;
         [nx, ny, nz] = norm3(saved[i * 3] + jit(), saved[i * 3 + 1] + jit(), saved[i * 3 + 2] + jit());
       } else {
         const a = CLUSTER_ANCHORS[n.cluster] ?? CLUSTER_ANCHORS.drk;
 
         // Scatter node near its cluster anchor on the sphere surface
         // by applying a small random tangential offset then re-normalizing
-        const tx = (Math.random() - 0.5);
-        const ty = (Math.random() - 0.5);
-        const tz = (Math.random() - 0.5);
+        const tx = (artRandom() - 0.5);
+        const ty = (artRandom() - 0.5);
+        const tz = (artRandom() - 0.5);
         // Remove radial component of the perturbation
         const dot = tx * a.x + ty * a.y + tz * a.z;
         const px  = tx - dot * a.x;
@@ -105,7 +130,7 @@ export function useSomaGraph({ nodes, adj, modulationRef, initialPositionsRef })
         ...n,
         x: nx, y: ny, z: nz,   // unit sphere position
         vx: 0, vy: 0, vz: 0,
-        energy: Math.random() * 0.25,
+        energy: artRandom() * 0.25,
         bleedFrom:   null,
         bleedAmount: 0,
       };
@@ -180,7 +205,7 @@ export function useSomaGraph({ nodes, adj, modulationRef, initialPositionsRef })
       // Energy decay + ambient flicker — visitor idle cooling (channel 2) accelerates decay
       const decayRate = mod ? 0.0035 * (1 + (mod[2] || 0) * 2.0) : 0.0035;
       n.energy = Math.max(0, n.energy - decayRate);
-      if (Math.random() < 0.0025) n.energy = Math.min(1, n.energy + 0.28);
+      if (artRandom() < 0.0025) n.energy = Math.min(1, n.energy + 0.28);
 
       // Overwrite bleed decay
       if (n.bleedAmount > 0) {
@@ -190,14 +215,27 @@ export function useSomaGraph({ nodes, adj, modulationRef, initialPositionsRef })
     }
   }, [nodes, adj, modulationRef]);
 
-  const fireNode = useCallback((id) => {
+  /**
+   * Fire a node: its own energy to 1, and by default its neighbours to +0.6.
+   *
+   * `neighbours` is false ONLY where a strimer will deliver those bumps on
+   * arrival instead — see the design's section 6. It defaults to true so every
+   * existing caller and every existing test is unmoved, including the ambient
+   * awakening fires, whose behaviour must not change.
+   *
+   * The pairing is the invariant worth protecting: a caller that suppresses
+   * the bump without spawning a wavefront silently stops the graph
+   * propagating. ArtTab keeps both on one flag for exactly that reason.
+   */
+  const fireNode = useCallback((id, { neighbours = true } = {}) => {
     const s = stateRef.current;
     if (!s) return;
     const n = s.nodes.find(x => x.id === id);
     if (!n) return;
     n.energy = 1;
-    const neighbours = adj[id] ?? [];
-    for (const adjId of neighbours) {
+    if (!neighbours) return;
+    const adjacent = adj[id] ?? [];
+    for (const adjId of adjacent) {
       const m = s.nodes.find(x => x.id === adjId);
       if (m) m.energy = Math.min(1, m.energy + 0.6);
     }
@@ -257,11 +295,11 @@ export function useSomaGraph({ nodes, adj, modulationRef, initialPositionsRef })
       if ((degreeMap[n.id] ?? 0) < threshold) continue;
 
       // ±2.5% stochastic position jitter — simulates tensor drift at bifurcation
-      const jitter = () => (Math.random() - 0.5) * 0.05;
+      const jitter = () => (artRandom() - 0.5) * 0.05;
       const [cx, cy, cz] = norm3(n.x + jitter(), n.y + jitter(), n.z + jitter());
 
       // Unique child ID: parent ID + 4-char random suffix
-      const childId = `${n.id}_b${Math.random().toString(36).slice(2, 6)}`;
+      const childId = `${n.id}_b${artRandom().toString(36).slice(2, 6)}`;
 
       sn.push({
         ...n,                          // inherit label/alias/cluster from parent

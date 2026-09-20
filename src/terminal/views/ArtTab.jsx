@@ -16,7 +16,7 @@ import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react'
 import { Maximize, Minimize, Radio, Clock, Wifi, Circle } from 'lucide-react';
 import CascadeIcon from '../components/CascadeIcon';
 import { lerpColor, hslAlpha } from '../data/kernelColorMap';
-import { useSomaGraph, CLUSTER_ANCHORS } from '../hooks/useSomaGraph';
+import { useSomaGraph, CLUSTER_ANCHORS, __initStateLog } from '../hooks/useSomaGraph';
 import { useKineticEdges }                from '../hooks/useKineticEdges';
 import { useAssociativeField }            from '../hooks/useAssociativeField';
 import { useTemporalMemory }              from '../hooks/useTemporalMemory';
@@ -31,6 +31,12 @@ import {
   cosineSim, topDrivers, analyzeEdge, findOrthogonalNode,
   compareNodes, jitterFeatures,
 } from '../data/nodeFeatures';
+import { artRandom, seedArtRandom, artRandomState, __streamProbe, ART_SEED } from '../art/artRandom.js';
+import {
+  particleAlpha, particleVisible, particleSize, particleGlowRadius,
+  particleInFront, quantHue, quantAlpha,
+  GLOW_STOPS, CORE_LIGHTNESS, CORE_ALPHA_SCALE, GLOW_OUTER_K, discInkCorrection,
+} from '../art/artParticleDraw.js';
 import { somaPresence } from '../net/SomaPresence';
 import { ecoDataFeed } from '../data/EcoDataFeed';
 import { ecocideBus } from './EcocideTab';
@@ -44,16 +50,77 @@ import {
   createParticlePool, emitParticle, stepParticles,
   emitIdleParticles, emitNodeBurst, emitEdgeParticles,
 } from '../art/artParticles';
-import { buildRotMatrix, applyM, project } from '../art/artMath';
+import {
+  buildRotMatrix, applyM, project, normalCanvasHeight, inkScale,
+} from '../art/artMath';
 import { createBeatClock } from '../art/artBeatClock';
 import { clusterLabelState, nodeLabelState, fireExpired } from '../art/artLabels';
 import SphereLabels from '../art/SphereLabels';
-import { stepAwakening, drawGenesisGlow, drawBeaconRing, drawConductor } from '../art/artAwakening';
+import SphereComposite from '../art/SphereComposite';
+import {
+  createEdgeState, writeHsl, writeHslRgb, writeRgb255, packAlphas, packFlags,
+  writeDisc, writePolyline, ADDITIVE_LAYER, EDGE_STRIDE, MAX_EDGES, MAX_ADDITIVE_EDGES,
+} from '../art/SphereEdges';
+import {
+  createStrimerState, spawnStrimer, stepStrimer,
+  STRIMER_STRIDE, PACKET_FRACTION, PROFILE_PACKET, PROFILE_RAIL, PROFILE_PING,
+  HEAD_GAIN, HEAD_WIDTH, RAIL_GAIN, RAIL_WIDTH, PING_GAIN, PING_RADIUS,
+  PHASE_TRAVEL,
+} from '../art/artStrimer';
+import { quadSegments, tessellateQuad, CURVE_MAX_SEGMENTS } from '../art/artCurve';
+import {
+  nodeEnergy, depthCueAlpha, resonanceDimmed, nodeRadius, coreAlpha,
+  birthProgress, birthProject, bleedMix, spectralTint,
+  coreIsOpaque, coreColorSource,
+  haloDraws, haloRadius, haloInnerRadius, haloAlpha, strokeAnnulus,
+  chimeraSyncPulse, chimeraSyncAlpha, chimeraSyncRadius, CHIMERA_ALPHA_CUTOFF,
+  chimeraFlickRate, chimeraFlickAlpha, chimeraFlickRadius, chimeraFlickHue,
+  CHIMERA_SYNC_HSL, CHIMERA_SYNC_WIDTH,
+  CHIMERA_FLICK_DASH, CHIMERA_FLICK_WIDTH, CHIMERA_FLICK_SAT, CHIMERA_FLICK_LIT,
+  ghostDraws, ghostRadius, ghostOuterRadius, ghostAlpha, ghostSweepEncoded,
+  GHOST_INNER_HSL, GHOST_OUTER_HSL, GHOST_INNER_WIDTH, GHOST_OUTER_WIDTH,
+  GHOST_INNER_ALPHA_K, GHOST_OUTER_ALPHA_K,
+  fusionPulse, fusionRingRadius, fusionRingAlpha, fusionThreadAlpha,
+  probePulse, probeDepthAlpha, probeRadius, probeGlowRadius, probeGlowInnerRadius,
+  probeCoreAlpha, probeTetherAlpha, probeCentroid,
+  FUSION_RING_WIDTH, FUSION_RING_DASH, FUSION_THREAD_WIDTH, FUSION_THREAD_DASH,
+  PROBE_TETHER_WIDTH, PROBE_TETHER_DASH, PROBE_GLOW_ALPHA,
+  PROBE_GLOW_RGB, PROBE_CORE_RGB,
+} from '../art/artNodes';
+import {
+  edgeStops, edgeLineWidth, orthoHue, orthoGlow, fusedGlow,
+  pulseRingRadius, pulsePosition,
+  resonanceGlow, resonanceWidths, resonanceStops, RESONANCE_DEFAULT_SIM,
+  ORTHO_DASH, SPECTRAL_DASH,
+  ORTHO_HUE_STEP_MID, ORTHO_HUE_STEP_END,
+  ORTHO_ALPHA_BOOST, ORTHO_MID_ALPHA_BOOST,
+  PULSE_ALPHA, PULSE_DRAW_CUTOFF,
+  prismOffset, prismChordAlpha, prismGlowWidth, prismControl, prismSpokeHue,
+  PRISM_SPECTRAL_FINE, PRISM_SPECTRAL_COARSE, PRISM_HUE_STEP, PRISM_END_OFF_Y,
+  PRISM_SAT, PRISM_GLOW_LIT, PRISM_GLOW_ALPHA_K, PRISM_CORE_LIT, PRISM_CORE_W,
+  PRISM_POLY_HUE_STEP, PRISM_POLY_LIT, PRISM_POLY_ALPHA_K, PRISM_POLY_W,
+  PRISM_SPOKE_SAT, PRISM_SPOKE_LIT, PRISM_SPOKE_ALPHA_K, PRISM_SPOKE_W,
+  arcControl,
+  filamentDepthFade, filamentAlpha, filamentHue, filamentGlowWidth,
+  FILAMENT_DEPTH_CUTOFF, FILAMENT_MIN_ALPHA, FILAMENT_CP_PULL, FILAMENT_DASH,
+  FILAMENT_GLOW_SAT, FILAMENT_GLOW_LIT, FILAMENT_GLOW_ALPHA_K,
+  FILAMENT_CORE_SAT, FILAMENT_CORE_LIT, FILAMENT_CORE_ALPHA_K, FILAMENT_CORE_W,
+  FILAMENT_MAX_DRAWN,
+  chimeraStrength, chimeraHue, chimeraFlicker, chimeraAlpha, chimeraWidth,
+  chimeraDashOffset, CHIMERA_MIN_STRENGTH, CHIMERA_CP_PULL, CHIMERA_DASH,
+  CHIMERA_SAT, CHIMERA_LIT, CHIMERA_MAX_ZONES,
+} from '../art/artEdges';
+import { stepAwakening, beaconRingState, conductorState, CONDUCTOR } from '../art/artAwakening';
+import {
+  riftTint, exergyAlpha, genesisGlowState, ambientIntensity, ghostTrailAlpha,
+  stepFlash, FLASH_ALPHA, FLASH_CUTOFF,
+  GHOST_COUNT, GHOST_CULL_Z, GHOST_RADIUS,
+} from '../art/artBackground';
 import {
   CLUSTERS, INTRA_EDGES, DEFAULT_CROSS_EDGES, ALL_EDGES, ADJ,
   SPHERE_NODES, SPHERE_ADJ, SPHERE_EDGES,
   NODE_COLORS, CLUSTER_COLORS, dynColorMap, dynFeaturesMap,
-  DIM_KEYWORDS, queryProject, SPHERE_LABEL,
+  DIM_KEYWORDS, queryProject, SPHERE_LABEL, sphereIndexOf,
 } from '../art/artGraph';
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -67,6 +134,74 @@ const SECTOR_COLORS = {
   ling: '#14b8a6', cogn: '#a855f7', aesth: '#e879f9', topo: '#0ea5e9', meta: '#fbbf24', synth: '#f43f5e',
   fsk: '#c0c0c0',
 };
+// The prism layer's packed flag word: no dash, no glow, not ortho. Constant for
+// every one of its instances — a canvas shadow is set by ctx.shadowBlur and this
+// block never sets one — so it is packed once at module load rather than ~74000
+// times a frame. Through packFlags, not as a literal 0, so it cannot drift from
+// the layout the shader unpacks.
+const PRISM_FLAGS = packFlags(0, 0, 0, false, ADDITIVE_LAYER.glowQuant);
+
+// The two orphan curve layers' flag words. Same story — constant per layer, so
+// packed once — but these DO dash, and the period packed here is the one the
+// dash phase must be reduced modulo (packFlags rounds it to an integer; both of
+// these patterns are already integral, so nothing is lost, but the reduction
+// still has to use THIS number and not the raw sum).
+const FILAMENT_PERIOD = FILAMENT_DASH[0] + FILAMENT_DASH[1];   // 14
+const CHIMERA_PERIOD  = CHIMERA_DASH[0] + CHIMERA_DASH[1];     // 10
+const FILAMENT_FLAGS = packFlags(FILAMENT_PERIOD, FILAMENT_DASH[0], 0, false,
+  ADDITIVE_LAYER.glowQuant);
+const CHIMERA_FLAGS = packFlags(CHIMERA_PERIOD, CHIMERA_DASH[0], 0, false,
+  ADDITIVE_LAYER.glowQuant);
+
+// The node rings' flags, packed once for the same reason. Two are solid; the
+// flicker ring's [3,4] is an ANGULAR dash — for a disc the shader walks
+// r*theta at the band's MID radius, so the pattern stays in px of arc length
+// and the dash boundaries come out radial, exactly as ctx.setLineDash draws
+// them around a stroked circle.
+const BEACON_FLAGS = packFlags(0, 0, 0, false, ADDITIVE_LAYER.glowQuant);
+// Particles carry no dash and no shadow: the glow IS the gradient, not a
+// `ctx.shadowBlur` shoulder, so the glow byte is 0. Quantised against the
+// ADDITIVE layer's own step, like the beacon — passing the source-over default
+// here would pack a byte the additive material reads at a different scale.
+const PARTICLE_FLAGS = packFlags(0, 0, 0, false, ADDITIVE_LAYER.glowQuant);
+const GHOST_FLAGS = packFlags(0, 0, 0, false, ADDITIVE_LAYER.glowQuant);
+const CHIMERA_SYNC_FLAGS = packFlags(0, 0, 0);
+const CHIMERA_FLICK_FLAGS = packFlags(
+  CHIMERA_FLICK_DASH[0] + CHIMERA_FLICK_DASH[1], CHIMERA_FLICK_DASH[0], 0);
+
+// The tail: the fusion ring, its cursor thread and the probe. Packed once,
+// same as every layer above. The RING is an angular dash — [5,4] is period 9,
+// duty 5, and for a disc the shader measures that in px of arc length at the
+// band's mid radius. The thread and the tethers are ordinary straight-segment
+// dashes, in px along the line, and the probe's own two discs are solid.
+const FUSION_RING_FLAGS = packFlags(
+  FUSION_RING_DASH[0] + FUSION_RING_DASH[1], FUSION_RING_DASH[0], 0);
+const FUSION_THREAD_FLAGS = packFlags(
+  FUSION_THREAD_DASH[0] + FUSION_THREAD_DASH[1], FUSION_THREAD_DASH[0], 0);
+const PROBE_TETHER_FLAGS = packFlags(
+  PROBE_TETHER_DASH[0] + PROBE_TETHER_DASH[1], PROBE_TETHER_DASH[0], 0);
+const PROBE_FLAGS = packFlags(0, 0, 0);
+
+// ── Bifurcation Conductor ───────────────────────────────────────────────────
+// No dash and no glow on the thumb, track and fill bar; the peer-push disc is
+// the one instance on this branch that carries a blur. The glow byte is
+// quantised at 8 steps/px for the source-over mesh, so 4px lands exactly.
+const CONDUCTOR_FLAGS = packFlags(0, 0, 0);
+const CONDUCTOR_GLOW_FLAGS = packFlags(0, 0, CONDUCTOR.GLOW_BLUR);
+// The track's '#666', as the unit rgb the shader wants. CONDUCTOR.TRACK_RGB is
+// the byte triple that CSS literal means, and a test asserts the two agree
+// rather than leaving the equivalence to a comment.
+const CONDUCTOR_TRACK_RGB = Float32Array.from(CONDUCTOR.TRACK_RGB, (v) => v / 255);
+// The fill bar is a STROKE, so its colour travels through writePolyline's rgb
+// argument rather than writeDisc's hsl. One scratch triple, reused — this runs
+// inside the draw loop and must not allocate per frame.
+const _condRgb = new Float32Array(3);
+const hslUnitRgb = (c) => { writeHslRgb(_condRgb, 0, c); return _condRgb; };
+
+// Once per session, not once per frame: an overflowing frame overflows 60 times
+// a second and would bury the console it is trying to be visible in.
+let prismOverflowWarned = false;
+
 const FOCAL_K   = 2.8;      // focal = FOCAL_K × sphereR — controls perspective depth
 const SPHERE_K  = 0.42;     // sphereR = SPHERE_K × min(w, h) — larger sphere, front and center
 
@@ -90,7 +225,18 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   const feigTitleRef   = useRef(null);
   const feigSparkTimer = useRef(null);   // guards at-feigSpark cleanup race
   const rafRef         = useRef(null);
-  const dimsRef      = useRef({ w: 900, h: 620 });
+  // r3f's advance(), handed over by SphereComposite once its GL root exists.
+  // Null until then, and null again after unmount — the draw loop must not
+  // assume the composite is mounted.
+  const glAdvanceRef   = useRef(null);
+  // The seed is a REAL normal-mode geometry, not a round number: the first
+  // rAF runs before the first ResizeObserver delivery, so a pair the resize
+  // path could never produce would be drawn for a frame. 620 against a
+  // normalCanvasHeight(900) of 580 made `inkScale` read 1.069 there — a 7%
+  // ink over-scale in normal mode, where item 5b's whole claim is that it is
+  // exactly 1. Derived from the same helper the observer uses, so the two
+  // cannot drift and the invariant holds from the first frame.
+  const dimsRef      = useRef({ w: 900, h: normalCanvasHeight(900) });
   const hoveredRef   = useRef(null);
   const [hoveredEdge, setHoveredEdge] = useState(null);  // { aId, bId, cosSim, drivers, isSpectralBridge }
   const [lockedEdge,  setLockedEdge]  = useState(null);  // click-locked readout (persists until click-away)
@@ -119,9 +265,65 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   const [bifurcCount, setBifurcCount] = useState(0);   // total child nodes spawned
   const birthMapRef = useRef(new Map());                // childId → {parentId, px, py, pz, t0}
 
-  // ── Immersive Mode (fullscreen + bloom + vignette) ──────────────────────
+  // ── Disc-probe scratch (DEV) ──────────────────────────────────────────────
+  // Synthetic disc/ring instances appended to the edge buffer, so the shader's
+  // annulus, arc-sweep, angular-dash and radial-falloff branches can be
+  // photographed BEFORE tasks 5-7 build three layers on top of them. Nothing
+  // in the app writes this; it is null in every real frame.
+  const discProbeRef = useRef(null);
+
+  // ── Node-layer draw census ────────────────────────────────────────────────
+  // One counter per node sub-layer, incremented at the draw call itself and
+  // reset each frame, on the same precedent as `eg.rings`: a layer that never
+  // draws during a capture scores perfect parity whether it ships or is
+  // deleted, and pixels cannot tell those two apart. Eight of this block's
+  // thirteen layers are in that position (see the step 5 pre-flight scan), so
+  // before step 5 moves any of them, this is what says which ones a given
+  // capture actually contained. Counting at the draw call rather than
+  // re-deriving the conditions afterwards keeps it to ONE source of truth.
+  const nodeCensusRef = useRef({
+    nodes: 0, halo: 0, core: 0, coreHover: 0, beacon: 0,
+    chimeraSync: 0, chimeraFlicker: 0, ghostInner: 0, ghostOuter: 0,
+    birth: 0, bleed: 0, spectral: 0, resonanceDim: 0,
+    fusionRing: 0, fusionThread: 0,
+    probeTether: 0, probeHalo: 0, probeCore: 0,
+    particleGlow: 0, particleCore: 0,
+    conductorThumb: 0, conductorTrack: 0, conductorFill: 0, conductorGlow: 0,
+  });
+
+  // ── Conductor force overrides (DEV harness only) ──────────────────────────
+  // The conductor is the last layer no capture state arms, and unlike the
+  // others it cannot be forced by writing its own output: `conductorY` is
+  // recomputed from fieldRef.current.r every frame by stepCollectiveR, and
+  // `collectiveR` is recomputed from peerEntropy every frame by
+  // feedPeerEntropy. So the override sits on that function's INPUTS and the
+  // real sigmoid gate, EMA and MAX_CONTRIBUTION run from there — the same
+  // principle as __artForceParticles setting hueTarget === hue.
+  //
+  // MEASURED, and it is why this hook has to exist: with peerCount 0 the gate
+  // is sigmoid(0,3,1.5) = 0.0111, so collectiveR = entropy * 0.0111 * 0.0025
+  // and reaching the 0.0003 push threshold would need an entropy of 10.8 on a
+  // 0..1 channel. The peer-push glow is UNREACHABLE in a single browser at any
+  // legal input, not merely unlikely.
+  //
+  // `conductorY` is deliberately NOT forceable. Its only input is the
+  // Feigenbaum r, and moving r moves the graph — which would change the
+  // capture's `world` hash and make the very comparison this probe exists to
+  // serve meaningless. The probe reports the live value instead.
+  const conductorForceRef = useRef(null);
+
+  // ── Immersive Mode (fullscreen + vignette) ──────────────────────────────
+  // Bloom is no longer immersive-only and no longer lives here: it is always on
+  // and runs on the GPU in SphereComposite. Immersive gates the spectral
+  // ambient, the rift alpha, the canvas height calculation and the vignette.
+  // It no longer gates the Voronoi mesh — that layer is cut, see the draw loop.
+  //
+  // Immersive is an OPTION, not the default and not the exhibit mode (author,
+  // 2026-08-11). The quintessence compilation happens on this tab in default
+  // mode and needs the command line, HUD and controls that immersive hides, so
+  // promoting immersive would cost a user who does not realise they must leave
+  // it to compile. Default stays default.
   const [immersive, setImmersive]       = useState(false);
-  const bloomCanvasRef  = useRef(null);   // offscreen canvas for bloom post-process
   const immersiveRef    = useRef(false);  // RAF-safe mirror
 
   // ── Jury Awakening (choreographed first-impression sequence) ────────────
@@ -129,14 +331,37 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   // Phase 1 (4-8s): Beacon pulse — one node glows as invitation
   // Phase 2 (8s+):  Auto-ignition — system self-fires 3 nodes
   // Phase 3:        Complete — normal interaction mode
-  const awakeningRef = useRef({
+  // LAZY INITIALIZER, NOT AN EAGER ONE. React evaluates a `useRef({ ... })`
+  // object literal on EVERY render and discards all but the first, so with the
+  // eager form every render of this component silently took one draw from the
+  // sphere's private stream via `beaconIdx`. MEASURED: on `immersive-off` the
+  // ResizeObserver fires twice with no pumped frame between the callbacks, and
+  // each callback ends in `initState()`, which re-scatters all 31 nodes from
+  // 124 draws -- so whether one render landed in that gap decided the whole
+  // second layout. 21 runs at 1520x900@2x produced exactly TWO worlds, never
+  // three: `a0c3af39` on a gap of 125 draws (19 runs) and `280ffe40` on a gap
+  // of 124 (2 runs). A switch with two positions, not a chaotic process.
+  // Assigning under a null guard runs the body exactly once, at mount, which is
+  // the one draw the artwork wants -- a CONSTANT would kill the beacon's
+  // per-page-load randomness, which is visible intent in awakening phase 1.
+  const awakeningRef = useRef(null);
+  if (awakeningRef.current === null) awakeningRef.current = {
     phase: 0,
     t0: performance.now(),
     interacted: false,      // true after first user gesture on canvas
     autoFiredNodes: [],     // nodes auto-ignited during phase 2
-    beaconIdx: Math.floor(Math.random() * SPHERE_NODES.length),  // random beacon node
+    beaconIdx: Math.floor(artRandom() * SPHERE_NODES.length),  // random beacon node
     breathPhase: 0,         // continuous breath oscillation
-  });
+  };
+  // DEV-ONLY INSTRUMENT. It counted the draws the eager initializer above used
+  // to take, and it is kept because it is now the EVIDENCE that they are gone:
+  // it is what proved the fix render-INDEPENDENT rather than merely lucky. 28
+  // recorded runs of the patched build produced one world and a gap of 124
+  // every time, including runs that took no render across the gap where their
+  // siblings took one -- the contrast that flipped the world before. It takes
+  // no draw of its own and `import.meta.env.DEV` is statically false in a
+  // production build.
+  if (import.meta.env.DEV) __streamProbe.renders++;
 
   // ── Particle Ecology ────────────────────────────────────────────────────
   const particlesRef = useRef(createParticlePool());
@@ -169,7 +394,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
   // ── Morphogenetic Sphere (living Voronoi topology) ─────────────────────
   const {
-    morphRef, stepMorphogenesis, getCells, getMesh,
+    morphRef, stepMorphogenesis, getCells,
     cellCount, getDivisionHistory,
   } = useMorphogenesis({ fieldRef, phaseRegime });
 
@@ -201,6 +426,54 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   // metabolicRift [0,1]: carbon overload → reddish tint on sphere background
   // exergyRate    [0,1]: energy dissipation → sphere pulse intensity
   const ecocideStateRef = useRef({ metabolicRift: 0, exergyRate: 0, phase: 'STABLE' });
+
+  // Background state published to the GL layer each frame. Written from inside
+  // the draw loop (never from render) so the backdrop is always the one that
+  // belongs to the 2D frame being composited, not the next one.
+  //
+  // Deliberately EMPTY. `rift` used to be seeded with a plausible-looking
+  // `{ r:0, g:0, b:0, a:0.72 }`, and `.a` is no longer inert: it is the erase
+  // strength that drives the GL trail fade (SphereComposite). A seeded 0.72 is
+  // a guess at normal mode, so a sphere that mounts immersive would spend its
+  // first frames fading at the wrong rate. Absent, the GL side falls back to a
+  // wipe until the draw loop publishes the real tint, which is the one wrong
+  // answer that cannot be mistaken for a right one.
+  const bgStateRef = useRef({});
+  // Projected ghost trails, xyzw per ghost. Written in place each frame so the
+  // draw loop stays off the allocation path.
+  const ghostBufRef = useRef(new Float32Array(GHOST_COUNT * 4));
+  // The base edges, as instance data for the GL layer: 16 floats each, in the
+  // depth-sorted order the draw loop already computed. Lazily initialised
+  // rather than passed to useRef(), which would build and throw away a 64KB
+  // buffer on every render of this component.
+  const edgeGLRef = useRef(null);
+  if (edgeGLRef.current === null) edgeGLRef.current = createEdgeState();
+  // The ADDITIVE line layer, in the same 16-float layout: the resonance edge
+  // and the prism geometry effects. A separate stream because `lighter` is a
+  // different blend, not because it is a different kind of geometry — the mesh
+  // it feeds is built from the same shader. `rings` goes unused here; sharing
+  // the state factory keeps one allocation shape rather than a near-duplicate.
+  //
+  // Its capacity is ~72x the edge mesh's, and that is the prism layer: every
+  // chord is a flattened quadratic, and the worst frame the sim can produce is
+  // four concurrent eleven-node effects. See MAX_ADDITIVE_EDGES for the
+  // arithmetic and for why this is a fixed preallocation rather than a buffer
+  // that grows — the array IS the GPU-bound buffer's backing store.
+  const addGLRef = useRef(null);
+  if (addGLRef.current === null) addGLRef.current = createEdgeState(MAX_ADDITIVE_EDGES);
+  // The strimer pool. Created in the render body like the edge states, so its
+  // `.data` array exists before SphereComposite's factory first runs.
+  const strimerRef = useRef(null);
+  if (strimerRef.current === null) strimerRef.current = createStrimerState();
+  // Prism scratch, allocated once: the tessellation's point list, the control
+  // point, and writeHsl's rgb output. A full-strength frame runs the inner loop
+  // ~74000 times and the draw loop stays off the allocation path.
+  const prismPtsRef  = useRef(null);
+  if (prismPtsRef.current === null) prismPtsRef.current = new Float32Array((CURVE_MAX_SEGMENTS + 1) * 2);
+  const prismCtrlRef = useRef(null);
+  if (prismCtrlRef.current === null) prismCtrlRef.current = new Float32Array(2);
+  const prismRgbRef  = useRef(null);
+  if (prismRgbRef.current === null) prismRgbRef.current = new Float32Array(3);
 
   // ── Beat clock state ────────────────────────────────────────────────────
   const [ambientMode,  setAmbientMode]  = useState(false);
@@ -442,12 +715,12 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     if (geomEffectsRef.current.length >= 4) geomEffectsRef.current.shift();
 
     // Palette: left-click → cluster hue, right-click → complementary shift, idle → drift
-    const clusterHue = node ? (NODE_COLORS[node.id]?.hue ?? Math.random() * 360) : Math.random() * 360;
+    const clusterHue = node ? (NODE_COLORS[node.id]?.hue ?? artRandom() * 360) : artRandom() * 360;
     const hueBase    = opts.hueOverride ?? clusterHue;
-    const hueTarget  = opts.hueTarget   ?? (hueBase + (opts.rightClick ? 180 : 90) + Math.random() * 60) % 360;
+    const hueTarget  = opts.hueTarget   ?? (hueBase + (opts.rightClick ? 180 : 90) + artRandom() * 60) % 360;
 
     geomEffectsRef.current.push({
-      id:        Date.now() + Math.random(),
+      id:        Date.now() + artRandom(),
       nodeIds:   localIds.slice(0, nodeLimit),
       life:      0,
       maxLife:   coarse ? Math.min(maxLife, 150) : maxLife,
@@ -467,7 +740,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       }
     }
 
-    if (node) { fireNode(node.id); }
+    // `opts.strimer` says a wavefront is being spawned by the caller and will
+    // deliver the neighbour bumps itself. Terminal `run` and the ambient
+    // awakening fires do NOT pass it, so they keep the instant propagation
+    // they have always had.
+    if (node) { fireNode(node.id, { neighbours: !opts.strimer }); }
   }, [fireNode]);
 
   const handleRunKernel = useCallback((alias) => {
@@ -557,7 +834,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       const W = Math.floor(entries[0].contentRect.width);
       const H = immersiveRef.current
         ? Math.floor(entries[0].contentRect.height || window.innerHeight)
-        : Math.floor(Math.min(Math.max(W * 0.65, 360), 580));
+        : normalCanvasHeight(W);
       dimsRef.current = { w: W, h: H };
       if (canvasRef.current) {
         // Cap at 1.5× on high-DPR mobile (iPad Pro = 2×) to preserve battery
@@ -596,6 +873,17 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       const breathMod = 1 + Math.sin(aw.breathPhase) * breathAmp;
       const sphereR   = Math.min(w, h) * SPHERE_K * breathMod;
       const focal     = sphereR * FOCAL_K;
+      // ITEM 5b — the ink grows with the cage. `project()`'s scale is
+      // independent of sphereR, so without this every line width and disc
+      // radius keeps its normal-mode pixel size while the sphere itself
+      // gets 1.4-1.7x bigger in immersive mode. Exactly 1 outside
+      // immersive, so normal-mode pixels cannot move. See artMath.
+      //
+      // Applied to the INK ONLY, never to a position: `p.scale` also
+      // carries label offsets and the birth interpolation, and it is
+      // deliberately left alone. Every site below multiplies at the point
+      // the number becomes a width or a radius.
+      const ink       = inkScale(w, h);
 
       // ── Update rotation ───────────────────────────────────────────────────
       const drag = dragRef.current;
@@ -629,7 +917,9 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       }
 
       // ── Bifurcation Conductor + Collective Perturbation ──────────────────
-      feedPeerEntropy(somaPresence.peerCount, peerCursorEntropyRef.current);
+      const _cf = conductorForceRef.current;
+      feedPeerEntropy(_cf ? _cf.peerCount : somaPresence.peerCount,
+                      _cf ? _cf.entropy : peerCursorEntropyRef.current);
       stepCollectiveR(fieldRef);
 
       // ── Broadcast cursor to peers (rotation-derived, throttled internally) ──
@@ -720,10 +1010,10 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
       // Emit burst particles from high-energy nodes
       for (const n of nodes) {
-        if (n.energy > 0.7 && Math.random() < 0.15) {
+        if (n.energy > 0.7 && artRandom() < 0.15) {
           const col = NODE_COLORS[n.id];
           const hue = col?.hue ?? 30;
-          const hueTarget = (hue + 120 + Math.random() * 60) % 360;
+          const hueTarget = (hue + 120 + artRandom() * 60) % 360;
           emitNodeBurst(pool, n.x, n.y, n.z, hue, hueTarget, 3);
         }
       }
@@ -733,7 +1023,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         const _fils = getFilaments();
         for (const fil of _fils) {
           if (fil.strength < 0.2 || fil.nodeA >= nodes.length || fil.nodeB >= nodes.length) continue;
-          if (Math.random() > fil.strength) continue;
+          if (artRandom() > fil.strength) continue;
           const nA = nodes[fil.nodeA], nB = nodes[fil.nodeB];
           if (!nA || !nB) continue;
           emitEdgeParticles(pool,
@@ -747,115 +1037,91 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       // ── Clear with trail fade ─────────────────────────────────────────────
       const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      // Ecocide tint: metabolicRift bleeds a faint crimson into the void
+      // Ecocide tint: metabolicRift bleeds a faint crimson into the void.
+      // The tint itself now lives on the GPU (SphereBackground) — this canvas
+      // no longer paints a backdrop, it erases alpha so the backdrop shows
+      // through. Fading toward a GL layer of colour K by alpha A is identical
+      // to filling with K at alpha A, which is what makes this a port and not
+      // a re-art; the equivalence is derived in SphereBackground.jsx.
       const { metabolicRift, exergyRate } = ecocideStateRef.current;
-      const riftR = Math.round(metabolicRift * 28);  // max +28 red channel
-      const riftA = immersiveRef.current ? 0.32 : 0.72;
-      if (metabolicRift > 0.05) {
-        ctx.fillStyle = `rgba(${riftR},0,0,${riftA.toFixed(2)})`;
-      } else {
-        ctx.fillStyle = immersiveRef.current ? 'rgba(0,0,0,0.32)' : 'rgba(0,0,0,0.72)';
-      }
+      const tint = riftTint(metabolicRift, immersiveRef.current);
+      // Both halves of this object are read by the GL layer, and they are read
+      // from HERE rather than recomputed there: rgb is the clear colour the
+      // screen pass paints under the accumulated ink, and `.a` is the erase
+      // alpha that drives the trail fade. Same object, same frame, so the fill
+      // below and the fade cannot disagree — including across a mode toggle,
+      // where `a` steps 0.72 <-> 0.32 in one frame.
+      bgStateRef.current.rift = tint;
+      ctx.save();
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.fillStyle = `rgba(0,0,0,${tint.a})`;
       ctx.fillRect(0, 0, w, h);
-      // Exergy pulse: faint radial glow from centre that breathes with dissipation
-      if (exergyRate > 0.1) {
-        const gx = w / 2, gy = h / 2;
-        const grad = ctx.createRadialGradient(gx, gy, 0, gx, gy, Math.min(w, h) * 0.55);
-        grad.addColorStop(0, `rgba(217,70,239,${(exergyRate * 0.06).toFixed(3)})`);
-        grad.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, w, h);
-      }
-
-      // ── Genesis glow (logic in artAwakening.js) ──────────────────────────
-      drawGenesisGlow(ctx, aw, w, h, sphereR);
+      ctx.restore();
+      // Exergy pulse and genesis glow are both on the GPU now
+      // (SphereBackground.js); only their state is computed here.
+      bgStateRef.current.exergy = exergyAlpha(exergyRate);
+      bgStateRef.current.genesis = genesisGlowState(aw.phase, aw.t0, sphereR, performance.now());
 
       // ── State-driven flash — brief anthracite grid on bifurcation events ──
-      if (bgFlashRef.current > 0.005) {
-        const flash = bgFlashRef.current;
-        bgFlashRef.current *= 0.92; // exponential decay ~200ms
-        const fAlpha = flash * 0.08;
-        ctx.strokeStyle = `rgba(58,58,62,${fAlpha.toFixed(4)})`;
-        ctx.lineWidth = 0.5;
-        // Draw a hex grid that only appears during events
-        const gridStep = 28;
-        for (let gy = 0; gy < h; gy += gridStep * 0.866) {
-          const row = Math.floor(gy / (gridStep * 0.866));
-          const offset = (row % 2) * gridStep * 0.5;
-          for (let gx = offset; gx < w; gx += gridStep) {
-            ctx.beginPath();
-            for (let k = 0; k < 6; k++) {
-              const angle = Math.PI / 3 * k - Math.PI / 6;
-              const hx = gx + Math.cos(angle) * gridStep * 0.5;
-              const hy = gy + Math.sin(angle) * gridStep * 0.5;
-              k === 0 ? ctx.moveTo(hx, hy) : ctx.lineTo(hx, hy);
-            }
-            ctx.closePath();
-            ctx.stroke();
-          }
-        }
+      // The hex grid is on the GPU (SphereBackground.js); the decay stays here.
+      // Note it draws with the PRE-decay value, unlike the beat pulse which
+      // decays first — preserved, since it makes the first flash frame a step
+      // brighter than a post-decay reading would be.
+      if (bgFlashRef.current > FLASH_CUTOFF) {
+        bgStateRef.current.flash = bgFlashRef.current * FLASH_ALPHA;
+        bgFlashRef.current = stepFlash(bgFlashRef.current);
+      } else {
+        bgStateRef.current.flash = 0;
       }
 
       // ── Spectral ambient — immersive mode only, otherwise pure black ────
-      if (immersiveRef.current) {
-        const _ambient = getAmbientColor();
-        if (_ambient) {
-          const _aGrd = ctx.createRadialGradient(w/2, h/2, sphereR * 0.3, w/2, h/2, sphereR * 1.6);
-          const _intensity = Math.min(1, (_ambient[3] ?? 0.08)) * 0.10;
-          _aGrd.addColorStop(0, `rgba(38,38,42,${_intensity.toFixed(3)})`);
-          _aGrd.addColorStop(1, 'rgba(0,0,0,0)');
-          ctx.fillStyle = _aGrd;
-          ctx.fillRect(0, 0, w, h);
-        }
-      }
+      // On the GPU now. Only the alpha channel of the ambient colour is read,
+      // exactly as before — the hue never reached the canvas.
+      const _ambient = immersiveRef.current ? getAmbientColor() : null;
+      bgStateRef.current.ambient = _ambient ? ambientIntensity(_ambient[3]) : 0;
 
       // ── Sphere wireframe ghost ────────────────────────────────────────────
-      // Subtle equator ellipse as spatial anchor
-      const eqRx = sphereR;
-      const eqRy = sphereR * Math.abs(Math.cos(rotRef.current.rx));
-      ctx.beginPath();
-      ctx.ellipse(w / 2, h / 2, eqRx, eqRy, 0, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(255,255,255,0.03)';
-      ctx.lineWidth = 0.5;
-      ctx.stroke();
-
-      // Vertical great circle
-      const vRx = sphereR * Math.abs(Math.cos(rotRef.current.ry));
-      const vRy = sphereR;
-      ctx.beginPath();
-      ctx.ellipse(w / 2, h / 2, vRx, vRy, 0, 0, Math.PI * 2);
-      ctx.stroke();
+      // Now on the GPU (SphereBackground.js). It renders beneath this canvas,
+      // which also puts it beneath the four fainter background layers still
+      // drawn here — see the migration-order note in that file.
+      bgStateRef.current.sphereR = sphereR;
+      bgStateRef.current.rot = { rx: rotRef.current.rx, ry: rotRef.current.ry };
 
       // ── Ambient beat pulse glow ───────────────────────────────────────────
+      // Drawn on the GPU (SphereBackground.js); the decay stays here because
+      // it is simulation state, not painting. Note the decay runs only while
+      // the pulse is audible-loud enough to draw — preserved exactly, since
+      // stepping it unconditionally would change the pulse's length.
       if (beatPhaseRef.current > 0.005) {
-        beatPhaseRef.current *= 0.88;   // per-frame decay (~300ms to silence at 60fps)
-        const bp = beatPhaseRef.current;
-        const pulseR = sphereR * (1.05 + bp * 0.18);
-        const grd = ctx.createRadialGradient(w / 2, h / 2, sphereR * 0.55, w / 2, h / 2, pulseR);
-        grd.addColorStop(0, `rgba(251,191,36,${(bp * 0.14).toFixed(3)})`);  // amber core
-        grd.addColorStop(0.6, `rgba(251,140,0,${(bp * 0.07).toFixed(3)})`); // orange mid
-        grd.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = grd;
-        ctx.fillRect(0, 0, w, h);
+        beatPhaseRef.current *= 0.88;   // 42 frames to silence, ~700ms at 60fps
+        bgStateRef.current.beat = beatPhaseRef.current;
+      } else {
+        bgStateRef.current.beat = 0;
       }
 
       // ── Temporal archaeology: ghost trails from previous session ──────────
+      // Drawn on the GPU, but PROJECTED HERE. 31 points is a trivial upload,
+      // and moving projection into the shader is the one change that would
+      // render identically while killing every hit-test on the sphere.
       const arch = archaeologyRef.current;
+      const gbuf = ghostBufRef.current;
+      let gn = 0;
       if (arch?.loaded && arch.ghostPositions) {
         const gp = arch.ghostPositions;
-        ctx.save();
-        for (let i = 0; i < 31 && i * 3 + 2 < gp.length; i++) {
+        for (let i = 0; i < GHOST_COUNT && i * 3 + 2 < gp.length; i++) {
           const [grx, gry, grz] = applyM(M, gp[i * 3], gp[i * 3 + 1], gp[i * 3 + 2]);
-          if (grz < -0.3) continue;  // back-face cull
+          if (grz < GHOST_CULL_Z) continue;  // back-face cull
           const gp2 = project(grx, gry, grz, w, h, sphereR, focal);
-          const ghostAlpha = Math.max(0, grz) * 0.07;
-          ctx.beginPath();
-          ctx.arc(gp2.sx, gp2.sy, 3 * gp2.scale, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(180,180,220,${ghostAlpha.toFixed(3)})`;
-          ctx.fill();
+          const o = gn * 4;
+          gbuf[o]     = gp2.sx;
+          gbuf[o + 1] = gp2.sy;
+          gbuf[o + 2] = GHOST_RADIUS * gp2.scale * ink;
+          gbuf[o + 3] = ghostTrailAlpha(grz);
+          gn++;
         }
-        ctx.restore();
       }
+      for (let i = gn; i < GHOST_COUNT; i++) gbuf[i * 4 + 3] = 0;  // clear the tail
+      bgStateRef.current.ghosts = gbuf;
 
       // ── Cluster ghost labels (projected anchor positions) ─────────────────
       const nextLabels = [];
@@ -870,92 +1136,145 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         });
       });
 
-      // ── Voronoi Mesh — suppressed in default view, only in immersive mode ──
-      // The tessellation competes with node data at normal scale; reserve for
-      // full-screen immersive where the geometry reads as texture not noise.
-      if (immersiveRef.current) {
-        const meshLines = getMesh();
-        if (meshLines && meshLines.length > 0) {
-          ctx.lineWidth = 0.5;
-          for (const seg of meshLines) {
-            const pA = project(seg.a[0], seg.a[1], seg.a[2], w, h, sphereR, focal);
-            const pB = project(seg.b[0], seg.b[1], seg.b[2], w, h, sphereR, focal);
-            if (pA.depth < -0.3 && pB.depth < -0.3) continue;
-            const opacity = Math.max(0, Math.min(1, (pA.depth + pB.depth) * 0.5 + 0.5)) * (seg.opacity ?? 0.12);
-            ctx.strokeStyle = `rgba(58,58,62,${(opacity * 0.5).toFixed(3)})`;
-            ctx.beginPath();
-            ctx.moveTo(pA.sx, pA.sy);
-            ctx.lineTo(pB.sx, pB.sy);
-            ctx.stroke();
-          }
-        }
-      }
+      // ── Voronoi Mesh — CUT (author, 2026-08-11) ───────────────────────────
+      // The tessellation used to draw here, gated `if (immersiveRef.current)`,
+      // with the rationale "reserve for full-screen immersive where the
+      // geometry reads as texture not noise". That premise was never once
+      // tested: immersive measured 1800x324 until 31bff8a, so the mesh spent
+      // its whole life drawn into a letterbox strip. It also stayed on this
+      // canvas through the GL migration and so kept the full 3.125x immersive
+      // trail accumulation the migrated layers had lost. Fixing the containing
+      // block and restoring accumulation handed it 3.3x the area at full weight
+      // at the same time, and seen at its design size for the first time it
+      // read as noise, not texture — the author's call, and the comment's own
+      // prediction was simply wrong.
+      //
+      // The morphogenesis SIMULATION stays: `stepMorphogenesis()` still runs and
+      // `cellCount()` still feeds the `cells = N` readout in the HUD. Only the
+      // boundary-line rendering is gone, so nothing reads `getMesh()` now.
+
+      // ── The additive line layer (ctx's `lighter`) ─────────────────────────
+      //
+      // A SECOND GL mesh, drawn after the edge mesh — see SphereEdges.js's
+      // ADDITIVE_LAYER. Reset here, once, before the first of its writers: the
+      // analogy filaments and the chimera fringes below, then the resonance
+      // edge and the prism chords further down. That is the order the 2D loop
+      // drew them in, and instances render in buffer order.
+      //
+      // ONE DEVIATION, and it is inherent to putting these two on this mesh.
+      // The 2D loop drew them BEFORE the base edges; the additive mesh draws
+      // after the source-over one. Where an edge crosses a filament the canvas
+      // laid the edge over it (so the filament showed at 1-aEdge) and the mesh
+      // adds the filament over the edge (so it shows whole). The two differ by
+      // filamentInk * aEdge on the overlap only — both layers are thin and
+      // dashed, and the alternative is a THIRD mesh at renderOrder 0 carrying
+      // one more material for two layers. Recorded rather than hidden.
+      const ag = addGLRef.current;
+      ag.count = 0;
+      ag.dropped = 0;
+      ag.w = w; ag.h = h;
+      // Scratch shared with the prism block below: tessellation points, the
+      // control point, and writeHsl's 3-float output. Nothing here allocates.
+      const _cPts  = prismPtsRef.current;
+      const _cCtrl = prismCtrlRef.current;
+      const _cRgb  = prismRgbRef.current;
 
       // ── Analogy Filaments — thin golden threads connecting structurally similar nodes ──
+      //
+      // Two DASHED passes over the same quadratic. `ctx.setLineDash([6,8])` was
+      // set before the wide pass and cleared only after the whole loop, so the
+      // sharp core was dashed too — both passes carry FILAMENT_FLAGS here.
+      // Neither pass sets a dash offset, so both start the pattern at the
+      // path's own start: phase0 = 0.
+      //
+      // What did NOT move: `getFilaments()`, the corpus-index guard, the
+      // projection lookup and the depth fade all stay on the CPU. Only the ctx
+      // calls became floats.
       {
         const filaments = getFilaments();
         if (filaments.length > 0) {
-          ctx.save();
-          ctx.globalCompositeOperation = 'lighter';
           const _t = performance.now() * 0.001;
+          let drawn = 0;
           for (const fil of filaments) {
+            if (drawn >= FILAMENT_MAX_DRAWN) break;   // see FILAMENT_MAX_DRAWN
             const iA = fil.nodeA, iB = fil.nodeB;
+            // NOTE: fil.nodeA/nodeB are CORPUS indices (the 272-node
+            // nodeFeatures array) while `nodes`/`proj` are the ~31-node sphere.
+            // This guard therefore drops nearly every filament and mis-pairs
+            // the survivors. Pre-existing and measured — 0 of 96 filaments
+            // passed it over 3551 harness frames — and NOT this task's to fix:
+            // repairing it would make an invisible layer appear, which is a
+            // visual change, not a port. See the task report.
             if (iA >= nodes.length || iB >= nodes.length) continue;
             const pA = proj[iA], pB = proj[iB];
             if (!pA || !pB) continue;
             const avgDepth = (pA.depth + pB.depth) / 2;
-            if (avgDepth < -0.5) continue;
-            const depthFade = Math.max(0, (avgDepth + 1) * 0.5);
-            const alpha = fil.strength * depthFade * 0.65;
-            if (alpha < 0.01) continue;
+            if (avgDepth < FILAMENT_DEPTH_CUTOFF) continue;
+            const alpha = filamentAlpha(fil.strength, filamentDepthFade(avgDepth));
+            if (alpha < FILAMENT_MIN_ALPHA) continue;
 
-            // Shimmering hue based on time + node positions
-            const hue = (40 + Math.sin(_t * 0.7 + iA * 0.3) * 15) | 0; // golden range 25-55
+            // Shimmering hue based on time + node index (golden range 25-55).
+            const hue = filamentHue(_t, iA);
 
-            // Wide diffuse glow
-            ctx.strokeStyle = `hsla(${hue},85%,65%,${(alpha * 0.35).toFixed(3)})`;
-            ctx.lineWidth = 3.5 * ((pA.scale + pB.scale) / 2);
-            ctx.setLineDash([6, 8]);
-            ctx.beginPath();
-            ctx.moveTo(pA.sx, pA.sy);
-            // Slight arc toward sphere center for "inside the sphere" look
-            const midX = (pA.sx + pB.sx) / 2;
-            const midY = (pA.sy + pB.sy) / 2;
-            const cpx = midX + (w / 2 - midX) * 0.25;
-            const cpy = midY + (h / 2 - midY) * 0.25;
-            ctx.quadraticCurveTo(cpx, cpy, pB.sx, pB.sy);
-            ctx.stroke();
+            // Slight arc toward the sphere centre for the "inside" look.
+            arcControl(_cCtrl, pA.sx, pA.sy, pB.sx, pB.sy, w / 2, h / 2, FILAMENT_CP_PULL);
+            // Flattened ONCE and drawn twice, so both passes land on exactly
+            // the same joints and accumulate the same arc length.
+            const m = tessellateQuad(_cPts, pA.sx, pA.sy, _cCtrl[0], _cCtrl[1], pB.sx, pB.sy,
+              quadSegments(pA.sx, pA.sy, _cCtrl[0], _cCtrl[1], pB.sx, pB.sy));
 
-            // Sharp core
-            ctx.strokeStyle = `hsla(${hue},90%,88%,${(alpha * 0.7).toFixed(3)})`;
-            ctx.lineWidth = 0.8;
-            ctx.beginPath();
-            ctx.moveTo(pA.sx, pA.sy);
-            ctx.quadraticCurveTo(cpx, cpy, pB.sx, pB.sy);
-            ctx.stroke();
+            // Wide diffuse glow — width scales with the projection.
+            writeHsl(_cRgb, 0, hue, FILAMENT_GLOW_SAT, FILAMENT_GLOW_LIT);
+            writePolyline(ag, _cPts, m, _cRgb, alpha * FILAMENT_GLOW_ALPHA_K,
+              filamentGlowWidth((pA.scale + pB.scale) / 2) * ink,
+              FILAMENT_FLAGS, 0);
+            // Sharp core — a CONSTANT 0.8, unscaled BY THE PROJECTION. That
+            // asymmetry with the pass above is in the original; see
+            // FILAMENT_CORE_W, whose note is about depth: a core that
+            // thickens toward the viewer is the thing being avoided.
+            //
+            // `ink` is a different axis and does not reintroduce it. It is
+            // ONE number for the whole frame, so every filament core stays
+            // exactly as wide as every other one and none of them varies
+            // with depth. Holding it at 0.8 while the glow over it grows is
+            // what would re-art the pair.
+            writeHsl(_cRgb, 0, hue, FILAMENT_CORE_SAT, FILAMENT_CORE_LIT);
+            writePolyline(ag, _cPts, m, _cRgb, alpha * FILAMENT_CORE_ALPHA_K,
+              FILAMENT_CORE_W * ink, FILAMENT_FLAGS, 0);
+            drawn++;
           }
-          ctx.setLineDash([]);
-          ctx.restore();
         }
       }
 
       // ── Chimera boundary zones — flickering interference at sync/async borders ──
+      //
+      // The layer that made the 17th float necessary: `lineDashOffset = t * 30`
+      // scrolls the pattern along the path, and a tessellated curve cannot
+      // express that without carrying its own place on the path. The offset is
+      // reduced modulo the packed period here, on the CPU, so the float the
+      // shader reads stays small and exact however long the tab has been open.
+      //
+      // What did NOT move: the centroid arithmetic. It is CPU state built from
+      // `nodes` and `proj`, and it stays exactly where it was.
       {
         const zones = getChimeraZones();
         if (zones.length > 0) {
-          ctx.save();
-          ctx.globalCompositeOperation = 'lighter';
           const _ct = performance.now() * 0.001;
+          // One value for the whole layer — every zone shares the clock.
+          const dashPhase = ((chimeraDashOffset(_ct) % CHIMERA_PERIOD) + CHIMERA_PERIOD)
+            % CHIMERA_PERIOD;
+          let drawn = 0;
           for (const zone of zones) {
+            if (drawn >= CHIMERA_MAX_ZONES) break;   // see CHIMERA_MAX_ZONES
             // Find the cross-cluster edges that form this boundary
             // and render flickering interference fringes along them
-            const strength = Math.min(1, zone.boundaryStrength * 2);
-            if (strength < 0.05) continue;
+            const strength = chimeraStrength(zone.boundaryStrength);
+            if (strength < CHIMERA_MIN_STRENGTH) continue;
 
-            // Hue oscillates between the two sync states
-            const hue = (180 + Math.sin(_ct * 3.5 + zone.syncA * 10) * 60) | 0;
-            const flicker = 0.4 + Math.sin(_ct * 7 + zone.syncB * 5) * 0.3;
-            const alpha = strength * flicker * 0.25;
+            // Hue oscillates between the two sync states; brightness flickers
+            // against it off the other cluster's.
+            const hue = chimeraHue(_ct, zone.syncA);
+            const alpha = chimeraAlpha(strength, chimeraFlicker(_ct, zone.syncB));
 
             // Render a subtle pulsing arc between cluster centroids
             // (use first nodes of each cluster as rough anchors)
@@ -982,27 +1301,32 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             cxA /= countA; cyA /= countA;
             cxB /= countB; cyB /= countB;
 
-            // Interference fringe — dashed arc with phase-shifting dash offset
-            ctx.strokeStyle = `hsla(${hue},70%,60%,${alpha.toFixed(3)})`;
-            ctx.lineWidth = 2 + strength * 3;
-            ctx.setLineDash([4, 6]);
-            ctx.lineDashOffset = _ct * 30;  // scrolling dash pattern
-            ctx.beginPath();
-            const bMidX = (cxA + cxB) / 2;
-            const bMidY = (cyA + cyB) / 2;
-            const bCpx = bMidX + (w / 2 - bMidX) * 0.3;
-            const bCpy = bMidY + (h / 2 - bMidY) * 0.3;
-            ctx.moveTo(cxA, cyA);
-            ctx.quadraticCurveTo(bCpx, bCpy, cxB, cyB);
-            ctx.stroke();
+            // Interference fringe — dashed arc with a scrolling dash offset.
+            arcControl(_cCtrl, cxA, cyA, cxB, cyB, w / 2, h / 2, CHIMERA_CP_PULL);
+            const m = tessellateQuad(_cPts, cxA, cyA, _cCtrl[0], _cCtrl[1], cxB, cyB,
+              quadSegments(cxA, cyA, _cCtrl[0], _cCtrl[1], cxB, cyB));
+            writeHsl(_cRgb, 0, hue, CHIMERA_SAT, CHIMERA_LIT);
+            writePolyline(ag, _cPts, m, _cRgb, alpha, chimeraWidth(strength) * ink,
+              CHIMERA_FLAGS, dashPhase);
+            drawn++;
           }
-          ctx.setLineDash([]);
-          ctx.lineDashOffset = 0;
-          ctx.restore();
         }
       }
 
       // ── Edges (depth-sorted by average node depth) ────────────────────────
+      //
+      // The strokes AND the travelling pulse rings are on the GPU
+      // (SphereEdges.js); nothing in this block touches ctx any more. Everything
+      // that decides what an edge LOOKS like still happens here, and so does the
+      // depth sort and the findIndex pair beneath it — the sort is the draw
+      // order the instance buffer is written in, and the projected coordinates
+      // are what edgeAt() hit-tests against.
+      const eg = edgeGLRef.current;
+      eg.count = 0;
+      eg.rings = 0;
+      // The CSS space these endpoints live in, published with them so the GL
+      // layer never has to guess it from a measurement that can lag.
+      eg.w = w; eg.h = h;
       if (es) {
         // Sort edges: far first
         const sortedEdges = [...es].sort((eA, eB) => {
@@ -1052,121 +1376,235 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           const baseAlpha = (Math.min(na.energy, nb.energy) * 0.5 + 0.06 + spectralBoost + fusionBoost) * depthFade;
           const pulseBoost = e.pulse * 0.40;
 
-          ctx.lineWidth = (0.5 + Math.max(na.energy, nb.energy) * 0.8 + e.pulse * 1.8
-                        + (isSpectral ? cosSim * 1.2 : 0)
-                        + (isFused ? fuseCos * 2.0 : 0)
-                        + (isOrtho ? 2.0 : 0))
-                        * ((pA.scale + pB.scale) / 2);
+          // The width formula moved to artEdges.js unchanged. Its SIGN is now
+          // load-bearing — the pulse rings share this buffer and are told apart
+          // by a negative width — so the invariant that it is always positive
+          // needs a home a unit test can import. See SphereEdges.js's header.
+          const lineWidth = edgeLineWidth(
+            Math.max(na.energy, nb.energy), e.pulse, cosSim, fuseCos, isOrtho,
+            ((pA.scale + pB.scale) / 2) * ink,
+          );
 
           // Orthogonal bridges: hue-shifting gradient (magenta↔cyan), overrides default grd
           // Fused edges: solid bright glow (mineralized bone)
           // Spectral bridges: dashed stroke for visual distinction
           // Default: solid thin
-          if (isOrtho) {
-            const ot  = Date.now() * 0.0008;
-            const hue = (ot * 60) % 360;                           // full rotation ~6s
-            const orthoAlpha = Math.min(1, baseAlpha + pulseBoost + 0.3) * depthFade;
-            const oGrd = ctx.createLinearGradient(pA.sx, pA.sy, pB.sx, pB.sy);
-            oGrd.addColorStop(0,   `hsla(${hue},100%,65%,${orthoAlpha})`);
-            oGrd.addColorStop(0.5, `hsla(${(hue + 60) % 360},100%,72%,${Math.min(1, orthoAlpha + 0.15)})`);
-            oGrd.addColorStop(1,   `hsla(${(hue + 150) % 360},100%,65%,${orthoAlpha})`);
-            ctx.strokeStyle  = oGrd;
-            ctx.shadowColor  = `hsl(${(hue + 30) % 360},100%,60%)`;
-            ctx.shadowBlur   = 10 + Math.sin(ot * 3) * 4;
-            ctx.setLineDash([8, 4]);
-            ctx.beginPath();
-            ctx.moveTo(pA.sx, pA.sy);
-            ctx.lineTo(pB.sx, pB.sy);
-            ctx.stroke();
-            ctx.setLineDash([]);
-            ctx.shadowColor = 'transparent';
-            ctx.shadowBlur  = 0;
-          } else {
-            const cMid = lerpColor(colA, colB, e.strength);
-            const grd  = ctx.createLinearGradient(pA.sx, pA.sy, pB.sx, pB.sy);
-            grd.addColorStop(0,   hslAlpha(colA, (baseAlpha + pulseBoost) * (1 - e.strength * 0.4)));
-            grd.addColorStop(0.5, hslAlpha(cMid, baseAlpha + pulseBoost));
-            grd.addColorStop(1,   hslAlpha(colB, (baseAlpha + pulseBoost) * (0.6 + e.strength * 0.4)));
-            ctx.strokeStyle = grd;
+          //
+          // All four cases now write one instance into the GL buffer instead of
+          // stroking. The gradient stops, the dash pattern and the glow radius
+          // are the same numbers; ctx.shadowBlur has no GPU equivalent and is
+          // approximated by an exponential shoulder in the fragment shader.
+          if (eg.count < MAX_EDGES) {
+            const o  = eg.count * EDGE_STRIDE;
+            const ed = eg.data;
+            ed[o] = pA.sx; ed[o + 1] = pA.sy; ed[o + 2] = pB.sx; ed[o + 3] = pB.sy;
+            // Float 17 is a disc's shadow colour. This writer sets explicit
+            // indices and the buffer is reused frame to frame, so a segment
+            // landing where a disc was would inherit its colour — invisible in
+            // the render (vIsDisc mixes it out) but NOT invisible to the world
+            // hash, which reads the raw buffer.
+            ed[o + 17] = 0;
+            ed[o + 14] = lineWidth;
 
-            if (isFused) {
-              ctx.shadowColor = hslAlpha(cMid, fuseCos * 0.6);
-              ctx.shadowBlur  = 6 + fuseCos * 8;
+            if (isOrtho) {
+              const now = Date.now();
+              const hue = orthoHue(now);
+              // orthoAlpha applies depthFade a SECOND time — baseAlpha already
+              // carries it. That is what the 2D code did; it is not a typo
+              // being fixed here.
+              const orthoAlpha = Math.min(1, baseAlpha + pulseBoost + ORTHO_ALPHA_BOOST) * depthFade;
+              writeHsl(ed, o + 4,  hue,                       100, 65);
+              writeHsl(ed, o + 7,  hue + ORTHO_HUE_STEP_MID,  100, 72);
+              writeHsl(ed, o + 10, hue + ORTHO_HUE_STEP_END,  100, 65);
+              ed[o + 13] = packAlphas(orthoAlpha,
+                                      Math.min(1, orthoAlpha + ORTHO_MID_ALPHA_BOOST),
+                                      orthoAlpha);
+              // isOrtho (4th arg): selects the shader's shadow alpha/colour —
+              // opaque, hue+30 — instead of the fused edge's fuseCos*0.6/cMid.
+              // See SphereEdges.js's file header.
+              ed[o + 15] = packFlags(ORTHO_DASH[0] + ORTHO_DASH[1], ORTHO_DASH[0],
+                                     orthoGlow(now), true);
+              // orthoHue(now) is identical for every ortho edge this frame, so
+              // it rides a shader uniform rather than a 17th packed float —
+              // the last write wins, which is fine since they all agree.
+              eg.orthoHue = hue;
+            } else {
+              const cMid  = lerpColor(colA, colB, e.strength);
+              const stops = edgeStops(colA, colB, cMid, baseAlpha, pulseBoost, e.strength);
+              writeHslRgb(ed, o + 4,  stops[0].color);
+              writeHslRgb(ed, o + 7,  stops[1].color);
+              writeHslRgb(ed, o + 10, stops[2].color);
+              ed[o + 13] = packAlphas(stops[0].a, stops[1].a, stops[2].a);
+              const dashed = isSpectral && !isFused;
+              ed[o + 15] = packFlags(
+                dashed ? SPECTRAL_DASH[0] + SPECTRAL_DASH[1] : 0,
+                dashed ? SPECTRAL_DASH[0] : 0,
+                isFused ? fusedGlow(fuseCos) : 0,
+              );
             }
-            if (isSpectral && !isFused) ctx.setLineDash([4, 3]);
-            ctx.beginPath();
-            ctx.moveTo(pA.sx, pA.sy);
-            ctx.lineTo(pB.sx, pB.sy);
-            ctx.stroke();
-            if (isSpectral && !isFused) ctx.setLineDash([]);
-            if (isFused) { ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; }
+            eg.count++;
           }
 
-          // Overwrite pulse ring
-          if (e.pulse > 0.1) {
-            const t  = e.direction >= 0 ? e.pulse : 1 - e.pulse;
-            const px = pA.sx + (pB.sx - pA.sx) * t;
-            const py = pA.sy + (pB.sy - pA.sy) * t;
+          // Overwrite pulse ring — a flat disc travelling along the edge, now a
+          // second instance in the SAME buffer written immediately after its
+          // own edge. That ordering is the point: the 2D loop stroked edge i,
+          // filled edge i's ring, then stroked edge i+1, so the rings interleave
+          // through the depth sort. A separate mesh would draw them all last.
+          //
+          // The guard is deliberately the same `eg.count < MAX_EDGES` the edge
+          // uses. `count` only ever rises, so an edge that was dropped at the
+          // cap cannot have its ring written either.
+          if (e.pulse > PULSE_DRAW_CUTOFF && eg.count < MAX_EDGES) {
+            const t   = pulsePosition(e.pulse, e.direction);
+            const px  = pA.sx + (pB.sx - pA.sx) * t;
+            const py  = pA.sy + (pB.sy - pA.sy) * t;
+            // The colour of the endpoint the pulse LEFT, not the one it is
+            // heading for; and the radius scales by pA.scale alone, not by the
+            // two-endpoint average the stroke width uses. Both are the 2D
+            // behaviour, faithfully.
             const src = e.direction >= 0 ? colA : colB;
-            ctx.beginPath();
-            ctx.arc(px, py, (2 + e.pulse * 2.5) * pA.scale, 0, Math.PI * 2);
-            ctx.fillStyle = hslAlpha(src, e.pulse * depthFade * 0.9);
-            ctx.fill();
+            const a   = e.pulse * depthFade * PULSE_ALPHA;
+            // Through writeDisc since step 5 task 3. The centre is no longer
+            // duplicated into aEnds.zw — those two floats now carry the inner
+            // radius and the sweep — and what makes that safe is EDGE_VERT
+            // forcing delta to zero for a disc. The two halves landed together
+            // and must stay together; see DISC_OFF.
+            //
+            // A pulse ring is the degenerate case of the new encoding: no inner
+            // radius, no sweep, no falloff, so every added field is 0 and the
+            // shader collapses to the filled disc it always drew.
+            writeDisc(eg.data, eg.count * EDGE_STRIDE, {
+              cx: px, cy: py,
+              rOuter: pulseRingRadius(e.pulse, pA.scale * ink),
+              hsl: src, alpha: a,
+              flags: packFlags(0, 0, 0),   // no dash, no glow, not ortho
+            });
+            eg.count++;
+            eg.rings++;
           }
         }
       }
 
+      // Every disc written from here on is a NODE disc (or a DEV probe), not a
+      // travelling pulse ring. Publishing the boundary is what keeps a reader
+      // scanning for `isDisc` from conflating the two.
+      eg.discStart = eg.count;
+
+      // Disc probe (DEV only, null in every real frame). Appended here so it
+      // shares the pulse rings' exact path into the buffer — same mesh, same
+      // material, same blend — rather than proving a shader branch through a
+      // route nothing else uses.
+      if (discProbeRef.current) {
+        for (const d of discProbeRef.current) {
+          if (eg.count >= MAX_EDGES) break;
+          writeDisc(eg.data, eg.count * EDGE_STRIDE, d);
+          eg.count++;
+        }
+      }
+
       // ── Resonance edge (Shift-Click comparison — solid glowing coalescence) ──
+      //
+      // Third writer into the additive stream `ag`, which was reset above the
+      // filaments — after them and the chimera fringes, before the prism, which
+      // is the order the 2D loop drew all four in.
+      //
+      // TWO instances, not one: a wide low-alpha halo and a narrow bright core
+      // over it. That is what makes it read as two things coalescing rather
+      // than as a thick edge, and it is the part a port loses silently — a
+      // single bright bar looks entirely plausible.
+      //
+      // What did not move: the findIndex pair, both guard clauses and the
+      // projection all stay here on the CPU. Only the ctx calls became floats.
       if (resonanceModeRef.current && resonanceNodesRef.current.length === 2) {
         const [rIdA, rIdB] = resonanceNodesRef.current;
         const rIA = nodes.findIndex(n => n.id === rIdA);
         const rIB = nodes.findIndex(n => n.id === rIdB);
         if (rIA >= 0 && rIB >= 0) {
           const rResult = resonanceResultRef.current;
-          const sim     = rResult?.sim ?? 0.5;
+          // A pair with no computed result yet draws at 0.5, not at 0.
+          const sim     = rResult?.sim ?? RESONANCE_DEFAULT_SIM;
           const pRA = proj[rIA], pRB = proj[rIB];
           if (!pRA || !pRB) { /* dynamic node not yet projected — skip */ } else
           if (!isFinite(pRA.sx) || !isFinite(pRA.sy) || !isFinite(pRB.sx) || !isFinite(pRB.sy)) { /* non-finite coords — skip */ } else {
-          const avgScale = (pRA.scale + pRB.scale) / 2;
+          const avgScale = ((pRA.scale + pRB.scale) / 2) * ink;
+          const widths   = resonanceWidths(sim, avgScale);
+          const stops    = resonanceStops(sim);
+          const ad       = ag.data;
 
-          ctx.save();
-          ctx.globalCompositeOperation = 'lighter';
+          // The original quantised each alpha with `.toFixed(3)` before the
+          // canvas parsed the rgba() string. packAlphas quantises to 1/255,
+          // which is coarser, so it is the dominant step and toFixed does not
+          // need reproducing — it is dropped deliberately, not by oversight.
+          const stroke = (s, width, glow) => {
+            const o = ag.count * EDGE_STRIDE;
+            ad[o] = pRA.sx; ad[o + 1] = pRA.sy; ad[o + 2] = pRB.sx; ad[o + 3] = pRB.sy;
+            // rgb BYTES, not the palette's HSL objects — see writeRgb255.
+            writeRgb255(ad, o + 4,  s.c0);
+            writeRgb255(ad, o + 7,  s.c1);
+            writeRgb255(ad, o + 10, s.c2);
+            ad[o + 13] = packAlphas(s.a0, s.a1, s.a2);
+            ad[o + 14] = width;
+            // No dash, never ortho, and the layer's OWN glow step: at the edge
+            // mesh's 1/8 px a 28px radius saturates at 15.875. See packFlags.
+            ad[o + 15] = packFlags(0, 0, glow, false, ADDITIVE_LAYER.glowQuant);
+            // The dash phase, written EXPLICITLY even though this stroke is
+            // solid: `ag.data` is reused every frame and a slot the chimera
+            // fringes used last frame still holds their scrolling offset. The
+            // shader would ignore it (period 0 skips the dash branch), but a
+            // reader of the published buffer would not, and a stale float that
+            // only matters "because nothing looks at it" is one refactor away
+            // from mattering.
+            ad[o + 16] = 0;
+            // Same for float 17, and for the same reason field 16 is zeroed
+            // here: an instance that only matters "because nothing looks at
+            // it" is one refactor away from mattering.
+            ad[o + 17] = 0;
+            ag.count++;
+          };
 
-          // Outer bloom halo — wide, low alpha
-          const haloGrd = ctx.createLinearGradient(pRA.sx, pRA.sy, pRB.sx, pRB.sy);
-          haloGrd.addColorStop(0,   `rgba(255,215,0,${(0.06 + sim * 0.12).toFixed(3)})`);
-          haloGrd.addColorStop(0.5, `rgba(255,255,200,${(0.04 + sim * 0.10).toFixed(3)})`);
-          haloGrd.addColorStop(1,   `rgba(255,215,0,${(0.06 + sim * 0.12).toFixed(3)})`);
-          ctx.strokeStyle = haloGrd;
-          ctx.lineWidth   = (8 + sim * 16) * avgScale;
-          ctx.shadowBlur  = 0;
-          ctx.beginPath(); ctx.moveTo(pRA.sx, pRA.sy); ctx.lineTo(pRB.sx, pRB.sy); ctx.stroke();
-
-          // Core solid line — width and bloom scale linearly with cosine similarity
-          const coreGrd = ctx.createLinearGradient(pRA.sx, pRA.sy, pRB.sx, pRB.sy);
-          coreGrd.addColorStop(0,   `rgba(255,215,0,${(0.55 + sim * 0.45).toFixed(3)})`);
-          coreGrd.addColorStop(0.5, `rgba(255,255,255,${(0.40 + sim * 0.55).toFixed(3)})`);
-          coreGrd.addColorStop(1,   `rgba(255,215,0,${(0.55 + sim * 0.45).toFixed(3)})`);
-          ctx.strokeStyle = coreGrd;
-          ctx.lineWidth   = (1.5 + sim * 4.0) * avgScale;
-          ctx.shadowColor = `rgba(255,215,0,0.9)`;
-          ctx.shadowBlur  = 4 + sim * 24;
-          ctx.beginPath(); ctx.moveTo(pRA.sx, pRA.sy); ctx.lineTo(pRB.sx, pRB.sy); ctx.stroke();
-
-          ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
-          ctx.restore();
+          // Outer bloom halo — wide, low alpha, and shadowBlur = 0.
+          stroke(stops.halo, widths.halo, 0);
+          // Core solid line — width and bloom scale linearly with similarity.
+          // Its shadow colour/alpha are the material's, not per-instance.
+          stroke(stops.core, widths.core, resonanceGlow(sim));
         } // else — close proj guard
         }
       }
 
       // ── Prism geometry effects (inside-sphere chords, command-triggered) ────
-      // Additive blending: overlapping spectral lines ACCUMULATE light → bloom cores
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
+      //
+      // Additive blending: overlapping spectral lines ACCUMULATE light → bloom
+      // cores. All three sub-layers now write instances into the SAME additive
+      // stream the resonance edge above uses — no ctx.save()/restore() pair,
+      // because there is no longer a ctx call in here to bracket.
+      //
+      // The chords are quadratic Béziers and the line mesh draws straight
+      // segments, so each is flattened on the CPU (artCurve.js) into a run of
+      // abutting instances. What did NOT move: the projection, the ID→index
+      // map, the envelope, the hue drift and the eff.life/`live` bookkeeping
+      // are simulation state and stay here.
       {
         // Precompute ID→index map once per frame — O(1) lookup inside effect loop
         const nodeIdx = {};
         for (let i = 0; i < nodes.length; i++) nodeIdx[nodes[i].id] = i;
+
+        const pts  = prismPtsRef.current;    // tessellation scratch, xy pairs
+        const ctrl = prismCtrlRef.current;   // the control point, [x, y]
+        const rgb  = prismRgbRef.current;    // writeHsl's 3-float output
+
+        // A polyline of `m` points, then the same for one straight segment.
+        // The alphas the 2D code quantised with `.toFixed(3)` are quantised to
+        // 1/255 by packAlphas instead, which is the coarser step and therefore
+        // the dominant one — the same call made for the resonance edge above.
+        // Every prism width — glow, core, polygon, spoke — is a bare
+        // screen-px constant; not one of them rides the projection. So
+        // `ink` is applied HERE, once, instead of at the four call sites.
+        const chord = (m, a, width) =>
+          writePolyline(ag, pts, m, rgb, a, width * ink, PRISM_FLAGS);
+        const straight = (x0, y0, x1, y1, a, width) => {
+          pts[0] = x0; pts[1] = y0; pts[2] = x1; pts[3] = y1;
+          writePolyline(ag, pts, 2, rgb, a, width * ink, PRISM_FLAGS);
+        };
 
         const live = [];
         const cx = w / 2, cy = h / 2;     // projected sphere center
@@ -1192,68 +1630,66 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           if (effProj.length < 2) continue;
 
           // Draw prismatic chord bundle between every pair
-          // Coarse (mobile): 4 spectral lines × 6 nodes = 60 strokes/effect
-          // Fine  (desktop): 7 spectral lines × 11 nodes = 385 strokes/effect
-          const spectralN = eff.coarse ? 4 : 7;
+          // Coarse (mobile): 4 spectral lines × 6 nodes = 60 curves/effect
+          // Fine  (desktop): 7 spectral lines × 11 nodes = 770 curves/effect
+          const spectralN = eff.coarse ? PRISM_SPECTRAL_COARSE : PRISM_SPECTRAL_FINE;
           for (let a = 0; a < effProj.length; a++) {
             for (let b = a + 1; b < effProj.length; b++) {
               const pA = effProj[a], pB = effProj[b];
 
               for (let k = 0; k < spectralN; k++) {
-                const hue  = (hue0 + k * 48) % 360;
-                const lAlpha = alpha * 0.85 * (1 - k * 0.07);
-                const offset = (k - 3) * 2.8;
+                const hue    = (hue0 + k * PRISM_HUE_STEP) % 360;
+                const lAlpha = prismChordAlpha(alpha, k);
+                const offset = prismOffset(k);
 
-                // Control point pulled toward sphere center — creates interior arc illusion
-                const midX = (pA.sx + pB.sx) / 2;
-                const midY = (pA.sy + pB.sy) / 2;
-                const cpx  = midX + (cx - midX) * 0.55 + offset * 2;
-                const cpy  = midY + (cy - midY) * 0.55 + offset * 1.4;
+                // Control point pulled toward sphere center — creates interior arc
+                // illusion. From the UNSHIFTED midpoint; see prismControl().
+                prismControl(ctrl, pA.sx, pA.sy, pB.sx, pB.sy, cx, cy, offset);
+                const x0 = pA.sx + offset, y0 = pA.sy + offset * PRISM_END_OFF_Y;
+                const x1 = pB.sx + offset, y1 = pB.sy + offset * PRISM_END_OFF_Y;
+
+                // Flattened ONCE and drawn twice: both passes are the same
+                // curve, so they share the point list and therefore land on
+                // exactly the same joints.
+                const m = tessellateQuad(pts, x0, y0, ctrl[0], ctrl[1], x1, y1,
+                  quadSegments(x0, y0, ctrl[0], ctrl[1], x1, y1));
 
                 // Wide glow pass
-                ctx.strokeStyle = `hsla(${hue},100%,65%,${(lAlpha * 0.4).toFixed(3)})`;
-                ctx.lineWidth   = 5 - k * 0.4;
-                ctx.beginPath();
-                ctx.moveTo(pA.sx + offset, pA.sy + offset * 0.6);
-                ctx.quadraticCurveTo(cpx, cpy, pB.sx + offset, pB.sy + offset * 0.6);
-                ctx.stroke();
+                writeHsl(rgb, 0, hue, PRISM_SAT, PRISM_GLOW_LIT);
+                chord(m, lAlpha * PRISM_GLOW_ALPHA_K, prismGlowWidth(k));
                 // Sharp core pass
-                ctx.strokeStyle = `hsla(${hue},100%,88%,${lAlpha.toFixed(3)})`;
-                ctx.lineWidth   = 1.2;
-                ctx.beginPath();
-                ctx.moveTo(pA.sx + offset, pA.sy + offset * 0.6);
-                ctx.quadraticCurveTo(cpx, cpy, pB.sx + offset, pB.sy + offset * 0.6);
-                ctx.stroke();
+                writeHsl(rgb, 0, hue, PRISM_SAT, PRISM_CORE_LIT);
+                chord(m, lAlpha, PRISM_CORE_W);
               }
             }
           }
 
-          // Sacred polygon outline (cyclic ring) through effect nodes
+          // Sacred polygon outline (cyclic ring) through effect nodes.
+          // One closed canvas path became N separate segments, so its MITER
+          // JOINS are gone — a known, measured deviation at the corners. See
+          // the task report; it is not papered over with an invented join.
           if (effProj.length >= 3) {
-            const polyHue = (hue0 + 180) % 360;
-            ctx.strokeStyle = `hsla(${polyHue},100%,88%,${(alpha * 0.72).toFixed(3)})`;
-            ctx.lineWidth   = 1.6;
-            ctx.beginPath();
-            ctx.moveTo(effProj[0].sx, effProj[0].sy);
-            for (let i = 1; i < effProj.length; i++) ctx.lineTo(effProj[i].sx, effProj[i].sy);
-            ctx.closePath();
-            ctx.stroke();
+            const polyHue = (hue0 + PRISM_POLY_HUE_STEP) % 360;
+            writeHsl(rgb, 0, polyHue, PRISM_SAT, PRISM_POLY_LIT);
+            const polyA = alpha * PRISM_POLY_ALPHA_K;
+            for (let i = 0; i < effProj.length; i++) {
+              const p0 = effProj[i], p1 = effProj[(i + 1) % effProj.length];
+              straight(p0.sx, p0.sy, p1.sx, p1.sy, polyA, PRISM_POLY_W);
+            }
           }
 
-          // Star spokes — lines from sphere center to each effect node
+          // Star spokes — lines from sphere center to each effect node. Each was
+          // already its own beginPath/stroke, so the canvas composited them
+          // separately too: they double where they meet at the centre, there and
+          // here alike.
           for (const ep of effProj) {
-            const spokeHue = (hue0 + Math.atan2(ep.sy - cy, ep.sx - cx) * (180 / Math.PI) + 360) % 360;
-            ctx.strokeStyle = `hsla(${spokeHue},95%,82%,${(alpha * 0.52).toFixed(3)})`;
-            ctx.lineWidth   = 0.5;
-            ctx.beginPath();
-            ctx.moveTo(cx, cy);
-            ctx.lineTo(ep.sx, ep.sy);
-            ctx.stroke();
+            const spokeHue = prismSpokeHue(hue0, ep.sx - cx, ep.sy - cy);
+            writeHsl(rgb, 0, spokeHue, PRISM_SPOKE_SAT, PRISM_SPOKE_LIT);
+            straight(cx, cy, ep.sx, ep.sy, alpha * PRISM_SPOKE_ALPHA_K, PRISM_SPOKE_W);
           }
         }
         geomEffectsRef.current = live;
       }
-      ctx.restore();   // back to source-over for nodes
 
       // ── Nodes (depth-sorted, near drawn last = on top) ────────────────────
       const hov = hoveredRef.current;
@@ -1261,6 +1697,16 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       const _resActive = resonanceModeRef.current && _resNodes.length > 0;
       const _resNodeSet = _resActive ? new Set(_resNodes) : null;
       const _spectralFlux = getSpectralFlux();
+      const _cen = nodeCensusRef.current;
+      _cen.nodes = 0; _cen.halo = 0; _cen.core = 0; _cen.coreHover = 0;
+      _cen.beacon = 0; _cen.chimeraSync = 0; _cen.chimeraFlicker = 0;
+      _cen.ghostInner = 0; _cen.ghostOuter = 0;
+      _cen.birth = 0; _cen.bleed = 0; _cen.spectral = 0; _cen.resonanceDim = 0;
+      _cen.fusionRing = 0; _cen.fusionThread = 0;
+      _cen.probeTether = 0; _cen.probeHalo = 0; _cen.probeCore = 0;
+      _cen.particleGlow = 0; _cen.particleCore = 0;
+      _cen.conductorThumb = 0; _cen.conductorTrack = 0;
+      _cen.conductorFill = 0; _cen.conductorGlow = 0;
       for (const i of sortedNodeIdx) {
         const n   = nodes[i];
         // Dynamic nodes (bifurcation children) fall back to dynColorMap
@@ -1273,86 +1719,129 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         if (!p) continue;   // dynamic node not yet projected this frame
         const _birth = birthMapRef.current.get(n.id);
         if (_birth) {
-          const _elapsed = performance.now() - _birth.t0;
-          if (_elapsed >= 400) {
+          const _prog = birthProgress(performance.now() - _birth.t0);
+          if (!_prog) {
             birthMapRef.current.delete(n.id);
           } else {
-            const _t    = _elapsed / 400;
-            const _ease = 1 - Math.pow(1 - _t, 3);
             const [_prx, _pry, _prz] = applyM(M, _birth.px, _birth.py, _birth.pz);
             const _pp = project(_prx, _pry, _prz, w, h, sphereR, focal);
-            p = {
-              sx:    _pp.sx    + (proj[i].sx    - _pp.sx)    * _ease,
-              sy:    _pp.sy    + (proj[i].sy    - _pp.sy)    * _ease,
-              depth: _pp.depth + (proj[i].depth - _pp.depth) * _ease,
-              scale: _pp.scale + (proj[i].scale - _pp.scale) * _ease,
-            };
+            p = birthProject(_pp, proj[i], _prog.ease);
+            _cen.birth++;
           }
         }
 
         if (!isFinite(p.sx) || !isFinite(p.sy)) continue; // guard non-finite projection coords
         const isHov     = n.id === hov;
-        const energy    = n.energy + (isHov ? 0.55 : 0);
+        const energy    = nodeEnergy(n.energy, isHov);
         // Depth cuing: nodes on the back are smaller + dimmer
-        let depthAlpha = Math.max(0.08, (p.depth + 1) * 0.5);
+        const _cued = depthCueAlpha(p.depth);
 
         // ── Resonance dimming: non-selected nodes → 10% opacity ──────────────
         const _isResNode = _resActive && _resNodeSet.has(n.id);
-        if (_resActive && !_isResNode) depthAlpha *= 0.10;
+        // Counted off the RESULT, not off a second copy of the predicate: the
+        // dim is a tenth and the cue has a floor of 0.08, so the two can never
+        // coincide and the comparison cannot miss a dimmed node.
+        const depthAlpha = resonanceDimmed(_cued, _resActive, _isResNode);
+        if (depthAlpha !== _cued) _cen.resonanceDim++;
+        _cen.nodes++;
 
-        const radius = (5 + energy * 4) * p.scale;
+        // The projection scale this node's INK is drawn at. `p.scale`
+        // itself stays untouched — it also carries the label offset and
+        // the birth interpolation, which are positions, not ink. Every
+        // radius and width below is linear in this, so multiplying here is
+        // a uniform scaling of the whole node and not a reshaping of it.
+        const pInk   = p.scale * ink;
+        const radius = nodeRadius(energy, pInk);
 
         // Overwrite bleed — temporarily radiate source color
         let renderCol = col;
         if (n.bleedAmount > 0 && n.bleedFrom) {
           const srcCol = NODE_COLORS[n.bleedFrom];
-          if (srcCol) renderCol = lerpColor(col, srcCol, n.bleedAmount * 0.7);
+          if (srcCol) { renderCol = lerpColor(col, srcCol, bleedMix(n.bleedAmount)); _cen.bleed++; }
         }
 
-        // Spectral PCA tint — shift hue based on eigenvalue-to-wavelength mapping
+        // Spectral PCA tint — shift hue based on eigenvalue-to-wavelength mapping.
+        // `_preTint` is kept because the HOVERED core is drawn from
+        // renderCol.hsl, which spectralTint deliberately does not rewrite. See
+        // artNodes' coreColorSource() for why that is not a rounding detail.
+        const _preTint = renderCol;
         const _spc = getSpectralColor(i);
         if (_spc && renderCol.hue != null) {
-          const flux = _spectralFlux;
-          const blend = 0.08 + flux * 0.15; // very subtle 8-23% spectral influence
-          // Convert spectral [r,g,b,a] (0-1 floats) to approximate hue shift
-          const _sr = _spc[0], _sg = _spc[1], _sb = _spc[2];
-          const _sMax = Math.max(_sr, _sg, _sb), _sMin = Math.min(_sr, _sg, _sb);
-          let _sHue = 0;
-          if (_sMax > _sMin) {
-            const _d = _sMax - _sMin;
-            if (_sMax === _sr) _sHue = ((_sg - _sb) / _d + 6) % 6 * 60;
-            else if (_sMax === _sg) _sHue = ((_sb - _sr) / _d + 2) * 60;
-            else _sHue = ((_sr - _sg) / _d + 4) * 60;
-          }
-          renderCol = {
-            hue: renderCol.hue + (_sHue - renderCol.hue) * blend,
-            sat: renderCol.sat + ((_sMax - _sMin) / Math.max(_sMax, 0.001) * 100 - renderCol.sat) * blend * 0.3,
-            lit: renderCol.lit,
-            hsl: renderCol.hsl,
-          };
+          _cen.spectral++;
+          renderCol = spectralTint(renderCol, _spc, _spectralFlux);
         }
 
-        // Glow halo
-        if (energy > 0.08 || n.bleedAmount > 0) {
-          const haloR = radius + (energy + n.bleedAmount * 0.4) * 16 * p.scale;
-          const hGrd  = ctx.createRadialGradient(p.sx, p.sy, radius * 0.4, p.sx, p.sy, haloR);
-          hGrd.addColorStop(0, hslAlpha(renderCol, (energy + n.bleedAmount * 0.25) * 0.38 * depthAlpha));
-          hGrd.addColorStop(1, hslAlpha(renderCol, 0));
-          ctx.fillStyle = hGrd;
-          ctx.beginPath();
-          ctx.arc(p.sx, p.sy, haloR, 0, Math.PI * 2);
-          ctx.fill();
+        // ── Glow halo and core disc — ON THE GPU since step 5 task 3 ────────
+        //
+        // Written into `eg`, the SAME source-over stream the edges use, and
+        // written HERE rather than into a mesh of their own. Draw order is the
+        // reason: the 2D loop drew edges, then halos, then cores, then the
+        // rings; a second mesh would put every node under or over every edge
+        // at once. Appending to this buffer after the edge loop has finished
+        // preserves the order exactly, and the rings still on the 2D canvas
+        // composite on top of the GL result, which is where they were.
+        //
+        // The cap guard mirrors the pulse rings': `count` only rises, so a
+        // node dropped at the cap cannot have its core written either.
+        if (haloDraws(energy, n.bleedAmount) && eg.count < MAX_EDGES) {
+          // A createRadialGradient, expressed as the shader's falloff: flat
+          // inside the inner stop, then linear to zero at the rim.
+          writeDisc(eg.data, eg.count * EDGE_STRIDE, {
+            cx: p.sx, cy: p.sy,
+            rOuter: haloRadius(radius, energy, n.bleedAmount, pInk),
+            falloffInner: haloInnerRadius(radius),
+            hsl: renderCol,
+            alpha: haloAlpha(energy, n.bleedAmount, depthAlpha),
+            flags: packFlags(0, 0, 0),
+          });
+          eg.count++;
+          _cen.halo++;
         }
 
-        // Core sphere
-        const coreAlpha = (0.45 + energy * 0.55) * depthAlpha;
-        ctx.beginPath();
-        ctx.arc(p.sx, p.sy, radius, 0, Math.PI * 2);
-        ctx.fillStyle = isHov ? renderCol.hsl : hslAlpha(renderCol, coreAlpha);
-        ctx.fill();
+        if (eg.count < MAX_EDGES) {
+          // A hovered core is OPAQUE and takes its colour from BEFORE the
+          // spectral tint — both are the canvas's own behaviour, not a
+          // simplification. coreIsOpaque() / coreColorSource() name them.
+          const _hov = coreIsOpaque(isHov);
+          writeDisc(eg.data, eg.count * EDGE_STRIDE, {
+            cx: p.sx, cy: p.sy,
+            rOuter: radius,
+            hsl: coreColorSource(renderCol, _preTint, _hov),
+            alpha: _hov ? 1 : coreAlpha(energy, depthAlpha),
+            flags: packFlags(0, 0, 0),
+          });
+          eg.count++;
+          _cen.core++; if (isHov) _cen.coreHover++;
+        }
 
         // ── Awakening beacon ring (logic in artAwakening.js) ──────────────
-        drawBeaconRing(ctx, aw, i, p, radius, renderCol, depthAlpha, nodes.length);
+        //
+        // ON THE GPU, and in the ADDITIVE stream: its 2D form set
+        // `globalCompositeOperation = 'lighter'`, and `ag` is where that blend
+        // lives. That stream composites AFTER the whole source-over one, so a
+        // near node's core no longer occludes this ring — measured in this
+        // task's report rather than assumed. Appending here puts it after the
+        // filaments, the chimera fringes, the prism and the resonance edge,
+        // which is the 2D order.
+        const _beacon = beaconRingState(aw, i, p, radius, renderCol, depthAlpha,
+                                        nodes.length, undefined, ink);
+        if (_beacon) {
+          if (ag.count < MAX_ADDITIVE_EDGES) {
+            const _ba = strokeAnnulus(_beacon.radius, _beacon.width);
+            writeDisc(ag.data, ag.count * EDGE_STRIDE, {
+              cx: _beacon.cx, cy: _beacon.cy,
+              rOuter: _ba.rOuter, rInner: _ba.rInner,
+              hsl: _beacon.hsl, alpha: _beacon.alpha,
+              flags: BEACON_FLAGS,
+            });
+            ag.count++;
+            _cen.beacon++;
+          } else {
+            // Counted, not lost — a Float32Array write past the end is a
+            // silent no-op, and the overflow report below reads this.
+            ag.dropped++;
+          }
+        }
 
         // ── Chimera state halo — phase-locked clusters glow in unison ──────
         {
@@ -1361,30 +1850,41 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             const _ct = performance.now() * 0.001;
             if (_chim.isSync) {
               // Synchronized: steady warm halo pulsing at cluster phase
-              const syncPulse = 0.5 + 0.5 * Math.sin(_ct * 2 + _chim.meanPhase);
-              const syncAlpha = _chim.orderParam * syncPulse * 0.18 * depthAlpha;
-              if (syncAlpha > 0.01) {
-                const syncR = radius + 6 * p.scale;
-                ctx.beginPath();
-                ctx.arc(p.sx, p.sy, syncR, 0, Math.PI * 2);
-                ctx.strokeStyle = `hsla(45,90%,70%,${syncAlpha.toFixed(3)})`;
-                ctx.lineWidth = 1.5 * p.scale;
-                ctx.stroke();
+              const syncPulse = chimeraSyncPulse(_ct, _chim.meanPhase);
+              const syncAlpha = chimeraSyncAlpha(_chim.orderParam, syncPulse, depthAlpha);
+              // Source-over, so it goes into `eg` right behind this node's own
+              // core — the order the 2D loop drew them in.
+              if (syncAlpha > CHIMERA_ALPHA_CUTOFF && eg.count < MAX_EDGES) {
+                const _sa = strokeAnnulus(chimeraSyncRadius(radius, pInk),
+                                          CHIMERA_SYNC_WIDTH * pInk);
+                writeDisc(eg.data, eg.count * EDGE_STRIDE, {
+                  cx: p.sx, cy: p.sy,
+                  rOuter: _sa.rOuter, rInner: _sa.rInner,
+                  hsl: CHIMERA_SYNC_HSL, alpha: syncAlpha,
+                  flags: CHIMERA_SYNC_FLAGS,
+                });
+                eg.count++;
+                _cen.chimeraSync++;
               }
             } else if (_chim.isChimera) {
               // Chimera boundary: erratic flickering ring
-              const flickRate = 5 + _chim.orderParam * 8;
-              const flickAlpha = (0.15 + Math.sin(_ct * flickRate + i) * 0.12) * depthAlpha;
-              if (flickAlpha > 0.01) {
-                const chimR = radius + 8 * p.scale;
-                const chimHue = (200 + Math.sin(_ct * 1.3 + i * 0.7) * 40) | 0;
-                ctx.beginPath();
-                ctx.arc(p.sx, p.sy, chimR, 0, Math.PI * 2);
-                ctx.strokeStyle = `hsla(${chimHue},80%,60%,${flickAlpha.toFixed(3)})`;
-                ctx.lineWidth = 1.0 * p.scale;
-                ctx.setLineDash([3, 4]);
-                ctx.stroke();
-                ctx.setLineDash([]);
+              const flickRate = chimeraFlickRate(_chim.orderParam);
+              const flickAlpha = chimeraFlickAlpha(_ct, flickRate, i, depthAlpha);
+              if (flickAlpha > CHIMERA_ALPHA_CUTOFF && eg.count < MAX_EDGES) {
+                const _fa = strokeAnnulus(chimeraFlickRadius(radius, pInk),
+                                          CHIMERA_FLICK_WIDTH * pInk);
+                writeDisc(eg.data, eg.count * EDGE_STRIDE, {
+                  cx: p.sx, cy: p.sy,
+                  rOuter: _fa.rOuter, rInner: _fa.rInner,
+                  hsl: {
+                    hue: chimeraFlickHue(_ct, i),
+                    sat: CHIMERA_FLICK_SAT, lit: CHIMERA_FLICK_LIT,
+                  },
+                  alpha: flickAlpha,
+                  flags: CHIMERA_FLICK_FLAGS,
+                });
+                eg.count++;
+                _cen.chimeraFlicker++;
               }
             }
             // Async clusters: no extra ring (they're the "noise floor")
@@ -1392,27 +1892,44 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         }
 
         // ── Ghost node (Gestalt completion) — materializing outline ─────────
+        //
+        // Both rings are `lighter`, so both go into `ag` — and AFTER the beacon
+        // above, which is the order the 2D loop drew them in. The inner ring is
+        // a PARTIAL ARC and its sweep angle is the completion readout itself:
+        // written as a full circle it would still look like a ring and the
+        // whole animation would be gone. (The 2D comment called it "dashed".
+        // It never was; it is an arc, and ghostSweepEncoded() is why.)
         {
           const _ghosts = getGhostNodes();
-          if (_ghosts && _ghosts[i] > 0.02) {
-            const ghostAlpha = _ghosts[i] * depthAlpha;
-            const ghostR = radius + 4 * p.scale + _ghosts[i] * 6 * p.scale;
-            // Double ring: inner dashed (incomplete), outer solid (materializing)
-            ctx.save();
-            ctx.globalCompositeOperation = 'lighter';
-            // Inner ring: partial reconstruction
-            ctx.beginPath();
-            ctx.arc(p.sx, p.sy, ghostR, 0, Math.PI * 2 * _ghosts[i]);
-            ctx.strokeStyle = `hsla(180,70%,75%,${(ghostAlpha * 0.5).toFixed(3)})`;
-            ctx.lineWidth = 1.5 * p.scale;
-            ctx.stroke();
-            // Outer glow ring: completion halo
-            ctx.beginPath();
-            ctx.arc(p.sx, p.sy, ghostR + 3 * p.scale, 0, Math.PI * 2);
-            ctx.strokeStyle = `hsla(180,60%,85%,${(ghostAlpha * 0.2).toFixed(3)})`;
-            ctx.lineWidth = 3 * p.scale;
-            ctx.stroke();
-            ctx.restore();
+          if (_ghosts && ghostDraws(_ghosts[i])) {
+            const gAlpha = ghostAlpha(_ghosts[i], depthAlpha);
+            const ghostR = ghostRadius(radius, _ghosts[i], pInk);
+            if (ag.count < MAX_ADDITIVE_EDGES) {
+              const _gi = strokeAnnulus(ghostR, GHOST_INNER_WIDTH * pInk);
+              writeDisc(ag.data, ag.count * EDGE_STRIDE, {
+                cx: p.sx, cy: p.sy,
+                rOuter: _gi.rOuter, rInner: _gi.rInner,
+                sweepEnd: ghostSweepEncoded(_ghosts[i]),
+                hsl: GHOST_INNER_HSL, alpha: gAlpha * GHOST_INNER_ALPHA_K,
+                flags: GHOST_FLAGS,
+              });
+              ag.count++;
+              _cen.ghostInner++;
+            } else ag.dropped++;
+
+            // Outer glow ring: completion halo. Full circle, three times wide.
+            if (ag.count < MAX_ADDITIVE_EDGES) {
+              const _go = strokeAnnulus(ghostOuterRadius(ghostR, pInk),
+                                        GHOST_OUTER_WIDTH * pInk);
+              writeDisc(ag.data, ag.count * EDGE_STRIDE, {
+                cx: p.sx, cy: p.sy,
+                rOuter: _go.rOuter, rInner: _go.rInner,
+                hsl: GHOST_OUTER_HSL, alpha: gAlpha * GHOST_OUTER_ALPHA_K,
+                flags: GHOST_FLAGS,
+              });
+              ag.count++;
+              _cen.ghostOuter++;
+            } else ag.dropped++;
           }
         }
 
@@ -1433,100 +1950,153 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         }
       }
 
+      // Never quietly. This sits AFTER the node loop because the beacon ring
+      // moved into `ag` in step 5 task 5 — it was under the prism, which was
+      // then the last writer, and a check that runs before a writer certifies
+      // nothing about it. It is also out of the prism's own `if`, which only
+      // ran on a frame with a live geometric effect: the filaments, the fringes
+      // and now the beacon can all write to a frame that has none.
+      // MAX_ADDITIVE_EDGES is sized so this is unreachable (four concurrent
+      // eleven-node effects at the segment ceiling, plus both orphan layers at
+      // their own caps, plus one ring per node), so if it ever fires the
+      // arithmetic behind the cap is wrong, not the frame.
+      if (ag.dropped > 0 && !prismOverflowWarned) {
+        prismOverflowWarned = true;
+        console.error(`[art] additive overflow: ${ag.dropped} instances dropped at`
+          + ` ${ag.count}/${MAX_ADDITIVE_EDGES} — MAX_ADDITIVE_EDGES is too small`);
+      }
+
       // ── Manual fusion: pending targeting line + source pulse ring ─────────
+      //
+      // ON THE GPU, and into `eg` — source-over, which is what the 2D form
+      // already was: neither of these ever set globalCompositeOperation.
+      //
+      // Appended HERE, after every node disc, and that placement is the whole
+      // point of the layer being last. Both of these TERMINATE on a node — the
+      // ring encircles one, the thread starts at one — and the GL composite
+      // renders under the 2D canvas, so writing them any earlier in the frame
+      // would put them behind the discs they are drawn against. They stay
+      // under the particle ecology and the conductor, which still draw on the
+      // 2D canvas after this point and always did.
       const fSrc = fusionSourceRef.current;
       if (fSrc) {
-        const si = NODE_IDX[fSrc];
-        if (si != null) {
+        // Sphere space, not corpus space: `proj` and `nodes` are the live
+        // sphere array. fusionSourceRef is set from nodeAt() hit-testing, which
+        // returns sphere nodes, so this normally resolves.
+        const si = sphereIndexOf(nodes, fSrc);
+        if (si >= 0) {
           const sp    = proj[si];
           const t     = performance.now() / 1000;
-          const pulse = 0.5 + 0.5 * Math.sin(t * 5);
+          const pulse = fusionPulse(t);
           const srcCol = NODE_COLORS[fSrc];
-          const ringR  = (5 + nodes[si].energy * 4 + 8 + pulse * 6) * sp.scale;
-          // Pulsing dashed ring around locked source
-          ctx.save();
-          ctx.strokeStyle = hslAlpha(srcCol, 0.55 + pulse * 0.45);
-          ctx.lineWidth   = 1.5 * sp.scale;
-          ctx.setLineDash([5, 4]);
-          ctx.beginPath();
-          ctx.arc(sp.sx, sp.sy, ringR, 0, Math.PI * 2);
-          ctx.stroke();
-          ctx.setLineDash([]);
-          ctx.restore();
-          // Dashed targeting thread to cursor
+          const ringR  = fusionRingRadius(nodes[si].energy, pulse, sp.scale * ink);
+          // Pulsing dashed ring around the locked source. [5,4] is an ANGULAR
+          // dash: for a disc the shader walks rMid * theta, so the pattern
+          // stays in px of ARC LENGTH and the dash boundaries come out radial,
+          // exactly as ctx.setLineDash draws them around a stroked circle.
+          if (eg.count < MAX_EDGES) {
+            const _fr = strokeAnnulus(ringR, FUSION_RING_WIDTH * sp.scale * ink);
+            writeDisc(eg.data, eg.count * EDGE_STRIDE, {
+              cx: sp.sx, cy: sp.sy,
+              rOuter: _fr.rOuter, rInner: _fr.rInner,
+              hsl: srcCol, alpha: fusionRingAlpha(pulse),
+              flags: FUSION_RING_FLAGS,
+            });
+            eg.count++;
+            _cen.fusionRing++;
+          }
+          // Dashed targeting thread to the cursor. An ordinary straight
+          // segment — no disc encoding, no shader change; writePolyline over
+          // two points is the same instance the base edges have always been.
           const cur = fusionCursorRef.current;
           if (cur) {
-            ctx.save();
-            ctx.strokeStyle = hslAlpha(srcCol, 0.3 + pulse * 0.15);
-            ctx.lineWidth   = 1;
-            ctx.setLineDash([3, 6]);
-            ctx.beginPath();
-            ctx.moveTo(sp.sx, sp.sy);
-            ctx.lineTo(cur.x, cur.y);
-            ctx.stroke();
-            ctx.setLineDash([]);
-            ctx.restore();
+            _cPts[0] = sp.sx; _cPts[1] = sp.sy;
+            _cPts[2] = cur.x; _cPts[3] = cur.y;
+            writeHsl(_cRgb, 0, srcCol.hue, srcCol.sat, srcCol.lit);
+            // The RETURN value, not an unconditional ++: past capacity
+            // writePolyline writes nothing and reports 0, and a census that
+            // counted the intent rather than the write would hide that.
+            _cen.fusionThread += writePolyline(
+              eg, _cPts, 2, _cRgb, fusionThreadAlpha(pulse),
+              FUSION_THREAD_WIDTH * ink, FUSION_THREAD_FLAGS);
           }
         }
       }
 
       // ── Probe node (text_probe.rs concept injection) ───────────────────────
-      // Rendered after all sphere nodes so it draws on top.
+      // ON THE GPU, into `eg`, after the fusion pair above — the 2D comment
+      // here read "rendered after all sphere nodes so it draws on top", and
+      // appending last in the source-over stream is that same sentence. Only
+      // the LABEL stays behind, and it is DOM rather than canvas.
       const probe = probeNodeRef.current;
       if (probe?.anchors?.length) {
         // Ranking spans all 272 corpus nodes; probe.anchors has already
         // collapsed the top matches onto sphere nodes (see SPHERE_ANCHOR), so
         // the centroid forms even when no match is on the sphere itself.
-        let wx = 0, wy = 0, wz = 0, wsum = 0, wmax = 0;
-        const tethers = [];
-        for (const { id, weight } of probe.anchors) {
-          const ni = nodes.findIndex(n => n.id === id);
-          if (ni < 0) continue;
-          wx += nodes[ni].x * weight;
-          wy += nodes[ni].y * weight;
-          wz += nodes[ni].z * weight;
-          wsum += weight;
-          if (weight > wmax) wmax = weight;
-          tethers.push({ ni, weight });
-        }
-        if (wsum > 1e-12) {
-          wx /= wsum; wy /= wsum; wz /= wsum;
-          const len = Math.sqrt(wx * wx + wy * wy + wz * wz);
-          if (len > 1e-12) { wx /= len; wy /= len; wz /= len; }
-          const [prx, pry, prz] = applyM(M, wx, wy, wz);
+        // `resolve` hands back the sphere position AND the projected point,
+        // because the centroid is computed in sphere space while the tethers
+        // are drawn in screen space, and re-deriving the index for the second
+        // would mean a second sphereIndexOf sweep per anchor per frame.
+        const _c = probeCentroid(probe.anchors, (id) => {
+          const ni = sphereIndexOf(nodes, id);
+          if (ni < 0) return null;
+          const nd = nodes[ni];
+          return { x: nd.x, y: nd.y, z: nd.z, p: proj[ni] };
+        });
+        if (_c) {
+          const [prx, pry, prz] = applyM(M, _c.x, _c.y, _c.z);
           const pp = project(prx, pry, prz, w, h, sphereR, focal);
-          const depthAlpha = Math.max(0.12, (prz + 1) * 0.5);
-          // Tether lines to every anchor that formed the centroid
-          ctx.setLineDash([3, 5]);
-          for (const { ni, weight } of tethers) {
-            const pn = proj[ni];
-            ctx.lineWidth = 0.9;
-            ctx.strokeStyle = `rgba(167,139,250,${(weight / wmax) * 0.55 * depthAlpha})`;
-            ctx.beginPath();
-            ctx.moveTo(pp.sx, pp.sy);
-            ctx.lineTo(pn.sx, pn.sy);
-            ctx.stroke();
+          const depthAlpha = probeDepthAlpha(prz);
+          // Tether lines to every anchor that formed the centroid. The tethers
+          // and the halo share one colour, so it is converted ONCE, through
+          // writeRgb255 — these are authored as rgba() BYTE triples, not as
+          // the palette's HSL objects, and a hand-rolled /255 at each call
+          // site is exactly where a second, drifting conversion appears.
+          writeRgb255(_cRgb, 0, PROBE_GLOW_RGB);
+          for (const { node: pn, weight } of _c.tethers) {
+            // Each tether was its own beginPath, so each starts at dash phase
+            // 0 — which is writePolyline's default, one call per tether.
+            _cPts[0] = pp.sx;    _cPts[1] = pp.sy;
+            _cPts[2] = pn.p.sx;  _cPts[3] = pn.p.sy;
+            _cen.probeTether += writePolyline(
+              eg, _cPts, 2, _cRgb,
+              probeTetherAlpha(weight, _c.wmax, depthAlpha),
+              PROBE_TETHER_WIDTH * ink, PROBE_TETHER_FLAGS);
           }
-          ctx.setLineDash([]);
-          // Pulsing glow halo
-          const pulse = (Math.sin(Date.now() * 0.003) + 1) * 0.5;
-          const probeR = 6 * pp.scale;
-          const glowR  = probeR + pulse * 14 * pp.scale;
-          if (glowR > 0 && isFinite(pp.sx) && isFinite(pp.sy)) {
-            const gGrd = ctx.createRadialGradient(pp.sx, pp.sy, probeR * 0.3, pp.sx, pp.sy, glowR);
-            gGrd.addColorStop(0, `rgba(167,139,250,${0.45 * depthAlpha})`);
-            gGrd.addColorStop(1, 'rgba(167,139,250,0)');
-            ctx.fillStyle = gGrd;
-            ctx.beginPath();
-            ctx.arc(pp.sx, pp.sy, glowR, 0, Math.PI * 2);
-            ctx.fill();
+          // Pulsing glow halo. A RADIAL FALLOFF — flat inside falloffInner,
+          // then linear to zero at the outer radius — because that is what
+          // createRadialGradient is. NOT the gaussian shoulder ctx.shadowBlur
+          // casts: the two agree at exactly one radius and are wrong at every
+          // other, which is the trap the node halos already paid for.
+          const pulse = probePulse(Date.now());
+          const probeR = probeRadius(pp.scale * ink);
+          const glowR  = probeGlowRadius(probeR, pulse, pp.scale * ink);
+          if (glowR > 0 && isFinite(pp.sx) && isFinite(pp.sy)
+              && eg.count < MAX_EDGES) {
+            writeDisc(eg.data, eg.count * EDGE_STRIDE, {
+              cx: pp.sx, cy: pp.sy,
+              rOuter: glowR,
+              falloffInner: probeGlowInnerRadius(probeR),
+              rgb: _cRgb, alpha: PROBE_GLOW_ALPHA * depthAlpha,
+              flags: PROBE_FLAGS,
+            });
+            eg.count++;
+            _cen.probeHalo++;
           }
-          // Core node
-          ctx.beginPath();
-          ctx.arc(pp.sx, pp.sy, probeR, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(196,181,253,${(0.75 + pulse * 0.25) * depthAlpha})`;
-          ctx.fill();
-          // Label
+          // Core node — a plain filled disc, the primitive step 4 already
+          // ships. Its own colour, so the scratch is refilled.
+          if (eg.count < MAX_EDGES) {
+            writeRgb255(_cRgb, 0, PROBE_CORE_RGB);
+            writeDisc(eg.data, eg.count * EDGE_STRIDE, {
+              cx: pp.sx, cy: pp.sy,
+              rOuter: probeR,
+              rgb: _cRgb, alpha: probeCoreAlpha(pulse, depthAlpha),
+              flags: PROBE_FLAGS,
+            });
+            eg.count++;
+            _cen.probeCore++;
+          }
+          // Label — DOM, drawn by SphereLabels. Stays.
           const shortQ = probe.query.length > 22 ? probe.query.slice(0, 20) + '…' : probe.query;
           nextLabels.push({
             key: 'probe',
@@ -1545,91 +2115,264 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       if (pFrame % 7 === 0) emitIdleParticles(pool, nodes);
 
       // ── Particle render — additive, smooth sin fade, radial glow ─────────
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
+      // Counted, because a layer in no capture state scores perfect parity
+      // whether it ships or is deleted — this branch's defining failure, found
+      // six times. Both sub-layers separately: a port that drops the glow and
+      // keeps the core would otherwise read as present.
+      // ── The strimer wavefront ────────────────────────────────────────────
+      // Stepped on the clock, never on a frame count: a frame counter runs at
+      // double speed on a 120Hz display, which is the /SCENT bug. The harness
+      // virtualises performance.now() and advances it FRAME_MS per __pump, so
+      // this stays bit-reproducible under a capture.
+      {
+        const sp = strimerRef.current;
+        stepStrimer(sp, performance.now());
+
+        // ARRIVALS. This is the +0.6 that used to fire instantly inside
+        // fireNode for every neighbour at once; it now lands when the packet
+        // that was sent to that neighbour actually gets there.
+        //
+        // Reads arrivedDst — the destination NODE ID — not a slot index.
+        // stepStrimer compacts the pool in the same call that records
+        // arrivals, which renumbers slots after the first one it retires; a
+        // slot index read back here, after compaction, can name a different,
+        // still-travelling packet. See stepStrimer's doc comment.
+        for (let k = 0; k < sp.arrivedCount; k++) {
+          const nb = nodes.find(n => n.id === sp.arrivedDst[k]);
+          if (nb) nb.energy = Math.min(1, nb.energy + 0.6);
+        }
+
+        sp.w = w; sp.h = h;
+        sp.instances = 0;
+        for (let i = 0; i < sp.count; i++) {
+          const ia = nodes.findIndex(n => n.id === sp.srcId[i]);
+          const ib = nodes.findIndex(n => n.id === sp.dstId[i]);
+          if (ia < 0 || ib < 0) continue;
+          const pa = proj[ia], pb = proj[ib];
+          if (!pa || !pb) continue;   // dynamic node not yet projected
+          const r = sp.rgb[i * 3], g = sp.rgb[i * 3 + 1], b = sp.rgb[i * 3 + 2];
+          const scale = (pa.scale + pb.scale) * 0.5 * ink;
+
+          if (sp.phase[i] === PHASE_TRAVEL) {
+            // The RAIL first, so the packet adds over it. This layer blends
+            // with GL CustomBlending One/One (SphereStrimer.jsx), which
+            // commutes exactly like the 2D canvas's `lighter` op does
+            // elsewhere in this file — so this ordering is for legibility
+            // rather than correctness.
+            let o = sp.instances * STRIMER_STRIDE;
+            sp.data[o] = pa.sx; sp.data[o + 1] = pa.sy;
+            sp.data[o + 2] = pb.sx; sp.data[o + 3] = pb.sy;
+            sp.data[o + 4] = RAIL_WIDTH * scale;
+            sp.data[o + 5] = RAIL_GAIN;
+            sp.data[o + 6] = r; sp.data[o + 7] = g; sp.data[o + 8] = b;
+            sp.data[o + 9] = PROFILE_RAIL;
+            sp.instances++;
+
+            const u = sp.u[i];
+            const hx = pa.sx + (pb.sx - pa.sx) * u;
+            const hy = pa.sy + (pb.sy - pa.sy) * u;
+            const L = Math.hypot(pb.sx - pa.sx, pb.sy - pa.sy) * PACKET_FRACTION;
+            const dx = pb.sx - pa.sx, dy = pb.sy - pa.sy;
+            const n = Math.max(Math.hypot(dx, dy), 1e-6);
+            o = sp.instances * STRIMER_STRIDE;
+            sp.data[o] = hx; sp.data[o + 1] = hy;
+            sp.data[o + 2] = hx - dx / n * L; sp.data[o + 3] = hy - dy / n * L;
+            sp.data[o + 4] = HEAD_WIDTH * scale;
+            sp.data[o + 5] = HEAD_GAIN;
+            sp.data[o + 6] = r; sp.data[o + 7] = g; sp.data[o + 8] = b;
+            sp.data[o + 9] = PROFILE_PACKET;
+            sp.instances++;
+          } else {
+            // The PING: head == tail, which the same capsule arithmetic
+            // renders as a disc. One shader, three profiles.
+            // `ping` is already the remaining fraction in [0,1] — it fades on
+            // the clock, not on a frame count. See artStrimer.js's PING_MS.
+            const k2 = sp.ping[i];
+            const o = sp.instances * STRIMER_STRIDE;
+            sp.data[o] = pb.sx; sp.data[o + 1] = pb.sy;
+            sp.data[o + 2] = pb.sx; sp.data[o + 3] = pb.sy;
+            sp.data[o + 4] = PING_RADIUS * scale;
+            sp.data[o + 5] = PING_GAIN * k2;
+            // r/g/b written for layout parity with the other two profiles,
+            // but inert: the shader forces vec3(1.0) for profile >= 1.5
+            // (SphereStrimer.jsx), so the ping is deliberately achromatic
+            // and never reads these three floats.
+            sp.data[o + 6] = r; sp.data[o + 7] = g; sp.data[o + 8] = b;
+            sp.data[o + 9] = PROFILE_PING;
+            sp.instances++;
+          }
+        }
+      }
+
+      const _pcen = nodeCensusRef.current;
+      // ON THE GPU, in the ADDITIVE stream. The 2-D form set
+      // `globalCompositeOperation = 'lighter'` and `ag` is where that blend
+      // lives. Appended after the node loop, which is where the 2-D order put
+      // it — and `lighter` COMMUTES, so position within this stream cannot
+      // change the result anyway.
+      //
+      // The accumulation gain survives: BackdropPass renders `ag` INTO the
+      // trail accumulator, so these keep the 1/m standing gain the 2-D canvas's
+      // partial `destination-out` clear gave them. That is the deficit that
+      // cost steps 3 and 4, and it is measured in this step's report rather
+      // than assumed.
       for (let pi = 0; pi < MAX_PARTICLES; pi++) {
         if (pool.lifes[pi] >= pool.maxLifes[pi] || pool.maxLifes[pi] === 0) continue;
-        const lifeT = pool.lifes[pi] / pool.maxLifes[pi];
-        // Smooth cubic fade: ramp in over first 15%, hold, ramp out last 30%
-        let alpha;
-        if (lifeT < 0.15) {
-          alpha = (lifeT / 0.15) * (lifeT / 0.15); // quadratic ease-in
-        } else if (lifeT > 0.70) {
-          alpha = Math.pow(1 - (lifeT - 0.70) / 0.30, 2.2); // power ease-out
-        } else {
-          alpha = 1.0;
-        }
-        alpha *= 0.55;
-        if (alpha < 0.004) continue;
+        const alpha = particleAlpha(pool.lifes[pi] / pool.maxLifes[pi]);
+        if (!particleVisible(alpha)) continue;
 
         const [prx, pry, prz] = applyM(M, pool.xs[pi], pool.ys[pi], pool.zs[pi]);
         const pp = project(prx, pry, prz, w, h, sphereR, focal);
-        if (pp.depth < -0.6) continue; // cull deep back-face
+        if (!particleInFront(pp.depth)) continue;
 
-        const sz   = Math.max(0.4, pool.sizes[pi] * pp.scale);
-        const hue  = pool.hues[pi];
-        const sat  = pool.sats[pi];
+        const sz  = particleSize(pool.sizes[pi], pp.scale * ink);
+        const hue = quantHue(pool.hues[pi]);
+        const sat = quantHue(pool.sats[pi]);
 
-        // Soft radial glow — two concentric draws
-        const glowR = sz * 3.5;
-        const gGrd = ctx.createRadialGradient(pp.sx, pp.sy, 0, pp.sx, pp.sy, glowR);
-        gGrd.addColorStop(0,   `hsla(${hue|0},${sat|0}%,82%,${alpha.toFixed(3)})`);
-        gGrd.addColorStop(0.4, `hsla(${hue|0},${sat|0}%,65%,${(alpha*0.5).toFixed(3)})`);
-        gGrd.addColorStop(1,   `hsla(${hue|0},${sat|0}%,50%,0)`);
-        ctx.fillStyle = gGrd;
-        ctx.beginPath();
-        ctx.arc(pp.sx, pp.sy, glowR, 0, Math.PI * 2);
-        ctx.fill();
+        // The cap guard mirrors the node halo's: `count` only rises, so a
+        // particle dropped at the cap cannot have its core written without its
+        // glow, which would leave a bare dot where a lit particle should be.
+        if (ag.count + 1 >= MAX_ADDITIVE_EDGES) break;
 
-        // Hard core
-        ctx.fillStyle = `hsla(${hue|0},${sat|0}%,92%,${(alpha * 0.8).toFixed(3)})`;
-        ctx.beginPath();
-        ctx.arc(pp.sx, pp.sy, sz, 0, Math.PI * 2);
-        ctx.fill();
+        // Soft radial glow — the THREE-STOP ramp, now as one disc instance.
+        // Lightness falls with the alpha (82 -> 65 -> 50) and the knee is at
+        // 0.4, not the midpoint; the outer colour is EXTRAPOLATED from the
+        // other two rather than stored, because the three are collinear in RGB
+        // above l = 0.5. See DISC_OFF.outerK.
+        writeDisc(ag.data, ag.count * EDGE_STRIDE, {
+          cx: pp.sx, cy: pp.sy,
+          rOuter: particleGlowRadius(sz),
+          hsl: { hue, sat, lit: GLOW_STOPS[0].lightness },
+          alpha: quantAlpha(alpha * GLOW_STOPS[0].alphaScale),
+          mid: {
+            at: GLOW_STOPS[1].at,
+            hsl: { hue, sat, lit: GLOW_STOPS[1].lightness },
+            alpha: quantAlpha(alpha * GLOW_STOPS[1].alphaScale),
+          },
+          outerK: GLOW_OUTER_K,
+          outerAlpha: quantAlpha(alpha * GLOW_STOPS[2].alphaScale),
+          flags: PARTICLE_FLAGS,
+        });
+        ag.count++;
+        _pcen.particleGlow++;
+
+        // Hard core — a filled disc, one colour, no ramp.
+        //
+        // Alpha corrected for the shader's straight-edge box filter, which
+        // over-inks a disc by 1/12 px^2 whatever its size: nothing at a node
+        // core's 8-25px, and 52% at this layer's 0.4px floor. See
+        // discInkCorrection. MEASURED: without it the migration raised
+        // whole-frame ink 1.6-2.7%.
+        writeDisc(ag.data, ag.count * EDGE_STRIDE, {
+          cx: pp.sx, cy: pp.sy,
+          rOuter: sz,
+          hsl: { hue, sat, lit: CORE_LIGHTNESS },
+          alpha: quantAlpha(alpha * CORE_ALPHA_SCALE * discInkCorrection(sz)),
+          flags: PARTICLE_FLAGS,
+        });
+        ag.count++;
+        _pcen.particleCore++;
       }
-      ctx.restore();
 
       // ── Bifurcation Conductor (logic in artAwakening.js) ────────────────
-      drawConductor(ctx, collectiveRef.current, conductorDragRef.current, w, h);
+      // Counted at the write itself, not re-derived from the conditions —
+      // three of these four sub-layers are in no capture state, so this census
+      // is the only thing that can say whether a reference image had them.
+      //
+      // Appended LAST in the source-over stream because that is where the 2-D
+      // canvas drew it, and source-over does not commute. It is screen space,
+      // not sphere geometry: the strip sits at the right edge, and the edge
+      // shader writes clip space from CSS px against the same uResolution this
+      // loop uses, so these coordinates cross over with no projection at all.
+      // WHERE THE WORLD ENDS. Everything written up to here is projected sphere
+      // geometry; everything after it is the conductor, which is screen-space
+      // furniture at a fixed right-edge strip and is not part of the graph.
+      //
+      // This exists because moving the conductor into this buffer BROKE the
+      // world hash, and the gate caught it: 12 of 21 cells refused to certify
+      // with "the runs drew different worlds" at pixel correlations of 0.98 to
+      // 0.9996, and the tell was that every failing cell had an identical edge
+      // count while every passing one had conductorY clamped to exactly 1. The
+      // thumb's position is a continuous function of the Feigenbaum r, and r
+      // drifts run to run; hashing it turned a discrete question — did these
+      // two runs draw the same graph? — into a floating-point one.
+      //
+      // The WRITER declares the boundary rather than the reader guessing it,
+      // exactly as discStart does one level up.
+      eg.worldCount = eg.count;
 
-      // ── Immersive Mode: bloom post-process + vignette ─────────────────────
-      if (immersiveRef.current) {
-        // Bloom: draw blurred copy with additive blend
-        let bloomCvs = bloomCanvasRef.current;
-        if (!bloomCvs) {
-          bloomCvs = document.createElement('canvas');
-          bloomCanvasRef.current = bloomCvs;
-        }
-        // Bloom at half resolution for performance
-        const bw = Math.floor(w / 2), bh = Math.floor(h / 2);
-        if (bloomCvs.width !== bw || bloomCvs.height !== bh) {
-          bloomCvs.width = bw; bloomCvs.height = bh;
-        }
-        const bCtx = bloomCvs.getContext('2d');
-        bCtx.clearRect(0, 0, bw, bh);
-        bCtx.filter = 'blur(12px) brightness(1.2)';
-        bCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, bw, bh);
-        bCtx.filter = 'none';
+      const _cst = conductorState(collectiveRef.current,
+        conductorForceRef.current?.dragging ?? conductorDragRef.current, w, h);
 
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        ctx.globalAlpha = 0.15;
-        ctx.drawImage(bloomCvs, 0, 0, bw, bh, 0, 0, w, h);
-        ctx.globalAlpha = 1;
-        ctx.restore();
-
-        // Cinematic vignette
-        const vigGrd = ctx.createRadialGradient(w / 2, h / 2, sphereR * 0.6, w / 2, h / 2, Math.max(w, h) * 0.7);
-        vigGrd.addColorStop(0, 'rgba(0,0,0,0)');
-        vigGrd.addColorStop(1, 'rgba(0,0,0,0.65)');
-        ctx.fillStyle = vigGrd;
-        ctx.fillRect(0, 0, w, h);
+      // 1. The thumb — a filled disc, and the only sub-layer any capture on
+      // this branch has ever contained. Dormant, it draws at alpha 0.03.
+      if (eg.count < MAX_EDGES) {
+        writeDisc(eg.data, eg.count * EDGE_STRIDE, {
+          cx: _cst.thumb.cx, cy: _cst.thumb.cy, rOuter: _cst.thumb.r,
+          hsl: _cst.thumb.hsl,
+          // 1.5-4px, so the shader's straight-edge box filter over-inks it by
+          // 1/12 px^2 — the same correction step 6 derived for particle cores.
+          alpha: _cst.thumb.alpha * discInkCorrection(_cst.thumb.r),
+          flags: CONDUCTOR_FLAGS,
+        });
+        eg.count++;
+        _pcen.conductorThumb++;
       }
+
+      // 2. the track and 3. the fill bar — 1px vertical strokes. writePolyline
+      // reports what it actually wrote, so a full buffer shows up as a census
+      // of 0 rather than as a layer that silently is not there.
+      if (_cst.track) {
+        _pcen.conductorTrack += writePolyline(eg,
+          [_cst.track.x, _cst.track.y0, _cst.track.x, _cst.track.y1], 2,
+          CONDUCTOR_TRACK_RGB, _cst.track.alpha, _cst.track.width, CONDUCTOR_FLAGS);
+      }
+      if (_cst.fill) {
+        _pcen.conductorFill += writePolyline(eg,
+          [_cst.fill.x, _cst.fill.y0, _cst.fill.x, _cst.fill.y1], 2,
+          hslUnitRgb(_cst.fill.hsl), _cst.fill.alpha, _cst.fill.width,
+          CONDUCTOR_FLAGS);
+      }
+
+      // 4. The peer-push glow — the FIRST shadowed disc this renderer draws.
+      // ctx.fill() under a shadow paints the shape in fillStyle and the blur in
+      // shadowColor, which on this layer are two different colours, so the
+      // instance carries both: the core in c0 and the shadow in float 17. See
+      // "The 18th float" and DISC_SHADOW_K in SphereEdges.js.
+      if (_cst.glow && eg.count < MAX_EDGES) {
+        writeDisc(eg.data, eg.count * EDGE_STRIDE, {
+          cx: _cst.glow.cx, cy: _cst.glow.cy, rOuter: _cst.glow.r,
+          hsl: _cst.glow.hsl,
+          shadowHsl: _cst.glow.shadowHsl,
+          alpha: _cst.glow.alpha * discInkCorrection(_cst.glow.r),
+          flags: CONDUCTOR_GLOW_FLAGS,
+        });
+        eg.count++;
+        _pcen.conductorGlow++;
+      }
+
+      // ── Bloom and vignette ────────────────────────────────────────────────
+      // Both now happen on the GPU in SphereComposite, which takes this canvas
+      // as a texture. The old version blurred a half-resolution copy with
+      // ctx.filter and composited it back at 0.15 alpha, which is why it read
+      // as a smear rather than as light. Bloom is now always on; the vignette
+      // is still immersive-only.
 
       // ── Hand this frame's labels to the DOM overlay ───────────────────────
       labelsApiRef.current?.update(nextLabels);
       } catch (err) {
         console.error('[ArtTab] draw error (loop continues):', err);
+      }
+
+      // ── Composite ─────────────────────────────────────────────────────────
+      // Outside the try on purpose: if the 2D draw threw part-way, we still
+      // want the GL layer to present whatever did get drawn, exactly as the
+      // browser would have. Inside the try it would be skipped along with
+      // everything else after the throw.
+      try {
+        glAdvanceRef.current?.(performance.now());
+      } catch (err) {
+        console.error('[ArtTab] composite advance failed:', err);
       }
     };
 
@@ -1652,6 +2395,518 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     });
   }, [stateRef, dimsRef]);
 
+  // ── Dev-only harness hook ─────────────────────────────────────────────────
+  // The visual-parity harness (scripts/artBaseline.mjs) has to boot the app under
+  // REAL timing, because virtualising the clock from page load stops React
+  // committing concurrent work and r3f then never mounts. But that means the
+  // sphere's state at the moment the harness takes over — rotation, node
+  // positions, particles — carries real-time history and differs run to run.
+  //
+  // This resets the sim to its mount-time state so the captured window is
+  // reproducible. `import.meta.env.DEV` is statically false in a production
+  // build, so the whole block is dead code the bundler removes.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return undefined;
+    // Pin the sphere's own random stream. `window.__reseed` in the determinism
+    // shim calls this, so every harness that already says "reseed" to mean "pin
+    // the world" keeps meaning it now that the world is drawn from artRandom
+    // rather than the global Math.random. Passing no seed pins it to ART_SEED,
+    // matching the shim's own default.
+    window.__artSeedRandom = (seed) => seedArtRandom(seed ?? ART_SEED);
+
+    // Every initState call this page has made, as the artRandom stream offset
+    // at its entry. An instrument reads the LENGTH at two points and takes the
+    // delta; nothing here resets it, deliberately, because __artHarnessReset's
+    // behaviour is load-bearing for the reference images and this must not be
+    // able to change a picture. `rng` is the live stream state, so a probe can
+    // ask where the stream is without taking a draw from it.
+    window.__artInitLog = () => ({
+      calls: __initStateLog.length,
+      renders: __streamProbe.renders,
+      offsets: __initStateLog.slice(),
+      rng: artRandomState(),
+    });
+
+    window.__artHarnessReset = () => {
+      rotRef.current = { rx: 0.18, ry: 0 };
+      dragRef.current = { active: false, lastX: 0, lastY: 0, vx: 0, vy: 0 };
+      particlesRef.current = createParticlePool();
+      particleFrameRef.current = 0;
+      firedRef.current = null;
+      fusionSourceRef.current = null;
+      probeNodeRef.current = null;
+      // THE AWAKENING'S BREATH PHASE, which this reset used to leave alone.
+      // `breathPhase` advances 0.015 every draw from mount, and the app boots
+      // under REAL timing at ~350 unthrottled fps, so by the time the harness
+      // takes over it holds a few thousand real frames' worth of an arbitrary
+      // angle. It drives `breathMod`, which scales `sphereR`, which scales
+      // every projected node position: MEASURED, two runs of the same build
+      // began frame 0 with sphereR 247.142 vs 246.828 and every edge endpoint
+      // displaced by exactly that ratio. The graph physics has discrete
+      // thresholds (edges are born and die), so that 0.13% eventually flips one
+      // and the two runs become different worlds — which is what made the
+      // immersive rows, the LAST two states captured, uncorrelated on identical
+      // code. `particleFrameRef` above is the same kind of leak: a mount-time
+      // frame counter that gates emission by modulus.
+      //
+      // `t0` is deliberately NOT reset: elapsedS is what holds the sphere at
+      // awakening phase 3, and restarting it would replace the captured world
+      // rather than stabilise it.
+      //
+      // `beaconIdx` is a third leak of this family — ONE draw taken at mount,
+      // from `artRandom` since `7f5f2ce` (this comment read `Math.random` until
+      // that was corrected) and from a LAZY useRef initializer since the fix, so
+      // it is no longer one draw per render. It is deliberately LEFT ALONE here:
+      // re-drawing it in this reset from the seeded stream consumes a value that
+      // `initState()` would otherwise have taken, which shifts every draw after
+      // it: MEASURED, that alone took `artPresence` from 19/19 to 15/19
+      // (RESONANCE EDGE, PRISM GEOMETRY, ANALOGY FILAMENTS, CHIMERA FRINGES all
+      // undetected). It costs nothing to
+      // leave: the beacon only draws in awakening phase 1, and every capture
+      // state is at phase 3. If it is ever worth pinning, pin it to a CONSTANT
+      // — do not spend a random draw inside this reset.
+      awakeningRef.current.breathPhase = 0;
+      // THE SPHERE'S OWN RANDOM STREAM, pinned to a known offset.
+      //
+      // Everything above resets state that ACCRUES. This resets what the world
+      // is drawn FROM, and without it the rest cannot finish the job: the draw
+      // path takes threshold decisions from the stream, and until `artRandom`
+      // existed those came from the global `Math.random` that three.js also
+      // draws a UUID from for every object it allocates. MEASURED, post-step-5
+      // task 3: four captures of one build agreed bit-for-bit through all five
+      // normal states and then produced THREE DIFFERENT WORLDS at
+      // `immersive-off` — same rotation, same sphere radius, same buffer sizes,
+      // same layer census, different edge COUNT, because the immersive resize
+      // reallocates render targets and displaced the stream under a threshold.
+      //
+      // The stream is seeded from Math.random at mount, so the piece is exactly
+      // as varied as it ever was in the browser; only this reset pins it.
+      seedArtRandom(ART_SEED);
+      initState();
+    };
+
+    // Drives the ecocide bus state directly. Three background layers are
+    // gated on inputs the capture set can never produce — the ecocide bus sits
+    // at rate 0 throughout — so a green parity run proves nothing about them:
+    // deleting the layer outright scores identically. This lets the smoke
+    // tooling switch them on and check they actually draw. It writes the same
+    // ref the real bus handler writes, so the whole path is exercised.
+    window.__artSetEcocide = ({ metabolicRift, exergyRate } = {}) => {
+      ecocideStateRef.current = {
+        ...ecocideStateRef.current,
+        metabolicRift: metabolicRift ?? ecocideStateRef.current.metabolicRift,
+        exergyRate:    exergyRate    ?? ecocideStateRef.current.exergyRate,
+      };
+    };
+
+    // Seeds last session's node positions. The ghost trails read them from
+    // IndexedDB, which is empty in the harness's fresh profile, so that layer
+    // is invisible to every capture — same problem as the ecocide-gated ones.
+    // Passing no argument synthesises a ring, which is enough to prove the
+    // layer draws and where.
+    window.__artSetGhosts = (positions) => {
+      const arch = archaeologyRef.current;
+      if (!arch) return 0;
+      if (positions === null) { arch.ghostPositions = null; arch.loaded = false; return 0; }
+      const n = 31;
+      const out = positions ?? Array.from({ length: n * 3 }, (_, i) => {
+        const k = Math.floor(i / 3), a = (k / n) * Math.PI * 2;
+        return [Math.cos(a), Math.sin(a), 0.6][i % 3];   // front-facing ring
+      });
+      arch.ghostPositions = new Float32Array(out);
+      arch.loaded = true;
+      return arch.ghostPositions.length;
+    };
+
+    // Drives the analogical-reasoning bus directly, for the same reason
+    // __artSetEcocide and __artSetGhosts exist: two layers read it that no
+    // capture state can arm.
+    //
+    // MEASURED over 3551 harness frames, which is why this is here and not an
+    // assumption:
+    //   - analogy filaments: 96 exist, 0 EVER DRAW. `fil.nodeA` is an index
+    //     into the 272-node corpus and the draw loop's `nodes` is the ~31-node
+    //     sphere, so the `iA >= nodes.length` guard drops all of them (the
+    //     smallest index seen was 48). Pre-existing, same family as the /art
+    //     `query` probe that never renders; not this task's to fix.
+    //   - chimera zones: live, but only in a burst — 160 of 3551 frames, all
+    //     inside the first ~200, peaking at 49 zones and strength 0.71 while
+    //     the clusters are still finding phase. After they lock at
+    //     orderParam 1 there is no boundary and the layer is empty forever.
+    //
+    // Writes the same refs the simulation writes, so the whole draw path is
+    // exercised. `_updateAnalogies` rebuilds the filament list every 64 frames
+    // and `_updateChimera` the zone list every 8, so an injection is good for a
+    // handful of frames — long enough to pump and capture, deliberately not
+    // sticky, because a sticky override would be a second source of truth.
+    window.__artSetAnalogy = ({ filaments, zones } = {}) => {
+      const r = reasoningRef.current;
+      if (!r) return null;
+      if (filaments) r.analogyFilaments = filaments;
+      if (zones) r.chimeraZones = zones;
+      return { filaments: r.analogyFilaments.length, zones: r.chimeraZones.length };
+    };
+
+    // ── Step 5 forcing hooks ────────────────────────────────────────────
+    // Eight of the node block's thirteen draw layers cannot be reached by any
+    // capture state (see .superpowers/sdd/step5-preflight.md §5), so a parity
+    // run across them is worth nothing: deleting the layer scores identically
+    // to shipping it. These exist so a control capture can SEE the layer it is
+    // being asked to certify. Same contract as __artSetEcocide and
+    // __artSetAnalogy: write the ref the real path writes, and do not be
+    // sticky — the simulation is allowed to overwrite an injection on its next
+    // step, because a sticky override is a second source of truth.
+
+    // The chimera sync/flicker rings read clusterSync, which __artSetAnalogy
+    // does NOT touch (it writes filaments and zones). Without this the two
+    // rings are unreachable from the harness.
+    window.__artSetChimera = (map) => {
+      const r = reasoningRef.current;
+      if (!r) return null;
+      for (const [cid, v] of Object.entries(map ?? {})) {
+        const cur = r.clusterSync[cid];
+        if (cur) r.clusterSync[cid] = { ...cur, ...v };
+      }
+      return Object.fromEntries(Object.entries(r.clusterSync)
+        .map(([k, v]) => [k, { orderParam: v.orderParam, isSync: v.isSync, isChimera: v.isChimera }]));
+    };
+
+    // The Gestalt ghost rings. NOT __artSetGhosts, which seeds last session's
+    // ghost TRAIL positions — a different layer entirely, and the two are one
+    // careless call site away from being confused.
+    //
+    // Organically these need a VERIFIED analogy (recon > CONVERGENCE_THRESHOLD
+    // in useAnalogicalReasoning.js), and the analogy machinery has never been
+    // observed firing on this branch — the filaments it produces are indexed
+    // into the 272-node corpus and dropped by the sphere's length guard. So
+    // this is the only way the ring layer draws at all.
+    window.__artSetGhostNodes = (values) => {
+      const r = reasoningRef.current;
+      if (!r?.ghostNodes) return 0;
+      const g = r.ghostNodes;
+      // Clearing has to take BOTH arrays down. _animateGhosts walks ghostNodes
+      // toward ghostTargets every step, so zeroing the values alone lets the
+      // animator restore them within a few frames — measured: the ghost rings
+      // leaked into every later shot of the forcing run that first found this.
+      if (values === null) {
+        g.fill(0);
+        if (r.ghostTargets) r.ghostTargets.fill(0);
+        return 0;
+      }
+      const src = values ?? Array.from({ length: g.length }, (_, i) => (i % 4 === 0 ? 0.75 : 0));
+      for (let i = 0; i < g.length; i++) g[i] = src[i] ?? 0;
+      // Hold the animator at these values for the frames about to be captured;
+      // _animateGhosts walks ghostNodes toward ghostTargets every step.
+      if (r.ghostTargets) for (let i = 0; i < g.length; i++) r.ghostTargets[i] = g[i];
+      let live = 0;
+      for (let i = 0; i < g.length; i++) if (g[i] > 0.02) live++;
+      return live;
+    };
+
+    // The fusion source pulse ring and its cursor thread. The real path is a
+    // long-press, which is a timer continuation: __pump runs its rAF callbacks
+    // in ONE synchronous loop and never yields, so no pump count can reach it.
+    // Takes an OPTIONS OBJECT so the caller never has to know a node id: an
+    // omitted `source` defaults to a real sphere node, `source: null` clears.
+    // The harness only has display LABELS to hand (they are what the DOM
+    // exposes), and a label is not an id — resolving it here keeps that
+    // confusion out of every call site.
+    window.__artForceFusion = ({ source, cursor } = {}) => {
+      const id = source === null ? null : (source ?? SPHERE_NODES[0]?.id ?? null);
+      fusionSourceRef.current = id;
+      fusionCursorRef.current = id ? (cursor ?? null) : null;
+      return { source: fusionSourceRef.current, cursor: fusionCursorRef.current };
+    };
+
+    // The probe node, its halo and its tethers. Runs the REAL projection —
+    // queryProject is the same call the `query <text>` command makes — so the
+    // anchors, weights and centroid are the shipping ones, not a fixture.
+    window.__artForceProbe = (text) => {
+      if (text === null) { probeNodeRef.current = null; return null; }
+      const result = queryProject(text ?? 'mercury');
+      probeNodeRef.current = result;
+      return { query: result?.query ?? null, anchors: result?.anchors?.length ?? 0 };
+    };
+
+    // Synthetic disc/ring instances, straight into the edge buffer. The four
+    // shader branches this exercises (inner radius, arc sweep, angular dash,
+    // radial falloff) are written in task 3 but not DRAWN by anything until
+    // tasks 5-7, so without this they would ship three tasks deep and
+    // unverified — and each of those tasks would then be debugging its own
+    // layer against an unproven primitive.
+    window.__artSetDiscProbe = (specs) => {
+      discProbeRef.current = specs && specs.length ? specs : null;
+      return discProbeRef.current ? discProbeRef.current.length : 0;
+    };
+
+    // Particles with KNOWN hues, positions and lives, written straight into the
+    // pool.
+    //
+    // The ambient emitter cannot serve a measurement. `_idleHueDrift`
+    // (artParticles.js:71) is a module-level mount-time accumulator the harness
+    // reset does not clear, and it sets particle HUE, so ambient particle
+    // colour differs run to run. That was measured, and clearing it was then
+    // tried and MEASURED WORSE — it makes idle's per-channel spread ~2.5x wider
+    // (see docs/superpowers/plans/handover-post-rng.md). Step 6's whole subject
+    // is a colour ramp, so the colour has to be pinned by the probe instead.
+    //
+    // Kills the pool first: a measurement of "the particles I asked for" must
+    // not be contaminated by whatever the ambient emitter left alive, and
+    // `stepParticles` skips a slot only when life >= maxLife, so zeroing
+    // maxLifes is what actually empties it.
+    window.__artForceParticles = (specs = []) => {
+      const p = particlesRef.current;
+      for (let i = 0; i < p.maxLifes.length; i++) p.maxLifes[i] = 0;
+      specs.forEach((s, i) => {
+        if (i >= p.xs.length) return;
+        p.xs[i] = s.x; p.ys[i] = s.y; p.zs[i] = s.z;
+        p.vxs[i] = 0; p.vys[i] = 0; p.vzs[i] = 0;
+        // hueTarget === hue, so stepParticles' blend is a no-op and the colour
+        // the probe asked for is the colour the frame draws.
+        p.hues[i] = s.hue; p.hueTargets[i] = s.hue;
+        p.sats[i] = s.sat; p.sizes[i] = s.size;
+        p.lifes[i] = s.life; p.maxLifes[i] = s.maxLife;
+      });
+      p.count = specs.length;
+      return p.count;
+    };
+
+    // The conductor — the last layer with no capture state. See
+    // conductorForceRef for why this drives feedPeerEntropy's inputs rather
+    // than writing collectiveR, and why `y` is not forceable.
+    //
+    // `dragging` also overrides conductorDragRef at the draw site, so a pointer
+    // handler cannot clear it mid-capture.
+    window.__artForceConductor = ({ dragging = false, peerCount = 5,
+                                    entropy = 1 } = {}) => {
+      conductorForceRef.current = { dragging, peerCount, entropy };
+      return conductorForceRef.current;
+    };
+    window.__artReleaseConductor = () => { conductorForceRef.current = null; };
+
+    // The overwrite bleed — `renderCol` lerped toward the source node's colour.
+    // Organically this needs an overwrite event, which no capture state fires.
+    // Writes the live sphere node the draw loop reads, so the real lerp runs.
+    window.__artForceBleed = (amount = 0.8) => {
+      const ns = stateRef.current?.nodes;
+      if (!ns?.length) return 0;
+      let n = 0;
+      for (let i = 0; i < ns.length; i += 3) {
+        ns[i].bleedAmount = amount;
+        ns[i].bleedFrom = ns[(i + 1) % ns.length].id;
+        n++;
+      }
+      return n;
+    };
+
+    // The awakening beacon ring. MEASURED: it does draw organically, for one
+    // node, between elapsed 4.1s and 8.0s of a real boot — but every harness
+    // capture virtualises the clock first and lands after that window has
+    // closed, so no image of the layer exists without this. Re-opens the
+    // window in place rather than resetting the whole sim, because
+    // __artHarnessReset's behaviour is load-bearing for the reference images.
+    window.__artForceBeacon = (on = true) => {
+      const aw = awakeningRef.current;
+      if (!on) { aw.phase = 3; return { phase: aw.phase }; }
+      aw.phase = 1;
+      aw.interacted = false;
+      aw.t0 = performance.now() - 5000;   // mid-window, so stepAwakening holds it
+      return { phase: aw.phase, beaconIdx: aw.beaconIdx };
+    };
+
+    // The 400ms birth lerp. Organically this needs a bifurcation child, which
+    // no capture state spawns.
+    window.__artForceBirth = (childId, parentId) => {
+      // SPHERE_NODES, not NODES: the birth map is read against the LIVE sphere
+      // array, and a 272-corpus index or id used there is the exact confusion
+      // sphereIndexOf() exists to prevent.
+      const parent = SPHERE_NODES.find(n => n.id === parentId) ?? SPHERE_NODES[0];
+      const child  = childId ?? SPHERE_NODES[1]?.id;
+      if (!parent || !child) return null;
+      birthMapRef.current.set(child, {
+        parentId: parent.id, px: parent.x, py: parent.y, pz: parent.z,
+        t0: performance.now(),
+      });
+      return { child, parent: parent.id, size: birthMapRef.current.size };
+    };
+
+    // The node block's own census — which of the thirteen layers the LAST
+    // frame actually contained, counted at each draw call rather than
+    // re-derived from its conditions. This is the instrument the whole of
+    // step 5 leans on: `artCompare` cannot distinguish "the layer is faithful"
+    // from "the layer was never on screen", and this can.
+    //
+    // `awakening` rides along because the beacon ring's window (phase 1,
+    // elapsed 4-8s, and only while !interacted) is a timing question no static
+    // reading of the source can answer.
+    window.__artNodeState = () => ({
+      ...nodeCensusRef.current,
+      awakening: {
+        phase: awakeningRef.current.phase,
+        interacted: awakeningRef.current.interacted,
+        elapsedS: +((performance.now() - awakeningRef.current.t0) / 1000).toFixed(2),
+        beaconIdx: awakeningRef.current.beaconIdx,
+      },
+      resonance: {
+        armed: resonanceModeRef.current,
+        selected: resonanceNodesRef.current.length,
+      },
+      // The conductor's own inputs. `y` is reported rather than forced — it is
+      // a pure function of the Feigenbaum r, so a probe that set it would be
+      // moving the graph. `forced` says whether the override is live, so a
+      // capture cannot quietly record probe state as organic state.
+      conductor: {
+        y: +collectiveRef.current.conductorY.toFixed(4),
+        collectiveR: +collectiveRef.current.collectiveR.toFixed(6),
+        dragging: conductorForceRef.current?.dragging ?? conductorDragRef.current,
+        forced: !!conductorForceRef.current,
+      },
+    });
+
+    // Reads back what the draw loop last published to the GL layer. Every
+    // background layer is now a uniform rather than a canvas operation, so
+    // when one does not appear the first question is whether the state ever
+    // reached the shader — and pixels cannot answer that.
+    window.__artBgState = () => {
+      const s = bgStateRef.current, g = s.ghosts;
+      let live = 0;
+      if (g) for (let i = 0; i < g.length; i += 4) if (g[i + 3] > 0) live++;
+      return {
+        rift: s.rift, exergy: s.exergy, flash: s.flash, ambient: s.ambient,
+        beat: s.beat, genesis: s.genesis, sphereR: s.sphereR,
+        // WHERE THE SPHERE IS POINTING, and the two inputs that move it.
+        // The draw loop already publishes `rot` to the GL layer every frame; it
+        // just was not readable from outside, and a capture set that recorded
+        // only the virtual clock could not tell two runs apart. Reading it is
+        // what RULED THE CAMERA OUT: two runs whose immersive frames were as
+        // uncorrelated as two unrelated states (r = 0.047) recorded the SAME
+        // rx and ry at every shot, which is what redirected the search from the
+        // camera to the world. `dragV` and `hovered` are here because they are
+        // the only two things besides the frame count that move `rot` — spin is
+        // damped to 15% while a node is hovered — so a future divergence can be
+        // attributed rather than guessed at. See
+        // baseline/art-sphere-step5/README.md.
+        rot: s.rot ? { rx: s.rot.rx, ry: s.rot.ry } : null,
+        dragV: { active: dragRef.current.active, vx: dragRef.current.vx, vy: dragRef.current.vy },
+        hovered: hoveredRef.current,
+        ghostsLive: live,
+        ghostFirst: g ? Array.from(g.slice(0, 8)) : null,
+        archLoaded: !!archaeologyRef.current?.loaded,
+        archLen: archaeologyRef.current?.ghostPositions?.length ?? 0,
+      };
+    };
+
+    // The same question for the edge layer, which is instance data rather than
+    // uniforms. "The edges vanished" has three unrelated causes — nothing was
+    // published, it was published in the wrong coordinate space, or it was
+    // published and did not survive the blend — and only the first two are
+    // visible from here.
+    //
+    // `rings` is the travelling-pulse disc count for the frame, and it answers a
+    // different question: whether the layer was ON SCREEN AT ALL when a parity
+    // number was taken. Rings only exist while a cascade is in flight, so a
+    // capture that caught none scores perfect parity for them whether they draw
+    // or are deleted — which is the failure this project has now repeated six
+    // times. Any instrument quoting a number for this layer must read this
+    // first and fail loudly on 0.
+    window.__artEdgeState = () => {
+      const e = edgeGLRef.current, a = addGLRef.current;
+      return {
+        count: e.count, rings: e.rings, discStart: e.discStart, w: e.w, h: e.h,
+        // The stride the buffers below are actually written at. Published
+        // because an IN-PAGE reader cannot import it, and the alternative is a
+        // hand-copied literal: artSmoke carried `S = 17` at two decode sites
+        // and step 7's bump to 18 turned its edge hit-test into a scan of
+        // misaligned floats, which read as a live sphere with a dead hover.
+        // A harness-side reader should keep importing EDGE_STRIDE directly.
+        stride: EDGE_STRIDE,
+        // Instances that are the projected GRAPH. `instances` still carries
+        // everything, so an instrument can look at the conductor too — but a
+        // hash meant to answer "same world?" must stop here. See the note at
+        // the write site.
+        worldCount: e.worldCount,
+        first: Array.from(e.data.slice(0, EDGE_STRIDE)),
+        // The whole written range, so an instrument can find WHERE the rings
+        // are and look at those pixels. Decoded harness-side against
+        // EDGE_STRIDE rather than here, so there is no second layout to drift.
+        instances: Array.from(e.data.subarray(0, e.count * EDGE_STRIDE)),
+        // The additive stream, same layout, same reason: the resonance edge is
+        // even more invisible to the comparator than the rings are — no
+        // capture state arms resonance at all, so deleting the layer scores
+        // identically to shipping it. An instrument has to be able to ask
+        // whether the two strokes were written, and where they are, before it
+        // is allowed to quote a number about their pixels.
+        // `dropped` is this stream's ring-count equivalent: instances the
+        // writer could not fit. A Float32Array write past the end is a silent
+        // no-op, so without this an over-cap frame renders a prism with pieces
+        // missing and every other number agreeing that nothing went wrong.
+        additive: {
+          count: a.count, dropped: a.dropped, capacity: a.data.length / EDGE_STRIDE,
+          instances: Array.from(a.data.subarray(0, a.count * EDGE_STRIDE)),
+        },
+      };
+    };
+
+    // The strimer, for the harness. `instances` answers a different question
+    // from `count`: whether the layer had anything ON SCREEN when a number was
+    // taken. A transient that has already passed is not in the frame being
+    // graded, and this is what says so.
+    window.__artStrimerState = () => {
+      const sp = strimerRef.current;
+      const packets = [];
+      for (let i = 0; i < sp.count; i++) {
+        packets.push({
+          src: sp.srcId[i], dst: sp.dstId[i],
+          u: +sp.u[i].toFixed(4), phase: sp.phase[i], ping: +sp.ping[i].toFixed(3),
+        });
+      }
+      return { count: sp.count, instances: sp.instances, w: sp.w, h: sp.h, packets };
+    };
+
+    // Fire a node's wavefront directly, for the harness. The alternative is a
+    // hover-grid click, which costs a node-finding sweep and makes WHICH node
+    // fired depend on where the grid happened to land -- so a probe of the
+    // effect would be measuring the grid too.
+    window.__artFireStrimer = (id) => {
+      fireNode(id, { neighbours: false });
+      // The SPAWN count, not strimerRef.current.count (the whole pool's live
+      // size) — a residual in-flight packet from an earlier fire would
+      // otherwise misalign a caller's per-edge index (e.g. _s3strimer.mjs's
+      // chord table) against this call's own destinations.
+      return fireStrimer(id);
+    };
+
+    return () => {
+      delete window.__artStrimerState;
+      delete window.__artFireStrimer;
+      delete window.__artHarnessReset;
+      delete window.__artSeedRandom;
+      delete window.__artInitLog;
+      delete window.__artSetEcocide;
+      delete window.__artSetGhosts;
+      delete window.__artSetAnalogy;
+      delete window.__artBgState;
+      delete window.__artEdgeState;
+      delete window.__artSetChimera;
+      delete window.__artSetGhostNodes;
+      delete window.__artForceFusion;
+      delete window.__artForceProbe;
+      delete window.__artForceBirth;
+      delete window.__artForceBeacon;
+      delete window.__artForceBleed;
+      delete window.__artSetDiscProbe;
+      delete window.__artForceParticles;
+      delete window.__artForceConductor;
+      delete window.__artReleaseConductor;
+      delete window.__artNodeState;
+    };
+  }, [initState, archaeologyRef, reasoningRef, stateRef]);
+
+  // SphereComposite hands its advance() over here once the GL root exists.
+  const handleAdvanceReady = useCallback((advance) => {
+    glAdvanceRef.current = advance;
+  }, []);
+
   const canvasCoords = useCallback((clientX, clientY) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return null;
@@ -1660,19 +2915,32 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
   const nodeAt = useCallback((cx, cy) => {
     const projected = getProjected();
+    const { w, h } = dimsRef.current;
+    const ink = inkScale(w, h);
     // Sort by depth desc so we hit nearest node first
     const sorted = [...projected].sort((a, b) => b.depth - a.depth);
     for (const { node, sx, sy, depth, scale } of sorted) {
       if (depth < -0.85) continue;  // skip deeply back-face nodes
       // Forgiving hitbox: 3× visual radius — invisible bubble around each node
       // so users don't need pixel-perfect aim on a spinning sphere
-      const visualR = (5 + node.energy * 4) * scale;
+      // THROUGH nodeRadius(), not a hand-copy of it. This used to restate
+      // `(5 + energy * 4)`, which is NODE_RADIUS_BASE and
+      // NODE_RADIUS_ENERGY_K written out — so moving either constant would
+      // have resized every drawn disc and left every hit target behind, with
+      // nothing to catch it.
+      //
+      // `ink` for the same reason the draw loop applies it: item 5b scales
+      // the drawn disc by up to 1.70x in immersive, and a hitbox that did
+      // not follow made the forgiving 3x a function of display geometry
+      // (3 -> 1.77 at the projector). Targets stay proportional to the ink
+      // at every scale, which is what the 3x was chosen to mean.
+      const visualR = nodeRadius(node.energy, scale * ink);
       const r  = visualR * 3 + 10;
       const dx = sx - cx, dy = sy - cy;
       if (dx * dx + dy * dy < r * r) return node;
     }
     return null;
-  }, [getProjected]);
+  }, [getProjected, dimsRef]);
 
   // ── Edge hit-test: find nearest edge within ~8px of cursor ──────────────
   // Returns full 16D analysis payload for any edge (not just spectral bridges)
@@ -1739,7 +3007,14 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         return;
       }
     }
-    dragRef.current = { active: true, lastX: e.clientX, lastY: e.clientY, vx: 0, vy: 0 };
+    // `startX/startY` is the PRESS ORIGIN and `lastX/lastY` is the previous
+    // move — two different questions, and mouseup needs the first one. The
+    // touch path has carried both since it was written; this one did not, and
+    // handleMouseUp was measuring a gesture against the wrong number.
+    dragRef.current = {
+      active: true, lastX: e.clientX, lastY: e.clientY, vx: 0, vy: 0,
+      startX: e.clientX, startY: e.clientY,
+    };
   }, [canvasCoords, conductorHit, setConductor]);
 
   const handleMouseMove = useCallback((e) => {
@@ -1807,6 +3082,45 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     }
   }, [canvasCoords, nodeAt, edgeAt, lockedEdge, setConductor]);
 
+  /**
+   * Spawn one packet per edge touching `id`, outward.
+   *
+   * Adjacency is SPHERE_ADJ — the 31-node, 40-edge set the sphere actually
+   * draws and fires over. (ArtTab's label cascade uses the full 272-node ADJ;
+   * the two disagree about who a node's neighbours are. Not changed here, and
+   * recorded in the design's section 10.)
+   *
+   * The chord is 3D and unprojected: that is correct parallax, and it is
+   * invariant under rotation, which is what makes the transient reproducible
+   * in a capture.
+   *
+   * Returns the number of packets spawned, so callers (the harness) can tell
+   * a real fire from a no-op without reading the whole pool's size.
+   */
+  const fireStrimer = useCallback((id) => {
+    const st = stateRef.current;
+    const pool = strimerRef.current;
+    if (!st || !pool) return 0;
+    const src = st.nodes.find(n => n.id === id);
+    if (!src) return 0;
+    const targets = [];
+    for (const dstId of (SPHERE_ADJ[id] ?? [])) {
+      const dst = st.nodes.find(n => n.id === dstId);
+      if (!dst) continue;
+      targets.push({
+        dstId,
+        worldLen: Math.hypot(dst.x - src.x, dst.y - src.y, dst.z - src.z),
+      });
+    }
+    if (!targets.length) return 0;
+    return spawnStrimer(pool, {
+      srcId: id,
+      targets,
+      nowMs: performance.now(),
+      colour: NODE_COLORS[id] ?? { hue: 200, sat: 90, lit: 60 },
+    });
+  }, []);
+
   const handleMouseUp = useCallback((e) => {
     // Release conductor if dragging
     if (conductorDragRef.current) {
@@ -1815,9 +3129,17 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       return;
     }
     dragRef.current.active = false;
-    // Check if this was a click (not a drag)
-    const dx = e.clientX - dragRef.current.lastX;
-    const dy = e.clientY - dragRef.current.lastY;
+    // Check if this was a click (not a drag) — against the PRESS ORIGIN.
+    //
+    // This measured against `lastX/lastY`, which handleMouseMove overwrites on
+    // every move while the drag is live, so it asked "how far did the pointer
+    // travel since the last mousemove" — a number that is a pixel or two for
+    // any gesture, however long. MEASURED before the fix: rotate-drags of 12px
+    // and 30px released over a node both fired it, rings and readout and all.
+    // What limited the damage was not this test but whether the rotation had
+    // carried a node out of nodeAt's reach by the time the button came up.
+    const dx = e.clientX - (dragRef.current.startX ?? e.clientX);
+    const dy = e.clientY - (dragRef.current.startY ?? e.clientY);
     if (Math.abs(dx) < 4 && Math.abs(dy) < 4) {
       const p    = canvasCoords(e.clientX, e.clientY);
       if (!p) return;
@@ -1882,13 +3204,17 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           }
         }
         // Right-click is handled by contextmenu (fusion state machine) — ignore here
-        fireNode(node.id);
+        // The strimer delivers each neighbour's bump when its packet LANDS,
+        // so the instant loop is suppressed here. The two are one decision:
+        // suppressing without spawning would stop the graph propagating.
+        fireNode(node.id, { neighbours: false });
+        fireStrimer(node.id);
         // Perturb Hopfield field — genuine associative activation propagation
         const nodeIdx_ = NODE_IDX[node.id];
         if (nodeIdx_ != null) perturbField(nodeIdx_);
         // Broadcast to peers
         if (somaPresence.connected) somaPresence.sendFire(node.id);
-        spawnEffect(node.id, { soft: true, rightClick: false });   // left-click → cluster hue burst
+        spawnEffect(node.id, { soft: true, rightClick: false, strimer: true });   // left-click → cluster hue burst
         // Label cascade — record seed + neighbors for the draw loop
         const nbs = new Set(ADJ[node.id] ?? []);
         nbs.add(node.id);
@@ -1911,7 +3237,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         }
       }
     }
-  }, [canvasCoords, nodeAt, edgeAt, fireNode, spawnEffect, onCueNode, onRunKernel, setConductor]);
+  }, [canvasCoords, nodeAt, edgeAt, fireNode, fireStrimer, spawnEffect, onCueNode, onRunKernel, setConductor]);
 
   const handleContextMenu = useCallback((e) => {
     e.preventDefault();
@@ -2062,12 +3388,16 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           NODE_COLORS[node.id]?.hue ?? 30, (NODE_COLORS[node.id]?.hue ?? 30 + 180) % 360, 40);
       }
     }
-    fireNode(node.id);
+    // The strimer delivers each neighbour's bump when its packet LANDS,
+    // so the instant loop is suppressed here. The two are one decision:
+    // suppressing without spawning would stop the graph propagating.
+    fireNode(node.id, { neighbours: false });
+    fireStrimer(node.id);
     // Perturb Hopfield field from touch
     const _touchIdx = NODE_IDX[node.id];
     if (_touchIdx != null) perturbField(_touchIdx);
     if (somaPresence.connected) somaPresence.sendFire(node.id);
-    spawnEffect(node.id, { soft: true });
+    spawnEffect(node.id, { soft: true, strimer: true });
     // Label cascade — record seed + neighbors for the draw loop
     const nbs = new Set(ADJ[node.id] ?? []);
     nbs.add(node.id);
@@ -2076,7 +3406,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     if (onCueNode && nodeIdx >= 0) onCueNode(nodeIdx);
     setSelectedNode(node.id);
     setLockedEdge(null);
-  }, [canvasCoords, nodeAt, fireNode, spawnEffect, onCueNode, perturbField, setConductor]);
+  }, [canvasCoords, nodeAt, fireNode, fireStrimer, spawnEffect, onCueNode, perturbField, setConductor]);
 
   // ── Non-passive touch listeners on canvas ────────────────────────────────
   // React 19 attaches delegated events at root level; browsers may treat them
@@ -2185,9 +3515,9 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       const nodeB = s.nodes.find(n => n.id === parentNodeB);
       const anchorA = nodeA ?? CLUSTER_ANCHORS[cluster] ?? CLUSTER_ANCHORS.phys;
       const anchorB = nodeB ?? CLUSTER_ANCHORS[cluster] ?? CLUSTER_ANCHORS.phys;
-      const mx = (anchorA.x + anchorB.x) / 2 + (Math.random() - 0.5) * 0.1;
-      const my = (anchorA.y + anchorB.y) / 2 + (Math.random() - 0.5) * 0.1;
-      const mz = (anchorA.z + anchorB.z) / 2 + (Math.random() - 0.5) * 0.1;
+      const mx = (anchorA.x + anchorB.x) / 2 + (artRandom() - 0.5) * 0.1;
+      const my = (anchorA.y + anchorB.y) / 2 + (artRandom() - 0.5) * 0.1;
+      const mz = (anchorA.z + anchorB.z) / 2 + (artRandom() - 0.5) * 0.1;
       const len = Math.sqrt(mx * mx + my * my + mz * mz) || 1;
 
       // ── Synthesize 16D feature tensor from parents ────────────────
@@ -2517,22 +3847,59 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       </div>
 
       {/* Sphere canvas — frameless, front and center */}
+      {/*
+        IMMERSIVE IS NOT FULLSCREEN, so it must not claim the full viewport.
+        The app header (App.jsx, the `h-24` one) is `sticky top-0` and paints
+        rgba(0,0,0,0.9) with a 12px backdrop blur over whatever is beneath it.
+        With `inset-0` this container ran underneath it and two things went
+        wrong at once: MEASURED at 1920x1080, 91 px of live artwork was painted
+        over by that strip, and the sphere was centred at y 540 while the band
+        it can actually be seen in is centred at y 588 — so shrinking the radius
+        alone would have stopped the bite and left the sphere sitting high with
+        dead space under it.
+
+        Insetting below the header fixes both, and it needs no new constant in
+        the projection: `sphereR = SPHERE_K * min(w, h)`, so handing the
+        container its true height re-scales the sphere on its own. A node's
+        maximum projected offset is `FOCAL_K / sqrt(FOCAL_K^2 - 1)` = 1.0707 R,
+        not R, and that is the number the box has to hold.
+
+        `top-24` is the header's `h-24`. If that height changes, this changes
+        with it — grep `h-24` in App.jsx. Below `md` the header is opacity-0
+        for the mobile chrome, so the inset is desktop-only and small screens
+        keep today's full-bleed behaviour.
+      */}
       <div
         ref={containerRef}
-        className={`w-full overflow-hidden${immersive ? ' fixed inset-0 z-50' : ''}`}
+        className={`w-full overflow-hidden${immersive ? ' fixed inset-x-0 bottom-0 top-0 md:top-24 z-50' : ''}`}
         style={{ background: '#000', position: immersive ? 'fixed' : 'relative' }}
       >
         <canvas
           ref={canvasRef}
           width={900}
           height={620}
-          style={{ display: 'block', width: '100%', height: 'auto', cursor: 'grab', touchAction: 'none' }}
+          style={{
+            display: 'block', width: '100%', height: 'auto',
+            cursor: 'grab', touchAction: 'none',
+            position: 'relative', zIndex: 0,
+          }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseLeave}
           onContextMenu={handleContextMenu}
         />
+
+        <SphereComposite
+          sourceRef={canvasRef}
+          immersive={immersive}
+          onAdvanceReady={handleAdvanceReady}
+          bgStateRef={bgStateRef}
+          edgeGLRef={edgeGLRef}
+          addGLRef={addGLRef}
+          strimerRef={strimerRef}
+        />
+
         <SphereLabels ref={labelsApiRef} />
 
         {/* ── Node hover tooltip ───────────────────────────────────────────── */}

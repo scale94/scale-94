@@ -27,6 +27,20 @@ const SPHERE_IDS = new Set([
 export const SPHERE_NODES = NODES.filter(n => SPHERE_IDS.has(n.id));
 export const SPHERE_NODE_IDX = Object.fromEntries(SPHERE_NODES.map((n, i) => [n.id, i]));
 
+// Position of `id` in a LIVE sphere array — the draw loop's `nodes`/`proj`, i.e.
+// SPHERE_NODES plus whatever bifurcation children have been appended this
+// session. Not interchangeable with NODE_IDX, which indexes the 272-node corpus:
+// a corpus index used against a ~31-entry sphere array is usually out of bounds,
+// so `nodes[si].energy` throws. The draw loop's try/catch keeps the page alive,
+// which is exactly what makes this failure mode nasty — it throws once per frame
+// at the same point forever, silently dropping every layer drawn after it.
+// Because the live array grows at runtime this cannot be a precomputed map.
+// Returns -1 when the id is off-sphere, matching findIndex/indexOf.
+export function sphereIndexOf(nodes, id) {
+  if (!nodes || id == null) return -1;
+  return nodes.findIndex(n => n.id === id);
+}
+
 // ── Graph topology ────────────────────────────────────────────────────────────
 
 export const CLUSTERS = {

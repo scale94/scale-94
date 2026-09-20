@@ -217,6 +217,30 @@ single texture object rather than reallocating. If the cost is material at
 **Acceptance:** side-by-side screenshots showing real light bleed where the
 old bloom showed a smear; frame time measured against the step-0 baseline.
 
+**DONE 2026-08-05.** Built as `art/SphereComposite.jsx` + `art/artComposite.js`.
+Four corrections this step forced on the text above:
+
+1. The DPR cap suggested here as the first optimisation **already existed** at
+   1.5x (`ArtTab.jsx` ResizeObserver), which the baseline confirms: at DPR 2 the
+   backing store is 2169x870, exactly 1446x580 x 1.5. The lever is mostly spent.
+2. "The existing draw code is not touched" cannot be literally true — the fake
+   `ctx.filter` bloom and radial vignette had to be deleted from the loop or
+   immersive would carry both. That is the only change inside `draw`, and it is
+   gated on `immersiveRef`, so exactly 3 of 21 captured states move.
+3. Loop reconciliation (SS3.2) started here **inverted**: the 2D loop drives the
+   GL canvas via `frameloop="never"` + `advance()` from its own tail, rather
+   than `useFrame` becoming the clock. SS3.2's direction is still the step-6
+   destination.
+4. Measured cost, real GPU, 1520x900 idle: +0.7ms p50 for the quad and texture
+   upload, +0.4ms more for bloom, so **+1.1ms p50 / +1.3ms p95** total. Idle p99
+   crossed the frame budget (14.7 -> 18.1ms). Full numbers and the 12-of-21
+   parity result in `baseline/art-sphere-2d/README.md`.
+
+**Blocking step 3:** the deterministic capture harness cannot drive r3f (it
+replaces rAF with a manual pump; `useFrame` never runs, in either frameloop
+mode). It gates the 2D layer only. Step 3 moves real content into GL, so this
+must be solved before step 3 starts, or step 3 ships unverified.
+
 ### Step 3 — Background slice
 
 Migrate the bottom of the stack: genesis glow, state flash grid, spectral
@@ -229,6 +253,34 @@ trailing its own remaining content.
 **Known temporary state:** two independent trail decays coexist from step 3
 to step 6 and must be tuned to match. This resolves itself at step 6.
 
+> **CORRECTION (2026-08-11) — step 3 shipped without the second decay, and
+> "verified" was true for placement and false for weight.**
+>
+> This paragraph says two trail decays coexist. Only one did. The `destination-out`
+> clear is a *partial alpha erase*, so everything the 2D canvas drew after it
+> compounded — a layer redrawn at alpha `a` settles at
+> `a / (1 - (1-m)(1-a))`, i.e. `1/m` for small `a`, and `m` is per-mode (0.72
+> normal, **0.32 immersive**). Every layer step 3 moved to the GPU drew into a
+> target that *was* fully rewritten each frame, so all six lost that gain the
+> moment they moved: **1.389× normal, 3.125× immersive.**
+>
+> Measured after the fact: immersive-on was losing **44% of lit pixels**, all in
+> the faintest band, mass conserved below the floor — dimming, not deletion. The
+> loss peaks at the wireframe radius, where `WIRE_ALPHA = 0.03` predicts a
+> 22.5 → 7.65 luminance drop. Every step-3 layer rendered in the right place at
+> roughly a third of the light it should carry in the exhibit mode.
+>
+> **Nothing detected it.** The 32×18 comparator scored it 21/21 green, and so did
+> the five bespoke presence checks — they ask whether a layer paints, never
+> whether what it paints survives into the next frame. This is why the trail
+> target was pulled forward out of step 6 (author's call, 2026-08-09) and why
+> `scripts/artInk.mjs` (a summed, not averaged, ink instrument) and a sixth
+> accumulation presence check now exist. Reference set:
+> `baseline/art-sphere-trail/`.
+>
+> Step 3's cost figures stand — re-measured 2026-08-11 against a same-session
+> control and they reproduce. Its *immersive* parity claims do not: see §8.4.
+
 ### Step 4 — Edges
 
 Edges, resonance edge and prism geometry chords → line geometry with
@@ -238,6 +290,57 @@ per-vertex colour for the gradients and real additive glow. Retires
 Keep the CPU depth sort initially for parity, even though additive blending
 makes ordering largely moot — parity first.
 
+> **DONE 2026-08-16.** Reference set `baseline/art-sphere-step4/`, whose README
+> carries the full record. Seven tasks, not the four this section implies: the
+> pre-flight scan found that the prism chords are quadratic Béziers over THREE
+> sub-layers (chord bundle, sacred-polygon outline, star spokes) rather than the
+> "ordinary line segments" assumed here, and that two curve layers — analogy
+> filaments and chimera boundary zones — belonged to no step at all and were
+> folded in as Task 6b.
+>
+> `ctx.shadowBlur` is retired from the draw loop as specified. Seven
+> `ctx.stroke()` calls survive; five are node rings that belong to step 5, but
+> **two are straight-line strokes that no step owns** — the fusion-cursor thread
+> and the probe-centroid tethers. Step 6 ends "the 2-D canvas is now empty" and
+> it will not be. ~~Author's call outstanding.~~ **CLOSED 2026-08-19: the author
+> folded both into the tail of step 5, where they landed in task 7 (`9a79f83`).
+> See §Step 5.** The five node rings went with them; the node block now holds no
+> `ctx.` call at all.
+>
+> **Four things this spec and its plan got wrong, all measured:**
+>
+> 1. **The glow amplitude was `1/a` too bright for the whole migration.** A
+>    canvas shadow is the blurred SHAPE bitmap tinted by `shadowColor`, so the
+>    stroke's own alpha rides through it. The shader carried `shadowAlpha` and
+>    the geometry but not `a`. Fixed in Task 6c (`65e62b8`) — the only task
+>    authorised to move shipped pixels. Against a 2D hybrid the GL halo was FLAT
+>    in `a` where the canvas's is linear in it, and the two AGREED at `a = 1`,
+>    which is exactly why every gate had been blind to it.
+> 2. **The line-count criterion is retired.** The plan predicted 3185 → ~2915 and
+>    said that a rise would mean "the layers were copied rather than moved". It
+>    rose to 3495: +258 comment, +7 blank, **+45 code**. The layers did move —
+>    zero `createLinearGradient` / `quadraticCurveTo` / `ctx.shadowColor` hits
+>    remain, which is the test that actually answers the question.
+> 3. **The cost win is small.** Idle draw cost mean 3.00 → 2.75 ms (−8.3%), with
+>    p50/p95 only 2–3× the run's own drift floor and p99 entirely inside it.
+>    "Edges are the heaviest remaining 2D work" was over-optimistic. Immersive is
+>    the better result: 2.55 → 2.30 mean, p99 14.2 → 12.8.
+> 4. **No pump count could ever have put a pulse ring in `fired-cascade`.**
+>    `__pump(n)` runs n rAF callbacks in one synchronous loop and never yields,
+>    and the cascade's pulse arrives on an async kernel result. The recorded fix
+>    (`pump(25)` → `~35`) was measured to fail at 25, 35, 60, 100, 160 and 240.
+>    The capture now interleaves yields, waits for the rings, asserts them, and
+>    retries on a different node when the fired one's attractor never dominates.
+>
+> **What the gate still cannot see**, carried into step 5: fused edges and
+> orthogonal bridges appear in no capture state at all (nothing runs `bone` or
+> forges a bridge), the resonance state shift-clicks the same node twice, and the
+> analogy filaments have never drawn in any build — `fil.nodeA` indexes the
+> 272-node corpus while the draw loop indexes the 31-node sphere. The first was
+> verified with a bespoke forge-and-capture control; the last is deliberately
+> unfixed, because making an invisible layer appear is a visual change, not a
+> port.
+
 ### Step 5 — Nodes
 
 Instanced sprites for node discs, halos, chimera state halos, awakening
@@ -246,15 +349,136 @@ pulse ring. Retires per-node `createRadialGradient`.
 
 Hit-testing is untouched — it reads the CPU array (§3.1).
 
+> **DONE 2026-08-19.** Reference set `baseline/art-sphere-step5/`, whose README
+> carries the full record. **Eight tasks, not the one this paragraph implies.**
+>
+> **Five things this section got wrong, all measured:**
+>
+> 1. **It names seven layers. The block contains THIRTEEN.** The pre-flight scan
+>    (`.superpowers/sdd/step5-preflight.md` §1) enumerated them before any plan
+>    was written. The six extra: the chimera **flicker** ring, the ghost
+>    **outer** ring, the fusion **cursor thread**, the probe **tethers**, the
+>    probe's **own glow halo**, and the node label (already DOM, out of scope).
+>    Same shape of omission step 4 hit with the prism chords.
+> 2. **"Retires per-node `createRadialGradient`" understates it.** `ctx.arc`,
+>    `ctx.fill`, `ctx.stroke` and `setLineDash` are gone from the block too. The
+>    node block (`ArtTab.jsx:1563`–`:1972`) now contains **no `ctx.` reference of
+>    any kind** outside comments. The only canvas draw calls left in the file are
+>    the particle render's, which are step 6's.
+> 3. **"chimera state halos" is TWO rings**, not one — a solid sync ring at
+>    `1.5 × scale` and an angular-**dashed** flicker ring at `1.0 × scale` with an
+>    animated hue. Different widths, different colour laws.
+> 4. **"Gestalt ghost outlines" is TWO rings, and the inner one is a partial arc
+>    whose sweep IS the animation.** The 2D comment called it "dashed" and it
+>    never was. That cost a third new shader capability (arc sweep) on top of the
+>    annulus and the angular dash.
+> 5. **Five state paths it does not mention** shape every instance written: the
+>    birth lerp, resonance dimming, the spectral tint, overwrite bleed, and the
+>    hovered core's **opaque bypass** — a hovered core takes `renderCol.hsl`,
+>    which `spectralTint()` passes through unchanged, so it draws in its
+>    *pre-spectral* colour while every node around it is post-tint.
+>
+> **What it got right, and it is the load-bearing part:** "instanced sprites",
+> and no new mesh. The annulus, the angular dash, the arc sweep and the radial
+> falloff were all encoded into floats the step-4 disc branch left provably dead.
+> `EDGE_STRIDE` is unchanged, no buffer was reallocated, both existing materials
+> are reused, and nothing after task 3 touched the shader. Hit-testing is
+> untouched as specified.
+>
+> **§Step 4's outstanding author's call is CLOSED.** The two straight-line
+> strokes that "no step owns" — the fusion-cursor thread and the probe-centroid
+> tethers — landed here in task 7 (`9a79f83`) as layers 10 and 11.
+>
+> **Cost: neutral.** Headed on the real GPU against a same-session pre-step-5
+> control, idle draw cost mean 2.81 → 2.73 ms, drag 2.87 → 2.73, immersive
+> 2.26 → 2.36. Every delta is smaller than the run's own drift control. There
+> was no reason to expect otherwise — the node layers went into buffers the edge
+> slice already uploads. **Mind the units**: `baseline/art-sphere-step4/` holds
+> numbers from two instruments 2–3× apart, a headed-GPU JSON and a headless
+> SwiftShader manifest. Read the `renderer` field before quoting a delta.
+>
+> **!! THE IMMERSIVE PIXEL ROWS ARE NOT A MEASUREMENT — and were not, for the
+> whole of steps 4 and 5 !!** `artBaseline`'s `immersive-on` and `immersive-off`
+> states are not reproducible run to run **on identical code**: full-resolution
+> luminance correlation between two runs of the same build reads **0.610** and
+> **0.082**, against **0.970** for `idle`. That same-build null is
+> *indistinguishable* from any cross-build pair (0.60–0.66), so those rows carry
+> no information about a code change at any effect size. It is a different sphere
+> rotation, confirmed by looking at the frames; the virtualised clock cannot see
+> it (`elapsedS` matches to 0.13 s) because rotation accrues per rAF frame while
+> the clock is virtual. The only two states that diverge are the only two that
+> call `forceResize()`, whose `page.screenshot` yields where `__pump` does not,
+> and severity scales with the number of calls: one, then two.
+>
+> This retires the unexplained **immersive ink deficit** that tasks 4–7 carried.
+> Task 4 measured it on `artInk`'s **disc** column, which `trail-deficit.md` §1
+> had already ruled inadmissible in immersive ("every immersive number quoted
+> below is a frame number") because the sphere overhangs the disc boundary there
+> — independently confirmed, sphere radius ~385 px against a disc of 378 px. The
+> same-build null on that column swings **±21%**; task 4's 0.69–0.84 is 16–31%
+> from unity. **Not pinned and not still open: unanswerable by this instrument.**
+> Step 6 must not inherit it. Reopening it needs a spatial null — same region,
+> same frame, layer on vs off — which task 7's probe null shows is achievable.
+>
+> **What the gate still cannot see**, measured from the node census across all 21
+> shots rather than predicted: **nine of the thirteen draw layers appear in no
+> capture state at any scale** — beacon, chimera flicker, both ghost rings, the
+> fusion ring and thread, and all three probe layers, plus the birth path. Only
+> halo, core, chimeraSync and spectral are live in an idle capture, with
+> coreHover, bleed and resonanceDim reachable in hover / fired-cascade /
+> resonance. `artCompare 21/21` across a change to any of the nine means nothing;
+> they are covered by `artPresence` (19/19) and `scripts/_nodeShot.mjs` instead.
+> The beacon has **never** been in a reference image and it is not a near miss:
+> it draws while awakening is in phase 1, `elapsed ∈ [4 s, 8 s)`, and every idle
+> shot lands at elapsed 102.27 s. Carried from step 4 and still true: fused edges
+> and ortho bridges appear in no capture state, and the analogy filaments have
+> never drawn in any build. **Now fixed since step 4 wrote it down:** the
+> resonance state no longer shift-clicks the same node twice (`fc2909a`, a step-5
+> prerequisite), so `resonanceDim` is covered.
+
 ### Step 6 — Particles and trail
 
 Particle ecology → instanced sprites, uploading `artParticles.js`'s existing
 `Float32Array` SoA buffers directly. The trail moves to a GL feedback buffer,
 which decays properly to black instead of silting toward grey.
 
-The 2-D canvas is now empty: delete it, its texture and the composite quad.
+> **DONE EARLY (2026-08-10).** The feedback buffer was pulled forward to sit
+> under step 4, because every layer migrated from step 3 onward was silently
+> losing its accumulation without it (see the correction under step 3). It is a
+> ping-pong pair of `NoColorSpace` RGBA8 targets (`SphereTrail.js`) faded by
+> `1 - m`, with `m` read per frame from the tint the 2D canvas erased with
+> (`state.rift.a`) rather than re-derived from an immersive flag, so a mode
+> toggle cannot desynchronise the fade from the fill for a frame.
+>
+> The clear colour is **not** in the accumulator. `sphereBackgroundInk()` returns
+> premultiplied layer ink with coverage in alpha and the base enters once, in the
+> screen pass, as `ink.rgb + uRift * (1 - ink.a)`. Feeding the clear through the
+> loop instead multiplies the whole frame by `1/m` — which is indistinguishable
+> from "correct but brighter" to every instrument in this repo.
+>
+> Only the particle migration is left in this step.
 
-**Phase 1 ends here.** The piece is DOM text over one r3f Canvas.
+> **CORRECTED 2026-08-20, after step 6 shipped.** This paragraph used to read
+> "The 2-D canvas is now empty: delete it, its texture and the composite quad.
+> **Phase 1 ends here.**" It is not empty and phase 1 does not end here — the
+> THIRD time this spec has been wrong about what a step leaves behind.
+>
+> Measured at `e6728f6`, `ArtTab.jsx` still holds three `ctx.` sites:
+>
+> | site | what |
+> |---|---|
+> | `:941` | `setTransform(dpr, …)` |
+> | `:957`–`:961` | the `destination-out` partial clear |
+> | `:2059` | `drawConductor(ctx, …)` → `artAwakening.js`, **28 `ctx.` calls** |
+>
+> `baseline/art-sphere-step5/README.md` already said so — "Still 2D, for step 6:
+> the particle ecology **and the conductor**" — so the record was right and this
+> document was stale. **The Bifurcation Conductor is the last 2-D layer**, and it
+> is a step of its own: do not delete the canvas, its texture or the composite
+> quad until it has moved.
+
+**Phase 1 ends after the conductor**, not here. The piece is then DOM text over
+one r3f Canvas.
 
 ---
 
@@ -282,6 +506,40 @@ Each step is verified by:
 
 Unit tests cover extracted pure modules only. They cannot see pixels and must
 not be treated as parity evidence.
+
+**AMENDED 2026-08-11 — a tolerance gate answers "did anything move", never "is
+it right".** Item 2 above is necessary and nowhere near sufficient, and three
+signed-off steps were measured with it alone. The comparator is a mean over a
+32×18 grid, so a thin edge or a 0.03-alpha wireframe occupies a few percent of
+any cell and averages into that cell's dark majority. Demonstrated failures, all
+scored **21/21 green**:
+
+- a measured **22% edge-ink loss**;
+- an **sRGB-vs-linear** blend of the whole backdrop, at mean 1.285 against a
+  threshold of 4;
+- the entire **trail-accumulation deficit** (44% of lit pixels in immersive);
+- a pair whose `immersive-on` frames are **1800×324 vs 1920×1080** — 3.3× the
+  pixels, a different picture of a different amount of world — at mean 2.5.
+
+So every step also needs, and these are not optional:
+
+5. **`scripts/artInk.mjs`** — summed (not averaged) luminance above a floor,
+   reported whole-frame *and* disc, plus the cross-mode ratio. Half as much light
+   is half the number wherever it sits in the frame. Read frame for immersive and
+   disc for normal: disc-only ink in immersive has ±12% run-to-run noise, the
+   same size as some real signals.
+6. **Bespoke presence checks** (`scripts/artPresence.mjs`, currently 5/5) for
+   every layer the capture set structurally cannot see — five of step 3's seven
+   never draw during a capture at all, and a green comparator on them follows
+   identically from deleting the layer.
+7. **Same-session control captures.** The boot fingerprint is not reproducible
+   (8 relaunches, 8 fingerprints), so any comparison against a committed baseline
+   measures code change plus boot race, inseparably. Capture the control and the
+   candidate in one session, with the same harness.
+
+Weight every parity judgement toward **`immersive-on`**: it is the exhibit mode,
+and it is where the clear alpha (0.32 against 0.72) makes every accumulation
+error 2.25× larger.
 
 ---
 
@@ -326,6 +584,24 @@ but also changes the canvas height calculation (`:580`), the rift alpha
 (`:794`), and switches the container to `position: fixed` fullscreen
 (`:2633`). The r3f `<Canvas>` must follow all of it, not just the layer
 gating.
+
+**AND `position: fixed` was not reaching the viewport at all — fixed 31bff8a.**
+The immersive container measured **1800×324** on a 1920×1080 panel: a letterbox
+strip with two thirds of the screen black. `.tab-fade-v2` animates with
+`fill-mode: both`, so it permanently retained its 100% keyframe —
+`filter: brightness(1)` and `transform: translateY(0)`. Both are *visually
+identity*; both establish a containing block for `position: fixed` descendants,
+so `inset: 0` resolved against the tab wrapper. `.breadcrumb-fade` had the same
+latent trap. Fix: `backwards` instead of `both` — the 100% keyframe is identical
+to the element's base style in every property, so `forwards` bought nothing.
+
+Pre-existing since before the migration, and **structurally invisible to every
+pixel gate in this repo**: the gates capture *the canvas*, and the canvas was
+consistently the wrong size in all of them. Consequence: every committed
+`immersive-on` baseline before `baseline/art-sphere-trail/` — including
+`baseline/art-sphere-2d`, the pre-migration truth — is invalid, and `artInk.mjs`
+refuses those rows as `GEOMETRY MISMATCH`. Any new immersive claim needs a fresh
+reference. The exhibit now draws 3.3× the pixels it did while the bug was live.
 
 ---
 

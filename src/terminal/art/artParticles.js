@@ -1,6 +1,10 @@
 // artParticles.js — Particle Ecology subsystem for ArtTab
 // Lightweight SoA particle pool: edge energy flow, node bursts, bifurcation trails.
-// Zero external dependencies — pure JS, no imports required.
+//
+// Draws from the sphere's OWN stream, not Math.random. Every value here shapes
+// a particle, and particles are the layer with the most to lose from a stream
+// something else is also drawing on — see artRandom.js.
+import { artRandom } from './artRandom.js';
 
 export const MAX_PARTICLES = 400;
 
@@ -69,40 +73,40 @@ export function emitIdleParticles(pool, nodes) {
   _idleHueDrift = (_idleHueDrift + 0.18) % 360;
   // Pick a random live node as origin
   if (!nodes || nodes.length === 0) return;
-  const n = nodes[Math.floor(Math.random() * nodes.length)];
+  const n = nodes[Math.floor(artRandom() * nodes.length)];
   const hue = _idleHueDrift;
-  const hueTarget = (_idleHueDrift + 40 + Math.random() * 80) % 360;
-  const theta = Math.random() * Math.PI * 2;
-  const phi   = Math.acos(Math.random() * 2 - 1);
-  const speed = 0.0005 + Math.random() * 0.0012;
+  const hueTarget = (_idleHueDrift + 40 + artRandom() * 80) % 360;
+  const theta = artRandom() * Math.PI * 2;
+  const phi   = Math.acos(artRandom() * 2 - 1);
+  const speed = 0.0005 + artRandom() * 0.0012;
   emitParticle(pool,
-    n.x + (Math.random() - 0.5) * 0.08,
-    n.y + (Math.random() - 0.5) * 0.08,
-    n.z + (Math.random() - 0.5) * 0.08,
+    n.x + (artRandom() - 0.5) * 0.08,
+    n.y + (artRandom() - 0.5) * 0.08,
+    n.z + (artRandom() - 0.5) * 0.08,
     Math.sin(phi) * Math.cos(theta) * speed,
     Math.sin(phi) * Math.sin(theta) * speed,
     Math.cos(phi) * speed,
     hue, hueTarget,
-    55 + Math.random() * 30,   // sat
-    0.6 + Math.random() * 0.8, // size
-    120 + Math.random() * 180  // life
+    55 + artRandom() * 30,   // sat
+    0.6 + artRandom() * 0.8, // size
+    120 + artRandom() * 180  // life
   );
 }
 
 // ── Click burst — radial explosion from node, hue = node cluster color ───────
 export function emitNodeBurst(pool, x, y, z, hue, hueTarget, count) {
   for (let i = 0; i < count; i++) {
-    const theta = Math.random() * Math.PI * 2;
-    const phi   = Math.acos(Math.random() * 2 - 1);
-    const speed = 0.003 + Math.random() * 0.009;
+    const theta = artRandom() * Math.PI * 2;
+    const phi   = Math.acos(artRandom() * 2 - 1);
+    const speed = 0.003 + artRandom() * 0.009;
     emitParticle(pool, x, y, z,
       Math.sin(phi) * Math.cos(theta) * speed,
       Math.sin(phi) * Math.sin(theta) * speed,
       Math.cos(phi) * speed,
       hue, hueTarget,
-      75 + Math.random() * 20,
-      1.2 + Math.random() * 2.2,
-      90 + Math.random() * 100
+      75 + artRandom() * 20,
+      1.2 + artRandom() * 2.2,
+      90 + artRandom() * 100
     );
   }
 }
@@ -110,16 +114,16 @@ export function emitNodeBurst(pool, x, y, z, hue, hueTarget, count) {
 // ── Edge stream — particles flowing along an edge ────────────────────────────
 export function emitEdgeParticles(pool, ax, ay, az, bx, by, bz, hue, hueTarget, count) {
   for (let i = 0; i < count; i++) {
-    const t = Math.random();
+    const t = artRandom();
     emitParticle(pool,
       ax + (bx - ax) * t, ay + (by - ay) * t, az + (bz - az) * t,
-      (bx - ax) * 0.002 + (Math.random() - 0.5) * 0.0008,
-      (by - ay) * 0.002 + (Math.random() - 0.5) * 0.0008,
-      (bz - az) * 0.002 + (Math.random() - 0.5) * 0.0008,
+      (bx - ax) * 0.002 + (artRandom() - 0.5) * 0.0008,
+      (by - ay) * 0.002 + (artRandom() - 0.5) * 0.0008,
+      (bz - az) * 0.002 + (artRandom() - 0.5) * 0.0008,
       hue, hueTarget,
-      65 + Math.random() * 20,
-      0.8 + Math.random() * 1.2,
-      60 + Math.random() * 70
+      65 + artRandom() * 20,
+      0.8 + artRandom() * 1.2,
+      60 + artRandom() * 70
     );
   }
 }

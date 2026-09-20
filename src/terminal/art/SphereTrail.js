@@ -1,0 +1,234 @@
+// SphereTrail.js — the ping-pong accumulator that gives the GL layers back the
+// trail the 2D canvas never lost.
+//
+// ── What this is compensating for ──────────────────────────────────────────
+//
+// ArtTab's draw loop does not wipe its canvas between frames. It clears with
+// `destination-out` and `rgba(0,0,0,m)`, which MULTIPLIES existing alpha by
+// (1 - m) instead of zeroing it, and then draws source-over on the survivors.
+// A layer redrawn every frame therefore settles well above the alpha it is
+// drawn with — `1/m` times above it in the small-alpha limit, which is 1.389x
+// in normal mode and 3.125x in immersive, the exhibit mode. See artTrail.js for
+// the arithmetic and .superpowers/sdd/trail-deficit.md for the measurement.
+//
+// A layer that moves to the GPU draws into a render target that IS fully
+// rewritten each frame, so it loses that gain silently — no error, no missing
+// geometry, just less light. This module supplies the missing half of the 2D
+// clear: a target whose previous contents are FADED rather than cleared, so
+// whatever is drawn on top of it compounds exactly as it did on the canvas.
+//
+// ── Why two targets and not one ────────────────────────────────────────────
+//
+// A fragment shader may not sample the target it is writing to; the result is
+// undefined and on some drivers it is the previous frame, on others garbage.
+// So the fade reads target A and writes target B, and the pair swaps roles
+// every frame. Everything drawn after the fade lands on B as well, and next
+// frame B becomes the thing that is read.
+//
+// ── The colour space, which is the whole risk here ─────────────────────────
+//
+// BOTH targets are RGBA16F / HalfFloat / NoColorSpace. The COLOUR SPACE is
+// what is load-bearing here, not the storage type — see createTarget() for why
+// the HalfFloat switch is not this trap, and what it buys.
+// Tagging either one SRGBColorSpace gives it an SRGB8_ALPHA8
+// internal format, so the hardware encodes on write and the sampler decodes on
+// read — and the accumulation would then compound in three's LINEAR working
+// space while the 2D canvas it is imitating faded in sRGB BYTE space. That is
+// the exact bug step 3 spent a rewrite fixing: it measured systematically
+// brighter, with individual grid cells nearly doubling, and it still scored
+// 1.285 against a parity threshold of 4. Here it would be strictly worse than
+// there, because a feedback loop compounds the error every frame instead of
+// committing it once.
+//
+// So: no conversion anywhere in this chain. The single srgbToLinear stays where
+// it is, in SphereComposite's screen pass, on the finished pixel.
+//
+// ── What the targets hold ──────────────────────────────────────────────────
+//
+// PREMULTIPLIED ink with coverage in alpha — the GL layers only, over a fully
+// transparent base. NOT the composited backdrop. The rift clear colour is
+// excluded on purpose and re-applied once, per frame, in the screen pass:
+// `bg = ink.rgb + uRift * (1 - ink.a)`. Feeding the clear through this loop
+// instead would compound it by 1/m, wash the entire frame out, and read as
+// nothing worse than "brighter" on every instrument in this repo.
+//
+// That representation is also exactly what the 2D canvas held — a premultiplied
+// 8-bit buffer with an alpha channel, over a backdrop showing through by
+// (1 - alpha) — which is why the fade below can be a single uniform scale of
+// all four channels and be right.
+
+import * as THREE from 'three';
+
+// The clip-space fullscreen quad convention three uses for its own passes, and
+// the same one createBackdrop uses, so `vUv` addresses the same texel in the
+// fade as in every other pass in this pipeline.
+const TRAIL_VERT = /* glsl */`
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const TRAIL_FADE_FRAG = /* glsl */`
+  precision highp float;
+  uniform sampler2D uPrev;
+  uniform float uSurvival;    // 1 - m; 0 makes this a wipe
+  varying vec2 vUv;
+  void main() {
+    // Raw sRGB values in, raw sRGB values out. The 2D canvas faded in byte
+    // space and so does this. Converting here is the step-3 trap.
+    //
+    // All four channels by the same scalar: on premultiplied ink that is the
+    // literal destination-out this stands in for — alpha *= (1 - m), and the
+    // premultiplied rgb rides along with it, leaving the straight colour
+    // untouched exactly as the canvas op did.
+    vec4 prev = texture2D(uPrev, vUv);
+    gl_FragColor = prev * uSurvival;
+  }
+`;
+
+/** One accumulation buffer. Matches the backdrop target's settings exactly —
+ *  RGBA16F, no mipmaps, no depth, no stencil, NoColorSpace — because the two
+ *  are links in the same chain and any difference between them is a conversion.
+ *
+ *  ── HalfFloat, and why it is NOT the step-3 colour-space trap ─────────────
+ *
+ *  The header above warns that tagging this target SRGBColorSpace makes the
+ *  hardware encode on write and decode on sample, which moves the accumulation
+ *  into three's linear working space and compounds a brightening error every
+ *  frame. That warning is about the COLOUR SPACE TAG. It is not about the
+ *  storage type, and the two are independent.
+ *
+ *  `colorSpace` stays NoColorSpace, so there is still no conversion anywhere in
+ *  this chain: these are the same sRGB-encoded numbers the byte target held,
+ *  stored with more precision and — the point — NO CLAMP AT 1.0.
+ *
+ *  Two things follow, and both are why this change exists:
+ *
+ *  1. HEADROOM. The additive layer blends INTO this target, so in RGBA8 every
+ *     overlapping ribbon saturated at 255 before the bloom pass ever sampled
+ *     it. MEASURED on a 4-effect prism cascade: 57,217 fully clipped pixels,
+ *     13% of every lit pixel in the frame, with unbroken 160px runs of pure
+ *     white. A soft-knee cannot recover that — the blend unit destroyed the
+ *     information before any fragment shader could see it. It has to not clip
+ *     in the first place.
+ *
+ *  2. THE STUCK FLOOR. The fade below writes `prev * survival` with NoBlending,
+ *     so a byte target requantises every frame with round-to-nearest. A stored
+ *     value v is then a FIXED POINT whenever round(v*s) >= v, i.e. v <= 0.5/m:
+ *
+ *         normal     m = 0.72   0.5/m = 0.694   nothing sticks
+ *         immersive  m = 0.32   0.5/m = 1.563   v = 1 STICKS FOR EVER
+ *
+ *     MEASURED, grain disabled so it could not mask the result: 330,511 px at
+ *     exactly 1/255 in immersive against 32,301 in normal, and after a further
+ *     1200 frames — some 28 half-lives at survival 0.68 — the population had
+ *     not fallen but RISEN, to 339,985. A third of the exhibit frame was pinned
+ *     one level off black, permanently. Half-float has no requantisation and
+ *     therefore no fixed point; the decay underflows to zero in ~25-43 frames.
+ *
+ *  Alpha needs no clamp. ADDITIVE_LAYER writes `blendSrcAlpha: ZeroFactor,
+ *  blendDstAlpha: OneFactor` — it never touches the alpha channel — and every
+ *  other writer is source-over, which keeps coverage in [0,1] for inputs in
+ *  [0,1]. So the screen pass's `1.0 - ink.a` cannot go negative here even
+ *  though nothing is clamping it any more. Only RGB goes over 1. */
+function createTarget() {
+  const rt = new THREE.WebGLRenderTarget(1, 1, {
+    format: THREE.RGBAFormat,
+    type: THREE.HalfFloatType,
+    minFilter: THREE.LinearFilter,      // no mipmaps: sampled 1:1
+    magFilter: THREE.LinearFilter,
+    generateMipmaps: false,
+    depthBuffer: false,
+    stencilBuffer: false,
+  });
+  // NOT SRGBColorSpace. See the header — this is the one line that can turn
+  // this module into a brightening feedback loop that passes the gate.
+  rt.texture.colorSpace = THREE.NoColorSpace;
+  return rt;
+}
+
+/**
+ * Build the accumulator. Imperative, like the backdrop it feeds: NOTHING here
+ * may enter r3f's scene graph, because everything in that graph is drawn to the
+ * SCREEN by the EffectComposer — a fade quad in the tree would fade the target
+ * *and* be painted over the composite.
+ *
+ * `read` and `write` are getters over the pair rather than fields, so callers
+ * cannot hold a stale one across a swap. `write.texture` in particular must be
+ * re-read every frame by whoever samples the accumulator; it alternates.
+ */
+export function createTrail() {
+  const targets = [createTarget(), createTarget()];
+  // Index of the target currently being READ. swap() flips it, so calling
+  // swap() at the top of a frame makes last frame's write this frame's read.
+  let index = 0;
+
+  const fadeUniforms = {
+    uPrev: { value: null },
+    uSurvival: { value: 0 },
+  };
+
+  const material = new THREE.ShaderMaterial({
+    uniforms: fadeUniforms,
+    vertexShader: TRAIL_VERT,
+    fragmentShader: TRAIL_FADE_FRAG,
+    depthTest: false,
+    depthWrite: false,
+    toneMapped: false,
+    // REPLACES the destination, does not blend with it. The fade is the clear:
+    // it covers every texel of the target, which is why the caller can render
+    // it with autoClear off and let it stand in for the wipe.
+    blending: THREE.NoBlending,
+  });
+  const geometry = new THREE.PlaneGeometry(2, 2);
+  const fadeMesh = new THREE.Mesh(geometry, material);
+  fadeMesh.frustumCulled = false;
+
+  const scene = new THREE.Scene();
+  scene.add(fadeMesh);
+  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+  return {
+    targets, fadeMesh, fadeUniforms, scene, camera,
+    get read() { return targets[index]; },
+    get write() { return targets[index ^ 1]; },
+    swap() { index ^= 1; },
+
+    /** Reconcile both targets against the drawing buffer. `setSize` mutates the
+     *  target in place — it never replaces the texture object — and early-exits
+     *  when the dimensions already match, so this costs four integer compares
+     *  in the steady state and is safe to call every frame. */
+    setSize(w, h) {
+      for (const rt of targets) {
+        if (rt.width !== w || rt.height !== h) rt.setSize(w, h);
+      }
+    },
+
+    dispose() {
+      geometry.dispose();
+      material.dispose();
+      targets[0].dispose();
+      targets[1].dispose();
+    },
+  };
+}
+
+/**
+ * Fade last frame's accumulation into this frame's target.
+ *
+ * Leaves `write` BOUND: everything the caller draws next lands on top of the
+ * faded result, which is the entire point. The caller must have autoClear off
+ * for that to survive — this pass covers the whole target itself, so nothing is
+ * lost by turning the clear off around it.
+ *
+ * `survival` is `trailSurvival(m)` — 0 makes this a wipe and the accumulator a
+ * pass-through.
+ */
+export function renderTrailFade(gl, trail, survival) {
+  trail.fadeUniforms.uPrev.value = trail.read.texture;
+  trail.fadeUniforms.uSurvival.value = survival;
+  gl.setRenderTarget(trail.write);
+  gl.render(trail.scene, trail.camera);
+}
