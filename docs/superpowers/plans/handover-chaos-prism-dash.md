@@ -9,9 +9,9 @@
 | fact | value |
 |---|---|
 | branch | `feature/chaos-prism-depth-dash-beads` |
-| HEAD | `f3e06bf7` |
+| HEAD | `33bda07e` (was `f3e06bf7` when written) |
 | forked from | `main` at `09e86f44` |
-| ahead / behind main | **10 / 0** |
+| ahead / behind main | **14 / 0** (was 10 when written) |
 | `main` vs `origin/main` | **0 / 0** — in sync, nothing unpushed on main |
 | tracked tree | **clean** |
 | tests | **1484 passing, 121 files** |
@@ -146,13 +146,25 @@ wrong. Do not let it harden.**
 
 ## 4. Open items
 
-1. **The parity reference has NOT been re-cut.** Still
-   `baseline/art-sphere-phase3-hum-merged-a` at `eb83fda3`, i.e. the previous
-   sphere. Every `artCompare` number against the current build is meaningless
-   until re-cut. **`BASELINE_COMMIT` MUST be set** or `artBaseline` stamps
-   `gitCommit: null` and the reference is unattributable. And run
-   `node scripts/artNull.mjs --write <set>` once per set, or every pair comes
-   back `0/21 ADMISSIBLE, 21/21 no-null`.
+1. ~~**The parity reference has NOT been re-cut.**~~ **CLOSED 2026-09-21 at
+   `33bda07e`.** The live reference is now
+   `baseline/art-sphere-phase4-prism-dash-certified-a` at `21e98283`, **24
+   cells**, five sets, `artNull` 24/24 at floor 0.95, worst 0.9744. Read its
+   README before quoting any number out of it.
+
+   **THE INSTRUCTION THAT USED TO BE HERE WAS WRONG AND IS NOT TO BE
+   RESTORED.** It said `BASELINE_COMMIT` MUST be set or `artBaseline` stamps
+   `gitCommit: null`. That stopped being true at `b69c650f`, which is in
+   `main`: `scripts/_git.mjs` derives provenance from `git rev-parse HEAD`, and
+   the env var survives only as a fallback for a capture taken outside a
+   checkout. Setting a stale one earns a warning and is ignored in favour of
+   git. **This set was cut with it UNSET** and all five manifests carry
+   `gitCommit 21e98283`, `gitDirty false`, `provenanceSource git`. What
+   actually protects attribution now is the dirty-tree guard, and it fires.
+
+   `artNull --write` per set is still required, and was done for all five.
+
+   **AND THE REFERENCE WAS BLIND BEFORE THIS.** See §4.1.
 2. ~~**The author has not looked at the dashes yet.**~~ **CLOSED 2026-09-21 —
    he has now ruled the dash half by eye, and it also discharges the GPU
    debt. See §3.1.**
@@ -168,6 +180,37 @@ wrong. Do not let it harden.**
    origin and would need fixing before they mean anything.
 7. **`.claude/launch.json`'s `scale94-dev` passes `--port 5174`** and conflicts
    with the same config. Use the `scale94-dev-5173` entry instead.
+
+### 4.1 The reference could not see the ortho layer — fixed at `21e98283`
+
+Cutting the reference exposed that **every reference ever cut on this project
+was structurally blind to the orthogonal bridge layer.**
+
+All seven prior capture states are hover, left-click or drag.
+`orthogonalBridges` starts `[]` and exactly one path appends to it —
+`handleContextMenu`, on `contextmenu` and nothing else. So `vIsOrtho` was 0 in
+all 21 cells, and `beadGate = vIsOrtho * step(0.001, vDash.x) * (1 - vIsDisc)`
+was 0 in every pixel of every reference frame. **The whole bead could have been
+deleted and scored 21/21 ADMISSIBLE.** Same shape as the `resonance` state,
+which was empty for the whole of steps 2–4.
+
+Fixed by an eighth state that right-clicks four nodes via `page.rightClick` —
+the REAL path. **Not `__artSetOrthogonal`**, whose own comment says not to rely
+on it surviving a real bridge forged underneath it. Four bridges, not one,
+because a single 0.55–1.15px wire out of ~127 could have its bead deleted
+under the gate's own noise. Placed LAST because the forge appends to React
+state `__artHarnessReset` does not clear. Asserts its population AFTER the
+shot, like the GPU probe.
+
+Measured: 4 / 4 / 3 ortho instances per scale, identical node lists in all five
+sets. The cell is the MOST reproducible in the set (0.9988 / 0.9982 / 0.9992).
+
+**What the branch did, against phase 3: 21/21 ADMISSIBLE, and the signal is in
+`fired-cascade` and nowhere else** — max 58.8–67.6 vs 2.8–9.7 elsewhere.
+That is the only prior state that left-clicks, and a left-click calls
+`spawnEffect`, which is what puts prism chords on the sphere. The `ok` verdict
+is NOT evidence the change is small; `artCompare` thresholds on a mean over
+~1500 px a cell. Read the max column.
 
 ---
 
