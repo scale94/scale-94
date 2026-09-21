@@ -701,7 +701,7 @@ export function packFlags(dashPeriod, dashDuty, glow, isOrtho = false,
   const p = Math.max(0, Math.min(255, Math.round(dashPeriod)));
   // SEVEN bits, not eight: bit 7 of this byte now carries the terminal-taper
   // flag, exactly as bit 7 of the glow byte carries isOrtho. Every dash duty
-  // in this codebase is <= 8 ([4,3] [8,4] [3,4] [5,4] [3,6] [3,5] [6,8]), so
+  // in this codebase is <= 8 ([4,3] [8,4] [3,4] [4,6] [5,4] [3,6] [3,5] [6,8]), so
   // nothing loses range. The clamp is to 127 rather than 255 so a caller with
   // an out-of-range duty cannot forge the flag.
   const d = Math.max(0, Math.min(127, Math.round(dashDuty))) + (taper ? 128 : 0);
@@ -1546,8 +1546,14 @@ export function syncEdgeLayer(layer, state) {
   layer.uniforms.uResolution.value.set(Math.max(state.w, 1), Math.max(state.h, 1));
   // orthoHue(now) is one value per frame, not per edge — see EDGE_FRAG.
   layer.uniforms.uOrthoHue.value = state.orthoHue ?? 0;
-  // 0 disables the taper for every instance regardless of the flag, which is
-  // what a caller that has not opted in gets.
+  // 0 is what a caller that has not opted in gets — but it does NOT mean
+  // "taper disabled", and an earlier version of this comment said it did.
+  // The shader divides by max(uTaperPx, 1e-3), so at 0 the taper factor is 1
+  // INSIDE the segment and 0 outside it: a hard clip of the glow at the butt
+  // caps rather than a no-op. Harmless only because no additive writer sets
+  // the opt-in bit today, which is precisely the case the old wording
+  // promised to cover. A layer that wants the taper genuinely off must not
+  // set the bit.
   layer.uniforms.uTaperPx.value = state.taperPx ?? 0;
 
   layer.geometry.instanceCount = count;
