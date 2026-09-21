@@ -13,7 +13,9 @@ import {
   createStrimerState, spawnStrimer, stepStrimer,
   STRIMER_MAX_PACKETS, STRIMER_STRIDE, PING_MS, PHASE_PING,
   DURATION_MIN_MS, DURATION_MAX_MS,
+  strimerDepthCue, strimerCue, STRIMER_DEPTH_ALPHA_FLOOR,
 } from '../artStrimer';
+import { DEPTH_ALPHA_FLOOR } from '../artNodes';
 
 describe('easeOutCubic', () => {
   it('is exact at both endpoints', () => {
@@ -293,5 +295,71 @@ describe('stepStrimer', () => {
     stepStrimer(s, 1);
     expect(Number.isNaN(s.u[0])).toBe(false);
     expect(Number.isFinite(s.dur[0])).toBe(true);
+  });
+});
+
+// ── The depth cue ──────────────────────────────────────────────────────────
+//
+// WHY THIS EXISTS. The strimer had NO depth term of any kind -- not in this
+// module, not in the draw loop, not in SphereStrimer.jsx's shader. HEAD_GAIN
+// (2.4), RAIL_GAIN and PING_GAIN were flat constants, so a packet racing to a
+// node on the FAR side of the sphere arrived exactly as white-hot as one
+// crossing the front, and terminated in a bright point on a disc that depth
+// cueing had dimmed toward its floor. Reported as the ribbon converging into
+// "a sharp point in the dark void where no node disc is visible".
+//
+// MEASURED (scripts/_a16kuramoto.mjs): clicking `kuramoto` aims three strands
+// at ceei, soma91 and feigenbaum. All three are real, drawn nodes -- nothing
+// is dropped and no control point is targeted -- but soma91 sits at depth
+// -0.3625 and its disc draws at peak alpha 0.247 against a scene median of
+// 0.408, while the head that lands on it draws at gain 2.4.
+//
+// This is the same omission `prismChordCue` was added for on this branch, and
+// the fix is deliberately its twin so the two layers cannot drift.
+describe('strimerDepthCue', () => {
+  it('is the node depth cue with its own floor', () => {
+    expect(strimerDepthCue(1)).toBeCloseTo(1.0, 7);     // front: untouched
+    expect(strimerDepthCue(0)).toBeCloseTo(0.5, 7);     // rim: (0 + 1) * 0.5
+    expect(strimerDepthCue(-1)).toBeCloseTo(STRIMER_DEPTH_ALPHA_FLOOR, 7);
+  });
+
+  it('floors ABOVE the node disc, for the reason the prism does', () => {
+    // A node disc is a solid 14-20px shape; a strimer head is HEAD_WIDTH 3px
+    // on an additive layer. Equal alpha is not equal visibility at that
+    // footprint ratio. If this ever drops to the disc floor, the back-side
+    // wavefront disappears rather than dims.
+    expect(STRIMER_DEPTH_ALPHA_FLOOR).toBeGreaterThan(DEPTH_ALPHA_FLOOR);
+  });
+});
+
+describe('strimerCue', () => {
+  it('returns each end node OWN cue at u = 0 and u = 1', () => {
+    expect(strimerCue(-1, 1, 0)).toBeCloseTo(STRIMER_DEPTH_ALPHA_FLOOR, 7);
+    expect(strimerCue(-1, 1, 1)).toBeCloseTo(1.0, 7);
+    expect(strimerCue(0.2, -0.4, 0)).toBeCloseTo(0.6, 7);   // (0.2 + 1) * 0.5
+    expect(strimerCue(0.2, -0.4, 1)).toBeCloseTo(0.3, 7);   // (-0.4 + 1) * 0.5
+  });
+
+  // LIVENESS, copied in spirit from prismChordCue's. This midpoint value is
+  // reachable ONLY by interpolating the CUES. Cueing an interpolated DEPTH
+  // gives 0.5, because the floor clamps one end and a clamp does not commute
+  // with a lerp. Anyone "simplifying" this to strimerDepthCue((dA + dB) / 2)
+  // is caught here.
+  it('interpolates the CUES, not the depths', () => {
+    const mid = strimerCue(-1, 1, 0.5);
+    expect(mid).toBeCloseTo((STRIMER_DEPTH_ALPHA_FLOOR + 1) / 2, 7);
+    expect(mid).not.toBeCloseTo(0.5, 3);
+  });
+
+  it('clamps u to [0,1] rather than extrapolating off the edge', () => {
+    expect(strimerCue(0.2, -0.4, -5)).toBeCloseTo(0.6, 7);
+    expect(strimerCue(0.2, -0.4, 9)).toBeCloseTo(0.3, 7);
+  });
+
+  it('DIMS a back-bound strand relative to a front-bound one', () => {
+    // The behavioural claim, stated as a comparison rather than a constant so
+    // it survives a change to the floor: arriving at the back must be dimmer
+    // than arriving at the front, at the same point along the strand.
+    expect(strimerCue(0, -1, 1)).toBeLessThan(strimerCue(0, 1, 1));
   });
 });

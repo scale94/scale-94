@@ -65,6 +65,7 @@ import {
 import {
   createStrimerState, spawnStrimer, stepStrimer,
   STRIMER_STRIDE, PACKET_FRACTION, PROFILE_PACKET, PROFILE_RAIL, PROFILE_PING,
+  strimerCue,
   HEAD_GAIN, HEAD_WIDTH, RAIL_GAIN, RAIL_WIDTH, PING_GAIN, PING_RADIUS,
   PHASE_TRAVEL,
 } from '../art/artStrimer';
@@ -506,6 +507,14 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   // `.data` array exists before SphereComposite's factory first runs.
   const strimerRef = useRef(null);
   if (strimerRef.current === null) strimerRef.current = createStrimerState();
+  // The LAST frame's projection, for the harness only.
+  //
+  // __artStrimerState can say which node a packet is travelling TO but not
+  // where that lands on screen or how deep it sits, and those are exactly the
+  // questions asked of this layer. The draw loop builds `proj` every frame and
+  // then drops it; this keeps the reference so a hook can read it. One
+  // assignment per frame, no allocation, and nothing in the render reads it.
+  const projRef = useRef(null);
   // Prism scratch, allocated once: the tessellation's point list, the control
   // point, and writeHsl's rgb output. A full-strength frame runs the inner loop
   // ~74000 times and the draw loop stays off the allocation path.
@@ -1061,6 +1070,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         const [rx, ry, rz] = applyM(M, n.x, n.y, n.z);
         return { ...project(rx, ry, rz, w, h, sphereR, focal), id: n.id };
       });
+      projRef.current = proj;   // harness only — see projRef's note
 
       // ── Depth-sort indices for painter's algorithm ────────────────────────
       // Render far (negative depth) first, near last
@@ -2389,6 +2399,16 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           if (!pa || !pb) continue;   // dynamic node not yet projected
           const r = sp.rgb[i * 3], g = sp.rgb[i * 3 + 1], b = sp.rgb[i * 3 + 2];
           const scale = (pa.scale + pb.scale) * 0.5 * ink;
+          // THE DEPTH CUE. This layer had none at all until now: the three
+          // gains are flat constants, so a packet bound for the far side of
+          // the sphere arrived as white-hot as one crossing the front and
+          // its ping put a bright disc on a node dimmed toward its floor.
+          // See strimerCue in artStrimer.js. The cue multiplies the GAIN and
+          // nothing else -- geometry, width and colour are untouched, so a
+          // front-facing strand is bit-identical to what shipped (cue is
+          // exactly 1.0 at depth 1, and >= 1 is clamped by the max()).
+          const cueA = strimerCue(pa.depth, pb.depth, 0);
+          const cueB = strimerCue(pa.depth, pb.depth, 1);
 
           if (sp.phase[i] === PHASE_TRAVEL) {
             // The RAIL first, so the packet adds over it. This layer blends
@@ -2400,7 +2420,10 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             sp.data[o] = pa.sx; sp.data[o + 1] = pa.sy;
             sp.data[o + 2] = pb.sx; sp.data[o + 3] = pb.sy;
             sp.data[o + 4] = RAIL_WIDTH * scale;
-            sp.data[o + 5] = RAIL_GAIN;
+            // The rail spans the WHOLE edge and carries one gain, so it takes
+            // the midpoint cue -- the mean of the two ends, which is what
+            // interpolating the cues gives at u = 0.5.
+            sp.data[o + 5] = RAIL_GAIN * ((cueA + cueB) * 0.5);
             sp.data[o + 6] = r; sp.data[o + 7] = g; sp.data[o + 8] = b;
             sp.data[o + 9] = PROFILE_RAIL;
             sp.instances++;
@@ -2415,7 +2438,9 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             sp.data[o] = hx; sp.data[o + 1] = hy;
             sp.data[o + 2] = hx - dx / n * L; sp.data[o + 3] = hy - dy / n * L;
             sp.data[o + 4] = HEAD_WIDTH * scale;
-            sp.data[o + 5] = HEAD_GAIN;
+            // The head is AT u, so it dims as it travels toward a back-facing
+            // node and brightens on the way to a front-facing one.
+            sp.data[o + 5] = HEAD_GAIN * strimerCue(pa.depth, pb.depth, u);
             sp.data[o + 6] = r; sp.data[o + 7] = g; sp.data[o + 8] = b;
             sp.data[o + 9] = PROFILE_PACKET;
             sp.instances++;
@@ -2429,7 +2454,10 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             sp.data[o] = pb.sx; sp.data[o + 1] = pb.sy;
             sp.data[o + 2] = pb.sx; sp.data[o + 3] = pb.sy;
             sp.data[o + 4] = PING_RADIUS * scale;
-            sp.data[o + 5] = PING_GAIN * k2;
+            // The ping lands ON the destination, so it takes that node's own
+            // cue -- cueB, not an average. This is the one that was putting a
+            // bright 6px disc where no node was visible.
+            sp.data[o + 5] = PING_GAIN * k2 * cueB;
             // r/g/b written for layout parity with the other two profiles,
             // but inert: the shader forces vec3(1.0) for profile >= 1.5
             // (SphereStrimer.jsx), so the ping is deliberately achromatic
@@ -3247,10 +3275,26 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     window.__artStrimerState = () => {
       const sp = strimerRef.current;
       const packets = [];
+      // Endpoint GEOMETRY, not just the ids. `proj` carries each entry's own
+      // `id`, so this looks up by id rather than by index -- the draw loop
+      // resolves the same two nodes with findIndex and a mismatch here would
+      // quietly report a different packet's endpoints.
+      const pr = projRef.current;
+      const wn = stateRef.current?.nodes;
+      const look = (id) => {
+        const p = pr ? pr.find(q => q.id === id) : null;
+        const n = wn ? wn.find(q => q.id === id) : null;
+        return {
+          sx: p ? +p.sx.toFixed(2) : null, sy: p ? +p.sy.toFixed(2) : null,
+          depth: p ? +p.depth.toFixed(4) : null, scale: p ? +p.scale.toFixed(4) : null,
+          x: n ? +n.x.toFixed(4) : null, y: n ? +n.y.toFixed(4) : null, z: n ? +n.z.toFixed(4) : null,
+        };
+      };
       for (let i = 0; i < sp.count; i++) {
         packets.push({
           src: sp.srcId[i], dst: sp.dstId[i],
           u: +sp.u[i].toFixed(4), phase: sp.phase[i], ping: +sp.ping[i].toFixed(3),
+          a: look(sp.srcId[i]), b: look(sp.dstId[i]),
         });
       }
       return { count: sp.count, instances: sp.instances, w: sp.w, h: sp.h, packets };

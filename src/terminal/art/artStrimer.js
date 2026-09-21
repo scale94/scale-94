@@ -136,6 +136,62 @@ export const RAIL_WIDTH = 1.5;
 export const PING_GAIN = 1.8;
 export const PING_RADIUS = 6;
 
+// ── The depth cue ──────────────────────────────────────────────────────────
+//
+// THIS LAYER HAD NO DEPTH TERM OF ANY KIND. Not here, not in the draw loop,
+// not in SphereStrimer.jsx. The three gains above are flat constants, so a
+// packet racing toward a node on the FAR side of the sphere arrived exactly as
+// white-hot as one crossing the front, and its arrival ping put a bright 6px
+// disc on a node that depth cueing had dimmed toward its floor. Reported as
+// the ribbon converging into "a sharp point in the dark void where no node
+// disc is visible" -- and the geometry was never wrong: the strand really does
+// end on a real node (scripts/_a16kuramoto.mjs), it just outshines it.
+//
+// The branch comment on prismChordCue says "THE PRISM WAS THE ONLY LAYER ON
+// THE SPHERE WITH NO DEPTH TERM". That was not true. This was the other one,
+// and it is the brightest layer in the renderer.
+//
+// Deliberately the TWIN of prismChordCue, down to interpolating the cues, so
+// the two cannot drift apart.
+
+/**
+ * How dark a strimer strand may get at the back of the sphere.
+ *
+ * NOT the node disc's DEPTH_ALPHA_FLOOR, and the difference is the same one
+ * PRISM_DEPTH_ALPHA_FLOOR is set against: a node disc is a solid 14-20px
+ * shape, a strimer head is HEAD_WIDTH 3px on an additive layer, and equal
+ * alpha is not equal visibility across that footprint ratio. At the disc's
+ * 0.08 the back-side wavefront would vanish rather than dim, and the click
+ * would stop reading as propagation.
+ *
+ * THIS NUMBER IS A DIAL, CHOSEN BY ANALOGY, NOT MEASURED. It is set level
+ * with the prism's 0.24 because the two layers now answer the same question
+ * about the same geometry. It wants an eye on it.
+ */
+export const STRIMER_DEPTH_ALPHA_FLOOR = 0.25;
+
+/** A node's depth in [-1, 1] to a gain multiplier, clamped at the floor. */
+export function strimerDepthCue(depth) {
+  return Math.max(STRIMER_DEPTH_ALPHA_FLOOR, (depth + 1) * 0.5);
+}
+
+/**
+ * The gain multiplier at fraction `u` along a strand from `depthA` to
+ * `depthB`.
+ *
+ * Interpolates the CUES, not the depths. A clamp does not commute with a
+ * lerp: on a strand from depth -1 to +1 this gives 0.625 at the midpoint,
+ * where cueing an interpolated depth gives 0.5. Interpolating the cues is
+ * what makes each END land on the value strimerDepthCue gives for that node,
+ * which is the whole point -- the packet has to match the disc it arrives on.
+ */
+export function strimerCue(depthA, depthB, u) {
+  const t = Math.min(1, Math.max(0, u));
+  const cA = strimerDepthCue(depthA);
+  const cB = strimerDepthCue(depthB);
+  return cA + (cB - cA) * t;
+}
+
 /** Ease-out cubic. Opens at 3x the average speed and settles into the node. */
 export function easeOutCubic(t) {
   const c = 1 - Math.min(1, Math.max(0, t));
