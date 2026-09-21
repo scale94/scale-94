@@ -216,6 +216,42 @@ wrong. Do not let it harden.**
 7. **`.claude/launch.json`'s `scale94-dev` passes `--port 5174`** and conflicts
    with the same config. Use the `scale94-dev-5173` entry instead.
 
+### 4.3 Reported "triangular wire ghosts" — INVESTIGATED, NOT A DEFECT
+
+**Ruled 2026-09-21: leave it, it is the design.** Do not re-open without new
+evidence; both proposed causes were tested and refuted.
+
+Reported as 1px stray wires forming a flat triangular chord structure "rather
+than curving along the spherical attractor manifold", said to be appearing
+across multiple nodes *now*, with two proposed causes.
+
+- **"Ortho endpoints hit a stale/null target index and collapse to a default
+  vector" — REFUTED.** `scripts/_a12ortho.mjs` forges bridges through the REAL
+  right-click path (the harness hook only re-flags existing edges, so it cannot
+  reproduce a bad TARGET INDEX) and decodes every ortho instance's endpoints
+  against the node centres implied by the non-ortho population. **All 8
+  terminate on real node centres at both ends. Zero at the origin, zero at the
+  buffer centre.**
+- **"They bypass the bend/spline curvature pass" — REFUTED. There is no such
+  pass for these edges.** `tessellateQuad` is called at exactly four sites: the
+  prism, the analogy filaments, the chimera fringes. `ArtTab.jsx:1544` says it
+  plainly — *"All four cases now write one instance into the GL buffer instead
+  of stroking."* One straight instance each.
+- **"Now" — REFUTED.** The pre-branch reference (`eb83fda3`) and phase 4 are
+  visually identical on `idle`; `artCompare` puts them at mean 0.285 / max 9.2.
+  `artEdges.js:75` states it outright: a base wire is a **1.15–1.30px thread**
+  and *"the geometry, which has always run centre to centre."*
+
+**WHAT THE TRIANGLE ACTUALLY IS.** The endpoint tally: `857,68` serves three
+bridges and `719,375` serves three more. `findOrthogonalNode` excludes existing
+connections but keeps selecting the same maximally-divergent partners, so
+bridges fan out of and into SHARED HUBS. That fan is the triangular structure.
+
+Also: ortho bridges measure **3.3–4.3px** wide. The 1px wires are the BASE
+EDGES underneath them — a different layer from the one named in the report,
+which is the third time on this project that a reported symptom has named the
+wrong layer.
+
 ### 4.2 Three A/B designs, two of them measurably wrong
 
 Kept because the wrong ones are cheap to re-invent.
