@@ -1170,6 +1170,19 @@ export const edgeFrag = (shadow, composite) => /* glsl */`
   // rAF cycle, which is the only way a sub-1% effect becomes measurable here.
   uniform float uBeadScale;
 
+  // THE DASH CUT'S OWN ARM SWITCH. 1 selects the box filter, which is what
+  // ships; 0 selects the hard step() the box filter replaced. Both forms stay
+  // compiled in, because the alternative is what this instrument used to do --
+  // rewrite the statement on disk and relaunch the browser, which is how the
+  // measurement ended up under its own noise floor.
+  //
+  // mix(), not a branch on the uniform. A uniform branch would be uniform flow
+  // and legal, but mix keeps the collapse-to-arithmetic discipline the rest of
+  // this shader holds, and the shipped path stays bit-exact: mix(x, y, 1.0) is
+  // x*(1-1) + y*1, and step() returns 0.0 or 1.0, so the x*0 term is exactly
+  // zero rather than a rounding of one.
+  uniform float uDashAA;
+
   varying vec3  vC0;
   varying vec3  vC1;
   varying vec3  vC2;
@@ -1372,7 +1385,7 @@ ${HSL2RGB_GLSL}
     float sd = dashM < dashD
       ?  min(dashM, dashD - dashM)
       : -min(dashM - dashD, dashP - dashM);
-    float dashMask = clamp(sd / dpxDash + 0.5, 0.0, 1.0);
+    float dashMask = mix(step(0.0, sd), clamp(sd / dpxDash + 0.5, 0.0, 1.0), uDashAA);
     if (vDash.x > 0.0) core *= dashMask;
 
     // The shoulder standing in for ctx.shadowBlur. A canvas shadow is a real
@@ -1617,6 +1630,8 @@ export function createEdgeLayer(sharedData, spec = SRC_OVER_LAYER) {
     // 1, not 0: this one's identity is 1, so a caller that never sets it gets
     // the shipped bead. See the declaration in edgeFrag.
     uBeadScale:  { value: 1 },
+    // 1 = box filter = shipped. See the declaration in edgeFrag.
+    uDashAA:     { value: 1 },
   };
 
   const material = new THREE.ShaderMaterial({
@@ -1688,6 +1703,8 @@ export function syncEdgeLayer(layer, state) {
   // identity and the shipped path, 0 is the no-bead arm. Getting this default
   // backwards would silently strip the beads from every frame the app draws.
   layer.uniforms.uBeadScale.value = state.beadScale ?? 1;
+  // Same `?? 1` reasoning: 1 is the shipped box filter, 0 is the hard-cut arm.
+  layer.uniforms.uDashAA.value = state.dashAA ?? 1;
 
   layer.geometry.instanceCount = count;
   layer.buffer.addUpdateRange(0, count * EDGE_STRIDE);

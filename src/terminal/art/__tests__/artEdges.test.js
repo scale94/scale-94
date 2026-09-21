@@ -726,6 +726,7 @@ describe('syncEdgeLayer', () => {
       uOrthoHue: { value: 0 },
       uTaperPx: { value: 0 },
       uBeadScale: { value: 1 },
+      uDashAA: { value: 1 },
     },
     buffer: { needsUpdate: false, addUpdateRange: vi.fn() },
   });
@@ -866,7 +867,7 @@ describe('the additive buffer capacity', () => {
     // and the draw call all agreeing that nothing was wrong.
     const layer = {
       mesh: { visible: true }, geometry: { instanceCount: -1 },
-      uniforms: { uResolution: { value: { set: vi.fn() } }, uOrthoHue: { value: 0 }, uTaperPx: { value: 0 }, uBeadScale: { value: 1 } },
+      uniforms: { uResolution: { value: { set: vi.fn() } }, uOrthoHue: { value: 0 }, uTaperPx: { value: 0 }, uBeadScale: { value: 1 }, uDashAA: { value: 1 } },
       buffer: { needsUpdate: false, addUpdateRange: vi.fn() },
     };
     const state = createEdgeState(MAX_ADDITIVE_EDGES);
@@ -1640,6 +1641,30 @@ describe('the wire taper — the uniform and the shader contract', () => {
     expect(EDGE_TAPER_PX).toBeGreaterThan(10);
   });
 
+  it('declares uDashAA on both materials, defaulting to 1', () => {
+    // 1 = the box filter, which is what ships. 0 = the hard step() the box
+    // filter replaced, which is the hard-cut A/B arm. Identity is 1 for the
+    // same reason uBeadScale's is.
+    for (const spec of [SRC_OVER_LAYER, ADDITIVE_LAYER]) {
+      const layer = createEdgeLayer(null, spec);
+      expect(layer.uniforms.uDashAA).toBeDefined();
+      expect(layer.uniforms.uDashAA.value).toBe(1);
+      layer.dispose();
+    }
+  });
+
+  it('takes the dash antialiasing flag from the state each frame, defaulting to 1', () => {
+    const layer = createEdgeLayer(null, SRC_OVER_LAYER);
+    const state = createEdgeState(4);
+    state.count = 1; state.w = 800; state.h = 600; state.dashAA = 0;
+    syncEdgeLayer(layer, state);
+    expect(layer.uniforms.uDashAA.value).toBe(0);
+    delete state.dashAA;
+    syncEdgeLayer(layer, state);
+    expect(layer.uniforms.uDashAA.value).toBe(1);
+    layer.dispose();
+  });
+
   it('declares uBeadScale on both materials, defaulting to 1', () => {
     // 1, NOT 0. uTaperPx defaults to 0 and that file comment warns 0 does not
     // mean "off"; here 1 is the SHIPPED path and 0 is the no-bead A/B arm, so
@@ -1939,6 +1964,35 @@ describe('edgeFrag dash beads', () => {
     const gi = FRAG.indexOf('float beadGate');
     const stmt = FRAG.slice(gi, FRAG.indexOf(';', gi) + 1);
     expect(stmt).toContain('1.0 - vIsDisc');
+  });
+
+  it.each(FRAGS)('%s: selects the dash cut with uDashAA, keeping BOTH forms in the shader', (_n, FRAG) => {
+    // The hard-cut arm used to be a source patch swapping this statement for
+    // step(0.0, sd). Carrying both forms and selecting with a uniform is what
+    // lets the arm be flipped inside one page.
+    //
+    // mix() and not a branch: mix(x, y, 1.0) is x*(1-1) + y*1, and step()
+    // returns 0.0 or 1.0, so the shipped path is bit-exact rather than merely
+    // close. A branch on a uniform would be uniform flow and legal here, but
+    // mix keeps the non-uniform-flow discipline the rest of this shader holds.
+    expect(FRAG).toContain('uniform float uDashAA;');
+    const di = FRAG.indexOf('float dashMask');
+    expect(di).toBeGreaterThan(-1);
+    const stmt = FRAG.slice(di, FRAG.indexOf(';', di) + 1);
+    expect(stmt).toContain('uDashAA');
+    expect(stmt).toContain('step(0.0, sd)');
+    expect(stmt).toContain('sd / dpxDash + 0.5');
+  });
+
+  it.each(FRAGS)('%s: still box-filters the dash, and does NOT reach for smoothstep', (_n, FRAG) => {
+    // The pre-existing rule, re-asserted against the new statement shape: a
+    // smoothstep shoulder spreads a 1px line over 1.5px and the parity gate
+    // reads it as a one-sided brightening. Scoped to the dashMask statement,
+    // because the file's own COMMENTS discuss smoothstep.
+    const di = FRAG.indexOf('float dashMask');
+    const stmt = FRAG.slice(di, FRAG.indexOf(';', di) + 1);
+    expect(stmt).not.toContain('smoothstep');
+    expect(stmt).toContain('clamp(');
   });
 
   it.each(FRAGS)('%s: scales the bead by uBeadScale, so the A/B needs no rebuild', (_n, FRAG) => {

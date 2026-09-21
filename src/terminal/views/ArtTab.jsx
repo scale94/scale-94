@@ -525,6 +525,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   // re-render -- the whole point is to switch arms inside ONE page without
   // disturbing the world the previous arm was measured in.
   const beadScaleRef = useRef(1);
+  // The dash cut's arm, same contract: 1 = box filter = shipped, 0 = hard cut.
+  const dashAARef = useRef(1);
   const prismAlphaRef = useRef(null);
   if (prismAlphaRef.current === null) prismAlphaRef.current = new Float32Array(CURVE_MAX_SEGMENTS + 1);
 
@@ -1439,6 +1441,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       // Per frame, from the ref, so __artSetBeadScale takes effect on the very
       // next draw without a re-render. Defaults to 1 = shipped.
       eg.beadScale = beadScaleRef.current;
+      eg.dashAA = dashAARef.current;
       if (es) {
         // Sort edges: far first
         const sortedEdges = [...es].sort((eA, eB) => {
@@ -2886,6 +2889,16 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     // onto `eg.beadScale` each frame and the shader multiplies by it. Setting
     // it back to 1 restores the shipped path exactly -- multiplication by 1.0
     // is exact in IEEE for every finite value.
+    // The dash cut's arm switch. Same contract and same reasons as
+    // __artSetBeadScale below: writes a ref the draw loop already reads, takes
+    // effect on the next draw, returns what it set so a caller can assert.
+    window.__artSetDashAA = (v = 1) => {
+      const n = Number(v);
+      if (!Number.isFinite(n)) return null;
+      dashAARef.current = n;
+      return { dashAA: n };
+    };
+
     window.__artSetBeadScale = (v = 1) => {
       const n = Number(v);
       if (!Number.isFinite(n)) return null;
