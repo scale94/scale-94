@@ -99,6 +99,49 @@ luminanceThreshold more than the sphere already moves it unaided.
 confirmed** — it is unresolvable at this precision and the bound is merely
 consistent with it. Do not quote it as supported.
 
+### 3.1 The dash half, ruled by eye — and the GPU debt discharged
+
+**2026-09-21.** The author watched the dashes render and signed them off.
+Verbatim gist: beads track the wire's own vector rather than sliding across
+screen space; dashed strokes hold under rotation without staircasing; the
+`SINGULARITY` cluster fire flares hot cores with a fast penumbra falloff and no
+milky blowout; beads and dashes terminate into node cores without clipping or
+overhang. His summary: reads as an optoelectronic instrument in an unlit
+cleanroom rather than a web animation.
+
+**THIS DISCHARGES THE GPU DEBT.** Both shader commits (`b8ffe777`, `a6830695`)
+shipped carrying *"STILL OWED: GPU verification"* — the browser pane was
+rAF-suspended, so neither change had ever been exercised on a real GL context.
+A shader that fails to link draws nothing and raises no GL error, and this
+project has shipped exactly that once. **It has now been seen drawing.** That
+is the verification the source-level locks explicitly refused to stand in for.
+
+**Two mechanism claims in his read were checked against the shader, and one is
+wrong. Do not let it harden.**
+
+- **Line weight under perspective compression is NOT the new box filter.** That
+  is `side` at `SphereEdges.js:1255`, the pre-existing CROSS-line filter on
+  `pxD`. The box filter this branch added is at `:1359`, on `sd / dpxDash` —
+  the dash boundary ALONG the wire. What it actually bought is the adjacent
+  win: as a chord rotates near edge-on and `dpxDash` approaches the period, the
+  mask converges to a constant D/P grey instead of beating against the pixel
+  grid. Dash RHYTHM stability, not width stability. Anyone tuning line weight
+  must go to `:1255`, not here.
+- **There is no traveling wave.** `phase0` is 0 and nothing advances it per
+  frame; the beads are FIXED positions on the chord. `dashPos = vPhase +
+  t * vLen` (`:1213`) anchors the pattern to the projected path, so it
+  foreshortens with the wire — which is the "moves along the wire's vector"
+  he correctly saw. The apparent TRAVEL is rotation plus `orthoGlow(now)`
+  breathing the envelope 6→14px and `orthoHue(now)` cycling a full turn every
+  7500ms, both in unison across every bead. **If the sphere is ever held
+  static and the travel stops, that is NOT a regression** — there was never a
+  marching term. Same reason the green is a moment in a 7.5s hue cycle, not a
+  colour.
+- Correct and load-bearing: `dOut = max(max(0.0, max(-vAlong, vAlong - vLen)),
+  dDash * beadGate)` — the bead distance is a `max()` WITH the cap term, not a
+  replacement, so a blurred butt cap still rounds off and the envelope cannot
+  project past an endpoint. That is the clean node termination he saw.
+
 ---
 
 ## 4. Open items
@@ -110,8 +153,9 @@ consistent with it. Do not quote it as supported.
    `gitCommit: null` and the reference is unattributable. And run
    `node scripts/artNull.mjs --write <set>` once per set, or every pair comes
    back `0/21 ADMISSIBLE, 21/21 no-null`.
-2. **The author has not looked at the dashes yet.** He signed off the prism
-   half only. Tasks 4 and 5 (antialiasing, beads) are unruled by eye.
+2. ~~**The author has not looked at the dashes yet.**~~ **CLOSED 2026-09-21 —
+   he has now ruled the dash half by eye, and it also discharges the GPU
+   debt. See §3.1.**
 3. **Sharpening the bloom measurement needs a same-PAGE A/B**, not four browser
    launches. `beadGate` is compiled into the shader rather than a uniform, so
    this needs a uniform or a define to become measurable below ~1%.
