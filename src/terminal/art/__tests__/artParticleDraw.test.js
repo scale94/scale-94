@@ -7,6 +7,9 @@
 
 import { describe, it, expect } from 'vitest';
 import {
+  createParticlePool, emitParticle, stepParticles,
+} from '../artParticles.js';
+import {
   particleAlpha, particleVisible, particleSize, particleGlowRadius,
   particleInFront, quantHue, quantAlpha,
   GLOW_STOPS, CORE_LIGHTNESS, CORE_ALPHA_SCALE, ALPHA_SCALE,
@@ -208,5 +211,70 @@ describe('velocity-stretched streaks', () => {
     // Below about half a pixel the segment deposits less ink than the disc it
     // replaced, so the fallback threshold has to sit above that.
     expect(STREAK_MIN_PX).toBeGreaterThanOrEqual(0.5);
+  });
+});
+
+// ── The streak's rate independence ──────────────────────────────────────────
+//
+// `stepParticles` records the previous position once per CALL, so `head - prev`
+// is one REAL frame of displacement — `dtFrames` authored frames' worth.
+// Stretching that by a constant would make the whole layer a function of the
+// viewer's refresh rate: six times shorter at the author's 360Hz than at 60Hz,
+// with the idle emitter falling below STREAK_MIN_PX and vanishing entirely.
+//
+// These assert COMPOSITION, not a value at dt = 1. A dt = 1 assertion cannot
+// see this class of bug — at dt = 1 the normalised and unnormalised forms are
+// the same number — and that is exactly how it reached a whole-branch review.
+describe('streak length does not depend on the refresh rate', () => {
+  it('is EXACTLY invariant for the same authored-frame displacement', () => {
+    // One authored frame of travel is 3px however it was delivered: as one
+    // draw of dt = 1, or as six draws of dt = 1/6 each covering 0.5px.
+    const whole = streakTail(0, 0, -3, 0, 1);
+    const sixth = streakTail(0, 0, -0.5, 0, 1 / 6);
+    expect(Math.hypot(sixth.x, sixth.y)).toBeCloseTo(Math.hypot(whole.x, whole.y), 10);
+    expect(whole.degenerate).toBe(sixth.degenerate);
+  });
+
+  it('keeps a slow particle on the SAME side of the disc fallback at either rate', () => {
+    // The failure that actually shipped: a streak long enough to draw at 60Hz
+    // silently reverting to a disc at 360Hz. Same authored displacement, both
+    // rates, both must agree about which arm they take.
+    for (const perFrame of [0.1, 0.2, 0.5, 2, 10]) {
+      const a = streakTail(0, 0, -perFrame, 0, 1);
+      const b = streakTail(0, 0, -perFrame / 6, 0, 1 / 6);
+      expect(b.degenerate).toBe(a.degenerate);
+    }
+  });
+
+  it('survives a zero dt without producing a NaN tail', () => {
+    // A floored-at-zero clock passes no time; stepParticles returns early and
+    // the previous position equals the head. The streak must degenerate, not
+    // divide by zero and write NaN endpoints into the instance buffer.
+    const s = streakTail(50, 50, 50, 50, 0);
+    expect(Number.isFinite(s.x)).toBe(true);
+    expect(Number.isFinite(s.y)).toBe(true);
+    expect(s.degenerate).toBe(true);
+  });
+
+  it('is rate-independent END TO END through the real integrator, to within the drag residue', () => {
+    // The system-level claim, and it is APPROXIMATE on purpose. Position
+    // composes exactly, but the streak reads the displacement of the LAST
+    // sub-step while velocity is decaying inside the window, so 360Hz measures
+    // a marginally faster instant than 60Hz does. The residue is the decay
+    // across one authored frame — about 1.5% — and it is bounded, not growing.
+    const mk = () => {
+      const p = createParticlePool();
+      emitParticle(p, 0, 0, 0, 0.01, 0, 0, 10, 10, 50, 1, 5000);
+      return p;
+    };
+    const slow = mk(); stepParticles(slow, 1);
+    const fast = mk(); for (let i = 0; i < 6; i++) stepParticles(fast, 1 / 6);
+
+    const lenOf = (p, dt) => {
+      const s = streakTail(p.xs[0], p.ys[0], p.pxs[0], p.pys[0], dt);
+      return Math.hypot(p.xs[0] - s.x, p.ys[0] - s.y);
+    };
+    const a = lenOf(slow, 1), b = lenOf(fast, 1 / 6);
+    expect(Math.abs(b - a) / a).toBeLessThan(0.02);
   });
 });

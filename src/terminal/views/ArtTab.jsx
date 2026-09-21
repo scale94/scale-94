@@ -2405,7 +2405,9 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         // along the particle's own displacement rather than sit as a disc.
         const [qrx, qry, qrz] = applyM(M, pool.pxs[pi], pool.pys[pi], pool.pzs[pi]);
         const qp = project(qrx, qry, qrz, w, h, sphereR, focal);
-        const _st = streakTail(pp.sx, pp.sy, qp.sx, qp.sy);
+        // `_dtFrames` normalises the displacement to ONE AUTHORED FRAME, so a
+        // streak is the same length at 60Hz and at 360Hz. See streakTail.
+        const _st = streakTail(pp.sx, pp.sy, qp.sx, qp.sy, _dtFrames);
 
         if (_st.degenerate) {
           // Too short to be a segment — and a zero-length segment is NOT a
@@ -2873,6 +2875,20 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         if (i >= p.xs.length) return;
         p.xs[i] = s.x; p.ys[i] = s.y; p.zs[i] = s.z;
         p.vxs[i] = 0; p.vys[i] = 0; p.vzs[i] = 0;
+        // THE PULL AND THE TARGET HAVE TO BE CLEARED TOO, on the same principle
+        // as the zeroed velocity: this probe exists to PIN a particle's position
+        // and colour, and a slot recycled from real edge traffic carries
+        // pull = 1 and that traffic's destination node. Left set, a forced
+        // particle drifts ~2% of the way toward a node it was never given, every
+        // frame — the instrument silently moving the thing it is there to hold
+        // still. Found by the whole-branch review; nothing calls this today,
+        // which is exactly why nothing caught it.
+        p.pulls[i] = 0;
+        p.txs[i] = 0; p.tys[i] = 0; p.tzs[i] = 0;
+        // The streak's tail anchor. Seeded to the head so a forced particle
+        // renders as its degenerate disc rather than streaking from wherever
+        // the previous occupant of this slot happened to be.
+        p.pxs[i] = s.x; p.pys[i] = s.y; p.pzs[i] = s.z;
         // hueTarget === hue, so stepParticles' blend is a no-op and the colour
         // the probe asked for is the colour the frame draws.
         p.hues[i] = s.hue; p.hueTargets[i] = s.hue;
