@@ -107,6 +107,12 @@ function measure(png) {
 
 const ARMS = {
   shipped:  null,
+  // THE NOISE FLOOR, and it is not optional. The same unpatched build, shot a
+  // second time. Every delta below has to clear THIS before it means anything:
+  // this project once read 15.28% and 16.51% from two runs of one build and
+  // nearly shipped the 1.23-point gap as a finding. A measured arm that does
+  // not beat the repeat is reported as UNRESOLVED, not as a small effect.
+  'repeat':  null,
   'no-bead': [
     'float beadGate = vIsOrtho * step(0.001, vDash.x) * (1.0 - vIsDisc);',
     'float beadGate = 0.0;',
@@ -151,6 +157,19 @@ async function shoot(arm) {
     await sleep(150);
     await page.eval('window.__reseed && window.__reseed(); window.__artHarnessReset && window.__artHarnessReset();');
     await page.pump(240);
+
+    // Forge the orthogonal bridges this world would otherwise never have.
+    // They are a PROP the reasoning engine accumulates over a live session, so
+    // a fresh boot has none and both arms below would measure nothing. The
+    // hook marks REAL edges and returns the count, which is asserted rather
+    // than trusted -- a hook that silently marked nothing would put us right
+    // back to reporting boot noise as a measurement.
+    const marked = JSON.parse(await page.eval(
+      'JSON.stringify(window.__artSetOrthogonal ? window.__artSetOrthogonal(11) : null)'));
+    if (!marked || !marked.marked) {
+      throw new Error('__artSetOrthogonal marked nothing: ' + JSON.stringify(marked));
+    }
+    await page.pump(30);
 
     const census = JSON.parse(await page.eval(CENSUS));
 
@@ -224,7 +243,13 @@ if (base) {
       + d(base.hot, r.hot).padStart(10));
   }
   console.log('');
-  console.log('Read "no-bead" as what the BEAD added, and "hard-cut" as what the');
-  console.log('ANTIALIASING added. The spec claims the box filter is ink-neutral by');
-  console.log('construction; hard-cut near 0% on ink is that claim holding.');
+  const rep = rows.find(r => r.arm === 'repeat');
+  if (rep) {
+    const floor = Math.abs(100 * (base.ink / rep.ink - 1));
+    const hotFloor = Math.abs(100 * (base.hot / rep.hot - 1));
+    console.log('');
+    console.log('SAME-BUILD FLOOR: ink ' + floor.toFixed(2) + '%, hot ' + hotFloor.toFixed(2) + '%.');
+    console.log('Any arm below its own floor is UNRESOLVED, not small. Read "no-bead"');
+    console.log('as what the BEAD added and "hard-cut" as what the ANTIALIASING added.');
+  }
 }

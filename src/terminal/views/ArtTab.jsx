@@ -2831,6 +2831,49 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       return { filaments: r.analogyFilaments.length, zones: r.chimeraZones.length };
     };
 
+    // Orthogonal bridges, for a harness that cannot forge them.
+    //
+    // `orthogonalBridges` is a PROP the reasoning engine accumulates across a
+    // LIVE session — a browser that has been clicked around in for a while has
+    // a dozen; a fresh boot has none, and `__artHarnessReset` cannot conjure
+    // them because they do not live in any ref it owns. So every capture of
+    // this sphere renders ZERO ortho edges, which makes the whole dashed-and-
+    // glowing family invisible to parity and to any A/B over it. MEASURED: a
+    // deterministic boot writes 40 segments, every one dashPeriod 0, glow bytes
+    // 48-67 — the wire hum shoulder and nothing else.
+    //
+    // Same contract as __artSetAnalogy and __artSetEcocide: write the ref the
+    // REAL path writes, so the draw loop cannot tell the difference.
+    //
+    // IT MARKS REAL EDGES, and that is the whole design. Minting keys from
+    // invented id pairs would produce a map that matches no `edgeKey` the draw
+    // loop ever builds, so the hook would appear to succeed and change NOTHING
+    // — a vacuous harness hook, which is worse than no hook because a green
+    // measurement taken through it would be fiction. It walks
+    // `edgeStateRef.current` and keys exactly as the draw loop does, and it
+    // RETURNS the count it marked so a caller can assert on it.
+    //
+    // Deterministic: takes the first `n` in the array's own order, never a
+    // random sample, so two arms of an A/B mark the same edges.
+    //
+    // The useEffect on `orthogonalBridges` will overwrite this if that prop
+    // ever changes. It does not change in a harness run; do not rely on this
+    // hook surviving a real bridge being forged underneath it.
+    window.__artSetOrthogonal = (n = 11) => {
+      const es = edgeStateRef.current;
+      if (!es || !es.length) return null;
+      const map = {};
+      const take = Math.min(n, es.length);
+      for (let i = 0; i < take; i++) {
+        const e = es[i];
+        const key = e.aId < e.bId ? `${e.aId}:${e.bId}` : `${e.bId}:${e.aId}`;
+        map[key] = { idA: e.aId, idB: e.bId, synthetic: true };
+      }
+      const marked = Object.keys(map).length;
+      orthogonalEdgesRef.current = marked ? map : null;
+      return { requested: n, marked, of: es.length };
+    };
+
     // ── Step 5 forcing hooks ────────────────────────────────────────────
     // Eight of the node block's thirteen draw layers cannot be reached by any
     // capture state (see .superpowers/sdd/step5-preflight.md §5), so a parity
