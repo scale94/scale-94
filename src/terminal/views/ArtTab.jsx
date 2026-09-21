@@ -99,6 +99,8 @@ import {
   PULSE_ALPHA, PULSE_DRAW_CUTOFF,
   prismOffset, prismChordAlpha, prismGlowWidth, prismControl, prismSpokeHue,
   prismChordCue, prismDepthCue, prismRootTaper,
+  prismWaveAmp, prismTrainEnv, prismWaveMix, prismSegmentFade,
+  prismWaveDuration, prismChordDir, PRISM_CASCADE_MS,
   PRISM_SPECTRAL_FINE, PRISM_SPECTRAL_COARSE, PRISM_HUE_STEP,
   PRISM_SAT, PRISM_GLOW_LIT, PRISM_GLOW_ALPHA_K, PRISM_CORE_LIT, PRISM_CORE_W,
   PRISM_POLY_HUE_STEP, PRISM_POLY_LIT, PRISM_POLY_ALPHA_K, PRISM_POLY_W,
@@ -121,6 +123,7 @@ import {
 import {
   createFrameClock, stepFrameClock, resetFrameClock,
   createRateGate, stepRateGate, resetRateGate, perFrameChance,
+  GATE_FRAME_MS,
 } from '../art/artRateGate';
 import { compositeDpr, coarsePointer } from '../art/artComposite';
 import {
@@ -783,9 +786,27 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     const hueBase    = opts.hueOverride ?? clusterHue;
     const hueTarget  = opts.hueTarget   ?? (hueBase + (opts.rightClick ? 180 : 90) + artRandom() * 60) % 360;
 
+    // GRAPH DEPTH PER NODE, for the wavefront cascade. `localIds` is built as
+    // [clicked, ...its adjacency, ...one bridge per foreign cluster], so the
+    // depth is already implied by construction -- this only writes it down,
+    // at spawn, where `node` and its adjacency are still in hand. Reading it
+    // back out of the index in the draw loop would break the moment the
+    // ordering above changed.
+    //
+    // Sliced with the SAME nodeLimit as nodeIds: two arrays that are walked in
+    // parallel and truncated differently is a silent off-by-one waiting to
+    // happen, and here it would flow half the bundle the wrong way.
+    const adjSet = node ? new Set(SPHERE_ADJ[node.id] ?? []) : null;
+    const depthOf = (id) => {
+      if (!node) return 0;          // no clicked node: everything launches together
+      if (id === node.id) return 0;
+      return adjSet.has(id) ? 1 : 2;
+    };
+
     geomEffectsRef.current.push({
       id:        Date.now() + artRandom(),
       nodeIds:   localIds.slice(0, nodeLimit),
+      nodeDepths: localIds.slice(0, nodeLimit).map(depthOf),
       life:      0,
       maxLife:   coarse ? Math.min(maxLife, 150) : maxLife,
       hueBase,
@@ -1795,12 +1816,29 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         // calling it here would re-run depthCueAlpha twice for every one of
         // ~74000 points in a full-strength frame. The expression is the same
         // one prismChordCue is tested on.
+        // ── The travelling wavefront's per-chord state ────────────────────
+        //
+        // Hoisted into the closure rather than added to `chord`'s signature:
+        // all five are constant across the TWO calls a spectral line makes
+        // (the glow pass and the core pass share one point list), and the
+        // draw loop is deliberately off the allocation path -- a descriptor
+        // object here would be ~770 allocations per effect per frame.
+        let _wK = 0, _wDur = 1, _wT = -1, _wDir = 0, _wFade = 0;
+
         const chord = (m, a, width, cueA, cueB, taper) => {
           let total = 0;
           for (let i = 0; i + 1 < m; i++) {
             total += Math.hypot(pts[i * 2 + 2] - pts[i * 2],
                                 pts[i * 2 + 3] - pts[i * 2 + 1]);
           }
+          // THE WHOLE WAVE IS SKIPPED once the train has passed, which is most
+          // of a 3.5s effect's life -- prismTrainEnv returns EXACTLY 0 there,
+          // so prismWaveMix would return exactly 1 and every multiply below
+          // would be the identity. Taking the branch instead of the arithmetic
+          // keeps the sustained burn on precisely the code path it ran on
+          // before this feature existed, at no cost in behaviour.
+          const env = prismTrainEnv(_wT, _wDur);
+          const waving = env > 0 && _wFade > 0;
           let sLen = 0;
           for (let i = 0; i < m; i++) {
             if (i > 0) {
@@ -1809,7 +1847,20 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             }
             const tt = total > 1e-6 ? sLen / total : 0;
             const cue = cueA + (cueB - cueA) * tt;
-            alf[i] = a * cue * (taper ? prismRootTaper(sLen, total) : 1);
+            let wave = 1;
+            if (waving) {
+              // _wDir 0 means both endpoints lit on the same tick, so there is
+              // no direction to be had and the chord is driven from BOTH ends
+              // -- two fronts that meet in the middle. max(), not sum: two
+              // crests arriving together must not stack past the crest alpha
+              // the author approved.
+              const amp = _wDir === 0
+                ? Math.max(prismWaveAmp(tt, _wK, _wT, _wDur),
+                           prismWaveAmp(1 - tt, _wK, _wT, _wDur))
+                : prismWaveAmp(_wDir < 0 ? 1 - tt : tt, _wK, _wT, _wDur);
+              wave = prismWaveMix(amp, env, _wFade);
+            }
+            alf[i] = a * cue * wave * (taper ? prismRootTaper(sLen, total) : 1);
           }
           return writePolyline(ag, pts, m, rgb, a, width * ink, PRISM_FLAGS, 0, alf);
         };
@@ -1853,11 +1904,35 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           const dh = ((eff.hueTarget ?? eff.hueBase) - eff.hueBase + 540) % 360 - 180;
           const hue0 = (eff.hueBase + dh * t) % 360;
 
-          // Project effect nodes using precomputed index map
-          const effProj = eff.nodeIds.map(id => {
-            const idx = nodeIdx[id];
-            return idx != null ? proj[idx] : null;
-          }).filter(Boolean);
+          // Age on the SAME clock the envelope above reads, deliberately, and
+          // not `performance.now()`: `_dtFrames` is clamped at 50ms, so during
+          // a stall `eff.life` lags real time. Driving the wave off the wall
+          // clock while the envelope ran off `life` would let the two come
+          // apart exactly when frames are being dropped -- the wave would jump
+          // a chord's length while the envelope held still.
+          const ageMs = eff.life * GATE_FRAME_MS;
+
+          // Project effect nodes using precomputed index map.
+          //
+          // Three PARALLEL arrays rather than one array of objects: `effProj`
+          // keeps the exact shape the polygon and spoke code below already
+          // reads (`p.sx`, `p.depth`), and the loop allocates nothing per
+          // node beyond the arrays themselves. `filter(Boolean)` used to do
+          // this in one line, but it renumbers -- so the depths could no
+          // longer be looked up by the same index, and half the bundle would
+          // have flowed the wrong way.
+          const effProj = [], effDepth = [], effWorld = [];
+          for (let i = 0; i < eff.nodeIds.length; i++) {
+            const idx = nodeIdx[eff.nodeIds[i]];
+            if (idx == null) continue;
+            const p = proj[idx];
+            if (!p) continue;
+            effProj.push(p);
+            // `?? 0` covers an effect spawned before this field existed, which
+            // is a live case under Vite HMR: the ref survives the reload.
+            effDepth.push(eff.nodeDepths?.[i] ?? 0);
+            effWorld.push(nodes[idx]);
+          }
 
           if (effProj.length < 2) continue;
 
@@ -1872,6 +1947,24 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
               // line and not per point.
               const cueA = prismChordCue(pA.depth, pB.depth, 0);
               const cueB = prismChordCue(pA.depth, pB.depth, 1);
+
+              // ── The wavefront's timing for this chord, once per PAIR ─────
+              //
+              // WORLD length, not screen length, and taken from the UNROTATED
+              // physics positions because the chord between two points on a
+              // unit sphere is rotation-invariant -- so this is the same
+              // measure `packetDuration` takes in artStrimer, which is what
+              // holds the two layers in their fixed 0.8 ratio and keeps the
+              // prism pulse leading the white rail under every rotation.
+              const nA = effWorld[a], nB = effWorld[b];
+              const worldLen = Math.hypot(nA.x - nB.x, nA.y - nB.y, nA.z - nB.z);
+              _wDur = prismWaveDuration(worldLen);
+              _wDir = prismChordDir(effDepth[a], effDepth[b]);
+              // The chord starts waving when its SHALLOWER end lights, so the
+              // burst spreads outward through the graph instead of every
+              // chord leaving at once. A chord whose origin is still dark gets
+              // a negative age, and prismTrainEnv returns 0 for that.
+              _wT = ageMs - Math.min(effDepth[a], effDepth[b]) * PRISM_CASCADE_MS;
 
               for (let k = 0; k < spectralN; k++) {
                 const hue    = (hue0 + k * PRISM_HUE_STEP) % 360;
@@ -1894,6 +1987,15 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
                 // exactly the same joints.
                 const m = tessellateQuad(pts, x0, y0, ctrl[0], ctrl[1], x1, y1,
                   quadSegments(x0, y0, ctrl[0], ctrl[1], x1, y1));
+
+                // THE NYQUIST GUARD, and it has to be here rather than per
+                // pair: `quadSegments` is re-evaluated for every spectral
+                // line, because each line's control point carries its own
+                // PRISM_CP_OFF offset and therefore its own flatness. A chord
+                // too coarsely tessellated to sample the pulse draws exactly
+                // as it did before the wave existed, rather than staircasing.
+                _wK = k;
+                _wFade = prismSegmentFade(m - 1);
 
                 // Wide glow pass
                 // Wide glow pass — TAPERED at the root. 140 of these
@@ -3369,13 +3471,25 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     // whether it advances per draw or per elapsed ms is exactly the
     // difference a refresh-rate bug makes. Reported next to the clock and a
     // draw count, the two ratios discriminate -- see _a17prismclock.mjs.
-    window.__artGeomState = () => ({
-      now: performance.now(),
-      effects: geomEffectsRef.current.map(e => ({
-        id: e.id, life: +e.life.toFixed(4), maxLife: e.maxLife,
-        nodes: e.nodeIds.length, coarse: e.coarse,
-      })),
-    });
+    window.__artGeomState = () => {
+      const a = addGLRef.current;
+      return {
+        now: performance.now(),
+        // The additive stream's OCCUPANCY, as three scalars rather than
+        // __artEdgeState's full `Array.from` of the buffer. The prism is by
+        // far the largest writer into this pool, so any proposal to raise its
+        // tessellation is really a proposal to spend this headroom -- and
+        // `dropped` is what says whether it has already been overspent. A
+        // Float32Array write past the end is a silent no-op, so without this
+        // an over-cap frame renders a prism with pieces missing and every
+        // other number agrees that nothing went wrong.
+        additive: { count: a.count, dropped: a.dropped, capacity: a.data.length / EDGE_STRIDE },
+        effects: geomEffectsRef.current.map(e => ({
+          id: e.id, life: +e.life.toFixed(4), maxLife: e.maxLife,
+          nodes: e.nodeIds.length, coarse: e.coarse,
+        })),
+      };
+    };
 
     // Fire a node's wavefront directly, for the harness. The alternative is a
     // hover-grid click, which costs a node-finding sweep and makes WHICH node

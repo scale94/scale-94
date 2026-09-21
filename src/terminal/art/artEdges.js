@@ -424,6 +424,225 @@ export function prismRootTaper(sFromA, totalLen) {
   return Math.min(1, d / L);
 }
 
+// ── THE LONGITUDINAL WAVEFRONT ─────────────────────────────────────────────
+//
+// THE LAYER HAD NO TIME TERM AT ALL. Every point's alpha was
+// `lAlpha * cue(t) * taper` -- so a chord lit from root to tip simultaneously
+// and the ONLY motion in the whole prism was `hue0` drifting sideways through
+// a STATIC brightness ladder (PRISM_ALPHA_FALLOFF, fixed per spectral line).
+// The author's report was exact: "it's a solid sheet of coloured plastic
+// shifting hues across its ribs", not a charge travelling from A to B.
+//
+// ── WHY IT TAKES LIGHT AWAY INSTEAD OF ADDING IT ──────────────────────────
+//
+// THIS IS THE DECISION THE REST OF THE BLOCK HANGS ON, AND IT IS NOT A TASTE
+// CALL. packAlphas clamps at 255, so an alpha driven past 1.0 saturates
+// SILENTLY -- and a saturated bundle loses exactly the chromatic separation
+// between the seven spectral lines that this layer exists to show. That is the
+// author's own third note (the white rail "almost blows out the delicate
+// chromatic separation of the outer prism chords") arriving through the
+// arithmetic rather than the eye.
+//
+// So the crest sits at EXACTLY the alpha that shipped and the troughs are
+// carved down beneath it. Three consequences, all of them load-bearing:
+//
+//   1. It cannot clip, so the spectral separation survives at peak.
+//   2. It is provably ink-NEGATIVE -- it can only ever remove energy from the
+//      composer's 0.28 luminanceThreshold, never add any. The bloom dial is
+//      off limits on this project and this change cannot reach it.
+//   3. Once the train has passed, `prismTrainEnv` returns EXACTLY 0 and the
+//      whole expression collapses to `a * cue * taper`, which is the sustained
+//      burn the author signed off by eye BEFORE this feature existed. Not
+//      approximately -- exactly, which is why that test uses `toBe` and not
+//      `toBeCloseTo`. An asymptote there would be the same vacuous-property
+//      trap this project has already paid for three times.
+//
+// ── THE SHAPE ─────────────────────────────────────────────────────────────
+//
+//   x   = u - t/T + phi_k * (1 - u)
+//   f(x) = |x| > W ? 0 : 0.5 * (1 + cos(pi * x / W))
+//
+// The `(1 - u)` is the arrival damping the author asked for by name. At u = 1
+// it vanishes and all seven strands are in phase -- a single synchronised
+// pulse landing dead centre on the node disc. At u = 0 they are sheared by
+// phi_k across the bundle. A diagonal at launch that collapses to a point at
+// the target.
+//
+// A RAISED COSINE, not a gaussian and not a hard front, and the reason is the
+// tessellation rather than taste: writePolyline reconstructs alpha as a
+// straight line between per-POINT samples, so the pulse has to be band-limited
+// or its crest beats against the sample grid as it moves. See
+// prismSegmentFade, which is the other half of that same problem.
+
+/** Half-width of the pulse, as a fraction of the chord. Full support is 2x
+ *  this, and prismSegmentFade is set against it. */
+export const PRISM_WAVE_W = 0.18;
+
+/** Phase shear per spectral line, in the same fraction-of-chord units.
+ *  MONOTONIC in k, not symmetric about the middle strand: the author asked for
+ *  a "smooth diagonal wavefront across the bundle", and a symmetric offset
+ *  would give a chevron. Across all seven lines the total shear is 0.30. */
+export const PRISM_PHASE_STEP = 0.05;
+
+/** How far the troughs are carved below the crest. The crest is always 1.0 --
+ *  see the note above on why nothing here may exceed it. */
+export const PRISM_WAVE_DEPTH = 0.55;
+
+// ── Kinematics, and the lead over the white core ──────────────────────────
+//
+// All three numbers are EXACTLY 0.8x the strimer's (STRIMER_MS_PER_UNIT 200,
+// DURATION_MIN_MS 70, DURATION_MAX_MS 160), and the uniform ratio is the
+// whole point: it makes the prism pulse strictly faster than the strimer
+// packet at EVERY chord length, including up at the clamp where the strimer's
+// own header notes its velocity stops being constant. A lead that held at the
+// median but collapsed at the clamps would disappear on exactly the longest
+// chords, where it is most visible.
+//
+// On the measured median chord (0.642 world units, lookbook/strimer/report
+// .json) that is 103ms against the packet's 128ms -- a 26ms lead. The fibre
+// sleeve carries the charge, then the main rail detonates.
+export const PRISM_WAVE_MS_PER_UNIT = 160;
+export const PRISM_WAVE_MIN_MS = 56;
+export const PRISM_WAVE_MAX_MS = 128;
+
+/** Pulses in the train, their per-pulse amplitude decay, and how long the
+ *  envelope takes to reach zero after the last one lands. Three decaying
+ *  pulses read as a charge arriving and ringing; a non-decaying train reads as
+ *  a loop, and competes with the decay curve the author approved. */
+export const PRISM_TRAIN_PULSES = 3;
+export const PRISM_TRAIN_DECAY = 0.5;
+export const PRISM_TRAIN_TAIL_MS = 260;
+
+/** How long a node waits per step of graph depth before its own chords launch.
+ *  About one transit, so the cascade reads as causal: the clicked node fires,
+ *  its neighbours light as the front reaches them, the bridges go last. */
+export const PRISM_CASCADE_MS = 110;
+
+/** The tessellation thresholds the wave fades between. See prismSegmentFade.
+ *  PROVISIONAL -- these are set from a sampling argument and want a measured
+ *  sweep of W against n before anyone treats them as derived. */
+export const PRISM_WAVE_SEG_FULL = 14;
+export const PRISM_WAVE_SEG_NONE = 6;
+
+/** The pulse profile: a raised cosine on |x| <= PRISM_WAVE_W, exactly 0
+ *  outside it so a pulse cannot leak down the rest of the chord. */
+export function prismPulse(x) {
+  const a = x < 0 ? -x : x;
+  if (a >= PRISM_WAVE_W) return 0;
+  return 0.5 * (1 + Math.cos(Math.PI * x / PRISM_WAVE_W));
+}
+
+/** Spectral line `k`'s phase shear. The twin of prismOffset, which does the
+ *  same job in space; this one does it in time. */
+export function prismPhaseOffset(k) {
+  return k * PRISM_PHASE_STEP;
+}
+
+/**
+ * The pulse train's amplitude at arc fraction `u` on spectral line `k`,
+ * `tMs` after this chord's ORIGIN node lit, for a chord whose transit is
+ * `durMs`.
+ *
+ * The train is the same phase shifted by whole units: pulse n's crest reaches
+ * the origin at t = n * durMs, so `x_n = x_0 + n` and the loop below is three
+ * evaluations of one profile rather than three separate pulses to keep in
+ * step. Takes the MAX rather than the sum, so two pulses that ever did overlap
+ * could not stack past 1.0 and clip -- though prismPulse's support of 2W is
+ * deliberately under the spacing of 1, so they do not.
+ */
+export function prismWaveAmp(u, k, tMs, durMs) {
+  const d = durMs > 1e-6 ? durMs : 1e-6;
+  const uu = u < 0 ? 0 : u > 1 ? 1 : u;
+  const base = uu - tMs / d + prismPhaseOffset(k) * (1 - uu);
+  let amp = 0;
+  let w = 1;
+  for (let n = 0; n < PRISM_TRAIN_PULSES; n++) {
+    const p = w * prismPulse(base + n);
+    if (p > amp) amp = p;
+    w *= PRISM_TRAIN_DECAY;
+  }
+  return amp;
+}
+
+/**
+ * How much of the wave is in force, `tMs` after the chord's origin lit.
+ *
+ * REACHES EXACTLY ZERO, and that is the contract the whole design rests on --
+ * see the note at the top of this block. Also returns 0 for NEGATIVE t, which
+ * is not defensive noise: the cascade hands a chord negative time for as long
+ * as its origin node is still dark, and a chord that has not been reached yet
+ * must draw exactly as it always did.
+ *
+ * Smoothstep through the tail rather than a linear ramp: the join at `total`
+ * has zero slope on both sides, and a kink there reads as a visible flick.
+ */
+export function prismTrainEnv(tMs, durMs) {
+  if (!(tMs >= 0)) return 0;
+  const d = durMs > 1e-6 ? durMs : 1e-6;
+  const total = PRISM_TRAIN_PULSES * d;
+  if (tMs <= total) return 1;
+  const x = (tMs - total) / PRISM_TRAIN_TAIL_MS;
+  if (x >= 1) return 0;
+  const c = 1 - x;
+  return c * c * (3 - 2 * c);
+}
+
+/**
+ * The multiplier on a point's alpha. Bounded to [1 - PRISM_WAVE_DEPTH, 1] by
+ * construction, and exactly 1 whenever the envelope or the segment fade is 0.
+ */
+export function prismWaveMix(amp, env, segFade) {
+  return 1 - PRISM_WAVE_DEPTH * env * segFade * (1 - amp);
+}
+
+/**
+ * How much wave a chord tessellated into `n` segments may carry.
+ *
+ * THE NYQUIST GUARD. A pulse spanning 2W of the chord is sampled 2*W*n times,
+ * and writePolyline draws a STRAIGHT LINE between those samples -- so below
+ * some n the crest beats against the sample grid as it travels and the chord
+ * staircases. `quadSegments` returns as few as 1 on a short or flat chord, so
+ * this is not a corner case.
+ *
+ * Fading the wave out is the honest failure: a chord that cannot carry the
+ * pulse draws exactly as it did before rather than drawing it badly. At
+ * PRISM_WAVE_SEG_FULL the pulse gets 5.04 samples across its full support.
+ */
+export function prismSegmentFade(n) {
+  if (n >= PRISM_WAVE_SEG_FULL) return 1;
+  if (n <= PRISM_WAVE_SEG_NONE) return 0;
+  const f = (n - PRISM_WAVE_SEG_NONE) / (PRISM_WAVE_SEG_FULL - PRISM_WAVE_SEG_NONE);
+  return f * f * (3 - 2 * f);
+}
+
+/** A chord's transit in ms, from the 3D chord between its endpoints -- the
+ *  same world-length measure the strimer uses, so the two layers stay in a
+ *  fixed ratio under every rotation and at every chord length. */
+export function prismWaveDuration(worldLen) {
+  const raw = worldLen * PRISM_WAVE_MS_PER_UNIT;
+  return Math.min(PRISM_WAVE_MAX_MS, Math.max(PRISM_WAVE_MIN_MS, raw));
+}
+
+/**
+ * Which way a chord flows, from its two endpoints' graph depths: +1 for A->B,
+ * -1 for B->A, and 0 when neither is shallower.
+ *
+ * The prism draws a chord between EVERY pair of effect nodes, not only pairs
+ * touching the clicked one, so most chords have no origin of their own.
+ * `spawnEffect` orders nodeIds as [clicked, ...neighbours, ...bridges], which
+ * makes BFS depth known at spawn, and the wave runs from the shallower end.
+ *
+ * ZERO IS NOT A FALLBACK. Two nodes at the same depth light at the same
+ * instant, so there is genuinely no direction to be had, and picking one by
+ * index would invent a flow the graph does not have. The caller drives those
+ * chords from BOTH ends and lets the two fronts meet in the middle.
+ */
+export function prismChordDir(depthA, depthB) {
+  if (depthA < depthB) return 1;
+  if (depthB < depthA) return -1;
+  return 0;
+}
+
 /** A spoke's hue: the effect's base hue rotated by the node's bearing from the
  *  projected sphere centre, so the star reads as a colour wheel. */
 export function prismSpokeHue(hue0, dx, dy) {
