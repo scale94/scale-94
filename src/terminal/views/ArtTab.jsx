@@ -520,6 +520,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   // longer than the segment count — see writePolyline's `alphas` note for why
   // per point and not per segment. Allocated once for the same reason the
   // point list is: the prism inner loop runs ~74000 times in a full frame.
+  // THE BEAD A/B SCALE. 1 is the shipped path and is exactly the identity;
+  // 0 is the no-bead arm. A ref and not state, because flipping it must not
+  // re-render -- the whole point is to switch arms inside ONE page without
+  // disturbing the world the previous arm was measured in.
+  const beadScaleRef = useRef(1);
   const prismAlphaRef = useRef(null);
   if (prismAlphaRef.current === null) prismAlphaRef.current = new Float32Array(CURVE_MAX_SEGMENTS + 1);
 
@@ -1431,6 +1436,9 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       // is one number for the whole frame, so the taper stays a fixed fraction
       // of a node radius at every viewport.
       eg.taperPx = EDGE_TAPER_PX * ink;
+      // Per frame, from the ref, so __artSetBeadScale takes effect on the very
+      // next draw without a re-render. Defaults to 1 = shipped.
+      eg.beadScale = beadScaleRef.current;
       if (es) {
         // Sort edges: far first
         const sortedEdges = [...es].sort((eA, eB) => {
@@ -2859,6 +2867,32 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     // The useEffect on `orthogonalBridges` will overwrite this if that prop
     // ever changes. It does not change in a harness run; do not rely on this
     // hook surviving a real bridge being forged underneath it.
+    // THE BEAD ARM SWITCH, for a same-PAGE A/B.
+    //
+    // _a10dash.mjs used to measure the bead by rewriting the beadGate
+    // statement in SphereEdges.js, waiting for vite, and relaunching Chrome
+    // per arm. Four launches could not beat their own noise: the same build
+    // shot twice differed by MORE than either treatment arm, and the floor
+    // itself swung 0.08% to 0.96% between runs. So the bead's cost is still
+    // only a BOUND -- under ~1% of frame ink and ~0.5% of hot pixels -- and
+    // not a number.
+    //
+    // This writes a ref the draw loop already reads every frame, so both arms
+    // are reachable at one seed, on one rAF cycle, with no rebuild and no
+    // relaunch. It returns the value it set so a caller can assert the switch
+    // landed rather than assuming it did.
+    //
+    // NOT STICKY and not a second source of truth: the draw loop copies it
+    // onto `eg.beadScale` each frame and the shader multiplies by it. Setting
+    // it back to 1 restores the shipped path exactly -- multiplication by 1.0
+    // is exact in IEEE for every finite value.
+    window.__artSetBeadScale = (v = 1) => {
+      const n = Number(v);
+      if (!Number.isFinite(n)) return null;
+      beadScaleRef.current = n;
+      return { beadScale: n };
+    };
+
     window.__artSetOrthogonal = (n = 11) => {
       const es = edgeStateRef.current;
       if (!es || !es.length) return null;

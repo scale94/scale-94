@@ -725,6 +725,7 @@ describe('syncEdgeLayer', () => {
       uResolution: { value: { set: vi.fn() } },
       uOrthoHue: { value: 0 },
       uTaperPx: { value: 0 },
+      uBeadScale: { value: 1 },
     },
     buffer: { needsUpdate: false, addUpdateRange: vi.fn() },
   });
@@ -865,7 +866,7 @@ describe('the additive buffer capacity', () => {
     // and the draw call all agreeing that nothing was wrong.
     const layer = {
       mesh: { visible: true }, geometry: { instanceCount: -1 },
-      uniforms: { uResolution: { value: { set: vi.fn() } }, uOrthoHue: { value: 0 }, uTaperPx: { value: 0 } },
+      uniforms: { uResolution: { value: { set: vi.fn() } }, uOrthoHue: { value: 0 }, uTaperPx: { value: 0 }, uBeadScale: { value: 1 } },
       buffer: { needsUpdate: false, addUpdateRange: vi.fn() },
     };
     const state = createEdgeState(MAX_ADDITIVE_EDGES);
@@ -1639,6 +1640,30 @@ describe('the wire taper — the uniform and the shader contract', () => {
     expect(EDGE_TAPER_PX).toBeGreaterThan(10);
   });
 
+  it('declares uBeadScale on both materials, defaulting to 1', () => {
+    // 1, NOT 0. uTaperPx defaults to 0 and that file comment warns 0 does not
+    // mean "off"; here 1 is the SHIPPED path and 0 is the no-bead A/B arm, so
+    // the default has to be the identity or every frame loses its beads.
+    for (const spec of [SRC_OVER_LAYER, ADDITIVE_LAYER]) {
+      const layer = createEdgeLayer(null, spec);
+      expect(layer.uniforms.uBeadScale).toBeDefined();
+      expect(layer.uniforms.uBeadScale.value).toBe(1);
+      layer.dispose();
+    }
+  });
+
+  it('takes the bead scale from the state each frame, defaulting to 1', () => {
+    const layer = createEdgeLayer(null, SRC_OVER_LAYER);
+    const state = createEdgeState(4);
+    state.count = 1; state.w = 800; state.h = 600; state.beadScale = 0;
+    syncEdgeLayer(layer, state);
+    expect(layer.uniforms.uBeadScale.value).toBe(0);
+    delete state.beadScale;
+    syncEdgeLayer(layer, state);
+    expect(layer.uniforms.uBeadScale.value).toBe(1);
+    layer.dispose();
+  });
+
   it('declares uTaperPx on both materials', () => {
     for (const spec of [SRC_OVER_LAYER, ADDITIVE_LAYER]) {
       const layer = createEdgeLayer(null, spec);
@@ -1914,6 +1939,35 @@ describe('edgeFrag dash beads', () => {
     const gi = FRAG.indexOf('float beadGate');
     const stmt = FRAG.slice(gi, FRAG.indexOf(';', gi) + 1);
     expect(stmt).toContain('1.0 - vIsDisc');
+  });
+
+  it.each(FRAGS)('%s: scales the bead by uBeadScale, so the A/B needs no rebuild', (_n, FRAG) => {
+    // WHY THIS IS A UNIFORM AND NOT A SOURCE PATCH. _a10dash.mjs measured the
+    // bead by rewriting this statement on disk and relaunching Chrome, and
+    // four separate launches could not beat their own boot-to-boot floor --
+    // the same build shot twice differed by MORE than either treatment arm,
+    // and the floor itself swung 0.08% to 0.96% between runs. A uniform makes
+    // the arms switchable inside ONE page, at one seed, on one rAF cycle.
+    //
+    // The factor is FIRST in the product so the statement reads as a scale on
+    // a gate rather than a fourth gate term.
+    expect(FRAG).toContain('uniform float uBeadScale;');
+    const gi = FRAG.indexOf('float beadGate');
+    expect(gi).toBeGreaterThan(-1);
+    const stmt = FRAG.slice(gi, FRAG.indexOf(';', gi) + 1);
+    expect(stmt).toContain('uBeadScale');
+  });
+
+  it.each(FRAGS)('%s: keeps the three real gates alongside the scale', (_n, FRAG) => {
+    // The scale is an INSTRUMENT, not a replacement for the gating. If a
+    // future edit collapsed the product down to uBeadScale alone, the beads
+    // would appear on spectral bridges and pulse rings and the A/B would still
+    // "work" -- so pin all four factors together in one place.
+    const gi = FRAG.indexOf('float beadGate');
+    const stmt = FRAG.slice(gi, FRAG.indexOf(';', gi) + 1);
+    for (const term of ['uBeadScale', 'vIsOrtho', 'step(0.001, vDash.x)', '1.0 - vIsDisc']) {
+      expect(stmt).toContain(term);
+    }
   });
 
   it.each(FRAGS)('%s: leaves the segment-end rounding intact', (_n, FRAG) => {

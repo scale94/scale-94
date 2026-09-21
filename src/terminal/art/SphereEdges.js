@@ -1154,6 +1154,22 @@ export const edgeFrag = (shadow, composite) => /* glsl */`
   // opt-in is the per-instance half (vTaper).
   uniform float uTaperPx;
 
+  // A SCALE ON THE BEAD, AND AN INSTRUMENT RATHER THAN A FEATURE. 1 is the
+  // shipped path and is EXACTLY the identity -- IEEE multiplication by 1.0 is
+  // exact for every finite value -- so declaring it costs the render nothing
+  // and the parity reference proves that rather than this comment asserting
+  // it. 0 removes every bead and is the no-bead A/B arm.
+  //
+  // It exists because the arm used to be a SOURCE PATCH. _a10dash.mjs rewrote
+  // the beadGate statement on disk, waited for vite, and relaunched Chrome per
+  // arm -- and four launches could not beat their own noise: the same build
+  // shot twice differed by MORE than either treatment arm, and the floor
+  // itself swung 0.08% to 0.96% between runs. So the bead's cost is still only
+  // a BOUND (under ~1% of frame ink, ~0.5% of hot pixels) and not a number.
+  // A uniform makes both arms reachable inside ONE page, at one seed, on one
+  // rAF cycle, which is the only way a sub-1% effect becomes measurable here.
+  uniform float uBeadScale;
+
   varying vec3  vC0;
   varying vec3  vC1;
   varying vec3  vC2;
@@ -1392,7 +1408,7 @@ ${HSL2RGB_GLSL}
     // rings, which are dashed DISCS and would otherwise have their halos
     // chopped into arcs.
     float dDash = max(0.0, -sd);
-    float beadGate = vIsOrtho * step(0.001, vDash.x) * (1.0 - vIsDisc);
+    float beadGate = uBeadScale * vIsOrtho * step(0.001, vDash.x) * (1.0 - vIsDisc);
     float dOut = max(max(0.0, max(-vAlong, vAlong - vLen)), dDash * beadGate);
     float dSeg = length(vec2(dOut, vD));
     float g = dSeg / max(vGlow, 1e-3);
@@ -1598,6 +1614,9 @@ export function createEdgeLayer(sharedData, spec = SRC_OVER_LAYER) {
     uGlowQuant:  { value: spec.glowQuant },
     uOrthoHue:   { value: 0 },
     uTaperPx:    { value: 0 },
+    // 1, not 0: this one's identity is 1, so a caller that never sets it gets
+    // the shipped bead. See the declaration in edgeFrag.
+    uBeadScale:  { value: 1 },
   };
 
   const material = new THREE.ShaderMaterial({
@@ -1665,6 +1684,10 @@ export function syncEdgeLayer(layer, state) {
   // promised to cover. A layer that wants the taper genuinely off must not
   // set the bit.
   layer.uniforms.uTaperPx.value = state.taperPx ?? 0;
+  // `?? 1` and not `?? 0`, for the reason the declaration gives: 1 is the
+  // identity and the shipped path, 0 is the no-bead arm. Getting this default
+  // backwards would silently strip the beads from every frame the app draws.
+  layer.uniforms.uBeadScale.value = state.beadScale ?? 1;
 
   layer.geometry.instanceCount = count;
   layer.buffer.addUpdateRange(0, count * EDGE_STRIDE);
