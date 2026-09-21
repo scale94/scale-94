@@ -2,6 +2,13 @@
 
 **Written 2026-09-22.** Paste-ready for a fresh session.
 
+> **REVISED 2026-09-22, AFTER THE AUTHOR LOOKED.** He saw the finished wave
+> and ruled the three-pulse train out: it read as "an aggressive ~10Hz
+> strobe/flicker rather than an intensifying pulse". The train is gone —
+> one pass, a crescendo envelope, a shallower trough and a longer release,
+> at `44b52b88`. **Sections 4, 5 and 6 below are updated; everything else
+> in this document still describes the layer as it stands.**
+
 Sibling document: `handover-chaos-prism-dash.md`. **That one still holds** for
 the prism depth cue, root taper, dash beads and the phase-4 parity reference —
 read its §4 and §7 before touching anything. This one covers only what changed
@@ -15,16 +22,18 @@ insofar as the cost model changed; the measurement is still owed.
 | fact | value |
 |---|---|
 | branch | `feature/chaos-prism-depth-dash-beads` |
-| HEAD | `5a850395` |
+| HEAD | `44b52b88` |
 | forked from | `main` at `09e86f44` |
-| ahead / behind main | **27 / 0** |
+| ahead / behind main | **29 / 0** |
 | `main` vs `origin/main` | **0 / 0** — in sync |
 | tracked tree | **clean** |
-| tests | **1530 passing, 122 files** |
+| tests | **1534 passing, 122 files** |
 | lint | **0 errors / 146 warnings** (146 is main's own count) |
 | pushed? | **NO. Nothing on this branch is pushed.** |
 
 ```
+44b52b88 fix(chaos): collapse the prism train to one intensifying pass
+63a043e1 docs(chaos): hand over the prism wavefront, dials marked by provenance
 5a850395 fix(chaos): force the tessellation the wavefront needs, and watch it shear
 49a7351a feat(chaos): give the prism a longitudinal wavefront, and measure what it costs
 77d5612c fix(chaos): the prism envelope was counting draws, not measuring time
@@ -118,19 +127,26 @@ All in `src/terminal/art/artEdges.js`.
 
 | constant | line | value | provenance |
 |---|---|---|---|
-| `PRISM_WAVE_W` | 479 | 0.18 | **AUTHOR-APPROVED** by name |
-| `PRISM_PHASE_STEP` | 485 | 0.05 | **CHOSEN, never ruled** |
-| `PRISM_WAVE_DEPTH` | 489 | 0.55 | **CHOSEN, never ruled** |
-| `PRISM_WAVE_MS_PER_UNIT` | 504 | 160 | derived: 0.8x strimer |
-| `PRISM_WAVE_MIN_MS` | 505 | 56 | derived: 0.8x strimer |
-| `PRISM_WAVE_MAX_MS` | 506 | 128 | derived: 0.8x strimer |
-| `PRISM_TRAIN_PULSES` | 512 | 3 | **AUTHOR-APPROVED** ("decaying train, 2-3") |
-| `PRISM_TRAIN_DECAY` | 513 | 0.5 | **CHOSEN, never ruled** |
-| `PRISM_TRAIN_TAIL_MS` | 514 | 260 | **CHOSEN, never ruled** |
-| `PRISM_CASCADE_MS` | 519 | 110 | **CHOSEN** — "about one transit" |
-| `PRISM_WAVE_SEGMENTS` | 555 | 40 | **MEASURED**, then author-chosen |
-| `PRISM_WAVE_SEG_FULL` | 569 | 40 | **MEASURED** |
-| `PRISM_WAVE_SEG_NONE` | 570 | 20 | **MEASURED** |
+| `PRISM_WAVE_W` | 484 | 0.18 | **AUTHOR-APPROVED** by name |
+| `PRISM_PHASE_STEP` | 490 | 0.05 | **CHOSEN, never ruled** |
+| `PRISM_WAVE_DEPTH` | 507 | 0.40 | **AUTHOR-RULED DOWN** from 0.55 |
+| `PRISM_WAVE_MS_PER_UNIT` | 522 | 160 | derived: 0.8x strimer |
+| `PRISM_WAVE_MIN_MS` | 523 | 56 | derived: 0.8x strimer |
+| `PRISM_WAVE_MAX_MS` | 524 | 128 | derived: 0.8x strimer |
+| `PRISM_WAVE_SWELL` | 555 | 0.10 | **BOUNDED** — `DEPTH * SWELL` < the 4.3% ripple |
+| `PRISM_WAVE_TAIL_MS` | 568 | 360 | **CHOSEN** — 3.5x the median transit |
+| `PRISM_CASCADE_MS` | 573 | 110 | **CHOSEN** — "about one transit" |
+| `PRISM_WAVE_SEGMENTS` | 609 | 40 | **MEASURED**, then author-chosen |
+| `PRISM_WAVE_SEG_FULL` | 623 | 40 | **MEASURED** |
+| `PRISM_WAVE_SEG_NONE` | 624 | 20 | **MEASURED** |
+
+**`PRISM_TRAIN_PULSES`, `PRISM_TRAIN_DECAY` AND `PRISM_TRAIN_TAIL_MS` NO
+LONGER EXIST**, and `prismTrainEnv` is `prismWaveEnv`. The train was the
+defect, not a dial on it: three crests one transit apart strobe a point at
+1/durMs, 9.7Hz on the median chord. Setting a pulse count to 1 would have
+left the mechanism in place, so the loop is gone instead, and the test that
+guards it counts crests at a fixed point on the chord rather than reading a
+constant — no reintroduced train passes it under any name.
 
 **THE 0.8 RATIO IS NOT THREE SEPARATE NUMBERS.** `MS_PER_UNIT` and **both**
 clamps are exactly 0.8x the strimer's (200 / 70 / 160). The uniform ratio is
@@ -153,7 +169,7 @@ units) the lead is ~26ms.
 | the crest travels | `_a20wavetrace.mjs`: 0.320 -> 0.852 across one transit, in the GPU-bound buffer |
 | the strands are sheared | 6/6 monotonic steps across k |
 | **the shear collapses on arrival** | spread **0.294 -> 0.076**; closed form predicts 0.291 at tau=0.32 |
-| the trough depth reaches the design floor | ratio 0.429 measured against 0.450 design (gap is the depth cue's own ramp) |
+| the trough depth matches the closed form | **0.600 measured at t=53ms**, against 0.771 predicted for the wave times 0.778 measured for the depth cue it multiplies |
 | the tessellation is forced | 40 segments on every waving chord |
 | it fits the buffer | capacity 131162, peak **11290 (8.6%)**, **0 dropped** |
 
@@ -184,25 +200,41 @@ units) the lead is ~26ms.
   40-segment forcing costs far less there — **but that is arithmetic, not a
   measurement.** Still owed, and the figure on record predates the whole fix
   wave.
-- **The author has not looked at the finished wave.** He looked at the clock
-  fix, approved the design, and asked for this handover. **The dials in §4
-  marked CHOSEN have never been seen by an eye.**
+- **The author has not looked at the wave MOVING since the revision.** He
+  looked at the three-pulse version and ruled it out, so `PRISM_WAVE_DEPTH`
+  and the removal of the train follow from that ruling — but
+  `PRISM_WAVE_SWELL` and `PRISM_WAVE_TAIL_MS` have never been seen by an eye.
+- **Nine mutations of the revised design were run and every one fails 1-3
+  tests**: the train restored, a flat envelope, a linear swell, a linear
+  release, the old depth, a raised floor, an asymptotic release, a short
+  release, and the arrival damping dropped.
+- **THE EARLIEST FRAME `_a21wavefilm` CAN REACH IS ~55ms.** A click plus the
+  eval that confirms the spawn costs that much, so the first half of a 103ms
+  transit is not photographable by this route. Ages 0 and 30 report NO SPAWN
+  rather than being guessed at.
 
 ---
 
 ## 6. Open items
 
-1. **THE DIALS IN §4 MARKED "CHOSEN".** In the order most likely to need
-   moving:
-   - `PRISM_WAVE_DEPTH` (0.55) — how dark the troughs get. Raise for a harder
-     front, lower if the chord reads as strobing. Same class of unruled dial as
-     `STRIMER_DEPTH_ALPHA_FLOOR`.
+1. **THE DIALS IN §4 NOT MARKED AUTHOR-RULED.** In the order most likely
+   to need moving:
+   - `PRISM_WAVE_SWELL` (0.10) — how much of the wave is present at launch.
+     **It has a ceiling, not just a taste range**: `DEPTH * SWELL` must stay
+     under the 4.3% tessellation ripple or the cascade's arrival at each chord
+     acquires a visible edge of its own. At the shipped depth that caps it
+     near 0.107.
+   - `PRISM_WAVE_TAIL_MS` (360) — how long the sleeve takes to lift back into
+     the sustained burn. Longer reads as absorption, shorter as a switch.
+   - **`PRISM_WAVE_DEPTH` (0.40) IS RULED.** Do not walk it back up to chase
+     punch; a test asserts the sleeve floor stays at or above 0.60. The punch
+     is supposed to come from the crescendo.
    - `PRISM_PHASE_STEP` (0.05) — the diagonal's angle. **Judge it by the shear
      COLLAPSE, not the launch**: the launch spread is 0.294, the arrival 0.076.
      If the strands look ragged when they land, this is the dial.
    - `PRISM_CASCADE_MS` (110) — how fast the burst spreads outward through the
      graph.
-   - `PRISM_TRAIN_DECAY` / `PRISM_TRAIN_TAIL_MS` — how the echoes ring out.
+   - The train's echo dials are gone; there are no echoes to ring out.
 2. **`PRISM_WAVE_SEGMENTS` IS COUPLED TO TWO OTHER PLACES. Do not move it
    alone.** `MAX_ADDITIVE_EDGES` (`SphereEdges.js`) derives from it, and
    `PRISM_SCRATCH_SEGMENTS` (`ArtTab.jsx`) takes the max of it and
@@ -242,7 +274,8 @@ All take `[W] [H] [DPR] [PORT]` and want the dev server on **5173**.
 | `_a17prismclock.mjs` | frame-counted or clock-driven? **Reusable for ANY refresh-rate bug on this project.** |
 | `_a18wsweep.mjs` | how finely must a chord be tessellated to carry a pulse of half-width W? Pure, no browser. |
 | `_a19budget.mjs` | how much room is left in the additive pool? |
-| `_a20wavetrace.mjs` | is the wave actually in the GPU-bound buffer, and is it sheared? |
+| `_a20wavetrace.mjs` | is the wave actually in the GPU-bound buffer, and is it sheared? **Its sample loop is too slow for a single 100ms pass — it now catches one in-flight frame, not six.** |
+| `_a21wavefilm.mjs` | what does one pass LOOK like at a chosen age? One click per frame, the age measured off the clock. Three traps paid for inside: the sphere rotates out from under a cached coordinate; "the largest disc" is the most LIT node, not the nearest one; and a synthetic `MouseEvent` spawns nothing at all, so the click must go through CDP's input domain. |
 
 New harness hook: `window.__artGeomState()` — live effects with `life` /
 `maxLife`, plus the additive pool's `count` / `dropped` / `capacity`.
