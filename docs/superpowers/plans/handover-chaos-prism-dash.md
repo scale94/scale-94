@@ -191,9 +191,20 @@ wrong. Do not let it harden.**
    **The hard-cut HOT result is MARGINAL** (sep/tol 1.17, ~2.3 sigma). Confirm
    before leaning on it.
 
-   Verified inert against the phase 4 reference: 24/24 ADMISSIBLE, and the
-   uniform build deviates LESS from the reference (worst mean 0.232) than the
-   reference does from itself (0.302).
+   **BOTH uniforms verified inert against the phase 4 reference**, each with
+   three certified sets and a gated compare — 24/24 ADMISSIBLE both times:
+
+   | | worst mean | worst max |
+   |---|---|---|
+   | reference vs ITSELF (`-a` v `-b`) | 0.302 | 11.7 |
+   | `uBeadScale` alone (`24803fc0`) | 0.232 | 11.7 |
+   | both uniforms (`4a6d7bd4`) | **0.292** | 11.7 |
+
+   The shipped path deviates LESS than the same build does from itself, in
+   13 of 24 cells. `x * 1.0` and `mix(x, y, 1.0)` being bit-exact in IEEE was
+   the ARGUMENT; this is the evidence. Captures: `baseline/_beaduniform-*` and
+   `baseline/_dashaa-*`, untracked scratch — numbers recorded here so the
+   finding survives a sweep.
 
 4. **The disc↔streak threshold discontinuity** (~38× ink jump) carried over
    from the previous branch. Still unruled.
