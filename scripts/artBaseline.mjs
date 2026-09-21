@@ -321,6 +321,24 @@ async function findNode(page, rect, opts = {}) {
 const RESONANCE_LABEL = `(() => { const b = [...document.querySelectorAll('button')]
   .find(e => /resonance/i.test(e.innerText || '')); return b ? b.innerText : null; })()`;
 
+// Instance census straight out of the edge buffer, for the ortho-bridge state.
+// Same arithmetic as scripts/_a10dash.mjs's CENSUS, deliberately: a second
+// decode of the packed flag word that drifted from that one would make the
+// reference and the A/B instrument silently disagree about what is on screen.
+// Field 15 packs dashPeriod + dashDuty*256 + (glow + isOrtho*128)*65536, so the
+// top byte is the glow byte and bit 7 of it is isOrtho. See packFlags.
+const ORTHO_CENSUS = '(() => {' +
+  ' const s = window.__artEdgeState ? window.__artEdgeState() : null;' +
+  ' if (!s) return JSON.stringify({ hook: false });' +
+  ' const D = s.instances, ST = s.stride;' +
+  ' let dashed = 0, ortho = 0;' +
+  ' for (let i = 0; i < s.count; i++) {' +
+  '   const fl = D[i * ST + 15];' +
+  '   if (Math.floor(fl % 256) > 0) dashed++;' +
+  '   if (Math.floor(fl / 65536) >= 128) ortho++;' +
+  ' }' +
+  ' return JSON.stringify({ hook: true, count: s.count, dashed, ortho }); })()';
+
 function stats(a) {
   if (!a.length) return null;
   const s = [...a].sort((x, y) => x - y);
@@ -771,6 +789,88 @@ async function captureScale(scale, manifest, expectFingerprint) {
   await page.pump(749);
   await shot('immersive-off');
 
+  // 8. ortho-bridge -- a RIGHT-CLICK forged orthogonal bridge, so that the
+  // dashed SEGMENT path and its beads are in the reference at all.
+  //
+  // WHY THIS STATE EXISTS. Every other state here is hover, left-click or drag.
+  // `orthogonalBridges` starts `[]` and exactly one path appends to it --
+  // ArtTab's `handleContextMenu`, which fires on contextmenu and nothing else.
+  // So no capture ever held a single ortho instance, `vIsOrtho` was 0 in all 21
+  // cells, and `beadGate = vIsOrtho * step(0.001, vDash.x) * (1 - vIsDisc)`
+  // was therefore 0 in every pixel of every reference frame. A reference that
+  // cannot see a layer certifies nothing about it: the whole bead could be
+  // deleted and score 21/21. That is the same shape as the resonance state,
+  // which was empty for the whole of steps 2-4 and where deleting the layer
+  // scored identically to shipping it.
+  //
+  // THE REAL PATH, NOT `__artSetOrthogonal`. That hook exists for the A/B
+  // instruments, and its own comment says not to rely on it surviving a real
+  // bridge forged underneath it -- the `orthogonalBridges` useEffect rebuilds
+  // `orthogonalEdgesRef` wholesale and would wipe it. A reference has to hold
+  // what a user's right-click actually produces. `page.rightClick` dispatches
+  // through CDP for the reason cdp.mjs states: a synthetic DOM event skips the
+  // real contextmenu path the sphere listens on.
+  //
+  // LAST, AND DELIBERATELY. The forge appends to React state that
+  // `__artHarnessReset` does not clear, so this state cannot hand a clean world
+  // to anything after it. Nothing follows it.
+  //
+  // The rect is re-read: line ~359's was taken before immersive re-parented the
+  // container to `fixed inset-0`, and the hover grid has to be aimed at where
+  // the sphere is NOW.
+  await page.eval('window.__reseed(); window.__artHarnessReset();');
+  await page.pump(240);
+  const orthoRect = await page.eval(SPHERE_RECT);
+  const orthoAway = { x: Math.round(orthoRect.x + 24), y: Math.round(orthoRect.y + 18) };
+  await page.hover(orthoAway.x, orthoAway.y);
+  await settle();
+  await page.pump(30);
+  //
+  // FOUR bridges, not one. A single right-click forges exactly one ortho edge,
+  // and one 0.55-1.15px wire out of ~127 is thin enough that deleting its bead
+  // could sit under the gate's own noise -- which would leave this state
+  // technically populated and still practically vacuous. Four puts enough lit
+  // area on the sphere for the null's full-resolution correlation to have
+  // something to lose. It is also the same shape as the resonance sweep: ONE
+  // grid pass that acts at the point each node was found, cursor still on it,
+  // because coordinates recorded earlier go stale as the sphere rotates.
+  const orthoNodes = await findNodes(page, orthoRect, {
+    max: 4,
+    onFound: async (n) => {
+      await page.rightClick(n.x, n.y);
+      // The forge is synchronous, but `setOrthogonalBridges` is React state and
+      // `__pump` never yields -- so neither the commit nor the
+      // `orthogonalEdgesRef` rebuild can land inside a pump batch. Same lesson,
+      // and the same fix, as deliverResize: spend real time first, then pump.
+      await sleep(250);
+      await page.pump(5);              // fixed cost per forge
+    },
+  });
+  if (!orthoNodes.length) throw new Error('ortho-bridge: no node found on the hover grid to right-click');
+  await sleep(300);
+  await page.pump(60);
+  await shot('ortho-bridge');
+
+  // Asserted AFTER the picture, for the same reason the GPU probe below is
+  // last: a `page.eval` costs a yield, and a yield is when real browser tasks
+  // land. Throwing here still makes the set unusable -- the manifest is never
+  // written -- so a vacuous cell cannot reach disk and be quoted.
+  //
+  // This is the vacuous-instrument check itself. `_a10dash`'s first run
+  // reported -8.26% ink for the bead while its own census said ZERO ortho
+  // instances were on screen. A state named after a layer proves it is holding
+  // that layer, or it is not a state.
+  const orthoCensus = JSON.parse(await page.eval(ORTHO_CENSUS));
+  if (!orthoCensus.hook) throw new Error('ortho-bridge: __artEdgeState missing');
+  if (!orthoCensus.ortho) {
+    throw new Error('ortho-bridge: the right-clicks forged NO ortho instance'
+      + ` (count=${orthoCensus.count}, dashed=${orthoCensus.dashed},`
+      + ` right-clicked ${orthoNodes.map(n => n.label).join(' + ')}). The cell`
+      + ' would certify a layer it does not contain.');
+  }
+  console.log(`   ortho-bridge carries ${orthoCensus.ortho} ortho / ${orthoCensus.dashed} dashed`
+    + ` instance(s) (right-clicked ${orthoNodes.map(n => n.label).join(' + ')})`);
+
   // Probed LAST, after every shot is taken, deliberately. A `page.eval` costs a
   // yield, and a yield is when real browser tasks land — which is how three of
   // post-step-5 task 1's four causes got in. Asking after the pictures are on
@@ -792,6 +892,13 @@ async function captureScale(scale, manifest, expectFingerprint) {
     // the bar's width, alpha and glow, so a run that lands on a different pair
     // is not comparable with one that did not — this is the field that says so.
     resonanceNodes: resNodes.map(n => n.label),
+    // Which nodes were right-clicked, and how many ortho instances that
+    // actually put on screen. Same reason `resonanceNodes` is here: a run that
+    // forged a different set of bridges is not comparable with one that did
+    // not, and this is the field that says so out loud instead of leaving two
+    // sets to disagree in the pixels with no stated cause.
+    orthoNodes: orthoNodes.map(n => n.label),
+    orthoInstances: orthoCensus.ortho,
     shots,
     drawCostMs: {
       idle:      stats(idleCosts.draw ?? []),
