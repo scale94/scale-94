@@ -356,3 +356,53 @@ exposes, and the streaks (4c) are worthless without the range and arrival
 4. **Never touch the working tree while `artBaseline` is running.** Vite will
    HMR the edit into the page mid-capture; the tell is two different
    `gitCommit` stamps across the manifests.
+
+---
+
+## Amendment (2026-09-21) — two claims in §4c were wrong
+
+Recorded here rather than silently edited, because the wrong sentences were
+copied out of this document into two code comments and a commit message, and
+anyone reusing §4c would copy them again.
+
+**1. The streak has NO gaussian shoulder.** §4c says "the segment branch
+already supplies width, a head-to-tail three-stop gradient and a gaussian
+shoulder". The first two are true; the third is not. `PARTICLE_FLAGS` is
+`packFlags(0, 0, 0, ...)`, so the glow byte is zero, and `edgeFrag` gates the
+entire shoulder term behind `step(0.001, vGlow)`. Neither particle arm has ever
+had one.
+
+The recorded fidelity loss was therefore understated. It is not only the
+ramp's radial *darkening* (82 → 65 → 50 lightness) but the radial softness
+entirely: the disc's half-width was `3.5 * sz` and the segment's is `sz / 2`,
+about **seven times thinner**. What replaces a soft round glow is a hard
+box-filtered line. §3's taper claims about a gaussian shoulder are correct and
+unaffected — base edges really do carry one.
+
+**Consequence still open for the author:** the disc↔streak fallback is a ~38x
+ink discontinuity, so a particle whose per-frame displacement hovers near
+`STREAK_MIN_PX` alternates between a soft blob and a near-invisible hairline.
+Remedies (a hysteresis band, or a streak width that preserves the glow
+footprint) change how particles look and are not the implementer's to pick.
+
+**2. §4a's launch speed was derived for the wrong quantity, twice.**
+"traversing an edge of length `L` needs `v0 = 0.036 * L`" ignores two things
+the shipped code does:
+
+- the emitter seeds at `t = artRandom()` *along* the edge, so a particle only
+  has `(1 - t) * L` left to cover — sizing for the whole edge made it asymptote
+  to `t + 1` and overshoot the node by `t` (measured peak 1.364 at t = 0.75);
+- §4b's arrival term aims at the same point, so drag and pull **superpose** —
+  and both production call sites take `pull = 1`, so the `(1 - t)` correction
+  alone still peaked at 1.124.
+
+The exact form, with `e = T - x`, `p` the per-frame pull and `r = D / (1 - p)`:
+choosing `v0 = e0 * (1 - r)` collapses the recursion to `e_n = e0 * D^n`, which
+never changes sign — the particle cannot pass the node at any point in its
+life, at any pull. It reduces to `1 - D` at `pull = 0`. Shipped as
+`edgeLaunchK(pull)`.
+
+Exact at `dt = 1` only: drift and pull each compose but are interleaved and do
+not commute, so a residual peak of ~5e-6 of an edge survives at the shipped
+`pull = 1` and `dt = 1/6`. That is ~0.0015px on a 300px edge, and it is pinned
+by a test as a bound rather than left implicit.

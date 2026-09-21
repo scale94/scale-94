@@ -4,6 +4,7 @@ import {
   PARTICLE_DRAG, PARTICLE_HUE_BLEND, MAX_PARTICLES,
   emitEdgeParticles, EDGE_PARTICLE_SPEED_K, edgeLaunchK, PARTICLE_PULL,
 } from '../artParticles.js';
+import { decayOverFrames, driftOverFrames } from '../artRateGate.js';
 
 // ── The particle ECOLOGY is integrated on the clock, not on draws ────────────
 //
@@ -182,15 +183,54 @@ describe('edge particles have the range to cross their own edge', () => {
     //
     // This walks the real per-frame map rather than the emitter, so it pins the
     // PROPERTY (the error never changes sign) and not a sampled position.
+    //
+    // BOTH SIDES ARE ASSERTED, and that is the point. `peak <= 1` alone is
+    // one-sided: with the arrival term on, the pull drags the particle to B
+    // whatever the launch speed, so "it arrives" is vacuous at pull > 0 —
+    // MEASURED, a launch speed of ZERO still finishes at 0.9999999999999997.
+    // That is the same trap the range test fell into. The derivation supplies
+    // the tight assertion for free: collapsing the recursion gives
+    // e_n = e_0 * D^n exactly, so x_n = 1 - D^n at every n and every pull.
     for (const pull of [0, 0.25, 0.5, 1]) {
       const p = PARTICLE_PULL * pull;
       let x = 0, v = edgeLaunchK(pull), peak = 0;
-      for (let n = 0; n < 4000; n++) {
+      for (let n = 1; n <= 4000; n++) {
         x += v; v *= PARTICLE_DRAG; x += (1 - x) * p;
         peak = Math.max(peak, x);
+        // The trajectory itself, not just its endpoint. A wrong coefficient —
+        // too small as readily as too large — leaves this immediately.
+        if (n === 10 || n === 50) {
+          expect(x).toBeCloseTo(1 - Math.pow(PARTICLE_DRAG, n), 9);
+        }
       }
       expect(peak).toBeLessThanOrEqual(1 + 1e-9);   // never overshoots
       expect(x).toBeCloseTo(1, 6);                  // and still arrives
+    }
+  });
+
+  it('still does not pass the node at the SUB-FRAME steps a 360Hz panel takes', () => {
+    // The collapse above is exact at dt = 1 ONLY. driftOverFrames and the pull
+    // each compose, but they are INTERLEAVED and do not commute, so the
+    // composite map does not compose across dt — a fact this whole branch is
+    // otherwise about. The shipped speed is the dt = 1 form.
+    //
+    // MEASURED residual peak over the real rate-gated map: +5.1e-6 of an edge
+    // at the shipped pull = 1 and dt = 1/6, worst +5.1e-4 across all pull. On a
+    // ~300px edge that is ~0.0015px — three orders below a pixel — so it is a
+    // bound worth stating rather than a defect. Pinned so it stays a bound.
+    for (const pull of [0, 0.19, 0.5, 1]) {
+      for (const dt of [1 / 12, 1 / 6, 1 / 2]) {
+        const p = 1 - decayOverFrames(1 - PARTICLE_PULL * pull, dt);
+        const mv = driftOverFrames(PARTICLE_DRAG, dt);
+        const dc = decayOverFrames(PARTICLE_DRAG, dt);
+        let x = 0, v = edgeLaunchK(pull), peak = 0;
+        for (let n = 0; n < Math.round(2000 / dt); n++) {
+          x += v * mv; v *= dc; x += (1 - x) * p;
+          peak = Math.max(peak, x);
+        }
+        expect(peak).toBeLessThanOrEqual(1 + 1e-3);
+        expect(x).toBeCloseTo(1, 5);
+      }
     }
   });
 

@@ -1457,3 +1457,42 @@ After Task 8, before anything is proposed for merge:
 - [ ] **Run `artCompare` against the new reference** as a regression net only. It is structurally blind to refresh-rate behaviour (it virtualises the clock at exactly 1000/60) and has passed blatantly visible changes before. 21/21 ADMISSIBLE proves the 60fps frame did not move — nothing more. The look is ruled by the user.
 - [ ] **Report the bloom ink delta** from Task 2, Step 7, and the mobile fps from Task 8, Step 9.
 - [ ] **Do not merge and do not push.** Both require an explicit instruction.
+
+---
+
+## Corrections found during execution (2026-09-21)
+
+This plan was executed in full. Five of its own numbers and claims did not
+survive contact with the code. They are listed here, unedited above, because a
+plan is a record of what was intended and the corrections are the useful part.
+
+1. **Task 2's lens constants.** `LENS_KNEE = 0.45` / `LENS_KNEE_K = 0.62` do not
+   sit on the curve they claim to approximate — `alpha(u) = 0.35 + 0.65u^2` is
+   0.4816 at u = 0.45, not 0.62 — and **no** `LENS_KNEE_K` rescues knee 0.45
+   against the plan's own 5%-of-range fit test. Shipped 0.5 / 0.485.
+2. **Task 5's comment text** said "four branches (ortho / fused / spectral /
+   default)". The code is a two-way `if/else`.
+3. **Task 6's traversal test** left `maxLife` on a random draw while
+   `stepParticles` freezes an expired particle, so it failed on roughly half of
+   runs. It was *also* toothless once Task 7 landed: `pull` defaults to 1 and
+   the arrival term carried the particle home regardless of launch speed — the
+   old `0.002` coefficient still passed at 0.9997.
+4. **Task 7's `toBeCloseTo(_, 9)`** demands 5e-10 where one float32 ULP at the
+   tested magnitude is 3.725e-9. It was 7.5x tighter than a single ULP and
+   could never pass. Settled at 7.
+5. **Task 8's "gaussian shoulder"** — see the amendment appended to the design
+   doc. The streak has none; `PARTICLE_FLAGS` packs `glow = 0`. **Do not copy
+   Task 8's prose or its embedded comment into new work.** Task 4's shoulder
+   claims are about base edges and are correct.
+
+Two further defects were found only by the whole-branch review, after every
+per-task review had passed clean — both in code the per-task reviews never
+looked at:
+
+- `scripts/artPresence.mjs` classified particles by SHAPE, so making the glow a
+  segment made three presence verdicts wrong. The writer now publishes
+  `ag.particleStart`.
+- streak length was proportional to `dtFrames`, i.e. six times shorter at
+  360Hz, with the idle emitter vanishing below `STREAK_MIN_PX` entirely. The
+  capture harness virtualises the clock at 1000/60 and is structurally blind to
+  it.

@@ -1857,7 +1857,12 @@ function nodeDiscsOf(st) {
 // older capture, or a harness that never published it), which only recovers
 // the degenerate-disc arm — a pre-streak capture never had streaks to miss.
 function isParticleAt(add, o) {
-  if (add.particleStart != null) return o >= add.particleStart * EDGE_STRIDE;
+  // >= 0, not just non-null: the writer publishes -1 for UNSET (a frame that
+  // threw before the particle loop ran). Believing a -1 would classify every
+  // instance in the stream as a particle.
+  if (add.particleStart != null && add.particleStart >= 0) {
+    return o >= add.particleStart * EDGE_STRIDE;
+  }
   return isDisc(add.instances[o + EDGE_OFF.width])
     && !(add.instances[o + EDGE_OFF.bx] > 0);
 }

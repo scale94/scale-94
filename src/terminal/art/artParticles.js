@@ -245,9 +245,14 @@ export function emitNodeBurst(pool, x, y, z, hue, hueTarget, count) {
  * Written against PARTICLE_DRAG rather than as a literal so the two cannot
  * drift: change the drag and the range follows it.
  *
- * THIS IS THE `pull = 0` CASE ONLY. With the arrival term active the drag and
- * the pull both aim at B and SUPERPOSE, so this speed overshoots — see
- * `edgeLaunchK`, which is what the emitter actually uses.
+ * THIS IS THE `pull = 0` CASE ONLY, and NO SHIPPING CALL SITE TAKES IT: both
+ * emitters in ArtTab omit `pull`, so it defaults to 1 and they go through
+ * `edgeLaunchK`. This survives as the anchor the identity test pins
+ * `edgeLaunchK(0)` against, so the two forms cannot drift — not because some
+ * emitter still launches at it.
+ *
+ * With the arrival term active the drag and the pull both aim at B and
+ * SUPERPOSE, so this speed overshoots. See `edgeLaunchK`.
  */
 export const EDGE_PARTICLE_SPEED_K = 1 - PARTICLE_DRAG;
 

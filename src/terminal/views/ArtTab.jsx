@@ -1254,9 +1254,16 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       // Reset WITH the count, not only at the particle loop. This is a property
       // persisted on the ref, and the draw body is inside a try -- a frame that
       // threw between here and the particle loop would leave LAST frame's index
-      // standing against a fresh, smaller count, and the presence harness would
-      // read real prism instances as particles.
-      ag.particleStart = 0;
+      // standing against a fresh, smaller count, and a reader would take real
+      // prism instances for particles.
+      //
+      // MINUS ONE, not zero, and the distinction is the whole point. The
+      // composite still presents on a thrown frame, so the state IS readable in
+      // that condition; 0 would mean "everything from index 0 is a particle",
+      // i.e. trading a partly-wrong classification for a wholly-wrong one. A
+      // negative value is UNSET, and artPresence falls back to its old shape
+      // test rather than believing it.
+      ag.particleStart = -1;
       ag.w = w; ag.h = h;
       // Scratch shared with the prism block below: tessellation points, the
       // control point, and writeHsl's 3-float output. Nothing here allocates.
