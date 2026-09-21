@@ -1097,6 +1097,85 @@ describe('the 17th float — layout', () => {
   });
 });
 
+describe('writePolyline - per-POINT colour', () => {
+  // THE STOPS WERE ALWAYS THERE. EDGE_OFF.c0/c1/c2 have been a three-stop
+  // gradient since the layout was written, and edgeFrag has always
+  // interpolated them along the segment -- but every caller wrote the SAME rgb
+  // into all three, which degenerates the gradient to flat. That is why the
+  // prism's travelling wave read as "a light shining through stained glass":
+  // the brightness moved and the colour was pinned to the wire. Letting the
+  // caller supply one colour per POINT costs no float and no stride.
+
+  const PTS4 = new Float32Array([0, 0, 3, 4, 6, 8, 9, 12]);
+  const FLAT = new Float32Array([0.25, 0.5, 0.75]);
+
+  it('with rgbs = null writes the one colour into all three stops', () => {
+    const s = createEdgeState(16);
+    writePolyline(s, PTS4, 4, FLAT, 0.5, 1.2, 0);
+    for (let i = 0; i < 3; i++) {
+      const o = i * EDGE_STRIDE;
+      for (let j = 0; j < 3; j++) {
+        expect(s.data[o + EDGE_OFF.c0 + j]).toBe(FLAT[j]);
+        expect(s.data[o + EDGE_OFF.c1 + j]).toBe(FLAT[j]);
+        expect(s.data[o + EDGE_OFF.c2 + j]).toBe(FLAT[j]);
+      }
+    }
+  });
+
+  it('a CONSTANT rgbs array reproduces the flat path byte for byte', () => {
+    const c = new Float32Array(12);
+    for (let i = 0; i < 4; i++) { c[i * 3] = 0.25; c[i * 3 + 1] = 0.5; c[i * 3 + 2] = 0.75; }
+    const flat = createEdgeState(16);
+    const ramped = createEdgeState(16);
+    writePolyline(flat, PTS4, 4, FLAT, 0.5, 1.2, 0);
+    writePolyline(ramped, PTS4, 4, FLAT, 0.5, 1.2, 0, 0, null, c);
+    expect(ramped.count).toBe(flat.count);
+    for (let i = 0; i < flat.count * EDGE_STRIDE; i++) {
+      expect(ramped.data[i]).toBe(flat.data[i]);
+    }
+  });
+
+  // LIVENESS, and the same shape the per-point ALPHA test uses for the same
+  // reason: the constant-array test above passes trivially if `rgbs` is
+  // ignored entirely, which is the vacuous-property trap this project has paid
+  // for three times. This case is reachable ONLY if the ramp is live.
+  it('ramps per point, sharing each joint stop between adjacent segments', () => {
+    const s = createEdgeState(16);
+    // One channel varying, so every expectation below is a literal.
+    const c = new Float32Array([0, 0, 0,  0.2, 0, 0,  0.6, 0, 0,  1, 0, 0]);
+    writePolyline(s, PTS4, 4, FLAT, 0.5, 1.2, 0, 0, null, c);
+    expect(s.count).toBe(3);
+
+    const red = (i, stop) => s.data[i * EDGE_STRIDE + stop];
+    // Segment 0 runs 0 -> 0.2, and its mid stop is the mean of its own ends.
+    expect(red(0, EDGE_OFF.c0)).toBeCloseTo(0, 6);
+    expect(red(0, EDGE_OFF.c1)).toBeCloseTo(0.1, 6);
+    expect(red(0, EDGE_OFF.c2)).toBeCloseTo(0.2, 6);
+    // Segment 1 runs 0.2 -> 0.6.
+    expect(red(1, EDGE_OFF.c0)).toBeCloseTo(0.2, 6);
+    expect(red(1, EDGE_OFF.c1)).toBeCloseTo(0.4, 6);
+    expect(red(1, EDGE_OFF.c2)).toBeCloseTo(0.6, 6);
+    // THE JOINT. Segment i's END stop is segment i+1's START stop by
+    // construction, so the ramp is C0 across the joint and a tessellated chord
+    // carries one continuous colour rather than N independent gradients.
+    for (let i = 0; i + 1 < s.count; i++) {
+      for (let j = 0; j < 3; j++) {
+        expect(red(i, EDGE_OFF.c2 + j)).toBe(red(i + 1, EDGE_OFF.c0 + j));
+      }
+    }
+  });
+
+  it('carries a per-point colour and a per-point alpha at the same time', () => {
+    const s = createEdgeState(16);
+    const a = new Float32Array([0.2, 0.4, 0.6, 0.8]);
+    const c = new Float32Array([0, 0, 0,  0.2, 0, 0,  0.6, 0, 0,  1, 0, 0]);
+    writePolyline(s, PTS4, 4, FLAT, 0.5, 1.2, 0, 0, a, c);
+    expect(s.count).toBe(3);
+    expect(s.data[EDGE_OFF.c2]).toBeCloseTo(0.2, 6);
+    expect(s.data[EDGE_OFF.alphas]).not.toBe(s.data[EDGE_STRIDE + EDGE_OFF.alphas]);
+  });
+});
+
 describe('writePolyline — the dash phase', () => {
   const RGB = new Float32Array([0.25, 0.5, 0.75]);
   // 3-4-5 triangles: chord lengths 5, 10, 20 — deliberately UNEQUAL, because

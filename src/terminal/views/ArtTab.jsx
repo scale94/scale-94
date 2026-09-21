@@ -99,7 +99,8 @@ import {
   PULSE_ALPHA, PULSE_DRAW_CUTOFF,
   prismOffset, prismChordAlpha, prismGlowWidth, prismControl, prismSpokeHue,
   prismChordCue, prismDepthCue, prismRootTaper,
-  prismWaveAmp, prismWaveEnv, prismWaveMix, prismSegmentFade,
+  prismWaveEnv, prismWaveMix, prismSegmentFade,
+  prismPulse, prismWavePhase, prismChromaSkew, prismChromaBlend, prismTintHue,
   prismWaveDuration, prismChordDir, PRISM_CASCADE_MS, PRISM_WAVE_SEGMENTS,
   PRISM_SPECTRAL_FINE, PRISM_SPECTRAL_COARSE, PRISM_HUE_STEP,
   PRISM_SAT, PRISM_GLOW_LIT, PRISM_GLOW_ALPHA_K, PRISM_CORE_LIT, PRISM_CORE_W,
@@ -555,6 +556,20 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   const dashAARef = useRef(1);
   const prismAlphaRef = useRef(null);
   if (prismAlphaRef.current === null) prismAlphaRef.current = new Float32Array(PRISM_SCRATCH_SEGMENTS + 1);
+  // PER-POINT COLOUR, the twin of the per-point alpha above: three floats per
+  // point, so the travelling tint can be written into the gradient stops the
+  // instance layout has always carried. Only filled on a chord that is
+  // waving; every other chord passes null and takes the flat-colour path it
+  // has always taken.
+  const prismChromaRef = useRef(null);
+  if (prismChromaRef.current === null) prismChromaRef.current = new Float32Array((PRISM_SCRATCH_SEGMENTS + 1) * 3);
+  // The two tint anchors per spectral line, per pass. THE HUE OF A SPECTRAL
+  // LINE DOES NOT DEPEND ON THE CHORD -- it is hue0 + k * PRISM_HUE_STEP --
+  // so these are converted ONCE PER EFFECT PER FRAME rather than per chord,
+  // which is fewer writeHsl calls than the base colour already costs. Layout
+  // per line k: [k*6 .. k*6+2] = the leading edge, [k*6+3 .. k*6+5] = the wake.
+  const prismTintRef = useRef(null);
+  if (prismTintRef.current === null) prismTintRef.current = new Float32Array(PRISM_SPECTRAL_FINE * 6 * 2);
 
   // ── Beat clock state ────────────────────────────────────────────────────
   const [ambientMode,  setAmbientMode]  = useState(false);
@@ -1811,6 +1826,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         const ctrl = prismCtrlRef.current;   // the control point, [x, y]
         const rgb  = prismRgbRef.current;    // writeHsl's 3-float output
         const alf  = prismAlphaRef.current;  // per-POINT alpha, one per point
+        const crgb = prismChromaRef.current; // per-POINT colour, 3 per point
+        const tint = prismTintRef.current;   // the tint anchors, per line/pass
 
         // A polyline of `m` points, then the same for one straight segment.
         // The alphas the 2D code quantised with `.toFixed(3)` are quantised to
@@ -1842,6 +1859,12 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         // is tessellated to PRISM_WAVE_SEGMENTS, and that decision has to be
         // made before tessellateQuad runs, not after.
         let _wK = 0, _wDur = 1, _wT = -1, _wDir = 0, _wFade = 0, _wEnv = 0;
+        // Which half of `tint` the current pass reads: the glow pass's anchors
+        // sit in the first PRISM_SPECTRAL_FINE * 6 floats and the core pass's
+        // in the second, because the two passes differ in LIGHTNESS and a tint
+        // carrying the wrong one would brighten or dim the crest rather than
+        // colour it.
+        let _wTintOff = 0;
 
         const chord = (m, a, width, cueA, cueB, taper) => {
           let total = 0;
@@ -1869,18 +1892,39 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             if (waving) {
               // _wDir 0 means both endpoints lit on the same tick, so there is
               // no direction to be had and the chord is driven from BOTH ends
-              // -- two fronts that meet in the middle. max(), not sum: two
-              // crests arriving together must not stack past the crest alpha
-              // the author approved.
-              const amp = _wDir === 0
-                ? Math.max(prismWaveAmp(tt, _wK, _wT, _wDur),
-                           prismWaveAmp(1 - tt, _wK, _wT, _wDur))
-                : prismWaveAmp(_wDir < 0 ? 1 - tt : tt, _wK, _wT, _wDur);
+              // -- two fronts that meet in the middle. The STRONGER front owns
+              // the point, which is max() for the amplitude exactly as before;
+              // it is written as a branch now only because the colour needs
+              // that front's SIGNED phase too, and a max() throws the sign
+              // away. Two crests arriving together still cannot stack past the
+              // crest alpha the author approved.
+              let ph, amp;
+              if (_wDir === 0) {
+                const phA = prismWavePhase(tt, _wK, _wT, _wDur);
+                const phB = prismWavePhase(1 - tt, _wK, _wT, _wDur);
+                const ampA = prismPulse(phA), ampB = prismPulse(phB);
+                if (ampA >= ampB) { ph = phA; amp = ampA; } else { ph = phB; amp = ampB; }
+              } else {
+                ph = prismWavePhase(_wDir < 0 ? 1 - tt : tt, _wK, _wT, _wDur);
+                amp = prismPulse(ph);
+              }
               wave = prismWaveMix(amp, env, _wFade);
+              // THE COLOUR RIDES THE SAME NUMBER THE BRIGHTNESS DOES. Not a
+              // second clock, not a second phase -- `ph` is the one advection
+              // coordinate, so the tint cannot drift out of step with the
+              // crest it is supposed to belong to.
+              const tO = _wTintOff + _wK * 6;
+              // The tint's weight is the amplitude TIMES the envelope and the
+              // segment fade -- the same three terms the alpha mix takes. A
+              // tint that ignored them would be at full strength on a chord
+              // whose brightness wave had already faded out.
+              prismChromaBlend(crgb, i * 3, rgb, tint, tO, tO + 3,
+                               amp * env * _wFade, prismChromaSkew(ph));
             }
             alf[i] = a * cue * wave * (taper ? prismRootTaper(sLen, total) : 1);
           }
-          return writePolyline(ag, pts, m, rgb, a, width * ink, PRISM_FLAGS, 0, alf);
+          return writePolyline(ag, pts, m, rgb, a, width * ink, PRISM_FLAGS, 0, alf,
+                               waving ? crgb : null);
         };
         const straight = (x0, y0, x1, y1, a, width, cueA, cueB) => {
           pts[0] = x0; pts[1] = y0; pts[2] = x1; pts[3] = y1;
@@ -1958,6 +2002,30 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           // Coarse (mobile): 4 spectral lines × 6 nodes = 60 curves/effect
           // Fine  (desktop): 7 spectral lines × 11 nodes = 770 curves/effect
           const spectralN = eff.coarse ? PRISM_SPECTRAL_COARSE : PRISM_SPECTRAL_FINE;
+
+          // ── THE TRAVELLING TINT'S ANCHORS, ONCE PER EFFECT ──────────────
+          //
+          // A spectral line's hue is `hue0 + k * PRISM_HUE_STEP` and depends
+          // on NOTHING about the chord, so these are converted here rather
+          // than inside the pair loops: 28 writeHsl calls per effect per
+          // frame, against the 770 the base colour already spends on a
+          // full-strength eleven-node effect. Not gated on whether anything is
+          // actually waving for that reason -- the gate would cost more to
+          // decide than the work it skips.
+          //
+          // SAME SAT AND SAME LIT AS THE PASS THEY TINT. Only the hue moves.
+          // The alpha wave is provably ink-negative and cannot reach the
+          // bloom; colour carries no such proof, so the change is kept to the
+          // one channel that makes it flow and the ink is measured instead.
+          const tintCore = PRISM_SPECTRAL_FINE * 6;
+          for (let k = 0; k < spectralN; k++) {
+            const h = (hue0 + k * PRISM_HUE_STEP) % 360;
+            const hL = prismTintHue(h, 1), hT = prismTintHue(h, -1);
+            writeHsl(tint, k * 6,                 hL, PRISM_SAT, PRISM_GLOW_LIT);
+            writeHsl(tint, k * 6 + 3,             hT, PRISM_SAT, PRISM_GLOW_LIT);
+            writeHsl(tint, tintCore + k * 6,      hL, PRISM_SAT, PRISM_CORE_LIT);
+            writeHsl(tint, tintCore + k * 6 + 3,  hT, PRISM_SAT, PRISM_CORE_LIT);
+          }
           for (let a = 0; a < effProj.length; a++) {
             for (let b = a + 1; b < effProj.length; b++) {
               const pA = effProj[a], pB = effProj[b];
@@ -2035,12 +2103,14 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
                 // terminate on one node centre and the disc was being
                 // swallowed; see prismRootTaper.
                 writeHsl(rgb, 0, hue, PRISM_SAT, PRISM_GLOW_LIT);
+                _wTintOff = 0;
                 chord(m, lAlpha * PRISM_GLOW_ALPHA_K, prismGlowWidth(k), cueA, cueB, true);
                 // Sharp core pass — NOT tapered. The thread lands on the
                 // exact node origin, which is the author's ruling. 70 cores
                 // still converge there; whether that needs its own
                 // attenuation is a MEASURED question, deliberately left open.
                 writeHsl(rgb, 0, hue, PRISM_SAT, PRISM_CORE_LIT);
+                _wTintOff = tintCore;
                 chord(m, lAlpha, PRISM_CORE_W, cueA, cueB, false);
               }
             }

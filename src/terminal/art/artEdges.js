@@ -647,9 +647,27 @@ export function prismPhaseOffset(k) {
  * per chord per frame instead of one per point.
  */
 export function prismWaveAmp(u, k, tMs, durMs) {
+  return prismPulse(prismWavePhase(u, k, tMs, durMs));
+}
+
+/**
+ * The signed advection coordinate itself: where the point at arc fraction `u`
+ * sits RELATIVE TO THE CREST, in fractions of the chord. Zero on the crest,
+ * POSITIVE ahead of it (the ground the front has not reached yet) and
+ * NEGATIVE behind it.
+ *
+ * SPLIT OUT OF prismWaveAmp BECAUSE THE COLOUR NEEDS THE SIGN AND THE
+ * AMPLITUDE THROWS IT AWAY. prismPulse is symmetric, so an amplitude of 0.6
+ * says nothing about whether the front is arriving or leaving -- and a
+ * chromatic front that looked the same coming and going would be a pattern
+ * that pulses rather than one that flows. One arithmetic expression, two
+ * readers, so the colour and the brightness cannot drift out of step: they
+ * are the same number.
+ */
+export function prismWavePhase(u, k, tMs, durMs) {
   const d = durMs > 1e-6 ? durMs : 1e-6;
   const uu = u < 0 ? 0 : u > 1 ? 1 : u;
-  return prismPulse(uu - tMs / d + prismPhaseOffset(k) * (1 - uu));
+  return uu - tMs / d + prismPhaseOffset(k) * (1 - uu);
 }
 
 /**
@@ -696,6 +714,106 @@ export function prismWaveEnv(tMs, durMs) {
  */
 export function prismWaveMix(amp, env, segFade) {
   return 1 - PRISM_WAVE_DEPTH * env * segFade * (1 - amp);
+}
+
+// ── THE CHROMATIC FRONT ────────────────────────────────────────────────────
+//
+// THE BRIGHTNESS TRAVELLED AND THE COLOUR DID NOT. Everything above modulates
+// ALPHA along the chord while the colour stayed pinned to the strand index:
+// one `writeHsl(rgb, 0, hue0 + k * PRISM_HUE_STEP, ...)` per spectral line,
+// flat for the whole polyline. The author read the result exactly: "the colour
+// stays pinned to the wire like a light shining through stained glass". A
+// travelling brightness on a static colour IS a lamp behind glass; the glass
+// is what the eye tracks.
+//
+// ── IT COSTS NO FLOATS, AND THAT IS NOT LUCK ──────────────────────────────
+//
+// The instance layout has carried THREE colour stops since it was written --
+// EDGE_OFF.c0/c1/c2, at offsets 4-6, 7-9 and 10-12 -- and the fragment shader
+// has always interpolated them as a three-stop linear gradient along the
+// segment. `writePolyline` was writing the SAME rgb into all three, which
+// degenerates that gradient to flat. So the colour ramp this needs is not a
+// new capability: it is a capability the buffer has been carrying, unused, on
+// every prism instance ever written. EDGE_STRIDE stays 18, the shader is not
+// touched, and MAX_ADDITIVE_EDGES does not move.
+//
+// ── WHY THE TINT IS A HUE ROTATION AND NOT A WHITE-HOT LIFT ───────────────
+//
+// The author asked for the leading edge to lead with "electric cyan/white-hot".
+// A lightness lift is not available on the same terms as everything else here:
+// the alpha design is provably ink-NEGATIVE, so it cannot reach the composer's
+// 0.28 luminanceThreshold and the bloom dial stays untouched by construction.
+// COLOUR HAS NO SUCH PROOF -- even a pure hue rotation moves luminance, since
+// a yellow and a blue at the same HSL lightness are not the same brightness.
+// So this rotates hue at the SAME saturation and lightness the pass already
+// uses, which is the smallest change that makes the colour flow, and the ink
+// it costs is MEASURED rather than argued. A deliberate lightness lift is a
+// separate, measured decision; it is not smuggled in here.
+//
+// ── AND WHY THE ROTATION IS BOUNDED ───────────────────────────────────────
+//
+// PRISM_HUE_STEP is 48deg. If the crest could rotate a strand's hue by a full
+// step, strand k's crest would wear strand k+1's resting colour -- which is
+// precisely the "it jumps erratically between wire indices" reading this whole
+// line of work exists to remove, rebuilt out of the fix for it. The bound
+// below keeps the largest excursion under three quarters of a step, and a test
+// asserts it against PRISM_HUE_STEP rather than against a literal.
+
+/** How far the CREST's hue sits from the strand's resting hue, in degrees. */
+export const PRISM_HUE_LEAD = 24;
+
+/** How much further the LEADING edge of the pulse runs than its trailing edge,
+ *  so the front has a direction: the ground ahead is tinted `LEAD + SKEW` and
+ *  the wake behind it `LEAD - SKEW`. A symmetric tint would look the same
+ *  arriving and leaving, which is a pattern that pulses rather than flows. */
+export const PRISM_HUE_SKEW = 10;
+
+/**
+ * Where a point sits ACROSS the pulse, from -1 at the trailing edge through 0
+ * on the crest to +1 at the leading edge.
+ *
+ * Linear rather than smoothstepped, and it does not need to be anything else:
+ * the amplitude it gets multiplied by is already 0 at both edges, so the tint
+ * reaches the ends of its range only where it has no weight left to apply.
+ */
+export function prismChromaSkew(phase) {
+  const s = phase / PRISM_WAVE_W;
+  return s < -1 ? -1 : s > 1 ? 1 : s;
+}
+
+/** A tint anchor's hue: `side` is +1 for the leading edge, -1 for the wake. */
+export function prismTintHue(hue, side) {
+  return hue + PRISM_HUE_LEAD + side * PRISM_HUE_SKEW;
+}
+
+/**
+ * The colour at one point, into `out` at offset `o`: the strand's resting
+ * colour, pushed toward the travelling tint by the pulse's own amplitude.
+ *
+ * The two tint anchors live in `tints` at `oLead` and `oTail`, already
+ * converted to rgb ONCE PER SPECTRAL LINE -- not per point.
+ *
+ * OFFSETS RATHER THAN TWO ARRAYS, AND THAT IS THE ALLOCATION PATH TALKING.
+ * `writeHsl` allocates a closure per call, and slicing the anchors out with
+ * `subarray` allocates a view per call; either one, evaluated per point, puts
+ * ~74000 allocations a frame on a loop this file keeps deliberately clear of
+ * them. Two lerps and six indexed reads instead. It is also why there are only
+ * two anchors: the blend between them passes near the true intermediate hue,
+ * slightly desaturated, and at 2 * PRISM_HUE_SKEW apart that error is not
+ * visible.
+ *
+ * EXACTLY THE RESTING COLOUR AT amp = 0, by construction. That is the same
+ * contract prismWaveMix keeps for alpha, and for the same reason: once the
+ * pass is over the layer must draw precisely what the author signed off.
+ */
+export function prismChromaBlend(out, o, cBase, tints, oLead, oTail, amp, skew) {
+  const w = (skew + 1) * 0.5;
+  const t0 = tints[oTail]     + (tints[oLead]     - tints[oTail])     * w;
+  const t1 = tints[oTail + 1] + (tints[oLead + 1] - tints[oTail + 1]) * w;
+  const t2 = tints[oTail + 2] + (tints[oLead + 2] - tints[oTail + 2]) * w;
+  out[o]     = cBase[0] + (t0 - cBase[0]) * amp;
+  out[o + 1] = cBase[1] + (t1 - cBase[1]) * amp;
+  out[o + 2] = cBase[2] + (t2 - cBase[2]) * amp;
 }
 
 /**

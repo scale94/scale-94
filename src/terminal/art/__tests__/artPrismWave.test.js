@@ -27,11 +27,14 @@ import {
   PRISM_WAVE_W, PRISM_PHASE_STEP, PRISM_WAVE_DEPTH,
   PRISM_WAVE_MS_PER_UNIT, PRISM_WAVE_MIN_MS, PRISM_WAVE_MAX_MS,
   PRISM_WAVE_SWELL, PRISM_WAVE_TAIL_MS,
+  PRISM_HUE_LEAD, PRISM_HUE_SKEW, PRISM_HUE_STEP,
   PRISM_WAVE_SEG_FULL, PRISM_WAVE_SEG_NONE, PRISM_WAVE_SEGMENTS,
   PRISM_SPECTRAL_FINE,
   prismPulse, prismPhaseOffset, prismWaveAmp, prismWaveEnv, prismWaveMix,
   prismSegmentFade, prismWaveDuration, prismChordDir,
+  prismWavePhase, prismChromaSkew, prismChromaBlend, prismTintHue,
 } from '../artEdges';
+import { writeHsl } from '../SphereEdges';
 import { packetDuration } from '../artStrimer';
 
 describe('prismPulse — the raised cosine', () => {
@@ -438,5 +441,194 @@ describe('prismChordDir — where a chord flows when neither end was clicked', (
     expect(prismChordDir(1, 1)).toBe(0);
     expect(prismChordDir(0, 0)).toBe(0);
     expect(prismChordDir(2, 2)).toBe(0);
+  });
+});
+
+// -- THE CHROMATIC FRONT ----------------------------------------------------
+//
+// The brightness travelled and the colour did not: every point of a chord took
+// one flat `writeHsl(hue0 + k * PRISM_HUE_STEP)`, so the wave read as "a light
+// shining through stained glass" -- the glass being what the eye tracks. These
+// pin the colour to the same advection coordinate the brightness rides.
+
+// The real passes' constants do not matter to any property here; what matters
+// is that the base and the anchors are built the way the draw loop builds them.
+const SAT = 100, LIT = 60;
+
+function restingColour(hue) {
+  const c = new Float32Array(3);
+  writeHsl(c, 0, hue, SAT, LIT);
+  return c;
+}
+
+function tintAnchors(hue) {
+  const t = new Float32Array(6);
+  writeHsl(t, 0, prismTintHue(hue, 1), SAT, LIT);   // leading edge
+  writeHsl(t, 3, prismTintHue(hue, -1), SAT, LIT);  // the wake
+  return t;
+}
+
+/** Exactly what the draw loop computes for one point, in one call. */
+function colourAt(u, k, tMs, dur, hue, weight = 1) {
+  const ph = prismWavePhase(u, k, tMs, dur);
+  const out = new Float32Array(3);
+  prismChromaBlend(out, 0, restingColour(hue), tintAnchors(hue), 0, 3,
+                   prismPulse(ph) * weight, prismChromaSkew(ph));
+  return out;
+}
+
+const spread = (cols) => {
+  let worst = 0;
+  for (let j = 0; j < 3; j++) {
+    const vals = cols.map(c => c[j]);
+    worst = Math.max(worst, Math.max(...vals) - Math.min(...vals));
+  }
+  return worst;
+};
+
+describe('prismWavePhase - the sign the amplitude throws away', () => {
+  // THE DRAW LOOP NO LONGER CALLS prismWaveAmp. It calls
+  // prismPulse(prismWavePhase(...)) so it can keep the sign for the colour, so
+  // this is the link that makes every prismWaveAmp property above -- including
+  // the one-pass crest count -- a property of what is actually drawn.
+  //
+  // CATCHES: the two drifting apart. Reintroduce a train in prismWaveAmp and
+  // the crest-count test fails; reintroduce one in the phase and this fails.
+  it('composes with prismPulse into exactly prismWaveAmp', () => {
+    for (let t = -40; t <= 400; t += 11) {
+      for (const k of [0, 2, 6]) {
+        for (let i = 0; i <= 20; i++) {
+          const u = i / 20;
+          expect(prismPulse(prismWavePhase(u, k, t, 120)))
+            .toBe(prismWaveAmp(u, k, t, 120));
+        }
+      }
+    }
+  });
+
+  // CATCHES: an abs() or a square creeping into the phase. The amplitude is
+  // symmetric by construction, so without the sign a chromatic front would
+  // look identical arriving and leaving -- a pattern that pulses, not one that
+  // flows.
+  it('is positive ahead of the crest and negative behind it', () => {
+    const dur = 120, t = 60;            // the crest sits at u = 0.5 on line 0
+    expect(prismWavePhase(0.5, 0, t, dur)).toBeCloseTo(0, 12);
+    expect(prismWavePhase(0.6, 0, t, dur)).toBeGreaterThan(0);
+    expect(prismWavePhase(0.4, 0, t, dur)).toBeLessThan(0);
+    // ...and the amplitude genuinely cannot tell those two apart.
+    expect(prismWaveAmp(0.6, 0, t, dur)).toBeCloseTo(prismWaveAmp(0.4, 0, t, dur), 12);
+  });
+});
+
+describe('prismChromaSkew - where a point sits across the pulse', () => {
+  it('runs -1 at the wake, 0 on the crest, +1 at the leading edge', () => {
+    expect(prismChromaSkew(0)).toBe(0);
+    expect(prismChromaSkew(PRISM_WAVE_W)).toBeCloseTo(1, 12);
+    expect(prismChromaSkew(-PRISM_WAVE_W)).toBeCloseTo(-1, 12);
+  });
+
+  // CATCHES: an unclamped ratio. Outside the pulse the amplitude is 0, so the
+  // skew is unweighted there -- but it feeds a lerp weight of (skew + 1) / 2,
+  // and an unclamped value would drive that outside [0, 1] and extrapolate the
+  // tint past its own anchors.
+  it('is clamped, so the tint can never be extrapolated past its anchors', () => {
+    expect(prismChromaSkew(12)).toBe(1);
+    expect(prismChromaSkew(-12)).toBe(-1);
+  });
+});
+
+describe('prismChromaBlend - the colour that actually flows', () => {
+  const dur = 120, HUE = 200;
+
+  // THE MOST IMPORTANT TEST IN THIS BLOCK, and it is deliberately two
+  // assertions rather than one.
+  //
+  // A colour that changed in TIME but was uniform along the chord is exactly
+  // the `hue0` drift the layer already had -- the author's original report,
+  // "a solid sheet of coloured plastic shifting hues across its ribs". A
+  // colour that varied along the chord but not in time is a static rainbow
+  // painted on the wire. Advection is BOTH, and only both.
+  //
+  // CATCHES: binding the tint to k, to u, or to t alone.
+  it('changes at a fixed point over time AND along the chord at a fixed time', () => {
+    const overTime = [20, 40, 60, 80, 100].map(t => colourAt(0.5, 0, t, dur, HUE));
+    expect(spread(overTime)).toBeGreaterThan(0.05);
+
+    const alongChord = [0.3, 0.4, 0.5, 0.6, 0.7].map(u => colourAt(u, 0, 60, dur, HUE));
+    expect(spread(alongChord)).toBeGreaterThan(0.05);
+  });
+
+  // THE FALSIFIER FOR THE TEST ABOVE. If the tint were on something other than
+  // the wave, a chord the wave has already left would vary too, and the two
+  // assertions above would pass on something that was never advecting at all.
+  it('is EXACTLY the resting colour along a chord the wave has left', () => {
+    // FLAT IS NOT ENOUGH, and a mutation proved it: a blend that ignored the
+    // amplitude entirely still comes out flat once the phase clamps, just the
+    // wrong colour everywhere. So this asserts the VALUE, not the variance.
+    const base = restingColour(HUE);
+    for (const u of [0.3, 0.4, 0.5, 0.6, 0.7]) {
+      const c = colourAt(u, 0, dur * 3, dur, HUE);
+      expect(c[0]).toBe(base[0]);
+      expect(c[1]).toBe(base[1]);
+      expect(c[2]).toBe(base[2]);
+    }
+  });
+
+  // The same contract prismWaveMix keeps for alpha, and for the same reason:
+  // once the pass is over the layer must draw precisely the colour the author
+  // signed off, not a colour that converges on it.
+  //
+  // CATCHES: a tint that decays asymptotically -- the toBeCloseTo asymptote
+  // trap this project has paid for three times.
+  it('is EXACTLY the resting colour at zero weight', () => {
+    const base = restingColour(HUE);
+    const out = new Float32Array(3);
+    prismChromaBlend(out, 0, base, tintAnchors(HUE), 0, 3, 0, 0.7);
+    expect(out[0]).toBe(base[0]);
+    expect(out[1]).toBe(base[1]);
+    expect(out[2]).toBe(base[2]);
+  });
+
+  // CATCHES: a symmetric tint. Without this the front wears the same colour
+  // coming and going, which is a throb rather than a direction.
+  it('tints the leading edge differently from the wake', () => {
+    expect(prismTintHue(HUE, 1)).not.toBe(prismTintHue(HUE, -1));
+    const base = restingColour(HUE), tints = tintAnchors(HUE);
+    const lead = new Float32Array(3), wake = new Float32Array(3);
+    prismChromaBlend(lead, 0, base, tints, 0, 3, 1, 1);
+    prismChromaBlend(wake, 0, base, tints, 0, 3, 1, -1);
+    expect(spread([lead, wake])).toBeGreaterThan(0.02);
+  });
+
+  it('writes at the offset it is given and touches nothing else', () => {
+    const out = new Float32Array(9).fill(-1);
+    prismChromaBlend(out, 3, restingColour(HUE), tintAnchors(HUE), 0, 3, 1, 0);
+    expect(out[2]).toBe(-1);
+    expect(out[6]).toBe(-1);
+    expect(out[3]).not.toBe(-1);
+  });
+});
+
+describe('the tint bound - and the reading it exists to prevent', () => {
+  // THE FAILURE MODE THIS WHOLE LINE OF WORK BEGAN WITH. The author's first
+  // report on the prism was that it "jumps erratically between wire indices":
+  // hues sliding sideways through a static brightness ladder. Spectral lines
+  // sit PRISM_HUE_STEP apart, so a crest allowed to rotate a full step would
+  // wear the neighbouring strand's resting colour and rebuild that reading out
+  // of the fix for it.
+  //
+  // CATCHES: PRISM_HUE_LEAD or PRISM_HUE_SKEW raised to chase a more obvious
+  // colour surge. Asserted against PRISM_HUE_STEP, never a literal, so it
+  // still holds if the spectral spacing itself is ever retuned.
+  it('keeps the largest excursion well inside one spectral step', () => {
+    expect(PRISM_HUE_LEAD + PRISM_HUE_SKEW).toBeLessThan(0.75 * PRISM_HUE_STEP);
+    expect(PRISM_HUE_LEAD - PRISM_HUE_SKEW).toBeGreaterThan(0);
+  });
+
+  // The falsifier: a bound satisfied by a rotation of zero would be no bound
+  // at all, and the colour would not move.
+  it('is nonetheless a real rotation', () => {
+    expect(PRISM_HUE_LEAD).toBeGreaterThan(10);
+    expect(PRISM_HUE_SKEW).toBeGreaterThan(0);
   });
 });

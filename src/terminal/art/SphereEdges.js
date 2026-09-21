@@ -813,7 +813,7 @@ export function unpackFlags(packed, glowQuant = GLOW_QUANT_SRC_OVER) {
  * separately without measuring first.
  */
 export function writePolyline(state, pts, m, rgb, alpha, width, flags,
-                              phase0 = 0, alphas = null) {
+                              phase0 = 0, alphas = null, rgbs = null) {
   const cap = edgeCapacity(state);
   const data = state.data;
   // Hoisted for the scalar path exactly as before — ONE packAlphas call for
@@ -821,6 +821,9 @@ export function writePolyline(state, pts, m, rgb, alpha, width, flags,
   // which is the only reason this is a branch rather than an unconditional
   // rewrite: the prism writes ~74000 instances in its worst frame.
   const packed = alphas === null ? packAlphas(alpha, alpha, alpha) : 0;
+  // `rgb` is still the fallback and still the ONLY colour most callers pass;
+  // `rgbs`, when given, is 3 floats per POINT and segment i reads points i and
+  // i+1, so the ramp is C0 across every joint exactly as the alphas are.
   let written = 0;
   let phase = phase0;
   for (let i = 0; i + 1 < m; i++) {
@@ -830,9 +833,27 @@ export function writePolyline(state, pts, m, rgb, alpha, width, flags,
     data[o + 1] = pts[i * 2 + 1];
     data[o + 2] = pts[i * 2 + 2];
     data[o + 3] = pts[i * 2 + 3];
-    data[o + 4]  = rgb[0]; data[o + 5]  = rgb[1]; data[o + 6]  = rgb[2];
-    data[o + 7]  = rgb[0]; data[o + 8]  = rgb[1]; data[o + 9]  = rgb[2];
-    data[o + 10] = rgb[0]; data[o + 11] = rgb[1]; data[o + 12] = rgb[2];
+    // PER-POINT COLOUR, the exact twin of the per-point alpha below.
+    //
+    // These three slots have ALWAYS been a three-stop gradient that the
+    // fragment shader interpolates along the segment; writing one rgb into all
+    // three degenerates it to flat, which is what every caller did and what
+    // made the prism's travelling wave read as "a light shining through
+    // stained glass" -- brightness moving under a colour pinned to the wire.
+    // Passing `rgbs` lights the gradient up. It costs no floats: the stops
+    // were already in the layout and already bound as aC0/aC1/aC2.
+    if (rgbs === null) {
+      data[o + 4]  = rgb[0]; data[o + 5]  = rgb[1]; data[o + 6]  = rgb[2];
+      data[o + 7]  = rgb[0]; data[o + 8]  = rgb[1]; data[o + 9]  = rgb[2];
+      data[o + 10] = rgb[0]; data[o + 11] = rgb[1]; data[o + 12] = rgb[2];
+    } else {
+      const j0 = i * 3, j1 = j0 + 3;
+      data[o + 4]  = rgbs[j0];     data[o + 5]  = rgbs[j0 + 1]; data[o + 6]  = rgbs[j0 + 2];
+      data[o + 7]  = (rgbs[j0]     + rgbs[j1])     * 0.5;
+      data[o + 8]  = (rgbs[j0 + 1] + rgbs[j1 + 1]) * 0.5;
+      data[o + 9]  = (rgbs[j0 + 2] + rgbs[j1 + 2]) * 0.5;
+      data[o + 10] = rgbs[j1];     data[o + 11] = rgbs[j1 + 1]; data[o + 12] = rgbs[j1 + 2];
+    }
     // PER-POINT alphas. Segment i's END stop is segment i+1's START stop BY
     // CONSTRUCTION, so the ramp is C0 across every joint.
     data[o + 13] = alphas === null
