@@ -126,3 +126,84 @@ export function discInkCorrection(radius) {
   const r2 = radius * radius;
   return r2 / (r2 + BOX_FILTER_EXCESS_PX2);
 }
+
+// ── Velocity-stretched streaks ──────────────────────────────────────────────
+//
+// A particle's soft glow was a disc with a three-stop RADIAL ramp. It is now a
+// SEGMENT from where the particle was last frame to where it is now, stretched
+// along that displacement — a width and a head-to-tail gradient, drawn by the
+// mesh's existing segment branch. No shader, no new float, and the instance
+// count per particle stays at two.
+//
+// THE FIDELITY LOSS, corrected after a whole-branch review found this comment
+// overstating what survives. An earlier draft claimed the streak keeps "a
+// gaussian shoulder". IT DOES NOT: PARTICLE_FLAGS is packFlags(0, 0, 0, ...),
+// so the glow byte is zero, and edgeFrag gates the entire shoulder term behind
+// step(0.001, vGlow). There is no shoulder on either arm.
+//
+// So the loss is larger than first recorded. It is not only the ramp's radial
+// DARKENING (lightness 82 -> 65 -> 50, knee at 0.4 — see GLOW_STOPS and
+// GLOW_OUTER_K) but the radial softness entirely: the disc's half-width was
+// 3.5 * sz (particleGlowRadius) and the segment's is sz / 2, about SEVEN TIMES
+// thinner. What replaces a soft round glow is a hard box-filtered line.
+//
+// That asymmetry is also why the two arms are not interchangeable near the
+// STREAK_MIN_PX threshold — see the note on the fallback there.
+
+/** How far the one-frame displacement is exaggerated. A frame's real
+ *  displacement is sub-pixel at any sane speed, so an un-stretched streak is a
+ *  dot; this is the knob that turns motion into a needle. Tuned by eye. */
+export const STREAK_STRETCH = 5;
+
+/** Below this stretched length in px the caller must draw the DISC instead.
+ *  See `streakTail`'s note — a zero-length segment is not a disc. */
+export const STREAK_MIN_PX = 0.75;
+
+/**
+ * The tail end of a particle's streak, in screen px, and whether it is long
+ * enough to draw as one.
+ *
+ * `degenerate` is not defensive. `isDisc()` keys on the width SIGN, so a
+ * segment written with `a == b` takes the SEGMENT path: `len` is 0, `dir`
+ * falls back to (1,0), `t` is 0, and the cap term
+ * `clamp(vAlong/pxA + 0.5) * clamp((vLen - vAlong)/pxA + 0.5)` evaluates to
+ * 0.25 at the centre. The result is a faint quarter-alpha blob exactly where a
+ * spark should be — a stalled particle rendering as a dimmer, wrongly-shaped
+ * dot, which reads as a bug in the ecology rather than in the encoding.
+ */
+// `dtFrames` is REQUIRED, deliberately — the same call stepParticles makes and
+// for the same reason. A default of 1 silently restores the per-DRAW
+// behaviour for any caller that forgets it, which is precisely the bug this
+// parameter exists to remove.
+export function streakTail(headX, headY, prevX, prevY, dtFrames) {
+  // NORMALISED TO ONE AUTHORED FRAME, and this is not a refinement — without it
+  // the whole layer is a function of the viewer's refresh rate.
+  //
+  // `stepParticles` records the previous position once per CALL, so
+  // `head - prev` is one REAL frame of displacement, i.e. `dtFrames` authored
+  // frames' worth. Stretching that by a constant makes a 360Hz streak six times
+  // shorter than a 60Hz one. MEASURED consequence at the author's 360Hz: edge
+  // streaks fall from ~42px to ~7px, burst streaks from 4.4-17.6px to
+  // 0.73-2.9px, and the idle emitter drops below STREAK_MIN_PX entirely and
+  // silently reverts to discs — the layer would not exist on his panel.
+  //
+  // Dividing by `dtFrames` makes a streak mean the same thing at any rate: one
+  // authored frame of travel, stretched.
+  //
+  // THE CAPTURE HARNESS CANNOT SEE THIS CLASS OF BUG. artCompare and
+  // determinism.mjs virtualise the clock at exactly 1000/60, so every reference
+  // frame renders the 60Hz streak and 21/21 ADMISSIBLE says nothing whatever
+  // about any other rate. It has to be pinned by a composition test instead.
+  //
+  // dtFrames of 0 is a floored clock passing no time: stepParticles returns
+  // early, prev equals head, and this must degenerate rather than divide by
+  // zero and write NaN endpoints into the instance buffer.
+  const inv = dtFrames > 1e-6 ? 1 / dtFrames : 0;
+  const dx = (headX - prevX) * inv * STREAK_STRETCH;
+  const dy = (headY - prevY) * inv * STREAK_STRETCH;
+  return {
+    x: headX - dx,
+    y: headY - dy,
+    degenerate: Math.hypot(dx, dy) < STREAK_MIN_PX,
+  };
+}

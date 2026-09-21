@@ -2,7 +2,9 @@ import { describe, it, expect } from 'vitest';
 import {
   createParticlePool, emitParticle, stepParticles,
   PARTICLE_DRAG, PARTICLE_HUE_BLEND, MAX_PARTICLES,
+  emitEdgeParticles, EDGE_PARTICLE_SPEED_K, edgeLaunchK, PARTICLE_PULL,
 } from '../artParticles.js';
+import { decayOverFrames, driftOverFrames } from '../artRateGate.js';
 
 // ── The particle ECOLOGY is integrated on the clock, not on draws ────────────
 //
@@ -150,5 +152,189 @@ describe('stepParticles — the same wall-clock window, at any refresh rate', ()
     const pool = createParticlePool();
     stepParticles(pool, 1);
     for (let i = 0; i < MAX_PARTICLES; i++) expect(pool.lifes[i]).toBe(0);
+  });
+});
+
+describe('edge particles have the range to cross their own edge', () => {
+  it('carries a launch speed that drifts exactly one edge under the real integrator', () => {
+    // NOT `toBeCloseTo(1 - PARTICLE_DRAG)` — that restates the constant's own
+    // definition and cannot fail while the definition is copied into it. This
+    // runs the integrator's own arithmetic (add v, then decay) and asserts the
+    // CONSEQUENCE: a unit edge is exactly covered. A wrong constant fails here
+    // however tidily it was written.
+    let x = 0, v = EDGE_PARTICLE_SPEED_K;
+    for (let f = 0; f < 2000; f++) { x += v; v *= PARTICLE_DRAG; }
+    expect(x).toBeCloseTo(1, 6);
+  });
+
+  it('reduces to the plain drag coefficient when there is no arrival term', () => {
+    // The identity that keeps edgeLaunchK and EDGE_PARTICLE_SPEED_K from
+    // drifting: at pull = 0 the denominator is 1 and the formula IS 1 - DRAG.
+    expect(edgeLaunchK(0)).toBeCloseTo(EDGE_PARTICLE_SPEED_K, 12);
+  });
+
+  it('NEVER passes the node, at the pull the emitter actually ships with', () => {
+    // The configuration production uses is pull = 1 -- both ArtTab call sites
+    // omit the argument. Drag and arrival both aim at B and SUPERPOSE, so a
+    // speed sized for the whole remaining distance overshoots: MEASURED peak
+    // 1.124 of the way along the edge before this, about 40-60px past the node
+    // at 900x700, and a particle lives 60-130 frames, squarely in that
+    // transient.
+    //
+    // This walks the real per-frame map rather than the emitter, so it pins the
+    // PROPERTY (the error never changes sign) and not a sampled position.
+    //
+    // BOTH SIDES ARE ASSERTED, and that is the point. `peak <= 1` alone is
+    // one-sided: with the arrival term on, the pull drags the particle to B
+    // whatever the launch speed, so "it arrives" is vacuous at pull > 0 —
+    // MEASURED, a launch speed of ZERO still finishes at 0.9999999999999997.
+    // That is the same trap the range test fell into. The derivation supplies
+    // the tight assertion for free: collapsing the recursion gives
+    // e_n = e_0 * D^n exactly, so x_n = 1 - D^n at every n and every pull.
+    for (const pull of [0, 0.25, 0.5, 1]) {
+      const p = PARTICLE_PULL * pull;
+      let x = 0, v = edgeLaunchK(pull), peak = 0;
+      for (let n = 1; n <= 4000; n++) {
+        x += v; v *= PARTICLE_DRAG; x += (1 - x) * p;
+        peak = Math.max(peak, x);
+        // The trajectory itself, not just its endpoint. A wrong coefficient —
+        // too small as readily as too large — leaves this immediately.
+        if (n === 10 || n === 50) {
+          expect(x).toBeCloseTo(1 - Math.pow(PARTICLE_DRAG, n), 9);
+        }
+      }
+      expect(peak).toBeLessThanOrEqual(1 + 1e-9);   // never overshoots
+      expect(x).toBeCloseTo(1, 6);                  // and still arrives
+    }
+  });
+
+  it('still does not pass the node at the SUB-FRAME steps a 360Hz panel takes', () => {
+    // The collapse above is exact at dt = 1 ONLY. driftOverFrames and the pull
+    // each compose, but they are INTERLEAVED and do not commute, so the
+    // composite map does not compose across dt — a fact this whole branch is
+    // otherwise about. The shipped speed is the dt = 1 form.
+    //
+    // MEASURED residual peak over the real rate-gated map: +5.1e-6 of an edge
+    // at the shipped pull = 1 and dt = 1/6, worst +5.1e-4 across all pull. On a
+    // ~300px edge that is ~0.0015px — three orders below a pixel — so it is a
+    // bound worth stating rather than a defect. Pinned so it stays a bound.
+    for (const pull of [0, 0.19, 0.5, 1]) {
+      for (const dt of [1 / 12, 1 / 6, 1 / 2]) {
+        const p = 1 - decayOverFrames(1 - PARTICLE_PULL * pull, dt);
+        const mv = driftOverFrames(PARTICLE_DRAG, dt);
+        const dc = decayOverFrames(PARTICLE_DRAG, dt);
+        let x = 0, v = edgeLaunchK(pull), peak = 0;
+        for (let n = 0; n < Math.round(2000 / dt); n++) {
+          x += v * mv; v *= dc; x += (1 - x) * p;
+          peak = Math.max(peak, x);
+        }
+        expect(peak).toBeLessThanOrEqual(1 + 1e-3);
+        expect(x).toBeCloseTo(1, 5);
+      }
+    }
+  });
+
+  it('traverses the REST of the edge from wherever along it it was seeded', () => {
+    const pool = createParticlePool();
+    // `pull = 0`, and that is the whole point of this test. emitEdgeParticles
+    // defaults pull to 1, and the arrival term alone drags a particle to its
+    // target regardless of launch speed — MEASURED: with the old 0.002
+    // coefficient restored this assertion still passed at xs = 0.9997. The
+    // test could not fail for the reason it exists. Turning the pull off
+    // isolates the drag kinematics, which is what the launch speed is for.
+    emitEdgeParticles(pool, 0, 0, 0, 1, 0, 0, 10, 20, 1, 0);
+    const i = 0;
+    // The seed position is deliberately NOT overwritten. A particle is born at
+    // `t = artRandom()` along the edge and launched at `(1 - t)` of the full
+    // speed, so it asymptotes to `t + (1 - t)` = B exactly. Zeroing the
+    // position here — as this test used to — would leave it aimed at `1 - t`
+    // and assert an arrival it can no longer make.
+    //
+    // maxLife IS pinned: emitEdgeParticles draws it from the shared
+    // artRandom() stream (60-130 frames), stepParticles freezes a particle at
+    // that cap, and 60-130 frames is only 2.2-4.7 e-foldings — short of the
+    // asymptote. Left on the draw, this failed on roughly half of all runs.
+    pool.maxLifes[i] = 1000;
+    for (let f = 0; f < 400; f++) stepParticles(pool, 1);
+    // Asymptotically 1.0; 400 frames is ~14 e-foldings, so within a whisker.
+    // The velocity jitter is +/-0.0004, i.e. +/-0.011 of displacement.
+    expect(pool.xs[i]).toBeGreaterThan(0.97);
+    expect(pool.xs[i]).toBeLessThan(1.03);
+  });
+
+  it('was travelling 5.5% of an edge before this — the regression this locks out', () => {
+    // The old coefficient. Kept as an explicit number rather than a comment so
+    // that a future 'tidy the magic numbers' pass cannot quietly restore it.
+    const OLD = 0.002;
+    expect(OLD / (1 - PARTICLE_DRAG)).toBeLessThan(0.06);
+  });
+});
+
+describe('particle arrival — an exponential approach, not a spring', () => {
+  const seed = (pull) => {
+    const pool = createParticlePool();
+    emitParticle(pool, 0, 0, 0, 0, 0, 0, 10, 10, 50, 1, 500, 1, 0, 0, pull);
+    return pool;
+  };
+
+  it('COMPOSES: N sub-steps of dt/N land where one step of dt lands', () => {
+    // The whole reason this is a positional approach and not `v += (T-P)*k*dt`.
+    // A Euler spring does not compose, and at dt = 1 it agrees with the
+    // correct form exactly -- so a dt = 1 test would pass on the broken one.
+    const whole = seed(1);
+    stepParticles(whole, 6);
+
+    const split = seed(1);
+    for (let i = 0; i < 6; i++) stepParticles(split, 1);
+
+    expect(split.xs[0]).toBeCloseTo(whole.xs[0], 9);
+    expect(split.ys[0]).toBeCloseTo(whole.ys[0], 9);
+    expect(split.zs[0]).toBeCloseTo(whole.zs[0], 9);
+  });
+
+  it('composes at a fractional sub-step too, which is what a 360Hz panel gives', () => {
+    const whole = seed(1); stepParticles(whole, 1);
+    const split = seed(1); for (let i = 0; i < 6; i++) stepParticles(split, 1 / 6);
+    expect(split.xs[0]).toBeCloseTo(whole.xs[0], 9);
+  });
+
+  it('puts the per-particle strength INSIDE the exponent, not outside the result', () => {
+    // The trap: `approach * pulls[i]` scales the COMPOSED factor and breaks
+    // composition per particle. The strength has to scale the RATE, i.e. the
+    // base that gets raised to dt. Two particles at half strength stepped six
+    // times must still equal one step of six.
+    const whole = seed(0.5); stepParticles(whole, 6);
+    const split = seed(0.5); for (let i = 0; i < 6; i++) stepParticles(split, 1);
+    // Precision 7, not 9: xs is a Float32Array, and this path rounds to f32 on
+    // every one of the 6 sub-steps against 1 rounding for the whole step. In
+    // double precision the two forms agree to 1e-17 (MEASURED) -- the law
+    // composes exactly. One float32 ULP at this position is 3.725e-9; precision 7
+    // yields tolerance 5e-8 (13.4x that noise floor, stable). Precision 9 (5e-10)
+    // is tighter than one ULP and fails on correct implementations. The actual bug
+    // this test exists to catch (strength outside the exponent) diverges by 1.441e-3
+    // (29,000x the precision-7 tolerance), so discrimination is unaffected. Same
+    // convention as the structurally identical position-composition test at line 129.
+    expect(split.xs[0]).toBeCloseTo(whole.xs[0], 7);
+  });
+
+  it('approaches the target and never overshoots it', () => {
+    const pool = seed(1);
+    let prev = -Infinity;
+    for (let f = 0; f < 200; f++) {
+      stepParticles(pool, 1);
+      expect(pool.xs[0]).toBeLessThanOrEqual(1 + 1e-9);
+      expect(pool.xs[0]).toBeGreaterThanOrEqual(prev - 1e-9);
+      prev = pool.xs[0];
+    }
+    expect(pool.xs[0]).toBeGreaterThan(0.9);
+  });
+
+  it('is EXACTLY inert at pull = 0, so every untargeted emitter is untouched', () => {
+    const pulled = seed(0);
+    const plain = createParticlePool();
+    emitParticle(plain, 0, 0, 0, 0.01, 0, 0, 10, 10, 50, 1, 500);
+    pulled.vxs[0] = 0.01;
+    for (let i = 0; i < 50; i++) { stepParticles(pulled, 1); stepParticles(plain, 1); }
+    expect(pulled.xs[0]).toBe(plain.xs[0]);
   });
 });

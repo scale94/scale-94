@@ -14,8 +14,9 @@ import {
   ORTHO_DASH, SPECTRAL_DASH,
   orthoHue, orthoGlow, fusedGlow, resonanceGlow, resonanceWidths, resonanceStops,
   RESONANCE_GOLD, RESONANCE_HALO_MID, RESONANCE_CORE_MID, RESONANCE_SHADOW_ALPHA,
-  pulseRingRadius, pulsePosition, edgeStops, edgeLineWidth,
+  pulseRingRadius, pulsePosition, edgeStops, edgeLineWidth, EDGE_TAPER_PX,
   prismOffset, prismChordAlpha, prismGlowWidth, prismControl, prismSpokeHue,
+  PRISM_CP_OFF_X, PRISM_CP_OFF_Y,
   PRISM_CORE_W, PRISM_MAX_NODES, PRISM_MAX_EFFECTS, PRISM_SPECTRAL_FINE,
   arcControl,
   filamentDepthFade, filamentAlpha, filamentHue, filamentGlowWidth,
@@ -402,7 +403,10 @@ describe('packFlags / unpackFlags', () => {
   });
 
   it('stays exactly representable at the largest real payload it can carry', () => {
-    const p = packFlags(255, 255, 127 / 8, true);
+    // The duty byte is seven bits since the taper flag took its top bit (see
+    // "the taper bit" describe block below), so the largest duty is 127, not
+    // 255 -- reaching a full 0xff duty byte now takes duty=127 AND taper=true.
+    const p = packFlags(255, 127, 127 / 8, true, SRC_OVER_LAYER.glowQuant, true);
     expect(p).toBe(255 + 255 * 256 + 255 * 65536);
     expect(Math.fround(p)).toBe(p);
   });
@@ -716,6 +720,7 @@ describe('syncEdgeLayer', () => {
     uniforms: {
       uResolution: { value: { set: vi.fn() } },
       uOrthoHue: { value: 0 },
+      uTaperPx: { value: 0 },
     },
     buffer: { needsUpdate: false, addUpdateRange: vi.fn() },
   });
@@ -787,16 +792,27 @@ describe('prism chord bundle', () => {
   });
 
   it('pulls the control point 55% toward the sphere centre, from the UNSHIFTED midpoint', () => {
-    // The draw loop takes midX/midY from pA.sx/pB.sx WITHOUT the spectral
-    // offset, then adds offset*2 and offset*1.4 to the result. Reproducing it
-    // from the shifted endpoints instead moves every chord by up to 8.4px.
+    // The chord's ENDPOINTS now sit on the node centres and the whole spectral
+    // offset lives in the control point, so the bundle fans from a point
+    // instead of arriving as a parallel comb. The mid-chord width is
+    // unchanged: a quadratic weights its control point at 1/2 at t = 0.5, so
+    // (0 + 2*3 + 0)/4 = 1.5 is exactly what (1 + 2*2 + 1)/4 used to give.
     //   mid (200,300), centre (760,450), offset 2.8
-    //   cpx = 200 + 560*0.55 + 5.6  = 513.6
-    //   cpy = 300 + 150*0.55 + 3.92 = 386.42
+    //   cpx = 200 + 560*0.55 + 2.8*3.0 = 516.4
+    //   cpy = 300 + 150*0.55 + 2.8*2.0 = 388.1
     const out = [0, 0];
     prismControl(out, 100, 200, 300, 400, 760, 450, 2.8);
-    expect(out[0]).toBeCloseTo(513.6, 10);
-    expect(out[1]).toBeCloseTo(386.42, 10);
+    expect(out[0]).toBeCloseTo(516.4, 10);
+    expect(out[1]).toBeCloseTo(388.1, 10);
+  });
+
+  it('preserves the mid-chord fan width now that the endpoints converge', () => {
+    // The mid-chord offset contribution of a quadratic is
+    // (endOff + 2*cpOff + endOff) / 4. Before: x (1 + 4 + 1)/4 = 1.5,
+    // y (0.6 + 2.8 + 0.6)/4 = 1.0. After, with the ends at zero, the control
+    // point alone must land on the same two numbers.
+    expect((0 + 2 * PRISM_CP_OFF_X + 0) / 4).toBeCloseTo(1.5, 10);
+    expect((0 + 2 * PRISM_CP_OFF_Y + 0) / 4).toBeCloseTo(1.0, 10);
   });
 
   it('takes the spoke hue from the node\'s bearing off centre, wrapped into [0,360)', () => {
@@ -845,7 +861,7 @@ describe('the additive buffer capacity', () => {
     // and the draw call all agreeing that nothing was wrong.
     const layer = {
       mesh: { visible: true }, geometry: { instanceCount: -1 },
-      uniforms: { uResolution: { value: { set: vi.fn() } }, uOrthoHue: { value: 0 } },
+      uniforms: { uResolution: { value: { set: vi.fn() } }, uOrthoHue: { value: 0 }, uTaperPx: { value: 0 } },
       buffer: { needsUpdate: false, addUpdateRange: vi.fn() },
     };
     const state = createEdgeState(MAX_ADDITIVE_EDGES);
@@ -1488,5 +1504,101 @@ describe('the breathing glow shoulder', () => {
     const mid = { x: 0.2, y: -0.3, z: 0.5 }, axis = humAxis(1234), ph = humPhase(1234);
     const w = humWave(mid, axis, ph);
     expect(humGain(mid, axis, ph)).toBeCloseTo(1 + HUM.amplitude * w, 12);
+  });
+});
+
+describe('the taper bit — bit 7 of the dash-duty byte', () => {
+  it('round-trips through pack/unpack', () => {
+    const p = packFlags(8, 4, 6, false, 8, true);
+    const u = unpackFlags(p, 8);
+    expect(u.taper).toBe(true);
+    expect(u.dashPeriod).toBe(8);
+    expect(u.dashDuty).toBe(4);
+    expect(u.glow).toBeCloseTo(6, 10);
+    expect(u.isOrtho).toBe(false);
+  });
+
+  it('defaults to false, so every existing call site packs the byte it always packed', () => {
+    expect(packFlags(8, 4, 6)).toBe(packFlags(8, 4, 6, false, 8, false));
+    expect(unpackFlags(packFlags(8, 4, 6), 8).taper).toBe(false);
+  });
+
+  it('is independent of the isOrtho bit in the glow byte', () => {
+    for (const ortho of [false, true]) {
+      for (const taper of [false, true]) {
+        const u = unpackFlags(packFlags(6, 8, 10, ortho, 8, taper), 8);
+        expect(u.isOrtho).toBe(ortho);
+        expect(u.taper).toBe(taper);
+        expect(u.dashDuty).toBe(8);
+      }
+    }
+  });
+
+  it('clamps the duty to 127 so a caller cannot forge the bit', () => {
+    // The duty byte was clamped to 255 when it held a whole byte. It now holds
+    // seven bits, and a duty of 200 setting the taper flag by accident is
+    // exactly the failure this clamp exists to prevent.
+    expect(unpackFlags(packFlags(0, 200, 0, false, 8, false), 8).taper).toBe(false);
+    expect(unpackFlags(packFlags(0, 200, 0, false, 8, false), 8).dashDuty).toBe(127);
+  });
+
+  it('covers every dash duty the codebase actually uses', () => {
+    // [4,3] [8,4] [3,4] [5,4] [3,6] [3,5] [6,8] -- the whole set is <= 8, which
+    // is what makes bit 7 free. If a new dash ever needs a duty above 127 this
+    // test is where it should fail.
+    for (const duty of [3, 4, 5, 6, 8]) {
+      const u = unpackFlags(packFlags(12, duty, 4, false, 8, true), 8);
+      expect(u.dashDuty).toBe(duty);
+      expect(u.taper).toBe(true);
+    }
+  });
+});
+
+describe('the wire taper — the uniform and the shader contract', () => {
+  it('reaches beyond a node radius so the shoulder is gone before the rim', () => {
+    // A node core is 7-10px at a 900x700 viewport and a base wire carries an
+    // 8.6-9px gaussian shoulder. The taper has to outrun the core, or the glow
+    // simply stops at the silhouette instead of dissolving into it.
+    expect(EDGE_TAPER_PX).toBeGreaterThan(10);
+  });
+
+  it('declares uTaperPx on both materials', () => {
+    for (const spec of [SRC_OVER_LAYER, ADDITIVE_LAYER]) {
+      const layer = createEdgeLayer(null, spec);
+      expect(layer.uniforms.uTaperPx).toBeDefined();
+      expect(layer.uniforms.uTaperPx.value).toBe(0);
+      layer.dispose();
+    }
+  });
+
+  it('takes the taper length from the state each frame, defaulting to 0', () => {
+    const layer = createEdgeLayer(null, SRC_OVER_LAYER);
+    const state = createEdgeState(4);
+    state.count = 1; state.w = 800; state.h = 600; state.taperPx = 17.5;
+    syncEdgeLayer(layer, state);
+    expect(layer.uniforms.uTaperPx.value).toBeCloseTo(17.5, 10);
+    delete state.taperPx;
+    syncEdgeLayer(layer, state);
+    expect(layer.uniforms.uTaperPx.value).toBe(0);
+    layer.dispose();
+  });
+
+  it('applies the taper to the GLOW only, never to the core', () => {
+    // The whole point of choosing this over a full fade: the thread stays
+    // solid to the centre so four wires visibly meet at one point under the
+    // lens. A taper on `core` would dissolve them at the rim instead.
+    const src = createEdgeLayer(null, SRC_OVER_LAYER).material.fragmentShader;
+    expect(src).toMatch(/float\s+core\s*=\s*mix\(side \* cap, disc, vIsDisc\);/);
+    expect(src).toMatch(/\* taper;/);
+    // The taper multiply must be on the `glow` line, not the `core` one.
+    const coreLine = src.split('\n').find(l => /float\s+core\s*=/.test(l));
+    expect(coreLine).not.toMatch(/taper/);
+  });
+
+  it('collapses to 1 for a disc and for any instance without the bit', () => {
+    const src = createEdgeLayer(null, SRC_OVER_LAYER).material.fragmentShader;
+    // vTaper is multiplied by (1 - vIsDisc) so a ring can never take it, and
+    // mix(1.0, ..., 0.0) is exactly 1 for every instance that omits the flag.
+    expect(src).toMatch(/mix\(1\.0, taperT, vTaper \* \(1\.0 - vIsDisc\)\)/);
   });
 });

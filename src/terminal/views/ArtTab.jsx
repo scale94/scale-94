@@ -36,6 +36,7 @@ import {
   particleAlpha, particleVisible, particleSize, particleGlowRadius,
   particleInFront, quantHue, quantAlpha,
   GLOW_STOPS, CORE_LIGHTNESS, CORE_ALPHA_SCALE, GLOW_OUTER_K, discInkCorrection,
+  streakTail,
 } from '../art/artParticleDraw.js';
 import { somaPresence } from '../net/SomaPresence';
 import { ecoDataFeed } from '../data/EcoDataFeed';
@@ -71,7 +72,7 @@ import { quadSegments, tessellateQuad, CURVE_MAX_SEGMENTS } from '../art/artCurv
 import {
   nodeEnergy, depthCueAlpha, resonanceDimmed, nodeRadius, coreAlpha,
   birthProgress, birthProject, bleedMix, spectralTint,
-  coreIsOpaque, coreColorSource,
+  coreIsOpaque, coreColorSource, lensStops,
   haloDraws, haloRadius, haloInnerRadius, haloAlpha, strokeAnnulus,
   chimeraSyncPulse, chimeraSyncAlpha, chimeraSyncRadius, CHIMERA_ALPHA_CUTOFF,
   chimeraFlickRate, chimeraFlickAlpha, chimeraFlickRadius, chimeraFlickHue,
@@ -96,7 +97,7 @@ import {
   ORTHO_ALPHA_BOOST, ORTHO_MID_ALPHA_BOOST,
   PULSE_ALPHA, PULSE_DRAW_CUTOFF,
   prismOffset, prismChordAlpha, prismGlowWidth, prismControl, prismSpokeHue,
-  PRISM_SPECTRAL_FINE, PRISM_SPECTRAL_COARSE, PRISM_HUE_STEP, PRISM_END_OFF_Y,
+  PRISM_SPECTRAL_FINE, PRISM_SPECTRAL_COARSE, PRISM_HUE_STEP,
   PRISM_SAT, PRISM_GLOW_LIT, PRISM_GLOW_ALPHA_K, PRISM_CORE_LIT, PRISM_CORE_W,
   PRISM_POLY_HUE_STEP, PRISM_POLY_LIT, PRISM_POLY_ALPHA_K, PRISM_POLY_W,
   PRISM_SPOKE_SAT, PRISM_SPOKE_LIT, PRISM_SPOKE_ALPHA_K, PRISM_SPOKE_W,
@@ -110,6 +111,7 @@ import {
   chimeraDashOffset, CHIMERA_MIN_STRENGTH, CHIMERA_CP_PULL, CHIMERA_DASH,
   CHIMERA_SAT, CHIMERA_LIT, CHIMERA_MAX_ZONES,
   humPhase, humAxis, humGain, humWave, humGlowRadius,
+  EDGE_TAPER_PX,
 } from '../art/artEdges';
 import {
   stepAwakening, resetAwakeningCadence, beaconRingState, conductorState, CONDUCTOR,
@@ -1249,6 +1251,19 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       const ag = addGLRef.current;
       ag.count = 0;
       ag.dropped = 0;
+      // Reset WITH the count, not only at the particle loop. This is a property
+      // persisted on the ref, and the draw body is inside a try -- a frame that
+      // threw between here and the particle loop would leave LAST frame's index
+      // standing against a fresh, smaller count, and a reader would take real
+      // prism instances for particles.
+      //
+      // MINUS ONE, not zero, and the distinction is the whole point. The
+      // composite still presents on a thrown frame, so the state IS readable in
+      // that condition; 0 would mean "everything from index 0 is a particle",
+      // i.e. trading a partly-wrong classification for a wholly-wrong one. A
+      // negative value is UNSET, and artPresence falls back to its old shape
+      // test rather than believing it.
+      ag.particleStart = -1;
       ag.w = w; ag.h = h;
       // Scratch shared with the prism block below: tessellation points, the
       // control point, and writeHsl's 3-float output. Nothing here allocates.
@@ -1404,6 +1419,10 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       // The CSS space these endpoints live in, published with them so the GL
       // layer never has to guess it from a measurement that can lag.
       eg.w = w; eg.h = h;
+      // Scaled by `ink` for the same reason every radius in this loop is: it
+      // is one number for the whole frame, so the taper stays a fixed fraction
+      // of a node radius at every viewport.
+      eg.taperPx = EDGE_TAPER_PX * ink;
       if (es) {
         // Sort edges: far first
         const sortedEdges = [...es].sort((eA, eB) => {
@@ -1573,6 +1592,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
                 isFused ? fusedGlow(fuseCos) : humGlowRadius(_humW, e.pulse, sphereR),
               );
             }
+            // The terminal taper, on the base edges alone. Bit 7 of the
+            // dash-duty byte; see packFlags. OR'd in after the branch so both
+            // paths (ortho / default, the latter covering fused and spectral)
+            // get it from one place and neither can be missed.
+            ed[o + 15] += 128 * 256;
             eg.count++;
           }
 
@@ -1776,8 +1800,13 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
                 // Control point pulled toward sphere center — creates interior arc
                 // illusion. From the UNSHIFTED midpoint; see prismControl().
                 prismControl(ctrl, pA.sx, pA.sy, pB.sx, pB.sy, cx, cy, offset);
-                const x0 = pA.sx + offset, y0 = pA.sy + offset * PRISM_END_OFF_Y;
-                const x1 = pB.sx + offset, y1 = pB.sy + offset * PRISM_END_OFF_Y;
+                // The chord terminates ON the node centre. Every spectral
+                // line's offset is in the control point (PRISM_CP_OFF_X/Y), so
+                // the bundle opens from a point and closes onto one — which is
+                // what dispersion looks like, and what the polygon and the
+                // spokes already did.
+                const x0 = pA.sx, y0 = pA.sy;
+                const x1 = pB.sx, y1 = pB.sy;
 
                 // Flattened ONCE and drawn twice: both passes are the same
                 // curve, so they share the point list and therefore land on
@@ -1934,11 +1963,20 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           // spectral tint — both are the canvas's own behaviour, not a
           // simplification. coreIsOpaque() / coreColorSource() name them.
           const _hov = coreIsOpaque(isHov);
+          const _lensCol = coreColorSource(renderCol, _preTint, _hov);
+          const _lens = _hov ? null : lensStops(coreAlpha(energy, depthAlpha));
           writeDisc(eg.data, eg.count * EDGE_STRIDE, {
             cx: p.sx, cy: p.sy,
             rOuter: radius,
-            hsl: coreColorSource(renderCol, _preTint, _hov),
-            alpha: _hov ? 1 : coreAlpha(energy, depthAlpha),
+            hsl: _lensCol,
+            // A hovered core stays FLAT and opaque — see coreIsOpaque().
+            alpha: _hov ? 1 : _lens.center,
+            // The same colour in the mid stop, and outerK left at 0, so the
+            // three-stop machinery carries opacity alone. Omitting `mid`
+            // entirely on hover keeps that instance byte-identical to what it
+            // has always been.
+            mid: _lens ? { at: _lens.at, hsl: _lensCol, alpha: _lens.knee } : null,
+            outerAlpha: _lens ? _lens.rim : 0,
             flags: packFlags(0, 0, 0),
           });
           eg.count++;
@@ -2351,6 +2389,13 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       // partial `destination-out` clear gave them. That is the deficit that
       // cost steps 3 and 4, and it is measured in this step's report rather
       // than assumed.
+      //
+      // Every additive instance written from here on is a PARTICLE (a
+      // velocity-stretched segment, or the degenerate disc streakTail falls
+      // back to below). Publishing the boundary is what keeps a reader from
+      // having to shape-match a streak's width against a prism chord core's —
+      // exactly as discStart does for the source-over stream.
+      ag.particleStart = ag.count;
       for (let pi = 0; pi < MAX_PARTICLES; pi++) {
         if (pool.lifes[pi] >= pool.maxLifes[pi] || pool.maxLifes[pi] === 0) continue;
         const alpha = particleAlpha(pool.lifes[pi] / pool.maxLifes[pi]);
@@ -2369,25 +2414,58 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         // glow, which would leave a bare dot where a lit particle should be.
         if (ag.count + 1 >= MAX_ADDITIVE_EDGES) break;
 
-        // Soft radial glow — the THREE-STOP ramp, now as one disc instance.
-        // Lightness falls with the alpha (82 -> 65 -> 50) and the knee is at
-        // 0.4, not the midpoint; the outer colour is EXTRAPOLATED from the
-        // other two rather than stored, because the three are collinear in RGB
-        // above l = 0.5. See DISC_OFF.outerK.
-        writeDisc(ag.data, ag.count * EDGE_STRIDE, {
-          cx: pp.sx, cy: pp.sy,
-          rOuter: particleGlowRadius(sz),
-          hsl: { hue, sat, lit: GLOW_STOPS[0].lightness },
-          alpha: quantAlpha(alpha * GLOW_STOPS[0].alphaScale),
-          mid: {
-            at: GLOW_STOPS[1].at,
-            hsl: { hue, sat, lit: GLOW_STOPS[1].lightness },
-            alpha: quantAlpha(alpha * GLOW_STOPS[1].alphaScale),
-          },
-          outerK: GLOW_OUTER_K,
-          outerAlpha: quantAlpha(alpha * GLOW_STOPS[2].alphaScale),
-          flags: PARTICLE_FLAGS,
-        });
+        // The previous frame's projected position, so the glow can stretch
+        // along the particle's own displacement rather than sit as a disc.
+        const [qrx, qry, qrz] = applyM(M, pool.pxs[pi], pool.pys[pi], pool.pzs[pi]);
+        const qp = project(qrx, qry, qrz, w, h, sphereR, focal);
+        // `_dtFrames` normalises the displacement to ONE AUTHORED FRAME, so a
+        // streak is the same length at 60Hz and at 360Hz. See streakTail.
+        const _st = streakTail(pp.sx, pp.sy, qp.sx, qp.sy, _dtFrames);
+
+        if (_st.degenerate) {
+          // Too short to be a segment — and a zero-length segment is NOT a
+          // disc. See streakTail.
+          writeDisc(ag.data, ag.count * EDGE_STRIDE, {
+            cx: pp.sx, cy: pp.sy,
+            rOuter: particleGlowRadius(sz),
+            hsl: { hue, sat, lit: GLOW_STOPS[0].lightness },
+            alpha: quantAlpha(alpha * GLOW_STOPS[0].alphaScale),
+            mid: {
+              at: GLOW_STOPS[1].at,
+              hsl: { hue, sat, lit: GLOW_STOPS[1].lightness },
+              alpha: quantAlpha(alpha * GLOW_STOPS[1].alphaScale),
+            },
+            outerK: GLOW_OUTER_K,
+            outerAlpha: quantAlpha(alpha * GLOW_STOPS[2].alphaScale),
+            flags: PARTICLE_FLAGS,
+          });
+        } else {
+          // The streak, as ONE segment: tail to head, with the gradient running
+          // dark-to-bright along it. NO gaussian shoulder: PARTICLE_FLAGS packs
+          // glow = 0 and edgeFrag gates the whole shoulder term behind
+          // step(0.001, vGlow), so what replaces the disc's soft radial ramp is a
+          // hard box-filtered line at a seventh of its half-width. See
+          // artParticleDraw's note on the fidelity loss.
+          const o = ag.count * EDGE_STRIDE;
+          const ad = ag.data;
+          ad[o] = _st.x; ad[o + 1] = _st.y; ad[o + 2] = pp.sx; ad[o + 3] = pp.sy;
+          writeHsl(ad, o + 4,  hue, sat, GLOW_STOPS[2].lightness);   // tail
+          writeHsl(ad, o + 7,  hue, sat, GLOW_STOPS[1].lightness);   // mid
+          writeHsl(ad, o + 10, hue, sat, GLOW_STOPS[0].lightness);   // head
+          ad[o + 13] = packAlphas(
+            quantAlpha(alpha * GLOW_STOPS[2].alphaScale),
+            quantAlpha(alpha * GLOW_STOPS[1].alphaScale),
+            quantAlpha(alpha * GLOW_STOPS[0].alphaScale),
+          );
+          ad[o + 14] = sz;
+          ad[o + 15] = PARTICLE_FLAGS;
+          ad[o + 16] = 0;   // phase — a straight stroke starts its dash at 0
+          // Float 17 is a DISC's shadow colour. The buffer is reused frame to
+          // frame, so a segment landing where a disc was would inherit it:
+          // invisible in the render (vIsDisc mixes it out) but not invisible to
+          // the world hash, which reads the raw buffer.
+          ad[o + 17] = 0;
+        }
         ag.count++;
         _pcen.particleGlow++;
 
@@ -2814,6 +2892,20 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         if (i >= p.xs.length) return;
         p.xs[i] = s.x; p.ys[i] = s.y; p.zs[i] = s.z;
         p.vxs[i] = 0; p.vys[i] = 0; p.vzs[i] = 0;
+        // THE PULL AND THE TARGET HAVE TO BE CLEARED TOO, on the same principle
+        // as the zeroed velocity: this probe exists to PIN a particle's position
+        // and colour, and a slot recycled from real edge traffic carries
+        // pull = 1 and that traffic's destination node. Left set, a forced
+        // particle drifts ~2% of the way toward a node it was never given, every
+        // frame — the instrument silently moving the thing it is there to hold
+        // still. Found by the whole-branch review; nothing calls this today,
+        // which is exactly why nothing caught it.
+        p.pulls[i] = 0;
+        p.txs[i] = 0; p.tys[i] = 0; p.tzs[i] = 0;
+        // The streak's tail anchor. Seeded to the head so a forced particle
+        // renders as its degenerate disc rather than streaking from wherever
+        // the previous occupant of this slot happened to be.
+        p.pxs[i] = s.x; p.pys[i] = s.y; p.pzs[i] = s.z;
         // hueTarget === hue, so stepParticles' blend is a no-op and the colour
         // the probe asked for is the colour the frame draws.
         p.hues[i] = s.hue; p.hueTargets[i] = s.hue;
@@ -2995,6 +3087,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         // missing and every other number agreeing that nothing went wrong.
         additive: {
           count: a.count, dropped: a.dropped, capacity: a.data.length / EDGE_STRIDE,
+          // Where the particle layer's writes begin in this stream — see the
+          // write site's comment. Lets a reader tell a particle streak from a
+          // prism chord core without shape-matching the two, which genuinely
+          // overlap in width and share PARTICLE_FLAGS.
+          particleStart: a.particleStart,
           instances: Array.from(a.data.subarray(0, a.count * EDGE_STRIDE)),
         },
       };
