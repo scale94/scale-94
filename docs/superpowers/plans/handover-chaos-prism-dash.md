@@ -168,9 +168,36 @@ wrong. Do not let it harden.**
 2. ~~**The author has not looked at the dashes yet.**~~ **CLOSED 2026-09-21 —
    he has now ruled the dash half by eye, and it also discharges the GPU
    debt. See §3.1.**
-3. **Sharpening the bloom measurement needs a same-PAGE A/B**, not four browser
-   launches. `beadGate` is compiled into the shader rather than a uniform, so
-   this needs a uniform or a define to become measurable below ~1%.
+3. **Sharpening the bloom measurement needs a same-PAGE A/B.** **HALF CLOSED
+   at `24803fc0`.** The mechanism now exists: `uBeadScale` is a live uniform,
+   `__artSetBeadScale(v)` writes a ref the draw loop copies onto
+   `eg.beadScale` each frame, and it RETURNS what it set so a caller can
+   assert the switch landed. Default is **1**, the identity — not 0, which is
+   what `uTaperPx` next door defaults to and which would strip every bead.
+
+   **WHAT IS NOT DONE: `_a10dash.mjs` still patches source and relaunches.**
+   The instrument has not been converted to drive the uniform, so the bead's
+   cost is STILL a bound and not a number. Do not read this item as the
+   measurement being sharpened — only as the thing that makes sharpening
+   possible. The `hard-cut` arm has no uniform at all and would need
+   `mix(step(0.0, sd), clamp(sd / dpxDash + 0.5, 0.0, 1.0), uDashAA)`.
+
+   **The conversion is verified INERT, and the reference is what verified it.**
+   Three sets at `24803fc0`, certified 24/24, compared gated against the phase
+   4 reference: **24/24 ADMISSIBLE**. Better than that — its worst deviation
+   is SMALLER than the reference's own same-build spread:
+
+   | | worst mean | worst max |
+   |---|---|---|
+   | reference vs itself (`-a` v `-b`) | 0.302 | 11.7 |
+   | uniform build vs reference | **0.232** | 11.7 |
+
+   In 14 of 24 cells the uniform-vs-reference delta is smaller than the
+   same-build one, and on `ortho-bridge` it is smaller at all three scales.
+   Multiplication by exactly 1.0 being bit-exact in IEEE was the ARGUMENT;
+   this is the evidence. Captures live in `baseline/_beaduniform-{a,b,c}`,
+   which are untracked scratch — the numbers are written here so the finding
+   survives a sweep, exactly as phase 2's README did for `_knee-final-a`.
 4. **The disc↔streak threshold discontinuity** (~38× ink jump) carried over
    from the previous branch. Still unruled.
 5. **Mobile fps is stale** — measured at `e94fa33e`, before the fix wave.
