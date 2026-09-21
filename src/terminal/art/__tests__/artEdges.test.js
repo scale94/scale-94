@@ -25,7 +25,9 @@ import {
   chimeraDashOffset, CHIMERA_DASH, CHIMERA_CP_PULL, CHIMERA_MAX_ZONES,
   HUM, humPhase, humAxis, humGain, humWave, humGlowRadius, HUM_GLOW,
   FUSED_GLOW_BASE,
+  prismChordCue,
 } from '../artEdges';
+import { DEPTH_ALPHA_FLOOR } from '../artNodes';
 import { CURVE_MAX_SEGMENTS, quadSegments, tessellateQuad } from '../artCurve';
 import {
   writeHsl, writeHslRgb, writeRgb255, packAlphas, unpackAlphas, packFlags, unpackFlags,
@@ -1673,5 +1675,46 @@ describe('the wire taper — the uniform and the shader contract', () => {
     // vTaper is multiplied by (1 - vIsDisc) so a ring can never take it, and
     // mix(1.0, ..., 0.0) is exactly 1 for every instance that omits the flag.
     expect(src).toMatch(/mix\(1\.0, taperT, vTaper \* \(1\.0 - vIsDisc\)\)/);
+  });
+});
+
+// ── The prism's depth cue ──────────────────────────────────────────────────
+//
+// The prism was the ONLY layer on the sphere with no depth term. Base edges
+// fade on avgDepth, node discs on depthCueAlpha, analogy filaments on
+// avgDepth; the prism drew at full envelope alpha wherever its endpoints sat
+// in Z. A chord whose destination was on the far side therefore arrived at
+// FULL brightness onto a disc cued down toward its 0.08 floor.
+
+describe('prismChordCue', () => {
+  it('returns each end node OWN depth cue at t = 0 and t = 1', () => {
+    // The whole point: a chord's end must match the disc it lands on.
+    // depthCueAlpha(d) = max(0.08, (d + 1) * 0.5), written out as literals.
+    expect(prismChordCue(-1, 1, 0)).toBeCloseTo(0.08, 7);   // max(0.08, 0.0)
+    expect(prismChordCue(-1, 1, 1)).toBeCloseTo(1.0,  7);   // max(0.08, 1.0)
+    expect(prismChordCue(0.2, -0.4, 0)).toBeCloseTo(0.6, 7); // (0.2 + 1) * 0.5
+    expect(prismChordCue(0.2, -0.4, 1)).toBeCloseTo(0.3, 7); // (-0.4 + 1) * 0.5
+  });
+
+  // LIVENESS. This value is reachable ONLY if the function interpolates the
+  // CUES. Cueing an interpolated DEPTH gives depthCueAlpha(0) = 0.5, because
+  // the 0.08 floor clamps one endpoint and a clamp does not commute with a
+  // lerp. If anyone 'simplifies' this to depthCueAlpha((dA + dB) / 2), this is
+  // what catches it.
+  it('interpolates the CUES, not the depths — 0.54 at the midpoint, never 0.50', () => {
+    expect(prismChordCue(-1, 1, 0.5)).toBeCloseTo(0.54, 7);  // (0.08 + 1.0) / 2
+    expect(prismChordCue(-1, 1, 0.5)).not.toBeCloseTo(0.5, 3);
+  });
+
+  it('is linear in t between the two cues', () => {
+    // Cues are 0.08 and 1.0, so the value at t is 0.08 + 0.92t.
+    expect(prismChordCue(-1, 1, 0.25)).toBeCloseTo(0.31, 7);
+    expect(prismChordCue(-1, 1, 0.75)).toBeCloseTo(0.77, 7);
+  });
+
+  it('never returns less than the floor either end can reach', () => {
+    for (const t of [0, 0.3, 0.5, 0.9, 1]) {
+      expect(prismChordCue(-1, -1, t)).toBeCloseTo(DEPTH_ALPHA_FLOOR, 7);
+    }
   });
 });

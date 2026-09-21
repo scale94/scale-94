@@ -9,6 +9,13 @@
 // arithmetic beside it, the arithmetic won and the discrepancy is recorded —
 // step 3 found three such comments.
 
+// This file's ONLY import, and it points one way: artNodes.js imports
+// nothing, so there is no cycle. The depth cue lives there because the NODE
+// DISCS use it, and the whole point of prismChordCue below is that a chord's
+// end has to agree with the disc it lands on. Copying the formula here would
+// be the second implementation this file's header warns about.
+import { depthCueAlpha } from './artNodes.js';
+
 // ── Base edges ──────────────────────────────────────────────────────────────
 
 export const SPECTRAL_DASH = [4, 3];   // computed spectral bridges
@@ -306,6 +313,39 @@ export function prismControl(out, ax, ay, bx, by, cx, cy, offset) {
   out[0] = midX + (cx - midX) * PRISM_CP_PULL + offset * PRISM_CP_OFF_X;
   out[1] = midY + (cy - midY) * PRISM_CP_PULL + offset * PRISM_CP_OFF_Y;
   return out;
+}
+
+/**
+ * The prism envelope's depth multiplier at arc-length fraction `t` along a
+ * chord running from a node at `depthA` to one at `depthB`.
+ *
+ * THE PRISM WAS THE ONLY LAYER ON THE SPHERE WITH NO DEPTH TERM. Base edges
+ * fade on avgDepth, node discs on depthCueAlpha, analogy filaments on
+ * avgDepth; the prism drew at full envelope alpha wherever its endpoints sat
+ * in Z. So a chord whose destination was on the far side arrived at FULL
+ * brightness onto a disc cued down toward its 0.08 floor — energy delivered
+ * where nothing visible was receiving it. Reported as the fan reading like an
+ * ungrounded solar flare rather than a closed conduit between two points.
+ *
+ * TWO DECISIONS THAT WILL LOOK ARBITRARY:
+ *
+ * `t` is the ARC LENGTH fraction, not the Bezier parameter. They differ on a
+ * bowed chord — tessellateQuad splits at uniform PARAMETER and the prism's
+ * near-cusp chords vary several times over between their fastest and slowest
+ * segment — and arc length is the one that matches what the eye reads as
+ * distance travelled.
+ *
+ * This interpolates the CUES, not the depths. depthCueAlpha clamps at
+ * DEPTH_ALPHA_FLOOR, and a clamp does not commute with a lerp: on a chord
+ * from depth -1 to depth +1, interpolating cues gives 0.54 at the midpoint
+ * while cueing an interpolated depth gives 0.50. Interpolating the cues is
+ * what makes each END equal the cue of the disc it lands on EXACTLY, which is
+ * the entire reason this function exists.
+ */
+export function prismChordCue(depthA, depthB, t) {
+  const cA = depthCueAlpha(depthA);
+  const cB = depthCueAlpha(depthB);
+  return cA + (cB - cA) * t;
 }
 
 /** A spoke's hue: the effect's base hue rotated by the node's bearing from the

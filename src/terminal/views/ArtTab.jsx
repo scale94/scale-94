@@ -97,6 +97,7 @@ import {
   ORTHO_ALPHA_BOOST, ORTHO_MID_ALPHA_BOOST,
   PULSE_ALPHA, PULSE_DRAW_CUTOFF,
   prismOffset, prismChordAlpha, prismGlowWidth, prismControl, prismSpokeHue,
+  prismChordCue,
   PRISM_SPECTRAL_FINE, PRISM_SPECTRAL_COARSE, PRISM_HUE_STEP,
   PRISM_SAT, PRISM_GLOW_LIT, PRISM_GLOW_ALPHA_K, PRISM_CORE_LIT, PRISM_CORE_W,
   PRISM_POLY_HUE_STEP, PRISM_POLY_LIT, PRISM_POLY_ALPHA_K, PRISM_POLY_W,
@@ -1753,6 +1754,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         const pts  = prismPtsRef.current;    // tessellation scratch, xy pairs
         const ctrl = prismCtrlRef.current;   // the control point, [x, y]
         const rgb  = prismRgbRef.current;    // writeHsl's 3-float output
+        const alf  = prismAlphaRef.current;  // per-POINT alpha, one per point
 
         // A polyline of `m` points, then the same for one straight segment.
         // The alphas the 2D code quantised with `.toFixed(3)` are quantised to
@@ -1761,11 +1763,38 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         // Every prism width — glow, core, polygon, spoke — is a bare
         // screen-px constant; not one of them rides the projection. So
         // `ink` is applied HERE, once, instead of at the four call sites.
-        const chord = (m, a, width) =>
-          writePolyline(ag, pts, m, rgb, a, width * ink, PRISM_FLAGS);
-        const straight = (x0, y0, x1, y1, a, width) => {
+        // `cueA`/`cueB` are the DEPTH CUES of the two endpoint nodes, and the
+        // per-point alpha walks between them BY ARC LENGTH, so the chord
+        // arrives at each end matching the disc it lands on. The arc length is
+        // accumulated over the SAME point list writePolyline walks, so the two
+        // measurements cannot drift.
+        //
+        // The lerp is inlined rather than calling prismChordCue per point: the
+        // call site already holds both cues (computed once per PAIR), and
+        // calling it here would re-run depthCueAlpha twice for every one of
+        // ~74000 points in a full-strength frame. The expression is the same
+        // one prismChordCue is tested on.
+        const chord = (m, a, width, cueA, cueB) => {
+          let total = 0;
+          for (let i = 0; i + 1 < m; i++) {
+            total += Math.hypot(pts[i * 2 + 2] - pts[i * 2],
+                                pts[i * 2 + 3] - pts[i * 2 + 1]);
+          }
+          let sLen = 0;
+          for (let i = 0; i < m; i++) {
+            if (i > 0) {
+              sLen += Math.hypot(pts[i * 2] - pts[i * 2 - 2],
+                                 pts[i * 2 + 1] - pts[i * 2 - 1]);
+            }
+            const tt = total > 1e-6 ? sLen / total : 0;
+            alf[i] = a * (cueA + (cueB - cueA) * tt);
+          }
+          return writePolyline(ag, pts, m, rgb, a, width * ink, PRISM_FLAGS, 0, alf);
+        };
+        const straight = (x0, y0, x1, y1, a, width, cueA, cueB) => {
           pts[0] = x0; pts[1] = y0; pts[2] = x1; pts[3] = y1;
-          writePolyline(ag, pts, 2, rgb, a, width * ink, PRISM_FLAGS);
+          alf[0] = a * cueA; alf[1] = a * cueB;
+          return writePolyline(ag, pts, 2, rgb, a, width * ink, PRISM_FLAGS, 0, alf);
         };
 
         const live = [];
@@ -1798,6 +1827,10 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           for (let a = 0; a < effProj.length; a++) {
             for (let b = a + 1; b < effProj.length; b++) {
               const pA = effProj[a], pB = effProj[b];
+              // The two ends' depth cues, once per PAIR — not per spectral
+              // line and not per point.
+              const cueA = prismChordCue(pA.depth, pB.depth, 0);
+              const cueB = prismChordCue(pA.depth, pB.depth, 1);
 
               for (let k = 0; k < spectralN; k++) {
                 const hue    = (hue0 + k * PRISM_HUE_STEP) % 360;
@@ -1823,10 +1856,10 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
                 // Wide glow pass
                 writeHsl(rgb, 0, hue, PRISM_SAT, PRISM_GLOW_LIT);
-                chord(m, lAlpha * PRISM_GLOW_ALPHA_K, prismGlowWidth(k));
+                chord(m, lAlpha * PRISM_GLOW_ALPHA_K, prismGlowWidth(k), cueA, cueB);
                 // Sharp core pass
                 writeHsl(rgb, 0, hue, PRISM_SAT, PRISM_CORE_LIT);
-                chord(m, lAlpha, PRISM_CORE_W);
+                chord(m, lAlpha, PRISM_CORE_W, cueA, cueB);
               }
             }
           }
@@ -1841,7 +1874,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             const polyA = alpha * PRISM_POLY_ALPHA_K;
             for (let i = 0; i < effProj.length; i++) {
               const p0 = effProj[i], p1 = effProj[(i + 1) % effProj.length];
-              straight(p0.sx, p0.sy, p1.sx, p1.sy, polyA, PRISM_POLY_W);
+              straight(p0.sx, p0.sy, p1.sx, p1.sy, polyA, PRISM_POLY_W,
+                       depthCueAlpha(p0.depth), depthCueAlpha(p1.depth));
             }
           }
 
@@ -1852,7 +1886,12 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           for (const ep of effProj) {
             const spokeHue = prismSpokeHue(hue0, ep.sx - cx, ep.sy - cy);
             writeHsl(rgb, 0, spokeHue, PRISM_SPOKE_SAT, PRISM_SPOKE_LIT);
-            straight(cx, cy, ep.sx, ep.sy, alpha * PRISM_SPOKE_ALPHA_K, PRISM_SPOKE_W);
+            // A spoke runs from the projected sphere CENTRE to a node, and the
+            // centre sits at depth 0 — cue 0.5 — so a spoke reaching a
+            // back-facing node now fades along its length instead of arriving
+            // at full strength on a disc that is barely drawn.
+            straight(cx, cy, ep.sx, ep.sy, alpha * PRISM_SPOKE_ALPHA_K, PRISM_SPOKE_W,
+                     depthCueAlpha(0), depthCueAlpha(ep.depth));
           }
         }
         geomEffectsRef.current = live;
