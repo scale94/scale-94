@@ -168,36 +168,33 @@ wrong. Do not let it harden.**
 2. ~~**The author has not looked at the dashes yet.**~~ **CLOSED 2026-09-21 —
    he has now ruled the dash half by eye, and it also discharges the GPU
    debt. See §3.1.**
-3. **Sharpening the bloom measurement needs a same-PAGE A/B.** **HALF CLOSED
-   at `24803fc0`.** The mechanism now exists: `uBeadScale` is a live uniform,
-   `__artSetBeadScale(v)` writes a ref the draw loop copies onto
-   `eg.beadScale` each frame, and it RETURNS what it set so a caller can
-   assert the switch landed. Default is **1**, the identity — not 0, which is
-   what `uTaperPx` next door defaults to and which would strip every bead.
+3. ~~**Sharpening the bloom measurement needs a same-PAGE A/B.**~~ **CLOSED
+   `87ae6b86`. THE BOUND IS NOW A NUMBER.** Both arms are uniforms
+   (`uBeadScale` `24803fc0`, `uDashAA` `35065ead`), `_a10dash.mjs` launches
+   Chrome ONCE and never touches a tracked file. At the shipped 11-bridge
+   world, 32 triples, sphere-clipped:
 
-   **WHAT IS NOT DONE: `_a10dash.mjs` still patches source and relaunches.**
-   The instrument has not been converted to drive the uniform, so the bead's
-   cost is STILL a bound and not a number. Do not read this item as the
-   measurement being sharpened — only as the thing that makes sharpening
-   possible. The `hard-cut` arm has no uniform at all and would need
-   `mix(step(0.0, sd), clamp(sd / dpxDash + 0.5, 0.0, 1.0), uDashAA)`.
-
-   **The conversion is verified INERT, and the reference is what verified it.**
-   Three sets at `24803fc0`, certified 24/24, compared gated against the phase
-   4 reference: **24/24 ADMISSIBLE**. Better than that — its worst deviation
-   is SMALLER than the reference's own same-build spread:
-
-   | | worst mean | worst max |
+   | | ink | hot |
    |---|---|---|
-   | reference vs itself (`-a` v `-b`) | 0.302 | 11.7 |
-   | uniform build vs reference | **0.232** | 11.7 |
+   | the BEAD removes | **0.905% ± 0.385** (RESOLVED) | 0.012% ± 0.262 (bound) |
+   | ANTIALIASING OFF adds | −0.303% ± 0.495 (bound) | **0.506% ± 0.434** (marginal) |
 
-   In 14 of 24 cells the uniform-vs-reference delta is smaller than the
-   same-build one, and on `ortho-bridge` it is smaller at all three scales.
-   Multiplication by exactly 1.0 being bit-exact in IEEE was the ARGUMENT;
-   this is the evidence. Captures live in `baseline/_beaduniform-{a,b,c}`,
-   which are untracked scratch — the numbers are written here so the finding
-   survives a sweep, exactly as phase 2's README did for `_knee-final-a`.
+   **The bead does NOT move energy at the composer's `0.28`
+   luminanceThreshold** — bounded under ~0.32%. That is the reassurance the
+   whole exercise was after, now measured rather than shrugged at.
+
+   **The spec's "ink-neutral by construction" claim for the box filter is
+   SUPPORTED on ink**, to within 0.69%, where it was previously unresolvable
+   at any precision. It is still not PROVEN — a bound consistent with the
+   claim is not the claim.
+
+   **The hard-cut HOT result is MARGINAL** (sep/tol 1.17, ~2.3 sigma). Confirm
+   before leaning on it.
+
+   Verified inert against the phase 4 reference: 24/24 ADMISSIBLE, and the
+   uniform build deviates LESS from the reference (worst mean 0.232) than the
+   reference does from itself (0.302).
+
 4. **The disc↔streak threshold discontinuity** (~38× ink jump) carried over
    from the previous branch. Still unruled.
 5. **Mobile fps is stale** — measured at `e94fa33e`, before the fix wave.
@@ -207,6 +204,44 @@ wrong. Do not let it harden.**
    origin and would need fixing before they mean anything.
 7. **`.claude/launch.json`'s `scale94-dev` passes `--port 5174`** and conflicts
    with the same config. Use the `scale94-dev-5173` entry instead.
+
+### 4.2 Three A/B designs, two of them measurably wrong
+
+Kept because the wrong ones are cheap to re-invent.
+
+1. **Re-establish the world per arm** (`__reseed`, `__artHarnessReset`,
+   re-forge, fixed pump). **Floor 21.0%** — far worse than the four-launch rig
+   it replaced. `__artHarnessReset` is NOT idempotent, so POSITION IN THE CYCLE
+   decided the world and the uniform did not. **The tell was in the census, not
+   the ink**: `count` swung 103–134 and the arm that always ran third was
+   systematically low. Do not restore it.
+2. **Span as the floor statistic.** A span only GROWS with more samples, so the
+   floor got worse the harder the rig worked. Standard error tightens as
+   1/√n, which is what a floor must do. RESOLVED is now a two-sample
+   comparison against the `repeat` arm, not a threshold on one number.
+3. **Symmetric ABA triples** — shipped, X, shipped, one pump apart. Over three
+   frames the drift is locally linear, so `(S1+S2)/2` estimates what `shipped`
+   would have measured at X's own frame and the drift is SUBTRACTED rather than
+   averaged down. No Latin square needed.
+
+**AND THE LIVENESS GATE WAS UNDERPOWERED BY CONSTRUCTION.** It proved the
+switch live by flipping `beadScale` to 0 — but that IS the small effect under
+test, so a null proved nothing either way, and it printed **LIVENESS FAILED
+against a shader that was fine**. It now probes at `beadScale` 64, which drives
+the gap distance past the glow radius and erases the halo between dashes:
+**−13.713% ± 0.927, separation 13.928 vs tolerance 1.122.** That is the
+distinction the old rig could never make — a dead uniform and a cheap bead both
+read as "under the floor", and they are not the same finding.
+
+A frozen-clock hypothesis for that null (virtualised time pinning `orthoGlow`
+near 6px, where a documented note says shadow alpha goes to 0) was **checked
+and is WRONG**: `SphereEdges.js:1056` is
+`shadowAlpha = mix(fuseCos * 0.6, 1.0, vIsOrtho)`, so ortho is opaque. That
+note belongs to a different layer.
+
+**Percentages are of SPHERE ink now**, not full-frame ink — the clip excludes
+constant UI chrome that diluted every number toward zero, so they are NOT
+comparable with the pre-uniform bound.
 
 ### 4.1 The reference could not see the ortho layer — fixed at `21e98283`
 
