@@ -100,7 +100,7 @@ import {
   prismOffset, prismChordAlpha, prismGlowWidth, prismControl, prismSpokeHue,
   prismChordCue, prismDepthCue, prismRootTaper,
   prismWaveAmp, prismTrainEnv, prismWaveMix, prismSegmentFade,
-  prismWaveDuration, prismChordDir, PRISM_CASCADE_MS,
+  prismWaveDuration, prismChordDir, PRISM_CASCADE_MS, PRISM_WAVE_SEGMENTS,
   PRISM_SPECTRAL_FINE, PRISM_SPECTRAL_COARSE, PRISM_HUE_STEP,
   PRISM_SAT, PRISM_GLOW_LIT, PRISM_GLOW_ALPHA_K, PRISM_CORE_LIT, PRISM_CORE_W,
   PRISM_POLY_HUE_STEP, PRISM_POLY_LIT, PRISM_POLY_ALPHA_K, PRISM_POLY_W,
@@ -153,6 +153,20 @@ const SECTOR_COLORS = {
 // times a frame. Through packFlags, not as a literal 0, so it cannot drift from
 // the layout the shader unpacks.
 const PRISM_FLAGS = packFlags(0, 0, 0, false, ADDITIVE_LAYER.glowQuant);
+
+// How many points the prism's scratch arrays must hold.
+//
+// A chord carrying a travelling wavefront is forced to PRISM_WAVE_SEGMENTS so
+// the pulse is sampled densely enough not to bead; every other chord takes
+// whatever quadSegments asks for, capped at CURVE_MAX_SEGMENTS. The scratch has
+// to cover the LARGER, and taking max() of the two rather than assuming which
+// one wins is what keeps this correct if either constant moves.
+//
+// Undersizing here would not throw: tessellateQuad writes n+1 points with no
+// bounds check, and a Float32Array write past the end is a silent no-op -- so
+// the tail of every long chord would simply be missing, and its alpha ramp
+// would read stale values from the previous chord.
+const PRISM_SCRATCH_SEGMENTS = Math.max(CURVE_MAX_SEGMENTS, PRISM_WAVE_SEGMENTS);
 
 // The two orphan curve layers' flag words. Same story — constant per layer, so
 // packed once — but these DO dash, and the period packed here is the one the
@@ -522,7 +536,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   // point, and writeHsl's rgb output. A full-strength frame runs the inner loop
   // ~74000 times and the draw loop stays off the allocation path.
   const prismPtsRef  = useRef(null);
-  if (prismPtsRef.current === null) prismPtsRef.current = new Float32Array((CURVE_MAX_SEGMENTS + 1) * 2);
+  if (prismPtsRef.current === null) prismPtsRef.current = new Float32Array((PRISM_SCRATCH_SEGMENTS + 1) * 2);
   const prismCtrlRef = useRef(null);
   if (prismCtrlRef.current === null) prismCtrlRef.current = new Float32Array(2);
   const prismRgbRef  = useRef(null);
@@ -540,7 +554,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   // The dash cut's arm, same contract: 1 = box filter = shipped, 0 = hard cut.
   const dashAARef = useRef(1);
   const prismAlphaRef = useRef(null);
-  if (prismAlphaRef.current === null) prismAlphaRef.current = new Float32Array(CURVE_MAX_SEGMENTS + 1);
+  if (prismAlphaRef.current === null) prismAlphaRef.current = new Float32Array(PRISM_SCRATCH_SEGMENTS + 1);
 
   // ── Beat clock state ────────────────────────────────────────────────────
   const [ambientMode,  setAmbientMode]  = useState(false);
@@ -1823,7 +1837,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         // (the glow pass and the core pass share one point list), and the
         // draw loop is deliberately off the allocation path -- a descriptor
         // object here would be ~770 allocations per effect per frame.
-        let _wK = 0, _wDur = 1, _wT = -1, _wDir = 0, _wFade = 0;
+        // `_wEnv` is hoisted to the PAIR rather than recomputed inside chord()
+        // because the segment count now depends on it: a chord that is waving
+        // is tessellated to PRISM_WAVE_SEGMENTS, and that decision has to be
+        // made before tessellateQuad runs, not after.
+        let _wK = 0, _wDur = 1, _wT = -1, _wDir = 0, _wFade = 0, _wEnv = 0;
 
         const chord = (m, a, width, cueA, cueB, taper) => {
           let total = 0;
@@ -1837,7 +1855,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           // would be the identity. Taking the branch instead of the arithmetic
           // keeps the sustained burn on precisely the code path it ran on
           // before this feature existed, at no cost in behaviour.
-          const env = prismTrainEnv(_wT, _wDur);
+          const env = _wEnv;
           const waving = env > 0 && _wFade > 0;
           let sLen = 0;
           for (let i = 0; i < m; i++) {
@@ -1965,6 +1983,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
               // chord leaving at once. A chord whose origin is still dark gets
               // a negative age, and prismTrainEnv returns 0 for that.
               _wT = ageMs - Math.min(effDepth[a], effDepth[b]) * PRISM_CASCADE_MS;
+              _wEnv = prismTrainEnv(_wT, _wDur);
 
               for (let k = 0; k < spectralN; k++) {
                 const hue    = (hue0 + k * PRISM_HUE_STEP) % 360;
@@ -1985,15 +2004,29 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
                 // Flattened ONCE and drawn twice: both passes are the same
                 // curve, so they share the point list and therefore land on
                 // exactly the same joints.
+                // THE TESSELLATION IS RAISED ONLY WHILE A CHORD IS WAVING.
+                //
+                // `quadSegments` answers a FLATNESS question, and these bows
+                // are gentle: real prism chords come back at n = 8-11, which
+                // samples the pulse about three times across its whole support
+                // and beads by up to 50% as the crest travels (_a18wsweep.mjs).
+                // So a waving chord is forced to PRISM_WAVE_SEGMENTS, measured
+                // to hold the ripple under 5% at the shipped W.
+                //
+                // Every chord NOT waving -- which is the whole layer for most
+                // of an effect's life, and the whole layer always before this
+                // feature existed -- takes exactly the count it always took.
+                // The sustained burn the author approved is not re-tessellated
+                // and is not touched.
+                const baseSegs = quadSegments(x0, y0, ctrl[0], ctrl[1], x1, y1);
                 const m = tessellateQuad(pts, x0, y0, ctrl[0], ctrl[1], x1, y1,
-                  quadSegments(x0, y0, ctrl[0], ctrl[1], x1, y1));
+                  _wEnv > 0 ? Math.max(baseSegs, PRISM_WAVE_SEGMENTS) : baseSegs);
 
-                // THE NYQUIST GUARD, and it has to be here rather than per
-                // pair: `quadSegments` is re-evaluated for every spectral
-                // line, because each line's control point carries its own
-                // PRISM_CP_OFF offset and therefore its own flatness. A chord
-                // too coarsely tessellated to sample the pulse draws exactly
-                // as it did before the wave existed, rather than staircasing.
+                // The fade is belt and braces now that the count is forced --
+                // it reads 1 on every waving chord. It stays because a future
+                // caller that tessellates a waving chord more coarsely should
+                // fade the wave out rather than staircase, and that failure
+                // should be invisible rather than ugly.
                 _wK = k;
                 _wFade = prismSegmentFade(m - 1);
 

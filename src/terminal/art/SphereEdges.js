@@ -174,6 +174,7 @@ import {
   FUSED_GLOW_BASE, FUSED_GLOW_SCALE, ORTHO_HUE_STEP_GLOW,
   RESONANCE_GOLD, RESONANCE_SHADOW_ALPHA,
   PRISM_MAX_EFFECTS, PRISM_MAX_NODES, PRISM_SPECTRAL_FINE,
+  PRISM_WAVE_SEGMENTS,
   FILAMENT_MAX_DRAWN, CHIMERA_MAX_ZONES,
 } from './artEdges.js';
 import { CURVE_MAX_SEGMENTS } from './artCurve.js';
@@ -283,10 +284,18 @@ export const MAX_EDGES = 1024;
  * four clicks inside five seconds. The typical live frame is ~10000.
  */
 const PRISM_PAIRS = (PRISM_MAX_NODES * (PRISM_MAX_NODES - 1)) / 2;
+// PRISM_WAVE_SEGMENTS, NOT CURVE_MAX_SEGMENTS. A chord carrying a travelling
+// wavefront is forced to that finer tessellation so the pulse is sampled
+// densely enough not to bead (see prismSegmentFade and _a18wsweep.mjs), and
+// the worst case this array is sized from has to be the count the writer can
+// actually reach. Sizing this from CURVE_MAX_SEGMENTS while the draw loop
+// wrote 40 would not throw or warn: a Float32Array write past the end is a
+// silent no-op, so the prism would simply render with pieces missing while
+// `dropped` counted them and nothing else disagreed.
 const PRISM_PER_EFFECT =
-  PRISM_PAIRS * PRISM_SPECTRAL_FINE * 2 * CURVE_MAX_SEGMENTS   // the chord bundle
-  + PRISM_MAX_NODES                                            // the closed polygon
-  + PRISM_MAX_NODES;                                           // the star spokes
+  PRISM_PAIRS * PRISM_SPECTRAL_FINE * 2 * PRISM_WAVE_SEGMENTS   // the chord bundle
+  + PRISM_MAX_NODES                                             // the closed polygon
+  + PRISM_MAX_NODES;                                            // the star spokes
 const ORPHAN_CURVES =
   FILAMENT_MAX_DRAWN * 2 * CURVE_MAX_SEGMENTS   // glow pass + core pass
   + CHIMERA_MAX_ZONES * CURVE_MAX_SEGMENTS;     // one pass

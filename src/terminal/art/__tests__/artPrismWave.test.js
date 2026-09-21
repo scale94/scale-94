@@ -18,7 +18,7 @@ import {
   PRISM_WAVE_W, PRISM_PHASE_STEP, PRISM_WAVE_DEPTH,
   PRISM_WAVE_MS_PER_UNIT, PRISM_WAVE_MIN_MS, PRISM_WAVE_MAX_MS,
   PRISM_TRAIN_PULSES, PRISM_TRAIN_DECAY, PRISM_TRAIN_TAIL_MS,
-  PRISM_WAVE_SEG_FULL, PRISM_WAVE_SEG_NONE,
+  PRISM_WAVE_SEG_FULL, PRISM_WAVE_SEG_NONE, PRISM_WAVE_SEGMENTS,
   PRISM_SPECTRAL_FINE,
   prismPulse, prismPhaseOffset, prismWaveAmp, prismTrainEnv, prismWaveMix,
   prismSegmentFade, prismWaveDuration, prismChordDir,
@@ -256,7 +256,20 @@ describe('prismSegmentFade — the Nyquist guard', () => {
     expect(prismSegmentFade(1)).toBe(0);
     expect(prismSegmentFade(PRISM_WAVE_SEG_NONE)).toBe(0);
     expect(prismSegmentFade(PRISM_WAVE_SEG_FULL)).toBe(1);
-    expect(prismSegmentFade(24)).toBe(1);
+    expect(prismSegmentFade(PRISM_WAVE_SEG_FULL + 16)).toBe(1);
+    // The counts quadSegments actually returns for real prism chords, measured
+    // in _a18wsweep.mjs. They ripple by 22-50% at the shipped W, which is why
+    // the draw loop forces PRISM_WAVE_SEGMENTS instead of trusting them.
+    expect(prismSegmentFade(9)).toBe(0);
+    expect(prismSegmentFade(11)).toBe(0);
+  });
+
+  // CATCHES: the forced count and the fade's threshold drifting apart. If a
+  // chord is tessellated to PRISM_WAVE_SEGMENTS and the fade does not read 1
+  // there, the wave is being silently attenuated on every chord that carries
+  // it -- which is exactly the state this file was committed in once already.
+  it('reads exactly 1 at the count the draw loop actually forces', () => {
+    expect(prismSegmentFade(PRISM_WAVE_SEGMENTS)).toBe(1);
   });
 
   it('ramps monotonically between the two thresholds', () => {

@@ -518,11 +518,56 @@ export const PRISM_TRAIN_TAIL_MS = 260;
  *  its neighbours light as the front reaches them, the bridges go last. */
 export const PRISM_CASCADE_MS = 110;
 
-/** The tessellation thresholds the wave fades between. See prismSegmentFade.
- *  PROVISIONAL -- these are set from a sampling argument and want a measured
- *  sweep of W against n before anyone treats them as derived. */
-export const PRISM_WAVE_SEG_FULL = 14;
-export const PRISM_WAVE_SEG_NONE = 6;
+/**
+ * How finely a chord is tessellated while it is carrying a wave.
+ *
+ * MEASURED, and it overrode the design's own assumption. `scripts/_a18wsweep
+ * .mjs` builds real chords through prismControl, tessellates them with the
+ * shipped quadSegments and reports the RIPPLE -- how much the pulse's
+ * reconstructed crest rises and falls purely as an artefact of where the
+ * sample points land as it travels.
+ *
+ * The design assumed chords land near CURVE_MAX_SEGMENTS. THEY DO NOT: real
+ * prism chords tessellate to n = 8-11, because quadSegments answers a
+ * FLATNESS question and these bows are gentle. At n = 8 the ripple at this W
+ * is 50%, which is the beading `PACKET_FRACTION` was measured against in
+ * artStrimer arriving on a different layer.
+ *
+ * Worst-case ripple over every span and spectral line tested:
+ *
+ *        W=0.18   W=0.22   W=0.30
+ *   n=24  11.3%     7.7%     4.2%
+ *   n=32   6.6%     4.4%     2.4%
+ *   n=40   4.3%     2.9%     1.6%
+ *
+ * 40 is the cheapest count that holds the shipped W under 5%. The author
+ * chose to keep W and pay for the segments rather than widen the pulse: at
+ * W = 0.30 the pulse spans 60% of the chord and reads as a swell rather than
+ * a front tearing out, which is the thing this work exists to produce.
+ *
+ * AFFORDABLE, AND THAT WAS MEASURED TOO. `scripts/_a19budget.mjs` found the
+ * additive pool 6.6% full at the provable worst case -- four concurrent
+ * eleven-node effects -- with zero dropped, i.e. 15.1x headroom against the
+ * 4.4x this costs. (The "~74000" in ArtTab.jsx counts inner-loop ITERATIONS,
+ * not instances; the measured peak is 5408.) MAX_ADDITIVE_EDGES is derived
+ * from this constant, so the preallocation tracks it automatically.
+ */
+export const PRISM_WAVE_SEGMENTS = 40;
+
+/**
+ * The thresholds prismSegmentFade ramps between, set from the table above:
+ * full at the count the wave is actually given, off below the count where
+ * ripple passes ~17%.
+ *
+ * THIS IS A BELT AND BRACES, NOT THE PRIMARY GUARD. The draw loop forces
+ * PRISM_WAVE_SEGMENTS on any chord that is waving, so in practice the fade
+ * reads 1 every time. It stays because the alternative is a silent
+ * dependency: if a future caller ever tessellates a waving chord more
+ * coarsely -- a mobile path, a budget cap, a bug -- the wave fades out
+ * instead of staircasing, and the failure is invisible rather than ugly.
+ */
+export const PRISM_WAVE_SEG_FULL = 40;
+export const PRISM_WAVE_SEG_NONE = 20;
 
 /** The pulse profile: a raised cosine on |x| <= PRISM_WAVE_W, exactly 0
  *  outside it so a pulse cannot leak down the rest of the chord. */
