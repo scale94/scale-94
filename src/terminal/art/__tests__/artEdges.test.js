@@ -34,6 +34,7 @@ import {
   writeHsl, writeHslRgb, writeRgb255, packAlphas, unpackAlphas, packFlags, unpackFlags,
   syncEdgeLayer, createEdgeLayer, discWidth, isDisc,
   createEdgeState, edgeCapacity, writePolyline,
+  edgeFrag,
   SRC_OVER_LAYER, ADDITIVE_LAYER,
   EDGE_STRIDE, EDGE_OFF, MAX_EDGES, MAX_ADDITIVE_EDGES,
 } from '../SphereEdges';
@@ -1803,5 +1804,73 @@ describe('prismRootTaper', () => {
     // Two different numbers here would read as one of them having been tuned.
     expect(PRISM_ROOT_TAPER_PX).toBe(14);
     expect(PRISM_ROOT_TAPER_PX).toBe(EDGE_TAPER_PX);
+  });
+});
+
+// ── The dash boundary ─────────────────────────────────────────────────────
+//
+// edgeFrag is a FUNCTION -- (shadow, composite) => glsl -- compiled twice,
+// once per material, from one shared body. Build BOTH and assert on each, so
+// a change that lands on only one material cannot pass.
+//
+// These lock properties a browser check cannot re-run on every commit. They
+// are NOT a substitute for looking: a shader that draws nothing produces no
+// GL error, and this project has shipped exactly that once.
+
+describe('edgeFrag dash antialiasing', () => {
+  const FRAGS = [
+    ['src-over', edgeFrag(SRC_OVER_LAYER.shadow, SRC_OVER_LAYER.composite)],
+    ['additive', edgeFrag(ADDITIVE_LAYER.shadow, ADDITIVE_LAYER.composite)],
+  ];
+
+  it.each(FRAGS)('%s: no longer cuts the dash with a hard step()', (_n, FRAG) => {
+    expect(FRAG).not.toContain('step(mod(dashPos');
+  });
+
+  it.each(FRAGS)('%s: box-filters the dash boundary in the shader own idiom', (_n, FRAG) => {
+    // clamp(x / px + 0.5, 0, 1) -- the form that integrates to the true width.
+    // NOT smoothstep: this file own comment records that a smoothstep shoulder
+    // spreads a 1px line over 1.5px and reads as a one-sided brightening the
+    // parity gate catches.
+    expect(FRAG).toContain('clamp(sd / dpxDash + 0.5, 0.0, 1.0)');
+    // Scoped to the dash mask itself: smoothstep is used legitimately
+    // elsewhere in this shader, so a blanket assertion here would be wrong
+    // AND would fail for the wrong reason.
+    // No regex: locate the statement and slice to its semicolon.
+    const di = FRAG.indexOf('float dashMask');
+    const line = FRAG.slice(di, FRAG.indexOf(';', di) + 1);
+    expect(line).toBeDefined();
+    expect(line).toContain('clamp(');
+    expect(line).not.toContain('smoothstep');
+  });
+
+  it.each(FRAGS)('%s: guards the dash period against mod(x, 0.0)', (_n, FRAG) => {
+    // Hoisting mod() out of `if (vDash.x > 0.0)` for the derivative means it
+    // now runs on SOLID instances too, and the prism packs dashPeriod = 0.
+    // mod(x, 0.0) divides by zero, and this file documents that mix(x, NaN,
+    // 0.0) is NaN rather than x -- a NaN here would escape into the whole
+    // additive layer through the very mix/step collapse that keeps the branch
+    // count down.
+    expect(FRAG).toContain('max(vDash.x, 1e-3)');
+  });
+
+  it.each(FRAGS)('%s: takes the dash derivative before any branch', (_n, FRAG) => {
+    const body   = FRAG.slice(FRAG.indexOf('void main()'));
+    const deriv  = body.indexOf('dFdx(dashPos)');
+    const branch = body.indexOf('if (vDash.x > 0.0)');
+    expect(deriv).toBeGreaterThan(-1);
+    expect(branch).toBeGreaterThan(-1);
+    // Derivatives are undefined inside non-uniform control flow -- the same
+    // rule pxD and pxA already follow in the first two statements.
+    expect(deriv).toBeLessThan(branch);
+  });
+
+  it.each(FRAGS)('%s: defines each of rG, ang, rMid and dashPos exactly ONCE', (_n, FRAG) => {
+    // The hoist moves four definitions upward. Leaving a duplicate behind
+    // would shadow or redeclare, and this file insists on "one r, not two
+    // that could drift".
+    for (const name of ['float rG =', 'float ang =', 'float rMid =', 'float dashPos =']) {
+      expect(FRAG.split(name).length - 1).toBe(1);
+    }
   });
 });

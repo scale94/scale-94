@@ -1139,7 +1139,10 @@ const COMPOSITE_ADDITIVE = /* glsl */`
     gl_FragColor = vec4(col * topA + shadowCol * botA, outA);
 `;
 
-const edgeFrag = (shadow, composite) => /* glsl */`
+// Exported so tests can build the REAL source rather than assert against a
+// hand-copied string. It is compiled twice, once per material, from this one
+// body -- see createEdgeLayer. Exporting costs nothing at runtime.
+export const edgeFrag = (shadow, composite) => /* glsl */`
   precision highp float;
 
   // Time-based, not per-edge: orthoHue(now) is the same for every ortho edge
@@ -1186,6 +1189,30 @@ ${HSL2RGB_GLSL}
 
     float t = vLen > 1e-6 ? clamp(vAlong / vLen, 0.0, 1.0) : 0.0;
 
+    // RADIUS, ANGLE AND DASH POSITION ARE HOISTED HERE, above every branch,
+    // because dFdx(dashPos) is taken two statements down and derivatives are
+    // undefined inside non-uniform control flow — the same rule pxD and pxA
+    // follow above. They depend only on varyings, so nothing about their
+    // values changes by being computed earlier.
+    //
+    // The atan(0,0) guard TRAVELS WITH ang and is not left behind: atan is
+    // undefined at the exact centre of every filled disc, and the resulting
+    // NaN survives mix() because the spec expands mix to x*(1-a)+y*a and
+    // NaN*0 is NaN. step(rG, 1e-6) adds 1.0 to x only there, giving
+    // atan(0, 1) = 0. mod() rather than a conditional add, so an angle of
+    // exactly 0 stays 0 instead of being pushed to 2pi and out of its own
+    // sweep.
+    float rG = length(vec2(vAlong, vD));
+    float ang = mod(atan(vD, vAlong + step(rG, 1e-6)) + 6.283185307179586,
+                    6.283185307179586);
+    // ctx.setLineDash walks the path CENTRELINE, so a disc dashes on the
+    // band mid radius: the boundaries come out radial, as the canvas draws
+    // them. r*ang would be the fragment OWN arc length, and r varies across
+    // the band, so every dash end would come out slanted.
+    float rMid = (vHalfW + vDisc.x) * 0.5;
+    float dashPos = mix(vPhase + t * vLen, rMid * ang, vIsDisc);
+    float dpxDash = max(length(vec2(dFdx(dashPos), dFdy(dashPos))), 1e-6);
+
     // THE DISC'S OWN GRADIENT PARAMETER, for the radial ramps step 6 needs.
     //
     // A segment runs its gradient along the stroke. A disc has no length, so
@@ -1199,7 +1226,6 @@ ${HSL2RGB_GLSL}
     // its radial coordinate, remapped so its knee lands on the 0.5 that
     // machinery splits at. One gradient implementation, not two — this file
     // already lost a task to two implementations of one dash pattern.
-    float rG = length(vec2(vAlong, vD));
     float u01 = clamp(rG / max(vHalfW, 1e-6), 0.0, 1.0);
     float hasMid = step(1e-6, vDiscMid.w) * vIsDisc;
     float knee = max(vDiscMid.w, 1e-6);
@@ -1275,8 +1301,8 @@ ${HSL2RGB_GLSL}
     //   have inherited it through the collapse below.
     //   mod() rather than a conditional add, so an angle of exactly 0 stays 0
     //   instead of being pushed to 2pi and out of its own sweep.
-    float ang = mod(atan(vD, vAlong + step(r, 1e-6)) + 6.283185307179586,
-                    6.283185307179586);
+    // ang is hoisted to the top of main(); see the note there for the
+    // atan(0,0) guard and why it has to be computed in uniform flow.
     float aaAng = pxD / max(r, 1e-6);
     float sweep = clamp((ang - vDisc.y) / aaAng + 0.5, 0.0, 1.0)
                 * clamp((vDisc.z - ang) / aaAng + 0.5, 0.0, 1.0);
@@ -1304,9 +1330,34 @@ ${HSL2RGB_GLSL}
     // 8px band at r=40 that is about a pixel of skew, and it is visible.
     // ctx.setLineDash walks the path's CENTRELINE, so use the band's mid
     // radius: the dash boundaries come out radial, as the canvas draws them.
-    float rMid = (vHalfW + vDisc.x) * 0.5;
-    float dashPos = mix(vPhase + t * vLen, rMid * ang, vIsDisc);
-    if (vDash.x > 0.0) core *= step(mod(dashPos, vDash.x), vDash.y);
+    // THE DASH BOUNDARY, BOX-FILTERED. It was a hard step(): the sides and
+    // the caps of these lines were antialiased and the dash cut alone was
+    // not, which is what read as stair-stepping on a rotating chord.
+    //
+    // dashP IS GUARDED AND THE GUARD IS LOAD-BEARING. mod() used to run only
+    // inside the branch below; it now runs on every instance, including the
+    // solid ones — and the prism packs dashPeriod = 0. mod(x, 0.0) divides
+    // by zero, and a NaN here would escape through the mix()/step() collapse
+    // into the whole additive layer.
+    //
+    // sd is the SIGNED distance to the on-interval [0, D) of a period P:
+    // positive inside a dash, negative in a gap. ONE value serves two jobs —
+    // the cut here, and the bead falloff below.
+    //
+    // Box filter, NOT smoothstep. A smoothstep shoulder spreads a 1px line
+    // over 1.5px and the parity gate reads it as a one-sided brightening;
+    // this form integrates to the true D/P duty and is ink-neutral by
+    // construction. It also degrades correctly: as a chord rotates near
+    // edge-on and dpxDash approaches P, the mask converges to a constant
+    // D/P grey instead of aliasing against the pixel grid.
+    float dashP = max(vDash.x, 1e-3);
+    float dashD = vDash.y;
+    float dashM = mod(dashPos, dashP);
+    float sd = dashM < dashD
+      ?  min(dashM, dashD - dashM)
+      : -min(dashM - dashD, dashP - dashM);
+    float dashMask = clamp(sd / dpxDash + 0.5, 0.0, 1.0);
+    if (vDash.x > 0.0) core *= dashMask;
 
     // The shoulder standing in for ctx.shadowBlur. A canvas shadow is a real
     // gaussian of sigma = blur/2, so this is one too: exp(-d^2 / 2sigma^2) with
