@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   createParticlePool, emitParticle, stepParticles,
   PARTICLE_DRAG, PARTICLE_HUE_BLEND, MAX_PARTICLES,
-  emitEdgeParticles, EDGE_PARTICLE_SPEED_K,
+  emitEdgeParticles, EDGE_PARTICLE_SPEED_K, edgeLaunchK, PARTICLE_PULL,
 } from '../artParticles.js';
 
 // ── The particle ECOLOGY is integrated on the clock, not on draws ────────────
@@ -164,6 +164,34 @@ describe('edge particles have the range to cross their own edge', () => {
     let x = 0, v = EDGE_PARTICLE_SPEED_K;
     for (let f = 0; f < 2000; f++) { x += v; v *= PARTICLE_DRAG; }
     expect(x).toBeCloseTo(1, 6);
+  });
+
+  it('reduces to the plain drag coefficient when there is no arrival term', () => {
+    // The identity that keeps edgeLaunchK and EDGE_PARTICLE_SPEED_K from
+    // drifting: at pull = 0 the denominator is 1 and the formula IS 1 - DRAG.
+    expect(edgeLaunchK(0)).toBeCloseTo(EDGE_PARTICLE_SPEED_K, 12);
+  });
+
+  it('NEVER passes the node, at the pull the emitter actually ships with', () => {
+    // The configuration production uses is pull = 1 -- both ArtTab call sites
+    // omit the argument. Drag and arrival both aim at B and SUPERPOSE, so a
+    // speed sized for the whole remaining distance overshoots: MEASURED peak
+    // 1.124 of the way along the edge before this, about 40-60px past the node
+    // at 900x700, and a particle lives 60-130 frames, squarely in that
+    // transient.
+    //
+    // This walks the real per-frame map rather than the emitter, so it pins the
+    // PROPERTY (the error never changes sign) and not a sampled position.
+    for (const pull of [0, 0.25, 0.5, 1]) {
+      const p = PARTICLE_PULL * pull;
+      let x = 0, v = edgeLaunchK(pull), peak = 0;
+      for (let n = 0; n < 4000; n++) {
+        x += v; v *= PARTICLE_DRAG; x += (1 - x) * p;
+        peak = Math.max(peak, x);
+      }
+      expect(peak).toBeLessThanOrEqual(1 + 1e-9);   // never overshoots
+      expect(x).toBeCloseTo(1, 6);                  // and still arrives
+    }
   });
 
   it('traverses the REST of the edge from wherever along it it was seeded', () => {
