@@ -112,7 +112,7 @@ Do not "fix" this by sampling the midpoint separately without measuring first.
 **Quantisation caveat, real and worth watching.** `packAlphas` quantises to
 `1/255`. A back-side glow-pass segment can reach
 `0.5 × PRISM_ALPHA_K 0.85 × PRISM_GLOW_ALPHA_K 0.4 × cue 0.08 ≈ 0.0136`,
-i.e. `4/255`. Back chords will band. If banding is visible, the answer is NOT a
+i.e. `3/255`. Back chords will band. If banding is visible, the answer is NOT a
 wider instance — it is raising `DEPTH_ALPHA_FLOOR` for this layer only, and that
 is an author call, not an implementer call.
 
@@ -126,25 +126,62 @@ One preallocated `Float32Array(CURVE_MAX_SEGMENTS + 1)` beside `prismPtsRef`,
 ## 3. §2 — Depth cue on the prism
 
 ```js
-/** Envelope multiplier at parameter t (0 at A, 1 at B) along a chord. */
-export function prismDepthCue(depthA, depthB, t) {
-  const cA = depthCueAlpha(depthA);
-  const cB = depthCueAlpha(depthB);
+export const PRISM_DEPTH_ALPHA_FLOOR = 0.24;
+
+/** One node's prism-layer depth cue. */
+export function prismDepthCue(depth) {
+  return Math.max(PRISM_DEPTH_ALPHA_FLOOR, depthCueAlpha(depth));
+}
+
+/** Envelope multiplier at arc-length fraction t (0 at A, 1 at B). */
+export function prismChordCue(depthA, depthB, t) {
+  const cA = prismDepthCue(depthA);
+  const cB = prismDepthCue(depthB);
   return cA + (cB - cA) * t;
 }
 ```
+
+### AMENDED AFTER TASK 2, ON THE AUTHOR'S RULING
+
+The first shipped version used `depthCueAlpha` directly, at the disc floor of
+`0.08`. In the browser the fan read as gutted rather than quieter, and the
+author ruled the prism off the disc floor: **`PRISM_DEPTH_ALPHA_FLOOR = 0.24`**.
+
+**The binding constraint is quantisation, not the bloom gate.** Falling under
+the composer's `0.28 luminanceThreshold` only costs a stroke its BLOOM; it
+still renders. What actually kills a back chord is `packAlphas`' `1/255`: at
+the disc floor a back-side glow-pass segment computes
+`0.5 × 0.85 × 0.4 × 0.08 = 0.0136` — **3/255**, which bands across a 2.6–5px
+stroke. At `0.24` it is 10/255 and the core pass is 26/255.
+
+A disc is a solid 14–20px shape; a chord is a 1.2px core on an ADDITIVE layer.
+Equal alpha is not equal visibility when the footprints differ by about two
+orders of magnitude.
+
+**Two consequences, both deliberate.** The clamp now engages at `depth < -0.52`
+rather than `-0.84`, so the back QUARTER of the depth range is flat — no depth
+discrimination there — and front-to-back contrast falls from 12.5:1 to 4.17:1.
+
+**And it retires the invariant that justified interpolating cues.** The
+paragraph below said interpolating cues makes each end match the disc it lands
+on EXACTLY. That is no longer true: a back-facing chord end is now 3× its own
+disc, by design. The reason to interpolate cues rather than depths still
+stands — a clamp does not commute with a lerp — but the justification is now
+perceptual matching, not numerical equality. The source comment was rewritten
+to say so.
 
 `t` is **arc length from A divided by total arc length**, not the Bézier
 parameter. The two differ on a bowed chord and arc length is the one that
 matches what the eye reads as distance travelled.
 
-Interpolate the **cue**, not the depth. `depthCueAlpha` is linear in depth except
-where the `0.08` floor clamps; interpolating the cue guarantees each end EXACTLY
-matches the disc it lands on, which is the entire point of the change.
+Interpolate the **cue**, not the depth. The cue is linear in depth except where
+its floor clamps, and a clamp does not commute with a lerp — on a chord from
+depth −1 to +1 the midpoint is 0.62 one way and 0.50 the other. (Superseded in
+part by the amendment above: the end no longer equals the DISC's cue.)
 
 Applies to BOTH passes (glow and core) and to the polygon and spokes as well —
 they are the same layer and the same inconsistency. Spokes run from the sphere
-centre to a node; use `depthCueAlpha(0)` at the centre end.
+centre to a node; use `prismDepthCue(0)` at the centre end.
 
 ---
 

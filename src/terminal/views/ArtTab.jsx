@@ -97,7 +97,7 @@ import {
   ORTHO_ALPHA_BOOST, ORTHO_MID_ALPHA_BOOST,
   PULSE_ALPHA, PULSE_DRAW_CUTOFF,
   prismOffset, prismChordAlpha, prismGlowWidth, prismControl, prismSpokeHue,
-  prismChordCue,
+  prismChordCue, prismDepthCue,
   PRISM_SPECTRAL_FINE, PRISM_SPECTRAL_COARSE, PRISM_HUE_STEP,
   PRISM_SAT, PRISM_GLOW_LIT, PRISM_GLOW_ALPHA_K, PRISM_CORE_LIT, PRISM_CORE_W,
   PRISM_POLY_HUE_STEP, PRISM_POLY_LIT, PRISM_POLY_ALPHA_K, PRISM_POLY_W,
@@ -1875,7 +1875,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             for (let i = 0; i < effProj.length; i++) {
               const p0 = effProj[i], p1 = effProj[(i + 1) % effProj.length];
               straight(p0.sx, p0.sy, p1.sx, p1.sy, polyA, PRISM_POLY_W,
-                       depthCueAlpha(p0.depth), depthCueAlpha(p1.depth));
+                       prismDepthCue(p0.depth), prismDepthCue(p1.depth));
             }
           }
 
@@ -1891,7 +1891,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             // back-facing node now fades along its length instead of arriving
             // at full strength on a disc that is barely drawn.
             straight(cx, cy, ep.sx, ep.sy, alpha * PRISM_SPOKE_ALPHA_K, PRISM_SPOKE_W,
-                     depthCueAlpha(0), depthCueAlpha(ep.depth));
+                     prismDepthCue(0), prismDepthCue(ep.depth));
           }
         }
         geomEffectsRef.current = live;

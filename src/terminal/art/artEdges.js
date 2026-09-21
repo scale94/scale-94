@@ -335,17 +335,55 @@ export function prismControl(out, ax, ay, bx, by, cx, cy, offset) {
  * segment — and arc length is the one that matches what the eye reads as
  * distance travelled.
  *
- * This interpolates the CUES, not the depths. depthCueAlpha clamps at
- * DEPTH_ALPHA_FLOOR, and a clamp does not commute with a lerp: on a chord
- * from depth -1 to depth +1, interpolating cues gives 0.54 at the midpoint
- * while cueing an interpolated depth gives 0.50. Interpolating the cues is
- * what makes each END equal the cue of the disc it lands on EXACTLY, which is
- * the entire reason this function exists.
+ * This interpolates the CUES, not the depths. The cue clamps at a floor, and
+ * a clamp does not commute with a lerp: on a chord from depth -1 to depth +1,
+ * interpolating cues gives 0.62 at the midpoint while cueing an interpolated
+ * depth gives 0.50. Interpolating the cues is what makes each END land on the
+ * value prismDepthCue gives for that node, rather than on something that
+ * depends on where the OTHER end happens to be.
+ *
+ * NOTE WHAT THIS DOES NOT CLAIM. An earlier version of this comment said the
+ * chord end equals the cue of the DISC it lands on exactly. That was true
+ * when this used depthCueAlpha directly and it is NOT true now -- see
+ * PRISM_DEPTH_ALPHA_FLOOR, which deliberately lifts this layer off the disc
+ * floor and makes a back-facing chord end up to 3x its own disc.
  */
 export function prismChordCue(depthA, depthB, t) {
-  const cA = depthCueAlpha(depthA);
-  const cB = depthCueAlpha(depthB);
+  const cA = prismDepthCue(depthA);
+  const cB = prismDepthCue(depthB);
   return cA + (cB - cA) * t;
+}
+
+/**
+ * How dark a prism chord may get at the back of the sphere.
+ *
+ * DELIBERATELY NOT DEPTH_ALPHA_FLOOR, and the difference is not a taste knob.
+ * A node disc is a solid 14-20px shape; a prism chord is a 1.2px core on an
+ * ADDITIVE layer. Equal alpha is not equal visibility when the footprints
+ * differ by about two orders of magnitude.
+ *
+ * THE BINDING CONSTRAINT IS QUANTISATION, NOT THE BLOOM GATE. packAlphas
+ * quantises to 1/255. At the disc floor of 0.08 a back-side GLOW-pass segment
+ * at mid-envelope computes 0.5 * PRISM_ALPHA_K * PRISM_GLOW_ALPHA_K * 0.08 =
+ * 0.0136, i.e. 3/255 -- which bands visibly across a 2.6-5px stroke. At 0.24
+ * the same segment is 10/255 and the core pass is 26/255. (Dropping under the
+ * composer's 0.28 luminanceThreshold only costs a stroke its BLOOM; it does
+ * not make it invisible, so that is not the number this is set against.)
+ *
+ * THE COST, STATED. The clamp now engages at depth < -0.52 rather than -0.84,
+ * so the back quarter of the depth range is FLAT -- no depth discrimination
+ * there at all -- and front-to-back contrast falls from 12.5:1 to 4.17:1.
+ * That is a third of the available dynamic range, spent to keep the far side
+ * legible rather than merely present.
+ */
+export const PRISM_DEPTH_ALPHA_FLOOR = 0.24;
+
+/** One node's prism-layer depth cue. Composed from depthCueAlpha rather than
+ *  re-deriving it: since PRISM_DEPTH_ALPHA_FLOOR > DEPTH_ALPHA_FLOOR, taking
+ *  the max of the two floors is provably identical to rebuilding the ramp with
+ *  the higher one, and it leaves exactly one implementation of the cue. */
+export function prismDepthCue(depth) {
+  return Math.max(PRISM_DEPTH_ALPHA_FLOOR, depthCueAlpha(depth));
 }
 
 /** A spoke's hue: the effect's base hue rotated by the node's bearing from the

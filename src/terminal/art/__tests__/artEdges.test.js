@@ -25,9 +25,9 @@ import {
   chimeraDashOffset, CHIMERA_DASH, CHIMERA_CP_PULL, CHIMERA_MAX_ZONES,
   HUM, humPhase, humAxis, humGain, humWave, humGlowRadius, HUM_GLOW,
   FUSED_GLOW_BASE,
-  prismChordCue,
+  prismChordCue, prismDepthCue, PRISM_DEPTH_ALPHA_FLOOR,
 } from '../artEdges';
-import { DEPTH_ALPHA_FLOOR } from '../artNodes';
+import { DEPTH_ALPHA_FLOOR, depthCueAlpha } from '../artNodes';
 import { CURVE_MAX_SEGMENTS, quadSegments, tessellateQuad } from '../artCurve';
 import {
   writeHsl, writeHslRgb, writeRgb255, packAlphas, unpackAlphas, packFlags, unpackFlags,
@@ -1690,8 +1690,8 @@ describe('prismChordCue', () => {
   it('returns each end node OWN depth cue at t = 0 and t = 1', () => {
     // The whole point: a chord's end must match the disc it lands on.
     // depthCueAlpha(d) = max(0.08, (d + 1) * 0.5), written out as literals.
-    expect(prismChordCue(-1, 1, 0)).toBeCloseTo(0.08, 7);   // max(0.08, 0.0)
-    expect(prismChordCue(-1, 1, 1)).toBeCloseTo(1.0,  7);   // max(0.08, 1.0)
+    expect(prismChordCue(-1, 1, 0)).toBeCloseTo(0.24, 7);   // the prism floor
+    expect(prismChordCue(-1, 1, 1)).toBeCloseTo(1.0,  7);   // max(0.24, 1.0)
     expect(prismChordCue(0.2, -0.4, 0)).toBeCloseTo(0.6, 7); // (0.2 + 1) * 0.5
     expect(prismChordCue(0.2, -0.4, 1)).toBeCloseTo(0.3, 7); // (-0.4 + 1) * 0.5
   });
@@ -1701,20 +1701,59 @@ describe('prismChordCue', () => {
   // the 0.08 floor clamps one endpoint and a clamp does not commute with a
   // lerp. If anyone 'simplifies' this to depthCueAlpha((dA + dB) / 2), this is
   // what catches it.
-  it('interpolates the CUES, not the depths — 0.54 at the midpoint, never 0.50', () => {
-    expect(prismChordCue(-1, 1, 0.5)).toBeCloseTo(0.54, 7);  // (0.08 + 1.0) / 2
+  it('interpolates the CUES, not the depths — 0.62 at the midpoint, never 0.50', () => {
+    expect(prismChordCue(-1, 1, 0.5)).toBeCloseTo(0.62, 7);  // (0.24 + 1.0) / 2
     expect(prismChordCue(-1, 1, 0.5)).not.toBeCloseTo(0.5, 3);
   });
 
   it('is linear in t between the two cues', () => {
-    // Cues are 0.08 and 1.0, so the value at t is 0.08 + 0.92t.
-    expect(prismChordCue(-1, 1, 0.25)).toBeCloseTo(0.31, 7);
-    expect(prismChordCue(-1, 1, 0.75)).toBeCloseTo(0.77, 7);
+    // Cues are 0.24 and 1.0, so the value at t is 0.24 + 0.76t.
+    expect(prismChordCue(-1, 1, 0.25)).toBeCloseTo(0.43, 7);
+    expect(prismChordCue(-1, 1, 0.75)).toBeCloseTo(0.81, 7);
   });
 
   it('never returns less than the floor either end can reach', () => {
     for (const t of [0, 0.3, 0.5, 0.9, 1]) {
-      expect(prismChordCue(-1, -1, t)).toBeCloseTo(DEPTH_ALPHA_FLOOR, 7);
+      expect(prismChordCue(-1, -1, t)).toBeCloseTo(PRISM_DEPTH_ALPHA_FLOOR, 7);
     }
+  });
+});
+
+describe('PRISM_DEPTH_ALPHA_FLOOR', () => {
+  it('sits ABOVE the disc floor, because equal alpha is not equal visibility', () => {
+    // A disc is a solid 14-20px shape; a chord is a 1.2px core on an ADDITIVE
+    // layer. The binding constraint is packAlphas' 1/255 quantisation, not the
+    // composer's bloom gate: at the disc floor a back-side glow-pass segment
+    // computes 0.5 * 0.85 * 0.4 * 0.08 = 0.0136, which is 3/255 and bands.
+    expect(PRISM_DEPTH_ALPHA_FLOOR).toBe(0.24);
+    expect(PRISM_DEPTH_ALPHA_FLOOR).toBeGreaterThan(DEPTH_ALPHA_FLOOR);
+    // 3/255 at the disc floor against 10/255 at the prism floor, literal.
+    expect(Math.round(0.5 * 0.85 * 0.4 * DEPTH_ALPHA_FLOOR * 255)).toBe(3);
+    expect(Math.round(0.5 * 0.85 * 0.4 * PRISM_DEPTH_ALPHA_FLOOR * 255)).toBe(10);
+  });
+
+  // LIVENESS for the decoupling. If prismDepthCue is ever 'simplified' back to
+  // depthCueAlpha, every one of these collapses onto the disc value.
+  it('lifts a back-facing node clear of its own disc, by exactly 3x', () => {
+    expect(prismDepthCue(-1)).toBeCloseTo(0.24, 7);
+    expect(depthCueAlpha(-1)).toBeCloseTo(0.08, 7);
+    expect(prismDepthCue(-1) / depthCueAlpha(-1)).toBeCloseTo(3, 7);
+  });
+
+  it('leaves the front of the sphere untouched — it is a floor, not a lift', () => {
+    // Above the floor the two cues agree exactly, so nothing the viewer can
+    // actually see clearly has moved.
+    for (const d of [-0.4, 0, 0.5, 1]) {
+      expect(prismDepthCue(d)).toBe(depthCueAlpha(d));
+    }
+  });
+
+  it('flattens the back QUARTER of the depth range, which is the cost', () => {
+    // The clamp engages where (d + 1) * 0.5 < 0.24, i.e. d < -0.52. Below that
+    // there is no depth discrimination at all. Stated so it is a known
+    // trade rather than a surprise.
+    expect(prismDepthCue(-0.52)).toBeCloseTo(0.24, 7);
+    expect(prismDepthCue(-0.7)).toBe(prismDepthCue(-1));
+    expect(prismDepthCue(-0.5)).toBeGreaterThan(PRISM_DEPTH_ALPHA_FLOOR);
   });
 });
