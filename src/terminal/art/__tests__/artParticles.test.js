@@ -155,30 +155,41 @@ describe('stepParticles — the same wall-clock window, at any refresh rate', ()
 });
 
 describe('edge particles have the range to cross their own edge', () => {
-  it('derives its launch speed from the drag, not from a literal', () => {
-    // Total displacement under geometric drag is v0 * sum(DRAG^k) =
-    // v0 / (1 - DRAG). To cover an edge of length L in the limit, v0 must be
-    // (1 - DRAG) * L. Anything else is a number someone typed.
-    expect(EDGE_PARTICLE_SPEED_K).toBeCloseTo(1 - PARTICLE_DRAG, 12);
+  it('carries a launch speed that drifts exactly one edge under the real integrator', () => {
+    // NOT `toBeCloseTo(1 - PARTICLE_DRAG)` — that restates the constant's own
+    // definition and cannot fail while the definition is copied into it. This
+    // runs the integrator's own arithmetic (add v, then decay) and asserts the
+    // CONSEQUENCE: a unit edge is exactly covered. A wrong constant fails here
+    // however tidily it was written.
+    let x = 0, v = EDGE_PARTICLE_SPEED_K;
+    for (let f = 0; f < 2000; f++) { x += v; v *= PARTICLE_DRAG; }
+    expect(x).toBeCloseTo(1, 6);
   });
 
-  it('actually traverses the edge it was emitted along', () => {
+  it('traverses the REST of the edge from wherever along it it was seeded', () => {
     const pool = createParticlePool();
-    // A straight unit-length edge along +x, seeded at its A end.
-    emitEdgeParticles(pool, 0, 0, 0, 1, 0, 0, 10, 20, 1);
+    // `pull = 0`, and that is the whole point of this test. emitEdgeParticles
+    // defaults pull to 1, and the arrival term alone drags a particle to its
+    // target regardless of launch speed — MEASURED: with the old 0.002
+    // coefficient restored this assertion still passed at xs = 0.9997. The
+    // test could not fail for the reason it exists. Turning the pull off
+    // isolates the drag kinematics, which is what the launch speed is for.
+    emitEdgeParticles(pool, 0, 0, 0, 1, 0, 0, 10, 20, 1, 0);
     const i = 0;
-    pool.xs[i] = 0; pool.ys[i] = 0; pool.zs[i] = 0;
-    // emitEdgeParticles also draws this particle's maxLife from the shared
-    // artRandom() stream (60-130 frames). stepParticles freezes a particle's
-    // position once its life reaches that cap, and 60-130 frames is only
-    // 2.2-4.7 e-foldings of PARTICLE_DRAG — not enough to reach the asymptote
-    // this test is checking. Left coupled to the random draw, this assertion
-    // fails on roughly half of all runs (MEASURED). Pinning maxLife here tests
-    // the KINEMATICS this test is actually about, without depending on an
-    // absolute value the shared stream happens to return.
+    // The seed position is deliberately NOT overwritten. A particle is born at
+    // `t = artRandom()` along the edge and launched at `(1 - t)` of the full
+    // speed, so it asymptotes to `t + (1 - t)` = B exactly. Zeroing the
+    // position here — as this test used to — would leave it aimed at `1 - t`
+    // and assert an arrival it can no longer make.
+    //
+    // maxLife IS pinned: emitEdgeParticles draws it from the shared
+    // artRandom() stream (60-130 frames), stepParticles freezes a particle at
+    // that cap, and 60-130 frames is only 2.2-4.7 e-foldings — short of the
+    // asymptote. Left on the draw, this failed on roughly half of all runs.
     pool.maxLifes[i] = 1000;
     for (let f = 0; f < 400; f++) stepParticles(pool, 1);
     // Asymptotically 1.0; 400 frames is ~14 e-foldings, so within a whisker.
+    // The velocity jitter is +/-0.0004, i.e. +/-0.011 of displacement.
     expect(pool.xs[i]).toBeGreaterThan(0.97);
     expect(pool.xs[i]).toBeLessThan(1.03);
   });
