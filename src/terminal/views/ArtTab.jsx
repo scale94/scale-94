@@ -97,7 +97,7 @@ import {
   ORTHO_ALPHA_BOOST, ORTHO_MID_ALPHA_BOOST,
   PULSE_ALPHA, PULSE_DRAW_CUTOFF,
   prismOffset, prismChordAlpha, prismGlowWidth, prismControl, prismSpokeHue,
-  prismChordCue, prismDepthCue,
+  prismChordCue, prismDepthCue, prismRootTaper,
   PRISM_SPECTRAL_FINE, PRISM_SPECTRAL_COARSE, PRISM_HUE_STEP,
   PRISM_SAT, PRISM_GLOW_LIT, PRISM_GLOW_ALPHA_K, PRISM_CORE_LIT, PRISM_CORE_W,
   PRISM_POLY_HUE_STEP, PRISM_POLY_LIT, PRISM_POLY_ALPHA_K, PRISM_POLY_W,
@@ -1774,7 +1774,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         // calling it here would re-run depthCueAlpha twice for every one of
         // ~74000 points in a full-strength frame. The expression is the same
         // one prismChordCue is tested on.
-        const chord = (m, a, width, cueA, cueB) => {
+        const chord = (m, a, width, cueA, cueB, taper) => {
           let total = 0;
           for (let i = 0; i + 1 < m; i++) {
             total += Math.hypot(pts[i * 2 + 2] - pts[i * 2],
@@ -1787,7 +1787,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
                                  pts[i * 2 + 1] - pts[i * 2 - 1]);
             }
             const tt = total > 1e-6 ? sLen / total : 0;
-            alf[i] = a * (cueA + (cueB - cueA) * tt);
+            const cue = cueA + (cueB - cueA) * tt;
+            alf[i] = a * cue * (taper ? prismRootTaper(sLen, total) : 1);
           }
           return writePolyline(ag, pts, m, rgb, a, width * ink, PRISM_FLAGS, 0, alf);
         };
@@ -1855,11 +1856,17 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
                   quadSegments(x0, y0, ctrl[0], ctrl[1], x1, y1));
 
                 // Wide glow pass
+                // Wide glow pass — TAPERED at the root. 140 of these
+                // terminate on one node centre and the disc was being
+                // swallowed; see prismRootTaper.
                 writeHsl(rgb, 0, hue, PRISM_SAT, PRISM_GLOW_LIT);
-                chord(m, lAlpha * PRISM_GLOW_ALPHA_K, prismGlowWidth(k), cueA, cueB);
-                // Sharp core pass
+                chord(m, lAlpha * PRISM_GLOW_ALPHA_K, prismGlowWidth(k), cueA, cueB, true);
+                // Sharp core pass — NOT tapered. The thread lands on the
+                // exact node origin, which is the author's ruling. 70 cores
+                // still converge there; whether that needs its own
+                // attenuation is a MEASURED question, deliberately left open.
                 writeHsl(rgb, 0, hue, PRISM_SAT, PRISM_CORE_LIT);
-                chord(m, lAlpha, PRISM_CORE_W, cueA, cueB);
+                chord(m, lAlpha, PRISM_CORE_W, cueA, cueB, false);
               }
             }
           }

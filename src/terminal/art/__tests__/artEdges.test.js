@@ -26,6 +26,7 @@ import {
   HUM, humPhase, humAxis, humGain, humWave, humGlowRadius, HUM_GLOW,
   FUSED_GLOW_BASE,
   prismChordCue, prismDepthCue, PRISM_DEPTH_ALPHA_FLOOR,
+  prismRootTaper, PRISM_ROOT_TAPER_PX,
 } from '../artEdges';
 import { DEPTH_ALPHA_FLOOR, depthCueAlpha } from '../artNodes';
 import { CURVE_MAX_SEGMENTS, quadSegments, tessellateQuad } from '../artCurve';
@@ -1755,5 +1756,52 @@ describe('PRISM_DEPTH_ALPHA_FLOOR', () => {
     expect(prismDepthCue(-0.52)).toBeCloseTo(0.24, 7);
     expect(prismDepthCue(-0.7)).toBe(prismDepthCue(-1));
     expect(prismDepthCue(-0.5)).toBeGreaterThan(PRISM_DEPTH_ALPHA_FLOOR);
+  });
+});
+
+// ── The prism's root taper ────────────────────────────────────────────────
+//
+// In an eleven-node effect 140 strokes terminate on ONE node centre (10 pairs
+// x 7 spectral lines x 2 passes) on an ADDITIVE layer. Measured live: 60
+// endpoints inside a single 2x2px cell against a mean of 5.3 per occupied
+// cell. The disc behind that is 14-20px wide and was being swallowed.
+
+describe('prismRootTaper', () => {
+  it('is 0 at each end and 1 beyond the taper length', () => {
+    // totalLen 100 -> L = min(14, 100/3 = 33.33) = 14.
+    expect(prismRootTaper(0,   100)).toBeCloseTo(0, 7);
+    expect(prismRootTaper(100, 100)).toBeCloseTo(0, 7);
+    expect(prismRootTaper(7,   100)).toBeCloseTo(0.5, 7);   // 7 / 14
+    expect(prismRootTaper(14,  100)).toBeCloseTo(1, 7);     // 14 / 14
+    expect(prismRootTaper(50,  100)).toBeCloseTo(1, 7);     // clamped
+    expect(prismRootTaper(93,  100)).toBeCloseTo(0.5, 7);   // 7 from the B end
+  });
+
+  // LIVENESS for the /3 clamp. On a 20px chord the clamp makes L = 6.67, so
+  // the MIDPOINT reaches full alpha. Without the clamp L stays 14 and the
+  // midpoint would be 10/14 = 0.714 -- a chord that never reaches full
+  // strength anywhere, which is the bug the clamp exists to prevent.
+  it('clamps the taper length to a third of the chord, so short chords still reach 1', () => {
+    expect(prismRootTaper(10, 20)).toBeCloseTo(1, 7);
+    expect(prismRootTaper(10, 20)).not.toBeCloseTo(0.714, 2);
+    // and it still tapers: 20/6 is half of L = 20/3.
+    expect(prismRootTaper(20 / 6, 20)).toBeCloseTo(0.5, 7);
+  });
+
+  it('returns 1 for a degenerate chord instead of dividing by zero', () => {
+    expect(prismRootTaper(0, 0)).toBe(1);
+    expect(Number.isFinite(prismRootTaper(0, 0))).toBe(true);
+  });
+
+  it('is symmetric about the midpoint', () => {
+    for (const d of [0, 3, 7, 14, 30]) {
+      expect(prismRootTaper(d, 100)).toBeCloseTo(prismRootTaper(100 - d, 100), 7);
+    }
+  });
+
+  it('PRISM_ROOT_TAPER_PX matches the base edge taper it was chosen to echo', () => {
+    // Two different numbers here would read as one of them having been tuned.
+    expect(PRISM_ROOT_TAPER_PX).toBe(14);
+    expect(PRISM_ROOT_TAPER_PX).toBe(EDGE_TAPER_PX);
   });
 });

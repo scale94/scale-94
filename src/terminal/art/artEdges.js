@@ -386,6 +386,44 @@ export function prismDepthCue(depth) {
   return Math.max(PRISM_DEPTH_ALPHA_FLOOR, depthCueAlpha(depth));
 }
 
+/** Where the prism's WIDE pass reaches full strength, in px of arc length from
+ *  each end. Matches EDGE_TAPER_PX deliberately: the base edges' glow taper and
+ *  this one are the same gesture on two layers, and a reader who finds two
+ *  different numbers will reasonably assume one of them was tuned. */
+export const PRISM_ROOT_TAPER_PX = 14;
+
+/**
+ * The wide pass's alpha multiplier at arc length `sFromA` along a chord of
+ * total length `totalLen`. Linear from 0 at each end up to 1 at
+ * PRISM_ROOT_TAPER_PX in, flat through the middle.
+ *
+ * WHY THE WIDE PASS ONLY. In an eleven-node effect, 140 strokes terminate on
+ * ONE node centre -- 10 pairs x 7 spectral lines x 2 passes -- on an ADDITIVE
+ * layer. Measured live: 60 stroke endpoints inside a single 2x2px cell against
+ * a mean of 5.3 per occupied cell, roughly 11x the line's own density piled
+ * into one point. The disc behind it is 14-20px wide and was being swallowed.
+ * The wide pass carries about 56% of that root ink (glow 0.4 x ~3.8px against
+ * core 1.0 x 1.2px), so tapering it removes that share while the 1.2px core
+ * still lands on the exact node origin -- the author's ruling, and the same
+ * one made for the base edges last session: taper the glow, keep the thread.
+ *
+ * DO NOT try to reuse the shipped EDGE_TAPER_PX shader taper for this. That
+ * one multiplies the GLOW term, and the prism packs glow = 0: its `glow` is a
+ * literal second stroke, not a shader shoulder. The shader taper cannot fire
+ * on this layer at all.
+ *
+ * `totalLen / 3` IS A GUARD, NOT A TASTE KNOB. Without it a chord shorter than
+ * 2 x PRISM_ROOT_TAPER_PX tapers from both ends and never reaches full alpha
+ * anywhere -- a 20px chord would peak at 10/14 = 0.714 in its own middle.
+ */
+export function prismRootTaper(sFromA, totalLen) {
+  if (!(totalLen > 1e-6)) return 1;
+  const L = Math.min(PRISM_ROOT_TAPER_PX, totalLen / 3);
+  if (!(L > 1e-6)) return 1;
+  const d = Math.min(sFromA, totalLen - sFromA);
+  return Math.min(1, d / L);
+}
+
 /** A spoke's hue: the effect's base hue rotated by the node's bearing from the
  *  projected sphere centre, so the star reads as a colour wheel. */
 export function prismSpokeHue(hue0, dx, dy) {
