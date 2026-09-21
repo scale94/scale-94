@@ -185,7 +185,7 @@ describe('discInkCorrection', () => {
 
 describe('velocity-stretched streaks', () => {
   it('stretches the frame displacement by a constant factor', () => {
-    const t = streakTail(100, 100, 98, 99);
+    const t = streakTail(100, 100, 98, 99, 1);
     expect(t.x).toBeCloseTo(100 - 2 * STREAK_STRETCH, 10);
     expect(t.y).toBeCloseTo(100 - 1 * STREAK_STRETCH, 10);
   });
@@ -196,15 +196,15 @@ describe('velocity-stretched streaks', () => {
     // and the cap term evaluates to 0.25 at vAlong = 0 -- a faint
     // quarter-alpha blob where a spark should be. The caller must fall back to
     // the disc path, so the law has to say so.
-    expect(streakTail(50, 50, 50, 50).degenerate).toBe(true);
-    expect(streakTail(50, 50, 49.999, 50).degenerate).toBe(true);
-    expect(streakTail(50, 50, 40, 50).degenerate).toBe(false);
+    expect(streakTail(50, 50, 50, 50, 1).degenerate).toBe(true);
+    expect(streakTail(50, 50, 49.999, 50, 1).degenerate).toBe(true);
+    expect(streakTail(50, 50, 40, 50, 1).degenerate).toBe(false);
   });
 
   it('calls a streak degenerate exactly below STREAK_MIN_PX of stretched length', () => {
     const d = STREAK_MIN_PX / STREAK_STRETCH;
-    expect(streakTail(0, 0, d * 1.01, 0).degenerate).toBe(false);
-    expect(streakTail(0, 0, d * 0.99, 0).degenerate).toBe(true);
+    expect(streakTail(0, 0, d * 1.01, 0, 1).degenerate).toBe(false);
+    expect(streakTail(0, 0, d * 0.99, 0, 1).degenerate).toBe(true);
   });
 
   it('floors at a length the box filter can actually resolve', () => {

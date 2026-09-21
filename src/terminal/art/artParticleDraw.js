@@ -171,7 +171,11 @@ export const STREAK_MIN_PX = 0.75;
  * spark should be — a stalled particle rendering as a dimmer, wrongly-shaped
  * dot, which reads as a bug in the ecology rather than in the encoding.
  */
-export function streakTail(headX, headY, prevX, prevY, dtFrames = 1) {
+// `dtFrames` is REQUIRED, deliberately — the same call stepParticles makes and
+// for the same reason. A default of 1 silently restores the per-DRAW
+// behaviour for any caller that forgets it, which is precisely the bug this
+// parameter exists to remove.
+export function streakTail(headX, headY, prevX, prevY, dtFrames) {
   // NORMALISED TO ONE AUTHORED FRAME, and this is not a refinement — without it
   // the whole layer is a function of the viewer's refresh rate.
   //

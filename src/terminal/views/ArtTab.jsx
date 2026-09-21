@@ -1251,6 +1251,12 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       const ag = addGLRef.current;
       ag.count = 0;
       ag.dropped = 0;
+      // Reset WITH the count, not only at the particle loop. This is a property
+      // persisted on the ref, and the draw body is inside a try -- a frame that
+      // threw between here and the particle loop would leave LAST frame's index
+      // standing against a fresh, smaller count, and the presence harness would
+      // read real prism instances as particles.
+      ag.particleStart = 0;
       ag.w = w; ag.h = h;
       // Scratch shared with the prism block below: tessellation points, the
       // control point, and writeHsl's 3-float output. Nothing here allocates.
@@ -2428,7 +2434,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           });
         } else {
           // The streak, as ONE segment: tail to head, with the gradient running
-          // dark-to-bright along it and the gaussian shoulder carrying the glow.
+          // dark-to-bright along it. NO gaussian shoulder: PARTICLE_FLAGS packs
+          // glow = 0 and edgeFrag gates the whole shoulder term behind
+          // step(0.001, vGlow), so what replaces the disc's soft radial ramp is a
+          // hard box-filtered line at a seventh of its half-width. See
+          // artParticleDraw's note on the fidelity loss.
           const o = ag.count * EDGE_STRIDE;
           const ad = ag.data;
           ad[o] = _st.x; ad[o + 1] = _st.y; ad[o + 2] = pp.sx; ad[o + 3] = pp.sy;
