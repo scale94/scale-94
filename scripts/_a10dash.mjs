@@ -14,41 +14,90 @@
 //      pixels at or above SphereComposite's 0.28 luminanceThreshold, so it is
 //      the direct answer to "does this move the bloom".
 //
-// SAME-BUILD A/B, three arms, one build each:
+// ── WHY THIS WAS REWRITTEN, AND WHAT THE OLD VERSION COULD NOT DO ──────────
 //
-//   shipped   — as committed.
-//   no-bead   — beadGate forced to 0.0: the halo goes back to running
-//               continuously along the whole chord. Isolates the bead.
-//   hard-cut  — the box filter replaced by the step() it replaced. Isolates
-//               the antialiasing, and tests the claim in the spec that a box
-//               filter is INK-NEUTRAL by construction because it integrates to
-//               the true D/P duty. If that claim is right, hard-cut and
-//               shipped agree on `ink` to within the run-to-run floor.
+// The previous version answered both questions by EDITING THIS REPO. It
+// rewrote the beadGate statement in SphereEdges.js, waited for vite, relaunched
+// Chrome, measured, and restored the file. One browser launch per arm.
 //
-// THE RESTORE DISCIPLINE IS THE POINT, and it is not decoration. `git checkout
-// -- <file>` restores to the last COMMIT, not to pre-patch bytes, and on this
-// project it destroyed an uncommitted edit. The original bytes are held in
-// memory, every arm is inside one try/finally so a throw anywhere still
-// restores, and the restore is verified by re-reading and comparing rather
-// than assumed.
+// It could not resolve either effect, and it said so. Across two full runs:
 //
-// NEVER run this while an artBaseline/artCompare capture is in flight: it
-// edits tracked source, Vite HMRs the edit into that page, and the tell is two
-// different gitCommit stamps across the manifests.
+//     run   same-build floor (ink/hot)   no-bead        hard-cut
+//     2     0.08% / 0.23%                0.12% / 0.56%  0.98% / 0.37%
+//     3     0.96% / 0.45%                0.80% / 0.31%  0.93% / 0.22%
 //
-//   node scripts/_a10dash.mjs [W] [H] [DPR]
+// In run 3 THE SAME BUILD SHOT TWICE DIFFERED BY MORE THAN EITHER TREATMENT
+// ARM, and the floor itself swung 0.08% -> 0.96% between runs. `deterministic:
+// true` plus `__reseed` plus a fixed pump pins the world WITHIN a page; it does
+// not pin it across separate browser LAUNCHES. So the honest output was a
+// bound — under ~1% of frame ink, ~0.5% of hot pixels — and never a number.
+// Stopping one run earlier would have shipped "the antialiasing adds 0.98%
+// ink" as a finding. It was noise.
+//
+// Both arms are now UNIFORMS (uBeadScale, uDashAA), so this launches Chrome
+// ONCE and never touches a tracked file. That removes the launch as a
+// variable, which is the only variable that was ever large enough to matter.
+//
+// ── THE DESIGN: ABA, BECAUSE RE-ESTABLISHING THE WORLD DOES NOT WORK ───────
+//
+// Flipping a uniform and shooting again is not enough on its own: the sphere
+// rotates and its graph evolves, so consecutive frames differ and the arm
+// difference arrives contaminated by that drift.
+//
+// THE FIRST ATTEMPT WAS TO REMOVE THE DRIFT BY RE-ESTABLISHING THE WORLD for
+// every arm — `__reseed()`, `__artHarnessReset()`, re-forge, pump a fixed
+// count, shoot. MEASURED, AND IT IS WORSE, BY A LOT: the floor came out at
+// 21.0% of sphere ink, against 0.08–0.96% of frame ink for the old
+// four-launch rig. The tell was in the census, not the ink — `count` swung
+// 103 to 134 across arms, and the arm that always ran THIRD in the cycle was
+// systematically the low one. `__artHarnessReset` is not idempotent: each call
+// leaves the page somewhere new, so POSITION IN THE CYCLE was deciding the
+// world and the uniform was not. Do not restore that design.
+//
+// So the drift is not removed. It is CANCELLED, which is cheaper and exact.
+//
+// Every arm X is measured as a symmetric triple — shipped, X, shipped — one
+// fixed pump apart. If the drift is locally linear across three frames (and
+// across three it is, whatever it does across three hundred), then
+// (S1 + S2) / 2 is an unbiased estimate of what `shipped` would have measured
+// at X's own frame, and
+//
+//     delta(X) = X - (S1 + S2) / 2
+//
+// has the drift SUBTRACTED rather than averaged down. That is why this needs
+// no Latin square and no large cycle count: the balance is inside each triple
+// instead of accumulated across many of them.
+//
+// THE `repeat` ARM IS THE SAME TRIPLE WITH X SET TO `shipped` — three
+// identical settings in a row. Its delta is therefore pure residual: sampling
+// noise, plus whatever the drift does that three frames of linearity cannot
+// describe. THAT is the floor, and every other arm has to clear it.
+//
+// ── THE LIVENESS GATE ──────────────────────────────────────────────────────
+//
+// A uniform switch that never reached the GPU would make every arm identical
+// and this instrument would report 0.00% for everything — a green run that
+// measured nothing, which is the exact failure mode this file was bitten by
+// once already (its first version reported -8.26% ink for the bead while its
+// own census said ZERO ortho instances were on screen).
+//
+// So the `no-bead` arm MUST clear the floor. If it does not, that is either a
+// bead too cheap for this rig to resolve or a dead uniform; this run cannot
+// tell those apart, so it says so and exits non-zero rather than printing a
+// number that would read as the former.
+//
+//   node scripts/_a10dash.mjs [W] [H] [DPR] [CYCLES]
 import { launch } from './cdp.mjs';
-import { readFileSync, writeFileSync } from 'node:fs';
 import { decodePng } from './_png.mjs';
 
-const SRC = 'F:/scale_9.4/src/terminal/art/SphereEdges.js';
 // 5173, NOT the 5174 the older instruments in this folder point at. vite.config
 // declares port 5173 with strictPort, so 5174 never listens and a page loaded
 // from it throws unboundedly on every dynamic import.
 const URL = 'http://localhost:5173/';
-const W   = Number(process.argv[2] ?? 1520);
-const H   = Number(process.argv[3] ?? 900);
-const DPR = Number(process.argv[4] ?? 1);
+const W      = Number(process.argv[2] ?? 1520);
+const H      = Number(process.argv[3] ?? 900);
+const DPR    = Number(process.argv[4] ?? 1);
+const CYCLES = Number(process.argv[5] ?? 4);
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -56,6 +105,8 @@ const SPHERE = '[...document.querySelectorAll("canvas")]' +
   '.filter(c => c.offsetParent && !c.closest("[data-art-composite]"))' +
   '.sort((a,b) => b.getBoundingClientRect().width - a.getBoundingClientRect().width)[0]';
 const SPHERE_READY = '(() => { const c = ' + SPHERE + '; return !!c && c.getBoundingClientRect().width > 700; })()';
+const SPHERE_RECT = '(() => { const c = ' + SPHERE + '; const r = c.getBoundingClientRect();' +
+  ' return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) }; })()';
 const clickText = (t) => '(() => { const b = [...document.querySelectorAll("button")]' +
   '.find(e => (e.innerText || "").indexOf(' + JSON.stringify(t) + ') >= 0);' +
   ' if (!b) return false; b.click(); return true; })()';
@@ -105,151 +156,246 @@ function measure(png) {
   return { ink: +ink.toFixed(1), lit, hot, inkPerLit: +(lit ? ink / lit : 0).toFixed(5), max: +max.toFixed(4) };
 }
 
+// THE ARMS, as uniform settings rather than as source patches. `repeat` is
+// identical to `shipped` and that is the whole point of it.
 const ARMS = {
-  shipped:  null,
-  // THE NOISE FLOOR, and it is not optional. The same unpatched build, shot a
-  // second time. Every delta below has to clear THIS before it means anything:
-  // this project once read 15.28% and 16.51% from two runs of one build and
-  // nearly shipped the 1.23-point gap as a finding. A measured arm that does
-  // not beat the repeat is reported as UNRESOLVED, not as a small effect.
-  'repeat':  null,
-  'no-bead': [
-    'float beadGate = vIsOrtho * step(0.001, vDash.x) * (1.0 - vIsDisc);',
-    'float beadGate = 0.0;',
-  ],
-  'hard-cut': [
-    'float dashMask = clamp(sd / dpxDash + 0.5, 0.0, 1.0);',
-    'float dashMask = step(0.0, sd);',
-  ],
+  shipped:    { beadScale: 1, dashAA: 1 },
+  'no-bead':  { beadScale: 0, dashAA: 1 },
+  'hard-cut': { beadScale: 1, dashAA: 0 },
+  repeat:     { beadScale: 1, dashAA: 1 },
+  // NOT A SHIPPED CONFIGURATION. An extreme value used only to prove the
+  // uniform reaches the GPU. beadGate scales the distance dDash that the
+  // gaussian integrates, so a large value drives the gap distance far past the
+  // glow radius and erases the halo BETWEEN dashes outright. If 64 moves
+  // nothing, the uniform is dead; if it moves a lot while 0 moves little, the
+  // switch is live and the shipped bead is simply cheap -- which is the one
+  // distinction the previous rig could never make.
+  'bead-x64': { beadScale: 64, dashAA: 1 },
 };
 
-const original = readFileSync(SRC, 'utf8');
-for (const [arm, patch] of Object.entries(ARMS)) {
-  if (patch && !original.includes(patch[0])) {
-    throw new Error('patch anchor for "' + arm + '" did not match — refusing to run');
-  }
-}
-console.log('all patch anchors matched; source is ' + original.length + ' bytes');
+// PUMP per shot. Two and not one: the draw loop copies the ref onto
+// eg.beadScale during a frame and syncEdgeLayer pushes it to the uniform, and
+// whether that lands before or after the GL render inside the SAME frame is
+// not something to assume. Two frames removes the question, and since every
+// shot in every triple spends the same two, it costs the symmetry nothing.
+const PUMP = 2;
+const LIVENESS_CYCLES = 10;
+const SETTLE = 240;
+const ORTHO_N = 11;
 
+const page = await launch({ url: URL, width: W, height: H, dpr: DPR, deterministic: true });
+let clip = null;
+
+/** Seed the world and forge the bridges. Called ONCE -- see the design note. */
+async function establish(orthoN) {
+  await page.eval('window.__reseed && window.__reseed(); window.__artHarnessReset && window.__artHarnessReset();');
+  // The bridges are a PROP the reasoning engine accumulates over a live
+  // session, so a fresh world has none and every arm would measure nothing.
+  // The hook marks REAL edges and RETURNS the count, which is asserted rather
+  // than trusted -- a hook that silently marked nothing would put us straight
+  // back to reporting boot noise as a measurement.
+  const marked = JSON.parse(await page.eval(
+    'JSON.stringify(window.__artSetOrthogonal ? window.__artSetOrthogonal(' + orthoN + ') : null)'));
+  if (!marked || !marked.marked) {
+    throw new Error('__artSetOrthogonal marked nothing: ' + JSON.stringify(marked));
+  }
+  await page.pump(SETTLE);
+  return marked.marked;
+}
+
+/** Set one arm's uniforms, assert both switches landed, advance, shoot. */
 async function shoot(arm) {
-  const patch = ARMS[arm];
-  if (patch) writeFileSync(SRC, original.replace(patch[0], patch[1]), 'utf8');
-  else writeFileSync(SRC, original, 'utf8');
-  await sleep(600);   // let vite rebuild before the page loads
-
-  // deterministic: installs the frame/RNG/clock shim BEFORE any page script,
-  // which is the only way two boots of this sphere are comparable, and it is
-  // also what defines window.__pump. Without it the world differs boot to boot
-  // -- a documented instability on this project -- and every delta below is
-  // that noise wearing a measurement's clothes.
-  const page = await launch({ url: URL, width: W, height: H, dpr: DPR, deterministic: true });
-  try {
-    await page.waitFor('document.querySelectorAll("canvas").length > 0', { label: 'boot canvas' });
-    await sleep(2200);
-    if (!await page.eval(clickText('/CHAOS'))) throw new Error('no /CHAOS nav button');
-    await page.waitFor(SPHERE_READY, { label: 'sphere', timeoutMs: 40000 });
-    await sleep(3500);
-
-    // Pin the clock and the RNG, then step a FIXED number of frames, so every
-    // arm is measured at the same world state rather than at whatever moment
-    // the wall clock happened to land on.
-    await page.eval('window.__virtualize && window.__virtualize()');
-    await sleep(150);
-    await page.eval('window.__reseed && window.__reseed(); window.__artHarnessReset && window.__artHarnessReset();');
-    await page.pump(240);
-
-    // Forge the orthogonal bridges this world would otherwise never have.
-    // They are a PROP the reasoning engine accumulates over a live session, so
-    // a fresh boot has none and both arms below would measure nothing. The
-    // hook marks REAL edges and returns the count, which is asserted rather
-    // than trusted -- a hook that silently marked nothing would put us right
-    // back to reporting boot noise as a measurement.
-    const marked = JSON.parse(await page.eval(
-      'JSON.stringify(window.__artSetOrthogonal ? window.__artSetOrthogonal(11) : null)'));
-    if (!marked || !marked.marked) {
-      throw new Error('__artSetOrthogonal marked nothing: ' + JSON.stringify(marked));
-    }
-    await page.pump(30);
-
-    const census = JSON.parse(await page.eval(CENSUS));
-
-    // REFUSE TO PRODUCE A VACUOUS NUMBER. Both arms below only touch code
-    // reached by DASHED instances, and the bead arm only by ORTHO ones. With
-    // none on screen every delta is boot noise, and the first run of this
-    // script reported -8.26% ink for the bead while the census said zero
-    // ortho instances existed. A measurement whose mechanism was never
-    // exercised is worse than no measurement.
-    if (!census.hook) throw new Error('__artEdgeState missing — cannot verify the population');
-    if (!census.dashed) {
-      // The histogram is the diagnosis, not decoration: it says WHICH families
-      // are on screen. A run of seg:p0:g48..g67 with no p12 is a world whose
-      // orthogonal bridges were never forged -- orthogonalBridges is a PROP fed
-      // by the reasoning engine over a live session, and a fresh harness boot
-      // has none.
-      console.log('flag histogram (family:dashPeriod:glowByte): ' + JSON.stringify(census.hist));
-      throw new Error('NO DASHED INSTANCES on screen (count=' + census.count
-        + ') — the dash arms would measure nothing. Refusing to report.');
-    }
-    if (!census.ortho) throw new Error('NO ORTHO INSTANCES on screen (dashed=' + census.dashed
-      + ') — the bead arm would measure nothing. Refusing to report.');
-
-    const png = await page.screenshot();
-    const ink = measure(png);
-
-    // A shader that failed to link draws nothing and logs nothing useful, so
-    // check BOTH: the console, and whether anything was actually drawn.
-    const errs = (page.consoleErrors() || []).filter(e =>
-      /shader|glsl|compile|link|program|webgl/i.test(String(e)));
-
-    return { arm, ...census, ...ink, shaderErrors: errs.length, firstError: errs[0] || null };
-  } finally {
-    await page.close();
+  const cfg = ARMS[arm];
+  // Both hooks RETURN what they set, so the switch is asserted and not assumed
+  // -- the same contract __artSetOrthogonal was given after the vacuous-hook
+  // lesson.
+  const set = JSON.parse(await page.eval(
+    'JSON.stringify({' +
+    ' bead: window.__artSetBeadScale ? window.__artSetBeadScale(' + cfg.beadScale + ') : null,' +
+    ' dash: window.__artSetDashAA ? window.__artSetDashAA(' + cfg.dashAA + ') : null })'));
+  if (!set.bead || set.bead.beadScale !== cfg.beadScale) {
+    throw new Error(arm + ': __artSetBeadScale did not take ' + cfg.beadScale + ' -- ' + JSON.stringify(set));
   }
+  if (!set.dash || set.dash.dashAA !== cfg.dashAA) {
+    throw new Error(arm + ': __artSetDashAA did not take ' + cfg.dashAA + ' -- ' + JSON.stringify(set));
+  }
+  await page.pump(PUMP);
+
+  const census = JSON.parse(await page.eval(CENSUS));
+  // REFUSE TO PRODUCE A VACUOUS NUMBER. Both arms only touch code reached by
+  // DASHED instances, and the bead arm only by ORTHO ones.
+  if (!census.hook) throw new Error('__artEdgeState missing -- cannot verify the population');
+  if (!census.dashed) {
+    console.log('flag histogram (family:dashPeriod:glowByte): ' + JSON.stringify(census.hist));
+    throw new Error('NO DASHED INSTANCES on screen (count=' + census.count
+      + ') -- the dash arms would measure nothing. Refusing to report.');
+  }
+  if (!census.ortho) throw new Error('NO ORTHO INSTANCES on screen (dashed=' + census.dashed
+    + ') -- the bead arm would measure nothing. Refusing to report.');
+
+  // Clipped to the sphere, NOT the whole viewport. The old version measured the
+  // full frame, where constant UI chrome dilutes every percentage toward zero.
+  // NOTE: that makes these percentages NOT comparable with the old bound, which
+  // was a fraction of full-frame ink. They are a fraction of SPHERE ink.
+  const png = await page.screenshot({ clip });
+  const ink = measure(png);
+  const errs = (page.consoleErrors() || []).filter(e =>
+    /shader|glsl|compile|link|program|webgl/i.test(String(e)));
+  return { arm, ...census, ...ink, shaderErrors: errs.length, firstError: errs[0] || null };
 }
 
-const rows = [];
+/** Mean and standard error. SE and not span: SE TIGHTENS with more samples,
+ *  which is what a floor has to do, while a span only ever grows. The previous
+ *  revision of this report used a span and its floor got worse the harder it
+ *  was made to work. */
+function stat(a) {
+  const n = a.length;
+  const m = a.reduce((t, v) => t + v, 0) / n;
+  if (n < 2) return { mean: m, se: Infinity, n };
+  const v = a.reduce((t, x) => t + (x - m) * (x - m), 0) / (n - 1);
+  return { mean: m, se: Math.sqrt(v / n), n };
+}
+
+/** Run symmetric shipped-X-shipped triples for each named arm. */
+async function triples(arms, cycles, label) {
+  const out = {};
+  for (let c = 0; c < cycles; c++) {
+    for (const X of arms) {
+      const s1 = await shoot('shipped');
+      const x  = await shoot(X);
+      const s2 = await shoot('shipped');
+      seenCounts.add(s1.count); seenCounts.add(x.count); seenCounts.add(s2.count);
+      shaderErrTotal += s1.shaderErrors + x.shaderErrors + s2.shaderErrors;
+      const ref  = (s1.ink + s2.ink) / 2;
+      const refh = (s1.hot + s2.hot) / 2;
+      const di = x.ink - ref;
+      const dh = x.hot - refh;
+      (out[X] ??= []).push({
+        ink: di, hot: dh, ref, refh,
+        inkPct: 100 * di / ref,
+        hotPct: refh ? 100 * dh / refh : 0,
+      });
+      console.log('  ' + label + ' ' + c + '  ' + X.padEnd(10)
+        + ' S1=' + s1.ink.toFixed(1).padStart(9)
+        + ' X=' + x.ink.toFixed(1).padStart(9)
+        + ' S2=' + s2.ink.toFixed(1).padStart(9)
+        + '   dInk=' + di.toFixed(1).padStart(8)
+        + ' dHot=' + dh.toFixed(1).padStart(7));
+    }
+  }
+  return out;
+}
+
+const deltas = {};
+const seenCounts = new Set();
+let shaderErrTotal = 0;
 try {
-  for (const arm of Object.keys(ARMS)) {
-    const r = await shoot(arm);
-    rows.push(r);
-    console.log(arm.padEnd(10)
-      + ' count=' + String(r.count).padStart(5)
-      + ' dashed=' + String(r.dashed).padStart(4)
-      + ' ortho=' + String(r.ortho).padStart(4)
-      + ' ink=' + String(r.ink).padStart(10)
-      + ' lit=' + String(r.lit).padStart(8)
-      + ' hot=' + String(r.hot).padStart(7)
-      + ' shaderErrors=' + r.shaderErrors);
+  await page.waitFor('document.querySelectorAll("canvas").length > 0', { label: 'boot canvas' });
+  await sleep(2200);
+  if (!await page.eval(clickText('/CHAOS'))) throw new Error('no /CHAOS nav button');
+  await page.waitFor(SPHERE_READY, { label: 'sphere', timeoutMs: 40000 });
+  await sleep(3500);
+
+  await page.eval('window.__virtualize && window.__virtualize()');
+  await sleep(150);
+
+  const r = JSON.parse(await page.eval('JSON.stringify(' + SPHERE_RECT + ')'));
+  clip = { x: r.x, y: r.y, width: r.w, height: r.h, scale: 1 };
+
+  // ESTABLISHED ONCE, and only once. Doing this per arm is what produced the
+  // 21% floor described at the top.
+  // ── PHASE 1: LIVENESS, AT AN AMPLIFIED CONFIGURATION ────────────────────
+  //
+  // The shipped world carries 11 ortho bridges out of ~134 edges, and at that
+  // population the bead's effect turned out to sit under this rig's floor. A
+  // null result there has TWO explanations -- a cheap bead, or a uniform that
+  // never reaches the GPU -- and an instrument that cannot separate them is
+  // the vacuous kind this file exists to avoid.
+  //
+  // So liveness is proved where the mechanism is LOUD: mark every edge ortho,
+  // so all ~134 carry a dashed 6-14px halo, and the bead acts on twelve times
+  // the population. If uBeadScale moves nothing THERE, it is dead, and no
+  // measurement below is worth reading. This phase is a mechanism check and
+  // NOT a measurement of anything the app ships.
+  const livenessMarked = await establish(9999);
+  console.log('LIVENESS PHASE: ' + livenessMarked + ' edges marked ortho (amplified, not a shipped world)');
+  const live = await triples(['bead-x64', 'no-bead', 'repeat'], LIVENESS_CYCLES, 'live');
+  const liveBead = stat(live['bead-x64'].map(d => d.inkPct));
+  const liveRep  = stat(live.repeat.map(d => d.inkPct));
+  const liveSep  = Math.abs(liveBead.mean - liveRep.mean);
+  const liveErr  = 2 * Math.sqrt(liveBead.se * liveBead.se + liveRep.se * liveRep.se);
+  console.log('  bead-x64 ' + liveBead.mean.toFixed(3) + '% +/- ' + (2 * liveBead.se).toFixed(3)
+    + '   repeat ' + liveRep.mean.toFixed(3) + '% +/- ' + (2 * liveRep.se).toFixed(3)
+    + '   separation ' + liveSep.toFixed(3) + ' vs ' + liveErr.toFixed(3));
+  if (!(liveSep > liveErr)) {
+    console.log('');
+    console.log('!! LIVENESS FAILED. With every edge carrying a bead AND uBeadScale at');
+    console.log('   64 -- which should erase the halo between dashes outright -- nothing');
+    console.log('   moved beyond noise. The uniform is not reaching the GPU, or the draw');
+    console.log('   loop is not publishing it. Everything below is meaningless.');
+    process.exitCode = 1;
+  } else {
+    console.log('  LIVE: uBeadScale demonstrably changes pixels at an extreme value, so');
+    console.log('  the switch works. The measurement below is about the bead COST.');
   }
+  console.log('');
+
+  // ── PHASE 2: THE MEASUREMENT, AT THE SHIPPED CONFIGURATION ──────────────
+  const marked = await establish(ORTHO_N);
+  console.log('MEASUREMENT PHASE: ' + marked + ' bridges forged (shipped-scale), '
+    + CYCLES + ' cycles, pump ' + PUMP + '/shot');
+  console.log('');
+  const measured = await triples(['no-bead', 'hard-cut', 'repeat'], CYCLES, 'cycle');
+  for (const k of Object.keys(measured)) deltas[k] = measured[k];
 } finally {
-  writeFileSync(SRC, original, 'utf8');
-  const restored = readFileSync(SRC, 'utf8') === original;
-  console.log('restored: ' + (restored ? 'YES (byte-exact)' : 'NO — SOURCE IS DAMAGED, FIX BY HAND'));
-  if (!restored) process.exitCode = 1;
+  await page.close();
 }
 
-const base = rows.find(r => r.arm === 'shipped');
-if (base) {
-  console.log('');
-  console.log('vs shipped:'.padEnd(12) + 'ink'.padStart(10) + 'lit'.padStart(10)
-    + 'ink/lit'.padStart(10) + 'hot'.padStart(10));
-  for (const r of rows) {
-    if (r.arm === 'shipped') continue;
-    const d = (a, b) => (b === 0 ? 'n/a' : (100 * (a / b - 1)).toFixed(2) + '%');
-    console.log(r.arm.padEnd(12)
-      + d(base.ink, r.ink).padStart(10)
-      + d(base.lit, r.lit).padStart(10)
-      + d(base.inkPerLit, r.inkPerLit).padStart(10)
-      + d(base.hot, r.hot).padStart(10));
-  }
-  console.log('');
-  const rep = rows.find(r => r.arm === 'repeat');
-  if (rep) {
-    const floor = Math.abs(100 * (base.ink / rep.ink - 1));
-    const hotFloor = Math.abs(100 * (base.hot / rep.hot - 1));
-    console.log('');
-    console.log('SAME-BUILD FLOOR: ink ' + floor.toFixed(2) + '%, hot ' + hotFloor.toFixed(2) + '%.');
-    console.log('Any arm below its own floor is UNRESOLVED, not small. Read "no-bead"');
-    console.log('as what the BEAD added and "hard-cut" as what the ANTIALIASING added.');
-  }
+// ── report ──────────────────────────────────────────────────────────────────
+console.log('');
+console.log('edge counts across every shot: ' + [...seenCounts].sort((a, b) => a - b).join(', '));
+console.log('shader errors across every shot: ' + shaderErrTotal);
+
+const agg = {};
+for (const [arm, rows] of Object.entries(deltas)) {
+  agg[arm] = { ink: stat(rows.map(r => r.inkPct)), hot: stat(rows.map(r => r.hotPct)) };
 }
+
+console.log('');
+console.log('drift-cancelled delta vs shipped, mean +/- 2 SE over ' + CYCLES + ' triples');
+console.log('arm'.padEnd(12) + 'ink'.padStart(22) + 'hot'.padStart(22));
+for (const [arm, a] of Object.entries(agg)) {
+  console.log(arm.padEnd(12)
+    + (a.ink.mean.toFixed(3) + '% +/- ' + (2 * a.ink.se).toFixed(3)).padStart(22)
+    + (a.hot.mean.toFixed(3) + '% +/- ' + (2 * a.hot.se).toFixed(3)).padStart(22));
+}
+
+// RESOLVED means separated from the `repeat` arm by more than the two arms'
+// combined uncertainty -- a two-sample comparison, not a threshold on one
+// number. `repeat` carries settings identical to `shipped`, so it is the
+// distribution an arm that does NOTHING draws from.
+const rep = agg.repeat;
+const sep = (a, b) => Math.abs(a.mean - b.mean);
+const tol = (a, b) => 2 * Math.sqrt(a.se * a.se + b.se * b.se);
+
+console.log('');
+console.log('THE FLOOR is the repeat arm: ink ' + rep.ink.mean.toFixed(3)
+  + '% +/- ' + (2 * rep.ink.se).toFixed(3) + ', hot ' + rep.hot.mean.toFixed(3)
+  + '% +/- ' + (2 * rep.hot.se).toFixed(3) + '.');
+console.log('');
+for (const [arm, a] of Object.entries(agg)) {
+  if (arm === 'repeat') continue;
+  const inkRes = sep(a.ink, rep.ink) > tol(a.ink, rep.ink);
+  const hotRes = sep(a.hot, rep.hot) > tol(a.hot, rep.hot);
+  const res = inkRes || hotRes;
+  console.log('  ' + arm.padEnd(10) + (res ? 'RESOLVED  ' : 'UNRESOLVED -- inside the floor  ')
+    + 'ink ' + a.ink.mean.toFixed(3) + '% (sep ' + sep(a.ink, rep.ink).toFixed(3)
+    + ' vs tol ' + tol(a.ink, rep.ink).toFixed(3) + ')'
+    + '   hot ' + a.hot.mean.toFixed(3) + '% (sep ' + sep(a.hot, rep.hot).toFixed(3)
+    + ' vs tol ' + tol(a.hot, rep.hot).toFixed(3) + ')');
+}
+console.log('');
+console.log('Read "no-bead" as what the BEAD adds, negated, and "hard-cut" as what');
+console.log('the ANTIALIASING adds. Percentages are of SPHERE ink, not full-frame');
+console.log('ink -- NOT comparable with the pre-uniform bound. An UNRESOLVED arm is');
+console.log('a BOUND at its tolerance, never a zero and never a small effect.');
