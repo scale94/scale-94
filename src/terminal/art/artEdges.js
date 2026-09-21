@@ -450,7 +450,7 @@ export function prismRootTaper(sFromA, totalLen) {
 //   2. It is provably ink-NEGATIVE -- it can only ever remove energy from the
 //      composer's 0.28 luminanceThreshold, never add any. The bloom dial is
 //      off limits on this project and this change cannot reach it.
-//   3. Once the train has passed, `prismTrainEnv` returns EXACTLY 0 and the
+//   3. Once the wave has passed, `prismWaveEnv` returns EXACTLY 0 and the
 //      whole expression collapses to `a * cue * taper`, which is the sustained
 //      burn the author signed off by eye BEFORE this feature existed. Not
 //      approximately -- exactly, which is why that test uses `toBe` and not
@@ -468,6 +468,11 @@ export function prismRootTaper(sFromA, totalLen) {
 // phi_k across the bundle. A diagonal at launch that collapses to a point at
 // the target.
 //
+// f(x) IS EVALUATED ONCE, NOT THREE TIMES. This shipped as a decaying train
+// of three and the author read the result as a ~10Hz strobe -- correctly, see
+// PRISM_WAVE_SWELL for the arithmetic. The amplitude term above is now a
+// single pass and the escalation lives in the envelope instead.
+//
 // A RAISED COSINE, not a gaussian and not a hard front, and the reason is the
 // tessellation rather than taste: writePolyline reconstructs alpha as a
 // straight line between per-POINT samples, so the pulse has to be band-limited
@@ -484,9 +489,22 @@ export const PRISM_WAVE_W = 0.18;
  *  would give a chevron. Across all seven lines the total shear is 0.30. */
 export const PRISM_PHASE_STEP = 0.05;
 
-/** How far the troughs are carved below the crest. The crest is always 1.0 --
- *  see the note above on why nothing here may exceed it. */
-export const PRISM_WAVE_DEPTH = 0.55;
+/**
+ * How far the trough is carved below the crest AT FULL SWELL. The crest is
+ * always 1.0 -- see the note above on why nothing here may exceed it.
+ *
+ * RULED DOWN FROM 0.55 BY THE AUTHOR. At 0.55 the sleeve fell to 0.45 of the
+ * sustained alpha and it "aggressively chops down into deep black between
+ * states". 0.40 floors it at 0.60, and because PRISM_WAVE_SWELL now scales
+ * this, the floor is only reached at the instant of arrival: averaged over a
+ * transit the trough sits near 0.78, against the flat 0.45 the train held at
+ * every moment it was running. About a third of the ink the train removed,
+ * spent entirely on the one moment that is supposed to land.
+ *
+ * DO NOT RAISE IT BACK without a ruling. artPrismWave.test.js asserts the
+ * floor stays at or above 0.60, which is that ruling written down.
+ */
+export const PRISM_WAVE_DEPTH = 0.40;
 
 // ── Kinematics, and the lead over the white core ──────────────────────────
 //
@@ -505,13 +523,49 @@ export const PRISM_WAVE_MS_PER_UNIT = 160;
 export const PRISM_WAVE_MIN_MS = 56;
 export const PRISM_WAVE_MAX_MS = 128;
 
-/** Pulses in the train, their per-pulse amplitude decay, and how long the
- *  envelope takes to reach zero after the last one lands. Three decaying
- *  pulses read as a charge arriving and ringing; a non-decaying train reads as
- *  a loop, and competes with the decay curve the author approved. */
-export const PRISM_TRAIN_PULSES = 3;
-export const PRISM_TRAIN_DECAY = 0.5;
-export const PRISM_TRAIN_TAIL_MS = 260;
+/**
+ * ── ONE PASS, AND THE SWELL THAT CARRIES IT ───────────────────────────────
+ *
+ * THE TRAIN WAS THE BUG, AND THE ARITHMETIC SAYS SO. Three pulses spaced one
+ * transit apart crest any given point three times in 3 * durMs. On the
+ * measured median chord that is three crests in 308ms -- a 9.7Hz repetition
+ * -- and on the shortest chord (PRISM_WAVE_MIN_MS) it is 17.9Hz. The author
+ * read it off the screen exactly as the numbers predict: "an aggressive
+ * ~10Hz strobe/flicker rather than an intensifying pulse". A repetition rate
+ * in that band reads as a stroboscope however gently each individual pulse
+ * is shaped, so a softer pulse was never the fix. ONE pulse is. The
+ * repetition rate is now zero by construction, and the test file pins it
+ * there by counting crests at a fixed point rather than by reading a
+ * constant.
+ *
+ * What replaces the train's sense of escalation is a CRESCENDO. The envelope
+ * swells from PRISM_WAVE_SWELL at launch to 1 on arrival, so one sleeve
+ * traversal gathers energy as it crosses instead of opening at full depth and
+ * ringing down. The charge lands once, hardest at the far node -- which is
+ * also where the seven strands come back into phase (the `(1 - u)` damping
+ * above) and 26ms before the strimer's white rail detonates.
+ *
+ * PRISM_WAVE_SWELL IS NOT ONLY A TASTE DIAL. It is also what keeps the launch
+ * from reading as an edge: a chord enters the wave at env = SWELL, so the
+ * step in alpha at that instant is PRISM_WAVE_DEPTH * PRISM_WAVE_SWELL =
+ * 4.0%, under the 4.3% sampling ripple the tessellation already tolerates at
+ * this W (see PRISM_WAVE_SEGMENTS). Raise the floor and the moment the
+ * cascade reaches each chord acquires a visible edge of its own.
+ */
+export const PRISM_WAVE_SWELL = 0.10;
+
+/** How long the envelope takes to reach zero after the front lands.
+ *
+ *  LONGER THAN THE TRANSIT, ON PURPOSE, AND IT IS THE SLOWEST THING IN THE
+ *  LAYER. The pulse leaves the chord about 0.18 * durMs after arrival; every
+ *  millisecond after that is the whole sleeve lifting uniformly back to the
+ *  sustained burn. The author asked for a wave that "deposits energy into the
+ *  sustained burn" rather than shuttering the light -- and since the layer is
+ *  subtractive it cannot put MORE light into the burn than was always there.
+ *  What it can do is make the return to it the longest gesture in the effect,
+ *  3.5x the attack on the median chord, so the charge reads as absorbed
+ *  rather than switched off. */
+export const PRISM_WAVE_TAIL_MS = 360;
 
 /** How long a node waits per step of graph depth before its own chords launch.
  *  About one transit, so the cascade reads as causal: the clicked node fires,
@@ -584,33 +638,35 @@ export function prismPhaseOffset(k) {
 }
 
 /**
- * The pulse train's amplitude at arc fraction `u` on spectral line `k`,
- * `tMs` after this chord's ORIGIN node lit, for a chord whose transit is
- * `durMs`.
+ * The wavefront's amplitude at arc fraction `u` on spectral line `k`, `tMs`
+ * after this chord's ORIGIN node lit, for a chord whose transit is `durMs`.
  *
- * The train is the same phase shifted by whole units: pulse n's crest reaches
- * the origin at t = n * durMs, so `x_n = x_0 + n` and the loop below is three
- * evaluations of one profile rather than three separate pulses to keep in
- * step. Takes the MAX rather than the sum, so two pulses that ever did overlap
- * could not stack past 1.0 and clip -- though prismPulse's support of 2W is
- * deliberately under the spacing of 1, so they do not.
+ * ONE PASS. There is no loop and no pulse index any more: a point is crested
+ * once, as the front sweeps through it, and never again. The escalation the
+ * train used to carry is in prismWaveEnv now, where it costs one evaluation
+ * per chord per frame instead of one per point.
  */
 export function prismWaveAmp(u, k, tMs, durMs) {
   const d = durMs > 1e-6 ? durMs : 1e-6;
   const uu = u < 0 ? 0 : u > 1 ? 1 : u;
-  const base = uu - tMs / d + prismPhaseOffset(k) * (1 - uu);
-  let amp = 0;
-  let w = 1;
-  for (let n = 0; n < PRISM_TRAIN_PULSES; n++) {
-    const p = w * prismPulse(base + n);
-    if (p > amp) amp = p;
-    w *= PRISM_TRAIN_DECAY;
-  }
-  return amp;
+  return prismPulse(uu - tMs / d + prismPhaseOffset(k) * (1 - uu));
 }
 
 /**
- * How much of the wave is in force, `tMs` after the chord's origin lit.
+ * How much of the wave is in force, `tMs` after the chord's origin lit: a
+ * crescendo to full strength over the transit, then a long release.
+ *
+ * TWO LIMBS, BOTH SMOOTHSTEPPED, AND THEY ARE NOT SYMMETRIC. The swell runs
+ * over one transit so the front gathers energy exactly as far as it travels;
+ * the release runs over PRISM_WAVE_TAIL_MS, 3.5x longer on the median chord,
+ * so the sleeve lifts back into the sustained burn slowly enough to read as
+ * absorption. Attack shorter than release is the whole shape of the gesture.
+ *
+ * The joins at `durMs` and at `durMs + PRISM_WAVE_TAIL_MS` both have zero
+ * slope on both sides -- a kink at either reads as the flick this revision
+ * exists to remove. The join at t = 0 is the ONE deliberate step in the
+ * layer, of height PRISM_WAVE_SWELL; see that constant for why it is small
+ * enough to hide under the tessellation's own ripple.
  *
  * REACHES EXACTLY ZERO, and that is the contract the whole design rests on --
  * see the note at the top of this block. Also returns 0 for NEGATIVE t, which
@@ -621,12 +677,14 @@ export function prismWaveAmp(u, k, tMs, durMs) {
  * Smoothstep through the tail rather than a linear ramp: the join at `total`
  * has zero slope on both sides, and a kink there reads as a visible flick.
  */
-export function prismTrainEnv(tMs, durMs) {
+export function prismWaveEnv(tMs, durMs) {
   if (!(tMs >= 0)) return 0;
   const d = durMs > 1e-6 ? durMs : 1e-6;
-  const total = PRISM_TRAIN_PULSES * d;
-  if (tMs <= total) return 1;
-  const x = (tMs - total) / PRISM_TRAIN_TAIL_MS;
+  if (tMs <= d) {
+    const x = tMs / d;
+    return PRISM_WAVE_SWELL + (1 - PRISM_WAVE_SWELL) * x * x * (3 - 2 * x);
+  }
+  const x = (tMs - d) / PRISM_WAVE_TAIL_MS;
   if (x >= 1) return 0;
   const c = 1 - x;
   return c * c * (3 - 2 * c);

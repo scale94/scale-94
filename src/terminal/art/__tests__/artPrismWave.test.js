@@ -6,6 +6,15 @@
 // static brightness ladder. This file pins the travelling term that replaces
 // that reading.
 //
+// REVISED AFTER THE AUTHOR LOOKED. The first version of this layer sent a
+// DECAYING TRAIN of three pulses down each chord, and three crests one
+// transit apart is a 9.7Hz repetition on the median chord and 17.9Hz on the
+// shortest -- he read it as "an aggressive ~10Hz strobe/flicker rather than
+// an intensifying pulse", which is what those numbers are. The train is gone.
+// One pass, swelling from launch to arrival. The tests below that changed are
+// marked, and the one that matters most now counts CRESTS AT A FIXED POINT
+// rather than reading a constant, so no future train can pass it.
+//
 // ── EVERY TEST HERE HAS TO BE ABLE TO FAIL ────────────────────────────────
 //
 // A property test on a converged value is the trap this project has now paid
@@ -17,10 +26,10 @@ import { describe, it, expect } from 'vitest';
 import {
   PRISM_WAVE_W, PRISM_PHASE_STEP, PRISM_WAVE_DEPTH,
   PRISM_WAVE_MS_PER_UNIT, PRISM_WAVE_MIN_MS, PRISM_WAVE_MAX_MS,
-  PRISM_TRAIN_PULSES, PRISM_TRAIN_DECAY, PRISM_TRAIN_TAIL_MS,
+  PRISM_WAVE_SWELL, PRISM_WAVE_TAIL_MS,
   PRISM_WAVE_SEG_FULL, PRISM_WAVE_SEG_NONE, PRISM_WAVE_SEGMENTS,
   PRISM_SPECTRAL_FINE,
-  prismPulse, prismPhaseOffset, prismWaveAmp, prismTrainEnv, prismWaveMix,
+  prismPulse, prismPhaseOffset, prismWaveAmp, prismWaveEnv, prismWaveMix,
   prismSegmentFade, prismWaveDuration, prismChordDir,
 } from '../artEdges';
 import { packetDuration } from '../artStrimer';
@@ -47,9 +56,12 @@ describe('prismPulse — the raised cosine', () => {
     }
   });
 
-  // CATCHES: a pulse wide enough to overlap its own neighbour in the train.
-  // The train spaces pulses ONE unit of phase apart, so support must be < 1.
-  it('is narrower than the train spacing, so pulses cannot merge', () => {
+  // CATCHES: a pulse widened until it covers the chord it is crossing. At
+  // 2W >= 1 the whole chord crests at once and the layer reads as a SWELL of
+  // the whole bundle rather than a front tearing out of the node -- which is
+  // the static reading this work exists to remove. It is also why the author
+  // kept W and paid for the tessellation instead; see PRISM_WAVE_SEGMENTS.
+  it('spans less than the chord it crosses, so it reads as a front not a swell', () => {
     expect(PRISM_WAVE_W * 2).toBeLessThan(1);
   });
 });
@@ -67,11 +79,12 @@ describe('prismPhaseOffset — the shear across the bundle', () => {
     }
   });
 
-  // CATCHES: a phase step large enough that the last strand's pulse collides
-  // with the FIRST strand's next pulse in the train, which spaces them one
-  // unit apart. The diagonal would wrap and read as the lateral hopping this
-  // whole feature exists to remove.
-  it('shears the whole bundle by less than one train spacing', () => {
+  // CATCHES: a phase step large enough that the last strand has not left the
+  // origin by the time the first has arrived. The bundle would stop reading as
+  // one sheared front and start reading as seven separate flicks -- the
+  // lateral hopping this whole feature exists to remove, rebuilt out of the
+  // fix for it. The last strand's whole pulse must fit inside one transit.
+  it('shears the whole bundle by less than one transit', () => {
     expect(prismPhaseOffset(PRISM_SPECTRAL_FINE - 1)).toBeLessThan(1 - 2 * PRISM_WAVE_W);
   });
 });
@@ -136,27 +149,44 @@ describe('prismWaveAmp — the diagonal that collapses to a point', () => {
     }
   });
 
-  // CATCHES: a train whose later pulses are as bright as the first, which
-  // would read as a loop rather than a charge arriving and ringing.
-  it('launches a decaying train — each pulse peaks below the one before', () => {
-    // MEASURED AT THE ORIGIN, at the instant each pulse launches. An earlier
-    // version of this test took the max over the WHOLE chord at t = n*dur,
-    // which is dominated by pulse n-1 ARRIVING at the far end at full
-    // amplitude — so it compared the wrong two pulses and would have passed a
-    // train that never decayed at all.
-    const launch = (n) => prismWaveAmp(0, 0, n * 120, 120);
-    const p0 = launch(0), p1 = launch(1), p2 = launch(2);
-    expect(p1).toBeLessThan(p0);
-    expect(p2).toBeLessThan(p1);
-    expect(p1 / p0).toBeCloseTo(PRISM_TRAIN_DECAY, 2);
+  // ── THE TEST THE AUTHOR'S COMPLAINT IS WRITTEN IN ────────────────────
+  //
+  // He did not report a wrong constant, he reported a RATE: three crests one
+  // transit apart strobe any given point at 1/durMs, which is 9.7Hz on the
+  // median chord. So this does not assert that some PULSES constant is 1 --
+  // a constant can be reintroduced under another name, and the old test
+  // asserted the train's decay ratio while the train itself was the defect.
+  // It stands at one point on the chord, watches the entire life of the wave
+  // go past, and counts how many times that point is crested.
+  //
+  // CATCHES: any reintroduced train, echo, ring or bounce, under any name.
+  // Against the shipped three-pulse version this counts 3 and fails.
+  it('crests a given point exactly ONCE — there is no train, at any u or k', () => {
+    const dur = 120;
+    const crossings = (u, k) => {
+      let runs = 0, inRun = false;
+      for (let t = 0; t <= dur * 5; t += 0.5) {
+        const on = prismWaveAmp(u, k, t, dur) > 0.05;
+        if (on && !inRun) runs++;
+        inRun = on;
+      }
+      return runs;
+    };
+    for (const u of [0.15, 0.5, 0.85]) {
+      for (const k of [0, 3, 6]) {
+        expect(crossings(u, k)).toBe(1);
+      }
+    }
   });
 });
 
-describe('prismTrainEnv — and the guarantee that the sustained burn is untouched', () => {
+describe('prismWaveEnv — the crescendo, and the guarantee that the burn is untouched', () => {
+  const dur = 120;
+
   // THE MOST IMPORTANT TEST IN THIS FILE.
   //
   // The author signed off the sustained glow by eye BEFORE this feature
-  // existed. The design's whole safety argument is that once the train has
+  // existed. The design's whole safety argument is that once the wave has
   // passed, the alpha expression collapses to exactly what it was. Not
   // approximately -- exactly, so no capture, no ink measurement and no eye can
   // find a difference in the state he approved.
@@ -164,46 +194,86 @@ describe('prismTrainEnv — and the guarantee that the sustained burn is untouch
   // CATCHES: an envelope that decays asymptotically instead of reaching zero,
   // which is precisely the `toBeCloseTo(1, 6)` asymptote trap that has bitten
   // this project three times. toBe, not toBeCloseTo, on purpose.
-  it('reaches EXACTLY zero after the train, so the mix is EXACTLY 1', () => {
-    const dur = 120;
-    const after = PRISM_TRAIN_PULSES * dur + PRISM_TRAIN_TAIL_MS;
-    expect(prismTrainEnv(after, dur)).toBe(0);
-    expect(prismTrainEnv(after + 1, dur)).toBe(0);
-    expect(prismTrainEnv(9999, dur)).toBe(0);
+  it('reaches EXACTLY zero after the pass, so the mix is EXACTLY 1', () => {
+    const after = dur + PRISM_WAVE_TAIL_MS;
+    expect(prismWaveEnv(after, dur)).toBe(0);
+    expect(prismWaveEnv(after + 1, dur)).toBe(0);
+    expect(prismWaveEnv(9999, dur)).toBe(0);
     // And therefore the alpha multiplier is the identity.
-    expect(prismWaveMix(0, prismTrainEnv(after, dur), 1)).toBe(1);
-    expect(prismWaveMix(0.5, prismTrainEnv(9999, dur), 1)).toBe(1);
+    expect(prismWaveMix(0, prismWaveEnv(after, dur), 1)).toBe(1);
+    expect(prismWaveMix(0.5, prismWaveEnv(9999, dur), 1)).toBe(1);
   });
 
   // CATCHES: a chord that starts waving before its origin node has lit. The
   // cascade hands negative t to chords whose origin is still dark.
   it('is zero before the origin node lights, so an unlit chord stays uniform', () => {
-    expect(prismTrainEnv(-1, 120)).toBe(0);
-    expect(prismTrainEnv(-200, 120)).toBe(0);
-    expect(prismWaveMix(0, prismTrainEnv(-50, 120), 1)).toBe(1);
+    expect(prismWaveEnv(-1, dur)).toBe(0);
+    expect(prismWaveEnv(-200, dur)).toBe(0);
+    expect(prismWaveMix(0, prismWaveEnv(-50, dur), 1)).toBe(1);
   });
 
-  it('holds at full strength while the pulses are still in flight', () => {
-    const dur = 120;
-    expect(prismTrainEnv(0, dur)).toBe(1);
-    expect(prismTrainEnv(dur, dur)).toBe(1);
-    expect(prismTrainEnv(PRISM_TRAIN_PULSES * dur - 1, dur)).toBe(1);
+  // ── THE CRESCENDO ────────────────────────────────────────────────────
+  //
+  // NEW, AND IT REPLACES A TEST THAT ASSERTED THE OPPOSITE. The shipped
+  // version held the envelope at a flat 1 for the whole train and let the
+  // PULSES decay instead; the author asked for the reverse -- one pass that
+  // "gathers energy from launch to arrival rather than starting at 1.0 and
+  // decaying".
+  //
+  // CATCHES: the flat envelope that shipped (`if (tMs <= total) return 1`),
+  // which fails the monotonicity below at the first step.
+  it('swells from a barely-there launch to full strength on arrival', () => {
+    expect(prismWaveEnv(0, dur)).toBeCloseTo(PRISM_WAVE_SWELL, 12);
+    expect(prismWaveEnv(dur, dur)).toBeCloseTo(1, 12);
+    let prev = -1;
+    for (let t = 0; t <= dur; t += 2) {
+      const e = prismWaveEnv(t, dur);
+      expect(e).toBeGreaterThan(prev);
+      prev = e;
+    }
+    // Half way across it is genuinely mid-swell, not already saturated: a
+    // curve that reached full strength in the first few frames would pass
+    // monotonicity and still read as the old flat envelope on screen.
+    const half = prismWaveEnv(dur / 2, dur);
+    expect(half).toBeGreaterThan(PRISM_WAVE_SWELL + 0.2);
+    expect(half).toBeLessThan(0.8);
   });
 
-  it('decays monotonically through the tail with no step at either end', () => {
-    const dur = 120;
-    const t0 = PRISM_TRAIN_PULSES * dur;
-    let prev = prismTrainEnv(t0, dur);
-    for (let t = t0; t <= t0 + PRISM_TRAIN_TAIL_MS; t += 5) {
-      const e = prismTrainEnv(t, dur);
+  // The launch is the one deliberate STEP in the layer: a chord enters the
+  // wave at env = PRISM_WAVE_SWELL rather than at 0. It is bounded by the
+  // ripple the tessellation already tolerates at this W (4.3% worst case,
+  // measured in _a18wsweep.mjs), so it cannot read as an edge of its own.
+  //
+  // CATCHES: raising the floor to "make the launch visible", which would put
+  // a hard edge on the moment the cascade reaches each chord.
+  it('steps in below the sampling ripple the tessellation already carries', () => {
+    expect(PRISM_WAVE_DEPTH * PRISM_WAVE_SWELL).toBeLessThan(0.043);
+  });
+
+  // CATCHES: a release as short as the attack, which reads as the charge
+  // being switched off rather than absorbed into the sustained burn. The
+  // author's third note: "the wave should deposit energy into the sustained
+  // burn, not shutter the light."
+  it('releases far more slowly than it swells', () => {
+    const MEDIAN = 0.642;                       // lookbook/strimer/report.json
+    expect(PRISM_WAVE_TAIL_MS).toBeGreaterThan(3 * prismWaveDuration(MEDIAN));
+  });
+
+  it('decays monotonically through the release with no kink at either end', () => {
+    const t0 = dur;
+    let prev = prismWaveEnv(t0, dur);
+    for (let t = t0; t <= t0 + PRISM_WAVE_TAIL_MS; t += 5) {
+      const e = prismWaveEnv(t, dur);
       expect(e).toBeLessThanOrEqual(prev + 1e-12);
       prev = e;
     }
-    // Smooth at the join: a kink here reads as a visible flick.
+    // Flat on BOTH sides of the peak. Smoothstep on either limb lands ~1e-4
+    // here; a LINEAR swell would give (1 - SWELL)/dur = 7.5e-3 and a linear
+    // release 1/TAIL = 2.8e-3, so this threshold is what separates them.
     const eps = 0.5;
-    const slopeIn = (prismTrainEnv(t0, dur) - prismTrainEnv(t0 - eps, dur)) / eps;
-    const slopeOut = (prismTrainEnv(t0 + eps, dur) - prismTrainEnv(t0, dur)) / eps;
-    expect(Math.abs(slopeIn)).toBeLessThan(1e-6);
+    const slopeIn = (prismWaveEnv(t0, dur) - prismWaveEnv(t0 - eps, dur)) / eps;
+    const slopeOut = (prismWaveEnv(t0 + eps, dur) - prismWaveEnv(t0, dur)) / eps;
+    expect(Math.abs(slopeIn)).toBeLessThan(1e-3);
     expect(Math.abs(slopeOut)).toBeLessThan(1e-3);
   });
 });
@@ -234,6 +304,34 @@ describe('prismWaveMix — subtractive, and provably unable to clip', () => {
 
   it('bottoms out at the trough by exactly PRISM_WAVE_DEPTH', () => {
     expect(prismWaveMix(0, 1, 1)).toBeCloseTo(1 - PRISM_WAVE_DEPTH, 12);
+  });
+
+  // ── THE AUTHOR'S RULING, WRITTEN DOWN ────────────────────────────────
+  //
+  // This shipped at PRISM_WAVE_DEPTH 0.55 -- a sleeve falling to 0.45 of the
+  // sustained alpha -- and he ruled it out by eye: it "aggressively chops
+  // down into deep black between states". The deepest the sleeve may now go
+  // is 60% of the burn.
+  //
+  // CATCHES: the depth being walked back up to chase punch. The punch is
+  // supposed to come from the crescendo, not from a deeper hole.
+  it('never chops the sleeve below 60% of the sustained alpha', () => {
+    expect(prismWaveMix(0, 1, 1)).toBeGreaterThanOrEqual(0.6 - 1e-12);
+  });
+
+  // The crescendo as it actually reaches the alpha: at launch the chord is
+  // all but untouched, and the full trough is only ever reached at arrival.
+  //
+  // CATCHES: the envelope's swell being bypassed at the call site -- the mix
+  // reading a constant 1 for the envelope, say -- which no test on
+  // prismWaveEnv alone would see.
+  it('barely touches the chord at launch and only bottoms out on arrival', () => {
+    const dur = 120;
+    const atLaunch = prismWaveMix(0, prismWaveEnv(0, dur), 1);
+    const atArrival = prismWaveMix(0, prismWaveEnv(dur, dur), 1);
+    expect(atLaunch).toBeGreaterThan(0.95);
+    expect(atArrival).toBeCloseTo(1 - PRISM_WAVE_DEPTH, 12);
+    expect(atLaunch - atArrival).toBeGreaterThan(0.3);
   });
 
   // CATCHES: the segment fade wired in the wrong sense, which would switch the

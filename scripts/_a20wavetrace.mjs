@@ -25,6 +25,11 @@
 //
 //   node scripts/_a20wavetrace.mjs [W] [H] [DPR] [PORT]
 import { launch } from './cdp.mjs';
+// THE FLOOR IS IMPORTED, NOT TYPED. This script printed a hard-coded 0.450
+// while PRISM_WAVE_DEPTH was ruled down to 0.40 -- an instrument quoting a
+// design number the design no longer holds is exactly the class of defect
+// this session's traps list is full of.
+import { PRISM_WAVE_DEPTH } from '../src/terminal/art/artEdges.js';
 import { mkdirSync, writeFileSync } from 'node:fs';
 
 const W    = Number(process.argv[2] ?? 1520);
@@ -195,7 +200,8 @@ try {
     console.log(`  crest travelled            ${first.crest.toFixed(3)} -> ${last.crest.toFixed(3)}`
       + `  (${moved >= 0 ? '+' : ''}${moved.toFixed(3)} of the chord)`);
     console.log(`  deepest trough/crest       ${Math.min(...modulated.map(r => r.ratio)).toFixed(3)}`
-      + `   (design floor is 1 - PRISM_WAVE_DEPTH = 0.450)`);
+      + `   (design floor is 1 - PRISM_WAVE_DEPTH = ${(1 - PRISM_WAVE_DEPTH).toFixed(3)},`
+      + ` and it is only reached at ARRIVAL now -- the swell scales it)`);
     console.log('\nVERDICT: ' + (Math.abs(moved) > 0.05
       ? 'THE CREST IS TRAVELLING along the chord in the GPU-bound buffer.'
       : 'modulation is present but the crest is NOT moving — check the t/T term.'));

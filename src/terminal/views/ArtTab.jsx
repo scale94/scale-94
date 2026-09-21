@@ -99,7 +99,7 @@ import {
   PULSE_ALPHA, PULSE_DRAW_CUTOFF,
   prismOffset, prismChordAlpha, prismGlowWidth, prismControl, prismSpokeHue,
   prismChordCue, prismDepthCue, prismRootTaper,
-  prismWaveAmp, prismTrainEnv, prismWaveMix, prismSegmentFade,
+  prismWaveAmp, prismWaveEnv, prismWaveMix, prismSegmentFade,
   prismWaveDuration, prismChordDir, PRISM_CASCADE_MS, PRISM_WAVE_SEGMENTS,
   PRISM_SPECTRAL_FINE, PRISM_SPECTRAL_COARSE, PRISM_HUE_STEP,
   PRISM_SAT, PRISM_GLOW_LIT, PRISM_GLOW_ALPHA_K, PRISM_CORE_LIT, PRISM_CORE_W,
@@ -1849,8 +1849,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             total += Math.hypot(pts[i * 2 + 2] - pts[i * 2],
                                 pts[i * 2 + 3] - pts[i * 2 + 1]);
           }
-          // THE WHOLE WAVE IS SKIPPED once the train has passed, which is most
-          // of a 3.5s effect's life -- prismTrainEnv returns EXACTLY 0 there,
+          // THE WHOLE WAVE IS SKIPPED once the pass is over, which is most
+          // of a 3.5s effect's life -- prismWaveEnv returns EXACTLY 0 there,
           // so prismWaveMix would return exactly 1 and every multiply below
           // would be the identity. Taking the branch instead of the arithmetic
           // keeps the sustained burn on precisely the code path it ran on
@@ -1981,9 +1981,9 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
               // The chord starts waving when its SHALLOWER end lights, so the
               // burst spreads outward through the graph instead of every
               // chord leaving at once. A chord whose origin is still dark gets
-              // a negative age, and prismTrainEnv returns 0 for that.
+              // a negative age, and prismWaveEnv returns 0 for that.
               _wT = ageMs - Math.min(effDepth[a], effDepth[b]) * PRISM_CASCADE_MS;
-              _wEnv = prismTrainEnv(_wT, _wDur);
+              _wEnv = prismWaveEnv(_wT, _wDur);
 
               for (let k = 0; k < spectralN; k++) {
                 const hue    = (hue0 + k * PRISM_HUE_STEP) % 360;
