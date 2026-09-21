@@ -8,6 +8,11 @@
 > one pass, a crescendo envelope, a shallower trough and a longer release,
 > at `44b52b88`. **Sections 4, 5 and 6 below are updated; everything else
 > in this document still describes the layer as it stands.**
+>
+> **REVISED AGAIN THE SAME DAY.** He looked at the single pass and reported
+> that the COLOUR was still static along the chord — "pinned to the wire
+> like a light shining through stained glass". The colour now advects on the
+> same coordinate the brightness rides, at `b4ce9e4e`. See §11.
 
 Sibling document: `handover-chaos-prism-dash.md`. **That one still holds** for
 the prism depth cue, root taper, dash beads and the phase-4 parity reference —
@@ -22,16 +27,18 @@ insofar as the cost model changed; the measurement is still owed.
 | fact | value |
 |---|---|
 | branch | `feature/chaos-prism-depth-dash-beads` |
-| HEAD | `44b52b88` |
+| HEAD | `b4ce9e4e` |
 | forked from | `main` at `09e86f44` |
-| ahead / behind main | **29 / 0** |
+| ahead / behind main | **31 / 0** |
 | `main` vs `origin/main` | **0 / 0** — in sync |
 | tracked tree | **clean** |
-| tests | **1534 passing, 122 files** |
+| tests | **1549 passing, 122 files** |
 | lint | **0 errors / 146 warnings** (146 is main's own count) |
 | pushed? | **NO. Nothing on this branch is pushed.** |
 
 ```
+b4ce9e4e feat(chaos): advect the prism's colour along the chord, not just its light
+6deb145b docs(chaos): revise the wavefront handover for the single pass
 44b52b88 fix(chaos): collapse the prism train to one intensifying pass
 63a043e1 docs(chaos): hand over the prism wavefront, dials marked by provenance
 5a850395 fix(chaos): force the tessellation the wavefront needs, and watch it shear
@@ -265,6 +272,90 @@ units) the lead is ~26ms.
 
 ---
 
+
+---
+
+## 11. The chromatic front — what changed, and what it may not do
+
+**`b4ce9e4e`.** The author's report after the single pass landed: the wave was
+firing but "the colour remains completely static along the chord ... pinned to
+the wire like a light shining through stained glass".
+
+**HE WAS RIGHT AT THE BUFFER LEVEL, AND THE FIX COST NO FLOATS.** The instance
+layout has carried THREE colour stops since it was written — `EDGE_OFF.c0`,
+`c1`, `c2` at offsets 4-6, 7-9 and 10-12 — and `edgeFrag` has always
+interpolated them as a three-stop gradient along the segment. `writePolyline`
+was writing the same rgb into all three, which degenerates that gradient to
+flat. Every prism instance ever written has been carrying an unused colour
+ramp. **`EDGE_STRIDE` stays 18, the shader is untouched, `MAX_ADDITIVE_EDGES`
+does not move.** `writePolyline` takes an optional `rgbs` (3 floats per POINT),
+the exact twin of its existing `alphas`.
+
+### The new dials
+
+| constant | value | provenance |
+|---|---|---|
+| `PRISM_HUE_LEAD` | 24 | **CHOSEN, never seen by an eye** |
+| `PRISM_HUE_SKEW` | 10 | **CHOSEN, never seen by an eye** |
+
+**BOTH ARE BOUNDED, NOT JUST CHOSEN.** `LEAD + SKEW` must stay under 0.75 of
+`PRISM_HUE_STEP` (48deg), because a crest free to rotate a full step wears the
+NEIGHBOURING strand's resting colour — which is the "it jumps erratically
+between wire indices" reading this whole line of work exists to remove,
+rebuilt out of the fix for it. A test asserts it against `PRISM_HUE_STEP`,
+never against a literal.
+
+### The two things deliberately NOT done
+
+1. **NOT `fract(u * CYCLES - progress)`.** The author suggested repeating
+   colour bands as one option. They would put a SPATIAL periodicity back onto
+   a layer whose TEMPORAL periodicity was removed one commit earlier for
+   reading as a ~10Hz strobe. The tint is bound to the single crest instead.
+2. **NOT a white-hot / electric-cyan lift, and this one is still open.** The
+   alpha design is provably ink-NEGATIVE and therefore cannot reach the
+   composer's 0.28 `luminanceThreshold`; **colour carries no such proof**,
+   since a yellow and a blue at the same HSL lightness are not the same
+   brightness. So the rotation is at the SAME sat and lit, and its cost is
+   MEASURED: worst case **1.632x brighter on the glow pass, 1.120x on the
+   core**, and only ON THE CREST (`_a22chroma.mjs` part 1, which needs no
+   browser). **A lightness lift is a separate decision and wants a ruling
+   plus its own measurement — do not smuggle one in.**
+
+### Verified
+
+| claim | evidence |
+|---|---|
+| the colour is ramped in the GPU-bound buffer | 38-70 runs with `c0 != c2`, measured two independent ways |
+| the ramp GROWS as the pass develops | hue excursion 4.8deg -> 24.4deg with rising `life` — the weight includes `env`, so that growth IS the crescendo |
+| it stays inside its bound | widest seen 24.4deg against a 34deg design max and a 48deg spectral step |
+| it returns to the resting colour | excursion back to **exactly 0** once the pass is over |
+| nine mutations each fail 1-3 tests | tint ignoring amplitude, symmetric tint, phase losing its sign, unclamped skew, full-step rotation, asymptotic tint, a train back in the amplitude, stops written flat, `rgbs` ignored |
+
+**NOT verified: the author has not looked at it moving.**
+
+### Traps paid for in section 11
+
+- **`writeHsl` ALLOCATES A CLOSURE PER CALL**, and so does `subarray`. Either
+  one evaluated per point puts ~74000 allocations a frame on a draw loop this
+  project keeps deliberately clear of them. The tint anchors are converted
+  ONCE PER SPECTRAL LINE (a line's hue does not depend on the chord) and
+  `prismChromaBlend` takes OFFSETS into a flat array, not sliced views.
+- **`effects[0]` IS THE OLDEST EFFECT.** A spawn-confirmation loop that reads
+  it sees the PREVIOUS effect still running, rejects it as "not mine", and
+  throws away ten good clicks in a row. Read the youngest.
+- **A SPAWN TAKES A RENDER TO REACH `geomEffectsRef`.** Reading `life`
+  immediately after the click looks exactly like a click that missed.
+- **"THE LARGEST DISC" IS THE MOST LIT NODE, NOT THE NEAREST.** The layer
+  inflates a disc when its node fires, so the pick wanders the sphere and
+  lands on the far side where clicks are ignored. "Nearest the projected
+  centre" is no better in principle — a sphere projects its near and far
+  poles onto the same point — but it is what measurably works under CDP.
+  Stop guessing: try several discs and CONFIRM THE SPAWN.
+- **A POSITIONAL ARGUMENT IN THE WRONG SLOT PASSED THE EYE AND FAILED THE
+  TEST.** `writePolyline(..., 0, null, c)` put the colour array in `alphas`.
+  The per-point colour test caught it immediately, which is the whole case
+  for writing the liveness test before believing the wiring.
+
 ## 7. Instruments added this session
 
 All take `[W] [H] [DPR] [PORT]` and want the dev server on **5173**.
@@ -275,6 +366,7 @@ All take `[W] [H] [DPR] [PORT]` and want the dev server on **5173**.
 | `_a18wsweep.mjs` | how finely must a chord be tessellated to carry a pulse of half-width W? Pure, no browser. |
 | `_a19budget.mjs` | how much room is left in the additive pool? |
 | `_a20wavetrace.mjs` | is the wave actually in the GPU-bound buffer, and is it sheared? **Its sample loop is too slow for a single 100ms pass — it now catches one in-flight frame, not six.** |
+| `_a22chroma.mjs` | is the COLOUR advecting, and what does the tint cost in light? Part 1 is a pure luminance bound and needs no browser. |
 | `_a21wavefilm.mjs` | what does one pass LOOK like at a chosen age? One click per frame, the age measured off the clock. Three traps paid for inside: the sphere rotates out from under a cached coordinate; "the largest disc" is the most LIT node, not the nearest one; and a synthetic `MouseEvent` spawns nothing at all, so the click must go through CDP's input domain. |
 
 New harness hook: `window.__artGeomState()` — live effects with `life` /
