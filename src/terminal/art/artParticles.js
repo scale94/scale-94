@@ -220,11 +220,20 @@ export function emitNodeBurst(pool, x, y, z, hue, hueTarget, count) {
 // ── Edge stream — particles flowing along an edge ────────────────────────────
 
 /**
- * An edge particle's launch speed, as a fraction of the edge vector.
+ * An edge particle's launch speed, as a fraction of the edge vector PER
+ * REMAINING EDGE FRACTION — i.e. per `(1 - t)`, not per whole edge. The
+ * caller multiplies by that remaining fraction at the launch site, because a
+ * particle is seeded at `t = artRandom()` along the edge, not at A.
  *
  * DERIVED, not chosen. Velocity decays geometrically, so total displacement is
  * `v0 * sum(DRAG^k)` = `v0 / (1 - DRAG)`. Covering an edge of length L
- * therefore needs `v0 = (1 - DRAG) * L`, which is what this is.
+ * therefore needs `v0 = (1 - DRAG) * L`, which is what this is — but a
+ * particle born at `t` only has `(1 - t) * L` left to cover to reach B, so
+ * `v0` is scaled by that remaining fraction too. Without it, a particle's
+ * displacement asymptotes to `t + 1` of the edge: it overshoots B by `t`
+ * itself, MEASURED at a particle seeded at t=0.75 peaking at 1.364 and still
+ * at 1.123 at frame 130 (lifespans run 60-130 frames) — about 60px past the
+ * node at 900x700.
  *
  * It used to be 0.002, i.e. 5.5% of an edge. MEASURED: drag e-folds velocity in
  * 27.8 authored frames against lifespans of 60-130, so an edge particle spent
@@ -241,11 +250,14 @@ export const EDGE_PARTICLE_SPEED_K = 1 - PARTICLE_DRAG;
 export function emitEdgeParticles(pool, ax, ay, az, bx, by, bz, hue, hueTarget, count, pull = 1) {
   for (let i = 0; i < count; i++) {
     const t = artRandom();
+    // The remaining fraction of the edge, so the drag-only asymptote is B
+    // itself rather than t + 1 of the way there. See EDGE_PARTICLE_SPEED_K.
+    const remaining = 1 - t;
     emitParticle(pool,
       ax + (bx - ax) * t, ay + (by - ay) * t, az + (bz - az) * t,
-      (bx - ax) * EDGE_PARTICLE_SPEED_K + (artRandom() - 0.5) * 0.0008,
-      (by - ay) * EDGE_PARTICLE_SPEED_K + (artRandom() - 0.5) * 0.0008,
-      (bz - az) * EDGE_PARTICLE_SPEED_K + (artRandom() - 0.5) * 0.0008,
+      (bx - ax) * EDGE_PARTICLE_SPEED_K * remaining + (artRandom() - 0.5) * 0.0008,
+      (by - ay) * EDGE_PARTICLE_SPEED_K * remaining + (artRandom() - 0.5) * 0.0008,
+      (bz - az) * EDGE_PARTICLE_SPEED_K * remaining + (artRandom() - 0.5) * 0.0008,
       hue, hueTarget,
       65 + artRandom() * 20,
       0.8 + artRandom() * 1.2,
