@@ -1822,7 +1822,26 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         const live = [];
         const cx = w / 2, cy = h / 2;     // projected sphere center
         for (const eff of geomEffectsRef.current) {
-          eff.life++;
+          // ON THE CLOCK, NOT PER DRAW. `maxLife` is and stays a count of
+          // AUTHORED frames (140 + degree * 18, capped at 300), so `_dtFrames`
+          // -- elapsed ms over 1000/60, the same normaliser seven other
+          // systems on this canvas already take -- is what makes that count
+          // mean the duration it was authored to mean.
+          //
+          // MEASURED BEFORE THIS LINE CHANGED (scripts/_a17prismclock.mjs, at
+          // 255.7fps under software GL): d(life)/d(draw) was 1.0000 exactly,
+          // and a 120-frame effect authored for 2.00s lived 0.43s. On the
+          // author's 360Hz panel the whole prism ran at 6x tempo -- envelope
+          // AND hue drift, since both derive from `t` below. That is the
+          // fifth place this project has found a per-draw counter standing in
+          // for a clock.
+          //
+          // THE PARITY HARNESS CANNOT SEE THIS EITHER WAY. determinism.mjs
+          // advances performance.now() by exactly FRAME_MS per __pump, so
+          // `_dtFrames` is exactly 1.0 under capture and this line is bit
+          // identical to `eff.life++` there. An ADMISSIBLE verdict is not
+          // evidence the fix works; the probe above is.
+          eff.life += _dtFrames;
           if (eff.life >= eff.maxLife) continue;
           live.push(eff);
 
@@ -3336,6 +3355,28 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       };
     };
 
+    // The live prism effects, for the harness.
+    //
+    // DELIBERATELY NOT __artEdgeState. That hook answers the same question --
+    // the prism's instances live in the additive stream and vanish when an
+    // effect retires -- but it builds `Array.from` over the WHOLE written
+    // range, and a full-strength prism frame writes ~74000 instances x 18
+    // floats. Polling it at frame rate would cost more than the frame it is
+    // trying to time, which is fatal for a probe whose whole subject is how
+    // fast frames go by. This one is O(live effects), capped at 4.
+    //
+    // `life` is the quantity under test: it is an authored-FRAME count, and
+    // whether it advances per draw or per elapsed ms is exactly the
+    // difference a refresh-rate bug makes. Reported next to the clock and a
+    // draw count, the two ratios discriminate -- see _a17prismclock.mjs.
+    window.__artGeomState = () => ({
+      now: performance.now(),
+      effects: geomEffectsRef.current.map(e => ({
+        id: e.id, life: +e.life.toFixed(4), maxLife: e.maxLife,
+        nodes: e.nodeIds.length, coarse: e.coarse,
+      })),
+    });
+
     // Fire a node's wavefront directly, for the harness. The alternative is a
     // hover-grid click, which costs a node-finding sweep and makes WHICH node
     // fired depend on where the grid happened to land -- so a probe of the
@@ -3351,6 +3392,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
     return () => {
       delete window.__artStrimerState;
+      delete window.__artGeomState;
       delete window.__artCadenceState;
       delete window.__artFireStrimer;
       delete window.__artHarnessReset;
