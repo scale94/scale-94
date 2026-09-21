@@ -776,11 +776,42 @@ export function unpackFlags(packed, glowQuant = GLOW_QUANT_SRC_OVER) {
  * percent of one dash period is not observable; using the true arc length
  * instead would make the phase disagree with the geometry that is actually
  * drawn, which is observable.
+ *
+ * ── alphas, and why it is PER POINT ───────────────────────────────────────
+ *
+ * `alphas` is optional. Left null, every instance carries
+ * `packAlphas(alpha, alpha, alpha)` computed ONCE outside the loop, exactly
+ * as this function always did — byte for byte.
+ *
+ * Passed a Float32Array of length >= m, it holds one alpha PER POINT and
+ * segment i is packed `(alphas[i], midpoint, alphas[i+1])`. The three-stop
+ * gradient edgeFrag already interpolates along every segment then carries a
+ * ramp along the whole tessellated chord, at no cost in floats: the
+ * instances already exist and the stops were simply all equal.
+ *
+ * PER POINT, NOT PER SEGMENT, and that is load-bearing. It makes segment i's
+ * END stop and segment i+1's START stop the same number BY CONSTRUCTION, so
+ * the ramp is C0 across every joint — the same discipline `phase` above
+ * follows, and for the same reason. A per-segment array would let adjacent
+ * instances disagree at the seam, and under `lighter` a disagreement at a
+ * joint beads; 24 of them read as a staircase.
+ *
+ * The mid stop is the ARITHMETIC MEAN of its two ends, which reconstructs a
+ * linear ramp exactly. A caller composing two linear ramps (the prism
+ * multiplies a depth cue by a root taper) feeds a quadratic, whose error
+ * under this reconstruction is bounded by |f''|h^2/8 per segment — far under
+ * the 1/255 packAlphas quantises to anyway. Do not sample the true midpoint
+ * separately without measuring first.
  */
-export function writePolyline(state, pts, m, rgb, alpha, width, flags, phase0 = 0) {
+export function writePolyline(state, pts, m, rgb, alpha, width, flags,
+                              phase0 = 0, alphas = null) {
   const cap = edgeCapacity(state);
   const data = state.data;
-  const packed = packAlphas(alpha, alpha, alpha);
+  // Hoisted for the scalar path exactly as before — ONE packAlphas call for
+  // the whole polyline. The ramped path cannot hoist it and pays per segment,
+  // which is the only reason this is a branch rather than an unconditional
+  // rewrite: the prism writes ~74000 instances in its worst frame.
+  const packed = alphas === null ? packAlphas(alpha, alpha, alpha) : 0;
   let written = 0;
   let phase = phase0;
   for (let i = 0; i + 1 < m; i++) {
@@ -793,7 +824,11 @@ export function writePolyline(state, pts, m, rgb, alpha, width, flags, phase0 = 
     data[o + 4]  = rgb[0]; data[o + 5]  = rgb[1]; data[o + 6]  = rgb[2];
     data[o + 7]  = rgb[0]; data[o + 8]  = rgb[1]; data[o + 9]  = rgb[2];
     data[o + 10] = rgb[0]; data[o + 11] = rgb[1]; data[o + 12] = rgb[2];
-    data[o + 13] = packed;
+    // PER-POINT alphas. Segment i's END stop is segment i+1's START stop BY
+    // CONSTRUCTION, so the ramp is C0 across every joint.
+    data[o + 13] = alphas === null
+      ? packed
+      : packAlphas(alphas[i], (alphas[i] + alphas[i + 1]) * 0.5, alphas[i + 1]);
     data[o + 14] = width;
     data[o + 15] = flags;
     data[o + 16] = phase;

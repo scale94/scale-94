@@ -514,6 +514,13 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   if (prismCtrlRef.current === null) prismCtrlRef.current = new Float32Array(2);
   const prismRgbRef  = useRef(null);
   if (prismRgbRef.current === null) prismRgbRef.current = new Float32Array(3);
+  // Per-point alpha for a tessellated chord: the depth cue times the root
+  // taper, both of which vary ALONG a chord. One slot per POINT, so it is one
+  // longer than the segment count — see writePolyline's `alphas` note for why
+  // per point and not per segment. Allocated once for the same reason the
+  // point list is: the prism inner loop runs ~74000 times in a full frame.
+  const prismAlphaRef = useRef(null);
+  if (prismAlphaRef.current === null) prismAlphaRef.current = new Float32Array(CURVE_MAX_SEGMENTS + 1);
 
   // ── Beat clock state ────────────────────────────────────────────────────
   const [ambientMode,  setAmbientMode]  = useState(false);

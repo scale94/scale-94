@@ -928,6 +928,79 @@ describe('writePolyline', () => {
     expect(s.count).toBe(2);
     expect(s.dropped).toBe(4);
   });
+
+  // ── Per-segment alpha ────────────────────────────────────────────────────
+  //
+  // A chord is already tessellated into up to CURVE_MAX_SEGMENTS instances and
+  // edgeFrag already interpolates a three-stop alpha along each one. The prism
+  // needs a depth cue and a root taper that vary ALONG a chord, and both fall
+  // out of letting the caller supply one alpha per POINT instead of one for the
+  // whole polyline. No new float, no wider stride.
+
+  it('with alphas = null packs the scalar alpha into all three stops', () => {
+    const s = createEdgeState(16);
+    writePolyline(s, PTS, 4, RGB, 0.5, 1.2, 0);
+    // LITERAL arithmetic, not a call to the function under test: 0.5 * 255 is
+    // 127.5 and Math.round takes it to 128, in all three bytes.
+    const expected = 128 + 128 * 256 + 128 * 65536;
+    for (let i = 0; i < 3; i++) {
+      expect(s.data[i * EDGE_STRIDE + EDGE_OFF.alphas]).toBe(expected);
+    }
+  });
+
+  it('a CONSTANT alphas array reproduces the scalar path byte for byte', () => {
+    const a = new Float32Array([0.5, 0.5, 0.5, 0.5]);
+    const scalar = createEdgeState(16);
+    const ramped = createEdgeState(16);
+    writePolyline(scalar, PTS, 4, RGB, 0.5, 1.2, 0);
+    writePolyline(ramped, PTS, 4, RGB, 0.5, 1.2, 0, 0, a);
+    expect(ramped.count).toBe(scalar.count);
+    for (let i = 0; i < scalar.count * EDGE_STRIDE; i++) {
+      expect(ramped.data[i]).toBe(scalar.data[i]);
+    }
+  });
+
+  // LIVENESS. The constant-array test above passes trivially if `alphas` is
+  // ignored entirely — which is exactly the vacuous shape that has bitten this
+  // project three times, most recently a toBeCloseTo on an asymptote that
+  // passed with the launch speed deleted. This case is reachable ONLY if the
+  // ramp is live.
+  it('ramps per point, sharing each joint stop between adjacent segments', () => {
+    const s = createEdgeState(16);
+    const a = new Float32Array([0.0, 0.25, 0.75, 1.0]);
+    writePolyline(s, PTS, 4, RGB, 0.5, 1.2, 0, 0, a);
+
+    // Segment 0: stops 0.0 / 0.125 / 0.25 → bytes 0 / 32 / 64.
+    //   round(0 * 255) = 0, round(0.125 * 255) = round(31.875) = 32,
+    //   round(0.25 * 255) = round(63.75) = 64.
+    expect(s.data[0 * EDGE_STRIDE + EDGE_OFF.alphas]).toBe(0 + 32 * 256 + 64 * 65536);
+    // Segment 1: stops 0.25 / 0.5 / 0.75 → 64 / 128 / 191.
+    expect(s.data[1 * EDGE_STRIDE + EDGE_OFF.alphas]).toBe(64 + 128 * 256 + 191 * 65536);
+    // Segment 2: stops 0.75 / 0.875 / 1.0 → 191 / 223 / 255.
+    expect(s.data[2 * EDGE_STRIDE + EDGE_OFF.alphas]).toBe(191 + 223 * 256 + 255 * 65536);
+
+    // The joint property, stated directly: segment i's END stop IS segment
+    // i+1's START stop. Under `lighter` a mismatch beads at every joint, and
+    // 24 of them read as a staircase.
+    for (let i = 0; i + 1 < 3; i++) {
+      const endI   = Math.floor(s.data[i * EDGE_STRIDE + EDGE_OFF.alphas] / 65536);
+      const startJ = s.data[(i + 1) * EDGE_STRIDE + EDGE_OFF.alphas] % 256;
+      expect(endI).toBe(startJ);
+    }
+  });
+
+  it('the ramped path still writes the same geometry, width and flags', () => {
+    const a = new Float32Array([0.1, 0.4, 0.6, 0.9]);
+    const s = createEdgeState(16);
+    writePolyline(s, PTS, 4, RGB, 0.5, 1.25, 7, 0, a);
+    for (let i = 0; i < 3; i++) {
+      const o = i * EDGE_STRIDE;
+      expect(s.data[o + EDGE_OFF.ax]).toBe(PTS[i * 2]);
+      expect(s.data[o + EDGE_OFF.by]).toBe(PTS[i * 2 + 3]);
+      expect(s.data[o + EDGE_OFF.width]).toBe(Math.fround(1.25));
+      expect(s.data[o + EDGE_OFF.flags]).toBe(7);
+    }
+  });
 });
 
 // ── Task 6b: the dash phase, and the two orphan curve layers ───────────────
