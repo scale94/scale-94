@@ -1874,3 +1874,58 @@ describe('edgeFrag dash antialiasing', () => {
     }
   });
 });
+
+// ── Dash beads, orthogonal bridges only ───────────────────────────────────
+//
+// The ortho bridges carried a real halo already -- orthoGlow is 10 +/- 4px
+// with the opaque isOrtho shadow -- but it was NOT gated by the dash, so a
+// continuous 6-14px haze ran the whole chord with hard chips of core punched
+// on top. That is what made them read as flat 2D overlays.
+
+describe('edgeFrag dash beads', () => {
+  const FRAGS = [
+    ['src-over', edgeFrag(SRC_OVER_LAYER.shadow, SRC_OVER_LAYER.composite)],
+    ['additive', edgeFrag(ADDITIVE_LAYER.shadow, ADDITIVE_LAYER.composite)],
+  ];
+
+  it.each(FRAGS)('%s: feeds distance-to-dash into the glow, not a hard gate on it', (_n, FRAG) => {
+    // A hard gate would cut the halo at the same boundary as the core and
+    // give a chopped halo, not a bead. The bead comes from extending the
+    // distance the EXISTING gaussian already integrates.
+    expect(FRAG).toContain('float dDash = max(0.0, -sd);');
+    expect(FRAG).toContain('dDash * beadGate');
+  });
+
+  it.each(FRAGS)('%s: gates the bead on vIsOrtho, so the spectral ruling survives', (_n, FRAG) => {
+    // The continuous halo across a dashed SPECTRAL bridge is an explicit
+    // author ruling -- the 1-2% atmospheric bridge grounds them. It was made
+    // about spectral bridges at 1-2% alpha, not about ortho at isOrtho
+    // opacity, so it stands where it was made.
+    const gi = FRAG.indexOf('float beadGate');
+    expect(gi).toBeGreaterThan(-1);
+    const stmt = FRAG.slice(gi, FRAG.indexOf(';', gi) + 1);
+    expect(stmt).toContain('vIsOrtho');
+  });
+
+  it.each(FRAGS)('%s: gates the bead off discs, because pulse rings are dashed discs', (_n, FRAG) => {
+    // edgeFrag has a whole rMid*ang branch for dashed discs. Those are pulse
+    // rings, not ortho bridges; without this gate a ring halo would be
+    // chopped into arcs.
+    const gi = FRAG.indexOf('float beadGate');
+    const stmt = FRAG.slice(gi, FRAG.indexOf(';', gi) + 1);
+    expect(stmt).toContain('1.0 - vIsDisc');
+  });
+
+  it.each(FRAGS)('%s: leaves the segment-end rounding intact', (_n, FRAG) => {
+    // dOut still carries the past-the-end distance; the bead is a max() with
+    // it, not a replacement. A blurred butt cap must still round off.
+    expect(FRAG).toContain('max(-vAlong, vAlong - vLen)');
+  });
+
+  it.each(FRAGS)('%s: reuses the SAME sd the dash cut computes', (_n, FRAG) => {
+    // Two derivations of the same signed distance could drift, and this file
+    // insists on one measurement rather than two that could disagree.
+    expect(FRAG.split('float sd =').length - 1).toBe(1);
+    expect(FRAG.indexOf('float sd =')).toBeLessThan(FRAG.indexOf('float dDash'));
+  });
+});

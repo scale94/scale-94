@@ -1369,7 +1369,31 @@ ${HSL2RGB_GLSL}
     // Distance is measured to the SEGMENT, not to its infinite line, so the
     // glow rounds off past the ends the way a blurred butt cap does. step()
     // rather than a branch keeps the divide defined when there is no glow.
-    float dOut = max(0.0, max(-vAlong, vAlong - vLen));
+    // THE BEAD. The ortho bridges carried a real halo already -- orthoGlow is
+    // 10 +/- 4px with the opaque isOrtho shadow colour -- but it was NOT gated
+    // by the dash: glowSeg came from the segment distance alone, so a
+    // continuous 6-14px haze ran the whole chord with hard chips of core
+    // punched on top of it. That is what made them read as flat 2D overlays
+    // rather than rays suspended in the volume.
+    //
+    // The fix is NOT a gate on the glow, which would chop the halo at the same
+    // boundary as the core. It is to extend the distance the EXISTING gaussian
+    // already integrates: zero inside a dash, growing through the gap, so each
+    // dash gets its own blurred envelope and neighbouring halos overlap softly
+    // -- which is what a blurred dashed line physically looks like, and the
+    // same approximation this file already makes for segment ends.
+    //
+    // sd is the one the dash cut above computed. One measurement, not two that
+    // could drift.
+    //
+    // TWO GATES, BOTH LOAD-BEARING. vIsOrtho keeps the continuous haze on
+    // dashed SPECTRAL bridges, which is an author ruling -- the 1-2%
+    // atmospheric bridge grounds them. (1.0 - vIsDisc) keeps beads off pulse
+    // rings, which are dashed DISCS and would otherwise have their halos
+    // chopped into arcs.
+    float dDash = max(0.0, -sd);
+    float beadGate = vIsOrtho * step(0.001, vDash.x) * (1.0 - vIsDisc);
+    float dOut = max(max(0.0, max(-vAlong, vAlong - vLen)), dDash * beadGate);
     float dSeg = length(vec2(dOut, vD));
     float g = dSeg / max(vGlow, 1e-3);
     // The shadow's colour and alpha, per material. Separate from the stroke's,
