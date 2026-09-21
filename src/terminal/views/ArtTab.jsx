@@ -2376,6 +2376,13 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       // partial `destination-out` clear gave them. That is the deficit that
       // cost steps 3 and 4, and it is measured in this step's report rather
       // than assumed.
+      //
+      // Every additive instance written from here on is a PARTICLE (a
+      // velocity-stretched segment, or the degenerate disc streakTail falls
+      // back to below). Publishing the boundary is what keeps a reader from
+      // having to shape-match a streak's width against a prism chord core's —
+      // exactly as discStart does for the source-over stream.
+      ag.particleStart = ag.count;
       for (let pi = 0; pi < MAX_PARTICLES; pi++) {
         if (pool.lifes[pi] >= pool.maxLifes[pi] || pool.maxLifes[pi] === 0) continue;
         const alpha = particleAlpha(pool.lifes[pi] / pool.maxLifes[pi]);
@@ -3047,6 +3054,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         // missing and every other number agreeing that nothing went wrong.
         additive: {
           count: a.count, dropped: a.dropped, capacity: a.data.length / EDGE_STRIDE,
+          // Where the particle layer's writes begin in this stream — see the
+          // write site's comment. Lets a reader tell a particle streak from a
+          // prism chord core without shape-matching the two, which genuinely
+          // overlap in width and share PARTICLE_FLAGS.
+          particleStart: a.particleStart,
           instances: Array.from(a.data.subarray(0, a.count * EDGE_STRIDE)),
         },
       };

@@ -1842,7 +1842,22 @@ function nodeDiscsOf(st) {
 // ring's filled discs are in the SOURCE-OVER stream, not this one.
 // A function declaration, not a const: this is called from a check 800 lines
 // ABOVE it, and a const would sit in its temporal dead zone there.
+//
+// UPDATED for the velocity-stretch change: a particle's glow instance is now
+// a SEGMENT (positive width) far more often than a disc, and that segment
+// genuinely overlaps a prism chord core's width and shares PARTICLE_FLAGS —
+// shape cannot tell the two apart any more, and a streak near PRISM_CORE_W
+// used to get misread as a chord and corrupt the maxTurn tessellation
+// measurement. The writer now publishes where its particle writes begin —
+// `ag.particleStart` in ArtTab.jsx, following the discStart/worldCount
+// precedent — and particles are always appended LAST into this stream, so
+// everything from that index on is a particle, disc or segment alike.
+//
+// Falls back to the old disc-only test when `particleStart` is absent (an
+// older capture, or a harness that never published it), which only recovers
+// the degenerate-disc arm — a pre-streak capture never had streaks to miss.
 function isParticleAt(add, o) {
+  if (add.particleStart != null) return o >= add.particleStart * EDGE_STRIDE;
   return isDisc(add.instances[o + EDGE_OFF.width])
     && !(add.instances[o + EDGE_OFF.bx] > 0);
 }
