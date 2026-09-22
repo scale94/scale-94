@@ -4579,7 +4579,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             </span>
           </h2>
           <div className="text-sm font-bold tracking-widest" style={{ color: 'rgba(251,191,36,0.5)' }}>
-            orbital sphere // ars electronica 2027 // soma-9.4
+            orbital sphere // soma-9.4
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 mt-3 md:mt-0 text-xs font-bold font-mono tracking-widest">

@@ -175,9 +175,9 @@ export default function useTerminalCommands({
     } else if (action === 'cryptography' || action === 'crypto') {
       handleNav('~/system/cryptography', 'cryptography');
       executeCommand(rawCmd, "Switching directory to /system/cryptography...");
-    } else if (action === 'art') {
-      handleNav('~/system/art', 'art');
-      executeCommand(rawCmd, "Switching directory to /system/art...");
+    } else if (action === 'chaos' || action === 'art') {
+      handleNav('~/system/chaos', 'art');
+      executeCommand(rawCmd, "Switching directory to /system/chaos...");
     } else if (action === 'ecocide') {
       handleNav('~/system/ecocide', 'ecocide');
       executeCommand(rawCmd, "Switching directory to /system/ecocide...");

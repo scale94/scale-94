@@ -615,7 +615,7 @@ const App = () => {
   // g-leader navigation (Colemak-DH home-row optimised)
   const G_NAV = {
     n: ['~/system/kernel',       'kernel'],
-    a: ['~/system/art',          'art'],
+    a: ['~/system/chaos',        'art'],
     e: ['~/system/ecocide',      'ecocide'],
     s: ['~/system/surveillance', 'surveillance'],
     m: ['~/system/mercury',      'mercury'],
@@ -1154,7 +1154,7 @@ const App = () => {
 
             <button aria-label="Cryptography" aria-current={activeTab === 'cryptography' ? 'page' : undefined} onClick={() => handleNav('~/system/cryptography', 'cryptography')} className={`${activeTab === 'cryptography' ? 'bg-orange-950 text-orange-200 shadow-[0_0_12px_rgba(249,115,22,0.5)]' : 'text-orange-500/70 hover:text-orange-300 hover:bg-orange-950/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><KeyRound className="w-3 h-3" /> /Cryptography</button>
 
-            <button aria-label="Chaos" aria-current={activeTab === 'art' ? 'page' : undefined} onClick={() => handleNav('~/system/art', 'art')} className={`${activeTab === 'art' ? 'text-black shadow-[0_0_14px_rgba(255,215,0,0.6)]' : 'hover:text-amber-300 hover:bg-amber-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap${beat('art')}`} style={activeTab === 'art' ? { background: 'linear-gradient(90deg,#FF8C00,#FFD700)' } : { color: 'rgba(251,191,36,0.6)' }}><CascadeIcon className="w-3 h-3" /> /Chaos</button>
+            <button aria-label="Chaos" aria-current={activeTab === 'art' ? 'page' : undefined} onClick={() => handleNav('~/system/chaos', 'art')} className={`${activeTab === 'art' ? 'text-black shadow-[0_0_14px_rgba(255,215,0,0.6)]' : 'hover:text-amber-300 hover:bg-amber-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap${beat('art')}`} style={activeTab === 'art' ? { background: 'linear-gradient(90deg,#FF8C00,#FFD700)' } : { color: 'rgba(251,191,36,0.6)' }}><CascadeIcon className="w-3 h-3" /> /Chaos</button>
 
             <button aria-label="Ecocide" aria-current={activeTab === 'ecocide' ? 'page' : undefined} onClick={() => handleNav('~/system/ecocide', 'ecocide')} className={`${activeTab === 'ecocide' ? 'text-black shadow-[0_0_14px_rgba(122,184,0,0.55)]' : 'hover:text-lime-300 hover:bg-[#1a2d00]/40'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap${beat('ecocide')}`} style={activeTab === 'ecocide' ? { background: 'linear-gradient(90deg,#7ab800,#3d5c00)' } : { color: 'rgba(122,184,0,0.5)' }}><Leaf className="w-3 h-3" /> /Ecocide</button>
 
@@ -1411,7 +1411,7 @@ const App = () => {
         <button onClick={() => handleNav('~/system/cryptography', 'cryptography')} aria-label="Cryptography" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'cryptography' ? 'text-orange-400' : 'text-orange-400/50'}`}>
           <KeyRound className="w-5 h-5" />
         </button>
-        <button onClick={() => handleNav('~/system/art', 'art')} aria-label="Chaos" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'art' ? 'text-amber-400' : 'text-amber-400/40'}${beat('art')}`}>
+        <button onClick={() => handleNav('~/system/chaos', 'art')} aria-label="Chaos" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'art' ? 'text-amber-400' : 'text-amber-400/40'}${beat('art')}`}>
           <CascadeIcon className="w-5 h-5" />
         </button>
         <button onClick={() => handleNav('~/system/ecocide', 'ecocide')} aria-label="Ecocide" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'ecocide' ? 'text-lime-400' : 'text-lime-400/50'}${beat('ecocide')}`}>

@@ -453,9 +453,9 @@ export function useCommandDispatch(ctx) {
       executeCommand(rawCmd, "Switching directory to /system/manifesto...");
       return;
     }
-    if (action === 'art' || action === 'graph' || action === 'fade') {
-      handleNav('~/system/art', 'art');
-      executeCommand(rawCmd, "Switching directory to /system/art...");
+    if (action === 'chaos' || action === 'art' || action === 'graph' || action === 'fade') {
+      handleNav('~/system/chaos', 'art');
+      executeCommand(rawCmd, "Switching directory to /system/chaos...");
       return;
     }
     if (action === 'ecocide') {
@@ -687,7 +687,7 @@ export function useCommandDispatch(ctx) {
             try {
               const data = JSON.parse(dataMatch[1]);
               ctxRef.current.setProbeNode(data);
-              ctxRef.current.handleNav('~/system/art', 'art');
+              ctxRef.current.handleNav('~/system/chaos', 'art');
             } catch (_) { /* malformed DATA: — ignore */ }
           }
         } catch (err) {
