@@ -671,6 +671,73 @@ export function prismWavePhase(u, k, tMs, durMs) {
 }
 
 /**
+ * The COLOUR's advection coordinate: `prismWavePhase` with the per-strand
+ * shear removed.
+ *
+ * ── THE COLOUR AND THE BRIGHTNESS DELIBERATELY NO LONGER SHARE ONE PHASE ──
+ *
+ * The note on prismChromaBlend's original call site said they must, and the
+ * reason was sound: one number means the tint cannot drift out of step with
+ * the crest it belongs to. It is overridden here for a MEASURED reason, not a
+ * taste one.
+ *
+ * prismWavePhase carries prismPhaseOffset(k) * (1 - uu), so each strand
+ * reaches its crest at its own moment. Drive a UNISON COLLAPSE off that and
+ * the comb folds over itself: strand 0 must travel 144deg to reach the middle
+ * strand's hue while strand 1 travels only 96deg, so when the crest sits near
+ * strand 0 it collapses further, OVERTAKES strand 1, and lands EXACTLY on
+ * strand 1's resting hue. Measured minimum neighbour gap -31.16deg. That is
+ * the "it jumps erratically between wire indices" reading this whole line of
+ * work exists to remove, re-entering through a door the 0.75-step bound does
+ * not cover -- that bound constrains the SIZE of a differential rotation and
+ * says nothing about a collapse that overtakes.
+ *
+ * With a phase common to the bundle the collapse fraction is common too, and
+ * the comb is monotone by construction: d(hue_k)/dk = PRISM_HUE_STEP * (1 - t),
+ * which is positive for every t < 1. See prismUnisonHue.
+ *
+ * THE ALPHA WAVE IS NOT TOUCHED. The diagonal wavefront across the bundle is
+ * the brightness's, and it stays exactly as it shipped. The shear belongs to
+ * the light, not to the colour.
+ */
+export function prismChromaPhase(u, tMs, durMs) {
+  const d = durMs > 1e-6 ? durMs : 1e-6;
+  const uu = u < 0 ? 0 : u > 1 ? 1 : u;
+  return uu - tMs / d;
+}
+
+// ── THE CHROMA ARMS ────────────────────────────────────────────────────────
+//
+// Three anchor expressions behind one switch, so the author can rule between
+// them inside ONE page at one seed on one rAF cycle. See the design spec
+// 2026-09-22-prism-chroma-ab-design.md for why the shipped arm is invisible:
+// the bundle puts 288deg of the hue wheel on screen 2.8px apart, so a crest
+// has no reference hue to be different from and no excursion of any size is
+// trackable.
+
+/** The shipped arm: hue_k + LEAD, skewed. Rotates each strand in place. */
+export const PRISM_CHROMA_MODE_SHIPPED = 0;
+
+/** Arm U: every strand gathers onto the comb's midpoint hue. */
+export const PRISM_CHROMA_MODE_UNISON = 1;
+
+/** Arm A: the crest bleaches; hues do not move at all. */
+export const PRISM_CHROMA_MODE_ACHROMATIC = 2;
+
+/**
+ * Arm A's WAKE saturation, against a leading edge of 0.
+ *
+ * CHOSEN, NEVER SEEN BY AN EYE.
+ *
+ * A grey anchor has no hue for PRISM_HUE_SKEW to act on, so arm A would look
+ * identical arriving and leaving -- a pattern that pulses rather than one that
+ * flows, which is exactly what PRISM_HUE_SKEW was introduced to prevent. Arm
+ * A takes its direction on the saturation axis instead: the leading edge
+ * bleaches to pure white and colour floods back in behind it.
+ */
+export const PRISM_A_WAKE_SAT = 35;
+
+/**
  * How much of the wave is in force, `tMs` after the chord's origin lit: a
  * crescendo to full strength over the transit, then a long release.
  *

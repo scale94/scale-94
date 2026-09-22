@@ -27,6 +27,8 @@ import {
   FUSED_GLOW_BASE,
   prismChordCue, prismDepthCue, PRISM_DEPTH_ALPHA_FLOOR,
   prismRootTaper, PRISM_ROOT_TAPER_PX,
+  prismWavePhase, PRISM_SAT,
+  prismChromaPhase, PRISM_CHROMA_MODE_SHIPPED, PRISM_CHROMA_MODE_UNISON, PRISM_CHROMA_MODE_ACHROMATIC, PRISM_A_WAKE_SAT,
 } from '../artEdges';
 import { DEPTH_ALPHA_FLOOR, depthCueAlpha } from '../artNodes';
 import { CURVE_MAX_SEGMENTS, quadSegments, tessellateQuad } from '../artCurve';
@@ -831,6 +833,54 @@ describe('prism chord bundle', () => {
       expect(h).toBeGreaterThanOrEqual(0);
       expect(h).toBeLessThan(360);
     }
+  });
+});
+
+describe('prismChromaPhase — the colour\'s advection coordinate', () => {
+  // THE COLOUR AND THE BRIGHTNESS NO LONGER SHARE ONE PHASE, AND THAT IS THE
+  // POINT. prismWavePhase carries prismPhaseOffset(k) * (1 - uu), which makes
+  // each strand collapse by its own fraction -- and a unison collapse driven
+  // that way folds the comb over itself (spec section 3, min neighbour gap
+  // -31.16deg). The colour takes the un-sheared phase so the collapse is
+  // common across the bundle; the alpha wave keeps its diagonal.
+  it('is independent of the spectral line index', () => {
+    const a = prismChromaPhase(0.4, 50, 120);
+    for (let k = 0; k < 7; k++) {
+      expect(prismChromaPhase(0.4, 50, 120)).toBe(a);
+    }
+    // and it differs from the sheared phase on every line but k = 0
+    for (let k = 1; k < 7; k++) {
+      expect(prismWavePhase(0.4, k, 50, 120)).not.toBe(a);
+    }
+  });
+
+  it('agrees exactly with prismWavePhase on line 0, where the shear is zero', () => {
+    // prismPhaseOffset(0) is 0, so this is an identity, not an approximation.
+    for (const u of [0, 0.25, 0.5, 0.75, 1]) {
+      expect(prismChromaPhase(u, 70, 110)).toBe(prismWavePhase(u, 0, 70, 110));
+    }
+  });
+
+  it('clamps u and guards a zero duration, exactly as prismWavePhase does', () => {
+    expect(prismChromaPhase(-1, 0, 100)).toBe(prismChromaPhase(0, 0, 100));
+    expect(prismChromaPhase(2, 0, 100)).toBe(prismChromaPhase(1, 0, 100));
+    expect(Number.isFinite(prismChromaPhase(0.5, 10, 0))).toBe(true);
+  });
+});
+
+describe('the chroma mode constants', () => {
+  it('makes the SHIPPED arm 0, which is the default everywhere', () => {
+    // Load-bearing: mode 0 selects the shipped anchor expression, so the
+    // shipped path is unchanged and the parity reference at 33bda07e is
+    // untouched. Getting this backwards would repaint every cascade.
+    expect(PRISM_CHROMA_MODE_SHIPPED).toBe(0);
+    expect(PRISM_CHROMA_MODE_UNISON).toBe(1);
+    expect(PRISM_CHROMA_MODE_ACHROMATIC).toBe(2);
+  });
+
+  it('keeps arm A\'s wake saturation inside the real range', () => {
+    expect(PRISM_A_WAKE_SAT).toBeGreaterThan(0);
+    expect(PRISM_A_WAKE_SAT).toBeLessThan(PRISM_SAT);
   });
 });
 
