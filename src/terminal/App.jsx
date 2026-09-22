@@ -1294,7 +1294,7 @@ const App = () => {
             <BskyTab />
           )}
 
-          {/* Art Tab — Fade Doctrine Graph // Ars Electronica 2027 */}
+          {/* Chaos Tab — Fade Doctrine Graph */}
           {activeTab === 'art' && !selectedArticle && !architectThesis && (
             <WasmErrorBoundary>
               <ArtTab

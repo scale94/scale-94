@@ -1,4 +1,4 @@
-// kernels/feigenbaum.rs — Feigenbaum Cascade Analysis (Ars Electronica 2027)
+// kernels/feigenbaum.rs — Feigenbaum Cascade Analysis
 //
 // Logistic map: x_{n+1} = r·x_n·(1 − x_n)
 // Feigenbaum (1978): δ = 4.669 201 609 …   α = 2.502 907 875 …

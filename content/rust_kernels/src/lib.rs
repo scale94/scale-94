@@ -26,7 +26,7 @@
 //   run_feigenbaum_cascade()       → Bifurcation cascade (δ = 4.6692…)
 //   run_stiller_divergence()       → Stiller Divergence v1.1.1 (volatile semiotic vs fossil record)
 //   run_dh_ec_kernel()             → DH-EC Cryptographic Architecture (Signal/Threema)
-//   GrayScottKernel::compute_steps() → Reaction-Diffusion PDE (Ars Electronica 2027)
+//   GrayScottKernel::compute_steps() → Reaction-Diffusion PDE
 //   run_classified()               → ML-KEM-768 Post-Quantum KEM (FIPS 203)
 //
 //   run_lindblad_fade()            → Lindblad Decoherence Engine (FADE-DOCTRINE-KERNEL-2.0.0)

@@ -26,7 +26,7 @@
 //   - FIPS 203 (2024): Module-Lattice-Based Key-Encapsulation Mechanism Standard
 //   - SP 800-227 (2025): Recommendations for KEM-then-DEM Hybrid Encryption
 //
-// SOMA-9.4 · ARS ELECTRONICA 2027
+// SOMA-9.4
 
 use std::fmt::Write;
 use std::cell::RefCell;

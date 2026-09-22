@@ -90,7 +90,7 @@ pub fn boot_soma55() -> String {
            run ceei          :: A-CEEI Walrasian allocation engine\n\
            run soma_plus     :: Soma Plus social capital engine\n\
            run strangler     :: Strangler Fig logistic transition\n\
-         ADVANCED DYNAMICS (Ars Electronica 2027):\n\
+         ADVANCED DYNAMICS:\n\
            run kuramoto      :: Phase-coupled oscillator synchrony\n\
            run replicator    :: Evolutionary game theory (C/D/A)\n\
            run ising         :: 2-D consensus field (Monte Carlo)\n\

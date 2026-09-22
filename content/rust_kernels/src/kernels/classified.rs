@@ -1,5 +1,5 @@
 // kernels/classified.rs — Post-Quantum Cryptography Kernel
-// Scale 9.4 // Ars Electronica 2027
+// Scale 9.4
 //
 // Implements FIPS 203 compliant ML-KEM-768 key encapsulation.
 // Mathematical core: Module Learning With Errors (MLWE) problem

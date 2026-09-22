@@ -16,7 +16,7 @@
 //   CIE color matching:    CIE 1931 2-degree standard observer (approximate
 //                          piecewise-linear RGB conversion after Dan Bruton)
 //
-// Ars Electronica 2027 — scale 9.4
+// scale 9.4
 
 import { useRef, useCallback } from 'react';
 import { FEATURES, DIM_NAMES } from '../data/nodeFeatures';

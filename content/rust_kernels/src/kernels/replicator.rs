@@ -1,4 +1,4 @@
-// kernels/replicator.rs — Evolutionary Replicator Dynamics (Ars Electronica 2027)
+// kernels/replicator.rs — Evolutionary Replicator Dynamics
 //
 // Three competing strategies on the unit simplex Δ² = {(x,y,z) : x+y+z = 1}.
 //   C — Cooperators: contribute to commons, pay cost c

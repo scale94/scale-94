@@ -1,4 +1,4 @@
-// kernels/ising.rs — Ising Consensus Field (Ars Electronica 2027)
+// kernels/ising.rs — Ising Consensus Field
 //
 // 2-D Ising model on an N×N square lattice with periodic boundary conditions.
 // Metropolis–Hastings Monte Carlo at inverse temperature β = 1/T (J = 1).

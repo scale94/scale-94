@@ -1,5 +1,5 @@
 // KuramotoVisualizer.jsx — Live Kuramoto synchrony canvas
-// Ars Electronica 2027 — sensory layer: doctrine → simulation → visual
+// Sensory layer: doctrine → simulation → visual
 //
 // Runs the same mean-field ODE as kuramoto.rs in a RAF loop:
 //   dθ_i/dt = ω_i + K·r·sin(ψ − θ_i)

@@ -21,7 +21,7 @@
 //   - Salton & McGill (1983), Introduction to Modern Information Retrieval
 //   - Cosine similarity for concept projection: Manning et al. (2008), IIR
 //
-// SOMA-9.4 · FADE_DOCTRINE · ARS ELECTRONICA 2027
+// SOMA-9.4 · FADE_DOCTRINE
 
 use std::fmt::Write;
 use wasm_bindgen::prelude::*;

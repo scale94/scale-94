@@ -1,4 +1,4 @@
-// ArtTab.jsx — SOMA-9.4 // FEIGENBAUM_FADE // ARS ELECTRONICA 2027
+// ArtTab.jsx — SOMA-9.4 // FEIGENBAUM_FADE
 //
 // Orbital sphere topology: 25 kernel nodes constrained to a rotating unit sphere.
 // Force-directed layout in 3D, perspective-projected onto Canvas2D.

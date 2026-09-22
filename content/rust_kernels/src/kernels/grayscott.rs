@@ -1,5 +1,5 @@
 // kernels/grayscott.rs — Gray-Scott Reaction-Diffusion Kernel
-// Scale 9.4 // Ars Electronica 2027
+// Scale 9.4
 //
 // Solves the Gray-Scott PDE system on a fixed 60×20 ASCII terminal grid:
 //   du/dt = Du·∇²u  -  u·v²  +  f·(1 - u)

@@ -1,4 +1,4 @@
-// kernels/kuramoto.rs — Kuramoto Synchrony Engine (Ars Electronica 2027)
+// kernels/kuramoto.rs — Kuramoto Synchrony Engine
 //
 // N agents with heterogeneous natural frequencies ω_i ~ 𝒩(0,σ²) couple via
 // a global synchronization field of strength K.

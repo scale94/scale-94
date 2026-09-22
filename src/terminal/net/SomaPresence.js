@@ -1,4 +1,4 @@
-// SomaPresence.js — SOMA-9.4 // FEIGENBAUM_FADE // ARS ELECTRONICA 2027
+// SomaPresence.js — SOMA-9.4 // FEIGENBAUM_FADE
 //
 // WebSocket-based multi-user presence engine for collaborative sphere visualization.
 // Multiple visitors share the same 3D sphere, seeing each other's cursors and

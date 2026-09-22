@@ -50,7 +50,7 @@
 //   run bone_fusion --nodes 16 --cycles 24       # fewer tensors, more cycles
 //   run bone_fusion --threshold 0.9950           # relaxed convergence
 //
-// SOMA-9.4 · FADE_DOCTRINE · LAYER 7.7.7.7.7.7.7 · ARS ELECTRONICA 2027
+// SOMA-9.4 · FADE_DOCTRINE · LAYER 7.7.7.7.7.7.7
 
 use std::fmt::Write as FmtWrite;
 use wasm_bindgen::prelude::*;

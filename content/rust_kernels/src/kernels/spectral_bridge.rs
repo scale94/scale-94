@@ -23,7 +23,7 @@
 //   run spectral_bridge --threshold 0.5          # lower threshold → more bridges
 //   run spectral_bridge --max 20 --threshold 0.6 # more bridges with moderate cutoff
 //
-// SOMA-9.4 · FADE_DOCTRINE · ARS ELECTRONICA 2027
+// SOMA-9.4 · FADE_DOCTRINE
 
 use std::fmt::Write;
 use wasm_bindgen::prelude::*;
