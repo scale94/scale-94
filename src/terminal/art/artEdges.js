@@ -630,7 +630,7 @@ export const PRISM_WAVE_SEG_NONE = 20;
  * depends on. _a18wsweep (2026-09-22) found every width passes the 5% bar at
  * 2*W*n ~= 14.4 -- W=0.18/n=40, W=0.135/n=56, W=0.09/n=80 -- so the guard
  * keys on this, not on n. Derived from the count the shipped width was
- * measured at; never type 14.4.
+ * measured at; never type the number in code.
  */
 export const PRISM_WAVE_SAMPLES = 2 * PRISM_WAVE_W * PRISM_WAVE_SEG_FULL;
 
