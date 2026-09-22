@@ -27,6 +27,8 @@
 | `src/terminal/art/artEdges.js` | all prism drawing arithmetic, pure | **modify** — add the chroma phase, the unison geometry, and the anchor writer |
 | `src/terminal/art/__tests__/artEdges.test.js` | unit tests for the above | **modify** — add the property tests |
 | `src/terminal/views/ArtTab.jsx` | the draw loop and the window hooks | **modify** — the mode ref, the anchor call, the chroma phase branch, `__artSetChromaMode` |
+| `scripts/_prismSpawn.mjs` | the spawn-and-clip routine, extracted from `_a21wavefilm.mjs` so two instruments share one copy of its three traps | **create** |
+| `scripts/_a21wavefilm.mjs` | films one pass at a chosen age | **modify** — import the extracted routine |
 | `scripts/_a23combR.mjs` | circular concentration R and delivered saturation, per arm, on filmed frames | **create** |
 | `scripts/_a22chroma.mjs` | the luminance bound | **modify** — extend part 1 to the saturation axis |
 
@@ -562,15 +564,31 @@ describe('prismWriteAnchors — once per spectral line, never per point', () => 
     }
   });
 
-  it('mode U writes the SAME rgb into every line\'s lead anchor at the still centre\'s hue', () => {
+  it('mode U writes anchors that differ ONLY by the skew, across every line', () => {
     const out = new Float32Array(CORE * 2);
     prismWriteAnchors(out, PRISM_CHROMA_MODE_UNISON, 40, N, CORE);
-    // strands equidistant from the fixed point travel opposite ways, so their
-    // skewed anchors straddle it symmetrically
+
+    // The still centre takes no skew at all, so its lead and wake anchors are
+    // the same rgb.
     const mid = prismUnisonK(N) * 6;
     for (let c = 0; c < 3; c++) {
-      expect(out[mid + c]).toBeCloseTo(out[mid + 3 + c], 6);   // centre: no skew
+      expect(out[mid + c]).toBeCloseTo(out[mid + 3 + c], 6);
     }
+
+    // Every OTHER line's lead and wake DO differ -- if they did not, the skew
+    // would be absent and arm U would look the same arriving and leaving.
+    for (let k = 0; k < N; k++) {
+      if (k === prismUnisonK(N)) continue;
+      const o = k * 6;
+      const d = Math.abs(out[o] - out[o + 3])
+              + Math.abs(out[o + 1] - out[o + 4])
+              + Math.abs(out[o + 2] - out[o + 5]);
+      expect(d).toBeGreaterThan(0.001);
+    }
+
+    // And strands equidistant from the fixed point straddle it symmetrically:
+    // their lead anchors sit on opposite sides of the target hue.
+    expect(prismTravelSign(0, N)).toBe(-prismTravelSign(N - 1, N));
   });
 
   it('handles the coarse comb without reading past its own lines', () => {
@@ -713,7 +731,9 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 **Interfaces:**
 - Consumes: `prismChromaPhase`, `prismWriteAnchors`, `PRISM_CHROMA_MODE_*` (Tasks 1–3)
-- Produces: `window.__artSetChromaMode(n) -> { chromaMode: number } | null`
+- Produces:
+  - `prismChromaModeOf(v) -> number | null` (in `artEdges.js`, added in Step 5)
+  - `window.__artSetChromaMode(n) -> { chromaMode: number } | null`
 
 - [ ] **Step 1: Add the imports and the ref**
 
@@ -831,48 +851,76 @@ Immediately above `window.__artSetBeadScale` at `ArtTab.jsx:3154`:
     };
 ```
 
-- [ ] **Step 5: Write the failing test for the hook's contract**
+- [ ] **Step 5: Extract the validator so the test is not vacuous**
+
+**THE FIRST DRAFT OF THIS STEP TESTED A COPY OF THE HOOK.** It built a local
+`make()` returning a duplicate of the validator and asserted against that —
+so deleting `window.__artSetChromaMode` entirely would have left every
+assertion green, while the test's own comment cited "the vacuous-hook lesson".
+That is the fourth instance of the vacuous-property-test trap on this project.
+
+The validator moves into `artEdges.js` where it is real, pure and testable,
+and the hook becomes a two-line caller.
+
+In `src/terminal/art/artEdges.js`, after `PRISM_CHROMA_MODE_ACHROMATIC`:
 
 ```js
-describe('__artSetChromaMode — the arm switch contract', () => {
-  // THE VACUOUS-HOOK LESSON. A setter that returns undefined lets a caller
-  // "assert" the flip landed by asserting nothing. This one returns the value
-  // it set, exactly as __artSetOrthogonal was made to after that bit.
-  const make = () => {
-    const ref = { current: PRISM_CHROMA_MODE_SHIPPED };
-    const set = (v = PRISM_CHROMA_MODE_SHIPPED) => {
-      const n = Number(v);
-      if (!Number.isInteger(n) || n < 0 || n > PRISM_CHROMA_MODE_ACHROMATIC) return null;
-      ref.current = n;
+/**
+ * Coerce an arm argument to a valid mode, or null if it is not one.
+ *
+ * PURE, AND IN THIS FILE, BECAUSE A HOOK THAT VALIDATES INLINE CANNOT BE
+ * TESTED WITHOUT A COPY OF ITSELF -- and a test written against a copy passes
+ * with the hook deleted. The window hook in ArtTab.jsx is a caller of this and
+ * holds no logic of its own.
+ */
+export function prismChromaModeOf(v) {
+  const n = Number(v);
+  if (!Number.isInteger(n)) return null;
+  if (n < PRISM_CHROMA_MODE_SHIPPED || n > PRISM_CHROMA_MODE_ACHROMATIC) return null;
+  return n;
+}
+```
+
+The hook from Step 4 becomes:
+
+```js
+    window.__artSetChromaMode = (v = PRISM_CHROMA_MODE_SHIPPED) => {
+      const n = prismChromaModeOf(v);
+      if (n === null) return null;
+      chromaModeRef.current = n;
       return { chromaMode: n };
     };
-    return { ref, set };
-  };
+```
 
-  it('returns what it set, for every valid arm', () => {
-    const { ref, set } = make();
+And the test asserts against the real exported function:
+
+```js
+describe('prismChromaModeOf — the arm switch\'s validator', () => {
+  it('accepts every arm and returns it', () => {
     for (const m of [PRISM_CHROMA_MODE_SHIPPED, PRISM_CHROMA_MODE_UNISON,
                      PRISM_CHROMA_MODE_ACHROMATIC]) {
-      expect(set(m)).toEqual({ chromaMode: m });
-      expect(ref.current).toBe(m);
+      expect(prismChromaModeOf(m)).toBe(m);
     }
   });
 
-  it('refuses a mode outside the arms and leaves the ref alone', () => {
-    const { ref, set } = make();
-    set(PRISM_CHROMA_MODE_UNISON);
-    for (const bad of [-1, 3, 1.5, NaN, 'unison', null]) {
-      expect(set(bad)).toBeNull();
-      expect(ref.current).toBe(PRISM_CHROMA_MODE_UNISON);
+  it('refuses anything that is not an arm', () => {
+    for (const bad of [-1, 3, 1.5, NaN, Infinity, 'unison', null, undefined, {}]) {
+      expect(prismChromaModeOf(bad)).toBeNull();
     }
   });
 
-  it('defaults to the shipped arm when called with no argument', () => {
-    const { set } = make();
-    expect(set()).toEqual({ chromaMode: PRISM_CHROMA_MODE_SHIPPED });
+  it('is bounded by the arm constants, not by literals', () => {
+    // If a fourth arm is added, this must widen with it rather than silently
+    // rejecting the new mode.
+    expect(prismChromaModeOf(PRISM_CHROMA_MODE_ACHROMATIC + 1)).toBeNull();
+    expect(prismChromaModeOf(PRISM_CHROMA_MODE_ACHROMATIC)).toBe(PRISM_CHROMA_MODE_ACHROMATIC);
   });
 });
 ```
+
+**Falsify it:** temporarily change `prismChromaModeOf` to `return Number(v);`.
+Run `npx vitest run src/terminal/art/__tests__/artEdges.test.js -t "validator"` —
+expected **FAIL** on the refusal case. Revert and re-run: PASS.
 
 - [ ] **Step 6: Run the whole suite and the lint gate**
 
@@ -921,7 +969,9 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ### Task 5: `_a23combR.mjs` — the visibility metric
 
 **Files:**
+- Create: `scripts/_prismSpawn.mjs`
 - Create: `scripts/_a23combR.mjs`
+- Modify: `scripts/_a21wavefilm.mjs` (import the extracted routine)
 
 **Interfaces:**
 - Consumes: `scripts/cdp.mjs` (`launch`), `window.__artSetChromaMode`, `window.__artGeomState`, `sharp`
@@ -1051,7 +1101,9 @@ const main = async () => {
 main();
 ```
 
-`shootAtAge(page, age)` is `_a21wavefilm.mjs`'s existing spawn-and-clip routine returning `{ png, age }`. Extract it from that file into a shared local helper rather than duplicating it; if extraction is awkward, import `_a21wavefilm.mjs`'s export.
+**`shootAtAge` IS A REQUIRED EXTRACTION, NOT AN OPTIONAL ONE.** It is `_a21wavefilm.mjs`'s existing spawn-and-clip routine, and it carries three traps that cost real time to find — the sphere rotates out from under a cached coordinate, "the largest disc" is the most LIT node rather than the nearest, and a synthetic `MouseEvent` spawns nothing so the click must go through CDP's input domain. A second copy would carry a second set of those bugs the first time either file is edited.
+
+Create `scripts/_prismSpawn.mjs` exporting `shootAtAge(page, wantMs) -> { png: Buffer, age: number, node: [x, y] } | null`, move the routine there verbatim, and have BOTH `_a21wavefilm.mjs` and `_a23combR.mjs` import it. `_a21wavefilm.mjs`'s own output must be unchanged by the move — run it once before and once after and confirm it still writes frames at the same wanted ages.
 
 - [ ] **Step 3: Run it and check the shipped arm reproduces the spec's section 0**
 
