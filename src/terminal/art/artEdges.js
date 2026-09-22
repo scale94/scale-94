@@ -48,56 +48,6 @@ export function edgeStops(colA, colB, cMid, baseAlpha, pulseBoost, strength) {
   ];
 }
 
-// ── The wire-fade A/B (2026-09-23) ──────────────────────────────────────────
-//
-// A wire is cued by its endpoints' MEAN depth, uniformly along its length; the
-// node at each end is cued by its OWN depth (depthCueAlpha, floor 0.08). So a
-// wire from a front node into a back one arrives at the back node at the
-// mean's brightness. Measured live: back discs peaking at 0.063 over a ~50px
-// lens-and-halo with no bright centre, wires into them ending at 0.110-0.129.
-// Sharp threads converging on a transparent blob read as a vertex in empty
-// space -- reported four times as a phantom, and every time the geometry was
-// exact to 0.00px. The defect is the cue, not the coordinates.
-//
-// Two candidate remedies, flipped live by __artSetWireFadeArm:
-//   perEnd     each END stop is cued by its own node's depth (never brighter
-//              than shipped), so a wire dims INTO a back node
-//   solidCore  a back node's core gets a floor and a flat, solid centre, so
-//              the wires have a point to meet on (artNodes' solidCoreStops)
-
-export const WIRE_FADE_FLOOR = 0.03;
-
-/** The edge loop's depth cue, lifted verbatim so arm 0 stays byte-identical. */
-export function wireDepthFade(depth) {
-  return Math.max(WIRE_FADE_FLOOR, (depth + 1) * 0.5);
-}
-
-/** Multiplier on one END stop's alpha: that end's own cue over the wire's
- *  mean-depth cue, capped at 1 -- the front end keeps its shipped alpha, the
- *  back end lands on the cue its own node is drawn at. */
-export function wireEndFade(depthEnd, depthA, depthB) {
-  return Math.min(1, wireDepthFade(depthEnd) / wireDepthFade((depthA + depthB) / 2));
-}
-
-export const WIRE_FADE_ARM_SHIPPED = 0;
-export const WIRE_FADE_ARMS = Object.freeze([
-  Object.freeze({ perEnd: false, solidCore: false }),   // 0 shipped
-  Object.freeze({ perEnd: true,  solidCore: false }),   // 1 per-end wire fade
-  Object.freeze({ perEnd: false, solidCore: true }),    // 2 solid core floor
-  Object.freeze({ perEnd: true,  solidCore: true }),    // 3 both
-]);
-
-/** prismPacketArmOf's contract, for this switch. */
-export function wireFadeArmOf(v) {
-  if (v === null || v === undefined || v === '') return null;
-  if (typeof v !== 'number' && typeof v !== 'string') return null;
-  if (typeof v === 'string' && !/^\s*-?\d+\s*$/.test(v)) return null;
-  const n = Number(v);
-  if (!Number.isInteger(n)) return null;
-  if (n < 0 || n >= WIRE_FADE_ARMS.length) return null;
-  return n;
-}
-
 /**
  * Stroke width in px for a base edge, from the draw loop verbatim.
  *

@@ -35,10 +35,9 @@ import {
   prismUnisonK, prismUnisonHue, prismTravelSign, prismChromaModeOf,
   PRISM_WAVE_W, PRISM_PHASE_STEP, PRISM_PACKET_ARMS, PRISM_PACKET_ARM_SHIPPED, PRISM_PACKET_ARM_RULED,
   prismPacketArmOf, prismWaveSegmentsFor, PRISM_WAVE_SEGMENTS,
-  wireDepthFade, wireEndFade, WIRE_FADE_FLOOR, prismSpokeHub,
-  WIRE_FADE_ARMS, WIRE_FADE_ARM_SHIPPED, wireFadeArmOf,
+  prismSpokeHub,
 } from '../artEdges';
-import { DEPTH_ALPHA_FLOOR, depthCueAlpha, CORE_SOLID_FLOOR } from '../artNodes';
+import { DEPTH_ALPHA_FLOOR, depthCueAlpha } from '../artNodes';
 import { CURVE_MAX_SEGMENTS, quadSegments, tessellateQuad } from '../artCurve';
 import {
   writeHsl, writeHslRgb, writeRgb255, packAlphas, unpackAlphas, packFlags, unpackFlags,
@@ -2511,80 +2510,6 @@ describe('edgeFrag dash beads', () => {
     // insists on one measurement rather than two that could disagree.
     expect(FRAG.split('float sd =').length - 1).toBe(1);
     expect(FRAG.indexOf('float sd =')).toBeLessThan(FRAG.indexOf('float dDash'));
-  });
-});
-
-// ── The wire-fade A/B (2026-09-23) ──────────────────────────────────────────
-// A wire's alpha was cued by its endpoints' MEAN depth, uniformly along its
-// length, while the node at each end is cued by its OWN depth. Into a
-// back-facing node the wire therefore arrived up to ~2x brighter than the
-// node's own peak -- measured live: disc peak 0.063 over a ~50px halo, wire
-// end 0.110-0.129 -- and sharp threads converging on a transparent blob read
-// as a vertex in empty space.
-
-describe('wireDepthFade -- the edge loop depth cue, lifted verbatim', () => {
-  it('is the draw loop literal Math.max(0.03, (d + 1) * 0.5)', () => {
-    expect(WIRE_FADE_FLOOR).toBe(0.03);
-    for (const d of [-1, -0.97, -0.94, -0.5, 0, 0.3, 0.84, 1]) {
-      expect(wireDepthFade(d)).toBe(Math.max(0.03, (d + 1) * 0.5));
-    }
-  });
-});
-
-describe('wireEndFade -- per-end attenuation for arm 1', () => {
-  it('never brightens: the FRONT end of a wire keeps exactly its shipped alpha', () => {
-    expect(wireEndFade(0.8, 0.8, -0.84)).toBe(1);
-    expect(wireEndFade(0.2, 0.2, 0.2)).toBe(1);
-  });
-
-  it('dims the BACK end to its own node cue: meanFade * k == fade(end)', () => {
-    // CATCHES a ratio taken the wrong way up, or against the wrong mean --
-    // either leaves the back end at the mean-depth alpha, which is the bug.
-    const dA = 0.8, dB = -0.84;
-    const mean = Math.max(0.03, ((dA + dB) / 2 + 1) * 0.5);   // 0.49
-    const own  = Math.max(0.03, (dB + 1) * 0.5);              // 0.08
-    expect(mean * wireEndFade(dB, dA, dB)).toBeCloseTo(own, 12);
-    expect(wireEndFade(dB, dA, dB)).toBeCloseTo(0.08 / 0.49, 12);
-  });
-
-  it('is symmetric in which end is A', () => {
-    expect(wireEndFade(-0.6, -0.6, 0.5)).toBe(wireEndFade(-0.6, 0.5, -0.6));
-  });
-});
-
-describe('wireFadeArmOf / WIRE_FADE_ARMS -- the switch', () => {
-  it('arm 0 is exactly shipped: neither mechanism on', () => {
-    expect(WIRE_FADE_ARM_SHIPPED).toBe(0);
-    expect(WIRE_FADE_ARMS[0]).toEqual({ perEnd: false, solidCore: false });
-  });
-
-  it('arms 1 and 2 are the two mechanisms ALONE, arm 3 both', () => {
-    // CATCHES an arm that turns on both, which would confound the A/B.
-    expect(WIRE_FADE_ARMS[1]).toEqual({ perEnd: true,  solidCore: false });
-    expect(WIRE_FADE_ARMS[2]).toEqual({ perEnd: false, solidCore: true });
-    expect(WIRE_FADE_ARMS[3]).toEqual({ perEnd: true,  solidCore: true });
-    expect(WIRE_FADE_ARMS.length).toBe(4);
-    expect(Object.isFrozen(WIRE_FADE_ARMS)).toBe(true);
-    for (const a of WIRE_FADE_ARMS) expect(Object.isFrozen(a)).toBe(true);
-  });
-
-  it('accepts every arm and refuses everything else, as prismPacketArmOf does', () => {
-    for (let i = 0; i < WIRE_FADE_ARMS.length; i++) {
-      expect(wireFadeArmOf(i)).toBe(i);
-      expect(wireFadeArmOf(String(i))).toBe(i);
-    }
-    for (const bad of [-1, WIRE_FADE_ARMS.length, 1.5, NaN, Infinity, '', 'x',
-                       null, undefined, {}, [], false, true, '0x1', [1]]) {
-      expect(wireFadeArmOf(bad)).toBeNull();
-    }
-  });
-});
-
-describe('CORE_SOLID_FLOOR -- tied to the prism floor it claims to match', () => {
-  // artNodes cannot import artEdges (artEdges imports artNodes), so the
-  // constant is restated there; this is what keeps the two from drifting.
-  it('equals PRISM_DEPTH_ALPHA_FLOOR', () => {
-    expect(CORE_SOLID_FLOOR).toBe(PRISM_DEPTH_ALPHA_FLOOR);
   });
 });
 

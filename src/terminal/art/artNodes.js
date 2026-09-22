@@ -163,24 +163,6 @@ export function lensStops(alpha) {
   };
 }
 
-// ── The wire-fade A/B, arm 2: a solid core floor (2026-09-23) ────────────────
-// See artEdges' WIRE_FADE_ARMS. The CORE alone -- the halo keeps its cue -- of
-// a node whose depth cue sits below the floor is drawn as if cued AT the floor,
-// and flat, so a back node keeps a point for its wires to meet on. 0.24 is
-// PRISM_DEPTH_ALPHA_FLOOR, the floor the prism chords into the same nodes are
-// already held at. Nodes at or above it are untouched.
-
-export const CORE_SOLID_FLOOR = 0.24;
-
-export function solidCoreApplies(cued) {
-  return cued < CORE_SOLID_FLOOR;
-}
-
-/** lensStops' shape, with no transparent centre. */
-export function solidCoreStops(alpha) {
-  return { center: alpha, knee: alpha, rim: alpha, at: LENS_KNEE };
-}
-
 // ── Birth animation ─────────────────────────────────────────────────────────
 
 export const BIRTH_MS = 400;
