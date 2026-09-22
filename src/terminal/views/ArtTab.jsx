@@ -97,7 +97,7 @@ import {
   ORTHO_HUE_STEP_MID, ORTHO_HUE_STEP_END,
   ORTHO_ALPHA_BOOST, ORTHO_MID_ALPHA_BOOST,
   PULSE_ALPHA, PULSE_DRAW_CUTOFF,
-  prismOffset, prismChordAlpha, prismGlowWidth, prismControl, prismSpokeHue,
+  prismOffset, prismChordAlpha, prismGlowWidth, prismControl, prismSpokeHue, prismSpokeHub,
   prismChordCue, prismDepthCue, prismRootTaper,
   prismWaveEnv, prismWaveMix, prismSegmentFade,
   prismPulse, prismWavePhase, prismChromaSkew, prismChromaBlend,
@@ -2212,19 +2212,24 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
             }
           }
 
-          // Star spokes — lines from sphere center to each effect node. Each was
-          // already its own beginPath/stroke, so the canvas composited them
-          // separately too: they double where they meet at the centre, there and
-          // here alike.
-          for (const ep of effProj) {
-            const spokeHue = prismSpokeHue(hue0, ep.sx - cx, ep.sy - cy);
+          // Star spokes — lines from the CLICKED node to each other effect
+          // node. They ran from the projected sphere centre until 2026-09-23:
+          // a point where no node is drawn, so every click put a straight-line
+          // vertex on empty space (ruled: option 2, radiate from the click).
+          // Each spoke is its own instance, so they double where they meet at
+          // the hub, as the canvas did.
+          const hubI = prismSpokeHub(effDepth);
+          const hub = effProj[hubI];
+          for (let i = 0; i < effProj.length; i++) {
+            if (i === hubI) continue;          // a zero-length spoke to itself
+            const ep = effProj[i];
+            const spokeHue = prismSpokeHue(hue0, ep.sx - hub.sx, ep.sy - hub.sy);
             writeHsl(rgb, 0, spokeHue, PRISM_SPOKE_SAT, PRISM_SPOKE_LIT);
-            // A spoke runs from the projected sphere CENTRE to a node, and the
-            // centre sits at depth 0 — cue 0.5 — so a spoke reaching a
-            // back-facing node now fades along its length instead of arriving
-            // at full strength on a disc that is barely drawn.
-            straight(cx, cy, ep.sx, ep.sy, alpha * PRISM_SPOKE_ALPHA_K, PRISM_SPOKE_W,
-                     prismDepthCue(0), prismDepthCue(ep.depth));
+            // Each end cued by its own node's depth, so a spoke reaching a
+            // back-facing node fades along its length instead of arriving at
+            // full strength on a disc that is barely drawn.
+            straight(hub.sx, hub.sy, ep.sx, ep.sy, alpha * PRISM_SPOKE_ALPHA_K, PRISM_SPOKE_W,
+                     prismDepthCue(hub.depth), prismDepthCue(ep.depth));
           }
         }
         geomEffectsRef.current = live;

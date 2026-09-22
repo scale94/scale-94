@@ -35,7 +35,7 @@ import {
   prismUnisonK, prismUnisonHue, prismTravelSign, prismChromaModeOf,
   PRISM_WAVE_W, PRISM_PHASE_STEP, PRISM_PACKET_ARMS, PRISM_PACKET_ARM_SHIPPED, PRISM_PACKET_ARM_RULED,
   prismPacketArmOf, prismWaveSegmentsFor, PRISM_WAVE_SEGMENTS,
-  wireDepthFade, wireEndFade, WIRE_FADE_FLOOR,
+  wireDepthFade, wireEndFade, WIRE_FADE_FLOOR, prismSpokeHub,
   WIRE_FADE_ARMS, WIRE_FADE_ARM_SHIPPED, wireFadeArmOf,
 } from '../artEdges';
 import { DEPTH_ALPHA_FLOOR, depthCueAlpha, CORE_SOLID_FLOOR } from '../artNodes';
@@ -2585,5 +2585,30 @@ describe('CORE_SOLID_FLOOR -- tied to the prism floor it claims to match', () =>
   // constant is restated there; this is what keeps the two from drifting.
   it('equals PRISM_DEPTH_ALPHA_FLOOR', () => {
     expect(CORE_SOLID_FLOOR).toBe(PRISM_DEPTH_ALPHA_FLOOR);
+  });
+});
+
+// ── The star spokes' hub (2026-09-23) ───────────────────────────────────────
+// The spokes ran from the projected sphere CENTRE -- a point with no node --
+// so every click drew 4-5 straight lines converging on empty space. Reported
+// four times as a phantom vertex; _a15mesh.mjs whitelisted exactly that point.
+// Ruled: option 2, the star radiates from the CLICKED node.
+
+describe('prismSpokeHub -- which effect node the star radiates from', () => {
+  it('is the clicked node: the entry at graph depth 0', () => {
+    // spawnEffect writes [clicked, ...adjacency, ...bridges] as depths 0/1/2
+    expect(prismSpokeHub([0, 1, 1, 2])).toBe(0);
+  });
+
+  it('follows the clicked node when it is not first', () => {
+    // CATCHES a hub hard-coded to index 0: the clicked node can drop out of
+    // effProj (unprojected this frame) or be reordered.
+    expect(prismSpokeHub([1, 1, 0, 2])).toBe(2);
+  });
+
+  it('falls back to entry 0 -- still a real node -- when no clicked node projected', () => {
+    // CATCHES a -1 / undefined hub, which would put the star back on a point
+    // that is not a node.
+    expect(prismSpokeHub([1, 1, 2])).toBe(0);
   });
 });

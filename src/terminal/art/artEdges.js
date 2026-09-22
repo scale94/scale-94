@@ -278,8 +278,9 @@ export function resonanceStops(sim) {
 //      pass and a sharp bright core over it;
 //   2. the sacred polygon — one closed path through the nodes, when three or
 //      more project;
-//   3. the star spokes — one straight line from the projected sphere centre to
-//      each node.
+//   3. the star spokes — one straight line from the CLICKED node to each other
+//      node (prismSpokeHub; it was the projected sphere centre until
+//      2026-09-23, which drew a vertex where no node is).
 //
 // The envelope (`alphaRaw`), the hue drift (`hue0`) and the `eff.life` / `live`
 // bookkeeping are simulation state and stay in the draw loop. Everything here
@@ -1207,8 +1208,22 @@ export function prismChordDir(depthA, depthB) {
   return 0;
 }
 
+/**
+ * The index, in the effect's projected nodes, the star spokes radiate from:
+ * the CLICKED node, which spawnEffect records at graph depth 0. Falls back to
+ * entry 0 -- still a real node -- when no depth-0 node projected this frame.
+ *
+ * The spokes used to run from the projected sphere CENTRE, a point where no
+ * node is drawn, so every click put 4-5 straight lines on an empty vertex.
+ * Ruled 2026-09-23: the star radiates from the clicked node.
+ */
+export function prismSpokeHub(effDepth) {
+  const i = effDepth.indexOf(0);
+  return i < 0 ? 0 : i;
+}
+
 /** A spoke's hue: the effect's base hue rotated by the node's bearing from the
- *  projected sphere centre, so the star reads as a colour wheel. */
+ *  star's hub, so the star reads as a colour wheel. */
 export function prismSpokeHue(hue0, dx, dy) {
   return (hue0 + Math.atan2(dy, dx) * (180 / Math.PI) + 360) % 360;
 }
