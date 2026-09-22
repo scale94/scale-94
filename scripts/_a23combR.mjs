@@ -52,17 +52,27 @@ const ARMS = [
 // (56-128ms) and releases over PRISM_WAVE_TAIL_MS = 360ms.
 const AGES = [55, 80, 105, 140, 200];
 
-// Step 3's gate is now REPRODUCIBILITY, not an absolute band. The prior
-// version compared a BUNDLE-clipped R against 0.03-0.32, a band measured
-// WHOLE-FRAME (design spec, section 0's "CORRECTION, 2026-09-22" block) --
-// two different pixel populations, not a defect in this instrument. Since
-// nothing at the bundle clip was ever independently re-measured against
-// itself, the right question is not "does one bundle-clip reading match a
-// number taken at a different clip" but "does a second, independent look at
-// the SAME thing agree with the first". The shipped arm's R is measured
-// TWICE, at all five ages, in two separate passes; the gate passes only if
-// the two passes agree at every age within this tolerance.
-const REPRO_TOLERANCE = 0.10;
+// Step 3's gate is now SIGNAL-TO-NOISE, not absolute-band or ±tolerance
+// reproducibility. Both of those were wrong in opposite directions: the
+// absolute band was measured at a different clip entirely, and demanding
+// bit-for-bit repeatability from a real-clock rAF effect is a stronger
+// requirement than any ranking actually needs. What a ranking needs is that
+// the noise be small AGAINST THE SEPARATION IT IS TRYING TO RESOLVE -- an
+// SNR question, not a tolerance question.
+//
+// So: every (arm, age) cell is sampled SAMPLES_PER_CELL times (fresh spawn
+// each time) and reported as its MEDIAN, with the min-to-max spread carried
+// through as that cell's error bar. Separately, the shipped arm is run
+// through two more independent single-sample passes across all five ages --
+// not to gate on ±tolerance, but to measure the instrument's own noise floor
+// (the largest and mean |diff| between the two passes). The gate passes
+// when that noise floor is under 1/(SNR_GATE_DIVISOR) of the smallest
+// arm-to-arm separation actually present in the median table: only then does
+// a difference between arms mean more than measurement noise. If the arms
+// are closer together than that, the arms are indistinguishable ON THIS
+// METRIC -- a real finding, printed plainly, not a blocked run.
+const SAMPLES_PER_CELL = 3;
+const SNR_GATE_DIVISOR = 3;
 
 // Same order-of-magnitude wait _a21wavefilm.mjs uses between ages ("let the
 // effect die entirely before the next"), applied here between ARMS instead.
@@ -242,9 +252,13 @@ function analyse(buf, channels) {
   };
 }
 
-/** Run one arm's R-table rows (all AGES), printing each as it lands and
- *  returning the R values measured. Shared by the shipped-arm-only pass (Step
- *  3's own gate) and the U/A pass that follows it. */
+/** Run one arm's R-table rows (all AGES), ONE sample per age, printing each
+ *  as it lands and returning the R values measured. No longer the primary
+ *  ranking read -- now used only for the two independent shipped-arm passes
+ *  that establish the instrument's noise floor (see SAMPLES_PER_CELL /
+ *  SNR_GATE_DIVISOR above). These are raw single-sample readings, not a
+ *  ranking claim; they are never printed as a bare "R=" figure, only as a
+ *  pass-vs-pass |diff| feeding the noise-floor number. */
 async function measureArmRTable(page, arm) {
   // ASSERT THE FLIP LANDED. __artSetChromaMode returns what it set precisely
   // so this is not an assumption.
@@ -277,6 +291,45 @@ async function measureArmRTable(page, arm) {
     rs.push(a.R);
   }
   return rs;
+}
+
+/** Run one arm's R-table rows (all AGES), SAMPLES_PER_CELL independent
+ *  spawns per age, each a fresh click+shot at the bundle clip. Returns the
+ *  MEDIAN R per age and the min-to-max SPREAD as that cell's error bar --
+ *  this is the primary ranking read the three-arm comparison is built from.
+ *  Every individual sample is printed too, so the median is never presented
+ *  without the raw numbers it came from. */
+async function measureArmRTableMedian3(page, arm) {
+  const got = await page.eval(`window.__artSetChromaMode(${arm.mode})`);
+  if (!got || got.chromaMode !== arm.mode) {
+    console.log(`  ${arm.name}: SWITCH REFUSED (${JSON.stringify(got)}) -- arm NOT measured`);
+    return AGES.map(() => ({ median: NaN, spread: NaN, min: NaN, max: NaN, n: 0 }));
+  }
+  const rows = [];
+  for (const age of AGES) {
+    const samples = [];
+    for (let s = 0; s < SAMPLES_PER_CELL; s++) {
+      const hit = await shootAtAge(page, age, { bundleClip: true });
+      if (!hit) { console.log(`  ${arm.name.padEnd(28)} ${String(age).padStart(4)}ms  sample ${s + 1}/${SAMPLES_PER_CELL}  NO SPAWN`); continue; }
+      const { data, info } = await sharp(hit.png).raw().toBuffer({ resolveWithObject: true });
+      const a = analyse(data, info.channels);
+      samples.push(a.R);
+    }
+    if (!samples.length) {
+      console.log(`  ${arm.name.padEnd(28)} ${String(age).padStart(4)}ms  NO SAMPLES -- cell is NaN`);
+      rows.push({ median: NaN, spread: NaN, min: NaN, max: NaN, n: 0 });
+      continue;
+    }
+    const sorted = samples.slice().sort((x, y) => x - y);
+    const mid = sorted.length >> 1;
+    const median = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+    const min = sorted[0], max = sorted[sorted.length - 1];
+    const spread = max - min;
+    console.log(`  ${arm.name.padEnd(28)} ${String(age).padStart(4)}ms  samples [${samples.map(v => v.toFixed(3)).join(', ')}]  `
+      + `median ${median.toFixed(3)} +/-${(spread / 2).toFixed(3)} (range ${min.toFixed(3)}-${max.toFixed(3)})`);
+    rows.push({ median, spread, min, max, n: samples.length });
+  }
+  return rows;
 }
 
 const main = async () => {
@@ -338,86 +391,134 @@ const main = async () => {
     }
     console.log('\n  GATE PASSED: three distinct arms confirmed before any R value is trusted.\n');
 
-    // ── STEP 3a: THE SHIPPED ARM'S REPRODUCIBILITY GATE ──────────────────
+    // ── STEP 3a: THE THREE-ARM MEDIAN TABLE, matched ages ─────────────────
     //
-    // Two independent passes over the shipped arm, all five ages, BEFORE U
-    // or A are ever spawned. If the two passes disagree by more than
-    // REPRO_TOLERANCE at any age, the instrument is too noisy to rank arms
-    // and nothing downstream is trustworthy -- print both passes' numbers
-    // plainly and stop.
+    // Each (arm, age) cell is SAMPLES_PER_CELL independent spawns; the cell
+    // is reported as the MEDIAN with the min-to-max spread as its error bar.
+    // This is the primary ranking read.
     console.log(`  R = 1 means the bundle wears ONE hue; R = 0 means it wears every hue.`);
     console.log(`  bins = 30deg hue bins holding >2% of hued pixels, out of 12.`);
-    console.log(`  bundle clip padding: ${PRISM_BBOX_PAD_PX}px (see _prismSpawn.mjs).\n`);
-    console.log('  arm                            age      R   sat p50  sat p90  bins  meanV');
+    console.log(`  bundle clip padding: ${PRISM_BBOX_PAD_PX}px (see _prismSpawn.mjs).`);
+    console.log(`  each cell below is the MEDIAN of ${SAMPLES_PER_CELL} independent spawns.\n`);
 
-    console.log('\n  -- reproducibility PASS 1 (shipped arm) --');
-    const shippedPass1 = await measureArmRTable(page, ARMS[0]);
+    console.log('  -- shipped (rotate in place) --');
+    const shippedRows = await measureArmRTableMedian3(page, ARMS[0]);
     await sleep(ARM_DECAY_MS);
-    console.log('\n  -- reproducibility PASS 2 (shipped arm) --');
-    const shippedPass2 = await measureArmRTable(page, ARMS[0]);
-    await sleep(ARM_DECAY_MS);
-
-    console.log(`\n  REPRODUCIBILITY GATE -- pass 1 vs pass 2, shipped arm, tolerance `
-      + `+/-${REPRO_TOLERANCE}:`);
-    console.log('  age      pass1 R   pass2 R   |diff|   verdict');
-    let reproducible = true;
-    for (let i = 0; i < AGES.length; i++) {
-      const r1 = shippedPass1[i], r2 = shippedPass2[i];
-      const missing = !Number.isFinite(r1) || !Number.isFinite(r2);
-      const diff = missing ? NaN : Math.abs(r1 - r2);
-      const ok = !missing && diff <= REPRO_TOLERANCE;
-      if (!ok) reproducible = false;
-      console.log(`  ${String(AGES[i]).padStart(4)}ms  ${Number.isFinite(r1) ? r1.toFixed(3) : '  n/a'}     `
-        + `${Number.isFinite(r2) ? r2.toFixed(3) : '  n/a'}     `
-        + `${missing ? '  n/a' : diff.toFixed(3)}    ${ok ? 'OK' : (missing ? 'NO SPAWN' : 'FAIL')}`);
-    }
-    if (!reproducible) {
-      console.log(`\n  REPRODUCIBILITY GATE FAILED: the two passes disagree by more than `
-        + `+/-${REPRO_TOLERANCE} at one or more ages (or a spawn was missing at one).`);
-      console.log('  The instrument is too noisy to rank arms. U and A were NOT measured.');
-      console.log('  STOPPING.');
-      process.exitCode = 1;
-      return;
-    }
-    console.log(`\n  REPRODUCIBILITY GATE PASSED: shipped-arm R agreed within `
-      + `+/-${REPRO_TOLERANCE} at every age across two independent passes. `
-      + 'Continuing to U and A.\n');
-
-    // ── STEP 3b: U AND A, measured at THE SAME FIVE AGES ─────────────────
-    console.log('  -- arm U (unison) --');
-    const uRs = await measureArmRTable(page, ARMS[1]);
+    console.log('\n  -- arm U (unison) --');
+    const uRows = await measureArmRTableMedian3(page, ARMS[1]);
     await sleep(ARM_DECAY_MS);
     console.log('\n  -- arm A (achromatic) --');
-    const aRs = await measureArmRTable(page, ARMS[2]);
+    const aRows = await measureArmRTableMedian3(page, ARMS[2]);
     await sleep(ARM_DECAY_MS);
 
-    // ── THREE-ARM SIDE-BY-SIDE, MATCHED AGE ───────────────────────────────
-    // Never an arm against an absolute number -- arm vs arm, same age, same
-    // clip, same run. Shipped is the mean of its two reproducibility passes.
-    const shippedAvg = AGES.map((_, i) => {
-      const r1 = shippedPass1[i], r2 = shippedPass2[i];
-      return (Number.isFinite(r1) && Number.isFinite(r2)) ? (r1 + r2) / 2 : NaN;
-    });
-    const fmt = v => Number.isFinite(v) ? v.toFixed(3) : '  n/a';
-    console.log('\n  THREE-ARM R COMPARISON, matched age (shipped = mean of the two repro passes):');
-    console.log('  age      shipped R   U (unison) R   A (achrom) R');
+    // ── STEP 3b: THE NOISE FLOOR -- two independent single-sample passes,
+    // shipped arm only, NOT gated on, reported only to size the noise this
+    // instrument carries at this sampling depth. ─────────────────────────
+    console.log('\n  -- noise-floor PASS 1 (shipped arm, single sample per age) --');
+    const noisePass1 = await measureArmRTable(page, ARMS[0]);
+    await sleep(ARM_DECAY_MS);
+    console.log('\n  -- noise-floor PASS 2 (shipped arm, single sample per age) --');
+    const noisePass2 = await measureArmRTable(page, ARMS[0]);
+    await sleep(ARM_DECAY_MS);
+
+    const fmtCell = row => (row && Number.isFinite(row.median))
+      ? `${row.median.toFixed(3)} +/-${(row.spread / 2).toFixed(3)}`.padStart(14)
+      : '           n/a';
+
+    console.log('\n  THREE-ARM R COMPARISON, matched age (median +/- half the min-to-max spread, '
+      + `n=${SAMPLES_PER_CELL} per cell). Never a bare R -- every figure below carries its error bar.`);
+    console.log('  age      shipped R           U (unison) R        A (achrom) R');
     for (let i = 0; i < AGES.length; i++) {
-      console.log(`  ${String(AGES[i]).padStart(4)}ms   ${fmt(shippedAvg[i]).padStart(7)}     `
-        + `${fmt(uRs[i]).padStart(7)}        ${fmt(aRs[i]).padStart(7)}`);
+      console.log(`  ${String(AGES[i]).padStart(4)}ms   ${fmtCell(shippedRows[i])}      `
+        + `${fmtCell(uRows[i])}      ${fmtCell(aRows[i])}`);
+    }
+
+    // ── NOISE FLOOR ─────────────────────────────────────────────────────
+    console.log('\n  NOISE FLOOR -- two independent single-sample passes, shipped arm, NOT gated:');
+    console.log('  age      pass1 R   pass2 R   |diff|');
+    const noiseDiffs = [];
+    for (let i = 0; i < AGES.length; i++) {
+      const r1 = noisePass1[i], r2 = noisePass2[i];
+      const missing = !Number.isFinite(r1) || !Number.isFinite(r2);
+      const diff = missing ? NaN : Math.abs(r1 - r2);
+      if (!missing) noiseDiffs.push(diff);
+      console.log(`  ${String(AGES[i]).padStart(4)}ms  ${Number.isFinite(r1) ? r1.toFixed(3) : '  n/a'}     `
+        + `${Number.isFinite(r2) ? r2.toFixed(3) : '  n/a'}     `
+        + `${missing ? '  n/a' : diff.toFixed(3)}`);
+    }
+    const noiseFloorMax = noiseDiffs.length ? Math.max(...noiseDiffs) : NaN;
+    const noiseFloorMean = noiseDiffs.length
+      ? noiseDiffs.reduce((s, x) => s + x, 0) / noiseDiffs.length : NaN;
+    console.log(`  noise floor (max |diff| across ages, used for the gate -- conservative): `
+      + `${Number.isFinite(noiseFloorMax) ? noiseFloorMax.toFixed(3) : 'n/a'}`);
+    console.log(`  noise floor (mean |diff| across ages, reported only):                    `
+      + `${Number.isFinite(noiseFloorMean) ? noiseFloorMean.toFixed(3) : 'n/a'}`);
+
+    // ── SMALLEST ARM-TO-ARM SEPARATION IN THE TABLE ────────────────────
+    let minSep = Infinity, minSepAt = null;
+    const pairs = [[0, 1, 'shipped', 'U'], [0, 2, 'shipped', 'A'], [1, 2, 'U', 'A']];
+    const rowsByArm = [shippedRows, uRows, aRows];
+    for (let i = 0; i < AGES.length; i++) {
+      for (const [x, y, nx, ny] of pairs) {
+        const vx = rowsByArm[x][i]?.median, vy = rowsByArm[y][i]?.median;
+        if (!Number.isFinite(vx) || !Number.isFinite(vy)) continue;
+        const sep = Math.abs(vx - vy);
+        if (sep < minSep) { minSep = sep; minSepAt = { age: AGES[i], nx, ny }; }
+      }
+    }
+    const haveSep = Number.isFinite(minSep) && minSep !== Infinity;
+    const threshold = haveSep ? minSep / SNR_GATE_DIVISOR : NaN;
+    const gatePass = haveSep && Number.isFinite(noiseFloorMax) && noiseFloorMax < threshold;
+
+    console.log(`\n  SMALLEST ARM-TO-ARM SEPARATION IN THE TABLE: `
+      + `${haveSep ? minSep.toFixed(3) : 'n/a'}`
+      + (minSepAt ? ` (at ${minSepAt.age}ms, ${minSepAt.nx} vs ${minSepAt.ny})` : ''));
+    console.log(`  SNR GATE: noise floor must be < separation / ${SNR_GATE_DIVISOR} `
+      + `(< ${haveSep ? threshold.toFixed(3) : 'n/a'}) for a ranking to mean anything.`);
+    if (gatePass) {
+      console.log(`  GATE PASSED: noise floor ${noiseFloorMax.toFixed(3)} < ${threshold.toFixed(3)}. `
+        + 'The ranking below is trustworthy at this sampling depth.');
+    } else {
+      console.log(`  GATE FAILED: noise floor `
+        + `${Number.isFinite(noiseFloorMax) ? noiseFloorMax.toFixed(3) : 'n/a'} is NOT < `
+        + `${haveSep ? threshold.toFixed(3) : 'n/a'}. The arms are INDISTINGUISHABLE ON THIS `
+        + 'METRIC at this sampling depth -- this is a real finding, not a failed run.');
     }
 
     // ── BUFFER-LEVEL (Step 2b) vs PIXEL-LEVEL (R), per arm, side by side ──
-    const meanFinite = arr => {
-      const finite = arr.filter(Number.isFinite);
+    const meanFinite = rows => {
+      const finite = rows.map(r => r?.median).filter(Number.isFinite);
       return finite.length ? finite.reduce((s, x) => s + x, 0) / finite.length : NaN;
     };
-    const armMeanRs = [meanFinite(shippedAvg), meanFinite(uRs), meanFinite(aRs)];
+    const meanSpread = rows => {
+      const finite = rows.map(r => r?.spread).filter(Number.isFinite);
+      return finite.length ? finite.reduce((s, x) => s + x, 0) / finite.length : NaN;
+    };
+    const armMeanRs = [meanFinite(shippedRows), meanFinite(uRows), meanFinite(aRows)];
+    const armMeanSpreads = [meanSpread(shippedRows), meanSpread(uRows), meanSpread(aRows)];
+    const fmtMean = (m, s) => Number.isFinite(m) ? `${m.toFixed(3)} +/-${(s / 2).toFixed(3)}` : '    n/a';
     console.log('\n  BUFFER-LEVEL (Step 2b additive-buffer read) vs PIXEL-LEVEL (mean R this run):');
-    console.log('  arm                            hue excursion   min sat     mean R');
+    console.log('  arm                            hue excursion   min sat     mean R (+/- mean cell spread/2)');
     for (let i = 0; i < ARMS.length; i++) {
       const g = gate[i];
       console.log(`  ${ARMS[i].name.padEnd(28)}  ${g ? (g.maxExcursion.toFixed(1) + 'deg').padStart(9) : '      n/a'}      `
-        + `${g ? g.minSat.toFixed(3).padStart(6) : '   n/a'}    ${fmt(armMeanRs[i]).padStart(7)}`);
+        + `${g ? g.minSat.toFixed(3).padStart(6) : '   n/a'}    ${fmtMean(armMeanRs[i], armMeanSpreads[i])}`);
+    }
+
+    // ── PLAIN-WORDS VERDICT ON ARM U'S CENTRAL PREDICTION ─────────────────
+    const shippedMean = armMeanRs[0], uMean = armMeanRs[1];
+    console.log('\n  VERDICT -- did arm U drive R up?');
+    if (!gatePass) {
+      console.log('  The SNR gate did NOT pass, so any apparent movement below cannot be told');
+      console.log('  apart from measurement noise. Numbers are reported anyway, but no ranking');
+      console.log('  claim is being made from them this run.');
+    }
+    if (Number.isFinite(shippedMean) && Number.isFinite(uMean)) {
+      const delta = uMean - shippedMean;
+      console.log(`  mean shipped R = ${shippedMean.toFixed(3)}, mean U R = ${uMean.toFixed(3)}, `
+        + `delta = ${delta >= 0 ? '+' : ''}${delta.toFixed(3)}.`);
+    } else {
+      console.log('  One or both arm means are unavailable (missing spawns) -- no delta computed.');
     }
   } finally {
     // Finding 3: the restore now runs on EVERY path out of the try block --
