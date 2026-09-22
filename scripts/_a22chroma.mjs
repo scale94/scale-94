@@ -32,6 +32,7 @@ import { launch } from './cdp.mjs';
 import {
   PRISM_SAT, PRISM_GLOW_LIT, PRISM_CORE_LIT,
   PRISM_HUE_LEAD, PRISM_HUE_SKEW, PRISM_HUE_STEP,
+  PRISM_A_WAKE_SAT,
 } from '../src/terminal/art/artEdges.js';
 
 const W    = Number(process.argv[2] ?? 1520);
@@ -198,6 +199,36 @@ function runExcursion(cols) {
 }
 
 const worstRatio = bound();
+
+// ── ARM A's BOUND, ON THE SATURATION AXIS ─────────────────────────────────
+//
+// Arm A holds LIGHTNESS fixed and drops saturation, which is the whole reason
+// it was ruled onto this axis: it stays inside the ink-negative argument the
+// alpha design rests on. But desaturating at constant HSL lightness still
+// MOVES Rec.709 luminance -- a fully saturated blue at L=65 is far darker than
+// a grey at L=65 -- so the cost is computed here rather than argued.
+//
+// It is a bound on the CREST only. The tint's weight is amp * env * segFade,
+// so a point reaches this figure only where the pulse peaks on a chord that is
+// mid-pass.
+{
+  let worstGlow = 1, worstCore = 1, atGlow = 0, atCore = 0;
+  for (let hue = 0; hue < 360; hue += 0.5) {
+    for (const [lit, tag] of [[PRISM_GLOW_LIT, 'glow'], [PRISM_CORE_LIT, 'core']]) {
+      const rest = lum(hsl2rgb(hue, PRISM_SAT, lit));
+      // the LEAD anchor is sat 0; the WAKE anchor is PRISM_A_WAKE_SAT
+      for (const sat of [0, PRISM_A_WAKE_SAT]) {
+        const r = lum(hsl2rgb(hue, sat, lit)) / rest;
+        if (tag === 'glow' && r > worstGlow) { worstGlow = r; atGlow = hue; }
+        if (tag === 'core' && r > worstCore) { worstCore = r; atCore = hue; }
+      }
+    }
+  }
+  console.log(`\n  ARM A worst-case luminance ratio on the crest:`);
+  console.log(`    glow pass (L=${PRISM_GLOW_LIT}):  ${worstGlow.toFixed(3)}x  at hue ${atGlow.toFixed(0)}deg`);
+  console.log(`    core pass (L=${PRISM_CORE_LIT}):  ${worstCore.toFixed(3)}x  at hue ${atCore.toFixed(0)}deg`);
+  console.log(`    (compare the shipped rotation's bound printed above)`);
+}
 
 console.log('\n── 2. Is the colour in the GPU-bound buffer, and does it move? ──\n');
 const page = await launch({ url: URL, width: W, height: H, dpr: DPR, deterministic: false });
