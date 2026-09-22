@@ -73,7 +73,7 @@ import { quadSegments, tessellateQuad, CURVE_MAX_SEGMENTS } from '../art/artCurv
 import {
   nodeEnergy, depthCueAlpha, resonanceDimmed, nodeRadius, coreAlpha,
   birthProgress, birthProject, bleedMix, spectralTint,
-  coreIsOpaque, coreColorSource, lensStops,
+  coreIsOpaque, coreColorSource, lensStops, solidCoreApplies, solidCoreStops, CORE_SOLID_FLOOR,
   haloDraws, haloRadius, haloInnerRadius, haloAlpha, strokeAnnulus,
   chimeraSyncPulse, chimeraSyncAlpha, chimeraSyncRadius, CHIMERA_ALPHA_CUTOFF,
   chimeraFlickRate, chimeraFlickAlpha, chimeraFlickRadius, chimeraFlickHue,
@@ -105,6 +105,7 @@ import {
   PRISM_CHROMA_MODE_SHIPPED, PRISM_CHROMA_MODE_ACHROMATIC,
   prismWaveDuration, prismChordDir, PRISM_CASCADE_MS, PRISM_WAVE_SEGMENTS,
   PRISM_PACKET_ARMS, PRISM_PACKET_ARM_RULED, prismPacketArmOf, prismWaveSegmentsFor,
+  wireDepthFade, wireEndFade, WIRE_FADE_ARMS, WIRE_FADE_ARM_SHIPPED, wireFadeArmOf,
   PRISM_SPECTRAL_FINE, PRISM_SPECTRAL_COARSE, PRISM_HUE_STEP,
   PRISM_SAT, PRISM_GLOW_LIT, PRISM_GLOW_ALPHA_K, PRISM_CORE_LIT, PRISM_CORE_W,
   PRISM_POLY_HUE_STEP, PRISM_POLY_LIT, PRISM_POLY_ALPHA_K, PRISM_POLY_W,
@@ -584,6 +585,10 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   // A ref, not state, for the chroma switch's reason: flipping must not
   // re-render the world the previous arm was judged in.
   const packetArmRef = useRef(PRISM_PACKET_ARM_RULED);
+  // The wire-fade A/B arm (2026-09-23), WIRE_FADE_ARMS in artEdges. Read LIVE
+  // every frame, unlike the packet arm: there is nothing in flight to glitch,
+  // so a flip is visible on the next draw. A ref for the same reason as above.
+  const wireFadeArmRef = useRef(WIRE_FADE_ARM_SHIPPED);
   const prismAlphaRef = useRef(null);
   if (prismAlphaRef.current === null) prismAlphaRef.current = new Float32Array(PRISM_SCRATCH_SEGMENTS + 1);
   // PER-POINT COLOUR, the twin of the per-point alpha above: three floats per
@@ -1553,6 +1558,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         const _humNow   = performance.now();
         const _humPhase = humPhase(_humNow);
         const _humAxis  = humAxis(_humNow);
+        const _wirePerEnd = WIRE_FADE_ARMS[wireFadeArmRef.current].perEnd;
 
         for (const e of sortedEdges) {
           const iA = nodes.findIndex(n => n.id === e.aId);
@@ -1583,7 +1589,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
           // Depth-based base alpha — fade edges on the back of the sphere
           const avgDepth  = (pA.depth + pB.depth) / 2;
-          const depthFade = Math.max(0.03, (avgDepth + 1) * 0.5);  // 0→dim, 1→bright
+          const depthFade = wireDepthFade(avgDepth);  // 0→dim, 1→bright
+          // Wire-fade arm 1: each END stop cued by its own node's depth.
+          // Exactly 1 on both ends when the arm is off, so shipped is untouched.
+          const endFadeA = _wirePerEnd ? wireEndFade(pA.depth, pA.depth, pB.depth) : 1;
+          const endFadeB = _wirePerEnd ? wireEndFade(pB.depth, pA.depth, pB.depth) : 1;
           // Spectral bridges: cosine similarity boosts alpha and line width
           const spectralBoost = isSpectral ? cosSim * 0.35 : 0;
           // Bone fusion: fused edges get an even stronger boost
@@ -1660,9 +1670,9 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
               writeHsl(ed, o + 4,  hue,                       100, 65);
               writeHsl(ed, o + 7,  hue + ORTHO_HUE_STEP_MID,  100, 72);
               writeHsl(ed, o + 10, hue + ORTHO_HUE_STEP_END,  100, 65);
-              ed[o + 13] = packAlphas(orthoAlpha,
+              ed[o + 13] = packAlphas(orthoAlpha * endFadeA,
                                       Math.min(1, orthoAlpha + ORTHO_MID_ALPHA_BOOST),
-                                      orthoAlpha);
+                                      orthoAlpha * endFadeB);
               // isOrtho (4th arg): selects the shader's shadow alpha/colour —
               // opaque, hue+30 — instead of the fused edge's fuseCos*0.6/cMid.
               // See SphereEdges.js's file header.
@@ -1678,7 +1688,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
               writeHslRgb(ed, o + 4,  stops[0].color);
               writeHslRgb(ed, o + 7,  stops[1].color);
               writeHslRgb(ed, o + 10, stops[2].color);
-              ed[o + 13] = packAlphas(stops[0].a, stops[1].a, stops[2].a);
+              ed[o + 13] = packAlphas(stops[0].a * endFadeA, stops[1].a, stops[2].a * endFadeB);
               const dashed = isSpectral && !isFused;
               ed[o + 15] = packFlags(
                 dashed ? SPECTRAL_DASH[0] + SPECTRAL_DASH[1] : 0,
@@ -2333,7 +2343,14 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           // simplification. coreIsOpaque() / coreColorSource() name them.
           const _hov = coreIsOpaque(isHov);
           const _lensCol = coreColorSource(renderCol, _preTint, _hov);
-          const _lens = _hov ? null : lensStops(coreAlpha(energy, depthAlpha));
+          // Wire-fade arm 2: a back core is cued AT the floor and drawn flat.
+          // The floor goes under the depth cue, not the result, so resonance
+          // still dims a non-selected back node by its full tenth.
+          const _solid = WIRE_FADE_ARMS[wireFadeArmRef.current].solidCore
+            && solidCoreApplies(_cued);
+          const _lens = _hov ? null : _solid
+            ? solidCoreStops(coreAlpha(energy, resonanceDimmed(CORE_SOLID_FLOOR, _resActive, _isResNode)))
+            : lensStops(coreAlpha(energy, depthAlpha));
           writeDisc(eg.data, eg.count * EDGE_STRIDE, {
             cx: p.sx, cy: p.sy,
             rOuter: radius,
@@ -3260,6 +3277,17 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     // this with no argument now lands on arm 3, not arm 0 -- arm 0 is still
     // reachable by passing it explicitly, it is just no longer what a bare
     // call selects. Arm 4 no longer exists; passing 4 returns null.
+    // The wire-fade A/B (2026-09-23): what a wire looks like where it lands on
+    // a back-facing node. LIVE, not latched -- the next frame draws it.
+    //   0 shipped  1 per-end wire fade  2 solid core floor  3 both
+    // A bare call returns to shipped. RETURNS what it set; null on a bad arm.
+    window.__artSetWireFadeArm = (v = WIRE_FADE_ARM_SHIPPED) => {
+      const n = wireFadeArmOf(v);
+      if (n === null) return null;
+      wireFadeArmRef.current = n;
+      return { wireFadeArm: n, ...WIRE_FADE_ARMS[n] };
+    };
+
     window.__artSetPacketArm = (v = PRISM_PACKET_ARM_RULED) => {
       const n = prismPacketArmOf(v);
       if (n === null) return null;
@@ -3719,6 +3747,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
     return () => {
       delete window.__artSetPacketArm;
+      delete window.__artSetWireFadeArm;
       delete window.__artSetChromaMode;
       delete window.__artSetBeadScale;
       delete window.__artSetDashAA;

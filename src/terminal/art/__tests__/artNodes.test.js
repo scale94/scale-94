@@ -15,6 +15,7 @@ import {
   nodeEnergy, depthCueAlpha, resonanceDimmed, nodeRadius, coreAlpha, coreIsOpaque,
   coreColorSource,
   lensStops, LENS_CENTER_K, LENS_KNEE, LENS_KNEE_K, LENS_RIM_K,
+  CORE_SOLID_FLOOR, solidCoreApplies, solidCoreStops,
   birthEase, birthProgress, birthProject, bleedMix,
   spectralBlend, rgbHue, spectralTint,
   haloDraws, haloRadius, haloInnerRadius, haloAlpha,
@@ -919,5 +920,42 @@ describe('the lens — the node core as smoked glass', () => {
       flags: packFlags(0, 0, 0),
     });
     expect(discEncodingInvariant(state.data, 0)).toEqual([]);
+  });
+});
+
+// ── The wire-fade A/B, arm 2: a solid core floor (2026-09-23) ────────────────
+// A back-facing node's core is a lens (transparent centre) cued down to the
+// 0.08 depth floor, so it has no point for the wires to meet on. Arm 2 gives
+// the CORE alone -- not the halo -- a floor, and draws it flat.
+
+describe('solid core floor', () => {
+  it('matches the floor the prism chords into the same nodes are held at', () => {
+    expect(CORE_SOLID_FLOOR).toBe(0.24);
+  });
+
+  it('applies only where the depth cue is below the floor', () => {
+    // CATCHES a floor that also reshapes front nodes: arm 2 must leave every
+    // node at or above the floor byte-identical to shipped.
+    expect(solidCoreApplies(0.08)).toBe(true);
+    expect(solidCoreApplies(0.2399)).toBe(true);
+    expect(solidCoreApplies(0.24)).toBe(false);
+    expect(solidCoreApplies(0.9)).toBe(false);
+  });
+
+  it('is flat: all three stops at the given alpha, no transparent centre', () => {
+    // CATCHES handing lensStops straight through, which keeps the hole.
+    const s = solidCoreStops(0.3);
+    expect(s.center).toBe(0.3);
+    expect(s.knee).toBe(0.3);
+    expect(s.rim).toBe(0.3);
+    expect(s.at).toBe(LENS_KNEE);
+  });
+
+  it('a floored back core is brighter than the shipped lens rim at the 0.08 cue', () => {
+    // (0.45 + 0.55e) * 0.24 vs (0.45 + 0.55e) * 0.08 * LENS_RIM_K, at e = 1.
+    const shippedRim = (0.45 + 0.55) * 0.08 * 1;
+    const floored = solidCoreStops(coreAlpha(1, CORE_SOLID_FLOOR)).center;
+    expect(floored).toBeCloseTo(0.24, 12);
+    expect(floored / shippedRim).toBeCloseTo(3, 12);
   });
 });
