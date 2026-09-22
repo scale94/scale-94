@@ -32,7 +32,7 @@ import {
   prismRootTaper, PRISM_ROOT_TAPER_PX,
   prismWavePhase, PRISM_SAT,
   prismChromaPhase, PRISM_CHROMA_MODE_SHIPPED, PRISM_CHROMA_MODE_UNISON, PRISM_CHROMA_MODE_ACHROMATIC, PRISM_A_WAKE_SAT,
-  prismUnisonK, prismUnisonHue, prismTravelSign,
+  prismUnisonK, prismUnisonHue, prismTravelSign, prismChromaModeOf,
 } from '../artEdges';
 import { DEPTH_ALPHA_FLOOR, depthCueAlpha } from '../artNodes';
 import { CURVE_MAX_SEGMENTS, quadSegments, tessellateQuad } from '../artCurve';
@@ -1103,6 +1103,28 @@ describe('prismWriteAnchors — once per spectral line, never per point', () => 
     expect(written).toBe(4 * PRISM_SPECTRAL_COARSE);
     // lines beyond the coarse count are untouched
     expect(out[PRISM_SPECTRAL_COARSE * 6]).toBe(-1);
+  });
+});
+
+describe('prismChromaModeOf — the arm switch\'s validator', () => {
+  it('accepts every arm and returns it', () => {
+    for (const m of [PRISM_CHROMA_MODE_SHIPPED, PRISM_CHROMA_MODE_UNISON,
+                     PRISM_CHROMA_MODE_ACHROMATIC]) {
+      expect(prismChromaModeOf(m)).toBe(m);
+    }
+  });
+
+  it('refuses anything that is not an arm', () => {
+    for (const bad of [-1, 3, 1.5, NaN, Infinity, 'unison', null, undefined, {}]) {
+      expect(prismChromaModeOf(bad)).toBeNull();
+    }
+  });
+
+  it('is bounded by the arm constants, not by literals', () => {
+    // If a fourth arm is added, this must widen with it rather than silently
+    // rejecting the new mode.
+    expect(prismChromaModeOf(PRISM_CHROMA_MODE_ACHROMATIC + 1)).toBeNull();
+    expect(prismChromaModeOf(PRISM_CHROMA_MODE_ACHROMATIC)).toBe(PRISM_CHROMA_MODE_ACHROMATIC);
   });
 });
 

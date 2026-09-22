@@ -727,6 +727,27 @@ export const PRISM_CHROMA_MODE_UNISON = 1;
 export const PRISM_CHROMA_MODE_ACHROMATIC = 2;
 
 /**
+ * Coerce an arm argument to a valid mode, or null if it is not one.
+ *
+ * PURE, AND IN THIS FILE, BECAUSE A HOOK THAT VALIDATES INLINE CANNOT BE
+ * TESTED WITHOUT A COPY OF ITSELF -- and a test written against a copy passes
+ * with the hook deleted. The window hook in ArtTab.jsx is a caller of this and
+ * holds no logic of its own.
+ */
+export function prismChromaModeOf(v) {
+  // `null` must be rejected explicitly and BEFORE coercion: Number(null) is
+  // 0, which is in range and passes the integer check below, so without this
+  // guard a null argument would silently resolve to the shipped arm instead
+  // of being refused -- masking a caller's bug (e.g. a stale/typo'd
+  // variable) as a legitimate mode switch.
+  if (v === null) return null;
+  const n = Number(v);
+  if (!Number.isInteger(n)) return null;
+  if (n < PRISM_CHROMA_MODE_SHIPPED || n > PRISM_CHROMA_MODE_ACHROMATIC) return null;
+  return n;
+}
+
+/**
  * Arm A's WAKE saturation, against a leading edge of 0.
  *
  * CHOSEN, NEVER SEEN BY AN EYE.

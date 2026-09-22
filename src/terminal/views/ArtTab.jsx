@@ -100,7 +100,9 @@ import {
   prismOffset, prismChordAlpha, prismGlowWidth, prismControl, prismSpokeHue,
   prismChordCue, prismDepthCue, prismRootTaper,
   prismWaveEnv, prismWaveMix, prismSegmentFade,
-  prismPulse, prismWavePhase, prismChromaSkew, prismChromaBlend, prismTintHue,
+  prismPulse, prismWavePhase, prismChromaSkew, prismChromaBlend,
+  prismChromaPhase, prismWriteAnchors, prismChromaModeOf,
+  PRISM_CHROMA_MODE_SHIPPED,
   prismWaveDuration, prismChordDir, PRISM_CASCADE_MS, PRISM_WAVE_SEGMENTS,
   PRISM_SPECTRAL_FINE, PRISM_SPECTRAL_COARSE, PRISM_HUE_STEP,
   PRISM_SAT, PRISM_GLOW_LIT, PRISM_GLOW_ALPHA_K, PRISM_CORE_LIT, PRISM_CORE_W,
@@ -554,6 +556,14 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   const beadScaleRef = useRef(1);
   // The dash cut's arm, same contract: 1 = box filter = shipped, 0 = hard cut.
   const dashAARef = useRef(1);
+  // The chromatic front's A/B arm. 0 is SHIPPED and is load-bearing: it
+  // selects the shipped anchor expression, so the default path runs the code
+  // it ran before this feature existed and the parity reference at 33bda07e is
+  // untouched. Getting this default wrong would repaint every cascade the app
+  // draws. A ref and not state, because flipping an arm must not re-render --
+  // the whole point is to switch inside ONE page without disturbing the world
+  // the previous arm was measured in.
+  const chromaModeRef = useRef(PRISM_CHROMA_MODE_SHIPPED);
   const prismAlphaRef = useRef(null);
   if (prismAlphaRef.current === null) prismAlphaRef.current = new Float32Array(PRISM_SCRATCH_SEGMENTS + 1);
   // PER-POINT COLOUR, the twin of the per-point alpha above: three floats per
@@ -1865,6 +1875,10 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         // carrying the wrong one would brighten or dim the crest rather than
         // colour it.
         let _wTintOff = 0;
+        // Read ONCE PER EFFECT, not per point and not per pair: an arm that
+        // changed mid-effect would put two treatments in one frame and the
+        // A/B would be comparing a blend of them.
+        const _cMode = chromaModeRef.current;
 
         const chord = (m, a, width, cueA, cueB, taper) => {
           let total = 0;
@@ -1909,17 +1923,35 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
                 amp = prismPulse(ph);
               }
               wave = prismWaveMix(amp, env, _wFade);
-              // THE COLOUR RIDES THE SAME NUMBER THE BRIGHTNESS DOES. Not a
-              // second clock, not a second phase -- `ph` is the one advection
-              // coordinate, so the tint cannot drift out of step with the
-              // crest it is supposed to belong to.
+              // THE COLOUR NO LONGER RIDES THE BRIGHTNESS'S NUMBER ON ARMS U
+              // AND A, AND THAT OVERRIDES THE NOTE THAT USED TO STAND HERE.
+              // The old reasoning was sound -- one advection coordinate means
+              // the tint cannot drift out of step with its crest -- but
+              // prismWavePhase carries prismPhaseOffset(k), and a UNISON
+              // collapse driven per-strand folds the comb: strand 0 overtakes
+              // strand 1 and lands exactly on its resting hue, measured min
+              // neighbour gap -31.16deg. See prismChromaPhase.
+              //
+              // MODE 0 STILL USES `ph`, EXACTLY AS BEFORE, so the shipped path
+              // is unchanged and the parity reference is untouched.
+              let cph = ph;
+              if (_cMode !== PRISM_CHROMA_MODE_SHIPPED) {
+                if (_wDir === 0) {
+                  const cA = prismChromaPhase(tt, _wT, _wDur);
+                  const cB = prismChromaPhase(1 - tt, _wT, _wDur);
+                  cph = prismPulse(cA) >= prismPulse(cB) ? cA : cB;
+                } else {
+                  cph = prismChromaPhase(_wDir < 0 ? 1 - tt : tt, _wT, _wDur);
+                }
+              }
+              const camp = _cMode === PRISM_CHROMA_MODE_SHIPPED ? amp : prismPulse(cph);
               const tO = _wTintOff + _wK * 6;
               // The tint's weight is the amplitude TIMES the envelope and the
               // segment fade -- the same three terms the alpha mix takes. A
               // tint that ignored them would be at full strength on a chord
               // whose brightness wave had already faded out.
               prismChromaBlend(crgb, i * 3, rgb, tint, tO, tO + 3,
-                               amp * env * _wFade, prismChromaSkew(ph));
+                               camp * env * _wFade, prismChromaSkew(cph));
             }
             alf[i] = a * cue * wave * (taper ? prismRootTaper(sLen, total) : 1);
           }
@@ -2017,15 +2049,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           // The alpha wave is provably ink-negative and cannot reach the
           // bloom; colour carries no such proof, so the change is kept to the
           // one channel that makes it flow and the ink is measured instead.
+          //
+          // THE ARM IS CHOSEN HERE AND NOWHERE ELSE. prismWriteAnchors owns
+          // the expression; everything downstream is arm-agnostic.
           const tintCore = PRISM_SPECTRAL_FINE * 6;
-          for (let k = 0; k < spectralN; k++) {
-            const h = (hue0 + k * PRISM_HUE_STEP) % 360;
-            const hL = prismTintHue(h, 1), hT = prismTintHue(h, -1);
-            writeHsl(tint, k * 6,                 hL, PRISM_SAT, PRISM_GLOW_LIT);
-            writeHsl(tint, k * 6 + 3,             hT, PRISM_SAT, PRISM_GLOW_LIT);
-            writeHsl(tint, tintCore + k * 6,      hL, PRISM_SAT, PRISM_CORE_LIT);
-            writeHsl(tint, tintCore + k * 6 + 3,  hT, PRISM_SAT, PRISM_CORE_LIT);
-          }
+          prismWriteAnchors(tint, _cMode, hue0, spectralN, tintCore);
           for (let a = 0; a < effProj.length; a++) {
             for (let b = a + 1; b < effProj.length; b++) {
               const pA = effProj[a], pB = effProj[b];
@@ -3149,6 +3177,20 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       if (!Number.isFinite(n)) return null;
       dashAARef.current = n;
       return { dashAA: n };
+    };
+
+    // The chromatic front's arm switch. Same contract and same reasons as
+    // __artSetBeadScale below: writes a ref the draw loop already reads, takes
+    // effect on the NEXT DRAW with no re-render, no rebuild and no relaunch,
+    // and RETURNS what it set so a caller can assert the flip landed instead
+    // of assuming it did.
+    //
+    //   0 = shipped (hue rotation in place)   1 = unison   2 = achromatic
+    window.__artSetChromaMode = (v = PRISM_CHROMA_MODE_SHIPPED) => {
+      const n = prismChromaModeOf(v);
+      if (n === null) return null;
+      chromaModeRef.current = n;
+      return { chromaMode: n };
     };
 
     window.__artSetBeadScale = (v = 1) => {
