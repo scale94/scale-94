@@ -627,6 +627,12 @@ export const PRISM_PACKET_ARMS = Object.freeze([
  *  validates inline cannot be tested without a copy of itself. */
 export function prismPacketArmOf(v) {
   if (v === null || v === undefined || v === '') return null;
+  // Number() coerces far more than a caller means to pass: [] -> 0, [4] -> 4,
+  // false -> 0, true -> 1, and '0x1' -> 1 (hex). Only a number or a string of
+  // plain decimal digits is a plausible arm selector; everything else is
+  // rejected on its TYPE and its SHAPE before Number() ever sees it.
+  if (typeof v !== 'number' && typeof v !== 'string') return null;
+  if (typeof v === 'string' && !/^\s*-?\d+\s*$/.test(v)) return null;
   const n = Number(v);
   if (!Number.isInteger(n)) return null;
   if (n < 0 || n >= PRISM_PACKET_ARMS.length) return null;

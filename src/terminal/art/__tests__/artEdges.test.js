@@ -1175,9 +1175,13 @@ describe('prismPacketArmOf — the packet switch\'s validator', () => {
 
   // CATCHES: Number(null) === 0 and Number('') === 0 sliding through as arm 0
   // -- the chroma switch shipped that exact bug in its brief.
+  // The added values CATCH Number()'s wider coercions: Number([]) === 0,
+  // Number([4]) === 4, Number(false) === 0, Number(true) === 1, and
+  // Number('0x1') === 1 (hex) would all have slipped through as valid arms
+  // before the type/shape guard.
   it('refuses anything that is not an arm', () => {
     for (const bad of [-1, PRISM_PACKET_ARMS.length, 1.5, NaN, Infinity, '', 'x',
-                       null, undefined, {}]) {
+                       null, undefined, {}, [], false, true, '0x1', [4]]) {
       expect(prismPacketArmOf(bad)).toBeNull();
     }
   });
