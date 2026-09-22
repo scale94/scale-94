@@ -738,6 +738,75 @@ export const PRISM_CHROMA_MODE_ACHROMATIC = 2;
 export const PRISM_A_WAKE_SAT = 35;
 
 /**
+ * The comb's fixed point: the spectral index every strand gathers onto.
+ *
+ * DERIVED FROM THE LIVE LINE COUNT, NEVER A LITERAL 3. It is 3 on
+ * PRISM_SPECTRAL_FINE = 7 and 1.5 on PRISM_SPECTRAL_COARSE = 4, where NO
+ * STRAND SITS ON IT AT ALL. That is not a defect -- the target is a HUE, not a
+ * strand, and a coarse bundle gathers onto a colour none of its four lines is
+ * wearing. A literal 3 would put the coarse target outside its own comb, on
+ * the far side of its widest line.
+ */
+export function prismUnisonK(n) {
+  return (n - 1) / 2;
+}
+
+/**
+ * Strand `k`'s hue at collapse fraction `t`, for a bundle of `n` lines.
+ *
+ * NOT WRAPPED TO 360, deliberately. The monotonicity that makes this arm safe
+ * is a statement about ORDER, and a modulo destroys the order it is asserted
+ * on. The caller wraps, once, at the writeHsl boundary.
+ *
+ * ── WHY THIS IS SAFE AT 144deg WHEN THE SHIPPED ARM IS BOUNDED AT 34 ──────
+ *
+ * The 0.75-step bound exists because a crest free to rotate a full
+ * PRISM_HUE_STEP wears its NEIGHBOUR's resting colour, which reads as the
+ * bundle jumping between wire indices. That bound governs a DIFFERENTIAL
+ * rotation: each strand moving independently past its neighbour.
+ *
+ * A collapse has no differential. Every strand moves toward the same point by
+ * the same fraction, so
+ *
+ *     d(hue_k)/dk = PRISM_HUE_STEP * (1 - t)  >  0   for all t < 1
+ *
+ * and the comb contracts uniformly without ever crossing itself. No strand can
+ * reach a neighbour's hue while the neighbour is elsewhere, because they are
+ * both moving and the ordering is preserved. At t = 1 they are all equal,
+ * which is the arm's whole point and cannot read as an index swap because no
+ * index is singled out.
+ *
+ * THIS HOLDS ONLY FOR A COMMON `t`. See prismChromaPhase for what happens --
+ * measured -- when the per-strand sheared amplitude is used instead.
+ */
+export function prismUnisonHue(hue0, k, n, t) {
+  const rest = hue0 + k * PRISM_HUE_STEP;
+  const target = hue0 + prismUnisonK(n) * PRISM_HUE_STEP;
+  return rest + (target - rest) * t;
+}
+
+/**
+ * Which way strand `k` travels under a collapse: +1 toward increasing hue, -1
+ * toward decreasing, 0 for a strand already on the fixed point.
+ *
+ * THE SKEW MUST BE SIGNED BY THIS. Strands below the fixed point travel toward
+ * increasing hue and strands above it travel toward decreasing hue, so a fixed
+ * +PRISM_HUE_SKEW would make the leading edge OVERSHOOT on one half of the comb
+ * and UNDERSHOOT on the other -- the two halves would read as arriving and
+ * leaving at the same time, which is precisely the symmetric-tint failure
+ * PRISM_HUE_SKEW exists to prevent.
+ *
+ * ZERO AT THE FIXED POINT, AND THAT IS NOT AN EDGE CASE TO PATCH AROUND. The
+ * middle strand of a fine bundle does not move and takes no skew: it is the
+ * still centre the others gather onto. On a coarse bundle the fixed point falls
+ * between two lines and no strand returns 0.
+ */
+export function prismTravelSign(k, n) {
+  const d = prismUnisonK(n) - k;
+  return d > 0 ? 1 : d < 0 ? -1 : 0;
+}
+
+/**
  * How much of the wave is in force, `tMs` after the chord's origin lit: a
  * crescendo to full strength over the transit, then a long release.
  *

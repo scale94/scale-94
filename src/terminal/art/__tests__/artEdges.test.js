@@ -18,6 +18,7 @@ import {
   prismOffset, prismChordAlpha, prismGlowWidth, prismControl, prismSpokeHue,
   PRISM_CP_OFF_X, PRISM_CP_OFF_Y,
   PRISM_CORE_W, PRISM_MAX_NODES, PRISM_MAX_EFFECTS, PRISM_SPECTRAL_FINE,
+  PRISM_SPECTRAL_COARSE, PRISM_HUE_STEP,
   arcControl,
   filamentDepthFade, filamentAlpha, filamentHue, filamentGlowWidth,
   FILAMENT_DASH, FILAMENT_CORE_W, FILAMENT_CP_PULL, FILAMENT_MAX_DRAWN,
@@ -29,6 +30,7 @@ import {
   prismRootTaper, PRISM_ROOT_TAPER_PX,
   prismWavePhase, PRISM_SAT,
   prismChromaPhase, PRISM_CHROMA_MODE_SHIPPED, PRISM_CHROMA_MODE_UNISON, PRISM_CHROMA_MODE_ACHROMATIC, PRISM_A_WAKE_SAT,
+  prismUnisonK, prismUnisonHue, prismTravelSign,
 } from '../artEdges';
 import { DEPTH_ALPHA_FLOOR, depthCueAlpha } from '../artNodes';
 import { CURVE_MAX_SEGMENTS, quadSegments, tessellateQuad } from '../artCurve';
@@ -881,6 +883,87 @@ describe('the chroma mode constants', () => {
   it('keeps arm A\'s wake saturation inside the real range', () => {
     expect(PRISM_A_WAKE_SAT).toBeGreaterThan(0);
     expect(PRISM_A_WAKE_SAT).toBeLessThan(PRISM_SAT);
+  });
+});
+
+describe('the unison collapse — arm U\'s geometry', () => {
+  // THE THEOREM THIS ARM RESTS ON. A common collapse fraction gives
+  //   hue_k(t) = hue_k + (target - hue_k) * t
+  //   d(hue_k)/dk = PRISM_HUE_STEP * (1 - t) > 0   for all t < 1
+  // so the comb contracts uniformly and NEVER self-crosses. Drive the same
+  // collapse from the sheared per-strand amplitude instead and the measured
+  // minimum neighbour gap is -31.16deg. This test is the difference.
+  it.each([
+    ['fine',   PRISM_SPECTRAL_FINE],
+    ['coarse', PRISM_SPECTRAL_COARSE],
+  ])('%s: the comb is strictly monotone in k at every collapse fraction', (_n, n) => {
+    for (let i = 0; i < 100; i++) {          // t = 0 .. 0.99, excluding 1
+      const t = i / 100;
+      for (let k = 1; k < n; k++) {
+        const gap = prismUnisonHue(0, k, n, t) - prismUnisonHue(0, k - 1, n, t);
+        expect(gap).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it.each([
+    ['fine',   PRISM_SPECTRAL_FINE],
+    ['coarse', PRISM_SPECTRAL_COARSE],
+  ])('%s: every strand lands on ONE hue at full collapse', (_n, n) => {
+    const target = prismUnisonHue(0, 0, n, 1);
+    for (let k = 1; k < n; k++) {
+      expect(prismUnisonHue(0, k, n, 1)).toBeCloseTo(target, 10);
+    }
+    // and that hue is the comb's midpoint, not strand 0's
+    expect(target).toBeCloseTo(prismUnisonK(n) * PRISM_HUE_STEP, 10);
+  });
+
+  it.each([
+    ['fine',   PRISM_SPECTRAL_FINE],
+    ['coarse', PRISM_SPECTRAL_COARSE],
+  ])('%s: is exactly the resting comb at t = 0', (_n, n) => {
+    for (let k = 0; k < n; k++) {
+      expect(prismUnisonHue(40, k, n, 0)).toBe(40 + k * PRISM_HUE_STEP);
+    }
+  });
+
+  it('puts the fine fixed point ON a strand and the coarse one BETWEEN two', () => {
+    // A literal 3 would pass the fine path and put the coarse pointer's target
+    // outside its own comb, on the far side of its widest line.
+    expect(prismUnisonK(PRISM_SPECTRAL_FINE)).toBe(3);
+    expect(prismUnisonK(PRISM_SPECTRAL_COARSE)).toBe(1.5);
+  });
+
+  it('gives the fine fixed-point strand exactly zero excursion', () => {
+    const n = PRISM_SPECTRAL_FINE, k = prismUnisonK(n);
+    for (const t of [0, 0.3, 0.7, 1]) {
+      expect(prismUnisonHue(0, k, n, t)).toBe(k * PRISM_HUE_STEP);
+    }
+  });
+
+  it('gives the outer strands equal and opposite excursions', () => {
+    const n = PRISM_SPECTRAL_FINE, t = 1;
+    const lo = prismUnisonHue(0, 0,     n, t) - 0;
+    const hi = prismUnisonHue(0, n - 1, n, t) - (n - 1) * PRISM_HUE_STEP;
+    expect(lo).toBeCloseTo(-hi, 10);
+    expect(Math.abs(lo)).toBeCloseTo(3 * PRISM_HUE_STEP, 10);
+  });
+
+  it('signs the travel by which side of the fixed point a strand is on', () => {
+    // The skew must follow the direction of travel. A fixed +SKEW would make
+    // the leading edge OVERSHOOT on one half of the comb and UNDERSHOOT on the
+    // other, so the two halves would read as arriving and leaving at once.
+    const n = PRISM_SPECTRAL_FINE;
+    expect(prismTravelSign(0, n)).toBe(1);
+    expect(prismTravelSign(2, n)).toBe(1);
+    expect(prismTravelSign(3, n)).toBe(0);   // the still centre of the gather
+    expect(prismTravelSign(4, n)).toBe(-1);
+    expect(prismTravelSign(6, n)).toBe(-1);
+  });
+
+  it('has no zero-sign strand on the coarse comb, where no line sits on the fixed point', () => {
+    const n = PRISM_SPECTRAL_COARSE;
+    for (let k = 0; k < n; k++) expect(prismTravelSign(k, n)).not.toBe(0);
   });
 });
 
