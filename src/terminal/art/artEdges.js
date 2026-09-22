@@ -9,11 +9,12 @@
 // arithmetic beside it, the arithmetic won and the discrepancy is recorded —
 // step 3 found three such comments.
 
-// This file's ONLY import, and it points one way: artNodes.js imports
-// nothing, so there is no cycle. The depth cue lives there because the NODE
-// DISCS use it, and the whole point of prismChordCue below is that a chord's
-// end has to agree with the disc it lands on. Copying the formula here would
-// be the second implementation this file's header warns about.
+// TWO imports, both pointing one way: artNodes.js and artColor.js each import
+// nothing, so there is no cycle. The depth cue lives in artNodes because the NODE
+// DISCS use it, and prismChordCue below depends on exact agreement. writeHsl lives
+// in artColor to unblock the import without closing a cycle back through
+// SphereEdges.js. Copying either formula here would be the second implementation
+// this file's header warns about.
 import { depthCueAlpha } from './artNodes.js';
 import { writeHsl } from './artColor.js';
 
