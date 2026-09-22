@@ -104,6 +104,7 @@ import {
   prismChromaPhase, prismWriteAnchors, prismChromaModeOf,
   PRISM_CHROMA_MODE_SHIPPED, PRISM_CHROMA_MODE_ACHROMATIC,
   prismWaveDuration, prismChordDir, PRISM_CASCADE_MS, PRISM_WAVE_SEGMENTS,
+  PRISM_PACKET_ARMS, PRISM_PACKET_ARM_SHIPPED, prismPacketArmOf, prismWaveSegmentsFor,
   PRISM_SPECTRAL_FINE, PRISM_SPECTRAL_COARSE, PRISM_HUE_STEP,
   PRISM_SAT, PRISM_GLOW_LIT, PRISM_GLOW_ALPHA_K, PRISM_CORE_LIT, PRISM_CORE_W,
   PRISM_POLY_HUE_STEP, PRISM_POLY_LIT, PRISM_POLY_ALPHA_K, PRISM_POLY_W,
@@ -576,6 +577,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   // inside ONE page without disturbing the world the previous arm was
   // measured in.
   const chromaModeRef = useRef(PRISM_CHROMA_MODE_ACHROMATIC);
+  // The packet-width A/B arm (2026-09-22). NOT RULED: arm 0 is the shipped
+  // packet and the default, so a fresh page draws exactly what cf171676 drew.
+  // A ref, not state, for the chroma switch's reason: flipping must not
+  // re-render the world the previous arm was judged in.
+  const packetArmRef = useRef(PRISM_PACKET_ARM_SHIPPED);
   const prismAlphaRef = useRef(null);
   if (prismAlphaRef.current === null) prismAlphaRef.current = new Float32Array(PRISM_SCRATCH_SEGMENTS + 1);
   // PER-POINT COLOUR, the twin of the per-point alpha above: three floats per
@@ -1891,6 +1897,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         // changed mid-effect would put two treatments in one frame and the
         // A/B would be comparing a blend of them.
         const _cMode = chromaModeRef.current;
+        // Read ONCE PER EFFECT, like _cMode: an arm that changed mid-effect
+        // would put two packet widths on one bundle.
+        const _pArm = PRISM_PACKET_ARMS[packetArmRef.current];
+        const _pW = _pArm.w, _pStep = _pArm.step;
+        const _pSegs = prismWaveSegmentsFor(_pW);
 
         const chord = (m, a, width, cueA, cueB, taper) => {
           let total = 0;
@@ -1926,13 +1937,13 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
               // crest alpha the author approved.
               let ph, amp;
               if (_wDir === 0) {
-                const phA = prismWavePhase(tt, _wK, _wT, _wDur);
-                const phB = prismWavePhase(1 - tt, _wK, _wT, _wDur);
-                const ampA = prismPulse(phA), ampB = prismPulse(phB);
+                const phA = prismWavePhase(tt, _wK, _wT, _wDur, _pStep);
+                const phB = prismWavePhase(1 - tt, _wK, _wT, _wDur, _pStep);
+                const ampA = prismPulse(phA, _pW), ampB = prismPulse(phB, _pW);
                 if (ampA >= ampB) { ph = phA; amp = ampA; } else { ph = phB; amp = ampB; }
               } else {
-                ph = prismWavePhase(_wDir < 0 ? 1 - tt : tt, _wK, _wT, _wDur);
-                amp = prismPulse(ph);
+                ph = prismWavePhase(_wDir < 0 ? 1 - tt : tt, _wK, _wT, _wDur, _pStep);
+                amp = prismPulse(ph, _pW);
               }
               wave = prismWaveMix(amp, env, _wFade);
               // THE COLOUR NO LONGER RIDES THE BRIGHTNESS'S NUMBER ON ARMS U
@@ -1951,19 +1962,19 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
                 if (_wDir === 0) {
                   const cA = prismChromaPhase(tt, _wT, _wDur);
                   const cB = prismChromaPhase(1 - tt, _wT, _wDur);
-                  cph = prismPulse(cA) >= prismPulse(cB) ? cA : cB;
+                  cph = prismPulse(cA, _pW) >= prismPulse(cB, _pW) ? cA : cB;
                 } else {
                   cph = prismChromaPhase(_wDir < 0 ? 1 - tt : tt, _wT, _wDur);
                 }
               }
-              const camp = _cMode === PRISM_CHROMA_MODE_SHIPPED ? amp : prismPulse(cph);
+              const camp = _cMode === PRISM_CHROMA_MODE_SHIPPED ? amp : prismPulse(cph, _pW);
               const tO = _wTintOff + _wK * 6;
               // The tint's weight is the amplitude TIMES the envelope and the
               // segment fade -- the same three terms the alpha mix takes. A
               // tint that ignored them would be at full strength on a chord
               // whose brightness wave had already faded out.
               prismChromaBlend(crgb, i * 3, rgb, tint, tO, tO + 3,
-                               camp * env * _wFade, prismChromaSkew(cph));
+                               camp * env * _wFade, prismChromaSkew(cph, _pW));
             }
             alf[i] = a * cue * wave * (taper ? prismRootTaper(sLen, total) : 1);
           }
@@ -2118,8 +2129,9 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
                 // are gentle: real prism chords come back at n = 8-11, which
                 // samples the pulse about three times across its whole support
                 // and beads by up to 50% as the crest travels (_a18wsweep.mjs).
-                // So a waving chord is forced to PRISM_WAVE_SEGMENTS, measured
-                // to hold the ripple under 5% at the shipped W.
+                // So a waving chord is forced to prismWaveSegmentsFor the
+                // arm's width (40 at arm 0, measured to hold the ripple
+                // under 5%).
                 //
                 // Every chord NOT waving -- which is the whole layer for most
                 // of an effect's life, and the whole layer always before this
@@ -2128,7 +2140,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
                 // and is not touched.
                 const baseSegs = quadSegments(x0, y0, ctrl[0], ctrl[1], x1, y1);
                 const m = tessellateQuad(pts, x0, y0, ctrl[0], ctrl[1], x1, y1,
-                  _wEnv > 0 ? Math.max(baseSegs, PRISM_WAVE_SEGMENTS) : baseSegs);
+                  _wEnv > 0 ? Math.max(baseSegs, _pSegs) : baseSegs);
 
                 // The fade is belt and braces now that the count is forced --
                 // it reads 1 on every waving chord. It stays because a future
@@ -2136,7 +2148,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
                 // fade the wave out rather than staircase, and that failure
                 // should be invisible rather than ugly.
                 _wK = k;
-                _wFade = prismSegmentFade(m - 1);
+                _wFade = prismSegmentFade(m - 1, _pW);
 
                 // Wide glow pass
                 // Wide glow pass — TAPERED at the root. 140 of these
@@ -3218,6 +3230,18 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       return { beadScale: n };
     };
 
+    // The packet A/B, same contract as __artSetChromaMode: writes a ref the
+    // draw loop reads once per effect, takes effect on the next effect drawn,
+    // and RETURNS what it set so a caller can assert the flip landed.
+    //   0 shipped  1 shear-only  2 x0.75  3 x0.60  4 x0.50
+    window.__artSetPacketArm = (v = PRISM_PACKET_ARM_SHIPPED) => {
+      const n = prismPacketArmOf(v);
+      if (n === null) return null;
+      packetArmRef.current = n;
+      const a = PRISM_PACKET_ARMS[n];
+      return { packetArm: n, w: a.w, step: a.step, segments: prismWaveSegmentsFor(a.w) };
+    };
+
     window.__artSetOrthogonal = (n = 11) => {
       const es = edgeStateRef.current;
       if (!es || !es.length) return null;
@@ -3668,6 +3692,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     };
 
     return () => {
+      delete window.__artSetPacketArm;
       delete window.__artStrimerState;
       delete window.__artGeomState;
       delete window.__artCadenceState;
