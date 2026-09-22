@@ -410,6 +410,19 @@ actually asked of this layer.
 
 ### 4.5 The re-report, re-tested against an INDEPENDENT reference — STILL NOT A PHANTOM
 
+> **OVERTURNED 2026-09-23. THE PHANTOM WAS REAL, AND THIS SECTION CERTIFIED IT.**
+> The table below says every additive run ends "on a disc **or the sphere
+> centre**". The sphere centre WAS the phantom: the prism's star spokes ran
+> from `(w/2, h/2)`, where no node is drawn, to each effect node, so every
+> click put 4-5 straight lines on an empty vertex. `_a15mesh.mjs` exempted
+> exactly that point (`// prism spoke hub`), so it could never fail on the
+> defect it was written to find. That is the vacuous-instrument trap this very
+> section names, one layer down. Fixed in `2d710ad8`: the star radiates from
+> the clicked node (`prismSpokeHub`), and the exemption is deleted. Falsified:
+> with the old spokes restored the same check flags 5 run ends per frame at
+> the sphere centre, and 0 with the fix, over 8 frames of the prism's life.
+> **Lesson: an exemption in an instrument is a claim. Test it like one.**
+
 **Ruled 2026-09-21.** The author re-reported the convergence, correctly noting
 it was NOT the click wavefront but the base edge / network mesh, and asked
 three specific questions. All three are answered below, this time WITHOUT the
