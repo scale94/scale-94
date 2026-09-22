@@ -1173,6 +1173,39 @@ main();
 
 Create `scripts/_prismSpawn.mjs` exporting `shootAtAge(page, wantMs) -> { png: Buffer, age: number, node: [x, y] } | null`, move the routine there verbatim, and have BOTH `_a21wavefilm.mjs` and `_a23combR.mjs` import it. `_a21wavefilm.mjs`'s own output must be unchanged by the move — run it once before and once after and confirm it still writes frames at the same wanted ages.
 
+- [ ] **Step 2b: BLOCKING GATE — prove the switch moves the buffer at all**
+
+**NOTHING HAS EVER FLIPPED THIS SWITCH.** Task 4 wired it and its review
+established arm-0 bit-identity, but `window.__artSetChromaMode(1)` has never
+executed in a browser: the only end-to-end run exercised mode 0, the default.
+An arm switch that silently does nothing produces a confident "the arms look
+identical" verdict, and this project's history says that is exactly how such a
+verdict gets manufactured.
+
+Before printing a single R value, this instrument must show that the three
+arms produce DIFFERENT buffer contents. Add to its output, per arm, read
+straight from `window.__artEdgeState()`:
+
+| arm | expected, and it must be OBSERVED not assumed |
+|---|---|
+| 0 | hue excursion ~24deg at the crest; saturation stays at `PRISM_SAT` |
+| 1 | hue excursion MUCH larger (the collapse is up to 144deg on outer lines) |
+| 2 | hue excursion ~0 — arm A moves no hue — but **minimum saturation drops well below arm 0's** |
+
+**IF ANY TWO ARMS PRODUCE IDENTICAL NUMBERS, STOP AND REPORT IT.** That is a
+broken switch, not a null result, and every later figure would be measuring
+one arm three times.
+
+**REUSE `_a22chroma.mjs`'s HELPERS VERBATIM — DO NOT HAND-ROLL THEM.** Its
+`SPHERE`, `SPHERE_READY`, `clickText`, `LIVE`, `TARGETS` and `RUNS` constants
+(lines ~99-165) each encode a trap that has already been paid for: `clickText`
+searches `button` elements by `innerText` substring (a leaf-node exact-match
+version finds nothing), `LIVE` reads the YOUNGEST effect because `effects[0]`
+is the oldest, and `TARGETS` orders discs by distance from the projected
+centre and expects the caller to try several and CONFIRM the spawn. A
+hand-rolled reimplementation of these failed three times in a row during
+planning. Import or copy them; do not rewrite them.
+
 - [ ] **Step 3: Run it and check the shipped arm reproduces the spec's section 0**
 
 ```bash
