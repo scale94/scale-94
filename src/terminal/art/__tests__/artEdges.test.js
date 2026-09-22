@@ -873,10 +873,12 @@ describe('prismChromaPhase — the colour\'s advection coordinate', () => {
 });
 
 describe('the chroma mode constants', () => {
-  it('makes the SHIPPED arm 0, which is the default everywhere', () => {
-    // Load-bearing: mode 0 selects the shipped anchor expression, so the
-    // shipped path is unchanged and the parity reference at 33bda07e is
-    // untouched. Getting this backwards would repaint every cascade.
+  it('fixes the three arm indices at 0, 1 and 2', () => {
+    // These three integers are the whole switch's vocabulary and every caller
+    // (ArtTab.jsx's chromaModeRef, __artSetChromaMode, the probe scripts)
+    // addresses an arm by this number. NOT a claim about which arm is the
+    // RUNTIME default -- that changed 2026-09-22 (see the ruling test below)
+    // while these indices did not move and do not need to.
     expect(PRISM_CHROMA_MODE_SHIPPED).toBe(0);
     expect(PRISM_CHROMA_MODE_UNISON).toBe(1);
     expect(PRISM_CHROMA_MODE_ACHROMATIC).toBe(2);
@@ -885,6 +887,42 @@ describe('the chroma mode constants', () => {
   it('keeps arm A\'s wake saturation inside the real range', () => {
     expect(PRISM_A_WAKE_SAT).toBeGreaterThan(0);
     expect(PRISM_A_WAKE_SAT).toBeLessThan(PRISM_SAT);
+  });
+});
+
+describe('the 2026-09-22 ruling: arm A ships as the default', () => {
+  // The author looked at all three arms live in ArtTab.jsx and ruled for
+  // PRISM_CHROMA_MODE_ACHROMATIC (arm A -- the crest bleaches to white and
+  // colour floods back behind it). Arm U (UNISON) is rejected. Mode 0
+  // (SHIPPED) remains reachable through the switch as the "before" arm, but
+  // it is no longer what a fresh page draws.
+  //
+  // This DELIBERATELY MOVES the image-parity reference: the cut at 33bda07e
+  // described mode 0's output and no longer describes what the app draws.
+  // That reference is owed a re-cut; it is not re-cut here.
+  //
+  // This file cannot exercise ArtTab.jsx's chromaModeRef or
+  // window.__artSetChromaMode's default argument directly -- ArtTab.jsx is
+  // not imported here (it is a full WebGL view, not a pure-function module).
+  // A source-guard is the cheapest instrument that still fails loudly if a
+  // future edit silently reverts the runtime default back to SHIPPED.
+  it('wires ArtTab.jsx\'s runtime default to ACHROMATIC, not SHIPPED', async () => {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const src = fs.readFileSync(
+      path.resolve(__dirname, '../../views/ArtTab.jsx'), 'utf8');
+
+    expect(src).toMatch(/chromaModeRef\s*=\s*useRef\(PRISM_CHROMA_MODE_ACHROMATIC\)/);
+    expect(src).toMatch(
+      /__artSetChromaMode\s*=\s*\(v\s*=\s*PRISM_CHROMA_MODE_ACHROMATIC\)/);
+    // The rejected arm and the pre-ruling arm must not have quietly become
+    // the default argument again.
+    expect(src).not.toMatch(/chromaModeRef\s*=\s*useRef\(PRISM_CHROMA_MODE_SHIPPED\)/);
+    expect(src).not.toMatch(
+      /__artSetChromaMode\s*=\s*\(v\s*=\s*PRISM_CHROMA_MODE_SHIPPED\)/);
+    expect(src).not.toMatch(/chromaModeRef\s*=\s*useRef\(PRISM_CHROMA_MODE_UNISON\)/);
+    expect(src).not.toMatch(
+      /__artSetChromaMode\s*=\s*\(v\s*=\s*PRISM_CHROMA_MODE_UNISON\)/);
   });
 });
 

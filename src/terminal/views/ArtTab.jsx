@@ -102,7 +102,7 @@ import {
   prismWaveEnv, prismWaveMix, prismSegmentFade,
   prismPulse, prismWavePhase, prismChromaSkew, prismChromaBlend,
   prismChromaPhase, prismWriteAnchors, prismChromaModeOf,
-  PRISM_CHROMA_MODE_SHIPPED,
+  PRISM_CHROMA_MODE_SHIPPED, PRISM_CHROMA_MODE_ACHROMATIC,
   prismWaveDuration, prismChordDir, PRISM_CASCADE_MS, PRISM_WAVE_SEGMENTS,
   PRISM_SPECTRAL_FINE, PRISM_SPECTRAL_COARSE, PRISM_HUE_STEP,
   PRISM_SAT, PRISM_GLOW_LIT, PRISM_GLOW_ALPHA_K, PRISM_CORE_LIT, PRISM_CORE_W,
@@ -556,14 +556,26 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   const beadScaleRef = useRef(1);
   // The dash cut's arm, same contract: 1 = box filter = shipped, 0 = hard cut.
   const dashAARef = useRef(1);
-  // The chromatic front's A/B arm. 0 is SHIPPED and is load-bearing: it
-  // selects the shipped anchor expression, so the default path runs the code
-  // it ran before this feature existed and the parity reference at 33bda07e is
-  // untouched. Getting this default wrong would repaint every cascade the app
-  // draws. A ref and not state, because flipping an arm must not re-render --
-  // the whole point is to switch inside ONE page without disturbing the world
-  // the previous arm was measured in.
-  const chromaModeRef = useRef(PRISM_CHROMA_MODE_SHIPPED);
+  // The chromatic front's A/B arm. RULED 2026-09-22: the author looked at all
+  // three arms live, on this page, and chose PRISM_CHROMA_MODE_ACHROMATIC
+  // (arm A -- the crest bleaches to white, colour floods back behind it).
+  // Arm U (UNISON) is rejected. This is now the default a fresh page draws.
+  //
+  // UNTIL THIS RULING, 0 (SHIPPED) WAS THE DEFAULT AND THAT WAS LOAD-BEARING:
+  // it selected the shipped anchor expression, so the default path ran the
+  // code it ran before this feature existed and the parity reference at
+  // 33bda07e stayed valid. That reasoning is now INVERTED, not deleted: the
+  // default no longer runs the SHIPPED anchor expression, and the 33bda07e
+  // reference no longer describes what the app draws. Moving it was the
+  // point of the ruling, not an accident -- the reference is owed a re-cut,
+  // not owed here.
+  //
+  // Mode 0 (SHIPPED) stays reachable through the switch as the "before" arm
+  // -- see window.__artSetChromaMode below. A ref and not state, because
+  // flipping an arm must not re-render -- the whole point is to switch
+  // inside ONE page without disturbing the world the previous arm was
+  // measured in.
+  const chromaModeRef = useRef(PRISM_CHROMA_MODE_ACHROMATIC);
   const prismAlphaRef = useRef(null);
   if (prismAlphaRef.current === null) prismAlphaRef.current = new Float32Array(PRISM_SCRATCH_SEGMENTS + 1);
   // PER-POINT COLOUR, the twin of the per-point alpha above: three floats per
@@ -3186,7 +3198,13 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     // of assuming it did.
     //
     //   0 = shipped (hue rotation in place)   1 = unison   2 = achromatic
-    window.__artSetChromaMode = (v = PRISM_CHROMA_MODE_SHIPPED) => {
+    //
+    // The default argument mirrors chromaModeRef's initial value above and
+    // for the same reason: RULED 2026-09-22 for arm A (ACHROMATIC). Calling
+    // this with no argument now lands on arm A, not arm 0 -- mode 0 is still
+    // reachable by passing it explicitly, it is just no longer what a bare
+    // call selects.
+    window.__artSetChromaMode = (v = PRISM_CHROMA_MODE_ACHROMATIC) => {
       const n = prismChromaModeOf(v);
       if (n === null) return null;
       chromaModeRef.current = n;
