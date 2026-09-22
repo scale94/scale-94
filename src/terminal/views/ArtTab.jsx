@@ -870,6 +870,10 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       hueTarget,
       intensity: coarse ? Math.min(intensity, 0.7) : intensity,
       coarse,
+      // Latched AT SPAWN, not read live by the draw loop: a flip mid-transit
+      // must not change an in-flight effect's packet width or tessellation
+      // on its next frame, which would read as a glitch rather than an A/B.
+      packetArm: packetArmRef.current,
     });
 
     // Emit particle burst from live physics node position
@@ -1884,8 +1888,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         // object here would be ~770 allocations per effect per frame.
         // `_wEnv` is hoisted to the PAIR rather than recomputed inside chord()
         // because the segment count now depends on it: a chord that is waving
-        // is tessellated to PRISM_WAVE_SEGMENTS, and that decision has to be
-        // made before tessellateQuad runs, not after.
+        // is tessellated to the effect's latched arm's prismWaveSegmentsFor(w),
+        // and that decision has to be made before tessellateQuad runs, not after.
         let _wK = 0, _wDur = 1, _wT = -1, _wDir = 0, _wFade = 0, _wEnv = 0;
         // Which half of `tint` the current pass reads: the glow pass's anchors
         // sit in the first PRISM_SPECTRAL_FINE * 6 floats and the core pass's
@@ -1897,11 +1901,12 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
         // changed mid-effect would put two treatments in one frame and the
         // A/B would be comparing a blend of them.
         const _cMode = chromaModeRef.current;
-        // Read ONCE PER EFFECT, like _cMode: an arm that changed mid-effect
-        // would put two packet widths on one bundle.
-        const _pArm = PRISM_PACKET_ARMS[packetArmRef.current];
-        const _pW = _pArm.w, _pStep = _pArm.step;
-        const _pSegs = prismWaveSegmentsFor(_pW);
+        // LATCHED PER EFFECT AT SPAWN (eff.packetArm), not read live here:
+        // `packetArmRef.current` only decides the arm a NEW effect gets.
+        // These three are reassigned once per effect, below, from the
+        // effect's own latched arm -- `let` so the `chord` closure below
+        // (defined once, outside the effect loop) sees each effect's value.
+        let _pW = 0, _pStep = 0, _pSegs = 0;
 
         const chord = (m, a, width, cueA, cueB, taper) => {
           let total = 0;
@@ -2052,6 +2057,17 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           }
 
           if (effProj.length < 2) continue;
+
+          // ── The packet arm, latched AT SPAWN (Task 2, 2026-09-22) ────────
+          //
+          // Read from `eff.packetArm`, NOT `packetArmRef.current`: the ref
+          // only sets what a NEWLY spawned effect gets. Reading it live here
+          // would let a flip mid-transit change an in-flight effect's width
+          // and tessellation on its very next frame -- indistinguishable from
+          // a glitch. `?? PRISM_PACKET_ARM_SHIPPED` covers an effect spawned
+          // before this field existed (a live case under Vite HMR).
+          const _pArm = PRISM_PACKET_ARMS[eff.packetArm ?? PRISM_PACKET_ARM_SHIPPED];
+          _pW = _pArm.w; _pStep = _pArm.step; _pSegs = prismWaveSegmentsFor(_pW);
 
           // Draw prismatic chord bundle between every pair
           // Coarse (mobile): 4 spectral lines × 6 nodes = 60 curves/effect
@@ -3230,9 +3246,11 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       return { beadScale: n };
     };
 
-    // The packet A/B, same contract as __artSetChromaMode: writes a ref the
-    // draw loop reads once per effect, takes effect on the next effect drawn,
-    // and RETURNS what it set so a caller can assert the flip landed.
+    // The packet A/B, similar contract to __artSetChromaMode but latched, not
+    // live: `packetArmRef` is only read at spawn (spawnEffect writes it onto
+    // the new effect as `eff.packetArm`), so a flip here applies to effects
+    // SPAWNED AFTER THIS CALL, not to ones already in flight. RETURNS what it
+    // set so a caller can assert the flip landed.
     //   0 shipped  1 shear-only  2 x0.75  3 x0.60  4 x0.50
     window.__artSetPacketArm = (v = PRISM_PACKET_ARM_SHIPPED) => {
       const n = prismPacketArmOf(v);
@@ -3693,6 +3711,10 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
 
     return () => {
       delete window.__artSetPacketArm;
+      delete window.__artSetChromaMode;
+      delete window.__artSetBeadScale;
+      delete window.__artSetDashAA;
+      delete window.__artSetOrthogonal;
       delete window.__artStrimerState;
       delete window.__artGeomState;
       delete window.__artCadenceState;
