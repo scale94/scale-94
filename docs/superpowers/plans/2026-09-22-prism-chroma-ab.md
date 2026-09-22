@@ -618,17 +618,78 @@ npx vitest run src/terminal/art/__tests__/artEdges.test.js -t "prismWriteAnchors
 
 Expected: FAIL. `prismAnchorHue is not a function`, `prismWriteAnchors is not a function`.
 
-- [ ] **Step 3: Implement**
+- [ ] **Step 0: Break the `writeHsl` cycle FIRST — this blocked the task once**
 
-First confirm `writeHsl`'s import path in `artEdges.js`. If `artEdges.js` does not already import it, add it from the same module `ArtTab.jsx:62` imports it from:
+**DO NOT IMPORT `writeHsl` FROM `SphereEdges.js` INTO `artEdges.js`.** It is a
+real cycle with a real crash, not a lint smell: `SphereEdges.js:179` imports
+`PRISM_MAX_NODES`, `PRISM_MAX_EFFECTS`, `PRISM_SPECTRAL_FINE` and
+`PRISM_WAVE_SEGMENTS` from `./artEdges.js` and consumes them **at module top
+level** (`:286` `const PRISM_PAIRS = ...`, `:295` `PRISM_PER_EFFECT`, `:303`
+the buffer capacity). Evaluate `artEdges.js` first and it pulls
+`SphereEdges.js`, whose top-level `const`s read bindings that are still in the
+temporal dead zone. The first Task 3 implementer found this and correctly
+reported BLOCKED rather than working around it.
 
-```bash
-grep -n "writeHsl" src/terminal/art/artEdges.js | head -3
-grep -n "^import" src/terminal/art/artEdges.js | head -5
-grep -n "createEdgeState, writeHsl" src/terminal/views/ArtTab.jsx
+`writeHsl` is self-contained pure arithmetic — the CSS Color 4 reference
+conversion, no dependencies at all — so it moves to a leaf.
+
+1. Create `src/terminal/art/artColor.js` and MOVE `writeHsl` into it verbatim,
+   comment and all. Head the file:
+
+```js
+// artColor.js — colour conversions, and nothing else.
+//
+// A LEAF, DELIBERATELY. This module imports nothing, which is the whole
+// reason it exists: writeHsl lived in SphereEdges.js, and SphereEdges.js
+// consumes artEdges.js constants at module top level to size its buffers. A
+// back-import from artEdges.js would have closed that loop and put those
+// top-level consts in the temporal dead zone -- a real crash, not a lint
+// smell. Anything both the drawing arithmetic and the GL layer need belongs
+// here rather than in either of them.
 ```
 
-Then, in `src/terminal/art/artEdges.js` after `prismTintHue`:
+2. In `SphereEdges.js`, delete the moved function, import it from the leaf, and
+   **RE-EXPORT it** so every existing call site keeps working untouched:
+
+```js
+import { writeHsl } from './artColor.js';
+export { writeHsl };
+```
+
+   `writeHslRgb` stays in `SphereEdges.js` and now calls the imported
+   `writeHsl`. **DO NOT edit `ArtTab.jsx:62` or
+   `src/terminal/art/__tests__/artPrismWave.test.js:37`** — the re-export is
+   what keeps them valid, and changing them would widen this task for nothing.
+
+3. Confirm nothing broke before writing a line of Task 3 proper:
+
+```bash
+npx vitest run src/terminal/art/__tests__/
+```
+
+   Expected: the suite passes exactly as it did before the move.
+
+4. Commit the move on its own, so the anchor work is not tangled with it:
+
+```bash
+git add src/terminal/art/artColor.js src/terminal/art/SphereEdges.js
+git commit -m "refactor(art): give writeHsl a leaf module so the arithmetic can reach it
+
+artEdges.js needs writeHsl for the chroma anchors, and importing it from
+SphereEdges.js would have closed a real cycle: SphereEdges.js consumes
+artEdges.js constants at module TOP LEVEL to size its instance buffer, so the
+back-import puts those consts in the temporal dead zone. A crash, not a smell.
+
+writeHsl is the CSS Color 4 reference conversion and depends on nothing, so it
+moves to a leaf that imports nothing. SphereEdges.js re-exports it and every
+existing call site is untouched.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
+```
+
+- [ ] **Step 3: Implement**
+
+In `src/terminal/art/artEdges.js`, add `import { writeHsl } from './artColor.js';` beside the existing `depthCueAlpha` import at the top, then after `prismTintHue`:
 
 ```js
 /**
