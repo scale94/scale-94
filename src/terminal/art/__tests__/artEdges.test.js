@@ -34,6 +34,7 @@ import {
   prismChromaPhase, PRISM_CHROMA_MODE_SHIPPED, PRISM_CHROMA_MODE_UNISON, PRISM_CHROMA_MODE_ACHROMATIC, PRISM_A_WAKE_SAT,
   prismUnisonK, prismUnisonHue, prismTravelSign, prismChromaModeOf,
   PRISM_WAVE_W, PRISM_PHASE_STEP, PRISM_PACKET_ARMS, PRISM_PACKET_ARM_SHIPPED, prismPacketArmOf,
+  prismWaveSegmentsFor,
 } from '../artEdges';
 import { DEPTH_ALPHA_FLOOR, depthCueAlpha } from '../artNodes';
 import { CURVE_MAX_SEGMENTS, quadSegments, tessellateQuad } from '../artCurve';
@@ -1207,8 +1208,13 @@ describe('the additive buffer capacity', () => {
     //   x CURVE_MAX_SEGMENTS instances per curve
     //   + 11 polygon segments + 11 spokes per effect
     //   + the 2 resonance strokes that share this buffer
+    // The worst-case tessellation is not CURVE_MAX_SEGMENTS: a chord carrying
+    // a travelling wave is forced to prismWaveSegmentsFor(w), and the packet
+    // arms can ask for as many as 80 (arm 4). Sizing this off CURVE_MAX_SEGMENTS
+    // (24) would pass while the draw loop silently drops instances past the end.
     const pairs = (PRISM_MAX_NODES * (PRISM_MAX_NODES - 1)) / 2;
-    const perEffect = pairs * PRISM_SPECTRAL_FINE * 2 * CURVE_MAX_SEGMENTS
+    const worstSegs = Math.max(...PRISM_PACKET_ARMS.map(a => prismWaveSegmentsFor(a.w)));
+    const perEffect = pairs * PRISM_SPECTRAL_FINE * 2 * worstSegs
       + PRISM_MAX_NODES * 2;
     expect(MAX_ADDITIVE_EDGES).toBeGreaterThanOrEqual(2 + PRISM_MAX_EFFECTS * perEffect);
     expect(createEdgeState(MAX_ADDITIVE_EDGES).data.length)
@@ -1757,8 +1763,11 @@ describe('the additive buffer capacity, with the orphan layers', () => {
     // Recomputed from the caps rather than from the constant, same as the
     // prism row above. Both caps are enforced in ArtTab's draw loop, which is
     // what makes them a ceiling instead of an estimate.
+    // Same correction as the prism-only row above: the prism chord bundle is
+    // forced to prismWaveSegmentsFor(w), not CURVE_MAX_SEGMENTS.
     const pairs = (PRISM_MAX_NODES * (PRISM_MAX_NODES - 1)) / 2;
-    const perEffect = pairs * PRISM_SPECTRAL_FINE * 2 * CURVE_MAX_SEGMENTS
+    const worstSegs = Math.max(...PRISM_PACKET_ARMS.map(a => prismWaveSegmentsFor(a.w)));
+    const perEffect = pairs * PRISM_SPECTRAL_FINE * 2 * worstSegs
       + PRISM_MAX_NODES * 2;
     const orphans = FILAMENT_MAX_DRAWN * 2 * CURVE_MAX_SEGMENTS   // two passes each
       + CHIMERA_MAX_ZONES * CURVE_MAX_SEGMENTS;                   // one pass each
