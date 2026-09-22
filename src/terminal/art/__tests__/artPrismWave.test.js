@@ -29,13 +29,15 @@ import {
   PRISM_WAVE_SWELL, PRISM_WAVE_TAIL_MS,
   PRISM_HUE_LEAD, PRISM_HUE_SKEW, PRISM_HUE_STEP,
   PRISM_WAVE_SEG_FULL, PRISM_WAVE_SEG_NONE, PRISM_WAVE_SEGMENTS,
+  PRISM_WAVE_SAMPLES,
   PRISM_SPECTRAL_FINE,
   prismPulse, prismPhaseOffset, prismWaveAmp, prismWaveEnv, prismWaveMix,
-  prismSegmentFade, prismWaveDuration, prismChordDir,
+  prismSegmentFade, prismWaveSegmentsFor, prismWaveDuration, prismChordDir,
   prismWavePhase, prismChromaSkew, prismChromaBlend, prismTintHue,
 } from '../artEdges';
 import { writeHsl } from '../SphereEdges';
 import { packetDuration } from '../artStrimer';
+import { worstRipple } from '../artPrismRipple';
 
 describe('prismPulse — the raised cosine', () => {
   // CATCHES: swapping the raised cosine for a hard step or a gaussian. A
@@ -384,8 +386,62 @@ describe('prismSegmentFade — the Nyquist guard', () => {
     }
   });
 
-  it('guarantees at least six samples across the pulse wherever it is fully on', () => {
-    expect(2 * PRISM_WAVE_W * PRISM_WAVE_SEG_FULL).toBeGreaterThanOrEqual(5);
+  // REPLACES a test that asserted 2*W*SEG_FULL >= 5 -- which still passed at
+  // W = 0.09, where the crest ripples 16.4% (_a18wsweep, 2026-09-22).
+  // CATCHES: the samples bar re-typed as a literal, or drifting off the
+  // count the shipped width was measured at.
+  it('sets the samples bar from the shipped width at its measured count', () => {
+    expect(PRISM_WAVE_SAMPLES).toBe(2 * PRISM_WAVE_W * PRISM_WAVE_SEG_FULL);
+    expect(prismWaveSegmentsFor(PRISM_WAVE_W)).toBe(PRISM_WAVE_SEG_FULL);
+  });
+
+  // CATCHES: THE BEADING THIS PLAN EXISTS TO STOP. The old guard read only n,
+  // so a half-width pulse at the shipped 40 segments read fade = 1 and drew
+  // a 16% ripple. It must now read as under-sampled.
+  it('fades a narrow pulse that is tessellated for the wide one', () => {
+    expect(prismSegmentFade(40, PRISM_WAVE_W / 2)).toBe(0);
+    expect(prismSegmentFade(40, PRISM_WAVE_W * 0.75)).toBeLessThan(1);
+  });
+
+  // CATCHES: the width-keyed path changing arm 0. toBe, every n.
+  it('is bit-identical to the shipped guard at the shipped width', () => {
+    const legacy = (n) => {
+      if (n >= PRISM_WAVE_SEG_FULL) return 1;
+      if (n <= PRISM_WAVE_SEG_NONE) return 0;
+      const f = (n - PRISM_WAVE_SEG_NONE) / (PRISM_WAVE_SEG_FULL - PRISM_WAVE_SEG_NONE);
+      return f * f * (3 - 2 * f);
+    };
+    for (let n = 0; n <= 128; n++) {
+      expect(prismSegmentFade(n)).toBe(legacy(n));
+      expect(prismSegmentFade(n, PRISM_WAVE_W)).toBe(legacy(n));
+    }
+  });
+
+  // CATCHES: prismWaveSegmentsFor rounding DOWN, or the fade and the forced
+  // count disagreeing for a narrow width.
+  it('forces enough segments for any width to read full fade', () => {
+    for (const w of [0.09, 0.108, 0.135, 0.18]) {
+      const n = prismWaveSegmentsFor(w);
+      expect(n % 8).toBe(0);
+      expect(2 * w * n).toBeGreaterThanOrEqual(PRISM_WAVE_SAMPLES - 1e-9);
+      expect(prismSegmentFade(n, w)).toBe(1);
+    }
+  });
+});
+
+describe('the forced tessellation actually holds the ripple bar (real chords)', () => {
+  // CATCHES: a samples rule that is right on paper and wrong on the uneven
+  // parameter spacing of real near-cusp chords. The bar is 5%, _a18wsweep's.
+  it('holds every width under 5% at its forced count', () => {
+    for (const w of [0.09, 0.108, 0.135, 0.18]) {
+      expect(worstRipple(w, prismWaveSegmentsFor(w))).toBeLessThanOrEqual(0.05);
+    }
+  });
+
+  // THE FALSIFICATION, WRITTEN DOWN. If this ever passes at <= 5%, the ripple
+  // instrument has stopped measuring anything and the test above is vacuous.
+  it('fails the bar for the narrowest width at the shipped count', () => {
+    expect(worstRipple(0.09, 40)).toBeGreaterThan(0.10);
   });
 });
 

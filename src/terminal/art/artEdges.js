@@ -625,6 +625,23 @@ export const PRISM_WAVE_SEGMENTS = 40;
 export const PRISM_WAVE_SEG_FULL = 40;
 export const PRISM_WAVE_SEG_NONE = 20;
 
+/**
+ * SAMPLES ACROSS THE PULSE'S FULL SUPPORT, and the actual quantity the ripple
+ * depends on. _a18wsweep (2026-09-22) found every width passes the 5% bar at
+ * 2*W*n ~= 14.4 -- W=0.18/n=40, W=0.135/n=56, W=0.09/n=80 -- so the guard
+ * keys on this, not on n. Derived from the count the shipped width was
+ * measured at; never type 14.4.
+ */
+export const PRISM_WAVE_SAMPLES = 2 * PRISM_WAVE_W * PRISM_WAVE_SEG_FULL;
+
+/** The count a chord carrying a pulse of half-width `w` is forced to:
+ *  enough for PRISM_WAVE_SAMPLES across its support, rounded UP to a multiple
+ *  of 8. The epsilon absorbs 14.3999.../0.36 landing a hair above 40. */
+export function prismWaveSegmentsFor(w) {
+  const raw = Math.ceil(PRISM_WAVE_SAMPLES / (2 * w) - 1e-9);
+  return Math.ceil(raw / 8) * 8;
+}
+
 /** The pulse profile: a raised cosine on |x| <= w, exactly 0
  *  outside it so a pulse cannot leak down the rest of the chord. Parameter w is the half-width. */
 export function prismPulse(x, w = PRISM_WAVE_W) {
@@ -1041,13 +1058,21 @@ export function prismChromaBlend(out, o, cBase, tints, oLead, oTail, amp, skew) 
  * this is not a corner case.
  *
  * Fading the wave out is the honest failure: a chord that cannot carry the
- * pulse draws exactly as it did before rather than drawing it badly. At
- * PRISM_WAVE_SEG_FULL the pulse gets 5.04 samples across its full support.
+ * pulse draws exactly as it did before rather than drawing it badly.
+ *
+ * KEYED TO SAMPLES ACROSS THE SUPPORT, NOT TO n. Until 2026-09-22 this read
+ * n alone, so a pulse half as wide at the same 40 segments read 1 here and
+ * rippled 16.4%. `n` is rescaled to the count the SHIPPED width would need
+ * for the same sample density, so the thresholds keep their measured meaning.
+ * At the shipped width the ratio is skipped, not multiplied by 1, so arm 0 is
+ * bit-identical. At PRISM_WAVE_SEG_FULL the pulse gets PRISM_WAVE_SAMPLES
+ * (14.4) samples across its full support.
  */
-export function prismSegmentFade(n) {
-  if (n >= PRISM_WAVE_SEG_FULL) return 1;
-  if (n <= PRISM_WAVE_SEG_NONE) return 0;
-  const f = (n - PRISM_WAVE_SEG_NONE) / (PRISM_WAVE_SEG_FULL - PRISM_WAVE_SEG_NONE);
+export function prismSegmentFade(n, w = PRISM_WAVE_W) {
+  const ne = w === PRISM_WAVE_W ? n : n * (w / PRISM_WAVE_W);
+  if (ne >= PRISM_WAVE_SEG_FULL) return 1;
+  if (ne <= PRISM_WAVE_SEG_NONE) return 0;
+  const f = (ne - PRISM_WAVE_SEG_NONE) / (PRISM_WAVE_SEG_FULL - PRISM_WAVE_SEG_NONE);
   return f * f * (3 - 2 * f);
 }
 

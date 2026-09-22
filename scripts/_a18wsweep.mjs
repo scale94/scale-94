@@ -28,122 +28,23 @@
 //
 //   node scripts/_a18wsweep.mjs
 import {
-  prismControl, prismOffset, prismWaveAmp,
   PRISM_WAVE_W, PRISM_WAVE_SEG_FULL, PRISM_WAVE_SEG_NONE, PRISM_SPECTRAL_FINE,
 } from '../src/terminal/art/artEdges.js';
-import { tessellateQuad, quadSegments } from '../src/terminal/art/artCurve.js';
+import { rippleChordUs as chordUs, prismRipple as ripple } from '../src/terminal/art/artPrismRipple.js';
 
-const W_CANDIDATES = [0.14, 0.18, 0.22, 0.25, 0.30, 0.35];
+const W_CANDIDATES = [0.09, 0.108, 0.135, 0.18, 0.22, 0.30];
 const RIPPLE_OK = 0.05;      // the bar: 5% flicker on the crest
-const DUR = 120;             // ms; the metric is scale-free in t/DUR
-
-const pts = new Float32Array(512);
-const ctrl = new Float32Array(2);
-
-/**
- * Build one real prism chord and return its points' arc-length fractions,
- * exactly as ArtTab's `chord()` computes them.
- *
- * cx/cy is the projected sphere centre, which is what prismControl bows
- * toward — so `span` sweeping the endpoint away from it walks the whole range
- * from a near-cusp chord to a long diameter, which is the range that actually
- * appears on screen.
- */
-function chordUs(span, k, forceN = 0) {
-  const cx = 760, cy = 450;
-  const ax = cx - span, ay = cy - span * 0.35;
-  const bx = cx + span * 0.8, by = cy + span * 0.55;
-  prismControl(ctrl, ax, ay, bx, by, cx, cy, prismOffset(k));
-  const m = tessellateQuad(pts, ax, ay, ctrl[0], ctrl[1], bx, by,
-    forceN || quadSegments(ax, ay, ctrl[0], ctrl[1], bx, by));
-  let total = 0;
-  for (let i = 0; i + 1 < m; i++) {
-    total += Math.hypot(pts[i * 2 + 2] - pts[i * 2], pts[i * 2 + 3] - pts[i * 2 + 1]);
-  }
-  const us = [];
-  let s = 0;
-  for (let i = 0; i < m; i++) {
-    if (i > 0) s += Math.hypot(pts[i * 2] - pts[i * 2 - 2], pts[i * 2 + 1] - pts[i * 2 - 1]);
-    us.push(total > 1e-6 ? s / total : 0);
-  }
-  return { us, n: m - 1, total };
-}
-
-/**
- * Ripple of the reconstructed crest over one transit.
- *
- * The reconstruction is piecewise linear THROUGH the samples, and the maximum
- * of a piecewise-linear interpolant is always attained at a sample — so the
- * reconstructed peak is simply the largest sampled amplitude. No interpolation
- * needs simulating; that identity is the whole shortcut.
- *
- * Only the window where the crest is well inside the chord is scored. Near
- * either end the pulse is genuinely clipped by the endpoint and a lower peak
- * there is correct behaviour, not an artefact.
- */
-function ripple(us, w) {
-  const saved = globalThis.__W_OVERRIDE;
-  let lo = Infinity, hi = -Infinity;
-  for (let step = 0; step <= 600; step++) {
-    const frac = 0.25 + (step / 600) * 0.5;       // crest at u in [0.25, 0.75]
-    const t = frac * DUR;
-    let peak = 0;
-    for (const u of us) {
-      const a = ampAt(u, t, w);
-      if (a > peak) peak = a;
-    }
-    if (peak < lo) lo = peak;
-    if (peak > hi) hi = peak;
-  }
-  globalThis.__W_OVERRIDE = saved;
-  return hi - lo;
-}
-
-/**
- * The shipped profile, evaluated at an ARBITRARY half-width.
- *
- * prismWaveAmp closes over the module's own PRISM_WAVE_W, which is the
- * constant under test — so a sweep cannot go through it. This reproduces the
- * raised cosine at width `w` and is checked against the real function at the
- * shipped width below, so the two cannot silently differ.
- */
-function ampAt(u, t, w) {
-  const x = u - t / DUR;             // k = 0, so the phase offset is 0
-  const ax = x < 0 ? -x : x;
-  if (ax >= w) return 0;
-  return 0.5 * (1 + Math.cos(Math.PI * x / w));
-}
-
-// ── The check that keeps this instrument honest ───────────────────────────
-// If ampAt drifted from the shipped profile, every number below would be
-// measuring a function that is not in the renderer.
-{
-  let worst = 0;
-  for (let i = 0; i <= 200; i++) {
-    const u = i / 200;
-    for (const t of [0, 30, 60, 90]) {
-      const mine = ampAt(u, t, PRISM_WAVE_W);
-      const real = prismWaveAmp(u, 0, t, DUR);
-      worst = Math.max(worst, Math.abs(mine - real));
-    }
-  }
-  if (worst > 1e-12) {
-    throw new Error(`ampAt does not reproduce prismWaveAmp (worst ${worst}); the sweep would be fiction`);
-  }
-  console.log(`profile check: ampAt matches prismWaveAmp to ${worst.toExponential(1)} at the shipped W\n`);
-}
 
 // ── What n do real chords actually tessellate to? ─────────────────────────
 console.log('REAL CHORDS — segment counts actually produced');
-console.log('  span(px)   n (k=0)   n (k=3)   n (k=6)   arc len');
+console.log('  span(px)   n (k=0)   n (k=3)   n (k=6)');
 const spans = [20, 40, 70, 110, 160, 220, 300, 400, 520];
 const seen = new Set();
 for (const span of spans) {
-  const row = [0, 3, 6].map(k => chordUs(span, k));
-  row.forEach(r => seen.add(r.n));
-  console.log(`  ${String(span).padStart(6)}   ${String(row[0].n).padStart(7)}   `
-    + `${String(row[1].n).padStart(7)}   ${String(row[2].n).padStart(7)}   `
-    + `${row[0].total.toFixed(0).padStart(6)}px`);
+  const row = [0, 3, 6].map(k => chordUs(span, k).length - 1);
+  row.forEach(n => seen.add(n));
+  console.log(`  ${String(span).padStart(6)}   ${String(row[0]).padStart(7)}   `
+    + `${String(row[1]).padStart(7)}   ${String(row[2]).padStart(7)}`);
 }
 
 // ── The sweep ─────────────────────────────────────────────────────────────
@@ -155,7 +56,8 @@ for (const w of W_CANDIDATES) process.stdout.write(`   W=${w.toFixed(2)}`);
 process.stdout.write('\n');
 const table = new Map();
 for (const span of spans) {
-  const { us, n } = chordUs(span, 0);
+  const us = chordUs(span, 0);
+  const n = us.length - 1;
   if (table.has(n)) continue;
   const row = W_CANDIDATES.map(w => ripple(us, w));
   table.set(n, row);
@@ -202,7 +104,7 @@ console.log(`Spectral lines per bundle: ${PRISM_SPECTRAL_FINE}`);
 // long gentle one at the same n, because tessellateQuad splits at uniform
 // PARAMETER and those segments differ several-fold in arc length. A guard set
 // from the average would fail on exactly the chords that need it.
-const FORCED = [12, 16, 20, 24, 32, 40, 48];
+const FORCED = [24, 32, 40, 48, 56, 64, 72, 80, 96, 112];
 console.log('\n\nFORCED TESSELLATION — worst ripple over all spans and spectral lines');
 process.stdout.write('\n     n  ');
 for (const w of W_CANDIDATES) process.stdout.write(`   W=${w.toFixed(2)}`);
@@ -215,7 +117,7 @@ for (const n of FORCED) {
     let worst = 0;
     for (const span of spans) {
       for (const k of [0, 3, 6]) {
-        worst = Math.max(worst, ripple(chordUs(span, k, n).us, w));
+        worst = Math.max(worst, ripple(chordUs(span, k, n), w));
       }
     }
     if (worst <= RIPPLE_OK && !best.has(w)) best.set(w, n);
