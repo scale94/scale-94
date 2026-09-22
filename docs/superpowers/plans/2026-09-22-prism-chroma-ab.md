@@ -1222,12 +1222,30 @@ CORRECTION block appended to the spec's section 0.
 The shipped arm's bundle R is the **BASELINE THIS WORK ESTABLISHES**, not a
 precondition it must satisfy. No bundle-clipped R existed before this task.
 
-The gate is therefore REPRODUCIBILITY, not an absolute band:
+**AND THE REPRODUCIBILITY GATE THAT REPLACED IT WAS ALSO WRONG — SECOND
+DEFECT, OPPOSITE DIRECTION.** It demanded the two passes agree within +/-0.10
+at every age, and measured 0.116 and 0.102 at the two ages sitting on the
+envelope's steepest slope. That tolerance was chosen with no reference to the
+effect size it exists to protect. **ARM U IS PREDICTED TO MOVE R FROM ~0.43
+TOWARD 1.0 — A DELTA OF ~0.5 AGAINST A ~0.10 NOISE FLOOR, WHICH IS 5:1.** An
+instrument is fit for a comparison when its noise is small against the
+separation it must resolve, not when it repeats to an arbitrary absolute
+figure. Gating on the latter blocked a measurement the instrument could
+comfortably make.
 
-- Measure the shipped arm's R at the five ages **twice, in separate passes**.
-- The gate PASSES if the two passes agree at each age within **+/- 0.10**.
-- If they do not agree, the instrument is too noisy to rank arms and no arm's
-  number means anything — report that and stop.
+The gate is therefore SIGNAL-TO-NOISE, and the noise becomes an error bar
+rather than a pass/fail:
+
+- Sample each (arm, age) cell **three times** and take the MEDIAN, with the
+  min-to-max spread carried through to the output as that cell's error bar.
+- Measure the shipped arm's five ages twice as before, but only to ESTABLISH
+  THE NOISE FLOOR — report it, do not gate on it.
+- The gate PASSES if the noise floor is **under one third of the smallest
+  arm-to-arm separation** the table shows. That is the condition under which
+  the ranking means something.
+- If the arms separate by less than that, report it plainly: the arms are
+  indistinguishable ON THIS METRIC, which is a real finding and not a failure.
+- **Quote every R with its error bar. Never quote a bare R again.**
 - Then measure U and A **at the same five ages** and report all three side by
   side. The comparison that matters is **arm-vs-arm at matched age**, never an
   arm against an absolute number.
