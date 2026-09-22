@@ -48,6 +48,7 @@ const SECONDS  = Number(arg('--seconds', 8));
 const HEADLESS = process.argv.includes('--headless');
 const URL      = arg('--url', 'http://localhost:5174/');
 const OUT      = arg('--out', '.superpowers/sdd');
+const ARM      = arg('--packet-arm', null) === null ? null : Number(arg('--packet-arm', null));
 
 // A phone viewport, not a tablet — narrow enough that the layout's own
 // `hidden md:flex` breakpoint hides the desktop geometry terminal (ArtTab.jsx
@@ -165,6 +166,13 @@ if (!navOk) throw new Error('no /CHAOS nav button found');
 
 await page.waitFor(`(() => { const c = ${SPHERE}; return !!c && c.getBoundingClientRect().width > 150 && c.getBoundingClientRect().height > 150; })()`, { label: 'sphere sized', timeoutMs: 30000 });
 
+let armSet = null;
+if (ARM !== null) {
+  armSet = JSON.parse(await page.eval(`JSON.stringify(window.__artSetPacketArm(${ARM}))`));
+  if (!armSet || armSet.packetArm !== ARM) throw new Error(`__artSetPacketArm(${ARM}) did not land: ${JSON.stringify(armSet)}`);
+  console.log(`packet arm ${ARM}: w=${armSet.w} step=${armSet.step} forced n=${armSet.segments}`);
+}
+
 // GL composite backing-store check — mirrors artFrameTime.mjs's GL_READY but
 // without the desktop >800px assumption.
 await page.waitFor(`(() => {
@@ -254,6 +262,7 @@ const result = {
   capturedAt: new Date().toISOString(),
   ...gp,
   url: URL,
+  packetArm: ARM === null ? null : { requested: ARM, ...armSet },
   renderer: HEADLESS ? 'headless chrome + swiftshader (SOFTWARE — not a frame budget)' : 'headed chrome, real GPU',
   seconds: SECONDS,
   viewport: VIEW,
@@ -272,7 +281,7 @@ const result = {
 };
 
 await mkdir(OUT, { recursive: true });
-const jsonPath = `${OUT}/mobile-fps-${HEADLESS ? 'headless' : 'headed'}.json`;
+const jsonPath = `${OUT}/mobile-fps-${HEADLESS ? 'headless' : 'headed'}${ARM === null ? '' : `-arm${ARM}`}.json`;
 await writeFile(jsonPath, JSON.stringify(result, null, 2));
 console.log(`\nwrote ${jsonPath}`);
 

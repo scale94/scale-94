@@ -21,6 +21,7 @@ const W    = Number(process.argv[2] ?? 1520);
 const H    = Number(process.argv[3] ?? 900);
 const DPR  = Number(process.argv[4] ?? 1);
 const PORT = Number(process.argv[5] ?? 5173);
+const ARM  = process.argv[6] === undefined ? null : Number(process.argv[6]);
 const URL  = `http://localhost:${PORT}/`;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -54,6 +55,13 @@ try {
   if (!await page.eval(clickText('/CHAOS'))) throw new Error('no /CHAOS nav button');
   await page.waitFor(SPHERE_READY, { label: 'sphere canvas' });
   await sleep(1500);
+
+  let armSet = null;
+  if (ARM !== null) {
+    armSet = JSON.parse(await page.eval(`JSON.stringify(window.__artSetPacketArm(${ARM}))`));
+    if (!armSet || armSet.packetArm !== ARM) throw new Error(`__artSetPacketArm(${ARM}) did not land: ${JSON.stringify(armSet)}`);
+    console.log(`packet arm ${ARM}: w=${armSet.w} step=${armSet.step} forced n=${armSet.segments}`);
+  }
 
   const probe0 = JSON.parse(await page.eval(GEOM));
   if (!probe0.additive) throw new Error('__artGeomState has no additive block — stale page?');

@@ -36,6 +36,7 @@ const W    = Number(process.argv[2] ?? 1520);
 const H    = Number(process.argv[3] ?? 900);
 const DPR  = Number(process.argv[4] ?? 1);
 const PORT = Number(process.argv[5] ?? 5173);
+const ARM  = process.argv[6] === undefined ? null : Number(process.argv[6]);
 const URL  = `http://localhost:${PORT}/`;
 const OUT  = 'lookbook/prismwave';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -126,6 +127,14 @@ try {
   await page.waitFor(SPHERE_READY, { label: 'sphere canvas' });
   await sleep(1500);
 
+  let armSet = null;
+  if (ARM !== null) {
+    armSet = JSON.parse(await page.eval(`JSON.stringify(window.__artSetPacketArm(${ARM}))`));
+    if (!armSet || armSet.packetArm !== ARM) throw new Error(`__artSetPacketArm(${ARM}) did not land: ${JSON.stringify(armSet)}`);
+    console.log(`packet arm ${ARM}: w=${armSet.w} step=${armSet.step} forced n=${armSet.segments}`);
+  }
+  const FORCED_N = armSet ? armSet.segments : 40;
+
   const idle = JSON.parse(await page.eval(DISCS));
   const rect = await page.eval(SPHERE_RECT);
   const t = idle.discs.slice().sort((a, b) => b[2] - a[2])[0];
@@ -167,7 +176,7 @@ try {
     if (track < 0) {
       let best = -1;
       for (let j = 0; j < r.runs.length; j++) {
-        if (r.runs[j].n >= 40 && (best < 0 || r.runs[j].n > r.runs[best].n)) best = j;
+        if (r.runs[j].n >= FORCED_N && (best < 0 || r.runs[j].n > r.runs[best].n)) best = j;
       }
       if (best < 0) continue;
       track = best; runCount = r.count;
@@ -186,10 +195,12 @@ try {
 
   // ── The two things this instrument exists to decide ──────────────────────
   const modulated = rows.filter(r => r.ratio < 0.9);
-  const forced = rows.filter(r => r.segs >= 40);
+  const forced = rows.filter(r => r.segs >= FORCED_N);
+  const seenN = [...new Set(rows.map(r => r.segs))].sort((a, b) => a - b);
   console.log(`\n  frames sampled            ${rows.length}`);
   console.log(`  frames showing modulation  ${modulated.length}`);
-  console.log(`  frames at forced n >= 40   ${forced.length}`);
+  console.log(`  frames at forced n >= ${FORCED_N}   ${forced.length}`);
+  console.log(`  run lengths seen           ${seenN.join(', ')}   (arm expects ${FORCED_N})`);
 
   if (!modulated.length) {
     console.log('\nVERDICT: NO MODULATION SEEN. The wave is not reaching the buffer — '
@@ -240,7 +251,7 @@ try {
     for (let i = 0; i + 1 < rs.length && crests.length < 7; i++) {
       const g = rs[i], c = rs[i + 1];
       if (g.core || !c.core) continue;            // want a (wide, core) couple
-      if (g.n < 40 || c.n < 40) continue;
+      if (g.n < FORCED_N || c.n < FORCED_N) continue;
       const k = Math.round((5 - g.w) / 0.4);
       if (k < 0 || k > 6) continue;
       if (crests.length && k !== crests[crests.length - 1].k + 1) { crests.length = 0; }
