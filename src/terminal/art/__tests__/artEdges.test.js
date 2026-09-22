@@ -33,6 +33,7 @@ import {
   prismWavePhase, PRISM_SAT,
   prismChromaPhase, PRISM_CHROMA_MODE_SHIPPED, PRISM_CHROMA_MODE_UNISON, PRISM_CHROMA_MODE_ACHROMATIC, PRISM_A_WAKE_SAT,
   prismUnisonK, prismUnisonHue, prismTravelSign, prismChromaModeOf,
+  PRISM_WAVE_W, PRISM_PHASE_STEP, PRISM_PACKET_ARMS, PRISM_PACKET_ARM_SHIPPED, prismPacketArmOf,
 } from '../artEdges';
 import { DEPTH_ALPHA_FLOOR, depthCueAlpha } from '../artNodes';
 import { CURVE_MAX_SEGMENTS, quadSegments, tessellateQuad } from '../artCurve';
@@ -1163,6 +1164,28 @@ describe('prismChromaModeOf — the arm switch\'s validator', () => {
     // rejecting the new mode.
     expect(prismChromaModeOf(PRISM_CHROMA_MODE_ACHROMATIC + 1)).toBeNull();
     expect(prismChromaModeOf(PRISM_CHROMA_MODE_ACHROMATIC)).toBe(PRISM_CHROMA_MODE_ACHROMATIC);
+  });
+});
+
+describe('prismPacketArmOf — the packet switch\'s validator', () => {
+  it('accepts every arm and returns it', () => {
+    for (let i = 0; i < PRISM_PACKET_ARMS.length; i++) expect(prismPacketArmOf(i)).toBe(i);
+  });
+
+  // CATCHES: Number(null) === 0 and Number('') === 0 sliding through as arm 0
+  // -- the chroma switch shipped that exact bug in its brief.
+  it('refuses anything that is not an arm', () => {
+    for (const bad of [-1, PRISM_PACKET_ARMS.length, 1.5, NaN, Infinity, '', 'x',
+                       null, undefined, {}]) {
+      expect(prismPacketArmOf(bad)).toBeNull();
+    }
+  });
+
+  it('arm 0 is exactly the shipped packet', () => {
+    expect(PRISM_PACKET_ARM_SHIPPED).toBe(0);
+    expect(PRISM_PACKET_ARMS[0].w).toBe(PRISM_WAVE_W);
+    expect(PRISM_PACKET_ARMS[0].step).toBe(PRISM_PHASE_STEP);
+    expect(Object.isFrozen(PRISM_PACKET_ARMS)).toBe(true);
   });
 });
 

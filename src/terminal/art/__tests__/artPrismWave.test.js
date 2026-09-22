@@ -31,6 +31,7 @@ import {
   PRISM_WAVE_SEG_FULL, PRISM_WAVE_SEG_NONE, PRISM_WAVE_SEGMENTS,
   PRISM_WAVE_SAMPLES,
   PRISM_SPECTRAL_FINE,
+  PRISM_PACKET_ARMS,
   prismPulse, prismPhaseOffset, prismWaveAmp, prismWaveEnv, prismWaveMix,
   prismSegmentFade, prismWaveSegmentsFor, prismWaveDuration, prismChordDir,
   prismWavePhase, prismChromaSkew, prismChromaBlend, prismTintHue,
@@ -91,6 +92,35 @@ describe('prismPhaseOffset — the shear across the bundle', () => {
   // fix for it. The last strand's whole pulse must fit inside one transit.
   it('shears the whole bundle by less than one transit', () => {
     expect(prismPhaseOffset(PRISM_SPECTRAL_FINE - 1)).toBeLessThan(1 - 2 * PRISM_WAVE_W);
+  });
+});
+
+describe('the packet arms fit the machinery that carries them', () => {
+  // CATCHES: THE SILENT OVERRUN. tessellateQuad has no bounds check and a
+  // Float32Array write past the end is a no-op, so a buffer sized below the
+  // narrowest arm's count drops chord tails with nothing thrown.
+  it('sizes PRISM_WAVE_SEGMENTS for the most demanding arm', () => {
+    for (const a of PRISM_PACKET_ARMS) {
+      expect(PRISM_WAVE_SEGMENTS).toBeGreaterThanOrEqual(prismWaveSegmentsFor(a.w));
+    }
+    expect(PRISM_WAVE_SEGMENTS).toBe(Math.max(...PRISM_PACKET_ARMS.map(a => prismWaveSegmentsFor(a.w))));
+  });
+
+  // CATCHES: an arm whose shear pushes the last strand's crest off the chord
+  // before the pulse leaves (the existing single-width test at :91,
+  // generalised).
+  it('keeps every arm\'s last strand launchable', () => {
+    for (const a of PRISM_PACKET_ARMS) {
+      expect(prismPhaseOffset(PRISM_SPECTRAL_FINE - 1, a.step)).toBeLessThan(1 - 2 * a.w);
+    }
+  });
+
+  // CATCHES: arms 1 and 2 drifting apart, which would destroy the controlled
+  // pair (same bundle, split differently) the A/B is designed around.
+  it('arms 1 and 2 span the same bundle within 0.02 of the chord', () => {
+    const bundle = (a) => 2 * a.w + (PRISM_SPECTRAL_FINE - 1) * a.step;
+    expect(Math.abs(bundle(PRISM_PACKET_ARMS[1]) - bundle(PRISM_PACKET_ARMS[2]))).toBeLessThan(0.02);
+    expect(PRISM_PACKET_ARMS[1].w).toBe(PRISM_WAVE_W);           // arm 1 is shear-only
   });
 });
 

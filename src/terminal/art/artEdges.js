@@ -575,6 +575,65 @@ export const PRISM_WAVE_TAIL_MS = 360;
 export const PRISM_CASCADE_MS = 110;
 
 /**
+ * The thresholds prismSegmentFade ramps between, set from the table above:
+ * full at the count the wave is actually given, off below the count where
+ * ripple passes ~17%.
+ *
+ * THIS IS A BELT AND BRACES, NOT THE PRIMARY GUARD. The draw loop forces
+ * PRISM_WAVE_SEGMENTS on any chord that is waving, so in practice the fade
+ * reads 1 every time. It stays because the alternative is a silent
+ * dependency: if a future caller ever tessellates a waving chord more
+ * coarsely -- a mobile path, a budget cap, a bug -- the wave fades out
+ * instead of staircasing, and the failure is invisible rather than ugly.
+ */
+export const PRISM_WAVE_SEG_FULL = 40;
+export const PRISM_WAVE_SEG_NONE = 20;
+
+/**
+ * SAMPLES ACROSS THE PULSE'S FULL SUPPORT, and the actual quantity the ripple
+ * depends on. _a18wsweep (2026-09-22) found every width passes the 5% bar at
+ * 2*W*n ~= 14.4 -- W=0.18/n=40, W=0.135/n=56, W=0.09/n=80 -- so the guard
+ * keys on this, not on n. Derived from the count the shipped width was
+ * measured at; never type the number in code.
+ */
+export const PRISM_WAVE_SAMPLES = 2 * PRISM_WAVE_W * PRISM_WAVE_SEG_FULL;
+
+/** The count a chord carrying a pulse of half-width `w` is forced to:
+ *  enough for PRISM_WAVE_SAMPLES across its support, rounded UP to a multiple
+ *  of 8. The epsilon absorbs 14.3999.../0.36 landing a hair above 40. */
+export function prismWaveSegmentsFor(w) {
+  const raw = Math.ceil(PRISM_WAVE_SAMPLES / (2 * w) - 1e-9);
+  return Math.ceil(raw / 8) * 8;
+}
+
+// ── THE PACKET ARMS (A/B, 2026-09-22) ─────────────────────────────────────
+//
+// The author named mode 0's flaw as DIRECTIONAL AMBIGUITY. The bundle-level
+// packet is 2W + 6*STEP = 0.66 of the chord, so the whole chord appears to
+// change at once. These arms narrow it, behind a live switch, for his eye.
+// Arm 1 narrows only the shear (free: no extra segments). Arm 2 matches arm
+// 1's bundle but spends it on the pulse -- a controlled pair. Arms 3-4 scale
+// both in lockstep. Arm 4 is the extreme and sizes the buffer.
+export const PRISM_PACKET_ARM_SHIPPED = 0;
+export const PRISM_PACKET_ARMS = Object.freeze([
+  Object.freeze({ w: PRISM_WAVE_W,        step: PRISM_PHASE_STEP }),
+  Object.freeze({ w: PRISM_WAVE_W,        step: PRISM_PHASE_STEP * 0.5 }),
+  Object.freeze({ w: PRISM_WAVE_W * 0.75, step: PRISM_PHASE_STEP * 0.75 }),
+  Object.freeze({ w: PRISM_WAVE_W * 0.6,  step: PRISM_PHASE_STEP * 0.6 }),
+  Object.freeze({ w: PRISM_WAVE_W * 0.5,  step: PRISM_PHASE_STEP * 0.5 }),
+]);
+
+/** Pure, in this file, for the same reason as prismChromaModeOf: a hook that
+ *  validates inline cannot be tested without a copy of itself. */
+export function prismPacketArmOf(v) {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  if (!Number.isInteger(n)) return null;
+  if (n < 0 || n >= PRISM_PACKET_ARMS.length) return null;
+  return n;
+}
+
+/**
  * How finely a chord is tessellated while it is carrying a wave.
  *
  * MEASURED, and it overrode the design's own assumption. `scripts/_a18wsweep
@@ -607,40 +666,13 @@ export const PRISM_CASCADE_MS = 110;
  * 4.4x this costs. (The "~74000" in ArtTab.jsx counts inner-loop ITERATIONS,
  * not instances; the measured peak is 5408.) MAX_ADDITIVE_EDGES is derived
  * from this constant, so the preallocation tracks it automatically.
- */
-export const PRISM_WAVE_SEGMENTS = 40;
-
-/**
- * The thresholds prismSegmentFade ramps between, set from the table above:
- * full at the count the wave is actually given, off below the count where
- * ripple passes ~17%.
  *
- * THIS IS A BELT AND BRACES, NOT THE PRIMARY GUARD. The draw loop forces
- * PRISM_WAVE_SEGMENTS on any chord that is waving, so in practice the fade
- * reads 1 every time. It stays because the alternative is a silent
- * dependency: if a future caller ever tessellates a waving chord more
- * coarsely -- a mobile path, a budget cap, a bug -- the wave fades out
- * instead of staircasing, and the failure is invisible rather than ugly.
+ * DERIVED, NOT TYPED, SINCE 2026-09-22: the most any packet arm forces.
+ * During the A/B that is arm 4's 80, which doubles MAX_ADDITIVE_EDGES
+ * (~5.6MB -> ~11MB scratch). Task 7 repays it once an arm is ruled.
  */
-export const PRISM_WAVE_SEG_FULL = 40;
-export const PRISM_WAVE_SEG_NONE = 20;
-
-/**
- * SAMPLES ACROSS THE PULSE'S FULL SUPPORT, and the actual quantity the ripple
- * depends on. _a18wsweep (2026-09-22) found every width passes the 5% bar at
- * 2*W*n ~= 14.4 -- W=0.18/n=40, W=0.135/n=56, W=0.09/n=80 -- so the guard
- * keys on this, not on n. Derived from the count the shipped width was
- * measured at; never type the number in code.
- */
-export const PRISM_WAVE_SAMPLES = 2 * PRISM_WAVE_W * PRISM_WAVE_SEG_FULL;
-
-/** The count a chord carrying a pulse of half-width `w` is forced to:
- *  enough for PRISM_WAVE_SAMPLES across its support, rounded UP to a multiple
- *  of 8. The epsilon absorbs 14.3999.../0.36 landing a hair above 40. */
-export function prismWaveSegmentsFor(w) {
-  const raw = Math.ceil(PRISM_WAVE_SAMPLES / (2 * w) - 1e-9);
-  return Math.ceil(raw / 8) * 8;
-}
+export const PRISM_WAVE_SEGMENTS =
+  Math.max(...PRISM_PACKET_ARMS.map(a => prismWaveSegmentsFor(a.w)));
 
 /** The pulse profile: a raised cosine on |x| <= w, exactly 0
  *  outside it so a pulse cannot leak down the rest of the chord. Parameter w is the half-width. */
