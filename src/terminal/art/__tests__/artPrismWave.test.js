@@ -397,12 +397,17 @@ describe('prismSegmentFade — the Nyquist guard', () => {
     expect(prismSegmentFade(11)).toBe(0);
   });
 
-  // CATCHES: the forced count and the fade's threshold drifting apart. If a
-  // chord is tessellated to PRISM_WAVE_SEGMENTS and the fade does not read 1
-  // there, the wave is being silently attenuated on every chord that carries
-  // it -- which is exactly the state this file was committed in once already.
-  it('reads exactly 1 at the count the draw loop actually forces', () => {
-    expect(prismSegmentFade(PRISM_WAVE_SEGMENTS)).toBe(1);
+  // CATCHES: the forced count and the fade's threshold drifting apart, for
+  // ANY packet arm. If a chord is tessellated to that arm's
+  // prismWaveSegmentsFor(w) and the fade does not read 1 there, the wave is
+  // being silently attenuated on every chord that carries it -- which is
+  // exactly the state this file was committed in once already. Arm 0 forces
+  // 40, not PRISM_WAVE_SEGMENTS (80, arm 4's count) -- asserting the latter
+  // against arm 0's forced count would never have been true.
+  it('reads exactly 1 at the count the draw loop actually forces, for every arm', () => {
+    for (const a of PRISM_PACKET_ARMS) {
+      expect(prismSegmentFade(prismWaveSegmentsFor(a.w), a.w)).toBe(1);
+    }
   });
 
   it('ramps monotonically between the two thresholds', () => {
@@ -450,7 +455,7 @@ describe('prismSegmentFade — the Nyquist guard', () => {
   // CATCHES: prismWaveSegmentsFor rounding DOWN, or the fade and the forced
   // count disagreeing for a narrow width.
   it('forces enough segments for any width to read full fade', () => {
-    for (const w of [0.09, 0.108, 0.135, 0.18]) {
+    for (const { w } of PRISM_PACKET_ARMS) {
       const n = prismWaveSegmentsFor(w);
       expect(n % 8).toBe(0);
       expect(2 * w * n).toBeGreaterThanOrEqual(PRISM_WAVE_SAMPLES - 1e-9);
@@ -463,7 +468,7 @@ describe('the forced tessellation actually holds the ripple bar (real chords)', 
   // CATCHES: a samples rule that is right on paper and wrong on the uneven
   // parameter spacing of real near-cusp chords. The bar is 5%, _a18wsweep's.
   it('holds every width under 5% at its forced count', () => {
-    for (const w of [0.09, 0.108, 0.135, 0.18]) {
+    for (const { w } of PRISM_PACKET_ARMS) {
       expect(worstRipple(w, prismWaveSegmentsFor(w))).toBeLessThanOrEqual(0.05);
     }
   });
@@ -733,16 +738,42 @@ describe('packet width and shear are parameters, and default to the shipped valu
 
   // CATCHES: the default drifting off the shipped constant. Arm 0 must be
   // bit-identical, so this is toBe, not toBeCloseTo.
+  //
+  // f(x) === f(x, CONST) alone cannot catch a body change -- both sides call
+  // the SAME implementation, so a shared bug (or rewrite) that moves both
+  // together passes vacuously. The LEGACY oracles below are the exact
+  // pre-branch bodies (cf171676), copied inline, the same technique
+  // prismSegmentFade's own legacy oracle above uses, so a change to the real
+  // function's body -- not just its default argument -- has something
+  // independent to disagree with.
   it('is bit-identical to the shipped call when no width or step is passed', () => {
+    const legacyPulse = (x, w) => {
+      const a = Math.abs(x);
+      return a >= w ? 0 : 0.5 * (1 + Math.cos(Math.PI * x / w));
+    };
+    const legacyPhase = (u, k, tMs, durMs, step) => {
+      const d = durMs > 1e-6 ? durMs : 1e-6;
+      const uu = u < 0 ? 0 : u > 1 ? 1 : u;
+      return uu - tMs / d + (k * step) * (1 - uu);
+    };
+    const legacySkew = (phase, w) => {
+      const s = phase / w;
+      return s < -1 ? -1 : s > 1 ? 1 : s;
+    };
+
     for (let i = -40; i <= 40; i++) {
       const x = i / 100;
       expect(prismPulse(x)).toBe(prismPulse(x, PRISM_WAVE_W));
+      expect(prismPulse(x)).toBe(legacyPulse(x, PRISM_WAVE_W));
       expect(prismChromaSkew(x)).toBe(prismChromaSkew(x, PRISM_WAVE_W));
+      expect(prismChromaSkew(x)).toBe(legacySkew(x, PRISM_WAVE_W));
     }
     for (let k = 0; k < PRISM_SPECTRAL_FINE; k++) {
       expect(prismPhaseOffset(k)).toBe(prismPhaseOffset(k, PRISM_PHASE_STEP));
       for (const u of [0, 0.3, 0.7, 1]) {
         expect(prismWavePhase(u, k, 40, 103)).toBe(prismWavePhase(u, k, 40, 103, PRISM_PHASE_STEP));
+        expect(prismWavePhase(u, k, 40, 103))
+          .toBe(legacyPhase(u, k, 40, 103, PRISM_PHASE_STEP));
         expect(prismWaveAmp(u, k, 40, 103))
           .toBe(prismWaveAmp(u, k, 40, 103, PRISM_WAVE_W, PRISM_PHASE_STEP));
       }
