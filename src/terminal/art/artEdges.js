@@ -625,18 +625,18 @@ export const PRISM_WAVE_SEGMENTS = 40;
 export const PRISM_WAVE_SEG_FULL = 40;
 export const PRISM_WAVE_SEG_NONE = 20;
 
-/** The pulse profile: a raised cosine on |x| <= PRISM_WAVE_W, exactly 0
- *  outside it so a pulse cannot leak down the rest of the chord. */
-export function prismPulse(x) {
+/** The pulse profile: a raised cosine on |x| <= w, exactly 0
+ *  outside it so a pulse cannot leak down the rest of the chord. Parameter w is the half-width. */
+export function prismPulse(x, w = PRISM_WAVE_W) {
   const a = x < 0 ? -x : x;
-  if (a >= PRISM_WAVE_W) return 0;
-  return 0.5 * (1 + Math.cos(Math.PI * x / PRISM_WAVE_W));
+  if (a >= w) return 0;
+  return 0.5 * (1 + Math.cos(Math.PI * x / w));
 }
 
 /** Spectral line `k`'s phase shear. The twin of prismOffset, which does the
- *  same job in space; this one does it in time. */
-export function prismPhaseOffset(k) {
-  return k * PRISM_PHASE_STEP;
+ *  same job in space; this one does it in time. Parameter step is the phase increment per line. */
+export function prismPhaseOffset(k, step = PRISM_PHASE_STEP) {
+  return k * step;
 }
 
 /**
@@ -646,10 +646,10 @@ export function prismPhaseOffset(k) {
  * ONE PASS. There is no loop and no pulse index any more: a point is crested
  * once, as the front sweeps through it, and never again. The escalation the
  * train used to carry is in prismWaveEnv now, where it costs one evaluation
- * per chord per frame instead of one per point.
+ * per chord per frame instead of one per point. Parameters w and step are the pulse half-width and phase increment per line.
  */
-export function prismWaveAmp(u, k, tMs, durMs) {
-  return prismPulse(prismWavePhase(u, k, tMs, durMs));
+export function prismWaveAmp(u, k, tMs, durMs, w = PRISM_WAVE_W, step = PRISM_PHASE_STEP) {
+  return prismPulse(prismWavePhase(u, k, tMs, durMs, step), w);
 }
 
 /**
@@ -664,12 +664,12 @@ export function prismWaveAmp(u, k, tMs, durMs) {
  * chromatic front that looked the same coming and going would be a pattern
  * that pulses rather than one that flows. One arithmetic expression, two
  * readers, so the colour and the brightness cannot drift out of step: they
- * are the same number.
+ * are the same number. Parameter step is the phase increment per line.
  */
-export function prismWavePhase(u, k, tMs, durMs) {
+export function prismWavePhase(u, k, tMs, durMs, step = PRISM_PHASE_STEP) {
   const d = durMs > 1e-6 ? durMs : 1e-6;
   const uu = u < 0 ? 0 : u > 1 ? 1 : u;
-  return uu - tMs / d + prismPhaseOffset(k) * (1 - uu);
+  return uu - tMs / d + prismPhaseOffset(k, step) * (1 - uu);
 }
 
 /**
@@ -933,10 +933,10 @@ export const PRISM_HUE_SKEW = 10;
  *
  * Linear rather than smoothstepped, and it does not need to be anything else:
  * the amplitude it gets multiplied by is already 0 at both edges, so the tint
- * reaches the ends of its range only where it has no weight left to apply.
+ * reaches the ends of its range only where it has no weight left to apply. Parameter w is the pulse half-width.
  */
-export function prismChromaSkew(phase) {
-  const s = phase / PRISM_WAVE_W;
+export function prismChromaSkew(phase, w = PRISM_WAVE_W) {
+  const s = phase / w;
   return s < -1 ? -1 : s > 1 ? 1 : s;
 }
 

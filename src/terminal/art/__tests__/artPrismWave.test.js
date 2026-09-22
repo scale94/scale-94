@@ -632,3 +632,55 @@ describe('the tint bound - and the reading it exists to prevent', () => {
     expect(PRISM_HUE_SKEW).toBeGreaterThan(0);
   });
 });
+
+describe('packet width and shear are parameters, and default to the shipped values', () => {
+  // CATCHES: the new `w` parameter accepted but ignored (the body still reads
+  // PRISM_WAVE_W). A narrower pulse must be exactly 0 where the shipped one is
+  // still lit.
+  it('narrows the support to the width it is given', () => {
+    const w = PRISM_WAVE_W / 2;
+    expect(prismPulse(w, w)).toBeCloseTo(0, 12);
+    expect(prismPulse(w * 1.001, w)).toBe(0);
+    expect(prismPulse(w * 1.001)).toBeGreaterThan(0.4);      // shipped width, still lit
+    expect(prismPulse(w / 2, w)).toBeCloseTo(0.5, 12);        // half-way down the cosine
+  });
+
+  // CATCHES: the default drifting off the shipped constant. Arm 0 must be
+  // bit-identical, so this is toBe, not toBeCloseTo.
+  it('is bit-identical to the shipped call when no width or step is passed', () => {
+    for (let i = -40; i <= 40; i++) {
+      const x = i / 100;
+      expect(prismPulse(x)).toBe(prismPulse(x, PRISM_WAVE_W));
+      expect(prismChromaSkew(x)).toBe(prismChromaSkew(x, PRISM_WAVE_W));
+    }
+    for (let k = 0; k < PRISM_SPECTRAL_FINE; k++) {
+      expect(prismPhaseOffset(k)).toBe(prismPhaseOffset(k, PRISM_PHASE_STEP));
+      for (const u of [0, 0.3, 0.7, 1]) {
+        expect(prismWavePhase(u, k, 40, 103)).toBe(prismWavePhase(u, k, 40, 103, PRISM_PHASE_STEP));
+        expect(prismWaveAmp(u, k, 40, 103))
+          .toBe(prismWaveAmp(u, k, 40, 103, PRISM_WAVE_W, PRISM_PHASE_STEP));
+      }
+    }
+  });
+
+  // CATCHES: `step` accepted by prismPhaseOffset but not threaded through
+  // prismWavePhase / prismWaveAmp.
+  it('threads the shear step through the phase and the amplitude', () => {
+    const half = PRISM_PHASE_STEP / 2;
+    expect(prismPhaseOffset(6, half)).toBeCloseTo(6 * half, 12);
+    // At u = 0 the shear term is phi_k * 1, so the phase differs by exactly
+    // the offset difference.
+    expect(prismWavePhase(0, 6, 0, 100) - prismWavePhase(0, 6, 0, 100, half))
+      .toBeCloseTo(6 * (PRISM_PHASE_STEP - half), 12);
+    expect(prismWaveAmp(0, 6, 0, 100, PRISM_WAVE_W, half))
+      .not.toBeCloseTo(prismWaveAmp(0, 6, 0, 100), 6);
+  });
+
+  // CATCHES: prismChromaSkew still normalising by PRISM_WAVE_W, which would
+  // saturate the tint at half the pulse and read as a hard colour edge.
+  it('normalises the colour skew by the width it is given', () => {
+    const w = PRISM_WAVE_W / 2;
+    expect(prismChromaSkew(w, w)).toBeCloseTo(1, 12);
+    expect(prismChromaSkew(w / 2, w)).toBeCloseTo(0.5, 12);
+  });
+});
