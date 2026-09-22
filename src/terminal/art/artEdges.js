@@ -15,6 +15,7 @@
 // end has to agree with the disc it lands on. Copying the formula here would
 // be the second implementation this file's header warns about.
 import { depthCueAlpha } from './artNodes.js';
+import { writeHsl } from './artColor.js';
 
 // ── Base edges ──────────────────────────────────────────────────────────────
 
@@ -920,6 +921,62 @@ export function prismChromaSkew(phase) {
 /** A tint anchor's hue: `side` is +1 for the leading edge, -1 for the wake. */
 export function prismTintHue(hue, side) {
   return hue + PRISM_HUE_LEAD + side * PRISM_HUE_SKEW;
+}
+
+/**
+ * A tint anchor's HUE, for the selected arm. `side` is +1 for the leading
+ * edge and -1 for the wake.
+ *
+ * THE ARMS ARE ONLY THIS FUNCTION AND ITS SATURATION TWIN. Everything that
+ * applies the tint -- prismChromaBlend, the per-point loop, writePolyline's
+ * rgbs -- is untouched by the A/B. That is deliberate: a comparison whose two
+ * halves run different machinery compares the machinery.
+ */
+export function prismAnchorHue(mode, hue0, k, n, side) {
+  const rest = (hue0 + k * PRISM_HUE_STEP) % 360;
+  if (mode === PRISM_CHROMA_MODE_UNISON) {
+    // The full collapse is the ANCHOR; how far a point actually travels toward
+    // it is prismChromaBlend's `amp`, exactly as for the shipped arm.
+    return prismUnisonHue(hue0, k, n, 1) + side * prismTravelSign(k, n) * PRISM_HUE_SKEW;
+  }
+  if (mode === PRISM_CHROMA_MODE_ACHROMATIC) return rest;   // A moves saturation, not hue
+  return prismTintHue(rest, side);
+}
+
+/** A tint anchor's SATURATION, for the selected arm. */
+export function prismAnchorSat(mode, side) {
+  if (mode !== PRISM_CHROMA_MODE_ACHROMATIC) return PRISM_SAT;
+  return side > 0 ? 0 : PRISM_A_WAKE_SAT;
+}
+
+/**
+ * Fill the tint-anchor buffer for a whole bundle: four anchors per spectral
+ * line (lead and wake, glow pass and core pass). Returns how many it wrote.
+ *
+ * LIFTED OUT OF THE DRAW LOOP SO THE "ONCE PER LINE" CONTRACT IS TESTABLE.
+ * It was a comment before, and a comment cannot fail. writeHsl allocates a
+ * closure per call and `subarray` allocates a view per call; either one
+ * evaluated per POINT puts tens of thousands of allocations a frame on a loop
+ * this file keeps deliberately clear of them. A spectral line's hue depends on
+ * nothing about the chord, so this runs 4n times per effect per frame against
+ * the 770 writeHsl calls the base colour already spends on a full eleven-node
+ * effect.
+ *
+ * NOT GATED ON WHETHER ANYTHING IS WAVING, for the same reason it was not
+ * before: the gate costs more to decide than the work it skips.
+ */
+export function prismWriteAnchors(out, mode, hue0, n, coreOff) {
+  for (let k = 0; k < n; k++) {
+    const hL = prismAnchorHue(mode, hue0, k, n,  1);
+    const hT = prismAnchorHue(mode, hue0, k, n, -1);
+    const sL = prismAnchorSat(mode,  1);
+    const sT = prismAnchorSat(mode, -1);
+    writeHsl(out, k * 6,                hL, sL, PRISM_GLOW_LIT);
+    writeHsl(out, k * 6 + 3,            hT, sT, PRISM_GLOW_LIT);
+    writeHsl(out, coreOff + k * 6,      hL, sL, PRISM_CORE_LIT);
+    writeHsl(out, coreOff + k * 6 + 3,  hT, sT, PRISM_CORE_LIT);
+  }
+  return 4 * n;
 }
 
 /**

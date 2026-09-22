@@ -19,6 +19,8 @@ import {
   PRISM_CP_OFF_X, PRISM_CP_OFF_Y,
   PRISM_CORE_W, PRISM_MAX_NODES, PRISM_MAX_EFFECTS, PRISM_SPECTRAL_FINE,
   PRISM_SPECTRAL_COARSE, PRISM_HUE_STEP,
+  PRISM_GLOW_LIT, PRISM_CORE_LIT, PRISM_HUE_SKEW, prismTintHue,
+  prismAnchorHue, prismAnchorSat, prismWriteAnchors,
   arcControl,
   filamentDepthFade, filamentAlpha, filamentHue, filamentGlowWidth,
   FILAMENT_DASH, FILAMENT_CORE_W, FILAMENT_CP_PULL, FILAMENT_MAX_DRAWN,
@@ -964,6 +966,143 @@ describe('the unison collapse — arm U\'s geometry', () => {
   it('has no zero-sign strand on the coarse comb, where no line sits on the fixed point', () => {
     const n = PRISM_SPECTRAL_COARSE;
     for (let k = 0; k < n; k++) expect(prismTravelSign(k, n)).not.toBe(0);
+  });
+});
+
+describe('prismAnchorHue / prismAnchorSat — the three arms', () => {
+  const N = PRISM_SPECTRAL_FINE;
+
+  it('mode 0 reproduces the shipped expression EXACTLY', () => {
+    // The parity argument. Mode 0 must not be "close to" the shipped path.
+    for (let k = 0; k < N; k++) {
+      const h = (40 + k * PRISM_HUE_STEP) % 360;
+      for (const side of [1, -1]) {
+        expect(prismAnchorHue(PRISM_CHROMA_MODE_SHIPPED, 40, k, N, side))
+          .toBe(prismTintHue(h, side));
+        expect(prismAnchorSat(PRISM_CHROMA_MODE_SHIPPED, side)).toBe(PRISM_SAT);
+      }
+    }
+  });
+
+  it('mode U anchors every strand on the fixed-point hue, skewed by travel', () => {
+    for (let k = 0; k < N; k++) {
+      const target = 40 + prismUnisonK(N) * PRISM_HUE_STEP;
+      const sign = prismTravelSign(k, N);
+      expect(prismAnchorHue(PRISM_CHROMA_MODE_UNISON, 40, k, N,  1))
+        .toBeCloseTo(target + sign * PRISM_HUE_SKEW, 10);
+      expect(prismAnchorHue(PRISM_CHROMA_MODE_UNISON, 40, k, N, -1))
+        .toBeCloseTo(target - sign * PRISM_HUE_SKEW, 10);
+    }
+  });
+
+  it('mode U leaves the still centre unskewed on both sides', () => {
+    const k = prismUnisonK(N), target = 40 + k * PRISM_HUE_STEP;
+    expect(prismAnchorHue(PRISM_CHROMA_MODE_UNISON, 40, k, N,  1)).toBeCloseTo(target, 10);
+    expect(prismAnchorHue(PRISM_CHROMA_MODE_UNISON, 40, k, N, -1)).toBeCloseTo(target, 10);
+  });
+
+  it('mode U keeps full saturation — it is a gather, not a bleach', () => {
+    expect(prismAnchorSat(PRISM_CHROMA_MODE_UNISON,  1)).toBe(PRISM_SAT);
+    expect(prismAnchorSat(PRISM_CHROMA_MODE_UNISON, -1)).toBe(PRISM_SAT);
+  });
+
+  it('mode A does not move a single hue', () => {
+    // If A were a rotation in disguise the A/B would be comparing two
+    // rotations and would answer nothing.
+    for (let k = 0; k < N; k++) {
+      const rest = (40 + k * PRISM_HUE_STEP) % 360;
+      for (const side of [1, -1]) {
+        expect(prismAnchorHue(PRISM_CHROMA_MODE_ACHROMATIC, 40, k, N, side)).toBe(rest);
+      }
+    }
+  });
+
+  it('mode A bleaches the lead harder than the wake', () => {
+    // A grey anchor has no hue for the skew to act on, so A takes its
+    // direction here or it pulses instead of flowing.
+    expect(prismAnchorSat(PRISM_CHROMA_MODE_ACHROMATIC,  1)).toBe(0);
+    expect(prismAnchorSat(PRISM_CHROMA_MODE_ACHROMATIC, -1)).toBe(PRISM_A_WAKE_SAT);
+    expect(prismAnchorSat(PRISM_CHROMA_MODE_ACHROMATIC, 1))
+      .toBeLessThan(prismAnchorSat(PRISM_CHROMA_MODE_ACHROMATIC, -1));
+  });
+});
+
+describe('prismWriteAnchors — once per spectral line, never per point', () => {
+  const N = PRISM_SPECTRAL_FINE, CORE = PRISM_SPECTRAL_FINE * 6;
+
+  it('writes exactly 4 anchors per line and says how many', () => {
+    // THE ALLOCATION CONTRACT, MADE TESTABLE. This was only a comment before:
+    // the anchors are converted once per line because writeHsl allocates a
+    // closure per call, and evaluating it per point puts tens of thousands of
+    // allocations a frame on a loop this file keeps clear of them.
+    const out = new Float32Array(CORE * 2);
+    const written = prismWriteAnchors(out, PRISM_CHROMA_MODE_SHIPPED, 40, N, CORE);
+    expect(written).toBe(4 * N);
+  });
+
+  it('mode 0 fills the buffer byte-identically to the shipped loop', () => {
+    const out = new Float32Array(CORE * 2);
+    prismWriteAnchors(out, PRISM_CHROMA_MODE_SHIPPED, 40, N, CORE);
+
+    const ref = new Float32Array(CORE * 2);
+    for (let k = 0; k < N; k++) {
+      const h = (40 + k * PRISM_HUE_STEP) % 360;
+      const hL = prismTintHue(h, 1), hT = prismTintHue(h, -1);
+      writeHsl(ref, k * 6,             hL, PRISM_SAT, PRISM_GLOW_LIT);
+      writeHsl(ref, k * 6 + 3,         hT, PRISM_SAT, PRISM_GLOW_LIT);
+      writeHsl(ref, CORE + k * 6,      hL, PRISM_SAT, PRISM_CORE_LIT);
+      writeHsl(ref, CORE + k * 6 + 3,  hT, PRISM_SAT, PRISM_CORE_LIT);
+    }
+    expect(Array.from(out)).toEqual(Array.from(ref));
+  });
+
+  it('mode A writes an achromatic lead: r, g and b equal at every lead anchor', () => {
+    const out = new Float32Array(CORE * 2);
+    prismWriteAnchors(out, PRISM_CHROMA_MODE_ACHROMATIC, 40, N, CORE);
+    for (let k = 0; k < N; k++) {
+      const o = k * 6;                       // the LEAD anchor of the glow pass
+      expect(out[o]).toBeCloseTo(out[o + 1], 6);
+      expect(out[o + 1]).toBeCloseTo(out[o + 2], 6);
+      const w = k * 6 + 3;                   // the WAKE anchor still has colour
+      expect(Math.max(out[w], out[w+1], out[w+2]) - Math.min(out[w], out[w+1], out[w+2]))
+        .toBeGreaterThan(0.01);
+    }
+  });
+
+  it('mode U writes anchors that differ ONLY by the skew, across every line', () => {
+    const out = new Float32Array(CORE * 2);
+    prismWriteAnchors(out, PRISM_CHROMA_MODE_UNISON, 40, N, CORE);
+
+    // The still centre takes no skew at all, so its lead and wake anchors are
+    // the same rgb.
+    const mid = prismUnisonK(N) * 6;
+    for (let c = 0; c < 3; c++) {
+      expect(out[mid + c]).toBeCloseTo(out[mid + 3 + c], 6);
+    }
+
+    // Every OTHER line's lead and wake DO differ -- if they did not, the skew
+    // would be absent and arm U would look the same arriving and leaving.
+    for (let k = 0; k < N; k++) {
+      if (k === prismUnisonK(N)) continue;
+      const o = k * 6;
+      const d = Math.abs(out[o] - out[o + 3])
+              + Math.abs(out[o + 1] - out[o + 4])
+              + Math.abs(out[o + 2] - out[o + 5]);
+      expect(d).toBeGreaterThan(0.001);
+    }
+
+    // And strands equidistant from the fixed point straddle it symmetrically:
+    // their lead anchors sit on opposite sides of the target hue.
+    expect(prismTravelSign(0, N)).toBe(-prismTravelSign(N - 1, N));
+  });
+
+  it('handles the coarse comb without reading past its own lines', () => {
+    const out = new Float32Array(CORE * 2).fill(-1);
+    const written = prismWriteAnchors(out, PRISM_CHROMA_MODE_UNISON, 40,
+                                      PRISM_SPECTRAL_COARSE, CORE);
+    expect(written).toBe(4 * PRISM_SPECTRAL_COARSE);
+    // lines beyond the coarse count are untouched
+    expect(out[PRISM_SPECTRAL_COARSE * 6]).toBe(-1);
   });
 });
 
