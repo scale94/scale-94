@@ -413,8 +413,15 @@ This is the one test in the plan that must be proven non-vacuous by hand, becaus
 Temporarily change `prismUnisonHue`'s last line to use a per-strand fraction:
 
 ```js
-  return rest + (target - rest) * t * (1 - 0.12 * Math.abs(prismUnisonK(n) - k));
+  return rest + (target - rest) * t * (1 + 0.12 * Math.abs(prismUnisonK(n) - k));
 ```
+
+**THE SIGN IS `+`, AND THE FIRST DRAFT OF THIS STEP HAD IT BACKWARDS.** `1 - 0.12|d|`
+gives the OUTER strands a SMALLER fraction, which keeps them behind their
+neighbours: measured min gap **+6.18deg, no fold, and the test passes**. Only
+giving the outer strands a LARGER fraction makes them overtake — measured min
+gap **-28.03deg**. A falsification that does not falsify is worse than none,
+because it certifies the test it failed to break.
 
 Run: `npx vitest run src/terminal/art/__tests__/artEdges.test.js -t "monotone"`
 Expected: **FAIL** — `expected -X to be greater than 0`. This is the comb folding.
