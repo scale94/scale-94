@@ -17,7 +17,7 @@
 - **Do not touch** `PRISM_WAVE_DEPTH` (0.40, ruled), the 0.8× strimer timing ratio (test-locked), `PRISM_WAVE_SWELL`, `PRISM_WAVE_TAIL_MS`, or `PRISM_CASCADE_MS`.
 - **Build the switch, not the metric.** No pixel metric decides between arms. Buffer-level probes only establish that each arm is *alive and distinct*. The author rules.
 - **Every test names the mutation it catches and is run against that mutation before it is trusted** (artPrismWave.test.js header).
-- **No literal 80, 72, 56 or 14.4 anywhere in `src/`.** Segment counts and the samples bar are derived from `PRISM_WAVE_W`, `PRISM_WAVE_SEG_FULL` and the arm table.
+- **No literal 80, 72, 56 or 14.4 in executable code in `src/`** (doc comments recording measured values are this file's idiom and are allowed). Segment counts and the samples bar are derived from `PRISM_WAVE_W`, `PRISM_WAVE_SEG_FULL` and the arm table.
 - Lint gate: `npm run lint` must print **0 errors** and ≤153 warnings. Read the printed count; do not pipe it.
 - Commits end with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
 
