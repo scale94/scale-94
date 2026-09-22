@@ -1212,7 +1212,25 @@ planning. Import or copy them; do not rewrite them.
 node scripts/_a23combR.mjs 1520 900 1 5173
 ```
 
-Expected for the shipped arm: `R` in the 0.03–0.32 band and 10–12 bins occupied, matching the design spec's section 0 within the clip difference. **If the shipped arm does not reproduce, the instrument is wrong and no arm's number means anything — fix it before reading U or A.**
+**THE 0.03–0.32 BAND IS NOT THE GATE, AND USING IT AS ONE WAS A DEFECT IN THIS
+PLAN.** That band was measured WHOLE-FRAME in the spec's section 0; Step 2b's
+clip is the BUNDLE. Gating a bundle number against a whole-frame band compares
+two different populations, and it duly failed: the correct bundle clip measures
+**R = 0.29–0.55, median ~0.43**, consistently, across three clean runs. See the
+CORRECTION block appended to the spec's section 0.
+
+The shipped arm's bundle R is the **BASELINE THIS WORK ESTABLISHES**, not a
+precondition it must satisfy. No bundle-clipped R existed before this task.
+
+The gate is therefore REPRODUCIBILITY, not an absolute band:
+
+- Measure the shipped arm's R at the five ages **twice, in separate passes**.
+- The gate PASSES if the two passes agree at each age within **+/- 0.10**.
+- If they do not agree, the instrument is too noisy to rank arms and no arm's
+  number means anything — report that and stop.
+- Then measure U and A **at the same five ages** and report all three side by
+  side. The comparison that matters is **arm-vs-arm at matched age**, never an
+  arm against an absolute number.
 
 - [ ] **Step 4: Commit**
 

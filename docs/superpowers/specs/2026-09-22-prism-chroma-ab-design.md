@@ -53,6 +53,45 @@ excluded.
   reason in section 1. This is the ruling's own hypothesis, and the data
   refuses it.
 
+### CORRECTION, 2026-09-22 — EVERY NUMBER ABOVE IS WHOLE-FRAME
+
+**THE TABLE ABOVE MEASURES THE WHOLE SPHERE CANVAS, NOT THE BUNDLE.** Section
+4.5 said so and required the instrument to clip before quoting R against a
+crest; section 1 then went on to quote these figures as the diagnosis anyway.
+That is a defect in this document, found when `_a23combR.mjs` was built and
+the clip was actually applied.
+
+Measured with the correct bundle clip, on the shipped arm, three independent
+runs, fifteen samples:
+
+| quantity | whole frame (above) | **bundle only (correct)** |
+|---|---|---|
+| circular concentration R | 0.03 - 0.32 | **0.29 - 0.55, median ~0.43** |
+
+**THE BUNDLE IS SUBSTANTIALLY MORE HUE-CONCENTRATED THAN THE WHOLE FRAME.**
+That is not surprising in hindsight — the whole frame carries every node disc,
+filament, spoke and base edge on the sphere, which between them cover the
+wheel far more evenly than seven ordered lines do. The alpha falloff
+(`1 - 0.07k`) and the differing glow widths also weight the low-k lines
+harder, so the bundle has a dominant hue region that the whole-frame figure
+averaged away.
+
+**WHAT SURVIVES AND WHAT DOES NOT.** The geometric argument in section 1
+stands untouched: it is derived from the source constants, not from pixels —
+seven lines at `PRISM_HUE_STEP` 48deg span 288deg of the wheel, adjacent, 2.8px
+apart, and the shipped crest's 24deg excursion carries a strand exactly half
+way to its neighbour's resting hue. The buffer-level gate confirms that
+excursion at 23.9deg measured. What does NOT survive is the stronger
+quantitative claim that the bundle "wears every hue" near-uniformly. At R ~
+0.43 there is real hue structure in it. The invisibility is still argued from
+the 48deg spacing, not from a near-zero R.
+
+**CONSEQUENCE FOR THE MEASUREMENT.** The 0.03-0.32 band must not be used as a
+gate on a bundle-clipped number — that compares two different populations.
+The shipped arm's bundle R is the BASELINE this work establishes, not a
+precondition it must satisfy. Arms U and A are compared against it at matched
+ages, not against an absolute band.
+
 ---
 
 ## 1. Root cause: the crest has no reference hue
