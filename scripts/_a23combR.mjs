@@ -13,10 +13,15 @@
 // Arm U should drive R at the crest from ~0.03 toward 1. Arm A should drive
 // delivered saturation down while the value holds.
 //
-// CLIPS TO THE BUNDLE. The section-0 measurement in the design spec was
-// WHOLE-FRAME and therefore includes the nodes and the base edges. Those
-// numbers must not be quoted against a crest; this script clips first (via
-// shootAtAge's per-sphere-canvas clip, same one _a21wavefilm.mjs uses).
+// CLIPS TO THE BUNDLE'S OWN REGION, not the whole sphere canvas. The
+// section-0 measurement in the design spec was WHOLE-FRAME and therefore
+// includes the nodes, the base edges, the filaments and the chimera fringes
+// -- a large population of pixels window.__artSetChromaMode is structurally
+// incapable of moving. Those numbers must not be quoted against a crest.
+// shootAtAge is called with `{ bundleClip: true }`, which computes a padded
+// bounding box from the live effect's own prism geometry each shot -- see
+// _prismSpawn.mjs's BUNDLE_BBOX. (An earlier version of this file clipped to
+// the whole sphere canvas instead; task-5 review finding 1.)
 //
 // STEP 2b IS A BLOCKING GATE. Task 4 wired window.__artSetChromaMode but
 // never flipped it in a browser -- the only end-to-end run before this one
@@ -29,7 +34,7 @@
 //   node scripts/_a23combR.mjs [W] [H] [DPR] [PORT]
 import sharp from 'sharp';
 import { launch } from './cdp.mjs';
-import { SPHERE, SPHERE_READY, clickText, shootAtAge } from './_prismSpawn.mjs';
+import { SPHERE, SPHERE_READY, clickText, shootAtAge, PRISM_BBOX_PAD_PX } from './_prismSpawn.mjs';
 
 const W    = Number(process.argv[2] ?? 1520);
 const H    = Number(process.argv[3] ?? 900);
@@ -46,6 +51,27 @@ const ARMS = [
 // Ages chosen to straddle the crescendo: prismWaveEnv swells over one transit
 // (56-128ms) and releases over PRISM_WAVE_TAIL_MS = 360ms.
 const AGES = [55, 80, 105, 140, 200];
+
+// Step 3's own blocking gate (design spec section 0 / brief step 3): if the
+// shipped arm -- observed at THIS bundle clip -- does not land in the band
+// the spec measured, the instrument is wrong and no arm's R means anything.
+// Task-5 review finding 2: this was computed before but not honoured; it now
+// actually stops the script rather than being reasoned past.
+const SHIPPED_R_MIN = 0.03, SHIPPED_R_MAX = 0.32;
+
+// Same order-of-magnitude wait _a21wavefilm.mjs uses between ages ("let the
+// effect die entirely before the next"), applied here between ARMS instead.
+// A pass's authored life runs up to 300 frames (maxLife, capped) -- ~5s at a
+// correct clock -- and geomEffectsRef can hold more than one effect at once
+// (the sphere fires ambient effects of its own, and this script's own click
+// retries can land a second one on top of that). window.__artSetChromaMode
+// is GLOBAL and read fresh every frame; it does not tag an effect with the
+// arm that was live when it spawned. So a still-alive straggler from the
+// PREVIOUS arm would not just render under the wrong arm -- it would sit
+// inside the exact buffer range shootAtAge's bundle clip and RUNS both walk,
+// corrupting the box and the colour read with two bundles at once. Task-5
+// review finding 4.
+const ARM_DECAY_MS = 4200;
 
 // ── Step 2b's buffer readers, copied VERBATIM from scripts/_a22chroma.mjs
 // (its Part 2, lines ~99-165). Each encodes a trap already paid for there:
@@ -211,6 +237,36 @@ function analyse(buf, channels) {
   };
 }
 
+/** Run one arm's R-table rows (all AGES), printing each as it lands and
+ *  returning the R values measured. Shared by the shipped-arm-only pass (Step
+ *  3's own gate) and the U/A pass that follows it. */
+async function measureArmRTable(page, arm) {
+  // ASSERT THE FLIP LANDED. __artSetChromaMode returns what it set precisely
+  // so this is not an assumption.
+  const got = await page.eval(`window.__artSetChromaMode(${arm.mode})`);
+  if (!got || got.chromaMode !== arm.mode) {
+    console.log(`  ${arm.name}: SWITCH REFUSED (${JSON.stringify(got)}) -- arm NOT measured`);
+    return [];
+  }
+  const rs = [];
+  for (const age of AGES) {
+    // Spawn a pass and shoot it at `age`, reusing _prismSpawn.mjs's proven
+    // routine (extracted from _a21wavefilm.mjs for Task 5). bundleClip: true
+    // is the task-5 review's finding 1 fix -- clip to the bundle's own
+    // geometry, not the whole sphere canvas (which also carries filaments,
+    // chimera fringes, base edges and node discs the arm cannot move).
+    const hit = await shootAtAge(page, age, { bundleClip: true });
+    if (!hit) { console.log(`  ${arm.name.padEnd(28)} ${String(age).padStart(4)}ms  NO SPAWN`); continue; }
+    const { data, info } = await sharp(hit.png).raw().toBuffer({ resolveWithObject: true });
+    const a = analyse(data, info.channels);
+    console.log(`  ${arm.name.padEnd(28)} ${String(Math.round(hit.age)).padStart(4)}ms  `
+      + `${a.R.toFixed(3)}    ${a.satP50.toFixed(3)}    ${a.satP90.toFixed(3)}   `
+      + `${String(a.bins).padStart(2)}/12  ${a.meanV.toFixed(3)}`);
+    rs.push(a.R);
+  }
+  return rs;
+}
+
 const main = async () => {
   const page = await launch({ url: URL, width: W, height: H, dpr: DPR, deterministic: false });
   try {
@@ -231,17 +287,23 @@ const main = async () => {
       if (!got || got.chromaMode !== arm.mode) {
         console.log(`  ${arm.name.padEnd(28)}  SWITCH REFUSED (${JSON.stringify(got)}) -- NOT measured`);
         gate.push(null);
+        await sleep(ARM_DECAY_MS);
         continue;
       }
       const res = await sampleArm(page);
       if (!res) {
         console.log(`  ${arm.name.padEnd(28)}  NO SPAWN CONFIRMED -- NOT measured`);
         gate.push(null);
+        await sleep(ARM_DECAY_MS);
         continue;
       }
       gate.push(res);
       console.log(`  ${arm.name.padEnd(28)}  ${res.maxExcursion.toFixed(1).padStart(6)}deg      `
         + `${res.minSat.toFixed(3).padStart(6)}    ${String(res.samples).padStart(4)}`);
+      // Finding 4: let this arm's pass die before the next arm's mode switch
+      // and click, so it cannot still be live -- and sharing the additive
+      // buffer's [0, particleStart) range -- when the next arm samples it.
+      await sleep(ARM_DECAY_MS);
     }
 
     let broken = false;
@@ -259,43 +321,60 @@ const main = async () => {
     if (broken || gate.some(g => g === null)) {
       console.log('\n  STOPPING: the gate did not clear. Every R value below would be');
       console.log('  measuring one arm three times, so none is printed.');
-      await page.eval('window.__artSetChromaMode(0)');
       process.exitCode = 1;
       return;
     }
     console.log('\n  GATE PASSED: three distinct arms confirmed before any R value is trusted.\n');
 
-    // ── STEP 2/3: THE R TABLE ────────────────────────────────────────────
+    // ── STEP 3a: THE SHIPPED ARM'S OWN REPRODUCTION GATE ─────────────────
+    //
+    // Brief step 3, taken literally this time (task-5 review finding 2): if
+    // the shipped arm does not land in the band the design spec's section 0
+    // measured -- 0.03 to 0.32 -- at THIS (now bundle-clipped) measurement,
+    // the instrument is wrong and no arm's R means anything. Measured BEFORE
+    // U or A are ever spawned, not reasoned past afterward.
     console.log(`  R = 1 means the bundle wears ONE hue; R = 0 means it wears every hue.`);
-    console.log(`  bins = 30deg hue bins holding >2% of hued pixels, out of 12.\n`);
+    console.log(`  bins = 30deg hue bins holding >2% of hued pixels, out of 12.`);
+    console.log(`  bundle clip padding: ${PRISM_BBOX_PAD_PX}px (see _prismSpawn.mjs).\n`);
     console.log('  arm                            age      R   sat p50  sat p90  bins  meanV');
 
-    for (const arm of ARMS) {
-      // ASSERT THE FLIP LANDED. __artSetChromaMode returns what it set
-      // precisely so this is not an assumption.
-      const got = await page.eval(`window.__artSetChromaMode(${arm.mode})`);
-      if (!got || got.chromaMode !== arm.mode) {
-        console.log(`  ${arm.name}: SWITCH REFUSED (${JSON.stringify(got)}) -- arm NOT measured`);
-        continue;
-      }
-      for (const age of AGES) {
-        // Spawn a pass and shoot it at `age`, reusing _prismSpawn.mjs's
-        // proven routine (extracted from _a21wavefilm.mjs for Task 5).
-        const hit = await shootAtAge(page, age);
-        if (!hit) { console.log(`  ${arm.name.padEnd(28)} ${String(age).padStart(4)}ms  NO SPAWN`); continue; }
-        const { data, info } = await sharp(hit.png).raw().toBuffer({ resolveWithObject: true });
-        const a = analyse(data, info.channels);
-        console.log(`  ${arm.name.padEnd(28)} ${String(Math.round(hit.age)).padStart(4)}ms  `
-          + `${a.R.toFixed(3)}    ${a.satP50.toFixed(3)}    ${a.satP90.toFixed(3)}   `
-          + `${String(a.bins).padStart(2)}/12  ${a.meanV.toFixed(3)}`);
-      }
-    }
+    const shippedRs = await measureArmRTable(page, ARMS[0]);
+    await sleep(ARM_DECAY_MS);
 
-    // Leave the page on the shipped arm so a later instrument does not
-    // inherit an arm this one set.
-    await page.eval('window.__artSetChromaMode(0)');
+    const inBand = shippedRs.length > 0
+      && shippedRs.every(r => r >= SHIPPED_R_MIN && r <= SHIPPED_R_MAX);
+    if (!inBand) {
+      console.log(`\n  STEP 3 GATE FAILED: shipped-arm R did not reproduce the spec's `
+        + `${SHIPPED_R_MIN}-${SHIPPED_R_MAX} band at the bundle clip `
+        + `(got [${shippedRs.map(r => r.toFixed(3)).join(', ') || 'no samples'}]).`);
+      console.log('  The instrument is wrong, per the brief\'s own step 3. U and A were NOT');
+      console.log('  measured -- their numbers would not be meaningful. STOPPING.');
+      process.exitCode = 1;
+      return;
+    }
+    console.log(`\n  STEP 3 GATE PASSED: shipped-arm R reproduced the ${SHIPPED_R_MIN}-${SHIPPED_R_MAX} `
+      + 'band at the bundle clip. Continuing to U and A.\n');
+
+    // ── STEP 3b: U AND A ──────────────────────────────────────────────────
+    for (const arm of ARMS.slice(1)) {
+      await measureArmRTable(page, arm);
+      await sleep(ARM_DECAY_MS);
+    }
   } finally {
+    // Finding 3: the restore now runs on EVERY path out of the try block --
+    // the two blocking-gate returns above included, and any exception a bad
+    // bundle clip or a failed eval throws (see _prismSpawn.mjs's BUNDLE_BBOX)
+    // -- not only the normal-completion path. Guarded so a restore failure
+    // cannot mask whatever the original exception was.
+    try {
+      await page.eval('window.__artSetChromaMode(0)');
+    } catch (e) {
+      console.error(`  (restore warning) failed to reset chroma mode: ${e.message}`);
+    }
     await page.close();
   }
 };
-main();
+main().catch((err) => {
+  console.error(`\n  FATAL: ${err.message}`);
+  process.exitCode = 1;
+});
