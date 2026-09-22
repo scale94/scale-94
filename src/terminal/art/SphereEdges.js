@@ -178,6 +178,8 @@ import {
   FILAMENT_MAX_DRAWN, CHIMERA_MAX_ZONES,
 } from './artEdges.js';
 import { CURVE_MAX_SEGMENTS } from './artCurve.js';
+import { writeHsl } from './artColor.js';
+export { writeHsl };
 
 /** Render an integer constant as a GLSL float literal, for injecting the
  *  artEdges.js constants into the shader source so they stay one source of
@@ -381,24 +383,6 @@ export function createEdgeState(capacity = MAX_EDGES) {
  */
 export function writeHslRgb(out, o, c) {
   writeHsl(out, o, c.hue, c.sat, c.lit);
-}
-
-/** The same conversion from loose numbers, for the ortho bridge's synthesised
- *  hues — it never had a colour object, and building one per edge per frame
- *  would put the draw loop back on the allocation path. */
-export function writeHsl(out, o, hue, sat, lit) {
-  const h = ((hue % 360) + 360) % 360;
-  const s = Math.min(1, Math.max(0, sat / 100));
-  const l = Math.min(1, Math.max(0, lit / 100));
-  const a = s * Math.min(l, 1 - l);
-  // The CSS Color 4 reference implementation, verbatim.
-  const f = (n) => {
-    const k = (n + h / 30) % 12;
-    return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
-  };
-  out[o]     = f(0);
-  out[o + 1] = f(8);
-  out[o + 2] = f(4);
 }
 
 /** An rgb BYTE triple into the same three floats `writeHslRgb` writes.
