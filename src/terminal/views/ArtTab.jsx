@@ -104,7 +104,7 @@ import {
   prismChromaPhase, prismWriteAnchors, prismChromaModeOf,
   PRISM_CHROMA_MODE_SHIPPED, PRISM_CHROMA_MODE_ACHROMATIC,
   prismWaveDuration, prismChordDir, PRISM_CASCADE_MS, PRISM_WAVE_SEGMENTS,
-  PRISM_PACKET_ARMS, PRISM_PACKET_ARM_SHIPPED, prismPacketArmOf, prismWaveSegmentsFor,
+  PRISM_PACKET_ARMS, PRISM_PACKET_ARM_RULED, prismPacketArmOf, prismWaveSegmentsFor,
   PRISM_SPECTRAL_FINE, PRISM_SPECTRAL_COARSE, PRISM_HUE_STEP,
   PRISM_SAT, PRISM_GLOW_LIT, PRISM_GLOW_ALPHA_K, PRISM_CORE_LIT, PRISM_CORE_W,
   PRISM_POLY_HUE_STEP, PRISM_POLY_LIT, PRISM_POLY_ALPHA_K, PRISM_POLY_W,
@@ -577,11 +577,13 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
   // inside ONE page without disturbing the world the previous arm was
   // measured in.
   const chromaModeRef = useRef(PRISM_CHROMA_MODE_ACHROMATIC);
-  // The packet-width A/B arm (2026-09-22). NOT RULED: arm 0 is the shipped
-  // packet and the default, so a fresh page draws exactly what cf171676 drew.
+  // The packet-width A/B arm (2026-09-22). RULED 2026-09-22: "arm 3 wins
+  // ship it" -- his 360Hz AW2725DF, all five arms flipped live. Arm 3 is now
+  // the default, not arm 0 (PRISM_PACKET_ARM_SHIPPED names the pre-ruling
+  // packet and stays reachable, same as PRISM_CHROMA_MODE_SHIPPED).
   // A ref, not state, for the chroma switch's reason: flipping must not
   // re-render the world the previous arm was judged in.
-  const packetArmRef = useRef(PRISM_PACKET_ARM_SHIPPED);
+  const packetArmRef = useRef(PRISM_PACKET_ARM_RULED);
   const prismAlphaRef = useRef(null);
   if (prismAlphaRef.current === null) prismAlphaRef.current = new Float32Array(PRISM_SCRATCH_SEGMENTS + 1);
   // PER-POINT COLOUR, the twin of the per-point alpha above: three floats per
@@ -2064,9 +2066,10 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
           // only sets what a NEWLY spawned effect gets. Reading it live here
           // would let a flip mid-transit change an in-flight effect's width
           // and tessellation on its very next frame -- indistinguishable from
-          // a glitch. `?? PRISM_PACKET_ARM_SHIPPED` covers an effect spawned
-          // before this field existed (a live case under Vite HMR).
-          const _pArm = PRISM_PACKET_ARMS[eff.packetArm ?? PRISM_PACKET_ARM_SHIPPED];
+          // a glitch. `?? PRISM_PACKET_ARM_RULED` covers an effect spawned
+          // before this field existed (a live case under Vite HMR) -- RULED
+          // 2026-09-22, so that fallback is arm 3, not the pre-ruling arm 0.
+          const _pArm = PRISM_PACKET_ARMS[eff.packetArm ?? PRISM_PACKET_ARM_RULED];
           _pW = _pArm.w; _pStep = _pArm.step; _pSegs = prismWaveSegmentsFor(_pW);
 
           // Draw prismatic chord bundle between every pair
@@ -3251,8 +3254,13 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     // the new effect as `eff.packetArm`), so a flip here applies to effects
     // SPAWNED AFTER THIS CALL, not to ones already in flight. RETURNS what it
     // set so a caller can assert the flip landed.
-    //   0 shipped  1 shear-only  2 x0.75  3 x0.60  4 x0.50
-    window.__artSetPacketArm = (v = PRISM_PACKET_ARM_SHIPPED) => {
+    //   0 shipped (pre-ruling)  1 shear-only  2 x0.75  3 RULED (default)
+    // The default argument mirrors chromaModeRef's initial value above and
+    // for the same reason: RULED 2026-09-22, "arm 3 wins ship it." Calling
+    // this with no argument now lands on arm 3, not arm 0 -- arm 0 is still
+    // reachable by passing it explicitly, it is just no longer what a bare
+    // call selects. Arm 4 no longer exists; passing 4 returns null.
+    window.__artSetPacketArm = (v = PRISM_PACKET_ARM_RULED) => {
       const n = prismPacketArmOf(v);
       if (n === null) return null;
       packetArmRef.current = n;

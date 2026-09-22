@@ -33,8 +33,8 @@ import {
   prismWavePhase, PRISM_SAT,
   prismChromaPhase, PRISM_CHROMA_MODE_SHIPPED, PRISM_CHROMA_MODE_UNISON, PRISM_CHROMA_MODE_ACHROMATIC, PRISM_A_WAKE_SAT,
   prismUnisonK, prismUnisonHue, prismTravelSign, prismChromaModeOf,
-  PRISM_WAVE_W, PRISM_PHASE_STEP, PRISM_PACKET_ARMS, PRISM_PACKET_ARM_SHIPPED, prismPacketArmOf,
-  prismWaveSegmentsFor,
+  PRISM_WAVE_W, PRISM_PHASE_STEP, PRISM_PACKET_ARMS, PRISM_PACKET_ARM_SHIPPED, PRISM_PACKET_ARM_RULED,
+  prismPacketArmOf, prismWaveSegmentsFor, PRISM_WAVE_SEGMENTS,
 } from '../artEdges';
 import { DEPTH_ALPHA_FLOOR, depthCueAlpha } from '../artNodes';
 import { CURVE_MAX_SEGMENTS, quadSegments, tessellateQuad } from '../artCurve';
@@ -1186,11 +1186,37 @@ describe('prismPacketArmOf — the packet switch\'s validator', () => {
     }
   });
 
-  it('arm 0 is exactly the shipped packet', () => {
+  it('arm 0 is exactly the shipped (pre-ruling) packet', () => {
     expect(PRISM_PACKET_ARM_SHIPPED).toBe(0);
     expect(PRISM_PACKET_ARMS[0].w).toBe(PRISM_WAVE_W);
     expect(PRISM_PACKET_ARMS[0].step).toBe(PRISM_PHASE_STEP);
     expect(Object.isFrozen(PRISM_PACKET_ARMS)).toBe(true);
+  });
+
+  // CATCHES: PRISM_PACKET_ARM_RULED pointing at the wrong index, or its arm's
+  // w/step drifting off the ×0.60 the author actually looked at and ruled on
+  // ("arm 3 wins ship it.", 2026-09-22).
+  it('PRISM_PACKET_ARM_RULED is arm 3, at exactly ×0.60', () => {
+    expect(PRISM_PACKET_ARM_RULED).toBe(3);
+    expect(prismPacketArmOf(PRISM_PACKET_ARM_RULED)).toBe(3);
+    expect(PRISM_PACKET_ARMS[PRISM_PACKET_ARM_RULED].w).toBe(PRISM_WAVE_W * 0.6);
+    expect(PRISM_PACKET_ARMS[PRISM_PACKET_ARM_RULED].step).toBe(PRISM_PHASE_STEP * 0.6);
+  });
+
+  // CATCHES: PRISM_WAVE_SEGMENTS drifting off the ruled arm's forced count --
+  // this pins that arm 3 is now what SIZES the buffer, not a narrower arm
+  // still in the table. Falsified by re-adding a narrower arm (w: PRISM_WAVE_W
+  // * 0.5) to PRISM_PACKET_ARMS and confirming this fails, then reverting.
+  it('PRISM_WAVE_SEGMENTS is sized off the ruled arm', () => {
+    expect(PRISM_WAVE_SEGMENTS).toBe(prismWaveSegmentsFor(PRISM_PACKET_ARMS[PRISM_PACKET_ARM_RULED].w));
+  });
+
+  // CATCHES: an arm 4 (or any arm) re-added narrower than the ruled arm
+  // without a fresh ruling, which would silently re-double the buffer the way
+  // arm 4 originally did.
+  it('no arm is narrower than the ruled arm', () => {
+    const ruledW = PRISM_PACKET_ARMS[PRISM_PACKET_ARM_RULED].w;
+    for (const a of PRISM_PACKET_ARMS) expect(a.w).toBeGreaterThanOrEqual(ruledW);
   });
 });
 
@@ -1214,7 +1240,8 @@ describe('the additive buffer capacity', () => {
     //   + the 2 resonance strokes that share this buffer
     // The worst-case tessellation is not CURVE_MAX_SEGMENTS: a chord carrying
     // a travelling wave is forced to prismWaveSegmentsFor(w), and the packet
-    // arms can ask for as many as 80 (arm 4). Sizing this off CURVE_MAX_SEGMENTS
+    // arms can ask for as many as 72 (arm 3, RULED 2026-09-22 -- arm 4's 80
+    // was deleted on that ruling). Sizing this off CURVE_MAX_SEGMENTS
     // (24) would pass while the draw loop silently drops instances past the end.
     const pairs = (PRISM_MAX_NODES * (PRISM_MAX_NODES - 1)) / 2;
     const worstSegs = Math.max(...PRISM_PACKET_ARMS.map(a => prismWaveSegmentsFor(a.w)));

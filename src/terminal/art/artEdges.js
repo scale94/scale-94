@@ -606,21 +606,33 @@ export function prismWaveSegmentsFor(w) {
   return Math.ceil(raw / 8) * 8;
 }
 
-// ── THE PACKET ARMS (A/B, 2026-09-22) ─────────────────────────────────────
+// ── THE PACKET ARMS (A/B, 2026-09-22; RULED 2026-09-22) ───────────────────
 //
 // The author named mode 0's flaw as DIRECTIONAL AMBIGUITY. The bundle-level
 // packet is 2W + 6*STEP = 0.66 of the chord, so the whole chord appears to
 // change at once. These arms narrow it, behind a live switch, for his eye.
 // Arm 1 narrows only the shear (free: no extra segments). Arm 2 matches arm
-// 1's bundle but spends it on the pulse -- a controlled pair. Arms 3-4 scale
-// both in lockstep. Arm 4 is the extreme and sizes the buffer.
-export const PRISM_PACKET_ARM_SHIPPED = 0;
+// 1's bundle but spends it on the pulse -- a controlled pair. Arm 3 scales
+// both in lockstep and is now the narrowest arm left, so it sizes the buffer.
+//
+// RULED: 2026-09-22, on his 360Hz AW2725DF, flipping all five live arms --
+// "arm 3 wins ship it." Arm 4 (w 0.09, step 0.025, forced n 80, the extreme)
+// is DELETED on that ruling: memory can only be repaid by removing arms
+// NARROWER than the one that won, and promoting arm 3's values into
+// PRISM_WAVE_W/PRISM_PHASE_STEP would save nothing while churning every test
+// that pins the shipped default. PRISM_WAVE_SEGMENTS drops from 80 to 72
+// automatically as a result -- see its DERIVED paragraph below.
+export const PRISM_PACKET_ARM_SHIPPED = 0;   // RULED 2026-09-22: names the PRE-RULING packet, not what ships. See PRISM_PACKET_ARM_RULED.
+export const PRISM_PACKET_ARM_RULED = 3;     // "arm 3 wins ship it." -- 2026-09-22, his 360Hz AW2725DF. Inverts arm 0's old load-bearing status for the parity reference (Task 7b re-cuts it).
 export const PRISM_PACKET_ARMS = Object.freeze([
   Object.freeze({ w: PRISM_WAVE_W,        step: PRISM_PHASE_STEP }),
   Object.freeze({ w: PRISM_WAVE_W,        step: PRISM_PHASE_STEP * 0.5 }),
   Object.freeze({ w: PRISM_WAVE_W * 0.75, step: PRISM_PHASE_STEP * 0.75 }),
+  // RULED (index 3): forced n 72, bundle 2w+6*step = 0.396 of the chord (was
+  // 0.66 at arm 0). Its forced ripple is 3.8%, just under the 4.0% launch
+  // step (PRISM_WAVE_DEPTH*PRISM_WAVE_SWELL) -- the swell-ceiling argument at
+  // PRISM_WAVE_SWELL is marginal at this width. Judged by eye and ruled.
   Object.freeze({ w: PRISM_WAVE_W * 0.6,  step: PRISM_PHASE_STEP * 0.6 }),
-  Object.freeze({ w: PRISM_WAVE_W * 0.5,  step: PRISM_PHASE_STEP * 0.5 }),
 ]);
 
 /** Pure, in this file, for the same reason as prismChromaModeOf: a hook that
@@ -674,8 +686,11 @@ export function prismPacketArmOf(v) {
  * from this constant, so the preallocation tracks it automatically.
  *
  * DERIVED, NOT TYPED, SINCE 2026-09-22: the most any packet arm forces.
- * During the A/B that is arm 4's 80, which doubles MAX_ADDITIVE_EDGES
- * (~5.6MB -> ~11MB scratch). Task 7 repays it once an arm is ruled.
+ * During the A/B that was arm 4's 80, which doubled MAX_ADDITIVE_EDGES
+ * (~5.6MB -> ~11MB scratch). RULED 2026-09-22 ("arm 3 wins ship it"): arm 4
+ * is deleted from PRISM_PACKET_ARMS, so the most demanding arm left is the
+ * ruled arm 3 (72), and this constant -- and MAX_ADDITIVE_EDGES with it --
+ * drops back down, repaid rather than doubled.
  */
 export const PRISM_WAVE_SEGMENTS =
   Math.max(...PRISM_PACKET_ARMS.map(a => prismWaveSegmentsFor(a.w)));

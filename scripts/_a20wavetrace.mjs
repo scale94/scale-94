@@ -29,7 +29,9 @@ import { launch } from './cdp.mjs';
 // while PRISM_WAVE_DEPTH was ruled down to 0.40 -- an instrument quoting a
 // design number the design no longer holds is exactly the class of defect
 // this session's traps list is full of.
-import { PRISM_WAVE_DEPTH } from '../src/terminal/art/artEdges.js';
+import {
+  PRISM_WAVE_DEPTH, PRISM_PACKET_ARMS, PRISM_PACKET_ARM_RULED, prismWaveSegmentsFor,
+} from '../src/terminal/art/artEdges.js';
 import { mkdirSync, writeFileSync } from 'node:fs';
 
 const W    = Number(process.argv[2] ?? 1520);
@@ -133,7 +135,10 @@ try {
     if (!armSet || armSet.packetArm !== ARM) throw new Error(`__artSetPacketArm(${ARM}) did not land: ${JSON.stringify(armSet)}`);
     console.log(`packet arm ${ARM}: w=${armSet.w} step=${armSet.step} forced n=${armSet.segments}`);
   }
-  const FORCED_N = armSet ? armSet.segments : 40;
+  // RULED 2026-09-22: the page now defaults to arm 3 (forced n 72), not arm 0
+  // (40), when no arm argument is passed here. Hard-coding 40 would have been
+  // wrong the moment this script ran with no ARM against the new default.
+  const FORCED_N = armSet ? armSet.segments : prismWaveSegmentsFor(PRISM_PACKET_ARMS[PRISM_PACKET_ARM_RULED].w);
 
   const idle = JSON.parse(await page.eval(DISCS));
   const rect = await page.eval(SPHERE_RECT);

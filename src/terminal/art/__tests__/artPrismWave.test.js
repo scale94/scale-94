@@ -402,8 +402,9 @@ describe('prismSegmentFade — the Nyquist guard', () => {
   // prismWaveSegmentsFor(w) and the fade does not read 1 there, the wave is
   // being silently attenuated on every chord that carries it -- which is
   // exactly the state this file was committed in once already. Arm 0 forces
-  // 40, not PRISM_WAVE_SEGMENTS (80, arm 4's count) -- asserting the latter
-  // against arm 0's forced count would never have been true.
+  // 40, not PRISM_WAVE_SEGMENTS (72, the RULED arm 3's count since arm 4 was
+  // deleted) -- asserting the latter against arm 0's forced count would never
+  // have been true.
   it('reads exactly 1 at the count the draw loop actually forces, for every arm', () => {
     for (const a of PRISM_PACKET_ARMS) {
       expect(prismSegmentFade(prismWaveSegmentsFor(a.w), a.w)).toBe(1);
