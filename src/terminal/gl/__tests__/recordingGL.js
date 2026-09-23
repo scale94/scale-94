@@ -27,6 +27,8 @@ const CONSTANTS = {
   TEXTURE_MIN_FILTER: 0x2801, TEXTURE_MAG_FILTER: 0x2800,
   TEXTURE_WRAP_S: 0x2802, TEXTURE_WRAP_T: 0x2803,
   FRAMEBUFFER: 0x8d40, COLOR_ATTACHMENT0: 0x8ce0,
+  ZERO: 0, ONE_MINUS_SRC_COLOR: 0x0301, NEAREST: 0x2600,
+  RGBA16F: 0x881a, HALF_FLOAT: 0x140b, FRAMEBUFFER_COMPLETE: 0x8cd5,
 };
 
 const V1_METHODS = [
@@ -45,12 +47,13 @@ const V1_METHODS = [
   'activeTexture', 'deleteTexture',
   'createFramebuffer', 'bindFramebuffer', 'framebufferTexture2D',
   'deleteFramebuffer',
-  'getExtension',
+  'getExtension', 'blendFuncSeparate', 'checkFramebufferStatus',
 ];
 
-const V2_ONLY = ['createVertexArray', 'bindVertexArray', 'deleteVertexArray', 'texStorage2D'];
+const V2_ONLY = ['createVertexArray', 'bindVertexArray', 'deleteVertexArray', 'texStorage2D',
+  'vertexAttribDivisor', 'drawArraysInstanced'];
 
-export function createRecordingGL({ version = 2 } = {}) {
+export function createRecordingGL({ version = 2, extensions = [] } = {}) {
   const log = [];
   let seq = 0;
   const attribIndices = new Map();
@@ -97,9 +100,14 @@ export function createRecordingGL({ version = 2 } = {}) {
   };
   gl.getExtension = (name) => {
     log.push(['getExtension', name]);
-    return name === 'WEBGL_lose_context'
-      ? { loseContext: () => log.push(['loseContext']) }
-      : null;
+    if (name === 'WEBGL_lose_context') return { loseContext: () => log.push(['loseContext']) };
+    // Optional capabilities are OFF unless a test asks for them, so every
+    // snapshot captured before this option existed replays unchanged.
+    return extensions.includes(name) ? {} : null;
+  };
+  gl.checkFramebufferStatus = (target) => {
+    log.push(['checkFramebufferStatus', target]);
+    return CONSTANTS.FRAMEBUFFER_COMPLETE;
   };
   if (version === 2) {
     gl.createVertexArray = () => { log.push(['createVertexArray']); return tag('vao'); };
@@ -108,8 +116,8 @@ export function createRecordingGL({ version = 2 } = {}) {
   return gl;
 }
 
-export function installRecordingGL({ version = 2 } = {}) {
-  const gl = createRecordingGL({ version });
+export function installRecordingGL({ version = 2, extensions = [] } = {}) {
+  const gl = createRecordingGL({ version, extensions });
   const original = HTMLCanvasElement.prototype.getContext;
   const wanted = version === 2 ? 'webgl2' : 'webgl';
   HTMLCanvasElement.prototype.getContext = function (type) {

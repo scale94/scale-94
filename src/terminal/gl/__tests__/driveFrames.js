@@ -28,12 +28,12 @@ import { installRecordingGL } from './recordingGL';
 export const FRAME_MS = 16;
 export const DEFAULT_FRAMES = 60;
 
-export function driveFrames(mount, { frames = DEFAULT_FRAMES, version = 1, rerenders = [] } = {}) {
+export function driveFrames(mount, { frames = DEFAULT_FRAMES, version = 1, rerenders = [], extensions = [] } = {}) {
   vi.useFakeTimers({
     toFake: ['requestAnimationFrame', 'cancelAnimationFrame', 'performance',
              'setTimeout', 'clearTimeout', 'Date'],
   });
-  const rec = installRecordingGL({ version });
+  const rec = installRecordingGL({ version, extensions });
   let unmount = () => {};
   try {
     const mounted = mount();
