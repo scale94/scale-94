@@ -6,9 +6,8 @@
  *   1. GENERATES  src/terminal/data/generated_chunks/{id}.js  (one per kernel)
  *      Each chunk exports { body, content, len } — the heavy payload only.
  *      Vite code-splits these into separate async bundles automatically.
- *   2. GENERATES  src/terminal/data/articles.generated.js
+ *   2. GENERATES  public/kernel/articles.{hash}.json (named by manifest.json)
  *      Lean metadata index (id, title, tags, …) — NO body text.
- *      loadContent() bridges to the matching chunk via dynamic import().
  *   3. INJECTS    build entries into kernelBuilds.js via @@INJECT markers.
  *      Append-only, dedup by articleId to prevent duplicates across runs.
  *
@@ -202,10 +201,8 @@ function deriveMetadata(body, filename) {
 //   Vite's bundler sees the static import() strings in Phase 2 and splits every
 //   chunk into its own async bundle — keeping it out of the main entry point.
 //
-// PHASE 2 — lean metadata index  (articles.generated.js)
+// PHASE 2 — lean metadata index  (public/kernel/articles.{hash}.json)
 //   Contains ONLY the lightweight fields (id, title, tags, …).
-//   loadContent() bridges to the matching chunk via dynamic import().
-//   The returned object merges metadata + chunk payload at call time.
 //
 // SERIALIZATION SAFETY (SAVE America Act):
 //   All string values serialised with JSON.stringify() — escapes backticks,
@@ -287,7 +284,7 @@ function writeGeneratedFile(articles, cache) {
 }
 
 // ─── TAGS FILE WRITER ─────────────────────────────────────────────────────────
-// Generates tags.generated.js — a flat map of tag → [{ id, title }].
+// Generates public/kernel/tags.{hash}.json — a flat map of tag → [{ id, title }].
 // Enables instant vibe-based filtering in the UI without scanning all articles.
 
 function writeTagsFile(articles) {
@@ -314,7 +311,7 @@ function writeTagsFile(articles) {
 
 // Scan hand-curated article files (soma + misc) for IDs — used to build the
 // allIds set that prevents generateId() from emitting colliding prefixes.
-// Does NOT scan articles.generated.js so we don't inherit stale generated IDs.
+// Does NOT scan generated output so we don't inherit stale generated IDs.
 function parseHandCuratedIds() {
   const dataDir = path.join(__dirname, 'src/terminal/data');
   const ids     = new Set();
@@ -445,7 +442,7 @@ function run() {
     console.log('  No .md files found in', CONTENT_DIR);
     if (!DRY_RUN) {
       writeGeneratedFile([]);
-      console.log('  ✓ articles.generated.js reset to empty array. Chunks dir wiped.\n');
+      console.log('  ✓ Kernel index reset to empty array. Chunks dir wiped.\n');
     }
     process.exit(0);
   }
@@ -598,8 +595,6 @@ function run() {
     const filesToStage = [
       'public/kernel',
       'src/terminal/data/generated_chunks',
-      'src/terminal/data/articles.generated.js',
-      'src/terminal/data/tags.generated.js',
       'src/terminal/data/kernelBuilds.js',
     ];
     console.log(`  git add ${filesToStage.join(' ')}`);

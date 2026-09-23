@@ -7,11 +7,14 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');
 
-const genSrc    = fs.readFileSync(path.join(root, 'src/terminal/data/articles.generated.js'), 'utf8');
-const buildsSrc = fs.readFileSync(path.join(root, 'src/terminal/data/kernelBuilds.js'), 'utf8');
+// The runtime kernel index — whatever public/kernel/manifest.json points at.
+const kernelDir  = path.join(root, 'public/kernel');
+const manifest   = JSON.parse(fs.readFileSync(path.join(kernelDir, 'manifest.json'), 'utf8'));
+const indexFile  = manifest.kernels;
+const articles   = JSON.parse(fs.readFileSync(path.join(kernelDir, indexFile), 'utf8'));
+const buildsSrc  = fs.readFileSync(path.join(root, 'src/terminal/data/kernelBuilds.js'), 'utf8');
 
-// IDs in articles.generated.js (metadata section only — the id: "..." lines)
-const genIds = [...genSrc.matchAll(/^\s{4}id: "([^"]+)"/gm)].map(m => m[1]);
+const genIds = articles.map(a => a.id);
 
 // articleIds in kernelBuilds.js (covers both hand-curated and inject zone)
 const buildArticleIds = new Set(
@@ -22,9 +25,10 @@ const orphaned  = genIds.filter(id => !buildArticleIds.has(id));
 const _covered  = genIds.filter(id =>  buildArticleIds.has(id));
 
 // Type audit
-const kernelDocCount = (genSrc.match(/"type":"kernel_doc"/g) || []).length;
-const kernelCount    = (genSrc.match(/"type":"kernel"[^_]/g) || []).length;
-const fictionCount   = (genSrc.match(/"type":"fiction"/g) || []).length;
+const countType      = t => articles.filter(a => a.type === t).length;
+const kernelDocCount = countType('kernel_doc');
+const kernelCount    = countType('kernel');
+const fictionCount   = countType('fiction');
 
 // Duplicate articleId detection in kernelBuilds
 const allBuildIds = [...buildsSrc.matchAll(/articleId:\s*["'`]([^"'`\n]+)["'`]/g)].map(m => m[1]);
@@ -36,8 +40,8 @@ console.log('\n╔════════════════════�
 console.log('║   PIPELINE AUDIT — LEVEL 13              ║');
 console.log('╚══════════════════════════════════════════╝\n');
 
-console.log(`  articles.generated.js : ${genIds.length} entries`);
-console.log(`  kernelBuilds.js       : ${buildArticleIds.size} unique articleIds\n`);
+console.log(`  ${indexFile.padEnd(22)} : ${genIds.length} entries`);
+console.log(`  ${"kernelBuilds.js".padEnd(22)} : ${buildArticleIds.size} unique articleIds\n`);
 
 console.log(`  Type distribution (in generated index):`);
 console.log(`    kernel_doc : ${kernelDocCount}`);
