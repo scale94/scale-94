@@ -95,6 +95,30 @@ describe('ColliderChamber GL traffic', () => {
     expect(frames.filter((l) => l === 'drawArrays(5, 0, 4)')).toHaveLength(200); // one field pass a frame
   });
 
+  it('runs the ambient clock through colliding -> result without resetting it', () => {
+    // uPhaseT restarts with the phase; uTime is the loop's absolute clock.
+    const P = (over) => <ColliderChamber {...props({ phase: 'colliding', ...over })} />;
+    const { frames } = driveFrames(
+      () => {
+        const r = render(P({}));
+        return { unmount: r.unmount, rerender: r.rerender };
+      },
+      { frames: 40, version: 2, extensions: HALF, rerenders: [{ at: 20, element: P({ phase: 'result', phaseStartedAt: 320 }) }] }
+    );
+    const val = (l) => Number(l.slice(l.lastIndexOf(',') + 1, l.lastIndexOf(')')));
+    const series = (u) => frames.filter((l) => l.startsWith('uniform1f(') && l.includes(`:${u}"`)).map(val);
+    const time = series('uTime');
+    const phaseT = series('uPhaseT').filter((_, i) => i % 2 === 0); // field's upload; streak repeats it
+    const phaseId = series('uPhase').filter((_, i) => i % 2 === 0);
+    expect(time.length).toBe(phaseT.length);
+    const cut = phaseId.indexOf(4);
+    expect(cut).toBeGreaterThan(0);                 // the phase really changed mid-run...
+    expect(phaseT[cut]).toBeLessThan(phaseT[cut - 1]); // ...and the phase clock restarted
+    expect(time[cut]).toBeGreaterThan(time[cut - 1]);  // the ambient clock did not
+    for (let i = 1; i < time.length; i++) expect(time[i]).toBeGreaterThanOrEqual(time[i - 1]);
+    expect(time[time.length - 1]).toBeGreaterThan(0.5);
+  });
+
   it('frozen GL call log', () => {
     expect(drive({ phase: 'colliding', beams: BEAMS, selA: true, selB: true }, 8)).toMatchSnapshot();
   });

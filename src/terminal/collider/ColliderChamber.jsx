@@ -72,7 +72,10 @@ function createChamberCtx() {
 
 // One frame. Module-level and reads only ctx, so the loop, onSnap and the dev
 // scrub hook all paint through the same function, which allocates nothing.
-function paintChamber(host, elapsedMs, ctx) {
+// clockS is the running loop's absolute time in seconds; onSnap and the scrub
+// hook have no running clock and omit it, so their stills fall back to the
+// phase-local time and stay pure functions of (phase, ms).
+function paintChamber(host, elapsedMs, ctx, clockS) {
   const { gl, U } = host;
   const p = ctx.props;
   const D = ctx.derived;
@@ -85,6 +88,7 @@ function paintChamber(host, elapsedMs, ctx) {
   const T = timingInto(ctx.timing, phase, ms);
   const phaseId = PHASE_ID[phase] ?? 0;
   const phaseT = ms / 1000;
+  const timeS = ctx.scrub || clockS === undefined ? phaseT : clockS;
   const { w, h } = ctx.size;
   const px = w > 0 ? gl.canvas.width / w : 1;
   const half = A.mode === 'half-float';
@@ -106,6 +110,7 @@ function paintChamber(host, elapsedMs, ctx) {
   gl.uniform1f(U.uPx, px);
   gl.uniform1f(U.uPhase, phaseId);
   gl.uniform1f(U.uPhaseT, phaseT);
+  gl.uniform1f(U.uTime, timeS);
   gl.uniform3f(U.uHue, D.h01a, D.h01b, D.hMix);
   gl.uniform2f(U.uSel, p.selA ? 1 : 0, p.selB ? 1 : 0);
   gl.uniform2f(U.uLocus, D.locusX, 0);
@@ -272,7 +277,7 @@ export default function ColliderChamber({
       const ctx = ctxRef.current;
       const started = ctx.props.phaseStartedAt;
       const elapsed = started == null ? 0 : Math.max(0, tsec * 1000 - started);
-      paintChamber(host, elapsed, ctx);
+      paintChamber(host, elapsed, ctx, tsec);
     },
 
     // Under prefers-reduced-motion the loop never starts, so this is the only

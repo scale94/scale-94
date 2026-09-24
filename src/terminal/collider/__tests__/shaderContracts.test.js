@@ -172,3 +172,21 @@ describe('streak ingress', () => {
     expect(STREAK_VS).not.toMatch(/0\.6 \+ 0\.4 \* sin\(/);
   });
 });
+
+describe('field ambient clock', () => {
+  const line = (re) => FIELD_FS.split('\n').find((l) => re.test(l));
+
+  it('runs the zone glow, pulse and crosshair on the absolute clock', () => {
+    // uPhaseT resets at colliding -> result, which stepped the glow x2.9.
+    for (const re of [/float zoneR\s*=/, /float pulse\s*=/, /\(chx \+ chy\)/]) {
+      const l = line(re);
+      expect(l).toBeDefined();
+      expect(l).toMatch(/\buTime\b/);
+      expect(l).not.toMatch(/\buPhaseT\b/);
+    }
+  });
+
+  it('keeps the accelerating beamline pulse on the phase clock', () => {
+    expect(line(/float bAlpha\s*=/)).toMatch(/sin\(uPhaseT \* 9\.0\)/);
+  });
+});

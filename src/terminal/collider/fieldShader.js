@@ -13,7 +13,7 @@ import { GEOMETRY, GAINS } from './colliderPhases.js';
 import { glslFloat as f, glslFloatArray, GLSL_HUE2RGB } from './glsl.js';
 
 export const FIELD_UNIFORMS = [
-  'uRes', 'uPx', 'uPhase', 'uPhaseT', 'uHue', 'uSel', 'uLocus',
+  'uRes', 'uPx', 'uPhase', 'uPhaseT', 'uTime', 'uHue', 'uSel', 'uLocus',
   'uShock', 'uGlint', 'uRingR', 'uRingA', 'uRingP', 'uDirect',
 ];
 
@@ -36,6 +36,7 @@ uniform vec2  uRes;
 uniform float uPx;
 uniform float uPhase;
 uniform float uPhaseT;
+uniform float uTime;    // seconds on the loop's clock; never resets with the phase
 uniform vec3  uHue;     // hueA, hueB, hue-space blend -- each in [0,1)
 uniform vec2  uSel;
 uniform vec2  uLocus;   // impact offset from centre, CSS px
@@ -89,16 +90,17 @@ void main() {
   float grid = 1.0 - smoothstep(0.0, 0.02, min(g.x, g.y));
   col += vec3(0.024, 0.714, 0.831) * grid * 0.04;
 
-  // central zone glow
-  float zoneR = mix(40.0, 60.0 + 10.0 * sin(uPhaseT * 6.0), step(3.0, uPhase));
+  // central zone glow. The ambient oscillators run on uTime: uPhaseT
+  // restarts at colliding -> result and the glow would step there.
+  float zoneR = mix(40.0, 60.0 + 10.0 * sin(uTime * 6.0), step(3.0, uPhase));
   float glow  = exp(-r / max(zoneR, 1.0));
-  float pulse = 0.06 + 0.04 * sin(uPhaseT * 1.8);
+  float pulse = 0.06 + 0.04 * sin(uTime * 1.8);
   col += hue2rgb(mix(uHue.x, uHue.y, 0.5)) * glow * pulse;
 
   // crosshair
   float chx = (1.0 - smoothstep(0.0, 0.8, abs(d.y))) * (1.0 - smoothstep(18.0, 20.0, abs(d.x)));
   float chy = (1.0 - smoothstep(0.0, 0.8, abs(d.x))) * (1.0 - smoothstep(18.0, 20.0, abs(d.y)));
-  col += vec3(0.851, 0.275, 0.937) * (chx + chy) * (0.15 + 0.05 * sin(uPhaseT * 3.0));
+  col += vec3(0.851, 0.275, 0.937) * (chx + chy) * (0.15 + 0.05 * sin(uTime * 3.0));
 
   // beamlines
   float onAxis = 1.0 - smoothstep(0.0, 1.2, abs(d.y));
