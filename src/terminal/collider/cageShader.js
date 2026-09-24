@@ -83,10 +83,14 @@ vec3 vertexScreen(int idx, float t) {
   vec3 r = modal(idx, rest, max(t - DOCK_S, 0.0));
   r.x *= uSquash;
   r = tumble(r, t);
+  // Depth drives depthA/wScale in main(), which are brightness -- so it must
+  // come from the unvibrated pose, or the ringdown modes would modulate
+  // brightness at the mode frequency instead of moving geometry only.
+  vec3 rp = tumble(vec3(rest.x * uSquash, rest.yz), t);
   vec2 centre = uRes * 0.5 + uLocus;
   vec2 target = centre + r.xy * (CAM_D / (CAM_D - r.z)) * CAGE_R;
   vec2 from = centre + vec2(rest.x < 0.0 ? -DOCK_FROM : DOCK_FROM, 0.0);
-  return vec3(mix(from, target, dockCurve(ti)), clamp(r.z * 0.5 + 0.5, 0.0, 1.0));
+  return vec3(mix(from, target, dockCurve(ti)), clamp(rp.z * 0.5 + 0.5, 0.0, 1.0));
 }
 
 float arrival(int idx, float t) {

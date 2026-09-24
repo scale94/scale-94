@@ -82,3 +82,15 @@ describe('cage vibration', () => {
     }
   });
 });
+
+describe('cage depth cue', () => {
+  it('takes the depth channel from the unvibrated pose, not the ringdown-perturbed one', () => {
+    // depth (the return's z) feeds depthA/wScale in main(), which are
+    // brightness -- so it must read the unvibrated pose (rp.z), never the
+    // modal()-perturbed r.z, or ringdown would modulate brightness.
+    const body = CAGE_VS.match(/vec3 vertexScreen\([^]*?\n\}/)[0];
+    const returnLine = body.split('\n').find((l) => l.trim().startsWith('return'));
+    expect(returnLine).toMatch(/clamp\(\s*rp\.z/);
+    expect(returnLine).not.toMatch(/clamp\(\s*r\.z/);
+  });
+});
