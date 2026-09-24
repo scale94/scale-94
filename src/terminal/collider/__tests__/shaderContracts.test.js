@@ -85,6 +85,19 @@ describe('cage vibration', () => {
   });
 });
 
+describe('cage vertex transit', () => {
+  it('vertices use the early transit ramp; bonds keep the late one', () => {
+    // A bond joining the two halves would streak across the chamber mid-flight,
+    // so only vertices are revealed early (they mirror vertexArrival()).
+    expect(CAGE_VS).toMatch(/float vertexArrival\(/);
+    const lines = CAGE_VS.split('\n');
+    const vLine = lines.find((l) => /alpha\s*=.*G_VERTEX/.test(l));
+    const bLine = lines.find((l) => /alpha\s*=.*G_BOND/.test(l));
+    expect(vLine).toMatch(/vertexArrival\(i, t\)/);
+    expect(bLine).toMatch(/min\(arrival\(i, t\), arrival\(j, t\)\)/);
+  });
+});
+
 describe('cage depth cue', () => {
   it('takes the depth channel from the unvibrated pose, not the ringdown-perturbed one', () => {
     // depth (the return's z) feeds depthA/wScale in main(), which are

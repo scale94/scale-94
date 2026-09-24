@@ -30,6 +30,10 @@ ${GLSL_HUE2RGB}
 ${GLSL_HASH}
 const float TAU        = 6.28318530718;
 const float DOCK_S     = ${f(TIMELINE.DOCK_MS / 1000)};
+const float ARRIVE_A   = ${f(TIMELINE.ARRIVE_FROM_MS / 1000)};
+const float ARRIVE_B   = ${f(TIMELINE.ARRIVE_TO_MS / 1000)};
+const float TRANSIT_IN = ${f(TIMELINE.VERTEX_TRANSIT_IN_MS / 1000)};
+const float TRANSIT_A  = ${f(GAINS.VERTEX_TRANSIT)};
 const float BREAK_S    = ${f(TIMELINE.BOND_BREAK_FROM_MS / 1000)};
 const float BREAK_SPAN = ${f(TIMELINE.BOND_BREAK_SPAN_MS / 1000)};
 const float RETRACT_S  = ${f(TIMELINE.BOND_RETRACT_MS / 1000)};
@@ -94,7 +98,15 @@ vec3 vertexScreen(int idx, float t) {
 }
 
 float arrival(int idx, float t) {
-  return smoothstep(0.04, 0.09, t - 0.02 * hashI(uint(idx), 15u));
+  return smoothstep(ARRIVE_A, ARRIVE_B, t - 0.02 * hashI(uint(idx), 15u));
+}
+
+// Mirrors vertexArrival() in colliderPhases.js. Vertices show at a transit
+// alpha during their flight; bonds keep arrival(), or a bond joining the two
+// halves would streak across the chamber mid-flight.
+float vertexArrival(int idx, float t) {
+  float ti = t - 0.02 * hashI(uint(idx), 15u);
+  return max(TRANSIT_A * smoothstep(0.0, TRANSIT_IN, ti), smoothstep(ARRIVE_A, ARRIVE_B, ti));
 }
 
 void main() {
@@ -120,7 +132,7 @@ void main() {
   float gap = 0.0;
   if (isVertex) {
     halfW = 1.2 * wScale;
-    alpha = arrival(i, t) * uCageA * depthA * G_VERTEX;
+    alpha = vertexArrival(i, t) * uCageA * depthA * G_VERTEX;
     col = mix(col, vec3(1.0), 0.35);
   } else {
     float breakT = BREAK_S + BREAK_SPAN * hashI(uint(gl_InstanceID), 21u);

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   ACCELERATE_MS, COLLIDE_MS, PHASE_ID, TIMELINE, GEOMETRY, MODES, FREQ_CEILING_HZ, KNEE,
   createTiming, timingInto, modeFrequency, ringThreeWeight, mixHue01,
-  kneeScale, easeIntegralS, dockCurve, snapMsFor,
+  kneeScale, easeIntegralS, dockCurve, snapMsFor, vertexArrival,
 } from '../colliderPhases';
 
 const at = (phase, ms) => timingInto(createTiming(), phase, ms);
@@ -190,6 +190,31 @@ describe('dockCurve', () => {
     expect(peak).toBeGreaterThan(1.06);
     expect(peak).toBeLessThan(1.10);
     expect(Math.abs(1 - dockCurve(TIMELINE.DOCK_MS / 1000))).toBeLessThan(0.03);
+  });
+});
+
+describe('vertexArrival', () => {
+  it('shows each vertex at 30-40% alpha while it is still in flight', () => {
+    // The docking flight is front-loaded (dockCurve ~0.35 at 20ms, ~0.8 at
+    // 40ms). The bond ramp only starts at 40ms, so vertices get their own
+    // earlier ramp: the eye can track them in from the beam tips.
+    expect(vertexArrival(0)).toBe(0);
+    expect(vertexArrival(-0.01)).toBe(0);
+    for (const ms of [10, 20, 30, 38]) {
+      expect(dockCurve(ms / 1000)).toBeLessThan(0.8);
+      expect(vertexArrival(ms / 1000)).toBeGreaterThanOrEqual(0.3);
+      expect(vertexArrival(ms / 1000)).toBeLessThanOrEqual(0.4);
+    }
+    expect(vertexArrival(0.09)).toBe(1);
+  });
+
+  it('never dims on the way in', () => {
+    let prev = 0;
+    for (let ms = 0; ms <= 120; ms += 0.5) {
+      const a = vertexArrival(ms / 1000);
+      expect(a).toBeGreaterThanOrEqual(prev);
+      prev = a;
+    }
   });
 });
 

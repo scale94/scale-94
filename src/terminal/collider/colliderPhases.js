@@ -32,6 +32,9 @@ export const TIMELINE = Object.freeze({
   BOND_BREAK_FROM_MS: 500,
   BOND_BREAK_SPAN_MS: 150,
   BOND_RETRACT_MS: 30,
+  ARRIVE_FROM_MS: 40,
+  ARRIVE_TO_MS: 90,
+  VERTEX_TRANSIT_IN_MS: 8,
   VERTEX_FADE_FROM_MS: 650,
   VERTEX_FADE_TO_MS: 750,
   CAGE_END_MS: 800,
@@ -60,6 +63,7 @@ export const GEOMETRY = Object.freeze({
 export const GAINS = Object.freeze({
   INGRESS: 0.55, NEEDLE: 1.2, BOND: 1.1, VERTEX: 1.6,
   SHOCK: 1.6, GLINT: 2.5, RING: 0.9, SHADOW: 0.35,
+  VERTEX_TRANSIT: 0.35,
 });
 
 // Frequencies keep the ratios of benzene's real vibrational modes, scaled into
@@ -129,6 +133,23 @@ export function dockCurve(tSec) {
   const w = GEOMETRY.DOCK_OMEGA;
   const k = Math.sqrt(1 - z * z);
   return 1 - Math.exp(-z * w * tSec) * (Math.cos(w * k * tSec) + (z / k) * Math.sin(w * k * tSec));
+}
+
+const smoothstep01 = (a, b, x) => {
+  const t = clamp01((x - a) / (b - a));
+  return t * t * (3 - 2 * t);
+};
+
+// Vertex alpha along its (staggered) docking flight, tSec from its own start.
+// Rises to GAINS.VERTEX_TRANSIT within VERTEX_TRANSIT_IN_MS so the eye tracks
+// it in from the beam tips, then joins the bond ramp (ARRIVE_FROM..TO) to 1.
+// The cage shader's vertexArrival() is this function.
+export function vertexArrival(tSec) {
+  const ms = tSec * 1000;
+  return Math.max(
+    GAINS.VERTEX_TRANSIT * smoothstep01(0, TIMELINE.VERTEX_TRANSIT_IN_MS, ms),
+    smoothstep01(TIMELINE.ARRIVE_FROM_MS, TIMELINE.ARRIVE_TO_MS, ms),
+  );
 }
 
 export function createTiming() {

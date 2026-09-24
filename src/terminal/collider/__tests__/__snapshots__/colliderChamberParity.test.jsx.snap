@@ -534,7 +534,7 @@ exports[`ColliderChamber GL traffic > frozen GL call log 1`] = `
     "getUniformLocation("program:7", "uNeedleA")",
     "getUniformLocation("program:7", "uBeams")",
     "createShader(35633)",
-    "shaderSource("shader:10", "src:5999:f7679deb")",
+    "shaderSource("shader:10", "src:6531:bc0c4f64")",
     "compileShader("shader:10")",
     "getShaderParameter("shader:10", 35713)",
     "createShader(35632)",
