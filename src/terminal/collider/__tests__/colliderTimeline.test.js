@@ -24,7 +24,7 @@ describe('collision timeline', () => {
 
   it('every emission is exactly zero from EMISSION_END_MS on', () => {
     expect(TIMELINE.EMISSION_END_MS).toBe(2400);
-    for (const ms of [2400, 2450, 2499, 2500, 9000]) {
+    for (const ms of [2400, 2401, 2425, 2450, 2499, 2500, 9000]) {
       for (const v of envelopes(at('colliding', ms))) expect(v).toBe(0);
     }
   });
