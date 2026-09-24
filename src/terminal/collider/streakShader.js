@@ -29,6 +29,7 @@ ${RIBBON_VS_CHUNK}
 ${GLSL_HUE2RGB}
 ${GLSL_HASH}
 const float TAU       = 6.28318530718;
+const float PI        = 3.14159265359;
 const float ACCEL_S   = ${f(ACCELERATE_MS / 1000)};
 const float W_WALL    = ${f(GEOMETRY.W_WALL)};
 const float KAPPA_LO  = ${f(GEOMETRY.KAPPA_LO)};
@@ -66,20 +67,25 @@ float easeIntegral(float t) {
 // A point on one side's beam at travel s (0 wall .. 1 core). The envelope
 // W(s) = W_WALL * exp(-kappa s) pinches toward the core and sharpens with
 // ease; turbulence lives at the wall and dies toward the core (spec §5.3).
-vec2 beamPoint(float s, float side, float lane, float strand, float m, float ease, float t, out float bright) {
+// The beams leave the walls on the centre line and converge on the impact
+// locus, where the shock, glint, cage, needles and fronts all sit. helix
+// returns the volatile braid's phase at s, for the depth cue in main().
+vec2 beamPoint(float s, float side, float lane, float strand, float m, float ease, float t, out float helix) {
   vec2 c = uRes * 0.5;
-  float x = side < 0.0 ? mix(0.0, c.x, s) : mix(uRes.x, c.x, s);
+  vec2 L = c + uLocus;
+  float x = side < 0.0 ? mix(0.0, L.x, s) : mix(uRes.x, L.x, s);
+  float y = mix(c.y, L.y, s);
   float W = W_WALL * exp(-mix(KAPPA_LO, KAPPA_HI, ease) * s);
   // heavy: one coherent ribbon fluttering ~2.5 times over the whole travel
   float flutter = 0.6 * sin(TAU * 2.5 * s - t * 2.0 + side * 1.3);
   // volatile: three strands, a helix seen side-on, 12-18 cycles
   float ph = TAU * mix(18.0, 12.0, m) * s + strand * (TAU / 3.0) - t * 6.0;
   float braid = 0.35 * cos(ph);
-  bright = mix(0.6 + 0.4 * sin(ph), 1.0, m);
+  helix = ph;
   float off = W * (mix(0.25, 0.6, m) * lane + mix(braid, flutter, m));
   float fall = (1.0 - s) * (1.0 - s) * (1.0 - ease);
   vec2 turb = curl(vec2(x * 0.012, (c.y + lane * 20.0) * 0.05) + t * 0.35) * (A_TURB * fall);
-  return vec2(x + turb.x, c.y + off + turb.y);
+  return vec2(x + turb.x, y + off + turb.y);
 }
 
 void main() {
@@ -119,10 +125,15 @@ void main() {
     float phT = birth + v0 * tt + V1 * easeIntegral(tt);
     float s = fract(ph);
     float st = max(s - (ph - phT), 0.0);   // same lap as the head; clamps at the wall
-    float bH;
-    float bT;
-    head = beamPoint(s, side, lane, strand, m, ease, t, bH);
-    tail = beamPoint(st, side, lane, strand, m, ease, tt, bT);
+    float hxH;
+    float hxT;
+    head = beamPoint(s, side, lane, strand, m, ease, t, hxH);
+    tail = beamPoint(st, side, lane, strand, m, ease, tt, hxT);
+    // Braid depth cue, sampled at the head for the whole streak. Slow, it
+    // reads as strands crossing; fast, a streak spans more than PI of helix
+    // phase and the cue would strobe at 34-42 Hz, so its swing fades out.
+    float dph = abs(hxH - hxT);
+    float bH = mix(0.6 + 0.4 * clamp(1.0 - dph / PI, 0.0, 1.0) * sin(hxH), 1.0, m);
     // Ingress/egress ramps: no pop-in at the wall, no pop-out at the core.
     alpha = smoothstep(0.0, 0.03, s) * smoothstep(1.0, 0.97, s) * (0.35 + 0.65 * ease) * bH * G_INGRESS;
     halfW = mix(0.35, 0.7, m);

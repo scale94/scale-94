@@ -150,3 +150,25 @@ describe('derivatives stay in uniform control flow', () => {
     expect(derivAfterExit(src)).toEqual([]);
   });
 });
+
+describe('streak ingress', () => {
+  const beamPoint = STREAK_VS.match(/vec2 beamPoint\([^]*?\n\}/)[0];
+
+  it('converges both beams on the impact locus, not the canvas centre', () => {
+    // The shock, glint, cage, needles and fronts sit at c + uLocus; a beam
+    // aimed at c would make the core jump sideways at T-0.
+    expect(beamPoint).toMatch(/vec2 L = c \+ uLocus;/);
+    expect(beamPoint).toMatch(/mix\(0\.0, L\.x, s\)/);
+    expect(beamPoint).toMatch(/mix\(uRes\.x, L\.x, s\)/);
+    expect(beamPoint).toMatch(/float y = mix\(c\.y, L\.y, s\);/);
+    expect(beamPoint).not.toMatch(/mix\([^;]*\bc\.x,\s*s\)/);
+  });
+
+  it('fades the braid depth cue out as a streak spans more helix phase', () => {
+    // Sampled once at the head for the whole streak: at full velocity the
+    // bare 0.4 swing strobed at 34-42 Hz.
+    expect(STREAK_VS).toContain('float dph = abs(hxH - hxT);');
+    expect(STREAK_VS).toContain('0.6 + 0.4 * clamp(1.0 - dph / PI, 0.0, 1.0) * sin(hxH)');
+    expect(STREAK_VS).not.toMatch(/0\.6 \+ 0\.4 \* sin\(/);
+  });
+});
