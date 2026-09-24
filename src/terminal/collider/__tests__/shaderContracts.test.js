@@ -2,6 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { STREAK_VS, STREAK_UNIFORMS } from '../streakShader';
 import { RIBBON_FS } from '../ribbonShader';
 import { glslFloat, glslFloatArray } from '../glsl';
+import { CAGE_VS, CAGE_UNIFORMS } from '../cageShader';
+import { COMPOSITE_VS, COMPOSITE_FS, COMPOSITE_UNIFORMS } from '../compositeShader';
+import { KNEE } from '../colliderPhases';
 
 // Pulls every `uniform <type> <name>` declaration out of a GLSL source,
 // dropping any `[n]` array suffix.
@@ -11,6 +14,8 @@ function declaredUniforms(src) {
 
 const PROGRAMS = [
   ['streak', STREAK_VS, RIBBON_FS, STREAK_UNIFORMS],
+  ['cage', CAGE_VS, RIBBON_FS, CAGE_UNIFORMS],
+  ['composite', COMPOSITE_VS, COMPOSITE_FS, COMPOSITE_UNIFORMS],
 ];
 
 describe.each(PROGRAMS)('%s program', (name, vs, fs, contract) => {
@@ -55,5 +60,25 @@ describe('glslFloat', () => {
   });
   it('builds a GLSL float array constructor', () => {
     expect(glslFloatArray([0.22, 1])).toBe('float[2](0.22, 1.0)');
+  });
+});
+
+describe('composite knee', () => {
+  it('uses the tested knee constant', () => {
+    expect(COMPOSITE_FS).toContain(`const float KNEE = ${KNEE}`);
+  });
+  it('compresses by the max channel, never by luminance', () => {
+    expect(COMPOSITE_FS).toMatch(/max\(c\.r,\s*max\(c\.g,\s*c\.b\)\)/);
+    expect(COMPOSITE_FS).not.toMatch(/0\.2126|0\.7152|0\.0722/);
+  });
+});
+
+describe('cage vibration', () => {
+  it('moves geometry only: the mode envelope never reaches alpha or colour', () => {
+    // env.* are the modal displacements; if any appears on an alpha or vCol
+    // line the cage would strobe.
+    for (const line of CAGE_VS.split('\n')) {
+      if (/alpha\s*=|vCol\s*=|col\s*=/.test(line)) expect(line).not.toMatch(/env\./);
+    }
   });
 });
