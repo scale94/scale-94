@@ -64,7 +64,7 @@ A deterministic, syntax-highlighted Rust document. Same inputs → same kernel. 
 | `Sokushinbutsu.entropy_lock` | Lunar transit matrix (auto-compiled at quintessence time) | derived |
 | `NecromanticEngine.bpm` | Feigenbaum-processed bsky trend velocity — derived, not a choice; computed via the engine coupling (§3.5), calibrated so 160 = chaos onset | derived |
 | `PlataOPlomo` verdict | `bpm >= 160 → Plata` (vitality through corruption), `< 160 → Plomo` (calcification) | derived |
-| `ShlomoState` | Mercury element: Fire/Air (bosons, force) → `TheDevil`, mask dropped; Earth/Water (fermions, structure) → `TheMask`, armor retained | spine |
+| `DaemonState` | Mercury element: Fire/Air (bosons, force) → `TheDevil`, mask dropped; Earth/Water (fermions, structure) → `TheMask`, armor retained | spine |
 | `SystemAtom` role | Same element choice: boson vs fermion | spine |
 | Panic handler | Inherited verbatim in every kernel — failure calcifies, never crashes | constant |
 
@@ -189,7 +189,7 @@ Existing code touched: KernelTab.jsx (replaced content), MercuryTab.jsx (altar i
 
 ## 11 · Genome upgrade: Fish Scale 11.1 → 11.2 (Amendment B)
 
-The allegorical genome (`src/fish_scale_kernel_11.1.rs`) currently fails its own Execution Test (Axiomatic Law Ⅰ) on two counts. Version 11.2 heals both while leaving every allegorical structure untouched — Pirarucu, Narcos, PlataOPlomo, Sokushinbutsu, Shlømo, NecromanticEngine, and the calcifying panic handler all survive verbatim in name, role, and doc-comment voice.
+The allegorical genome (`src/fish_scale_kernel_11.1.rs`) currently fails its own Execution Test (Axiomatic Law Ⅰ) on two counts. Version 11.2 heals both while leaving every allegorical structure untouched — Pirarucu, Narcos, PlataOPlomo, Sokushinbutsu, Daemon, NecromanticEngine, and the calcifying panic handler all survive verbatim in name, role, and doc-comment voice.
 
 1. **Remove `#![feature(alloc_error_handler)]`** — nightly-only and unused (nothing allocates). 11.2 compiles on stable Rust as a sound `no_std` crate.
 2. **Make the levamisole exploit real.** `inject_levamisole` currently casts `&T → *mut T → &mut T`: undefined behavior. The comments already promise `UnsafeCell` ("Malware (UnsafeCell) disguised as a texture pack") — the code just never delivers it. In 11.2, `Pirarucu.armor` becomes `UnsafeCell<T>` and the exploit reads/writes through it: still `unsafe`-flavored, still corruption, but *sanctioned* corruption the type system acknowledges — which is precisely the kernel's thesis (managed corruption, not raw violation). UB is a lie the code tells itself; `UnsafeCell` is a sin the compiler co-signs.

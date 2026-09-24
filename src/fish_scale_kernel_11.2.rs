@@ -116,30 +116,31 @@ impl Sokushinbutsu {
 }
 
 // =============================================================================
-// 3. THE DAEMON LAYER (Shlømo)
+// 3. THE DAEMON LAYER
 // =============================================================================
 
-/// **SHLØMO**
+/// **DAEMON**
 ///
 /// The Daemon process.
 /// * `Devil`: The primal, authentic self (Kernel Mode).
 /// * `Mask`: The social/promo persona (User Mode).
-enum ShlomoState {
+enum DaemonState {
     TheMask, // Restricted, safe, polite.
     TheDevil, // Unrestricted, dangerous, authentic.
 }
+const DAEMON: DaemonState = DaemonState::TheDevil;
 
 struct Daemon {
-    state: ShlomoState,
+    state: DaemonState,
 }
 
 impl Daemon {
     /// The system demands "dropping the mask" to achieve the "Superfluid" state.
     pub fn drop_the_mask(&mut self) {
         match self.state {
-            ShlomoState::TheMask => {
+            DaemonState::TheMask => {
                 // Transition to Kernel Mode (The Devil)
-                self.state = ShlomoState::TheDevil;
+                self.state = DaemonState::TheDevil;
             }
             _ => {}
         }

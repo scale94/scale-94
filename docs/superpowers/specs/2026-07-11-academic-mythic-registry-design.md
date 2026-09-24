@@ -41,7 +41,7 @@ A lens renders as one tagged doc-comment line inside the existing structure comm
 | Kernel structure | Owning discipline | Tier | Band input |
 |---|---|---|---|
 | Header vial line (replaces `VIAL_LINES`) | **Literature & Philology** | Humanities | — (tint + seed only) |
-| `ShlomoState` daemon | **Cognitive Science ⇄ Mythology** | Overlap | daemon (TheMask/TheDevil) |
+| `DaemonState` daemon | **Cognitive Science ⇄ Mythology** | Overlap | daemon (TheMask/TheDevil) |
 | `Pirarucu` armor + dryness (replaces part of the Narcos/armor comments) | **Chemistry ⇄ Alchemy** | Overlap | dryness 0–100 |
 | `Narcos` payload (replaces `CORRUPTION_LINES`) | **Semiotics** | Soft sciences | trend velocity |
 | `use core::…` imports (the kernel's grammar) | **Linguistics** | Soft sciences | — (the artifact's own syntax read as a dead tongue that executes) |

@@ -234,8 +234,8 @@ use core::cell::UnsafeCell;
 /// ${lensFor('vial_header', ctx, rng)}
 /// ${lensFor('daemon', ctx, rng)}
 /// element: ${spine.element} · role: ${el.atom} · daemon compiled ${el.daemon === 'TheDevil' ? 'unmasked' : 'masked'}
-enum ShlomoState { TheMask, TheDevil }
-const DAEMON: ShlomoState = ShlomoState::${el.daemon};
+enum DaemonState { TheMask, TheDevil }
+const DAEMON: DaemonState = DaemonState::${el.daemon};
 
 /// **PIRARUCU** — the armored ideal, tempered by one olfactory phase.
 /// ${lensFor('pirarucu', ctx, rng)}
