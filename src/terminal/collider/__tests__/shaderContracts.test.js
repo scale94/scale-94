@@ -96,3 +96,57 @@ describe('cage depth cue', () => {
     expect(returnLine).not.toMatch(/clamp\(\s*r\.z/);
   });
 });
+
+// Brace-matched `for` loop bodies of a GLSL source, comments stripped. A
+// body is the balanced `{ ... }` after the header's balanced `( ... )`, or the
+// single statement up to `;` when there are no braces. Nested loops appear
+// both inside their parent's body and as entries of their own.
+function forLoopBodies(src) {
+  const code = src.replace(/\/\/[^\n]*/g, '').replace(/\/\*[^]*?\*\//g, '');
+  const bodies = [];
+  const re = /\bfor\s*\(/g;
+  let m;
+  while ((m = re.exec(code)) !== null) {
+    let i = m.index + m[0].length;
+    for (let depth = 1; depth > 0 && i < code.length; i++) {
+      if (code[i] === '(') depth++;
+      else if (code[i] === ')') depth--;
+    }
+    while (/\s/.test(code[i])) i++;
+    if (code[i] !== '{') {
+      bodies.push(code.slice(i, code.indexOf(';', i) + 1));
+      continue;
+    }
+    const start = i;
+    i++;
+    for (let depth = 1; depth > 0 && i < code.length; i++) {
+      if (code[i] === '{') depth++;
+      else if (code[i] === '}') depth--;
+    }
+    bodies.push(code.slice(start, i));
+  }
+  return bodies;
+}
+
+const EXITS = /\b(continue|break|discard)\b/;
+const DERIVS = /\b(fwidth|dFdx|dFdy)\s*\(/;
+const derivAfterExit = (src) => forLoopBodies(src).filter((b) => EXITS.test(b) && DERIVS.test(b));
+
+describe('derivatives stay in uniform control flow', () => {
+  it('the loop scanner brace-matches and would catch a violation', () => {
+    const bad = 'void main() {\n  for (int k = 0; k < (3); k++) {\n    if (a[k] <= 0.0) { continue; }\n'
+      + '    for (int j = 0; j < 2; j++) { x += 1.0; }\n    y += fwidth(d);\n  }\n  z = fwidth(q);\n}';
+    expect(forLoopBodies(bad)).toHaveLength(2);
+    expect(derivAfterExit(bad)).toHaveLength(1);
+    expect(derivAfterExit('for (int k = 0; k < 3; k++) { y += fwidth(d); }\nif (b) return;')).toHaveLength(0);
+  });
+
+  it.each([
+    ['FIELD_FS', FIELD_FS], ['RIBBON_FS', RIBBON_FS], ['STREAK_VS', STREAK_VS],
+    ['CAGE_VS', CAGE_VS], ['COMPOSITE_FS', COMPOSITE_FS],
+  ])('%s: no loop body mixes continue/break/discard with fwidth/dFdx/dFdy', (_name, src) => {
+    // GLSL ES 3.00 leaves derivatives undefined in non-uniform control flow;
+    // SwiftShader returns 0 there, which erased every Schlieren front.
+    expect(derivAfterExit(src)).toEqual([]);
+  });
+});

@@ -129,9 +129,12 @@ void main() {
   // lobe with per-channel dispersion, shadow inner lobe into coverage.
   vec3 tint = mix(vec3(1.0), hue2rgb(uHue.z), 0.5);
   vec2 e = vec2(q.x, q.y * RING_ASPECT);
+  // fwidth() below needs uniform control flow (GLSL ES 3.00 gives no
+  // defined derivatives otherwise; SwiftShader returns 0 and every lobe
+  // vanishes). So no early continue/break in this loop: A already scales
+  // both the light and the shadow terms, so a dead front adds exactly 0.
   for (int k = 0; k < 3; k++) {
     float A = uRingA[k];
-    if (A <= 0.0) continue;
     float R = uRingR[k] * RING_RK[k] * uRes.x;
     float rr = RING_ROUND * R;
     float dHex = sdHexagon(e, R - rr) - rr;
