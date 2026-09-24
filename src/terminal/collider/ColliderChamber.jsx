@@ -169,6 +169,7 @@ function paintChamber(host, elapsedMs, ctx, clockS) {
     gl.bindTexture(gl.TEXTURE_2D, A.tex);
     gl.uniform1i(K.U.uAccum, 0);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    gl.bindTexture(gl.TEXTURE_2D, null); // never leave the render target bound for sampling
   }
 }
 
@@ -176,15 +177,18 @@ function paintChamber(host, elapsedMs, ctx, clockS) {
 // shot at exact instants (spec §8). Possible only because every frame is a
 // pure function of (phase, ms). `import.meta.env.DEV` is written WITHOUT
 // optional chaining so Vite replaces it with a literal and the production
-// build folds this to null, taking the whole hook with it.
+// build folds this to null, taking the whole hook with it. Releasing
+// (scrubPhase null) hands back to whoever paints normally: the loop's next
+// frame, or -- with the loop halted -- snap(), the phase's settled instant.
 const installScrub = import.meta.env.DEV
-  ? (ctxRef, hostRef) => {
+  ? (ctxRef, hostRef, snap) => {
     if (typeof window === 'undefined') return undefined;
     window.__scentScrub = (scrubPhase, ms) => {
       const ctx = ctxRef.current;
       ctx.scrub = scrubPhase == null ? null : { phase: scrubPhase, ms: Number.isFinite(ms) ? ms : 0 };
       const host = hostRef.current;
-      if (host) paintChamber(host, 0, ctx);
+      if (!ctx.scrub) snap();
+      else if (host) paintChamber(host, 0, ctx);
       return ctx.scrub;
     };
     return () => { delete window.__scentScrub; };
@@ -341,7 +345,7 @@ export default function ColliderChamber({
     return () => ro.disconnect();
   }, [hostRef, snap]);
 
-  useEffect(() => (installScrub ? installScrub(ctxRef, hostRef) : undefined), [hostRef]);
+  useEffect(() => (installScrub ? installScrub(ctxRef, hostRef, snap) : undefined), [hostRef, snap]);
 
   return (
     <div

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
 import { render } from '@testing-library/react';
+import { DEFAULT_MASS } from '../domainMass';
 import { driveFrames } from '../../gl/__tests__/driveFrames';
 import { installRecordingGL } from '../../gl/__tests__/recordingGL';
 import ColliderChamber from '../ColliderChamber';
@@ -72,6 +73,15 @@ describe('ColliderChamber GL traffic', () => {
     expect(firstDisable).toBeLessThan(composites[1]); // [0] is the field, [1] the composite
   });
 
+  it('unbinds the accumulator from TEXTURE0 after the composite draw', () => {
+    const { frames } = drive({ phase: 'colliding', beams: BEAMS }, 2);
+    const draws = frames.map((l, i) => (l === 'drawArrays(5, 0, 4)' ? i : -1)).filter((i) => i >= 0);
+    const composite = draws[1]; // [0] is the field
+    const nextFrame = frames.indexOf('clear(16384)', composite);
+    const tail = frames.slice(composite + 1, nextFrame < 0 ? undefined : nextFrame);
+    expect(tail).toContain(`bindTexture(${0x0de1}, null)`);
+  });
+
   it('skips the cage draw once the cage window has closed', () => {
     const { frames } = drive({ phase: 'colliding', beams: BEAMS, phaseStartedAt: -1000 }, 4);
     expect(frames).not.toContain('drawArraysInstanced(5, 0, 4, 60)');
@@ -137,5 +147,32 @@ describe('ColliderChamber GL traffic', () => {
       rec.restore();
       vi.unstubAllGlobals();
     }
+  });
+});
+
+describe('ColliderChamber accumulator and mass props', () => {
+  it.each([
+    [HALF, 'half-float'],
+    [[], 'screen'],
+  ])('reports data-chamber-accum for extensions %j as %s', (extensions, mode) => {
+    const rec = installRecordingGL({ version: 2, extensions });
+    try {
+      const { container } = render(<ColliderChamber {...props()} />);
+      expect(container.querySelector('[data-chamber-renderer]').dataset.chamberAccum).toBe(mode);
+    } finally {
+      rec.restore();
+    }
+  });
+
+  it.each([
+    [NaN, 0.7, [DEFAULT_MASS, 0.7]],
+    [undefined, NaN, [DEFAULT_MASS, DEFAULT_MASS]],
+    [0.3, undefined, [0.3, DEFAULT_MASS]],
+  ])('uploads DEFAULT_MASS for a non-finite mass (massA %s, massB %s)', (massA, massB, want) => {
+    expect(DEFAULT_MASS).toBe(0.5);
+    const { frames } = drive({ phase: 'accelerating', massA, massB }, 2);
+    const up = frames.filter((l) => l.startsWith('uniform2f(') && l.includes(':uMass"'));
+    expect(up.length).toBeGreaterThan(0);
+    for (const l of up) expect(JSON.parse(`[${l.slice(l.indexOf(',') + 1, -1)}]`)).toEqual(want);
   });
 });

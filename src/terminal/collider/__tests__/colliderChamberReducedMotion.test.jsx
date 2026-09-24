@@ -41,6 +41,23 @@ describe('ColliderChamber under prefers-reduced-motion', () => {
     expect(accel[accel.length - 1].slice(2)).toEqual([1, 1]);
   });
 
+  it('resolves the half-float accumulator through the composite in the snap', () => {
+    rec.restore();
+    rec = installRecordingGL({ version: 2, extensions: ['EXT_color_buffer_float'] });
+    render(<ColliderChamber phase="colliding" {...base} />);
+    const comp = rec.log.find((e) => e[0] === 'getUniformLocation' && e[2] === 'uAccum')[1];
+    const use = rec.log.findIndex((e) => e[0] === 'useProgram' && e[1] === comp);
+    expect(use).toBeGreaterThan(-1);
+    const next = rec.log.slice(use + 1);
+    const draw = next.findIndex((e) => e[0] === 'drawArrays');
+    expect(draw).toBeGreaterThan(-1);
+    expect(next.slice(0, draw).some((e) => e[0] === 'useProgram')).toBe(false); // still the composite
+    // ...into the canvas: the last framebuffer bound before it is the default.
+    const fbos = rec.log.slice(0, use).filter((e) => e[0] === 'bindFramebuffer');
+    expect(fbos.length).toBeGreaterThan(1);
+    expect(fbos[fbos.length - 1]).toEqual(['bindFramebuffer', 0x8d40, null]);
+  });
+
   it('repaints after a resize, since resizing the canvas clears it', () => {
     // jsdom has no ResizeObserver: capture the chamber's callback instead.
     let fire = null;
