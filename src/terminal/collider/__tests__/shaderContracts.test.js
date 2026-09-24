@@ -5,6 +5,7 @@ import { glslFloat, glslFloatArray } from '../glsl';
 import { CAGE_VS, CAGE_UNIFORMS } from '../cageShader';
 import { COMPOSITE_VS, COMPOSITE_FS, COMPOSITE_UNIFORMS } from '../compositeShader';
 import { KNEE } from '../colliderPhases';
+import { FIELD_VS, FIELD_FS, FIELD_UNIFORMS } from '../fieldShader';
 
 // Pulls every `uniform <type> <name>` declaration out of a GLSL source,
 // dropping any `[n]` array suffix.
@@ -13,6 +14,7 @@ function declaredUniforms(src) {
 }
 
 const PROGRAMS = [
+  ['field', FIELD_VS, FIELD_FS, FIELD_UNIFORMS],
   ['streak', STREAK_VS, RIBBON_FS, STREAK_UNIFORMS],
   ['cage', CAGE_VS, RIBBON_FS, CAGE_UNIFORMS],
   ['composite', COMPOSITE_VS, COMPOSITE_FS, COMPOSITE_UNIFORMS],

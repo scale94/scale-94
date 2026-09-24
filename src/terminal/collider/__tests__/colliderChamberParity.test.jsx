@@ -5,6 +5,7 @@ import { driveFrames } from '../../gl/__tests__/driveFrames';
 import { installRecordingGL } from '../../gl/__tests__/recordingGL';
 import ColliderChamber from '../ColliderChamber';
 
+const HALF = ['EXT_color_buffer_float'];
 const BEAMS = Array.from({ length: 16 }, (_, i) => ({
   angle: (i / 16) * Math.PI * 2 - Math.PI / 2,
   mag: 0.2 + (i % 5) * 0.15,
@@ -13,89 +14,101 @@ const BEAMS = Array.from({ length: 16 }, (_, i) => ({
 }));
 
 const props = (over = {}) => ({
-  phase: 'idle', hueA: 280, hueB: 120, selA: false, selB: false,
+  phase: 'idle', hueA: 280, hueB: 120, selA: false, selB: false, massA: 0.2, massB: 0.7,
   beams: null, metrics: null, phaseStartedAt: 0, ...over,
 });
 
-function drive(over, frames = 12) {
+function drive(over, frames = 12, extensions = HALF) {
   return driveFrames(
     () => {
       const r = render(<ColliderChamber {...props(over)} />);
       return { unmount: r.unmount, rerender: r.rerender };
     },
-    { frames, version: 2 }
+    { frames, version: 2, extensions }
   );
 }
+const names = (lines) => lines.map((l) => l.slice(0, l.indexOf('(')));
 
 describe('ColliderChamber GL traffic', () => {
-  it('builds two programs and one seed buffer at init', () => {
+  it('builds four programs, three buffers and two instanced VAOs at init', () => {
+    const n = names(drive({}).init);
+    expect(n.filter((x) => x === 'createProgram')).toHaveLength(4); // field, streak, cage, composite
+    expect(n.filter((x) => x === 'bufferData')).toHaveLength(3);    // quad, seeds, cage instances
+    expect(n.filter((x) => x === 'vertexAttribDivisor')).toHaveLength(2);
+  });
+
+  it('allocates a half-float accumulator when the extension exists', () => {
     const { init } = drive({});
-    const names = init.map(l => l.slice(0, l.indexOf('(')));
-    // glHost's field program + the particle program built inside onInit.
-    expect(names.filter(n => n === 'createProgram')).toHaveLength(2);
-    expect(names.filter(n => n === 'bufferData')).toHaveLength(2); // quad + seeds
-    expect(names).toContain('createVertexArray');
+    expect(init).toContain('getExtension("EXT_color_buffer_float")');
+    expect(init.some((l) => l.startsWith('texImage2D(') && l.includes(`${0x881a}`) && l.includes(`${0x140b}`)))
+      .toBe(true);
+    expect(names(init)).toContain('createFramebuffer');
   });
 
-  it('draws both passes every frame, quad then points', () => {
-    const { frames } = drive({ phase: 'colliding', phaseStartedAt: 0 });
-    const draws = frames.filter(l => l.startsWith('drawArrays'));
-    expect(draws.length).toBeGreaterThan(0);
-    // TRIANGLE_STRIP is 5, POINTS is 0.
-    expect(draws[0]).toBe('drawArrays(5, 0, 4)');
-    expect(draws[1]).toBe('drawArrays(0, 0, 4096)');
+  it('falls back to screen blending with no framebuffer when it does not', () => {
+    const { init, frames } = drive({ phase: 'accelerating' }, 12, []);
+    expect(names(init)).not.toContain('createFramebuffer');
+    const blends = frames.filter((l) => l.startsWith('blendFunc'));
+    expect(new Set(blends)).toEqual(new Set([`blendFunc(1, ${0x0301})`]));
+    expect(frames.some((l) => l.startsWith('bindFramebuffer'))).toBe(false);
   });
 
-  it('sets additive blending, never straight alpha, inside the frame', () => {
-    const { frames } = drive({ phase: 'accelerating' });
-    const blends = frames.filter(l => l.startsWith('blendFunc'));
-    expect(blends.length).toBeGreaterThan(0);
-    expect(new Set(blends)).toEqual(new Set(['blendFunc(1, 1)']));
+  it('half-float frame: field, streaks, cage into the accumulator, then one composite', () => {
+    const { frames } = drive({ phase: 'colliding', beams: BEAMS }, 2);
+    expect(frames.filter((l) => l.startsWith('drawArrays')).slice(0, 4)).toEqual([
+      'drawArrays(5, 0, 4)',
+      'drawArraysInstanced(5, 0, 4, 4096)',
+      'drawArraysInstanced(5, 0, 4, 60)',
+      'drawArrays(5, 0, 4)',
+    ]);
   });
 
-  it('uploads all 16 beams as one vec4 array when armed', () => {
-    const { frames } = drive({ phase: 'colliding', beams: BEAMS, phaseStartedAt: 0 }, 120);
-    const up = frames.filter(l => l.startsWith('uniform4fv'));
+  it('colour passes keep accumulator alpha; the composite runs unblended', () => {
+    const { frames } = drive({ phase: 'colliding', beams: BEAMS }, 2);
+    expect(frames).toContain('blendFuncSeparate(1, 1, 0, 1)');
+    const firstDisable = frames.indexOf(`disable(${0x0be2})`);
+    const composites = frames.map((l, i) => (l === 'drawArrays(5, 0, 4)' ? i : -1)).filter((i) => i >= 0);
+    expect(firstDisable).toBeGreaterThan(-1);
+    expect(firstDisable).toBeLessThan(composites[1]); // [0] is the field, [1] the composite
+  });
+
+  it('skips the cage draw once the cage window has closed', () => {
+    const { frames } = drive({ phase: 'colliding', beams: BEAMS, phaseStartedAt: -1000 }, 4);
+    expect(frames).not.toContain('drawArraysInstanced(5, 0, 4, 60)');
+  });
+
+  it('uploads all 16 beams as one vec4 array', () => {
+    const { frames } = drive({ phase: 'colliding', beams: BEAMS }, 4);
+    const up = frames.filter((l) => l.startsWith('uniform4fv') && l.includes(':uBeams"'));
     expect(up.length).toBeGreaterThan(0);
-    // 16 beams x 4 components, flattened into one upload.
-    expect(JSON.parse(`[${up[0].slice(up[0].indexOf('[') + 1, up[0].lastIndexOf(']'))}]`))
-      .toHaveLength(64);
+    expect(JSON.parse(`[${up[0].slice(up[0].indexOf('[') + 1, up[0].lastIndexOf(']'))}]`)).toHaveLength(64);
   });
 
   it('renders past COLLIDE_MS without advancing the phase itself', () => {
-    // The branch's central rule: the render loop may READ state and must never
-    // write it. The chamber is handed phase='colliding' and never handed
-    // anything else, so if it were driving its own transition the uploaded
-    // uPhase would change partway through. 200 frames is 3200ms, well past
-    // COLLIDE_MS (2500) -- the phase must still be colliding on the last frame.
-    const { frames } = drive({ phase: 'colliding', phaseStartedAt: 0 }, 200);
+    // The render loop may READ state and must never write it.
+    const { frames } = drive({ phase: 'colliding' }, 200, []);
     const phases = frames
-      .filter(l => l.startsWith('uniform1f(') && l.includes(':uPhase"'))
-      .map(l => Number(l.slice(l.lastIndexOf(',') + 1, l.lastIndexOf(')'))));
+      .filter((l) => l.startsWith('uniform1f(') && l.includes(':uPhase"'))
+      .map((l) => Number(l.slice(l.lastIndexOf(',') + 1, l.lastIndexOf(')'))));
     expect(phases.length).toBeGreaterThan(100);
-    expect(new Set(phases)).toEqual(new Set([3]));   // PHASE_ID.colliding, never anything else
-    expect(frames.filter(l => l.startsWith('drawArrays')).length).toBe(400);
+    expect(new Set(phases)).toEqual(new Set([3]));
+    expect(frames.filter((l) => l === 'drawArrays(5, 0, 4)')).toHaveLength(200); // one field pass a frame
   });
 
   it('frozen GL call log', () => {
-    expect(drive({ phase: 'colliding', beams: BEAMS, phaseStartedAt: 0 }, 8))
-      .toMatchSnapshot();
+    expect(drive({ phase: 'colliding', beams: BEAMS, selA: true, selB: true }, 8)).toMatchSnapshot();
   });
 
-  it('paints a settled frame under reduced motion, not the impact flash', () => {
-    // onSnap's single frame is permanent when the loop is halted. At elapsed 0
-    // the colliding phase is peak flash and peak shake -- a frozen white wash
-    // is precisely what prefers-reduced-motion asks us not to render.
-    vi.stubGlobal('matchMedia', () => ({
-      matches: true, addEventListener() {}, removeEventListener() {},
-    }));
+  it('paints a settled frame under reduced motion: rings, no shock', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: true, addEventListener() {}, removeEventListener() {} }));
     const rec = installRecordingGL({ version: 2 });
     try {
-      render(<ColliderChamber {...props({ phase: 'colliding', phaseStartedAt: 0 })} />);
-      const bursts = rec.log.filter(e => e[0] === 'uniform4f' && String(e[1]).endsWith('uBurst'));
-      expect(bursts.length).toBeGreaterThan(0);
-      // uBurst is (ring1, ring2, flash, metrics). flash must be 0 by now.
-      for (const b of bursts) expect(b[4]).toBe(0);
+      render(<ColliderChamber {...props({ phase: 'colliding' })} />);
+      const shock = rec.log.filter((e) => e[0] === 'uniform2f' && String(e[1]).endsWith(':uShock'));
+      expect(shock.length).toBeGreaterThan(0);
+      for (const e of shock) expect(e[3]).toBe(0);
+      const rings = rec.log.filter((e) => e[0] === 'uniform3fv' && String(e[1]).endsWith(':uRingA'));
+      expect(rings[rings.length - 1][2][0]).toBeGreaterThan(0.3);
     } finally {
       rec.restore();
       vi.unstubAllGlobals();
