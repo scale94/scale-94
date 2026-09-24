@@ -167,6 +167,25 @@ function paintChamber(host, elapsedMs, ctx) {
   }
 }
 
+// Dev-only: pin the painted phase and elapsed time so a contact sheet can be
+// shot at exact instants (spec §8). Possible only because every frame is a
+// pure function of (phase, ms). `import.meta.env.DEV` is written WITHOUT
+// optional chaining so Vite replaces it with a literal and the production
+// build folds this to null, taking the whole hook with it.
+const installScrub = import.meta.env.DEV
+  ? (ctxRef, hostRef) => {
+    if (typeof window === 'undefined') return undefined;
+    window.__scentScrub = (scrubPhase, ms) => {
+      const ctx = ctxRef.current;
+      ctx.scrub = scrubPhase == null ? null : { phase: scrubPhase, ms: Number.isFinite(ms) ? ms : 0 };
+      const host = hostRef.current;
+      if (host) paintChamber(host, 0, ctx);
+      return ctx.scrub;
+    };
+    return () => { delete window.__scentScrub; };
+  }
+  : null;
+
 export default function ColliderChamber({
   phase, hueA, hueB, selA, selB, massA, massB, beams, metrics, phaseStartedAt, labelA, labelB,
 }) {
@@ -312,6 +331,8 @@ export default function ColliderChamber({
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  useEffect(() => (installScrub ? installScrub(ctxRef, hostRef) : undefined), [hostRef]);
 
   return (
     <div
