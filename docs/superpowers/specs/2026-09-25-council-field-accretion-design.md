@@ -129,7 +129,7 @@ observer at inclination `i` to the disk axis.
 | shadow edge on screen, `b_c = (3√3/2) r_s` | 2.598 r_s | 36.4 u |
 | disk inner edge (ISCO) | 3 r_s | 42 u |
 | disk outer edge | 10 r_s | 140 u — just inside `R_FOUNDATION` (150) |
-| inclination `i` | **open — §9 Q1** | — |
+| inclination `i` | 80° (decided, §9 Q1) | — |
 
 Rev 1 placed its bright ring at 1.5 r_s *on screen*. That was wrong: 1.5 r_s
 is the orbit radius, and its image is the shadow edge at `b_c`. Rev 2 derives
@@ -357,18 +357,40 @@ only through refs. A `ResizeObserver` on the cell calls `host.resize(w, h)`
   in the terminal, so phones at DPR 3 render at 2, as Luna and Scent do
   today. This spec does not change that cap.
 
-## 9. Open decisions and flagged deviations
+## 9. Decisions and flagged deviations
 
-**Q1 — Inclination `i` (open).** Doppler beaming needs a line-of-sight
-velocity, so a face-on disk (`i = 0`) shows no beaming asymmetry. Two
-candidates:
+**Q1 — Inclination: DECIDED 2026-09-25, `i = 80°`** (the Gargantua
+silhouette; `i = 30°` was the alternative, rejected). Consequences written
+into the design:
 
-- **`i ≈ 30°`:** the disk stays nearly circular and concentric with the
-  face-on Council Ring diagram, and the `g⁴` brightness ratio across it is
-  still about 7×.
-- **`i ≈ 80°`:** the NASA / Gargantua silhouette, with the far side of the
-  disk lensed up over the shadow. It is an edge-on object inside a face-on
-  diagram, and it spans ±140 u horizontally.
+- **Orientation.** The disk's line of nodes is horizontal, so its major axis
+  points at the west (canon) and east (sidelined) hemispheres. Projected, the
+  disk is a thin band (`cos 80° ≈ 0.17`) spanning ±140 u. The lensed far
+  side arcs over *and* under the shadow; the secondary image sits as a thin
+  ring on the shadow edge.
+- **Beaming is extreme at this angle, and stays physical.** At the ISCO,
+  the Luminet factor gives `g ≈ 1.5` on the approaching side and `g ≈ 0.46`
+  on the receding side, a `g⁴` ratio of ≈ 125×.
+  - The approaching side clips to blue-white under the tone-map.
+  - The receding side falls to a faint deep-ember glow.
+  - This is not softened. Interstellar dropped Doppler for legibility; this
+    spec keeps it, as the NASA visualisations do.
+- **Which side approaches** is set by one sign (`u_spin_sign`, a
+  compile-time constant). Default `+1`: the **east (sidelined)** side
+  approaches and burns bright, so the instrument readers the species
+  sidelined are the ones rushing toward the viewer. Flipping it hands the
+  bright side to the canon builders. This thematic default is open to veto
+  at spec review.
+- **Collision with the ring furniture.**
+  - The band's horizontal extent (±140 u) stops 10 u short of the
+    social-foundation circle.
+  - The lensed hump rises to ≈ 105 u above and below the centre, inside the
+    seat radius (220 u).
+  - The 2D infall spirals cross the band. The §7.6 sheaths therefore pass in
+    front of the disk: filaments are composited over disk emission, never
+    occluded by it.
+- **γ formula.** At `i = 80°`, `cot²i ≈ 0.031`, so `γ` stays close to `α`
+  except near `α = ±90°`, where the table resolution already concentrates.
 
 **Flagged deviations** from the agreed uniform list:
 
