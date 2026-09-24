@@ -41,15 +41,25 @@ synthesis, ledger and state-machine suites pass unmodified, and
 ```
 <div relative, overflow:hidden, isolation:isolate>   ← existing torus cell
   <canvas 2D>        unchanged (opaque #04040a, phosphor wash, particles)
-  <canvas GL>        NEW — CouncilField, mix-blend-mode: screen, pointer-events:none
-  <svg>              unchanged (scaffold, nodes, labels, hit targets)
+  <canvas GL>        NEW — CouncilField, premultiplied source-over, pointer-events:none
+  <svg>              unchanged except §7.9 (scaffold, nodes, labels, hit targets)
 ```
 
-The GL canvas clears to transparent black each frame and is composited with
-`screen`, so it can only add light. The 2D output beneath is pixel-identical
-to today. `isolation: isolate` on the cell keeps the blend from reaching
-page content outside the ring. If WebGL is unavailable (`onUnsupported`),
-CouncilField renders nothing and the ring behaves exactly as today.
+**Amended 2026-09-25 (rev 2).** Rev 1 composited with `mix-blend-mode:
+screen`. Screen can only add light, so the event-horizon shadow could never
+occlude the 2D infall particles — gold dots would render *inside* the
+horizon. Rev 2 composites the GL canvas with ordinary premultiplied
+source-over (the canvas default with `premultipliedAlpha: true`):
+
+- emissive pixels output `(rgb, a = max(rgb))` — reads as additive glow;
+- shadow pixels output `(0, 0, 0, a_shadow)` — genuinely occludes the 2D
+  layer, so particles vanish as they cross the horizon;
+- everywhere else outputs `(0,0,0,0)` — the 2D layer shows through untouched.
+
+The 2D layer is therefore no longer pixel-identical *where the GL field is
+opaque*; that is the point (§7.8). Its logic and drawing code are unchanged.
+If WebGL is unavailable (`onUnsupported`), CouncilField renders nothing and
+the ring behaves exactly as today.
 
 ## 4. Coordinate space
 
@@ -77,6 +87,10 @@ canvas covers the torus cell, whose aspect equals the SVG's.
 | `u_intensity` | float | 1.0 user cycle · 0.4 ambient cycle | `sim.isUser` |
 | `u_eject` | vec3 | (product angle rad, product targetR, 1 ceiling / −1 foundation) | aligns the jet with the 2D ejecta; **added beyond the agreed list — needed, see §9** |
 | `u_eject_color` | vec3 | `sim.product.color` → RGB | #00FFAA ceiling · #FF0088 foundation |
+| `u_phase_ms` | float | `now − sim.t0` in ms, unclamped | rev 2: the infall sheath needs raw elapsed time because particle delays (0–900 ms) outrun `u_phase_t` |
+| `u_geodesic` | sampler2D | baked once (§7.1) | RG16F, LINEAR — r(b, φ) along each ray |
+| `u_deflect` | sampler2D | baked once (§7.1) | R16F 1024×1, LINEAR — total deflection α̂(b) |
+| `u_matter` | sampler2D | baked once (§7.3) | R8 512×512, REPEAT — tileable noise in (log r, ψ) |
 
 Mapping lives in one pure function, `readFieldUniforms(sim, ui, seated,
 pointer, nowMs)`, returning plain arrays/numbers. It is the unit-tested seam;
@@ -101,56 +115,204 @@ for `sim.t0`.
 4. **No pair** (`sim.pair == null`, or IDLE / COOLDOWN in AMBIENT) —
    filament off; photon ring still renders.
 
-## 7. Visual payload
+## 7. Visual payload (rev 2 — replaces rev 1's reticle)
 
-Composition order inside the fragment shader (all additive, then one
-tone-map):
+### 7.0 Scene geometry
 
-**7.1 Lensed grid + photon ring (always on).**
-A faint polar grid (rings every 20 u, 16 spokes aligned to the seat angles)
-is sampled through a gravitational deflection
-`p' = p − dir · (k · rs² / max(r, rs))` pulling toward `(CX, CY)`, with
-`rs` ≈ 18 u. Grid luminance ≤ 0.05 and fades out before `R_SEAT − 20` so
-node labels keep their contrast. The photon ring is a thin (≈1.2 u) bright
-annulus at `r ≈ 1.5 rs`, Doppler-brightened on one side
-(`1 + 0.35·cos(θ − u_time·0.2)`), slowly precessing. It sits over the
-existing `◉` glyph.
+A Schwarzschild black hole at the ring centre `(CX, CY)`, seen by a distant
+observer at inclination `i` to the disk axis.
 
-**7.2 Tether (ARMED).**
-A geodesic from A to B: the straight chord bent toward the centre by the same
-deflection field (sampled as a quadratic Bézier whose control point is the
-chord midpoint pulled toward CX,CY by `k / dist_to_centre`). Core width
-≈1 u, soft halo ≈6 u, colour gradient `u_colorA → white → u_colorA`
-(single mind), with a travelling tension pulse (`sin(s·40 − u_time·6)`
-modulating brightness ±15%).
+| Quantity | Value | viewBox units |
+|---|---|---|
+| `r_s` (Schwarzschild radius) | — | 14 u |
+| photon-sphere orbit | 1.5 r_s | 21 u (not directly visible) |
+| shadow edge on screen, `b_c = (3√3/2) r_s` | 2.598 r_s | 36.4 u |
+| disk inner edge (ISCO) | 3 r_s | 42 u |
+| disk outer edge | 10 r_s | 140 u — just inside `R_FOUNDATION` (150) |
+| inclination `i` | **open — §9 Q1** | — |
 
-**7.3 Bridge (pair locked).**
-Same geodesic, dual colour `u_colorA → u_colorB`, core brightness ×1.8,
-glowing endpoint discs (radius ≈9 u) in each seat's colour.
+Rev 1 placed its bright ring at 1.5 r_s *on screen*. That was wrong: 1.5 r_s
+is the orbit radius, and its image is the shadow edge at `b_c`. Rev 2 derives
+every on-screen radius from the geodesic tables below, never by hand.
 
-**7.4 INFALL** (`u_phase_t` 0→1): the Bézier control point slides from the
-chord midpoint to the centre along `easeInCubic` (the curve the 2D particles
-use), so the filament is dragged into the horizon. Filament width narrows
-1→0.3; the photon ring brightens ×(1 + 1.5·t).
+Nodes and labels (R_SEAT = 220 u) sit well outside the disk. Beyond
+r = 160 u, nothing in §7 except the filament and jet may exceed linear
+luminance 0.10.
 
-**7.5 FLASH** (`u_phase_t` 0→1): white-hot core, radius
-`rs · (1 + 3·t)`, brightness `(1 − t)²`. Chromatic aberration: the core and
-photon ring are evaluated three times with radial offsets
-(R +1.5 u·(1−t), G 0, B −1.5 u·(1−t)). Only during FLASH, so the 3× cost is
-bounded to 380 ms.
+### 7.1 Geodesic tables — exact Schwarzschild, baked once
 
-**7.6 EJECT** (`u_phase_t` 0→1): a relativistic jet along `u_eject.x`,
-reaching `u_eject.y · easeOutCubic(t)` (the 2D product's path), colour
-`u_eject_color`, a tapered cone (half-angle 4°) with a bright knot at the
-head and `(1 − t)` dissipation along the length. On the opposite side, a
-fainter counter-jet at 30% intensity.
+Photon orbits obey the Binet equation `d²u/dφ² = −u + (3/2) r_s u²`, with
+`u = 1/r`. Because the metric is spherically symmetric, a ray's whole path
+depends only on its impact parameter `b`, so lensing is precomputed rather
+than ray-marched:
 
-**7.7 COOLDOWN** — filament off; photon ring relaxes back to baseline over
-the phase.
+- **`u_geodesic` (512 × 512, RG16F).**
+  - Rows: `b` from 0 to 24 r_s, sampled as `b = b_c + w·sinh(x)` so rows
+    concentrate at the photon ring, where higher-order images are
+    exponentially thin.
+  - Columns: orbital angle `φ` from 0 to 3π.
+  - R: `r(b, φ)` in r_s units, 0 once captured (r ≤ r_s).
+  - G: the sign of `dr/dφ`, so outbound and inbound crossings can be told
+    apart.
+- **`u_deflect` (1024 × 1, R16F).** Total deflection `α̂(b)` for escaping
+  rays (b > b_c), used for background sources (§7.5).
 
-**7.8 Finish.** Tone-map `1 − exp(−c · 1.4)`, then ±0.5/255 ordered-dither
-before output (dark radial gradients on a near-black ground band otherwise).
-Output premultiplied; alpha = max channel.
+`councilGeodesics.js` integrates both tables on the CPU at first mount:
+pure JS, RK4 at a fixed step Δφ = 0.004, deterministic. It caches them at
+module level, and `onInit` uploads them.
+
+- Budget: under 30 ms, once.
+- RG16F and R16F textures support LINEAR filtering in core WebGL2, so no
+  float-linear extension is needed.
+
+### 7.2 The disk image — primary and secondary
+
+Take an image-plane pixel at offset `(X, Y)` from the centre, in r_s units:
+`b = |(X, Y)|`, `α = atan2(Y, X)`. The ray's orbital plane meets the
+inclined disk plane at orbital angle
+`γ = arccos( cos α / sqrt(cos²α + cot²i) )` (Luminet 1979, eq. 10).
+
+- **Primary image (n = 0):** sample `r0 = r(b, γ)`.
+- **Secondary image (n = 1):** sample `r1 = r(b, γ + π)`. This ray wraps
+  behind the hole and shows the far side of the disk from underneath. It is
+  the thin inner ring hugging the shadow, and it is where the caustic
+  structure lives.
+- **n = 2** is skipped: its width is about e^{−2π} of n = 1's, which is
+  sub-pixel at this scale even at DPR 2.
+
+A crossing counts when `3 ≤ r_n ≤ 10` and the ray has not been captured
+before reaching `γ + nπ`. Emission from both images is summed; where both
+land on the disk, the primary occludes the secondary.
+
+If `b < b_c` and the ray crosses no disk, the pixel is **shadow** and
+outputs `(0,0,0,1)`. The shadow edge is never drawn explicitly; it emerges
+from the table.
+
+### 7.3 Disk matter — Keplerian shear without wind-up
+
+- **Rotation.** Angular velocity `Ω(r) = Ω_isco · (r/3)^{−3/2}`, so
+  `v ∝ r^{−1/2}`. The inner edge takes 7 s per orbit and the outer edge
+  ~43 s: slow enough to watch, never frantic.
+- **Matter.** Sampled from `u_matter`, a tileable noise baked at init in
+  `(log r, ψ)` coordinates, where ψ is the disk azimuth of the crossing
+  point, derived from α, i and n. Two octaves take two fetches at different
+  scales. Using log r stretches filaments into the spiral streaks of a
+  sheared disk.
+- **Wind-up.** Advecting directly by `ψ − Ω(r)·t` lets the shear grow
+  without bound. Within minutes neighbouring radii are thousands of radians
+  apart, the texture aliases into moiré, and the disk looks *banded*. The fix
+  uses two flow layers offset by half a period (`T_flow = 14 s`):
+  - each layer is re-seeded while its weight is zero;
+  - the layers are crossfaded with a triangle weight and the contrast is
+    renormalised, so the crossfade does not pulse;
+  - winding is therefore bounded to at most one `T_flow`.
+- **Radial falloff.** Novikov–Thorne-shaped emissivity
+  `F(r) ∝ r^{−3} (1 − sqrt(3/r))`. It is zero at the ISCO, peaks near
+  4.1 r_s and decays outward, giving a soft inner lip instead of a hard edge.
+
+### 7.4 Temperature, Doppler beaming, gravitational redshift
+
+- **Temperature:** `T(r) ∝ r^{−3/4} (1 − sqrt(3/r))^{1/4}`, normalised to a
+  peak of ≈ 12 000 K. This is a render scale, not astrophysical units.
+- **Redshift factor** for a circular Keplerian orbit seen at inclination i
+  (Luminet 1979), in r_s units:
+  `1 + z = (1 − 3/(2r))^{−1/2} · (1 + sqrt(1/(2r³)) · b · sin i · sin α)`,
+  and `g = 1/(1+z)`.
+- **Observed:** `T_obs = g · T(r)` and `I = g⁴ · F(r) · matter`. The
+  approaching side is brighter *and* bluer, the receding side dimmer and
+  redder, and the inner edge shows gravitational redshift.
+- **Colour:** `T_obs` goes through an analytic blackbody-to-linear-sRGB fit
+  along the Planckian locus (1 000–40 000 K). The inner edge is blue-white
+  and the outer edge a deep accretion ember (≈1 800 K, around `#6b1a05`).
+  There are no hand-picked gradient stops.
+
+### 7.5 Tether and bridge — lensed background sources
+
+The tether (ARMED: seat A → `u_pointer`) and the bridge (pair locked: A ↔ B)
+live in the diagram plane. The shader treats that plane as a **background
+source behind the hole**:
+
+- Each pixel's source-plane position is found by un-deflecting along its
+  impact direction by `α̂(b)` from `u_deflect`. The source distance is chosen
+  so the Einstein radius is ≈ 3.5 r_s.
+- The lens term tapers to zero by `r = R_FOUNDATION`, so filament endpoints
+  stay pinned exactly to the SVG node centres.
+- **Intended consequence:** a bridge between near-opposite seats passes
+  through the centre and is lensed into two Einstein arcs around the shadow.
+  A tether whose cursor passes behind the hole wraps around it.
+- **Filament profile:** a distance-field core (1 u) plus a halo
+  `exp(−d²/σ²)` with σ = 5 u.
+  - The tether is `u_colorA` with a white core.
+  - The bridge runs `u_colorA → u_colorB` by arc length, with 9 u endpoint
+    discs.
+  - A travelling tension pulse, `sin(s·0.4 − u_time·6)`, swings brightness
+    by ±15%.
+
+### 7.6 INFALL — the filament becomes the particle streams' sheath
+
+In the 2D draw loop of `useCouncilCollider.js`, each particle follows an
+exact path. Angles are in degrees, using the `polarToXY` convention
+(clockwise from 12 o'clock):
+
+```
+r     = R_SEAT · (1 − easeInCubic(prog))
+θ     = seat.angle + wobble·prog + (SPIRAL_GAIN·180/π)·(1 − r/R_SEAT)
+prog  = (t − delay) / T_INFALL
+delay ∈ [0, 900] ms,  wobble ∈ [−7°, +7°]
+```
+
+The GL infall does not approximate this path. It **is** the path's envelope:
+
+- There are two spiral arms, one per seat, each following that same `θ(r)`
+  curve. Each arm runs from the leading particle (`delay = 0`, from
+  `u_phase_ms`) back to the trailing one (`delay = 900`).
+- An arm's half-width equals the wobble spread at that radius (`7°·prog`,
+  converted to u) plus the 5 u halo, so every 2D particle stays inside its
+  arm's glow.
+- The arm heads accelerate inward on the same `easeInCubic`. At `b_c` they
+  vanish into the shadow, together with the 2D particles, which the shadow
+  now occludes (§3 rev 2).
+- The disk brightens by `× (1 + 1.2·u_phase_t)` as matter feeds it.
+
+Test §10.3 ports the path to a JS mirror of the GLSL and asserts it matches
+the 2D loop's `(x, y)` to within 1e-6 u across the phase.
+
+### 7.7 FLASH — detonation at the horizon
+
+- **White-hot core.** A Gaussian with radius `r_c = b_c·(1 + 2.5·t)` and a
+  peak linear luminance of 6.0 before tone-mapping. It clips to white and
+  engulfs the 2D gold dot (radius ≤ 48 u).
+- **Chromatic aberration.** The disk and core are evaluated three times,
+  with R and B shifted radially by `±1.8 u·(1 − t)`. That triples the disk
+  cost, but only for FLASH's 380 ms.
+- **Photon-ring flare.** The n = 1 image brightens by `× (1 + 8·(1−t)²)`, a
+  ring of light racing around the shadow.
+
+### 7.8 EJECT — relativistic jet
+
+- **Axis and head.** The jet runs along `u_eject.x`, with its head at
+  `u_eject.y · easeOutCubic(u_phase_t)`: the same position as the 2D product
+  dot.
+- **Profile.** A cone with a 3° half-angle and emission
+  `∝ (1 − s/L)^{0.5}` along its length. The 7 u knot at the head is larger
+  than the 2D dot (≤ 4.5 u), so it envelops the dot.
+- **Beaming.** The jet is relativistic (Γ ≈ 3):
+  - the approaching jet takes `D⁴` Doppler boosting;
+  - the counter-jet takes the receding factor, leaving it at ~1% brightness,
+    faint but present.
+- **Colour.** `u_eject_color`, pushed to white in the knot core.
+- **Dissipation.** Emission decays as `(1 − u_phase_t)^{1.5}`. The boundary
+  flash at the ceiling or foundation stays in the 2D layer, which already
+  draws it.
+
+### 7.9 Finish
+
+- Tone-map with `1 − exp(−1.4·c)`, then apply a ±0.5/255 ordered dither
+  before output.
+- Output is premultiplied, per §3 rev 2.
+- **SVG change (visual only):** `RingScaffold`'s centre glyph `◉` is hidden
+  while CouncilField is live, because the rendered shadow replaces it. It
+  stays when WebGL is unavailable.
 
 ## 8. Lifecycle (shared harness)
 
@@ -161,44 +323,106 @@ premultipliedAlpha: true, antialias: false }`, `blend: 'premultiplied'`,
 only through refs. A `ResizeObserver` on the cell calls `host.resize(w, h)`
 (height = `w · 640/980`), then `snap()`.
 
-**Reduced motion:** the harness loop halts; `onSnap` paints one frame —
-photon ring and, if ARMED/locked, a static filament. Re-snapped on UI-mode
-change. The 2D collider and synthesis are unaffected (they never depended on
-the harness).
+- **`onInit`** uploads the three baked textures (§7.1, §7.3).
+- **`onDispose`** deletes them before the host deletes the program.
+- **Reduced motion:** the harness loop halts and `onSnap` paints one frame:
+  the disk at `t = 0`, plus a static filament if ARMED or locked. It
+  re-snaps whenever the UI mode changes. The 2D collider and synthesis are
+  unaffected.
+- **Mobile / touch:** `u_pointer_live` stays 0, so ARMED shows a standing
+  pulse at A.
 
-**Mobile / touch:** `u_pointer_live` stays 0, so ARMED shows the standing
-pulse at A; the bridge and collision dynamics render as on desktop.
+### 8.1 Performance contract — full DPR, no downsampling
 
-## 9. Deviations from the agreed uniform list (flagged)
+- The field renders at the harness DPR on every frame. There is **no**
+  reduced-resolution fallback.
+- **Budget: < 1.0 ms of GPU time per frame** at 1440 CSS width and DPR 2
+  (a field of ≈ 1.8 × 1.2 Mpx).
+- **Per-pixel cost when fully lit:**
+  - 2 geodesic fetches (n = 0, 1)
+  - 1 deflection fetch
+  - 4 matter fetches (2 octaves × 2 flow layers)
+  - about 120 ALU ops
+- **Early-outs:**
+  - disk math is skipped for `b > 10.5 r_s` outside the infall and jet
+    regions;
+  - filament math is skipped outside its bounding capsule;
+  - jet math is skipped outside its cone's bounding box.
+- **Measurement:** use `EXT_disjoint_timer_query_webgl2` where the browser
+  exposes it; otherwise use the Chrome Performance panel's GPU track, on the
+  owner's machine.
+- **If over budget:** reduce per-pixel work (drop to one noise octave,
+  tighten the early-outs), **never** resolution.
+- **Existing DPR cap:** `glHost` already caps DPR at 2 for every GL surface
+  in the terminal, so phones at DPR 3 render at 2, as Luna and Scent do
+  today. This spec does not change that cap.
 
-- `u_ui_mode` has four values (AMBIENT, ARMED, FIRING, SYNTHESIZED) — the
+## 9. Open decisions and flagged deviations
+
+**Q1 — Inclination `i` (open).** Doppler beaming needs a line-of-sight
+velocity, so a face-on disk (`i = 0`) shows no beaming asymmetry. Two
+candidates:
+
+- **`i ≈ 30°`:** the disk stays nearly circular and concentric with the
+  face-on Council Ring diagram, and the `g⁴` brightness ratio across it is
+  still about 7×.
+- **`i ≈ 80°`:** the NASA / Gargantua silhouette, with the far side of the
+  disk lensed up over the shadow. It is an edge-on object inside a face-on
+  diagram, and it spans ±140 u horizontally.
+
+**Flagged deviations** from the agreed uniform list:
+
+- `u_ui_mode` has four values (AMBIENT, ARMED, FIRING, SYNTHESIZED), the
   state machine's real modes; there is no `IDLE` UI mode.
-- `u_eject` + `u_eject_color` added: without them the jet cannot align with
-  the 2D ejecta's angle, radius and trajectory colour.
-- `u_pointer_live` added: distinguishes "cursor at (0,0)" from "no cursor".
+- `u_eject` and `u_eject_color` are added. Without them the jet cannot line
+  up with the 2D ejecta.
+- `u_pointer_live` is added, to tell "cursor at (0,0)" from "no cursor".
+- `u_phase_ms` and three sampler uniforms are added (rev 2, §5).
+- The §3 composite changes from screen to premultiplied source-over
+  (rev 2).
 
 ## 10. Testing
 
-1. **Logic invariance:** collider / synthesis / ledger / state-machine suites
-   pass with zero edits to their test files. Diff audit of
-   `useCouncilCollider.js` = the two additions in §2 only.
-2. **`readFieldUniforms` unit tests:** every (ui mode × anim phase) cell of
-   the seat-resolution table (§6); `u_phase_t` clamping at each phase
-   boundary using `COLLIDER_TIMING`; hex→RGB for all 9 rainbow hues;
-   pointer-live gating; ambient vs user intensity.
-3. **GL call-log snapshot** (harness method: `recordingGL` + `driveFrames`)
-   for init + a short frame run, captured once and frozen.
-4. **Unsupported path:** `getContext` → null ⇒ CouncilField renders nothing,
-   ring still arms/fires/synthesizes (existing ring tests).
-5. **Browser verification** at 1440 and 375 wide: screenshots of AMBIENT,
-   ARMED + tether following the cursor, bridge, INFALL mid-phase, FLASH,
-   EJECT; one full user collision to SYNTHESIZED confirming the synthesis
-   panel still appears; frame-time check (target: GL pass < 4 ms at 1440 on
-   the owner's 360 Hz panel; if over, render the field at DPR 1).
+1. **Logic invariance.** The collider, synthesis, ledger and state-machine
+   suites pass with zero edits to their test files. A diff audit of
+   `useCouncilCollider.js` shows only the two additions from §2.
+2. **`readFieldUniforms` unit tests:**
+   - every (ui mode × anim phase) cell of §6;
+   - `u_phase_t` clamping at each phase boundary;
+   - hex → RGB for all 9 rainbow hues;
+   - pointer-live gating;
+   - ambient vs user intensity.
+3. **Path coherence.** The JS mirror of the GLSL infall-arm curve matches
+   the 2D particle path to within 1e-6 u for all 16 seats. The jet head
+   matches the 2D product position to the same tolerance.
+4. **Geodesic physics (`councilGeodesics.js`):**
+   - the capture threshold lands at `b_c = 3√3/2 r_s` within 0.1%;
+   - weak-field deflection matches `2 r_s / b` within 1% at b = 50 r_s;
+   - a ray at `b = b_c + 1e-3` winds more than 2π before escaping;
+   - two bakes are bit-identical.
+5. **Wind-up bound.** The matter-coordinate function stays within one
+   `T_flow` of shear at t = 0, 60 s, 3 600 s and 86 400 s.
+6. **GL call-log snapshot**, using the harness method (`recordingGL` +
+   `driveFrames`): init, texture upload and a short frame run, captured once
+   and frozen.
+7. **Unsupported path.** When `getContext` returns null, CouncilField renders
+   nothing, `◉` stays, and the existing ring tests pass.
+8. **Browser verification** at 1440 and 375 width:
+   - screenshots of AMBIENT, ARMED with the tether following the cursor, the
+     bridge (including an opposite-seat Einstein-arc case), mid-INFALL with
+     the particles inside the sheaths, FLASH and EJECT;
+   - one full user collision through to SYNTHESIZED, confirming the
+     synthesis panel still appears;
+   - a 60 s screen recording, checked by eye for crossfade pulsing and
+     banding;
+   - a GPU frame-time reading against §8.1.
 
 ## 11. Out of scope
 
-- Moving particles, flash or ejecta out of the 2D layer.
-- Bloom / post chain (three.js stack). The tone-map + halo terms stand in.
+- Moving the *drawing* of particles, flash or ejecta out of the 2D layer.
+  Rev 2 envelops and occludes them instead.
+- A bloom or post-processing chain (the three.js stack).
+- The Kerr (spinning) metric. Schwarzschild only.
 - Kernel Manual switchboard styling (separate spec).
-- Any change to `expand()` / `collide()` (see council-ring memory: locked).
+- Any change to `expand()` or `collide()` (locked; see the council-ring
+  record).
