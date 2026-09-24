@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 function splitSentences(text) {
   return text.split(/(?<=\.)\s+/).filter(Boolean);
@@ -27,7 +28,10 @@ export default function SixteenPanel({ mind, onClose }) {
   const sentences = splitSentences(mind.body);
   const mono = "'Geist Mono', ui-monospace, monospace";
 
-  return (
+  // Portaled to <body>: rendered in place, the panel's z-index only competes
+  // inside <main>'s z-10 stacking context, and the z-40 sticky site header
+  // painted over its top 96px (dim tag, caste line, name, close button).
+  return createPortal(
     <>
       <div
         data-testid="sixteen-panel-backdrop"
@@ -69,7 +73,7 @@ export default function SixteenPanel({ mind, onClose }) {
           {casteLabel}
         </div>
 
-        <h2 style={{ fontFamily: mono, fontSize: 22, fontWeight: 700, color: accent, letterSpacing: '0.04em', margin: '0 0 4px 0', opacity: visible ? 1 : 0, transform: visible ? 'translateY(0)' : 'translateY(12px)', transition: 'opacity 400ms 120ms, transform 400ms 120ms' }}>
+        <h2 style={{ fontFamily: mono, fontSize: 'clamp(18px, 5vw, 22px)', lineHeight: 1.25, fontWeight: 700, color: accent, letterSpacing: '0.04em', margin: '0 0 4px 0', paddingRight: 24, overflowWrap: 'anywhere', overflow: 'visible', opacity: visible ? 1 : 0, transform: visible ? 'translateY(0)' : 'translateY(12px)', transition: 'opacity 400ms 120ms, transform 400ms 120ms' }}>
           {mind.anchorName}
         </h2>
         <div style={{ fontFamily: mono, fontSize: 11, color: 'rgba(232,121,249,0.6)', marginBottom: 20 }}>{mind.era}</div>
@@ -94,6 +98,7 @@ export default function SixteenPanel({ mind, onClose }) {
           ))}
         </p>
       </div>
-    </>
+    </>,
+    document.body,
   );
 }
