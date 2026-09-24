@@ -327,10 +327,14 @@ export default function ColliderChamber({
       if (!host) return;
       host.resize(w, CHAMBER_H);
       resizeAccumTarget(host.gl, ctx.accum, host.gl.canvas.width, host.gl.canvas.height);
+      // Setting canvas.width cleared the buffer. The loop repaints next
+      // frame; under reduced motion nothing would, so repaint the still.
+      // snap() is a no-op when the loop runs.
+      snap();
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [hostRef, snap]);
 
   useEffect(() => (installScrub ? installScrub(ctxRef, hostRef) : undefined), [hostRef]);
 

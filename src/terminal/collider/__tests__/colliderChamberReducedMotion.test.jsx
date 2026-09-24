@@ -40,4 +40,26 @@ describe('ColliderChamber under prefers-reduced-motion', () => {
     expect(accel.length).toBeGreaterThan(0);
     expect(accel[accel.length - 1].slice(2)).toEqual([1, 1]);
   });
+
+  it('repaints after a resize, since resizing the canvas clears it', () => {
+    // jsdom has no ResizeObserver: capture the chamber's callback instead.
+    let fire = null;
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(cb) { fire = cb; }
+      observe() {}
+      disconnect() {}
+    });
+    const { container } = render(<ColliderChamber phase="colliding" {...base} />);
+    expect(typeof fire).toBe('function');
+    const wrap = container.querySelector('[data-chamber-renderer]');
+    Object.defineProperty(wrap, 'clientWidth', { configurable: true, value: 640 });
+    const before = rec.log.length;
+    fire([]);
+    const after = rec.log.slice(before);
+    const resized = after.findIndex((e) => e[0] === 'viewport');
+    expect(resized).toBeGreaterThan(-1);
+    const fieldDraw = after.findIndex((e, i) => i > resized && e[0] === 'drawArrays' && e[1] === 0x0005);
+    expect(fieldDraw).toBeGreaterThan(resized);
+    expect(after.some((e) => e[0] === 'uniform2f' && String(e[1]).endsWith(':uRes') && e[2] === 640)).toBe(true);
+  });
 });
