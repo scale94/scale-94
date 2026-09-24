@@ -390,18 +390,17 @@ export default function ColliderChamber({
                 }}
               />
             </div>
-            {/* Canvas fillText positioned by BASELINE; CSS top positions the
-                box top, so each of these is the old baseline minus the font's
-                ascent (~0.8em). The novelty bar above came from a fillRect,
-                which was already a top — hence no adjustment there. The theta
-                row is held 4px above its converted value because the original
-                drew its baseline at y=221 inside a 220px canvas, clipping its
-                own descenders. */}
-            <div className="absolute left-0 right-0 text-center text-[10px]" style={{ top: CHAMBER_H / 2 + 91, color: 'rgba(6,182,212,0.7)' }}>
-              cos(θ) = {metrics.cosine.toFixed(4)}
-            </div>
-            <div className="absolute left-0 right-0 text-center text-[10px]" style={{ top: CHAMBER_H / 2 + 99, color: 'rgba(6,182,212,0.7)' }}>
-              θ = {metrics.angle.toFixed(1)}°
+            {/* One block anchored to the bottom with an explicit line box, so
+                the second row's descenders and degree sign always clear the
+                overflow-hidden border. The old per-row `top` offsets (8px apart
+                with an inherited 15px line box) overlapped and ran 5px past it. */}
+            <div
+              data-chamber-readout
+              className="absolute left-0 right-0 text-center text-[10px]"
+              style={{ bottom: 6, lineHeight: '12px', color: 'rgba(6,182,212,0.7)' }}
+            >
+              <div>cos(θ) = {metrics.cosine.toFixed(4)}</div>
+              <div>θ = {metrics.angle.toFixed(1)}°</div>
             </div>
           </>
         )}

@@ -69,7 +69,9 @@ describe('ColliderChamber DOM overlay', () => {
     expect(tops).toContain('95px');   // domain label
     expect(tops).toContain('40px');   // NOVELTY label
     expect(tops).toContain('50px');   // novelty bar (fillRect origin, unconverted)
-    expect(tops).toContain('201px');  // cos(theta)
-    expect(tops).toContain('209px');  // theta, held above its 213px conversion
+    // cos(theta) / theta are bottom-anchored now (they clipped at 201/209px):
+    // colliderChamberReadout.test.jsx pins them.
+    expect(tops).not.toContain('201px');
+    expect(tops).not.toContain('209px');
   });
 });
