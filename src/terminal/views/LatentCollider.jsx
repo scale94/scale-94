@@ -16,6 +16,7 @@ import { getPanopticonState } from '../lib/panopticon';
 import { assessSovereignty, redactCard, publishAssessment, transitTag } from '../lib/sovereignty';
 import ColliderChamber from '../collider/ColliderChamber';
 import { usePhaseAdvance } from '../collider/usePhaseAdvance';
+import { buildDomainMass } from '../collider/domainMass';
 
 // ── Collider Event Bus ───────────────────────────────────────────────────────
 // Cross-tab coupling: emits chimera synthesis results so the Art tab sphere
@@ -510,6 +511,11 @@ const DOMAIN_SPHERE_MAP = [
   /* 79 NE       */ { nodeId: 'pragmatic',       cluster: 'drk'    },
   /* 80 PL       */ { nodeId: 'necromantic',     cluster: 'drk'    },
 ];
+
+// Beam mass per domain id (spec §5.1): weight − volatility of the mapped
+// sphere node, rank-normalised across every collider domain. Computed once;
+// the chamber reads it at selection time, before collide() resolves.
+const DOMAIN_MASS = buildDomainMass(DOMAIN_SPHERE_MAP.map((m) => m.nodeId), NODE_IDX, FEATURES);
 
 // ── Parse the WASM kernel text output into structured data ───────────────────
 function parseColliderOutput(text) {
@@ -1626,6 +1632,8 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
           hueB={domainB !== null ? domainById(domainB).hue : 120}
           selA={domainA !== null}
           selB={domainB !== null}
+          massA={domainA !== null ? DOMAIN_MASS[domainA] : undefined}
+          massB={domainB !== null ? DOMAIN_MASS[domainB] : undefined}
           labelA={domainA !== null ? domainById(domainA).short : null}
           labelB={domainB !== null ? domainById(domainB).short : null}
           beams={beamsRef.current?.beams ?? null}
