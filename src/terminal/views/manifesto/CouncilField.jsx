@@ -108,9 +108,10 @@ export default function CouncilField({ simRef, uiRef, seated, pointerRef, mode, 
       paint(host.gl, host.U, u, lensRef.current);
     },
 
-    // Reduced motion: the loop never starts, so this is the only frame.
+    // Reduced motion: the loop never starts, so this is the only frame, and
+    // it shows the disk at t = 0 (spec §8).
     onSnap(host) {
-      const u = readFieldUniforms(simRef.current, uiRef.current, seated, pointerRef.current, performance.now());
+      const u = readFieldUniforms(simRef.current, uiRef.current, seated, pointerRef.current, 0);
       paint(host.gl, host.U, u, lensRef.current);
     },
 
@@ -119,8 +120,15 @@ export default function CouncilField({ simRef, uiRef, seated, pointerRef, mode, 
 
   // Declared after useShaderCanvas: its effect has already built (or failed
   // to build) the host by the time this runs.
+  // A lost context (GPU reset, driver eviction) leaves a dead canvas: report
+  // not-live so the ring brings the ◉ glyph back.
   useEffect(() => {
     onLiveChange?.(hostRef.current != null);
+    const el = canvasRef.current;
+    if (!el) return undefined;
+    const onLost = () => onLiveChange?.(false);
+    el.addEventListener('webglcontextlost', onLost);
+    return () => el.removeEventListener('webglcontextlost', onLost);
   }, [hostRef, onLiveChange]);
 
   // Reduced motion repaints only on demand; a UI-mode change is such a demand.

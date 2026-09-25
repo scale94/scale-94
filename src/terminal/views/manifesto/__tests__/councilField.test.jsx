@@ -99,6 +99,41 @@ describe('CouncilField liveness', () => {
     }
   });
 
+  it('reports not-live when the context is lost, and stops listening on unmount', () => {
+    const rec = installRecordingGL({ version: 2 });
+    try {
+      const spy = vi.fn();
+      const r = refs(FLASH);
+      const { getByTestId, unmount } = render(<CouncilField {...r} seated={SEATED} mode="FIRING" onLiveChange={spy} />);
+      const canvas = getByTestId('council-field');
+      expect(spy).toHaveBeenLastCalledWith(true);
+      canvas.dispatchEvent(new Event('webglcontextlost'));
+      expect(spy).toHaveBeenLastCalledWith(false);
+      unmount();
+      spy.mockClear();
+      canvas.dispatchEvent(new Event('webglcontextlost'));
+      expect(spy).not.toHaveBeenCalled();
+    } finally {
+      rec.restore();
+    }
+  });
+
+  it('paints the reduced-motion snap at t = 0 (spec §8)', () => {
+    vi.stubGlobal('matchMedia', (q) => ({ matches: q.includes('reduce'), media: q, addEventListener() {}, removeEventListener() {} }));
+    const rec = installRecordingGL({ version: 2 });
+    try {
+      const r = refs(FLASH);
+      const { unmount } = render(<CouncilField {...r} seated={SEATED} mode="FIRING" onLiveChange={() => {}} />);
+      const times = rec.log.filter(([name, loc]) => name === 'uniform1f' && /:u_time$/.test(loc?.__tag ?? loc));
+      expect(times.length).toBeGreaterThan(0);
+      for (const [, , value] of times) expect(value).toBe(0);
+      unmount();
+    } finally {
+      rec.restore();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('reports not-live, and owns no GL, when WebGL2 is unavailable', () => {
     const spy = vi.fn();
     const r = refs(FLASH);
