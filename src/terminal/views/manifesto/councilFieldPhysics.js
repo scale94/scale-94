@@ -24,6 +24,7 @@ export const temperature = (r) => T_PEAK * (emissivity(r) / F_MAX) ** T_EXP;
 
 // g = 1/(1+z) for a circular Keplerian orbit (Luminet 1979), image-plane
 // cos α measured from +X (east). SPIN_SIGN +1 makes the east side approach.
+// Defined for r > 1.5 only (the photon sphere); the disk evaluates it on [R_IN, R_OUT].
 export function redshiftFactor(r, b, cosAlpha) {
   const onePlusZ = (1 - 1.5 / r) ** -0.5
     * (1 - SPIN_SIGN * Math.sqrt(0.5 / r ** 3) * b * cosAlpha * SIN_I);

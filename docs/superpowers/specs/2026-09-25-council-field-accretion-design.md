@@ -474,3 +474,7 @@ lists each with its reason:
    - A user cycle's COOLDOWN keeps intensity 1, and an ambient COOLDOWN keeps 0.4, so the disk boost relaxes instead of snapping. No filament is drawn in COOLDOWN.
 6. **§10.4 weak-field test.** "`2 r_s/b` within 1% at b = 50" is wrong: the second-order term alone is 2.9% there. The plan tests `2 r_s/b` within 0.5% at b = 500, and the third-order expansion `4x + (15π/4)x² + (128/3)x³` (x = M/b) within 0.1% at b = 50.
 7. **§7.4 blackbody range.** The Kim et al. (2002) Planckian-locus fit is valid from 1 667 to 25 000 K, not 1 000–40 000 K. Temperatures are clamped to that range.
+8. **§7.2 / §7.4 angle convention (fix wave, 2026-09-25).** The shader measures the image-plane angle α from +X (east, along the line of nodes), not from the axis Luminet (1979) uses, so the formulas as written in §7.2 and §7.4 appear rotated by π/2 in the code (`α_Luminet = α + π/2`):
+   - §7.2's `γ = arccos(cos α / sqrt(cos²α + cot²i))` becomes `phi0 = atan(COS_I, −sinA·SIN_I)` in `diskAt` (the same angle: `cos γ = −sin α · sin i / sqrt(cos²i + sin²α · sin²i)`).
+   - §7.4's Doppler term `sin i · sin α` becomes `SIN_I · cosA` in `diskEmission` and in `redshiftFactor` (councilFieldPhysics.js).
+   - This is deliberate: it puts the line of nodes on the horizontal (§9 Q1), with the approaching side east. Do not "fix" the shader back to the §7 formulas as written.
