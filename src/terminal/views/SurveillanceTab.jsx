@@ -1,8 +1,9 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ShieldAlert, ChevronRight, Globe, Filter, AlertTriangle, X, Activity } from 'lucide-react';
 import WorldMap from '../components/WorldMap';
 import { toMapXY } from '../data/worldMapPolys';
 import { computePanopticonIndex } from '../lib/panopticon';
+import { lawNodes, lawTaps, TAPS } from '../lib/interceptLattice';
 
 // ── Region lon/lat centres (projected via geoNaturalEarth1) ─────────────────
 const REGION_LONLAT = {
@@ -38,11 +39,12 @@ const SEV_DEFAULT = {
   badge: 'bg-zinc-800/60 text-zinc-400 border border-zinc-600/30', label: 'UNKNOWN',
 };
 
-// Region codes match run_surveillance_index() region_code param in lib.rs
+// Region values are lattice node ids; 'EU' selects EU-level laws only
+// (member-node filters include them — spec §2, §8).
 const REGIONS = [
   ['ALL', 'All Regions'],
   ['UK',  'United Kingdom'],
-  ['EU',  'European Union'],
+  ['EU',  'European Union (EU-level)'],
   ['US',  'United States'],
   ['AU',  'Australia'],
   ['CA',  'Canada'],
@@ -55,25 +57,9 @@ const REGIONS = [
   ['BE',  'Belgium'],
 ];
 
-// Category codes match category_code param in lib.rs
-const CATS = [
-  ['ALL',                       'All Categories'],
-  ['encryption_backdoor',       'Encryption Backdoor'],
-  ['digital_id',                'Digital ID'],
-  ['biometric_collection',      'Biometrics'],
-  ['data_retention',            'Data Retention'],
-  ['worker_surveillance',       'Worker Surveillance'],
-  ['platform_mandated_scanning','Platform Scanning'],
-  ['traffic_retention',         'Traffic Retention'],
-  ['age_verification',          'Age Verification'],
-];
-
-// Parse categories field — can be an array or comma-separated string
-const parseCats = (raw) => {
-  if (Array.isArray(raw)) return raw;
-  if (typeof raw === 'string' && raw.length) return raw.split(/[,\s]+/).map(s => s.trim()).filter(Boolean);
-  return [];
-};
+// Category values are the corpus tag strings (the records carry `tags`, not
+// `categories` — spec §2).
+const CATS = [['ALL', 'All Categories'], ...TAPS.map((t) => [t.tag, t.tag])];
 
 // ── Raw hex colors for SVG threat dots ──────────────────────────────────────
 const SEV_HEX = { 5: '#ef4444', 4: '#f97316', 3: '#eab308', 2: '#06b6d4', 1: '#22c55e' };
@@ -97,16 +83,10 @@ const SurveillanceTab = ({ legislationArticles = [], onOpenLaw }) => {
         const sev = parseInt(a.severity, 10) || 0;
         if (sev < minSev) return false;
         if (region !== 'ALL') {
-          const loc = (a.location || '').toUpperCase();
-          // EU match: accept both "European Union" countries and "EU" label
-          if (region === 'EU') {
-            if (!loc.includes('EU') && !loc.includes('EUROPEAN')) return false;
-          } else {
-            if (!loc.toUpperCase().includes(region)) return false;
-          }
+          if (region === 'EU' ? a.location !== 'EU' : !lawNodes(a).includes(region)) return false;
         }
         if (category !== 'ALL') {
-          if (!parseCats(a.categories).includes(category)) return false;
+          if (!(Array.isArray(a.tags) && a.tags.includes(category))) return false;
         }
         return true;
       })
@@ -123,17 +103,9 @@ const SurveillanceTab = ({ legislationArticles = [], onOpenLaw }) => {
   const regionThreats = useMemo(() => {
     const map = {};
     for (const a of legislationArticles) {
-      const loc = (a.location || '').toUpperCase();
       const sev = parseInt(a.severity, 10) || 0;
-      for (const [code] of REGIONS) {
-        if (code === 'ALL') continue;
-        const match = code === 'EU'
-          ? (loc.includes('EU') || loc.includes('EUROPEAN'))
-          : loc.includes(code);
-        if (match) {
-          map[code] = Math.max(map[code] || 0, sev);
-        }
-      }
+      const codes = a.location === 'EU' ? ['EU'] : lawNodes(a);
+      for (const code of codes) map[code] = Math.max(map[code] || 0, sev);
     }
     return map;
   }, [legislationArticles]);
@@ -194,7 +166,7 @@ const SurveillanceTab = ({ legislationArticles = [], onOpenLaw }) => {
             className="text-sm font-bold tracking-widest text-orange-400 uppercase"
             style={{ opacity: 0, animation: 'sv-subReveal 0.4s ease 0.35s forwards' }}
           >
-            SURVEILLANCE LEGISLATION TRACKER // ACTIVE CORPUS
+            SURVEILLANCE LEGISLATION TRACKER // SEALED CORPUS
           </div>
         </div>
         {/* Live Panopticon score */}
@@ -202,6 +174,7 @@ const SurveillanceTab = ({ legislationArticles = [], onOpenLaw }) => {
           <div className="text-right">
             <div
               className="text-5xl font-bold font-mono tabular-nums"
+              data-testid="panopticon-score"
               style={{
                 color: panopticonIndex >= 80 ? '#f87171' : panopticonIndex >= 60 ? '#fb923c' : '#facc15',
                 animation: legislationArticles.length ? 'sv-scoreGlow 2.5s ease-in-out infinite' : 'none',
@@ -211,9 +184,9 @@ const SurveillanceTab = ({ legislationArticles = [], onOpenLaw }) => {
             </div>
             <div className="text-[9px] tracking-widest text-orange-400/50 uppercase">/ 100 · Panopticon Index</div>
           </div>
-          <div className="flex items-center gap-2 text-xs border border-red-500/30 px-3 py-1 bg-red-900/10 text-red-400 rounded-sm">
-            <div className="w-2 h-2 rounded-full bg-red-400 animate-pulse shadow-[0_0_8px_rgba(248,113,113,0.8)]" />
-            INDEXING ACTIVE
+          <div className="flex items-center gap-2 text-xs border border-red-500/30 px-3 py-1 bg-red-900/10 text-red-400/80 rounded-sm lowercase font-mono">
+            <div className="w-2 h-2 rounded-full bg-red-400/60" />
+            sealed 2026-03-09
           </div>
         </div>
       </div>
@@ -305,10 +278,11 @@ const SurveillanceTab = ({ legislationArticles = [], onOpenLaw }) => {
       <div className="flex flex-wrap gap-3 mb-6 p-4 border border-orange-900/20 bg-black/30 rounded-sm items-end">
         {/* Region select */}
         <div className="flex flex-col gap-1">
-          <label className="text-[9px] font-bold tracking-widest text-orange-400/50 uppercase flex items-center gap-1">
+          <label htmlFor="sv-region" className="text-[9px] font-bold tracking-widest text-orange-400/50 uppercase flex items-center gap-1">
             <Globe className="w-2.5 h-2.5" /> Region
           </label>
           <select
+            id="sv-region"
             value={region}
             onChange={e => setRegion(e.target.value)}
             className="bg-black/60 border border-orange-500/30 text-orange-300 text-xs font-mono px-2 py-1.5 rounded-sm focus:outline-none focus:border-orange-400 cursor-pointer"
@@ -319,10 +293,11 @@ const SurveillanceTab = ({ legislationArticles = [], onOpenLaw }) => {
 
         {/* Category select */}
         <div className="flex flex-col gap-1">
-          <label className="text-[9px] font-bold tracking-widest text-orange-400/50 uppercase flex items-center gap-1">
+          <label htmlFor="sv-category" className="text-[9px] font-bold tracking-widest text-orange-400/50 uppercase flex items-center gap-1">
             <Filter className="w-2.5 h-2.5" /> Category
           </label>
           <select
+            id="sv-category"
             value={category}
             onChange={e => setCategory(e.target.value)}
             className="bg-black/60 border border-orange-500/30 text-orange-300 text-xs font-mono px-2 py-1.5 rounded-sm focus:outline-none focus:border-orange-400 cursor-pointer"
@@ -390,12 +365,13 @@ const SurveillanceTab = ({ legislationArticles = [], onOpenLaw }) => {
           {filtered.map(law => {
             const sev   = parseInt(law.severity, 10) || 0;
             const style = SEV[sev] || SEV_DEFAULT;
-            const cats  = parseCats(law.categories);
+            const cats  = lawTaps(law).map((t) => t.tag);
             const title = (law.title || law.id || '').toUpperCase();
 
             return (
               <div
                 key={law.id}
+                data-testid="law-card"
                 onClick={() => onOpenLaw && onOpenLaw(law)}
                 className={`border ${style.border} ${style.bg} p-4 rounded-sm cursor-pointer group transition-all duration-200 hover:brightness-115 ${sev >= 5 ? 'sv-card-crit' : 'sv-card'}`}
               >
@@ -415,9 +391,9 @@ const SurveillanceTab = ({ legislationArticles = [], onOpenLaw }) => {
                 </div>
 
                 {/* Legal name (subtitle) */}
-                {law.legalName && (
+                {law.subtitle && (
                   <div className="text-[9px] text-orange-400/40 font-mono mb-2 leading-snug break-words line-clamp-1">
-                    {law.legalName}
+                    {law.subtitle}
                   </div>
                 )}
 
@@ -429,7 +405,7 @@ const SurveillanceTab = ({ legislationArticles = [], onOpenLaw }) => {
                         key={c}
                         className="text-[7px] bg-black/40 border border-orange-900/30 text-orange-400/50 px-1.5 py-0.5 rounded font-mono"
                       >
-                        {c.replace(/_/g, ' ')}
+                        {c}
                       </span>
                     ))}
                     {cats.length > 3 && (
