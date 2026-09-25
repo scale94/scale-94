@@ -360,6 +360,10 @@ void main() {
       fx += seatDisc(p, A, u_colorA, u_pointer_live > 0.5 ? 9.0 : breathe);
     } else {
       float bridge = ph == 0 ? 1.0 : (ph == 1 ? 1.0 - smoothstep(0.0, 0.25, t) : 0.0);
+      // AMBIENT has no static bridge before INFALL (IDLE draws nothing), so
+      // the bridge fades in instead of popping to full at t = 0. FIRING's
+      // static bridge precedes INFALL and is already continuous.
+      if (u_ui_mode == 0 && ph == 1) bridge *= smoothstep(0.0, 0.04, t);
       if (bridge > 0.0) {
         fx += filament(lensSource(p), A, B, u_colorA, u_colorB, 1.8 * bridge);
         fx += (seatDisc(p, A, u_colorA, 9.0) + seatDisc(p, B, u_colorB, 9.0)) * bridge;
