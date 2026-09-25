@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   NOW_STEP, route, lawsFiring, packetFate, fateLine, trunkIndex,
 } from '../../lib/interceptLattice';
-import { buildTimeline } from '../../lib/interceptPacket';
+import { buildTimeline, FADE_MS } from '../../lib/interceptPacket';
 import { nodeXY } from './interceptGeometry';
 
 export const KEPT_CAP = 12;
@@ -81,10 +81,20 @@ export function useInterceptSession(laws) {
     tl.hopTimes.forEach((t, h) => {
       if (h > 0) timersRef.current.push(setTimeout(() => setHop(h), t));
     });
+    // Fallback (SVG) bead parity with the GL field: hold at the destination
+    // for the gate, then fade, then vanish — never sit there forever.
+    timersRef.current.push(setTimeout(() => setHop(null), tl.durationMs + FADE_MS));
     for (const cue of tl.cues) {
       wordIdRef.current += 1;
       const id = wordIdRef.current;
-      timersRef.current.push(setTimeout(() => setWords((w) => [...w, { id, node: cue.node, word: cue.word, key: cue.key }]), cue.t));
+      timersRef.current.push(setTimeout(() => setWords((w) => {
+        const taken = new Set(w.filter((x) => x.node === cue.node).map((x) => x.slot));
+        let slot = 0;
+        while (taken.has(slot)) slot += 1;
+        return [...w, {
+          id, node: cue.node, word: cue.word, key: cue.key, slot,
+        }];
+      }), cue.t));
       timersRef.current.push(setTimeout(() => setWords((w) => w.filter((x) => x.id !== id)), cue.t + WORD_MS));
     }
   }, [path, step, laws]);

@@ -12,6 +12,7 @@ const FAMILY_COLOR = {
   digitalId: '#facc15', age: '#facc15', biometric: '#facc15', worker: '#facc15',
 };
 const BEND_RADIUS = 36;
+const NO_TAPS = new Set();
 
 function toMapPoint(svg, clientX, clientY) {
   if (!svg?.createSVGPoint || !svg.getScreenCTM) return null;
@@ -38,7 +39,7 @@ function nearestNode([x, y], exclude) {
 
 export default function InterceptOverlay({
   path, src, dst, waypoints, ticks, words, hop, showBead, showFallbackGlow,
-  loads, kept, keptCap, marks, traced, highlight, euHighlight, reducedMotion, onActivate,
+  loads, kept, keptCap, marks, traced, highlight, highlightTaps = NO_TAPS, euHighlight, reducedMotion, onActivate,
 }) {
   const svgRef = useRef(null);
   const pointerTypeRef = useRef('mouse');
@@ -57,8 +58,6 @@ export default function InterceptOverlay({
     setDragging(false);
     setBendPreview(null);
   };
-
-  const stack = {};
 
   return (
     <svg
@@ -106,7 +105,8 @@ export default function InterceptOverlay({
         const [x, y] = nodeXY(n.id);
         const role = n.id === src ? 'source' : n.id === dst ? 'destination' : waypoints.includes(n.id) ? 'waypoint' : null;
         const tickList = ticks[n.id] ?? [];
-        const count = tickList.filter(Boolean).length;
+        const onCount = tickList.filter((state) => state === 'on').length;
+        const contestedCount = tickList.filter((state) => state === 'flicker').length;
         const lit = highlight.has(n.id);
         const load = loads[n.id] ?? 0;
         const k = kept[n.id] ?? 0;
@@ -115,7 +115,7 @@ export default function InterceptOverlay({
             key={n.id}
             role="button"
             tabIndex={0}
-            aria-label={`${n.name} · ${count} ${count === 1 ? 'tap' : 'taps'} in force${role ? ` · ${role}` : ''}`}
+            aria-label={`${n.name} · ${onCount} ${onCount === 1 ? 'tap' : 'taps'} in force${contestedCount ? ` · ${contestedCount} contested` : ''}${role ? ` · ${role}` : ''}`}
             data-node={n.id}
             data-highlight={lit ? 'true' : 'false'}
             style={{ cursor: 'pointer', outline: 'none' }}
@@ -137,17 +137,19 @@ export default function InterceptOverlay({
             )}
             {tickList.map((state, i) => {
               if (!state) return null;
+              const tap = TAPS[i];
+              const tickLit = lit && highlightTaps.has(tap.key);
               const ang = ((i * 45 - 90) * Math.PI) / 180;
               const c = Math.cos(ang);
               const s = Math.sin(ang);
               return (
                 <line
-                  key={TAPS[i].key}
+                  key={tap.key}
                   x1={x + c * 4} y1={y + s * 4} x2={x + c * 7} y2={y + s * 7}
-                  stroke={FAMILY_COLOR[TAPS[i].key]} strokeOpacity={state === 'on' ? 0.85 : 0.5}
-                  strokeWidth="0.9" strokeLinecap="round"
+                  stroke={FAMILY_COLOR[tap.key]} strokeOpacity={tickLit ? 1 : state === 'on' ? 0.85 : 0.5}
+                  strokeWidth={tickLit ? 1.6 : 0.9} strokeLinecap="round"
                   className={state === 'flicker' ? 'iv-flicker' : undefined}
-                  data-tick={TAPS[i].key} data-state={state}
+                  data-tick={tap.key} data-state={state} data-highlight={tickLit ? 'true' : 'false'}
                 />
               );
             })}
@@ -178,11 +180,10 @@ export default function InterceptOverlay({
 
       {words.map((w) => {
         const [x, y] = nodeXY(w.node);
-        stack[w.node] = (stack[w.node] ?? -1) + 1;
         return (
           <text
             key={w.id} className="iv-word"
-            x={x} y={y - 11 - stack[w.node] * 8}
+            x={x} y={y - 11 - w.slot * 8}
             textAnchor="middle" fontSize="8" fontFamily="monospace" fill="#fff7ed"
             style={{ pointerEvents: 'none' }}
             data-word={w.key}

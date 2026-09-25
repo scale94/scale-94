@@ -1,7 +1,8 @@
 // InterceptField.jsx — the felt layer of the intercept lattice (spec §3, §7).
-// Reads its scene and packet through refs and never writes them. With no
-// WebGL2, or a shader that fails to build, it owns no GL and reports
-// not-live; the SVG overlay then draws the fallback.
+// Reads sceneRef and packetRef, but owns `sceneRef.current.packet` and
+// `.marks`: fillPacket recomputes and writes both every frame from the
+// session's packet ref. With no WebGL2, or a shader that fails to build, it
+// owns no GL and reports not-live; the SVG overlay then draws the fallback.
 
 import { useEffect, useRef } from 'react';
 import { useShaderCanvas } from '../../gl/useShaderCanvas';

@@ -70,11 +70,39 @@ describe('InterceptLattice (spec §5, §6, §8, §9)', () => {
     expect(container.querySelector('[data-word="digitalId"]')).toBeNull();
   });
 
+  it("keeps a later word at its spawn slot when an older word at the same node expires", () => {
+    vi.useFakeTimers();
+    const { container } = render(<InterceptLattice laws={laws} />);
+    setStep(5);
+    fireEvent.click(node('canada'));
+    fireEvent.click(node('new zealand'));
+    // 'backdoor' (read) spawns at canada at ~450ms, alongside the source-phase
+    // words (seen/named/measured/watched) spawned at 0ms.
+    act(() => { vi.advanceTimersByTime(500); });
+    const before = container.querySelector('[data-word="backdoor"]').getAttribute('y');
+    // Past WORD_MS (1600ms): the 0ms words expire and are removed from the
+    // list. The 450ms word must not jump down to fill their slots.
+    act(() => { vi.advanceTimersByTime(1200); });
+    const after = container.querySelector('[data-word="backdoor"]').getAttribute('y');
+    expect(after).toBe(before);
+  });
+
   it('draws the SVG fallback bead when WebGL2 is unavailable', () => {
     render(<InterceptLattice laws={laws} />);
     fireEvent.click(node('canada'));
     fireEvent.click(node('new zealand'));
     expect(screen.getByTestId('fallback-bead')).toBeTruthy();
+  });
+
+  it('fades the fallback bead out after the gate instead of parking it at the destination forever', () => {
+    vi.useFakeTimers();
+    render(<InterceptLattice laws={laws} />);
+    setStep(5);
+    fireEvent.click(node('canada'));
+    fireEvent.click(node('new zealand'));
+    expect(screen.getByTestId('fallback-bead')).toBeTruthy();
+    act(() => { vi.advanceTimersByTime(3000); });
+    expect(screen.queryByTestId('fallback-bead')).toBeNull();
   });
 
   it('lights the nodes of a hovered ledger law — all six members for an EU law', () => {
@@ -85,11 +113,25 @@ describe('InterceptLattice (spec §5, §6, §8, §9)', () => {
     expect(screen.getByTestId('eu-membrane').getAttribute('data-highlight')).toBe('true');
   });
 
+  it("raises a hovered law's own tap ticks, leaving the node's other ticks alone", () => {
+    const law = laws.find((l) => l.id === 'LAW-CA-2025-C2-001');
+    const { container } = render(<InterceptLattice laws={laws} highlightLaw={law} />);
+    const backdoor = container.querySelector('[data-node="CA"] [data-tick="backdoor"]');
+    const digitalId = container.querySelector('[data-node="CA"] [data-tick="digitalId"]');
+    expect(backdoor.getAttribute('data-highlight')).toBe('true');
+    expect(digitalId.getAttribute('data-highlight')).toBe('false');
+  });
+
   it('shows flickering ticks for CHALLENGED laws at now only', () => {
     const { container } = render(<InterceptLattice laws={laws} />);
     expect(container.querySelectorAll('[data-node="CA"] [data-state="flicker"]')).toHaveLength(3);
     setStep(4);
     expect(container.querySelectorAll('[data-node="CA"] [data-state="flicker"]')).toHaveLength(0);
+  });
+
+  it('counts only in-force taps for the node aria-label, calling out contested ticks separately', () => {
+    render(<InterceptLattice laws={laws} />);
+    expect(node('canada').getAttribute('aria-label')).toBe('canada · 2 taps in force · 3 contested');
   });
 
   it('keeps the legend honest', () => {

@@ -11,7 +11,7 @@ import { useInterceptSession, KEPT_CAP, WORD_MS } from './useInterceptSession';
 import { createFieldBuffers, fillStatic, fillScene } from './interceptFieldUniforms';
 import { nodeXY } from './interceptGeometry';
 import {
-  NODE_IDS, STEPS, lawNodes, lawsInForce, nodeLoad, tickStates, familyReadout, formatCount,
+  NODE_IDS, STEPS, lawNodes, lawTaps, lawsInForce, nodeLoad, tickStates, familyReadout, formatCount,
 } from '../../lib/interceptLattice';
 
 const prefersReducedMotion = () =>
@@ -56,6 +56,10 @@ export default function InterceptLattice({ laws = NO_LAWS, highlightLaw = null, 
   );
   const readout = useMemo(() => familyReadout(laws, s.step), [laws, s.step]);
   const highlight = useMemo(() => new Set(highlightLaw ? lawNodes(highlightLaw) : []), [highlightLaw]);
+  const highlightTaps = useMemo(
+    () => new Set(highlightLaw ? lawTaps(highlightLaw).map((t) => t.key) : []),
+    [highlightLaw],
+  );
 
   const { kept, traced } = s;
   // Layout effect: it must fill the buffer before the child InterceptField's
@@ -88,7 +92,7 @@ export default function InterceptLattice({ laws = NO_LAWS, highlightLaw = null, 
           showBead={!glLive || reducedMotion} showFallbackGlow={!glLive}
           loads={loads} kept={kept} keptCap={KEPT_CAP}
           marks={s.marks} traced={traced}
-          highlight={highlight} euHighlight={highlightLaw?.location === 'EU'}
+          highlight={highlight} highlightTaps={highlightTaps} euHighlight={highlightLaw?.location === 'EU'}
           reducedMotion={reducedMotion}
           onActivate={activate}
         />
