@@ -28,7 +28,7 @@ const LOAD_TAB_MAP = {
   surveillance: 'surveillance', panopticon: 'surveillance', legislation: 'surveillance',
   cryptography: 'cryptography', classified: 'cryptography', pqc: 'cryptography', mlkem: 'cryptography',
   kernel: 'kernel', home: 'kernel', scaling: 'scaling', scent: 'scaling', saponification: 'scaling', transmission: 'transmission',
-  manifesto: 'manifesto', bsky: 'bsky', bluesky: 'bsky', privacy: 'privacy',
+  accretion: 'manifesto', manifesto: 'manifesto', bsky: 'bsky', bluesky: 'bsky', privacy: 'privacy',
   art: 'art', graph: 'art', fade: 'art', 'fade_doctrine': 'art', 'feigenbaum_fade': 'art', visual: 'art', chaos: 'art',
   ledger: 'ledger', audit: 'ledger', verdicts: 'ledger', 'open_ledger': 'ledger',
   mercury: 'mercury', lunar: 'lunar', moon: 'lunar',
@@ -448,9 +448,9 @@ export function useCommandDispatch(ctx) {
       executeCommand(rawCmd, "Switching directory to /system/cryptography...");
       return;
     }
-    if (action === 'about' || action === 'manifesto') {
-      handleNav('~/system/manifesto', 'manifesto');
-      executeCommand(rawCmd, "Switching directory to /system/manifesto...");
+    if (action === 'about' || action === 'accretion' || action === 'manifesto') {
+      handleNav('~/system/accretion', 'manifesto');
+      executeCommand(rawCmd, "Switching directory to /system/accretion...");
       return;
     }
     if (action === 'chaos' || action === 'art' || action === 'graph' || action === 'fade') {
@@ -939,7 +939,7 @@ export function useCommandDispatch(ctx) {
         setOriginTab(activeTab);
         setSelectedArticle(helpArticle);
       } else {
-        executeCommand(rawCmd, 'Commands: load [term], list, search [term], home/kernel, scent, transmission, manifesto, privacy, thesis, clear, help. ↑↓ history.');
+        executeCommand(rawCmd, 'Commands: load [term], list, search [term], home/kernel, scent, transmission, accretion, privacy, thesis, clear, help. ↑↓ history.');
       }
       return;
     }

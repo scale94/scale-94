@@ -5,7 +5,7 @@ import { Cpu } from 'lucide-react';
 // Entropy is the threat. Crystalline is the lock. Zero white fade.
 // Drama arc: modules load → entropy spikes → crystalline lock → kernel apex → deep modules arm.
 const AXIOMS = [
-  { name: 'manifesto',      field: 'doctrine',     status: 'ok',        variant: 'normal'      },
+  { name: 'accretion',      field: 'doctrine',     status: 'ok',        variant: 'normal'      },
   { name: 'scaling',        field: 'growth',       status: 'ok',        variant: 'normal'      },
   { name: 'privacy',        field: 'locked',       status: 'ok',        variant: 'normal'      },
   { name: 'transmission',   field: 'signal',       status: 'ok',        variant: 'normal'      },

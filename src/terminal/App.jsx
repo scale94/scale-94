@@ -1049,7 +1049,7 @@ const App = () => {
             {/* Results area */}
             {!globalSearchResults ? (
                 <div style={{ padding: '24px 16px', textAlign: 'center', fontFamily: "'Geist Mono', ui-monospace, monospace", fontSize: '9px', color: 'rgba(57,255,20,0.18)', letterSpacing: '0.14em' }}>
-                  TYPE TO SEARCH ALL ARTICLES · MANIFESTO · TRANSMISSION · ECO-KERNEL
+                  TYPE TO SEARCH ALL ARTICLES · ACCRETION · TRANSMISSION · ECO-KERNEL
                 </div>
             ) : !globalSearchResults.length ? (
                 <div style={{ padding: '24px 16px', textAlign: 'center', fontFamily: "'Geist Mono', ui-monospace, monospace", fontSize: '10px', color: 'rgba(57,255,20,0.20)' }}>
@@ -1142,7 +1142,7 @@ const App = () => {
 
             <button aria-label="BSKY" aria-current={activeTab === 'bsky' ? 'page' : undefined} onClick={() => handleNav('~/system/bsky', 'bsky')} className={`${activeTab === 'bsky' ? 'bg-sky-600 text-sky-50 shadow-[0_0_12px_rgba(56,189,248,0.5)]' : 'text-sky-400/80 hover:text-sky-200 hover:bg-sky-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap${beat('bsky')}`}><NavButterflyIcon /> /BSKY</button>
 
-            <button aria-label="Manifesto" aria-current={activeTab === 'manifesto' ? 'page' : undefined} onClick={() => handleNav('~/system/manifesto', 'manifesto')} className={`${activeTab === 'manifesto' ? 'bg-violet-900 text-violet-100 shadow-[0_0_10px_rgba(139,92,246,0.5)]' : 'text-violet-400/80 hover:text-violet-200 hover:bg-violet-900/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap${beat('manifesto')}`}><Eye className="w-3 h-3" /> /Manifesto</button>
+            <button aria-label="Accretion" aria-current={activeTab === 'manifesto' ? 'page' : undefined} onClick={() => handleNav('~/system/accretion', 'manifesto')} className={`${activeTab === 'manifesto' ? 'bg-violet-900 text-violet-100 shadow-[0_0_10px_rgba(139,92,246,0.5)]' : 'text-violet-400/80 hover:text-violet-200 hover:bg-violet-900/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap${beat('manifesto')}`}><Eye className="w-3 h-3" /> /Accretion</button>
 
             <button aria-label="Transmission" aria-current={activeTab === 'transmission' ? 'page' : undefined} onClick={() => handleNav('~/system/transmission', 'transmission')} className={`${activeTab === 'transmission' ? 'bg-purple-900 text-purple-100 shadow-[0_0_10px_rgba(168,85,247,0.5)]' : 'text-purple-400/80 hover:text-purple-200 hover:bg-purple-900/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm whitespace-nowrap${beat('transmission')}`}>⌖ /Transmission</button>
 
@@ -1268,7 +1268,7 @@ const App = () => {
             />
           )}
 
-          {/* Manifesto Tab */}
+          {/* Accretion tab (internal id stays 'manifesto') */}
           {activeTab === 'manifesto' && !selectedArticle && !architectThesis && (
             <ManifestoTab
               systemArticles={systemArticles}
@@ -1393,7 +1393,7 @@ const App = () => {
         <button onClick={() => handleNav('~/system/bsky', 'bsky')} aria-label="BSKY" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'bsky' ? 'text-sky-400' : 'text-sky-400/50'}${beat('bsky')}`}>
           <NavButterflyIcon size="lg" />
         </button>
-        <button onClick={() => handleNav('~/system/manifesto', 'manifesto')} aria-label="Manifesto" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'manifesto' ? 'text-violet-400' : 'text-violet-400/50'}${beat('manifesto')}`}>
+        <button onClick={() => handleNav('~/system/accretion', 'manifesto')} aria-label="Accretion" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'manifesto' ? 'text-violet-400' : 'text-violet-400/50'}${beat('manifesto')}`}>
           <Eye className="w-5 h-5" />
         </button>
         <button onClick={() => handleNav('~/system/transmission', 'transmission')} aria-label="Transmission" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'transmission' ? 'text-purple-400' : 'text-purple-400/50'}${beat('transmission')}`}>

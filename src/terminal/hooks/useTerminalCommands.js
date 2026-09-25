@@ -163,9 +163,9 @@ export default function useTerminalCommands({
     } else if (action === 'privacy') {
       handleNav('~/system/privacy', 'privacy');
       executeCommand(rawCmd, "Switching directory to /system/privacy...");
-    } else if (action === 'about' || action === 'manifesto') {
-      handleNav('~/system/manifesto', 'manifesto');
-      executeCommand(rawCmd, "Switching directory to /system/manifesto...");
+    } else if (action === 'about' || action === 'accretion' || action === 'manifesto') {
+      handleNav('~/system/accretion', 'manifesto');
+      executeCommand(rawCmd, "Switching directory to /system/accretion...");
     } else if (action === 'bsky') {
       handleNav('~/system/bsky', 'bsky');
       executeCommand(rawCmd, "Switching directory to /system/bsky...");
@@ -265,7 +265,7 @@ export default function useTerminalCommands({
       setCurrentPath(`~/system/kernel?q=${query.replace(/ /g, '_')}`);
       executeCommand(rawCmd, `Applying search filter to kernel index: "${query}".`);
     } else if (action === 'help') {
-      executeCommand(rawCmd, "Commands: load [term], list, search [term], run [kernel], home/kernel, scent, transmission, manifesto, privacy, bsky, surveillance, cryptography, art, ecocide, lunar, mercury, ledger, thesis, clear, help. ↑↓ history.");
+      executeCommand(rawCmd, "Commands: load [term], list, search [term], run [kernel], home/kernel, scent, transmission, accretion, privacy, bsky, surveillance, cryptography, art, ecocide, lunar, mercury, ledger, thesis, clear, help. ↑↓ history.");
     } else if (action === 'run') {
       // ── WASM-exclusive executor ─────────────────────────────────────────────
       const currentRegistry = wasmRegistry;

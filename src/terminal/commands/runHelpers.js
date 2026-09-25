@@ -63,7 +63,7 @@ export const CMD_MANIFEST = [
   { name: 'home',         desc: 'navigate to /kernel' },
   { name: 'scent',        desc: 'navigate to /scent' },
   { name: 'transmission', desc: 'navigate to /transmission' },
-  { name: 'manifesto',    desc: 'navigate to /manifesto' },
+  { name: 'accretion',    desc: 'navigate to /accretion' },
   { name: 'surveillance',  desc: 'navigate to /surveillance' },
   { name: 'bsky',          desc: 'navigate to /bsky' },
   { name: 'privacy',       desc: 'navigate to /privacy' },
