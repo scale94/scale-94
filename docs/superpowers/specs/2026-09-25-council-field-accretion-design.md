@@ -18,7 +18,11 @@ the sim phases, calls `collide()` and opens the synthesis gate
 (`completeUserSynthesis`) when EJECT completes. That loop is not moved, not
 re-timed and not re-drawn. Reasons it cannot move into `useShaderCanvas`:
 
-1. `haltOnReducedMotion` would stop it — synthesis would never complete.
+1. ~~`haltOnReducedMotion` would stop it — synthesis would never complete.~~
+   **Corrected at plan time:** the 2D collider already does not run under
+   reduced motion (`if (mq.matches) { setRunning(false); return; }`), so this
+   reason was false. The design stands on reasons 2 and 3. The pre-existing
+   reduced-motion gap (no collisions possible) is out of scope.
 2. No WebGL (old GPU, lost context) would take the collider down with it.
 3. The harness watchdog / visibility policy would shift phase timing.
 
@@ -448,3 +452,25 @@ into the design:
 - Kernel Manual switchboard styling (separate spec).
 - Any change to `expand()` or `collide()` (locked; see the council-ring
   record).
+
+## 12. Plan-time amendments (2026-09-25)
+
+Recorded while writing the implementation plan
+(`docs/superpowers/plans/2026-09-25-council-field-accretion.md`), which
+lists each with its reason:
+
+1. **§2, reason 1 is factually wrong.** Today the 2D collider does **not** run under reduced motion (`useCouncilCollider.js` gate: `if (mq.matches) { setRunning(false); return; }`), so reduced-motion users already cannot fire a collision. The architecture still stands on reasons 2 (no-WebGL resilience) and 3 (timing policy). The reduced-motion gap predates this work and is out of scope.
+2. **§7.1 tables.**
+   - `u_geodesic` is R16F (one channel). The capture (0) and escape (FAR) sentinels make the proposed G channel redundant.
+   - `u_deflect` is 256 wide, not 1024. Deflection is smooth away from `b_c`, where the sinh warp already concentrates samples, and baking 1024 escape integrations breaks the 30 ms budget.
+3. **§7.4 temperature exponent.**
+   - The physical `T ∝ F^{1/4}` spans only 12 000 K → 8 200 K across 3–10 r_s, so it can never reach the ember at the outer edge that §7.4 also asks for.
+   - The plan uses `T = T_PEAK · (F/F_MAX)^{T_EXP}`, with `T_EXP ≈ 1.237` fitted so that `T(10 r_s) = 1 800 K`. This keeps the Novikov–Thorne peak location (49/12 r_s) and the zero-torque inner edge. It is render-scale, not physical.
+4. **§5 uniforms added.**
+   - `u_flow` (vec4: `tau0, tau1, seed0, seed1`) and `u_flow_w`: flow phases are computed in float64 JS, because float32 `fract(t/T)` in GLSL degrades after long uptimes.
+   - `u_lens_d`: the source distance that sets the Einstein radius to 3.5 r_s.
+5. **§6 refinements.**
+   - SYNTHESIZED at rest draws no bridge. A permanent bridge would also appear on a hydrated reload that never flew.
+   - A user cycle's COOLDOWN keeps intensity 1, and an ambient COOLDOWN keeps 0.4, so the disk boost relaxes instead of snapping. No filament is drawn in COOLDOWN.
+6. **§10.4 weak-field test.** "`2 r_s/b` within 1% at b = 50" is wrong: the second-order term alone is 2.9% there. The plan tests `2 r_s/b` within 0.5% at b = 500, and the third-order expansion `4x + (15π/4)x² + (128/3)x³` (x = M/b) within 0.1% at b = 50.
+7. **§7.4 blackbody range.** The Kim et al. (2002) Planckian-locus fit is valid from 1 667 to 25 000 K, not 1 000–40 000 K. Temperatures are clamped to that range.
