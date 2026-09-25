@@ -58,6 +58,7 @@ export default function CouncilField({ simRef, uiRef, seated, pointerRef, mode, 
   const canvasRef = useRef(null);
   const texRef = useRef([]);
   const lensRef = useRef(0);
+  const visibleRef = useRef(true);
 
   // `seated` is captured once (deps: []). CouncilRing memoizes it with [] deps,
   // which the collider already depends on, so it is referentially stable.
@@ -93,7 +94,11 @@ export default function CouncilField({ simRef, uiRef, seated, pointerRef, mode, 
       texRef.current = [];
     },
 
+    // Off-screen: skip the pass and keep the last frame. frameLoop schedules
+    // the next frame (and re-arms its watchdog) before calling draw, so an
+    // early return never stalls or trips the loop.
     draw(host, { now }) {
+      if (!visibleRef.current) return;
       const u = readFieldUniforms(simRef.current, uiRef.current, seated, pointerRef.current, now);
       paint(host.gl, host.U, u, lensRef.current);
     },
@@ -130,6 +135,18 @@ export default function CouncilField({ simRef, uiRef, seated, pointerRef, mode, 
     ro.observe(el);
     return () => ro.disconnect();
   }, [hostRef, snap]);
+
+  // Not document.hidden: embedded preview panes report hidden forever. With
+  // no IntersectionObserver the field stays visible.
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return undefined;
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) visibleRef.current = e.isIntersecting;
+    });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
 
   return (
     <canvas

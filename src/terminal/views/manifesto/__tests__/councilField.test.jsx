@@ -60,6 +60,25 @@ describe('CouncilField GL traffic (spec §8, §10.6)', () => {
     expect(frames.some((l) => /^uniform1i\(".*:u_matter", 2\)$/.test(l))).toBe(true);
   });
 
+  it('draws nothing while the canvas is scrolled off-screen, and disconnects on unmount', () => {
+    const observed = [];
+    let disconnected = 0;
+    vi.stubGlobal('IntersectionObserver', class {
+      constructor(cb) { this.cb = cb; }
+      observe(el) { observed.push(el); this.cb([{ target: el, isIntersecting: false }], this); }
+      disconnect() { disconnected += 1; }
+    });
+    try {
+      const { frames } = drive();
+      expect(observed).toHaveLength(1);
+      expect(observed[0].dataset.testid).toBe('council-field');
+      expect(frames.filter((l) => l.startsWith('drawArrays('))).toHaveLength(0);
+      expect(disconnected).toBe(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('freezes the init + FLASH frame call log', () => {
     const { init, frames } = drive();
     expect({ init: compact(init), frames: compact(frames) }).toMatchSnapshot();
