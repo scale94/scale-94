@@ -76,6 +76,13 @@ export function readFieldUniforms(sim, ui, seated, pointer, nowMs) {
     }
   };
   const simPair = sim.pair ? [seated[sim.pair[0]], seated[sim.pair[1]]] : null;
+  // The collider never clears sim.isUser, so after SYNTHESIZED → ARMED →
+  // FIRING the sim still holds the previous user pair until the loop starts
+  // the new cycle. A user sim counts only when it carries the minds ui.pair
+  // names. Ordered: the collider stages ui.pair [dA, dB] as seat indexes
+  // [idx(dA), idx(dB)] and spawns sim.pair in that order.
+  const userSim = sim.isUser && simPair && ui.pair
+    && simPair[0]?.dimIndex === ui.pair[0] && simPair[1]?.dimIndex === ui.pair[1];
 
   // §6 rule 1 — the filament belongs to the armed mind; in-flight ambient
   // collisions stay 2D-only.
@@ -91,7 +98,7 @@ export function readFieldUniforms(sim, ui, seated, pointer, nowMs) {
   // §6 rule 2 — a user flight drives dynamics; an ambient cycle still in the
   // air under FIRING shows the user's pair as a static bridge instead.
   if (ui.mode === 'FIRING') {
-    if (sim.isUser && simPair) {
+    if (userSim) {
       setPair(...simPair);
       setAnim();
     } else {
@@ -107,7 +114,7 @@ export function readFieldUniforms(sim, ui, seated, pointer, nowMs) {
   // Plan amendment 5 — SYNTHESIZED rests without a bridge; only the user
   // cycle's cooldown carries through so the disk boost can relax.
   if (ui.mode === 'SYNTHESIZED') {
-    if (sim.isUser && simPair && sim.phase === 'COOLDOWN') {
+    if (userSim && sim.phase === 'COOLDOWN') {
       setPair(...simPair);
       setAnim();
       u.intensity = 1;

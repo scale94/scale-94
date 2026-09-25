@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   readFieldUniforms, hexToLinear, UI_MODE, ANIM_PHASE, AMBIENT_INTENSITY,
 } from '../councilFieldUniforms';
+import { polarToXY } from '../councilRingMath';
 
 const SEATED = [
   { dimIndex: 3, angle: 270, hue: '#FF0088' }, // seat 0: west, (100, 320)
@@ -71,6 +72,29 @@ describe('readFieldUniforms — seat resolution (spec §6 + plan amendment 5)', 
     expect(u.seatA[0]).toBeCloseTo(WEST_X, 12); // dim 3 → seat 0, not sim seat 2
     expect(u.animPhase).toBe(ANIM_PHASE.IDLE);
     expect(u.intensity).toBe(1);
+  });
+
+  it('FIRING again after SYNTHESIZED: a stale user sim pair never bridges the previous minds', () => {
+    // The collider never clears isUser; until the loop starts the new cycle
+    // the sim still holds the previous user pair at IDLE.
+    const u = readFieldUniforms(
+      sim({ phase: 'IDLE', pair: [0, 1], isUser: true }), ui({ mode: 'FIRING', pair: [4, 9] }),
+      SEATED, null, 2000,
+    );
+    const seat2X = (polarToXY(250, 220, 320, 320).x + 170) / 980; // dim 4 → SEATED[2]
+    expect(u.seatA[0]).toBeCloseTo(seat2X, 12);
+    expect(u.seatB[0]).toBeCloseTo(EAST_X, 12);
+    expect(u.animPhase).toBe(ANIM_PHASE.IDLE);
+    expect(u.intensity).toBe(1);
+  });
+
+  it('SYNTHESIZED cooldown of a stale user pair does not drive the field', () => {
+    const u = readFieldUniforms(
+      sim({ phase: 'COOLDOWN', pair: [0, 1], isUser: true }), ui({ mode: 'SYNTHESIZED', pair: [4, 9] }),
+      SEATED, null, 2000,
+    );
+    expect(u.intensity).toBe(0);
+    expect(u.animPhase).toBe(ANIM_PHASE.IDLE);
   });
 
   it('FIRING user flight: the sim pair and product drive the dynamics', () => {
