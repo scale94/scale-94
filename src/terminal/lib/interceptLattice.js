@@ -158,3 +158,132 @@ export function tickStates(nodeId, laws, step) {
     : {};
   return TAPS.map((t) => (steady[t.key] ? 'on' : flickering[t.key] ? 'flicker' : null));
 }
+
+// ── Routing (spec §3) ────────────────────────────────────────────────────────
+// Fewest hops first; ties go to the geographically shorter path, so a UK →
+// Germany packet crosses the North Sea rather than the Atlantic twice.
+function geoDist(a, b) {
+  const [lon1, lat1] = NODE_BY_ID[a].lonlat;
+  const [lon2, lat2] = NODE_BY_ID[b].lonlat;
+  const dLon = Math.abs(lon1 - lon2) > 180 ? 360 - Math.abs(lon1 - lon2) : Math.abs(lon1 - lon2);
+  const x = dLon * Math.cos(((lat1 + lat2) / 2) * (Math.PI / 180));
+  return Math.hypot(x, lat1 - lat2);
+}
+
+function shortest(src, dst) {
+  if (!ADJ[src] || !ADJ[dst]) return null;
+  const cost = { [src]: 0 };
+  const parent = { [src]: null };
+  const done = new Set();
+  for (;;) {
+    let cur = null;
+    for (const id of NODE_IDS) {
+      if (id in cost && !done.has(id) && (cur === null || cost[id] < cost[cur])) cur = id;
+    }
+    if (cur === null) return null;
+    if (cur === dst) break;
+    done.add(cur);
+    for (const n of ADJ[cur]) {
+      const c = cost[cur] + 1 + geoDist(cur, n) / 1e4;
+      if (!(n in cost) || c < cost[n]) { cost[n] = c; parent[n] = cur; }
+    }
+  }
+  const path = [];
+  for (let c = dst; c != null; c = parent[c]) path.unshift(c);
+  return path;
+}
+
+export function route(src, dst, waypoints = []) {
+  const stops = [src, ...waypoints, dst].filter((id, i, arr) => i === 0 || id !== arr[i - 1]);
+  if (stops.length < 2) return stops.slice(0, 1);
+  const out = [stops[0]];
+  for (let i = 1; i < stops.length; i++) {
+    const leg = shortest(stops[i - 1], stops[i]);
+    if (!leg) return null;
+    out.push(...leg.slice(1));
+  }
+  return out;
+}
+
+// ── Fate (spec §5, §6) ───────────────────────────────────────────────────────
+export function packetFate(path, laws) {
+  if (!path || path.length < 2) return [];
+  const src = path[0];
+  const dstHop = path.length - 1;
+  const dst = path[dstHop];
+  const events = [];
+  const push = (phase, hop, node, tap) => {
+    const lawIds = lawIdsWith(node, laws ?? [], tap);
+    if (lawIds.length) events.push({ phase, hop, node, key: tap.key, word: tap.word, lawIds });
+  };
+  for (const tap of TAPS) if (tap.at === 'source' || tap.at === 'ends') push('source', 0, src, tap);
+  path.forEach((node, hop) => {
+    for (const tap of TAPS) if (tap.at === 'route') push('transit', hop, node, tap);
+  });
+  for (const tap of TAPS) if (tap.at === 'destination' || tap.at === 'ends') push('destination', dstHop, dst, tap);
+  return events;
+}
+
+export function fateLine(path, events) {
+  if (!path || path.length < 2) return '';
+  const hops = path.length - 1;
+  const head = `${nodeName(path[0])} → ${nodeName(path[hops])} · ${hops} ${hops === 1 ? 'hop' : 'hops'}`;
+  if (!events.length) return `${head} · arrived. unseen.`;
+  const phaseWords = (phase) =>
+    TAPS.filter((t) => events.some((e) => e.phase === phase && e.key === t.key)).map((t) => t.word);
+  const parts = [head];
+  const before = phaseWords('source');
+  if (before.length) parts.push(`${before.join(', ')} before leaving`);
+  for (const tap of TAPS) {
+    const at = [...new Set(events.filter((e) => e.phase === 'transit' && e.key === tap.key).map((e) => nodeName(e.node)))];
+    if (at.length) parts.push(`${tap.word} at ${at.join(', ')}`);
+  }
+  const arrival = phaseWords('destination');
+  if (arrival.length) parts.push(`${arrival.join(', ')} on arrival`);
+  return parts.join(' · ');
+}
+
+// ── Family readout (spec §6) ─────────────────────────────────────────────────
+// Unordered pairs (of 55) where at least one sending direction has some route
+// free of the family's taps. Counts the steady laws of the detent only.
+const CONTENT_ROUTE = ['Encryption Backdoor'];
+const CONTENT_ENDS = ['Platform Mandated Scanning'];
+const METADATA_ROUTE = ['Data Retention', 'Traffic Retention'];
+const IDENTITY_SOURCE = ['Digital Id', 'Biometric Collection', 'Worker Surveillance'];
+const IDENTITY_DESTINATION = ['Age Verification'];
+
+function hasTag(nodeId, laws, tags) {
+  return laws.some((l) => lawNodes(l).includes(nodeId) && Array.isArray(l.tags) && l.tags.some((t) => tags.includes(t)));
+}
+
+function reachable(src, dst, ok) {
+  if (!ok(src) || !ok(dst)) return false;
+  const seen = new Set([src]);
+  const queue = [src];
+  while (queue.length) {
+    const cur = queue.shift();
+    if (cur === dst) return true;
+    for (const n of ADJ[cur]) if (!seen.has(n) && ok(n)) { seen.add(n); queue.push(n); }
+  }
+  return false;
+}
+
+export function familyReadout(laws, step) {
+  const live = lawsInForce(laws, step);
+  const out = { unread: 0, unkept: 0, unnamed: 0 };
+  const noBackdoor = (n) => !hasTag(n, live, CONTENT_ROUTE);
+  const noRetention = (n) => !hasTag(n, live, METADATA_ROUTE);
+  const unnamedDir = (a, b) => !hasTag(a, live, IDENTITY_SOURCE) && !hasTag(b, live, IDENTITY_DESTINATION);
+  for (let i = 0; i < NODE_IDS.length; i++) {
+    for (let j = i + 1; j < NODE_IDS.length; j++) {
+      const a = NODE_IDS[i];
+      const b = NODE_IDS[j];
+      if (!hasTag(a, live, CONTENT_ENDS) && !hasTag(b, live, CONTENT_ENDS) && reachable(a, b, noBackdoor)) out.unread++;
+      if (reachable(a, b, noRetention)) out.unkept++;
+      if (unnamedDir(a, b) || unnamedDir(b, a)) out.unnamed++;
+    }
+  }
+  return out;
+}
+
+export const formatCount = (n) => (n === 0 ? 'none' : String(n));
