@@ -167,7 +167,7 @@ london → canberra · 4 hops · seen before leaving · kept at london, ottawa �
 
 A packet with no events at all reads `arrived. unseen.`
 
-**Family readout** (next to the ratchet): `unread 1 · unkept 1 · unnamed 0`. A zero
+**Family readout** (next to the ratchet): `unread 1 · unkept none · unnamed none`. A zero
 renders as `none`. Each count is the number of unordered node pairs (of 55) where at
 least one sending direction has *some* route free of that family's taps:
 

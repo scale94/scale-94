@@ -150,12 +150,14 @@ describe('intercept lattice model (spec §2–§5)', () => {
     expect(challenged).toHaveLength(4);
     const pattern = (id) => Array.from({ length: 16 }, (_, s) => (challengedFires(id, s) ? 1 : 0)).join('');
     for (const id of challenged) {
-      expect(pattern(id)).toBe(pattern(id));
       expect(pattern(id)).toMatch(/0/);
       expect(pattern(id)).toMatch(/1/);
     }
     expect(new Set(challenged.map(pattern)).size).toBeGreaterThan(1);
     expect(pattern('LAW-CA-2025-C2-001')).toBe('1110010010101011');
+    expect(pattern('LAW-EU-2025-CHAT-001')).toBe('0101011100010101');
+    expect(pattern('LAW-IE-2011-PSC')).toBe('1111110111011001');
+    expect(pattern('LAW-US-2025-STATE-001')).toBe('0101000101100111');
   });
 
   it('adds only the firing CHALLENGED laws, and only at now', () => {
@@ -1012,7 +1014,7 @@ In the chip, replace `{c.replace(/_/g, ' ')}` with `{c}`.
 - [ ] **Step 7: Run the test to verify it passes**
 
 Run: `npx vitest run src/terminal/views/__tests__/SurveillanceTab.test.jsx`
-Expected: PASS (5 + 8 + 7 = 20 tests).
+Expected: PASS (3 + 8 + 7 = 18 tests).
 
 - [ ] **Step 8: Lint the file**
 
@@ -1353,7 +1355,7 @@ export function fillPacket(buf, state, timeline) {
 - [ ] **Step 6: Run the test to verify it passes**
 
 Run: `npx vitest run src/terminal/components/intercept/__tests__/interceptFieldPure.test.js`
-Expected: PASS (10 tests).
+Expected: PASS (3 + 2 + 4 = 9 tests).
 
 - [ ] **Step 7: Commit**
 
@@ -1771,7 +1773,7 @@ export function useInterceptSession(laws) {
   // Every change of route, detent or corpus is a new send (spec §5).
   useEffect(() => {
     clearTimers(timersRef);
-    setWords([]);
+    setWords((w) => (w.length ? [] : w));
     if (!path || path.length < 2) {
       packetRef.current = null;
       setFate('');
@@ -2047,7 +2049,7 @@ Create `src/terminal/components/intercept/InterceptLattice.jsx`:
 // (docs/superpowers/specs/2026-09-25-surveillance-intercept-lattice-design.md).
 // Map ghost at the bottom, the WebGL field in the middle, the SVG overlay on top.
 
-import { useMemo, useRef, useState, useEffect } from 'react';
+import { useMemo, useRef, useState, useLayoutEffect } from 'react';
 import WorldMap from '../WorldMap';
 import InterceptField from './InterceptField';
 import InterceptOverlay from './InterceptOverlay';
@@ -2073,7 +2075,9 @@ const STYLE = `
   @media (prefers-reduced-motion: reduce) { .iv-flicker, .iv-pulse { animation: none; } }
 `;
 
-export default function InterceptLattice({ laws = [], highlightLaw = null, onNodeSelect }) {
+const NO_LAWS = [];
+
+export default function InterceptLattice({ laws = NO_LAWS, highlightLaw = null, onNodeSelect }) {
   const s = useInterceptSession(laws);
   const [glLive, setGlLive] = useState(false);
   const [reducedMotion] = useState(prefersReducedMotion);
@@ -2098,7 +2102,9 @@ export default function InterceptLattice({ laws = [], highlightLaw = null, onNod
   const highlight = useMemo(() => new Set(highlightLaw ? lawNodes(highlightLaw) : []), [highlightLaw]);
 
   const { kept, traced } = s;
-  useEffect(() => {
+  // Layout effect: it must fill the buffer before the child InterceptField's
+  // passive snap() repaints under reduced motion, or that frame lags a detent.
+  useLayoutEffect(() => {
     fillScene(sceneRef.current, {
       loads,
       kept: Object.fromEntries(Object.entries(kept).map(([id, n]) => [id, n / KEPT_CAP])),
@@ -2259,7 +2265,7 @@ describe('SurveillanceTab lattice + linked ledger (spec §1, §8)', () => {
 - [ ] **Step 2: Run the tests to verify the new ones fail**
 
 Run: `npx vitest run src/terminal/views/__tests__/SurveillanceTab.test.jsx`
-Expected: the 20 Task 4 tests PASS. The 4 new tests FAIL, with "Unable to find role="region" and name "intercept lattice"" and similar.
+Expected: the 18 Task 4 tests PASS. The 4 new tests FAIL, with "Unable to find role="region" and name "intercept lattice"" and similar.
 
 - [ ] **Step 3: Swap the imports**
 
@@ -2317,7 +2323,7 @@ On the card's outer `<div key={law.id} …>`, add these handlers next to `onClic
 - [ ] **Step 7: Run the tab tests to verify they pass**
 
 Run: `npx vitest run src/terminal/views/__tests__/SurveillanceTab.test.jsx`
-Expected: PASS (24 tests).
+Expected: PASS (22 tests).
 
 - [ ] **Step 8: Run the compile-path suites and the whole suite**
 
@@ -2351,7 +2357,6 @@ No new code, unless verification finds a defect. In that case, fix it with a fai
 
 Use the preview tool: `preview_start` with `{ name: "scale94-dev" }` (port 5174). In the page, run:
 ```js
-localStorage.setItem('scale94.gate', 'passed');
 (await navigator.serviceWorker?.getRegistrations?.() ?? []).forEach(r => r.unregister());
 location.reload();
 ```
