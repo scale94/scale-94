@@ -19,7 +19,7 @@ export default function MindSidebar({ mind, side, hue, onDossier }) {
       <div style={{ fontSize: 9, color: accent, letterSpacing: '0.2em' }}>
         [dim:{String(mind.dimIndex).padStart(2, '0')}] {mind.dimName}
       </div>
-      <div style={{ fontSize: 15, color: '#FFD700', fontWeight: 700, marginTop: 3 }}>{mind.anchorName}</div>
+      <div style={{ fontSize: 15, color: '#FFD700', fontWeight: 700, marginTop: 3, overflowWrap: 'anywhere' }}>{mind.anchorName}</div>
       <div style={{ fontSize: 9, color: 'rgba(232,232,240,0.5)', marginTop: 2 }}>{mind.era} · {mind.caste?.toUpperCase() ?? '?'}</div>
       <div style={{ fontSize: 12, color: '#FFD700', marginTop: 10 }}>{mind.coreEquation}</div>
       <div style={{ fontSize: 9, color: 'rgba(0,255,170,0.6)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 8 }}>▸ {mind.systemDirective}</div>

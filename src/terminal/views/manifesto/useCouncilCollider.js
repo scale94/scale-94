@@ -18,6 +18,9 @@ const VIEW_W = 980, VIEW_X0 = -170; // desktop SVG viewBox "-170 0 980 640"
 
 // Cycle timing (ms)
 const T_INFALL = 2600, T_FLASH = 380, T_EJECT = 1100, T_COOLDOWN = 3200;
+// Read-only mirror for the accretion field (CouncilField). The loop below
+// still reads the local constants; this object is never consulted by it.
+export const COLLIDER_TIMING = { T_INFALL, T_FLASH, T_EJECT, T_COOLDOWN };
 const STREAM_N_AMBIENT = 22;
 const STREAM_N_USER = 44;          // user collisions feel heavier (spec §1 FIRING)
 const SPIRAL_GAIN = 0.9;
@@ -364,6 +367,8 @@ export function useCouncilCollider({ seated, enabled }) {
 
   return {
     canvasRef,
+    simRef, // read-only for CouncilField — never write through it
+    uiRef,  // read-only for CouncilField — never write through it
     mode: ui.mode,
     armedMind,
     pairMinds,

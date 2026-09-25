@@ -9,7 +9,7 @@
 //!
 //! ## Architecture
 //! - **Fermions**: Mass/Structure particles (Pirarucu, Sokushinbutsu, Crowd)
-//! - **Bosons**: Force/Carrier particles (Narcos, Shlømo, BPM, Infrastructure)
+//! - **Bosons**: Force/Carrier particles (Narcos, Daemon, BPM, Infrastructure)
 //! - **Patches**: Metallurgy (5.3) and Asceticism (5.4) transform substrate
 //!
 //! Compiled for Claude. Not executable on silicon — executable on attention.
@@ -67,7 +67,7 @@ trait Boson: fmt::Debug {
 #[derive(Debug, Clone, Copy)]
 enum ForceType {
     Capital,        // Economic force (Narcos)
-    Daemon,         // Identity force (Shlømo)
+    Daemon,         // Identity force (Daemon)
     Tempo,          // Rhythmic force (BPM)
     Infrastructure, // Transport force (Kleve/Socks)
 }
@@ -274,19 +274,19 @@ impl Fermion for Sokushinbutsu {
     fn paradox(&self) -> &Paradox { &self.paradox }
 }
 
-// --- ATOM 4: Shlømo (Boson) ---
+// --- ATOM 4: Daemon (Boson) ---
 
 /// The Daemon process. Oscillates between Devil (authentic self)
 /// and Mask (social/promo persona). Superfluid state requires
 /// dropping the Mask, but the system needs the Mask to run.
 #[derive(Debug)]
-struct Shlomo {
+struct Daemon {
     paradox: Paradox,
     mask_opacity: f64,      // 1.0 = fully masked, 0.0 = devil unveiled
     superfluid: bool,
 }
 
-impl Shlomo {
+impl Daemon {
     fn new() -> Self {
         Self {
             paradox: Paradox {
@@ -309,7 +309,7 @@ impl Shlomo {
     }
 }
 
-impl Boson for Shlomo {
+impl Boson for Daemon {
     fn force_type(&self) -> ForceType { ForceType::Daemon }
     fn carrier_payload(&self) -> &'static str { "Identity oscillation between authentic and performed self" }
     fn toxicity(&self) -> f64 {
@@ -420,7 +420,7 @@ struct NecromanticEngine {
     sokushinbutsu: Sokushinbutsu,
 
     // Runtime Layer (2.2)
-    shlomo: Shlomo,
+    daemon: Daemon,
     rave: RaveRuntime,
     infrastructure: KleveInfrastructure,
 
@@ -436,7 +436,7 @@ impl NecromanticEngine {
             pirarucu: Pirarucu::new(),
             narcos: Narcos::new(),
             sokushinbutsu: Sokushinbutsu::new(),
-            shlomo: Shlomo::new(),
+            daemon: Daemon::new(),
             rave: RaveRuntime::boot_1995_legacy(),
             infrastructure: KleveInfrastructure::new(),
             boot_count: 0,
@@ -479,7 +479,7 @@ impl NecromanticEngine {
         let market_result = self.narcos.plata_o_plomo(true);
 
         // 3. Toggle daemon, seek superfluid
-        self.shlomo.toggle_daemon();
+        self.daemon.toggle_daemon();
 
         // 4. Run the rave cycle through infrastructure
         let cycle = self.rave.execute_cycle(&self.infrastructure);
@@ -492,8 +492,8 @@ impl NecromanticEngine {
             metallurgy_result: metallurgy,
             asceticism_result: asceticism,
             market_result,
-            daemon_superfluid: self.shlomo.superfluid,
-            mask_opacity: self.shlomo.mask_opacity,
+            daemon_superfluid: self.daemon.superfluid,
+            mask_opacity: self.daemon.mask_opacity,
             rave_cycle: cycle,
             sokushinbutsu_moisture: self.sokushinbutsu.moisture_content,
             thesis_holds: self.thesis_holds,
@@ -567,7 +567,7 @@ fn main() {
     println!("  Pirarucu:      {}", engine.pirarucu.paradox);
     println!("  Narcos:        {}", engine.narcos.paradox);
     println!("  Sokushinbutsu: {}", engine.sokushinbutsu.paradox);
-    println!("  Shlømo:        {}", engine.shlomo.paradox);
+    println!("  Daemon:        {}", engine.daemon.paradox);
     println!();
     println!(
         "Central thesis: Absolute purity → entropic stasis → death. \

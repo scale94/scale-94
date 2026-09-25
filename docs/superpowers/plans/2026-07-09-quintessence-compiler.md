@@ -1139,8 +1139,8 @@ use core::cell::UnsafeCell;
 
 /// ${pick(rng, VIAL_LINES)}
 /// element: ${spine.element} · role: ${el.atom} · daemon compiled ${el.daemon === 'TheDevil' ? 'unmasked' : 'masked'}
-enum ShlomoState { TheMask, TheDevil }
-const DAEMON: ShlomoState = ShlomoState::${el.daemon};
+enum DaemonState { TheMask, TheDevil }
+const DAEMON: DaemonState = DaemonState::${el.daemon};
 
 /// **PIRARUCU** — the armored ideal, tempered by one olfactory phase.
 /// phase: ${spine.phase} · the burn window was set here
