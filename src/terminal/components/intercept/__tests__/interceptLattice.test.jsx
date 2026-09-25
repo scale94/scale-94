@@ -4,11 +4,20 @@ import laws from '../../../lib/__tests__/fixtures/legislation-sealed-2026-03-09.
 import InterceptLattice from '../InterceptLattice';
 import { WORD_MS } from '../useInterceptSession';
 
+let lastSceneVersion;
+vi.mock('../InterceptField', () => ({
+  default: ({ sceneVersion, onLiveChange }) => {
+    lastSceneVersion = sceneVersion;
+    onLiveChange?.(false);
+    return null;
+  },
+}));
+
 const node = (name) => screen.getByRole('button', { name: new RegExp(`^${name}`) });
 const fate = () => screen.getByTestId('fate-line').textContent;
 const setStep = (i) => fireEvent.change(screen.getByLabelText('legislative time'), { target: { value: String(i) } });
 
-afterEach(() => { vi.useRealTimers(); });
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe('InterceptLattice (spec §5, §6, §8, §9)', () => {
   it('opens at now with the pinned readout', () => {
@@ -87,5 +96,43 @@ describe('InterceptLattice (spec §5, §6, §8, §9)', () => {
     render(<InterceptLattice laws={laws} />);
     expect(screen.getByText(/each word marks what the law permits, not what happened/)).toBeTruthy();
     expect(screen.getByText(/country-level connectivity, not cable routes/)).toBeTruthy();
+  });
+
+  it('gives each node a visible keyboard-focus ring (WCAG 2.4.7)', () => {
+    const { container } = render(<InterceptLattice laws={laws} />);
+    const canada = node('canada');
+    expect(canada.tabIndex).toBe(0);
+    const styleText = container.querySelector('style').textContent;
+    expect(styleText).toMatch(/:focus-visible/);
+    expect(styleText).toMatch(/iv-focus-ring/);
+  });
+
+  it('folds the corpus size into the scene version, so a corpus swap repaints under reduced motion', () => {
+    const { rerender } = render(<InterceptLattice laws={laws} />);
+    const before = lastSceneVersion;
+    rerender(<InterceptLattice laws={laws.slice(0, laws.length - 1)} />);
+    expect(lastSceneVersion).not.toBe(before);
+  });
+
+  it('ignores a repeated keydown from a held Enter, so it does not re-cycle the route', () => {
+    const onNodeSelect = vi.fn();
+    render(<InterceptLattice laws={laws} onNodeSelect={onNodeSelect} />);
+    setStep(0);
+    fireEvent.keyDown(node('canada'), { key: 'Enter' });
+    expect(onNodeSelect).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(node('canada'), { key: 'Enter', repeat: true });
+    expect(onNodeSelect).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders the read-mark orbit static under reduced motion', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: true, addEventListener() {}, removeEventListener() {} }));
+    const { container } = render(<InterceptLattice laws={laws} />);
+    setStep(5);
+    fireEvent.click(node('canada'));
+    fireEvent.click(node('new zealand'));
+    const readMark = container.querySelector('[data-mark="read"]');
+    expect(readMark).toBeTruthy();
+    expect(readMark.querySelector('animateTransform')).toBeNull();
+    vi.unstubAllGlobals();
   });
 });

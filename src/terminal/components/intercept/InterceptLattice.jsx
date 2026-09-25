@@ -27,6 +27,8 @@ const STYLE = `
   .iv-flicker { animation: iv-flicker 2.6s steps(1, end) infinite; }
   .iv-pulse { animation: iv-pulse 1.4s ease-in-out infinite; }
   @media (prefers-reduced-motion: reduce) { .iv-flicker, .iv-pulse { animation: none; } }
+  .iv-focus-ring { opacity: 0; }
+  g[role="button"]:focus-visible .iv-focus-ring { opacity: 1; }
 `;
 
 const NO_LAWS = [];
@@ -65,7 +67,7 @@ export default function InterceptLattice({ laws = NO_LAWS, highlightLaw = null, 
       traced: new Set(traced),
     });
   }, [loads, kept, traced]);
-  const sceneVersion = `${s.step}:${Object.values(kept).join(',')}:${traced.length}`;
+  const sceneVersion = `${s.step}:${Object.values(kept).join(',')}:${traced.length}:${laws.length}`;
 
   const activate = (id, opts) => {
     const r = s.activate(id, opts);
@@ -87,6 +89,7 @@ export default function InterceptLattice({ laws = NO_LAWS, highlightLaw = null, 
           loads={loads} kept={kept} keptCap={KEPT_CAP}
           marks={s.marks} traced={traced}
           highlight={highlight} euHighlight={highlightLaw?.location === 'EU'}
+          reducedMotion={reducedMotion}
           onActivate={activate}
         />
       </div>

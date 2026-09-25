@@ -38,7 +38,7 @@ function nearestNode([x, y], exclude) {
 
 export default function InterceptOverlay({
   path, src, dst, waypoints, ticks, words, hop, showBead, showFallbackGlow,
-  loads, kept, keptCap, marks, traced, highlight, euHighlight, onActivate,
+  loads, kept, keptCap, marks, traced, highlight, euHighlight, reducedMotion, onActivate,
 }) {
   const svgRef = useRef(null);
   const pointerTypeRef = useRef('mouse');
@@ -122,6 +122,7 @@ export default function InterceptOverlay({
             onPointerUp={(e) => { pointerTypeRef.current = e.pointerType || 'mouse'; }}
             onClick={(e) => onActivate(n.id, { bend: e.shiftKey || pointerTypeRef.current === 'touch' })}
             onKeyDown={(e) => {
+              if (e.repeat) return;
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 onActivate(n.id, { bend: e.shiftKey });
@@ -151,13 +152,16 @@ export default function InterceptOverlay({
               );
             })}
             <circle cx={x} cy={y} r={role ? 2.8 : 2} fill={role ? '#fde68a' : '#fdba74'} />
+            <circle className="iv-focus-ring" cx={x} cy={y} r="5.5" fill="none" stroke="#fde68a" strokeWidth="1.2" style={{ pointerEvents: 'none' }} />
             {lit && <circle className="iv-pulse" cx={x} cy={y} r="10" fill="none" stroke="#fdba74" strokeWidth="0.8" />}
             {marks.watch === n.id && (
               <circle cx={x} cy={y} r="9.5" fill="none" stroke="#f87171" strokeOpacity="0.55" strokeWidth="0.7" data-mark="watched" />
             )}
             {marks.read.includes(n.id) && (
               <circle cx={x + 6.5} cy={y} r="1.1" fill="#fca5a5" data-mark="read">
-                <animateTransform attributeName="transform" type="rotate" from={`0 ${x} ${y}`} to={`360 ${x} ${y}`} dur="5s" repeatCount="indefinite" />
+                {!reducedMotion && (
+                  <animateTransform attributeName="transform" type="rotate" from={`0 ${x} ${y}`} to={`360 ${x} ${y}`} dur="5s" repeatCount="indefinite" />
+                )}
               </circle>
             )}
             <text x={x} y={y + 15} textAnchor="middle" fontSize="6" fontFamily="monospace" fill="#fed7aa" fillOpacity="0.5" style={{ pointerEvents: 'none' }}>
