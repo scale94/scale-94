@@ -329,7 +329,7 @@ void main() {
 
   vec3 disk = vec3(0.0);
   bool shadow = false;
-  if (b < R_OUT + 0.5) {
+  if (b < R_OUT + 1.0) {
     float nG;
     vec4 dG = diskAt(b, dir.x, dir.y, 0.0, nG);
     if (ph == 2 && u_intensity > 0.0) {
