@@ -9,7 +9,7 @@ import {
   KIM_X_LOW, KIM_X_HIGH, KIM_Y_1, KIM_Y_2, KIM_Y_3, XYZ_TO_LINEAR_SRGB,
 } from './councilFieldPhysics';
 import { OMEGA_ISCO_VIS } from './councilMatter';
-import { SPIRAL_DEG, ARM_POINTS } from './councilFieldUniforms';
+import { SPIRAL_DEG, ARM_POINTS, DELAY_MAX, WOBBLE_DEG } from './councilFieldUniforms';
 
 export function glf(x) {
   const s = Number(x).toPrecision(9);
@@ -97,8 +97,8 @@ const float OMEGA_ISCO_VIS = ${glf(OMEGA_ISCO_VIS)};
 const float COUNTER_JET = ${glf(COUNTER_JET)};
 
 const float T_INFALL = ${glf(COLLIDER_TIMING.T_INFALL)};
-const float DELAY_MAX = 900.0;
-const float WOBBLE_DEG = 7.0;
+const float DELAY_MAX = ${glf(DELAY_MAX)};
+const float WOBBLE_DEG = ${glf(WOBBLE_DEG)};
 const float SPIRAL_DEG = ${glf(SPIRAL_DEG)};
 const int ARM_POINTS = ${ARM_POINTS};
 

@@ -3,7 +3,7 @@ import { FIELD_VS, FIELD_FS, FIELD_UNIFORMS, glf } from '../councilFieldShader';
 import { B_C, LUT_W, X_MIN, X_MAX, PHI_MAX, D_X_MAX, FAR } from '../councilGeodesics';
 import { COS_I, SIN_I, SPIN_SIGN, F_MAX, T_PEAK, T_EXP, COUNTER_JET } from '../councilFieldPhysics';
 import { OMEGA_ISCO_VIS } from '../councilMatter';
-import { SPIRAL_DEG, ARM_POINTS } from '../councilFieldUniforms';
+import { SPIRAL_DEG, ARM_POINTS, DELAY_MAX, WOBBLE_DEG } from '../councilFieldUniforms';
 
 // Array uniforms (`uniform vec2 u_armA[25];`) are harvested by their bare name:
 // getUniformLocation(prog, 'u_armA') is element 0, and uniform2fv fills the array.
@@ -24,7 +24,7 @@ describe('councilFieldShader contract (spec §5, §7)', () => {
     for (const [name, value] of Object.entries({
       B_C, LUT_W, X_MIN, X_MAX, PHI_MAX, D_X_MAX, FAR,
       COS_I, SIN_I, SPIN: SPIN_SIGN, F_MAX, T_PEAK, T_EXP, COUNTER_JET,
-      OMEGA_ISCO_VIS, SPIRAL_DEG,
+      OMEGA_ISCO_VIS, SPIRAL_DEG, DELAY_MAX, WOBBLE_DEG,
     })) {
       expect(FIELD_FS).toContain(`const float ${name} = ${glf(value)};`);
     }

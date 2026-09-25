@@ -23,6 +23,7 @@ export const ANIM_PHASE = { IDLE: 0, INFALL: 1, FLASH: 2, EJECT: 3, COOLDOWN: 4 
 export const AMBIENT_INTENSITY = 0.4;
 export const SPIRAL_DEG = (0.9 * 180) / Math.PI; // SPIRAL_GAIN in degrees
 export const DELAY_MAX = 900;  // ms: the 2D loop's largest particle delay
+export const WOBBLE_DEG = 7;   // the 2D loop's particle wobble is ±14/2 degrees
 export const ARM_POINTS = 25;  // polyline points per infall arm (24 segments)
 
 // Arm polylines in viewBox units, filled in place (never reallocated) and
