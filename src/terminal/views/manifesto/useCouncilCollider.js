@@ -27,6 +27,11 @@ const ARMED_TIMEOUT_MS = 45000;
 const easeInCubic = (t) => t * t * t;
 const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
+const jitter = (seed, ordinal) => {
+  let h = Math.imul(seed + ordinal * 97, 2654435761) >>> 0;
+  return (h % 1000) / 1000;
+};
+
 const mindByDim = (d) => SIXTEEN_MINDS.find(m => m.dimIndex === d);
 
 export function useCouncilCollider({ seated, enabled }) {
@@ -42,6 +47,7 @@ export function useCouncilCollider({ seated, enabled }) {
   const [lastCollision, setLastCollision] = useState(null);
   const [activePairIds, setActivePairIds] = useState([]);
   const [running, setRunning] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(false);
 
   // Precompute every mind's 1536-D vector once.
   const expanded = useMemo(() => seated.map(m => expand(mindProfile(m))), [seated]);
@@ -107,6 +113,108 @@ export function useCouncilCollider({ seated, enabled }) {
     return () => clearTimeout(armedTimerRef.current);
   }, [ui.mode, ui.armedDim]);
 
+  // ── Cycle steps ────────────────────────────────────────────────────────────
+  // Hook scope, not loop scope: the rAF loop drives them through the flight
+  // phases, and the reduced-motion path (below) runs the same steps back to
+  // back when no loop runs.
+  const spawnStreams = useCallback((ia, ib, streamN, now) => {
+    const sim = simRef.current;
+    sim.pair = [ia, ib];
+    sim.phase = 'INFALL';
+    sim.t0 = now;
+    sim.particles = [];
+    [ia, ib].forEach((seatIdx, s) => {
+      const mind = seated[seatIdx];
+      for (let i = 0; i < streamN; i++) {
+        sim.particles.push({
+          angle: mind.angle,
+          hue: mind.hue,
+          delay: jitter(s * streamN + i, sim.ordinal) * 900,
+          wobble: (jitter(s * streamN + i + 500, sim.ordinal) - 0.5) * 14,
+        });
+      }
+    });
+    setActivePairIds([seated[ia].dimIndex, seated[ib].dimIndex]);
+  }, [seated]);
+
+  const startUserCycle = useCallback((now) => {
+    const sim = simRef.current;
+    const [ia, ib] = sim.userPair;
+    sim.userPair = null;
+    sim.isUser = true;
+    spawnStreams(ia, ib, STREAM_N_USER, now);
+  }, [spawnStreams]);
+
+  const runCollision = useCallback((now) => {
+    const sim = simRef.current;
+    const [ia, ib] = sim.pair;
+    const result = collide(expanded[ia], expanded[ib]);
+    const mindA = seated[ia], mindB = seated[ib];
+    const line = composeLine(mindA, mindB, result, sim.ordinal);
+    const domSeat = seated.findIndex(m => m.dimIndex === result.dominantDim);
+    sim.product = {
+      angle: seated[domSeat].angle,
+      targetR: result.trajectory === 'FOUNDATION' ? R_FOUNDATION : R_CEILING + 28,
+      boundaryR: result.trajectory === 'FOUNDATION' ? R_FOUNDATION : R_CEILING,
+      color: result.trajectory === 'FOUNDATION' ? '#FF0088' : '#00FFAA',
+    };
+    sim.collideResult = result;
+    sim.phase = 'FLASH';
+    sim.t0 = now;
+    setLastCollision({ line, trajectory: result.trajectory });
+    councilBus.emit({
+      type: 'COUNCIL_COLLISION',
+      pair: [mindA.dimIndex, mindB.dimIndex],
+      cosine: result.cosine, trajectory: result.trajectory,
+      dominantDim: result.dominantDim, energies: result.energies,
+      line, ordinal: sim.ordinal, ts: Date.now(),
+      source: sim.isUser ? 'user' : 'ambient',
+    });
+  }, [seated, expanded]);
+
+  // Animation gate (spec §1): synthesis computes ONLY after EJECT completes.
+  const completeUserSynthesis = useCallback(() => {
+    // Mirror the reducer's SYNTHESIS_READY guard: if the user RESET (or
+    // otherwise left FIRING) mid-flight, the synthesis must not be recorded —
+    // a SYNTHESIS appended after RESET would win the ledger walk-back and
+    // resurrect the panel the user explicitly cleared (SKS §3).
+    if (uiRef.current.mode !== 'FIRING') return;
+    const sim = simRef.current;
+    const [ia, ib] = sim.pair;
+    const entryA = mindEntry(seated[ia]);
+    const entryB = mindEntry(seated[ib]);
+    const record = synthesize(entryA, entryB, sim.collideResult, sim.ordinal);
+    councilLedger.append(record);
+    councilBus.emit({ type: 'COUNCIL_SYNTHESIS', recordId: record.id, ordinal: sim.ordinal, ts: record.ts });
+    dispatch({ type: 'SYNTHESIS_READY', record });
+    // Quintessence spine: the council collision is a deliberate vertebra (spec §3.2).
+    // Guarded + after the primary pipeline: a spine write must never break synthesis.
+    try {
+      setCouncil({
+        pair: record.pair.map(p => p.kind === 'mind' ? p.anchorName : p.label),
+        directive: record.directive,
+        trajectory: record.metrics.trajectory,
+        paradoxCount: record.sections.openQuestions.length,
+      });
+    } catch (_) { /* the spine is ancillary — synthesis must not fail on it */ }
+  }, [seated]);
+
+  // Reduced motion runs no rAF loop (see Gate), so nothing would ever fly the
+  // staged pair and FIRING would hold the input lock forever. Run the loop's
+  // own cycle steps back to back instead: no flight, and the same collide →
+  // synthesize → ledger sequence at the same ordinal as the animated path.
+  const fireWithoutFlight = useCallback(() => {
+    const sim = simRef.current;
+    if (!sim.userPair) return;
+    const now = performance.now();
+    startUserCycle(now);
+    runCollision(now);
+    completeUserSynthesis();
+    sim.ordinal += 1;
+    sim.phase = 'IDLE';
+    sim.particles = [];
+  }, [startUserCycle, runCollision, completeUserSynthesis]);
+
   // When the reducer enters FIRING, stage the user pair for the RAF loop.
   useEffect(() => {
     if (ui.mode === 'FIRING' && ui.pair) {
@@ -115,8 +223,9 @@ export function useCouncilCollider({ seated, enabled }) {
         seated.findIndex(m => m.dimIndex === dA),
         seated.findIndex(m => m.dimIndex === dB),
       ];
+      if (reducedMotion) fireWithoutFlight();
     }
-  }, [ui.mode, ui.pair, seated]);
+  }, [ui.mode, ui.pair, seated, reducedMotion, fireWithoutFlight]);
 
   // Gate: enabled flag, prefers-reduced-motion, viewport visibility.
   useEffect(() => {
@@ -124,6 +233,7 @@ export function useCouncilCollider({ seated, enabled }) {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setReducedMotion(mq.matches);
     if (mq.matches) { setRunning(false); return; }
     const io = new IntersectionObserver(([e]) => setRunning(e.isIntersecting));
     io.observe(canvas);
@@ -152,98 +262,11 @@ export function useCouncilCollider({ seated, enabled }) {
     ro.observe(canvas);
     resize();
 
-    const jitter = (seed, ordinal) => {
-      let h = Math.imul(seed + ordinal * 97, 2654435761) >>> 0;
-      return (h % 1000) / 1000;
-    };
-
-    const spawnStreams = (ia, ib, streamN, now) => {
-      const sim = simRef.current;
-      sim.pair = [ia, ib];
-      sim.phase = 'INFALL';
-      sim.t0 = now;
-      sim.particles = [];
-      [ia, ib].forEach((seatIdx, s) => {
-        const mind = seated[seatIdx];
-        for (let i = 0; i < streamN; i++) {
-          sim.particles.push({
-            angle: mind.angle,
-            hue: mind.hue,
-            delay: jitter(s * streamN + i, sim.ordinal) * 900,
-            wobble: (jitter(s * streamN + i + 500, sim.ordinal) - 0.5) * 14,
-          });
-        }
-      });
-      setActivePairIds([seated[ia].dimIndex, seated[ib].dimIndex]);
-    };
-
     const startAmbientCycle = (now) => {
       const sim = simRef.current;
       const [ia, ib] = pickPair(sim.ordinal, null);
       sim.isUser = false;
       spawnStreams(ia, ib, STREAM_N_AMBIENT, now);
-    };
-
-    const startUserCycle = (now) => {
-      const sim = simRef.current;
-      const [ia, ib] = sim.userPair;
-      sim.userPair = null;
-      sim.isUser = true;
-      spawnStreams(ia, ib, STREAM_N_USER, now);
-    };
-
-    const runCollision = (now) => {
-      const sim = simRef.current;
-      const [ia, ib] = sim.pair;
-      const result = collide(expanded[ia], expanded[ib]);
-      const mindA = seated[ia], mindB = seated[ib];
-      const line = composeLine(mindA, mindB, result, sim.ordinal);
-      const domSeat = seated.findIndex(m => m.dimIndex === result.dominantDim);
-      sim.product = {
-        angle: seated[domSeat].angle,
-        targetR: result.trajectory === 'FOUNDATION' ? R_FOUNDATION : R_CEILING + 28,
-        boundaryR: result.trajectory === 'FOUNDATION' ? R_FOUNDATION : R_CEILING,
-        color: result.trajectory === 'FOUNDATION' ? '#FF0088' : '#00FFAA',
-      };
-      sim.collideResult = result;
-      sim.phase = 'FLASH';
-      sim.t0 = now;
-      setLastCollision({ line, trajectory: result.trajectory });
-      councilBus.emit({
-        type: 'COUNCIL_COLLISION',
-        pair: [mindA.dimIndex, mindB.dimIndex],
-        cosine: result.cosine, trajectory: result.trajectory,
-        dominantDim: result.dominantDim, energies: result.energies,
-        line, ordinal: sim.ordinal, ts: Date.now(),
-        source: sim.isUser ? 'user' : 'ambient',
-      });
-    };
-
-    // Animation gate (spec §1): synthesis computes ONLY after EJECT completes.
-    const completeUserSynthesis = () => {
-      // Mirror the reducer's SYNTHESIS_READY guard: if the user RESET (or
-      // otherwise left FIRING) mid-flight, the synthesis must not be recorded —
-      // a SYNTHESIS appended after RESET would win the ledger walk-back and
-      // resurrect the panel the user explicitly cleared (SKS §3).
-      if (uiRef.current.mode !== 'FIRING') return;
-      const sim = simRef.current;
-      const [ia, ib] = sim.pair;
-      const entryA = mindEntry(seated[ia]);
-      const entryB = mindEntry(seated[ib]);
-      const record = synthesize(entryA, entryB, sim.collideResult, sim.ordinal);
-      councilLedger.append(record);
-      councilBus.emit({ type: 'COUNCIL_SYNTHESIS', recordId: record.id, ordinal: sim.ordinal, ts: record.ts });
-      dispatch({ type: 'SYNTHESIS_READY', record });
-      // Quintessence spine: the council collision is a deliberate vertebra (spec §3.2).
-      // Guarded + after the primary pipeline: a spine write must never break synthesis.
-      try {
-        setCouncil({
-          pair: record.pair.map(p => p.kind === 'mind' ? p.anchorName : p.label),
-          directive: record.directive,
-          trajectory: record.metrics.trajectory,
-          paradoxCount: record.sections.openQuestions.length,
-        });
-      } catch (_) { /* the spine is ancillary — synthesis must not fail on it */ }
     };
 
     const dot = (x, y, r, color) => {
@@ -330,10 +353,11 @@ export function useCouncilCollider({ seated, enabled }) {
       sim.phase = 'IDLE';
       sim.particles = [];
     };
-    // seated/expanded MUST be referentially stable across renders (CouncilRing
-    // memoizes seated with [] deps — load-bearing). If that memo breaks, this
-    // effect tears down and restarts every render and the sim never advances.
-  }, [running, seated, expanded]);
+    // The cycle-step callbacks are keyed on seated/expanded, which MUST be
+    // referentially stable across renders (CouncilRing memoizes seated with []
+    // deps — load-bearing). If that memo breaks, this effect tears down and
+    // restarts every render and the sim never advances.
+  }, [running, spawnStreams, startUserCycle, runCollision, completeUserSynthesis]);
 
   const armedMind = ui.armedDim != null ? mindByDim(ui.armedDim) : null;
   const pairMinds = ui.pair ? ui.pair.map(d => (d != null ? mindByDim(d) : null)) : null;
