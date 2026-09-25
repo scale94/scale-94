@@ -85,10 +85,10 @@ export function hitCell(id) {
   return poly;
 }
 
-// The node whose capped cell holds [x, y]: the nearest node within HIT_R.
-export function nodeAt([x, y]) {
+// The node whose capped cell holds [x, y]: the nearest node within maxR (HIT_R).
+export function nodeAt([x, y], maxR = HIT_R) {
   let best = null;
-  let bestD = HIT_R;
+  let bestD = maxR;
   for (const n of NODES) {
     const [nx, ny] = XY[n.id];
     const d = Math.hypot(nx - x, ny - y);

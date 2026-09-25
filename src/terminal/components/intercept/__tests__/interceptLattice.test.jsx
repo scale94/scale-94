@@ -287,10 +287,43 @@ describe('InterceptLattice (spec §5, §6, §8, §9)', () => {
       for (const call of focus.mock.calls) expect(call).toEqual([{ preventScroll: true }]);
     });
 
-    it('opens from a touch on the EU membrane too', () => {
+    it('opens from a touch on the EU membrane too, and Escape returns focus to the nearest node', () => {
       render(<InterceptLattice laws={laws} />);
+      // No SVG geometry in jsdom: the opener falls back to the first crowded node.
       tap(screen.getByTestId('eu-membrane'));
       expect(loupe()).toBeTruthy();
+      fireEvent.keyDown(loupeButton('DE'), { key: 'Escape' });
+      expect(document.activeElement).toBe(nodeG('UK'));
+      // With geometry (client = map units), the node nearest the tap is the opener.
+      const svg = screen.getByTestId('intercept-overlay');
+      const ident = { a: 1, inverse: () => ident };
+      svg.getScreenCTM = () => ident;
+      svg.createSVGPoint = () => ({ x: 0, y: 0, matrixTransform() { return { x: this.x, y: this.y }; } });
+      const [sx, sy] = nodeXY('SE');
+      tap(screen.getByTestId('eu-membrane'), 'touch', { clientX: sx - 2, clientY: sy - 30 });
+      fireEvent.keyDown(loupeButton('DE'), { key: 'Escape' });
+      expect(document.activeElement).toBe(nodeG('SE'));
+    });
+
+    // The ring is inset: SE's button touches the map's top edge, where anything
+    // larger than the button would be clipped, which is the defect being fixed.
+    it('draws a round, unclipped focus ring on loupe buttons instead of the default outline', () => {
+      const { container } = render(<InterceptLattice laws={laws} />);
+      tap(node('germany'));
+      const btn = loupeButton('SE');
+      expect(btn.style.outline).toBe('none');
+      const ring = btn.querySelector('circle.iv-focus-ring');
+      expect(ring.getAttribute('stroke')).toBe('#fde68a');
+      expect(ring.style.pointerEvents).toBe('none');
+      expect(Number(ring.getAttribute('r'))).toBeLessThan(Number(btn.querySelector('circle').getAttribute('r')));
+      expect(container.querySelector('style').textContent).toMatch(/g\[role="button"\]:focus-visible \.iv-focus-ring \{ opacity: 1; \}/);
+    });
+
+    it('keeps the fallback glow from catching pointers meant for the filament', () => {
+      const { container } = render(<InterceptLattice laws={laws} />);
+      const glow = container.querySelector('[data-node="CA"] circle[fill="#fb923c"]');
+      expect(glow).toBeTruthy();
+      expect(glow.style.pointerEvents).toBe('none');
     });
 
     it('chooses an uncrowded node directly on touch', () => {

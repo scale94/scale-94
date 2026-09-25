@@ -127,7 +127,12 @@ export default function InterceptOverlay({
         strokeWidth="0.6" strokeDasharray="2 3"
         data-testid="eu-membrane" data-highlight={euHighlight ? 'true' : 'false'}
         onPointerUp={notePointer}
-        onClick={() => openLoupe(null)}
+        onClick={(e) => {
+          // The opener (for focus return) is the node nearest the tap, uncapped:
+          // the membrane is only reachable where no capped cell covers it.
+          const p = toMapPoint(svgRef.current, e.clientX, e.clientY);
+          openLoupe((p && nodeAt(p, Infinity)) || CROWDED[0]);
+        }}
       />
 
       {traced.map((i) => {
@@ -207,9 +212,9 @@ export default function InterceptOverlay({
           >
             <title>{n.name}</title>
             <circle cx={x} cy={y} r="8" fill="transparent" data-hit-core="true" />
-            {showFallbackGlow && <circle cx={x} cy={y} r={3 + 8 * load} fill="#fb923c" fillOpacity={0.12 + 0.3 * load} />}
+            {showFallbackGlow && <circle cx={x} cy={y} r={3 + 8 * load} fill="#fb923c" fillOpacity={0.12 + 0.3 * load} style={{ pointerEvents: 'none' }} />}
             {showFallbackGlow && k > 0 && (
-              <circle cx={x} cy={y} r="7" fill="none" stroke="#fb923c" strokeOpacity={0.15 + 0.5 * (k / keptCap)} strokeWidth="0.8" />
+              <circle cx={x} cy={y} r="7" fill="none" stroke="#fb923c" strokeOpacity={0.15 + 0.5 * (k / keptCap)} strokeWidth="0.8" style={{ pointerEvents: 'none' }} />
             )}
             {tickList.map((state, i) => {
               if (!state) return null;
@@ -298,7 +303,7 @@ export default function InterceptOverlay({
                 aria-label={NODE_NAME[it.id]}
                 data-loupe-node={it.id}
                 className={reducedMotion ? undefined : 'iv-loupe-in'}
-                style={{ cursor: 'pointer', '--dx': it.fromX - it.x, '--dy': it.fromY - it.y }}
+                style={{ cursor: 'pointer', outline: 'none', '--dx': it.fromX - it.x, '--dy': it.fromY - it.y }}
                 onClick={() => pick(it.id)}
                 onKeyDown={(e) => {
                   if (e.repeat) return;
@@ -312,6 +317,11 @@ export default function InterceptOverlay({
                   cx={it.x} cy={it.y} r={loupe.btnR}
                   fill="#1c0f06" fillOpacity="0.9"
                   stroke={hasRole ? '#fde68a' : '#fb923c'} strokeOpacity="0.6" strokeWidth={loupe.upp}
+                />
+                {/* Inset, so it is never clipped at the map edge the ring can touch. */}
+                <circle
+                  className="iv-focus-ring" cx={it.x} cy={it.y} r={loupe.btnR - 2.5 * loupe.upp}
+                  fill="none" stroke="#fde68a" strokeWidth={1.5 * loupe.upp} style={{ pointerEvents: 'none' }}
                 />
                 <text
                   x={it.x} y={it.y} textAnchor="middle" dominantBaseline="central"
