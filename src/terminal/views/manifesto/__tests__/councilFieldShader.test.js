@@ -3,9 +3,11 @@ import { FIELD_VS, FIELD_FS, FIELD_UNIFORMS, glf } from '../councilFieldShader';
 import { B_C, LUT_W, X_MIN, X_MAX, PHI_MAX, D_X_MAX, FAR } from '../councilGeodesics';
 import { COS_I, SIN_I, SPIN_SIGN, F_MAX, T_PEAK, T_EXP, COUNTER_JET } from '../councilFieldPhysics';
 import { OMEGA_ISCO_VIS } from '../councilMatter';
-import { SPIRAL_DEG } from '../councilFieldUniforms';
+import { SPIRAL_DEG, ARM_POINTS } from '../councilFieldUniforms';
 
-const declared = [...FIELD_FS.matchAll(/^uniform\s+\w+\s+(\w+);/gm)].map((m) => m[1]);
+// Array uniforms (`uniform vec2 u_armA[25];`) are harvested by their bare name:
+// getUniformLocation(prog, 'u_armA') is element 0, and uniform2fv fills the array.
+const declared = [...FIELD_FS.matchAll(/^uniform\s+\w+\s+(\w+)(?:\[\d+\])?;/gm)].map((m) => m[1]);
 
 describe('councilFieldShader contract (spec §5, §7)', () => {
   it('is GLSL ES 3.00 in both stages', () => {
@@ -26,6 +28,12 @@ describe('councilFieldShader contract (spec §5, §7)', () => {
     })) {
       expect(FIELD_FS).toContain(`const float ${name} = ${glf(value)};`);
     }
+  });
+
+  it('sizes the arm uniform arrays and the arm loop from ARM_POINTS', () => {
+    expect(FIELD_FS).toContain(`uniform vec2 u_armA[${ARM_POINTS}];`);
+    expect(FIELD_FS).toContain(`uniform vec2 u_armB[${ARM_POINTS}];`);
+    expect(FIELD_FS).toContain(`const int ARM_POINTS = ${ARM_POINTS};`);
   });
 
   it('formats GLSL float literals with a decimal point or exponent', () => {

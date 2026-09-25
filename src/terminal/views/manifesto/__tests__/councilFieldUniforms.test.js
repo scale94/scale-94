@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   readFieldUniforms, hexToLinear, UI_MODE, ANIM_PHASE, AMBIENT_INTENSITY,
+  armProgress, ARM_POINTS, DELAY_MAX, infallArmPoint, seatAngleFromXY,
 } from '../councilFieldUniforms';
 import { polarToXY } from '../councilRingMath';
 
@@ -139,6 +140,50 @@ describe('readFieldUniforms — seat resolution (spec §6 + plan amendment 5)', 
     expect(u.time).toBe(7);
     expect(u.flow[0]).toBeCloseTo(7, 9);
     expect(u.flowW).toBeCloseTo(1, 9);
+  });
+});
+
+describe('infall arm polylines on the CPU (fix wave E)', () => {
+  const T_INFALL = 2600;
+  const clamp01 = (x) => Math.min(1, Math.max(0, x));
+  // The formulas the shader's infallArm() used before the move, verbatim.
+  const oldShader = (ms) => [clamp01((ms - 900) / T_INFALL), clamp01(ms / T_INFALL)];
+
+  it('trail/lead match the old shader formulas', () => {
+    expect(DELAY_MAX).toBe(900);
+    for (const ms of [0, 900, 2600, 3500]) {
+      const [trail, lead] = armProgress(ms);
+      const [wantTrail, wantLead] = oldShader(ms);
+      expect(trail).toBeCloseTo(wantTrail, 15);
+      expect(lead).toBeCloseTo(wantLead, 15);
+    }
+  });
+
+  it('fills 25 viewBox points per arm from infallArmPoint during INFALL', () => {
+    const u = readFieldUniforms(sim({ phase: 'INFALL', pair: [0, 2] }), ui(), SEATED, null, 2300);
+    const [trail, lead] = armProgress(1300);
+    expect(ARM_POINTS).toBe(25);
+    expect(u.armProg).toEqual([trail, lead]);
+    for (const [arr, mind] of [[u.armA, SEATED[0]], [u.armB, SEATED[2]]]) {
+      expect(arr).toBeInstanceOf(Float32Array);
+      expect(arr).toHaveLength(2 * ARM_POINTS);
+      const seat = polarToXY(mind.angle, 220, 320, 320);
+      const ang = seatAngleFromXY(seat.x, seat.y);
+      for (const [k, prog] of [[0, trail], [12, (trail + lead) / 2], [24, lead]]) {
+        const want = infallArmPoint(ang, prog);
+        expect(arr[2 * k]).toBeCloseTo(want.x, 3); // float32 storage
+        expect(arr[2 * k + 1]).toBeCloseTo(want.y, 3);
+      }
+    }
+  });
+
+  it('reuses the same buffers and leaves them untouched outside INFALL', () => {
+    const a = readFieldUniforms(sim({ phase: 'INFALL', pair: [0, 1] }), ui(), SEATED, null, 2300);
+    const before = [Array.from(a.armA), Array.from(a.armB)];
+    const b = readFieldUniforms(sim({ phase: 'FLASH', pair: [2, 1] }), ui(), SEATED, null, 1100);
+    expect(b.armA).toBe(a.armA);
+    expect(b.armB).toBe(a.armB);
+    expect([Array.from(b.armA), Array.from(b.armB)]).toEqual(before);
   });
 });
 

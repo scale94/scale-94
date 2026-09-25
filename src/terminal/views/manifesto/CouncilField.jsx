@@ -25,8 +25,9 @@ function makeTexture(gl, unit, w, h, internal, format, type, data, wrap) {
   return tex;
 }
 
-// Scalar uniform forms only: no per-frame allocation, and the recording
-// stub logs every value (it prints plain arrays as "<obj>").
+// Scalar uniform forms, plus fv uploads of the preallocated arm typed arrays:
+// no per-frame allocation, and the recording stub logs every value (it logs
+// typed arrays by value but prints plain arrays as "<obj>").
 function paint(gl, U, u, lensD) {
   gl.clearColor(0, 0, 0, 0);
   gl.clear(gl.COLOR_BUFFER_BIT);
@@ -51,6 +52,10 @@ function paint(gl, U, u, lensD) {
   gl.uniform1i(U.u_geodesic, 0);
   gl.uniform1i(U.u_deflect, 1);
   gl.uniform1i(U.u_matter, 2);
+  // Preallocated Float32Array(50) buffers, refilled in place during INFALL.
+  gl.uniform2fv(U.u_armA, u.armA);
+  gl.uniform2fv(U.u_armB, u.armB);
+  gl.uniform2f(U.u_arm_prog, u.armProg[0], u.armProg[1]);
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 }
 

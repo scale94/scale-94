@@ -9,7 +9,7 @@ import {
   KIM_X_LOW, KIM_X_HIGH, KIM_Y_1, KIM_Y_2, KIM_Y_3, XYZ_TO_LINEAR_SRGB,
 } from './councilFieldPhysics';
 import { OMEGA_ISCO_VIS } from './councilMatter';
-import { SPIRAL_DEG } from './councilFieldUniforms';
+import { SPIRAL_DEG, ARM_POINTS } from './councilFieldUniforms';
 
 export function glf(x) {
   const s = Number(x).toPrecision(9);
@@ -23,7 +23,7 @@ export const FIELD_UNIFORMS = [
   'u_resolution', 'u_time', 'u_ui_mode', 'u_anim_phase', 'u_phase_t', 'u_phase_ms',
   'u_seatA', 'u_seatB', 'u_colorA', 'u_colorB', 'u_pointer', 'u_pointer_live',
   'u_intensity', 'u_eject', 'u_eject_color', 'u_flow', 'u_flow_w', 'u_lens_d',
-  'u_geodesic', 'u_deflect', 'u_matter',
+  'u_geodesic', 'u_deflect', 'u_matter', 'u_armA', 'u_armB', 'u_arm_prog',
 ];
 
 export const FIELD_VS = `#version 300 es
@@ -57,6 +57,9 @@ uniform float u_lens_d;
 uniform sampler2D u_geodesic;
 uniform sampler2D u_deflect;
 uniform sampler2D u_matter;
+uniform vec2 u_armA[${ARM_POINTS}];
+uniform vec2 u_armB[${ARM_POINTS}];
+uniform vec2 u_arm_prog;
 
 out vec4 fragColor;
 
@@ -97,7 +100,7 @@ const float T_INFALL = ${glf(COLLIDER_TIMING.T_INFALL)};
 const float DELAY_MAX = 900.0;
 const float WOBBLE_DEG = 7.0;
 const float SPIRAL_DEG = ${glf(SPIRAL_DEG)};
-const int ARM_SEGMENTS = 24;
+const int ARM_POINTS = ${ARM_POINTS};
 
 const vec4 KXL = ${v4(KIM_X_LOW)};
 const vec4 KXH = ${v4(KIM_X_HIGH)};
@@ -225,16 +228,13 @@ vec3 seatDisc(vec2 p, vec2 S, vec3 c, float radius) {
 }
 
 // ── infall sheath (§7.6): the envelope of the 2D particle streams ──────────
-vec2 armPoint(float angDeg, float prog) {
-  float r = R_SEAT * (1.0 - prog * prog * prog);
-  float th = angDeg + SPIRAL_DEG * (1.0 - r / R_SEAT);
-  float rad = radians(th - 90.0);
-  return CENTER + r * vec2(cos(rad), sin(rad));
-}
+// The arm polylines (viewBox units, trail → lead) are computed once per frame
+// on the CPU (councilFieldUniforms.fillInfallArm) and uploaded as uniforms.
+vec2 armPoint(int side, int k) { return side == 0 ? u_armA[k] : u_armB[k]; }
 
-vec3 infallArm(vec2 p, vec2 seat, vec3 col) {
-  float lead = clamp(u_phase_ms / T_INFALL, 0.0, 1.0);
-  float trail = clamp((u_phase_ms - DELAY_MAX) / T_INFALL, 0.0, 1.0);
+vec3 infallArm(vec2 p, int side, vec2 seat, vec3 col) {
+  float trail = u_arm_prog.x;
+  float lead = u_arm_prog.y;
   if (lead <= 0.0) return vec3(0.0);
   vec2 q = p - CENTER;
   float rq = length(q);
@@ -250,11 +250,11 @@ vec3 infallArm(vec2 p, vec2 seat, vec3 col) {
   }
   float best = 1.0e9;
   float bestProg = trail;
-  vec2 prev = armPoint(ang, trail);
-  for (int k = 1; k <= ARM_SEGMENTS; k++) {
-    float p0 = mix(trail, lead, float(k - 1) / float(ARM_SEGMENTS));
-    float p1 = mix(trail, lead, float(k) / float(ARM_SEGMENTS));
-    vec2 cur = armPoint(ang, p1);
+  vec2 prev = armPoint(side, 0);
+  for (int k = 1; k < ARM_POINTS; k++) {
+    float p0 = mix(trail, lead, float(k - 1) / float(ARM_POINTS - 1));
+    float p1 = mix(trail, lead, float(k) / float(ARM_POINTS - 1));
+    vec2 cur = armPoint(side, k);
     float h;
     float d = segDist(p, prev, cur, h);
     if (d < best) { best = d; bestProg = mix(p0, p1, h); }
@@ -265,7 +265,7 @@ vec3 infallArm(vec2 p, vec2 seat, vec3 col) {
   float width = spread + 5.0;
   float glow = exp(-(best * best) / (width * width));
   float coreLine = exp(-(best * best) / (spread * spread + 1.0));
-  vec2 hd = p - armPoint(ang, lead);
+  vec2 hd = p - armPoint(side, ARM_POINTS - 1);
   float head = exp(-dot(hd, hd) / 36.0);
   return col * (glow * 0.55 + coreLine * 0.35) + vec3(head * 0.9);
 }
@@ -368,7 +368,7 @@ void main() {
         fx += filament(lensSource(p), A, B, u_colorA, u_colorB, 1.8 * bridge);
         fx += (seatDisc(p, A, u_colorA, 9.0) + seatDisc(p, B, u_colorB, 9.0)) * bridge;
       }
-      if (ph == 1) fx += infallArm(p, A, u_colorA) + infallArm(p, B, u_colorB);
+      if (ph == 1) fx += infallArm(p, 0, A, u_colorA) + infallArm(p, 1, B, u_colorB);
       if (ph == 2) core = flashCore(rq, t);
       if (ph == 3) fx += jet(p, t);
     }
