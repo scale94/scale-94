@@ -47,7 +47,9 @@ const byDim = (seated, d) => seated.find((m) => m.dimIndex === d) ?? null;
 export function readFieldUniforms(sim, ui, seated, pointer, nowMs) {
   const f = flowLayers(nowMs / 1000);
   const u = {
-    time: nowMs / 1000,
+    // Every u_time use in FIELD_FS is 2π-periodic (sin(u_time·6), sin(u_time·3)),
+    // so wrapping keeps float32 precision over days of uptime at no cost.
+    time: (nowMs / 1000) % (2 * Math.PI),
     uiMode: UI_MODE[ui.mode] ?? UI_MODE.AMBIENT,
     animPhase: ANIM_PHASE.IDLE,
     phaseT: 0,

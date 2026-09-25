@@ -4,6 +4,7 @@ import {
   armProgress, ARM_POINTS, DELAY_MAX, infallArmPoint, seatAngleFromXY,
 } from '../councilFieldUniforms';
 import { polarToXY } from '../councilRingMath';
+import { flowLayers } from '../councilMatter';
 
 const SEATED = [
   { dimIndex: 3, angle: 270, hue: '#FF0088' }, // seat 0: west, (100, 320)
@@ -137,9 +138,20 @@ describe('readFieldUniforms — seat resolution (spec §6 + plan amendment 5)', 
 
   it('computes the flow layers from the same clock', () => {
     const u = readFieldUniforms(sim(), ui(), SEATED, null, 7000);
-    expect(u.time).toBe(7);
+    expect(u.time).toBe(7 % (2 * Math.PI)); // wrapped: every u_time use is 2π-periodic
     expect(u.flow[0]).toBeCloseTo(7, 9);
     expect(u.flowW).toBeCloseTo(1, 9);
+  });
+
+  it('keeps u_time small after a day of uptime without changing the periodic terms', () => {
+    const nowMs = 86400000 + 1234;
+    const u = readFieldUniforms(sim(), ui(), SEATED, null, nowMs);
+    const raw = nowMs / 1000;
+    expect(u.time).toBeGreaterThanOrEqual(0);
+    expect(u.time).toBeLessThan(2 * Math.PI);
+    expect(Math.fround(u.time)).toBeCloseTo(u.time, 6); // survives the float32 upload
+    for (const k of [3, 6]) expect(Math.sin(k * u.time)).toBeCloseTo(Math.sin(k * raw), 9);
+    expect(u.flow[0]).toBeCloseTo(flowLayers(raw).tau0, 9); // the flow keeps the raw clock
   });
 });
 
