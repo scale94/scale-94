@@ -97,22 +97,28 @@ src/terminal/views/SurveillanceTab.jsx    composition: lattice → ratchet → l
 
 ## 4. Trunk rule
 
-A trunk joins two nodes if they share **a land border, or a direct submarine cable
-landing between the two countries**. It is coarse and defensible, and labelled in the
-UI as *country-level connectivity, not cable routes*.
+A trunk joins two nodes if they share **a land border, a direct submarine cable
+landing between the two countries, or a connection that passes only through countries
+outside the corpus**. It is coarse and defensible, and labelled in the UI as
+*country-level connectivity, not cable routes*. Only the country pairs are recorded;
+no cable data is copied.
 
-Draft list, **to be verified in plan task 1** against a public cable reference. Only
-the country pairs are recorded, no cable data is copied.
+Final list (22 trunks, verified during planning):
 
 - Land: US–CA · FR–BE · FR–DE · BE–NL · BE–DE · NL–DE
-- Transatlantic: US–UK · US–IE · US–FR · CA–UK · CA–IE · US–DE · US–NL
-  (the last two are to be verified)
-- Intra-Europe submarine: UK–IE · UK–FR · UK–BE · UK–NL · DE–SE (to be verified)
+- Transatlantic: US–UK · US–IE · US–FR · US–DE · US–NL (AC-1 lands in Germany and the
+  Netherlands) · CA–UK · CA–IE (Hibernia Express: Halifax–Brean, Halifax–Cork)
+- Intra-Europe: UK–IE · UK–FR · UK–BE · UK–NL · IE–FR · DE–SE (through Denmark,
+  outside the corpus; the Germany–Sweden "Baltic Cable" is a power line, not data)
 - Pacific: US–AU · US–NZ · AU–NZ
 
-Verified during brainstorm: New Zealand's cables (Southern Cross, Hawaiki) land in
-Australia, Hawaii/US and Fiji, none in Canada. So **Canada ↔ New Zealand must
-transit the US or Australia**.
+New Zealand's cables (Southern Cross, Hawaiki) land in Australia, Hawaii/US and Fiji,
+none in Canada. So **Canada ↔ New Zealand must transit the US or Australia**.
+
+Routing takes the fewest hops. Ties go to the geographically shorter path, so a UK →
+Germany packet crosses the North Sea rather than the Atlantic twice. The CHALLENGED
+flicker hash is fnv1a finished with the murmur3 mixer, because the fnv1a low bit alone
+flips every law in lockstep on alternate sends.
 
 ## 5. Ratchet and taps
 
@@ -170,24 +176,20 @@ least one sending direction has *some* route free of that family's taps:
 - unnamed (A→B): no Digital Id, Biometric or Worker Surveillance at A, and no Age
   Verification at B
 
-Estimates from endpoints alone (computed during brainstorm, before trunks existed,
-counting a pair only if *both* ends are free of the whole family). Transit taps can
-only lower unread and unkept. The direction rule can raise unnamed slightly, so none
-of these are strict bounds:
+Exact values on the final trunk graph (pinned in tests against the sealed corpus):
 
-| detent | laws | unread ≈ | unkept ≈ | unnamed ≈ |
+| detent | laws | unread | unkept | unnamed |
 |---|---|---|---|---|
 | before | 0 | 55 | 55 | 55 |
-| active | 18 | 3 | 6 | 3 |
-| implementing | 28 | 1 | 1 | 0 |
-| now | 30 | 1 | 1 | 0 |
-| upheld | 34 | 0 | 0 | 0 |
-| proposed | 44 | 0 | 0 | 0 |
+| active | 18 | 3 | 6 | 18 |
+| implementing | 28 | 1 | none | none |
+| now | 30 | 1 | none | none |
+| upheld | 34 | none | none | none |
+| proposed | 44 | none | none | none |
 
-At `now` the only endpoint-clean pair for content and metadata is Canada ↔ New
-Zealand. Because that pair must transit the US or Australia (§4), the true route counts
-at `now` are expected to be lower. **The exact numbers are pinned in tests once
-`TRUNKS` is verified**, and this table is updated then.
+The single unread pair at `now` is Canada ↔ New Zealand, routed through the US. The
+corpus gives the US no encryption-backdoor law, and scanning only counts at the ends.
+When the four CHALLENGED laws are upheld, it closes.
 
 Five Eyes membership is not in the corpus and is not encoded.
 
@@ -201,16 +203,17 @@ Five Eyes membership is not in the corpus and is not encoded.
   the node ring at fixed angles, one per tap type.
 - Onsets are crisp, motion is smooth. No strobe, no raster tearing on text, no sound in
   phase 1.
-- Retention sediment is capped per node (oldest fades first), exists in memory only,
-  and is cleared on unmount.
+- Retention sediment is a per-node count capped at 12 (the ring saturates rather than
+  growing). It exists in memory only and is cleared on unmount.
 
 ## 8. Ledger (the law cards)
 
 - The grid stays below the lattice with its current card look.
 - Hovering a card pulses its node(s) and highlights its tap tick. An EU card lights
   all six member nodes and the EU membrane.
-- Clicking a node filters the ledger to that node (EU laws included for members), and
-  the existing region filter follows. Clicking a card still calls `onOpenLaw`.
+- The ledger follows the node you last touched: each node click sets the region filter
+  to that node (EU laws included for members). Clicking the source again resets the
+  route and the filter to all. Clicking a card still calls `onOpenLaw`.
 - The stats row folds into the lattice readout. Filters stay, compacted. The category
   filter now reads `tags`, and the subtitle line reads `subtitle`.
 - Copy: `INDEXING ACTIVE` / `ACTIVE CORPUS` become an honest *sealed 2026-03-09*.
