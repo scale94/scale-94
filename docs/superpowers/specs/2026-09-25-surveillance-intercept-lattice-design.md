@@ -224,6 +224,15 @@ Five Eyes membership is not in the corpus and is not encoded.
 - Nodes are reachable with Tab. Enter picks source, then destination. Shift+Enter
   adds a waypoint (the keyboard version of bending).
 - Touch: tap nodes to pick them, and tap intermediate nodes to bend.
+- **Hit cells and the loupe:** each node's hit area is its nearest-node (Voronoi)
+  cell, capped at 28 map units, so taps never fall in a gap or land on the wrong
+  neighbour. On a phone the European cluster (UK, IE, FR, BE, NL, DE, SE) is still
+  closer than a fingertip, so a touch or pen tap there, or on the EU membrane, opens
+  a loupe instead of picking: the seven nodes fan out from their true positions into
+  a ring of 32–44px buttons, each tied back by a hairline. Tapping a button picks
+  that node (as a touch tap, so it bends once a route exists); the backdrop or
+  Escape closes it. It opens only while the cluster is crowded at the rendered
+  scale. Mouse and keyboard never see it.
 - Reduced motion: no ambient traffic, and the packet jumps hop to hop (the harness
   frame loop already exposes this).
 - **No WebGL or context lost:** the SVG layer alone renders everything (static glow,

@@ -26,7 +26,9 @@ const STYLE = `
   .iv-word { animation: iv-word ${WORD_MS}ms linear forwards; }
   .iv-flicker { animation: iv-flicker 2.6s steps(1, end) infinite; }
   .iv-pulse { animation: iv-pulse 1.4s ease-in-out infinite; }
-  @media (prefers-reduced-motion: reduce) { .iv-flicker, .iv-pulse { animation: none; } }
+  @keyframes iv-loupe-in { from { transform: translate(calc(var(--dx) * 1px), calc(var(--dy) * 1px)) scale(0.35); opacity: 0; } to { transform: none; opacity: 1; } }
+  .iv-loupe-in { transform-box: fill-box; transform-origin: center; animation: iv-loupe-in 180ms ease-out both; }
+  @media (prefers-reduced-motion: reduce) { .iv-flicker, .iv-pulse, .iv-loupe-in { animation: none; } }
   .iv-focus-ring { opacity: 0; }
   g[role="button"]:focus-visible .iv-focus-ring { opacity: 1; }
 `;

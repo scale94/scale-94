@@ -177,4 +177,96 @@ describe('InterceptLattice (spec §5, §6, §8, §9)', () => {
     expect(readMark.querySelector('animateTransform')).toBeNull();
     vi.unstubAllGlobals();
   });
+
+  describe('touch loupe over the European cluster', () => {
+    const tap = (el, pointerType = 'touch') => {
+      fireEvent.pointerUp(el, { pointerType });
+      fireEvent.click(el);
+    };
+    const loupe = () => screen.queryByTestId('eu-loupe');
+    const loupeButton = (id) => loupe().querySelector(`[data-loupe-node="${id}"]`);
+    const IDLE = 'choose where it leaves · then where it lands';
+
+    it('opens on a touch tap on a crowded node, without choosing it', () => {
+      const onNodeSelect = vi.fn();
+      render(<InterceptLattice laws={laws} onNodeSelect={onNodeSelect} />);
+      tap(node('germany'));
+      expect(loupe()).toBeTruthy();
+      expect(loupe().querySelectorAll('[data-loupe-node]')).toHaveLength(7);
+      expect(document.activeElement).toBe(loupe().querySelector('[data-loupe-node]'));
+      expect(fate()).toBe(IDLE);
+      expect(onNodeSelect).not.toHaveBeenCalled();
+    });
+
+    it('chooses the tapped loupe button and closes', () => {
+      const onNodeSelect = vi.fn();
+      render(<InterceptLattice laws={laws} onNodeSelect={onNodeSelect} />);
+      tap(node('germany'));
+      fireEvent.click(loupeButton('DE'));
+      expect(onNodeSelect).toHaveBeenCalledWith('DE');
+      expect(onNodeSelect).toHaveBeenCalledTimes(1);
+      expect(loupe()).toBeNull();
+    });
+
+    it('chooses from the keyboard, ignoring a held key', () => {
+      const onNodeSelect = vi.fn();
+      render(<InterceptLattice laws={laws} onNodeSelect={onNodeSelect} />);
+      tap(node('germany'));
+      fireEvent.keyDown(loupeButton('FR'), { key: 'Enter', repeat: true });
+      expect(onNodeSelect).not.toHaveBeenCalled();
+      fireEvent.keyDown(loupeButton('FR'), { key: ' ' });
+      expect(onNodeSelect).toHaveBeenCalledWith('FR');
+      expect(loupe()).toBeNull();
+    });
+
+    it('closes on Escape and on the backdrop, choosing nothing', () => {
+      const onNodeSelect = vi.fn();
+      render(<InterceptLattice laws={laws} onNodeSelect={onNodeSelect} />);
+      tap(node('germany'));
+      fireEvent.keyDown(loupeButton('UK'), { key: 'Escape' });
+      expect(loupe()).toBeNull();
+      tap(node('france'));
+      fireEvent.click(screen.getByTestId('loupe-backdrop'));
+      expect(loupe()).toBeNull();
+      expect(onNodeSelect).not.toHaveBeenCalled();
+      expect(fate()).toBe(IDLE);
+    });
+
+    it('opens from a touch on the EU membrane too', () => {
+      render(<InterceptLattice laws={laws} />);
+      tap(screen.getByTestId('eu-membrane'));
+      expect(loupe()).toBeTruthy();
+    });
+
+    it('chooses an uncrowded node directly on touch', () => {
+      const onNodeSelect = vi.fn();
+      render(<InterceptLattice laws={laws} onNodeSelect={onNodeSelect} />);
+      tap(node('canada'));
+      expect(loupe()).toBeNull();
+      expect(onNodeSelect).toHaveBeenCalledWith('CA');
+    });
+
+    it('leaves the mouse alone: a click on germany chooses it directly', () => {
+      const onNodeSelect = vi.fn();
+      render(<InterceptLattice laws={laws} onNodeSelect={onNodeSelect} />);
+      tap(node('germany'), 'mouse');
+      expect(loupe()).toBeNull();
+      expect(onNodeSelect).toHaveBeenCalledWith('DE');
+      fireEvent.click(node('france'));
+      expect(loupe()).toBeNull();
+      expect(onNodeSelect).toHaveBeenLastCalledWith('FR');
+    });
+
+    it('fans the buttons out from their nodes, but not under reduced motion', () => {
+      const { container, unmount } = render(<InterceptLattice laws={laws} />);
+      tap(node('germany'));
+      expect(loupeButton('DE').getAttribute('class')).toBe('iv-loupe-in');
+      expect(container.querySelector('style').textContent).toMatch(/prefers-reduced-motion[^}]*\.iv-loupe-in/);
+      unmount();
+      vi.stubGlobal('matchMedia', () => ({ matches: true, addEventListener() {}, removeEventListener() {} }));
+      render(<InterceptLattice laws={laws} />);
+      tap(node('germany'));
+      expect(loupeButton('DE').getAttribute('class')).toBeNull();
+    });
+  });
 });

@@ -2,9 +2,11 @@
 // §9). Everything clickable, focusable or textual lives here; the WebGL field
 // underneath only glows. Coordinates are WorldMap viewBox units.
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { NODES, TRUNKS, TAPS } from '../../lib/interceptLattice';
-import { nodeXY, EU_MEMBRANE_PATH } from './interceptGeometry';
+import {
+  nodeXY, EU_MEMBRANE_PATH, HIT_CELL_PATHS, CROWDED, loupeLayout, needsLoupe,
+} from './interceptGeometry';
 
 const FAMILY_COLOR = {
   scan: '#f87171', backdoor: '#f87171',
@@ -13,6 +15,9 @@ const FAMILY_COLOR = {
 };
 const BEND_RADIUS = 36;
 const NO_TAPS = new Set();
+const NODE_NAME = Object.fromEntries(NODES.map((n) => [n.id, n.name]));
+// jsdom has no getScreenCTM; fall back to a 345px-wide phone map.
+const PHONE_UNITS_PER_PX = 800 / 345;
 
 function toMapPoint(svg, clientX, clientY) {
   if (!svg?.createSVGPoint || !svg.getScreenCTM) return null;
@@ -45,6 +50,31 @@ export default function InterceptOverlay({
   const pointerTypeRef = useRef('mouse');
   const [dragging, setDragging] = useState(false);
   const [bendPreview, setBendPreview] = useState(null);
+  // The touch loupe's layout, fixed at the rendered scale when it opened.
+  const [loupe, setLoupe] = useState(null);
+  const loupeFirstRef = useRef(null);
+
+  useEffect(() => {
+    if (loupe) loupeFirstRef.current?.focus?.();
+  }, [loupe]);
+
+  const unitsPerPx = () => {
+    const a = svgRef.current?.getScreenCTM?.()?.a;
+    return a ? 1 / a : PHONE_UNITS_PER_PX;
+  };
+  // A touch or pen landing on the crowded cluster opens the loupe instead of choosing.
+  const openLoupe = () => {
+    if (loupe || (pointerTypeRef.current !== 'touch' && pointerTypeRef.current !== 'pen')) return false;
+    const upp = unitsPerPx();
+    if (!needsLoupe(upp)) return false;
+    setLoupe({ upp, ...loupeLayout(upp) });
+    return true;
+  };
+  const pick = (id) => {
+    setLoupe(null);
+    onActivate(id, { bend: true });
+  };
+  const notePointer = (e) => { pointerTypeRef.current = e.pointerType || 'mouse'; };
   const pts = path ? path.map(nodeXY) : [];
   const polyPoints = pts.map((p) => p.join(',')).join(' ');
 
@@ -76,6 +106,8 @@ export default function InterceptOverlay({
         stroke="#fb923c" strokeOpacity={euHighlight ? 0.45 : 0.12}
         strokeWidth="0.6" strokeDasharray="2 3"
         data-testid="eu-membrane" data-highlight={euHighlight ? 'true' : 'false'}
+        onPointerUp={notePointer}
+        onClick={openLoupe}
       />
 
       {traced.map((i) => {
@@ -119,8 +151,11 @@ export default function InterceptOverlay({
             data-node={n.id}
             data-highlight={lit ? 'true' : 'false'}
             style={{ cursor: 'pointer', outline: 'none' }}
-            onPointerUp={(e) => { pointerTypeRef.current = e.pointerType || 'mouse'; }}
-            onClick={(e) => onActivate(n.id, { bend: e.shiftKey || pointerTypeRef.current === 'touch' })}
+            onPointerUp={notePointer}
+            onClick={(e) => {
+              if (CROWDED.includes(n.id) && openLoupe()) return;
+              onActivate(n.id, { bend: e.shiftKey || pointerTypeRef.current === 'touch' });
+            }}
             onKeyDown={(e) => {
               if (e.repeat) return;
               if (e.key === 'Enter' || e.key === ' ') {
@@ -130,7 +165,7 @@ export default function InterceptOverlay({
             }}
           >
             <title>{n.name}</title>
-            <circle cx={x} cy={y} r="14" fill="transparent" />
+            <path d={HIT_CELL_PATHS[n.id]} fill="transparent" />
             {showFallbackGlow && <circle cx={x} cy={y} r={3 + 8 * load} fill="#fb923c" fillOpacity={0.12 + 0.3 * load} />}
             {showFallbackGlow && k > 0 && (
               <circle cx={x} cy={y} r="7" fill="none" stroke="#fb923c" strokeOpacity={0.15 + 0.5 * (k / keptCap)} strokeWidth="0.8" />
@@ -192,6 +227,59 @@ export default function InterceptOverlay({
           </text>
         );
       })}
+
+      {loupe && (
+        <g
+          data-testid="eu-loupe"
+          onKeyDown={(e) => { if (e.key === 'Escape') setLoupe(null); }}
+        >
+          <rect
+            x="0" y="0" width="800" height="400" fill="#000" fillOpacity="0.45"
+            data-testid="loupe-backdrop" onClick={() => setLoupe(null)}
+          />
+          {loupe.items.map((it) => (
+            <g key={`line-${it.id}`} style={{ pointerEvents: 'none' }}>
+              <line x1={it.x} y1={it.y} x2={it.fromX} y2={it.fromY} stroke="#fdba74" strokeOpacity="0.35" strokeWidth={0.6 * loupe.upp} />
+              <circle cx={it.fromX} cy={it.fromY} r={1.5 * loupe.upp} fill="#fdba74" />
+            </g>
+          ))}
+          {loupe.items.map((it, i) => {
+            const hasRole = it.id === src || it.id === dst || waypoints.includes(it.id);
+            return (
+              <g
+                key={it.id}
+                ref={i === 0 ? loupeFirstRef : undefined}
+                role="button"
+                tabIndex={0}
+                aria-label={NODE_NAME[it.id]}
+                data-loupe-node={it.id}
+                className={reducedMotion ? undefined : 'iv-loupe-in'}
+                style={{ cursor: 'pointer', '--dx': it.fromX - it.x, '--dy': it.fromY - it.y }}
+                onClick={() => pick(it.id)}
+                onKeyDown={(e) => {
+                  if (e.repeat) return;
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    pick(it.id);
+                  }
+                }}
+              >
+                <circle
+                  cx={it.x} cy={it.y} r={loupe.btnR}
+                  fill="#1c0f06" fillOpacity="0.9"
+                  stroke={hasRole ? '#fde68a' : '#fb923c'} strokeOpacity="0.6" strokeWidth={loupe.upp}
+                />
+                <text
+                  x={it.x} y={it.y} textAnchor="middle" dominantBaseline="central"
+                  fontSize={12 * loupe.upp} fontFamily="monospace" fill="#fed7aa"
+                >
+                  {it.id}
+                </text>
+              </g>
+            );
+          })}
+        </g>
+      )}
     </svg>
   );
 }
