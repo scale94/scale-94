@@ -135,10 +135,16 @@ describe('CouncilField liveness', () => {
   });
 
   it('reports not-live, and owns no GL, when WebGL2 is unavailable', () => {
-    const spy = vi.fn();
-    const r = refs(FLASH);
-    render(<CouncilField {...r} seated={SEATED} mode="FIRING" onLiveChange={spy} />);
-    expect(spy).toHaveBeenLastCalledWith(false);
-    expect(spy).not.toHaveBeenCalledWith(true);
+    // No context at all (and no jsdom "Not implemented: getContext" stderr).
+    const noGL = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+    try {
+      const spy = vi.fn();
+      const r = refs(FLASH);
+      render(<CouncilField {...r} seated={SEATED} mode="FIRING" onLiveChange={spy} />);
+      expect(spy).toHaveBeenLastCalledWith(false);
+      expect(spy).not.toHaveBeenCalledWith(true);
+    } finally {
+      noGL.mockRestore();
+    }
   });
 });
