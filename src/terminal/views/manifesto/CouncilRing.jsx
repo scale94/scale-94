@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { SIXTEEN_MINDS } from '../../data/sixteenMinds';
 import { seatAngle, polarToXY } from './councilRingMath';
 import SixteenPanel from './SixteenPanel';
 import { useCouncilCollider } from './useCouncilCollider';
+import CouncilField from './CouncilField';
 import MindSidebar from './MindSidebar';
 import CouncilSynthesisPanel from './CouncilSynthesisPanel';
 import { emit as emitObs } from '../../../observatory/observatoryBus';
@@ -92,14 +93,15 @@ function Node({ mind, active, onSelect, showLabel = true }) {
   );
 }
 
-function RingScaffold() {
+function RingScaffold({ showCore = true }) {
   return (
     <g>
       <circle cx={CX} cy={CY} r={R_CEILING} fill="none" stroke="#00FFAA" strokeWidth={1} strokeOpacity={0.28} />
       <circle cx={CX} cy={CY} r={R_FOUNDATION} fill="none" stroke="#FF0088" strokeWidth={1} strokeOpacity={0.28} />
       <text x={CX} y={CY - R_CEILING - 8} textAnchor="middle" fontFamily={MONO} fontSize={10} fill="#00FFAA" fillOpacity={0.6} letterSpacing="0.25em">BIOPHYSICAL CEILING</text>
       <text x={CX} y={CY + R_FOUNDATION + 16} textAnchor="middle" fontFamily={MONO} fontSize={9} fill="#FF0088" fillOpacity={0.6} letterSpacing="0.2em">SOCIAL FOUNDATION</text>
-      <text x={CX} y={CY + 6} textAnchor="middle" fontFamily={MONO} fontSize={22} fill="#7788cc" fillOpacity={0.4}>◉</text>
+      {/* The rendered event horizon replaces the glyph while CouncilField is live (spec §7.9). */}
+      {showCore && <text x={CX} y={CY + 6} textAnchor="middle" fontFamily={MONO} fontSize={22} fill="#7788cc" fillOpacity={0.4}>◉</text>}
     </g>
   );
 }
@@ -116,6 +118,20 @@ export default function CouncilRing() {
     onNodeClick(mind); // selection is the primary verb — dossier moved to [dossier] affordances
   }, [onNodeClick]);
   const openDossier = useCallback((mind) => setSelected(mind), []);
+
+  // Accretion field (CouncilField): liveness hides the ◉ glyph; the pointer
+  // ref feeds the ARMED tether in viewBox units, fine pointers only.
+  const [fieldLive, setFieldLive] = useState(false);
+  const svgRef = useRef(null);
+  const pointerRef = useRef(null);
+  const onPointerMove = useCallback((e) => {
+    if (e.pointerType !== 'mouse' && e.pointerType !== 'pen') return;
+    const ctm = svgRef.current?.getScreenCTM?.();
+    if (!ctm) return;
+    const pt = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
+    pointerRef.current = { x: pt.x, y: pt.y };
+  }, []);
+  const onPointerLeave = useCallback(() => { pointerRef.current = null; }, []);
 
   // Output notification (spec §3): visible from SYNTHESIZED until the panel
   // has been scrolled into view.
@@ -154,16 +170,30 @@ export default function CouncilRing() {
           {flanking && (
             <MindSidebar mind={mindA} side="left" hue={hueOf(mindA)} onDossier={openDossier} />
           )}
-          <div style={{ position: 'relative', minWidth: 0, overflow: 'hidden' }}>
+          <div
+            style={{ position: 'relative', minWidth: 0, overflow: 'hidden', isolation: 'isolate' }}
+            onPointerMove={onPointerMove}
+            onPointerLeave={onPointerLeave}
+          >
             <canvas
               ref={collider.canvasRef}
               style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
             />
+            {/* Read-only accretion field between the 2D collider and the SVG
+                (spec docs/superpowers/specs/2026-09-25-council-field-accretion-design.md). */}
+            <CouncilField
+              simRef={collider.simRef}
+              uiRef={collider.uiRef}
+              seated={seated}
+              pointerRef={pointerRef}
+              mode={collider.mode}
+              onLiveChange={setFieldLive}
+            />
             {/* viewBox widened horizontally (−170..810) so long anchor labels on both
                 arcs (e.g. "Nicholas Georgescu-Roegen", "D'Arcy Wentworth Thompson")
                 have margin and are not clipped by the SVG edge; ring stays centered on 320. */}
-            <svg viewBox="-170 0 980 640" style={{ width: '100%', height: 'auto', display: 'block', position: 'relative' }}>
-              <RingScaffold />
+            <svg ref={svgRef} viewBox="-170 0 980 640" style={{ width: '100%', height: 'auto', display: 'block', position: 'relative' }}>
+              <RingScaffold showCore={!fieldLive} />
               {seated.map(m => (
                 <Node
                   key={m.dimIndex}
