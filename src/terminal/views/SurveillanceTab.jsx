@@ -1,30 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { ShieldAlert, ChevronRight, Globe, Filter, AlertTriangle, X, Activity } from 'lucide-react';
-import WorldMap from '../components/WorldMap';
-import { toMapXY } from '../data/worldMapPolys';
+import InterceptLattice from '../components/intercept/InterceptLattice';
 import { computePanopticonIndex } from '../lib/panopticon';
 import { lawNodes, lawTaps, TAPS } from '../lib/interceptLattice';
-
-// ── Region lon/lat centres (projected via geoNaturalEarth1) ─────────────────
-const REGION_LONLAT = {
-  UK: [-3, 54], EU: [10, 50], US: [-98, 38], AU: [134, -25],
-  CA: [-96, 60], DE: [10, 51], FR: [2, 46], SE: [15, 62],
-  IE: [-8, 53], NL: [5.3, 52.1], NZ: [172, -41], BE: [4, 50.8],
-};
-
-// ── Pixel nudges for the dense European cluster ───────────────────────────────
-// At global scale, UK/EU/DE/NL/BE/IE/FR all project within ~30×17 viewBox px.
-// These offsets spread dots into readable positions without distorting the map.
-const REGION_NUDGE = {
-  IE: [-30,   2],   // far west
-  UK: [-14, -16],   // northwest
-  NL: [  8, -18],   // north
-  BE: [ -2,  14],   // south of center
-  DE: [ 20,  -8],   // northeast
-  EU: [ 28,  10],   // east (virtual label — sits outside the tight cluster)
-  FR: [-10,  22],   // southwest
-  SE: [  6, -22],   // high north
-};
 
 // ── Severity colour palette (mirrors import-legislation.js threat palette) ──
 const SEV = {
@@ -61,14 +39,12 @@ const REGIONS = [
 // `categories` — spec §2).
 const CATS = [['ALL', 'All Categories'], ...TAPS.map((t) => [t.tag, t.tag])];
 
-// ── Raw hex colors for SVG threat dots ──────────────────────────────────────
-const SEV_HEX = { 5: '#ef4444', 4: '#f97316', 3: '#eab308', 2: '#06b6d4', 1: '#22c55e' };
-
 // ── Component ──────────────────────────────────────────────────────────────
 const SurveillanceTab = ({ legislationArticles = [], onOpenLaw }) => {
   const [region,   setRegion]   = useState('ALL');
   const [category, setCategory] = useState('ALL');
   const [minSev,   setMinSev]   = useState(0);
+  const [hoverLaw, setHoverLaw] = useState(null);
 
   // ── Panopticon Index — shared formula home: src/terminal/lib/panopticon.js ─
   const panopticonIndex = useMemo(
@@ -93,22 +69,8 @@ const SurveillanceTab = ({ legislationArticles = [], onOpenLaw }) => {
       .sort((a, b) => (parseInt(b.severity, 10) || 0) - (parseInt(a.severity, 10) || 0));
   }, [legislationArticles, region, category, minSev]);
 
-  // Quick-count stats
-  const critCount  = legislationArticles.filter(a => parseInt(a.severity, 10) >= 5).length;
-  const highCount  = legislationArticles.filter(a => parseInt(a.severity, 10) === 4).length;
   const filtersOn  = region !== 'ALL' || category !== 'ALL' || minSev > 0;
   const resetFilters = () => { setRegion('ALL'); setCategory('ALL'); setMinSev(0); };
-
-  // ── Threat map: per-region max severity ───────────────────────────────────
-  const regionThreats = useMemo(() => {
-    const map = {};
-    for (const a of legislationArticles) {
-      const sev = parseInt(a.severity, 10) || 0;
-      const codes = a.location === 'EU' ? ['EU'] : lawNodes(a);
-      for (const code of codes) map[code] = Math.max(map[code] || 0, sev);
-    }
-    return map;
-  }, [legislationArticles]);
 
   return (
     <div className="tab-fade-v2 max-w-6xl mx-auto mt-8">
@@ -219,60 +181,12 @@ const SurveillanceTab = ({ legislationArticles = [], onOpenLaw }) => {
         <span className="ml-auto text-orange-400/50 tabular-nums font-bold">{legislationArticles.length} LAWS INDEXED</span>
       </div>
 
-      {/* ── Stats row ─────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        {[
-          { label: 'Total Laws',    value: legislationArticles.length, color: 'text-orange-400' },
-          { label: 'Critical 5/5', value: critCount,                  color: 'text-red-400'    },
-          { label: 'High 4/5',     value: highCount,                  color: 'text-orange-300' },
-          { label: 'In Filter',    value: filtered.length,            color: 'text-cyan-400'   },
-        ].map(({ label, value, color }) => (
-          <div key={label} className="border border-orange-900/30 bg-black/40 p-3 rounded-sm text-center">
-            <div className={`text-2xl font-bold font-mono tabular-nums ${color}`}>{value}</div>
-            <div className="text-[9px] tracking-widest text-orange-400/40 uppercase mt-1">{label}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* ── Threat map SVG ─────────────────────────────────────────────────── */}
-      {legislationArticles.length > 0 && (
-        <div className="mb-6 border border-orange-900/20 bg-black/30 rounded-sm p-3 overflow-hidden">
-          <div className="text-[9px] font-mono tracking-widest text-orange-400/40 uppercase mb-2 flex items-center gap-2">
-            <Globe className="w-2.5 h-2.5" /> THREAT DISTRIBUTION MAP
-          </div>
-          <WorldMap palette="orange" height={200} scanDur={6}>
-            {Object.entries(regionThreats).map(([code, maxSev]) => {
-              const lonlat = REGION_LONLAT[code];
-              if (!lonlat) return null;
-              const [bx, by] = toMapXY(lonlat[0], lonlat[1]);
-              const nudge   = REGION_NUDGE[code] || [0, 0];
-              const cx = bx + nudge[0];
-              const cy = by + nudge[1];
-              const r     = 4 + maxSev * 2;
-              const color = SEV_HEX[maxSev] || '#6b7280';
-              return (
-                <g key={code}>
-                  {/* Leader line from nudged dot back to true geographic position */}
-                  {(nudge[0] !== 0 || nudge[1] !== 0) && (
-                    <line x1={bx} y1={by} x2={cx} y2={cy}
-                      stroke={color} strokeWidth="0.6" strokeDasharray="2,2" opacity="0.3" />
-                  )}
-                  <circle cx={cx} cy={cy} r={r + 4} fill={color} opacity="0.15">
-                    <animate attributeName="r" values={`${r + 2};${r + 8};${r + 2}`} dur="2.5s" repeatCount="indefinite" />
-                    <animate attributeName="opacity" values="0.15;0.05;0.15" dur="2.5s" repeatCount="indefinite" />
-                  </circle>
-                  <circle cx={cx} cy={cy} r={r} fill={color} opacity="0.85">
-                    <animate attributeName="r" values={`${r};${r + 2};${r}`} dur="2.5s" repeatCount="indefinite" />
-                  </circle>
-                  <text x={cx} y={cy + r + 11} textAnchor="middle" fill={color} fontSize="9" fontFamily="monospace" opacity="0.6">
-                    {code}
-                  </text>
-                </g>
-              );
-            })}
-          </WorldMap>
-        </div>
-      )}
+      {/* ── Intercept lattice (spec §3–§9) ────────────────────────────────── */}
+      <InterceptLattice
+        laws={legislationArticles}
+        highlightLaw={hoverLaw}
+        onNodeSelect={(id) => setRegion(id ?? 'ALL')}
+      />
 
       {/* ── Filters ───────────────────────────────────────────────────────── */}
       <div className="flex flex-wrap gap-3 mb-6 p-4 border border-orange-900/20 bg-black/30 rounded-sm items-end">
@@ -373,6 +287,11 @@ const SurveillanceTab = ({ legislationArticles = [], onOpenLaw }) => {
                 key={law.id}
                 data-testid="law-card"
                 onClick={() => onOpenLaw && onOpenLaw(law)}
+                onMouseEnter={() => setHoverLaw(law)}
+                onMouseLeave={() => setHoverLaw(null)}
+                onFocus={() => setHoverLaw(law)}
+                onBlur={() => setHoverLaw(null)}
+                tabIndex={0}
                 className={`border ${style.border} ${style.bg} p-4 rounded-sm cursor-pointer group transition-all duration-200 hover:brightness-115 ${sev >= 5 ? 'sv-card-crit' : 'sv-card'}`}
               >
                 {/* Severity badge + location */}
