@@ -184,7 +184,7 @@ const SurveillanceTab = ({ legislationArticles = [], onOpenLaw }) => {
       {/* ── Intercept lattice (spec §3–§9) ────────────────────────────────── */}
       <InterceptLattice
         laws={legislationArticles}
-        highlightLaw={hoverLaw}
+        highlightLaw={hoverLaw && filtered.some((l) => l.id === hoverLaw.id) ? hoverLaw : null}
         onNodeSelect={(id) => setRegion(id ?? 'ALL')}
       />
 
@@ -286,7 +286,15 @@ const SurveillanceTab = ({ legislationArticles = [], onOpenLaw }) => {
               <div
                 key={law.id}
                 data-testid="law-card"
+                role="button"
                 onClick={() => onOpenLaw && onOpenLaw(law)}
+                onKeyDown={(e) => {
+                  if (e.repeat) return;
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onOpenLaw && onOpenLaw(law);
+                  }
+                }}
                 onMouseEnter={() => setHoverLaw(law)}
                 onMouseLeave={() => setHoverLaw(null)}
                 onFocus={() => setHoverLaw(law)}

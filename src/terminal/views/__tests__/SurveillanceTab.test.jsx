@@ -90,4 +90,33 @@ describe('SurveillanceTab lattice + linked ledger (spec §1, §8)', () => {
     expect(screen.getByTestId('panopticon-score').textContent).toBe('61');
     setItem.mockRestore();
   });
+
+  it('drops the highlight when the hovered card is filtered out from under it', () => {
+    const { container } = renderTab();
+    const dsa = cards().find((c) => c.textContent.includes('DIGITAL SERVICES ACT'));
+    fireEvent.mouseEnter(dsa);
+    expect(container.querySelectorAll('[data-node][data-highlight="true"]').length).toBeGreaterThan(0);
+    // Region select changes (e.g. via keyboard) while the mouse never leaves the card —
+    // the card unmounts without a mouseleave, so the highlight must be derived, not sticky.
+    fireEvent.change(screen.getByLabelText(/region/i), { target: { value: 'UK' } });
+    expect(cards().some((c) => c.textContent.includes('DIGITAL SERVICES ACT'))).toBe(false);
+    expect(container.querySelectorAll('[data-node][data-highlight="true"]')).toHaveLength(0);
+  });
+});
+
+describe('SurveillanceTab law cards keyboard activation', () => {
+  it('opens the card on Enter and Space, and ignores key repeat', () => {
+    const onOpenLaw = vi.fn();
+    render(<SurveillanceTab legislationArticles={laws} onOpenLaw={onOpenLaw} />);
+    const card = cards()[0];
+
+    fireEvent.keyDown(card, { key: 'Enter' });
+    expect(onOpenLaw).toHaveBeenCalledTimes(1);
+
+    fireEvent.keyDown(card, { key: ' ' });
+    expect(onOpenLaw).toHaveBeenCalledTimes(2);
+
+    fireEvent.keyDown(card, { key: 'Enter', repeat: true });
+    expect(onOpenLaw).toHaveBeenCalledTimes(2);
+  });
 });
