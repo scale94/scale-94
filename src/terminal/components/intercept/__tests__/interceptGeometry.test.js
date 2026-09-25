@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { NODE_IDS } from '../../../lib/interceptLattice';
 import {
-  nodeXY, HIT_R, hitCell, HIT_CELL_PATHS, CROWDED, CROWD_MIN_SPACING, loupeLayout, needsLoupe,
+  nodeXY, HIT_R, hitCell, nodeAt, HIT_CELL_PATHS, CROWDED, CROWD_MIN_SPACING, loupeLayout, needsLoupe,
 } from '../interceptGeometry';
 
 // Even-odd ray cast.
@@ -68,6 +68,40 @@ describe('hit cells (nearest node, capped at HIT_R)', () => {
 
   it('serialises every cell as a closed path', () => {
     for (const id of NODE_IDS) expect(HIT_CELL_PATHS[id]).toMatch(/^M-?\d+\.\d -?\d+\.\d( L-?\d+\.\d -?\d+\.\d)+ Z$/);
+  });
+});
+
+describe('nodeAt (capped-cell membership)', () => {
+  it('finds each node at its own point', () => {
+    for (const id of NODE_IDS) expect(nodeAt(nodeXY(id))).toBe(id);
+  });
+
+  it('splits FR and BE at their bisector', () => {
+    const [fx, fy] = nodeXY('FR');
+    const [bx, by] = nodeXY('BE');
+    const d = Math.hypot(bx - fx, by - fy);
+    const at = (k) => [(fx + bx) / 2 + (k * (bx - fx)) / d, (fy + by) / 2 + (k * (by - fy)) / d];
+    expect(nodeAt(at(1))).toBe('BE');
+    expect(nodeAt(at(-1))).toBe('FR');
+  });
+
+  it('stops at HIT_R', () => {
+    const [x, y] = nodeXY('AU');
+    expect(nodeAt([x - (HIT_R - 0.1), y])).toBe('AU');
+    expect(nodeAt([x - (HIT_R + 0.1), y])).toBeNull();
+    expect(nodeAt([10, 390])).toBeNull();
+  });
+
+  it('agrees with the drawn cells', () => {
+    let checked = 0;
+    for (let x = 330; x <= 470; x += 2) {
+      for (let y = 20; y <= 150; y += 2) {
+        for (const id of CROWDED) {
+          if (inside([x, y], hitCell(id))) { expect(nodeAt([x, y])).toBe(id); checked += 1; }
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(500);
   });
 });
 

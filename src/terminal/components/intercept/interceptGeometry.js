@@ -85,6 +85,18 @@ export function hitCell(id) {
   return poly;
 }
 
+// The node whose capped cell holds [x, y]: the nearest node within HIT_R.
+export function nodeAt([x, y]) {
+  let best = null;
+  let bestD = HIT_R;
+  for (const n of NODES) {
+    const [nx, ny] = XY[n.id];
+    const d = Math.hypot(nx - x, ny - y);
+    if (d < bestD) { bestD = d; best = n.id; }
+  }
+  return best;
+}
+
 export const HIT_CELL_PATHS = Object.fromEntries(NODES.map((n) => [n.id, pathOf(hitCell(n.id))]));
 
 // ── Touch loupe ──────────────────────────────────────────────────────────────

@@ -1,8 +1,9 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import laws from '../../../lib/__tests__/fixtures/legislation-sealed-2026-03-09.json';
 import InterceptLattice from '../InterceptLattice';
 import { WORD_MS } from '../useInterceptSession';
+import { nodeXY, nodeAt } from '../interceptGeometry';
 
 let lastSceneVersion;
 vi.mock('../InterceptField', () => ({
@@ -179,13 +180,23 @@ describe('InterceptLattice (spec §5, §6, §8, §9)', () => {
   });
 
   describe('touch loupe over the European cluster', () => {
-    const tap = (el, pointerType = 'touch') => {
-      fireEvent.pointerUp(el, { pointerType });
-      fireEvent.click(el);
+    const tap = (el, pointerType = 'touch', at = {}) => {
+      fireEvent.pointerUp(el, { pointerType, ...at });
+      fireEvent.click(el, at);
     };
     const loupe = () => screen.queryByTestId('eu-loupe');
     const loupeButton = (id) => loupe().querySelector(`[data-loupe-node="${id}"]`);
+    const nodeG = (id) => document.querySelector(`[data-node="${id}"]`);
     const IDLE = 'choose where it leaves · then where it lands';
+
+    // The loupe ignores picks for 300ms after it opens; tests drive the clock.
+    let now;
+    const settle = () => { now += 300; };
+    beforeEach(() => {
+      now = 1000;
+      vi.spyOn(performance, 'now').mockImplementation(() => now);
+    });
+    afterEach(() => { vi.restoreAllMocks(); });
 
     it('opens on a touch tap on a crowded node, without choosing it', () => {
       const onNodeSelect = vi.fn();
@@ -198,13 +209,41 @@ describe('InterceptLattice (spec §5, §6, §8, §9)', () => {
       expect(onNodeSelect).not.toHaveBeenCalled();
     });
 
-    it('chooses the tapped loupe button and closes', () => {
+    it('is a labelled dialog, and takes the nodes out of the tab order while open', () => {
+      render(<InterceptLattice laws={laws} />);
+      tap(node('germany'));
+      expect(screen.getByRole('dialog', { name: 'european cluster' })).toBe(loupe());
+      expect(nodeG('DE').tabIndex).toBe(-1);
+      expect(nodeG('CA').tabIndex).toBe(-1);
+      fireEvent.keyDown(loupeButton('UK'), { key: 'Escape' });
+      expect(nodeG('DE').tabIndex).toBe(0);
+    });
+
+    it('chooses the tapped loupe button, closes, and focuses the chosen node', () => {
       const onNodeSelect = vi.fn();
       render(<InterceptLattice laws={laws} onNodeSelect={onNodeSelect} />);
       tap(node('germany'));
+      settle();
+      fireEvent.click(loupeButton('FR'));
+      expect(onNodeSelect).toHaveBeenCalledWith('FR');
+      expect(onNodeSelect).toHaveBeenCalledTimes(1);
+      expect(loupe()).toBeNull();
+      expect(document.activeElement).toBe(nodeG('FR'));
+    });
+
+    it('ignores picks and backdrop taps for 300ms after opening (an impatient re-tap)', () => {
+      const onNodeSelect = vi.fn();
+      render(<InterceptLattice laws={laws} onNodeSelect={onNodeSelect} />);
+      tap(node('germany'));
+      fireEvent.click(loupeButton('SE'));
+      fireEvent.click(screen.getByTestId('loupe-backdrop'));
+      now += 299;
+      fireEvent.keyDown(loupeButton('SE'), { key: 'Enter' });
+      expect(loupe()).toBeTruthy();
+      expect(onNodeSelect).not.toHaveBeenCalled();
+      now += 1;
       fireEvent.click(loupeButton('DE'));
       expect(onNodeSelect).toHaveBeenCalledWith('DE');
-      expect(onNodeSelect).toHaveBeenCalledTimes(1);
       expect(loupe()).toBeNull();
     });
 
@@ -212,6 +251,7 @@ describe('InterceptLattice (spec §5, §6, §8, §9)', () => {
       const onNodeSelect = vi.fn();
       render(<InterceptLattice laws={laws} onNodeSelect={onNodeSelect} />);
       tap(node('germany'));
+      settle();
       fireEvent.keyDown(loupeButton('FR'), { key: 'Enter', repeat: true });
       expect(onNodeSelect).not.toHaveBeenCalled();
       fireEvent.keyDown(loupeButton('FR'), { key: ' ' });
@@ -219,17 +259,32 @@ describe('InterceptLattice (spec §5, §6, §8, §9)', () => {
       expect(loupe()).toBeNull();
     });
 
-    it('closes on Escape and on the backdrop, choosing nothing', () => {
+    it('closes on Escape and on the backdrop, choosing nothing and focusing the opener', () => {
       const onNodeSelect = vi.fn();
       render(<InterceptLattice laws={laws} onNodeSelect={onNodeSelect} />);
       tap(node('germany'));
       fireEvent.keyDown(loupeButton('UK'), { key: 'Escape' });
       expect(loupe()).toBeNull();
+      expect(document.activeElement).toBe(nodeG('DE'));
       tap(node('france'));
+      settle();
       fireEvent.click(screen.getByTestId('loupe-backdrop'));
       expect(loupe()).toBeNull();
+      expect(document.activeElement).toBe(nodeG('FR'));
       expect(onNodeSelect).not.toHaveBeenCalled();
       expect(fate()).toBe(IDLE);
+    });
+
+    it('never scrolls the page when it moves focus', () => {
+      const focus = vi.spyOn(SVGElement.prototype, 'focus');
+      render(<InterceptLattice laws={laws} />);
+      tap(node('germany'));
+      fireEvent.keyDown(loupeButton('UK'), { key: 'Escape' });
+      tap(node('germany'));
+      settle();
+      fireEvent.click(loupeButton('DE'));
+      expect(focus).toHaveBeenCalledTimes(4);
+      for (const call of focus.mock.calls) expect(call).toEqual([{ preventScroll: true }]);
     });
 
     it('opens from a touch on the EU membrane too', () => {
@@ -244,6 +299,15 @@ describe('InterceptLattice (spec §5, §6, §8, §9)', () => {
       tap(node('canada'));
       expect(loupe()).toBeNull();
       expect(onNodeSelect).toHaveBeenCalledWith('CA');
+    });
+
+    it('bends on a pen tap, as on a touch tap', () => {
+      render(<InterceptLattice laws={laws} />);
+      setStep(0);
+      fireEvent.click(node('canada'));
+      fireEvent.click(node('new zealand'));
+      tap(node('australia'), 'pen');
+      expect(fate()).toBe('canada → new zealand · 3 hops · arrived. unseen.');
     });
 
     it('leaves the mouse alone: a click on germany chooses it directly', () => {
@@ -267,6 +331,87 @@ describe('InterceptLattice (spec §5, §6, §8, §9)', () => {
       render(<InterceptLattice laws={laws} />);
       tap(node('germany'));
       expect(loupeButton('DE').getAttribute('class')).toBeNull();
+    });
+  });
+
+  describe('hit cells under the route filament', () => {
+    // jsdom has no SVG geometry: map client coordinates 1:1 onto the viewBox.
+    const identityCTM = () => {
+      const svg = screen.getByTestId('intercept-overlay');
+      const ident = { a: 1, inverse: () => ident };
+      svg.getScreenCTM = () => ident;
+      svg.createSVGPoint = () => ({ x: 0, y: 0, matrixTransform() { return { x: this.x, y: this.y }; } });
+      return svg;
+    };
+    // A point on the US–CA segment, 15 units from canada: inside CA's cell, outside its core.
+    const nearCA = () => {
+      const [cx, cy] = nodeXY('CA');
+      const [ux, uy] = nodeXY('US');
+      const d = Math.hypot(ux - cx, uy - cy);
+      return [cx + ((ux - cx) / d) * 15, cy + ((uy - cy) / d) * 15];
+    };
+    const grab = () => screen.getByTestId('route-grab');
+    const route = (a, b) => { fireEvent.click(node(a)); fireEvent.click(node(b)); };
+
+    it('draws the capped cells under the grab band, and a small core over it', () => {
+      const { container } = render(<InterceptLattice laws={laws} />);
+      route('canada', 'new zealand');
+      const cell = container.querySelector('[data-hit-cell="CA"]');
+      expect(cell.getAttribute('aria-hidden')).toBe('true');
+      expect(cell.compareDocumentPosition(grab()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      const core = container.querySelector('[data-node="CA"] [data-hit-core]');
+      expect(core.getAttribute('r')).toBe('8');
+      expect(grab().compareDocumentPosition(core) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('a click on a cell acts as a click on its node', () => {
+      const onNodeSelect = vi.fn();
+      const { container } = render(<InterceptLattice laws={laws} onNodeSelect={onNodeSelect} />);
+      fireEvent.pointerUp(container.querySelector('[data-hit-cell="CA"]'), { pointerType: 'mouse' });
+      fireEvent.click(container.querySelector('[data-hit-cell="CA"]'));
+      expect(onNodeSelect).toHaveBeenCalledWith('CA');
+    });
+
+    it('lets the mouse start a bend-drag in the outer ring of a node cell', () => {
+      render(<InterceptLattice laws={laws} />);
+      route('canada', 'new zealand');
+      const svg = identityCTM();
+      const [x, y] = nearCA();
+      expect(nodeAt([x, y])).toBe('CA');
+      fireEvent.pointerDown(grab(), { pointerType: 'mouse', clientX: x, clientY: y });
+      expect(svg.style.touchAction).toBe('none');
+      fireEvent.pointerUp(svg, { pointerType: 'mouse' });
+    });
+
+    it('turns a touch tap on the band into a tap on the node whose cell holds it', () => {
+      const onNodeSelect = vi.fn();
+      render(<InterceptLattice laws={laws} onNodeSelect={onNodeSelect} />);
+      route('canada', 'new zealand');
+      const svg = identityCTM();
+      const [x, y] = nearCA();
+      fireEvent.pointerDown(grab(), { pointerType: 'touch', clientX: x, clientY: y });
+      expect(svg.style.touchAction).toBe('auto');
+      fireEvent.pointerUp(grab(), { pointerType: 'touch', clientX: x, clientY: y });
+      fireEvent.click(grab(), { clientX: x, clientY: y });
+      // Same as tapping canada itself: it is the source, so the route resets.
+      expect(onNodeSelect).toHaveBeenLastCalledWith(null);
+      expect(fate()).toBe('choose where it leaves · then where it lands');
+    });
+
+    it('routes a touch tap on the band near a crowded node into the loupe', () => {
+      const onNodeSelect = vi.fn();
+      render(<InterceptLattice laws={laws} onNodeSelect={onNodeSelect} />);
+      route('united states', 'germany');
+      identityCTM();
+      const [dx, dy] = nodeXY('DE');
+      const [ux, uy] = nodeXY('US');
+      const d = Math.hypot(ux - dx, uy - dy);
+      const at = { clientX: dx + ((ux - dx) / d) * 10, clientY: dy + ((uy - dy) / d) * 10 };
+      expect(nodeAt([at.clientX, at.clientY])).toBe('DE');
+      fireEvent.pointerUp(grab(), { pointerType: 'touch', ...at });
+      fireEvent.click(grab(), at);
+      expect(screen.getByTestId('eu-loupe')).toBeTruthy();
+      expect(onNodeSelect).toHaveBeenCalledTimes(2);
     });
   });
 });

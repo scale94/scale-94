@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { NODES, TRUNKS, TAPS } from '../../lib/interceptLattice';
 import {
-  nodeXY, EU_MEMBRANE_PATH, HIT_CELL_PATHS, CROWDED, loupeLayout, needsLoupe,
+  nodeXY, nodeAt, EU_MEMBRANE_PATH, HIT_CELL_PATHS, CROWDED, loupeLayout, needsLoupe,
 } from './interceptGeometry';
 
 const FAMILY_COLOR = {
@@ -18,6 +18,10 @@ const NO_TAPS = new Set();
 const NODE_NAME = Object.fromEntries(NODES.map((n) => [n.id, n.name]));
 // jsdom has no getScreenCTM; fall back to a 345px-wide phone map.
 const PHONE_UNITS_PER_PX = 800 / 345;
+// Taps on the loupe are ignored this long after it opens: the fanned-out
+// buttons land on top of other nodes' true positions, so a re-tap would misfire.
+const LOUPE_SETTLE_MS = 300;
+const isTouchish = (type) => type === 'touch' || type === 'pen';
 
 function toMapPoint(svg, clientX, clientY) {
   if (!svg?.createSVGPoint || !svg.getScreenCTM) return null;
@@ -53,9 +57,11 @@ export default function InterceptOverlay({
   // The touch loupe's layout, fixed at the rendered scale when it opened.
   const [loupe, setLoupe] = useState(null);
   const loupeFirstRef = useRef(null);
+  const loupeOpenerRef = useRef(null);
+  const loupeOpenedAtRef = useRef(0);
 
   useEffect(() => {
-    if (loupe) loupeFirstRef.current?.focus?.();
+    if (loupe) loupeFirstRef.current?.focus?.({ preventScroll: true });
   }, [loupe]);
 
   const unitsPerPx = () => {
@@ -63,18 +69,32 @@ export default function InterceptOverlay({
     return a ? 1 / a : PHONE_UNITS_PER_PX;
   };
   // A touch or pen landing on the crowded cluster opens the loupe instead of choosing.
-  const openLoupe = () => {
-    if (loupe || (pointerTypeRef.current !== 'touch' && pointerTypeRef.current !== 'pen')) return false;
+  // `opener` is the node that opened it (null for the membrane), for focus return.
+  const openLoupe = (opener) => {
+    if (loupe || !isTouchish(pointerTypeRef.current)) return false;
     const upp = unitsPerPx();
     if (!needsLoupe(upp)) return false;
+    loupeOpenerRef.current = opener;
+    loupeOpenedAtRef.current = performance.now();
     setLoupe({ upp, ...loupeLayout(upp) });
     return true;
   };
-  const pick = (id) => {
+  const loupeSettled = () => performance.now() - loupeOpenedAtRef.current >= LOUPE_SETTLE_MS;
+  const closeLoupe = (focusId) => {
     setLoupe(null);
+    if (focusId) svgRef.current?.querySelector(`[data-node="${focusId}"]`)?.focus?.({ preventScroll: true });
+  };
+  const pick = (id) => {
+    if (!loupeSettled()) return;
+    closeLoupe(id);
     onActivate(id, { bend: true });
   };
   const notePointer = (e) => { pointerTypeRef.current = e.pointerType || 'mouse'; };
+  // Every pointer route to a node (its core, its cell, a tap on the filament) lands here.
+  const nodeClick = (id, shiftKey) => {
+    if (CROWDED.includes(id) && openLoupe(id)) return;
+    onActivate(id, { bend: shiftKey || isTouchish(pointerTypeRef.current) });
+  };
   const pts = path ? path.map(nodeXY) : [];
   const polyPoints = pts.map((p) => p.join(',')).join(' ');
 
@@ -107,7 +127,7 @@ export default function InterceptOverlay({
         strokeWidth="0.6" strokeDasharray="2 3"
         data-testid="eu-membrane" data-highlight={euHighlight ? 'true' : 'false'}
         onPointerUp={notePointer}
-        onClick={openLoupe}
+        onClick={() => openLoupe(null)}
       />
 
       {traced.map((i) => {
@@ -117,13 +137,37 @@ export default function InterceptOverlay({
         return <line key={`traced-${i}`} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#fb923c" strokeOpacity="0.5" strokeWidth="0.7" strokeDasharray="1 2.5" />;
       })}
 
+      {/* Hit cells sit under the filament's grab band, so mouse drag-to-bend
+          works right up to a node's core; the core (in the node group) sits above it. */}
+      {NODES.map((n) => (
+        <path
+          key={`cell-${n.id}`} d={HIT_CELL_PATHS[n.id]} fill="transparent" aria-hidden="true"
+          data-hit-cell={n.id} style={{ cursor: 'pointer' }}
+          onPointerUp={notePointer}
+          onClick={(e) => nodeClick(n.id, e.shiftKey)}
+        />
+      ))}
+
       {pts.length > 1 && (
         <g>
           <polyline points={polyPoints} fill="none" stroke="#fde68a" strokeOpacity="0.75" strokeWidth="0.8" strokeLinejoin="round" data-testid="route-filament" />
           <polyline
             points={polyPoints} fill="none" stroke="transparent" strokeWidth="12"
             style={{ cursor: 'grab', pointerEvents: 'stroke' }}
-            onPointerDown={(e) => { e.preventDefault(); setDragging(true); }}
+            data-testid="route-grab"
+            onPointerDown={(e) => {
+              // Touch and pen bend by tapping (spec §9), never by dragging.
+              if (isTouchish(e.pointerType)) return;
+              e.preventDefault();
+              setDragging(true);
+            }}
+            onPointerUp={notePointer}
+            onClick={(e) => {
+              if (!isTouchish(pointerTypeRef.current)) return;
+              const p = toMapPoint(svgRef.current, e.clientX, e.clientY);
+              const id = p && nodeAt(p);
+              if (id) nodeClick(id, e.shiftKey);
+            }}
           />
         </g>
       )}
@@ -146,16 +190,13 @@ export default function InterceptOverlay({
           <g
             key={n.id}
             role="button"
-            tabIndex={0}
+            tabIndex={loupe ? -1 : 0}
             aria-label={`${n.name} · ${onCount} ${onCount === 1 ? 'tap' : 'taps'} in force${contestedCount ? ` · ${contestedCount} contested` : ''}${role ? ` · ${role}` : ''}`}
             data-node={n.id}
             data-highlight={lit ? 'true' : 'false'}
             style={{ cursor: 'pointer', outline: 'none' }}
             onPointerUp={notePointer}
-            onClick={(e) => {
-              if (CROWDED.includes(n.id) && openLoupe()) return;
-              onActivate(n.id, { bend: e.shiftKey || pointerTypeRef.current === 'touch' });
-            }}
+            onClick={(e) => nodeClick(n.id, e.shiftKey)}
             onKeyDown={(e) => {
               if (e.repeat) return;
               if (e.key === 'Enter' || e.key === ' ') {
@@ -165,7 +206,7 @@ export default function InterceptOverlay({
             }}
           >
             <title>{n.name}</title>
-            <path d={HIT_CELL_PATHS[n.id]} fill="transparent" />
+            <circle cx={x} cy={y} r="8" fill="transparent" data-hit-core="true" />
             {showFallbackGlow && <circle cx={x} cy={y} r={3 + 8 * load} fill="#fb923c" fillOpacity={0.12 + 0.3 * load} />}
             {showFallbackGlow && k > 0 && (
               <circle cx={x} cy={y} r="7" fill="none" stroke="#fb923c" strokeOpacity={0.15 + 0.5 * (k / keptCap)} strokeWidth="0.8" />
@@ -230,12 +271,15 @@ export default function InterceptOverlay({
 
       {loupe && (
         <g
+          role="dialog"
+          aria-label="european cluster"
           data-testid="eu-loupe"
-          onKeyDown={(e) => { if (e.key === 'Escape') setLoupe(null); }}
+          onKeyDown={(e) => { if (e.key === 'Escape') closeLoupe(loupeOpenerRef.current); }}
         >
           <rect
             x="0" y="0" width="800" height="400" fill="#000" fillOpacity="0.45"
-            data-testid="loupe-backdrop" onClick={() => setLoupe(null)}
+            data-testid="loupe-backdrop"
+            onClick={() => { if (loupeSettled()) closeLoupe(loupeOpenerRef.current); }}
           />
           {loupe.items.map((it) => (
             <g key={`line-${it.id}`} style={{ pointerEvents: 'none' }}>
