@@ -1,4 +1,5 @@
-// KernelCoreIcon.jsx — the KERNEL nav glyph.
+// KernelCoreIcon.jsx — the KERNEL glyph (nav button and the tab's own
+// system_kernel header).
 //
 // A processor package with its bus pins, but the die at its centre is a
 // diamond, not the generic square of every chip icon: this is the kernel

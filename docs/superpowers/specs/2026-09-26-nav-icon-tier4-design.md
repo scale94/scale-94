@@ -94,7 +94,7 @@ stop rotting on every icon change.
 
 ## 4. Out of scope
 
-- In-tab uses of lucide icons (`Lock`, `Shield` etc. in PrivacyTab and elsewhere).
+- In-tab uses of lucide icons (`Lock`, `Shield` etc. in PrivacyTab and elsewhere), except the KernelTab `system_kernel` header (§2).
 - The BSKY butterfly (a brand mark, deliberately left as is).
 - Any change to tiers 1–3 glyphs.
 

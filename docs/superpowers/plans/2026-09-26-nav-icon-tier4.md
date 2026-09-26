@@ -17,7 +17,7 @@
 - The ONE sanctioned exception: in `EarthshineMoonIcon`, the earthshine `<path>` carries `strokeWidth="1"` and `opacity="0.55"` on the path itself. Do not normalise it to 2px.
 - Geometry is copied verbatim from spec §1. No rounding, no "simplifying".
 - Button classes and colours in `App.jsx` stay exactly as they are.
-- Out of scope: in-tab lucide uses (PrivacyTab etc.), the BSKY butterfly, and tiers 1–3 glyphs.
+- Out of scope: in-tab lucide uses (PrivacyTab etc.), the BSKY butterfly, and tiers 1–3 glyphs. One exception was added after the live check: the KernelTab `system_kernel` header (see the addendum after Task 3).
 - Lint: 0 errors, and the warning count must not rise (ratchet `--max-warnings 143` in `package.json`). If it falls, lower the ratchet to the new measured count.
 - The working tree carries ~140 pre-existing unrelated changes. Stage only the files each task names, by path. Never `git add -A`, `git add .`, `git commit -a`, `git stash`, or `git checkout -- <file>`.
 - Do not push.
@@ -35,6 +35,7 @@
 | `src/terminal/components/CascadeIcon.jsx` (modify, comment only) | Neighbour-agnostic comment |
 | `src/terminal/components/icons/ScentGlyph.jsx` (modify, comment only) | Neighbour-agnostic comment |
 | `package.json` (maybe modify) | Lower the ratchet if the warning count falls |
+| `src/terminal/views/KernelTab.jsx` (addendum) | `system_kernel` header `Cpu` → `KernelCoreIcon` (added after the live check) |
 
 Task 3 (the live check) is run by the controller with the headless CDP script, not by a subagent.
 
@@ -401,3 +402,9 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - [ ] **Step 3.2:** Run the scratchpad `navshots.mjs` into a fresh output directory. It waits for the boot, holds a touch for the mobile nav, and waits for the mobile nav width to reach 375. Change its active-state loop to `['Kernel','Privacy','Cryptography','Lunar']`, and its centring probe to include those four. Kernel is active on load, so for Kernel's inactive state, click another tab first.
 - [ ] **Step 3.3:** Read every screenshot. Pass, judged by eye at real size: the lattice dots survive at 12px; the earthshine limb is faint but present on desktop and clearly visible on mobile; the airgap stays open; the diamond die stays distinct from the frame; centring is ≤0.5px for all four.
 - [ ] **Step 3.4:** `preview_stop`. Send the screenshots to the user with a one-line verdict per glyph. The user makes the final by-eye call. No push, no merge.
+
+---
+
+### Addendum (after the live check, user request)
+
+The Kernel tab's own `system_kernel` header icon (`src/terminal/views/KernelTab.jsx`, `w-8 h-8`, gold reveal + glow) swapped `Cpu` for `KernelCoreIcon` in commit 40a96797. The inline `style` passes through `...props`, and `Cpu` left KernelTab's lucide import. See spec §2.

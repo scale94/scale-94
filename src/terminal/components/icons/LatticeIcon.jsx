@@ -1,9 +1,10 @@
 // LatticeIcon.jsx — the CRYPTOGRAPHY nav glyph.
 //
 // The short vector: ML-KEM, the key-encapsulation scheme the tab runs, is
-// lattice-based, and its security rests on how hard it is to find a short
-// vector to a hidden lattice point. So: a skewed lattice (a real basis is
-// never square), and one short vector reaching the hidden point. The old
+// lattice-based, and its security rests on hard lattice problems: finding
+// short vectors, or the lattice point closest to a hidden target. So: a
+// skewed lattice (a real basis is never square), and one short vector
+// reaching the hidden point. The old
 // `KeyRound` was a door key, an odd emblem for post-quantum cryptography.
 // A square grid with a ringed centre was tried first; at 12px it read as
 // the sun icon. The dots are zero-length subpaths that round caps turn

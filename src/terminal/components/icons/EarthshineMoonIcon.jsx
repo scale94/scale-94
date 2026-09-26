@@ -9,9 +9,9 @@
 // the nav bar that is not 2px. At 2px it reads as a full disc and the
 // crescent disappears. Do not normalise it.
 //
-// Drawn to lucide-react's grammar (24 viewBox, 2px stroke, round caps,
-// currentColor) so it sits flush beside its neighbours and inherits
-// className + style exactly like they do.
+// Drawn to lucide-react's grammar (24 viewBox, 2px stroke save the limb
+// above, round caps, currentColor) so it sits flush beside its neighbours
+// and inherits className + style exactly like they do.
 
 import React from 'react';
 

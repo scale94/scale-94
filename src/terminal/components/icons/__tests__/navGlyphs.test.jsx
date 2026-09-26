@@ -56,6 +56,22 @@ describe.each([
     });
   });
 
+  it('keeps every stroke at the svg-level 2px, except the sanctioned earthshine limb', () => {
+    // Tier-4 spec §1: EarthshineMoonIcon's limb is 1px at 55% opacity on
+    // purpose (at 2px the crescent reads as a full disc). Assert the exception
+    // so it can't be "normalised", and so no other glyph grows a thin stroke.
+    const { container } = render(<Glyph />);
+    const svg = container.querySelector('svg');
+    const overrides = [...svg.querySelectorAll('[stroke-width]')].filter((el) => el !== svg);
+    if (name === 'EarthshineMoonIcon') {
+      expect(overrides).toHaveLength(1);
+      expect(overrides[0].getAttribute('stroke-width')).toBe('1');
+      expect(overrides[0].getAttribute('opacity')).toBe('0.55');
+    } else {
+      expect(overrides).toHaveLength(0);
+    }
+  });
+
   it('carries its own name for React devtools', () => {
     expect(Glyph.displayName).toBe(name);
   });
