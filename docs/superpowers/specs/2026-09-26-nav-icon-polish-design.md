@@ -35,7 +35,7 @@ Audit of the bar at the start of this branch:
 | # | Tab | Chosen | Rejected |
 |---|---|---|---|
 | 1 | Surveillance | **The tap**: a copy of the packet splits off at an intercept node | targeting brackets (reads as a generic target); mechanical iris (= lucide `Aperture`, stock again) |
-| 2 | Ecocide | **Seraphine's scale**: the world resting on the curved cradle beam from `SeraphineScale.jsx` | tamed S-curve (reads as a generic chart); sprout from a fracture (drifts back to the leaf cliché, blurs at 12px) |
+| 2 | Ecocide | **Seraphine's scale**: the world, with an equator, held in the curved cradle from `SeraphineScale.jsx` (E3, revised after the live check) | tamed S-curve (reads as a generic chart); sprout from a fracture (drifts back to the leaf cliché, blurs at 12px) |
 | 3 | Transmission | **Packet in flight**: diamond packet with a two-line split slipstream | first round (oscilloscope trace, signal bars, `⌖` as SVG) all rejected as generic; second round's "off the limb" and "globe dispatch" |
 | 4 | Ledger | **River + seal**: river wave over ruled lines, seal in the gap beside the short rule, outline (not filled) | `ᛟ` redrawn as SVG; ruled lines + seal without the river; filled seal |
 | 5 | Scope | Nav only, desktop + mobile | also swapping in-tab header glyphs |
@@ -64,9 +64,16 @@ Geometry (24 × 24 units, as approved in the mockups):
 
 **`SeraphineScaleIcon.jsx`** (Ecocide)
 ```
-<circle cx="12" cy="10" r="6.5" />   the world
-<path d="M2 18.5Q12 22 22 18.5" />   the cradle beam, same curve family as SeraphineScale's
+<circle cx="12" cy="9.5" r="6" />         the world
+<path d="M6 9.5h12" />                     its equator
+<path d="M2.5 13.5Q12 24.5 21.5 13.5" />   the cradle, same curve family as SeraphineScale's
 ```
+
+Revised after the live check (variant E3). The first cut (a world at `cy=10 r=6.5`
+over a shallow beam `M2 18.5Q12 22 22 18.5`) read as a generic user/avatar icon
+at 12px and 20px: a circle over a shallow arc is a head over shoulders. The
+deeper cradle rises past the world's lower half, so it reads as a held sphere,
+and the equator makes the circle a planet.
 
 **`PacketIcon.jsx`** (Transmission)
 ```
