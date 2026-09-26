@@ -36,7 +36,7 @@ Audit of the bar at the start of this branch:
 |---|---|---|---|
 | 1 | Surveillance | **The tap**: a copy of the packet splits off at an intercept node | targeting brackets (reads as a generic target); mechanical iris (= lucide `Aperture`, stock again) |
 | 2 | Ecocide | **Seraphine's scale**: the world resting on the curved cradle beam from `SeraphineScale.jsx` | tamed S-curve (reads as a generic chart); sprout from a fracture (drifts back to the leaf cliché, blurs at 12px) |
-| 3 | Transmission | **Packet in flight**: diamond packet with a trailing wake | first round (oscilloscope trace, signal bars, `⌖` as SVG) all rejected as generic; second round's "off the limb" and "globe dispatch" |
+| 3 | Transmission | **Packet in flight**: diamond packet with a two-line split slipstream | first round (oscilloscope trace, signal bars, `⌖` as SVG) all rejected as generic; second round's "off the limb" and "globe dispatch" |
 | 4 | Ledger | **River + seal**: river wave over ruled lines, seal in the gap beside the short rule, outline (not filled) | `ᛟ` redrawn as SVG; ruled lines + seal without the river; filled seal |
 | 5 | Scope | Nav only, desktop + mobile | also swapping in-tab header glyphs |
 | 6 | Tier 4 | Kernel / Privacy / Cryptography / Lunar deferred; reassessed once these four are live | doing all eight now |
@@ -70,9 +70,13 @@ Geometry (24 × 24 units, as approved in the mockups):
 
 **`PacketIcon.jsx`** (Transmission)
 ```
-<path d="M2 8h6" />  <path d="M4 12h7" />  <path d="M2 16h6" />   the wake
-<path d="M17 6.5l5.5 5.5-5.5 5.5-5.5-5.5z" />                     the packet, heading out
+<path d="M2 9h7" />  <path d="M2 15h7" />             the split slipstream
+<path d="M17 6.5l5.5 5.5-5.5 5.5-5.5-5.5z" />     the packet, heading out
 ```
+
+Two parallel wake lines, not the three of the X1 mockup. A longer middle line made
+the wake converge into a right-pointing chevron, which read as a fast-forward
+button at 12px and crowded the diamond's left vertex.
 
 **`LedgerSealIcon.jsx`** (Ledger)
 ```
