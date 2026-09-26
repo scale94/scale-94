@@ -11,9 +11,9 @@ left in the bar, and they broke the set.
 
 | Tab | Chosen | Rejected (and why) |
 |---|---|---|
-| Kernel | **K8**: a pinned processor frame with a diamond die | ᛟ rune (read as Norse rune / Bluetooth); plain nested square (dice / stop button); reliquary niche (tombstone); ring-0 diamond + 4 bus lines; frame + square die + 2 or 3 pins per side (≈ lucide `Cpu` stroke for stroke) |
+| Kernel | **K9** (revised from K8 after the live check): a DIP processor frame, pins top and bottom only, with a diamond die | K8, pins on all four sides (read as a gear/cog at 12px);  ᛟ rune (read as Norse rune / Bluetooth); plain nested square (dice / stop button); reliquary niche (tombstone); ring-0 diamond + 4 bus lines; frame + square die + 2 or 3 pins per side (≈ lucide `Cpu` stroke for stroke) |
 | Privacy | **P3**: airgap enclave, a hexagonal perimeter broken by one airgap, holding an untouched diamond node | porous circles (read as targets / bullseyes); nested hexagons (hex nut) |
-| Cryptography | **C1**: the hidden lattice point, a 3×3 lattice (ML-KEM is lattice-based) with the centre point ringed | lattice row in a capsule (reads as a pill) |
+| Cryptography | **C6** (revised from C1 after the live check): a skewed lattice (ML-KEM is lattice-based) with the short vector reaching the hidden point | C1, a square grid with a ringed centre (read as the sun/brightness icon at 12px);  lattice row in a capsule (reads as a pill) |
 | Lunar | **M6b**: a sharp waxing crescent on the right, with the dark limb completed by a thin earthshine line | disc + terminator (lens bracket); disc + ticks (the brightness icon); onion/wisp; plain crescent (≈ stock `Moon`); filled crescent (breaks no-fill); dashed ghost limb (dashes break up at 12px) |
 
 ## 1. Components
@@ -27,8 +27,12 @@ Four files in `src/terminal/components/icons/`, built exactly like tiers 1–3
 ```
 <path d="M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" />   the package frame
 <path d="M12 8.5l3.5 3.5-3.5 3.5-3.5-3.5z" />                                         the diamond die (the kernel's own mark, not a generic square)
-<path d="M9 1.5v2.5M15 1.5v2.5M9 20v2.5M15 20v2.5M1.5 9h2.5M1.5 15h2.5M20 9h2.5M20 15h2.5" />   the bus pins, two per side
+<path d="M8 1.5v2.5M12 1.5v2.5M16 1.5v2.5M8 20v2.5M12 20v2.5M16 20v2.5" />   the bus pins, top and bottom only (a DIP package)
 ```
+
+Revised after the live check (K8 → K9). With pins on all four sides the glyph read as a
+gear/settings cog at 12px, because pins all the way round blur into teeth. Pins on two
+edges only still read as a processor and can't read as a cog.
 
 **`AirgapIcon.jsx`** (Privacy)
 ```
@@ -38,10 +42,15 @@ Four files in `src/terminal/components/icons/`, built exactly like tiers 1–3
 
 **`LatticeIcon.jsx`** (Cryptography)
 ```
-<path d="M5 5h0M12 5h0M19 5h0M5 12h0M19 12h0M5 19h0M12 19h0M19 19h0" />   the lattice (zero-length subpaths drawn by round caps)
-<path d="M12 12h0" />                                                    the hidden point
-<circle cx="12" cy="12" r="3.5" />                                       the ring that marks it
+<path d="M4 3.5h0M10.5 5h0M17 6.5h0M6 10h0M19 13h0M14.5 18h0M21 19.5h0" />   a skewed lattice (zero-length subpaths drawn by round caps)
+<path d="M8 16.5L12.5 11.5" />                                                  the short vector, from a lattice point to the hidden one
+<circle cx="12.5" cy="11.5" r="1.6" />                                          the hidden point
 ```
+
+Revised after the live check (C1 → C6). The square 3×3 grid with a ringed centre read as
+the sun/brightness icon at 12px, because it has even radial spacing around a ring. The lattice is
+now skewed like a real lattice basis, and the secret is marked by the short vector that
+reaches it: the shortest-vector problem that lattice schemes such as ML-KEM rest on.
 
 **`EarthshineMoonIcon.jsx`** (Lunar)
 ```
