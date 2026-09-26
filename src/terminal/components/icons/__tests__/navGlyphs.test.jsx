@@ -5,6 +5,10 @@ import InterceptIcon from '../InterceptIcon';
 import SeraphineScaleIcon from '../SeraphineScaleIcon';
 import PacketIcon from '../PacketIcon';
 import LedgerSealIcon from '../LedgerSealIcon';
+import KernelCoreIcon from '../KernelCoreIcon';
+import AirgapIcon from '../AirgapIcon';
+import LatticeIcon from '../LatticeIcon';
+import EarthshineMoonIcon from '../EarthshineMoonIcon';
 
 // The nav-glyph contract (spec 2026-09-26 §1, §5): each glyph is a drop-in for
 // a lucide icon, and stays legible at w-3 h-3. The budget is asserted rather
@@ -14,6 +18,10 @@ describe.each([
   ['SeraphineScaleIcon', SeraphineScaleIcon],
   ['PacketIcon', PacketIcon],
   ['LedgerSealIcon', LedgerSealIcon],
+  ['KernelCoreIcon', KernelCoreIcon],
+  ['AirgapIcon', AirgapIcon],
+  ['LatticeIcon', LatticeIcon],
+  ['EarthshineMoonIcon', EarthshineMoonIcon],
 ])('%s', (name, Glyph) => {
   it('renders one svg that forwards className, like a lucide icon', () => {
     const { container } = render(<Glyph className="w-3 h-3" />);
