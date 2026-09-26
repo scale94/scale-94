@@ -33,6 +33,14 @@ import { createAccumTarget, resizeAccumTarget, deleteAccumTarget } from './accum
 import { DEFAULT_MASS } from './domainMass.js';
 
 const CHAMBER_H = 220;
+// GEOMETRY.LOCUS_PX_PER_MASS (spec 2026-09-24) is tuned in CSS px against the
+// ~900px desktop chamber (the pixelSize fallback below). The impact locus it
+// shifts is otherwise unscaled, so on a narrow mobile chamber the same fixed
+// offset eats a much larger fraction of the width and visibly decentres the
+// shock/rings/cage toward one edge. Scaling it down for narrower containers
+// keeps the desktop-tuned look exactly (scale caps at 1) while keeping the
+// locus proportionally near-centre on phones.
+const LOCUS_REF_W = 900;
 const CONTEXT_OPTIONS = {
   alpha: true, premultipliedAlpha: true, antialias: false,
   depth: false, stencil: false, powerPreference: 'low-power',
@@ -307,7 +315,8 @@ export default function ColliderChamber({
     D.massA = massOr(massA);
     D.massB = massOr(massB);
     D.mBar = 0.5 * (D.massA + D.massB);
-    D.locusX = GEOMETRY.LOCUS_PX_PER_MASS * (D.massA - D.massB); // lands toward the lighter beam
+    const locusScale = Math.min(1, ctx.size.w / LOCUS_REF_W);
+    D.locusX = GEOMETRY.LOCUS_PX_PER_MASS * locusScale * (D.massA - D.massB); // lands toward the lighter beam
     D.spin = D.massA - D.massB < 0 ? -1 : 1;
     for (let k = 0; k < 4; k++) D.modeF[k] = modeFrequency(MODES[k].f0, D.mBar);
     D.ring3W = ringThreeWeight(D.mBar);
@@ -332,6 +341,10 @@ export default function ColliderChamber({
       const w = el.clientWidth;
       if (!w || w === ctx.size.w) return;
       ctx.size = { w, h: CHAMBER_H };
+      // A width change (e.g. orientation flip mid-collision) re-derives the
+      // locus scale so it stays keyed to LOCUS_REF_W, not the stale one.
+      const locusScale = Math.min(1, w / LOCUS_REF_W);
+      ctx.derived.locusX = GEOMETRY.LOCUS_PX_PER_MASS * locusScale * (ctx.derived.massA - ctx.derived.massB);
       const host = hostRef.current;
       if (!host) return;
       host.resize(w, CHAMBER_H);

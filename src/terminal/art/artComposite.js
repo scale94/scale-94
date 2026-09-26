@@ -25,7 +25,18 @@ export const DPR_CAP = 1.5;
 // The exhibit's own touchscreen, if it has one, matches `(pointer: coarse)` and
 // lands here too. That is correct rather than incidental: 1 is the installation
 // target either way.
-export const DPR_CAP_COARSE = 1;
+//
+// ── superseded, author call: coarse pointers now cap at 1.5 (matches DPR_CAP)
+//
+// Requested as a targeted middle ground for phone/tablet viewports outside the
+// exhibit itself: at 1.5x, sub-pixel text and node-ring edges read noticeably
+// sharper on high-DPI OLED screens, against the 4x fill-rate cost 2.0 would
+// have cost instead of 1.5's ~2.25x over the 1x floor above. BLOOM/KNEE stay
+// exactly as measured — this only feeds compositeDpr, so intensity/levels/knee
+// still resolve however device pixels land, per the sweep note below. If a
+// frame-rate regression shows up on real coarse-pointer hardware, that sweep
+// is the thing to redo, not this constant.
+export const DPR_CAP_COARSE = 1.5;
 
 // `coarse` is passed in rather than probed here so this stays a pure function —
 // the whole reason artComposite has no three.js and no DOM in it.

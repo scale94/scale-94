@@ -1102,6 +1102,7 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
   const phaseRef = useRef('idle'); // idle | selecting | accelerating | colliding | result
   const metricsRef = useRef(null);
   const beamsRef = useRef(null); // { beams, startedAt } populated at impact
+  const chamberRef = useRef(null); // section root -- scrolled into view on 2nd selection
 
   const [domainA, setDomainA] = useState(null);
   const [domainB, setDomainB] = useState(null);
@@ -1529,7 +1530,11 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
       setAcquired(false);
       setDomainB(id);
       runCollision(domainA, id);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      // window.scrollTo({top:0}) was a no-op here: the terminal's own <main>
+      // panel scrolls internally while window/body/html never do (see App's
+      // "overflow-y-auto" main), so a low-tier second pick never brought the
+      // chamber (selected far above the tier grid) back into view.
+      chamberRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } else {
       // Reset
       setCrystal(null);
@@ -1581,7 +1586,7 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
   }, [result]);
 
   return (
-    <div className="mb-10">
+    <div className="mb-10" ref={chamberRef}>
       <style>{`
         @keyframes sc-cardReveal {
           from { opacity: 0; transform: translateY(12px); }
