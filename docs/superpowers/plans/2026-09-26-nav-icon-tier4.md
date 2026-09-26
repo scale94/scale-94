@@ -82,6 +82,8 @@ Expected: FAIL. One of the four new imports fails to resolve (e.g. `Failed to re
 
 Create `src/terminal/components/icons/KernelCoreIcon.jsx`:
 
+> **Superseded:** this is the first cut (K8, pins on all four sides), which read as a gear at 12px. The shipped glyph is K9 (spec §1): pins on the top and bottom edges only, `M8 1.5v2.5M12 1.5v2.5M16 1.5v2.5M8 20v2.5M12 20v2.5M16 20v2.5`. See commit aa353a0d.
+
 ```jsx
 // KernelCoreIcon.jsx — the KERNEL nav glyph.
 //
@@ -171,6 +173,8 @@ export default AirgapIcon;
 ```
 
 Create `src/terminal/components/icons/LatticeIcon.jsx`:
+
+> **Superseded:** this is the first cut (C1, a square grid with a ringed centre), which read as the sun icon at 12px. The shipped glyph is C6 (spec §1): a skewed lattice plus the short vector `M8 16.5L12.5 11.5` to the hidden point `<circle cx="12.5" cy="11.5" r="1.6" />`. See commit aa353a0d.
 
 ```jsx
 // LatticeIcon.jsx — the CRYPTOGRAPHY nav glyph.

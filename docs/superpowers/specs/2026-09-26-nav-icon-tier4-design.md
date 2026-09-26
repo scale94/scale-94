@@ -1,6 +1,6 @@
 # Nav bar icon polish, tier 4: the last four stock glyphs
 
-**Date:** 2026-09-26 · **Branch:** `feature/nav-icon-tier4` (off main `2c7f837c`) · **Status:** design approved, not built
+**Date:** 2026-09-26 · **Branch:** `feature/nav-icon-tier4` (off main `2c7f837c`) · **Status:** built on the branch (not merged, not pushed)
 
 Follows `2026-09-26-nav-icon-polish-design.md` (tiers 1–3, merged to local main).
 The same rule holds: **the icon draws what the tab does.** After tiers 1–3, the last
