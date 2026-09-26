@@ -6,7 +6,7 @@
 // glyph read as air or water, which the tab has never been about.
 //
 // Drawn to lucide-react's grammar (24 viewBox, 2px stroke, round caps,
-// currentColor) so it sits flush beside Lock / KeyRound / Moon
+// currentColor) so it sits flush beside the other nav glyphs
 // and inherits className + style exactly like its neighbours do.
 
 import React from 'react';

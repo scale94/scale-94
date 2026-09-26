@@ -9,7 +9,6 @@ import React, { useState, useEffect, useRef, useLayoutEffect, useMemo, useCallba
 const fmtTime = (d = new Date()) =>
   `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
 
-import { Cpu, Lock, KeyRound, Moon } from 'lucide-react';
 import CascadeIcon from './components/CascadeIcon';
 import AccretionIcon from './components/AccretionIcon';
 import AmbientParticles from './components/AmbientParticles';
@@ -18,6 +17,10 @@ import InterceptIcon from './components/icons/InterceptIcon';
 import SeraphineScaleIcon from './components/icons/SeraphineScaleIcon';
 import PacketIcon from './components/icons/PacketIcon';
 import LedgerSealIcon from './components/icons/LedgerSealIcon';
+import KernelCoreIcon from './components/icons/KernelCoreIcon';
+import AirgapIcon from './components/icons/AirgapIcon';
+import LatticeIcon from './components/icons/LatticeIcon';
+import EarthshineMoonIcon from './components/icons/EarthshineMoonIcon';
 
 // Data — static (authored, always bundled)
 import kernelBuilds    from './data/kernelBuilds';
@@ -1143,7 +1146,7 @@ const App = () => {
             />
           )}
           <nav aria-label="Main navigation" className="hidden md:flex items-center gap-1 text-[11px] font-bold tracking-normal overflow-x-auto shrink min-w-0 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', '--beat-delay': beatDelay }}>
-            <button aria-label="Kernel" aria-current={activeTab === 'kernel' ? 'page' : undefined} onClick={() => handleNav('~/system/kernel', 'kernel')} className={`${activeTab === 'kernel' ? 'bg-cyan-500 text-black shadow-[0_0_10px_rgba(6,182,212,0.5)]' : 'text-cyan-500 hover:text-cyan-200 hover:bg-cyan-900/30'} px-2 py-1 transition-all duration-300 flex items-center gap-1.5 uppercase rounded-sm whitespace-nowrap`}><Cpu className="w-3 h-3" /> /Kernel</button>
+            <button aria-label="Kernel" aria-current={activeTab === 'kernel' ? 'page' : undefined} onClick={() => handleNav('~/system/kernel', 'kernel')} className={`${activeTab === 'kernel' ? 'bg-cyan-500 text-black shadow-[0_0_10px_rgba(6,182,212,0.5)]' : 'text-cyan-500 hover:text-cyan-200 hover:bg-cyan-900/30'} px-2 py-1 transition-all duration-300 flex items-center gap-1.5 uppercase rounded-sm whitespace-nowrap`}><KernelCoreIcon className="w-3 h-3" /> /Kernel</button>
 
             <button aria-label="BSKY" aria-current={activeTab === 'bsky' ? 'page' : undefined} onClick={() => handleNav('~/system/bsky', 'bsky')} className={`${activeTab === 'bsky' ? 'bg-sky-600 text-sky-50 shadow-[0_0_12px_rgba(56,189,248,0.5)]' : 'text-sky-400/80 hover:text-sky-200 hover:bg-sky-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap${beat('bsky')}`}><NavButterflyIcon /> /BSKY</button>
 
@@ -1153,11 +1156,11 @@ const App = () => {
 
             <button aria-label="Scent" aria-current={activeTab === 'scaling' ? 'page' : undefined} onClick={() => handleNav('~/system/scent', 'scaling')} className={`${activeTab === 'scaling' ? 'bg-fuchsia-500 text-black shadow-[0_0_10px_rgba(217,70,239,0.5)]' : 'text-fuchsia-500 hover:text-fuchsia-200 hover:bg-fuchsia-900/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><ScentGlyph className="w-3 h-3" /> /Scent</button>
 
-            <button aria-label="Privacy" aria-current={activeTab === 'privacy' ? 'page' : undefined} onClick={() => handleNav('~/system/privacy', 'privacy')} className={`${activeTab === 'privacy' ? 'bg-rose-900 text-rose-100 shadow-[0_0_10px_rgba(244,63,94,0.4)]' : 'text-rose-400/80 hover:text-rose-200 hover:bg-rose-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><Lock className="w-3 h-3" /> /Privacy</button>
+            <button aria-label="Privacy" aria-current={activeTab === 'privacy' ? 'page' : undefined} onClick={() => handleNav('~/system/privacy', 'privacy')} className={`${activeTab === 'privacy' ? 'bg-rose-900 text-rose-100 shadow-[0_0_10px_rgba(244,63,94,0.4)]' : 'text-rose-400/80 hover:text-rose-200 hover:bg-rose-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><AirgapIcon className="w-3 h-3" /> /Privacy</button>
 
             <button aria-label="Surveillance" aria-current={activeTab === 'surveillance' ? 'page' : undefined} onClick={() => handleNav('~/system/surveillance', 'surveillance')} className={`${activeTab === 'surveillance' ? 'bg-red-900 text-red-100 shadow-[0_0_10px_rgba(248,113,113,0.4)]' : 'text-red-500/70 hover:text-red-300 hover:bg-red-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><InterceptIcon className="w-3 h-3" /> /Surveillance</button>
 
-            <button aria-label="Cryptography" aria-current={activeTab === 'cryptography' ? 'page' : undefined} onClick={() => handleNav('~/system/cryptography', 'cryptography')} className={`${activeTab === 'cryptography' ? 'bg-orange-950 text-orange-200 shadow-[0_0_12px_rgba(249,115,22,0.5)]' : 'text-orange-500/70 hover:text-orange-300 hover:bg-orange-950/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><KeyRound className="w-3 h-3" /> /Cryptography</button>
+            <button aria-label="Cryptography" aria-current={activeTab === 'cryptography' ? 'page' : undefined} onClick={() => handleNav('~/system/cryptography', 'cryptography')} className={`${activeTab === 'cryptography' ? 'bg-orange-950 text-orange-200 shadow-[0_0_12px_rgba(249,115,22,0.5)]' : 'text-orange-500/70 hover:text-orange-300 hover:bg-orange-950/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><LatticeIcon className="w-3 h-3" /> /Cryptography</button>
 
             <button aria-label="Chaos" aria-current={activeTab === 'art' ? 'page' : undefined} onClick={() => handleNav('~/system/chaos', 'art')} className={`${activeTab === 'art' ? 'text-black shadow-[0_0_14px_rgba(255,215,0,0.6)]' : 'hover:text-amber-300 hover:bg-amber-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap${beat('art')}`} style={activeTab === 'art' ? { background: 'linear-gradient(90deg,#FF8C00,#FFD700)' } : { color: 'rgba(251,191,36,0.6)' }}><CascadeIcon className="w-3 h-3" /> /Chaos</button>
 
@@ -1170,7 +1173,7 @@ const App = () => {
 
             <button aria-label="Ledger" aria-current={activeTab === 'ledger' ? 'page' : undefined} onClick={() => handleNav('~/system/ledger', 'ledger')} className={`${activeTab === 'ledger' ? 'text-black shadow-[0_0_14px_rgba(20,184,166,0.6)]' : 'hover:text-teal-200 hover:bg-teal-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap${beat('ledger')}`} style={activeTab === 'ledger' ? { background: 'linear-gradient(90deg,#0d9488,#14b8a6)' } : { color: 'rgba(20,184,166,0.5)' }}><LedgerSealIcon className="w-3 h-3" /> /Ledger</button>
 
-            <button aria-label="Lunar" aria-current={activeTab === 'lunar' ? 'page' : undefined} onClick={() => handleNav('~/system/lunar', 'lunar')} className={`${activeTab === 'lunar' ? 'bg-violet-900 text-violet-100 shadow-[0_0_12px_rgba(139,92,246,0.5)]' : 'text-violet-400/50 hover:text-violet-200 hover:bg-violet-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap${beat('lunar')}`}><Moon className="w-3 h-3" /> /Lunar</button>
+            <button aria-label="Lunar" aria-current={activeTab === 'lunar' ? 'page' : undefined} onClick={() => handleNav('~/system/lunar', 'lunar')} className={`${activeTab === 'lunar' ? 'bg-violet-900 text-violet-100 shadow-[0_0_12px_rgba(139,92,246,0.5)]' : 'text-violet-400/50 hover:text-violet-200 hover:bg-violet-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap${beat('lunar')}`}><EarthshineMoonIcon className="w-3 h-3" /> /Lunar</button>
 
           </nav>
         </div>
@@ -1393,7 +1396,7 @@ const App = () => {
       >
         <style>{`nav[aria-label="Mobile navigation"]::-webkit-scrollbar { display: none; }`}</style>
         <button onClick={() => handleNav('~/system/kernel', 'kernel')} aria-label="Kernel" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'kernel' ? 'text-cyan-400' : 'text-cyan-400/50'}`}>
-          <Cpu className="w-5 h-5" />
+          <KernelCoreIcon className="w-5 h-5" />
         </button>
         <button onClick={() => handleNav('~/system/bsky', 'bsky')} aria-label="BSKY" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'bsky' ? 'text-sky-400' : 'text-sky-400/50'}${beat('bsky')}`}>
           <NavButterflyIcon size="lg" />
@@ -1408,13 +1411,13 @@ const App = () => {
           <ScentGlyph className="w-5 h-5" />
         </button>
         <button onClick={() => handleNav('~/system/privacy', 'privacy')} aria-label="Privacy" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'privacy' ? 'text-rose-400' : 'text-rose-400/50'}`}>
-          <Lock className="w-5 h-5" />
+          <AirgapIcon className="w-5 h-5" />
         </button>
         <button onClick={() => handleNav('~/system/surveillance', 'surveillance')} aria-label="Surveillance" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'surveillance' ? 'text-red-400' : 'text-red-400/50'}`}>
           <InterceptIcon className="w-5 h-5" />
         </button>
         <button onClick={() => handleNav('~/system/cryptography', 'cryptography')} aria-label="Cryptography" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'cryptography' ? 'text-orange-400' : 'text-orange-400/50'}`}>
-          <KeyRound className="w-5 h-5" />
+          <LatticeIcon className="w-5 h-5" />
         </button>
         <button onClick={() => handleNav('~/system/chaos', 'art')} aria-label="Chaos" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'art' ? 'text-amber-400' : 'text-amber-400/40'}${beat('art')}`}>
           <CascadeIcon className="w-5 h-5" />
@@ -1426,7 +1429,7 @@ const App = () => {
             gateway on mobile too. Ledger before Lunar keeps the spectrum monotonic. */}
         <button onClick={() => handleNav('~/system/ledger', 'ledger')} aria-label="Ledger" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'ledger' ? 'text-teal-400' : 'text-teal-400/50'}${beat('ledger')}`}><LedgerSealIcon className="w-5 h-5" /></button>
         <button onClick={() => handleNav('~/system/lunar', 'lunar')} aria-label="Lunar" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'lunar' ? 'text-violet-400' : 'text-violet-400/40'}${beat('lunar')}`}>
-          <Moon className="w-5 h-5" />
+          <EarthshineMoonIcon className="w-5 h-5" />
         </button>
       </nav>
 
