@@ -441,7 +441,7 @@ Expected: no output. If a hit remains, it is either a missed swap (fix it) or an
 - [ ] **Step 2.7: Run the full test suite**
 
 Run: `npx vitest run`
-Expected: PASS, with the same failures (if any) as `main`. If anything fails, check it with `git stash` against the pre-task state before blaming this change. The only new tests are the 16 from Task 1.
+Expected: PASS. The only new tests are the 16 from Task 1. If anything else fails, do NOT `git stash` or `git checkout` to compare: the working tree holds the user's unrelated uncommitted changes. Report the failing test names and output, and say whether the failing file imports `App.jsx` or anything this task touched.
 
 - [ ] **Step 2.8: Lint and adjust the ratchet**
 
