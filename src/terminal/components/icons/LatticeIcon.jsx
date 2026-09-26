@@ -1,10 +1,13 @@
 // LatticeIcon.jsx — the CRYPTOGRAPHY nav glyph.
 //
-// The hidden lattice point: ML-KEM, the key-encapsulation scheme the tab
-// runs, is lattice-based, and its secret is a point hidden in a lattice.
-// Eight lattice points, and the ringed one at the centre. The old
+// The short vector: ML-KEM, the key-encapsulation scheme the tab runs, is
+// lattice-based, and its security rests on how hard it is to find a short
+// vector to a hidden lattice point. So: a skewed lattice (a real basis is
+// never square), and one short vector reaching the hidden point. The old
 // `KeyRound` was a door key, an odd emblem for post-quantum cryptography.
-// The dots are zero-length subpaths that the round caps turn into points.
+// A square grid with a ringed centre was tried first; at 12px it read as
+// the sun icon. The dots are zero-length subpaths that round caps turn
+// into points.
 //
 // Drawn to lucide-react's grammar (24 viewBox, 2px stroke, round caps,
 // currentColor) so it sits flush beside its neighbours and inherits
@@ -28,12 +31,12 @@ const LatticeIcon = React.forwardRef(({ className, ...props }, ref) => (
     className={className}
     {...props}
   >
-    {/* the lattice */}
-    <path d="M5 5h0M12 5h0M19 5h0M5 12h0M19 12h0M5 19h0M12 19h0M19 19h0" />
+    {/* the skewed lattice */}
+    <path d="M4 3.5h0M10.5 5h0M17 6.5h0M6 10h0M19 13h0M14.5 18h0M21 19.5h0" />
+    {/* the short vector, from a lattice point to the hidden one */}
+    <path d="M8 16.5L12.5 11.5" />
     {/* the hidden point */}
-    <path d="M12 12h0" />
-    {/* the ring that marks it */}
-    <circle cx="12" cy="12" r="3.5" />
+    <circle cx="12.5" cy="11.5" r="1.6" />
   </svg>
 ));
 
