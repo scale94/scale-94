@@ -3,7 +3,7 @@ import React from 'react';
 // One droplet, one rising wisp. Spec §3.1: at w-3 h-3 (12px) only two or
 // three strokes stay legible, so the two-droplets-merging glyph considered
 // first is deliberately not built. Stroke language matches lucide-react so
-// this sits correctly beside <Lock>, <Radio> and <Moon> in the same nav row.
+// this sits correctly beside <Lock>, <KeyRound> and <Moon> in the same nav row.
 const ScentGlyph = ({ className }) => (
   <svg
     className={className}
