@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect, useReducer } from 'react';
 import { createPortal } from 'react-dom';
-import { Database, GitBranch, Cpu } from 'lucide-react';
+import { Database, GitBranch } from 'lucide-react';
+import KernelCoreIcon from '../components/icons/KernelCoreIcon';
 import { getSpine, subscribeSpine, missingVertebrae } from '../quintessence/spineStore';
 import { subscribe as subscribeBus } from '../../observatory/observatoryBus';
 import { loadSealedArtifact, clearSealedArtifact } from '../quintessence/sealedArtifact';
@@ -423,7 +424,7 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
 
       <div>
         <h2 className="text-4xl font-bold mb-3 tracking-tight flex items-center gap-3">
-          <Cpu
+          <KernelCoreIcon
             className="w-8 h-8 shrink-0"
             style={{ color: '#FFD700', animation: 'sk-cpuYellowReveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards, sk-cpuYellowGlow 2.5s ease-in-out 0.8s infinite' }}
           />

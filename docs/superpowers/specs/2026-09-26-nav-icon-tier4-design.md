@@ -75,6 +75,12 @@ depicts in the tab, and what it replaced and why.
 | Cryptography | `<KeyRound …/> /Cryptography` → `<LatticeIcon …/> /Cryptography` | `<KeyRound …/>` → `<LatticeIcon …/>` |
 | Lunar | `<Moon …/> /Lunar` → `<EarthshineMoonIcon …/> /Lunar` | `<Moon …/>` → `<EarthshineMoonIcon …/>` |
 
+**Added after the live check (user request):** the Kernel tab's own `system_kernel`
+header icon (`KernelTab.jsx`, `w-8 h-8`, gold reveal + glow animation) swaps `Cpu` for
+`KernelCoreIcon` too, so the tab and its nav button carry the same mark. The inline
+`style` (colour and animation) passes through unchanged. `Cpu` drops out of KernelTab's
+lucide import.
+
 Button classes and colours stay exactly as they are. After the swap, `App.jsx` uses
 no lucide icon, so its `import { … } from 'lucide-react'` line is removed. The
 `lucide-react` package stays, because other views still import it.
