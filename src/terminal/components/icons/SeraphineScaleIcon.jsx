@@ -2,7 +2,7 @@
 //
 // Seraphine's Scale: the world resting on the curved cradle that holds it,
 // the same sagging-curve family SeraphineScale.jsx draws over the map. The
-// beam tips at collapse and holds level through bloom. The old `Leaf` was
+// tab's scale tips at collapse and holds level through bloom. The old `Leaf` was
 // the green cliché the tab's degrowth gate argues against.
 // The cradle rises past the world's lower half and the world carries an
 // equator: a circle over a shallow arc reads as a head over shoulders (a

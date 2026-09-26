@@ -1,6 +1,6 @@
 # Nav bar icon polish: four bespoke glyphs
 
-**Date:** 2026-09-26 · **Branch:** `feature/nav-icon-polish` · **Status:** design approved, not built
+**Date:** 2026-09-26 · **Branch:** `feature/nav-icon-polish` · **Status:** built on the branch (not merged, not pushed)
 
 ## Why
 

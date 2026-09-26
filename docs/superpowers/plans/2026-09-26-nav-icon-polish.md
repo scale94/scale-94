@@ -171,6 +171,8 @@ export default InterceptIcon;
 
 Create `src/terminal/components/icons/SeraphineScaleIcon.jsx`:
 
+> **Superseded:** the geometry below is the first cut, which read as a user/avatar icon at nav size. The shipped glyph is variant E3 (spec §1): `<circle cx="12" cy="9.5" r="6" />`, `<path d="M6 9.5h12" />`, `<path d="M2.5 13.5Q12 24.5 21.5 13.5" />`. See commit 82378fdc.
+
 ```jsx
 // SeraphineScaleIcon.jsx — the ECOCIDE nav glyph.
 //

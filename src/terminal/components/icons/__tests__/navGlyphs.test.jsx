@@ -22,6 +22,9 @@ describe.each([
     expect(svgs[0].getAttribute('class')).toBe('w-3 h-3');
     expect(svgs[0].getAttribute('viewBox')).toBe('0 0 24 24');
     expect(svgs[0].getAttribute('stroke')).toBe('currentColor');
+    expect(svgs[0].getAttribute('stroke-width')).toBe('2');
+    expect(svgs[0].getAttribute('stroke-linecap')).toBe('round');
+    expect(svgs[0].getAttribute('stroke-linejoin')).toBe('round');
     expect(svgs[0].getAttribute('aria-hidden')).toBe('true');
   });
 
