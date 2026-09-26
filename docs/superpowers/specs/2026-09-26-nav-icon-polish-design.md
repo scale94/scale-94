@@ -121,8 +121,9 @@ The button classes and colours stay exactly as they are.
 
 ## 5. Testing
 
-- **Unit, one test file per glyph** in `src/terminal/components/icons/__tests__/`,
-  following `ScentGlyph.test.jsx`:
+- **Unit, one parameterised test** (`describe.each` over the four glyphs) in
+  `src/terminal/components/icons/__tests__/navGlyphs.test.jsx`, following
+  `ScentGlyph.test.jsx`:
   - renders one `svg` that forwards `className`, with `viewBox="0 0 24 24"` and
     `fill="none"`;
   - forwards a ref to the `svg` element;
