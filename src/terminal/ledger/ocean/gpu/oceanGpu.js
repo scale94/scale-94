@@ -32,26 +32,40 @@ export function createOceanGpu(gl, {
   const fwd = createFloatTarget(gl, nx, ny);
   const corr = createFloatTarget(gl, nx, ny);
   const textures = [staticTex, rowsTex, sourcesTex];
-  if (!state || !fwd || !corr) {
+  const P = {};
+  // One release path for construction failure and for dispose(): programs,
+  // ping-pong, scratch targets, then the plain textures.
+  const release = () => {
+    for (const { prog } of Object.values(P)) gl.deleteProgram(prog);
     state?.dispose();
     disposeTarget(gl, fwd);
     disposeTarget(gl, corr);
     for (const t of textures) gl.deleteTexture(t);
+  };
+  if (!state || !fwd || !corr) {
+    release();
     return null;
   }
 
-  const P = {};
-  for (const [name, def] of Object.entries(SIM_PROGRAMS)) {
-    const prog = buildProgram(gl, SIM_VS, def.fs, { label: `ocean:${name}` });
-    const U = {};
-    for (const u of [...SHARED_UNIFORMS, ...def.uniforms]) U[u] = gl.getUniformLocation(prog, u);
-    gl.useProgram(prog);
-    gl.uniform1i(U.uStatic, UNIT.static);
-    gl.uniform1i(U.uRows, UNIT.rows);
-    gl.uniform2f(U.uGrid, nx, ny);
-    gl.uniform1f(U.uCellKm, grid.cellKm);
-    for (const u of def.uniforms) if (u in SAMPLER_UNITS) gl.uniform1i(U[u], SAMPLER_UNITS[u]);
-    P[name] = { prog, U };
+  try {
+    for (const [name, def] of Object.entries(SIM_PROGRAMS)) {
+      const prog = buildProgram(gl, SIM_VS, def.fs, { label: `ocean:${name}` });
+      const U = {};
+      for (const u of [...SHARED_UNIFORMS, ...def.uniforms]) U[u] = gl.getUniformLocation(prog, u);
+      gl.useProgram(prog);
+      gl.uniform1i(U.uStatic, UNIT.static);
+      gl.uniform1i(U.uRows, UNIT.rows);
+      gl.uniform2f(U.uGrid, nx, ny);
+      gl.uniform1f(U.uCellKm, grid.cellKm);
+      for (const u of def.uniforms) if (u in SAMPLER_UNITS) gl.uniform1i(U[u], SAMPLER_UNITS[u]);
+      P[name] = { prog, U };
+    }
+  } catch (err) {
+    // A program that fails mid-loop must not strand the 7 textures, 4
+    // framebuffers and the programs already built. buildProgram has already
+    // deleted the failed program itself.
+    release();
+    throw err;
   }
   gl.useProgram(P.react.prog);
   gl.uniform1f(P.react.U.uTauT, TAU_T_DAYS);
@@ -133,11 +147,7 @@ export function createOceanGpu(gl, {
       return staticTex;
     },
     dispose() {
-      for (const { prog } of Object.values(P)) gl.deleteProgram(prog);
-      state.dispose();
-      disposeTarget(gl, fwd);
-      disposeTarget(gl, corr);
-      for (const t of textures) gl.deleteTexture(t);
+      release();
     },
   };
 }

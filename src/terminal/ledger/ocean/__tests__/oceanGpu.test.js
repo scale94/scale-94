@@ -76,4 +76,18 @@ describe('createOceanGpu', () => {
     expect(gpu.readState()).toHaveLength(grid.n * 4);
     expect(gl.__log.some((e) => e[0] === 'readPixels')).toBe(true);
   });
+
+  it('releases every GL object when a sim program fails to build, then rethrows', () => {
+    const gl = withFloat();
+    let links = 0;
+    gl.getProgramParameter = () => { links += 1; return links !== 3; }; // the 3rd sim program fails to link
+    expect(() => make(gl)).toThrow(/failed to link/);
+    const n = (name) => gl.__log.filter((e) => e[0] === name).length;
+    expect(n('createTexture')).toBe(7);
+    expect(n('deleteTexture')).toBe(n('createTexture'));
+    expect(n('createFramebuffer')).toBe(4);
+    expect(n('deleteFramebuffer')).toBe(n('createFramebuffer'));
+    expect(n('createProgram')).toBe(3);
+    expect(n('deleteProgram')).toBe(n('createProgram'));
+  });
 });

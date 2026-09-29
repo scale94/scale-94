@@ -34,4 +34,20 @@ describe('LedgerOcean', () => {
     render(<LedgerOcean width={512} height={256} />);
     expect(screen.getByText('OCEAN UNAVAILABLE · NO WEBGL2')).toBeTruthy();
   });
+
+  it('falls back to the static coastline, with nothing leaked, when a sim program fails to build', () => {
+    rec = installRecordingGL({ version: 2, extensions: ['EXT_color_buffer_float'] });
+    let links = 0;
+    // link 1 = the host's display program; 2..6 = the five sim programs. Fail the 3rd sim program.
+    rec.gl.getProgramParameter = () => { links += 1; return links !== 4; };
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    render(<LedgerOcean width={512} height={256} />);
+    const n = (name) => rec.log.filter((e) => e[0] === name).length;
+    expect(screen.getByText('STATIC · SIM SHADERS FAILED')).toBeTruthy();
+    expect(screen.queryByText('OCEAN UNAVAILABLE · NO WEBGL2')).toBeNull();
+    expect(n('createProgram')).toBe(n('deleteProgram') + 1);   // only the display program lives
+    expect(n('createFramebuffer')).toBe(n('deleteFramebuffer'));
+    expect(n('createTexture')).toBe(n('deleteTexture') + 2);   // the static fallback's two textures
+    expect(n('drawArrays')).toBe(1);                           // the static frame was painted
+  });
 });

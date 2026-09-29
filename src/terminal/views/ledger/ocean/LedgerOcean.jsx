@@ -12,6 +12,7 @@ import { SIM_VS, COMPOSITE_FS, COMPOSITE_UNIFORMS } from '../../../ledger/ocean/
 import { OCEAN_EXPOSURE } from '../../../ledger/ocean/gpu/palette';
 import { createStepClock } from '../../../ledger/ocean/clock';
 import { createOceanDriver, REDUCED_MOTION_DAYS } from './oceanDriver';
+import { MODE_LABEL } from './hudFormat';
 
 const CONTEXT_OPTIONS = { alpha: false, antialias: false, premultipliedAlpha: false };
 
@@ -25,7 +26,7 @@ export default function LedgerOcean({ width, height, daysPerSecond = 9, onFrame 
   dpsRef.current = daysPerSecond;
   const onFrameRef = useRef(onFrame);
   onFrameRef.current = onFrame;
-  const [mode, setMode] = useState('live'); // 'live' | 'static' | 'unsupported'
+  const [mode, setMode] = useState('live'); // 'live' | 'static' | 'static-shader' | 'unsupported'
 
   useShaderCanvas(canvasRef, {
     version: 2,
@@ -41,7 +42,16 @@ export default function LedgerOcean({ width, height, daysPerSecond = 9, onFrame 
     trackVisibility: true,
     onInit: (gl, { vao }) => {
       const { grid } = world;
-      const sim = createOceanGpu(gl, { grid, staticData: world.staticData, rowData: world.rowData, vao });
+      let sim = null;
+      let failed = false;
+      try {
+        sim = createOceanGpu(gl, { grid, staticData: world.staticData, rowData: world.rowData, vao });
+      } catch (err) {
+        // createOceanGpu has released everything it built; the host itself
+        // (display program + quad) is fine, so draw the static coastline.
+        console.error(err);
+        failed = true;
+      }
       if (sim) {
         sim.setSources(world.ambientSourceData);
         simRef.current = sim;
@@ -52,7 +62,7 @@ export default function LedgerOcean({ width, height, daysPerSecond = 9, onFrame 
           static: createFloatTexture(gl, grid.nx, grid.ny, world.staticData),
           zero: createFloatTexture(gl, grid.nx, grid.ny, new Float32Array(grid.n * 4)),
         };
-        setMode('static');
+        setMode(failed ? 'static-shader' : 'static');
       }
     },
     onDispose: (gl) => {
@@ -109,7 +119,7 @@ export default function LedgerOcean({ width, height, daysPerSecond = 9, onFrame 
         <div
           style={{ position: 'absolute', left: 8, bottom: 6, font: '9px monospace', letterSpacing: '0.2em', color: 'rgba(20,184,166,0.55)' }}
         >
-          {mode === 'static' ? 'STATIC · NO FLOAT TARGETS' : 'OCEAN UNAVAILABLE · NO WEBGL2'}
+          {MODE_LABEL[mode]}
         </div>
       )}
     </div>
