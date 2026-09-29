@@ -153,14 +153,64 @@ Streeter–Phelps does not model anoxia.
 
 ### Fallbacks
 
-- WebGL2 + `EXT_color_buffer_float` (+ `OES_texture_float_linear` for
-  bilinear sampling; without it, sample manually in-shader).
-- Else `EXT_color_buffer_half_float` with half-float targets.
-- Else: a still frame computed by the CPU oracle at mount, displayed as a
-  texture, with the HUD reading `STATIC · NO FLOAT TARGETS`.
-- `prefers-reduced-motion`: the oracle-equivalent GPU run of ~200 simulated
-  days at mount, then frozen on that state.
+- WebGL2 + `EXT_color_buffer_float`. (Advection never uses hardware
+  filtering — see the GPU contract — so `OES_texture_float_linear` is not
+  required.)
+- Else `EXT_color_buffer_half_float` with half-float targets. Phase-1 review
+  measured a user verdict's per-step increment (~2e-6 mg/L per cell) below the
+  half-float ulp at plume values ≥ 0.01, and nitrate's per-step decay factor
+  quantised by ~±10%: the half-float path needs its own parity tolerance
+  and/or source accumulation at a larger Δt. Decided in the phase-2 plan.
+- Else: a still frame from the CPU oracle. Measured cost: 46 ms/step on a
+  desktop (mask 58 ms, current bake 258 ms), so a 200-day still frame (800
+  steps) is ~37 s — **not** feasible on the main thread at mount. The phase-2
+  plan picks among: a Worker computing it chunked (partial frame shown
+  first), a short span, or a large-Δt still-frame mode (reactions are exact
+  and advection is unconditionally stable). HUD reads
+  `STATIC · NO FLOAT TARGETS`.
+- `prefers-reduced-motion`: the GPU runs ~200 simulated days at mount, then
+  freezes on that state.
 - Context loss and hidden-pane suspension come from `frameLoop` / `glHost`.
+
+### Courant hotspots (measured, phase 1)
+
+With Δt = 0.25 d, cos-lat-narrowed cells and the island-rule strait jets, the
+max Courant number is **1.08** (La Pérouse Strait, 142.4°E 45.4°N), with
+~0.95 at Taiwan and Korea Straits and ~0.86 at Cook Strait. Semi-Lagrangian
++ BFECC stays stable there (100-day real-grid run clean); the accepted bound
+is C ≤ 1.1, asserted in `streamFunction.test.js`. The phase-2 visual check
+must look at these four straits specifically: the fastest water in the model
+is strait jets from ring-mean island constants, not the designed boundary
+currents.
+
+### GPU contract (phase 2 must match the CPU oracle exactly)
+
+`src/terminal/ledger/ocean/referenceStep.js` is the oracle; the shaders port
+it, they do not reinterpret it.
+
+- **State:** one RGBA float texel per cell, channels `[ΔT, BOD, NO₃, D]`,
+  row 0 = south, x wraps (`REPEAT` addressing or manual wrap), y clamps.
+- **Velocity:** RG texture, cell-centre (u, v) in km/day, 0 on land.
+  Back-trace: `x − u·Δt / (cellKm · cos φ_dest)`, `y − v·Δt / cellKm`, using
+  the cos of the **destination** row.
+- **Sampling:** a manual 4-tap bilinear fetch with a land mask. Weights are
+  renormalised over **ocean texels only**. If all four are land, the cell
+  keeps its own value. Hardware linear filtering would blend land zeros in
+  and create a sink at every coast, including every river mouth.
+- **Limiter:** min/max over the same four ocean texels of the **original**
+  field at the forward back-trace (zero-weight ocean texels included). BFECC
+  needs two scratch targets (forward, backward/corrected) plus the output.
+- **Diffusion:** explicit 5-point, x-term `(E + W − 2C)/Δx²`, y-term in
+  flux form `(cos_N·(N − C) − cos_S·(C − S)) / (cos_j · Δy²)` with face
+  cosines; land and pole neighbours mirror C. Substeps so D·h/Δx²_min ≤ 0.2.
+- **Reaction:** exact closed forms; per-row `kd`, `ka`, `DO_sat` from a 1-D
+  lookup (SST climatology by latitude). No cap inside the reaction.
+- **Sources:** the CPU (`buildSource`) stays the single source of truth. It
+  sums `conc[c] · f` per cell into a sparse RGBA source texture, rebuilt only
+  when the source set changes; the react pass adds `src · Δt`. No analytic
+  Gaussian on the GPU.
+- **Guard** (after advect, after diffuse, after react+inject): NaN/∞ → 0,
+  clamp ≥ 0, land = 0, deficit ≤ `DO_sat` of the row.
 
 ## 3. Rivers and sources
 
@@ -412,6 +462,22 @@ Each phase ends in a working, green state.
    - The 4 new presets with sourced data.
    - HUD, form ghost, seal, header.
    - Delete `LedgerMap` / `LedgerParticles` / eclipse.
+
+## Phase-1 carry-overs (assigned to the phase-2 plan)
+
+- `riverCourses.js` and the preset `river` blocks for the existing 5 presets
+  (phase 2 renders them as ambient sources) plus the §6 "Presets" tests. The
+  phase-1 plan did not include them.
+- DO_sat uses the freshwater Benson–Krause fit; at ocean salinity (~35) it is
+  ~20% high, which raises the ocean deficit cap. Add a salinity term or a
+  legend note.
+- `snapToOcean` does not prefer the main basin: 41 ocean basins exist at this
+  resolution, so a user verdict could snap into a tiny enclosed lagoon (the
+  Caspian case is intentional; tiny lagoons are not).
+- `referenceStep.js` keeps a module-level scratch object: fine on one thread,
+  but each Worker needs its own module instance.
+- Clock: `setMaxSteps` input is unvalidated and `reset()`/custom `dtDays` are
+  untested; cover them with the `useOceanClock` tests.
 
 ## Out of scope (phase-2 backlog)
 
