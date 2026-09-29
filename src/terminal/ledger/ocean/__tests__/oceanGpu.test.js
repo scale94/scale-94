@@ -90,4 +90,20 @@ describe('createOceanGpu', () => {
     expect(n('createProgram')).toBe(3);
     expect(n('deleteProgram')).toBe(n('createProgram'));
   });
+  it('reads one cell of the current state texture', () => {
+    const gl = withFloat();
+    const gpu = make(gl);
+    gpu.step();                                   // read and write have swapped at least once
+    const fboTex = new Map();
+    let cur = null;
+    for (const [name, ...a] of gl.__log) {
+      if (name === 'bindFramebuffer') cur = a[1];
+      else if (name === 'framebufferTexture2D') fboTex.set(cur, a[3]);
+    }
+    const start = gl.__log.length;
+    expect(gpu.readCell(5, 2)).toHaveLength(4);
+    const log = gl.__log.slice(start);
+    expect(log[1]).toEqual(['readPixels', 5, 2, 1, 1, gl.RGBA, gl.FLOAT, [0, 0, 0, 0]]);
+    expect(fboTex.get(log[0][2])).toBe(gpu.stateTexture().__tag);
+  });
 });

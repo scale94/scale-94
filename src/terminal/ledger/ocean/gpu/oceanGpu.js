@@ -7,7 +7,7 @@
 import { buildProgram } from '../../../gl/glHost';
 import {
   probeFloatTargets, createFloatTexture, createFloatTarget, createPingPong,
-  disposeTarget, readTarget, uploadFloatTexture,
+  disposeTarget, readTarget, readTexel, uploadFloatTexture,
 } from '../../../gl/pingPong';
 import { DT_DAYS } from '../grid';
 import { TAU_T_DAYS, TAU_N_DAYS } from '../kinetics';
@@ -139,6 +139,11 @@ export function createOceanGpu(gl, {
     },
     readState() {
       return readTarget(gl, state.read);
+    },
+    // [ΔT, BOD, NO₃, D] of cell (i, j); row 0 = south. A pipeline stall: call
+    // at most PROBE_INTERVAL_MS apart.
+    readCell(i, j) {
+      return readTexel(gl, state.read, i, j);
     },
     stateTexture() {
       return state.read.tex;

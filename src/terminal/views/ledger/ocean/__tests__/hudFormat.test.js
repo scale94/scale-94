@@ -1,0 +1,132 @@
+import { describe, it, expect } from 'vitest';
+import { getOceanWorld } from '../../../../ledger/ocean/oceanWorld';
+import { verdictSources, haversineKm } from '../../../../ledger/ocean/sources';
+import { RIVERS } from '../../../../ledger/ocean/riverCourses';
+import {
+  COMPRESSIONS, LEGEND_NOTES, PRESET_COLOR, nextCompression, summaryLine, formatClock, formatFrame,
+  fmtValue, formatProbe, pointerToLonLat, lonLatToPct, describeSites, tooltipLines,
+} from '../hudFormat';
+
+// Inland near Suzhou: a land cell, so the straight-line snap has a length.
+const V = {
+  hash: 'h1', status: 'REJECTED', coordinates: { lat: 31.3, lon: 120.6 },
+  input: { temp: 20, do: 6, bod: 10, dt: 2, epi: 3, nitrate: 5, flow: 42, siteName: 'Test site' },
+};
+
+describe('clock, compression, frame monitor', () => {
+  it('cycles 1 → 3 → 9 → 30 → 1', () => {
+    expect(COMPRESSIONS).toEqual([1, 3, 9, 30]);
+    expect([1, 3, 9, 30].map(nextCompression)).toEqual([3, 9, 30, 1]);
+  });
+  it('formats the sim clock and the frame monitor', () => {
+    expect(formatClock(184.25)).toBe('T+ 184.25 d');
+    expect(formatClock(0)).toBe('T+ 0.00 d');
+    expect(formatFrame(2.8)).toBe('Δt 2.8 ms · 357 Hz');
+    expect(formatFrame(16)).toBe('Δt 16.0 ms · 63 Hz');
+    expect(formatFrame(0)).toBe('Δt — ms');
+  });
+});
+
+describe('summary line', () => {
+  it('counts verdicts by status like the old map did', () => {
+    expect(summaryLine([])).toBe('0 VERDICTS RECORDED');
+    expect(summaryLine([{ status: 'APPROVED' }])).toBe('1 VERDICT RECORDED  ·  1 APPROVED');
+    expect(summaryLine([{ status: 'APPROVED' }, { status: 'APPROVED' }, { status: 'EMERGENCY_VETO' }, {}]))
+      .toBe('4 VERDICTS RECORDED  ·  2 APPROVED  ·  1 EMERGENCY VETO  ·  1 UNKNOWN');
+  });
+});
+
+describe('probe', () => {
+  it('formats values with magnitude-dependent precision', () => {
+    expect(fmtValue(0)).toBe('0');
+    expect(fmtValue(-1)).toBe('0');
+    expect(fmtValue(NaN)).toBe('0');
+    expect(fmtValue(3.2e-4)).toBe('3.2e-4');
+    expect(fmtValue(0.02)).toBe('0.02');
+    expect(fmtValue(0.005)).toBe('5.0e-3');   // below 0.01 the readout switches to exponent form
+    expect(fmtValue(0.01)).toBe('0.01');
+    expect(fmtValue(1.234)).toBe('1.2');
+    expect(fmtValue(150.4)).toBe('150');
+  });
+  it('formats a probe line, land and no-data cases', () => {
+    expect(formatProbe(122.8, 31.2, [0.02, 0.14, 0.8, 0.3], false))
+      .toBe('31.2°N 122.8°E · ΔT 0.02 °C · BOD 0.14 · NO₃ 0.80 · DO↓ 0.30 mg/L');
+    expect(formatProbe(-89.2, 29.1, null, true)).toBe('29.1°N 89.2°W · LAND');
+    expect(formatProbe(10, -45.5, null, false)).toBe('45.5°S 10.0°E · NO DATA');
+  });
+  it('maps canvas pixels to lon/lat (north up, full equirectangular world)', () => {
+    expect(pointerToLonLat(0, 0, 512, 256)).toEqual({ lon: -180, lat: 90 });
+    expect(pointerToLonLat(256, 128, 512, 256)).toEqual({ lon: 0, lat: 0 });
+    expect(pointerToLonLat(384, 192, 512, 256)).toEqual({ lon: 90, lat: -45 });
+    expect(pointerToLonLat(512, 10, 512, 256)).toBeNull();
+    expect(pointerToLonLat(-1, 10, 512, 256)).toBeNull();
+    expect(pointerToLonLat(10, 256, 512, 256)).toBeNull();
+    expect(pointerToLonLat(10, 10, 0, 0)).toBeNull();
+  });
+  it('maps lon/lat to percent positions', () => {
+    expect(lonLatToPct(0, 0)).toEqual({ left: 50, top: 50 });
+    expect(lonLatToPct(-180, 90)).toEqual({ left: 0, top: 0 });
+    expect(lonLatToPct(90, -45)).toEqual({ left: 75, top: 75 });
+  });
+});
+
+describe('legend', () => {
+  it('carries every honesty note 3a shows', () => {
+    expect(LEGEND_NOTES).toEqual([
+      'MODEL KINETICS · LITERATURE RANGES',
+      'PRESET LOADS NARRATIVE-TUNED · NOT MEASURED',
+      'CLIMATOLOGICAL CURRENTS · NOT FORECAST',
+      'POINT SOURCE · PLUG FLOW · NO TRIBUTARIES',
+      'USER SITES · STRAIGHT-LINE APPROX',
+      'DO_SAT FRESHWATER FIT · ~20% HIGH AT SEA',
+    ]);
+  });
+});
+
+describe('sites', () => {
+  const world = getOceanWorld();
+  const userSrc = verdictSources([V], world.grid, world.mask);
+  const sites = describeSites([...world.sources, ...userSrc], [V]);
+
+  it('test setup: the verdict site is on land', () => {
+    const { i, j } = world.grid.lonLatToCell(120.6, 31.3);
+    expect(world.mask.land[world.grid.idx(i, j)]).toBeTruthy();
+  });
+
+  it('describes presets as neutral ambient sources, measured from their mouth', () => {
+    const usa = sites.find((s) => s.id === 'preset:usa');
+    expect(usa).toMatchObject({
+      kind: 'preset', status: null, color: PRESET_COLOR,
+      name: 'Lower Mississippi at New Orleans, USA', dischargeM3s: 16570,
+    });
+    expect(usa.site).toEqual(RIVERS.usa.course[0]);
+    expect(usa.snapKm).toBeCloseTo(haversineKm(RIVERS.usa.course.at(-1), usa.snap), 9);
+    expect(sites.filter((s) => s.kind === 'preset')).toHaveLength(world.sources.length);
+  });
+
+  it('describes a verdict by its status colour, measured from its audit site', () => {
+    const v = sites.find((s) => s.id === 'h1');
+    expect(v).toMatchObject({ kind: 'verdict', status: 'REJECTED', color: '#ef4444', name: 'Test site', dischargeM3s: 42 });
+    expect(v.site).toEqual([120.6, 31.3]);
+    expect(v.snapKm).toBeGreaterThan(0);
+    expect(v.snapKm).toBeCloseTo(haversineKm([120.6, 31.3], v.snap), 9);
+  });
+
+  it('writes the tooltip lines', () => {
+    expect(tooltipLines({
+      id: 'h1', kind: 'verdict', name: 'Test site', status: 'EMERGENCY_VETO', color: '#ef4444',
+      site: [121, 31.2], snap: [122, 31], snapKm: 97.4, dischargeM3s: 42, doMin: 3.14, rkm: 1840.4,
+    })).toEqual([
+      'Test site', 'EMERGENCY VETO', 'Q 42 m³/s · 0.25% OF MISSISSIPPI',
+      'DO_MIN 3.1 mg/L @ rkm 1840', 'SNAP 97 km TO OCEAN',
+    ]);
+    expect(tooltipLines({
+      id: 'preset:usa', kind: 'preset', name: 'X', status: null, color: PRESET_COLOR,
+      site: [0, 0], snap: [0, 0], snapKm: 0, dischargeM3s: 16570, doMin: 5, rkm: 0,
+    })).toEqual(['X', 'AMBIENT PRESET', 'Q 16,570 m³/s', 'DO_MIN 5.0 mg/L @ rkm 0', 'SNAP 0 km TO OCEAN']);
+    expect(tooltipLines({
+      id: 'x', kind: 'verdict', name: 'Y', status: 'APPROVED', color: '#22c55e',
+      site: [0, 0], snap: [0, 0], snapKm: 1, dischargeM3s: 4.25, doMin: 8, rkm: 2,
+    })[2]).toBe('Q 4.3 m³/s · 0.026% OF MISSISSIPPI');
+  });
+});

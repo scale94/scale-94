@@ -75,3 +75,12 @@ export function readTarget(gl, target) {
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   return out;
 }
+
+// One texel, for a cursor probe. Same float readback rules as readTarget
+// (RGBA/FLOAT needs EXT_color_buffer_float, which probeFloatTargets required).
+export function readTexel(gl, target, x, y, out = new Float32Array(4)) {
+  gl.bindFramebuffer(gl.FRAMEBUFFER, target.fbo);
+  gl.readPixels(x, y, 1, 1, gl.RGBA, gl.FLOAT, out);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  return out;
+}

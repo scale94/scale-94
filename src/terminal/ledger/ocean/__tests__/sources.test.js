@@ -4,7 +4,7 @@ import { buildLandMask } from '../landMask';
 import { riverState } from '../kinetics';
 import {
   haversineKm, courseLengthKm, splatCells, buildSource,
-  verdictSourceSpec, ghostSourceSpec, MIXED_LAYER_M,
+  verdictSourceSpec, verdictSources, ghostSourceSpec, MIXED_LAYER_M,
 } from '../sources';
 
 const grid = OCEAN_GRID;
@@ -103,3 +103,23 @@ describe('user verdicts and the ghost', () => {
     expect(buildSource(ghostSourceSpec(base), grid, mask)).not.toBeNull();
   });
 });
+
+describe('verdictSources', () => {
+  const input = { ...kernel, siteName: 'Test site' };
+  it('builds one source per archived verdict with usable coordinates', () => {
+    const out = verdictSources([
+      { hash: 'a', status: 'REJECTED', coordinates: { lat: 31.3, lon: 120.6 }, input },
+      { hash: 'b', status: 'APPROVED', coordinates: null, input },
+      { hash: 'c', status: 'APPROVED', coordinates: { lat: '', lon: 5 }, input },
+      { hash: 'd', status: 'APPROVED', coordinates: { lat: 10, lon: NaN }, input },
+      { hash: 'e', status: 'APPROVED', coordinates: { lat: 10, lon: 10 } },
+    ], grid, mask);
+    expect(out.map((s) => s.id)).toEqual(['a']);
+    expect(out[0].kind).toBe('verdict');
+    expect(out[0].dischargeM3s).toBe(42);
+  });
+  it('is empty for no verdicts', () => {
+    expect(verdictSources([], grid, mask)).toEqual([]);
+  });
+});
+

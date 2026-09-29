@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createRecordingGL } from './recordingGL';
 import {
-  probeFloatTargets, createFloatTarget, createPingPong, readTarget,
+  probeFloatTargets, createFloatTarget, createPingPong, readTarget, readTexel,
 } from '../pingPong';
 
 const withFloat = () => createRecordingGL({ version: 2, extensions: ['EXT_color_buffer_float'] });
@@ -66,3 +66,20 @@ describe('readTarget', () => {
     expect(gl.__log[gl.__log.length - 1]).toEqual(['bindFramebuffer', gl.FRAMEBUFFER, null]);
   });
 });
+
+describe('readTexel', () => {
+  it('reads one RGBA float texel from the target framebuffer and unbinds', () => {
+    const gl = withFloat();
+    const t = createFloatTarget(gl, 8, 4);
+    const start = gl.__log.length;
+    const out = readTexel(gl, t, 5, 2);
+    expect(out).toBeInstanceOf(Float32Array);
+    expect(out).toHaveLength(4);
+    expect(gl.__log.slice(start)).toEqual([
+      ['bindFramebuffer', gl.FRAMEBUFFER, t.fbo.__tag],
+      ['readPixels', 5, 2, 1, 1, gl.RGBA, gl.FLOAT, [0, 0, 0, 0]],
+      ['bindFramebuffer', gl.FRAMEBUFFER, null],
+    ]);
+  });
+});
+
