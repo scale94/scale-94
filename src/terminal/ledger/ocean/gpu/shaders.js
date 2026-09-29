@@ -220,8 +220,8 @@ const vec3 CRIMSON = vec3(1.0, 0.09, 0.20);
 const vec3 AMBER = vec3(1.0, 0.62, 0.0);
 const vec3 GREEN = vec3(0.22, 1.0, 0.08);
 const vec3 CYAN = vec3(0.0, 0.90, 1.0);
-const vec3 BASE = vec3(0.020);
-const vec3 LAND = vec3(0.039);
+const vec3 BASE = vec3(0.032);
+const vec3 LAND = vec3(0.068);
 const vec3 COAST = vec3(0.08, 0.72, 0.65);
 
 vec4 stateAt(vec2 p) {
@@ -246,8 +246,13 @@ float landAt(vec2 p) {
   return l;
 }
 
+// Hue-preserving tone curve: compress by the brightest component so a strong
+// crimson core stays crimson instead of bleaching to white.
+vec3 tone(vec3 e) { float m = max(max(e.r, e.g), max(e.b, 1e-6)); return e / m * (1.0 - exp(-m)); }
+
 vec4 intensity(vec4 v) { return log(1.0 + max(v, vec4(0.0)) / uRef) * uGain; }
-vec3 emission(vec4 I) { return (I.x * CRIMSON + I.y * AMBER + I.z * GREEN) * exp(-I.w); }
+// Heat glows through the hypoxic void; the void swallows only the biology (BOD, nitrate).
+vec3 emission(vec4 I) { return I.x * CRIMSON + (I.y * AMBER + I.z * GREEN) * exp(-I.w); }
 
 void main() {
   vec2 p = vec2(gl_FragCoord.x / uRes.x * uGrid.x - 0.5, gl_FragCoord.y / uRes.y * uGrid.y - 0.5);
@@ -259,10 +264,11 @@ void main() {
   float gx = intensity(stateAt(p + vec2(1.0, 0.0))).w - intensity(stateAt(p - vec2(1.0, 0.0))).w;
   float gy = intensity(stateAt(p + vec2(0.0, 1.0))).w - intensity(stateAt(p - vec2(0.0, 1.0))).w;
   float rim = smoothstep(0.05, 0.4, 0.5 * length(vec2(gx, gy))) * uRim;
-  vec3 col = BASE + (1.0 - exp(-e)) + rim * 0.35 * CYAN;
+  // The cyan void rim yields to heat so a hot mouth core stays crimson.
+  vec3 col = BASE + tone(e) + rim * 0.35 * CYAN * exp(-I.x);
   float lf = landAt(p);
   col = mix(col, LAND, smoothstep(0.45, 0.55, lf));
-  col += COAST * 0.22 * smoothstep(0.6, 1.0, 1.0 - abs(2.0 * lf - 1.0));
+  col += COAST * 0.40 * smoothstep(0.6, 1.0, 1.0 - abs(2.0 * lf - 1.0));
   float scan = mod(floor(gl_FragCoord.y), 2.0) < 1.0 ? 0.96 : 1.0;
   float n = fract(sin(dot(gl_FragCoord.xy + uTime * 61.0, vec2(12.9898, 78.233))) * 43758.5453);
   outColor = vec4(col * scan + (n - 0.5) / 255.0, 1.0);
