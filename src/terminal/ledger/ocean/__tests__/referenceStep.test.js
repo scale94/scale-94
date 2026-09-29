@@ -160,15 +160,21 @@ describe('real grid smoke', () => {
     const state = new Float32Array(grid.n * 4);
     for (let s = 0; s < 20; s++) step(ctx, state, { sources: [src] });
     let injected = 0;
+    let nonFinite = 0;
+    let negative = 0;
+    let landNonZero = 0;
     for (let k = 0; k < grid.n; k++) {
       for (let c = 0; c < 4; c++) {
         const v = state[k * 4 + c];
-        expect(Number.isFinite(v)).toBe(true);
-        expect(v).toBeGreaterThanOrEqual(0);
-        if (mask.land[k]) expect(v).toBe(0);
+        if (!Number.isFinite(v)) nonFinite++;
+        else if (v < 0) negative++;
+        if (mask.land[k] && v !== 0) landNonZero++;
       }
       injected += state[k * 4 + 2];
     }
+    expect(nonFinite).toBe(0);
+    expect(negative).toBe(0);
+    expect(landNonZero).toBe(0);
     expect(injected).toBeGreaterThan(0);
   }, 60000);
 });
