@@ -68,4 +68,20 @@ describe('createStepClock', () => {
     expect(clock.advance(16, 0)).toBe(0);
     expect(clock.advance(16, Infinity)).toBe(0);
   });
+
+  it('ignores an invalid step cap', () => {
+    const clock = createStepClock({ maxSteps: 8 });
+    clock.setMaxSteps(NaN);
+    clock.setMaxSteps(-3);
+    clock.setMaxSteps(2.5);
+    expect(clock.advance(1000, 30)).toBe(8);
+  });
+
+  it('reset() drops the fractional remainder; custom dtDays is honoured', () => {
+    const clock = createStepClock({ dtDays: 1 });
+    expect(clock.advance(500, 1.5)).toBe(0);   // 0.75 d accumulated
+    clock.reset();
+    expect(clock.advance(250, 1.5)).toBe(0);   // 0.375 d, not 1.125
+    expect(createStepClock({ dtDays: 1 }).advance(1000, 3)).toBe(3);
+  });
 });

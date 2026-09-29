@@ -22,7 +22,7 @@ export function createStepClock({ dtDays = DT_DAYS, maxSteps = 8 } = {}) {
       return steps;
     },
     setMaxSteps(m) {
-      cap = m;
+      if (Number.isInteger(m) && m > 0) cap = m;
     },
     reset() {
       accDays = 0;
