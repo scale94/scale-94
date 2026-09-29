@@ -457,6 +457,13 @@ Each phase ends in a working, green state.
      presets as ambient sources.
    - GPU parity passing.
    - Reviewed on the branch; the tab still shows the old hero.
+   - Plan: `docs/superpowers/plans/2026-09-29-ledger-ocean-phase2-gl.md`. Its
+     refinements of this spec: float render targets only (no half-float
+     path); the static fallback draws no plume; sim shaders and the GPU
+     runner live in `src/terminal/ledger/ocean/gpu/`; river data lives in
+     `riverCourses.js` (auditPresets.js untouched); `useOceanClock` became
+     the pure `oceanDriver.js`; review happens on the dev page
+     `ledger-ocean-preview.html`.
 3. **Integration:**
    - River-stage particles.
    - The 4 new presets with sourced data.
