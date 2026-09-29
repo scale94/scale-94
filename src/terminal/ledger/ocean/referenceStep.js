@@ -7,12 +7,31 @@ import { TAU_T_DAYS, TAU_N_DAYS, kd, kaOcean, sagStep, doSat, sstClimatology } f
 
 export const EDDY_DIFFUSIVITY_KM2_DAY = 86.4; // 1000 m²/s horizontal eddy diffusivity
 
-export function createOceanContext(grid, land, vel) {
+// Per-row reaction constants at the latitude SST climatology. Shared with the
+// GPU row texture so both sides use identical numbers.
+export function rowConstants(grid) {
   const rows = [];
   for (let j = 0; j < grid.ny; j++) {
     const sst = sstClimatology(grid.latOf(j));
     rows.push({ kd: kd(sst), ka: kaOcean(sst), doSat: doSat(sst) });
   }
+  return rows;
+}
+
+// Diffusion substeps so D·h/Δx² ≤ 0.2 at the narrowest simulated row.
+// Shared with the GPU runner so both substep identically.
+export function diffusionSchedule(grid, dtDays, D = EDDY_DIFFUSIVITY_KM2_DAY) {
+  if (!(D > 0)) return { sub: 0, h: 0 };
+  let minDx = Infinity;
+  for (let j = 0; j < grid.ny; j++) {
+    if (Math.abs(grid.latOf(j)) <= LAT_LIMIT) minDx = Math.min(minDx, grid.cellKm * grid.cosLat[j]);
+  }
+  const sub = Math.max(1, Math.ceil((D * dtDays) / (minDx * minDx) / 0.2));
+  return { sub, h: dtDays / sub };
+}
+
+export function createOceanContext(grid, land, vel) {
+  const rows = rowConstants(grid);
   const size = grid.n * 4;
   return {
     grid, land, vel, rows,
@@ -116,13 +135,8 @@ export function diffuse(ctx, src, dst, dtDays, D = EDDY_DIFFUSIVITY_KM2_DAY) {
   const { grid, land, d: tmp } = ctx;
   const { nx, ny, cellKm, cosLat } = grid;
   dst.set(src);
-  if (!(D > 0)) return;
-  let minDx = Infinity;
-  for (let j = 0; j < ny; j++) {
-    if (Math.abs(grid.latOf(j)) <= LAT_LIMIT) minDx = Math.min(minDx, cellKm * cosLat[j]);
-  }
-  const sub = Math.max(1, Math.ceil((D * dtDays) / (minDx * minDx) / 0.2));
-  const h = dtDays / sub;
+  const { sub, h } = diffusionSchedule(grid, dtDays, D);
+  if (sub === 0) return;
   const dy2 = cellKm * cellKm;
   for (let s = 0; s < sub; s++) {
     for (let j = 0; j < ny; j++) {
