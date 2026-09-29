@@ -143,11 +143,19 @@ export function describeSites(sources, verdicts = []) {
   });
 }
 
-const fmtQ = (q) => (q >= 10 ? Math.round(q).toLocaleString('en-US') : q.toFixed(1));
+export const fmtQ = (q) => {
+  if (q === 0) return '0';
+  if (q >= 10) return Math.round(q).toLocaleString('en-US');
+  // 0 < q < 10: 2 significant digits without exponent
+  if (q >= 1) return q.toFixed(1);
+  // 0 < q < 1: 3 decimals to show 2 sig figs, e.g. 0.04 → '0.040'
+  return q.toFixed(3);
+};
 
 export function tooltipLines(site) {
   const q = `Q ${fmtQ(site.dischargeM3s)} m³/s`;
-  const pct = ((site.dischargeM3s / RIVERS.usa.dischargeM3s) * 100).toPrecision(2);
+  const pctValue = (site.dischargeM3s / RIVERS.usa.dischargeM3s) * 100;
+  const pct = pctValue < 10 ? pctValue.toPrecision(2) : Math.round(pctValue);
   return [
     site.name,
     site.kind === 'preset' ? 'AMBIENT PRESET' : statusLabel(site.status),

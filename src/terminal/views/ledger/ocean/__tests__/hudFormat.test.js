@@ -4,7 +4,7 @@ import { verdictSources, haversineKm } from '../../../../ledger/ocean/sources';
 import { RIVERS } from '../../../../ledger/ocean/riverCourses';
 import {
   COMPRESSIONS, LEGEND_NOTES, PRESET_COLOR, nextCompression, summaryLine, formatClock, formatFrame,
-  fmtValue, formatProbe, pointerToLonLat, lonLatToPct, describeSites, tooltipLines,
+  fmtValue, formatProbe, pointerToLonLat, lonLatToPct, describeSites, tooltipLines, fmtQ,
 } from '../hudFormat';
 
 // Inland near Suzhou: a land cell, so the straight-line snap has a length.
@@ -128,5 +128,27 @@ describe('sites', () => {
       id: 'x', kind: 'verdict', name: 'Y', status: 'APPROVED', color: '#22c55e',
       site: [0, 0], snap: [0, 0], snapKm: 1, dischargeM3s: 4.25, doMin: 8, rkm: 2,
     })[2]).toBe('Q 4.3 m³/s · 0.026% OF MISSISSIPPI');
+  });
+
+  it('formats Q at the range ends (0, very small, and with locale)', () => {
+    expect(fmtQ(0)).toBe('0');
+    expect(fmtQ(0.04)).toBe('0.040');
+    expect(fmtQ(3.2)).toBe('3.2');
+    expect(fmtQ(9.5)).toBe('9.5');
+    expect(fmtQ(10)).toBe('10');
+    expect(fmtQ(16570)).toBe('16,570');
+  });
+
+  it('formats Mississippi percentage at 100% and above with no exponent', () => {
+    // 100% of Mississippi
+    expect(tooltipLines({
+      id: 'usa100', kind: 'verdict', name: 'Test 100%', status: 'APPROVED', color: '#22c55e',
+      site: [0, 0], snap: [0, 0], snapKm: 0, dischargeM3s: 16570, doMin: 8, rkm: 0,
+    })[2]).toBe('Q 16,570 m³/s · 100% OF MISSISSIPPI');
+    // ~121% of Mississippi (no e+2 exponent)
+    expect(tooltipLines({
+      id: 'usa121', kind: 'verdict', name: 'Test 121%', status: 'APPROVED', color: '#22c55e',
+      site: [0, 0], snap: [0, 0], snapKm: 0, dischargeM3s: 20000, doMin: 8, rkm: 0,
+    })[2]).toBe('Q 20,000 m³/s · 121% OF MISSISSIPPI');
   });
 });
