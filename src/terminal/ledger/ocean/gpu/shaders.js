@@ -270,7 +270,7 @@ void main() {
   col = mix(col, LAND, smoothstep(0.45, 0.55, lf));
   col += COAST * 0.40 * smoothstep(0.6, 1.0, 1.0 - abs(2.0 * lf - 1.0));
   float scan = mod(floor(gl_FragCoord.y), 2.0) < 1.0 ? 0.96 : 1.0;
-  float n = fract(sin(dot(gl_FragCoord.xy + uTime * 61.0, vec2(12.9898, 78.233))) * 43758.5453);
+  float n = fract(sin(dot(gl_FragCoord.xy + fract(uTime) * 61.0, vec2(12.9898, 78.233))) * 43758.5453);
   outColor = vec4(col * scan + (n - 0.5) / 255.0, 1.0);
 }
 `;

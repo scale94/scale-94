@@ -53,7 +53,7 @@ describe('bakeCurrents (real world)', () => {
     expect(max).toBeGreaterThan(100);
 
     // Courant number in cells per step, with the cos-lat narrowing of cells.
-    // Measured max ≈ 1.08 in La Pérouse Strait (island-rule strait jets);
+    // Measured max ≈ 1.04 in La Pérouse Strait (island-rule strait jets);
     // semi-Lagrangian + BFECC stays stable there. Accepted bound: 1.1.
     let maxC = 0;
     for (let j = 0; j < ny; j++) {

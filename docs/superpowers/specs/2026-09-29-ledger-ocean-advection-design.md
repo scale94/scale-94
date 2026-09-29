@@ -175,8 +175,12 @@ Streeter–Phelps does not model anoxia.
 ### Courant hotspots (measured, phase 1)
 
 With Δt = 0.25 d, cos-lat-narrowed cells and the island-rule strait jets, the
-max Courant number is **1.08** (La Pérouse Strait, 142.4°E 45.4°N), with
-~0.95 at Taiwan and Korea Straits and ~0.86 at Cook Strait. Semi-Lagrangian
+max Courant number is **1.0395** (La Pérouse Strait, 142.38°E 45.35°N; it was
+1.08 before the land-mask fix below), with ~0.95 at Taiwan and Korea Straits
+and ~0.86 at Cook Strait (phase-1 figures). The antimeridian land-mask fix
+(commit eb03b055, land rings crossing ±180° are unwrapped before the scanline
+fill) changed the basin topology: land components 75 → 67, ocean basins
+41 → 37, and the Taiwan Strait max speed 285.1 → 272.3 km/d. Semi-Lagrangian
 + BFECC stays stable there (100-day real-grid run clean); the accepted bound
 is C ≤ 1.1, asserted in `streamFunction.test.js`. The phase-2 visual check
 must look at these four straits specifically: the fastest water in the model
