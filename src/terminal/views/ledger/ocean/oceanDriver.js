@@ -16,7 +16,6 @@ export const FRAME_TAU_S = 0.5;
 
 export function createOceanDriver({ clock, step, dtDays = DT_DAYS }) {
   let days = 0;
-  let warmed = false;
   let warmSteps = 0;
   let frameMs = 0;
   const run = (n) => {
@@ -32,12 +31,6 @@ export function createOceanDriver({ clock, step, dtDays = DT_DAYS }) {
         clock.setMaxSteps(frameMs > LOAD_FRAME_MS ? STEP_CAP_LOADED : STEP_CAP);
       }
       return run(clock.advance(dtSec * 1000, daysPerSecond));
-    },
-    // Phase-2 API; LedgerOcean stops using it in phase 3a Task 3, which deletes it.
-    warmupOnce(targetDays) {
-      if (warmed) return 0;
-      warmed = true;
-      return run(Math.round(targetDays / dtDays));
     },
     warmupChunk(targetDays, perFrame = WARMUP_STEPS_PER_FRAME) {
       const total = Math.round(targetDays / dtDays);

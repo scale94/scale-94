@@ -21,15 +21,6 @@ describe('createOceanDriver', () => {
     expect(d.simDays()).toBeCloseTo(9, 9);
   });
 
-  it('warms up once for reduced motion', () => {
-    const s = counting();
-    const d = createOceanDriver({ clock: createStepClock(), step: s.step });
-    expect(d.warmupOnce(REDUCED_MOTION_DAYS)).toBe(800);
-    expect(d.warmupOnce(REDUCED_MOTION_DAYS)).toBe(0);
-    expect(s.count()).toBe(800);
-    expect(d.simDays()).toBeCloseTo(200, 9);
-  });
-
   it('spreads the reduced-motion warm-up over frames, a fixed number of steps each', () => {
     const s = counting();
     const d = createOceanDriver({ clock: createStepClock(), step: s.step });
