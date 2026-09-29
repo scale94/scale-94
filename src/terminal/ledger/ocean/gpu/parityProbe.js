@@ -8,7 +8,7 @@ import { createOceanContext, step } from '../referenceStep';
 import { ambientSources } from '../sources';
 import { packStatic, packRows, packSources } from './gpuData';
 import { createOceanGpu } from './oceanGpu';
-import { syntheticWorld, blob } from '../__tests__/syntheticWorld';
+import { syntheticWorld, uniformVelocity, blob } from '../__tests__/syntheticWorld';
 
 const TOL_FIRST = 1e-5;
 const TOL_LAST = 2e-4;
@@ -82,6 +82,22 @@ function syntheticCase() {
   return runCase({ name: 'synthetic 64x32 vortex + island, D=5e4', grid, mask, vel, init, sources, steps: 60, diffusivity: 5e4 });
 }
 
+// Date-line seam: a blob straddling i = 0 / nx-1 carried across it by a
+// uniform zonal flow (Courant ≈ 0.4 at the equator, 40 steps ≈ 16 cells), in
+// both directions so wrapI's negative and >= nx branches both carry material.
+// One cell's deficit starts far above DO_sat so the guard's cap is exercised,
+// and reactions are off so the cap is not masked by the exact sag step.
+function seamCase(u, ci) {
+  const { grid, mask } = syntheticWorld();
+  const vel = uniformVelocity(grid, u, 0);
+  const init = blob(grid, mask.land, ci, 16, 6, 1);
+  init[grid.idx(grid.wrapI(ci), 16) * 4 + 3] = 50;
+  return runCase({
+    name: `synthetic seam u=${u} km/d from i=${ci}, deficit seed 50, no reactions`,
+    grid, mask, vel, init, sources: [], steps: 40, diffusivity: 5e4, reactions: false,
+  });
+}
+
 function realCase() {
   const grid = OCEAN_GRID;
   const mask = buildLandMask(grid);
@@ -94,6 +110,6 @@ function realCase() {
 }
 
 export async function runParity() {
-  const cases = [syntheticCase(), realCase()];
+  const cases = [syntheticCase(), seamCase(1000, 61), seamCase(-1000, 2), realCase()];
   return { ok: cases.every((c) => c.ok), cases };
 }
