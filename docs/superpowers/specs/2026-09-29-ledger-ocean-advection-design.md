@@ -99,13 +99,19 @@ u = curl ψ, so the flow is divergence-free by construction.
     (Rhine), Bay of Bengal (Ganges), Java Sea (Citarum), Black Sea Rim Current
     — anticlockwise (Danube), Brazil Current shelf (Rio Doce), Ionian coastal
     drift (Blue Eye / Bistrica).
-- Gyre ψ is multiplied by a coastal ramp m ∈ [0,1] (0 on land, 1 at ~3 cells
-  offshore) **before** the curl. The ACC term is the one contribution that
-  must be non-zero on a coast (Antarctica sits at ψ = A), so it is ramped
-  toward a **per-land-component constant** instead (the mean ACC ψ on that
-  landmass's coastal ring: an approximation of the island rule). Every
-  corner touching land takes its component's constant, and land components
-  are 8-connected, so every coastline is a streamline: no flow into land.
+- Coastlines (island rule, approximated): every land component is pinned to
+  one constant ψ, the mean raw ψ (gyres + ACC) over its coastal ring:
+  Antarctica ≈ the ACC amplitude, mid-gyre islands (Japan, Hawaii) ≈ their
+  local gyre value, continents ≈ a small mixed mean. Every corner touching
+  land takes its component's constant, and land components are 8-connected,
+  so every coastline is a streamline: no flow into land.
+- Ocean corners within 8 cells of land get a **harmonic correction** φ
+  (∇²φ = 0, solved by SOR at bake time) that blends the pinned coast values
+  into the raw field. The draft of this spec used a fixed 3-cell ramp; phase 1
+  measured it at ~512 km/d off Kyushu and ~422 km/d in the Drake Passage
+  (bound: 300), and a wider ramp would jump at seams in narrow passages. The
+  harmonic blend spreads, e.g., the ACC's transport across the whole Drake
+  Passage instead.
 - Discretisation: ψ on cell corners, velocity on cell faces (Arakawa-C), so
   discrete divergence is zero to rounding. Cell-centre velocities for the
   back-trace are face averages.
