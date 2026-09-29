@@ -22,7 +22,7 @@ describe('ocean shaders', () => {
 
   it('never samples with hardware filtering', () => {
     for (const src of [...Object.values(SIM_PROGRAMS).map((p) => p.fs), COMPOSITE_FS]) {
-      expect(/\btexture\s*\(/.test(src)).toBe(false);
+      expect(/\btexture(Lod|Offset|Grad|Proj)?\w*\s*\(/.test(src)).toBe(false);
     }
   });
 });

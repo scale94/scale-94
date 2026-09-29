@@ -22,7 +22,8 @@ out vec4 outColor;
 
 int nxI() { return int(uGrid.x + 0.5); }
 int nyI() { return int(uGrid.y + 0.5); }
-int wrapI(int i) { int nx = nxI(); return i - nx * int(floor(float(i) / float(nx))); }
+// Exact integer wrap (GLSL ES leaves % undefined for negative operands, so fold negatives onto non-negative ones).
+int wrapI(int i) { int nx = nxI(); return i >= 0 ? i % nx : nx - 1 - ((-i - 1) % nx); }
 bool isLand(ivec2 c) { return texelFetch(uStatic, c, 0).b > 0.5; }
 vec4 rowA(int j) { return texelFetch(uRows, ivec2(j, 0), 0); }
 vec4 rowB(int j) { return texelFetch(uRows, ivec2(j, 1), 0); }
@@ -69,10 +70,11 @@ Tap sample4(sampler2D field, vec2 p) {
 
 // NaN/inf -> 0, clamp >= 0, deficit <= DO saturation of the row. Land is the caller's job.
 vec4 guardCell(vec4 v, int j) {
-  for (int c = 0; c < 4; c++) {
-    float x = v[c];
-    if (!(x >= 0.0 && x < 1e30)) v[c] = 0.0;
-  }
+  v = vec4(
+    (v.x >= 0.0 && v.x < 1e30) ? v.x : 0.0,
+    (v.y >= 0.0 && v.y < 1e30) ? v.y : 0.0,
+    (v.z >= 0.0 && v.z < 1e30) ? v.z : 0.0,
+    (v.w >= 0.0 && v.w < 1e30) ? v.w : 0.0);
   v.w = min(v.w, rowA(j).z);
   return v;
 }
@@ -163,6 +165,7 @@ uniform float uTauT;
 uniform float uTauN;
 
 // (e^{-kd t} - e^{-ka t}) / (ka - kd), with a series near ka = kd (float32-safe threshold).
+// Deliberately 1e-2 threshold / 4-term series (CPU kinetics.js uses 1e-4 / 3-term) for float32; truncation ~x^4/120.
 float bridge(float kdv, float kav, float t) {
   float eD = exp(-kdv * t);
   float eA = exp(-kav * t);

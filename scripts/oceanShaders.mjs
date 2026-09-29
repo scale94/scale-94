@@ -29,7 +29,7 @@ try {
     return out;
   })()`);
   console.log(JSON.stringify(result, null, 2));
-  failed = !!result.__error || Object.entries(result).some(([k, r]) => !k.startsWith('__') && !r.ok);
+  failed = !!result.__error || !result.__extColorBufferFloat || Object.entries(result).some(([k, r]) => !k.startsWith('__') && !r.ok);
 } finally {
   await page.close();
 }
