@@ -1,7 +1,9 @@
 // LedgerOcean.jsx — the Ledger ocean: WebGL2 advection of audited discharge,
-// composited on the shared harness. The sim runs inside onInit/draw; the
-// ledger is never written. Without float render targets (or if a sim program
-// fails to build) it draws the static coastline only; without WebGL2 it says so.
+// composited on the shared harness, with the HUD overlay (OceanHud). The sim
+// runs inside onInit/draw; the ledger is never written. Sources = the ambient
+// presets plus every archived verdict (straight-line course to its snapped
+// ocean cell). Without float render targets (or if a sim program fails to
+// build) it draws the static coastline only; without WebGL2 it says so.
 //
 // Lifecycle:
 // - Size changes resize the canvas in place (hostRef.resize). The host is
@@ -12,20 +14,35 @@
 //   (key = generation) and the host rebuilt; the ocean restarts from T+0,
 //   because its state lived in GPU memory.
 // - Reduced motion: the warm-up is spread over frames (nothing is painted
-//   meanwhile), then one frame is held and repainted only when resized.
+//   meanwhile), then one frame is held and repainted only when resized. A new
+//   source re-runs the warm-up, then repaints once.
+// - Probe: a 1-texel float readback of the state, at most every
+//   PROBE_INTERVAL_MS of frame time; mouse hover on desktop, tap elsewhere.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShaderCanvas } from '../../../gl/useShaderCanvas';
 import { createFloatTexture } from '../../../gl/pingPong';
 import { getOceanWorld } from '../../../ledger/ocean/oceanWorld';
 import { createOceanGpu } from '../../../ledger/ocean/gpu/oceanGpu';
+import { packSources } from '../../../ledger/ocean/gpu/gpuData';
+import { verdictSources } from '../../../ledger/ocean/sources';
 import { SIM_VS, COMPOSITE_FS, COMPOSITE_UNIFORMS } from '../../../ledger/ocean/gpu/shaders';
 import { OCEAN_EXPOSURE } from '../../../ledger/ocean/gpu/palette';
 import { createStepClock } from '../../../ledger/ocean/clock';
 import { createOceanDriver, REDUCED_MOTION_DAYS } from './oceanDriver';
-import { MODE_LABEL } from './hudFormat';
+import OceanHud from './OceanHud';
+import {
+  COMPACT_BELOW_PX, DEFAULT_COMPRESSION, PROBE_INTERVAL_MS, PROBE_TAP_HOLD_MS,
+  describeSites, formatProbe, nextCompression, pointerToLonLat,
+} from './hudFormat';
 
 const CONTEXT_OPTIONS = { alpha: false, antialias: false, premultipliedAlpha: false };
+const NO_VERDICTS = [];
+
+const prefersReducedMotion = () =>
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function paint({ gl, prog, U, vao }, grid, tex, sim, tsec) {
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -49,22 +66,56 @@ function paint({ gl, prog, U, vao }, grid, tex, sim, tsec) {
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 }
 
-export default function LedgerOcean({ width, height, daysPerSecond = 9, onFrame = null }) {
+export default function LedgerOcean({
+  width,
+  height,
+  daysPerSecond = DEFAULT_COMPRESSION,
+  verdicts = NO_VERDICTS,
+  latestHash = null,
+  onFrame = null,
+}) {
   const canvasRef = useRef(null);
+  const hudRef = useRef(null);
   const world = useMemo(() => getOceanWorld(), []);
+  const reducedMotion = useMemo(() => prefersReducedMotion(), []);
+  const [dps, setDps] = useState(daysPerSecond);
+  const [mode, setMode] = useState('live'); // 'live' | 'static' | 'static-shader' | 'unsupported' | 'lost'
+  const [generation, setGeneration] = useState(0);
+
   const simRef = useRef(null);
   const driverRef = useRef(null);
   const texRef = useRef(null);
+  const uploadedRef = useRef(null);
   const lostRef = useRef(false);
   const warmRef = useRef(false);
   const dirtyRef = useRef(true);
   const sizeRef = useRef({ width, height });
-  const dpsRef = useRef(daysPerSecond);
-  dpsRef.current = daysPerSecond;
+  const probeRef = useRef(null);
+  const probeAtRef = useRef(-Infinity);
+  const tapTimerRef = useRef(0);
+  const dpsRef = useRef(dps);
+  dpsRef.current = dps;
   const onFrameRef = useRef(onFrame);
   onFrameRef.current = onFrame;
-  const [mode, setMode] = useState('live'); // 'live' | 'static' | 'static-shader' | 'unsupported' | 'lost'
-  const [generation, setGeneration] = useState(0);
+
+  const userSources = useMemo(() => verdictSources(verdicts, world.grid, world.mask), [world, verdicts]);
+  const sources = useMemo(() => [...world.sources, ...userSources], [world, userSources]);
+  const sourceData = useMemo(
+    () => (userSources.length ? packSources(world.grid, world.mask.land, sources) : world.ambientSourceData),
+    [world, sources, userSources],
+  );
+  const sites = useMemo(() => describeSites(sources, verdicts), [sources, verdicts]);
+  const sourceDataRef = useRef(sourceData);
+  sourceDataRef.current = sourceData;
+
+  const readProbe = (now, sim) => {
+    const p = probeRef.current;
+    if (!p || now - probeAtRef.current < PROBE_INTERVAL_MS) return;
+    probeAtRef.current = now;
+    const land = !!world.mask.land[p.k];
+    const v = land || !sim ? null : sim.readCell(p.i, p.j);
+    hudRef.current?.setProbe(formatProbe(p.lon, p.lat, v, land));
+  };
 
   const { hostRef } = useShaderCanvas(canvasRef, {
     version: 2,
@@ -79,7 +130,7 @@ export default function LedgerOcean({ width, height, daysPerSecond = 9, onFrame 
     label: 'LedgerOcean',
     trackVisibility: true,
     // The loop must run under reduced motion: it carries the spread warm-up,
-    // then idles (draw returns without painting) until a resize.
+    // then idles (draw returns without painting) until a resize or new source.
     haltOnReducedMotion: false,
     onInit: (gl, { vao }) => {
       const { grid } = world;
@@ -97,7 +148,8 @@ export default function LedgerOcean({ width, height, daysPerSecond = 9, onFrame 
         failed = true;
       }
       if (sim) {
-        sim.setSources(world.ambientSourceData);
+        sim.setSources(sourceDataRef.current);
+        uploadedRef.current = sourceDataRef.current;
         simRef.current = sim;
         driverRef.current = createOceanDriver({ clock: createStepClock(), step: () => sim.step() });
         texRef.current = { static: sim.staticTexture(), zero: null };
@@ -118,12 +170,22 @@ export default function LedgerOcean({ width, height, daysPerSecond = 9, onFrame 
       simRef.current = null;
       driverRef.current = null;
       texRef.current = null;
+      uploadedRef.current = null;
     },
-    draw: (host, { dt, tsec, hidden, reducedMotion }) => {
+    draw: (host, { now, dt, tsec, hidden, reducedMotion: rm }) => {
       if (lostRef.current) return;
+      const sim = simRef.current;
       const driver = driverRef.current;
+      if (sim && uploadedRef.current !== sourceDataRef.current) {
+        sim.setSources(sourceDataRef.current);
+        uploadedRef.current = sourceDataRef.current;
+        if (rm) {
+          driver.resetWarmup();
+          warmRef.current = false;
+        }
+      }
       let paintNow = true;
-      if (reducedMotion) {
+      if (rm) {
         if (driver && !warmRef.current) {
           warmRef.current = driver.warmupChunk(REDUCED_MOTION_DAYS);
           paintNow = warmRef.current;
@@ -133,11 +195,14 @@ export default function LedgerOcean({ width, height, daysPerSecond = 9, onFrame 
       } else if (driver && !hidden) {
         driver.advance(dt, dpsRef.current);
       }
+      readProbe(now, sim);
       if (paintNow) {
-        paint(host, world.grid, texRef.current, simRef.current, tsec);
+        paint(host, world.grid, texRef.current, sim, tsec);
         dirtyRef.current = false;
       }
-      onFrameRef.current?.(driver ? driver.simDays() : 0);
+      const simDays = driver ? driver.simDays() : 0;
+      hudRef.current?.setFrame({ simDays, frameMs: driver ? driver.frameMs() : 0, now });
+      onFrameRef.current?.(simDays);
     },
     onUnsupported: () => setMode('unsupported'),
     deps: [generation],
@@ -177,21 +242,64 @@ export default function LedgerOcean({ width, height, daysPerSecond = 9, onFrame 
     };
   }, [generation]);
 
+  useEffect(() => () => clearTimeout(tapTimerRef.current), []);
+
+  const probeAt = useCallback((clientX, clientY) => {
+    const el = canvasRef.current;
+    if (!el) return false;
+    const r = el.getBoundingClientRect();
+    const p = pointerToLonLat(clientX - r.left, clientY - r.top, r.width, r.height);
+    if (!p) return false;
+    const { i, j } = world.grid.lonLatToCell(p.lon, p.lat);
+    probeRef.current = { ...p, i, j, k: world.grid.idx(i, j) };
+    return true;
+  }, [world]);
+
+  const clearProbe = useCallback(() => {
+    probeRef.current = null;
+    hudRef.current?.setProbe(null);
+  }, []);
+
+  const onPointerMove = useCallback((e) => {
+    if (e.pointerType !== 'mouse') return;
+    if (!probeAt(e.clientX, e.clientY)) clearProbe();
+  }, [probeAt, clearProbe]);
+
+  const onPointerLeave = useCallback((e) => {
+    if (e.pointerType === 'mouse') clearProbe();
+  }, [clearProbe]);
+
+  const onPointerDown = useCallback((e) => {
+    if (e.pointerType === 'mouse') return;
+    if (!probeAt(e.clientX, e.clientY)) return;
+    clearTimeout(tapTimerRef.current);
+    tapTimerRef.current = setTimeout(clearProbe, PROBE_TAP_HOLD_MS);
+  }, [probeAt, clearProbe]);
+
+  const cycleCompression = useCallback(() => setDps((d) => nextCompression(d)), []);
+
   return (
     <div style={{ position: 'relative', width, height, background: '#050505' }}>
       <canvas
         key={generation}
         ref={canvasRef}
         aria-label="Ledger ocean: advection of audited discharge"
-        style={{ display: mode === 'unsupported' ? 'none' : 'block', width, height }}
+        onPointerMove={onPointerMove}
+        onPointerLeave={onPointerLeave}
+        onPointerDown={onPointerDown}
+        style={{ display: mode === 'unsupported' ? 'none' : 'block', width, height, touchAction: 'manipulation' }}
       />
-      {mode !== 'live' && (
-        <div
-          style={{ position: 'absolute', left: 8, bottom: 6, font: '9px monospace', letterSpacing: '0.2em', color: 'rgba(20,184,166,0.55)' }}
-        >
-          {MODE_LABEL[mode]}
-        </div>
-      )}
+      <OceanHud
+        ref={hudRef}
+        compact={width < COMPACT_BELOW_PX}
+        mode={mode}
+        reducedMotion={reducedMotion}
+        daysPerSecond={dps}
+        onCycleCompression={cycleCompression}
+        sites={sites}
+        latestHash={latestHash}
+        verdicts={verdicts}
+      />
     </div>
   );
 }
