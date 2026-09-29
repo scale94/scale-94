@@ -112,4 +112,64 @@ describe('OceanHud', () => {
     expect(q('compression')).toBeNull();
     expect(screen.getByText(/STILL · REDUCED MOTION/)).toBeTruthy();
   });
+  it('on mobile shows the colour key and a notes toggle, and reveals every note verbatim only when toggled', () => {
+    const { q } = hud({ compact: true });
+    const toggle = q('notes-toggle');
+    expect(toggle.tagName).toBe('BUTTON');
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(toggle.style.pointerEvents).toBe('auto');
+    for (const s of ['ΔT', 'BOD', 'NO₃', 'DO↓']) expect(q('legend').textContent).toContain(s);
+    expect(q('legend-key').style.whiteSpace).toBe('nowrap');
+    for (const note of LEGEND_NOTES) expect(q('legend').textContent).not.toContain(note);
+    expect(q('notes')).toBeNull();
+    fireEvent.click(toggle);
+    expect(q('notes-toggle').getAttribute('aria-expanded')).toBe('true');
+    for (const note of LEGEND_NOTES) expect(q('notes').textContent).toContain(note);
+    expect(q('summary').textContent).toBe('1 VERDICT RECORDED  ·  1 REJECTED');
+    fireEvent.click(q('notes-toggle'));
+    expect(q('notes-toggle').getAttribute('aria-expanded')).toBe('false');
+    expect(q('notes')).toBeNull();
+    for (const note of LEGEND_NOTES) expect(q('legend').textContent).not.toContain(note);
+  });
+
+  it('keeps the desktop legend notes always visible, with no toggle', () => {
+    const { q } = hud();
+    expect(q('notes-toggle')).toBeNull();
+    for (const note of LEGEND_NOTES) expect(q('legend').textContent).toContain(note);
+  });
+
+  it('stacks the tooltip above the legend on mobile, opaque, wrapping within a max width', () => {
+    const { container, q } = hud({ compact: true });
+    fireEvent.click(container.querySelector('[data-site="preset:usa"]'));
+    const tip = q('tooltip');
+    const legendBox = q('legend').parentElement;
+    // After the legend in document order, and on a higher z-index.
+    expect(legendBox.compareDocumentPosition(tip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(Number(tip.style.zIndex)).toBeGreaterThan(Number(legendBox.style.zIndex || 0));
+    expect(tip.style.background).toBe('rgb(0, 0, 0)');
+    expect(tip.style.maxWidth).not.toBe('');
+    expect(tip.style.whiteSpace).toBe('normal');
+  });
+
+  it('keeps the desktop tooltip look (translucent, one line per row) but above the legend', () => {
+    const { container, q } = hud();
+    fireEvent.click(container.querySelector('[data-site="preset:usa"]'));
+    const tip = q('tooltip');
+    expect(tip.style.background).toBe('rgba(0, 0, 0, 0.9)');
+    expect(tip.style.whiteSpace).toBe('nowrap');
+    expect(tip.style.maxWidth).toBe('');
+    expect(Number(tip.style.zIndex)).toBeGreaterThan(Number(q('legend').parentElement.style.zIndex || 0));
+  });
+
+  it('shrinks the ring hit target to the drawn ring on mobile; desktop keeps 16 px', () => {
+    const compact = hud({ compact: true });
+    const cRing = compact.container.querySelector('[data-site="h1"]');
+    expect(cRing.style.width).toBe('10px');
+    expect(cRing.style.height).toBe('10px');
+    compact.unmount();
+    const desk = hud();
+    const dRing = desk.container.querySelector('[data-site="h1"]');
+    expect(dRing.style.width).toBe('16px');
+    expect(dRing.style.height).toBe('16px');
+  });
 });

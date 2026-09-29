@@ -1,8 +1,11 @@
 // Screenshots of the live Ledger tab (ocean hero, HUD, header) for visual
 // review: desktop 1440×1000 @1x and phone 390×844 @3x, headless Chrome
 // (SwiftShader). Per view: the viewport after 8 s, the hero alone, the hero
-// with the probe active (hover on desktop, tap on the phone) and, desktop
-// only, a source-ring tooltip.
+// with the probe active (hover on desktop, tap on the phone) and a
+// source-ring tooltip. Phone only: a tap on the Gulf just off the Mississippi
+// ring (outside the 10 px compact target, inside the old 16 px one; Chrome's
+// touch adjustment still snaps it to the ring), a tap on open Atlantic ~19 px
+// from that ring (probes), and the legend with its notes expanded.
 //
 //   node scripts/ledgerTabShots.mjs [outDir]
 import { createServer } from 'vite';
@@ -21,6 +24,8 @@ const VIEWS = [
 ];
 const PROBE_AT = [-88.0, 26.5];      // Gulf of Mexico, off the Mississippi mouth
 const RING_AT = [6.9603, 50.9375];   // Rhine preset site (Cologne)
+const OFF_RING_AT = [-86.0, 23.5];   // Gulf water ~7 css px from the Mississippi ring centre at 334 px
+const OPEN_WATER_AT = [-70.0, 27.0]; // Atlantic ~19 css px from the Mississippi ring centre at 334 px
 
 await mkdir(OUT, { recursive: true });
 const server = await createServer({ server: { port: 5196, strictPort: false, host: '127.0.0.1' }, logLevel: 'error' });
@@ -60,7 +65,26 @@ try {
       }
       await sleep(400);
       await shot(page, `${v.name}-hero-probe.png`, clip);
-      if (!v.mobile) {
+      const tap = async ([x, y]) => {
+        await page.touch('touchStart', x, y);
+        await page.touch('touchEnd', x, y);
+      };
+      if (v.mobile) {
+        await tap(at(OFF_RING_AT));
+        await sleep(400);
+        await shot(page, `${v.name}-hero-probe-offring.png`, clip);
+        await tap(at(OPEN_WATER_AT));
+        await sleep(400);
+        await shot(page, `${v.name}-hero-probe-openwater.png`, clip);
+        await tap(at(RING_AT));
+        await sleep(400);
+        await shot(page, `${v.name}-hero-ring-tooltip.png`, clip);
+        await sleep(5500); // PROBE_TAP_HOLD_MS: the legend comes back
+        const t = await page.eval(`(() => { const b = document.querySelector('[data-hud="notes-toggle"]').getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; })()`);
+        await tap(t);
+        await sleep(400);
+        await shot(page, `${v.name}-hero-notes.png`, clip);
+      } else {
         const [rx, ry] = at(RING_AT);
         await page.hover(rx, ry);
         await sleep(300);
