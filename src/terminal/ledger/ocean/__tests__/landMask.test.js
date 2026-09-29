@@ -1,4 +1,7 @@
 import { describe, it, expect } from 'vitest';
+import * as topojson from 'topojson-client';
+import { geoContains } from 'd3-geo';
+import landTopology from 'world-atlas/land-110m.json';
 import { OCEAN_GRID, makeGrid, LAT_LIMIT } from '../grid';
 import { buildLandMask, labelComponents, analyzeLand, snapToOcean } from '../landMask';
 
@@ -48,6 +51,69 @@ describe('rasterizeLand (real world, 512×256)', () => {
     expect(frac).toBeGreaterThan(0.33);
     expect(frac).toBeLessThan(0.45);
   });
+});
+
+// Natural Earth rings that cross ±180° (Fiji, Chukotka inside Afro-Eurasia,
+// Wrangel, Antarctica) are continuous on the sphere but jump ~360° in lon/lat.
+// A planar scanline must not fill the world between the jump's two ends.
+describe('rasterizeLand across the antimeridian', () => {
+  it('keeps the open ocean open along 16.5°S (Fiji row)', () => {
+    expect(isLand(-150, -16.5)).toBe(false);   // central Pacific
+    expect(isLand(75, -16.5)).toBe(false);     // Indian Ocean
+    expect(isLand(-10, -16.5)).toBe(false);    // South Atlantic
+  });
+
+  it('still rasterises Fiji (Vanua Levu) as land at the date line', () => {
+    expect(isLand(179.0, -16.6)).toBe(true);
+  });
+
+  it('keeps the Bering Sea ocean and does not invert 65–69°N', () => {
+    expect(isLand(-175, 60)).toBe(false);      // Bering Sea
+    expect(isLand(100, 66.5)).toBe(true);      // central Siberia
+    expect(isLand(-155, 66.5)).toBe(true);     // interior Alaska
+    expect(isLand(0, 67)).toBe(false);         // Norwegian Sea
+    expect(isLand(-168, 68)).toBe(false);      // Chukchi Sea
+    expect(isLand(-174, 66.5)).toBe(true);     // east Chukotka, west of 180°W wrap
+  });
+
+  it('keeps the Beaufort Sea ocean on the Wrangel Island row', () => {
+    expect(isLand(-140, 71.4)).toBe(false);
+  });
+
+  it('keeps Antarctica land', () => {
+    expect(isLand(0, -75)).toBe(true);
+    expect(isLand(160, -75)).toBe(true);
+    expect(isLand(90, -75)).toBe(true);
+    expect(isLand(-100, -77)).toBe(true);
+  });
+
+  // Genuine peak within ±60° is 315/512 (~0.62) at 53°N (Eurasia + N. America).
+  it('has no row within ±60° that is more than 65% land', () => {
+    for (let j = 0; j < grid.ny; j++) {
+      if (Math.abs(grid.latOf(j)) > 60) continue;
+      let c = 0;
+      for (let i = 0; i < grid.nx; i++) c += mask.land[grid.idx(i, j)];
+      expect(c / grid.nx, `row ${j} (lat ${grid.latOf(j).toFixed(2)})`).toBeLessThan(0.65);
+    }
+  });
+
+  // Independent spherical oracle: d3-geo's geoContains on the same topology.
+  // Planar vs spherical edges differ by at most one cell per row on this data,
+  // so a sampled row may disagree at most once.
+  it('agrees with d3-geo geoContains on every sampled row below 78°', () => {
+    const land = topojson.feature(landTopology, landTopology.objects.land);
+    const bad = [];
+    for (let j = 0; j < grid.ny; j++) {
+      const lat = grid.latOf(j);
+      if (Math.abs(lat) > LAT_LIMIT) continue;
+      let m = 0;
+      for (let i = 3; i < grid.nx; i += 8) {
+        if ((geoContains(land, [grid.lonOf(i), lat]) ? 1 : 0) !== mask.land[grid.idx(i, j)]) m++;
+      }
+      if (m > 1) bad.push({ j, lat: +lat.toFixed(2), mismatches: m });
+    }
+    expect(bad).toEqual([]);
+  }, 60000);
 });
 
 describe('snapToOcean (real world)', () => {

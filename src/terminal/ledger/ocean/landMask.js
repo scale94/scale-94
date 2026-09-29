@@ -17,9 +17,45 @@ export function landRings(topology = landTopology) {
   return rings;
 }
 
+// Rings that cross ±180° are continuous on the sphere but jump ~360° in lon;
+// scanlining them as-is fills the whole world between the jump's two ends
+// (Fiji at 16.5°S, Chukotka at 65–69°N). Unwrap each ring so consecutive
+// vertices differ by ≤ 180°, close pole-encircling rings (Antarctica) through
+// their pole, and add ±360° copies so every part lands in [-180, 180).
+export function planarRings(rings) {
+  const out = [];
+  for (const r of rings) {
+    const u = [[r[0][0], r[0][1]]];
+    for (let k = 1; k < r.length; k++) {
+      const px = u[k - 1][0];
+      let x = r[k][0];
+      while (x - px > 180) x -= 360;
+      while (x - px < -180) x += 360;
+      u.push([x, r[k][1]]);
+    }
+    const net = u[u.length - 1][0] - u[0][0];
+    if (Math.abs(net) > 180) {
+      const pole = u.reduce((s, p) => s + p[1], 0) < 0 ? -90 : 90;
+      u.push([u[u.length - 1][0], pole], [u[0][0], pole], [u[0][0], u[0][1]]);
+    }
+    let minX = Infinity;
+    let maxX = -Infinity;
+    for (const [x] of u) {
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+    }
+    for (const s of [-360, 0, 360]) {
+      if (maxX + s < -180 || minX + s > 180) continue;
+      out.push(s === 0 ? u : u.map(([x, y]) => [x + s, y]));
+    }
+  }
+  return out;
+}
+
 export function rasterizeLand(grid, rings = landRings()) {
   const { nx, ny } = grid;
   const land = new Uint8Array(nx * ny);
+  rings = planarRings(rings);
   for (let j = 0; j < ny; j++) {
     const lat = grid.latOf(j);
     if (Math.abs(lat) > LAT_LIMIT) {
