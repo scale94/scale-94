@@ -2,10 +2,10 @@
 // review: desktop 1440×1000 @1x and phone 390×844 @3x, headless Chrome
 // (SwiftShader). Per view: the viewport after 8 s, the hero alone, the hero
 // with the probe active (hover on desktop, tap on the phone) and a
-// source-ring tooltip. Phone only: a tap on the Gulf just off the Mississippi
-// ring (outside the 10 px compact target, inside the old 16 px one; Chrome's
-// touch adjustment still snaps it to the ring), a tap on open Atlantic ~19 px
-// from that ring (probes), and the legend with its notes expanded.
+// source-ring tooltip. Phone only: a tap on the Gulf ~7 px off the Mississippi
+// ring centre (beyond the 6 px ring tap radius: probes), a tap on open
+// Atlantic ~19 px from that ring (probes), and the legend with its notes
+// expanded.
 //
 //   node scripts/ledgerTabShots.mjs [outDir]
 import { createServer } from 'vite';

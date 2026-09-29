@@ -34,7 +34,7 @@ import { createOceanDriver, REDUCED_MOTION_DAYS } from './oceanDriver';
 import OceanHud from './OceanHud';
 import {
   COMPACT_BELOW_PX, DEFAULT_COMPRESSION, PROBE_INTERVAL_MS, PROBE_TAP_HOLD_MS,
-  describeSites, formatProbe, nextCompression, pointerToLonLat,
+  describeSites, formatProbe, nextCompression, pickSite, pointerToLonLat,
 } from './hudFormat';
 
 const CONTEXT_OPTIONS = { alpha: false, antialias: false, premultipliedAlpha: false };
@@ -108,6 +108,10 @@ export default function LedgerOcean({
     [world, sources, userSources],
   );
   const sites = useMemo(() => describeSites(sources, verdicts), [sources, verdicts]);
+  const sitesRef = useRef(sites);
+  sitesRef.current = sites;
+  const compactRef = useRef(width < COMPACT_BELOW_PX);
+  compactRef.current = width < COMPACT_BELOW_PX;
   const sourceDataRef = useRef(sourceData);
   sourceDataRef.current = sourceData;
 
@@ -278,15 +282,34 @@ export default function LedgerOcean({
     if (e.pointerType !== 'mouse') tapStartRef.current = { x: e.clientX, y: e.clientY };
   }, []);
 
+  // Compact: the rings take no pointer events; a tap (or click) within
+  // RING_TAP_RADIUS_PX of a ring centre opens the nearest ring's tooltip.
+  // Dismissal is OceanHud's: any pointerdown closes an open compact tooltip,
+  // before this pointerup can reopen one. Returns whether a ring was hit.
+  const pickRing = useCallback((clientX, clientY) => {
+    const el = canvasRef.current;
+    if (!el) return false;
+    const r = el.getBoundingClientRect();
+    const id = pickSite(sitesRef.current, clientX - r.left, clientY - r.top, r.width, r.height);
+    if (id === null) return false;
+    hudRef.current?.openSite(id);
+    return true;
+  }, []);
+
   const onPointerUp = useCallback((e) => {
     const start = tapStartRef.current;
     tapStartRef.current = null;
-    if (e.pointerType === 'mouse' || !start) return;
+    if (e.pointerType === 'mouse') {
+      if (compactRef.current) pickRing(e.clientX, e.clientY);
+      return;
+    }
+    if (!start) return;
     if (Math.hypot(e.clientX - start.x, e.clientY - start.y) >= TAP_SLOP_PX) return;
+    if (compactRef.current && pickRing(e.clientX, e.clientY)) return;
     if (!probeAt(e.clientX, e.clientY)) return;
     clearTimeout(tapTimerRef.current);
     tapTimerRef.current = setTimeout(clearProbe, PROBE_TAP_HOLD_MS);
-  }, [probeAt, clearProbe]);
+  }, [probeAt, clearProbe, pickRing]);
 
   const cycleCompression = useCallback(() => setDps((d) => nextCompression(d)), []);
 

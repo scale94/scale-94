@@ -172,4 +172,44 @@ describe('OceanHud', () => {
     expect(dRing.style.width).toBe('16px');
     expect(dRing.style.height).toBe('16px');
   });
+
+  it('on mobile the rings take no pointer events but stay keyboard-focusable; desktop rings do', () => {
+    const compact = hud({ compact: true });
+    const cRing = compact.container.querySelector('[data-site="h1"]');
+    expect(cRing.style.pointerEvents).toBe('none');
+    expect(cRing.tagName).toBe('BUTTON');
+    fireEvent.focus(cRing);
+    expect(compact.q('tooltip').textContent).toContain('Test site');
+    fireEvent.blur(cRing);
+    expect(compact.q('tooltip')).toBeNull();
+    compact.unmount();
+    const desk = hud();
+    expect(desk.container.querySelector('[data-site="h1"]').style.pointerEvents).toBe('auto');
+  });
+
+  it('opens and dismisses a site tooltip through the imperative handle', () => {
+    const { ref, q } = hud({ compact: true });
+    act(() => ref.current.openSite('preset:usa'));
+    expect(q('tooltip').textContent).toContain('AMBIENT PRESET');
+    act(() => ref.current.openSite(null));
+    expect(q('tooltip')).toBeNull();
+  });
+
+  it('on mobile a press anywhere else (page, notes toggle) dismisses an open tooltip', () => {
+    const { ref, q } = hud({ compact: true });
+    act(() => ref.current.openSite('preset:usa'));
+    fireEvent.pointerDown(document.body);
+    expect(q('tooltip')).toBeNull();
+    act(() => ref.current.openSite('h1'));
+    fireEvent.pointerDown(q('notes-toggle'));
+    expect(q('tooltip')).toBeNull();
+  });
+
+  it('on desktop a press elsewhere leaves a hovered tooltip to mouseleave/blur, as before', () => {
+    const { container, q } = hud();
+    fireEvent.mouseEnter(container.querySelector('[data-site="h1"]'));
+    fireEvent.pointerDown(document.body);
+    expect(q('tooltip')).toBeTruthy();
+  });
 });
+

@@ -18,6 +18,8 @@ export const DEFAULT_COMPRESSION = 9;
 export const PROBE_INTERVAL_MS = 100;           // ≤ 10 Hz readPixels
 export const PROBE_TAP_HOLD_MS = 5000;          // a tapped probe readout stays this long
 export const COMPACT_BELOW_PX = 640;            // hero width below which the HUD collapses
+export const PROBE_NOISE_FLOOR = 1e-6;         // |x| below this is float noise: the probe prints 0
+export const RING_TAP_RADIUS_PX = 6;            // compact: a tap this close (css px) to a ring centre opens it
 export const PROBE_HINT = 'HOVER TO PROBE';
 export const PROBE_NOTE = 'MODEL VALUES · NOT MEASURED';
 
@@ -79,7 +81,7 @@ export function formatFrame(ms) {
 }
 
 export function fmtValue(x) {
-  if (!(x > 0)) return '0';
+  if (!(x >= PROBE_NOISE_FLOOR)) return '0'; // ≤ 0, NaN and float noise
   if (x >= 100) return x.toFixed(0);
   if (x >= 1) return x.toFixed(1);
   if (x >= 0.01) return x.toFixed(2);
@@ -105,6 +107,19 @@ export function pointerToLonLat(x, y, w, h) {
 
 export function lonLatToPct(lon, lat) {
   return { left: ((lon + 180) / 360) * 100, top: ((90 - lat) / 180) * 100 };
+}
+
+// The id of the site whose ring centre is nearest (x, y) in a w×h canvas,
+// within radiusPx (inclusive); null when none is that close.
+export function pickSite(sites, x, y, w, h, radiusPx = RING_TAP_RADIUS_PX) {
+  let best = null;
+  let bestD = radiusPx;
+  for (const s of sites) {
+    const { left, top } = lonLatToPct(s.site[0], s.site[1]);
+    const d = Math.hypot((left / 100) * w - x, (top / 100) * h - y);
+    if (d <= bestD) { best = s.id; bestD = d; }
+  }
+  return best;
 }
 
 const PRESET_BY_ID = new Map(AUDIT_PRESETS.map((p) => [`preset:${p.key}`, p]));

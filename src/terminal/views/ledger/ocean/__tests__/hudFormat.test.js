@@ -5,6 +5,7 @@ import { RIVERS } from '../../../../ledger/ocean/riverCourses';
 import {
   COMPRESSIONS, LEGEND_NOTES, PRESET_COLOR, nextCompression, summaryLine, formatClock, formatFrame,
   fmtValue, formatProbe, pointerToLonLat, lonLatToPct, describeSites, tooltipLines, fmtQ,
+  PROBE_NOISE_FLOOR, RING_TAP_RADIUS_PX, pickSite,
 } from '../hudFormat';
 
 // Inland near Suzhou: a land cell, so the straight-line snap has a length.
@@ -150,5 +151,32 @@ describe('sites', () => {
       id: 'usa121', kind: 'verdict', name: 'Test 121%', status: 'APPROVED', color: '#22c55e',
       site: [0, 0], snap: [0, 0], snapKm: 0, dischargeM3s: 20000, doMin: 8, rkm: 0,
     })[2]).toBe('Q 20,000 m³/s · 121% OF MISSISSIPPI');
+  });
+});
+
+describe('probe noise floor and ring picking', () => {
+  it('floors float noise below 1e-6 to 0 per channel, and leaves 1e-6 and up alone', () => {
+    expect(PROBE_NOISE_FLOOR).toBe(1e-6);
+    expect(fmtValue(9.9e-7)).toBe('0');
+    expect(fmtValue(5.3e-26)).toBe('0');
+    expect(fmtValue(1e-6)).toBe('1.0e-6');
+    expect(fmtValue(1.8e-5)).toBe('1.8e-5');
+    expect(formatProbe(-70, 27, [5.3e-26, 2.1e-22, 7.4e-14, 3.3e-20], false))
+      .toBe('27.0°N 70.0°W · ΔT 0 °C · BOD 0 · NO₃ 0 · DO↓ 0 mg/L');
+    expect(formatProbe(-70, 27, [2e-6, 9e-7, 1e-6, 5e-7], false))
+      .toBe('27.0°N 70.0°W · ΔT 2.0e-6 °C · BOD 0 · NO₃ 1.0e-6 · DO↓ 0 mg/L');
+  });
+
+  it('picks the nearest ring within 6 css px of a tap, else none', () => {
+    expect(RING_TAP_RADIUS_PX).toBe(6);
+    // 360×180 canvas: 1 px per degree. a at (180, 90), b at (190, 90).
+    const sites = [{ id: 'a', site: [0, 0] }, { id: 'b', site: [10, 0] }];
+    expect(pickSite(sites, 180, 90, 360, 180)).toBe('a');
+    expect(pickSite(sites, 180, 96, 360, 180)).toBe('a');   // exactly 6 px: inside
+    expect(pickSite(sites, 180, 96.5, 360, 180)).toBeNull(); // 6.5 px: outside
+    expect(pickSite(sites, 180, 98, 360, 180)).toBeNull();   // 8 px
+    expect(pickSite(sites, 185.5, 90, 360, 180)).toBe('b');  // 5.5 from a, 4.5 from b: nearest wins
+    expect(pickSite(sites, 184.5, 90, 360, 180)).toBe('a');
+    expect(pickSite([], 180, 90, 360, 180)).toBeNull();
   });
 });

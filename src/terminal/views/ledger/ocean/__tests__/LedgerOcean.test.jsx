@@ -6,6 +6,7 @@ import { diffusionSchedule, EDDY_DIFFUSIVITY_KM2_DAY } from '../../../../ledger/
 import { createStepClock } from '../../../../ledger/ocean/clock';
 import { REDUCED_MOTION_DAYS, WARMUP_STEPS_PER_FRAME } from '../oceanDriver';
 import { MODE_LABEL, PROBE_HINT, PROBE_TAP_HOLD_MS, formatClock } from '../hudFormat';
+import { getOceanWorld } from '../../../../ledger/ocean/oceanWorld';
 import LedgerOcean from '../LedgerOcean';
 
 const FRAME_MS = 16;
@@ -272,4 +273,81 @@ describe('LedgerOcean HUD integration', () => {
     expect(days.at(-1)).toBeCloseTo(2 * REDUCED_MOTION_DAYS, 9);
     expect(paints()).toBe(2);
   });
+
+  // Compact (360 px): rings take no pointer events; a tap within 6 px of a
+  // ring centre opens its tooltip, anything further probes and dismisses.
+  const tap = (canvas, x, y, pointerType = 'touch') => {
+    act(() => { fireEvent.pointerDown(canvas, { pointerType, clientX: x, clientY: y }); });
+    act(() => { fireEvent.pointerUp(canvas, { pointerType, clientX: x, clientY: y }); });
+  };
+  const ringPx = (container, id, w, h) => {
+    const b = container.querySelector(`[data-site="${id}"]`);
+    return [(parseFloat(b.style.left) / 100) * w, (parseFloat(b.style.top) / 100) * h];
+  };
+  // The first point exactly 8 px from (x, y) on a 360×180 canvas (1 px per
+  // degree) that is an ocean cell, so the probe does a readback.
+  const waterAt8px = (x, y) => {
+    const { grid, mask } = getOceanWorld();
+    for (let a = 0; a < 360; a += 15) {
+      const px = x + 8 * Math.cos((a * Math.PI) / 180);
+      const py = y + 8 * Math.sin((a * Math.PI) / 180);
+      const { i, j } = grid.lonLatToCell(-180 + px, 90 - py);
+      if (!mask.land[grid.idx(i, j)]) return [px, py];
+    }
+    return null;
+  };
+
+  it('on a phone, a tap at a ring centre opens its tooltip and does not probe', () => {
+    const m = mountLive(<LedgerOcean width={360} height={180} />);
+    const canvas = screen.getByLabelText(/Ledger ocean/);
+    canvas.getBoundingClientRect = () => ({ ...RECT, width: 360, height: 180, right: 360, bottom: 180 });
+    const [x, y] = ringPx(m.container, 'preset:usa', 360, 180);
+    const before = count('readPixels');
+    tap(canvas, x, y);
+    m.frames(3);
+    expect(m.container.querySelector('[data-hud="tooltip"]').textContent).toContain('AMBIENT PRESET');
+    expect(m.container.querySelector('[data-hud="tooltip"]').textContent).toContain('Mississippi');
+    expect(count('readPixels')).toBe(before);
+    expect(m.container.querySelector('[data-hud="probe"]')).toBeNull();
+  });
+
+  it('on a phone, a tap 8 px from a ring probes with a readback and dismisses an open tooltip', () => {
+    const m = mountLive(<LedgerOcean width={360} height={180} />);
+    const canvas = screen.getByLabelText(/Ledger ocean/);
+    canvas.getBoundingClientRect = () => ({ ...RECT, width: 360, height: 180, right: 360, bottom: 180 });
+    const [x, y] = ringPx(m.container, 'preset:usa', 360, 180);
+    tap(canvas, x, y);
+    expect(m.container.querySelector('[data-hud="tooltip"]')).toBeTruthy();
+    const off = waterAt8px(x, y);
+    expect(off).not.toBeNull();
+    const before = count('readPixels');
+    tap(canvas, off[0], off[1]);
+    m.frames(1);
+    expect(m.container.querySelector('[data-hud="tooltip"]')).toBeNull();
+    expect(count('readPixels')).toBe(before + 1);
+    expect(m.container.querySelector('[data-hud="probe"]').textContent).toMatch(/°N .*°W · /);
+  });
+
+  it('on a phone, a mouse click at a ring centre also opens its tooltip', () => {
+    const m = mountLive(<LedgerOcean width={360} height={180} />);
+    const canvas = screen.getByLabelText(/Ledger ocean/);
+    canvas.getBoundingClientRect = () => ({ ...RECT, width: 360, height: 180, right: 360, bottom: 180 });
+    const [x, y] = ringPx(m.container, 'preset:usa', 360, 180);
+    tap(canvas, x, y, 'mouse');
+    expect(m.container.querySelector('[data-hud="tooltip"]').textContent).toContain('AMBIENT PRESET');
+  });
+
+  it('on desktop, the rings take pointer events and a canvas tap near one only probes', () => {
+    const m = mountLive(<LedgerOcean width={1024} height={512} />);
+    const canvas = screen.getByLabelText(/Ledger ocean/);
+    canvas.getBoundingClientRect = () => ({ ...RECT, width: 1024, height: 512, right: 1024, bottom: 512 });
+    expect(m.container.querySelector('[data-site="preset:usa"]').style.pointerEvents).toBe('auto');
+    const [x, y] = ringPx(m.container, 'preset:usa', 1024, 512);
+    tap(canvas, x, y);
+    m.frames(1);
+    expect(m.container.querySelector('[data-hud="tooltip"]')).toBeNull();
+    // The site is inland (New Orleans): the probe reads LAND, but it probed.
+    expect(m.container.querySelector('[data-hud="probe"]').textContent).toMatch(/°N .*°W · LAND$/);
+  });
 });
+

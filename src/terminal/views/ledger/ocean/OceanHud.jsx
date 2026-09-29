@@ -4,7 +4,7 @@
 // imperative handle, not React state, so the HUD does not re-render at the
 // display rate. The probe readout is state: it changes at most at 10 Hz.
 
-import { forwardRef, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
 import {
   HUD_TITLE, LEGEND_NOTES, LEGEND_SWATCHES, MODE_LABEL, PROBE_HINT, PROBE_NOTE,
   formatClock, formatFrame, lonLatToPct, summaryLine, tooltipLines,
@@ -102,11 +102,27 @@ const OceanHud = forwardRef(function OceanHud({
     setProbe(text) {
       setProbe(text);
     },
+    // Compact taps are resolved by distance in LedgerOcean (the rings take no
+    // pointer events there): open a site's tooltip, or null to dismiss it.
+    openSite(id) {
+      setFocus(id);
+    },
   }), []);
 
   const focused = sites.find((s) => s.id === focus) ?? null;
   const live = mode === 'live';
   const ringPx = compact ? RING_PX_COMPACT : RING_PX;
+
+  // Phone: any press dismisses an open tooltip (the page, a HUD control, the
+  // ocean). A press on the ocean then reopens a ring on pointerup if it lands
+  // within the tap radius (LedgerOcean), so the net effect is "elsewhere closes".
+  const tipOpen = focused !== null;
+  useEffect(() => {
+    if (!compact || !tipOpen) return undefined;
+    const close = () => setFocus(null);
+    document.addEventListener('pointerdown', close, true);
+    return () => document.removeEventListener('pointerdown', close, true);
+  }, [compact, tipOpen]);
 
   // Phone: keep the tooltip inside the hero (TIP_MARGIN_PX from each edge).
   useLayoutEffect(() => {
@@ -171,7 +187,9 @@ const OceanHud = forwardRef(function OceanHud({
             style={{
               position: 'absolute', left: `${left}%`, top: `${top}%`, width: ringPx, height: ringPx,
               transform: 'translate(-50%, -50%)', padding: 0, border: 'none', background: 'transparent',
-              cursor: 'pointer', pointerEvents: 'auto',
+              // Phone: no pointer events, so Chrome's touch adjustment has
+              // nothing to snap a tap to; still focusable from the keyboard.
+              cursor: 'pointer', pointerEvents: compact ? 'none' : 'auto',
             }}
           >
             <span
