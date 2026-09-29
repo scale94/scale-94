@@ -37,10 +37,18 @@ describe('sagStep', () => {
     expect(close(exact.D, ref.D)).toBe(true);
   });
 
-  it('is continuous through the degenerate case', () => {
+  it('is continuous through the degenerate case and across the series switch', () => {
+    // A 1e-7 relative change in ka genuinely moves D by ~1e-6 (smooth dependence);
+    // a broken degenerate branch would give NaN or an O(1) jump instead.
     const at = sagStep(30, 2, 0.3, 0.3, 5).D;
-    expect(Math.abs(sagStep(30, 2, 0.3, 0.3 * (1 + 1e-7), 5).D - at)).toBeLessThan(1e-9);
-    expect(Math.abs(sagStep(30, 2, 0.3, 0.3 * (1 - 1e-7), 5).D - at)).toBeLessThan(1e-9);
+    expect(Math.abs(sagStep(30, 2, 0.3, 0.3 * (1 + 1e-7), 5).D - at)).toBeLessThan(1e-5);
+    expect(Math.abs(sagStep(30, 2, 0.3, 0.3 * (1 - 1e-7), 5).D - at)).toBeLessThan(1e-5);
+    // Either side of the |x| = 1e-4 series threshold, both branches must match RK4.
+    for (const x of [0.99e-4, 1.01e-4, -0.99e-4, -1.01e-4]) {
+      const kav = 0.3 + x / 5;
+      const ref = rk4Sag(30, 2, 0.3, kav, 5);
+      expect(close(sagStep(30, 2, 0.3, kav, 5).D, ref.D)).toBe(true);
+    }
   });
 
   it('stays finite for long times with ka << kd', () => {
@@ -124,5 +132,12 @@ describe('riverState', () => {
     expect(riverState({ ...kernel, do: 14 }, 0, hyd).D).toBe(0);
     const heavy = riverState({ ...kernel, bod: 100, do: 1 }, 10, { velocityMs: 0.1, depthM: 20 });
     expect(heavy.D).toBeLessThanOrEqual(doSat(12));
+  });
+
+  it('starts supersaturated water at zero deficit, not a negative one', () => {
+    const hydT = { velocityMs: 1, depthM: 6 };
+    const s = riverState({ ...kernel, do: 14, bod: 20 }, 3, hydT);
+    const ref = sagStep(20, 0, kd(12), kaRiver(1, 6, 12), 3);
+    expect(s.D).toBeCloseTo(ref.D, 12);
   });
 });
