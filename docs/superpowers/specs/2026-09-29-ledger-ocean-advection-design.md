@@ -76,8 +76,12 @@ does, not because it is painted.
 - Simulated band 78°S–78°N; poleward rows are land (ice), keeping the cos φ
   metric bounded.
 - x wraps (`REPEAT`); y clamps.
-- Land mask rasterised once from `worldMapPolys` by a pure-JS scanline
-  rasteriser (runs in jsdom).
+- Land mask rasterised once from `world-atlas/land-110m.json` (the Natural
+  Earth 110m source `worldMapPolys` also draws from; `worldMapPolys` itself
+  only exports projected SVG paths) by a pure-JS even–odd scanline
+  rasteriser (runs in jsdom). The Caspian comes out as an isolated water
+  body, so an inland Central-Asian verdict may drain into it — true to an
+  endorheic basin.
 
 ### Currents: stream function
 
@@ -95,9 +99,13 @@ u = curl ψ, so the flow is divergence-free by construction.
     (Rhine), Bay of Bengal (Ganges), Java Sea (Citarum), Black Sea Rim Current
     — anticlockwise (Danube), Brazil Current shelf (Rio Doce), Ionian coastal
     drift (Blue Eye / Bistrica).
-- ψ is multiplied by a coastal ramp m ∈ [0,1] (0 on land, 1 at ~3 cells
-  offshore) **before** the curl, making every coastline a streamline: no
-  flow into land.
+- Gyre ψ is multiplied by a coastal ramp m ∈ [0,1] (0 on land, 1 at ~3 cells
+  offshore) **before** the curl. The ACC term is the one contribution that
+  must be non-zero on a coast (Antarctica sits at ψ = A), so it is ramped
+  toward a **per-land-component constant** instead (the mean ACC ψ on that
+  landmass's coastal ring: an approximation of the island rule). Every
+  corner touching land takes its component's constant, and land components
+  are 8-connected, so every coastline is a streamline: no flow into land.
 - Discretisation: ψ on cell corners, velocity on cell faces (Arakawa-C), so
   discrete divergence is zero to rounding. Cell-centre velocities for the
   back-trace are face averages.
@@ -124,7 +132,10 @@ Fixed Δt = 0.25 simulated days. Three passes per step:
    degenerate case handled explicitly), stable at any Δt. Source splats added
    here (§3).
 
-Every pass ends: NaN → 0 (`x != x`), clamp ≥ 0, land cells = 0.
+Every pass ends: NaN → 0 (`x != x`), clamp ≥ 0, land cells = 0. The deficit
+is also capped at DO_sat (river: at the river temperature; ocean: at a
+latitude SST climatology), since water cannot lose more oxygen than it holds;
+Streeter–Phelps does not model anoxia.
 
 ### Clock
 
@@ -214,9 +225,10 @@ against `severityEngine.js` thresholds toward a stated tone):
 - The critical point t_c (maximum deficit) is drawn as a tick on the course,
   with a HUD readout, e.g. `DO_MIN 3.1 mg/L @ rkm 1840`.
 - Legend states `POINT SOURCE · PLUG FLOW · NO TRIBUTARIES`.
-- Worked example (Danube): ~25 d travel from Linz leaves ~0.3% of BOD at the
-  delta while nitrate arrives nearly intact, so the Danube's Black Sea plume is
-  almost entirely green. That is the Danube's actual legacy there.
+- Worked example (Danube): ~25 d travel from Linz at ~12 °C (k_d ≈ 0.16/d)
+  leaves ~2% of BOD at the delta while ~66% of nitrate arrives, so the
+  Danube's Black Sea plume is almost entirely green. That is the Danube's
+  actual legacy there. (An earlier draft said ~0.3%; that used k_d at 20 °C.)
 
 ### Ocean injection
 
