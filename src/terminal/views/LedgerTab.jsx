@@ -1,8 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import SubmissionForm from './ledger/SubmissionForm';
-import LedgerMap from './ledger/LedgerMap';
-import LedgerParticles from './ledger/LedgerParticles';
 import AuditCascade from './ledger/AuditCascade';
+import LedgerOcean from './ledger/ocean/LedgerOcean';
 import { fetchUSGS, fetchEEA } from '../ledger/apiIngest';
 import { generateJsonLd, generatePdf, generateEmbedHtml } from '../ledger/exportFormats';
 import VerdictCard from './ledger/VerdictCard';
@@ -12,18 +11,21 @@ import { ledgerBus } from '../ledger/ledgerBus';
 import { emit as emitObs } from '../../observatory/observatoryBus';
 import { loadWasm } from '../../wasm/wasmSingleton';
 import wasmRegistry from '../../wasm/wasm.generated';
-import { toMapXY } from '../data/worldMapPolys';
 
 const CHRONO_ENTRY = wasmRegistry['CHRONOS-KERNEL-2.1.0'];
 
 // ── Boot choreography phases ──────────────────────────────────────────────────
 // Phase 0: blank
-// Phase 1: map fades in (0→0.8s)
+// Phase 1: ocean hero fades in (0→0.8s)
 // Phase 2: header reveals with letter-spacing (0.8→1.5s)
 // Phase 3: form slides up with blur transition (1.5→2.0s)
-const PHASE_MAP   = 800;
+const PHASE_HERO  = 800;
 const PHASE_TITLE = 1500;
 const PHASE_FORM  = 2000;
+
+// Hero width before layout is measured (jsdom has no layout); replaced by the
+// ResizeObserver measurement on the first effect in a browser.
+const HERO_FALLBACK_W = 1024;
 
 // ── Keyframes ─────────────────────────────────────────────────────────────────
 const LEDGER_STYLES = `
@@ -71,33 +73,6 @@ const LEDGER_STYLES = `
   0%   { opacity: 0; transform: translateX(-8px); }
   100% { opacity: 1; transform: translateX(0); }
 }
-
-/* ── Lunar eclipse sweep (CSS-only, div-based) ───────────────────────── */
-@keyframes lt-eclipseUmbra {
-  0%   { left: -50%; opacity: 0; }
-  8%   { opacity: 1; }
-  50%  { left: 25%; }
-  92%  { opacity: 1; }
-  100% { left: 100%; opacity: 0; }
-}
-@keyframes lt-eclipseDarken {
-  0%   { opacity: 0; }
-  12%  { opacity: 0.5; }
-  50%  { opacity: 0.65; }
-  88%  { opacity: 0.5; }
-  100% { opacity: 0; }
-}
-@keyframes lt-eclipseCorona {
-  0%   { left: -50%; opacity: 0; }
-  8%   { opacity: 0.5; }
-  50%  { left: 25%; }
-  92%  { opacity: 0.5; }
-  100% { left: 100%; opacity: 0; }
-}
-@keyframes lt-eclipseLift {
-  0%   { opacity: 1; }
-  100% { opacity: 0; transform: scale(1.05); }
-}
 `;
 
 export default function LedgerTab() {
@@ -111,7 +86,8 @@ export default function LedgerTab() {
   const [apiError, setApiError] = useState(null);
 
   // Boot phases
-  const [mapBooted, setMapBooted] = useState(false);
+  const [heroBooted, setHeroBooted] = useState(false);
+  const [heroW, setHeroW] = useState(0);
   const [titleBooted, setTitleBooted] = useState(false);
   const [formBooted, setFormBooted] = useState(false);
 
@@ -121,15 +97,14 @@ export default function LedgerTab() {
   const [latestHash, setLatestHash] = useState(null);
 
   const stylesInjected = useRef(false);
-  const particlesRef = useRef(null);
-  const mapContainerRef = useRef(null);
+  const heroRef = useRef(null);
 
   // ── Boot sequence ──────────────────────────────────────────────────────────
   useEffect(() => {
     getAllVerdicts().then(setVerdicts);
     getVerdictCount().then(setVerdictCount);
 
-    const t1 = setTimeout(() => setMapBooted(true), PHASE_MAP);
+    const t1 = setTimeout(() => setHeroBooted(true), PHASE_HERO);
     const t2 = setTimeout(() => setTitleBooted(true), PHASE_TITLE);
     const t3 = setTimeout(() => setFormBooted(true), PHASE_FORM);
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
@@ -143,6 +118,19 @@ export default function LedgerTab() {
     el.textContent = LEDGER_STYLES;
     document.head.appendChild(el);
     return () => el.remove();
+  }, []);
+
+  // Hero width drives the ocean's backing store (2:1). Resizes are applied in
+  // place by LedgerOcean (hostRef.resize), never by rebuilding its GL host.
+  useEffect(() => {
+    const el = heroRef.current;
+    if (!el) return undefined;
+    const measure = () => setHeroW(Math.floor(el.clientWidth) || HERO_FALLBACK_W);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
   }, []);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
@@ -171,6 +159,10 @@ export default function LedgerTab() {
     }
   }, []);
 
+  // Phase 3a: no eclipse and no burst. The sealed verdict joins `verdicts`;
+  // LedgerOcean turns it into a permanent source (straight-line course to its
+  // snapped ocean cell) and rings its site, latestHash marking the ring. The
+  // seal sequence (clock ease, flare along the course) is phase 3b.
   const handleCascadeComplete = useCallback(() => {
     if (!cascadeVerdict) return;
     setVerdicts(prev => [cascadeVerdict, ...prev]);
@@ -179,17 +171,6 @@ export default function LedgerTab() {
     setView('archive');
     ledgerBus.emit({ type: 'VERDICT_ISSUED', verdict: cascadeVerdict });
     emitObs('transmissions', 'verdict_issued', { verdict: cascadeVerdict.status ?? 'UNKNOWN' });
-
-    // Fire particle burst at the verdict's map position
-    if (particlesRef.current && cascadeVerdict.coordinates && mapContainerRef.current) {
-      const { lat, lon } = cascadeVerdict.coordinates;
-      const [svgX, svgY] = toMapXY(lon, lat);
-      const rect = mapContainerRef.current.getBoundingClientRect();
-      // Convert SVG viewBox coords (800x400) to pixel coords
-      const px = (svgX / 800) * rect.width;
-      const py = (svgY / 400) * rect.height;
-      particlesRef.current.burst(px, py, cascadeVerdict.status);
-    }
 
     // Reset cascade after a beat
     setTimeout(() => {
@@ -242,88 +223,25 @@ export default function LedgerTab() {
         }}
       />
 
-      {/* ── Hero: Verdict Map ─────────────────────────────────────────────── */}
-      <div className="mb-6 relative" ref={mapContainerRef}>
-        <LedgerMap
-          verdicts={verdicts}
-          latestHash={latestHash}
-          height={320}
-          booted={mapBooted}
-        />
-        {/* Particle burst canvas overlay */}
-        <LedgerParticles ref={particlesRef} />
-
-        {/* ── Lunar eclipse overlay ──────────────────────────────────── */}
-        {cascadeVisible && (
-          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 3, overflow: 'hidden' }}>
-            {/* Base darkening wash — entire map dims */}
-            <div
-              style={{
-                position: 'absolute',
-                inset: 0,
-                background: '#000',
-                animation: 'lt-eclipseDarken 3.2s ease-in-out forwards',
-              }}
-            />
-
-            {/* Umbra — the core shadow disc sweeping left→right */}
-            <div
-              style={{
-                position: 'absolute',
-                top: '-30%',
-                width: '60%',
-                height: '160%',
-                borderRadius: '50%',
-                background: 'radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.85) 40%, rgba(0,0,0,0.3) 70%, transparent 100%)',
-                animation: 'lt-eclipseUmbra 3.2s ease-in-out forwards',
-              }}
-            />
-
-            {/* Corona — faint teal ring trailing the umbra */}
-            <div
-              style={{
-                position: 'absolute',
-                top: '-40%',
-                width: '70%',
-                height: '180%',
-                borderRadius: '50%',
-                background: 'radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(20,184,166,0.08) 50%, rgba(20,184,166,0.03) 65%, transparent 80%)',
-                animation: 'lt-eclipseCorona 3.2s ease-in-out forwards',
-                filter: 'blur(8px)',
-              }}
-            />
-
-            {/* Diamond ring highlight — thin bright edge at umbra border */}
-            <div
-              style={{
-                position: 'absolute',
-                top: '-30%',
-                width: '60%',
-                height: '160%',
-                borderRadius: '50%',
-                boxShadow: 'inset 0 0 30px rgba(20,184,166,0.06), 0 0 60px rgba(20,184,166,0.04)',
-                animation: 'lt-eclipseUmbra 3.2s ease-in-out forwards',
-              }}
-            />
-          </div>
-        )}
-
-        {/* Eclipse lift — teal flash as light returns after cascade */}
-        {!cascadeVisible && latestHash && (
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              zIndex: 3,
-              background: 'radial-gradient(ellipse at 50% 50%, rgba(20,184,166,0.15), transparent 70%)',
-              animation: 'lt-eclipseLift 0.8s ease-out forwards',
-            }}
+      {/* ── Hero: the ocean ledger ────────────────────────────────────────── */}
+      <div
+        ref={heroRef}
+        className="mb-6 relative"
+        style={{ aspectRatio: '2 / 1', opacity: heroBooted ? 1 : 0, transition: 'opacity 0.8s ease' }}
+      >
+        {heroW > 0 && (
+          <LedgerOcean
+            width={heroW}
+            height={Math.round(heroW / 2)}
+            verdicts={verdicts}
+            latestHash={latestHash}
           />
         )}
-
-        {/* Vignette overlay */}
+        {/* Vignette overlay — above the canvas, below the HUD (OceanHud zIndex 2) */}
         <div
           className="absolute inset-0 pointer-events-none rounded-sm"
           style={{
+            zIndex: 1,
             background: 'radial-gradient(ellipse at 50% 50%, transparent 45%, rgba(0,0,0,0.5) 100%)',
           }}
         />
@@ -339,10 +257,10 @@ export default function LedgerTab() {
         >
           <div className="flex items-center gap-3 mb-2">
             <span className="text-[10px] font-mono uppercase tracking-[4px] text-teal-600">The Open Ledger</span>
-            <span className="text-[10px] font-mono text-zinc-600">v1.0</span>
+            <span className="text-[10px] font-mono text-zinc-600">v2.0</span>
           </div>
           <h1 className="text-sm sm:text-xl font-bold font-mono text-teal-300 tracking-wider mb-2">
-            THERMODYNAMIC AUDIT INFRASTRUCTURE
+            HYDROLOGICAL AUDIT &amp; OUTFALL DISPERSION
           </h1>
         </div>
         <p
@@ -354,6 +272,7 @@ export default function LedgerTab() {
         >
           Submit river parameters. Receive a sovereign permit ruling. The verdict is SHA-256 hashed,
           immutable, and citable. The equations are the authority.
+          <span className="block mt-1 text-zinc-400">Every verdict drains somewhere. The ocean keeps the account.</span>
         </p>
         {verdictCount > 0 && titleBooted && (
           <div
