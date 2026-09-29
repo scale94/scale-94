@@ -28,7 +28,7 @@ const CONSTANTS = {
   TEXTURE_WRAP_S: 0x2802, TEXTURE_WRAP_T: 0x2803,
   FRAMEBUFFER: 0x8d40, COLOR_ATTACHMENT0: 0x8ce0,
   ZERO: 0, ONE_MINUS_SRC_COLOR: 0x0301, NEAREST: 0x2600,
-  RGBA16F: 0x881a, HALF_FLOAT: 0x140b, FRAMEBUFFER_COMPLETE: 0x8cd5,
+  RGBA16F: 0x881a, RGBA32F: 0x8814, HALF_FLOAT: 0x140b, FRAMEBUFFER_COMPLETE: 0x8cd5,
   R8: 0x8229, R16F: 0x822d, RED: 0x1903,
 };
 
@@ -52,7 +52,7 @@ const V1_METHODS = [
 ];
 
 const V2_ONLY = ['createVertexArray', 'bindVertexArray', 'deleteVertexArray', 'texStorage2D',
-  'vertexAttribDivisor', 'drawArraysInstanced'];
+  'vertexAttribDivisor', 'drawArraysInstanced', 'readPixels'];
 
 export function createRecordingGL({ version = 2, extensions = [] } = {}) {
   const log = [];
