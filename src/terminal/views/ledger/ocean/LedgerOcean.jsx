@@ -17,7 +17,8 @@
 //   meanwhile), then one frame is held and repainted only when resized. A new
 //   source re-runs the warm-up, then repaints once.
 // - Probe: a 1-texel float readback of the state, at most every
-//   PROBE_INTERVAL_MS of frame time; mouse hover on desktop, tap elsewhere.
+//   PROBE_INTERVAL_MS of frame time; mouse hover on desktop, tap elsewhere
+//   (a touch that moves TAP_SLOP_PX or more is a scroll and does not probe).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShaderCanvas } from '../../../gl/useShaderCanvas';
@@ -38,6 +39,7 @@ import {
 
 const CONTEXT_OPTIONS = { alpha: false, antialias: false, premultipliedAlpha: false };
 const NO_VERDICTS = [];
+const TAP_SLOP_PX = 8; // a touch that moves further is a scroll, not a probe tap
 
 const prefersReducedMotion = () =>
   typeof window !== 'undefined' &&
@@ -93,6 +95,7 @@ export default function LedgerOcean({
   const probeRef = useRef(null);
   const probeAtRef = useRef(-Infinity);
   const tapTimerRef = useRef(0);
+  const tapStartRef = useRef(null);
   const dpsRef = useRef(dps);
   dpsRef.current = dps;
   const onFrameRef = useRef(onFrame);
@@ -269,8 +272,17 @@ export default function LedgerOcean({
     if (e.pointerType === 'mouse') clearProbe();
   }, [clearProbe]);
 
+  // Touch/pen: probe on a tap only, committed on pointerup, so a scroll that
+  // starts on the hero does not probe.
   const onPointerDown = useCallback((e) => {
-    if (e.pointerType === 'mouse') return;
+    if (e.pointerType !== 'mouse') tapStartRef.current = { x: e.clientX, y: e.clientY };
+  }, []);
+
+  const onPointerUp = useCallback((e) => {
+    const start = tapStartRef.current;
+    tapStartRef.current = null;
+    if (e.pointerType === 'mouse' || !start) return;
+    if (Math.hypot(e.clientX - start.x, e.clientY - start.y) >= TAP_SLOP_PX) return;
     if (!probeAt(e.clientX, e.clientY)) return;
     clearTimeout(tapTimerRef.current);
     tapTimerRef.current = setTimeout(clearProbe, PROBE_TAP_HOLD_MS);
@@ -287,6 +299,7 @@ export default function LedgerOcean({
         onPointerMove={onPointerMove}
         onPointerLeave={onPointerLeave}
         onPointerDown={onPointerDown}
+        onPointerUp={onPointerUp}
         style={{ display: mode === 'unsupported' ? 'none' : 'block', width, height, touchAction: 'manipulation' }}
       />
       <OceanHud

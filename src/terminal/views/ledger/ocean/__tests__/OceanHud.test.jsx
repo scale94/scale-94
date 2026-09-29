@@ -87,6 +87,19 @@ describe('OceanHud', () => {
     expect(q('tooltip').textContent).toContain('AMBIENT PRESET');
   });
 
+  it('keeps the tooltip up through a real tap or click (enter, focus, then click)', () => {
+    const { container, q } = hud();
+    const ring = container.querySelector('[data-site="h1"]');
+    fireEvent.mouseEnter(ring);
+    fireEvent.focus(ring);
+    fireEvent.click(ring);
+    expect(q('tooltip')).toBeTruthy();
+    expect(q('tooltip').textContent).toContain('Test site');
+    fireEvent.blur(ring);
+    fireEvent.mouseLeave(ring);
+    expect(q('tooltip')).toBeNull();
+  });
+
   it('shows the mode label instead of the clock when the ocean is not live', () => {
     const { q } = hud({ mode: 'static' });
     expect(q('mode').textContent).toBe(MODE_LABEL.static);

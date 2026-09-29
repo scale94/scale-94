@@ -123,7 +123,10 @@ const OceanHud = forwardRef(function OceanHud({
             onMouseLeave={() => setFocus((f) => (f === s.id ? null : f))}
             onFocus={() => setFocus(s.id)}
             onBlur={() => setFocus((f) => (f === s.id ? null : f))}
-            onClick={() => setFocus((f) => (f === s.id ? null : s.id))}
+            // Set, never toggle: a real tap/click arrives as mouseenter →
+            // focus → click, and a toggle would clear what enter just opened.
+            // Dismissal: blur or mouseleave (tapping elsewhere does both).
+            onClick={() => setFocus(s.id)}
             style={{
               position: 'absolute', left: `${left}%`, top: `${top}%`, width: RING_PX, height: RING_PX,
               transform: 'translate(-50%, -50%)', padding: 0, border: 'none', background: 'transparent',

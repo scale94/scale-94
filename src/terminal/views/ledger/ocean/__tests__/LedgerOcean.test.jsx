@@ -212,9 +212,23 @@ describe('LedgerOcean HUD integration', () => {
     const canvas = screen.getByLabelText(/Ledger ocean/);
     canvas.getBoundingClientRect = () => ({ ...RECT, width: 360, height: 180, right: 360, bottom: 180 });
     act(() => { fireEvent.pointerDown(canvas, { pointerType: 'touch', clientX: 180, clientY: 90 }); });
+    act(() => { fireEvent.pointerUp(canvas, { pointerType: 'touch', clientX: 180, clientY: 90 }); });
     m.frames(1);
     expect(screen.getByText(/^0\.0°N 0\.0°E · ΔT/)).toBeTruthy();
     act(() => { vi.advanceTimersByTime(PROBE_TAP_HOLD_MS); });
+    expect(screen.queryByText(/^0\.0°N 0\.0°E/)).toBeNull();
+  });
+
+  it('does not probe a touch that moves (a scroll starting on the hero)', () => {
+    const m = mountLive(<LedgerOcean width={360} height={180} />);
+    const canvas = screen.getByLabelText(/Ledger ocean/);
+    canvas.getBoundingClientRect = () => ({ ...RECT, width: 360, height: 180, right: 360, bottom: 180 });
+    const before = count('readPixels');
+    act(() => { fireEvent.pointerDown(canvas, { pointerType: 'touch', clientX: 180, clientY: 90 }); });
+    m.frames(1);
+    act(() => { fireEvent.pointerUp(canvas, { pointerType: 'touch', clientX: 180, clientY: 130 }); });
+    m.frames(3);
+    expect(count('readPixels')).toBe(before);
     expect(screen.queryByText(/^0\.0°N 0\.0°E/)).toBeNull();
   });
 
