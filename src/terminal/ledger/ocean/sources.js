@@ -3,8 +3,10 @@
 // legend). Injection is physically dimensioned: ΔC = C_mouth·Q·Δt/(A_cell·H).
 
 import { R_EARTH_KM } from './grid';
-import { riverState, kd, kaRiver, criticalTime, doSat } from './kinetics';
+import { riverState, kd, kaRiver, criticalTime, doSat, manningVelocity } from './kinetics';
 import { snapToOcean } from './landMask';
+import { AUDIT_PRESETS } from '../auditPresets';
+import { RIVERS } from './riverCourses';
 
 export const MIXED_LAYER_M = 20;
 export const SPLAT_SIGMA_CELLS = 1.5;
@@ -112,4 +114,27 @@ export function verdictSourceSpec(verdict) {
 
 export function ghostSourceSpec(params) {
   return formSpec('ghost', 'ghost', params.lon, params.lat, params);
+}
+
+// Preset rivers: the audited reach from site to mouth, Manning velocity, and
+// the hydraulic radius as the reaeration depth. snapRadius 8: a preset mouth
+// that is more than 8 cells from ocean is a data error, not a user input.
+export function presetSourceSpec(preset, river = RIVERS[preset.key]) {
+  return {
+    id: `preset:${preset.key}`,
+    kind: 'preset',
+    kernel: preset,
+    course: river.course,
+    dischargeM3s: river.dischargeM3s,
+    velocityMs: manningVelocity(river.manning),
+    depthM: river.manning.R,
+    snapRadius: 8,
+  };
+}
+
+export function ambientSources(grid, mask) {
+  return AUDIT_PRESETS
+    .filter((p) => RIVERS[p.key])
+    .map((p) => buildSource(presetSourceSpec(p), grid, mask))
+    .filter(Boolean);
 }
