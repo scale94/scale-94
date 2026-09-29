@@ -214,7 +214,7 @@ export default function LedgerTab() {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="max-w-5xl mx-auto relative px-3 sm:px-0">
-      {/* Ambient glow behind the map */}
+      {/* Ambient glow behind the ocean hero */}
       <div
         className="absolute -top-20 left-1/2 -translate-x-1/2 w-[300px] sm:w-[600px] h-[300px] sm:h-[400px] pointer-events-none"
         style={{

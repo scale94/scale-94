@@ -160,6 +160,8 @@ export function describeSites(sources, verdicts = []) {
 
 export const fmtQ = (q) => {
   if (q === 0) return '0';
+  // a nonzero source must never read as zero
+  if (q > 0 && q < 0.001) return '< 0.001';
   if (q >= 10) return Math.round(q).toLocaleString('en-US');
   // 0 < q < 10: 2 significant digits without exponent
   if (q >= 1) return q.toFixed(1);
@@ -170,7 +172,9 @@ export const fmtQ = (q) => {
 export function tooltipLines(site) {
   const q = `Q ${fmtQ(site.dischargeM3s)} m³/s`;
   const pctValue = (site.dischargeM3s / RIVERS.usa.dischargeM3s) * 100;
-  const pct = pctValue < 10 ? pctValue.toPrecision(2) : Math.round(pctValue);
+  let pct;
+  if (pctValue > 0 && pctValue < 0.01) pct = '< 0.01'; // never exponent form
+  else pct = pctValue < 10 ? pctValue.toPrecision(2) : Math.round(pctValue);
   return [
     site.name,
     site.kind === 'preset' ? 'AMBIENT PRESET' : statusLabel(site.status),

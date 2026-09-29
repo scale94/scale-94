@@ -64,4 +64,9 @@ try {
   await server.close();
 }
 console.log(JSON.stringify(out, null, 2));
-process.exit(out && out.simDays >= 199.99 ? 0 : 1);
+const problems = [];
+if (!out || !(out.simDays >= 199.99)) problems.push('warm-up did not reach 200 simulated days');
+if (out && out.laterTasks.length > 0) problems.push(`long tasks after the first frame: ${JSON.stringify(out.laterTasks)}`);
+if (out && out.longTaskObserverError !== null) problems.push(`long-task observer failed: ${out.longTaskObserverError}`);
+if (problems.length) console.error(`FAIL: ${problems.join('; ')}`);
+process.exit(problems.length ? 1 : 0);

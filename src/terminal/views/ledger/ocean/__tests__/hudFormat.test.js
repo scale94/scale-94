@@ -140,6 +140,26 @@ describe('sites', () => {
     expect(fmtQ(16570)).toBe('16,570');
   });
 
+  it('never prints a nonzero source as zero or in exponent form', () => {
+    expect(fmtQ(0.0001)).toBe('< 0.001');
+    expect(fmtQ(1e-5)).toBe('< 0.001');
+    expect(fmtQ(0.001)).toBe('0.001');
+    expect(fmtQ(0)).toBe('0');
+    const site = (q) => ({
+      id: 'x', kind: 'verdict', name: 'Y', status: 'APPROVED', color: '#22c55e',
+      site: [0, 0], snap: [0, 0], snapKm: 1, dischargeM3s: q, doMin: 8, rkm: 2,
+    });
+    for (const q of [0.0001, 1e-5]) {
+      const line = tooltipLines(site(q))[2];
+      expect(line).toBe('Q < 0.001 m³/s · < 0.01% OF MISSISSIPPI');
+      expect(line).not.toMatch(/e-/);
+      expect(line).not.toContain('0.000');
+    }
+    // pct boundary: exactly 0.01% keeps normal formatting
+    const atBoundary = tooltipLines(site(RIVERS.usa.dischargeM3s * 0.0001))[2];
+    expect(atBoundary).toMatch(/· 0\.010% OF MISSISSIPPI$/);
+  });
+
   it('formats Mississippi percentage at 100% and above with no exponent', () => {
     // 100% of Mississippi
     expect(tooltipLines({
