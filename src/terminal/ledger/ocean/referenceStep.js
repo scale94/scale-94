@@ -128,6 +128,8 @@ export function diffuse(ctx, src, dst, dtDays, D = EDDY_DIFFUSIVITY_KM2_DAY) {
     for (let j = 0; j < ny; j++) {
       const dx = cellKm * cosLat[j];
       const dx2 = dx * dx;
+      const cosFN = Math.cos(((-90 + (j + 1) * grid.dlat) * Math.PI) / 180);
+      const cosFS = Math.cos(((-90 + j * grid.dlat) * Math.PI) / 180);
       for (let i = 0; i < nx; i++) {
         const k = j * nx + i;
         if (land[k]) {
@@ -144,7 +146,10 @@ export function diffuse(ctx, src, dst, dtDays, D = EDDY_DIFFUSIVITY_KM2_DAY) {
           const W = land[kW] ? C : dst[kW * 4 + c];
           const N = kN < 0 || land[kN] ? C : dst[kN * 4 + c];
           const So = kS < 0 || land[kS] ? C : dst[kS * 4 + c];
-          tmp[k * 4 + c] = C + D * h * ((E + W - 2 * C) / dx2 + (N + So - 2 * C) / dy2);
+          // y-term in flux form: cos at the north/south faces over cos at the centre,
+          // so diffusion conserves area-weighted mass on the sphere.
+          const yTerm = (cosFN * (N - C) - cosFS * (C - So)) / (cosLat[j] * dy2);
+          tmp[k * 4 + c] = C + D * h * ((E + W - 2 * C) / dx2 + yTerm);
         }
       }
     }
@@ -152,7 +157,7 @@ export function diffuse(ctx, src, dst, dtDays, D = EDDY_DIFFUSIVITY_KM2_DAY) {
   }
 }
 
-// Exact per-cell kinetics over dt; deficit capped at DO saturation.
+// Exact per-cell kinetics over dt. The deficit cap lives in guard(), which runs after every pass.
 export function react(ctx, state, dtDays) {
   const { grid, land, rows } = ctx;
   const eT = Math.exp(-dtDays / TAU_T_DAYS);

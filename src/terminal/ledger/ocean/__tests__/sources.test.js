@@ -93,4 +93,13 @@ describe('user verdicts and the ghost', () => {
     const s = buildSource(spec, grid, mask);
     expect(s.conc.every((v) => Number.isFinite(v))).toBe(true);
   });
+
+  it('rejects a ghost with blank coordinates or non-numeric fields instead of inventing values', () => {
+    const base = { lat: '48.31', lon: '14.29', temp: '12', do: '9.5', bod: '6', dt: '3.5', nitrate: '18', epi: '2', flow: '42' };
+    expect(buildSource(ghostSourceSpec({ ...base, lat: '' }), grid, mask)).toBeNull();
+    expect(buildSource(ghostSourceSpec({ ...base, flow: 'abc' }), grid, mask)).toBeNull();
+    expect(buildSource(ghostSourceSpec({ ...base, epi: '' }), grid, mask)).toBeNull();
+    expect(buildSource(ghostSourceSpec({ ...base, bod: undefined }), grid, mask)).toBeNull();
+    expect(buildSource(ghostSourceSpec(base), grid, mask)).not.toBeNull();
+  });
 });

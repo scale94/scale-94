@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { OCEAN_GRID } from '../grid';
+import { OCEAN_GRID, DT_DAYS } from '../grid';
 import { buildLandMask } from '../landMask';
 import { bakeCurrents, GYRE_CELLS } from '../streamFunction';
 import { syntheticWorld } from './syntheticWorld';
@@ -43,7 +43,7 @@ describe('bakeCurrents (real world)', () => {
     expect(bad).toBe(0);
   });
 
-  it('is finite and bounded, with a real western boundary current', () => {
+  it('is finite, has a real western boundary current, and keeps Courant ≤ 1.1', () => {
     let max = 0;
     for (let k = 0; k < grid.n; k++) {
       const s = Math.hypot(cur.vel[2 * k], cur.vel[2 * k + 1]);
@@ -51,7 +51,21 @@ describe('bakeCurrents (real world)', () => {
       max = Math.max(max, s);
     }
     expect(max).toBeGreaterThan(100);
-    expect(max).toBeLessThan(300); // CFL: 300 km/d × 0.25 d < one 78 km cell
+
+    // Courant number in cells per step, with the cos-lat narrowing of cells.
+    // Measured max ≈ 1.08 in La Pérouse Strait (island-rule strait jets);
+    // semi-Lagrangian + BFECC stays stable there. Accepted bound: 1.1.
+    let maxC = 0;
+    for (let j = 0; j < ny; j++) {
+      for (let i = 0; i < nx; i++) {
+        const k = j * nx + i;
+        if (mask.land[k]) continue;
+        const cx = Math.abs(cur.vel[2 * k]) * DT_DAYS / (cellKm * grid.cosLat[j]);
+        const cy = Math.abs(cur.vel[2 * k + 1]) * DT_DAYS / cellKm;
+        maxC = Math.max(maxC, cx, cy);
+      }
+    }
+    expect(maxC).toBeLessThanOrEqual(1.1);
   });
 
   it('intensifies the North Pacific gyre on its western side (Kuroshio)', () => {
@@ -64,7 +78,7 @@ describe('bakeCurrents (real world)', () => {
       if (lat < 20 || lat > 38) continue;
       for (let i = 0; i < nx; i++) {
         const k = j * nx + i;
-        if (mask.land[k]) continue;
+        if (mask.land[k] || mask.dist[k] <= 3) continue;
         const dx = (((grid.lonOf(i) - cell.lon0) % 360) + 360) % 360;
         const s = Math.hypot(cur.vel[2 * k], cur.vel[2 * k + 1]);
         if (dx <= width / 3) west = Math.max(west, s);

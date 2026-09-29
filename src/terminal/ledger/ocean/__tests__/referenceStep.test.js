@@ -1,4 +1,7 @@
 import { describe, it, expect } from 'vitest';
+import { OCEAN_GRID } from '../grid';
+import { buildLandMask } from '../landMask';
+import { buildSource } from '../sources';
 import { createOceanContext, step } from '../referenceStep';
 import { bakeCurrents } from '../streamFunction';
 import { createStepClock } from '../clock';
@@ -82,6 +85,15 @@ describe('mass', () => {
     const drift = Math.abs(mass(grid, mask.land, state, 2) - m0) / m0;
     expect(drift).toBeLessThan(0.02);
   });
+
+  it('diffusion alone conserves area-weighted mass to float precision', () => {
+    const { grid, mask } = syntheticWorld();
+    const ctx = createOceanContext(grid, mask.land, uniformVelocity(grid, 0, 0));
+    const state = blob(grid, mask.land, 20, 22, 6, 1);
+    const m0 = mass(grid, mask.land, state, 2);
+    for (let s = 0; s < 200; s++) step(ctx, state, { reactions: false, diffusivity: 5e4 });
+    expect(Math.abs(mass(grid, mask.land, state, 2) - m0) / m0).toBeLessThan(1e-4);
+  });
 });
 
 describe('reaction and injection', () => {
@@ -131,4 +143,32 @@ describe('frame-rate independence', () => {
     };
     expect(Array.from(run(60))).toEqual(Array.from(run(360)));
   });
+});
+
+describe('real grid smoke', () => {
+  it('runs 20 steps at 512×256 with a Gulf source: finite, non-negative, land exactly zero', () => {
+    const grid = OCEAN_GRID;
+    const mask = buildLandMask(grid);
+    const { vel } = bakeCurrents(grid, mask);
+    const ctx = createOceanContext(grid, mask.land, vel);
+    const src = buildSource({
+      id: 'smoke', kind: 'preset',
+      kernel: { temp: 23, do: 6.5, bod: 27, dt: 5, nitrate: 32 },
+      course: [[-90.07, 29.95], [-89.25, 29.15]],
+      dischargeM3s: 17000, velocityMs: 1, depthM: 12,
+    }, grid, mask);
+    const state = new Float32Array(grid.n * 4);
+    for (let s = 0; s < 20; s++) step(ctx, state, { sources: [src] });
+    let injected = 0;
+    for (let k = 0; k < grid.n; k++) {
+      for (let c = 0; c < 4; c++) {
+        const v = state[k * 4 + c];
+        expect(Number.isFinite(v)).toBe(true);
+        expect(v).toBeGreaterThanOrEqual(0);
+        if (mask.land[k]) expect(v).toBe(0);
+      }
+      injected += state[k * 4 + 2];
+    }
+    expect(injected).toBeGreaterThan(0);
+  }, 60000);
 });

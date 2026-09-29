@@ -59,6 +59,10 @@ export function buildSource(spec, grid, mask) {
     dt: Number(spec.kernel.dt),
     nitrate: Number(spec.kernel.nitrate),
   };
+  const finite = (v) => Number.isFinite(v);
+  if (!Object.values(kernel).every(finite) || !finite(dischargeM3s) || !finite(depthM)) return null;
+  if (dischargeM3s < 0 || depthM <= 0) return null;
+  if (!course.every((p) => p.every(finite))) return null;
   const end = course[course.length - 1];
   const snap = snapToOcean(grid, mask.land, end[0], end[1], snapRadius);
   if (!snap) return null;
@@ -88,14 +92,16 @@ export function buildSource(spec, grid, mask) {
   };
 }
 
+const num = (v) => (v === '' || v === null || v === undefined ? NaN : Number(v));
+
 function formSpec(id, kind, lon, lat, params) {
   return {
     id, kind,
     kernel: params,
-    course: [[Number(lon), Number(lat)]],
-    dischargeM3s: Number(params.flow),
+    course: [[num(lon), num(lat)]],
+    dischargeM3s: num(params.flow),
     velocityMs: USER_VELOCITY_MS,
-    depthM: Math.max(0.5, Number(params.epi)),
+    depthM: Math.max(0.5, num(params.epi)),
   };
 }
 
