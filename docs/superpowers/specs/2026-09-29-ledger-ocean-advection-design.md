@@ -220,12 +220,13 @@ it, they do not reinterpret it.
 
 ### Preset data
 
-The existing kernel fields in `auditPresets.js` stay **byte-identical**. Each
-preset gains a `river` block:
+The existing kernel fields in `auditPresets.js` stay **byte-identical**, and so
+does the file: river data lives beside it in
+`src/terminal/ledger/ocean/riverCourses.js`, keyed by preset key (phase 2):
 
 ```js
-river: {
-  course: [[lon, lat], ...],   // audit site → mouth, ~15–40 vertices
+RIVERS[key] = {
+  course: [[lon, lat], ...],   // audit site → mouth, city/landmark waypoints
   dischargeM3s: 6500,          // real mean discharge at the mouth
   manning: { n: 0.03, R: 6, S: 0.00007 },  // reach-averaged
   sources: { course: '…', dischargeM3s: '…', manning: '…' }, // or 'UNVERIFIED'
@@ -237,7 +238,7 @@ Every numeric field carries a source note or the literal `'UNVERIFIED'`
 
 ### The 9 sources
 
-Existing 5 (kernel values unchanged; `river` block added):
+Existing 5 (kernel values unchanged; `RIVERS` entry added):
 
 | key | audit site → mouth | approx. Q (m³/s), to source |
 |---|---|---|
@@ -262,6 +263,8 @@ against `severityEngine.js` thresholds toward a stated tone):
   Meghna estuary further east). Phase 3 picks one honestly: either keep the
   Sundarbans site with its distributary Q, or move the mouth to the Meghna and
   use the combined Q. It will not pair the Sundarbans site with the combined Q.
+  **Decided (user, 2026-09-29): the Meghna estuary with the combined
+  G–B–M Q ≈ 38,000 m³/s** (implemented in phase 3b).
 - Danube: HUD counts river kilometres from Linz (~rkm 2135, **verify in phase
   3**) to 0 at the sea.
 - Danube: the preset is tuned to present-day conditions. The NW Black Sea
@@ -393,7 +396,7 @@ Monospace, overlaid; pointer events only on controls.
 | `referenceStep.js` | CPU oracle of one full step (BFECC + limiter, diffusion, reaction + injection, guards) |
 | `riverCourses.js` | the 9 polylines, each with a source note |
 
-`auditPresets.js` gains the `river` blocks and 4 presets.
+`auditPresets.js` gains the 4 new presets (kernel fields only); their river data goes in `riverCourses.js`.
 
 ### Harness extension — `src/terminal/gl/pingPong.js`
 
@@ -440,7 +443,7 @@ three times.
     limiter is not exactly conservative; this is a bound, not a zero claim).
   - 60 Hz vs 360 Hz frame streams produce identical states.
 - **Presets:**
-  - Every `river` numeric field has a source note or `'UNVERIFIED'`.
+  - Every `RIVERS` numeric field has a source note or `'UNVERIFIED'`.
   - Existing `auditPresets.test.js` passes unchanged.
   - All 9 presets pass `validateSubmission`.
 - **GPU parity (the gate that tests maths, not GL calls):**
@@ -468,11 +471,16 @@ Each phase ends in a working, green state.
      `riverCourses.js` (auditPresets.js untouched); `useOceanClock` became
      the pure `oceanDriver.js`; review happens on the dev page
      `ledger-ocean-preview.html`.
-3. **Integration:**
-   - River-stage particles.
-   - The 4 new presets with sourced data.
-   - HUD, form ghost, seal, header.
-   - Delete `LedgerMap` / `LedgerParticles` / eclipse.
+3. **Integration**, in two plans:
+   - **3a** (`docs/superpowers/plans/2026-09-29-ledger-ocean-phase3a-tab.md`):
+     phase-2 lifecycle hazards (resize in place, context loss/restore,
+     program-build leak, reduced-motion warm-up spread over frames), the hero
+     swap, HUD, header; delete `LedgerMap` / `LedgerParticles` / eclipse.
+     Archived verdicts become sources in 3a (no seal yet). Preset rings are
+     neutral (`AMBIENT PRESET`: presets have no kernel ruling). The DO_sat
+     carry-over is met with a legend note, not a salinity term.
+   - **3b:** river-stage particles and the DO_MIN tick, the 4 new presets
+     with sourced data, form ghost, seal.
 
 ## Phase-1 carry-overs (assigned to the phase-2 plan)
 
