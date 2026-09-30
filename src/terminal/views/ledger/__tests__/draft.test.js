@@ -21,6 +21,11 @@ describe('validDraft', () => {
     expect(validDraft({ ...FORM, lat: '95' })).toBeNull();
     expect(validDraft({ ...FORM, lon: '-181' })).toBeNull();
   });
+
+  it('is null for whitespace-only lat or lon', () => {
+    expect(validDraft({ ...FORM, lat: '  ' })).toBeNull();
+    expect(validDraft({ ...FORM, lon: ' \t' })).toBeNull();
+  });
 });
 
 describe('createFrameCoalescer', () => {

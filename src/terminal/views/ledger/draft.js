@@ -6,7 +6,11 @@
 
 import { PARAM_RANGES, validateSubmission } from '../../ledger/verdictModel';
 
-const blank = (v) => v === '' || v === undefined || v === null;
+const blank = (v) => {
+  if (v === undefined || v === null) return true;
+  if (typeof v === 'string') return v.trim() === '';
+  return v === '';
+};
 
 export function validDraft(form) {
   if (blank(form.lat) || blank(form.lon)) return null;
