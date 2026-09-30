@@ -60,7 +60,7 @@ export default function MercuryCanvas({
   const densityFor = (phase) =>
     phase === activePhase ? (params.density ?? (isMobile ? 600 : 1200)) : GHOST_DENSITY;
 
-  // Active phase capped at 0.45 — additive blending accumulates fast, sphere must remain legible
+  // Active phase capped at 0.45 — additive blending accumulates fast, the planet (MercuryPlanet) must remain legible
   const opacityFor = (phase) =>
     Math.min(phase === activePhase ? 0.45 : 0.12, phaseOpacities[phase]);
 
@@ -101,7 +101,7 @@ export default function MercuryCanvas({
           condenseSizeBite={TUNE.condenseSizeBite}
           planetWindow={1}
         />
-        {/* Boundary geometries hidden — the Mercury sphere is the visual anchor */}
+        {/* Boundary geometries hidden — the planet (MercuryPlanet) is the visual anchor */}
         <GlassKnot isMobile={isMobile} visible={false} />
 
         <ThermalFlow
@@ -172,7 +172,7 @@ export default function MercuryCanvas({
         />
 
         {/* No bloom in Mercury mode — four simultaneous particle systems would blow out.
-            The sphere's physical material reads fine unpostprocessed. */}
+            The planet (MercuryPlanet) shader reads fine unpostprocessed. */}
       </Suspense>
     </Canvas>
   );

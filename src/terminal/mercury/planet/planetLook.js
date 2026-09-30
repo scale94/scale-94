@@ -12,7 +12,9 @@ export const MEAN_R_AU = 0.387098;      // semi-major axis; irradiance = (MEAN_R
 // Cast crater shadows: a short heightfield march toward the Sun near the terminator.
 export const SHADOW_STEPS = 12;
 export const SHADOW_REACH_RAD = 0.03;   // ~73 km of arc
-export const SHADOW_SOFT_M = 300;       // edge softness in (exaggerated) metres
+export const SHADOW_SOFT_M = 300;       // edge softness in TRUE metres (the shader multiplies by uRelief)
+export const SHADOW_SOFT_LSB = 1.5;   // softness floor in DEM quantisation steps (true metres, before relief)
+export const SHADOW_BIAS_LSB = 1.0;   // march bias against quantisation acne, in DEM steps
 export const SHADOW_ZONE = 0.35;        // only march where the Sun is lower than ~20°
 
 export const FALLBACK_ALBEDO = [0.16, 0.15, 0.14]; // linear; true-colour grey-brown until maps load

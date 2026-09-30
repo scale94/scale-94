@@ -9,9 +9,12 @@
 
 import { glf, v3 } from '../../gl/glf';
 import {
-  R_SCENE, R_MERCURY_M, SHADOW_STEPS, SHADOW_REACH_RAD, SHADOW_SOFT_M, SHADOW_ZONE, FALLBACK_ALBEDO,
+  R_SCENE, R_MERCURY_M, SHADOW_STEPS, SHADOW_REACH_RAD, SHADOW_SOFT_M, SHADOW_ZONE, SHADOW_SOFT_LSB, SHADOW_BIAS_LSB, FALLBACK_ALBEDO,
 } from './planetLook';
 import { DEM_MIN_M, DEM_MAX_M } from './mercuryMaps.generated';
+
+// One 8-bit DEM step in true metres.
+export const DEM_LSB_M = (DEM_MAX_M - DEM_MIN_M) / 255;
 
 export const PLANET_BUILTINS = ['viewMatrix', 'projectionMatrix', 'cameraPosition'];
 
@@ -73,6 +76,9 @@ const int SHADOW_STEPS = ${SHADOW_STEPS};
 const float SHADOW_REACH_RAD = ${glf(SHADOW_REACH_RAD)};
 const float SHADOW_SOFT_M = ${glf(SHADOW_SOFT_M)};
 const float SHADOW_ZONE = ${glf(SHADOW_ZONE)};
+const float DEM_LSB_M = ${glf(DEM_LSB_M)};
+const float SHADOW_SOFT_LSB = ${glf(SHADOW_SOFT_LSB)};
+const float SHADOW_BIAS_LSB = ${glf(SHADOW_BIAS_LSB)};
 const vec3 FALLBACK_ALBEDO = ${v3(FALLBACK_ALBEDO)};
 
 // planetFrame.rotY
@@ -87,7 +93,9 @@ float heightAt(vec2 uv, vec2 gx, vec2 gy) {
 
 // March toward the Sun over the (exaggerated) heightfield. Terrain height is
 // measured against the tangent plane, so the sphere's curvature drops away
-// as (xR)^2 / 2R; the sunlight ray rises as xR * tan(elevation).
+// as (xR)^2 / 2R; the sunlight ray rises as xR * tan(elevation). Softness and
+// march bias scale with relief and floor at DEM quantisation steps, so the
+// dither and 8-bit stepping never swamp the penumbra at high exaggeration.
 float castShadow(vec2 uv, vec3 nb, vec3 Lb, float h0, float cosLat, vec3 east, vec3 north, vec2 gx, vec2 gy) {
   vec3 tdir = Lb - nb * dot(Lb, nb);
   float tl = length(tdir);
@@ -96,14 +104,16 @@ float castShadow(vec2 uv, vec3 nb, vec3 Lb, float h0, float cosLat, vec3 east, v
   float tanE = dot(Lb, nb) / tl;
   vec2 duv = vec2(dot(tdir, east) / (TAU * cosLat), dot(tdir, north) / PI);
   float vis = 1.0;
+  float soft = max(SHADOW_SOFT_M, SHADOW_SOFT_LSB * DEM_LSB_M) * uRelief;
+  float bias = SHADOW_BIAS_LSB * DEM_LSB_M * uRelief;
   for (int k = 1; k <= SHADOW_STEPS; k++) {
     float f = float(k) / float(SHADOW_STEPS);
     float x = SHADOW_REACH_RAD * f * f;
     float hk = heightAt(uv + duv * x, gx, gy);
     float xm = x * R_MERCURY_M;
     float terrain = hk * uRelief - xm * xm / (2.0 * R_MERCURY_M);
-    float ray = h0 * uRelief + xm * tanE;
-    vis = min(vis, smoothstep(-SHADOW_SOFT_M, SHADOW_SOFT_M, ray - terrain));
+    float ray = h0 * uRelief + xm * tanE + bias;
+    vis = min(vis, smoothstep(-soft, soft, ray - terrain));
   }
   return vis;
 }
@@ -167,6 +177,7 @@ void main() {
   float vis = 1.0;
   if (uHasMaps > 0.5 && mu0g > -uSunSinR && mu0g < SHADOW_ZONE) {
     vis = castShadow(uv, nb, Lb, h0, cosLat, east, north, gx, gy);
+    vis = mix(vis, 1.0, smoothstep(0.7 * SHADOW_ZONE, SHADOW_ZONE, mu0g));
   }
 
   vec3 col = max(albedo * (uSunIrr * uExposure * ls * term * vis + uNightFloor), 0.0);
