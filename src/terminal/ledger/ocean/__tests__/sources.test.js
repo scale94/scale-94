@@ -72,7 +72,8 @@ describe('buildSource', () => {
 });
 
 describe('user verdicts and the ghost', () => {
-  const verdict = { hash: 'abc', coordinates: { lat: 48.31, lon: 14.29 }, input: { ...kernel } };
+  // Warsaw: in no catchment ring, so this stays the nearest-ocean straight line.
+  const verdict = { hash: 'abc', coordinates: { lat: 52.23, lon: 21.0 }, input: { ...kernel } };
 
   it('drains a verdict in a straight line to its snapped ocean cell, Q = submitted flow', () => {
     const spec = verdictSourceSpec(verdict);
@@ -232,5 +233,56 @@ describe('river-stage fields', () => {
   it('rejects a non-positive river length', () => {
     expect(buildSource({ ...danube, riverKm: 0 }, grid, mask)).toBeNull();
     expect(buildSource({ ...danube, riverKm: NaN }, grid, mask)).toBeNull();
+  });
+});
+
+describe('catchment routing of verdict and ghost sites', () => {
+  const at = (lat, lon) => verdictSourceSpec({ hash: 'c', coordinates: { lat, lon }, input: { ...kernel } });
+  const built = (lat, lon) => buildSource(at(lat, lon), grid, mask);
+  const kmTo = (s, [lon, lat]) => haversineKm([s.snap.lon, s.snap.lat], [lon, lat]);
+
+  it('drains Berlin to the Elbe mouth in the North Sea, not the Baltic', () => {
+    const s = built(52.52, 13.405);
+    expect(kmTo(s, [8.7, 53.86])).toBeLessThan(150);
+    expect(s.snap.lon).toBeLessThan(10);
+  });
+
+  it('drains Manaus to the Amazon mouth, not the Guiana coast', () => {
+    const s = built(-3.119, -60.0217);
+    expect(kmTo(s, [-50.0, 0.0])).toBeLessThan(150);
+  });
+
+  it('drains Kinshasa to the Congo mouth', () => {
+    expect(kmTo(built(-4.32, 15.3), [12.35, -6.07])).toBeLessThan(150);
+  });
+
+  it('drains Linz down the Danube to the Black Sea (preset basin)', () => {
+    const s = built(48.31, 14.29);
+    expect(s.snap.lon).toBeGreaterThan(28);
+    expect(s.lengthKm).toBeGreaterThan(1000);
+  });
+
+  it('falls back to the nearest-ocean snap outside every catchment', () => {
+    const spec = at(52.23, 21.0);            // Warsaw: Vistula, in no ring
+    expect(spec.snapAt).toBeNull();
+    const s = buildSource(spec, grid, mask);
+    expect(s.snap.lat).toBeGreaterThan(53);  // Baltic coast
+  });
+
+  it('falls back to the nearest-ocean snap when the catchment outfall cannot snap', () => {
+    const landlocked = { ...at(52.52, 13.405), snapAt: [100, 45] };   // Mongolia: no ocean within 8 cells
+    const s = buildSource(landlocked, grid, mask);
+    expect(s).not.toBeNull();
+    expect(s.snap.lat).toBeGreaterThan(53);                  // Berlin's own nearest-ocean snap (Baltic)
+  });
+
+  it('routes the ghost the same way', () => {
+    const spec = ghostSourceSpec({ lat: '52.52', lon: '13.405', temp: '12', do: '9.5', bod: '6', dt: '3.5', nitrate: '18', epi: '2', flow: '42' });
+    expect(spec.snapAt).toEqual([8.7, 53.86]);
+  });
+
+  it('carries no snapAt for a blank or non-numeric ghost', () => {
+    const spec = ghostSourceSpec({ lat: '', lon: '13.4', temp: '12', do: '9.5', bod: '6', dt: '3.5', nitrate: '18', epi: '2', flow: '42' });
+    expect(spec.snapAt).toBeNull();
   });
 });

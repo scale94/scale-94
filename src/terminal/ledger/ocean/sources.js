@@ -8,12 +8,16 @@ import { snapToOcean } from './landMask';
 import { ALL_AUDIT_PRESETS } from '../auditPresets';
 import { RIVERS } from './riverCourses';
 import { CATALOG, catalogSourceSpec } from './riverCatalog';
+import { catchmentTarget } from './catchments';
 import { isUnlocatedRecord, UNLOCATED_LABEL } from '../coordinates';
 
 export const MIXED_LAYER_M = 20;
 export const SPLAT_SIGMA_CELLS = 1.5;
 export const USER_VELOCITY_MS = 0.5;
 export const USER_SNAP_RADIUS_CELLS = 64;
+// A catchment outfall is a mapped river mouth, not user input: it must sit in
+// reach of the ocean the way a preset mouth does (snapRadius 8).
+export const CATCHMENT_SNAP_RADIUS_CELLS = 8;
 
 // Lagoon rule (spec phase-1 carry-over): a source never drains into an ocean
 // basin smaller than this. Measured on the 512×256 grid (37 basins): world
@@ -67,7 +71,7 @@ export function splatCells(grid, land, snap, dischargeM3s, sigma = SPLAT_SIGMA_C
 export function buildSource(spec, grid, mask) {
   const {
     id, kind, course, dischargeM3s, velocityMs, depthM,
-    snapRadius = USER_SNAP_RADIUS_CELLS, riverKm = null,
+    snapRadius = USER_SNAP_RADIUS_CELLS, riverKm = null, snapAt = null,
   } = spec;
   if (!(velocityMs > 0)) throw new Error(`buildSource(${id}): velocityMs must be > 0`);
   const kernel = {
@@ -83,7 +87,13 @@ export function buildSource(spec, grid, mask) {
   if (riverKm !== null && !(riverKm > 0 && finite(riverKm))) return null;
   if (!course.every((p) => p.every(finite))) return null;
   const end = course[course.length - 1];
-  const snap = snapToOcean(grid, mask.land, end[0], end[1], snapRadius, snapFilter(mask));
+  const filter = snapFilter(mask);
+  // A site inside a catchment drains to its river's outfall; if that cell has
+  // no ocean in reach (or there is no catchment) the nearest-ocean snap stands.
+  const viaCatchment = Array.isArray(snapAt) && snapAt.every(finite)
+    ? snapToOcean(grid, mask.land, snapAt[0], snapAt[1], CATCHMENT_SNAP_RADIUS_CELLS, filter)
+    : null;
+  const snap = viaCatchment ?? snapToOcean(grid, mask.land, end[0], end[1], snapRadius, filter);
   if (!snap) return null;
 
   const fullCourse = course.length === 1 ? [course[0], [snap.lon, snap.lat]] : course;
@@ -121,6 +131,7 @@ export function buildSource(spec, grid, mask) {
 const num = (v) => (v === '' || v === null || v === undefined ? NaN : Number(v));
 
 function formSpec(id, kind, lon, lat, params) {
+  const target = catchmentTarget(num(lon), num(lat));
   return {
     id, kind,
     kernel: params,
@@ -128,6 +139,7 @@ function formSpec(id, kind, lon, lat, params) {
     dischargeM3s: num(params.flow),
     velocityMs: USER_VELOCITY_MS,
     depthM: Math.max(0.5, num(params.epi)),
+    snapAt: target ? target.outfall : null,
   };
 }
 
