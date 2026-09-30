@@ -1,5 +1,16 @@
 # Ledger Ocean — Phase 3b (Rivers, Presets, Ghost, Seal) Implementation Plan
 
+> **Erratum (post-review, 2026-09-30).** This plan is kept as the historical record of what was planned; the task text below is not rewritten. The shipped code differs from it as follows (final review: `.superpowers/sdd/p3b-final-review.md`, "Docs drift"). Line numbers below are this file's as it now stands; the review cites them 11 lower, before this block was added:
+>
+> - **Seal dash-close** (lines 68, 2760, 2865–2866, 3152–3153; review :57, :2749, :2854–2855, :3141–3142): there is no 400 ms `ocean-seal-dash` animation and no `SEAL_KEYFRAMES` / `SEAL_ANIMATION` constants. While sealing, the verdict line is two strokes: the ghost's dashes (`GHOST_DASH`) stay, and a solid copy is revealed behind the flare from site to mouth (`ocean-seal-close`: dasharray L L, dashoffset L → 0, L the on-screen length) over `SEAL_FLARE_MS` (1200 ms), linear, on the flare's own clock. Reduced motion: one solid line, no animation. `OceanHud.test.jsx` asserts `ocean-seal-dash` is absent.
+> - **DO_MIN tick** (line 69; review :58): the compact HUD draws no tick at all (there is no 5 px compact tick); the ring tooltip carries the DO_MIN line. Desktop keeps the 1 px × 7 px bar, drawn after the ring buttons so it reads over them.
+> - **PROVISIONAL placement:** the label flips left of the ghost ring when it would end beyond the hero's right gutter, nudges one ring diameter up or down off any ring it would cover (preferring the direction that stays inside the hero), and is clamped inside the hero (`hudFormat.ghostLabelPlacement`).
+> - **Parcels are soft-edged:** the sprite is the visible diameter plus 1 device px each side, with alpha smoothstepped over ~1 device px at the visible radius (the flare too); no hard `discard` edge.
+> - **Short-course rings are thin:** a course shorter on screen than its ring gets a 1 px ring instead of 1.5 / 2 px.
+> - **Parcel colour** mixes by the plume's rules: the DO deficit dims only BOD and nitrate (heat is never dimmed), and emission above 1 is divided by its brightest component rather than clipped per channel. The rules match the plume; the intensity curves do not.
+> - **Coordinates are checked at submit** (`draft.coordErrors`: blank, non-numeric and out-of-range refused; map picks wrapped into [-180, 180)), and exactly 0°, 0° is refused at submit and by the ghost.
+> - **Legacy 0°, 0° records are UNLOCATED:** a stored verdict at exact numeric 0, 0 keeps its hash and archive entry, shows `UNLOCATED` in place of coordinates, and never becomes a source, ring or plume. The rule lives in `src/terminal/ledger/coordinates.js`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Finish spec phase 3: river-stage particles with a DO_MIN tick on every course, the four new presets (Yangtze, Ganges/Meghna, Citarum, Danube) with sourced river data, the live dashed `PROVISIONAL` ghost driven by the form, and the seal sequence (clock eases to near-stop, flare along the course, clock eases back). Also closes the 3a deferrals that fit: lagoon snap, the reduced-motion idle loop, the reduced-motion archive double warm-up, and ring tab stops.

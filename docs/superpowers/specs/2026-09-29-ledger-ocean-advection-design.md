@@ -279,7 +279,9 @@ against `severityEngine.js` thresholds toward a stated tone):
 
 - Velocity: v = (1/n) · R^(2/3) · S^(1/2) (Manning), per river.
 - ~256 particles per river, spawned at the audit site, advanced by arc length
-  s along the course at v on the same compressed clock as the ocean.
+  s along the course at v. Their colour is the exact state at t = s / v; their
+  on-screen motion is slowed to at least 6 s per course (`MIN_CYCLE_S`), so it
+  is not the ocean's compressed clock (3b addendum).
 - A particle's state is the exact kinetics at travel time t = s / v, starting
   from the verdict's kernel inputs (`temp`, `dt`, `bod`, `nitrate`; initial
   deficit = max(0, DO_sat(temp) − `do`), since supersaturated input must not
@@ -349,7 +351,8 @@ chosen compression, fed to the clock as its exact mean over each frame's
 interval (60 Hz and 360 Hz advance identically); the flare is one white point
 running site → mouth over 1.2 s; the clock eases back when the flare is done.
 Under reduced motion, or with no river stage to draw, the seal completes at
-once without a flare.
+once without a flare. "Dashes close to solid" is realised as a solid stroke
+revealed behind the flare (3b addendum).
 
 `ledgerBus` `VERDICT_ISSUED` and the observatory emit are unchanged.
 
@@ -364,7 +367,7 @@ Monospace, overlaid; pointer events only on controls.
 - **Bottom-right:** cursor probe. A 1-px `readPixels` throttled to 10 Hz,
   showing `31.2°N 122.8°E · ΔT 0.02 °C · BOD 0.14 · NO₃ 0.8 · DO↓ 0.3 mg/L`.
 - **Sources:** status-coloured ring at each audit site (`STATUS_COLOR` kept);
-  DO_MIN tick; hover tooltip with site, status, Q, DO_MIN point, snap
+  DO_MIN tick (desktop only, 3b addendum); hover tooltip with site, status, Q, DO_MIN point, snap
   distance.
 
 ### Header
@@ -386,6 +389,8 @@ Monospace, overlaid; pointer events only on controls.
 
 - Same grid and 2:1 aspect.
 - HUD collapses to top-left (clock) and bottom-left (legend).
+- No DO_MIN ticks on the compact HUD; the ring tooltip carries DO_MIN (3b
+  addendum).
 - The probe works on tap.
 - Step cap drops to 4 under load (§2 Clock).
 
@@ -487,6 +492,41 @@ Each phase ends in a working, green state.
      carry-over is met with a legend note, not a salinity term.
    - **3b:** river-stage particles and the DO_MIN tick, the 4 new presets
      with sourced data, form ghost, seal.
+
+## 3b addendum (post-review, 2026-09-30)
+
+What phase 3b shipped where this spec's earlier text is silent or differs.
+The plan's erratum block
+(`docs/superpowers/plans/2026-09-30-ledger-ocean-phase3b-rivers.md`) lists
+the plan-level changes.
+
+- **River-stage clock.** Parcel colour is exact (the kinetics at t = s / v),
+  but parcel motion is slowed so a course takes at least `MIN_CYCLE_S` = 6 s
+  of wall time: phase += dDisplayDays / max(T, 6 × days-per-second), on the
+  driver's wall-time interpolated display days. A seventh legend note says so:
+  `RIVER PARCELS ≥ 6 S PER COURSE · SLOWED · COLOUR EXACT`.
+- **Compact HUD ticks.** Below `COMPACT_BELOW_PX` the HUD draws no DO_MIN
+  tick (on a phone it merged into its ring); the ring tooltip carries the
+  DO_MIN line. Desktop keeps the 1 px × 7 px tick across the course, drawn
+  over the ring.
+- **Submit-time coordinate check** (user ruling). Blank, non-numeric and
+  out-of-range (|lat| > 90, |lon| > 180) coordinates are refused at submit,
+  and so is exactly 0°, 0°. The ghost applies the same rule, so it never
+  shows a site that cannot be sealed. Map picks on a wrapped world copy are
+  wrapped into [-180, 180). A prior entry at 0°, 0° never has its
+  coordinates copied into the form.
+- **UNLOCATED** (user ruling). For the ledger's first hours a blank
+  coordinate was stored as 0. A stored verdict at exact numeric 0°, 0° keeps
+  its hash and its archive entry, shows `UNLOCATED` in place of its
+  coordinates, and never becomes a source, ring or plume. Near-zero sites
+  (0.5°, 0°) are normal. The one definition lives in
+  `src/terminal/ledger/coordinates.js`: `isUnlocatedRecord` (stored records,
+  exact numbers) and `isNullIslandInput` (form strings, coerced).
+- **Dash-close synced to the flare** (§4 Seal item 2). While sealing, the
+  ghost's dashes stay and a solid copy of the line is revealed from the site
+  to the mouth (dashoffset L → 0, L its on-screen length) over
+  `SEAL_FLARE_MS` = 1.2 s, linear, on the flare's own clock. There is no
+  separate 400 ms dash animation. Reduced motion draws one solid line.
 
 ## Phase-1 carry-overs (assigned to the phase-2 plan)
 
