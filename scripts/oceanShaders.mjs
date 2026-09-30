@@ -1,11 +1,12 @@
-// Compiles and links every Ledger ocean program in real headless Chrome
+// Compiles and links every Ledger ocean program (sim, composite, river parcels) in real headless Chrome
 // (SwiftShader). jsdom has no GL, so this is where a GLSL error surfaces.
 //
 //   node scripts/oceanShaders.mjs
 import { launch } from './cdp.mjs';
 import { SIM_VS, SIM_PROGRAMS, COMPOSITE_FS } from '../src/terminal/ledger/ocean/gpu/shaders.js';
+import { PARTICLE_VS, PARTICLE_FS } from '../src/terminal/ledger/ocean/gpu/particleShaders.js';
 
-const programs = { composite: [SIM_VS, COMPOSITE_FS] };
+const programs = { composite: [SIM_VS, COMPOSITE_FS], particles: [PARTICLE_VS, PARTICLE_FS] };
 for (const [name, p] of Object.entries(SIM_PROGRAMS)) programs[name] = [SIM_VS, p.fs];
 
 const page = await launch({ url: 'about:blank', width: 320, height: 240 });

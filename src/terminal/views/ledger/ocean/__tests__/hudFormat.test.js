@@ -72,7 +72,7 @@ describe('probe', () => {
 });
 
 describe('legend', () => {
-  it('carries every honesty note 3a shows', () => {
+  it('carries every honesty note', () => {
     expect(LEGEND_NOTES).toEqual([
       'MODEL KINETICS · LITERATURE RANGES',
       'PRESET LOADS NARRATIVE-TUNED · NOT MEASURED',
@@ -80,6 +80,7 @@ describe('legend', () => {
       'POINT SOURCE · PLUG FLOW · NO TRIBUTARIES',
       'USER SITES · STRAIGHT-LINE APPROX',
       'DO_SAT FRESHWATER FIT · ~20% HIGH AT SEA',
+      'RIVER PARCELS ≥ 6 S PER COURSE · SLOWED · COLOUR EXACT',
     ]);
   });
 });

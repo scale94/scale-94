@@ -20,6 +20,8 @@ export const PROBE_TAP_HOLD_MS = 5000;          // a tapped probe readout stays 
 export const COMPACT_BELOW_PX = 640;            // hero width below which the HUD collapses
 export const PROBE_NOISE_FLOOR = 1e-6;         // |x| below this is float noise: the probe prints 0
 export const RING_TAP_RADIUS_PX = 6;            // compact: a tap this close (css px) to a ring centre opens it
+export const PARTICLE_PX = 2;                   // river-stage parcel size, css px
+export const FLARE_PX = 7;                      // the seal flare, css px
 export const PROBE_HINT = 'HOVER TO PROBE';
 export const PROBE_NOTE = 'MODEL VALUES · NOT MEASURED';
 
@@ -31,6 +33,7 @@ export const LEGEND_NOTES = [
   'POINT SOURCE · PLUG FLOW · NO TRIBUTARIES',
   'USER SITES · STRAIGHT-LINE APPROX',
   'DO_SAT FRESHWATER FIT · ~20% HIGH AT SEA',
+  'RIVER PARCELS ≥ 6 S PER COURSE · SLOWED · COLOUR EXACT',
 ];
 
 // The composite's channel colours (shaders.js COMPOSITE_FS CRIMSON / AMBER /

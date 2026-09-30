@@ -5,8 +5,11 @@ import { OCEAN_GRID, DT_DAYS } from '../../../../ledger/ocean/grid';
 import { diffusionSchedule, EDDY_DIFFUSIVITY_KM2_DAY } from '../../../../ledger/ocean/referenceStep';
 import { createStepClock } from '../../../../ledger/ocean/clock';
 import { REDUCED_MOTION_DAYS, WARMUP_STEPS_PER_FRAME } from '../oceanDriver';
-import { MODE_LABEL, PROBE_HINT, PROBE_TAP_HOLD_MS, formatClock } from '../hudFormat';
+import { MODE_LABEL, PARTICLE_PX, PROBE_HINT, PROBE_TAP_HOLD_MS, formatClock } from '../hudFormat';
 import { getOceanWorld } from '../../../../ledger/ocean/oceanWorld';
+import {
+  prepareRiver, fillParticles, PARTICLES_PER_RIVER, FLOATS_PER_PARTICLE, MIN_CYCLE_S,
+} from '../../../../ledger/ocean/riverStage';
 import LedgerOcean from '../LedgerOcean';
 
 const FRAME_MS = 16;
@@ -26,6 +29,9 @@ afterEach(() => {
 const count = (name) => rec.log.filter((e) => e[0] === name).length;
 // One composite paint = one uRes upload (no sim program has uRes).
 const paints = () => rec.log.filter(([n, loc]) => n === 'uniform2f' && /:uRes$/.test(String(loc))).length;
+const quads = () => rec.log.filter((e) => e[0] === 'drawArrays' && e[1] === rec.gl.TRIANGLE_STRIP).length;
+const pointDraws = () => rec.log.filter((e) => e[0] === 'drawArrays' && e[1] === rec.gl.POINTS);
+const particleUploads = () => rec.log.filter((e) => e[0] === 'bufferData' && Array.isArray(e[2]) && e[2].length > 8);
 const reduceMotion = () => vi.stubGlobal('matchMedia', (q) => ({
   matches: q.includes('reduce'), media: q, addEventListener() {}, removeEventListener() {},
 }));
@@ -88,7 +94,7 @@ describe('LedgerOcean lifecycle', () => {
   it('steps the sim on the frame loop by wall time, not frame count', () => {
     const days = [];
     const m = mountLive(<LedgerOcean width={512} height={256} onFrame={(d) => days.push(d)} />);
-    const drawsAtMount = count('drawArrays');
+    const drawsAtMount = quads();
     const FRAMES = 60;
     m.frames(FRAMES);
     const clock = createStepClock();
@@ -99,7 +105,7 @@ describe('LedgerOcean lifecycle', () => {
     expect(days.at(-1)).toBeCloseTo(expected * DT_DAYS, 9);
     const { sub } = diffusionSchedule(OCEAN_GRID, DT_DAYS, EDDY_DIFFUSIVITY_KM2_DAY);
     // Each step: advect, correct, final, `sub` diffusion passes, react. Plus one composite per frame.
-    expect(count('drawArrays') - drawsAtMount).toBe(expected * (4 + sub) + FRAMES);
+    expect(quads() - drawsAtMount).toBe(expected * (4 + sub) + FRAMES);
     expect(paints()).toBe(FRAMES + 1);
   });
 
@@ -351,3 +357,72 @@ describe('LedgerOcean HUD integration', () => {
   });
 });
 
+
+describe('LedgerOcean river stage', () => {
+  it('draws 256 parcels per river after each composite, filled from the exact kinetics at the display time', () => {
+    const disp = [];
+    const m = mountLive(<LedgerOcean width={1024} height={512} onFrame={(_d, dd) => disp.push(dd)} />);
+    m.frames(5);
+    const rivers = getOceanWorld().sources.map((s) => prepareRiver(s)).filter(Boolean);
+    expect(rivers.length).toBeGreaterThanOrEqual(5);
+    const n = rivers.length * PARTICLES_PER_RIVER;
+    expect(pointDraws()).toHaveLength(paints());                 // one parcel draw per composite
+    expect(pointDraws().at(-1)).toEqual(['drawArrays', rec.gl.POINTS, 0, n]);
+    // Constant 9 d/s: each river's accumulated phase is D / max(T, MIN_CYCLE_S × 9).
+    const D = disp.at(-1);
+    expect(D).toBeGreaterThan(0);
+    const expected = new Float32Array(n * FLOATS_PER_PARTICLE);
+    fillParticles(rivers, rivers.map((r) => {
+      const u = D / Math.max(r.travelDays, MIN_CYCLE_S * 9);
+      return u - Math.floor(u);
+    }), expected);
+    const got = particleUploads().at(-1)[2];
+    expect(got).toHaveLength(expected.length);
+    got.forEach((v, i) => expect(v).toBeCloseTo(expected[i], 5));
+    expect(rec.log).toContainEqual(['uniform1f', expect.stringMatching(/:uSize$/), PARTICLE_PX]);
+  });
+
+  it('glides between sim steps: parcels move every frame on wall time with no step taken', () => {
+    const sim = [];
+    const disp = [];
+    const m = mountLive(
+      <LedgerOcean width={1024} height={512} daysPerSecond={1} onFrame={(d, dd) => { sim.push(d); disp.push(dd); }} />,
+    );
+    const before = particleUploads().length;
+    m.frames(10);   // 160 ms at 1 d/s = 0.16 d: no 0.25 d step yet
+    expect(sim.at(-1)).toBe(0);
+    expect(disp.at(-1)).toBeCloseTo(0.16, 9);
+    const ups = particleUploads().slice(before);
+    expect(ups).toHaveLength(10);                                // one re-fill per frame
+    expect(ups[9][2][0]).not.toBe(ups[0][2][0]);                // parcel 0 has moved
+    // At 1 d/s the Danube (T ≈ 23 d ≥ 6 s × 1 d/s) runs literal; short rivers are slowed.
+    const rivers = getOceanWorld().sources.map((s) => prepareRiver(s)).filter(Boolean);
+    const expected = new Float32Array(rivers.length * PARTICLES_PER_RIVER * FLOATS_PER_PARTICLE);
+    fillParticles(rivers, rivers.map((r) => disp.at(-1) / Math.max(r.travelDays, MIN_CYCLE_S * 1)), expected);
+    ups[9][2].forEach((v, i) => expect(v).toBeCloseTo(expected[i], 5));
+  });
+
+  it('runs the ocean without parcels when the particle program fails to build', () => {
+    vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame', 'performance', 'setTimeout', 'clearTimeout', 'Date'] });
+    rec = installRecordingGL({ version: 2, extensions: FLOAT });
+    let links = 0;
+    // link 1 = display program, 2..6 = the five sim programs, 7 = particles.
+    rec.gl.getProgramParameter = () => { links += 1; return links !== 7; };
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    render(<LedgerOcean width={1024} height={512} />);
+    act(() => { vi.advanceTimersByTime(48); });
+    expect(err).toHaveBeenCalled();
+    expect(pointDraws()).toHaveLength(0);
+    expect(quads()).toBeGreaterThan(1);                         // the sim still steps and paints
+    expect(screen.queryByText(MODE_LABEL['static-shader'])).toBeNull();
+    expect(count('createProgram') - count('deleteProgram')).toBe(6);
+  });
+
+  it('releases the parcel program, VAO and buffer on unmount', () => {
+    const m = mountLive(<LedgerOcean width={1024} height={512} />);
+    m.unmount();
+    expect(count('deleteProgram')).toBe(count('createProgram'));
+    expect(count('deleteVertexArray')).toBe(count('createVertexArray'));
+    expect(count('deleteBuffer')).toBe(count('createBuffer'));
+  });
+});

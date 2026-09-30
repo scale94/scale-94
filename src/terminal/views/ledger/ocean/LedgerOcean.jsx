@@ -25,6 +25,10 @@ import { useShaderCanvas } from '../../../gl/useShaderCanvas';
 import { createFloatTexture } from '../../../gl/pingPong';
 import { getOceanWorld } from '../../../ledger/ocean/oceanWorld';
 import { createOceanGpu } from '../../../ledger/ocean/gpu/oceanGpu';
+import { createParticleLayer } from '../../../ledger/ocean/gpu/particleLayer';
+import {
+  prepareRiver, fillParticles, advanceParcelPhase, PARTICLES_PER_RIVER, FLOATS_PER_PARTICLE,
+} from '../../../ledger/ocean/riverStage';
 import { packSources } from '../../../ledger/ocean/gpu/gpuData';
 import { verdictSources } from '../../../ledger/ocean/sources';
 import { SIM_VS, COMPOSITE_FS, COMPOSITE_UNIFORMS } from '../../../ledger/ocean/gpu/shaders';
@@ -33,7 +37,7 @@ import { createStepClock } from '../../../ledger/ocean/clock';
 import { createOceanDriver, REDUCED_MOTION_DAYS } from './oceanDriver';
 import OceanHud from './OceanHud';
 import {
-  COMPACT_BELOW_PX, DEFAULT_COMPRESSION, PROBE_INTERVAL_MS, PROBE_TAP_HOLD_MS,
+  COMPACT_BELOW_PX, DEFAULT_COMPRESSION, PARTICLE_PX, PROBE_INTERVAL_MS, PROBE_TAP_HOLD_MS,
   describeSites, formatProbe, nextCompression, pickSite, pointerToLonLat,
 } from './hudFormat';
 
@@ -74,7 +78,7 @@ export default function LedgerOcean({
   daysPerSecond = DEFAULT_COMPRESSION,
   verdicts = NO_VERDICTS,
   latestHash = null,
-  onFrame = null,
+  onFrame = null, // (simDays, displayDays): step-clock days, and the wall-time interpolated display days
 }) {
   const canvasRef = useRef(null);
   const hudRef = useRef(null);
@@ -91,6 +95,10 @@ export default function LedgerOcean({
   const lostRef = useRef(false);
   const warmRef = useRef(false);
   const dirtyRef = useRef(true);
+  const particlesRef = useRef(null);
+  const fillRef = useRef({ rivers: null, n: 0 });
+  const phaseRef = useRef(new Map());   // river id → parcel phase (survives ghost edits)
+  const lastDisplayRef = useRef(0);
   const sizeRef = useRef({ width, height });
   const probeRef = useRef(null);
   const probeAtRef = useRef(-Infinity);
@@ -115,6 +123,14 @@ export default function LedgerOcean({
   const sourceDataRef = useRef(sourceData);
   sourceDataRef.current = sourceData;
 
+  // River stage: one prepared river per source with a course to walk.
+  const riverBuf = useMemo(() => {
+    const rivers = sources.map((s) => prepareRiver(s)).filter(Boolean);
+    return { rivers, buf: new Float32Array((rivers.length * PARTICLES_PER_RIVER + 1) * FLOATS_PER_PARTICLE) };
+  }, [sources]);
+  const riverBufRef = useRef(riverBuf);
+  riverBufRef.current = riverBuf;
+
   const readProbe = (now, sim) => {
     const p = probeRef.current;
     if (!p || now - probeAtRef.current < PROBE_INTERVAL_MS) return;
@@ -122,6 +138,34 @@ export default function LedgerOcean({
     const land = !!world.mask.land[p.k];
     const v = land || !sim ? null : sim.readCell(p.i, p.j);
     hudRef.current?.setProbe(formatProbe(p.lon, p.lat, v, land));
+  };
+
+  // River stage (spec §3): PARTICLES_PER_RIVER parcels per river, positions and
+  // colours from the exact kinetics, drawn as GL points over the composite.
+  // Re-filled whenever display time moves (every live frame: parcels glide
+  // between steps) or the river set changes; a held frame redraws the buffer.
+  const drawParticles = (gl) => {
+    const layer = particlesRef.current;
+    const driver = driverRef.current;
+    if (!layer || !driver) return;
+    const { rivers, buf } = riverBufRef.current;
+    // Glide: phases advance with display days (step clock + its wall-time
+    // remainder), slowed to ≥ MIN_CYCLE_S per course at the chosen compression.
+    const disp = driver.displayDays();
+    const dD = disp - lastDisplayRef.current;
+    lastDisplayRef.current = disp;
+    const phases = phaseRef.current;
+    if (dD > 0) {
+      for (const r of rivers) phases.set(r.id, advanceParcelPhase(phases.get(r.id) ?? 0, dD, r.travelDays, dpsRef.current));
+    }
+    const fill = fillRef.current;
+    if (dD > 0 || rivers !== fill.rivers) {
+      const n = fillParticles(rivers, rivers.map((r) => phases.get(r.id) ?? 0), buf);
+      layer.upload(buf, n);
+      fillRef.current = { rivers, n };
+    }
+    const scale = gl.canvas.width / Math.max(1, sizeRef.current.width);
+    layer.draw(0, fillRef.current.n, PARTICLE_PX * scale);
   };
 
   const { hostRef } = useShaderCanvas(canvasRef, {
@@ -160,6 +204,15 @@ export default function LedgerOcean({
         simRef.current = sim;
         driverRef.current = createOceanDriver({ clock: createStepClock(), step: () => sim.step() });
         texRef.current = { static: sim.staticTexture(), zero: null };
+        fillRef.current = { rivers: null, n: 0 };
+        lastDisplayRef.current = 0; // a new driver starts at T+0
+        try {
+          particlesRef.current = createParticleLayer(gl);
+        } catch (err) {
+          // The river stage draws over the ocean; without it the sim runs on.
+          console.error(err);
+          particlesRef.current = null;
+        }
       } else {
         texRef.current = {
           static: createFloatTexture(gl, grid.nx, grid.ny, world.staticData),
@@ -169,6 +222,8 @@ export default function LedgerOcean({
       }
     },
     onDispose: (gl) => {
+      particlesRef.current?.dispose();
+      particlesRef.current = null;
       simRef.current?.dispose();
       if (texRef.current?.zero) {
         gl.deleteTexture(texRef.current.zero);
@@ -205,11 +260,12 @@ export default function LedgerOcean({
       readProbe(now, sim);
       if (paintNow) {
         paint(host, world.grid, texRef.current, sim, tsec);
+        drawParticles(host.gl);
         dirtyRef.current = false;
       }
       const simDays = driver ? driver.simDays() : 0;
       hudRef.current?.setFrame({ simDays, frameMs: driver ? driver.frameMs() : 0, now });
-      onFrameRef.current?.(simDays);
+      onFrameRef.current?.(simDays, driver ? driver.displayDays() : 0);
     },
     onUnsupported: () => setMode('unsupported'),
     deps: [generation],
