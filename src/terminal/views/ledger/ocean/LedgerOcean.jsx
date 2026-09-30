@@ -1,7 +1,7 @@
 // LedgerOcean.jsx — the Ledger ocean: WebGL2 advection of audited discharge,
 // composited on the shared harness, with the HUD overlay (OceanHud). The sim
 // runs inside onInit/draw; the ledger is never written. Sources = the ambient
-// presets plus every archived verdict (straight-line course to its snapped
+// presets and mouth-only catalog rivers plus every archived verdict (straight-line course to its snapped
 // ocean cell). Without float render targets (or if a sim program fails to
 // build) it draws the static coastline only; without WebGL2 it says so.
 //

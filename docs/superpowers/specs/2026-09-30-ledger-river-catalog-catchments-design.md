@@ -78,8 +78,8 @@ catchmentTarget(lon, lat) -> { key, outfall: [lon, lat] } | null
 ```
 
 - Point-in-polygon by ray casting in lon/lat (no polygon crosses the antimeridian; asserted).
-- Rings are coarse (8–25 vertices), authored to follow major drainage divides, and ordered so the more specific basin comes first. An overlap test samples a lat/lon lattice and fails if any point falls in two rings.
-- The Nile ring lists both delta outfalls; the target is the nearer by great-circle distance.
+- Rings are coarse (up to ~45 vertices), authored to follow major drainage divides, and ordered so the more specific basin comes first. An exact overlap test fails on any proper edge crossing between two rings or any vertex strictly inside another ring (shared vertices and shared edges are allowed).
+- The Nile ring lists both delta outfalls; the target is the nearer by planar, cos(lat)-scaled lon/lat distance (not great-circle). Archived verdicts whose coordinates fall inside a ring are re-routed to that river's outfall the next time the ocean loads, so their drawn course and travel time change.
 
 Verdict and ghost sources (`verdictSourceSpec`, `ghostSourceSpec`): if `catchmentTarget` hits, the source's snap target becomes that river's snapped outfall cell, so the drawn course is the straight line site → outfall (the existing verdict course shape). On a miss, or if the outfall cell fails to snap, behaviour is exactly today's `snapToOcean(site, 64, lagoon filter)`. The 64-cell radius applies only to the fallback. The target is carried as `snapAt` on the spec; `buildSource` snaps to it at radius 8 (`CATCHMENT_SNAP_RADIUS_CELLS`) and otherwise snaps the course end as before.
 

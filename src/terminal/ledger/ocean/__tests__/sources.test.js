@@ -5,8 +5,9 @@ import { riverState } from '../kinetics';
 import {
   haversineKm, courseLengthKm, splatCells, buildSource,
   verdictSourceSpec, verdictSources, ghostSourceSpec, MIXED_LAYER_M, isUnlocated,
-  MIN_SNAP_BASIN_CELLS, ambientSources,
+  MIN_SNAP_BASIN_CELLS, ambientSources, oceanSources,
 } from '../sources';
+import { CATCHMENTS, catchmentTarget } from '../catchments';
 
 const grid = OCEAN_GRID;
 const mask = buildLandMask(grid);
@@ -284,5 +285,33 @@ describe('catchment routing of verdict and ghost sites', () => {
   it('carries no snapAt for a blank or non-numeric ghost', () => {
     const spec = ghostSourceSpec({ lat: '', lon: '13.4', temp: '12', do: '9.5', bod: '6', dt: '3.5', nitrate: '18', epi: '2', flow: '42' });
     expect(spec.snapAt).toBeNull();
+  });
+});
+
+describe('catchment outfall snapping', () => {
+  // One site known to sit inside each ring.
+  const SITE = {
+    elbe: [13.405, 52.52], rhine: [6.96, 50.94], danube: [16.37, 48.21], amazon: [-60.0217, -3.119],
+    parana: [-57.6, -25.3], congo: [15.3, -4.32], nile: [31.24, 30.04], niger: [2.11, 13.51],
+    stlawrence: [-73.57, 45.5], mississippi: [-90.07, 29.95], lena: [129.73, 62.03],
+    yenisey: [92.87, 56.01], yangtze: [114.3, 30.59], yellow: [113.65, 34.75], mekong: [104.92, 11.56],
+    ganges: [83.0, 25.3], indus: [74.35, 31.55],
+  };
+  const ambient = oceanSources(grid, mask);
+  it.each(CATCHMENTS.map((c) => [c.key]))('a verdict in the %s ring snaps to the matching ambient source cell', (key) => {
+    const c = CATCHMENTS.find((x) => x.key === key);
+    const [lon, lat] = SITE[key];
+    const target = catchmentTarget(lon, lat);
+    expect(target.key).toBe(key);
+    expect(c.outfalls).toContain(target.sourceId);
+    const v = buildSource(verdictSourceSpec({ hash: 'x', coordinates: { lat, lon }, input: { ...kernel } }), grid, mask);
+    const amb = ambient.find((a) => a.id === target.sourceId);
+    expect(v, key).not.toBeNull();
+    expect(amb, target.sourceId).toBeTruthy();
+    expect(v.snap.k, key).toBe(amb.snap.k);
+    if (key === 'nile') {
+      const mouths = c.outfalls.map((id) => ambient.find((a) => a.id === id).snap.k);
+      expect(mouths).toContain(v.snap.k);
+    }
   });
 });

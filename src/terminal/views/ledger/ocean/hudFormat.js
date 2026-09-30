@@ -132,7 +132,8 @@ export function pickSite(sites, x, y, w, h, radiusPx = RING_TAP_RADIUS_PX) {
 
 const PRESET_BY_ID = new Map(ALL_AUDIT_PRESETS.map((p) => [`preset:${p.key}`, p]));
 
-// Ring + tooltip data per built source (presets, verdicts, and the ghost). Snap distance: presets from the last
+// Ring + tooltip data per built source (presets, catalog rivers, verdicts, and the ghost; catalog sources are
+// mouth-only ambient sources, described like presets). Snap distance: presets from the last
 // point of their RIVERS course (the mouth) to the snapped ocean cell; verdicts
 // from the audit site (their course is the straight snap line).
 // courseCssPx: the drawn course's length on screen (site → mouth, CSS px in a
