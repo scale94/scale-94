@@ -13,6 +13,8 @@ import CrystalGeode    from '../earth/CrystalGeode';
 import AtmosphericFlow from '../air/AtmosphericFlow';
 import AtmoShell       from '../air/AtmoShell';
 import MercurySphere   from './MercurySphere';
+import MercuryPlanet   from './MercuryPlanet';
+import { CAMERA_DIST, ORBIT_LIMITS } from './planet/planetLook';
 import MercuryEnvironment from './MercuryEnvironment';
 import usePhaseTransition from './usePhaseTransition';
 
@@ -21,7 +23,6 @@ const GHOST_DENSITY = isMobile ? 150 : 300;
 
 export default function MercuryCanvas({
   params,
-  sargScore = 1.0,
   onPhaseChange = null,
   onFps = null,
   onElementFired = null,
@@ -68,7 +69,7 @@ export default function MercuryCanvas({
 
   return (
     <Canvas
-      camera={{ position: isMobile ? [0, 0, 6] : [0, 0, 5], fov: isMobile ? 48 : 42 }}
+      camera={{ position: [0, 0, isMobile ? CAMERA_DIST.mobile : CAMERA_DIST.desktop], fov: isMobile ? 48 : 42 }}
       dpr={dpr}
       gl={{ antialias: !isMobile, alpha: false, powerPreference: 'high-performance' }}
       style={{ background: '#000' }}
@@ -144,13 +145,13 @@ export default function MercuryCanvas({
         />
         <AtmoShell isMobile={isMobile} visible={false} />
 
+        <MercuryPlanet isMobile={isMobile} />
         <MercurySphere
           activePhase={activePhase}
           pendingPhase={pendingPhase}
           sphereState={sphereState}
           onNodeTap={handleNodeTap}
           onElementFired={onElementFired}
-          sargScore={sargScore}
           isMobile={isMobile}
         />
 
@@ -160,8 +161,8 @@ export default function MercuryCanvas({
           autoRotateSpeed={0.3}
           enableDamping
           dampingFactor={0.05}
-          minDistance={2.5}
-          maxDistance={7}
+          minDistance={ORBIT_LIMITS.min}
+          maxDistance={ORBIT_LIMITS.max}
           onStart={handleInteractionStart}
           onEnd={handleInteractionEnd}
         />

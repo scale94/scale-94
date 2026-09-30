@@ -195,16 +195,22 @@ export default function MercuryTab({ onNavigateTab }) {
               : 'calc(100svh - 260px)',
             minHeight: '300px',
             background: '#000',
+            position: 'relative',
             touchAction: 'none',
           }}
         >
           <MercuryCanvas
             params={mergedParams}
-            sargScore={1.0}
             onPhaseChange={setActivePhase}
             onFps={setFps}
             onElementFired={handleElementFired}
           />
+          <span
+            className="absolute bottom-2 right-3 pointer-events-none select-none font-mono uppercase"
+            style={{ fontSize: 9, letterSpacing: '0.18em', color: 'rgba(255,255,255,0.28)' }}
+          >
+            MESSENGER MDIS · USGS ASTROGEOLOGY
+          </span>
         </div>
       </div>
 

@@ -4,8 +4,7 @@ import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { ELEMENTS } from './elements';
 
-// Day-side light ref is set on the group and positioned to face the active orbit node,
-// creating the planet Mercury illumination: one bright hemisphere, one in shadow.
+// Orbit ring, mercury thread and elemental handles. The planet is MercuryPlanet.
 
 // Cardinal positions: N=air, E=fire(thermal), S=earth, W=water(fluid)
 // Alchemical triangle symbols: fire=▲, water=▽, air=▲+bar, earth=▽+bar
@@ -67,29 +66,20 @@ export default function MercurySphere({
   sphereState,
   onNodeTap,
   onElementFired = null,
-  sargScore = 1.0,
   isMobile = false,
 }) {
-  const sphereRef  = useRef();
   const ringRef    = useRef();
-  const dayLightRef = useRef();
   const orbitAngleRef = useRef(0);
   const cycleCountRef = useRef(0);
-
-  // Rotation velocity tracking for mercury viscosity deformation
-  const prevAzimuthRef = useRef(null);
-  const rotVelRef      = useRef(0);   // smoothed angular speed
-  // Spring-damper state for each axis (surface tension snap-back)
-  const deformXRef = useRef(1);
-  const deformYRef = useRef(1);
-  const deformZRef = useRef(1);
 
   // Click burst state for handle animation
   const [pressedPhase, setPressedPhase] = useState(null);
 
   const litPhase = pendingPhase ?? activePhase;
 
-  useFrame(({ camera }, delta) => {
+  // The planet itself is MercuryPlanet (raw shader, real Sun). This component
+  // keeps the orbit ring, the mercury thread and the element handles.
+  useFrame((_, delta) => {
     orbitAngleRef.current += PRECESSION_RATE * delta;
     if (orbitAngleRef.current >= Math.PI * 2) {
       cycleCountRef.current++;
@@ -99,124 +89,10 @@ export default function MercurySphere({
     if (ringRef.current) {
       ringRef.current.rotation.z = orbitAngleRef.current;
     }
-
-    // Day-side directional light tracks the active (lit) orbit node —
-    // creates planet Mercury's illuminated hemisphere facing the node.
-    if (dayLightRef.current) {
-      const litNode = ORBIT_NODES.find(n => n.phase === litPhase);
-      const nodeAngle = litNode ? litNode.angle + orbitAngleRef.current : 0;
-      dayLightRef.current.position.set(
-        Math.cos(nodeAngle) * 4,
-        Math.sin(nodeAngle) * 4,
-        2
-      );
-    }
-
-    // ── Mercury viscosity deformation ────────────────────────────────────────
-    // Track camera azimuth → angular speed → oblate spheroid deformation.
-    // Real liquid mercury: high surface tension (fast snap-back), low viscosity.
-    // Spinning creates equatorial bulge (X/Z grow) + polar squash (Y shrinks).
-    const azimuth = Math.atan2(camera.position.x, camera.position.z);
-    if (prevAzimuthRef.current !== null) {
-      let da = azimuth - prevAzimuthRef.current;
-      if (da >  Math.PI) da -= Math.PI * 2;
-      if (da < -Math.PI) da += Math.PI * 2;
-      const speed = Math.abs(da) / Math.max(delta, 0.001);
-      // Fast EMA: velocity collapses quickly when you stop (surface tension wins)
-      rotVelRef.current = rotVelRef.current * 0.68 + speed * 0.32;
-    }
-    prevAzimuthRef.current = azimuth;
-
-    if (sphereRef.current) {
-      const { elongation } = sphereState;
-      const litNode = ORBIT_NODES.find(n => n.phase === litPhase);
-      const targetAngle = litNode ? litNode.angle + orbitAngleRef.current : 0;
-      const baseX = 1 + elongation * 0.15 * Math.cos(targetAngle);
-      const baseY = 1 + elongation * 0.15 * Math.sin(targetAngle);
-
-      // Oblate deformation magnitude — up to 50% when spinning hard
-      const rotDeform = Math.min(rotVelRef.current * 0.58, 0.50);
-
-      // Target shape: oblate spheroid (equatorial bulge, polar flatten)
-      const txScale = baseX * (1 + rotDeform * 0.85); // equatorial X grows
-      const tyScale = baseY * (1 - rotDeform * 0.65); // polar Y squashes
-      const tzScale = 1     + rotDeform * 0.65;       // equatorial Z grows
-
-      // Surface tension spring: stiffness 20 → snaps back in ~3 frames at 60fps
-      const dt = Math.min(delta, 0.05);
-      const k  = Math.min(20 * dt, 0.95);
-      deformXRef.current += (txScale - deformXRef.current) * k;
-      deformYRef.current += (tyScale - deformYRef.current) * k;
-      deformZRef.current += (tzScale - deformZRef.current) * k;
-
-      sphereRef.current.scale.set(deformXRef.current, deformYRef.current, deformZRef.current);
-    }
   });
-
-  const activeNode   = ORBIT_NODES.find(n => n.phase === activePhase);
-  const pendingNode  = ORBIT_NODES.find(n => n.phase === pendingPhase) ?? activeNode;
-  const activeColor  = new THREE.Color(activeNode?.color  ?? ELEMENTS.fluid.color);
-  const pendingColor = new THREE.Color(pendingNode?.color ?? ELEMENTS.fluid.color);
-
-  const cp = sphereState.chromePhase; // 0 = planet, 1 = liquid Hg
-
-  // Planet Mercury: grey rocky surface with 12% element tint
-  const planetGrey = new THREE.Color('#787878').lerp(activeColor, 0.12);
-  // Liquid mercury: pure silver chrome
-  const liquidSilver = new THREE.Color('#c4c4c8');
-  // Element re-emergence: new element hue bleeds back in on day side
-  const emergeColor = liquidSilver.clone().lerp(
-    new THREE.Color(pendingNode?.color ?? ELEMENTS.fluid.color), sphereState.colorBlend * 0.25
-  );
-
-  // Interpolate: rocky planet → mirror liquid Hg
-  const sphereColor = planetGrey.clone().lerp(emergeColor, cp);
-
-  // Material properties (liquid endpoint = mercury optics, tuned in mercury-skin.html):
-  // Planet state  → rough 0.72, metalness 0.65 (rocky, diffuse, non-reflective)
-  // Liquid Hg     → rough 0.14, metalness 1.0  (mercury ~73% reflectance, faint blue-grey)
-  // NOT rough 0.02: a near-perfect mirror of the night env reflects almost nothing and
-  // throws hard white shards on every rippled facet — the old black-glass look. 0.14 is
-  // physically truer (chrome is ~95% neutral; mercury is dimmer and blue) and it holds
-  // together the moment the surface deforms. No clearcoat — mercury is not a coated surface.
-  const roughness  = 0.72 - cp * 0.58;   // → 0.14 at liquid
-  const metalness  = 0.65 + cp * 0.35;   // → 1.00 at liquid
-  const clearcoat  = 0;
-  const envIntensity = (0.3 + cp * 1.3) * Math.min(1, sargScore); // → 1.6 at liquid (moody, tuned against preset="night")
-
-  // Day-side light: cool grey in planet mode, pure chrome-white in liquid mode
-  const dayLightColor = new THREE.Color('#9a9aaa').lerp(new THREE.Color('#e8e8f0'), cp);
-  // Intensity ramps up during consolidation — the "polishing" moment
-  const dayIntensity = 1.8 + cp * 2.2;
 
   return (
     <group>
-      {/* Day-side directional light — positioned in useFrame toward active node */}
-      <directionalLight
-        ref={dayLightRef}
-        color={dayLightColor}
-        intensity={dayIntensity}
-        castShadow={false}
-      />
-      {/* Night-side fill — deep cold shadow */}
-      <directionalLight
-        position={[-3, -3, -2]}
-        color="#060610"
-        intensity={0.1}
-      />
-
-      {/* Mercury sphere — planet ↔ liquid Hg material transition */}
-      <mesh ref={sphereRef}>
-        <sphereGeometry args={[0.75, 64, 64]} />
-        <meshPhysicalMaterial
-          color={sphereColor}
-          metalness={metalness}
-          roughness={roughness}
-          clearcoat={clearcoat}
-          clearcoatRoughness={0.05}
-          envMapIntensity={envIntensity}
-        />
-      </mesh>
 
       {/* Orbit ring — precesses via rotation.z in useFrame */}
       <group ref={ringRef}>
