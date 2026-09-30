@@ -144,7 +144,11 @@ describe('sites', () => {
     });
     expect(usa.site).toEqual(RIVERS.usa.course[0]);
     expect(usa.snapKm).toBeCloseTo(haversineKm(RIVERS.usa.course.at(-1), usa.snap), 9);
-    expect(sites.filter((s) => s.kind === 'preset')).toHaveLength(world.sources.length);
+    expect(sites.filter((s) => s.kind === 'preset')).toHaveLength(
+      world.sources.filter((s) => s.kind === 'preset').length,
+    );
+    // nine presets; the world also carries thirteen catalog sources (22 total)
+    expect(world.sources.filter((s) => s.kind === 'preset')).toHaveLength(9);
   });
 
   it('describes a verdict by its status colour, measured from its audit site', () => {

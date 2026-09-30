@@ -116,5 +116,5 @@ describe('CATCHMENTS data', () => {
       }
     }
     expect(overlaps).toEqual([]);
-  });
+  }, 30000); // ~290k point-in-polygon scans: slow when the full suite runs in parallel
 });
