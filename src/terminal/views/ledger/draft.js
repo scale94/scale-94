@@ -5,6 +5,7 @@
 // delivery per animation frame, carrying the latest value.
 
 import { PARAM_RANGES, validateSubmission } from '../../ledger/verdictModel';
+import { isNullIslandInput } from '../../ledger/coordinates';
 
 const blank = (v) => {
   if (v === undefined || v === null) return true;
@@ -33,12 +34,11 @@ export function coordErrors(form) {
 }
 
 // Exactly 0°, 0°: the value a blank coordinate used to become. Refused at
-// submit and never copied from a prior entry.
+// submit and by the ghost, and never copied from a prior entry. The rule is
+// ledger/coordinates.js's form-input reading (it coerces typed strings).
 export const NULL_ISLAND_MESSAGE = '0°, 0° is open ocean. Enter the river site.';
 
-export function isNullIsland(lat, lon) {
-  return !blank(lat) && !blank(lon) && Number(lat) === 0 && Number(lon) === 0;
-}
+export const isNullIsland = isNullIslandInput;
 
 export function validDraft(form) {
   if (coordErrors(form).length) return null;

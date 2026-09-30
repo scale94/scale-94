@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { PARAM_RANGES } from '../../ledger/verdictModel';
 import { paramSeverity, discreteSeverity } from './severityEngine';
-import { isUnlocated, UNLOCATED_LABEL } from '../../ledger/ocean/sources';
+import { isUnlocatedRecord, UNLOCATED_LABEL } from '../../ledger/coordinates';
 
 const STATUS_COLORS = {
   APPROVED:       { text: 'text-green-400', border: 'border-green-800/30', glow: 'shadow-[0_0_12px_rgba(34,197,94,0.1)]' },
@@ -98,7 +98,7 @@ export default function VerdictCard({ verdict, onExport }) {
       {/* Coordinates + Hash */}
       <div className="font-mono text-xs text-zinc-400 mb-2">
         <span className="text-teal-600">coordinates:</span>{' '}
-        {isUnlocated(verdict.coordinates) ? (
+        {isUnlocatedRecord(verdict.coordinates) ? (
           <span data-coords="unlocated" className="text-zinc-500" title="Stored at exactly 0°, 0° (a blank coordinate in the ledger's first hours). Not placed on the ocean.">
             {UNLOCATED_LABEL}
           </span>

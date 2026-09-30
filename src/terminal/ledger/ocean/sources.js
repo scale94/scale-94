@@ -7,6 +7,7 @@ import { riverState, kd, kaRiver, criticalTime, doSat, manningVelocity } from '.
 import { snapToOcean } from './landMask';
 import { ALL_AUDIT_PRESETS } from '../auditPresets';
 import { RIVERS } from './riverCourses';
+import { isUnlocatedRecord, UNLOCATED_LABEL } from '../coordinates';
 
 export const MIXED_LAYER_M = 20;
 export const SPLAT_SIGMA_CELLS = 1.5;
@@ -162,14 +163,10 @@ export function ambientSources(grid, mask) {
     .filter(Boolean);
 }
 
-// A verdict stored at exactly 0°, 0° (numbers) is unlocated: for the ledger's
-// first hours a blank coordinate was stored as 0. The hashed record stays in
-// the archive, marked UNLOCATED; it never becomes a source, ring or plume.
-export const UNLOCATED_LABEL = 'UNLOCATED';
-
-export function isUnlocated(coordinates) {
-  return !!coordinates && coordinates.lat === 0 && coordinates.lon === 0;
-}
+// A verdict stored at exactly 0°, 0° (numbers) is unlocated; the rule lives
+// in ledger/coordinates.js (re-exported here under its earlier names).
+export { UNLOCATED_LABEL };
+export const isUnlocated = isUnlocatedRecord;
 
 // Every archived verdict is a permanent source (spec decision 2). A verdict
 // without usable coordinates (older records, empty form fields, or unlocated
@@ -179,7 +176,7 @@ export function verdictSources(verdicts, grid, mask) {
   for (const v of verdicts) {
     const c = v?.coordinates;
     if (!c || !v.input || !Number.isFinite(num(c.lat)) || !Number.isFinite(num(c.lon))) continue;
-    if (isUnlocated(c)) continue;
+    if (isUnlocatedRecord(c)) continue;
     const src = buildSource(verdictSourceSpec(v), grid, mask);
     if (src) out.push(src);
   }
