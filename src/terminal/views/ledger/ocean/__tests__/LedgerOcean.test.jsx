@@ -160,6 +160,59 @@ describe('LedgerOcean lifecycle', () => {
     expect(days.at(-1)).toBeCloseTo(REDUCED_MOTION_DAYS, 9);
   });
 
+  // The harness re-reads prefers-reduced-motion on every rebuild; the ocean
+  // must follow the value its current draw context was built with.
+  const flippableMotion = (on) => {
+    const state = { on };
+    vi.stubGlobal('matchMedia', (q) => ({
+      get matches() { return q.includes('reduce') && state.on; },
+      media: q, addEventListener() {}, removeEventListener() {},
+    }));
+    return state;
+  };
+  const loseAndRestore = () => {
+    const first = screen.getByLabelText(/Ledger ocean/);
+    act(() => { first.dispatchEvent(new Event('webglcontextlost', { cancelable: true })); });
+    act(() => { first.dispatchEvent(new Event('webglcontextrestored')); });
+  };
+
+  it('finishes the warm-up when reduced motion turns on between mount and a restore', () => {
+    const motion = flippableMotion(false);
+    const days = [];
+    const m = mountLive(<LedgerOcean width={512} height={256} onFrame={(d) => days.push(d)} />);
+    m.frames(3);
+    expect(screen.queryByText(/REDUCED MOTION/)).toBeNull();
+    motion.on = true;
+    loseAndRestore();
+    const painted = paints();
+    m.frames(WARM_FRAMES + 5);
+    expect(days.at(-1)).toBeCloseTo(REDUCED_MOTION_DAYS, 9);   // not frozen after one chunk
+    expect(paints()).toBe(painted + 1);
+    expect(screen.getByText(/REDUCED MOTION/)).toBeTruthy();
+  });
+
+  it('draws once per loop frame when reduced motion turns off between mount and a restore', () => {
+    const motion = flippableMotion(true);
+    const days = [];
+    const onFrame = (d) => days.push(d);
+    const m = mountLive(<LedgerOcean width={1024} height={512} onFrame={onFrame} />);
+    m.frames(WARM_FRAMES + 2);
+    // A probe asks for a held frame; that request is still pending across the rebuild.
+    act(() => { fireEvent.pointerMove(oceanCanvas(), { pointerType: 'mouse', clientX: 256, clientY: 128 }); });
+    motion.on = false;
+    loseAndRestore();
+    m.frames(3);
+    const before = days.length;
+    const dayBefore = days.at(-1);
+    // A ghost edit (and a resize) would each ask for a reduced-motion frame.
+    m.rerender(<LedgerOcean width={1024} height={512} onFrame={onFrame} ghost={G} />);
+    m.rerender(<LedgerOcean width={900} height={450} onFrame={onFrame} ghost={G} />);
+    m.frames(3);
+    expect(days.length - before).toBe(3);                      // the loop's frames only
+    expect(days.at(-1) - dayBefore).toBeLessThan(WARMUP_STEPS_PER_FRAME * DT_DAYS); // no warm-up chunk in a live ocean
+    expect(screen.queryByText(/REDUCED MOTION/)).toBeNull();
+  });
+
   it('repaints a held reduced-motion frame once after a resize', () => {
     reduceMotion();
     const m = mountLive(<LedgerOcean width={512} height={256} />);

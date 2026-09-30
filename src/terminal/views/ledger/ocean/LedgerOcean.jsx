@@ -89,7 +89,13 @@ export default function LedgerOcean({
   const canvasRef = useRef(null);
   const hudRef = useRef(null);
   const world = useMemo(() => getOceanWorld(), []);
-  const reducedMotion = useMemo(() => prefersReducedMotion(), []);
+  // Reduced motion as the current draw context was built with it: the harness
+  // re-reads the media query on every rebuild (a context restore) and passes
+  // it to each draw, so `draw` records it here. Frame requests, the seal and
+  // the HUD follow this value, never a read of their own. Until the first draw
+  // it holds the mount-time read.
+  const [reducedMotion, setReducedMotion] = useState(prefersReducedMotion);
+  const rmRef = useRef(reducedMotion);
   const [dps, setDps] = useState(daysPerSecond);
   const [mode, setMode] = useState('live'); // 'live' | 'static' | 'static-shader' | 'unsupported' | 'lost'
   const [generation, setGeneration] = useState(0);
@@ -227,6 +233,10 @@ export default function LedgerOcean({
   };
 
   const draw = (host, { now, dt, tsec, hidden, reducedMotion: rm }) => {
+    if (rm !== rmRef.current) {
+      rmRef.current = rm;
+      setReducedMotion(rm);
+    }
     if (lostRef.current) return;
     const sim = simRef.current;
     const driver = driverRef.current;
@@ -359,15 +369,16 @@ export default function LedgerOcean({
   });
 
   // One frame on demand under reduced motion (at most one pending); a no-op
-  // while the loop runs.
+  // while the loop runs. A request left pending across a rebuild that turned
+  // reduced motion off draws nothing.
   const requestFrame = useCallback(() => {
-    if (!reducedMotion || rafRef.current) return;
+    if (!rmRef.current || rafRef.current) return;
     rafRef.current = requestAnimationFrame((t) => {
       rafRef.current = 0;
       const host = hostRef.current;
-      if (host) drawRef.current(host, { now: t, dt: 0, tsec: t / 1000, hidden: document.hidden, reducedMotion: true });
+      if (host && rmRef.current) drawRef.current(host, { now: t, dt: 0, tsec: t / 1000, hidden: document.hidden, reducedMotion: true });
     });
-  }, [reducedMotion, hostRef]);
+  }, [hostRef]);
   requestFrameRef.current = requestFrame;
 
   useEffect(() => {
@@ -400,12 +411,12 @@ export default function LedgerOcean({
     }
     const src = sourcesRef.current.find((s) => s.id === sealHash);
     const river = src ? prepareRiver(src) : null;
-    if (!river || !particlesRef.current || reducedMotion || lostRef.current) {
+    if (!river || !particlesRef.current || rmRef.current || lostRef.current) {
       onSealDoneRef.current?.();
       return;
     }
     flareRef.current = { river, t0: null };
-  }, [sealHash, reducedMotion]);
+  }, [sealHash]);
 
   // Resize in place. Skips the mount pass (the host was just built at this
   // size): assigning canvas.width clears the drawing buffer even when the
