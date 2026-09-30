@@ -345,11 +345,11 @@ describe('OceanHud', () => {
     expect(dash.getAttribute('stroke-dasharray')).toBe(GHOST_DASH);
     expect(dash.style.animation).toBe('');
     expect(dash.style.animationName).toBe('');
-    // L = the line's on-screen length (non-scaling stroke: Chrome dashes in css px).
-    const L = Math.hypot(((122.1 - 120.6) / 360) * 1024, ((31.3 - 31.0) / 180) * 512);
-    const [a, b] = close.getAttribute('stroke-dasharray').split(' ').map(Number);
-    expect(a).toBeCloseTo(L, 3);
-    expect(b).toBeCloseTo(L, 3);
+    // pathLength 1: the dashes are fractions of the line, independent of units and of how
+    // (or whether) the renderer scales a non-scaling stroke's dashes.
+    expect(close.getAttribute('pathLength')).toBe('1');
+    expect(close.getAttribute('stroke-dasharray')).toBe('1 1');
+    expect(dash.getAttribute('pathLength')).toBeNull();
     // The flare's clock: SEAL_FLARE_MS, linear in time (frac = elapsed / SEAL_FLARE_MS) and in
     // position (a verdict course is one straight segment), played forwards once.
     expect(close.style.animationName).toBe('ocean-seal-close');
@@ -358,12 +358,22 @@ describe('OceanHud', () => {
     expect(close.style.animationDirection).toBe('normal');
     expect(close.style.animationIterationCount).toBe('1');
     expect(close.style.animationFillMode).toBe('both');
-    // Offset L → 0 with dasharray L L reveals from x1 (the site) towards x2 (the mouth).
+    // Offset 1 → 0 with dasharray 1 1 on pathLength 1 reveals from x1 (the site) towards x2 (the mouth).
     const css = container.querySelector('style').textContent.replace(/\s+/g, ' ');
-    const m = css.match(/@keyframes ocean-seal-close \{ from \{ stroke-dashoffset: ([\d.]+)px; \} to \{ stroke-dashoffset: 0px?; \} \}/);
+    const m = css.match(/@keyframes ocean-seal-close \{ from \{ stroke-dashoffset: ([\d.]+); \} to \{ stroke-dashoffset: ([\d.]+); \} \}/);
     expect(m).not.toBeNull();
-    expect(Number(m[1])).toBeCloseTo(L, 3);
+    expect(Number(m[1])).toBe(1);
+    expect(Number(m[2])).toBe(0);
     expect(css).not.toContain('ocean-seal-dash');
+    // Independent of the hero's size: the same close line and keyframes at any size, or none.
+    for (const size of [{ width: 390, height: 195 }, {}]) {
+      const other = hud({ sealId: 'h1', ...size });
+      const c = other.container.querySelector('line[data-seal="close"]');
+      expect(c.getAttribute('pathLength')).toBe('1');
+      expect(c.getAttribute('stroke-dasharray')).toBe('1 1');
+      expect(other.container.querySelector('style').textContent.replace(/\s+/g, ' ')).toBe(css);
+      other.unmount();
+    }
   });
 
   it('under reduced motion the sealed line is one solid line with no animation; after the seal, the normal line', () => {
