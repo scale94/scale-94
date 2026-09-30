@@ -612,6 +612,19 @@ describe('LedgerOcean seal', () => {
     expect(done).toHaveBeenCalledTimes(1);
   });
 
+  it('closes the sealed line on the flare: same start end, the hero-size line length, SEAL_FLARE_MS', () => {
+    const m = mountLive(<LedgerOcean width={1024} height={512} holdClock verdicts={[V]} sealHash="h1" onSealDone={() => {}} />);
+    m.frames(1);
+    const close = m.container.querySelector('line[data-line="h1"][data-seal="close"]');
+    const src = buildSource(verdictSourceSpec(V), getOceanWorld().grid, getOceanWorld().mask);
+    const [site, snap] = src.course;
+    expect(Number(close.getAttribute('x1'))).toBeCloseTo(site[0] + 180, 9);   // the flare's start (course[0])
+    const L = Math.hypot(((snap[0] - site[0]) / 360) * 1024, ((snap[1] - site[1]) / 180) * 512);
+    expect(Number(close.getAttribute('stroke-dasharray').split(' ')[0])).toBeCloseTo(L, 3);
+    expect(close.style.animationDuration).toBe(`${SEAL_FLARE_MS}ms`);
+    expect(m.container.querySelector('line[data-line="h1"][data-seal="dash"]').getAttribute('stroke-dasharray')).toBe('4 3');
+  });
+
   it('seals at once, with no flare, under reduced motion', () => {
     reduceMotion();
     const done = vi.fn();

@@ -2,7 +2,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { createRef } from 'react';
 import { render, screen, act, fireEvent } from '@testing-library/react';
 import OceanHud from '../OceanHud';
-import { GHOST_COLOR, HUD_TITLE, LEGEND_NOTES, MODE_LABEL, PROBE_HINT, PROBE_NOTE, PRESET_COLOR } from '../hudFormat';
+import { SEAL_FLARE_MS } from '../clockEase';
+import { GHOST_COLOR, GHOST_DASH, HUD_TITLE, LEGEND_NOTES, MODE_LABEL, PROBE_HINT, PROBE_NOTE, PRESET_COLOR } from '../hudFormat';
 
 const SITES = [
   { id: 'preset:usa', kind: 'preset', name: 'Lower Mississippi at New Orleans, USA', status: null, color: PRESET_COLOR,
@@ -313,15 +314,60 @@ describe('OceanHud', () => {
     expect(unsized.q('ghost-label').style.top).toBe(`${((90 - 30.59) / 180) * 100}%`);
   });
 
-  it('closes the sealed verdict line\'s dashes (not under reduced motion)', () => {
-    const { container } = hud({ sealId: 'h1' });
-    const line = container.querySelector('line[data-line="h1"]');
-    expect(line.getAttribute('data-sealing')).toBe('true');
-    expect(line.style.animation).toContain('ocean-seal-dash');
-    expect(container.querySelector('style').textContent).toContain('@keyframes ocean-seal-dash');
-    const still = hud({ sealId: 'h1', reducedMotion: true });
-    expect(still.container.querySelector('line[data-line="h1"]').style.animation).toBe('');
+  it('while sealing: the line keeps the ghost dashes and a solid stroke closes them behind the flare', () => {
+    const { container } = hud({ sealId: 'h1', width: 1024, height: 512 });
+    const lines = [...container.querySelectorAll('line[data-line="h1"]')];
+    expect(lines).toHaveLength(2);
+    const [dash, close] = lines;
+    for (const l of lines) {
+      expect(l.getAttribute('data-sealing')).toBe('true');
+      // Same geometry, starting at the audit site: the flare's start end (riverStage.writeFlare, frac 0 = course[0]).
+      expect(Number(l.getAttribute('x1'))).toBeCloseTo(120.6 + 180, 9);
+      expect(Number(l.getAttribute('y1'))).toBeCloseTo(90 - 31.3, 9);
+      expect(Number(l.getAttribute('x2'))).toBeCloseTo(122.1 + 180, 9);
+      expect(Number(l.getAttribute('y2'))).toBeCloseTo(90 - 31.0, 9);
+    }
+    expect(dash.getAttribute('stroke-dasharray')).toBe(GHOST_DASH);
+    expect(dash.style.animation).toBe('');
+    expect(dash.style.animationName).toBe('');
+    // L = the line's on-screen length (non-scaling stroke: Chrome dashes in css px).
+    const L = Math.hypot(((122.1 - 120.6) / 360) * 1024, ((31.3 - 31.0) / 180) * 512);
+    const [a, b] = close.getAttribute('stroke-dasharray').split(' ').map(Number);
+    expect(a).toBeCloseTo(L, 3);
+    expect(b).toBeCloseTo(L, 3);
+    // The flare's clock: SEAL_FLARE_MS, linear in time (frac = elapsed / SEAL_FLARE_MS) and in
+    // position (a verdict course is one straight segment), played forwards once.
+    expect(close.style.animationName).toBe('ocean-seal-close');
+    expect(close.style.animationDuration).toBe(`${SEAL_FLARE_MS}ms`);
+    expect(close.style.animationTimingFunction).toBe('linear');
+    expect(close.style.animationDirection).toBe('normal');
+    expect(close.style.animationIterationCount).toBe('1');
+    expect(close.style.animationFillMode).toBe('both');
+    // Offset L → 0 with dasharray L L reveals from x1 (the site) towards x2 (the mouth).
+    const css = container.querySelector('style').textContent.replace(/\s+/g, ' ');
+    const m = css.match(/@keyframes ocean-seal-close \{ from \{ stroke-dashoffset: ([\d.]+)px; \} to \{ stroke-dashoffset: 0px?; \} \}/);
+    expect(m).not.toBeNull();
+    expect(Number(m[1])).toBeCloseTo(L, 3);
+    expect(css).not.toContain('ocean-seal-dash');
   });
+
+  it('under reduced motion the sealed line is one solid line with no animation; after the seal, the normal line', () => {
+    const still = hud({ sealId: 'h1', reducedMotion: true, width: 1024, height: 512 });
+    let lines = still.container.querySelectorAll('line[data-line="h1"]');
+    expect(lines).toHaveLength(1);
+    expect(lines[0].getAttribute('stroke-dasharray')).toBeNull();
+    expect(lines[0].style.animation).toBe('');
+    expect(lines[0].style.animationName).toBe('');
+    still.unmount();
+    const after = hud({ sealId: null, width: 1024, height: 512 });
+    lines = after.container.querySelectorAll('line[data-line="h1"]');
+    expect(lines).toHaveLength(1);
+    expect(lines[0].getAttribute('stroke-dasharray')).toBeNull();
+    expect(lines[0].getAttribute('data-sealing')).toBeNull();
+    expect(lines[0].style.animation).toBe('');
+    expect(lines[0].style.animationName).toBe('');
+  });
+
   it('is one tab stop: arrow keys, Home and End rove between the rings', () => {
     const { container } = hud();
     expect(screen.getByRole('group', { name: 'Audit sites' })).toBeTruthy();

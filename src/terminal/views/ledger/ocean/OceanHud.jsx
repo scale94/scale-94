@@ -10,6 +10,7 @@ import {
   NOTES_TOGGLE_LABEL, SITES_GROUP_LABEL, formatClock, formatFrame, ghostLabelPlacement, keyStep, lonLatToPct,
   summaryLine, tooltipLines,
 } from './hudFormat';
+import { SEAL_FLARE_MS } from './clockEase';
 
 const INK = 'rgba(20,184,166,0.72)';
 const DIM = 'rgba(20,184,166,0.42)';
@@ -21,8 +22,27 @@ const RING_PX = 16;
 const RING_PX_COMPACT = 10;
 const TIP_Z = 3;
 const TIP_MARGIN_PX = 4;
-const SEAL_KEYFRAMES = '@keyframes ocean-seal-dash { from { stroke-dasharray: 4 3; } to { stroke-dasharray: 4 0; } }';
-const SEAL_ANIMATION = 'ocean-seal-dash 400ms ease-out both';
+// Dash-close (spec §4 Seal): while sealing, the verdict line keeps the ghost's
+// dashes and a solid copy is revealed over them from the site (the flare's
+// start, riverStage.writeFlare frac 0 = course[0]) to the mouth, on the
+// flare's clock: SEAL_FLARE_MS, linear (LedgerOcean frac = elapsed /
+// SEAL_FLARE_MS; a verdict course is one straight segment, so position is
+// linear in frac too). dasharray L L with the offset L → 0 grows the dash from
+// x1. The stroke is non-scaling, and Chrome dashes it in css px, so L is the
+// line's on-screen length.
+const SEAL_CLOSE = 'ocean-seal-close';
+// Longhands, so nothing is left to shorthand defaults.
+const SEAL_CLOSE_ANIMATION = {
+  animationName: SEAL_CLOSE,
+  animationDuration: `${SEAL_FLARE_MS}ms`,
+  animationTimingFunction: 'linear',
+  animationDelay: '0s',
+  animationIterationCount: '1',
+  animationDirection: 'normal',
+  animationFillMode: 'both',
+};
+const sealKeyframes = (L) =>
+  `@keyframes ${SEAL_CLOSE} { from { stroke-dashoffset: ${L}px; } to { stroke-dashoffset: 0px; } }`;
 const TICK_PX = 7;
 
 const controlStyle = {
@@ -125,6 +145,13 @@ const OceanHud = forwardRef(function OceanHud({
   const focused = sites.find((s) => s.id === focus) ?? null;
   const live = mode === 'live';
   const ringPx = compact ? RING_PX_COMPACT : RING_PX;
+  // The sealing line's on-screen length (css px), or null when there is no
+  // dash-close to run (no seal, reduced motion: the line is solid at once).
+  const sealSite = sealId && !reducedMotion ? sites.find((s) => s.id === sealId && s.kind === 'verdict') : null;
+  const sealLen = sealSite
+    ? Math.hypot(((sealSite.snap[0] - sealSite.site[0]) / 360) * (width > 0 ? width : 360),
+      ((sealSite.snap[1] - sealSite.site[1]) / 180) * (height > 0 ? height : 180))
+    : null;
 
   // Phone: any press dismisses an open tooltip (the page, a HUD control, the
   // ocean). A press on the ocean then reopens a ring on pointerup if it lands
@@ -164,7 +191,7 @@ const OceanHud = forwardRef(function OceanHud({
         letterSpacing: `${HUD_LETTER_SPACING_EM}em`, lineHeight: 1.5, color: INK,
       }}
     >
-      <style>{SEAL_KEYFRAMES}</style>
+      {sealLen !== null && <style>{sealKeyframes(sealLen)}</style>}
       <svg
         aria-hidden="true"
         viewBox="0 0 360 180"
@@ -173,17 +200,22 @@ const OceanHud = forwardRef(function OceanHud({
       >
         {sites
           .filter((s) => (s.kind === 'verdict' || s.kind === 'ghost') && Math.abs(s.snap[0] - s.site[0]) <= 180)
-          .map((s) => (
-            <line
-              key={s.id}
-              data-line={s.id}
-              x1={s.site[0] + 180} y1={90 - s.site[1]} x2={s.snap[0] + 180} y2={90 - s.snap[1]}
-              stroke={s.color} strokeOpacity="0.6" strokeWidth="1" vectorEffect="non-scaling-stroke"
-              strokeDasharray={s.kind === 'ghost' ? GHOST_DASH : undefined}
-              data-sealing={s.id === sealId ? 'true' : undefined}
-              style={s.id === sealId && !reducedMotion ? { animation: SEAL_ANIMATION } : undefined}
-            />
-          ))}
+          .flatMap((s) => {
+            const line = {
+              'data-line': s.id,
+              x1: s.site[0] + 180, y1: 90 - s.site[1], x2: s.snap[0] + 180, y2: 90 - s.snap[1],
+              stroke: s.color, strokeOpacity: '0.6', strokeWidth: '1', vectorEffect: 'non-scaling-stroke',
+              'data-sealing': s.id === sealId ? 'true' : undefined,
+            };
+            if (s.id === sealId && sealLen !== null) {
+              return [
+                <line key={`${s.id}:dash`} {...line} data-seal="dash" strokeDasharray={GHOST_DASH} />,
+                <line key={`${s.id}:close`} {...line} data-seal="close" strokeDasharray={`${sealLen} ${sealLen}`}
+                  style={SEAL_CLOSE_ANIMATION} />,
+              ];
+            }
+            return [<line key={s.id} {...line} strokeDasharray={s.kind === 'ghost' ? GHOST_DASH : undefined} />];
+          })}
       </svg>
 
       <div role="group" aria-label={SITES_GROUP_LABEL}>
