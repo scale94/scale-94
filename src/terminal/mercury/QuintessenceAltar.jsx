@@ -46,6 +46,9 @@ export default function QuintessenceAltar({ onDeposited, onNavigate }) {
   const armed = missing.length === 0 && stage === -1;
 
   const hold = useHoldToSeal(elId => ignite(elId));
+  // The hold outlasts a touch long-press (1200ms vs ~500ms), so on touch the OS
+  // fires `contextmenu` mid-hold. That must not cancel the ritual — swallow it.
+  const lastPointerType = useRef('mouse');
   const [confirming, setConfirming] = useState(null); // element id — keyboard path
 
   // Grid remount (stage back to -1): clear the hold latch. A completed hold
@@ -133,11 +136,14 @@ export default function QuintessenceAltar({ onDeposited, onNavigate }) {
             return (
               <button key={el.id} type="button"
                 data-wet={wet ? 'true' : 'false'}
-                onPointerDown={(e) => { if (armed && e.button === 0) hold.start(el.id); }}
+                onPointerDown={(e) => { lastPointerType.current = e.pointerType; if (armed && e.button === 0) hold.start(el.id); }}
                 onPointerUp={() => hold.cancel()}
                 onPointerLeave={() => hold.cancel()}
                 onPointerCancel={() => hold.cancel()}
-                onContextMenu={() => hold.cancel()}
+                onContextMenu={(e) => {
+                  if (lastPointerType.current === 'mouse') hold.cancel();
+                  else e.preventDefault();
+                }}
                 onClick={() => { if (hold.consumedClick()) return; onNavigate?.(el.house); }}
                 onKeyDown={(e) => {
                   if (armed && (e.key === 'Enter' || e.key === ' ')) {
@@ -145,6 +151,7 @@ export default function QuintessenceAltar({ onDeposited, onNavigate }) {
                     setConfirming(el.id);
                   }
                 }}
+                style={{ touchAction: 'pan-y', WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
                 className={`border p-4 text-center font-mono transition-colors cursor-pointer relative ${armed
                   ? 'border-amber-500/40 text-amber-200 hover:border-amber-300 hover:bg-amber-950/20'
                   : 'border-zinc-800 text-zinc-400 hover:border-zinc-600 hover:bg-zinc-900/30'}`}>
