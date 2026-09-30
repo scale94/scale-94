@@ -476,6 +476,27 @@ describe('LedgerOcean ghost', () => {
     expect(paints()).toBe(3);   // the held frame repaints once per ghost change (its parcels), no more
   });
 
+  it('never bakes a ghost into the reduced-motion warm-up, and uploads its bands once warm', () => {
+    reduceMotion();
+    const days = [];
+    const onFrame = (d) => days.push(d);
+    // A ghost present from mount (a restore while typing) ...
+    const m = mountLive(<LedgerOcean width={1024} height={512} onFrame={onFrame} ghost={G} />);
+    m.frames(3);
+    // ... and one edited mid warm-up (Submit reopened during a re-warm).
+    m.rerender(<LedgerOcean width={1024} height={512} onFrame={onFrame} ghost={{ ...G, lat: 22.3, lon: 113.9 }} />);
+    m.frames(WARM_FRAMES + 2);
+    expect(days.at(-1)).toBeCloseTo(REDUCED_MOTION_DAYS, 9);
+    expect(subUploads()).toHaveLength(0);
+    // Warm: a ghost edit uploads its bands and repaints the held frame, clock untouched.
+    const painted = paints();
+    m.rerender(<LedgerOcean width={1024} height={512} onFrame={onFrame} ghost={G} />);
+    m.frames(2);
+    expect(subUploads().length).toBeGreaterThan(0);
+    expect(paints()).toBe(painted + 1);
+    expect(days.at(-1)).toBeCloseTo(REDUCED_MOTION_DAYS, 9);
+  });
+
   it('re-adds the ghost after a full upload of the permanent sources', () => {
     const m = mountLive(<LedgerOcean width={1024} height={512} ghost={G} />);
     m.frames(1);

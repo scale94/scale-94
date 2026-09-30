@@ -240,8 +240,10 @@ export default function LedgerOcean({
       }
     }
     // Ghost: rewrite only the rows its old and new splats touch (≤ 11 each),
-    // from the permanent rows plus the new ghost. No warm-up reset.
-    if (sim && ghostUploadedRef.current !== ghostRef.current) {
+    // from the permanent rows plus the new ghost. No warm-up reset. Under
+    // reduced motion it waits for the warm-up to finish, so the provisional
+    // plume is never integrated into the held frame (its parcels still show).
+    if (sim && ghostUploadedRef.current !== ghostRef.current && !(rm && !warmRef.current)) {
       const prev = ghostUploadedRef.current;
       const next = ghostRef.current;
       const extra = next ? [next] : [];
