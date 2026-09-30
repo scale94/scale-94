@@ -19,7 +19,13 @@
 5. **Danube tone = `safe`** (the spec says "safe/stress"): every parameter safe, nitrate 19 mg/L just under the 20 mg/L stress line — the repaid debt that is not gone. Worked example with the candidate data: travel 23.1 d, 2.5 % of BOD and 68 % of nitrate reach Sulina, `DO_MIN 9.9 mg/L @ rkm 1776` (spec: ~25 d, ~2 %, ~66 %).
 6. **Lagoon rule = `MIN_SNAP_BASIN_CELLS = 40`, applied to every source.** Measured on the real 512×256 grid (37 basins): world ocean 77,939 cells, Mediterranean 511 (Gibraltar is sub-grid), Black Sea 98, Caspian 91, Red Sea 81 (Bab-el-Mandeb is sub-grid); then White Sea 20, an Arctic-Canada basin 18, and 30 basins of 1–6 cells (82 ocean cells in basins < 40). 40 sits between 20 and 81. All nine preset mouths snap into basins ≥ 81, so preset snaps are provably unchanged (tested). Consequence to flag: a White Sea site (Arkhangelsk) now drains to the open ocean 3 cells (235 km) away.
 7. **Particles: GL points in the ocean's context, positions/colours on the CPU.** ~9 × 256 = 2,304 parcels (+256 per verdict): the CPU cost is a few thousand `exp` calls per simulated step, so no GPU sim is needed; drawing them in the same GL context keeps one canvas, the ocean's lifecycle (resize in place, context loss, hidden pane) and the tested composite order. A second 2D canvas would need its own DPR sizing, its own resize path and cannot be tested in jsdom (no 2D context). The harness files stay frozen; the layer is a new file built with the exported `buildProgram`.
-8. **Parcels advance on the stepped simulated clock** (`driver.simDays()`, 0.25 d steps), exactly the ocean's time. At 9 d/s short rivers (Mississippi 1.6 d, Rhine 3.3 d of travel) cycle in well under a second; the Danube takes ~2.6 s. That is the physics on the compressed clock; the visual review decides whether it reads.
+8. **Parcel motion: smooth and slower (user decision 2026-09-30, replaces the stepped draft).**
+   - *Glide:* parcels move on `driver.displayDays()` = stepped sim days + the step clock's fractional accumulator × Δt (wall time, never frame counts), so they glide between 0.25 d steps. The ocean state itself still steps.
+   - *Minimum visual cycle `MIN_CYCLE_S = 6`:* a river's parcels advance their phase by `dDays / max(T, MIN_CYCLE_S × dps)` (T = travel days, dps = the chosen compression). A river is shown at literal Manning speed when its course takes ≥ 6 wall seconds at the current compression, and slowed to exactly one course per 6 s otherwise. At 9 d/s that is every preset (Danube 23.1 d → literal 2.6 s; Mississippi 1.6 d → 0.18 s; Rio Doce, Hamhung, Citarum, Mercury ≪ 0.1 s); at 1 d/s the Danube (23 s), Yangtze and others with T ≥ 6 d run literal. Why 6 s: the user's calibration is hypnotic, tactile motion; a 6 s traverse is a slow drift at every hero width, and it removes the sub-second flicker/strobing that 256 parcels on a 4–20 px course would otherwise produce. During the seal hold the parcels slow with the clock (their phase advances with display days).
+   - *Physics unchanged, colour exact:* a parcel's colour is `riverState` at the travel time implied by its **position** (t = fraction of course × T), so the colour-along-course pattern is the exact plug-flow steady state; only the speed at which parcels traverse it is slowed. Travel time is interpolated first, then evaluated.
+   - *No trails (trail length 0):* at ≥ 6 s per course, 256 parcels are spaced course/256 apart — denser than any trail — so a trail adds draw cost and no continuity.
+   - *Honesty note:* a 7th legend note `RIVER PARCELS ≥ 6 S PER COURSE · SLOWED · COLOUR EXACT` (always shown: at the default 9 d/s every river is slowed).
+9a. **User decisions recorded (2026-09-30):** White Sea skipped at threshold 40 — accepted; Danube tone `safe` — accepted; `EXTRA_PRESETS` export, Ganges site Chandpur, Yangtze Wusongkou (research confirms) — accepted.
 9. **Reduced motion: the harness loop is halted (`haltOnReducedMotion: true`) and `LedgerOcean` requests frames on demand** (warm-up chain, resize, new source, ghost, probe, archive ready). This fixes the 3a "idle rAF loop at 360 Hz" deferral without touching `frameLoop`/`useShaderCanvas`.
 10. **Reduced-motion archive warm-up:** `LedgerOcean` gains `sourcesReady` (default `true`); `LedgerTab` passes `false` until `getAllVerdicts()` has settled. The warm-up waits for it, so a first visit with an archive reads `T+ 200.00 d`, not up to 400.
 11. **Seal timings (spec says "~0.6 s", nothing else):** smoothstep ease over `SEAL_EASE_MS = 600` to `HOLD_FACTOR = 0.02` of the chosen compression (9 d/s → 0.18 d/s); flare lasts `SEAL_FLARE_MS = 1200` ms of wall time; the clock eases back when the flare reports done. Under reduced motion, or without a drawable river stage, the seal completes at once with no flare.
@@ -45,6 +51,7 @@
   - Grid 512×256, Δt = 0.25 d (`DT_DAYS`), hero 2:1, compact HUD below 640 px hero width (`COMPACT_BELOW_PX`; jsdom tests at width 512 are compact — use 1024 for desktop HUD assertions).
   - `MIN_SNAP_BASIN_CELLS = 40` (measured basin sizes in decision 6).
   - `PARTICLES_PER_RIVER = 256`, `FLOATS_PER_PARTICLE = 6` (clip x, clip y, r, g, b, a), `GHOST_ALPHA = 0.5`, `PARTICLE_PX = 2`, `FLARE_PX = 7` (CSS px; multiplied by canvas px / CSS px).
+  - Parcel motion: `MIN_CYCLE_S = 6` (phase += dDisplayDays / max(T, 6 × dps)), trail length 0, positions on `driver.displayDays()` (interpolated on wall time); legend note `RIVER PARCELS ≥ 6 S PER COURSE · SLOWED · COLOUR EXACT`.
   - `RIVER_PALETTE = { crimson: [1, 0.09, 0.2], amber: [1, 0.62, 0], green: [0.22, 1, 0.08], ref: [2, 10, 10], deficitDim: 0.8, minAlpha: 0.25 }`.
   - Ghost: splat radius `ceil(3 × SPLAT_SIGMA_CELLS) = 5` → at most 11 rows per splat; `GHOST_COLOR = '#cbd5e1'`, `GHOST_DASH = '4 3'`, `GHOST_LABEL = 'PROVISIONAL'`.
   - Seal: `SEAL_EASE_MS = 600`, `HOLD_FACTOR = 0.02`, `SEAL_FLARE_MS = 1200`; dash-close animation `ocean-seal-dash` 400 ms.
@@ -59,7 +66,9 @@
 |---|---|
 | `src/terminal/ledger/ocean/landMask.js` (modify) | `basinSize` per ocean basin; `snapToOcean(..., accept)` filter |
 | `src/terminal/ledger/ocean/sources.js` (modify) | `MIN_SNAP_BASIN_CELLS`; river-stage fields on built sources (`kernel`, `velocityMs`, `depthM`, `courseKm`, `critical.courseKm`); optional `riverKm`; presets from `ALL_AUDIT_PRESETS` |
-| `src/terminal/ledger/ocean/riverStage.js` (new) | parcels: course geometry, travel times, colours, buffer fill, DO_MIN tick geometry, flare vertex |
+| `src/terminal/ledger/ocean/riverStage.js` (new) | parcels: course geometry, phases (glide, ≥ 6 s per course), travel times, colours, buffer fill, DO_MIN tick geometry, flare vertex |
+| `src/terminal/ledger/ocean/clock.js` (modify, additive) | `fraction()`: the wall-time remainder between steps |
+| `src/terminal/views/ledger/ocean/oceanDriver.js` (modify, additive) | `displayDays()`: interpolated display time |
 | `src/terminal/ledger/ocean/gpu/palette.js` (modify, additive) | `RIVER_PALETTE` |
 | `src/terminal/ledger/ocean/gpu/particleShaders.js` (new) | point VS/FS sources (import-free, so the Node gate script can load them) |
 | `src/terminal/ledger/ocean/gpu/particleLayer.js` (new) | program + VAO + buffer; `upload`, `draw`, `dispose` |
@@ -90,7 +99,6 @@
 | Runtime reduced-motion flip | Unreachable: `useShaderCanvas` snapshots `reducedMotion` at host build (3a final review). |
 | Mercury audit site ~15 km W of the real Blue Eye (lon 20.0088 vs ~20.19) | `AUDIT_PRESETS` must stay byte-identical (spec §3 / §6). Needs a user decision to unfreeze. |
 | Zoom loupe for short rivers (Citarum ≈ 21 km, Mercury ≈ 10 km, Hamhung — parcels are sub-pixel) | Spec "Out of scope (phase-2 backlog)". |
-| Continuous parcel motion between 0.25 d steps | Would need the clock's sub-step accumulator exposed; parcels move with the ocean's own stepped time (decision 8). |
 | `aria-describedby` from ring to tooltip | Harmless per the 3a review: the ring's `aria-label` already carries every tooltip line. |
 | No hysteresis on the 20 ms load cap; `frameMs === 0` sentinel; test-name wording | 3a final review: no-ops. |
 | `oceanGpu` labels every construction throw `SIM SHADERS FAILED` | Still true: only program builds throw there (3b adds no throwing step to it; the particle layer has its own catch). |
@@ -297,20 +305,22 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ---
 
-### Task 2: River-stage core — source fields, `riverKm`, parcels, tick geometry
+### Task 2: River-stage core — source fields, `riverKm`, parcels, tick geometry, smooth motion
 
 **Files:**
 - Modify: `src/terminal/ledger/ocean/sources.js` (`buildSource`, `presetSourceSpec`)
 - Modify: `src/terminal/ledger/ocean/gpu/palette.js` (append)
+- Modify: `src/terminal/ledger/ocean/clock.js` (additive `fraction()`), `src/terminal/views/ledger/ocean/oceanDriver.js` (additive `displayDays()`)
 - Create: `src/terminal/ledger/ocean/riverStage.js`
-- Test: `src/terminal/ledger/ocean/__tests__/sources.test.js`, `src/terminal/ledger/ocean/__tests__/riverStage.test.js` (new)
+- Test: `src/terminal/ledger/ocean/__tests__/sources.test.js`, `src/terminal/ledger/ocean/__tests__/riverStage.test.js` (new), `src/terminal/views/ledger/ocean/__tests__/oceanDriver.test.js`
 
 **Interfaces:**
 - Consumes: `riverState(kernel, tDays, { velocityMs, depthM })` → `{ dT, L, N, D }`; `doSat(tempC)`; `haversineKm`; `courseLengthKm`.
 - Produces:
   - `buildSource(spec)` accepts optional `spec.riverKm` (> 0, else the source is rejected with `null`). Returned object gains `kernel` (`{ temp, do, bod, dt, nitrate }`, numbers), `velocityMs`, `depthM`, `courseKm` (drawn polyline length), and `critical.courseKm` (km along the polyline of the critical point). `lengthKm` = `riverKm` when given, else `courseKm`; `travelDays`, `critical.rkm`, `critical.kmFromSite` use `lengthKm`.
   - `presetSourceSpec(preset, river)` passes `riverKm: river.riverKm ?? null`.
-  - `riverStage.js`: `PARTICLES_PER_RIVER = 256`, `FLOATS_PER_PARTICLE = 6`, `GHOST_ALPHA = 0.5`, `cumulativeKm(course) → Float64Array`, `coursePoint(course, cum, s) → [lon, lat]`, `courseTick(course, cum, s) → { lon, lat, angleDeg } | null`, `prepareRiver(src, { alpha = 1 } = {}) → River | null`, `parcelTime(p, simDays, travelDays, n = 256) → days`, `particleColor(state, sat, alpha = 1, out = new Float32Array(4), off = 0) → out`, `fillParticles(rivers, simDays, out) → count`.
+  - `riverStage.js`: `PARTICLES_PER_RIVER = 256`, `FLOATS_PER_PARTICLE = 6`, `GHOST_ALPHA = 0.5`, `MIN_CYCLE_S = 6`, `cumulativeKm(course) → Float64Array`, `coursePoint(course, cum, s) → [lon, lat]`, `courseTick(course, cum, s) → { lon, lat, angleDeg } | null`, `prepareRiver(src, { alpha = 1 } = {}) → River | null`, `advanceParcelPhase(phase, dDays, travelDays, dps) → phase in [0, 1)`, `parcelTime(p, phase, travelDays, n = 256) → days`, `particleColor(state, sat, alpha = 1, out = new Float32Array(4), off = 0) → out`, `fillParticles(rivers, phases, out) → count` (`phases[i]` belongs to `rivers[i]`).
+  - `clock.js`: `fraction() → [0, 1)` = the undrawn accumulator in steps (wall-time remainder). `oceanDriver.js`: `displayDays() = simDays() + clock.fraction() × dtDays` (monotone; equals `simDays()` right after a step or a dropped backlog).
   - `palette.js`: `RIVER_PALETTE` (Global Constraints).
 
 - [ ] **Step 1: Write the failing tests**
@@ -371,8 +381,8 @@ import { riverState, doSat } from '../kinetics';
 import { haversineKm } from '../sources';
 import { RIVER_PALETTE } from '../gpu/palette';
 import {
-  PARTICLES_PER_RIVER, FLOATS_PER_PARTICLE, cumulativeKm, coursePoint, courseTick,
-  prepareRiver, parcelTime, particleColor, fillParticles,
+  PARTICLES_PER_RIVER, FLOATS_PER_PARTICLE, MIN_CYCLE_S, cumulativeKm, coursePoint, courseTick,
+  prepareRiver, advanceParcelPhase, parcelTime, particleColor, fillParticles,
 } from '../riverStage';
 
 const L_COURSE = [[0, 0], [10, 0], [10, 10]];
@@ -410,15 +420,41 @@ describe('course geometry', () => {
 describe('parcels', () => {
   it('spaces parcels evenly in travel time and wraps them at the mouth', () => {
     const T = 10;
-    const ts = Array.from({ length: PARTICLES_PER_RIVER }, (_, p) => parcelTime(p, 3.3, T));
+    const ts = Array.from({ length: PARTICLES_PER_RIVER }, (_, p) => parcelTime(p, 0.33, T));
     for (const t of ts) {
       expect(t).toBeGreaterThanOrEqual(0);
       expect(t).toBeLessThan(T);
     }
     const sorted = [...ts].sort((a, b) => a - b);
     for (let p = 1; p < sorted.length; p++) expect(sorted[p] - sorted[p - 1]).toBeCloseTo(T / PARTICLES_PER_RIVER, 9);
-    expect(parcelTime(7, 3.3 + T, T)).toBeCloseTo(parcelTime(7, 3.3, T), 9);
+    expect(parcelTime(7, 1.33, T)).toBeCloseTo(parcelTime(7, 0.33, T), 9);
     expect(parcelTime(0, 0, T)).toBeCloseTo((0.5 / PARTICLES_PER_RIVER) * T, 12);
+  });
+
+  it('moves literally when a course takes ≥ MIN_CYCLE_S of wall time, else one course per MIN_CYCLE_S', () => {
+    expect(MIN_CYCLE_S).toBe(6);
+    // Danube-like: 23 d at 1 d/s = 23 s per course ≥ 6 s → literal: 2.3 d is a tenth of the course.
+    expect(advanceParcelPhase(0, 2.3, 23, 1)).toBeCloseTo(0.1, 12);
+    // Mississippi-like: 1.6 d at 9 d/s = 0.18 s per course → slowed: 1 wall second (9 d) is 1/6 course.
+    expect(advanceParcelPhase(0, 9, 1.6, 9)).toBeCloseTo(1 / 6, 12);
+    expect(advanceParcelPhase(0.9, 9, 1.6, 9)).toBeCloseTo((0.9 + 1 / 6) % 1, 12);
+    expect(advanceParcelPhase(0.3, 0, 1.6, 9)).toBe(0.3);
+  });
+
+  it('interpolates between sim steps: at alpha 0.5 a parcel lies between its two step positions', () => {
+    const river = prepareRiver({ ...src, travelDays: 10 });
+    const lonAt = (days) => {
+      const out = new Float32Array(PARTICLES_PER_RIVER * FLOATS_PER_PARTICLE);
+      fillParticles([river], [advanceParcelPhase(0, days, 10, 1)], out);
+      return out[0] * 180;
+    };
+    const a = lonAt(1);          // step k
+    const b = lonAt(1.25);       // step k + 1 (Δt = 0.25 d)
+    const mid = lonAt(1.125);    // alpha 0.5
+    expect(b).toBeGreaterThan(a);
+    expect(mid).toBeGreaterThan(a);
+    expect(mid).toBeLessThan(b);
+    expect(mid).toBeCloseTo((a + b) / 2, 4);   // straight course, constant speed
   });
 
   it('colours a parcel by the §1 palette, deficit as absence of light', () => {
@@ -448,9 +484,9 @@ describe('parcels', () => {
   it('fills 256 parcels per river from the exact kinetics at each travel time', () => {
     const river = prepareRiver(src);
     const out = new Float32Array(PARTICLES_PER_RIVER * FLOATS_PER_PARTICLE);
-    expect(fillParticles([river], 3.3, out)).toBe(PARTICLES_PER_RIVER);
+    expect(fillParticles([river], [0.33], out)).toBe(PARTICLES_PER_RIVER);
     for (const p of [0, 100, 255]) {
-      const t = parcelTime(p, 3.3, 10);
+      const t = parcelTime(p, 0.33, 10);
       const [lon, lat] = coursePoint(src.course, river.cum, (t / 10) * src.courseKm);
       const c = particleColor(riverState(src.kernel, t, { velocityMs: 1, depthM: 4 }), doSat(20), 1);
       const o = p * FLOATS_PER_PARTICLE;
@@ -469,10 +505,49 @@ describe('parcels', () => {
 });
 ```
 
+Append to `src/terminal/views/ledger/ocean/__tests__/oceanDriver.test.js` (add `import { advanceParcelPhase } from '../../../../ledger/ocean/riverStage';` and `DT_DAYS` from `'../../../../ledger/ocean/grid'`):
+
+```js
+describe('display time (smooth parcels)', () => {
+  it('interpolates between steps on the wall-time remainder: alpha 0.5 → half a step', () => {
+    const d = createOceanDriver({ clock: createStepClock(), step: () => {} });
+    d.advance(DT_DAYS / 2 / 9, 9);                 // owes half a step: no step yet
+    expect(d.simDays()).toBe(0);
+    expect(d.displayDays()).toBeCloseTo(DT_DAYS / 2, 12);
+    d.advance(DT_DAYS / 2 / 9, 9);                 // completes the step
+    expect(d.simDays()).toBeCloseTo(DT_DAYS, 12);
+    expect(d.displayDays()).toBeCloseTo(DT_DAYS, 9);
+  });
+
+  it('gives the same parcel phase at the same wall time for 60 Hz and 360 Hz frames', () => {
+    const run = (hz) => {
+      const d = createOceanDriver({ clock: createStepClock(), step: () => {} });
+      let phase = 0;
+      let last = 0;
+      const out = [];
+      for (let f = 1; f <= hz; f++) {                // one wall second
+        d.advance(1 / hz, 9);
+        const disp = d.displayDays();
+        phase = advanceParcelPhase(phase, disp - last, 1.6, 9);
+        last = disp;
+        if (f % (hz / 4) === 0) out.push(phase);    // at 250, 500, 750, 1000 ms
+      }
+      return { last, out };
+    };
+    const a = run(60);
+    const b = run(360);
+    expect(a.last).toBeCloseTo(9, 9);
+    expect(b.last).toBeCloseTo(9, 9);
+    for (let i = 0; i < 4; i++) expect(b.out[i]).toBeCloseTo(a.out[i], 9);
+    expect(a.out[3]).toBeCloseTo((9 / (6 * 9)) % 1, 9);   // slowed: one course per 6 s
+  });
+});
+```
+
 - [ ] **Step 2: Run to verify they fail**
 
-Run: `npx vitest run src/terminal/ledger/ocean/__tests__/sources.test.js src/terminal/ledger/ocean/__tests__/riverStage.test.js`
-Expected: FAIL — `riverStage` module not found; `s.kernel` undefined; `lengthKm` is the polyline length.
+Run: `npx vitest run src/terminal/ledger/ocean/__tests__/sources.test.js src/terminal/ledger/ocean/__tests__/riverStage.test.js src/terminal/views/ledger/ocean/__tests__/oceanDriver.test.js`
+Expected: FAIL — `riverStage` module not found; `s.kernel` undefined; `lengthKm` is the polyline length; `d.displayDays` is not a function.
 
 - [ ] **Step 3: Implement `buildSource` / `presetSourceSpec`**
 
@@ -637,11 +712,27 @@ export function prepareRiver(src, { alpha = 1 } = {}) {
   };
 }
 
-// Travel time of parcel p at simulated day simDays: evenly spaced over the
-// course, wrapping at the mouth (a parcel reaching the sea respawns at the site).
-export function parcelTime(p, simDays, travelDays, n = PARTICLES_PER_RIVER) {
-  const t = ((p + 0.5) / n) * travelDays + simDays;
-  return t - Math.floor(t / travelDays) * travelDays;
+// Smooth, slower motion (user decision 2026-09-30). A river's phase (0..1, one
+// course per unit) advances with DISPLAY days (wall-time interpolated, never
+// frame-counted). A course that takes ≥ MIN_CYCLE_S wall seconds at the chosen
+// compression moves at literal Manning speed; a shorter one is slowed to one
+// course per MIN_CYCLE_S so it glides instead of strobing. Colour stays exact
+// (parcelTime → riverState): only the traverse speed is slowed. Legend:
+// RIVER PARCELS ≥ 6 S PER COURSE · SLOWED · COLOUR EXACT.
+export const MIN_CYCLE_S = 6;
+
+export function advanceParcelPhase(phase, dDays, travelDays, dps) {
+  if (!(dDays > 0)) return phase;
+  const next = phase + dDays / Math.max(travelDays, MIN_CYCLE_S * dps);
+  return next - Math.floor(next);
+}
+
+// Travel time of parcel p at river phase `phase`: evenly spaced over the
+// course, wrapping at the mouth (a parcel reaching the sea respawns at the
+// site). Interpolate the travel time first, then evaluate the kinetics at it.
+export function parcelTime(p, phase, travelDays, n = PARTICLES_PER_RIVER) {
+  const u = (p + 0.5) / n + phase;
+  return (u - Math.floor(u)) * travelDays;
 }
 
 const pos = (x) => (x > 0 ? x : 0); // NaN and negatives → 0
@@ -661,11 +752,13 @@ export function particleColor(state, sat, alpha = 1, out = new Float32Array(4), 
 
 // Writes FLOATS_PER_PARTICLE floats per parcel (clip-space position of the
 // full equirectangular world, then RGBA) into out; returns the parcel count.
-export function fillParticles(rivers, simDays, out) {
+// phases[i] is rivers[i]'s phase (advanceParcelPhase).
+export function fillParticles(rivers, phases, out) {
   let n = 0;
-  for (const r of rivers) {
+  for (let i = 0; i < rivers.length; i++) {
+    const r = rivers[i];
     for (let p = 0; p < PARTICLES_PER_RIVER; p++) {
-      const t = parcelTime(p, simDays, r.travelDays);
+      const t = parcelTime(p, phases[i], r.travelDays);
       const [lon, lat] = coursePoint(r.course, r.cum, (t / r.travelDays) * r.courseKm);
       const o = n * FLOATS_PER_PARTICLE;
       out[o] = lon / 180;
@@ -678,10 +771,30 @@ export function fillParticles(rivers, simDays, out) {
 }
 ```
 
+Clock and driver (additive). In `src/terminal/ledger/ocean/clock.js`, after the `reset()` method add:
+
+```js
+    // Wall-time remainder not yet taken as a step, in steps (0 ≤ f < 1).
+    // Drawing uses it to interpolate between steps; the sim never does.
+    fraction() {
+      return Math.min(1, Math.max(0, accDays / dtDays));
+    },
+```
+
+In `src/terminal/views/ledger/ocean/oceanDriver.js`, after the `simDays()` method add:
+
+```js
+    // simDays plus the clock's wall-time remainder: continuous between steps,
+    // for drawing only (parcels glide; the ocean state still steps).
+    displayDays() {
+      return days + clock.fraction() * dtDays;
+    },
+```
+
 - [ ] **Step 5: Run the tests**
 
-Run: `npx vitest run src/terminal/ledger/ocean/__tests__/ src/terminal/views/ledger/ocean/__tests__/hudFormat.test.js`
-Expected: PASS (all existing `buildSource` tests unchanged: without `riverKm`, `lengthKm` equals the polyline length).
+Run: `npx vitest run src/terminal/ledger/ocean/__tests__/ src/terminal/views/ledger/ocean/__tests__/hudFormat.test.js src/terminal/views/ledger/ocean/__tests__/oceanDriver.test.js`
+Expected: PASS (all existing `buildSource` and driver tests unchanged: without `riverKm`, `lengthKm` equals the polyline length).
 
 - [ ] **Step 6: Mutation checks**
 
@@ -693,12 +806,16 @@ Expected: PASS (all existing `buildSource` tests unchanged: without `riverKm`, `
 6. `fillParticles`: pass `0` as the travel time to `riverState` → the parcel-state test fails.
 7. `courseTick`: drop the minus in `-(b[1] - a[1])` → the north angle test fails (+90).
 8. `prepareRiver`: remove the date-line loop → the date-line case fails.
+9. **Drop interpolation:** `displayDays()` returns `days` → both display-time tests fail (0 instead of Δt/2; 60 vs 360 Hz phases differ at 250 ms).
+10. `advanceParcelPhase`: `Math.max(travelDays, MIN_CYCLE_S * dps)` → `travelDays` (no slowing) → the slowed-speed and 60/360 Hz expectation tests fail.
+11. **Frame-counted motion:** `advanceParcelPhase` adds a fixed `1e-3` per call → the 60 vs 360 Hz test fails.
+12. `parcelTime`: evaluate at the stepped day (floor `phase` to multiples of 1/40) → the alpha-0.5 interpolation test fails.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/terminal/ledger/ocean/sources.js src/terminal/ledger/ocean/gpu/palette.js src/terminal/ledger/ocean/riverStage.js src/terminal/ledger/ocean/__tests__/sources.test.js src/terminal/ledger/ocean/__tests__/riverStage.test.js
-git commit -m "feat(ledger-ocean): river-stage core — parcels by exact kinetics, riverKm channel length, tick geometry
+git add src/terminal/ledger/ocean/sources.js src/terminal/ledger/ocean/gpu/palette.js src/terminal/ledger/ocean/clock.js src/terminal/views/ledger/ocean/oceanDriver.js src/terminal/ledger/ocean/riverStage.js src/terminal/ledger/ocean/__tests__/sources.test.js src/terminal/ledger/ocean/__tests__/riverStage.test.js src/terminal/views/ledger/ocean/__tests__/oceanDriver.test.js
+git commit -m "feat(ledger-ocean): river-stage core — parcels by exact kinetics, wall-time glide, riverKm channel length, tick geometry
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
@@ -1124,32 +1241,53 @@ const pointDraws = () => rec.log.filter((e) => e[0] === 'drawArrays' && e[1] ===
 const particleUploads = () => rec.log.filter((e) => e[0] === 'bufferData' && Array.isArray(e[2]) && e[2].length > 8);
 ```
 
+- Add `MIN_CYCLE_S` to the `riverStage` import.
 - In `'steps the sim on the frame loop by wall time, not frame count'`: change `const drawsAtMount = count('drawArrays');` to `const drawsAtMount = quads();` and `expect(count('drawArrays') - drawsAtMount)` to `expect(quads() - drawsAtMount)` (the parcel draws are POINTS; this test counts sim and composite passes).
 - Append:
 
 ```js
 describe('LedgerOcean river stage', () => {
-  it('draws 256 parcels per river after each composite, filled from the exact kinetics', () => {
-    const days = [];
-    const m = mountLive(<LedgerOcean width={1024} height={512} onFrame={(d) => days.push(d)} />);
+  it('draws 256 parcels per river after each composite, filled from the exact kinetics at the display time', () => {
+    const disp = [];
+    const m = mountLive(<LedgerOcean width={1024} height={512} onFrame={(_d, dd) => disp.push(dd)} />);
     m.frames(5);
     const rivers = getOceanWorld().sources.map((s) => prepareRiver(s)).filter(Boolean);
     expect(rivers.length).toBeGreaterThanOrEqual(5);
     const n = rivers.length * PARTICLES_PER_RIVER;
     expect(pointDraws()).toHaveLength(paints());                 // one parcel draw per composite
     expect(pointDraws().at(-1)).toEqual(['drawArrays', rec.gl.POINTS, 0, n]);
+    // Constant 9 d/s: each river's accumulated phase is D / max(T, MIN_CYCLE_S × 9).
+    const D = disp.at(-1);
+    expect(D).toBeGreaterThan(0);
     const expected = new Float32Array(n * FLOATS_PER_PARTICLE);
-    fillParticles(rivers, days.at(-1), expected);
-    expect(particleUploads().at(-1)[2]).toEqual(Array.from(expected));
+    fillParticles(rivers, rivers.map((r) => {
+      const u = D / Math.max(r.travelDays, MIN_CYCLE_S * 9);
+      return u - Math.floor(u);
+    }), expected);
+    const got = particleUploads().at(-1)[2];
+    expect(got).toHaveLength(expected.length);
+    got.forEach((v, i) => expect(v).toBeCloseTo(expected[i], 5));
     expect(rec.log).toContainEqual(['uniform1f', expect.stringMatching(/:uSize$/), PARTICLE_PX]);
   });
 
-  it('re-fills parcels only when the simulated day changes', () => {
-    const m = mountLive(<LedgerOcean width={1024} height={512} daysPerSecond={1} />);
+  it('glides between sim steps: parcels move every frame on wall time with no step taken', () => {
+    const sim = [];
+    const disp = [];
+    const m = mountLive(
+      <LedgerOcean width={1024} height={512} daysPerSecond={1} onFrame={(d, dd) => { sim.push(d); disp.push(dd); }} />,
+    );
     const before = particleUploads().length;
     m.frames(10);   // 160 ms at 1 d/s = 0.16 d: no 0.25 d step yet
-    expect(particleUploads()).toHaveLength(before);
-    expect(pointDraws().length).toBeGreaterThanOrEqual(10);
+    expect(sim.at(-1)).toBe(0);
+    expect(disp.at(-1)).toBeCloseTo(0.16, 9);
+    const ups = particleUploads().slice(before);
+    expect(ups).toHaveLength(10);                                // one re-fill per frame
+    expect(ups[9][2][0]).not.toBe(ups[0][2][0]);                // parcel 0 has moved
+    // At 1 d/s the Danube (T ≈ 23 d ≥ 6 s × 1 d/s) runs literal; short rivers are slowed.
+    const rivers = getOceanWorld().sources.map((s) => prepareRiver(s)).filter(Boolean);
+    const expected = new Float32Array(rivers.length * PARTICLES_PER_RIVER * FLOATS_PER_PARTICLE);
+    fillParticles(rivers, rivers.map((r) => disp.at(-1) / Math.max(r.travelDays, MIN_CYCLE_S * 1)), expected);
+    ups[9][2].forEach((v, i) => expect(v).toBeCloseTo(expected[i], 5));
   });
 
   it('runs the ocean without parcels when the particle program fails to build', () => {
@@ -1283,16 +1421,20 @@ export const FLARE_PX = 7;                      // the seal flare, css px
 ```js
 import { createParticleLayer } from '../../../ledger/ocean/gpu/particleLayer';
 import {
-  prepareRiver, fillParticles, PARTICLES_PER_RIVER, FLOATS_PER_PARTICLE,
+  prepareRiver, fillParticles, advanceParcelPhase, PARTICLES_PER_RIVER, FLOATS_PER_PARTICLE,
 } from '../../../ledger/ocean/riverStage';
 ```
 
 and add `PARTICLE_PX,` to the `./hudFormat` import list.
+
+`hudFormat.js`: append the parcel-speed honesty note as the 7th entry of `LEGEND_NOTES` (after `'DO_SAT FRESHWATER FIT · ~20% HIGH AT SEA',`): `'RIVER PARCELS ≥ 6 S PER COURSE · SLOWED · COLOUR EXACT',`, and add it to the `toEqual` list in `hudFormat.test.js` `'carries every honesty note 3a shows'` (rename the test `'carries every honesty note'`). The legend is static: at the default 9 d/s every river is slowed, so the note is always true of at least one course.
 2. After `const dirtyRef = useRef(true);` add:
 
 ```js
   const particlesRef = useRef(null);
-  const fillRef = useRef({ days: NaN, rivers: null, n: 0 });
+  const fillRef = useRef({ rivers: null, n: 0 });
+  const phaseRef = useRef(new Map());   // river id → parcel phase (survives ghost edits)
+  const lastDisplayRef = useRef(0);
 ```
 
 3. After `sourceDataRef.current = sourceData;` add:
@@ -1312,19 +1454,27 @@ and add `PARTICLE_PX,` to the `./hudFormat` import list.
 ```js
   // River stage (spec §3): PARTICLES_PER_RIVER parcels per river, positions and
   // colours from the exact kinetics, drawn as GL points over the composite.
-  // Re-filled only when the simulated day or the river set changes, so a
-  // 360 Hz display redraws the same buffer between steps.
+  // Re-filled whenever display time moves (every live frame: parcels glide
+  // between steps) or the river set changes; a held frame redraws the buffer.
   const drawParticles = (gl) => {
     const layer = particlesRef.current;
     const driver = driverRef.current;
     if (!layer || !driver) return;
     const { rivers, buf } = riverBufRef.current;
-    const days = driver.simDays();
+    // Glide: phases advance with display days (step clock + its wall-time
+    // remainder), slowed to ≥ MIN_CYCLE_S per course at the chosen compression.
+    const disp = driver.displayDays();
+    const dD = disp - lastDisplayRef.current;
+    lastDisplayRef.current = disp;
+    const phases = phaseRef.current;
+    if (dD > 0) {
+      for (const r of rivers) phases.set(r.id, advanceParcelPhase(phases.get(r.id) ?? 0, dD, r.travelDays, dpsRef.current));
+    }
     const fill = fillRef.current;
-    if (days !== fill.days || rivers !== fill.rivers) {
-      const n = fillParticles(rivers, days, buf);
+    if (dD > 0 || rivers !== fill.rivers) {
+      const n = fillParticles(rivers, rivers.map((r) => phases.get(r.id) ?? 0), buf);
       layer.upload(buf, n);
-      fillRef.current = { days, rivers, n };
+      fillRef.current = { rivers, n };
     }
     const scale = gl.canvas.width / Math.max(1, sizeRef.current.width);
     layer.draw(0, fillRef.current.n, PARTICLE_PX * scale);
@@ -1334,7 +1484,8 @@ and add `PARTICLE_PX,` to the `./hudFormat` import list.
 5. In `onInit`, after `texRef.current = { static: sim.staticTexture(), zero: null };` add:
 
 ```js
-        fillRef.current = { days: NaN, rivers: null, n: 0 };
+        fillRef.current = { rivers: null, n: 0 };
+        lastDisplayRef.current = 0; // a new driver starts at T+0
         try {
           particlesRef.current = createParticleLayer(gl);
         } catch (err) {
@@ -1370,6 +1521,8 @@ with
       }
 ```
 
+8. In `draw`, replace `onFrameRef.current?.(simDays);` with `onFrameRef.current?.(simDays, driver ? driver.displayDays() : 0);` (second argument: the interpolated display time; existing callers ignore it). Update the props comment accordingly.
+
 - [ ] **Step 5: Extend the shader gate**
 
 In `scripts/oceanShaders.mjs`, add `import { PARTICLE_VS, PARTICLE_FS } from '../src/terminal/ledger/ocean/gpu/particleShaders.js';` after the `shaders.js` import, and change `const programs = { composite: [SIM_VS, COMPOSITE_FS] };` to `const programs = { composite: [SIM_VS, COMPOSITE_FS], particles: [PARTICLE_VS, PARTICLE_FS] };`. Update the header comment's first line to `// Compiles and links every Ledger ocean program (sim, composite, river parcels) in real headless Chrome`.
@@ -1383,8 +1536,10 @@ Expected: exit 0; the JSON has `"particles": { "ok": true, … }`.
 
 - [ ] **Step 7: Mutation checks**
 
-1. `fillParticles(rivers, 0, buf)` in `drawParticles` → the parcel-content test fails.
-2. Drop the `days !== fill.days || rivers !== fill.rivers` guard (fill every frame) → re-fill test fails.
+1. `fillParticles(rivers, rivers.map(() => 0), buf)` in `drawParticles` → the parcel-content test fails.
+2. **Drop interpolation:** use `driver.simDays()` instead of `driver.displayDays()` in `drawParticles` → the glide test fails (no re-fill without a step).
+2a. Advance phases by a fixed amount per frame (`dD = DT_DAYS / 16`, frame-counted) → the parcel-content test fails.
+2b. Pass `9` instead of `dpsRef.current` to `advanceParcelPhase` → the glide test's 1 d/s expectation fails (Danube no longer literal).
 3. Remove the `try`/`catch` around `createParticleLayer` → the build-failure test fails (host throws → `OCEAN UNAVAILABLE`).
 4. Remove `particlesRef.current?.dispose();` → unmount test fails.
 5. `particleLayer.draw`: remove `if (!(count > 0)) return;` → the zero-count assertion fails.
@@ -1395,8 +1550,8 @@ Expected: exit 0; the JSON has `"particles": { "ok": true, … }`.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add src/terminal/ledger/ocean/gpu/particleShaders.js src/terminal/ledger/ocean/gpu/particleLayer.js src/terminal/gl/__tests__/recordingGL.js src/terminal/views/ledger/ocean/hudFormat.js src/terminal/views/ledger/ocean/LedgerOcean.jsx scripts/oceanShaders.mjs src/terminal/ledger/ocean/__tests__/particleLayer.test.js src/terminal/views/ledger/ocean/__tests__/LedgerOcean.test.jsx
-git commit -m "feat(ledger-ocean): river-stage parcels as GL points over the composite, 256 per river
+git add src/terminal/ledger/ocean/gpu/particleShaders.js src/terminal/ledger/ocean/gpu/particleLayer.js src/terminal/gl/__tests__/recordingGL.js src/terminal/views/ledger/ocean/hudFormat.js src/terminal/views/ledger/ocean/LedgerOcean.jsx scripts/oceanShaders.mjs src/terminal/ledger/ocean/__tests__/particleLayer.test.js src/terminal/views/ledger/ocean/__tests__/LedgerOcean.test.jsx src/terminal/views/ledger/ocean/__tests__/hudFormat.test.js
+git commit -m "feat(ledger-ocean): river-stage parcels as GL points, gliding on wall time, ≥ 6 s per course
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
@@ -1648,19 +1803,27 @@ Expected: FAIL — `days` keeps growing after warm-up (idle loop); warm-up start
 
   // River stage (spec §3): PARTICLES_PER_RIVER parcels per river, positions and
   // colours from the exact kinetics, drawn as GL points over the composite.
-  // Re-filled only when the simulated day or the river set changes, so a
-  // 360 Hz display redraws the same buffer between steps.
+  // Re-filled whenever display time moves (every live frame: parcels glide
+  // between steps) or the river set changes; a held frame redraws the buffer.
   const drawParticles = (gl) => {
     const layer = particlesRef.current;
     const driver = driverRef.current;
     if (!layer || !driver) return;
     const { rivers, buf } = riverBufRef.current;
-    const days = driver.simDays();
+    // Glide: phases advance with display days (step clock + its wall-time
+    // remainder), slowed to ≥ MIN_CYCLE_S per course at the chosen compression.
+    const disp = driver.displayDays();
+    const dD = disp - lastDisplayRef.current;
+    lastDisplayRef.current = disp;
+    const phases = phaseRef.current;
+    if (dD > 0) {
+      for (const r of rivers) phases.set(r.id, advanceParcelPhase(phases.get(r.id) ?? 0, dD, r.travelDays, dpsRef.current));
+    }
     const fill = fillRef.current;
-    if (days !== fill.days || rivers !== fill.rivers) {
-      const n = fillParticles(rivers, days, buf);
+    if (dD > 0 || rivers !== fill.rivers) {
+      const n = fillParticles(rivers, rivers.map((r) => phases.get(r.id) ?? 0), buf);
       layer.upload(buf, n);
-      fillRef.current = { days, rivers, n };
+      fillRef.current = { rivers, n };
     }
     const scale = gl.canvas.width / Math.max(1, sizeRef.current.width);
     layer.draw(0, fillRef.current.n, PARTICLE_PX * scale);
@@ -1702,7 +1865,7 @@ Expected: FAIL — `days` keeps growing after warm-up (idle loop); warm-up start
     }
     const simDays = driver ? driver.simDays() : 0;
     hudRef.current?.setFrame({ simDays, frameMs: driver ? driver.frameMs() : 0, now });
-    onFrameRef.current?.(simDays);
+    onFrameRef.current?.(simDays, driver ? driver.displayDays() : 0);
   };
   drawRef.current = draw;
 
@@ -1743,7 +1906,8 @@ Expected: FAIL — `days` keeps growing after warm-up (idle loop); warm-up start
         simRef.current = sim;
         driverRef.current = createOceanDriver({ clock: createStepClock(), step: () => sim.step() });
         texRef.current = { static: sim.staticTexture(), zero: null };
-        fillRef.current = { days: NaN, rivers: null, n: 0 };
+        fillRef.current = { rivers: null, n: 0 };
+        lastDisplayRef.current = 0; // a new driver starts at T+0
         try {
           particlesRef.current = createParticleLayer(gl);
         } catch (err) {
@@ -2884,15 +3048,21 @@ and after `sourceDataRef.current = sourceData;` add:
 4. Replace `drawParticles` with:
 
 ```js
-  // River stage (spec §3) plus the seal flare (spec §4): parcels re-filled only
-  // when the simulated day or the river set changes; while a flare runs, every
-  // frame, with the flare as one extra vertex after the parcels.
+  // River stage (spec §3) plus the seal flare (spec §4): parcels glide on
+  // display time (re-filled whenever it moves or the river set changes); while
+  // a flare runs, every frame, with the flare as one extra vertex after them.
   const drawParticles = (gl, now) => {
     const layer = particlesRef.current;
     const driver = driverRef.current;
     if (!layer || !driver) return;
     const { rivers, buf } = riverBufRef.current;
-    const days = driver.simDays();
+    const disp = driver.displayDays();
+    const dD = disp - lastDisplayRef.current;
+    lastDisplayRef.current = disp;
+    const phases = phaseRef.current;
+    if (dD > 0) {
+      for (const r of rivers) phases.set(r.id, advanceParcelPhase(phases.get(r.id) ?? 0, dD, r.travelDays, dpsRef.current));
+    }
     const flare = flareRef.current;
     let frac = null;
     if (flare) {
@@ -2905,11 +3075,11 @@ and after `sourceDataRef.current = sourceData;` add:
       }
     }
     const fill = fillRef.current;
-    if (frac !== null || days !== fill.days || rivers !== fill.rivers) {
-      const n = fillParticles(rivers, days, buf);
+    if (frac !== null || dD > 0 || rivers !== fill.rivers) {
+      const n = fillParticles(rivers, rivers.map((r) => phases.get(r.id) ?? 0), buf);
       if (frac !== null) writeFlare(flare.river, frac, buf, n);
       layer.upload(buf, n + (frac !== null ? 1 : 0));
-      fillRef.current = { days, rivers, n };
+      fillRef.current = { rivers, n };
     }
     const scale = gl.canvas.width / Math.max(1, sizeRef.current.width);
     layer.draw(0, fillRef.current.n, PARTICLE_PX * scale);
@@ -3227,7 +3397,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 **Interfaces:**
 - Consumes: the 3a script (`VIEWS`, `shot`, `at`, `clip`, `page.eval`, `page.waitFor`); preset buttons by label text; inputs `[data-field="<key>"] input`; `RUN AUDIT` button; sealed line `[data-sealing="true"]` (Task 9).
-- Produces: per view, in addition to the 3a PNGs: `<view>-river-danube.png`, `<view>-river-bengal.png`, `<view>-river-yangtze.png`, `<view>-ghost.png`, `<view>-ghost-zoom.png`, `<view>-seal-flare.png`, `<view>-seal-flare-zoom.png`.
+- Produces: per view, in addition to the 3a PNGs: `<view>-river-danube.png`, `<view>-river-bengal.png`, `<view>-river-yangtze.png`, `<view>-glide-mississippi-a.png`, `<view>-glide-mississippi-b.png`, `<view>-ghost.png`, `<view>-ghost-zoom.png`, `<view>-seal-flare.png`, `<view>-seal-flare-zoom.png`.
 
 - [ ] **Step 1: Extend the script**
 
@@ -3243,22 +3413,31 @@ const ZOOMS = [
   ['river-yangtze', [118, 34], [126, 28]],
 ];
 const EAST_CHINA = [[110, 36], [126, 26]];
+const MISSISSIPPI = [[-91, 30.6], [-88.6, 28.6]];
 ```
 
 Insert immediately before `const errors = page.consoleErrors();`:
 
 ```js
       // ── 3b ──────────────────────────────────────────────────────────────
-      const zoom = async (name, [lon0, lat1], [lon1, lat0]) => {
+      const zoom = async (name, [lon0, lat1], [lon1, lat0], scale = v.mobile ? 2 : 3) => {
         const [x0, y0] = at([lon0, lat1]);
         const [x1, y1] = at([lon1, lat0]);
         await shot(page, name, {
           x: Math.round(x0), y: Math.round(y0), width: Math.round(x1 - x0), height: Math.round(y1 - y0),
-          scale: v.mobile ? 2 : 3,
+          scale,
         });
       };
       await page.eval('window.scrollTo(0, 0)');
       for (const [name, a, b] of ZOOMS) await zoom(`${v.name}-${name}.png`, a, b);
+      // Short-river glide: two close-ups of the Mississippi (New Orleans → Head
+      // of Passes, 1.6 d of travel, slowed to one course per 6 s) ~50 ms apart.
+      // Parcels should have moved ~1/120 of the course, not jumped or strobed.
+      const t0 = Date.now();
+      await zoom(`${v.name}-glide-mississippi-a.png`, ...MISSISSIPPI, v.mobile ? 4 : 10);
+      await sleep(Math.max(0, 50 - (Date.now() - t0)));
+      await zoom(`${v.name}-glide-mississippi-b.png`, ...MISSISSIPPI, v.mobile ? 4 : 10);
+      console.log(`${v.name} glide pair taken ${Date.now() - t0} ms apart`);
 
       const clickText = (text) => page.eval(`(() => {
         const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === ${JSON.stringify(text)});
@@ -3292,12 +3471,13 @@ Insert immediately before `const errors = page.consoleErrors();`:
 - [ ] **Step 2: Capture**
 
 Run: `node scripts/ledgerTabShots.mjs`
-Expected: 25 PNG paths (desktop 11, phone 14) and no console-error line. On a timeout or a thrown "not found", report BLOCKED with the message after opening the latest viewport PNG — do not change selectors blind.
+Expected: 29 PNG paths (desktop 13, phone 16), one `glide pair taken … ms apart` line per view, and no console-error line. On a timeout or a thrown "not found", report BLOCKED with the message after opening the latest viewport PNG — do not change selectors blind.
 
 - [ ] **Step 3: Look at every new PNG and describe it factually**
 
 Open each PNG (Read tool). Report only what the pixels show:
 - River zooms: parcels visible along the Danube (Linz → Sulina), the Lower Meghna and the Yangtze estuary; their colours (crimson/amber/green mix, dimming where deficit is high); one DO_MIN tick per course and where it sits (Danube tick near rkm 1776 ≈ a quarter of the way from Linz with candidate data); the preset rings (9) at the right sites; whether short courses (Citarum, Mercury, Hamhung) show anything.
+- Glide pair (Mississippi, both views): state the measured gap (log line), and whether parcels shifted slightly along the course between `-a` and `-b` (glide) or look identical / displaced by whole spacing (stepped or strobing). A single still cannot prove smoothness: say so, and ask the controller to confirm the motion live in the browser pane if the pair is ambiguous. The glide pair is captured at 10× (desktop) / 4× on top of 3× DPR (phone); describe what is visible, not what is expected.
 - Ghost: dashed ring and dashed line Wuhan → coast, the `PROVISIONAL` label, half-alpha parcels on the line; no overlap problems with other rings/labels.
 - Seal: the flare's position on the Wuhan line, the line solid (dashes closed), the latest-verdict ring; clock text and whether it reads as held.
 - Phone (3×): the same at compact sizes; label and tick legibility; parcel size.
