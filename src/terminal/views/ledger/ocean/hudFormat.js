@@ -202,3 +202,16 @@ export function tooltipLines(site) {
     `SNAP ${Math.round(site.snapKm)} km TO OCEAN`,
   ];
 }
+
+export const SITES_GROUP_LABEL = 'Audit sites';
+export const NOTES_TOGGLE_LABEL = 'Legend notes';
+
+// Roving tabindex over the source rings: the next ring index for a key, or null.
+export function keyStep(key, i, n) {
+  if (!(n > 0)) return null;
+  if (key === 'ArrowRight' || key === 'ArrowDown') return (i + 1) % n;
+  if (key === 'ArrowLeft' || key === 'ArrowUp') return (i - 1 + n) % n;
+  if (key === 'Home') return 0;
+  if (key === 'End') return n - 1;
+  return null;
+}

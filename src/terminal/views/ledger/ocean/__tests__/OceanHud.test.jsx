@@ -245,4 +245,31 @@ describe('OceanHud', () => {
     const still = hud({ sealId: 'h1', reducedMotion: true });
     expect(still.container.querySelector('line[data-line="h1"]').style.animation).toBe('');
   });
+  it('is one tab stop: arrow keys, Home and End rove between the rings', () => {
+    const { container } = hud();
+    expect(screen.getByRole('group', { name: 'Audit sites' })).toBeTruthy();
+    const rings = [...container.querySelectorAll('[data-site]')];
+    expect(rings.map((r) => r.tabIndex)).toEqual([0, -1]);
+    rings[0].focus();
+    fireEvent.keyDown(rings[0], { key: 'ArrowRight' });
+    expect(document.activeElement).toBe(rings[1]);
+    expect(rings.map((r) => r.tabIndex)).toEqual([-1, 0]);
+    fireEvent.keyDown(rings[1], { key: 'ArrowRight' });
+    expect(document.activeElement).toBe(rings[0]);
+    fireEvent.keyDown(rings[0], { key: 'End' });
+    expect(document.activeElement).toBe(rings[1]);
+    fireEvent.keyDown(rings[1], { key: 'Home' });
+    expect(document.activeElement).toBe(rings[0]);
+  });
+
+  it('gives the notes toggle one stable label, its state, and what it controls', () => {
+    const { q } = hud({ compact: true });
+    const toggle = q('notes-toggle');
+    expect(toggle.getAttribute('aria-label')).toBe('Legend notes');
+    fireEvent.click(toggle);
+    expect(q('notes-toggle').getAttribute('aria-label')).toBe('Legend notes');
+    expect(q('notes-toggle').getAttribute('aria-expanded')).toBe('true');
+    expect(q('notes').id).toBeTruthy();
+    expect(q('notes-toggle').getAttribute('aria-controls')).toBe(q('notes').id);
+  });
 });

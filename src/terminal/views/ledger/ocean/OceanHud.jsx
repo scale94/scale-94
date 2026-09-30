@@ -4,10 +4,10 @@
 // imperative handle, not React state, so the HUD does not re-render at the
 // display rate. The probe readout is state: it changes at most at 10 Hz.
 
-import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
+import { forwardRef, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   GHOST_DASH, GHOST_LABEL, HUD_TITLE, LEGEND_NOTES, LEGEND_SWATCHES, MODE_LABEL, PROBE_HINT, PROBE_NOTE,
-  formatClock, formatFrame, lonLatToPct, summaryLine, tooltipLines,
+  NOTES_TOGGLE_LABEL, SITES_GROUP_LABEL, formatClock, formatFrame, keyStep, lonLatToPct, summaryLine, tooltipLines,
 } from './hudFormat';
 
 const INK = 'rgba(20,184,166,0.72)';
@@ -94,6 +94,12 @@ const OceanHud = forwardRef(function OceanHud({
   const [notesOpen, setNotesOpen] = useState(false);
   const rootRef = useRef(null);
   const tipRef = useRef(null);
+  const [rove, setRove] = useState(0);
+  const ringEls = useRef([]);
+  const notesId = useId();
+  // Ring labels change with the sites, not with the 10 Hz probe re-render.
+  const ringLabels = useMemo(() => sites.map((s) => tooltipLines(s).join(' · ')), [sites]);
+  const roveIdx = Math.min(rove, Math.max(0, sites.length - 1));
 
   useImperativeHandle(ref, () => ({
     setFrame({ simDays, frameMs, now }) {
@@ -194,40 +200,52 @@ const OceanHud = forwardRef(function OceanHud({
         );
       })}
 
-      {sites.map((s) => {
-        const { left, top } = lonLatToPct(s.site[0], s.site[1]);
-        const latest = s.id === latestHash;
-        return (
-          <button
-            key={s.id}
-            type="button"
-            data-site={s.id}
-            aria-label={tooltipLines(s).join(' · ')}
-            onMouseEnter={() => setFocus(s.id)}
-            onMouseLeave={() => setFocus((f) => (f === s.id ? null : f))}
-            onFocus={() => setFocus(s.id)}
-            onBlur={() => setFocus((f) => (f === s.id ? null : f))}
-            // Set, never toggle: a real tap/click arrives as mouseenter →
-            // focus → click, and a toggle would clear what enter just opened.
-            // Dismissal: blur or mouseleave (tapping elsewhere does both).
-            onClick={() => setFocus(s.id)}
-            style={{
-              position: 'absolute', left: `${left}%`, top: `${top}%`, width: ringPx, height: ringPx,
-              transform: 'translate(-50%, -50%)', padding: 0, border: 'none', background: 'transparent',
-              // Phone: no pointer events, so Chrome's touch adjustment has
-              // nothing to snap a tap to; still focusable from the keyboard.
-              cursor: 'pointer', pointerEvents: compact ? 'none' : 'auto',
-            }}
-          >
-            <span
-              style={{
-                position: 'absolute', inset: compact ? (latest ? 0 : 1) : (latest ? 2 : 4), borderRadius: '50%',
-                border: `${latest ? 2 : 1.5}px ${s.kind === 'ghost' ? 'dashed' : 'solid'} ${s.color}`, opacity: s.kind === 'preset' ? 0.6 : 0.95,
+      <div role="group" aria-label={SITES_GROUP_LABEL}>
+        {sites.map((s, i) => {
+          const { left, top } = lonLatToPct(s.site[0], s.site[1]);
+          const latest = s.id === latestHash;
+          return (
+            <button
+              key={s.id}
+              ref={(el) => { ringEls.current[i] = el; }}
+              type="button"
+              data-site={s.id}
+              aria-label={ringLabels[i]}
+              // One tab stop for all rings (roving tabindex); arrows move between them.
+              tabIndex={i === roveIdx ? 0 : -1}
+              onKeyDown={(e) => {
+                const next = keyStep(e.key, i, sites.length);
+                if (next === null) return;
+                e.preventDefault();
+                setRove(next);
+                ringEls.current[next]?.focus();
               }}
-            />
-          </button>
-        );
-      })}
+              onMouseEnter={() => setFocus(s.id)}
+              onMouseLeave={() => setFocus((f) => (f === s.id ? null : f))}
+              onFocus={() => { setFocus(s.id); setRove(i); }}
+              onBlur={() => setFocus((f) => (f === s.id ? null : f))}
+              // Set, never toggle: a real tap/click arrives as mouseenter →
+              // focus → click, and a toggle would clear what enter just opened.
+              // Dismissal: blur or mouseleave (tapping elsewhere does both).
+              onClick={() => setFocus(s.id)}
+              style={{
+                position: 'absolute', left: `${left}%`, top: `${top}%`, width: ringPx, height: ringPx,
+                transform: 'translate(-50%, -50%)', padding: 0, border: 'none', background: 'transparent',
+                // Phone: no pointer events, so Chrome's touch adjustment has
+                // nothing to snap a tap to; still focusable from the keyboard.
+                cursor: 'pointer', pointerEvents: compact ? 'none' : 'auto',
+              }}
+            >
+              <span
+                style={{
+                  position: 'absolute', inset: compact ? (latest ? 0 : 1) : (latest ? 2 : 4), borderRadius: '50%',
+                  border: `${latest ? 2 : 1.5}px ${s.kind === 'ghost' ? 'dashed' : 'solid'} ${s.color}`, opacity: s.kind === 'preset' ? 0.6 : 0.95,
+                }}
+              />
+            </button>
+          );
+        })}
+      </div>
 
       {sites.filter((s) => s.kind === 'ghost').map((s) => {
         const { left, top } = lonLatToPct(s.site[0], s.site[1]);
@@ -296,7 +314,7 @@ const OceanHud = forwardRef(function OceanHud({
             {compact ? (
               <div data-hud="legend" style={{ color: DIM }}>
                 {notesOpen && (
-                  <div data-hud="notes" style={{ background: 'rgba(0,0,0,0.8)', padding: '2px 4px', marginBottom: 2 }}>
+                  <div data-hud="notes" id={notesId} style={{ background: 'rgba(0,0,0,0.8)', padding: '2px 4px', marginBottom: 2 }}>
                     <div data-hud="summary" style={{ color: INK }}>{summaryLine(verdicts)}</div>
                     {LEGEND_NOTES.map((note) => <div key={note}>{note}</div>)}
                   </div>
@@ -312,7 +330,8 @@ const OceanHud = forwardRef(function OceanHud({
                     type="button"
                     data-hud="notes-toggle"
                     aria-expanded={notesOpen}
-                    aria-label={notesOpen ? 'Hide legend notes' : 'Show legend notes'}
+                    aria-label={NOTES_TOGGLE_LABEL}
+                    aria-controls={notesId}
                     onClick={() => setNotesOpen((o) => !o)}
                     style={{ ...controlStyle, color: INK, marginLeft: 2 }}
                   >

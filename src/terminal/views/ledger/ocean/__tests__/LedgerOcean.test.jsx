@@ -638,4 +638,10 @@ describe('LedgerOcean seal', () => {
     m.rerender(<LedgerOcean width={1024} height={512} verdicts={[V]} sealHash="h1" onSealDone={done} />);
     expect(done).toHaveBeenCalledTimes(1);
   });
+
+  it('exposes the canvas as an image with its description', () => {
+    rec = installRecordingGL({ version: 2, extensions: FLOAT });
+    render(<LedgerOcean width={512} height={256} />);
+    expect(screen.getByRole('img', { name: /Ledger ocean/ })).toBeTruthy();
+  });
 });

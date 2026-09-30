@@ -6,7 +6,7 @@ import { cumulativeKm, courseTick } from '../../../../ledger/ocean/riverStage';
 import {
   COMPRESSIONS, GHOST_COLOR, GHOST_LABEL, LEGEND_NOTES, PRESET_COLOR, nextCompression, summaryLine, formatClock, formatFrame,
   fmtValue, formatProbe, pointerToLonLat, lonLatToPct, describeSites, tooltipLines, fmtQ,
-  PROBE_NOISE_FLOOR, RING_TAP_RADIUS_PX, pickSite,
+  PROBE_NOISE_FLOOR, RING_TAP_RADIUS_PX, pickSite, keyStep,
 } from '../hudFormat';
 
 // Inland near Suzhou: a land cell, so the straight-line snap has a length.
@@ -229,5 +229,18 @@ describe('probe noise floor and ring picking', () => {
     expect(pickSite(sites, 185.5, 90, 360, 180)).toBe('b');  // 5.5 from a, 4.5 from b: nearest wins
     expect(pickSite(sites, 184.5, 90, 360, 180)).toBe('a');
     expect(pickSite([], 180, 90, 360, 180)).toBeNull();
+  });
+});
+
+describe('keyStep', () => {
+  it('roves with arrows (wrapping), Home and End; other keys do nothing', () => {
+    expect(keyStep('ArrowRight', 0, 3)).toBe(1);
+    expect(keyStep('ArrowDown', 2, 3)).toBe(0);
+    expect(keyStep('ArrowLeft', 0, 3)).toBe(2);
+    expect(keyStep('ArrowUp', 1, 3)).toBe(0);
+    expect(keyStep('Home', 2, 3)).toBe(0);
+    expect(keyStep('End', 0, 3)).toBe(2);
+    expect(keyStep('Enter', 0, 3)).toBeNull();
+    expect(keyStep('ArrowRight', 0, 0)).toBeNull();
   });
 });

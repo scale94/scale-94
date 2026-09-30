@@ -511,6 +511,7 @@ export default function LedgerOcean({
       <canvas
         key={generation}
         ref={canvasRef}
+        role="img"
         aria-label="Ledger ocean: advection of audited discharge"
         onPointerMove={onPointerMove}
         onPointerLeave={onPointerLeave}
