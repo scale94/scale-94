@@ -100,14 +100,16 @@ describe('display time (smooth parcels)', () => {
       let phase = 0;
       let last = 0;
       const out = [];
+      let mid = null;
       for (let f = 1; f <= hz; f++) {                // one wall second
         d.advance(1 / hz, 9);
         const disp = d.displayDays();
         phase = advanceParcelPhase(phase, disp - last, 1.6, 9);
         last = disp;
         if (f % (hz / 4) === 0) out.push(phase);    // at 250, 500, 750, 1000 ms
+        if (f === hz / 5) mid = { phase, disp };    // 200 ms: 1.8 d = 7.2 steps, between steps
       }
-      return { last, out };
+      return { last, out, mid };
     };
     const a = run(60);
     const b = run(360);
@@ -115,5 +117,10 @@ describe('display time (smooth parcels)', () => {
     expect(b.last).toBeCloseTo(9, 9);
     for (let i = 0; i < 4; i++) expect(b.out[i]).toBeCloseTo(a.out[i], 9);
     expect(a.out[3]).toBeCloseTo((9 / (6 * 9)) % 1, 9);   // slowed: one course per 6 s
+    // A checkpoint that is NOT on a step boundary: only interpolation gets it right.
+    expect(a.mid.disp).toBeCloseTo(1.8, 9);
+    expect(b.mid.disp).toBeCloseTo(1.8, 9);
+    expect(a.mid.phase).toBeCloseTo(1.8 / 54, 9);
+    expect(b.mid.phase).toBeCloseTo(a.mid.phase, 9);
   });
 });
