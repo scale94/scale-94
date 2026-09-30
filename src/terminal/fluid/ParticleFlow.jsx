@@ -1,6 +1,8 @@
 import { useRef, useMemo, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { PLANET_WINDOW_GLSL } from '../mercury/planet/planetWindow';
+import { R_SCENE } from '../mercury/planet/planetLook';
 
 // ── Torus Knot parametric helpers ──────────────────────────────────────────
 function knotPoint(t, R = 1, r = 0.4) {
@@ -14,6 +16,8 @@ function knotPoint(t, R = 1, r = 0.4) {
 
 // ── GLSL Shaders ───────────────────────────────────────────────────────────
 const vertexShader = /* glsl */ `
+  ${PLANET_WINDOW_GLSL}
+  varying float vWindow;
   uniform float uTime;
   uniform float uSpeed;
   uniform float uCurlAmp;
@@ -146,10 +150,12 @@ const vertexShader = /* glsl */ `
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_PointSize = (1.5 + aRadius * 2.0) * (300.0 / -mvPosition.z) * (1.0 - uCondense * uCondenseSizeBite);
     gl_Position = projectionMatrix * mvPosition;
+    vWindow = planetWindow(mvPosition.xyz);
   }
 `;
 
 const fragmentShader = /* glsl */ `
+  varying float vWindow;
   uniform float uOpacity;
   varying float vHue;
   varying float vBrightness;
@@ -180,7 +186,7 @@ const fragmentShader = /* glsl */ `
     // so overlapping sprites decorrelate instead of summing the same noise.
     float dither = (fract(sin(dot(gl_FragCoord.xy + gl_PointCoord * 61.803, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
 
-    gl_FragColor = vec4(color, alpha * 0.95 * uOpacity + dither);
+    gl_FragColor = vec4(color, (alpha * 0.95 * uOpacity) * vWindow + dither);
   }
 `;
 
@@ -214,6 +220,7 @@ export default function ParticleFlow({
   opacityMultiplier = 1,
   condense = 0,
   condenseSizeBite = 0.6,
+  planetWindow = 0,
   blending = THREE.AdditiveBlending,
 }) {
   const PARTICLE_COUNT = density ?? (isMobile ? 4000 : 10000);
@@ -238,6 +245,8 @@ export default function ParticleFlow({
     uOpacity:    { value: opacityMultiplier },
     uCondense:         { value: condense },
     uCondenseSizeBite: { value: condenseSizeBite },
+    uPlanetWindow: { value: planetWindow },
+    uPlanetRadius: { value: R_SCENE },
   }));
 
   // Update uniforms from props each frame + FPS counter
@@ -252,6 +261,7 @@ export default function ParticleFlow({
       mat.uniforms.uOpacity.value = opacityMultiplier;
       mat.uniforms.uCondense.value         = condense;
       mat.uniforms.uCondenseSizeBite.value = condenseSizeBite;
+      mat.uniforms.uPlanetWindow.value = planetWindow;
     }
     // FPS counter — report once per second
     if (onFps) {

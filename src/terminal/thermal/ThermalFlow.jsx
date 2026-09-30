@@ -1,9 +1,13 @@
 import { useRef, useMemo, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { PLANET_WINDOW_GLSL } from '../mercury/planet/planetWindow';
+import { R_SCENE } from '../mercury/planet/planetLook';
 
 // ── GLSL ───────────────────────────────────────────────────────────────────
 const vertexShader = /* glsl */ `
+  ${PLANET_WINDOW_GLSL}
+  varying float vWindow;
   uniform float uTime;
   uniform float uSpeed;
   uniform float uTurbulence;
@@ -149,10 +153,12 @@ const vertexShader = /* glsl */ `
     float depth  = max(-mvPos.z, 0.5);
     gl_PointSize = min(baseSize * sizeFactor * emberShrink * (80.0 / depth), uPointSizeMax) * (1.0 - uCondense * uCondenseSizeBite);
     gl_Position  = projectionMatrix * mvPos;
+    vWindow = planetWindow(mvPos.xyz);
   }
 `;
 
 const fragmentShader = /* glsl */ `
+  varying float vWindow;
   uniform float uOpacity;
   varying float vAge;
   varying float vTemp;
@@ -193,7 +199,7 @@ const fragmentShader = /* glsl */ `
     float finalAlpha = alpha * vAlpha * (0.006 + vTemp * 0.012);
     // Banding dither — see ParticleFlow.jsx for the physics note.
     float dither = (fract(sin(dot(gl_FragCoord.xy + gl_PointCoord * 61.803, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
-    gl_FragColor = vec4(col, finalAlpha * uOpacity + dither);
+    gl_FragColor = vec4(col, (finalAlpha * uOpacity) * vWindow + dither);
   }
 `;
 
@@ -237,6 +243,7 @@ export default function ThermalFlow({
   opacityMultiplier = 1,
   condense = 0,
   condenseSizeBite = 0.6,
+  planetWindow = 0,
   blending = THREE.AdditiveBlending,
 }) {
   const PARTICLE_COUNT = density ?? (isMobile ? 4000 : 10000);
@@ -256,6 +263,8 @@ export default function ThermalFlow({
     uOpacity:      { value: opacityMultiplier },
     uCondense:         { value: condense },
     uCondenseSizeBite: { value: condenseSizeBite },
+    uPlanetWindow: { value: planetWindow },
+    uPlanetRadius: { value: R_SCENE },
   }));
 
   useFrame((_, delta) => {
@@ -268,6 +277,7 @@ export default function ThermalFlow({
       mat.uniforms.uOpacity.value     = opacityMultiplier;
       mat.uniforms.uCondense.value         = condense;
       mat.uniforms.uCondenseSizeBite.value = condenseSizeBite;
+      mat.uniforms.uPlanetWindow.value = planetWindow;
     }
     if (onFps) {
       fpsFrames.current++;

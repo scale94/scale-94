@@ -99,6 +99,7 @@ export default function MercuryCanvas({
           onFps={activePhase === 'fluid' ? onFps : null}
           condense={condenseFor('fluid')}
           condenseSizeBite={TUNE.condenseSizeBite}
+          planetWindow={1}
         />
         {/* Boundary geometries hidden — the Mercury sphere is the visual anchor */}
         <GlassKnot isMobile={isMobile} visible={false} />
@@ -114,6 +115,7 @@ export default function MercuryCanvas({
           onFps={activePhase === 'thermal' ? onFps : null}
           condense={condenseFor('thermal')}
           condenseSizeBite={TUNE.condenseSizeBite}
+          planetWindow={1}
         />
         <GlassHearth isMobile={isMobile} visible={false} />
 
@@ -128,6 +130,7 @@ export default function MercuryCanvas({
           onFps={activePhase === 'earth' ? onFps : null}
           condense={condenseFor('earth')}
           condenseSizeBite={TUNE.condenseSizeBite}
+          planetWindow={1}
         />
         <CrystalGeode isMobile={isMobile} visible={false} />
 
@@ -142,6 +145,7 @@ export default function MercuryCanvas({
           onFps={activePhase === 'air' ? onFps : null}
           condense={condenseFor('air')}
           condenseSizeBite={TUNE.condenseSizeBite}
+          planetWindow={1}
         />
         <AtmoShell isMobile={isMobile} visible={false} />
 
