@@ -1,7 +1,7 @@
 // src/terminal/mercury/planet/mercuryBody.js — the planet as a body you can spin.
 //
 // Time-based rigid rotation (spec §5): a drag grips the body toward the
-// pointer's angular velocity; released, free spin damps and a critically
+// pointer's angular velocity; released, free spin damps (both damping terms applied exactly, via exp) and a critically
 // damped `recapture` spring (ramped in over RECAPTURE_RAMP_S) returns it to
 // the ephemeris orientation. `recapture` is honest naming: real tidal
 // relaxation takes millions of years; the 3:2 lock is what the ephemeris
@@ -78,7 +78,8 @@ function substep(b, h, dragging, omegaPtr, target) {
       const K = RECAPTURE_OMEGA * RECAPTURE_OMEGA * ramp;
       const C = 2 * RECAPTURE_OMEGA * Math.sqrt(ramp);
       rotationError(b.q, target, _e);
-      w.set(w.x + (K * _e.x - C * w.x) * h, w.y + (K * _e.y - C * w.y) * h, w.z + (K * _e.z - C * w.z) * h);
+      w.multiplyScalar(Math.exp(-C * h));
+      w.set(w.x + K * _e.x * h, w.y + K * _e.y * h, w.z + K * _e.z * h);
     }
   }
   const len = w.length();

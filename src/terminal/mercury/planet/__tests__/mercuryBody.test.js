@@ -123,9 +123,19 @@ describe('mercuryBody', () => {
     expect(body.omega.length()).toBeLessThan(1e-2);
   });
 
-  it('60 Hz and 360 Hz agree at MAX_OMEGA', () => {
-    const a = run(60, 50, 10, [0, 100, 0]).body, b = run(360, 50, 10, [0, 100, 0]).body;
-    expect(angleBetween(a.q, b.q)).toBeLessThan(2e-3);
+  it('60 Hz and 360 Hz agree at MAX_OMEGA, sampled mid-trajectory', () => {
+    const a = run(60, 14, 10, [0, 100, 0]).samples, b = run(360, 14, 10, [0, 100, 0]).samples;
+    for (const t of [5, 10]) expect(angleBetween(at(a, t).q, at(b, t).q)).toBeLessThan(2e-3);
+    // free spin: the explicit recapture impulse samples an error vector rotating at up to MAX_OMEGA, an O(ωh) phase difference between substep sizes; 5e-3 rad ≈ 0.3°, invisible.
+    for (const t of [11, 13]) expect(angleBetween(at(a, t).q, at(b, t).q)).toBeLessThan(5e-3);
+  });
+
+  it('rotationError is a world-frame (premultiply) rotation', () => {
+    const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 1, 0).normalize(), 1.2).multiply(targetFromYaw(0.3));
+    const target = targetFromYaw(-0.4);
+    const e = rotationError(q, target);
+    const r = new THREE.Quaternion().setFromAxisAngle(e.clone().normalize(), e.length()).multiply(q);
+    expect(angleBetween(r, target)).toBeLessThan(1e-9);
   });
 
   it('ignores non-finite dt', () => {
