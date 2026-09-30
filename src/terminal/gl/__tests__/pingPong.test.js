@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createRecordingGL } from './recordingGL';
 import {
-  probeFloatTargets, createFloatTarget, createPingPong, readTarget, readTexel,
+  probeFloatTargets, createFloatTarget, createPingPong, readTarget, readTexel, uploadFloatRows,
 } from '../pingPong';
 
 const withFloat = () => createRecordingGL({ version: 2, extensions: ['EXT_color_buffer_float'] });
@@ -83,3 +83,16 @@ describe('readTexel', () => {
   });
 });
 
+
+describe('uploadFloatRows', () => {
+  it('writes whole rows y..y+h-1 of a float texture in place', () => {
+    const gl = withFloat();
+    const tex = { __tag: 'texture:t' };
+    const data = new Float32Array(4 * 2 * 4).fill(1);
+    uploadFloatRows(gl, tex, 4, 3, 2, data);
+    expect(gl.__log).toEqual([
+      ['bindTexture', gl.TEXTURE_2D, 'texture:t'],
+      ['texSubImage2D', gl.TEXTURE_2D, 0, 0, 3, 4, 2, gl.RGBA, gl.FLOAT, Array.from(data)],
+    ]);
+  });
+});

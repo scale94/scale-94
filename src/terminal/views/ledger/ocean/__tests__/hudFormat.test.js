@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { getOceanWorld } from '../../../../ledger/ocean/oceanWorld';
-import { verdictSources, haversineKm } from '../../../../ledger/ocean/sources';
+import { verdictSources, haversineKm, ghostSourceSpec, buildSource } from '../../../../ledger/ocean/sources';
 import { RIVERS } from '../../../../ledger/ocean/riverCourses';
 import { cumulativeKm, courseTick } from '../../../../ledger/ocean/riverStage';
 import {
-  COMPRESSIONS, LEGEND_NOTES, PRESET_COLOR, nextCompression, summaryLine, formatClock, formatFrame,
+  COMPRESSIONS, GHOST_COLOR, GHOST_LABEL, LEGEND_NOTES, PRESET_COLOR, nextCompression, summaryLine, formatClock, formatFrame,
   fmtValue, formatProbe, pointerToLonLat, lonLatToPct, describeSites, tooltipLines, fmtQ,
   PROBE_NOISE_FLOOR, RING_TAP_RADIUS_PX, pickSite,
 } from '../hudFormat';
@@ -190,6 +190,18 @@ describe('sites', () => {
       id: 'usa121', kind: 'verdict', name: 'Test 121%', status: 'APPROVED', color: '#22c55e',
       site: [0, 0], snap: [0, 0], snapKm: 0, dischargeM3s: 20000, doMin: 8, rkm: 0,
     })[2]).toBe('Q 20,000 m³/s · 121% OF MISSISSIPPI');
+  });
+
+  it('describes the ghost as a provisional user site', () => {
+    const G = { ...V.input, lat: 30.59, lon: 114.3, siteName: 'Ghost site' };
+    const g = buildSource(ghostSourceSpec(G), world.grid, world.mask);
+    const [d] = describeSites([g], [], G);
+    expect(d).toMatchObject({ id: 'ghost', kind: 'ghost', name: 'Ghost site', status: null, color: GHOST_COLOR, dischargeM3s: 42 });
+    expect(d.snapKm).toBeCloseTo(haversineKm([114.3, 30.59], d.snap), 9);
+    expect(describeSites([g], [], { ...G, siteName: '' })[0].name).toBe('PROVISIONAL SITE');
+    const lines = tooltipLines(d);
+    expect(lines[1]).toBe(GHOST_LABEL);
+    expect(lines[2]).toBe('Q 42 m³/s · 0.25% OF MISSISSIPPI');
   });
 });
 

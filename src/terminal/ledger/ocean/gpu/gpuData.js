@@ -43,3 +43,34 @@ export function packSources(grid, land, sources) {
   }
   return out;
 }
+
+// Contiguous row runs [j0, rows], ascending, covering every row that any of
+// the cell lists touches (the ghost's old and new splats).
+export function sourceRowBands(grid, ...cellLists) {
+  const touched = new Set();
+  for (const cells of cellLists) for (const { k } of cells) touched.add(Math.floor(k / grid.nx));
+  const out = [];
+  for (const j of [...touched].sort((a, b) => a - b)) {
+    const last = out[out.length - 1];
+    if (last && last[0] + last[1] === j) last[1]++;
+    else out.push([j, 1]);
+  }
+  return out;
+}
+
+// Rows j0..j0+rows-1 of `base` (a packSources array of the permanent sources)
+// plus Σ conc·f of the `extra` sources in those rows — identical, bit for bit,
+// to packSources([...permanent, ...extra]) over the same rows.
+export function packSourceRows(grid, land, base, extra, j0, rows) {
+  const { nx } = grid;
+  const out = base.slice(j0 * nx * 4, (j0 + rows) * nx * 4);
+  for (const src of extra) {
+    for (const { k, f } of src.cells) {
+      const j = Math.floor(k / nx);
+      if (j < j0 || j >= j0 + rows || land[k]) continue;
+      const o = (k - j0 * nx) * 4;
+      for (let c = 0; c < 4; c++) out[o + c] += src.conc[c] * f;
+    }
+  }
+  return out;
+}

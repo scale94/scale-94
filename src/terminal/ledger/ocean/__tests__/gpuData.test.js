@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { LAT_LIMIT } from '../grid';
 import { rowConstants, diffusionSchedule } from '../referenceStep';
 import { kd, kaOcean, doSat, sstClimatology } from '../kinetics';
-import { packStatic, packRows, packSources } from '../gpu/gpuData';
+import { packStatic, packRows, packSources, packSourceRows, sourceRowBands } from '../gpu/gpuData';
 import { syntheticWorld, uniformVelocity } from './syntheticWorld';
 
 const { grid, mask } = syntheticWorld();
@@ -71,5 +71,29 @@ describe('packSources', () => {
     const data = packSources(grid, mask.land, sources);
     expect(Array.from(data.slice(oceanK * 4, oceanK * 4 + 4))).toEqual([1.5, 2, 2.5, 3]);
     expect(Array.from(data.slice(landK * 4, landK * 4 + 4))).toEqual([0, 0, 0, 0]);
+  });
+});
+
+describe('ghost row bands', () => {
+  const at = (i, j) => grid.idx(i, j);
+  const perm = { cells: [{ k: at(3, 5), f: 0.25 }, { k: at(9, 20), f: 0.5 }], conc: [1, 2, 3, 4] };
+  const ghostA = { cells: [{ k: at(10, 6), f: 0.125 }, { k: at(11, 7), f: 0.5 }, { k: at(12, 9), f: 1 }], conc: [0.5, 1, 1.5, 2] };
+  const ghostB = { cells: [{ k: at(30, 8), f: 0.75 }], conc: [2, 2, 2, 2] };
+
+  it('merges the rows two cell lists touch into ascending contiguous runs', () => {
+    expect(sourceRowBands(grid, ghostA.cells, [])).toEqual([[6, 2], [9, 1]]);
+    expect(sourceRowBands(grid, ghostA.cells, ghostB.cells)).toEqual([[6, 4]]);
+    expect(sourceRowBands(grid, [], [])).toEqual([]);
+  });
+
+  it('rebuilds a row band exactly as packSources would with the ghost as the last source', () => {
+    const base = packSources(grid, mask.land, [perm]);
+    const full = packSources(grid, mask.land, [perm, ghostA]);
+    for (const [j0, rows] of sourceRowBands(grid, ghostA.cells)) {
+      const band = packSourceRows(grid, mask.land, base, [ghostA], j0, rows);
+      expect(band).toEqual(full.slice(j0 * grid.nx * 4, (j0 + rows) * grid.nx * 4));
+    }
+    // No ghost: the band is the permanent rows, untouched.
+    expect(packSourceRows(grid, mask.land, base, [], 5, 1)).toEqual(base.slice(5 * grid.nx * 4, 6 * grid.nx * 4));
   });
 });

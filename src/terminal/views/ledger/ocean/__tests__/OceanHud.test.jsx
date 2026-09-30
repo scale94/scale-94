@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { createRef } from 'react';
 import { render, screen, act, fireEvent } from '@testing-library/react';
 import OceanHud from '../OceanHud';
-import { HUD_TITLE, LEGEND_NOTES, MODE_LABEL, PROBE_HINT, PROBE_NOTE, PRESET_COLOR } from '../hudFormat';
+import { GHOST_COLOR, HUD_TITLE, LEGEND_NOTES, MODE_LABEL, PROBE_HINT, PROBE_NOTE, PRESET_COLOR } from '../hudFormat';
 
 const SITES = [
   { id: 'preset:usa', kind: 'preset', name: 'Lower Mississippi at New Orleans, USA', status: null, color: PRESET_COLOR,
@@ -223,6 +223,17 @@ describe('OceanHud', () => {
     expect(ticks[0].style.transform).toBe('translate(-50%, -50%) rotate(-90deg)');
     expect(ticks[0].style.height).toBe('7px');
     expect(ticks[0].getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it('draws the ghost dashed and labelled PROVISIONAL; sealed lines stay solid', () => {
+    const ghost = { id: 'ghost', kind: 'ghost', name: 'Ghost site', status: null, color: GHOST_COLOR,
+      site: [114.3, 30.59], snap: [121.5, 30.5], snapKm: 700, dischargeM3s: 42, doMin: 3, rkm: 0 };
+    const { container, q } = hud({ sites: [...SITES, ghost] });
+    expect(q('ghost-label').textContent).toBe('PROVISIONAL');
+    expect(container.querySelector('[data-site="ghost"] span').style.borderStyle).toBe('dashed');
+    expect(container.querySelector('[data-site="h1"] span').style.borderStyle).toBe('solid');
+    expect(container.querySelector('line[data-line="ghost"]').getAttribute('stroke-dasharray')).toBe('4 3');
+    expect(container.querySelector('line[data-line="h1"]').getAttribute('stroke-dasharray')).toBeNull();
   });
 });
 

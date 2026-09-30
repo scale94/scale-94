@@ -55,6 +55,9 @@ export const STATUS_COLOR = {
 };
 export const DEFAULT_COLOR = '#38bdf8';
 export const PRESET_COLOR = '#14b8a6';
+export const GHOST_COLOR = '#cbd5e1';
+export const GHOST_DASH = '4 3';
+export const GHOST_LABEL = 'PROVISIONAL';
 
 export function nextCompression(dps) {
   return COMPRESSIONS[(COMPRESSIONS.indexOf(dps) + 1) % COMPRESSIONS.length];
@@ -128,10 +131,10 @@ export function pickSite(sites, x, y, w, h, radiusPx = RING_TAP_RADIUS_PX) {
 
 const PRESET_BY_ID = new Map(ALL_AUDIT_PRESETS.map((p) => [`preset:${p.key}`, p]));
 
-// Ring + tooltip data per built source. Snap distance: presets from the last
+// Ring + tooltip data per built source (presets, verdicts, and the ghost). Snap distance: presets from the last
 // point of their RIVERS course (the mouth) to the snapped ocean cell; verdicts
 // from the audit site (their course is the straight snap line).
-export function describeSites(sources, verdicts = []) {
+export function describeSites(sources, verdicts = [], ghostParams = null) {
   const byHash = new Map(verdicts.map((v) => [v.hash, v]));
   return sources.map((s) => {
     const site = s.course[0];
@@ -149,6 +152,15 @@ export function describeSites(sources, verdicts = []) {
         name: PRESET_BY_ID.get(s.id)?.siteName ?? key,
         status: null,
         color: PRESET_COLOR,
+      };
+    }
+    if (s.kind === 'ghost') {
+      return {
+        ...base,
+        snapKm: haversineKm(site, snap),
+        name: ghostParams?.siteName || 'PROVISIONAL SITE',
+        status: null,
+        color: GHOST_COLOR,
       };
     }
     const v = byHash.get(s.id);
@@ -182,7 +194,7 @@ export function tooltipLines(site) {
   else pct = pctValue < 10 ? pctValue.toPrecision(2) : Math.round(pctValue);
   return [
     site.name,
-    site.kind === 'preset' ? 'AMBIENT PRESET' : statusLabel(site.status),
+    site.kind === 'preset' ? 'AMBIENT PRESET' : site.kind === 'ghost' ? GHOST_LABEL : statusLabel(site.status),
     site.kind === 'preset' ? q : `${q} · ${pct}% OF MISSISSIPPI`,
     Number.isFinite(site.doMin) && Number.isFinite(site.rkm)
       ? `DO_MIN ${site.doMin.toFixed(1)} mg/L @ rkm ${Math.round(site.rkm)}`

@@ -17,6 +17,7 @@
 // - Probe: a 1-texel float readback of the state, at most every
 //   PROBE_INTERVAL_MS of frame time; mouse hover on desktop, tap elsewhere
 //   (a touch that moves TAP_SLOP_PX or more is a scroll and does not probe).
+// - Ghost: the form draft as a provisional source, written into the source texture by row bands (never a full upload, never a warm-up reset); dashed and labelled PROVISIONAL in the HUD.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShaderCanvas } from '../../../gl/useShaderCanvas';
@@ -25,10 +26,10 @@ import { getOceanWorld } from '../../../ledger/ocean/oceanWorld';
 import { createOceanGpu } from '../../../ledger/ocean/gpu/oceanGpu';
 import { createParticleLayer } from '../../../ledger/ocean/gpu/particleLayer';
 import {
-  prepareRiver, fillParticles, advanceParcelPhase, PARTICLES_PER_RIVER, FLOATS_PER_PARTICLE,
+  prepareRiver, fillParticles, advanceParcelPhase, GHOST_ALPHA, PARTICLES_PER_RIVER, FLOATS_PER_PARTICLE,
 } from '../../../ledger/ocean/riverStage';
-import { packSources } from '../../../ledger/ocean/gpu/gpuData';
-import { verdictSources } from '../../../ledger/ocean/sources';
+import { packSources, packSourceRows, sourceRowBands } from '../../../ledger/ocean/gpu/gpuData';
+import { verdictSources, buildSource, ghostSourceSpec } from '../../../ledger/ocean/sources';
 import { SIM_VS, COMPOSITE_FS, COMPOSITE_UNIFORMS } from '../../../ledger/ocean/gpu/shaders';
 import { OCEAN_EXPOSURE } from '../../../ledger/ocean/gpu/palette';
 import { createStepClock } from '../../../ledger/ocean/clock';
@@ -77,6 +78,7 @@ export default function LedgerOcean({
   verdicts = NO_VERDICTS,
   latestHash = null,
   sourcesReady = true,
+  ghost = null,
   onFrame = null, // (simDays, displayDays): step-clock days, and the wall-time interpolated display days
 }) {
   const canvasRef = useRef(null);
@@ -91,6 +93,7 @@ export default function LedgerOcean({
   const driverRef = useRef(null);
   const texRef = useRef(null);
   const uploadedRef = useRef(null);
+  const ghostUploadedRef = useRef(null);
   const lostRef = useRef(false);
   const warmRef = useRef(false);
   const dirtyRef = useRef(true);
@@ -119,7 +122,20 @@ export default function LedgerOcean({
     () => (userSources.length ? packSources(world.grid, world.mask.land, sources) : world.ambientSourceData),
     [world, sources, userSources],
   );
-  const sites = useMemo(() => describeSites(sources, verdicts), [sources, verdicts]);
+  // The ghost (spec §3, §4 Form): the unsubmitted draft as a provisional
+  // source. It never joins `sources`/`sourceData` — that path re-uploads the
+  // whole 2 MB source texture and restarts a reduced-motion warm-up. `draw`
+  // writes it into the source texture by row bands instead.
+  const ghostSource = useMemo(
+    () => (ghost ? buildSource(ghostSourceSpec(ghost), world.grid, world.mask) : null),
+    [world, ghost],
+  );
+  const ghostRef = useRef(ghostSource);
+  ghostRef.current = ghostSource;
+  const sites = useMemo(
+    () => describeSites(ghostSource ? [...sources, ghostSource] : sources, verdicts, ghost),
+    [sources, verdicts, ghostSource, ghost],
+  );
   const sitesRef = useRef(sites);
   sitesRef.current = sites;
   const compactRef = useRef(width < COMPACT_BELOW_PX);
@@ -129,9 +145,11 @@ export default function LedgerOcean({
 
   // River stage: one prepared river per source with a course to walk.
   const riverBuf = useMemo(() => {
-    const rivers = sources.map((s) => prepareRiver(s)).filter(Boolean);
-    return { rivers, buf: new Float32Array((rivers.length * PARTICLES_PER_RIVER + 1) * FLOATS_PER_PARTICLE) };
-  }, [sources]);
+    const rivers = sources.map((s) => prepareRiver(s));
+    if (ghostSource) rivers.push(prepareRiver(ghostSource, { alpha: GHOST_ALPHA }));
+    const drawn = rivers.filter(Boolean);
+    return { rivers: drawn, buf: new Float32Array((drawn.length * PARTICLES_PER_RIVER + 1) * FLOATS_PER_PARTICLE) };
+  }, [sources, ghostSource]);
   const riverBufRef = useRef(riverBuf);
   riverBufRef.current = riverBuf;
 
@@ -185,10 +203,22 @@ export default function LedgerOcean({
     if (sim && uploadedRef.current !== sourceDataRef.current) {
       sim.setSources(sourceDataRef.current);
       uploadedRef.current = sourceDataRef.current;
+      ghostUploadedRef.current = null; // the full upload holds permanent sources only
       if (rm) {
         driver.resetWarmup();
         warmRef.current = false;
       }
+    }
+    // Ghost: rewrite only the rows its old and new splats touch (≤ 11 each),
+    // from the permanent rows plus the new ghost. No warm-up reset.
+    if (sim && ghostUploadedRef.current !== ghostRef.current) {
+      const prev = ghostUploadedRef.current;
+      const next = ghostRef.current;
+      const extra = next ? [next] : [];
+      for (const [j0, rows] of sourceRowBands(world.grid, prev ? prev.cells : [], next ? next.cells : [])) {
+        sim.setSourceRows(j0, rows, packSourceRows(world.grid, world.mask.land, sourceDataRef.current, extra, j0, rows));
+      }
+      ghostUploadedRef.current = next;
     }
     let paintNow = true;
     if (rm) {
@@ -252,6 +282,7 @@ export default function LedgerOcean({
       if (sim) {
         sim.setSources(sourceDataRef.current);
         uploadedRef.current = sourceDataRef.current;
+        ghostUploadedRef.current = null;
         simRef.current = sim;
         driverRef.current = createOceanDriver({ clock: createStepClock(), step: () => sim.step() });
         texRef.current = { static: sim.staticTexture(), zero: null };
@@ -284,6 +315,7 @@ export default function LedgerOcean({
       driverRef.current = null;
       texRef.current = null;
       uploadedRef.current = null;
+      ghostUploadedRef.current = null;
     },
     draw,
     onUnsupported: () => setMode('unsupported'),
@@ -314,6 +346,13 @@ export default function LedgerOcean({
   useEffect(() => {
     requestFrameRef.current();
   }, [sourceData, sourcesReady]);
+
+  // A ghost change needs its band upload, and a held reduced-motion frame
+  // repaints once to show its parcels.
+  useEffect(() => {
+    dirtyRef.current = true;
+    requestFrameRef.current();
+  }, [ghostSource]);
 
   // Resize in place. Skips the mount pass (the host was just built at this
   // size): assigning canvas.width clears the drawing buffer even when the

@@ -6,7 +6,8 @@ import { diffusionSchedule, EDDY_DIFFUSIVITY_KM2_DAY } from '../../../../ledger/
 import { createStepClock } from '../../../../ledger/ocean/clock';
 import { REDUCED_MOTION_DAYS, WARMUP_STEPS_PER_FRAME } from '../oceanDriver';
 import { MODE_LABEL, PARTICLE_PX, PROBE_HINT, PROBE_TAP_HOLD_MS, formatClock, describeSites } from '../hudFormat';
-import { verdictSources } from '../../../../ledger/ocean/sources';
+import { verdictSources, buildSource, ghostSourceSpec, SPLAT_SIGMA_CELLS } from '../../../../ledger/ocean/sources';
+import { packSourceRows } from '../../../../ledger/ocean/gpu/gpuData';
 import { getOceanWorld } from '../../../../ledger/ocean/oceanWorld';
 import {
   prepareRiver, fillParticles, PARTICLES_PER_RIVER, FLOATS_PER_PARTICLE, MIN_CYCLE_S,
@@ -391,6 +392,81 @@ describe('LedgerOcean HUD integration', () => {
     m.frames(WARM_FRAMES + 2);
     expect(days.at(-1)).toBeCloseTo(REDUCED_MOTION_DAYS, 9);   // T+ 200 d with the archive, not 400
     expect(paints()).toBe(1);
+  });
+});
+
+const G = { lat: 30.59, lon: 114.3, siteName: 'Ghost site', temp: 20, do: 6, bod: 10, dt: 2, epi: 3, nitrate: 5, flow: 42 };
+const subUploads = () => rec.log.filter((e) => e[0] === 'texSubImage2D');
+const fullUploads = () => rec.log.filter((e) => e[0] === 'texImage2D' && e[4] === 512 && e[5] === 256).length;
+const SPLAT_ROWS = 2 * Math.ceil(3 * SPLAT_SIGMA_CELLS) + 1;
+
+describe('LedgerOcean ghost', () => {
+  it('writes the ghost into the source texture by row bands, never by a full upload', () => {
+    const m = mountLive(<LedgerOcean width={1024} height={512} />);
+    m.frames(2);
+    const full = fullUploads();
+    const { grid, mask, ambientSourceData } = getOceanWorld();
+    m.rerender(<LedgerOcean width={1024} height={512} ghost={G} />);
+    m.frames(1);
+    const first = subUploads();
+    expect(first.length).toBeGreaterThan(0);
+    const ghostSrc = buildSource(ghostSourceSpec(G), grid, mask);
+    let rows = 0;
+    for (const e of first) {
+      const [, , level, x, y, w, h] = e;
+      expect([level, x, w]).toEqual([0, 0, 512]);
+      rows += h;
+      expect(e[9]).toEqual(Array.from(packSourceRows(grid, mask.land, ambientSourceData, [ghostSrc], y, h)));
+    }
+    expect(rows).toBeLessThanOrEqual(SPLAT_ROWS);
+    expect(fullUploads()).toBe(full);
+    expect(m.container.querySelector('[data-site="ghost"]')).toBeTruthy();
+
+    // Moving the ghost rewrites its old and new rows; clearing it restores the permanent rows.
+    const moved = { ...G, lat: 22.3, lon: 113.9 };
+    m.rerender(<LedgerOcean width={1024} height={512} ghost={moved} />);
+    m.frames(1);
+    const afterMove = subUploads().length;
+    expect(afterMove).toBeGreaterThan(first.length);
+    m.rerender(<LedgerOcean width={1024} height={512} ghost={null} />);
+    m.frames(1);
+    const cleared = subUploads().slice(afterMove);
+    expect(cleared.length).toBeGreaterThan(0);
+    for (const e of cleared) {
+      const y = e[4];
+      const h = e[6];
+      expect(e[9]).toEqual(Array.from(ambientSourceData.slice(y * 512 * 4, (y + h) * 512 * 4)));
+    }
+    expect(fullUploads()).toBe(full);
+    expect(m.container.querySelector('[data-site="ghost"]')).toBeNull();
+  });
+
+  it('never restarts a held reduced-motion warm-up', () => {
+    reduceMotion();
+    const days = [];
+    const onFrame = (d) => days.push(d);
+    const m = mountLive(<LedgerOcean width={1024} height={512} onFrame={onFrame} />);
+    m.frames(WARM_FRAMES + 2);
+    expect(paints()).toBe(1);
+    const full = fullUploads();
+    m.rerender(<LedgerOcean width={1024} height={512} onFrame={onFrame} ghost={G} />);
+    m.frames(3);
+    m.rerender(<LedgerOcean width={1024} height={512} onFrame={onFrame} ghost={{ ...G, bod: 30 }} />);
+    m.frames(3);
+    expect(days.at(-1)).toBeCloseTo(REDUCED_MOTION_DAYS, 9);
+    expect(fullUploads()).toBe(full);
+    expect(subUploads().length).toBeGreaterThan(0);
+    expect(paints()).toBe(3);   // the held frame repaints once per ghost change (its parcels), no more
+  });
+
+  it('re-adds the ghost after a full upload of the permanent sources', () => {
+    const m = mountLive(<LedgerOcean width={1024} height={512} ghost={G} />);
+    m.frames(1);
+    m.rerender(<LedgerOcean width={1024} height={512} ghost={G} verdicts={[V]} />);
+    m.frames(1);
+    const lastFull = rec.log.findLastIndex((e) => e[0] === 'texImage2D' && e[4] === 512 && e[5] === 256);
+    const lastSub = rec.log.findLastIndex((e) => e[0] === 'texSubImage2D');
+    expect(lastSub).toBeGreaterThan(lastFull);
   });
 });
 

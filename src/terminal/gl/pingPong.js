@@ -84,3 +84,11 @@ export function readTexel(gl, target, x, y, out = new Float32Array(4)) {
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   return out;
 }
+
+// Whole rows y..y+h-1 of a w-wide float texture, in place (texSubImage2D).
+// The ghost source uses this so a form edit rewrites ~11 rows, not the whole
+// 2 MB source texture.
+export function uploadFloatRows(gl, tex, w, y, h, data) {
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, y, w, h, gl.RGBA, gl.FLOAT, data);
+}

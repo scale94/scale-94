@@ -6,7 +6,7 @@
 
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
 import {
-  HUD_TITLE, LEGEND_NOTES, LEGEND_SWATCHES, MODE_LABEL, PROBE_HINT, PROBE_NOTE,
+  GHOST_DASH, GHOST_LABEL, HUD_TITLE, LEGEND_NOTES, LEGEND_SWATCHES, MODE_LABEL, PROBE_HINT, PROBE_NOTE,
   formatClock, formatFrame, lonLatToPct, summaryLine, tooltipLines,
 } from './hudFormat';
 
@@ -159,12 +159,14 @@ const OceanHud = forwardRef(function OceanHud({
         style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
       >
         {sites
-          .filter((s) => s.kind === 'verdict' && Math.abs(s.snap[0] - s.site[0]) <= 180)
+          .filter((s) => (s.kind === 'verdict' || s.kind === 'ghost') && Math.abs(s.snap[0] - s.site[0]) <= 180)
           .map((s) => (
             <line
               key={s.id}
+              data-line={s.id}
               x1={s.site[0] + 180} y1={90 - s.site[1]} x2={s.snap[0] + 180} y2={90 - s.snap[1]}
               stroke={s.color} strokeOpacity="0.6" strokeWidth="1" vectorEffect="non-scaling-stroke"
+              strokeDasharray={s.kind === 'ghost' ? GHOST_DASH : undefined}
             />
           ))}
       </svg>
@@ -214,10 +216,27 @@ const OceanHud = forwardRef(function OceanHud({
             <span
               style={{
                 position: 'absolute', inset: compact ? (latest ? 0 : 1) : (latest ? 2 : 4), borderRadius: '50%',
-                border: `${latest ? 2 : 1.5}px solid ${s.color}`, opacity: s.kind === 'preset' ? 0.6 : 0.95,
+                border: `${latest ? 2 : 1.5}px ${s.kind === 'ghost' ? 'dashed' : 'solid'} ${s.color}`, opacity: s.kind === 'preset' ? 0.6 : 0.95,
               }}
             />
           </button>
+        );
+      })}
+
+      {sites.filter((s) => s.kind === 'ghost').map((s) => {
+        const { left, top } = lonLatToPct(s.site[0], s.site[1]);
+        return (
+          <span
+            key="ghost-label"
+            data-hud="ghost-label"
+            aria-hidden="true"
+            style={{
+              position: 'absolute', left: `calc(${left}% + ${ringPx / 2 + 3}px)`, top: `${top}%`,
+              transform: 'translateY(-50%)', color: s.color, whiteSpace: 'nowrap', pointerEvents: 'none',
+            }}
+          >
+            {GHOST_LABEL}
+          </span>
         );
       })}
 

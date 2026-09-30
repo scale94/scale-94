@@ -106,4 +106,19 @@ describe('createOceanGpu', () => {
     expect(log[1]).toEqual(['readPixels', 5, 2, 1, 1, gl.RGBA, gl.FLOAT, [0, 0, 0, 0]]);
     expect(fboTex.get(log[0][2])).toBe(gpu.stateTexture().__tag);
   });
+
+  it('writes source rows into the same texture setSources fills, without a full upload', () => {
+    const gl = withFloat();
+    const gpu = make(gl);
+    gpu.setSources(new Float32Array(grid.n * 4));
+    const srcTex = gl.__log.filter((e) => e[0] === 'bindTexture').at(-1)[2];
+    const mark = gl.__log.length;
+    const rows = new Float32Array(grid.nx * 2 * 4).fill(2);
+    gpu.setSourceRows(1, 2, rows);
+    const tail = gl.__log.slice(mark);
+    expect(tail).toEqual([
+      ['bindTexture', gl.TEXTURE_2D, srcTex],
+      ['texSubImage2D', gl.TEXTURE_2D, 0, 0, 1, grid.nx, 2, gl.RGBA, gl.FLOAT, Array.from(rows)],
+    ]);
+  });
 });

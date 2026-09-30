@@ -7,7 +7,7 @@
 import { buildProgram } from '../../../gl/glHost';
 import {
   probeFloatTargets, createFloatTexture, createFloatTarget, createPingPong,
-  disposeTarget, readTarget, readTexel, uploadFloatTexture,
+  disposeTarget, readTarget, readTexel, uploadFloatTexture, uploadFloatRows,
 } from '../../../gl/pingPong';
 import { DT_DAYS } from '../grid';
 import { TAU_T_DAYS, TAU_N_DAYS } from '../kinetics';
@@ -136,6 +136,10 @@ export function createOceanGpu(gl, {
     },
     setSources(data) {
       uploadFloatTexture(gl, sourcesTex, nx, ny, data);
+    },
+    // Rows j0..j0+rows-1 of the source texture (the ghost's row bands).
+    setSourceRows(j0, rows, data) {
+      uploadFloatRows(gl, sourcesTex, nx, j0, rows, data);
     },
     readState() {
       return readTarget(gl, state.read);

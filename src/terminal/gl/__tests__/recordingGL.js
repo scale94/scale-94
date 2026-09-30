@@ -49,6 +49,7 @@ const V1_METHODS = [
   'activeTexture', 'deleteTexture',
   'createFramebuffer', 'bindFramebuffer', 'framebufferTexture2D',
   'deleteFramebuffer',
+  'texSubImage2D',
   'getExtension', 'blendFuncSeparate', 'checkFramebufferStatus',
 ];
 
