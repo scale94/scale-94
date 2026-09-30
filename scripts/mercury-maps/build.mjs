@@ -14,7 +14,7 @@ import { pipeline } from 'node:stream/promises';
 import { Readable } from 'node:stream';
 import { fromFile } from 'geotiff';
 import sharp from 'sharp';
-import { boxDownsample, rollToLonZero, quantise8Dithered, minMax } from './lib.mjs';
+import { boxDownsample, rollToLonZero, quantise8Dithered, minMax, percentileRange } from './lib.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const CACHE = path.join(ROOT, '.cache', 'usgs');
@@ -65,10 +65,13 @@ async function main() {
   const dem = await readRaster(await download(SRC.dem));
   if (albedo.channels < 3) throw new Error('enhanced colour mosaic must have 3 bands');
 
-  const NODATA = (v) => v > -20000 && v < 20000;
-  for (let i = 0; i < dem.data.length; i++) if (!NODATA(dem.data[i])) dem.data[i] = 0;
-  const { min, max } = minMax(dem.data);
-  console.log(`DEM range ${min} … ${max} m`);
+  const isValidHeight = (v) => v > -20000 && v < 20000;
+  // Range is computed over valid samples only; nodata pixels are then filled with 0 m for the texture.
+  const raw = minMax(dem.data, isValidHeight);
+  const clipped = percentileRange(dem.data, 0.0001, 0.9999, isValidHeight);
+  const min = Math.round(clipped.min), max = Math.round(clipped.max);
+  for (let i = 0; i < dem.data.length; i++) if (!isValidHeight(dem.data[i])) dem.data[i] = 0;
+  console.log(`DEM raw range ${raw.min} … ${raw.max} m; clipped (0.01–99.99%) ${min} … ${max} m`);
 
   const manifest = {};
   for (const [tier, { albedoF, demF }] of Object.entries(SIZES)) {

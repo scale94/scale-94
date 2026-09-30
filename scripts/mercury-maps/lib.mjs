@@ -57,3 +57,27 @@ export function minMax(values, isValid = () => true) {
   }
   return { min, max };
 }
+
+// Percentile clip via a 1-unit-bin histogram (O(n), low memory): returns the
+// values at rank floor(lo*(n-1)) and floor(hi*(n-1)) of the valid samples.
+export function percentileRange(values, lo, hi, isValid = () => true) {
+  const { min: vmin, max: vmax } = minMax(values, isValid);
+  if (vmin === Infinity) return { min: Infinity, max: -Infinity };
+  const bins = new Uint32Array(Math.floor(vmax - vmin) + 1);
+  let n = 0;
+  for (let i = 0; i < values.length; i++) {
+    const v = values[i];
+    if (!isValid(v)) continue;
+    bins[Math.floor(v - vmin)]++;
+    n++;
+  }
+  const at = (rank) => {
+    let acc = 0;
+    for (let b = 0; b < bins.length; b++) {
+      acc += bins[b];
+      if (acc > rank) return vmin + b;
+    }
+    return vmax;
+  };
+  return { min: at(Math.floor(lo * (n - 1))), max: at(Math.floor(hi * (n - 1))) };
+}

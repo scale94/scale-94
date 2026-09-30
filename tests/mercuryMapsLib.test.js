@@ -1,6 +1,6 @@
 // tests/mercuryMapsLib.test.js
 import { describe, it, expect } from 'vitest';
-import { boxDownsample, rollToLonZero, quantise8Dithered, minMax } from '../scripts/mercury-maps/lib.mjs';
+import { boxDownsample, rollToLonZero, quantise8Dithered, minMax, percentileRange } from '../scripts/mercury-maps/lib.mjs';
 
 describe('mercury map lib', () => {
   it('boxDownsample averages f×f blocks per channel', () => {
@@ -46,5 +46,27 @@ describe('mercury map lib', () => {
 
   it('minMax skips invalid samples', () => {
     expect(minMax(new Int16Array([-32768, -10, 50]), (x) => x > -32768)).toEqual({ min: -10, max: 50 });
+  });
+
+  it('percentileRange excludes injected outliers at 0.01%/99.99%', () => {
+    const n = 100000;
+    const v = new Int16Array(n + 4);
+    for (let i = 0; i < n; i++) v[i] = -5000 + Math.floor((i / (n - 1)) * 9000); // -5000..4000
+    v[n] = -10764; v[n + 1] = -9000; v[n + 2] = 8994; v[n + 3] = 7000;
+    const { min, max } = percentileRange(v, 0.0001, 0.9999);
+    expect(min).toBeGreaterThanOrEqual(-5000);
+    expect(min).toBeLessThanOrEqual(-4990);
+    expect(max).toBeLessThanOrEqual(4000);
+    expect(max).toBeGreaterThanOrEqual(3990);
+  });
+
+  it('percentileRange skips invalid samples', () => {
+    const v = new Int16Array([-32768, -32768, 0, 1, 2, 3, 4, 5, 6, 7]);
+    expect(percentileRange(v, 0, 1, (x) => x > -32768)).toEqual({ min: 0, max: 7 });
+  });
+
+  it('percentileRange(0, 1) equals minMax', () => {
+    const v = new Int16Array([-300, 12, 5, 999, -7, 40]);
+    expect(percentileRange(v, 0, 1)).toEqual(minMax(v));
   });
 });
