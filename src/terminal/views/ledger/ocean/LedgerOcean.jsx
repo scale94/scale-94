@@ -530,6 +530,8 @@ export default function LedgerOcean({
         latestHash={latestHash}
         verdicts={verdicts}
         sealId={sealHash}
+        width={width}
+        height={height}
       />
     </div>
   );

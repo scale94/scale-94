@@ -217,6 +217,41 @@ export function tooltipLines(site) {
   ];
 }
 
+// HUD text metrics. The HUD is monospace at HUD_FONT_PX with 0.12 em letter
+// spacing (OceanHud); a monospace glyph advances ~0.6 em. Used where DOM
+// measurement is unavailable (jsdom returns 0) or would cost a layout.
+export const HUD_FONT_PX = { compact: 8, desktop: 9 };
+export const HUD_LETTER_SPACING_EM = 0.12;
+const HUD_ADVANCE_EM = 0.6;
+const HUD_LINE_HEIGHT = 1.5;
+const LABEL_GAP_PX = 3;          // between the ring box and the label
+const LABEL_EDGE_PX = 16;        // the label never ends closer than this to the hero's right edge
+
+export function hudTextWidthPx(text, fontPx) {
+  return text.length * fontPx * (HUD_ADVANCE_EM + HUD_LETTER_SPACING_EM);
+}
+
+// Where the PROVISIONAL label goes (css px in the hero; x, y = the ghost ring
+// centre; others = the other rings' centres). Right of the ring by default;
+// on the left (same gap) if it would end beyond heroWidth − LABEL_EDGE_PX.
+// Then, if the box covers another ring (centre within the box grown by the
+// ring radius), one ring diameter up, else down, else up. Ghost label only:
+// not a general repulsion system.
+export function ghostLabelPlacement({ x, y, heroWidth = Infinity, ringPx, fontPx, others = [], text = GHOST_LABEL }) {
+  const gap = ringPx / 2 + LABEL_GAP_PX;
+  const w = hudTextWidthPx(text, fontPx);
+  const h = fontPx * HUD_LINE_HEIGHT;
+  const side = x + gap + w > heroWidth - LABEL_EDGE_PX ? 'left' : 'right';
+  const left = side === 'right' ? x + gap : x - gap - w;
+  const boxAt = (dy) => ({ left, right: left + w, top: y + dy - h / 2, bottom: y + dy + h / 2 });
+  const r = ringPx / 2;
+  const covers = (b) => others.some(([ox, oy]) =>
+    ox >= b.left - r && ox <= b.right + r && oy >= b.top - r && oy <= b.bottom + r);
+  let dy = 0;
+  if (covers(boxAt(0))) dy = [-ringPx, ringPx].find((d) => !covers(boxAt(d))) ?? -ringPx;
+  return { side, gap, dy, box: boxAt(dy) };
+}
+
 export const SITES_GROUP_LABEL = 'Audit sites';
 export const NOTES_TOGGLE_LABEL = 'Legend notes';
 

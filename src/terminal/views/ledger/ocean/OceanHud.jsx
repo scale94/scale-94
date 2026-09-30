@@ -6,8 +6,9 @@
 
 import { forwardRef, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
-  GHOST_DASH, GHOST_LABEL, HUD_TITLE, LEGEND_NOTES, LEGEND_SWATCHES, MODE_LABEL, PROBE_HINT, PROBE_NOTE,
-  NOTES_TOGGLE_LABEL, SITES_GROUP_LABEL, formatClock, formatFrame, keyStep, lonLatToPct, summaryLine, tooltipLines,
+  GHOST_DASH, GHOST_LABEL, HUD_FONT_PX, HUD_LETTER_SPACING_EM, HUD_TITLE, LEGEND_NOTES, LEGEND_SWATCHES, MODE_LABEL, PROBE_HINT, PROBE_NOTE,
+  NOTES_TOGGLE_LABEL, SITES_GROUP_LABEL, formatClock, formatFrame, ghostLabelPlacement, keyStep, lonLatToPct,
+  summaryLine, tooltipLines,
 } from './hudFormat';
 
 const INK = 'rgba(20,184,166,0.72)';
@@ -84,6 +85,8 @@ const OceanHud = forwardRef(function OceanHud({
   latestHash = null,
   verdicts = [],
   sealId = null,
+  width = null,   // hero css px; the ghost label uses them to stay inside and off other rings
+  height = null,
 }, ref) {
   const clockRef = useRef(null);
   const frameRef = useRef(null);
@@ -157,7 +160,8 @@ const OceanHud = forwardRef(function OceanHud({
       ref={rootRef}
       style={{
         position: 'absolute', inset: 0, zIndex: 2, pointerEvents: 'none',
-        font: `${compact ? 8 : 9}px monospace`, letterSpacing: '0.12em', lineHeight: 1.5, color: INK,
+        font: `${compact ? HUD_FONT_PX.compact : HUD_FONT_PX.desktop}px monospace`,
+        letterSpacing: `${HUD_LETTER_SPACING_EM}em`, lineHeight: 1.5, color: INK,
       }}
     >
       <style>{SEAL_KEYFRAMES}</style>
@@ -256,13 +260,30 @@ const OceanHud = forwardRef(function OceanHud({
 
       {sites.filter((s) => s.kind === 'ghost').map((s) => {
         const { left, top } = lonLatToPct(s.site[0], s.site[1]);
+        // Right of the ring; on the left if it would clip at the hero's edge;
+        // nudged a ring diameter off any other ring it would cover.
+        const sized = width > 0 && height > 0;
+        const px = (o) => { const p = lonLatToPct(o.site[0], o.site[1]); return [(p.left / 100) * width, (p.top / 100) * height]; };
+        const place = ghostLabelPlacement({
+          x: sized ? (left / 100) * width : 0,
+          y: sized ? (top / 100) * height : 0,
+          heroWidth: sized ? width : Infinity,
+          ringPx,
+          fontPx: compact ? HUD_FONT_PX.compact : HUD_FONT_PX.desktop,
+          others: sized ? sites.filter((o) => o !== s).map(px) : [],
+        });
         return (
           <span
             key="ghost-label"
             data-hud="ghost-label"
+            data-side={place.side}
             aria-hidden="true"
             style={{
-              position: 'absolute', left: `calc(${left}% + ${ringPx / 2 + 3}px)`, top: `${top}%`,
+              position: 'absolute',
+              ...(place.side === 'right'
+                ? { left: `calc(${left}% + ${place.gap}px)` }
+                : { right: `calc(${100 - left}% + ${place.gap}px)` }),
+              top: place.dy ? `calc(${top}% + ${place.dy}px)` : `${top}%`,
               transform: 'translateY(-50%)', color: s.color, whiteSpace: 'nowrap', pointerEvents: 'none',
             }}
           >

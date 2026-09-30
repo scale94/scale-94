@@ -281,6 +281,38 @@ describe('OceanHud', () => {
     expect(container.querySelector('line[data-line="h1"]').getAttribute('stroke-dasharray')).toBeNull();
   });
 
+  it('places the PROVISIONAL label inside the hero and off other rings', () => {
+    const ghostAt = (site) => ({ id: 'ghost', kind: 'ghost', name: 'Ghost site', status: null, color: GHOST_COLOR,
+      site, snap: site, snapKm: 0, dischargeM3s: 42, doMin: 3, rkm: 0 });
+    const size = { width: 1024, height: 512 };
+    // Open water: right of the ring, on its line.
+    const open = hud({ ...size, sites: [...SITES, ghostAt([-30, -30])] });
+    let label = open.q('ghost-label');
+    expect(label.getAttribute('data-side')).toBe('right');
+    expect(label.style.left).toContain('11px');
+    expect(label.style.right).toBe('');
+    expect(label.style.top).toBe(`${((90 + 30) / 180) * 100}%`);
+    open.unmount();
+    // Near the right edge (x = 990 px): flipped left, its right edge 11 px left of the ring.
+    const edge = hud({ ...size, sites: [...SITES, ghostAt([(990 / 1024) * 360 - 180, -30])] });
+    label = edge.q('ghost-label');
+    expect(label.getAttribute('data-side')).toBe('left');
+    expect(label.style.left).toBe('');
+    expect(label.style.right).toContain('11px');
+    edge.unmount();
+    // Beside another ring (Wuhan ghost, Yangtze-mouth ring 20 px east): nudged a ring diameter.
+    const yangtze = { ...SITES[0], id: 'preset:yangtze', site: [121.515, 31.3925] };
+    const near = hud({ ...size, sites: [yangtze, ghostAt([114.3, 30.59])] });
+    label = near.q('ghost-label');
+    expect(label.getAttribute('data-side')).toBe('right');
+    expect(label.style.top).toMatch(/\+ 16px\)$/);
+    near.unmount();
+    // Without a hero size (no measurements): the default placement.
+    const unsized = hud({ sites: [yangtze, ghostAt([114.3, 30.59])] });
+    expect(unsized.q('ghost-label').getAttribute('data-side')).toBe('right');
+    expect(unsized.q('ghost-label').style.top).toBe(`${((90 - 30.59) / 180) * 100}%`);
+  });
+
   it('closes the sealed verdict line\'s dashes (not under reduced motion)', () => {
     const { container } = hud({ sealId: 'h1' });
     const line = container.querySelector('line[data-line="h1"]');

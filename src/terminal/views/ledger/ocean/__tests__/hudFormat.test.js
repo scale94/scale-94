@@ -6,7 +6,7 @@ import { cumulativeKm, courseTick } from '../../../../ledger/ocean/riverStage';
 import {
   COMPRESSIONS, GHOST_COLOR, GHOST_LABEL, LEGEND_NOTES, PRESET_COLOR, nextCompression, summaryLine, formatClock, formatFrame,
   fmtValue, formatProbe, pointerToLonLat, lonLatToPct, describeSites, tooltipLines, fmtQ,
-  PROBE_NOISE_FLOOR, RING_TAP_RADIUS_PX, pickSite, keyStep,
+  PROBE_NOISE_FLOOR, RING_TAP_RADIUS_PX, pickSite, keyStep, ghostLabelPlacement, hudTextWidthPx, HUD_FONT_PX,
 } from '../hudFormat';
 
 // Inland near Suzhou: a land cell, so the straight-line snap has a length.
@@ -265,5 +265,76 @@ describe('keyStep', () => {
     expect(keyStep('End', 0, 3)).toBe(2);
     expect(keyStep('Enter', 0, 3)).toBeNull();
     expect(keyStep('ArrowRight', 0, 0)).toBeNull();
+  });
+});
+
+describe('ghost label placement', () => {
+  // Desktop HUD: 9 px monospace, 0.12 em letter spacing → 0.72 em per char;
+  // 16 px ring box; the label sits 3 px beyond the ring box on either side.
+  const DESK = { ringPx: 16, fontPx: 9, heroWidth: 1024 };
+  const W = 11 * 9 * 0.72;    // 'PROVISIONAL' = 71.28 px
+  const H = 9 * 1.5;          // one HUD line
+  const clears = (box, others, r) => others.every(([ox, oy]) =>
+    ox < box.left - r || ox > box.right + r || oy < box.top - r || oy > box.bottom + r);
+
+  it('measures HUD text from its length and the monospace advance (DOM width is 0 in jsdom)', () => {
+    expect(HUD_FONT_PX).toEqual({ compact: 8, desktop: 9 });
+    expect(hudTextWidthPx('PROVISIONAL', 9)).toBeCloseTo(W, 9);
+    expect(hudTextWidthPx('PROVISIONAL', 8)).toBeCloseTo(11 * 8 * 0.72, 9);
+  });
+
+  it('keeps the default placement (right of the ring, centred on it) in open water', () => {
+    const p = ghostLabelPlacement({ ...DESK, x: 400, y: 200, others: [[100, 100], [700, 300]] });
+    expect(p).toMatchObject({ side: 'right', gap: 11, dy: 0 });
+    expect(p.box.left).toBeCloseTo(411, 9);
+    expect(p.box.right).toBeCloseTo(411 + W, 9);
+    expect(p.box.top).toBeCloseTo(200 - H / 2, 9);
+  });
+
+  it('flips to the left of the ring when the label would end beyond heroWidth − 16', () => {
+    // Right end at x + 11 + 71.28: x = 926 ends at 1008.28 > 1008 → flips; x = 925 does not.
+    expect(ghostLabelPlacement({ ...DESK, x: 925, y: 200 }).side).toBe('right');
+    const p = ghostLabelPlacement({ ...DESK, x: 926, y: 200 });
+    expect(p.side).toBe('left');
+    expect(p.box.right).toBeCloseTo(926 - 11, 9);  // same gap as the normal side
+    expect(p.box.left).toBeCloseTo(926 - 11 - W, 9);
+    // The phone (390 px hero, 8 px font, 10 px rings): Wuhan's ghost flips.
+    const phone = ghostLabelPlacement({ ringPx: 10, fontPx: 8, heroWidth: 390, x: (294.3 / 360) * 390, y: 64 });
+    expect(phone.side).toBe('left');
+    expect(phone.gap).toBe(8);
+    expect(phone.box.right).toBeLessThanOrEqual(390 - 16);
+  });
+
+  it('nudges up one ring diameter when the label box covers another ring, and the result clears it', () => {
+    const others = [[440, 200]];                  // a ring on the label's line
+    const p = ghostLabelPlacement({ ...DESK, x: 400, y: 200, others });
+    expect(p.dy).toBe(-16);
+    expect(p.box.top).toBeCloseTo(184 - H / 2, 9);
+    expect(clears(p.box, others, 8)).toBe(true);
+    expect(clears(ghostLabelPlacement({ ...DESK, x: 400, y: 200 }).box, others, 8)).toBe(false);
+  });
+
+  it('nudges down when up does not clear (desktop Wuhan ghost beside the Yangtze ring)', () => {
+    const x = (294.3 / 360) * 1024;
+    const y = ((90 - 30.59) / 180) * 512;
+    const yangtze = [((121.515 + 180) / 360) * 1024, ((90 - 31.3925) / 180) * 512];
+    const p = ghostLabelPlacement({ ...DESK, x, y, others: [yangtze] });
+    expect(p.side).toBe('right');
+    expect(p.dy).toBe(16);
+    expect(clears(p.box, [yangtze], 8)).toBe(true);
+  });
+
+  it('keeps the up nudge when neither up nor down clears', () => {
+    const others = [[440, 184], [440, 200], [440, 216]];
+    expect(ghostLabelPlacement({ ...DESK, x: 400, y: 200, others }).dy).toBe(-16);
+  });
+
+  it('checks the flipped box, not the default one, for rings', () => {
+    // x = 930 flips; the left box spans 847.72…919 (±8 for the ring radius).
+    const p = ghostLabelPlacement({ ...DESK, x: 930, y: 200, others: [[850, 200]] });
+    expect(p).toMatchObject({ side: 'left', dy: -16 });  // a ring under the left box: nudged
+    // A ring under the default (right) box only (941…1012): the flipped box is clear.
+    const q = ghostLabelPlacement({ ...DESK, x: 930, y: 200, others: [[970, 200]] });
+    expect(q).toMatchObject({ side: 'left', dy: 0 });
   });
 });

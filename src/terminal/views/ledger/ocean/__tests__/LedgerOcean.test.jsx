@@ -556,6 +556,16 @@ describe('LedgerOcean river stage', () => {
     expect(border('preset:ganges')).toBe('1px');    // 3.5 px
     expect(border('preset:danube')).toBe('1.5px');  // 55 px
   });
+
+  it('keeps the PROVISIONAL label inside the phone hero and off the Yangtze ring on desktop', () => {
+    const desk = mountLive(<LedgerOcean width={1024} height={512} ghost={G} />);
+    const label = desk.container.querySelector('[data-hud="ghost-label"]');
+    expect(label.getAttribute('data-side')).toBe('right');
+    expect(label.style.top).toMatch(/\+ 16px\)$/);       // up still covers the Yangtze ring: down
+    desk.unmount();
+    const phone = mountLive(<LedgerOcean width={390} height={195} ghost={G} />);
+    expect(phone.container.querySelector('[data-hud="ghost-label"]').getAttribute('data-side')).toBe('left');
+  });
 });
 
 const flareDraws = () => pointDraws().filter((e) => e[3] === 1);
