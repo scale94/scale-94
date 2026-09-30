@@ -99,15 +99,25 @@ export function parcelTime(p, phase, travelDays, n = PARTICLES_PER_RIVER) {
 
 const pos = (x) => (x > 0 ? x : 0); // NaN and negatives → 0
 
+// The plume's two rules (gpu/shaders.js): heat glows through the hypoxic
+// void (the deficit dims only BOD and nitrate: I.x*CRIMSON + (I.y*AMBER +
+// I.z*GREEN)*exp(-I.w)), and emission above 1 is divided by its brightest
+// component (hue-preserving), never clipped per component, which would turn
+// every heat + BOD + nitrate mix yellow. Palette and refs are unchanged.
 export function particleColor(state, sat, alpha = 1, out = new Float32Array(4), off = 0) {
   const { crimson, amber, green, ref, deficitDim, minAlpha } = RIVER_PALETTE;
   const e0 = 1 - Math.exp(-pos(state.dT) / ref[0]);
   const e1 = 1 - Math.exp(-pos(state.L) / ref[1]);
   const e2 = 1 - Math.exp(-pos(state.N) / ref[2]);
   const dim = 1 - deficitDim * (sat > 0 ? Math.min(1, pos(state.D) / sat) : 0);
+  let m = 0;
   for (let c = 0; c < 3; c++) {
-    out[off + c] = Math.min(1, e0 * crimson[c] + e1 * amber[c] + e2 * green[c]) * dim;
+    const v = e0 * crimson[c] + (e1 * amber[c] + e2 * green[c]) * dim;
+    out[off + c] = v;
+    if (v > m) m = v;
   }
+  const k = m > 1 ? 1 / m : 1;
+  for (let c = 0; c < 3; c++) out[off + c] *= k;
   out[off + 3] = alpha * (minAlpha + (1 - minAlpha) * Math.max(e0, e1, e2));
   return out;
 }

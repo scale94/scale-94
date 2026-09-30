@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { riverState, doSat } from '../kinetics';
-import { haversineKm } from '../sources';
+import { haversineKm, buildSource, presetSourceSpec } from '../sources';
+import { OCEAN_GRID } from '../grid';
+import { buildLandMask } from '../landMask';
+import { ALL_AUDIT_PRESETS } from '../../auditPresets';
 import { RIVER_PALETTE } from '../gpu/palette';
 import {
   PARTICLES_PER_RIVER, FLOATS_PER_PARTICLE, MIN_CYCLE_S, cumulativeKm, coursePoint, courseTick,
@@ -92,10 +95,48 @@ describe('parcels', () => {
     expect(nitrate[3]).toBeCloseTo(0.5, 5);
     const bod = particleColor({ dT: 0, L: 1e4, N: 0, D: 0 }, sat, 1);
     RIVER_PALETTE.amber.forEach((c, i) => expect(bod[i]).toBeCloseTo(c, 5));
-    const anoxic = particleColor({ dT: 1000, L: 0, N: 0, D: sat }, sat, 1);
-    RIVER_PALETTE.crimson.forEach((c, i) => expect(anoxic[i]).toBeCloseTo(c * (1 - RIVER_PALETTE.deficitDim), 5));
     const bad = particleColor({ dT: NaN, L: -3, N: NaN, D: NaN }, sat, 1);
     expect(Array.from(bad).every(Number.isFinite)).toBe(true);
+  });
+
+  it('heat glows through the hypoxic void, as the ocean shader does (shaders.js:255)', () => {
+    // I.x*CRIMSON + (I.y*AMBER + I.z*GREEN)*exp(-I.w): the deficit dims BOD and nitrate, never heat.
+    const sat = doSat(20);
+    const lit = 1 - RIVER_PALETTE.deficitDim;
+    const anoxic = particleColor({ dT: 1000, L: 0, N: 0, D: sat }, sat, 1);
+    RIVER_PALETTE.crimson.forEach((c, i) => expect(anoxic[i]).toBeCloseTo(c, 5));
+    const bod = particleColor({ dT: 0, L: 1e4, N: 0, D: sat }, sat, 1);
+    RIVER_PALETTE.amber.forEach((c, i) => expect(bod[i]).toBeCloseTo(c * lit, 5));
+    const nitrate = particleColor({ dT: 0, L: 0, N: 1e4, D: sat }, sat, 1);
+    RIVER_PALETTE.green.forEach((c, i) => expect(nitrate[i]).toBeCloseTo(c * lit, 5));
+    // Hot and BOD-loaded, then anoxic: crimson + amber·0.2 = (1.2, 0.214, 0.2) → ÷ 1.2.
+    const hotAnoxic = particleColor({ dT: 1000, L: 1e4, N: 0, D: sat }, sat, 1);
+    const { crimson: C, amber: A } = RIVER_PALETTE;
+    const raw = [0, 1, 2].map((i) => C[i] + A[i] * lit);
+    const max = Math.max(...raw);
+    raw.forEach((v, i) => expect(hotAnoxic[i]).toBeCloseTo(v / max, 5));
+    expect(hotAnoxic[0]).toBeCloseTo(1, 6);
+  });
+
+  it('mixes channels hue-preserving: divided by the brightest component, never clipped per component', () => {
+    const sat = doSat(20);
+    // All three saturated, no deficit: crimson + amber + green = (2.22, 1.71, 0.28) → ÷ 2.22.
+    const all = particleColor({ dT: 1000, L: 1e4, N: 1e4, D: 0 }, sat, 1);
+    const { crimson: C, amber: A, green: G } = RIVER_PALETTE;
+    const sum = [0, 1, 2].map((i) => C[i] + A[i] + G[i]);
+    const max = Math.max(...sum);
+    sum.forEach((v, i) => expect(all[i]).toBeCloseTo(v / max, 5));
+    expect(all[1]).toBeLessThan(0.8);                 // clipping would give (1, 1, 0.28): yellow
+    // Citarum at its site (fraction 0), through the real preset path: hot, BOD-loaded,
+    // nitrate-rich, part-depleted. Orange-crimson ≈ (1, .55, .15), r = 1 > g > b, never r = g.
+    const p = ALL_AUDIT_PRESETS.find((x) => x.key === 'citarum');
+    const river = prepareRiver(buildSource(presetSourceSpec(p), OCEAN_GRID, buildLandMask(OCEAN_GRID)));
+    const site = particleColor(riverState(river.kernel, 0, river.hyd), river.sat, 1);
+    expect(site[0]).toBeCloseTo(1, 6);
+    expect(site[1]).toBeCloseTo(0.55, 1);
+    expect(site[2]).toBeCloseTo(0.15, 1);
+    expect(site[0] - site[1]).toBeGreaterThan(0.3);
+    expect(site[1]).toBeGreaterThan(site[2]);
   });
 
   const src = {
