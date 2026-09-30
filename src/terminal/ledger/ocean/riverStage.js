@@ -104,6 +104,10 @@ const pos = (x) => (x > 0 ? x : 0); // NaN and negatives → 0
 // I.z*GREEN)*exp(-I.w)), and emission above 1 is divided by its brightest
 // component (hue-preserving), never clipped per component, which would turn
 // every heat + BOD + nitrate mix yellow. Palette and refs are unchanged.
+// The same rules, not the same curves: the plume dims biology by exp(-I.w)
+// and tone-maps with 1 - exp(-m) even below 1; parcels dim linearly
+// (1 - deficitDim * D/sat) and divide only when the brightest component
+// exceeds 1. Separate exposures, deliberately.
 export function particleColor(state, sat, alpha = 1, out = new Float32Array(4), off = 0) {
   const { crimson, amber, green, ref, deficitDim, minAlpha } = RIVER_PALETTE;
   const e0 = 1 - Math.exp(-pos(state.dT) / ref[0]);

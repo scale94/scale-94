@@ -117,8 +117,12 @@ export default function LedgerTab() {
   useEffect(() => {
     // The ocean's reduced-motion warm-up waits for this, so it runs once with
     // the archive in it. The verdicts land before `ready`, so any render with
-    // sourcesReady true already carries the archive.
-    getAllVerdicts().then(setVerdicts).finally(() => setVerdictsLoaded(true));
+    // sourcesReady true already carries the archive. A failed load is logged
+    // and the ocean still becomes ready (ambient sources only).
+    getAllVerdicts()
+      .then(setVerdicts)
+      .catch((err) => console.error(err))
+      .finally(() => setVerdictsLoaded(true));
     getVerdictCount().then(setVerdictCount);
 
     const t1 = setTimeout(() => setHeroBooted(true), PHASE_HERO);

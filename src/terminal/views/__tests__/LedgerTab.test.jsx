@@ -98,6 +98,28 @@ describe('LedgerTab — ocean hero (phase 3a)', () => {
     expect(h.oceanProps.some((p) => p.sourcesReady === false)).toBe(true);
   });
 
+  it('still marks the ocean sources ready when the archive fails to load, and logs it', async () => {
+    const err = new Error('archive unavailable');
+    getAllVerdicts.mockRejectedValueOnce(err);
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const unhandled = [];
+    const onUnhandled = (reason) => unhandled.push(reason);
+    process.on('unhandledRejection', onUnhandled);
+    try {
+      render(<LedgerTab />);
+      await waitFor(() => expect(h.oceanProps.at(-1).sourcesReady).toBe(true));
+      expect(h.oceanProps.at(-1).verdicts).toEqual([]);
+      // Node reports an unhandled rejection after the microtasks drain: give it two macrotasks.
+      await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+      await new Promise((r) => setTimeout(r, 0));
+      expect(unhandled).toEqual([]);
+      expect(logged).toHaveBeenCalledWith(err);
+    } finally {
+      process.off('unhandledRejection', onUnhandled);
+      logged.mockRestore();
+    }
+  });
+
   it('hands the latest valid draft to the ocean as the ghost, and clears it for the archive view', async () => {
     render(<LedgerTab />);
     fireEvent.click(screen.getByText('stub-draft'));

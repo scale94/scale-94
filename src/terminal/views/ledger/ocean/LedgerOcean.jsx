@@ -168,6 +168,7 @@ export default function LedgerOcean({
     const rivers = sources.map((s) => prepareRiver(s));
     if (ghostSource) rivers.push(prepareRiver(ghostSource, { alpha: GHOST_ALPHA }));
     const drawn = rivers.filter(Boolean);
+    // + 1 vertex: the seal flare's slot, written after the parcels (writeFlare).
     return { rivers: drawn, buf: new Float32Array((drawn.length * PARTICLES_PER_RIVER + 1) * FLOATS_PER_PARTICLE) };
   }, [sources, ghostSource]);
   const riverBufRef = useRef(riverBuf);
@@ -384,7 +385,7 @@ export default function LedgerOcean({
   requestFrameRef.current = requestFrame;
 
   useEffect(() => {
-    const raf = rafRef; // alias: no ref-in-cleanup lint warning (count must stay ≤ 137)
+    const raf = rafRef; // alias: avoids a ref-in-cleanup lint warning (no new lint warnings)
     return () => {
       cancelAnimationFrame(raf.current);
       raf.current = 0;
