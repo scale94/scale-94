@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { validDraft, createFrameCoalescer } from '../draft';
+import { validDraft, createFrameCoalescer, coordErrors, isNullIsland } from '../draft';
 
 const FORM = {
   lat: '48.31', lon: '14.29', siteName: 'Linz', temp: '12', do: '10.5', bod: '3', dt: '1.5',
@@ -25,6 +25,53 @@ describe('validDraft', () => {
   it('is null for whitespace-only lat or lon', () => {
     expect(validDraft({ ...FORM, lat: '  ' })).toBeNull();
     expect(validDraft({ ...FORM, lon: ' \t' })).toBeNull();
+  });
+});
+
+describe('coordErrors', () => {
+  const at = (lat, lon) => coordErrors({ lat, lon });
+  const msgs = (lat, lon) => at(lat, lon).map((e) => `${e.field}: ${e.message}`);
+
+  it('accepts plain decimals, negatives, exponents and the bounds themselves', () => {
+    for (const [lat, lon] of [['52.52', '13.405'], ['-52.52', '-13.405'], ['1e1', '1e1'], [52.52, 13.405],
+      ['90', '180'], ['-90', '-180'], [' 48.2 ', '16.37']]) {
+      expect(at(lat, lon)).toEqual([]);
+    }
+  });
+
+  it('calls a blank or whitespace coordinate required', () => {
+    expect(msgs('', '')).toEqual(['lat: Latitude is required', 'lon: Longitude is required']);
+    expect(msgs('  ', ' \t')).toEqual(['lat: Latitude is required', 'lon: Longitude is required']);
+    expect(msgs(undefined, null)).toEqual(['lat: Latitude is required', 'lon: Longitude is required']);
+  });
+
+  it('calls a non-finite coordinate not a number', () => {
+    expect(msgs('abc', '13.4')).toEqual(['lat: Latitude must be a number']);
+    expect(msgs('52.5', 'NaN')).toEqual(['lon: Longitude must be a number']);
+    expect(msgs('Infinity', '-Infinity')).toEqual(['lat: Latitude must be a number', 'lon: Longitude must be a number']);
+  });
+
+  it('rejects anything past ±90 / ±180, bounds inclusive', () => {
+    expect(msgs('90.0001', '0')).toEqual(['lat: Latitude must be between -90 and 90']);
+    expect(msgs('-95', '13.4')).toEqual(['lat: Latitude must be between -90 and 90']);
+    expect(msgs('52.52', '373.4')).toEqual(['lon: Longitude must be between -180 and 180']);
+    expect(msgs('52.52', '-180.0001')).toEqual(['lon: Longitude must be between -180 and 180']);
+  });
+
+  it('validDraft uses the same rule', () => {
+    expect(validDraft({ ...FORM, lat: '90', lon: '-180' })).toEqual(expect.objectContaining({ lat: 90, lon: -180 }));
+    expect(validDraft({ ...FORM, lat: '90.0001' })).toBeNull();
+    expect(validDraft({ ...FORM, lon: 'Infinity' })).toBeNull();
+  });
+
+  it('knows exactly 0°, 0° and nothing near it', () => {
+    expect(isNullIsland(0, 0)).toBe(true);
+    expect(isNullIsland('0', '-0')).toBe(true);
+    expect(isNullIsland('0.0', '0')).toBe(true);
+    expect(isNullIsland(0.5, 0)).toBe(false);
+    expect(isNullIsland(0, 0.0001)).toBe(false);
+    expect(isNullIsland('', '')).toBe(false);
+    expect(isNullIsland(null, undefined)).toBe(false);
   });
 });
 

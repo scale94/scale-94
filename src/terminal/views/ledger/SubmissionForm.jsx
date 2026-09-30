@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react'
 const CoordinatePicker = lazy(() => import('./CoordinatePicker'));
 import { PARAM_RANGES, VALID_DEPENDENCIES, validateSubmission } from '../../ledger/verdictModel';
 import RiverPulse from './RiverPulse';
-import { validDraft } from './draft';
+import { validDraft, coordErrors, isNullIsland, NULL_ISLAND_MESSAGE } from './draft';
 import { paramSeverity, discreteSeverity } from './severityEngine';
 import { emit as emitObs, getTotals } from '../../../observatory/observatoryBus';
 import { ALL_AUDIT_PRESETS } from '../../ledger/auditPresets';
@@ -102,10 +102,12 @@ export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch,
   const pullPrior = useCallback((hash) => {
     const v = verdicts.find(x => x.hash === hash);
     if (!v) return;
+    // A legacy 0,0 record is an unlocated site: never copy it into a new one.
+    const located = !isNullIsland(v.coordinates?.lat, v.coordinates?.lon);
     setForm(prev => ({
       ...prev,
-      lat: v.coordinates?.lat ?? prev.lat,
-      lon: v.coordinates?.lon ?? prev.lon,
+      lat: located ? (v.coordinates?.lat ?? prev.lat) : prev.lat,
+      lon: located ? (v.coordinates?.lon ?? prev.lon) : prev.lon,
       siteName: v.input?.siteName ?? prev.siteName,
       dependency: v.dependency ?? prev.dependency,
       ...Object.fromEntries(Object.keys(PARAM_RANGES).map(key => [key, v.input?.[key] ?? prev[key]])),
@@ -132,6 +134,12 @@ export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch,
   }, []);
 
   const handleSubmit = useCallback(() => {
+    // Coordinates first (validateSubmission never looks at them): blank,
+    // non-numeric, off the globe or exactly 0°, 0° is never submitted.
+    const coordErrs = coordErrors(form);
+    if (coordErrs.length === 0 && isNullIsland(form.lat, form.lon)) {
+      coordErrs.push({ field: 'lat', message: NULL_ISLAND_MESSAGE });
+    }
     // Catch empty fields BEFORE Number() converts '' → 0
     const emptyErrors = [];
     for (const key of Object.keys(PARAM_RANGES)) {
@@ -139,25 +147,17 @@ export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch,
         emptyErrors.push({ field: key, message: `${PARAM_RANGES[key].label} is required` });
       }
     }
-    if (form.lat === '' || form.lon === '') {
-      if (form.lat === '') emptyErrors.push({ field: 'lat', message: 'Latitude is required' });
-      if (form.lon === '') emptyErrors.push({ field: 'lon', message: 'Longitude is required' });
-    }
-    if (emptyErrors.length > 0) {
-      setErrors(emptyErrors);
-      // Scroll to first error field so it's visible on mobile
-      const firstField = emptyErrors[0].field;
-      const el = formRef.current?.querySelector(`[data-field="${firstField}"]`);
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      return;
-    }
     const numericForm = { ...form };
     for (const key of Object.keys(PARAM_RANGES)) {
       numericForm[key] = Number(numericForm[key]);
     }
     numericForm.lat = Number(numericForm.lat);
     numericForm.lon = Number(numericForm.lon);
-    const validationErrors = validateSubmission(numericForm);
+    const validationErrors = [
+      ...coordErrs,
+      ...emptyErrors,
+      ...(emptyErrors.length > 0 ? [] : validateSubmission(numericForm)),
+    ];
     if (validationErrors.length > 0) {
       setErrors(validationErrors);
       const firstField = validationErrors[0].field;
@@ -234,8 +234,10 @@ export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch,
                   lat={Number(form.lat) || null}
                   lon={Number(form.lon) || null}
                   onSelect={(lat, lon) => {
+                    // A click on a wrapped world copy reports lon outside ±180.
+                    const wrapped = ((lon + 180) % 360 + 360) % 360 - 180;
                     update('lat', lat.toFixed(6));
-                    update('lon', lon.toFixed(6));
+                    update('lon', wrapped.toFixed(6));
                   }}
                   onClose={() => setShowMap(false)}
                 />

@@ -12,12 +12,39 @@ const blank = (v) => {
   return v === '';
 };
 
+// The one coordinate rule, shared by the ghost (validDraft) and the submit
+// path: blank → required, non-finite → not a number, |lat| > 90 or
+// |lon| > 180 → out of range (the bounds themselves are on the globe).
+const COORDS = [['lat', 'Latitude', 90], ['lon', 'Longitude', 180]];
+
+export function coordErrors(form) {
+  const errors = [];
+  for (const [field, label, limit] of COORDS) {
+    const v = form[field];
+    if (blank(v)) {
+      errors.push({ field, message: `${label} is required` });
+      continue;
+    }
+    const n = Number(v);
+    if (!Number.isFinite(n)) errors.push({ field, message: `${label} must be a number` });
+    else if (Math.abs(n) > limit) errors.push({ field, message: `${label} must be between -${limit} and ${limit}` });
+  }
+  return errors;
+}
+
+// Exactly 0°, 0°: the value a blank coordinate used to become. Refused at
+// submit and never copied from a prior entry.
+export const NULL_ISLAND_MESSAGE = '0°, 0° is open ocean. Enter the river site.';
+
+export function isNullIsland(lat, lon) {
+  return !blank(lat) && !blank(lon) && Number(lat) === 0 && Number(lon) === 0;
+}
+
 export function validDraft(form) {
-  if (blank(form.lat) || blank(form.lon)) return null;
+  if (coordErrors(form).length) return null;
   for (const key of Object.keys(PARAM_RANGES)) if (blank(form[key])) return null;
   const lat = Number(form.lat);
   const lon = Number(form.lon);
-  if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
   const out = { lat, lon, siteName: form.siteName ?? '' };
   for (const key of Object.keys(PARAM_RANGES)) out[key] = Number(form[key]);
   return validateSubmission(out).length ? null : out;
