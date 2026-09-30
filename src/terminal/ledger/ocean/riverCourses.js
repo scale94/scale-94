@@ -78,7 +78,7 @@ export const RIVERS = {
     dischargeM3s: 40974,
     manning: { n: 0.025, R: 12, S: 0.00002 },
     sources: {
-      course: 'Site = Lower Meghna source at the Padma confluence 23°13′11″N 90°37′50″E, "The Meghna meets its major tributary, the Padma, in Chandpur District" → Lower Meghna mouth 22°0′47″N 90°51′35″E (Wikipedia, "Meghna River", https://en.wikipedia.org/wiki/Meghna_River, retrieved 2026-09-30); the two interior waypoints (90.72°E 22.95°N, 90.8°E 22.6°N) are UNVERIFIED approximations east of Bhola',
+      course: 'UNVERIFIED — the two interior waypoints (90.72°E 22.95°N, 90.8°E 22.6°N) are approximations. Site = Lower Meghna source at the Padma confluence 23°13′11″N 90°37′50″E, "The Meghna meets its major tributary, the Padma, in Chandpur District" → Lower Meghna mouth 22°0′47″N 90°51′35″E (Wikipedia, "Meghna River", https://en.wikipedia.org/wiki/Meghna_River, retrieved 2026-09-30)',
       dischargeM3s: 'Lower Meghna near mouth mean 40,974 m³/s, 1971–2000 — the combined Ganges (Padma) + Brahmaputra + Upper Meghna flow below Chandpur; 40,533 m³/s at Chandpur (Wikipedia, "Meghna River" infobox citing riversnetwork.org "Ganga (Ganges)-Brahmaputra", https://en.wikipedia.org/wiki/Meghna_River, retrieved 2026-09-30)',
       manning: 'UNVERIFIED — assumed large deltaic channel values (n 0.025, R 12 m, S 2e-5)',
     },
@@ -104,7 +104,7 @@ export const RIVERS = {
     dischargeM3s: 6452,
     manning: { n: 0.03, R: 5, S: 0.000125 },
     sources: {
-      course: 'Linz → Vienna → Bratislava → Komárno → Budapest → Mohács → Vukovar → Novi Sad → Belgrade → Drobeta-Turnu Severin → Vidin → Ruse → Silistra → Brăila → Galați → Tulcea → Sulina; city coordinates (Linz 48°18′21″N 14°17′11″E, Wikipedia, "Linz", https://en.wikipedia.org/wiki/Linz, retrieved 2026-09-30, rounded; the other cities not individually re-checked); the last point (29.75°E 45.15°N, Sulina arm mouth) is an UNVERIFIED approximation',
+      course: 'UNVERIFIED — city waypoint coordinates other than Linz are planner approximations. Linz 48°18′21″N 14°17′11″E (Wikipedia, "Linz", https://en.wikipedia.org/wiki/Linz, retrieved 2026-09-30); Linz → Vienna → Bratislava → Komárno → Budapest → Mohács → Vukovar → Novi Sad → Belgrade → Drobeta-Turnu Severin → Vidin → Ruse → Silistra → Brăila → Galați → Tulcea → Sulina',
       riverKm: 'Linz city centre: Schiffsanlegestelle Linz-Nibelungen Nr. 12, in front of the Nibelungenbrücke, Strom-km 2135.2 (Oberösterreich Tourismus, "Schiffsanlegestelle Linz-Nibelungen Nr. 12", https://www.oberoesterreich.at/oesterreich-poi/detail/430002006/schiffsanlegestelle-linz-nibelungen-nr-12.html, retrieved 2026-09-30); Linz-Schloss Nr. 11 at Strom-km 2135.3 agrees; km counted upstream from km 0 at the old Sulina lighthouse (Wikipedia DE, "Donau", https://de.wikipedia.org/wiki/Donau, retrieved 2026-09-30)',
       dischargeM3s: 'Danube mean 6,452 m³/s at the delta, 1931–2020 (Wikipedia, "Danube" infobox, https://en.wikipedia.org/wiki/Danube, retrieved 2026-09-30)',
       manning: 'UNVERIFIED — assumed large regulated river values (n 0.03, R 5 m); S 1.25e-4 = Linz elevation 266 m (Wikipedia, "Linz", https://en.wikipedia.org/wiki/Linz, retrieved 2026-09-30; city elevation, not the water surface) ÷ 2135.2 km to sea level',

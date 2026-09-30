@@ -287,10 +287,10 @@ against `severityEngine.js` thresholds toward a stated tone):
 - The critical point t_c (maximum deficit) is drawn as a tick on the course,
   with a HUD readout, e.g. `DO_MIN 3.1 mg/L @ rkm 1840`.
 - Legend states `POINT SOURCE · PLUG FLOW · NO TRIBUTARIES`.
-- Worked example (Danube): ~25 d travel from Linz at ~12 °C (k_d ≈ 0.16/d)
-  leaves ~2% of BOD at the delta while ~66% of nitrate arrives, so the
+- Worked example (Danube): ≈ 22.7 d travel from Linz at ~12 °C (k_d ≈ 0.16/d)
+  leaves ≈ 2.7 % of BOD at the delta while ≈ 68.5 % of nitrate arrives, so the
   Danube's Black Sea plume is almost entirely green. That is the Danube's
-  actual legacy there. (An earlier draft said ~0.3%; that used k_d at 20 °C.)
+  actual legacy there. DO_MIN ≈ 9.9 mg/L @ rkm 1771. (An earlier draft said ~0.3%; that used k_d at 20 °C.)
 
 ### Ocean injection
 
