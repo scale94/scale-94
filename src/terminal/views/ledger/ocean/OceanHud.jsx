@@ -214,6 +214,8 @@ const OceanHud = forwardRef(function OceanHud({
               // One tab stop for all rings (roving tabindex); arrows move between them.
               tabIndex={i === roveIdx ? 0 : -1}
               onKeyDown={(e) => {
+                // Alt+Arrow is history, Ctrl+Home/End is the page: not ours.
+                if (e.altKey || e.ctrlKey || e.metaKey) return;
                 const next = keyStep(e.key, i, sites.length);
                 if (next === null) return;
                 e.preventDefault();

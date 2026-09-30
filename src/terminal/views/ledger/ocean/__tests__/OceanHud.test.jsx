@@ -272,4 +272,25 @@ describe('OceanHud', () => {
     expect(q('notes').id).toBeTruthy();
     expect(q('notes-toggle').getAttribute('aria-controls')).toBe(q('notes').id);
   });
+  it('leaves modified arrows to the browser (Alt+Arrow is history)', () => {
+    const { container } = hud();
+    const rings = [...container.querySelectorAll('[data-site]')];
+    rings[0].focus();
+    const notPrevented = fireEvent.keyDown(rings[0], { key: 'ArrowRight', altKey: true });
+    expect(notPrevented).toBe(true);
+    expect(document.activeElement).toBe(rings[0]);
+    expect(rings.map((r) => r.tabIndex)).toEqual([0, -1]);
+  });
+
+  it('keeps exactly one tab stop when the sites shrink under the roved ring', () => {
+    const three = [...SITES, { ...SITES[1], id: 'h2', name: 'Third' }];
+    const { container, rerender } = hud({ sites: three });
+    const rings = [...container.querySelectorAll('[data-site]')];
+    rings[0].focus();
+    fireEvent.keyDown(rings[0], { key: 'End' });
+    expect(rings.map((r) => r.tabIndex)).toEqual([-1, -1, 0]);
+    rerender(<OceanHud daysPerSecond={9} onCycleCompression={() => {}} sites={SITES} verdicts={[{ status: 'REJECTED' }]} />);
+    const after = [...container.querySelectorAll('[data-site]')];
+    expect(after.filter((r) => r.tabIndex === 0)).toHaveLength(1);
+  });
 });
