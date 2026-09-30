@@ -27,9 +27,9 @@ const TIP_MARGIN_PX = 4;
 // start, riverStage.writeFlare frac 0 = course[0]) to the mouth, on the
 // flare's clock: SEAL_FLARE_MS, linear (LedgerOcean frac = elapsed /
 // SEAL_FLARE_MS; a verdict course is one straight segment, so position is
-// linear in frac too). The solid copy has pathLength 1, so its dashes are in
-// fractions of the line whatever the units: dasharray 1 1 with the offset
-// 1 → 0 grows the dash from x1.
+// linear in frac too). dasharray L L with the offset L → 0 grows the dash from
+// x1. The stroke is non-scaling, and Chrome dashes it in css px, so L is the
+// line's on-screen length.
 const SEAL_CLOSE = 'ocean-seal-close';
 // Longhands, so nothing is left to shorthand defaults.
 const SEAL_CLOSE_ANIMATION = {
@@ -41,7 +41,8 @@ const SEAL_CLOSE_ANIMATION = {
   animationDirection: 'normal',
   animationFillMode: 'both',
 };
-const SEAL_KEYFRAMES = `@keyframes ${SEAL_CLOSE} { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }`;
+const sealKeyframes = (L) =>
+  `@keyframes ${SEAL_CLOSE} { from { stroke-dashoffset: ${L}px; } to { stroke-dashoffset: 0px; } }`;
 const TICK_PX = 7;
 
 const controlStyle = {
@@ -144,8 +145,13 @@ const OceanHud = forwardRef(function OceanHud({
   const focused = sites.find((s) => s.id === focus) ?? null;
   const live = mode === 'live';
   const ringPx = compact ? RING_PX_COMPACT : RING_PX;
-  // Whether a dash-close runs (no seal, reduced motion: the line is solid at once).
-  const sealing = Boolean(sealId && !reducedMotion && sites.some((s) => s.id === sealId && s.kind === 'verdict'));
+  // The sealing line's on-screen length (css px), or null when there is no
+  // dash-close to run (no seal, reduced motion: the line is solid at once).
+  const sealSite = sealId && !reducedMotion ? sites.find((s) => s.id === sealId && s.kind === 'verdict') : null;
+  const sealLen = sealSite
+    ? Math.hypot(((sealSite.snap[0] - sealSite.site[0]) / 360) * (width > 0 ? width : 360),
+      ((sealSite.snap[1] - sealSite.site[1]) / 180) * (height > 0 ? height : 180))
+    : null;
 
   // Phone: any press dismisses an open tooltip (the page, a HUD control, the
   // ocean). A press on the ocean then reopens a ring on pointerup if it lands
@@ -185,7 +191,7 @@ const OceanHud = forwardRef(function OceanHud({
         letterSpacing: `${HUD_LETTER_SPACING_EM}em`, lineHeight: 1.5, color: INK,
       }}
     >
-      {sealing && <style>{SEAL_KEYFRAMES}</style>}
+      {sealLen !== null && <style>{sealKeyframes(sealLen)}</style>}
       <svg
         aria-hidden="true"
         viewBox="0 0 360 180"
@@ -201,10 +207,10 @@ const OceanHud = forwardRef(function OceanHud({
               stroke: s.color, strokeOpacity: '0.6', strokeWidth: '1', vectorEffect: 'non-scaling-stroke',
               'data-sealing': s.id === sealId ? 'true' : undefined,
             };
-            if (s.id === sealId && sealing) {
+            if (s.id === sealId && sealLen !== null) {
               return [
                 <line key={`${s.id}:dash`} {...line} data-seal="dash" strokeDasharray={GHOST_DASH} />,
-                <line key={`${s.id}:close`} {...line} data-seal="close" pathLength="1" strokeDasharray="1 1"
+                <line key={`${s.id}:close`} {...line} data-seal="close" strokeDasharray={`${sealLen} ${sealLen}`}
                   style={SEAL_CLOSE_ANIMATION} />,
               ];
             }
