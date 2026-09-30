@@ -4,7 +4,7 @@ import { buildLandMask, snapToOcean } from '../landMask';
 import { riverState } from '../kinetics';
 import {
   haversineKm, courseLengthKm, splatCells, buildSource,
-  verdictSourceSpec, verdictSources, ghostSourceSpec, MIXED_LAYER_M,
+  verdictSourceSpec, verdictSources, ghostSourceSpec, MIXED_LAYER_M, isUnlocated,
   MIN_SNAP_BASIN_CELLS, ambientSources,
 } from '../sources';
 
@@ -121,6 +121,19 @@ describe('verdictSources', () => {
   });
   it('is empty for no verdicts', () => {
     expect(verdictSources([], grid, mask)).toEqual([]);
+  });
+  it('skips a verdict at exactly 0°, 0° as unlocated, never guessed; one at 0.5°, 0° still builds', () => {
+    expect(verdictSources([{ hash: 'z', status: 'REJECTED', coordinates: { lat: 0, lon: 0 }, input }], grid, mask)).toEqual([]);
+    const out = verdictSources([
+      { hash: 'z', status: 'REJECTED', coordinates: { lat: 0, lon: 0 }, input },
+      { hash: 'h', status: 'REJECTED', coordinates: { lat: 0.5, lon: 0 }, input },
+      { hash: 'k', status: 'REJECTED', coordinates: { lat: 0, lon: 0.5 }, input },
+    ], grid, mask);
+    expect(out.map((s) => s.id)).toEqual(['h', 'k']);
+    expect(isUnlocated({ lat: 0, lon: 0 })).toBe(true);
+    expect(isUnlocated({ lat: 0.5, lon: 0 })).toBe(false);
+    expect(isUnlocated({ lat: '0', lon: '0' })).toBe(false);   // exact numbers only
+    expect(isUnlocated(null)).toBe(false);
   });
 });
 

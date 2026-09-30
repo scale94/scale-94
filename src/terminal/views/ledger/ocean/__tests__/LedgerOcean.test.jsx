@@ -270,6 +270,22 @@ describe('LedgerOcean HUD integration', () => {
     expect(m.container.querySelectorAll('[data-site^="preset:"]')).toHaveLength(9);
   });
 
+  it('never rings or sources an unlocated 0°, 0° verdict', () => {
+    const V0 = { ...V, hash: 'h0', coordinates: { lat: 0, lon: 0 } };
+    const m = mountLive(<LedgerOcean width={512} height={256} />);
+    const uploads = count('texImage2D');
+    m.frames(2);
+    m.rerender(<LedgerOcean width={512} height={256} verdicts={[V0]} latestHash="h0" />);
+    m.frames(3);
+    expect(count('texImage2D')).toBe(uploads);                // no source added
+    expect(m.container.querySelector('[data-site="h0"]')).toBeNull();
+    expect(m.container.querySelector('line[data-line="h0"]')).toBeNull();
+    m.rerender(<LedgerOcean width={512} height={256} verdicts={[V0, V]} latestHash="h0" />);
+    m.frames(3);
+    expect(m.container.querySelector('[data-site="h1"]')).toBeTruthy();
+    expect(m.container.querySelector('[data-site="h0"]')).toBeNull();
+  });
+
   it('re-settles a reduced-motion ocean when a verdict adds a source', () => {
     reduceMotion();
     const days = [];

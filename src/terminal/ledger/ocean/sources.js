@@ -162,14 +162,24 @@ export function ambientSources(grid, mask) {
     .filter(Boolean);
 }
 
+// A verdict stored at exactly 0°, 0° (numbers) is unlocated: for the ledger's
+// first hours a blank coordinate was stored as 0. The hashed record stays in
+// the archive, marked UNLOCATED; it never becomes a source, ring or plume.
+export const UNLOCATED_LABEL = 'UNLOCATED';
+
+export function isUnlocated(coordinates) {
+  return !!coordinates && coordinates.lat === 0 && coordinates.lon === 0;
+}
+
 // Every archived verdict is a permanent source (spec decision 2). A verdict
-// without usable coordinates (older records, empty form fields) or without its
-// input is skipped, never guessed.
+// without usable coordinates (older records, empty form fields, or unlocated
+// at exactly 0°, 0°) or without its input is skipped, never guessed.
 export function verdictSources(verdicts, grid, mask) {
   const out = [];
   for (const v of verdicts) {
     const c = v?.coordinates;
     if (!c || !v.input || !Number.isFinite(num(c.lat)) || !Number.isFinite(num(c.lon))) continue;
+    if (isUnlocated(c)) continue;
     const src = buildSource(verdictSourceSpec(v), grid, mask);
     if (src) out.push(src);
   }
