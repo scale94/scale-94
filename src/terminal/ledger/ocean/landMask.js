@@ -149,7 +149,9 @@ export function analyzeLand(grid, land) {
       queue[tail++] = kk;
     }
   }
-  return { land, comp, compCount, basin, basinCount, dist, nearest };
+  const basinSize = new Int32Array(basinCount);
+  for (let k = 0; k < n; k++) if (basin[k] >= 0) basinSize[basin[k]]++;
+  return { land, comp, compCount, basin, basinCount, basinSize, dist, nearest };
 }
 
 export function buildLandMask(grid) {
@@ -158,7 +160,9 @@ export function buildLandMask(grid) {
 
 // Nearest ocean cell (Euclidean, in cells) within maxR; ties resolve to the
 // first found scanning south→north, west→east, so results are deterministic.
-export function snapToOcean(grid, land, lon, lat, maxR = 64) {
+// accept(k), when given, rejects ocean cells (sources.js: basins too small to
+// drain into — the lagoon rule).
+export function snapToOcean(grid, land, lon, lat, maxR = 64, accept = null) {
   const { i: ci, j: cj } = grid.lonLatToCell(lon, lat);
   let best = null;
   for (let dj = -maxR; dj <= maxR; dj++) {
@@ -166,7 +170,7 @@ export function snapToOcean(grid, land, lon, lat, maxR = 64) {
     if (j < 0 || j >= grid.ny) continue;
     for (let di = -maxR; di <= maxR; di++) {
       const k = grid.idx(ci + di, j);
-      if (land[k]) continue;
+      if (land[k] || (accept && !accept(k))) continue;
       const d = Math.hypot(di, dj);
       if (d <= maxR && (!best || d < best.distCells)) best = { i: grid.wrapI(ci + di), j, k, distCells: d };
     }

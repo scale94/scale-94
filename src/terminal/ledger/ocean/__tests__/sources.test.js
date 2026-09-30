@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { OCEAN_GRID } from '../grid';
-import { buildLandMask } from '../landMask';
+import { buildLandMask, snapToOcean } from '../landMask';
 import { riverState } from '../kinetics';
 import {
   haversineKm, courseLengthKm, splatCells, buildSource,
   verdictSourceSpec, verdictSources, ghostSourceSpec, MIXED_LAYER_M,
+  MIN_SNAP_BASIN_CELLS, ambientSources,
 } from '../sources';
 
 const grid = OCEAN_GRID;
@@ -123,3 +124,56 @@ describe('verdictSources', () => {
   });
 });
 
+describe('lagoon rule: sites skip basins below MIN_SNAP_BASIN_CELLS', () => {
+  const cell = (lon, lat) => {
+    const { i, j } = grid.lonLatToCell(lon, lat);
+    return grid.idx(i, j);
+  };
+  const basinAt = (lon, lat) => mask.basin[cell(lon, lat)];
+  const sizeAt = (lon, lat) => mask.basinSize[basinAt(lon, lat)];
+  const sizeOf = (k) => mask.basinSize[mask.basin[k]];
+  const verdictAt = (lat, lon) =>
+    buildSource(verdictSourceSpec({ hash: 'x', coordinates: { lat, lon }, input: { ...kernel } }), grid, mask);
+
+  it('sits between the largest skipped basin and the smallest kept sea (measured on the real grid)', () => {
+    expect(MIN_SNAP_BASIN_CELLS).toBe(40);
+    expect(sizeAt(18, 35)).toBe(511);                        // Mediterranean (Gibraltar is sub-grid)
+    expect(sizeAt(34, 43.5)).toBe(98);                       // Black Sea
+    expect(sizeAt(51, 42)).toBe(91);                         // Caspian
+    expect(sizeAt(38, 20)).toBe(81);                         // Red Sea (Bab-el-Mandeb is sub-grid)
+    const white = snapToOcean(grid, mask.land, 40.54, 64.54, 8);
+    expect(sizeOf(white.k)).toBe(20);                        // White Sea
+    expect(sizeOf(white.k)).toBeLessThan(MIN_SNAP_BASIN_CELLS);
+    expect(sizeAt(38, 20)).toBeGreaterThanOrEqual(MIN_SNAP_BASIN_CELLS);
+  });
+
+  it('moves a Suez verdict out of its 1-cell lagoon into the Mediterranean', () => {
+    expect(sizeOf(snapToOcean(grid, mask.land, 32.55, 29.97, 64).k)).toBe(1);
+    const s = verdictAt(29.97, 32.55);
+    expect(mask.basin[s.snap.k]).toBe(basinAt(18, 35));
+    expect(s.snap.distCells).toBe(2);
+  });
+
+  it('drains an Arkhangelsk verdict to the open ocean, not the 20-cell White Sea', () => {
+    const s = verdictAt(64.54, 40.54);
+    expect(mask.basin[s.snap.k]).toBe(basinAt(-150, 0));
+    expect(s.snap.distCells).toBe(3);
+  });
+
+  it('still drains into the Caspian, the Black Sea and the Red Sea', () => {
+    expect(mask.basin[verdictAt(40.41, 49.87).snap.k]).toBe(basinAt(51, 42));   // Baku
+    expect(mask.basin[verdictAt(46.48, 30.73).snap.k]).toBe(basinAt(34, 43.5)); // Odesa
+    const jeddah = verdictAt(21.49, 39.17);
+    expect(mask.basin[jeddah.snap.k]).toBe(basinAt(38, 20));
+    expect(jeddah.snap.distCells).toBe(0);
+  });
+
+  it('leaves every preset snap exactly where the unfiltered snap put it', () => {
+    const built = ambientSources(grid, mask);
+    expect(built.length).toBeGreaterThanOrEqual(5);
+    for (const s of built) {
+      const [lon, lat] = s.course.at(-1);
+      expect(s.snap.k, s.id).toBe(snapToOcean(grid, mask.land, lon, lat, 8).k);
+    }
+  });
+});

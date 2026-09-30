@@ -13,6 +13,17 @@ export const SPLAT_SIGMA_CELLS = 1.5;
 export const USER_VELOCITY_MS = 0.5;
 export const USER_SNAP_RADIUS_CELLS = 64;
 
+// Lagoon rule (spec phase-1 carry-over): a source never drains into an ocean
+// basin smaller than this. Measured on the 512×256 grid (37 basins): world
+// ocean 77,939 cells, Mediterranean 511, Black Sea 98, Caspian 91, Red Sea 81;
+// then White Sea 20, an Arctic-Canada basin 18 and 30 basins of 1–6 cells.
+// 40 keeps every real sea above and skips everything below. All nine preset
+// mouths snap into basins of ≥ 81 cells, so presets are unaffected (tested).
+export const MIN_SNAP_BASIN_CELLS = 40;
+
+const snapFilter = (mask) =>
+  mask.basinSize ? (k) => mask.basinSize[mask.basin[k]] >= MIN_SNAP_BASIN_CELLS : null;
+
 const RAD = Math.PI / 180;
 
 export function haversineKm([lon1, lat1], [lon2, lat2]) {
@@ -66,7 +77,7 @@ export function buildSource(spec, grid, mask) {
   if (dischargeM3s < 0 || depthM <= 0) return null;
   if (!course.every((p) => p.every(finite))) return null;
   const end = course[course.length - 1];
-  const snap = snapToOcean(grid, mask.land, end[0], end[1], snapRadius);
+  const snap = snapToOcean(grid, mask.land, end[0], end[1], snapRadius, snapFilter(mask));
   if (!snap) return null;
 
   const fullCourse = course.length === 1 ? [course[0], [snap.lon, snap.lat]] : course;

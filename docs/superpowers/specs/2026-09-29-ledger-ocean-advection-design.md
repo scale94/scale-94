@@ -486,13 +486,16 @@ Each phase ends in a working, green state.
 
 - `riverCourses.js` and the preset `river` blocks for the existing 5 presets
   (phase 2 renders them as ambient sources) plus the §6 "Presets" tests. The
-  phase-1 plan did not include them.
+  phase-1 plan did not include them. Done in phase 2.
 - DO_sat uses the freshwater Benson–Krause fit; at ocean salinity (~35) it is
   ~20% high, which raises the ocean deficit cap. Add a salinity term or a
   legend note.
 - `snapToOcean` does not prefer the main basin: 41 ocean basins exist at this
-  resolution, so a user verdict could snap into a tiny enclosed lagoon (the
-  Caspian case is intentional; tiny lagoons are not).
+  resolution (37 after the antimeridian fix), so a user verdict could snap into
+  a tiny enclosed lagoon (the Caspian case is intentional; tiny lagoons are
+  not). **Done in 3b:** `MIN_SNAP_BASIN_CELLS = 40` — basins of 20 cells and
+  fewer (White Sea, lagoons) are skipped; the Mediterranean (511), Black Sea
+  (98), Caspian (91) and Red Sea (81) are kept; preset snaps unchanged.
 - `referenceStep.js` keeps a module-level scratch object: fine on one thread,
   but each Worker needs its own module instance.
 - Clock: `setMaxSteps` input is unvalidated and `reset()`/custom `dtDays` are

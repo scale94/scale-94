@@ -178,4 +178,23 @@ describe('labelComponents and analyzeLand (synthetic)', () => {
     expect(m.comp[g.idx(3, 1)]).toBe(-1);
     expect(m.basin[g.idx(0, 1)]).toBe(-1);
   });
+
+  it('counts the ocean cells of every basin', () => {
+    const land = new Uint8Array(g.n);
+    for (let j = 0; j < g.ny; j++) land[g.idx(3, j)] = 1;   // one wall: the wrap joins both sides
+    land[g.idx(6, 1)] = 1;
+    const m = analyzeLand(g, land);
+    expect(m.basinCount).toBe(1);
+    expect(Array.from(m.basinSize)).toEqual([g.n - g.ny - 1]);
+  });
+
+  it('snaps past cells the accept filter rejects', () => {
+    const land = new Uint8Array(g.n);
+    const near = snapToOcean(g, land, g.lonOf(2), g.latOf(1), 4);
+    expect(near.k).toBe(g.idx(2, 1));
+    const far = snapToOcean(g, land, g.lonOf(2), g.latOf(1), 4, (k) => k !== g.idx(2, 1));
+    expect(far.k).not.toBe(g.idx(2, 1));
+    expect(far.distCells).toBe(1);
+    expect(snapToOcean(g, land, g.lonOf(2), g.latOf(1), 4, () => false)).toBeNull();
+  });
 });
