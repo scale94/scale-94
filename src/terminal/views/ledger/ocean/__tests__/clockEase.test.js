@@ -69,4 +69,23 @@ describe('createClockEase', () => {
     expect(a.steps).toBe(Math.floor(16.416 / DT_DAYS));
     expect(b.steps).toBe(a.steps);
   });
+
+  it('matches the exact integral at 60 Hz and 360 Hz through a hold with no release', () => {
+    // The case above starts and ends at factor 1, so a frame-sampled ease's
+    // errors telescope to 0 there. Here the run ends mid-hold: they cannot.
+    const run = (hz) => {
+      const e = createClockEase();
+      let dayWeight = 0;
+      const frameMs = 1000 / hz;
+      for (let f = 1; f <= 3 * hz; f++) {
+        const now = f * frameMs;
+        if (!e.held() && now > 500) e.hold(true, 500);
+        dayWeight += (frameMs / 1000) * 9 * e.meanFactor(now - frameMs, now);
+      }
+      return dayWeight;
+    };
+    // ∫ factor dt over 3 s = 0.5 + 0.306 + 0.02 × 1.9 = 0.844 s → 7.596 d at 9 d/s.
+    expect(run(60)).toBeCloseTo(7.596, 9);
+    expect(run(360)).toBeCloseTo(7.596, 9);
+  });
 });

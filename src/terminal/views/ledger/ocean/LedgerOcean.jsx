@@ -189,17 +189,9 @@ export default function LedgerOcean({
   // whenever it moves or the river set changes; while a flare runs, every
   // frame, with the flare as one extra vertex after them.
   const drawParticles = (gl, now) => {
-    const layer = particlesRef.current;
-    const driver = driverRef.current;
-    if (!layer || !driver) return;
-    const { rivers, buf } = riverBufRef.current;
-    const disp = driver.displayDays();
-    const dD = disp - lastDisplayRef.current;
-    lastDisplayRef.current = disp;
-    const phases = phaseRef.current;
-    if (dD > 0) {
-      for (const r of rivers) phases.set(r.id, advanceParcelPhase(phases.get(r.id) ?? 0, dD, r.travelDays, dpsRef.current));
-    }
+    // The flare's timing runs even with nothing to draw it on (a restore that
+    // failed to rebuild the particle layer or the sim), so a pending seal
+    // always completes and releases the clock.
     const flare = flareRef.current;
     let frac = null;
     if (flare) {
@@ -210,6 +202,17 @@ export default function LedgerOcean({
         frac = null;
         onSealDoneRef.current?.();
       }
+    }
+    const layer = particlesRef.current;
+    const driver = driverRef.current;
+    if (!layer || !driver) return;
+    const { rivers, buf } = riverBufRef.current;
+    const disp = driver.displayDays();
+    const dD = disp - lastDisplayRef.current;
+    lastDisplayRef.current = disp;
+    const phases = phaseRef.current;
+    if (dD > 0) {
+      for (const r of rivers) phases.set(r.id, advanceParcelPhase(phases.get(r.id) ?? 0, dD, r.travelDays, dpsRef.current));
     }
     const fill = fillRef.current;
     if (frac !== null || dD > 0 || rivers !== fill.rivers) {

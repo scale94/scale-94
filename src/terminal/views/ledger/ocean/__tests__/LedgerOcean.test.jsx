@@ -604,6 +604,34 @@ describe('LedgerOcean seal', () => {
     expect(flareDraws()).toHaveLength(0);
   });
 
+  it('completes a pending seal when the restored context cannot build the particle layer', () => {
+    vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame', 'performance', 'setTimeout', 'clearTimeout', 'Date'] });
+    rec = installRecordingGL({ version: 2, extensions: FLOAT });
+    let links = 0;
+    // Per build: link 1 = display, 2..6 = the five sim programs, 7 = particles.
+    // The rebuild after restore is links 8..14: fail only its particle program.
+    rec.gl.getProgramParameter = () => { links += 1; return links !== 14; };
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const frames = (n) => {
+      for (let f = 0; f < n; f++) act(() => { vi.advanceTimersByTime(FRAME_MS); });
+    };
+    const done = vi.fn();
+    const m = render(<LedgerOcean width={1024} height={512} holdClock />);
+    frames(2);
+    m.rerender(<LedgerOcean width={1024} height={512} holdClock verdicts={[V]} sealHash="h1" onSealDone={done} />);
+    frames(1);
+    expect(flareDraws()).toHaveLength(1);                // the flare is running
+    const first = screen.getByLabelText(/Ledger ocean/);
+    act(() => { first.dispatchEvent(new Event('webglcontextlost', { cancelable: true })); });
+    frames(2);
+    act(() => { first.dispatchEvent(new Event('webglcontextrestored')); });
+    expect(err).toHaveBeenCalled();                      // the particle layer did not rebuild
+    expect(links).toBeGreaterThanOrEqual(14);
+    frames(Math.ceil(SEAL_FLARE_MS / FRAME_MS) + 2);
+    expect(done).toHaveBeenCalledTimes(1);
+    expect(flareDraws()).toHaveLength(1);                // nothing more was drawn: no layer
+  });
+
   it('seals at once without float targets (no river stage to flare on)', () => {
     const done = vi.fn();
     const m = mountLive(<LedgerOcean width={1024} height={512} />, { extensions: [] });
