@@ -42,6 +42,7 @@ export default function useMercuryDrag(el) {
       el.removeEventListener('pointercancel', endDrag);
       el.removeEventListener('lostpointercapture', endDrag);
       el.style.cursor = '';
+      activePointerIdRef.current = null;
       tracker.up();
     };
   }, [el, tracker]);
