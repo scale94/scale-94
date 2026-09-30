@@ -5,7 +5,7 @@
 // is never touched (paint and step bind their own VAO every time).
 
 import { buildProgram } from '../../../gl/glHost';
-import { PARTICLE_VS, PARTICLE_FS } from './particleShaders';
+import { PARTICLE_VS, PARTICLE_FS, PARTICLE_AA_PX } from './particleShaders';
 import { FLOATS_PER_PARTICLE } from '../riverStage';
 
 export function createParticleLayer(gl) {
@@ -27,12 +27,14 @@ export function createParticleLayer(gl) {
       gl.bindBuffer(gl.ARRAY_BUFFER, buf);
       gl.bufferData(gl.ARRAY_BUFFER, data.subarray(0, count * FLOATS_PER_PARTICLE), gl.DYNAMIC_DRAW);
     },
+    // sizePx: the visible dot diameter in device px. The sprite is
+    // PARTICLE_AA_PX larger on each side for the FS's soft edge.
     draw(first, count, sizePx) {
       if (!(count > 0)) return;
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       gl.useProgram(prog);
       gl.bindVertexArray(vao);
-      gl.uniform1f(uSize, sizePx);
+      gl.uniform1f(uSize, sizePx + 2 * PARTICLE_AA_PX);
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       gl.drawArrays(gl.POINTS, first, count);

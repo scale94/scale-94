@@ -493,7 +493,8 @@ describe('LedgerOcean river stage', () => {
     const got = particleUploads().at(-1)[2];
     expect(got).toHaveLength(expected.length);
     got.forEach((v, i) => expect(v).toBeCloseTo(expected[i], 5));
-    expect(rec.log).toContainEqual(['uniform1f', expect.stringMatching(/:uSize$/), PARTICLE_PX]);
+    // Sprite = visible diameter (css px × canvas/css = 1 in jsdom) + 1 device px AA margin each side.
+    expect(rec.log).toContainEqual(['uniform1f', expect.stringMatching(/:uSize$/), PARTICLE_PX * 1 + 2]);
   });
 
   it('glides between sim steps: parcels move every frame on wall time with no step taken', () => {
@@ -578,7 +579,7 @@ describe('LedgerOcean seal', () => {
     m.rerender(<LedgerOcean width={1024} height={512} holdClock verdicts={[V]} sealHash="h1" onSealDone={done} />);
     m.frames(1);
     expect(flareDraws()).toHaveLength(1);
-    expect(rec.log).toContainEqual(['uniform1f', expect.stringMatching(/:uSize$/), FLARE_PX]);
+    expect(rec.log).toContainEqual(['uniform1f', expect.stringMatching(/:uSize$/), FLARE_PX * 1 + 2]);
     const src = buildSource(verdictSourceSpec(V), getOceanWorld().grid, getOceanWorld().mask);
     const x0 = lastFlareVertex()[0];
     expect(x0).toBeCloseTo(src.course[0][0] / 180, 4);  // starts at the audit site

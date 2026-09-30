@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createRecordingGL } from '../../../gl/__tests__/recordingGL';
 import { createParticleLayer } from '../gpu/particleLayer';
-import { PARTICLE_VS, PARTICLE_FS } from '../gpu/particleShaders';
+import { PARTICLE_VS, PARTICLE_FS, PARTICLE_AA_PX } from '../gpu/particleShaders';
 
 describe('createParticleLayer', () => {
   it('declares the parcel layout the buffer fill writes (clip xy at 0, RGBA at 1)', () => {
@@ -9,6 +9,17 @@ describe('createParticleLayer', () => {
     expect(PARTICLE_VS).toMatch(/layout\(location = 1\) in vec4 aColor;/);
     expect(PARTICLE_VS).toMatch(/gl_PointSize = uSize;/);
     expect(PARTICLE_FS).toMatch(/gl_PointCoord/);
+  });
+
+  it('soft-edges the disc: no hard discard at the edge, a smoothstep on the point coordinate over ~1 device px', () => {
+    expect(PARTICLE_FS).not.toMatch(/discard/);
+    expect(PARTICLE_FS).toMatch(/smoothstep\([^;]*\)/);
+    // The distance fed to the smoothstep comes from gl_PointCoord, in device px.
+    expect(PARTICLE_FS).toMatch(/float r = length\(gl_PointCoord - 0\.5\) \* vSize;/);
+    expect(PARTICLE_FS).toMatch(/smoothstep\(edge - 0\.5, edge \+ 0\.5, r\)/);
+    expect(PARTICLE_FS).toMatch(/float edge = 0\.5 \* vSize - AA_PX;/);
+    expect(PARTICLE_FS).toMatch(/outColor = vec4\(vColor\.rgb, vColor\.a \* cover\);/);
+    expect(PARTICLE_AA_PX).toBe(1);
   });
 
   it('owns a VAO with two interleaved attributes (stride 24 bytes) and draws blended points', () => {
@@ -27,6 +38,8 @@ describe('createParticleLayer', () => {
       'drawArrays', 'disable', 'bindVertexArray',
     ]);
     expect(gl.__log.find((e, i) => i >= mark && e[0] === 'drawArrays')).toEqual(['drawArrays', gl.POINTS, 0, 2]);
+    // The sprite is the visible diameter plus 1 device px of AA margin each side.
+    expect(gl.__log.find((e, i) => i >= mark && e[0] === 'uniform1f')[2]).toBe(3 + 2);
     const n = gl.__log.length;
     layer.draw(0, 0, 3);
     expect(gl.__log.length).toBe(n);   // nothing to draw: no GL calls
