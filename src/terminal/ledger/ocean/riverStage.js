@@ -57,6 +57,7 @@ export function courseTick(course, cum, s) {
 // (zero travel time or length) or the course crosses the date line (a straight
 // user line to a wrapped snap cell; the HUD skips those lines too).
 export function prepareRiver(src, { alpha = 1 } = {}) {
+  if (src.kind === 'catalog') return null; // mouth-only: the plume is the whole picture
   if (!(src.travelDays > 0) || !(src.courseKm > 0)) return null;
   for (let p = 1; p < src.course.length; p++) {
     if (Math.abs(src.course[p][0] - src.course[p - 1][0]) > 180) return null;

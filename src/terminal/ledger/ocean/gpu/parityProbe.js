@@ -5,7 +5,7 @@ import { OCEAN_GRID } from '../grid';
 import { buildLandMask } from '../landMask';
 import { bakeCurrents } from '../streamFunction';
 import { createOceanContext, step } from '../referenceStep';
-import { ambientSources } from '../sources';
+import { oceanSources } from '../sources';
 import { packStatic, packRows, packSources } from './gpuData';
 import { createOceanGpu } from './oceanGpu';
 import { syntheticWorld, uniformVelocity, blob } from '../__tests__/syntheticWorld';
@@ -102,9 +102,9 @@ function realCase() {
   const grid = OCEAN_GRID;
   const mask = buildLandMask(grid);
   const { vel } = bakeCurrents(grid, mask);
-  const sources = ambientSources(grid, mask);
+  const sources = oceanSources(grid, mask);
   return runCase({
-    name: 'real 512x256, nine preset sources', grid, mask, vel,
+    name: 'real 512x256, nine preset + thirteen catalog sources', grid, mask, vel,
     init: new Float32Array(grid.n * 4), sources, steps: 40, diffusivity: undefined,
   });
 }

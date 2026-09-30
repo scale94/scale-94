@@ -263,7 +263,7 @@ const OceanHud = forwardRef(function OceanHud({
               <span
                 style={{
                   position: 'absolute', inset, borderRadius: '50%',
-                  border: `${shortCourse ? 1 : latest ? 2 : 1.5}px ${s.kind === 'ghost' ? 'dashed' : 'solid'} ${s.color}`, opacity: s.kind === 'preset' ? 0.6 : 0.95,
+                  border: `${shortCourse ? 1 : latest ? 2 : 1.5}px ${s.kind === 'ghost' ? 'dashed' : 'solid'} ${s.color}`, opacity: s.kind === 'preset' || s.kind === 'catalog' ? 0.6 : 0.95,
                 }}
               />
             </button>

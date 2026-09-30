@@ -3,6 +3,7 @@
 
 import { ALL_AUDIT_PRESETS } from '../../../ledger/auditPresets';
 import { RIVERS } from '../../../ledger/ocean/riverCourses';
+import { CATALOG } from '../../../ledger/ocean/riverCatalog';
 import { haversineKm } from '../../../ledger/ocean/sources';
 import { cumulativeKm, courseTick } from '../../../ledger/ocean/riverStage';
 
@@ -168,6 +169,16 @@ export function describeSites(sources, verdicts = [], ghostParams = null, hero =
         color: PRESET_COLOR,
       };
     }
+    if (s.kind === 'catalog') {
+      const key = s.id.slice('catalog:'.length);
+      return {
+        ...base,
+        snapKm: haversineKm(CATALOG[key].outfall, snap),
+        name: CATALOG[key].label,
+        status: null,
+        color: PRESET_COLOR,
+      };
+    }
     if (s.kind === 'ghost') {
       return {
         ...base,
@@ -208,8 +219,9 @@ export function tooltipLines(site) {
   else pct = pctValue < 10 ? pctValue.toPrecision(2) : Math.round(pctValue);
   return [
     site.name,
-    site.kind === 'preset' ? 'AMBIENT PRESET' : site.kind === 'ghost' ? GHOST_LABEL : statusLabel(site.status),
-    site.kind === 'preset' ? q : `${q} · ${pct}% OF MISSISSIPPI`,
+    site.kind === 'preset' ? 'AMBIENT PRESET' : site.kind === 'catalog' ? 'AMBIENT RIVER'
+      : site.kind === 'ghost' ? GHOST_LABEL : statusLabel(site.status),
+    site.kind === 'preset' || site.kind === 'catalog' ? q : `${q} · ${pct}% OF MISSISSIPPI`,
     Number.isFinite(site.doMin) && Number.isFinite(site.rkm)
       ? `DO_MIN ${site.doMin.toFixed(1)} mg/L @ rkm ${Math.round(site.rkm)}`
       : 'DO_MIN — mg/L @ rkm —',
