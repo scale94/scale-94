@@ -10,13 +10,9 @@ import {
 } from './councilFieldPhysics';
 import { OMEGA_ISCO_VIS } from './councilMatter';
 import { SPIRAL_DEG, ARM_POINTS, DELAY_MAX, WOBBLE_DEG } from './councilFieldUniforms';
+import { glf, v3, v4 } from '../../gl/glf';
 
-export function glf(x) {
-  const s = Number(x).toPrecision(9);
-  return /[.e]/.test(s) ? s : `${s}.0`;
-}
-const v4 = (a) => `vec4(${a.map(glf).join(', ')})`;
-const v3 = (a) => `vec3(${a.map(glf).join(', ')})`;
+export { glf };
 const M = XYZ_TO_LINEAR_SRGB;
 
 export const FIELD_UNIFORMS = [
