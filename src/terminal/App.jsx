@@ -540,6 +540,25 @@ const App = () => {
     }
   }, []);
 
+  // Ecocide index opener — index entries from the CAS manifest are stubs with no
+  // body; they must go through loadContent() or the article opens empty.
+  const handleEcocideOpen = useCallback((article) => {
+    if (!article) return;
+    if (loadAbortRef.current) loadAbortRef.current.aborted = true;
+    const token = { aborted: false };
+    loadAbortRef.current = token;
+
+    setSelectedArticle(article);
+    setOriginTab('ecocide');
+    setCurrentPath(`~/system/ecocide/${article.id}`);
+
+    if (article.loadContent && !article.html && !article.content) {
+      article.loadContent()
+        .then(full => { if (!token.aborted) setSelectedArticle(full); })
+        .catch(err => console.error('[KERNEL_LOG] Ecocide article failed to load:', article.id, err));
+    }
+  }, []);
+
   // Handle loading a transmission signal — mirrors handleKernelClick but for
   // fiction/signal articles. Uses the same loadAbortRef abort-token pattern and
   // emits SIGNAL_INGEST_SUCCESS to the system kernel log on success.
@@ -1331,11 +1350,7 @@ const App = () => {
           {activeTab === 'ecocide' && !selectedArticle && !architectThesis && (
             <EcocideTab
               articles={articles}
-              onOpenArticle={(article) => {
-                setSelectedArticle(article);
-                setOriginTab('ecocide');
-                setCurrentPath(`~/system/ecocide/${article.id}`);
-              }}
+              onOpenArticle={handleEcocideOpen}
             />
           )}
 
