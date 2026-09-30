@@ -4,7 +4,7 @@ import { haversineKm } from '../sources';
 import { RIVER_PALETTE } from '../gpu/palette';
 import {
   PARTICLES_PER_RIVER, FLOATS_PER_PARTICLE, MIN_CYCLE_S, cumulativeKm, coursePoint, courseTick,
-  prepareRiver, advanceParcelPhase, parcelTime, particleColor, fillParticles,
+  prepareRiver, advanceParcelPhase, parcelTime, particleColor, fillParticles, writeFlare,
 } from '../riverStage';
 
 const L_COURSE = [[0, 0], [10, 0], [10, 10]];
@@ -123,5 +123,17 @@ describe('parcels', () => {
     expect(prepareRiver({ ...src, courseKm: 0 })).toBeNull();
     expect(prepareRiver({ ...src, course: [[179.5, 0], [-179.5, 0]] })).toBeNull();
     expect(prepareRiver(src, { alpha: 0.5 }).alpha).toBe(0.5);
+  });
+
+  it('writes one white flare vertex at a fraction of the course', () => {
+    const river = prepareRiver(src);
+    const out = new Float32Array(3 * FLOATS_PER_PARTICLE);
+    writeFlare(river, 0.5, out, 2);
+    const o = 2 * FLOATS_PER_PARTICLE;
+    expect(out[o]).toBeCloseTo(5 / 180, 6);
+    expect(out[o + 1]).toBeCloseTo(0, 6);
+    expect(Array.from(out.slice(o + 2, o + 6))).toEqual([1, 1, 1, 1]);
+    writeFlare(river, 7, out, 0);
+    expect(out[0]).toBeCloseTo(10 / 180, 6);    // clamped to the mouth
   });
 });

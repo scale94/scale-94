@@ -5,8 +5,9 @@ import { OCEAN_GRID, DT_DAYS } from '../../../../ledger/ocean/grid';
 import { diffusionSchedule, EDDY_DIFFUSIVITY_KM2_DAY } from '../../../../ledger/ocean/referenceStep';
 import { createStepClock } from '../../../../ledger/ocean/clock';
 import { REDUCED_MOTION_DAYS, WARMUP_STEPS_PER_FRAME } from '../oceanDriver';
-import { MODE_LABEL, PARTICLE_PX, PROBE_HINT, PROBE_TAP_HOLD_MS, formatClock, describeSites } from '../hudFormat';
-import { verdictSources, buildSource, ghostSourceSpec, SPLAT_SIGMA_CELLS } from '../../../../ledger/ocean/sources';
+import { FLARE_PX, MODE_LABEL, PARTICLE_PX, PROBE_HINT, PROBE_TAP_HOLD_MS, formatClock, describeSites } from '../hudFormat';
+import { verdictSources, verdictSourceSpec, buildSource, ghostSourceSpec, SPLAT_SIGMA_CELLS } from '../../../../ledger/ocean/sources';
+import { SEAL_FLARE_MS } from '../clockEase';
 import { packSourceRows } from '../../../../ledger/ocean/gpu/gpuData';
 import { getOceanWorld } from '../../../../ledger/ocean/oceanWorld';
 import {
@@ -545,5 +546,68 @@ describe('LedgerOcean river stage', () => {
     const expected = describeSites([...sources, ...verdictSources([V], grid, mask)], [V]).filter((s) => s.tick);
     expect(expected.length).toBeGreaterThanOrEqual(10);
     expect(m.container.querySelectorAll('[data-hud="domin-tick"]')).toHaveLength(expected.length);
+  });
+});
+
+const flareDraws = () => pointDraws().filter((e) => e[3] === 1);
+const lastFlareVertex = () => particleUploads().at(-1)[2].slice(-FLOATS_PER_PARTICLE);
+
+describe('LedgerOcean seal', () => {
+  it('eases the clock to a near-stop while held and back when released, on wall time', () => {
+    const days = [];
+    const onFrame = (d) => days.push(d);
+    const m = mountLive(<LedgerOcean width={1024} height={512} onFrame={onFrame} />);
+    m.frames(10);
+    m.rerender(<LedgerOcean width={1024} height={512} onFrame={onFrame} holdClock />);
+    m.frames(40);                                        // 640 ms: the 600 ms ease is done
+    const held = days.at(-1);
+    m.frames(30);                                        // 480 ms at 2% of 9 d/s ≈ 0.09 d
+    expect(days.at(-1) - held).toBeLessThanOrEqual(DT_DAYS);
+    m.rerender(<LedgerOcean width={1024} height={512} onFrame={onFrame} />);
+    m.frames(40);
+    const released = days.at(-1);
+    m.frames(30);                                        // 480 ms at 9 d/s = 4.32 d
+    expect(days.at(-1) - released).toBeGreaterThanOrEqual(4);
+    expect(days.at(-1) - released).toBeLessThanOrEqual(4.5);
+  });
+
+  it('flares the sealed verdict from its site towards its mouth over SEAL_FLARE_MS, then reports done once', () => {
+    const done = vi.fn();
+    const m = mountLive(<LedgerOcean width={1024} height={512} holdClock />);
+    m.frames(2);
+    m.rerender(<LedgerOcean width={1024} height={512} holdClock verdicts={[V]} sealHash="h1" onSealDone={done} />);
+    m.frames(1);
+    expect(flareDraws()).toHaveLength(1);
+    expect(rec.log).toContainEqual(['uniform1f', expect.stringMatching(/:uSize$/), FLARE_PX]);
+    const src = buildSource(verdictSourceSpec(V), getOceanWorld().grid, getOceanWorld().mask);
+    const x0 = lastFlareVertex()[0];
+    expect(x0).toBeCloseTo(src.course[0][0] / 180, 4);  // starts at the audit site
+    m.frames(Math.ceil(SEAL_FLARE_MS / FRAME_MS / 2));
+    expect(lastFlareVertex()[0]).toBeGreaterThan(x0);   // V drains east to the East China Sea
+    expect(done).not.toHaveBeenCalled();
+    m.frames(Math.ceil(SEAL_FLARE_MS / FRAME_MS));
+    expect(done).toHaveBeenCalledTimes(1);
+    const after = flareDraws().length;
+    m.frames(3);
+    expect(flareDraws()).toHaveLength(after);
+    expect(done).toHaveBeenCalledTimes(1);
+  });
+
+  it('seals at once, with no flare, under reduced motion', () => {
+    reduceMotion();
+    const done = vi.fn();
+    const m = mountLive(<LedgerOcean width={1024} height={512} />);
+    m.frames(WARM_FRAMES + 2);
+    m.rerender(<LedgerOcean width={1024} height={512} verdicts={[V]} sealHash="h1" onSealDone={done} />);
+    expect(done).toHaveBeenCalledTimes(1);
+    m.frames(WARM_FRAMES + 2);
+    expect(flareDraws()).toHaveLength(0);
+  });
+
+  it('seals at once without float targets (no river stage to flare on)', () => {
+    const done = vi.fn();
+    const m = mountLive(<LedgerOcean width={1024} height={512} />, { extensions: [] });
+    m.rerender(<LedgerOcean width={1024} height={512} verdicts={[V]} sealHash="h1" onSealDone={done} />);
+    expect(done).toHaveBeenCalledTimes(1);
   });
 });

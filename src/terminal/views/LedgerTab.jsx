@@ -97,6 +97,7 @@ export default function LedgerTab() {
   const [cascadeVerdict, setCascadeVerdict] = useState(null);
   const [cascadeVisible, setCascadeVisible] = useState(false);
   const [latestHash, setLatestHash] = useState(null);
+  const [sealHash, setSealHash] = useState(null);
 
   // The form's latest valid draft = the ocean's PROVISIONAL ghost, delivered
   // at most once per animation frame (spec §4 Form).
@@ -175,16 +176,17 @@ export default function LedgerTab() {
     }
   }, []);
 
-  // Phase 3a: no eclipse and no burst. The sealed verdict joins `verdicts`;
-  // LedgerOcean turns it into a permanent source (straight-line course to its
-  // snapped ocean cell) and rings its site, latestHash marking the ring. The
-  // seal sequence (clock ease, flare along the course) is phase 3b.
+  // Seal (spec §4): the sealed verdict joins `verdicts` (a permanent source,
+  // ringed, latestHash); the ghost is dropped in the same render; LedgerOcean
+  // flares the course and calls onSealDone, which releases the clock. Emits
+  // unchanged.
   const handleCascadeComplete = useCallback(() => {
     if (!cascadeVerdict) return;
     setVerdicts(prev => [cascadeVerdict, ...prev]);
     setVerdictCount(prev => prev + 1);
     setLatestHash(cascadeVerdict.hash);
     clearDraft();
+    setSealHash(cascadeVerdict.hash);
     setView('archive');
     ledgerBus.emit({ type: 'VERDICT_ISSUED', verdict: cascadeVerdict });
     emitObs('transmissions', 'verdict_issued', { verdict: cascadeVerdict.status ?? 'UNKNOWN' });
@@ -195,6 +197,8 @@ export default function LedgerTab() {
       setCascadeVerdict(null);
     }, 600);
   }, [cascadeVerdict, clearDraft]);
+
+  const handleSealDone = useCallback(() => setSealHash(null), []);
 
   const handleApiFetch = useCallback(async (lat, lon, source) => {
     setApiLoading(true);
@@ -254,6 +258,9 @@ export default function LedgerTab() {
             latestHash={latestHash}
             sourcesReady={verdictsLoaded}
             ghost={view === 'submit' ? draft : null}
+            holdClock={cascadeVisible || sealHash !== null}
+            sealHash={sealHash}
+            onSealDone={handleSealDone}
           />
         )}
         {/* Vignette overlay — above the canvas, below the HUD (OceanHud zIndex 2) */}

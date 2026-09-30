@@ -18,6 +18,7 @@
 //   PROBE_INTERVAL_MS of frame time; mouse hover on desktop, tap elsewhere
 //   (a touch that moves TAP_SLOP_PX or more is a scroll and does not probe).
 // - Ghost: the form draft as a provisional source, written into the source texture by row bands (never a full upload, never a warm-up reset); dashed and labelled PROVISIONAL in the HUD.
+// - Seal: holdClock eases the clock to 2 % over 600 ms of wall time (exact per-frame mean); sealHash flares its course over 1.2 s, then onSealDone.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShaderCanvas } from '../../../gl/useShaderCanvas';
@@ -26,7 +27,7 @@ import { getOceanWorld } from '../../../ledger/ocean/oceanWorld';
 import { createOceanGpu } from '../../../ledger/ocean/gpu/oceanGpu';
 import { createParticleLayer } from '../../../ledger/ocean/gpu/particleLayer';
 import {
-  prepareRiver, fillParticles, advanceParcelPhase, GHOST_ALPHA, PARTICLES_PER_RIVER, FLOATS_PER_PARTICLE,
+  prepareRiver, fillParticles, advanceParcelPhase, writeFlare, GHOST_ALPHA, PARTICLES_PER_RIVER, FLOATS_PER_PARTICLE,
 } from '../../../ledger/ocean/riverStage';
 import { packSources, packSourceRows, sourceRowBands } from '../../../ledger/ocean/gpu/gpuData';
 import { verdictSources, buildSource, ghostSourceSpec } from '../../../ledger/ocean/sources';
@@ -34,9 +35,10 @@ import { SIM_VS, COMPOSITE_FS, COMPOSITE_UNIFORMS } from '../../../ledger/ocean/
 import { OCEAN_EXPOSURE } from '../../../ledger/ocean/gpu/palette';
 import { createStepClock } from '../../../ledger/ocean/clock';
 import { createOceanDriver, REDUCED_MOTION_DAYS } from './oceanDriver';
+import { createClockEase, SEAL_FLARE_MS } from './clockEase';
 import OceanHud from './OceanHud';
 import {
-  COMPACT_BELOW_PX, DEFAULT_COMPRESSION, PARTICLE_PX, PROBE_INTERVAL_MS, PROBE_TAP_HOLD_MS,
+  COMPACT_BELOW_PX, DEFAULT_COMPRESSION, FLARE_PX, PARTICLE_PX, PROBE_INTERVAL_MS, PROBE_TAP_HOLD_MS,
   describeSites, formatProbe, nextCompression, pickSite, pointerToLonLat,
 } from './hudFormat';
 
@@ -79,6 +81,9 @@ export default function LedgerOcean({
   latestHash = null,
   sourcesReady = true,
   ghost = null,
+  holdClock = false,
+  sealHash = null,
+  onSealDone = null,
   onFrame = null, // (simDays, displayDays): step-clock days, and the wall-time interpolated display days
 }) {
   const canvasRef = useRef(null);
@@ -104,6 +109,13 @@ export default function LedgerOcean({
   const requestFrameRef = useRef(() => {});
   const readyRef = useRef(sourcesReady);
   readyRef.current = sourcesReady;
+  const easeRef = useRef(null);
+  if (easeRef.current === null) easeRef.current = createClockEase();
+  const holdRef = useRef(holdClock);
+  holdRef.current = holdClock;
+  const flareRef = useRef(null);
+  const onSealDoneRef = useRef(onSealDone);
+  onSealDoneRef.current = onSealDone;
   const phaseRef = useRef(new Map());   // river id → parcel phase (survives ghost edits)
   const lastDisplayRef = useRef(0);
   const sizeRef = useRef({ width, height });
@@ -142,6 +154,8 @@ export default function LedgerOcean({
   compactRef.current = width < COMPACT_BELOW_PX;
   const sourceDataRef = useRef(sourceData);
   sourceDataRef.current = sourceData;
+  const sourcesRef = useRef(sources);
+  sourcesRef.current = sources;
 
   // River stage: one prepared river per source with a course to walk.
   const riverBuf = useMemo(() => {
@@ -168,17 +182,17 @@ export default function LedgerOcean({
     hudRef.current?.setProbe(formatProbe(p.lon, p.lat, v, land));
   };
 
-  // River stage (spec §3): PARTICLES_PER_RIVER parcels per river, positions and
-  // colours from the exact kinetics, drawn as GL points over the composite.
-  // Re-filled whenever display time moves (every live frame: parcels glide
-  // between steps) or the river set changes; a held frame redraws the buffer.
-  const drawParticles = (gl) => {
+  // River stage (spec §3) plus the seal flare (spec §4): PARTICLES_PER_RIVER
+  // parcels per river, positions and colours from the exact kinetics, drawn as
+  // GL points over the composite. Parcels glide on display time (step clock +
+  // its wall-time remainder, slowed to ≥ MIN_CYCLE_S per course), re-filled
+  // whenever it moves or the river set changes; while a flare runs, every
+  // frame, with the flare as one extra vertex after them.
+  const drawParticles = (gl, now) => {
     const layer = particlesRef.current;
     const driver = driverRef.current;
     if (!layer || !driver) return;
     const { rivers, buf } = riverBufRef.current;
-    // Glide: phases advance with display days (step clock + its wall-time
-    // remainder), slowed to ≥ MIN_CYCLE_S per course at the chosen compression.
     const disp = driver.displayDays();
     const dD = disp - lastDisplayRef.current;
     lastDisplayRef.current = disp;
@@ -186,14 +200,27 @@ export default function LedgerOcean({
     if (dD > 0) {
       for (const r of rivers) phases.set(r.id, advanceParcelPhase(phases.get(r.id) ?? 0, dD, r.travelDays, dpsRef.current));
     }
+    const flare = flareRef.current;
+    let frac = null;
+    if (flare) {
+      if (flare.t0 === null) flare.t0 = now;
+      frac = (now - flare.t0) / SEAL_FLARE_MS;
+      if (frac >= 1) {
+        flareRef.current = null;
+        frac = null;
+        onSealDoneRef.current?.();
+      }
+    }
     const fill = fillRef.current;
-    if (dD > 0 || rivers !== fill.rivers) {
+    if (frac !== null || dD > 0 || rivers !== fill.rivers) {
       const n = fillParticles(rivers, rivers.map((r) => phases.get(r.id) ?? 0), buf);
-      layer.upload(buf, n);
+      if (frac !== null) writeFlare(flare.river, frac, buf, n);
+      layer.upload(buf, n + (frac !== null ? 1 : 0));
       fillRef.current = { rivers, n };
     }
     const scale = gl.canvas.width / Math.max(1, sizeRef.current.width);
     layer.draw(0, fillRef.current.n, PARTICLE_PX * scale);
+    if (frac !== null) layer.draw(fillRef.current.n, 1, FLARE_PX * scale);
   };
 
   const draw = (host, { now, dt, tsec, hidden, reducedMotion: rm }) => {
@@ -234,12 +261,16 @@ export default function LedgerOcean({
         paintNow = dirtyRef.current;
       }
     } else if (driver && !hidden) {
-      driver.advance(dt, dpsRef.current);
+      // Seal: ease the clock on wall time; feed the driver the exact mean
+      // factor over this frame's interval (frame-rate independent).
+      const ease = easeRef.current;
+      if (ease.held() !== holdRef.current) ease.hold(holdRef.current, now);
+      driver.advance(dt, dpsRef.current * ease.meanFactor(now - dt * 1000, now));
     }
     readProbe(now, sim);
     if (paintNow) {
       paint(host, world.grid, texRef.current, sim, tsec);
-      drawParticles(host.gl);
+      drawParticles(host.gl, now);
       dirtyRef.current = false;
     }
     const simDays = driver ? driver.simDays() : 0;
@@ -353,6 +384,23 @@ export default function LedgerOcean({
     dirtyRef.current = true;
     requestFrameRef.current();
   }, [ghostSource]);
+
+  // Seal (spec §4): flare the sealed verdict's course, site → mouth, then
+  // report done so LedgerTab releases the clock. Nothing to flare on (reduced
+  // motion, static ocean, no river stage): done at once.
+  useEffect(() => {
+    if (!sealHash) {
+      flareRef.current = null;
+      return;
+    }
+    const src = sourcesRef.current.find((s) => s.id === sealHash);
+    const river = src ? prepareRiver(src) : null;
+    if (!river || !particlesRef.current || reducedMotion || lostRef.current) {
+      onSealDoneRef.current?.();
+      return;
+    }
+    flareRef.current = { river, t0: null };
+  }, [sealHash, reducedMotion]);
 
   // Resize in place. Skips the mount pass (the host was just built at this
   // size): assigning canvas.width clears the drawing buffer even when the
@@ -477,6 +525,7 @@ export default function LedgerOcean({
         sites={sites}
         latestHash={latestHash}
         verdicts={verdicts}
+        sealId={sealHash}
       />
     </div>
   );

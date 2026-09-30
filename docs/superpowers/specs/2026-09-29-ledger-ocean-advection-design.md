@@ -344,6 +344,13 @@ against `severityEngine.js` thresholds toward a stated tone):
    take the kernel's final values, one flare travels the course to the mouth.
 3. The clock eases back; the new plume starts entering the ocean.
 
+3b values: the ease is a smoothstep over 600 ms of wall time to 2 % of the
+chosen compression, fed to the clock as its exact mean over each frame's
+interval (60 Hz and 360 Hz advance identically); the flare is one white point
+running site → mouth over 1.2 s; the clock eases back when the flare is done.
+Under reduced motion, or with no river stage to draw, the seal completes at
+once without a flare.
+
 `ledgerBus` `VERDICT_ISSUED` and the observatory emit are unchanged.
 
 ### HUD

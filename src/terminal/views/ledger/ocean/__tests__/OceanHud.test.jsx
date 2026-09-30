@@ -235,5 +235,14 @@ describe('OceanHud', () => {
     expect(container.querySelector('line[data-line="ghost"]').getAttribute('stroke-dasharray')).toBe('4 3');
     expect(container.querySelector('line[data-line="h1"]').getAttribute('stroke-dasharray')).toBeNull();
   });
-});
 
+  it('closes the sealed verdict line\'s dashes (not under reduced motion)', () => {
+    const { container } = hud({ sealId: 'h1' });
+    const line = container.querySelector('line[data-line="h1"]');
+    expect(line.getAttribute('data-sealing')).toBe('true');
+    expect(line.style.animation).toContain('ocean-seal-dash');
+    expect(container.querySelector('style').textContent).toContain('@keyframes ocean-seal-dash');
+    const still = hud({ sealId: 'h1', reducedMotion: true });
+    expect(still.container.querySelector('line[data-line="h1"]').style.animation).toBe('');
+  });
+});

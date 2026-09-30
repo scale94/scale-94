@@ -121,4 +121,21 @@ describe('LedgerTab — ocean hero (phase 3a)', () => {
     fireEvent.click(await screen.findByText('Submit Audit'));
     expect(h.oceanProps.at(-1).ghost).toBeNull();                    // the draft state itself was cleared, not just hidden
   });
+
+  it('holds the ocean clock from submit until the flare is done, and names the sealed verdict', async () => {
+    render(<LedgerTab />);
+    expect(h.oceanProps.at(-1).holdClock).toBe(false);
+    fireEvent.click(screen.getByText('stub-submit'));
+    const complete = await screen.findByText('stub-complete');
+    expect(h.oceanProps.at(-1).holdClock).toBe(true);
+    act(() => { fireEvent.click(complete); });
+    await waitFor(() => expect(h.oceanProps.at(-1).sealHash).toBe('h-new'));
+    // The cascade hides itself 600 ms after completing; the clock stays held
+    // until the flare reports done, not until the cascade is gone.
+    await waitFor(() => expect(screen.queryByText('stub-complete')).toBeNull(), { timeout: 2000 });
+    expect(h.oceanProps.at(-1).holdClock).toBe(true);
+    act(() => { h.oceanProps.at(-1).onSealDone(); });
+    expect(h.oceanProps.at(-1).sealHash).toBeNull();
+    expect(h.oceanProps.at(-1).holdClock).toBe(false);
+  });
 });

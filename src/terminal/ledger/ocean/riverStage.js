@@ -131,3 +131,17 @@ export function fillParticles(rivers, phases, out) {
   }
   return n;
 }
+
+// The seal flare: one white vertex at `frac` (clamped to 0..1) of the course,
+// written at parcel index `index`.
+export function writeFlare(river, frac, out, index) {
+  const f = Math.min(1, Math.max(0, frac));
+  const [lon, lat] = coursePoint(river.course, river.cum, f * river.courseKm);
+  const o = index * FLOATS_PER_PARTICLE;
+  out[o] = lon / 180;
+  out[o + 1] = lat / 90;
+  out[o + 2] = 1;
+  out[o + 3] = 1;
+  out[o + 4] = 1;
+  out[o + 5] = 1;
+}

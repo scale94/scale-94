@@ -20,6 +20,8 @@ const RING_PX = 16;
 const RING_PX_COMPACT = 10;
 const TIP_Z = 3;
 const TIP_MARGIN_PX = 4;
+const SEAL_KEYFRAMES = '@keyframes ocean-seal-dash { from { stroke-dasharray: 4 3; } to { stroke-dasharray: 4 0; } }';
+const SEAL_ANIMATION = 'ocean-seal-dash 400ms ease-out both';
 const TICK_PX = 7;
 const TICK_PX_COMPACT = 5;
 
@@ -82,6 +84,7 @@ const OceanHud = forwardRef(function OceanHud({
   sites = [],
   latestHash = null,
   verdicts = [],
+  sealId = null,
 }, ref) {
   const clockRef = useRef(null);
   const frameRef = useRef(null);
@@ -152,6 +155,7 @@ const OceanHud = forwardRef(function OceanHud({
         font: `${compact ? 8 : 9}px monospace`, letterSpacing: '0.12em', lineHeight: 1.5, color: INK,
       }}
     >
+      <style>{SEAL_KEYFRAMES}</style>
       <svg
         aria-hidden="true"
         viewBox="0 0 360 180"
@@ -167,6 +171,8 @@ const OceanHud = forwardRef(function OceanHud({
               x1={s.site[0] + 180} y1={90 - s.site[1]} x2={s.snap[0] + 180} y2={90 - s.snap[1]}
               stroke={s.color} strokeOpacity="0.6" strokeWidth="1" vectorEffect="non-scaling-stroke"
               strokeDasharray={s.kind === 'ghost' ? GHOST_DASH : undefined}
+              data-sealing={s.id === sealId ? 'true' : undefined}
+              style={s.id === sealId && !reducedMotion ? { animation: SEAL_ANIMATION } : undefined}
             />
           ))}
       </svg>
