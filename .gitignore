@@ -62,3 +62,6 @@ content/rust_kernels/pkg/
 .worktrees/
 # Personal bsky archive — never ship
 archive/
+
+# USGS source rasters for scripts/mercury-maps (~1.3 GB, never commit)
+.cache/
