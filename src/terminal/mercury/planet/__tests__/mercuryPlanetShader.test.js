@@ -42,7 +42,7 @@ describe('mercuryPlanetShader contract', () => {
   });
 
   it('scales shadow softness and bias with relief', () => {
-    expect(PLANET_FS).toMatch(/float soft = [^;]*\* uRelief;/);
+    expect(PLANET_FS).toMatch(/float soft = [^;]*\* max\(uRelief, 1e-3\);/);
     expect(PLANET_FS).toMatch(/float bias = [^;]*\* uRelief;/);
   });
 

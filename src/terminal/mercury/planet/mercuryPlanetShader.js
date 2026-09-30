@@ -104,7 +104,7 @@ float castShadow(vec2 uv, vec3 nb, vec3 Lb, float h0, float cosLat, vec3 east, v
   float tanE = dot(Lb, nb) / tl;
   vec2 duv = vec2(dot(tdir, east) / (TAU * cosLat), dot(tdir, north) / PI);
   float vis = 1.0;
-  float soft = max(SHADOW_SOFT_M, SHADOW_SOFT_LSB * DEM_LSB_M) * uRelief;
+  float soft = max(SHADOW_SOFT_M, SHADOW_SOFT_LSB * DEM_LSB_M) * max(uRelief, 1e-3);
   float bias = SHADOW_BIAS_LSB * DEM_LSB_M * uRelief;
   for (int k = 1; k <= SHADOW_STEPS; k++) {
     float f = float(k) / float(SHADOW_STEPS);
