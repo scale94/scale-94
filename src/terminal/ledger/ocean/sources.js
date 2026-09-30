@@ -72,6 +72,7 @@ export function buildSource(spec, grid, mask) {
   const {
     id, kind, course, dischargeM3s, velocityMs, depthM,
     snapRadius = USER_SNAP_RADIUS_CELLS, riverKm = null, snapAt = null,
+    splatSigma = SPLAT_SIGMA_CELLS,
   } = spec;
   if (!(velocityMs > 0)) throw new Error(`buildSource(${id}): velocityMs must be > 0`);
   const kernel = {
@@ -123,7 +124,7 @@ export function buildSource(spec, grid, mask) {
   return {
     id, kind, snap, course: fullCourse, lengthKm, courseKm, travelDays, mouth,
     conc: [mouth.dT, mouth.L, mouth.N, mouth.D],
-    cells: splatCells(grid, mask.land, snap, dischargeM3s),
+    cells: splatCells(grid, mask.land, snap, dischargeM3s, splatSigma),
     critical, dischargeM3s, kernel, velocityMs, depthM,
   };
 }

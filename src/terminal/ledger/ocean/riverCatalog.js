@@ -43,6 +43,22 @@ export const CATALOG = {
   indus: entry('INDUS', [67.5, 24.0], 6600, 27, '; Arabian Sea'),
 };
 
+// Splat width grows with discharge so big rivers spread wider (catalog only;
+// presets, verdicts and ghosts keep the default). BASE_SIGMA_CELLS equals
+// SPLAT_SIGMA_CELLS in sources.js; it is duplicated here because sources.js
+// imports this module (a test asserts the two stay equal).
+const BASE_SIGMA_CELLS = 1.5;
+export const CATALOG_SPLAT_Q0_M3S = 5000;
+export const CATALOG_SPLAT_EXPONENT = 0.25;
+export const CATALOG_SPLAT_MAX_SIGMA_CELLS = 5;
+
+export function splatSigmaFor(dischargeM3s) {
+  return Math.min(
+    CATALOG_SPLAT_MAX_SIGMA_CELLS,
+    Math.max(BASE_SIGMA_CELLS, BASE_SIGMA_CELLS * (dischargeM3s / CATALOG_SPLAT_Q0_M3S) ** CATALOG_SPLAT_EXPONENT),
+  );
+}
+
 // A mouth-only source: the one-point course makes buildSource draw a short
 // straight line to the snapped cell, and prepareRiver skips kind 'catalog'.
 export function catalogSourceSpec(key, entry = CATALOG[key]) {
@@ -55,5 +71,6 @@ export function catalogSourceSpec(key, entry = CATALOG[key]) {
     velocityMs: 1,
     depthM: 10,
     snapRadius: 8,
+    splatSigma: splatSigmaFor(entry.dischargeM3s),
   };
 }

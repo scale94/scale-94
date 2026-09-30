@@ -1,9 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { OCEAN_GRID } from '../grid';
 import { buildLandMask } from '../landMask';
-import { CATALOG, catalogSourceSpec } from '../riverCatalog';
+import {
+  CATALOG, catalogSourceSpec, splatSigmaFor, CATALOG_SPLAT_MAX_SIGMA_CELLS,
+} from '../riverCatalog';
 import {
   buildSource, catalogSources, oceanSources, ambientSources, MIN_SNAP_BASIN_CELLS,
+  splatCells, SPLAT_SIGMA_CELLS, MIXED_LAYER_M,
 } from '../sources';
 import { doSat } from '../kinetics';
 import { ALL_AUDIT_PRESETS } from '../../auditPresets';
@@ -87,5 +90,58 @@ describe('catalog sources on the real grid', () => {
   it('the Amazon is the largest ambient discharge', () => {
     const q = oceanSources(grid, mask).map((s) => [s.id, s.dischargeM3s]).sort((a, b) => b[1] - a[1]);
     expect(q[0][0]).toBe('catalog:amazon');
+  });
+});
+
+describe('catalog splat width scales with discharge', () => {
+  it('splatSigmaFor floors at the base sigma, grows with Q, and is capped', () => {
+    expect(splatSigmaFor(870)).toBe(1.5);
+    expect(splatSigmaFor(5000)).toBe(1.5);
+    let prev = 1.5;
+    for (const q of [6000, 17000, 41000, 209000, 1e6]) {
+      const v = splatSigmaFor(q);
+      expect(v, String(q)).toBeGreaterThan(prev);
+      prev = v;
+    }
+    expect(splatSigmaFor(209000)).toBeGreaterThan(3.5);
+    expect(splatSigmaFor(209000)).toBeLessThan(4.0);
+    expect(splatSigmaFor(1e9)).toBeLessThanOrEqual(5);
+    expect(splatSigmaFor(1e9)).toBe(CATALOG_SPLAT_MAX_SIGMA_CELLS);
+  });
+
+  it('the catalog base sigma equals the ocean splat sigma', () => {
+    expect(splatSigmaFor(1)).toBe(SPLAT_SIGMA_CELLS);
+  });
+
+  it('every catalog spec carries its splatSigma', () => {
+    expect(catalogSourceSpec('amazon').splatSigma).toBe(splatSigmaFor(209000));
+    for (const key of Object.keys(CATALOG)) {
+      expect(catalogSourceSpec(key).splatSigma, key).toBeGreaterThanOrEqual(1.5);
+    }
+  });
+
+  it('bigger rivers cover more cells, and every catalog source still delivers exactly Q', () => {
+    const built = (key) => buildSource(catalogSourceSpec(key), grid, mask);
+    const n = (key) => built(key).cells.length;
+    expect(n('amazon')).toBeGreaterThan(n('congo'));
+    expect(n('congo')).toBeGreaterThan(n('elbe'));
+    for (const key of Object.keys(CATALOG)) {
+      const s = built(key);
+      let delivered = 0;
+      for (const { k, f } of s.cells) {
+        const j = Math.floor(k / grid.nx);
+        const area = (grid.cellKm * 1000) ** 2 * grid.cosLat[j];
+        delivered += (f * area * MIXED_LAYER_M) / 86400;
+      }
+      expect(Math.abs(delivered - s.dischargeM3s) / s.dischargeM3s, key).toBeLessThan(1e-9);
+    }
+  });
+
+  it('presets keep the default-sigma splat', () => {
+    const presets = ambientSources(grid, mask).filter((s) => s.kind === 'preset');
+    expect(presets).toHaveLength(9);
+    for (const s of presets) {
+      expect(s.cells, s.id).toEqual(splatCells(grid, mask.land, s.snap, s.dischargeM3s));
+    }
   });
 });
