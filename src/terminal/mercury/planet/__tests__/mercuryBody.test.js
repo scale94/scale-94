@@ -97,4 +97,43 @@ describe('mercuryBody', () => {
     stepBody(body, -1, { dragging: true, omegaPtr: [0, 5, 0], target });
     expect(body.omega.length()).toBe(0);
   });
+
+  it('drag about world X matches the analytic left-multiplied rotation', () => {
+    const q0 = targetFromYaw(0.3);
+    const body = createBody(q0);
+    const target = targetFromYaw(0.3);
+    for (let i = 0; i < 30; i++) stepBody(body, 1 / 60, { dragging: true, omegaPtr: [2, 0, 0], target });
+    const t = 0.5;
+    const angle = 2 * t - (2 / 18) * (1 - Math.exp(-18 * t));
+    const X = new THREE.Vector3(1, 0, 0);
+    const a = new THREE.Quaternion().setFromAxisAngle(X, angle);
+    const left = a.clone().multiply(q0);
+    const right = q0.clone().multiply(a);
+    expect(angleBetween(body.q, left)).toBeLessThan(1e-6);
+    expect(angleBetween(body.q, right)).toBeGreaterThan(1e-2);
+  });
+
+  it('recapture from a tilted, off-axis state settles on the target', () => {
+    const target = targetFromYaw(0.3);
+    const tilt = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 1, 0).normalize(), 1.2);
+    const body = createBody(tilt.multiply(targetFromYaw(0.3)));
+    body.omega.set(1, -0.5, 0.7);
+    for (let i = 0; i < 40 * 60; i++) stepBody(body, 1 / 60, { dragging: false, omegaPtr: [0, 0, 0], target });
+    expect(angleBetween(body.q, target)).toBeLessThan(0.5 * Math.PI / 180);
+    expect(body.omega.length()).toBeLessThan(1e-2);
+  });
+
+  it('60 Hz and 360 Hz agree at MAX_OMEGA', () => {
+    const a = run(60, 50, 10, [0, 100, 0]).body, b = run(360, 50, 10, [0, 100, 0]).body;
+    expect(angleBetween(a.q, b.q)).toBeLessThan(2e-3);
+  });
+
+  it('ignores non-finite dt', () => {
+    const target = targetFromYaw(0);
+    const body = createBody(target);
+    stepBody(body, Infinity, { dragging: true, omegaPtr: [0, 5, 0], target });
+    stepBody(body, NaN, { dragging: true, omegaPtr: [0, 5, 0], target });
+    expect(body.omega.length()).toBe(0);
+    expect(Number.isFinite(body.q.w)).toBe(true);
+  });
 });

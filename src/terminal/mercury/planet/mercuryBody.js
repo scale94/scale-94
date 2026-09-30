@@ -45,6 +45,8 @@ const _qInv = new THREE.Quaternion();
 const _err = new THREE.Quaternion();
 const _dq = new THREE.Quaternion();
 const _e = new THREE.Vector3();
+const _axis = new THREE.Vector3();
+const _mid = new THREE.Vector3();
 
 export function rotationError(q, target, out = new THREE.Vector3()) {
   _qInv.copy(q).invert();
@@ -63,6 +65,7 @@ const smooth01 = (x) => {
 
 function substep(b, h, dragging, omegaPtr, target) {
   const w = b.omega;
+  const wx0 = w.x, wy0 = w.y, wz0 = w.z;
   if (dragging) {
     b.sinceReleaseS = 0;
     const k = 1 - Math.exp(-GRIP_PER_S * h);
@@ -81,9 +84,20 @@ function substep(b, h, dragging, omegaPtr, target) {
   const len = w.length();
   if (len > MAX_OMEGA) w.multiplyScalar(MAX_OMEGA / len);
 
-  // dq/dt = ½ (ω, 0) ⊗ q — world-frame angular velocity.
-  _dq.set(w.x, w.y, w.z, 0).multiply(b.q);
-  b.q.set(b.q.x + 0.5 * h * _dq.x, b.q.y + 0.5 * h * _dq.y, b.q.z + 0.5 * h * _dq.z, b.q.w + 0.5 * h * _dq.w).normalize();
+  // Exact axis-angle step, world frame (premultiply): constant-ω rotation is step-size independent.
+  // Rotate by the substep-mean ω, not the end value: exact mean of the grip
+  // exponential while dragging, trapezoid otherwise.
+  if (dragging && len <= MAX_OMEGA * (1 - 1e-12)) {
+    const m = (1 - Math.exp(-GRIP_PER_S * h)) / (GRIP_PER_S * h);
+    _mid.set(omegaPtr[0] + (wx0 - omegaPtr[0]) * m, omegaPtr[1] + (wy0 - omegaPtr[1]) * m, omegaPtr[2] + (wz0 - omegaPtr[2]) * m);
+  } else {
+    _mid.set((wx0 + w.x) / 2, (wy0 + w.y) / 2, (wz0 + w.z) / 2);
+  }
+  const mlen = _mid.length();
+  if (mlen > 0) {
+    _dq.setFromAxisAngle(_axis.copy(_mid).divideScalar(mlen), mlen * h);
+    b.q.premultiply(_dq).normalize();
+  }
 
   b.heatK += (HEAT_GAIN * w.lengthSq() - HEAT_LEAK_PER_S * b.heatK) * h;
   if (b.heatK >= MELT_HEAT_K) b.liquid = true;
@@ -94,7 +108,7 @@ function substep(b, h, dragging, omegaPtr, target) {
 }
 
 export function stepBody(b, dtS, { dragging = false, omegaPtr = [0, 0, 0], target }) {
-  if (!(dtS > 0)) return b;
+  if (!(dtS > 0) || !Number.isFinite(dtS)) return b;
   const n = Math.max(1, Math.ceil(dtS / MAX_SUBSTEP_S - 1e-9));
   const h = dtS / n;
   for (let i = 0; i < n; i++) substep(b, h, dragging, omegaPtr, target);
