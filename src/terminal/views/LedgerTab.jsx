@@ -1,6 +1,7 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import SubmissionForm from './ledger/SubmissionForm';
 import AuditCascade from './ledger/AuditCascade';
+import { createFrameCoalescer } from './ledger/draft';
 import LedgerOcean from './ledger/ocean/LedgerOcean';
 import { fetchUSGS, fetchEEA } from '../ledger/apiIngest';
 import { generateJsonLd, generatePdf, generateEmbedHtml } from '../ledger/exportFormats';
@@ -97,6 +98,17 @@ export default function LedgerTab() {
   const [cascadeVisible, setCascadeVisible] = useState(false);
   const [latestHash, setLatestHash] = useState(null);
 
+  // The form's latest valid draft = the ocean's PROVISIONAL ghost, delivered
+  // at most once per animation frame (spec §4 Form).
+  const [draft, setDraft] = useState(null);
+  const draftCoalescer = useMemo(() => createFrameCoalescer(setDraft), []);
+  useEffect(() => () => draftCoalescer.cancel(), [draftCoalescer]);
+  const handleDraftChange = useCallback((params) => draftCoalescer.push(params), [draftCoalescer]);
+  const clearDraft = useCallback(() => {
+    draftCoalescer.cancel();
+    setDraft(null);
+  }, [draftCoalescer]);
+
   const stylesInjected = useRef(false);
   const heroRef = useRef(null);
 
@@ -172,6 +184,7 @@ export default function LedgerTab() {
     setVerdicts(prev => [cascadeVerdict, ...prev]);
     setVerdictCount(prev => prev + 1);
     setLatestHash(cascadeVerdict.hash);
+    clearDraft();
     setView('archive');
     ledgerBus.emit({ type: 'VERDICT_ISSUED', verdict: cascadeVerdict });
     emitObs('transmissions', 'verdict_issued', { verdict: cascadeVerdict.status ?? 'UNKNOWN' });
@@ -181,7 +194,7 @@ export default function LedgerTab() {
       setCascadeVisible(false);
       setCascadeVerdict(null);
     }, 600);
-  }, [cascadeVerdict]);
+  }, [cascadeVerdict, clearDraft]);
 
   const handleApiFetch = useCallback(async (lat, lon, source) => {
     setApiLoading(true);
@@ -240,6 +253,7 @@ export default function LedgerTab() {
             verdicts={verdicts}
             latestHash={latestHash}
             sourcesReady={verdictsLoaded}
+            ghost={view === 'submit' ? draft : null}
           />
         )}
         {/* Vignette overlay — above the canvas, below the HUD (OceanHud zIndex 2) */}
@@ -348,7 +362,7 @@ export default function LedgerTab() {
               Submit Audit
             </button>
             <button
-              onClick={() => setView('archive')}
+              onClick={() => { setView('archive'); clearDraft(); }}
               className={`text-[10px] font-mono uppercase tracking-[3px] pb-1 transition-colors ${
                 view === 'archive' ? 'text-teal-300 border-b border-teal-500' : 'text-zinc-600 hover:text-teal-500'
               }`}
@@ -367,6 +381,7 @@ export default function LedgerTab() {
               apiLoading={apiLoading}
               apiError={apiError}
               verdicts={verdicts}
+              onDraftChange={handleDraftChange}
             />
           )}
 

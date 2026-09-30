@@ -11,8 +11,16 @@ vi.mock('../ledger/ocean/LedgerOcean', async () => {
   return { default: (props) => { h.oceanProps.push(props); return createElement('div', { 'data-testid': 'ocean-stub' }); } };
 });
 vi.mock('../ledger/SubmissionForm', async () => {
-  const { createElement } = await import('react');
-  return { default: ({ onSubmit }) => createElement('button', { type: 'button', onClick: () => onSubmit(h.INPUT) }, 'stub-submit') };
+  const { createElement, Fragment } = await import('react');
+  return {
+    default: ({ onSubmit, onDraftChange }) => createElement(Fragment, null,
+      createElement('button', { type: 'button', onClick: () => onSubmit(h.INPUT) }, 'stub-submit'),
+      createElement('button', {
+        type: 'button',
+        onClick: () => { onDraftChange?.({ ...h.INPUT, bod: 1 }); onDraftChange?.(h.INPUT); },
+      }, 'stub-draft'),
+    ),
+  };
 });
 vi.mock('../ledger/AuditCascade', async () => {
   const { createElement } = await import('react');
@@ -88,5 +96,29 @@ describe('LedgerTab — ocean hero (phase 3a)', () => {
     await waitFor(() => expect(h.oceanProps.at(-1).sourcesReady).toBe(true));
     for (const p of h.oceanProps) if (p.sourcesReady) expect(p.verdicts).toEqual([V0]);
     expect(h.oceanProps.some((p) => p.sourcesReady === false)).toBe(true);
+  });
+
+  it('hands the latest valid draft to the ocean as the ghost, and clears it for the archive view', async () => {
+    render(<LedgerTab />);
+    fireEvent.click(screen.getByText('stub-draft'));
+    await waitFor(() => expect(h.oceanProps.at(-1).ghost).toEqual(h.INPUT));
+    fireEvent.click(screen.getByText(/Verdict Archive/));
+    expect(h.oceanProps.at(-1).ghost).toBeNull();
+    fireEvent.click(screen.getByText('Submit Audit'));
+    expect(h.oceanProps.at(-1).ghost).toBeNull();                    // the remounted form is not a draft
+  });
+
+  it('keeps the ghost while the kernel rules, and drops it when the verdict seals', async () => {
+    render(<LedgerTab />);
+    fireEvent.click(screen.getByText('stub-draft'));
+    await waitFor(() => expect(h.oceanProps.at(-1).ghost).toEqual(h.INPUT));
+    fireEvent.click(screen.getByText('stub-submit'));
+    const complete = await screen.findByText('stub-complete');
+    expect(h.oceanProps.at(-1).ghost).toEqual(h.INPUT);
+    act(() => { fireEvent.click(complete); });
+    await waitFor(() => expect(h.oceanProps.at(-1).verdicts.map((v) => v.hash)).toEqual(['h-new']));
+    expect(h.oceanProps.at(-1).ghost).toBeNull();
+    fireEvent.click(await screen.findByText('Submit Audit'));
+    expect(h.oceanProps.at(-1).ghost).toBeNull();                    // the draft state itself was cleared, not just hidden
   });
 });

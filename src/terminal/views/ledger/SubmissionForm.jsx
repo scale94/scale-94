@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react'
 const CoordinatePicker = lazy(() => import('./CoordinatePicker'));
 import { PARAM_RANGES, VALID_DEPENDENCIES, validateSubmission } from '../../ledger/verdictModel';
 import RiverPulse from './RiverPulse';
+import { validDraft } from './draft';
 import { paramSeverity, discreteSeverity } from './severityEngine';
 import { emit as emitObs, getTotals } from '../../../observatory/observatoryBus';
 import { ALL_AUDIT_PRESETS } from '../../ledger/auditPresets';
@@ -49,7 +50,7 @@ function SeverityDot({ paramKey, value }) {
   );
 }
 
-export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch, apiLoading, apiError, verdicts = [] }) {
+export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch, apiLoading, apiError, verdicts = [], onDraftChange = null }) {
   const [form, setForm] = useState({
     lat: apiData?.lat ?? '',
     lon: apiData?.lon ?? '',
@@ -67,6 +68,15 @@ export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch,
   const [errors, setErrors] = useState([]);
   const [showMap, setShowMap] = useState(false);
   const formRef = useRef(null);
+
+  // Spec §4 Form: every valid edit updates the ocean's ghost; an invalid one
+  // is not reported, so the ghost freezes at its last valid state.
+  const onDraftRef = useRef(onDraftChange);
+  onDraftRef.current = onDraftChange;
+  useEffect(() => {
+    const d = validDraft(form);
+    if (d) onDraftRef.current?.(d);
+  }, [form]);
 
   useEffect(() => {
     if (apiData) {
