@@ -7,18 +7,19 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { PLANET_VS, PLANET_FS } from './planet/mercuryPlanetShader';
 import { mercuryEphemeris } from './planet/mercuryEphemeris';
-import { SUN_DIR_WORLD, bodyYawFor } from './planet/planetFrame';
+import { SUN_DIR_WORLD, bodyYawFor, sunDirForCamera } from './planet/planetFrame';
 import { PLANET_TUNE, MEAN_R_AU } from './planet/planetLook';
 import { MAPS } from './planet/mercuryMaps.generated';
 
 const EPHEMERIS_REFRESH_S = 1;
 
-export function planetEphemerisUniforms(nowMs) {
+export function planetEphemerisUniforms(nowMs, sunDir = SUN_DIR_WORLD) {
   const eph = mercuryEphemeris(nowMs);
   return {
-    yaw: bodyYawFor(eph.subsolarLonDeg),
+    yaw: bodyYawFor(eph.subsolarLonDeg, sunDir),
     irr: (MEAN_R_AU / eph.r) ** 2,
     sinR: Math.sin(eph.sunAngularRadiusRad),
+    subsolarLonDeg: eph.subsolarLonDeg,
   };
 }
 
@@ -87,7 +88,8 @@ export default function MercuryPlanet({ isMobile = false }) {
   }, [material, isMobile]);
 
   const nextEphemeris = useRef(0);
-  useFrame(({ clock }) => {
+  const subsolarLonRef = useRef(null);
+  useFrame(({ clock, camera }) => {
     const u = material.uniforms;
     const t = clock.elapsedTime;
     u.uTime.value = t;
@@ -100,7 +102,13 @@ export default function MercuryPlanet({ isMobile = false }) {
       u.uBodyYaw.value = e.yaw;
       u.uSunIrr.value = e.irr;
       u.uSunSinR.value = e.sinR;
+      subsolarLonRef.current = e.subsolarLonDeg;
     }
+    // The Sun follows the camera's azimuth (phase angle holds under autoRotate); the body yaw
+    // re-pins the real subsolar longitude to it every frame.
+    const sun = sunDirForCamera([camera.position.x, camera.position.y, camera.position.z]);
+    u.uSunDir.value.set(sun[0], sun[1], sun[2]);
+    if (subsolarLonRef.current !== null) u.uBodyYaw.value = bodyYawFor(subsolarLonRef.current, sun);
   });
 
   return <mesh geometry={geometry} material={material} frustumCulled={false} />;

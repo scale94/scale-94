@@ -34,6 +34,13 @@ export function rotY([x, y, z], a) {
   return [c * x + s * z, y, -s * x + c * z];
 }
 
+// The chosen Sun (spec §4) follows the camera's azimuth so the phase angle stays PHASE_ANGLE_DEG
+// however the view orbits. Camera on the pole axis → azimuth 0.
+export function sunDirForCamera([cx, , cz]) {
+  const az = Math.atan2(cx, cz);
+  return rotY(SUN_DIR_WORLD, az);
+}
+
 export function bodyYawFor(subsolarLonDeg, sunDir = SUN_DIR_WORLD) {
   const azSun = Math.atan2(-sunDir[2], sunDir[0]);
   return azSun - subsolarLonDeg * DEG;
