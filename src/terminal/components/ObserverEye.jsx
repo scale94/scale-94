@@ -183,6 +183,12 @@ export default function ObserverEye({ state = 'resting', size = 28, tint = null,
     snap();
   }, [state, tint, gaze, pulse, constrict]);
 
+  // The lens viewBox is 280 wide, so a stroke in user units shrinks with `size`
+  // (1.3 → 0.3px at 64px: paper thin, pixelated on 1440p). Non-scaling px strokes
+  // keep the two hex lines crisp at any size.
+  const lensOuter = Math.max(1.25, size * 0.02);
+  const lensInner = Math.max(0.8, size * 0.012);
+
   return (
     <div
       className={className}
@@ -202,8 +208,8 @@ export default function ObserverEye({ state = 'resting', size = 28, tint = null,
               <stop offset="1" stopColor="#cfd8de" stopOpacity=".75" />
             </linearGradient>
           </defs>
-          <polygon points="140,30 236,85 236,195 140,250 44,195 44,85" fill="none" stroke="url(#oe-hex)" strokeWidth="1.3" />
-          <polygon points="140,44 224,92 224,188 140,236 56,188 56,92" fill="none" stroke="#9fb0b8" strokeWidth="0.5" strokeOpacity=".3" />
+          <polygon points="140,30 236,85 236,195 140,250 44,195 44,85" fill="none" stroke="url(#oe-hex)" strokeWidth={lensOuter} vectorEffect="non-scaling-stroke" />
+          <polygon points="140,44 224,92 224,188 140,236 56,188 56,92" fill="none" stroke="#9fb0b8" strokeWidth={lensInner} strokeOpacity=".4" vectorEffect="non-scaling-stroke" />
         </svg>
       )}
       <canvas ref={canvasRef} style={{ position: 'relative', zIndex: 2, width: Math.round(size * (lens ? 0.58 : 0.94)), height: Math.round(size * (lens ? 0.58 : 0.94)), display: 'block' }} />
