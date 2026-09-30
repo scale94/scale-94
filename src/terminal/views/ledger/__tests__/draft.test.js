@@ -64,6 +64,13 @@ describe('coordErrors', () => {
     expect(validDraft({ ...FORM, lon: 'Infinity' })).toBeNull();
   });
 
+  it('validDraft refuses exactly 0°, 0°, as submit does, and nothing near it', () => {
+    expect(validDraft({ ...FORM, lat: '0', lon: '0' })).toBeNull();
+    expect(validDraft({ ...FORM, lat: '-0', lon: '0.0' })).toBeNull();
+    expect(validDraft({ ...FORM, lat: '0', lon: '0.5' })).toEqual(expect.objectContaining({ lat: 0, lon: 0.5 }));
+    expect(validDraft({ ...FORM, lat: '0.5', lon: '0' })).toEqual(expect.objectContaining({ lat: 0.5, lon: 0 }));
+  });
+
   it('knows exactly 0°, 0° and nothing near it', () => {
     expect(isNullIsland(0, 0)).toBe(true);
     expect(isNullIsland('0', '-0')).toBe(true);

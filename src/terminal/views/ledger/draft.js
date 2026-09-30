@@ -1,8 +1,8 @@
 // draft.js — the audit form as a provisional ocean source (spec §4 Form).
 // validDraft: the form's numeric params when every field is present, numeric,
-// in PARAM_RANGES and on the globe; else null (the ghost freezes at its last
-// valid state). createFrameCoalescer: at most one delivery per animation
-// frame, carrying the latest value.
+// in PARAM_RANGES and on the globe, and not exactly 0°, 0°; else null (the
+// ghost freezes at its last valid state). createFrameCoalescer: at most one
+// delivery per animation frame, carrying the latest value.
 
 import { PARAM_RANGES, validateSubmission } from '../../ledger/verdictModel';
 
@@ -42,6 +42,7 @@ export function isNullIsland(lat, lon) {
 
 export function validDraft(form) {
   if (coordErrors(form).length) return null;
+  if (isNullIsland(form.lat, form.lon)) return null; // submit refuses it, so no ghost either
   for (const key of Object.keys(PARAM_RANGES)) if (blank(form[key])) return null;
   const lat = Number(form.lat);
   const lon = Number(form.lon);
