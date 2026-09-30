@@ -44,7 +44,10 @@ export function parseEEAResponse(records) {
 }
 
 export async function fetchUSGS(lat, lon, radiusMiles = 10) {
-  const url = `https://waterservices.usgs.gov/nwis/iv/?format=json&bBox=${lon - 0.15},${lat - 0.15},${lon + 0.15},${lat + 0.15}&parameterCd=00010,00300,00310,00060,00630&siteStatus=active`;
+  // NWIS rejects (400) a bBox coordinate with more than 4 decimals, and
+  // lon - 0.15 in floating point is often 21.607999999999997.
+  const bBox = [lon - 0.15, lat - 0.15, lon + 0.15, lat + 0.15].map((v) => v.toFixed(4)).join(',');
+  const url = `https://waterservices.usgs.gov/nwis/iv/?format=json&bBox=${bBox}&parameterCd=00010,00300,00310,00060,00630&siteStatus=active`;
   const res = await fetch(url);
   if (!res.ok) return { params: {}, stations: [], error: `USGS returned ${res.status}` };
   const json = await res.json();
