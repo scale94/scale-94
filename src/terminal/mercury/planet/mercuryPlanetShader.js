@@ -6,11 +6,19 @@
 // (Lommel–Seeliger), a penumbra as wide as the real Sun's disc, cast crater
 // shadows near the terminator. Constants come from the modules that own and
 // test them (glf), exactly like /ACCRETION. Frame convention = planetFrame.js.
+// Phase 2: a body rotation matrix (mercuryBody), a transmutation front, three
+// phases of the element by local temperature (mercuryThermal), and a liquid
+// mirror that reflects only the Sun and the four element emitters.
 
 import { glf, v3 } from '../../gl/glf';
 import {
-  R_SCENE, R_MERCURY_M, SHADOW_STEPS, SHADOW_REACH_RAD, SHADOW_SOFT_M, SHADOW_ZONE, SHADOW_SOFT_LSB, SHADOW_BIAS_LSB, FALLBACK_ALBEDO,
+  R_SCENE, R_MERCURY_M, SHADOW_STEPS, SHADOW_REACH_RAD, SHADOW_SOFT_M, SHADOW_ZONE, SHADOW_SOFT_LSB, SHADOW_BIAS_LSB,
+  FALLBACK_ALBEDO, HG_F0, ROUGH_LIQUID, ROUGH_BOIL, SOLID_HG_ALBEDO, SPARKLE_CELLS, SPARKLE_DENSITY, SPARKLE_COS,
+  SPARKLE_GAIN, EMIT_RADIUS, FRONT_EDGE, FRONT_SOFT, FRONT_NOISE_FREQ, PHASE_BLEND_K,
 } from './planetLook';
+import {
+  HG_MELT_K, HG_BOIL_K, T_NIGHT_FLOOR_K, T_SUNSET_K, TAU_WARM_H, TAU_COOL_H, HOURS_PER_RAD,
+} from './mercuryThermal';
 import { DEM_MIN_M, DEM_MAX_M } from './mercuryMaps.generated';
 
 // One 8-bit DEM step in true metres.
@@ -19,8 +27,9 @@ export const DEM_LSB_M = (DEM_MAX_M - DEM_MIN_M) / 255;
 export const PLANET_BUILTINS = ['viewMatrix', 'projectionMatrix', 'cameraPosition'];
 
 export const PLANET_UNIFORMS = [
-  'uAlbedo', 'uDem', 'uHasMaps', 'uSunDir', 'uBodyYaw', 'uSunIrr', 'uSunSinR',
+  'uAlbedo', 'uDem', 'uHasMaps', 'uSunDir', 'uBodyRot', 'uSunIrr', 'uSunSinR',
   'uDemTexel', 'uTime', 'uExposure', 'uRelief', 'uNightFloor',
+  'uTau', 'uHeatK', 'uSubsolarT', 'uEmitPos', 'uEmitCol', 'uSunGlint', 'uEmitGain',
 ];
 
 export const PLANET_VS = /* glsl */ `in vec3 position;
@@ -57,7 +66,7 @@ uniform sampler2D uAlbedo;
 uniform sampler2D uDem;
 uniform float uHasMaps;
 uniform vec3 uSunDir;
-uniform float uBodyYaw;
+uniform mat3 uBodyRot;
 uniform float uSunIrr;
 uniform float uSunSinR;
 uniform vec2 uDemTexel;
@@ -65,9 +74,17 @@ uniform float uTime;
 uniform float uExposure;
 uniform float uRelief;
 uniform float uNightFloor;
+uniform float uTau;
+uniform float uHeatK;
+uniform float uSubsolarT;
+uniform vec3 uEmitPos[4];
+uniform vec3 uEmitCol[4];
+uniform float uSunGlint;
+uniform float uEmitGain;
 
 const float PI = 3.14159265358979;
 const float TAU = 6.28318530717959;
+const float HALF_PI = 1.57079632679490;
 const float R_SCENE = ${glf(R_SCENE)};
 const float R_MERCURY_M = ${glf(R_MERCURY_M)};
 const float DEM_MIN_M = ${glf(DEM_MIN_M)};
@@ -81,11 +98,26 @@ const float SHADOW_SOFT_LSB = ${glf(SHADOW_SOFT_LSB)};
 const float SHADOW_BIAS_LSB = ${glf(SHADOW_BIAS_LSB)};
 const vec3 FALLBACK_ALBEDO = ${v3(FALLBACK_ALBEDO)};
 
-// planetFrame.rotY
-vec3 rotY(vec3 v, float a) {
-  float c = cos(a), s = sin(a);
-  return vec3(c * v.x + s * v.z, v.y, -s * v.x + c * v.z);
-}
+const float HG_MELT_K = ${glf(HG_MELT_K)};
+const float HG_BOIL_K = ${glf(HG_BOIL_K)};
+const float T_NIGHT_FLOOR_K = ${glf(T_NIGHT_FLOOR_K)};
+const float T_SUNSET_K = ${glf(T_SUNSET_K)};
+const float TAU_WARM_H = ${glf(TAU_WARM_H)};
+const float TAU_COOL_H = ${glf(TAU_COOL_H)};
+const float HOURS_PER_RAD = ${glf(HOURS_PER_RAD)};
+const vec3 HG_F0 = ${v3(HG_F0)};
+const float ROUGH_LIQUID = ${glf(ROUGH_LIQUID)};
+const float ROUGH_BOIL = ${glf(ROUGH_BOIL)};
+const vec3 SOLID_HG_ALBEDO = ${v3(SOLID_HG_ALBEDO)};
+const float SPARKLE_CELLS = ${glf(SPARKLE_CELLS)};
+const float SPARKLE_DENSITY = ${glf(SPARKLE_DENSITY)};
+const float SPARKLE_COS = ${glf(SPARKLE_COS)};
+const float SPARKLE_GAIN = ${glf(SPARKLE_GAIN)};
+const float EMIT_RADIUS = ${glf(EMIT_RADIUS)};
+const float FRONT_EDGE = ${glf(FRONT_EDGE)};
+const float FRONT_SOFT = ${glf(FRONT_SOFT)};
+const float FRONT_NOISE_FREQ = ${glf(FRONT_NOISE_FREQ)};
+const float PHASE_BLEND_K = ${glf(PHASE_BLEND_K)};
 
 float heightAt(vec2 uv, vec2 gx, vec2 gy) {
   return mix(DEM_MIN_M, DEM_MAX_M, textureGrad(uDem, vec2(fract(uv.x), uv.y), gx, gy).r);
@@ -118,6 +150,64 @@ float castShadow(vec2 uv, vec3 nb, vec3 Lb, float h0, float cosLat, vec3 east, v
   return vis;
 }
 
+// mercuryThermal.surfaceTempK, exactly.
+float surfaceTempK(float mu0, float lonRel, float cosLat, float tss, float heatK) {
+  float tset = T_SUNSET_K * pow(max(cosLat, 0.0), 0.25);
+  float teq = tss * pow(max(mu0, 0.0), 0.25);
+  float t;
+  if (lonRel >= -HALF_PI && lonRel <= HALF_PI) {
+    if (lonRel < 0.0) {
+      float h = (lonRel + HALF_PI) * HOURS_PER_RAD;
+      t = T_NIGHT_FLOOR_K + (max(teq, T_NIGHT_FLOOR_K) - T_NIGHT_FLOOR_K) * (1.0 - exp(-h / TAU_WARM_H));
+    } else {
+      t = max(teq, tset);
+    }
+  } else {
+    float h = (lonRel > 0.0 ? lonRel - HALF_PI : lonRel + 3.0 * HALF_PI) * HOURS_PER_RAD;
+    t = T_NIGHT_FLOOR_K + (tset - T_NIGHT_FLOOR_K) * exp(-h / TAU_COOL_H);
+  }
+  return t + heatK;
+}
+
+float hash13(vec3 p) {
+  p = fract(p * 0.1031);
+  p += dot(p, p.zyx + 31.32);
+  return fract((p.x + p.y) * p.z);
+}
+
+float vnoise3(vec3 x) {
+  vec3 i = floor(x);
+  vec3 f = fract(x);
+  vec3 u = f * f * (3.0 - 2.0 * f);
+  return mix(
+    mix(mix(hash13(i), hash13(i + vec3(1.0, 0.0, 0.0)), u.x),
+        mix(hash13(i + vec3(0.0, 1.0, 0.0)), hash13(i + vec3(1.0, 1.0, 0.0)), u.x), u.y),
+    mix(mix(hash13(i + vec3(0.0, 0.0, 1.0)), hash13(i + vec3(1.0, 0.0, 1.0)), u.x),
+        mix(hash13(i + vec3(0.0, 1.0, 1.0)), hash13(i + vec3(1.0, 1.0, 1.0)), u.x), u.y), u.z);
+}
+
+// A disc of angular radius asin(sinR) seen in a mirror of roughness rough:
+// a Gaussian in angle whose width adds the disc and the GGX alpha, scaled so
+// the integrated energy stays that of the disc.
+float lobe(float cosA, float sinR, float rough) {
+  float a = acos(clamp(cosA, -1.0, 1.0));
+  float alpha = rough * rough;
+  float w2 = sinR * sinR + alpha * alpha;
+  return (sinR * sinR / w2) * exp(-a * a / w2);
+}
+
+// Only what exists in the frame: the Sun, the four elements, black space.
+vec3 envRadiance(vec3 R, float rough, vec3 P) {
+  vec3 c = vec3(uSunGlint * uSunIrr * uExposure * lobe(dot(R, uSunDir), uSunSinR, rough));
+  for (int i = 0; i < 4; i++) {
+    vec3 d = uEmitPos[i] - P;
+    float dist = max(length(d), 1e-3);
+    float sinE = min(EMIT_RADIUS / dist, 0.99);
+    c += uEmitCol[i] * (uEmitGain * lobe(dot(R, d / dist), sinE, rough));
+  }
+  return c;
+}
+
 void main() {
   vec3 ro = cameraPosition;
   vec3 rd = normalize(vWorld - ro);
@@ -132,9 +222,10 @@ void main() {
   vec3 hit = ro + rd * t;
   vec3 ng = normalize(hit);
 
-  vec3 nb = rotY(ng, -uBodyYaw);
-  vec3 Lb = rotY(uSunDir, -uBodyYaw);
-  vec3 Vb = rotY(-rd, -uBodyYaw);
+  // uBodyRot is body → world (mercuryBody.q); v * M = transpose(M) * v.
+  vec3 nb = ng * uBodyRot;
+  vec3 Lb = uSunDir * uBodyRot;
+  vec3 Vb = -rd * uBodyRot;
   float lat = asin(clamp(nb.y, -1.0, 1.0));
   float lon = atan(-nb.z, nb.x);
   vec2 uv = vec2(fract(lon / TAU), 0.5 + lat / PI);
@@ -180,7 +271,41 @@ void main() {
     vis = mix(vis, 1.0, smoothstep(0.7 * SHADOW_ZONE, SHADOW_ZONE, mu0g));
   }
 
-  vec3 col = max(albedo * (uSunIrr * uExposure * ls * term * vis + uNightFloor), 0.0);
+  vec3 colLin = albedo * (uSunIrr * uExposure * ls * term * vis + uNightFloor);
+
+  // Transmutation: the front advances from the subsolar point outward
+  // (noise-edged) and retreats the same way on refreeze. Inside it the crust
+  // relief flattens into fluid and the element takes its phase from the
+  // local temperature: solid at night, a liquid mirror by day and into dusk,
+  // boiling near noon.
+  if (uTau > 0.0) {
+    float front = 1.0 - acos(clamp(mu0g, -1.0, 1.0)) / PI;
+    float edgeN = (vnoise3(nb * FRONT_NOISE_FREQ) - 0.5) * FRONT_EDGE;
+    float thr = 1.0 + FRONT_EDGE - uTau * (1.0 + 2.0 * FRONT_EDGE);
+    float fluid = smoothstep(thr - FRONT_SOFT, thr + FRONT_SOFT, front + edgeN);
+
+    float lonSun = atan(-Lb.z, Lb.x);
+    float lonRel = mod(lon - lonSun + PI, TAU) - PI;
+    float T = surfaceTempK(mu0g, lonRel, cos(lat), uSubsolarT, uHeatK);
+    float liquidW = smoothstep(HG_MELT_K - PHASE_BLEND_K, HG_MELT_K + PHASE_BLEND_K, T);
+    float boilW = smoothstep(HG_BOIL_K - PHASE_BLEND_K, HG_BOIL_K + PHASE_BLEND_K, T);
+
+    vec3 nW = uBodyRot * normalize(mix(n, nb, fluid));
+    vec3 R = reflect(rd, nW);
+    float NoV = clamp(dot(nW, -rd), 0.0, 1.0);
+    vec3 F = HG_F0 + (1.0 - HG_F0) * pow(1.0 - NoV, 5.0);
+    vec3 liquid = F * envRadiance(R, mix(ROUGH_LIQUID, ROUGH_BOIL, boilW), hit);
+
+    float sunI = uSunIrr * uExposure;
+    float facet = hash13(vec3(floor(uv * vec2(2.0 * SPARKLE_CELLS, SPARKLE_CELLS)), 7.0));
+    float glint = step(1.0 - SPARKLE_DENSITY, facet) * smoothstep(SPARKLE_COS, 1.0, dot(R, uSunDir));
+    vec3 solid = SOLID_HG_ALBEDO * (sunI * max(dot(nW, uSunDir), 0.0) * term + uNightFloor)
+      + vec3(glint * SPARKLE_GAIN * sunI);
+
+    colLin = mix(colLin, mix(solid, liquid, liquidW), fluid);
+  }
+
+  vec3 col = max(colLin, 0.0);
   vec3 srgb = mix(col * 12.92, 1.055 * pow(col, vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), col));
   float dith = (fract(sin(dot(gl_FragCoord.xy + fract(uTime) * 61.0, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
   fragColor = vec4(srgb + dith, coverage);

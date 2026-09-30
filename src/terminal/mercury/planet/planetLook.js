@@ -19,11 +19,27 @@ export const SHADOW_ZONE = 0.35;        // only march where the Sun is lower tha
 
 export const FALLBACK_ALBEDO = [0.16, 0.15, 0.14]; // linear; true-colour grey-brown until maps load
 
+// Quicksilver (spec §3, §5 shading 3). Physical-ish; baked via glf.
+export const HG_F0 = [0.76, 0.77, 0.78];      // liquid Hg normal-incidence reflectance, near-neutral
+export const ROUGH_LIQUID = 0.14;             // never lower: a sharper mirror of black space is black glass
+export const ROUGH_BOIL = 0.4;                // boiling breaks the mirror's coherence
+export const SOLID_HG_ALBEDO = [0.52, 0.53, 0.55]; // frozen Hg: matte crystalline silver (linear)
+export const SPARKLE_CELLS = 700;             // facet cells around the equator
+export const SPARKLE_DENSITY = 0.004;         // fraction of facets that can glint
+export const SPARKLE_COS = 0.97;              // glint lobe: reflection within ~14° of the Sun
+export const SPARKLE_GAIN = 3;
+export const EMIT_RADIUS = 0.5;               // scene units — each element reflects as a soft area light
+export const FRONT_EDGE = 0.12;               // transmutation front noise amplitude (in front units)
+export const FRONT_SOFT = 0.03;               // front edge softness; must stay < FRONT_EDGE / 2
+export const FRONT_NOISE_FREQ = 6;
+export const PHASE_BLEND_K = 8;               // K either side of melt/boil for the phase blend
+
 export const CAMERA_DIST = { desktop: 3.6, mobile: 4.6 };
-export const ORBIT_LIMITS = { min: 2.2, max: 5.5 };
 
 export const PLANET_TUNE = {
   exposure: 2.2,     // Sun irradiance multiplier at mean distance
   relief: 12,        // DEM vertical exaggeration (normals + shadows)
   nightFloor: 0.006, // faint albedo floor so the night limb is not a hole
+  sunGlint: 8,       // liquid mirror: Sun-disc reflection gain
+  emitGain: 1.5,     // liquid mirror: element-emitter reflection gain
 };
