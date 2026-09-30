@@ -197,7 +197,9 @@ export default function LedgerOcean({
   const drawParticles = (gl, now) => {
     // The flare's timing runs even with nothing to draw it on (a restore that
     // failed to rebuild the particle layer or the sim), so a pending seal
-    // always completes and releases the clock.
+    // completes and releases the clock whenever drawing resumes. While the
+    // context is lost `draw` returns before reaching here, so the flare waits
+    // (the ocean is suspended too); the restore rebuild then finishes it.
     const flare = flareRef.current;
     let frac = null;
     if (flare) {
