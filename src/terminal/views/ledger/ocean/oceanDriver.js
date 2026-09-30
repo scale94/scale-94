@@ -45,6 +45,11 @@ export function createOceanDriver({ clock, step, dtDays = DT_DAYS }) {
     simDays() {
       return days;
     },
+    // simDays plus the clock's wall-time remainder: continuous between steps,
+    // for drawing only (parcels glide; the ocean state still steps).
+    displayDays() {
+      return days + clock.fraction() * dtDays;
+    },
     frameMs() {
       return frameMs;
     },

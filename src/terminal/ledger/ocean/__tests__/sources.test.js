@@ -177,3 +177,47 @@ describe('lagoon rule: sites skip basins below MIN_SNAP_BASIN_CELLS', () => {
     }
   });
 });
+
+describe('river-stage fields', () => {
+  const danube = {
+    id: 'danube-test', kind: 'preset',
+    kernel: { temp: 12, do: 10.5, bod: 3, dt: 1.5, nitrate: 19 },
+    course: [[14.29, 48.31], [16.37, 48.21], [29.75, 45.15]],
+    dischargeM3s: 6500, velocityMs: 1, depthM: 5, riverKm: 2135, snapRadius: 8,
+  };
+
+  it('carries the kernel and the hydraulics the parcels need', () => {
+    const s = buildSource(danube, grid, mask);
+    expect(s.kernel).toEqual({ temp: 12, do: 10.5, bod: 3, dt: 1.5, nitrate: 19 });
+    expect(s.velocityMs).toBe(1);
+    expect(s.depthM).toBe(5);
+  });
+
+  it('uses the channel length for travel time and river km, the drawn polyline for position', () => {
+    const s = buildSource(danube, grid, mask);
+    expect(s.lengthKm).toBe(2135);
+    expect(s.courseKm).toBeCloseTo(courseLengthKm(danube.course), 9);
+    expect(s.courseKm).toBeLessThan(s.lengthKm);
+    expect(s.travelDays).toBeCloseTo(2135 / 86.4, 9);
+    expect(s.critical.rkm).toBeCloseTo(2135 - s.critical.kmFromSite, 9);
+    expect(s.critical.courseKm).toBeCloseTo((s.critical.kmFromSite / 2135) * s.courseKm, 9);
+  });
+
+  it('reproduces the spec worked example: ~2% of BOD and ~2/3 of nitrate reach the delta', () => {
+    const s = buildSource(danube, grid, mask);
+    expect(s.mouth.L / 3).toBeLessThan(0.03);
+    expect(s.mouth.N / 19).toBeGreaterThan(0.6);
+    expect(s.mouth.N / 19).toBeLessThan(0.72);
+  });
+
+  it('without riverKm, the polyline is the channel', () => {
+    const s = buildSource({ ...danube, riverKm: null }, grid, mask);
+    expect(s.lengthKm).toBeCloseTo(s.courseKm, 9);
+    expect(s.critical.courseKm).toBeCloseTo(s.critical.kmFromSite, 9);
+  });
+
+  it('rejects a non-positive river length', () => {
+    expect(buildSource({ ...danube, riverKm: 0 }, grid, mask)).toBeNull();
+    expect(buildSource({ ...danube, riverKm: NaN }, grid, mask)).toBeNull();
+  });
+});

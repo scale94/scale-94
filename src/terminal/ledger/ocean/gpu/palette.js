@@ -9,3 +9,18 @@ export const OCEAN_EXPOSURE = {
   rim: 1.4,
   aberration: 0.35,
 };
+
+// River-stage parcel colours: the composite's crimson / amber / green (the
+// legend swatches, spec §1). ref: concentration at which a channel reaches
+// 1 - 1/e of its colour — river concentrations are ~1e3x the ocean's, so these
+// are not OCEAN_EXPOSURE's refs. deficitDim: brightness a fully deoxygenated
+// parcel loses (deficit is absence of light). minAlpha: a clean parcel stays
+// faintly visible.
+export const RIVER_PALETTE = {
+  crimson: [1, 0.09, 0.2],
+  amber: [1, 0.62, 0],
+  green: [0.22, 1, 0.08],
+  ref: [2, 10, 10],
+  deficitDim: 0.8,
+  minAlpha: 0.25,
+};

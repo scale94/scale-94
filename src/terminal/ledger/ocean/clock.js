@@ -27,5 +27,10 @@ export function createStepClock({ dtDays = DT_DAYS, maxSteps = 8 } = {}) {
     reset() {
       accDays = 0;
     },
+    // Wall-time remainder not yet taken as a step, in steps (0 <= f < 1).
+    // Drawing uses it to interpolate between steps; the sim never does.
+    fraction() {
+      return Math.min(1, Math.max(0, accDays / dtDays));
+    },
   };
 }

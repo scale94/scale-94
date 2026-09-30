@@ -63,7 +63,10 @@ export function splatCells(grid, land, snap, dischargeM3s, sigma = SPLAT_SIGMA_C
 }
 
 export function buildSource(spec, grid, mask) {
-  const { id, kind, course, dischargeM3s, velocityMs, depthM, snapRadius = USER_SNAP_RADIUS_CELLS } = spec;
+  const {
+    id, kind, course, dischargeM3s, velocityMs, depthM,
+    snapRadius = USER_SNAP_RADIUS_CELLS, riverKm = null,
+  } = spec;
   if (!(velocityMs > 0)) throw new Error(`buildSource(${id}): velocityMs must be > 0`);
   const kernel = {
     temp: Number(spec.kernel.temp),
@@ -75,13 +78,19 @@ export function buildSource(spec, grid, mask) {
   const finite = (v) => Number.isFinite(v);
   if (!Object.values(kernel).every(finite) || !finite(dischargeM3s) || !finite(depthM)) return null;
   if (dischargeM3s < 0 || depthM <= 0) return null;
+  if (riverKm !== null && !(riverKm > 0 && finite(riverKm))) return null;
   if (!course.every((p) => p.every(finite))) return null;
   const end = course[course.length - 1];
   const snap = snapToOcean(grid, mask.land, end[0], end[1], snapRadius, snapFilter(mask));
   if (!snap) return null;
 
   const fullCourse = course.length === 1 ? [course[0], [snap.lon, snap.lat]] : course;
-  const lengthKm = courseLengthKm(fullCourse);
+  // courseKm: the drawn polyline (city waypoints). lengthKm: the channel the
+  // water travels — a sourced riverKm when the RIVERS entry has one (Danube),
+  // else the polyline. Travel time and river km use the channel; positions
+  // on the drawn course use the same fraction of the polyline.
+  const courseKm = courseLengthKm(fullCourse);
+  const lengthKm = riverKm !== null ? riverKm : courseKm;
   const kmPerDay = velocityMs * 86.4;
   const travelDays = lengthKm / kmPerDay;
   const hyd = { velocityMs, depthM };
@@ -90,18 +99,20 @@ export function buildSource(spec, grid, mask) {
   const D0 = Math.max(0, doSat(kernel.temp) - kernel.do);
   const tc = Math.min(criticalTime(kernel.bod, D0, kd(kernel.temp), kaRiver(velocityMs, depthM, kernel.temp)), travelDays);
   const atC = riverState(kernel, tc, hyd);
+  const kmFromSite = tc * kmPerDay;
   const critical = {
     tDays: tc,
-    kmFromSite: tc * kmPerDay,
-    rkm: Math.max(0, lengthKm - tc * kmPerDay),
+    kmFromSite,
+    rkm: Math.max(0, lengthKm - kmFromSite),
     doMin: Math.max(0, doSat(kernel.temp) - atC.D),
+    courseKm: lengthKm > 0 ? (kmFromSite / lengthKm) * courseKm : 0,
   };
 
   return {
-    id, kind, snap, course: fullCourse, lengthKm, travelDays, mouth,
+    id, kind, snap, course: fullCourse, lengthKm, courseKm, travelDays, mouth,
     conc: [mouth.dT, mouth.L, mouth.N, mouth.D],
     cells: splatCells(grid, mask.land, snap, dischargeM3s),
-    critical, dischargeM3s,
+    critical, dischargeM3s, kernel, velocityMs, depthM,
   };
 }
 
@@ -140,6 +151,7 @@ export function presetSourceSpec(preset, river = RIVERS[preset.key]) {
     velocityMs: manningVelocity(river.manning),
     depthM: river.manning.R,
     snapRadius: 8,
+    riverKm: river.riverKm ?? null,
   };
 }
 

@@ -4,6 +4,8 @@ import {
   createOceanDriver, REDUCED_MOTION_DAYS, WARMUP_STEPS_PER_FRAME, LOAD_FRAME_MS,
   STEP_CAP, STEP_CAP_LOADED,
 } from '../oceanDriver';
+import { advanceParcelPhase } from '../../../../ledger/ocean/riverStage';
+import { DT_DAYS } from '../../../../ledger/ocean/grid';
 
 const counting = () => {
   let n = 0;
@@ -78,5 +80,40 @@ describe('createOceanDriver', () => {
       d.advance(bad, 9);
       expect(d.frameMs()).toBeCloseTo(16, 9);
     }
+  });
+});
+
+describe('display time (smooth parcels)', () => {
+  it('interpolates between steps on the wall-time remainder: alpha 0.5 → half a step', () => {
+    const d = createOceanDriver({ clock: createStepClock(), step: () => {} });
+    d.advance(DT_DAYS / 2 / 9, 9);                 // owes half a step: no step yet
+    expect(d.simDays()).toBe(0);
+    expect(d.displayDays()).toBeCloseTo(DT_DAYS / 2, 12);
+    d.advance(DT_DAYS / 2 / 9, 9);                 // completes the step
+    expect(d.simDays()).toBeCloseTo(DT_DAYS, 12);
+    expect(d.displayDays()).toBeCloseTo(DT_DAYS, 9);
+  });
+
+  it('gives the same parcel phase at the same wall time for 60 Hz and 360 Hz frames', () => {
+    const run = (hz) => {
+      const d = createOceanDriver({ clock: createStepClock(), step: () => {} });
+      let phase = 0;
+      let last = 0;
+      const out = [];
+      for (let f = 1; f <= hz; f++) {                // one wall second
+        d.advance(1 / hz, 9);
+        const disp = d.displayDays();
+        phase = advanceParcelPhase(phase, disp - last, 1.6, 9);
+        last = disp;
+        if (f % (hz / 4) === 0) out.push(phase);    // at 250, 500, 750, 1000 ms
+      }
+      return { last, out };
+    };
+    const a = run(60);
+    const b = run(360);
+    expect(a.last).toBeCloseTo(9, 9);
+    expect(b.last).toBeCloseTo(9, 9);
+    for (let i = 0; i < 4; i++) expect(b.out[i]).toBeCloseTo(a.out[i], 9);
+    expect(a.out[3]).toBeCloseTo((9 / (6 * 9)) % 1, 9);   // slowed: one course per 6 s
   });
 });
