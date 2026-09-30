@@ -100,6 +100,7 @@ describe('sites', () => {
     for (const s of [...world.sources, ...userSrc]) {
       const d = sites.find((x) => x.id === s.id);
       expect(d.course).toBe(s.course);
+      if (s.kind === 'catalog') { expect(d.tick).toBeNull(); continue; }   // mouth-only: no river stage
       expect(d.tick).toEqual(courseTick(s.course, cumulativeKm(s.course), s.critical.courseKm));
       expect(d.tick).not.toBeNull();
     }

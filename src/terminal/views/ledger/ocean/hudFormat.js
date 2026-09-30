@@ -173,6 +173,7 @@ export function describeSites(sources, verdicts = [], ghostParams = null, hero =
       const key = s.id.slice('catalog:'.length);
       return {
         ...base,
+        tick: null,   // mouth-only stub line: no river stage, so no DO_MIN tick
         snapKm: haversineKm(CATALOG[key].outfall, snap),
         name: CATALOG[key].label,
         status: null,
@@ -222,9 +223,10 @@ export function tooltipLines(site) {
     site.kind === 'preset' ? 'AMBIENT PRESET' : site.kind === 'catalog' ? 'AMBIENT RIVER'
       : site.kind === 'ghost' ? GHOST_LABEL : statusLabel(site.status),
     site.kind === 'preset' || site.kind === 'catalog' ? q : `${q} · ${pct}% OF MISSISSIPPI`,
-    Number.isFinite(site.doMin) && Number.isFinite(site.rkm)
+    // a catalog source has no river stage, so DO_MIN @ rkm means nothing for it
+    ...(site.kind === 'catalog' ? [] : [Number.isFinite(site.doMin) && Number.isFinite(site.rkm)
       ? `DO_MIN ${site.doMin.toFixed(1)} mg/L @ rkm ${Math.round(site.rkm)}`
-      : 'DO_MIN — mg/L @ rkm —',
+      : 'DO_MIN — mg/L @ rkm —']),
     `SNAP ${Math.round(site.snapKm)} km TO OCEAN`,
   ];
 }
