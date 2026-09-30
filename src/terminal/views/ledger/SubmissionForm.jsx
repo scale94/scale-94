@@ -4,7 +4,7 @@ import { PARAM_RANGES, VALID_DEPENDENCIES, validateSubmission } from '../../ledg
 import RiverPulse from './RiverPulse';
 import { paramSeverity, discreteSeverity } from './severityEngine';
 import { emit as emitObs, getTotals } from '../../../observatory/observatoryBus';
-import { AUDIT_PRESETS } from '../../ledger/auditPresets';
+import { ALL_AUDIT_PRESETS } from '../../ledger/auditPresets';
 
 const DEPENDENCY_LABELS = {
   sovereign: 'SOVEREIGN — user-supplied measurements',
@@ -169,7 +169,7 @@ export default function SubmissionForm({ onSubmit, loading, apiData, onApiFetch,
       <div>
         <div className="text-[10px] uppercase tracking-[3px] text-teal-500 font-mono mb-3">Presets</div>
         <div className="flex flex-wrap gap-2">
-          {AUDIT_PRESETS.map(preset => (
+          {ALL_AUDIT_PRESETS.map(preset => (
             <button
               key={preset.key}
               type="button"

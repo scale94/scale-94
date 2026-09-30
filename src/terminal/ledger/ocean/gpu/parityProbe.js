@@ -104,7 +104,7 @@ function realCase() {
   const { vel } = bakeCurrents(grid, mask);
   const sources = ambientSources(grid, mask);
   return runCase({
-    name: 'real 512x256, five preset sources', grid, mask, vel,
+    name: 'real 512x256, nine preset sources', grid, mask, vel,
     init: new Float32Array(grid.n * 4), sources, steps: 40, diffusivity: undefined,
   });
 }

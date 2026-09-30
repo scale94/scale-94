@@ -253,20 +253,19 @@ against `severityEngine.js` thresholds toward a stated tone):
 
 | key | site → mouth | target tone | approx. Q, to source |
 |---|---|---|---|
-| `yangtze` | Yangtze estuary (31.23°N, 121.47°E) → East China Sea | critical | ~30,000 |
-| `ganges` | Sundarbans (21.95°N, 89.18°E) → Bay of Bengal | critical | see note |
-| `citarum` | Citarum lower basin (6.12°S, 107.03°E) → Java Sea | critical | small; to source |
-| `danube` | **Linz** (48.31°N, 14.29°E) → Sulina mouth (~45.15°N, 29.75°E) | safe/stress | ~6,500 |
+| `yangtze` | Yangtze estuary at Wusongkou, Shanghai, China (31.3925°N, 121.515°E) → East China Sea | critical | 31,550 (Wikipedia "Yangtze", estuary mean 1955–2021) |
+| `ganges` | Lower Meghna at Chandpur (23.2198°N, 90.6304°E) → Meghna estuary | critical | 40,974, combined G–B–M (Wikipedia "Meghna River", Lower Meghna near mouth 1971–2000, citing riversnetwork.org) |
+| `citarum` | Lower Citarum at Batujaya, Karawang, West Java, Indonesia (6.0556°S, 107.1535°E) → Java Sea | critical | 423 (Wikipedia "Citarum River", near mouth) |
+| `danube` | **Linz** (48.31°N, 14.29°E), rkm 2135.2 → Sulina mouth (45.15°N, 29.75°E) | safe | 6,452 (Wikipedia "Danube", delta mean 1931–2020) |
 
 - Ganges note: the Sundarbans distributaries carry far less than the combined
   Ganges–Brahmaputra–Meghna outflow (~38,000 m³/s, which exits mainly via the
   Meghna estuary further east). Phase 3 picks one honestly: either keep the
   Sundarbans site with its distributary Q, or move the mouth to the Meghna and
   use the combined Q. It will not pair the Sundarbans site with the combined Q.
-  **Decided (user, 2026-09-29): the Meghna estuary with the combined
-  G–B–M Q ≈ 38,000 m³/s** (implemented in phase 3b).
-- Danube: HUD counts river kilometres from Linz (~rkm 2135, **verify in phase
-  3**) to 0 at the sea.
+  **Decided (user, 2026-09-29), implemented in 3b:** the audit site moves to the Lower Meghna at Chandpur, where the Padma (Ganges + Brahmaputra) joins the Meghna, so the site, the course and the combined Q describe the same water.
+- Danube: HUD counts river kilometres from Linz (rkm 2135.2, Strom-km of the Linz-Nibelungen pier in front of the Nibelungenbrücke, Oberösterreich Tourismus; km 0 = the old Sulina lighthouse, Wikipedia DE "Donau") to 0 at the sea. The waypoint polyline (~1,660 km) is drawing geometry; travel time and rkm use riverKm (3b).
+- 3b: the new presets live in `EXTRA_PRESETS` appended to auditPresets.js (`ALL_AUDIT_PRESETS` = 9); `AUDIT_PRESETS` and its test are untouched.
 - Danube: the preset is tuned to present-day conditions. The NW Black Sea
   shelf hypoxia of the 1970s–80s largely recovered after Danube nutrient loads
   fell from the 1990s: the set's one repaid debt.

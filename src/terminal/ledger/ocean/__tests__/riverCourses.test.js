@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { AUDIT_PRESETS } from '../../auditPresets';
+import { ALL_AUDIT_PRESETS } from '../../auditPresets';
 import { RIVERS } from '../riverCourses';
 import { OCEAN_GRID } from '../grid';
 import { buildLandMask } from '../landMask';
@@ -9,11 +9,11 @@ import { presetSourceSpec, buildSource, ambientSources } from '../sources';
 const grid = OCEAN_GRID;
 const mask = buildLandMask(grid);
 const hasNote = (s) => typeof s === 'string' && s.trim().length >= 12;
-const PRESETS = AUDIT_PRESETS.map((p) => [p.key, p]);
+const PRESETS = ALL_AUDIT_PRESETS.map((p) => [p.key, p]);
 
 describe('RIVERS', () => {
   it('covers exactly the audit presets', () => {
-    expect(Object.keys(RIVERS).sort()).toEqual(AUDIT_PRESETS.map((p) => p.key).sort());
+    expect(Object.keys(RIVERS).sort()).toEqual(ALL_AUDIT_PRESETS.map((p) => p.key).sort());
   });
 
   it.each(PRESETS)('%s starts at the audit site', (key, p) => {
@@ -53,7 +53,7 @@ describe('preset sources', () => {
   });
 
   it('uses the Manning velocity and hydraulic radius', () => {
-    const p = AUDIT_PRESETS.find((x) => x.key === 'usa');
+    const p = ALL_AUDIT_PRESETS.find((x) => x.key === 'usa');
     const spec = presetSourceSpec(p);
     expect(spec.id).toBe('preset:usa');
     expect(spec.velocityMs).toBeCloseTo(manningVelocity(RIVERS.usa.manning), 12);
@@ -61,8 +61,53 @@ describe('preset sources', () => {
     expect(spec.dischargeM3s).toBe(16570);
   });
 
-  it('builds all five ambient sources', () => {
+  it('builds all nine ambient sources', () => {
     expect(ambientSources(grid, mask).map((s) => s.id).sort())
-      .toEqual(AUDIT_PRESETS.map((p) => `preset:${p.key}`).sort());
+      .toEqual(ALL_AUDIT_PRESETS.map((p) => `preset:${p.key}`).sort());
+  });
+});
+
+describe('phase-3b rivers', () => {
+  const basinAt = (lon, lat) => {
+    const { i, j } = grid.lonLatToCell(lon, lat);
+    return mask.basin[grid.idx(i, j)];
+  };
+  const built = (key) => buildSource(presetSourceSpec(ALL_AUDIT_PRESETS.find((p) => p.key === key)), grid, mask);
+
+  it('drains the Ganges preset at the Meghna estuary with the combined G–B–M flow, sourced', () => {
+    const r = RIVERS.ganges;
+    expect(r.course.at(-1)[0]).toBeGreaterThan(90.5);      // east of the Sundarbans (~89.2°E)
+    expect(r.dischargeM3s).toBeGreaterThanOrEqual(30000);
+    expect(r.dischargeM3s).toBeLessThanOrEqual(45000);
+    expect(r.sources.dischargeM3s.startsWith('UNVERIFIED')).toBe(false);
+    expect(mask.basin[built('ganges').snap.k]).toBe(basinAt(-150, 0));
+  });
+
+  it('counts Danube river kilometres from Linz (sourced) and drains into the Black Sea', () => {
+    const r = RIVERS.danube;
+    expect(r.riverKm).toBeGreaterThanOrEqual(2100);
+    expect(r.riverKm).toBeLessThanOrEqual(2170);
+    expect(hasNote(r.sources.riverKm)).toBe(true);
+    expect(r.sources.riverKm.startsWith('UNVERIFIED')).toBe(false);
+    const s = built('danube');
+    expect(s.lengthKm).toBe(r.riverKm);
+    expect(s.critical.rkm).toBeGreaterThan(0);
+    expect(s.critical.rkm).toBeLessThanOrEqual(r.riverKm);
+    expect(mask.basin[s.snap.k]).toBe(basinAt(34, 43.5));
+  });
+
+  it('delivers the Danube plume almost entirely as nitrate (spec §3 worked example)', () => {
+    const p = ALL_AUDIT_PRESETS.find((x) => x.key === 'danube');
+    const s = built('danube');
+    expect(s.travelDays).toBeGreaterThan(15);
+    expect(s.travelDays).toBeLessThan(40);
+    expect(s.mouth.L / p.bod).toBeLessThan(0.05);
+    expect(s.mouth.N / p.nitrate).toBeGreaterThan(0.55);
+    expect(s.mouth.N / p.nitrate).toBeLessThan(0.8);
+  });
+
+  it('drains the Yangtze and the Citarum into the open ocean', () => {
+    expect(mask.basin[built('yangtze').snap.k]).toBe(basinAt(-150, 0));
+    expect(mask.basin[built('citarum').snap.k]).toBe(basinAt(-150, 0));
   });
 });

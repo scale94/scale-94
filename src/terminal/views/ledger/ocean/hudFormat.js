@@ -1,7 +1,7 @@
 // hudFormat.js — pure text and geometry for the Ledger ocean HUD (spec §4).
 // No React and no GL, so every string the HUD shows is unit-tested.
 
-import { AUDIT_PRESETS } from '../../../ledger/auditPresets';
+import { ALL_AUDIT_PRESETS } from '../../../ledger/auditPresets';
 import { RIVERS } from '../../../ledger/ocean/riverCourses';
 import { haversineKm } from '../../../ledger/ocean/sources';
 
@@ -122,7 +122,7 @@ export function pickSite(sites, x, y, w, h, radiusPx = RING_TAP_RADIUS_PX) {
   return best;
 }
 
-const PRESET_BY_ID = new Map(AUDIT_PRESETS.map((p) => [`preset:${p.key}`, p]));
+const PRESET_BY_ID = new Map(ALL_AUDIT_PRESETS.map((p) => [`preset:${p.key}`, p]));
 
 // Ring + tooltip data per built source. Snap distance: presets from the last
 // point of their RIVERS course (the mouth) to the snapped ocean cell; verdicts

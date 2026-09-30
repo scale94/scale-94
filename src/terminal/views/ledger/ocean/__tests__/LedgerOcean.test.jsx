@@ -258,7 +258,7 @@ describe('LedgerOcean HUD integration', () => {
     m.frames(3);
     expect(count('texImage2D')).toBe(uploads + 1);
     expect(m.container.querySelector('[data-site="h1"]')).toBeTruthy();
-    expect(m.container.querySelectorAll('[data-site^="preset:"]')).toHaveLength(5);
+    expect(m.container.querySelectorAll('[data-site^="preset:"]')).toHaveLength(9);
   });
 
   it('re-settles a reduced-motion ocean when a verdict adds a source', () => {

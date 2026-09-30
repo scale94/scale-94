@@ -5,7 +5,7 @@
 import { R_EARTH_KM } from './grid';
 import { riverState, kd, kaRiver, criticalTime, doSat, manningVelocity } from './kinetics';
 import { snapToOcean } from './landMask';
-import { AUDIT_PRESETS } from '../auditPresets';
+import { ALL_AUDIT_PRESETS } from '../auditPresets';
 import { RIVERS } from './riverCourses';
 
 export const MIXED_LAYER_M = 20;
@@ -156,7 +156,7 @@ export function presetSourceSpec(preset, river = RIVERS[preset.key]) {
 }
 
 export function ambientSources(grid, mask) {
-  return AUDIT_PRESETS
+  return ALL_AUDIT_PRESETS
     .filter((p) => RIVERS[p.key])
     .map((p) => buildSource(presetSourceSpec(p), grid, mask))
     .filter(Boolean);
