@@ -6,6 +6,10 @@
 // ring centre (beyond the 6 px ring tap radius: probes), a tap on open
 // Atlantic ~19 px from that ring (probes), and the legend with its notes
 // expanded.
+// 3b, both views: zooms on the Danube, the Bay of Bengal and the Yangtze
+// (river-stage parcels, DO_MIN ticks); the USA preset moved inland to Wuhan
+// (the PROVISIONAL ghost while typing); then RUN AUDIT and a shot ~450 ms into
+// the seal flare. Submitting writes one verdict into the throwaway profile.
 //
 //   node scripts/ledgerTabShots.mjs [outDir]
 import { createServer } from 'vite';
@@ -26,6 +30,14 @@ const PROBE_AT = [-88.0, 26.5];      // Gulf of Mexico, off the Mississippi mout
 const RING_AT = [6.9603, 50.9375];   // Rhine preset site (Cologne)
 const OFF_RING_AT = [-86.0, 23.5];   // Gulf water ~7 css px from the Mississippi ring centre at 334 px
 const OPEN_WATER_AT = [-70.0, 27.0]; // Atlantic ~19 css px from the Mississippi ring centre at 334 px
+const GHOST_SITE = { lat: 30.59, lon: 114.3 };   // Wuhan: a user site ~9 cells inland
+const ZOOMS = [
+  ['river-danube', [12, 50], [31, 42]],
+  ['river-bengal', [86, 26], [95, 19]],
+  ['river-yangtze', [118, 34], [126, 28]],
+];
+const EAST_CHINA = [[110, 36], [126, 26]];
+const MISSISSIPPI = [[-91, 30.6], [-88.6, 28.6]];
 
 await mkdir(OUT, { recursive: true });
 const server = await createServer({ server: { port: 5196, strictPort: false, host: '127.0.0.1' }, logLevel: 'error' });
@@ -90,6 +102,63 @@ try {
         await sleep(300);
         await shot(page, `${v.name}-hero-ring-tooltip.png`, clip);
       }
+      // ── 3b ──────────────────────────────────────────────────────────────
+      const zoom = async (name, [lon0, lat1], [lon1, lat0], scale = v.mobile ? 2 : 3) => {
+        const [x0, y0] = at([lon0, lat1]);
+        const [x1, y1] = at([lon1, lat0]);
+        await shot(page, name, {
+          x: Math.round(x0), y: Math.round(y0), width: Math.round(x1 - x0), height: Math.round(y1 - y0),
+          scale,
+        });
+      };
+      // Clear the state the 3a shots leave on the hero so it does not cover
+      // the zooms: desktop, the Rhine ring tooltip (pointer moves off the
+      // hero); phone, the expanded notes (tap the toggle again).
+      if (v.mobile) {
+        const t = await page.eval(`(() => { const b = document.querySelector('[data-hud="notes-toggle"]').getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; })()`);
+        await tap(t);
+      } else {
+        await page.hover(r.x + r.w / 2, r.y + r.h + 60);
+      }
+      await sleep(400);
+      await page.eval('window.scrollTo(0, 0)');
+      for (const [name, a, b] of ZOOMS) await zoom(`${v.name}-${name}.png`, a, b);
+      // Short-river glide: two close-ups of the Mississippi (New Orleans → Head
+      // of Passes, 1.6 d of travel, slowed to one course per 6 s) ~50 ms apart.
+      // Parcels should have moved ~1/120 of the course, not jumped or strobed.
+      const t0 = Date.now();
+      await zoom(`${v.name}-glide-mississippi-a.png`, ...MISSISSIPPI, v.mobile ? 4 : 10);
+      await sleep(Math.max(0, 50 - (Date.now() - t0)));
+      await zoom(`${v.name}-glide-mississippi-b.png`, ...MISSISSIPPI, v.mobile ? 4 : 10);
+      console.log(`${v.name} glide pair taken ${Date.now() - t0} ms apart`);
+
+      const clickText = (text) => page.eval(`(() => {
+        const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === ${JSON.stringify(text)});
+        if (b) b.click();
+        return !!b;
+      })()`);
+      const setField = (field, value) => page.eval(`(() => {
+        const el = document.querySelector('[data-field="${field}"] input');
+        if (!el) return false;
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, ${JSON.stringify(String(value))});
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        return true;
+      })()`);
+      if (!(await clickText('USA'))) throw new Error('USA preset button not found');
+      if (!(await setField('lat', GHOST_SITE.lat)) || !(await setField('lon', GHOST_SITE.lon))) {
+        throw new Error('coordinate inputs not found');
+      }
+      await sleep(600);
+      await page.eval('window.scrollTo(0, 0)');
+      await shot(page, `${v.name}-ghost.png`, clip);
+      await zoom(`${v.name}-ghost-zoom.png`, ...EAST_CHINA);
+
+      if (!(await clickText('RUN AUDIT'))) throw new Error('RUN AUDIT button not found');
+      await page.waitFor(`!!document.querySelector('[data-sealing="true"]')`, { timeoutMs: 30000, label: 'seal' });
+      await sleep(450);
+      await page.eval('window.scrollTo(0, 0)');
+      await shot(page, `${v.name}-seal-flare.png`, clip);
+      await zoom(`${v.name}-seal-flare-zoom.png`, ...EAST_CHINA);
       const errors = page.consoleErrors();
       if (errors.length) console.log(`${v.name} console errors: ${JSON.stringify(errors)}`);
     } finally {
