@@ -1,0 +1,102 @@
+// src/terminal/mercury/planet/mercuryBody.js — the planet as a body you can spin.
+//
+// Time-based rigid rotation (spec §5): a drag grips the body toward the
+// pointer's angular velocity; released, free spin damps and a critically
+// damped `recapture` spring (ramped in over RECAPTURE_RAMP_S) returns it to
+// the ephemeris orientation. `recapture` is honest naming: real tidal
+// relaxation takes millions of years; the 3:2 lock is what the ephemeris
+// orientation IS. Dissipated rotation heats a store (H += κ|ω|²dt, leaks λH),
+// and transmutation τ ∈ [0,1] follows melt/freeze thresholds with
+// hysteresis, so liquid lingers ~30–60 s after a spin.
+// Fixed-size substeps (≤ MAX_SUBSTEP_S) make 60 Hz and 360 Hz agree.
+
+import * as THREE from 'three';
+
+export const MAX_SUBSTEP_S = 1 / 480;
+export const GRIP_PER_S = 18;          // how hard a drag grips the body
+export const SPIN_DAMP_PER_S = 0.35;   // free-spin damping after release
+export const MAX_OMEGA = 12;           // rad/s
+export const RECAPTURE_OMEGA = 0.8;    // rad/s natural frequency of the return
+export const RECAPTURE_RAMP_S = 4;     // inertia first, then recapture
+export const HEAT_GAIN = 0.58;         // K per (rad/s)² per s
+export const HEAT_LEAK_PER_S = 0.035;
+export const MELT_HEAT_K = 60;
+export const FREEZE_HEAT_K = 25;
+export const TRANSMUTE_S = 3;          // τ 0 → 1 duration
+
+const Y_AXIS = new THREE.Vector3(0, 1, 0);
+
+export function targetFromYaw(yaw, out = new THREE.Quaternion()) {
+  return out.setFromAxisAngle(Y_AXIS, yaw);
+}
+
+export function createBody(q0) {
+  return {
+    q: q0.clone(),
+    omega: new THREE.Vector3(),
+    heatK: 0,
+    tau: 0,
+    liquid: false,
+    sinceReleaseS: Infinity,
+  };
+}
+
+const _qInv = new THREE.Quaternion();
+const _err = new THREE.Quaternion();
+const _dq = new THREE.Quaternion();
+const _e = new THREE.Vector3();
+
+export function rotationError(q, target, out = new THREE.Vector3()) {
+  _qInv.copy(q).invert();
+  _err.copy(target).multiply(_qInv);
+  if (_err.w < 0) _err.set(-_err.x, -_err.y, -_err.z, -_err.w);
+  const s = Math.sqrt(Math.max(0, 1 - _err.w * _err.w));
+  if (s < 1e-9) return out.set(2 * _err.x, 2 * _err.y, 2 * _err.z);
+  const angle = 2 * Math.acos(Math.min(1, _err.w));
+  return out.set((_err.x / s) * angle, (_err.y / s) * angle, (_err.z / s) * angle);
+}
+
+const smooth01 = (x) => {
+  const t = Math.min(1, Math.max(0, x));
+  return t * t * (3 - 2 * t);
+};
+
+function substep(b, h, dragging, omegaPtr, target) {
+  const w = b.omega;
+  if (dragging) {
+    b.sinceReleaseS = 0;
+    const k = 1 - Math.exp(-GRIP_PER_S * h);
+    w.set(w.x + (omegaPtr[0] - w.x) * k, w.y + (omegaPtr[1] - w.y) * k, w.z + (omegaPtr[2] - w.z) * k);
+  } else {
+    b.sinceReleaseS += h;
+    w.multiplyScalar(Math.exp(-SPIN_DAMP_PER_S * h));
+    const ramp = smooth01(b.sinceReleaseS / RECAPTURE_RAMP_S);
+    if (ramp > 0) {
+      const K = RECAPTURE_OMEGA * RECAPTURE_OMEGA * ramp;
+      const C = 2 * RECAPTURE_OMEGA * Math.sqrt(ramp);
+      rotationError(b.q, target, _e);
+      w.set(w.x + (K * _e.x - C * w.x) * h, w.y + (K * _e.y - C * w.y) * h, w.z + (K * _e.z - C * w.z) * h);
+    }
+  }
+  const len = w.length();
+  if (len > MAX_OMEGA) w.multiplyScalar(MAX_OMEGA / len);
+
+  // dq/dt = ½ (ω, 0) ⊗ q — world-frame angular velocity.
+  _dq.set(w.x, w.y, w.z, 0).multiply(b.q);
+  b.q.set(b.q.x + 0.5 * h * _dq.x, b.q.y + 0.5 * h * _dq.y, b.q.z + 0.5 * h * _dq.z, b.q.w + 0.5 * h * _dq.w).normalize();
+
+  b.heatK += (HEAT_GAIN * w.lengthSq() - HEAT_LEAK_PER_S * b.heatK) * h;
+  if (b.heatK >= MELT_HEAT_K) b.liquid = true;
+  else if (b.heatK <= FREEZE_HEAT_K) b.liquid = false;
+  const goal = b.liquid ? 1 : 0;
+  const stepTau = h / TRANSMUTE_S;
+  b.tau = goal > b.tau ? Math.min(goal, b.tau + stepTau) : Math.max(goal, b.tau - stepTau);
+}
+
+export function stepBody(b, dtS, { dragging = false, omegaPtr = [0, 0, 0], target }) {
+  if (!(dtS > 0)) return b;
+  const n = Math.max(1, Math.ceil(dtS / MAX_SUBSTEP_S - 1e-9));
+  const h = dtS / n;
+  for (let i = 0; i < n; i++) substep(b, h, dragging, omegaPtr, target);
+  return b;
+}
