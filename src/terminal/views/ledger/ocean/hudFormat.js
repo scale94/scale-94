@@ -4,6 +4,7 @@
 import { ALL_AUDIT_PRESETS } from '../../../ledger/auditPresets';
 import { RIVERS } from '../../../ledger/ocean/riverCourses';
 import { haversineKm } from '../../../ledger/ocean/sources';
+import { cumulativeKm, courseTick } from '../../../ledger/ocean/riverStage';
 
 export const MODE_LABEL = {
   static: 'STATIC · NO FLOAT TARGETS',
@@ -136,7 +137,8 @@ export function describeSites(sources, verdicts = []) {
     const site = s.course[0];
     const snap = [s.snap.lon, s.snap.lat];
     const base = {
-      id: s.id, kind: s.kind, site, snap,
+      id: s.id, kind: s.kind, site, snap, course: s.course,
+      tick: courseTick(s.course, cumulativeKm(s.course), s.critical.courseKm),
       dischargeM3s: s.dischargeM3s, doMin: s.critical.doMin, rkm: s.critical.rkm,
     };
     if (s.kind === 'preset') {
@@ -182,7 +184,9 @@ export function tooltipLines(site) {
     site.name,
     site.kind === 'preset' ? 'AMBIENT PRESET' : statusLabel(site.status),
     site.kind === 'preset' ? q : `${q} · ${pct}% OF MISSISSIPPI`,
-    `DO_MIN ${site.doMin.toFixed(1)} mg/L @ rkm ${Math.round(site.rkm)}`,
+    Number.isFinite(site.doMin) && Number.isFinite(site.rkm)
+      ? `DO_MIN ${site.doMin.toFixed(1)} mg/L @ rkm ${Math.round(site.rkm)}`
+      : 'DO_MIN — mg/L @ rkm —',
     `SNAP ${Math.round(site.snapKm)} km TO OCEAN`,
   ];
 }

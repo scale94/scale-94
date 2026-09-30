@@ -5,7 +5,8 @@ import { OCEAN_GRID, DT_DAYS } from '../../../../ledger/ocean/grid';
 import { diffusionSchedule, EDDY_DIFFUSIVITY_KM2_DAY } from '../../../../ledger/ocean/referenceStep';
 import { createStepClock } from '../../../../ledger/ocean/clock';
 import { REDUCED_MOTION_DAYS, WARMUP_STEPS_PER_FRAME } from '../oceanDriver';
-import { MODE_LABEL, PARTICLE_PX, PROBE_HINT, PROBE_TAP_HOLD_MS, formatClock } from '../hudFormat';
+import { MODE_LABEL, PARTICLE_PX, PROBE_HINT, PROBE_TAP_HOLD_MS, formatClock, describeSites } from '../hudFormat';
+import { verdictSources } from '../../../../ledger/ocean/sources';
 import { getOceanWorld } from '../../../../ledger/ocean/oceanWorld';
 import {
   prepareRiver, fillParticles, PARTICLES_PER_RIVER, FLOATS_PER_PARTICLE, MIN_CYCLE_S,
@@ -424,5 +425,13 @@ describe('LedgerOcean river stage', () => {
     expect(count('deleteProgram')).toBe(count('createProgram'));
     expect(count('deleteVertexArray')).toBe(count('createVertexArray'));
     expect(count('deleteBuffer')).toBe(count('createBuffer'));
+  });
+
+  it('ticks the DO minimum on every drawn course', () => {
+    const m = mountLive(<LedgerOcean width={1024} height={512} verdicts={[V]} />);
+    const { grid, mask, sources } = getOceanWorld();
+    const expected = describeSites([...sources, ...verdictSources([V], grid, mask)], [V]).filter((s) => s.tick);
+    expect(expected.length).toBeGreaterThanOrEqual(10);
+    expect(m.container.querySelectorAll('[data-hud="domin-tick"]')).toHaveLength(expected.length);
   });
 });

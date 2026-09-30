@@ -211,5 +211,18 @@ describe('OceanHud', () => {
     fireEvent.pointerDown(document.body);
     expect(q('tooltip')).toBeTruthy();
   });
+
+  it('draws a DO_MIN tick across the course where a site has one', () => {
+    const withTick = [{ ...SITES[1], tick: { lon: 0, lat: 0, angleDeg: -90 } }, SITES[0]];
+    const { container } = hud({ sites: withTick });
+    const ticks = container.querySelectorAll('[data-hud="domin-tick"]');
+    expect(ticks).toHaveLength(1);
+    expect(ticks[0].getAttribute('data-tick')).toBe('h1');
+    expect(ticks[0].style.left).toBe('50%');
+    expect(ticks[0].style.top).toBe('50%');
+    expect(ticks[0].style.transform).toBe('translate(-50%, -50%) rotate(-90deg)');
+    expect(ticks[0].style.height).toBe('7px');
+    expect(ticks[0].getAttribute('aria-hidden')).toBe('true');
+  });
 });
 

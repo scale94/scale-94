@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { getOceanWorld } from '../../../../ledger/ocean/oceanWorld';
 import { verdictSources, haversineKm } from '../../../../ledger/ocean/sources';
 import { RIVERS } from '../../../../ledger/ocean/riverCourses';
+import { cumulativeKm, courseTick } from '../../../../ledger/ocean/riverStage';
 import {
   COMPRESSIONS, LEGEND_NOTES, PRESET_COLOR, nextCompression, summaryLine, formatClock, formatFrame,
   fmtValue, formatProbe, pointerToLonLat, lonLatToPct, describeSites, tooltipLines, fmtQ,
@@ -93,6 +94,23 @@ describe('sites', () => {
   it('test setup: the verdict site is on land', () => {
     const { i, j } = world.grid.lonLatToCell(120.6, 31.3);
     expect(world.mask.land[world.grid.idx(i, j)]).toBeTruthy();
+  });
+
+  it('places each DO_MIN tick at the critical point along the drawn course', () => {
+    for (const s of [...world.sources, ...userSrc]) {
+      const d = sites.find((x) => x.id === s.id);
+      expect(d.course).toBe(s.course);
+      expect(d.tick).toEqual(courseTick(s.course, cumulativeKm(s.course), s.critical.courseKm));
+      expect(d.tick).not.toBeNull();
+    }
+  });
+
+  it('prints a dash, not NaN, when the DO minimum is unknown', () => {
+    const lines = tooltipLines({
+      id: 'x', kind: 'verdict', name: 'Z', status: 'APPROVED', color: '#22c55e',
+      site: [0, 0], snap: [0, 0], snapKm: 1, dischargeM3s: 1, doMin: NaN, rkm: NaN,
+    });
+    expect(lines[3]).toBe('DO_MIN — mg/L @ rkm —');
   });
 
   it('describes presets as neutral ambient sources, measured from their mouth', () => {

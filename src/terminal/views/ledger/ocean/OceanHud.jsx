@@ -20,6 +20,8 @@ const RING_PX = 16;
 const RING_PX_COMPACT = 10;
 const TIP_Z = 3;
 const TIP_MARGIN_PX = 4;
+const TICK_PX = 7;
+const TICK_PX_COMPACT = 5;
 
 const controlStyle = {
   pointerEvents: 'auto',
@@ -166,6 +168,23 @@ const OceanHud = forwardRef(function OceanHud({
             />
           ))}
       </svg>
+
+      {sites.filter((s) => s.tick).map((s) => {
+        const { left, top } = lonLatToPct(s.tick.lon, s.tick.lat);
+        return (
+          <span
+            key={`tick:${s.id}`}
+            data-hud="domin-tick"
+            data-tick={s.id}
+            aria-hidden="true"
+            style={{
+              position: 'absolute', left: `${left}%`, top: `${top}%`,
+              width: 1, height: compact ? TICK_PX_COMPACT : TICK_PX, background: s.color, opacity: 0.9,
+              transform: `translate(-50%, -50%) rotate(${s.tick.angleDeg}deg)`, pointerEvents: 'none',
+            }}
+          />
+        );
+      })}
 
       {sites.map((s) => {
         const { left, top } = lonLatToPct(s.site[0], s.site[1]);
