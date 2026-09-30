@@ -182,28 +182,14 @@ const OceanHud = forwardRef(function OceanHud({
           ))}
       </svg>
 
-      {/* Phone: no ticks (they merge into the rings); the ring tooltip carries DO_MIN. */}
-      {!compact && sites.filter((s) => s.tick).map((s) => {
-        const { left, top } = lonLatToPct(s.tick.lon, s.tick.lat);
-        return (
-          <span
-            key={`tick:${s.id}`}
-            data-hud="domin-tick"
-            data-tick={s.id}
-            aria-hidden="true"
-            style={{
-              position: 'absolute', left: `${left}%`, top: `${top}%`,
-              width: 1, height: TICK_PX, background: s.color, opacity: 0.9,
-              transform: `translate(-50%, -50%) rotate(${s.tick.angleDeg}deg)`, pointerEvents: 'none',
-            }}
-          />
-        );
-      })}
-
       <div role="group" aria-label={SITES_GROUP_LABEL}>
         {sites.map((s, i) => {
           const { left, top } = lonLatToPct(s.site[0], s.site[1]);
           const latest = s.id === latestHash;
+          const inset = compact ? (latest ? 0 : 1) : (latest ? 2 : 4);
+          // A course shorter than the drawn ring sits inside it: thin the
+          // ring so the parcels and the tick read over it.
+          const shortCourse = Number.isFinite(s.courseCssPx) && s.courseCssPx < ringPx - 2 * inset;
           return (
             <button
               key={s.id}
@@ -240,14 +226,33 @@ const OceanHud = forwardRef(function OceanHud({
             >
               <span
                 style={{
-                  position: 'absolute', inset: compact ? (latest ? 0 : 1) : (latest ? 2 : 4), borderRadius: '50%',
-                  border: `${latest ? 2 : 1.5}px ${s.kind === 'ghost' ? 'dashed' : 'solid'} ${s.color}`, opacity: s.kind === 'preset' ? 0.6 : 0.95,
+                  position: 'absolute', inset, borderRadius: '50%',
+                  border: `${shortCourse ? 1 : latest ? 2 : 1.5}px ${s.kind === 'ghost' ? 'dashed' : 'solid'} ${s.color}`, opacity: s.kind === 'preset' ? 0.6 : 0.95,
                 }}
               />
             </button>
           );
         })}
       </div>
+
+      {/* After the rings, so a tick draws over the ring it sits in. Phone: no
+          ticks (they merge into the rings); the ring tooltip carries DO_MIN. */}
+      {!compact && sites.filter((s) => s.tick).map((s) => {
+        const { left, top } = lonLatToPct(s.tick.lon, s.tick.lat);
+        return (
+          <span
+            key={`tick:${s.id}`}
+            data-hud="domin-tick"
+            data-tick={s.id}
+            aria-hidden="true"
+            style={{
+              position: 'absolute', left: `${left}%`, top: `${top}%`,
+              width: 1, height: TICK_PX, background: s.color, opacity: 0.9,
+              transform: `translate(-50%, -50%) rotate(${s.tick.angleDeg}deg)`, pointerEvents: 'none',
+            }}
+          />
+        );
+      })}
 
       {sites.filter((s) => s.kind === 'ghost').map((s) => {
         const { left, top } = lonLatToPct(s.site[0], s.site[1]);

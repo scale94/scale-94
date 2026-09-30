@@ -237,6 +237,39 @@ describe('OceanHud', () => {
     expect(desk.container.querySelectorAll('[data-hud="domin-tick"]')).toHaveLength(2);
   });
 
+  it('thins the ring of a course shorter than the ring (1 px); a long course keeps the normal stroke', () => {
+    const sized = [
+      { ...SITES[0], courseCssPx: 3.3 },                            // Mississippi-like: inside the 8 px ring
+      { ...SITES[1], courseCssPx: 55 },                             // Danube-like: well outside it
+      { ...SITES[1], id: 'h9', courseCssPx: null },                 // unknown length: normal
+    ];
+    const { container } = hud({ sites: sized });
+    const border = (id) => container.querySelector(`[data-site="${id}"] span`).style.borderWidth;
+    expect(border('preset:usa')).toBe('1px');
+    expect(border('h1')).toBe('1.5px');
+    expect(border('h9')).toBe('1.5px');
+    // The latest ring is 12 px across on desktop: a 10 px course is inside it.
+    const latest = hud({ sites: [{ ...SITES[1], courseCssPx: 10 }], latestHash: 'h1' });
+    expect(latest.container.querySelector('[data-site="h1"] span').style.borderWidth).toBe('1px');
+    const latestLong = hud({ sites: [{ ...SITES[1], courseCssPx: 13 }], latestHash: 'h1' });
+    expect(latestLong.container.querySelector('[data-site="h1"] span').style.borderWidth).toBe('2px');
+    // No ring has a fill that could dim the parcels under it.
+    for (const b of container.querySelectorAll('[data-site]')) {
+      expect(b.style.background).toBe('transparent');
+      expect(b.querySelector('span').style.background).toBe('');
+    }
+  });
+
+  it('stacks the DO_MIN ticks above the ring buttons on desktop (after them in DOM order)', () => {
+    const withTick = [{ ...SITES[1], tick: { lon: 0, lat: 0, angleDeg: -90 } }, SITES[0]];
+    const { container } = hud({ sites: withTick });
+    const tick = container.querySelector('[data-hud="domin-tick"]');
+    for (const ring of container.querySelectorAll('[data-site]')) {
+      expect(ring.compareDocumentPosition(tick) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
+    expect(tick.style.zIndex).toBe('');   // same stacking context: DOM order decides
+  });
+
   it('draws the ghost dashed and labelled PROVISIONAL; sealed lines stay solid', () => {
     const ghost = { id: 'ghost', kind: 'ghost', name: 'Ghost site', status: null, color: GHOST_COLOR,
       site: [114.3, 30.59], snap: [121.5, 30.5], snapKm: 700, dischargeM3s: 42, doMin: 3, rkm: 0 };

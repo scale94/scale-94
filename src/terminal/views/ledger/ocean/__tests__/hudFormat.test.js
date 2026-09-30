@@ -105,6 +105,29 @@ describe('sites', () => {
     }
   });
 
+  it('measures each course on screen (site → mouth, css px at the hero size); null without a hero size', () => {
+    const all = [...world.sources, ...userSrc];
+    const sized = describeSites(all, [V], null, { width: 1024, height: 512 });
+    for (const s of all) {
+      let px = 0;
+      for (let p = 1; p < s.course.length; p++) {
+        px += Math.hypot(
+          ((s.course[p][0] - s.course[p - 1][0]) / 360) * 1024,
+          ((s.course[p][1] - s.course[p - 1][1]) / 180) * 512,
+        );
+      }
+      expect(sized.find((x) => x.id === s.id).courseCssPx).toBeCloseTo(px, 9);
+    }
+    // Yangtze: 0.4681° of longitude → 1.33 px at 1024 wide; Danube is far longer than a ring.
+    expect(sized.find((x) => x.id === 'preset:yangtze').courseCssPx).toBeCloseTo((0.4681 / 360) * 1024, 2);
+    expect(sized.find((x) => x.id === 'preset:danube').courseCssPx).toBeGreaterThan(50);
+    // Scales with the hero.
+    const half = describeSites(all, [V], null, { width: 512, height: 256 });
+    expect(half.find((x) => x.id === 'preset:danube').courseCssPx)
+      .toBeCloseTo(sized.find((x) => x.id === 'preset:danube').courseCssPx / 2, 9);
+    for (const d of sites) expect(d.courseCssPx).toBeNull();
+  });
+
   it('prints a dash, not NaN, when the DO minimum is unknown', () => {
     const lines = tooltipLines({
       id: 'x', kind: 'verdict', name: 'Z', status: 'APPROVED', color: '#22c55e',

@@ -548,6 +548,14 @@ describe('LedgerOcean river stage', () => {
     expect(expected.length).toBeGreaterThanOrEqual(10);
     expect(m.container.querySelectorAll('[data-hud="domin-tick"]')).toHaveLength(expected.length);
   });
+
+  it('measures the courses at the hero size: short courses get a thin ring, the Danube keeps its stroke', () => {
+    const m = mountLive(<LedgerOcean width={1024} height={512} />);
+    const border = (id) => m.container.querySelector(`[data-site="${id}"] span`).style.borderWidth;
+    expect(border('preset:yangtze')).toBe('1px');   // 1.3 px of course inside an 8 px ring
+    expect(border('preset:ganges')).toBe('1px');    // 3.5 px
+    expect(border('preset:danube')).toBe('1.5px');  // 55 px
+  });
 });
 
 const flareDraws = () => pointDraws().filter((e) => e[3] === 1);

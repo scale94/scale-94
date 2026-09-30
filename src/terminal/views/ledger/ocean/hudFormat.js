@@ -134,7 +134,20 @@ const PRESET_BY_ID = new Map(ALL_AUDIT_PRESETS.map((p) => [`preset:${p.key}`, p]
 // Ring + tooltip data per built source (presets, verdicts, and the ghost). Snap distance: presets from the last
 // point of their RIVERS course (the mouth) to the snapped ocean cell; verdicts
 // from the audit site (their course is the straight snap line).
-export function describeSites(sources, verdicts = [], ghostParams = null) {
+// courseCssPx: the drawn course's length on screen (site → mouth, CSS px in a
+// hero of `hero` size, equirectangular); null when no size is given.
+export function courseCssPx(course, { width, height }) {
+  let px = 0;
+  for (let p = 1; p < course.length; p++) {
+    px += Math.hypot(
+      ((course[p][0] - course[p - 1][0]) / 360) * width,
+      ((course[p][1] - course[p - 1][1]) / 180) * height,
+    );
+  }
+  return px;
+}
+
+export function describeSites(sources, verdicts = [], ghostParams = null, hero = null) {
   const byHash = new Map(verdicts.map((v) => [v.hash, v]));
   return sources.map((s) => {
     const site = s.course[0];
@@ -142,6 +155,7 @@ export function describeSites(sources, verdicts = [], ghostParams = null) {
     const base = {
       id: s.id, kind: s.kind, site, snap, course: s.course,
       tick: courseTick(s.course, cumulativeKm(s.course), s.critical.courseKm),
+      courseCssPx: hero ? courseCssPx(s.course, hero) : null,
       dischargeM3s: s.dischargeM3s, doMin: s.critical.doMin, rkm: s.critical.rkm,
     };
     if (s.kind === 'preset') {

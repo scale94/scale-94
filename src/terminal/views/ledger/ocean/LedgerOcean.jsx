@@ -145,8 +145,8 @@ export default function LedgerOcean({
   const ghostRef = useRef(ghostSource);
   ghostRef.current = ghostSource;
   const sites = useMemo(
-    () => describeSites(ghostSource ? [...sources, ghostSource] : sources, verdicts, ghost),
-    [sources, verdicts, ghostSource, ghost],
+    () => describeSites(ghostSource ? [...sources, ghostSource] : sources, verdicts, ghost, { width, height }),
+    [sources, verdicts, ghostSource, ghost, width, height],
   );
   const sitesRef = useRef(sites);
   sitesRef.current = sites;
