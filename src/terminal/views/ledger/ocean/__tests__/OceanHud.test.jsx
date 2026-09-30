@@ -225,6 +225,18 @@ describe('OceanHud', () => {
     expect(ticks[0].getAttribute('aria-hidden')).toBe('true');
   });
 
+  it('draws no DO_MIN ticks on a compact HUD (the ring tooltip carries DO_MIN); desktop draws one per course', () => {
+    const withTicks = [
+      { ...SITES[0], tick: { lon: -89.5, lat: 29.3, angleDeg: 45 } },
+      { ...SITES[1], tick: { lon: 121, lat: 31.2, angleDeg: -90 } },
+    ];
+    const compact = hud({ sites: withTicks, compact: true });
+    expect(compact.container.querySelectorAll('[data-hud="domin-tick"]')).toHaveLength(0);
+    compact.unmount();
+    const desk = hud({ sites: withTicks });
+    expect(desk.container.querySelectorAll('[data-hud="domin-tick"]')).toHaveLength(2);
+  });
+
   it('draws the ghost dashed and labelled PROVISIONAL; sealed lines stay solid', () => {
     const ghost = { id: 'ghost', kind: 'ghost', name: 'Ghost site', status: null, color: GHOST_COLOR,
       site: [114.3, 30.59], snap: [121.5, 30.5], snapKm: 700, dischargeM3s: 42, doMin: 3, rkm: 0 };

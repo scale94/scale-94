@@ -23,7 +23,6 @@ const TIP_MARGIN_PX = 4;
 const SEAL_KEYFRAMES = '@keyframes ocean-seal-dash { from { stroke-dasharray: 4 3; } to { stroke-dasharray: 4 0; } }';
 const SEAL_ANIMATION = 'ocean-seal-dash 400ms ease-out both';
 const TICK_PX = 7;
-const TICK_PX_COMPACT = 5;
 
 const controlStyle = {
   pointerEvents: 'auto',
@@ -183,7 +182,8 @@ const OceanHud = forwardRef(function OceanHud({
           ))}
       </svg>
 
-      {sites.filter((s) => s.tick).map((s) => {
+      {/* Phone: no ticks (they merge into the rings); the ring tooltip carries DO_MIN. */}
+      {!compact && sites.filter((s) => s.tick).map((s) => {
         const { left, top } = lonLatToPct(s.tick.lon, s.tick.lat);
         return (
           <span
@@ -193,7 +193,7 @@ const OceanHud = forwardRef(function OceanHud({
             aria-hidden="true"
             style={{
               position: 'absolute', left: `${left}%`, top: `${top}%`,
-              width: 1, height: compact ? TICK_PX_COMPACT : TICK_PX, background: s.color, opacity: 0.9,
+              width: 1, height: TICK_PX, background: s.color, opacity: 0.9,
               transform: `translate(-50%, -50%) rotate(${s.tick.angleDeg}deg)`, pointerEvents: 'none',
             }}
           />
