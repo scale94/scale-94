@@ -229,6 +229,11 @@ export function tooltipLines(site) {
       ? `DO_MIN ${site.doMin.toFixed(1)} mg/L @ rkm ${Math.round(site.rkm)}`
       : 'DO_MIN — mg/L @ rkm —']),
     `SNAP ${Math.round(site.snapKm)} km TO OCEAN`,
+    // A verdict's stored coordinates, always explicit: its name says nothing
+    // about where it sits (a map click far from the name's place is legal).
+    ...(site.kind === 'verdict' && site.site?.every?.(Number.isFinite)
+      ? [`LAT ${site.site[1].toFixed(4)} · LON ${site.site[0].toFixed(4)}`]
+      : []),
   ];
 }
 

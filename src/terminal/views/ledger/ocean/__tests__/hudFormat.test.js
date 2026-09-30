@@ -166,7 +166,7 @@ describe('sites', () => {
       site: [121, 31.2], snap: [122, 31], snapKm: 97.4, dischargeM3s: 42, doMin: 3.14, rkm: 1840.4,
     })).toEqual([
       'Test site', 'EMERGENCY VETO', 'Q 42 m³/s · 0.25% OF MISSISSIPPI',
-      'DO_MIN 3.1 mg/L @ rkm 1840', 'SNAP 97 km TO OCEAN',
+      'DO_MIN 3.1 mg/L @ rkm 1840', 'SNAP 97 km TO OCEAN', 'LAT 31.2000 · LON 121.0000',
     ]);
     expect(tooltipLines({
       id: 'preset:usa', kind: 'preset', name: 'X', status: null, color: PRESET_COLOR,
@@ -176,6 +176,24 @@ describe('sites', () => {
       id: 'x', kind: 'verdict', name: 'Y', status: 'APPROVED', color: '#22c55e',
       site: [0, 0], snap: [0, 0], snapKm: 1, dischargeM3s: 4.25, doMin: 8, rkm: 2,
     })[2]).toBe('Q 4.3 m³/s · 0.026% OF MISSISSIPPI');
+  });
+
+  it("prints a verdict's stored coordinates as its last line, lat then lon, south and west negative", () => {
+    const lines = tooltipLines({
+      id: 'h9', kind: 'verdict', name: 'berlin', status: 'REJECTED', color: '#ef4444',
+      site: [-50.157283, -11.369547], snap: [-49.7, 0.2], snapKm: 1303, dischargeM3s: 50, doMin: 9, rkm: 1181,
+    });
+    expect(lines.at(-1)).toBe('LAT -11.3695 · LON -50.1573');
+    expect(lines).toHaveLength(6);
+  });
+
+  it('omits the coordinates line when the site is not a finite pair, and for ambient and provisional sites', () => {
+    const base = { name: 'Z', status: null, color: '#fff', snap: [0, 0], snapKm: 1, dischargeM3s: 1, doMin: 1, rkm: 1 };
+    const hasCoords = (site) => tooltipLines({ ...base, ...site }).some((l) => /^LAT /.test(l));
+    expect(hasCoords({ id: 'v', kind: 'verdict', status: 'APPROVED', site: [NaN, 10] })).toBe(false);
+    expect(hasCoords({ id: 'g', kind: 'ghost', site: [10, 20] })).toBe(false);
+    expect(hasCoords({ id: 'preset:usa', kind: 'preset', site: [10, 20] })).toBe(false);
+    expect(hasCoords({ id: 'catalog:amazon', kind: 'catalog', site: [10, 20] })).toBe(false);
   });
 
   it('formats Q at the range ends (0, very small, and with locale)', () => {
