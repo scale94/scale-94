@@ -13,9 +13,7 @@
 // - A lost context suspends drawing. On restore the canvas is remounted
 //   (key = generation) and the host rebuilt; the ocean restarts from T+0,
 //   because its state lived in GPU memory.
-// - Reduced motion: the warm-up is spread over frames (nothing is painted
-//   meanwhile), then one frame is held and repainted only when resized. A new
-//   source re-runs the warm-up, then repaints once.
+// - Reduced motion: no running loop. The warm-up (800 steps, 16 per frame) starts once sourcesReady and chains its own frames; then one frame is held and repainted only on demand (resize, new source, ghost), never idled.
 // - Probe: a 1-texel float readback of the state, at most every
 //   PROBE_INTERVAL_MS of frame time; mouse hover on desktop, tap elsewhere
 //   (a touch that moves TAP_SLOP_PX or more is a scroll and does not probe).
@@ -78,6 +76,7 @@ export default function LedgerOcean({
   daysPerSecond = DEFAULT_COMPRESSION,
   verdicts = NO_VERDICTS,
   latestHash = null,
+  sourcesReady = true,
   onFrame = null, // (simDays, displayDays): step-clock days, and the wall-time interpolated display days
 }) {
   const canvasRef = useRef(null);
@@ -97,6 +96,11 @@ export default function LedgerOcean({
   const dirtyRef = useRef(true);
   const particlesRef = useRef(null);
   const fillRef = useRef({ rivers: null, n: 0 });
+  const rafRef = useRef(0);
+  const drawRef = useRef(null);
+  const requestFrameRef = useRef(() => {});
+  const readyRef = useRef(sourcesReady);
+  readyRef.current = sourcesReady;
   const phaseRef = useRef(new Map());   // river id → parcel phase (survives ghost edits)
   const lastDisplayRef = useRef(0);
   const sizeRef = useRef({ width, height });
@@ -133,7 +137,13 @@ export default function LedgerOcean({
 
   const readProbe = (now, sim) => {
     const p = probeRef.current;
-    if (!p || now - probeAtRef.current < PROBE_INTERVAL_MS) return;
+    if (!p) return;
+    // Throttled. A held reduced-motion ocean has no loop, so ask for the frame
+    // that will read it (a no-op while the loop runs).
+    if (now - probeAtRef.current < PROBE_INTERVAL_MS) {
+      requestFrameRef.current();
+      return;
+    }
     probeAtRef.current = now;
     const land = !!world.mask.land[p.k];
     const v = land || !sim ? null : sim.readCell(p.i, p.j);
@@ -168,6 +178,46 @@ export default function LedgerOcean({
     layer.draw(0, fillRef.current.n, PARTICLE_PX * scale);
   };
 
+  const draw = (host, { now, dt, tsec, hidden, reducedMotion: rm }) => {
+    if (lostRef.current) return;
+    const sim = simRef.current;
+    const driver = driverRef.current;
+    if (sim && uploadedRef.current !== sourceDataRef.current) {
+      sim.setSources(sourceDataRef.current);
+      uploadedRef.current = sourceDataRef.current;
+      if (rm) {
+        driver.resetWarmup();
+        warmRef.current = false;
+      }
+    }
+    let paintNow = true;
+    if (rm) {
+      if (driver && !warmRef.current) {
+        // The warm-up waits for the archive (sourcesReady), so the held clock
+        // reads one warm-up with every source in it; then it chains frames.
+        if (readyRef.current) {
+          warmRef.current = driver.warmupChunk(REDUCED_MOTION_DAYS);
+          if (!warmRef.current) requestFrameRef.current();
+        }
+        paintNow = warmRef.current;
+      } else {
+        paintNow = dirtyRef.current;
+      }
+    } else if (driver && !hidden) {
+      driver.advance(dt, dpsRef.current);
+    }
+    readProbe(now, sim);
+    if (paintNow) {
+      paint(host, world.grid, texRef.current, sim, tsec);
+      drawParticles(host.gl);
+      dirtyRef.current = false;
+    }
+    const simDays = driver ? driver.simDays() : 0;
+    hudRef.current?.setFrame({ simDays, frameMs: driver ? driver.frameMs() : 0, now });
+    onFrameRef.current?.(simDays, driver ? driver.displayDays() : 0);
+  };
+  drawRef.current = draw;
+
   const { hostRef } = useShaderCanvas(canvasRef, {
     version: 2,
     strategy: 'lunar',
@@ -180,9 +230,10 @@ export default function LedgerOcean({
     contextOptions: CONTEXT_OPTIONS,
     label: 'LedgerOcean',
     trackVisibility: true,
-    // The loop must run under reduced motion: it carries the spread warm-up,
-    // then idles (draw returns without painting) until a resize or new source.
-    haltOnReducedMotion: false,
+    // Reduced motion: no running loop. The mount draw starts the warm-up and
+    // requestFrame chains it; after that frames come only on demand (resize,
+    // new source, ghost, probe, archive ready), so a held ocean costs nothing.
+    haltOnReducedMotion: true,
     onInit: (gl, { vao }) => {
       const { grid } = world;
       lostRef.current = false;
@@ -234,42 +285,35 @@ export default function LedgerOcean({
       texRef.current = null;
       uploadedRef.current = null;
     },
-    draw: (host, { now, dt, tsec, hidden, reducedMotion: rm }) => {
-      if (lostRef.current) return;
-      const sim = simRef.current;
-      const driver = driverRef.current;
-      if (sim && uploadedRef.current !== sourceDataRef.current) {
-        sim.setSources(sourceDataRef.current);
-        uploadedRef.current = sourceDataRef.current;
-        if (rm) {
-          driver.resetWarmup();
-          warmRef.current = false;
-        }
-      }
-      let paintNow = true;
-      if (rm) {
-        if (driver && !warmRef.current) {
-          warmRef.current = driver.warmupChunk(REDUCED_MOTION_DAYS);
-          paintNow = warmRef.current;
-        } else {
-          paintNow = dirtyRef.current;
-        }
-      } else if (driver && !hidden) {
-        driver.advance(dt, dpsRef.current);
-      }
-      readProbe(now, sim);
-      if (paintNow) {
-        paint(host, world.grid, texRef.current, sim, tsec);
-        drawParticles(host.gl);
-        dirtyRef.current = false;
-      }
-      const simDays = driver ? driver.simDays() : 0;
-      hudRef.current?.setFrame({ simDays, frameMs: driver ? driver.frameMs() : 0, now });
-      onFrameRef.current?.(simDays, driver ? driver.displayDays() : 0);
-    },
+    draw,
     onUnsupported: () => setMode('unsupported'),
     deps: [generation],
   });
+
+  // One frame on demand under reduced motion (at most one pending); a no-op
+  // while the loop runs.
+  const requestFrame = useCallback(() => {
+    if (!reducedMotion || rafRef.current) return;
+    rafRef.current = requestAnimationFrame((t) => {
+      rafRef.current = 0;
+      const host = hostRef.current;
+      if (host) drawRef.current(host, { now: t, dt: 0, tsec: t / 1000, hidden: document.hidden, reducedMotion: true });
+    });
+  }, [reducedMotion, hostRef]);
+  requestFrameRef.current = requestFrame;
+
+  useEffect(() => {
+    const raf = rafRef; // alias: no ref-in-cleanup lint warning (count must stay ≤ 137)
+    return () => {
+      cancelAnimationFrame(raf.current);
+      raf.current = 0;
+    };
+  }, []);
+
+  // A new source set, or the archive arriving, needs a frame under reduced motion.
+  useEffect(() => {
+    requestFrameRef.current();
+  }, [sourceData, sourcesReady]);
 
   // Resize in place. Skips the mount pass (the host was just built at this
   // size): assigning canvas.width clears the drawing buffer even when the
@@ -281,6 +325,7 @@ export default function LedgerOcean({
     sizeRef.current = { width, height };
     host.resize(width, height);
     dirtyRef.current = true;
+    requestFrameRef.current();
   }, [hostRef, width, height]);
 
   // Context loss (GPU reset, driver eviction, too many contexts). The listener
@@ -326,6 +371,7 @@ export default function LedgerOcean({
   const onPointerMove = useCallback((e) => {
     if (e.pointerType !== 'mouse') return;
     if (!probeAt(e.clientX, e.clientY)) clearProbe();
+    else requestFrameRef.current();
   }, [probeAt, clearProbe]);
 
   const onPointerLeave = useCallback((e) => {
@@ -363,6 +409,7 @@ export default function LedgerOcean({
     if (Math.hypot(e.clientX - start.x, e.clientY - start.y) >= TAP_SLOP_PX) return;
     if (compactRef.current && pickRing(e.clientX, e.clientY)) return;
     if (!probeAt(e.clientX, e.clientY)) return;
+    requestFrameRef.current();
     clearTimeout(tapTimerRef.current);
     tapTimerRef.current = setTimeout(clearProbe, PROBE_TAP_HOLD_MS);
   }, [probeAt, clearProbe, pickRing]);

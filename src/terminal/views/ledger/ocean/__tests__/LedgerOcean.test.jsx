@@ -356,6 +356,42 @@ describe('LedgerOcean HUD integration', () => {
     // The site is inland (New Orleans): the probe reads LAND, but it probed.
     expect(m.container.querySelector('[data-hud="probe"]').textContent).toMatch(/°N .*°W · LAND$/);
   });
+
+  it('stops asking for frames once the reduced-motion ocean is settled', () => {
+    reduceMotion();
+    const days = [];
+    const m = mountLive(<LedgerOcean width={512} height={256} onFrame={(d) => days.push(d)} />);
+    m.frames(WARM_FRAMES + 5);
+    expect(days.at(-1)).toBeCloseTo(REDUCED_MOTION_DAYS, 9);
+    expect(days).toHaveLength(WARM_FRAMES);          // mount chunk + one frame per remaining chunk, no idling
+    m.frames(30);
+    expect(days).toHaveLength(WARM_FRAMES);
+  });
+
+  it('probes a held reduced-motion ocean on demand', () => {
+    reduceMotion();
+    const m = mountLive(<LedgerOcean width={1024} height={512} />);
+    m.frames(WARM_FRAMES + 2);
+    rec.gl.readPixels = (...a) => { rec.log.push(['readPixels', ...a.slice(0, 6)]); a[6].set([0.02, 0.14, 0.8, 0.3]); };
+    act(() => { fireEvent.pointerMove(oceanCanvas(), { pointerType: 'mouse', clientX: 256, clientY: 128 }); });
+    m.frames(1);
+    expect(count('readPixels')).toBe(1);
+    expect(screen.getByText(/ΔT 0\.02 °C/)).toBeTruthy();
+  });
+
+  it('holds the reduced-motion warm-up until the archive has loaded, then warms once', () => {
+    reduceMotion();
+    const days = [];
+    const onFrame = (d) => days.push(d);
+    const m = mountLive(<LedgerOcean width={512} height={256} onFrame={onFrame} sourcesReady={false} />);
+    m.frames(10);
+    expect(days.every((d) => d === 0)).toBe(true);
+    expect(paints()).toBe(0);
+    m.rerender(<LedgerOcean width={512} height={256} onFrame={onFrame} sourcesReady verdicts={[V]} />);
+    m.frames(WARM_FRAMES + 2);
+    expect(days.at(-1)).toBeCloseTo(REDUCED_MOTION_DAYS, 9);   // T+ 200 d with the archive, not 400
+    expect(paints()).toBe(1);
+  });
 });
 
 

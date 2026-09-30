@@ -30,6 +30,7 @@ vi.mock('../../../observatory/observatoryBus', () => ({ emit: vi.fn() }));
 
 import LedgerTab from '../LedgerTab';
 import { ledgerBus } from '../../ledger/ledgerBus';
+import { getAllVerdicts } from '../../ledger/verdictStore';
 import { emit as emitObs } from '../../../observatory/observatoryBus';
 
 describe('LedgerTab — ocean hero (phase 3a)', () => {
@@ -78,5 +79,14 @@ describe('LedgerTab — ocean hero (phase 3a)', () => {
     expect(h.oceanProps.length).toBeGreaterThan(rendersBefore);
     for (const p of h.oceanProps.slice(rendersBefore)) expect(p.verdicts).toBe(settled);
     expect(h.oceanProps.at(-1).verdicts).toBe(settled);
+  });
+
+  it('marks the ocean sources ready only together with the loaded archive', async () => {
+    const V0 = { hash: 'h-old', status: 'APPROVED', coordinates: { lat: 31.3, lon: 120.6 }, input: h.INPUT };
+    getAllVerdicts.mockResolvedValueOnce([V0]);
+    render(<LedgerTab />);
+    await waitFor(() => expect(h.oceanProps.at(-1).sourcesReady).toBe(true));
+    for (const p of h.oceanProps) if (p.sourcesReady) expect(p.verdicts).toEqual([V0]);
+    expect(h.oceanProps.some((p) => p.sourcesReady === false)).toBe(true);
   });
 });

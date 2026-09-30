@@ -78,6 +78,7 @@ const LEDGER_STYLES = `
 export default function LedgerTab() {
   // ── State ──────────────────────────────────────────────────────────────────
   const [verdicts, setVerdicts] = useState([]);
+  const [verdictsLoaded, setVerdictsLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [verdictCount, setVerdictCount] = useState(0);
   const [view, setView] = useState('submit'); // 'submit' | 'archive'
@@ -101,7 +102,10 @@ export default function LedgerTab() {
 
   // ── Boot sequence ──────────────────────────────────────────────────────────
   useEffect(() => {
-    getAllVerdicts().then(setVerdicts);
+    // The ocean's reduced-motion warm-up waits for this, so it runs once with
+    // the archive in it. The verdicts land before `ready`, so any render with
+    // sourcesReady true already carries the archive.
+    getAllVerdicts().then(setVerdicts).finally(() => setVerdictsLoaded(true));
     getVerdictCount().then(setVerdictCount);
 
     const t1 = setTimeout(() => setHeroBooted(true), PHASE_HERO);
@@ -235,6 +239,7 @@ export default function LedgerTab() {
             height={Math.round(heroW / 2)}
             verdicts={verdicts}
             latestHash={latestHash}
+            sourcesReady={verdictsLoaded}
           />
         )}
         {/* Vignette overlay — above the canvas, below the HUD (OceanHud zIndex 2) */}
