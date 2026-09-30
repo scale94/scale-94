@@ -7,6 +7,7 @@ import { riverState, kd, kaRiver, criticalTime, doSat, manningVelocity } from '.
 import { snapToOcean } from './landMask';
 import { ALL_AUDIT_PRESETS } from '../auditPresets';
 import { RIVERS } from './riverCourses';
+import { CATALOG, catalogSourceSpec } from './riverCatalog';
 import { isUnlocatedRecord, UNLOCATED_LABEL } from '../coordinates';
 
 export const MIXED_LAYER_M = 20;
@@ -161,6 +162,18 @@ export function ambientSources(grid, mask) {
     .filter((p) => RIVERS[p.key])
     .map((p) => buildSource(presetSourceSpec(p), grid, mask))
     .filter(Boolean);
+}
+
+export function catalogSources(grid, mask) {
+  return Object.keys(CATALOG)
+    .map((key) => buildSource(catalogSourceSpec(key), grid, mask))
+    .filter(Boolean);
+}
+
+// What the world draws: the nine audited presets (unchanged, first), then the
+// ambient catalog. ambientSources stays presets-only (riverCourses.test pins it).
+export function oceanSources(grid, mask) {
+  return [...ambientSources(grid, mask), ...catalogSources(grid, mask)];
 }
 
 // A verdict stored at exactly 0°, 0° (numbers) is unlocated; the rule lives
