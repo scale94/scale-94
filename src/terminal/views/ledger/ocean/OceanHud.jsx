@@ -300,6 +300,7 @@ const OceanHud = forwardRef(function OceanHud({
           x: sized ? (left / 100) * width : 0,
           y: sized ? (top / 100) * height : 0,
           heroWidth: sized ? width : Infinity,
+          heroHeight: sized ? height : Infinity,
           ringPx,
           fontPx: compact ? HUD_FONT_PX.compact : HUD_FONT_PX.desktop,
           others: sized ? sites.filter((o) => o !== s).map(px) : [],
@@ -314,7 +315,7 @@ const OceanHud = forwardRef(function OceanHud({
               position: 'absolute',
               ...(place.side === 'right'
                 ? { left: `calc(${left}% + ${place.gap}px)` }
-                : { right: `calc(${100 - left}% + ${place.gap}px)` }),
+                : { right: `calc(${100 - left}% + ${place.gap - place.dx}px)` }),
               top: place.dy ? `calc(${top}% + ${place.dy}px)` : `${top}%`,
               transform: 'translateY(-50%)', color: s.color, whiteSpace: 'nowrap', pointerEvents: 'none',
             }}

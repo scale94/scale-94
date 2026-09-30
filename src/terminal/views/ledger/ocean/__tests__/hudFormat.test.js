@@ -314,6 +314,44 @@ describe('ghost label placement', () => {
     expect(clears(ghostLabelPlacement({ ...DESK, x: 400, y: 200 }).box, others, 8)).toBe(false);
   });
 
+  it('clamps a left-flipped label to the 16 px gutter on a very narrow hero', () => {
+    // 100 px hero, 8 px font, 10 px rings: right side would end at 50 + 8 + 63.36 > 84 → left;
+    // flipped it would start at 50 − 8 − 63.36 = −21.36 → clamped to 16.
+    const w = hudTextWidthPx('PROVISIONAL', 8);
+    const p = ghostLabelPlacement({ ringPx: 10, fontPx: 8, heroWidth: 100, heroHeight: 50, x: 50, y: 25 });
+    expect(p.side).toBe('left');
+    expect(p.box.left).toBeCloseTo(16, 9);
+    expect(p.box.right).toBeCloseTo(16 + w, 9);
+    expect(p.dx).toBeCloseTo(16 - (50 - 8 - w), 9);
+    // A flip with room to spare is not shifted.
+    expect(ghostLabelPlacement({ ...DESK, x: 926, y: 200 }).dx).toBe(0);
+    expect(ghostLabelPlacement({ ...DESK, x: 400, y: 200 }).dx).toBe(0);
+  });
+
+  it('keeps a polar ghost label inside the hero: nudges down, not off the top', () => {
+    const inside = (b, hh) => b.top >= 0 && b.bottom <= hh;
+    // Ghost 10 px below the top edge, another ring on the label's line: up (−16) would
+    // start at 10 − 16 − 6.75 < 0, so down is tried first and clears.
+    const others = [[440, 10]];
+    const p = ghostLabelPlacement({ ...DESK, heroHeight: 512, x: 400, y: 10, others });
+    expect(p.dy).toBe(16);
+    expect(inside(p.box, 512)).toBe(true);
+    expect(clears(p.box, others, 8)).toBe(true);
+    // The same at the bottom edge: up is kept.
+    const q = ghostLabelPlacement({ ...DESK, heroHeight: 512, x: 400, y: 502, others: [[440, 502]] });
+    expect(q.dy).toBe(-16);
+    expect(inside(q.box, 512)).toBe(true);
+    // No nudge room either way (rings above and below): the box is clamped inside.
+    const boxed = ghostLabelPlacement({ ...DESK, heroHeight: 512, x: 400, y: 10, others: [[440, 10], [440, 26]] });
+    expect(inside(boxed.box, 512)).toBe(true);
+    // Open water within half a line of either edge: clamped, not clipped.
+    const top = ghostLabelPlacement({ ...DESK, heroHeight: 512, x: 400, y: 3 });
+    expect(top.box.top).toBeCloseTo(0, 9);
+    expect(top.dy).toBeCloseTo(H / 2 - 3, 9);
+    const bottom = ghostLabelPlacement({ ...DESK, heroHeight: 512, x: 400, y: 510 });
+    expect(bottom.box.bottom).toBeCloseTo(512, 9);
+  });
+
   it('nudges down when up does not clear (desktop Wuhan ghost beside the Yangtze ring)', () => {
     const x = (294.3 / 360) * 1024;
     const y = ((90 - 30.59) / 180) * 512;

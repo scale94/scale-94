@@ -233,23 +233,40 @@ export function hudTextWidthPx(text, fontPx) {
 
 // Where the PROVISIONAL label goes (css px in the hero; x, y = the ghost ring
 // centre; others = the other rings' centres). Right of the ring by default;
-// on the left (same gap) if it would end beyond heroWidth − LABEL_EDGE_PX.
-// Then, if the box covers another ring (centre within the box grown by the
-// ring radius), one ring diameter up, else down, else up. Ghost label only:
-// not a general repulsion system.
-export function ghostLabelPlacement({ x, y, heroWidth = Infinity, ringPx, fontPx, others = [], text = GHOST_LABEL }) {
+// on the left (same gap) if it would end beyond heroWidth − LABEL_EDGE_PX,
+// shifted right by dx if that would start closer than LABEL_EDGE_PX to the
+// hero's left edge. Then, if the box covers another ring (centre within the
+// box grown by the ring radius), one ring diameter up, else down, preferring
+// a nudge that stays inside the hero; finally, once the hero is sized, the
+// box is clamped to 0 ≤ top, bottom ≤ heroHeight. Ghost label only: not a
+// general repulsion system.
+export function ghostLabelPlacement({
+  x, y, heroWidth = Infinity, heroHeight = Infinity, ringPx, fontPx, others = [], text = GHOST_LABEL,
+}) {
   const gap = ringPx / 2 + LABEL_GAP_PX;
   const w = hudTextWidthPx(text, fontPx);
   const h = fontPx * HUD_LINE_HEIGHT;
   const side = x + gap + w > heroWidth - LABEL_EDGE_PX ? 'left' : 'right';
-  const left = side === 'right' ? x + gap : x - gap - w;
+  const flipped = x - gap - w;
+  const left = side === 'right' ? x + gap : Math.max(flipped, LABEL_EDGE_PX);
+  const dx = side === 'right' ? 0 : left - flipped;
   const boxAt = (dy) => ({ left, right: left + w, top: y + dy - h / 2, bottom: y + dy + h / 2 });
   const r = ringPx / 2;
   const covers = (b) => others.some(([ox, oy]) =>
     ox >= b.left - r && ox <= b.right + r && oy >= b.top - r && oy <= b.bottom + r);
+  const sized = Number.isFinite(heroHeight);   // unsized (no layout yet): no vertical bound
+  const inside = (b) => !sized || (b.top >= 0 && b.bottom <= heroHeight);
   let dy = 0;
-  if (covers(boxAt(0))) dy = [-ringPx, ringPx].find((d) => !covers(boxAt(d))) ?? -ringPx;
-  return { side, gap, dy, box: boxAt(dy) };
+  if (covers(boxAt(0))) {
+    const nudges = [-ringPx, ringPx];
+    dy = nudges.find((d) => inside(boxAt(d)) && !covers(boxAt(d)))
+      ?? nudges.find((d) => !covers(boxAt(d)))
+      ?? -ringPx;
+  }
+  const b = boxAt(dy);
+  if (sized && b.top < 0) dy -= b.top;
+  else if (sized && b.bottom > heroHeight) dy -= b.bottom - heroHeight;
+  return { side, gap, dx, dy, box: boxAt(dy) };
 }
 
 export const SITES_GROUP_LABEL = 'Audit sites';

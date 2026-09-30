@@ -3,7 +3,7 @@ import { createRef } from 'react';
 import { render, screen, act, fireEvent } from '@testing-library/react';
 import OceanHud from '../OceanHud';
 import { SEAL_FLARE_MS } from '../clockEase';
-import { GHOST_COLOR, GHOST_DASH, HUD_TITLE, LEGEND_NOTES, MODE_LABEL, PROBE_HINT, PROBE_NOTE, PRESET_COLOR } from '../hudFormat';
+import { GHOST_COLOR, GHOST_DASH, HUD_FONT_PX, HUD_TITLE, LEGEND_NOTES, MODE_LABEL, PROBE_HINT, PROBE_NOTE, PRESET_COLOR, hudTextWidthPx } from '../hudFormat';
 
 const SITES = [
   { id: 'preset:usa', kind: 'preset', name: 'Lower Mississippi at New Orleans, USA', status: null, color: PRESET_COLOR,
@@ -308,6 +308,21 @@ describe('OceanHud', () => {
     expect(label.getAttribute('data-side')).toBe('right');
     expect(label.style.top).toMatch(/\+ 16px\)$/);
     near.unmount();
+    // calc(A% + Bpx) → px along an axis of length L.
+    const px = (v, L) => {
+      const m = /^calc\(([-\d.]+)% ([+-]) ([\d.]+)px\)$/.exec(v);
+      return (Number(m[1]) / 100) * L + (m[2] === '-' ? -1 : 1) * Number(m[3]);
+    };
+    // A very narrow hero (100 × 50, compact 8 px font): flipped left and held at the 16 px gutter.
+    const narrow = hud({ width: 100, height: 50, compact: true, sites: [ghostAt([0, 0])] });
+    label = narrow.q('ghost-label');
+    expect(label.getAttribute('data-side')).toBe('left');
+    expect(px(label.style.right, 100)).toBeCloseTo(100 - 16 - hudTextWidthPx('PROVISIONAL', HUD_FONT_PX.compact), 3);
+    narrow.unmount();
+    // A polar ghost 3 px below the top edge: the label's centre is pushed to half a line down.
+    const polar = hud({ ...size, sites: [ghostAt([-30, 90 - (3 / 512) * 180])] });
+    expect(px(polar.q('ghost-label').style.top, 512)).toBeCloseTo((HUD_FONT_PX.desktop * 1.5) / 2, 3);   // % is serialised rounded
+    polar.unmount();
     // Without a hero size (no measurements): the default placement.
     const unsized = hud({ sites: [yangtze, ghostAt([114.3, 30.59])] });
     expect(unsized.q('ghost-label').getAttribute('data-side')).toBe('right');
