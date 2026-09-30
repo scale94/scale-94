@@ -14,6 +14,7 @@
 //   __mercuryTune.export()                   // formatted block to hand to Sophie
 
 import { ELEMENTS, NEUTRAL_NIGHT } from './elements';
+import { PLANET_TUNE } from './planet/planetLook';
 
 export const TUNE = {
   // MercuryEnvironment fragment-shader gains (fed to uniforms per frame)
@@ -56,15 +57,20 @@ export function registerTuningRig() {
     // blend or immediately at idle.
     elements: ELEMENTS,
     neutral: NEUTRAL_NIGHT,
+    // Planet look — live, MercuryPlanet re-reads it every frame.
+    planet: PLANET_TUNE,
     export() {
       const lines = KNOBS.map(k => `  ${k}: ${JSON.stringify(TUNE[k])},`).join('\n');
       const els = Object.entries(ELEMENTS)
         .map(([p, e]) => `  ${p}: { element: '${e.element}', color: '${e.color}', horizonHeight: ${e.horizonHeight} },`)
         .join('\n');
+      const planet = Object.entries(PLANET_TUNE)
+        .map(([k, v]) => `  ${k}: ${JSON.stringify(v)},`).join('\n');
       const block = `--- COMMITTED CONSTANTS (hand this block to Sophie) ---\n` +
         `TUNE = {\n${lines}\n}\n` +
         `ELEMENTS = {\n${els}\n}\n` +
-        `NEUTRAL_NIGHT.color = '${NEUTRAL_NIGHT.color}'`;
+        `NEUTRAL_NIGHT.color = '${NEUTRAL_NIGHT.color}'\n` +
+        `PLANET_TUNE = {\n${planet}\n}`;
       console.log(block);
       return block;
     },
