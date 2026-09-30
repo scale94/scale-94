@@ -2,18 +2,9 @@ import { useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
-import { ELEMENTS } from './elements';
+import { ORBIT_NODES, ORBIT_RADIUS, orbitPrecessionAngle } from './orbitNodes';
 
 // Orbit ring, mercury thread and elemental handles. The planet is MercuryPlanet.
-
-// Cardinal positions: N=air, E=fire(thermal), S=earth, W=water(fluid)
-// Alchemical triangle symbols: fire=▲, water=▽, air=▲+bar, earth=▽+bar
-const ORBIT_NODES = [
-  { phase: 'air',     angle: Math.PI / 2,  color: ELEMENTS.air.color,     element: 'AIR',   glyph: 'air'   },
-  { phase: 'thermal', angle: 0,            color: ELEMENTS.thermal.color, element: 'FIRE',  glyph: 'fire'  },
-  { phase: 'earth',   angle: -Math.PI / 2, color: ELEMENTS.earth.color,   element: 'EARTH', glyph: 'earth' },
-  { phase: 'fluid',   angle: Math.PI,      color: ELEMENTS.fluid.color,   element: 'WATER', glyph: 'water' },
-];
 
 // Alchemical SVG symbol paths for each element
 function ElementGlyph({ glyph, color, size = 26 }) {
@@ -56,10 +47,6 @@ function ElementGlyph({ glyph, color, size = 26 }) {
   );
 }
 
-const ORBIT_RADIUS = 1.4;
-const PRECESSION_RATE = 0.3 * (Math.PI / 180); // 0.3°/s in radians
-const PRECESSION_DRIFT = 0.5 * (Math.PI / 180); // 0.5° drift per full cycle
-
 export default function MercurySphere({
   activePhase,
   pendingPhase,
@@ -68,9 +55,7 @@ export default function MercurySphere({
   onElementFired = null,
   isMobile = false,
 }) {
-  const ringRef    = useRef();
-  const orbitAngleRef = useRef(0);
-  const cycleCountRef = useRef(0);
+  const ringRef = useRef();
 
   // Click burst state for handle animation
   const [pressedPhase, setPressedPhase] = useState(null);
@@ -79,15 +64,9 @@ export default function MercurySphere({
 
   // The planet itself is MercuryPlanet (raw shader, real Sun). This component
   // keeps the orbit ring, the mercury thread and the element handles.
-  useFrame((_, delta) => {
-    orbitAngleRef.current += PRECESSION_RATE * delta;
-    if (orbitAngleRef.current >= Math.PI * 2) {
-      cycleCountRef.current++;
-      orbitAngleRef.current -= Math.PI * 2;
-      orbitAngleRef.current += PRECESSION_DRIFT;
-    }
+  useFrame(({ clock }) => {
     if (ringRef.current) {
-      ringRef.current.rotation.z = orbitAngleRef.current;
+      ringRef.current.rotation.z = orbitPrecessionAngle(clock.elapsedTime);
     }
   });
 
