@@ -10,9 +10,13 @@
 // phases of the element by local temperature (mercuryThermal), and a liquid
 // mirror that reflects the Sun, the four element emitters, and the aether that
 // wraps the planet (16 analytic flow streaks, aetherLobes.js; spec amendment 2026-10-01).
+// Phase 3: the transmuted planet is a bead (mercuryWaves.js) — body modes and spin bulge move the silhouette, capillary ripples tilt the normal — and the crust keeps a scar map (scarMap.js).
 
 import { glf, v3 } from '../../gl/glf';
 import { SCAR_DEPTH_RANGE_M } from './scarMap';
+import {
+  IMPULSE_SLOTS, SHAPE_MAX, SHAPE_ITERS, WAVE_KR, WAVE_C_PHASE, WAVE_C_GROUP, WAVE_PACKET_RAD, WAVE_SPREAD_FLOOR,
+} from './mercuryWaves';
 import {
   R_SCENE, R_MERCURY_M, SHADOW_STEPS, SHADOW_REACH_RAD, SHADOW_SOFT_M, SHADOW_ZONE, SHADOW_SOFT_LSB, SHADOW_BIAS_LSB,
   FALLBACK_ALBEDO, HG_F0, ROUGH_LIQUID, ROUGH_BOIL, SOLID_HG_ALBEDO, SPARKLE_CELLS, SPARKLE_DENSITY, SPARKLE_COS,
@@ -38,6 +42,7 @@ export const PLANET_UNIFORMS = [
   'uAethDir', 'uAethCol', 'uAetherGain', 'uAetherSinW', 'uAetherSilver',
   'uAetherEdge', 'uAetherStretch', 'uAetherCurve', 'uAetherCore',
   'uScar', 'uRayGain',
+  'uSurfOn', 'uImpDir', 'uImpMode', 'uImpWave', 'uBulge',
 ];
 
 const AETHER_SHAPE_GLSL = `const vec2 AETHER_SHAPE[${AETHER_LOBES}] = vec2[${AETHER_LOBES}](${AETHER_SHAPES.map(([w, s]) => `vec2(${glf(w)}, ${glf(s)})`).join(', ')});`;
@@ -51,11 +56,13 @@ uniform vec3 cameraPosition;
 out vec3 vWorld;
 
 const float R_SCENE = ${glf(R_SCENE)};
+const float SHAPE_MAX = ${glf(SHAPE_MAX)};
 
 void main() {
   // Billboard at the centre plane, sized to the perspective silhouette + margin.
   float d = length(cameraPosition);
-  float ext = R_SCENE * d / sqrt(max(d * d - R_SCENE * R_SCENE, 1e-4)) * 1.08;
+  float rb = R_SCENE * (1.0 + SHAPE_MAX); // room for the moving bead
+  float ext = rb * d / sqrt(max(d * d - rb * rb, 1e-4)) * 1.08;
   vec3 right = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
   vec3 up    = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
   vWorld = (right * position.x + up * position.y) * ext;
@@ -102,6 +109,11 @@ uniform float uAetherCurve;
 uniform float uAetherCore;
 uniform sampler2D uScar;
 uniform float uRayGain;
+uniform float uSurfOn;
+uniform vec3 uImpDir[${IMPULSE_SLOTS}];
+uniform vec3 uImpMode[${IMPULSE_SLOTS}];
+uniform vec2 uImpWave[${IMPULSE_SLOTS}];
+uniform vec4 uBulge;
 
 const float PI = 3.14159265358979;
 const float TAU = 6.28318530717959;
@@ -155,6 +167,14 @@ const float AETHER_SHOULDER = ${glf(AETHER_SHOULDER)};
 const vec3 NIGHT_TINT = ${v3(NIGHT_TINT)};
 const float SCAR_DEPTH_RANGE_M = ${glf(SCAR_DEPTH_RANGE_M)};
 const vec3 RAY_ALBEDO = ${v3(RAY_ALBEDO)};
+const int IMPULSE_SLOTS = ${IMPULSE_SLOTS};
+const int SHAPE_ITERS = ${SHAPE_ITERS};
+const float SHAPE_MAX = ${glf(SHAPE_MAX)};
+const float WAVE_KR = ${glf(WAVE_KR)};
+const float WAVE_C_PHASE = ${glf(WAVE_C_PHASE)};
+const float WAVE_C_GROUP = ${glf(WAVE_C_GROUP)};
+const float WAVE_PACKET_RAD = ${glf(WAVE_PACKET_RAD)};
+const float WAVE_SPREAD_FLOOR = ${glf(WAVE_SPREAD_FLOOR)};
 
 // Crater depth from the scar map, true metres (scarMap.js encoding).
 float scarHeightM(vec2 uv, vec2 gx, vec2 gy) {
@@ -320,26 +340,100 @@ vec3 aetherDiffuse(vec3 nW) {
   return uAetherGain * AETHER_DIFFUSE * aetherTint(nW) * a * (AETHER_DIFFUSE_REF_LOBES / float(AETHER_LOBES));
 }
 
+// The bead (mercuryWaves.js): Legendre modes ℓ = 2, 3, 4 about each impulse
+// direction, plus the spin bulge about the spin axis. x is a world-frame unit
+// vector; h is a fraction of R, clamped to ±SHAPE_MAX (the quad's margin).
+float P2(float m) { return 0.5 * (3.0 * m * m - 1.0); }
+float P3(float m) { return 0.5 * (5.0 * m * m * m - 3.0 * m); }
+float P4(float m) { float m2 = m * m; return 0.125 * (35.0 * m2 * m2 - 30.0 * m2 + 3.0); }
+float dP2(float m) { return 3.0 * m; }
+float dP3(float m) { return 0.5 * (15.0 * m * m - 3.0); }
+float dP4(float m) { return 0.5 * (35.0 * m * m * m - 15.0 * m); }
+
+float shapeH(vec3 x) {
+  if (uSurfOn < 0.5) return 0.0;
+  float h = uBulge.w * P2(dot(x, uBulge.xyz));
+  for (int i = 0; i < IMPULSE_SLOTS; i++) {
+    float m = dot(x, uImpDir[i]);
+    h += dot(uImpMode[i], vec3(P2(m), P3(m), P4(m)));
+  }
+  return clamp(h, -SHAPE_MAX, SHAPE_MAX);
+}
+
+// Tangential gradient of shapeH on the unit sphere.
+vec3 shapeGrad(vec3 x) {
+  if (uSurfOn < 0.5) return vec3(0.0);
+  float mb = dot(x, uBulge.xyz);
+  vec3 g = uBulge.w * dP2(mb) * (uBulge.xyz - mb * x);
+  for (int i = 0; i < IMPULSE_SLOTS; i++) {
+    vec3 d = uImpDir[i];
+    float m = dot(x, d);
+    g += dot(uImpMode[i], vec3(dP2(m), dP3(m), dP4(m))) * (d - m * x);
+  }
+  return g;
+}
+
+// Capillary ripple packets running out from each impulse: a Gaussian envelope
+// at the group speed, crests at the phase speed (capillary: crests run
+// backward through the packet), 1/√sinθ spreading normalised inside
+// WAVE_SPREAD_FLOOR. Returns the tangential slope to subtract from the normal.
+// No derivatives in here (it has continue).
+vec3 waveTilt(vec3 x) {
+  vec3 g = vec3(0.0);
+  if (uSurfOn < 0.5) return g;
+  for (int i = 0; i < IMPULSE_SLOTS; i++) {
+    float A = uImpWave[i].y;
+    if (A == 0.0) continue;
+    float age = uImpWave[i].x;
+    vec3 d = uImpDir[i];
+    float m = clamp(dot(x, d), -1.0, 1.0);
+    float s = sqrt(max(1.0 - m * m, 0.0));
+    if (s < 1e-4) continue;
+    float th = acos(m);
+    float u = (th - WAVE_C_GROUP * age) / WAVE_PACKET_RAD;
+    float slope = A * exp(-u * u) * sin(WAVE_KR * (th - WAVE_C_PHASE * age)) * sqrt(WAVE_SPREAD_FLOOR / max(s, WAVE_SPREAD_FLOOR));
+    g += slope * (x * m - d) / s;
+  }
+  return g;
+}
+
 void main() {
   vec3 ro = cameraPosition;
   vec3 rd = normalize(vWorld - ro);
   float b = dot(ro, rd);
-  float disc = b * b - (dot(ro, ro) - R_SCENE * R_SCENE);
+  // The silhouette: the bead's radius toward the ray's closest approach
+  // (exactly R_SCENE when the surface is still, i.e. the phase-2 sphere).
+  vec3 pc = ro - rd * b;
+  float pl = length(pc);
+  float rl = R_SCENE * (1.0 + shapeH(pl > 1e-6 ? pc / pl : -rd));
+  float disc = b * b - (dot(ro, ro) - rl * rl);
   float fw = max(fwidth(disc), 1e-6);
   float coverage = clamp(disc / fw + 0.5, 0.0, 1.0);
 
   // Shade the nearest point even for near-misses so derivatives stay defined
-  // across the silhouette; discard only after all dFdx/dFdy calls.
+  // across the silhouette; the cut-out comes only after all dFdx/dFdy calls.
   float t = -b - sqrt(max(disc, 0.0));
   vec3 hit = ro + rd * t;
-  vec3 ng = normalize(hit);
+  // On a moving bead, re-intersect the sphere of the local radius at the hit
+  // (radial fixed point; the shape is low-order and ≤ SHAPE_MAX). Uniform branch.
+  if (uSurfOn > 0.5) {
+    for (int k = 0; k < SHAPE_ITERS; k++) {
+      float rk = R_SCENE * (1.0 + shapeH(normalize(hit)));
+      t = -b - sqrt(max(b * b - (dot(ro, ro) - rk * rk), 0.0));
+      hit = ro + rd * t;
+    }
+  }
+  vec3 xw = normalize(hit);
+  vec3 ng = normalize(xw - shapeGrad(xw) / (1.0 + shapeH(xw)));
 
   // uBodyRot is body → world (mercuryBody.q); v * M = transpose(M) * v.
+  // xb: WHERE on the body (maps, front, temperature); nb: which way the surface faces (light).
+  vec3 xb = xw * uBodyRot;
   vec3 nb = ng * uBodyRot;
   vec3 Lb = uSunDir * uBodyRot;
   vec3 Vb = -rd * uBodyRot;
-  float lat = asin(clamp(nb.y, -1.0, 1.0));
-  float lon = atan(-nb.z, nb.x);
+  float lat = asin(clamp(xb.y, -1.0, 1.0));
+  float lon = atan(-xb.z, xb.x);
   vec2 uv = vec2(fract(lon / TAU), 0.5 + lat / PI);
 
   // Seam-safe gradients: take whichever of u / u+0.5 is continuous here.
@@ -393,19 +487,21 @@ void main() {
   // local temperature: solid at night, a liquid mirror by day and into dusk,
   // boiling near noon.
   if (uTau > 0.0) {
-    float front = 1.0 - acos(clamp(mu0g, -1.0, 1.0)) / PI;
-    float edgeN = (vnoise3(nb * FRONT_NOISE_FREQ) - 0.5) * FRONT_EDGE;
+    float mu0x = dot(xb, Lb);
+    float front = 1.0 - acos(clamp(mu0x, -1.0, 1.0)) / PI;
+    float edgeN = (vnoise3(xb * FRONT_NOISE_FREQ) - 0.5) * FRONT_EDGE;
     float thr = 1.0 + FRONT_EDGE - uTau * (1.0 + 2.0 * FRONT_EDGE);
     float fluid = smoothstep(thr - FRONT_SOFT, thr + FRONT_SOFT, front + edgeN);
 
     if (fluid > 0.0) {
       float lonSun = length(Lb.xz) > 1e-4 ? atan(-Lb.z, Lb.x) : 0.0;
       float lonRel = mod(lon - lonSun + PI, TAU) - PI;
-      float T = surfaceTempK(mu0g, lonRel, cos(lat), uSubsolarT, uHeatK);
+      float T = surfaceTempK(mu0x, lonRel, cos(lat), uSubsolarT, uHeatK);
       float liquidW = smoothstep(HG_MELT_K - PHASE_BLEND_K, HG_MELT_K + PHASE_BLEND_K, T);
       float boilW = smoothstep(HG_BOIL_K - PHASE_BLEND_K, HG_BOIL_K + PHASE_BLEND_K, T);
 
       vec3 nW = uBodyRot * normalize(mix(n, nb, fluid));
+      nW = normalize(nW - fluid * waveTilt(xw));
       vec3 R = reflect(rd, nW);
       float NoV = clamp(dot(nW, -rd), 0.0, 1.0);
 

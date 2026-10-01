@@ -17,6 +17,9 @@ import {
 import { DEM_MIN_M, DEM_MAX_M } from '../mercuryMaps.generated';
 import { SCAR_DEPTH_RANGE_M } from '../scarMap';
 import { RAY_ALBEDO } from '../planetLook';
+import {
+  IMPULSE_SLOTS, SHAPE_MAX, SHAPE_ITERS, WAVE_KR, WAVE_C_PHASE, WAVE_C_GROUP, WAVE_PACKET_RAD, WAVE_SPREAD_FLOOR,
+} from '../mercuryWaves';
 
 const declared = (src) => [...src.matchAll(/^uniform\s+\w+\s+(\w+)(?:\[\d+\])?;/gm)].map((m) => m[1]);
 
@@ -141,5 +144,64 @@ describe('mercuryPlanetShader contract', () => {
     expect(PLANET_FS).toContain('return (textureGrad(uScar, vec2(fract(uv.x), uv.y), gx, gy).r * 255.0 - 128.0) / 127.0 * SCAR_DEPTH_RANGE_M;');
     expect(PLANET_FS).toContain('return mix(DEM_MIN_M, DEM_MAX_M, textureGrad(uDem, vec2(fract(uv.x), uv.y), gx, gy).r) + scarHeightM(uv, gx, gy);');
     expect(PLANET_FS).toContain('albedo = mix(albedo, RAY_ALBEDO, clamp(textureGrad(uScar, uv, gx, gy).g * uRayGain, 0.0, 1.0));');
+  });
+
+  it('moves the bead: modes + bulge reshape the silhouette, ripples tilt the normal; constants from mercuryWaves', () => {
+    expect(PLANET_UNIFORMS).toEqual(expect.arrayContaining(['uSurfOn', 'uImpDir', 'uImpMode', 'uImpWave', 'uBulge']));
+    expect(PLANET_FS).toContain(`uniform vec3 uImpDir[${IMPULSE_SLOTS}];`);
+    expect(PLANET_FS).toContain(`uniform vec3 uImpMode[${IMPULSE_SLOTS}];`);
+    expect(PLANET_FS).toContain(`uniform vec2 uImpWave[${IMPULSE_SLOTS}];`);
+    expect(PLANET_FS).toContain(`const int IMPULSE_SLOTS = ${IMPULSE_SLOTS};`);
+    expect(PLANET_FS).toContain(`const int SHAPE_ITERS = ${SHAPE_ITERS};`);
+    for (const [name, value] of Object.entries({ SHAPE_MAX, WAVE_KR, WAVE_C_PHASE, WAVE_C_GROUP, WAVE_PACKET_RAD, WAVE_SPREAD_FLOOR })) {
+      expect(PLANET_FS).toContain(`const float ${name} = ${glf(value)};`);
+    }
+    expect(PLANET_VS).toContain(`const float SHAPE_MAX = ${glf(SHAPE_MAX)};`);
+    expect(PLANET_VS).toContain('float rb = R_SCENE * (1.0 + SHAPE_MAX);');
+  });
+
+  it('mirrors mercuryWaves: Legendre P2..P4, their derivatives, and shapeHeight', () => {
+    expect(PLANET_FS).toContain('float P2(float m) { return 0.5 * (3.0 * m * m - 1.0); }');
+    expect(PLANET_FS).toContain('float P3(float m) { return 0.5 * (5.0 * m * m * m - 3.0 * m); }');
+    expect(PLANET_FS).toContain('float P4(float m) { float m2 = m * m; return 0.125 * (35.0 * m2 * m2 - 30.0 * m2 + 3.0); }');
+    expect(PLANET_FS).toContain('float dP2(float m) { return 3.0 * m; }');
+    expect(PLANET_FS).toContain('float dP3(float m) { return 0.5 * (15.0 * m * m - 3.0); }');
+    expect(PLANET_FS).toContain('float dP4(float m) { return 0.5 * (35.0 * m * m * m - 15.0 * m); }');
+    expect(PLANET_FS).toContain('float h = uBulge.w * P2(dot(x, uBulge.xyz));');
+    expect(PLANET_FS).toContain('h += dot(uImpMode[i], vec3(P2(m), P3(m), P4(m)));');
+    expect(PLANET_FS).toContain('return clamp(h, -SHAPE_MAX, SHAPE_MAX);');
+  });
+
+  it('a still bead is the phase-2 sphere: shape gated by uSurfOn, silhouette from the closest-approach radius', () => {
+    expect(PLANET_FS).toContain('if (uSurfOn < 0.5) return 0.0;');
+    expect(PLANET_FS).toContain('float rl = R_SCENE * (1.0 + shapeH(pl > 1e-6 ? pc / pl : -rd));');
+    expect(PLANET_FS).toContain('float disc = b * b - (dot(ro, ro) - rl * rl);');
+    expect(PLANET_FS).toContain('for (int k = 0; k < SHAPE_ITERS; k++) {');
+    expect(PLANET_FS).toContain('vec3 ng = normalize(xw - shapeGrad(xw) / (1.0 + shapeH(xw)));');
+    expect(PLANET_FS).toContain('vec3 xb = xw * uBodyRot;');
+    expect(PLANET_FS).toContain('float lat = asin(clamp(xb.y, -1.0, 1.0));');
+    expect(PLANET_FS).toContain('float lon = atan(-xb.z, xb.x);');
+  });
+
+  it('the front and temperature follow the material point (xb); the ripples tilt the fluid normal', () => {
+    expect(PLANET_FS).toContain('float mu0x = dot(xb, Lb);');
+    expect(PLANET_FS).toContain('float front = 1.0 - acos(clamp(mu0x, -1.0, 1.0)) / PI;');
+    expect(PLANET_FS).toContain('float edgeN = (vnoise3(xb * FRONT_NOISE_FREQ) - 0.5) * FRONT_EDGE;');
+    expect(PLANET_FS).toContain('float T = surfaceTempK(mu0x, lonRel, cos(lat), uSubsolarT, uHeatK);');
+    expect(PLANET_FS).toContain('float u = (th - WAVE_C_GROUP * age) / WAVE_PACKET_RAD;');
+    expect(PLANET_FS).toContain('float slope = A * exp(-u * u) * sin(WAVE_KR * (th - WAVE_C_PHASE * age)) * sqrt(WAVE_SPREAD_FLOOR / max(s, WAVE_SPREAD_FLOOR));');
+    expect(PLANET_FS).toContain('nW = normalize(nW - fluid * waveTilt(xw));');
+  });
+
+  it('keeps every derivative before the first loop and the discard', () => {
+    const main = PLANET_FS.slice(PLANET_FS.indexOf('void main()'));
+    const firstLoop = main.indexOf('for (');
+    const lastDeriv = Math.max(main.lastIndexOf('fwidth('), main.lastIndexOf('dFdx('), main.lastIndexOf('dFdy('));
+    expect(lastDeriv).toBeLessThan(main.indexOf('discard'));
+    // the shape refinement loop is uniform control flow; derivatives may follow it,
+    // but none may appear inside helper loops that use continue:
+    const waveFn = PLANET_FS.slice(PLANET_FS.indexOf('vec3 waveTilt('), PLANET_FS.indexOf('void main()'));
+    expect(waveFn).not.toMatch(/dFd[xy]|fwidth/);
+    expect(firstLoop).toBeGreaterThan(-1);
   });
 });

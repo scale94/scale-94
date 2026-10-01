@@ -15,6 +15,7 @@ import { AETHER_BASE_DIRS, aetherLobeColors, aetherLobeDirs } from './planet/aet
 import { MAPS } from './planet/mercuryMaps.generated';
 import { subsolarTempK } from './planet/mercuryThermal';
 import { createScarMap } from './planet/scarMap';
+import { IMPULSE_SLOTS } from './planet/mercuryWaves';
 import { createBody, stepBody, targetFromYaw } from './planet/mercuryBody';
 import { ORBIT_NODES, orbitPrecessionAngle, nodeWorldPosition } from './orbitNodes';
 import useMercuryDrag from './useMercuryDrag';
@@ -112,6 +113,11 @@ export default function MercuryPlanet({ isMobile = false, emitters = {} }) {
       uAetherCore: { value: PLANET_TUNE.aetherCore },
       uScar: { value: scarTex },
       uRayGain: { value: PLANET_TUNE.rayGain },
+      uSurfOn: { value: 0 },
+      uImpDir: { value: Array.from({ length: IMPULSE_SLOTS }, () => new THREE.Vector3(0, 0, 1)) },
+      uImpMode: { value: Array.from({ length: IMPULSE_SLOTS }, () => new THREE.Vector3()) },
+      uImpWave: { value: Array.from({ length: IMPULSE_SLOTS }, () => new THREE.Vector2()) },
+      uBulge: { value: new THREE.Vector4(0, 1, 0, 0) },
     },
   }), [isMobile, init, body, scarTex]);
 
