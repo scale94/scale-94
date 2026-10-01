@@ -4,7 +4,7 @@
 // on the equator — SUN_DIR_WORLD has y = 0 on purpose). What is REAL: which
 // face is lit (subsolar longitude). What is CHOSEN (spec §4): the Sun sits at
 // a fixed phase angle to the camera so a gibbous planet is always on screen (the camera no longer moves).
-// mercuryPlanetShader.js mirrors rotY / dirFromLonLat / uvFromLonLat exactly.
+// mercuryPlanetShader.js mirrors dirFromLonLat / uvFromLonLat exactly; it rotates by uBodyRot (body -> world), the live body orientation.
 
 const DEG = Math.PI / 180;
 

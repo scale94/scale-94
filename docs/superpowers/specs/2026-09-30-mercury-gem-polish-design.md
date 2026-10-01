@@ -148,8 +148,17 @@ this ephemeris). A Sun shader. Persisting scars across visits.
 
 The first live render of phase 2 showed the transmuted liquid as a black glass ball. The author decided:
 
-1. **The aether is reflected.** "Liquid metal wrapped in an alchemical aether": the aether surrounds the planet on every side, including the camera side we never see. The mirror reflects it as 8 analytic soft lobes coloured by the live element flows. Still no cubemap, no PMREM. This supersedes "reflects only the Sun, the four elements, and black space".
+1. **The aether is reflected.** "Liquid metal wrapped in an alchemical aether": the aether surrounds the planet on every side, including the camera side we never see. The mirror reflects it as analytic soft lobes (16 streaks, see Amendment 2) coloured by the live element flows. Still no cubemap, no PMREM. This supersedes "reflects only the Sun, the four elements, and black space".
 2. **Night side** is a cold, deep, low-luminance silver/indigo: the aether attenuated on the night hemisphere via the surface normal's Sun-facing. Clearly darker than day, never black glass. This supersedes "night side stays near-black".
 3. **Element reflections** are widened so the elements wash broad tints across the liquid, not grazing rims.
 4. **Boiling Sun glint:** a broad bright sheen in the boil zone that tightens to a pinpoint as the surface cools (brighter true Sun radiance + a soft highlight shoulder; the lobe already conserves energy).
 5. **Linger** ~40 s, even after a hard spin (heat store capped). This supersedes "~30–60 s".
+
+## Amendment 2 — 2026-10-01 look rounds (author decisions)
+
+After three rendered variation rounds the author settled the liquid mirror's look:
+
+- **The aether is 16 irregular flow streaks**, not 8 soft lobes. A seeded Fibonacci layout clear of the poles, each streak stretched along the orbital flow (azimuth about +Y) and drifting slowly.
+- **Streak profile:** a super-Gaussian silhouette (a hard "meniscus" edge), a curved body brightest at the centre, a **near-white specular core**, and the aether colour only in the **fringe**. Overlapping cores roll off through a soft shoulder. Deep black negative space between streaks.
+- **Live look knobs** (`PLANET_TUNE`, uniforms): `aetherGain`, `aetherSinW`, `aetherSilver`, `aetherEdge`, `aetherStretch`, `aetherCurve`, `aetherCore`.
+- **Haze clearance is per fragment:** each aether particle fragment in front of the planet fades exactly at the planet's on-screen limb. The old per-particle window left fog bands over the limb because the sprites are larger than the planet.

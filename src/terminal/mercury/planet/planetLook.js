@@ -36,6 +36,7 @@ export const SUN_SHOULDER = 3;                // linear; the Sun term rolls off 
 export const AETHER_NIGHT = 0.2;              // aether strength left on the night hemisphere
 export const AETHER_DAY_LO = -0.15;           // dot(normal, Sun) where the night attenuation is full…
 export const AETHER_DAY_HI = 0.25;            // …and where full day strength is reached
+export const AETHER_DIFFUSE_REF_LOBES = 8; // frozen-Hg aether ambient was tuned with 8 lobes; scale keeps that brightness
 export const AETHER_DIFFUSE = 0.35;           // frozen Hg's matte response to the aether
 export const NIGHT_TINT = [0.62, 0.68, 1.0];  // cold indigo cast on the night side's aether
 export const AETHER_FRINGE_LO = 0.25;          // streak d² where the white core starts giving way to colour…

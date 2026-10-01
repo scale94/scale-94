@@ -9,7 +9,7 @@
 // Phase 2: a body rotation matrix (mercuryBody), a transmutation front, three
 // phases of the element by local temperature (mercuryThermal), and a liquid
 // mirror that reflects the Sun, the four element emitters, and the aether that
-// wraps the planet (8 analytic lobes, aetherLobes.js; spec amendment 2026-10-01).
+// wraps the planet (16 analytic flow streaks, aetherLobes.js; spec amendment 2026-10-01).
 
 import { glf, v3 } from '../../gl/glf';
 import {
@@ -17,7 +17,7 @@ import {
   FALLBACK_ALBEDO, HG_F0, ROUGH_LIQUID, ROUGH_BOIL, SOLID_HG_ALBEDO, SPARKLE_CELLS, SPARKLE_DENSITY, SPARKLE_COS,
   SPARKLE_GAIN, EMIT_RADIUS, FRONT_EDGE, FRONT_SOFT, FRONT_NOISE_FREQ, PHASE_BLEND_K,
   EMIT_MIN_SIN, EMIT_HORIZON_SOFT, SUN_SHOULDER, AETHER_NIGHT, AETHER_DAY_LO, AETHER_DAY_HI,
-  AETHER_DIFFUSE, NIGHT_TINT, AETHER_FRINGE_LO, AETHER_FRINGE_HI, AETHER_SHOULDER,
+  AETHER_DIFFUSE, AETHER_DIFFUSE_REF_LOBES, NIGHT_TINT, AETHER_FRINGE_LO, AETHER_FRINGE_HI, AETHER_SHOULDER,
 } from './planetLook';
 import { AETHER_LOBES, AETHER_SHAPES } from './aetherLobes';
 import {
@@ -144,6 +144,7 @@ const float AETHER_NIGHT = ${glf(AETHER_NIGHT)};
 const float AETHER_DAY_LO = ${glf(AETHER_DAY_LO)};
 const float AETHER_DAY_HI = ${glf(AETHER_DAY_HI)};
 const float AETHER_DIFFUSE = ${glf(AETHER_DIFFUSE)};
+const float AETHER_DIFFUSE_REF_LOBES = ${glf(AETHER_DIFFUSE_REF_LOBES)};
 const float AETHER_FRINGE_LO = ${glf(AETHER_FRINGE_LO)};
 const float AETHER_FRINGE_HI = ${glf(AETHER_FRINGE_HI)};
 const float AETHER_SHOULDER = ${glf(AETHER_SHOULDER)};
@@ -305,7 +306,7 @@ vec3 aetherDiffuse(vec3 nW) {
     float k = 0.5 + 0.5 * dot(nW, uAethDir[i]);
     a += uAethCol[i] * (k * k);
   }
-  return uAetherGain * AETHER_DIFFUSE * aetherTint(nW) * a * (8.0 / float(AETHER_LOBES));
+  return uAetherGain * AETHER_DIFFUSE * aetherTint(nW) * a * (AETHER_DIFFUSE_REF_LOBES / float(AETHER_LOBES));
 }
 
 void main() {

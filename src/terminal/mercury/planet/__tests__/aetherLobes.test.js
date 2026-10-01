@@ -24,12 +24,14 @@ describe('aetherLobes', () => {
     }
   });
 
-  it('streak shapes vary: width ×0.6–1.4, elongation 1.5–3.5, deterministic', () => {
+  it('streak shapes vary: width ×0.6–1.4, elongation 1.5–3.5, and the first streak is pinned', () => {
     expect(AETHER_SHAPES).toHaveLength(AETHER_LOBES);
     for (const [w, s] of AETHER_SHAPES) {
       expect(w).toBeGreaterThanOrEqual(0.6); expect(w).toBeLessThanOrEqual(1.4);
       expect(s).toBeGreaterThanOrEqual(1.5); expect(s).toBeLessThanOrEqual(3.5);
     }
+    expect(AETHER_SHAPES[0][0]).toBeCloseTo(1.0046578980982304, 12);
+    expect(AETHER_SHAPES[0][1]).toBeCloseTo(2.8521495452150702, 12);
     const widths = AETHER_SHAPES.map(([w]) => w);
     expect(Math.max(...widths) - Math.min(...widths)).toBeGreaterThan(0.3);
   });

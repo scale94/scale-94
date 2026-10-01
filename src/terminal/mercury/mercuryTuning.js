@@ -1,9 +1,9 @@
 // src/terminal/mercury/mercuryTuning.js — the live console tuning rig.
 //
-// TUNE holds the aether's tunable constants. Production reads it exactly like the old hard-coded literals
-// (the values below ARE the shipped constants); the dev-only console rig
-// mutates it and the env re-reads it every frame, so pokes are authoritative
-// and never fight the frame loop.
+// TUNE holds the cloud-parting and condensation knobs. The planet's look knobs,
+// the aether included, are PLANET_TUNE. Nothing reads an environment any more:
+// the dev-only console rig mutates these objects and the frame loop re-reads
+// them every frame, so pokes are authoritative and never fight it.
 //
 // Dev console usage (rig registers only when import.meta.env.DEV):
 //   __mercuryTune.set('duckActive', 0.08)     // cloud parting depth
@@ -40,12 +40,11 @@ export function registerTuningRig() {
       return `${knob} = ${value}`;
     },
     get: () => ({ ...TUNE }),
-    // Per-element data (horizonHeight, color hex) — live, resolveEnvState
-    // re-reads it every frame. Color pokes take effect on next transition
-    // blend or immediately at idle.
+    // Per-element data (horizonHeight, color hex). Poking element colours does
+    // not reach the mirror: EMIT_COLORS is captured at load.
     elements: ELEMENTS,
     neutral: NEUTRAL_NIGHT,
-    // Planet look — live, MercuryPlanet re-reads it every frame.
+    // Planet look (aether knobs included) — live, MercuryPlanet re-reads it every frame.
     planet: PLANET_TUNE,
     export() {
       const lines = KNOBS.map(k => `  ${k}: ${JSON.stringify(TUNE[k])},`).join('\n');

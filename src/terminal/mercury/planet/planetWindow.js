@@ -16,12 +16,14 @@ uniform vec2 uViewportPx;
 varying vec3 vPlanetPx;
 varying float vPlanetFront;
 void planetWindowVS(vec3 mv) {
+  if (uPlanetWindow <= 0.0) { vPlanetFront = 0.0; vPlanetPx = vec3(0.0); return; }
   vec3 c = (viewMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
   float cl = length(c);
   float along = dot(mv, c / cl);
   vPlanetFront = (along > 0.0 && along < cl) ? 1.0 : 0.0;
   vec4 cc = projectionMatrix * vec4(c, 1.0);
   vec2 centre = (cc.xy / cc.w * 0.5 + 0.5) * uViewportPx;
+  // Assumes the planet centre is on the optical axis (the /mercury camera is fixed on +Z looking at the origin); off-axis the silhouette becomes an ellipse.
   float tanR = uPlanetRadius / sqrt(max(cl * cl - uPlanetRadius * uPlanetRadius, 1e-6));
   vPlanetPx = vec3(centre, tanR * projectionMatrix[1][1] * 0.5 * uViewportPx.y);
 }

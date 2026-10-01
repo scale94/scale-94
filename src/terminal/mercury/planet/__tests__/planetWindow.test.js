@@ -10,6 +10,7 @@ describe('planetWindow (per fragment)', () => {
   it('vertex stage projects the planet disc; fragment stage clears inside it', () => {
     expect(PLANET_WINDOW_VS).toMatch(/uniform vec2 uViewportPx;/);
     expect(PLANET_WINDOW_VS).toMatch(/void planetWindowVS\(vec3 mv\)/);
+    expect(PLANET_WINDOW_VS).toContain('if (uPlanetWindow <= 0.0) { vPlanetFront = 0.0; vPlanetPx = vec3(0.0); return; }');
     expect(PLANET_WINDOW_VS).toContain('vPlanetPx = vec3(centre, tanR * projectionMatrix[1][1] * 0.5 * uViewportPx.y);');
     expect(PLANET_WINDOW_FS).toMatch(/float planetWindow\(\)/);
     expect(PLANET_WINDOW_FS).toContain('gl_FragCoord.xy - vPlanetPx.xy');

@@ -8,7 +8,7 @@ import {
   SPARKLE_CELLS, SPARKLE_DENSITY, SPARKLE_COS, SPARKLE_GAIN, EMIT_RADIUS,
   FRONT_EDGE, FRONT_SOFT, FRONT_NOISE_FREQ, PHASE_BLEND_K,
   EMIT_MIN_SIN, EMIT_HORIZON_SOFT, SUN_SHOULDER, AETHER_NIGHT, AETHER_DAY_LO, AETHER_DAY_HI,
-  AETHER_DIFFUSE, NIGHT_TINT, AETHER_FRINGE_LO, AETHER_FRINGE_HI, AETHER_SHOULDER,
+  AETHER_DIFFUSE, AETHER_DIFFUSE_REF_LOBES, NIGHT_TINT, AETHER_FRINGE_LO, AETHER_FRINGE_HI, AETHER_SHOULDER,
 } from '../planetLook';
 import { AETHER_LOBES, AETHER_SHAPES } from '../aetherLobes';
 import {
@@ -42,7 +42,7 @@ describe('mercuryPlanetShader contract', () => {
       ROUGH_LIQUID, ROUGH_BOIL, SPARKLE_CELLS, SPARKLE_DENSITY, SPARKLE_COS, SPARKLE_GAIN, EMIT_RADIUS,
       FRONT_EDGE, FRONT_SOFT, FRONT_NOISE_FREQ, PHASE_BLEND_K,
       EMIT_MIN_SIN, EMIT_HORIZON_SOFT, SUN_SHOULDER, AETHER_NIGHT, AETHER_DAY_LO, AETHER_DAY_HI,
-      AETHER_DIFFUSE, AETHER_FRINGE_LO, AETHER_FRINGE_HI, AETHER_SHOULDER,
+      AETHER_DIFFUSE, AETHER_DIFFUSE_REF_LOBES, AETHER_FRINGE_LO, AETHER_FRINGE_HI, AETHER_SHOULDER,
     })) {
       expect(PLANET_FS).toContain(`const float ${name} = ${glf(value)};`);
     }
@@ -107,7 +107,7 @@ describe('mercuryPlanetShader contract', () => {
     expect(PLANET_FS).toMatch(/liquid = F \* envRadiance\(R, [^;]*, hit, nW\);/);
     expect(PLANET_FS).toMatch(/\+ aetherDiffuse\(nW\)/);
     expect(PLANET_FS).toContain('return c + aetherTint(nW) * aetherShoulder(uAetherGain * a);');
-    expect(PLANET_FS).toContain('return uAetherGain * AETHER_DIFFUSE * aetherTint(nW) * a * (8.0 / float(AETHER_LOBES));');
+    expect(PLANET_FS).toContain('return uAetherGain * AETHER_DIFFUSE * aetherTint(nW) * a * (AETHER_DIFFUSE_REF_LOBES / float(AETHER_LOBES));');
   });
 
   it('mirrors mirrorLobes.js: same lobe and soft shoulder maths; the Sun goes through the shoulder', () => {
