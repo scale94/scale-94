@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { pointerOmega, createDragTracker, DRAG_RAD_PER_HEIGHT, POINTER_HOLD_MS, MIN_POINTER_DT_S } from '../mercuryDrag';
+import { pointerOmega, createDragTracker, DRAG_RAD_PER_HEIGHT, POINTER_HOLD_MS } from '../mercuryDrag';
 
 describe('pointerOmega', () => {
   it('a full-height drag in one second spins DRAG_RAD_PER_HEIGHT rad/s', () => {
@@ -18,8 +18,19 @@ describe('pointerOmega', () => {
     expect(down.y).toBeLessThan(0);
   });
 
-  it('floors dt so coalesced events cannot explode', () => {
-    expect(pointerOmega(0, 10, 0, 800)[0]).toBeCloseTo((10 * DRAG_RAD_PER_HEIGHT) / 800 / MIN_POINTER_DT_S, 9);
+  it('two events with identical timestamps never produce a non-finite or exploded ω', () => {
+    const d = createDragTracker();
+    const trueOmega = (DRAG_RAD_PER_HEIGHT / 740) * 600;
+    d.down(0, 0, 0);
+    let x = 0;
+    for (let t = 1000 / 60; t <= 200; t += 1000 / 60) {
+      x = (600 * t) / 1000;
+      d.move(x - 5, 0, t, 740);
+      d.move(x, 0, t, 740); // duplicate timestamp
+      const w = d.sample(t).omegaPtr[1];
+      expect(Number.isFinite(w)).toBe(true);
+      expect(Math.abs(w)).toBeLessThanOrEqual(trueOmega * 1.05);
+    }
   });
 });
 
@@ -50,5 +61,26 @@ describe('createDragTracker', () => {
     const d = createDragTracker();
     d.move(50, 0, 16, 800);
     expect(d.sample(20)).toEqual({ dragging: false, omegaPtr: [0, 0, 0] });
+  });
+
+  it('same hand speed gives the same ω at 60 Hz and 360 Hz event spacing', () => {
+    const run = (hz) => {
+      const d = createDragTracker();
+      d.down(0, 0, 0);
+      const step = 1000 / hz;
+      for (let t = step; t <= 200 + 1e-9; t += step) d.move((600 * t) / 1000, 0, t, 740);
+      return d.sample(200).omegaPtr[1];
+    };
+    const expected = (DRAG_RAD_PER_HEIGHT / 740) * 600;
+    const a = run(60);
+    const b = run(360);
+    expect(Math.abs(a - b) / expected).toBeLessThan(0.02);
+    expect(Math.abs(b - expected) / expected).toBeLessThan(0.02);
+    expect(Math.abs(a - expected) / expected).toBeLessThan(0.02);
+  });
+
+  it('sample() returns the same object on consecutive calls', () => {
+    const d = createDragTracker();
+    expect(d.sample(0)).toBe(d.sample(1));
   });
 });

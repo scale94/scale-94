@@ -17,11 +17,11 @@ export default function useMercuryDrag(el) {
       activePointerIdRef.current = e.pointerId;
       el.setPointerCapture?.(e.pointerId);
       el.style.cursor = 'grabbing';
-      tracker.down(e.clientX, e.clientY, performance.now());
+      tracker.down(e.clientX, e.clientY, e.timeStamp);
     };
     const onMove = (e) => {
       if (e.pointerId !== activePointerIdRef.current) return;
-      tracker.move(e.clientX, e.clientY, performance.now(), el.clientHeight);
+      tracker.move(e.clientX, e.clientY, e.timeStamp, el.clientHeight);
     };
     const endDrag = (e) => {
       if (e.pointerId !== activePointerIdRef.current) return;

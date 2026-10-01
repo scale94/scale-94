@@ -2,10 +2,16 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import useMercuryDrag from '../useMercuryDrag';
 
-const ev = (type, props) => Object.assign(new Event(type), { button: 0, pointerId: 1, ...props });
+// Pointer events carry their own DOMHighResTimeStamp; the hook reads e.timeStamp, so stamp it from mockNow.
+const ev = (type, props) => {
+  const e = Object.assign(new Event(type), { button: 0, pointerId: 1, ...props });
+  Object.defineProperty(e, 'timeStamp', { value: mockNow });
+  return e;
+};
+
+let mockNow = 0;
 
 describe('useMercuryDrag', () => {
-  let mockNow = 0;
 
   beforeEach(() => {
     vi.spyOn(performance, 'now').mockImplementation(() => mockNow);
