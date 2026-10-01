@@ -176,3 +176,7 @@ Phase 3 ("the surface") forces choices §5 left open. Each is stated, like the 1
 - **Crater scale.** A crater is ~195 km in radius (0.08 rad), so it reads on a ~200 px disc. Its rays reach 5 crater radii. Rays mature to background with a 3 min e-fold.
 - **Healing.** Scars clear when the transmutation completes (τ = 1). At that point the whole globe is liquid, so the clearing itself is never seen.
 - **The aether window** keeps the still sphere's radius. A wobble (≤ 6 % of R) can briefly show haze over the very limb.
+
+## Amendment 4 — 2026-10-01 phase 4 "the Sun's signature" (author decisions)
+
+Phase 4 has its own design document: `2026-10-01-mercury-signature-phase4-design.md`. It covers quality tiers and a perf HUD (phone 60 fps), reduced motion as `CALM` (direct turn, still mirror, frozen aether drift), boiling roil as bubble-collapse pops on the dispersive ripple, and the Na tail + Hg haze exosphere (honest `g(|v_r|)/r²`, floored at 15 %). Its decisions table (D1–D9) is binding alongside Amendments 1–3.
