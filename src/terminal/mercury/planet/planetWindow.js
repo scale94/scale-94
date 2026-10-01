@@ -4,9 +4,9 @@
 // (mercuryTuning.js). Behind-the-planet particles are left to the depth test
 // (MercuryPlanet writes gl_FragDepth). planetWindowJS mirrors it for tests.
 
-const EDGE_IN = 0.92;   // × radius: fully cleared inside this
-const EDGE_OUT = 1.12;  // × radius: untouched beyond this (+ up to EDGE_JITTER)
-const EDGE_JITTER = 0.18;
+const EDGE_IN = 0.96;   // × radius: fully cleared inside this
+const EDGE_OUT = 1.02;  // × radius: untouched beyond this (+ up to EDGE_JITTER)
+const EDGE_JITTER = 0.04;
 
 export const PLANET_WINDOW_GLSL = /* glsl */ `
 uniform float uPlanetWindow;
