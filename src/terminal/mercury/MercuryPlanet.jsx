@@ -27,7 +27,9 @@ import { pickSphereDir } from './planet/pickSphere';
 import { createBody, stepBody, coolBody, targetFromYaw } from './planet/mercuryBody';
 import { ORBIT_NODES, orbitPrecessionAngle, nodeWorldPosition } from './orbitNodes';
 import useMercuryDrag from './useMercuryDrag';
-import { registerTuningRig } from './mercuryTuning';
+import { registerTuningRig, DEV_OVERRIDES } from './mercuryTuning';
+import MercuryExosphere from './MercuryExosphere';
+import { tailBrightness, tailLength, boilCoverage } from './planet/mercuryExosphere';
 
 const EPHEMERIS_REFRESH_S = 1;
 const MAX_FRAME_DT_S = 0.1; // a backgrounded tab must not fling the body
@@ -41,6 +43,8 @@ export function planetEphemerisUniforms(nowMs) {
     sinR: Math.sin(eph.sunAngularRadiusRad),
     subsolarLonDeg: eph.subsolarLonDeg,
     subsolarT: subsolarTempK(eph.r),
+    tailB: tailBrightness(nowMs),
+    vrKmS: eph.rdotKmS,
   };
 }
 
@@ -68,6 +72,8 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
   const init = useMemo(() => planetEphemerisUniforms(Date.now()), []);
   const target = useMemo(() => targetFromYaw(init.yaw), [init]);
   const body = useMemo(() => createBody(target), [target]);
+  // The exosphere's state (MercuryExosphere reads it every frame; written here, allocation-free).
+  const exo = useMemo(() => ({ B: init.tailB, L: tailLength(init.tailB), coverage: 0, time: 0, boxDirty: true }), [init]);
   const m4 = useMemo(() => new THREE.Matrix4(), []);
 
   // The crust's memory (scarMap.js): a CPU buffer uploaded as RGBA8. Neutral = no scars.
@@ -211,11 +217,16 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     u.uRoilGain.value = PLANET_TUNE.roilGain;
     if (t >= nextEphemeris.current) {
       nextEphemeris.current = t + EPHEMERIS_REFRESH_S;
-      const e = planetEphemerisUniforms(Date.now());
+      const e = planetEphemerisUniforms(DEV_OVERRIDES.dateMs ?? Date.now());
       targetFromYaw(e.yaw, target);
       u.uSunIrr.value = e.irr;
       u.uSunSinR.value = e.sinR;
       u.uSubsolarT.value = e.subsolarT;
+      exo.B = e.tailB;
+      const L = tailLength(e.tailB);
+      if (Math.abs(L - exo.L) > 1e-4) { exo.L = L; exo.boxDirty = true; }
+      PERF_INFO.tailB = e.tailB;
+      PERF_INFO.vrKmS = e.vrKmS;
     }
 
     const ds = drag.sample(performance.now());
@@ -228,6 +239,9 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     u.uHeatK.value = body.heatK;
     PERF_INFO.tau = body.tau;
     PERF_INFO.heatK = body.heatK;
+    exo.coverage = boilCoverage(body.tau, body.heatK, u.uSubsolarT.value);
+    if (!calm) exo.time += stepS; // the streamers hold still under reduced motion
+    PERF_INFO.coverage = exo.coverage;
 
     // --- Phase 3: strikes, wake, scars, the bead ---
     const precession = orbitPrecessionAngle(t);
@@ -318,5 +332,10 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     }
   });
 
-  return <mesh geometry={geometry} material={material} frustumCulled={false} />;
+  return (
+    <>
+      <mesh geometry={geometry} material={material} frustumCulled={false} />
+      <MercuryExosphere exo={exo} tier={tier} />
+    </>
+  );
 }

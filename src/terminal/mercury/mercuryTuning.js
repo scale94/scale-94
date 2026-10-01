@@ -28,6 +28,9 @@ export const TUNE = {
   condenseSizeBite: 0.6,  // sprite slimming en route into the drop
 };
 
+// Dev-only overrides the frame loop reads (probes): a fixed instant for the ephemeris.
+export const DEV_OVERRIDES = { dateMs: null };
+
 const KNOBS = Object.keys(TUNE);
 
 // Called from MercuryPlanet (dev only). Idempotent; re-registers on HMR.
@@ -39,6 +42,8 @@ export function registerTuningRig() {
       TUNE[knob] = value;
       return `${knob} = ${value}`;
     },
+    // Pin the ephemeris to an instant (ms since epoch), or null for now. Probes sweep the tail with it.
+    dateOverride(ms) { DEV_OVERRIDES.dateMs = ms ?? null; return `date = ${ms == null ? 'now' : new Date(ms).toISOString()}`; },
     get: () => ({ ...TUNE }),
     // Per-element data (horizonHeight, color hex). Poking element colours does
     // not reach the mirror: EMIT_COLORS is captured at load.

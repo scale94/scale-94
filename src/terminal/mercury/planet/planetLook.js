@@ -67,4 +67,5 @@ export const PLANET_TUNE = {
   modeGain: 1,       // body-mode + spin-bulge amplitude (the bead's wobble)
   waveGain: 1,       // capillary ripple slope
   roilGain: 1,       // boil-zone bubble-pop slope (mercuryRoil.POP_AMP × this)
+  exoGain: 1,        // sodium tail + Hg vapour haze brightness
 };

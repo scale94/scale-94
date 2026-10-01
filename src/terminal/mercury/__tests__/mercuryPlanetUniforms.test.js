@@ -3,6 +3,7 @@ import { planetEphemerisUniforms } from '../MercuryPlanet';
 import { mercuryEphemeris } from '../planet/mercuryEphemeris';
 import { bodyYawFor } from '../planet/planetFrame';
 import { subsolarTempK } from '../planet/mercuryThermal';
+import { tailBrightness } from '../planet/mercuryExosphere';
 
 describe('planetEphemerisUniforms', () => {
   const t = Date.UTC(2026, 9, 1);
@@ -23,5 +24,11 @@ describe('planetEphemerisUniforms', () => {
   });
   it('subsolarT comes from the thermal model at the live distance', () => {
     expect(planetEphemerisUniforms(t).subsolarT).toBe(subsolarTempK(mercuryEphemeris(t).r));
+  });
+  it('carries the tail brightness and radial velocity for the exosphere', () => {
+    const tt = Date.UTC(2026, 9, 1, 12);
+    const u = planetEphemerisUniforms(tt);
+    expect(u.tailB).toBe(tailBrightness(tt));
+    expect(u.vrKmS).toBe(mercuryEphemeris(tt).rdotKmS);
   });
 });
