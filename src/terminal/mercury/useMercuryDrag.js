@@ -11,9 +11,18 @@ export default function useMercuryDrag(el) {
   useEffect(() => {
     if (!el) return undefined;
     el.style.cursor = 'grab';
-    const aim = (e) => {
+    // Layout is read once per drag, at pointerdown. A read per pointermove forces a
+    // synchronous layout whenever anything dirtied the DOM since the last frame, and
+    // Android delivers touch moves at 120 Hz+ (measured: the phone's input stalls).
+    // The canvas does not move under a captured drag (touch-action: none).
+    const box = { left: 0, top: 0, width: 1, height: 1, clientHeight: 1 };
+    const measure = () => {
       const r = el.getBoundingClientRect();
-      tracker.aim(((e.clientX - r.left) / Math.max(r.width, 1)) * 2 - 1, 1 - ((e.clientY - r.top) / Math.max(r.height, 1)) * 2);
+      box.left = r.left; box.top = r.top; box.width = r.width; box.height = r.height;
+      box.clientHeight = el.clientHeight;
+    };
+    const aim = (e) => {
+      tracker.aim(((e.clientX - box.left) / Math.max(box.width, 1)) * 2 - 1, 1 - ((e.clientY - box.top) / Math.max(box.height, 1)) * 2);
     };
     const onDown = (e) => {
       if (e.button !== 0 || e.isPrimary === false) return;
@@ -21,13 +30,14 @@ export default function useMercuryDrag(el) {
       activePointerIdRef.current = e.pointerId;
       el.setPointerCapture?.(e.pointerId);
       el.style.cursor = 'grabbing';
+      measure();
       tracker.down(e.clientX, e.clientY, e.timeStamp);
       aim(e);
     };
     const onMove = (e) => {
       if (e.pointerId !== activePointerIdRef.current) return;
       aim(e);
-      tracker.move(e.clientX, e.clientY, e.timeStamp, el.clientHeight);
+      tracker.move(e.clientX, e.clientY, e.timeStamp, box.clientHeight);
     };
     const endDrag = (e) => {
       if (e.pointerId !== activePointerIdRef.current) return;

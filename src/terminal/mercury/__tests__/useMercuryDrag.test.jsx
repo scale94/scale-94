@@ -107,6 +107,24 @@ describe('useMercuryDrag', () => {
     expect(s.omegaPtr[1]).toBeCloseTo((80 * 2.5) / 800 / 0.1, 9);
   });
 
+  it('pointermove does no layout reads: the rect and height are cached at pointerdown', () => {
+    const el = document.createElement('div');
+    const heightGet = vi.fn(() => 800);
+    Object.defineProperty(el, 'clientHeight', { get: heightGet });
+    const rectSpy = vi.spyOn(el, 'getBoundingClientRect');
+    el.setPointerCapture = vi.fn();
+    const { result } = renderHook(() => useMercuryDrag(el));
+    mockNow = 0;
+    el.dispatchEvent(ev('pointerdown', { clientX: 100, clientY: 100 }));
+    const reads = rectSpy.mock.calls.length + heightGet.mock.calls.length;
+    for (let i = 1; i <= 5; i++) {
+      mockNow = 20 * i;
+      el.dispatchEvent(ev('pointermove', { clientX: 100 + 16 * i, clientY: 100 }));
+    }
+    expect(rectSpy.mock.calls.length + heightGet.mock.calls.length).toBe(reads);
+    expect(result.current.sample(mockNow).omegaPtr[1]).toBeGreaterThan(0);
+  });
+
   it('pointerdown on a remounted element starts a new drag', () => {
     const el1 = document.createElement('div');
     Object.defineProperty(el1, 'clientHeight', { value: 800 });
