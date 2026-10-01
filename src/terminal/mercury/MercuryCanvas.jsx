@@ -4,13 +4,9 @@ import * as THREE from 'three';
 
 import { TUNE } from './mercuryTuning';
 import ParticleFlow    from '../fluid/ParticleFlow';
-import GlassKnot       from '../fluid/GlassKnot';
 import ThermalFlow     from '../thermal/ThermalFlow';
-import GlassHearth     from '../thermal/GlassHearth';
 import SedimentFlow    from '../earth/SedimentFlow';
-import CrystalGeode    from '../earth/CrystalGeode';
 import AtmosphericFlow from '../air/AtmosphericFlow';
-import AtmoShell       from '../air/AtmoShell';
 import MercurySphere   from './MercurySphere';
 import MercuryPlanet   from './MercuryPlanet';
 import MercuryPerfHud from './MercuryPerfHud';
@@ -76,6 +72,8 @@ export default function MercuryCanvas({
     >
       <Suspense fallback={null}>
         {/* NormalBlending: prevents additive accumulation to white in multi-system canvas */}
+        {/* No transmission-glass boundary meshes here: drei's transmission-glass material renders the
+            whole scene into its own FBO every frame even while hidden (8 extra renders per frame). */}
         <ParticleFlow
           isMobile={isMobile}
           speed={params.speed}
@@ -90,8 +88,6 @@ export default function MercuryCanvas({
           condenseSizeBite={TUNE.condenseSizeBite}
           planetWindow={1}
         />
-        {/* Boundary geometries hidden — the planet (MercuryPlanet) is the visual anchor */}
-        <GlassKnot isMobile={isMobile} visible={false} />
 
         <ThermalFlow
           isMobile={isMobile}
@@ -106,7 +102,6 @@ export default function MercuryCanvas({
           condenseSizeBite={TUNE.condenseSizeBite}
           planetWindow={1}
         />
-        <GlassHearth isMobile={isMobile} visible={false} />
 
         <SedimentFlow
           isMobile={isMobile}
@@ -121,7 +116,6 @@ export default function MercuryCanvas({
           condenseSizeBite={TUNE.condenseSizeBite}
           planetWindow={1}
         />
-        <CrystalGeode isMobile={isMobile} visible={false} />
 
         <AtmosphericFlow
           isMobile={isMobile}
@@ -136,7 +130,6 @@ export default function MercuryCanvas({
           condenseSizeBite={TUNE.condenseSizeBite}
           planetWindow={1}
         />
-        <AtmoShell isMobile={isMobile} visible={false} />
 
         <MercuryPlanet
           isMobile={isMobile}
