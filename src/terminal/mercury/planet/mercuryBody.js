@@ -7,7 +7,7 @@
 // relaxation takes millions of years; the 3:2 lock is what the ephemeris
 // orientation IS. Dissipated rotation heats a store (H += κ|ω|²dt, leaks λH),
 // and transmutation τ ∈ [0,1] follows melt/freeze thresholds with
-// hysteresis, so liquid lingers ~30–60 s after a spin.
+// hysteresis; the store is capped (HEAT_CAP_K), so liquid lingers ≤ ~40 s after a spin.
 // Fixed-size substeps (≤ MAX_SUBSTEP_S) make 60 Hz and 360 Hz agree.
 
 import * as THREE from 'three';
@@ -22,6 +22,8 @@ export const HEAT_GAIN = 0.58;         // K per (rad/s)² per s
 export const HEAT_LEAK_PER_S = 0.035;
 export const MELT_HEAT_K = 60;
 export const FREEZE_HEAT_K = 25;
+export const HEAT_CAP_K = 80;          // bounds the store: even a hard spin refreezes ~40 s after release,
+                                       // and night (100 K floor + cap) stays below the 234 K melt
 export const TRANSMUTE_S = 3;          // τ 0 → 1 duration
 
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
@@ -101,6 +103,7 @@ function substep(b, h, dragging, omegaPtr, target) {
   }
 
   b.heatK += (HEAT_GAIN * w.lengthSq() - HEAT_LEAK_PER_S * b.heatK) * h;
+  if (b.heatK > HEAT_CAP_K) b.heatK = HEAT_CAP_K;
   if (b.heatK >= MELT_HEAT_K) b.liquid = true;
   else if (b.heatK <= FREEZE_HEAT_K) b.liquid = false;
   const goal = b.liquid ? 1 : 0;

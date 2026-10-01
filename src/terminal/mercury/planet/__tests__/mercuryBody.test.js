@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import {
   createBody, stepBody, targetFromYaw, rotationError,
-  MELT_HEAT_K, FREEZE_HEAT_K, MAX_OMEGA,
+  MELT_HEAT_K, FREEZE_HEAT_K, MAX_OMEGA, HEAT_CAP_K,
 } from '../mercuryBody';
 import { rotY } from '../planetFrame';
 
@@ -78,6 +78,17 @@ describe('mercuryBody', () => {
     expect(at(samples, 35).tau).toBeGreaterThan(0.99);
     expect(at(samples, 100).tau).toBe(0);
     expect(at(samples, 100).heatK).toBeLessThan(FREEZE_HEAT_K);
+  });
+
+  it('even a hard spin refreezes ~40 s after release: heat is capped', () => {
+    const releaseS = 20;
+    const { samples } = run(60, 90, releaseS, [0, MAX_OMEGA, 0]);
+    expect(Math.max(...samples.map((s) => s.heatK))).toBeLessThanOrEqual(HEAT_CAP_K + 1e-9);
+    const thaw = samples.find((s) => s.t > releaseS && s.tau < 0.99);
+    expect(thaw).toBeDefined();
+    expect(thaw.t - releaseS).toBeGreaterThan(33);
+    expect(thaw.t - releaseS).toBeLessThan(45);
+    expect(at(samples, 90).tau).toBe(0);
   });
 
   it('60 Hz and 360 Hz give the same trajectory (time-based parity)', () => {

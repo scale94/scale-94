@@ -143,3 +143,13 @@ enhanced-colour mosaic and global DEM (public domain), resample to equirect.
 ## 9. Out of scope
 KernelTab's `MercuryTerminator` gauge and the retrograde easter egg (could later read
 this ephemeris). A Sun shader. Persisting scars across visits.
+
+## Amendment 2026-10-01 — after the phase-2 live look (author decisions)
+
+The first live render of phase 2 showed the transmuted liquid as a black glass ball. The author decided:
+
+1. **The aether is reflected.** "Liquid metal wrapped in an alchemical aether": the aether surrounds the planet on every side, including the camera side we never see. The mirror reflects it as 8 analytic soft lobes coloured by the live element flows. Still no cubemap, no PMREM. This supersedes "reflects only the Sun, the four elements, and black space".
+2. **Night side** is a cold, deep, low-luminance silver/indigo: the aether attenuated on the night hemisphere via the surface normal's Sun-facing. Clearly darker than day, never black glass. This supersedes "night side stays near-black".
+3. **Element reflections** are widened so the elements wash broad tints across the liquid, not grazing rims.
+4. **Boiling Sun glint:** a broad bright sheen in the boil zone that tightens to a pinpoint as the surface cools (brighter true Sun radiance + a soft highlight shoulder; the lobe already conserves energy).
+5. **Linger** ~40 s, even after a hard spin (heat store capped). This supersedes "~30–60 s".
