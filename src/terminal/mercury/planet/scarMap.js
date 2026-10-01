@@ -14,7 +14,7 @@ export const SCAR_W = 1024;
 export const SCAR_H = 512;
 export const SCAR_DEPTH_RANGE_M = 4000;
 export const RAY_MATURE_S = 180;
-export const SCAR_TICK_S = 1;
+export const SCAR_TICK_S = 5;   // rays mature over minutes; a 5 s step is invisible and uploads the 2 MB map 5x less often
 const DEPTH_REACH = 2.5;   // crater radii; the ejecta blanket is < 1 % of the rim beyond this
 const RAY_FLOOR = 1 / 512;
 
