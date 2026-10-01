@@ -76,6 +76,7 @@ describe('scar map', () => {
     const [cx, cy] = nearest(m, d);
     const i = idx(m, cx, cy);
     const depth = m.depth[i];
+    expect(matureScars(m, 1e-6)).toBe(false);   // a step too small to move any byte: no upload
     expect(matureScars(m, 60)).toBe(true);
     expect(m.ray[i]).toBeCloseTo(Math.exp(-60 / RAY_MATURE_S), 5);
     expect(m.depth[i]).toBe(depth);

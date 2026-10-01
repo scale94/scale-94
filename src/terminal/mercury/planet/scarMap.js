@@ -99,16 +99,17 @@ export function stampCrater(map, d, seed) {
 export function matureScars(map, dtS) {
   if (!map.rayLive) return false;
   const k = Math.exp(-dtS / RAY_MATURE_S);
-  let live = false;
+  let live = false, changed = false;
   for (let i = 0; i < map.ray.length; i++) {
     if (map.ray[i] === 0) continue;
     const r = map.ray[i] * k;
     map.ray[i] = r < RAY_FLOOR ? 0 : r;
     if (map.ray[i] > 0) live = true;
-    map.bytes[4 * i + 1] = Math.round(map.ray[i] * 255);
+    const g = Math.round(map.ray[i] * 255);
+    if (g !== map.bytes[4 * i + 1]) { map.bytes[4 * i + 1] = g; changed = true; }
   }
   map.rayLive = live;
-  return true;
+  return changed;   // true only when a byte moved: that is what costs a texture upload
 }
 
 export function healScars(map) {
