@@ -279,7 +279,11 @@ describe('mercuryPlanetShader contract', () => {
     expect(PLANET_FS).toContain('const float ROIL_MOTION = 1.0;');
     expect(buildPlanetShader({ tier: 'lite' }).fs).toContain('const int ROIL_POPS = 0;');
     // the lite tier's stand-in activity is a named constant, not a literal
-    expect(PLANET_FS).toContain('else { rt = roilNoiseTilt(xb, uTime * ROIL_MOTION); popAct = ROIL_LITE_ACT; }');
+    expect(PLANET_FS).toContain('else { rt = roilNoiseTilt(xb, uTime * ROIL_MOTION, pxArc); popAct = ROIL_LITE_ACT; }');
+    // M2: the lite noise's cells (1/ROIL_LITE_FREQ rad) fade by bandAA where they fall under a few px
+    const lite = buildPlanetShader({ tier: 'lite' }).fs;
+    expect(lite).toContain('vec3 roilNoiseTilt(vec3 xb, float t, float pxArc) {');
+    expect(lite).toContain('return ROIL_LITE_AMP * bandAA(TAU * ROIL_LITE_FREQ, pxArc) * (g - xb * dot(g, xb));');
     expect(buildPlanetShader({ calm: true }).fs).toContain('const float ROIL_MOTION = 0.0;');
     expect(PLANET_FS).toContain('uniform float uRoilGain;');
     expect(PLANET_UNIFORMS).toContain('uRoilGain');

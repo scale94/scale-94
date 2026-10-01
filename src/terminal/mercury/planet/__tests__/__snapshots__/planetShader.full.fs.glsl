@@ -420,11 +420,12 @@ vec3 roilTilt(vec3 xb, float t, float dT, float pxArc, out float act) {
   return g;
 }
 
-// lite tier: one octave of animated value noise, tangential.
-vec3 roilNoiseTilt(vec3 xb, float t) {
+// lite tier: one octave of animated value noise, tangential; its cells fade by bandAA
+// where they fall under a few pixels (they only alias there).
+vec3 roilNoiseTilt(vec3 xb, float t, float pxArc) {
   vec3 p = xb * ROIL_LITE_FREQ + vec3(0.0, t * ROIL_LITE_SPEED, 0.0);
   vec3 g = vec3(vnoise3(p), vnoise3(p + vec3(31.4, 0.0, 0.0)), vnoise3(p + vec3(0.0, 47.2, 0.0))) - 0.5;
-  return ROIL_LITE_AMP * (g - xb * dot(g, xb));
+  return ROIL_LITE_AMP * bandAA(TAU * ROIL_LITE_FREQ, pxArc) * (g - xb * dot(g, xb));
 }
 
 void main() {
@@ -541,7 +542,7 @@ void main() {
       if (boilW > 0.0) {
         vec3 rt;
         if (ROIL_POPS == 1) rt = roilTilt(xb, uTime * ROIL_MOTION, T - HG_BOIL_K, pxArc, popAct);
-        else { rt = roilNoiseTilt(xb, uTime * ROIL_MOTION); popAct = ROIL_LITE_ACT; }
+        else { rt = roilNoiseTilt(xb, uTime * ROIL_MOTION, pxArc); popAct = ROIL_LITE_ACT; }
         nW = normalize(nW - (fluid * boilW * uRoilGain * ROIL_MOTION) * (uBodyRot * rt));
       }
       vec3 R = reflect(rd, nW);
