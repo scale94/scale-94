@@ -1,7 +1,7 @@
 import { useRef, useMemo, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { PLANET_WINDOW_GLSL } from '../mercury/planet/planetWindow';
+import { PLANET_WINDOW_VS, PLANET_WINDOW_FS } from '../mercury/planet/planetWindow';
 import { R_SCENE } from '../mercury/planet/planetLook';
 
 // ── Torus Knot parametric helpers ──────────────────────────────────────────
@@ -16,8 +16,7 @@ function knotPoint(t, R = 1, r = 0.4) {
 
 // ── GLSL Shaders ───────────────────────────────────────────────────────────
 const vertexShader = /* glsl */ `
-  ${PLANET_WINDOW_GLSL}
-  varying float vWindow;
+  ${PLANET_WINDOW_VS}
   uniform float uTime;
   uniform float uSpeed;
   uniform float uCurlAmp;
@@ -150,12 +149,12 @@ const vertexShader = /* glsl */ `
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_PointSize = (1.5 + aRadius * 2.0) * (300.0 / -mvPosition.z) * (1.0 - uCondense * uCondenseSizeBite);
     gl_Position = projectionMatrix * mvPosition;
-    vWindow = planetWindow(mvPosition.xyz);
+    planetWindowVS(mvPosition.xyz);
   }
 `;
 
 const fragmentShader = /* glsl */ `
-  varying float vWindow;
+  ${PLANET_WINDOW_FS}
   uniform float uOpacity;
   varying float vHue;
   varying float vBrightness;
@@ -186,7 +185,7 @@ const fragmentShader = /* glsl */ `
     // so overlapping sprites decorrelate instead of summing the same noise.
     float dither = (fract(sin(dot(gl_FragCoord.xy + gl_PointCoord * 61.803, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
 
-    gl_FragColor = vec4(color, (alpha * 0.95 * uOpacity) * vWindow + dither);
+    gl_FragColor = vec4(color, (alpha * 0.95 * uOpacity) * planetWindow() + dither);
   }
 `;
 
@@ -246,11 +245,12 @@ export default function ParticleFlow({
     uCondense:         { value: condense },
     uCondenseSizeBite: { value: condenseSizeBite },
     uPlanetWindow: { value: planetWindow },
+    uViewportPx: { value: new THREE.Vector2(1, 1) },
     uPlanetRadius: { value: R_SCENE },
   }));
 
   // Update uniforms from props each frame + FPS counter
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     const mat = materialRef.current;
     if (mat) {
       mat.uniforms.uTime.value += delta;
@@ -262,6 +262,7 @@ export default function ParticleFlow({
       mat.uniforms.uCondense.value         = condense;
       mat.uniforms.uCondenseSizeBite.value = condenseSizeBite;
       mat.uniforms.uPlanetWindow.value = planetWindow;
+      state.gl.getDrawingBufferSize(mat.uniforms.uViewportPx.value);
     }
     // FPS counter — report once per second
     if (onFps) {

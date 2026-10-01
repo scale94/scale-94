@@ -1,13 +1,12 @@
 import { useRef, useMemo, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { PLANET_WINDOW_GLSL } from '../mercury/planet/planetWindow';
+import { PLANET_WINDOW_VS, PLANET_WINDOW_FS } from '../mercury/planet/planetWindow';
 import { R_SCENE } from '../mercury/planet/planetLook';
 
 // ── GLSL ───────────────────────────────────────────────────────────────────
 const vertexShader = /* glsl */ `
-  ${PLANET_WINDOW_GLSL}
-  varying float vWindow;
+  ${PLANET_WINDOW_VS}
   uniform float uTime;
   uniform float uSpeed;
   uniform float uTurbulence;
@@ -142,12 +141,12 @@ const vertexShader = /* glsl */ `
     vec4 mvPos = modelViewMatrix * vec4(pos, 1.0);
     gl_PointSize = baseSize * ageFactor * (280.0 / -mvPos.z) * (1.0 - uCondense * uCondenseSizeBite);
     gl_Position  = projectionMatrix * mvPos;
-    vWindow = planetWindow(mvPos.xyz);
+    planetWindowVS(mvPos.xyz);
   }
 `;
 
 const fragmentShader = /* glsl */ `
-  varying float vWindow;
+  ${PLANET_WINDOW_FS}
   uniform float uOpacity;
   varying float vStrata;
   varying float vAlpha;
@@ -190,7 +189,7 @@ const fragmentShader = /* glsl */ `
 
     // Banding dither — see ParticleFlow.jsx for the physics note.
     float dither = (fract(sin(dot(gl_FragCoord.xy + gl_PointCoord * 61.803, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
-    gl_FragColor = vec4(col, (alpha * vAlpha * (0.5 + (1.0 - vStrata) * 0.4) * uOpacity) * vWindow + dither);
+    gl_FragColor = vec4(col, (alpha * vAlpha * (0.5 + (1.0 - vStrata) * 0.4) * uOpacity) * planetWindow() + dither);
   }
 `;
 
@@ -253,10 +252,11 @@ export default function SedimentFlow({
     uCondense:         { value: condense },
     uCondenseSizeBite: { value: condenseSizeBite },
     uPlanetWindow: { value: planetWindow },
+    uViewportPx: { value: new THREE.Vector2(1, 1) },
     uPlanetRadius: { value: R_SCENE },
   }));
 
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     const mat = materialRef.current;
     if (mat) {
       mat.uniforms.uTime.value          += delta;
@@ -267,6 +267,7 @@ export default function SedimentFlow({
       mat.uniforms.uCondense.value         = condense;
       mat.uniforms.uCondenseSizeBite.value = condenseSizeBite;
       mat.uniforms.uPlanetWindow.value = planetWindow;
+      state.gl.getDrawingBufferSize(mat.uniforms.uViewportPx.value);
     }
     if (onFps) {
       fpsFrames.current++;

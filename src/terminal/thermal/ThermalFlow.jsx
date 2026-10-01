@@ -1,13 +1,12 @@
 import { useRef, useMemo, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { PLANET_WINDOW_GLSL } from '../mercury/planet/planetWindow';
+import { PLANET_WINDOW_VS, PLANET_WINDOW_FS } from '../mercury/planet/planetWindow';
 import { R_SCENE } from '../mercury/planet/planetLook';
 
 // ── GLSL ───────────────────────────────────────────────────────────────────
 const vertexShader = /* glsl */ `
-  ${PLANET_WINDOW_GLSL}
-  varying float vWindow;
+  ${PLANET_WINDOW_VS}
   uniform float uTime;
   uniform float uSpeed;
   uniform float uTurbulence;
@@ -153,12 +152,12 @@ const vertexShader = /* glsl */ `
     float depth  = max(-mvPos.z, 0.5);
     gl_PointSize = min(baseSize * sizeFactor * emberShrink * (80.0 / depth), uPointSizeMax) * (1.0 - uCondense * uCondenseSizeBite);
     gl_Position  = projectionMatrix * mvPos;
-    vWindow = planetWindow(mvPos.xyz);
+    planetWindowVS(mvPos.xyz);
   }
 `;
 
 const fragmentShader = /* glsl */ `
-  varying float vWindow;
+  ${PLANET_WINDOW_FS}
   uniform float uOpacity;
   varying float vAge;
   varying float vTemp;
@@ -199,7 +198,7 @@ const fragmentShader = /* glsl */ `
     float finalAlpha = alpha * vAlpha * (0.006 + vTemp * 0.012);
     // Banding dither — see ParticleFlow.jsx for the physics note.
     float dither = (fract(sin(dot(gl_FragCoord.xy + gl_PointCoord * 61.803, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
-    gl_FragColor = vec4(col, (finalAlpha * uOpacity) * vWindow + dither);
+    gl_FragColor = vec4(col, (finalAlpha * uOpacity) * planetWindow() + dither);
   }
 `;
 
@@ -264,10 +263,11 @@ export default function ThermalFlow({
     uCondense:         { value: condense },
     uCondenseSizeBite: { value: condenseSizeBite },
     uPlanetWindow: { value: planetWindow },
+    uViewportPx: { value: new THREE.Vector2(1, 1) },
     uPlanetRadius: { value: R_SCENE },
   }));
 
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     const mat = materialRef.current;
     if (mat) {
       mat.uniforms.uTime.value       += delta;
@@ -278,6 +278,7 @@ export default function ThermalFlow({
       mat.uniforms.uCondense.value         = condense;
       mat.uniforms.uCondenseSizeBite.value = condenseSizeBite;
       mat.uniforms.uPlanetWindow.value = planetWindow;
+      state.gl.getDrawingBufferSize(mat.uniforms.uViewportPx.value);
     }
     if (onFps) {
       fpsFrames.current++;
