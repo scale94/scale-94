@@ -23,7 +23,7 @@ import { SCAR_DEPTH_RANGE_M } from '../scarMap';
 import { RAY_ALBEDO } from '../planetLook';
 import {
   POP_FREQ, POP_JITTER, POP_REACH, POP_REACH_RAD, POP_SCALE, POP_LIFE_S, POP_TIME, POP_P_MIN, POP_P_MAX,
-  POP_DENSITY_K, POP_AMP, POP_SALTS, ROIL_LITE_FREQ, ROIL_LITE_SPEED, ROIL_LITE_AMP, ROIL_LITE_ACT, popScale, popTime,
+  POP_DENSITY_K, POP_AMP, POP_SALTS, ROIL_LITE_FREQ, ROIL_LITE_SPEED, ROIL_LITE_AMP, ROIL_LITE_ACT,
 } from '../mercuryRoil';
 import {
   IMPULSE_SLOTS, SHAPE_MAX, SHAPE_ITERS, WAVE_KR, WAVE_C_GROUP, WAVE_SPREAD_FLOOR,
@@ -273,17 +273,20 @@ describe('mercuryPlanetShader contract', () => {
       POP_DENSITY_K, POP_AMP, ROIL_LITE_FREQ, ROIL_LITE_SPEED, ROIL_LITE_AMP, ROIL_LITE_ACT,
     })) expect(PLANET_FS).toContain(`const float ${name} = ${glf(value)};`);
     for (const [k, s] of Object.entries(POP_SALTS)) expect(PLANET_FS).toContain(`const vec3 POP_SALT_${k.toUpperCase()} = ${v3(s)};`);
-    expect(PLANET_FS).toContain('float popSlope(float th, float age, float pxArc)');
-    expect(PLANET_FS).toContain('vec3 roilTilt(vec3 xb, float t, float dT, float pxArc, out float act)');
+    expect(PLANET_FS).toContain('float popSlope(float th, float age, float pxArc, float zoom)');
+    expect(PLANET_FS).toContain('vec3 roilTilt(vec3 xb, float t, float dT, float pxArc, float zoom, out float act)');
     expect(PLANET_FS).toContain('const int ROIL_POPS = 1;');
     expect(PLANET_FS).toContain('const float ROIL_MOTION = 1.0;');
     expect(buildPlanetShader({ tier: 'lite' }).fs).toContain('const int ROIL_POPS = 0;');
     // the lite tier's stand-in activity is a named constant, not a literal
-    expect(PLANET_FS).toContain('else { rt = roilNoiseTilt(xb, uTime * ROIL_MOTION, pxArc); popAct = ROIL_LITE_ACT; }');
+    expect(PLANET_FS).toContain('else { rt = roilNoiseTilt(xb, uTime * ROIL_MOTION, pxArc, uPopZoom); popAct = ROIL_LITE_ACT; }');
     // M2: the lite noise's cells (1/ROIL_LITE_FREQ rad) fade by bandAA where they fall under a few px
     const lite = buildPlanetShader({ tier: 'lite' }).fs;
-    expect(lite).toContain('vec3 roilNoiseTilt(vec3 xb, float t, float pxArc) {');
-    expect(lite).toContain('return ROIL_LITE_AMP * bandAA(TAU * ROIL_LITE_FREQ, pxArc) * (g - xb * dot(g, xb));');
+    // …and their size follows the live pixel footprint like the pops' (uPopZoom)
+    expect(lite).toContain('vec3 roilNoiseTilt(vec3 xb, float t, float pxArc, float zoom) {');
+    expect(lite).toContain('float freq = ROIL_LITE_FREQ / zoom;');
+    expect(lite).toContain('vec3 p = xb * freq + vec3(0.0, t * ROIL_LITE_SPEED, 0.0);');
+    expect(lite).toContain('return ROIL_LITE_AMP * bandAA(TAU * freq, pxArc) * (g - xb * dot(g, xb));');
     expect(buildPlanetShader({ calm: true }).fs).toContain('const float ROIL_MOTION = 0.0;');
     expect(PLANET_FS).toContain('uniform float uRoilGain;');
     expect(PLANET_UNIFORMS).toContain('uRoilGain');
@@ -291,15 +294,28 @@ describe('mercuryPlanetShader contract', () => {
     expect(PLANET_FS).toContain('mix(ROUGH_LIQUID, ROUGH_BOIL, boilW * (0.5 + 0.5 * popAct))');
   });
 
-  it('roil: the pop scale is a tier axis (POP_SCALE / POP_TIME per variant, from popRefTh)', () => {
+  it('roil: the pop size follows the live pixel footprint (uPopZoom); one geometry for every variant', () => {
+    expect(PLANET_UNIFORMS).toContain('uPopZoom');
     for (const tier of TIER_NAMES) {
       for (const calm of [false, true]) {
         const fs = buildPlanetShader({ tier, calm }).fs;
-        expect(fs).toContain(`const float POP_SCALE = ${glf(popScale(TIERS[tier].popRefTh))};`);
-        expect(fs).toContain(`const float POP_TIME = ${glf(popTime(TIERS[tier].popRefTh))};`);
+        expect(fs).toContain('uniform float uPopZoom;');
+        expect(fs).toContain(`const float POP_SCALE = ${glf(POP_SCALE)};`);
+        expect(fs).toContain(`const float POP_TIME = ${glf(POP_TIME)};`);
       }
     }
-    expect(glf(popScale(TIERS.phone.popRefTh))).not.toBe(glf(POP_SCALE));
+    // mercuryRoil.popSlope / roilTilt with zoom, exactly: cells POP_FREQ / zoom, reach × zoom, scale ÷ zoom
+    expect(PLANET_FS).toContain('float reach = POP_REACH_RAD * zoom;');
+    expect(PLANET_FS).toContain('if (th >= reach || age >= POP_LIFE_S) return 0.0;');
+    expect(PLANET_FS).toContain('float scale = POP_SCALE / zoom;');
+    expect(PLANET_FS).toContain('float w = 1.0 - smoothstep(0.7 * reach, reach, th);');
+    expect(PLANET_FS).toContain('return POP_AMP * w * life * rippleSlope(th * scale, max(age * POP_TIME, 1e-3), pxArc * scale);');
+    expect(PLANET_FS).toContain('float freq = POP_FREQ / zoom;');
+    expect(PLANET_FS).toContain('vec3 p = xb * freq;');
+    expect(PLANET_FS).toContain('g += popSlope(d / freq, age, pxArc, zoom) * tang / tl;');
+    expect(PLANET_FS).toContain('rt = roilTilt(xb, uTime * ROIL_MOTION, T - HG_BOIL_K, pxArc, uPopZoom, popAct);');
+    // a uniform, never a derivative
+    expect(PLANET_FS).not.toMatch(/fwidth\([^)]*uPopZoom/);
   });
 
   it('roil runs only in the boil band and never takes a derivative', () => {

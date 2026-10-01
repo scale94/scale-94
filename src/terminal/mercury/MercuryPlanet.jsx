@@ -25,6 +25,7 @@ import {
   IMPACT_MODE_AMP, IMPACT_WAVE_AMP, strikeDirWorld, worldToBody, bodyToWorld, localTempK, impactKind, calmGlow,
 } from './planet/mercuryImpacts';
 import { pickSphereDir } from './planet/pickSphere';
+import { popZoom, subsolarPxArc } from './planet/mercuryRoil';
 import { createBody, stepBody, coolBody, targetFromYaw } from './planet/mercuryBody';
 import { ORBIT_NODES, orbitPrecessionAngle, nodeWorldPosition } from './orbitNodes';
 import useMercuryDrag from './useMercuryDrag';
@@ -67,6 +68,8 @@ function loadMap(loader, url, srgb) {
 export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = false, emitters = {}, strikes = null }) {
   const gl = useThree((s) => s.gl);
   const camera = useThree((s) => s.camera);
+  // The drawing buffer's height in device px: the pops are sized from it (mercuryRoil.popZoom).
+  const bufferH = useThree((s) => s.size.height * s.viewport.dpr);
   const drag = useMercuryDrag(gl.domElement);
   const geometry = useMemo(() => new THREE.PlaneGeometry(2, 2), []);
 
@@ -131,6 +134,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
       uScar: { value: scarTex },
       uRayGain: { value: PLANET_TUNE.rayGain },
       uRoilGain: { value: PLANET_TUNE.roilGain },
+      uPopZoom: { value: 1 },
       uSurfOn: { value: 0 },
       uImpDir: { value: Array.from({ length: IMPULSE_SLOTS }, () => new THREE.Vector3(0, 0, 1)) },
       uImpMode: { value: Array.from({ length: IMPULSE_SLOTS }, () => new THREE.Vector3()) },
@@ -197,6 +201,12 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
   }, [isMobile]);
   // Layout effects run in the commit that attaches a new material, before r3f's next frame.
   useLayoutEffect(() => { bindPlanetMaps(material.uniforms, maps); }, [material, maps]);
+
+  // Pop size from the screen: on mount, on resize / DPR change, and for each new material; never per frame.
+  // The pop lattice re-forms only here, so a pop never jumps mid-life except on a resize.
+  useLayoutEffect(() => {
+    material.uniforms.uPopZoom.value = popZoom(subsolarPxArc(isMobile ? 'mobile' : 'desktop', bufferH));
+  }, [material, bufferH, isMobile]);
 
   // A new material starts from the mount-time ephemeris; refresh it on the very next frame.
   const nextEphemeris = useRef(0);

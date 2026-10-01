@@ -43,6 +43,7 @@ uniform vec3 uImpMode[8];
 uniform vec2 uImpWave[8];
 uniform vec4 uBulge;
 uniform float uRoilGain;
+uniform float uPopZoom;
 
 const float PI = 3.14159265358979;
 const float TAU = 6.28318530717959;
@@ -383,21 +384,26 @@ vec3 waveTilt(vec3 x, float pxArc, float warp) {
 // mercuryRoil, exactly (phase-4 spec §6, R1, R2): the boil band as bubble-collapse pops.
 float popDensity(float dT) { return dT > 0.0 ? 1.0 - exp(-dT / POP_DENSITY_K) : 0.0; }
 
-float popSlope(float th, float age, float pxArc) {
-  if (th >= POP_REACH_RAD || age >= POP_LIFE_S) return 0.0;
-  float w = 1.0 - smoothstep(0.7 * POP_REACH_RAD, POP_REACH_RAD, th);
+// zoom = uPopZoom (mercuryRoil.popZoom, CPU-side from the live canvas, a uniform): a pop is the
+// zoom-1 pop stretched in space, its clock unchanged, so R1 and R2 hold at every zoom.
+float popSlope(float th, float age, float pxArc, float zoom) {
+  float reach = POP_REACH_RAD * zoom;
+  if (th >= reach || age >= POP_LIFE_S) return 0.0;
+  float scale = POP_SCALE / zoom;
+  float w = 1.0 - smoothstep(0.7 * reach, reach, th);
   float life = 1.0 - smoothstep(0.7 * POP_LIFE_S, POP_LIFE_S, age);
-  return POP_AMP * w * life * rippleSlope(th * POP_SCALE, max(age * POP_TIME, 1e-3), pxArc * POP_SCALE);
+  return POP_AMP * w * life * rippleSlope(th * scale, max(age * POP_TIME, 1e-3), pxArc * scale);
 }
 
 // Tangential slope (body frame) of every active pop within reach, plus local activity.
 // No derivatives in here (it has continue).
-vec3 roilTilt(vec3 xb, float t, float dT, float pxArc, out float act) {
+vec3 roilTilt(vec3 xb, float t, float dT, float pxArc, float zoom, out float act) {
   act = 0.0;
   vec3 g = vec3(0.0);
   float dens = popDensity(dT);
   if (dens <= 0.0) return g;
-  vec3 p = xb * POP_FREQ;
+  float freq = POP_FREQ / zoom;
+  vec3 p = xb * freq;
   vec3 base = floor(p - 0.5);
   for (int i = 0; i < 8; i++) {
     vec3 c = base + vec3(float(i & 1), float((i >> 1) & 1), float((i >> 2) & 1));
@@ -413,7 +419,7 @@ vec3 roilTilt(vec3 xb, float t, float dT, float pxArc, out float act) {
     vec3 tang = dv - xb * dot(dv, xb);
     float tl = length(tang);
     if (tl < 1e-5) continue;
-    g += popSlope(d / POP_FREQ, age, pxArc) * tang / tl;
+    g += popSlope(d / freq, age, pxArc, zoom) * tang / tl;
     act += (1.0 - d / POP_REACH) * exp(-3.0 * age / POP_LIFE_S);
   }
   act = min(act, 1.0);
@@ -421,11 +427,12 @@ vec3 roilTilt(vec3 xb, float t, float dT, float pxArc, out float act) {
 }
 
 // lite tier: one octave of animated value noise, tangential; its cells fade by bandAA
-// where they fall under a few pixels (they only alias there).
-vec3 roilNoiseTilt(vec3 xb, float t, float pxArc) {
-  vec3 p = xb * ROIL_LITE_FREQ + vec3(0.0, t * ROIL_LITE_SPEED, 0.0);
+// where they fall under a few pixels (they only alias there); like the pops, they grow by zoom.
+vec3 roilNoiseTilt(vec3 xb, float t, float pxArc, float zoom) {
+  float freq = ROIL_LITE_FREQ / zoom;
+  vec3 p = xb * freq + vec3(0.0, t * ROIL_LITE_SPEED, 0.0);
   vec3 g = vec3(vnoise3(p), vnoise3(p + vec3(31.4, 0.0, 0.0)), vnoise3(p + vec3(0.0, 47.2, 0.0))) - 0.5;
-  return ROIL_LITE_AMP * bandAA(TAU * ROIL_LITE_FREQ, pxArc) * (g - xb * dot(g, xb));
+  return ROIL_LITE_AMP * bandAA(TAU * freq, pxArc) * (g - xb * dot(g, xb));
 }
 
 void main() {
@@ -541,8 +548,8 @@ void main() {
       float popAct = 0.0;
       if (boilW > 0.0) {
         vec3 rt;
-        if (ROIL_POPS == 1) rt = roilTilt(xb, uTime * ROIL_MOTION, T - HG_BOIL_K, pxArc, popAct);
-        else { rt = roilNoiseTilt(xb, uTime * ROIL_MOTION, pxArc); popAct = ROIL_LITE_ACT; }
+        if (ROIL_POPS == 1) rt = roilTilt(xb, uTime * ROIL_MOTION, T - HG_BOIL_K, pxArc, uPopZoom, popAct);
+        else { rt = roilNoiseTilt(xb, uTime * ROIL_MOTION, pxArc, uPopZoom); popAct = ROIL_LITE_ACT; }
         nW = normalize(nW - (fluid * boilW * uRoilGain * ROIL_MOTION) * (uBodyRot * rt));
       }
       vec3 R = reflect(rd, nW);

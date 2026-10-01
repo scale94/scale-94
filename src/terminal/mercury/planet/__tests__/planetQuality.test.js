@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { TIERS, TIER_NAMES, pickTier, calmOverride, perfHudOn, impulseOrder } from '../planetQuality';
 import { SHADOW_STEPS } from '../planetLook';
 import { IMPULSE_SLOTS, createImpulseFrame } from '../mercuryWaves';
-import { POP_REF_TH } from '../mercuryRoil';
 
 describe('planetQuality', () => {
   it('names three tiers; full is exactly today\'s shader budget', () => {
@@ -10,13 +9,10 @@ describe('planetQuality', () => {
     expect(TIERS.full.shadowSteps).toBe(SHADOW_STEPS);
     expect(TIERS.full.rippleSlots).toBe(IMPULSE_SLOTS);
     expect(TIERS.full.dprMax).toBe(2);
-    expect(TIERS.full.popRefTh).toBe(POP_REF_TH);
   });
 
-  it('popRefTh (ring scale, not a cost axis) is set on every tier; the phone\'s rings are coarser', () => {
-    for (const name of TIER_NAMES) expect(TIERS[name].popRefTh).toBeGreaterThan(0);
-    expect(TIERS.phone.popRefTh).toBeLessThan(TIERS.full.popRefTh);
-    expect(TIERS.phone.popRefTh).toBeCloseTo(0.125, 3);
+  it('no tier carries a pop scale: the pops are sized from the live screen (mercuryRoil.popZoom)', () => {
+    for (const name of TIER_NAMES) expect(TIERS[name]).not.toHaveProperty('popRefTh');
   });
 
   it('each tier costs no more than the one above it on every axis', () => {

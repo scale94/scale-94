@@ -3,20 +3,16 @@
 // consts) plus a DPR cap. Fixed per device class, never switched at runtime (D3);
 // ?tier= overrides it for HUD sessions. The phone column is set from the author's
 // phone HUD (checkpoint 1), not guessed.
-// popRefTh is the pop rings' scale (mercuryRoil), a LOOK axis, not a cost: the boil cap sits
-// PHASE_ANGLE_DEG off the view centre, foreshortened, and rings resolve only while
-// WAVE_K_PEAK·pxArc·popScale ≲ 2π/5. full keeps POP_REF_TH (pxArc ≈ 0.0039 at 1920×1080 DPR 2);
-// the phone halves it for its subsolar pxArc ≈ 0.0094–0.0102 (fewer, coarser crests); lite draws
-// noise, not pops, and takes the phone's value so the column stays non-increasing.
+// The pop rings' size is not a tier axis: it depends on the live canvas, not the device class,
+// so MercuryPlanet sizes it from the screen (mercuryRoil.popZoom → uPopZoom) on mount and resize.
 
 import { SHADOW_STEPS } from './planetLook';
 import { IMPULSE_SLOTS } from './mercuryWaves';
-import { POP_REF_TH } from './mercuryRoil';
 
 export const TIERS = Object.freeze({
-  full: Object.freeze({ dprMax: 2, rippleSlots: IMPULSE_SLOTS, shadowSteps: SHADOW_STEPS, roil: 'pops', exoSteps: 16, popRefTh: POP_REF_TH }),
-  phone: Object.freeze({ dprMax: 1.5, rippleSlots: 4, shadowSteps: 6, roil: 'pops', exoSteps: 8, popRefTh: 0.125 }),
-  lite: Object.freeze({ dprMax: 1, rippleSlots: 2, shadowSteps: 0, roil: 'noise', exoSteps: 0, popRefTh: 0.125 }),
+  full: Object.freeze({ dprMax: 2, rippleSlots: IMPULSE_SLOTS, shadowSteps: SHADOW_STEPS, roil: 'pops', exoSteps: 16 }),
+  phone: Object.freeze({ dprMax: 1.5, rippleSlots: 4, shadowSteps: 6, roil: 'pops', exoSteps: 8 }),
+  lite: Object.freeze({ dprMax: 1, rippleSlots: 2, shadowSteps: 0, roil: 'noise', exoSteps: 0 }),
 });
 export const TIER_NAMES = Object.keys(TIERS);
 

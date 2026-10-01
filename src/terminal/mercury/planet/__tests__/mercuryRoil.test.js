@@ -1,58 +1,45 @@
 import { describe, it, expect } from 'vitest';
 import {
-  hash13, popDensity, popSlope, popScale, popTime, roilTilt,
+  hash13, popDensity, popSlope, roilTilt, subsolarPxArc, popZoom,
   POP_FREQ, POP_JITTER, POP_REACH, POP_REACH_RAD, POP_REF_TH, POP_SCALE, POP_LIFE_S, POP_TIME, POP_AMP,
+  POP_PX_REF, POP_CREST_PX,
 } from '../mercuryRoil';
 import {
   bandAA, dimpleAA, WAVE_C_FRONT, WAVE_K_PEAK, WAVE_SHARP, WAVE_DIMPLE_RAD, WAVE_DIMPLE_AA_LO, WAVE_DIMPLE_GAIN, WAVE_DIMPLE_S,
 } from '../mercuryWaves';
 import { TIERS } from '../planetQuality';
-import { CAMERA_DIST, CAMERA_FOV_DEG, R_SCENE } from '../planetLook';
-import { SUN_DIR_WORLD } from '../planetFrame';
 
-// pxArc = length(fwidth(xw)) at the SUBSOLAR point (the boil cap's centre, PHASE_ANGLE_DEG off
-// the view axis, so foreshortened), from the real camera. three's fov is vertical, so only the
-// canvas height in device pixels matters. Forward differences, |dFdx| + |dFdy| per component,
-// as the shader takes it.
-function subsolarPxArc(camera, heightCss, dpr) {
-  const D = CAMERA_DIST[camera];
-  const tanHalf = Math.tan((CAMERA_FOV_DEG[camera] * Math.PI) / 360);
-  const P = SUN_DIR_WORLD.map((c) => c * R_SCENE);
-  const s0 = [P[0] / (D - P[2]), P[1] / (D - P[2])];
-  const hitDir = (sx, sy) => {
-    const l = Math.hypot(sx, sy, 1), rd = [sx / l, sy / l, -1 / l];
-    const b = D * rd[2];
-    const t = -b - Math.sqrt(b * b - (D * D - R_SCENE * R_SCENE));
-    const h = [rd[0] * t, rd[1] * t, D + rd[2] * t], hl = Math.hypot(...h);
-    return h.map((c) => c / hl);
-  };
-  const step = (2 * tanHalf) / (heightCss * dpr);
-  const a = hitDir(s0[0], s0[1]), bx = hitDir(s0[0] + step, s0[1]), by = hitDir(s0[0], s0[1] + step);
-  return Math.hypot(...a.map((c, i) => Math.abs(bx[i] - c) + Math.abs(by[i] - c)));
-}
-// Each tier's reference viewport: full = 1920×1080 at DPR 2 (desktop camera), phone = 390×844 at its dprMax.
-const REF = {
-  full: subsolarPxArc('desktop', 1080, TIERS.full.dprMax),
-  phone: subsolarPxArc('mobile', 844, TIERS.phone.dprMax),
+// The REAL /mercury canvas, not the window (measured live with __mercury.size,
+// sig-final-fix-report.md §A, 2026-10-01): a 1920×1080 desktop window holds a 1504×820 canvas;
+// a 390×844 phone viewport holds a 358×424 css canvas. three's fov is vertical, so only the
+// canvas height in device px enters pxArc.
+const DESKTOP_CANVAS_H_CSS = 820;
+const PHONE_CANVAS_H_CSS = 424;
+const PHONE_DPR = TIERS.phone.dprMax; // 1.5: what a DPR ≥ 1.5 phone renders at
+const REF_CANVASES = {
+  desktopDpr2: subsolarPxArc('desktop', DESKTOP_CANVAS_H_CSS * 2),
+  desktopDpr1: subsolarPxArc('desktop', DESKTOP_CANVAS_H_CSS * 1),
+  phone: subsolarPxArc('mobile', PHONE_CANVAS_H_CSS * PHONE_DPR),
 };
 // The ring train's amplitude at its spectral peak (fundamental + 2nd harmonic, as rippleSlope sums them).
-const ringAmp = (px, refTh) => {
-  const s = popScale(refTh);
+const ringAmp = (px, zoom = 1) => {
+  const s = POP_SCALE / zoom;
   return (bandAA(WAVE_K_PEAK, px * s) + 2 * WAVE_SHARP * bandAA(2 * WAVE_K_PEAK, px * s)) / (1 + 2 * WAVE_SHARP);
 };
 const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 // popSlope's snap dimple alone, so ringPeak measures rings only.
-const popDimple = (th, age, px, refTh) => {
-  const s = popScale(refTh), xd = (th * s) / WAVE_DIMPLE_RAD, t = Math.max(age * popTime(refTh), 1e-3);
-  return POP_AMP * (1 - ss(0.7 * POP_REACH_RAD, POP_REACH_RAD, th)) * (1 - ss(0.7 * POP_LIFE_S, POP_LIFE_S, age))
+const popDimple = (th, age, px, zoom) => {
+  const reach = POP_REACH_RAD * zoom, s = POP_SCALE / zoom;
+  const xd = (th * s) / WAVE_DIMPLE_RAD, t = Math.max(age * POP_TIME, 1e-3);
+  return POP_AMP * (1 - ss(0.7 * reach, reach, th)) * (1 - ss(0.7 * POP_LIFE_S, POP_LIFE_S, age))
     * dimpleAA(px * s) * WAVE_DIMPLE_GAIN * Math.exp(-t / WAVE_DIMPLE_S) * 2.3316 * xd * Math.exp(-xd * xd);
 };
-const ringPeak = (px, refTh) => {
+const ringPeak = (px, zoom = 1) => {
   let m = 0;
   for (let age = 0.01; age < POP_LIFE_S; age += 0.01) {
     for (let r = 0.0025; r < 1; r += 0.005) {
-      const th = r * POP_REACH_RAD;
-      m = Math.max(m, Math.abs(popSlope(th, age, px, refTh) - popDimple(th, age, px, refTh)));
+      const th = r * POP_REACH_RAD * zoom;
+      m = Math.max(m, Math.abs(popSlope(th, age, px, zoom) - popDimple(th, age, px, zoom)));
     }
   }
   return m;
@@ -90,38 +77,64 @@ describe('mercuryRoil', () => {
     expect(POP_SCALE * POP_REACH_RAD).toBeCloseTo(POP_REF_TH, 12);
     expect(WAVE_C_FRONT * POP_LIFE_S * POP_TIME).toBeCloseTo(POP_REF_TH, 12);
     expect(POP_REACH_RAD).toBeCloseTo(POP_REACH / POP_FREQ, 12);
+    expect(POP_JITTER + POP_REACH).toBeLessThan(1); // R1 is in cell units: no zoom touches it
   });
 
-  it('the miniature holds per tier: R1 containment, R2 front at the reach at end of life', () => {
-    expect(POP_JITTER + POP_REACH).toBeLessThan(1);
-    for (const { popRefTh } of Object.values(TIERS)) {
-      expect(popScale(popRefTh) * POP_REACH_RAD).toBeCloseTo(popRefTh, 12);
-      expect(WAVE_C_FRONT * POP_LIFE_S * popTime(popRefTh)).toBeCloseTo(popRefTh, 12);
-    }
-    expect(popScale()).toBe(POP_SCALE);
-    expect(popTime()).toBe(POP_TIME);
-    expect(TIERS.full.popRefTh).toBe(POP_REF_TH);
-  });
-
-  it('the subsolar pxArc helper matches the review (1600×1000 DPR 1 ≈ 0.0084; phone ≈ 0.0094)', () => {
-    expect(subsolarPxArc('desktop', 1000, 1)).toBeCloseTo(0.0084, 4);
-    expect(REF.phone).toBeCloseTo(0.0094, 4);
-    expect(REF.full).toBeCloseTo(0.0039, 4);
-  });
-
-  it('rings resolve at each tier\'s reference viewport: ≥ 5 px per peak wavelength, a reach of ≥ 8 px (R2 amended)', () => {
-    for (const tier of ['full', 'phone']) {
-      const px = REF[tier], s = popScale(TIERS[tier].popRefTh);
-      expect(WAVE_K_PEAK * px * s).toBeLessThanOrEqual((2 * Math.PI) / 5);
-      expect(POP_REACH_RAD / px).toBeGreaterThanOrEqual(8);
+  it('R2 holds at every zoom: a zoomed pop is the reference pop stretched in space, its clock unchanged', () => {
+    for (const zoom of [1, 1.4, 2, 3.7]) {
+      const reach = POP_REACH_RAD * zoom;
+      for (const age of [0.004, 0.05, 0.2, 0.45, 0.59]) {
+        for (let r = 0.01; r < 1; r += 0.07) {
+          for (const px of [0, 0.004, 0.009]) {
+            expect(popSlope(r * reach, age, px * zoom, zoom)).toBeCloseTo(popSlope(r * POP_REACH_RAD, age, px, 1), 12);
+          }
+        }
+        expect(popSlope(reach, age, 0, zoom)).toBe(0);
+      }
+      expect(Math.abs(popSlope(0.2 * reach, 0.1, 0, zoom))).toBeGreaterThan(0);
+      expect(popSlope(0.3 * reach, POP_LIFE_S, 0, zoom)).toBe(0);
     }
   });
 
-  it('a pop ring keeps real slope at each tier\'s subsolar pxArc (bandAA does not erase it)', () => {
-    for (const tier of ['full', 'phone']) {
-      const px = REF[tier], refTh = TIERS[tier].popRefTh;
-      expect(ringAmp(px, refTh)).toBeGreaterThanOrEqual(0.25);
-      expect(ringPeak(px, refTh)).toBeGreaterThanOrEqual(0.25 * ringPeak(0, refTh));
+  it('subsolarPxArc pins the live canvases (1504×820 at DPR 2 and 1; the 358×424 phone at DPR 1.5)', () => {
+    expect(REF_CANVASES.desktopDpr2).toBeCloseTo(0.00514, 5);
+    expect(REF_CANVASES.desktopDpr1).toBeCloseTo(0.01024, 5);
+    expect(REF_CANVASES.phone).toBeCloseTo(0.01863, 5);
+    // twice the device px, half the footprint (to first order)
+    expect(REF_CANVASES.desktopDpr1 / REF_CANVASES.desktopDpr2).toBeCloseTo(2, 1);
+  });
+
+  it('POP_PX_REF: today\'s full geometry at POP_CREST_PX px per peak crest; the DPR-2 desktop canvas is inside it', () => {
+    expect(WAVE_K_PEAK * POP_PX_REF * POP_SCALE).toBeCloseTo((2 * Math.PI) / POP_CREST_PX, 12);
+    expect(bandAA(WAVE_K_PEAK, POP_PX_REF * POP_SCALE)).toBeGreaterThanOrEqual(0.75);
+    expect(REF_CANVASES.desktopDpr2).toBeLessThanOrEqual(POP_PX_REF);
+  });
+
+  it('popZoom: 1 on the DPR-2 desktop canvas, > 1 at DPR 1 and on the phone, monotonic, never < 1', () => {
+    expect(popZoom(REF_CANVASES.desktopDpr2)).toBe(1);
+    expect(popZoom(REF_CANVASES.desktopDpr1)).toBeGreaterThan(1);
+    expect(popZoom(REF_CANVASES.phone)).toBeGreaterThan(1);
+    expect(popZoom(0)).toBe(1);
+    expect(popZoom(POP_PX_REF)).toBe(1);
+    expect(popZoom(2 * POP_PX_REF)).toBeCloseTo(2, 12);
+    let prev = 0;
+    for (let px = 0; px < 0.05; px += 0.0005) {
+      const z = popZoom(px);
+      expect(z).toBeGreaterThanOrEqual(1);
+      expect(z).toBeGreaterThanOrEqual(prev);
+      prev = z;
+    }
+  });
+
+  // The 8 px floor: at the reference footprint the fundamental's crest is POP_CREST_PX px, so a
+  // reach under ~8 px holds fewer than two crests. That reads as a dome or a bead with one rim
+  // (seen live at a 4.8 px reach on the phone, sig-final-fix-report E2), not as a ring.
+  it('rings resolve on every reference canvas: ring peak ≥ 0.25 of the unfiltered peak, a reach of ≥ 8 px', () => {
+    for (const px of Object.values(REF_CANVASES)) {
+      const zoom = popZoom(px);
+      expect(ringAmp(px, zoom)).toBeGreaterThanOrEqual(0.25);
+      expect(ringPeak(px, zoom)).toBeGreaterThanOrEqual(0.25 * ringPeak(0, zoom));
+      expect((POP_REACH_RAD * zoom) / px).toBeGreaterThanOrEqual(8);
     }
   });
 
@@ -167,35 +180,38 @@ describe('mercuryRoil', () => {
     const r = rng(4);
     for (let i = 0; i < 2000; i++) {
       const x = norm([r() - 0.5, r() - 0.5, r() - 0.5]);
-      const { g, act } = roilTilt(x, r() * 50, 150, 0.002);
+      const { g, act } = roilTilt(x, r() * 50, 150, 0.002, 1 + 2 * r());
       expect(Math.abs(g[0] * x[0] + g[1] * x[1] + g[2] * x[2])).toBeLessThan(1e-9);
       expect(act).toBeGreaterThanOrEqual(0);
       expect(act).toBeLessThanOrEqual(1);
     }
   });
 
-  it('seam-free (R1): continuous across every cell boundary, at full density', () => {
+  it('seam-free (R1): continuous across every cell boundary, at full density, at any zoom', () => {
     expect(POP_JITTER + POP_REACH).toBeLessThan(1);
-    const r = rng(5);
-    let compared = 0;
-    // A unit vector whose p.x = x·POP_FREQ is exactly px (y, z rescaled to stay on the sphere).
-    const onSphere = (px, y, z) => {
-      const x0 = px / POP_FREQ;
-      const k = Math.sqrt(1 - x0 * x0) / Math.hypot(y, z);
-      return [x0, y * k, z * k];
-    };
-    for (let i = 0; i < 3000; i++) {
-      const x = norm([r() - 0.5, r() - 0.5, r() - 0.5]);
-      // the nearest x-boundary of the 2×2×2 neighbourhood: p.x − 0.5 an integer
-      const bx = Math.round(x[0] * POP_FREQ - 0.5) + 0.5;
-      if (Math.abs(bx / POP_FREQ) > 0.98) continue;
-      const xA = onSphere(bx - 1e-7, x[1], x[2]), xB = onSphere(bx + 1e-7, x[1], x[2]);
-      const t = r() * 30;
-      const A = roilTilt(xA, t, 200, 0.002), B = roilTilt(xB, t, 200, 0.002);
-      if (A.act === 0 && B.act === 0) continue;
-      compared++;
-      for (let k = 0; k < 3; k++) expect(Math.abs(A.g[k] - B.g[k])).toBeLessThan(1e-3);
+    for (const zoom of [1, 2.3]) {
+      const freq = POP_FREQ / zoom;
+      const r = rng(5);
+      let compared = 0;
+      // A unit vector whose p.x = x·freq is exactly px (y, z rescaled to stay on the sphere).
+      const onSphere = (px, y, z) => {
+        const x0 = px / freq;
+        const k = Math.sqrt(1 - x0 * x0) / Math.hypot(y, z);
+        return [x0, y * k, z * k];
+      };
+      for (let i = 0; i < 3000; i++) {
+        const x = norm([r() - 0.5, r() - 0.5, r() - 0.5]);
+        // the nearest x-boundary of the 2×2×2 neighbourhood: p.x − 0.5 an integer
+        const bx = Math.round(x[0] * freq - 0.5) + 0.5;
+        if (Math.abs(bx / freq) > 0.98) continue;
+        const xA = onSphere(bx - 1e-7, x[1], x[2]), xB = onSphere(bx + 1e-7, x[1], x[2]);
+        const t = r() * 30;
+        const A = roilTilt(xA, t, 200, 0.002, zoom), B = roilTilt(xB, t, 200, 0.002, zoom);
+        if (A.act === 0 && B.act === 0) continue;
+        compared++;
+        for (let k = 0; k < 3; k++) expect(Math.abs(A.g[k] - B.g[k])).toBeLessThan(1e-3);
+      }
+      expect(compared).toBeGreaterThan(zoom > 1 ? 15 : 50);
     }
-    expect(compared).toBeGreaterThan(50);
   });
 });
