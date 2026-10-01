@@ -21,7 +21,7 @@ export const HG_SIGMA_N_PER_M = 0.485;
 export const HG_RHO_KG_M3 = 13534;
 export const DROP_R_M = 0.01;
 export const MODE_PLAYBACK = 1 / 6;
-export const WAVE_PLAYBACK = 1 / 24;
+export const WAVE_PLAYBACK = 1 / 40;            // slower than phase 3's 1/24: tighter crests run faster
 
 export const MODE_L = [2, 3, 4];
 export const MODE_GAMMA2_PER_S = 0.8;
@@ -33,15 +33,18 @@ export const SHAPE_MAX = 0.06;                // |h| cap, fraction of R; the imp
 export const SHAPE_ITERS = 3;                 // radial re-intersection steps in the shader
 export const BULGE_MAX = 0.04;
 
-export const WAVE_KR = 24;                    // packet centre wavenumber × R (wavelength ≈ 0.26 R)
+export const WAVE_KR = 48;                    // packet centre wavenumber × R (wavelength ≈ 0.13 R)
+export const WAVE_KR_FINE = 120;              // a finer band on the same law: it outruns the main crests
+export const WAVE_FINE_W = 0.6;               // its share of the slope
 export const WAVE_PACKET_RAD = 0.35;          // packet envelope half-width, radians of arc
 export const WAVE_SPREAD_FLOOR = 0.15;        // 1/√sinθ spreading, normalised to 1 inside this
 export const WAVE_DAMP_PER_S = { splash: 1.0, wake: 1.6, ring: 3.0 };
 
 export const LIQUID_TAU = 0.5;                // the bead is "liquid" for strikes and wakes above this τ
-export const WAKE_EVERY_S = 0.16;
+export const WAKE_EVERY_S = 0.07;
 export const WAKE_WAVE_AMP = 0.12;
-export const WAKE_FULL_OMEGA = 6;             // pointer ω (rad/s) for a full-strength wake
+export const WAKE_FULL_OMEGA = 4;             // pointer ω (rad/s) for a full-strength wake (strength ∝ √ω below it)
+export const WAKE_SLIP = 0.7;                 // shear: how far a wake ring stays where it was made instead of riding the body
 export const RELEASE_MODE_AMP = 0.03;
 
 export function rayleighOmega(l, rM = DROP_R_M) {
@@ -58,6 +61,8 @@ export const MODE_GAMMA = MODE_L.map((l) => (MODE_GAMMA2_PER_S * (l - 1) * (2 * 
 // Phase and group speed in radians of arc per second (ω/k divided by R).
 export const WAVE_C_PHASE = (WAVE_PLAYBACK * capillaryOmega(WAVE_KR / DROP_R_M)) / WAVE_KR;
 export const WAVE_C_GROUP = 1.5 * WAVE_C_PHASE;
+export const WAVE_C_PHASE_FINE = (WAVE_PLAYBACK * capillaryOmega(WAVE_KR_FINE / DROP_R_M)) / WAVE_KR_FINE;
+export const WAVE_C_GROUP_FINE = 1.5 * WAVE_C_PHASE_FINE;
 
 export function legendre(l, m) {
   if (l === 2) return 0.5 * (3 * m * m - 1);
@@ -80,7 +85,7 @@ export function modeResponse(j, ageS) {
 
 export function createImpulses() {
   return {
-    slots: Array.from({ length: IMPULSE_SLOTS }, () => ({ active: false, dir: [0, 0, 1], t0: 0, mode: 0, wave: 0, kind: 'splash' })),
+    slots: Array.from({ length: IMPULSE_SLOTS }, () => ({ active: false, dir: [0, 0, 1], dirWorld0: [0, 0, 1], slip: 0, t0: 0, mode: 0, wave: 0, kind: 'splash' })),
   };
 }
 
@@ -107,10 +112,12 @@ function pickSlot(buf, tS) {
   return best;
 }
 
-export function addImpulse(buf, { dirBody, tS, mode = 0, wave = 0, kind = 'splash' }) {
+export function addImpulse(buf, { dirBody, dirWorld = null, tS, mode = 0, wave = 0, kind = 'splash', slip = 0 }) {
   const s = buf.slots[pickSlot(buf, tS)];
   s.active = true;
   s.dir[0] = dirBody[0]; s.dir[1] = dirBody[1]; s.dir[2] = dirBody[2];
+  if (dirWorld) { s.dirWorld0[0] = dirWorld[0]; s.dirWorld0[1] = dirWorld[1]; s.dirWorld0[2] = dirWorld[2]; }
+  s.slip = dirWorld ? slip : 0;
   s.t0 = tS;
   s.mode = mode;
   s.wave = wave;
@@ -127,8 +134,21 @@ const smoothstep = (e0, e1, x) => {
   return t * t * (3 - 2 * t);
 };
 
-// The ripple must not refocus at the antipode: fade as its centre nears it.
-const antipodeFade = (ageS) => 1 - smoothstep(0.75 * Math.PI, Math.PI, WAVE_C_GROUP * ageS);
+// The ripple must not refocus at the antipode: fade as its faster (fine) band nears it.
+const antipodeFade = (ageS) => 1 - smoothstep(0.75 * Math.PI, Math.PI, WAVE_C_GROUP_FINE * ageS);
+
+// Shear: the liquid skin lags the drag, so a wake ring is not carried rigidly
+// by the body. Its world direction blends the body-carried one toward where it
+// was made (slip 0 = rides the body, 1 = stays put in the world).
+export function slipDirWorld(carried, dir0, slip, out = [0, 0, 0]) {
+  if (!(slip > 0)) { out[0] = carried[0]; out[1] = carried[1]; out[2] = carried[2]; return out; }
+  const x = carried[0] + (dir0[0] - carried[0]) * slip;
+  const y = carried[1] + (dir0[1] - carried[1]) * slip;
+  const z = carried[2] + (dir0[2] - carried[2]) * slip;
+  const l = Math.hypot(x, y, z) || 1;
+  out[0] = x / l; out[1] = y / l; out[2] = z / l;
+  return out;
+}
 
 export function impulseFrame(buf, tS, { modeScale = 1, waveScale = 1 } = {}, out) {
   out.any = false;
@@ -187,5 +207,5 @@ export function wakeImpulse(wake, { tS, dragging, released, ptrOmega, bodyOmega,
   if (released) return { kind: 'ring', mode: RELEASE_MODE_AMP * Math.min(1, bodyOmega / MAX_OMEGA), wave: 0 };
   if (!dragging || !(ptrOmega > 0) || tS - wake.lastS < WAKE_EVERY_S) return null;
   wake.lastS = tS;
-  return { kind: 'wake', mode: 0, wave: WAKE_WAVE_AMP * Math.min(1, ptrOmega / WAKE_FULL_OMEGA) };
+  return { kind: 'wake', mode: 0, wave: WAKE_WAVE_AMP * Math.sqrt(Math.min(1, ptrOmega / WAKE_FULL_OMEGA)), slip: WAKE_SLIP };
 }

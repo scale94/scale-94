@@ -16,7 +16,7 @@ import { MAPS } from './planet/mercuryMaps.generated';
 import { subsolarTempK } from './planet/mercuryThermal';
 import { createScarMap, stampCrater, matureScars, healScars, SCAR_TICK_S } from './planet/scarMap';
 import {
-  IMPULSE_SLOTS, createImpulses, addImpulse, createImpulseFrame, impulseFrame, spinBulge, createWake, wakeImpulse,
+  IMPULSE_SLOTS, createImpulses, addImpulse, createImpulseFrame, impulseFrame, spinBulge, createWake, wakeImpulse, slipDirWorld,
 } from './planet/mercuryWaves';
 import {
   IMPACT_MODE_AMP, IMPACT_WAVE_AMP, strikeDirWorld, worldToBody, bodyToWorld, localTempK, impactKind,
@@ -152,6 +152,7 @@ export default function MercuryPlanet({ isMobile = false, emitters = {}, strikes
     seed: 1,
     scarClock: 0,
     dragDirBody: [0, 0, 1],
+    dragDirWorld: [0, 0, 1],
     hasDragDir: false,
     w: [0, 0, 0],
     b: [0, 0, 0],
@@ -239,6 +240,7 @@ export default function MercuryPlanet({ isMobile = false, emitters = {}, strikes
 
     if ((ds.dragging || ds.released) && ds.aimed && pickSphereDir(ds.ndc, camera, R_SCENE, surf.w)) {
       worldToBody(surf.w, body.q, surf.dragDirBody);
+      surf.dragDirWorld[0] = surf.w[0]; surf.dragDirWorld[1] = surf.w[1]; surf.dragDirWorld[2] = surf.w[2];
       surf.hasDragDir = true;
     }
     const ptrOmega = Math.hypot(omegaPtr[0], omegaPtr[1], omegaPtr[2]);
@@ -249,7 +251,7 @@ export default function MercuryPlanet({ isMobile = false, emitters = {}, strikes
     surf.wakeArgs.bodyOmega = body.omega.length();
     surf.wakeArgs.tau = body.tau;
     const imp = wakeImpulse(surf.wake, surf.wakeArgs);
-    if (imp && surf.hasDragDir) addImpulse(surf.impulses, { dirBody: surf.dragDirBody, tS: t, ...imp });
+    if (imp && surf.hasDragDir) addImpulse(surf.impulses, { dirBody: surf.dragDirBody, dirWorld: surf.dragDirWorld, tS: t, ...imp });
     if (ds.released) surf.hasDragDir = false;
 
     if (body.tau >= 1 && healScars(scar)) scarDirty = true;
@@ -264,7 +266,9 @@ export default function MercuryPlanet({ isMobile = false, emitters = {}, strikes
     surf.frameOpts.waveScale = PLANET_TUNE.waveGain;
     impulseFrame(surf.impulses, t, surf.frameOpts, surf.frame);
     for (let i = 0; i < IMPULSE_SLOTS; i++) {
-      bodyToWorld(surf.impulses.slots[i].dir, body.q, surf.w);
+      const slot = surf.impulses.slots[i];
+      bodyToWorld(slot.dir, body.q, surf.w);
+      slipDirWorld(surf.w, slot.dirWorld0, slot.slip, surf.w);
       u.uImpDir.value[i].set(surf.w[0], surf.w[1], surf.w[2]);
       u.uImpMode.value[i].set(surf.frame.mode[3 * i], surf.frame.mode[3 * i + 1], surf.frame.mode[3 * i + 2]);
       u.uImpWave.value[i].set(surf.frame.wave[2 * i], surf.frame.wave[2 * i + 1]);

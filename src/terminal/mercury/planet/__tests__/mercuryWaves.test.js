@@ -5,6 +5,7 @@ import {
   legendre, dLegendre, modeResponse, createImpulses, addImpulse, createImpulseFrame, impulseFrame,
   spinBulge, BULGE_MAX, SHAPE_MAX, shapeHeight, createWake, wakeImpulse, WAKE_EVERY_S, LIQUID_TAU,
   RELEASE_MODE_AMP, WAKE_WAVE_AMP,
+  WAVE_KR_FINE, WAVE_C_PHASE_FINE, WAVE_C_GROUP_FINE, WAVE_PLAYBACK, WAKE_FULL_OMEGA, WAKE_SLIP, slipDirWorld,
 } from '../mercuryWaves';
 import { MAX_OMEGA } from '../mercuryBody';
 
@@ -52,6 +53,16 @@ describe('capillary ripples', () => {
     expect(t90).toBeGreaterThan(0.5);
     expect(t90).toBeLessThan(1.5);
     expect(WAVE_KR).toBeGreaterThan(8);
+  });
+
+  // Dense liquid with high surface tension: tight crests, and a finer band
+  // that outruns them (capillary dispersion: shorter waves are faster).
+  it('a fine band rides ahead of the main band on the same dispersion law', () => {
+    expect(WAVE_KR).toBeGreaterThanOrEqual(40);
+    expect(WAVE_KR_FINE).toBeGreaterThan(2 * WAVE_KR);
+    expect(WAVE_C_PHASE_FINE).toBeCloseTo((WAVE_PLAYBACK * capillaryOmega(WAVE_KR_FINE / DROP_R_M)) / WAVE_KR_FINE, 12);
+    expect(WAVE_C_GROUP_FINE / WAVE_C_PHASE_FINE).toBeCloseTo(1.5, 12);
+    expect(WAVE_C_GROUP_FINE).toBeGreaterThan(WAVE_C_GROUP);
   });
 });
 
@@ -137,6 +148,28 @@ describe('impulse ring buffer', () => {
     addImpulse(buf, { dirBody: [1, 0, 0], tS: 0, wave: 1 });
     impulseFrame(buf, Math.PI / WAVE_C_GROUP, {}, out);
     expect(out.wave[1]).toBe(0);
+    impulseFrame(buf, Math.PI / WAVE_C_GROUP_FINE, {}, out); // the faster, fine band too
+    expect(out.wave[1]).toBe(0);
+  });
+
+  it('an impulse keeps its emit-time world direction and slip (0 = rides the body)', () => {
+    const buf = createImpulses();
+    const a = addImpulse(buf, { dirBody: [1, 0, 0], tS: 0, wave: 1 });
+    expect(a.slip).toBe(0);
+    const b = addImpulse(buf, { dirBody: [1, 0, 0], dirWorld: [0, 0, 1], tS: 0, wave: 1, slip: 0.7 });
+    expect(b.slip).toBe(0.7);
+    expect(b.dirWorld0).toEqual([0, 0, 1]);
+  });
+});
+
+describe('shear slip', () => {
+  it('blends the body-carried direction toward the emit-time world direction, unit length', () => {
+    const out = [0, 0, 0];
+    expect(slipDirWorld([1, 0, 0], [0, 0, 1], 0, out)).toEqual([1, 0, 0]);
+    expect(slipDirWorld([1, 0, 0], [0, 0, 1], 1, out)).toEqual([0, 0, 1]);
+    slipDirWorld([1, 0, 0], [0, 0, 1], 0.5, out);
+    expect(Math.hypot(...out)).toBeCloseTo(1, 12);
+    expect(out[0]).toBeCloseTo(out[2], 12);
   });
 });
 
@@ -183,10 +216,18 @@ describe('drag wake', () => {
   it('emits wake ripples at most every WAKE_EVERY_S while the pointer moves', () => {
     const w = createWake();
     const a = wakeImpulse(w, { tS: 1, dragging: true, released: false, ptrOmega: 100, bodyOmega: 5, tau: 1 });
-    expect(a).toEqual({ kind: 'wake', mode: 0, wave: WAKE_WAVE_AMP });
+    expect(a).toEqual({ kind: 'wake', mode: 0, wave: WAKE_WAVE_AMP, slip: WAKE_SLIP });
     expect(wakeImpulse(w, { tS: 1 + WAKE_EVERY_S / 2, dragging: true, released: false, ptrOmega: 5, bodyOmega: 5, tau: 1 })).toBeNull();
     expect(wakeImpulse(w, { tS: 1 + WAKE_EVERY_S + 1e-9, dragging: true, released: false, ptrOmega: 5, bodyOmega: 5, tau: 1 })).not.toBeNull();
     expect(wakeImpulse(w, { tS: 9, dragging: true, released: false, ptrOmega: 0, bodyOmega: 5, tau: 1 })).toBeNull();
+  });
+
+  it('a slow drag still shows: strength grows as √ω, not ω', () => {
+    const w = createWake();
+    const r = wakeImpulse(w, { tS: 1, dragging: true, released: false, ptrOmega: WAKE_FULL_OMEGA / 4, bodyOmega: 1, tau: 1 });
+    expect(r.wave).toBeCloseTo(WAKE_WAVE_AMP / 2, 12);
+    expect(WAKE_SLIP).toBeGreaterThan(0);
+    expect(WAKE_SLIP).toBeLessThan(1);
   });
 
   it('a release sloshes the body modes in proportion to the spin', () => {

@@ -19,6 +19,7 @@ import { SCAR_DEPTH_RANGE_M } from '../scarMap';
 import { RAY_ALBEDO } from '../planetLook';
 import {
   IMPULSE_SLOTS, SHAPE_MAX, SHAPE_ITERS, WAVE_KR, WAVE_C_PHASE, WAVE_C_GROUP, WAVE_PACKET_RAD, WAVE_SPREAD_FLOOR,
+  WAVE_KR_FINE, WAVE_C_PHASE_FINE, WAVE_C_GROUP_FINE, WAVE_FINE_W,
 } from '../mercuryWaves';
 
 const declared = (src) => [...src.matchAll(/^uniform\s+\w+\s+(\w+)(?:\[\d+\])?;/gm)].map((m) => m[1]);
@@ -153,7 +154,7 @@ describe('mercuryPlanetShader contract', () => {
     expect(PLANET_FS).toContain(`uniform vec2 uImpWave[${IMPULSE_SLOTS}];`);
     expect(PLANET_FS).toContain(`const int IMPULSE_SLOTS = ${IMPULSE_SLOTS};`);
     expect(PLANET_FS).toContain(`const int SHAPE_ITERS = ${SHAPE_ITERS};`);
-    for (const [name, value] of Object.entries({ SHAPE_MAX, WAVE_KR, WAVE_C_PHASE, WAVE_C_GROUP, WAVE_PACKET_RAD, WAVE_SPREAD_FLOOR })) {
+    for (const [name, value] of Object.entries({ SHAPE_MAX, WAVE_KR, WAVE_C_PHASE, WAVE_C_GROUP, WAVE_PACKET_RAD, WAVE_SPREAD_FLOOR, WAVE_KR_FINE, WAVE_C_PHASE_FINE, WAVE_C_GROUP_FINE, WAVE_FINE_W })) {
       expect(PLANET_FS).toContain(`const float ${name} = ${glf(value)};`);
     }
     expect(PLANET_VS).toContain(`const float SHAPE_MAX = ${glf(SHAPE_MAX)};`);
@@ -190,9 +191,13 @@ describe('mercuryPlanetShader contract', () => {
     // Temperature in the world frame (rest spin axis = world Y): a tumbled body never reads sunlit metal as night.
     expect(PLANET_FS).toContain('float lonRel = mod(atan(-xw.z, xw.x) - lonSun + PI, TAU) - PI;');
     expect(PLANET_FS).toContain('float T = surfaceTempK(mu0x, lonRel, sqrt(max(1.0 - xw.y * xw.y, 0.0)), uSubsolarT, uHeatK);');
-    expect(PLANET_FS).toContain('float u = (th - WAVE_C_GROUP * age) / WAVE_PACKET_RAD;');
-    expect(PLANET_FS).toContain('float slope = A * exp(-u * u) * sin(WAVE_KR * (th - WAVE_C_PHASE * age)) * sqrt(WAVE_SPREAD_FLOOR / max(s, WAVE_SPREAD_FLOOR));');
-    expect(PLANET_FS).toContain('nW = normalize(nW - fluid * waveTilt(xw));');
+    expect(PLANET_FS).toContain('float u = (th - cG * age) / WAVE_PACKET_RAD;');
+    expect(PLANET_FS).toContain('return exp(-u * u) * sin(k * (th - cP * age));');
+    expect(PLANET_FS).toContain('float slope = A * (aaMain * ripple(th, age, WAVE_KR, WAVE_C_PHASE, WAVE_C_GROUP) + aaFine * ripple(th, age, WAVE_KR_FINE, WAVE_C_PHASE_FINE, WAVE_C_GROUP_FINE)) * sqrt(WAVE_SPREAD_FLOOR / max(s, WAVE_SPREAD_FLOOR));');
+    // each band fades where its crests would fall under a few pixels (no limb aliasing)
+    expect(PLANET_FS).toContain('float bandAA(float k, float pxArc) { return smoothstep(2.5, 5.0, TAU / (k * max(pxArc, 1e-6))); }');
+    expect(PLANET_FS).toContain('float pxArc = length(fwidth(xw));');
+    expect(PLANET_FS).toContain('nW = normalize(nW - fluid * waveTilt(xw, pxArc));');
   });
 
   it('keeps every derivative before the first loop and the discard', () => {
@@ -202,7 +207,7 @@ describe('mercuryPlanetShader contract', () => {
     expect(lastDeriv).toBeLessThan(main.search(/\bdiscard;/));
     // the shape refinement loop is uniform control flow; derivatives may follow it,
     // but none may appear inside helper loops that use continue:
-    const waveFn = PLANET_FS.slice(PLANET_FS.indexOf('vec3 waveTilt('), PLANET_FS.indexOf('void main()'));
+    const waveFn = PLANET_FS.slice(PLANET_FS.indexOf('float ripple('), PLANET_FS.indexOf('void main()'));
     expect(waveFn).not.toMatch(/dFd[xy]|fwidth/);
     expect(firstLoop).toBeGreaterThan(-1);
   });
