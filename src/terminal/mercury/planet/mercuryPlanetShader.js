@@ -384,25 +384,34 @@ void main() {
     float thr = 1.0 + FRONT_EDGE - uTau * (1.0 + 2.0 * FRONT_EDGE);
     float fluid = smoothstep(thr - FRONT_SOFT, thr + FRONT_SOFT, front + edgeN);
 
-    float lonSun = length(Lb.xz) > 1e-4 ? atan(-Lb.z, Lb.x) : 0.0;
-    float lonRel = mod(lon - lonSun + PI, TAU) - PI;
-    float T = surfaceTempK(mu0g, lonRel, cos(lat), uSubsolarT, uHeatK);
-    float liquidW = smoothstep(HG_MELT_K - PHASE_BLEND_K, HG_MELT_K + PHASE_BLEND_K, T);
-    float boilW = smoothstep(HG_BOIL_K - PHASE_BLEND_K, HG_BOIL_K + PHASE_BLEND_K, T);
+    if (fluid > 0.0) {
+      float lonSun = length(Lb.xz) > 1e-4 ? atan(-Lb.z, Lb.x) : 0.0;
+      float lonRel = mod(lon - lonSun + PI, TAU) - PI;
+      float T = surfaceTempK(mu0g, lonRel, cos(lat), uSubsolarT, uHeatK);
+      float liquidW = smoothstep(HG_MELT_K - PHASE_BLEND_K, HG_MELT_K + PHASE_BLEND_K, T);
+      float boilW = smoothstep(HG_BOIL_K - PHASE_BLEND_K, HG_BOIL_K + PHASE_BLEND_K, T);
 
-    vec3 nW = uBodyRot * normalize(mix(n, nb, fluid));
-    vec3 R = reflect(rd, nW);
-    float NoV = clamp(dot(nW, -rd), 0.0, 1.0);
-    vec3 F = HG_F0 + (1.0 - HG_F0) * pow(1.0 - NoV, 5.0);
-    vec3 liquid = F * envRadiance(R, mix(ROUGH_LIQUID, ROUGH_BOIL, boilW), hit, nW);
+      vec3 nW = uBodyRot * normalize(mix(n, nb, fluid));
+      vec3 R = reflect(rd, nW);
+      float NoV = clamp(dot(nW, -rd), 0.0, 1.0);
 
-    float sunI = uSunIrr * uExposure;
-    float facet = hash13(vec3(floor(uv * vec2(2.0 * SPARKLE_CELLS, SPARKLE_CELLS)), 7.0));
-    float glint = step(1.0 - SPARKLE_DENSITY, facet) * smoothstep(SPARKLE_COS, 1.0, dot(R, uSunDir)) * term;
-    vec3 solid = SOLID_HG_ALBEDO * (sunI * max(dot(nW, uSunDir), 0.0) * term + uNightFloor + aetherDiffuse(nW))
-      + vec3(glint * SPARKLE_GAIN * sunI);
+      vec3 liquid = vec3(0.0);
+      if (liquidW > 0.0) {
+        vec3 F = HG_F0 + (1.0 - HG_F0) * pow(1.0 - NoV, 5.0);
+        liquid = F * envRadiance(R, mix(ROUGH_LIQUID, ROUGH_BOIL, boilW), hit, nW);
+      }
 
-    colLin = mix(colLin, mix(solid, liquid, liquidW), fluid);
+      vec3 solid = vec3(0.0);
+      if (liquidW < 1.0) {
+        float sunI = uSunIrr * uExposure;
+        float facet = hash13(vec3(floor(uv * vec2(2.0 * SPARKLE_CELLS, SPARKLE_CELLS)), 7.0));
+        float glint = step(1.0 - SPARKLE_DENSITY, facet) * smoothstep(SPARKLE_COS, 1.0, dot(R, uSunDir)) * term;
+        solid = SOLID_HG_ALBEDO * (sunI * max(dot(nW, uSunDir), 0.0) * term + uNightFloor + aetherDiffuse(nW))
+          + vec3(glint * SPARKLE_GAIN * sunI);
+      }
+
+      colLin = mix(colLin, mix(solid, liquid, liquidW), fluid);
+    }
   }
 
   vec3 col = max(colLin, 0.0);

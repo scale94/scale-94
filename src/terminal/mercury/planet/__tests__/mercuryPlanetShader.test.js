@@ -104,7 +104,7 @@ describe('mercuryPlanetShader contract', () => {
     expect(PLANET_FS).toContain('uniform float uAetherSilver;');
     expect(PLANET_FS).toContain('return mix(col, vec3(l), uAetherSilver);');
     expect(PLANET_FS).not.toMatch(/AETHER_SIN_W/);
-    expect(PLANET_FS).toMatch(/vec3 liquid = F \* envRadiance\(R, [^;]*, hit, nW\);/);
+    expect(PLANET_FS).toMatch(/liquid = F \* envRadiance\(R, [^;]*, hit, nW\);/);
     expect(PLANET_FS).toMatch(/\+ aetherDiffuse\(nW\)/);
     expect(PLANET_FS).toContain('return c + aetherTint(nW) * aetherShoulder(uAetherGain * a);');
     expect(PLANET_FS).toContain('return uAetherGain * AETHER_DIFFUSE * aetherTint(nW) * a * (8.0 / float(AETHER_LOBES));');
@@ -124,5 +124,11 @@ describe('mercuryPlanetShader contract', () => {
   it('guards the Sun longitude at the body pole and gates facet sparkle by the terminator', () => {
     expect(PLANET_FS).toContain('float lonSun = length(Lb.xz) > 1e-4 ? atan(-Lb.z, Lb.x) : 0.0;');
     expect(PLANET_FS).toMatch(/float glint = [^;]*\* term;/);
+  });
+
+  it('runs the liquid branch only inside the front, and each phase only where it shows', () => {
+    expect(PLANET_FS).toContain('if (fluid > 0.0) {');
+    expect(PLANET_FS).toContain('if (liquidW > 0.0) {');
+    expect(PLANET_FS).toContain('if (liquidW < 1.0) {');
   });
 });
