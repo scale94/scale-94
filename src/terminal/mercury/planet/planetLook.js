@@ -29,6 +29,16 @@ export const SPARKLE_DENSITY = 0.004;         // fraction of facets that can gli
 export const SPARKLE_COS = 0.97;              // glint lobe: reflection within ~14° of the Sun
 export const SPARKLE_GAIN = 3;
 export const EMIT_RADIUS = 0.5;               // scene units — each element reflects as a soft area light
+export const EMIT_MIN_SIN = 0.6;              // element reflections ≥ ~37° wide: they wash the liquid, not rim it
+export const EMIT_HORIZON_SOFT = 0.1;         // an element below the local horizon is not reflected
+export const SUN_SHOULDER = 3;                // linear; the Sun term rolls off softly instead of clipping
+// The aether (spec amendment 2026-10-01): soft lobes wrapping the planet on every side.
+export const AETHER_SIN_W = 0.68;             // lobe width (sin of ~43°): neighbours overlap into an envelope
+export const AETHER_NIGHT = 0.2;              // aether strength left on the night hemisphere
+export const AETHER_DAY_LO = -0.15;           // dot(normal, Sun) where the night attenuation is full…
+export const AETHER_DAY_HI = 0.25;            // …and where full day strength is reached
+export const AETHER_DIFFUSE = 0.35;           // frozen Hg's matte response to the aether
+export const NIGHT_TINT = [0.62, 0.68, 1.0];  // cold indigo cast on the night side's aether
 export const FRONT_EDGE = 0.12;               // transmutation front noise amplitude (in front units)
 export const FRONT_SOFT = 0.03;               // front edge softness; must stay < FRONT_EDGE / 2
 export const FRONT_NOISE_FREQ = 6;
@@ -40,6 +50,7 @@ export const PLANET_TUNE = {
   exposure: 2.2,     // Sun irradiance multiplier at mean distance
   relief: 12,        // DEM vertical exaggeration (normals + shadows)
   nightFloor: 0.006, // faint albedo floor so the night limb is not a hole
-  sunGlint: 8,       // liquid mirror: Sun-disc reflection gain
+  sunGlint: 120,     // liquid mirror: Sun-disc radiance gain (soft-shouldered; boil sheen ≈ 1, cooled pinpoint saturates)
   emitGain: 1.5,     // liquid mirror: element-emitter reflection gain
+  aetherGain: 1.0,   // liquid mirror + frozen ambient: aether envelope gain
 };
