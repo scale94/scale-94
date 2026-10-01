@@ -162,3 +162,17 @@ After three rendered variation rounds the author settled the liquid mirror's loo
 - **Streak profile:** a super-Gaussian silhouette (a hard "meniscus" edge), a curved body brightest at the centre, a **near-white specular core**, and the aether colour only in the **fringe**. Overlapping cores roll off through a soft shoulder. Deep black negative space between streaks.
 - **Live look knobs** (`PLANET_TUNE`, uniforms): `aetherGain`, `aetherSinW`, `aetherSilver`, `aetherEdge`, `aetherStretch`, `aetherCurve`, `aetherCore`.
 - **Haze clearance is per fragment:** each aether particle fragment in front of the planet fades exactly at the planet's on-screen limb. The old per-particle window left fog bands over the limb because the sprites are larger than the planet.
+
+## Amendment 3 — 2026-10-01 phase 3 conventions (Sophie's calls; author may overrule)
+
+Phase 3 ("the surface") forces choices §5 left open. Each is stated, like the 1-atm window:
+
+- **The bead.** Once transmuted, the planet is read as a **1 cm bead of real mercury** (σ = 0.485 N/m, ρ = 13534 kg/m³). Body modes ℓ = 2, 3, 4 use Rayleigh's drop frequencies (ratios 1 : 1.936 : 3) and Lamb's viscous damping ratios (1 : 2.8 : 5.4).
+- **Two playback speeds.** A real 1 cm bead rings and ripples too fast for the eye. The body modes are shown at **1/6 speed** (the ℓ = 2 period is ~2.2 s), and the capillary ripples at **1/24** (a splash ring reaches 90° of arc in ~0.9 s). Within each family the physics holds: the mode ratios, the ω² = σk³/ρ dispersion, and group velocity = 1.5 × phase velocity, so crests run backward through the packet.
+- **Damping is effective, not bulk.** Hg's bulk viscosity would let ℓ = 2 ring for minutes. The ℓ = 2 damping is set to 0.8 /s (an oxide skin), and Lamb's ratios scale it to ℓ = 3 and 4.
+- **Spin bulge.** A rotating drop's ℓ = 2 response is a₂ = −(2/3)(Ω/ω₂)². Past the Rayleigh fission limit it is soft-capped at 4 % of R, because a planet does not fission.
+- **Geometry.** Body modes and the bulge move the silhouette. They use a radial fixed-point re-intersection, 3 iterations, instead of §5's 24-step sphere trace, because the shape is low-order and ≤ 6 % of R. Capillary ripples tilt the normal only.
+- **Where a strike lands.** The nodes sit on the limb plane, so a true sub-node impact would always be edge-on. A strike lands **40° from the node toward the viewer**, on the node's side of the visible face.
+- **Crater scale.** A crater is ~195 km in radius (0.08 rad), so it reads on a ~200 px disc. Its rays reach 5 crater radii. Rays mature to background with a 3 min e-fold.
+- **Healing.** Scars clear when the transmutation completes (τ = 1). At that point the whole globe is liquid, so the clearing itself is never seen.
+- **The aether window** keeps the still sphere's radius. A wobble (≤ 6 % of R) can briefly show haze over the very limb.
