@@ -28,6 +28,9 @@ export const FREEZE_HEAT_K = 25;
 export const HEAT_CAP_K = 80;          // bounds the store: even a hard spin refreezes ~40 s after release,
                                        // and night (100 K floor + cap) stays below the 234 K melt
 export const TRANSMUTE_S = 3;          // τ 0 → 1 duration
+// Reduced motion (phase-4 spec §5): the hand turns the body directly; nothing spins on.
+export const RECAPTURE_CALM_OMEGA = 1.2; // rad/s natural frequency of the calm return…
+export const RECAPTURE_CALM_ZETA = 2;    // …overdamped: it eases home, never overshoots
 
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 
@@ -43,6 +46,7 @@ export function createBody(q0) {
     tau: 0,
     liquid: false,
     sinceReleaseS: Infinity,
+    held: false,
   };
 }
 
@@ -68,13 +72,27 @@ const smooth01 = (x) => {
   return t * t * (3 - 2 * t);
 };
 
-function substep(b, h, dragging, omegaPtr, target) {
+function substep(b, h, dragging, omegaPtr, target, calm) {
   const w = b.omega;
-  const wx0 = w.x, wy0 = w.y, wz0 = w.z;
-  if (dragging) {
+  let wx0 = w.x, wy0 = w.y, wz0 = w.z;
+  if (dragging && calm) {
+    // The pointer turns the body 1:1; ω is the hand's, kept only for the heat store.
     b.sinceReleaseS = 0;
+    b.held = true;
+    w.set(omegaPtr[0], omegaPtr[1], omegaPtr[2]);
+  } else if (dragging) {
+    b.sinceReleaseS = 0;
+    b.held = false;
     const k = 1 - Math.exp(-GRIP_PER_S * h);
     w.set(w.x + (omegaPtr[0] - w.x) * k, w.y + (omegaPtr[1] - w.y) * k, w.z + (omegaPtr[2] - w.z) * k);
+  } else if (calm) {
+    if (b.held) { w.set(0, 0, 0); wx0 = wy0 = wz0 = 0; b.held = false; } // release: nothing is flung (the trapezoid must not average in the hand's ω)
+    b.sinceReleaseS += h;
+    const K = RECAPTURE_CALM_OMEGA * RECAPTURE_CALM_OMEGA;
+    const C = 2 * RECAPTURE_CALM_ZETA * RECAPTURE_CALM_OMEGA;
+    rotationError(b.q, target, _e);
+    w.multiplyScalar(Math.exp(-C * h));
+    w.set(w.x + K * _e.x * h, w.y + K * _e.y * h, w.z + K * _e.z * h);
   } else {
     b.sinceReleaseS += h;
     w.multiplyScalar(Math.exp(-SPIN_DAMP_PER_S * h));
@@ -93,7 +111,9 @@ function substep(b, h, dragging, omegaPtr, target) {
   // Exact axis-angle step, world frame (premultiply): constant-ω rotation is step-size independent.
   // Rotate by the substep-mean ω, not the end value: exact mean of the grip
   // exponential while dragging, trapezoid otherwise.
-  if (dragging && len <= MAX_OMEGA * (1 - 1e-12)) {
+  if (dragging && calm) {
+    _mid.copy(w); // 1:1 with the (clamped) pointer
+  } else if (dragging && len <= MAX_OMEGA * (1 - 1e-12)) {
     const m = (1 - Math.exp(-GRIP_PER_S * h)) / (GRIP_PER_S * h);
     _mid.set(omegaPtr[0] + (wx0 - omegaPtr[0]) * m, omegaPtr[1] + (wy0 - omegaPtr[1]) * m, omegaPtr[2] + (wz0 - omegaPtr[2]) * m);
   } else {
@@ -124,10 +144,10 @@ export function coolBody(b, seconds) {
   return b;
 }
 
-export function stepBody(b, dtS, { dragging = false, omegaPtr = [0, 0, 0], target }) {
+export function stepBody(b, dtS, { dragging = false, omegaPtr = [0, 0, 0], target, calm = false }) {
   if (!(dtS > 0) || !Number.isFinite(dtS)) return b;
   const n = Math.max(1, Math.ceil(dtS / MAX_SUBSTEP_S - 1e-9));
   const h = dtS / n;
-  for (let i = 0; i < n; i++) substep(b, h, dragging, omegaPtr, target);
+  for (let i = 0; i < n; i++) substep(b, h, dragging, omegaPtr, target, calm);
   return b;
 }

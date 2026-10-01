@@ -1,6 +1,6 @@
 // src/terminal/mercury/planet/__tests__/mercuryPlanetShader.test.js
 import { describe, it, expect } from 'vitest';
-import { PLANET_VS, PLANET_FS, PLANET_UNIFORMS, PLANET_BUILTINS, DEM_LSB_M } from '../mercuryPlanetShader';
+import { PLANET_VS, PLANET_FS, PLANET_UNIFORMS, PLANET_CALM_UNIFORMS, PLANET_BUILTINS, DEM_LSB_M } from '../mercuryPlanetShader';
 import { buildPlanetShader } from '../mercuryPlanetShader';
 import { TIERS, TIER_NAMES } from '../planetQuality';
 import { glf, v3 } from '../../../gl/glf';
@@ -12,6 +12,7 @@ import {
   EMIT_MIN_SIN, EMIT_HORIZON_SOFT, SUN_SHOULDER, AETHER_NIGHT, AETHER_DAY_LO, AETHER_DAY_HI,
   AETHER_DIFFUSE, AETHER_DIFFUSE_REF_LOBES, NIGHT_TINT, AETHER_FRINGE_LO, AETHER_FRINGE_HI, AETHER_SHOULDER,
 } from '../planetLook';
+import { CALM_GLOW_RAD } from '../mercuryImpacts';
 import { AETHER_LOBES, AETHER_SHAPES } from '../aetherLobes';
 import {
   HG_MELT_K, HG_BOIL_K, T_NIGHT_FLOOR_K, T_SUNSET_K, TAU_WARM_H, TAU_COOL_H, HOURS_PER_RAD,
@@ -240,5 +241,23 @@ describe('mercuryPlanetShader contract', () => {
     const lite = buildPlanetShader({ tier: 'lite' }).fs;
     expect(lite).toContain('if (false && mu0g > -uSunSinR && mu0g < SHADOW_ZONE)');
     expect(PLANET_FS).toContain('if (uHasMaps > 0.5 && mu0g > -uSunSinR && mu0g < SHADOW_ZONE)');
+  });
+
+  it('the CALM variant compiles out every impulse loop and adds only the strike glow', () => {
+    const calm = buildPlanetShader({ calm: true }).fs;
+    expect(calm).toContain('const int IMPULSE_SLOTS = 0;');
+    expect(calm).toContain('uniform vec4 uGlow;');
+    expect(calm).toContain(`const float CALM_GLOW_RAD = ${glf(CALM_GLOW_RAD)};`);
+    expect(calm).toMatch(/colLin \+= fluid \* uGlow\.w \* exp\(/);
+    expect(PLANET_FS).not.toContain('uGlow');
+    expect(buildPlanetShader({ tier: 'full', calm: false }).fs).toBe(PLANET_FS);
+    for (const tier of TIER_NAMES) expect(buildPlanetShader({ tier, calm: true }).fs).toContain('const int IMPULSE_SLOTS = 0;');
+  });
+
+  it('declares exactly PLANET_CALM_UNIFORMS in the CALM variant', () => {
+    const fs = buildPlanetShader({ calm: true }).fs;
+    const names = declared(fs).filter((u) => !PLANET_BUILTINS.includes(u));
+    expect([...names].sort()).toEqual([...PLANET_CALM_UNIFORMS].sort());
+    expect(PLANET_CALM_UNIFORMS).toEqual([...PLANET_UNIFORMS, 'uGlow']);
   });
 });

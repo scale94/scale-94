@@ -15,6 +15,7 @@
 import { glf, v3 } from '../../gl/glf';
 import { SCAR_DEPTH_RANGE_M } from './scarMap';
 import { TIERS } from './planetQuality';
+import { CALM_GLOW_RAD } from './mercuryImpacts';
 import {
   IMPULSE_SLOTS, SHAPE_MAX, SHAPE_ITERS, WAVE_KR, WAVE_C_GROUP, WAVE_SPREAD_FLOOR,
   WAVE_K_PEAK, WAVE_SPEC_W, WAVE_VISC_PER_S, WAVE_SHARP, WAVE_WARP_RAD, WAVE_WARP_FREQ, WAVE_DIMPLE_RAD, WAVE_DIMPLE_S, WAVE_DIMPLE_GAIN,
@@ -47,6 +48,8 @@ export const PLANET_UNIFORMS = [
   'uSurfOn', 'uImpDir', 'uImpMode', 'uImpWave', 'uBulge',
 ];
 
+export const PLANET_CALM_UNIFORMS = [...PLANET_UNIFORMS, 'uGlow'];
+
 const AETHER_SHAPE_GLSL = `const vec2 AETHER_SHAPE[${AETHER_LOBES}] = vec2[${AETHER_LOBES}](${AETHER_SHAPES.map(([w, s]) => `vec2(${glf(w)}, ${glf(s)})`).join(', ')});`;
 
 export const PLANET_VS = /* glsl */ `in vec3 position;
@@ -72,7 +75,7 @@ void main() {
 }
 `;
 
-function planetFs(q) {
+function planetFs(q, calm = false) {
   return /* glsl */ `precision highp float;
 precision highp sampler2D;
 
@@ -116,7 +119,7 @@ uniform float uSurfOn;
 uniform vec3 uImpDir[${IMPULSE_SLOTS}];
 uniform vec3 uImpMode[${IMPULSE_SLOTS}];
 uniform vec2 uImpWave[${IMPULSE_SLOTS}];
-uniform vec4 uBulge;
+uniform vec4 uBulge;${calm ? '\nuniform vec4 uGlow;' : ''}
 
 const float PI = 3.14159265358979;
 const float TAU = 6.28318530717959;
@@ -170,7 +173,7 @@ const float AETHER_SHOULDER = ${glf(AETHER_SHOULDER)};
 const vec3 NIGHT_TINT = ${v3(NIGHT_TINT)};
 const float SCAR_DEPTH_RANGE_M = ${glf(SCAR_DEPTH_RANGE_M)};
 const vec3 RAY_ALBEDO = ${v3(RAY_ALBEDO)};
-const int IMPULSE_SLOTS = ${q.rippleSlots};
+const int IMPULSE_SLOTS = ${calm ? 0 : q.rippleSlots};
 const int SHAPE_ITERS = ${SHAPE_ITERS};
 const float SHAPE_MAX = ${glf(SHAPE_MAX)};
 const float WAVE_KR = ${glf(WAVE_KR)};
@@ -185,7 +188,7 @@ const float WAVE_WARP_FREQ = ${glf(WAVE_WARP_FREQ)};
 const float WAVE_DIMPLE_RAD = ${glf(WAVE_DIMPLE_RAD)};
 const float WAVE_DIMPLE_S = ${glf(WAVE_DIMPLE_S)};
 const float WAVE_DIMPLE_GAIN = ${glf(WAVE_DIMPLE_GAIN)};
-const float DIMPLE_NORM = 2.3316;
+const float DIMPLE_NORM = 2.3316;${calm ? `\nconst float CALM_GLOW_RAD = ${glf(CALM_GLOW_RAD)};` : ''}
 
 // Crater depth from the scar map, true metres (scarMap.js encoding).
 float scarHeightM(vec2 uv, vec2 gx, vec2 gy) {
@@ -555,7 +558,7 @@ void main() {
           + vec3(glint * SPARKLE_GAIN * sunI);
       }
 
-      colLin = mix(colLin, mix(solid, liquid, liquidW), fluid);
+      colLin = mix(colLin, mix(solid, liquid, liquidW), fluid);${calm ? '\n      colLin += fluid * uGlow.w * exp(-(1.0 - dot(xw, uGlow.xyz)) / (CALM_GLOW_RAD * CALM_GLOW_RAD));' : ''}
     }
   }
 
@@ -570,8 +573,8 @@ void main() {
 export const PLANET_FS = planetFs(TIERS.full);
 
 // A tier is a shader variant: loop counts are compile-time consts (phase-4 spec §3).
-export function buildPlanetShader({ tier = 'full' } = {}) {
+export function buildPlanetShader({ tier = 'full', calm = false } = {}) {
   const q = TIERS[tier];
   if (!q) throw new Error(`buildPlanetShader: unknown tier "${tier}"`);
-  return { vs: PLANET_VS, fs: tier === 'full' ? PLANET_FS : planetFs(q) };
+  return { vs: PLANET_VS, fs: tier === 'full' && !calm ? PLANET_FS : planetFs(q, calm) };
 }

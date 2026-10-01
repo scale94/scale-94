@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import {
   createBody, stepBody, coolBody, targetFromYaw, rotationError,
   MELT_HEAT_K, FREEZE_HEAT_K, MAX_OMEGA, HEAT_CAP_K, HEAT_OMEGA_FLOOR, TRANSMUTE_S,
+  RECAPTURE_CALM_OMEGA, RECAPTURE_CALM_ZETA,
 } from '../mercuryBody';
 import { rotY } from '../planetFrame';
 
@@ -26,6 +27,61 @@ function run(hz, seconds, dragS = 10, omegaPtr = [0, 8, 0]) {
 const at = (samples, t) => samples.find((s) => s.t >= t - 1e-9);
 
 describe('mercuryBody', () => {
+  describe('calm (reduced motion)', () => {
+    it('a drag turns the body 1:1 with the pointer: no grip lag', () => {
+      const target = targetFromYaw(0.3);
+      const body = createBody(target);
+      for (let i = 0; i < 60; i++) stepBody(body, 1 / 60, { dragging: true, omegaPtr: [0, 2, 0], target, calm: true });
+      expect(angleBetween(body.q, targetFromYaw(2.3))).toBeLessThan(1e-6); // acos(1-ε) floors the measurement near 3e-8
+    });
+
+    it('release carries no spin: ω is zeroed, then only the slow return moves it', () => {
+      const target = targetFromYaw(0);
+      const body = createBody(target);
+      for (let i = 0; i < 30; i++) stepBody(body, 1 / 60, { dragging: true, omegaPtr: [0, 4, 0], target, calm: true });
+      stepBody(body, 1 / 60, { dragging: false, target, calm: true });
+      const K = RECAPTURE_CALM_OMEGA ** 2;
+      expect(body.omega.length()).toBeLessThan(K * 2 * (1 / 60) + 1e-9); // ≤ K·|error|·dt, error ≤ 2 rad
+    });
+
+    it('the return is overdamped: the angle to the present never grows, and it settles', () => {
+      expect(RECAPTURE_CALM_ZETA).toBeGreaterThan(1);
+      const target = targetFromYaw(0);
+      const body = createBody(target);
+      for (let i = 0; i < 45; i++) stepBody(body, 1 / 60, { dragging: true, omegaPtr: [1.5, 2, 0], target, calm: true });
+      let prev = angleBetween(body.q, target);
+      for (let i = 0; i < 40 * 60; i++) {
+        stepBody(body, 1 / 60, { dragging: false, target, calm: true });
+        const a = angleBetween(body.q, target);
+        expect(a).toBeLessThanOrEqual(prev + 1e-12);
+        prev = a;
+      }
+      expect(prev).toBeLessThan(0.5 * Math.PI / 180);
+    });
+
+    it('a vigorous hand still melts it, and it still refreezes', () => {
+      const target = targetFromYaw(0);
+      const body = createBody(target);
+      for (let i = 0; i < 10 * 60; i++) stepBody(body, 1 / 60, { dragging: true, omegaPtr: [0, 8, 0], target, calm: true });
+      for (let i = 0; i < 3 * 60; i++) stepBody(body, 1 / 60, { dragging: false, target, calm: true });
+      expect(body.tau).toBe(1);
+      for (let i = 0; i < 90 * 60; i++) stepBody(body, 1 / 60, { dragging: false, target, calm: true });
+      expect(body.tau).toBe(0);
+    });
+
+    it('60 Hz and 360 Hz agree in calm', () => {
+      const go = (hz) => {
+        const target = targetFromYaw(0.2);
+        const body = createBody(target);
+        for (let i = 0; i < 2 * hz; i++) stepBody(body, 1 / hz, { dragging: true, omegaPtr: [0.7, 3, 0], target, calm: true });
+        for (let i = 0; i < 5 * hz; i++) stepBody(body, 1 / hz, { dragging: false, target, calm: true });
+        return body;
+      };
+      const a = go(60), b = go(360);
+      expect(angleBetween(a.q, b.q)).toBeLessThan(2e-3);
+      expect(Math.abs(a.heatK - b.heatK)).toBeLessThan(0.01 * Math.max(1, a.heatK));
+    });
+  });
   it('targetFromYaw is the same rotation as planetFrame.rotY', () => {
     const q = targetFromYaw(1.1);
     const v = new THREE.Vector3(0.3, -0.4, 0.866).applyQuaternion(q);

@@ -119,3 +119,15 @@ export function rayBrightness(s, phi, rays) {
   const end = 1 - Math.min(1, Math.max(0, (s - 0.8 * RAY_REACH) / (0.2 * RAY_REACH)));
   return Math.min(1, a) * end;
 }
+
+// Reduced motion (phase-4 spec §5): a strike on the element brightens the impact point
+// for CALM_GLOW_S (a sin² bump, smooth in and out) instead of ringing.
+export const CALM_GLOW_S = 0.4;
+export const CALM_GLOW_RAD = 0.12;   // angular radius of the glow (Gaussian σ), rad
+export const CALM_GLOW_GAIN = 0.6;   // linear radiance added at the peak
+
+export function calmGlow(ageS) {
+  if (!(ageS > 0) || ageS >= CALM_GLOW_S) return 0;
+  const s = Math.sin((Math.PI * ageS) / CALM_GLOW_S);
+  return CALM_GLOW_GAIN * s * s;
+}

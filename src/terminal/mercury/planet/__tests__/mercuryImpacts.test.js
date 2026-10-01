@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import {
   IMPACT_TILT_DEG, CRATER_DEPTH_M, CRATER_RIM_M, RAY_REACH, IMPACT_MODE_AMP, IMPACT_WAVE_AMP,
   strikeDirWorld, worldToBody, bodyToWorld, localTempK, impactKind, craterHeightM, makeRays, rayBrightness,
-  RAY_COUNT_MIN, RAY_COUNT_MAX,
+  RAY_COUNT_MIN, RAY_COUNT_MAX, calmGlow, CALM_GLOW_S, CALM_GLOW_GAIN,
 } from '../mercuryImpacts';
 import { surfaceTempK } from '../mercuryThermal';
 
@@ -107,5 +107,17 @@ describe('rays', () => {
     for (let s = 0; s <= RAY_REACH; s += 0.1) {
       for (let p = -Math.PI; p < Math.PI; p += 0.2) expect(rayBrightness(s, p, makeRays(3))).toBeLessThanOrEqual(1);
     }
+  });
+});
+
+describe('calmGlow (reduced-motion strike answer)', () => {
+  it('is a smooth in-out bump over CALM_GLOW_S, zero outside', () => {
+    expect(calmGlow(-0.01)).toBe(0);
+    expect(calmGlow(0)).toBe(0);
+    expect(calmGlow(CALM_GLOW_S / 2)).toBeCloseTo(CALM_GLOW_GAIN, 12);
+    expect(calmGlow(CALM_GLOW_S)).toBe(0);
+    expect(calmGlow(Infinity)).toBe(0);
+    expect(calmGlow(0.25 * CALM_GLOW_S)).toBeCloseTo(calmGlow(0.75 * CALM_GLOW_S), 12);
+    expect(CALM_GLOW_S).toBe(0.4);
   });
 });

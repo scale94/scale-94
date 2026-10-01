@@ -17,6 +17,7 @@ import MercuryPerfHud from './MercuryPerfHud';
 import { TIERS, pickTier, perfHudOn } from './planet/planetQuality';
 import { CAMERA_DIST } from './planet/planetLook';
 import usePhaseTransition from './usePhaseTransition';
+import useCalm from './useCalm';
 
 const isMobile = typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 const GHOST_DENSITY = isMobile ? 150 : 300;
@@ -39,6 +40,7 @@ export default function MercuryCanvas({
     triggerTransition,
   } = usePhaseTransition('fluid');
 
+  const calm = useCalm();
   const dpr = [1, TIERS[TIER].dprMax];
 
   const handleNodeTap = useCallback((phase) => {
@@ -139,6 +141,7 @@ export default function MercuryCanvas({
         <MercuryPlanet
           isMobile={isMobile}
           tier={TIER}
+          calm={calm}
           strikes={strikesRef}
           emitters={{
             fluid: opacityFor('fluid'),
@@ -155,7 +158,7 @@ export default function MercuryCanvas({
           onElementFired={handleElementFired}
           isMobile={isMobile}
         />
-        {PERF_HUD && <MercuryPerfHud tier={TIER} calm={false} />}
+        {PERF_HUD && <MercuryPerfHud tier={TIER} calm={calm} />}
 
         {/* No bloom in Mercury mode — four simultaneous particle systems would blow out.
             The planet (MercuryPlanet) shader reads fine unpostprocessed. */}

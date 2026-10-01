@@ -21,7 +21,7 @@ import {
   IMPULSE_SLOTS, createImpulses, addImpulse, createImpulseFrame, impulseFrame, spinBulge, createWake, wakeImpulse, slipDirWorld,
 } from './planet/mercuryWaves';
 import {
-  IMPACT_MODE_AMP, IMPACT_WAVE_AMP, strikeDirWorld, worldToBody, bodyToWorld, localTempK, impactKind,
+  IMPACT_MODE_AMP, IMPACT_WAVE_AMP, strikeDirWorld, worldToBody, bodyToWorld, localTempK, impactKind, calmGlow,
 } from './planet/mercuryImpacts';
 import { pickSphereDir } from './planet/pickSphere';
 import { createBody, stepBody, coolBody, targetFromYaw } from './planet/mercuryBody';
@@ -59,7 +59,7 @@ function loadMap(loader, url, srgb) {
   });
 }
 
-export default function MercuryPlanet({ isMobile = false, tier = 'full', emitters = {}, strikes = null }) {
+export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = false, emitters = {}, strikes = null }) {
   const gl = useThree((s) => s.gl);
   const camera = useThree((s) => s.camera);
   const drag = useMercuryDrag(gl.domElement);
@@ -86,7 +86,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', emitter
   }, [scar]);
   useEffect(() => () => scarTex.dispose(), [scarTex]);
 
-  const shader = useMemo(() => buildPlanetShader({ tier }), [tier]);
+  const shader = useMemo(() => buildPlanetShader({ tier, calm }), [tier, calm]);
   const material = useMemo(() => new THREE.RawShaderMaterial({
     glslVersion: THREE.GLSL3,
     vertexShader: shader.vs,
@@ -128,6 +128,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', emitter
       uImpMode: { value: Array.from({ length: IMPULSE_SLOTS }, () => new THREE.Vector3()) },
       uImpWave: { value: Array.from({ length: IMPULSE_SLOTS }, () => new THREE.Vector2()) },
       uBulge: { value: new THREE.Vector4(0, 1, 0, 0) },
+      uGlow: { value: new THREE.Vector4(0, 0, 1, 0) },
     },
   }), [isMobile, init, body, scarTex, shader]);
 
@@ -155,6 +156,9 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', emitter
     bulge: [0, 1, 0, 0],
     seed: 1,
     scarClock: 0,
+    aetherT: 0,
+    glowT0: -Infinity,
+    glowDirBody: [0, 0, 1],
     dragDirBody: [0, 0, 1],
     dragDirWorld: [0, 0, 1],
     hasDragDir: false,
@@ -215,7 +219,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', emitter
     const ds = drag.sample(performance.now());
     const { dragging, omegaPtr } = ds;
     const stepS = Math.min(delta, MAX_FRAME_DT_S);
-    stepBody(body, stepS, { dragging, omegaPtr, target });
+    stepBody(body, stepS, { dragging, omegaPtr, target, calm });
     coolBody(body, delta - stepS); // the clamp holds the body still, not the heat: a hidden tab still cools
     u.uBodyRot.value.setFromMatrix4(m4.makeRotationFromQuaternion(body.q));
     u.uTau.value = body.tau;
@@ -241,6 +245,9 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', emitter
       if (kind === 'crater') {
         stampCrater(scar, surf.b, surf.seed++);
         scarDirty = true;
+      } else if (calm) {
+        surf.glowT0 = t; // reduced motion: the tap brightens the point instead of ringing
+        surf.glowDirBody[0] = surf.b[0]; surf.glowDirBody[1] = surf.b[1]; surf.glowDirBody[2] = surf.b[2];
       } else {
         addImpulse(surf.impulses, { dirBody: surf.b, tS: t, mode: IMPACT_MODE_AMP[kind], wave: IMPACT_WAVE_AMP[kind], kind });
       }
@@ -258,7 +265,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', emitter
     surf.wakeArgs.ptrOmega = ptrOmega;
     surf.wakeArgs.bodyOmega = body.omega.length();
     surf.wakeArgs.tau = body.tau;
-    const imp = wakeImpulse(surf.wake, surf.wakeArgs);
+    const imp = calm ? null : wakeImpulse(surf.wake, surf.wakeArgs);
     if (imp && surf.hasDragDir) addImpulse(surf.impulses, { dirBody: surf.dragDirBody, dirWorld: surf.dragDirWorld, tS: t, ...imp });
     if (ds.released) surf.hasDragDir = false;
 
@@ -284,9 +291,13 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', emitter
       u.uImpMode.value[j].set(surf.frame.mode[3 * i], surf.frame.mode[3 * i + 1], surf.frame.mode[3 * i + 2]);
       u.uImpWave.value[j].set(surf.frame.wave[2 * i], surf.frame.wave[2 * i + 1]);
     }
-    spinBulge(body.omega, body.tau * PLANET_TUNE.modeGain, surf.bulge);
+    spinBulge(body.omega, calm ? 0 : body.tau * PLANET_TUNE.modeGain, surf.bulge);
     u.uBulge.value.set(surf.bulge[0], surf.bulge[1], surf.bulge[2], surf.bulge[3]);
-    u.uSurfOn.value = surf.frame.any || Math.abs(surf.bulge[3]) > 1e-5 ? 1 : 0;
+    u.uSurfOn.value = !calm && (surf.frame.any || Math.abs(surf.bulge[3]) > 1e-5) ? 1 : 0;
+    if (calm) {
+      bodyToWorld(surf.glowDirBody, body.q, surf.w);
+      u.uGlow.value.set(surf.w[0], surf.w[1], surf.w[2], calmGlow(t - surf.glowT0));
+    }
 
     ORBIT_NODES.forEach((node, i) => {
       const [x, y, z] = nodeWorldPosition(node.angle, precession);
@@ -296,7 +307,8 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', emitter
       u.uEmitCol.value[i].set(c.r * o, c.g * o, c.b * o);
     });
 
-    aetherLobeDirs(t, aether.dirs);
+    if (!calm) surf.aetherT += delta; // reduced motion freezes the streak drift (D5)
+    aetherLobeDirs(surf.aetherT, aether.dirs);
     aetherLobeColors(emitRef.current, aether.cols);
     for (let i = 0; i < aether.dirs.length; i++) {
       u.uAethDir.value[i].set(aether.dirs[i][0], aether.dirs[i][1], aether.dirs[i][2]);
