@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { TIERS, TIER_NAMES, pickTier, calmOverride, perfHudOn, impulseOrder } from '../planetQuality';
 import { SHADOW_STEPS } from '../planetLook';
-import { IMPULSE_SLOTS, createImpulseFrame } from '../mercuryWaves';
+import { IMPULSE_SLOTS, SHAPE_ITERS, createImpulseFrame } from '../mercuryWaves';
 
 describe('planetQuality', () => {
   it('names three tiers; full is exactly today\'s shader budget', () => {
@@ -9,6 +9,9 @@ describe('planetQuality', () => {
     expect(TIERS.full.shadowSteps).toBe(SHADOW_STEPS);
     expect(TIERS.full.rippleSlots).toBe(IMPULSE_SLOTS);
     expect(TIERS.full.dprMax).toBe(2);
+    expect(TIERS.full.shapeIters).toBe(SHAPE_ITERS);
+    expect(TIERS.phone.shapeIters).toBe(1);
+    expect(TIERS.phone.rippleSlots).toBe(2);
   });
 
   it('no tier carries a pop scale: the pops are sized from the live screen (mercuryRoil.popZoom)', () => {
@@ -19,7 +22,7 @@ describe('planetQuality', () => {
     const order = ['full', 'phone', 'lite'];
     for (let i = 1; i < order.length; i++) {
       const hi = TIERS[order[i - 1]], lo = TIERS[order[i]];
-      for (const k of ['dprMax', 'rippleSlots', 'shadowSteps', 'exoSteps']) expect(lo[k]).toBeLessThanOrEqual(hi[k]);
+      for (const k of ['dprMax', 'rippleSlots', 'shadowSteps', 'exoSteps', 'shapeIters']) expect(lo[k]).toBeLessThanOrEqual(hi[k]);
     }
     expect(TIERS.lite.roil).toBe('noise');
     expect(TIERS.phone.roil).toBe('pops');

@@ -17,7 +17,7 @@ import { SCAR_DEPTH_RANGE_M } from './scarMap';
 import { TIERS } from './planetQuality';
 import { CALM_GLOW_RAD } from './mercuryImpacts';
 import {
-  IMPULSE_SLOTS, SHAPE_MAX, SHAPE_ITERS, WAVE_KR, WAVE_C_GROUP, WAVE_SPREAD_FLOOR,
+  IMPULSE_SLOTS, SHAPE_MAX, WAVE_KR, WAVE_C_GROUP, WAVE_SPREAD_FLOOR,
   WAVE_K_PEAK, WAVE_SPEC_W, WAVE_VISC_PER_S, WAVE_SHARP, WAVE_WARP_RAD, WAVE_WARP_FREQ, WAVE_DIMPLE_RAD, WAVE_DIMPLE_S, WAVE_DIMPLE_GAIN,
   WAVE_DIMPLE_AA_LO, WAVE_DIMPLE_AA_HI,
 } from './mercuryWaves';
@@ -182,7 +182,7 @@ const vec3 NIGHT_TINT = ${v3(NIGHT_TINT)};
 const float SCAR_DEPTH_RANGE_M = ${glf(SCAR_DEPTH_RANGE_M)};
 const vec3 RAY_ALBEDO = ${v3(RAY_ALBEDO)};
 const int IMPULSE_SLOTS = ${calm ? 0 : q.rippleSlots};
-const int SHAPE_ITERS = ${SHAPE_ITERS};
+const int SHAPE_ITERS = ${q.shapeIters};
 const float SHAPE_MAX = ${glf(SHAPE_MAX)};
 const float WAVE_KR = ${glf(WAVE_KR)};
 const float WAVE_C_GROUP = ${glf(WAVE_C_GROUP)};
