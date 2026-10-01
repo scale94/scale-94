@@ -111,12 +111,13 @@ describe('useMercuryDrag', () => {
     mockNow = 0;
     el1.dispatchEvent(ev('pointerdown', { clientX: 0, clientY: 0 }));
     expect(result.current.sample(mockNow).dragging).toBe(true);
-    el1.dispatchEvent(ev('pointerup', {}));
     const el2 = document.createElement('div');
     Object.defineProperty(el2, 'clientHeight', { value: 800 });
     el2.setPointerCapture = vi.fn();
+    el2.releasePointerCapture = vi.fn();
     currentEl = el2;
     rerender();
+    expect(result.current.sample(mockNow).dragging).toBe(false);
     el2.dispatchEvent(ev('pointerdown', { clientX: 0, clientY: 0 }));
     expect(result.current.sample(mockNow).dragging).toBe(true);
   });
@@ -132,6 +133,7 @@ describe('useMercuryDrag', () => {
     el.dispatchEvent(ev('pointerdown', { clientX: 50, clientY: 50, pointerId: 2 }));
     el.dispatchEvent(ev('pointermove', { clientX: 60, clientY: 60, pointerId: 2 }));
     expect(result.current.sample(mockNow).dragging).toBe(true);
+    expect(result.current.sample(mockNow).omegaPtr).toEqual([0, 0, 0]);
     el.dispatchEvent(ev('pointerup', { pointerId: 2 }));
     expect(result.current.sample(mockNow).dragging).toBe(true);
   });
