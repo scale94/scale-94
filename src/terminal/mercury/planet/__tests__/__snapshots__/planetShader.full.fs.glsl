@@ -1,79 +1,4 @@
-// src/terminal/mercury/planet/mercuryPlanetShader.js — Mercury, from the bare metal.
-//
-// An impostor quad ray-intersects the sphere, writes gl_FragDepth (so the
-// aether sorts in front of and behind it), and shades from two equirect maps:
-// MESSENGER enhanced colour + USGS DEM. Airless-body photometry
-// (Lommel–Seeliger), a penumbra as wide as the real Sun's disc, cast crater
-// shadows near the terminator. Constants come from the modules that own and
-// test them (glf), exactly like /ACCRETION. Frame convention = planetFrame.js.
-// Phase 2: a body rotation matrix (mercuryBody), a transmutation front, three
-// phases of the element by local temperature (mercuryThermal), and a liquid
-// mirror that reflects the Sun, the four element emitters, and the aether that
-// wraps the planet (16 analytic flow streaks, aetherLobes.js; spec amendment 2026-10-01).
-// Phase 3: the transmuted planet is a bead (mercuryWaves.js) — body modes and spin bulge move the silhouette, capillary ripples tilt the normal — and the crust keeps a scar map (scarMap.js).
-
-import { glf, v3 } from '../../gl/glf';
-import { SCAR_DEPTH_RANGE_M } from './scarMap';
-import { TIERS } from './planetQuality';
-import {
-  IMPULSE_SLOTS, SHAPE_MAX, SHAPE_ITERS, WAVE_KR, WAVE_C_GROUP, WAVE_SPREAD_FLOOR,
-  WAVE_K_PEAK, WAVE_SPEC_W, WAVE_VISC_PER_S, WAVE_SHARP, WAVE_WARP_RAD, WAVE_WARP_FREQ, WAVE_DIMPLE_RAD, WAVE_DIMPLE_S, WAVE_DIMPLE_GAIN,
-} from './mercuryWaves';
-import {
-  R_SCENE, R_MERCURY_M, SHADOW_REACH_RAD, SHADOW_SOFT_M, SHADOW_ZONE, SHADOW_SOFT_LSB, SHADOW_BIAS_LSB,
-  FALLBACK_ALBEDO, HG_F0, ROUGH_LIQUID, ROUGH_BOIL, SOLID_HG_ALBEDO, SPARKLE_CELLS, SPARKLE_DENSITY, SPARKLE_COS,
-  SPARKLE_GAIN, EMIT_RADIUS, FRONT_EDGE, FRONT_SOFT, FRONT_NOISE_FREQ, PHASE_BLEND_K,
-  EMIT_MIN_SIN, EMIT_HORIZON_SOFT, SUN_SHOULDER, AETHER_NIGHT, AETHER_DAY_LO, AETHER_DAY_HI,
-  AETHER_DIFFUSE, AETHER_DIFFUSE_REF_LOBES, NIGHT_TINT, AETHER_FRINGE_LO, AETHER_FRINGE_HI, AETHER_SHOULDER, RAY_ALBEDO,
-} from './planetLook';
-import { AETHER_LOBES, AETHER_SHAPES } from './aetherLobes';
-import {
-  HG_MELT_K, HG_BOIL_K, T_NIGHT_FLOOR_K, T_SUNSET_K, TAU_WARM_H, TAU_COOL_H, HOURS_PER_RAD,
-} from './mercuryThermal';
-import { DEM_MIN_M, DEM_MAX_M } from './mercuryMaps.generated';
-
-// One 8-bit DEM step in true metres.
-export const DEM_LSB_M = (DEM_MAX_M - DEM_MIN_M) / 255;
-
-export const PLANET_BUILTINS = ['viewMatrix', 'projectionMatrix', 'cameraPosition'];
-
-export const PLANET_UNIFORMS = [
-  'uAlbedo', 'uDem', 'uHasMaps', 'uSunDir', 'uBodyRot', 'uSunIrr', 'uSunSinR',
-  'uDemTexel', 'uTime', 'uExposure', 'uRelief', 'uNightFloor',
-  'uTau', 'uHeatK', 'uSubsolarT', 'uEmitPos', 'uEmitCol', 'uSunGlint', 'uEmitGain',
-  'uAethDir', 'uAethCol', 'uAetherGain', 'uAetherSinW', 'uAetherSilver',
-  'uAetherEdge', 'uAetherStretch', 'uAetherCurve', 'uAetherCore',
-  'uScar', 'uRayGain',
-  'uSurfOn', 'uImpDir', 'uImpMode', 'uImpWave', 'uBulge',
-];
-
-const AETHER_SHAPE_GLSL = `const vec2 AETHER_SHAPE[${AETHER_LOBES}] = vec2[${AETHER_LOBES}](${AETHER_SHAPES.map(([w, s]) => `vec2(${glf(w)}, ${glf(s)})`).join(', ')});`;
-
-export const PLANET_VS = /* glsl */ `in vec3 position;
-
-uniform mat4 viewMatrix;
-uniform mat4 projectionMatrix;
-uniform vec3 cameraPosition;
-
-out vec3 vWorld;
-
-const float R_SCENE = ${glf(R_SCENE)};
-const float SHAPE_MAX = ${glf(SHAPE_MAX)};
-
-void main() {
-  // Billboard at the centre plane, sized to the perspective silhouette + margin.
-  float d = length(cameraPosition);
-  float rb = R_SCENE * (1.0 + SHAPE_MAX); // room for the moving bead
-  float ext = rb * d / sqrt(max(d * d - rb * rb, 1e-4)) * 1.08;
-  vec3 right = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
-  vec3 up    = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
-  vWorld = (right * position.x + up * position.y) * ext;
-  gl_Position = projectionMatrix * viewMatrix * vec4(vWorld, 1.0);
-}
-`;
-
-function planetFs(q) {
-  return /* glsl */ `precision highp float;
+precision highp float;
 precision highp sampler2D;
 
 in vec3 vWorld;
@@ -101,8 +26,8 @@ uniform vec3 uEmitPos[4];
 uniform vec3 uEmitCol[4];
 uniform float uSunGlint;
 uniform float uEmitGain;
-uniform vec3 uAethDir[${AETHER_LOBES}];
-uniform vec3 uAethCol[${AETHER_LOBES}];
+uniform vec3 uAethDir[16];
+uniform vec3 uAethCol[16];
 uniform float uAetherGain;
 uniform float uAetherSinW;
 uniform float uAetherSilver;
@@ -113,78 +38,78 @@ uniform float uAetherCore;
 uniform sampler2D uScar;
 uniform float uRayGain;
 uniform float uSurfOn;
-uniform vec3 uImpDir[${IMPULSE_SLOTS}];
-uniform vec3 uImpMode[${IMPULSE_SLOTS}];
-uniform vec2 uImpWave[${IMPULSE_SLOTS}];
+uniform vec3 uImpDir[8];
+uniform vec3 uImpMode[8];
+uniform vec2 uImpWave[8];
 uniform vec4 uBulge;
 
 const float PI = 3.14159265358979;
 const float TAU = 6.28318530717959;
 const float HALF_PI = 1.57079632679490;
-const float R_SCENE = ${glf(R_SCENE)};
-const float R_MERCURY_M = ${glf(R_MERCURY_M)};
-const float DEM_MIN_M = ${glf(DEM_MIN_M)};
-const float DEM_MAX_M = ${glf(DEM_MAX_M)};
-const int SHADOW_STEPS = ${q.shadowSteps};
-const float SHADOW_REACH_RAD = ${glf(SHADOW_REACH_RAD)};
-const float SHADOW_SOFT_M = ${glf(SHADOW_SOFT_M)};
-const float SHADOW_ZONE = ${glf(SHADOW_ZONE)};
-const float DEM_LSB_M = ${glf(DEM_LSB_M)};
-const float SHADOW_SOFT_LSB = ${glf(SHADOW_SOFT_LSB)};
-const float SHADOW_BIAS_LSB = ${glf(SHADOW_BIAS_LSB)};
-const vec3 FALLBACK_ALBEDO = ${v3(FALLBACK_ALBEDO)};
+const float R_SCENE = 0.750000000;
+const float R_MERCURY_M = 2439400.00;
+const float DEM_MIN_M = -9581.00000;
+const float DEM_MAX_M = 7479.00000;
+const int SHADOW_STEPS = 12;
+const float SHADOW_REACH_RAD = 0.0300000000;
+const float SHADOW_SOFT_M = 300.000000;
+const float SHADOW_ZONE = 0.350000000;
+const float DEM_LSB_M = 66.9019608;
+const float SHADOW_SOFT_LSB = 1.50000000;
+const float SHADOW_BIAS_LSB = 1.00000000;
+const vec3 FALLBACK_ALBEDO = vec3(0.160000000, 0.150000000, 0.140000000);
 
-const float HG_MELT_K = ${glf(HG_MELT_K)};
-const float HG_BOIL_K = ${glf(HG_BOIL_K)};
-const float T_NIGHT_FLOOR_K = ${glf(T_NIGHT_FLOOR_K)};
-const float T_SUNSET_K = ${glf(T_SUNSET_K)};
-const float TAU_WARM_H = ${glf(TAU_WARM_H)};
-const float TAU_COOL_H = ${glf(TAU_COOL_H)};
-const float HOURS_PER_RAD = ${glf(HOURS_PER_RAD)};
-const vec3 HG_F0 = ${v3(HG_F0)};
-const float ROUGH_LIQUID = ${glf(ROUGH_LIQUID)};
-const float ROUGH_BOIL = ${glf(ROUGH_BOIL)};
-const vec3 SOLID_HG_ALBEDO = ${v3(SOLID_HG_ALBEDO)};
-const float SPARKLE_CELLS = ${glf(SPARKLE_CELLS)};
-const float SPARKLE_DENSITY = ${glf(SPARKLE_DENSITY)};
-const float SPARKLE_COS = ${glf(SPARKLE_COS)};
-const float SPARKLE_GAIN = ${glf(SPARKLE_GAIN)};
-const float EMIT_RADIUS = ${glf(EMIT_RADIUS)};
-const float FRONT_EDGE = ${glf(FRONT_EDGE)};
-const float FRONT_SOFT = ${glf(FRONT_SOFT)};
-const float FRONT_NOISE_FREQ = ${glf(FRONT_NOISE_FREQ)};
-const float PHASE_BLEND_K = ${glf(PHASE_BLEND_K)};
-const float EMIT_MIN_SIN = ${glf(EMIT_MIN_SIN)};
-const float EMIT_HORIZON_SOFT = ${glf(EMIT_HORIZON_SOFT)};
-const float SUN_SHOULDER = ${glf(SUN_SHOULDER)};
-const int AETHER_LOBES = ${AETHER_LOBES};
-${AETHER_SHAPE_GLSL}
-const float AETHER_NIGHT = ${glf(AETHER_NIGHT)};
-const float AETHER_DAY_LO = ${glf(AETHER_DAY_LO)};
-const float AETHER_DAY_HI = ${glf(AETHER_DAY_HI)};
-const float AETHER_DIFFUSE = ${glf(AETHER_DIFFUSE)};
-const float AETHER_DIFFUSE_REF_LOBES = ${glf(AETHER_DIFFUSE_REF_LOBES)};
-const float AETHER_FRINGE_LO = ${glf(AETHER_FRINGE_LO)};
-const float AETHER_FRINGE_HI = ${glf(AETHER_FRINGE_HI)};
-const float AETHER_SHOULDER = ${glf(AETHER_SHOULDER)};
-const vec3 NIGHT_TINT = ${v3(NIGHT_TINT)};
-const float SCAR_DEPTH_RANGE_M = ${glf(SCAR_DEPTH_RANGE_M)};
-const vec3 RAY_ALBEDO = ${v3(RAY_ALBEDO)};
-const int IMPULSE_SLOTS = ${q.rippleSlots};
-const int SHAPE_ITERS = ${SHAPE_ITERS};
-const float SHAPE_MAX = ${glf(SHAPE_MAX)};
-const float WAVE_KR = ${glf(WAVE_KR)};
-const float WAVE_C_GROUP = ${glf(WAVE_C_GROUP)};
-const float WAVE_SPREAD_FLOOR = ${glf(WAVE_SPREAD_FLOOR)};
-const float WAVE_K_PEAK = ${glf(WAVE_K_PEAK)};
-const float WAVE_SPEC_W = ${glf(WAVE_SPEC_W)};
-const float WAVE_VISC_PER_S = ${glf(WAVE_VISC_PER_S)};
-const float WAVE_SHARP = ${glf(WAVE_SHARP)};
-const float WAVE_WARP_RAD = ${glf(WAVE_WARP_RAD)};
-const float WAVE_WARP_FREQ = ${glf(WAVE_WARP_FREQ)};
-const float WAVE_DIMPLE_RAD = ${glf(WAVE_DIMPLE_RAD)};
-const float WAVE_DIMPLE_S = ${glf(WAVE_DIMPLE_S)};
-const float WAVE_DIMPLE_GAIN = ${glf(WAVE_DIMPLE_GAIN)};
+const float HG_MELT_K = 234.320000;
+const float HG_BOIL_K = 629.880000;
+const float T_NIGHT_FLOOR_K = 100.000000;
+const float T_SUNSET_K = 400.000000;
+const float TAU_WARM_H = 860.000000;
+const float TAU_COOL_H = 290.000000;
+const float HOURS_PER_RAD = 672.047663;
+const vec3 HG_F0 = vec3(0.760000000, 0.770000000, 0.780000000);
+const float ROUGH_LIQUID = 0.140000000;
+const float ROUGH_BOIL = 0.400000000;
+const vec3 SOLID_HG_ALBEDO = vec3(0.520000000, 0.530000000, 0.550000000);
+const float SPARKLE_CELLS = 700.000000;
+const float SPARKLE_DENSITY = 0.00400000000;
+const float SPARKLE_COS = 0.970000000;
+const float SPARKLE_GAIN = 3.00000000;
+const float EMIT_RADIUS = 0.500000000;
+const float FRONT_EDGE = 0.120000000;
+const float FRONT_SOFT = 0.0300000000;
+const float FRONT_NOISE_FREQ = 6.00000000;
+const float PHASE_BLEND_K = 8.00000000;
+const float EMIT_MIN_SIN = 0.600000000;
+const float EMIT_HORIZON_SOFT = 0.100000000;
+const float SUN_SHOULDER = 3.00000000;
+const int AETHER_LOBES = 16;
+const vec2 AETHER_SHAPE[16] = vec2[16](vec2(1.00465790, 2.85214955), vec2(0.808036272, 2.93053557), vec2(1.34743609, 2.63961223), vec2(0.776337102, 1.51215017), vec2(1.08684811, 2.93981779), vec2(1.23068756, 3.17492565), vec2(1.08692841, 2.79818830), vec2(0.929925033, 1.71377830), vec2(1.25900246, 2.75031590), vec2(1.25246937, 3.38337285), vec2(1.27724627, 2.25529579), vec2(0.875284148, 1.57586120), vec2(1.00688007, 2.86587560), vec2(0.630700483, 2.77325369), vec2(0.715984127, 1.84021174), vec2(0.858679994, 2.11387124));
+const float AETHER_NIGHT = 0.200000000;
+const float AETHER_DAY_LO = -0.150000000;
+const float AETHER_DAY_HI = 0.250000000;
+const float AETHER_DIFFUSE = 0.350000000;
+const float AETHER_DIFFUSE_REF_LOBES = 8.00000000;
+const float AETHER_FRINGE_LO = 0.250000000;
+const float AETHER_FRINGE_HI = 0.900000000;
+const float AETHER_SHOULDER = 1.50000000;
+const vec3 NIGHT_TINT = vec3(0.620000000, 0.680000000, 1.00000000);
+const float SCAR_DEPTH_RANGE_M = 4000.00000;
+const vec3 RAY_ALBEDO = vec3(0.420000000, 0.400000000, 0.380000000);
+const int IMPULSE_SLOTS = 8;
+const int SHAPE_ITERS = 3;
+const float SHAPE_MAX = 0.0600000000;
+const float WAVE_KR = 72.0000000;
+const float WAVE_C_GROUP = 1.90482595;
+const float WAVE_SPREAD_FLOOR = 0.150000000;
+const float WAVE_K_PEAK = 90.0000000;
+const float WAVE_SPEC_W = 0.600000000;
+const float WAVE_VISC_PER_S = 0.500000000;
+const float WAVE_SHARP = 0.220000000;
+const float WAVE_WARP_RAD = 0.0200000000;
+const float WAVE_WARP_FREQ = 7.00000000;
+const float WAVE_DIMPLE_RAD = 0.0500000000;
+const float WAVE_DIMPLE_S = 0.120000000;
+const float WAVE_DIMPLE_GAIN = 1.20000000;
 const float DIMPLE_NORM = 2.3316;
 
 // Crater depth from the scar map, true metres (scarMap.js encoding).
@@ -505,7 +430,7 @@ void main() {
   float ls = 2.0 * mu0 / (mu0 + mu + 1e-4); // Lommel–Seeliger, 1 at normal incidence
 
   float vis = 1.0;
-  if (${q.shadowSteps > 0 ? 'uHasMaps > 0.5' : 'false'} && mu0g > -uSunSinR && mu0g < SHADOW_ZONE) {
+  if (uHasMaps > 0.5 && mu0g > -uSunSinR && mu0g < SHADOW_ZONE) {
     vis = castShadow(uv, nb, Lb, h0, cosLat, east, north, gx, gy);
     vis = mix(vis, 1.0, smoothstep(0.7 * SHADOW_ZONE, SHADOW_ZONE, mu0g));
   }
@@ -563,15 +488,4 @@ void main() {
   vec3 srgb = mix(col * 12.92, 1.055 * pow(col, vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), col));
   float dith = (fract(sin(dot(gl_FragCoord.xy + fract(uTime) * 61.0, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
   fragColor = vec4(srgb + dith, coverage);
-}
-`;
-}
-
-export const PLANET_FS = planetFs(TIERS.full);
-
-// A tier is a shader variant: loop counts are compile-time consts (phase-4 spec §3).
-export function buildPlanetShader({ tier = 'full' } = {}) {
-  const q = TIERS[tier];
-  if (!q) throw new Error(`buildPlanetShader: unknown tier "${tier}"`);
-  return { vs: PLANET_VS, fs: tier === 'full' ? PLANET_FS : planetFs(q) };
 }

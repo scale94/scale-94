@@ -169,3 +169,9 @@ Each task gets its own commit and live check.
 - Tabulated g-factors.
 - Persisting state across visits.
 - KernelTab's `MercuryTerminator` reading the exosphere.
+
+## 12. Refinements from planning (2026-10-01)
+
+- **R1 (§6):** the shader sums every active pop within reach, not just F1/F2. The 2×2×2 neighbourhood `floor(p − 0.5) + {0,1}³` contains every site that can reach `p` when `POP_JITTER + POP_REACH < 1`, so the sum is exactly seam-free. Pops are sparse, so the cost matches F1/F2.
+- **R2 (§6):** a pop is the splash train miniaturised: `rippleSlope(th·POP_SCALE, age·POP_TIME, pxArc·POP_SCALE)`. At `WAVE_PLAYBACK` real dispersion cannot keep a 0.6 s pop inside its ~0.03 rad reach. This is a third stated playback convention.
+- **R3 (§7, §9):** `g/r²` does not peak exactly at the |v_r| maxima. The test asserts that B at perihelion (v_r ≈ 0) is below B at the date of maximum |v_r|.

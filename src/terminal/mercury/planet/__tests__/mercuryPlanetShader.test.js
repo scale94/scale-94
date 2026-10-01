@@ -1,6 +1,8 @@
 // src/terminal/mercury/planet/__tests__/mercuryPlanetShader.test.js
 import { describe, it, expect } from 'vitest';
 import { PLANET_VS, PLANET_FS, PLANET_UNIFORMS, PLANET_BUILTINS, DEM_LSB_M } from '../mercuryPlanetShader';
+import { buildPlanetShader } from '../mercuryPlanetShader';
+import { TIERS, TIER_NAMES } from '../planetQuality';
 import { glf, v3 } from '../../../gl/glf';
 import {
   R_SCENE, R_MERCURY_M, SHADOW_STEPS, SHADOW_REACH_RAD, SHADOW_SOFT_M, SHADOW_ZONE,
@@ -214,5 +216,29 @@ describe('mercuryPlanetShader contract', () => {
     const waveFn = PLANET_FS.slice(PLANET_FS.indexOf('float rippleSlope('), PLANET_FS.indexOf('void main()'));
     expect(waveFn).not.toMatch(/dFd[xy]|fwidth/);
     expect(firstLoop).toBeGreaterThan(-1);
+  });
+  it('the full variant is byte-identical to the pinned shader (phase-4 parity)', async () => {
+    await expect(PLANET_FS).toMatchFileSnapshot('./__snapshots__/planetShader.full.fs.glsl');
+    await expect(PLANET_VS).toMatchFileSnapshot('./__snapshots__/planetShader.full.vs.glsl');
+  });
+  it('buildPlanetShader: full is PLANET_FS/VS exactly; each tier sets its loop counts', () => {
+    const full = buildPlanetShader();
+    expect(full.fs).toBe(PLANET_FS);
+    expect(full.vs).toBe(PLANET_VS);
+    expect(buildPlanetShader({ tier: 'full' }).fs).toBe(PLANET_FS);
+    for (const tier of TIER_NAMES) {
+      const { fs } = buildPlanetShader({ tier });
+      expect(fs).toContain(`const int SHADOW_STEPS = ${TIERS[tier].shadowSteps};`);
+      expect(fs).toContain(`const int IMPULSE_SLOTS = ${TIERS[tier].rippleSlots};`);
+      // the uniform arrays stay full-size: JS always writes IMPULSE_SLOTS slots, strongest first
+      expect(fs).toContain(`uniform vec3 uImpDir[${IMPULSE_SLOTS}];`);
+    }
+    expect(() => buildPlanetShader({ tier: 'ultra' })).toThrow(/unknown tier/);
+  });
+
+  it('a tier without a shadow march never calls castShadow', () => {
+    const lite = buildPlanetShader({ tier: 'lite' }).fs;
+    expect(lite).toContain('if (false && mu0g > -uSunSinR && mu0g < SHADOW_ZONE)');
+    expect(PLANET_FS).toContain('if (uHasMaps > 0.5 && mu0g > -uSunSinR && mu0g < SHADOW_ZONE)');
   });
 });

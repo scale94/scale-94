@@ -7,7 +7,9 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { PLANET_VS, PLANET_FS } from './planet/mercuryPlanetShader';
+import { buildPlanetShader } from './planet/mercuryPlanetShader';
+import { impulseOrder } from './planet/planetQuality';
+import { PERF_INFO } from './planet/perfStats';
 import { mercuryEphemeris } from './planet/mercuryEphemeris';
 import { SUN_DIR_WORLD, bodyYawFor } from './planet/planetFrame';
 import { PLANET_TUNE, MEAN_R_AU, R_SCENE } from './planet/planetLook';
@@ -57,7 +59,7 @@ function loadMap(loader, url, srgb) {
   });
 }
 
-export default function MercuryPlanet({ isMobile = false, emitters = {}, strikes = null }) {
+export default function MercuryPlanet({ isMobile = false, tier = 'full', emitters = {}, strikes = null }) {
   const gl = useThree((s) => s.gl);
   const camera = useThree((s) => s.camera);
   const drag = useMercuryDrag(gl.domElement);
@@ -84,10 +86,11 @@ export default function MercuryPlanet({ isMobile = false, emitters = {}, strikes
   }, [scar]);
   useEffect(() => () => scarTex.dispose(), [scarTex]);
 
+  const shader = useMemo(() => buildPlanetShader({ tier }), [tier]);
   const material = useMemo(() => new THREE.RawShaderMaterial({
     glslVersion: THREE.GLSL3,
-    vertexShader: PLANET_VS,
-    fragmentShader: PLANET_FS,
+    vertexShader: shader.vs,
+    fragmentShader: shader.fs,
     alphaToCoverage: !isMobile,
     uniforms: {
       uAlbedo: { value: null },
@@ -126,14 +129,14 @@ export default function MercuryPlanet({ isMobile = false, emitters = {}, strikes
       uImpWave: { value: Array.from({ length: IMPULSE_SLOTS }, () => new THREE.Vector2()) },
       uBulge: { value: new THREE.Vector4(0, 1, 0, 0) },
     },
-  }), [isMobile, init, body, scarTex]);
+  }), [isMobile, init, body, scarTex, shader]);
 
   useEffect(() => () => geometry.dispose(), [geometry]);
   useEffect(() => () => material.dispose(), [material]);
 
   // Dev-only console tuning rig (window.__mercuryTune). Zero prod footprint.
   useEffect(() => {
-    if (import.meta.env.DEV) registerTuningRig();
+    if (import.meta.env.DEV) { registerTuningRig(); window.__mercuryPerf = PERF_INFO; }
   }, []);
 
   const emitRef = useRef(emitters);
@@ -145,6 +148,7 @@ export default function MercuryPlanet({ isMobile = false, emitters = {}, strikes
 
   // Phase 3 state: the bead's impulses, the drag wake, the scar clock. Preallocated; useFrame allocates nothing.
   const surf = useMemo(() => ({
+    order: Array.from({ length: IMPULSE_SLOTS }, (_, i) => i),
     impulses: createImpulses(),
     frame: createImpulseFrame(),
     wake: createWake(),
@@ -216,6 +220,8 @@ export default function MercuryPlanet({ isMobile = false, emitters = {}, strikes
     u.uBodyRot.value.setFromMatrix4(m4.makeRotationFromQuaternion(body.q));
     u.uTau.value = body.tau;
     u.uHeatK.value = body.heatK;
+    PERF_INFO.tau = body.tau;
+    PERF_INFO.heatK = body.heatK;
 
     // --- Phase 3: strikes, wake, scars, the bead ---
     const precession = orbitPrecessionAngle(t);
@@ -267,13 +273,16 @@ export default function MercuryPlanet({ isMobile = false, emitters = {}, strikes
     surf.frameOpts.modeScale = body.tau * PLANET_TUNE.modeGain;
     surf.frameOpts.waveScale = PLANET_TUNE.waveGain;
     impulseFrame(surf.impulses, t, surf.frameOpts, surf.frame);
-    for (let i = 0; i < IMPULSE_SLOTS; i++) {
+    // Strongest first: a tier whose shader loops over fewer slots draws the ones that show.
+    impulseOrder(surf.frame, IMPULSE_SLOTS, surf.order);
+    for (let j = 0; j < IMPULSE_SLOTS; j++) {
+      const i = surf.order[j];
       const slot = surf.impulses.slots[i];
       bodyToWorld(slot.dir, body.q, surf.w);
       slipDirWorld(surf.w, slot.dirWorld0, slot.slip, surf.w);
-      u.uImpDir.value[i].set(surf.w[0], surf.w[1], surf.w[2]);
-      u.uImpMode.value[i].set(surf.frame.mode[3 * i], surf.frame.mode[3 * i + 1], surf.frame.mode[3 * i + 2]);
-      u.uImpWave.value[i].set(surf.frame.wave[2 * i], surf.frame.wave[2 * i + 1]);
+      u.uImpDir.value[j].set(surf.w[0], surf.w[1], surf.w[2]);
+      u.uImpMode.value[j].set(surf.frame.mode[3 * i], surf.frame.mode[3 * i + 1], surf.frame.mode[3 * i + 2]);
+      u.uImpWave.value[j].set(surf.frame.wave[2 * i], surf.frame.wave[2 * i + 1]);
     }
     spinBulge(body.omega, body.tau * PLANET_TUNE.modeGain, surf.bulge);
     u.uBulge.value.set(surf.bulge[0], surf.bulge[1], surf.bulge[2], surf.bulge[3]);
