@@ -19,7 +19,7 @@ import {
   EMIT_MIN_SIN, EMIT_HORIZON_SOFT, SUN_SHOULDER, AETHER_NIGHT, AETHER_DAY_LO, AETHER_DAY_HI,
   AETHER_DIFFUSE, NIGHT_TINT,
 } from './planetLook';
-import { AETHER_LOBES } from './aetherLobes';
+import { AETHER_LOBES, AETHER_SHAPES } from './aetherLobes';
 import {
   HG_MELT_K, HG_BOIL_K, T_NIGHT_FLOOR_K, T_SUNSET_K, TAU_WARM_H, TAU_COOL_H, HOURS_PER_RAD,
 } from './mercuryThermal';
@@ -35,7 +35,10 @@ export const PLANET_UNIFORMS = [
   'uDemTexel', 'uTime', 'uExposure', 'uRelief', 'uNightFloor',
   'uTau', 'uHeatK', 'uSubsolarT', 'uEmitPos', 'uEmitCol', 'uSunGlint', 'uEmitGain',
   'uAethDir', 'uAethCol', 'uAetherGain', 'uAetherSinW', 'uAetherSilver',
+  'uAetherEdge', 'uAetherStretch',
 ];
+
+const AETHER_SHAPE_GLSL = `const vec2 AETHER_SHAPE[${AETHER_LOBES}] = vec2[${AETHER_LOBES}](${AETHER_SHAPES.map(([w, s]) => `vec2(${glf(w)}, ${glf(s)})`).join(', ')});`;
 
 export const PLANET_VS = /* glsl */ `in vec3 position;
 
@@ -91,6 +94,8 @@ uniform vec3 uAethCol[${AETHER_LOBES}];
 uniform float uAetherGain;
 uniform float uAetherSinW;
 uniform float uAetherSilver;
+uniform float uAetherEdge;
+uniform float uAetherStretch;
 
 const float PI = 3.14159265358979;
 const float TAU = 6.28318530717959;
@@ -132,6 +137,7 @@ const float EMIT_MIN_SIN = ${glf(EMIT_MIN_SIN)};
 const float EMIT_HORIZON_SOFT = ${glf(EMIT_HORIZON_SOFT)};
 const float SUN_SHOULDER = ${glf(SUN_SHOULDER)};
 const int AETHER_LOBES = ${AETHER_LOBES};
+${AETHER_SHAPE_GLSL}
 const float AETHER_NIGHT = ${glf(AETHER_NIGHT)};
 const float AETHER_DAY_LO = ${glf(AETHER_DAY_LO)};
 const float AETHER_DAY_HI = ${glf(AETHER_DAY_HI)};
@@ -233,6 +239,25 @@ vec3 aetherHue(vec3 col) {
   return mix(col, vec3(l), uAetherSilver);
 }
 
+// One aether streak in the mirror: an elongated lobe around d, stretched along
+// the orbital flow (azimuth about +Y), with a super-Gaussian profile:
+// uAetherEdge 1 = soft Gaussian; higher = a flat silver core that steps
+// abruptly into the dark, like the meniscus of a mercury pool.
+float aetherStreak(vec3 R, vec3 d, vec2 shape, float rough) {
+  float facing = dot(R, d);
+  if (facing <= 0.0) return 0.0;
+  vec3 flow = normalize(cross(vec3(0.0, 1.0, 0.0), d));
+  vec3 bn = cross(d, flow);
+  float alpha = rough * rough;
+  float wA = uAetherSinW * shape.x;
+  float across = sqrt(wA * wA + alpha * alpha);
+  float along = across * (1.0 + (shape.y - 1.0) * uAetherStretch);
+  float u = dot(R, flow) / along;
+  float v = dot(R, bn) / across;
+  float d2 = u * u + v * v;
+  return smoothstep(0.0, 0.15, facing) * exp(-pow(d2, max(uAetherEdge, 0.5)));
+}
+
 // What the liquid sees: the Sun disc, the four elements, and the aether that
 // wraps the planet on every side. Analytic; no cubemap.
 vec3 envRadiance(vec3 R, float rough, vec3 P, vec3 nW) {
@@ -246,7 +271,7 @@ vec3 envRadiance(vec3 R, float rough, vec3 P, vec3 nW) {
     c += uEmitCol[i] * (uEmitGain * above * lobe(dot(R, dir), sinE, rough));
   }
   vec3 a = vec3(0.0);
-  for (int i = 0; i < AETHER_LOBES; i++) a += aetherHue(uAethCol[i]) * lobe(dot(R, uAethDir[i]), uAetherSinW, rough);
+  for (int i = 0; i < AETHER_LOBES; i++) a += aetherHue(uAethCol[i]) * aetherStreak(R, uAethDir[i], AETHER_SHAPE[i], rough);
   return c + uAetherGain * aetherTint(nW) * a;
 }
 
@@ -257,7 +282,7 @@ vec3 aetherDiffuse(vec3 nW) {
     float k = 0.5 + 0.5 * dot(nW, uAethDir[i]);
     a += uAethCol[i] * (k * k);
   }
-  return uAetherGain * AETHER_DIFFUSE * aetherTint(nW) * a;
+  return uAetherGain * AETHER_DIFFUSE * aetherTint(nW) * a * (8.0 / float(AETHER_LOBES));
 }
 
 void main() {

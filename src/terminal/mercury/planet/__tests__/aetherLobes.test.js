@@ -1,7 +1,7 @@
 // src/terminal/mercury/planet/__tests__/aetherLobes.test.js
 import { describe, it, expect } from 'vitest';
 import {
-  AETHER_LOBES, AETHER_DRIFT_RAD_PER_S, AETHER_BASE_DIRS, AETHER_PHASES, AETHER_PALETTES_SRGB,
+  AETHER_LOBES, AETHER_DRIFT_RAD_PER_S, AETHER_BASE_DIRS, AETHER_SHAPES, AETHER_MAX_Y, AETHER_PHASES, AETHER_PALETTES_SRGB,
   srgbToLinear, aetherLobeColors, aetherLobeDirs,
 } from '../aetherLobes';
 
@@ -9,15 +9,29 @@ const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const len = (a) => Math.sqrt(dot(a, a));
 
 describe('aetherLobes', () => {
-  it('8 unit lobes wrap the planet: camera side (+z) and far side, ≥ 70° apart', () => {
+  it('16 irregular unit lobes wrap the planet: camera and far side, clear of the poles, ≥ 20° apart', () => {
+    expect(AETHER_LOBES).toBe(16);
     expect(AETHER_BASE_DIRS).toHaveLength(AETHER_LOBES);
-    expect(AETHER_LOBES).toBe(8);
-    for (const d of AETHER_BASE_DIRS) expect(len(d)).toBeCloseTo(1, 12);
-    expect(AETHER_BASE_DIRS.some((d) => d[2] > 0.5)).toBe(true);
-    expect(AETHER_BASE_DIRS.some((d) => d[2] < -0.5)).toBe(true);
-    for (let i = 0; i < 8; i++) for (let j = i + 1; j < 8; j++) {
-      expect(Math.acos(dot(AETHER_BASE_DIRS[i], AETHER_BASE_DIRS[j]))).toBeGreaterThanOrEqual(70 * Math.PI / 180);
+    for (const d of AETHER_BASE_DIRS) {
+      expect(len(d)).toBeCloseTo(1, 12);
+      expect(Math.abs(d[1])).toBeLessThanOrEqual(AETHER_MAX_Y + 1e-12);
     }
+    expect(AETHER_BASE_DIRS.filter((d) => d[2] > 0.3).length).toBeGreaterThanOrEqual(4);
+    expect(AETHER_BASE_DIRS.filter((d) => d[2] < -0.3).length).toBeGreaterThanOrEqual(4);
+    for (let i = 0; i < AETHER_LOBES; i++) for (let j = i + 1; j < AETHER_LOBES; j++) {
+      const c = Math.min(1, Math.max(-1, dot(AETHER_BASE_DIRS[i], AETHER_BASE_DIRS[j])));
+      expect(Math.acos(c)).toBeGreaterThanOrEqual(20 * Math.PI / 180);
+    }
+  });
+
+  it('streak shapes vary: width ×0.6–1.4, elongation 1.5–3.5, deterministic', () => {
+    expect(AETHER_SHAPES).toHaveLength(AETHER_LOBES);
+    for (const [w, s] of AETHER_SHAPES) {
+      expect(w).toBeGreaterThanOrEqual(0.6); expect(w).toBeLessThanOrEqual(1.4);
+      expect(s).toBeGreaterThanOrEqual(1.5); expect(s).toBeLessThanOrEqual(3.5);
+    }
+    const widths = AETHER_SHAPES.map(([w]) => w);
+    expect(Math.max(...widths) - Math.min(...widths)).toBeGreaterThan(0.3);
   });
 
   it('srgbToLinear is the IEC 61966-2-1 curve', () => {

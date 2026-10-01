@@ -2,22 +2,42 @@
 //
 // The four element flows wrap the planet on every side, the camera side
 // included (we only ever see the half behind it). The mirror reflects that
-// envelope as AETHER_LOBES broad soft lights at the cube-corner directions,
+// envelope as AETHER_LOBES irregular streaks stretched along the orbital flow,
 // drifting slowly about the vertical. Each lobe takes one palette colour from
 // every element flow, weighted by that flow's live opacity, so the active
 // element floods the liquid. Palettes are copied from the flow shaders, which
 // write them straight to the framebuffer (sRGB), and are linearised here
 // because the planet shader encodes its own output.
 
-export const AETHER_LOBES = 8;
+export const AETHER_LOBES = 16;
 export const AETHER_DRIFT_RAD_PER_S = 0.04; // one turn ≈ 2.6 min
 
-const S = Math.sqrt(1 / 3);
-export const AETHER_BASE_DIRS = [
-  [S, S, S], [-S, S, S], [S, -S, S], [-S, -S, S],
-  [S, S, -S], [-S, S, -S], [S, -S, -S], [-S, -S, -S],
-];
-
+// Deterministic irregular layout: a Fibonacci sphere, each point jittered by a
+// seeded PRNG (mulberry32), kept away from the poles so the flow direction
+// (azimuth about +Y) is always defined. AETHER_SHAPES[i] = [width multiplier,
+// streak elongation]: varied sizes and stretches, so nothing reads as a grid.
+const AETHER_SEED = 0x4867;
+function mulberry32(seed) {
+  let a = seed;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+export const AETHER_MAX_Y = 0.85;
+const GOLDEN = Math.PI * (3 - Math.sqrt(5));
+const rand = mulberry32(AETHER_SEED);
+export const AETHER_BASE_DIRS = [];
+export const AETHER_SHAPES = [];
+for (let i = 0; i < AETHER_LOBES; i++) {
+  const y = Math.max(-AETHER_MAX_Y, Math.min(AETHER_MAX_Y, 1 - (2 * (i + 0.5)) / AETHER_LOBES + (rand() - 0.5) * 0.12));
+  const r = Math.sqrt(1 - y * y);
+  const th = i * GOLDEN + (rand() - 0.5) * 0.5;
+  AETHER_BASE_DIRS.push([r * Math.cos(th), y, r * Math.sin(th)]);
+  AETHER_SHAPES.push([0.6 + 0.8 * rand(), 1.5 + 2 * rand()]);
+}
 export const AETHER_PHASES = ['fluid', 'thermal', 'earth', 'air'];
 
 // sRGB, verbatim from each flow's fragment shader.

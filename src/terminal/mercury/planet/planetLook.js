@@ -51,7 +51,9 @@ export const PLANET_TUNE = {
   nightFloor: 0.006, // faint albedo floor so the night limb is not a hole
   sunGlint: 120,     // liquid mirror: Sun-disc radiance gain (soft-shouldered; boil sheen ≈ 1, cooled pinpoint saturates)
   emitGain: 1.5,     // liquid mirror: element-emitter reflection gain
-  aetherGain: 1.0,   // liquid mirror + frozen ambient: aether envelope gain
-  aetherSinW: 0.68,  // aether lobe width (sin of the angular radius); lower = tighter lobes, darker gaps between them
-  aetherSilver: 0,   // 0 = lobes carry full aether colour; 1 = neutral silver (luminance only); between = tinted silver
+  aetherGain: 2.0,   // liquid mirror + frozen ambient: aether envelope gain
+  aetherSinW: 0.3,   // aether streak half-width across the flow (sin); lower = thinner streaks, more dark between
+  aetherSilver: 0.6, // 0 = streaks carry full aether colour; 1 = neutral silver; between = tinted silver
+  aetherEdge: 3,     // streak profile exponent: 1 = soft Gaussian; higher = flat silver core with an abrupt meniscus edge
+  aetherStretch: 1,  // 0 = round lobes; 1 = each streak at its own elongation (AETHER_SHAPES)
 };

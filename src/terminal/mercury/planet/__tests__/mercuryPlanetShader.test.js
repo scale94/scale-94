@@ -10,7 +10,7 @@ import {
   EMIT_MIN_SIN, EMIT_HORIZON_SOFT, SUN_SHOULDER, AETHER_NIGHT, AETHER_DAY_LO, AETHER_DAY_HI,
   AETHER_DIFFUSE, NIGHT_TINT,
 } from '../planetLook';
-import { AETHER_LOBES } from '../aetherLobes';
+import { AETHER_LOBES, AETHER_SHAPES } from '../aetherLobes';
 import {
   HG_MELT_K, HG_BOIL_K, T_NIGHT_FLOOR_K, T_SUNSET_K, TAU_WARM_H, TAU_COOL_H, HOURS_PER_RAD,
 } from '../mercuryThermal';
@@ -90,7 +90,11 @@ describe('mercuryPlanetShader contract', () => {
     expect(PLANET_FS).toContain(`uniform vec3 uAethCol[${AETHER_LOBES}];`);
     expect(PLANET_FS).toContain('uniform float uAetherGain;');
     expect(PLANET_FS).toMatch(/float dayW = smoothstep\(AETHER_DAY_LO, AETHER_DAY_HI, dot\(nW, uSunDir\)\);/);
-    expect(PLANET_FS).toContain('a += aetherHue(uAethCol[i]) * lobe(dot(R, uAethDir[i]), uAetherSinW, rough);');
+    expect(PLANET_FS).toContain('a += aetherHue(uAethCol[i]) * aetherStreak(R, uAethDir[i], AETHER_SHAPE[i], rough);');
+    expect(PLANET_FS).toContain('uniform float uAetherEdge;');
+    expect(PLANET_FS).toContain('uniform float uAetherStretch;');
+    expect(PLANET_FS).toContain('return smoothstep(0.0, 0.15, facing) * exp(-pow(d2, max(uAetherEdge, 0.5)));');
+    expect(PLANET_FS).toContain(`const vec2 AETHER_SHAPE[${AETHER_LOBES}] = vec2[${AETHER_LOBES}](${AETHER_SHAPES.map(([w, s]) => `vec2(${glf(w)}, ${glf(s)})`).join(', ')});`);
     expect(PLANET_FS).toContain('uniform float uAetherSinW;');
     expect(PLANET_FS).toContain('uniform float uAetherSilver;');
     expect(PLANET_FS).toContain('return mix(col, vec3(l), uAetherSilver);');
@@ -98,7 +102,7 @@ describe('mercuryPlanetShader contract', () => {
     expect(PLANET_FS).toMatch(/vec3 liquid = F \* envRadiance\(R, [^;]*, hit, nW\);/);
     expect(PLANET_FS).toMatch(/\+ aetherDiffuse\(nW\)/);
     expect(PLANET_FS).toContain('return c + uAetherGain * aetherTint(nW) * a;');
-    expect(PLANET_FS).toContain('return uAetherGain * AETHER_DIFFUSE * aetherTint(nW) * a;');
+    expect(PLANET_FS).toContain('return uAetherGain * AETHER_DIFFUSE * aetherTint(nW) * a * (8.0 / float(AETHER_LOBES));');
   });
 
   it('mirrors mirrorLobes.js: same lobe and soft shoulder maths; the Sun goes through the shoulder', () => {
