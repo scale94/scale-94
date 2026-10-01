@@ -81,19 +81,40 @@ export function modeResponse(j, ageS) {
 export function createImpulses() {
   return {
     slots: Array.from({ length: IMPULSE_SLOTS }, () => ({ active: false, dir: [0, 0, 1], t0: 0, mode: 0, wave: 0, kind: 'splash' })),
-    next: 0,
   };
 }
 
+const waveDamp = (kind) => WAVE_DAMP_PER_S[kind] ?? WAVE_DAMP_PER_S.splash;
+
+// What is left of a slot's impulse at tS: its ℓ = 2 body mode plus its ripple.
+function remainingStrength(s, tS) {
+  const age = tS - s.t0;
+  return Math.abs(s.mode) * Math.exp(-MODE_GAMMA[0] * age) + s.wave * Math.exp(-waveDamp(s.kind) * age);
+}
+
+// A free slot (inactive first, then past its life) goes first; otherwise the weakest
+// remaining impulse is overwritten, lowest index on a tie. Round-robin would
+// let a drag's wakes (one per 0.16 s) clobber a splash that should live 6 s.
+function pickSlot(buf, tS) {
+  for (let i = 0; i < IMPULSE_SLOTS; i++) if (!buf.slots[i].active) return i;
+  let best = 0, bestStrength = Infinity;
+  for (let i = 0; i < IMPULSE_SLOTS; i++) {
+    const s = buf.slots[i];
+    if (tS - s.t0 > IMPULSE_LIFE_S) return i;
+    const strength = remainingStrength(s, tS);
+    if (strength < bestStrength) { best = i; bestStrength = strength; }
+  }
+  return best;
+}
+
 export function addImpulse(buf, { dirBody, tS, mode = 0, wave = 0, kind = 'splash' }) {
-  const s = buf.slots[buf.next];
+  const s = buf.slots[pickSlot(buf, tS)];
   s.active = true;
   s.dir[0] = dirBody[0]; s.dir[1] = dirBody[1]; s.dir[2] = dirBody[2];
   s.t0 = tS;
   s.mode = mode;
   s.wave = wave;
   s.kind = kind;
-  buf.next = (buf.next + 1) % IMPULSE_SLOTS;
   return s;
 }
 
@@ -121,7 +142,7 @@ export function impulseFrame(buf, tS, { modeScale = 1, waveScale = 1 } = {}, out
       continue;
     }
     for (let j = 0; j < 3; j++) out.mode[3 * i + j] = s.mode * modeScale * modeResponse(j, age);
-    const waveAmp = s.wave * waveScale * Math.exp(-WAVE_DAMP_PER_S[s.kind] * age) * antipodeFade(age);
+    const waveAmp = s.wave * waveScale * Math.exp(-waveDamp(s.kind) * age) * antipodeFade(age);
     out.wave[2 * i] = age;
     out.wave[2 * i + 1] = waveAmp;
     if (Math.abs(out.mode[3 * i]) + Math.abs(out.mode[3 * i + 1]) + Math.abs(out.mode[3 * i + 2]) + waveAmp > 1e-5) out.any = true;

@@ -79,6 +79,34 @@ describe('impulse ring buffer', () => {
     expect(buf.slots[1].t0).toBe(1);
   });
 
+  it('evicts the weakest impulse, not the oldest, so a splash outlives a drag of wakes', () => {
+    const buf = createImpulses();
+    const wake = (tS) => addImpulse(buf, { dirBody: [0, 0, 1], tS, wave: 0.01, kind: 'wake' });
+    [0, 0.16, 0.32].forEach(wake);
+    addImpulse(buf, { dirBody: [0, 0, 1], tS: 0.5, mode: 0.035, wave: 0.35, kind: 'splash' });
+    [0.64, 0.8, 0.96, 0.96].forEach(wake);   // 7 weak wakes + the splash fill the ring; the splash sits mid-ring
+    const splash = buf.slots.find((s) => s.kind === 'splash');
+    for (let i = 0; i < 4; i++) wake(1.2 + 0.16 * i);
+    const kept = buf.slots.filter((s) => s.kind === 'splash');
+    expect(kept).toHaveLength(1);
+    expect(kept[0]).toBe(splash);
+    expect(kept[0].t0).toBe(0.5);
+  });
+
+  it('an unknown impulse kind decays like a splash instead of going NaN', () => {
+    const buf = createImpulses();
+    const out = createImpulseFrame();
+    addImpulse(buf, { dirBody: [1, 0, 0], tS: 0, mode: 0.01, wave: 0.3, kind: 'bogus' });
+    addImpulse(buf, { dirBody: [0, 1, 0], tS: 0, wave: 0.01, kind: 'wake' });
+    addImpulse(buf, { dirBody: [0, 1, 0], tS: 0, wave: 0.01, kind: 'wake' });
+    impulseFrame(buf, 0.5, {}, out);
+    expect(Number.isFinite(out.wave[1])).toBe(true);
+    expect(out.wave[1]).toBeGreaterThan(0);
+    // eviction with a bogus slot present must not poison the comparison
+    for (let i = 0; i < IMPULSE_SLOTS + 2; i++) addImpulse(buf, { dirBody: [0, 0, 1], tS: 0.6, wave: 0.2, kind: 'wake' });
+    expect(buf.slots.every((s) => Number.isFinite(s.t0))).toBe(true);
+  });
+
   it('impulseFrame scales, ages and retires; empty means any = false', () => {
     const buf = createImpulses();
     const out = createImpulseFrame();
