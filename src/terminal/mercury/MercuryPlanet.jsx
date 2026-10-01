@@ -11,6 +11,7 @@ import { PLANET_VS, PLANET_FS } from './planet/mercuryPlanetShader';
 import { mercuryEphemeris } from './planet/mercuryEphemeris';
 import { SUN_DIR_WORLD, bodyYawFor } from './planet/planetFrame';
 import { PLANET_TUNE, MEAN_R_AU } from './planet/planetLook';
+import { AETHER_BASE_DIRS, aetherLobeColors, aetherLobeDirs } from './planet/aetherLobes';
 import { MAPS } from './planet/mercuryMaps.generated';
 import { subsolarTempK } from './planet/mercuryThermal';
 import { createBody, stepBody, targetFromYaw } from './planet/mercuryBody';
@@ -83,6 +84,9 @@ export default function MercuryPlanet({ isMobile = false, emitters = {} }) {
       uEmitCol: { value: ORBIT_NODES.map(() => new THREE.Vector3()) },
       uSunGlint: { value: PLANET_TUNE.sunGlint },
       uEmitGain: { value: PLANET_TUNE.emitGain },
+      uAethDir: { value: AETHER_BASE_DIRS.map((d) => new THREE.Vector3(...d)) },
+      uAethCol: { value: AETHER_BASE_DIRS.map(() => new THREE.Vector3()) },
+      uAetherGain: { value: PLANET_TUNE.aetherGain },
     },
   }), [isMobile, init, body]);
 
@@ -95,6 +99,10 @@ export default function MercuryPlanet({ isMobile = false, emitters = {} }) {
   }, []);
 
   const emitRef = useRef(emitters);
+  const aether = useMemo(() => ({
+    dirs: AETHER_BASE_DIRS.map((d) => [...d]),
+    cols: AETHER_BASE_DIRS.map(() => [0, 0, 0]),
+  }), []);
   useEffect(() => { emitRef.current = emitters; }, [emitters]);
 
   useEffect(() => {
@@ -126,6 +134,7 @@ export default function MercuryPlanet({ isMobile = false, emitters = {} }) {
     u.uNightFloor.value = PLANET_TUNE.nightFloor;
     u.uSunGlint.value = PLANET_TUNE.sunGlint;
     u.uEmitGain.value = PLANET_TUNE.emitGain;
+    u.uAetherGain.value = PLANET_TUNE.aetherGain;
     if (t >= nextEphemeris.current) {
       nextEphemeris.current = t + EPHEMERIS_REFRESH_S;
       const e = planetEphemerisUniforms(Date.now());
@@ -149,6 +158,13 @@ export default function MercuryPlanet({ isMobile = false, emitters = {} }) {
       const c = EMIT_COLORS[i];
       u.uEmitCol.value[i].set(c.r * o, c.g * o, c.b * o);
     });
+
+    aetherLobeDirs(t, aether.dirs);
+    aetherLobeColors(emitRef.current, aether.cols);
+    for (let i = 0; i < aether.dirs.length; i++) {
+      u.uAethDir.value[i].set(aether.dirs[i][0], aether.dirs[i][1], aether.dirs[i][2]);
+      u.uAethCol.value[i].set(aether.cols[i][0], aether.cols[i][1], aether.cols[i][2]);
+    }
   });
 
   return <mesh geometry={geometry} material={material} frustumCulled={false} />;

@@ -7,7 +7,10 @@ import {
   SHADOW_SOFT_LSB, SHADOW_BIAS_LSB, HG_F0, ROUGH_LIQUID, ROUGH_BOIL, SOLID_HG_ALBEDO,
   SPARKLE_CELLS, SPARKLE_DENSITY, SPARKLE_COS, SPARKLE_GAIN, EMIT_RADIUS,
   FRONT_EDGE, FRONT_SOFT, FRONT_NOISE_FREQ, PHASE_BLEND_K,
+  EMIT_MIN_SIN, EMIT_HORIZON_SOFT, SUN_SHOULDER, AETHER_SIN_W, AETHER_NIGHT, AETHER_DAY_LO, AETHER_DAY_HI,
+  AETHER_DIFFUSE, NIGHT_TINT,
 } from '../planetLook';
+import { AETHER_LOBES } from '../aetherLobes';
 import {
   HG_MELT_K, HG_BOIL_K, T_NIGHT_FLOOR_K, T_SUNSET_K, TAU_WARM_H, TAU_COOL_H, HOURS_PER_RAD,
 } from '../mercuryThermal';
@@ -38,11 +41,15 @@ describe('mercuryPlanetShader contract', () => {
       HG_MELT_K, HG_BOIL_K, T_NIGHT_FLOOR_K, T_SUNSET_K, TAU_WARM_H, TAU_COOL_H, HOURS_PER_RAD,
       ROUGH_LIQUID, ROUGH_BOIL, SPARKLE_CELLS, SPARKLE_DENSITY, SPARKLE_COS, SPARKLE_GAIN, EMIT_RADIUS,
       FRONT_EDGE, FRONT_SOFT, FRONT_NOISE_FREQ, PHASE_BLEND_K,
+      EMIT_MIN_SIN, EMIT_HORIZON_SOFT, SUN_SHOULDER, AETHER_SIN_W, AETHER_NIGHT, AETHER_DAY_LO, AETHER_DAY_HI,
+      AETHER_DIFFUSE,
     })) {
       expect(PLANET_FS).toContain(`const float ${name} = ${glf(value)};`);
     }
     expect(PLANET_FS).toContain(`const vec3 HG_F0 = ${v3(HG_F0)};`);
     expect(PLANET_FS).toContain(`const vec3 SOLID_HG_ALBEDO = ${v3(SOLID_HG_ALBEDO)};`);
+    expect(PLANET_FS).toContain(`const vec3 NIGHT_TINT = ${v3(NIGHT_TINT)};`);
+    expect(PLANET_FS).toContain(`const int AETHER_LOBES = ${AETHER_LOBES};`);
     expect(PLANET_FS).toContain(`const int SHADOW_STEPS = ${SHADOW_STEPS};`);
     expect(PLANET_VS).toContain(`const float R_SCENE = ${glf(R_SCENE)};`);
   });
@@ -76,5 +83,31 @@ describe('mercuryPlanetShader contract', () => {
       expect(s).not.toMatch(/\bhalf\b/);
       expect(s).not.toMatch(/gl_FragColor/);
     }
+  });
+
+  it('reflects the aether as AETHER_LOBES soft lobes, attenuated on the night side by the surface normal', () => {
+    expect(PLANET_FS).toContain(`uniform vec3 uAethDir[${AETHER_LOBES}];`);
+    expect(PLANET_FS).toContain(`uniform vec3 uAethCol[${AETHER_LOBES}];`);
+    expect(PLANET_FS).toContain('uniform float uAetherGain;');
+    expect(PLANET_FS).toMatch(/float dayW = smoothstep\(AETHER_DAY_LO, AETHER_DAY_HI, dot\(nW, uSunDir\)\);/);
+    expect(PLANET_FS).toMatch(/lobe\(dot\(R, uAethDir\[i\]\), AETHER_SIN_W, rough\)/);
+    expect(PLANET_FS).toMatch(/vec3 liquid = F \* envRadiance\(R, [^;]*, hit, nW\);/);
+    expect(PLANET_FS).toMatch(/\+ aetherDiffuse\(nW\)/);
+  });
+
+  it('mirrors mirrorLobes.js: same lobe and soft shoulder maths; the Sun goes through the shoulder', () => {
+    expect(PLANET_FS).toContain('return (sinR * sinR / w2) * exp(-a * a / w2);');
+    expect(PLANET_FS).toContain('float softShoulder(float x, float k) { return k * (1.0 - exp(-x / k)); }');
+    expect(PLANET_FS).toMatch(/softShoulder\(uSunGlint \* uSunIrr \* uExposure \* lobe\(dot\(R, uSunDir\), uSunSinR, rough\), SUN_SHOULDER\)/);
+  });
+
+  it('widens and horizon-masks the element reflections', () => {
+    expect(PLANET_FS).toContain('float sinE = clamp(EMIT_RADIUS / dist, EMIT_MIN_SIN, 0.99);');
+    expect(PLANET_FS).toMatch(/smoothstep\(-EMIT_HORIZON_SOFT, EMIT_HORIZON_SOFT, dot\(nW, dir\)\)/);
+  });
+
+  it('guards the Sun longitude at the body pole and gates facet sparkle by the terminator', () => {
+    expect(PLANET_FS).toContain('float lonSun = length(Lb.xz) > 1e-4 ? atan(-Lb.z, Lb.x) : 0.0;');
+    expect(PLANET_FS).toMatch(/float glint = [^;]*\* term;/);
   });
 });

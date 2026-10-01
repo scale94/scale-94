@@ -8,14 +8,18 @@
 // test them (glf), exactly like /ACCRETION. Frame convention = planetFrame.js.
 // Phase 2: a body rotation matrix (mercuryBody), a transmutation front, three
 // phases of the element by local temperature (mercuryThermal), and a liquid
-// mirror that reflects only the Sun and the four element emitters.
+// mirror that reflects the Sun, the four element emitters, and the aether that
+// wraps the planet (8 analytic lobes, aetherLobes.js; spec amendment 2026-10-01).
 
 import { glf, v3 } from '../../gl/glf';
 import {
   R_SCENE, R_MERCURY_M, SHADOW_STEPS, SHADOW_REACH_RAD, SHADOW_SOFT_M, SHADOW_ZONE, SHADOW_SOFT_LSB, SHADOW_BIAS_LSB,
   FALLBACK_ALBEDO, HG_F0, ROUGH_LIQUID, ROUGH_BOIL, SOLID_HG_ALBEDO, SPARKLE_CELLS, SPARKLE_DENSITY, SPARKLE_COS,
   SPARKLE_GAIN, EMIT_RADIUS, FRONT_EDGE, FRONT_SOFT, FRONT_NOISE_FREQ, PHASE_BLEND_K,
+  EMIT_MIN_SIN, EMIT_HORIZON_SOFT, SUN_SHOULDER, AETHER_SIN_W, AETHER_NIGHT, AETHER_DAY_LO, AETHER_DAY_HI,
+  AETHER_DIFFUSE, NIGHT_TINT,
 } from './planetLook';
+import { AETHER_LOBES } from './aetherLobes';
 import {
   HG_MELT_K, HG_BOIL_K, T_NIGHT_FLOOR_K, T_SUNSET_K, TAU_WARM_H, TAU_COOL_H, HOURS_PER_RAD,
 } from './mercuryThermal';
@@ -30,6 +34,7 @@ export const PLANET_UNIFORMS = [
   'uAlbedo', 'uDem', 'uHasMaps', 'uSunDir', 'uBodyRot', 'uSunIrr', 'uSunSinR',
   'uDemTexel', 'uTime', 'uExposure', 'uRelief', 'uNightFloor',
   'uTau', 'uHeatK', 'uSubsolarT', 'uEmitPos', 'uEmitCol', 'uSunGlint', 'uEmitGain',
+  'uAethDir', 'uAethCol', 'uAetherGain',
 ];
 
 export const PLANET_VS = /* glsl */ `in vec3 position;
@@ -81,6 +86,9 @@ uniform vec3 uEmitPos[4];
 uniform vec3 uEmitCol[4];
 uniform float uSunGlint;
 uniform float uEmitGain;
+uniform vec3 uAethDir[${AETHER_LOBES}];
+uniform vec3 uAethCol[${AETHER_LOBES}];
+uniform float uAetherGain;
 
 const float PI = 3.14159265358979;
 const float TAU = 6.28318530717959;
@@ -118,6 +126,16 @@ const float FRONT_EDGE = ${glf(FRONT_EDGE)};
 const float FRONT_SOFT = ${glf(FRONT_SOFT)};
 const float FRONT_NOISE_FREQ = ${glf(FRONT_NOISE_FREQ)};
 const float PHASE_BLEND_K = ${glf(PHASE_BLEND_K)};
+const float EMIT_MIN_SIN = ${glf(EMIT_MIN_SIN)};
+const float EMIT_HORIZON_SOFT = ${glf(EMIT_HORIZON_SOFT)};
+const float SUN_SHOULDER = ${glf(SUN_SHOULDER)};
+const int AETHER_LOBES = ${AETHER_LOBES};
+const float AETHER_SIN_W = ${glf(AETHER_SIN_W)};
+const float AETHER_NIGHT = ${glf(AETHER_NIGHT)};
+const float AETHER_DAY_LO = ${glf(AETHER_DAY_LO)};
+const float AETHER_DAY_HI = ${glf(AETHER_DAY_HI)};
+const float AETHER_DIFFUSE = ${glf(AETHER_DIFFUSE)};
+const vec3 NIGHT_TINT = ${v3(NIGHT_TINT)};
 
 float heightAt(vec2 uv, vec2 gx, vec2 gy) {
   return mix(DEM_MIN_M, DEM_MAX_M, textureGrad(uDem, vec2(fract(uv.x), uv.y), gx, gy).r);
@@ -196,16 +214,42 @@ float lobe(float cosA, float sinR, float rough) {
   return (sinR * sinR / w2) * exp(-a * a / w2);
 }
 
-// Only what exists in the frame: the Sun, the four elements, black space.
-vec3 envRadiance(vec3 R, float rough, vec3 P) {
-  vec3 c = vec3(uSunGlint * uSunIrr * uExposure * lobe(dot(R, uSunDir), uSunSinR, rough));
+// Highlight roll-off (mirrorLobes.softShoulder).
+float softShoulder(float x, float k) { return k * (1.0 - exp(-x / k)); }
+
+// Night attenuation of the aether, keyed on the SURFACE facing the Sun (not
+// the reflection direction): full day strength from AETHER_DAY_HI, a cold
+// indigo AETHER_NIGHT below AETHER_DAY_LO.
+vec3 aetherTint(vec3 nW) {
+  float dayW = smoothstep(AETHER_DAY_LO, AETHER_DAY_HI, dot(nW, uSunDir));
+  return mix(AETHER_NIGHT * NIGHT_TINT, vec3(1.0), dayW);
+}
+
+// What the liquid sees: the Sun disc, the four elements, and the aether that
+// wraps the planet on every side. Analytic; no cubemap.
+vec3 envRadiance(vec3 R, float rough, vec3 P, vec3 nW) {
+  vec3 c = vec3(softShoulder(uSunGlint * uSunIrr * uExposure * lobe(dot(R, uSunDir), uSunSinR, rough), SUN_SHOULDER));
   for (int i = 0; i < 4; i++) {
     vec3 d = uEmitPos[i] - P;
     float dist = max(length(d), 1e-3);
-    float sinE = min(EMIT_RADIUS / dist, 0.99);
-    c += uEmitCol[i] * (uEmitGain * lobe(dot(R, d / dist), sinE, rough));
+    vec3 dir = d / dist;
+    float sinE = clamp(EMIT_RADIUS / dist, EMIT_MIN_SIN, 0.99);
+    float above = smoothstep(-EMIT_HORIZON_SOFT, EMIT_HORIZON_SOFT, dot(nW, dir));
+    c += uEmitCol[i] * (uEmitGain * above * lobe(dot(R, dir), sinE, rough));
   }
-  return c;
+  vec3 a = vec3(0.0);
+  for (int i = 0; i < AETHER_LOBES; i++) a += uAethCol[i] * lobe(dot(R, uAethDir[i]), AETHER_SIN_W, rough);
+  return c + uAetherGain * aetherTint(nW) * a;
+}
+
+// Frozen Hg is matte: it takes the aether as a soft wrap-around ambient.
+vec3 aetherDiffuse(vec3 nW) {
+  vec3 a = vec3(0.0);
+  for (int i = 0; i < AETHER_LOBES; i++) {
+    float k = 0.5 + 0.5 * dot(nW, uAethDir[i]);
+    a += uAethCol[i] * (k * k);
+  }
+  return uAetherGain * AETHER_DIFFUSE * aetherTint(nW) * a;
 }
 
 void main() {
@@ -284,7 +328,7 @@ void main() {
     float thr = 1.0 + FRONT_EDGE - uTau * (1.0 + 2.0 * FRONT_EDGE);
     float fluid = smoothstep(thr - FRONT_SOFT, thr + FRONT_SOFT, front + edgeN);
 
-    float lonSun = atan(-Lb.z, Lb.x);
+    float lonSun = length(Lb.xz) > 1e-4 ? atan(-Lb.z, Lb.x) : 0.0;
     float lonRel = mod(lon - lonSun + PI, TAU) - PI;
     float T = surfaceTempK(mu0g, lonRel, cos(lat), uSubsolarT, uHeatK);
     float liquidW = smoothstep(HG_MELT_K - PHASE_BLEND_K, HG_MELT_K + PHASE_BLEND_K, T);
@@ -294,12 +338,12 @@ void main() {
     vec3 R = reflect(rd, nW);
     float NoV = clamp(dot(nW, -rd), 0.0, 1.0);
     vec3 F = HG_F0 + (1.0 - HG_F0) * pow(1.0 - NoV, 5.0);
-    vec3 liquid = F * envRadiance(R, mix(ROUGH_LIQUID, ROUGH_BOIL, boilW), hit);
+    vec3 liquid = F * envRadiance(R, mix(ROUGH_LIQUID, ROUGH_BOIL, boilW), hit, nW);
 
     float sunI = uSunIrr * uExposure;
     float facet = hash13(vec3(floor(uv * vec2(2.0 * SPARKLE_CELLS, SPARKLE_CELLS)), 7.0));
-    float glint = step(1.0 - SPARKLE_DENSITY, facet) * smoothstep(SPARKLE_COS, 1.0, dot(R, uSunDir));
-    vec3 solid = SOLID_HG_ALBEDO * (sunI * max(dot(nW, uSunDir), 0.0) * term + uNightFloor)
+    float glint = step(1.0 - SPARKLE_DENSITY, facet) * smoothstep(SPARKLE_COS, 1.0, dot(R, uSunDir)) * term;
+    vec3 solid = SOLID_HG_ALBEDO * (sunI * max(dot(nW, uSunDir), 0.0) * term + uNightFloor + aetherDiffuse(nW))
       + vec3(glint * SPARKLE_GAIN * sunI);
 
     colLin = mix(colLin, mix(solid, liquid, liquidW), fluid);
