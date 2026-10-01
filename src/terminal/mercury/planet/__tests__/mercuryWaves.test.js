@@ -107,7 +107,7 @@ describe('capillary ripples', () => {
     expect(mid).toBeGreaterThan(0.2 * full);
     expect(mid).toBeLessThan(0.8 * full);
     // a splash on the ~205 px rest disc (pxArc ≈ 0.0047), or closer: the fade is exactly 1, the splash unchanged
-    for (const px of [0, 0.0047, 0.01, 0.02]) expect(dimpleAA(px)).toBe(1);
+    for (const px of [0, 0.0047, 0.01, 0.019]) expect(dimpleAA(px)).toBe(1); // 0.02 sits on the smoothstep edge
     expect(WAVE_DIMPLE_RAD / 0.0047).toBeGreaterThan(4 * WAVE_DIMPLE_AA_HI);
   });
 

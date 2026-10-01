@@ -44,6 +44,20 @@ describe('mercuryBody', () => {
       expect(body.omega.length()).toBeLessThan(K * 2 * (1 / 60) + 1e-9); // ≤ K·|error|·dt, error ≤ 2 rad
     });
 
+    it('the release step does not advance the body by the hand\'s ω (trapezoid fix): only the return term moves it', () => {
+      const target = targetFromYaw(0);
+      const body = createBody(target);
+      for (let i = 0; i < 30; i++) stepBody(body, 1 / 60, { dragging: true, omegaPtr: [0, 4, 0], target, calm: true });
+      const q0 = body.q.clone();
+      const err = rotationError(body.q, target).length();
+      const dt = 1 / 60;
+      stepBody(body, dt, { dragging: false, target, calm: true });
+      // From rest, |ω(t)| ≤ K·|error|·t, so the step turns the body by at most K·|error|·dt²/2.
+      // Averaging the hand's 4 rad/s into the first substep would add ≈ 2·(1/480) ≈ 4e-3 rad.
+      const K = RECAPTURE_CALM_OMEGA ** 2;
+      expect(angleBetween(body.q, q0)).toBeLessThanOrEqual(K * err * dt * dt / 2 + 1e-6);
+    });
+
     it('the return is overdamped: the angle to the present never grows, and it settles', () => {
       expect(RECAPTURE_CALM_ZETA).toBeGreaterThan(1);
       const target = targetFromYaw(0);
