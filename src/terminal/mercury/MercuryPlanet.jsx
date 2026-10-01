@@ -4,7 +4,7 @@
 // inertia → recapture, heat, transmutation), per-frame uniform writes.
 // All maths lives in ./planet/* and ./orbitNodes (tested); this file only wires it to GL.
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { buildPlanetShader } from './planet/mercuryPlanetShader';
@@ -15,6 +15,7 @@ import { SUN_DIR_WORLD, bodyYawFor } from './planet/planetFrame';
 import { PLANET_TUNE, MEAN_R_AU, R_SCENE } from './planet/planetLook';
 import { AETHER_BASE_DIRS, aetherLobeColors, aetherLobeDirs } from './planet/aetherLobes';
 import { MAPS } from './planet/mercuryMaps.generated';
+import { bindPlanetMaps } from './planet/planetMaps';
 import { subsolarTempK } from './planet/mercuryThermal';
 import { createScarMap, stampCrater, matureScars, healScars, SCAR_TICK_S } from './planet/scarMap';
 import {
@@ -177,6 +178,9 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     frameOpts: { modeScale: 1, waveScale: 1 },
   }), []);
 
+  // The maps outlive the material: a live CALM toggle swaps the shader variant (a new
+  // material) without reloading them or flashing the flat fallback (planetMaps.js).
+  const [maps, setMaps] = useState(null);
   useEffect(() => {
     const set = isMobile ? MAPS.mobile : MAPS.desktop;
     const loader = new THREE.TextureLoader();
@@ -186,17 +190,17 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
       .then(([albedo, dem]) => {
         textures = [albedo, dem];
         if (disposed) { textures.forEach((t) => t.dispose()); return; }
-        const u = material.uniforms;
-        u.uAlbedo.value = albedo;
-        u.uDem.value = dem;
-        u.uDemTexel.value.set(1 / set.demSize[0], 1 / set.demSize[1]);
-        u.uHasMaps.value = 1;
+        setMaps({ albedo, dem, demSize: set.demSize });
       })
       .catch((err) => console.error('[mercury] planet maps failed; flat fallback stays', err));
-    return () => { disposed = true; textures.forEach((t) => t.dispose()); };
-  }, [material, isMobile]);
+    return () => { disposed = true; textures.forEach((t) => t.dispose()); setMaps(null); };
+  }, [isMobile]);
+  // Layout effects run in the commit that attaches a new material, before r3f's next frame.
+  useLayoutEffect(() => { bindPlanetMaps(material.uniforms, maps); }, [material, maps]);
 
+  // A new material starts from the mount-time ephemeris; refresh it on the very next frame.
   const nextEphemeris = useRef(0);
+  useLayoutEffect(() => { nextEphemeris.current = 0; }, [material]);
   useFrame(({ clock }, delta) => {
     const u = material.uniforms;
     const t = clock.elapsedTime;
