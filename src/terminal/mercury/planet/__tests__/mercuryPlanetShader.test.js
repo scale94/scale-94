@@ -93,6 +93,8 @@ describe('mercuryPlanetShader contract', () => {
     expect(PLANET_FS).toMatch(/lobe\(dot\(R, uAethDir\[i\]\), AETHER_SIN_W, rough\)/);
     expect(PLANET_FS).toMatch(/vec3 liquid = F \* envRadiance\(R, [^;]*, hit, nW\);/);
     expect(PLANET_FS).toMatch(/\+ aetherDiffuse\(nW\)/);
+    expect(PLANET_FS).toContain('return c + uAetherGain * aetherTint(nW) * a;');
+    expect(PLANET_FS).toContain('return uAetherGain * AETHER_DIFFUSE * aetherTint(nW) * a;');
   });
 
   it('mirrors mirrorLobes.js: same lobe and soft shoulder maths; the Sun goes through the shoulder', () => {
