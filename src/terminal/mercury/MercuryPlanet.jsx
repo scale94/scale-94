@@ -1,25 +1,35 @@
-// MercuryPlanet.jsx — the planet under the real Sun (spec 2026-09-30, phase 1).
-// Owns: impostor mesh, raw material, map loading, per-frame uniform writes.
-// All maths lives in ./planet/* (tested); this file only wires it to GL.
+// MercuryPlanet.jsx — the planet under the real Sun, and the body you can spin
+// (spec 2026-09-30, phases 1–2).
+// Owns: impostor mesh, raw material, map loading, the body (drag → torque →
+// inertia → recapture, heat, transmutation), per-frame uniform writes.
+// All maths lives in ./planet/* and ./orbitNodes (tested); this file only wires it to GL.
 
 import { useEffect, useMemo, useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { PLANET_VS, PLANET_FS } from './planet/mercuryPlanetShader';
 import { mercuryEphemeris } from './planet/mercuryEphemeris';
-import { SUN_DIR_WORLD, bodyYawFor, sunDirForCamera } from './planet/planetFrame';
+import { SUN_DIR_WORLD, bodyYawFor } from './planet/planetFrame';
 import { PLANET_TUNE, MEAN_R_AU } from './planet/planetLook';
 import { MAPS } from './planet/mercuryMaps.generated';
+import { subsolarTempK } from './planet/mercuryThermal';
+import { createBody, stepBody, targetFromYaw } from './planet/mercuryBody';
+import { ORBIT_NODES, orbitPrecessionAngle, nodeWorldPosition } from './orbitNodes';
+import useMercuryDrag from './useMercuryDrag';
+import { registerTuningRig } from './mercuryTuning';
 
 const EPHEMERIS_REFRESH_S = 1;
+const MAX_FRAME_DT_S = 0.1; // a backgrounded tab must not fling the body
+const EMIT_COLORS = ORBIT_NODES.map((n) => new THREE.Color(n.color)); // linear
 
-export function planetEphemerisUniforms(nowMs, sunDir = SUN_DIR_WORLD) {
+export function planetEphemerisUniforms(nowMs) {
   const eph = mercuryEphemeris(nowMs);
   return {
-    yaw: bodyYawFor(eph.subsolarLonDeg, sunDir),
+    yaw: bodyYawFor(eph.subsolarLonDeg),
     irr: (MEAN_R_AU / eph.r) ** 2,
     sinR: Math.sin(eph.sunAngularRadiusRad),
     subsolarLonDeg: eph.subsolarLonDeg,
+    subsolarT: subsolarTempK(eph.r),
   };
 }
 
@@ -38,35 +48,54 @@ function loadMap(loader, url, srgb) {
   });
 }
 
-export default function MercuryPlanet({ isMobile = false }) {
+export default function MercuryPlanet({ isMobile = false, emitters = {} }) {
+  const gl = useThree((s) => s.gl);
+  const drag = useMercuryDrag(gl.domElement);
   const geometry = useMemo(() => new THREE.PlaneGeometry(2, 2), []);
 
-  const material = useMemo(() => {
-    const e = planetEphemerisUniforms(Date.now());
-    return new THREE.RawShaderMaterial({
-      glslVersion: THREE.GLSL3,
-      vertexShader: PLANET_VS,
-      fragmentShader: PLANET_FS,
-      alphaToCoverage: !isMobile,
-      uniforms: {
-        uAlbedo: { value: null },
-        uDem: { value: null },
-        uHasMaps: { value: 0 },
-        uSunDir: { value: new THREE.Vector3(...SUN_DIR_WORLD) },
-        uBodyYaw: { value: e.yaw },
-        uSunIrr: { value: e.irr },
-        uSunSinR: { value: e.sinR },
-        uDemTexel: { value: new THREE.Vector2(1, 1) },
-        uTime: { value: 0 },
-        uExposure: { value: PLANET_TUNE.exposure },
-        uRelief: { value: PLANET_TUNE.relief },
-        uNightFloor: { value: PLANET_TUNE.nightFloor },
-      },
-    });
-  }, [isMobile]);
+  const init = useMemo(() => planetEphemerisUniforms(Date.now()), []);
+  const target = useMemo(() => targetFromYaw(init.yaw), [init]);
+  const body = useMemo(() => createBody(target), [target]);
+  const m4 = useMemo(() => new THREE.Matrix4(), []);
+
+  const material = useMemo(() => new THREE.RawShaderMaterial({
+    glslVersion: THREE.GLSL3,
+    vertexShader: PLANET_VS,
+    fragmentShader: PLANET_FS,
+    alphaToCoverage: !isMobile,
+    uniforms: {
+      uAlbedo: { value: null },
+      uDem: { value: null },
+      uHasMaps: { value: 0 },
+      uSunDir: { value: new THREE.Vector3(...SUN_DIR_WORLD) },
+      uBodyRot: { value: new THREE.Matrix3().setFromMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(body.q)) },
+      uSunIrr: { value: init.irr },
+      uSunSinR: { value: init.sinR },
+      uDemTexel: { value: new THREE.Vector2(1, 1) },
+      uTime: { value: 0 },
+      uExposure: { value: PLANET_TUNE.exposure },
+      uRelief: { value: PLANET_TUNE.relief },
+      uNightFloor: { value: PLANET_TUNE.nightFloor },
+      uTau: { value: 0 },
+      uHeatK: { value: 0 },
+      uSubsolarT: { value: init.subsolarT },
+      uEmitPos: { value: ORBIT_NODES.map(() => new THREE.Vector3()) },
+      uEmitCol: { value: ORBIT_NODES.map(() => new THREE.Vector3()) },
+      uSunGlint: { value: PLANET_TUNE.sunGlint },
+      uEmitGain: { value: PLANET_TUNE.emitGain },
+    },
+  }), [isMobile, init, body]);
 
   useEffect(() => () => geometry.dispose(), [geometry]);
   useEffect(() => () => material.dispose(), [material]);
+
+  // Dev-only console tuning rig (window.__mercuryTune). Zero prod footprint.
+  useEffect(() => {
+    if (import.meta.env.DEV) registerTuningRig();
+  }, []);
+
+  const emitRef = useRef(emitters);
+  useEffect(() => { emitRef.current = emitters; }, [emitters]);
 
   useEffect(() => {
     const set = isMobile ? MAPS.mobile : MAPS.desktop;
@@ -88,27 +117,38 @@ export default function MercuryPlanet({ isMobile = false }) {
   }, [material, isMobile]);
 
   const nextEphemeris = useRef(0);
-  const subsolarLonRef = useRef(null);
-  useFrame(({ clock, camera }) => {
+  useFrame(({ clock }, delta) => {
     const u = material.uniforms;
     const t = clock.elapsedTime;
     u.uTime.value = t;
     u.uExposure.value = PLANET_TUNE.exposure;
     u.uRelief.value = PLANET_TUNE.relief;
     u.uNightFloor.value = PLANET_TUNE.nightFloor;
+    u.uSunGlint.value = PLANET_TUNE.sunGlint;
+    u.uEmitGain.value = PLANET_TUNE.emitGain;
     if (t >= nextEphemeris.current) {
       nextEphemeris.current = t + EPHEMERIS_REFRESH_S;
       const e = planetEphemerisUniforms(Date.now());
-      u.uBodyYaw.value = e.yaw;
+      targetFromYaw(e.yaw, target);
       u.uSunIrr.value = e.irr;
       u.uSunSinR.value = e.sinR;
-      subsolarLonRef.current = e.subsolarLonDeg;
+      u.uSubsolarT.value = e.subsolarT;
     }
-    // The Sun follows the camera's azimuth (phase angle holds under autoRotate); the body yaw
-    // re-pins the real subsolar longitude to it every frame.
-    const sun = sunDirForCamera([camera.position.x, camera.position.y, camera.position.z]);
-    u.uSunDir.value.set(sun[0], sun[1], sun[2]);
-    if (subsolarLonRef.current !== null) u.uBodyYaw.value = bodyYawFor(subsolarLonRef.current, sun);
+
+    const { dragging, omegaPtr } = drag.sample(performance.now());
+    stepBody(body, Math.min(delta, MAX_FRAME_DT_S), { dragging, omegaPtr, target });
+    u.uBodyRot.value.setFromMatrix4(m4.makeRotationFromQuaternion(body.q));
+    u.uTau.value = body.tau;
+    u.uHeatK.value = body.heatK;
+
+    const precession = orbitPrecessionAngle(t);
+    ORBIT_NODES.forEach((node, i) => {
+      const [x, y, z] = nodeWorldPosition(node.angle, precession);
+      u.uEmitPos.value[i].set(x, y, z);
+      const o = emitRef.current[node.phase] ?? 0;
+      const c = EMIT_COLORS[i];
+      u.uEmitCol.value[i].set(c.r * o, c.g * o, c.b * o);
+    });
   });
 
   return <mesh geometry={geometry} material={material} frustumCulled={false} />;

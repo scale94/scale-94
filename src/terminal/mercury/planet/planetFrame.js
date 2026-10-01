@@ -3,7 +3,7 @@
 // World +Y is Mercury's north pole (obliquity ≈ 0.03°, so the real Sun stays
 // on the equator — SUN_DIR_WORLD has y = 0 on purpose). What is REAL: which
 // face is lit (subsolar longitude). What is CHOSEN (spec §4): the Sun sits at
-// a fixed phase angle to the camera so a gibbous planet is always on screen.
+// a fixed phase angle to the camera so a gibbous planet is always on screen (the camera no longer moves).
 // mercuryPlanetShader.js mirrors rotY / dirFromLonLat / uvFromLonLat exactly.
 
 const DEG = Math.PI / 180;
@@ -32,13 +32,6 @@ export function lonLatFromDir([x, y, z]) {
 export function rotY([x, y, z], a) {
   const c = Math.cos(a), s = Math.sin(a);
   return [c * x + s * z, y, -s * x + c * z];
-}
-
-// The chosen Sun (spec §4) follows the camera's azimuth so the phase angle stays PHASE_ANGLE_DEG
-// however the view orbits. Camera on the pole axis → azimuth 0.
-export function sunDirForCamera([cx, , cz]) {
-  const az = Math.atan2(cx, cz);
-  return rotY(SUN_DIR_WORLD, az);
 }
 
 export function bodyYawFor(subsolarLonDeg, sunDir = SUN_DIR_WORLD) {

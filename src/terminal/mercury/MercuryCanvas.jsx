@@ -1,6 +1,5 @@
-import { Suspense, useRef, useCallback } from 'react';
+import { Suspense, useCallback } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 
 import { TUNE } from './mercuryTuning';
@@ -14,8 +13,7 @@ import AtmosphericFlow from '../air/AtmosphericFlow';
 import AtmoShell       from '../air/AtmoShell';
 import MercurySphere   from './MercurySphere';
 import MercuryPlanet   from './MercuryPlanet';
-import { CAMERA_DIST, ORBIT_LIMITS } from './planet/planetLook';
-import MercuryEnvironment from './MercuryEnvironment';
+import { CAMERA_DIST } from './planet/planetLook';
 import usePhaseTransition from './usePhaseTransition';
 
 const isMobile = typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
@@ -36,26 +34,12 @@ export default function MercuryCanvas({
     triggerTransition,
   } = usePhaseTransition('fluid');
 
-  const controlsRef = useRef();
-  const idleTimer = useRef(null);
   const dpr = isMobile ? [1, 1.5] : [1, 2];
 
   const handleNodeTap = useCallback((phase) => {
     triggerTransition(phase);
     onPhaseChange?.(phase);
   }, [triggerTransition, onPhaseChange]);
-
-  const handleInteractionStart = useCallback(() => {
-    clearTimeout(idleTimer.current);
-    if (controlsRef.current) controlsRef.current.autoRotate = false;
-  }, []);
-
-  const handleInteractionEnd = useCallback(() => {
-    clearTimeout(idleTimer.current);
-    idleTimer.current = setTimeout(() => {
-      if (controlsRef.current) controlsRef.current.autoRotate = true;
-    }, 3000);
-  }, []);
 
   const densityFor = (phase) =>
     phase === activePhase ? (params.density ?? (isMobile ? 600 : 1200)) : GHOST_DENSITY;
@@ -76,16 +60,6 @@ export default function MercuryCanvas({
       onCreated={(state) => { if (import.meta.env.DEV) window.__mercury = state; }}
     >
       <Suspense fallback={null}>
-        <ambientLight intensity={0.12} color="#0a0a12" />
-        <pointLight position={[3, 3, 3]}  intensity={1.5} color="#c8c8d8" />
-        <pointLight position={[-2, -2, 1]} intensity={0.6} color="#1a1a2e" />
-        <MercuryEnvironment
-          activePhase={activePhase}
-          pendingPhase={pendingPhase}
-          sphereState={sphereState}
-          isMobile={isMobile}
-        />
-
         {/* NormalBlending: prevents additive accumulation to white in multi-system canvas */}
         <ParticleFlow
           isMobile={isMobile}
@@ -149,7 +123,15 @@ export default function MercuryCanvas({
         />
         <AtmoShell isMobile={isMobile} visible={false} />
 
-        <MercuryPlanet isMobile={isMobile} />
+        <MercuryPlanet
+          isMobile={isMobile}
+          emitters={{
+            fluid: opacityFor('fluid'),
+            thermal: opacityFor('thermal'),
+            earth: opacityFor('earth'),
+            air: opacityFor('air'),
+          }}
+        />
         <MercurySphere
           activePhase={activePhase}
           pendingPhase={pendingPhase}
@@ -157,18 +139,6 @@ export default function MercuryCanvas({
           onNodeTap={handleNodeTap}
           onElementFired={onElementFired}
           isMobile={isMobile}
-        />
-
-        <OrbitControls
-          ref={controlsRef}
-          autoRotate
-          autoRotateSpeed={0.3}
-          enableDamping
-          dampingFactor={0.05}
-          minDistance={ORBIT_LIMITS.min}
-          maxDistance={ORBIT_LIMITS.max}
-          onStart={handleInteractionStart}
-          onEnd={handleInteractionEnd}
         />
 
         {/* No bloom in Mercury mode — four simultaneous particle systems would blow out.
