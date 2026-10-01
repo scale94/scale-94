@@ -34,7 +34,7 @@ export const POP_REACH = 0.45;           // ring reach, cell units (POP_JITTER +
 export const POP_REACH_RAD = POP_REACH / POP_FREQ;
 // The splash arc (rad) the miniature's reach maps to. R2 amended: at 0.5 (with POP_FREQ 14) a
 // ring's peak wavelength shrank to ~1 px and bandAA (rightly) erased it. A ring resolves only while
-// WAVE_K_PEAK·pxArc·POP_SCALE/zoom stays near 2π/5 (≥ ~5 px per peak crest), pxArc taken at the
+// the peak crest stays at or above POP_CREST_PX px (see POP_PX_REF), pxArc taken at the
 // SUBSOLAR point (the boil cap, PHASE_ANGLE_DEG off the view centre, foreshortened). No fixed scale
 // holds that on every screen (the subsolar pxArc runs 0.0051 on a 1504×820 canvas at DPR 2 to
 // 0.0186 on a 358×424 phone canvas at DPR 1.5), so popZoom sizes it from the live canvas.
@@ -42,12 +42,18 @@ export const POP_REF_TH = 0.25;
 export const POP_LIFE_S = 0.6;
 export const POP_SCALE = POP_REF_TH / POP_REACH_RAD;
 export const POP_TIME = POP_REF_TH / (WAVE_C_FRONT * POP_LIFE_S);
-// The zoom-1 geometry's peak crest is POP_CREST_PX px wide at POP_PX_REF (bandAA keeps ~0.92 of the
-// fundamental; the reach is ≈ 16 px). Coarser footprints zoom so the crest never drops below it.
-// 4.5, not 5: the DPR-2 desktop canvas (≈ 4.9 px per crest) must stay at zoom 1, today's full look.
+// The zoom-1 reference is a 4.5 px peak crest (POP_PX_REF = 0.005585; bandAA keeps ≈ 0.90 of the
+// fundamental there; the reach is ≈ 16 px). Coarser footprints zoom so the crest never drops below it.
+// 4.5, not 5: the DPR-2 desktop canvas sits at about 4.9 px per crest and must stay at zoom 1, today's full look.
 export const POP_CREST_PX = 4.5;
 export const POP_PX_REF = (2 * Math.PI) / (POP_CREST_PX * WAVE_K_PEAK * POP_SCALE);
-export const popZoom = (pxArc) => Math.max(1, pxArc / POP_PX_REF);
+// Upper clamp (CPU-only; never reaches GLSL). Beyond it a pop cell nears the sphere's own size, and
+// the chord-vs-arc error in d / freq (the lattice distance standing in for arc) grows.
+export const POP_ZOOM_MAX = 6;
+// Any non-finite or non-positive pxArc (a zero/negative/NaN buffer height) gives 1, never NaN.
+export const popZoom = (pxArc) => (Number.isFinite(pxArc) && pxArc > 0
+  ? Math.min(POP_ZOOM_MAX, Math.max(1, pxArc / POP_PX_REF))
+  : 1);
 
 // pxArc = length(fwidth(xw)) at the SUBSOLAR point, from the real camera (CAMERA_DIST,
 // CAMERA_FOV_DEG; the Sun at PHASE_ANGLE_DEG): forward differences, |dFdx| + |dFdy| per

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   hash13, popDensity, popSlope, roilTilt, subsolarPxArc, popZoom,
   POP_FREQ, POP_JITTER, POP_REACH, POP_REACH_RAD, POP_REF_TH, POP_SCALE, POP_LIFE_S, POP_TIME, POP_AMP,
-  POP_PX_REF, POP_CREST_PX,
+  POP_PX_REF, POP_CREST_PX, POP_ZOOM_MAX, ROIL_LITE_FREQ,
 } from '../mercuryRoil';
 import {
   bandAA, dimpleAA, WAVE_C_FRONT, WAVE_K_PEAK, WAVE_SHARP, WAVE_DIMPLE_RAD, WAVE_DIMPLE_AA_LO, WAVE_DIMPLE_GAIN, WAVE_DIMPLE_S,
@@ -123,6 +123,27 @@ describe('mercuryRoil', () => {
       expect(z).toBeGreaterThanOrEqual(1);
       expect(z).toBeGreaterThanOrEqual(prev);
       prev = z;
+    }
+  });
+
+  it('popZoom: any non-finite or non-positive input is 1 (no NaN into the uniform)', () => {
+    for (const bad of [NaN, -1, -0.01, 0, Infinity, -Infinity, undefined, null]) expect(popZoom(bad)).toBe(1);
+  });
+
+  it('popZoom: clamps to POP_ZOOM_MAX (6)', () => {
+    expect(POP_ZOOM_MAX).toBe(6);
+    expect(popZoom(6 * POP_PX_REF)).toBeCloseTo(6, 12);
+    expect(popZoom(100 * POP_PX_REF)).toBe(POP_ZOOM_MAX);
+    expect(popZoom(0.5)).toBe(POP_ZOOM_MAX);
+  });
+
+  // The lite noise reuses POP_PX_REF (cells ÷ zoom at ROIL_LITE_FREQ), so its crest is
+  // zoom / (ROIL_LITE_FREQ · pxArc) px. That lands near POP_CREST_PX only by coincidence of the
+  // constants; this pins it so a change to either one cannot silently erase the lite roil.
+  it('lite roil noise survives bandAA (>= 0.75) on every reference canvas', () => {
+    for (const px of Object.values(REF_CANVASES)) {
+      const zoom = popZoom(px);
+      expect(bandAA((2 * Math.PI * ROIL_LITE_FREQ) / zoom, px)).toBeGreaterThanOrEqual(0.75);
     }
   });
 
