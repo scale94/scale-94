@@ -45,7 +45,7 @@ export default function MercuryCanvas({
   // onElementFired fires once per press; onNodeTap fires on both pointerdown and click.
   const strikesRef = useRef([]);
   const handleElementFired = useCallback((phase, x, y) => {
-    strikesRef.current.push(phase);
+    if (strikesRef.current.length < 8) strikesRef.current.push(phase);
     onElementFired?.(phase, x, y);
   }, [onElementFired]);
 

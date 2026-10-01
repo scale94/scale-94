@@ -197,7 +197,7 @@ describe('mercuryPlanetShader contract', () => {
     const main = PLANET_FS.slice(PLANET_FS.indexOf('void main()'));
     const firstLoop = main.indexOf('for (');
     const lastDeriv = Math.max(main.lastIndexOf('fwidth('), main.lastIndexOf('dFdx('), main.lastIndexOf('dFdy('));
-    expect(lastDeriv).toBeLessThan(main.indexOf('discard'));
+    expect(lastDeriv).toBeLessThan(main.search(/\bdiscard;/));
     // the shape refinement loop is uniform control flow; derivatives may follow it,
     // but none may appear inside helper loops that use continue:
     const waveFn = PLANET_FS.slice(PLANET_FS.indexOf('vec3 waveTilt('), PLANET_FS.indexOf('void main()'));

@@ -411,7 +411,7 @@ void main() {
   float coverage = clamp(disc / fw + 0.5, 0.0, 1.0);
 
   // Shade the nearest point even for near-misses so derivatives stay defined
-  // across the silhouette; the cut-out comes only after all dFdx/dFdy calls.
+  // across the silhouette; discard only after all dFdx/dFdy calls.
   float t = -b - sqrt(max(disc, 0.0));
   vec3 hit = ro + rd * t;
   // On a moving bead, re-intersect the sphere of the local radius at the hit
