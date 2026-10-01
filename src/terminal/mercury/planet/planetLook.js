@@ -38,6 +38,9 @@ export const AETHER_DAY_LO = -0.15;           // dot(normal, Sun) where the nigh
 export const AETHER_DAY_HI = 0.25;            // …and where full day strength is reached
 export const AETHER_DIFFUSE = 0.35;           // frozen Hg's matte response to the aether
 export const NIGHT_TINT = [0.62, 0.68, 1.0];  // cold indigo cast on the night side's aether
+export const AETHER_FRINGE_LO = 0.25;          // streak d² where the white core starts giving way to colour…
+export const AETHER_FRINGE_HI = 0.9;           // …and where the fringe is full aether colour
+export const AETHER_SHOULDER = 1.5;            // linear; overlapping streak cores roll off instead of clipping flat
 export const FRONT_EDGE = 0.12;               // transmutation front noise amplitude (in front units)
 export const FRONT_SOFT = 0.03;               // front edge softness; must stay < FRONT_EDGE / 2
 export const FRONT_NOISE_FREQ = 6;
@@ -51,9 +54,11 @@ export const PLANET_TUNE = {
   nightFloor: 0.006, // faint albedo floor so the night limb is not a hole
   sunGlint: 120,     // liquid mirror: Sun-disc radiance gain (soft-shouldered; boil sheen ≈ 1, cooled pinpoint saturates)
   emitGain: 1.5,     // liquid mirror: element-emitter reflection gain
-  aetherGain: 2.0,   // liquid mirror + frozen ambient: aether envelope gain
-  aetherSinW: 0.3,   // aether streak half-width across the flow (sin); lower = thinner streaks, more dark between
-  aetherSilver: 0.6, // 0 = streaks carry full aether colour; 1 = neutral silver; between = tinted silver
+  aetherGain: 1.4,   // liquid mirror + frozen ambient: aether envelope gain
+  aetherSinW: 0.22,  // aether streak half-width across the flow (sin); lower = thinner streaks, more dark between
+  aetherSilver: 0.2, // fringe desaturation (the core is always neutral)
   aetherEdge: 3,     // streak profile exponent: 1 = soft Gaussian; higher = flat silver core with an abrupt meniscus edge
   aetherStretch: 1,  // 0 = round lobes; 1 = each streak at its own elongation (AETHER_SHAPES)
+  aetherCurve: 1.0,  // falloff inside a streak: 0 = flat; higher = brighter centre, dimmer toward the meniscus edge
+  aetherCore: 2.2,   // brightness of the near-white specular core, relative to the streak colour's brightest channel
 };

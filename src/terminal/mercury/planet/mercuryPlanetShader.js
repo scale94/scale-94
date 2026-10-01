@@ -17,7 +17,7 @@ import {
   FALLBACK_ALBEDO, HG_F0, ROUGH_LIQUID, ROUGH_BOIL, SOLID_HG_ALBEDO, SPARKLE_CELLS, SPARKLE_DENSITY, SPARKLE_COS,
   SPARKLE_GAIN, EMIT_RADIUS, FRONT_EDGE, FRONT_SOFT, FRONT_NOISE_FREQ, PHASE_BLEND_K,
   EMIT_MIN_SIN, EMIT_HORIZON_SOFT, SUN_SHOULDER, AETHER_NIGHT, AETHER_DAY_LO, AETHER_DAY_HI,
-  AETHER_DIFFUSE, NIGHT_TINT,
+  AETHER_DIFFUSE, NIGHT_TINT, AETHER_FRINGE_LO, AETHER_FRINGE_HI, AETHER_SHOULDER,
 } from './planetLook';
 import { AETHER_LOBES, AETHER_SHAPES } from './aetherLobes';
 import {
@@ -35,7 +35,7 @@ export const PLANET_UNIFORMS = [
   'uDemTexel', 'uTime', 'uExposure', 'uRelief', 'uNightFloor',
   'uTau', 'uHeatK', 'uSubsolarT', 'uEmitPos', 'uEmitCol', 'uSunGlint', 'uEmitGain',
   'uAethDir', 'uAethCol', 'uAetherGain', 'uAetherSinW', 'uAetherSilver',
-  'uAetherEdge', 'uAetherStretch',
+  'uAetherEdge', 'uAetherStretch', 'uAetherCurve', 'uAetherCore',
 ];
 
 const AETHER_SHAPE_GLSL = `const vec2 AETHER_SHAPE[${AETHER_LOBES}] = vec2[${AETHER_LOBES}](${AETHER_SHAPES.map(([w, s]) => `vec2(${glf(w)}, ${glf(s)})`).join(', ')});`;
@@ -96,6 +96,8 @@ uniform float uAetherSinW;
 uniform float uAetherSilver;
 uniform float uAetherEdge;
 uniform float uAetherStretch;
+uniform float uAetherCurve;
+uniform float uAetherCore;
 
 const float PI = 3.14159265358979;
 const float TAU = 6.28318530717959;
@@ -142,6 +144,9 @@ const float AETHER_NIGHT = ${glf(AETHER_NIGHT)};
 const float AETHER_DAY_LO = ${glf(AETHER_DAY_LO)};
 const float AETHER_DAY_HI = ${glf(AETHER_DAY_HI)};
 const float AETHER_DIFFUSE = ${glf(AETHER_DIFFUSE)};
+const float AETHER_FRINGE_LO = ${glf(AETHER_FRINGE_LO)};
+const float AETHER_FRINGE_HI = ${glf(AETHER_FRINGE_HI)};
+const float AETHER_SHOULDER = ${glf(AETHER_SHOULDER)};
 const vec3 NIGHT_TINT = ${v3(NIGHT_TINT)};
 
 float heightAt(vec2 uv, vec2 gx, vec2 gy) {
@@ -224,6 +229,10 @@ float lobe(float cosA, float sinR, float rough) {
 // Highlight roll-off (mirrorLobes.softShoulder).
 float softShoulder(float x, float k) { return k * (1.0 - exp(-x / k)); }
 
+vec3 aetherShoulder(vec3 x) {
+  return vec3(softShoulder(x.r, AETHER_SHOULDER), softShoulder(x.g, AETHER_SHOULDER), softShoulder(x.b, AETHER_SHOULDER));
+}
+
 // Night attenuation of the aether, keyed on the SURFACE facing the Sun (not
 // the reflection direction): full day strength from AETHER_DAY_HI, a cold
 // indigo AETHER_NIGHT below AETHER_DAY_LO.
@@ -240,12 +249,13 @@ vec3 aetherHue(vec3 col) {
 }
 
 // One aether streak in the mirror: an elongated lobe around d, stretched along
-// the orbital flow (azimuth about +Y), with a super-Gaussian profile:
-// uAetherEdge 1 = soft Gaussian; higher = a flat silver core that steps
-// abruptly into the dark, like the meniscus of a mercury pool.
-float aetherStreak(vec3 R, vec3 d, vec2 shape, float rough) {
+// the orbital flow (azimuth about +Y). Returns (intensity, fringe):
+// intensity = a super-Gaussian silhouette (uAetherEdge: the meniscus edge's
+// hardness) × a curved body inside it (uAetherCurve: brightest at the centre);
+// fringe = 0 in the core, 1 at the edge, where the aether colour lives.
+vec2 aetherStreak(vec3 R, vec3 d, vec2 shape, float rough) {
   float facing = dot(R, d);
-  if (facing <= 0.0) return 0.0;
+  if (facing <= 0.0) return vec2(0.0);
   vec3 flow = normalize(cross(vec3(0.0, 1.0, 0.0), d));
   vec3 bn = cross(d, flow);
   float alpha = rough * rough;
@@ -255,7 +265,17 @@ float aetherStreak(vec3 R, vec3 d, vec2 shape, float rough) {
   float u = dot(R, flow) / along;
   float v = dot(R, bn) / across;
   float d2 = u * u + v * v;
-  return smoothstep(0.0, 0.15, facing) * exp(-pow(d2, max(uAetherEdge, 0.5)));
+  float silhouette = exp(-pow(d2, max(uAetherEdge, 0.5)));
+  float body = exp(-uAetherCurve * d2);
+  return vec2(smoothstep(0.0, 0.15, facing) * silhouette * body, smoothstep(AETHER_FRINGE_LO, AETHER_FRINGE_HI, d2));
+}
+
+// A streak's colour at fringe f: a near-white specular core (neutral, at the
+// colour's brightest channel × uAetherCore) giving way to the aether hue at
+// the meniscus edge. Chrome reflects coloured light this way without going milky.
+vec3 aetherStreakColor(vec3 col, float f) {
+  float peak = max(col.r, max(col.g, col.b));
+  return mix(vec3(peak * uAetherCore), aetherHue(col), f);
 }
 
 // What the liquid sees: the Sun disc, the four elements, and the aether that
@@ -271,8 +291,11 @@ vec3 envRadiance(vec3 R, float rough, vec3 P, vec3 nW) {
     c += uEmitCol[i] * (uEmitGain * above * lobe(dot(R, dir), sinE, rough));
   }
   vec3 a = vec3(0.0);
-  for (int i = 0; i < AETHER_LOBES; i++) a += aetherHue(uAethCol[i]) * aetherStreak(R, uAethDir[i], AETHER_SHAPE[i], rough);
-  return c + uAetherGain * aetherTint(nW) * a;
+  for (int i = 0; i < AETHER_LOBES; i++) {
+    vec2 s = aetherStreak(R, uAethDir[i], AETHER_SHAPE[i], rough);
+    a += aetherStreakColor(uAethCol[i], s.y) * s.x;
+  }
+  return c + aetherTint(nW) * aetherShoulder(uAetherGain * a);
 }
 
 // Frozen Hg is matte: it takes the aether as a soft wrap-around ambient.

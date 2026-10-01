@@ -8,7 +8,7 @@ import {
   SPARKLE_CELLS, SPARKLE_DENSITY, SPARKLE_COS, SPARKLE_GAIN, EMIT_RADIUS,
   FRONT_EDGE, FRONT_SOFT, FRONT_NOISE_FREQ, PHASE_BLEND_K,
   EMIT_MIN_SIN, EMIT_HORIZON_SOFT, SUN_SHOULDER, AETHER_NIGHT, AETHER_DAY_LO, AETHER_DAY_HI,
-  AETHER_DIFFUSE, NIGHT_TINT,
+  AETHER_DIFFUSE, NIGHT_TINT, AETHER_FRINGE_LO, AETHER_FRINGE_HI, AETHER_SHOULDER,
 } from '../planetLook';
 import { AETHER_LOBES, AETHER_SHAPES } from '../aetherLobes';
 import {
@@ -42,7 +42,7 @@ describe('mercuryPlanetShader contract', () => {
       ROUGH_LIQUID, ROUGH_BOIL, SPARKLE_CELLS, SPARKLE_DENSITY, SPARKLE_COS, SPARKLE_GAIN, EMIT_RADIUS,
       FRONT_EDGE, FRONT_SOFT, FRONT_NOISE_FREQ, PHASE_BLEND_K,
       EMIT_MIN_SIN, EMIT_HORIZON_SOFT, SUN_SHOULDER, AETHER_NIGHT, AETHER_DAY_LO, AETHER_DAY_HI,
-      AETHER_DIFFUSE,
+      AETHER_DIFFUSE, AETHER_FRINGE_LO, AETHER_FRINGE_HI, AETHER_SHOULDER,
     })) {
       expect(PLANET_FS).toContain(`const float ${name} = ${glf(value)};`);
     }
@@ -90,10 +90,15 @@ describe('mercuryPlanetShader contract', () => {
     expect(PLANET_FS).toContain(`uniform vec3 uAethCol[${AETHER_LOBES}];`);
     expect(PLANET_FS).toContain('uniform float uAetherGain;');
     expect(PLANET_FS).toMatch(/float dayW = smoothstep\(AETHER_DAY_LO, AETHER_DAY_HI, dot\(nW, uSunDir\)\);/);
-    expect(PLANET_FS).toContain('a += aetherHue(uAethCol[i]) * aetherStreak(R, uAethDir[i], AETHER_SHAPE[i], rough);');
     expect(PLANET_FS).toContain('uniform float uAetherEdge;');
     expect(PLANET_FS).toContain('uniform float uAetherStretch;');
-    expect(PLANET_FS).toContain('return smoothstep(0.0, 0.15, facing) * exp(-pow(d2, max(uAetherEdge, 0.5)));');
+    expect(PLANET_FS).toContain('vec2 aetherStreak(vec3 R, vec3 d, vec2 shape, float rough) {');
+    expect(PLANET_FS).toContain('float silhouette = exp(-pow(d2, max(uAetherEdge, 0.5)));');
+    expect(PLANET_FS).toContain('float body = exp(-uAetherCurve * d2);');
+    expect(PLANET_FS).toContain('return mix(vec3(peak * uAetherCore), aetherHue(col), f);');
+    expect(PLANET_FS).toContain('a += aetherStreakColor(uAethCol[i], s.y) * s.x;');
+    expect(PLANET_FS).toContain('uniform float uAetherCurve;');
+    expect(PLANET_FS).toContain('uniform float uAetherCore;');
     expect(PLANET_FS).toContain(`const vec2 AETHER_SHAPE[${AETHER_LOBES}] = vec2[${AETHER_LOBES}](${AETHER_SHAPES.map(([w, s]) => `vec2(${glf(w)}, ${glf(s)})`).join(', ')});`);
     expect(PLANET_FS).toContain('uniform float uAetherSinW;');
     expect(PLANET_FS).toContain('uniform float uAetherSilver;');
@@ -101,7 +106,7 @@ describe('mercuryPlanetShader contract', () => {
     expect(PLANET_FS).not.toMatch(/AETHER_SIN_W/);
     expect(PLANET_FS).toMatch(/vec3 liquid = F \* envRadiance\(R, [^;]*, hit, nW\);/);
     expect(PLANET_FS).toMatch(/\+ aetherDiffuse\(nW\)/);
-    expect(PLANET_FS).toContain('return c + uAetherGain * aetherTint(nW) * a;');
+    expect(PLANET_FS).toContain('return c + aetherTint(nW) * aetherShoulder(uAetherGain * a);');
     expect(PLANET_FS).toContain('return uAetherGain * AETHER_DIFFUSE * aetherTint(nW) * a * (8.0 / float(AETHER_LOBES));');
   });
 
