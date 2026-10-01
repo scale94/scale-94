@@ -2,15 +2,15 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import {
-  createBody, stepBody, targetFromYaw, rotationError,
-  MELT_HEAT_K, FREEZE_HEAT_K, MAX_OMEGA, HEAT_CAP_K,
+  createBody, stepBody, coolBody, targetFromYaw, rotationError,
+  MELT_HEAT_K, FREEZE_HEAT_K, MAX_OMEGA, HEAT_CAP_K, HEAT_OMEGA_FLOOR, TRANSMUTE_S,
 } from '../mercuryBody';
 import { rotY } from '../planetFrame';
 
 const angleBetween = (a, b) => 2 * Math.acos(Math.min(1, Math.abs(a.dot(b))));
 
-// Time-based scenario: drag at ω = (0, 4, 0) for 10 s, then release.
-function run(hz, seconds, dragS = 10, omegaPtr = [0, 4, 0]) {
+// Time-based scenario: a firm drag at ω = (0, 8, 0) for 10 s, then release.
+function run(hz, seconds, dragS = 10, omegaPtr = [0, 8, 0]) {
   const target = targetFromYaw(0.3);
   const body = createBody(target);
   const dt = 1 / hz;
@@ -52,7 +52,7 @@ describe('mercuryBody', () => {
 
   it('dragging grips the pointer: ω converges to omegaPtr and the body turns', () => {
     const { body } = run(60, 2, 2);
-    expect(body.omega.y).toBeGreaterThan(3.9);
+    expect(body.omega.y).toBeGreaterThan(7.9);
     expect(Math.abs(body.omega.x) + Math.abs(body.omega.z)).toBeLessThan(1e-6);
   });
 
@@ -89,6 +89,62 @@ describe('mercuryBody', () => {
     expect(thaw.t - releaseS).toBeGreaterThan(33);
     expect(thaw.t - releaseS).toBeLessThan(45);
     expect(at(samples, 90).tau).toBe(0);
+  });
+
+  // A slow stroke (watching the wake) must not hold the bead liquid. ω 3 ≈ 1200 px/s on a 1000 px canvas.
+  const strokeFor = (seconds, w, body, target) => {
+    for (let i = 0; i < seconds * 60; i++) stepBody(body, 1 / 60, { dragging: true, omegaPtr: [0, w, 0], target });
+  };
+
+  it('a slow stroke does not hold the liquid: it refreezes under the pointer', () => {
+    const target = targetFromYaw(0);
+    const body = createBody(target);
+    Object.assign(body, { heatK: HEAT_CAP_K, liquid: true, tau: 1 });
+    strokeFor(120, 3, body, target);
+    expect(body.heatK).toBeLessThan(FREEZE_HEAT_K);
+    expect(body.tau).toBe(0);
+  });
+
+  it('a slow stroke from cold never melts it', () => {
+    const target = targetFromYaw(0);
+    const body = createBody(target);
+    strokeFor(120, 3.4, body, target);
+    expect(body.tau).toBe(0);
+  });
+
+  it('spin below HEAT_OMEGA_FLOOR adds no heat at all', () => {
+    const target = targetFromYaw(0);
+    const body = createBody(target);
+    strokeFor(10, HEAT_OMEGA_FLOOR * 0.95, body, target);
+    expect(body.heatK).toBe(0);
+  });
+
+  it('coolBody: real time the frame clamp dropped still cools the store (hidden tab, low fps)', () => {
+    const target = targetFromYaw(0);
+    const body = createBody(target);
+    Object.assign(body, { heatK: HEAT_CAP_K, liquid: true, tau: 1 });
+    coolBody(body, 60);
+    expect(body.heatK).toBeLessThan(FREEZE_HEAT_K);
+    expect(body.liquid).toBe(false);
+    // τ still eases on the body's own clock: the refreeze is seen, not skipped
+    expect(body.tau).toBe(1);
+    for (let i = 0; i < (TRANSMUTE_S + 0.1) * 60; i++) stepBody(body, 1 / 60, { target });
+    expect(body.tau).toBe(0);
+  });
+
+  it('coolBody: a short gap keeps the hysteresis (stays liquid above FREEZE)', () => {
+    const body = createBody(targetFromYaw(0));
+    Object.assign(body, { heatK: HEAT_CAP_K, liquid: true, tau: 1 });
+    coolBody(body, 5);
+    expect(body.heatK).toBeGreaterThan(FREEZE_HEAT_K);
+    expect(body.liquid).toBe(true);
+  });
+
+  it('coolBody ignores zero, negative and non-finite gaps', () => {
+    const body = createBody(targetFromYaw(0));
+    body.heatK = 50;
+    for (const s of [0, -3, NaN, Infinity]) coolBody(body, s);
+    expect(body.heatK).toBe(50);
   });
 
   it('60 Hz and 360 Hz give the same trajectory (time-based parity)', () => {

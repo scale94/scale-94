@@ -5,7 +5,8 @@
 // damped `recapture` spring (ramped in over RECAPTURE_RAMP_S) returns it to
 // the ephemeris orientation. `recapture` is honest naming: real tidal
 // relaxation takes millions of years; the 3:2 lock is what the ephemeris
-// orientation IS. Dissipated rotation heats a store (H += κ|ω|²dt, leaks λH),
+// orientation IS. Dissipated rotation heats a store (H += κ·max(0, |ω| − ω₀)²·dt,
+// leaks λH; below ω₀ a slow stroke adds nothing, so watching the wake never holds the liquid),
 // and transmutation τ ∈ [0,1] follows melt/freeze thresholds with
 // hysteresis; the store is capped (HEAT_CAP_K), so liquid lingers ≤ ~40 s after a spin.
 // Fixed-size substeps (≤ MAX_SUBSTEP_S) make 60 Hz and 360 Hz agree.
@@ -18,7 +19,9 @@ export const SPIN_DAMP_PER_S = 0.35;   // free-spin damping after release
 export const MAX_OMEGA = 12;           // rad/s
 export const RECAPTURE_OMEGA = 0.8;    // rad/s natural frequency of the return
 export const RECAPTURE_RAMP_S = 4;     // inertia first, then recapture
-export const HEAT_GAIN = 0.58;         // K per (rad/s)² per s
+export const HEAT_OMEGA_FLOOR = 2.5;   // rad/s (~1000 px/s on a 1000 px canvas); spin below it does not heat
+export const HEAT_GAIN = 0.93;         // K per (rad/s)² of spin above the floor, per s: at MAX_OMEGA it heats as fast as the floorless 0.58 did
+                                       // a stroke holds the liquid only above ω₀ + √(FREEZE·λ/κ) ≈ 3.5 rad/s
 export const HEAT_LEAK_PER_S = 0.035;
 export const MELT_HEAT_K = 60;
 export const FREEZE_HEAT_K = 25;
@@ -102,13 +105,23 @@ function substep(b, h, dragging, omegaPtr, target) {
     b.q.premultiply(_dq).normalize();
   }
 
-  b.heatK += (HEAT_GAIN * w.lengthSq() - HEAT_LEAK_PER_S * b.heatK) * h;
+  const over = Math.max(0, Math.min(len, MAX_OMEGA) - HEAT_OMEGA_FLOOR);
+  b.heatK += (HEAT_GAIN * over * over - HEAT_LEAK_PER_S * b.heatK) * h;
   if (b.heatK > HEAT_CAP_K) b.heatK = HEAT_CAP_K;
   if (b.heatK >= MELT_HEAT_K) b.liquid = true;
   else if (b.heatK <= FREEZE_HEAT_K) b.liquid = false;
   const goal = b.liquid ? 1 : 0;
   const stepTau = h / TRANSMUTE_S;
   b.tau = goal > b.tau ? Math.min(goal, b.tau + stepTau) : Math.max(goal, b.tau - stepTau);
+}
+
+// Cools the store over real time the frame clamp dropped (a hidden tab, a slow GPU): heat is a scalar
+// and cannot fling the body. The freeze threshold is applied; τ still eases on stepBody's clock.
+export function coolBody(b, seconds) {
+  if (!(seconds > 0) || !Number.isFinite(seconds)) return b;
+  b.heatK *= Math.exp(-HEAT_LEAK_PER_S * seconds);
+  if (b.heatK <= FREEZE_HEAT_K) b.liquid = false;
+  return b;
 }
 
 export function stepBody(b, dtS, { dragging = false, omegaPtr = [0, 0, 0], target }) {

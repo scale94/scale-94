@@ -22,7 +22,7 @@ import {
   IMPACT_MODE_AMP, IMPACT_WAVE_AMP, strikeDirWorld, worldToBody, bodyToWorld, localTempK, impactKind,
 } from './planet/mercuryImpacts';
 import { pickSphereDir } from './planet/pickSphere';
-import { createBody, stepBody, targetFromYaw } from './planet/mercuryBody';
+import { createBody, stepBody, coolBody, targetFromYaw } from './planet/mercuryBody';
 import { ORBIT_NODES, orbitPrecessionAngle, nodeWorldPosition } from './orbitNodes';
 import useMercuryDrag from './useMercuryDrag';
 import { registerTuningRig } from './mercuryTuning';
@@ -210,7 +210,9 @@ export default function MercuryPlanet({ isMobile = false, emitters = {}, strikes
 
     const ds = drag.sample(performance.now());
     const { dragging, omegaPtr } = ds;
-    stepBody(body, Math.min(delta, MAX_FRAME_DT_S), { dragging, omegaPtr, target });
+    const stepS = Math.min(delta, MAX_FRAME_DT_S);
+    stepBody(body, stepS, { dragging, omegaPtr, target });
+    coolBody(body, delta - stepS); // the clamp holds the body still, not the heat: a hidden tab still cools
     u.uBodyRot.value.setFromMatrix4(m4.makeRotationFromQuaternion(body.q));
     u.uTau.value = body.tau;
     u.uHeatK.value = body.heatK;
