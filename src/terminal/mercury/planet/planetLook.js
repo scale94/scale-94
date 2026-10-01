@@ -33,7 +33,6 @@ export const EMIT_MIN_SIN = 0.6;              // element reflections ≥ ~37° w
 export const EMIT_HORIZON_SOFT = 0.1;         // an element below the local horizon is not reflected
 export const SUN_SHOULDER = 3;                // linear; the Sun term rolls off softly instead of clipping
 // The aether (spec amendment 2026-10-01): soft lobes wrapping the planet on every side.
-export const AETHER_SIN_W = 0.68;             // lobe width (sin of ~43°): neighbours overlap into an envelope
 export const AETHER_NIGHT = 0.2;              // aether strength left on the night hemisphere
 export const AETHER_DAY_LO = -0.15;           // dot(normal, Sun) where the night attenuation is full…
 export const AETHER_DAY_HI = 0.25;            // …and where full day strength is reached
@@ -53,4 +52,6 @@ export const PLANET_TUNE = {
   sunGlint: 120,     // liquid mirror: Sun-disc radiance gain (soft-shouldered; boil sheen ≈ 1, cooled pinpoint saturates)
   emitGain: 1.5,     // liquid mirror: element-emitter reflection gain
   aetherGain: 1.0,   // liquid mirror + frozen ambient: aether envelope gain
+  aetherSinW: 0.68,  // aether lobe width (sin of the angular radius); lower = tighter lobes, darker gaps between them
+  aetherSilver: 0,   // 0 = lobes carry full aether colour; 1 = neutral silver (luminance only); between = tinted silver
 };

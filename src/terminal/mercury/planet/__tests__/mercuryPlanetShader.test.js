@@ -7,7 +7,7 @@ import {
   SHADOW_SOFT_LSB, SHADOW_BIAS_LSB, HG_F0, ROUGH_LIQUID, ROUGH_BOIL, SOLID_HG_ALBEDO,
   SPARKLE_CELLS, SPARKLE_DENSITY, SPARKLE_COS, SPARKLE_GAIN, EMIT_RADIUS,
   FRONT_EDGE, FRONT_SOFT, FRONT_NOISE_FREQ, PHASE_BLEND_K,
-  EMIT_MIN_SIN, EMIT_HORIZON_SOFT, SUN_SHOULDER, AETHER_SIN_W, AETHER_NIGHT, AETHER_DAY_LO, AETHER_DAY_HI,
+  EMIT_MIN_SIN, EMIT_HORIZON_SOFT, SUN_SHOULDER, AETHER_NIGHT, AETHER_DAY_LO, AETHER_DAY_HI,
   AETHER_DIFFUSE, NIGHT_TINT,
 } from '../planetLook';
 import { AETHER_LOBES } from '../aetherLobes';
@@ -41,7 +41,7 @@ describe('mercuryPlanetShader contract', () => {
       HG_MELT_K, HG_BOIL_K, T_NIGHT_FLOOR_K, T_SUNSET_K, TAU_WARM_H, TAU_COOL_H, HOURS_PER_RAD,
       ROUGH_LIQUID, ROUGH_BOIL, SPARKLE_CELLS, SPARKLE_DENSITY, SPARKLE_COS, SPARKLE_GAIN, EMIT_RADIUS,
       FRONT_EDGE, FRONT_SOFT, FRONT_NOISE_FREQ, PHASE_BLEND_K,
-      EMIT_MIN_SIN, EMIT_HORIZON_SOFT, SUN_SHOULDER, AETHER_SIN_W, AETHER_NIGHT, AETHER_DAY_LO, AETHER_DAY_HI,
+      EMIT_MIN_SIN, EMIT_HORIZON_SOFT, SUN_SHOULDER, AETHER_NIGHT, AETHER_DAY_LO, AETHER_DAY_HI,
       AETHER_DIFFUSE,
     })) {
       expect(PLANET_FS).toContain(`const float ${name} = ${glf(value)};`);
@@ -90,7 +90,11 @@ describe('mercuryPlanetShader contract', () => {
     expect(PLANET_FS).toContain(`uniform vec3 uAethCol[${AETHER_LOBES}];`);
     expect(PLANET_FS).toContain('uniform float uAetherGain;');
     expect(PLANET_FS).toMatch(/float dayW = smoothstep\(AETHER_DAY_LO, AETHER_DAY_HI, dot\(nW, uSunDir\)\);/);
-    expect(PLANET_FS).toMatch(/lobe\(dot\(R, uAethDir\[i\]\), AETHER_SIN_W, rough\)/);
+    expect(PLANET_FS).toContain('a += aetherHue(uAethCol[i]) * lobe(dot(R, uAethDir[i]), uAetherSinW, rough);');
+    expect(PLANET_FS).toContain('uniform float uAetherSinW;');
+    expect(PLANET_FS).toContain('uniform float uAetherSilver;');
+    expect(PLANET_FS).toContain('return mix(col, vec3(l), uAetherSilver);');
+    expect(PLANET_FS).not.toMatch(/AETHER_SIN_W/);
     expect(PLANET_FS).toMatch(/vec3 liquid = F \* envRadiance\(R, [^;]*, hit, nW\);/);
     expect(PLANET_FS).toMatch(/\+ aetherDiffuse\(nW\)/);
     expect(PLANET_FS).toContain('return c + uAetherGain * aetherTint(nW) * a;');

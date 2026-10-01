@@ -16,7 +16,7 @@ import {
   R_SCENE, R_MERCURY_M, SHADOW_STEPS, SHADOW_REACH_RAD, SHADOW_SOFT_M, SHADOW_ZONE, SHADOW_SOFT_LSB, SHADOW_BIAS_LSB,
   FALLBACK_ALBEDO, HG_F0, ROUGH_LIQUID, ROUGH_BOIL, SOLID_HG_ALBEDO, SPARKLE_CELLS, SPARKLE_DENSITY, SPARKLE_COS,
   SPARKLE_GAIN, EMIT_RADIUS, FRONT_EDGE, FRONT_SOFT, FRONT_NOISE_FREQ, PHASE_BLEND_K,
-  EMIT_MIN_SIN, EMIT_HORIZON_SOFT, SUN_SHOULDER, AETHER_SIN_W, AETHER_NIGHT, AETHER_DAY_LO, AETHER_DAY_HI,
+  EMIT_MIN_SIN, EMIT_HORIZON_SOFT, SUN_SHOULDER, AETHER_NIGHT, AETHER_DAY_LO, AETHER_DAY_HI,
   AETHER_DIFFUSE, NIGHT_TINT,
 } from './planetLook';
 import { AETHER_LOBES } from './aetherLobes';
@@ -34,7 +34,7 @@ export const PLANET_UNIFORMS = [
   'uAlbedo', 'uDem', 'uHasMaps', 'uSunDir', 'uBodyRot', 'uSunIrr', 'uSunSinR',
   'uDemTexel', 'uTime', 'uExposure', 'uRelief', 'uNightFloor',
   'uTau', 'uHeatK', 'uSubsolarT', 'uEmitPos', 'uEmitCol', 'uSunGlint', 'uEmitGain',
-  'uAethDir', 'uAethCol', 'uAetherGain',
+  'uAethDir', 'uAethCol', 'uAetherGain', 'uAetherSinW', 'uAetherSilver',
 ];
 
 export const PLANET_VS = /* glsl */ `in vec3 position;
@@ -89,6 +89,8 @@ uniform float uEmitGain;
 uniform vec3 uAethDir[${AETHER_LOBES}];
 uniform vec3 uAethCol[${AETHER_LOBES}];
 uniform float uAetherGain;
+uniform float uAetherSinW;
+uniform float uAetherSilver;
 
 const float PI = 3.14159265358979;
 const float TAU = 6.28318530717959;
@@ -130,7 +132,6 @@ const float EMIT_MIN_SIN = ${glf(EMIT_MIN_SIN)};
 const float EMIT_HORIZON_SOFT = ${glf(EMIT_HORIZON_SOFT)};
 const float SUN_SHOULDER = ${glf(SUN_SHOULDER)};
 const int AETHER_LOBES = ${AETHER_LOBES};
-const float AETHER_SIN_W = ${glf(AETHER_SIN_W)};
 const float AETHER_NIGHT = ${glf(AETHER_NIGHT)};
 const float AETHER_DAY_LO = ${glf(AETHER_DAY_LO)};
 const float AETHER_DAY_HI = ${glf(AETHER_DAY_HI)};
@@ -225,6 +226,13 @@ vec3 aetherTint(vec3 nW) {
   return mix(AETHER_NIGHT * NIGHT_TINT, vec3(1.0), dayW);
 }
 
+// An aether lobe's colour, pulled toward neutral silver by uAetherSilver:
+// the metal stays quicksilver and the aether only tints it.
+vec3 aetherHue(vec3 col) {
+  float l = dot(col, vec3(0.2126, 0.7152, 0.0722));
+  return mix(col, vec3(l), uAetherSilver);
+}
+
 // What the liquid sees: the Sun disc, the four elements, and the aether that
 // wraps the planet on every side. Analytic; no cubemap.
 vec3 envRadiance(vec3 R, float rough, vec3 P, vec3 nW) {
@@ -238,7 +246,7 @@ vec3 envRadiance(vec3 R, float rough, vec3 P, vec3 nW) {
     c += uEmitCol[i] * (uEmitGain * above * lobe(dot(R, dir), sinE, rough));
   }
   vec3 a = vec3(0.0);
-  for (int i = 0; i < AETHER_LOBES; i++) a += uAethCol[i] * lobe(dot(R, uAethDir[i]), AETHER_SIN_W, rough);
+  for (int i = 0; i < AETHER_LOBES; i++) a += aetherHue(uAethCol[i]) * lobe(dot(R, uAethDir[i]), uAetherSinW, rough);
   return c + uAetherGain * aetherTint(nW) * a;
 }
 

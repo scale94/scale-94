@@ -87,6 +87,8 @@ export default function MercuryPlanet({ isMobile = false, emitters = {} }) {
       uAethDir: { value: AETHER_BASE_DIRS.map((d) => new THREE.Vector3(...d)) },
       uAethCol: { value: AETHER_BASE_DIRS.map(() => new THREE.Vector3()) },
       uAetherGain: { value: PLANET_TUNE.aetherGain },
+      uAetherSinW: { value: PLANET_TUNE.aetherSinW },
+      uAetherSilver: { value: PLANET_TUNE.aetherSilver },
     },
   }), [isMobile, init, body]);
 
@@ -135,6 +137,8 @@ export default function MercuryPlanet({ isMobile = false, emitters = {} }) {
     u.uSunGlint.value = PLANET_TUNE.sunGlint;
     u.uEmitGain.value = PLANET_TUNE.emitGain;
     u.uAetherGain.value = PLANET_TUNE.aetherGain;
+    u.uAetherSinW.value = PLANET_TUNE.aetherSinW;
+    u.uAetherSilver.value = PLANET_TUNE.aetherSilver;
     if (t >= nextEphemeris.current) {
       nextEphemeris.current = t + EPHEMERIS_REFRESH_S;
       const e = planetEphemerisUniforms(Date.now());
