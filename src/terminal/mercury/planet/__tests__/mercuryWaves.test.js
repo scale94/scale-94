@@ -1,0 +1,169 @@
+import { describe, it, expect } from 'vitest';
+import {
+  MODE_OMEGA, MODE_GAMMA, MODE_WEIGHTS, rayleighOmega, capillaryOmega, DROP_R_M,
+  WAVE_KR, WAVE_C_PHASE, WAVE_C_GROUP, IMPULSE_SLOTS, IMPULSE_LIFE_S, WAVE_DAMP_PER_S,
+  legendre, dLegendre, modeResponse, createImpulses, addImpulse, createImpulseFrame, impulseFrame,
+  spinBulge, BULGE_MAX, SHAPE_MAX, shapeHeight, createWake, wakeImpulse, WAKE_EVERY_S, LIQUID_TAU,
+  RELEASE_MODE_AMP, WAKE_WAVE_AMP,
+} from '../mercuryWaves';
+import { MAX_OMEGA } from '../mercuryBody';
+
+const fib = (n) => Array.from({ length: n }, (_, i) => {
+  const y = 1 - (2 * (i + 0.5)) / n;
+  const r = Math.sqrt(1 - y * y);
+  const a = i * Math.PI * (3 - Math.sqrt(5));
+  return [r * Math.cos(a), y, r * Math.sin(a)];
+});
+
+describe('Rayleigh body modes of the bead', () => {
+  it('frequency ratios are 1 : 1.936 : 3 (ℓ = 2, 3, 4)', () => {
+    expect(MODE_OMEGA[1] / MODE_OMEGA[0]).toBeCloseTo(Math.sqrt(30 / 8), 9);
+    expect(MODE_OMEGA[1] / MODE_OMEGA[0]).toBeCloseTo(1.936, 3);
+    expect(MODE_OMEGA[2] / MODE_OMEGA[0]).toBeCloseTo(3, 9);
+  });
+
+  it('damping ratios are 1 : 2.8 : 5.4 (Lamb)', () => {
+    expect(MODE_GAMMA[1] / MODE_GAMMA[0]).toBeCloseTo(2.8, 9);
+    expect(MODE_GAMMA[2] / MODE_GAMMA[0]).toBeCloseTo(5.4, 9);
+  });
+
+  it('a real 1 cm Hg bead rings at ~16.9 rad/s; shown slowed so ℓ=2 reads in 1.5–3 s', () => {
+    expect(rayleighOmega(2, DROP_R_M)).toBeCloseTo(16.93, 1);
+    const period = (2 * Math.PI) / MODE_OMEGA[0];
+    expect(period).toBeGreaterThan(1.5);
+    expect(period).toBeLessThan(3);
+  });
+
+  it('an impulse starts at rest, dents inward first, and has decayed by IMPULSE_LIFE_S', () => {
+    expect(modeResponse(0, 0)).toBe(0);
+    expect(modeResponse(0, 0.05)).toBeLessThan(0);
+    expect(Math.abs(modeResponse(0, IMPULSE_LIFE_S))).toBeLessThan(0.01 * MODE_WEIGHTS[0]);
+  });
+});
+
+describe('capillary ripples', () => {
+  it('obey ω² = σk³/ρ: doubling k multiplies ω by 2^1.5', () => {
+    expect(capillaryOmega(2000) / capillaryOmega(1000)).toBeCloseTo(2 ** 1.5, 9);
+  });
+
+  it('group speed is 1.5 × phase speed; a ring reaches 90° of arc in 0.5–1.5 s', () => {
+    expect(WAVE_C_GROUP / WAVE_C_PHASE).toBeCloseTo(1.5, 12);
+    const t90 = (Math.PI / 2) / WAVE_C_GROUP;
+    expect(t90).toBeGreaterThan(0.5);
+    expect(t90).toBeLessThan(1.5);
+    expect(WAVE_KR).toBeGreaterThan(8);
+  });
+});
+
+describe('Legendre polynomials', () => {
+  it('match the closed forms and their derivatives match finite differences', () => {
+    expect(legendre(2, 1)).toBe(1);
+    expect(legendre(3, 1)).toBe(1);
+    expect(legendre(4, 1)).toBe(1);
+    expect(legendre(2, 0)).toBe(-0.5);
+    for (const l of [2, 3, 4]) {
+      for (const m of [-0.9, -0.3, 0.2, 0.7]) {
+        const fd = (legendre(l, m + 1e-6) - legendre(l, m - 1e-6)) / 2e-6;
+        expect(dLegendre(l, m)).toBeCloseTo(fd, 5);
+      }
+    }
+  });
+});
+
+describe('impulse ring buffer', () => {
+  it('holds IMPULSE_SLOTS impulses and overwrites the oldest', () => {
+    const buf = createImpulses();
+    expect(buf.slots).toHaveLength(IMPULSE_SLOTS);
+    for (let i = 0; i < IMPULSE_SLOTS + 1; i++) addImpulse(buf, { dirBody: [0, 0, 1], tS: i, mode: 0.01 * (i + 1) });
+    expect(buf.slots[0].t0).toBe(IMPULSE_SLOTS);
+    expect(buf.slots[1].t0).toBe(1);
+  });
+
+  it('impulseFrame scales, ages and retires; empty means any = false', () => {
+    const buf = createImpulses();
+    const out = createImpulseFrame();
+    impulseFrame(buf, 0, {}, out);
+    expect(out.any).toBe(false);
+    addImpulse(buf, { dirBody: [1, 0, 0], tS: 10, mode: 0.03, wave: 0.3, kind: 'splash' });
+    impulseFrame(buf, 10.1, { modeScale: 0.5, waveScale: 2 }, out);
+    expect(out.any).toBe(true);
+    // Float32 storage: compare to 6 digits.
+    expect(out.mode[0]).toBeCloseTo(0.03 * 0.5 * modeResponse(0, 0.1), 6);
+    expect(out.mode[2]).toBeCloseTo(0.03 * 0.5 * modeResponse(2, 0.1), 6);
+    expect(out.wave[0]).toBeCloseTo(0.1, 6);
+    expect(out.wave[1]).toBeCloseTo(0.3 * 2 * Math.exp(-WAVE_DAMP_PER_S.splash * 0.1), 6);
+    impulseFrame(buf, 10 + IMPULSE_LIFE_S + 0.01, {}, out);
+    expect(out.any).toBe(false);
+    expect(buf.slots[0].active).toBe(false);
+    expect(out.mode[0]).toBe(0);
+    expect(out.wave[1]).toBe(0);
+  });
+
+  it('a ring on solid/boiling Hg is damped harder than a splash', () => {
+    expect(WAVE_DAMP_PER_S.ring).toBeGreaterThan(WAVE_DAMP_PER_S.splash);
+  });
+
+  it('a wave packet fades out before it reaches the antipode', () => {
+    const buf = createImpulses();
+    const out = createImpulseFrame();
+    addImpulse(buf, { dirBody: [1, 0, 0], tS: 0, wave: 1 });
+    impulseFrame(buf, Math.PI / WAVE_C_GROUP, {}, out);
+    expect(out.wave[1]).toBe(0);
+  });
+});
+
+describe('the bead keeps its volume', () => {
+  it('modes and bulge integrate to zero over the sphere (ℓ ≥ 2)', () => {
+    const dirs = [[1, 0, 0], [0, 0.6, 0.8], [0, 0, 1], [0, 1, 0], [0.6, 0, -0.8], [0, -1, 0], [-1, 0, 0], [0, 0, -1]];
+    const modes = new Float32Array(IMPULSE_SLOTS * 3).map((_, i) => 0.004 * Math.sin(i + 1));
+    const pts = fib(20000);
+    const mean = pts.reduce((s, x) => s + shapeHeight(x, dirs, modes, [0, 1, 0, -0.01]), 0) / pts.length;
+    // An ℓ = 0 (volume) term of this size would give a mean ~4e-3; quadrature noise is ~1e-5.
+    expect(Math.abs(mean)).toBeLessThan(1e-4);
+  });
+
+  it('shapeHeight is clamped to ±SHAPE_MAX', () => {
+    const dirs = Array.from({ length: IMPULSE_SLOTS }, () => [0, 0, 1]);
+    const modes = new Float32Array(IMPULSE_SLOTS * 3).fill(1);
+    expect(shapeHeight([0, 0, 1], dirs, modes, [0, 1, 0, 0])).toBe(SHAPE_MAX);
+  });
+});
+
+describe('spin bulge', () => {
+  it('is zero when still or solid', () => {
+    expect(spinBulge([0, 0, 0], 1)[3]).toBe(0);
+    expect(spinBulge([0, 3, 0], 0)[3]).toBe(0);
+  });
+
+  it('flattens along the spin axis (a2 < 0 ⇒ poles in, equator out) and saturates at BULGE_MAX', () => {
+    const b = spinBulge({ x: 0, y: 2, z: 0 }, 1);
+    expect(b.slice(0, 3)).toEqual([0, 1, 0]);
+    expect(b[3]).toBeLessThan(0);
+    expect(spinBulge([0, MAX_OMEGA, 0], 1)[3]).toBeGreaterThanOrEqual(-BULGE_MAX);
+    expect(spinBulge([0, MAX_OMEGA, 0], 1)[3]).toBeLessThan(-0.99 * BULGE_MAX);
+    const slow = spinBulge([0, 0.05, 0], 1)[3];
+    expect(slow).toBeCloseTo(-(2 / 3) * (0.05 / MODE_OMEGA[0]) ** 2, 4);
+  });
+});
+
+describe('drag wake', () => {
+  it('emits nothing on a solid planet', () => {
+    const w = createWake();
+    expect(wakeImpulse(w, { tS: 1, dragging: true, released: false, ptrOmega: 5, bodyOmega: 5, tau: LIQUID_TAU - 0.01 })).toBeNull();
+  });
+
+  it('emits wake ripples at most every WAKE_EVERY_S while the pointer moves', () => {
+    const w = createWake();
+    const a = wakeImpulse(w, { tS: 1, dragging: true, released: false, ptrOmega: 100, bodyOmega: 5, tau: 1 });
+    expect(a).toEqual({ kind: 'wake', mode: 0, wave: WAKE_WAVE_AMP });
+    expect(wakeImpulse(w, { tS: 1 + WAKE_EVERY_S / 2, dragging: true, released: false, ptrOmega: 5, bodyOmega: 5, tau: 1 })).toBeNull();
+    expect(wakeImpulse(w, { tS: 1 + WAKE_EVERY_S + 1e-9, dragging: true, released: false, ptrOmega: 5, bodyOmega: 5, tau: 1 })).not.toBeNull();
+    expect(wakeImpulse(w, { tS: 9, dragging: true, released: false, ptrOmega: 0, bodyOmega: 5, tau: 1 })).toBeNull();
+  });
+
+  it('a release sloshes the body modes in proportion to the spin', () => {
+    const w = createWake();
+    const r = wakeImpulse(w, { tS: 1, dragging: false, released: true, ptrOmega: 0, bodyOmega: MAX_OMEGA / 2, tau: 1 });
+    expect(r).toEqual({ kind: 'ring', mode: RELEASE_MODE_AMP / 2, wave: 0 });
+  });
+});
