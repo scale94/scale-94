@@ -11,6 +11,10 @@ export default function useMercuryDrag(el) {
   useEffect(() => {
     if (!el) return undefined;
     el.style.cursor = 'grab';
+    const aim = (e) => {
+      const r = el.getBoundingClientRect();
+      tracker.aim(((e.clientX - r.left) / Math.max(r.width, 1)) * 2 - 1, 1 - ((e.clientY - r.top) / Math.max(r.height, 1)) * 2);
+    };
     const onDown = (e) => {
       if (e.button !== 0 || e.isPrimary === false) return;
       if (activePointerIdRef.current !== null) return; // ignore second pointerdown
@@ -18,9 +22,11 @@ export default function useMercuryDrag(el) {
       el.setPointerCapture?.(e.pointerId);
       el.style.cursor = 'grabbing';
       tracker.down(e.clientX, e.clientY, e.timeStamp);
+      aim(e);
     };
     const onMove = (e) => {
       if (e.pointerId !== activePointerIdRef.current) return;
+      aim(e);
       tracker.move(e.clientX, e.clientY, e.timeStamp, el.clientHeight);
     };
     const endDrag = (e) => {

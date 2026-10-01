@@ -36,7 +36,7 @@ describe('pointerOmega', () => {
 
 describe('createDragTracker', () => {
   it('idle → not dragging, zero ω', () => {
-    expect(createDragTracker().sample(0)).toEqual({ dragging: false, omegaPtr: [0, 0, 0] });
+    expect(createDragTracker().sample(0)).toMatchObject({ dragging: false, omegaPtr: [0, 0, 0] });
   });
 
   it('down/move reports the pointer ω; up releases', () => {
@@ -47,20 +47,20 @@ describe('createDragTracker', () => {
     expect(s.dragging).toBe(true);
     expect(s.omegaPtr[1]).toBeCloseTo((80 * DRAG_RAD_PER_HEIGHT) / 800 / 0.1, 9);
     d.up();
-    expect(d.sample(120)).toEqual({ dragging: false, omegaPtr: [0, 0, 0] });
+    expect(d.sample(120)).toMatchObject({ dragging: false, omegaPtr: [0, 0, 0] });
   });
 
   it('a held, unmoving pointer grips at zero ω', () => {
     const d = createDragTracker();
     d.down(0, 0, 0);
     d.move(50, 0, 16, 800);
-    expect(d.sample(16 + POINTER_HOLD_MS + 1)).toEqual({ dragging: true, omegaPtr: [0, 0, 0] });
+    expect(d.sample(16 + POINTER_HOLD_MS + 1)).toMatchObject({ dragging: true, omegaPtr: [0, 0, 0] });
   });
 
   it('move without down is ignored', () => {
     const d = createDragTracker();
     d.move(50, 0, 16, 800);
-    expect(d.sample(20)).toEqual({ dragging: false, omegaPtr: [0, 0, 0] });
+    expect(d.sample(20)).toMatchObject({ dragging: false, omegaPtr: [0, 0, 0] });
   });
 
   it('same hand speed gives the same ω at 60 Hz and 360 Hz event spacing', () => {
@@ -82,5 +82,23 @@ describe('createDragTracker', () => {
   it('sample() returns the same object on consecutive calls', () => {
     const d = createDragTracker();
     expect(d.sample(0)).toBe(d.sample(1));
+  });
+});
+
+describe('drag point and release', () => {
+  it('remembers the last aim and latches one release per drag', () => {
+    const d = createDragTracker();
+    expect(d.sample(0).aimed).toBe(false);
+    d.down(0, 0, 0);
+    d.aim(0.25, -0.5);
+    let s = d.sample(1);
+    expect(s.aimed).toBe(true);
+    expect(s.ndc).toEqual([0.25, -0.5]);
+    expect(s.released).toBe(false);
+    d.up();
+    expect(d.sample(2).released).toBe(true);
+    expect(d.sample(3).released).toBe(false);
+    d.up(); // a stray up with no drag is not a release
+    expect(d.sample(4).released).toBe(false);
   });
 });

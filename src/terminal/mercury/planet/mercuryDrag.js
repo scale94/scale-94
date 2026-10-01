@@ -17,9 +17,9 @@ export function pointerOmega(dxPx, dyPx, dtS, heightPx) {
 
 export function createDragTracker() {
   // wx/wy/wT: where and when the current velocity window started.
-  const s = { dragging: false, wx: 0, wy: 0, wT: 0, lastMoveMs: 0, omega: ZERO };
+  const s = { dragging: false, wx: 0, wy: 0, wT: 0, lastMoveMs: 0, omega: ZERO, nx: 0, ny: 0, aimed: false, released: false };
   // One result object, refilled every sample() so the render loop allocates nothing.
-  const result = { dragging: false, omegaPtr: [0, 0, 0] };
+  const result = { dragging: false, omegaPtr: [0, 0, 0], ndc: [0, 0], aimed: false, released: false };
   return {
     down(x, y, tMs) {
       Object.assign(s, { dragging: true, wx: x, wy: y, wT: tMs, lastMoveMs: tMs, omega: ZERO });
@@ -31,7 +31,14 @@ export function createDragTracker() {
       s.omega = pointerOmega(x - s.wx, y - s.wy, (tMs - s.wT) / 1000, heightPx);
       Object.assign(s, { wx: x, wy: y, wT: tMs });
     },
+    // Where the pointer is, in normalised device coordinates (for the drag point on the bead).
+    aim(nx, ny) {
+      s.nx = nx;
+      s.ny = ny;
+      s.aimed = true;
+    },
     up() {
+      if (s.dragging) s.released = true;
       s.dragging = false;
       s.omega = ZERO;
     },
@@ -41,6 +48,11 @@ export function createDragTracker() {
       result.omegaPtr[0] = live ? s.omega[0] : 0;
       result.omegaPtr[1] = live ? s.omega[1] : 0;
       result.omegaPtr[2] = live ? s.omega[2] : 0;
+      result.ndc[0] = s.nx;
+      result.ndc[1] = s.ny;
+      result.aimed = s.aimed;
+      result.released = s.released;
+      s.released = false;
       return result;
     },
   };
