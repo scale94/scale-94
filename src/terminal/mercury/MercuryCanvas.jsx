@@ -15,7 +15,7 @@ import MercurySphere   from './MercurySphere';
 import MercuryPlanet   from './MercuryPlanet';
 import MercuryPerfHud from './MercuryPerfHud';
 import { TIERS, pickTier, perfHudOn } from './planet/planetQuality';
-import { CAMERA_DIST } from './planet/planetLook';
+import { CAMERA_DIST, CAMERA_FOV_DEG } from './planet/planetLook';
 import usePhaseTransition from './usePhaseTransition';
 import useCalm from './useCalm';
 
@@ -68,7 +68,7 @@ export default function MercuryCanvas({
 
   return (
     <Canvas
-      camera={{ position: [0, 0, isMobile ? CAMERA_DIST.mobile : CAMERA_DIST.desktop], fov: isMobile ? 48 : 42 }}
+      camera={{ position: [0, 0, isMobile ? CAMERA_DIST.mobile : CAMERA_DIST.desktop], fov: isMobile ? CAMERA_FOV_DEG.mobile : CAMERA_FOV_DEG.desktop }}
       dpr={dpr}
       gl={{ antialias: !isMobile, alpha: false, powerPreference: 'high-performance' }}
       style={{ background: '#000' }}

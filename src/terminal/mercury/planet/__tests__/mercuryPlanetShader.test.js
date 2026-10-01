@@ -1,7 +1,8 @@
 // src/terminal/mercury/planet/__tests__/mercuryPlanetShader.test.js
 import { describe, it, expect } from 'vitest';
-import { PLANET_VS, PLANET_FS, PLANET_UNIFORMS, PLANET_CALM_UNIFORMS, PLANET_BUILTINS, DEM_LSB_M } from '../mercuryPlanetShader';
-import { buildPlanetShader } from '../mercuryPlanetShader';
+import {
+  PLANET_VS, PLANET_FS, PLANET_UNIFORMS, PLANET_CALM_UNIFORMS, PLANET_BUILTINS, DEM_LSB_M, buildPlanetShader,
+} from '../mercuryPlanetShader';
 import { TIERS, TIER_NAMES } from '../planetQuality';
 import { glf, v3 } from '../../../gl/glf';
 import {
@@ -22,7 +23,7 @@ import { SCAR_DEPTH_RANGE_M } from '../scarMap';
 import { RAY_ALBEDO } from '../planetLook';
 import {
   POP_FREQ, POP_JITTER, POP_REACH, POP_REACH_RAD, POP_SCALE, POP_LIFE_S, POP_TIME, POP_P_MIN, POP_P_MAX,
-  POP_DENSITY_K, POP_AMP, POP_SALTS, ROIL_LITE_FREQ, ROIL_LITE_SPEED, ROIL_LITE_AMP, ROIL_LITE_ACT,
+  POP_DENSITY_K, POP_AMP, POP_SALTS, ROIL_LITE_FREQ, ROIL_LITE_SPEED, ROIL_LITE_AMP, ROIL_LITE_ACT, popScale, popTime,
 } from '../mercuryRoil';
 import {
   IMPULSE_SLOTS, SHAPE_MAX, SHAPE_ITERS, WAVE_KR, WAVE_C_GROUP, WAVE_SPREAD_FLOOR,
@@ -284,6 +285,17 @@ describe('mercuryPlanetShader contract', () => {
     expect(PLANET_UNIFORMS).toContain('uRoilGain');
     // coherence loss: active pops scatter more; the 0.14 floor is ROUGH_LIQUID's
     expect(PLANET_FS).toContain('mix(ROUGH_LIQUID, ROUGH_BOIL, boilW * (0.5 + 0.5 * popAct))');
+  });
+
+  it('roil: the pop scale is a tier axis (POP_SCALE / POP_TIME per variant, from popRefTh)', () => {
+    for (const tier of TIER_NAMES) {
+      for (const calm of [false, true]) {
+        const fs = buildPlanetShader({ tier, calm }).fs;
+        expect(fs).toContain(`const float POP_SCALE = ${glf(popScale(TIERS[tier].popRefTh))};`);
+        expect(fs).toContain(`const float POP_TIME = ${glf(popTime(TIERS[tier].popRefTh))};`);
+      }
+    }
+    expect(glf(popScale(TIERS.phone.popRefTh))).not.toBe(glf(POP_SCALE));
   });
 
   it('roil runs only in the boil band and never takes a derivative', () => {

@@ -24,14 +24,20 @@ export const POP_FREQ = 5;               // cells per unit of the body frame (sp
 export const POP_JITTER = 0.25;          // site jitter, ± cell units
 export const POP_REACH = 0.45;           // ring reach, cell units (POP_JITTER + POP_REACH < 1)
 export const POP_REACH_RAD = POP_REACH / POP_FREQ;
-// The splash arc (rad) the miniature's reach maps to. R2 amended: at 0.5 (with
-// POP_FREQ 14) a ring's peak wavelength shrank to ~1 px and bandAA (rightly) erased
-// it. Now the reach (POP_REACH_RAD = 0.09 rad ≈ 19 px on the ~205 px rest disc,
-// pxArc ≈ 0.0047) holds ~3.6 crests of ≈ 5.3 px: WAVE_K_PEAK·pxArc·POP_SCALE ≈ 1.18 ≤ 2π/5.
+// The splash arc (rad) the miniature's reach maps to — the FULL tier's; each tier carries
+// its own (planetQuality.TIERS[*].popRefTh), and popScale / popTime derive per tier.
+// R2 amended: at 0.5 (with POP_FREQ 14) a ring's peak wavelength shrank to ~1 px and bandAA
+// (rightly) erased it. The limit: a ring resolves only while WAVE_K_PEAK·pxArc·popScale ≤ ~2π/5
+// (≥ 5 px per peak crest), with pxArc taken at the SUBSOLAR point, where the boil cap sits,
+// PHASE_ANGLE_DEG off the view centre and so foreshortened. At 0.25: 1920×1080 DPR 2 gives
+// pxArc ≈ 0.0039 (0.98 ≤ 2π/5, reach ≈ 23 px); at DPR 1 (≈ 0.0078) the peak crest is ≈ 3.2 px
+// and fades. The phone (pxArc ≈ 0.0094) takes 0.125.
 export const POP_REF_TH = 0.25;
-export const POP_SCALE = POP_REF_TH / POP_REACH_RAD;
 export const POP_LIFE_S = 0.6;
-export const POP_TIME = POP_REF_TH / (WAVE_C_FRONT * POP_LIFE_S);
+export const popScale = (refTh = POP_REF_TH) => refTh / POP_REACH_RAD;
+export const popTime = (refTh = POP_REF_TH) => refTh / (WAVE_C_FRONT * POP_LIFE_S);
+export const POP_SCALE = popScale(POP_REF_TH);
+export const POP_TIME = popTime(POP_REF_TH);
 export const POP_P_MIN = 1.5;            // s between one cell's pops…
 export const POP_P_MAX = 4;              // …hashed per cell in this range
 export const POP_DENSITY_K = 60;         // superheat (K) for 1 − 1/e of cells active
@@ -68,18 +74,20 @@ export function popDensity(superheatK) {
   return superheatK > 0 ? 1 - Math.exp(-superheatK / POP_DENSITY_K) : 0;
 }
 
-export function popSlope(th, age, pxArc) {
+// refTh: the tier's popRefTh (planetQuality.TIERS); the full tier's by default.
+export function popSlope(th, age, pxArc, refTh = POP_REF_TH) {
   if (th >= POP_REACH_RAD || age >= POP_LIFE_S) return 0;
+  const scale = popScale(refTh);
   const w = 1 - smoothstep(0.7 * POP_REACH_RAD, POP_REACH_RAD, th);
   const life = 1 - smoothstep(0.7 * POP_LIFE_S, POP_LIFE_S, age);
-  return POP_AMP * w * life * rippleSlope(th * POP_SCALE, Math.max(age * POP_TIME, 1e-3), pxArc * POP_SCALE);
+  return POP_AMP * w * life * rippleSlope(th * scale, Math.max(age * popTime(refTh), 1e-3), pxArc * scale);
 }
 
 const salted = (c, s) => hash13(c[0] + s[0], c[1] + s[1], c[2] + s[2]);
 
 // Tangential slope of the pop field at unit body-frame x (subtract from the normal,
 // like waveTilt), plus local pop activity in [0, 1] for the roughness patches.
-export function roilTilt(x, tS, superheatK, pxArc) {
+export function roilTilt(x, tS, superheatK, pxArc, refTh = POP_REF_TH) {
   const g = [0, 0, 0];
   let act = 0;
   const dens = popDensity(superheatK);
@@ -104,7 +112,7 @@ export function roilTilt(x, tS, superheatK, pxArc) {
     const tx = dx - x[0] * r, ty = dy - x[1] * r, tz = dz - x[2] * r;
     const tl = Math.hypot(tx, ty, tz);
     if (tl < 1e-5) continue;
-    const s = popSlope(d / POP_FREQ, age, pxArc) / tl;
+    const s = popSlope(d / POP_FREQ, age, pxArc, refTh) / tl;
     g[0] += s * tx; g[1] += s * ty; g[2] += s * tz;
     act += (1 - d / POP_REACH) * Math.exp((-3 * age) / POP_LIFE_S);
   }

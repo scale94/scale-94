@@ -22,7 +22,7 @@ import {
   WAVE_DIMPLE_AA_LO, WAVE_DIMPLE_AA_HI,
 } from './mercuryWaves';
 import {
-  POP_FREQ, POP_JITTER, POP_REACH, POP_REACH_RAD, POP_SCALE, POP_LIFE_S, POP_TIME, POP_P_MIN, POP_P_MAX,
+  POP_FREQ, POP_JITTER, POP_REACH, POP_REACH_RAD, popScale, POP_LIFE_S, popTime, POP_P_MIN, POP_P_MAX,
   POP_DENSITY_K, POP_AMP, POP_SALTS, ROIL_LITE_FREQ, ROIL_LITE_SPEED, ROIL_LITE_AMP, ROIL_LITE_ACT,
 } from './mercuryRoil';
 import {
@@ -202,9 +202,9 @@ const float POP_FREQ = ${glf(POP_FREQ)};
 const float POP_JITTER = ${glf(POP_JITTER)};
 const float POP_REACH = ${glf(POP_REACH)};
 const float POP_REACH_RAD = ${glf(POP_REACH_RAD)};
-const float POP_SCALE = ${glf(POP_SCALE)};
+const float POP_SCALE = ${glf(popScale(q.popRefTh))};
 const float POP_LIFE_S = ${glf(POP_LIFE_S)};
-const float POP_TIME = ${glf(POP_TIME)};
+const float POP_TIME = ${glf(popTime(q.popRefTh))};
 const float POP_P_MIN = ${glf(POP_P_MIN)};
 const float POP_P_MAX = ${glf(POP_P_MAX)};
 const float POP_DENSITY_K = ${glf(POP_DENSITY_K)};

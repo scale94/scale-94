@@ -49,6 +49,7 @@ export const FRONT_NOISE_FREQ = 6;
 export const PHASE_BLEND_K = 8;               // K either side of melt/boil for the phase blend
 
 export const CAMERA_DIST = { desktop: 3.6, mobile: 4.6 };
+export const CAMERA_FOV_DEG = { desktop: 42, mobile: 48 }; // vertical (three)
 
 export const PLANET_TUNE = {
   exposure: 2.2,     // Sun irradiance multiplier at mean distance
