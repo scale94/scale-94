@@ -30,7 +30,13 @@ export function pickTier({ isMobile = false, search = '' } = {}) {
 }
 
 export const calmOverride = (search = '') => param(search, 'calm') === '1';
-export const perfHudOn = (search = '') => param(search, 'perf') === '1';
+// ?perf=1 samples and writes the overlay at 4 Hz; ?perf=2 samples the same but writes once per 2 s
+// (to compare hitch rates with the HUD's own DOM write mostly removed).
+export const perfHudMode = (search = '') => {
+  const v = param(search, 'perf');
+  return v === '1' ? 1 : v === '2' ? 2 : 0;
+};
+export const perfHudOn = (search = '') => perfHudMode(search) > 0;
 
 function slotStrength(frame, i) {
   return Math.abs(frame.mode[3 * i]) + Math.abs(frame.mode[3 * i + 1]) + Math.abs(frame.mode[3 * i + 2])

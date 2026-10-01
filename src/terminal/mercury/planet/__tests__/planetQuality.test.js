@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { TIERS, TIER_NAMES, pickTier, calmOverride, perfHudOn, impulseOrder } from '../planetQuality';
+import { TIERS, TIER_NAMES, pickTier, calmOverride, perfHudOn, perfHudMode, impulseOrder } from '../planetQuality';
 import { SHADOW_STEPS } from '../planetLook';
 import { IMPULSE_SLOTS, SHAPE_ITERS, createImpulseFrame } from '../mercuryWaves';
 
@@ -42,7 +42,12 @@ describe('planetQuality', () => {
     expect(calmOverride('?calm=0')).toBe(false);
     expect(calmOverride('')).toBe(false);
     expect(perfHudOn('?tier=phone&perf=1')).toBe(true);
+    expect(perfHudOn('?perf=2')).toBe(true);
+    expect(perfHudOn('?perf=0')).toBe(false);
     expect(perfHudOn('?perf=yes')).toBe(false);
+    expect(perfHudMode('?perf=2')).toBe(2);
+    expect(perfHudMode('?perf=1')).toBe(1);
+    expect(perfHudMode('')).toBe(0);
   });
 
   it('impulseOrder: strongest slot first (modes + ripple), stable on ties, no allocation', () => {
