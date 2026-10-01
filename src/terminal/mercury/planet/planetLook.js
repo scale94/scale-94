@@ -64,4 +64,6 @@ export const PLANET_TUNE = {
   aetherCurve: 1.0,  // falloff inside a streak: 0 = flat; higher = brighter centre, dimmer toward the meniscus edge
   aetherCore: 2.2,   // brightness of the near-white specular core, relative to the streak colour's brightest channel
   rayGain: 1,        // fresh crater-ray brightness (scar map G channel)
+  modeGain: 1,       // body-mode + spin-bulge amplitude (the bead's wobble)
+  waveGain: 1,       // capillary ripple slope
 };

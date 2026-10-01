@@ -1,4 +1,4 @@
-import { Suspense, useCallback } from 'react';
+import { Suspense, useCallback, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import * as THREE from 'three';
 
@@ -40,6 +40,14 @@ export default function MercuryCanvas({
     triggerTransition(phase);
     onPhaseChange?.(phase);
   }, [triggerTransition, onPhaseChange]);
+
+  // Element strikes for the planet (MercuryPlanet drains this every frame).
+  // onElementFired fires once per press; onNodeTap fires on both pointerdown and click.
+  const strikesRef = useRef([]);
+  const handleElementFired = useCallback((phase, x, y) => {
+    strikesRef.current.push(phase);
+    onElementFired?.(phase, x, y);
+  }, [onElementFired]);
 
   const densityFor = (phase) =>
     phase === activePhase ? (params.density ?? (isMobile ? 600 : 1200)) : GHOST_DENSITY;
@@ -125,6 +133,7 @@ export default function MercuryCanvas({
 
         <MercuryPlanet
           isMobile={isMobile}
+          strikes={strikesRef}
           emitters={{
             fluid: opacityFor('fluid'),
             thermal: opacityFor('thermal'),
@@ -137,7 +146,7 @@ export default function MercuryCanvas({
           pendingPhase={pendingPhase}
           sphereState={sphereState}
           onNodeTap={handleNodeTap}
-          onElementFired={onElementFired}
+          onElementFired={handleElementFired}
           isMobile={isMobile}
         />
 

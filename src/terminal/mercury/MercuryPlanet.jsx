@@ -10,12 +10,18 @@ import * as THREE from 'three';
 import { PLANET_VS, PLANET_FS } from './planet/mercuryPlanetShader';
 import { mercuryEphemeris } from './planet/mercuryEphemeris';
 import { SUN_DIR_WORLD, bodyYawFor } from './planet/planetFrame';
-import { PLANET_TUNE, MEAN_R_AU } from './planet/planetLook';
+import { PLANET_TUNE, MEAN_R_AU, R_SCENE } from './planet/planetLook';
 import { AETHER_BASE_DIRS, aetherLobeColors, aetherLobeDirs } from './planet/aetherLobes';
 import { MAPS } from './planet/mercuryMaps.generated';
 import { subsolarTempK } from './planet/mercuryThermal';
-import { createScarMap } from './planet/scarMap';
-import { IMPULSE_SLOTS } from './planet/mercuryWaves';
+import { createScarMap, stampCrater, matureScars, healScars, SCAR_TICK_S } from './planet/scarMap';
+import {
+  IMPULSE_SLOTS, createImpulses, addImpulse, createImpulseFrame, impulseFrame, spinBulge, createWake, wakeImpulse,
+} from './planet/mercuryWaves';
+import {
+  IMPACT_MODE_AMP, IMPACT_WAVE_AMP, strikeDirWorld, worldToBody, bodyToWorld, localTempK, impactKind,
+} from './planet/mercuryImpacts';
+import { pickSphereDir } from './planet/pickSphere';
 import { createBody, stepBody, targetFromYaw } from './planet/mercuryBody';
 import { ORBIT_NODES, orbitPrecessionAngle, nodeWorldPosition } from './orbitNodes';
 import useMercuryDrag from './useMercuryDrag';
@@ -51,8 +57,9 @@ function loadMap(loader, url, srgb) {
   });
 }
 
-export default function MercuryPlanet({ isMobile = false, emitters = {} }) {
+export default function MercuryPlanet({ isMobile = false, emitters = {}, strikes = null }) {
   const gl = useThree((s) => s.gl);
+  const camera = useThree((s) => s.camera);
   const drag = useMercuryDrag(gl.domElement);
   const geometry = useMemo(() => new THREE.PlaneGeometry(2, 2), []);
 
@@ -136,6 +143,23 @@ export default function MercuryPlanet({ isMobile = false, emitters = {} }) {
   }), []);
   useEffect(() => { emitRef.current = emitters; }, [emitters]);
 
+  // Phase 3 state: the bead's impulses, the drag wake, the scar clock. Preallocated; useFrame allocates nothing.
+  const surf = useMemo(() => ({
+    impulses: createImpulses(),
+    frame: createImpulseFrame(),
+    wake: createWake(),
+    bulge: [0, 1, 0, 0],
+    seed: 1,
+    scarClock: 0,
+    dragDirBody: [0, 0, 1],
+    hasDragDir: false,
+    w: [0, 0, 0],
+    b: [0, 0, 0],
+    sunB: [0, 0, 0],
+    nodePos: [0, 0, 0],
+    cam: [0, 0, 0],
+  }), []);
+
   useEffect(() => {
     const set = isMobile ? MAPS.mobile : MAPS.desktop;
     const loader = new THREE.TextureLoader();
@@ -182,13 +206,67 @@ export default function MercuryPlanet({ isMobile = false, emitters = {} }) {
       u.uSubsolarT.value = e.subsolarT;
     }
 
-    const { dragging, omegaPtr } = drag.sample(performance.now());
+    const ds = drag.sample(performance.now());
+    const { dragging, omegaPtr } = ds;
     stepBody(body, Math.min(delta, MAX_FRAME_DT_S), { dragging, omegaPtr, target });
     u.uBodyRot.value.setFromMatrix4(m4.makeRotationFromQuaternion(body.q));
     u.uTau.value = body.tau;
     u.uHeatK.value = body.heatK;
 
+    // --- Phase 3: strikes, wake, scars, the bead ---
     const precession = orbitPrecessionAngle(t);
+    worldToBody(SUN_DIR_WORLD, body.q, surf.sunB);
+    surf.cam[0] = camera.position.x; surf.cam[1] = camera.position.y; surf.cam[2] = camera.position.z;
+
+    const queue = strikes?.current;
+    let scarDirty = false;
+    while (queue && queue.length > 0) {
+      const phase = queue.shift();
+      const node = ORBIT_NODES.find((n) => n.phase === phase);
+      if (!node) continue;
+      const p = nodeWorldPosition(node.angle, precession);
+      surf.nodePos[0] = p[0]; surf.nodePos[1] = p[1]; surf.nodePos[2] = p[2];
+      strikeDirWorld(surf.nodePos, surf.cam, surf.w);
+      worldToBody(surf.w, body.q, surf.b);
+      const kind = impactKind(body.tau, localTempK(surf.b, surf.sunB, u.uSubsolarT.value, body.heatK));
+      if (kind === 'crater') {
+        stampCrater(scar, surf.b, surf.seed++);
+        scarDirty = true;
+      } else {
+        addImpulse(surf.impulses, { dirBody: surf.b, tS: t, mode: IMPACT_MODE_AMP[kind], wave: IMPACT_WAVE_AMP[kind], kind });
+      }
+    }
+
+    if ((ds.dragging || ds.released) && ds.aimed && pickSphereDir(ds.ndc, camera, R_SCENE, surf.w)) {
+      worldToBody(surf.w, body.q, surf.dragDirBody);
+      surf.hasDragDir = true;
+    }
+    const ptrOmega = Math.hypot(omegaPtr[0], omegaPtr[1], omegaPtr[2]);
+    const imp = wakeImpulse(surf.wake, {
+      tS: t, dragging, released: ds.released, ptrOmega, bodyOmega: body.omega.length(), tau: body.tau,
+    });
+    if (imp && surf.hasDragDir) addImpulse(surf.impulses, { dirBody: surf.dragDirBody, tS: t, ...imp });
+    if (ds.released) surf.hasDragDir = false;
+
+    if (body.tau >= 1 && healScars(scar)) scarDirty = true;
+    surf.scarClock += Math.min(delta, MAX_FRAME_DT_S);
+    if (surf.scarClock >= SCAR_TICK_S) {
+      if (matureScars(scar, surf.scarClock)) scarDirty = true;
+      surf.scarClock = 0;
+    }
+    if (scarDirty) scarTex.needsUpdate = true;
+
+    impulseFrame(surf.impulses, t, { modeScale: body.tau * PLANET_TUNE.modeGain, waveScale: PLANET_TUNE.waveGain }, surf.frame);
+    for (let i = 0; i < IMPULSE_SLOTS; i++) {
+      bodyToWorld(surf.impulses.slots[i].dir, body.q, surf.w);
+      u.uImpDir.value[i].set(surf.w[0], surf.w[1], surf.w[2]);
+      u.uImpMode.value[i].set(surf.frame.mode[3 * i], surf.frame.mode[3 * i + 1], surf.frame.mode[3 * i + 2]);
+      u.uImpWave.value[i].set(surf.frame.wave[2 * i], surf.frame.wave[2 * i + 1]);
+    }
+    spinBulge(body.omega, body.tau * PLANET_TUNE.modeGain, surf.bulge);
+    u.uBulge.value.set(surf.bulge[0], surf.bulge[1], surf.bulge[2], surf.bulge[3]);
+    u.uSurfOn.value = surf.frame.any || Math.abs(surf.bulge[3]) > 1e-5 ? 1 : 0;
+
     ORBIT_NODES.forEach((node, i) => {
       const [x, y, z] = nodeWorldPosition(node.angle, precession);
       u.uEmitPos.value[i].set(x, y, z);
