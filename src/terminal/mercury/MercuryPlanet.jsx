@@ -158,6 +158,8 @@ export default function MercuryPlanet({ isMobile = false, emitters = {}, strikes
     sunB: [0, 0, 0],
     nodePos: [0, 0, 0],
     cam: [0, 0, 0],
+    wakeArgs: { tS: 0, dragging: false, released: false, ptrOmega: 0, bodyOmega: 0, tau: 0 },
+    frameOpts: { modeScale: 1, waveScale: 1 },
   }), []);
 
   useEffect(() => {
@@ -242,9 +244,13 @@ export default function MercuryPlanet({ isMobile = false, emitters = {}, strikes
       surf.hasDragDir = true;
     }
     const ptrOmega = Math.hypot(omegaPtr[0], omegaPtr[1], omegaPtr[2]);
-    const imp = wakeImpulse(surf.wake, {
-      tS: t, dragging, released: ds.released, ptrOmega, bodyOmega: body.omega.length(), tau: body.tau,
-    });
+    surf.wakeArgs.tS = t;
+    surf.wakeArgs.dragging = dragging;
+    surf.wakeArgs.released = ds.released;
+    surf.wakeArgs.ptrOmega = ptrOmega;
+    surf.wakeArgs.bodyOmega = body.omega.length();
+    surf.wakeArgs.tau = body.tau;
+    const imp = wakeImpulse(surf.wake, surf.wakeArgs);
     if (imp && surf.hasDragDir) addImpulse(surf.impulses, { dirBody: surf.dragDirBody, tS: t, ...imp });
     if (ds.released) surf.hasDragDir = false;
 
@@ -256,7 +262,9 @@ export default function MercuryPlanet({ isMobile = false, emitters = {}, strikes
     }
     if (scarDirty) scarTex.needsUpdate = true;
 
-    impulseFrame(surf.impulses, t, { modeScale: body.tau * PLANET_TUNE.modeGain, waveScale: PLANET_TUNE.waveGain }, surf.frame);
+    surf.frameOpts.modeScale = body.tau * PLANET_TUNE.modeGain;
+    surf.frameOpts.waveScale = PLANET_TUNE.waveGain;
+    impulseFrame(surf.impulses, t, surf.frameOpts, surf.frame);
     for (let i = 0; i < IMPULSE_SLOTS; i++) {
       bodyToWorld(surf.impulses.slots[i].dir, body.q, surf.w);
       u.uImpDir.value[i].set(surf.w[0], surf.w[1], surf.w[2]);
