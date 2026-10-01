@@ -66,4 +66,5 @@ export const PLANET_TUNE = {
   rayGain: 1,        // fresh crater-ray brightness (scar map G channel)
   modeGain: 1,       // body-mode + spin-bulge amplitude (the bead's wobble)
   waveGain: 1,       // capillary ripple slope
+  roilGain: 1,       // boil-zone bubble-pop slope (mercuryRoil.POP_AMP × this)
 };

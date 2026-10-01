@@ -21,6 +21,10 @@ import {
   WAVE_K_PEAK, WAVE_SPEC_W, WAVE_VISC_PER_S, WAVE_SHARP, WAVE_WARP_RAD, WAVE_WARP_FREQ, WAVE_DIMPLE_RAD, WAVE_DIMPLE_S, WAVE_DIMPLE_GAIN,
 } from './mercuryWaves';
 import {
+  POP_FREQ, POP_JITTER, POP_REACH, POP_REACH_RAD, POP_SCALE, POP_LIFE_S, POP_TIME, POP_P_MIN, POP_P_MAX,
+  POP_DENSITY_K, POP_AMP, POP_SALTS, ROIL_LITE_FREQ, ROIL_LITE_SPEED, ROIL_LITE_AMP,
+} from './mercuryRoil';
+import {
   R_SCENE, R_MERCURY_M, SHADOW_REACH_RAD, SHADOW_SOFT_M, SHADOW_ZONE, SHADOW_SOFT_LSB, SHADOW_BIAS_LSB,
   FALLBACK_ALBEDO, HG_F0, ROUGH_LIQUID, ROUGH_BOIL, SOLID_HG_ALBEDO, SPARKLE_CELLS, SPARKLE_DENSITY, SPARKLE_COS,
   SPARKLE_GAIN, EMIT_RADIUS, FRONT_EDGE, FRONT_SOFT, FRONT_NOISE_FREQ, PHASE_BLEND_K,
@@ -45,11 +49,12 @@ export const PLANET_UNIFORMS = [
   'uAethDir', 'uAethCol', 'uAetherGain', 'uAetherSinW', 'uAetherSilver',
   'uAetherEdge', 'uAetherStretch', 'uAetherCurve', 'uAetherCore',
   'uScar', 'uRayGain',
-  'uSurfOn', 'uImpDir', 'uImpMode', 'uImpWave', 'uBulge',
+  'uSurfOn', 'uImpDir', 'uImpMode', 'uImpWave', 'uBulge', 'uRoilGain',
 ];
 
 export const PLANET_CALM_UNIFORMS = [...PLANET_UNIFORMS, 'uGlow'];
 
+const POP_SALT_GLSL = Object.entries(POP_SALTS).map(([k, s]) => `const vec3 POP_SALT_${k.toUpperCase()} = ${v3(s)};`).join('\n');
 const AETHER_SHAPE_GLSL = `const vec2 AETHER_SHAPE[${AETHER_LOBES}] = vec2[${AETHER_LOBES}](${AETHER_SHAPES.map(([w, s]) => `vec2(${glf(w)}, ${glf(s)})`).join(', ')});`;
 
 export const PLANET_VS = /* glsl */ `in vec3 position;
@@ -119,7 +124,8 @@ uniform float uSurfOn;
 uniform vec3 uImpDir[${IMPULSE_SLOTS}];
 uniform vec3 uImpMode[${IMPULSE_SLOTS}];
 uniform vec2 uImpWave[${IMPULSE_SLOTS}];
-uniform vec4 uBulge;${calm ? '\nuniform vec4 uGlow;' : ''}
+uniform vec4 uBulge;
+uniform float uRoilGain;${calm ? '\nuniform vec4 uGlow;' : ''}
 
 const float PI = 3.14159265358979;
 const float TAU = 6.28318530717959;
@@ -189,6 +195,23 @@ const float WAVE_DIMPLE_RAD = ${glf(WAVE_DIMPLE_RAD)};
 const float WAVE_DIMPLE_S = ${glf(WAVE_DIMPLE_S)};
 const float WAVE_DIMPLE_GAIN = ${glf(WAVE_DIMPLE_GAIN)};
 const float DIMPLE_NORM = 2.3316;${calm ? `\nconst float CALM_GLOW_RAD = ${glf(CALM_GLOW_RAD)};` : ''}
+const float POP_FREQ = ${glf(POP_FREQ)};
+const float POP_JITTER = ${glf(POP_JITTER)};
+const float POP_REACH = ${glf(POP_REACH)};
+const float POP_REACH_RAD = ${glf(POP_REACH_RAD)};
+const float POP_SCALE = ${glf(POP_SCALE)};
+const float POP_LIFE_S = ${glf(POP_LIFE_S)};
+const float POP_TIME = ${glf(POP_TIME)};
+const float POP_P_MIN = ${glf(POP_P_MIN)};
+const float POP_P_MAX = ${glf(POP_P_MAX)};
+const float POP_DENSITY_K = ${glf(POP_DENSITY_K)};
+const float POP_AMP = ${glf(POP_AMP)};
+${POP_SALT_GLSL}
+const float ROIL_LITE_FREQ = ${glf(ROIL_LITE_FREQ)};
+const float ROIL_LITE_SPEED = ${glf(ROIL_LITE_SPEED)};
+const float ROIL_LITE_AMP = ${glf(ROIL_LITE_AMP)};
+const int ROIL_POPS = ${q.roil === 'pops' ? 1 : 0};
+const float ROIL_MOTION = ${calm ? '0.0' : '1.0'};
 
 // Crater depth from the scar map, true metres (scarMap.js encoding).
 float scarHeightM(vec2 uv, vec2 gx, vec2 gy) {
@@ -430,6 +453,53 @@ vec3 waveTilt(vec3 x, float pxArc, float warp) {
   return g;
 }
 
+// mercuryRoil, exactly (phase-4 spec §6, R1, R2): the boil band as bubble-collapse pops.
+float popDensity(float dT) { return dT > 0.0 ? 1.0 - exp(-dT / POP_DENSITY_K) : 0.0; }
+
+float popSlope(float th, float age, float pxArc) {
+  if (th >= POP_REACH_RAD || age >= POP_LIFE_S) return 0.0;
+  float w = 1.0 - smoothstep(0.7 * POP_REACH_RAD, POP_REACH_RAD, th);
+  float life = 1.0 - smoothstep(0.7 * POP_LIFE_S, POP_LIFE_S, age);
+  return POP_AMP * w * life * rippleSlope(th * POP_SCALE, max(age * POP_TIME, 1e-3), pxArc * POP_SCALE);
+}
+
+// Tangential slope (body frame) of every active pop within reach, plus local activity.
+// No derivatives in here (it has continue).
+vec3 roilTilt(vec3 xb, float t, float dT, float pxArc, out float act) {
+  act = 0.0;
+  vec3 g = vec3(0.0);
+  float dens = popDensity(dT);
+  if (dens <= 0.0) return g;
+  vec3 p = xb * POP_FREQ;
+  vec3 base = floor(p - 0.5);
+  for (int i = 0; i < 8; i++) {
+    vec3 c = base + vec3(float(i & 1), float((i >> 1) & 1), float((i >> 2) & 1));
+    if (hash13(c + POP_SALT_ACTIVE) >= dens) continue;
+    float period = POP_P_MIN + (POP_P_MAX - POP_P_MIN) * hash13(c + POP_SALT_PERIOD);
+    float tc = t + hash13(c + POP_SALT_PHASE) * period;
+    float age = tc - period * floor(tc / period);
+    if (age >= POP_LIFE_S) continue;
+    vec3 site = c + 0.5 + (vec3(hash13(c + POP_SALT_X), hash13(c + POP_SALT_Y), hash13(c + POP_SALT_Z)) - 0.5) * (2.0 * POP_JITTER);
+    vec3 dv = p - site;
+    float d = length(dv);
+    if (d >= POP_REACH) continue;
+    vec3 tang = dv - xb * dot(dv, xb);
+    float tl = length(tang);
+    if (tl < 1e-5) continue;
+    g += popSlope(d / POP_FREQ, age, pxArc) * tang / tl;
+    act += (1.0 - d / POP_REACH) * exp(-3.0 * age / POP_LIFE_S);
+  }
+  act = min(act, 1.0);
+  return g;
+}
+
+// lite tier: one octave of animated value noise, tangential.
+vec3 roilNoiseTilt(vec3 xb, float t) {
+  vec3 p = xb * ROIL_LITE_FREQ + vec3(0.0, t * ROIL_LITE_SPEED, 0.0);
+  vec3 g = vec3(vnoise3(p), vnoise3(p + vec3(31.4, 0.0, 0.0)), vnoise3(p + vec3(0.0, 47.2, 0.0))) - 0.5;
+  return ROIL_LITE_AMP * (g - xb * dot(g, xb));
+}
+
 void main() {
   vec3 ro = cameraPosition;
   vec3 rd = normalize(vWorld - ro);
@@ -540,13 +610,20 @@ void main() {
       vec3 nW = uBodyRot * normalize(mix(n, nb, fluid));
       float warp = WAVE_WARP_RAD * (2.0 * vnoise3(xb * WAVE_WARP_FREQ) - 1.0);
       nW = normalize(nW - fluid * waveTilt(xw, pxArc, warp));
+      float popAct = 0.0;
+      if (boilW > 0.0) {
+        vec3 rt;
+        if (ROIL_POPS == 1) rt = roilTilt(xb, uTime * ROIL_MOTION, T - HG_BOIL_K, pxArc, popAct);
+        else { rt = roilNoiseTilt(xb, uTime * ROIL_MOTION); popAct = 0.5; }
+        nW = normalize(nW - (fluid * boilW * uRoilGain * ROIL_MOTION) * (uBodyRot * rt));
+      }
       vec3 R = reflect(rd, nW);
       float NoV = clamp(dot(nW, -rd), 0.0, 1.0);
 
       vec3 liquid = vec3(0.0);
       if (liquidW > 0.0) {
         vec3 F = HG_F0 + (1.0 - HG_F0) * pow(1.0 - NoV, 5.0);
-        liquid = F * envRadiance(R, mix(ROUGH_LIQUID, ROUGH_BOIL, boilW), hit, nW);
+        liquid = F * envRadiance(R, mix(ROUGH_LIQUID, ROUGH_BOIL, boilW * (0.5 + 0.5 * popAct)), hit, nW);
       }
 
       vec3 solid = vec3(0.0);

@@ -21,6 +21,10 @@ import { DEM_MIN_M, DEM_MAX_M } from '../mercuryMaps.generated';
 import { SCAR_DEPTH_RANGE_M } from '../scarMap';
 import { RAY_ALBEDO } from '../planetLook';
 import {
+  POP_FREQ, POP_JITTER, POP_REACH, POP_REACH_RAD, POP_SCALE, POP_LIFE_S, POP_TIME, POP_P_MIN, POP_P_MAX,
+  POP_DENSITY_K, POP_AMP, POP_SALTS, ROIL_LITE_FREQ, ROIL_LITE_SPEED, ROIL_LITE_AMP,
+} from '../mercuryRoil';
+import {
   IMPULSE_SLOTS, SHAPE_MAX, SHAPE_ITERS, WAVE_KR, WAVE_C_GROUP, WAVE_SPREAD_FLOOR,
   WAVE_K_PEAK, WAVE_SPEC_W, WAVE_VISC_PER_S, WAVE_SHARP, WAVE_WARP_RAD, WAVE_WARP_FREQ, WAVE_DIMPLE_RAD, WAVE_DIMPLE_S, WAVE_DIMPLE_GAIN,
 } from '../mercuryWaves';
@@ -259,5 +263,28 @@ describe('mercuryPlanetShader contract', () => {
     const names = declared(fs).filter((u) => !PLANET_BUILTINS.includes(u));
     expect([...names].sort()).toEqual([...PLANET_CALM_UNIFORMS].sort());
     expect(PLANET_CALM_UNIFORMS).toEqual([...PLANET_UNIFORMS, 'uGlow']);
+  });
+  it('roil: pop constants from mercuryRoil, mirrored functions, motion and mode per variant', () => {
+    for (const [name, value] of Object.entries({
+      POP_FREQ, POP_JITTER, POP_REACH, POP_REACH_RAD, POP_SCALE, POP_LIFE_S, POP_TIME, POP_P_MIN, POP_P_MAX,
+      POP_DENSITY_K, POP_AMP, ROIL_LITE_FREQ, ROIL_LITE_SPEED, ROIL_LITE_AMP,
+    })) expect(PLANET_FS).toContain(`const float ${name} = ${glf(value)};`);
+    for (const [k, s] of Object.entries(POP_SALTS)) expect(PLANET_FS).toContain(`const vec3 POP_SALT_${k.toUpperCase()} = ${v3(s)};`);
+    expect(PLANET_FS).toContain('float popSlope(float th, float age, float pxArc)');
+    expect(PLANET_FS).toContain('vec3 roilTilt(vec3 xb, float t, float dT, float pxArc, out float act)');
+    expect(PLANET_FS).toContain('const int ROIL_POPS = 1;');
+    expect(PLANET_FS).toContain('const float ROIL_MOTION = 1.0;');
+    expect(buildPlanetShader({ tier: 'lite' }).fs).toContain('const int ROIL_POPS = 0;');
+    expect(buildPlanetShader({ calm: true }).fs).toContain('const float ROIL_MOTION = 0.0;');
+    expect(PLANET_FS).toContain('uniform float uRoilGain;');
+    expect(PLANET_UNIFORMS).toContain('uRoilGain');
+    // coherence loss: active pops scatter more; the 0.14 floor is ROUGH_LIQUID's
+    expect(PLANET_FS).toContain('mix(ROUGH_LIQUID, ROUGH_BOIL, boilW * (0.5 + 0.5 * popAct))');
+  });
+
+  it('roil runs only in the boil band and never takes a derivative', () => {
+    expect(PLANET_FS).toMatch(/if \(boilW > 0\.0\) \{\s*vec3 rt;/);
+    const roilFns = PLANET_FS.slice(PLANET_FS.indexOf('float popDensity('), PLANET_FS.indexOf('void main()'));
+    expect(roilFns).not.toMatch(/dFd[xy]|fwidth/);
   });
 });
