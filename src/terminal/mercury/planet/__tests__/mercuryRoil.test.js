@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   hash13, popDensity, popSlope, roilTilt,
-  POP_FREQ, POP_JITTER, POP_REACH, POP_REACH_RAD, POP_REF_TH, POP_SCALE, POP_LIFE_S, POP_TIME,
+  POP_FREQ, POP_JITTER, POP_REACH, POP_REACH_RAD, POP_REF_TH, POP_SCALE, POP_LIFE_S, POP_TIME, POP_AMP,
 } from '../mercuryRoil';
-import { WAVE_C_FRONT } from '../mercuryWaves';
+import { WAVE_C_FRONT, WAVE_K_PEAK, WAVE_DIMPLE_RAD, WAVE_DIMPLE_AA_LO } from '../mercuryWaves';
 
 const norm = (v) => { const l = Math.hypot(...v); return v.map((c) => c / l); };
 // deterministic PRNG for sampling (mulberry32)
@@ -37,6 +37,30 @@ describe('mercuryRoil', () => {
     expect(POP_SCALE * POP_REACH_RAD).toBeCloseTo(POP_REF_TH, 12);
     expect(WAVE_C_FRONT * POP_LIFE_S * POP_TIME).toBeCloseTo(POP_REF_TH, 12);
     expect(POP_REACH_RAD).toBeCloseTo(POP_REACH / POP_FREQ, 12);
+  });
+
+  it('rings resolve on the rest disc: ≥ 5 px per peak wavelength, a 10–20 px reach (R2 amended)', () => {
+    const PX = 0.0047; // arc per pixel on the ~205 px-radius rest disc
+    expect(WAVE_K_PEAK * PX * POP_SCALE).toBeLessThanOrEqual((2 * Math.PI) / 5);
+    expect(POP_REACH_RAD / PX).toBeGreaterThanOrEqual(10);
+    expect(POP_REACH_RAD / PX).toBeLessThanOrEqual(20);
+  });
+
+  it('a pop ring keeps real slope at a realistic pxArc (bandAA does not erase it)', () => {
+    const peak = (px) => {
+      let m = 0;
+      for (let age = 0.01; age < POP_LIFE_S; age += 0.01) for (let r = 0.3; r < 1; r += 0.005) m = Math.max(m, Math.abs(popSlope(r * POP_REACH_RAD, age, px)));
+      return m;
+    };
+    expect(peak(0.005)).toBeGreaterThanOrEqual(0.25 * peak(0));
+  });
+
+  it('the pop dimple fades when sub-pixel and is untouched when resolved', () => {
+    const dimple = (px) => { let m = 0; for (let th = 1e-5; th < 0.25 * POP_REACH_RAD; th += 1e-5) m = Math.max(m, Math.abs(popSlope(th, 0.002, px))); return m; };
+    const subPx = (WAVE_DIMPLE_RAD / POP_SCALE) / (0.5 * WAVE_DIMPLE_AA_LO); // the dimple's radius is half a pixel
+    expect(dimple(0)).toBeGreaterThan(0.1 * POP_AMP);
+    expect(dimple(subPx)).toBeLessThan(1e-3 * dimple(0));
+    expect(dimple(0.005)).toBeCloseTo(dimple(0), 6);
   });
 
   it('containment: no slope beyond the reach or after the life', () => {

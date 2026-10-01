@@ -111,14 +111,16 @@ const float WAVE_WARP_FREQ = 7.00000000;
 const float WAVE_DIMPLE_RAD = 0.0500000000;
 const float WAVE_DIMPLE_S = 0.120000000;
 const float WAVE_DIMPLE_GAIN = 1.20000000;
+const float WAVE_DIMPLE_AA_LO = 1.50000000;
+const float WAVE_DIMPLE_AA_HI = 2.50000000;
 const float DIMPLE_NORM = 2.3316;
-const float POP_FREQ = 14.0000000;
+const float POP_FREQ = 5.00000000;
 const float POP_JITTER = 0.250000000;
 const float POP_REACH = 0.450000000;
-const float POP_REACH_RAD = 0.0321428571;
-const float POP_SCALE = 15.5555556;
+const float POP_REACH_RAD = 0.0900000000;
+const float POP_SCALE = 2.77777778;
 const float POP_LIFE_S = 0.600000000;
-const float POP_TIME = 0.289881236;
+const float POP_TIME = 0.144940618;
 const float POP_P_MIN = 1.50000000;
 const float POP_P_MAX = 4.00000000;
 const float POP_DENSITY_K = 60.0000000;
@@ -132,6 +134,7 @@ const vec3 POP_SALT_Z = vec3(5.55000000, 29.3000000, 37.7000000);
 const float ROIL_LITE_FREQ = 40.0000000;
 const float ROIL_LITE_SPEED = 1.50000000;
 const float ROIL_LITE_AMP = 0.0800000000;
+const float ROIL_LITE_ACT = 0.500000000;
 const int ROIL_POPS = 1;
 const float ROIL_MOTION = 1.0;
 
@@ -334,6 +337,8 @@ vec3 shapeGrad(vec3 x) {
 
 // A wavenumber fades where its crests would fall under a few pixels (pxArc: arc per pixel here).
 float bandAA(float k, float pxArc) { return smoothstep(2.5, 5.0, TAU / (k * max(pxArc, 1e-6))); }
+// The snap dimple fades as its radius falls under a pixel or two (sub-pixel it only aliases into specks).
+float dimpleAA(float pxArc) { return pxArc > 0.0 ? smoothstep(WAVE_DIMPLE_AA_LO, WAVE_DIMPLE_AA_HI, WAVE_DIMPLE_RAD / pxArc) : 1.0; }
 
 // mercuryWaves.rippleSlope, exactly: a dispersive capillary train by
 // stationary phase (k = K·(th / (c_g·t))², phase k·th/3), crests bunched at
@@ -350,7 +355,7 @@ float rippleSlope(float th, float age, float pxArc) {
     slope = exp(-lk * lk - WAVE_VISC_PER_S * kk * kk * age) * (bandAA(k, pxArc) * sin(ph) + 2.0 * WAVE_SHARP * bandAA(2.0 * k, pxArc) * sin(2.0 * ph));
   }
   float xd = th / WAVE_DIMPLE_RAD;
-  return slope + WAVE_DIMPLE_GAIN * exp(-age / WAVE_DIMPLE_S) * DIMPLE_NORM * xd * exp(-xd * xd);
+  return slope + dimpleAA(pxArc) * WAVE_DIMPLE_GAIN * exp(-age / WAVE_DIMPLE_S) * DIMPLE_NORM * xd * exp(-xd * xd);
 }
 
 // Capillary ripple trains running out from each impulse, 1/√sinθ spreading
@@ -536,7 +541,7 @@ void main() {
       if (boilW > 0.0) {
         vec3 rt;
         if (ROIL_POPS == 1) rt = roilTilt(xb, uTime * ROIL_MOTION, T - HG_BOIL_K, pxArc, popAct);
-        else { rt = roilNoiseTilt(xb, uTime * ROIL_MOTION); popAct = 0.5; }
+        else { rt = roilNoiseTilt(xb, uTime * ROIL_MOTION); popAct = ROIL_LITE_ACT; }
         nW = normalize(nW - (fluid * boilW * uRoilGain * ROIL_MOTION) * (uBodyRot * rt));
       }
       vec3 R = reflect(rd, nW);

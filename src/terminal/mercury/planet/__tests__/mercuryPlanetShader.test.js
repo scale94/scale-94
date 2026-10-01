@@ -22,11 +22,11 @@ import { SCAR_DEPTH_RANGE_M } from '../scarMap';
 import { RAY_ALBEDO } from '../planetLook';
 import {
   POP_FREQ, POP_JITTER, POP_REACH, POP_REACH_RAD, POP_SCALE, POP_LIFE_S, POP_TIME, POP_P_MIN, POP_P_MAX,
-  POP_DENSITY_K, POP_AMP, POP_SALTS, ROIL_LITE_FREQ, ROIL_LITE_SPEED, ROIL_LITE_AMP,
+  POP_DENSITY_K, POP_AMP, POP_SALTS, ROIL_LITE_FREQ, ROIL_LITE_SPEED, ROIL_LITE_AMP, ROIL_LITE_ACT,
 } from '../mercuryRoil';
 import {
   IMPULSE_SLOTS, SHAPE_MAX, SHAPE_ITERS, WAVE_KR, WAVE_C_GROUP, WAVE_SPREAD_FLOOR,
-  WAVE_K_PEAK, WAVE_SPEC_W, WAVE_VISC_PER_S, WAVE_SHARP, WAVE_WARP_RAD, WAVE_WARP_FREQ, WAVE_DIMPLE_RAD, WAVE_DIMPLE_S, WAVE_DIMPLE_GAIN,
+  WAVE_K_PEAK, WAVE_SPEC_W, WAVE_VISC_PER_S, WAVE_SHARP, WAVE_WARP_RAD, WAVE_WARP_FREQ, WAVE_DIMPLE_RAD, WAVE_DIMPLE_S, WAVE_DIMPLE_GAIN, WAVE_DIMPLE_AA_LO, WAVE_DIMPLE_AA_HI,
 } from '../mercuryWaves';
 
 const declared = (src) => [...src.matchAll(/^uniform\s+\w+\s+(\w+)(?:\[\d+\])?;/gm)].map((m) => m[1]);
@@ -161,7 +161,7 @@ describe('mercuryPlanetShader contract', () => {
     expect(PLANET_FS).toContain(`uniform vec2 uImpWave[${IMPULSE_SLOTS}];`);
     expect(PLANET_FS).toContain(`const int IMPULSE_SLOTS = ${IMPULSE_SLOTS};`);
     expect(PLANET_FS).toContain(`const int SHAPE_ITERS = ${SHAPE_ITERS};`);
-    for (const [name, value] of Object.entries({ SHAPE_MAX, WAVE_KR, WAVE_C_GROUP, WAVE_SPREAD_FLOOR, WAVE_K_PEAK, WAVE_SPEC_W, WAVE_VISC_PER_S, WAVE_SHARP, WAVE_WARP_RAD, WAVE_WARP_FREQ, WAVE_DIMPLE_RAD, WAVE_DIMPLE_S, WAVE_DIMPLE_GAIN })) {
+    for (const [name, value] of Object.entries({ SHAPE_MAX, WAVE_KR, WAVE_C_GROUP, WAVE_SPREAD_FLOOR, WAVE_K_PEAK, WAVE_SPEC_W, WAVE_VISC_PER_S, WAVE_SHARP, WAVE_WARP_RAD, WAVE_WARP_FREQ, WAVE_DIMPLE_RAD, WAVE_DIMPLE_S, WAVE_DIMPLE_GAIN, WAVE_DIMPLE_AA_LO, WAVE_DIMPLE_AA_HI })) {
       expect(PLANET_FS).toContain(`const float ${name} = ${glf(value)};`);
     }
     expect(PLANET_VS).toContain(`const float SHAPE_MAX = ${glf(SHAPE_MAX)};`);
@@ -202,7 +202,8 @@ describe('mercuryPlanetShader contract', () => {
     expect(PLANET_FS).toContain('float k = WAVE_KR * q * q;');
     expect(PLANET_FS).toContain('float ph = k * th / 3.0;');
     expect(PLANET_FS).toContain('slope = exp(-lk * lk - WAVE_VISC_PER_S * kk * kk * age) * (bandAA(k, pxArc) * sin(ph) + 2.0 * WAVE_SHARP * bandAA(2.0 * k, pxArc) * sin(2.0 * ph));');
-    expect(PLANET_FS).toContain('return slope + WAVE_DIMPLE_GAIN * exp(-age / WAVE_DIMPLE_S) * DIMPLE_NORM * xd * exp(-xd * xd);');
+    expect(PLANET_FS).toContain('return slope + dimpleAA(pxArc) * WAVE_DIMPLE_GAIN * exp(-age / WAVE_DIMPLE_S) * DIMPLE_NORM * xd * exp(-xd * xd);');
+    expect(PLANET_FS).toContain('float dimpleAA(float pxArc) { return pxArc > 0.0 ? smoothstep(WAVE_DIMPLE_AA_LO, WAVE_DIMPLE_AA_HI, WAVE_DIMPLE_RAD / pxArc) : 1.0; }');
     expect(PLANET_FS).toContain('float bandAA(float k, float pxArc) { return smoothstep(2.5, 5.0, TAU / (k * max(pxArc, 1e-6))); }');
     // a light warp of the arc distance so rings shear instead of reading as etched grooves
     expect(PLANET_FS).toContain('float warp = WAVE_WARP_RAD * (2.0 * vnoise3(xb * WAVE_WARP_FREQ) - 1.0);');
@@ -218,7 +219,8 @@ describe('mercuryPlanetShader contract', () => {
     expect(lastDeriv).toBeLessThan(main.search(/\bdiscard;/));
     // the shape refinement loop is uniform control flow; derivatives may follow it,
     // but none may appear inside helper loops that use continue:
-    const waveFn = PLANET_FS.slice(PLANET_FS.indexOf('float rippleSlope('), PLANET_FS.indexOf('void main()'));
+    const waveFn = PLANET_FS.slice(PLANET_FS.indexOf('float bandAA('), PLANET_FS.indexOf('void main()'));
+    expect(PLANET_FS.indexOf('float bandAA(')).toBeGreaterThan(-1);
     expect(waveFn).not.toMatch(/dFd[xy]|fwidth/);
     expect(firstLoop).toBeGreaterThan(-1);
   });
@@ -267,7 +269,7 @@ describe('mercuryPlanetShader contract', () => {
   it('roil: pop constants from mercuryRoil, mirrored functions, motion and mode per variant', () => {
     for (const [name, value] of Object.entries({
       POP_FREQ, POP_JITTER, POP_REACH, POP_REACH_RAD, POP_SCALE, POP_LIFE_S, POP_TIME, POP_P_MIN, POP_P_MAX,
-      POP_DENSITY_K, POP_AMP, ROIL_LITE_FREQ, ROIL_LITE_SPEED, ROIL_LITE_AMP,
+      POP_DENSITY_K, POP_AMP, ROIL_LITE_FREQ, ROIL_LITE_SPEED, ROIL_LITE_AMP, ROIL_LITE_ACT,
     })) expect(PLANET_FS).toContain(`const float ${name} = ${glf(value)};`);
     for (const [k, s] of Object.entries(POP_SALTS)) expect(PLANET_FS).toContain(`const vec3 POP_SALT_${k.toUpperCase()} = ${v3(s)};`);
     expect(PLANET_FS).toContain('float popSlope(float th, float age, float pxArc)');
@@ -275,6 +277,8 @@ describe('mercuryPlanetShader contract', () => {
     expect(PLANET_FS).toContain('const int ROIL_POPS = 1;');
     expect(PLANET_FS).toContain('const float ROIL_MOTION = 1.0;');
     expect(buildPlanetShader({ tier: 'lite' }).fs).toContain('const int ROIL_POPS = 0;');
+    // the lite tier's stand-in activity is a named constant, not a literal
+    expect(PLANET_FS).toContain('else { rt = roilNoiseTilt(xb, uTime * ROIL_MOTION); popAct = ROIL_LITE_ACT; }');
     expect(buildPlanetShader({ calm: true }).fs).toContain('const float ROIL_MOTION = 0.0;');
     expect(PLANET_FS).toContain('uniform float uRoilGain;');
     expect(PLANET_UNIFORMS).toContain('uRoilGain');

@@ -6,6 +6,7 @@ import {
   spinBulge, BULGE_MAX, SHAPE_MAX, shapeHeight, createWake, wakeImpulse, WAKE_EVERY_S, LIQUID_TAU,
   RELEASE_MODE_AMP, WAKE_WAVE_AMP,
   WAKE_FULL_OMEGA, WAKE_SLIP, slipDirWorld, WAVE_C_FRONT, rippleSlope, WAVE_DIMPLE_S, WAVE_SHARP,
+  WAVE_DIMPLE_RAD, WAVE_DIMPLE_GAIN, WAVE_DIMPLE_AA_LO, WAVE_DIMPLE_AA_HI, dimpleAA,
 } from '../mercuryWaves';
 import { MAX_OMEGA } from '../mercuryBody';
 
@@ -89,6 +90,25 @@ describe('capillary ripples', () => {
   it('snaps: a sharp dimple at the origin that is gone in a few WAVE_DIMPLE_S', () => {
     expect(Math.abs(rippleSlope(0.035, 0.01, 0))).toBeGreaterThan(0.5);
     expect(Math.abs(rippleSlope(0.035, 5 * WAVE_DIMPLE_S, 0))).toBeLessThan(0.05);
+  });
+
+  it('the snap dimple fades out when sub-pixel instead of aliasing, and is untouched at splash scale', () => {
+    expect(WAVE_DIMPLE_AA_LO).toBeLessThan(WAVE_DIMPLE_AA_HI);
+    expect(dimpleAA(0)).toBe(1);
+    // the dimple alone: at age 1 ms the train's wavenumbers sit far off its spectrum here
+    const dimple = (px) => { let m = 0; for (let th = 5e-3; th < 3 * WAVE_DIMPLE_RAD; th += 1e-4) m = Math.max(m, Math.abs(rippleSlope(th, 1e-3, px))); return m; };
+    const full = WAVE_DIMPLE_GAIN * Math.exp(-1e-3 / WAVE_DIMPLE_S);
+    expect(dimple(0)).toBeCloseTo(full, 2);
+    // sub-pixel: dimple radius ≤ WAVE_DIMPLE_AA_LO px → gone
+    expect(dimple(WAVE_DIMPLE_RAD / WAVE_DIMPLE_AA_LO)).toBeLessThan(1e-3 * full);
+    expect(dimple(2 * WAVE_DIMPLE_RAD)).toBeLessThan(1e-3 * full);
+    // half-resolved: partly faded
+    const mid = dimple(WAVE_DIMPLE_RAD / (0.5 * (WAVE_DIMPLE_AA_LO + WAVE_DIMPLE_AA_HI)));
+    expect(mid).toBeGreaterThan(0.2 * full);
+    expect(mid).toBeLessThan(0.8 * full);
+    // a splash on the ~205 px rest disc (pxArc ≈ 0.0047), or closer: the fade is exactly 1, the splash unchanged
+    for (const px of [0, 0.0047, 0.01, 0.02]) expect(dimpleAA(px)).toBe(1);
+    expect(WAVE_DIMPLE_RAD / 0.0047).toBeGreaterThan(4 * WAVE_DIMPLE_AA_HI);
   });
 
   it('fades every crest finer than a few pixels (no limb aliasing)', () => {

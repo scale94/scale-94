@@ -2,7 +2,7 @@
 // (phase-4 spec §6 + refinements R1, R2).
 //
 // CONVENTIONS, stated so no reader assumes more:
-// - Pops live in the BODY frame on a 3D cell lattice over x·POP_FREQ (≈ 0.07 rad
+// - Pops live in the BODY frame on a 3D cell lattice over x·POP_FREQ (0.2 rad
 //   spacing). Each cell has a hashed site (jitter ±POP_JITTER), a hashed period in
 //   [POP_P_MIN, POP_P_MAX] and phase; it is active iff its hash < popDensity(T − T_boil),
 //   so the boil front fades in as sparse pops and thickens toward noon.
@@ -20,11 +20,15 @@
 
 import { rippleSlope, WAVE_C_FRONT } from './mercuryWaves';
 
-export const POP_FREQ = 14;              // cells per unit of the body frame (spacing ≈ 0.071 rad)
+export const POP_FREQ = 5;               // cells per unit of the body frame (spacing 0.2 rad ≈ 43 px at rest)
 export const POP_JITTER = 0.25;          // site jitter, ± cell units
 export const POP_REACH = 0.45;           // ring reach, cell units (POP_JITTER + POP_REACH < 1)
 export const POP_REACH_RAD = POP_REACH / POP_FREQ;
-export const POP_REF_TH = 0.5;           // the splash arc (rad) the miniature's reach maps to
+// The splash arc (rad) the miniature's reach maps to. R2 amended: at 0.5 (with
+// POP_FREQ 14) a ring's peak wavelength shrank to ~1 px and bandAA (rightly) erased
+// it. Now the reach (POP_REACH_RAD = 0.09 rad ≈ 19 px on the ~205 px rest disc,
+// pxArc ≈ 0.0047) holds ~3.6 crests of ≈ 5.3 px: WAVE_K_PEAK·pxArc·POP_SCALE ≈ 1.18 ≤ 2π/5.
+export const POP_REF_TH = 0.25;
 export const POP_SCALE = POP_REF_TH / POP_REACH_RAD;
 export const POP_LIFE_S = 0.6;
 export const POP_TIME = POP_REF_TH / (WAVE_C_FRONT * POP_LIFE_S);
@@ -44,6 +48,7 @@ export const POP_SALTS = Object.freeze({
 export const ROIL_LITE_FREQ = 40;
 export const ROIL_LITE_SPEED = 1.5;
 export const ROIL_LITE_AMP = 0.08;
+export const ROIL_LITE_ACT = 0.5;       // the noise has no pops: a steady mid activity for the roughness patches
 
 const fract = (x) => x - Math.floor(x);
 const smoothstep = (e0, e1, x) => {

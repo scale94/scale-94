@@ -19,10 +19,11 @@ import { CALM_GLOW_RAD } from './mercuryImpacts';
 import {
   IMPULSE_SLOTS, SHAPE_MAX, SHAPE_ITERS, WAVE_KR, WAVE_C_GROUP, WAVE_SPREAD_FLOOR,
   WAVE_K_PEAK, WAVE_SPEC_W, WAVE_VISC_PER_S, WAVE_SHARP, WAVE_WARP_RAD, WAVE_WARP_FREQ, WAVE_DIMPLE_RAD, WAVE_DIMPLE_S, WAVE_DIMPLE_GAIN,
+  WAVE_DIMPLE_AA_LO, WAVE_DIMPLE_AA_HI,
 } from './mercuryWaves';
 import {
   POP_FREQ, POP_JITTER, POP_REACH, POP_REACH_RAD, POP_SCALE, POP_LIFE_S, POP_TIME, POP_P_MIN, POP_P_MAX,
-  POP_DENSITY_K, POP_AMP, POP_SALTS, ROIL_LITE_FREQ, ROIL_LITE_SPEED, ROIL_LITE_AMP,
+  POP_DENSITY_K, POP_AMP, POP_SALTS, ROIL_LITE_FREQ, ROIL_LITE_SPEED, ROIL_LITE_AMP, ROIL_LITE_ACT,
 } from './mercuryRoil';
 import {
   R_SCENE, R_MERCURY_M, SHADOW_REACH_RAD, SHADOW_SOFT_M, SHADOW_ZONE, SHADOW_SOFT_LSB, SHADOW_BIAS_LSB,
@@ -194,6 +195,8 @@ const float WAVE_WARP_FREQ = ${glf(WAVE_WARP_FREQ)};
 const float WAVE_DIMPLE_RAD = ${glf(WAVE_DIMPLE_RAD)};
 const float WAVE_DIMPLE_S = ${glf(WAVE_DIMPLE_S)};
 const float WAVE_DIMPLE_GAIN = ${glf(WAVE_DIMPLE_GAIN)};
+const float WAVE_DIMPLE_AA_LO = ${glf(WAVE_DIMPLE_AA_LO)};
+const float WAVE_DIMPLE_AA_HI = ${glf(WAVE_DIMPLE_AA_HI)};
 const float DIMPLE_NORM = 2.3316;${calm ? `\nconst float CALM_GLOW_RAD = ${glf(CALM_GLOW_RAD)};` : ''}
 const float POP_FREQ = ${glf(POP_FREQ)};
 const float POP_JITTER = ${glf(POP_JITTER)};
@@ -210,6 +213,7 @@ ${POP_SALT_GLSL}
 const float ROIL_LITE_FREQ = ${glf(ROIL_LITE_FREQ)};
 const float ROIL_LITE_SPEED = ${glf(ROIL_LITE_SPEED)};
 const float ROIL_LITE_AMP = ${glf(ROIL_LITE_AMP)};
+const float ROIL_LITE_ACT = ${glf(ROIL_LITE_ACT)};
 const int ROIL_POPS = ${q.roil === 'pops' ? 1 : 0};
 const float ROIL_MOTION = ${calm ? '0.0' : '1.0'};
 
@@ -412,6 +416,8 @@ vec3 shapeGrad(vec3 x) {
 
 // A wavenumber fades where its crests would fall under a few pixels (pxArc: arc per pixel here).
 float bandAA(float k, float pxArc) { return smoothstep(2.5, 5.0, TAU / (k * max(pxArc, 1e-6))); }
+// The snap dimple fades as its radius falls under a pixel or two (sub-pixel it only aliases into specks).
+float dimpleAA(float pxArc) { return pxArc > 0.0 ? smoothstep(WAVE_DIMPLE_AA_LO, WAVE_DIMPLE_AA_HI, WAVE_DIMPLE_RAD / pxArc) : 1.0; }
 
 // mercuryWaves.rippleSlope, exactly: a dispersive capillary train by
 // stationary phase (k = K·(th / (c_g·t))², phase k·th/3), crests bunched at
@@ -428,7 +434,7 @@ float rippleSlope(float th, float age, float pxArc) {
     slope = exp(-lk * lk - WAVE_VISC_PER_S * kk * kk * age) * (bandAA(k, pxArc) * sin(ph) + 2.0 * WAVE_SHARP * bandAA(2.0 * k, pxArc) * sin(2.0 * ph));
   }
   float xd = th / WAVE_DIMPLE_RAD;
-  return slope + WAVE_DIMPLE_GAIN * exp(-age / WAVE_DIMPLE_S) * DIMPLE_NORM * xd * exp(-xd * xd);
+  return slope + dimpleAA(pxArc) * WAVE_DIMPLE_GAIN * exp(-age / WAVE_DIMPLE_S) * DIMPLE_NORM * xd * exp(-xd * xd);
 }
 
 // Capillary ripple trains running out from each impulse, 1/√sinθ spreading
@@ -614,7 +620,7 @@ void main() {
       if (boilW > 0.0) {
         vec3 rt;
         if (ROIL_POPS == 1) rt = roilTilt(xb, uTime * ROIL_MOTION, T - HG_BOIL_K, pxArc, popAct);
-        else { rt = roilNoiseTilt(xb, uTime * ROIL_MOTION); popAct = 0.5; }
+        else { rt = roilNoiseTilt(xb, uTime * ROIL_MOTION); popAct = ROIL_LITE_ACT; }
         nW = normalize(nW - (fluid * boilW * uRoilGain * ROIL_MOTION) * (uBodyRot * rt));
       }
       vec3 R = reflect(rd, nW);

@@ -43,6 +43,8 @@ export const WAVE_WARP_FREQ = 7;              // the warp's noise frequency on t
 export const WAVE_DIMPLE_RAD = 0.05;          // the snap: a sharp dimple at the impact point…
 export const WAVE_DIMPLE_S = 0.12;            // …gone in a few tenths of a second
 export const WAVE_DIMPLE_GAIN = 1.2;
+export const WAVE_DIMPLE_AA_LO = 1.5;           // the dimple fades out as its radius drops under this many px…
+export const WAVE_DIMPLE_AA_HI = 2.5;           // …and is whole above this (a splash on the rest disc is ≈ 10 px)
 export const WAVE_SPREAD_FLOOR = 0.15;        // 1/√sinθ spreading, normalised to 1 inside this
 export const WAVE_DAMP_PER_S = { splash: 1.0, wake: 1.6, ring: 3.0 };
 
@@ -76,6 +78,12 @@ export function bandAA(k, pxArc) {
   return smoothstep(2.5, 5, (2 * Math.PI) / (k * pxArc));
 }
 
+// Fade the snap dimple as its radius falls under a pixel or two: sub-pixel it only aliases into specks.
+export function dimpleAA(pxArc) {
+  if (!(pxArc > 0)) return 1;
+  return smoothstep(WAVE_DIMPLE_AA_LO, WAVE_DIMPLE_AA_HI, WAVE_DIMPLE_RAD / pxArc);
+}
+
 const DIMPLE_NORM = 2.3316; // 1 / max(x·e^(−x²))
 
 // The tangential slope of a splash's ripples at arc distance th, age s
@@ -99,7 +107,7 @@ export function rippleSlope(th, age, pxArc) {
       * (bandAA(k, pxArc) * Math.sin(ph) + 2 * WAVE_SHARP * bandAA(2 * k, pxArc) * Math.sin(2 * ph));
   }
   const xd = th / WAVE_DIMPLE_RAD;
-  return slope + WAVE_DIMPLE_GAIN * Math.exp(-t / WAVE_DIMPLE_S) * DIMPLE_NORM * xd * Math.exp(-xd * xd);
+  return slope + dimpleAA(pxArc) * WAVE_DIMPLE_GAIN * Math.exp(-t / WAVE_DIMPLE_S) * DIMPLE_NORM * xd * Math.exp(-xd * xd);
 }
 
 export function legendre(l, m) {
