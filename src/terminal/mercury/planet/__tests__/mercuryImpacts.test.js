@@ -42,6 +42,21 @@ describe('frames', () => {
 });
 
 describe('localTempK', () => {
+  // The temperature belongs to where a point sits relative to the Sun about the
+  // spin axis at rest (world Y), not to the body's own axes: a tumbled body
+  // read in its own frame puts sunlit metal on the night branch (the frozen cap).
+  it('is evaluated in the world frame: a tumble cannot freeze sunlit metal', () => {
+    const sun = [-0.82, 0, 0.57];
+    const p = [0.3, 0.35, 0.89]; // sunlit, toward the viewer
+    const n = Math.hypot(...p); const w = p.map((v) => v / n);
+    const tumble = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 80 * DEG);
+    const heat = 80;
+    const world = localTempK(w, sun, 600, heat);
+    const body = localTempK(worldToBody(w, tumble), worldToBody(sun, tumble), 600, heat);
+    expect(world).toBeGreaterThan(234.32);
+    expect(body).toBeLessThan(234.32); // why the caller must pass world-frame inputs
+  });
+
   it('is the subsolar temperature (plus spin heat) under the Sun', () => {
     const sun = [Math.cos(0.4), 0, -Math.sin(0.4)];
     expect(localTempK(sun, sun, 600, 20)).toBeCloseTo(surfaceTempK(1, 0, 1, 600, 20), 9);

@@ -494,9 +494,12 @@ void main() {
     float fluid = smoothstep(thr - FRONT_SOFT, thr + FRONT_SOFT, front + edgeN);
 
     if (fluid > 0.0) {
-      float lonSun = length(Lb.xz) > 1e-4 ? atan(-Lb.z, Lb.x) : 0.0;
-      float lonRel = mod(lon - lonSun + PI, TAU) - PI;
-      float T = surfaceTempK(mu0x, lonRel, cos(lat), uSubsolarT, uHeatK);
+      // Local time and latitude about the rest spin axis (world Y; the rest
+      // orientation is a pure yaw), not the body's own axes: a tumbled body
+      // read in its own frame put sunlit metal on the night branch (a frozen cap).
+      float lonSun = length(uSunDir.xz) > 1e-4 ? atan(-uSunDir.z, uSunDir.x) : 0.0;
+      float lonRel = mod(atan(-xw.z, xw.x) - lonSun + PI, TAU) - PI;
+      float T = surfaceTempK(mu0x, lonRel, sqrt(max(1.0 - xw.y * xw.y, 0.0)), uSubsolarT, uHeatK);
       float liquidW = smoothstep(HG_MELT_K - PHASE_BLEND_K, HG_MELT_K + PHASE_BLEND_K, T);
       float boilW = smoothstep(HG_BOIL_K - PHASE_BLEND_K, HG_BOIL_K + PHASE_BLEND_K, T);
 

@@ -61,8 +61,9 @@ export function worldToBody(dir, q, out = [0, 0, 0]) {
   return out;
 }
 
-// The shader's per-fragment temperature at a body-frame direction, exactly
-// (lonSun guard, GLSL mod for lonRel).
+// The shader's per-fragment temperature at a WORLD-frame direction (the rest
+// spin axis is world Y), exactly (lonSun guard, GLSL mod for lonRel). Body-frame
+// inputs are wrong while the planet tumbles.
 export function localTempK(d, sun, tssK, heatK) {
   const mu0 = d[0] * sun[0] + d[1] * sun[1] + d[2] * sun[2];
   const lon = Math.atan2(-d[2], d[0]);

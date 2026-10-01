@@ -155,7 +155,6 @@ export default function MercuryPlanet({ isMobile = false, emitters = {}, strikes
     hasDragDir: false,
     w: [0, 0, 0],
     b: [0, 0, 0],
-    sunB: [0, 0, 0],
     nodePos: [0, 0, 0],
     cam: [0, 0, 0],
     wakeArgs: { tS: 0, dragging: false, released: false, ptrOmega: 0, bodyOmega: 0, tau: 0 },
@@ -217,7 +216,6 @@ export default function MercuryPlanet({ isMobile = false, emitters = {}, strikes
 
     // --- Phase 3: strikes, wake, scars, the bead ---
     const precession = orbitPrecessionAngle(t);
-    worldToBody(SUN_DIR_WORLD, body.q, surf.sunB);
     surf.cam[0] = camera.position.x; surf.cam[1] = camera.position.y; surf.cam[2] = camera.position.z;
 
     const queue = strikes?.current;
@@ -230,7 +228,7 @@ export default function MercuryPlanet({ isMobile = false, emitters = {}, strikes
       surf.nodePos[0] = p[0]; surf.nodePos[1] = p[1]; surf.nodePos[2] = p[2];
       strikeDirWorld(surf.nodePos, surf.cam, surf.w);
       worldToBody(surf.w, body.q, surf.b);
-      const kind = impactKind(body.tau, localTempK(surf.b, surf.sunB, u.uSubsolarT.value, body.heatK));
+      const kind = impactKind(body.tau, localTempK(surf.w, SUN_DIR_WORLD, u.uSubsolarT.value, body.heatK));
       if (kind === 'crater') {
         stampCrater(scar, surf.b, surf.seed++);
         scarDirty = true;

@@ -127,7 +127,7 @@ describe('mercuryPlanetShader contract', () => {
   });
 
   it('guards the Sun longitude at the body pole and gates facet sparkle by the terminator', () => {
-    expect(PLANET_FS).toContain('float lonSun = length(Lb.xz) > 1e-4 ? atan(-Lb.z, Lb.x) : 0.0;');
+    expect(PLANET_FS).toContain('float lonSun = length(uSunDir.xz) > 1e-4 ? atan(-uSunDir.z, uSunDir.x) : 0.0;');
     expect(PLANET_FS).toMatch(/float glint = [^;]*\* term;/);
   });
 
@@ -187,7 +187,9 @@ describe('mercuryPlanetShader contract', () => {
     expect(PLANET_FS).toContain('float mu0x = dot(xb, Lb);');
     expect(PLANET_FS).toContain('float front = 1.0 - acos(clamp(mu0x, -1.0, 1.0)) / PI;');
     expect(PLANET_FS).toContain('float edgeN = (vnoise3(xb * FRONT_NOISE_FREQ) - 0.5) * FRONT_EDGE;');
-    expect(PLANET_FS).toContain('float T = surfaceTempK(mu0x, lonRel, cos(lat), uSubsolarT, uHeatK);');
+    // Temperature in the world frame (rest spin axis = world Y): a tumbled body never reads sunlit metal as night.
+    expect(PLANET_FS).toContain('float lonRel = mod(atan(-xw.z, xw.x) - lonSun + PI, TAU) - PI;');
+    expect(PLANET_FS).toContain('float T = surfaceTempK(mu0x, lonRel, sqrt(max(1.0 - xw.y * xw.y, 0.0)), uSubsolarT, uHeatK);');
     expect(PLANET_FS).toContain('float u = (th - WAVE_C_GROUP * age) / WAVE_PACKET_RAD;');
     expect(PLANET_FS).toContain('float slope = A * exp(-u * u) * sin(WAVE_KR * (th - WAVE_C_PHASE * age)) * sqrt(WAVE_SPREAD_FLOOR / max(s, WAVE_SPREAD_FLOOR));');
     expect(PLANET_FS).toContain('nW = normalize(nW - fluid * waveTilt(xw));');
