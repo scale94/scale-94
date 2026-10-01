@@ -18,6 +18,7 @@ export const SHADOW_BIAS_LSB = 1.0;   // march bias against quantisation acne, i
 export const SHADOW_ZONE = 0.35;        // only march where the Sun is lower than ~20°
 
 export const FALLBACK_ALBEDO = [0.16, 0.15, 0.14]; // linear; true-colour grey-brown until maps load
+export const RAY_ALBEDO = [0.42, 0.4, 0.38];  // fresh ejecta (linear): immature regolith is ~2.5× the background
 
 // Quicksilver (spec §3, §5 shading 3). Physical-ish; baked via glf.
 export const HG_F0 = [0.76, 0.77, 0.78];      // liquid Hg normal-incidence reflectance, near-neutral
@@ -62,4 +63,5 @@ export const PLANET_TUNE = {
   aetherStretch: 1,  // 0 = round lobes; 1 = each streak at its own elongation (AETHER_SHAPES)
   aetherCurve: 1.0,  // falloff inside a streak: 0 = flat; higher = brighter centre, dimmer toward the meniscus edge
   aetherCore: 2.2,   // brightness of the near-white specular core, relative to the streak colour's brightest channel
+  rayGain: 1,        // fresh crater-ray brightness (scar map G channel)
 };

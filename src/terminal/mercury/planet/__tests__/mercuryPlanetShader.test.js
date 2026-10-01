@@ -15,6 +15,8 @@ import {
   HG_MELT_K, HG_BOIL_K, T_NIGHT_FLOOR_K, T_SUNSET_K, TAU_WARM_H, TAU_COOL_H, HOURS_PER_RAD,
 } from '../mercuryThermal';
 import { DEM_MIN_M, DEM_MAX_M } from '../mercuryMaps.generated';
+import { SCAR_DEPTH_RANGE_M } from '../scarMap';
+import { RAY_ALBEDO } from '../planetLook';
 
 const declared = (src) => [...src.matchAll(/^uniform\s+\w+\s+(\w+)(?:\[\d+\])?;/gm)].map((m) => m[1]);
 
@@ -130,5 +132,14 @@ describe('mercuryPlanetShader contract', () => {
     expect(PLANET_FS).toContain('if (fluid > 0.0) {');
     expect(PLANET_FS).toContain('if (liquidW > 0.0) {');
     expect(PLANET_FS).toContain('if (liquidW < 1.0) {');
+  });
+
+  it('adds the scar map to the terrain height (so craters cast shadows) and fresh rays to the albedo', () => {
+    expect(PLANET_UNIFORMS).toEqual(expect.arrayContaining(['uScar', 'uRayGain']));
+    expect(PLANET_FS).toContain(`const float SCAR_DEPTH_RANGE_M = ${glf(SCAR_DEPTH_RANGE_M)};`);
+    expect(PLANET_FS).toContain(`const vec3 RAY_ALBEDO = ${v3(RAY_ALBEDO)};`);
+    expect(PLANET_FS).toContain('return (textureGrad(uScar, vec2(fract(uv.x), uv.y), gx, gy).r * 255.0 - 128.0) / 127.0 * SCAR_DEPTH_RANGE_M;');
+    expect(PLANET_FS).toContain('return mix(DEM_MIN_M, DEM_MAX_M, textureGrad(uDem, vec2(fract(uv.x), uv.y), gx, gy).r) + scarHeightM(uv, gx, gy);');
+    expect(PLANET_FS).toContain('albedo = mix(albedo, RAY_ALBEDO, clamp(textureGrad(uScar, uv, gx, gy).g * uRayGain, 0.0, 1.0));');
   });
 });

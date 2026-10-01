@@ -14,6 +14,7 @@ import { PLANET_TUNE, MEAN_R_AU } from './planet/planetLook';
 import { AETHER_BASE_DIRS, aetherLobeColors, aetherLobeDirs } from './planet/aetherLobes';
 import { MAPS } from './planet/mercuryMaps.generated';
 import { subsolarTempK } from './planet/mercuryThermal';
+import { createScarMap } from './planet/scarMap';
 import { createBody, stepBody, targetFromYaw } from './planet/mercuryBody';
 import { ORBIT_NODES, orbitPrecessionAngle, nodeWorldPosition } from './orbitNodes';
 import useMercuryDrag from './useMercuryDrag';
@@ -59,6 +60,22 @@ export default function MercuryPlanet({ isMobile = false, emitters = {} }) {
   const body = useMemo(() => createBody(target), [target]);
   const m4 = useMemo(() => new THREE.Matrix4(), []);
 
+  // The crust's memory (scarMap.js): a CPU buffer uploaded as RGBA8. Neutral = no scars.
+  const scar = useMemo(() => createScarMap(), []);
+  const scarTex = useMemo(() => {
+    const tex = new THREE.DataTexture(scar.bytes, scar.w, scar.h, THREE.RGBAFormat, THREE.UnsignedByteType);
+    tex.colorSpace = THREE.NoColorSpace;
+    tex.flipY = false;
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.ClampToEdgeWrapping;
+    tex.minFilter = THREE.LinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.generateMipmaps = false;
+    tex.needsUpdate = true;
+    return tex;
+  }, [scar]);
+  useEffect(() => () => scarTex.dispose(), [scarTex]);
+
   const material = useMemo(() => new THREE.RawShaderMaterial({
     glslVersion: THREE.GLSL3,
     vertexShader: PLANET_VS,
@@ -93,8 +110,10 @@ export default function MercuryPlanet({ isMobile = false, emitters = {} }) {
       uAetherStretch: { value: PLANET_TUNE.aetherStretch },
       uAetherCurve: { value: PLANET_TUNE.aetherCurve },
       uAetherCore: { value: PLANET_TUNE.aetherCore },
+      uScar: { value: scarTex },
+      uRayGain: { value: PLANET_TUNE.rayGain },
     },
-  }), [isMobile, init, body]);
+  }), [isMobile, init, body, scarTex]);
 
   useEffect(() => () => geometry.dispose(), [geometry]);
   useEffect(() => () => material.dispose(), [material]);
@@ -147,6 +166,7 @@ export default function MercuryPlanet({ isMobile = false, emitters = {} }) {
     u.uAetherStretch.value = PLANET_TUNE.aetherStretch;
     u.uAetherCurve.value = PLANET_TUNE.aetherCurve;
     u.uAetherCore.value = PLANET_TUNE.aetherCore;
+    u.uRayGain.value = PLANET_TUNE.rayGain;
     if (t >= nextEphemeris.current) {
       nextEphemeris.current = t + EPHEMERIS_REFRESH_S;
       const e = planetEphemerisUniforms(Date.now());

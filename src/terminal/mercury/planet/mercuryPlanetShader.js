@@ -12,12 +12,13 @@
 // wraps the planet (16 analytic flow streaks, aetherLobes.js; spec amendment 2026-10-01).
 
 import { glf, v3 } from '../../gl/glf';
+import { SCAR_DEPTH_RANGE_M } from './scarMap';
 import {
   R_SCENE, R_MERCURY_M, SHADOW_STEPS, SHADOW_REACH_RAD, SHADOW_SOFT_M, SHADOW_ZONE, SHADOW_SOFT_LSB, SHADOW_BIAS_LSB,
   FALLBACK_ALBEDO, HG_F0, ROUGH_LIQUID, ROUGH_BOIL, SOLID_HG_ALBEDO, SPARKLE_CELLS, SPARKLE_DENSITY, SPARKLE_COS,
   SPARKLE_GAIN, EMIT_RADIUS, FRONT_EDGE, FRONT_SOFT, FRONT_NOISE_FREQ, PHASE_BLEND_K,
   EMIT_MIN_SIN, EMIT_HORIZON_SOFT, SUN_SHOULDER, AETHER_NIGHT, AETHER_DAY_LO, AETHER_DAY_HI,
-  AETHER_DIFFUSE, AETHER_DIFFUSE_REF_LOBES, NIGHT_TINT, AETHER_FRINGE_LO, AETHER_FRINGE_HI, AETHER_SHOULDER,
+  AETHER_DIFFUSE, AETHER_DIFFUSE_REF_LOBES, NIGHT_TINT, AETHER_FRINGE_LO, AETHER_FRINGE_HI, AETHER_SHOULDER, RAY_ALBEDO,
 } from './planetLook';
 import { AETHER_LOBES, AETHER_SHAPES } from './aetherLobes';
 import {
@@ -36,6 +37,7 @@ export const PLANET_UNIFORMS = [
   'uTau', 'uHeatK', 'uSubsolarT', 'uEmitPos', 'uEmitCol', 'uSunGlint', 'uEmitGain',
   'uAethDir', 'uAethCol', 'uAetherGain', 'uAetherSinW', 'uAetherSilver',
   'uAetherEdge', 'uAetherStretch', 'uAetherCurve', 'uAetherCore',
+  'uScar', 'uRayGain',
 ];
 
 const AETHER_SHAPE_GLSL = `const vec2 AETHER_SHAPE[${AETHER_LOBES}] = vec2[${AETHER_LOBES}](${AETHER_SHAPES.map(([w, s]) => `vec2(${glf(w)}, ${glf(s)})`).join(', ')});`;
@@ -98,6 +100,8 @@ uniform float uAetherEdge;
 uniform float uAetherStretch;
 uniform float uAetherCurve;
 uniform float uAetherCore;
+uniform sampler2D uScar;
+uniform float uRayGain;
 
 const float PI = 3.14159265358979;
 const float TAU = 6.28318530717959;
@@ -149,9 +153,16 @@ const float AETHER_FRINGE_LO = ${glf(AETHER_FRINGE_LO)};
 const float AETHER_FRINGE_HI = ${glf(AETHER_FRINGE_HI)};
 const float AETHER_SHOULDER = ${glf(AETHER_SHOULDER)};
 const vec3 NIGHT_TINT = ${v3(NIGHT_TINT)};
+const float SCAR_DEPTH_RANGE_M = ${glf(SCAR_DEPTH_RANGE_M)};
+const vec3 RAY_ALBEDO = ${v3(RAY_ALBEDO)};
+
+// Crater depth from the scar map, true metres (scarMap.js encoding).
+float scarHeightM(vec2 uv, vec2 gx, vec2 gy) {
+  return (textureGrad(uScar, vec2(fract(uv.x), uv.y), gx, gy).r * 255.0 - 128.0) / 127.0 * SCAR_DEPTH_RANGE_M;
+}
 
 float heightAt(vec2 uv, vec2 gx, vec2 gy) {
-  return mix(DEM_MIN_M, DEM_MAX_M, textureGrad(uDem, vec2(fract(uv.x), uv.y), gx, gy).r);
+  return mix(DEM_MIN_M, DEM_MAX_M, textureGrad(uDem, vec2(fract(uv.x), uv.y), gx, gy).r) + scarHeightM(uv, gx, gy);
 }
 
 // March toward the Sun over the (exaggerated) heightfield. Terrain height is
@@ -358,6 +369,8 @@ void main() {
     float distN = 2.0 * uDemTexel.y * PI * R_MERCURY_M;
     n = normalize(nb - east * (hE * uRelief / distE) - north * (hN * uRelief / distN));
   }
+  // Fresh crater rays brighten the crust; they mature back to background (scarMap.js).
+  albedo = mix(albedo, RAY_ALBEDO, clamp(textureGrad(uScar, uv, gx, gy).g * uRayGain, 0.0, 1.0));
 
   // No atmosphere: the terminator is as soft as the Sun's disc is wide.
   float mu0g = dot(nb, Lb);
