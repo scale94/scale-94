@@ -5,12 +5,13 @@
 //
 // Diagnostics for "where does the phone's frame time go" (all preallocated, HUD-mounted only):
 //   js        frame start (first useFrame) -> end of gl.render submit, via a wrapped gl.render
-//   ptr/lay   pointermove count per frame + a getBoundingClientRect() timed in a capture-phase
-//             listener (forces layout if dirty, so its duration is the forced-layout cost;
-//             it also absorbs that cost ahead of useMercuryDrag's own reads)
+//   ptr/lay   pointermove count per frame; with &layout=1 also a getBoundingClientRect() timed in
+//             a capture-phase listener (forces layout if dirty, so its duration is the forced-layout
+//             cost - but the probe itself then pays a layout per move, so it is opt-in)
 //   hud       share of long frames (>33 ms) that directly follow a HUD textContent write
 //   longtask  PerformanceObserver 'longtask' count + total ms
-//   gpu       EXT_disjoint_timer_query_webgl2 around gl.render, read back asynchronously
+//   gpu       with &gpu=1: EXT_disjoint_timer_query_webgl2 around gl.render, read back
+//             asynchronously (opt-in: query polling may itself cost frame time on mobile drivers)
 
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
@@ -23,6 +24,7 @@ import { perfHudMode } from './planet/planetQuality';
 const fmt = (r) => (r.n ? `${r.p50.toFixed(1)} / ${r.p95.toFixed(1)} / ${r.max.toFixed(1)} ms  (${r.fps.toFixed(0)} fps, n=${r.n})` : '—');
 const nowS = () => performance.now() / 1000;
 const GPU_POOL = 6;
+const flag = (k) => { try { return new URLSearchParams(window.location.search).get(k) === '1'; } catch { return false; } };
 
 export default function MercuryPerfHud({ tier, calm }) {
   const gl = useThree((s) => s.gl);
@@ -53,7 +55,7 @@ export default function MercuryPerfHud({ tier, calm }) {
     const had = Object.prototype.hasOwnProperty.call(gl, 'render');
     const orig = gl.render;
     const ctx = gl.getContext();
-    const ext = ctx && typeof ctx.createQuery === 'function' ? ctx.getExtension('EXT_disjoint_timer_query_webgl2') : null;
+    const ext = flag('gpu') && ctx && typeof ctx.createQuery === 'function' ? ctx.getExtension('EXT_disjoint_timer_query_webgl2') : null;
     const pool = [];
     const pend = new Array(GPU_POOL).fill(null);   // FIFO of in-flight queries
     let pHead = 0, pLen = 0;
@@ -102,8 +104,10 @@ export default function MercuryPerfHud({ tier, calm }) {
   // pointermove: count + timed getBoundingClientRect (forced-layout proxy)
   useEffect(() => {
     const c = gl.domElement;
+    const timeLayout = flag('layout');
     const onMove = () => {
       f.ptr++;
+      if (!timeLayout) return;
       const a = performance.now();
       c.getBoundingClientRect();
       f.lay += performance.now() - a;
@@ -151,10 +155,10 @@ export default function MercuryPerfHud({ tier, calm }) {
         `still   p50/p95/max ${fmt(summarize(stats, now, { liquid: false }))}`,
         `liquid  p50/p95/max ${fmt(summarize(stats, now, { liquid: true }))}`,
         `js      p50/p95/max ${x.n ? `${x.js.p50.toFixed(1)} / ${x.js.p95.toFixed(1)} / ${x.js.max.toFixed(1)} ms` : '—'}`,
-        `ptr/frame avg ${x.ptrAvg.toFixed(2)} | forced-layout ms p95 ${x.layP95.toFixed(2)} max ${x.layMax.toFixed(2)} (n=${x.layN})`,
+        `ptr/frame avg ${x.ptrAvg.toFixed(2)}${flag('layout') ? ` | forced-layout ms p95 ${x.layP95.toFixed(2)} max ${x.layMax.toFixed(2)} (n=${x.layN})` : ' | layout off (&layout=1)'}`,
         `hud-adj long(>${LONG_FRAME_MS}ms) ${x.longHud}/${x.long} = ${(x.hudShareOfLong * 100).toFixed(0)}%  vs base ${(x.hudBaseRate * 100).toFixed(1)}%`,
         hasLongTask ? `longtask n=${lt.n} total ${lt.total.toFixed(0)} ms` : 'longtask n/a',
-        f.gpuState === 'n/a' ? 'gpu n/a' : (g.n ? `gpu     p50/p95/max ${g.p50.toFixed(1)} / ${g.p95.toFixed(1)} / ${g.max.toFixed(1)} ms (n=${g.n})` : 'gpu     —'),
+        f.gpuState === 'n/a' ? (flag('gpu') ? 'gpu n/a' : 'gpu off (&gpu=1)') : (g.n ? `gpu     p50/p95/max ${g.p50.toFixed(1)} / ${g.p95.toFixed(1)} / ${g.max.toFixed(1)} ms (n=${g.n})` : 'gpu     —'),
         `τ ${PERF_INFO.tau.toFixed(2)}  heat ${PERF_INFO.heatK.toFixed(1)} K  boil ${(PERF_INFO.coverage * 100).toFixed(0)}%`,
         `tail B ${PERF_INFO.tailB.toFixed(2)}  v_r ${PERF_INFO.vrKmS.toFixed(1)} km/s`,
       ].join('\n');
