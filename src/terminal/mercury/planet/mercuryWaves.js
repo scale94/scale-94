@@ -33,10 +33,16 @@ export const SHAPE_MAX = 0.06;                // |h| cap, fraction of R; the imp
 export const SHAPE_ITERS = 3;                 // radial re-intersection steps in the shader
 export const BULGE_MAX = 0.04;
 
-export const WAVE_KR = 48;                    // packet centre wavenumber × R (wavelength ≈ 0.13 R)
-export const WAVE_KR_FINE = 120;              // a finer band on the same law: it outruns the main crests
-export const WAVE_FINE_W = 0.6;               // its share of the slope
-export const WAVE_PACKET_RAD = 0.35;          // packet envelope half-width, radians of arc
+export const WAVE_KR = 72;                    // reference wavenumber × R: WAVE_C_* are quoted at it
+export const WAVE_K_PEAK = 90;                // the splash's spectrum peaks here (wavelength ≈ 0.07 R)…
+export const WAVE_SPEC_W = 0.6;               // …a log-normal this wide (±1σ ≈ kR 49–164)
+export const WAVE_VISC_PER_S = 0.5;           // viscous damping at WAVE_KR, ∝ k²: the fine front dies first
+export const WAVE_SHARP = 0.22;               // 2nd harmonic: sharp troughs, round crests (high-tension capillary profile)
+export const WAVE_WARP_RAD = 0.02;            // arc-distance warp, ≈ 1/3 crest: rings shear instead of reading as grooves
+export const WAVE_WARP_FREQ = 7;              // the warp's noise frequency on the unit sphere
+export const WAVE_DIMPLE_RAD = 0.05;          // the snap: a sharp dimple at the impact point…
+export const WAVE_DIMPLE_S = 0.12;            // …gone in a few tenths of a second
+export const WAVE_DIMPLE_GAIN = 1.2;
 export const WAVE_SPREAD_FLOOR = 0.15;        // 1/√sinθ spreading, normalised to 1 inside this
 export const WAVE_DAMP_PER_S = { splash: 1.0, wake: 1.6, ring: 3.0 };
 
@@ -61,8 +67,40 @@ export const MODE_GAMMA = MODE_L.map((l) => (MODE_GAMMA2_PER_S * (l - 1) * (2 * 
 // Phase and group speed in radians of arc per second (ω/k divided by R).
 export const WAVE_C_PHASE = (WAVE_PLAYBACK * capillaryOmega(WAVE_KR / DROP_R_M)) / WAVE_KR;
 export const WAVE_C_GROUP = 1.5 * WAVE_C_PHASE;
-export const WAVE_C_PHASE_FINE = (WAVE_PLAYBACK * capillaryOmega(WAVE_KR_FINE / DROP_R_M)) / WAVE_KR_FINE;
-export const WAVE_C_GROUP_FINE = 1.5 * WAVE_C_PHASE_FINE;
+// Group speed grows as √k (capillary); the train's leading edge is its +1σ wavenumber.
+export const WAVE_C_FRONT = WAVE_C_GROUP * Math.sqrt((WAVE_K_PEAK * Math.exp(WAVE_SPEC_W)) / WAVE_KR);
+
+// Fade a wavenumber whose crests would fall under a few pixels (pxArc: arc per pixel; 0 = no fade).
+export function bandAA(k, pxArc) {
+  if (!(pxArc > 0)) return 1;
+  return smoothstep(2.5, 5, (2 * Math.PI) / (k * pxArc));
+}
+
+const DIMPLE_NORM = 2.3316; // 1 / max(x·e^(−x²))
+
+// The tangential slope of a splash's ripples at arc distance th, age s
+// (multiplied by the impulse's amplitude). A dispersive capillary train by
+// stationary phase: the wavenumber found at th is the one whose group speed
+// carries it there, k = K·(th / (c_g·t))², with phase k·th/3 (ω ∝ k^1.5), so
+// crests bunch at the leading edge and widen behind. A log-normal spectrum
+// bounds the train; viscous damping ∝ k² kills its fine front first; a 2nd
+// harmonic sharpens the troughs; a short dimple at the origin is the snap.
+// The shader's rippleSlope mirrors this exactly.
+export function rippleSlope(th, age, pxArc) {
+  const t = Math.max(age, 1e-3);
+  const q = th / (WAVE_C_GROUP * t);
+  const k = WAVE_KR * q * q;
+  let slope = 0;
+  if (k > 1e-3) {
+    const lk = Math.log(k / WAVE_K_PEAK) / WAVE_SPEC_W;
+    const kk = k / WAVE_KR;
+    const ph = (k * th) / 3;
+    slope = Math.exp(-lk * lk - WAVE_VISC_PER_S * kk * kk * t)
+      * (bandAA(k, pxArc) * Math.sin(ph) + 2 * WAVE_SHARP * bandAA(2 * k, pxArc) * Math.sin(2 * ph));
+  }
+  const xd = th / WAVE_DIMPLE_RAD;
+  return slope + WAVE_DIMPLE_GAIN * Math.exp(-t / WAVE_DIMPLE_S) * DIMPLE_NORM * xd * Math.exp(-xd * xd);
+}
 
 export function legendre(l, m) {
   if (l === 2) return 0.5 * (3 * m * m - 1);
@@ -134,8 +172,8 @@ const smoothstep = (e0, e1, x) => {
   return t * t * (3 - 2 * t);
 };
 
-// The ripple must not refocus at the antipode: fade as its faster (fine) band nears it.
-const antipodeFade = (ageS) => 1 - smoothstep(0.75 * Math.PI, Math.PI, WAVE_C_GROUP_FINE * ageS);
+// The ripple must not refocus at the antipode: fade as its leading edge nears it.
+const antipodeFade = (ageS) => 1 - smoothstep(0.75 * Math.PI, Math.PI, WAVE_C_FRONT * ageS);
 
 // Shear: the liquid skin lags the drag, so a wake ring is not carried rigidly
 // by the body. Its world direction blends the body-carried one toward where it

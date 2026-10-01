@@ -15,8 +15,8 @@
 import { glf, v3 } from '../../gl/glf';
 import { SCAR_DEPTH_RANGE_M } from './scarMap';
 import {
-  IMPULSE_SLOTS, SHAPE_MAX, SHAPE_ITERS, WAVE_KR, WAVE_C_PHASE, WAVE_C_GROUP, WAVE_PACKET_RAD, WAVE_SPREAD_FLOOR,
-  WAVE_KR_FINE, WAVE_C_PHASE_FINE, WAVE_C_GROUP_FINE, WAVE_FINE_W,
+  IMPULSE_SLOTS, SHAPE_MAX, SHAPE_ITERS, WAVE_KR, WAVE_C_GROUP, WAVE_SPREAD_FLOOR,
+  WAVE_K_PEAK, WAVE_SPEC_W, WAVE_VISC_PER_S, WAVE_SHARP, WAVE_WARP_RAD, WAVE_WARP_FREQ, WAVE_DIMPLE_RAD, WAVE_DIMPLE_S, WAVE_DIMPLE_GAIN,
 } from './mercuryWaves';
 import {
   R_SCENE, R_MERCURY_M, SHADOW_STEPS, SHADOW_REACH_RAD, SHADOW_SOFT_M, SHADOW_ZONE, SHADOW_SOFT_LSB, SHADOW_BIAS_LSB,
@@ -172,14 +172,18 @@ const int IMPULSE_SLOTS = ${IMPULSE_SLOTS};
 const int SHAPE_ITERS = ${SHAPE_ITERS};
 const float SHAPE_MAX = ${glf(SHAPE_MAX)};
 const float WAVE_KR = ${glf(WAVE_KR)};
-const float WAVE_C_PHASE = ${glf(WAVE_C_PHASE)};
 const float WAVE_C_GROUP = ${glf(WAVE_C_GROUP)};
-const float WAVE_PACKET_RAD = ${glf(WAVE_PACKET_RAD)};
 const float WAVE_SPREAD_FLOOR = ${glf(WAVE_SPREAD_FLOOR)};
-const float WAVE_KR_FINE = ${glf(WAVE_KR_FINE)};
-const float WAVE_C_PHASE_FINE = ${glf(WAVE_C_PHASE_FINE)};
-const float WAVE_C_GROUP_FINE = ${glf(WAVE_C_GROUP_FINE)};
-const float WAVE_FINE_W = ${glf(WAVE_FINE_W)};
+const float WAVE_K_PEAK = ${glf(WAVE_K_PEAK)};
+const float WAVE_SPEC_W = ${glf(WAVE_SPEC_W)};
+const float WAVE_VISC_PER_S = ${glf(WAVE_VISC_PER_S)};
+const float WAVE_SHARP = ${glf(WAVE_SHARP)};
+const float WAVE_WARP_RAD = ${glf(WAVE_WARP_RAD)};
+const float WAVE_WARP_FREQ = ${glf(WAVE_WARP_FREQ)};
+const float WAVE_DIMPLE_RAD = ${glf(WAVE_DIMPLE_RAD)};
+const float WAVE_DIMPLE_S = ${glf(WAVE_DIMPLE_S)};
+const float WAVE_DIMPLE_GAIN = ${glf(WAVE_DIMPLE_GAIN)};
+const float DIMPLE_NORM = 2.3316;
 
 // Crater depth from the scar map, true metres (scarMap.js encoding).
 float scarHeightM(vec2 uv, vec2 gx, vec2 gy) {
@@ -378,35 +382,44 @@ vec3 shapeGrad(vec3 x) {
   return g;
 }
 
-// One capillary band: a Gaussian envelope at the group speed cG, crests at
-// the phase speed cP (capillary: crests run backward through the packet).
-float ripple(float th, float age, float k, float cP, float cG) {
-  float u = (th - cG * age) / WAVE_PACKET_RAD;
-  return exp(-u * u) * sin(k * (th - cP * age));
-}
-
-// A band fades where its crests would fall under a few pixels (pxArc: arc per pixel here).
+// A wavenumber fades where its crests would fall under a few pixels (pxArc: arc per pixel here).
 float bandAA(float k, float pxArc) { return smoothstep(2.5, 5.0, TAU / (k * max(pxArc, 1e-6))); }
 
-// Capillary ripple packets running out from each impulse: a main band and a
-// finer one that outruns it (same dispersion law), 1/√sinθ spreading
-// normalised inside WAVE_SPREAD_FLOOR. Returns the tangential slope to
-// subtract from the normal. No derivatives in here (it has continue).
-vec3 waveTilt(vec3 x, float pxArc) {
+// mercuryWaves.rippleSlope, exactly: a dispersive capillary train by
+// stationary phase (k = K·(th / (c_g·t))², phase k·th/3), crests bunched at
+// the leading edge; a log-normal spectrum; viscous damping ∝ k²; a 2nd
+// harmonic for sharp troughs; a short snap dimple at the origin.
+float rippleSlope(float th, float age, float pxArc) {
+  float q = th / (WAVE_C_GROUP * age);
+  float k = WAVE_KR * q * q;
+  float slope = 0.0;
+  if (k > 1e-3) {
+    float lk = log(k / WAVE_K_PEAK) / WAVE_SPEC_W;
+    float kk = k / WAVE_KR;
+    float ph = k * th / 3.0;
+    slope = exp(-lk * lk - WAVE_VISC_PER_S * kk * kk * age) * (bandAA(k, pxArc) * sin(ph) + 2.0 * WAVE_SHARP * bandAA(2.0 * k, pxArc) * sin(2.0 * ph));
+  }
+  float xd = th / WAVE_DIMPLE_RAD;
+  return slope + WAVE_DIMPLE_GAIN * exp(-age / WAVE_DIMPLE_S) * DIMPLE_NORM * xd * exp(-xd * xd);
+}
+
+// Capillary ripple trains running out from each impulse, 1/√sinθ spreading
+// normalised inside WAVE_SPREAD_FLOOR; warp (a light noise on the arc
+// distance) shears the rings so they never read as etched grooves. Returns
+// the tangential slope to subtract from the normal. No derivatives in here (it has continue).
+vec3 waveTilt(vec3 x, float pxArc, float warp) {
   vec3 g = vec3(0.0);
   if (uSurfOn < 0.5) return g;
-  float aaMain = bandAA(WAVE_KR, pxArc);
-  float aaFine = WAVE_FINE_W * bandAA(WAVE_KR_FINE, pxArc);
   for (int i = 0; i < IMPULSE_SLOTS; i++) {
     float A = uImpWave[i].y;
     if (A == 0.0) continue;
-    float age = uImpWave[i].x;
+    float age = max(uImpWave[i].x, 1e-3);
     vec3 d = uImpDir[i];
     float m = clamp(dot(x, d), -1.0, 1.0);
     float s = sqrt(max(1.0 - m * m, 0.0));
     if (s < 1e-4) continue;
     float th = acos(m);
-    float slope = A * (aaMain * ripple(th, age, WAVE_KR, WAVE_C_PHASE, WAVE_C_GROUP) + aaFine * ripple(th, age, WAVE_KR_FINE, WAVE_C_PHASE_FINE, WAVE_C_GROUP_FINE)) * sqrt(WAVE_SPREAD_FLOOR / max(s, WAVE_SPREAD_FLOOR));
+    float slope = A * rippleSlope(max(th + warp, 0.0), age, pxArc) * sqrt(WAVE_SPREAD_FLOOR / max(s, WAVE_SPREAD_FLOOR));
     g += slope * (x * m - d) / s;
   }
   return g;
@@ -520,7 +533,8 @@ void main() {
       float boilW = smoothstep(HG_BOIL_K - PHASE_BLEND_K, HG_BOIL_K + PHASE_BLEND_K, T);
 
       vec3 nW = uBodyRot * normalize(mix(n, nb, fluid));
-      nW = normalize(nW - fluid * waveTilt(xw, pxArc));
+      float warp = WAVE_WARP_RAD * (2.0 * vnoise3(xb * WAVE_WARP_FREQ) - 1.0);
+      nW = normalize(nW - fluid * waveTilt(xw, pxArc, warp));
       vec3 R = reflect(rd, nW);
       float NoV = clamp(dot(nW, -rd), 0.0, 1.0);
 

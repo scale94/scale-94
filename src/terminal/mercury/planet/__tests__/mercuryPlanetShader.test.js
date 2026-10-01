@@ -18,8 +18,8 @@ import { DEM_MIN_M, DEM_MAX_M } from '../mercuryMaps.generated';
 import { SCAR_DEPTH_RANGE_M } from '../scarMap';
 import { RAY_ALBEDO } from '../planetLook';
 import {
-  IMPULSE_SLOTS, SHAPE_MAX, SHAPE_ITERS, WAVE_KR, WAVE_C_PHASE, WAVE_C_GROUP, WAVE_PACKET_RAD, WAVE_SPREAD_FLOOR,
-  WAVE_KR_FINE, WAVE_C_PHASE_FINE, WAVE_C_GROUP_FINE, WAVE_FINE_W,
+  IMPULSE_SLOTS, SHAPE_MAX, SHAPE_ITERS, WAVE_KR, WAVE_C_GROUP, WAVE_SPREAD_FLOOR,
+  WAVE_K_PEAK, WAVE_SPEC_W, WAVE_VISC_PER_S, WAVE_SHARP, WAVE_WARP_RAD, WAVE_WARP_FREQ, WAVE_DIMPLE_RAD, WAVE_DIMPLE_S, WAVE_DIMPLE_GAIN,
 } from '../mercuryWaves';
 
 const declared = (src) => [...src.matchAll(/^uniform\s+\w+\s+(\w+)(?:\[\d+\])?;/gm)].map((m) => m[1]);
@@ -154,7 +154,7 @@ describe('mercuryPlanetShader contract', () => {
     expect(PLANET_FS).toContain(`uniform vec2 uImpWave[${IMPULSE_SLOTS}];`);
     expect(PLANET_FS).toContain(`const int IMPULSE_SLOTS = ${IMPULSE_SLOTS};`);
     expect(PLANET_FS).toContain(`const int SHAPE_ITERS = ${SHAPE_ITERS};`);
-    for (const [name, value] of Object.entries({ SHAPE_MAX, WAVE_KR, WAVE_C_PHASE, WAVE_C_GROUP, WAVE_PACKET_RAD, WAVE_SPREAD_FLOOR, WAVE_KR_FINE, WAVE_C_PHASE_FINE, WAVE_C_GROUP_FINE, WAVE_FINE_W })) {
+    for (const [name, value] of Object.entries({ SHAPE_MAX, WAVE_KR, WAVE_C_GROUP, WAVE_SPREAD_FLOOR, WAVE_K_PEAK, WAVE_SPEC_W, WAVE_VISC_PER_S, WAVE_SHARP, WAVE_WARP_RAD, WAVE_WARP_FREQ, WAVE_DIMPLE_RAD, WAVE_DIMPLE_S, WAVE_DIMPLE_GAIN })) {
       expect(PLANET_FS).toContain(`const float ${name} = ${glf(value)};`);
     }
     expect(PLANET_VS).toContain(`const float SHAPE_MAX = ${glf(SHAPE_MAX)};`);
@@ -191,13 +191,17 @@ describe('mercuryPlanetShader contract', () => {
     // Temperature in the world frame (rest spin axis = world Y): a tumbled body never reads sunlit metal as night.
     expect(PLANET_FS).toContain('float lonRel = mod(atan(-xw.z, xw.x) - lonSun + PI, TAU) - PI;');
     expect(PLANET_FS).toContain('float T = surfaceTempK(mu0x, lonRel, sqrt(max(1.0 - xw.y * xw.y, 0.0)), uSubsolarT, uHeatK);');
-    expect(PLANET_FS).toContain('float u = (th - cG * age) / WAVE_PACKET_RAD;');
-    expect(PLANET_FS).toContain('return exp(-u * u) * sin(k * (th - cP * age));');
-    expect(PLANET_FS).toContain('float slope = A * (aaMain * ripple(th, age, WAVE_KR, WAVE_C_PHASE, WAVE_C_GROUP) + aaFine * ripple(th, age, WAVE_KR_FINE, WAVE_C_PHASE_FINE, WAVE_C_GROUP_FINE)) * sqrt(WAVE_SPREAD_FLOOR / max(s, WAVE_SPREAD_FLOOR));');
-    // each band fades where its crests would fall under a few pixels (no limb aliasing)
+    // mercuryWaves.rippleSlope, exactly: the dispersive train, sharp troughs, viscous k², the snap dimple
+    expect(PLANET_FS).toContain('float k = WAVE_KR * q * q;');
+    expect(PLANET_FS).toContain('float ph = k * th / 3.0;');
+    expect(PLANET_FS).toContain('slope = exp(-lk * lk - WAVE_VISC_PER_S * kk * kk * age) * (bandAA(k, pxArc) * sin(ph) + 2.0 * WAVE_SHARP * bandAA(2.0 * k, pxArc) * sin(2.0 * ph));');
+    expect(PLANET_FS).toContain('return slope + WAVE_DIMPLE_GAIN * exp(-age / WAVE_DIMPLE_S) * DIMPLE_NORM * xd * exp(-xd * xd);');
     expect(PLANET_FS).toContain('float bandAA(float k, float pxArc) { return smoothstep(2.5, 5.0, TAU / (k * max(pxArc, 1e-6))); }');
+    // a light warp of the arc distance so rings shear instead of reading as etched grooves
+    expect(PLANET_FS).toContain('float warp = WAVE_WARP_RAD * (2.0 * vnoise3(xb * WAVE_WARP_FREQ) - 1.0);');
+    expect(PLANET_FS).toContain('float slope = A * rippleSlope(max(th + warp, 0.0), age, pxArc) * sqrt(WAVE_SPREAD_FLOOR / max(s, WAVE_SPREAD_FLOOR));');
     expect(PLANET_FS).toContain('float pxArc = length(fwidth(xw));');
-    expect(PLANET_FS).toContain('nW = normalize(nW - fluid * waveTilt(xw, pxArc));');
+    expect(PLANET_FS).toContain('nW = normalize(nW - fluid * waveTilt(xw, pxArc, warp));');
   });
 
   it('keeps every derivative before the first loop and the discard', () => {
@@ -207,7 +211,7 @@ describe('mercuryPlanetShader contract', () => {
     expect(lastDeriv).toBeLessThan(main.search(/\bdiscard;/));
     // the shape refinement loop is uniform control flow; derivatives may follow it,
     // but none may appear inside helper loops that use continue:
-    const waveFn = PLANET_FS.slice(PLANET_FS.indexOf('float ripple('), PLANET_FS.indexOf('void main()'));
+    const waveFn = PLANET_FS.slice(PLANET_FS.indexOf('float rippleSlope('), PLANET_FS.indexOf('void main()'));
     expect(waveFn).not.toMatch(/dFd[xy]|fwidth/);
     expect(firstLoop).toBeGreaterThan(-1);
   });

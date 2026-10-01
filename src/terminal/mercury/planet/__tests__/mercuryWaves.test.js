@@ -5,7 +5,7 @@ import {
   legendre, dLegendre, modeResponse, createImpulses, addImpulse, createImpulseFrame, impulseFrame,
   spinBulge, BULGE_MAX, SHAPE_MAX, shapeHeight, createWake, wakeImpulse, WAKE_EVERY_S, LIQUID_TAU,
   RELEASE_MODE_AMP, WAKE_WAVE_AMP,
-  WAVE_KR_FINE, WAVE_C_PHASE_FINE, WAVE_C_GROUP_FINE, WAVE_PLAYBACK, WAKE_FULL_OMEGA, WAKE_SLIP, slipDirWorld,
+  WAKE_FULL_OMEGA, WAKE_SLIP, slipDirWorld, WAVE_C_FRONT, rippleSlope, WAVE_DIMPLE_S, WAVE_SHARP,
 } from '../mercuryWaves';
 import { MAX_OMEGA } from '../mercuryBody';
 
@@ -55,14 +55,47 @@ describe('capillary ripples', () => {
     expect(WAVE_KR).toBeGreaterThan(8);
   });
 
-  // Dense liquid with high surface tension: tight crests, and a finer band
-  // that outruns them (capillary dispersion: shorter waves are faster).
-  it('a fine band rides ahead of the main band on the same dispersion law', () => {
-    expect(WAVE_KR).toBeGreaterThanOrEqual(40);
-    expect(WAVE_KR_FINE).toBeGreaterThan(2 * WAVE_KR);
-    expect(WAVE_C_PHASE_FINE).toBeCloseTo((WAVE_PLAYBACK * capillaryOmega(WAVE_KR_FINE / DROP_R_M)) / WAVE_KR_FINE, 12);
-    expect(WAVE_C_GROUP_FINE / WAVE_C_PHASE_FINE).toBeCloseTo(1.5, 12);
-    expect(WAVE_C_GROUP_FINE).toBeGreaterThan(WAVE_C_GROUP);
+  // Dense liquid with high surface tension: one dispersive train, not a groove.
+  const zeros = (age, th0, th1) => {
+    const z = []; let prev = rippleSlope(th0, age, 0);
+    for (let th = th0 + 1e-4; th < th1; th += 1e-4) { const v = rippleSlope(th, age, 0); if (prev * v < 0) z.push(th); prev = v; }
+    return z;
+  };
+
+  it('is chirped: crests bunch at the leading edge and widen behind it (shorter waves outrun longer ones)', () => {
+    const age = 0.5;
+    const z = zeros(age, 0.3, WAVE_C_FRONT * age);
+    expect(z.length).toBeGreaterThan(6);
+    const gapBehind = z[1] - z[0];
+    const gapFront = z[z.length - 1] - z[z.length - 2];
+    expect(gapFront).toBeLessThan(0.7 * gapBehind);
+  });
+
+  it('short waves die first (viscous damping ∝ k²): the front fades faster than the tail', () => {
+    const peak = (age, lo, hi) => { let m = 0; for (let th = lo; th < hi; th += 2e-4) m = Math.max(m, Math.abs(rippleSlope(th, age, 0))); return m; };
+    // the same k sits at the same th / age; compare a high-k and a low-k point a while apart
+    // windows span several crests at both ages
+    const hiK = (age) => peak(age, 1.2 * WAVE_C_GROUP * age, 1.45 * WAVE_C_GROUP * age);
+    const loK = (age) => peak(age, 0.75 * WAVE_C_GROUP * age, 1.0 * WAVE_C_GROUP * age);
+    expect(hiK(1.0) / hiK(0.5)).toBeLessThan(0.9 * (loK(1.0) / loK(0.5)));
+  });
+
+  it('has sharp troughs and round crests: the steepest slope beats a sine by WAVE_SHARP', () => {
+    expect(WAVE_SHARP).toBeGreaterThan(0.1);
+    let m = 0; for (let x = 0; x < Math.PI; x += 1e-3) m = Math.max(m, Math.sin(x) + 2 * WAVE_SHARP * Math.sin(2 * x));
+    expect(m).toBeGreaterThan(1.15);
+  });
+
+  it('snaps: a sharp dimple at the origin that is gone in a few WAVE_DIMPLE_S', () => {
+    expect(Math.abs(rippleSlope(0.035, 0.01, 0))).toBeGreaterThan(0.5);
+    expect(Math.abs(rippleSlope(0.035, 5 * WAVE_DIMPLE_S, 0))).toBeLessThan(0.05);
+  });
+
+  it('fades every crest finer than a few pixels (no limb aliasing)', () => {
+    const age = 0.5;
+    const peak = (px) => { let m = 0; for (let th = 0.3; th < 1.5; th += 1e-3) m = Math.max(m, Math.abs(rippleSlope(th, age, px))); return m; };
+    expect(peak(0)).toBeGreaterThan(0.5);
+    expect(peak(0.2)).toBeLessThan(1e-4);
   });
 });
 
@@ -148,7 +181,7 @@ describe('impulse ring buffer', () => {
     addImpulse(buf, { dirBody: [1, 0, 0], tS: 0, wave: 1 });
     impulseFrame(buf, Math.PI / WAVE_C_GROUP, {}, out);
     expect(out.wave[1]).toBe(0);
-    impulseFrame(buf, Math.PI / WAVE_C_GROUP_FINE, {}, out); // the faster, fine band too
+    impulseFrame(buf, Math.PI / WAVE_C_FRONT, {}, out); // the faster front too
     expect(out.wave[1]).toBe(0);
   });
 
