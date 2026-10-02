@@ -19,7 +19,7 @@
 - Idle and hold paths allocate nothing per frame (fire time may allocate).
 - `MAX_OMEGA` is not raised. Lite tier never hyper-flings (`HYPER_N.lite = 0`).
 - Invariant: `Σ V_beads + V_core = V0` to 1e-9 relative at fire.
-- Invariant: the swarm's volume-weighted mean velocity is 0 at fire (`|Σ V v| / Σ V < 1e-9`).
+- Momentum: the core balances the swarm (spec §10.2, review 2026-10-03); the swarm-only zero-mean invariant is dropped.
 - Live flight and test particles share `hyperAccel(mu, eta, gamma, L, x, y, z, vx, vy, vz, rC, h, out)` and the same η schedule, so their paths agree.
 - V4 values: `HYPER_RBAR_LO` 0.06, `HYPER_RBAR_HI` 0.08 (× R), `HYPER_EQ_BIAS` 0.64, `HYPER_GAMMA` 20, `HYPER_AIM_S` 0.6, `HYPER_HANG_K` 0.5, `HYPER_REACH_MIN_R` 1.45, `PLANET_TUNE.hyperOrbit` 3.
 - Lint gate: `npm run lint` stays at 0 errors and within `--max-warnings 143`; do not sweep `react-hooks/exhaustive-deps`.
