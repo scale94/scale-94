@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   muRef, returnTarget, headlessEnv, absorbTime, createMuSolver, stepMuSolver, finishMuSolver, SOLVER_SUBSTEPS_PER_FRAME,
+  SOLVER_SUBSTEPS_MAX, solverBudget, MU_ITERS, MU_EXTRA, MU_CENTER, MU_SPAN,
 } from '../breakupBudget';
 import {
   createFamily, fireFamily, breakExcess, tongueAxis, refreezeIn, MIN_RETURN_S, MERGE_MARGIN_S, DROP_V_REF,
@@ -84,14 +85,63 @@ describe('breakupBudget — the 40 s linger is the budget', () => {
     }
   });
 
-  it('amortises over a bounded number of frames; finishMuSolver is the fallback before the first snap', () => {
-    // Measured: one solve is ~8.9k substeps => ~26 frames at 60 fps, but only
-    // floor(TONGUE_LAG_S * (1 - SNAP_JITTER) * 60) = ~20 frames precede the first snap, so the
-    // caller must finishMuSolver synchronously when the first neck is < 2 frames out (Task 9).
+  it('solverBudget: a 20-frame schedule finishes the omega 12 / target 14 solve, never above the max', () => {
     const s = createMuSolver(famAt(12, 0), env0At(12, 0), 14);
-    let frames = 0;
-    while (!s.done) { stepMuSolver(s); frames++; }
-    expect(frames).toBe(Math.ceil(s.substeps / SOLVER_SUBSTEPS_PER_FRAME));
-    expect(frames).toBeLessThanOrEqual(60);
+    let framesLeft = 20, calls = 0, worst = 0;
+    while (!s.done && framesLeft > 0) {
+      const b = solverBudget(s, framesLeft--);
+      expect(b).toBeGreaterThanOrEqual(SOLVER_SUBSTEPS_PER_FRAME);
+      expect(b).toBeLessThanOrEqual(SOLVER_SUBSTEPS_MAX);
+      const before = s.substeps;
+      stepMuSolver(s, b);
+      worst = Math.max(worst, s.substeps - before);
+      calls++;
+    }
+    expect(s.done).toBe(true);
+    expect(s.landed).toBe(true);
+    expect(calls).toBeLessThanOrEqual(20);
+    expect(worst).toBeLessThanOrEqual(SOLVER_SUBSTEPS_MAX);
+    expect(solverBudget(s, 5)).toBe(0);
+    // with one frame left it asks for the ceiling, not more
+    expect(solverBudget(createMuSolver(famAt(12, 0), env0At(12, 0), 14), 1)).toBe(SOLVER_SUBSTEPS_MAX);
   });
+
+  it('the in-bracket path never needs the climb', () => {
+    const s = finishMuSolver(createMuSolver(famAt(12, 0), env0At(12, 0), 14));
+    expect(s.landed).toBe(true);
+    expect(s.extra).toBe(0);
+    expect(s.it).toBe(MU_ITERS);
+  });
+
+  it('lands by the target when drag or pxPerUnit move the true pull off the calibration point', () => {
+    const cases = [
+      { gamma: 32 }, { pxPerUnit: 150 }, { pxPerUnit: 600 },
+    ];
+    for (const over of cases) {
+      const f = famAt(12, 0), e0 = { ...env0At(12, 0), ...over };
+      const s = finishMuSolver(createMuSolver(f, e0, 14));
+      expect(s.done).toBe(true);
+      expect(s.landed).toBe(true);
+      expect(absorbTime(f, e0, s.best, 28)).toBeLessThanOrEqual(14 + 1e-9);
+    }
+  }, 120000);
+
+  it('climbs past the bracket top when the bracket holds no landing, then lands (verified)', () => {
+    const f = famAt(12, 0), e0 = { ...env0At(12, 0), gamma: 150 };
+    const s = finishMuSolver(createMuSolver(f, e0, 6));
+    expect(s.extra).toBeGreaterThanOrEqual(1);
+    expect(s.landed).toBe(true);
+    expect(s.best).toBeGreaterThan(muRef(7.5) * MU_CENTER * MU_SPAN);
+    expect(absorbTime(f, e0, s.best, 12)).toBeLessThanOrEqual(6 + 1e-9);
+  }, 120000);
+
+  it('flags landed=false after MU_EXTRA climbs that never land, keeping the largest pull tried', () => {
+    const f = famAt(12, 0), e0 = { ...env0At(12, 0), gamma: 400 };
+    const s = finishMuSolver(createMuSolver(f, e0, 14));
+    expect(s.done).toBe(true);
+    expect(s.landed).toBe(false);
+    expect(s.extra).toBe(MU_EXTRA);
+    expect(s.best).toBeGreaterThan(muRef(7.5) * MU_CENTER * MU_SPAN);
+    expect(absorbTime(f, e0, s.best, 14)).toBe(Infinity);
+  }, 120000);
 });
