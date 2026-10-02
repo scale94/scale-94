@@ -6,7 +6,7 @@
 export const PERF_WINDOW_S = 2;
 
 // Live readout the frame loop writes and the HUD (and probes, via window.__mercuryPerf) read.
-export const PERF_INFO = { tau: 0, heatK: 0, coverage: 0, tailB: 0, vrKmS: 0 };
+export const PERF_INFO = { tau: 0, heatK: 0, coverage: 0, tailB: 0, vrKmS: 0, dropPrims: 0, dropAreaPx: 0, sigma: 0 };
 
 export function createPerfStats(capacity = 1024) {
   return {

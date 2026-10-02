@@ -72,4 +72,9 @@ export const PLANET_TUNE = {
   roughLiquid: ROUGH_LIQUID, // liquid mirror roughness (Sun + emitter lobes; the aether streaks are ~insensitive to it)
   meniscus: 1,       // melt-front bead rim: 0 = the old soft wipe, 1 = full non-wetting rim (mercuryMeniscus.js)
   meniscusW: 0.02,   // rim width in radians of arc (floored at MENISCUS_MIN_PX on screen)
+  breakOmega: 7.5,   // phase 5: breakup threshold, rad/s on screen (Σ ≈ 0.20 there; the true fission branch is ~11.5)
+  breakGain: 1,      // tongue length at full excess, × TONGUE_MAX_R
+  dropDrag: 8,       // aether drag γ on flying drops, 1/s (sets how far a fling travels)
+  dropCohesion: 0.03, // bead–bead pull (units³/s² per DROP_V_REF of volume): how readily drops find each other
+  dropDrift: 14,     // wished return time, s (capped by refreeze − MERGE_MARGIN_S; the pull is solved to meet it)
 };

@@ -161,6 +161,7 @@ export default function MercuryPerfHud({ tier, calm }) {
         f.gpuState === 'n/a' ? (flag('gpu') ? 'gpu n/a' : 'gpu off (&gpu=1)') : (g.n ? `gpu     p50/p95/max ${g.p50.toFixed(1)} / ${g.p95.toFixed(1)} / ${g.max.toFixed(1)} ms (n=${g.n})` : 'gpu     —'),
         `τ ${PERF_INFO.tau.toFixed(2)}  heat ${PERF_INFO.heatK.toFixed(1)} K  boil ${(PERF_INFO.coverage * 100).toFixed(0)}%`,
         `tail B ${PERF_INFO.tailB.toFixed(2)}  v_r ${PERF_INFO.vrKmS.toFixed(1)} km/s`,
+        `drops ${PERF_INFO.dropPrims} prims  ${(PERF_INFO.dropAreaPx / 1000).toFixed(0)}k px²  Σ ${PERF_INFO.sigma.toFixed(2)}`,
       ].join('\n');
       f.hudPending = true;
     }, 250);

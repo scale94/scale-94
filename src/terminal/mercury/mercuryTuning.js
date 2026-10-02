@@ -28,8 +28,9 @@ export const TUNE = {
   condenseSizeBite: 0.6,  // sprite slimming en route into the drop
 };
 
-// Dev-only overrides the frame loop reads (probes): a fixed instant for the ephemeris.
-export const DEV_OVERRIDES = { dateMs: null };
+// Dev-only overrides the frame loop reads (probes): a fixed instant for the ephemeris; the droplet
+// family's clock scale (0 freezes it); a breakup fired on demand; a held tongue at a given ω.
+export const DEV_OVERRIDES = { dateMs: null, dropTimeScale: null, breakNow: null, holdOmega: null };
 
 const KNOBS = Object.keys(TUNE);
 
@@ -44,6 +45,10 @@ export function registerTuningRig() {
     },
     // Pin the ephemeris to an instant (ms since epoch), or null for now. Probes sweep the tail with it.
     dateOverride(ms) { DEV_OVERRIDES.dateMs = ms ?? null; return `date = ${ms == null ? 'now' : new Date(ms).toISOString()}`; },
+    // Phase 5 probes (need τ = 1): slow / freeze the droplet clock, fire a breakup, hold the tongues out.
+    dropTime(scale) { DEV_OVERRIDES.dropTimeScale = scale ?? null; return `drop time × ${scale ?? 1}`; },
+    breakNow(omega = 12) { DEV_OVERRIDES.breakNow = omega; return `break at ${omega} rad/s`; },
+    holdAt(omega) { DEV_OVERRIDES.holdOmega = omega ?? null; return omega == null ? 'hold released' : `holding at ${omega} rad/s`; },
     get: () => ({ ...TUNE }),
     // Per-element data (horizonHeight, color hex). Poking element colours does
     // not reach the mirror: EMIT_COLORS is captured at load.

@@ -44,7 +44,7 @@ describe('perfStats', () => {
   });
 
   it('PERF_INFO is a plain mutable readout', () => {
-    expect(Object.keys(PERF_INFO).sort()).toEqual(['coverage', 'heatK', 'tailB', 'tau', 'vrKmS']);
+    expect(Object.keys(PERF_INFO).sort()).toEqual(['coverage', 'dropAreaPx', 'dropPrims', 'heatK', 'sigma', 'tailB', 'tau', 'vrKmS']);
   });
 
   describe('extras (js ms, pointer events, forced layout, hud correlation)', () => {
