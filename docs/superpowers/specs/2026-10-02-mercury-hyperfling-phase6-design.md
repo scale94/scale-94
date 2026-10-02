@@ -310,3 +310,58 @@ existing impulse-mode frequencies with `s`; raising `MAX_OMEGA`.
 | `K_RB`*, `γ_rb` | look; ring-down ≤ 3.5 s | hyperFling |
 | `REBIRTH_MAX` | 0.12 (fallback 0.08) | mercuryWaves |
 | `SLAM_FRAC` | 0.10 | hyperFling |
+
+## 10. Amendment V4: small beads, aimed disc launch, orbit-then-gather (6a revision)
+
+Approved by the author 2026-10-02 ("A plus B now, impostors after"; design and phone floor approved the same
+day). Found at the 6a look call: the first build drew a clump of ~12 blobs a third of the planet wide hugging the
+core, core back to ~85 % by 1 s, home in 6–8 s, live turns 0.15–0.22. Two causes, both geometric: (1) 16 beads
+carrying 97 % of V0 are as wide as the annulus between core and frame, so no disc can exist; (2) the biggest beads
+are born touching the micro-core, drain within ~1–3 s and regrow it, and the regrown core swallows the orbiting
+swarm (the solver assumed a fixed small core). The many-small-bead disruption needs 6b's impostors; 6a ships a
+spray from an intact planet.
+
+Simulated 2026-10-02 in the live `stepFamily` (desktop reach 1.175, N 16, 4 seeds): small beads alone ≈ 1 turn
+(most re-impact at once); an orbit phase alone loses half the beads in 3 s to cohesion merges in the thin ring;
+the scheme below gives turns median 1.64–1.91 (min ≥ 1.27), 5–10 merges per fling (all in the gather), 0 early
+hits, max |p| 1.10, home 11.4–12.0 s against 12 s at `hyperOrbit` 3 (1.48–1.58 at 3.5).
+
+### 10.1 Mass split (replaces §3.2's core shares)
+- The bead size is the knob, not the core share: `r̄ = R · (HYPER_RBAR_LO + (HYPER_RBAR_HI − HYPER_RBAR_LO) · eH)`,
+  0.06 → 0.08 (≈ 14–20 px mean at desktop pxPerUnit 300). `V_frag = N · (4/3)π r̄³`, `fC = 1 − V_frag / V0`
+  (≈ 99 %: 0.35–1.2 % of the planet flies). Gamma spread, floor and relative ceiling unchanged.
+- The core barely shrinks (`rC0 = R ∛fC` ≈ 0.996 R). `coreScale`, `uCoreR` and `exo.coreR` stay wired (6b reuses
+  them); in 6a they sit within 0.5 % of 1. `F_CORE_MAX`, `F_CORE_MIN` are removed.
+
+### 10.2 Aimed launch (replaces §3.3's radial burst and momentum rule, and §3.5's containment solve)
+- Axis: `L̂ = ω̂` (the launch axis; the momentum-derived L̂ it replaced agreed to > 0.9).
+- Positions as before (jittered Fibonacci, born at `R − r`), squeezed toward the spin plane with
+  `HYPER_EQ_BIAS` 0.64 (was 0.4: the simulated disc).
+- Drag fixed: `γ = HYPER_GAMMA` 20 (explicit drag stays stable below 2/h ≈ 240). `solveContainment`,
+  `HYPER_GAMMA_MAX`, `HYPER_GAMMA_ITERS`, `HYPER_CONTAIN_K`, `HYPER_CONTAIN_S` and the `hyperRadial` knob are removed.
+- Each bead draws a settle radius `rT` uniformly (seeded) in `[rC0 + 2.2 r + 0.02, reach − r − 0.03]` (collapsed to
+  the lower end if empty). Its launch is `v = ω × p + k · p̂`, with the radial kick `k` bisected over
+  `[−20, 60]` (24 iterations; the nearer end if unreachable) so that a single-bead replay of `hyperAccel` at η 0,
+  γ `HYPER_GAMMA`, for `HYPER_AIM_S` 0.6 s ends at radius `rT`. Containment holds by construction.
+- Momentum (replaces §3.3's swarm zero-mean rule, review 2026-10-03): the swarm's momentum is balanced by the core
+  (≈ 99 % of V0: recoil ≈ 0.1 units/s, negligible, not simulated). The swarm-only zero-mean invariant forced a
+  shared kick of 10–12 units/s that saturated the aim for ~25 % of beads, so it is dropped.
+- `fireHyper` takes `reach` and `target` (the return target) and no longer `vR0`/`gammaFloor`.
+
+### 10.3 Orbit, then gather (replaces §3.5's single-phase headwind)
+- `tHang = HYPER_HANG_K · target`, `HYPER_HANG_K` 0.5, a family field (0 for phase 5).
+- For `t < tHang`: η = 0 (the aether turns at orbital speed: circular orbits, the disc) and cohesion off (κ 0: the
+  thin ring otherwise merges to 2–6 beads in 3 s).
+- For `t ≥ tHang`: η = `fam.eta` (solved), cohesion on (`PLANET_TUNE.dropCohesion`, `vRefH` as before): the disc
+  spirals in and coalesces on the way.
+- The solver bisects the gather headwind with the same schedule in its test particles (they never had cohesion,
+  so they match the hang exactly). Its deadline is `tHang` (η is unused before then), not the end of the grace.
+
+### 10.4 Knobs and frame
+- `hyperOrbit` 3 (was 3.5): the measured gate pass.
+- `HYPER_REACH_MIN_R` 1.45 (was 1.25, A1): with a full-size core, 1.25 R leaves no annulus in phone portrait. Beads
+  may cross the side edges in portrait while they orbit (the A1 trade, larger). The camera pull-back goes to 6b.
+
+### 10.5 Gate
+Unchanged in form: 100 % land, median turns ≥ 1.5 across the sweep, free beads within reach. Turns are measured on
+the test particles with the §10.3 schedule; the look sheet reports live turns and merges too.
