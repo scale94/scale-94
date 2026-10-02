@@ -10,8 +10,8 @@ describe('planetQuality', () => {
     expect(TIERS.full.rippleSlots).toBe(IMPULSE_SLOTS);
     expect(TIERS.full.dprMax).toBe(2);
     expect(TIERS.full.shapeIters).toBe(SHAPE_ITERS);
-    expect(TIERS.phone.shapeIters).toBe(1);
-    expect(TIERS.phone.rippleSlots).toBe(2);
+    expect(TIERS.phone.shapeIters).toBe(SHAPE_ITERS);
+    expect(TIERS.phone.rippleSlots).toBe(4);
   });
 
   it('no tier carries a pop scale: the pops are sized from the live screen (mercuryRoil.popZoom)', () => {

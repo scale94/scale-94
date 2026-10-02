@@ -242,7 +242,7 @@ describe('mercuryPlanetShader contract', () => {
       // the uniform arrays stay full-size: JS always writes IMPULSE_SLOTS slots, strongest first
       expect(fs).toContain(`uniform vec3 uImpDir[${IMPULSE_SLOTS}];`);
     }
-    expect(buildPlanetShader({ tier: 'phone' }).fs).toContain('const int SHAPE_ITERS = 1;');
+    expect(buildPlanetShader({ tier: 'lite' }).fs).toContain('const int SHAPE_ITERS = 1;');
     expect(buildPlanetShader({ tier: 'full' }).fs).toContain(`const int SHAPE_ITERS = ${SHAPE_ITERS};`);
     expect(() => buildPlanetShader({ tier: 'ultra' })).toThrow(/unknown tier/);
   });
