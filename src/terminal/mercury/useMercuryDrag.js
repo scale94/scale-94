@@ -44,7 +44,7 @@ export default function useMercuryDrag(el) {
       activePointerIdRef.current = null;
       el.releasePointerCapture?.(e.pointerId);
       el.style.cursor = 'grab';
-      tracker.up();
+      tracker.up(e.timeStamp);
     };
     el.addEventListener('pointerdown', onDown);
     el.addEventListener('pointermove', onMove);

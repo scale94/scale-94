@@ -115,6 +115,10 @@ function stepDrop(drop, { body, surf, camera, ds, calm, stepS, t, bufferW, buffe
     env.kappa = PLANET_TUNE.dropCohesion;
     env.omegaTh = PLANET_TUNE.breakOmega;
     env.pxPerUnit = pxPerUnitAt(camera.position.length(), camera.fov, bufferH);
+    if (ds.released) {
+      const lr = drop.lastRelease;
+      lr.omega = body.omega.length(); lr.ptrOmega = ds.releaseOmegaPtr; lr.eH = 0; lr.hyper = false;
+    }
     const dropDt = stepS * (DEV_OVERRIDES.dropTimeScale ?? 1);
     let omega = body.omega.length();
     let holding = ds.dragging;
@@ -321,7 +325,9 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
   // Phase 5 state: the droplet family, its solver, the packed frame, the sim's view of the world.
   const drop = useMemo(() => {
     const d = {
-      fam: createFamily(1), solver: null, warned: false, frame: createDropFrame(TIERS[tier].drop), spinBody: [0, 0, 0],
+      fam: createFamily(1), solver: null, warned: false,
+      lastRelease: { omega: 0, ptrOmega: 0, eH: 0, hyper: false }, // phase 6: every release, for Gate 0 and the HUD
+      frame: createDropFrame(TIERS[tier].drop), spinBody: [0, 0, 0],
       camBody: [0, 0, 0], rigW: [0, 0, 0], rigDrag: [0, 0, 0], // the dev rig's stand-in drag point (rigTongueAxis)
       env: { q: [0, 0, 0, 1], omega: [0, 0, 0], gamma: 0, kappa: 0, vRef: DROP_V_REF, pxPerUnit: 1, omegaTh: 7.5, planetRadiusAt: null },
       view: { vp: new Float32Array(16), p00: 1, p11: 1, wPx: 1, hPx: 1 }, m: new THREE.Matrix4(),

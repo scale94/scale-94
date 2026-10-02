@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { pointerOmega, createDragTracker, DRAG_RAD_PER_HEIGHT, POINTER_HOLD_MS } from '../mercuryDrag';
+import { pointerOmega, createDragTracker, DRAG_RAD_PER_HEIGHT, POINTER_HOLD_MS, PTR_WINDOW_MS } from '../mercuryDrag';
 
 describe('pointerOmega', () => {
   it('a full-height drag in one second spins DRAG_RAD_PER_HEIGHT rad/s', () => {
@@ -100,5 +100,45 @@ describe('drag point and release', () => {
     expect(d.sample(3).released).toBe(false);
     d.up(); // a stray up with no drag is not a release
     expect(d.sample(4).released).toBe(false);
+  });
+});
+
+describe('release pointer ω (phase 6 trigger)', () => {
+  const H = 800;
+  it('is the pointer ω over the last PTR_WINDOW_MS before release, reported once on the release frame', () => {
+    const d = createDragTracker();
+    d.down(0, 0, 0);
+    for (let t = 10; t <= 200; t += 10) d.move(3 * t, 0, t, H); // 3 px/ms
+    d.up(200);
+    const r = d.sample(201);
+    expect(r.released).toBe(true);
+    expect(r.releaseOmegaPtr).toBeCloseTo((DRAG_RAD_PER_HEIGHT / H) * 3000, 6);
+    expect(d.sample(202).releaseOmegaPtr).toBe(0);
+  });
+
+  it('only the last window counts: a slow drag ending in a fast flick reads the flick', () => {
+    const d = createDragTracker();
+    d.down(0, 0, 0);
+    for (let t = 10; t <= 300; t += 10) d.move(0.5 * t, 0, t, H);
+    for (let t = 310; t <= 300 + PTR_WINDOW_MS; t += 10) d.move(150 + 4 * (t - 300), 0, t, H);
+    d.up(300 + PTR_WINDOW_MS);
+    expect(d.sample(400).releaseOmegaPtr).toBeCloseTo((DRAG_RAD_PER_HEIGHT / H) * 4000, 6);
+  });
+
+  it('a pointer held still past POINTER_HOLD_MS before letting go reads 0', () => {
+    const d = createDragTracker();
+    d.down(0, 0, 0);
+    for (let t = 10; t <= 100; t += 10) d.move(3 * t, 0, t, H);
+    d.up(100 + POINTER_HOLD_MS + 1);
+    expect(d.sample(300).releaseOmegaPtr).toBe(0);
+  });
+
+  it('a tap with no move reads 0, and up() without a time still works', () => {
+    const d = createDragTracker();
+    d.down(5, 5, 0);
+    d.up();
+    const r = d.sample(10);
+    expect(r.released).toBe(true);
+    expect(r.releaseOmegaPtr).toBe(0);
   });
 });
