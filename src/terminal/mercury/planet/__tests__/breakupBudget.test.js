@@ -18,7 +18,7 @@ const famAt = (omega, yaw) => {
   return fireFamily(f, { maxBodies: 12, satellites: true });
 };
 const env0At = (omega, yaw) => ({
-  q: [0, Math.sin(yaw / 2), 0, Math.cos(yaw / 2)], omega: [0, omega, 0], gamma: 8, kappa: 0.03,
+  q: [0, Math.sin(yaw / 2), 0, Math.cos(yaw / 2)], omega: [0, omega, 0], gamma: 8, kappa: 0.1, // the shipped PLANET_TUNE.dropCohesion
   vRef: DROP_V_REF, pxPerUnit: 300, omegaTh: 7.5,
 });
 
