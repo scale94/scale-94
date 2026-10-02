@@ -1,7 +1,7 @@
 # /MERCURY Phase 6: Hyper-Fling (core disruption, spiral return, rebirth), design
 
 Status: design approved section by section with the author, 2026-10-02. Amendments V1 (vortex return, solve η),
-V2 (release pointer ω) and V3 (grace covers core strikes) approved the same day, found while planning 6a. Umbrella spec for three sub-projects
+V2 (release pointer ω) and V3 (grace covers core strikes) approved the same day, found while planning 6a. Amendment V4 (§10: small beads, aimed disc launch, orbit-then-gather) approved the same day after the 6a look call failed; where §3 and §9 disagree with §10, §10 governs. Umbrella spec for three sub-projects
 (6a sim, 6b render, 6c rebirth), each with its own plan written after the previous one lands.
 Base: `main` @ `6217594a` (Phase 5 = `17879011` + PR 12). Branch: `feature/mercury-hyper`.
 Prior art: `2026-10-02-mercury-breakup-phase5-design.md` (Amendment 5, §10 P1–P6) and
