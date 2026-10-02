@@ -164,7 +164,7 @@ function stepDrop(drop, { body, surf, camera, ds, calm, stepS, t, bufferW, buffe
         fireDrop(drop, w, body.heatK);
       }
     }
-    if (DEV_OVERRIDES.hyperNow != null) {
+    if (DEV_OVERRIDES.hyperNow != null) { // dev rig: bypasses canHyper (and its return-time gate) on purpose
       const eH = DEV_OVERRIDES.hyperNow;
       DEV_OVERRIDES.hyperNow = null;
       if (fam.phase !== 'fired' && body.tau >= 1 && drop.hyperN > 0) {
@@ -182,7 +182,8 @@ function stepDrop(drop, { body, surf, camera, ds, calm, stepS, t, bufferW, buffe
       if (canFire(st)) {
         const lr = drop.lastRelease;
         lr.eH = hyperEnergy(lr.ptrOmega);
-        lr.hyper = canHyper({ omega, ptrOmega: lr.ptrOmega, nMax: drop.hyperN });
+        const target = returnTarget(body.heatK, PLANET_TUNE.dropDrift); // a scalar, and only on the fire frame
+        lr.hyper = canHyper({ omega, ptrOmega: lr.ptrOmega, nMax: drop.hyperN, target });
         if (lr.hyper) fireHyperDrop(drop, lr.eH, body.heatK, camera, bufferW, bufferH, t);
         else fireDrop(drop, omega, body.heatK);
       } else if (canHold(st)) {

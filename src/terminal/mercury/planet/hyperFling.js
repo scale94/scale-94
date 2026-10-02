@@ -30,15 +30,16 @@ export const HYPER_AIM_S = 0.6;        // each bead's launch is aimed to settle 
 export const HYPER_HANG_K = 0.5;       // the disc orbits for this share of the return target before the gather (§10.3)
 export const ETA_LO = 1e-3;            // headwind bracket: ln-bisection over [ETA_LO, ETA_HI]
 export const ETA_HI = 1;               // (η = 1: a still aether, plain drag; also the provisional value while solving)
-export const HYPER_CASCADE_S = 3;      // the largest bead's whole cascade takes this many display s (each stage keeps its r^1.5 share)
+export const HYPER_CASCADE_S = 1.5;    // the largest bead's whole cascade takes this many display s (each stage keeps its r^1.5 share; V4 §10.6: was 3)
+export const HYPER_MIN_TARGET_S = 9; // hyper needs room for orbit + gather + cascade: hotter planets (shorter return) break the Phase 5 way (V4 §10.6)
 export const ETA_ITERS = 8;            // final ratio 1000^(1/256) ≈ 1.027
 
 export const V0 = sphereVol(R_SCENE);
 
 export const hyperEnergy = (ptrOmega) => Math.min(1, Math.max(0, (ptrOmega - V_HYPER) / V_HYPER_SPAN));
 
-export function canHyper({ omega, ptrOmega, nMax }) {
-  return nMax > 0 && omega >= HYPER_OMEGA_FRAC * MAX_OMEGA && ptrOmega >= V_HYPER;
+export function canHyper({ omega, ptrOmega, nMax, target }) {
+  return nMax > 0 && omega >= HYPER_OMEGA_FRAC * MAX_OMEGA && ptrOmega >= V_HYPER && target >= HYPER_MIN_TARGET_S;
 }
 
 // Deterministic per seed, so the live family and every solver replay see the same swarm.

@@ -1,7 +1,7 @@
 // src/terminal/mercury/planet/__tests__/hyperFling.test.js — phase 6a: trigger, mass split, launch
 import { describe, it, expect } from 'vitest';
 import {
-  canHyper, hyperEnergy, splitMass, gammaMean1, mulberry32, hyperMu, hyperReach,
+  canHyper, hyperEnergy, HYPER_MIN_TARGET_S, splitMass, gammaMean1, mulberry32, hyperMu, hyperReach,
   fireHyper, coreScale, ETA_HI, HYPER_GRACE_S, T_BURST, HYPER_GAMMA, HYPER_AIM_S, HYPER_HANG_K,
   V0, V_HYPER, V_HYPER_SPAN, HYPER_OMEGA_FRAC, HYPER_RBAR_LO, HYPER_RBAR_HI, HYPER_R_MAX_K, HYPER_VIS_K, HYPER_REACH_MIN_R,
 } from '../hyperFling';
@@ -16,10 +16,16 @@ const volOf = (rs) => rs.reduce((a, r) => a + sphereVol(r), 0);
 describe('hyperFling trigger', () => {
   it('fires only with the spin pinned at the cap AND a fast release pointer, never on lite', () => {
     const w = HYPER_OMEGA_FRAC * MAX_OMEGA;
-    expect(canHyper({ omega: w, ptrOmega: V_HYPER, nMax: 16 })).toBe(true);
-    expect(canHyper({ omega: w - 0.01, ptrOmega: 1e3, nMax: 16 })).toBe(false);
-    expect(canHyper({ omega: MAX_OMEGA, ptrOmega: V_HYPER - 0.01, nMax: 16 })).toBe(false);
-    expect(canHyper({ omega: MAX_OMEGA, ptrOmega: 1e3, nMax: 0 })).toBe(false);
+    expect(canHyper({ omega: w, ptrOmega: V_HYPER, nMax: 16, target: 12 })).toBe(true);
+    expect(canHyper({ omega: w - 0.01, ptrOmega: 1e3, nMax: 16, target: 12 })).toBe(false);
+    expect(canHyper({ omega: MAX_OMEGA, ptrOmega: V_HYPER - 0.01, nMax: 16, target: 12 })).toBe(false);
+    expect(canHyper({ omega: MAX_OMEGA, ptrOmega: 1e3, nMax: 0, target: 12 })).toBe(false);
+  });
+
+  it('needs room to orbit, gather and cascade: never below HYPER_MIN_TARGET_S of return time (V4 §10.6)', () => {
+    const w = HYPER_OMEGA_FRAC * MAX_OMEGA;
+    expect(canHyper({ omega: w, ptrOmega: 1e3, nMax: 16, target: HYPER_MIN_TARGET_S - 0.01 })).toBe(false);
+    expect(canHyper({ omega: w, ptrOmega: 1e3, nMax: 16, target: HYPER_MIN_TARGET_S })).toBe(true);
   });
 
   it('eH ramps 0 → 1 over V_HYPER_SPAN', () => {

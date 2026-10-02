@@ -365,3 +365,8 @@ hits, max |p| 1.10, home 11.4–12.0 s against 12 s at `hyperOrbit` 3 (1.48–1.
 ### 10.5 Gate
 Unchanged in form: 100 % land, median turns ≥ 1.5 across the sweep, free beads within reach. Turns are measured on
 the test particles with the §10.3 schedule; the look sheet reports live turns and merges too.
+
+### 10.6 Short windows (author 2026-10-03)
+A hyper-fling fires only when the return target is at least `HYPER_MIN_TARGET_S` (9 s); otherwise the release breaks
+the Phase 5 way. `HYPER_CASCADE_S` is 1.5 (was 3). Measured: at a 6 s target a 3 s hang plus a 3 s cascade left no
+gather (1080/3240 non-landings, ≤ 0.8 turns at any knob); halving the cascade lands heat 40 at ≈ 1.57 turns.
