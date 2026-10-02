@@ -22,7 +22,7 @@ export const MU_EXTRA = 4;              // extra upward trials if the bracket he
 export const MU_EXTRA_K = 4;            // each extra trial is this × stronger than the last (top·K, top·K², … top·K^MU_EXTRA; top itself was never trialled)
 export const T_MAX_FACTOR = 1;          // a trial gives up at the target: bisection only needs T <= target
 export const SOLVER_SUBSTEPS_PER_FRAME = 350; // ~1.5 ms on the dev desktop (~4.2 us/substep warm): the per-frame FLOOR
-export const SOLVER_SUBSTEPS_MAX = 900;       // ~4 ms on the dev desktop: the per-frame CEILING for solverBudget
+export const SOLVER_SUBSTEPS_MAX = 800;       // ~3.4 ms on the dev desktop: the per-frame CEILING for solverBudget (was 900; the worst 20-frame solve sat on it)
 
 // A bead launched at the threshold surface speed (ω_th R) is exactly on a circular orbit.
 export const muRef = (omegaTh) => (omegaTh * R_SCENE) ** 2 * R_SCENE;

@@ -171,6 +171,29 @@ describe('breakupFrame — a family to the droplet shader', () => {
     }
   });
 
+  it('a long hold (2 lag times) then fire at the same excess: tips start on the held tips and no bead is lost at fire', () => {
+    for (const tier of Object.keys(TIERS)) {
+      const tcaps = TIERS[tier].drop;
+      const fam = createFamily(1);
+      fam.phase = 'hold'; fam.axisBody = [1, 0, 0];
+      const dt = 1 / 60, steps = Math.round((2 * TONGUE_LAG_S) / dt);
+      for (let i = 0; i < steps; i++) holdTongue(fam, dt, 1, 1);
+      const env = testEnv({ q: [0, Math.sin(0.3), 0, Math.cos(0.3)] });
+      const f = createDropFrame(tcaps), view = viewOf();
+      packFamily(fam, env, f, view);
+      const nHeld = f.nb / 2;
+      const tipOf = (fr, i) => [fr.bead[4 * i], fr.bead[4 * i + 1], fr.bead[4 * i + 2]];
+      const heldTips = [tipOf(f, 0), tipOf(f, nHeld)];
+      fam.e = 1;
+      fireFamily(fam, { maxBodies: tcaps.bodies, satellites: tcaps.satellites, gain: 1 });
+      expect(fam.N, tier).toBeGreaterThanOrEqual(nHeld);
+      for (const b of fam.bodies) b.p = qRotate(env.q, b.posBody);
+      fam.t = 0;
+      packFamily(fam, env, f, view);
+      [tipOf(f, 0), tipOf(f, fam.N)].forEach((p, sg) => { for (let k = 0; k < 3; k++) expect(p[k], tier).toBeCloseTo(heldTips[sg][k], 6); });
+    }
+  });
+
   it('the extrude is monotonic in t (eased, no overshoot)', () => {
     const fam = createFamily(1);
     fam.phase = 'hold'; fam.axisBody = [1, 0, 0];
