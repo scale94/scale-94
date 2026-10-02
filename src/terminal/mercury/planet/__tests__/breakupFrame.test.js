@@ -1,11 +1,16 @@
 // src/terminal/mercury/planet/__tests__/breakupFrame.test.js
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import * as THREE from 'three';
 import { createDropFrame, packFamily, pxPerUnitAt } from '../breakupFrame';
-import { createFamily, addBody, chainLayout } from '../breakupFamily';
-import { TONGUE_ROOT_R, TONGUE_MAX_R, sphereVol } from '../breakupPhysics';
+import { createFamily, addBody, chainLayout, fireFamily } from '../breakupFamily';
+import { TONGUE_ROOT_R, TONGUE_MAX_R, sphereVol, rpWavelength } from '../breakupPhysics';
 import { R_SCENE } from '../planetLook';
 import { testEnv, firedFamily } from './breakupTestKit';
+
+vi.mock('../breakupFamily', async (orig) => {
+  const actual = await orig();
+  return { ...actual, chainLayout: vi.fn(actual.chainLayout) };
+});
 
 const caps = { bodies: 12, necks: 10, bridges: 12 };
 function viewOf(z = 3.6) {
@@ -86,5 +91,50 @@ describe('breakupFrame — a family to the droplet shader', () => {
 
   it('px per scene unit at the planet distance', () => {
     expect(pxPerUnitAt(3.6, 42, 1000)).toBeCloseTo(1000 / (2 * 3.6 * Math.tan((21 * Math.PI) / 180)), 9);
+  });
+  it('hold chain sits on the span fire uses, even below one wavelength (no jump at fire)', () => {
+    const fam = createFamily(1);
+    fam.phase = 'hold'; fam.L = 0.5 * rpWavelength(TONGUE_ROOT_R); fam.axisBody = [1, 0, 0];
+    const f = createDropFrame(caps);
+    packFamily(fam, testEnv(), f, viewOf());
+    const held = [];
+    for (let i = 0; i < f.nb; i++) held.push([f.bead[4 * i], f.bead[4 * i + 1], f.bead[4 * i + 2]]);
+    fireFamily(fam, { maxBodies: 12, satellites: false });
+    const mains = fam.bodies.filter((b) => b.state === 'attached').map((b) => b.posBody);
+    expect(mains.length).toBe(held.length);
+    mains.forEach((p, i) => { for (let k = 0; k < 3; k++) expect(held[i][k]).toBeCloseTo(p[k], 5); });
+  });
+
+  it('packFamily allocates nothing per call on the hold and fired paths', () => {
+    const hold = createFamily(1);
+    hold.phase = 'hold'; hold.L = TONGUE_MAX_R;
+    const fired = firedFamily({ maxBodies: 12, satellites: true });
+    for (const b of fired.bodies) b.p = [...b.posBody];
+    fired.t = 0.3 * fired.necks[0].tSnap;
+    const env = testEnv(), view = viewOf(), f = createDropFrame(caps);
+    const keys = Object.keys(f).join();
+    // deterministic: the per-frame path must not build a chainLayout object (it did once, via the hold chain)
+    chainLayout.mockClear();
+    packFamily(hold, env, f, view); packFamily(fired, env, f, view);
+    expect(chainLayout).not.toHaveBeenCalled();
+    // Real per-call garbage (an array literal, a destructured layout, a closure + accumulators) is >= ~30 B per call,
+    // so 200k calls retire >= 6 MB; scratch reuse measures within +-3 MB of GC noise. Each path is measured alone.
+    for (const fam of [hold, fired]) {
+      for (let i = 0; i < 5000; i++) packFamily(fam, env, f, view); // warm up the JIT
+      const before = process.memoryUsage().heapUsed;
+      for (let i = 0; i < 200000; i++) packFamily(fam, env, f, view);
+      expect(process.memoryUsage().heapUsed - before).toBeLessThan(5e6);
+    }
+    expect(Object.keys(f).join()).toBe(keys);
+  });
+
+  it('a bead behind the camera plane falls back to a full-screen rect', () => {
+    const fam = createFamily(1);
+    fam.phase = 'fired'; fam.rMain = 0.03;
+    addBody(fam, { state: 'free', p: [0, 0, 10], r: 0.03, vol: sphereVol(0.03) });
+    const f = createDropFrame(caps);
+    packFamily(fam, testEnv(), f, viewOf());
+    expect(Array.from(f.rect)).toEqual([-1, -1, 1, 1]);
+    expect(f.visible).toBe(true);
   });
 });

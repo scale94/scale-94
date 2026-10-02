@@ -2,8 +2,8 @@
 // (phase-5 spec §7.1–7.2). Allocation-free after createDropFrame.
 
 import { R_SCENE } from './planetLook';
-import { TONGUE_ROOT_R, pinchRadius, wobbleOmega } from './breakupPhysics';
-import { chainLayout, qRotate } from './breakupFamily';
+import { TONGUE_ROOT_R, pinchRadius, wobbleOmega, rpWavelength } from './breakupPhysics';
+import { chainCount, qRotate } from './breakupFamily';
 
 export const NECK_ASYM = 0.2;        // waist shifted toward the inner body: steep cone at the outer bead, shallow inward (spec §5.2)
 export const FLIGHT_STRETCH = 0.12;  // prolate stretch of a main bead at A_REF
@@ -52,13 +52,16 @@ function pushBridge(f, ia, ib, k, R) {
 }
 
 function packHold(fam, env, f) {
-  const { N } = chainLayout(fam.L);
-  const sp = fam.L / N;
+  // the same span fireFamily lays the chain on (max(L, lambda)), so hold -> fire does not jump the beads
+  const N = chainCount(fam.L);
+  const Ls = Math.max(fam.L, rpWavelength(TONGUE_ROOT_R));
+  const sp = Ls / N;
   const ax = fam.axisBody;
-  for (const sign of [1, -1]) {
+  for (let si = 0; si < 2; si++) {
+    const sign = 1 - 2 * si;
     const first = f.nb;
     for (let k = 0; k < N; k++) {
-      const d = sign * (R_SCENE + fam.L - (k + 0.5) * sp);
+      const d = sign * (R_SCENE + Ls - (k + 0.5) * sp);
       _c[0] = ax[0] * d; _c[1] = ax[1] * d; _c[2] = ax[2] * d;
       qRotate(env.q, _c, _c);
       pushBead(f, _c, TONGUE_ROOT_R, unitInto(_c, _u), 0);
@@ -86,7 +89,8 @@ function packFired(fam, env, f) {
     }
     f.map[i] = pushBead(f, b.p, b.r, _ax, s);
   }
-  for (const n of fam.necks) {
+  for (let ni = 0; ni < fam.necks.length; ni++) {
+    const n = fam.necks[ni];
     if (!n.on) continue;
     const ia = f.map[n.a];
     if (ia < 0) continue;
@@ -110,30 +114,32 @@ function packFired(fam, env, f) {
   }
 }
 
+const _r = { x0: 0, y0: 0, x1: 0, y1: 0, full: false };
+function grow(e, view, cx, cy, cz, rad) {
+  const X = e[0] * cx + e[4] * cy + e[8] * cz + e[12];
+  const Y = e[1] * cx + e[5] * cy + e[9] * cz + e[13];
+  const W = e[3] * cx + e[7] * cy + e[11] * cz + e[15];
+  if (W <= 1e-4) { _r.full = true; return; }
+  const rx = (rad * view.p00) / W, ry = (rad * view.p11) / W;
+  _r.x0 = Math.min(_r.x0, X / W - rx); _r.x1 = Math.max(_r.x1, X / W + rx);
+  _r.y0 = Math.min(_r.y0, Y / W - ry); _r.y1 = Math.max(_r.y1, Y / W + ry);
+}
+
 function fitRect(f, view) {
-  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, full = false;
+  _r.x0 = Infinity; _r.y0 = Infinity; _r.x1 = -Infinity; _r.y1 = -Infinity; _r.full = false;
   const e = view.vp;
-  const grow = (cx, cy, cz, rad) => {
-    const X = e[0] * cx + e[4] * cy + e[8] * cz + e[12];
-    const Y = e[1] * cx + e[5] * cy + e[9] * cz + e[13];
-    const W = e[3] * cx + e[7] * cy + e[11] * cz + e[15];
-    if (W <= 1e-4) { full = true; return; }
-    const rx = (rad * view.p00) / W, ry = (rad * view.p11) / W;
-    x0 = Math.min(x0, X / W - rx); x1 = Math.max(x1, X / W + rx);
-    y0 = Math.min(y0, Y / W - ry); y1 = Math.max(y1, Y / W + ry);
-  };
   for (let i = 0; i < f.nb; i++) {
-    grow(f.bead[4 * i], f.bead[4 * i + 1], f.bead[4 * i + 2], BOUND_BEAD * f.bead[4 * i + 3] * (1 + Math.abs(f.beadAxis[4 * i + 3])));
+    grow(e, view, f.bead[4 * i], f.bead[4 * i + 1], f.bead[4 * i + 2], BOUND_BEAD * f.bead[4 * i + 3] * (1 + Math.abs(f.beadAxis[4 * i + 3])));
   }
   for (let i = 0; i < f.nn; i++) {
     const a = f.neck[4 * i], b = f.neck[4 * i + 1];
     const ax = f.bead[4 * a], ay = f.bead[4 * a + 1], az = f.bead[4 * a + 2];
     if (b >= 0) {
-      grow((ax + f.bead[4 * b]) / 2, (ay + f.bead[4 * b + 1]) / 2, (az + f.bead[4 * b + 2]) / 2,
+      grow(e, view, (ax + f.bead[4 * b]) / 2, (ay + f.bead[4 * b + 1]) / 2, (az + f.bead[4 * b + 2]) / 2,
         0.5 * Math.hypot(ax - f.bead[4 * b], ay - f.bead[4 * b + 1], az - f.bead[4 * b + 2]) + Math.max(f.bead[4 * a + 3], f.bead[4 * b + 3]));
     } else {
       const l = Math.hypot(ax, ay, az) || 1, R = f.neckR[i];
-      grow(ax / l * R, ay / l * R, az / l * R, 2 * f.neck[4 * i + 2] + f.bead[4 * a + 3]);
+      grow(e, view, ax / l * R, ay / l * R, az / l * R, 2 * f.neck[4 * i + 2] + f.bead[4 * a + 3]);
     }
   }
   for (let i = 0; i < f.nk; i++) {
@@ -141,9 +147,10 @@ function fitRect(f, view) {
     const a = f.bridge[4 * i];
     const ax = f.bead[4 * a], ay = f.bead[4 * a + 1], az = f.bead[4 * a + 2];
     const l = Math.hypot(ax, ay, az) || 1, R = f.bridge[4 * i + 3];
-    grow(ax / l * R, ay / l * R, az / l * R, BOUND_BEAD * f.bead[4 * a + 3] + f.bridge[4 * i + 2]);
+    grow(e, view, ax / l * R, ay / l * R, az / l * R, BOUND_BEAD * f.bead[4 * a + 3] + f.bridge[4 * i + 2]);
   }
-  if (full) { x0 = -1; y0 = -1; x1 = 1; y1 = 1; }
+  let { x0, y0, x1, y1 } = _r;
+  if (_r.full) { x0 = -1; y0 = -1; x1 = 1; y1 = 1; }
   const px = (2 * DROP_PAD_PX) / view.wPx, py = (2 * DROP_PAD_PX) / view.hPx;
   x0 = Math.max(-1, x0 - px); y0 = Math.max(-1, y0 - py); x1 = Math.min(1, x1 + px); y1 = Math.min(1, y1 + py);
   if (!(x1 > x0 && y1 > y0)) { f.visible = false; return; }

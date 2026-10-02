@@ -94,9 +94,12 @@ export function tongueAxis(spinBody, dragBody, out = [0, 0, 0]) {
   return out;
 }
 
+// Mains per tongue (the single source of the N formula; allocation-free for the per-frame hold packing).
+export const chainCount = (L) => Math.min(MAX_MAIN_PER_TONGUE, Math.max(1, Math.round(L / rpWavelength(TONGUE_ROOT_R))));
+
 export function chainLayout(L) {
   const lambda = rpWavelength(TONGUE_ROOT_R);
-  const N = Math.min(MAX_MAIN_PER_TONGUE, Math.max(1, Math.round(L / lambda)));
+  const N = chainCount(L);
   const s = Math.max(L, lambda) / N;
   const rMain = Math.cbrt(0.75 * TONGUE_ROOT_R * TONGUE_ROOT_R * s);
   return { N, s, rMain, rSat: SAT_RATIO * rMain };
