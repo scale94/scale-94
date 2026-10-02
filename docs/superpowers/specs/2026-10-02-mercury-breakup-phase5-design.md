@@ -64,7 +64,7 @@ Each bead is born at its position along the tongue, with that point's rigid-body
 - **Forces:** each body feels a central pull a = −μ·x̂/|x|² toward the planet centre (the planetary reading of the return), plus linear aether drag −γ·v.
 - **Budget solve at release.**
   - B = t_freeze(H at release) − `MERGE_MARGIN_S` (4 s).
-  - The module integrates the family forward headlessly (deterministic fixed step; ≤ 12 bodies) and bisects γ until the **last body is fully absorbed**, cascade included (§6.3), by B.
+  - The module integrates the family forward headlessly (deterministic fixed step; at most the tier's body cap: 16 on the full tier, 8 phone, 6 lite) and bisects γ until the **last body is fully absorbed**, cascade included (§6.3), by B.
   - **Cost:** target < 4 ms on desktop. No bead flies before its neck pinches (≥ one t_c after release), so the solve may be spread over the first frames of the snap sequence; a test pins the cost.
   - **μ** = `dropPull` · (ω_th R)² · R, so a bead launched at the threshold surface speed is exactly on a circular orbit. Faster launches go out on wide or even unbound paths, and the solved drag brings them home. γ is the only solved quantity.
 - **Re-spin mid-flight:** heat rises, so the true budget only grows. Bodies arrive early and nothing is re-solved.
@@ -260,3 +260,11 @@ The implementation plan (`docs/superpowers/plans/2026-10-02-mercury-breakup-phas
 | P4 | §4.2: `TONGUE_MAX_R` 1.6 R, r₀ 0.04 R | The tip would launch at radius ~1.95 R; together with P2 it flies furthest off screen. | `TONGUE_MAX_R` **0.8 R**, r₀ **0.025 R**. This still gives up to 4 main beads per tongue (λ ≈ 0.23 R); a main bead is ≈ 0.047 R (~10 px radius on desktop). |
 | P5 | §4.2: the planet's live radius shrinks by ∛(R³ − Σr³) | At the maximum family that is ≈ 0.03 % of R, a fraction of a pixel. | The sim tracks the volume out of the planet exactly (`volOut`, tested to 1e-12). The planet shader's radius is unchanged. |
 | P6 | §7.9 knobs: `dropPull` | μ is solved, so a pull knob means nothing. | The knobs are `breakOmega` 7.5, `breakGain` 1, `dropDrag` 8, `dropCohesion` 0.03 and `dropDrift` 14. The solver's reference is `muRef = (ω_th R)² R` (a threshold-speed bead on a circular orbit). |
+
+### Author decisions after live real-swipe tests (2026-10-02)
+
+Real mouse swipes showed two problems: a swipe holds above `breakOmega` for only ~0.2 s, so the tongue grew a single pair of beads (N = 1); and the ~8 px mirror beads were lost against the nebula.
+
+- **The tongue is sized from the release ω.** At fire, L_fire = max(L_hold, `breakGain` · `TONGUE_MAX_R` · excess(ω_release)), using the same excess law as the hold. A hard swipe with no hold now throws the full chain, and a deliberate hold still shows the tongue growing. The family is laid out at L_fire, so the budget replay sees the true layout. On screen, the attached chain extrudes from the held tip to the fired layout over 0.5 · `TONGUE_LAG_S` (0.2 s, eased; the first snap is ≥ 0.85 · `TONGUE_LAG_S`). This is a radial lerp done at pack time, so the beads do not jump at release.
+- **Bigger beads, dark rim.** r₀ (`TONGUE_ROOT_R`) changes from 0.025 R to **0.035 R**, and `TONGUE_MAX_R` from 0.8 R to **1.12 R**, scaled together so that L/λ, and with it the maximum N per tier (4 / 3 / 2), is unchanged. With P1's anchor the thread t_c still reads 0.4 s and a main bead's t_c still reads 0.98 s. A main bead is now ≈ 0.064 R (≈ 12.8 px radius on a 201 px-radius desktop disc). The μ bracket was recalibrated at the new r₀ and κ 0.1 (`MU_CENTER` 0.048, `MU_SPAN` 22). Every droplet silhouette gets a thin dark rim in the spirit of the planet's meniscus rim: a pixel-footprint band, 1.5 px dark plus a 1 px fade, with the mirror shading kept inside.
+
