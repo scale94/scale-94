@@ -10,7 +10,7 @@ import * as THREE from 'three';
 import { buildExosphereShader, EXO_MATERIAL, EXO_RENDER_ORDER } from './planet/exosphereShader';
 import { TAIL_AXIS, exoBox } from './planet/mercuryExosphere';
 import { TIERS } from './planet/planetQuality';
-import { PLANET_TUNE } from './planet/planetLook';
+import { PLANET_TUNE, R_SCENE } from './planet/planetLook';
 
 export default function MercuryExosphere({ exo, tier = 'full' }) {
   const steps = TIERS[tier].exoSteps;
@@ -29,6 +29,7 @@ export default function MercuryExosphere({ exo, tier = 'full' }) {
       uCoverage: { value: 0 },
       uExoTime: { value: 0 },
       uExoGain: { value: PLANET_TUNE.exoGain },
+      uCoreR: { value: exo.coreR ?? R_SCENE },
     },
   }), [shader, exo]);
   useEffect(() => () => geometry.dispose(), [geometry]);
@@ -61,6 +62,7 @@ export default function MercuryExosphere({ exo, tier = 'full' }) {
     un.uCoverage.value = exo.coverage;
     un.uExoTime.value = exo.time;
     un.uExoGain.value = PLANET_TUNE.exoGain;
+    un.uCoreR.value = exo.coreR ?? R_SCENE;
   });
 
   // After the nebula flows, which sit at renderOrder 0 and sort nearer (see EXO_RENDER_ORDER).

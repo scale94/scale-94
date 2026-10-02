@@ -83,6 +83,13 @@ describe('mercuryExosphere', () => {
       expect(width / 2).toBeGreaterThanOrEqual(halo);
     }
   });
+
+  it('phase 6: the halo and the tail start at the live core radius', () => {
+    const r = 0.4 * R_SCENE;
+    expect(haloColumn(0.5 * R_SCENE, H_NA, r)).toBeGreaterThan(0);
+    expect(haloColumn(0.39 * R_SCENE, H_NA, r)).toBe(0);
+    expect(haloColumn(1.2 * R_SCENE, H_NA)).toBe(haloColumn(1.2 * R_SCENE, H_NA, R_SCENE));
+  });
 });
 
 describe('tail backdrop attenuation (option 2)', () => {

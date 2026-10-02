@@ -57,7 +57,7 @@ export const PLANET_UNIFORMS = [
   'uAetherEdge', 'uAetherStretch', 'uAetherCurve', 'uAetherCore',
   'uScar', 'uRayGain',
   'uSurfOn', 'uImpDir', 'uImpMode', 'uImpWave', 'uBulge', 'uRoilGain', 'uPopZoom',
-  'uRoughLiquid', 'uMeniscus', 'uMeniscusW',
+  'uRoughLiquid', 'uMeniscus', 'uMeniscusW', 'uCoreR',
 ];
 
 export const PLANET_CALM_UNIFORMS = [...PLANET_UNIFORMS, 'uGlow'];
@@ -69,6 +69,7 @@ export const PLANET_VS = /* glsl */ `in vec3 position;
 uniform mat4 viewMatrix;
 uniform mat4 projectionMatrix;
 uniform vec3 cameraPosition;
+uniform float uCoreR;
 
 out vec3 vWorld;
 
@@ -78,7 +79,7 @@ const float SHAPE_MAX = ${glf(SHAPE_MAX)};
 void main() {
   // Billboard at the centre plane, sized to the perspective silhouette + margin.
   float d = length(cameraPosition);
-  float rb = R_SCENE * (1.0 + SHAPE_MAX); // room for the moving bead
+  float rb = uCoreR * (1.0 + SHAPE_MAX); // room for the moving bead (uCoreR: the live core, phase 6)
   float ext = rb * d / sqrt(max(d * d - rb * rb, 1e-4)) * 1.08;
   vec3 right = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
   vec3 up    = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
@@ -128,6 +129,7 @@ uniform float uAetherCore;
 uniform sampler2D uScar;
 uniform float uRayGain;
 uniform float uSurfOn;
+uniform float uCoreR; // phase 6: the live core radius (R_SCENE except during a hyper-fling)
 uniform vec3 uImpDir[${IMPULSE_SLOTS}];
 uniform vec3 uImpMode[${IMPULSE_SLOTS}];
 uniform vec3 uImpWave[${IMPULSE_SLOTS}];
@@ -481,10 +483,10 @@ void main() {
   vec3 rd = normalize(vWorld - ro);
   float b = dot(ro, rd);
   // The silhouette: the bead's radius toward the ray's closest approach
-  // (exactly R_SCENE when the surface is still, i.e. the phase-2 sphere).
+  // (exactly uCoreR when the surface is still, i.e. the phase-2 sphere at its live size).
   vec3 pc = ro - rd * b;
   float pl = length(pc);
-  float rl = R_SCENE * (1.0 + shapeH(pl > 1e-6 ? pc / pl : -rd));
+  float rl = uCoreR * (1.0 + shapeH(pl > 1e-6 ? pc / pl : -rd));
   float disc = b * b - (dot(ro, ro) - rl * rl);
   float fw = max(fwidth(disc), 1e-6);
   float coverage = clamp(disc / fw + 0.5, 0.0, 1.0);
@@ -497,7 +499,7 @@ void main() {
   // (radial fixed point; the shape is low-order and ≤ SHAPE_MAX). Uniform branch.
   if (uSurfOn > 0.5) {
     for (int k = 0; k < SHAPE_ITERS; k++) {
-      float rk = R_SCENE * (1.0 + shapeH(normalize(hit)));
+      float rk = uCoreR * (1.0 + shapeH(normalize(hit)));
       t = -b - sqrt(max(b * b - (dot(ro, ro) - rk * rk), 0.0));
       hit = ro + rd * t;
     }

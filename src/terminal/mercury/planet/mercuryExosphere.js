@@ -89,16 +89,18 @@ export function boilCoverage(tau, heatK, tssK) {
 
 // Line-of-sight column through exp(−(r−R)/H), impact parameter b (Chapman's grazing
 // approximation). Over the disc the planet is opaque and the box is depth-rejected: 0.
-export function haloColumn(b, H) {
-  if (b <= R_SCENE) return 0;
-  return Math.exp(-(b - R_SCENE) / H) * Math.sqrt(2 * Math.PI * b * H);
+// phase 6: the live core radius (rCore) during a hyper-fling.
+export function haloColumn(b, H, rCore = R_SCENE) {
+  if (b <= rCore) return 0;
+  return Math.exp(-(b - rCore) / H) * Math.sqrt(2 * Math.PI * b * H);
 }
 
 // Tail number density at world point P (no streamer noise; the shader adds it).
-export function tailDensity(P, B, L) {
+// phase 6: the live core radius (rCore) during a hyper-fling.
+export function tailDensity(P, B, L, rCore = R_SCENE) {
   const s = P[0] * TAIL_AXIS[0] + P[1] * TAIL_AXIS[1] + P[2] * TAIL_AXIS[2];
   const r2 = P[0] * P[0] + P[1] * P[1] + P[2] * P[2];
-  if (s <= 0 || r2 <= R_SCENE * R_SCENE) return 0;
+  if (s <= 0 || r2 <= rCore * rCore) return 0;
   const rho2 = r2 - s * s;
   const w = TAIL_W0 + TAIL_SPREAD * s;
   return B * Math.exp(-s / L) * Math.exp(-rho2 / (2 * w * w));

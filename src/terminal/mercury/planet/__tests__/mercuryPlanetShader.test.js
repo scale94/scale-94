@@ -172,7 +172,7 @@ describe('mercuryPlanetShader contract', () => {
       expect(PLANET_FS).toContain(`const float ${name} = ${glf(value)};`);
     }
     expect(PLANET_VS).toContain(`const float SHAPE_MAX = ${glf(SHAPE_MAX)};`);
-    expect(PLANET_VS).toContain('float rb = R_SCENE * (1.0 + SHAPE_MAX);');
+    expect(PLANET_VS).toContain('float rb = uCoreR * (1.0 + SHAPE_MAX);');
   });
 
   it('mirrors mercuryWaves: Legendre P2..P4, their derivatives, and shapeHeight', () => {
@@ -189,7 +189,7 @@ describe('mercuryPlanetShader contract', () => {
 
   it('a still bead is the phase-2 sphere: shape gated by uSurfOn, silhouette from the closest-approach radius', () => {
     expect(PLANET_FS).toContain('if (uSurfOn < 0.5) return 0.0;');
-    expect(PLANET_FS).toContain('float rl = R_SCENE * (1.0 + shapeH(pl > 1e-6 ? pc / pl : -rd));');
+    expect(PLANET_FS).toContain('float rl = uCoreR * (1.0 + shapeH(pl > 1e-6 ? pc / pl : -rd));');
     expect(PLANET_FS).toContain('float disc = b * b - (dot(ro, ro) - rl * rl);');
     expect(PLANET_FS).toContain('for (int k = 0; k < SHAPE_ITERS; k++) {');
     expect(PLANET_FS).toContain('vec3 ng = normalize(xw - shapeGrad(xw) / (1.0 + shapeH(xw)));');

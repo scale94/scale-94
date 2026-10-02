@@ -36,7 +36,7 @@ export const EXO_MATERIAL = Object.freeze({
 export const EXO_RENDER_ORDER = 1;
 
 export const EXO_BUILTINS = ['modelMatrix', 'viewMatrix', 'projectionMatrix', 'cameraPosition'];
-export const EXO_UNIFORMS = ['uWorldToBox', 'uTailAxis', 'uTailB', 'uTailL', 'uCoverage', 'uExoTime', 'uExoGain'];
+export const EXO_UNIFORMS = ['uWorldToBox', 'uTailAxis', 'uTailB', 'uTailL', 'uCoverage', 'uExoTime', 'uExoGain', 'uCoreR'];
 
 const EXO_VS = /* glsl */ `in vec3 position;
 
@@ -66,6 +66,7 @@ uniform float uTailL;
 uniform float uCoverage;
 uniform float uExoTime;
 uniform float uExoGain;
+uniform float uCoreR;
 
 const float TAU = 6.28318530717959;
 const float R_SCENE = ${glf(R_SCENE)};
@@ -104,15 +105,15 @@ float vnoise3(vec3 x) {
 
 // mercuryExosphere.haloColumn, exactly.
 float haloColumn(float b, float H) {
-  if (b <= R_SCENE) return 0.0;
-  return exp(-(b - R_SCENE) / H) * sqrt(TAU * b * H);
+  if (b <= uCoreR) return 0.0;
+  return exp(-(b - uCoreR) / H) * sqrt(TAU * b * H);
 }
 
 // mercuryExosphere.tailDensity, plus a streamer noise drifting downstream.
 float tailDensity(vec3 P) {
   float s = dot(P, uTailAxis);
   float r2 = dot(P, P);
-  if (s <= 0.0 || r2 <= R_SCENE * R_SCENE) return 0.0;
+  if (s <= 0.0 || r2 <= uCoreR * uCoreR) return 0.0;
   vec3 perp = P - uTailAxis * s;
   float w = TAIL_W0 + TAIL_SPREAD * s;
   float n = uTailB * exp(-s / uTailL) * exp(-dot(perp, perp) / (2.0 * w * w));
@@ -140,7 +141,7 @@ void main() {
     vec3 tmin = min(t0, t1), tmax = max(t0, t1);
     float tN = max(max(max(tmin.x, tmin.y), tmin.z), 0.0);
     float tF = min(min(tmax.x, tmax.y), tmax.z);
-    float disc = bq * bq - (dot(ro, ro) - R_SCENE * R_SCENE);
+    float disc = bq * bq - (dot(ro, ro) - uCoreR * uCoreR);
     if (disc > 0.0) { float tS = -bq - sqrt(disc); if (tS > 0.0) tF = min(tF, tS); }
     if (tF > tN) {
       float dt = (tF - tN) / float(EXO_STEPS);

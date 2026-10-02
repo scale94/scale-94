@@ -213,7 +213,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
   const target = useMemo(() => targetFromYaw(init.yaw), [init]);
   const body = useMemo(() => createBody(target), [target]);
   // The exosphere's state (MercuryExosphere reads it every frame; written here, allocation-free).
-  const exo = useMemo(() => ({ B: init.tailB, L: tailLength(init.tailB), coverage: 0, time: 0, boxDirty: true }), [init]);
+  const exo = useMemo(() => ({ B: init.tailB, L: tailLength(init.tailB), coverage: 0, time: 0, boxDirty: true, coreR: R_SCENE }), [init]);
   const m4 = useMemo(() => new THREE.Matrix4(), []);
 
   // The crust's memory (scarMap.js): a CPU buffer uploaded as RGBA8. Neutral = no scars.
@@ -252,6 +252,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
       uRelief: { value: PLANET_TUNE.relief },
       uNightFloor: { value: PLANET_TUNE.nightFloor },
       uTau: { value: 0 },
+      uCoreR: { value: R_SCENE },
       uHeatK: { value: 0 },
       uSubsolarT: { value: init.subsolarT },
       uEmitPos: { value: ORBIT_NODES.map(() => new THREE.Vector3()) },
