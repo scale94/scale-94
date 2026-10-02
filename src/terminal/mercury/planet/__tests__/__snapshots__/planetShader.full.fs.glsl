@@ -38,6 +38,7 @@ uniform float uAetherCore;
 uniform sampler2D uScar;
 uniform float uRayGain;
 uniform float uSurfOn;
+uniform float uCoreR; // phase 6: the live core radius (R_SCENE except during a hyper-fling)
 uniform vec3 uImpDir[8];
 uniform vec3 uImpMode[8];
 uniform vec3 uImpWave[8];
@@ -489,10 +490,10 @@ void main() {
   vec3 rd = normalize(vWorld - ro);
   float b = dot(ro, rd);
   // The silhouette: the bead's radius toward the ray's closest approach
-  // (exactly R_SCENE when the surface is still, i.e. the phase-2 sphere).
+  // (exactly uCoreR when the surface is still, i.e. the phase-2 sphere at its live size).
   vec3 pc = ro - rd * b;
   float pl = length(pc);
-  float rl = R_SCENE * (1.0 + shapeH(pl > 1e-6 ? pc / pl : -rd));
+  float rl = uCoreR * (1.0 + shapeH(pl > 1e-6 ? pc / pl : -rd));
   float disc = b * b - (dot(ro, ro) - rl * rl);
   float fw = max(fwidth(disc), 1e-6);
   float coverage = clamp(disc / fw + 0.5, 0.0, 1.0);
@@ -505,7 +506,7 @@ void main() {
   // (radial fixed point; the shape is low-order and ≤ SHAPE_MAX). Uniform branch.
   if (uSurfOn > 0.5) {
     for (int k = 0; k < SHAPE_ITERS; k++) {
-      float rk = R_SCENE * (1.0 + shapeH(normalize(hit)));
+      float rk = uCoreR * (1.0 + shapeH(normalize(hit)));
       t = -b - sqrt(max(b * b - (dot(ro, ro) - rk * rk), 0.0));
       hit = ro + rd * t;
     }
