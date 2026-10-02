@@ -203,8 +203,8 @@ function stepDrop(drop, { body, surf, camera, ds, calm, stepS, t, bufferW, buffe
     if (fam.phase === 'fired') {
       const sv = drop.solver;
       if (sv && !sv.done) {
-        // phase 5: due at the first neck snap; phase 6 (no necks): due when the birth grace ends (spec §3.6)
-        const due = fam.hyper ? fam.tGrace - fam.t : nextSnapIn(fam);
+        // phase 5: due at the first neck snap; phase 6: due when the hang ends (η is unused before it, V4 §10.3)
+        const due = fam.hyper ? fam.tHang - fam.t : nextSnapIn(fam);
         stepMuSolver(sv, solverBudget(sv, Math.max(1, Math.floor(due / dropDt))));
         // never let a drop fly on a provisional pull: this frame can advance the family by up to dropDt plus one
         // leftover DROP_DT substep (stepFamily's accumulator), so finish whenever the deadline is inside that

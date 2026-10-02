@@ -92,7 +92,7 @@ export function beginParticles(template, pxPerUnit, { eta, gamma, tMax, only = n
   const e2 = cross3(L, e1);
   const tr = {
     kind: 'particles', x: eta, eta, gamma, tMax, n: 0, ext: false, t: 0, w: trialWeight(template),
-    mu: template.mu, L: [L[0], L[1], L[2]], rC0: template.rC0, tGrace: template.tGrace, pxPerUnit, tcScale: template.tcScale ?? 1,
+    mu: template.mu, L: [L[0], L[1], L[2]], rC0: template.rC0, tGrace: template.tGrace, tHang: template.tHang ?? 0, pxPerUnit, tcScale: template.tcScale ?? 1,
     count: n, left: n, tEnd: 0, rMax: 0, track, e1, e2,
     p: new Float64Array(3 * n), v: new Float64Array(3 * n), r: new Float64Array(n), out: new Float64Array(n).fill(-1),
     ang: new Float64Array(n), turns: new Float64Array(n),
@@ -115,10 +115,11 @@ export function runParticles(tr, budget) {
   const P = tr.p, V = tr.v, h = DROP_DT;
   while (n + tr.w <= budget && particlesRunning(tr)) {
     tr.t += h;
+    const eta = tr.t < tr.tHang ? 0 : tr.eta; // V4 §10.3: the same orbit-then-gather schedule as the live flight
     for (let i = 0; i < tr.count; i++) {
       if (tr.out[i] >= 0) continue;
       const j = 3 * i;
-      hyperAccel(tr.mu, tr.eta, tr.gamma, tr.L, P[j], P[j + 1], P[j + 2], V[j], V[j + 1], V[j + 2], tr.rC0, h, _pa);
+      hyperAccel(tr.mu, eta, tr.gamma, tr.L, P[j], P[j + 1], P[j + 2], V[j], V[j + 1], V[j + 2], tr.rC0, h, _pa);
       V[j] += _pa[0] * h; V[j + 1] += _pa[1] * h; V[j + 2] += _pa[2] * h;
       P[j] += V[j] * h; P[j + 1] += V[j + 1] * h; P[j + 2] += V[j + 2] * h;
       const r = Math.hypot(P[j], P[j + 1], P[j + 2]);

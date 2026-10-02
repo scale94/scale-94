@@ -137,3 +137,30 @@ describe('a live swarm with Phase 5 cohesion (regression: the grace-time implosi
     }
   });
 });
+
+describe('orbit, then gather (V4 §10.3)', () => {
+  it('before tHang the headwind is off: a circular orbit holds; after it the bead spirals in', () => {
+    const f = hyperFam({ eta: 0.3, tHang: 2 });
+    const r0 = 0.9;
+    const b = freeBody(f, [r0, 0, 0], [0, Math.sqrt(1 / r0), 0], 0.05);
+    runFor(f, 1.9, coreEnv(f));
+    expect(Math.hypot(...b.p)).toBeGreaterThan(r0 * 0.99);
+    runFor(f, 1.5, coreEnv(f));
+    expect(Math.hypot(...b.p)).toBeLessThan(r0 * 0.95);
+  });
+
+  it('before tHang cohesion is off; after it, it pulls', () => {
+    const mk = () => {
+      const f = hyperFam({ mu: 0, gammaH: 0, tHang: 0.5, vRefH: 1e-3 });
+      const a = freeBody(f, [0.9, 0, 0], [0, 0, 0], 0.02);
+      const o = freeBody(f, [0.9, 0.3, 0], [0, 0, 0], 0.02);
+      return { f, a, o };
+    };
+    const env = (f) => testEnv({ kappa: 0.1, planetRadiusAt: () => f.rC0 });
+    const s = mk();
+    runFor(s.f, 0.45, env(s.f));
+    expect(Math.hypot(...s.a.v)).toBe(0);
+    runFor(s.f, 0.2, env(s.f));
+    expect(s.a.v[1]).toBeGreaterThan(0); // pulled toward o
+  });
+});

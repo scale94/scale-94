@@ -77,5 +77,5 @@ export const PLANET_TUNE = {
   dropDrag: 8,       // aether drag γ on flying drops, 1/s (sets how far a fling travels)
   dropCohesion: 0.1,  // bead–bead pull (units³/s² per DROP_V_REF of volume): how readily drops find each other
   dropDrift: 14,     // wished return time, s (capped by refreeze − MERGE_MARGIN_S; the pull is solved to meet it)
-  hyperOrbit: 3.5,   // phase 6: orbital period at the old surface, s: sets the pull, so the turns of the spiral home
+  hyperOrbit: 3,     // phase 6: orbital period at the old surface, s: sets the pull, so the turns of the disc (V4: 3 passes the gate)
 };

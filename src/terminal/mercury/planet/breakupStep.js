@@ -142,6 +142,10 @@ function flight(fam, h, env) {
   const B = fam.bodies;
   // cohesion's reference volume: a hyper family's beads are core fragments, so its own mean bead (fireHyper)
   const vRef = fam.hyper ? fam.vRefH : env.vRef;
+  // V4 §10.3: a hyper family orbits as a disc until tHang (no headwind, no cohesion), then gathers
+  const hang = fam.hyper && fam.t < fam.tHang;
+  const eta = hang ? 0 : fam.eta;
+  const kappa = hang ? 0 : env.kappa;
   for (let i = 0; i < B.length; i++) {
     const b = B[i];
     if (!flies(b)) continue;
@@ -150,14 +154,14 @@ function flight(fam, h, env) {
     const r3 = r2 * Math.sqrt(r2);
     let ax, ay, az;
     if (fam.hyper) {
-      hyperAccel(fam.mu, fam.eta, fam.gammaH, fam.axisL, x[0], x[1], x[2], b.v[0], b.v[1], b.v[2], fam.rC0, h, _acc);
+      hyperAccel(fam.mu, eta, fam.gammaH, fam.axisL, x[0], x[1], x[2], b.v[0], b.v[1], b.v[2], fam.rC0, h, _acc);
       ax = _acc[0]; ay = _acc[1]; az = _acc[2];
     } else {
       ax = (-fam.mu * x[0]) / r3 - env.gamma * b.v[0];
       ay = (-fam.mu * x[1]) / r3 - env.gamma * b.v[1];
       az = (-fam.mu * x[2]) / r3 - env.gamma * b.v[2];
     }
-    if (env.kappa > 0) {
+    if (kappa > 0) {
       for (let j = 0; j < B.length; j++) {
         const o = B[j];
         if (j === i || !flies(o)) continue;
@@ -166,7 +170,7 @@ function flight(fam, h, env) {
         const dx = y[0] - x[0], dy = y[1] - x[1], dz = y[2] - x[2];
         const soft = COHESION_SOFT * (b.r + o.r);
         const q = dx * dx + dy * dy + dz * dz + soft * soft;
-        const f = (env.kappa * (vo / vRef)) / (q * Math.sqrt(q));
+        const f = (kappa * (vo / vRef)) / (q * Math.sqrt(q));
         ax += f * dx; ay += f * dy; az += f * dz;
       }
     }

@@ -52,13 +52,12 @@ describe('test particles replay the live hyper flight', () => {
 describe('the headwind solver (log-η bisection)', () => {
   it('lands the swarm by the target with the smallest η that does', () => {
     const f = firedHyper();
-    f.gammaH = 10;
     const s = finishMuSolver(createMuSolver(f, hyperEnv0(), 12));
     expect(s.kind).toBe('eta');
     expect(s.landed).toBe(true);
     expect(s.best).toBeGreaterThanOrEqual(ETA_LO);
     expect(s.best).toBeLessThanOrEqual(ETA_HI);
-    const T = (eta) => { const tr = beginParticles(f, 300, { eta, gamma: 10, tMax: 12 }); runParticles(tr, Infinity); return tr.left === 0 ? tr.tEnd : Infinity; };
+    const T = (eta) => { const tr = beginParticles(f, 300, { eta, gamma: f.gammaH, tMax: 12 }); runParticles(tr, Infinity); return tr.left === 0 ? tr.tEnd : Infinity; };
     expect(T(s.best)).toBeLessThanOrEqual(12);
     if (s.best / 1.05 > ETA_LO) expect(T(s.best / 1.05)).toBeGreaterThan(12);
   });
@@ -132,5 +131,28 @@ describe.skipIf(!process.env.HYPER_BENCH)('bench: PARTICLES_PER_UNIT', () => {
     runParticles(tr, 20000 * trialWeight(f));
     const usP = ((performance.now() - t0) * 1000) / ((tr.n / tr.w) * tr.count);
     console.log(`phase-5 substeps run ${n5}, bodies ${fam.bodies.filter((b) => b.state !== 'gone').length}; phase-5 substep ${us5.toFixed(2)} us; particle step ${usP.toFixed(3)} us; particles per unit ${(us5 / usP).toFixed(0)}`);
+  });
+});
+
+describe('test particles follow the orbit-then-gather schedule', () => {
+  it('a lone bead arrives at the same time live and in the trial with a hang', () => {
+    const mk = () => { const f = oneBead(0.3); f.tHang = 2; return f; };
+    const live = mk();
+    const tr = beginParticles(mk(), 300, { eta: 0.3, gamma: 10, tMax: 60 });
+    runParticles(tr, Infinity);
+    const env = testEnv({ kappa: 0, planetRadiusAt: () => live.rC0 });
+    let tArr = -1;
+    for (let i = 0; i < 60 / DROP_DT && tArr < 0; i++) {
+      stepFamily(live, DROP_DT, env);
+      if (live.bodies[0].state === 'cascade') tArr = live.t;
+    }
+    expect(tArr).toBeGreaterThan(2);
+    expect(Math.abs(tr.out[0] - cascadeDuration(0.05, 300) - tArr)).toBeLessThan(2 * DROP_DT);
+  });
+
+  it('a hang delays the arrival by about the hang', () => {
+    const T = (tHang) => { const f = oneBead(0.3); f.tHang = tHang; const tr = beginParticles(f, 300, { eta: 0.3, gamma: 10, tMax: 60 }); runParticles(tr, Infinity); return tr.tEnd; };
+    expect(T(3) - T(0)).toBeGreaterThan(2.5);
+    expect(T(3) - T(0)).toBeLessThan(3.5);
   });
 });
