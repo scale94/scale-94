@@ -29,6 +29,8 @@ export const HIT_PX = 0.25;       // a march hit is within this fraction of a pi
 // silhouette gets a thin dark band, sized in pixels like the planet's meniscus rim (mercuryMeniscus MENISCUS_MIN_PX).
 export const RIM_PX = 1.5;        // fully dark this far in from the silhouette, px
 export const RIM_FADE_PX = 1;     // then back to the plain mirror over this many px
+export const RIM_NECK_LO = 0.02;  // rim fades out where a neck/fillet pulls the surface this far (× bead radius) off the bead's own SDF
+export const RIM_NECK_HI = 0.12;  // ...and is gone by here
 export const RIM_FLOOR = 0.06;    // the band's gain on the (linear) mirror radiance
 
 // Distance in px from a sphere's silhouette for a point whose normal makes NoV with the view ray (rPx: its radius in px).
@@ -92,6 +94,8 @@ const float HIT_PX = ${glf(HIT_PX)};
 const float RIM_PX = ${glf(RIM_PX)};
 const float RIM_FADE_PX = ${glf(RIM_FADE_PX)};
 const float RIM_FLOOR = ${glf(RIM_FLOOR)};
+const float RIM_NECK_LO = ${glf(RIM_NECK_LO)};
+const float RIM_NECK_HI = ${glf(RIM_NECK_HI)};
 
 ${HG_FRESNEL_GLSL}
 
@@ -151,6 +155,8 @@ void neckEnds(int i, out vec3 a, out float ra, out vec3 b, out float rb) {
 }
 
 float gPlanetOnly;
+float gBeadR; // radius of the bead nearest the last map() point (the rim's px scale)
+float gBeadOnly; // 1 where the surface is a bead's own; 0 on a neck, root fillet or bridge (no rim there)
 
 float map(vec3 p) {
   int nb = int(uCounts.x);
@@ -158,9 +164,13 @@ float map(vec3 p) {
   int nk = int(uCounts.z);
   float d = 1e9;
   gPlanetOnly = 0.0;
+  gBeadR = 0.0;
+  float dBead = 1e9;
   for (int i = 0; i < NB; i++) {
     if (i >= nb) break;
-    d = min(d, sdEll(p, uBead[i], uBeadAxis[i]));
+    float db = sdEll(p, uBead[i], uBeadAxis[i]);
+    if (db < dBead) { dBead = db; gBeadR = uBead[i].w; }
+    d = min(d, db);
   }
   // Necks: surface tension rounds a neck into its beads (smooth union, k = the neck's own radius).
   for (int i = 0; i < NN; i++) {
@@ -201,6 +211,9 @@ float map(vec3 p) {
     float pair = smin(da, db, k);
     if (pair < d) { d = pair; gPlanetOnly = (ib < 0 && da - db > k) ? 1.0 : 0.0; }
   }
+  // The rim belongs to the bead silhouette: where a neck / fillet / bridge has pulled the surface off the nearest bead's
+  // own SDF (d < dBead), the rim fades out, so no dark arc is drawn on the planet-root fillet or along a thin neck.
+  gBeadOnly = 1.0 - smoothstep(RIM_NECK_LO * gBeadR, RIM_NECK_HI * gBeadR, dBead - d);
   return d;
 }
 
@@ -269,6 +282,8 @@ void main() {
   float tt = hit ? t : bestT;
   vec3 p = ro + rd * tt;
   map(p);
+  float rB = gBeadR;
+  float rimOn = gBeadOnly;
   if (gPlanetOnly > 0.5) discard; // bare planet: the planet pass draws it, with all its detail
 
   vec3 n = calcNormal(p, max(0.5 * tt * uPxAngle, 1e-5));
@@ -277,14 +292,7 @@ void main() {
   vec3 col = max(fresnelHg(NoV) * envRadiance(R, uRoughLiquid, p, n), 0.0);
   // The dark rim: px from the silhouette of the nearest bead (its radius in px from the march's own footprint,
   // tt · uPxAngle; no screen derivatives after the discards above). A near-miss AA pixel is on the edge: all rim.
-  float rB = 0.0;
-  float dB = 1e9;
-  for (int i = 0; i < NB; i++) {
-    if (i >= nb) break;
-    float db = sdEll(p, uBead[i], uBeadAxis[i]);
-    if (db < dB) { dB = db; rB = uBead[i].w; }
-  }
-  col *= rimShade(hit ? rimSilPx(rB / max(tt * uPxAngle, 1e-9), NoV) : 0.0);
+  col *= mix(1.0, rimShade(hit ? rimSilPx(rB / max(tt * uPxAngle, 1e-9), NoV) : 0.0), rimOn);
   // The planet's output stage (mercuryPlanetShader main), so the two passes meet without a seam in tone.
   vec3 srgb = mix(col * 12.92, 1.055 * pow(col, vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), col));
   float dith = (fract(sin(dot(gl_FragCoord.xy + fract(uTime) * 61.0, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;

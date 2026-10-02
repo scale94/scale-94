@@ -1,7 +1,7 @@
 // src/terminal/mercury/planet/__tests__/dropletShader.test.js
 import { describe, it, expect } from 'vitest';
 import {
-  buildDropletShader, DROPLET_UNIFORMS, DROPLET_VS, NECK_BLEND, RIM_PX, RIM_FADE_PX, RIM_FLOOR, rimSilPx, rimShade,
+  buildDropletShader, DROPLET_UNIFORMS, DROPLET_VS, NECK_BLEND, RIM_PX, RIM_FADE_PX, RIM_FLOOR, RIM_NECK_LO, RIM_NECK_HI, rimSilPx, rimShade,
 } from '../dropletShader';
 import { HG_MIRROR_DECLS_GLSL, HG_FRESNEL_GLSL, HG_ENV_GLSL } from '../hgMirrorGlsl';
 import { TIERS, TIER_NAMES } from '../planetQuality';
@@ -35,7 +35,9 @@ describe('dropletShader — the family as one SDF impostor', () => {
     const { fs } = buildDropletShader();
     expect(fs).toContain(`const float NECK_BLEND = ${glf(NECK_BLEND)};`);
     expect(fs).toContain('float k = h * NECK_BLEND;');
-    expect(fs).toContain('d = min(d, sdEll(p, uBead[i], uBeadAxis[i]));');
+    expect(fs).toContain('d = min(d, db);'); // separate bodies: hard min (db = sdEll of bead i)
+    expect(fs).toContain('gBeadR = uBead[i].w;'); // map records the nearest bead's radius for the rim
+    expect(fs).not.toMatch(/float dB = 1e9/); // ...so main() has no second sdEll loop
     // volume-preserving prolate ellipsoid: ra·rp² = r³
     expect(fs).toContain('float ra = b.w * (1.0 + ax.w);');
     expect(fs).toContain('float rp = b.w * inversesqrt(1.0 + ax.w);');
@@ -76,7 +78,7 @@ describe('dropletShader — the family as one SDF impostor', () => {
       expect(fs).toContain(`const float RIM_FADE_PX = ${glf(RIM_FADE_PX)};`);
       expect(fs).toContain(`const float RIM_FLOOR = ${glf(RIM_FLOOR)};`);
       expect(fs).toContain('float rimShade(float d)');
-      expect(fs).toMatch(/col \*= rimShade\(/);
+      expect(fs).toContain('col *= mix(1.0, rimShade(');
       expect(fs).toContain('uPxAngle');
       expect(fs).not.toMatch(/dFdx|dFdy|fwidth/); // discard above: derivatives would be undefined in divergent flow
     }
@@ -85,5 +87,14 @@ describe('dropletShader — the family as one SDF impostor', () => {
   it('declares every uniform it lists', () => {
     const { fs, vs } = buildDropletShader();
     for (const u of DROPLET_UNIFORMS) expect(fs + vs).toMatch(new RegExp(`uniform \\w+ ${u}[\\[;]`));
+  });
+
+  it('the rim is gated off on necks, root fillets and bridges (it belongs to the bead silhouette)', () => {
+    const { fs } = buildDropletShader();
+    expect(RIM_NECK_HI).toBeGreaterThan(RIM_NECK_LO);
+    expect(fs).toContain(`const float RIM_NECK_LO = ${glf(RIM_NECK_LO)};`);
+    expect(fs).toContain('gBeadOnly = 1.0 - smoothstep(RIM_NECK_LO * gBeadR, RIM_NECK_HI * gBeadR, dBead - d);');
+    expect(fs).toContain('col *= mix(1.0, rimShade(');
+    expect(fs).toContain('rimOn);');
   });
 });
