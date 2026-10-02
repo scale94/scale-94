@@ -6,7 +6,7 @@ import { TONGUE_MAX_R } from '../breakupPhysics';
 import { R_SCENE } from '../planetLook';
 import { testEnv, freeBody, runFor } from './breakupTestKit';
 import { firedHyper, hyperEnv0 } from './hyperTestKit';
-import { coreScale, hyperReach } from '../hyperFling';
+import { coreScale, hyperReach, HYPER_CONTAIN_S } from '../hyperFling';
 import { solveContainment, createMuSolver, finishMuSolver } from '../breakupBudget';
 
 const hyperFam = (over = {}) => {
@@ -117,7 +117,7 @@ describe('cascadeDuration', () => {
 });
 
 describe('a live swarm with Phase 5 cohesion (regression: the grace-time implosion)', () => {
-  it('over 20 seeds no bead leaves 1.5 · reach in the first 1 s, and every family comes home by 30 s', () => {
+  it('over 20 seeds no FREE bead leaves 1.02 · reach over HYPER_CONTAIN_S, and every family comes home by 30 s', () => {
     const reach = hyperReach(1.38);
     for (let seed = 1; seed <= 20; seed++) {
       const f = firedHyper({ N: 32, seed });
@@ -128,9 +128,10 @@ describe('a live swarm with Phase 5 cohesion (regression: the grace-time implosi
       let pMax = 0;
       while (f.phase === 'fired' && f.t < 30) {
         stepFamily(f, DROP_DT, env);
-        if (f.t <= 1) for (const b of f.bodies) if (b.state !== 'gone') pMax = Math.max(pMax, Math.hypot(...b.p));
+        // free flight only: merging pairs and cascade hops ride the regrowing core (HOP_K · r), not the containment
+        if (f.t <= HYPER_CONTAIN_S) for (const b of f.bodies) if (b.state === 'free') pMax = Math.max(pMax, Math.hypot(...b.p));
       }
-      expect(pMax, `seed ${seed}`).toBeLessThan(1.5 * reach);
+      expect(pMax, `seed ${seed}`).toBeLessThanOrEqual(1.02 * reach);
       expect(f.phase, `seed ${seed}`).not.toBe('fired');
     }
   });
