@@ -84,6 +84,19 @@ function fireDrop(drop, omega, heatK) {
   drop.warned = false;
 }
 
+// Dev rig (holdAt / breakNow have no drag point): stand in for a real swipe at its release. A swipe carries the
+// grabbed point with the surface, so by release it sits at the disc's leading limb (spin × toward-camera); the
+// rig aims there so its captures launch like real use. Writes drop.spinBody (the rig spins about world +Y from rest).
+function rigTongueAxis(drop, env, camW) {
+  const w = env.omega;
+  if (Math.hypot(w[0], w[1], w[2]) > 1e-6) qRotateInv(env.q, w, drop.spinBody);
+  else { drop.rigW[0] = 0; drop.rigW[1] = 1; drop.rigW[2] = 0; qRotateInv(env.q, drop.rigW, drop.spinBody); }
+  qRotateInv(env.q, camW, drop.camBody);
+  const s = drop.spinBody, c = drop.camBody, d = drop.rigDrag;
+  d[0] = s[1] * c[2] - s[2] * c[1]; d[1] = s[2] * c[0] - s[0] * c[2]; d[2] = s[0] * c[1] - s[1] * c[0];
+  tongueAxis(s, d, drop.fam.axisBody);
+}
+
 // Phase 5, once per frame (spec 2026-10-02): hold the tongues, fire on release, step the family, pack the
 // field. Its own function so the frame loop's hot path stays small and a heap profile names it. Allocates
 // nothing on the idle and hold paths; fire time and snap / merge events may.
@@ -118,8 +131,7 @@ function stepDrop(drop, { body, surf, camera, ds, calm, stepS, t, bufferW, buffe
         body.sinceReleaseS = 0; // a fresh release: inertia first, recapture ramps in (mercuryBody)
         omega = w;
         if (fam.phase === 'idle') {
-          qRotateInv(env.q, env.omega, drop.spinBody);
-          tongueAxis(drop.spinBody, null, fam.axisBody);
+          rigTongueAxis(drop, env, surf.cam);
           fam.L = breakExcess(w, env.omegaTh) * PLANET_TUNE.breakGain * TONGUE_MAX_R;
         }
         fam.phase = 'hold';
@@ -135,8 +147,11 @@ function stepDrop(drop, { body, surf, camera, ds, calm, stepS, t, bufferW, buffe
       } else if (canHold(st)) {
         if (fam.phase === 'idle') {
           fam.phase = 'hold';
-          qRotateInv(env.q, env.omega, drop.spinBody);
-          tongueAxis(drop.spinBody, surf.hasDragDir ? surf.dragDirBody : null, fam.axisBody);
+          if (!surf.hasDragDir && DEV_OVERRIDES.holdOmega != null) rigTongueAxis(drop, env, surf.cam);
+          else {
+            qRotateInv(env.q, env.omega, drop.spinBody);
+            tongueAxis(drop.spinBody, surf.hasDragDir ? surf.dragDirBody : null, fam.axisBody);
+          }
         }
         holdTongue(fam, dropDt, breakExcess(omega, env.omegaTh), PLANET_TUNE.breakGain);
       } else if (fam.phase === 'hold') {
@@ -306,6 +321,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
   const drop = useMemo(() => {
     const d = {
       fam: createFamily(1), solver: null, warned: false, frame: createDropFrame(TIERS[tier].drop), spinBody: [0, 0, 0],
+      camBody: [0, 0, 0], rigW: [0, 0, 0], rigDrag: [0, 0, 0], // the dev rig's stand-in drag point (rigTongueAxis)
       env: { q: [0, 0, 0, 1], omega: [0, 0, 0], gamma: 0, kappa: 0, vRef: DROP_V_REF, pxPerUnit: 1, omegaTh: 7.5, planetRadiusAt: null },
       view: { vp: new Float32Array(16), p00: 1, p11: 1, wPx: 1, hPx: 1 }, m: new THREE.Matrix4(),
       // canHold / canFire read their fields from this one object, written in place (no per-frame spread).
