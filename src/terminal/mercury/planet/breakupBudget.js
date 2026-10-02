@@ -118,7 +118,7 @@ export function runParticles(tr, budget) {
     for (let i = 0; i < tr.count; i++) {
       if (tr.out[i] >= 0) continue;
       const j = 3 * i;
-      hyperAccel(tr.mu, tr.eta, tr.gamma, tr.L, P[j], P[j + 1], P[j + 2], V[j], V[j + 1], V[j + 2], h, _pa);
+      hyperAccel(tr.mu, tr.eta, tr.gamma, tr.L, P[j], P[j + 1], P[j + 2], V[j], V[j + 1], V[j + 2], tr.rC0, h, _pa);
       V[j] += _pa[0] * h; V[j + 1] += _pa[1] * h; V[j + 2] += _pa[2] * h;
       P[j] += V[j] * h; P[j + 1] += V[j + 1] * h; P[j + 2] += V[j + 2] * h;
       const r = Math.hypot(P[j], P[j + 1], P[j + 2]);

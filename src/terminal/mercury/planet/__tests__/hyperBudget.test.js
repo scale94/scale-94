@@ -90,7 +90,7 @@ describe('stability at the drag bracket top', () => {
     const p = [0.9, 0, 0], v = [0, 0, 0], a = [0, 0, 0];
     let rMax = 0;
     for (let i = 0; i < 3 / DROP_DT; i++) {
-      hyperAccel(1, 0, HYPER_GAMMA_MAX, [0, 0, 1], p[0], p[1], p[2], v[0], v[1], v[2], DROP_DT, a);
+      hyperAccel(1, 0, HYPER_GAMMA_MAX, [0, 0, 1], p[0], p[1], p[2], v[0], v[1], v[2], 0, DROP_DT, a);
       for (let c = 0; c < 3; c++) { v[c] += a[c] * DROP_DT; p[c] += v[c] * DROP_DT; }
       rMax = Math.max(rMax, Math.hypot(...p));
     }

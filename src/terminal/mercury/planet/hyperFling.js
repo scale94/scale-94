@@ -154,6 +154,7 @@ export function fireHyper(fam, { N, eH, seed, omega, pxPerUnit, vR0, orbitS, gam
   fam.axisL = ll > 1e-12 ? [Lm[0] / ll, Lm[1] / ll, Lm[2] / ll] : [z[0], z[1], z[2]];
   fam.volFamily = V;
   fam.volOut = V;
+  fam.vRefH = V / N; // cohesion's reference volume for this family: its mean bead (breakupStep.flight)
   let rMax = 0;
   for (const b of fam.bodies) if (b.r > rMax) rMax = b.r;
   fam.tcScale = Math.min(1, HYPER_CASCADE_S / cascadeDuration(rMax, pxPerUnit));

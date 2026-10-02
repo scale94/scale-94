@@ -34,12 +34,14 @@ const flies = (b) => b.state === 'free' || (b.state === 'merging' && b.lead);
 const _acc = [0, 0, 0];
 
 // The hyper acceleration (phase-6 spec §3.5, V1): gravity plus drag toward an aether vortex about L̂ that turns a
-// little slower than orbital speed, u = (1 − η) √(μ/r) (L̂ × x)/r. Scalars in, `out` written: the live flight
-// and the solver's test particles share it, so their paths agree.
-export function hyperAccel(mu, eta, gamma, L, x, y, z, vx, vy, vz, h, out) {
+// little slower than orbital speed, u = (1 − η) √(μ/r) (L̂ × x)/r. Inside the core radius rC gravity is linear,
+// as for a uniform ball (−μ x / rC³): a bead passing the centre gets no 1/r² kick. Scalars in, `out` written: the
+// live flight and the solver's test particles share it, so their paths agree.
+export function hyperAccel(mu, eta, gamma, L, x, y, z, vx, vy, vz, rC, h, out) {
   const r2 = x * x + y * y + z * z;
-  const r = Math.sqrt(r2);
-  const r3 = r2 * r;
+  const r = Math.max(Math.sqrt(r2), 1e-6);
+  const rg = Math.max(r, rC);
+  const r3 = rg * rg * rg;
   const k = ((1 - eta) * Math.sqrt(mu / r)) / r;
   const ux = k * (L[1] * z - L[2] * y), uy = k * (L[2] * x - L[0] * z), uz = k * (L[0] * y - L[1] * x);
   const gx = (-mu * x) / r3, gy = (-mu * y) / r3, gz = (-mu * z) / r3;
@@ -138,6 +140,8 @@ function snapNecks(fam, env) {
 
 function flight(fam, h, env) {
   const B = fam.bodies;
+  // cohesion's reference volume: a hyper family's beads are core fragments, so its own mean bead (fireHyper)
+  const vRef = fam.hyper ? fam.vRefH : env.vRef;
   for (let i = 0; i < B.length; i++) {
     const b = B[i];
     if (!flies(b)) continue;
@@ -146,7 +150,7 @@ function flight(fam, h, env) {
     const r3 = r2 * Math.sqrt(r2);
     let ax, ay, az;
     if (fam.hyper) {
-      hyperAccel(fam.mu, fam.eta, fam.gammaH, fam.axisL, x[0], x[1], x[2], b.v[0], b.v[1], b.v[2], h, _acc);
+      hyperAccel(fam.mu, fam.eta, fam.gammaH, fam.axisL, x[0], x[1], x[2], b.v[0], b.v[1], b.v[2], fam.rC0, h, _acc);
       ax = _acc[0]; ay = _acc[1]; az = _acc[2];
     } else {
       ax = (-fam.mu * x[0]) / r3 - env.gamma * b.v[0];
@@ -162,7 +166,7 @@ function flight(fam, h, env) {
         const dx = y[0] - x[0], dy = y[1] - x[1], dz = y[2] - x[2];
         const soft = COHESION_SOFT * (b.r + o.r);
         const q = dx * dx + dy * dy + dz * dz + soft * soft;
-        const f = (env.kappa * (vo / env.vRef)) / (q * Math.sqrt(q));
+        const f = (env.kappa * (vo / vRef)) / (q * Math.sqrt(q));
         ax += f * dx; ay += f * dy; az += f * dz;
       }
     }
