@@ -96,12 +96,26 @@ export function tongueAxis(spinBody, dragBody, out = [0, 0, 0]) {
 
 // Mains per tongue (the single source of the N formula; allocation-free for the per-frame hold packing).
 export const chainCount = (L) => Math.min(MAX_MAIN_PER_TONGUE, Math.max(1, Math.round(L / rpWavelength(TONGUE_ROOT_R))));
+// The span a chain is laid on: never shorter than one wavelength (hold and fire share it, so nothing jumps).
+export const chainSpan = (L) => Math.max(L, rpWavelength(TONGUE_ROOT_R));
+// The main bead a pinched span of thread rolls up into (volume of a r0 cylinder of length s).
+export const mainRadius = (s) => Math.cbrt(0.75 * TONGUE_ROOT_R * TONGUE_ROOT_R * s);
+const perTongue = (n, sat) => n + (sat ? n - 1 : 0) + 1; // mains + satellites + the root stub
+
+// The tier caps (maxBodies, satellites) applied to a chain: satellites go first, then mains, until both
+// tongues fit. Allocation-free: fireFamily and the per-frame hold packing (breakupFrame) both use these.
+export const chainSatellites = (L, maxBodies, satellites) => !!satellites && 2 * perTongue(chainCount(L), true) <= maxBodies;
+export function cappedChainN(L, maxBodies, satellites) {
+  const sat = chainSatellites(L, maxBodies, satellites);
+  let N = chainCount(L);
+  while (2 * perTongue(N, sat) > maxBodies && N > 1) N -= 1;
+  return N;
+}
 
 export function chainLayout(L) {
-  const lambda = rpWavelength(TONGUE_ROOT_R);
   const N = chainCount(L);
-  const s = Math.max(L, lambda) / N;
-  const rMain = Math.cbrt(0.75 * TONGUE_ROOT_R * TONGUE_ROOT_R * s);
+  const s = chainSpan(L) / N;
+  const rMain = mainRadius(s);
   return { N, s, rMain, rSat: SAT_RATIO * rMain };
 }
 
@@ -115,14 +129,11 @@ export function holdTongue(fam, dt, e, gain) {
 }
 
 export function fireFamily(fam, { maxBodies = 12, satellites = true } = {}) {
-  const L = Math.max(fam.L, rpWavelength(TONGUE_ROOT_R));
-  let N = chainLayout(L).N;
-  const perTongue = (n, sat) => n + (sat ? n - 1 : 0) + 1; // mains + satellites + the root stub
-  let sat = satellites;
-  if (2 * perTongue(N, sat) > maxBodies) sat = false;
-  while (2 * perTongue(N, sat) > maxBodies && N > 1) N -= 1;
+  const L = chainSpan(fam.L);
+  const sat = chainSatellites(L, maxBodies, satellites);
+  const N = cappedChainN(L, maxBodies, satellites);
   const s = L / N;
-  const rMain = Math.cbrt(0.75 * TONGUE_ROOT_R * TONGUE_ROOT_R * s);
+  const rMain = mainRadius(s);
   const rSat = SAT_RATIO * rMain;
   const vMain = sphereVol(rMain), vSat = sphereVol(rSat);
 

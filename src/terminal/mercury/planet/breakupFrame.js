@@ -2,8 +2,8 @@
 // (phase-5 spec §7.1–7.2). Allocation-free after createDropFrame.
 
 import { R_SCENE } from './planetLook';
-import { TONGUE_ROOT_R, pinchRadius, wobbleOmega, rpWavelength } from './breakupPhysics';
-import { chainCount, qRotate } from './breakupFamily';
+import { TONGUE_ROOT_R, pinchRadius, wobbleOmega } from './breakupPhysics';
+import { cappedChainN, chainSpan, qRotate } from './breakupFamily';
 
 export const NECK_ASYM = 0.2;        // waist shifted toward the inner body: steep cone at the outer bead, shallow inward (spec §5.2)
 export const FLIGHT_STRETCH = 0.12;  // prolate stretch of a main bead at A_REF
@@ -52,9 +52,9 @@ function pushBridge(f, ia, ib, k, R) {
 }
 
 function packHold(fam, env, f) {
-  // the same span fireFamily lays the chain on (max(L, lambda)), so hold -> fire does not jump the beads
-  const N = chainCount(fam.L);
-  const Ls = Math.max(fam.L, rpWavelength(TONGUE_ROOT_R));
+  // the same span and tier-capped bead count fireFamily lays the chain on, so hold -> fire does not jump the beads
+  const Ls = chainSpan(fam.L);
+  const N = cappedChainN(Ls, f.caps.bodies, f.caps.satellites);
   const sp = Ls / N;
   const ax = fam.axisBody;
   for (let si = 0; si < 2; si++) {

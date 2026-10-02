@@ -2,9 +2,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import * as THREE from 'three';
 import { createDropFrame, packFamily, pxPerUnitAt } from '../breakupFrame';
-import { createFamily, addBody, chainLayout, fireFamily } from '../breakupFamily';
+import { createFamily, addBody, chainLayout, fireFamily, qRotate } from '../breakupFamily';
 import { TONGUE_ROOT_R, TONGUE_MAX_R, sphereVol, rpWavelength } from '../breakupPhysics';
 import { R_SCENE } from '../planetLook';
+import { TIERS } from '../planetQuality';
 import { testEnv, firedFamily } from './breakupTestKit';
 
 vi.mock('../breakupFamily', async (orig) => {
@@ -103,6 +104,32 @@ describe('breakupFrame — a family to the droplet shader', () => {
     const mains = fam.bodies.filter((b) => b.state === 'attached').map((b) => b.posBody);
     expect(mains.length).toBe(held.length);
     mains.forEach((p, i) => { for (let k = 0; k < 3; k++) expect(held[i][k]).toBeCloseTo(p[k], 5); });
+  });
+
+  it('hold chain respects every tier cap and sits where fire puts it (e = 0.75, 1)', () => {
+    for (const tier of Object.keys(TIERS)) {
+      const tcaps = TIERS[tier].drop;
+      for (const e of [0.75, 1]) {
+        const fam = createFamily(1);
+        fam.phase = 'hold'; fam.L = e * TONGUE_MAX_R; fam.axisBody = [1, 0, 0];
+        const env = testEnv({ q: [0, Math.sin(0.3), 0, Math.cos(0.3)] });
+        const f = createDropFrame(tcaps);
+        packFamily(fam, env, f, viewOf());
+        const label = `${tier} e=${e}`;
+        expect(f.nn, label).toBeLessThanOrEqual(tcaps.necks);
+        expect(f.nb, label).toBeLessThanOrEqual(tcaps.bodies);
+        const roots = [...Array(f.nn).keys()].filter((i) => f.neck[4 * i + 1] === -1);
+        expect(roots.length, label).toBe(2);
+        for (let i = 0; i < f.nn; i++) {
+          expect(f.neck[4 * i], label).toBeLessThan(f.nb);
+          expect(f.neck[4 * i + 1], label).toBeLessThan(f.nb);
+        }
+        fireFamily(fam, { maxBodies: tcaps.bodies, satellites: tcaps.satellites });
+        const mains = fam.bodies.map((b) => qRotate(env.q, b.posBody));
+        expect(mains.length, label).toBe(f.nb);
+        mains.forEach((p, i) => { for (let k = 0; k < 3; k++) expect(f.bead[4 * i + k], label).toBeCloseTo(p[k], 5); });
+      }
+    }
   });
 
   it('packFamily allocates nothing per call on the hold and fired paths', () => {

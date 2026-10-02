@@ -11,7 +11,7 @@ import { SHADOW_STEPS } from './planetLook';
 import { IMPULSE_SLOTS, SHAPE_ITERS } from './mercuryWaves';
 
 export const TIERS = Object.freeze({
-  full: Object.freeze({ dprMax: 2, rippleSlots: IMPULSE_SLOTS, shadowSteps: SHADOW_STEPS, roil: 'pops', exoSteps: 16, shapeIters: SHAPE_ITERS, drop: Object.freeze({ bodies: 12, necks: 10, bridges: 12, steps: 48, satellites: true }) }),
+  full: Object.freeze({ dprMax: 2, rippleSlots: IMPULSE_SLOTS, shadowSteps: SHADOW_STEPS, roil: 'pops', exoSteps: 16, shapeIters: SHAPE_ITERS, drop: Object.freeze({ bodies: 16, necks: 10, bridges: 12, steps: 48, satellites: true }) }),
   // Measured 2026-10-01 OnePlus 9 Pro (Adreno 660), canvas 492x450 DPR 1.5: drag p50 55-67 / p95 115-130 ms.
   // Root cause was not this tier: 4 hidden transmission-glass meshes drew the scene 9x per frame
   // (removed 56a241a9; author 2026-10-02: "locked at 60 fps"). The interim cut (shapeIters 1,

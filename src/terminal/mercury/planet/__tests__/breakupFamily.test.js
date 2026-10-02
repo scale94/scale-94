@@ -3,7 +3,9 @@ import { describe, it, expect } from 'vitest';
 import {
   refreezeIn, qRotate, qRotateInv, breakExcess, canHold, canFire, createFamily, tongueAxis, chainLayout,
   holdTongue, fireFamily, nextSnapIn, TONGUE_LAG_S, SNAP_JITTER, MIN_RETURN_S, MERGE_MARGIN_S, MAX_MAIN_PER_TONGUE,
+  cappedChainN, chainSpan,
 } from '../breakupFamily';
+import { TIERS } from '../planetQuality';
 import { TONGUE_ROOT_R, TONGUE_MAX_R, rpWavelength, sphereVol } from '../breakupPhysics';
 import { MAX_OMEGA } from '../mercuryBody';
 
@@ -105,6 +107,26 @@ describe('breakupFamily — when the bead breaks, and into what', () => {
     const lite = fired({ maxBodies: 6, satellites: false });
     expect(lite.N).toBe(2);
     expect(2 * (lite.N + 1)).toBeLessThanOrEqual(6);
+  });
+
+  it('cappedChainN is the N fireFamily lays down, for every tier and excess', () => {
+    for (const tier of Object.keys(TIERS)) {
+      const { bodies, satellites } = TIERS[tier].drop;
+      for (const e of [0, 0.25, 0.5, 0.75, 1]) {
+        const f = fired({ maxBodies: bodies, satellites }, e * TONGUE_MAX_R);
+        expect(cappedChainN(chainSpan(e * TONGUE_MAX_R), bodies, satellites)).toBe(f.N);
+      }
+    }
+  });
+
+  it('full tier (16 bodies, author 2026-10-02): a max fling keeps its satellites', () => {
+    const { bodies, satellites } = TIERS.full.drop;
+    const f = fired({ maxBodies: bodies, satellites }, TONGUE_MAX_R);
+    expect(f.N).toBe(MAX_MAIN_PER_TONGUE);
+    expect(f.sat).toBe(true);
+    expect(f.necks.filter((n) => n.sat > 0).length).toBe(2 * (f.N - 1));
+    // every body it will ever hold (mains + satellites + root stubs) fits the tier's arrays
+    expect(2 * f.N + 2 * (f.N - 1) + 2).toBeLessThanOrEqual(bodies);
   });
 
   it('snaps: tip first, root last, spaced ≈ t_c with bounded jitter', () => {

@@ -177,10 +177,12 @@ Droplets share the planet's render slot and depth convention. The aether sorts a
 
 | Tier | Bodies | Necks | Steps | Satellites |
 |---|---|---|---|---|
-| `full` | 12 | 10 | 48 | yes |
+| `full` | 16 | 10 | 48 | yes |
 | `phone` | 8 | 6 | 32 | yes (starting point; set from the author's HUD) |
 | `lite` | 6 | 4 | 24 | no (volume folded into the main beads) |
 | `CALM` | breakup disabled | | | |
+
+**Author decision 2026-10-02:** `full` bodies raised 12 → 16. At 12 a maximal fling (2 × (4 mains + 3 satellites + 1 root stub) = 16) always dropped its satellites, so the tier never showed them. Necks (peak 8) and bridges (peak 6) fit their caps unchanged.
 
 ### 7.8 Budget
 
