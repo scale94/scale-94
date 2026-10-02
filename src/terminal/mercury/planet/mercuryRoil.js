@@ -4,7 +4,7 @@
 // CONVENTIONS, stated so no reader assumes more:
 // - Pops live in the BODY frame on a 3D cell lattice over x·POP_FREQ (0.2 rad
 //   spacing). Each cell has a hashed site (jitter ±POP_JITTER), a hashed period in
-//   [POP_P_MIN, POP_P_MAX] and phase; it is active iff its hash < popDensity(T − T_boil),
+//   [POP_P_MIN, POP_P_MAX] ÷ popRate(zoom) and phase; it is active iff its hash < popDensity(T − T_boil),
 //   so the boil front fades in as sparse pops and thickens toward noon.
 // - A pop is the splash's dispersive train (mercuryWaves.rippleSlope), MINIATURISED:
 //   arc × POP_SCALE, time × POP_TIME, so its front reaches POP_REACH_RAD exactly at
@@ -77,6 +77,18 @@ export function subsolarPxArc(camera, heightPx) {
 }
 export const POP_P_MIN = 1.5;            // s between one cell's pops…
 export const POP_P_MAX = 4;              // …hashed per cell in this range
+// POP RATE FROM THE SCREEN (Task 7): a zoomed cell covers zoom² the area, so pops per area fall by
+// zoom² on a coarse screen (≈ 11× on a phone). Each cell's period is divided by popRate(zoom) =
+// min(zoom^POP_RATE_ZOOM_EXP, POP_RATE_MAX) to win some of that back; zoom 1 (DPR-2 desktop) is untouched.
+// Only the period scales, never POP_LIFE_S (R2 is about the life). POP_RATE_MAX keeps the shortest
+// period ≥ the life at every zoom, and dividing the whole hashed range keeps its spread (no lock-step).
+// 0.5 (tuned 2026-10-02, phone sheets k = 0/0.5/1/2): ×1.83 on the phone, ×1.35 at DPR-1 desktop. On the phone
+// the boil cap holds only a few cells, so k ≥ 1 (capped at ×2.5) makes the same sites pulse every ~0.6–1.5 s, a metronome.
+export const POP_RATE_ZOOM_EXP = 0.5;
+export const POP_RATE_MAX = POP_P_MIN / POP_LIFE_S;
+export const popRate = (zoom) => Math.min(zoom ** POP_RATE_ZOOM_EXP, POP_RATE_MAX);
+// A cell's period from its hash in [0, 1).
+export const popPeriod = (h, zoom = 1) => (POP_P_MIN + (POP_P_MAX - POP_P_MIN) * h) / popRate(zoom);
 export const POP_DENSITY_K = 60;         // superheat (K) for 1 − 1/e of cells active
 export const POP_AMP = 0.12;             // slope gain of one pop (× PLANET_TUNE.roilGain)
 export const POP_SALTS = Object.freeze({
@@ -137,7 +149,7 @@ export function roilTilt(x, tS, superheatK, pxArc, zoom = 1) {
   for (let i = 0; i < 8; i++) {
     c[0] = base[0] + (i & 1); c[1] = base[1] + ((i >> 1) & 1); c[2] = base[2] + ((i >> 2) & 1);
     if (salted(c, POP_SALTS.active) >= dens) continue;
-    const period = POP_P_MIN + (POP_P_MAX - POP_P_MIN) * salted(c, POP_SALTS.period);
+    const period = popPeriod(salted(c, POP_SALTS.period), zoom);
     const t = tS + salted(c, POP_SALTS.phase) * period;
     const age = t - period * Math.floor(t / period);
     if (age >= POP_LIFE_S) continue;

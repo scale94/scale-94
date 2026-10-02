@@ -4,6 +4,7 @@ import { mercuryEphemeris } from '../planet/mercuryEphemeris';
 import { bodyYawFor } from '../planet/planetFrame';
 import { subsolarTempK } from '../planet/mercuryThermal';
 import { tailBrightness } from '../planet/mercuryExosphere';
+import planetSrc from '../MercuryPlanet.jsx?raw';
 
 describe('planetEphemerisUniforms', () => {
   const t = Date.UTC(2026, 9, 1);
@@ -30,5 +31,12 @@ describe('planetEphemerisUniforms', () => {
     const u = planetEphemerisUniforms(tt);
     expect(u.tailB).toBe(tailBrightness(tt));
     expect(u.vrKmS).toBe(mercuryEphemeris(tt).rdotKmS);
+  });
+});
+
+describe('MercuryPlanet impulse wiring', () => {
+  it('uImpWave carries (age, amplitude, dimple weight) per slot, preallocated, set from the frame', () => {
+    expect(planetSrc).toContain('uImpWave: { value: Array.from({ length: IMPULSE_SLOTS }, () => new THREE.Vector3()) },');
+    expect(planetSrc).toContain('u.uImpWave.value[j].set(surf.frame.wave[2 * i], surf.frame.wave[2 * i + 1], surf.frame.dimple[i]);');
   });
 });

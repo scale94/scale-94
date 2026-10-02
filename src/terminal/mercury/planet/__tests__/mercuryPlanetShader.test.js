@@ -24,6 +24,7 @@ import { RAY_ALBEDO } from '../planetLook';
 import {
   POP_FREQ, POP_JITTER, POP_REACH, POP_REACH_RAD, POP_SCALE, POP_LIFE_S, POP_TIME, POP_P_MIN, POP_P_MAX,
   POP_DENSITY_K, POP_AMP, POP_SALTS, ROIL_LITE_FREQ, ROIL_LITE_SPEED, ROIL_LITE_AMP, ROIL_LITE_ACT,
+  POP_RATE_ZOOM_EXP, POP_RATE_MAX,
 } from '../mercuryRoil';
 import {
   IMPULSE_SLOTS, SHAPE_MAX, SHAPE_ITERS, WAVE_KR, WAVE_C_GROUP, WAVE_SPREAD_FLOOR,
@@ -159,7 +160,8 @@ describe('mercuryPlanetShader contract', () => {
     expect(PLANET_UNIFORMS).toEqual(expect.arrayContaining(['uSurfOn', 'uImpDir', 'uImpMode', 'uImpWave', 'uBulge']));
     expect(PLANET_FS).toContain(`uniform vec3 uImpDir[${IMPULSE_SLOTS}];`);
     expect(PLANET_FS).toContain(`uniform vec3 uImpMode[${IMPULSE_SLOTS}];`);
-    expect(PLANET_FS).toContain(`uniform vec2 uImpWave[${IMPULSE_SLOTS}];`);
+    // (age, amplitude, dimple weight): the snap dimple is per slot, so a wake can carry less of it than a splash
+    expect(PLANET_FS).toContain(`uniform vec3 uImpWave[${IMPULSE_SLOTS}];`);
     expect(PLANET_FS).toContain(`const int IMPULSE_SLOTS = ${IMPULSE_SLOTS};`);
     expect(PLANET_FS).toContain(`const int SHAPE_ITERS = ${SHAPE_ITERS};`);
     for (const [name, value] of Object.entries({ SHAPE_MAX, WAVE_KR, WAVE_C_GROUP, WAVE_SPREAD_FLOOR, WAVE_K_PEAK, WAVE_SPEC_W, WAVE_VISC_PER_S, WAVE_SHARP, WAVE_WARP_RAD, WAVE_WARP_FREQ, WAVE_DIMPLE_RAD, WAVE_DIMPLE_S, WAVE_DIMPLE_GAIN, WAVE_DIMPLE_AA_LO, WAVE_DIMPLE_AA_HI })) {
@@ -203,12 +205,13 @@ describe('mercuryPlanetShader contract', () => {
     expect(PLANET_FS).toContain('float k = WAVE_KR * q * q;');
     expect(PLANET_FS).toContain('float ph = k * th / 3.0;');
     expect(PLANET_FS).toContain('slope = exp(-lk * lk - WAVE_VISC_PER_S * kk * kk * age) * (bandAA(k, pxArc) * sin(ph) + 2.0 * WAVE_SHARP * bandAA(2.0 * k, pxArc) * sin(2.0 * ph));');
-    expect(PLANET_FS).toContain('return slope + dimpleAA(pxArc) * WAVE_DIMPLE_GAIN * exp(-age / WAVE_DIMPLE_S) * DIMPLE_NORM * xd * exp(-xd * xd);');
+    expect(PLANET_FS).toContain('float rippleSlope(float th, float age, float pxArc, float dimple) {');
+    expect(PLANET_FS).toContain('return slope + dimple * dimpleAA(pxArc) * WAVE_DIMPLE_GAIN * exp(-age / WAVE_DIMPLE_S) * DIMPLE_NORM * xd * exp(-xd * xd);');
     expect(PLANET_FS).toContain('float dimpleAA(float pxArc) { return pxArc > 0.0 ? smoothstep(WAVE_DIMPLE_AA_LO, WAVE_DIMPLE_AA_HI, WAVE_DIMPLE_RAD / pxArc) : 1.0; }');
     expect(PLANET_FS).toContain('float bandAA(float k, float pxArc) { return smoothstep(2.5, 5.0, TAU / (k * max(pxArc, 1e-6))); }');
     // a light warp of the arc distance so rings shear instead of reading as etched grooves
     expect(PLANET_FS).toContain('float warp = WAVE_WARP_RAD * (2.0 * vnoise3(xb * WAVE_WARP_FREQ) - 1.0);');
-    expect(PLANET_FS).toContain('float slope = A * rippleSlope(max(th + warp, 0.0), age, pxArc) * sqrt(WAVE_SPREAD_FLOOR / max(s, WAVE_SPREAD_FLOOR));');
+    expect(PLANET_FS).toContain('float slope = A * rippleSlope(max(th + warp, 0.0), age, pxArc, uImpWave[i].z) * sqrt(WAVE_SPREAD_FLOOR / max(s, WAVE_SPREAD_FLOOR));');
     expect(PLANET_FS).toContain('float pxArc = length(fwidth(xw));');
     expect(PLANET_FS).toContain('nW = normalize(nW - fluid * waveTilt(xw, pxArc, warp));');
   });
@@ -312,11 +315,16 @@ describe('mercuryPlanetShader contract', () => {
     expect(PLANET_FS).toContain('if (th >= reach || age >= POP_LIFE_S) return 0.0;');
     expect(PLANET_FS).toContain('float scale = POP_SCALE / zoom;');
     expect(PLANET_FS).toContain('float w = 1.0 - smoothstep(0.7 * reach, reach, th);');
-    expect(PLANET_FS).toContain('return POP_AMP * w * life * rippleSlope(th * scale, max(age * POP_TIME, 1e-3), pxArc * scale);');
+    // a pop keeps the whole snap dimple (the wake-only gain never reaches it)
+    expect(PLANET_FS).toContain('return POP_AMP * w * life * rippleSlope(th * scale, max(age * POP_TIME, 1e-3), pxArc * scale, 1.0);');
     expect(PLANET_FS).toContain('float freq = POP_FREQ / zoom;');
     expect(PLANET_FS).toContain('vec3 p = xb * freq;');
     expect(PLANET_FS).toContain('g += popSlope(d / freq, age, pxArc, zoom) * tang / tl;');
     expect(PLANET_FS).toContain('rt = roilTilt(xb, uTime * ROIL_MOTION, T - HG_BOIL_K, pxArc, uPopZoom, popAct);');
+    // Task 7 pop rate: a cell's period ÷ min(zoom^k, POP_RATE_MAX), mercuryRoil.popPeriod exactly; zoom 1 untouched
+    expect(PLANET_FS).toContain(`const float POP_RATE_ZOOM_EXP = ${glf(POP_RATE_ZOOM_EXP)};`);
+    expect(PLANET_FS).toContain(`const float POP_RATE_MAX = ${glf(POP_RATE_MAX)};`);
+    expect(PLANET_FS).toContain('float period = (POP_P_MIN + (POP_P_MAX - POP_P_MIN) * hash13(c + POP_SALT_PERIOD)) / min(pow(zoom, POP_RATE_ZOOM_EXP), POP_RATE_MAX);');
     // a uniform, never a derivative
     expect(PLANET_FS).not.toMatch(/fwidth\([^)]*uPopZoom/);
   });

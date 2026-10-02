@@ -138,7 +138,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
       uSurfOn: { value: 0 },
       uImpDir: { value: Array.from({ length: IMPULSE_SLOTS }, () => new THREE.Vector3(0, 0, 1)) },
       uImpMode: { value: Array.from({ length: IMPULSE_SLOTS }, () => new THREE.Vector3()) },
-      uImpWave: { value: Array.from({ length: IMPULSE_SLOTS }, () => new THREE.Vector2()) },
+      uImpWave: { value: Array.from({ length: IMPULSE_SLOTS }, () => new THREE.Vector3()) },
       uBulge: { value: new THREE.Vector4(0, 1, 0, 0) },
       uGlow: { value: new THREE.Vector4(0, 0, 1, 0) },
     },
@@ -319,7 +319,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
       slipDirWorld(surf.w, slot.dirWorld0, slot.slip, surf.w);
       u.uImpDir.value[j].set(surf.w[0], surf.w[1], surf.w[2]);
       u.uImpMode.value[j].set(surf.frame.mode[3 * i], surf.frame.mode[3 * i + 1], surf.frame.mode[3 * i + 2]);
-      u.uImpWave.value[j].set(surf.frame.wave[2 * i], surf.frame.wave[2 * i + 1]);
+      u.uImpWave.value[j].set(surf.frame.wave[2 * i], surf.frame.wave[2 * i + 1], surf.frame.dimple[i]);
     }
     spinBulge(body.omega, calm ? 0 : body.tau * PLANET_TUNE.modeGain, surf.bulge);
     u.uBulge.value.set(surf.bulge[0], surf.bulge[1], surf.bulge[2], surf.bulge[3]);

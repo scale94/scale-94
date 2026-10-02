@@ -40,7 +40,7 @@ uniform float uRayGain;
 uniform float uSurfOn;
 uniform vec3 uImpDir[8];
 uniform vec3 uImpMode[8];
-uniform vec2 uImpWave[8];
+uniform vec3 uImpWave[8];
 uniform vec4 uBulge;
 uniform float uRoilGain;
 uniform float uPopZoom;
@@ -124,6 +124,8 @@ const float POP_LIFE_S = 0.600000000;
 const float POP_TIME = 0.144940618;
 const float POP_P_MIN = 1.50000000;
 const float POP_P_MAX = 4.00000000;
+const float POP_RATE_ZOOM_EXP = 0.500000000;
+const float POP_RATE_MAX = 2.50000000;
 const float POP_DENSITY_K = 60.0000000;
 const float POP_AMP = 0.120000000;
 const vec3 POP_SALT_ACTIVE = vec3(17.1300000, 3.71000000, 5.29000000);
@@ -344,8 +346,9 @@ float dimpleAA(float pxArc) { return pxArc > 0.0 ? smoothstep(WAVE_DIMPLE_AA_LO,
 // mercuryWaves.rippleSlope, exactly: a dispersive capillary train by
 // stationary phase (k = K·(th / (c_g·t))², phase k·th/3), crests bunched at
 // the leading edge; a log-normal spectrum; viscous damping ∝ k²; a 2nd
-// harmonic for sharp troughs; a short snap dimple at the origin.
-float rippleSlope(float th, float age, float pxArc) {
+// harmonic for sharp troughs; a short snap dimple at the origin, weighted per impulse
+// (dimple: 1 for a splash or pop, WAKE_DIMPLE_GAIN for a drag wake, via uImpWave.z).
+float rippleSlope(float th, float age, float pxArc, float dimple) {
   float q = th / (WAVE_C_GROUP * age);
   float k = WAVE_KR * q * q;
   float slope = 0.0;
@@ -356,7 +359,7 @@ float rippleSlope(float th, float age, float pxArc) {
     slope = exp(-lk * lk - WAVE_VISC_PER_S * kk * kk * age) * (bandAA(k, pxArc) * sin(ph) + 2.0 * WAVE_SHARP * bandAA(2.0 * k, pxArc) * sin(2.0 * ph));
   }
   float xd = th / WAVE_DIMPLE_RAD;
-  return slope + dimpleAA(pxArc) * WAVE_DIMPLE_GAIN * exp(-age / WAVE_DIMPLE_S) * DIMPLE_NORM * xd * exp(-xd * xd);
+  return slope + dimple * dimpleAA(pxArc) * WAVE_DIMPLE_GAIN * exp(-age / WAVE_DIMPLE_S) * DIMPLE_NORM * xd * exp(-xd * xd);
 }
 
 // Capillary ripple trains running out from each impulse, 1/√sinθ spreading
@@ -375,7 +378,7 @@ vec3 waveTilt(vec3 x, float pxArc, float warp) {
     float s = sqrt(max(1.0 - m * m, 0.0));
     if (s < 1e-4) continue;
     float th = acos(m);
-    float slope = A * rippleSlope(max(th + warp, 0.0), age, pxArc) * sqrt(WAVE_SPREAD_FLOOR / max(s, WAVE_SPREAD_FLOOR));
+    float slope = A * rippleSlope(max(th + warp, 0.0), age, pxArc, uImpWave[i].z) * sqrt(WAVE_SPREAD_FLOOR / max(s, WAVE_SPREAD_FLOOR));
     g += slope * (x * m - d) / s;
   }
   return g;
@@ -392,7 +395,7 @@ float popSlope(float th, float age, float pxArc, float zoom) {
   float scale = POP_SCALE / zoom;
   float w = 1.0 - smoothstep(0.7 * reach, reach, th);
   float life = 1.0 - smoothstep(0.7 * POP_LIFE_S, POP_LIFE_S, age);
-  return POP_AMP * w * life * rippleSlope(th * scale, max(age * POP_TIME, 1e-3), pxArc * scale);
+  return POP_AMP * w * life * rippleSlope(th * scale, max(age * POP_TIME, 1e-3), pxArc * scale, 1.0);
 }
 
 // Tangential slope (body frame) of every active pop within reach, plus local activity.
@@ -408,7 +411,7 @@ vec3 roilTilt(vec3 xb, float t, float dT, float pxArc, float zoom, out float act
   for (int i = 0; i < 8; i++) {
     vec3 c = base + vec3(float(i & 1), float((i >> 1) & 1), float((i >> 2) & 1));
     if (hash13(c + POP_SALT_ACTIVE) >= dens) continue;
-    float period = POP_P_MIN + (POP_P_MAX - POP_P_MIN) * hash13(c + POP_SALT_PERIOD);
+    float period = (POP_P_MIN + (POP_P_MAX - POP_P_MIN) * hash13(c + POP_SALT_PERIOD)) / min(pow(zoom, POP_RATE_ZOOM_EXP), POP_RATE_MAX);
     float tc = t + hash13(c + POP_SALT_PHASE) * period;
     float age = tc - period * floor(tc / period);
     if (age >= POP_LIFE_S) continue;

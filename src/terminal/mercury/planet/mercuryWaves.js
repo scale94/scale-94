@@ -53,6 +53,11 @@ export const WAKE_EVERY_S = 0.07;
 export const WAKE_WAVE_AMP = 0.12;
 export const WAKE_FULL_OMEGA = 4;             // pointer ω (rad/s) for a full-strength wake (strength ∝ √ω below it)
 export const WAKE_SLIP = 0.7;                 // shear: how far a wake ring stays where it was made instead of riding the body
+// A wake's share of the snap dimple (splashes and pops keep all of WAVE_DIMPLE_GAIN). Wakes fire every
+// WAKE_EVERY_S under the pointer, so their dimples overlap into one steady dent that reads as a lens (author).
+// CPU-only: impulseFrame writes it per slot into frame.dimple, the shader reads it as uImpWave.z.
+// 0.25 (tuned 2026-10-02, slow-drag sheets 1/0.5/0.25/0): 0.5 still shows the lens disc, 0 loses the touch point.
+export const WAKE_DIMPLE_GAIN = 0.25;
 export const RELEASE_MODE_AMP = 0.03;
 
 export function rayleighOmega(l, rM = DROP_R_M) {
@@ -93,8 +98,9 @@ const DIMPLE_NORM = 2.3316; // 1 / max(x·e^(−x²))
 // crests bunch at the leading edge and widen behind. A log-normal spectrum
 // bounds the train; viscous damping ∝ k² kills its fine front first; a 2nd
 // harmonic sharpens the troughs; a short dimple at the origin is the snap.
+// dimple weights the snap (1 = a splash or pop; WAKE_DIMPLE_GAIN for a drag wake).
 // The shader's rippleSlope mirrors this exactly.
-export function rippleSlope(th, age, pxArc) {
+export function rippleSlope(th, age, pxArc, dimple = 1) {
   const t = Math.max(age, 1e-3);
   const q = th / (WAVE_C_GROUP * t);
   const k = WAVE_KR * q * q;
@@ -107,7 +113,7 @@ export function rippleSlope(th, age, pxArc) {
       * (bandAA(k, pxArc) * Math.sin(ph) + 2 * WAVE_SHARP * bandAA(2 * k, pxArc) * Math.sin(2 * ph));
   }
   const xd = th / WAVE_DIMPLE_RAD;
-  return slope + dimpleAA(pxArc) * WAVE_DIMPLE_GAIN * Math.exp(-t / WAVE_DIMPLE_S) * DIMPLE_NORM * xd * Math.exp(-xd * xd);
+  return slope + dimple * dimpleAA(pxArc) * WAVE_DIMPLE_GAIN * Math.exp(-t / WAVE_DIMPLE_S) * DIMPLE_NORM * xd * Math.exp(-xd * xd);
 }
 
 export function legendre(l, m) {
@@ -172,7 +178,7 @@ export function addImpulse(buf, { dirBody, dirWorld = null, tS, mode = 0, wave =
 }
 
 export function createImpulseFrame() {
-  return { mode: new Float32Array(IMPULSE_SLOTS * 3), wave: new Float32Array(IMPULSE_SLOTS * 2), any: false };
+  return { mode: new Float32Array(IMPULSE_SLOTS * 3), wave: new Float32Array(IMPULSE_SLOTS * 2), dimple: new Float32Array(IMPULSE_SLOTS), any: false };
 }
 
 const smoothstep = (e0, e1, x) => {
@@ -204,13 +210,14 @@ export function impulseFrame(buf, tS, { modeScale = 1, waveScale = 1 } = {}, out
     if (s.active && age > IMPULSE_LIFE_S) s.active = false;
     if (!s.active || age < 0) {
       out.mode[3 * i] = 0; out.mode[3 * i + 1] = 0; out.mode[3 * i + 2] = 0;
-      out.wave[2 * i] = 0; out.wave[2 * i + 1] = 0;
+      out.wave[2 * i] = 0; out.wave[2 * i + 1] = 0; out.dimple[i] = 0;
       continue;
     }
     for (let j = 0; j < 3; j++) out.mode[3 * i + j] = s.mode * modeScale * modeResponse(j, age);
     const waveAmp = s.wave * waveScale * Math.exp(-waveDamp(s.kind) * age) * antipodeFade(age);
     out.wave[2 * i] = age;
     out.wave[2 * i + 1] = waveAmp;
+    out.dimple[i] = s.kind === 'wake' ? WAKE_DIMPLE_GAIN : 1;
     if (Math.abs(out.mode[3 * i]) + Math.abs(out.mode[3 * i + 1]) + Math.abs(out.mode[3 * i + 2]) + waveAmp > 1e-5) out.any = true;
   }
   return out;

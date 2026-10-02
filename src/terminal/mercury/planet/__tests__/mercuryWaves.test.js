@@ -6,7 +6,7 @@ import {
   spinBulge, BULGE_MAX, SHAPE_MAX, shapeHeight, createWake, wakeImpulse, WAKE_EVERY_S, LIQUID_TAU,
   RELEASE_MODE_AMP, WAKE_WAVE_AMP,
   WAKE_FULL_OMEGA, WAKE_SLIP, slipDirWorld, WAVE_C_FRONT, rippleSlope, WAVE_DIMPLE_S, WAVE_SHARP,
-  WAVE_DIMPLE_RAD, WAVE_DIMPLE_GAIN, WAVE_DIMPLE_AA_LO, WAVE_DIMPLE_AA_HI, dimpleAA,
+  WAVE_DIMPLE_RAD, WAVE_DIMPLE_GAIN, WAVE_DIMPLE_AA_LO, WAVE_DIMPLE_AA_HI, dimpleAA, WAKE_DIMPLE_GAIN,
 } from '../mercuryWaves';
 import { MAX_OMEGA } from '../mercuryBody';
 
@@ -287,5 +287,49 @@ describe('drag wake', () => {
     const w = createWake();
     const r = wakeImpulse(w, { tS: 1, dragging: false, released: true, ptrOmega: 0, bodyOmega: MAX_OMEGA / 2, tau: 1 });
     expect(r).toEqual({ kind: 'ring', mode: RELEASE_MODE_AMP / 2, wave: 0 });
+  });
+});
+
+describe('wake dimple (Task 7): the drag wake carries less snap than a splash', () => {
+  const dimpleOnly = (dimple) => { let m = 0; for (let th = 5e-3; th < 3 * WAVE_DIMPLE_RAD; th += 1e-4) m = Math.max(m, Math.abs(rippleSlope(th, 1e-3, 0, dimple))); return m; };
+
+  it('WAKE_DIMPLE_GAIN is a named weight in [0, 1]; splashes keep WAVE_DIMPLE_GAIN', () => {
+    expect(WAKE_DIMPLE_GAIN).toBeGreaterThanOrEqual(0);
+    expect(WAKE_DIMPLE_GAIN).toBeLessThanOrEqual(1);
+    expect(WAVE_DIMPLE_GAIN).toBe(1.2);
+  });
+
+  it('rippleSlope takes a dimple weight: default 1 is the splash, 0 removes the snap, the train is untouched', () => {
+    for (const [th, age, px] of [[0.02, 0.01, 0], [0.035, 0.05, 0.0047], [0.4, 0.5, 0.002], [1, 1.2, 0]]) {
+      expect(rippleSlope(th, age, px, 1)).toBe(rippleSlope(th, age, px));
+      const train = rippleSlope(th, age, px, 0);
+      const snap = rippleSlope(th, age, px) - train;
+      expect(rippleSlope(th, age, px, 0.25)).toBeCloseTo(train + 0.25 * snap, 12);
+    }
+    expect(dimpleOnly(0)).toBeLessThan(1e-3 * dimpleOnly(1));
+    expect(dimpleOnly(0.5)).toBeCloseTo(0.5 * dimpleOnly(1), 3);
+  });
+
+  it('impulseFrame writes a per-slot dimple weight: WAKE_DIMPLE_GAIN for a wake, 1 for a splash or ring, 0 when empty', () => {
+    const buf = createImpulses();
+    const out = createImpulseFrame();
+    expect(out.dimple).toBeInstanceOf(Float32Array);
+    expect(out.dimple).toHaveLength(IMPULSE_SLOTS);
+    const arrays = [out.mode, out.wave, out.dimple];
+    addImpulse(buf, { dirBody: [1, 0, 0], tS: 0, mode: 0.03, wave: 0.3, kind: 'splash' });
+    addImpulse(buf, { dirBody: [0, 1, 0], tS: 0, wave: 0.1, kind: 'wake' });
+    addImpulse(buf, { dirBody: [0, 0, 1], tS: 0, mode: 0.02, kind: 'ring' });
+    out.dimple.fill(7);
+    impulseFrame(buf, 0.1, {}, out);
+    expect(out.dimple[0]).toBe(1);
+    expect(out.dimple[1]).toBeCloseTo(WAKE_DIMPLE_GAIN, 6);
+    expect(out.dimple[2]).toBe(1);
+    for (let i = 3; i < IMPULSE_SLOTS; i++) expect(out.dimple[i]).toBe(0);
+    // no allocation: the same typed arrays every frame
+    expect([out.mode, out.wave, out.dimple]).toEqual(arrays);
+    arrays.forEach((a, i) => expect([out.mode, out.wave, out.dimple][i]).toBe(a));
+    // retired slots drop to 0
+    impulseFrame(buf, IMPULSE_LIFE_S + 1, {}, out);
+    for (let i = 0; i < IMPULSE_SLOTS; i++) expect(out.dimple[i]).toBe(0);
   });
 });

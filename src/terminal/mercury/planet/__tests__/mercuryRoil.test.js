@@ -3,6 +3,7 @@ import {
   hash13, popDensity, popSlope, roilTilt, subsolarPxArc, popZoom,
   POP_FREQ, POP_JITTER, POP_REACH, POP_REACH_RAD, POP_REF_TH, POP_SCALE, POP_LIFE_S, POP_TIME, POP_AMP,
   POP_PX_REF, POP_CREST_PX, POP_ZOOM_MAX, ROIL_LITE_FREQ,
+  POP_P_MIN, POP_P_MAX, POP_SALTS, POP_RATE_ZOOM_EXP, POP_RATE_MAX, popRate, popPeriod,
 } from '../mercuryRoil';
 import {
   bandAA, dimpleAA, WAVE_C_FRONT, WAVE_K_PEAK, WAVE_SHARP, WAVE_DIMPLE_RAD, WAVE_DIMPLE_AA_LO, WAVE_DIMPLE_GAIN, WAVE_DIMPLE_S,
@@ -233,6 +234,62 @@ describe('mercuryRoil', () => {
         for (let k = 0; k < 3; k++) expect(Math.abs(A.g[k] - B.g[k])).toBeLessThan(1e-3);
       }
       expect(compared).toBeGreaterThan(zoom > 1 ? 15 : 50);
+    }
+  });
+});
+
+describe('pop rate from the screen (Task 7): a coarse screen keeps a lively boil', () => {
+  it('POP_RATE_ZOOM_EXP is a named exponent in [0, 2]; zoom 1 (the DPR-2 desktop) is untouched', () => {
+    expect(POP_RATE_ZOOM_EXP).toBeGreaterThanOrEqual(0);
+    expect(POP_RATE_ZOOM_EXP).toBeLessThanOrEqual(2);
+    expect(popRate(1)).toBe(1);
+    for (let h = 0; h <= 1; h += 0.125) expect(popPeriod(h, 1)).toBe(POP_P_MIN + (POP_P_MAX - POP_P_MIN) * h);
+  });
+
+  it('each cell period shrinks by zoom^k, capped so it never drops under the life (R2 is about life, not period)', () => {
+    expect(POP_RATE_MAX).toBe(POP_P_MIN / POP_LIFE_S);
+    for (const z of [1.5, 1.833, 3.335, POP_ZOOM_MAX, 50]) {
+      expect(popRate(z)).toBeCloseTo(Math.min(z ** POP_RATE_ZOOM_EXP, POP_RATE_MAX), 12);
+      for (let h = 0; h <= 1; h += 0.125) {
+        expect(popPeriod(h, z)).toBeCloseTo(popPeriod(h, 1) / popRate(z), 12);
+        expect(popPeriod(h, z)).toBeGreaterThanOrEqual(POP_LIFE_S - 1e-12);
+      }
+    }
+    // the life is not scaled: a pop at any zoom is still over at POP_LIFE_S
+    for (const z of [1, 3.335, POP_ZOOM_MAX]) expect(popSlope(0.5 * POP_REACH_RAD * z, POP_LIFE_S, 0.002 * z, z)).toBe(0);
+  });
+
+  it('roilTilt pops each cell every popPeriod(hash, zoom): measured onset to onset at a lone site', () => {
+    const salted = (c, s) => hash13(c[0] + s[0], c[1] + s[1], c[2] + s[2]);
+    for (const zoom of [1, 3.335]) {
+      const freq = POP_FREQ / zoom;
+      const r = rng(11);
+      let found = null;
+      // a point inside exactly one site's reach (full density), so its activity is that one cell's clock
+      for (let n = 0; n < 20000 && !found; n++) {
+        const x = norm([r() - 0.5, r() - 0.5, r() - 0.5]);
+        const p = x.map((v) => v * freq);
+        const base = p.map((v) => Math.floor(v - 0.5));
+        const hits = [];
+        for (let i = 0; i < 8; i++) {
+          const c = [base[0] + (i & 1), base[1] + ((i >> 1) & 1), base[2] + ((i >> 2) & 1)];
+          const s = ['x', 'y', 'z'].map((a, k) => c[k] + 0.5 + (salted(c, POP_SALTS[a]) - 0.5) * 2 * POP_JITTER);
+          if (Math.hypot(p[0] - s[0], p[1] - s[1], p[2] - s[2]) < 0.8 * POP_REACH) hits.push(c);
+          else if (Math.hypot(p[0] - s[0], p[1] - s[1], p[2] - s[2]) < POP_REACH) hits.push(null);
+        }
+        if (hits.length === 1 && hits[0]) found = { x, c: hits[0] };
+      }
+      expect(found).not.toBeNull();
+      const want = popPeriod(salted(found.c, POP_SALTS.period), zoom);
+      const onsets = [];
+      let was = roilTilt(found.x, 0, 1e4, 0.002, zoom).act > 0;
+      for (let t = 0.005; t < 4 * POP_P_MAX; t += 0.005) {
+        const on = roilTilt(found.x, t, 1e4, 0.002, zoom).act > 0;
+        if (on && !was) onsets.push(t);
+        was = on;
+      }
+      expect(onsets.length).toBeGreaterThanOrEqual(3);
+      for (let i = 1; i < onsets.length; i++) expect(Math.abs(onsets[i] - onsets[i - 1] - want)).toBeLessThan(0.011);
     }
   });
 });
