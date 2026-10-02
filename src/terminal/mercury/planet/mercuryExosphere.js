@@ -39,9 +39,19 @@ export const STREAM_AMP = 0.35;          // streamer noise depth along the tail
 export const STREAM_FREQ_S = 1.5;        // along the axis, per scene unit
 export const STREAM_FREQ_P = 3;          // across it
 export const STREAM_SPEED = 0.06;        // scene units / s, downstream (frozen under CALM)
+// Option 2 ("a gas tail against a bright sky"): along the tail the backdrop is dimmed by
+// 1 - tailAlpha(e) before the amber is added, e = the tail's linear radiance (x exoGain).
+// A look device, not physics (the Na tail is optically thin): it lets amber read as a
+// stream over the bright pastel nebula instead of a whitening wash. The halo never dims.
+export const EXO_DIM = 8;                // backdrop optical depth per unit tail radiance
 export const TAIL_AXIS = Object.freeze(SUN_DIR_WORLD.map((c) => -c));
 
 const DAY_MS = 86400000;
+
+// Backdrop attenuation behind a tail column of linear radiance e (exosphereShader mirrors it).
+export function tailAlpha(e) {
+  return 1 - Math.exp(-EXO_DIM * e);
+}
 
 export function gNa(vKmS) {
   const x = vKmS / NA_G_V0_KMS;

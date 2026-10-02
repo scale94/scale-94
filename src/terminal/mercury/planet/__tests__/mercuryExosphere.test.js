@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   gNa, tailBrightness, tailLength, boilCoverage, haloColumn, tailDensity, exoBox,
-  TAIL_B_FLOOR, TAIL_L_MIN, TAIL_L_MAX, TAIL_AXIS, H_NA, HALO_REACH_H, TAIL_REACH_L,
+  TAIL_B_FLOOR, TAIL_L_MIN, TAIL_L_MAX, TAIL_AXIS, H_NA, HALO_REACH_H, TAIL_REACH_L, EXO_DIM, tailAlpha,
 } from '../mercuryExosphere';
 import { mercuryEphemeris } from '../mercuryEphemeris';
 import { SUN_DIR_WORLD } from '../planetFrame';
@@ -82,5 +82,15 @@ describe('mercuryExosphere', () => {
       expect(s1).toBeGreaterThanOrEqual(TAIL_REACH_L * L);
       expect(width / 2).toBeGreaterThanOrEqual(halo);
     }
+  });
+});
+
+describe('tail backdrop attenuation (option 2)', () => {
+  it('EXO_DIM is a positive look constant; tailAlpha is 0 at no tail, rises monotonically, never reaches 1', () => {
+    expect(EXO_DIM).toBeGreaterThan(0);
+    expect(tailAlpha(0)).toBe(0);
+    let prev = 0;
+    for (const e of [0.01, 0.05, 0.1, 0.3, 1]) { const a = tailAlpha(e); expect(a).toBeGreaterThan(prev); expect(a).toBeLessThan(1); prev = a; }
+    expect(tailAlpha(0.1)).toBeCloseTo(1 - Math.exp(-EXO_DIM * 0.1), 12);
   });
 });

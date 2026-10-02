@@ -1,15 +1,39 @@
 // src/terminal/mercury/planet/exosphereShader.js — the exosphere box (phase-4 spec §7).
 // Back faces of a box around halo + tail; the fragment clips its view ray to the box,
 // adds the closed-form halo columns (Na + Hg vapour), and marches the Na tail with
-// EXO_STEPS jittered samples. Additive, depth-tested against the planet (which writes
-// gl_FragDepth), never writes depth. Constants from mercuryExosphere (glf).
+// EXO_STEPS jittered samples. Depth-tested against the planet (which writes gl_FragDepth),
+// never writes depth. Constants from mercuryExosphere (glf).
+//
+// Blend (option 2): premultiplied "over". rgb = emission (halo + tail), a = how much of the
+// backdrop the TAIL hides (tailAlpha of its radiance): dst' = emission + dst * (1 - a). The
+// halo contributes no alpha, so it stays purely additive and never darkens the limb; lite
+// (EXO_STEPS 0) has no tail, alpha is 0 and the box is exactly the old additive halo.
 
+import * as THREE from 'three';
 import { glf, v3 } from '../../gl/glf';
 import { R_SCENE } from './planetLook';
 import {
   TAIL_W0, TAIL_SPREAD, H_NA, H_HG, NA_HALO_GAIN, NA_TAIL_GAIN, HG_GAIN, NA_COL, HG_COL,
-  STREAM_AMP, STREAM_FREQ_S, STREAM_FREQ_P, STREAM_SPEED,
+  STREAM_AMP, STREAM_FREQ_S, STREAM_FREQ_P, STREAM_SPEED, EXO_DIM,
 } from './mercuryExosphere';
+
+// Material state for the box (MercuryExosphere spreads it).
+export const EXO_MATERIAL = Object.freeze({
+  transparent: true,
+  depthTest: true,
+  depthWrite: false,
+  side: THREE.BackSide,
+  blending: THREE.CustomBlending,
+  blendEquation: THREE.AddEquation,
+  blendSrc: THREE.OneFactor,
+  blendDst: THREE.OneMinusSrcAlphaFactor,
+});
+
+// The box must draw AFTER the nebula flows (Particle/Thermal/Sediment/AtmosphericFlow:
+// transparent, renderOrder 0). three sorts transparents back to front by renderOrder, then
+// view z; the box's centre lies beyond the planet (z ~ 5.0 vs the flows' ~ 3.6), so at 0 it
+// drew first and the opaque nebula sprites painted over the whole tail.
+export const EXO_RENDER_ORDER = 1;
 
 export const EXO_BUILTINS = ['modelMatrix', 'viewMatrix', 'projectionMatrix', 'cameraPosition'];
 export const EXO_UNIFORMS = ['uWorldToBox', 'uTailAxis', 'uTailB', 'uTailL', 'uCoverage', 'uExoTime', 'uExoGain'];
@@ -58,6 +82,7 @@ const float STREAM_AMP = ${glf(STREAM_AMP)};
 const float STREAM_FREQ_S = ${glf(STREAM_FREQ_S)};
 const float STREAM_FREQ_P = ${glf(STREAM_FREQ_P)};
 const float STREAM_SPEED = ${glf(STREAM_SPEED)};
+const float EXO_DIM = ${glf(EXO_DIM)};
 const int EXO_STEPS = ${steps};
 
 float hash13(vec3 p) {
@@ -105,6 +130,7 @@ void main() {
   vec3 col = (NA_HALO_GAIN * uTailB * haloColumn(b, H_NA)) * NA_COL
            + (HG_GAIN * uCoverage * haloColumn(b, H_HG)) * HG_COL;
 
+  float tailE = 0.0;
   if (EXO_STEPS > 0) {
     vec3 o = (uWorldToBox * vec4(ro, 1.0)).xyz;
     vec3 d = (uWorldToBox * vec4(rd, 0.0)).xyz;
@@ -121,14 +147,19 @@ void main() {
       float j = hash13(vec3(gl_FragCoord.xy, fract(uExoTime) * 61.0));
       float acc = 0.0;
       for (int i = 0; i < EXO_STEPS; i++) acc += tailDensity(ro + rd * (tN + (float(i) + j) * dt));
+      tailE = NA_TAIL_GAIN * acc * dt * uExoGain;
       col += (NA_TAIL_GAIN * acc * dt) * NA_COL;
     }
   }
 
   col = max(col * uExoGain, 0.0);
+  // mercuryExosphere.tailAlpha: the backdrop the tail hides (the halo adds no alpha).
+  float tailA = 1.0 - exp(-EXO_DIM * tailE);
   vec3 srgb = mix(col * 12.92, 1.055 * pow(col, vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), col));
   float dith = (fract(sin(dot(gl_FragCoord.xy + fract(uExoTime) * 61.0, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
-  fragColor = vec4(srgb + dith, 1.0);
+  // the dim is dithered too (no 8-bit contours on the backdrop); off the tail alpha stays exactly 0
+  float alpha = tailA > 0.0 ? clamp(tailA + dith, 0.0, 1.0) : 0.0;
+  fragColor = vec4(srgb + dith, alpha);
 }
 `;
 

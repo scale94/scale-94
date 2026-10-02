@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildExosphereShader, EXO_UNIFORMS, EXO_BUILTINS } from '../exosphereShader';
+import * as THREE from 'three';
+import { buildExosphereShader, EXO_UNIFORMS, EXO_BUILTINS, EXO_MATERIAL } from '../exosphereShader';
 import { glf, v3 } from '../../../gl/glf';
 import { R_SCENE } from '../planetLook';
 import * as X from '../mercuryExosphere';
@@ -35,5 +36,38 @@ describe('exosphereShader', () => {
     expect(fs).toContain('float haloColumn(float b, float H)');
     expect(fs).toContain('float tailDensity(vec3 P)');
     expect(fs).toMatch(/\/ 255\.0/);
+  });
+});
+
+describe('exosphere option 2: dims the backdrop along the tail, then adds amber', () => {
+  it('premultiplied "over": src ONE, dst ONE_MINUS_SRC_ALPHA, additive equation, no depth write', () => {
+    expect(EXO_MATERIAL.transparent).toBe(true);
+    expect(EXO_MATERIAL.depthTest).toBe(true);
+    expect(EXO_MATERIAL.depthWrite).toBe(false);
+    expect(EXO_MATERIAL.side).toBe(THREE.BackSide);
+    expect(EXO_MATERIAL.blending).toBe(THREE.CustomBlending);
+    expect(EXO_MATERIAL.blendEquation).toBe(THREE.AddEquation);
+    expect(EXO_MATERIAL.blendSrc).toBe(THREE.OneFactor);
+    expect(EXO_MATERIAL.blendDst).toBe(THREE.OneMinusSrcAlphaFactor);
+  });
+
+  it('EXO_DIM is interpolated with glf; alpha comes from the tail radiance only (the halo stays additive)', () => {
+    for (const t of Object.values(TIERS)) {
+      const { fs } = buildExosphereShader({ steps: t.exoSteps });
+      expect(fs).toContain(`const float EXO_DIM = ${glf(X.EXO_DIM)};`);
+      expect(fs).toContain('float tailA = 1.0 - exp(-EXO_DIM * tailE);');
+      expect(fs).toMatch(/fragColor = vec4\(srgb \+ dith, alpha\);/);
+    }
+    const { fs } = buildExosphereShader({ steps: 8 });
+    // tail radiance is the same column that feeds the emission, × exoGain
+    expect(fs).toContain('tailE = NA_TAIL_GAIN * acc * dt * uExoGain;');
+    // the halo term never enters alpha
+    expect(fs).not.toMatch(/tailE[^;]*haloColumn/);
+  });
+
+  it('lite (no march) keeps alpha 0: pure additive halo', () => {
+    const { fs } = buildExosphereShader({ steps: 0 });
+    expect(fs).toContain('const int EXO_STEPS = 0;');
+    expect(fs).toContain('float tailE = 0.0;');
   });
 });

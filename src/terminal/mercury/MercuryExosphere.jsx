@@ -1,12 +1,13 @@
 // MercuryExosphere.jsx — the sodium tail + Hg vapour haze box (phase-4 spec §7).
 // MercuryPlanet owns the state (`exo`, a mutable object it writes every frame); this
-// component only fits the box on change and writes uniforms. Additive, depth-tested,
-// never writes depth. No allocation per frame.
+// component only fits the box on change and writes uniforms. Premultiplied "over" (the
+// tail dims the backdrop, then adds amber; the halo stays additive), depth-tested, never
+// writes depth, drawn after the nebula (EXO_RENDER_ORDER). No allocation per frame.
 
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { buildExosphereShader } from './planet/exosphereShader';
+import { buildExosphereShader, EXO_MATERIAL, EXO_RENDER_ORDER } from './planet/exosphereShader';
 import { TAIL_AXIS, exoBox } from './planet/mercuryExosphere';
 import { TIERS } from './planet/planetQuality';
 import { PLANET_TUNE } from './planet/planetLook';
@@ -19,11 +20,7 @@ export default function MercuryExosphere({ exo, tier = 'full' }) {
     glslVersion: THREE.GLSL3,
     vertexShader: shader.vs,
     fragmentShader: shader.fs,
-    transparent: true,
-    depthTest: true,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    side: THREE.BackSide,
+    ...EXO_MATERIAL,
     uniforms: {
       uWorldToBox: { value: new THREE.Matrix4() },
       uTailAxis: { value: new THREE.Vector3(...TAIL_AXIS) },
@@ -66,5 +63,6 @@ export default function MercuryExosphere({ exo, tier = 'full' }) {
     un.uExoGain.value = PLANET_TUNE.exoGain;
   });
 
-  return <mesh ref={mesh} geometry={geometry} material={material} matrixAutoUpdate={false} frustumCulled={false} />;
+  // After the nebula flows, which sit at renderOrder 0 and sort nearer (see EXO_RENDER_ORDER).
+  return <mesh ref={mesh} renderOrder={EXO_RENDER_ORDER} geometry={geometry} material={material} matrixAutoUpdate={false} frustumCulled={false} />;
 }
