@@ -27,7 +27,7 @@ import {
 } from './planet/mercuryImpacts';
 import { pickSphereDir } from './planet/pickSphere';
 import { popZoom, subsolarPxArc } from './planet/mercuryRoil';
-import { createBody, stepBody, coolBody, targetFromYaw } from './planet/mercuryBody';
+import { createBody, stepBody, coolBody, targetFromYaw, MAX_OMEGA } from './planet/mercuryBody';
 import { ORBIT_NODES, orbitPrecessionAngle, nodeWorldPosition } from './orbitNodes';
 import useMercuryDrag from './useMercuryDrag';
 import { registerTuningRig, DEV_OVERRIDES } from './mercuryTuning';
@@ -38,7 +38,8 @@ import {
 } from './planet/breakupFamily';
 import { TONGUE_MAX_R, sigmaRatio } from './planet/breakupPhysics';
 import { stepFamily, DROP_DT } from './planet/breakupStep';
-import { muRef, returnTarget, createMuSolver, stepMuSolver, solverBudget, finishMuSolver } from './planet/breakupBudget';
+import { muRef, returnTarget, createMuSolver, stepMuSolver, solverBudget, finishMuSolver, solveContainment } from './planet/breakupBudget';
+import { canHyper, hyperEnergy, fireHyper, coreScale, hyperReach, HYPER_N, V_HYPER, V_HYPER_SPAN } from './planet/hyperFling';
 import { createDropFrame, packFamily, pxPerUnitAt, pxAngleOf } from './planet/breakupFrame';
 import useDropletField from './useDropletField';
 
@@ -85,6 +86,31 @@ function fireDrop(drop, omega, heatK) {
   drop.warned = false;
 }
 
+// Phase 6: release with the spin pinned and a fast pointer → the core itself breaks. The containment drag is solved
+// now (synchronously, 4 fastest beads); the headwind η by the sliced solver before the birth grace ends.
+function fireHyperDrop(drop, eH, heatK, camera, bufferW, bufferH, t) {
+  const fam = drop.fam, env = drop.env;
+  const rVis = camera.position.length() * Math.tan((camera.fov * Math.PI) / 360) * Math.min(1, bufferW / Math.max(bufferH, 1));
+  drop.fires = (drop.fires + 1) | 0;
+  const seed = (Math.imul(drop.fires, 2654435761) ^ Math.floor(t * 1000)) >>> 0 || 1;
+  fireHyper(fam, {
+    N: drop.hyperN, eH, seed, omega: env.omega, pxPerUnit: env.pxPerUnit,
+    vR0: PLANET_TUNE.hyperRadial, orbitS: PLANET_TUNE.hyperOrbit, gammaFloor: PLANET_TUNE.dropDrag,
+  });
+  fam.gammaH = solveContainment(fam, env.pxPerUnit, hyperReach(rVis), PLANET_TUNE.dropDrag);
+  drop.solver = createMuSolver(fam, env, returnTarget(heatK, PLANET_TUNE.dropDrift));
+  drop.warned = false;
+}
+
+// Dev rig: spin the body at w rad/s about its current axis (world Y from rest) as a fresh release. The beads launch
+// at ω × p (breakupStep / fireHyper), so without this they would leave a still planet the solver saw spinning.
+function rigSpin(env, body, w) {
+  const l = Math.hypot(env.omega[0], env.omega[1], env.omega[2]);
+  if (l > 1e-6) { env.omega[0] *= w / l; env.omega[1] *= w / l; env.omega[2] *= w / l; } else { env.omega[0] = 0; env.omega[1] = w; env.omega[2] = 0; }
+  body.omega.set(env.omega[0], env.omega[1], env.omega[2]);
+  body.sinceReleaseS = 0; // a fresh release: inertia first, recapture ramps in (mercuryBody)
+}
+
 // Dev rig (holdAt / breakNow have no drag point): stand in for a real swipe at its release. A swipe carries the
 // grabbed point with the surface, so by release it sits at the disc's leading limb (spin × toward-camera); the
 // rig aims there so its captures launch like real use. Writes drop.spinBody (the rig spins about world +Y from rest).
@@ -127,13 +153,8 @@ function stepDrop(drop, { body, surf, camera, ds, calm, stepS, t, bufferW, buffe
       const w = DEV_OVERRIDES.breakNow;
       DEV_OVERRIDES.breakNow = null;
       if (fam.phase !== 'fired' && body.tau >= 1) {
-        // Dev rig: fire as if released at w rad/s about the current spin axis (world Y at rest).
-        const l = Math.hypot(env.omega[0], env.omega[1], env.omega[2]);
-        if (l > 1e-6) { env.omega[0] *= w / l; env.omega[1] *= w / l; env.omega[2] *= w / l; } else { env.omega[0] = 0; env.omega[1] = w; env.omega[2] = 0; }
-        // …and really spin the body at w: the beads launch at ω × p when their necks snap (breakupStep),
-        // so without this they would drop off a still planet the solver replayed as spinning.
-        body.omega.set(env.omega[0], env.omega[1], env.omega[2]);
-        body.sinceReleaseS = 0; // a fresh release: inertia first, recapture ramps in (mercuryBody)
+        // Dev rig: fire as if released at w rad/s about the current spin axis (world Y at rest), really spinning the body.
+        rigSpin(env, body, w);
         omega = w;
         if (fam.phase === 'idle') {
           rigTongueAxis(drop, env, surf.cam);
@@ -143,12 +164,27 @@ function stepDrop(drop, { body, surf, camera, ds, calm, stepS, t, bufferW, buffe
         fireDrop(drop, w, body.heatK);
       }
     }
+    if (DEV_OVERRIDES.hyperNow != null) {
+      const eH = DEV_OVERRIDES.hyperNow;
+      DEV_OVERRIDES.hyperNow = null;
+      if (fam.phase !== 'fired' && body.tau >= 1 && drop.hyperN > 0) {
+        rigSpin(env, body, MAX_OMEGA);
+        omega = MAX_OMEGA;
+        const lr = drop.lastRelease;
+        lr.omega = MAX_OMEGA; lr.ptrOmega = V_HYPER + eH * V_HYPER_SPAN; lr.eH = eH; lr.hyper = true;
+        fireHyperDrop(drop, eH, body.heatK, camera, bufferW, bufferH, t);
+      }
+    }
     if (fam.phase === 'idle' || fam.phase === 'hold') {
       const st = drop.st; // written in place: the idle and hold paths allocate nothing
       st.tau = body.tau; st.omega = omega; st.omegaTh = env.omegaTh; st.calm = calm; st.phase = fam.phase;
       st.released = ds.released; st.heatK = body.heatK; st.dragging = holding;
       if (canFire(st)) {
-        fireDrop(drop, omega, body.heatK);
+        const lr = drop.lastRelease;
+        lr.eH = hyperEnergy(lr.ptrOmega);
+        lr.hyper = canHyper({ omega, ptrOmega: lr.ptrOmega, nMax: drop.hyperN });
+        if (lr.hyper) fireHyperDrop(drop, lr.eH, body.heatK, camera, bufferW, bufferH, t);
+        else fireDrop(drop, omega, body.heatK);
       } else if (canHold(st)) {
         if (fam.phase === 'idle') {
           fam.phase = 'hold';
@@ -167,15 +203,19 @@ function stepDrop(drop, { body, surf, camera, ds, calm, stepS, t, bufferW, buffe
     if (fam.phase === 'fired') {
       const sv = drop.solver;
       if (sv && !sv.done) {
-        stepMuSolver(sv, solverBudget(sv, Math.max(1, Math.floor(nextSnapIn(fam) / dropDt))));
+        // phase 5: due at the first neck snap; phase 6 (no necks): due when the birth grace ends (spec §3.6)
+        const due = fam.hyper ? fam.tGrace - fam.t : nextSnapIn(fam);
+        stepMuSolver(sv, solverBudget(sv, Math.max(1, Math.floor(due / dropDt))));
         // never let a drop fly on a provisional pull: this frame can advance the family by up to dropDt plus one
-        // leftover DROP_DT substep (stepFamily's accumulator), so finish whenever the next snap is inside that
-        if (!sv.done && nextSnapIn(fam) < dropDt + DROP_DT) finishMuSolver(sv);
+        // leftover DROP_DT substep (stepFamily's accumulator), so finish whenever the deadline is inside that
+        if (!sv.done && due < dropDt + DROP_DT) finishMuSolver(sv);
         if (sv.done) {
-          fam.mu = sv.best;
+          if (fam.hyper) fam.eta = sv.best; else fam.mu = sv.best;
           if (import.meta.env.DEV && !sv.landed && !drop.warned) {
             drop.warned = true;
-            console.warn(`[mercury] breakup: no pull up to mu ${sv.best.toPrecision(3)} lands the drops by the ${sv.target.toFixed(1)} s target (dropDrag ${PLANET_TUNE.dropDrag}); they may come home late`);
+            console.warn(fam.hyper
+              ? `[mercury] hyper-fling: no headwind up to eta ${sv.best.toPrecision(3)} lands the swarm by the ${sv.target.toFixed(1)} s target (hyperOrbit ${PLANET_TUNE.hyperOrbit}); it may come home late`
+              : `[mercury] breakup: no pull up to mu ${sv.best.toPrecision(3)} lands the drops by the ${sv.target.toFixed(1)} s target (dropDrag ${PLANET_TUNE.dropDrag}); they may come home late`);
           }
         }
       }
@@ -198,6 +238,7 @@ function stepDrop(drop, { body, surf, camera, ds, calm, stepS, t, bufferW, buffe
     PERF_INFO.dropAreaPx = drop.frame.areaPx;
     PERF_INFO.sigma = sigmaRatio(omega);
   }
+  drop.coreScale = coreScale(fam); // phase 6: the planet's live size (1 unless a hyper family is out)
 }
 
 export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = false, emitters = {}, strikes = null }) {
@@ -328,6 +369,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     const d = {
       fam: createFamily(1), solver: null, warned: false,
       lastRelease: { omega: 0, ptrOmega: 0, eH: 0, hyper: false }, // phase 6: every release, for Gate 0 and the HUD
+      coreScale: 1, fires: 0, hyperN: Math.min(HYPER_N[tier] ?? 0, TIERS[tier].drop.bodies), // phase 6
       frame: createDropFrame(TIERS[tier].drop), spinBody: [0, 0, 0],
       camBody: [0, 0, 0], rigW: [0, 0, 0], rigDrag: [0, 0, 0], // the dev rig's stand-in drag point (rigTongueAxis)
       env: { q: [0, 0, 0, 1], omega: [0, 0, 0], gamma: 0, kappa: 0, vRef: DROP_V_REF, pxPerUnit: 1, omegaTh: 7.5, planetRadiusAt: null },
@@ -338,7 +380,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
       args: { body: null, surf: null, camera: null, ds: null, calm: false, stepS: 0, t: 0, bufferW: 1, bufferH: 1 },
     };
     // The planet's live surface (body modes + bulge) where a drop lands: the shader's shapeH, mirrored.
-    d.env.planetRadiusAt = (dir) => R_SCENE * (1 + shapeHeight(dir, surf.dirsW, surf.frame.mode, surf.bulge));
+    d.env.planetRadiusAt = (dir) => R_SCENE * d.coreScale * (1 + shapeHeight(dir, surf.dirsW, surf.frame.mode, surf.bulge));
     return d;
   }, [tier, surf]);
   const field = useDropletField({ tier, isMobile, planetMaterial: material, caps: TIERS[tier].drop });
@@ -448,7 +490,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
       }
     }
 
-    if ((ds.dragging || ds.released) && ds.aimed && pickSphereDir(ds.ndc, camera, R_SCENE, surf.w)) {
+    if ((ds.dragging || ds.released) && ds.aimed && pickSphereDir(ds.ndc, camera, R_SCENE * drop.coreScale, surf.w)) {
       worldToBody(surf.w, body.q, surf.dragDirBody);
       surf.dragDirWorld[0] = surf.w[0]; surf.dragDirWorld[1] = surf.w[1]; surf.dragDirWorld[2] = surf.w[2];
       surf.hasDragDir = true;
@@ -495,6 +537,8 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     const da = drop.args;
     da.body = body; da.surf = surf; da.camera = camera; da.calm = calm; da.ds = ds; da.stepS = stepS; da.t = t; da.bufferW = bufferW; da.bufferH = bufferH;
     stepDrop(drop, da);
+    u.uCoreR.value = R_SCENE * drop.coreScale;
+    exo.coreR = R_SCENE * drop.coreScale;
     field.upload(drop.frame, t);
     if (calm) {
       bodyToWorld(surf.glowDirBody, body.q, surf.w);

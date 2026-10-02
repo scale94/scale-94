@@ -30,7 +30,7 @@ export const TUNE = {
 
 // Dev-only overrides the frame loop reads (probes): a fixed instant for the ephemeris; the droplet
 // family's clock scale (0 freezes it); a breakup fired on demand; a held tongue at a given ω.
-export const DEV_OVERRIDES = { dateMs: null, dropTimeScale: null, breakNow: null, holdOmega: null };
+export const DEV_OVERRIDES = { dateMs: null, dropTimeScale: null, breakNow: null, holdOmega: null, hyperNow: null };
 
 const KNOBS = Object.keys(TUNE);
 
@@ -49,6 +49,8 @@ export function registerTuningRig() {
     dropTime(scale) { DEV_OVERRIDES.dropTimeScale = scale ?? null; return `drop time × ${scale ?? 1}`; },
     breakNow(omega = 12) { DEV_OVERRIDES.breakNow = omega; return `break at ${omega} rad/s`; },
     holdAt(omega) { DEV_OVERRIDES.holdOmega = omega ?? null; return omega == null ? 'hold released' : `holding at ${omega} rad/s`; },
+    // Phase 6: fire a hyper-fling at fling energy eH (0..1) as if released with the spin pinned at MAX_OMEGA.
+    hyperNow(eH = 1) { DEV_OVERRIDES.hyperNow = eH; return `hyper-fling at eH ${eH}`; },
     get: () => ({ ...TUNE }),
     // Per-element data (horizonHeight, color hex). Poking element colours does
     // not reach the mirror: EMIT_COLORS is captured at load.
