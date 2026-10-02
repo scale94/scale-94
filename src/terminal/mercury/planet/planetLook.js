@@ -64,7 +64,7 @@ export const PLANET_TUNE = {
   aetherStretch: 1,  // 0 = round lobes; 1 = each streak at its own elongation (AETHER_SHAPES)
   aetherCurve: 1.0,  // falloff inside a streak: 0 = flat; higher = brighter centre, dimmer toward the meniscus edge
   aetherCore: 2.2,   // brightness of the near-white specular core, relative to the streak colour's brightest channel
-  rayGain: 1,        // fresh crater-ray brightness (scar map G channel)
+  rayGain: 1.5,      // fresh crater-ray brightness (scar map G channel); 1.5 tuned 2026-10-02 (Task 7: 2+ flattens rays into a blob)
   modeGain: 1,       // body-mode + spin-bulge amplitude (the bead's wobble)
   waveGain: 1,       // capillary ripple slope
   roilGain: 1,       // boil-zone bubble-pop slope (mercuryRoil.POP_AMP × this)
