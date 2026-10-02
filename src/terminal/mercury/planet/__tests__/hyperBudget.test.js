@@ -5,7 +5,7 @@ import {
   solverBudget, SOLVER_SUBSTEPS_PER_FRAME, PARTICLES_PER_UNIT,
 } from '../breakupBudget';
 import { createFamily } from '../breakupFamily';
-import { stepFamily, DROP_DT, cascadeDuration, hyperAccel } from '../breakupStep';
+import { stepFamily, DROP_DT, cascadeDuration } from '../breakupStep';
 import { ETA_LO, ETA_HI, HYPER_GAMMA, HYPER_CASCADE_S } from '../hyperFling';
 import { createFamily as createFam, fireFamily } from '../breakupFamily';
 import { R_SCENE } from '../planetLook';

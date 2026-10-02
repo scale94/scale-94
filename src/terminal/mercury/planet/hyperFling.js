@@ -97,22 +97,24 @@ const len3 = (v) => Math.hypot(v[0], v[1], v[2]);
 
 // A bead's radial kick so that, launched at ω × p + k p̂ and replayed alone under the vortex at η 0 for HYPER_AIM_S,
 // it ends at radius rT (§10.2). The settle radius rises with k, so bisect. Fire time only; scratch is module-level.
-const AIM_K_LO = -5, AIM_K_HI = 40, AIM_ITERS = 20;
+const AIM_K_LO = -20, AIM_K_HI = 60, AIM_ITERS = 24;
 const AIM_STEPS = Math.round(HYPER_AIM_S / DROP_DT);
-const AIM_PASSES = 4; // fixed-point passes: the mean-velocity removal shifts every launch, so aim against it
 const _ap = [0, 0, 0], _av = [0, 0, 0], _aa = [0, 0, 0];
-function aimKick(mu, L, rC, p, d, omega, rT, off) {
+function aimKick(mu, L, rC, p, d, omega, rT) {
   const settle = (k) => {
     for (let c = 0; c < 3; c++) _ap[c] = p[c];
-    _av[0] = omega[1] * p[2] - omega[2] * p[1] + k * d[0] - off[0];
-    _av[1] = omega[2] * p[0] - omega[0] * p[2] + k * d[1] - off[1];
-    _av[2] = omega[0] * p[1] - omega[1] * p[0] + k * d[2] - off[2];
+    _av[0] = omega[1] * p[2] - omega[2] * p[1] + k * d[0];
+    _av[1] = omega[2] * p[0] - omega[0] * p[2] + k * d[1];
+    _av[2] = omega[0] * p[1] - omega[1] * p[0] + k * d[2];
     for (let i = 0; i < AIM_STEPS; i++) {
       hyperAccel(mu, 0, HYPER_GAMMA, L, _ap[0], _ap[1], _ap[2], _av[0], _av[1], _av[2], rC, DROP_DT, _aa);
       for (let c = 0; c < 3; c++) { _av[c] += _aa[c] * DROP_DT; _ap[c] += _av[c] * DROP_DT; }
     }
     return len3(_ap);
   };
+  // an unreachable radius returns the nearer end of the bracket
+  if (settle(AIM_K_LO) >= rT) return AIM_K_LO;
+  if (settle(AIM_K_HI) <= rT) return AIM_K_HI;
   let lo = AIM_K_LO, hi = AIM_K_HI;
   for (let it = 0; it < AIM_ITERS; it++) {
     const mid = 0.5 * (lo + hi);
@@ -123,7 +125,8 @@ function aimKick(mu, L, rC, p, d, omega, rT, off) {
 
 // The launch (§3.3, V4 §10.2): N small beads on a jittered Fibonacci sphere squeezed toward the spin plane, born
 // just inside the old surface, each aimed to settle at a seeded radius in the annulus between the core and the
-// reach; the swarm's mean velocity removed so its centre of mass stays at the pull's centre. The vortex axis is the
+// reach. The swarm's momentum is balanced by the core (≈ 99 % of the mass; the recoil is negligible and not
+// simulated), so no mean velocity is removed. The vortex axis is the
 // spin axis, the drag is fixed, the hang is a share of the return target; the caller solves the gather headwind.
 export function fireHyper(fam, { N, eH, seed, omega, pxPerUnit, orbitS, reach, target }) {
   const m = splitMass(N, eH, seed, pxPerUnit);
@@ -144,7 +147,6 @@ export function fireHyper(fam, { N, eH, seed, omega, pxPerUnit, orbitS, reach, t
     axisL: [z[0], z[1], z[2]],
   });
   const golden = Math.PI * (3 - Math.sqrt(5));
-  const B = new Array(N);
   let V = 0;
   for (let i = 0; i < N; i++) {
     const r = m.radii[i];
@@ -161,27 +163,15 @@ export function fireHyper(fam, { N, eH, seed, omega, pxPerUnit, orbitS, reach, t
     const p = [d[0] * rho, d[1] * rho, d[2] * rho];
     const lo = m.rC0 + 2.2 * r + 0.02, hi = reach - r - 0.03;
     const rT = hi > lo ? lo + (hi - lo) * rng() : lo;
-    B[i] = { r, d, p, rT, vol: sphereVol(r), k: 0 };
-    V += B[i].vol;
-  }
-  const off = [0, 0, 0];
-  for (let pass = 0; pass < AIM_PASSES; pass++) {
-    const mv = [0, 0, 0];
-    for (const q of B) {
-      q.k = aimKick(mu, fam.axisL, m.rC0, q.p, q.d, omega, q.rT, off);
-      mv[0] += q.vol * (omega[1] * q.p[2] - omega[2] * q.p[1] + q.k * q.d[0]);
-      mv[1] += q.vol * (omega[2] * q.p[0] - omega[0] * q.p[2] + q.k * q.d[1]);
-      mv[2] += q.vol * (omega[0] * q.p[1] - omega[1] * q.p[0] + q.k * q.d[2]);
-    }
-    for (let c = 0; c < 3; c++) off[c] = mv[c] / V;
-  }
-  for (const q of B) {
+    const k = aimKick(mu, fam.axisL, m.rC0, p, d, omega, rT);
     const v = [
-      omega[1] * q.p[2] - omega[2] * q.p[1] + q.k * q.d[0] - off[0],
-      omega[2] * q.p[0] - omega[0] * q.p[2] + q.k * q.d[1] - off[1],
-      omega[0] * q.p[1] - omega[1] * q.p[0] + q.k * q.d[2] - off[2],
+      omega[1] * p[2] - omega[2] * p[1] + k * d[0],
+      omega[2] * p[0] - omega[0] * p[2] + k * d[1],
+      omega[0] * p[1] - omega[1] * p[0] + k * d[2],
     ];
-    addBody(fam, { state: 'free', p: q.p, v, r: q.r, rMain: q.r, vol: q.vol, tFree: 0, wobAmp: WOB_BIRTH, wobAxis: [q.d[0], q.d[1], q.d[2]] });
+    const vol = sphereVol(r);
+    addBody(fam, { state: 'free', p, v, r, rMain: r, vol, tFree: 0, wobAmp: WOB_BIRTH, wobAxis: [d[0], d[1], d[2]], aimR: rT });
+    V += vol;
   }
   fam.volFamily = V;
   fam.volOut = V;

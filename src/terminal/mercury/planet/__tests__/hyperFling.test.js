@@ -95,7 +95,6 @@ const REACH = 1.175;
 const fireAt = (over = {}) => fireHyper(createFamily(1), {
   N: 16, eH: 1, seed: 3, omega: [0, 12, 0], pxPerUnit: 300, orbitS: 3, reach: REACH, target: 12, ...over,
 });
-const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 
 describe('fireHyper (aimed launch, spec §10.2)', () => {
   it('lays out N free beads inside the old surface, all fragment volume out, the core waiting', () => {
@@ -117,12 +116,19 @@ describe('fireHyper (aimed launch, spec §10.2)', () => {
     expect(f.tGrace).toBe(HYPER_GRACE_S);
   });
 
-  it('the swarm centre of mass is still', () => {
-    const f = fireAt();
-    const m = [0, 0, 0];
-    let V = 0;
-    for (const b of f.bodies) { for (let c = 0; c < 3; c++) m[c] += b.vol * b.v[c]; V += b.vol; }
-    expect(Math.hypot(...m) / V).toBeLessThan(1e-9);
+  it('aims each bead exactly: after HYPER_AIM_S alone under the vortex it ends within 0.005 of its seeded radius', () => {
+    for (const seed of [3, 4, 5, 6]) {
+      const f = fireAt({ seed });
+      const a = [0, 0, 0];
+      for (const b of f.bodies) {
+        const p = [...b.p], v = [...b.v];
+        for (let i = 0; i < Math.round(HYPER_AIM_S / DROP_DT); i++) {
+          hyperAccel(f.mu, 0, f.gammaH, f.axisL, p[0], p[1], p[2], v[0], v[1], v[2], f.rC0, DROP_DT, a);
+          for (let c = 0; c < 3; c++) { v[c] += a[c] * DROP_DT; p[c] += v[c] * DROP_DT; }
+        }
+        expect(Math.abs(Math.hypot(...p) - b.aimR), `seed ${seed} bead r ${b.r}`).toBeLessThan(0.005);
+      }
+    }
   });
 
   it('the vortex axis is the spin axis, and the beads hug the spin plane', () => {
