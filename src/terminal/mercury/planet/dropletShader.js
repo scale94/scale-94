@@ -84,9 +84,9 @@ float sdEll(vec3 p, vec4 b, vec4 ax) {
 // Exact round cone between spheres (a, r1) and (b, r2) (Inigo Quilez).
 float sdRoundCone(vec3 p, vec3 a, vec3 b, float r1, float r2) {
   vec3 ba = b - a;
-  float l2 = dot(ba, ba);
+  float l2 = max(dot(ba, ba), 1e-12);   // coincident centres: no 1/0
   float rr = r1 - r2;
-  float a2 = l2 - rr * rr;
+  float a2 = max(l2 - rr * rr, 0.0);     // one sphere inside the other: no sqrt of a negative
   float il2 = 1.0 / l2;
   vec3 pa = p - a;
   float y = dot(pa, ba);

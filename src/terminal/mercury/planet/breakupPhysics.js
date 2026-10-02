@@ -29,7 +29,7 @@ export function capillaryTimeReal(r) {
   return Math.sqrt((RHO * m * m * m) / SIGMA);
 }
 
-export const DROP_PLAYBACK = capillaryTimeReal(TONGUE_ROOT_R) / DROP_TC_ANCHOR_S; // real s per display s (≈ 1/300)
+export const DROP_PLAYBACK = capillaryTimeReal(TONGUE_ROOT_R) / DROP_TC_ANCHOR_S; // real s per display s (≈ 1/600)
 export const capillaryTime = (r) => capillaryTimeReal(r) / DROP_PLAYBACK;
 export const rpWavelength = (r0) => RP_LAMBDA_PER_R * r0;
 

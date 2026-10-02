@@ -28,6 +28,10 @@ describe('breakupStep I — snaps, launch, flight', () => {
     expect(tip.wobAmp).toBeLessThanOrEqual(WOB_BIRTH);
     const speed = 8 * Math.hypot(tip.p[0], tip.p[2]);
     expect(len(tip.v) / speed).toBeCloseTo(1, 1);
+    // …and in the spin's sense, not against it: v · (ω × p) > 0
+    const w = env.omega, p = tip.p;
+    const wxp = [w[1] * p[2] - w[2] * p[1], w[2] * p[0] - w[0] * p[2], w[0] * p[1] - w[1] * p[0]];
+    expect(tip.v[0] * wxp[0] + tip.v[1] * wxp[1] + tip.v[2] * wxp[2]).toBeGreaterThan(0);
   });
 
   it('each inter-bead snap leaves a satellite; the root goes last, drains a stub, and the planet flinches', () => {

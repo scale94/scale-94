@@ -3,7 +3,7 @@
 // central pull μ is solved by bisection on a headless replay so the LAST drop is fully absorbed by
 // the return target. A trial replay is resumable and sliced by SUBSTEPS (SOLVER_SUBSTEPS_PER_FRAME per
 // stepMuSolver call), so one frame never pays for a whole replay (spec §4.4: < 4 ms on desktop). The
-// first neck snaps ~0.34 s after release; finishMuSolver is the synchronous fallback if it isn't done.
+// first neck snaps ~0.34 s after release; finishMuSolver is the last resort if it isn't done by then.
 
 import { SPIN_DAMP_PER_S } from './mercuryBody';
 import { R_SCENE } from './planetLook';
@@ -17,7 +17,7 @@ export const MU_ITERS = 6;            // final ln-width = 2 ln(MU_SPAN) / 2^6 = 
 export const MU_CENTER = 0.04;
 export const MU_SPAN = 20;              // bracket: muRef·MU_CENTER / MU_SPAN … × MU_SPAN (0.002 … 0.8: >= 3x margin at the calibration point)
 export const MU_EXTRA = 4;              // extra upward trials if the bracket held no landing
-export const MU_EXTRA_K = 4;            // each extra trial is this × stronger than the last (top, top·K, top·K² …)
+export const MU_EXTRA_K = 4;            // each extra trial is this × stronger than the last (top·K, top·K², … top·K^MU_EXTRA; top itself was never trialled)
 export const T_MAX_FACTOR = 1;          // a trial gives up at the target: bisection only needs T <= target
 export const SOLVER_SUBSTEPS_PER_FRAME = 350; // ~1.5 ms on the dev desktop (~4.2 us/substep warm): the per-frame FLOOR
 export const SOLVER_SUBSTEPS_MAX = 900;       // ~4 ms on the dev desktop: the per-frame CEILING for solverBudget

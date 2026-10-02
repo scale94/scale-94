@@ -37,7 +37,7 @@ import {
   createFamily, canHold, canFire, breakExcess, tongueAxis, holdTongue, fireFamily, nextSnapIn, qRotateInv, DROP_V_REF,
 } from './planet/breakupFamily';
 import { TONGUE_MAX_R, sigmaRatio } from './planet/breakupPhysics';
-import { stepFamily } from './planet/breakupStep';
+import { stepFamily, DROP_DT } from './planet/breakupStep';
 import { muRef, returnTarget, createMuSolver, stepMuSolver, solverBudget, finishMuSolver } from './planet/breakupBudget';
 import { createDropFrame, packFamily, pxPerUnitAt, pxAngleOf } from './planet/breakupFrame';
 import useDropletField from './useDropletField';
@@ -92,6 +92,7 @@ function stepDrop(drop, { body, surf, camera, ds, calm, stepS, t, bufferW, buffe
   if (calm) {
     if (fam.phase !== 'idle') { Object.assign(fam, createFamily(fam.seed)); drop.solver = null; }
     drop.frame.visible = false;
+    PERF_INFO.dropPrims = 0; PERF_INFO.dropAreaPx = 0; PERF_INFO.sigma = 0;
   } else {
     const env = drop.env;
     env.q[0] = body.q.x; env.q[1] = body.q.y; env.q[2] = body.q.z; env.q[3] = body.q.w;
@@ -147,7 +148,9 @@ function stepDrop(drop, { body, surf, camera, ds, calm, stepS, t, bufferW, buffe
       const sv = drop.solver;
       if (sv && !sv.done) {
         stepMuSolver(sv, solverBudget(sv, Math.max(1, Math.floor(nextSnapIn(fam) / dropDt))));
-        if (!sv.done && nextSnapIn(fam) < 2 * dropDt) finishMuSolver(sv); // never let a drop fly on a provisional pull
+        // never let a drop fly on a provisional pull: this frame can advance the family by up to dropDt plus one
+        // leftover DROP_DT substep (stepFamily's accumulator), so finish whenever the next snap is inside that
+        if (!sv.done && nextSnapIn(fam) < dropDt + DROP_DT) finishMuSolver(sv);
         if (sv.done) {
           fam.mu = sv.best;
           if (import.meta.env.DEV && !sv.landed && !drop.warned) {

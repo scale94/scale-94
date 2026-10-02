@@ -51,6 +51,39 @@ describe('breakupStep II — merges and the cascade', () => {
     expect(Math.abs(f.volResidual)).toBeLessThan(1e-12 * sphereVol(r));
   });
 
+  it('a merging pair that reaches the planet finishes its merge and cascades as one: the volume closes', () => {
+    const f = createFamily(1);
+    f.phase = 'fired'; f.mu = 0;
+    const x = R_SCENE + 0.045;                                   // merged radius ≈ 0.033: a few substeps above the surface
+    const a = freeBody(f, [x, 0, 0.024], [-1, 0, 0]);            // touching (0.048 < 0.03 + 0.02), both diving
+    const b = freeBody(f, [x, 0, -0.024], [-1, 0, 0], 0.02);
+    const V0 = a.vol + b.vol;
+    f.volOut = V0;
+    const env = testEnv({ gamma: 0, omega: [0, 0, 0], pxPerUnit: 300 });
+    stepFamily(f, DROP_DT, env);
+    expect(a.state).toBe('merging');
+    let landedAt = -1;
+    const kinds = [];
+    for (let i = 0; i < 2000 && f.phase === 'fired'; i++) {
+      stepFamily(f, DROP_DT, env);
+      for (const e of f.events) kinds.push(e.kind);
+      f.events.length = 0;
+      if (landedAt < 0 && a.state === 'cascade') {
+        landedAt = f.t;
+        expect(b.state).toBe('gone');
+        expect(b.vol).toBe(0);
+        expect(a.volK).toBeCloseTo(V0, 15);           // the partner's volume came along into the cascade
+        expect(a.partner).toBe(-1);
+        expect(f.bodies.filter((o) => o.state === 'merging').length).toBe(0);
+      }
+    }
+    expect(landedAt).toBeGreaterThan(0);
+    expect(landedAt).toBeLessThan(bridgeTime(0.02));   // it landed mid-bridge, not after a normal finish
+    expect(kinds[0]).toBe('splash');
+    expect(f.phase).toBe('idle');
+    expect(Math.abs(f.volResidual)).toBeLessThan(1e-12 * V0);
+  });
+
   it('a full family comes home: idle, every drop drained back, volume exact', () => {
     const f = firedFamily();
     f.mu = 50 * muRefAt(7.5);

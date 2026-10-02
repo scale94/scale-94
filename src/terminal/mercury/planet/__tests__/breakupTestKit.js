@@ -20,4 +20,4 @@ export const runFor = (f, seconds, env) => {
   for (let i = 0; i < n; i++) stepFamily(f, DROP_DT, env);
 };
 export const freeBody = (f, p, v, r = 0.03) => addBody(f, { state: 'free', p, v, r, rMain: r, vol: sphereVol(r) });
-export const muRefAt = (omegaTh) => (omegaTh * R_SCENE) ** 2 * R_SCENE; // = breakupBudget.muRef (Task 6), inlined so Task 5 runs first
+export const muRefAt = (omegaTh) => (omegaTh * R_SCENE) ** 2 * R_SCENE; // = breakupBudget.muRef, inlined so the step tests do not import the budget solver
