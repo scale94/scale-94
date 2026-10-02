@@ -11,6 +11,18 @@ export const NECK_BLEND = 1;      // smooth-union radius across a neck, × the n
 export const NECK_SHOULDER = 0.6; // a neck cone ends inside its bead at this × the bead radius
 export const ROOT_FLARE = 2;      // a root neck flares to this × its radius where it meets the planet
 export const HIT_PX = 0.25;       // a march hit is within this fraction of a pixel
+// The dark rim (author 2026-10-02): mirror beads a few px across vanish into the nebula they reflect, so every
+// silhouette gets a thin dark band, sized in pixels like the planet's meniscus rim (mercuryMeniscus MENISCUS_MIN_PX).
+export const RIM_PX = 1.5;        // fully dark this far in from the silhouette, px
+export const RIM_FADE_PX = 1;     // then back to the plain mirror over this many px
+export const RIM_FLOOR = 0.06;    // the band's gain on the (linear) mirror radiance
+
+// Distance in px from a sphere's silhouette for a point whose normal makes NoV with the view ray (rPx: its radius in px).
+export const rimSilPx = (rPx, NoV) => rPx * (1 - Math.sqrt(Math.max(0, 1 - NoV * NoV)));
+export function rimShade(d) {
+  const t = Math.min(1, Math.max(0, (d - RIM_PX) / RIM_FADE_PX));
+  return t >= 1 ? 1 : RIM_FLOOR + (1 - RIM_FLOOR) * t * t * (3 - 2 * t);
+}
 
 export const DROPLET_OWN_UNIFORMS = ['uRect', 'uBead', 'uBeadAxis', 'uNeck', 'uNeckR', 'uBridge', 'uCounts', 'uPxAngle', 'uTime'];
 export const DROPLET_UNIFORMS = [...DROPLET_OWN_UNIFORMS, ...HG_MIRROR_UNIFORMS];
@@ -63,6 +75,9 @@ const float NECK_SHOULDER = ${glf(NECK_SHOULDER)};
 const float ROOT_FLARE = ${glf(ROOT_FLARE)};
 const float BOUND_BEAD = ${glf(BOUND_BEAD)};
 const float HIT_PX = ${glf(HIT_PX)};
+const float RIM_PX = ${glf(RIM_PX)};
+const float RIM_FADE_PX = ${glf(RIM_FADE_PX)};
+const float RIM_FLOOR = ${glf(RIM_FLOOR)};
 
 ${HG_FRESNEL_GLSL}
 
@@ -100,6 +115,10 @@ float sdRoundCone(vec3 p, vec3 a, vec3 b, float r1, float r2) {
   if (sign(y) * a2 * y2 < k) return sqrt(x2 + y2) * il2 - r1;
   return (sqrt(x2 * a2 * il2) + y * rr) * il2 - r1;
 }
+
+// dropletShader.rimSilPx / rimShade, exactly.
+float rimSilPx(float rPx, float NoV) { return rPx * (1.0 - sqrt(max(0.0, 1.0 - NoV * NoV))); }
+float rimShade(float d) { return mix(RIM_FLOOR, 1.0, smoothstep(RIM_PX, RIM_PX + RIM_FADE_PX, d)); }
 
 float smin(float a, float b, float k) {
   if (k <= 0.0) return min(a, b);
@@ -242,6 +261,16 @@ void main() {
   float NoV = clamp(dot(n, -rd), 0.0, 1.0);
   vec3 R = reflect(rd, n);
   vec3 col = max(fresnelHg(NoV) * envRadiance(R, uRoughLiquid, p, n), 0.0);
+  // The dark rim: px from the silhouette of the nearest bead (its radius in px from the march's own footprint,
+  // tt · uPxAngle; no screen derivatives after the discards above). A near-miss AA pixel is on the edge: all rim.
+  float rB = 0.0;
+  float dB = 1e9;
+  for (int i = 0; i < NB; i++) {
+    if (i >= nb) break;
+    float db = sdEll(p, uBead[i], uBeadAxis[i]);
+    if (db < dB) { dB = db; rB = uBead[i].w; }
+  }
+  col *= rimShade(hit ? rimSilPx(rB / max(tt * uPxAngle, 1e-9), NoV) : 0.0);
   // The planet's output stage (mercuryPlanetShader main), so the two passes meet without a seam in tone.
   vec3 srgb = mix(col * 12.92, 1.055 * pow(col, vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), col));
   float dith = (fract(sin(dot(gl_FragCoord.xy + fract(uTime) * 61.0, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
