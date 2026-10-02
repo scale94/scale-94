@@ -10,9 +10,10 @@ import { R_SCENE } from './planetLook';
 import { MERGE_MARGIN_S, MIN_RETURN_S, refreezeIn } from './breakupFamily';
 import { stepFamily, DROP_DT } from './breakupStep';
 
-export const MU_ITERS = 8;            // ln(1e6) halved 8 times: ~5% precision in μ
-export const MU_SPAN = 1e3;              // bracket: muRef / MU_SPAN … muRef × MU_SPAN (log space)
-export const T_MAX_FACTOR = 2;           // a trial gives up at this × the target
+export const MU_ITERS = 6;            // final ln-width = 2 ln(MU_SPAN) / 2^6 = 0.094: <= ~10% precision in μ
+export const MU_CENTER = 0.04;          // observed solved μ/muRef over ω 7.6-12, heat 28-120, 6 yaws: 0.0063 … 0.22
+export const MU_SPAN = 20;              // bracket: muRef·MU_CENTER / MU_SPAN … × MU_SPAN (0.002 … 0.8: >= 3x margin each side)
+export const T_MAX_FACTOR = 1;           // a trial gives up at the target: bisection only needs T <= target
 export const SOLVER_SUBSTEPS_PER_FRAME = 350; //  ~1.5 ms on the dev desktop (~4.2 us/substep warm); DROP_DT replay substeps one stepMuSolver call may run
 
 // A bead launched at the threshold surface speed (ω_th R) is exactly on a circular orbit.
@@ -83,7 +84,7 @@ export function absorbTime(template, env0, mu, tMax) {
 }
 
 export function createMuSolver(template, env0, target) {
-  const m = muRef(env0.omegaTh);
+  const m = muRef(env0.omegaTh) * MU_CENTER;
   return {
     lo: Math.log(m / MU_SPAN), hi: Math.log(m * MU_SPAN), it: 0, best: m * MU_SPAN, done: false, target,
     substeps: 0, trial: null,

@@ -85,7 +85,7 @@ describe('breakupBudget — the 40 s linger is the budget', () => {
   });
 
   it('amortises over a bounded number of frames; finishMuSolver is the fallback before the first snap', () => {
-    // Measured: one solve is ~13.3k substeps => ~38 frames at 60 fps, but only
+    // Measured: one solve is ~8.9k substeps => ~26 frames at 60 fps, but only
     // floor(TONGUE_LAG_S * (1 - SNAP_JITTER) * 60) = ~20 frames precede the first snap, so the
     // caller must finishMuSolver synchronously when the first neck is < 2 frames out (Task 9).
     const s = createMuSolver(famAt(12, 0), env0At(12, 0), 14);
