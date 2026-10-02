@@ -119,7 +119,7 @@ describe('cascadeDuration', () => {
 });
 
 describe('a live swarm with Phase 5 cohesion (regression: the grace-time implosion)', () => {
-  it('over 20 seeds no FREE bead leaves 1.02 · reach in the first 3 s, and every family comes home by 30 s', () => {
+  it('over 20 seeds no FREE bead leaves 1.02 · reach over the whole flight, and every family comes home by 30 s', () => {
     const reach = hyperReach(1.38);
     for (let seed = 1; seed <= 20; seed++) {
       const f = firedHyper({ N: 32, seed, reach, target: 14 });
@@ -130,7 +130,7 @@ describe('a live swarm with Phase 5 cohesion (regression: the grace-time implosi
       while (f.phase === 'fired' && f.t < 30) {
         stepFamily(f, DROP_DT, env);
         // free flight only: merging pairs and cascade hops ride the regrowing core (HOP_K · r), not the aim
-        if (f.t <= 3) for (const b of f.bodies) if (b.state === 'free') pMax = Math.max(pMax, Math.hypot(...b.p));
+        for (const b of f.bodies) if (b.state === 'free') pMax = Math.max(pMax, Math.hypot(...b.p));
       }
       expect(pMax, `seed ${seed}`).toBeLessThanOrEqual(1.02 * reach);
       expect(f.phase, `seed ${seed}`).not.toBe('fired');
