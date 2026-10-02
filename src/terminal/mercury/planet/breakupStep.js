@@ -52,13 +52,14 @@ export function hyperAccel(mu, eta, gamma, L, x, y, z, vx, vy, vz, h, out) {
 }
 
 // How long a bead of radius r takes from first touching the planet to gone: the cascadeStep stage sequence
-// (each stage one capillary time of its parent; the last when the next daughter would fall under PX_FLOOR).
-export function cascadeDuration(r, pxPerUnit) {
+// (each stage one capillary time of its parent, × the family's tcScale; the last when the next daughter would
+// fall under PX_FLOOR).
+export function cascadeDuration(r, pxPerUnit, tcScale = 1) {
   let rK = r, T = 0;
   for (;;) {
     T += capillaryTime(rK);
     const rNext = DAUGHTER_RATIO * rK;
-    if (rNext * pxPerUnit < PX_FLOOR) return T;
+    if (rNext * pxPerUnit < PX_FLOOR) return T * tcScale;
     rK = rNext;
   }
 }
@@ -229,7 +230,7 @@ function startCascade(fam, b, env, vn) {
   b.stage = 0; b.stageT = 0;
   b.rK = b.r; b.volK = b.vol; b.rNext = DAUGHTER_RATIO * b.r;
   b.final = b.rNext * env.pxPerUnit < PX_FLOOR;
-  b.stageD = capillaryTime(b.rK);
+  b.stageD = capillaryTime(b.rK) * fam.tcScale;
   b.v[0] = b.v[1] = b.v[2] = 0; b.wobAmp = 0;
   strike(fam, b, _u, vn, env);
 }
@@ -304,7 +305,7 @@ function cascadeStep(fam, h, env) {
     const hopV = (Math.PI * HOP_K * b.r) / ((1 - DRAIN_SHARE) * b.stageD);
     b.stage += 1; b.rK = b.r; b.volK = b.vol; b.rNext = DAUGHTER_RATIO * b.rK;
     b.final = b.rNext * env.pxPerUnit < PX_FLOOR;
-    b.stageT = 0; b.stageD = capillaryTime(b.rK);
+    b.stageT = 0; b.stageD = capillaryTime(b.rK) * fam.tcScale;
     strike(fam, b, _u, hopV, env);
   }
 }

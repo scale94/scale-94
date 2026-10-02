@@ -6,7 +6,7 @@ import { MAX_OMEGA } from './mercuryBody';
 import { R_SCENE } from './planetLook';
 import { PX_FLOOR, sphereVol } from './breakupPhysics';
 import { addBody } from './breakupFamily';
-import { WOB_BIRTH } from './breakupStep';
+import { WOB_BIRTH, cascadeDuration } from './breakupStep';
 
 // Trigger (§3.1, V2). V_HYPER / V_HYPER_SPAN are provisional until the Gate 0 swipe readout sets them.
 export const HYPER_OMEGA_FRAC = 0.98;  // the spin must be pinned at the cap…
@@ -25,12 +25,13 @@ export const T_BURST = 0.15;           // the core shrinks to its share over thi
 // Return (§3.5, V1) and its solves (§3.6; plan amendment A2: they live here, breakupBudget imports them).
 export const HYPER_VIS_K = 0.85;       // stay inside this share of the visible half-extent…
 export const HYPER_REACH_MIN_R = 1.25; // …but never contain tighter than this × R (plan amendment A1: phone portrait)
-export const HYPER_GAMMA_MAX = 500;    // containment drag bracket top, 1/s
+export const HYPER_GAMMA_MAX = 160;    // containment drag bracket top, 1/s (explicit drag diverges above 2/h ≈ 240 at h = 1/120; 160 keeps a margin)
 export const HYPER_GAMMA_ITERS = 10;
 export const HYPER_CONTAIN_K = 4;      // the fastest beads set the excursion
 export const HYPER_CONTAIN_S = 3;      // replayed this long at η = 0 (the widest orbits)
 export const ETA_LO = 1e-3;            // headwind bracket: ln-bisection over [ETA_LO, ETA_HI]
 export const ETA_HI = 1;               // (η = 1: a still aether, plain drag; also the provisional value while solving)
+export const HYPER_CASCADE_S = 3;      // the largest bead's whole cascade takes this many display s (each stage keeps its r^1.5 share)
 export const ETA_ITERS = 8;            // final ratio 1000^(1/256) ≈ 1.027
 
 export const V0 = sphereVol(R_SCENE);
@@ -153,6 +154,9 @@ export function fireHyper(fam, { N, eH, seed, omega, pxPerUnit, vR0, orbitS, gam
   fam.axisL = ll > 1e-12 ? [Lm[0] / ll, Lm[1] / ll, Lm[2] / ll] : [z[0], z[1], z[2]];
   fam.volFamily = V;
   fam.volOut = V;
+  let rMax = 0;
+  for (const b of fam.bodies) if (b.r > rMax) rMax = b.r;
+  fam.tcScale = Math.min(1, HYPER_CASCADE_S / cascadeDuration(rMax, pxPerUnit));
   return fam;
 }
 
