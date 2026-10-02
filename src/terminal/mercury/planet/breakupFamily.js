@@ -58,7 +58,7 @@ export function canFire({ released, tau, omega, omegaTh, calm, phase, heatK }) {
 
 export function createFamily(seed = 1) {
   return {
-    phase: 'idle', seed, axisBody: [1, 0, 0], L: 0, e: 0, N: 0, s: 0, rMain: 0, rSat: 0, sat: false,
+    phase: 'idle', seed, axisBody: [1, 0, 0], L: 0, e: 0, N: 0, s: 0, rMain: 0, rSat: 0, sat: false, ext0: 1,
     t: 0, acc: 0, mu: 0, bodies: [], necks: [], events: [], volOut: 0, volFamily: 0, volResidual: 0, nextId: 0,
   };
 }
@@ -122,17 +122,31 @@ export function chainLayout(L) {
 // The volume of one main bead at full excess: the strike / cohesion reference.
 export const DROP_V_REF = sphereVol(chainLayout(TONGUE_MAX_R).rMain);
 
+// The tongue length an excess asks for (the hold grows toward it with a capillary lag).
+export const tongueTarget = (e, gain) => e * gain * TONGUE_MAX_R;
+
 export function holdTongue(fam, dt, e, gain) {
-  const target = e * gain * TONGUE_MAX_R;
+  const target = tongueTarget(e, gain);
   fam.L += (target - fam.L) * (1 - Math.exp(-dt / TONGUE_LAG_S));
   fam.e = e;
 }
 
-export function fireFamily(fam, { maxBodies = 12, satellites = true } = {}) {
-  const L = chainSpan(fam.L);
+// Author 2026-10-02: the tongue is sized from the release ω too, by the hold's own excess law, so a hard swipe
+// with no hold still throws the full chain; a tongue held longer than that keeps its length.
+export const releaseLength = (L, e, gain) => Math.max(L, tongueTarget(e, gain));
+
+// The tip bead's distance above the surface for a chain of span Ls (the same layout as below and packHold).
+const tipHeight = (Ls, maxBodies, satellites) => Ls - (0.5 * Ls) / cappedChainN(Ls, maxBodies, satellites);
+
+// gain: PLANET_TUNE.breakGain, sizes the tongue from fam.e (the release excess); 0 fires the held length as is.
+// ext0: the radial scale (tip height held / fired) breakupFrame extrudes the attached chain from, 1 = no extrude.
+export function fireFamily(fam, { maxBodies = 12, satellites = true, gain = 0 } = {}) {
+  const Lh = chainSpan(fam.L);
+  const L = chainSpan(releaseLength(fam.L, fam.e, gain));
   const sat = chainSatellites(L, maxBodies, satellites);
   const N = cappedChainN(L, maxBodies, satellites);
   const s = L / N;
+  fam.ext0 = L > Lh ? tipHeight(Lh, maxBodies, satellites) / tipHeight(L, maxBodies, satellites) : 1;
   const rMain = mainRadius(s);
   const rSat = SAT_RATIO * rMain;
   const vMain = sphereVol(rMain), vSat = sphereVol(rSat);

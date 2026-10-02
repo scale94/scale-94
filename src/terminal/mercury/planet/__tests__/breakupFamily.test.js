@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import {
   refreezeIn, qRotate, qRotateInv, breakExcess, canHold, canFire, createFamily, tongueAxis, chainLayout,
   holdTongue, fireFamily, nextSnapIn, TONGUE_LAG_S, SNAP_JITTER, MIN_RETURN_S, MERGE_MARGIN_S, MAX_MAIN_PER_TONGUE,
-  cappedChainN, chainSpan,
+  cappedChainN, chainSpan, releaseLength,
 } from '../breakupFamily';
 import { TIERS } from '../planetQuality';
 import { TONGUE_ROOT_R, TONGUE_MAX_R, rpWavelength, sphereVol } from '../breakupPhysics';
@@ -150,5 +150,55 @@ describe('breakupFamily — when the bead breaks, and into what', () => {
     const f = fired({ maxBodies: 16 }, 0.001);
     expect(f.N).toBe(1);
     expect(f.L).toBeCloseTo(rpWavelength(TONGUE_ROOT_R), 12);
+  });
+
+  // Author 2026-10-02: a real swipe holds above threshold for ~0.2 s, too short to grow the tongue, so the
+  // tongue is sized from the release ω too (the hold's own excess law); a hold still grows it visibly.
+  describe('release-sized tongue', () => {
+    const fireAt = (omega, holdS, tier) => {
+      const { bodies, satellites } = TIERS[tier].drop;
+      const f = createFamily(1);
+      f.axisBody = [1, 0, 0]; f.phase = 'hold';
+      const e = breakExcess(omega, 7.5);
+      for (let t = 0; t < holdS; t += 1 / 60) holdTongue(f, 1 / 60, e, 1);
+      f.e = e;
+      return fireFamily(f, { maxBodies: bodies, satellites, gain: 1 });
+    };
+
+    it('a zero-hold fire at ω 12 lays the max chain per tier, as a long hold does', () => {
+      for (const tier of Object.keys(TIERS)) {
+        const swipe = fireAt(MAX_OMEGA, 1 / 60, tier), held = fireAt(MAX_OMEGA, 20 * TONGUE_LAG_S, tier);
+        const { bodies, satellites } = TIERS[tier].drop;
+        expect(swipe.N, tier).toBe(cappedChainN(chainSpan(TONGUE_MAX_R), bodies, satellites));
+        expect(swipe.N, tier).toBe(held.N);
+        expect(swipe.L, tier).toBeCloseTo(held.L, 9);
+        expect(swipe.L, tier).toBeCloseTo(TONGUE_MAX_R, 12);
+      }
+      expect(fireAt(MAX_OMEGA, 1 / 60, 'full').N).toBe(MAX_MAIN_PER_TONGUE);
+    });
+
+    it('an intermediate ω gets the excess-law chain', () => {
+      const e = breakExcess(9.5, 7.5);
+      const f = fireAt(9.5, 1 / 60, 'full');
+      expect(f.L).toBeCloseTo(chainSpan(e * TONGUE_MAX_R), 12);
+      expect(f.N).toBe(cappedChainN(chainSpan(e * TONGUE_MAX_R), 16, true));
+      expect(f.N).toBe(2);
+    });
+
+    it('a tongue held longer than the release asks for keeps its length (L_fire = L_hold, no extrude)', () => {
+      const f = createFamily(1);
+      f.axisBody = [1, 0, 0]; f.phase = 'hold'; f.L = TONGUE_MAX_R; f.e = 0.5;
+      fireFamily(f, { maxBodies: 16, satellites: true, gain: 1 });
+      expect(f.L).toBeCloseTo(TONGUE_MAX_R, 12);
+      expect(f.ext0).toBe(1);
+      expect(releaseLength(TONGUE_MAX_R, 0.5, 1)).toBe(TONGUE_MAX_R);
+      expect(releaseLength(0.1, 1, 1)).toBe(TONGUE_MAX_R);
+    });
+
+    it('a short hold fired long starts its extrude at the held tip', () => {
+      const f = fireAt(MAX_OMEGA, 1 / 60, 'full');
+      expect(f.ext0).toBeGreaterThan(0);
+      expect(f.ext0).toBeLessThan(0.5);
+    });
   });
 });

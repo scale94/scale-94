@@ -1,8 +1,8 @@
 // src/terminal/mercury/planet/__tests__/breakupFrame.test.js
 import { describe, it, expect, vi } from 'vitest';
 import * as THREE from 'three';
-import { createDropFrame, packFamily, pxPerUnitAt } from '../breakupFrame';
-import { createFamily, addBody, chainLayout, fireFamily, qRotate } from '../breakupFamily';
+import { createDropFrame, packFamily, pxPerUnitAt, EXTRUDE_S } from '../breakupFrame';
+import { createFamily, addBody, chainLayout, fireFamily, qRotate, holdTongue, TONGUE_LAG_S } from '../breakupFamily';
 import { TONGUE_ROOT_R, TONGUE_MAX_R, sphereVol, rpWavelength } from '../breakupPhysics';
 import { R_SCENE } from '../planetLook';
 import { TIERS } from '../planetQuality';
@@ -14,6 +14,7 @@ vi.mock('../breakupFamily', async (orig) => {
 });
 
 const caps = { bodies: 12, necks: 10, bridges: 12 };
+const chainSpanOf = (holdS) => TONGUE_MAX_R * (1 - Math.exp(-holdS / TONGUE_LAG_S));
 function viewOf(z = 3.6) {
   const cam = new THREE.PerspectiveCamera(42, 1.6, 0.1, 100);
   cam.position.set(0, 0, z); cam.updateMatrixWorld(); cam.updateProjectionMatrix();
@@ -132,12 +133,70 @@ describe('breakupFrame — a family to the droplet shader', () => {
     }
   });
 
+  it('release-sized tongue: the extrude starts at the held tip and ends at the fired layout before the first snap', () => {
+    for (const tier of Object.keys(TIERS)) {
+      const tcaps = TIERS[tier].drop;
+      const fam = createFamily(1);
+      fam.phase = 'hold'; fam.axisBody = [1, 0, 0];
+      holdTongue(fam, 0.2, 1, 1); // a real swipe: ~0.2 s above threshold
+      const env = testEnv({ q: [0, Math.sin(0.3), 0, Math.cos(0.3)] });
+      const f = createDropFrame(tcaps), view = viewOf();
+      packFamily(fam, env, f, view);
+      const tipOf = (fr, i) => [fr.bead[4 * i], fr.bead[4 * i + 1], fr.bead[4 * i + 2]];
+      const heldTips = [tipOf(f, 0), tipOf(f, f.nb / 2)];
+      const heldMax = Math.max(...heldTips.map((p) => Math.hypot(...p)));
+      fam.e = 1;
+      fireFamily(fam, { maxBodies: tcaps.bodies, satellites: tcaps.satellites, gain: 1 });
+      expect(fam.L, tier).toBeGreaterThan(2 * chainSpanOf(0.2));
+      for (const b of fam.bodies) b.p = qRotate(env.q, b.posBody); // what the first substep writes
+      // t = 0: the fired chain is drawn on the held span, the outermost beads on the held tips
+      fam.t = 0;
+      packFamily(fam, env, f, view);
+      const firedTips = [tipOf(f, 0), tipOf(f, fam.N)];
+      firedTips.forEach((p, s) => { for (let k = 0; k < 3; k++) expect(p[k], tier).toBeCloseTo(heldTips[s][k], 6); });
+      for (let i = 0; i < f.nb; i++) expect(Math.hypot(...tipOf(f, i)), tier).toBeLessThanOrEqual(heldMax + 1e-6);
+      // half way: strictly between
+      fam.t = 0.5 * EXTRUDE_S;
+      packFamily(fam, env, f, view);
+      const mid = Math.hypot(...tipOf(f, 0));
+      expect(mid, tier).toBeGreaterThan(Math.hypot(...heldTips[0]));
+      expect(mid, tier).toBeLessThan(Math.hypot(...fam.bodies[0].p));
+      // done before the first snap, exactly on the fired layout
+      const firstSnap = Math.min(...fam.necks.map((n) => n.tSnap));
+      expect(EXTRUDE_S, tier).toBeLessThan(firstSnap);
+      expect(EXTRUDE_S, tier).toBeLessThanOrEqual(0.6 * TONGUE_LAG_S);
+      fam.t = EXTRUDE_S;
+      packFamily(fam, env, f, view);
+      fam.bodies.forEach((b, i) => { for (let k = 0; k < 3; k++) expect(f.bead[4 * i + k], tier).toBeCloseTo(b.p[k], 6); });
+    }
+  });
+
+  it('the extrude is monotonic in t (eased, no overshoot)', () => {
+    const fam = createFamily(1);
+    fam.phase = 'hold'; fam.axisBody = [1, 0, 0];
+    holdTongue(fam, 0.1, 1, 1);
+    fam.e = 1;
+    fireFamily(fam, { maxBodies: 16, satellites: true, gain: 1 });
+    for (const b of fam.bodies) b.p = [...b.posBody];
+    const f = createDropFrame(TIERS.full.drop), env = testEnv(), view = viewOf();
+    let last = 0;
+    for (let i = 0; i <= 20; i++) {
+      fam.t = (i / 20) * 1.2 * EXTRUDE_S;
+      packFamily(fam, env, f, view);
+      const d = f.bead[0];
+      expect(d).toBeGreaterThanOrEqual(last - 1e-12);
+      expect(d).toBeLessThanOrEqual(fam.bodies[0].p[0] + 1e-12);
+      last = d;
+    }
+  });
+
   it('packFamily allocates nothing per call on the hold and fired paths', () => {
     const hold = createFamily(1);
     hold.phase = 'hold'; hold.L = TONGUE_MAX_R;
     const fired = firedFamily({ maxBodies: 12, satellites: true });
     for (const b of fired.bodies) b.p = [...b.posBody];
     fired.t = 0.3 * fired.necks[0].tSnap;
+    fired.ext0 = 0.4; // mid-extrude (a release-sized tongue): the radial lerp allocates nothing either
     const env = testEnv(), view = viewOf(), f = createDropFrame(caps);
     const keys = Object.keys(f).join();
     // deterministic: the per-frame path must not build a chainLayout object (it did once, via the hold chain)

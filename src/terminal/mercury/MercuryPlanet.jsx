@@ -74,11 +74,12 @@ function loadMap(loader, url, srgb) {
   });
 }
 
-// Phase 5: release → a family, a provisional pull, and the budget solver (it lands before the first neck snaps).
+// Phase 5: release → a family (laid out at its release length), a provisional pull, and the budget solver (it lands before the first neck snaps).
 function fireDrop(drop, omega, heatK) {
   const fam = drop.fam;
   fam.e = breakExcess(omega, drop.env.omegaTh);
-  fireFamily(fam, { maxBodies: drop.frame.caps.bodies, satellites: drop.frame.caps.satellites });
+  // the tongue is sized from the release ω too (author 2026-10-02): a swipe's short hold still throws the full chain
+  fireFamily(fam, { maxBodies: drop.frame.caps.bodies, satellites: drop.frame.caps.satellites, gain: PLANET_TUNE.breakGain });
   fam.mu = muRef(drop.env.omegaTh);
   drop.solver = createMuSolver(fam, drop.env, returnTarget(heatK, PLANET_TUNE.dropDrift));
   drop.warned = false;

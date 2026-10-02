@@ -3,7 +3,7 @@
 
 import { R_SCENE } from './planetLook';
 import { TONGUE_ROOT_R, pinchRadius, wobbleOmega } from './breakupPhysics';
-import { cappedChainN, chainSpan, qRotate } from './breakupFamily';
+import { cappedChainN, chainSpan, qRotate, TONGUE_LAG_S } from './breakupFamily';
 
 export const NECK_ASYM = 0.2;        // waist shifted toward the inner body: steep cone at the outer bead, shallow inward (spec §5.2)
 export const FLIGHT_STRETCH = 0.12;  // prolate stretch of a main bead at A_REF
@@ -11,6 +11,9 @@ export const A_REF = 4;              // units/s²
 export const STRETCH_MAX = 0.45;
 export const DROP_PAD_PX = 4;
 export const BOUND_BEAD = 2;         // a bead's bound, × r × (1 + |stretch|): its neck shoulders and fillets live inside
+// A release-sized tongue (breakupFamily.releaseLength) longer than the held one extrudes from the held tip to its
+// fired layout over this long, eased: well inside the first snap (≥ 0.85 TONGUE_LAG_S with the jitter).
+export const EXTRUDE_S = 0.5 * TONGUE_LAG_S;
 
 export const pxPerUnitAt = (dist, fovDeg, heightPx) => heightPx / (2 * dist * Math.tan((fovDeg * Math.PI) / 360));
 export const pxAngleOf = (fovDeg, heightPx) => (2 * Math.tan((fovDeg * Math.PI) / 360)) / heightPx;
@@ -73,14 +76,28 @@ function packHold(fam, env, f) {
   }
 }
 
+const smooth01 = (x) => { const t = Math.min(1, Math.max(0, x)); return t * t * (3 - 2 * t); };
+
 function packFired(fam, env, f) {
   const B = fam.bodies;
+  // the extrude: attached beads co-rotate with the planet, so a radial lerp of their height carries the chain
+  // from the held span to the fired one (a pure function of fam.t: replay-consistent, nothing in the sim moves)
+  const ext = fam.ext0 < 1 && fam.t < EXTRUDE_S ? fam.ext0 + (1 - fam.ext0) * smooth01(fam.t / EXTRUDE_S) : 1;
   for (let i = 0; i < B.length; i++) {
     const b = B[i];
     f.map[i] = -1;
     if (b.state === 'gone' || b.r < 1e-6) continue;
     let s = 0;
     unitInto(b.p, _ax);
+    if (ext < 1 && b.state === 'attached') {
+      const d = len(b.p);
+      if (d > R_SCENE) {
+        const k = (R_SCENE + (d - R_SCENE) * ext) / d;
+        _c[0] = b.p[0] * k; _c[1] = b.p[1] * k; _c[2] = b.p[2] * k;
+        f.map[i] = pushBead(f, _c, b.r, _ax, 0);
+        continue;
+      }
+    }
     if (b.state === 'free' || b.state === 'merging') {
       const wob = b.wobAmp * Math.cos(wobbleOmega(b.r) * b.wobT);
       const al = len(b.a);
