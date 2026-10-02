@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   muRef, returnTarget, headlessEnv, absorbTime, createMuSolver, stepMuSolver, finishMuSolver, SOLVER_SUBSTEPS_PER_FRAME,
-  SOLVER_SUBSTEPS_MAX, solverBudget, MU_ITERS, MU_EXTRA, MU_CENTER, MU_SPAN,
+  SOLVER_SUBSTEPS_MAX, solverBudget, MU_ITERS, MU_EXTRA, MU_CENTER, MU_SPAN, MU_CALIBRATED,
 } from '../breakupBudget';
 import {
   createFamily, fireFamily, breakExcess, tongueAxis, refreezeIn, MIN_RETURN_S, MERGE_MARGIN_S, DROP_V_REF,
@@ -104,6 +104,12 @@ describe('breakupBudget — the 40 s linger is the budget', () => {
     expect(solverBudget(s, 5)).toBe(0);
     // with one frame left it asks for the ceiling, not more
     expect(solverBudget(createMuSolver(famAt(12, 0), env0At(12, 0), 14), 1)).toBe(SOLVER_SUBSTEPS_MAX);
+  });
+
+  it('the bracket holds the calibrated μ/muRef range with >= 3x margin each side, at <= ~10% precision', () => {
+    expect(MU_CALIBRATED[0] / (MU_CENTER / MU_SPAN)).toBeGreaterThanOrEqual(3);
+    expect((MU_CENTER * MU_SPAN) / MU_CALIBRATED[1]).toBeGreaterThanOrEqual(3);
+    expect((2 * Math.log(MU_SPAN)) / 2 ** MU_ITERS).toBeLessThanOrEqual(0.1);
   });
 
   it('the in-bracket path never needs the climb', () => {

@@ -184,8 +184,8 @@ describe('breakupFrame — a family to the droplet shader', () => {
       fam.t = (i / 20) * 1.2 * EXTRUDE_S;
       packFamily(fam, env, f, view);
       const d = f.bead[0];
-      expect(d).toBeGreaterThanOrEqual(last - 1e-12);
-      expect(d).toBeLessThanOrEqual(fam.bodies[0].p[0] + 1e-12);
+      expect(d).toBeGreaterThanOrEqual(last - 1e-6); // Float32 frame arrays
+      expect(d).toBeLessThanOrEqual(fam.bodies[0].p[0] + 1e-6);
       last = d;
     }
   });

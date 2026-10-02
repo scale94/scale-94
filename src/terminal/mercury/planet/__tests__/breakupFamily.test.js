@@ -8,6 +8,7 @@ import {
 import { TIERS } from '../planetQuality';
 import { TONGUE_ROOT_R, TONGUE_MAX_R, rpWavelength, sphereVol } from '../breakupPhysics';
 import { MAX_OMEGA } from '../mercuryBody';
+import { R_SCENE } from '../planetLook';
 
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const fired = (opts = {}, L = TONGUE_MAX_R) => {
@@ -75,6 +76,17 @@ describe('breakupFamily — when the bead breaks, and into what', () => {
     const { N, s, rMain } = chainLayout(TONGUE_MAX_R);
     expect(sphereVol(rMain)).toBeCloseTo(Math.PI * TONGUE_ROOT_R ** 2 * s, 12);
     expect(N * s).toBeCloseTo(TONGUE_MAX_R, 12);
+  });
+
+  it('author 2026-10-02: r0 0.035 R, TONGUE_MAX_R 1.12 R (L/λ invariant: the max chain per tier is unchanged)', () => {
+    expect(TONGUE_ROOT_R / R_SCENE).toBeCloseTo(0.035, 12);
+    expect(TONGUE_MAX_R / R_SCENE).toBeCloseTo(1.12, 12);
+    expect(TONGUE_MAX_R / rpWavelength(TONGUE_ROOT_R)).toBeCloseTo((0.8 * R_SCENE) / rpWavelength(0.025 * R_SCENE), 9);
+    const want = { full: 4, phone: 3, lite: 2 };
+    for (const tier of Object.keys(TIERS)) {
+      const { bodies, satellites } = TIERS[tier].drop;
+      expect(cappedChainN(chainSpan(TONGUE_MAX_R), bodies, satellites), tier).toBe(want[tier]);
+    }
   });
 
   it('the tongue loads with a capillary-time lag', () => {

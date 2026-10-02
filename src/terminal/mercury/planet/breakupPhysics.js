@@ -11,8 +11,8 @@ import { HG_SIGMA_N_PER_M as SIGMA, HG_RHO_KG_M3 as RHO, DROP_R_M } from './merc
 import { R_SCENE } from './planetLook';
 
 export const M_PER_UNIT = DROP_R_M / R_SCENE;
-export const TONGUE_ROOT_R = 0.025 * R_SCENE;   // thread radius r0 (≈ 5 px on desktop)
-export const TONGUE_MAX_R = 0.8 * R_SCENE;      // tongue length at full excess (P4)
+export const TONGUE_ROOT_R = 0.035 * R_SCENE;   // thread radius r0 (≈ 7 px on desktop; author 2026-10-02: 0.025 → 0.035, beads read)
+export const TONGUE_MAX_R = 1.12 * R_SCENE;     // tongue length at full excess (P4: 0.8 R at r0 0.025; scaled with r0 so L/λ, the max N, holds)
 export const RP_LAMBDA_PER_R = 9.02;            // fastest-growing Rayleigh–Plateau wavelength / thread radius
 export const SAT_RATIO = 0.3;                   // satellite radius / main bead radius
 export const DAUGHTER_RATIO = 0.5;              // partial coalescence: daughter radius / parent

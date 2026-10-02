@@ -10,12 +10,14 @@ import { R_SCENE } from './planetLook';
 import { MERGE_MARGIN_S, MIN_RETURN_S, refreezeIn } from './breakupFamily';
 import { stepFamily, DROP_DT } from './breakupStep';
 
-export const MU_ITERS = 6;            // final ln-width = 2 ln(MU_SPAN) / 2^6 = 0.094: <= ~10% precision in μ
-// Bracket calibrated at ONE point (gamma 8, kappa 0.03, pxPerUnit 300): the solved μ/muRef over
-// ω 7.6-12, heat 28-120, 6 yaws was 0.0063 … 0.22. dropDrag/dropCohesion/pxPerUnit move it, so the
-// bracket is only a first guess: if nothing lands inside it, the solver climbs (see MU_EXTRA).
-export const MU_CENTER = 0.04;
-export const MU_SPAN = 20;              // bracket: muRef·MU_CENTER / MU_SPAN … × MU_SPAN (0.002 … 0.8: >= 3x margin at the calibration point)
+export const MU_ITERS = 6;            // final ln-width = 2 ln(MU_SPAN) / 2^6 = 0.097: <= ~10% precision in μ
+// Bracket calibrated at ONE point (gamma 8, kappa 0.1, pxPerUnit 300, r0 0.035 R; re-run 2026-10-02 for the author's
+// r0 0.025 → 0.035): the solved μ/muRef over ω 7.6-12, heat 28-120, 6 yaws, tier caps 12 and 16 was 0.00675 … 0.344
+// (at r0 0.025, kappa 0.03 it was 0.0063 … 0.22). dropDrag/dropCohesion/pxPerUnit move it, so the bracket is only a
+// first guess: if nothing lands inside it, the solver climbs (see MU_EXTRA).
+export const MU_CENTER = 0.048;         // the geometric centre of the calibrated range
+export const MU_SPAN = 22;              // bracket: muRef·MU_CENTER / MU_SPAN … × MU_SPAN (0.0022 … 1.06: >= 3x margin each side at the calibration point)
+export const MU_CALIBRATED = [0.00675, 0.344]; // the measured range above (the margin test pins the bracket against it)
 export const MU_EXTRA = 4;              // extra upward trials if the bracket held no landing
 export const MU_EXTRA_K = 4;            // each extra trial is this × stronger than the last (top·K, top·K², … top·K^MU_EXTRA; top itself was never trialled)
 export const T_MAX_FACTOR = 1;          // a trial gives up at the target: bisection only needs T <= target
