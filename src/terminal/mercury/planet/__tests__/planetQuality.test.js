@@ -61,4 +61,10 @@ describe('planetQuality', () => {
     expect(out.slice(0, 3)).toEqual([5, 3, 1]);
     expect(out.slice(3)).toEqual([0, 2, 4, 6, 7]);
   });
+
+  it('droplet caps per tier (phase-5 spec §7.7)', () => {
+    expect(TIERS.full.drop).toEqual({ bodies: 12, necks: 10, bridges: 12, steps: 48, satellites: true });
+    expect(TIERS.phone.drop).toEqual({ bodies: 8, necks: 6, bridges: 8, steps: 32, satellites: true });
+    expect(TIERS.lite.drop).toEqual({ bodies: 6, necks: 4, bridges: 6, steps: 24, satellites: false });
+  });
 });
