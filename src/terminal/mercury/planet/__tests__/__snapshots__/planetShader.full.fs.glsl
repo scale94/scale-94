@@ -44,6 +44,9 @@ uniform vec3 uImpWave[8];
 uniform vec4 uBulge;
 uniform float uRoilGain;
 uniform float uPopZoom;
+uniform float uRoughLiquid;
+uniform float uMeniscus;
+uniform float uMeniscusW;
 
 const float PI = 3.14159265358979;
 const float TAU = 6.28318530717959;
@@ -68,8 +71,11 @@ const float T_SUNSET_K = 400.000000;
 const float TAU_WARM_H = 860.000000;
 const float TAU_COOL_H = 290.000000;
 const float HOURS_PER_RAD = 672.047663;
-const vec3 HG_F0 = vec3(0.760000000, 0.770000000, 0.780000000);
-const float ROUGH_LIQUID = 0.140000000;
+const vec3 HG_N = vec3(1.85900000, 1.55200000, 1.13100000);
+const vec3 HG_K = vec3(5.07900000, 4.65100000, 3.99000000);
+const float MENISCUS_MAX_SIN = 1.00000000;
+const float MENISCUS_MIN_PX = 1.50000000;
+const float MENISCUS_GRAD_FLOOR = 0.0500000000;
 const float ROUGH_BOIL = 0.400000000;
 const vec3 SOLID_HG_ALBEDO = vec3(0.520000000, 0.530000000, 0.550000000);
 const float SPARKLE_CELLS = 700.000000;
@@ -211,6 +217,46 @@ float vnoise3(vec3 x) {
         mix(hash13(i + vec3(0.0, 1.0, 0.0)), hash13(i + vec3(1.0, 1.0, 0.0)), u.x), u.y),
     mix(mix(hash13(i + vec3(0.0, 0.0, 1.0)), hash13(i + vec3(1.0, 0.0, 1.0)), u.x),
         mix(hash13(i + vec3(0.0, 1.0, 1.0)), hash13(i + vec3(1.0, 1.0, 1.0)), u.x), u.y), u.z);
+}
+
+// vnoise3 with its analytic gradient: vec4(value, d/dx). Same corners, same weights.
+vec4 vnoise3d(vec3 x) {
+  vec3 i = floor(x);
+  vec3 f = fract(x);
+  vec3 u = f * f * (3.0 - 2.0 * f);
+  vec3 du = 6.0 * f * (1.0 - f);
+  float a = hash13(i), b = hash13(i + vec3(1.0, 0.0, 0.0));
+  float c = hash13(i + vec3(0.0, 1.0, 0.0)), d = hash13(i + vec3(1.0, 1.0, 0.0));
+  float e = hash13(i + vec3(0.0, 0.0, 1.0)), g = hash13(i + vec3(1.0, 0.0, 1.0));
+  float h = hash13(i + vec3(0.0, 1.0, 1.0)), k = hash13(i + vec3(1.0, 1.0, 1.0));
+  float k1 = b - a, k2 = c - a, k3 = e - a, k4 = a - b - c + d;
+  float k5 = a - c - e + h, k6 = a - b - e + g, k7 = -a + b + c - d + e - g - h + k;
+  float v = a + k1 * u.x + k2 * u.y + k3 * u.z + k4 * u.x * u.y + k5 * u.y * u.z + k6 * u.z * u.x + k7 * u.x * u.y * u.z;
+  return vec4(v, du * vec3(k1 + k4 * u.y + k6 * u.z + k7 * u.y * u.z,
+                           k2 + k5 * u.z + k4 * u.x + k7 * u.z * u.x,
+                           k3 + k6 * u.x + k5 * u.y + k7 * u.x * u.y));
+}
+
+// hgOptics.conductorFresnel, exactly: unpolarised reflectance of a metal (n + ik) in vacuum.
+vec3 fresnelHg(float cosI) {
+  float c = clamp(cosI, 0.0, 1.0);
+  float c2 = c * c;
+  float s2 = 1.0 - c2;
+  vec3 t0 = HG_N * HG_N - HG_K * HG_K - s2;
+  vec3 a2b2 = sqrt(t0 * t0 + 4.0 * HG_N * HG_N * HG_K * HG_K);
+  vec3 a = sqrt(max(0.5 * (a2b2 + t0), 0.0));
+  vec3 rs = (a2b2 + c2 - 2.0 * a * c) / (a2b2 + c2 + 2.0 * a * c);
+  vec3 t1 = c2 * a2b2 + s2 * s2;
+  vec3 t2 = 2.0 * a * c * s2;
+  vec3 rp = rs * (t1 - t2) / (t1 + t2);
+  return 0.5 * (rs + rp);
+}
+
+// mercuryMeniscus.meniscusSin, exactly: the quarter-circle rim's outward tilt at arc distance d.
+float meniscusSin(float d, float w, float gain) {
+  if (d < 0.0 || w <= 0.0) return 0.0;
+  float u = d / w;
+  return u >= 1.0 ? 0.0 : clamp(gain, 0.0, 1.0) * MENISCUS_MAX_SIN * (1.0 - u);
 }
 
 // A disc of angular radius asin(sinR) seen in a mirror of roughness rough:
@@ -531,9 +577,19 @@ void main() {
   if (uTau > 0.0) {
     float mu0x = dot(xb, Lb);
     float front = 1.0 - acos(clamp(mu0x, -1.0, 1.0)) / PI;
-    float edgeN = (vnoise3(xb * FRONT_NOISE_FREQ) - 0.5) * FRONT_EDGE;
+    vec4 en = vnoise3d(xb * FRONT_NOISE_FREQ);
+    float edgeN = (en.x - 0.5) * FRONT_EDGE;
     float thr = 1.0 + FRONT_EDGE - uTau * (1.0 + 2.0 * FRONT_EDGE);
-    float fluid = smoothstep(thr - FRONT_SOFT, thr + FRONT_SOFT, front + edgeN);
+    float sF = front + edgeN - thr;
+    float fluidSoft = smoothstep(-FRONT_SOFT, FRONT_SOFT, sF);
+    // The front field's tangential gradient (front units per radian; it points into the liquid)
+    // turns sF into an arc distance from the contact line: dArc = sF / |grad|.
+    vec3 gF = (Lb - xb * mu0x) / (PI * max(sqrt(max(1.0 - mu0x * mu0x, 0.0)), 1e-4))
+            + (FRONT_EDGE * FRONT_NOISE_FREQ) * (en.yzw - xb * dot(en.yzw, xb));
+    float gLen = max(length(gF), MENISCUS_GRAD_FLOOR);
+    float dArc = sF / gLen;
+    float fluidHard = clamp(dArc / max(pxArc, 1e-6) + 0.5, 0.0, 1.0);
+    float fluid = max(fluidSoft, uMeniscus > 0.0 ? fluidHard : 0.0);
 
     if (fluid > 0.0) {
       // Local time and latitude about the rest spin axis (world Y; the rest
@@ -544,8 +600,17 @@ void main() {
       float T = surfaceTempK(mu0x, lonRel, sqrt(max(1.0 - xw.y * xw.y, 0.0)), uSubsolarT, uHeatK);
       float liquidW = smoothstep(HG_MELT_K - PHASE_BLEND_K, HG_MELT_K + PHASE_BLEND_K, T);
       float boilW = smoothstep(HG_BOIL_K - PHASE_BLEND_K, HG_BOIL_K + PHASE_BLEND_K, T);
+      // Liquid Hg on rock: a hard contact line and a bead rim; frozen Hg keeps the soft wipe.
+      fluid = mix(fluidSoft, fluidHard, liquidW * clamp(uMeniscus, 0.0, 1.0));
 
-      vec3 nW = uBodyRot * normalize(mix(n, nb, fluid));
+      vec3 nB = normalize(mix(n, nb, fluid));
+      float rimS = liquidW * meniscusSin(dArc, max(uMeniscusW, MENISCUS_MIN_PX * pxArc), uMeniscus);
+      if (rimS > 0.0) {
+        vec3 tOut = -gF + nB * dot(gF, nB);
+        float tl = length(tOut);
+        if (tl > 1e-6) nB = nB * sqrt(1.0 - rimS * rimS) + (tOut / tl) * rimS;
+      }
+      vec3 nW = uBodyRot * nB;
       float warp = WAVE_WARP_RAD * (2.0 * vnoise3(xb * WAVE_WARP_FREQ) - 1.0);
       nW = normalize(nW - fluid * waveTilt(xw, pxArc, warp));
       float popAct = 0.0;
@@ -560,8 +625,7 @@ void main() {
 
       vec3 liquid = vec3(0.0);
       if (liquidW > 0.0) {
-        vec3 F = HG_F0 + (1.0 - HG_F0) * pow(1.0 - NoV, 5.0);
-        liquid = F * envRadiance(R, mix(ROUGH_LIQUID, ROUGH_BOIL, boilW * (0.5 + 0.5 * popAct)), hit, nW);
+        liquid = fresnelHg(NoV) * envRadiance(R, mix(uRoughLiquid, ROUGH_BOIL, boilW * (0.5 + 0.5 * popAct)), hit, nW);
       }
 
       vec3 solid = vec3(0.0);

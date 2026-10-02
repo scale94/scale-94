@@ -21,8 +21,8 @@ export const FALLBACK_ALBEDO = [0.16, 0.15, 0.14]; // linear; true-colour grey-b
 export const RAY_ALBEDO = [0.42, 0.4, 0.38];  // fresh ejecta (linear): immature regolith is ~2.5× the background
 
 // Quicksilver (spec §3, §5 shading 3). Physical-ish; baked via glf.
-export const HG_F0 = [0.76, 0.77, 0.78];      // liquid Hg normal-incidence reflectance, near-neutral
-export const ROUGH_LIQUID = 0.14;             // never lower: a sharper mirror of black space is black glass
+export { HG_F0 } from './hgOptics';          // liquid Hg normal-incidence reflectance (≈ 0.78, neutral), from n + ik
+export const ROUGH_LIQUID = 0.14;             // PLANET_TUNE.roughLiquid's default; below it a sharper mirror of black space reads as black glass
 export const ROUGH_BOIL = 0.4;                // boiling breaks the mirror's coherence
 export const SOLID_HG_ALBEDO = [0.52, 0.53, 0.55]; // frozen Hg: matte crystalline silver (linear)
 export const SPARKLE_CELLS = 700;             // facet cells around the equator
@@ -69,4 +69,7 @@ export const PLANET_TUNE = {
   waveGain: 1,       // capillary ripple slope
   roilGain: 1,       // boil-zone bubble-pop slope (mercuryRoil.POP_AMP × this)
   exoGain: 4,        // sodium tail + Hg vapour haze brightness
+  roughLiquid: ROUGH_LIQUID, // liquid mirror roughness (Sun + emitter lobes; the aether streaks are ~insensitive to it)
+  meniscus: 1,       // melt-front bead rim: 0 = the old soft wipe, 1 = full non-wetting rim (mercuryMeniscus.js)
+  meniscusW: 0.02,   // rim width in radians of arc (floored at MENISCUS_MIN_PX on screen)
 };

@@ -134,6 +134,9 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
       uScar: { value: scarTex },
       uRayGain: { value: PLANET_TUNE.rayGain },
       uRoilGain: { value: PLANET_TUNE.roilGain },
+      uRoughLiquid: { value: PLANET_TUNE.roughLiquid },
+      uMeniscus: { value: PLANET_TUNE.meniscus },
+      uMeniscusW: { value: PLANET_TUNE.meniscusW },
       uPopZoom: { value: 1 },
       uSurfOn: { value: 0 },
       uImpDir: { value: Array.from({ length: IMPULSE_SLOTS }, () => new THREE.Vector3(0, 0, 1)) },
@@ -229,6 +232,9 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     u.uAetherCore.value = PLANET_TUNE.aetherCore;
     u.uRayGain.value = PLANET_TUNE.rayGain;
     u.uRoilGain.value = PLANET_TUNE.roilGain;
+    u.uRoughLiquid.value = PLANET_TUNE.roughLiquid;
+    u.uMeniscus.value = PLANET_TUNE.meniscus;
+    u.uMeniscusW.value = PLANET_TUNE.meniscusW;
     if (t >= nextEphemeris.current) {
       nextEphemeris.current = t + EPHEMERIS_REFRESH_S;
       const e = planetEphemerisUniforms(DEV_OVERRIDES.dateMs ?? Date.now());

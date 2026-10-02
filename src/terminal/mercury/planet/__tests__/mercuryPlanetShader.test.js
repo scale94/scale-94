@@ -7,13 +7,15 @@ import { TIERS, TIER_NAMES } from '../planetQuality';
 import { glf, v3 } from '../../../gl/glf';
 import {
   R_SCENE, R_MERCURY_M, SHADOW_STEPS, SHADOW_REACH_RAD, SHADOW_SOFT_M, SHADOW_ZONE,
-  SHADOW_SOFT_LSB, SHADOW_BIAS_LSB, HG_F0, ROUGH_LIQUID, ROUGH_BOIL, SOLID_HG_ALBEDO,
+  SHADOW_SOFT_LSB, SHADOW_BIAS_LSB, ROUGH_LIQUID, ROUGH_BOIL, SOLID_HG_ALBEDO,
   SPARKLE_CELLS, SPARKLE_DENSITY, SPARKLE_COS, SPARKLE_GAIN, EMIT_RADIUS,
   FRONT_EDGE, FRONT_SOFT, FRONT_NOISE_FREQ, PHASE_BLEND_K,
   EMIT_MIN_SIN, EMIT_HORIZON_SOFT, SUN_SHOULDER, AETHER_NIGHT, AETHER_DAY_LO, AETHER_DAY_HI,
   AETHER_DIFFUSE, AETHER_DIFFUSE_REF_LOBES, NIGHT_TINT, AETHER_FRINGE_LO, AETHER_FRINGE_HI, AETHER_SHOULDER,
 } from '../planetLook';
 import { CALM_GLOW_RAD } from '../mercuryImpacts';
+import { HG_N, HG_K } from '../hgOptics';
+import { MENISCUS_MAX_SIN, MENISCUS_MIN_PX, MENISCUS_GRAD_FLOOR } from '../mercuryMeniscus';
 import { AETHER_LOBES, AETHER_SHAPES } from '../aetherLobes';
 import {
   HG_MELT_K, HG_BOIL_K, T_NIGHT_FLOOR_K, T_SUNSET_K, TAU_WARM_H, TAU_COOL_H, HOURS_PER_RAD,
@@ -54,14 +56,16 @@ describe('mercuryPlanetShader contract', () => {
       R_SCENE, R_MERCURY_M, DEM_MIN_M, DEM_MAX_M, SHADOW_REACH_RAD, SHADOW_SOFT_M, SHADOW_ZONE,
       SHADOW_SOFT_LSB, SHADOW_BIAS_LSB, DEM_LSB_M,
       HG_MELT_K, HG_BOIL_K, T_NIGHT_FLOOR_K, T_SUNSET_K, TAU_WARM_H, TAU_COOL_H, HOURS_PER_RAD,
-      ROUGH_LIQUID, ROUGH_BOIL, SPARKLE_CELLS, SPARKLE_DENSITY, SPARKLE_COS, SPARKLE_GAIN, EMIT_RADIUS,
+      ROUGH_BOIL, SPARKLE_CELLS, SPARKLE_DENSITY, SPARKLE_COS, SPARKLE_GAIN, EMIT_RADIUS,
       FRONT_EDGE, FRONT_SOFT, FRONT_NOISE_FREQ, PHASE_BLEND_K,
       EMIT_MIN_SIN, EMIT_HORIZON_SOFT, SUN_SHOULDER, AETHER_NIGHT, AETHER_DAY_LO, AETHER_DAY_HI,
       AETHER_DIFFUSE, AETHER_DIFFUSE_REF_LOBES, AETHER_FRINGE_LO, AETHER_FRINGE_HI, AETHER_SHOULDER,
+      MENISCUS_MAX_SIN, MENISCUS_MIN_PX, MENISCUS_GRAD_FLOOR,
     })) {
       expect(PLANET_FS).toContain(`const float ${name} = ${glf(value)};`);
     }
-    expect(PLANET_FS).toContain(`const vec3 HG_F0 = ${v3(HG_F0)};`);
+    expect(PLANET_FS).toContain(`const vec3 HG_N = ${v3(HG_N)};`);
+    expect(PLANET_FS).toContain(`const vec3 HG_K = ${v3(HG_K)};`);
     expect(PLANET_FS).toContain(`const vec3 SOLID_HG_ALBEDO = ${v3(SOLID_HG_ALBEDO)};`);
     expect(PLANET_FS).toContain(`const vec3 NIGHT_TINT = ${v3(NIGHT_TINT)};`);
     expect(PLANET_FS).toContain(`const int AETHER_LOBES = ${AETHER_LOBES};`);
@@ -119,7 +123,7 @@ describe('mercuryPlanetShader contract', () => {
     expect(PLANET_FS).toContain('uniform float uAetherSilver;');
     expect(PLANET_FS).toContain('return mix(col, vec3(l), uAetherSilver);');
     expect(PLANET_FS).not.toMatch(/AETHER_SIN_W/);
-    expect(PLANET_FS).toMatch(/liquid = F \* envRadiance\(R, [^;]*, hit, nW\);/);
+    expect(PLANET_FS).toMatch(/liquid = fresnelHg\(NoV\) \* envRadiance\(R, [^;]*, hit, nW\);/);
     expect(PLANET_FS).toMatch(/\+ aetherDiffuse\(nW\)/);
     expect(PLANET_FS).toContain('return c + aetherTint(nW) * aetherShoulder(uAetherGain * a);');
     expect(PLANET_FS).toContain('return uAetherGain * AETHER_DIFFUSE * aetherTint(nW) * a * (AETHER_DIFFUSE_REF_LOBES / float(AETHER_LOBES));');
@@ -197,7 +201,13 @@ describe('mercuryPlanetShader contract', () => {
   it('the front and temperature follow the material point (xb); the ripples tilt the fluid normal', () => {
     expect(PLANET_FS).toContain('float mu0x = dot(xb, Lb);');
     expect(PLANET_FS).toContain('float front = 1.0 - acos(clamp(mu0x, -1.0, 1.0)) / PI;');
-    expect(PLANET_FS).toContain('float edgeN = (vnoise3(xb * FRONT_NOISE_FREQ) - 0.5) * FRONT_EDGE;');
+    expect(PLANET_FS).toContain('vec4 en = vnoise3d(xb * FRONT_NOISE_FREQ);');
+    expect(PLANET_FS).toContain('float edgeN = (en.x - 0.5) * FRONT_EDGE;');
+    // Meniscus (mercuryMeniscus.js): arc distance from the contact line, a hard edge where liquid, the bead rim.
+    expect(PLANET_FS).toContain('float dArc = sF / gLen;');
+    expect(PLANET_FS).toContain('fluid = mix(fluidSoft, fluidHard, liquidW * clamp(uMeniscus, 0.0, 1.0));');
+    expect(PLANET_FS).toContain('float rimS = liquidW * meniscusSin(dArc, max(uMeniscusW, MENISCUS_MIN_PX * pxArc), uMeniscus);');
+    expect(PLANET_FS).toContain('return u >= 1.0 ? 0.0 : clamp(gain, 0.0, 1.0) * MENISCUS_MAX_SIN * (1.0 - u);');
     // Temperature in the world frame (rest spin axis = world Y): a tumbled body never reads sunlit metal as night.
     expect(PLANET_FS).toContain('float lonRel = mod(atan(-xw.z, xw.x) - lonSun + PI, TAU) - PI;');
     expect(PLANET_FS).toContain('float T = surfaceTempK(mu0x, lonRel, sqrt(max(1.0 - xw.y * xw.y, 0.0)), uSubsolarT, uHeatK);');
@@ -297,7 +307,7 @@ describe('mercuryPlanetShader contract', () => {
     expect(PLANET_FS).toContain('uniform float uRoilGain;');
     expect(PLANET_UNIFORMS).toContain('uRoilGain');
     // coherence loss: active pops scatter more; the 0.14 floor is ROUGH_LIQUID's
-    expect(PLANET_FS).toContain('mix(ROUGH_LIQUID, ROUGH_BOIL, boilW * (0.5 + 0.5 * popAct))');
+    expect(PLANET_FS).toContain('mix(uRoughLiquid, ROUGH_BOIL, boilW * (0.5 + 0.5 * popAct))');
   });
 
   it('roil: the pop size follows the live pixel footprint (uPopZoom); one geometry for every variant', () => {
