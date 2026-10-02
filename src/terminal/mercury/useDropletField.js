@@ -5,7 +5,7 @@
 
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
-import { buildDropletShader } from './planet/dropletShader';
+import { buildDropletShader, DROPLET_MATERIAL, DROPLET_RENDER_ORDER } from './planet/dropletShader';
 import { HG_MIRROR_UNIFORMS } from './planet/hgMirrorGlsl';
 
 export default function useDropletField({ tier, isMobile, planetMaterial, caps }) {
@@ -26,12 +26,13 @@ export default function useDropletField({ tier, isMobile, planetMaterial, caps }
     };
     for (const name of HG_MIRROR_UNIFORMS) uniforms[name] = planetMaterial.uniforms[name];
     return new THREE.RawShaderMaterial({
-      glslVersion: THREE.GLSL3, vertexShader: shader.vs, fragmentShader: shader.fs, uniforms, alphaToCoverage: !isMobile,
+      glslVersion: THREE.GLSL3, vertexShader: shader.vs, fragmentShader: shader.fs, uniforms, ...DROPLET_MATERIAL, alphaToCoverage: !isMobile,
     });
   }, [shader, planetMaterial, caps, isMobile]);
   useEffect(() => () => material.dispose(), [material]);
   useEffect(() => () => geometry.dispose(), [geometry]);
   const meshRef = useRef(null);
+  const renderOrder = DROPLET_RENDER_ORDER;
 
   const upload = (frame, tS) => {
     const mesh = meshRef.current;
@@ -52,5 +53,5 @@ export default function useDropletField({ tier, isMobile, planetMaterial, caps }
     u.uTime.value = tS;
   };
 
-  return { geometry, material, meshRef, upload };
+  return { geometry, material, meshRef, renderOrder, upload };
 }

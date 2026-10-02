@@ -2,10 +2,24 @@
 // Beads are volume-preserving ellipsoids, necks asymmetric round cones, the planet a sphere at its live radius
 // that enters only through roots and bridges. Shading is the planet's own mirror (hgMirrorGlsl).
 
+import * as THREE from 'three';
 import { glf } from '../../gl/glf';
 import { TIERS } from './planetQuality';
 import { BOUND_BEAD } from './breakupFrame';
+import { EXO_RENDER_ORDER } from './exosphereShader';
 import { HG_MIRROR_DECLS_GLSL, HG_FRESNEL_GLSL, HG_ENV_GLSL, HG_MIRROR_UNIFORMS } from './hgMirrorGlsl';
+
+// Draw order. The droplets sit in the TRANSPARENT list (so they draw after the opaque planet and, by renderOrder,
+// after the nebula flows (0) and the exosphere tail (EXO_RENDER_ORDER)), else the nebula sprites wash out every
+// bead that lies inside or behind the cloud. Blending stays OFF and depth test/write stay ON: the pass still
+// resolves coverage with alpha-to-coverage and gl_FragDepth, the planet still hides beads behind it.
+export const DROPLET_RENDER_ORDER = EXO_RENDER_ORDER + 1;
+export const DROPLET_MATERIAL = Object.freeze({
+  transparent: true,
+  blending: THREE.NoBlending,
+  depthTest: true,
+  depthWrite: true,
+});
 
 export const NECK_BLEND = 1;      // smooth-union radius across a neck, × the neck's own radius (surface tension)
 export const NECK_SHOULDER = 0.6; // a neck cone ends inside its bead at this × the bead radius

@@ -514,7 +514,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
   return (
     <>
       <mesh geometry={geometry} material={material} frustumCulled={false} />
-      <mesh ref={field.meshRef} geometry={field.geometry} material={field.material} frustumCulled={false} visible={false} />
+      <mesh ref={field.meshRef} geometry={field.geometry} material={field.material} renderOrder={field.renderOrder} frustumCulled={false} visible={false} />
       <MercuryExosphere exo={exo} tier={tier} />
     </>
   );
