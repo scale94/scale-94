@@ -60,6 +60,8 @@ export function createFamily(seed = 1) {
   return {
     phase: 'idle', seed, axisBody: [1, 0, 0], L: 0, e: 0, N: 0, s: 0, rMain: 0, rSat: 0, sat: false, ext0: 1,
     t: 0, acc: 0, mu: 0, bodies: [], necks: [], events: [], volOut: 0, volFamily: 0, volResidual: 0, nextId: 0,
+    // phase 6 (hyper-fling): off for a phase-5 family
+    hyper: false, tGrace: 0, rC0: 0, axisL: [0, 0, 1], gammaH: 0, eta: 0,
   };
 }
 
@@ -152,7 +154,7 @@ export function fireFamily(fam, { maxBodies = 12, satellites = true, gain = 0 } 
   const vMain = sphereVol(rMain), vSat = sphereVol(rSat);
 
   fam.bodies.length = 0; fam.necks.length = 0; fam.events.length = 0;
-  Object.assign(fam, { L, N, s, rMain, rSat, sat, t: 0, acc: 0, volResidual: 0 });
+  Object.assign(fam, { L, N, s, rMain, rSat, sat, t: 0, acc: 0, volResidual: 0, hyper: false, tGrace: 0 });
   let vol = 0;
   for (const sign of [1, -1]) {
     const first = fam.bodies.length;

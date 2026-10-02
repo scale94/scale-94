@@ -31,6 +31,38 @@ const cross = (a, b, out) => {
 const _u = [0, 0, 0];
 const flies = (b) => b.state === 'free' || (b.state === 'merging' && b.lead);
 
+const _acc = [0, 0, 0];
+
+// The hyper acceleration (phase-6 spec §3.5, V1): gravity plus drag toward an aether vortex about L̂ that turns a
+// little slower than orbital speed, u = (1 − η) √(μ/r) (L̂ × x)/r. Scalars in, `out` written: the live flight
+// and the solver's test particles share it, so their paths agree.
+export function hyperAccel(mu, eta, gamma, L, x, y, z, vx, vy, vz, h, out) {
+  const r2 = x * x + y * y + z * z;
+  const r = Math.sqrt(r2);
+  const r3 = r2 * r;
+  const k = ((1 - eta) * Math.sqrt(mu / r)) / r;
+  const ux = k * (L[1] * z - L[2] * y), uy = k * (L[2] * x - L[0] * z), uz = k * (L[0] * y - L[1] * x);
+  const gx = (-mu * x) / r3, gy = (-mu * y) / r3, gz = (-mu * z) / r3;
+  // drag acts on v at the position's time (w = v + g h/2), not the stored half-step v: without it the symplectic
+  // step adds a hidden headwind proportional to gamma * Omega * h
+  out[0] = gx - gamma * (vx + 0.5 * h * gx - ux);
+  out[1] = gy - gamma * (vy + 0.5 * h * gy - uy);
+  out[2] = gz - gamma * (vz + 0.5 * h * gz - uz);
+  return out;
+}
+
+// How long a bead of radius r takes from first touching the planet to gone: the cascadeStep stage sequence
+// (each stage one capillary time of its parent; the last when the next daughter would fall under PX_FLOOR).
+export function cascadeDuration(r, pxPerUnit) {
+  let rK = r, T = 0;
+  for (;;) {
+    T += capillaryTime(rK);
+    const rNext = DAUGHTER_RATIO * rK;
+    if (rNext * pxPerUnit < PX_FLOOR) return T;
+    rK = rNext;
+  }
+}
+
 export function stepFamily(fam, dt, env) {
   if (fam.phase !== 'fired' || !(dt > 0)) return fam;
   fam.acc += dt;
@@ -111,9 +143,15 @@ function flight(fam, h, env) {
     const x = b.state === 'free' ? b.p : b.mergeC;
     const r2 = x[0] * x[0] + x[1] * x[1] + x[2] * x[2];
     const r3 = r2 * Math.sqrt(r2);
-    let ax = (-fam.mu * x[0]) / r3 - env.gamma * b.v[0];
-    let ay = (-fam.mu * x[1]) / r3 - env.gamma * b.v[1];
-    let az = (-fam.mu * x[2]) / r3 - env.gamma * b.v[2];
+    let ax, ay, az;
+    if (fam.hyper) {
+      hyperAccel(fam.mu, fam.eta, fam.gammaH, fam.axisL, x[0], x[1], x[2], b.v[0], b.v[1], b.v[2], h, _acc);
+      ax = _acc[0]; ay = _acc[1]; az = _acc[2];
+    } else {
+      ax = (-fam.mu * x[0]) / r3 - env.gamma * b.v[0];
+      ay = (-fam.mu * x[1]) / r3 - env.gamma * b.v[1];
+      az = (-fam.mu * x[2]) / r3 - env.gamma * b.v[2];
+    }
     if (env.kappa > 0) {
       for (let j = 0; j < B.length; j++) {
         const o = B[j];
@@ -197,6 +235,7 @@ function startCascade(fam, b, env, vn) {
 }
 
 function collide(fam, env) {
+  if (fam.t < fam.tGrace) return; // phase 6: hyper beads are born touching each other and the core (V3)
   const B = fam.bodies;
   for (let i = 0; i < B.length; i++) {
     if (B[i].state !== 'free') continue;
