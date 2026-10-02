@@ -38,7 +38,7 @@ import {
 } from './planet/breakupFamily';
 import { TONGUE_MAX_R, sigmaRatio } from './planet/breakupPhysics';
 import { stepFamily, DROP_DT } from './planet/breakupStep';
-import { muRef, returnTarget, createMuSolver, stepMuSolver, solverBudget, finishMuSolver, solveContainment } from './planet/breakupBudget';
+import { muRef, returnTarget, createMuSolver, stepMuSolver, solverBudget, finishMuSolver } from './planet/breakupBudget';
 import { canHyper, hyperEnergy, fireHyper, coreScale, hyperReach, HYPER_N, V_HYPER, V_HYPER_SPAN } from './planet/hyperFling';
 import { createDropFrame, packFamily, pxPerUnitAt, pxAngleOf } from './planet/breakupFrame';
 import useDropletField from './useDropletField';
@@ -86,19 +86,19 @@ function fireDrop(drop, omega, heatK) {
   drop.warned = false;
 }
 
-// Phase 6: release with the spin pinned and a fast pointer → the core itself breaks. The containment drag is solved
-// now (synchronously, 4 fastest beads); the headwind η by the sliced solver before the birth grace ends.
+// Phase 6 (V4): release with the spin pinned and a fast pointer → a spray of small beads aimed into a disc. The gather
+// headwind η is solved by the sliced solver before the hang ends.
 function fireHyperDrop(drop, eH, heatK, camera, bufferW, bufferH, t) {
   const fam = drop.fam, env = drop.env;
   const rVis = camera.position.length() * Math.tan((camera.fov * Math.PI) / 360) * Math.min(1, bufferW / Math.max(bufferH, 1));
   drop.fires = (drop.fires + 1) | 0;
   const seed = (Math.imul(drop.fires, 2654435761) ^ Math.floor(t * 1000)) >>> 0 || 1;
+  const target = returnTarget(heatK, PLANET_TUNE.dropDrift);
   fireHyper(fam, {
     N: drop.hyperN, eH, seed, omega: env.omega, pxPerUnit: env.pxPerUnit,
-    vR0: PLANET_TUNE.hyperRadial, orbitS: PLANET_TUNE.hyperOrbit, gammaFloor: PLANET_TUNE.dropDrag,
+    orbitS: PLANET_TUNE.hyperOrbit, reach: hyperReach(rVis), target,
   });
-  fam.gammaH = solveContainment(fam, env.pxPerUnit, hyperReach(rVis), PLANET_TUNE.dropDrag);
-  drop.solver = createMuSolver(fam, env, returnTarget(heatK, PLANET_TUNE.dropDrift));
+  drop.solver = createMuSolver(fam, env, target);
   drop.warned = false;
 }
 

@@ -6,8 +6,8 @@ import { TONGUE_MAX_R } from '../breakupPhysics';
 import { R_SCENE } from '../planetLook';
 import { testEnv, freeBody, runFor } from './breakupTestKit';
 import { firedHyper, hyperEnv0 } from './hyperTestKit';
-import { coreScale, hyperReach, HYPER_CONTAIN_S } from '../hyperFling';
-import { solveContainment, createMuSolver, finishMuSolver } from '../breakupBudget';
+import { coreScale, hyperReach } from '../hyperFling';
+import { createMuSolver, finishMuSolver } from '../breakupBudget';
 
 const hyperFam = (over = {}) => {
   const f = createFamily(1);
@@ -21,10 +21,12 @@ describe('hyper family fields', () => {
     const f = createFamily(1);
     expect(f.hyper).toBe(false);
     expect(f.tGrace).toBe(0);
-    Object.assign(f, { hyper: true, tGrace: 1, axisBody: [1, 0, 0], L: TONGUE_MAX_R, e: 1 });
+    expect(f.tHang).toBe(0);
+    Object.assign(f, { hyper: true, tGrace: 1, tHang: 3, axisBody: [1, 0, 0], L: TONGUE_MAX_R, e: 1 });
     fireFamily(f, { maxBodies: 16, satellites: true });
     expect(f.hyper).toBe(false);
     expect(f.tGrace).toBe(0);
+    expect(f.tHang).toBe(0);
   });
 });
 
@@ -117,19 +119,18 @@ describe('cascadeDuration', () => {
 });
 
 describe('a live swarm with Phase 5 cohesion (regression: the grace-time implosion)', () => {
-  it('over 20 seeds no FREE bead leaves 1.02 · reach over HYPER_CONTAIN_S, and every family comes home by 30 s', () => {
+  it('over 20 seeds no FREE bead leaves 1.02 · reach in the first 3 s, and every family comes home by 30 s', () => {
     const reach = hyperReach(1.38);
     for (let seed = 1; seed <= 20; seed++) {
-      const f = firedHyper({ N: 32, seed });
+      const f = firedHyper({ N: 32, seed, reach, target: 14 });
       const env0 = hyperEnv0();
-      f.gammaH = solveContainment(f, env0.pxPerUnit, reach, 8);
       f.eta = finishMuSolver(createMuSolver(f, env0, 14)).best;
       const env = { ...env0, planetRadiusAt: () => R_SCENE * coreScale(f) };
       let pMax = 0;
       while (f.phase === 'fired' && f.t < 30) {
         stepFamily(f, DROP_DT, env);
-        // free flight only: merging pairs and cascade hops ride the regrowing core (HOP_K · r), not the containment
-        if (f.t <= HYPER_CONTAIN_S) for (const b of f.bodies) if (b.state === 'free') pMax = Math.max(pMax, Math.hypot(...b.p));
+        // free flight only: merging pairs and cascade hops ride the regrowing core (HOP_K · r), not the aim
+        if (f.t <= 3) for (const b of f.bodies) if (b.state === 'free') pMax = Math.max(pMax, Math.hypot(...b.p));
       }
       expect(pMax, `seed ${seed}`).toBeLessThanOrEqual(1.02 * reach);
       expect(f.phase, `seed ${seed}`).not.toBe('fired');

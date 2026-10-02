@@ -11,7 +11,7 @@ import { R_SCENE } from './planetLook';
 import { MERGE_MARGIN_S, MIN_RETURN_S, refreezeIn } from './breakupFamily';
 import { stepFamily, DROP_DT, hyperAccel, cascadeDuration } from './breakupStep';
 import {
-  ETA_LO, ETA_HI, ETA_ITERS, HYPER_GAMMA_MAX, HYPER_GAMMA_ITERS, HYPER_CONTAIN_K, HYPER_CONTAIN_S,
+  ETA_LO, ETA_HI, ETA_ITERS,
 } from './hyperFling';
 
 export const MU_ITERS = 6;            // final ln-width = 2 ln(MU_SPAN) / 2^6 = 0.097: <= ~10% precision in μ
@@ -149,27 +149,6 @@ export function particleTurns(template, pxPerUnit, eta, tMax) {
   const tr = beginParticles(template, pxPerUnit, { eta, gamma: template.gammaH, tMax, track: true });
   runParticles(tr, Infinity);
   return Array.from(tr.turns, (a) => Math.abs(a) / (2 * Math.PI));
-}
-
-// The containment drag (spec §3.5): the least γ in [gFloor, HYPER_GAMMA_MAX] that keeps the HYPER_CONTAIN_K
-// fastest beads within `reach` over HYPER_CONTAIN_S at η = 0 (the widest orbits). Run at fire, synchronously.
-export function solveContainment(fam, pxPerUnit, reach, gFloor) {
-  const B = fam.bodies;
-  const sp = (i) => Math.hypot(B[i].v[0], B[i].v[1], B[i].v[2]);
-  const only = B.map((_, i) => i).sort((i, j) => sp(j) - sp(i)).slice(0, HYPER_CONTAIN_K);
-  const fits = (g) => {
-    const tr = beginParticles(fam, pxPerUnit, { eta: 0, gamma: g, tMax: HYPER_CONTAIN_S, only });
-    runParticles(tr, Infinity);
-    return tr.rMax <= reach;
-  };
-  if (fits(gFloor)) return gFloor;
-  if (!fits(HYPER_GAMMA_MAX)) return HYPER_GAMMA_MAX;
-  let lo = Math.log(gFloor), hi = Math.log(HYPER_GAMMA_MAX);
-  for (let i = 0; i < HYPER_GAMMA_ITERS; i++) {
-    const m = 0.5 * (lo + hi);
-    if (fits(Math.exp(m))) hi = m; else lo = m;
-  }
-  return Math.exp(hi);
 }
 
 // One resumable trial: a phase-5 family replayed at a fixed μ, or a hyper family as test particles at a fixed η.

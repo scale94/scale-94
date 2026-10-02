@@ -1,34 +1,33 @@
 // src/terminal/mercury/planet/hyperFling.js — the hyper-fling: the core itself breaks (phase-6 spec §3,
-// Amendments V1–V3; plan amendments A1–A2). Pure and three.js-free like the phase-5 sim: breakupBudget replays
+// Amendments V1–V4; plan amendments A1–A2). Pure and three.js-free like the phase-5 sim: breakupBudget replays
 // a hyper family on test particles. Vectors [x, y, z] in the world frame.
 
 import { MAX_OMEGA } from './mercuryBody';
 import { R_SCENE } from './planetLook';
 import { PX_FLOOR, sphereVol } from './breakupPhysics';
 import { addBody } from './breakupFamily';
-import { WOB_BIRTH, cascadeDuration } from './breakupStep';
+import { WOB_BIRTH, DROP_DT, hyperAccel, cascadeDuration } from './breakupStep';
 
 // Trigger (§3.1, V2). V_HYPER / V_HYPER_SPAN are provisional until the Gate 0 swipe readout sets them.
 export const HYPER_OMEGA_FRAC = 0.98;  // the spin must be pinned at the cap…
 export const V_HYPER = 30;             // …and the release pointer ω (rad/s, mercuryDrag) at least this
 export const V_HYPER_SPAN = 30;        // eH ramps 0 → 1 over this much more
 // Mass split (§3.2).
-export const F_CORE_MAX = 0.08;        // the micro-core's share of V0 at eH 0…
-export const F_CORE_MIN = 0.03;        // …and at eH 1
+export const HYPER_RBAR_LO = 0.06;     // the beads' volume-mean radius × R at eH 0… (V4 §10.1: the size is the knob,
+export const HYPER_RBAR_HI = 0.08;     // …and at eH 1; ≈ 0.4–1.2 % of the planet flies, the core keeps the rest)
 export const HYPER_N = Object.freeze({ full: 32, phone: 14, lite: 0 }); // 6a clamps these to TIERS[t].drop.bodies
 export const HYPER_FRAG_N = 4;         // gamma shape of the radius spread (ligament-mediated fragmentation)
 export const HYPER_R_MAX_K = 1.8;      // the largest bead, × the volume-mean radius r̄ (relative: absolute caps cannot conserve at N 8)
 // Launch (§3.3, V3).
-export const HYPER_EQ_BIAS = 0.4;      // latitude squeeze toward the spin equator
+export const HYPER_EQ_BIAS = 0.64;     // latitude squeeze toward the spin plane (V4: the simulated disc)
 export const HYPER_GRACE_S = 0.25;     // no collision of any kind before this (beads are born touching)
 export const T_BURST = 0.15;           // the core shrinks to its share over this long
 // Return (§3.5, V1) and its solves (§3.6; plan amendment A2: they live here, breakupBudget imports them).
 export const HYPER_VIS_K = 0.85;       // stay inside this share of the visible half-extent…
-export const HYPER_REACH_MIN_R = 1.25; // …but never contain tighter than this × R (plan amendment A1: phone portrait)
-export const HYPER_GAMMA_MAX = 160;    // containment drag bracket top, 1/s (explicit drag diverges above 2/h ≈ 240 at h = 1/120; 160 keeps a margin)
-export const HYPER_GAMMA_ITERS = 10;
-export const HYPER_CONTAIN_K = 4;      // the fastest beads set the excursion
-export const HYPER_CONTAIN_S = 3;      // replayed this long at η = 0 (the widest orbits)
+export const HYPER_REACH_MIN_R = 1.45; // …but never contain tighter than this × R (V4: a full-size core leaves no annulus at 1.25 in phone portrait)
+export const HYPER_GAMMA = 20;         // the vortex drag, 1/s (V4: fixed; explicit drag is stable below 2/h ≈ 240)
+export const HYPER_AIM_S = 0.6;        // each bead's launch is aimed to settle at its radius after this long (§10.2)
+export const HYPER_HANG_K = 0.5;       // the disc orbits for this share of the return target before the gather (§10.3)
 export const ETA_LO = 1e-3;            // headwind bracket: ln-bisection over [ETA_LO, ETA_HI]
 export const ETA_HI = 1;               // (η = 1: a still aether, plain drag; also the provisional value while solving)
 export const HYPER_CASCADE_S = 3;      // the largest bead's whole cascade takes this many display s (each stage keeps its r^1.5 share)
@@ -64,12 +63,12 @@ export function gammaMean1(rng, n) {
 // The micro-core's share and the beads' radii (§3.2): a gamma spread rescaled to the exact fragment volume,
 // floor/ceiling-clamped with the rest renormalised until nothing more clamps.
 export function splitMass(N, eH, seed, pxPerUnit) {
-  const fC = F_CORE_MAX + (F_CORE_MIN - F_CORE_MAX) * eH;
-  const vFrag = (1 - fC) * V0;
+  const rBar = R_SCENE * (HYPER_RBAR_LO + (HYPER_RBAR_HI - HYPER_RBAR_LO) * eH);
+  const vFrag = N * sphereVol(rBar);
+  const fC = 1 - vFrag / V0;
   const rng = mulberry32(seed);
   const radii = new Array(N);
   for (let i = 0; i < N; i++) radii[i] = gammaMean1(rng, HYPER_FRAG_N);
-  const rBar = Math.cbrt(vFrag / (N * (4 / 3) * Math.PI));
   const lo = PX_FLOOR / pxPerUnit, hi = HYPER_R_MAX_K * rBar;
   const fixed = new Array(N).fill(false);
   for (let pass = 0; pass < 16; pass++) {
@@ -96,11 +95,37 @@ export const hyperReach = (rVis) => Math.max(HYPER_VIS_K * rVis, HYPER_REACH_MIN
 
 const len3 = (v) => Math.hypot(v[0], v[1], v[2]);
 
-// The launch (§3.3): N beads on a jittered Fibonacci sphere squeezed toward the spin equator, born just inside
-// the old surface, flung at ω × p plus a radial burst (small beads faster), the swarm's mean velocity removed so
-// its centre of mass stays at the pull's centre. Sets the vortex axis L̂, the pull and provisional drag/headwind;
-// the caller solves the containment drag (breakupBudget.solveContainment) and the headwind (the μ/η solver).
-export function fireHyper(fam, { N, eH, seed, omega, pxPerUnit, vR0, orbitS, gammaFloor }) {
+// A bead's radial kick so that, launched at ω × p + k p̂ and replayed alone under the vortex at η 0 for HYPER_AIM_S,
+// it ends at radius rT (§10.2). The settle radius rises with k, so bisect. Fire time only; scratch is module-level.
+const AIM_K_LO = -5, AIM_K_HI = 40, AIM_ITERS = 20;
+const AIM_STEPS = Math.round(HYPER_AIM_S / DROP_DT);
+const AIM_PASSES = 4; // fixed-point passes: the mean-velocity removal shifts every launch, so aim against it
+const _ap = [0, 0, 0], _av = [0, 0, 0], _aa = [0, 0, 0];
+function aimKick(mu, L, rC, p, d, omega, rT, off) {
+  const settle = (k) => {
+    for (let c = 0; c < 3; c++) _ap[c] = p[c];
+    _av[0] = omega[1] * p[2] - omega[2] * p[1] + k * d[0] - off[0];
+    _av[1] = omega[2] * p[0] - omega[0] * p[2] + k * d[1] - off[1];
+    _av[2] = omega[0] * p[1] - omega[1] * p[0] + k * d[2] - off[2];
+    for (let i = 0; i < AIM_STEPS; i++) {
+      hyperAccel(mu, 0, HYPER_GAMMA, L, _ap[0], _ap[1], _ap[2], _av[0], _av[1], _av[2], rC, DROP_DT, _aa);
+      for (let c = 0; c < 3; c++) { _av[c] += _aa[c] * DROP_DT; _ap[c] += _av[c] * DROP_DT; }
+    }
+    return len3(_ap);
+  };
+  let lo = AIM_K_LO, hi = AIM_K_HI;
+  for (let it = 0; it < AIM_ITERS; it++) {
+    const mid = 0.5 * (lo + hi);
+    if (settle(mid) < rT) lo = mid; else hi = mid;
+  }
+  return hi;
+}
+
+// The launch (§3.3, V4 §10.2): N small beads on a jittered Fibonacci sphere squeezed toward the spin plane, born
+// just inside the old surface, each aimed to settle at a seeded radius in the annulus between the core and the
+// reach; the swarm's mean velocity removed so its centre of mass stays at the pull's centre. The vortex axis is the
+// spin axis, the drag is fixed, the hang is a share of the return target; the caller solves the gather headwind.
+export function fireHyper(fam, { N, eH, seed, omega, pxPerUnit, orbitS, reach, target }) {
   const m = splitMass(N, eH, seed, pxPerUnit);
   const rng = mulberry32((seed ^ 0x9e3779b9) >>> 0);
   const W = len3(omega);
@@ -110,15 +135,17 @@ export function fireHyper(fam, { N, eH, seed, omega, pxPerUnit, vR0, orbitS, gam
   const xl = len3(xr);
   const x = [xr[0] / xl, xr[1] / xl, xr[2] / xl];
   const y = [z[1] * x[2] - z[2] * x[1], z[2] * x[0] - z[0] * x[2], z[0] * x[1] - z[1] * x[0]];
+  const mu = hyperMu(orbitS);
 
   fam.bodies.length = 0; fam.necks.length = 0; fam.events.length = 0;
   Object.assign(fam, {
     phase: 'fired', hyper: true, t: 0, acc: 0, volResidual: 0, L: 0, e: 0, N, seed,
-    tGrace: HYPER_GRACE_S, rC0: m.rC0, mu: hyperMu(orbitS), eta: ETA_HI, gammaH: gammaFloor,
+    tGrace: HYPER_GRACE_S, tHang: HYPER_HANG_K * target, rC0: m.rC0, mu, eta: ETA_HI, gammaH: HYPER_GAMMA,
+    axisL: [z[0], z[1], z[2]],
   });
   const golden = Math.PI * (3 - Math.sqrt(5));
+  const B = new Array(N);
   let V = 0;
-  const mv = [0, 0, 0];
   for (let i = 0; i < N; i++) {
     const r = m.radii[i];
     const c0 = Math.min(1, Math.max(-1, 1 - (2 * (i + 0.5)) / N + (rng() - 0.5) * (2 / N)));
@@ -132,26 +159,30 @@ export function fireHyper(fam, { N, eH, seed, omega, pxPerUnit, vR0, orbitS, gam
     ];
     const rho = R_SCENE - r;
     const p = [d[0] * rho, d[1] * rho, d[2] * rho];
-    const vr = vR0 * (1 + eH) * Math.sqrt(m.rBar / r);
+    const lo = m.rC0 + 2.2 * r + 0.02, hi = reach - r - 0.03;
+    const rT = hi > lo ? lo + (hi - lo) * rng() : lo;
+    B[i] = { r, d, p, rT, vol: sphereVol(r), k: 0 };
+    V += B[i].vol;
+  }
+  const off = [0, 0, 0];
+  for (let pass = 0; pass < AIM_PASSES; pass++) {
+    const mv = [0, 0, 0];
+    for (const q of B) {
+      q.k = aimKick(mu, fam.axisL, m.rC0, q.p, q.d, omega, q.rT, off);
+      mv[0] += q.vol * (omega[1] * q.p[2] - omega[2] * q.p[1] + q.k * q.d[0]);
+      mv[1] += q.vol * (omega[2] * q.p[0] - omega[0] * q.p[2] + q.k * q.d[1]);
+      mv[2] += q.vol * (omega[0] * q.p[1] - omega[1] * q.p[0] + q.k * q.d[2]);
+    }
+    for (let c = 0; c < 3; c++) off[c] = mv[c] / V;
+  }
+  for (const q of B) {
     const v = [
-      omega[1] * p[2] - omega[2] * p[1] + vr * d[0],
-      omega[2] * p[0] - omega[0] * p[2] + vr * d[1],
-      omega[0] * p[1] - omega[1] * p[0] + vr * d[2],
+      omega[1] * q.p[2] - omega[2] * q.p[1] + q.k * q.d[0] - off[0],
+      omega[2] * q.p[0] - omega[0] * q.p[2] + q.k * q.d[1] - off[1],
+      omega[0] * q.p[1] - omega[1] * q.p[0] + q.k * q.d[2] - off[2],
     ];
-    const vol = sphereVol(r);
-    addBody(fam, { state: 'free', p, v, r, rMain: r, vol, tFree: 0, wobAmp: WOB_BIRTH, wobAxis: [d[0], d[1], d[2]] });
-    for (let k = 0; k < 3; k++) mv[k] += vol * v[k];
-    V += vol;
+    addBody(fam, { state: 'free', p: q.p, v, r: q.r, rMain: q.r, vol: q.vol, tFree: 0, wobAmp: WOB_BIRTH, wobAxis: [q.d[0], q.d[1], q.d[2]] });
   }
-  const Lm = [0, 0, 0];
-  for (const b of fam.bodies) {
-    for (let k = 0; k < 3; k++) b.v[k] -= mv[k] / V;
-    Lm[0] += b.vol * (b.p[1] * b.v[2] - b.p[2] * b.v[1]);
-    Lm[1] += b.vol * (b.p[2] * b.v[0] - b.p[0] * b.v[2]);
-    Lm[2] += b.vol * (b.p[0] * b.v[1] - b.p[1] * b.v[0]);
-  }
-  const ll = len3(Lm);
-  fam.axisL = ll > 1e-12 ? [Lm[0] / ll, Lm[1] / ll, Lm[2] / ll] : [z[0], z[1], z[2]];
   fam.volFamily = V;
   fam.volOut = V;
   fam.vRefH = V / N; // cohesion's reference volume for this family: its mean bead (breakupStep.flight)

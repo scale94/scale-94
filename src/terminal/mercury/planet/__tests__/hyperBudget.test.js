@@ -1,12 +1,12 @@
 // src/terminal/mercury/planet/__tests__/hyperBudget.test.js — phase 6a: test particles, the headwind solve, containment
 import { describe, it, expect } from 'vitest';
 import {
-  beginParticles, runParticles, particleTurns, trialWeight, solveContainment, createMuSolver, finishMuSolver,
+  beginParticles, runParticles, particleTurns, trialWeight, createMuSolver, finishMuSolver,
   solverBudget, SOLVER_SUBSTEPS_PER_FRAME, PARTICLES_PER_UNIT,
 } from '../breakupBudget';
 import { createFamily } from '../breakupFamily';
 import { stepFamily, DROP_DT, cascadeDuration, hyperAccel } from '../breakupStep';
-import { ETA_LO, ETA_HI, HYPER_CONTAIN_K, HYPER_CONTAIN_S, HYPER_GAMMA_MAX, HYPER_CASCADE_S } from '../hyperFling';
+import { ETA_LO, ETA_HI, HYPER_GAMMA, HYPER_CASCADE_S } from '../hyperFling';
 import { createFamily as createFam, fireFamily } from '../breakupFamily';
 import { R_SCENE } from '../planetLook';
 import { testEnv, freeBody } from './breakupTestKit';
@@ -72,30 +72,9 @@ describe('the headwind solver (log-η bisection)', () => {
   });
 });
 
-describe('solveContainment', () => {
-  it('keeps the fastest beads inside the reach, with the least drag that does', () => {
-    const f = firedHyper();
-    const reach = 1.17;
-    const g = solveContainment(f, 300, reach, 8);
-    expect(g).toBeGreaterThanOrEqual(8);
-    const fastest = f.bodies.map((b, i) => i).sort((i, j) => Math.hypot(...f.bodies[j].v) - Math.hypot(...f.bodies[i].v)).slice(0, HYPER_CONTAIN_K);
-    const rMax = (gm) => { const tr = beginParticles(f, 300, { eta: 0, gamma: gm, tMax: HYPER_CONTAIN_S, only: fastest }); runParticles(tr, Infinity); return tr.rMax; };
-    expect(rMax(g)).toBeLessThanOrEqual(reach * (1 + 1e-9));
-    if (g > 8 * 1.3) expect(rMax(g / 1.3)).toBeGreaterThan(reach);
-  });
-});
-
-describe('stability at the drag bracket top', () => {
-  it('a bead at rest at r 0.9 stays bounded under hyperAccel at γ = HYPER_GAMMA_MAX for 3 s', () => {
-    const p = [0.9, 0, 0], v = [0, 0, 0], a = [0, 0, 0];
-    let rMax = 0;
-    for (let i = 0; i < 3 / DROP_DT; i++) {
-      hyperAccel(1, 0, HYPER_GAMMA_MAX, [0, 0, 1], p[0], p[1], p[2], v[0], v[1], v[2], 0, DROP_DT, a);
-      for (let c = 0; c < 3; c++) { v[c] += a[c] * DROP_DT; p[c] += v[c] * DROP_DT; }
-      rMax = Math.max(rMax, Math.hypot(...p));
-    }
-    expect(Number.isFinite(rMax)).toBe(true);
-    expect(rMax).toBeLessThan(2);
+describe('the fixed vortex drag', () => {
+  it('sits well inside the explicit-drag stability bound γ · h < 2', () => {
+    expect(HYPER_GAMMA * DROP_DT).toBeLessThan(1);
   });
 });
 
@@ -105,7 +84,8 @@ describe('the hyper cascade clock (tcScale)', () => {
     expect(f.tcScale).toBeGreaterThan(0);
     expect(f.tcScale).toBeLessThanOrEqual(1);
     const rMax = Math.max(...f.bodies.map((b) => b.r));
-    expect(cascadeDuration(rMax, 300, f.tcScale)).toBeCloseTo(HYPER_CASCADE_S, 9);
+    if (cascadeDuration(rMax, 300) > HYPER_CASCADE_S) expect(cascadeDuration(rMax, 300, f.tcScale)).toBeCloseTo(HYPER_CASCADE_S, 9);
+    else expect(f.tcScale).toBe(1);
   });
 
   it('a live cascade at tcScale 0.1 takes cascadeDuration(r, px, 0.1)', () => {

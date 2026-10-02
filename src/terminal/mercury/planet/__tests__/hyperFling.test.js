@@ -2,9 +2,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   canHyper, hyperEnergy, splitMass, gammaMean1, mulberry32, hyperMu, hyperReach,
-  fireHyper, coreScale, ETA_HI, HYPER_GRACE_S, T_BURST,
-  V0, V_HYPER, V_HYPER_SPAN, HYPER_OMEGA_FRAC, F_CORE_MAX, F_CORE_MIN, HYPER_R_MAX_K, HYPER_VIS_K, HYPER_REACH_MIN_R,
+  fireHyper, coreScale, ETA_HI, HYPER_GRACE_S, T_BURST, HYPER_GAMMA, HYPER_AIM_S, HYPER_HANG_K,
+  V0, V_HYPER, V_HYPER_SPAN, HYPER_OMEGA_FRAC, HYPER_RBAR_LO, HYPER_RBAR_HI, HYPER_R_MAX_K, HYPER_VIS_K, HYPER_REACH_MIN_R,
 } from '../hyperFling';
+import { hyperAccel, DROP_DT } from '../breakupStep';
 import { MAX_OMEGA } from '../mercuryBody';
 import { PX_FLOOR, sphereVol } from '../breakupPhysics';
 import { R_SCENE } from '../planetLook';
@@ -42,11 +43,13 @@ describe('splitMass (Villermaux gamma spread, exact volume)', () => {
     }
   });
 
-  it('the core keeps F_CORE_MAX at eH 0 and F_CORE_MIN at eH 1; rC0 = R ∛fC', () => {
+  it('the bead size is the knob: r̄ = R · lerp(RBAR_LO, RBAR_HI, eH); ~1 % of the planet flies; rC0 = R ∛fC', () => {
     const a = splitMass(16, 0, 1, 300), b = splitMass(16, 1, 1, 300);
-    expect(a.fC).toBeCloseTo(F_CORE_MAX, 12);
-    expect(b.fC).toBeCloseTo(F_CORE_MIN, 12);
-    expect(b.rC0).toBeCloseTo(R_SCENE * Math.cbrt(F_CORE_MIN), 12);
+    expect(a.rBar).toBeCloseTo(R_SCENE * HYPER_RBAR_LO, 12);
+    expect(b.rBar).toBeCloseTo(R_SCENE * HYPER_RBAR_HI, 12);
+    expect(b.fC).toBeCloseTo(1 - (16 * sphereVol(b.rBar)) / V0, 12);
+    expect(b.fC).toBeGreaterThan(0.98);
+    expect(b.rC0).toBeCloseTo(R_SCENE * Math.cbrt(b.fC), 12);
   });
 
   it('is deterministic per seed and differs between seeds', () => {
@@ -88,14 +91,16 @@ describe('hyperFling knobs', () => {
   });
 });
 
+const REACH = 1.175;
 const fireAt = (over = {}) => fireHyper(createFamily(1), {
-  N: 16, eH: 1, seed: 3, omega: [0, 12, 0], pxPerUnit: 300, vR0: 2, orbitS: 3.5, gammaFloor: 8, ...over,
+  N: 16, eH: 1, seed: 3, omega: [0, 12, 0], pxPerUnit: 300, orbitS: 3, reach: REACH, target: 12, ...over,
 });
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 
-describe('fireHyper (launch)', () => {
+describe('fireHyper (aimed launch, spec §10.2)', () => {
   it('lays out N free beads inside the old surface, all fragment volume out, the core waiting', () => {
     const f = fireAt();
+    const m = splitMass(16, 1, 3, 300);
     expect(f.phase).toBe('fired');
     expect(f.hyper).toBe(true);
     expect(f.necks.length).toBe(0);
@@ -107,8 +112,8 @@ describe('fireHyper (launch)', () => {
       v += b.vol;
     }
     expect(f.volOut).toBeCloseTo(v, 12);
-    expect(Math.abs(v + F_CORE_MIN * V0 - V0) / V0).toBeLessThan(1e-9);
-    expect(f.rC0).toBeCloseTo(R_SCENE * Math.cbrt(F_CORE_MIN), 12);
+    expect(Math.abs(v + m.fC * V0 - V0) / V0).toBeLessThan(1e-9);
+    expect(f.rC0).toBeCloseTo(m.rC0, 12);
     expect(f.tGrace).toBe(HYPER_GRACE_S);
   });
 
@@ -120,26 +125,37 @@ describe('fireHyper (launch)', () => {
     expect(Math.hypot(...m) / V).toBeLessThan(1e-9);
   });
 
-  it('swirls with the spin: L-hat ~ omega-hat, and beads hug the spin equator', () => {
+  it('the vortex axis is the spin axis, and the beads hug the spin plane', () => {
     const f = fireAt();
-    expect(dot(f.axisL, [0, 1, 0])).toBeGreaterThan(0.9);
+    expect(f.axisL).toEqual([0, 1, 0]);
     const meanCos = f.bodies.reduce((a, b) => a + Math.abs(b.p[1]) / Math.hypot(...b.p), 0) / f.bodies.length;
-    expect(meanCos).toBeLessThan(0.4); // a uniform sphere gives 0.5
+    expect(meanCos).toBeLessThan(0.25); // a uniform sphere gives 0.5; HYPER_EQ_BIAS 0.64 gives ~0.18
   });
 
-  it('small beads fly out faster', () => {
-    const f = fireAt();
-    const radial = (b) => dot(b.v, b.p) / Math.hypot(...b.p);
-    const byR = [...f.bodies].sort((a, b) => a.r - b.r);
-    expect(radial(byR[0])).toBeGreaterThan(radial(byR[byR.length - 1]));
+  it('every bead settles in the annulus between the core and the reach after HYPER_AIM_S', () => {
+    for (const seed of [3, 4, 5]) {
+      const f = fireAt({ seed });
+      const a = [0, 0, 0];
+      for (const b of f.bodies) {
+        const p = [...b.p], v = [...b.v];
+        for (let i = 0; i < Math.round(HYPER_AIM_S / DROP_DT); i++) {
+          hyperAccel(f.mu, 0, f.gammaH, f.axisL, p[0], p[1], p[2], v[0], v[1], v[2], f.rC0, DROP_DT, a);
+          for (let c = 0; c < 3; c++) { v[c] += a[c] * DROP_DT; p[c] += v[c] * DROP_DT; }
+        }
+        const r = Math.hypot(...p);
+        expect(r, `seed ${seed} bead r ${b.r}`).toBeGreaterThan(f.rC0 + 1.5 * b.r); // clear of the core
+        expect(r, `seed ${seed} bead r ${b.r}`).toBeLessThan(REACH - b.r + 0.01);
+      }
+    }
   });
 
-  it('pull from the orbit knob, provisional headwind and floor drag, same seed gives same swarm', () => {
+  it('pull from the orbit knob, fixed drag, hang from the target, provisional headwind, same seed same swarm', () => {
     const f = fireAt();
-    expect(f.mu).toBeCloseTo(hyperMu(3.5), 12);
+    expect(f.mu).toBeCloseTo(hyperMu(3), 12);
+    expect(f.gammaH).toBe(HYPER_GAMMA);
+    expect(f.tHang).toBeCloseTo(HYPER_HANG_K * 12, 12);
     expect(f.eta).toBe(ETA_HI);
-    expect(f.gammaH).toBe(8);
-    expect(fireAt().bodies.map((b) => b.p)).toEqual(f.bodies.map((b) => b.p));
+    expect(fireAt().bodies.map((b) => b.v)).toEqual(f.bodies.map((b) => b.v));
   });
 });
 
@@ -149,8 +165,8 @@ describe('coreScale', () => {
     const f = fireAt();
     expect(coreScale(f)).toBe(1);
     f.t = T_BURST;
-    expect(coreScale(f)).toBeCloseTo(Math.cbrt(F_CORE_MIN), 9);
+    expect(coreScale(f)).toBeCloseTo(Math.cbrt(1 - f.volOut / V0), 9);
     f.volOut *= 0.5;
-    expect(coreScale(f)).toBeCloseTo(Math.cbrt(1 - (1 - F_CORE_MIN) * 0.5), 9);
+    expect(coreScale(f)).toBeCloseTo(Math.cbrt(1 - f.volOut / V0), 9);
   });
 });
