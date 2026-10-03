@@ -30,7 +30,10 @@ export const TUNE = {
 
 // Dev-only overrides the frame loop reads (probes): a fixed instant for the ephemeris; the droplet
 // family's clock scale (0 freezes it); a breakup fired on demand; a held tongue at a given ω.
-export const DEV_OVERRIDES = { dateMs: null, dropTimeScale: null, breakNow: null, holdOmega: null, hyperNow: null };
+export const DEV_OVERRIDES = {
+  dateMs: null, dropTimeScale: null, breakNow: null, holdOmega: null, hyperNow: null,
+  strikeQueue: [], visitTempK: null, visitTimeScale: null, // visitors: rig strikes, touchdown T pin, visitor clock scale
+};
 
 const KNOBS = Object.keys(TUNE);
 
@@ -51,6 +54,11 @@ export function registerTuningRig() {
     holdAt(omega) { DEV_OVERRIDES.holdOmega = omega ?? null; return omega == null ? 'hold released' : `holding at ${omega} rad/s`; },
     // Phase 6: fire a hyper-fling at fling energy eH (0..1) as if released with the spin pinned at MAX_OMEGA.
     hyperNow(eH = 1) { DEV_OVERRIDES.hyperNow = eH; return `hyper-fling at eH ${eH}`; },
+    // Visitors: launch an element as if its node was tapped; pin the touchdown temperature (null = the live one);
+    // scale the visitors' clock (0 freezes them for a look sheet; the impulses keep running on the planet's clock).
+    strike(phase = 'fluid') { DEV_OVERRIDES.strikeQueue.push(phase); return `strike ${phase}`; },
+    visitTemp(k) { DEV_OVERRIDES.visitTempK = k ?? null; return `visitor touchdown T = ${k ?? 'live'}`; },
+    visitTime(scale) { DEV_OVERRIDES.visitTimeScale = scale ?? null; return `visitor time x ${scale ?? 1}`; },
     get: () => ({ ...TUNE }),
     // Per-element data (horizonHeight, color hex). Poking element colours does
     // not reach the mirror: EMIT_COLORS is captured at load.

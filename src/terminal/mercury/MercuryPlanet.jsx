@@ -16,14 +16,14 @@ import { PLANET_TUNE, MEAN_R_AU, R_SCENE } from './planet/planetLook';
 import { AETHER_BASE_DIRS, aetherLobeColors, aetherLobeDirs } from './planet/aetherLobes';
 import { MAPS } from './planet/mercuryMaps.generated';
 import { bindPlanetMaps } from './planet/planetMaps';
-import { subsolarTempK } from './planet/mercuryThermal';
+import { subsolarTempK, HG_BOIL_K } from './planet/mercuryThermal';
 import { createScarMap, stampCrater, matureScars, healScars, SCAR_TICK_S } from './planet/scarMap';
 import {
   IMPULSE_SLOTS, createImpulses, addImpulse, createImpulseFrame, impulseFrame, spinBulge, createWake, wakeImpulse, slipDirWorld,
   shapeHeight,
 } from './planet/mercuryWaves';
 import {
-  IMPACT_MODE_AMP, IMPACT_WAVE_AMP, strikeDirWorld, worldToBody, bodyToWorld, localTempK, impactKind, calmGlow,
+  IMPACT_MODE_AMP, IMPACT_WAVE_AMP, VISITOR_IMPACT, worldToBody, bodyToWorld, calmGlow,
 } from './planet/mercuryImpacts';
 import { pickSphereDir } from './planet/pickSphere';
 import { popZoom, subsolarPxArc } from './planet/mercuryRoil';
@@ -42,6 +42,11 @@ import { muRef, returnTarget, createMuSolver, stepMuSolver, solverBudget, finish
 import { canHyper, hyperGate, hyperEnergy, fireHyper, coreScale, hyperReach, HYPER_N, V_HYPER, V_HYPER_SPAN } from './planet/hyperFling';
 import { createDropFrame, packFamily, pxPerUnitAt, pxAngleOf } from './planet/breakupFrame';
 import useDropletField from './useDropletField';
+import {
+  createVisitors, createVisitorCtx, createVisitorOut, launchVisitor, stepVisitors, DETACH_OMEGA, EXO_PUFF, EXO_PUFF_S, VISIT_SURF_MAX,
+} from './planet/visitorSim';
+import { createVisitorFrame, packVisitors } from './planet/visitorFrame';
+import useVisitorField from './useVisitorField';
 import { CALORIS_DIR_BODY, stepOverlay } from './planet/slowNoon';
 
 const EPHEMERIS_REFRESH_S = 1;
@@ -347,6 +352,10 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
       uImpWave: { value: Array.from({ length: IMPULSE_SLOTS }, () => new THREE.Vector3()) },
       uBulge: { value: new THREE.Vector4(0, 1, 0, 0) },
       uGlow: { value: new THREE.Vector4(0, 0, 1, 0) },
+      uVisitOn: { value: 0 },
+      uVisitDir: { value: Array.from({ length: VISIT_SURF_MAX }, () => new THREE.Vector4(0, 0, 1, 0)) },
+      uVisitA: { value: Array.from({ length: VISIT_SURF_MAX }, () => new THREE.Vector4()) },
+      uVisitB: { value: Array.from({ length: VISIT_SURF_MAX }, () => new THREE.Vector4()) },
     },
   }), [isMobile, init, body, scarTex, shader]);
 
@@ -382,7 +391,6 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     hasDragDir: false,
     w: [0, 0, 0],
     b: [0, 0, 0],
-    nodePos: [0, 0, 0],
     cam: [0, 0, 0],
     wakeArgs: { tS: 0, dragging: false, released: false, ptrOmega: 0, bodyOmega: 0, tau: 0 },
     frameOpts: { modeScale: 1, waveScale: 1 },
@@ -410,6 +418,15 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
   }, [tier, surf]);
   const field = useDropletField({ tier, isMobile, planetMaterial: material, caps: TIERS[tier].drop });
   useEffect(() => { if (import.meta.env.DEV) window.__mercuryDrop = drop; }, [drop]);
+
+  // Visitors (spec 2026-10-03): the tapped element falls onto the planet and stays a while. Preallocated; idle is free.
+  const vis = useMemo(() => ({
+    buf: createVisitors(), ctx: createVisitorCtx(), out: createVisitorOut(), frame: createVisitorFrame(),
+    view: { vp: new Float32Array(16), p00: 1, p11: 1, wPx: 1, hPx: 1 }, m: new THREE.Matrix4(),
+    clock: 0, exoPuff: 0,
+  }), []);
+  const visField = useVisitorField({ planetMaterial: material });
+  useEffect(() => { if (import.meta.env.DEV) window.__mercuryVisitors = vis; }, [vis]);
 
   // The maps outlive the material: a live CALM toggle swaps the shader variant (a new
   // material) without reloading them or flashing the flat fallback (planetMaps.js).
@@ -486,7 +503,8 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     u.uHeatK.value = body.heatK;
     PERF_INFO.tau = body.tau;
     PERF_INFO.heatK = body.heatK;
-    exo.coverage = boilCoverage(body.tau, body.heatK, u.uSubsolarT.value);
+    exo.coverage = Math.min(1, boilCoverage(body.tau, body.heatK, u.uSubsolarT.value) + vis.exoPuff);
+    vis.exoPuff *= Math.exp(-stepS / EXO_PUFF_S);
     if (!calm) exo.time += stepS; // the streamers hold still under reduced motion
     PERF_INFO.coverage = exo.coverage;
 
@@ -496,23 +514,42 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
 
     const queue = strikes?.current;
     let scarDirty = false;
-    while (queue && queue.length > 0) {
-      const phase = queue.shift();
+    // Visitors: a strike launches the element; its touchdown (on a later frame) is what reaches the surface.
+    const vc = vis.ctx;
+    const visScale = DEV_OVERRIDES.visitTimeScale ?? 1;
+    vis.clock += stepS * visScale;
+    vc.tS = vis.clock; vc.dt = stepS * visScale; vc.calm = calm;
+    vc.tau = body.tau; vc.heatK = body.heatK; vc.subsolarT = u.uSubsolarT.value; vc.tempOverrideK = DEV_OVERRIDES.visitTempK;
+    vc.q[0] = body.q.x; vc.q[1] = body.q.y; vc.q[2] = body.q.z; vc.q[3] = body.q.w;
+    vc.omega[0] = body.omega.x; vc.omega[1] = body.omega.y; vc.omega[2] = body.omega.z;
+    vc.cam[0] = surf.cam[0]; vc.cam[1] = surf.cam[1]; vc.cam[2] = surf.cam[2];
+    vc.coreR = R_SCENE * drop.coreScale;
+    // a hard release flings the residents off (every hyper pins the spin at MAX_OMEGA, past DETACH_OMEGA)
+    vc.detach = (ds.released && body.omega.length() > DETACH_OMEGA) || DEV_OVERRIDES.breakNow != null || DEV_OVERRIDES.hyperNow != null;
+    const devQ = DEV_OVERRIDES.strikeQueue;
+    while ((queue && queue.length > 0) || devQ.length > 0) {
+      const phase = queue && queue.length > 0 ? queue.shift() : devQ.shift();
       const node = ORBIT_NODES.find((n) => n.phase === phase);
       if (!node) continue;
       const p = nodeWorldPosition(node.angle, precession);
-      surf.nodePos[0] = p[0]; surf.nodePos[1] = p[1]; surf.nodePos[2] = p[2];
-      strikeDirWorld(surf.nodePos, surf.cam, surf.w);
-      worldToBody(surf.w, body.q, surf.b);
-      const kind = impactKind(body.tau, localTempK(surf.w, SUN_DIR_WORLD, u.uSubsolarT.value, body.heatK));
-      if (kind === 'crater') {
-        stampCrater(scar, surf.b, surf.seed++);
+      vc.nodePos[0] = p[0]; vc.nodePos[1] = p[1]; vc.nodePos[2] = p[2];
+      launchVisitor(vis.buf, phase, vc);
+    }
+    stepVisitors(vis.buf, vc, vis.out);
+    for (let k = 0; k < vis.out.nImpacts; k++) {
+      const ev = vis.out.impacts[k];
+      if (ev.kind === 'crater') {
+        stampCrater(scar, ev.dirBody, surf.seed++);
         scarDirty = true;
       } else if (calm) {
-        surf.glowT0 = t; // reduced motion: the tap brightens the point instead of ringing
-        surf.glowDirBody[0] = surf.b[0]; surf.glowDirBody[1] = surf.b[1]; surf.glowDirBody[2] = surf.b[2];
+        surf.glowT0 = t; // reduced motion: the touchdown brightens the point instead of ringing
+        surf.glowDirBody[0] = ev.dirBody[0]; surf.glowDirBody[1] = ev.dirBody[1]; surf.glowDirBody[2] = ev.dirBody[2];
+      } else if (ev.kind === 'ring') {
+        addImpulse(surf.impulses, { dirBody: ev.dirBody, tS: t, mode: IMPACT_MODE_AMP.ring, wave: IMPACT_WAVE_AMP.ring, kind: 'ring' });
       } else {
-        addImpulse(surf.impulses, { dirBody: surf.b, tS: t, mode: IMPACT_MODE_AMP[kind], wave: IMPACT_WAVE_AMP[kind], kind });
+        const a = VISITOR_IMPACT[ev.impulse];
+        addImpulse(surf.impulses, { dirBody: ev.dirBody, tS: t, mode: a.mode, wave: a.wave, kind: ev.impulse });
+        if (ev.phase === 'thermal' && ev.tempK > HG_BOIL_K) vis.exoPuff = EXO_PUFF;
       }
     }
 
@@ -566,6 +603,23 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     u.uCoreR.value = R_SCENE * drop.coreScale;
     exo.coreR = R_SCENE * drop.coreScale;
     field.upload(drop.frame, t);
+    // Visitors' bodies and surface slots (after stepDrop: the core size is this frame's).
+    if (vis.buf.live > 0) {
+      vis.m.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+      vis.view.vp.set(vis.m.elements);
+      vis.view.p00 = camera.projectionMatrix.elements[0];
+      vis.view.p11 = camera.projectionMatrix.elements[5];
+      vis.view.wPx = bufferW;
+      vis.view.hPx = bufferH;
+    }
+    packVisitors(vis.buf, vc, vis.view, vis.frame);
+    visField.upload(vis.frame, t, pxAngleOf(camera.fov, bufferH));
+    for (let j = 0; j < VISIT_SURF_MAX; j++) {
+      u.uVisitDir.value[j].fromArray(vis.frame.surfDir, 4 * j);
+      u.uVisitA.value[j].fromArray(vis.frame.surfA, 4 * j);
+      u.uVisitB.value[j].fromArray(vis.frame.surfB, 4 * j);
+    }
+    u.uVisitOn.value = vis.frame.nSurf > 0 ? 1 : 0;
     if (calm) {
       bodyToWorld(surf.glowDirBody, body.q, surf.w);
       u.uGlow.value.set(surf.w[0], surf.w[1], surf.w[2], calmGlow(t - surf.glowT0));
@@ -592,6 +646,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     <>
       <mesh geometry={geometry} material={material} frustumCulled={false} />
       <mesh ref={field.meshRef} geometry={field.geometry} material={field.material} renderOrder={field.renderOrder} frustumCulled={false} visible={false} />
+      <mesh ref={visField.meshRef} geometry={visField.geometry} material={visField.material} renderOrder={visField.renderOrder} frustumCulled={false} visible={false} />
       <MercuryExosphere exo={exo} tier={tier} />
     </>
   );

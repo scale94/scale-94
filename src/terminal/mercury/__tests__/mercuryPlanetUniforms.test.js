@@ -83,3 +83,28 @@ describe('visitors: the screen-space fireworks are gone', () => {
     expect(modules.some((p) => /ireworks/.test(p))).toBe(false);
   });
 });
+
+describe('visitors wiring', () => {
+  it('a strike launches a visitor; the touchdown, not the tap, hits the surface', () => {
+    expect(planetSrc).toContain('launchVisitor(vis.buf, phase, vc);');
+    expect(planetSrc).toContain('stepVisitors(vis.buf, vc, vis.out);');
+    expect(planetSrc).not.toMatch(/strikeDirWorld\(|impactKind\(/);
+    expect(planetSrc).toContain('const a = VISITOR_IMPACT[ev.impulse];');
+    expect(planetSrc).toContain('stampCrater(scar, ev.dirBody, surf.seed++);');
+  });
+  it('owns the surface-slot uniforms and gates them on live slots', () => {
+    expect(planetSrc).toContain('uVisitOn: { value: 0 },');
+    expect(planetSrc).toContain('u.uVisitOn.value = vis.frame.nSurf > 0 ? 1 : 0;');
+    for (const n of ['uVisitDir', 'uVisitA', 'uVisitB']) expect(planetSrc).toContain(`u.${n}.value[j].fromArray(`);
+  });
+  it('mounts the body pass hidden; upload shows it', () => {
+    expect(planetSrc).toContain('const visField = useVisitorField({ planetMaterial: material });');
+    expect(planetSrc).toContain('<mesh ref={visField.meshRef} geometry={visField.geometry} material={visField.material} renderOrder={visField.renderOrder} frustumCulled={false} visible={false} />');
+    expect(planetSrc).toContain('visField.upload(vis.frame, t, pxAngleOf(camera.fov, bufferH));');
+  });
+  it('a hard release or any hyper flings the residents; an ember on boiling Hg puffs the exosphere', () => {
+    expect(planetSrc).toContain('vc.detach = (ds.released && body.omega.length() > DETACH_OMEGA) || DEV_OVERRIDES.breakNow != null || DEV_OVERRIDES.hyperNow != null;');
+    expect(planetSrc).toContain("if (ev.phase === 'thermal' && ev.tempK > HG_BOIL_K) vis.exoPuff = EXO_PUFF;");
+    expect(planetSrc).toContain('exo.coverage = Math.min(1, boilCoverage(body.tau, body.heatK, u.uSubsolarT.value) + vis.exoPuff);');
+  });
+});
