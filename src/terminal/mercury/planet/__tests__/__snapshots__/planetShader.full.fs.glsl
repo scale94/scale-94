@@ -101,7 +101,7 @@ const float AETHER_DIFFUSE_REF_LOBES = 8.00000000;
 const float AETHER_FRINGE_LO = 0.250000000;
 const float AETHER_FRINGE_HI = 0.900000000;
 const float AETHER_SHOULDER = 1.50000000;
-const vec3 NIGHT_TINT = vec3(0.620000000, 0.680000000, 1.00000000);
+const vec3 NIGHT_TINT = vec3(0.450000000, 0.580000000, 1.00000000);
 const float SCAR_DEPTH_RANGE_M = 4000.00000;
 const vec3 RAY_ALBEDO = vec3(0.420000000, 0.400000000, 0.380000000);
 const int IMPULSE_SLOTS = 8;
@@ -314,12 +314,11 @@ vec2 aetherStreak(vec3 R, vec3 d, vec2 shape, float rough) {
   return vec2(smoothstep(0.0, 0.15, facing) * silhouette * body, smoothstep(AETHER_FRINGE_LO, AETHER_FRINGE_HI, d2));
 }
 
-// A streak's colour at fringe f: a near-white specular core (neutral, at the
-// colour's brightest channel × uAetherCore) giving way to the aether hue at
-// the meniscus edge. Chrome reflects coloured light this way without going milky.
+// A streak's colour at fringe f: the gas's own hue throughout, brightest in the
+// core (× uAetherCore) and falling to the plain aether hue at the meniscus edge.
+// A neutral white core read as a studio softbox, not as nebula in a mirror.
 vec3 aetherStreakColor(vec3 col, float f) {
-  float peak = max(col.r, max(col.g, col.b));
-  return mix(vec3(peak * uAetherCore), aetherHue(col), f);
+  return aetherHue(col) * mix(uAetherCore, 1.0, f);
 }
 
 // What the liquid sees: the Sun disc, the four elements, and the aether that

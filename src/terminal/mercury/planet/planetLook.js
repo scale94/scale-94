@@ -39,7 +39,7 @@ export const AETHER_DAY_LO = -0.15;           // dot(normal, Sun) where the nigh
 export const AETHER_DAY_HI = 0.25;            // …and where full day strength is reached
 export const AETHER_DIFFUSE_REF_LOBES = 8; // frozen-Hg aether ambient was tuned with 8 lobes; scale keeps that brightness
 export const AETHER_DIFFUSE = 0.35;           // frozen Hg's matte response to the aether
-export const NIGHT_TINT = [0.62, 0.68, 1.0];  // cold indigo cast on the night side's aether
+export const NIGHT_TINT = [0.45, 0.58, 1.0];  // cold cast on the night side's aether: warm gas sinks to indigo / deep violet / dark cyan
 export const AETHER_FRINGE_LO = 0.25;          // streak d² where the white core starts giving way to colour…
 export const AETHER_FRINGE_HI = 0.9;           // …and where the fringe is full aether colour
 export const AETHER_SHOULDER = 1.5;            // linear; overlapping streak cores roll off instead of clipping flat
@@ -59,11 +59,11 @@ export const PLANET_TUNE = {
   emitGain: 1.5,     // liquid mirror: element-emitter reflection gain
   aetherGain: 1.4,   // liquid mirror + frozen ambient: aether envelope gain
   aetherSinW: 0.22,  // aether streak half-width across the flow (sin); lower = thinner streaks, more dark between
-  aetherSilver: 0.2, // fringe desaturation (the core is always neutral)
+  aetherSilver: 0,   // desaturation toward silver (0: the mirror shows the gas at its own hue, 2026-10-03)
   aetherEdge: 3,     // streak profile exponent: 1 = soft Gaussian; higher = flat silver core with an abrupt meniscus edge
   aetherStretch: 1,  // 0 = round lobes; 1 = each streak at its own elongation (AETHER_SHAPES)
   aetherCurve: 1.0,  // falloff inside a streak: 0 = flat; higher = brighter centre, dimmer toward the meniscus edge
-  aetherCore: 2.2,   // brightness of the near-white specular core, relative to the streak colour's brightest channel
+  aetherCore: 1.6,   // streak core brightness × its own hue (the AETHER_SHOULDER roll-off flattens anything much above this)
   rayGain: 1.5,      // fresh crater-ray brightness (scar map G channel); 1.5 tuned 2026-10-02 (Task 7: 2+ flattens rays into a blob)
   modeGain: 1,       // body-mode + spin-bulge amplitude (the bead's wobble)
   waveGain: 1,       // capillary ripple slope

@@ -114,7 +114,8 @@ describe('mercuryPlanetShader contract', () => {
     expect(PLANET_FS).toContain('vec2 aetherStreak(vec3 R, vec3 d, vec2 shape, float rough) {');
     expect(PLANET_FS).toContain('float silhouette = exp(-pow(d2, max(uAetherEdge, 0.5)));');
     expect(PLANET_FS).toContain('float body = exp(-uAetherCurve * d2);');
-    expect(PLANET_FS).toContain('return mix(vec3(peak * uAetherCore), aetherHue(col), f);');
+    expect(PLANET_FS).toContain('return aetherHue(col) * mix(uAetherCore, 1.0, f);'); // the core keeps the gas hue (no white softbox)
+    expect(PLANET_FS).not.toContain('peak * uAetherCore');
     expect(PLANET_FS).toContain('a += aetherStreakColor(uAethCol[i], s.y) * s.x;');
     expect(PLANET_FS).toContain('uniform float uAetherCurve;');
     expect(PLANET_FS).toContain('uniform float uAetherCore;');

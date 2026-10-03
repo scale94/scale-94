@@ -126,12 +126,11 @@ vec2 aetherStreak(vec3 R, vec3 d, vec2 shape, float rough) {
   return vec2(smoothstep(0.0, 0.15, facing) * silhouette * body, smoothstep(AETHER_FRINGE_LO, AETHER_FRINGE_HI, d2));
 }
 
-// A streak's colour at fringe f: a near-white specular core (neutral, at the
-// colour's brightest channel × uAetherCore) giving way to the aether hue at
-// the meniscus edge. Chrome reflects coloured light this way without going milky.
+// A streak's colour at fringe f: the gas's own hue throughout, brightest in the
+// core (× uAetherCore) and falling to the plain aether hue at the meniscus edge.
+// A neutral white core read as a studio softbox, not as nebula in a mirror.
 vec3 aetherStreakColor(vec3 col, float f) {
-  float peak = max(col.r, max(col.g, col.b));
-  return mix(vec3(peak * uAetherCore), aetherHue(col), f);
+  return aetherHue(col) * mix(uAetherCore, 1.0, f);
 }
 
 // What the liquid sees: the Sun disc, the four elements, and the aether that
