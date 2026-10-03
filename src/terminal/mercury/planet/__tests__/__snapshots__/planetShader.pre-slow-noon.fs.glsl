@@ -47,8 +47,6 @@ uniform float uRoilGain;
 uniform float uPopZoom;
 uniform float uRoughLiquid;
 uniform float uMeniscus;
-uniform float uOverlay; // slow-noon
-uniform vec3 uCaloris; // slow-noon
 uniform float uMeniscusW;
 
 const float PI = 3.14159265358979;
@@ -71,10 +69,6 @@ const float HG_MELT_K = 234.320000;
 const float HG_BOIL_K = 629.880000;
 const float T_NIGHT_FLOOR_K = 100.000000;
 const float T_SUNSET_K = 400.000000;
-const float CALORIS_ANG_RAD = 0.317649924; // slow-noon
-const vec3 OVERLAY_LINE = vec3(0.550000000, 0.570000000, 0.620000000); // slow-noon
-const float OVERLAY_ALPHA = 0.850000000; // slow-noon
-const float SUBSOLAR_TICK_PX = 6.00000000; // slow-noon
 const float TAU_WARM_H = 860.000000;
 const float TAU_COOL_H = 290.000000;
 const float HOURS_PER_RAD = 672.047663;
@@ -209,12 +203,6 @@ float surfaceTempK(float mu0, float lonRel, float cosLat, float tss, float heatK
   }
   return t + heatK;
 }
-// <slow-noon>
-// THE SLOW NOON (slowNoon.js): a ~1 px line where field d crosses zero, w = its per-pixel change.
-float hairline(float d, float w) {
-  return 1.0 - clamp(abs(d) / max(w, 1e-6), 0.0, 1.0);
-}
-// </slow-noon>
 
 float hash13(vec3 p) {
   p = fract(p * 0.1031);
@@ -552,23 +540,6 @@ void main() {
   vec2 gxS = dFdx(uvS), gyS = dFdy(uvS);
   if (abs(gxS.x) + abs(gyS.x) < abs(gx.x) + abs(gy.x)) { gx.x = gxS.x; gy.x = gyS.x; }
   float pxArc = length(fwidth(xw));
-  // <slow-noon>
-  // THE SLOW NOON hairlines: fields and derivatives here, in a uniform branch before the discard.
-  float ovFreeze = 0.0, ovRing = 0.0, ovTick = 0.0;
-  if (uOverlay > 0.0) { // slow-noon fields
-    float lonSunOv = length(uSunDir.xz) > 1e-4 ? atan(-uSunDir.z, uSunDir.x) : 0.0;
-    float lonRelOv = mod(atan(-xw.z, xw.x) - lonSunOv + PI, TAU) - PI;
-    float tOv = surfaceTempK(dot(xb, Lb), lonRelOv, sqrt(max(1.0 - xw.y * xw.y, 0.0)), uSubsolarT, uHeatK);
-    ovFreeze = hairline(tOv - HG_MELT_K, fwidth(tOv));
-    float dCal = acos(clamp(dot(xb, uCaloris), -1.0, 1.0)) - CALORIS_ANG_RAD;
-    ovRing = hairline(dCal, fwidth(dCal));
-    vec3 eOv = normalize(vec3(uSunDir.z, 0.0, -uSunDir.x));
-    float aOv = dot(xw, eOv), bOv = xw.y, armOv = SUBSOLAR_TICK_PX * pxArc;
-    float faceOv = step(0.0, dot(xw, uSunDir));
-    ovTick = faceOv * max(hairline(aOv, fwidth(aOv)) * step(abs(bOv), armOv),
-                          hairline(bOv, fwidth(bOv)) * step(abs(aOv), armOv));
-  }
-  // </slow-noon>
 
   if (disc < -fw) discard;
 
@@ -681,11 +652,6 @@ void main() {
     }
   }
 
-  // <slow-noon>
-  if (uOverlay > 0.0) { // slow-noon composite
-    colLin = mix(colLin, OVERLAY_LINE, uOverlay * OVERLAY_ALPHA * max(max(ovFreeze, ovRing), ovTick));
-  }
-  // </slow-noon>
   vec3 col = max(colLin, 0.0);
   vec3 srgb = mix(col * 12.92, 1.055 * pow(col, vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), col));
   float dith = (fract(sin(dot(gl_FragCoord.xy + fract(uTime) * 61.0, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
