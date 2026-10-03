@@ -20,6 +20,8 @@ import {
   createExtraStats, pushExtra, summarizeExtra, createEventLog, pushEvent, summarizeEvents, LONG_FRAME_MS,
 } from './planet/perfStats';
 import { perfHudMode } from './planet/planetQuality';
+import { HYPER_OMEGA_FRAC, V_HYPER } from './planet/hyperFling';
+import { MAX_OMEGA } from './planet/mercuryBody';
 
 const fmt = (r) => (r.n ? `${r.p50.toFixed(1)} / ${r.p95.toFixed(1)} / ${r.max.toFixed(1)} ms  (${r.fps.toFixed(0)} fps, n=${r.n})` : '—');
 const nowS = () => performance.now() / 1000;
@@ -162,6 +164,8 @@ export default function MercuryPerfHud({ tier, calm }) {
         `τ ${PERF_INFO.tau.toFixed(2)}  heat ${PERF_INFO.heatK.toFixed(1)} K  boil ${(PERF_INFO.coverage * 100).toFixed(0)}%`,
         `tail B ${PERF_INFO.tailB.toFixed(2)}  v_r ${PERF_INFO.vrKmS.toFixed(1)} km/s`,
         `drops ${PERF_INFO.dropPrims} prims  ${(PERF_INFO.dropAreaPx / 1000).toFixed(0)}k px²  Σ ${PERF_INFO.sigma.toFixed(2)}`,
+        // Gate 0: the last release against the hyper gate (spin ≥ HYPER_OMEGA_FRAC·MAX_OMEGA, pointer ≥ V_HYPER)
+        PERF_INFO.relN ? `release #${PERF_INFO.relN}  spin ${PERF_INFO.relSpin.toFixed(2)}/${(HYPER_OMEGA_FRAC * MAX_OMEGA).toFixed(2)}  ptr ${PERF_INFO.relPtr.toFixed(1)}/${V_HYPER}  ${PERF_INFO.relHyper ? 'HYPER' : `no hyper (${PERF_INFO.relBlocked})${PERF_INFO.relFired ? ` → ${PERF_INFO.relFired}` : ''}`}` : 'release —',
       ].join('\n');
       f.hudPending = true;
     }, 250);

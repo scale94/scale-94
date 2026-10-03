@@ -1,7 +1,7 @@
 // src/terminal/mercury/planet/__tests__/hyperFling.test.js — phase 6a: trigger, mass split, launch
 import { describe, it, expect } from 'vitest';
 import {
-  canHyper, hyperEnergy, HYPER_MIN_TARGET_S, splitMass, gammaMean1, mulberry32, hyperMu, hyperReach,
+  canHyper, hyperGate, hyperEnergy, HYPER_MIN_TARGET_S, splitMass, gammaMean1, mulberry32, hyperMu, hyperReach,
   fireHyper, coreScale, ETA_HI, HYPER_GRACE_S, T_BURST, HYPER_GAMMA, HYPER_AIM_S, HYPER_HANG_K,
   V0, V_HYPER, V_HYPER_SPAN, HYPER_OMEGA_FRAC, HYPER_RBAR_LO, HYPER_RBAR_HI, HYPER_R_MAX_K, HYPER_VIS_K, HYPER_REACH_MIN_R,
 } from '../hyperFling';
@@ -9,7 +9,7 @@ import { hyperAccel, DROP_DT } from '../breakupStep';
 import { MAX_OMEGA } from '../mercuryBody';
 import { PX_FLOOR, sphereVol } from '../breakupPhysics';
 import { R_SCENE } from '../planetLook';
-import { createFamily } from '../breakupFamily';
+import { createFamily, canFire, fireBlockedBy } from '../breakupFamily';
 
 const volOf = (rs) => rs.reduce((a, r) => a + sphereVol(r), 0);
 
@@ -20,6 +20,40 @@ describe('hyperFling trigger', () => {
     expect(canHyper({ omega: w - 0.01, ptrOmega: 1e3, nMax: 16, target: 12 })).toBe(false);
     expect(canHyper({ omega: MAX_OMEGA, ptrOmega: V_HYPER - 0.01, nMax: 16, target: 12 })).toBe(false);
     expect(canHyper({ omega: MAX_OMEGA, ptrOmega: 1e3, nMax: 0, target: 12 })).toBe(false);
+  });
+
+  it('hyperGate names the first condition that blocks (Gate 0), writes in place, and agrees with canHyper', () => {
+    const w = HYPER_OMEGA_FRAC * MAX_OMEGA;
+    const out = { ok: false, blockedBy: '' };
+    const gate = (a) => hyperGate(a, out);
+    expect(gate({ omega: w, ptrOmega: V_HYPER, nMax: 16, target: 12 })).toBe(out);
+    expect(out).toEqual({ ok: true, blockedBy: '' });
+    gate({ omega: w - 0.01, ptrOmega: 0, nMax: 0, target: 0 });
+    expect(out).toEqual({ ok: false, blockedBy: 'spin' }); // spin first: the condition Gate 0 most needs to see
+    gate({ omega: w, ptrOmega: V_HYPER - 0.01, nMax: 0, target: 0 });
+    expect(out.blockedBy).toBe('pointer');
+    gate({ omega: w, ptrOmega: V_HYPER, nMax: 0, target: 12 });
+    expect(out.blockedBy).toBe('tier');
+    gate({ omega: w, ptrOmega: V_HYPER, nMax: 16, target: HYPER_MIN_TARGET_S - 0.01 });
+    expect(out.blockedBy).toBe('room');
+    for (const a of [{ omega: w, ptrOmega: 40, nMax: 8, target: 9 }, { omega: 11, ptrOmega: 40, nMax: 8, target: 12 }, { omega: 12, ptrOmega: 5, nMax: 8, target: 12 }]) {
+      expect(gate(a).ok).toBe(canHyper(a));
+    }
+  });
+
+  it('fireBlockedBy names why a release did not fire at all (Gate 0), and canFire is its verdict', () => {
+    const ok = { released: true, tau: 1, omega: 12, omegaTh: 7.5, calm: false, phase: 'hold', heatK: 120 };
+    expect(fireBlockedBy(ok)).toBe('');
+    expect(fireBlockedBy({ ...ok, released: false })).toBe('no release');
+    expect(fireBlockedBy({ ...ok, calm: true })).toBe('calm');
+    expect(fireBlockedBy({ ...ok, tau: 0.9 })).toBe('not liquid');
+    expect(fireBlockedBy({ ...ok, phase: 'idle' })).toBe('no tongue'); // a flick too short to grow one
+    expect(fireBlockedBy({ ...ok, phase: 'fired' })).toBe('family out');
+    expect(fireBlockedBy({ ...ok, omega: 7 })).toBe('spin < break');
+    expect(fireBlockedBy({ ...ok, heatK: 26 })).toBe('too cool');
+    for (const s of [ok, { ...ok, tau: 0.5 }, { ...ok, phase: 'idle' }, { ...ok, heatK: 26 }, { ...ok, calm: true }]) {
+      expect(canFire(s)).toBe(fireBlockedBy(s) === '');
+    }
   });
 
   it('needs room to orbit, gather and cascade: never below HYPER_MIN_TARGET_S of return time (V4 §10.6)', () => {

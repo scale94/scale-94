@@ -38,8 +38,21 @@ export const V0 = sphereVol(R_SCENE);
 
 export const hyperEnergy = (ptrOmega) => Math.min(1, Math.max(0, (ptrOmega - V_HYPER) / V_HYPER_SPAN));
 
-export function canHyper({ omega, ptrOmega, nMax, target }) {
-  return nMax > 0 && omega >= HYPER_OMEGA_FRAC * MAX_OMEGA && ptrOmega >= V_HYPER && target >= HYPER_MIN_TARGET_S;
+// Gate 0: which condition blocks a hyper-fling, first failing one named ('spin' | 'pointer' | 'tier' | 'room'),
+// written into out (no allocation, so the release frame can call it). canHyper is its verdict.
+export function hyperGate({ omega, ptrOmega, nMax, target }, out) {
+  out.blockedBy = omega < HYPER_OMEGA_FRAC * MAX_OMEGA ? 'spin'
+    : ptrOmega < V_HYPER ? 'pointer'
+    : !(nMax > 0) ? 'tier'
+    : !(target >= HYPER_MIN_TARGET_S) ? 'room'
+    : '';
+  out.ok = out.blockedBy === '';
+  return out;
+}
+
+const _gate = { ok: false, blockedBy: '' };
+export function canHyper(args) {
+  return hyperGate(args, _gate).ok;
 }
 
 // Deterministic per seed, so the live family and every solver replay see the same swarm.

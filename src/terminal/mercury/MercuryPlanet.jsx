@@ -34,12 +34,12 @@ import { registerTuningRig, DEV_OVERRIDES } from './mercuryTuning';
 import MercuryExosphere from './MercuryExosphere';
 import { tailBrightness, tailLength, boilCoverage } from './planet/mercuryExosphere';
 import {
-  createFamily, canHold, canFire, breakExcess, tongueAxis, holdTongue, fireFamily, nextSnapIn, qRotateInv, DROP_V_REF,
+  createFamily, canHold, canFire, fireBlockedBy, breakExcess, tongueAxis, holdTongue, fireFamily, nextSnapIn, qRotateInv, DROP_V_REF,
 } from './planet/breakupFamily';
 import { TONGUE_MAX_R, sigmaRatio } from './planet/breakupPhysics';
 import { stepFamily, DROP_DT } from './planet/breakupStep';
 import { muRef, returnTarget, createMuSolver, stepMuSolver, solverBudget, finishMuSolver } from './planet/breakupBudget';
-import { canHyper, hyperEnergy, fireHyper, coreScale, hyperReach, HYPER_N, V_HYPER, V_HYPER_SPAN } from './planet/hyperFling';
+import { canHyper, hyperGate, hyperEnergy, fireHyper, coreScale, hyperReach, HYPER_N, V_HYPER, V_HYPER_SPAN } from './planet/hyperFling';
 import { createDropFrame, packFamily, pxPerUnitAt, pxAngleOf } from './planet/breakupFrame';
 import useDropletField from './useDropletField';
 
@@ -127,6 +127,24 @@ function rigTongueAxis(drop, env, camW) {
 // Phase 5, once per frame (spec 2026-10-02): hold the tongues, fire on release, step the family, pack the
 // field. Its own function so the frame loop's hot path stays small and a heap profile names it. Allocates
 // nothing on the idle and hold paths; fire time and snap / merge events may.
+// Gate 0 (natural-swipe validation): one release, after the fire decision. The HUD (?perf=1) reads PERF_INFO on a
+// phone; in dev every release also logs and lands in window.__mercuryGate0 for percentiles. blockedBy names the first
+// hyper condition missed, or, when the gate passed, why the release did not break the planet (fireBlockedBy).
+function reportRelease(lr, drop) {
+  const fam = drop.fam;
+  lr.fired = lr.hyper ? 'hyper' : fam.phase === 'fired' && lr.phase0 !== 'fired' ? 'phase5' : '';
+  // the hyper gate passed but nothing fired: say why the release did not break the planet at all
+  if (lr.ok && !lr.hyper) lr.blockedBy = lr.phase0 === 'fired' ? 'family out' : fireBlockedBy(drop.st) || 'busy';
+  lr.n += 1;
+  PERF_INFO.relN = lr.n; PERF_INFO.relSpin = lr.omega; PERF_INFO.relPtr = lr.ptrOmega;
+  PERF_INFO.relHyper = lr.hyper; PERF_INFO.relBlocked = lr.blockedBy; PERF_INFO.relFired = lr.fired;
+  if (import.meta.env.DEV) {
+    const row = { releaseSpin: +lr.omega.toFixed(3), pointerSpeed: +lr.ptrOmega.toFixed(2), hyperTriggered: lr.hyper, fired: lr.fired || null, blockedBy: lr.blockedBy || null, eH: +lr.eH.toFixed(3) };
+    (window.__mercuryGate0 ??= []).push(row);
+    console.info('[mercury] release', row);
+  }
+}
+
 function stepDrop(drop, { body, surf, camera, ds, calm, stepS, t, bufferW, bufferH }) {
   const fam = drop.fam;
   if (calm) {
@@ -143,7 +161,9 @@ function stepDrop(drop, { body, surf, camera, ds, calm, stepS, t, bufferW, buffe
     env.pxPerUnit = pxPerUnitAt(camera.position.length(), camera.fov, bufferH);
     if (ds.released) {
       const lr = drop.lastRelease;
-      lr.omega = body.omega.length(); lr.ptrOmega = ds.releaseOmegaPtr; lr.eH = 0; lr.hyper = false;
+      lr.omega = body.omega.length(); lr.ptrOmega = ds.releaseOmegaPtr; lr.eH = 0; lr.hyper = false; lr.phase0 = fam.phase;
+      // Gate 0: every release says which hyper condition it met or missed (written in place; reported below)
+      hyperGate({ omega: lr.omega, ptrOmega: lr.ptrOmega, nMax: drop.hyperN, target: returnTarget(body.heatK, PLANET_TUNE.dropDrift) }, lr);
     }
     const dropDt = stepS * (DEV_OVERRIDES.dropTimeScale ?? 1);
     let omega = body.omega.length();
@@ -201,6 +221,7 @@ function stepDrop(drop, { body, surf, camera, ds, calm, stepS, t, bufferW, buffe
         if (fam.L < 1e-4) { fam.L = 0; fam.phase = 'idle'; }
       }
     }
+    if (ds.released) reportRelease(drop.lastRelease, drop);
     if (fam.phase === 'fired') {
       const sv = drop.solver;
       if (sv && !sv.done) {
@@ -369,7 +390,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
   const drop = useMemo(() => {
     const d = {
       fam: createFamily(1), solver: null, warned: false,
-      lastRelease: { omega: 0, ptrOmega: 0, eH: 0, hyper: false }, // phase 6: every release, for Gate 0 and the HUD
+      lastRelease: { omega: 0, ptrOmega: 0, eH: 0, hyper: false, ok: false, blockedBy: '', n: 0, phase0: 'idle', fired: '' }, // phase 6: every release, for Gate 0 and the HUD
       coreScale: 1, fires: 0, hyperN: Math.min(HYPER_N[tier] ?? 0, TIERS[tier].drop.bodies), // phase 6
       frame: createDropFrame(TIERS[tier].drop), spinBody: [0, 0, 0],
       camBody: [0, 0, 0], rigW: [0, 0, 0], rigDrag: [0, 0, 0], // the dev rig's stand-in drag point (rigTongueAxis)

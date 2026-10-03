@@ -51,9 +51,20 @@ export function canHold({ dragging, tau, omega, omegaTh, calm, phase }) {
   return !!dragging && !calm && tau >= BREAK_TAU && omega > omegaTh && (phase === 'idle' || phase === 'hold');
 }
 
-export function canFire({ released, tau, omega, omegaTh, calm, phase, heatK }) {
-  return !!released && !calm && tau >= BREAK_TAU && omega > omegaTh && phase === 'hold'
-    && refreezeIn(heatK) - MERGE_MARGIN_S >= MIN_RETURN_S;
+// Why a release does not break the planet, first failing condition named ('' = it fires). Gate 0 reports it.
+export function fireBlockedBy({ released, tau, omega, omegaTh, calm, phase, heatK }) {
+  if (!released) return 'no release';
+  if (calm) return 'calm';
+  if (!(tau >= BREAK_TAU)) return 'not liquid';
+  if (phase === 'fired') return 'family out';
+  if (phase !== 'hold') return 'no tongue';
+  if (!(omega > omegaTh)) return 'spin < break';
+  if (!(refreezeIn(heatK) - MERGE_MARGIN_S >= MIN_RETURN_S)) return 'too cool';
+  return '';
+}
+
+export function canFire(st) {
+  return fireBlockedBy(st) === '';
 }
 
 export function createFamily(seed = 1) {
