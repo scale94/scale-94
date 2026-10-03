@@ -58,10 +58,14 @@ describe('visitorShader — the visitors as analytic bodies', () => {
     expect(fs).toMatch(/out vec4 fragColor;/);
   });
   it('water that the bent ray passes by the planet sees the sky, not black', () => {
-    expect(fs).toMatch(/vec3 behind = envRadiance\(bent, WATER_ROUGH, p, -bent\);/);
+    expect(fs).toMatch(/vec3 behind = envRadiance\(bent, WATER_ROUGH, p, bent\);/);
   });
   it('silhouette AA: hitEll takes a tolerance so coverage spans the full pixel', () => {
     expect(fs).toMatch(/float hitEll\([^)]*float tol, out vec3 n, out float miss\)/);
     expect(fs.match(/hitEll\(ro, rd, c, r, [^;]*0\.5 \* px, nrm, miss\)/g)).toHaveLength(2);
+  });
+  it('a body covers the glow behind it by coverage, not all-or-nothing', () => {
+    expect(fs).toContain('outA = alpha + gA * (1.0 - alpha);');
+    expect(fs).toContain('outC = (col * alpha + gC * gA * (1.0 - alpha)) / max(outA, 1e-5);');
   });
 });

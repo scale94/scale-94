@@ -177,7 +177,7 @@ vec3 shadeWater(vec3 p, vec3 n, vec3 rd) {
   // is the planet, shaded with the planet's own mirror
   vec3 bent = normalize(rd + 2.0 * (refract(rd, n, 1.0 / WATER_N) - rd));
   // where the bent ray misses the planet it meets the sky
-  vec3 behind = envRadiance(bent, WATER_ROUGH, p, -bent);
+  vec3 behind = envRadiance(bent, WATER_ROUGH, p, bent);
   float b = dot(p, bent);
   float h = b * b - (dot(p, p) - uCoreR * uCoreR);
   if (h > 0.0 && -b - sqrt(h) > 0.0) {
@@ -290,9 +290,9 @@ void main() {
   if (alpha > 0.0 && gT < bestT) {          // glow in front of the body
     outA = gA + alpha * (1.0 - gA);
     outC = (gC * gA + col * alpha * (1.0 - gA)) / max(outA, 1e-6);
-  } else if (alpha > 0.0) {                 // the body hides any glow behind it
-    outA = alpha;
-    outC = col;
+  } else if (alpha > 0.0) {                 // the body covers the glow behind it by its coverage only
+    outA = alpha + gA * (1.0 - alpha);
+    outC = (col * alpha + gC * gA * (1.0 - alpha)) / max(outA, 1e-5);
   } else {
     outA = gA;
     outC = gC;
