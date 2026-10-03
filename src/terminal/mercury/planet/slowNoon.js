@@ -64,6 +64,7 @@ function edge(aMs, bMs) {
 
 // The window that contains nowMs, else the next one (null if none within SCAN_SPAN_MS).
 export function retroWindow(nowMs) {
+  if (!Number.isFinite(nowMs)) return null;
   let t = nowMs;
   if (turningBack(t)) {
     while (turningBack(t - SCAN_STEP_MS)) t -= SCAN_STEP_MS;

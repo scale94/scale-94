@@ -1,6 +1,7 @@
 // src/terminal/mercury/planet/__tests__/mercuryPlanetShader.test.js
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { CALORIS_ANG_RAD, OVERLAY_LINE_LIN, OVERLAY_ALPHA, SUBSOLAR_TICK_PX } from '../slowNoon';
 import {
   PLANET_VS, PLANET_FS, PLANET_UNIFORMS, PLANET_CALM_UNIFORMS, PLANET_BUILTINS, DEM_LSB_M, buildPlanetShader,
@@ -369,7 +370,7 @@ const stripSlowNoon = (src) => {
 
 describe('THE SLOW NOON hairlines', () => {
   it('stripping the slow-noon lines gives back the pre-change shader byte for byte', () => {
-    const pre = readFileSync('src/terminal/mercury/planet/__tests__/__snapshots__/planetShader.pre-slow-noon.fs.glsl', 'utf8');
+    const pre = readFileSync(resolve(__dirname, '__snapshots__/planetShader.pre-slow-noon.fs.glsl'), 'utf8');
     expect(stripSlowNoon(PLANET_FS)).toBe(pre);
   });
 

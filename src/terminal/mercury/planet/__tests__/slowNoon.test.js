@@ -46,6 +46,11 @@ describe('Caloris clock', () => {
 });
 
 describe('the Sun turns back', () => {
+  it('returns no window for a non-finite time instead of scanning forever', () => {
+    expect(retroWindow(NaN)).toBeNull();
+    expect(retroWindow(Infinity)).toBeNull();
+  });
+
   it('normally moves west (rate < 0), and east inside the window', () => {
     expect(sunLonRate(NOW)).toBeLessThan(0);
     expect(sunLonRate(IN_RETRO)).toBeGreaterThan(0);
