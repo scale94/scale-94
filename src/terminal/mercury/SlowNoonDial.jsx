@@ -103,7 +103,7 @@ export default function SlowNoonDial({ onOverlay }) {
           <g data-slow-noon-loupe="">
             <circle cx={LOUPE.x} cy={LOUPE.y} r={LOUPE.r} fill={INK.loupeBg} stroke={INK.gold} strokeWidth="0.7" />
             <path d={loupeD} fill="none" stroke={INK.gold} strokeWidth="1" />
-            <text x={LOUPE.x} y="298" fill={INK.gold} fontSize="7" fontFamily="monospace" textAnchor="middle">×22 · THE SUN STANDS, TURNS BACK</text>
+            <text x="296" y="298" fill={INK.gold} fontSize="7" fontFamily="monospace" textAnchor="end">×22 · THE SUN STANDS, TURNS BACK</text>
           </g>
         )}
       </svg>
