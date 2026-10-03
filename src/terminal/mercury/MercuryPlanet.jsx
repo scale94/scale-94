@@ -42,6 +42,7 @@ import { muRef, returnTarget, createMuSolver, stepMuSolver, solverBudget, finish
 import { canHyper, hyperGate, hyperEnergy, fireHyper, coreScale, hyperReach, HYPER_N, V_HYPER, V_HYPER_SPAN } from './planet/hyperFling';
 import { createDropFrame, packFamily, pxPerUnitAt, pxAngleOf } from './planet/breakupFrame';
 import useDropletField from './useDropletField';
+import { CALORIS_DIR_BODY, stepOverlay } from './planet/slowNoon';
 
 const EPHEMERIS_REFRESH_S = 1;
 const MAX_FRAME_DT_S = 0.1; // a backgrounded tab must not fling the body
@@ -263,7 +264,7 @@ function stepDrop(drop, { body, surf, camera, ds, calm, stepS, t, bufferW, buffe
   drop.coreScale = coreScale(fam); // phase 6: the planet's live size (1 unless a hyper family is out)
 }
 
-export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = false, emitters = {}, strikes = null }) {
+export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = false, emitters = {}, strikes = null, overlay = false }) {
   const gl = useThree((s) => s.gl);
   const camera = useThree((s) => s.camera);
   // The drawing buffer's height in device px: the pops are sized from it (mercuryRoil.popZoom).
@@ -337,6 +338,8 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
       uRoughLiquid: { value: PLANET_TUNE.roughLiquid },
       uMeniscus: { value: PLANET_TUNE.meniscus },
       uMeniscusW: { value: PLANET_TUNE.meniscusW },
+      uOverlay: { value: 0 },
+      uCaloris: { value: new THREE.Vector3(...CALORIS_DIR_BODY) },
       uPopZoom: { value: 1 },
       uSurfOn: { value: 0 },
       uImpDir: { value: Array.from({ length: IMPULSE_SLOTS }, () => new THREE.Vector3(0, 0, 1)) },
@@ -458,6 +461,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     u.uRoughLiquid.value = PLANET_TUNE.roughLiquid;
     u.uMeniscus.value = PLANET_TUNE.meniscus;
     u.uMeniscusW.value = PLANET_TUNE.meniscusW;
+    u.uOverlay.value = stepOverlay(u.uOverlay.value, overlay ? 1 : 0, delta, calm);
     if (t >= nextEphemeris.current) {
       nextEphemeris.current = t + EPHEMERIS_REFRESH_S;
       const e = planetEphemerisUniforms(DEV_OVERRIDES.dateMs ?? Date.now());

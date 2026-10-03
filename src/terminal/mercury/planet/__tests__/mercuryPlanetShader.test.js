@@ -1,5 +1,8 @@
 // src/terminal/mercury/planet/__tests__/mercuryPlanetShader.test.js
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { CALORIS_ANG_RAD, OVERLAY_LINE_LIN, OVERLAY_ALPHA, SUBSOLAR_TICK_PX } from '../slowNoon';
 import {
   PLANET_VS, PLANET_FS, PLANET_UNIFORMS, PLANET_CALM_UNIFORMS, PLANET_BUILTINS, DEM_LSB_M, buildPlanetShader,
 } from '../mercuryPlanetShader';
@@ -349,5 +352,64 @@ describe('mercuryPlanetShader contract', () => {
     expect(PLANET_FS).toMatch(/if \(boilW > 0\.0\) \{\s*vec3 rt;/);
     const roilFns = PLANET_FS.slice(PLANET_FS.indexOf('float popDensity('), PLANET_FS.indexOf('void main()'));
     expect(roilFns).not.toMatch(/dFd[xy]|fwidth/);
+  });
+});
+
+// THE SLOW NOON (spec 2026-10-03): hairlines exist only behind uOverlay; removing them restores the old shader.
+const stripSlowNoon = (src) => {
+  const out = [];
+  let inBlock = false;
+  for (const line of src.split('\n')) {
+    if (line.includes('// <slow-noon>')) { inBlock = true; continue; }
+    if (line.includes('// </slow-noon>')) { inBlock = false; continue; }
+    if (inBlock || line.includes('// slow-noon')) continue;
+    out.push(line);
+  }
+  return out.join('\n');
+};
+
+describe('THE SLOW NOON hairlines', () => {
+  it('stripping the slow-noon lines gives back the pre-change shader byte for byte', () => {
+    const pre = readFileSync(resolve(__dirname, '__snapshots__/planetShader.pre-slow-noon.fs.glsl'), 'utf8');
+    expect(stripSlowNoon(PLANET_FS)).toBe(pre);
+  });
+
+  it('declares uOverlay and uCaloris and interpolates the constants from slowNoon.js', () => {
+    expect(PLANET_UNIFORMS).toContain('uOverlay');
+    expect(PLANET_UNIFORMS).toContain('uCaloris');
+    expect(PLANET_FS).toContain('uniform float uOverlay; // slow-noon');
+    expect(PLANET_FS).toContain('uniform vec3 uCaloris; // slow-noon');
+    expect(PLANET_FS).toContain(`const float CALORIS_ANG_RAD = ${glf(CALORIS_ANG_RAD)}; // slow-noon`);
+    expect(PLANET_FS).toContain(`const vec3 OVERLAY_LINE = ${v3(OVERLAY_LINE_LIN)}; // slow-noon`);
+    expect(PLANET_FS).toContain(`const float OVERLAY_ALPHA = ${glf(OVERLAY_ALPHA)}; // slow-noon`);
+    expect(PLANET_FS).toContain(`const float SUBSOLAR_TICK_PX = ${glf(SUBSOLAR_TICK_PX)}; // slow-noon`);
+  });
+
+  it('takes every overlay derivative before the discard, inside a uniform branch', () => {
+    const fieldsAt = PLANET_FS.indexOf('if (uOverlay > 0.0) { // slow-noon fields');
+    const discardAt = PLANET_FS.indexOf('if (disc < -fw) discard;');
+    expect(fieldsAt).toBeGreaterThan(0);
+    expect(fieldsAt).toBeLessThan(discardAt);
+    const block = PLANET_FS.slice(fieldsAt, discardAt);
+    expect(block).toContain('fwidth(tOv)');
+    expect(block).toContain('fwidth(dCal)');
+    // the freeze line uses the very temperature the liquid uses
+    expect(block).toContain('surfaceTempK(dot(xb, Lb), lonRelOv, sqrt(max(1.0 - xw.y * xw.y, 0.0)), uSubsolarT, uHeatK)');
+    expect(PLANET_FS.slice(discardAt)).not.toMatch(/fwidth\((tOv|dCal|aOv|bOv)\)/);
+  });
+
+  it('writes colour only behind uOverlay > 0 and before the sRGB encode', () => {
+    const compAt = PLANET_FS.indexOf('if (uOverlay > 0.0) { // slow-noon composite');
+    expect(compAt).toBeGreaterThan(PLANET_FS.indexOf('if (disc < -fw) discard;'));
+    expect(compAt).toBeLessThan(PLANET_FS.indexOf('vec3 col = max(colLin, 0.0);'));
+    expect(PLANET_FS).toContain('colLin = mix(colLin, OVERLAY_LINE, uOverlay * OVERLAY_ALPHA * max(max(ovFreeze, ovRing), ovTick));');
+  });
+
+  it('every tier and the calm variant carry the hairlines', () => {
+    for (const tier of TIER_NAMES) for (const calm of [false, true]) {
+      const fs = buildPlanetShader({ tier, calm }).fs;
+      expect(fs).toContain('if (uOverlay > 0.0) { // slow-noon fields');
+      expect(fs).toContain('if (uOverlay > 0.0) { // slow-noon composite');
+    }
   });
 });

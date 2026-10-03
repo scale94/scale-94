@@ -42,6 +42,7 @@ import { HG_FRESNEL_GLSL, HG_ENV_GLSL, AETHER_SHAPE_GLSL } from './hgMirrorGlsl'
 import {
   HG_MELT_K, HG_BOIL_K, T_NIGHT_FLOOR_K, T_SUNSET_K, TAU_WARM_H, TAU_COOL_H, HOURS_PER_RAD,
 } from './mercuryThermal';
+import { CALORIS_ANG_RAD, OVERLAY_LINE_LIN, OVERLAY_ALPHA, SUBSOLAR_TICK_PX } from './slowNoon';
 import { DEM_MIN_M, DEM_MAX_M } from './mercuryMaps.generated';
 
 // One 8-bit DEM step in true metres.
@@ -58,6 +59,7 @@ export const PLANET_UNIFORMS = [
   'uScar', 'uRayGain',
   'uSurfOn', 'uImpDir', 'uImpMode', 'uImpWave', 'uBulge', 'uRoilGain', 'uPopZoom',
   'uRoughLiquid', 'uMeniscus', 'uMeniscusW', 'uCoreR',
+  'uOverlay', 'uCaloris',
 ];
 
 export const PLANET_CALM_UNIFORMS = [...PLANET_UNIFORMS, 'uGlow'];
@@ -138,6 +140,8 @@ uniform float uRoilGain;
 uniform float uPopZoom;
 uniform float uRoughLiquid;
 uniform float uMeniscus;
+uniform float uOverlay; // slow-noon
+uniform vec3 uCaloris; // slow-noon
 uniform float uMeniscusW;${calm ? '\nuniform vec4 uGlow;' : ''}
 
 const float PI = 3.14159265358979;
@@ -160,6 +164,10 @@ const float HG_MELT_K = ${glf(HG_MELT_K)};
 const float HG_BOIL_K = ${glf(HG_BOIL_K)};
 const float T_NIGHT_FLOOR_K = ${glf(T_NIGHT_FLOOR_K)};
 const float T_SUNSET_K = ${glf(T_SUNSET_K)};
+const float CALORIS_ANG_RAD = ${glf(CALORIS_ANG_RAD)}; // slow-noon
+const vec3 OVERLAY_LINE = ${v3(OVERLAY_LINE_LIN)}; // slow-noon
+const float OVERLAY_ALPHA = ${glf(OVERLAY_ALPHA)}; // slow-noon
+const float SUBSOLAR_TICK_PX = ${glf(SUBSOLAR_TICK_PX)}; // slow-noon
 const float TAU_WARM_H = ${glf(TAU_WARM_H)};
 const float TAU_COOL_H = ${glf(TAU_COOL_H)};
 const float HOURS_PER_RAD = ${glf(HOURS_PER_RAD)};
@@ -289,6 +297,12 @@ float surfaceTempK(float mu0, float lonRel, float cosLat, float tss, float heatK
   }
   return t + heatK;
 }
+// <slow-noon>
+// THE SLOW NOON (slowNoon.js): a ~1 px line where field d crosses zero, w = its per-pixel change.
+float hairline(float d, float w) {
+  return 1.0 - clamp(abs(d) / max(w, 1e-6), 0.0, 1.0);
+}
+// </slow-noon>
 
 float hash13(vec3 p) {
   p = fract(p * 0.1031);
@@ -520,6 +534,23 @@ void main() {
   vec2 gxS = dFdx(uvS), gyS = dFdy(uvS);
   if (abs(gxS.x) + abs(gyS.x) < abs(gx.x) + abs(gy.x)) { gx.x = gxS.x; gy.x = gyS.x; }
   float pxArc = length(fwidth(xw));
+  // <slow-noon>
+  // THE SLOW NOON hairlines: fields and derivatives here, in a uniform branch before the discard.
+  float ovFreeze = 0.0, ovRing = 0.0, ovTick = 0.0;
+  if (uOverlay > 0.0) { // slow-noon fields
+    float lonSunOv = length(uSunDir.xz) > 1e-4 ? atan(-uSunDir.z, uSunDir.x) : 0.0;
+    float lonRelOv = mod(atan(-xw.z, xw.x) - lonSunOv + PI, TAU) - PI;
+    float tOv = surfaceTempK(dot(xb, Lb), lonRelOv, sqrt(max(1.0 - xw.y * xw.y, 0.0)), uSubsolarT, uHeatK);
+    ovFreeze = hairline(tOv - HG_MELT_K, fwidth(tOv));
+    float dCal = acos(clamp(dot(xb, uCaloris), -1.0, 1.0)) - CALORIS_ANG_RAD;
+    ovRing = hairline(dCal, fwidth(dCal));
+    vec3 eOv = normalize(vec3(uSunDir.z, 0.0, -uSunDir.x));
+    float aOv = dot(xw, eOv), bOv = xw.y, armOv = SUBSOLAR_TICK_PX * pxArc;
+    float faceOv = step(0.0, dot(xw, uSunDir));
+    ovTick = faceOv * max(hairline(aOv, fwidth(aOv)) * step(abs(bOv), armOv),
+                          hairline(bOv, fwidth(bOv)) * step(abs(aOv), armOv));
+  }
+  // </slow-noon>
 
   if (disc < -fw) discard;
 
@@ -632,6 +663,11 @@ void main() {
     }
   }
 
+  // <slow-noon>
+  if (uOverlay > 0.0) { // slow-noon composite
+    colLin = mix(colLin, OVERLAY_LINE, uOverlay * OVERLAY_ALPHA * max(max(ovFreeze, ovRing), ovTick));
+  }
+  // </slow-noon>
   vec3 col = max(colLin, 0.0);
   vec3 srgb = mix(col * 12.92, 1.055 * pow(col, vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), col));
   float dith = (fract(sin(dot(gl_FragCoord.xy + fract(uTime) * 61.0, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
