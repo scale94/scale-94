@@ -70,6 +70,19 @@ describe('the Sun turns back', () => {
     expect(s.daysToRetro).toBe(0);
   });
 
+  it('never counts past the last day near the end of the window', () => {
+    // Get window from a known-active time and check that dayIndex never exceeds days
+    const sBase = slowNoonState(IN_RETRO);
+    const w = sBase.retro;
+    expect(w.days).toBe(8);
+    // Test at the last day boundary: near the end but still active
+    const lastDayStart = w.startMs + (w.days - 1) * DAY_MS;
+    const s = slowNoonState(lastDayStart + DAY_MS - 60000);
+    expect(s.retro.active).toBe(true);
+    expect(s.retro.dayIndex).toBeLessThanOrEqual(s.retro.days);
+    expect(s.retro.dayIndex).toBe(s.retro.days);
+  });
+
   it('counts days to the next window', () => {
     expect(slowNoonState(NOW).daysToRetro).toBe(34);
   });

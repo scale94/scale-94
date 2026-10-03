@@ -93,6 +93,7 @@ export function slowNoonState(nowMs) {
   const active = !!w && nowMs >= w.startMs && nowMs < w.endMs;
   // Facing = at the HOME orientation (the ephemeris yaw), not a live drag; camera on +Z.
   const cal = rotY(CALORIS_DIR_BODY, bodyYawFor(eph.subsolarLonDeg));
+  const days = w ? Math.round((w.endMs - w.startMs) / DAY_MS) : 0;
   return {
     hour,
     phaseWord: phaseWord(hour),
@@ -102,8 +103,8 @@ export function slowNoonState(nowMs) {
     retro: w && {
       ...w,
       active,
-      days: Math.round((w.endMs - w.startMs) / DAY_MS),
-      dayIndex: active ? Math.floor((nowMs - w.startMs) / DAY_MS) + 1 : 0,
+      days,
+      dayIndex: active ? Math.min(days, Math.floor((nowMs - w.startMs) / DAY_MS) + 1) : 0,
       periHour: calorisHour(mercuryEphemeris(w.periMs).subsolarLonDeg),
     },
     daysToRetro: !w ? null : active ? 0 : Math.ceil((w.startMs - nowMs) / DAY_MS),
