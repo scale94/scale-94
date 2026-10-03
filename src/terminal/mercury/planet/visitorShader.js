@@ -109,7 +109,7 @@ vec3 rotAxis(vec3 v, vec3 k, float a) {
 
 // Ray vs an ellipsoid of revolution about unit a (stretch s: ra = r(1+s), rp = r/√(1+s), volume kept), solved in the
 // space where it is the unit sphere. miss: signed distance from the silhouette, in units of rp (< 0 inside).
-float hitEll(vec3 ro, vec3 rd, vec3 c, float r, vec3 a, float s, out vec3 n, out float miss) {
+float hitEll(vec3 ro, vec3 rd, vec3 c, float r, vec3 a, float s, float tol, out vec3 n, out float miss) {
   float ra = r * (1.0 + s);
   float rp = r * inversesqrt(1.0 + s);
   vec3 o = ro - c;
@@ -120,8 +120,11 @@ float hitEll(vec3 ro, vec3 rd, vec3 c, float r, vec3 a, float s, out vec3 n, out
   float h = B * B - A * (dot(O, O) - 1.0);
   miss = (length(O - D * (B / A)) - 1.0) * rp;
   n = vec3(0.0, 0.0, 1.0);
-  if (h < 0.0) return -1.0;
-  float t = (-B - sqrt(h)) / A;
+  // tol (world units): a ray that misses by less than this still returns its closest approach, so the silhouette's
+  // coverage ramp spans the full pixel (alpha < 0.5 there by construction)
+  float t = -B / A;
+  if (h < 0.0) { if (miss >= tol || t <= 0.0) return -1.0; }
+  else t = (-B - sqrt(h)) / A;
   vec3 P = O + D * t;
   n = normalize(a * dot(P, a) / ra + (P - a * dot(P, a)) / rp);
   return t;
@@ -173,7 +176,8 @@ vec3 shadeWater(vec3 p, vec3 n, vec3 rd) {
   // through the drop: two refractions through a near-sphere ≈ the entry turn taken twice; what the bent ray meets
   // is the planet, shaded with the planet's own mirror
   vec3 bent = normalize(rd + 2.0 * (refract(rd, n, 1.0 / WATER_N) - rd));
-  vec3 behind = vec3(0.0);
+  // where the bent ray misses the planet it meets the sky
+  vec3 behind = envRadiance(bent, WATER_ROUGH, p, -bent);
   float b = dot(p, bent);
   float h = b * b - (dot(p, p) - uCoreR * uCoreR);
   if (h > 0.0 && -b - sqrt(h) > 0.0) {
@@ -218,7 +222,7 @@ void main() {
     vec3 nrm;
     float miss;
     if (kind == VIS_DROP || kind == VIS_BEAD) {
-      float t = hitEll(ro, rd, c, r, X.xyz, X.w, nrm, miss);
+      float t = hitEll(ro, rd, c, r, X.xyz, X.w, 0.5 * px, nrm, miss);
       if (t > 0.0 && t < bestT) {
         vec3 p = ro + rd * t;
         vec3 s = shadeWater(p, nrm, rd);
@@ -237,7 +241,7 @@ void main() {
       }
     } else if (kind == VIS_EMBER) {
       vec3 g = visGlow(K.z) * EMBER_GAIN;
-      float t = hitEll(ro, rd, c, r, vec3(0.0, 1.0, 0.0), 0.0, nrm, miss);
+      float t = hitEll(ro, rd, c, r, vec3(0.0, 1.0, 0.0), 0.0, 0.5 * px, nrm, miss);
       if (t > 0.0 && t < bestT) { bestT = t; col = g; alpha = fade * clamp(0.5 - miss / px, 0.0, 1.0); }
       float u, tr;
       float d = raySeg(ro, rd, c, c + X.xyz * X.w, u, tr);
