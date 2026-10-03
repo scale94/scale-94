@@ -19,6 +19,11 @@ import { SCAR_DEPTH_RANGE_M } from './scarMap';
 import { TIERS } from './planetQuality';
 import { CALM_GLOW_RAD } from './mercuryImpacts';
 import { HG_N, HG_K } from './hgOptics';
+import {
+  VISIT_SURF_MAX, SURF_FILM, SURF_HOT, SURF_MENISCUS, SURF_JET, FILM_N, FILM_A, FILM_TEAR_NM, FILM_NOISE_FREQ, HOT_GAIN,
+  CATSPAW_K, CATSPAW_AMP, CATSPAW_SPEED, JET_DEPTH,
+} from './visitorSim';
+import { VISIT_LIGHT_GLSL } from './visitorGlsl';
 import { MENISCUS_MAX_SIN, MENISCUS_MIN_PX, MENISCUS_GRAD_FLOOR } from './mercuryMeniscus';
 import {
   IMPULSE_SLOTS, SHAPE_MAX, WAVE_KR, WAVE_C_GROUP, WAVE_SPREAD_FLOOR,
@@ -60,6 +65,7 @@ export const PLANET_UNIFORMS = [
   'uSurfOn', 'uImpDir', 'uImpMode', 'uImpWave', 'uBulge', 'uRoilGain', 'uPopZoom',
   'uRoughLiquid', 'uMeniscus', 'uMeniscusW', 'uCoreR',
   'uOverlay', 'uCaloris',
+  'uVisitOn', 'uVisitDir', 'uVisitA', 'uVisitB',
 ];
 
 export const PLANET_CALM_UNIFORMS = [...PLANET_UNIFORMS, 'uGlow'];
@@ -142,6 +148,10 @@ uniform float uRoughLiquid;
 uniform float uMeniscus;
 uniform float uOverlay; // slow-noon
 uniform vec3 uCaloris; // slow-noon
+uniform float uVisitOn; // visitors
+uniform vec4 uVisitDir[${VISIT_SURF_MAX}]; // visitors
+uniform vec4 uVisitA[${VISIT_SURF_MAX}]; // visitors
+uniform vec4 uVisitB[${VISIT_SURF_MAX}]; // visitors
 uniform float uMeniscusW;${calm ? '\nuniform vec4 uGlow;' : ''}
 
 const float PI = 3.14159265358979;
@@ -489,6 +499,93 @@ vec3 roilNoiseTilt(vec3 xb, float t, float pxArc, float zoom) {
   return ROIL_LITE_AMP * bandAA(TAU * freq, pxArc) * (g - xb * dot(g, xb));
 }
 
+// <visitors>
+// The visitors' surface slots (visitorFrame): what an element leaves IN the liquid, drawn as part of the mirror.
+// uVisitDir: world dir + kind (1 film, 2 hot clearing, 3 rock meniscus, 4 gust); uVisitA: (radius rad, p1, p2, weight);
+// uVisitB: the gust's world direction. No derivatives in here (they loop with continue).
+const int VISIT_SLOTS = ${calm ? 0 : q.visitSlots};
+const float FILM_N = ${glf(FILM_N)};
+const float FILM_A = ${glf(FILM_A)};
+const float FILM_TEAR_NM = ${glf(FILM_TEAR_NM)};
+const float FILM_NOISE_FREQ = ${glf(FILM_NOISE_FREQ)};
+const float HOT_GAIN = ${glf(HOT_GAIN)};
+const float CATSPAW_K = ${glf(CATSPAW_K)};
+const float CATSPAW_AMP = ${glf(CATSPAW_AMP)};
+const float CATSPAW_SPEED = ${glf(CATSPAW_SPEED)};
+const float JET_DEPTH = ${glf(JET_DEPTH)};
+${VISIT_LIGHT_GLSL}
+
+// The slope (dh/dθ) of a depression depth·exp(−((θ − c)/w)²); negate it for a raised ring.
+float visDent(float th, float c, float w, float depth) {
+  float u = (th - c) / max(w, 1e-4);
+  return depth * 2.0 * u / max(w, 1e-4) * exp(-u * u);
+}
+
+// Tangential slope to subtract from the liquid's normal (like waveTilt).
+vec3 visitTilt(vec3 x, float pxArc) {
+  vec3 g = vec3(0.0);
+  for (int i = 0; i < VISIT_SLOTS; i++) {
+    vec4 D = uVisitDir[i];
+    vec4 A = uVisitA[i];
+    if (A.w <= 0.0) continue;
+    float m = clamp(dot(x, D.xyz), -1.0, 1.0);
+    float s = sqrt(max(1.0 - m * m, 0.0));
+    if (s < 1e-4) continue;
+    float th = acos(m);
+    vec3 tOut = (x * m - D.xyz) / s;
+    float sl = 0.0;
+    if (D.w == ${glf(SURF_HOT)}) {
+      // Marangoni: tension falls where it is hot, the surface flows away: a clearing, its rim pushed outward
+      sl = visDent(th, 0.0, A.x, A.y) - visDent(th, A.x, 0.35 * A.x, 0.5 * A.y);
+    } else if (D.w == ${glf(SURF_MENISCUS)}) {
+      // a floating rock presses a meniscus ring into the liquid just outside its contact line
+      sl = visDent(th, 1.15 * A.x, 0.4 * A.x, A.y);
+    } else if (D.w == ${glf(SURF_JET)}) {
+      // a gust: the dent under it, cat's-paws running downwind (plan D-2: an explicit direction, not the impulse slip)
+      sl = visDent(th, 0.0, A.x, A.y);
+      vec3 G = uVisitB[i].xyz - x * dot(uVisitB[i].xyz, x);
+      float gl = length(G);
+      if (gl > 1e-4) {
+        G /= gl;
+        float down = smoothstep(-0.2, 0.6, dot(tOut, G));
+        float ph = CATSPAW_K * dot(x, uVisitB[i].xyz) - CATSPAW_SPEED * A.z;
+        float amp = CATSPAW_AMP * A.w * down * exp(-th * th / (9.0 * A.x * A.x)) * (A.y / JET_DEPTH)
+          * bandAA(CATSPAW_K, pxArc) * (0.6 + 0.4 * vnoise3(x * 40.0 + D.xyz * 7.0));
+        g += amp * sin(ph) * G;
+      }
+    }
+    g += A.w * sl * tOut;
+  }
+  return g;
+}
+
+// The film's interference over the mirror (a factor) and the hot spots' glow (emit, linear radiance).
+vec3 visitTint(vec3 x, float NoV, out vec3 emit) {
+  vec3 tint = vec3(1.0);
+  emit = vec3(0.0);
+  for (int i = 0; i < VISIT_SLOTS; i++) {
+    vec4 D = uVisitDir[i];
+    vec4 A = uVisitA[i];
+    if (A.w <= 0.0) continue;
+    float th = acos(clamp(dot(x, D.xyz), -1.0, 1.0));
+    if (D.w == ${glf(SURF_FILM)}) {
+      // water WETS mercury (S ≈ +38 mN/m): a thin film, thicker at its centre, torn into lenses once it is thin
+      float r = max(A.x, 1e-3);
+      if (th >= r) continue;
+      float u = th / r;
+      float hNm = A.y * (1.0 - 0.6 * u * u);
+      float tear = smoothstep(0.35, 0.65, vnoise3(x * FILM_NOISE_FREQ + D.xyz * 13.0) + 0.5 * (FILM_TEAR_NM - hNm) / FILM_TEAR_NM);
+      float cov = A.w * (1.0 - smoothstep(0.8, 1.0, u)) * (1.0 - tear);
+      float cosT = sqrt(max(1.0 - (1.0 - NoV * NoV) / (FILM_N * FILM_N), 0.0));
+      vec3 delta = 4.0 * PI * FILM_N * hNm * cosT / vec3(650.0, 532.0, 450.0);
+      tint *= mix(vec3(1.0), 1.0 - FILM_A * cos(delta), cov);
+    } else if (D.w == ${glf(SURF_HOT)}) {
+      emit += A.w * HOT_GAIN * visGlow(A.z) * exp(-th * th / (0.36 * max(A.x * A.x, 4e-4)));
+    }
+  }
+  return tint;
+}
+// </visitors>
 void main() {
   vec3 ro = cameraPosition;
   vec3 rd = normalize(vWorld - ro);
@@ -642,13 +739,17 @@ void main() {
         else { rt = roilNoiseTilt(xb, uTime * ROIL_MOTION, pxArc, uPopZoom); popAct = ROIL_LITE_ACT; }
         nW = normalize(nW - (fluid * boilW * uRoilGain * ROIL_MOTION) * (uBodyRot * rt));
       }
+      vec3 visTint = vec3(1.0), visEmit = vec3(0.0); // visitors
+      if (uVisitOn > 0.5) nW = normalize(nW - fluid * visitTilt(xw, pxArc)); // visitors
       vec3 R = reflect(rd, nW);
       float NoV = clamp(dot(nW, -rd), 0.0, 1.0);
+      if (uVisitOn > 0.5) visTint = visitTint(xw, NoV, visEmit); // visitors
 
       vec3 liquid = vec3(0.0);
       if (liquidW > 0.0) {
         liquid = fresnelHg(NoV) * envRadiance(R, mix(uRoughLiquid, ROUGH_BOIL, boilW * (0.5 + 0.5 * popAct)), hit, nW);
       }
+      liquid *= visTint; // visitors
 
       vec3 solid = vec3(0.0);
       if (liquidW < 1.0) {
@@ -660,6 +761,7 @@ void main() {
       }
 
       colLin = mix(colLin, mix(solid, liquid, liquidW), fluid);${calm ? '\n      colLin += fluid * uGlow.w * exp(-(1.0 - dot(xw, uGlow.xyz)) / (CALM_GLOW_RAD * CALM_GLOW_RAD));' : ''}
+      colLin += fluid * liquidW * visEmit; // visitors
     }
   }
 

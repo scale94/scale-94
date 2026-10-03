@@ -8,6 +8,8 @@ import {
 } from '../mercuryPlanetShader';
 import { TIERS, TIER_NAMES } from '../planetQuality';
 import { glf, v3 } from '../../../gl/glf';
+import { VISIT_SURF_MAX, FILM_N, FILM_A, FILM_TEAR_NM, FILM_NOISE_FREQ, HOT_GAIN, CATSPAW_K, CATSPAW_AMP, CATSPAW_SPEED, JET_DEPTH, PLANCK_C2_NM_K, GLOW_EXPO } from '../visitorSim';
+import { PLANCK_REF, VISIT_LIGHT_GLSL } from '../visitorGlsl';
 import {
   R_SCENE, R_MERCURY_M, SHADOW_STEPS, SHADOW_REACH_RAD, SHADOW_SOFT_M, SHADOW_ZONE,
   SHADOW_SOFT_LSB, SHADOW_BIAS_LSB, ROUGH_LIQUID, ROUGH_BOIL, SOLID_HG_ALBEDO,
@@ -355,6 +357,19 @@ describe('mercuryPlanetShader contract', () => {
   });
 });
 
+// Visitors (spec 2026-10-03): every visitor line is marked; removing them restores the pre-visitors shader.
+const stripVisitors = (src) => {
+  const out = [];
+  let inBlock = false;
+  for (const line of src.split('\n')) {
+    if (line.includes('// <visitors>')) { inBlock = true; continue; }
+    if (line.includes('// </visitors>')) { inBlock = false; continue; }
+    if (inBlock || line.includes('// visitors')) continue;
+    out.push(line);
+  }
+  return out.join('\n');
+};
+
 // THE SLOW NOON (spec 2026-10-03): hairlines exist only behind uOverlay; removing them restores the old shader.
 const stripSlowNoon = (src) => {
   const out = [];
@@ -371,7 +386,7 @@ const stripSlowNoon = (src) => {
 describe('THE SLOW NOON hairlines', () => {
   it('stripping the slow-noon lines gives back the pre-change shader byte for byte', () => {
     const pre = readFileSync(resolve(__dirname, '__snapshots__/planetShader.pre-slow-noon.fs.glsl'), 'utf8');
-    expect(stripSlowNoon(PLANET_FS)).toBe(pre);
+    expect(stripSlowNoon(stripVisitors(PLANET_FS))).toBe(pre);
   });
 
   it('declares uOverlay and uCaloris and interpolates the constants from slowNoon.js', () => {
@@ -411,5 +426,48 @@ describe('THE SLOW NOON hairlines', () => {
       expect(fs).toContain('if (uOverlay > 0.0) { // slow-noon fields');
       expect(fs).toContain('if (uOverlay > 0.0) { // slow-noon composite');
     }
+  });
+});
+
+describe('visitors: surface slots', () => {
+  it('stripping the visitor lines gives back the pre-visitors shader byte for byte', () => {
+    const pre = readFileSync(resolve(__dirname, '__snapshots__/planetShader.pre-visitors.fs.glsl'), 'utf8');
+    expect(stripVisitors(PLANET_FS)).toBe(pre);
+  });
+  it('declares the slot uniforms (marked) and interpolates the constants from visitorSim', () => {
+    expect(PLANET_FS).toContain('uniform float uVisitOn; // visitors');
+    for (const n of ['uVisitDir', 'uVisitA', 'uVisitB']) expect(PLANET_FS).toContain(`uniform vec4 ${n}[${VISIT_SURF_MAX}]; // visitors`);
+    for (const [name, value] of Object.entries({ FILM_N, FILM_A, FILM_TEAR_NM, FILM_NOISE_FREQ, HOT_GAIN, CATSPAW_K, CATSPAW_AMP, CATSPAW_SPEED, JET_DEPTH })) {
+      expect(PLANET_FS).toContain(`const float ${name} = ${glf(value)};`);
+    }
+    expect(PLANET_FS).toContain(VISIT_LIGHT_GLSL);
+    expect(VISIT_LIGHT_GLSL).toContain(`const float PLANCK_C2_NM_K = ${glf(PLANCK_C2_NM_K)};`);
+    expect(VISIT_LIGHT_GLSL).toContain(`const float PLANCK_REF = ${glf(PLANCK_REF)};`);
+    expect(VISIT_LIGHT_GLSL).toContain(`const float GLOW_EXPO = ${glf(GLOW_EXPO)};`);
+  });
+  it('each tier loops its own slot count; the CALM variant compiles them out', () => {
+    for (const tier of TIER_NAMES) expect(buildPlanetShader({ tier }).fs).toContain(`const int VISIT_SLOTS = ${TIERS[tier].visitSlots};`);
+    for (const tier of TIER_NAMES) expect(buildPlanetShader({ tier, calm: true }).fs).toContain('const int VISIT_SLOTS = 0;');
+  });
+  it('tilts the normal before the reflection, tints after NoV, emits inside the fluid branch', () => {
+    const main = PLANET_FS.slice(PLANET_FS.indexOf('void main()'));
+    const tilt = main.indexOf('nW = normalize(nW - fluid * visitTilt(xw, pxArc)); // visitors');
+    const refl = main.indexOf('vec3 R = reflect(rd, nW);');
+    const nov = main.indexOf('float NoV = clamp(dot(nW, -rd), 0.0, 1.0);');
+    const tint = main.indexOf('visTint = visitTint(xw, NoV, visEmit); // visitors');
+    const mul = main.indexOf('liquid *= visTint; // visitors');
+    const mix = main.indexOf('colLin = mix(colLin, mix(solid, liquid, liquidW), fluid);');
+    const emit = main.indexOf('colLin += fluid * liquidW * visEmit; // visitors');
+    expect(tilt).toBeGreaterThan(-1);
+    expect(tilt).toBeLessThan(refl);
+    expect(tint).toBeGreaterThan(nov);
+    expect(mul).toBeGreaterThan(tint);
+    expect(mul).toBeLessThan(mix);
+    expect(emit).toBeGreaterThan(mix);
+  });
+  it('the slot functions take no screen derivatives (they loop with continue)', () => {
+    const block = PLANET_FS.slice(PLANET_FS.indexOf('// <visitors>'), PLANET_FS.indexOf('// </visitors>'));
+    expect(block.length).toBeGreaterThan(100);
+    expect(block).not.toMatch(/dFd[xy]|fwidth/);
   });
 });
