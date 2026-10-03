@@ -5,6 +5,7 @@ import { bodyYawFor } from '../planet/planetFrame';
 import { subsolarTempK } from '../planet/mercuryThermal';
 import { tailBrightness } from '../planet/mercuryExosphere';
 import planetSrc from '../MercuryPlanet.jsx?raw';
+import canvasSrc from '../MercuryCanvas.jsx?raw';
 
 describe('planetEphemerisUniforms', () => {
   const t = Date.UTC(2026, 9, 1);
@@ -38,5 +39,20 @@ describe('MercuryPlanet impulse wiring', () => {
   it('uImpWave carries (age, amplitude, dimple weight) per slot, preallocated, set from the frame', () => {
     expect(planetSrc).toContain('uImpWave: { value: Array.from({ length: IMPULSE_SLOTS }, () => new THREE.Vector3()) },');
     expect(planetSrc).toContain('u.uImpWave.value[j].set(surf.frame.wave[2 * i], surf.frame.wave[2 * i + 1], surf.frame.dimple[i]);');
+  });
+});
+
+describe('THE SLOW NOON wiring', () => {
+  it('MercuryPlanet owns uOverlay / uCaloris and eases the overlay every frame', () => {
+    expect(planetSrc).toContain("import { CALORIS_DIR_BODY, stepOverlay } from './planet/slowNoon';");
+    expect(planetSrc).toContain("export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = false, emitters = {}, strikes = null, overlay = false }) {");
+    expect(planetSrc).toContain('uOverlay: { value: 0 },');
+    expect(planetSrc).toContain('uCaloris: { value: new THREE.Vector3(...CALORIS_DIR_BODY) },');
+    expect(planetSrc).toContain('u.uOverlay.value = stepOverlay(u.uOverlay.value, overlay ? 1 : 0, delta, calm);');
+  });
+
+  it('MercuryCanvas passes overlay through', () => {
+    expect(canvasSrc).toMatch(/overlay = false,/);
+    expect(canvasSrc).toContain('overlay={overlay}');
   });
 });

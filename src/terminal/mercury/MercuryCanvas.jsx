@@ -26,6 +26,7 @@ export default function MercuryCanvas({
   onPhaseChange = null,
   onFps = null,
   onElementFired = null,
+  overlay = false,
 }) {
   const {
     activePhase,
@@ -142,6 +143,7 @@ export default function MercuryCanvas({
             earth: opacityFor('earth'),
             air: opacityFor('air'),
           }}
+          overlay={overlay}
         />
         <MercurySphere
           activePhase={activePhase}
