@@ -1,7 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef, useReducer } from 'react';
 import MercuryCanvas    from '../mercury/MercuryCanvas';
 import MercuryControls  from '../mercury/MercuryControls';
-import MercuryFireworks from '../mercury/MercuryFireworks';
 import InstrumentsPanel       from '../mercury/InstrumentsPanel';
 import SlowNoonDial           from '../mercury/SlowNoonDial';
 import CastleGrid             from '../mercury/CastleGrid';
@@ -50,10 +49,6 @@ export default function MercuryTab({ onNavigateTab }) {
   const [slowNoonOverlay, setSlowNoonOverlay] = useState(false);
   const [liveDensity, setLiveDensity] = useState(DEFAULT_PARAMS.density);
   const densityTimer = useMemo(() => ({ current: null }), []);
-  const fireworksRef = useRef(null);
-  const handleElementFired = useCallback((element, screenX, screenY) => {
-    fireworksRef.current?.fire(element, screenX, screenY);
-  }, []);
 
   // Debounce density changes to avoid buffer churn
   const handleParamsChange = useCallback((next) => {
@@ -98,7 +93,6 @@ export default function MercuryTab({ onNavigateTab }) {
 
   return (
     <div className="max-w-[1800px] mx-auto" style={{ position: 'relative' }}>
-      <MercuryFireworks ref={fireworksRef} />
       <style>{`
         @keyframes hg-titleReveal {
           0%   { opacity: 0; filter: brightness(3) blur(6px); letter-spacing: 0.4em; }
@@ -206,7 +200,6 @@ export default function MercuryTab({ onNavigateTab }) {
             params={mergedParams}
             onPhaseChange={setActivePhase}
             onFps={setFps}
-            onElementFired={handleElementFired}
             overlay={slowNoonOverlay}
           />
           <span

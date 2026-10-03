@@ -68,3 +68,18 @@ describe('THE SLOW NOON placement', () => {
     expect(tabSrc.indexOf('<SlowNoonDial')).toBeLessThan(tabSrc.indexOf('<MercuryCanvas'));
   });
 });
+
+describe('visitors: the screen-space fireworks are gone', () => {
+  it('MercuryTab mounts no fireworks and passes no element-fired handler', () => {
+    expect(tabSrc).not.toMatch(/MercuryFireworks|fireworksRef|handleElementFired|onElementFired/);
+  });
+  it('a node press still queues a strike for the planet, and only that', () => {
+    expect(canvasSrc).toContain('if (strikesRef.current.length < 8) strikesRef.current.push(phase);');
+    expect(canvasSrc).toContain('onElementFired={handleElementFired}');
+    expect(canvasSrc).not.toMatch(/onElementFired\?\.\(/);
+  });
+  it('the fireworks modules are deleted', () => {
+    const modules = Object.keys(import.meta.glob('../*.{js,jsx}'));
+    expect(modules.some((p) => /ireworks/.test(p))).toBe(false);
+  });
+});

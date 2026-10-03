@@ -25,7 +25,6 @@ export default function MercuryCanvas({
   params,
   onPhaseChange = null,
   onFps = null,
-  onElementFired = null,
   overlay = false,
 }) {
   const {
@@ -45,13 +44,12 @@ export default function MercuryCanvas({
     onPhaseChange?.(phase);
   }, [triggerTransition, onPhaseChange]);
 
-  // Element strikes for the planet (MercuryPlanet drains this every frame).
-  // onElementFired fires once per press; onNodeTap fires on both pointerdown and click.
+  // Element strikes for the planet (MercuryPlanet drains this every frame and launches a visitor per strike).
+  // The press fires once per pointerdown; onNodeTap fires on both pointerdown and click.
   const strikesRef = useRef([]);
-  const handleElementFired = useCallback((phase, x, y) => {
+  const handleElementFired = useCallback((phase) => {
     if (strikesRef.current.length < 8) strikesRef.current.push(phase);
-    onElementFired?.(phase, x, y);
-  }, [onElementFired]);
+  }, []);
 
   const densityFor = (phase) =>
     phase === activePhase ? (params.density ?? (isMobile ? 600 : 1200)) : GHOST_DENSITY;
