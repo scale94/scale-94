@@ -25,6 +25,15 @@ export const HALO_DECAY = 0.5;          // continuous bright ejecta halo e-fold,
 
 export const IMPACT_MODE_AMP = { splash: 0.035, ring: 0.015, crater: 0 };
 export const IMPACT_WAVE_AMP = { splash: 0.35, ring: 0.2, crater: 0 };
+// The visitors' touchdowns (visitors spec §4): only the HIT. Everything that lasts (film, clearing, meniscus, dent)
+// is a surface slot (visitorFrame → the planet shader). Water is 13.5x lighter than Hg: a third of a splash's ripple.
+// A rock lands heavy: 1.5x a splash's mode push.
+export const VISITOR_IMPACT = Object.freeze({
+  dimple: Object.freeze({ mode: 0.008, wave: 0.12 }),
+  crown: Object.freeze({ mode: 0.0525, wave: 0.45 }),
+  marangoni: Object.freeze({ mode: 0, wave: 0.1 }),
+  jet: Object.freeze({ mode: 0.006, wave: 0.06 }),
+});
 
 const DEG = Math.PI / 180;
 const TAU = 2 * Math.PI;

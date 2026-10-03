@@ -46,7 +46,9 @@ export const WAVE_DIMPLE_GAIN = 1.2;
 export const WAVE_DIMPLE_AA_LO = 1.5;           // the dimple fades out as its radius drops under this many px…
 export const WAVE_DIMPLE_AA_HI = 2.5;           // …and is whole above this (a splash on the rest disc is ≈ 10 px)
 export const WAVE_SPREAD_FLOOR = 0.15;        // 1/√sinθ spreading, normalised to 1 inside this
-export const WAVE_DAMP_PER_S = { splash: 1.0, wake: 1.6, ring: 3.0 };
+// Visitors (spec 2026-10-03 §5.4): dimple = a water drop (soft, dies fast), crown = a rock's splash, marangoni = an ember's
+// soft hit ring (its clearing is a surface slot, plan D-3), jet = a gust's touch (its dent and cat's-paws are a surface slot).
+export const WAVE_DAMP_PER_S = { splash: 1.0, wake: 1.6, ring: 3.0, dimple: 1.8, crown: 1.0, marangoni: 0.9, jet: 2.5 };
 
 export const LIQUID_TAU = 0.5;                // the bead is "liquid" for strikes and wakes above this τ
 export const WAKE_EVERY_S = 0.07;
@@ -58,6 +60,9 @@ export const WAKE_SLIP = 0.7;                 // shear: how far a wake ring stay
 // CPU-only: impulseFrame writes it per slot into frame.dimple, the shader reads it as uImpWave.z.
 // 0.25 (tuned 2026-10-02, slow-drag sheets 1/0.5/0.25/0): 0.5 still shows the lens disc, 0 loses the touch point.
 export const WAKE_DIMPLE_GAIN = 0.25;
+// The snap dimple's weight per impulse kind (impulseFrame → frame.dimple → uImpWave.z). Kinds not listed weigh 1
+// (splash, ring, pops). The Marangoni hit has none: the clearing it opens lives far longer than the 0.12 s snap.
+export const KIND_DIMPLE = { wake: WAKE_DIMPLE_GAIN, dimple: 0.6, crown: 1.4, marangoni: 0, jet: 1.0 };
 export const RELEASE_MODE_AMP = 0.03;
 
 export function rayleighOmega(l, rM = DROP_R_M) {
@@ -217,7 +222,7 @@ export function impulseFrame(buf, tS, { modeScale = 1, waveScale = 1 } = {}, out
     const waveAmp = s.wave * waveScale * Math.exp(-waveDamp(s.kind) * age) * antipodeFade(age);
     out.wave[2 * i] = age;
     out.wave[2 * i + 1] = waveAmp;
-    out.dimple[i] = s.kind === 'wake' ? WAKE_DIMPLE_GAIN : 1;
+    out.dimple[i] = KIND_DIMPLE[s.kind] ?? 1;
     if (Math.abs(out.mode[3 * i]) + Math.abs(out.mode[3 * i + 1]) + Math.abs(out.mode[3 * i + 2]) + waveAmp > 1e-5) out.any = true;
   }
   return out;
