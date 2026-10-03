@@ -31,7 +31,7 @@ export const HYPER_HANG_K = 0.5;       // the disc orbits for this share of the 
 export const ETA_LO = 1e-3;            // headwind bracket: ln-bisection over [ETA_LO, ETA_HI]
 export const ETA_HI = 1;               // (η = 1: a still aether, plain drag; also the provisional value while solving)
 export const HYPER_CASCADE_S = 1.5;    // the largest bead's whole cascade takes this many display s (each stage keeps its r^1.5 share; V4 §10.6: was 3)
-export const HYPER_MIN_TARGET_S = 9; // hyper needs room for orbit + gather + cascade: hotter planets (shorter return) break the Phase 5 way (V4 §10.6)
+export const HYPER_MIN_TARGET_S = 9;   // hyper needs room for orbit + gather + cascade: cooler, just-melted planets (shorter return; refreezeIn grows with heat) break the Phase 5 way (V4 §10.6)
 export const ETA_ITERS = 8;            // final ratio 1000^(1/256) ≈ 1.027
 
 export const V0 = sphereVol(R_SCENE);

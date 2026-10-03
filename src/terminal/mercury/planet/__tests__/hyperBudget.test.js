@@ -4,10 +4,9 @@ import {
   beginParticles, runParticles, particleTurns, trialWeight, createMuSolver, finishMuSolver,
   solverBudget, SOLVER_SUBSTEPS_PER_FRAME, PARTICLES_PER_UNIT,
 } from '../breakupBudget';
-import { createFamily } from '../breakupFamily';
+import { createFamily, fireFamily } from '../breakupFamily';
 import { stepFamily, DROP_DT, cascadeDuration } from '../breakupStep';
 import { ETA_LO, ETA_HI, HYPER_GAMMA, HYPER_CASCADE_S } from '../hyperFling';
-import { createFamily as createFam, fireFamily } from '../breakupFamily';
 import { R_SCENE } from '../planetLook';
 import { testEnv, freeBody } from './breakupTestKit';
 import { hyperEnv0, firedHyper } from './hyperTestKit';
@@ -88,7 +87,7 @@ describe('the hyper cascade clock (tcScale)', () => {
   });
 
   it('a live cascade at tcScale 0.1 takes cascadeDuration(r, px, 0.1)', () => {
-    const f = createFam(1);
+    const f = createFamily(1);
     f.phase = 'fired'; f.mu = 0; f.tcScale = 0.1;
     const r = 0.2;
     const b = freeBody(f, [R_SCENE + r + 1e-3, 0, 0], [-0.5, 0, 0], r);
@@ -105,7 +104,7 @@ describe('the hyper cascade clock (tcScale)', () => {
   });
 
   it('a phase-5 family keeps tcScale 1', () => {
-    const f = createFam(1);
+    const f = createFamily(1);
     expect(f.tcScale).toBe(1);
     f.tcScale = 0.3;
     f.axisBody = [1, 0, 0]; f.L = 0.5; f.e = 1;

@@ -150,13 +150,13 @@ function flight(fam, h, env) {
     const b = B[i];
     if (!flies(b)) continue;
     const x = b.state === 'free' ? b.p : b.mergeC;
-    const r2 = x[0] * x[0] + x[1] * x[1] + x[2] * x[2];
-    const r3 = r2 * Math.sqrt(r2);
     let ax, ay, az;
     if (fam.hyper) {
       hyperAccel(fam.mu, eta, fam.gammaH, fam.axisL, x[0], x[1], x[2], b.v[0], b.v[1], b.v[2], fam.rC0, h, _acc);
       ax = _acc[0]; ay = _acc[1]; az = _acc[2];
     } else {
+      const r2 = x[0] * x[0] + x[1] * x[1] + x[2] * x[2];
+      const r3 = r2 * Math.sqrt(r2);
       ax = (-fam.mu * x[0]) / r3 - env.gamma * b.v[0];
       ay = (-fam.mu * x[1]) / r3 - env.gamma * b.v[1];
       az = (-fam.mu * x[2]) / r3 - env.gamma * b.v[2];

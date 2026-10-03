@@ -125,6 +125,21 @@ describe('release pointer ω (phase 6 trigger)', () => {
     expect(d.sample(400).releaseOmegaPtr).toBeCloseTo((DRAG_RAD_PER_HEIGHT / H) * 4000, 6);
   });
 
+  it('a long drag wraps the sample ring and reads exactly its newest window (1 kHz and 2 kHz pointers)', () => {
+    // an accelerating flick, so a window that starts one sample off reads a different speed
+    const x = (t) => (t < 190 ? 0.5 * t : 95 + 0.04 * (t - 190) ** 2);
+    for (const dtMs of [1, 0.5]) {
+      const d = createDragTracker();
+      d.down(0, 0, 0);
+      for (let i = 1; i * dtMs <= 250; i++) d.move(x(i * dtMs), 0, i * dtMs, H); // 250-500 samples: the 64-slot ring wraps
+      d.up(250);
+      // the oldest sample kept: PTR_WINDOW_MS back, or the ring's 64th-newest when 64 samples span less (2 kHz: 31.5 ms)
+      const tO = Math.max(250 - PTR_WINDOW_MS, 250 - 63 * dtMs);
+      const pxPerMs = (x(250) - x(tO)) / (250 - tO);
+      expect(d.sample(251).releaseOmegaPtr, `dt ${dtMs} ms`).toBeCloseTo((DRAG_RAD_PER_HEIGHT / H) * 1000 * pxPerMs, 6);
+    }
+  });
+
   it('a pointer held still past POINTER_HOLD_MS before letting go reads 0', () => {
     const d = createDragTracker();
     d.down(0, 0, 0);
