@@ -1,7 +1,8 @@
 // src/terminal/mercury/planet/__tests__/hyperStep.test.js — phase 6a: the vortex return, the grace, the cascade clock
 import { describe, it, expect } from 'vitest';
-import { createFamily, fireFamily } from '../breakupFamily';
-import { stepFamily, DROP_DT, hyperAccel, cascadeDuration } from '../breakupStep';
+import { createFamily, fireFamily, DROP_V_REF } from '../breakupFamily';
+import { stepFamily, DROP_DT, hyperAccel, cascadeDuration, STRIKE_V_REF } from '../breakupStep';
+import { IMPACT_WAVE_AMP } from '../mercuryImpacts';
 import { TONGUE_MAX_R } from '../breakupPhysics';
 import { R_SCENE } from '../planetLook';
 import { testEnv, freeBody, runFor } from './breakupTestKit';
@@ -135,6 +136,40 @@ describe('a live swarm with Phase 5 cohesion (regression: the grace-time implosi
       expect(pMax, `seed ${seed}`).toBeLessThanOrEqual(1.02 * reach);
       expect(f.phase, `seed ${seed}`).not.toBe('fired');
     }
+  });
+});
+
+describe('the gather splash budget (regression: the gather banding)', () => {
+  const flightSplashes = (seed, N) => {
+    const f = firedHyper({ N, seed, target: 12 });
+    const env0 = hyperEnv0();
+    f.eta = finishMuSolver(createMuSolver(f, env0, 12)).best;
+    const env = { ...env0, planetRadiusAt: () => R_SCENE * coreScale(f) };
+    const s = [];
+    while (f.phase === 'fired' && f.t < 30) {
+      stepFamily(f, DROP_DT, env);
+      for (const e of f.events) if (e.kind === 'splash') s.push(e.wave / IMPACT_WAVE_AMP.splash);
+      f.events.length = 0;
+    }
+    return s;
+  };
+  it('the whole swarm splashes with at most one full splash of energy (Σ s² ≤ 1), and is still felt', () => {
+    for (const N of [8, 16]) for (let seed = 1; seed <= 6; seed++) {
+      const s = flightSplashes(seed, N);
+      const energy = s.reduce((a, x) => a + x * x, 0);
+      expect(energy, `N ${N} seed ${seed}`).toBeLessThanOrEqual(1 + 1e-9);
+      expect(energy, `N ${N} seed ${seed}`).toBeGreaterThan(0.2);
+    }
+  });
+  it('a phase-5 drop of DROP_V_REF striking at STRIKE_V_REF still splashes at full strength', () => {
+    const f = createFamily(1);
+    f.phase = 'fired'; f.mu = 0;
+    const r = Math.cbrt((3 * DROP_V_REF) / (4 * Math.PI));
+    freeBody(f, [R_SCENE + r + 1e-4, 0, 0], [-STRIKE_V_REF, 0, 0], r);
+    const env = testEnv({ gamma: 0, vRef: DROP_V_REF });
+    let first = null;
+    for (let i = 0; i < 200 && !first; i++) { stepFamily(f, DROP_DT, env); first = f.events.find((e) => e.kind === 'splash'); }
+    expect(first.wave).toBeCloseTo(IMPACT_WAVE_AMP.splash * (1 - 0.125), 6);
   });
 });
 

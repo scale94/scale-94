@@ -227,7 +227,11 @@ function mergeStep(fam, h) {
 
 function strike(fam, b, dir, vn, env) {
   const vd = b.final ? b.volK : b.volK * (1 - DAUGHTER_RATIO ** 3);
-  const s = Math.min(1, (vd / env.vRef) * (0.5 + 0.5 * Math.min(1, Math.max(vn, 0) / STRIKE_V_REF)));
+  const vnK = 0.5 + 0.5 * Math.min(1, Math.max(vn, 0) / STRIKE_V_REF);
+  // phase 6: one swarm, one splash of energy. Hyper beads outweigh a phase-5 drop, so on the phase-5 scale ~8 of them
+  // land at full strength within 2 s and their rings beat into bands. s² is each strike's share of the swarm volume
+  // (Σ vd ≤ volFamily, so Σ s² ≤ 1).
+  const s = fam.hyper ? Math.sqrt(vd / fam.volFamily) * vnK : Math.min(1, (vd / env.vRef) * vnK);
   fam.events.push({ kind: 'splash', dir: [dir[0], dir[1], dir[2]], mode: IMPACT_MODE_AMP.splash * s, wave: IMPACT_WAVE_AMP.splash * s });
 }
 
