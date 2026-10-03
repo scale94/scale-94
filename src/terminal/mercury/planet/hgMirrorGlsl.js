@@ -10,7 +10,7 @@ import { HG_N, HG_K } from './hgOptics';
 import { AETHER_LOBES, AETHER_SHAPES } from './aetherLobes';
 import {
   EMIT_RADIUS, EMIT_MIN_SIN, EMIT_HORIZON_SOFT, SUN_SHOULDER, AETHER_NIGHT, AETHER_DAY_LO, AETHER_DAY_HI,
-  NIGHT_TINT, AETHER_FRINGE_LO, AETHER_FRINGE_HI, AETHER_SHOULDER,
+  NIGHT_TINT, AETHER_FRINGE_LO, AETHER_FRINGE_HI, AETHER_SHOULDER, AETHER_PATH_WHITE,
 } from './planetLook';
 
 export const AETHER_SHAPE_GLSL = `const vec2 AETHER_SHAPE[${AETHER_LOBES}] = vec2[${AETHER_LOBES}](${AETHER_SHAPES.map(([w, s]) => `vec2(${glf(w)}, ${glf(s)})`).join(', ')});`;
@@ -54,6 +54,7 @@ export const HG_MIRROR_DECLS_GLSL = [
   `const float AETHER_FRINGE_LO = ${glf(AETHER_FRINGE_LO)};`,
   `const float AETHER_FRINGE_HI = ${glf(AETHER_FRINGE_HI)};`,
   `const float AETHER_SHOULDER = ${glf(AETHER_SHOULDER)};`,
+  `const float AETHER_PATH_WHITE = ${glf(AETHER_PATH_WHITE)};`,
   `const vec3 NIGHT_TINT = ${v3(NIGHT_TINT)};`,
 ].join('\n');
 
@@ -85,8 +86,16 @@ float lobe(float cosA, float sinR, float rough) {
 // Highlight roll-off (mirrorLobes.softShoulder).
 float softShoulder(float x, float k) { return k * (1.0 - exp(-x / k)); }
 
+// Hue-preserving roll-off: the brightest channel rolls off toward AETHER_SHOULDER and the other two scale with it.
+// Per channel, a bright magenta core clipped toward pastel (the streak profile, aetherEdge/aetherCurve, sets the volume).
+// Only the hottest part of a core takes a little path to white (AETHER_PATH_WHITE at full compression), as overexposed
+// emission does: the core reads luminous and curved, the fringe stays the deep gas hue.
 vec3 aetherShoulder(vec3 x) {
-  return vec3(softShoulder(x.r, AETHER_SHOULDER), softShoulder(x.g, AETHER_SHOULDER), softShoulder(x.b, AETHER_SHOULDER));
+  float m = max(x.r, max(x.g, x.b));
+  if (m <= 1e-6) return x;
+  float s = softShoulder(m, AETHER_SHOULDER);
+  vec3 y = x * (s / m);
+  return mix(y, vec3(s), AETHER_PATH_WHITE * smoothstep(0.55, 0.95, s / AETHER_SHOULDER));
 }
 
 // Night attenuation of the aether, keyed on the SURFACE facing the Sun (not

@@ -83,12 +83,12 @@ const float SPARKLE_CELLS = 700.000000;
 const float SPARKLE_DENSITY = 0.00400000000;
 const float SPARKLE_COS = 0.970000000;
 const float SPARKLE_GAIN = 3.00000000;
-const float EMIT_RADIUS = 0.500000000;
+const float EMIT_RADIUS = 0.150000000;
 const float FRONT_EDGE = 0.120000000;
 const float FRONT_SOFT = 0.0300000000;
 const float FRONT_NOISE_FREQ = 6.00000000;
 const float PHASE_BLEND_K = 8.00000000;
-const float EMIT_MIN_SIN = 0.600000000;
+const float EMIT_MIN_SIN = 0.0500000000;
 const float EMIT_HORIZON_SOFT = 0.100000000;
 const float SUN_SHOULDER = 3.00000000;
 const int AETHER_LOBES = 16;
@@ -100,7 +100,8 @@ const float AETHER_DIFFUSE = 0.350000000;
 const float AETHER_DIFFUSE_REF_LOBES = 8.00000000;
 const float AETHER_FRINGE_LO = 0.250000000;
 const float AETHER_FRINGE_HI = 0.900000000;
-const float AETHER_SHOULDER = 1.50000000;
+const float AETHER_SHOULDER = 1.00000000;
+const float AETHER_PATH_WHITE = 0.300000000;
 const vec3 NIGHT_TINT = vec3(0.450000000, 0.580000000, 1.00000000);
 const float SCAR_DEPTH_RANGE_M = 4000.00000;
 const vec3 RAY_ALBEDO = vec3(0.420000000, 0.400000000, 0.380000000);
@@ -273,8 +274,16 @@ float lobe(float cosA, float sinR, float rough) {
 // Highlight roll-off (mirrorLobes.softShoulder).
 float softShoulder(float x, float k) { return k * (1.0 - exp(-x / k)); }
 
+// Hue-preserving roll-off: the brightest channel rolls off toward AETHER_SHOULDER and the other two scale with it.
+// Per channel, a bright magenta core clipped toward pastel (the streak profile, aetherEdge/aetherCurve, sets the volume).
+// Only the hottest part of a core takes a little path to white (AETHER_PATH_WHITE at full compression), as overexposed
+// emission does: the core reads luminous and curved, the fringe stays the deep gas hue.
 vec3 aetherShoulder(vec3 x) {
-  return vec3(softShoulder(x.r, AETHER_SHOULDER), softShoulder(x.g, AETHER_SHOULDER), softShoulder(x.b, AETHER_SHOULDER));
+  float m = max(x.r, max(x.g, x.b));
+  if (m <= 1e-6) return x;
+  float s = softShoulder(m, AETHER_SHOULDER);
+  vec3 y = x * (s / m);
+  return mix(y, vec3(s), AETHER_PATH_WHITE * smoothstep(0.55, 0.95, s / AETHER_SHOULDER));
 }
 
 // Night attenuation of the aether, keyed on the SURFACE facing the Sun (not

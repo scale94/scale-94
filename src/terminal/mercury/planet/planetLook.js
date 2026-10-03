@@ -29,8 +29,8 @@ export const SPARKLE_CELLS = 700;             // facet cells around the equator
 export const SPARKLE_DENSITY = 0.004;         // fraction of facets that can glint
 export const SPARKLE_COS = 0.97;              // glint lobe: reflection within ~14° of the Sun
 export const SPARKLE_GAIN = 3;
-export const EMIT_RADIUS = 0.5;               // scene units — each element reflects as a soft area light
-export const EMIT_MIN_SIN = 0.6;              // element reflections ≥ ~37° wide: they wash the liquid, not rim it
+export const EMIT_RADIUS = 0.15;              // scene units — each element reflects as a compact source at its true apparent size
+export const EMIT_MIN_SIN = 0.05;             // only keeps the lobe resolvable; was 0.6 (≥ 37°): a warm reflector-card wash
 export const EMIT_HORIZON_SOFT = 0.1;         // an element below the local horizon is not reflected
 export const SUN_SHOULDER = 3;                // linear; the Sun term rolls off softly instead of clipping
 // The aether (spec amendment 2026-10-01): soft lobes wrapping the planet on every side.
@@ -40,9 +40,10 @@ export const AETHER_DAY_HI = 0.25;            // …and where full day strength 
 export const AETHER_DIFFUSE_REF_LOBES = 8; // frozen-Hg aether ambient was tuned with 8 lobes; scale keeps that brightness
 export const AETHER_DIFFUSE = 0.35;           // frozen Hg's matte response to the aether
 export const NIGHT_TINT = [0.45, 0.58, 1.0];  // cold cast on the night side's aether: warm gas sinks to indigo / deep violet / dark cyan
-export const AETHER_FRINGE_LO = 0.25;          // streak d² where the white core starts giving way to colour…
+export const AETHER_FRINGE_LO = 0.25;          // streak d² where the bright core starts giving way to the fringe…
 export const AETHER_FRINGE_HI = 0.9;           // …and where the fringe is full aether colour
-export const AETHER_SHOULDER = 1.5;            // linear; overlapping streak cores roll off instead of clipping flat
+export const AETHER_SHOULDER = 1;              // knee of the hue-preserving roll-off (Fresnel ≤ 1, so the display never clips a channel)
+export const AETHER_PATH_WHITE = 0.3;          // how far the hottest streak core pales toward white (0: pure hue; the old softbox core was ~1)
 export const FRONT_EDGE = 0.12;               // transmutation front noise amplitude (in front units)
 export const FRONT_SOFT = 0.03;               // front edge softness; must stay < FRONT_EDGE / 2
 export const FRONT_NOISE_FREQ = 6;
@@ -60,10 +61,10 @@ export const PLANET_TUNE = {
   aetherGain: 1.4,   // liquid mirror + frozen ambient: aether envelope gain
   aetherSinW: 0.22,  // aether streak half-width across the flow (sin); lower = thinner streaks, more dark between
   aetherSilver: 0,   // desaturation toward silver (0: the mirror shows the gas at its own hue, 2026-10-03)
-  aetherEdge: 3,     // streak profile exponent: 1 = soft Gaussian; higher = flat silver core with an abrupt meniscus edge
+  aetherEdge: 2,     // streak profile exponent: 1 = soft Gaussian; higher = flatter core, more abrupt meniscus edge (3 read as flat stickers)
   aetherStretch: 1,  // 0 = round lobes; 1 = each streak at its own elongation (AETHER_SHAPES)
-  aetherCurve: 1.0,  // falloff inside a streak: 0 = flat; higher = brighter centre, dimmer toward the meniscus edge
-  aetherCore: 1.6,   // streak core brightness × its own hue (the AETHER_SHOULDER roll-off flattens anything much above this)
+  aetherCurve: 2.5,  // falloff inside a streak: 0 = flat; higher = brighter centre, dimmer toward the meniscus edge (the volume)
+  aetherCore: 3,     // streak core brightness × its own hue, into the hue-preserving roll-off + AETHER_PATH_WHITE
   rayGain: 1.5,      // fresh crater-ray brightness (scar map G channel); 1.5 tuned 2026-10-02 (Task 7: 2+ flattens rays into a blob)
   modeGain: 1,       // body-mode + spin-bulge amplitude (the bead's wobble)
   waveGain: 1,       // capillary ripple slope
