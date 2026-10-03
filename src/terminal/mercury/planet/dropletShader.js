@@ -32,6 +32,7 @@ export const RIM_FADE_PX = 1;     // then back to the plain mirror over this man
 export const RIM_NECK_LO = 0.02;  // rim fades out where a neck/fillet pulls the surface this far (× bead radius) off the bead's own SDF
 export const RIM_NECK_HI = 0.12;  // ...and is gone by here
 export const RIM_FLOOR = 0.06;    // the band's gain on the (linear) mirror radiance
+export const GLINT_AA_K = 2;      // specular AA: alpha grows by this x the normal's turn per px (a reflection turns 2x the normal)
 
 // Distance in px from a sphere's silhouette for a point whose normal makes NoV with the view ray (rPx: its radius in px).
 export const rimSilPx = (rPx, NoV) => rPx * (1 - Math.sqrt(Math.max(0, 1 - NoV * NoV)));
@@ -94,6 +95,7 @@ const float HIT_PX = ${glf(HIT_PX)};
 const float RIM_PX = ${glf(RIM_PX)};
 const float RIM_FADE_PX = ${glf(RIM_FADE_PX)};
 const float RIM_FLOOR = ${glf(RIM_FLOOR)};
+const float GLINT_AA_K = ${glf(GLINT_AA_K)};
 const float RIM_NECK_LO = ${glf(RIM_NECK_LO)};
 const float RIM_NECK_HI = ${glf(RIM_NECK_HI)};
 
@@ -289,7 +291,13 @@ void main() {
   vec3 n = calcNormal(p, max(0.5 * tt * uPxAngle, 1e-5));
   float NoV = clamp(dot(n, -rd), 0.0, 1.0);
   vec3 R = reflect(rd, n);
-  vec3 col = max(fresnelHg(NoV) * envRadiance(R, uRoughLiquid, p, n), 0.0);
+  // Specular AA: a bead is a few px across, so the Sun's ~1 deg glint is a fraction of a pixel and one ray per pixel
+  // all but never lands on it. Widen the GGX alpha by the reflection's turn across one pixel (2 x the normal's);
+  // the lobes conserve energy, so the glint that fell between pixels becomes a crisp 1-2 px sparkle.
+  float aPx = GLINT_AA_K * tt * uPxAngle / max(rB, 1e-6);
+  float a0 = uRoughLiquid * uRoughLiquid;
+  float roughB = sqrt(sqrt(a0 * a0 + aPx * aPx));
+  vec3 col = max(fresnelHg(NoV) * envRadiance(R, roughB, p, n), 0.0);
   // The dark rim: px from the silhouette of the nearest bead (its radius in px from the march's own footprint,
   // tt · uPxAngle; no screen derivatives after the discards above). A near-miss AA pixel is on the edge: all rim.
   col *= mix(1.0, rimShade(hit ? rimSilPx(rB / max(tt * uPxAngle, 1e-9), NoV) : 0.0), rimOn);

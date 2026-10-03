@@ -1,7 +1,7 @@
 // src/terminal/mercury/planet/__tests__/dropletShader.test.js
 import { describe, it, expect } from 'vitest';
 import {
-  buildDropletShader, DROPLET_UNIFORMS, DROPLET_VS, NECK_BLEND, RIM_PX, RIM_FADE_PX, RIM_FLOOR, RIM_NECK_LO, RIM_NECK_HI, rimSilPx, rimShade,
+  buildDropletShader, DROPLET_UNIFORMS, DROPLET_VS, NECK_BLEND, RIM_PX, RIM_FADE_PX, RIM_FLOOR, RIM_NECK_LO, RIM_NECK_HI, GLINT_AA_K, rimSilPx, rimShade,
 } from '../dropletShader';
 import { HG_MIRROR_DECLS_GLSL, HG_FRESNEL_GLSL, HG_ENV_GLSL } from '../hgMirrorGlsl';
 import { TIERS, TIER_NAMES } from '../planetQuality';
@@ -28,7 +28,7 @@ describe('dropletShader — the family as one SDF impostor', () => {
     expect(fs).toContain(HG_MIRROR_DECLS_GLSL);
     expect(fs).toContain(HG_FRESNEL_GLSL);
     expect(fs).toContain(HG_ENV_GLSL);
-    expect(fs).toContain('vec3 col = max(fresnelHg(NoV) * envRadiance(R, uRoughLiquid, p, n), 0.0);');
+    expect(fs).toContain('vec3 col = max(fresnelHg(NoV) * envRadiance(R, roughB, p, n), 0.0);'); // the planet's roughness, glint-AA'd per bead
   });
 
   it('surface tension in the SDF: necks blend at their own radius; separate bodies use a hard min', () => {
@@ -69,6 +69,18 @@ describe('dropletShader — the family as one SDF impostor', () => {
     let lit = 0;
     for (let i = 0; i < 1000; i++) { const rho = Math.sqrt((i + 0.5) / 1000); lit += rimShade(rimSilPx(12, Math.sqrt(1 - rho * rho))) === 1 ? 1 : 0; }
     expect(lit / 1000).toBeGreaterThan(0.5);
+  });
+
+  it('glint AA: the mirror roughness grows by the reflection turn per px, so a few-px bead still lands the Sun', () => {
+    for (const t of TIER_NAMES) {
+      const { fs } = buildDropletShader({ tier: t });
+      expect(fs).toContain(`const float GLINT_AA_K = ${glf(GLINT_AA_K)};`);
+      expect(fs).toContain('float aPx = GLINT_AA_K * tt * uPxAngle / max(rB, 1e-6);');
+      expect(fs).toContain('float roughB = sqrt(sqrt(a0 * a0 + aPx * aPx));');
+      expect(fs).toContain('envRadiance(R, roughB, p, n)');
+      expect(fs).not.toContain('envRadiance(R, uRoughLiquid, p, n)');
+    }
+    expect(GLINT_AA_K).toBe(2); // a reflection turns twice the normal
   });
 
   it('the FS rim mirrors rimSilPx / rimShade, after the shading, with no screen derivatives', () => {

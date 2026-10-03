@@ -57,6 +57,7 @@ export const PLANET_TUNE = {
   relief: 12,        // DEM vertical exaggeration (normals + shadows)
   nightFloor: 0.006, // faint albedo floor so the night limb is not a hole
   sunGlint: 120,     // liquid mirror: Sun-disc radiance gain (soft-shouldered; boil sheen ≈ 1, cooled pinpoint saturates)
+  beadGlint: 4,      // droplets only: × sunGlint; with the droplet glint AA, a crisp 2 px sparkle on the small beads (useDropletField)
   emitGain: 1.5,     // liquid mirror: element-emitter reflection gain
   aetherGain: 1.4,   // liquid mirror + frozen ambient: aether envelope gain
   aetherSinW: 0.22,  // aether streak half-width across the flow (sin); lower = thinner streaks, more dark between
