@@ -156,6 +156,7 @@ function stepDrop(drop, { body, surf, camera, ds, calm, stepS, t, bufferW, buffe
   if (calm) {
     if (fam.phase !== 'idle') { Object.assign(fam, createFamily(fam.seed)); drop.solver = null; }
     drop.frame.visible = false;
+    DEV_OVERRIDES.breakNow = null; DEV_OVERRIDES.hyperNow = null; // the rig is a no-op under reduced motion
     PERF_INFO.dropPrims = 0; PERF_INFO.dropAreaPx = 0; PERF_INFO.sigma = 0;
   } else {
     const env = drop.env;
@@ -423,7 +424,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
   const vis = useMemo(() => ({
     buf: createVisitors(), ctx: createVisitorCtx(), out: createVisitorOut(), frame: createVisitorFrame(),
     view: { vp: new Float32Array(16), p00: 1, p11: 1, wPx: 1, hPx: 1 }, m: new THREE.Matrix4(),
-    clock: 0, exoPuff: 0,
+    clock: 0, exoPuff: 0, rigDetach: false, shaderT: 0, // rigDetach: the dev rig spun the body last frame; shaderT: frozen under calm
   }), []);
   const visField = useVisitorField({ planetMaterial: material });
   useEffect(() => { if (import.meta.env.DEV) window.__mercuryVisitors = vis; }, [vis]);
@@ -525,7 +526,10 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     vc.cam[0] = surf.cam[0]; vc.cam[1] = surf.cam[1]; vc.cam[2] = surf.cam[2];
     vc.coreR = R_SCENE * drop.coreScale;
     // a hard release flings the residents off (every hyper pins the spin at MAX_OMEGA, past DETACH_OMEGA)
-    vc.detach = (ds.released && body.omega.length() > DETACH_OMEGA) || DEV_OVERRIDES.breakNow != null || DEV_OVERRIDES.hyperNow != null;
+    // The dev rig spins the body inside stepDrop (below), so its fling lands next frame, on the spun ω.
+    const rigFling = DEV_OVERRIDES.breakNow != null || DEV_OVERRIDES.hyperNow != null;
+    vc.detach = (ds.released && body.omega.length() > DETACH_OMEGA) || vis.rigDetach;
+    vis.rigDetach = false;
     const devQ = DEV_OVERRIDES.strikeQueue;
     while ((queue && queue.length > 0) || devQ.length > 0) {
       const phase = queue && queue.length > 0 ? queue.shift() : devQ.shift();
@@ -600,6 +604,8 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     const da = drop.args;
     da.body = body; da.surf = surf; da.camera = camera; da.calm = calm; da.ds = ds; da.stepS = stepS; da.t = t; da.bufferW = bufferW; da.bufferH = bufferH;
     stepDrop(drop, da);
+    // the rig really spun the body: fling next frame on that ω (a refused rig, or one under calm, flings nothing)
+    if (rigFling && !calm && body.omega.length() > DETACH_OMEGA) vis.rigDetach = true;
     u.uCoreR.value = R_SCENE * drop.coreScale;
     exo.coreR = R_SCENE * drop.coreScale;
     field.upload(drop.frame, t);
@@ -613,7 +619,8 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
       vis.view.hPx = bufferH;
     }
     packVisitors(vis.buf, vc, vis.view, vis.frame);
-    visField.upload(vis.frame, t, pxAngleOf(camera.fov, bufferH));
+    if (!calm) vis.shaderT = t; // reduced motion holds the steam churn and gust shimmer still
+    visField.upload(vis.frame, vis.shaderT, pxAngleOf(camera.fov, bufferH));
     for (let j = 0; j < VISIT_SURF_MAX; j++) {
       u.uVisitDir.value[j].fromArray(vis.frame.surfDir, 4 * j);
       u.uVisitA.value[j].fromArray(vis.frame.surfA, 4 * j);

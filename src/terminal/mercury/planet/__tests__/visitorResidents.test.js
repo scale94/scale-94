@@ -103,6 +103,26 @@ describe('the residents ride the body and leave on a fling', () => {
     runTo(buf, ctx, createVisitorOut(), ctx.tS + DETACH_FADE_S + 0.05);
     expect(buf.live).toBe(0);
   });
+  it('a flung film stays in the liquid: its surface slot keeps tracking the spin (dirWorld = q·dirBody)', () => {
+    const { buf, ctx, v } = landed('fluid', 400, 0.5);
+    expect(v.kind).toBe('film');
+    ctx.omega = [0, 12, 0];
+    ctx.detach = true;
+    ctx.tS += ctx.dt;
+    stepVisitors(buf, ctx, createVisitorOut());
+    expect(v.state).toBe('detached');
+    ctx.detach = false;
+    ctx.q = [0, Math.SQRT1_2, 0, Math.SQRT1_2]; // the body has turned 90 deg about world Y since
+    const b = v.dirBody, [x, y, z, w] = ctx.q;
+    ctx.tS += ctx.dt;
+    stepVisitors(buf, ctx, createVisitorOut());
+    expect(v.state).toBe('detached');
+    // q·b by hand (unit quaternion rotation)
+    const ix = w * b[0] + y * b[2] - z * b[1], iy = w * b[1] + z * b[0] - x * b[2];
+    const iz = w * b[2] + x * b[1] - y * b[0], iw = -x * b[0] - y * b[1] - z * b[2];
+    const want = [ix * w + iw * -x + iy * -z - iz * -y, iy * w + iw * -y + iz * -x - ix * -z, iz * w + iw * -z + ix * -y - iy * -x];
+    for (let k = 0; k < 3; k++) expect(v.dirWorld[k]).toBeCloseTo(want[k], 9);
+  });
   it('reduced motion: the bead never moves and lives half as long', () => {
     const buf = createVisitors();
     const ctx = ctxFor('fluid', 600);

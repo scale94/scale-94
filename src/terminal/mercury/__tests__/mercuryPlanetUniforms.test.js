@@ -100,10 +100,28 @@ describe('visitors wiring', () => {
   it('mounts the body pass hidden; upload shows it', () => {
     expect(planetSrc).toContain('const visField = useVisitorField({ planetMaterial: material });');
     expect(planetSrc).toContain('<mesh ref={visField.meshRef} geometry={visField.geometry} material={visField.material} renderOrder={visField.renderOrder} frustumCulled={false} visible={false} />');
-    expect(planetSrc).toContain('visField.upload(vis.frame, t, pxAngleOf(camera.fov, bufferH));');
+    expect(planetSrc).toContain('visField.upload(vis.frame, vis.shaderT, pxAngleOf(camera.fov, bufferH));');
+  });
+  it('reduced motion freezes the body pass clock (steam churn, gust shimmer)', () => {
+    expect(planetSrc).toContain('if (!calm) vis.shaderT = t;');
+    expect(planetSrc).toMatch(/clock: 0, exoPuff: 0, rigDetach: false, shaderT: 0,/);
   });
   it('a hard release or any hyper flings the residents; an ember on boiling Hg puffs the exosphere', () => {
-    expect(planetSrc).toContain('vc.detach = (ds.released && body.omega.length() > DETACH_OMEGA) || DEV_OVERRIDES.breakNow != null || DEV_OVERRIDES.hyperNow != null;');
+    expect(planetSrc).toContain('vc.detach = (ds.released && body.omega.length() > DETACH_OMEGA) || vis.rigDetach;');
+    expect(planetSrc).not.toMatch(/vc\.detach = [^;]*DEV_OVERRIDES/);
+  });
+  it('the dev rig flings on the spun ω: next frame, and only if stepDrop really spun the body', () => {
+    const rig = planetSrc.indexOf('const rigFling = DEV_OVERRIDES.breakNow != null || DEV_OVERRIDES.hyperNow != null;');
+    const step = planetSrc.indexOf('stepDrop(drop, da);');
+    const arm = planetSrc.indexOf('if (rigFling && !calm && body.omega.length() > DETACH_OMEGA) vis.rigDetach = true;');
+    expect(rig).toBeGreaterThan(0);
+    expect(rig).toBeLessThan(step);
+    expect(arm).toBeGreaterThan(step);
+    expect(planetSrc).toContain('vis.rigDetach = false;');
+  });
+  it('under calm the rig is a no-op that clears its flags (no detach every frame)', () => {
+    const calmBranch = planetSrc.slice(planetSrc.indexOf('function stepDrop('), planetSrc.indexOf('} else {', planetSrc.indexOf('function stepDrop(')));
+    expect(calmBranch).toContain('DEV_OVERRIDES.breakNow = null; DEV_OVERRIDES.hyperNow = null;');
     expect(planetSrc).toContain("if (ev.phase === 'thermal' && ev.tempK > HG_BOIL_K) vis.exoPuff = EXO_PUFF;");
     expect(planetSrc).toContain('exo.coverage = Math.min(1, boilCoverage(body.tau, body.heatK, u.uSubsolarT.value) + vis.exoPuff);');
   });

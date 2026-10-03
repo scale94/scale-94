@@ -325,6 +325,8 @@ function stepDetached(v, ctx) {
   const a = ctx.tS - v.tDetach;
   if (a >= DETACH_FADE_S) { v.state = 'free'; return; }
   for (let k = 0; k < 3; k++) v.pos[k] += v.vel[k] * ctx.dt;
+  // film / hot spot / jet stay in the liquid while they fade (visitorFrame hasSurface): their slot rides the spin
+  if (v.kind === 'film' || v.kind === 'ember' || v.kind === 'jet') qRotate(ctx.q, v.dirBody, v.dirWorld);
   v.fade = v.fade0 * (1 - a / DETACH_FADE_S);
 }
 
