@@ -142,6 +142,17 @@ vec3 aetherStreakColor(vec3 col, float f) {
   return aetherHue(col) * mix(uAetherCore, 1.0, f);
 }
 
+// The aether in a mirror of roughness rough: every streak, night-tinted, rolled off. Shared by the liquid
+// (envRadiance) and the planet's frozen Hg (a rough, dark mirror of the same sky).
+vec3 aetherMirror(vec3 R, float rough, vec3 nW) {
+  vec3 a = vec3(0.0);
+  for (int i = 0; i < AETHER_LOBES; i++) {
+    vec2 s = aetherStreak(R, uAethDir[i], AETHER_SHAPE[i], rough);
+    a += aetherStreakColor(uAethCol[i], s.y) * s.x;
+  }
+  return aetherTint(nW) * aetherShoulder(uAetherGain * a);
+}
+
 // What the liquid sees: the Sun disc, the four elements, and the aether that
 // wraps the planet on every side. Analytic; no cubemap.
 vec3 envRadiance(vec3 R, float rough, vec3 P, vec3 nW) {
@@ -154,10 +165,5 @@ vec3 envRadiance(vec3 R, float rough, vec3 P, vec3 nW) {
     float above = smoothstep(-EMIT_HORIZON_SOFT, EMIT_HORIZON_SOFT, dot(nW, dir));
     c += uEmitCol[i] * (uEmitGain * above * lobe(dot(R, dir), sinE, rough));
   }
-  vec3 a = vec3(0.0);
-  for (int i = 0; i < AETHER_LOBES; i++) {
-    vec2 s = aetherStreak(R, uAethDir[i], AETHER_SHAPE[i], rough);
-    a += aetherStreakColor(uAethCol[i], s.y) * s.x;
-  }
-  return c + aetherTint(nW) * aetherShoulder(uAetherGain * a);
+  return c + aetherMirror(R, rough, nW);
 }`;

@@ -96,8 +96,8 @@ const vec2 AETHER_SHAPE[16] = vec2[16](vec2(1.00465790, 2.85214955), vec2(0.8080
 const float AETHER_NIGHT = 0.200000000;
 const float AETHER_DAY_LO = -0.150000000;
 const float AETHER_DAY_HI = 0.250000000;
-const float AETHER_DIFFUSE = 0.350000000;
-const float AETHER_DIFFUSE_REF_LOBES = 8.00000000;
+const float ROUGH_SOLID = 0.550000000;
+const float SOLID_HG_SPECULAR = 0.500000000;
 const float AETHER_FRINGE_LO = 0.250000000;
 const float AETHER_FRINGE_HI = 0.900000000;
 const float AETHER_SHOULDER = 1.00000000;
@@ -330,6 +330,17 @@ vec3 aetherStreakColor(vec3 col, float f) {
   return aetherHue(col) * mix(uAetherCore, 1.0, f);
 }
 
+// The aether in a mirror of roughness rough: every streak, night-tinted, rolled off. Shared by the liquid
+// (envRadiance) and the planet's frozen Hg (a rough, dark mirror of the same sky).
+vec3 aetherMirror(vec3 R, float rough, vec3 nW) {
+  vec3 a = vec3(0.0);
+  for (int i = 0; i < AETHER_LOBES; i++) {
+    vec2 s = aetherStreak(R, uAethDir[i], AETHER_SHAPE[i], rough);
+    a += aetherStreakColor(uAethCol[i], s.y) * s.x;
+  }
+  return aetherTint(nW) * aetherShoulder(uAetherGain * a);
+}
+
 // What the liquid sees: the Sun disc, the four elements, and the aether that
 // wraps the planet on every side. Analytic; no cubemap.
 vec3 envRadiance(vec3 R, float rough, vec3 P, vec3 nW) {
@@ -342,22 +353,13 @@ vec3 envRadiance(vec3 R, float rough, vec3 P, vec3 nW) {
     float above = smoothstep(-EMIT_HORIZON_SOFT, EMIT_HORIZON_SOFT, dot(nW, dir));
     c += uEmitCol[i] * (uEmitGain * above * lobe(dot(R, dir), sinE, rough));
   }
-  vec3 a = vec3(0.0);
-  for (int i = 0; i < AETHER_LOBES; i++) {
-    vec2 s = aetherStreak(R, uAethDir[i], AETHER_SHAPE[i], rough);
-    a += aetherStreakColor(uAethCol[i], s.y) * s.x;
-  }
-  return c + aetherTint(nW) * aetherShoulder(uAetherGain * a);
+  return c + aetherMirror(R, rough, nW);
 }
 
-// Frozen Hg is matte: it takes the aether as a soft wrap-around ambient.
-vec3 aetherDiffuse(vec3 nW) {
-  vec3 a = vec3(0.0);
-  for (int i = 0; i < AETHER_LOBES; i++) {
-    float k = 0.5 + 0.5 * dot(nW, uAethDir[i]);
-    a += uAethCol[i] * (k * k);
-  }
-  return uAetherGain * AETHER_DIFFUSE * aetherTint(nW) * a * (AETHER_DIFFUSE_REF_LOBES / float(AETHER_LOBES));
+// Frozen Hg is still a metal: polycrystalline, so a rough and dimmer mirror of the aether, not a matte ambient
+// (the matte wrap-around rendered the night hemisphere as one flat grey plate).
+vec3 frozenAether(vec3 R, vec3 nW, float NoV) {
+  return SOLID_HG_SPECULAR * fresnelHg(NoV) * aetherMirror(R, ROUGH_SOLID, nW);
 }
 
 // The bead (mercuryWaves.js): Legendre modes ℓ = 2, 3, 4 about each impulse
@@ -642,8 +644,8 @@ void main() {
         float sunI = uSunIrr * uExposure;
         float facet = hash13(vec3(floor(uv * vec2(2.0 * SPARKLE_CELLS, SPARKLE_CELLS)), 7.0));
         float glint = step(1.0 - SPARKLE_DENSITY, facet) * smoothstep(SPARKLE_COS, 1.0, dot(R, uSunDir)) * term;
-        solid = SOLID_HG_ALBEDO * (sunI * max(dot(nW, uSunDir), 0.0) * term + uNightFloor + aetherDiffuse(nW))
-          + vec3(glint * SPARKLE_GAIN * sunI);
+        solid = SOLID_HG_ALBEDO * (sunI * max(dot(nW, uSunDir), 0.0) * term + uNightFloor)
+          + frozenAether(R, nW, NoV) + vec3(glint * SPARKLE_GAIN * sunI);
       }
 
       colLin = mix(colLin, mix(solid, liquid, liquidW), fluid);

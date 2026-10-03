@@ -35,7 +35,7 @@ import {
   FALLBACK_ALBEDO, ROUGH_BOIL, SOLID_HG_ALBEDO, SPARKLE_CELLS, SPARKLE_DENSITY, SPARKLE_COS,
   SPARKLE_GAIN, EMIT_RADIUS, FRONT_EDGE, FRONT_SOFT, FRONT_NOISE_FREQ, PHASE_BLEND_K,
   EMIT_MIN_SIN, EMIT_HORIZON_SOFT, SUN_SHOULDER, AETHER_NIGHT, AETHER_DAY_LO, AETHER_DAY_HI,
-  AETHER_DIFFUSE, AETHER_DIFFUSE_REF_LOBES, NIGHT_TINT, AETHER_FRINGE_LO, AETHER_FRINGE_HI, AETHER_SHOULDER, AETHER_PATH_WHITE, RAY_ALBEDO,
+  ROUGH_SOLID, SOLID_HG_SPECULAR, NIGHT_TINT, AETHER_FRINGE_LO, AETHER_FRINGE_HI, AETHER_SHOULDER, AETHER_PATH_WHITE, RAY_ALBEDO,
 } from './planetLook';
 import { AETHER_LOBES } from './aetherLobes';
 import { HG_FRESNEL_GLSL, HG_ENV_GLSL, AETHER_SHAPE_GLSL } from './hgMirrorGlsl';
@@ -187,8 +187,8 @@ ${AETHER_SHAPE_GLSL}
 const float AETHER_NIGHT = ${glf(AETHER_NIGHT)};
 const float AETHER_DAY_LO = ${glf(AETHER_DAY_LO)};
 const float AETHER_DAY_HI = ${glf(AETHER_DAY_HI)};
-const float AETHER_DIFFUSE = ${glf(AETHER_DIFFUSE)};
-const float AETHER_DIFFUSE_REF_LOBES = ${glf(AETHER_DIFFUSE_REF_LOBES)};
+const float ROUGH_SOLID = ${glf(ROUGH_SOLID)};
+const float SOLID_HG_SPECULAR = ${glf(SOLID_HG_SPECULAR)};
 const float AETHER_FRINGE_LO = ${glf(AETHER_FRINGE_LO)};
 const float AETHER_FRINGE_HI = ${glf(AETHER_FRINGE_HI)};
 const float AETHER_SHOULDER = ${glf(AETHER_SHOULDER)};
@@ -336,14 +336,10 @@ float meniscusSin(float d, float w, float gain) {
 
 ${HG_ENV_GLSL}
 
-// Frozen Hg is matte: it takes the aether as a soft wrap-around ambient.
-vec3 aetherDiffuse(vec3 nW) {
-  vec3 a = vec3(0.0);
-  for (int i = 0; i < AETHER_LOBES; i++) {
-    float k = 0.5 + 0.5 * dot(nW, uAethDir[i]);
-    a += uAethCol[i] * (k * k);
-  }
-  return uAetherGain * AETHER_DIFFUSE * aetherTint(nW) * a * (AETHER_DIFFUSE_REF_LOBES / float(AETHER_LOBES));
+// Frozen Hg is still a metal: polycrystalline, so a rough and dimmer mirror of the aether, not a matte ambient
+// (the matte wrap-around rendered the night hemisphere as one flat grey plate).
+vec3 frozenAether(vec3 R, vec3 nW, float NoV) {
+  return SOLID_HG_SPECULAR * fresnelHg(NoV) * aetherMirror(R, ROUGH_SOLID, nW);
 }
 
 // The bead (mercuryWaves.js): Legendre modes ℓ = 2, 3, 4 about each impulse
@@ -628,8 +624,8 @@ void main() {
         float sunI = uSunIrr * uExposure;
         float facet = hash13(vec3(floor(uv * vec2(2.0 * SPARKLE_CELLS, SPARKLE_CELLS)), 7.0));
         float glint = step(1.0 - SPARKLE_DENSITY, facet) * smoothstep(SPARKLE_COS, 1.0, dot(R, uSunDir)) * term;
-        solid = SOLID_HG_ALBEDO * (sunI * max(dot(nW, uSunDir), 0.0) * term + uNightFloor + aetherDiffuse(nW))
-          + vec3(glint * SPARKLE_GAIN * sunI);
+        solid = SOLID_HG_ALBEDO * (sunI * max(dot(nW, uSunDir), 0.0) * term + uNightFloor)
+          + frozenAether(R, nW, NoV) + vec3(glint * SPARKLE_GAIN * sunI);
       }
 
       colLin = mix(colLin, mix(solid, liquid, liquidW), fluid);${calm ? '\n      colLin += fluid * uGlow.w * exp(-(1.0 - dot(xw, uGlow.xyz)) / (CALM_GLOW_RAD * CALM_GLOW_RAD));' : ''}

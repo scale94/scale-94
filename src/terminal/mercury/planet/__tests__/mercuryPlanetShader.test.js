@@ -11,7 +11,7 @@ import {
   SPARKLE_CELLS, SPARKLE_DENSITY, SPARKLE_COS, SPARKLE_GAIN, EMIT_RADIUS,
   FRONT_EDGE, FRONT_SOFT, FRONT_NOISE_FREQ, PHASE_BLEND_K,
   EMIT_MIN_SIN, EMIT_HORIZON_SOFT, SUN_SHOULDER, AETHER_NIGHT, AETHER_DAY_LO, AETHER_DAY_HI,
-  AETHER_DIFFUSE, AETHER_DIFFUSE_REF_LOBES, NIGHT_TINT, AETHER_FRINGE_LO, AETHER_FRINGE_HI, AETHER_SHOULDER,
+  ROUGH_SOLID, SOLID_HG_SPECULAR, NIGHT_TINT, AETHER_FRINGE_LO, AETHER_FRINGE_HI, AETHER_SHOULDER,
 } from '../planetLook';
 import { CALM_GLOW_RAD } from '../mercuryImpacts';
 import { HG_N, HG_K } from '../hgOptics';
@@ -59,7 +59,7 @@ describe('mercuryPlanetShader contract', () => {
       ROUGH_BOIL, SPARKLE_CELLS, SPARKLE_DENSITY, SPARKLE_COS, SPARKLE_GAIN, EMIT_RADIUS,
       FRONT_EDGE, FRONT_SOFT, FRONT_NOISE_FREQ, PHASE_BLEND_K,
       EMIT_MIN_SIN, EMIT_HORIZON_SOFT, SUN_SHOULDER, AETHER_NIGHT, AETHER_DAY_LO, AETHER_DAY_HI,
-      AETHER_DIFFUSE, AETHER_DIFFUSE_REF_LOBES, AETHER_FRINGE_LO, AETHER_FRINGE_HI, AETHER_SHOULDER,
+      ROUGH_SOLID, SOLID_HG_SPECULAR, AETHER_FRINGE_LO, AETHER_FRINGE_HI, AETHER_SHOULDER,
       MENISCUS_MAX_SIN, MENISCUS_MIN_PX, MENISCUS_GRAD_FLOOR,
     })) {
       expect(PLANET_FS).toContain(`const float ${name} = ${glf(value)};`);
@@ -128,9 +128,11 @@ describe('mercuryPlanetShader contract', () => {
     expect(PLANET_FS).toContain('return mix(col, vec3(l), uAetherSilver);');
     expect(PLANET_FS).not.toMatch(/AETHER_SIN_W/);
     expect(PLANET_FS).toMatch(/liquid = fresnelHg\(NoV\) \* envRadiance\(R, [^;]*, hit, nW\);/);
-    expect(PLANET_FS).toMatch(/\+ aetherDiffuse\(nW\)/);
-    expect(PLANET_FS).toContain('return c + aetherTint(nW) * aetherShoulder(uAetherGain * a);');
-    expect(PLANET_FS).toContain('return uAetherGain * AETHER_DIFFUSE * aetherTint(nW) * a * (AETHER_DIFFUSE_REF_LOBES / float(AETHER_LOBES));');
+    expect(PLANET_FS).toMatch(/\+ frozenAether\(R, nW, NoV\)/); // frozen Hg is a rough dark mirror, not a matte ambient
+    expect(PLANET_FS).not.toContain('aetherDiffuse');
+    expect(PLANET_FS).toContain('return c + aetherMirror(R, rough, nW);');
+    expect(PLANET_FS).toContain('return aetherTint(nW) * aetherShoulder(uAetherGain * a);');
+    expect(PLANET_FS).toContain('return SOLID_HG_SPECULAR * fresnelHg(NoV) * aetherMirror(R, ROUGH_SOLID, nW);');
   });
 
   it('mirrors mirrorLobes.js: same lobe and soft shoulder maths; the Sun goes through the shoulder', () => {
