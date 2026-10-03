@@ -3,6 +3,7 @@ import MercuryCanvas    from '../mercury/MercuryCanvas';
 import MercuryControls  from '../mercury/MercuryControls';
 import MercuryFireworks from '../mercury/MercuryFireworks';
 import InstrumentsPanel       from '../mercury/InstrumentsPanel';
+import SlowNoonDial           from '../mercury/SlowNoonDial';
 import CastleGrid             from '../mercury/CastleGrid';
 import CosmosRegistry         from '../mercury/CosmosRegistry';
 import ObservationMatrix      from '../mercury/ObservationMatrix';
@@ -46,6 +47,7 @@ export default function MercuryTab({ onNavigateTab }) {
   const [params, setParams]           = useState(DEFAULT_PARAMS);
   const [activePhase, setActivePhase] = useState('fluid');
   const [fps, setFps]                 = useState(0);
+  const [slowNoonOverlay, setSlowNoonOverlay] = useState(false);
   const [liveDensity, setLiveDensity] = useState(DEFAULT_PARAMS.density);
   const densityTimer = useMemo(() => ({ current: null }), []);
   const fireworksRef = useRef(null);
@@ -185,6 +187,7 @@ export default function MercuryTab({ onNavigateTab }) {
             fps={fps}
             particleCount={liveDensity}
           />
+          <SlowNoonDial onOverlay={setSlowNoonOverlay} />
         </div>
         {/* Canvas — order-first on mobile so it's the first thing you see */}
         <div
@@ -204,6 +207,7 @@ export default function MercuryTab({ onNavigateTab }) {
             onPhaseChange={setActivePhase}
             onFps={setFps}
             onElementFired={handleElementFired}
+            overlay={slowNoonOverlay}
           />
           <span
             className="absolute bottom-2 right-3 pointer-events-none select-none font-mono uppercase"

@@ -6,6 +6,7 @@ import { subsolarTempK } from '../planet/mercuryThermal';
 import { tailBrightness } from '../planet/mercuryExosphere';
 import planetSrc from '../MercuryPlanet.jsx?raw';
 import canvasSrc from '../MercuryCanvas.jsx?raw';
+import tabSrc from '../../views/MercuryTab.jsx?raw';
 
 describe('planetEphemerisUniforms', () => {
   const t = Date.UTC(2026, 9, 1);
@@ -54,5 +55,16 @@ describe('THE SLOW NOON wiring', () => {
   it('MercuryCanvas passes overlay through', () => {
     expect(canvasSrc).toMatch(/overlay = false,/);
     expect(canvasSrc).toContain('overlay={overlay}');
+  });
+});
+
+describe('THE SLOW NOON placement', () => {
+  it('MercuryTab holds the overlay state, renders the dial under the controls, and feeds the canvas', () => {
+    expect(tabSrc).toContain("import SlowNoonDial           from '../mercury/SlowNoonDial';");
+    expect(tabSrc).toContain('const [slowNoonOverlay, setSlowNoonOverlay] = useState(false);');
+    expect(tabSrc).toContain('<SlowNoonDial onOverlay={setSlowNoonOverlay} />');
+    expect(tabSrc).toContain('overlay={slowNoonOverlay}');
+    expect(tabSrc.indexOf('<SlowNoonDial')).toBeGreaterThan(tabSrc.indexOf('<MercuryControls'));
+    expect(tabSrc.indexOf('<SlowNoonDial')).toBeLessThan(tabSrc.indexOf('<MercuryCanvas'));
   });
 });
