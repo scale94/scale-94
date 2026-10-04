@@ -99,11 +99,11 @@ void main() {
   // Guaranteed glint: a mirror sphere has the Sun's image at the point whose normal is H, from every view.
   vec3 Vc = normalize(cameraPosition - vC);
   vec3 H = normalize(Vc + uSunDir);
-  float G = min(uBeadSparkle * fresnelHg(dot(H, Vc)) * sh, ${glf(BEAD_GLINT_MAX)});
+  vec3 G = min(uBeadSparkle * fresnelHg(dot(H, Vc)) * sh, vec3(${glf(BEAD_GLINT_MAX)})); // fresnelHg is spectral (vec3): the glint keeps Hg's faint tint
   vec2 qg = (viewMatrix * vec4(H, 0.0)).xy;
   float dpx = length(q - qg) * 0.5 * vPx;
   float w = exp(-dpx * dpx / (2.0 * ${glf(BEAD_GLINT_SIGMA_PX)} * ${glf(BEAD_GLINT_SIGMA_PX)}));
-  vec3 glint = vec3(G * w * vA);
+  vec3 glint = G * (w * vA);
   // Output stage as the droplet pass / planet: exposure is already inside the terms; just sRGB-encode.
   vec3 srgb = mix(col * 12.92, 1.055 * pow(col, vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), col));
   fragColor = vec4(srgb * aBody + glint, aBody);

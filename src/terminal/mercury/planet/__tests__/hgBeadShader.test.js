@@ -32,6 +32,7 @@ describe('Hg bead shader', () => {
   it('premultiplied output: a scaled-down body occluder plus an analytic additive sun glint', () => {
     expect(BEAD_FS).toContain('fragColor = vec4(srgb * aBody + glint, aBody);');
     expect(BEAD_FS).toContain('normalize(Vc + uSunDir)');
+    expect(BEAD_FS).toContain('vec3 G = min(uBeadSparkle * fresnelHg(dot(H, Vc)) * sh, vec3('); // fresnelHg is vec3: a float G did not compile (live, 2026-10-05)
     expect(BEAD_UNIFORMS_OWN).toContain('uBeadSparkle');
   });
 });
