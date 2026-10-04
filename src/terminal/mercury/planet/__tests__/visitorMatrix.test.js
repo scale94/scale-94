@@ -8,7 +8,6 @@ import { HG_MELT_K, HG_BOIL_K } from '../mercuryThermal';
 import { LIQUID_TAU } from '../mercuryWaves';
 import { ctxFor, runTo } from './visitorTestKit';
 
-const ELEMENTS = ['fluid', 'thermal', 'earth', 'air'];
 
 function landed(phase, tempK, tau = 1) {
   const buf = createVisitors();
