@@ -1,6 +1,6 @@
 # Mercury Visitors — Phase 2: the Element × State Matrix (design)
 
-**Status:** approved in brainstorming 2026-10-04. Branch `feature/mercury-matrix` (off `origin/main` 09ed1cb0).
+**Status:** approved in brainstorming 2026-10-04; **amended 2026-10-04 (§9: water and fire meet the crust, cold-limb aim reverted)**. Branch `feature/mercury-matrix` (off `origin/main` 09ed1cb0).
 **Builds on:** `docs/superpowers/specs/2026-10-03-mercury-visitors-design.md` (phase 1, live on main). Its §9 listed this work.
 
 ## 1. Problem
@@ -176,3 +176,104 @@ Live checks (CDP, the dev server on :5175, tools in `.superpowers/sdd/tools/`):
 - Frost surviving as floating ice between 234 K and 273 K.
 - Marks that fade on a timer.
 - Any base-size increase.
+
+## 9. Amendment A — water and fire on crust (2026-10-04, author ruling)
+
+### 9.1 Why
+The live look sheet (plan Task 9, two runs) showed that §4.2 and §4.3 never happen where the viewer is looking:
+- Inside the 35° aim cone the surface is always on the afternoon side. The sunset floor (`T_SUNSET_K`) plus `heatK` keeps it
+  at ≥ ~390 K, far above `HG_MELT_K`. So a real tap never gave frost or a pool.
+- The interim fix, a cold-limb aim for water and fire (plan Task 10, `coldLimbAim`), did make them fire. But they landed 66–72°
+  out, in the outer 5–10 px of the disc. Frost read as a 2×8 px sliver at best, and the pool's ember sat half off the limb.
+- While the planet is liquid, `heatK ≥ 25 K` always, so frozen Hg on the visible face is a limb-only state.
+
+Moving frost onto hot liquid Hg was rejected. It contradicts phase 1's own rule on the same spot: water on Hg above
+`LEIDENFROST_K` beads. The shader also draws marks only on frozen Hg, and `healMelted` would wipe a hot-zone mark within one
+5 s scar tick.
+
+The surface the cone *does* reach in every cool-down, and at rest, is **crust**. So the two pairings move there, as reactions
+that are true for hot rock.
+
+### 9.2 Rulings
+| # | Question | Ruling |
+|---|----------|--------|
+| A1 | Where water and fire get their marks | **Any crust**, hard or soft (`τ < LIQUID_TAU`). |
+| A2 | Landing | Every visitor uses the 35° aim (§4.1). The cold-limb aim (plan Task 10) is **reverted**. |
+| A3 | Lifetime | **Until the planet changes state**, literally (R3). Crust marks persist through the whole crusted rest state and clear when the planet re-melts. |
+| A4 | Frost and pool on frozen Hg (§4.2, §4.3) | **Kept as built, dormant.** With the in-cone aim they fire only if frozen Hg ever enters the cone (a future camera or phase change), or under a dev `visitTemp` pin. They cost nothing when they don't fire. *Author may instead ask for removal.* |
+| A5 | Crater for water and fire on crust | **No crater.** The quench and the pool replace it (impulse `''`, like the sink). Earth on hard crust and air on any crust still crater. *Default chosen by Sophie; open to the author.* |
+
+### 9.3 Water on crust — quench rind
+- The drop hits rock at ≥ ~390 K and flash-boils. It does not wet the rock; it leaves a mark of the quench.
+- Live: the rind spreads out to `QUENCH_R` over ~0.6 s through the existing `SURF_FROST` slot (frost creep, a faster timing).
+  A small burst of steam shows at touchdown, reusing the bead's steam body.
+- The mark has two parts:
+  - a **pale evaporite ring** at the edge, where the dissolved load is left behind;
+  - a **darker glassy centre**, a quench skin, with a sharper specular than the rock around it.
+  
+  It reads against the MDIS crust, and it reads on the dark side too, through the glassy specular (nebula and node light, R5).
+- Stamp: `{ kind: 'quench', dirBody, radius, seed }` at the end of the spread. It is written to **B** (the frost channel), and
+  the crust shading decodes B as a quench rind.
+
+### 9.4 Fire on crust — re-melt pool, then glaze
+- The ember lands on the rock and re-melts it locally, transmuting a small disc back to liquid Hg (the planet's own melt
+  rule, local).
+- Live: `SURF_POOL` grows to `POOL_R` over the ember's burn, as in §4.3.
+  - In the shader, the pool raises the local **transmutation weight** (`fluid`), not only `liquidW`, so a liquid-Hg mirror
+    disc with its meniscus opens *in the rock*.
+  - Inside the cone the local temperature is above `HG_MELT_K`, so the pool really is liquid.
+- When the ember dies, the pool refreezes. Stamp: `{ kind: 'glaze', … }` to **A**.
+- The crust shading decodes A as a **glassy patch**: much smoother than the rough crust, a polished, mirror-leaning disc set in
+  the rock.
+
+### 9.5 Branch table (replaces §5.1's frozen-Hg outcomes for the cone)
+- `τ < LIQUID_TAU`:
+  - fluid → `quench`
+  - thermal → `crustpool`
+  - earth → `sink` if `τ ≥ SOFT_TAU_MIN`, else `crater`
+  - air → `crater`
+- `τ ≥ LIQUID_TAU`: unchanged (frozen Hg → `frost` / `pool` / ring, liquid and boiling as phase 1 and §4.5).
+- Residents:
+  - `quench`, like frost: fade 1 until it stamps (P-4), does not detach on a fling (P-3).
+  - `crustpool`, like pool.
+  - Calm: both stamp at touchdown.
+
+### 9.6 Healing (replaces the frozen-Hg-only lifetime logic)
+- **State-change wipe, both directions.** The marks clear when τ crosses `LIQUID_TAU`:
+  - **rising** (crust → liquid): the rinds and glaze melt away with the crust.
+  - **falling** (liquid → crust): the frozen-Hg frost and glaze are buried under the new crust (today's `clearMarks`).
+  
+  This needs a crossing detector (the previous frame's side of `LIQUID_TAU`), not the level test used today.
+- `healMelted` runs **only while `τ ≥ LIQUID_TAU`**, where it serves the frozen-Hg marks. On crust it would read ≥ 390 K
+  everywhere and erase every rind on the next tick.
+- The pit keeps its crater rule.
+
+### 9.7 Shader
+- The crust path reads the scar sample's `.ba`. It already fetches `uScar`, so this adds no new fetch where the existing one
+  can be shared.
+  - `B` → quench rind
+  - `A` → glaze
+- Each is gated on its own coverage, like Task 6's output-identical gates.
+- `visitPool` raises `fluid` as well as `liquidW` (§9.4). It runs only while a pool slot is live.
+- All additions are `// visitors`-marked. Shader parity still holds.
+
+### 9.8 Testing
+- **Branch table:** every crust cell, both sides of `SOFT_TAU_MIN` and `LIQUID_TAU`.
+- **Stamps:** the quench stamps once at the end of its spread; the crust pool stamps glaze once at ember death; calm stamps at
+  touchdown.
+- **Healing:**
+  - a crust mark survives scar ticks at τ 0;
+  - it clears on the rising crossing;
+  - a frozen-Hg mark clears on the falling crossing;
+  - `healMelted` does not run at τ < `LIQUID_TAU`.
+- **Revert:** no `coldLimbAim` in the source, and every landing is ≤ 35°.
+- **Live look sheet:**
+  - at rest, strike water and fire into the cone and shoot +0.1 s / mid / just after the stamp / +30 s;
+  - re-melt, and confirm the marks are gone;
+  - shoot one quench on the dark side (R5).
+- **Phone gate** as §7, now with crust marks present at rest.
+
+### 9.9 Out of scope (amendment)
+- Steam staining or chemistry beyond the evaporite ring.
+- Marks that alter crust relief (the pit stays the only depth mark).
+- The rest of the solid-crust row (air on crust, earth on hard crust) keeps the crater (R2).
