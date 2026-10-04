@@ -140,7 +140,7 @@ export default function MercuryTab({ onNavigateTab }) {
         />
 
         {/* HUD — title + phase, top-left, in the credit's register; never takes the pointer */}
-        <div className="absolute top-3 left-4 pointer-events-none select-none flex items-start gap-2">
+        <div className="absolute top-3 left-4 pointer-events-none select-none flex items-start gap-2" style={{ maxWidth: 'calc(50% - 80px)' }}>
           <span
             aria-hidden="true"
             style={{
@@ -151,7 +151,7 @@ export default function MercuryTab({ onNavigateTab }) {
               marginTop: 2,
             }}
           >◉</span>
-          <div>
+          <div className="min-w-0">
             <h2
               className="text-sm sm:text-base font-bold tracking-tight uppercase font-mono"
               style={{

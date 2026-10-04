@@ -37,6 +37,7 @@ Date: 2026-10-04 · Branch: `feature/mercury-stage` (off `feature/mercury-matrix
 - The old header block, its rule lines and its `mb-6` spacing are removed.
 - The HUD must not overlap the WATER handle at any supported size: the camera fit (§2) keeps the ring
   inside a centred square-ish region; the HUD sits in the corner. Verified live (§5).
+- The HUD is capped at maxWidth calc(50% − 80px) and wraps, so it never reaches the central handle column.
 
 ### 2. Canvas size and camera fit
 
@@ -45,6 +46,8 @@ Date: 2026-10-04 · Branch: `feature/mercury-stage` (off `feature/mercury-matrix
   (the header block no longer sits above the canvas, so it shrinks). Width is measured with a
   `ResizeObserver` on the frame; the aspect formula is pure (`stageHeight({ width, viewportH, isMobile })`)
   and tested. Mobile keeps its existing formula.
+
+> Implementation note: the plan (docs/superpowers/plans/2026-10-04-mercury-stage-layout.md) replaced the ResizeObserver + stageHeight with pure CSS (width 100%, aspect-ratio 16/9, max-height calc(100svh − NAV_OFFSET_PX), min-height 300px); there is no stageHeight function.
 - New pure function in `planet/planetLook.js` (or a sibling `planet/stageFit.js`):
 
   ```
