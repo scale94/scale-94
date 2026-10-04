@@ -5,6 +5,7 @@
 //   ember: a blackbody core and a comet tail;
 //   rock: cut planes ∩ a sphere, 4 rays per pixel on the rock only;
 //   gust: a faint chromatic shimmer plus dust motes (true background refraction would need a scene copy).
+//   plume (matrix): Hg vapour stripped off boiling mercury by a gust, a pale streamer widening downwind.
 // Plan D-1: unlike the droplets this pass BLENDS (the tail, steam and shimmer are translucent): depth test on, depth
 // write off, gl_FragDepth still sorts each fragment against the planet. No screen derivatives (it discards per pixel).
 
@@ -14,7 +15,7 @@ import { HG_MIRROR_DECLS_GLSL, HG_FRESNEL_GLSL, HG_ENV_GLSL, HG_MIRROR_UNIFORMS 
 import { DROPLET_VS, DROPLET_RENDER_ORDER } from './dropletShader';
 import { VISIT_LIGHT_GLSL } from './visitorGlsl';
 import { VISITOR_SLOTS, EMBER_GAIN, EMBER_HALO, ROCK_BOUND } from './visitorSim';
-import { VIS_DROP, VIS_BEAD, VIS_EMBER, VIS_ROCK, VIS_GUST } from './visitorFrame';
+import { VIS_DROP, VIS_BEAD, VIS_EMBER, VIS_ROCK, VIS_GUST, VIS_PLUME } from './visitorFrame';
 
 export const VISITOR_RENDER_ORDER = DROPLET_RENDER_ORDER + 1;
 export const VISITOR_MATERIAL = Object.freeze({ transparent: true, blending: THREE.NormalBlending, depthTest: true, depthWrite: false });
@@ -35,6 +36,8 @@ export const GUST_A = 0.22;
 export const GUST_COL = [0.75, 0.88, 1.0];
 export const MOTES = 4;
 export const MOTE_COL = [0.5, 0.48, 0.45];
+export const PLUME_A = 0.2;
+export const PLUME_COL = [0.62, 0.68, 0.78];
 
 export const VISITOR_OWN_UNIFORMS = ['uRect', 'uVis', 'uVisAx', 'uVisK', 'uVisN', 'uPxAngle', 'uTime', 'uCoreR'];
 export const VISITOR_UNIFORMS = [...VISITOR_OWN_UNIFORMS, ...HG_MIRROR_UNIFORMS];
@@ -66,6 +69,7 @@ const int VIS_BEAD = ${VIS_BEAD};
 const int VIS_EMBER = ${VIS_EMBER};
 const int VIS_ROCK = ${VIS_ROCK};
 const int VIS_GUST = ${VIS_GUST};
+const int VIS_PLUME = ${VIS_PLUME};
 const int ROCK_PLANES = ${ROCK_PLANES};
 const int ROCK_AA = ${ROCK_AA};
 const int MOTES = ${MOTES};
@@ -85,6 +89,8 @@ const float ROCK_RIM = ${glf(ROCK_RIM)};
 const float GUST_A = ${glf(GUST_A)};
 const vec3 GUST_COL = ${v3(GUST_COL)};
 const vec3 MOTE_COL = ${v3(MOTE_COL)};
+const float PLUME_A = ${glf(PLUME_A)};
+const vec3 PLUME_COL = ${v3(PLUME_COL)};
 
 ${HG_FRESNEL_GLSL}
 
@@ -281,6 +287,14 @@ void main() {
         float am = clamp(fade * gauss(length(ro + rd * tm - pm) / (1.2 * max(tm * uPxAngle, 1e-6))), 0.0, 1.0);
         gP += MOTE_COL * am; gA = 1.0 - (1.0 - gA) * (1.0 - am); gT = min(gT, tm);
       }
+    } else if (kind == VIS_PLUME) {
+      // Hg vapour stripped off boiling mercury: a pale streamer, widening and thinning downwind
+      vec3 b = c + X.xyz * X.w;
+      float u, tr;
+      float d = raySeg(ro, rd, c, b, u, tr);
+      float wd = r * (0.6 + 1.8 * u);
+      float a = clamp(PLUME_A * fade * gauss(d / wd) * (1.0 - u * u) * (0.6 + 0.4 * vn3((ro + rd * tr - c) / r * 0.8 - X.xyz * (uTime * 2.0) + K.z)), 0.0, 1.0);
+      gP += PLUME_COL * a; gA = 1.0 - (1.0 - gA) * (1.0 - a); gT = min(gT, tr);
     }
   }
   if (alpha <= 0.0 && gA <= 1e-4) discard;

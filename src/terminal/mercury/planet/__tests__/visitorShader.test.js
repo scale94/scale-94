@@ -3,13 +3,13 @@ import * as THREE from 'three';
 import { glf, v3 } from '../../../gl/glf';
 import {
   buildVisitorShader, VISITOR_UNIFORMS, VISITOR_MATERIAL, VISITOR_RENDER_ORDER, WATER_N, WATER_F0, WATER_TINT,
-  ROCK_PLANES, ROCK_AA, GAP_DARK, STEAM_A, GUST_A,
+  ROCK_PLANES, ROCK_AA, GAP_DARK, STEAM_A, GUST_A, PLUME_A, PLUME_COL,
 } from '../visitorShader';
 import { DROPLET_RENDER_ORDER, DROPLET_VS } from '../dropletShader';
 import { HG_MIRROR_DECLS_GLSL } from '../hgMirrorGlsl';
 import { VISIT_LIGHT_GLSL } from '../visitorGlsl';
 import { VISITOR_SLOTS, EMBER_GAIN, EMBER_HALO, ROCK_BOUND } from '../visitorSim';
-import { VIS_DROP, VIS_BEAD, VIS_EMBER, VIS_ROCK, VIS_GUST } from '../visitorFrame';
+import { VIS_DROP, VIS_BEAD, VIS_EMBER, VIS_ROCK, VIS_GUST, VIS_PLUME } from '../visitorFrame';
 
 const declared = (src) => [...src.matchAll(/^uniform\s+\w+\s+(\w+)(?:\[\d+\])?;/gm)].map((m) => m[1]);
 const { vs, fs } = buildVisitorShader();
@@ -67,5 +67,15 @@ describe('visitorShader — the visitors as analytic bodies', () => {
   it('a body covers the glow behind it by coverage, not all-or-nothing', () => {
     expect(fs).toContain('outA = alpha + gA * (1.0 - alpha);');
     expect(fs).toContain('outC = (col * alpha + gC * gA * (1.0 - alpha)) / max(outA, 1e-5);');
+  });
+});
+
+describe('visitors matrix: the vapour plume', () => {
+  it('draws VIS_PLUME as a translucent streamer with its own constants', () => {
+    const { fs } = buildVisitorShader();
+    expect(fs).toContain(`const int VIS_PLUME = ${VIS_PLUME};`);
+    expect(fs).toContain(`const float PLUME_A = ${glf(PLUME_A)};`);
+    expect(fs).toContain(`const vec3 PLUME_COL = ${v3(PLUME_COL)};`);
+    expect(fs).toContain('} else if (kind == VIS_PLUME) {');
   });
 });
