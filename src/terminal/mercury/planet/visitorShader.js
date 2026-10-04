@@ -15,7 +15,7 @@ import { HG_MIRROR_DECLS_GLSL, HG_FRESNEL_GLSL, HG_ENV_GLSL, HG_MIRROR_UNIFORMS 
 import { DROPLET_VS, DROPLET_RENDER_ORDER } from './dropletShader';
 import { VISIT_LIGHT_GLSL } from './visitorGlsl';
 import { VISITOR_SLOTS, EMBER_GAIN, EMBER_HALO, ROCK_BOUND } from './visitorSim';
-import { VIS_DROP, VIS_BEAD, VIS_EMBER, VIS_ROCK, VIS_GUST, VIS_PLUME } from './visitorFrame';
+import { VIS_DROP, VIS_BEAD, VIS_EMBER, VIS_ROCK, VIS_GUST, VIS_PLUME, PLUME_STEAM } from './visitorFrame';
 
 export const VISITOR_RENDER_ORDER = DROPLET_RENDER_ORDER + 1;
 export const VISITOR_MATERIAL = Object.freeze({ transparent: true, blending: THREE.NormalBlending, depthTest: true, depthWrite: false });
@@ -70,6 +70,7 @@ const int VIS_EMBER = ${VIS_EMBER};
 const int VIS_ROCK = ${VIS_ROCK};
 const int VIS_GUST = ${VIS_GUST};
 const int VIS_PLUME = ${VIS_PLUME};
+const int PLUME_STEAM = ${PLUME_STEAM};
 const int ROCK_PLANES = ${ROCK_PLANES};
 const int ROCK_AA = ${ROCK_AA};
 const int MOTES = ${MOTES};
@@ -288,13 +289,15 @@ void main() {
         gP += MOTE_COL * am; gA = 1.0 - (1.0 - gA) * (1.0 - am); gT = min(gT, tm);
       }
     } else if (kind == VIS_PLUME) {
-      // Hg vapour stripped off boiling mercury: a pale streamer, widening and thinning downwind
+      // a pale streamer, widening and thinning downwind: Hg vapour off boiling mercury, or (PLUME_STEAM) water
+      // flashing to steam off hot rock, drawn with the bead's steam look (plan Q-1)
+      bool steam = int(K.w + 0.5) == PLUME_STEAM;
       vec3 b = c + X.xyz * X.w;
       float u, tr;
       float d = raySeg(ro, rd, c, b, u, tr);
       float wd = r * (0.6 + 1.8 * u);
-      float a = clamp(PLUME_A * fade * gauss(d / wd) * (1.0 - u * u) * (0.6 + 0.4 * vn3((ro + rd * tr - c) / r * 0.8 - X.xyz * (uTime * 2.0) + K.z)), 0.0, 1.0);
-      gP += PLUME_COL * a; gA = 1.0 - (1.0 - gA) * (1.0 - a); gT = min(gT, tr);
+      float a = clamp((steam ? STEAM_A : PLUME_A) * fade * gauss(d / wd) * (1.0 - u * u) * (0.6 + 0.4 * vn3((ro + rd * tr - c) / r * 0.8 - X.xyz * (uTime * 2.0) + K.z)), 0.0, 1.0);
+      gP += (steam ? STEAM_COL : PLUME_COL) * a; gA = 1.0 - (1.0 - gA) * (1.0 - a); gT = min(gT, tr);
     }
   }
   if (alpha <= 0.0 && gA <= 1e-4) discard;

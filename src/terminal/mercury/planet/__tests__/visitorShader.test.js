@@ -9,7 +9,7 @@ import { DROPLET_RENDER_ORDER, DROPLET_VS } from '../dropletShader';
 import { HG_MIRROR_DECLS_GLSL } from '../hgMirrorGlsl';
 import { VISIT_LIGHT_GLSL } from '../visitorGlsl';
 import { VISITOR_SLOTS, EMBER_GAIN, EMBER_HALO, ROCK_BOUND } from '../visitorSim';
-import { VIS_DROP, VIS_BEAD, VIS_EMBER, VIS_ROCK, VIS_GUST, VIS_PLUME } from '../visitorFrame';
+import { VIS_DROP, VIS_BEAD, VIS_EMBER, VIS_ROCK, VIS_GUST, VIS_PLUME, PLUME_STEAM } from '../visitorFrame';
 
 const declared = (src) => [...src.matchAll(/^uniform\s+\w+\s+(\w+)(?:\[\d+\])?;/gm)].map((m) => m[1]);
 const { vs, fs } = buildVisitorShader();
@@ -77,5 +77,12 @@ describe('visitors matrix: the vapour plume', () => {
     expect(fs).toContain(`const float PLUME_A = ${glf(PLUME_A)};`);
     expect(fs).toContain(`const vec3 PLUME_COL = ${v3(PLUME_COL)};`);
     expect(fs).toContain('} else if (kind == VIS_PLUME) {');
+  });
+  it('draws a PLUME_STEAM plume with the bead steam look, Hg vapour otherwise (plan Q-1)', () => {
+    const { fs } = buildVisitorShader();
+    expect(fs).toContain(`const int PLUME_STEAM = ${PLUME_STEAM};`);
+    expect(fs).toContain('bool steam = int(K.w + 0.5) == PLUME_STEAM;');
+    expect(fs).toContain('steam ? STEAM_COL : PLUME_COL');
+    expect(fs).toContain('steam ? STEAM_A : PLUME_A');
   });
 });

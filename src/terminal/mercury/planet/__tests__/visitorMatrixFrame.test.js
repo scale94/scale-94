@@ -65,6 +65,7 @@ describe('visitorFrame — the matrix slots and bodies', () => {
     const { v, f } = packedAt('air', 700, 1, 0.5);
     expect(f.n).toBe(1);
     expect(f.k[0]).toBe(VIS_PLUME);
+    expect(f.k[3]).toBe(0); // Hg vapour keeps the plume's own look (plan Q-1)
     expect(f.vis[3]).toBeCloseTo(PLUME_W, 9);
     const ax = [f.ax[0], f.ax[1], f.ax[2]];
     expect(Math.hypot(...ax)).toBeCloseTo(1, 5);
