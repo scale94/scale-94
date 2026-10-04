@@ -26,6 +26,7 @@ export const DETACH_OMEGA = 6;             // rad/s: a release this fast flings 
 export const DETACH_FADE_S = 0.6;
 export const FADE_S = 1;                   // every resident fades over its last second
 export const CALM_LIFE = 0.5;              // reduced motion: residents stay half as long
+export const AIM_MAX_RAD = (35 * Math.PI) / 180;  // every landing sits within this of the sub-camera point (matrix spec §4.1)
 
 // How long each touchdown stays, s (0 = nothing stays), and the impulse it sends into the ring (mercuryWaves kinds).
 export const RESIDENT_LIFE_S = Object.freeze({ film: 8, bead: 6, ember: 6, rock: 12, jet: 1.5, ring: 0, crater: 0 });
@@ -198,8 +199,23 @@ export function pickVisitorSlot(buf, phase) {
   return oldest;
 }
 
-// Where the fall lands (world): today's strike point, 40° off the launch node toward the viewer (aimed once at launch:
-// strikeDirWorld allocates), at the live core radius (it changes during a hyper-fling, so every frame).
+// Pull a unit landing direction to within maxRad of the camera's sub-point, keeping its azimuth about that point (the
+// tapped node's side). A limb landing is foreshortened to a sliver (cos 75° ≈ 0.26); inside the cone it faces the viewer.
+export function aimToward(d, cam, maxRad) {
+  const cl = Math.hypot(cam[0], cam[1], cam[2]) || 1;
+  const c0 = cam[0] / cl, c1 = cam[1] / cl, c2 = cam[2] / cl;
+  const k = d[0] * c0 + d[1] * c1 + d[2] * c2;
+  if (k >= Math.cos(maxRad)) return d;
+  const u0 = d[0] - c0 * k, u1 = d[1] - c1 * k, u2 = d[2] - c2 * k;
+  const ul = Math.hypot(u0, u1, u2);
+  if (ul < 1e-9) { d[0] = c0; d[1] = c1; d[2] = c2; return d; }
+  const cm = Math.cos(maxRad), sm = Math.sin(maxRad) / ul;
+  d[0] = c0 * cm + u0 * sm; d[1] = c1 * cm + u1 * sm; d[2] = c2 * cm + u2 * sm;
+  return d;
+}
+
+// Where the fall lands (world): the strike point 40° off the launch node toward the viewer, pulled inside the aim cone
+// (aimed once at launch: strikeDirWorld allocates), at the live core radius (it changes during a hyper-fling, so every frame).
 function landing(v, ctx) {
   v.end[0] = v.dirWorld[0] * ctx.coreR; v.end[1] = v.dirWorld[1] * ctx.coreR; v.end[2] = v.dirWorld[2] * ctx.coreR;
 }
@@ -218,6 +234,7 @@ export function launchVisitor(buf, phase, ctx) {
   const cl = Math.hypot(ctx.cam[0], ctx.cam[1], ctx.cam[2]) || 1;
   for (let k = 0; k < 3; k++) v.bow[k] = (ctx.cam[k] / cl) * FLIGHT_BOW * R_SCENE;
   strikeDirWorld(v.start, ctx.cam, v.dirWorld);
+  aimToward(v.dirWorld, ctx.cam, AIM_MAX_RAD);
   landing(v, ctx);
   return v;
 }

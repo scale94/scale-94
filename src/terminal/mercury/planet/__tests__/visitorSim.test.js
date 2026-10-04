@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   createVisitors, createVisitorOut, launchVisitor, stepVisitors, pickVisitorSlot, flightPoint,
-  impactBranch, VISITOR_SLOTS, MAX_PER_ELEMENT, T_FLIGHT, LEIDENFROST_K,
+  impactBranch, aimToward, AIM_MAX_RAD, VISITOR_SLOTS, MAX_PER_ELEMENT, T_FLIGHT, LEIDENFROST_K,
 } from '../visitorSim';
 import { strikeDirWorld } from '../mercuryImpacts';
 import { R_SCENE } from '../planetLook';
@@ -23,7 +23,7 @@ describe('visitorSim — launch and the fall', () => {
   it('an unknown phase launches nothing', () => {
     expect(launchVisitor(createVisitors(), 'aether', ctxFor('fluid'))).toBeNull();
   });
-  it('touches down exactly at T_FLIGHT, on the strike point (40 deg off the node, toward the viewer)', () => {
+  it('touches down exactly at T_FLIGHT, on the aimed strike point', () => {
     for (const phase of Object.keys(T_FLIGHT)) {
       const buf = createVisitors();
       const ctx = ctxFor(phase);
@@ -32,7 +32,7 @@ describe('visitorSim — launch and the fall', () => {
       expect(ev).toHaveLength(1);
       expect(ev[0].at).toBeGreaterThanOrEqual(T_FLIGHT[phase] - 1e-9);
       expect(ev[0].at).toBeLessThanOrEqual(T_FLIGHT[phase] + ctx.dt + 1e-9);
-      const want = strikeDirWorld(ctx.nodePos, ctx.cam);
+      const want = aimToward(strikeDirWorld(ctx.nodePos, ctx.cam), ctx.cam, AIM_MAX_RAD);
       for (let k = 0; k < 3; k++) expect(ev[0].dirWorld[k]).toBeCloseTo(want[k], 9);
     }
   });
