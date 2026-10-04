@@ -78,7 +78,9 @@ export default function MercurySphere({
         {/* Dashed ring drawn as thin torus */}
         <mesh rotation={[Math.PI / 2, 0, 0]}>
           <torusGeometry args={[ORBIT_RADIUS, 0.004, 8, 80]} />
-          <meshBasicMaterial color="#ffffff" transparent opacity={0.12} />
+          {/* no depth write: seen edge-on its near half crosses the planet, and a written depth there punched a dark line
+              through the planet and clipped the visitors drawn after it */}
+          <meshBasicMaterial color="#ffffff" transparent opacity={0.12} depthWrite={false} />
         </mesh>
 
         {/* Mercury thread — only visible during elongating/flowing beats */}
