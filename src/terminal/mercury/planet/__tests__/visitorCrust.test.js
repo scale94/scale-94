@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   createVisitors, createVisitorOut, launchVisitor, stepVisitors, impactBranch, residentHeight, stampRadius,
   RESIDENT_LIFE_S, IMPULSE_FOR, STAMP_FOR, T_FLIGHT, SOFT_TAU_MIN, POOL_R, POOL_GROW_S, POOL_FREEZE_S, EMBER_R,
-  QUENCH_R, QUENCH_SPREAD_S, SURF_QUENCH, hotTempK, quenchRadius,
+  QUENCH_R, QUENCH_SPREAD_S, QUENCH_STEAM_LIFE_S, SURF_QUENCH, hotTempK, quenchRadius,
 } from '../visitorSim';
 import { LIQUID_TAU } from '../mercuryWaves';
 import { ctxFor, runTo, runCollect } from './visitorTestKit';
@@ -50,7 +50,8 @@ describe('amendment A — water and fire on crust (matrix spec §9)', () => {
     expect(got.impacts[0].impulse).toBe('');
     expect(v.state).toBe('resident');
     expect(v.fade).toBe(1);
-    const later = runCollect(buf, ctx, createVisitorOut(), v.tImpact + QUENCH_SPREAD_S + 0.1);
+    // A10: the visitor stays while its steam rises (the longer of the two lives); the rind still stamps once, at the spread
+    const later = runCollect(buf, ctx, createVisitorOut(), v.tImpact + Math.max(QUENCH_SPREAD_S, QUENCH_STEAM_LIFE_S) + 0.1);
     expect(later.stamps).toHaveLength(1);
     expect(later.stamps[0]).toMatchObject({ kind: 'quench', radius: QUENCH_R, seed: v.seed });
     expect(Math.abs(later.stamps[0].at - (v.tImpact + QUENCH_SPREAD_S))).toBeLessThanOrEqual(ctx.dt + 1e-9);

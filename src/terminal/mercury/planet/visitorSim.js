@@ -93,10 +93,18 @@ export const PLUME_GROW_S = 0.4;
 // Amendment A (spec §9): water and fire on crust.
 export const QUENCH_R = 0.05;              // rad: the quench rind at the end of its spread
 export const QUENCH_SPREAD_S = 0.6;        // the drop flashes off the hot rock fast
-export const QUENCH_STEAM_LEN = 0.06;      // scene units: the steam column it throws up (plan Q-1)
-export const QUENCH_STEAM_GROW_S = 0.15;
-export const QUENCH_STEAM_W = PLUME_W;     // scene units: the quench steam's body radius (the shader widens it 0.6→2.4× along
-                                           // its length). PLUME_W is a needle seen end-on near the sub-camera point; wider = a puff
+export const QUENCH_STEAM_LEN = 0.10;      // scene units: how far the steam puff rises over its life (plan Q-1, A10)
+export const QUENCH_STEAM_W = 0.055;       // scene units: the quench puff's final radius (it is born at 0.6× and grows to 1×)
+// A10 (author ruling): the quench steam is a round puff, lifted 0.6r off the rind, rising QUENCH_STEAM_LEN (the total
+// rise) and growing over its own life, independent of the rind's spread (the visitor stays resident for the longer of the
+// two; the rind stamps at the end of its spread either way). Rise and growth ease out (1−(1−t)²: a flash, then drifting);
+// the fade is 1 − smoothstep(t), so it holds its brightness early and is fully gone at QUENCH_STEAM_LIFE_S.
+export const QUENCH_STEAM_LIFE_S = 0.8;     // author A/B pick B4 (task rise): outlives the 0.6 s spread
+export const quenchSteamT = (a) => Math.min(1, Math.max(0, a / QUENCH_STEAM_LIFE_S));
+export const quenchSteamEase = (a) => { const t = 1 - quenchSteamT(a); return 1 - t * t; };
+export const quenchSteamFade = (a) => { const t = quenchSteamT(a); return 1 - t * t * (3 - 2 * t); };
+export const quenchSteamRise = (a) => QUENCH_STEAM_LEN * quenchSteamEase(a);
+export const quenchSteamRadius = (a) => QUENCH_STEAM_W * (0.6 + 0.4 * quenchSteamEase(a));
 
 // Surface slots (visitorFrame → the planet shader): what an element leaves IN the liquid.
 export const VISIT_SURF_MAX = 4;
@@ -196,7 +204,7 @@ const FLIGHT_R = { fluid: DROP_R, thermal: EMBER_R, earth: ROCK_R, air: GUST_W }
 
 function blank() {
   return {
-    live: false, state: 'free', phase: 'fluid', kind: '', seed: 0, t0: 0, tImpact: 0, tDetach: 0, fade: 1, fade0: 1,
+    live: false, state: 'free', phase: 'fluid', kind: '', seed: 0, t0: 0, tImpact: 0, tDetach: 0, fade: 1, fade0: 1, stamped: false,
     start: [0, 0, 0], end: [0, 0, 0], pos: [0, 0, 0], vel: [0, 0, 0], bow: [0, 0, 0],
     dirBody: [0, 0, 1], dirWorld: [0, 0, 1], tan: [0, 0, 0], r: 0, spin: 0, tempK: 0, rng: 1,
   };
@@ -322,7 +330,7 @@ export function launchVisitor(buf, phase, ctx) {
   const v = buf.v[pickVisitorSlot(buf, phase)];
   if (!v.live) buf.live++;
   buf.seq = (buf.seq + 1) | 0;
-  v.live = true; v.state = 'flight'; v.phase = phase; v.kind = '';
+  v.live = true; v.state = 'flight'; v.phase = phase; v.kind = ''; v.stamped = false;
   v.t0 = ctx.tS; v.tImpact = 0; v.tDetach = 0; v.fade = 1; v.fade0 = 1;
   v.seed = Math.imul(buf.seq, 2654435761) >>> 0 || 1;
   v.rng = v.seed;
@@ -352,7 +360,9 @@ export function flightVelocity(v, s, T, out) {
   return out;
 }
 
-const residentLife = (v, ctx) => RESIDENT_LIFE_S[v.kind] * (ctx.calm ? CALM_LIFE : 1);
+// a quench stays resident while its steam lives, past its spread (A10); it stamps at the end of the spread (stepResident)
+const residentLife = (v, ctx) => (v.kind === 'quench' ? Math.max(RESIDENT_LIFE_S.quench, QUENCH_STEAM_LIFE_S) : RESIDENT_LIFE_S[v.kind])
+  * (ctx.calm ? CALM_LIFE : 1);
 
 export const stampRadius = (kind) => (kind === 'frost' ? FROST_R : kind === 'quench' ? QUENCH_R : kind === 'pool' || kind === 'crustpool' ? POOL_R : PIT_R);
 
@@ -427,7 +437,8 @@ function skate(v, dt) {
 
 function stepResident(v, ctx, out) {
   const a = ctx.tS - v.tImpact, life = residentLife(v, ctx);
-  if (a >= life) { if (STAMP_FOR[v.kind]) emitStamp(v, out); v.state = 'free'; return; }
+  if (v.kind === 'quench' && !v.stamped && a >= RESIDENT_LIFE_S.quench) { emitStamp(v, out); v.stamped = true; }
+  if (a >= life) { if (STAMP_FOR[v.kind] && !v.stamped) emitStamp(v, out); v.state = 'free'; return; }
   // the stamping kinds keep full weight until the stamp replaces them (plan P-4)
   v.fade = STAMP_FOR[v.kind] ? 1 : fadeAt(a, life);
   if (v.kind === 'bead') {

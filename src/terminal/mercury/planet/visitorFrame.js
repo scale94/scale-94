@@ -6,7 +6,7 @@ import {
   VISITOR_SLOTS, VISIT_SURF_MAX, SURF_FILM, SURF_HOT, SURF_MENISCUS, SURF_JET, SURF_FROST, SURF_POOL, SURF_COLLAR, DROP_R,
   DROP_STRETCH_K, DROP_STRETCH_MAX, BEAD_OBLATE, EMBER_R, EMBER_BODY_S, EMBER_TAIL_S, EMBER_HALO, ROCK_R, ROCK_BOUND,
   GUST_TRAIL_S, GUST_W, MENISCUS_RING_DEPTH, JET_R, JET_DEPTH, COLLAR_H, PLUME_LEN, PLUME_LIFT, PLUME_W, PLUME_GROW_S,
-  SURF_QUENCH, QUENCH_STEAM_LEN, QUENCH_STEAM_GROW_S, QUENCH_STEAM_W, RESIDENT_LIFE_S, quenchRadius,
+  SURF_QUENCH, quenchSteamFade, quenchSteamRise, quenchSteamRadius, quenchRadius,
   filmRadius, filmThicknessNm, clearRadius, clearDepth, hotTempK, jetEnvelope, frostRadius, poolRadius, poolFreeze,
 } from './visitorSim';
 
@@ -106,19 +106,19 @@ function packSettled(f, view, v, a, ctx) {
     const len = PLUME_LEN * Math.min(1, a / PLUME_GROW_S);
     pushBody(f, view, VIS_PLUME, v.pos, PLUME_W, _a, len, v.fade, seedFrac(v.seed), _c, trailBound(v.pos, _a, len, 3 * PLUME_W));
   } else if (v.kind === 'quench') {
-    // water flash-boiling off the hot rock (amendment A): a short column of steam straight up, gone by the stamp
-    // (plan Q-1: the visitor pass's free vapour body, tinted as the bead's steam; the bead's own is drawn inside it)
-    const len = QUENCH_STEAM_LEN * Math.min(1, a / QUENCH_STEAM_GROW_S);
-    const steam = v.fade * (1 - Math.min(1, a / RESIDENT_LIFE_S.quench));
-    pushBody(f, view, VIS_PLUME, v.pos, QUENCH_STEAM_W, v.dirWorld, len, steam, seedFrac(v.seed), _c,
-      trailBound(v.pos, v.dirWorld, len, 3 * QUENCH_STEAM_W), PLUME_STEAM); // the rect grows with the puff or it clips
+    // water flash-boiling off the hot rock (amendment A, A10 author ruling): a round puff of steam lifted 0.6r off the
+    // rind, rising and growing as it fades. Packed: r = its radius now, axW = its rise now (the shader centres the ball at
+    // pos + up·(axW + 0.6r)); pushBody drops it once the fade reaches 0, so a spent puff costs nothing.
+    const r = quenchSteamRadius(a), rise = quenchSteamRise(a);
+    pushBody(f, view, VIS_PLUME, v.pos, r, v.dirWorld, rise, v.fade * quenchSteamFade(a), seedFrac(v.seed), _c,
+      trailBound(v.pos, v.dirWorld, rise + 1.2 * r, 3 * r), PLUME_STEAM); // the rect holds the risen, grown ball (+3r)
   }
 }
 
 // Film, hot spot, gust, strip, frost, the pools and the quench rind stay in the surface while they fade (even when flung);
 // a rock's meniscus and a sinking rock's collar leave with the rock.
 const hasSurface = (v) => v.kind === 'film' || v.kind === 'ember' || v.kind === 'jet' || v.kind === 'strip' || v.kind === 'frost'
-  || v.kind === 'pool' || v.kind === 'crustpool' || v.kind === 'quench'
+  || v.kind === 'pool' || v.kind === 'crustpool' || (v.kind === 'quench' && !v.stamped)  // A10: the stamp replaces the rind
   || ((v.kind === 'rock' || v.kind === 'sink') && v.state === 'resident');
 
 function packSurface(f, j, v, ctx) {

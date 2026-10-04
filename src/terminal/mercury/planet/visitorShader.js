@@ -38,10 +38,10 @@ export const MOTES = 4;
 export const MOTE_COL = [0.5, 0.48, 0.45];
 export const PLUME_A = 0.2;
 export const PLUME_COL = [0.62, 0.68, 0.78];
-// The quench's steam column (a PLUME_STEAM plume) has its own knobs: it sits over bright lit crust, where the bead's steam
-// (over a dark liquid mirror) can't be seen. Defaults = the bead's look.
-export const QUENCH_STEAM_A = STEAM_A;
-export const QUENCH_STEAM_COL = STEAM_COL;
+// The quench's steam puff (a PLUME_STEAM plume, A10) has its own knobs: it sits over bright lit crust, where the bead's
+// steam (over a dark liquid mirror) can't be seen, so its colour is an HDR white (> 1) brighter than the lit crust.
+export const QUENCH_STEAM_A = 1.2;          // A10 pick B4 (task rise)
+export const QUENCH_STEAM_COL = [1.3, 1.32, 1.35];
 
 export const VISITOR_OWN_UNIFORMS = ['uRect', 'uVis', 'uVisAx', 'uVisK', 'uVisN', 'uPxAngle', 'uTime', 'uCoreR'];
 export const VISITOR_UNIFORMS = [...VISITOR_OWN_UNIFORMS, ...HG_MIRROR_UNIFORMS];
@@ -302,6 +302,8 @@ void main() {
       float u, tr;
       float d = raySeg(ro, rd, c, b, u, tr);
       float wd = r * (0.6 + 1.8 * u);
+      // A10: the quench steam is a soft round puff, its centre lifted 0.6r off the rind plus its rise so far (X.w)
+      if (steam) { vec3 pc = c + X.xyz * (X.w + 0.6 * r); tr = max(dot(pc - ro, rd), 0.0); d = length(ro + rd * tr - pc); u = 0.0; wd = r; }
       float a = clamp((steam ? QUENCH_STEAM_A : PLUME_A) * fade * gauss(d / wd) * (1.0 - u * u) * (0.6 + 0.4 * vn3((ro + rd * tr - c) / r * 0.8 - X.xyz * (uTime * 2.0) + K.z)), 0.0, 1.0);
       gP += (steam ? QUENCH_STEAM_COL : PLUME_COL) * a; gA = 1.0 - (1.0 - gA) * (1.0 - a); gT = min(gT, tr);
     }

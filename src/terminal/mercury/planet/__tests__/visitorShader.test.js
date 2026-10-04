@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { glf, v3 } from '../../../gl/glf';
 import {
   buildVisitorShader, VISITOR_UNIFORMS, VISITOR_MATERIAL, VISITOR_RENDER_ORDER, WATER_N, WATER_F0, WATER_TINT,
-  ROCK_PLANES, ROCK_AA, GAP_DARK, STEAM_A, STEAM_COL, QUENCH_STEAM_A, QUENCH_STEAM_COL, GUST_A, PLUME_A, PLUME_COL,
+  ROCK_PLANES, ROCK_AA, GAP_DARK, STEAM_A, QUENCH_STEAM_A, QUENCH_STEAM_COL, GUST_A, PLUME_A, PLUME_COL,
 } from '../visitorShader';
 import { DROPLET_RENDER_ORDER, DROPLET_VS } from '../dropletShader';
 import { HG_MIRROR_DECLS_GLSL } from '../hgMirrorGlsl';
@@ -87,10 +87,15 @@ describe('visitors matrix: the vapour plume', () => {
     expect(fs).toContain(`const float QUENCH_STEAM_A = ${glf(QUENCH_STEAM_A)};`);
     expect(fs).toContain(`const vec3 QUENCH_STEAM_COL = ${v3(QUENCH_STEAM_COL)};`);
   });
-  it('the quench steam knobs default to the bead steam look (A7: output-identical)', () => {
-    expect(QUENCH_STEAM_A).toBe(STEAM_A);
-    expect(QUENCH_STEAM_COL).toEqual(STEAM_COL);
+  it('the quench steam is a soft round puff lifted 0.6r plus its rise; an HDR white (A10 pick B4)', () => {
+    expect(QUENCH_STEAM_A).toBe(1.2);
+    expect(QUENCH_STEAM_COL).toEqual([1.3, 1.32, 1.35]);
+    expect(Math.min(...QUENCH_STEAM_COL)).toBeGreaterThan(1);   // brighter than the lit crust
     const { fs } = buildVisitorShader();
+    expect(fs).toContain('if (steam) { vec3 pc = c + X.xyz * (X.w + 0.6 * r); tr = max(dot(pc - ro, rd), 0.0); d = length(ro + rd * tr - pc); u = 0.0; wd = r; }');
+    // the Hg-vapour strip keeps its segment maths
+    expect(fs).toContain('float d = raySeg(ro, rd, c, b, u, tr);');
+    expect(fs).toContain('float wd = r * (0.6 + 1.8 * u);');
     expect(fs).toContain('gP += STEAM_COL * a;');   // the bead's own steam is untouched
   });
 });
