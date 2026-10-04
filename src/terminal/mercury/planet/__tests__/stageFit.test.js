@@ -38,8 +38,9 @@ describe('fitCameraDistance', () => {
     expect(fitCameraDistance({ halfWidthPx: NaN, halfHeightPx: 300, ringR: 1.4, marginPx: 70, fovDeg: 42, minDist: 3.6 })).toBe(3.6);
   });
 
-  it('margins are half a pressed handle plus glow', () => {
+  it('desktop fits a pressed handle; mobile fits a resting one (author: the 380 ms press burst may touch the edge)', () => {
     expect(HANDLE_MARGIN_PX.desktop).toBeGreaterThanOrEqual((92 * 1.38) / 2);
-    expect(HANDLE_MARGIN_PX.mobile).toBeGreaterThanOrEqual((104 * 1.38) / 2);
+    expect(HANDLE_MARGIN_PX.mobile).toBeGreaterThanOrEqual(104 / 2);
+    expect(HANDLE_MARGIN_PX.mobile).toBeLessThan((104 * 1.38) / 2);
   });
 });
