@@ -73,4 +73,10 @@ describe('planetQuality', () => {
     expect([TIERS.full.visitSlots, TIERS.phone.visitSlots, TIERS.lite.visitSlots]).toEqual([4, 2, 1]);
     for (const t of TIER_NAMES) expect(TIERS[t].visitSlots).toBeLessThanOrEqual(VISIT_SURF_MAX);
   });
+
+  it('bead caps per tier', () => {
+    expect(TIERS.full.beads).toBe(256);
+    expect(TIERS.phone.beads).toBe(64);
+    expect(TIERS.lite.beads).toBe(32);
+  });
 });
