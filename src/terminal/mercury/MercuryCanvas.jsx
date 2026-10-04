@@ -1,5 +1,6 @@
-import { Suspense, useCallback, useRef } from 'react';
-import { Canvas } from '@react-three/fiber';
+import { Suspense, useCallback, useLayoutEffect, useRef } from 'react';
+import { Canvas, useThree } from '@react-three/fiber';
+import useStageCameraDist from './useStageCameraDist';
 import * as THREE from 'three';
 
 import { TUNE } from './mercuryTuning';
@@ -20,6 +21,20 @@ const GHOST_DENSITY = isMobile ? 150 : 300;
 const SEARCH = typeof window !== 'undefined' ? window.location.search : '';
 const TIER = pickTier({ isMobile, search: SEARCH });
 const PERF_HUD = import.meta.env.DEV && perfHudOn(SEARCH);
+
+// Keeps the four element handles fully in frame at any canvas size (spec: stage layout §2).
+// Writes the camera only when the fitted distance changes; FOV is untouched.
+function StageCameraFit({ isMobile }) {
+  const camera = useThree((s) => s.camera);
+  const invalidate = useThree((s) => s.invalidate);
+  const dist = useStageCameraDist(isMobile);
+  useLayoutEffect(() => {
+    camera.position.set(0, 0, dist);
+    camera.updateProjectionMatrix();
+    invalidate();
+  }, [camera, dist, invalidate]);
+  return null;
+}
 
 export default function MercuryCanvas({
   params,
@@ -70,6 +85,7 @@ export default function MercuryCanvas({
       onCreated={(state) => { if (import.meta.env.DEV) window.__mercury = state; }}
     >
       <Suspense fallback={null}>
+        <StageCameraFit isMobile={isMobile} />
         {/* NormalBlending: prevents additive accumulation to white in multi-system canvas */}
         {/* No transmission-glass boundary meshes here: drei's transmission-glass material renders the
             whole scene into its own FBO every frame even while hidden (8 extra renders per frame). */}

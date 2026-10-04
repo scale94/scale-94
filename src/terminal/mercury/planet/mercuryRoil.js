@@ -58,9 +58,10 @@ export const popZoom = (pxArc) => (Number.isFinite(pxArc) && pxArc > 0
 // pxArc = length(fwidth(xw)) at the SUBSOLAR point, from the real camera (CAMERA_DIST,
 // CAMERA_FOV_DEG; the Sun at PHASE_ANGLE_DEG): forward differences, |dFdx| + |dFdy| per
 // component, as the shader takes it. three's fov is vertical, so only the drawing buffer's
-// height in device px matters. camera: 'desktop' | 'mobile'.
-export function subsolarPxArc(camera, heightPx) {
-  const D = CAMERA_DIST[camera];
+// height in device px matters. camera: 'desktop' | 'mobile'; dist: the LIVE camera distance
+// (useStageCameraDist fits it to the canvas; CAMERA_DIST is its floor and the default).
+export function subsolarPxArc(camera, heightPx, dist = CAMERA_DIST[camera]) {
+  const D = dist;
   const tanHalf = Math.tan((CAMERA_FOV_DEG[camera] * Math.PI) / 360);
   const P = SUN_DIR_WORLD.map((c) => c * R_SCENE);
   const s0 = [P[0] / (D - P[2]), P[1] / (D - P[2])];

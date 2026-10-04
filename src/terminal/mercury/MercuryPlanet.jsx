@@ -32,6 +32,7 @@ import { popZoom, subsolarPxArc } from './planet/mercuryRoil';
 import { createBody, stepBody, coolBody, targetFromYaw, MAX_OMEGA } from './planet/mercuryBody';
 import { ORBIT_NODES, orbitPrecessionAngle, nodeWorldPosition } from './orbitNodes';
 import useMercuryDrag from './useMercuryDrag';
+import useStageCameraDist from './useStageCameraDist';
 import { registerTuningRig, DEV_OVERRIDES } from './mercuryTuning';
 import MercuryExosphere from './MercuryExosphere';
 import { tailBrightness, tailLength, boilCoverage } from './planet/mercuryExosphere';
@@ -279,6 +280,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
   // The drawing buffer's height in device px: the pops are sized from it (mercuryRoil.popZoom).
   const bufferH = useThree((s) => s.size.height * s.viewport.dpr);
   const bufferW = useThree((s) => s.size.width * s.viewport.dpr);
+  const camDist = useStageCameraDist(isMobile);
   const drag = useMercuryDrag(gl.domElement);
   const geometry = useMemo(() => new THREE.PlaneGeometry(2, 2), []);
 
@@ -456,11 +458,12 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
   // Layout effects run in the commit that attaches a new material, before r3f's next frame.
   useLayoutEffect(() => { bindPlanetMaps(material.uniforms, maps); }, [material, maps]);
 
-  // Pop size from the screen: on mount, on resize / DPR change, and for each new material; never per frame.
+  // Pop size from the screen: on mount, on resize / DPR change, on a camera re-fit, and for each new material;
+  // never per frame.
   // The pop lattice re-forms only here, so a pop never jumps mid-life except on a resize.
   useLayoutEffect(() => {
-    material.uniforms.uPopZoom.value = popZoom(subsolarPxArc(isMobile ? 'mobile' : 'desktop', bufferH));
-  }, [material, bufferH, isMobile]);
+    material.uniforms.uPopZoom.value = popZoom(subsolarPxArc(isMobile ? 'mobile' : 'desktop', bufferH, camDist));
+  }, [material, bufferH, isMobile, camDist]);
 
   // A new material starts from the mount-time ephemeris; refresh it on the very next frame.
   const nextEphemeris = useRef(0);

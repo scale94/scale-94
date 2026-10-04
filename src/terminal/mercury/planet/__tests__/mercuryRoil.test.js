@@ -293,3 +293,13 @@ describe('pop rate from the screen (Task 7): a coarse screen keeps a lively boil
     }
   });
 });
+
+describe('subsolarPxArc with a live camera distance', () => {
+  it('defaults to CAMERA_DIST (existing callers unchanged)', () => {
+    expect(subsolarPxArc('desktop', 1300, 3.6)).toBe(subsolarPxArc('desktop', 1300));
+    expect(subsolarPxArc('mobile', 900, 4.6)).toBe(subsolarPxArc('mobile', 900));
+  });
+  it('a farther camera makes one pixel cover more arc', () => {
+    expect(subsolarPxArc('desktop', 1300, 4.4)).toBeGreaterThan(subsolarPxArc('desktop', 1300, 3.6));
+  });
+});
