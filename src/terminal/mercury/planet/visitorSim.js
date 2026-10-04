@@ -188,6 +188,9 @@ export function createVisitorOut() {
   return {
     nImpacts: 0,
     impacts: Array.from({ length: VISITOR_SLOTS }, () => ({ kind: '', impulse: '', phase: '', dirBody: [0, 0, 1], dirWorld: [0, 0, 1], seed: 0, tempK: 0 })),
+    // persistent marks for the scar map (frost, glaze, pit), drained by MercuryPlanet every frame
+    nStamps: 0,
+    stamps: Array.from({ length: VISITOR_SLOTS }, () => ({ kind: '', dirBody: [0, 0, 1], radius: 0, seed: 0 })),
   };
 }
 
@@ -283,6 +286,15 @@ export function flightVelocity(v, s, T, out) {
 
 const residentLife = (v, ctx) => RESIDENT_LIFE_S[v.kind] * (ctx.calm ? CALM_LIFE : 1);
 
+export const stampRadius = (kind) => (kind === 'frost' ? FROST_R : kind === 'pool' ? POOL_R : PIT_R);
+
+function emitStamp(v, out) {
+  if (out.nStamps >= out.stamps.length) return;
+  const s = out.stamps[out.nStamps++];
+  s.kind = STAMP_FOR[v.kind]; s.radius = stampRadius(v.kind); s.seed = v.seed;
+  s.dirBody[0] = v.dirBody[0]; s.dirBody[1] = v.dirBody[1]; s.dirBody[2] = v.dirBody[2];
+}
+
 function stepFlight(v, ctx, out) {
   const T = T_FLIGHT[v.phase];
   const s = ctx.calm ? 1 : Math.min(1, (ctx.tS - v.t0) / T);
@@ -306,6 +318,8 @@ function touchdown(v, ctx, out) {
   v.kind = kind;
   v.tImpact = ctx.tS;
   if (!(RESIDENT_LIFE_S[kind] > 0)) { v.state = 'free'; return; }
+  // reduced motion: no creep, growth or sinking: the mark lands at full size now
+  if (ctx.calm && STAMP_FOR[kind]) { emitStamp(v, out); v.state = 'free'; return; }
   v.state = 'resident';
   // the arrival's sideways motion, carried into the body frame: a bead skates on along it, a gust blows along it
   tangentInto(v.vel, v.dirWorld, _t);
@@ -314,7 +328,7 @@ function touchdown(v, ctx, out) {
   const want = kind === 'bead' ? (ctx.calm ? 0 : SKATE_V0) : kind === 'jet' || kind === 'strip' ? 1 : 0;
   for (let k = 0; k < 3; k++) v.tan[k] = tl > 1e-9 ? (v.tan[k] / tl) * want : 0;
   v.r = kind === 'bead' ? BEAD_R : kind === 'rock' || kind === 'sink' ? ROCK_R : kind === 'ember' || kind === 'pool' ? EMBER_R : 0;
-  stepResident(v, ctx);
+  stepResident(v, ctx, out);
 }
 
 export function residentHeight(v, a, life, calm) {
@@ -343,9 +357,9 @@ function skate(v, dt) {
   tangentInto(t, d, t);
 }
 
-function stepResident(v, ctx) {
+function stepResident(v, ctx, out) {
   const a = ctx.tS - v.tImpact, life = residentLife(v, ctx);
-  if (a >= life) { v.state = 'free'; return; }
+  if (a >= life) { if (STAMP_FOR[v.kind]) emitStamp(v, out); v.state = 'free'; return; }
   // the stamping kinds keep full weight until the stamp replaces them (plan P-4)
   v.fade = STAMP_FOR[v.kind] ? 1 : fadeAt(a, life);
   if (v.kind === 'bead') {
@@ -382,7 +396,7 @@ function stepDetached(v, ctx) {
 }
 
 export function stepVisitors(buf, ctx, out) {
-  out.nImpacts = 0;
+  out.nImpacts = 0; out.nStamps = 0;
   if (buf.live === 0) return out;
   for (let i = 0; i < VISITOR_SLOTS; i++) {
     const v = buf.v[i];
@@ -391,7 +405,7 @@ export function stepVisitors(buf, ctx, out) {
     else if (v.state === 'resident') {
       // frost, the pool and a sinking rock are in or under the surface: a fling leaves them (plan P-3)
       if (ctx.detach && !STAMP_FOR[v.kind]) detachVisitor(v, ctx);
-      else stepResident(v, ctx);
+      else stepResident(v, ctx, out);
     }
     if (v.state === 'detached') stepDetached(v, ctx);
     if (v.state === 'free') { v.live = false; buf.live--; }
