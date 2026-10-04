@@ -16,23 +16,43 @@ describe('scar map — amendment A', () => {
   });
   it('stampQuench writes only B, with the profile (core 255, ring ~128), and sets marksLive', () => {
     const m = createScarMap(512, 256);
-    const before = Array.from(m.bytes);
+    const before = new Uint8Array(m.bytes);
     const r = 0.2;
     expect(stampQuench(m, D, r, 7)).toBeGreaterThan(0);
     expect(m.marksLive).toBe(true);
-    let core = 0, ring = 0;
+
+    let coreCount = 0, ringCount = 0;
+    let badR = 0, badG = 0, badA = 0;
+    let badCoreValue = 0, badRingValue = 0, badOutValue = 0;
+
     for (let i = 0; i < m.w * m.h; i++) {
-      expect(m.bytes[4 * i]).toBe(before[4 * i]);
-      expect(m.bytes[4 * i + 1]).toBe(before[4 * i + 1]);
-      expect(m.bytes[4 * i + 3]).toBe(before[4 * i + 3]);
+      if (m.bytes[4 * i] !== before[4 * i]) badR++;
+      if (m.bytes[4 * i + 1] !== before[4 * i + 1]) badG++;
+      if (m.bytes[4 * i + 3] !== before[4 * i + 3]) badA++;
+
       const s = angTo(m, i) / r, b = m.bytes[4 * i + 2];
-      if (s < 0.5) { expect(b).toBe(255); core++; }
-      if (s > 0.72 && s < 0.93) { expect(b).toBeGreaterThanOrEqual(126); expect(b).toBeLessThanOrEqual(129); ring++; }
-      if (s > 1.25) expect(b).toBe(0);
+      if (s < 0.5) {
+        coreCount++;
+        if (b !== 255) badCoreValue++;
+      }
+      if (s > 0.72 && s < 0.93) {
+        ringCount++;
+        if (b < 126 || b > 129) badRingValue++;
+      }
+      if (s > 1.25) {
+        if (b !== 0) badOutValue++;
+      }
     }
-    expect(core).toBeGreaterThan(10);
-    expect(ring).toBeGreaterThan(10);
-  }, 30000);
+
+    expect(badR).toBe(0);
+    expect(badG).toBe(0);
+    expect(badA).toBe(0);
+    expect(badCoreValue).toBe(0);
+    expect(badRingValue).toBe(0);
+    expect(badOutValue).toBe(0);
+    expect(coreCount).toBeGreaterThan(10);
+    expect(ringCount).toBeGreaterThan(10);
+  });
   it('stampQuench max-combines (a second, smaller stamp never lowers a texel)', () => {
     const m = createScarMap(256, 128);
     stampQuench(m, D, 0.2, 1);

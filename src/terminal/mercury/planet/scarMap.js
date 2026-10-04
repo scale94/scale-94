@@ -127,7 +127,7 @@ export function stampGlaze(map, d, radius) {
   return touched;
 }
 
-// Water flash-quenched on hot crust (spec ง9.3): one profile in B, read by the crust shading.
+// Water flash-quenched on hot crust (spec ยง9.3): one profile in B, read by the crust shading.
 // A full core (the dark glassy skin), a half-height plateau (the pale evaporite ring), then nothing.
 // s = angle / radius, h in [0, 1) jitters the outer edge. The shader's quenchProfile mirrors this exactly.
 export const quenchProfile = (s, h) => 1 - 0.5 * smooth01((s - 0.55) / 0.15) - 0.5 * smooth01((s - (0.95 + 0.1 * h)) / 0.15);
@@ -203,7 +203,7 @@ export function healMelted(map, q, sunWorld, tssK, heatK) {
   return changed;   // true only when a byte moved: that is what costs a texture upload
 }
 
-// A state change wipes every frost, quench and glaze mark (B, A); crossMarks decides when (spec ง9.6).
+// A state change wipes every frost, quench and glaze mark (B, A); crossMarks decides when (spec ยง9.6).
 export function clearMarks(map) {
   if (!map.marksLive) return false;
   for (let i = 0; i < map.w * map.h; i++) { map.bytes[4 * i + 2] = 0; map.bytes[4 * i + 3] = 0; }
@@ -211,7 +211,7 @@ export function clearMarks(map) {
   return true;
 }
 
-// Marks last until the planet changes state (spec R3, ง9.6). Crust -> liquid melts the quench rinds and the glaze with the
+// Marks last until the planet changes state (spec R3, ยง9.6). Crust -> liquid melts the quench rinds and the glaze with the
 // crust; liquid -> crust buries the frozen-Hg frost and glaze. wasLiquid null = no previous frame: nothing to compare.
 export function crossMarks(map, wasLiquid, isLiquid) {
   if (wasLiquid === null || wasLiquid === isLiquid) return false;
