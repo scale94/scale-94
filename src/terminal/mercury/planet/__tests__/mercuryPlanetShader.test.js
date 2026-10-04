@@ -522,8 +522,10 @@ describe('visitors matrix amendment A: marks on the crust, the live quench, the 
     expect(PLANET_FS).toContain(`const vec3 EVAPORITE_ALBEDO = ${v3(EVAPORITE_ALBEDO)};`);
   });
   it('the evaporite ring knobs: edge widens both transitions, lift blends toward the crust brightened (A7)', () => {
-    expect(EVAPORITE_EDGE).toBe(0);
-    expect(EVAPORITE_LIFT).toBe(0);
+    expect(EVAPORITE_A).toBe(0.45); // author pick R3 (A8)
+    expect(EVAPORITE_EDGE).toBe(0.05);
+    expect(EVAPORITE_LIFT).toBe(0.5);
+    expect(EVAPORITE_GAIN).toBe(2.2);
     expect(PLANET_FS).toContain('float ring = smoothstep(0.15 - EVAPORITE_EDGE, 0.4 + EVAPORITE_EDGE, b) * (1.0 - smoothstep(0.6 - EVAPORITE_EDGE, 0.8 + EVAPORITE_EDGE, b));');
     expect(PLANET_FS).toContain('mix(EVAPORITE_ALBEDO * (light + uNightFloor + FROST_ENV * envRadiance(nW, 1.0, P, nW)), col * EVAPORITE_GAIN * EVAPORITE_TINT, EVAPORITE_LIFT)');
   });
