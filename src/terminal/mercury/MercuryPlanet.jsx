@@ -17,10 +17,12 @@ import { AETHER_BASE_DIRS, aetherLobeColors, aetherLobeDirs } from './planet/aet
 import { MAPS } from './planet/mercuryMaps.generated';
 import { bindPlanetMaps } from './planet/planetMaps';
 import { subsolarTempK, HG_BOIL_K } from './planet/mercuryThermal';
-import { createScarMap, stampCrater, matureScars, healScars, SCAR_TICK_S } from './planet/scarMap';
+import {
+  createScarMap, stampCrater, stampFrost, stampQuench, stampGlaze, stampPit, matureScars, healScars, healMelted, crossMarks, SCAR_TICK_S,
+} from './planet/scarMap';
 import {
   IMPULSE_SLOTS, createImpulses, addImpulse, createImpulseFrame, impulseFrame, spinBulge, createWake, wakeImpulse, slipDirWorld,
-  shapeHeight,
+  shapeHeight, LIQUID_TAU,
 } from './planet/mercuryWaves';
 import {
   IMPACT_MODE_AMP, IMPACT_WAVE_AMP, VISITOR_IMPACT, worldToBody, bodyToWorld, calmGlow,
@@ -44,6 +46,7 @@ import { createDropFrame, packFamily, pxPerUnitAt, pxAngleOf } from './planet/br
 import useDropletField from './useDropletField';
 import {
   createVisitors, createVisitorCtx, createVisitorOut, launchVisitor, stepVisitors, DETACH_OMEGA, EXO_PUFF, EXO_PUFF_S, VISIT_SURF_MAX,
+  PIT_DEPTH_M,
 } from './planet/visitorSim';
 import { createVisitorFrame, packVisitors } from './planet/visitorFrame';
 import useVisitorField from './useVisitorField';
@@ -289,6 +292,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
   // The crust's memory (scarMap.js): a CPU buffer uploaded as RGBA8. Neutral = no scars.
   const scar = useMemo(() => createScarMap(), []);
   const scarTex = useMemo(() => {
+    // A is glaze data (0 on unmarked texels), not opacity: this texture must never be premultiplied.
     const tex = new THREE.DataTexture(scar.bytes, scar.w, scar.h, THREE.RGBAFormat, THREE.UnsignedByteType);
     tex.colorSpace = THREE.NoColorSpace;
     tex.flipY = false;
@@ -301,6 +305,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     return tex;
   }, [scar]);
   useEffect(() => () => scarTex.dispose(), [scarTex]);
+  useEffect(() => { if (import.meta.env.DEV) window.__mercuryScar = scar; }, [scar]); // probes read the marks
 
   const shader = useMemo(() => buildPlanetShader({ tier, calm }), [tier, calm]);
   const material = useMemo(() => new THREE.RawShaderMaterial({
@@ -357,6 +362,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
       uVisitDir: { value: Array.from({ length: VISIT_SURF_MAX }, () => new THREE.Vector4(0, 0, 1, 0)) },
       uVisitA: { value: Array.from({ length: VISIT_SURF_MAX }, () => new THREE.Vector4()) },
       uVisitB: { value: Array.from({ length: VISIT_SURF_MAX }, () => new THREE.Vector4()) },
+      uMarksOn: { value: 0 },
     },
   }), [isMobile, init, body, scarTex, shader]);
 
@@ -384,6 +390,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     bulge: [0, 1, 0, 0],
     seed: 1,
     scarClock: 0,
+    marksLiquid: null,   // the liquid/crust side last frame: marks clear when it changes (matrix spec §9.6)
     aetherT: 0,
     glowT0: -Infinity,
     glowDirBody: [0, 0, 1],
@@ -548,13 +555,27 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
       } else if (calm) {
         surf.glowT0 = t; // reduced motion: the touchdown brightens the point instead of ringing
         surf.glowDirBody[0] = ev.dirBody[0]; surf.glowDirBody[1] = ev.dirBody[1]; surf.glowDirBody[2] = ev.dirBody[2];
-      } else if (ev.kind === 'ring') {
+      } else if (ev.impulse === 'ring') {
+        // frozen Hg rings, frost and melt pools included (plan P-5)
         addImpulse(surf.impulses, { dirBody: ev.dirBody, tS: t, mode: IMPACT_MODE_AMP.ring, wave: IMPACT_WAVE_AMP.ring, kind: 'ring' });
-      } else {
+      } else if (ev.impulse) {
         const a = VISITOR_IMPACT[ev.impulse];
         addImpulse(surf.impulses, { dirBody: ev.dirBody, tS: t, mode: a.mode, wave: a.wave, kind: ev.impulse });
         if (ev.phase === 'thermal' && ev.tempK > HG_BOIL_K) vis.exoPuff = EXO_PUFF;
+        if (ev.kind === 'strip') vis.exoPuff = EXO_PUFF; // a gust strips vapour off boiling Hg into the exosphere
       }
+    }
+    // Persistent marks (frost, glaze, pit): stamped even under reduced motion; a mark is not motion.
+    // Q-6: a stamp belongs to one side of the state crossing; one that outlived its side is dropped, never stamped on the wrong state.
+    const liquidNow = body.tau >= LIQUID_TAU;
+    for (let k = 0; k < vis.out.nStamps; k++) {
+      const st = vis.out.stamps[k];
+      if (st.crust === liquidNow) continue;
+      if (st.kind === 'frost') stampFrost(scar, st.dirBody, st.radius, st.seed);
+      else if (st.kind === 'quench') stampQuench(scar, st.dirBody, st.radius, st.seed);
+      else if (st.kind === 'glaze') stampGlaze(scar, st.dirBody, st.radius);
+      else stampPit(scar, st.dirBody, st.radius, PIT_DEPTH_M);
+      scarDirty = true;
     }
 
     if ((ds.dragging || ds.released) && ds.aimed && pickSphereDir(ds.ndc, camera, R_SCENE * drop.coreScale, surf.w)) {
@@ -574,12 +595,20 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     if (ds.released) surf.hasDragDir = false;
 
     if (body.tau >= 1 && healScars(scar)) scarDirty = true;
+    // Marks last until the planet changes state (spec R3, §9.6): crust -> liquid melts the rinds and glaze,
+    // liquid -> crust buries the frozen-Hg frost and glaze.
+    if (crossMarks(scar, surf.marksLiquid, liquidNow)) scarDirty = true;
+    surf.marksLiquid = liquidNow;
     surf.scarClock += Math.min(delta, MAX_FRAME_DT_S);
     if (surf.scarClock >= SCAR_TICK_S) {
       if (matureScars(scar, surf.scarClock)) scarDirty = true;
+      // frozen-Hg frost and glaze go where the Hg under them has melted (the shader already hides them there; this frees the bytes)
+      // only while liquid: on crust every mark sits on ≥ ~390 K rock and would be erased on the next tick (spec §9.6)
+      if (liquidNow && healMelted(scar, vc.q, SUN_DIR_WORLD, vc.subsolarT, body.heatK)) scarDirty = true;
       surf.scarClock = 0;
     }
     if (scarDirty) scarTex.needsUpdate = true;
+    u.uMarksOn.value = scar.marksLive ? 1 : 0;
 
     surf.frameOpts.modeScale = body.tau * PLANET_TUNE.modeGain;
     surf.frameOpts.waveScale = PLANET_TUNE.waveGain;

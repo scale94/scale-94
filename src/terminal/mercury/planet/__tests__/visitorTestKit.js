@@ -23,3 +23,21 @@ export function runTo(buf, ctx, out, untilS) {
   }
   return events;
 }
+
+// Like runTo, but collects the persistent-mark stamps too.
+export function runCollect(buf, ctx, out, untilS) {
+  const impacts = [], stamps = [];
+  while (ctx.tS < untilS - 1e-9) {
+    ctx.tS += ctx.dt;
+    stepVisitors(buf, ctx, out);
+    for (let i = 0; i < out.nImpacts; i++) {
+      const e = out.impacts[i];
+      impacts.push({ ...e, dirBody: [...e.dirBody], dirWorld: [...e.dirWorld], at: ctx.tS });
+    }
+    for (let i = 0; i < out.nStamps; i++) {
+      const s = out.stamps[i];
+      stamps.push({ ...s, dirBody: [...s.dirBody], at: ctx.tS });
+    }
+  }
+  return { impacts, stamps };
+}

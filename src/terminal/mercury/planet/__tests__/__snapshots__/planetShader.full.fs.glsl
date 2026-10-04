@@ -53,6 +53,7 @@ uniform float uVisitOn; // visitors
 uniform vec4 uVisitDir[4]; // visitors
 uniform vec4 uVisitA[4]; // visitors
 uniform vec4 uVisitB[4]; // visitors
+uniform float uMarksOn; // visitors
 uniform float uMeniscusW;
 
 const float PI = 3.14159265358979;
@@ -525,6 +526,19 @@ const float CATSPAW_K = 140.000000;
 const float CATSPAW_AMP = 0.0500000000;
 const float CATSPAW_SPEED = 9.00000000;
 const float JET_DEPTH = 0.00600000000;
+const vec3 FROST_ALBEDO = vec3(0.800000000, 0.840000000, 0.900000000);
+const float FROST_ENV = 0.500000000;
+const float GLAZE_ROUGH = 0.100000000;
+const float POOL_RIM_H = 0.00250000000;
+const vec3 EVAPORITE_ALBEDO = vec3(0.860000000, 0.840000000, 0.780000000);
+const float EVAPORITE_A = 0.450000000;
+const float EVAPORITE_EDGE = 0.0500000000;
+const float EVAPORITE_LIFT = 0.500000000;
+const float EVAPORITE_GAIN = 2.20000000;
+const vec3 EVAPORITE_TINT = EVAPORITE_ALBEDO / max(max(EVAPORITE_ALBEDO.r, EVAPORITE_ALBEDO.g), EVAPORITE_ALBEDO.b);
+const float QUENCH_DARK = 0.450000000;
+const float QUENCH_ROUGH = 0.150000000;
+const float GLASS_F0 = 0.0400000000;
 // Blackbody at 650 / 532 / 450 nm, red = 1 at 1300 K; the exponent clamps at 80 (a cool spot underflows to 0).
 const float PLANCK_C2_NM_K = 14388000.0;
 const float PLANCK_REF = 24821453.4;
@@ -565,6 +579,9 @@ vec3 visitTilt(vec3 x, float pxArc) {
     } else if (D.w == 3.00000000) {
       // a floating rock presses a meniscus ring into the liquid just outside its contact line
       sl = visDent(th, 1.15 * A.x, 0.4 * A.x, A.y);
+    } else if (D.w == 6.00000000) {
+      // the melt pool's meniscus: a raised lip where the liquid meets its frozen shore, gone as it refreezes
+      sl = -visDent(th, A.x, 0.2 * A.x, POOL_RIM_H * (1.0 - A.y));
     } else if (D.w == 4.00000000) {
       // a gust: the dent under it, cat's-paws running downwind (plan D-2: an explicit direction, not the impulse slip)
       sl = visDent(th, 0.0, A.x, A.y);
@@ -604,11 +621,136 @@ vec3 visitTint(vec3 x, float NoV, out vec3 emit) {
       float cosT = sqrt(max(1.0 - (1.0 - NoV * NoV) / (FILM_N * FILM_N), 0.0));
       vec3 delta = 4.0 * PI * FILM_N * hNm * cosT / vec3(650.0, 532.0, 450.0);
       tint *= mix(vec3(1.0), 1.0 - FILM_A * cos(delta), cov);
-    } else if (D.w == 2.00000000) {
+    } else if (D.w == 2.00000000 || D.w == 6.00000000) {
       emit += A.w * HOT_GAIN * visGlow(A.z) * exp(-th * th / (0.36 * max(A.x * A.x, 4e-4)));
     }
   }
   return tint;
+}
+
+// The frost front creeping out (SURF_FROST): coverage on frozen Hg, its edge ragged like rime.
+float visitFrost(vec3 x) {
+  float cov = 0.0;
+  for (int i = 0; i < VISIT_SLOTS; i++) {
+    vec4 D = uVisitDir[i];
+    vec4 A = uVisitA[i];
+    if (A.w <= 0.0 || D.w != 5.00000000) continue;
+    float th = acos(clamp(dot(x, D.xyz), -1.0, 1.0));
+    float edge = max(A.x, 1e-4) * (0.75 + 0.5 * vnoise3(x * 90.0 + A.z));
+    cov = max(cov, A.w * (1.0 - smoothstep(0.8 * edge, edge, th)));
+  }
+  return cov;
+}
+
+// The melt pool (SURF_POOL): how liquid the frozen surface is here, until it refreezes (A.y: 0 liquid -> 1 frozen).
+float visitPool(vec3 x) {
+  float liq = 0.0;
+  for (int i = 0; i < VISIT_SLOTS; i++) {
+    vec4 D = uVisitDir[i];
+    vec4 A = uVisitA[i];
+    if (A.w <= 0.0 || D.w != 6.00000000) continue;
+    float th = acos(clamp(dot(x, D.xyz), -1.0, 1.0));
+    liq = max(liq, A.w * (1.0 - A.y) * (1.0 - smoothstep(0.85 * A.x, A.x, th)));
+  }
+  return liq;
+}
+
+// The crust pushed up round a sinking rock (SURF_COLLAR): a slope for the crust normal, world frame.
+vec3 visitCrustTilt(vec3 x) {
+  vec3 g = vec3(0.0);
+  for (int i = 0; i < VISIT_SLOTS; i++) {
+    vec4 D = uVisitDir[i];
+    vec4 A = uVisitA[i];
+    if (A.w <= 0.0 || D.w != 7.00000000) continue;
+    float m = clamp(dot(x, D.xyz), -1.0, 1.0);
+    float s = sqrt(max(1.0 - m * m, 0.0));
+    if (s < 1e-4) continue;
+    g -= A.w * visDent(acos(m), 1.3 * A.x, 0.5 * A.x, A.y) * (x * m - D.xyz) / s;
+  }
+  return g;
+}
+
+// Frost and glaze on frozen Hg: the scar map's B / A (stamped, persistent) and the live frost front.
+vec3 visitMarks(vec3 solid, vec2 uv, vec2 gx, vec2 gy, vec3 P, vec3 x, vec3 R, vec3 nW, float NoV, float sunLit) {
+  vec2 m = uMarksOn > 0.5 ? textureGrad(uScar, uv, gx, gy).ba : vec2(0.0);
+  // glaze: the refrozen pool is smoother than the polycrystalline Hg around it
+  if (m.y > 0.0) {
+    vec3 glazed = solid - frozenAether(R, nW, NoV) + SOLID_HG_SPECULAR * fresnelHg(NoV) * aetherMirror(R, GLAZE_ROUGH, nW);
+    solid = mix(solid, glazed, m.y);
+  }
+  // frost: matte rime, lit by the Sun where it reaches and by the nebula and the element nodes (spec R5)
+  float frost = max(m.x, visitFrost(x));
+  if (frost > 0.0) {
+    vec3 rime = FROST_ALBEDO * (sunLit + uNightFloor + FROST_ENV * envRadiance(nW, 1.0, P, nW));
+    solid = mix(solid, rime, frost);
+  }
+  return solid;
+}
+
+// Amendment A: water and fire on the crust. The quench rind's profile, exactly scarMap.quenchProfile: a full core (the dark
+// glassy skin), a 0.5-high plateau (the pale evaporite ring), then nothing. s = angle / radius, h jitters the outer edge.
+float quenchProfile(float s, float h) {
+  return 1.0 - 0.5 * smoothstep(0.55, 0.7, s) - 0.5 * smoothstep(0.95 + 0.1 * h, 1.1 + 0.1 * h, s);
+}
+
+// The quench spreading (SURF_QUENCH): the same profile at its live radius.
+float visitQuench(vec3 x, vec3 xn) { // xn: the same point in the body frame, for the rind edge noise only (the slot directions are world-space)
+  float q = 0.0;
+  for (int i = 0; i < VISIT_SLOTS; i++) {
+    vec4 D = uVisitDir[i];
+    vec4 A = uVisitA[i];
+    if (A.w <= 0.0 || D.w != 8.00000000) continue;
+    float r = max(A.x, 1e-4);
+    float th = acos(clamp(dot(x, D.xyz), -1.0, 1.0));
+    if (th >= 1.25 * r) continue;
+    q = max(q, A.w * quenchProfile(th / r, vnoise3(xn * 90.0 + A.z)));
+  }
+  return q;
+}
+
+// The glaze under a refreezing pool (SURF_POOL): it lies under the WHOLE pool (weight A.w, not A.w*A.y); the liquid overlay
+// (weight A.w*(1-A.y), visitPool) uncovers it as the pool freezes, so the cross-fade is a clean complement, no crust dip (plan Q-3).
+float visitPoolSolid(vec3 x) {
+  float s = 0.0;
+  for (int i = 0; i < VISIT_SLOTS; i++) {
+    vec4 D = uVisitDir[i];
+    vec4 A = uVisitA[i];
+    if (A.w <= 0.0 || D.w != 6.00000000) continue;
+    float th = acos(clamp(dot(x, D.xyz), -1.0, 1.0));
+    s = max(s, A.w * (1.0 - smoothstep(0.85 * A.x, A.x, th)));
+  }
+  return s;
+}
+
+// The crust's marks (spec §9.3, §9.4): B = the quench rind, A = glaze (a refrozen Hg disc set in the rock, plan Q-3).
+// nW: the crust's world normal; light: its Sun term (Lommel-Seeliger, terminator, shadow); sunHg: Lambert for the Hg disc.
+// Each look is gated on its own coverage, so an unmarked texel pays one fetch (plan Q-4).
+vec3 visitCrustMarks(vec3 col, vec2 uv, vec2 gx, vec2 gy, vec3 P, vec3 x, vec3 xn, vec3 nW, vec3 rd, float light, float sunHg) {
+  vec2 m = uMarksOn > 0.5 ? textureGrad(uScar, uv, gx, gy).ba : vec2(0.0);
+  // Byte B here is the quench rind; visitMarks reads the same byte as frost on frozen Hg (plan Q-6). Safe only because
+  // frozen-Hg frost is dormant (spec A4) and crossMarks wipes on a state change: waking frost needs its own channel.
+  float b = max(m.x, uVisitOn > 0.5 ? visitQuench(x, xn) : 0.0);
+  float g = max(m.y, uVisitOn > 0.5 ? visitPoolSolid(x) : 0.0);
+  if (b <= 0.0 && g <= 0.0) return col;
+  vec3 R = reflect(rd, nW);
+  float NoV = clamp(dot(nW, -rd), 0.0, 1.0);
+  if (b > 0.0) {
+    float core = smoothstep(0.7, 0.9, b);
+    float ring = smoothstep(0.15 - EVAPORITE_EDGE, 0.4 + EVAPORITE_EDGE, b) * (1.0 - smoothstep(0.6 - EVAPORITE_EDGE, 0.8 + EVAPORITE_EDGE, b));
+    if (core > 0.0) {
+      float F = GLASS_F0 + (1.0 - GLASS_F0) * pow(1.0 - NoV, 5.0);
+      col = mix(col, col * QUENCH_DARK + F * envRadiance(R, QUENCH_ROUGH, P, nW), core);
+    }
+    if (ring > 0.0) {
+      vec3 ev = mix(EVAPORITE_ALBEDO * (light + uNightFloor + FROST_ENV * envRadiance(nW, 1.0, P, nW)), col * EVAPORITE_GAIN * EVAPORITE_TINT, EVAPORITE_LIFT);
+      col = mix(col, ev, EVAPORITE_A * ring);
+    }
+  }
+  if (g > 0.0) {
+    vec3 hg = SOLID_HG_ALBEDO * (sunHg + uNightFloor) + SOLID_HG_SPECULAR * fresnelHg(NoV) * aetherMirror(R, GLAZE_ROUGH, nW);
+    col = mix(col, hg, g);
+  }
+  return col;
 }
 // </visitors>
 void main() {
@@ -695,6 +837,7 @@ void main() {
     float distN = 2.0 * uDemTexel.y * PI * R_MERCURY_M;
     n = normalize(nb - east * (hE * uRelief / distE) - north * (hN * uRelief / distN));
   }
+  if (uVisitOn > 0.5) n = normalize(n - transpose(uBodyRot) * visitCrustTilt(xw)); // visitors
   // Fresh crater rays brighten the crust; they mature back to background (scarMap.js).
   albedo = mix(albedo, RAY_ALBEDO, clamp(textureGrad(uScar, uv, gx, gy).g * uRayGain, 0.0, 1.0));
 
@@ -712,6 +855,9 @@ void main() {
   }
 
   vec3 colLin = albedo * (uSunIrr * uExposure * ls * term * vis + uNightFloor);
+  vec3 nWc = normalize(uBodyRot * n); // visitors
+  if (uMarksOn > 0.5 || uVisitOn > 0.5) colLin = visitCrustMarks(colLin, uv, gx, gy, hit, xw, xb, nWc, rd, uSunIrr * uExposure * ls * term * vis, uSunIrr * uExposure * max(dot(nWc, uSunDir), 0.0) * term); // visitors
+  float visFluid = 0.0; // visitors
 
   // Transmutation: the front advances from the subsolar point outward
   // (noise-edged) and retreats the same way on refreeze. Inside it the crust
@@ -743,6 +889,7 @@ void main() {
       float lonRel = mod(atan(-xw.z, xw.x) - lonSun + PI, TAU) - PI;
       float T = surfaceTempK(mu0x, lonRel, sqrt(max(1.0 - xw.y * xw.y, 0.0)), uSubsolarT, uHeatK);
       float liquidW = smoothstep(HG_MELT_K - PHASE_BLEND_K, HG_MELT_K + PHASE_BLEND_K, T);
+      if (uVisitOn > 0.5) liquidW = max(liquidW, visitPool(xw)); // visitors
       float boilW = smoothstep(HG_BOIL_K - PHASE_BLEND_K, HG_BOIL_K + PHASE_BLEND_K, T);
       // Liquid Hg on rock: a hard contact line and a bead rim; frozen Hg keeps the soft wipe.
       fluid = mix(fluidSoft, fluidHard, liquidW * clamp(uMeniscus, 0.0, 1.0));
@@ -783,12 +930,24 @@ void main() {
         float glint = step(1.0 - SPARKLE_DENSITY, facet) * smoothstep(SPARKLE_COS, 1.0, dot(R, uSunDir)) * term;
         solid = SOLID_HG_ALBEDO * (sunI * max(dot(nW, uSunDir), 0.0) * term + uNightFloor)
           + frozenAether(R, nW, NoV) + vec3(glint * SPARKLE_GAIN * sunI);
+        if (uMarksOn > 0.5 || uVisitOn > 0.5) solid = visitMarks(solid, uv, gx, gy, hit, xw, R, nW, NoV, sunI * max(dot(nW, uSunDir), 0.0) * term); // visitors
       }
 
       colLin = mix(colLin, mix(solid, liquid, liquidW), fluid);
       colLin += fluid * liquidW * visEmit; // visitors
+      visFluid = fluid; // visitors
     }
   }
+  if (uVisitOn > 0.5) { // visitors
+    float crustPool = visitPool(xw) * (1.0 - visFluid); // visitors
+    if (crustPool > 0.0) { // visitors
+      vec3 nP = normalize(ng - visitTilt(xw, pxArc)); // visitors
+      float NoVP = clamp(dot(nP, -rd), 0.0, 1.0); // visitors
+      vec3 emitP; // visitors
+      vec3 tintP = visitTint(xw, NoVP, emitP); // visitors
+      colLin = mix(colLin, fresnelHg(NoVP) * envRadiance(reflect(rd, nP), uRoughLiquid, hit, nP) * tintP + emitP, crustPool); // visitors
+    } // visitors
+  } // visitors
 
   // <slow-noon>
   if (uOverlay > 0.0) { // slow-noon composite

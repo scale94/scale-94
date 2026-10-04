@@ -15,7 +15,7 @@ import { SUN_DIR_WORLD } from './planetFrame';
 import { qRotate, qRotateInv } from './breakupFamily';
 import { strikeDirWorld, localTempK } from './mercuryImpacts';
 import { LIQUID_TAU } from './mercuryWaves';
-import { HG_MELT_K } from './mercuryThermal';
+import { HG_MELT_K, HG_BOIL_K } from './mercuryThermal';
 
 export const VISITOR_SLOTS = 8;
 export const MAX_PER_ELEMENT = 4;
@@ -26,10 +26,25 @@ export const DETACH_OMEGA = 6;             // rad/s: a release this fast flings 
 export const DETACH_FADE_S = 0.6;
 export const FADE_S = 1;                   // every resident fades over its last second
 export const CALM_LIFE = 0.5;              // reduced motion: residents stay half as long
+export const AIM_MAX_RAD = (35 * Math.PI) / 180;  // every landing sits within this of the sub-camera point (matrix spec §4.1)
 
 // How long each touchdown stays, s (0 = nothing stays), and the impulse it sends into the ring (mercuryWaves kinds).
-export const RESIDENT_LIFE_S = Object.freeze({ film: 8, bead: 6, ember: 6, rock: 12, jet: 1.5, ring: 0, crater: 0 });
-export const IMPULSE_FOR = Object.freeze({ film: 'dimple', bead: 'dimple', ember: 'marangoni', rock: 'crown', jet: 'jet', ring: 'ring', crater: '' });
+export const RESIDENT_LIFE_S = Object.freeze({
+  film: 8, bead: 6, ember: 6, rock: 12, jet: 1.5, ring: 0, crater: 0,
+  frost: 1.5, pool: 4, sink: 5, strip: 1.5,   // matrix: frost = FROST_CREEP_S, pool = POOL_GROW_S + POOL_FREEZE_S, sink = SINK_S
+  quench: 0.6, crustpool: 4,                  // amendment A: quench = QUENCH_SPREAD_S, crustpool = POOL_GROW_S + POOL_FREEZE_S
+});
+// Frost and the pool ring like any strike on solid Hg (plan P-5); a rock sinking into soft crust sends nothing, nor do
+// water and fire meeting the crust (amendment A5: the rind and the pool replace the crater).
+export const IMPULSE_FOR = Object.freeze({
+  film: 'dimple', bead: 'dimple', ember: 'marangoni', rock: 'crown', jet: 'jet', ring: 'ring', crater: '',
+  frost: 'ring', pool: 'ring', sink: '', strip: 'jet', quench: '', crustpool: '',
+});
+// The kinds that leave a persistent mark in the scar map when their life ends (matrix spec §4, §9).
+export const STAMP_FOR = Object.freeze({ frost: 'frost', pool: 'glaze', sink: 'pit', quench: 'quench', crustpool: 'glaze' });
+// Q-6: which side of the state crossing a stamp belongs to. Crust marks (quench, re-melt glaze, pit) are made below LIQUID_TAU;
+// frozen-Hg marks (frost, pool glaze) above it. The consumer drops a stamp whose side no longer matches the planet.
+export const STAMP_CRUST = Object.freeze({ frost: false, pool: false, sink: true, quench: true, crustpool: true });
 
 // Bodies, scene units (R_SCENE = 0.75).
 export const DROP_R = 0.028;
@@ -63,9 +78,40 @@ export const GUST_W = 0.012;
 export const EXO_PUFF = 0.15;              // an ember on boiling Hg lifts this much exosphere coverage…
 export const EXO_PUFF_S = 1.5;             // …decaying over this
 
+// The matrix (spec docs/superpowers/specs/2026-10-04-mercury-visitors-matrix-design.md).
+export const SOFT_TAU_MIN = 0.1;           // below this the crust is hard: a rock craters instead of sinking
+export const FROST_R = 0.05;               // rad: the frost patch at the end of its creep
+export const FROST_CREEP_S = 1.5;
+export const POOL_R = 0.035;               // rad: the melt pool at full size
+export const POOL_GROW_S = 3;              // it grows while the ember burns (EMBER_BODY_S)…
+export const POOL_FREEZE_S = 1;            // …then refreezes into glaze
+export const SINK_S = 5;                   // a rock sinks into soft crust over this
+export const PIT_R = 0.03;                 // rad
+export const PIT_DEPTH_M = 600;            // true metres (the shader's uRelief exaggerates, like the craters)
+export const COLLAR_H = 0.002;             // fraction of R: the crust pushed up round the sinking rock
+export const PLUME_LEN = 0.12;             // scene units: the vapour streamer torn downwind
+export const PLUME_LIFT = 0.35;            // how much it rises off the surface as it streams
+export const PLUME_W = 0.015;
+export const PLUME_GROW_S = 0.4;
+// Amendment A (spec §9): water and fire on crust.
+export const QUENCH_R = 0.05;              // rad: the quench rind at the end of its spread
+export const QUENCH_SPREAD_S = 0.6;        // the drop flashes off the hot rock fast
+export const QUENCH_STEAM_LEN = 0.10;      // scene units: how far the steam puff rises over its life (plan Q-1, A10)
+export const QUENCH_STEAM_W = 0.055;       // scene units: the quench puff's final radius (it is born at 0.6× and grows to 1×)
+// A10 (author ruling): the quench steam is a round puff, lifted 0.6r off the rind, rising QUENCH_STEAM_LEN (the total
+// rise) and growing over its own life, independent of the rind's spread (the visitor stays resident for the longer of the
+// two; the rind stamps at the end of its spread either way). Rise and growth ease out (1−(1−t)²: a flash, then drifting);
+// the fade is 1 − smoothstep(t), so it holds its brightness early and is fully gone at QUENCH_STEAM_LIFE_S.
+export const QUENCH_STEAM_LIFE_S = 0.8;     // author A/B pick B4 (task rise): outlives the 0.6 s spread
+export const quenchSteamT = (a) => Math.min(1, Math.max(0, a / QUENCH_STEAM_LIFE_S));
+export const quenchSteamEase = (a) => { const t = 1 - quenchSteamT(a); return 1 - t * t; };
+export const quenchSteamFade = (a) => { const t = quenchSteamT(a); return 1 - t * t * (3 - 2 * t); };
+export const quenchSteamRise = (a) => QUENCH_STEAM_LEN * quenchSteamEase(a);
+export const quenchSteamRadius = (a) => QUENCH_STEAM_W * (0.6 + 0.4 * quenchSteamEase(a));
+
 // Surface slots (visitorFrame → the planet shader): what an element leaves IN the liquid.
 export const VISIT_SURF_MAX = 4;
-export const SURF_FILM = 1, SURF_HOT = 2, SURF_MENISCUS = 3, SURF_JET = 4;
+export const SURF_FILM = 1, SURF_HOT = 2, SURF_MENISCUS = 3, SURF_JET = 4, SURF_FROST = 5, SURF_POOL = 6, SURF_COLLAR = 7, SURF_QUENCH = 8;
 export const FILM_R0 = 0.02;               // rad
 export const FILM_GROW = 0.05;             // rad/√s: a spreading film's radius grows as √t
 export const FILM_H0_NM = 1000;            // thickness at touchdown…
@@ -85,6 +131,20 @@ export const JET_DEPTH = 0.006;
 export const CATSPAW_K = 140;
 export const CATSPAW_AMP = 0.05;
 export const CATSPAW_SPEED = 9;
+// The matrix's looks on frozen Hg (planet shader).
+export const FROST_ALBEDO = [0.8, 0.84, 0.9];  // rime: a cold, faintly blue white
+export const FROST_ENV = 0.5;                   // how much of the nebula + node light the matte rime gathers (spec R5)
+export const GLAZE_ROUGH = 0.1;                 // a refrozen pool: far smoother than polycrystalline frozen Hg
+// The crust looks (amendment A, planet shader's crust path).
+export const EVAPORITE_ALBEDO = [0.86, 0.84, 0.78];  // the pale ring the flashed drop leaves (its dissolved load)
+export const EVAPORITE_A = 0.45;      // author pick R3 (A8): with EDGE 0.05 and LIFT 0.5 the ring is soft and the crust shows through
+export const EVAPORITE_EDGE = 0.05;   // widens both of the ring's transitions (in rind-profile units; ≤ 0.1 keeps its plateau)
+export const EVAPORITE_LIFT = 0.5;    // 0: the ring is a flat pale albedo; 1: the crust's own lit colour brightened (texture shows)
+export const EVAPORITE_GAIN = 2.2;    // …by this, tinted by EVAPORITE_ALBEDO (normalised)
+export const QUENCH_DARK = 0.45;                      // the quenched glass skin darkens the rock under it…
+export const QUENCH_ROUGH = 0.15;                     // …and is far smoother than it
+export const GLASS_F0 = 0.04;                         // glass's normal-incidence reflectance (n ≈ 1.5)
+export const POOL_RIM_H = 0.0025;               // fraction of R: the pool's meniscus lip against its frozen shore
 
 // Light (visitorGlsl mirrors these exactly).
 export const PLANCK_C2_NM_K = 1.4388e7;
@@ -124,21 +184,30 @@ export const emberFlightTempK = (s) => EMBER_T_LAUNCH_K + (HOT_T0_K - EMBER_T_LA
 export const jetEnvelope = (a) => (a > 0 && a < RESIDENT_LIFE_S.jet ? Math.sin((Math.PI * a) / RESIDENT_LIFE_S.jet) : 0);
 export const rockBob = (a) => -ROCK_R * ROCK_BOB_AMP * Math.exp(-a / ROCK_BOB_EFOLD) * Math.cos((2 * Math.PI * a) / ROCK_BOB_T);
 export const fadeAt = (a, life) => (life > 0 ? 1 - smooth01((a - (life - FADE_S)) / FADE_S) : 0);
+export const frostRadius = (a) => FROST_R * (1 - (1 - Math.min(1, Math.max(0, a / FROST_CREEP_S))) ** 2);
+export const poolRadius = (a) => POOL_R * Math.sqrt(Math.min(1, Math.max(0, a / POOL_GROW_S)));
+export const poolFreeze = (a) => smooth01((a - POOL_GROW_S) / POOL_FREEZE_S);
+export const quenchRadius = (a) => QUENCH_R * (1 - (1 - Math.min(1, Math.max(0, a / QUENCH_SPREAD_S))) ** 2);
 
 export function impactBranch(phase, tau, tempK) {
-  if (tau < LIQUID_TAU) return 'crater';
-  if (tempK < HG_MELT_K) return 'ring';
+  if (tau < LIQUID_TAU) {
+    // amendment A: water flash-quenches the hot rock; an ember re-melts a pool in it (any crust, hard or soft)
+    if (phase === 'fluid') return 'quench';
+    if (phase === 'thermal') return 'crustpool';
+    return phase === 'earth' && tau >= SOFT_TAU_MIN ? 'sink' : 'crater';
+  }
+  if (tempK < HG_MELT_K) return phase === 'fluid' ? 'frost' : phase === 'thermal' ? 'pool' : 'ring';
   if (phase === 'fluid') return tempK >= LEIDENFROST_K ? 'bead' : 'film';
   if (phase === 'thermal') return 'ember';
   if (phase === 'earth') return 'rock';
-  return 'jet';
+  return tempK > HG_BOIL_K ? 'strip' : 'jet';
 }
 
 const FLIGHT_R = { fluid: DROP_R, thermal: EMBER_R, earth: ROCK_R, air: GUST_W };
 
 function blank() {
   return {
-    live: false, state: 'free', phase: 'fluid', kind: '', seed: 0, t0: 0, tImpact: 0, tDetach: 0, fade: 1, fade0: 1,
+    live: false, state: 'free', phase: 'fluid', kind: '', seed: 0, t0: 0, tImpact: 0, tDetach: 0, fade: 1, fade0: 1, stamped: false,
     start: [0, 0, 0], end: [0, 0, 0], pos: [0, 0, 0], vel: [0, 0, 0], bow: [0, 0, 0],
     dirBody: [0, 0, 1], dirWorld: [0, 0, 1], tan: [0, 0, 0], r: 0, spin: 0, tempK: 0, rng: 1,
   };
@@ -159,6 +228,9 @@ export function createVisitorOut() {
   return {
     nImpacts: 0,
     impacts: Array.from({ length: VISITOR_SLOTS }, () => ({ kind: '', impulse: '', phase: '', dirBody: [0, 0, 1], dirWorld: [0, 0, 1], seed: 0, tempK: 0 })),
+    // persistent marks for the scar map (frost, glaze, pit), drained by MercuryPlanet every frame
+    nStamps: 0,
+    stamps: Array.from({ length: VISITOR_SLOTS }, () => ({ crust: false, kind: '', dirBody: [0, 0, 1], radius: 0, seed: 0 })),
   };
 }
 
@@ -198,8 +270,60 @@ export function pickVisitorSlot(buf, phase) {
   return oldest;
 }
 
-// Where the fall lands (world): today's strike point, 40° off the launch node toward the viewer (aimed once at launch:
-// strikeDirWorld allocates), at the live core radius (it changes during a hyper-fling, so every frame).
+// Pull a unit landing direction to within maxRad of the camera's sub-point, keeping its azimuth about that point (the
+// tapped node's side). A limb landing is foreshortened to a sliver (cos 75° ≈ 0.26); inside the cone it faces the viewer.
+export function aimToward(d, cam, maxRad) {
+  const cl = Math.hypot(cam[0], cam[1], cam[2]) || 1;
+  const c0 = cam[0] / cl, c1 = cam[1] / cl, c2 = cam[2] / cl;
+  const k = d[0] * c0 + d[1] * c1 + d[2] * c2;
+  if (k >= Math.cos(maxRad)) return d;
+  const u0 = d[0] - c0 * k, u1 = d[1] - c1 * k, u2 = d[2] - c2 * k;
+  const ul = Math.hypot(u0, u1, u2);
+  if (ul < 1e-9) { d[0] = c0; d[1] = c1; d[2] = c2; return d; }
+  const cm = Math.cos(maxRad), sm = Math.sin(maxRad) / ul;
+  d[0] = c0 * cm + u0 * sm; d[1] = c1 * cm + u1 * sm; d[2] = c2 * cm + u2 * sm;
+  return d;
+}
+
+// Fire on crust lands in sunlight (author ruling, amendment A look pass): the refrozen glaze is a mirror, so it only reads
+// under key light. At least this far above the local horizon: cos⁻¹ 0.4 ≈ 66° from the sub-solar point, sun ≈ 24° up.
+export const LIT_AIM_MIN_SUN_COS = 0.4;
+
+// Slide an in-cone landing d along the great circle toward the cone's most sunward point p* to the first point with
+// dot(d, sun) ≥ minSunCos (or to p* when even p* is darker). d and p* both lie in the cone (a cap < 90°), and so does the
+// arc between them. Called once at launch, so the bisection is fine.
+export function litAim(d, cam, sun, maxRad, minSunCos) {
+  const sd = (x0, x1, x2) => x0 * sun[0] + x1 * sun[1] + x2 * sun[2];
+  if (sd(d[0], d[1], d[2]) >= minSunCos) return d;
+  const cl = Math.hypot(cam[0], cam[1], cam[2]) || 1;
+  const c0 = cam[0] / cl, c1 = cam[1] / cl, c2 = cam[2] / cl;
+  const cs = sd(c0, c1, c2);
+  const u0 = sun[0] - c0 * cs, u1 = sun[1] - c1 * cs, u2 = sun[2] - c2 * cs;
+  const ul = Math.hypot(u0, u1, u2);
+  let p0 = c0, p1 = c1, p2 = c2;
+  if (ul > 1e-9) {
+    const r = Math.min(maxRad, Math.atan2(ul, cs)), k = Math.cos(r), s = Math.sin(r) / ul;
+    p0 = c0 * k + u0 * s; p1 = c1 * k + u1 * s; p2 = c2 * k + u2 * s;
+  }
+  if (sd(p0, p1, p2) < minSunCos) { d[0] = p0; d[1] = p1; d[2] = p2; return d; }
+  const a0 = d[0], a1 = d[1], a2 = d[2];
+  const om = Math.acos(Math.max(-1, Math.min(1, a0 * p0 + a1 * p1 + a2 * p2)));
+  const so = Math.sin(om);
+  if (so < 1e-9) { d[0] = p0; d[1] = p1; d[2] = p2; return d; }
+  let lo = 0, hi = 1;
+  for (let i = 0; i < 30; i++) {
+    const t = (lo + hi) / 2, wa = Math.sin((1 - t) * om) / so, wb = Math.sin(t * om) / so;
+    if (sd(a0 * wa + p0 * wb, a1 * wa + p1 * wb, a2 * wa + p2 * wb) >= minSunCos) hi = t; else lo = t;
+  }
+  const wa = Math.sin((1 - hi) * om) / so, wb = Math.sin(hi * om) / so;
+  d[0] = a0 * wa + p0 * wb; d[1] = a1 * wa + p1 * wb; d[2] = a2 * wa + p2 * wb;
+  const l = Math.hypot(d[0], d[1], d[2]);
+  d[0] /= l; d[1] /= l; d[2] /= l;
+  return d;
+}
+
+// Where the fall lands (world): the strike point 40° off the launch node toward the viewer, pulled inside the aim cone
+// (aimed once at launch: strikeDirWorld allocates), at the live core radius (it changes during a hyper-fling, so every frame).
 function landing(v, ctx) {
   v.end[0] = v.dirWorld[0] * ctx.coreR; v.end[1] = v.dirWorld[1] * ctx.coreR; v.end[2] = v.dirWorld[2] * ctx.coreR;
 }
@@ -209,7 +333,7 @@ export function launchVisitor(buf, phase, ctx) {
   const v = buf.v[pickVisitorSlot(buf, phase)];
   if (!v.live) buf.live++;
   buf.seq = (buf.seq + 1) | 0;
-  v.live = true; v.state = 'flight'; v.phase = phase; v.kind = '';
+  v.live = true; v.state = 'flight'; v.phase = phase; v.kind = ''; v.stamped = false;
   v.t0 = ctx.tS; v.tImpact = 0; v.tDetach = 0; v.fade = 1; v.fade0 = 1;
   v.seed = Math.imul(buf.seq, 2654435761) >>> 0 || 1;
   v.rng = v.seed;
@@ -218,6 +342,9 @@ export function launchVisitor(buf, phase, ctx) {
   const cl = Math.hypot(ctx.cam[0], ctx.cam[1], ctx.cam[2]) || 1;
   for (let k = 0; k < 3; k++) v.bow[k] = (ctx.cam[k] / cl) * FLIGHT_BOW * R_SCENE;
   strikeDirWorld(v.start, ctx.cam, v.dirWorld);
+  aimToward(v.dirWorld, ctx.cam, AIM_MAX_RAD);
+  // author ruling: fire on crust lands in the sunlit part of the cone, so the glaze it leaves catches key light
+  if (phase === 'thermal' && ctx.tau < LIQUID_TAU) litAim(v.dirWorld, ctx.cam, SUN_DIR_WORLD, AIM_MAX_RAD, LIT_AIM_MIN_SUN_COS);
   landing(v, ctx);
   return v;
 }
@@ -236,7 +363,18 @@ export function flightVelocity(v, s, T, out) {
   return out;
 }
 
-const residentLife = (v, ctx) => RESIDENT_LIFE_S[v.kind] * (ctx.calm ? CALM_LIFE : 1);
+// a quench stays resident while its steam lives, past its spread (A10); it stamps at the end of the spread (stepResident)
+const residentLife = (v, ctx) => (v.kind === 'quench' ? Math.max(RESIDENT_LIFE_S.quench, QUENCH_STEAM_LIFE_S) : RESIDENT_LIFE_S[v.kind])
+  * (ctx.calm ? CALM_LIFE : 1);
+
+export const stampRadius = (kind) => (kind === 'frost' ? FROST_R : kind === 'quench' ? QUENCH_R : kind === 'pool' || kind === 'crustpool' ? POOL_R : PIT_R);
+
+function emitStamp(v, out) {
+  if (out.nStamps >= out.stamps.length) return;
+  const s = out.stamps[out.nStamps++];
+  s.crust = STAMP_CRUST[v.kind] === true; s.kind = STAMP_FOR[v.kind]; s.radius = stampRadius(v.kind); s.seed = v.seed;
+  s.dirBody[0] = v.dirBody[0]; s.dirBody[1] = v.dirBody[1]; s.dirBody[2] = v.dirBody[2];
+}
 
 function stepFlight(v, ctx, out) {
   const T = T_FLIGHT[v.phase];
@@ -261,23 +399,30 @@ function touchdown(v, ctx, out) {
   v.kind = kind;
   v.tImpact = ctx.tS;
   if (!(RESIDENT_LIFE_S[kind] > 0)) { v.state = 'free'; return; }
+  // reduced motion: no creep, growth or sinking: the mark lands at full size now
+  if (ctx.calm && STAMP_FOR[kind]) { emitStamp(v, out); v.state = 'free'; return; }
   v.state = 'resident';
   // the arrival's sideways motion, carried into the body frame: a bead skates on along it, a gust blows along it
   tangentInto(v.vel, v.dirWorld, _t);
   qRotateInv(ctx.q, _t, v.tan);
   const tl = Math.hypot(v.tan[0], v.tan[1], v.tan[2]);
-  const want = kind === 'bead' ? (ctx.calm ? 0 : SKATE_V0) : kind === 'jet' ? 1 : 0;
+  const want = kind === 'bead' ? (ctx.calm ? 0 : SKATE_V0) : kind === 'jet' || kind === 'strip' ? 1 : 0;
   for (let k = 0; k < 3; k++) v.tan[k] = tl > 1e-9 ? (v.tan[k] / tl) * want : 0;
-  v.r = kind === 'bead' ? BEAD_R : kind === 'rock' ? ROCK_R : kind === 'ember' ? EMBER_R : 0;
-  stepResident(v, ctx);
+  v.r = kind === 'bead' ? BEAD_R : kind === 'rock' || kind === 'sink' ? ROCK_R : kind === 'ember' || kind === 'pool' || kind === 'crustpool' ? EMBER_R : 0;
+  stepResident(v, ctx, out);
 }
 
 export function residentHeight(v, a, life, calm) {
   if (v.kind === 'bead') return 0.95 * v.r + BEAD_GAP;
-  if (v.kind === 'ember') return 0.4 * v.r;
+  if (v.kind === 'ember' || v.kind === 'pool' || v.kind === 'crustpool') return 0.4 * v.r;
   if (v.kind === 'rock') {
     const sink = 2 * ROCK_R * smooth01((a - (life - ROCK_SINK_S)) / ROCK_SINK_S);
     return ROCK_R * (1 - 2 * ROCK_SUBMERGED) + (calm ? 0 : rockBob(a)) - sink;
+  }
+  if (v.kind === 'sink') {
+    // into the soft crust: from its floating line until the whole bound sphere is under
+    const h0 = ROCK_R * (1 - 2 * ROCK_SUBMERGED);
+    return h0 - (h0 + ROCK_BOUND * ROCK_R) * smooth01(a / life);
   }
   return 0;
 }
@@ -293,16 +438,18 @@ function skate(v, dt) {
   tangentInto(t, d, t);
 }
 
-function stepResident(v, ctx) {
+function stepResident(v, ctx, out) {
   const a = ctx.tS - v.tImpact, life = residentLife(v, ctx);
-  if (a >= life) { v.state = 'free'; return; }
-  v.fade = fadeAt(a, life);
+  if (v.kind === 'quench' && !v.stamped && a >= RESIDENT_LIFE_S.quench) { emitStamp(v, out); v.stamped = true; }
+  if (a >= life) { if (STAMP_FOR[v.kind] && !v.stamped) emitStamp(v, out); v.state = 'free'; return; }
+  // the stamping kinds keep full weight until the stamp replaces them (plan P-4)
+  v.fade = STAMP_FOR[v.kind] ? 1 : fadeAt(a, life);
   if (v.kind === 'bead') {
     if (!ctx.calm) skate(v, ctx.dt);
     v.r = BEAD_R * (1 - (BEAD_SHRINK * a) / life);
-  } else if (v.kind === 'rock' && !ctx.calm) {
+  } else if ((v.kind === 'rock' || v.kind === 'sink') && !ctx.calm) {
     v.spin += ROCK_SPIN0 * Math.exp(-a / ROCK_SPIN_EFOLD) * ctx.dt;
-  } else if (v.kind === 'ember') {
+  } else if (v.kind === 'ember' || v.kind === 'pool' || v.kind === 'crustpool') {
     v.tempK = hotTempK(a);
   }
   qRotate(ctx.q, v.dirBody, v.dirWorld);
@@ -325,21 +472,22 @@ function stepDetached(v, ctx) {
   const a = ctx.tS - v.tDetach;
   if (a >= DETACH_FADE_S) { v.state = 'free'; return; }
   for (let k = 0; k < 3; k++) v.pos[k] += v.vel[k] * ctx.dt;
-  // film / hot spot / jet stay in the liquid while they fade (visitorFrame hasSurface): their slot rides the spin
-  if (v.kind === 'film' || v.kind === 'ember' || v.kind === 'jet') qRotate(ctx.q, v.dirBody, v.dirWorld);
+  // film / hot spot / jet / strip stay in the liquid while they fade (visitorFrame hasSurface): their slot rides the spin
+  if (v.kind === 'film' || v.kind === 'ember' || v.kind === 'jet' || v.kind === 'strip') qRotate(ctx.q, v.dirBody, v.dirWorld);
   v.fade = v.fade0 * (1 - a / DETACH_FADE_S);
 }
 
 export function stepVisitors(buf, ctx, out) {
-  out.nImpacts = 0;
+  out.nImpacts = 0; out.nStamps = 0;
   if (buf.live === 0) return out;
   for (let i = 0; i < VISITOR_SLOTS; i++) {
     const v = buf.v[i];
     if (!v.live) continue;
     if (v.state === 'flight') stepFlight(v, ctx, out);
     else if (v.state === 'resident') {
-      if (ctx.detach) detachVisitor(v, ctx);
-      else stepResident(v, ctx);
+      // frost, the pools, the quench rind and a sinking rock are in or under the surface: a fling leaves them (plan P-3)
+      if (ctx.detach && !STAMP_FOR[v.kind]) detachVisitor(v, ctx);
+      else stepResident(v, ctx, out);
     }
     if (v.state === 'detached') stepDetached(v, ctx);
     if (v.state === 'free') { v.live = false; buf.live--; }

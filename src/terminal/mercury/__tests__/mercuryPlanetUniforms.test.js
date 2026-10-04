@@ -126,3 +126,35 @@ describe('visitors wiring', () => {
     expect(planetSrc).toContain('exo.coverage = Math.min(1, boilCoverage(body.tau, body.heatK, u.uSubsolarT.value) + vis.exoPuff);');
   });
 });
+
+describe('visitors matrix wiring', () => {
+  it('drains the stamps into the scar map, under calm too', () => {
+    const drain = planetSrc.indexOf('for (let k = 0; k < vis.out.nStamps; k++) {');
+    expect(drain).toBeGreaterThan(planetSrc.indexOf('stepVisitors(vis.buf, vc, vis.out);'));
+    expect(planetSrc).toContain("if (st.kind === 'frost') stampFrost(scar, st.dirBody, st.radius, st.seed);");
+    expect(planetSrc).toContain("else if (st.kind === 'glaze') stampGlaze(scar, st.dirBody, st.radius);");
+    expect(planetSrc).toContain("else if (st.kind === 'quench') stampQuench(scar, st.dirBody, st.radius, st.seed);");
+    expect(planetSrc.indexOf('surf.marksLiquid = liquidNow;')).toBeLessThan(planetSrc.indexOf('if (scarDirty) scarTex.needsUpdate = true;'));
+    expect(planetSrc).not.toContain('clearMarks(scar)');
+    // Q-6: liquidNow is computed once, before the drain, and a stamp from the other side of the crossing is dropped
+    expect(planetSrc.match(/const liquidNow = /g)).toHaveLength(1);
+    expect(planetSrc.indexOf('const liquidNow = body.tau >= LIQUID_TAU;')).toBeLessThan(drain);
+    expect(planetSrc.indexOf('if (st.crust === liquidNow) continue;')).toBeGreaterThan(drain);
+    expect(drain).toBeLessThan(planetSrc.indexOf('crossMarks(scar, surf.marksLiquid, liquidNow)'));
+    expect(planetSrc).toContain('else stampPit(scar, st.dirBody, st.radius, PIT_DEPTH_M);');
+  });
+  it('rings frost and the pool like solid Hg, sends nothing for a sink, puffs the exosphere for a strip', () => {
+    expect(planetSrc).toContain("} else if (ev.impulse === 'ring') {");
+    expect(planetSrc).toContain('} else if (ev.impulse) {');
+    expect(planetSrc).toContain("if (ev.kind === 'strip') vis.exoPuff = EXO_PUFF;");
+  });
+  it('heals marks where the Hg melts on the scar tick, clears them on crust, and gates the shader on them', () => {
+    expect(planetSrc).toContain('const liquidNow = body.tau >= LIQUID_TAU;');
+    expect(planetSrc).toContain('if (crossMarks(scar, surf.marksLiquid, liquidNow)) scarDirty = true;');
+    expect(planetSrc).toContain('surf.marksLiquid = liquidNow;');
+    expect(planetSrc).toContain('marksLiquid: null,');
+    expect(planetSrc).toContain('if (liquidNow && healMelted(scar, vc.q, SUN_DIR_WORLD, vc.subsolarT, body.heatK)) scarDirty = true;');
+    expect(planetSrc).toContain('uMarksOn: { value: 0 },');
+    expect(planetSrc).toContain('u.uMarksOn.value = scar.marksLive ? 1 : 0;');
+  });
+});
