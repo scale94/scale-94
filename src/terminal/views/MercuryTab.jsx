@@ -17,7 +17,7 @@ const isMobile = typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad/i
 
 // Desktop stage: full width, 16:9, capped so the whole canvas sits below the nav on load.
 // Calibrated live (stage-layout plan Task 4): canvas top at scrollY 0 + a little breathing room.
-const NAV_OFFSET_PX = 240;
+const NAV_OFFSET_PX = 208;
 
 const DEFAULT_PARAMS = {
   speed:        0.1,
