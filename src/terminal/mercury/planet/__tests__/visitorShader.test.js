@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { glf, v3 } from '../../../gl/glf';
 import {
   buildVisitorShader, VISITOR_UNIFORMS, VISITOR_MATERIAL, VISITOR_RENDER_ORDER, WATER_N, WATER_F0, WATER_TINT,
-  ROCK_PLANES, ROCK_AA, GAP_DARK, STEAM_A, GUST_A, PLUME_A, PLUME_COL,
+  ROCK_PLANES, ROCK_AA, GAP_DARK, STEAM_A, STEAM_COL, QUENCH_STEAM_A, QUENCH_STEAM_COL, GUST_A, PLUME_A, PLUME_COL,
 } from '../visitorShader';
 import { DROPLET_RENDER_ORDER, DROPLET_VS } from '../dropletShader';
 import { HG_MIRROR_DECLS_GLSL } from '../hgMirrorGlsl';
@@ -78,11 +78,19 @@ describe('visitors matrix: the vapour plume', () => {
     expect(fs).toContain(`const vec3 PLUME_COL = ${v3(PLUME_COL)};`);
     expect(fs).toContain('} else if (kind == VIS_PLUME) {');
   });
-  it('draws a PLUME_STEAM plume with the bead steam look, Hg vapour otherwise (plan Q-1)', () => {
+  it('draws a PLUME_STEAM plume with the quench steam look, Hg vapour otherwise (plan Q-1, A7 knobs)', () => {
     const { fs } = buildVisitorShader();
     expect(fs).toContain(`const int PLUME_STEAM = ${PLUME_STEAM};`);
     expect(fs).toContain('bool steam = int(K.w + 0.5) == PLUME_STEAM;');
-    expect(fs).toContain('steam ? STEAM_COL : PLUME_COL');
-    expect(fs).toContain('steam ? STEAM_A : PLUME_A');
+    expect(fs).toContain('steam ? QUENCH_STEAM_COL : PLUME_COL');
+    expect(fs).toContain('steam ? QUENCH_STEAM_A : PLUME_A');
+    expect(fs).toContain(`const float QUENCH_STEAM_A = ${glf(QUENCH_STEAM_A)};`);
+    expect(fs).toContain(`const vec3 QUENCH_STEAM_COL = ${v3(QUENCH_STEAM_COL)};`);
+  });
+  it('the quench steam knobs default to the bead steam look (A7: output-identical)', () => {
+    expect(QUENCH_STEAM_A).toBe(STEAM_A);
+    expect(QUENCH_STEAM_COL).toEqual(STEAM_COL);
+    const { fs } = buildVisitorShader();
+    expect(fs).toContain('gP += STEAM_COL * a;');   // the bead's own steam is untouched
   });
 });

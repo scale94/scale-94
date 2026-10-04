@@ -532,6 +532,10 @@ const float GLAZE_ROUGH = 0.100000000;
 const float POOL_RIM_H = 0.00250000000;
 const vec3 EVAPORITE_ALBEDO = vec3(0.860000000, 0.840000000, 0.780000000);
 const float EVAPORITE_A = 0.850000000;
+const float EVAPORITE_EDGE = 0.00000000;
+const float EVAPORITE_LIFT = 0.00000000;
+const float EVAPORITE_GAIN = 2.20000000;
+const vec3 EVAPORITE_TINT = EVAPORITE_ALBEDO / max(max(EVAPORITE_ALBEDO.r, EVAPORITE_ALBEDO.g), EVAPORITE_ALBEDO.b);
 const float QUENCH_DARK = 0.450000000;
 const float QUENCH_ROUGH = 0.150000000;
 const float GLASS_F0 = 0.0400000000;
@@ -732,13 +736,14 @@ vec3 visitCrustMarks(vec3 col, vec2 uv, vec2 gx, vec2 gy, vec3 P, vec3 x, vec3 n
   float NoV = clamp(dot(nW, -rd), 0.0, 1.0);
   if (b > 0.0) {
     float core = smoothstep(0.7, 0.9, b);
-    float ring = smoothstep(0.15, 0.4, b) * (1.0 - smoothstep(0.6, 0.8, b));
+    float ring = smoothstep(0.15 - EVAPORITE_EDGE, 0.4 + EVAPORITE_EDGE, b) * (1.0 - smoothstep(0.6 - EVAPORITE_EDGE, 0.8 + EVAPORITE_EDGE, b));
     if (core > 0.0) {
       float F = GLASS_F0 + (1.0 - GLASS_F0) * pow(1.0 - NoV, 5.0);
       col = mix(col, col * QUENCH_DARK + F * envRadiance(R, QUENCH_ROUGH, P, nW), core);
     }
     if (ring > 0.0) {
-      col = mix(col, EVAPORITE_ALBEDO * (light + uNightFloor + FROST_ENV * envRadiance(nW, 1.0, P, nW)), EVAPORITE_A * ring);
+      vec3 ev = mix(EVAPORITE_ALBEDO * (light + uNightFloor + FROST_ENV * envRadiance(nW, 1.0, P, nW)), col * EVAPORITE_GAIN * EVAPORITE_TINT, EVAPORITE_LIFT);
+      col = mix(col, ev, EVAPORITE_A * ring);
     }
   }
   if (g > 0.0) {

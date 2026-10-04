@@ -23,7 +23,7 @@ import {
   VISIT_SURF_MAX, SURF_FILM, SURF_HOT, SURF_MENISCUS, SURF_JET, FILM_N, FILM_A, FILM_TEAR_NM, FILM_NOISE_FREQ, HOT_GAIN,
   CATSPAW_K, CATSPAW_AMP, CATSPAW_SPEED, JET_DEPTH,
   FROST_ALBEDO, FROST_ENV, GLAZE_ROUGH, POOL_RIM_H, SURF_FROST, SURF_POOL, SURF_COLLAR,
-  SURF_QUENCH, EVAPORITE_ALBEDO, EVAPORITE_A, QUENCH_DARK, QUENCH_ROUGH, GLASS_F0,
+  SURF_QUENCH, EVAPORITE_ALBEDO, EVAPORITE_A, EVAPORITE_EDGE, EVAPORITE_LIFT, EVAPORITE_GAIN, QUENCH_DARK, QUENCH_ROUGH, GLASS_F0,
 } from './visitorSim';
 import { VISIT_LIGHT_GLSL } from './visitorGlsl';
 import { MENISCUS_MAX_SIN, MENISCUS_MIN_PX, MENISCUS_GRAD_FLOOR } from './mercuryMeniscus';
@@ -522,6 +522,10 @@ const float GLAZE_ROUGH = ${glf(GLAZE_ROUGH)};
 const float POOL_RIM_H = ${glf(POOL_RIM_H)};
 const vec3 EVAPORITE_ALBEDO = ${v3(EVAPORITE_ALBEDO)};
 const float EVAPORITE_A = ${glf(EVAPORITE_A)};
+const float EVAPORITE_EDGE = ${glf(EVAPORITE_EDGE)};
+const float EVAPORITE_LIFT = ${glf(EVAPORITE_LIFT)};
+const float EVAPORITE_GAIN = ${glf(EVAPORITE_GAIN)};
+const vec3 EVAPORITE_TINT = EVAPORITE_ALBEDO / max(max(EVAPORITE_ALBEDO.r, EVAPORITE_ALBEDO.g), EVAPORITE_ALBEDO.b);
 const float QUENCH_DARK = ${glf(QUENCH_DARK)};
 const float QUENCH_ROUGH = ${glf(QUENCH_ROUGH)};
 const float GLASS_F0 = ${glf(GLASS_F0)};
@@ -709,13 +713,14 @@ vec3 visitCrustMarks(vec3 col, vec2 uv, vec2 gx, vec2 gy, vec3 P, vec3 x, vec3 n
   float NoV = clamp(dot(nW, -rd), 0.0, 1.0);
   if (b > 0.0) {
     float core = smoothstep(0.7, 0.9, b);
-    float ring = smoothstep(0.15, 0.4, b) * (1.0 - smoothstep(0.6, 0.8, b));
+    float ring = smoothstep(0.15 - EVAPORITE_EDGE, 0.4 + EVAPORITE_EDGE, b) * (1.0 - smoothstep(0.6 - EVAPORITE_EDGE, 0.8 + EVAPORITE_EDGE, b));
     if (core > 0.0) {
       float F = GLASS_F0 + (1.0 - GLASS_F0) * pow(1.0 - NoV, 5.0);
       col = mix(col, col * QUENCH_DARK + F * envRadiance(R, QUENCH_ROUGH, P, nW), core);
     }
     if (ring > 0.0) {
-      col = mix(col, EVAPORITE_ALBEDO * (light + uNightFloor + FROST_ENV * envRadiance(nW, 1.0, P, nW)), EVAPORITE_A * ring);
+      vec3 ev = mix(EVAPORITE_ALBEDO * (light + uNightFloor + FROST_ENV * envRadiance(nW, 1.0, P, nW)), col * EVAPORITE_GAIN * EVAPORITE_TINT, EVAPORITE_LIFT);
+      col = mix(col, ev, EVAPORITE_A * ring);
     }
   }
   if (g > 0.0) {

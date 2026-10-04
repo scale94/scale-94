@@ -38,6 +38,10 @@ export const MOTES = 4;
 export const MOTE_COL = [0.5, 0.48, 0.45];
 export const PLUME_A = 0.2;
 export const PLUME_COL = [0.62, 0.68, 0.78];
+// The quench's steam column (a PLUME_STEAM plume) has its own knobs: it sits over bright lit crust, where the bead's steam
+// (over a dark liquid mirror) can't be seen. Defaults = the bead's look.
+export const QUENCH_STEAM_A = STEAM_A;
+export const QUENCH_STEAM_COL = STEAM_COL;
 
 export const VISITOR_OWN_UNIFORMS = ['uRect', 'uVis', 'uVisAx', 'uVisK', 'uVisN', 'uPxAngle', 'uTime', 'uCoreR'];
 export const VISITOR_UNIFORMS = [...VISITOR_OWN_UNIFORMS, ...HG_MIRROR_UNIFORMS];
@@ -92,6 +96,8 @@ const vec3 GUST_COL = ${v3(GUST_COL)};
 const vec3 MOTE_COL = ${v3(MOTE_COL)};
 const float PLUME_A = ${glf(PLUME_A)};
 const vec3 PLUME_COL = ${v3(PLUME_COL)};
+const float QUENCH_STEAM_A = ${glf(QUENCH_STEAM_A)};
+const vec3 QUENCH_STEAM_COL = ${v3(QUENCH_STEAM_COL)};
 
 ${HG_FRESNEL_GLSL}
 
@@ -289,15 +295,15 @@ void main() {
         gP += MOTE_COL * am; gA = 1.0 - (1.0 - gA) * (1.0 - am); gT = min(gT, tm);
       }
     } else if (kind == VIS_PLUME) {
-      // a pale streamer, widening and thinning downwind: Hg vapour off boiling mercury, or (PLUME_STEAM) water
+      // a pale streamer, widening and thinning downwind: Hg vapour off boiling mercury, or (PLUME_STEAM) the quench's water
       // flashing to steam off hot rock, drawn with the bead's steam look (plan Q-1)
       bool steam = int(K.w + 0.5) == PLUME_STEAM;
       vec3 b = c + X.xyz * X.w;
       float u, tr;
       float d = raySeg(ro, rd, c, b, u, tr);
       float wd = r * (0.6 + 1.8 * u);
-      float a = clamp((steam ? STEAM_A : PLUME_A) * fade * gauss(d / wd) * (1.0 - u * u) * (0.6 + 0.4 * vn3((ro + rd * tr - c) / r * 0.8 - X.xyz * (uTime * 2.0) + K.z)), 0.0, 1.0);
-      gP += (steam ? STEAM_COL : PLUME_COL) * a; gA = 1.0 - (1.0 - gA) * (1.0 - a); gT = min(gT, tr);
+      float a = clamp((steam ? QUENCH_STEAM_A : PLUME_A) * fade * gauss(d / wd) * (1.0 - u * u) * (0.6 + 0.4 * vn3((ro + rd * tr - c) / r * 0.8 - X.xyz * (uTime * 2.0) + K.z)), 0.0, 1.0);
+      gP += (steam ? QUENCH_STEAM_COL : PLUME_COL) * a; gA = 1.0 - (1.0 - gA) * (1.0 - a); gT = min(gT, tr);
     }
   }
   if (alpha <= 0.0 && gA <= 1e-4) discard;

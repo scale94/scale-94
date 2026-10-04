@@ -10,7 +10,7 @@ import { TIERS, TIER_NAMES } from '../planetQuality';
 import { glf, v3 } from '../../../gl/glf';
 import { VISIT_SURF_MAX, FILM_N, FILM_A, FILM_TEAR_NM, FILM_NOISE_FREQ, HOT_GAIN, CATSPAW_K, CATSPAW_AMP, CATSPAW_SPEED, JET_DEPTH, PLANCK_C2_NM_K, GLOW_EXPO,
   FROST_ALBEDO, FROST_ENV, GLAZE_ROUGH, POOL_RIM_H, SURF_HOT, SURF_FROST, SURF_POOL, SURF_COLLAR,
-  SURF_QUENCH, EVAPORITE_ALBEDO, EVAPORITE_A, QUENCH_DARK, QUENCH_ROUGH, GLASS_F0 } from '../visitorSim';
+  SURF_QUENCH, EVAPORITE_ALBEDO, EVAPORITE_A, EVAPORITE_EDGE, EVAPORITE_LIFT, EVAPORITE_GAIN, QUENCH_DARK, QUENCH_ROUGH, GLASS_F0 } from '../visitorSim';
 import { PLANCK_REF, VISIT_LIGHT_GLSL } from '../visitorGlsl';
 import {
   R_SCENE, R_MERCURY_M, SHADOW_STEPS, SHADOW_REACH_RAD, SHADOW_SOFT_M, SHADOW_ZONE,
@@ -516,10 +516,16 @@ describe('visitors matrix: marks on frozen Hg, the pool, the crust collar', () =
 
 describe('visitors matrix amendment A: marks on the crust, the live quench, the pool in the rock', () => {
   it('interpolates the crust look constants from visitorSim', () => {
-    for (const [name, value] of Object.entries({ EVAPORITE_A, QUENCH_DARK, QUENCH_ROUGH, GLASS_F0 })) {
+    for (const [name, value] of Object.entries({ EVAPORITE_A, EVAPORITE_EDGE, EVAPORITE_LIFT, EVAPORITE_GAIN, QUENCH_DARK, QUENCH_ROUGH, GLASS_F0 })) {
       expect(PLANET_FS).toContain(`const float ${name} = ${glf(value)};`);
     }
     expect(PLANET_FS).toContain(`const vec3 EVAPORITE_ALBEDO = ${v3(EVAPORITE_ALBEDO)};`);
+  });
+  it('the evaporite ring knobs: edge widens both transitions, lift blends toward the crust brightened (A7)', () => {
+    expect(EVAPORITE_EDGE).toBe(0);
+    expect(EVAPORITE_LIFT).toBe(0);
+    expect(PLANET_FS).toContain('float ring = smoothstep(0.15 - EVAPORITE_EDGE, 0.4 + EVAPORITE_EDGE, b) * (1.0 - smoothstep(0.6 - EVAPORITE_EDGE, 0.8 + EVAPORITE_EDGE, b));');
+    expect(PLANET_FS).toContain('mix(EVAPORITE_ALBEDO * (light + uNightFloor + FROST_ENV * envRadiance(nW, 1.0, P, nW)), col * EVAPORITE_GAIN * EVAPORITE_TINT, EVAPORITE_LIFT)');
   });
   it('mirrors scarMap.quenchProfile and reads the quench slot', () => {
     expect(PLANET_FS).toContain('return 1.0 - 0.5 * smoothstep(0.55, 0.7, s) - 0.5 * smoothstep(0.95 + 0.1 * h, 1.1 + 0.1 * h, s);');

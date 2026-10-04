@@ -125,6 +125,9 @@ export const GLAZE_ROUGH = 0.1;                 // a refrozen pool: far smoother
 // The crust looks (amendment A, planet shader's crust path).
 export const EVAPORITE_ALBEDO = [0.86, 0.84, 0.78];  // the pale ring the flashed drop leaves (its dissolved load)
 export const EVAPORITE_A = 0.85;
+export const EVAPORITE_EDGE = 0;      // widens both of the ring's transitions (in rind-profile units; ≤ 0.1 keeps its plateau)
+export const EVAPORITE_LIFT = 0;      // 0: the ring is a flat pale albedo; 1: the crust's own lit colour brightened (texture shows)
+export const EVAPORITE_GAIN = 2.2;    // …by this, tinted by EVAPORITE_ALBEDO (normalised)
 export const QUENCH_DARK = 0.45;                      // the quenched glass skin darkens the rock under it…
 export const QUENCH_ROUGH = 0.15;                     // …and is far smoother than it
 export const GLASS_F0 = 0.04;                         // glass's normal-incidence reflectance (n ≈ 1.5)
