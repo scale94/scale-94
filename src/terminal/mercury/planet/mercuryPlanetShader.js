@@ -641,12 +641,17 @@ vec3 visitCrustTilt(vec3 x) {
 vec3 visitMarks(vec3 solid, vec2 uv, vec2 gx, vec2 gy, vec3 P, vec3 x, vec3 R, vec3 nW, float NoV, float sunLit) {
   vec2 m = uMarksOn > 0.5 ? textureGrad(uScar, uv, gx, gy).ba : vec2(0.0);
   // glaze: the refrozen pool is smoother than the polycrystalline Hg around it
-  vec3 glazed = solid - frozenAether(R, nW, NoV) + SOLID_HG_SPECULAR * fresnelHg(NoV) * aetherMirror(R, GLAZE_ROUGH, nW);
-  solid = mix(solid, glazed, m.y);
+  if (m.y > 0.0) {
+    vec3 glazed = solid - frozenAether(R, nW, NoV) + SOLID_HG_SPECULAR * fresnelHg(NoV) * aetherMirror(R, GLAZE_ROUGH, nW);
+    solid = mix(solid, glazed, m.y);
+  }
   // frost: matte rime, lit by the Sun where it reaches and by the nebula and the element nodes (spec R5)
   float frost = max(m.x, visitFrost(x));
-  vec3 rime = FROST_ALBEDO * (sunLit + uNightFloor + FROST_ENV * envRadiance(nW, 1.0, P, nW));
-  return mix(solid, rime, frost);
+  if (frost > 0.0) {
+    vec3 rime = FROST_ALBEDO * (sunLit + uNightFloor + FROST_ENV * envRadiance(nW, 1.0, P, nW));
+    solid = mix(solid, rime, frost);
+  }
+  return solid;
 }
 // </visitors>
 void main() {
