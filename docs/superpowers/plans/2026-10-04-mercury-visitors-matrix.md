@@ -71,6 +71,12 @@ centre of the visible face.
 - **P-6:** on the visible face, frozen Hg mostly exists while a melted planet cools. The near side faces the Sun at a ~55° phase,
   and the aim cone is 35°. That is physically right: frost and pools are a cool-down event. The look sheet waits for it rather
   than faking it. A `visitTemp` override picks the branch, but the shader still draws frost only where the Hg is really solid.
+  **Premise struck (Task 9 live check):** the 35° cone is always the afternoon side, where the sunset floor holds Hg at about
+  390 K or more, so `frost` and `pool` never fired for a real tap. Superseded by P-7.
+- **P-7:** water and fire aim at the cold limb when frozen Hg exists on the visible disc (author decision 2026-10-04). On a
+  liquid planet with no temperature override, `fluid` and `thermal` search from the 35° cone edge out to 80° along the
+  anti-sun great circle for the first spot at least 10 K below `HG_MELT_K`, and land there. If none exists, or for every
+  other element or state, the 35° aim applies unchanged.
 
 ## File map
 
