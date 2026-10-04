@@ -9,7 +9,8 @@ import {
 import { TIERS, TIER_NAMES } from '../planetQuality';
 import { glf, v3 } from '../../../gl/glf';
 import { VISIT_SURF_MAX, FILM_N, FILM_A, FILM_TEAR_NM, FILM_NOISE_FREQ, HOT_GAIN, CATSPAW_K, CATSPAW_AMP, CATSPAW_SPEED, JET_DEPTH, PLANCK_C2_NM_K, GLOW_EXPO,
-  FROST_ALBEDO, FROST_ENV, GLAZE_ROUGH, POOL_RIM_H, SURF_HOT, SURF_FROST, SURF_POOL, SURF_COLLAR } from '../visitorSim';
+  FROST_ALBEDO, FROST_ENV, GLAZE_ROUGH, POOL_RIM_H, SURF_HOT, SURF_FROST, SURF_POOL, SURF_COLLAR,
+  SURF_QUENCH, EVAPORITE_ALBEDO, EVAPORITE_A, QUENCH_DARK, QUENCH_ROUGH, GLASS_F0 } from '../visitorSim';
 import { PLANCK_REF, VISIT_LIGHT_GLSL } from '../visitorGlsl';
 import {
   R_SCENE, R_MERCURY_M, SHADOW_STEPS, SHADOW_REACH_RAD, SHADOW_SOFT_M, SHADOW_ZONE,
@@ -510,5 +511,39 @@ describe('visitors matrix: marks on frozen Hg, the pool, the crust collar', () =
   it('the pool glows like a hot spot; the frost, pool and collar slots each have a reader', () => {
     expect(PLANET_FS).toContain(`D.w == ${glf(SURF_HOT)} || D.w == ${glf(SURF_POOL)}`);
     for (const c of [SURF_FROST, SURF_POOL, SURF_COLLAR]) expect(PLANET_FS).toContain(`D.w != ${glf(c)}`);
+  });
+});
+
+describe('visitors matrix amendment A: marks on the crust, the live quench, the pool in the rock', () => {
+  it('interpolates the crust look constants from visitorSim', () => {
+    for (const [name, value] of Object.entries({ EVAPORITE_A, QUENCH_DARK, QUENCH_ROUGH, GLASS_F0 })) {
+      expect(PLANET_FS).toContain(`const float ${name} = ${glf(value)};`);
+    }
+    expect(PLANET_FS).toContain(`const vec3 EVAPORITE_ALBEDO = ${v3(EVAPORITE_ALBEDO)};`);
+  });
+  it('mirrors scarMap.quenchProfile and reads the quench slot', () => {
+    expect(PLANET_FS).toContain('return 1.0 - 0.5 * smoothstep(0.55, 0.7, s) - 0.5 * smoothstep(0.95 + 0.1 * h, 1.1 + 0.1 * h, s);');
+    expect(PLANET_FS).toContain(`D.w != ${glf(SURF_QUENCH)}`);
+  });
+  it('marks the crust after its light, before the transmutation; captures the fluid weight; opens the pool in the rock after it', () => {
+    const main = PLANET_FS.slice(PLANET_FS.indexOf('void main()'));
+    const crustLight = main.indexOf('vec3 colLin = albedo * (uSunIrr * uExposure * ls * term * vis + uNightFloor);');
+    const marks = main.indexOf('colLin = visitCrustMarks(colLin, uv, gx, gy, hit, xw, nWc, rd, uSunIrr * uExposure * ls * term * vis, uSunIrr * uExposure * max(dot(nWc, uSunDir), 0.0) * term); // visitors');
+    const front = main.indexOf('if (uTau > 0.0) {');
+    const capture = main.indexOf('visFluid = fluid; // visitors');
+    const emit = main.indexOf('colLin += fluid * liquidW * visEmit; // visitors');
+    const overlay = main.indexOf('float crustPool = visitPool(xw) * (1.0 - visFluid); // visitors');
+    const slowNoon = main.indexOf('if (uOverlay > 0.0) { // slow-noon composite');
+    expect(crustLight).toBeGreaterThan(0);
+    expect(marks).toBeGreaterThan(crustLight);
+    expect(marks).toBeLessThan(front);
+    expect(capture).toBeGreaterThan(emit);
+    expect(overlay).toBeGreaterThan(capture);
+    expect(overlay).toBeLessThan(slowNoon);
+  });
+  it('the calm variant still draws the crust marks, with no live slots', () => {
+    const fs = buildPlanetShader({ tier: 'full', calm: true }).fs;
+    expect(fs).toContain('const int VISIT_SLOTS = 0;');
+    expect(fs).toContain('colLin = visitCrustMarks(');
   });
 });
