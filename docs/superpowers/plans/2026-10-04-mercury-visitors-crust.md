@@ -66,6 +66,9 @@ The branch is `feature/mercury-matrix`, at HEAD 3b7b5c39 when this plan was writ
 - **Q-1:** The quench's steam is a short vertical `VIS_PLUME` streamer.
   - The spec says "the bead's steam body", but the bead's steam is drawn inside `VIS_BEAD` and cannot be drawn on its own.
   - The plume is the visitor pass's free vapour body.
+  - **Steam-tinted (amended 2026-10-04):** the plume's own look is Hg vapour (`PLUME_COL`, blue-grey). The quench plume
+    sets the free `uVisK[i].w` = `PLUME_STEAM` (1), and the shader's plume branch then draws it with the bead's steam
+    look (`STEAM_COL`, `STEAM_A`), so water boiling off rock never reads as mercury vapour. Strip plumes keep `w = 0`.
 - **Q-2:** `crustpool` packs exactly like `pool`: the ember body plus a `SURF_POOL` slot.
   - The shader tells crust from transmuted Hg by the local transmutation weight (`visFluid`), not by a slot code.
   - Inside the transmuted region the existing `liquidW` raise draws it. Outside, a new crust overlay draws it.
@@ -97,7 +100,8 @@ The branch is `feature/mercury-matrix`, at HEAD 3b7b5c39 when this plan was writ
 |------|--------|----------------|
 | `src/terminal/mercury/planet/visitorSim.js` | modify | revert cold aim; crust branch; `quench` / `crustpool` residents, stamps, look constants |
 | `src/terminal/mercury/planet/scarMap.js` | modify | `quenchProfile`, `stampQuench`, `crossMarks` |
-| `src/terminal/mercury/planet/visitorFrame.js` | modify | `SURF_QUENCH` slot, quench steam, `crustpool` as `pool` |
+| `src/terminal/mercury/planet/visitorFrame.js` | modify | `SURF_QUENCH` slot, quench steam (`PLUME_STEAM` flag), `crustpool` as `pool` |
+| `src/terminal/mercury/planet/visitorShader.js` | modify (Task 4) | plume branch picks the steam look when `K.w` is set |
 | `src/terminal/mercury/planet/mercuryPlanetShader.js` | modify | crust marks, live quench, crust pool overlay, refreezing glaze |
 | `src/terminal/mercury/MercuryPlanet.jsx` | modify | quench drain, crossing wipe, liquid-only `healMelted` |
 | tests under `src/terminal/mercury/**/__tests__/` | create/modify | per task |
@@ -598,7 +602,9 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 **Files:**
 - Modify: `src/terminal/mercury/planet/visitorFrame.js`
+- Modify: `src/terminal/mercury/planet/visitorShader.js` (plume branch: the steam tint, plan Q-1)
 - Test: `src/terminal/mercury/planet/__tests__/visitorCrustFrame.test.js` (create)
+- Test: `src/terminal/mercury/planet/__tests__/visitorShader.test.js` (append one `it`)
 
 **Interfaces:**
 - Consumes (from Task 2):
@@ -610,6 +616,8 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
     - axis = `dirWorld` (straight up)
     - length `QUENCH_STEAM_LEN · min(1, a / QUENCH_STEAM_GROW_S)`
     - fade `v.fade · (1 − a / RESIDENT_LIFE_S.quench)`
+    - `k.w = PLUME_STEAM` (1): drawn with the bead's steam look (plan Q-1). A strip's plume keeps `k.w = 0`.
+  - `export const PLUME_STEAM = 1` from `visitorFrame`; `pushBody` gains a trailing `tint = 0` argument written to `k.w`.
   - **Crust pool:** packs exactly like `pool`: the ember body while `a < EMBER_BODY_S`, plus the `SURF_POOL` slot
     `(poolRadius, poolFreeze, hotTempK)`.
 
@@ -622,7 +630,7 @@ import {
   createVisitors, createVisitorOut, launchVisitor, T_FLIGHT, EMBER_BODY_S, QUENCH_STEAM_LEN, QUENCH_STEAM_GROW_S,
   RESIDENT_LIFE_S, SURF_QUENCH, SURF_POOL, quenchRadius, poolRadius, poolFreeze, hotTempK,
 } from '../visitorSim';
-import { createVisitorFrame, packVisitors, seedFrac, VIS_EMBER, VIS_PLUME } from '../visitorFrame';
+import { createVisitorFrame, packVisitors, seedFrac, VIS_EMBER, VIS_PLUME, PLUME_STEAM } from '../visitorFrame';
 import { ctxFor, runTo } from './visitorTestKit';
 
 function viewOf() {
@@ -664,6 +672,7 @@ describe('visitorFrame — amendment A', () => {
     expect(f.k[1]).toBeCloseTo(1 - age / RESIDENT_LIFE_S.quench, 5);
     expect(f.k[1]).toBeGreaterThan(0);
     expect(f.k[1]).toBeLessThan(1);
+    expect(f.k[3]).toBe(PLUME_STEAM); // water steam, not Hg vapour (plan Q-1)
   });
   it('a crust pool packs like the frozen-Hg pool: its ember, then the refreezing SURF_POOL slot', () => {
     const early = packedOnCrust('thermal', 1);
@@ -681,14 +690,50 @@ describe('visitorFrame — amendment A', () => {
 });
 ```
 
+  In `src/terminal/mercury/planet/__tests__/visitorMatrixFrame.test.js`, in the strip-plume test, after
+  `expect(f.k[0]).toBe(VIS_PLUME);` add:
+
+```js
+    expect(f.k[3]).toBe(0); // Hg vapour keeps the plume's own look (plan Q-1)
+```
+
+  Append to `src/terminal/mercury/planet/__tests__/visitorShader.test.js`, inside the `'visitors matrix: the vapour plume'`
+  `describe` (after its existing `it`):
+
+```js
+  it('draws a PLUME_STEAM plume with the bead steam look, Hg vapour otherwise (plan Q-1)', () => {
+    const { fs } = buildVisitorShader();
+    expect(fs).toContain(`const int PLUME_STEAM = ${PLUME_STEAM};`);
+    expect(fs).toContain('bool steam = int(K.w + 0.5) == PLUME_STEAM;');
+    expect(fs).toContain('steam ? STEAM_COL : PLUME_COL');
+    expect(fs).toContain('steam ? STEAM_A : PLUME_A');
+  });
+```
+
+  and add `PLUME_STEAM` to that file's import from `'../visitorFrame'`.
+
 - [ ] **Step 2: Run it and confirm it fails.**
-  - Run: `npx vitest run src/terminal/mercury/planet/__tests__/visitorCrustFrame.test.js`
-  - Expected: FAIL (`nSurf` is 0 for the quench, and the crust pool has no slot).
+  - Run: `npx vitest run src/terminal/mercury/planet/__tests__/visitorCrustFrame.test.js src/terminal/mercury/planet/__tests__/visitorShader.test.js`
+  - Expected: FAIL (`nSurf` is 0 for the quench, the crust pool has no slot, `PLUME_STEAM` is not exported).
 
 - [ ] **Step 3: Implement it in `visitorFrame.js`.**
 
   Add `SURF_QUENCH, QUENCH_STEAM_LEN, QUENCH_STEAM_GROW_S, RESIDENT_LIFE_S, quenchRadius` to the import list from
   `'./visitorSim'`.
+
+  After the `VIS_*` exports add:
+
+```js
+export const PLUME_STEAM = 1;              // uVisK.w on a plume: water steam (the bead's look), not Hg vapour (plan Q-1)
+```
+
+  Give `pushBody` a trailing `tint = 0` argument and write it to `k.w` (strip plumes and every other body keep 0):
+
+```js
+function pushBody(f, view, code, p, r, ax, axW, fade, z, bc, brad, tint = 0) {
+  …
+  f.k[4 * i] = code; f.k[4 * i + 1] = fade; f.k[4 * i + 2] = z; f.k[4 * i + 3] = tint;
+```
 
   In `packSettled`, replace `} else if ((v.kind === 'ember' || v.kind === 'pool') && a < EMBER_BODY_S) {` with:
 
@@ -701,11 +746,31 @@ describe('visitorFrame — amendment A', () => {
 ```js
   } else if (v.kind === 'quench') {
     // water flash-boiling off the hot rock (amendment A): a short column of steam straight up, gone by the stamp
-    // (plan Q-1: the visitor pass's free vapour body; the bead's steam is drawn inside the bead)
+    // (plan Q-1: the visitor pass's free vapour body, tinted as the bead's steam; the bead's own is drawn inside it)
     const len = QUENCH_STEAM_LEN * Math.min(1, a / QUENCH_STEAM_GROW_S);
     const steam = v.fade * (1 - Math.min(1, a / RESIDENT_LIFE_S.quench));
-    pushBody(f, view, VIS_PLUME, v.pos, PLUME_W, v.dirWorld, len, steam, seedFrac(v.seed), _c, trailBound(v.pos, v.dirWorld, len, 3 * PLUME_W));
+    pushBody(f, view, VIS_PLUME, v.pos, PLUME_W, v.dirWorld, len, steam, seedFrac(v.seed), _c, trailBound(v.pos, v.dirWorld, len, 3 * PLUME_W), PLUME_STEAM);
 ```
+
+  In `visitorShader.js`, add `PLUME_STEAM` to the import from `'./visitorFrame'`, declare it after
+  `const int VIS_PLUME = ${VIS_PLUME};`:
+
+```glsl
+const int PLUME_STEAM = ${PLUME_STEAM};
+```
+
+  and in the `VIS_PLUME` branch replace its comment and the two lines computing `a` and accumulating `gP` with:
+
+```glsl
+      // a pale streamer, widening and thinning downwind: Hg vapour off boiling mercury, or (PLUME_STEAM) water
+      // flashing to steam off hot rock, drawn with the bead's steam look (plan Q-1)
+      bool steam = int(K.w + 0.5) == PLUME_STEAM;
+      …
+      float a = clamp((steam ? STEAM_A : PLUME_A) * fade * gauss(d / wd) * (1.0 - u * u) * (0.6 + 0.4 * vn3((ro + rd * tr - c) / r * 0.8 - X.xyz * (uTime * 2.0) + K.z)), 0.0, 1.0);
+      gP += (steam ? STEAM_COL : PLUME_COL) * a; gA = 1.0 - (1.0 - gA) * (1.0 - a); gT = min(gT, tr);
+```
+
+  (`…` = the unchanged `b`, `u`/`tr`, `d`, `wd` lines.)
 
   Replace `hasSurface` (and update its comment) with:
 
@@ -738,8 +803,8 @@ const hasSurface = (v) => v.kind === 'film' || v.kind === 'ember' || v.kind === 
 - [ ] **Step 5: Commit.**
 
 ```bash
-git add src/terminal/mercury/planet/visitorFrame.js src/terminal/mercury/planet/__tests__/visitorCrustFrame.test.js
-git commit -m "feat(mercury): visitors matrix A3 — frame: the quench slot and its steam, the crust pool packed like the pool
+git add src/terminal/mercury/planet/visitorFrame.js src/terminal/mercury/planet/visitorShader.js src/terminal/mercury/planet/__tests__/visitorCrustFrame.test.js src/terminal/mercury/planet/__tests__/visitorMatrixFrame.test.js src/terminal/mercury/planet/__tests__/visitorShader.test.js
+git commit -m "feat(mercury): visitors matrix A3 — frame: the quench slot and its steam (steam-tinted plume), the crust pool packed like the pool
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
@@ -1159,7 +1224,7 @@ try {
   - **Look at the sheet and the crops yourself before reporting** (Read the PNGs). Judge each item pass / fail / can't
     tell, and say what you see:
     - Both land well inside the disc, not at the limb.
-    - The quench shows a puff of steam at touchdown, spreads in ~0.6 s, and leaves a dark glassy core in a pale ring
+    - The quench shows a puff of steam at touchdown (neutral grey like the bead's steam, NOT the blue-grey Hg plume — plan Q-1), spreads in ~0.6 s, and leaves a dark glassy core in a pale ring
       that reads against the crust.
     - The crust pool shows a liquid mirror disc with its rim, opened in the rock around the ember. It grows, then turns
       into a polished frozen-Hg disc, with no dip at the stamp (+3.5 s vs +4.3 s).
