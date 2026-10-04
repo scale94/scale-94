@@ -256,8 +256,12 @@ export function aimToward(d, cam, maxRad) {
 // HG_MELT_K). Writes it into d and returns true; returns false and leaves d untouched when nothing on the disc is frozen.
 export const COLD_AIM_MAX_RAD = (80 * Math.PI) / 180;
 export const COLD_AIM_MARGIN_K = 10;
-export function coldLimbAim(d, cam, sun, tssK, heatK) {
-  const cl = Math.hypot(cam[0], cam[1], cam[2]) || 1;
+// The search also stops this far inside the geometric horizon acos(R / |cam|), so a landing is never behind the limb.
+export const COLD_AIM_HORIZON_PAD_RAD = (5 * Math.PI) / 180;
+export function coldLimbAim(d, cam, sun, tssK, heatK, radius = R_SCENE) {
+  const cl = Math.hypot(cam[0], cam[1], cam[2]);
+  if (!(cl > radius)) return false;
+  const maxRad = Math.min(COLD_AIM_MAX_RAD, Math.acos(radius / cl) - COLD_AIM_HORIZON_PAD_RAD);
   const c0 = cam[0] / cl, c1 = cam[1] / cl, c2 = cam[2] / cl;
   const k = -(sun[0] * c0 + sun[1] * c1 + sun[2] * c2);
   const a0 = -sun[0] - c0 * k, a1 = -sun[1] - c1 * k, a2 = -sun[2] - c2 * k;
@@ -267,7 +271,7 @@ export function coldLimbAim(d, cam, sun, tssK, heatK) {
   const p = [0, 0, 0];
   const limit = HG_MELT_K - COLD_AIM_MARGIN_K;
   const step = Math.PI / 180;
-  for (let th = AIM_MAX_RAD; th <= COLD_AIM_MAX_RAD + 1e-9; th += step) {
+  for (let th = AIM_MAX_RAD; th <= maxRad + 1e-9; th += step) {
     const ct = Math.cos(th), st = Math.sin(th);
     p[0] = c0 * ct + n0 * st; p[1] = c1 * ct + n1 * st; p[2] = c2 * ct + n2 * st;
     if (localTempK(p, sun, tssK, heatK) < limit) { d[0] = p[0]; d[1] = p[1]; d[2] = p[2]; return true; }
@@ -297,7 +301,7 @@ export function launchVisitor(buf, phase, ctx) {
   strikeDirWorld(v.start, ctx.cam, v.dirWorld);
   const cold = (phase === 'fluid' || phase === 'thermal') && ctx.tau >= LIQUID_TAU && ctx.tempOverrideK == null
     && Number.isFinite(ctx.subsolarT) && Number.isFinite(ctx.heatK)
-    && coldLimbAim(v.dirWorld, ctx.cam, SUN_DIR_WORLD, ctx.subsolarT, ctx.heatK);
+    && coldLimbAim(v.dirWorld, ctx.cam, SUN_DIR_WORLD, ctx.subsolarT, ctx.heatK, Math.max(R_SCENE, ctx.coreR));
   if (!cold) aimToward(v.dirWorld, ctx.cam, AIM_MAX_RAD);
   landing(v, ctx);
   return v;

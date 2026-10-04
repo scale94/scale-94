@@ -76,7 +76,8 @@ centre of the visible face.
 - **P-7:** water and fire aim at the cold limb when frozen Hg exists on the visible disc (author decision 2026-10-04). On a
   liquid planet with no temperature override, `fluid` and `thermal` search from the 35° cone edge out to 80° along the
   anti-sun great circle for the first spot at least 10 K below `HG_MELT_K`, and land there. If none exists, or for every
-  other element or state, the 35° aim applies unchanged.
+  other element or state, the 35° aim applies unchanged. The search is also capped at `acos(R/|cam|) − 5°`, inside the
+  visible horizon of the actual camera (about 73° from the desktop camera), so a landing is never behind the limb.
 
 ## File map
 

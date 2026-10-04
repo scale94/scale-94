@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
-  createVisitors, createVisitorOut, launchVisitor, coldLimbAim, COLD_AIM_MAX_RAD, COLD_AIM_MARGIN_K, AIM_MAX_RAD, T_FLIGHT,
+  createVisitors, createVisitorOut, launchVisitor, coldLimbAim, COLD_AIM_MAX_RAD, COLD_AIM_MARGIN_K, COLD_AIM_HORIZON_PAD_RAD, AIM_MAX_RAD, T_FLIGHT,
 } from '../visitorSim';
 import { SUN_DIR_WORLD } from '../planetFrame';
 import { localTempK } from '../mercuryImpacts';
 import { HG_MELT_K } from '../mercuryThermal';
+import { R_SCENE } from '../planetLook';
 import { LIQUID_TAU } from '../mercuryWaves';
 import { ctxFor, runCollect } from './visitorTestKit';
 
@@ -72,5 +73,37 @@ describe('visitors matrix — the cold-limb aim (matrix P-7)', () => {
     expect(angC(launchVisitor(createVisitors(), 'fluid', a).dirWorld)).toBeLessThanOrEqual(AIM_MAX_RAD + 1e-9);
     const b = coolCtx('fluid'); b.tempOverrideK = 100;
     expect(angC(launchVisitor(createVisitors(), 'fluid', b).dirWorld)).toBeLessThanOrEqual(AIM_MAX_RAD + 1e-9);
+  });
+
+  it('the search stays inside the visible horizon of the actual camera', () => {
+    expect(COLD_AIM_HORIZON_PAD_RAD).toBeCloseTo((5 * Math.PI) / 180, 12);
+    const cap = Math.acos(R_SCENE / 3.6) - COLD_AIM_HORIZON_PAD_RAD;
+    for (const heatK of [0, 30, 100, 200]) {
+      const d = [0, 0, 1];
+      if (coldLimbAim(d, CAM, SUN_DIR_WORLD, 572, heatK)) expect(angC(d)).toBeLessThanOrEqual(cap + 1e-9);
+    }
+    const d = [0, 0, 1];
+    expect(coldLimbAim(d, CAM, SUN_DIR_WORLD, 572, 30)).toBe(true);
+    expect(angC(d)).toBeLessThanOrEqual(cap + 1e-9);
+  });
+
+  it('a first frozen candidate beyond the cap is not taken; a degenerate camera returns false', () => {
+    const near = [0, 0, 1.2 * R_SCENE];
+    const cap = Math.acos(1 / 1.2) - COLD_AIM_HORIZON_PAD_RAD;
+    expect(cap).toBeLessThan(AIM_MAX_RAD);
+    const d = [0, 0, 1], want = [...d];
+    expect(coldLimbAim(d, near, SUN_DIR_WORLD, 572, 30)).toBe(false);
+    expect(d).toEqual(want);
+    // the same state with the wide camera does find a spot, so the cap is what refused it
+    expect(coldLimbAim([0, 0, 1], CAM, SUN_DIR_WORLD, 572, 30)).toBe(true);
+    expect(coldLimbAim([0, 0, 1], [0, 0, R_SCENE], SUN_DIR_WORLD, 572, 30)).toBe(false);
+    expect(coldLimbAim([0, 0, 1], [0, 0, 0.5], SUN_DIR_WORLD, 572, 30)).toBe(false);
+  });
+
+  it('nothing frozen, or a non-finite heatK, keeps the 35 degree aim through launchVisitor', () => {
+    for (const heatK of [1e6, NaN, Infinity]) {
+      const ctx = coolCtx('fluid'); ctx.heatK = heatK;
+      expect(angC(launchVisitor(createVisitors(), 'fluid', ctx).dirWorld)).toBeLessThanOrEqual(AIM_MAX_RAD + 1e-9);
+    }
   });
 });
