@@ -3,12 +3,13 @@
 
 import { qRotate } from './breakupFamily';
 import {
-  VISITOR_SLOTS, VISIT_SURF_MAX, SURF_FILM, SURF_HOT, SURF_MENISCUS, SURF_JET, DROP_R, DROP_STRETCH_K, DROP_STRETCH_MAX,
-  BEAD_OBLATE, EMBER_R, EMBER_BODY_S, EMBER_TAIL_S, EMBER_HALO, ROCK_R, ROCK_BOUND, GUST_TRAIL_S, GUST_W,
-  MENISCUS_RING_DEPTH, JET_R, JET_DEPTH, filmRadius, filmThicknessNm, clearRadius, clearDepth, hotTempK, jetEnvelope,
+  VISITOR_SLOTS, VISIT_SURF_MAX, SURF_FILM, SURF_HOT, SURF_MENISCUS, SURF_JET, SURF_FROST, SURF_POOL, SURF_COLLAR, DROP_R,
+  DROP_STRETCH_K, DROP_STRETCH_MAX, BEAD_OBLATE, EMBER_R, EMBER_BODY_S, EMBER_TAIL_S, EMBER_HALO, ROCK_R, ROCK_BOUND,
+  GUST_TRAIL_S, GUST_W, MENISCUS_RING_DEPTH, JET_R, JET_DEPTH, COLLAR_H, PLUME_LEN, PLUME_LIFT, PLUME_W, PLUME_GROW_S,
+  filmRadius, filmThicknessNm, clearRadius, clearDepth, hotTempK, jetEnvelope, frostRadius, poolRadius, poolFreeze,
 } from './visitorSim';
 
-export const VIS_DROP = 1, VIS_BEAD = 2, VIS_EMBER = 3, VIS_ROCK = 4, VIS_GUST = 5;
+export const VIS_DROP = 1, VIS_BEAD = 2, VIS_EMBER = 3, VIS_ROCK = 4, VIS_GUST = 5, VIS_PLUME = 6;
 export const VIS_PAD_PX = 4;
 export const BEAD_BOUND = 3.5;             // × r: the steam above it
 
@@ -87,19 +88,28 @@ function packFlight(f, view, v) {
   }
 }
 
-function packSettled(f, view, v, a) {
+function packSettled(f, view, v, a, ctx) {
   if (v.kind === 'bead') {
     pushBody(f, view, VIS_BEAD, v.pos, v.r, v.dirWorld, BEAD_OBLATE, v.fade, 0, v.pos, BEAD_BOUND * v.r);
-  } else if (v.kind === 'ember' && a < EMBER_BODY_S) {
+  } else if ((v.kind === 'ember' || v.kind === 'pool') && a < EMBER_BODY_S) {
     const body = 1 - Math.min(1, Math.max(0, (a - (EMBER_BODY_S - 0.5)) / 0.5));
     pushBody(f, view, VIS_EMBER, v.pos, EMBER_R, v.dirWorld, 0, v.fade * body, v.tempK, v.pos, 2 * EMBER_HALO * EMBER_R);
-  } else if (v.kind === 'rock') {
+  } else if (v.kind === 'rock' || v.kind === 'sink') {
     pushBody(f, view, VIS_ROCK, v.pos, ROCK_R, rockAxis(v.seed, _g), v.spin, v.fade, seedFrac(v.seed), v.pos, 1.2 * ROCK_BOUND * ROCK_R);
+  } else if (v.kind === 'strip') {
+    // Hg vapour torn off the boiling surface: a streamer along the gust, lifting as it goes
+    qRotate(ctx.q, v.tan, _a);
+    _a[0] += v.dirWorld[0] * PLUME_LIFT; _a[1] += v.dirWorld[1] * PLUME_LIFT; _a[2] += v.dirWorld[2] * PLUME_LIFT;
+    unitInto(_a, _a);
+    const len = PLUME_LEN * Math.min(1, a / PLUME_GROW_S);
+    pushBody(f, view, VIS_PLUME, v.pos, PLUME_W, _a, len, v.fade, seedFrac(v.seed), _c, trailBound(v.pos, _a, len, 3 * PLUME_W));
   }
 }
 
-// Film, hot spot and jet stay in the liquid while they fade (even when flung); a rock's meniscus leaves with the rock.
-const hasSurface = (v) => v.kind === 'film' || v.kind === 'ember' || v.kind === 'jet' || (v.kind === 'rock' && v.state === 'resident');
+// Film, hot spot, gust, strip, frost and pool stay in the surface while they fade (even when flung); a rock's meniscus
+// and a sinking rock's collar leave with the rock.
+const hasSurface = (v) => v.kind === 'film' || v.kind === 'ember' || v.kind === 'jet' || v.kind === 'strip' || v.kind === 'frost'
+  || v.kind === 'pool' || ((v.kind === 'rock' || v.kind === 'sink') && v.state === 'resident');
 
 function packSurface(f, j, v, ctx) {
   const a = ctx.tS - v.tImpact, o = 4 * j;
@@ -113,7 +123,14 @@ function packSurface(f, j, v, ctx) {
     D[o + 3] = SURF_HOT; A[o] = clearRadius(a); A[o + 1] = clearDepth(a); A[o + 2] = hotTempK(a);
   } else if (v.kind === 'rock') {
     D[o + 3] = SURF_MENISCUS; A[o] = ROCK_R / ctx.coreR; A[o + 1] = MENISCUS_RING_DEPTH; A[o + 2] = 0;
+  } else if (v.kind === 'frost') {
+    D[o + 3] = SURF_FROST; A[o] = frostRadius(a); A[o + 1] = 0; A[o + 2] = seedFrac(v.seed);
+  } else if (v.kind === 'pool') {
+    D[o + 3] = SURF_POOL; A[o] = poolRadius(a); A[o + 1] = poolFreeze(a); A[o + 2] = hotTempK(a);
+  } else if (v.kind === 'sink') {
+    D[o + 3] = SURF_COLLAR; A[o] = ROCK_R / ctx.coreR; A[o + 1] = COLLAR_H; A[o + 2] = 0;
   } else {
+    // a gust, or a gust stripping boiling Hg: the same dent and cat's-paws
     D[o + 3] = SURF_JET; A[o] = JET_R; A[o + 1] = JET_DEPTH * jetEnvelope(a); A[o + 2] = a;
     qRotate(ctx.q, v.tan, _g);
     B[o] = _g[0]; B[o + 1] = _g[1]; B[o + 2] = _g[2];
@@ -130,7 +147,7 @@ export function packVisitors(buf, ctx, view, f) {
     const v = buf.v[i];
     if (!v.live) continue;
     if (v.state === 'flight') { packFlight(f, view, v); continue; }
-    packSettled(f, view, v, ctx.tS - v.tImpact);
+    packSettled(f, view, v, ctx.tS - v.tImpact, ctx);
     if (hasSurface(v)) {
       // strongest first (stable insertion by fade): a tier whose shader draws fewer slots draws the ones that show
       let j = nc++;
