@@ -39,7 +39,8 @@ export const MOTE_COL = [0.5, 0.48, 0.45];
 export const PLUME_A = 0.2;
 export const PLUME_COL = [0.62, 0.68, 0.78];
 // The quench's steam puff (a PLUME_STEAM plume, A10) has its own knobs: it sits over bright lit crust, where the bead's
-// steam (over a dark liquid mirror) can't be seen, so its colour is an HDR white (> 1) brighter than the lit crust.
+// steam (over a dark liquid mirror) can't be seen. The visitor pass writes sRGB to an 8-bit target with no tone map, so this >1 colour
+// saturates to white where the puff is dense; the >1 value mainly keeps the thin edges bright against the lit crust.
 export const QUENCH_STEAM_A = 1.2;          // A10 pick B4 (task rise)
 export const QUENCH_STEAM_COL = [1.3, 1.32, 1.35];
 

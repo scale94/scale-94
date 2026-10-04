@@ -136,6 +136,11 @@ describe('visitors matrix wiring', () => {
     expect(planetSrc).toContain("else if (st.kind === 'quench') stampQuench(scar, st.dirBody, st.radius, st.seed);");
     expect(planetSrc.indexOf('surf.marksLiquid = liquidNow;')).toBeLessThan(planetSrc.indexOf('if (scarDirty) scarTex.needsUpdate = true;'));
     expect(planetSrc).not.toContain('clearMarks(scar)');
+    // Q-6: liquidNow is computed once, before the drain, and a stamp from the other side of the crossing is dropped
+    expect(planetSrc.match(/const liquidNow = /g)).toHaveLength(1);
+    expect(planetSrc.indexOf('const liquidNow = body.tau >= LIQUID_TAU;')).toBeLessThan(drain);
+    expect(planetSrc.indexOf('if (st.crust === liquidNow) continue;')).toBeGreaterThan(drain);
+    expect(drain).toBeLessThan(planetSrc.indexOf('crossMarks(scar, surf.marksLiquid, liquidNow)'));
     expect(planetSrc).toContain('else stampPit(scar, st.dirBody, st.radius, PIT_DEPTH_M);');
   });
   it('rings frost and the pool like solid Hg, sends nothing for a sink, puffs the exosphere for a strip', () => {

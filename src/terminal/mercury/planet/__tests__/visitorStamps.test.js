@@ -41,6 +41,19 @@ describe('visitors matrix — stamp events (matrix spec §4, §5.1)', () => {
       expect(buf.live).toBe(0);
     });
   }
+  it('Q-6: each stamp records which side of the state crossing it belongs to', () => {
+    for (const [phase, T, tau, resident, crust] of [
+      ['fluid', 200, 1, 'frost', false],
+      ['thermal', 200, 1, 'pool', false],
+      ['fluid', 200, 0.1, 'quench', true],
+      ['thermal', 200, 0.1, 'crustpool', true],
+      ['earth', 400, 0.3, 'sink', true],
+    ]) {
+      const { stamps } = strike(phase, T, tau, 8);
+      expect(stamps, resident).toHaveLength(1);
+      expect(stamps[0].crust, resident).toBe(crust);
+    }
+  });
   it('nothing on liquid or boiling Hg stamps', () => {
     for (const [phase, T] of [['fluid', 400], ['fluid', 600], ['thermal', 400], ['earth', 400], ['air', 400], ['air', 700]]) {
       expect(strike(phase, T, 1, 15).stamps).toHaveLength(0);

@@ -42,6 +42,9 @@ export const IMPULSE_FOR = Object.freeze({
 });
 // The kinds that leave a persistent mark in the scar map when their life ends (matrix spec §4, §9).
 export const STAMP_FOR = Object.freeze({ frost: 'frost', pool: 'glaze', sink: 'pit', quench: 'quench', crustpool: 'glaze' });
+// Q-6: which side of the state crossing a stamp belongs to. Crust marks (quench, re-melt glaze, pit) are made below LIQUID_TAU;
+// frozen-Hg marks (frost, pool glaze) above it. The consumer drops a stamp whose side no longer matches the planet.
+export const STAMP_CRUST = Object.freeze({ frost: false, pool: false, sink: true, quench: true, crustpool: true });
 
 // Bodies, scene units (R_SCENE = 0.75).
 export const DROP_R = 0.028;
@@ -227,7 +230,7 @@ export function createVisitorOut() {
     impacts: Array.from({ length: VISITOR_SLOTS }, () => ({ kind: '', impulse: '', phase: '', dirBody: [0, 0, 1], dirWorld: [0, 0, 1], seed: 0, tempK: 0 })),
     // persistent marks for the scar map (frost, glaze, pit), drained by MercuryPlanet every frame
     nStamps: 0,
-    stamps: Array.from({ length: VISITOR_SLOTS }, () => ({ kind: '', dirBody: [0, 0, 1], radius: 0, seed: 0 })),
+    stamps: Array.from({ length: VISITOR_SLOTS }, () => ({ crust: false, kind: '', dirBody: [0, 0, 1], radius: 0, seed: 0 })),
   };
 }
 
@@ -369,7 +372,7 @@ export const stampRadius = (kind) => (kind === 'frost' ? FROST_R : kind === 'que
 function emitStamp(v, out) {
   if (out.nStamps >= out.stamps.length) return;
   const s = out.stamps[out.nStamps++];
-  s.kind = STAMP_FOR[v.kind]; s.radius = stampRadius(v.kind); s.seed = v.seed;
+  s.crust = STAMP_CRUST[v.kind] === true; s.kind = STAMP_FOR[v.kind]; s.radius = stampRadius(v.kind); s.seed = v.seed;
   s.dirBody[0] = v.dirBody[0]; s.dirBody[1] = v.dirBody[1]; s.dirBody[2] = v.dirBody[2];
 }
 

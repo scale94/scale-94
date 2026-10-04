@@ -536,7 +536,7 @@ describe('visitors matrix amendment A: marks on the crust, the live quench, the 
   it('marks the crust after its light, before the transmutation; captures the fluid weight; opens the pool in the rock after it', () => {
     const main = PLANET_FS.slice(PLANET_FS.indexOf('void main()'));
     const crustLight = main.indexOf('vec3 colLin = albedo * (uSunIrr * uExposure * ls * term * vis + uNightFloor);');
-    const marks = main.indexOf('colLin = visitCrustMarks(colLin, uv, gx, gy, hit, xw, nWc, rd, uSunIrr * uExposure * ls * term * vis, uSunIrr * uExposure * max(dot(nWc, uSunDir), 0.0) * term); // visitors');
+    const marks = main.indexOf('colLin = visitCrustMarks(colLin, uv, gx, gy, hit, xw, xb, nWc, rd, uSunIrr * uExposure * ls * term * vis, uSunIrr * uExposure * max(dot(nWc, uSunDir), 0.0) * term); // visitors');
     const front = main.indexOf('if (uTau > 0.0) {');
     const capture = main.indexOf('visFluid = fluid; // visitors');
     const emit = main.indexOf('colLin += fluid * liquidW * visEmit; // visitors');
@@ -553,7 +553,7 @@ describe('visitors matrix amendment A: marks on the crust, the live quench, the 
     const solid = PLANET_FS.slice(PLANET_FS.indexOf('float visitPoolSolid('), PLANET_FS.indexOf('vec3 visitCrustMarks('));
     expect(solid).not.toContain('A.w * A.y');
     expect(solid).toContain('s = max(s, A.w * (1.0 - smoothstep(0.85 * A.x, A.x, th)));');
-    expect(PLANET_FS).toContain('float b = max(m.x, uVisitOn > 0.5 ? visitQuench(x) : 0.0);');
+    expect(PLANET_FS).toContain('float b = max(m.x, uVisitOn > 0.5 ? visitQuench(x, xn) : 0.0);');
     expect(PLANET_FS).toContain('float g = max(m.y, uVisitOn > 0.5 ? visitPoolSolid(x) : 0.0);');
   });
   it('the calm variant still draws the crust marks, with no live slots', () => {

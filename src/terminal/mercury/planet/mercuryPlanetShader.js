@@ -671,7 +671,7 @@ float quenchProfile(float s, float h) {
 }
 
 // The quench spreading (SURF_QUENCH): the same profile at its live radius.
-float visitQuench(vec3 x) {
+float visitQuench(vec3 x, vec3 xn) { // xn: the same point in the body frame, for the rind edge noise only (the slot directions are world-space)
   float q = 0.0;
   for (int i = 0; i < VISIT_SLOTS; i++) {
     vec4 D = uVisitDir[i];
@@ -680,7 +680,7 @@ float visitQuench(vec3 x) {
     float r = max(A.x, 1e-4);
     float th = acos(clamp(dot(x, D.xyz), -1.0, 1.0));
     if (th >= 1.25 * r) continue;
-    q = max(q, A.w * quenchProfile(th / r, vnoise3(x * 90.0 + A.z)));
+    q = max(q, A.w * quenchProfile(th / r, vnoise3(xn * 90.0 + A.z)));
   }
   return q;
 }
@@ -702,11 +702,11 @@ float visitPoolSolid(vec3 x) {
 // The crust's marks (spec §9.3, §9.4): B = the quench rind, A = glaze (a refrozen Hg disc set in the rock, plan Q-3).
 // nW: the crust's world normal; light: its Sun term (Lommel-Seeliger, terminator, shadow); sunHg: Lambert for the Hg disc.
 // Each look is gated on its own coverage, so an unmarked texel pays one fetch (plan Q-4).
-vec3 visitCrustMarks(vec3 col, vec2 uv, vec2 gx, vec2 gy, vec3 P, vec3 x, vec3 nW, vec3 rd, float light, float sunHg) {
+vec3 visitCrustMarks(vec3 col, vec2 uv, vec2 gx, vec2 gy, vec3 P, vec3 x, vec3 xn, vec3 nW, vec3 rd, float light, float sunHg) {
   vec2 m = uMarksOn > 0.5 ? textureGrad(uScar, uv, gx, gy).ba : vec2(0.0);
   // Byte B here is the quench rind; visitMarks reads the same byte as frost on frozen Hg (plan Q-6). Safe only because
   // frozen-Hg frost is dormant (spec A4) and crossMarks wipes on a state change: waking frost needs its own channel.
-  float b = max(m.x, uVisitOn > 0.5 ? visitQuench(x) : 0.0);
+  float b = max(m.x, uVisitOn > 0.5 ? visitQuench(x, xn) : 0.0);
   float g = max(m.y, uVisitOn > 0.5 ? visitPoolSolid(x) : 0.0);
   if (b <= 0.0 && g <= 0.0) return col;
   vec3 R = reflect(rd, nW);
@@ -833,7 +833,7 @@ void main() {
 
   vec3 colLin = albedo * (uSunIrr * uExposure * ls * term * vis + uNightFloor);
   vec3 nWc = normalize(uBodyRot * n); // visitors
-  if (uMarksOn > 0.5 || uVisitOn > 0.5) colLin = visitCrustMarks(colLin, uv, gx, gy, hit, xw, nWc, rd, uSunIrr * uExposure * ls * term * vis, uSunIrr * uExposure * max(dot(nWc, uSunDir), 0.0) * term); // visitors
+  if (uMarksOn > 0.5 || uVisitOn > 0.5) colLin = visitCrustMarks(colLin, uv, gx, gy, hit, xw, xb, nWc, rd, uSunIrr * uExposure * ls * term * vis, uSunIrr * uExposure * max(dot(nWc, uSunDir), 0.0) * term); // visitors
   float visFluid = 0.0; // visitors
 
   // Transmutation: the front advances from the subsolar point outward

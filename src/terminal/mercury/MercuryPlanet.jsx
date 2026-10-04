@@ -566,8 +566,11 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
       }
     }
     // Persistent marks (frost, glaze, pit): stamped even under reduced motion; a mark is not motion.
+    // Q-6: a stamp belongs to one side of the state crossing; one that outlived its side is dropped, never stamped on the wrong state.
+    const liquidNow = body.tau >= LIQUID_TAU;
     for (let k = 0; k < vis.out.nStamps; k++) {
       const st = vis.out.stamps[k];
+      if (st.crust === liquidNow) continue;
       if (st.kind === 'frost') stampFrost(scar, st.dirBody, st.radius, st.seed);
       else if (st.kind === 'quench') stampQuench(scar, st.dirBody, st.radius, st.seed);
       else if (st.kind === 'glaze') stampGlaze(scar, st.dirBody, st.radius);
@@ -594,7 +597,6 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     if (body.tau >= 1 && healScars(scar)) scarDirty = true;
     // Marks last until the planet changes state (spec R3, §9.6): crust -> liquid melts the rinds and glaze,
     // liquid -> crust buries the frozen-Hg frost and glaze.
-    const liquidNow = body.tau >= LIQUID_TAU;
     if (crossMarks(scar, surf.marksLiquid, liquidNow)) scarDirty = true;
     surf.marksLiquid = liquidNow;
     surf.scarClock += Math.min(delta, MAX_FRAME_DT_S);
