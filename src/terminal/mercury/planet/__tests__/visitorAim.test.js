@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createVisitors, launchVisitor, aimToward, AIM_MAX_RAD, T_FLIGHT } from '../visitorSim';
 import { ctxFor } from './visitorTestKit';
+import * as SIM from '../visitorSim';
 
 const len = (v) => Math.hypot(v[0], v[1], v[2]);
 const ang = (a, b) => Math.acos(Math.min(1, (a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) / (len(a) * len(b))));
@@ -42,5 +43,15 @@ describe('visitors matrix — the landing aim (matrix spec §4.1)', () => {
         expect(a[0] * b[0] + a[1] * b[1] + a[2] * b[2]).toBeGreaterThan(0);
       }
     }
+  });
+  it('water and fire on a cool liquid planet still land inside the cone (amendment A2: no cold-limb aim)', () => {
+    for (const phase of ['fluid', 'thermal']) {
+      const ctx = ctxFor(phase);
+      ctx.tempOverrideK = null; ctx.tau = 1; ctx.heatK = 30; ctx.subsolarT = 572;
+      const v = launchVisitor(createVisitors(), phase, ctx);
+      expect(ang(v.dirWorld, [0, 0, 1])).toBeLessThanOrEqual(AIM_MAX_RAD + 1e-9);
+    }
+    expect(SIM.coldLimbAim).toBeUndefined();
+    expect(SIM.COLD_AIM_MAX_RAD).toBeUndefined();
   });
 });

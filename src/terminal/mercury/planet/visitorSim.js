@@ -250,35 +250,6 @@ export function aimToward(d, cam, maxRad) {
   return d;
 }
 
-// Cold-limb aim (matrix P-7, author decision 2026-10-04, replaces P-6). The 35° cone is always the afternoon side, where the
-// sunset floor keeps Hg above ~390 K, so frost and pools could never fire. Water and fire therefore search outward from the
-// cone edge, along the great circle toward the anti-sun side, for the first spot still frozen at touchdown (margin below
-// HG_MELT_K). Writes it into d and returns true; returns false and leaves d untouched when nothing on the disc is frozen.
-export const COLD_AIM_MAX_RAD = (80 * Math.PI) / 180;
-export const COLD_AIM_MARGIN_K = 10;
-// The search also stops this far inside the geometric horizon acos(R / |cam|), so a landing is never behind the limb.
-export const COLD_AIM_HORIZON_PAD_RAD = (5 * Math.PI) / 180;
-export function coldLimbAim(d, cam, sun, tssK, heatK, radius = R_SCENE) {
-  const cl = Math.hypot(cam[0], cam[1], cam[2]);
-  if (!(cl > radius)) return false;
-  const maxRad = Math.min(COLD_AIM_MAX_RAD, Math.acos(radius / cl) - COLD_AIM_HORIZON_PAD_RAD);
-  const c0 = cam[0] / cl, c1 = cam[1] / cl, c2 = cam[2] / cl;
-  const k = -(sun[0] * c0 + sun[1] * c1 + sun[2] * c2);
-  const a0 = -sun[0] - c0 * k, a1 = -sun[1] - c1 * k, a2 = -sun[2] - c2 * k;
-  const al = Math.hypot(a0, a1, a2);
-  if (!(al >= 1e-6)) return false;
-  const n0 = a0 / al, n1 = a1 / al, n2 = a2 / al;
-  const p = [0, 0, 0];
-  const limit = HG_MELT_K - COLD_AIM_MARGIN_K;
-  const step = Math.PI / 180;
-  for (let th = AIM_MAX_RAD; th <= maxRad + 1e-9; th += step) {
-    const ct = Math.cos(th), st = Math.sin(th);
-    p[0] = c0 * ct + n0 * st; p[1] = c1 * ct + n1 * st; p[2] = c2 * ct + n2 * st;
-    if (localTempK(p, sun, tssK, heatK) < limit) { d[0] = p[0]; d[1] = p[1]; d[2] = p[2]; return true; }
-  }
-  return false;
-}
-
 // Where the fall lands (world): the strike point 40° off the launch node toward the viewer, pulled inside the aim cone
 // (aimed once at launch: strikeDirWorld allocates), at the live core radius (it changes during a hyper-fling, so every frame).
 function landing(v, ctx) {
@@ -299,10 +270,7 @@ export function launchVisitor(buf, phase, ctx) {
   const cl = Math.hypot(ctx.cam[0], ctx.cam[1], ctx.cam[2]) || 1;
   for (let k = 0; k < 3; k++) v.bow[k] = (ctx.cam[k] / cl) * FLIGHT_BOW * R_SCENE;
   strikeDirWorld(v.start, ctx.cam, v.dirWorld);
-  const cold = (phase === 'fluid' || phase === 'thermal') && ctx.tau >= LIQUID_TAU && ctx.tempOverrideK == null
-    && Number.isFinite(ctx.subsolarT) && Number.isFinite(ctx.heatK)
-    && coldLimbAim(v.dirWorld, ctx.cam, SUN_DIR_WORLD, ctx.subsolarT, ctx.heatK, Math.max(R_SCENE, ctx.coreR));
-  if (!cold) aimToward(v.dirWorld, ctx.cam, AIM_MAX_RAD);
+  aimToward(v.dirWorld, ctx.cam, AIM_MAX_RAD);
   landing(v, ctx);
   return v;
 }
