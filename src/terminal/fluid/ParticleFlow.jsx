@@ -2,7 +2,9 @@ import { useRef, useMemo, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { PLANET_WINDOW_VS, PLANET_WINDOW_FS } from '../mercury/planet/planetWindow';
-import { R_SCENE } from '../mercury/planet/planetLook';
+import { R_SCENE, PLANET_TUNE } from '../mercury/planet/planetLook';
+import { AETHER_LIGHT_VS, aetherLightFS } from '../mercury/planet/aetherLight';
+import { SUN_DIR_WORLD } from '../mercury/planet/planetFrame';
 
 // ── Torus Knot parametric helpers ──────────────────────────────────────────
 function knotPoint(t, R = 1, r = 0.4) {
@@ -17,6 +19,7 @@ function knotPoint(t, R = 1, r = 0.4) {
 // ── GLSL Shaders ───────────────────────────────────────────────────────────
 const vertexShader = /* glsl */ `
   ${PLANET_WINDOW_VS}
+  ${AETHER_LIGHT_VS}
   uniform float uTime;
   uniform float uSpeed;
   uniform float uCurlAmp;
@@ -150,11 +153,13 @@ const vertexShader = /* glsl */ `
     gl_PointSize = (1.5 + aRadius * 2.0) * (300.0 / -mvPosition.z) * (1.0 - uCondense * uCondenseSizeBite);
     gl_Position = projectionMatrix * mvPosition;
     planetWindowVS(mvPosition.xyz);
+    aetherLightVS(mvPosition.xyz, gl_PointSize);
   }
 `;
 
 const fragmentShader = /* glsl */ `
   ${PLANET_WINDOW_FS}
+  ${aetherLightFS('fluid')}
   uniform float uOpacity;
   varying float vHue;
   varying float vBrightness;
@@ -185,6 +190,7 @@ const fragmentShader = /* glsl */ `
     // so overlapping sprites decorrelate instead of summing the same noise.
     float dither = (fract(sin(dot(gl_FragCoord.xy + gl_PointCoord * 61.803, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
 
+    color *= aetherLight();
     gl_FragColor = vec4(color, (alpha * 0.95 * uOpacity) * planetWindow() + dither);
   }
 `;
@@ -247,6 +253,9 @@ export default function ParticleFlow({
     uPlanetWindow: { value: planetWindow },
     uViewportPx: { value: new THREE.Vector2(1, 1) },
     uPlanetRadius: { value: R_SCENE },
+    uSunDirW: { value: new THREE.Vector3(...SUN_DIR_WORLD) },
+    uLitFloor: { value: PLANET_TUNE.aetherFloor },
+    uLitPen: { value: PLANET_TUNE.aetherPenumbra },
   }));
 
   // Update uniforms from props each frame + FPS counter
@@ -262,6 +271,8 @@ export default function ParticleFlow({
       mat.uniforms.uCondense.value         = condense;
       mat.uniforms.uCondenseSizeBite.value = condenseSizeBite;
       mat.uniforms.uPlanetWindow.value = planetWindow;
+      mat.uniforms.uLitFloor.value = PLANET_TUNE.aetherFloor;
+      mat.uniforms.uLitPen.value = PLANET_TUNE.aetherPenumbra;
       state.gl.getDrawingBufferSize(mat.uniforms.uViewportPx.value);
     }
     // FPS counter — report once per second

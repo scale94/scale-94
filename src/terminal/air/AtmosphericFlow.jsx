@@ -2,11 +2,14 @@ import { useRef, useMemo, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { PLANET_WINDOW_VS, PLANET_WINDOW_FS } from '../mercury/planet/planetWindow';
-import { R_SCENE } from '../mercury/planet/planetLook';
+import { R_SCENE, PLANET_TUNE } from '../mercury/planet/planetLook';
+import { AETHER_LIGHT_VS, aetherLightFS } from '../mercury/planet/aetherLight';
+import { SUN_DIR_WORLD } from '../mercury/planet/planetFrame';
 
 // ── GLSL ───────────────────────────────────────────────────────────────────
 const vertexShader = /* glsl */ `
   ${PLANET_WINDOW_VS}
+  ${AETHER_LIGHT_VS}
   uniform float uTime;
   uniform float uOrbitalSpeed;
   uniform float uTurbulence;
@@ -131,11 +134,13 @@ const vertexShader = /* glsl */ `
     gl_PointSize = baseSize * (260.0 / -mvPos.z) * (1.0 - uCondense * uCondenseSizeBite);
     gl_Position  = projectionMatrix * mvPos;
     planetWindowVS(mvPos.xyz);
+    aetherLightVS(mvPos.xyz, gl_PointSize);
   }
 `;
 
 const fragmentShader = /* glsl */ `
   ${PLANET_WINDOW_FS}
+  ${aetherLightFS('air')}
   uniform float uOpacity;
   varying float vAltitude;
   varying float vSpeed;
@@ -186,6 +191,7 @@ const fragmentShader = /* glsl */ `
     float alphaScale = 0.05 + vAltitude * 0.28 + vIon * 0.22;
     // Banding dither — see ParticleFlow.jsx for the physics note.
     float dither = (fract(sin(dot(gl_FragCoord.xy + gl_PointCoord * 61.803, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
+    col *= aetherLight();
     gl_FragColor = vec4(col, (alpha * alphaScale * uOpacity) * planetWindow() + dither);
   }
 `;
@@ -251,6 +257,9 @@ export default function AtmosphericFlow({
     uPlanetWindow: { value: planetWindow },
     uViewportPx: { value: new THREE.Vector2(1, 1) },
     uPlanetRadius: { value: R_SCENE },
+    uSunDirW: { value: new THREE.Vector3(...SUN_DIR_WORLD) },
+    uLitFloor: { value: PLANET_TUNE.aetherFloor },
+    uLitPen: { value: PLANET_TUNE.aetherPenumbra },
   }));
 
   useFrame((state, delta) => {
@@ -264,6 +273,8 @@ export default function AtmosphericFlow({
       mat.uniforms.uCondense.value         = condense;
       mat.uniforms.uCondenseSizeBite.value = condenseSizeBite;
       mat.uniforms.uPlanetWindow.value = planetWindow;
+      mat.uniforms.uLitFloor.value = PLANET_TUNE.aetherFloor;
+      mat.uniforms.uLitPen.value = PLANET_TUNE.aetherPenumbra;
       state.gl.getDrawingBufferSize(mat.uniforms.uViewportPx.value);
     }
     if (onFps) {
