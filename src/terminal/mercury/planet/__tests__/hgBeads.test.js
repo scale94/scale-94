@@ -113,9 +113,7 @@ describe('hgBeads sim', () => {
     spawnFling(b, [0, 12, 0], 0.75, FLING_N);
     const ids = b.n;
     run(b, 0.6, ctx);
-    const med = () => { const rs = []; for (let i = 0; i < b.n; i++) rs.push(Math.hypot(b.pos[3 * i], b.pos[3 * i + 1], b.pos[3 * i + 2])); rs.sort((x, y) => x - y); return rs[rs.length >> 1]; };
-    const frac = b.n / ids, med06 = med();
-    run(b, 0.9, ctx);
+    const frac = b.n / ids; // alive = inside BEAD_ESCAPE_R·coreR (stepBeads removes escapers)
     expect(frac).toBeGreaterThanOrEqual(0.5);
   });
   it('remove keeps boost in step with the swapped bead', () => {
