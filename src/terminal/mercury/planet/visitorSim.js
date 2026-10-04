@@ -111,6 +111,11 @@ export const JET_DEPTH = 0.006;
 export const CATSPAW_K = 140;
 export const CATSPAW_AMP = 0.05;
 export const CATSPAW_SPEED = 9;
+// The matrix's looks on frozen Hg (planet shader).
+export const FROST_ALBEDO = [0.8, 0.84, 0.9];  // rime: a cold, faintly blue white
+export const FROST_ENV = 0.5;                   // how much of the nebula + node light the matte rime gathers (spec R5)
+export const GLAZE_ROUGH = 0.1;                 // a refrozen pool: far smoother than polycrystalline frozen Hg
+export const POOL_RIM_H = 0.0025;               // fraction of R: the pool's meniscus lip against its frozen shore
 
 // Light (visitorGlsl mirrors these exactly).
 export const PLANCK_C2_NM_K = 1.4388e7;

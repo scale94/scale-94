@@ -8,7 +8,8 @@ import {
 } from '../mercuryPlanetShader';
 import { TIERS, TIER_NAMES } from '../planetQuality';
 import { glf, v3 } from '../../../gl/glf';
-import { VISIT_SURF_MAX, FILM_N, FILM_A, FILM_TEAR_NM, FILM_NOISE_FREQ, HOT_GAIN, CATSPAW_K, CATSPAW_AMP, CATSPAW_SPEED, JET_DEPTH, PLANCK_C2_NM_K, GLOW_EXPO } from '../visitorSim';
+import { VISIT_SURF_MAX, FILM_N, FILM_A, FILM_TEAR_NM, FILM_NOISE_FREQ, HOT_GAIN, CATSPAW_K, CATSPAW_AMP, CATSPAW_SPEED, JET_DEPTH, PLANCK_C2_NM_K, GLOW_EXPO,
+  FROST_ALBEDO, FROST_ENV, GLAZE_ROUGH, POOL_RIM_H, SURF_HOT, SURF_FROST, SURF_POOL, SURF_COLLAR } from '../visitorSim';
 import { PLANCK_REF, VISIT_LIGHT_GLSL } from '../visitorGlsl';
 import {
   R_SCENE, R_MERCURY_M, SHADOW_STEPS, SHADOW_REACH_RAD, SHADOW_SOFT_M, SHADOW_ZONE,
@@ -469,5 +470,45 @@ describe('visitors: surface slots', () => {
     const block = PLANET_FS.slice(PLANET_FS.indexOf('// <visitors>'), PLANET_FS.indexOf('// </visitors>'));
     expect(block.length).toBeGreaterThan(100);
     expect(block).not.toMatch(/dFd[xy]|fwidth/);
+  });
+});
+
+describe('visitors matrix: marks on frozen Hg, the pool, the crust collar', () => {
+  it('declares uMarksOn (marked) and lists it', () => {
+    expect(PLANET_FS).toContain('uniform float uMarksOn; // visitors');
+    expect(PLANET_UNIFORMS).toContain('uMarksOn');
+  });
+  it('interpolates the look constants from visitorSim', () => {
+    for (const [name, value] of Object.entries({ FROST_ENV, GLAZE_ROUGH, POOL_RIM_H })) {
+      expect(PLANET_FS).toContain(`const float ${name} = ${glf(value)};`);
+    }
+    expect(PLANET_FS).toContain(`const vec3 FROST_ALBEDO = ${v3(FROST_ALBEDO)};`);
+  });
+  it('the pool turns frozen Hg liquid before the contact line is drawn; marks paint the solid branch; the collar tilts the crust', () => {
+    const main = PLANET_FS.slice(PLANET_FS.indexOf('void main()'));
+    const lw = main.indexOf('float liquidW = smoothstep(');
+    const pool = main.indexOf('if (uVisitOn > 0.5) liquidW = max(liquidW, visitPool(xw)); // visitors');
+    const fluidMix = main.indexOf('fluid = mix(fluidSoft, fluidHard, liquidW * clamp(uMeniscus, 0.0, 1.0));');
+    expect(pool).toBeGreaterThan(lw);
+    expect(pool).toBeLessThan(fluidMix);
+    const solidEnd = main.indexOf('+ frozenAether(R, nW, NoV) + vec3(glint * SPARKLE_GAIN * sunI);');
+    const marks = main.indexOf('if (uMarksOn > 0.5 || uVisitOn > 0.5) solid = visitMarks(solid, uv, gx, gy, hit, xw, R, nW, NoV, sunI * max(dot(nW, uSunDir), 0.0) * term); // visitors');
+    const mixL = main.indexOf('colLin = mix(colLin, mix(solid, liquid, liquidW), fluid);');
+    expect(marks).toBeGreaterThan(solidEnd);
+    expect(marks).toBeLessThan(mixL);
+    const relief = main.indexOf('n = normalize(nb - east');
+    const crust = main.indexOf('if (uVisitOn > 0.5) n = normalize(n - transpose(uBodyRot) * visitCrustTilt(xw)); // visitors');
+    const rays = main.indexOf('// Fresh crater rays brighten the crust');
+    expect(crust).toBeGreaterThan(relief);
+    expect(crust).toBeLessThan(rays);
+  });
+  it('the calm variant still draws the persistent marks, with no live slots', () => {
+    const fs = buildPlanetShader({ tier: 'full', calm: true }).fs;
+    expect(fs).toContain('const int VISIT_SLOTS = 0;');
+    expect(fs).toContain('solid = visitMarks(');
+  });
+  it('the pool glows like a hot spot; the frost, pool and collar slots each have a reader', () => {
+    expect(PLANET_FS).toContain(`D.w == ${glf(SURF_HOT)} || D.w == ${glf(SURF_POOL)}`);
+    for (const c of [SURF_FROST, SURF_POOL, SURF_COLLAR]) expect(PLANET_FS).toContain(`D.w != ${glf(c)}`);
   });
 });
