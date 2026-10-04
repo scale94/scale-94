@@ -15,6 +15,10 @@ import { computeInstruments } from '../mercury/instruments';
 
 const isMobile = typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
+// Desktop stage: full width, 16:9, capped so the whole canvas sits below the nav on load.
+// Calibrated live (stage-layout plan Task 4): canvas top at scrollY 0 + a little breathing room.
+const NAV_OFFSET_PX = 240;
+
 const DEFAULT_PARAMS = {
   speed:        0.1,
   turbulence:   0.25,
@@ -104,24 +108,52 @@ export default function MercuryTab({ onNavigateTab }) {
         }
       `}</style>
 
-      {/* Header — Mercury Terminal · vision statement */}
-      <div className="mb-6">
-        <div className="flex items-start gap-3 mb-2">
-          {/* Eye architect glyph */}
+      {/* Stage — the simulation gets the full width (16:9, capped at the viewport); the title rides inside it */}
+      <div
+        className="w-full rounded-sm overflow-hidden"
+        style={{
+          ...(isMobile
+            ? { height: 'calc(100svh - 420px - env(safe-area-inset-bottom, 0px))' }
+            : { aspectRatio: '16 / 9', maxHeight: `calc(100svh - ${NAV_OFFSET_PX}px)` }),
+          minHeight: '300px',
+          background: '#000',
+          position: 'relative',
+          touchAction: 'none',
+        }}
+      >
+        <MercuryCanvas
+          params={mergedParams}
+          onPhaseChange={setActivePhase}
+          onFps={setFps}
+          overlay={slowNoonOverlay}
+        />
+
+        {/* Energy line — the stage's top edge */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none"
+          style={{
+            position: 'absolute', left: 0, top: 0, height: '1px',
+            background: 'linear-gradient(90deg, rgba(192,192,192,0.6), rgba(192,192,192,0.1), transparent)',
+            animation: 'hg-energyLine 1.2s 0.3s cubic-bezier(0.16,1,0.3,1) both',
+          }}
+        />
+
+        {/* HUD — title + phase, top-left, in the credit's register; never takes the pointer */}
+        <div className="absolute top-3 left-4 pointer-events-none select-none flex items-start gap-2">
           <span
             aria-hidden="true"
             style={{
-              fontSize: 26,
+              fontSize: 16,
               lineHeight: 1,
               color: 'rgba(192,192,192,0.4)',
               animation: 'hg-titleReveal 1s cubic-bezier(0.16,1,0.3,1) both',
-              flexShrink: 0,
-              marginTop: 3,
+              marginTop: 2,
             }}
           >◉</span>
           <div>
             <h2
-              className="text-xl sm:text-2xl font-bold tracking-tight uppercase font-mono"
+              className="text-sm sm:text-base font-bold tracking-tight uppercase font-mono"
               style={{
                 background: 'linear-gradient(90deg, #c0c0c0, #e8e8e8, #a0a0a0)',
                 WebkitBackgroundClip: 'text',
@@ -140,9 +172,26 @@ export default function MercuryTab({ onNavigateTab }) {
           </div>
         </div>
 
-        {/* Mercury vision statement */}
+        <span
+          className="absolute bottom-2 right-3 pointer-events-none select-none font-mono uppercase"
+          style={{ fontSize: 9, letterSpacing: '0.18em', color: 'rgba(255,255,255,0.28)' }}
+        >
+          MESSENGER MDIS · USGS ASTROGEOLOGY
+        </span>
+      </div>
+
+      {/* Under the stage — controls · the Slow Noon dial · the vision statement as a caption */}
+      <div className="mt-4 grid grid-cols-1 lg:grid-cols-[320px_320px_1fr] gap-4 items-start">
+        <MercuryControls
+          activePhase={activePhase}
+          params={mergedParams}
+          onChange={handleParamsChange}
+          fps={fps}
+          particleCount={liveDensity}
+        />
+        <SlowNoonDial onOverlay={setSlowNoonOverlay} />
         <div
-          className="font-mono text-[8px] tracking-[0.12em] mb-1 leading-relaxed"
+          className="font-mono text-[8px] tracking-[0.12em] leading-relaxed lg:pt-3"
           style={{
             color: 'rgba(192,192,192,0.2)',
             animation: 'hg-titleReveal 0.8s 0.25s cubic-bezier(0.16,1,0.3,1) both',
@@ -156,58 +205,6 @@ export default function MercuryTab({ onNavigateTab }) {
           <br />
           <span style={{ color: 'rgba(192,192,192,0.4)' }}>{`// OBSERVATION LOOP`}</span>
           {' '}— outer cosmos × inner mirror · castles cast in real time · the log writes itself
-        </div>
-
-        <div className="mt-3 relative h-[1px]">
-          <div
-            style={{
-              position: 'absolute', left: 0, top: 0, height: '1px',
-              background: 'linear-gradient(90deg, rgba(192,192,192,0.6), rgba(192,192,192,0.1), transparent)',
-              animation: 'hg-energyLine 1.2s 0.3s cubic-bezier(0.16,1,0.3,1) both',
-            }}
-          />
-        </div>
-        <div className="border-b border-gray-800/40 pb-4 mb-6" />
-      </div>
-
-      {/* Main: canvas is centerpiece — appears first on mobile, right column on desktop */}
-      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4">
-        {/* Controls — order-last on mobile (below canvas), order-first on desktop (left sidebar) */}
-        <div className="order-last lg:order-first">
-          <MercuryControls
-            activePhase={activePhase}
-            params={mergedParams}
-            onChange={handleParamsChange}
-            fps={fps}
-            particleCount={liveDensity}
-          />
-          <SlowNoonDial onOverlay={setSlowNoonOverlay} />
-        </div>
-        {/* Canvas — order-first on mobile so it's the first thing you see */}
-        <div
-          className="order-first lg:order-last w-full rounded-sm overflow-hidden"
-          style={{
-            height: isMobile
-              ? 'calc(100svh - 420px - env(safe-area-inset-bottom, 0px))'
-              : 'calc(100svh - 260px)',
-            minHeight: '300px',
-            background: '#000',
-            position: 'relative',
-            touchAction: 'none',
-          }}
-        >
-          <MercuryCanvas
-            params={mergedParams}
-            onPhaseChange={setActivePhase}
-            onFps={setFps}
-            overlay={slowNoonOverlay}
-          />
-          <span
-            className="absolute bottom-2 right-3 pointer-events-none select-none font-mono uppercase"
-            style={{ fontSize: 9, letterSpacing: '0.18em', color: 'rgba(255,255,255,0.28)' }}
-          >
-            MESSENGER MDIS · USGS ASTROGEOLOGY
-          </span>
         </div>
       </div>
 

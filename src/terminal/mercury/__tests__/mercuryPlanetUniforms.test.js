@@ -65,7 +65,8 @@ describe('THE SLOW NOON placement', () => {
     expect(tabSrc).toContain('<SlowNoonDial onOverlay={setSlowNoonOverlay} />');
     expect(tabSrc).toContain('overlay={slowNoonOverlay}');
     expect(tabSrc.indexOf('<SlowNoonDial')).toBeGreaterThan(tabSrc.indexOf('<MercuryControls'));
-    expect(tabSrc.indexOf('<SlowNoonDial')).toBeLessThan(tabSrc.indexOf('<MercuryCanvas'));
+    // stage layout: the canvas is the full-width stage above the controls row
+    expect(tabSrc.indexOf('<SlowNoonDial')).toBeGreaterThan(tabSrc.indexOf('<MercuryCanvas'));
   });
 });
 

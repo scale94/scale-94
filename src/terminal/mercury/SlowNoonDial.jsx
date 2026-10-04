@@ -76,7 +76,7 @@ export default function SlowNoonDial({ onOverlay }) {
 
   return (
     <div
-      className="border border-zinc-600/[0.05] rounded-lg bg-black/30 p-3 mt-4 select-none"
+      className="border border-zinc-600/[0.05] rounded-lg bg-black/30 p-3 select-none"
       role="group"
       aria-label={`The Slow Noon. ${lines.join('. ')}`}
       style={{ touchAction: 'manipulation' }}
