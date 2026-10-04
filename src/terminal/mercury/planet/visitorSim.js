@@ -269,6 +269,43 @@ export function aimToward(d, cam, maxRad) {
   return d;
 }
 
+// Fire on crust lands in sunlight (author ruling, amendment A look pass): the refrozen glaze is a mirror, so it only reads
+// under key light. At least this far above the local horizon: cos⁻¹ 0.4 ≈ 66° from the sub-solar point, sun ≈ 24° up.
+export const LIT_AIM_MIN_SUN_COS = 0.4;
+
+// Slide an in-cone landing d along the great circle toward the cone's most sunward point p* to the first point with
+// dot(d, sun) ≥ minSunCos (or to p* when even p* is darker). d and p* both lie in the cone (a cap < 90°), and so does the
+// arc between them. Called once at launch, so the bisection is fine.
+export function litAim(d, cam, sun, maxRad, minSunCos) {
+  const sd = (x0, x1, x2) => x0 * sun[0] + x1 * sun[1] + x2 * sun[2];
+  if (sd(d[0], d[1], d[2]) >= minSunCos) return d;
+  const cl = Math.hypot(cam[0], cam[1], cam[2]) || 1;
+  const c0 = cam[0] / cl, c1 = cam[1] / cl, c2 = cam[2] / cl;
+  const cs = sd(c0, c1, c2);
+  const u0 = sun[0] - c0 * cs, u1 = sun[1] - c1 * cs, u2 = sun[2] - c2 * cs;
+  const ul = Math.hypot(u0, u1, u2);
+  let p0 = c0, p1 = c1, p2 = c2;
+  if (ul > 1e-9) {
+    const r = Math.min(maxRad, Math.atan2(ul, cs)), k = Math.cos(r), s = Math.sin(r) / ul;
+    p0 = c0 * k + u0 * s; p1 = c1 * k + u1 * s; p2 = c2 * k + u2 * s;
+  }
+  if (sd(p0, p1, p2) < minSunCos) { d[0] = p0; d[1] = p1; d[2] = p2; return d; }
+  const a0 = d[0], a1 = d[1], a2 = d[2];
+  const om = Math.acos(Math.max(-1, Math.min(1, a0 * p0 + a1 * p1 + a2 * p2)));
+  const so = Math.sin(om);
+  if (so < 1e-9) { d[0] = p0; d[1] = p1; d[2] = p2; return d; }
+  let lo = 0, hi = 1;
+  for (let i = 0; i < 30; i++) {
+    const t = (lo + hi) / 2, wa = Math.sin((1 - t) * om) / so, wb = Math.sin(t * om) / so;
+    if (sd(a0 * wa + p0 * wb, a1 * wa + p1 * wb, a2 * wa + p2 * wb) >= minSunCos) hi = t; else lo = t;
+  }
+  const wa = Math.sin((1 - hi) * om) / so, wb = Math.sin(hi * om) / so;
+  d[0] = a0 * wa + p0 * wb; d[1] = a1 * wa + p1 * wb; d[2] = a2 * wa + p2 * wb;
+  const l = Math.hypot(d[0], d[1], d[2]);
+  d[0] /= l; d[1] /= l; d[2] /= l;
+  return d;
+}
+
 // Where the fall lands (world): the strike point 40° off the launch node toward the viewer, pulled inside the aim cone
 // (aimed once at launch: strikeDirWorld allocates), at the live core radius (it changes during a hyper-fling, so every frame).
 function landing(v, ctx) {
@@ -290,6 +327,8 @@ export function launchVisitor(buf, phase, ctx) {
   for (let k = 0; k < 3; k++) v.bow[k] = (ctx.cam[k] / cl) * FLIGHT_BOW * R_SCENE;
   strikeDirWorld(v.start, ctx.cam, v.dirWorld);
   aimToward(v.dirWorld, ctx.cam, AIM_MAX_RAD);
+  // author ruling: fire on crust lands in the sunlit part of the cone, so the glaze it leaves catches key light
+  if (phase === 'thermal' && ctx.tau < LIQUID_TAU) litAim(v.dirWorld, ctx.cam, SUN_DIR_WORLD, AIM_MAX_RAD, LIT_AIM_MIN_SUN_COS);
   landing(v, ctx);
   return v;
 }
