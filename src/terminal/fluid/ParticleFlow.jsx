@@ -255,7 +255,7 @@ export default function ParticleFlow({
     uPlanetRadius: { value: R_SCENE },
     uSunDirW: { value: new THREE.Vector3(...SUN_DIR_WORLD) },
     uLitFloor: { value: PLANET_TUNE.aetherFloor },
-    uLitPen: { value: PLANET_TUNE.aetherPenumbra },
+    uLitPen: { value: Math.max(PLANET_TUNE.aetherPenumbra, 1e-3) },
   }));
 
   // Update uniforms from props each frame + FPS counter
@@ -272,7 +272,7 @@ export default function ParticleFlow({
       mat.uniforms.uCondenseSizeBite.value = condenseSizeBite;
       mat.uniforms.uPlanetWindow.value = planetWindow;
       mat.uniforms.uLitFloor.value = PLANET_TUNE.aetherFloor;
-      mat.uniforms.uLitPen.value = PLANET_TUNE.aetherPenumbra;
+      mat.uniforms.uLitPen.value = Math.max(PLANET_TUNE.aetherPenumbra, 1e-3);
       state.gl.getDrawingBufferSize(mat.uniforms.uViewportPx.value);
     }
     // FPS counter — report once per second

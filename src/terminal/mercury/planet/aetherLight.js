@@ -34,6 +34,7 @@ const smoothstep = (a, b, x) => {
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 
 export function shadowFactor(rel, sun, R, pen) {
+  pen = Math.max(pen, 1e-3); // smoothstep(R − pen, R + pen) is undefined at pen = 0
   const along = -dot(rel, sun); // > 0: anti-sunward of the centre
   if (along <= 0) return 1;
   const px = rel[0] + along * sun[0], py = rel[1] + along * sun[1], pz = rel[2] + along * sun[2];
@@ -61,9 +62,14 @@ float aetherShadow(vec3 rel, vec3 s, float R, float pen) {
 
 // Needs uViewportPx (declared by PLANET_WINDOW_VS, which every flow includes first).
 export const AETHER_LIGHT_VS = /* glsl */ `
+uniform vec3 uSunDirW;
 varying vec3 vLitC;
 varying float vLitDiam;
+varying vec3 vLitS;
+varying vec3 vLitPc;
 void aetherLightVS(vec3 mv, float pointSizePx) {
+  vLitS = normalize((viewMatrix * vec4(uSunDirW, 0.0)).xyz);
+  vLitPc = (viewMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
   vLitC = mv;
   vLitDiam = pointSizePx * 2.0 * (-mv.z) / (projectionMatrix[1][1] * uViewportPx.y);
 }
@@ -74,12 +80,13 @@ export function aetherLightFS(element) {
   const p = AETHER_ELEMENT_LIGHT[element];
   if (!p) throw new Error(`aetherLightFS: '${element}' is emissive or unknown`);
   return /* glsl */ `
-uniform vec3 uSunDirW;
 uniform float uLitFloor;
 uniform float uLitPen;
 uniform float uPlanetRadius;
 varying vec3 vLitC;
 varying float vLitDiam;
+varying vec3 vLitS;
+varying vec3 vLitPc;
 const float LIT_G = ${glf(p.g)};
 const float LIT_SURGE = ${glf(p.surge)};
 const float LIT_RAY = ${glf(p.ray)};
@@ -95,9 +102,8 @@ float litPhase(float c) {
 float aetherLight() {
   vec2 o = (gl_PointCoord - 0.5) * vLitDiam;
   vec3 p = vLitC + vec3(o.x, -o.y, 0.0);
-  vec3 s = normalize((viewMatrix * vec4(uSunDirW, 0.0)).xyz);
-  vec3 c = (viewMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
-  float sh = aetherShadow(p - c, s, uPlanetRadius, uLitPen);
+  vec3 s = normalize(vLitS); // constant across the primitive; renormalised against interpolation rounding
+  float sh = aetherShadow(p - vLitPc, s, uPlanetRadius, uLitPen);
   float ph = min(LIT_MAX, litPhase(dot(-s, normalize(-p))) / LIT_REF);
   return uLitFloor + (1.0 - uLitFloor) * sh * ph;
 }

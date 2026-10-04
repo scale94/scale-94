@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   createBeads, spawnBead, spawnFling, spawnSplash, stepBeads,
-  AMBIENT_RATE, BEAD_LIFE, BEAD_R_MIN, EVAP_RATE, FLING_N,
+  AMBIENT_RATE, BEAD_ESCAPE_R, BEAD_LIFE, BEAD_R_MIN, EVAP_RATE, FLING_N,
 } from '../hgBeads';
 import { SUN_DIR_WORLD } from '../planetFrame';
 
@@ -15,6 +15,14 @@ describe('hgBeads sim', () => {
     const n = run(b, 20);
     expect(n).toBeGreaterThan(AMBIENT_RATE * BEAD_LIFE * 0.5);
     expect(n).toBeLessThanOrEqual(AMBIENT_RATE * BEAD_LIFE * 1.3);
+  });
+  it('a bead flung past the escape radius is removed, not held for its whole life', () => {
+    const b = createBeads(8);
+    spawnBead(b, 3 * 0.75, 0, 0, 20, 0, 0, 0.01);
+    expect(b.n).toBe(1);
+    const n = run(b, 0.2, { ...CTX, liquid: false });
+    expect(n).toBe(0);
+    expect(BEAD_ESCAPE_R).toBe(4);
   });
   it('a frozen planet sheds nothing; boiling sheds more', () => {
     const frozen = createBeads(256); run(frozen, 5, { ...CTX, liquid: false });

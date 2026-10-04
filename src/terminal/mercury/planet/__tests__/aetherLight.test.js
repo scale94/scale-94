@@ -70,6 +70,20 @@ describe('GLSL chunks', () => {
     expect(AETHER_LIGHT_VS).toContain('void aetherLightVS(vec3 mv, float pointSizePx)');
     expect(AETHER_LIGHT_VS).toContain('pointSizePx * 2.0 * (-mv.z) / (projectionMatrix[1][1] * uViewportPx.y)');
   });
+  it('view-space sun and planet centre are computed once per vertex, not per fragment', () => {
+    expect(AETHER_LIGHT_VS).toContain('uniform vec3 uSunDirW;');
+    expect(AETHER_LIGHT_VS).toContain('vLitS = normalize((viewMatrix * vec4(uSunDirW, 0.0)).xyz);');
+    expect(AETHER_LIGHT_VS).toContain('vLitPc = (viewMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;');
+    const fs = aetherLightFS('fluid');
+    expect(fs).not.toContain('viewMatrix');
+    expect(fs).not.toContain('uSunDirW');
+    expect(fs).toContain('varying vec3 vLitS;');
+    expect(fs).toContain('varying vec3 vLitPc;');
+  });
+  it('shadowFactor is finite at zero penumbra', () => {
+    const v = shadowFactor(add(scale(S, -1.5), scale([0, 1, 0], 0.75)), S, 0.75, 0);
+    expect(Number.isFinite(v)).toBe(true);
+  });
   it('fragment chunk bakes each element\'s constants', () => {
     const fs = aetherLightFS('earth');
     expect(fs).toContain('float aetherLight()');

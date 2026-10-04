@@ -12,7 +12,8 @@ export const BEAD_R_MAX = 0.012;  // ~3 px
 export const AMBIENT_RATE = 6;    // beads/s off the sunlit surface → ~AMBIENT_RATE · BEAD_LIFE alive
 export const BOIL_GAIN = 4;       // boiling multiplies the trickle by (1 + BOIL_GAIN · coverage)
 export const BEAD_LIFE = 8;       // s
-export const BEAD_FADE = 1.5;     // s of fade-in at birth and fade-out before BEAD_LIFE
+export const BEAD_FADE = 1.5;     // s of fade-OUT before BEAD_LIFE (the fade-in is the 0.15 s ramp in stepBeads)
+export const BEAD_ESCAPE_R = 4;   // × coreR: beyond this a bead has left the scene for good (flings never return)
 export const G_BEAD = 0.12;       // GM in scene units: escape speed at r 0.75 ≈ 0.57
 export const DRAG = 1.5;          // 1/s toward the active element's flow velocity
 export const EVAP_RATE = 0.004;   // radius loss per second in fire
@@ -102,6 +103,7 @@ function flowVel(phase, x, y, z, age) {
 
 export function stepBeads(b, dt, ctx) {
   const { phase, coreR, calm, liquid, boil } = ctx;
+  const ER2 = BEAD_ESCAPE_R * BEAD_ESCAPE_R * coreR * coreR;
   if (!calm && liquid) {
     b.acc += AMBIENT_RATE * (1 + BOIL_GAIN * boil) * dt;
     while (b.acc >= 1) { b.acc -= 1; spawnAmbient(b, coreR); }
@@ -121,7 +123,8 @@ export function stepBeads(b, dt, ctx) {
     }
     const x = b.pos[3 * i], y = b.pos[3 * i + 1], z = b.pos[3 * i + 2];
     const inside = x * x + y * y + z * z < coreR * coreR;
-    if (b.age[i] > BEAD_LIFE || b.r[i] <= 0 || (inside && b.age[i] > 0.05)) remove(b, i);
+    const escaped = x * x + y * y + z * z > ER2;
+    if (b.age[i] > BEAD_LIFE || b.r[i] <= 0 || escaped || (inside && b.age[i] > 0.05)) remove(b, i);
   }
   for (let i = 0; i < b.n; i++) {
     b.outPos[3 * i] = b.pos[3 * i]; b.outPos[3 * i + 1] = b.pos[3 * i + 1]; b.outPos[3 * i + 2] = b.pos[3 * i + 2];

@@ -19,7 +19,7 @@ describe('flows as sunlit matter', () => {
       expect(mul).toBeLessThan(fs.indexOf('gl_FragColor'));
       expect(src).toContain('uSunDirW: { value: new THREE.Vector3(...SUN_DIR_WORLD) }');
       expect(src).toContain('mat.uniforms.uLitFloor.value = PLANET_TUNE.aetherFloor;');
-      expect(src).toContain('mat.uniforms.uLitPen.value = PLANET_TUNE.aetherPenumbra;');
+      expect(src).toContain('mat.uniforms.uLitPen.value = Math.max(PLANET_TUNE.aetherPenumbra, 1e-3);');
       expect(src).toMatch(/uPlanetRadius:\s*\{\s*value:/);
     });
   }
