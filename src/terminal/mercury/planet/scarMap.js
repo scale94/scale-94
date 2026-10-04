@@ -127,6 +127,21 @@ export function stampGlaze(map, d, radius) {
   return touched;
 }
 
+// Water flash-quenched on hot crust (spec ง9.3): one profile in B, read by the crust shading.
+// A full core (the dark glassy skin), a half-height plateau (the pale evaporite ring), then nothing.
+// s = angle / radius, h in [0, 1) jitters the outer edge. The shader's quenchProfile mirrors this exactly.
+export const quenchProfile = (s, h) => 1 - 0.5 * smooth01((s - 0.55) / 0.15) - 0.5 * smooth01((s - (0.95 + 0.1 * h)) / 0.15);
+
+export function stampQuench(map, d, radius, seed) {
+  const touched = forCap(map, d, 1.25 * radius, (i, c) => {
+    const s = Math.acos(Math.min(1, c)) / radius;
+    const b = Math.round(255 * quenchProfile(s, texHash(i, seed)));
+    if (b > map.bytes[4 * i + 2]) map.bytes[4 * i + 2] = b;
+  });
+  if (touched > 0) map.marksLive = true;
+  return touched;
+}
+
 // Where a rock sank into soft crust (ยง4.4): a shallow bowl with a low collar of displaced crust (true metres).
 export const pitHeightM = (s, depthM) => (s < 1 ? -depthM * (1 - s * s) : 0.15 * depthM * Math.exp(-(s - 1) / 0.25));
 
@@ -188,10 +203,17 @@ export function healMelted(map, q, sunWorld, tssK, heatK) {
   return changed;   // true only when a byte moved: that is what costs a texture upload
 }
 
-// The planet froze back to crust: a state change wipes every mark (plan P-2).
+// A state change wipes every frost, quench and glaze mark (B, A); crossMarks decides when (spec ง9.6).
 export function clearMarks(map) {
   if (!map.marksLive) return false;
   for (let i = 0; i < map.w * map.h; i++) { map.bytes[4 * i + 2] = 0; map.bytes[4 * i + 3] = 0; }
   map.marksLive = false;
   return true;
+}
+
+// Marks last until the planet changes state (spec R3, ง9.6). Crust -> liquid melts the quench rinds and the glaze with the
+// crust; liquid -> crust buries the frozen-Hg frost and glaze. wasLiquid null = no previous frame: nothing to compare.
+export function crossMarks(map, wasLiquid, isLiquid) {
+  if (wasLiquid === null || wasLiquid === isLiquid) return false;
+  return clearMarks(map);
 }
