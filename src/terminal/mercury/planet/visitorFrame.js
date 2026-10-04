@@ -6,7 +6,7 @@ import {
   VISITOR_SLOTS, VISIT_SURF_MAX, SURF_FILM, SURF_HOT, SURF_MENISCUS, SURF_JET, SURF_FROST, SURF_POOL, SURF_COLLAR, DROP_R,
   DROP_STRETCH_K, DROP_STRETCH_MAX, BEAD_OBLATE, EMBER_R, EMBER_BODY_S, EMBER_TAIL_S, EMBER_HALO, ROCK_R, ROCK_BOUND,
   GUST_TRAIL_S, GUST_W, MENISCUS_RING_DEPTH, JET_R, JET_DEPTH, COLLAR_H, PLUME_LEN, PLUME_LIFT, PLUME_W, PLUME_GROW_S,
-  SURF_QUENCH, QUENCH_STEAM_LEN, QUENCH_STEAM_GROW_S, RESIDENT_LIFE_S, quenchRadius,
+  SURF_QUENCH, QUENCH_STEAM_LEN, QUENCH_STEAM_GROW_S, QUENCH_STEAM_W, RESIDENT_LIFE_S, quenchRadius,
   filmRadius, filmThicknessNm, clearRadius, clearDepth, hotTempK, jetEnvelope, frostRadius, poolRadius, poolFreeze,
 } from './visitorSim';
 
@@ -110,7 +110,8 @@ function packSettled(f, view, v, a, ctx) {
     // (plan Q-1: the visitor pass's free vapour body, tinted as the bead's steam; the bead's own is drawn inside it)
     const len = QUENCH_STEAM_LEN * Math.min(1, a / QUENCH_STEAM_GROW_S);
     const steam = v.fade * (1 - Math.min(1, a / RESIDENT_LIFE_S.quench));
-    pushBody(f, view, VIS_PLUME, v.pos, PLUME_W, v.dirWorld, len, steam, seedFrac(v.seed), _c, trailBound(v.pos, v.dirWorld, len, 3 * PLUME_W), PLUME_STEAM);
+    pushBody(f, view, VIS_PLUME, v.pos, QUENCH_STEAM_W, v.dirWorld, len, steam, seedFrac(v.seed), _c,
+      trailBound(v.pos, v.dirWorld, len, 3 * QUENCH_STEAM_W), PLUME_STEAM); // the rect grows with the puff or it clips
   }
 }
 

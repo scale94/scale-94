@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import {
-  createVisitors, createVisitorOut, launchVisitor, T_FLIGHT, EMBER_BODY_S, QUENCH_STEAM_LEN, QUENCH_STEAM_GROW_S,
+  createVisitors, createVisitorOut, launchVisitor, T_FLIGHT, EMBER_BODY_S, QUENCH_STEAM_LEN, QUENCH_STEAM_GROW_S, QUENCH_STEAM_W,
   RESIDENT_LIFE_S, SURF_QUENCH, SURF_POOL, quenchRadius, poolRadius, poolFreeze, hotTempK,
 } from '../visitorSim';
 import { createVisitorFrame, packVisitors, seedFrac, VIS_EMBER, VIS_PLUME, PLUME_STEAM } from '../visitorFrame';
@@ -47,6 +47,7 @@ describe('visitorFrame — amendment A', () => {
     expect(f.k[1]).toBeGreaterThan(0);
     expect(f.k[1]).toBeLessThan(1);
     expect(f.k[3]).toBe(PLUME_STEAM); // water steam, not Hg vapour (plan Q-1)
+    expect(f.vis[3]).toBeCloseTo(QUENCH_STEAM_W, 9); // its body radius is the quench's own width knob (A9)
   });
   it('a crust pool packs like the frozen-Hg pool: its ember, then the refreezing SURF_POOL slot', () => {
     const early = packedOnCrust('thermal', 1);

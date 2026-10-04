@@ -95,6 +95,8 @@ export const QUENCH_R = 0.05;              // rad: the quench rind at the end of
 export const QUENCH_SPREAD_S = 0.6;        // the drop flashes off the hot rock fast
 export const QUENCH_STEAM_LEN = 0.06;      // scene units: the steam column it throws up (plan Q-1)
 export const QUENCH_STEAM_GROW_S = 0.15;
+export const QUENCH_STEAM_W = PLUME_W;     // scene units: the quench steam's body radius (the shader widens it 0.6→2.4× along
+                                           // its length). PLUME_W is a needle seen end-on near the sub-camera point; wider = a puff
 
 // Surface slots (visitorFrame → the planet shader): what an element leaves IN the liquid.
 export const VISIT_SURF_MAX = 4;
