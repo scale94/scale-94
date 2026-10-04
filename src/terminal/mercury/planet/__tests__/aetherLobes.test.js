@@ -2,8 +2,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   AETHER_LOBES, AETHER_DRIFT_RAD_PER_S, AETHER_BASE_DIRS, AETHER_SHAPES, AETHER_MAX_Y, AETHER_PHASES, AETHER_PALETTES_SRGB,
-  srgbToLinear, aetherLobeColors, aetherLobeDirs,
+  srgbToLinear, aetherLobeColors, aetherLobeDirs, AETHER_LOBE_R, mulberry32,
 } from '../aetherLobes';
+import { aetherLightAt } from '../aetherLight';
 
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const len = (a) => Math.sqrt(dot(a, a));
@@ -87,5 +88,32 @@ describe('aetherLobes', () => {
     });
     expect(AETHER_DRIFT_RAD_PER_S).toBeGreaterThan(0);
     expect(AETHER_DRIFT_RAD_PER_S).toBeLessThan(0.1);           // slow: a cycle takes minutes
+  });
+});
+
+describe('aetherLobeColors — the mirror sees the lit flows', () => {
+  const light = { floor: 0.2, pen: 0.08, R: 0.75 };
+  it('without dirs it is unchanged (back-compatible)', () => {
+    const a = aetherLobeColors({ fluid: 0.45, air: 0.12 });
+    const b = aetherLobeColors({ fluid: 0.45, air: 0.12 }, undefined, null, null);
+    expect(b).toEqual(a);
+  });
+  it('each lit element is weighted by its light at the lobe; fire is not', () => {
+    const dirs = AETHER_BASE_DIRS;
+    const plain = aetherLobeColors({ fluid: 0.45, thermal: 0.12 });
+    const lit = aetherLobeColors({ fluid: 0.45, thermal: 0.12 }, undefined, dirs, light);
+    const fireOnly = aetherLobeColors({ thermal: 0.12 }, undefined, dirs, light);
+    const fluidOnlyPlain = aetherLobeColors({ fluid: 0.45 });
+    for (let i = 0; i < dirs.length; i++) {
+      const k = aetherLightAt('fluid', dirs[i].map((c) => c * AETHER_LOBE_R), [0, 0, 0], light);
+      for (let ch = 0; ch < 3; ch++) {
+        expect(lit[i][ch]).toBeCloseTo(fireOnly[i][ch] + k * fluidOnlyPlain[i][ch], 12);
+      }
+    }
+    expect(lit).not.toEqual(plain);
+  });
+  it('mulberry32 is exported and deterministic', () => {
+    const a = mulberry32(7), b = mulberry32(7);
+    expect(a()).toBe(b());
   });
 });

@@ -9,6 +9,8 @@
 // write them straight to the framebuffer (sRGB), and are linearised here
 // because the planet shader encodes its own output.
 
+import { aetherLightAt } from './aetherLight';
+
 export const AETHER_LOBES = 16;
 export const AETHER_DRIFT_RAD_PER_S = 0.04; // one turn ≈ 2.6 min
 
@@ -17,7 +19,7 @@ export const AETHER_DRIFT_RAD_PER_S = 0.04; // one turn ≈ 2.6 min
 // (azimuth about +Y) is always defined. AETHER_SHAPES[i] = [width multiplier,
 // streak elongation]: varied sizes and stretches, so nothing reads as a grid.
 const AETHER_SEED = 0x4867;
-function mulberry32(seed) {
+export function mulberry32(seed) {
   let a = seed;
   return () => {
     a = (a + 0x6d2b79f5) | 0;
@@ -58,11 +60,19 @@ const LINEAR = Object.fromEntries(
 
 const newBuffer = () => AETHER_BASE_DIRS.map(() => [0, 0, 0]);
 
-export function aetherLobeColors(opacities, out = newBuffer()) {
+// The flows live on the orbit ring; the mirror sees them from the planet (viewer at the centre).
+export const AETHER_LOBE_R = 1.4;
+const ORIGIN = Object.freeze([0, 0, 0]);
+const lobeP = [0, 0, 0];
+
+export function aetherLobeColors(opacities, out = newBuffer(), dirs = null, light = null) {
   for (let i = 0; i < AETHER_LOBES; i++) {
+    if (dirs && light) {
+      lobeP[0] = dirs[i][0] * AETHER_LOBE_R; lobeP[1] = dirs[i][1] * AETHER_LOBE_R; lobeP[2] = dirs[i][2] * AETHER_LOBE_R;
+    }
     let r = 0, g = 0, b = 0;
     for (const p of AETHER_PHASES) {
-      const o = opacities[p] ?? 0;
+      const o = (opacities[p] ?? 0) * (dirs && light ? aetherLightAt(p, lobeP, ORIGIN, light) : 1);
       const c = LINEAR[p][i % 3];
       r += o * c[0]; g += o * c[1]; b += o * c[2];
     }

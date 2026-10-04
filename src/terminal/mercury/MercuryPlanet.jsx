@@ -380,6 +380,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
   const aether = useMemo(() => ({
     dirs: AETHER_BASE_DIRS.map((d) => [...d]),
     cols: AETHER_BASE_DIRS.map(() => [0, 0, 0]),
+    light: { floor: PLANET_TUNE.aetherFloor, pen: PLANET_TUNE.aetherPenumbra, R: R_SCENE },
   }), []);
   useEffect(() => { emitRef.current = emitters; }, [emitters]);
 
@@ -674,7 +675,10 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
 
     if (!calm) surf.aetherT += delta; // reduced motion freezes the streak drift (D5)
     aetherLobeDirs(surf.aetherT, aether.dirs);
-    aetherLobeColors(emitRef.current, aether.cols);
+    aether.light.floor = PLANET_TUNE.aetherFloor;
+    aether.light.pen = PLANET_TUNE.aetherPenumbra;
+    aether.light.R = R_SCENE * drop.coreScale;
+    aetherLobeColors(emitRef.current, aether.cols, aether.dirs, aether.light);
     for (let i = 0; i < aether.dirs.length; i++) {
       u.uAethDir.value[i].set(aether.dirs[i][0], aether.dirs[i][1], aether.dirs[i][2]);
       u.uAethCol.value[i].set(aether.cols[i][0], aether.cols[i][1], aether.cols[i][2]);
