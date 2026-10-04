@@ -448,7 +448,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 **Files:**
 - Modify (only if the measurement says so): `src/terminal/views/MercuryTab.jsx` (`NAV_OFFSET_PX`)
 
-- [ ] **Step 1: Open the app** — `preview_start` with the repo's dev-server entry in `.claude/launch.json` (Vite, :5173), navigate to the Mercury tab. If the pane is hidden, rAF is suspended — keep it visible while measuring.
+- [ ] **Step 1: Open the app** — `preview_start` with `{ name: "scale94-dev" }` (Vite on :5174, from `.claude/launch.json`; the author's own server on :5173 is theirs — leave it), navigate to the Mercury tab. If the pane is hidden, rAF is suspended — keep it visible while measuring.
 
 - [ ] **Step 2: Measure the nav offset** at desktop size, scrollY 0:
 
