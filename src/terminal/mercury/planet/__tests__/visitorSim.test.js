@@ -59,7 +59,7 @@ describe('visitorSim — launch and the fall', () => {
 
 describe('visitorSim — what the touchdown is', () => {
   it('branches on crust, frozen Hg, then the element (water by its Leidenfrost point)', () => {
-    expect(impactBranch('fluid', LIQUID_TAU - 0.01, 400)).toBe('crater');
+    expect(impactBranch('air', LIQUID_TAU - 0.01, 400)).toBe('crater');
     expect(impactBranch('earth', 1, HG_MELT_K - 1)).toBe('ring');
     expect(impactBranch('fluid', 1, LEIDENFROST_K - 1)).toBe('film');
     expect(impactBranch('fluid', 1, LEIDENFROST_K)).toBe('bead');

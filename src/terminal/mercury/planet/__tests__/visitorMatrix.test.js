@@ -20,11 +20,14 @@ function landed(phase, tempK, tau = 1) {
 }
 
 describe('visitors matrix — the branch table (matrix spec §3, §4)', () => {
-  it('hard crust craters everything; soft crust sinks a rock and craters the rest', () => {
-    for (const p of ELEMENTS) expect(impactBranch(p, SOFT_TAU_MIN - 0.01, 400)).toBe('crater');
+  it('crust: water quenches, fire re-melts, a rock sinks into soft crust or craters hard crust, air craters (amendment A)', () => {
+    expect(impactBranch('fluid', SOFT_TAU_MIN - 0.01, 400)).toBe('quench');
+    expect(impactBranch('thermal', SOFT_TAU_MIN - 0.01, 400)).toBe('crustpool');
+    expect(impactBranch('earth', SOFT_TAU_MIN - 0.01, 400)).toBe('crater');
+    expect(impactBranch('air', SOFT_TAU_MIN - 0.01, 400)).toBe('crater');
     expect(impactBranch('earth', SOFT_TAU_MIN, 400)).toBe('sink');
     expect(impactBranch('earth', LIQUID_TAU - 0.01, 400)).toBe('sink');
-    for (const p of ['fluid', 'thermal', 'air']) expect(impactBranch(p, 0.3, 400)).toBe('crater');
+    expect(impactBranch('air', 0.3, 400)).toBe('crater');
     expect(impactBranch('earth', LIQUID_TAU, 400)).toBe('rock');
   });
   it('frozen Hg: water frosts, fire melts a pool, earth and air still ring', () => {
@@ -46,7 +49,7 @@ describe('visitors matrix — the branch table (matrix spec §3, §4)', () => {
   it('every new kind has a lifetime and an impulse; the stamping kinds name their stamp', () => {
     expect(RESIDENT_LIFE_S).toMatchObject({ frost: FROST_CREEP_S, pool: POOL_GROW_S + POOL_FREEZE_S, sink: SINK_S, strip: RESIDENT_LIFE_S.jet });
     expect(IMPULSE_FOR).toMatchObject({ frost: 'ring', pool: 'ring', sink: '', strip: 'jet' });
-    expect(STAMP_FOR).toEqual({ frost: 'frost', pool: 'glaze', sink: 'pit' });
+    expect(STAMP_FOR).toEqual({ frost: 'frost', pool: 'glaze', sink: 'pit', quench: 'quench', crustpool: 'glaze' });
   });
 });
 

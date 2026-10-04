@@ -32,14 +32,16 @@ export const AIM_MAX_RAD = (35 * Math.PI) / 180;  // every landing sits within t
 export const RESIDENT_LIFE_S = Object.freeze({
   film: 8, bead: 6, ember: 6, rock: 12, jet: 1.5, ring: 0, crater: 0,
   frost: 1.5, pool: 4, sink: 5, strip: 1.5,   // matrix: frost = FROST_CREEP_S, pool = POOL_GROW_S + POOL_FREEZE_S, sink = SINK_S
+  quench: 0.6, crustpool: 4,                  // amendment A: quench = QUENCH_SPREAD_S, crustpool = POOL_GROW_S + POOL_FREEZE_S
 });
-// Frost and the pool ring like any strike on solid Hg (plan P-5); a rock sinking into soft crust sends nothing.
+// Frost and the pool ring like any strike on solid Hg (plan P-5); a rock sinking into soft crust sends nothing, nor do
+// water and fire meeting the crust (amendment A5: the rind and the pool replace the crater).
 export const IMPULSE_FOR = Object.freeze({
   film: 'dimple', bead: 'dimple', ember: 'marangoni', rock: 'crown', jet: 'jet', ring: 'ring', crater: '',
-  frost: 'ring', pool: 'ring', sink: '', strip: 'jet',
+  frost: 'ring', pool: 'ring', sink: '', strip: 'jet', quench: '', crustpool: '',
 });
-// The kinds that leave a persistent mark in the scar map when their life ends (matrix spec §4).
-export const STAMP_FOR = Object.freeze({ frost: 'frost', pool: 'glaze', sink: 'pit' });
+// The kinds that leave a persistent mark in the scar map when their life ends (matrix spec §4, §9).
+export const STAMP_FOR = Object.freeze({ frost: 'frost', pool: 'glaze', sink: 'pit', quench: 'quench', crustpool: 'glaze' });
 
 // Bodies, scene units (R_SCENE = 0.75).
 export const DROP_R = 0.028;
@@ -88,10 +90,15 @@ export const PLUME_LEN = 0.12;             // scene units: the vapour streamer t
 export const PLUME_LIFT = 0.35;            // how much it rises off the surface as it streams
 export const PLUME_W = 0.015;
 export const PLUME_GROW_S = 0.4;
+// Amendment A (spec §9): water and fire on crust.
+export const QUENCH_R = 0.05;              // rad: the quench rind at the end of its spread
+export const QUENCH_SPREAD_S = 0.6;        // the drop flashes off the hot rock fast
+export const QUENCH_STEAM_LEN = 0.06;      // scene units: the steam column it throws up (plan Q-1)
+export const QUENCH_STEAM_GROW_S = 0.15;
 
 // Surface slots (visitorFrame → the planet shader): what an element leaves IN the liquid.
 export const VISIT_SURF_MAX = 4;
-export const SURF_FILM = 1, SURF_HOT = 2, SURF_MENISCUS = 3, SURF_JET = 4, SURF_FROST = 5, SURF_POOL = 6, SURF_COLLAR = 7;
+export const SURF_FILM = 1, SURF_HOT = 2, SURF_MENISCUS = 3, SURF_JET = 4, SURF_FROST = 5, SURF_POOL = 6, SURF_COLLAR = 7, SURF_QUENCH = 8;
 export const FILM_R0 = 0.02;               // rad
 export const FILM_GROW = 0.05;             // rad/√s: a spreading film's radius grows as √t
 export const FILM_H0_NM = 1000;            // thickness at touchdown…
@@ -115,6 +122,12 @@ export const CATSPAW_SPEED = 9;
 export const FROST_ALBEDO = [0.8, 0.84, 0.9];  // rime: a cold, faintly blue white
 export const FROST_ENV = 0.5;                   // how much of the nebula + node light the matte rime gathers (spec R5)
 export const GLAZE_ROUGH = 0.1;                 // a refrozen pool: far smoother than polycrystalline frozen Hg
+// The crust looks (amendment A, planet shader's crust path).
+export const EVAPORITE_ALBEDO = [0.86, 0.84, 0.78];  // the pale ring the flashed drop leaves (its dissolved load)
+export const EVAPORITE_A = 0.85;
+export const QUENCH_DARK = 0.45;                      // the quenched glass skin darkens the rock under it…
+export const QUENCH_ROUGH = 0.15;                     // …and is far smoother than it
+export const GLASS_F0 = 0.04;                         // glass's normal-incidence reflectance (n ≈ 1.5)
 export const POOL_RIM_H = 0.0025;               // fraction of R: the pool's meniscus lip against its frozen shore
 
 // Light (visitorGlsl mirrors these exactly).
@@ -158,9 +171,15 @@ export const fadeAt = (a, life) => (life > 0 ? 1 - smooth01((a - (life - FADE_S)
 export const frostRadius = (a) => FROST_R * (1 - (1 - Math.min(1, Math.max(0, a / FROST_CREEP_S))) ** 2);
 export const poolRadius = (a) => POOL_R * Math.sqrt(Math.min(1, Math.max(0, a / POOL_GROW_S)));
 export const poolFreeze = (a) => smooth01((a - POOL_GROW_S) / POOL_FREEZE_S);
+export const quenchRadius = (a) => QUENCH_R * (1 - (1 - Math.min(1, Math.max(0, a / QUENCH_SPREAD_S))) ** 2);
 
 export function impactBranch(phase, tau, tempK) {
-  if (tau < LIQUID_TAU) return phase === 'earth' && tau >= SOFT_TAU_MIN ? 'sink' : 'crater';
+  if (tau < LIQUID_TAU) {
+    // amendment A: water flash-quenches the hot rock; an ember re-melts a pool in it (any crust, hard or soft)
+    if (phase === 'fluid') return 'quench';
+    if (phase === 'thermal') return 'crustpool';
+    return phase === 'earth' && tau >= SOFT_TAU_MIN ? 'sink' : 'crater';
+  }
   if (tempK < HG_MELT_K) return phase === 'fluid' ? 'frost' : phase === 'thermal' ? 'pool' : 'ring';
   if (phase === 'fluid') return tempK >= LEIDENFROST_K ? 'bead' : 'film';
   if (phase === 'thermal') return 'ember';
@@ -291,7 +310,7 @@ export function flightVelocity(v, s, T, out) {
 
 const residentLife = (v, ctx) => RESIDENT_LIFE_S[v.kind] * (ctx.calm ? CALM_LIFE : 1);
 
-export const stampRadius = (kind) => (kind === 'frost' ? FROST_R : kind === 'pool' ? POOL_R : PIT_R);
+export const stampRadius = (kind) => (kind === 'frost' ? FROST_R : kind === 'quench' ? QUENCH_R : kind === 'pool' || kind === 'crustpool' ? POOL_R : PIT_R);
 
 function emitStamp(v, out) {
   if (out.nStamps >= out.stamps.length) return;
@@ -332,13 +351,13 @@ function touchdown(v, ctx, out) {
   const tl = Math.hypot(v.tan[0], v.tan[1], v.tan[2]);
   const want = kind === 'bead' ? (ctx.calm ? 0 : SKATE_V0) : kind === 'jet' || kind === 'strip' ? 1 : 0;
   for (let k = 0; k < 3; k++) v.tan[k] = tl > 1e-9 ? (v.tan[k] / tl) * want : 0;
-  v.r = kind === 'bead' ? BEAD_R : kind === 'rock' || kind === 'sink' ? ROCK_R : kind === 'ember' || kind === 'pool' ? EMBER_R : 0;
+  v.r = kind === 'bead' ? BEAD_R : kind === 'rock' || kind === 'sink' ? ROCK_R : kind === 'ember' || kind === 'pool' || kind === 'crustpool' ? EMBER_R : 0;
   stepResident(v, ctx, out);
 }
 
 export function residentHeight(v, a, life, calm) {
   if (v.kind === 'bead') return 0.95 * v.r + BEAD_GAP;
-  if (v.kind === 'ember' || v.kind === 'pool') return 0.4 * v.r;
+  if (v.kind === 'ember' || v.kind === 'pool' || v.kind === 'crustpool') return 0.4 * v.r;
   if (v.kind === 'rock') {
     const sink = 2 * ROCK_R * smooth01((a - (life - ROCK_SINK_S)) / ROCK_SINK_S);
     return ROCK_R * (1 - 2 * ROCK_SUBMERGED) + (calm ? 0 : rockBob(a)) - sink;
@@ -372,7 +391,7 @@ function stepResident(v, ctx, out) {
     v.r = BEAD_R * (1 - (BEAD_SHRINK * a) / life);
   } else if ((v.kind === 'rock' || v.kind === 'sink') && !ctx.calm) {
     v.spin += ROCK_SPIN0 * Math.exp(-a / ROCK_SPIN_EFOLD) * ctx.dt;
-  } else if (v.kind === 'ember' || v.kind === 'pool') {
+  } else if (v.kind === 'ember' || v.kind === 'pool' || v.kind === 'crustpool') {
     v.tempK = hotTempK(a);
   }
   qRotate(ctx.q, v.dirBody, v.dirWorld);
@@ -408,7 +427,7 @@ export function stepVisitors(buf, ctx, out) {
     if (!v.live) continue;
     if (v.state === 'flight') stepFlight(v, ctx, out);
     else if (v.state === 'resident') {
-      // frost, the pool and a sinking rock are in or under the surface: a fling leaves them (plan P-3)
+      // frost, the pools, the quench rind and a sinking rock are in or under the surface: a fling leaves them (plan P-3)
       if (ctx.detach && !STAMP_FOR[v.kind]) detachVisitor(v, ctx);
       else stepResident(v, ctx, out);
     }
