@@ -158,6 +158,7 @@ export default function MercuryCanvas({
             air: opacityFor('air'),
           }}
           overlay={overlay}
+          activePhase={activePhase}
         />
         <MercurySphere
           activePhase={activePhase}

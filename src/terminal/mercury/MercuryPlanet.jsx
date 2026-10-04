@@ -51,6 +51,8 @@ import {
 } from './planet/visitorSim';
 import { createVisitorFrame, packVisitors } from './planet/visitorFrame';
 import useVisitorField from './useVisitorField';
+import useHgBeads from './useHgBeads';
+import { spawnFling, spawnSplash, stepBeads, FLING_N, SPLASH_N } from './planet/hgBeads';
 import { CALORIS_DIR_BODY, stepOverlay } from './planet/slowNoon';
 
 const EPHEMERIS_REFRESH_S = 1;
@@ -274,7 +276,7 @@ function stepDrop(drop, { body, surf, camera, ds, calm, stepS, t, bufferW, buffe
   drop.coreScale = coreScale(fam); // phase 6: the planet's live size (1 unless a hyper family is out)
 }
 
-export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = false, emitters = {}, strikes = null, overlay = false }) {
+export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = false, emitters = {}, strikes = null, overlay = false, activePhase = 'fluid' }) {
   const gl = useThree((s) => s.gl);
   const camera = useThree((s) => s.camera);
   // The drawing buffer's height in device px: the pops are sized from it (mercuryRoil.popZoom).
@@ -439,6 +441,10 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
   const visField = useVisitorField({ planetMaterial: material });
   useEffect(() => { if (import.meta.env.DEV) window.__mercuryVisitors = vis; }, [vis]);
 
+  // Hg beads: the trickle, flings and splash bursts, carried by the active element. beadCtx is written in place per frame.
+  const beads = useHgBeads({ tier, planetMaterial: material });
+  const beadCtx = useMemo(() => ({ phase: 'fluid', coreR: R_SCENE, calm: false, liquid: true, boil: 0, lastFam: 'idle', dirW: [0, 0, 0], omega: [0, 0, 0] }), []);
+
   // The maps outlive the material: a live CALM toggle swaps the shader variant (a new
   // material) without reloading them or flashing the flat fallback (planetMaps.js).
   const [maps, setMaps] = useState(null);
@@ -565,6 +571,8 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
       } else if (ev.impulse) {
         const a = VISITOR_IMPACT[ev.impulse];
         addImpulse(surf.impulses, { dirBody: ev.dirBody, tS: t, mode: a.mode, wave: a.wave, kind: ev.impulse });
+        bodyToWorld(ev.dirBody, body.q, beadCtx.dirW);
+        spawnSplash(beads.sim, beadCtx.dirW, R_SCENE * drop.coreScale, SPLASH_N);
         if (ev.phase === 'thermal' && ev.tempK > HG_BOIL_K) vis.exoPuff = EXO_PUFF;
         if (ev.kind === 'strip') vis.exoPuff = EXO_PUFF; // a gust strips vapour off boiling Hg into the exosphere
       }
@@ -637,6 +645,12 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     const da = drop.args;
     da.body = body; da.surf = surf; da.camera = camera; da.calm = calm; da.ds = ds; da.stepS = stepS; da.t = t; da.bufferW = bufferW; da.bufferH = bufferH;
     stepDrop(drop, da);
+    // A fresh fling (any path: release, hyper, dev rig) throws Hg beads off the spin equator.
+    if (drop.fam.phase === 'fired' && beadCtx.lastFam !== 'fired' && !calm) {
+      beadCtx.omega[0] = body.omega.x; beadCtx.omega[1] = body.omega.y; beadCtx.omega[2] = body.omega.z;
+      spawnFling(beads.sim, beadCtx.omega, R_SCENE * drop.coreScale, FLING_N);
+    }
+    beadCtx.lastFam = drop.fam.phase;
     // the rig really spun the body: fling next frame on that ω (a refused rig, or one under calm, flings nothing)
     if (rigFling && !calm && body.omega.length() > DETACH_OMEGA) vis.rigDetach = true;
     u.uCoreR.value = R_SCENE * drop.coreScale;
@@ -683,6 +697,14 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
       u.uAethDir.value[i].set(aether.dirs[i][0], aether.dirs[i][1], aether.dirs[i][2]);
       u.uAethCol.value[i].set(aether.cols[i][0], aether.cols[i][1], aether.cols[i][2]);
     }
+
+    beadCtx.phase = activePhase;
+    beadCtx.coreR = R_SCENE * drop.coreScale;
+    beadCtx.calm = calm;
+    beadCtx.liquid = body.tau >= LIQUID_TAU;
+    beadCtx.boil = exo.coverage;
+    stepBeads(beads.sim, stepS, beadCtx);
+    beads.upload(gl, beadCtx.coreR);
   });
 
   return (
@@ -691,6 +713,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
       <mesh ref={field.meshRef} geometry={field.geometry} material={field.material} renderOrder={field.renderOrder} frustumCulled={false} visible={false} />
       <mesh ref={visField.meshRef} geometry={visField.geometry} material={visField.material} renderOrder={visField.renderOrder} frustumCulled={false} visible={false} />
       <MercuryExosphere exo={exo} tier={tier} />
+      <points geometry={beads.geometry} material={beads.material} renderOrder={beads.renderOrder} frustumCulled={false} />
     </>
   );
 }
