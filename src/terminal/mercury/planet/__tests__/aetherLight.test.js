@@ -51,8 +51,10 @@ describe('aetherLightAt', () => {
     for (const el of ['fluid', 'earth', 'air']) expect(aetherLightAt(el, scale(S, -2), CAM, OPT)).toBeCloseTo(0.2, 12);
   });
   it('is capped at floor + (1 − floor) · LIT_MAX', () => {
-    const far = [-30, 0, 30]; // a viewer placed to force strong forward scattering for water
-    expect(aetherLightAt('fluid', [0.5, 0, 0], far, OPT)).toBeLessThanOrEqual(0.2 + 0.8 * LIT_MAX + 1e-12);
+    // Lit point under true forward scattering: c = 1, water's HG ratio ≈ 46, exceeds cap without clamp
+    const p = scale(S, 2);
+    const viewer = add(p, scale(S, -40));
+    expect(aetherLightAt('fluid', p, viewer, OPT)).toBeCloseTo(0.2 + 0.8 * LIT_MAX, 12);
   });
   it('fire is emissive: always 1', () => {
     expect(aetherLightAt('thermal', scale(S, -2), CAM, OPT)).toBe(1);
