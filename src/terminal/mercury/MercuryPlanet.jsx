@@ -18,7 +18,7 @@ import { MAPS } from './planet/mercuryMaps.generated';
 import { bindPlanetMaps } from './planet/planetMaps';
 import { subsolarTempK, HG_BOIL_K } from './planet/mercuryThermal';
 import {
-  createScarMap, stampCrater, stampFrost, stampGlaze, stampPit, matureScars, healScars, healMelted, clearMarks, SCAR_TICK_S,
+  createScarMap, stampCrater, stampFrost, stampQuench, stampGlaze, stampPit, matureScars, healScars, healMelted, crossMarks, SCAR_TICK_S,
 } from './planet/scarMap';
 import {
   IMPULSE_SLOTS, createImpulses, addImpulse, createImpulseFrame, impulseFrame, spinBulge, createWake, wakeImpulse, slipDirWorld,
@@ -390,6 +390,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     bulge: [0, 1, 0, 0],
     seed: 1,
     scarClock: 0,
+    marksLiquid: null,   // the liquid/crust side last frame: marks clear when it changes (matrix spec §9.6)
     aetherT: 0,
     glowT0: -Infinity,
     glowDirBody: [0, 0, 1],
@@ -568,6 +569,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     for (let k = 0; k < vis.out.nStamps; k++) {
       const st = vis.out.stamps[k];
       if (st.kind === 'frost') stampFrost(scar, st.dirBody, st.radius, st.seed);
+      else if (st.kind === 'quench') stampQuench(scar, st.dirBody, st.radius, st.seed);
       else if (st.kind === 'glaze') stampGlaze(scar, st.dirBody, st.radius);
       else stampPit(scar, st.dirBody, st.radius, PIT_DEPTH_M);
       scarDirty = true;
@@ -590,12 +592,17 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     if (ds.released) surf.hasDragDir = false;
 
     if (body.tau >= 1 && healScars(scar)) scarDirty = true;
-    if (body.tau < LIQUID_TAU && clearMarks(scar)) scarDirty = true;
+    // Marks last until the planet changes state (spec R3, §9.6): crust -> liquid melts the rinds and glaze,
+    // liquid -> crust buries the frozen-Hg frost and glaze.
+    const liquidNow = body.tau >= LIQUID_TAU;
+    if (crossMarks(scar, surf.marksLiquid, liquidNow)) scarDirty = true;
+    surf.marksLiquid = liquidNow;
     surf.scarClock += Math.min(delta, MAX_FRAME_DT_S);
     if (surf.scarClock >= SCAR_TICK_S) {
       if (matureScars(scar, surf.scarClock)) scarDirty = true;
-      // frost and glaze go where the Hg under them has melted (the shader already hides them there; this frees the bytes)
-      if (healMelted(scar, vc.q, SUN_DIR_WORLD, vc.subsolarT, body.heatK)) scarDirty = true;
+      // frozen-Hg frost and glaze go where the Hg under them has melted (the shader already hides them there; this frees the bytes)
+      // only while liquid: on crust every mark sits on ≥ ~390 K rock and would be erased on the next tick (spec §9.6)
+      if (liquidNow && healMelted(scar, vc.q, SUN_DIR_WORLD, vc.subsolarT, body.heatK)) scarDirty = true;
       surf.scarClock = 0;
     }
     if (scarDirty) scarTex.needsUpdate = true;

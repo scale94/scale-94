@@ -133,6 +133,9 @@ describe('visitors matrix wiring', () => {
     expect(drain).toBeGreaterThan(planetSrc.indexOf('stepVisitors(vis.buf, vc, vis.out);'));
     expect(planetSrc).toContain("if (st.kind === 'frost') stampFrost(scar, st.dirBody, st.radius, st.seed);");
     expect(planetSrc).toContain("else if (st.kind === 'glaze') stampGlaze(scar, st.dirBody, st.radius);");
+    expect(planetSrc).toContain("else if (st.kind === 'quench') stampQuench(scar, st.dirBody, st.radius, st.seed);");
+    expect(planetSrc.indexOf('surf.marksLiquid = liquidNow;')).toBeLessThan(planetSrc.indexOf('if (scarDirty) scarTex.needsUpdate = true;'));
+    expect(planetSrc).not.toContain('clearMarks(scar)');
     expect(planetSrc).toContain('else stampPit(scar, st.dirBody, st.radius, PIT_DEPTH_M);');
   });
   it('rings frost and the pool like solid Hg, sends nothing for a sink, puffs the exosphere for a strip', () => {
@@ -141,8 +144,11 @@ describe('visitors matrix wiring', () => {
     expect(planetSrc).toContain("if (ev.kind === 'strip') vis.exoPuff = EXO_PUFF;");
   });
   it('heals marks where the Hg melts on the scar tick, clears them on crust, and gates the shader on them', () => {
-    expect(planetSrc).toContain('if (healMelted(scar, vc.q, SUN_DIR_WORLD, vc.subsolarT, body.heatK)) scarDirty = true;');
-    expect(planetSrc).toContain('if (body.tau < LIQUID_TAU && clearMarks(scar)) scarDirty = true;');
+    expect(planetSrc).toContain('const liquidNow = body.tau >= LIQUID_TAU;');
+    expect(planetSrc).toContain('if (crossMarks(scar, surf.marksLiquid, liquidNow)) scarDirty = true;');
+    expect(planetSrc).toContain('surf.marksLiquid = liquidNow;');
+    expect(planetSrc).toContain('marksLiquid: null,');
+    expect(planetSrc).toContain('if (liquidNow && healMelted(scar, vc.q, SUN_DIR_WORLD, vc.subsolarT, body.heatK)) scarDirty = true;');
     expect(planetSrc).toContain('uMarksOn: { value: 0 },');
     expect(planetSrc).toContain('u.uMarksOn.value = scar.marksLive ? 1 : 0;');
   });
