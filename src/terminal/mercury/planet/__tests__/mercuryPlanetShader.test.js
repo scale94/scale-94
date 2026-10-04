@@ -541,6 +541,13 @@ describe('visitors matrix amendment A: marks on the crust, the live quench, the 
     expect(overlay).toBeGreaterThan(capture);
     expect(overlay).toBeLessThan(slowNoon);
   });
+  it('the refreezing glaze lies under the whole pool, and the slot loops are gated on uVisitOn', () => {
+    const solid = PLANET_FS.slice(PLANET_FS.indexOf('float visitPoolSolid('), PLANET_FS.indexOf('vec3 visitCrustMarks('));
+    expect(solid).not.toContain('A.w * A.y');
+    expect(solid).toContain('s = max(s, A.w * (1.0 - smoothstep(0.85 * A.x, A.x, th)));');
+    expect(PLANET_FS).toContain('float b = max(m.x, uVisitOn > 0.5 ? visitQuench(x) : 0.0);');
+    expect(PLANET_FS).toContain('float g = max(m.y, uVisitOn > 0.5 ? visitPoolSolid(x) : 0.0);');
+  });
   it('the calm variant still draws the crust marks, with no live slots', () => {
     const fs = buildPlanetShader({ tier: 'full', calm: true }).fs;
     expect(fs).toContain('const int VISIT_SLOTS = 0;');

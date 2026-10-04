@@ -681,7 +681,8 @@ float visitQuench(vec3 x) {
   return q;
 }
 
-// The frozen share of a refreezing pool (SURF_POOL, A.y 0 liquid -> 1 frozen): its glaze fades in before the stamp (plan Q-3).
+// The glaze under a refreezing pool (SURF_POOL): it lies under the WHOLE pool (weight A.w, not A.w*A.y); the liquid overlay
+// (weight A.w*(1-A.y), visitPool) uncovers it as the pool freezes, so the cross-fade is a clean complement, no crust dip (plan Q-3).
 float visitPoolSolid(vec3 x) {
   float s = 0.0;
   for (int i = 0; i < VISIT_SLOTS; i++) {
@@ -689,7 +690,7 @@ float visitPoolSolid(vec3 x) {
     vec4 A = uVisitA[i];
     if (A.w <= 0.0 || D.w != ${glf(SURF_POOL)}) continue;
     float th = acos(clamp(dot(x, D.xyz), -1.0, 1.0));
-    s = max(s, A.w * A.y * (1.0 - smoothstep(0.85 * A.x, A.x, th)));
+    s = max(s, A.w * (1.0 - smoothstep(0.85 * A.x, A.x, th)));
   }
   return s;
 }
@@ -699,8 +700,10 @@ float visitPoolSolid(vec3 x) {
 // Each look is gated on its own coverage, so an unmarked texel pays one fetch (plan Q-4).
 vec3 visitCrustMarks(vec3 col, vec2 uv, vec2 gx, vec2 gy, vec3 P, vec3 x, vec3 nW, vec3 rd, float light, float sunHg) {
   vec2 m = uMarksOn > 0.5 ? textureGrad(uScar, uv, gx, gy).ba : vec2(0.0);
-  float b = max(m.x, visitQuench(x));
-  float g = max(m.y, visitPoolSolid(x));
+  // Byte B here is the quench rind; visitMarks reads the same byte as frost on frozen Hg (plan Q-6). Safe only because
+  // frozen-Hg frost is dormant (spec A4) and crossMarks wipes on a state change: waking frost needs its own channel.
+  float b = max(m.x, uVisitOn > 0.5 ? visitQuench(x) : 0.0);
+  float g = max(m.y, uVisitOn > 0.5 ? visitPoolSolid(x) : 0.0);
   if (b <= 0.0 && g <= 0.0) return col;
   vec3 R = reflect(rd, nW);
   float NoV = clamp(dot(nW, -rd), 0.0, 1.0);
