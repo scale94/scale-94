@@ -572,6 +572,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
         const a = VISITOR_IMPACT[ev.impulse];
         addImpulse(surf.impulses, { dirBody: ev.dirBody, tS: t, mode: a.mode, wave: a.wave, kind: ev.impulse });
         bodyToWorld(ev.dirBody, body.q, beadCtx.dirW);
+        // calm spawns no bursts (author 2026-10-05, Option A): a touchdown only brightens the point
         spawnSplash(beads.sim, beadCtx.dirW, R_SCENE * drop.coreScale, SPLASH_N);
         if (ev.phase === 'thermal' && ev.tempK > HG_BOIL_K) vis.exoPuff = EXO_PUFF;
         if (ev.kind === 'strip') vis.exoPuff = EXO_PUFF; // a gust strips vapour off boiling Hg into the exosphere
@@ -646,7 +647,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     da.body = body; da.surf = surf; da.camera = camera; da.calm = calm; da.ds = ds; da.stepS = stepS; da.t = t; da.bufferW = bufferW; da.bufferH = bufferH;
     stepDrop(drop, da);
     // A fresh fling (any path: release, hyper, dev rig) throws Hg beads off the spin equator.
-    if (drop.fam.phase === 'fired' && beadCtx.lastFam !== 'fired' && !calm) {
+    if (drop.fam.phase === 'fired' && beadCtx.lastFam !== 'fired') { // stepDrop resets the family under calm, so a fling can't fire there
       beadCtx.omega[0] = body.omega.x; beadCtx.omega[1] = body.omega.y; beadCtx.omega[2] = body.omega.z;
       spawnFling(beads.sim, beadCtx.omega, R_SCENE * drop.coreScale, FLING_N);
     }

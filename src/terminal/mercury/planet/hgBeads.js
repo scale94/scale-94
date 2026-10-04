@@ -20,6 +20,9 @@ export const EVAP_RATE = 0.004;   // radius loss per second in fire
 export const FLING_N = 24;
 export const SPLASH_N = 6;
 export const FLING_GAIN = 1.1;    // × (ω × r) at release
+export const FLING_V_MAX = 2.25;  // launch speed cap (scene units/s): readable arcs, not instant escapes
+export const FLING_DRAG_BOOST = 4; // 1/s extra drag toward the active element's flow just after a fling...
+export const FLING_DRAG_T = 0.45;  // ...decaying with this time constant (s): the throw bends into the flow
 const AMBIENT_V = [0.15, 0.35];   // launch speed range (scene units/s), along the surface normal
 const SPLASH_V = 0.35;
 const SUN_MIN = 0.2;              // ambient sources: dot(normal, Sun) above this
@@ -28,7 +31,7 @@ export function createBeads(cap, seed = 0x6867) {
   return {
     cap, n: 0, acc: 0, rng: mulberry32(seed),
     pos: new Float32Array(cap * 3), vel: new Float32Array(cap * 3),
-    r: new Float32Array(cap), age: new Float32Array(cap),
+    r: new Float32Array(cap), age: new Float32Array(cap), boost: new Float32Array(cap),
     outPos: new Float32Array(cap * 3), outBead: new Float32Array(cap * 2),
   };
 }
@@ -43,14 +46,15 @@ export function spawnBead(b, x, y, z, vx, vy, vz, r) {
   const i = b.n < b.cap ? b.n++ : oldest(b);
   b.pos[3 * i] = x; b.pos[3 * i + 1] = y; b.pos[3 * i + 2] = z;
   b.vel[3 * i] = vx; b.vel[3 * i + 1] = vy; b.vel[3 * i + 2] = vz;
-  b.r[i] = r; b.age[i] = 0;
+  b.r[i] = r; b.age[i] = 0; b.boost[i] = 0;
+  return i;
 }
 
 function remove(b, i) {
   const last = --b.n;
   if (i === last) return;
   for (let c = 0; c < 3; c++) { b.pos[3 * i + c] = b.pos[3 * last + c]; b.vel[3 * i + c] = b.vel[3 * last + c]; }
-  b.r[i] = b.r[last]; b.age[i] = b.age[last];
+  b.r[i] = b.r[last]; b.age[i] = b.age[last]; b.boost[i] = b.boost[last];
 }
 
 const radius = (b) => BEAD_R_MIN + (BEAD_R_MAX - BEAD_R_MIN) * b.rng() * b.rng(); // skewed small
@@ -69,7 +73,10 @@ export function spawnFling(b, omega, coreR, n = FLING_N) {
     const dx = ux * c + vx * s, dy = uy * c + vy * s, dz = uz * c + vz * s;
     const px = dx * R, py = dy * R, pz = dz * R;
     const wx = omega[0] * FLING_GAIN, wy = omega[1] * FLING_GAIN, wz = omega[2] * FLING_GAIN;
-    spawnBead(b, px, py, pz, wy * pz - wz * py + dx * 0.1, wz * px - wx * pz + dy * 0.1, wx * py - wy * px + dz * 0.1, radius(b));
+    let lx = wy * pz - wz * py + dx * 0.1, ly = wz * px - wx * pz + dy * 0.1, lz = wx * py - wy * px + dz * 0.1;
+    const sp = Math.hypot(lx, ly, lz);
+    if (sp > FLING_V_MAX) { const k2 = FLING_V_MAX / sp; lx *= k2; ly *= k2; lz *= k2; }
+    b.boost[spawnBead(b, px, py, pz, lx, ly, lz, radius(b))] = FLING_DRAG_BOOST;
   }
 }
 
@@ -114,9 +121,10 @@ export function stepBeads(b, dt, ctx) {
       const x = b.pos[3 * i], y = b.pos[3 * i + 1], z = b.pos[3 * i + 2];
       const r2 = x * x + y * y + z * z, rl = Math.sqrt(r2) || 1, g = G_BEAD / (r2 * rl);
       flowVel(phase, x, y, z, b.age[i]);
+      const drag = DRAG + b.boost[i] * Math.exp(-b.age[i] / FLING_DRAG_T);
       for (let c = 0; c < 3; c++) {
         const p = b.pos[3 * i + c];
-        b.vel[3 * i + c] += (-g * p + DRAG * (f[c] - b.vel[3 * i + c])) * dt;
+        b.vel[3 * i + c] += (-g * p + drag * (f[c] - b.vel[3 * i + c])) * dt;
         b.pos[3 * i + c] += b.vel[3 * i + c] * dt;
       }
       if (phase === 'thermal') b.r[i] -= EVAP_RATE * dt;

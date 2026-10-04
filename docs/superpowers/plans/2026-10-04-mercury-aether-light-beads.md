@@ -18,7 +18,7 @@
 - Flows: motion, palettes and slider knobs unchanged. Thermal flow source unchanged.
 - `hgMirrorGlsl.js` is NOT edited (the planet's fragment shader snapshot must stay byte-identical). Beads interpolate its chunks.
 - Bead caps: `full 256`, `phone 64`, `lite 32` (in `TIERS`). Zero per-frame allocation in sims and hooks (preallocate; mutate in place).
-- Calm (reduced motion): ambient trickle and drift freeze; bursts still spawn but don't advect.
+- Calm (reduced motion): no trickle, no drift, and no bursts (author 2026-10-05, Option A — impacts and flings only brighten/mark the surface); the sim still refuses to advect anything under calm.
 - `PLANET_TUNE` defaults: `aetherFloor: 0.2`, `aetherPenumbra: 0.08` (scene units; planet radius 0.75).
 - Geometry facts this plan relies on: `SUN_DIR_WORLD = (−sin55°, 0, cos55°)` fixed in world; camera on +Z looking at the origin (distance fitted, ≥ 3.6); planet radius `R_SCENE · drop.coreScale`; flows are `THREE.Points` at world positions with `ShaderMaterial` (three injects `viewMatrix` and `cameraPosition` into both stages).
 - Phase functions are **normalised at the camera's own scattering angle** (`COS_REF = −SUN_DIR_WORLD.z`): a particle near the centre keeps today's brightness, the light model only redistributes around it, capped at `LIT_MAX = 2.5`. (With the Sun at 55° the dominant visible effect is the shadow lane and a gentle left–right gradient; that is expected, not a bug.)

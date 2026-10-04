@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   createBeads, spawnBead, spawnFling, spawnSplash, stepBeads,
-  AMBIENT_RATE, BEAD_ESCAPE_R, BEAD_LIFE, BEAD_R_MIN, EVAP_RATE, FLING_N,
+  AMBIENT_RATE, BEAD_ESCAPE_R, BEAD_LIFE, BEAD_R_MIN, EVAP_RATE, FLING_N, FLING_V_MAX, FLING_DRAG_BOOST,
 } from '../hgBeads';
 import { SUN_DIR_WORLD } from '../planetFrame';
 
@@ -70,7 +70,7 @@ describe('hgBeads sim', () => {
     run(b, (BEAD_R_MIN * 1.5) / EVAP_RATE + 0.5, { ...CTX, phase: 'thermal', liquid: false });
     expect(b.n).toBe(0);
   });
-  it('calm: no trickle, splashes spawn but do not move', () => {
+  it('calm (sim-level): no trickle; a bead spawned anyway does not advect', () => {
     const b = createBeads(16);
     spawnSplash(b, [1, 0, 0], 0.75, 3);
     const x0 = b.pos[0];
@@ -86,5 +86,53 @@ describe('hgBeads sim', () => {
     expect(b.outPos).toBe(p); expect(b.outBead).toBe(q);
     expect(b.outBead[0]).toBeCloseTo(0.01, 6);
     expect(b.outBead[1]).toBeGreaterThan(0);
+  });
+  it('fling launch speed is capped at FLING_V_MAX', () => {
+    const b = createBeads(64);
+    spawnFling(b, [0, 12, 0], 0.75, FLING_N);
+    for (let i = 0; i < b.n; i++) {
+      expect(Math.hypot(b.vel[3 * i], b.vel[3 * i + 1], b.vel[3 * i + 2])).toBeLessThanOrEqual(FLING_V_MAX + 1e-6);
+    }
+  });
+  it('a fling about +X (the other basis branch) is tangential too', () => {
+    const b = createBeads(64);
+    spawnFling(b, [12, 0, 0], 0.75, FLING_N);
+    expect(b.n).toBe(FLING_N);
+    for (let i = 0; i < b.n; i++) {
+      expect(Math.abs(b.pos[3 * i])).toBeLessThan(1e-6); // on the spin equator
+      const v = [b.vel[3 * i], b.vel[3 * i + 1], b.vel[3 * i + 2]];
+      const p = [b.pos[3 * i], b.pos[3 * i + 1], b.pos[3 * i + 2]];
+      const pl = Math.hypot(...p);
+      const radial = (p[0] * v[0] + p[1] * v[1] + p[2] * v[2]) / pl; // the 0.1 outward kick is the only radial part
+      expect(Math.abs(radial)).toBeLessThan(0.1 + 1e-6);
+    }
+  });
+  it('the early drag arc keeps a fling in the scene past 0.6 s (air)', () => {
+    const b = createBeads(64);
+    const ctx = { ...CTX, liquid: false };
+    spawnFling(b, [0, 12, 0], 0.75, FLING_N);
+    const ids = b.n;
+    run(b, 0.6, ctx);
+    const med = () => { const rs = []; for (let i = 0; i < b.n; i++) rs.push(Math.hypot(b.pos[3 * i], b.pos[3 * i + 1], b.pos[3 * i + 2])); rs.sort((x, y) => x - y); return rs[rs.length >> 1]; };
+    const frac = b.n / ids, med06 = med();
+    run(b, 0.9, ctx);
+    expect(frac).toBeGreaterThanOrEqual(0.5);
+  });
+  it('remove keeps boost in step with the swapped bead', () => {
+    const b = createBeads(8);
+    spawnBead(b, 1, 0, 1, 0, 0, 0, 0.01); spawnBead(b, 1.5, 0, 1, 0, 0, 0, 0.01); spawnBead(b, 2, 0, 1, 0, 0, 0, 0.01);
+    b.boost[0] = 0; b.boost[1] = 7; b.boost[2] = FLING_DRAG_BOOST;
+    b.r[1] = 0; // dies on the next step; bead 2 swaps into slot 1
+    stepBeads(b, 1 / 60, { ...CTX, liquid: false });
+    expect(b.n).toBe(2);
+    expect(b.pos[3]).toBeCloseTo(2, 1);
+    expect(b.boost[1]).toBe(FLING_DRAG_BOOST);
+  });
+  it('spawnBead returns its slot and zeroes boost; a fling sets it, even on eviction', () => {
+    const b = createBeads(4);
+    spawnFling(b, [0, 12, 0], 0.75, 4);
+    for (let i = 0; i < 4; i++) expect(b.boost[i]).toBe(FLING_DRAG_BOOST);
+    const i = spawnBead(b, 0, 0, 2, 0, 0, 0, 0.01);
+    expect(b.boost[i]).toBe(0);
   });
 });

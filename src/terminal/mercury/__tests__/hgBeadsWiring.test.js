@@ -23,4 +23,13 @@ describe('Hg beads wiring', () => {
     const planetTag = canvasSrc.slice(canvasSrc.indexOf('<MercuryPlanet'), canvasSrc.indexOf('<MercurySphere'));
     expect(planetTag).toContain('activePhase={activePhase}');
   });
+  it('calm spawns no bursts: the splash sits after the calm arm (Option A)', () => {
+    const calmArm = planetSrc.indexOf('} else if (calm) {');
+    expect(calmArm).toBeGreaterThan(0);
+    expect(planetSrc.indexOf('spawnSplash(beads.sim')).toBeGreaterThan(calmArm);
+  });
+  it('the hook uploads the bead sparkle gain', () => {
+    expect(hookSrc).toContain('uBeadSparkle: { value: PLANET_TUNE.beadSparkle }');
+    expect(hookSrc).toContain('u.uBeadSparkle.value = PLANET_TUNE.beadSparkle;');
+  });
 });

@@ -1,7 +1,7 @@
 // src/terminal/mercury/planet/__tests__/hgBeadShader.test.js
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { BEAD_VS, BEAD_FS, BEAD_MATERIAL, BEAD_RENDER_ORDER, BEAD_MIN_PX, SUN_TERM_GLSL } from '../hgBeadShader';
+import { BEAD_VS, BEAD_FS, BEAD_MATERIAL, BEAD_RENDER_ORDER, BEAD_MIN_PX, SUN_TERM_GLSL, BEAD_UNIFORMS_OWN } from '../hgBeadShader';
 import { HG_MIRROR_DECLS_GLSL, HG_FRESNEL_GLSL, HG_ENV_GLSL } from '../hgMirrorGlsl';
 import { AETHER_SHADOW_GLSL } from '../aetherLight';
 import { DROPLET_RENDER_ORDER } from '../dropletShader';
@@ -23,6 +23,15 @@ describe('Hg bead shader', () => {
   });
   it('draws after the droplets, depth-tested, never writes depth', () => {
     expect(BEAD_RENDER_ORDER).toBeGreaterThan(DROPLET_RENDER_ORDER);
-    expect(BEAD_MATERIAL).toEqual({ transparent: true, depthTest: true, depthWrite: false, blending: THREE.NormalBlending });
+    expect(BEAD_MATERIAL).toEqual({
+      transparent: true, depthTest: true, depthWrite: false, blending: THREE.CustomBlending,
+      blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor, blendEquation: THREE.AddEquation,
+    });
+    expect(Object.isFrozen(BEAD_MATERIAL)).toBe(true);
+  });
+  it('premultiplied output: a scaled-down body occluder plus an analytic additive sun glint', () => {
+    expect(BEAD_FS).toContain('fragColor = vec4(srgb * aBody + glint, aBody);');
+    expect(BEAD_FS).toContain('normalize(Vc + uSunDir)');
+    expect(BEAD_UNIFORMS_OWN).toContain('uBeadSparkle');
   });
 });

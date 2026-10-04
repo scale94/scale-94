@@ -26,6 +26,7 @@ export default function useHgBeads({ tier, planetMaterial }) {
       uViewportPx: { value: new THREE.Vector2(1, 1) },
       uPlanetR: { value: R_SCENE },
       uLitPen: { value: Math.max(PLANET_TUNE.aetherPenumbra, 1e-3) },
+      uBeadSparkle: { value: PLANET_TUNE.beadSparkle },
     };
     for (const name of HG_MIRROR_UNIFORMS) uniforms[name] = planetMaterial.uniforms[name];
     uniforms.uSunGlint = { value: planetMaterial.uniforms.uSunGlint.value }; // own: × PLANET_TUNE.beadGlint (upload)
@@ -49,6 +50,7 @@ export default function useHgBeads({ tier, planetMaterial }) {
     u.uPlanetR.value = coreR;
     u.uLitPen.value = Math.max(PLANET_TUNE.aetherPenumbra, 1e-3);
     u.uSunGlint.value = planetMaterial.uniforms.uSunGlint.value * PLANET_TUNE.beadGlint;
+    u.uBeadSparkle.value = PLANET_TUNE.beadSparkle;
   };
 
   return { geometry, material, renderOrder: BEAD_RENDER_ORDER, sim, upload };

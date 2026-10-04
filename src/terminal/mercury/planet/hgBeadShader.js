@@ -5,7 +5,7 @@
 // Written for a ShaderMaterial with glslVersion GLSL3 (three maps attribute/varying; the fragment output is declared here).
 
 import * as THREE from 'three';
-import { v3 } from '../../gl/glf';
+import { v3, glf } from '../../gl/glf';
 import { HG_MIRROR_DECLS_GLSL, HG_FRESNEL_GLSL, HG_ENV_GLSL } from './hgMirrorGlsl';
 import { AETHER_SHADOW_GLSL } from './aetherLight';
 import { DROPLET_RENDER_ORDER } from './dropletShader';
@@ -13,8 +13,15 @@ import { FALLBACK_ALBEDO } from './planetLook';
 
 export const BEAD_MIN_PX = 1.5;
 export const BEAD_RENDER_ORDER = DROPLET_RENDER_ORDER + 1;
-export const BEAD_MATERIAL = Object.freeze({ transparent: true, depthTest: true, depthWrite: false, blending: THREE.NormalBlending });
-export const BEAD_UNIFORMS_OWN = ['uViewportPx', 'uPlanetR', 'uLitPen', 'uSunGlint'];
+// Premultiplied output (body occludes by its true coverage, the glint adds light): explicit factors, CustomBlending.
+export const BEAD_MATERIAL = Object.freeze({
+  transparent: true, depthTest: true, depthWrite: false, blending: THREE.CustomBlending,
+  blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor, blendEquation: THREE.AddEquation,
+});
+export const BEAD_UNIFORMS_OWN = ['uViewportPx', 'uPlanetR', 'uLitPen', 'uSunGlint', 'uBeadSparkle'];
+export const BEAD_BODY_SUBPX = 0.35;  // the dark occluding body's opacity scale at sub-pixel radii (to 1 by 5 px)
+export const BEAD_GLINT_MAX = 1.5;    // cap on the analytic glint (sRGB units)
+export const BEAD_GLINT_SIGMA_PX = 0.6; // glint footprint on a large bead: a ~1 px spark
 // The first line of envRadiance, verbatim (the test pins it against HG_ENV_GLSL).
 export const SUN_TERM_GLSL = 'vec3(softShoulder(uSunGlint * uSunIrr * uExposure * lobe(dot(R, uSunDir), uSunSinR, rough), SUN_SHOULDER))';
 
@@ -47,6 +54,7 @@ ${HG_ENV_GLSL}
 ${AETHER_SHADOW_GLSL}
 uniform float uPlanetR;
 uniform float uLitPen;
+uniform float uBeadSparkle;
 varying vec3 vC;
 varying float vR;
 varying float vA;
@@ -84,9 +92,20 @@ void main() {
   vec4 pl = planetInMirror(P, R);
   env = mix(env, pl.rgb * sh, pl.a);
   vec3 col = max(fresnelHg(dot(n, V)) * env, 0.0);
-  float edge = 1.0 - smoothstep(1.0 - 2.0 / vPx, 1.0, sqrt(d2)); // antialiased rim
+  // Rim AA only where the rim band fits inside the disc; below 4 px vCover^2 already carries the coverage.
+  float edgeK = vPx >= 4.0 ? 1.0 - smoothstep(1.0 - 2.0 / vPx, 1.0, sqrt(d2)) : 1.0;
+  float bodyK = mix(${glf(BEAD_BODY_SUBPX)}, 1.0, smoothstep(2.0, 5.0, vPx));
+  float aBody = vA * vCover * vCover * edgeK * bodyK;
+  // Guaranteed glint: a mirror sphere has the Sun's image at the point whose normal is H, from every view.
+  vec3 Vc = normalize(cameraPosition - vC);
+  vec3 H = normalize(Vc + uSunDir);
+  float G = min(uBeadSparkle * fresnelHg(dot(H, Vc)) * sh, ${glf(BEAD_GLINT_MAX)});
+  vec2 qg = (viewMatrix * vec4(H, 0.0)).xy;
+  float dpx = length(q - qg) * 0.5 * vPx;
+  float w = exp(-dpx * dpx / (2.0 * ${glf(BEAD_GLINT_SIGMA_PX)} * ${glf(BEAD_GLINT_SIGMA_PX)}));
+  vec3 glint = vec3(G * w * vA);
   // Output stage as the droplet pass / planet: exposure is already inside the terms; just sRGB-encode.
   vec3 srgb = mix(col * 12.92, 1.055 * pow(col, vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), col));
-  fragColor = vec4(srgb, vA * vCover * vCover * edge);
+  fragColor = vec4(srgb * aBody + glint, aBody);
 }
 `;

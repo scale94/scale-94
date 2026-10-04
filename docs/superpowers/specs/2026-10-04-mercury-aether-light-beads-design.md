@@ -85,7 +85,8 @@ One module, GLSL chunk + JS mirrors (the `planetWindow` pattern), unit-tested:
   too costly on the phone.
 - **Budget:** fixed typed-array buffers, cap 64 mobile / 256 desktop (in `TIERS`), oldest-first eviction,
   zero per-frame allocation, `drawRange` = live count.
-- **Calm (reduced motion):** ambient trickle and drift freeze; bursts still spawn but don't advect.
+- **Calm (reduced motion):** no trickle, no drift, and no bursts (author 2026-10-05, Option A — impacts and flings only brighten/mark the surface); the sim still refuses to advect anything under calm.
+  - *Amended 2026-10-05: previously "bursts still spawn but don't advect".*
 
 ### 4. Mirror consistency
 
