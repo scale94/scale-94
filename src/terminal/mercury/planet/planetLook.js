@@ -66,6 +66,8 @@ export const PLANET_TUNE = {
   aetherStretch: 1,  // 0 = round lobes; 1 = each streak at its own elongation (AETHER_SHAPES)
   aetherCurve: 2.5,  // falloff inside a streak: 0 = flat; higher = brighter centre, dimmer toward the meniscus edge (the volume)
   aetherCore: 3,     // streak core brightness × its own hue, into the hue-preserving roll-off + AETHER_PATH_WHITE
+  aetherFloor: 0.2,     // lit element flows never fall below this × their colour (umbra, worst phase) — aetherLight.js
+  aetherPenumbra: 0.08, // half-width of the planet shadow cylinder's soft edge, scene units (planet radius 0.75)
   rayGain: 1.5,      // fresh crater-ray brightness (scar map G channel); 1.5 tuned 2026-10-02 (Task 7: 2+ flattens rays into a blob)
   modeGain: 1,       // body-mode + spin-bulge amplitude (the bead's wobble)
   waveGain: 1,       // capillary ripple slope
