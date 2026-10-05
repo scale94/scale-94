@@ -15,6 +15,7 @@ describe('Hg beads wiring', () => {
   it('the planet feeds all three sources and steps once per frame', () => {
     expect(planetSrc).toContain('useHgBeads({ tier, planetMaterial: material })');
     expect(planetSrc).toMatch(/spawnFling\(beads\.sim, /);
+    expect(planetSrc).toContain('beadCtx.rateScale = TIERS[tier].beadRate;');
     expect(planetSrc).toMatch(/spawnSplash\(beads\.sim, /);
     expect(planetSrc).toMatch(/stepBeads\(beads\.sim, stepS, beadCtx\)/); // clamped dt, not raw delta
     expect(planetSrc).toContain('<points geometry={beads.geometry} material={beads.material} renderOrder={beads.renderOrder} frustumCulled={false} />');

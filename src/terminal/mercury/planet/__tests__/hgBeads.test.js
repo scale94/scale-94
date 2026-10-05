@@ -1,14 +1,44 @@
 import { describe, it, expect } from 'vitest';
 import {
-  createBeads, spawnBead, spawnFling, spawnSplash, stepBeads,
-  AMBIENT_RATE, BEAD_ESCAPE_R, BEAD_LIFE, BEAD_R_MIN, EVAP_RATE, FLING_N, FLING_V_MAX, FLING_DRAG_BOOST,
+  createBeads, spawnBead, spawnFling, spawnSplash, stepBeads, beadRadius,
+  AMBIENT_RATE, BEAD_ESCAPE_R, BEAD_LIFE, DUST_R, PEARL_R, PEARL_P, EVAP_RATE, FLING_N, FLING_V_MAX, FLING_DRAG_BOOST,
 } from '../hgBeads';
+import { mulberry32 } from '../aetherLobes';
 import { SUN_DIR_WORLD } from '../planetFrame';
 
 const CTX = { phase: 'air', coreR: 0.75, calm: false, liquid: true, boil: 0 };
 const run = (b, seconds, ctx = CTX, dt = 1 / 60) => { for (let t = 0; t < seconds; t += dt) stepBeads(b, dt, ctx); return b.n; };
 
 describe('hgBeads sim', () => {
+  it('spawn radii split into dust (~95 %) and pearls (~5 %), each inside its range', () => {
+    const rng = mulberry32(42);
+    let pearls = 0;
+    for (let k = 0; k < 10000; k++) {
+      const r = beadRadius(rng);
+      const dust = r >= DUST_R[0] && r <= DUST_R[1];
+      const pearl = r >= PEARL_R[0] && r <= PEARL_R[1];
+      expect(dust || pearl).toBe(true);
+      if (pearl) pearls++;
+    }
+    expect(pearls / 10000).toBeGreaterThan(PEARL_P - 0.01);
+    expect(pearls / 10000).toBeLessThan(PEARL_P + 0.01);
+  });
+  it('dust is skewed small: its median radius sits in the lower third of the dust range', () => {
+    const rng = mulberry32(7);
+    const dust = [];
+    for (let k = 0; k < 4000; k++) { const r = beadRadius(rng); if (r <= DUST_R[1]) dust.push(r); }
+    dust.sort((a, b) => a - b);
+    expect(dust[dust.length >> 1]).toBeLessThan(DUST_R[0] + (DUST_R[1] - DUST_R[0]) / 3);
+  });
+  it('rateScale scales the ambient trickle (1 s: no bead has fallen back yet)', () => {
+    const full = createBeads(256), phone = createBeads(256);
+    run(full, 1, { ...CTX, phase: 'none' });
+    run(phone, 1, { ...CTX, phase: 'none', rateScale: 0.55 });
+    expect(full.n).toBeGreaterThanOrEqual(AMBIENT_RATE - 1);
+    expect(full.n).toBeLessThanOrEqual(AMBIENT_RATE);
+    expect(phone.n).toBeGreaterThanOrEqual(9);
+    expect(phone.n).toBeLessThanOrEqual(10);
+  });
   it('ambient trickle settles near rate × life (a few dozen), off the sunlit side', () => {
     const b = createBeads(256);
     run(b, 1 / 60);
@@ -66,8 +96,8 @@ describe('hgBeads sim', () => {
   });
   it('fire evaporates beads', () => {
     const b = createBeads(8);
-    spawnBead(b, 0, 1.2, 0, 0, 0, 0, BEAD_R_MIN * 1.5);
-    run(b, (BEAD_R_MIN * 1.5) / EVAP_RATE + 0.5, { ...CTX, phase: 'thermal', liquid: false });
+    spawnBead(b, 0, 1.2, 0, 0, 0, 0, DUST_R[0] * 1.5);
+    run(b, (DUST_R[0] * 1.5) / EVAP_RATE + 0.5, { ...CTX, phase: 'thermal', liquid: false });
     expect(b.n).toBe(0);
   });
   it('calm (sim-level): no trickle; a bead spawned anyway does not advect', () => {

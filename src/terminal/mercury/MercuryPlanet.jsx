@@ -443,7 +443,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
 
   // Hg beads: the trickle, flings and splash bursts, carried by the active element. beadCtx is written in place per frame.
   const beads = useHgBeads({ tier, planetMaterial: material });
-  const beadCtx = useMemo(() => ({ phase: 'fluid', coreR: R_SCENE, calm: false, liquid: true, boil: 0, lastFam: 'idle', dirW: [0, 0, 0], omega: [0, 0, 0] }), []);
+  const beadCtx = useMemo(() => ({ phase: 'fluid', coreR: R_SCENE, calm: false, liquid: true, boil: 0, rateScale: 1, lastFam: 'idle', dirW: [0, 0, 0], omega: [0, 0, 0] }), []);
 
   // The maps outlive the material: a live CALM toggle swaps the shader variant (a new
   // material) without reloading them or flashing the flat fallback (planetMaps.js).
@@ -704,6 +704,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     beadCtx.calm = calm;
     beadCtx.liquid = body.tau >= LIQUID_TAU;
     beadCtx.boil = exo.coverage;
+    beadCtx.rateScale = TIERS[tier].beadRate;
     stepBeads(beads.sim, stepS, beadCtx);
     beads.upload(gl, beadCtx.coreR);
   });

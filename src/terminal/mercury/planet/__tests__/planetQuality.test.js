@@ -76,7 +76,10 @@ describe('planetQuality', () => {
 
   it('bead caps per tier', () => {
     expect(TIERS.full.beads).toBe(256);
-    expect(TIERS.phone.beads).toBe(64);
+    expect(TIERS.phone.beads).toBe(128);
     expect(TIERS.lite.beads).toBe(32);
+    expect(TIERS.full.beadRate).toBe(1);
+    expect(TIERS.phone.beadRate).toBe(0.55);
+    expect(TIERS.lite.beadRate).toBe(0.3);
   });
 });

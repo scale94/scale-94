@@ -7,9 +7,10 @@
 import { mulberry32 } from './aetherLobes';
 import { SUN_DIR_WORLD } from './planetFrame';
 
-export const BEAD_R_MIN = 0.004;  // scene units (~1 px at the fitted desktop camera)
-export const BEAD_R_MAX = 0.012;  // ~3 px
-export const AMBIENT_RATE = 6;    // beads/s off the sunlit surface → ~AMBIENT_RATE · BEAD_LIFE alive
+export const DUST_R = Object.freeze([0.0015, 0.006]);  // scene units: ~0.4–1.5 px at the fitted desktop camera
+export const PEARL_R = Object.freeze([0.012, 0.02]);   // ~3–5 px: the rare solid silver bead
+export const PEARL_P = 0.05;                            // share of spawns that are pearls
+export const AMBIENT_RATE = 18;   // beads/s off the sunlit surface → ~AMBIENT_RATE · BEAD_LIFE alive (× tier rateScale)
 export const BOIL_GAIN = 4;       // boiling multiplies the trickle by (1 + BOIL_GAIN · coverage)
 export const BEAD_LIFE = 8;       // s
 export const BEAD_FADE = 1.5;     // s of fade-OUT before BEAD_LIFE (the fade-in is the 0.15 s ramp in stepBeads)
@@ -17,7 +18,7 @@ export const BEAD_ESCAPE_R = 4;   // × coreR: beyond this a bead has left the s
 export const G_BEAD = 0.12;       // GM in scene units: escape speed at r 0.75 ≈ 0.57
 export const DRAG = 1.5;          // 1/s toward the active element's flow velocity
 export const EVAP_RATE = 0.004;   // radius loss per second in fire
-export const FLING_N = 24;
+export const FLING_N = 48;
 export const SPLASH_N = 6;
 export const FLING_GAIN = 1.1;    // × (ω × r) at release
 export const FLING_V_MAX = 2.25;  // launch speed cap (scene units/s): readable arcs, not instant escapes
@@ -57,7 +58,13 @@ function remove(b, i) {
   b.r[i] = b.r[last]; b.age[i] = b.age[last]; b.boost[i] = b.boost[last];
 }
 
-const radius = (b) => BEAD_R_MIN + (BEAD_R_MAX - BEAD_R_MIN) * b.rng() * b.rng(); // skewed small
+// Glitter dust, skewed small, with a rare pearl (spec §1).
+export function beadRadius(rng) {
+  if (rng() < PEARL_P) return PEARL_R[0] + (PEARL_R[1] - PEARL_R[0]) * rng();
+  const u = rng();
+  return DUST_R[0] + (DUST_R[1] - DUST_R[0]) * u * u;
+}
+const radius = (b) => beadRadius(b.rng);
 
 export function spawnFling(b, omega, coreR, n = FLING_N) {
   const w = Math.hypot(omega[0], omega[1], omega[2]);
@@ -109,10 +116,10 @@ function flowVel(phase, x, y, z, age) {
 }
 
 export function stepBeads(b, dt, ctx) {
-  const { phase, coreR, calm, liquid, boil } = ctx;
+  const { phase, coreR, calm, liquid, boil, rateScale = 1 } = ctx;
   const ER2 = BEAD_ESCAPE_R * BEAD_ESCAPE_R * coreR * coreR;
   if (!calm && liquid) {
-    b.acc += AMBIENT_RATE * (1 + BOIL_GAIN * boil) * dt;
+    b.acc += AMBIENT_RATE * rateScale * (1 + BOIL_GAIN * boil) * dt;
     while (b.acc >= 1) { b.acc -= 1; spawnAmbient(b, coreR); }
   }
   for (let i = b.n - 1; i >= 0; i--) {
