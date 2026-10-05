@@ -40,7 +40,7 @@ export const WOBBLE_HZ_MAX = 5;    // dust lives at the clamp: a shimmer, not a 
 export const WOBBLE_RATIO = Math.sqrt(30 / 8);
 export const TUMBLE_E = 0.6;       // tumble envelope depth
 export const TUMBLE_K = Object.freeze([0.15, 0.3]); // tumble rate as a fraction of the wobble rate
-export const WOBBLE_K = 3;         // spark sharpness: dark ~90 % of the time
+export const WOBBLE_K = 1.5;       // spark sharpness: lit ~22 % of the time, ~63 ms per spark (look round 2, author; was 3: ~10 %, too sparse)
 
 export function wobbleHz(r) {
   const hz = WOBBLE_HZ_REF * (WOBBLE_R_REF / Math.max(r, 1e-6)) ** 1.5;

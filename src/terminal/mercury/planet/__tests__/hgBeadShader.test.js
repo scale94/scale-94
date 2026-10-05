@@ -1,10 +1,11 @@
 // src/terminal/mercury/planet/__tests__/hgBeadShader.test.js
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { BEAD_VS, BEAD_FS, BEAD_MATERIAL, BEAD_RENDER_ORDER, BEAD_MIN_PX, SUN_TERM_GLSL, BEAD_UNIFORMS_OWN } from '../hgBeadShader';
+import { BEAD_VS, BEAD_FS, BEAD_MATERIAL, BEAD_RENDER_ORDER, BEAD_MIN_PX, SUN_TERM_GLSL, BEAD_UNIFORMS_OWN, BEAD_GLINT_MAX, DUST_GLINT_MAX, DUST_SIZE_FLOOR } from '../hgBeadShader';
 import { HG_MIRROR_DECLS_GLSL, HG_FRESNEL_GLSL, HG_ENV_GLSL } from '../hgMirrorGlsl';
 import { AETHER_SHADOW_GLSL } from '../aetherLight';
 import { DROPLET_RENDER_ORDER } from '../dropletShader';
+import { glf } from '../../../gl/glf';
 
 describe('Hg bead shader', () => {
   it('is the planet\'s mirror, by construction', () => {
@@ -32,7 +33,8 @@ describe('Hg bead shader', () => {
   it('premultiplied output: a pearl-only body occluder plus an additive, gated sun glint', () => {
     expect(BEAD_FS).toContain('fragColor = vec4(srgb * aBody + glint, aBody);');
     expect(BEAD_FS).toContain('normalize(Vc + uSunDir)');
-    expect(BEAD_FS).toContain('vec3 G = min(gain * fresnelHg(dot(H, Vc)) * sh, vec3('); // fresnelHg is vec3: a float G did not compile (live, 2026-10-05)
+    expect(BEAD_FS).toContain('vec3 F = fresnelHg(dot(H, Vc)) * sh;'); // fresnelHg is vec3: a float G did not compile (live, 2026-10-05)
+    expect(BEAD_FS).toContain('vec3 G = mix(min(dustGain * F, vec3(');
     expect(BEAD_UNIFORMS_OWN).toContain('uBeadSparkle');
     expect(BEAD_UNIFORMS_OWN).toContain('uDustSparkle');
   });
@@ -40,8 +42,18 @@ describe('Hg bead shader', () => {
     expect(BEAD_VS).toContain('vGate = aBead.z;');
     expect(BEAD_FS).toContain('float kPearl = smoothstep(2.0, 4.0, vPx);');
     expect(BEAD_FS).toContain('float aBody = vA * vCover * vCover * edgeK * kPearl;');
-    expect(BEAD_FS).toContain('float gain = mix(uDustSparkle * vGate, uBeadSparkle * mix(0.85, 1.0, vGate), kPearl);');
+    expect(BEAD_FS).toContain('float dustGain = uDustSparkle * vGate * sizeW;');
+    expect(BEAD_FS).toContain('float pearlGain = uBeadSparkle * mix(0.85, 1.0, vGate);');
     expect(BEAD_FS).not.toContain('bodyK');
+  });
+  it('dust has its own glint cap, above the pearls\' (headroom to punch through a bright nebula)', () => {
+    expect(DUST_GLINT_MAX).toBeGreaterThan(BEAD_GLINT_MAX);
+    expect(BEAD_FS).toContain(`vec3 G = mix(min(dustGain * F, vec3(${glf(DUST_GLINT_MAX)})), min(pearlGain * F, vec3(${glf(BEAD_GLINT_MAX)})), kPearl);`);
+  });
+  it('dust glint scales with projected area (vCover²), floored so the smallest specks still shimmer', () => {
+    expect(DUST_SIZE_FLOOR).toBeGreaterThan(0);
+    expect(DUST_SIZE_FLOOR).toBeLessThan(1);
+    expect(BEAD_FS).toContain(`float sizeW = mix(${glf(DUST_SIZE_FLOOR)}, 1.0, vCover * vCover);`);
   });
   it('one glint on a resolved pearl: the analytic glint fades out 4 -> 6 px', () => {
     expect(BEAD_FS).toContain('float unresolved = 1.0 - smoothstep(4.0, 6.0, vPx);');

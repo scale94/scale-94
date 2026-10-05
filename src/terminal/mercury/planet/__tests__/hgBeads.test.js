@@ -134,8 +134,8 @@ describe('hgBeads sim', () => {
     }
   });
   // Dust radii only: a pearl's glint is mix(0.85, 1, gate), a shimmer, so it has no sparks to time.
-  // Plan-time check with this exact model over seeds 0x5eed, 1, 7, 99, 12345: min CV 0.47, ≥ 18 intervals, duty ≈ 0.096.
-  it('dust twinkle is not a metronome: every speck\'s spark intervals vary (CV ≥ 0.3); duty 5–20 %', () => {
+  // Look round 2 (WOBBLE_K 3 -> 1.5, author 2026-10-05): seed 0x5eed measured min CV 0.42, duty ≈ 0.225 (~28 lit of ~125 in air).
+  it('dust twinkle is not a metronome: every speck\'s spark intervals vary (CV ≥ 0.3); duty 15–30 %', () => {
     const b = createBeads(64, 0x5eed);
     for (let k = 0; k < 60; k++) spawnBead(b, 0, 2, 0, 0, 0, 0, [0.0015, 0.003, 0.0045, 0.006][k % 4]);
     let lit = 0, samples = 0;
@@ -154,8 +154,8 @@ describe('hgBeads sim', () => {
       const sd = Math.sqrt(iv.reduce((a, c) => a + (c - m) ** 2, 0) / iv.length);
       expect(sd / m).toBeGreaterThanOrEqual(0.3);
     }
-    expect(lit / samples).toBeGreaterThan(0.05);
-    expect(lit / samples).toBeLessThan(0.2);
+    expect(lit / samples).toBeGreaterThan(0.15);
+    expect(lit / samples).toBeLessThan(0.3);
   });
   it('remove keeps the wobble state in step with the swapped bead', () => {
     const b = createBeads(8);

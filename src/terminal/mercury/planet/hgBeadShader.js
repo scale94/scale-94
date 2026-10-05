@@ -19,7 +19,11 @@ export const BEAD_MATERIAL = Object.freeze({
   blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor, blendEquation: THREE.AddEquation,
 });
 export const BEAD_UNIFORMS_OWN = ['uViewportPx', 'uPlanetR', 'uLitPen', 'uSunGlint', 'uBeadSparkle', 'uDustSparkle'];
-export const BEAD_GLINT_MAX = 1.5;    // cap on the analytic glint (sRGB units)
+export const BEAD_GLINT_MAX = 1.5;    // cap on a pearl's analytic glint (sRGB units)
+// Dust's own, higher cap (look round 2): on an 8-bit target extra headroom cannot exceed white, it saturates
+// more of the speck's 1-4 covered pixels, so the spark reads at full white against the bright air/water nebula.
+export const DUST_GLINT_MAX = 3.0;
+export const DUST_SIZE_FLOOR = 0.3;   // dust glint ∝ projected area (vCover²), never below this: the smallest specks shimmer
 export const BEAD_GLINT_SIGMA_PX = 0.6; // glint footprint on a large bead: a ~1 px spark
 // The first line of envRadiance, verbatim (the test pins it against HG_ENV_GLSL).
 export const SUN_TERM_GLSL = 'vec3(softShoulder(uSunGlint * uSunIrr * uExposure * lobe(dot(R, uSunDir), uSunSinR, rough), SUN_SHOULDER))';
@@ -104,9 +108,13 @@ void main() {
   // Guaranteed glint: a mirror sphere has the Sun's image at the point whose normal is H, from every view.
   vec3 Vc = normalize(cameraPosition - vC);
   vec3 H = normalize(Vc + uSunDir);
-  // Dust sparks on its wobble gate; a pearl's glint only shimmers (spec §2).
-  float gain = mix(uDustSparkle * vGate, uBeadSparkle * mix(0.85, 1.0, vGate), kPearl);
-  vec3 G = min(gain * fresnelHg(dot(H, Vc)) * sh, vec3(${glf(BEAD_GLINT_MAX)})); // fresnelHg is spectral (vec3): the glint keeps Hg's faint tint
+  // Dust sparks on its wobble gate, scaled by projected area (vCover = px / 1.5 below 1.5 px), under its own cap;
+  // a pearl's glint only shimmers (spec §2).
+  float sizeW = mix(${glf(DUST_SIZE_FLOOR)}, 1.0, vCover * vCover);
+  float dustGain = uDustSparkle * vGate * sizeW;
+  float pearlGain = uBeadSparkle * mix(0.85, 1.0, vGate);
+  vec3 F = fresnelHg(dot(H, Vc)) * sh; // fresnelHg is spectral (vec3): the glint keeps Hg's faint tint
+  vec3 G = mix(min(dustGain * F, vec3(${glf(DUST_GLINT_MAX)})), min(pearlGain * F, vec3(${glf(BEAD_GLINT_MAX)})), kPearl);
   vec2 qg = (viewMatrix * vec4(H, 0.0)).xy;
   float dpx = length(q - qg) * 0.5 * vPx;
   float w = exp(-dpx * dpx / (2.0 * ${glf(BEAD_GLINT_SIGMA_PX)} * ${glf(BEAD_GLINT_SIGMA_PX)}));
