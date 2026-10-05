@@ -1,7 +1,7 @@
 // src/terminal/mercury/planet/hgBeads.js — liquid Hg beads in the aether (aether spec §3): sources, motion, sinks.
 // Pure (no three). Sources: an ambient trickle off the sunlit liquid surface (the planet's slow loss to space,
 // × boiling), fling bursts tangential to the spin, splashes at liquid visitor impacts. Motion: gravity toward
-// the planet + drag toward the ACTIVE element's flow velocity. Sinks: life (fade), fire (evaporation), re-entry
+// the planet + drag toward the ACTIVE element's flow velocity (flung beads fly free first, FLING_FREE_T). Sinks: life (fade), fire (evaporation), re-entry
 // (merge), the cap (oldest first). Preallocated typed arrays; nothing allocates per frame. Upload: position + (radius, alpha, glint gate).
 
 import { mulberry32 } from './aetherLobes';
@@ -22,8 +22,8 @@ export const FLING_N = 48;
 export const SPLASH_N = 6;
 export const FLING_GAIN = 1.1;    // × (ω × r) at release
 export const FLING_V_MAX = 2.25;  // launch speed cap (scene units/s): readable arcs, not instant escapes
-export const FLING_DRAG_BOOST = 4; // 1/s extra drag toward the active element's flow just after a fling...
-export const FLING_DRAG_T = 0.45;  // ...decaying with this time constant (s): the throw bends into the flow
+export const FLING_FREE_T = 0.5;   // s: a flung bead flies free (no drag), then eases into the flow: drag × (1 − e^(−age/T))
+export const FLING_RADIAL = 0.25;  // outward launch kick (scene units/s): the spray peels off the surface
 // The glint gate (spec §2 + amendment): a free droplet rings in its l=2 and l=3 shape modes
 // (Rayleigh: f ∝ √(l(l−1)(l+2)) · r^−1.5, ratio √(30/8) ≈ 1.94), and an ejected droplet tumbles, so its
 // wobble axis precesses and the Sun's image swings in and out of reach. 1.94 alone nearly phase-locks
@@ -57,7 +57,7 @@ export function createBeads(cap, seed = 0x6867) {
   return {
     cap, n: 0, acc: 0, rng: mulberry32(seed),
     pos: new Float32Array(cap * 3), vel: new Float32Array(cap * 3),
-    r: new Float32Array(cap), age: new Float32Array(cap), boost: new Float32Array(cap),
+    r: new Float32Array(cap), age: new Float32Array(cap), free: new Uint8Array(cap),
     ph2: new Float32Array(cap), ph3: new Float32Array(cap), ph4: new Float32Array(cap), tumble: new Float32Array(cap),
     outPos: new Float32Array(cap * 3), outBead: new Float32Array(cap * 3),
   };
@@ -73,7 +73,7 @@ export function spawnBead(b, x, y, z, vx, vy, vz, r) {
   const i = b.n < b.cap ? b.n++ : oldest(b);
   b.pos[3 * i] = x; b.pos[3 * i + 1] = y; b.pos[3 * i + 2] = z;
   b.vel[3 * i] = vx; b.vel[3 * i + 1] = vy; b.vel[3 * i + 2] = vz;
-  b.r[i] = r; b.age[i] = 0; b.boost[i] = 0;
+  b.r[i] = r; b.age[i] = 0; b.free[i] = 0;
   b.ph2[i] = 2 * Math.PI * b.rng(); b.ph3[i] = 2 * Math.PI * b.rng(); b.ph4[i] = 2 * Math.PI * b.rng();
   b.tumble[i] = TUMBLE_K[0] + (TUMBLE_K[1] - TUMBLE_K[0]) * b.rng();
   return i;
@@ -83,7 +83,7 @@ function remove(b, i) {
   const last = --b.n;
   if (i === last) return;
   for (let c = 0; c < 3; c++) { b.pos[3 * i + c] = b.pos[3 * last + c]; b.vel[3 * i + c] = b.vel[3 * last + c]; }
-  b.r[i] = b.r[last]; b.age[i] = b.age[last]; b.boost[i] = b.boost[last];
+  b.r[i] = b.r[last]; b.age[i] = b.age[last]; b.free[i] = b.free[last];
   b.ph2[i] = b.ph2[last]; b.ph3[i] = b.ph3[last]; b.ph4[i] = b.ph4[last]; b.tumble[i] = b.tumble[last];
 }
 
@@ -109,10 +109,10 @@ export function spawnFling(b, omega, coreR, n = FLING_N) {
     const dx = ux * c + vx * s, dy = uy * c + vy * s, dz = uz * c + vz * s;
     const px = dx * R, py = dy * R, pz = dz * R;
     const wx = omega[0] * FLING_GAIN, wy = omega[1] * FLING_GAIN, wz = omega[2] * FLING_GAIN;
-    let lx = wy * pz - wz * py + dx * 0.1, ly = wz * px - wx * pz + dy * 0.1, lz = wx * py - wy * px + dz * 0.1;
+    let lx = wy * pz - wz * py + dx * FLING_RADIAL, ly = wz * px - wx * pz + dy * FLING_RADIAL, lz = wx * py - wy * px + dz * FLING_RADIAL;
     const sp = Math.hypot(lx, ly, lz);
     if (sp > FLING_V_MAX) { const k2 = FLING_V_MAX / sp; lx *= k2; ly *= k2; lz *= k2; }
-    b.boost[spawnBead(b, px, py, pz, lx, ly, lz, radius(b))] = FLING_DRAG_BOOST;
+    b.free[spawnBead(b, px, py, pz, lx, ly, lz, radius(b))] = 1;
   }
 }
 
@@ -157,7 +157,7 @@ export function stepBeads(b, dt, ctx) {
       const x = b.pos[3 * i], y = b.pos[3 * i + 1], z = b.pos[3 * i + 2];
       const r2 = x * x + y * y + z * z, rl = Math.sqrt(r2) || 1, g = G_BEAD / (r2 * rl);
       flowVel(phase, x, y, z, b.age[i]);
-      const drag = DRAG + b.boost[i] * Math.exp(-b.age[i] / FLING_DRAG_T);
+      const drag = b.free[i] ? DRAG * (1 - Math.exp(-b.age[i] / FLING_FREE_T)) : DRAG;
       for (let c = 0; c < 3; c++) {
         const p = b.pos[3 * i + c];
         b.vel[3 * i + c] += (-g * p + drag * (f[c] - b.vel[3 * i + c])) * dt;
