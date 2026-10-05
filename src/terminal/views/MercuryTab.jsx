@@ -189,7 +189,10 @@ export default function MercuryTab({ onNavigateTab }) {
           fps={fps}
           particleCount={liveDensity}
         />
-        <SlowNoonDial onOverlay={setSlowNoonOverlay} />
+        {/* Capped at its lg track: below lg the grid is one column and the dial's SVG (w-full) would fill the screen */}
+        <div className="w-full max-w-[320px] mx-auto lg:mx-0">
+          <SlowNoonDial onOverlay={setSlowNoonOverlay} />
+        </div>
         <div
           className="font-mono text-[8px] tracking-[0.12em] leading-relaxed lg:pt-3"
           style={{
