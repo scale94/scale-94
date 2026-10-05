@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useLayoutEffect, useRef } from 'react';
+import { Suspense, useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import useStageCameraDist from './useStageCameraDist';
 import * as THREE from 'three';
@@ -15,6 +15,7 @@ import { TIERS, pickTier, perfHudOn } from './planet/planetQuality';
 import { CAMERA_DIST, CAMERA_FOV_DEG } from './planet/planetLook';
 import usePhaseTransition from './usePhaseTransition';
 import useCalm from './useCalm';
+import { createAetherClock, configureAetherClock } from './planet/aetherClock';
 
 const isMobile = typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 const GHOST_DENSITY = isMobile ? 150 : 300;
@@ -52,6 +53,9 @@ export default function MercuryCanvas({
   } = usePhaseTransition('fluid');
 
   const calm = useCalm();
+  // One time base for the gas and the mirror sky (mirror-sky spec §1). Configured every render, ticked per frame.
+  const [aetherClock] = useState(createAetherClock);
+  configureAetherClock(aetherClock, { speed: params.speed ?? 0.1, orbitalSpeed: params.orbitalSpeed ?? 1.2, calm });
   const dpr = [1, TIERS[TIER].dprMax];
 
   const handleNodeTap = useCallback((phase) => {
@@ -91,6 +95,7 @@ export default function MercuryCanvas({
             whole scene into its own FBO every frame even while hidden (8 extra renders per frame). */}
         <ParticleFlow
           isMobile={isMobile}
+          aetherClock={aetherClock}
           speed={params.speed}
           curlAmp={params.curlAmp ?? 0.02}
           tubeRadius={params.tubeRadius ?? 0.32}
@@ -106,6 +111,7 @@ export default function MercuryCanvas({
 
         <ThermalFlow
           isMobile={isMobile}
+          aetherClock={aetherClock}
           speed={params.speed}
           turbulence={params.turbulence ?? 0.4}
           flameWidth={params.flameWidth ?? 0.85}
@@ -120,6 +126,7 @@ export default function MercuryCanvas({
 
         <SedimentFlow
           isMobile={isMobile}
+          aetherClock={aetherClock}
           speed={params.speed}
           turbulence={params.turbulence ?? 0.25}
           eruptStrength={params.eruptStrength ?? 0.8}
@@ -134,6 +141,7 @@ export default function MercuryCanvas({
 
         <AtmosphericFlow
           isMobile={isMobile}
+          aetherClock={aetherClock}
           orbitalSpeed={params.orbitalSpeed ?? 1.2}
           turbulence={params.turbulence ?? 0.18}
           spread={params.spread ?? 1.0}

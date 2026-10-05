@@ -5,13 +5,14 @@ import { PLANET_WINDOW_VS, PLANET_WINDOW_FS } from '../mercury/planet/planetWind
 import { R_SCENE, PLANET_TUNE } from '../mercury/planet/planetLook';
 import { AETHER_LIGHT_VS, aetherLightFS } from '../mercury/planet/aetherLight';
 import { SUN_DIR_WORLD } from '../mercury/planet/planetFrame';
+import { createAetherClock, configureAetherClock, tickAetherClock } from '../mercury/planet/aetherClock';
 
 // ── GLSL ───────────────────────────────────────────────────────────────────
 const vertexShader = /* glsl */ `
   ${PLANET_WINDOW_VS}
   ${AETHER_LIGHT_VS}
   uniform float uTime;
-  uniform float uSpeed;
+  uniform float uPhase;
   uniform float uTurbulence;
   uniform float uEruptStrength;
   uniform float uCondense;
@@ -84,7 +85,7 @@ const vertexShader = /* glsl */ `
   void main(){
     // Per-particle lifecycle
     float lifeMult = 0.5 + aSpeed * 0.5;
-    float age = fract(aPhase + uTime * uSpeed * lifeMult);
+    float age = fract(aPhase + uPhase * lifeMult);
 
     // Spawn on sphere surface (uniform distribution via spherical coords)
     float theta  = fract(aSeed * 3.9301) * 3.14159;
@@ -96,8 +97,8 @@ const vertexShader = /* glsl */ `
 
     // ── Sediment particles: drift toward base under mass ─────────────────
     // Heavy particles sink faster; light ones stay higher
-    float sinkRate   = aMass * 2.2 * uSpeed;
-    float sinkOffset = fract(aPhase + uTime * sinkRate * 0.4);
+    float sinkRate   = aMass * 2.2;
+    float sinkOffset = fract(aPhase + uPhase * sinkRate * 0.4);
     // Y oscillates from spawn height downward, then resets
     float settledY   = spawnY - sinkOffset * 2.4;
 
@@ -240,6 +241,7 @@ export default function SedimentFlow({
   condenseSizeBite = 0.6,
   planetWindow = 0,
   blending = THREE.AdditiveBlending,
+  aetherClock = null,
 }) {
   const PARTICLE_COUNT = density ?? (isMobile ? 4000 : 10000);
   const materialRef = useRef();
@@ -250,8 +252,8 @@ export default function SedimentFlow({
 
   // Created ONCE — see ParticleFlow.jsx for the stale-upload-bond note.
   const [uniforms] = useState(() => ({
-    uTime:          { value: Math.random() * 100 },
-    uSpeed:         { value: speed },
+    uTime: { value: 0 },
+    uPhase: { value: 0 },
     uTurbulence:    { value: turbulence },
     uEruptStrength: { value: eruptStrength },
     uOpacity:       { value: opacityMultiplier },
@@ -265,11 +267,16 @@ export default function SedimentFlow({
     uLitPen: { value: Math.max(PLANET_TUNE.aetherPenumbra, 1e-3) },
   }));
 
+  // The shared aether clock (MercuryCanvas); standalone use runs its own from the props.
+  const [ownClock] = useState(createAetherClock);
+  const clk = aetherClock ?? configureAetherClock(ownClock, { speed: speed, orbitalSpeed: 0, calm: false });
+
   useFrame((state, delta) => {
+    tickAetherClock(clk, state.clock.elapsedTime, delta);
     const mat = materialRef.current;
     if (mat) {
-      mat.uniforms.uTime.value          += delta;
-      mat.uniforms.uSpeed.value          = speed;
+      mat.uniforms.uTime.value = clk.t;
+      mat.uniforms.uPhase.value = clk.phase.earth;
       mat.uniforms.uTurbulence.value     = turbulence;
       mat.uniforms.uEruptStrength.value  = eruptStrength;
       mat.uniforms.uOpacity.value        = opacityMultiplier;

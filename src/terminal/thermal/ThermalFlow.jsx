@@ -3,12 +3,13 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { PLANET_WINDOW_VS, PLANET_WINDOW_FS } from '../mercury/planet/planetWindow';
 import { R_SCENE } from '../mercury/planet/planetLook';
+import { createAetherClock, configureAetherClock, tickAetherClock } from '../mercury/planet/aetherClock';
 
 // ── GLSL ───────────────────────────────────────────────────────────────────
 const vertexShader = /* glsl */ `
   ${PLANET_WINDOW_VS}
   uniform float uTime;
-  uniform float uSpeed;
+  uniform float uPhase;
   uniform float uTurbulence;
   uniform float uFlameWidth;
   uniform float uPointSizeMax;
@@ -88,7 +89,7 @@ const vertexShader = /* glsl */ `
   void main(){
     // Per-particle lifecycle: age 0 = newborn at base, 1 = ash at tip
     float lifeMult = 0.4 + aSpeed * 0.6;
-    float age = fract(aPhase + uTime * uSpeed * lifeMult);
+    float age = fract(aPhase + uPhase * lifeMult);
     vAge = age;
 
     // ── Spawn: uniform disk via sqrt for even area distribution ─────────
@@ -244,6 +245,7 @@ export default function ThermalFlow({
   condenseSizeBite = 0.6,
   planetWindow = 0,
   blending = THREE.AdditiveBlending,
+  aetherClock = null,
 }) {
   const PARTICLE_COUNT = density ?? (isMobile ? 4000 : 10000);
   const materialRef = useRef();
@@ -254,8 +256,8 @@ export default function ThermalFlow({
 
   // Created ONCE — see ParticleFlow.jsx for the stale-upload-bond note.
   const [uniforms] = useState(() => ({
-    uTime:         { value: Math.random() * 120 },
-    uSpeed:        { value: speed },
+    uTime: { value: 0 },
+    uPhase: { value: 0 },
     uTurbulence:   { value: turbulence },
     uFlameWidth:   { value: flameWidth },
     uPointSizeMax: { value: isMobile ? 32.0 : 64.0 },
@@ -267,11 +269,16 @@ export default function ThermalFlow({
     uPlanetRadius: { value: R_SCENE },
   }));
 
+  // The shared aether clock (MercuryCanvas); standalone use runs its own from the props.
+  const [ownClock] = useState(createAetherClock);
+  const clk = aetherClock ?? configureAetherClock(ownClock, { speed: speed, orbitalSpeed: 0, calm: false });
+
   useFrame((state, delta) => {
+    tickAetherClock(clk, state.clock.elapsedTime, delta);
     const mat = materialRef.current;
     if (mat) {
-      mat.uniforms.uTime.value       += delta;
-      mat.uniforms.uSpeed.value       = speed;
+      mat.uniforms.uTime.value = clk.t;
+      mat.uniforms.uPhase.value = clk.phase.thermal;
       mat.uniforms.uTurbulence.value  = turbulence;
       mat.uniforms.uFlameWidth.value  = flameWidth;
       mat.uniforms.uOpacity.value     = opacityMultiplier;

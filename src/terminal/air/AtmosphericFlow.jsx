@@ -5,13 +5,14 @@ import { PLANET_WINDOW_VS, PLANET_WINDOW_FS } from '../mercury/planet/planetWind
 import { R_SCENE, PLANET_TUNE } from '../mercury/planet/planetLook';
 import { AETHER_LIGHT_VS, aetherLightFS } from '../mercury/planet/aetherLight';
 import { SUN_DIR_WORLD } from '../mercury/planet/planetFrame';
+import { createAetherClock, configureAetherClock, tickAetherClock } from '../mercury/planet/aetherClock';
 
 // ── GLSL ───────────────────────────────────────────────────────────────────
 const vertexShader = /* glsl */ `
   ${PLANET_WINDOW_VS}
   ${AETHER_LIGHT_VS}
   uniform float uTime;
-  uniform float uOrbitalSpeed;
+  uniform float uPhase;
   uniform float uTurbulence;
   uniform float uSpread;
   uniform float uCondense;
@@ -99,8 +100,8 @@ const vertexShader = /* glsl */ `
     // Contra-rotating layers: lower half CW, upper half CCW (realistic cyclone)
     float direction  = aAlt > 0.5 ? 1.0 : -0.85;
     float ionSpeedMult = mix(1.0, 2.8, aIon); // ionosphere is fast
-    float orbitSpeed = uOrbitalSpeed * (0.4 + aSpeed * 0.7) * direction * ionSpeedMult;
-    float angle      = aPhase * 6.28318 + uTime * orbitSpeed;
+    float orbitRate  = (0.4 + aSpeed * 0.7) * direction * ionSpeedMult; // × orbitalSpeed lives in uPhase (the clock)
+    float angle      = aPhase * 6.28318 + uPhase * orbitRate;
 
     vec3 pos = vec3(
       cos(angle) * radius,
@@ -237,6 +238,7 @@ export default function AtmosphericFlow({
   condenseSizeBite = 0.6,
   planetWindow = 0,
   blending = THREE.AdditiveBlending,
+  aetherClock = null,
 }) {
   const PARTICLE_COUNT = density ?? (isMobile ? 4000 : 10000);
   const materialRef = useRef();
@@ -247,8 +249,8 @@ export default function AtmosphericFlow({
 
   // Created ONCE — see ParticleFlow.jsx for the stale-upload-bond note.
   const [uniforms] = useState(() => ({
-    uTime:         { value: Math.random() * 100 },
-    uOrbitalSpeed: { value: orbitalSpeed },
+    uTime: { value: 0 },
+    uPhase: { value: 0 },
     uTurbulence:   { value: turbulence },
     uSpread:       { value: spread },
     uOpacity:      { value: opacityMultiplier },
@@ -262,11 +264,16 @@ export default function AtmosphericFlow({
     uLitPen: { value: Math.max(PLANET_TUNE.aetherPenumbra, 1e-3) },
   }));
 
+  // The shared aether clock (MercuryCanvas); standalone use runs its own from the props.
+  const [ownClock] = useState(createAetherClock);
+  const clk = aetherClock ?? configureAetherClock(ownClock, { speed: 0, orbitalSpeed: orbitalSpeed, calm: false });
+
   useFrame((state, delta) => {
+    tickAetherClock(clk, state.clock.elapsedTime, delta);
     const mat = materialRef.current;
     if (mat) {
-      mat.uniforms.uTime.value         += delta;
-      mat.uniforms.uOrbitalSpeed.value  = orbitalSpeed;
+      mat.uniforms.uTime.value = clk.t;
+      mat.uniforms.uPhase.value = clk.phase.air;
       mat.uniforms.uTurbulence.value    = turbulence;
       mat.uniforms.uSpread.value        = spread;
       mat.uniforms.uOpacity.value       = opacityMultiplier;

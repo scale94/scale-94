@@ -5,6 +5,7 @@ import { PLANET_WINDOW_VS, PLANET_WINDOW_FS } from '../mercury/planet/planetWind
 import { R_SCENE, PLANET_TUNE } from '../mercury/planet/planetLook';
 import { AETHER_LIGHT_VS, aetherLightFS } from '../mercury/planet/aetherLight';
 import { SUN_DIR_WORLD } from '../mercury/planet/planetFrame';
+import { createAetherClock, configureAetherClock, tickAetherClock } from '../mercury/planet/aetherClock';
 
 // ── Torus Knot parametric helpers ──────────────────────────────────────────
 function knotPoint(t, R = 1, r = 0.4) {
@@ -21,7 +22,7 @@ const vertexShader = /* glsl */ `
   ${PLANET_WINDOW_VS}
   ${AETHER_LIGHT_VS}
   uniform float uTime;
-  uniform float uSpeed;
+  uniform float uPhase;
   uniform float uCurlAmp;
   uniform float uTubeRadius;
   uniform float uChromatic;
@@ -109,7 +110,7 @@ const vertexShader = /* glsl */ `
 
   void main() {
     // ── Primary motion: tangential drift along knot ──
-    float t = fract(aPhase + uTime * uSpeed * (0.6 + aOffset * 0.4));
+    float t = fract(aPhase + uPhase * (0.6 + aOffset * 0.4));
     vec3 center = knotCenter(t);
 
     // Tangent + local Frenet frame
@@ -227,6 +228,7 @@ export default function ParticleFlow({
   condenseSizeBite = 0.6,
   planetWindow = 0,
   blending = THREE.AdditiveBlending,
+  aetherClock = null,
 }) {
   const PARTICLE_COUNT = density ?? (isMobile ? 4000 : 10000);
   const pointsRef = useRef();
@@ -242,8 +244,8 @@ export default function ParticleFlow({
   // compile time — every later .value write silently stops reaching the GPU.
   // Per-frame values flow through useFrame below.
   const [uniforms] = useState(() => ({
-    uTime:       { value: 0 },
-    uSpeed:      { value: speed },
+    uTime: { value: 0 },
+    uPhase: { value: 0 },
     uCurlAmp:    { value: curlAmp },
     uTubeRadius: { value: tubeRadius },
     uChromatic:  { value: chromatic },
@@ -258,12 +260,17 @@ export default function ParticleFlow({
     uLitPen: { value: Math.max(PLANET_TUNE.aetherPenumbra, 1e-3) },
   }));
 
+  // The shared aether clock (MercuryCanvas); standalone use runs its own from the props.
+  const [ownClock] = useState(createAetherClock);
+  const clk = aetherClock ?? configureAetherClock(ownClock, { speed: speed, orbitalSpeed: 0, calm: false });
+
   // Update uniforms from props each frame + FPS counter
   useFrame((state, delta) => {
+    tickAetherClock(clk, state.clock.elapsedTime, delta);
     const mat = materialRef.current;
     if (mat) {
-      mat.uniforms.uTime.value += delta;
-      mat.uniforms.uSpeed.value = speed;
+      mat.uniforms.uTime.value = clk.t;
+      mat.uniforms.uPhase.value = clk.phase.fluid;
       mat.uniforms.uCurlAmp.value = curlAmp;
       mat.uniforms.uTubeRadius.value = tubeRadius;
       mat.uniforms.uChromatic.value = chromatic;
