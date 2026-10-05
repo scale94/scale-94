@@ -13,7 +13,7 @@ import { PERF_INFO } from './planet/perfStats';
 import { mercuryEphemeris } from './planet/mercuryEphemeris';
 import { SUN_DIR_WORLD, bodyYawFor } from './planet/planetFrame';
 import { PLANET_TUNE, MEAN_R_AU, R_SCENE } from './planet/planetLook';
-import { AETHER_BASE_DIRS, aetherLobeColors, aetherLobeDirs } from './planet/aetherLobes';
+import { tickAetherClock, skyWeights } from './planet/aetherClock';
 import { MAPS } from './planet/mercuryMaps.generated';
 import { bindPlanetMaps } from './planet/planetMaps';
 import { subsolarTempK, HG_BOIL_K } from './planet/mercuryThermal';
@@ -276,7 +276,7 @@ function stepDrop(drop, { body, surf, camera, ds, calm, stepS, t, bufferW, buffe
   drop.coreScale = coreScale(fam); // phase 6: the planet's live size (1 unless a hyper family is out)
 }
 
-export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = false, emitters = {}, strikes = null, overlay = false, activePhase = 'fluid' }) {
+export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = false, emitters = {}, strikes = null, overlay = false, activePhase = 'fluid', aetherClock = null, pendingPhase = null, skyOpacities = null }) {
   const gl = useThree((s) => s.gl);
   const camera = useThree((s) => s.camera);
   // The drawing buffer's height in device px: the pops are sized from it (mercuryRoil.popZoom).
@@ -338,15 +338,11 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
       uEmitCol: { value: ORBIT_NODES.map(() => new THREE.Vector3()) },
       uSunGlint: { value: PLANET_TUNE.sunGlint },
       uEmitGain: { value: PLANET_TUNE.emitGain },
-      uAethDir: { value: AETHER_BASE_DIRS.map((d) => new THREE.Vector3(...d)) },
-      uAethCol: { value: AETHER_BASE_DIRS.map(() => new THREE.Vector3()) },
+      uSkyT: { value: 0 },
+      uSkyPhase: { value: new THREE.Vector4() },
+      uSkyW: { value: new THREE.Vector4(1, 0, 0, 0) },
       uAetherGain: { value: PLANET_TUNE.aetherGain },
-      uAetherSinW: { value: PLANET_TUNE.aetherSinW },
       uAetherSilver: { value: PLANET_TUNE.aetherSilver },
-      uAetherEdge: { value: PLANET_TUNE.aetherEdge },
-      uAetherStretch: { value: PLANET_TUNE.aetherStretch },
-      uAetherCurve: { value: PLANET_TUNE.aetherCurve },
-      uAetherCore: { value: PLANET_TUNE.aetherCore },
       uScar: { value: scarTex },
       uRayGain: { value: PLANET_TUNE.rayGain },
       uRoilGain: { value: PLANET_TUNE.roilGain },
@@ -379,11 +375,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
   }, []);
 
   const emitRef = useRef(emitters);
-  const aether = useMemo(() => ({
-    dirs: AETHER_BASE_DIRS.map((d) => [...d]),
-    cols: AETHER_BASE_DIRS.map(() => [0, 0, 0]),
-    light: { floor: PLANET_TUNE.aetherFloor, pen: PLANET_TUNE.aetherPenumbra, R: R_SCENE },
-  }), []);
+  const skyW = useMemo(() => [1, 0, 0, 0], []);
   useEffect(() => { emitRef.current = emitters; }, [emitters]);
 
   // Phase 3 state: the bead's impulses, the drag wake, the scar clock. Preallocated; useFrame allocates nothing.
@@ -396,7 +388,6 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     seed: 1,
     scarClock: 0,
     marksLiquid: null,   // the liquid/crust side last frame: marks clear when it changes (matrix spec §9.6)
-    aetherT: 0,
     glowT0: -Infinity,
     glowDirBody: [0, 0, 1],
     dragDirBody: [0, 0, 1],
@@ -485,12 +476,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     u.uSunGlint.value = PLANET_TUNE.sunGlint;
     u.uEmitGain.value = PLANET_TUNE.emitGain;
     u.uAetherGain.value = PLANET_TUNE.aetherGain;
-    u.uAetherSinW.value = PLANET_TUNE.aetherSinW;
     u.uAetherSilver.value = PLANET_TUNE.aetherSilver;
-    u.uAetherEdge.value = PLANET_TUNE.aetherEdge;
-    u.uAetherStretch.value = PLANET_TUNE.aetherStretch;
-    u.uAetherCurve.value = PLANET_TUNE.aetherCurve;
-    u.uAetherCore.value = PLANET_TUNE.aetherCore;
     u.uRayGain.value = PLANET_TUNE.rayGain;
     u.uRoilGain.value = PLANET_TUNE.roilGain;
     u.uRoughLiquid.value = PLANET_TUNE.roughLiquid;
@@ -688,16 +674,14 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
       u.uEmitCol.value[i].set(c.r * o, c.g * o, c.b * o);
     });
 
-    if (!calm) surf.aetherT += delta; // reduced motion freezes the streak drift (D5)
-    aetherLobeDirs(surf.aetherT, aether.dirs);
-    aether.light.floor = PLANET_TUNE.aetherFloor;
-    aether.light.pen = PLANET_TUNE.aetherPenumbra;
-    aether.light.R = R_SCENE * drop.coreScale;
-    aetherLobeColors(emitRef.current, aether.cols, aether.dirs, aether.light);
-    for (let i = 0; i < aether.dirs.length; i++) {
-      u.uAethDir.value[i].set(aether.dirs[i][0], aether.dirs[i][1], aether.dirs[i][2]);
-      u.uAethCol.value[i].set(aether.cols[i][0], aether.cols[i][1], aether.cols[i][2]);
+    // The mirror sky (aetherSky.js) on the gas's own clock; only the active element (two during a switch).
+    if (aetherClock) {
+      tickAetherClock(aetherClock, t, delta);
+      u.uSkyT.value = aetherClock.t;
+      u.uSkyPhase.value.set(aetherClock.phase.fluid, aetherClock.phase.thermal, aetherClock.phase.earth, aetherClock.phase.air);
     }
+    skyWeights(activePhase, pendingPhase, skyOpacities, skyW);
+    u.uSkyW.value.set(skyW[0], skyW[1], skyW[2], skyW[3]);
 
     beadCtx.phase = activePhase;
     beadCtx.coreR = R_SCENE * drop.coreScale;

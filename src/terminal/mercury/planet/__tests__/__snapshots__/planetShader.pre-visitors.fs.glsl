@@ -26,15 +26,11 @@ uniform vec3 uEmitPos[4];
 uniform vec3 uEmitCol[4];
 uniform float uSunGlint;
 uniform float uEmitGain;
-uniform vec3 uAethDir[16];
-uniform vec3 uAethCol[16];
+uniform float uSkyT;
+uniform vec4 uSkyPhase;
+uniform vec4 uSkyW;
 uniform float uAetherGain;
-uniform float uAetherSinW;
 uniform float uAetherSilver;
-uniform float uAetherEdge;
-uniform float uAetherStretch;
-uniform float uAetherCurve;
-uniform float uAetherCore;
 uniform sampler2D uScar;
 uniform float uRayGain;
 uniform float uSurfOn;
@@ -97,15 +93,11 @@ const float PHASE_BLEND_K = 8.00000000;
 const float EMIT_MIN_SIN = 0.0500000000;
 const float EMIT_HORIZON_SOFT = 0.100000000;
 const float SUN_SHOULDER = 3.00000000;
-const int AETHER_LOBES = 16;
-const vec2 AETHER_SHAPE[16] = vec2[16](vec2(1.00465790, 2.85214955), vec2(0.808036272, 2.93053557), vec2(1.34743609, 2.63961223), vec2(0.776337102, 1.51215017), vec2(1.08684811, 2.93981779), vec2(1.23068756, 3.17492565), vec2(1.08692841, 2.79818830), vec2(0.929925033, 1.71377830), vec2(1.25900246, 2.75031590), vec2(1.25246937, 3.38337285), vec2(1.27724627, 2.25529579), vec2(0.875284148, 1.57586120), vec2(1.00688007, 2.86587560), vec2(0.630700483, 2.77325369), vec2(0.715984127, 1.84021174), vec2(0.858679994, 2.11387124));
 const float AETHER_NIGHT = 0.200000000;
 const float AETHER_DAY_LO = -0.150000000;
 const float AETHER_DAY_HI = 0.250000000;
 const float ROUGH_SOLID = 0.550000000;
 const float SOLID_HG_SPECULAR = 0.500000000;
-const float AETHER_FRINGE_LO = 0.250000000;
-const float AETHER_FRINGE_HI = 0.900000000;
 const float AETHER_SHOULDER = 1.00000000;
 const float AETHER_PATH_WHITE = 0.300000000;
 const vec3 NIGHT_TINT = vec3(0.450000000, 0.580000000, 1.00000000);
@@ -306,51 +298,140 @@ vec3 aetherTint(vec3 nW) {
   return mix(AETHER_NIGHT * NIGHT_TINT, vec3(1.0), dayW);
 }
 
-// An aether lobe's colour, pulled toward neutral silver by uAetherSilver:
+// The sky's colour, pulled toward neutral silver by uAetherSilver:
 // the metal stays quicksilver and the aether only tints it.
 vec3 aetherHue(vec3 col) {
   float l = dot(col, vec3(0.2126, 0.7152, 0.0722));
   return mix(col, vec3(l), uAetherSilver);
 }
 
-// One aether streak in the mirror: an elongated lobe around d, stretched along
-// the orbital flow (azimuth about +Y). Returns (intensity, fringe):
-// intensity = a super-Gaussian silhouette (uAetherEdge: the meniscus edge's
-// hardness) × a curved body inside it (uAetherCurve: brightest at the centre);
-// fringe = 0 in the core, 1 at the edge, where the aether colour lives.
-vec2 aetherStreak(vec3 R, vec3 d, vec2 shape, float rough) {
-  float facing = dot(R, d);
-  if (facing <= 0.0) return vec2(0.0);
-  vec3 flow = normalize(cross(vec3(0.0, 1.0, 0.0), d));
-  vec3 bn = cross(d, flow);
-  float alpha = rough * rough;
-  float wA = uAetherSinW * shape.x;
-  float across = sqrt(wA * wA + alpha * alpha);
-  float along = across * (1.0 + (shape.y - 1.0) * uAetherStretch);
-  float u = dot(R, flow) / along;
-  float v = dot(R, bn) / across;
-  float d2 = u * u + v * v;
-  float silhouette = exp(-pow(d2, max(uAetherEdge, 0.5)));
-  float body = exp(-uAetherCurve * d2);
-  return vec2(smoothstep(0.0, 0.15, facing) * silhouette * body, smoothstep(AETHER_FRINGE_LO, AETHER_FRINGE_HI, d2));
-}
+// ── aether sky (aetherSky.js) ──
+const int SKY_OCTAVES = 5;
+const float FLUID_SKY_RAD = 10.0530965;
+const float AIR_SKY_RAD = 0.750000000;
+const float AIR_LOWER_DIR = -0.850000000;
+const float FIRE_SKY_RISE = 1.47500000;
+const float EARTH_SKY_SINK = 0.890057143;
+const float SKY_ROUGH_SHARP = 0.150000000;
+const float SKY_ROUGH_FLAT = 0.600000000;
+const float SKY_W_MIN = 0.00400000000;
+const float SKY_PING_EXP = 250.000000;
+const float SKY_PING_GAIN = 10.0000000;
+const vec3 SKY_MEAN_FLUID = vec3(0.0200000000, 0.0300000000, 0.0500000000);
+const vec3 SKY_MEAN_THERMAL = vec3(0.0500000000, 0.0120000000, 0.00100000000);
+const vec3 SKY_MEAN_EARTH = vec3(0.0200000000, 0.0120000000, 0.00500000000);
+const vec3 SKY_MEAN_AIR = vec3(0.0100000000, 0.0140000000, 0.0180000000);
 
-// A streak's colour at fringe f: the gas's own hue throughout, brightest in the
-// core (× uAetherCore) and falling to the plain aether hue at the meniscus edge.
-// A neutral white core read as a studio softbox, not as nebula in a mirror.
-vec3 aetherStreakColor(vec3 col, float f) {
-  return aetherHue(col) * mix(uAetherCore, 1.0, f);
+float skyHash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+float skyNoise(vec3 x) {
+  vec3 i = floor(x), f = fract(x);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(skyHash(i), skyHash(i + vec3(1, 0, 0)), f.x), mix(skyHash(i + vec3(0, 1, 0)), skyHash(i + vec3(1, 1, 0)), f.x), f.y),
+             mix(mix(skyHash(i + vec3(0, 0, 1)), skyHash(i + vec3(1, 0, 1)), f.x), mix(skyHash(i + vec3(0, 1, 1)), skyHash(i + vec3(1, 1, 1)), f.x), f.y), f.z);
 }
-
-// The aether in a mirror of roughness rough: every streak, night-tinted, rolled off. Shared by the liquid
-// (envRadiance) and the planet's frozen Hg (a rough, dark mirror of the same sky).
-vec3 aetherMirror(vec3 R, float rough, vec3 nW) {
-  vec3 a = vec3(0.0);
-  for (int i = 0; i < AETHER_LOBES; i++) {
-    vec2 s = aetherStreak(R, uAethDir[i], AETHER_SHAPE[i], rough);
-    a += aetherStreakColor(uAethCol[i], s.y) * s.x;
+// fBm on an octave budget nOct (float): octaves past it contribute their mean, so a rougher mirror keeps the
+// same brightness with less detail.
+float skyFbm(vec3 p, float nOct) {
+  float a = 0.5, s = 0.0;
+  for (int i = 0; i < SKY_OCTAVES; i++) {
+    float w = clamp(nOct - float(i), 0.0, 1.0);
+    s += a * (w > 0.0 ? mix(0.5, skyNoise(p), w) : 0.5);
+    p = p * 2.03 + vec3(1.7, 9.2, 3.1);
+    a *= 0.5;
   }
-  return aetherTint(nW) * aetherShoulder(uAetherGain * a);
+  return s;
+}
+vec3 skyRotZ(vec3 v, float a) { float c = cos(a), s = sin(a); return vec3(c * v.x - s * v.y, s * v.x + c * v.y, v.z); }
+
+// Water: curling filaments and folding sheets, forward-scattering (brighter toward the Sun). The knot's axis is +Z.
+vec3 skyFluid(vec3 R, float nOct) {
+  float t = uSkyT;
+  vec3 q = skyRotZ(R, -FLUID_SKY_RAD * uSkyPhase.x) * 2.2;
+  vec3 w = vec3(skyFbm(q + vec3(0.0, 0.0, t * 0.15), nOct), skyFbm(q + vec3(5.2, 1.3, -t * 0.12), nOct), skyFbm(q + vec3(2.1, 7.7, t * 0.1), nOct));
+  float n = skyFbm(q * 1.1 + 1.8 * w, nOct);
+  float ridge = pow(1.0 - abs(n * 2.0 - 1.0), 9.0);
+  float sheet = smoothstep(0.40, 0.75, skyFbm(q * 0.6 + w * 1.2 + vec3(0.0, t * 0.05, 0.0), nOct));
+  vec3 col = mix(vec3(0.22, 0.55, 0.78), vec3(0.52, 0.32, 0.85), smoothstep(0.3, 0.7, w.x));
+  float fwd = 0.35 + 1.4 * pow(max(dot(R, uSunDir), 0.0), 3.0);
+  return col * (ridge * 0.12 + sheet * ridge * 1.5 + sheet * 0.02) * fwd * 0.55;
+}
+
+// Fire: self-lit tongues rooted low, rising at the flame's own pace, flickering; blackbody ramp; ignores the Sun.
+vec3 skyThermal(vec3 R, float nOct) {
+  float t = uSkyT;
+  float flick = 0.85 + 0.15 * skyNoise(vec3(t * 6.0, 0.0, 0.0));
+  vec3 q = vec3(R.x * 3.2, (R.y - FIRE_SKY_RISE * uSkyPhase.y) * 1.3, R.z * 3.2);
+  vec3 w = vec3(skyFbm(q * 0.8 + vec3(t * 0.3, 0.0, 0.0), nOct), skyFbm(q * 0.8 + vec3(3.0, t * 0.2, 1.0), nOct), 0.0);
+  float n = skyFbm(q + vec3(w.xy * 1.5, 0.0), nOct);
+  float base = smoothstep(0.55, -0.7, R.y);
+  float tg = smoothstep(0.42 + 0.35 * (1.0 - base), 0.92, n) * flick;
+  vec3 ember = vec3(0.45, 0.05, 0.0), orange = vec3(1.0, 0.38, 0.04), yellow = vec3(1.0, 0.82, 0.45);
+  vec3 c = mix(ember, orange, smoothstep(0.0, 0.5, tg));
+  c = mix(c, yellow, smoothstep(0.5, 1.0, tg));
+  return c * tg * (0.25 + 0.9 * base) * 0.9;
+}
+
+// Earth: dim ochre haze + sparse grains settling at the sediment's pace, backscattering (brightest opposite the
+// Sun); each grain a tumbling facet that rarely flashes a sharp Sun ping on the sunward, haze-dark side.
+// The tumble phase is t × a constant per-grain rate: integrated by construction; calm freezes t.
+vec3 skyEarth(vec3 R, float nOct, float k) {
+  float t = uSkyT;
+  vec3 Rs = R + vec3(0.0, EARTH_SKY_SINK * uSkyPhase.z, 0.0);
+  vec3 q = Rs * 3.0;
+  float haze = smoothstep(0.35, 0.85, skyFbm(q + skyFbm(q * 1.5, nOct) * 0.8, nOct));
+  vec3 g = Rs * 70.0;
+  vec3 gi = floor(g);
+  float hh = skyHash(gi);
+  float isGrain = step(0.93, hh);
+  float dg = length(fract(g) - 0.5);
+  float grain = isGrain * smoothstep(0.45, 0.0, dg) * (0.6 + 0.4 * sin(t * 1.3 + hh * 40.0));
+  float opp = 0.25 + 1.6 * pow(max(dot(R, -uSunDir), 0.0), 4.0);
+  float h2 = skyHash(gi + 17.0), h3 = skyHash(gi + 41.0), h4 = skyHash(gi + 73.0);
+  vec3 m = normalize(vec3(sin(t * (0.7 + h2) + h3 * 40.0), sin(t * (0.5 + h3) + h4 * 40.0), sin(t * (0.6 + h4) + h2 * 40.0)));
+  vec3 hv = normalize(uSunDir - R);
+  float spec = pow(max(dot(m, hv), 0.0), SKY_PING_EXP);
+  float sunward = smoothstep(-0.3, 0.5, dot(R, uSunDir));
+  float dc = length(g - normalize(gi + 0.5) * length(g));
+  float core = smoothstep(0.55, 0.0, dc);
+  vec3 ping = vec3(1.0, 0.93, 0.78) * spec * core * sunward * isGrain * SKY_PING_GAIN * (1.0 - smoothstep(0.0, 0.15, k));
+  return vec3(0.78, 0.47, 0.20) * (haze * 0.10 + grain * 0.9) * opp + ping;
+}
+
+// Air: thin fast streamlines along the orbit, the upper layer one way, the lower AIR_LOWER_DIR the other;
+// Rayleigh-weighted.
+vec3 skyAir(vec3 R, float nOct) {
+  float az = atan(R.z, R.x);
+  float s = clamp(R.y * 5.0, -1.0, 1.0);
+  s = s * (1.5 - 0.5 * s * s);
+  float dirS = s >= 0.0 ? s : s * -AIR_LOWER_DIR;
+  float ph = az - AIR_SKY_RAD * uSkyPhase.w * dirS;
+  vec3 q = vec3(cos(ph) * 1.2, sin(ph) * 1.2, R.y * 8.0);
+  float n = skyFbm(q + vec3(0.0, 0.0, skyFbm(q * 0.5, nOct) * 2.0), nOct);
+  float lines = pow(1.0 - abs(n * 2.0 - 1.0), 18.0);
+  float gust = smoothstep(0.45, 0.8, skyFbm(vec3(cos(ph + 0.6 * s) * 0.9, sin(ph + 0.6 * s) * 0.9, R.y * 2.0) + 4.0, nOct));
+  float band = smoothstep(0.95, 0.2, abs(R.y));
+  float mu = dot(R, uSunDir);
+  return vec3(0.55, 0.76, 0.98) * lines * gust * band * (0.5 + 0.5 * (1.0 + mu * mu)) * 0.6;
+}
+
+// The active element's sky (two during a switch), in a mirror of roughness rough.
+vec3 aetherSky(vec3 R, float rough) {
+  float k = smoothstep(SKY_ROUGH_SHARP, SKY_ROUGH_FLAT, rough);
+  vec3 mean = uSkyW.x * SKY_MEAN_FLUID + uSkyW.y * SKY_MEAN_THERMAL + uSkyW.z * SKY_MEAN_EARTH + uSkyW.w * SKY_MEAN_AIR;
+  if (k >= 1.0) return mean;
+  float nOct = mix(float(SKY_OCTAVES), 1.0, k);
+  vec3 s = vec3(0.0);
+  if (uSkyW.x > SKY_W_MIN) s += uSkyW.x * skyFluid(R, nOct);
+  if (uSkyW.y > SKY_W_MIN) s += uSkyW.y * skyThermal(R, nOct);
+  if (uSkyW.z > SKY_W_MIN) s += uSkyW.z * skyEarth(R, nOct, k);
+  if (uSkyW.w > SKY_W_MIN) s += uSkyW.w * skyAir(R, nOct);
+  return mix(s, mean, k);
+}
+
+// The aether in a mirror of roughness rough: the active element's moving sky (aetherSky.js), night-tinted,
+// rolled off. Shared by the liquid (envRadiance) and the planet's frozen Hg (a rough, dark mirror of the same sky).
+vec3 aetherMirror(vec3 R, float rough, vec3 nW) {
+  return aetherTint(nW) * aetherShoulder(uAetherGain * aetherHue(aetherSky(R, rough)));
 }
 
 // What the liquid sees: the Sun disc, the four elements, and the aether that

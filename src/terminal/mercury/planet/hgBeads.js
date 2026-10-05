@@ -6,7 +6,7 @@
 // evict, the ambient trickle waits for room). Preallocated typed arrays; nothing allocates per frame.
 // Upload: position + (radius, alpha, glint gate).
 
-import { mulberry32 } from './aetherLobes';
+import { mulberry32 } from './prng';
 import { SUN_DIR_WORLD } from './planetFrame';
 
 export const DUST_R = Object.freeze([0.0015, 0.006]);  // scene units: ~0.4–1.5 px at the fitted desktop camera

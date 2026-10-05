@@ -9,7 +9,7 @@
 // Phase 2: a body rotation matrix (mercuryBody), a transmutation front, three
 // phases of the element by local temperature (mercuryThermal), and a liquid
 // mirror that reflects the Sun, the four element emitters, and the aether that
-// wraps the planet (16 analytic flow streaks, aetherLobes.js; spec amendment 2026-10-01).
+// wraps the planet (the moving per-element sky, aetherSky.js; spec amendment 2026-10-01).
 // Phase 3: the transmuted planet is a bead (mercuryWaves.js) — body modes and spin bulge move the silhouette, capillary ripples tilt the normal — and the crust keeps a scar map (scarMap.js).
 // Meniscus: the liquid reflects with the exact conductor Fresnel of Hg's n + ik (hgOptics.js), and
 // meets the crust in a non-wetting bead rim with a hard contact line (mercuryMeniscus.js).
@@ -42,10 +42,9 @@ import {
   FALLBACK_ALBEDO, ROUGH_BOIL, SOLID_HG_ALBEDO, SPARKLE_CELLS, SPARKLE_DENSITY, SPARKLE_COS,
   SPARKLE_GAIN, EMIT_RADIUS, FRONT_EDGE, FRONT_SOFT, FRONT_NOISE_FREQ, PHASE_BLEND_K,
   EMIT_MIN_SIN, EMIT_HORIZON_SOFT, SUN_SHOULDER, AETHER_NIGHT, AETHER_DAY_LO, AETHER_DAY_HI,
-  ROUGH_SOLID, SOLID_HG_SPECULAR, NIGHT_TINT, AETHER_FRINGE_LO, AETHER_FRINGE_HI, AETHER_SHOULDER, AETHER_PATH_WHITE, RAY_ALBEDO,
+  ROUGH_SOLID, SOLID_HG_SPECULAR, NIGHT_TINT, AETHER_SHOULDER, AETHER_PATH_WHITE, RAY_ALBEDO,
 } from './planetLook';
-import { AETHER_LOBES } from './aetherLobes';
-import { HG_FRESNEL_GLSL, HG_ENV_GLSL, AETHER_SHAPE_GLSL } from './hgMirrorGlsl';
+import { HG_FRESNEL_GLSL, HG_ENV_GLSL } from './hgMirrorGlsl';
 import {
   HG_MELT_K, HG_BOIL_K, T_NIGHT_FLOOR_K, T_SUNSET_K, TAU_WARM_H, TAU_COOL_H, HOURS_PER_RAD,
 } from './mercuryThermal';
@@ -61,8 +60,7 @@ export const PLANET_UNIFORMS = [
   'uAlbedo', 'uDem', 'uHasMaps', 'uSunDir', 'uBodyRot', 'uSunIrr', 'uSunSinR',
   'uDemTexel', 'uTime', 'uExposure', 'uRelief', 'uNightFloor',
   'uTau', 'uHeatK', 'uSubsolarT', 'uEmitPos', 'uEmitCol', 'uSunGlint', 'uEmitGain',
-  'uAethDir', 'uAethCol', 'uAetherGain', 'uAetherSinW', 'uAetherSilver',
-  'uAetherEdge', 'uAetherStretch', 'uAetherCurve', 'uAetherCore',
+  'uSkyT', 'uSkyPhase', 'uSkyW', 'uAetherGain', 'uAetherSilver',
   'uScar', 'uRayGain',
   'uSurfOn', 'uImpDir', 'uImpMode', 'uImpWave', 'uBulge', 'uRoilGain', 'uPopZoom',
   'uRoughLiquid', 'uMeniscus', 'uMeniscusW', 'uCoreR',
@@ -127,15 +125,11 @@ uniform vec3 uEmitPos[4];
 uniform vec3 uEmitCol[4];
 uniform float uSunGlint;
 uniform float uEmitGain;
-uniform vec3 uAethDir[${AETHER_LOBES}];
-uniform vec3 uAethCol[${AETHER_LOBES}];
+uniform float uSkyT;
+uniform vec4 uSkyPhase;
+uniform vec4 uSkyW;
 uniform float uAetherGain;
-uniform float uAetherSinW;
 uniform float uAetherSilver;
-uniform float uAetherEdge;
-uniform float uAetherStretch;
-uniform float uAetherCurve;
-uniform float uAetherCore;
 uniform sampler2D uScar;
 uniform float uRayGain;
 uniform float uSurfOn;
@@ -203,15 +197,11 @@ const float PHASE_BLEND_K = ${glf(PHASE_BLEND_K)};
 const float EMIT_MIN_SIN = ${glf(EMIT_MIN_SIN)};
 const float EMIT_HORIZON_SOFT = ${glf(EMIT_HORIZON_SOFT)};
 const float SUN_SHOULDER = ${glf(SUN_SHOULDER)};
-const int AETHER_LOBES = ${AETHER_LOBES};
-${AETHER_SHAPE_GLSL}
 const float AETHER_NIGHT = ${glf(AETHER_NIGHT)};
 const float AETHER_DAY_LO = ${glf(AETHER_DAY_LO)};
 const float AETHER_DAY_HI = ${glf(AETHER_DAY_HI)};
 const float ROUGH_SOLID = ${glf(ROUGH_SOLID)};
 const float SOLID_HG_SPECULAR = ${glf(SOLID_HG_SPECULAR)};
-const float AETHER_FRINGE_LO = ${glf(AETHER_FRINGE_LO)};
-const float AETHER_FRINGE_HI = ${glf(AETHER_FRINGE_HI)};
 const float AETHER_SHOULDER = ${glf(AETHER_SHOULDER)};
 const float AETHER_PATH_WHITE = ${glf(AETHER_PATH_WHITE)};
 const vec3 NIGHT_TINT = ${v3(NIGHT_TINT)};

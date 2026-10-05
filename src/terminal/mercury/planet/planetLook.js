@@ -40,8 +40,6 @@ export const AETHER_DAY_HI = 0.25;            // …and where full day strength 
 export const ROUGH_SOLID = 0.55;             // frozen Hg mirror roughness: polycrystalline, so the aether blurs into soft cold glows
 export const SOLID_HG_SPECULAR = 0.5;         // frozen Hg reflects at this share of the liquid's Fresnel (grain boundaries scatter the rest)
 export const NIGHT_TINT = [0.45, 0.58, 1.0];  // cold cast on the night side's aether: warm gas sinks to indigo / deep violet / dark cyan
-export const AETHER_FRINGE_LO = 0.25;          // streak d² where the bright core starts giving way to the fringe…
-export const AETHER_FRINGE_HI = 0.9;           // …and where the fringe is full aether colour
 export const AETHER_SHOULDER = 1;              // knee of the hue-preserving roll-off (Fresnel ≤ 1, so the display never clips a channel)
 export const AETHER_PATH_WHITE = 0.3;          // how far the hottest streak core pales toward white (0: pure hue; the old softbox core was ~1)
 export const FRONT_EDGE = 0.12;               // transmutation front noise amplitude (in front units)
@@ -61,13 +59,8 @@ export const PLANET_TUNE = {
   beadSparkle: 1.0,  // Hg aether beads (hgBeadShader): peak of the guaranteed sub-pixel Sun glint, sRGB units before the 1.5 cap
   dustSparkle: 3.0,  // Hg glitter dust: peak of the wobble-gated glint × size weight (biggest specks ≈ 2.3 after Hg Fresnel), sRGB units before DUST_GLINT_MAX 3
   emitGain: 1.5,     // liquid mirror: element-emitter reflection gain
-  aetherGain: 1.4,   // liquid mirror + frozen ambient: aether envelope gain
-  aetherSinW: 0.22,  // aether streak half-width across the flow (sin); lower = thinner streaks, more dark between
+  aetherGain: 1.4,   // liquid mirror + frozen ambient: aether sky gain (re-tuned in the mirror-sky look round)
   aetherSilver: 0,   // desaturation toward silver (0: the mirror shows the gas at its own hue, 2026-10-03)
-  aetherEdge: 2,     // streak profile exponent: 1 = soft Gaussian; higher = flatter core, more abrupt meniscus edge (3 read as flat stickers)
-  aetherStretch: 1,  // 0 = round lobes; 1 = each streak at its own elongation (AETHER_SHAPES)
-  aetherCurve: 2.5,  // falloff inside a streak: 0 = flat; higher = brighter centre, dimmer toward the meniscus edge (the volume)
-  aetherCore: 3,     // streak core brightness × its own hue, into the hue-preserving roll-off + AETHER_PATH_WHITE
   aetherFloor: 0.2,     // lit element flows never fall below this × their colour (umbra, worst phase) — aetherLight.js
   aetherPenumbra: 0.08, // half-width of the planet shadow cylinder's soft edge, scene units (planet radius 0.75)
   rayGain: 1.5,      // fresh crater-ray brightness (scar map G channel); 1.5 tuned 2026-10-02 (Task 7: 2+ flattens rays into a blob)
@@ -75,7 +68,7 @@ export const PLANET_TUNE = {
   waveGain: 1,       // capillary ripple slope
   roilGain: 1,       // boil-zone bubble-pop slope (mercuryRoil.POP_AMP × this)
   exoGain: 4,        // sodium tail + Hg vapour haze brightness
-  roughLiquid: ROUGH_LIQUID, // liquid mirror roughness (Sun + emitter lobes; the aether streaks are ~insensitive to it)
+  roughLiquid: ROUGH_LIQUID, // liquid mirror roughness (Sun + emitter lobes; the aether sky keeps full detail up to SKY_ROUGH_SHARP)
   meniscus: 1,       // melt-front bead rim: 0 = the old soft wipe, 1 = full non-wetting rim (mercuryMeniscus.js)
   meniscusW: 0.02,   // rim width in radians of arc (floored at MENISCUS_MIN_PX on screen)
   breakOmega: 7.5,   // phase 5: breakup threshold, rad/s on screen (Σ ≈ 0.20 there; the true fission branch is ~11.5)

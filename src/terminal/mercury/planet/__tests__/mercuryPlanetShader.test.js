@@ -18,12 +18,12 @@ import {
   SPARKLE_CELLS, SPARKLE_DENSITY, SPARKLE_COS, SPARKLE_GAIN, EMIT_RADIUS,
   FRONT_EDGE, FRONT_SOFT, FRONT_NOISE_FREQ, PHASE_BLEND_K,
   EMIT_MIN_SIN, EMIT_HORIZON_SOFT, SUN_SHOULDER, AETHER_NIGHT, AETHER_DAY_LO, AETHER_DAY_HI,
-  ROUGH_SOLID, SOLID_HG_SPECULAR, NIGHT_TINT, AETHER_FRINGE_LO, AETHER_FRINGE_HI, AETHER_SHOULDER,
+  ROUGH_SOLID, SOLID_HG_SPECULAR, NIGHT_TINT, AETHER_SHOULDER,
 } from '../planetLook';
 import { CALM_GLOW_RAD } from '../mercuryImpacts';
 import { HG_N, HG_K } from '../hgOptics';
 import { MENISCUS_MAX_SIN, MENISCUS_MIN_PX, MENISCUS_GRAD_FLOOR } from '../mercuryMeniscus';
-import { AETHER_LOBES, AETHER_SHAPES } from '../aetherLobes';
+import { AETHER_SKY_GLSL } from '../aetherSky';
 import {
   HG_MELT_K, HG_BOIL_K, T_NIGHT_FLOOR_K, T_SUNSET_K, TAU_WARM_H, TAU_COOL_H, HOURS_PER_RAD,
 } from '../mercuryThermal';
@@ -66,7 +66,7 @@ describe('mercuryPlanetShader contract', () => {
       ROUGH_BOIL, SPARKLE_CELLS, SPARKLE_DENSITY, SPARKLE_COS, SPARKLE_GAIN, EMIT_RADIUS,
       FRONT_EDGE, FRONT_SOFT, FRONT_NOISE_FREQ, PHASE_BLEND_K,
       EMIT_MIN_SIN, EMIT_HORIZON_SOFT, SUN_SHOULDER, AETHER_NIGHT, AETHER_DAY_LO, AETHER_DAY_HI,
-      ROUGH_SOLID, SOLID_HG_SPECULAR, AETHER_FRINGE_LO, AETHER_FRINGE_HI, AETHER_SHOULDER,
+      ROUGH_SOLID, SOLID_HG_SPECULAR, AETHER_SHOULDER,
       MENISCUS_MAX_SIN, MENISCUS_MIN_PX, MENISCUS_GRAD_FLOOR,
     })) {
       expect(PLANET_FS).toContain(`const float ${name} = ${glf(value)};`);
@@ -75,7 +75,6 @@ describe('mercuryPlanetShader contract', () => {
     expect(PLANET_FS).toContain(`const vec3 HG_K = ${v3(HG_K)};`);
     expect(PLANET_FS).toContain(`const vec3 SOLID_HG_ALBEDO = ${v3(SOLID_HG_ALBEDO)};`);
     expect(PLANET_FS).toContain(`const vec3 NIGHT_TINT = ${v3(NIGHT_TINT)};`);
-    expect(PLANET_FS).toContain(`const int AETHER_LOBES = ${AETHER_LOBES};`);
     expect(PLANET_FS).toContain(`const int SHADOW_STEPS = ${SHADOW_STEPS};`);
     expect(PLANET_VS).toContain(`const float R_SCENE = ${glf(R_SCENE)};`);
   });
@@ -111,26 +110,12 @@ describe('mercuryPlanetShader contract', () => {
     }
   });
 
-  it('reflects the aether as AETHER_LOBES soft lobes, attenuated on the night side by the surface normal', () => {
-    expect(PLANET_FS).toContain(`uniform vec3 uAethDir[${AETHER_LOBES}];`);
-    expect(PLANET_FS).toContain(`uniform vec3 uAethCol[${AETHER_LOBES}];`);
+  it('reflects the moving aether sky, attenuated on the night side by the surface normal', () => {
     expect(PLANET_FS).toContain('uniform float uAetherGain;');
     expect(PLANET_FS).toMatch(/float dayW = smoothstep\(AETHER_DAY_LO, AETHER_DAY_HI, dot\(nW, uSunDir\)\);/);
-    expect(PLANET_FS).toContain('uniform float uAetherEdge;');
-    expect(PLANET_FS).toContain('uniform float uAetherStretch;');
-    expect(PLANET_FS).toContain('vec2 aetherStreak(vec3 R, vec3 d, vec2 shape, float rough) {');
-    expect(PLANET_FS).toContain('float silhouette = exp(-pow(d2, max(uAetherEdge, 0.5)));');
-    expect(PLANET_FS).toContain('float body = exp(-uAetherCurve * d2);');
-    expect(PLANET_FS).toContain('return aetherHue(col) * mix(uAetherCore, 1.0, f);'); // the core keeps the gas hue (no white softbox)
-    expect(PLANET_FS).not.toContain('peak * uAetherCore');
     expect(PLANET_FS).toContain('float m = max(x.r, max(x.g, x.b));'); // hue-preserving roll-off on the brightest channel
     expect(PLANET_FS).not.toContain('softShoulder(x.r, AETHER_SHOULDER)');
     expect(PLANET_FS).toContain('const float AETHER_PATH_WHITE = ');
-    expect(PLANET_FS).toContain('a += aetherStreakColor(uAethCol[i], s.y) * s.x;');
-    expect(PLANET_FS).toContain('uniform float uAetherCurve;');
-    expect(PLANET_FS).toContain('uniform float uAetherCore;');
-    expect(PLANET_FS).toContain(`const vec2 AETHER_SHAPE[${AETHER_LOBES}] = vec2[${AETHER_LOBES}](${AETHER_SHAPES.map(([w, s]) => `vec2(${glf(w)}, ${glf(s)})`).join(', ')});`);
-    expect(PLANET_FS).toContain('uniform float uAetherSinW;');
     expect(PLANET_FS).toContain('uniform float uAetherSilver;');
     expect(PLANET_FS).toContain('return mix(col, vec3(l), uAetherSilver);');
     expect(PLANET_FS).not.toMatch(/AETHER_SIN_W/);
@@ -138,7 +123,13 @@ describe('mercuryPlanetShader contract', () => {
     expect(PLANET_FS).toMatch(/\+ frozenAether\(R, nW, NoV\)/); // frozen Hg is a rough dark mirror, not a matte ambient
     expect(PLANET_FS).not.toContain('aetherDiffuse');
     expect(PLANET_FS).toContain('return c + aetherMirror(R, rough, nW);');
-    expect(PLANET_FS).toContain('return aetherTint(nW) * aetherShoulder(uAetherGain * a);');
+    expect(PLANET_FS).toContain('uniform float uSkyT;');
+    expect(PLANET_FS).toContain('uniform vec4 uSkyPhase;');
+    expect(PLANET_FS).toContain('uniform vec4 uSkyW;');
+    expect(PLANET_FS).toContain(AETHER_SKY_GLSL);
+    for (const gone of ['uAethDir', 'uAethCol', 'uAetherSinW', 'uAetherEdge', 'uAetherStretch', 'uAetherCurve', 'uAetherCore', 'AETHER_SHAPE', 'aetherStreak', 'AETHER_LOBES', 'AETHER_FRINGE']) {
+      expect(PLANET_FS).not.toContain(gone);
+    }
     expect(PLANET_FS).toContain('return SOLID_HG_SPECULAR * fresnelHg(NoV) * aetherMirror(R, ROUGH_SOLID, nW);');
   });
 

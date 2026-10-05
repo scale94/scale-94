@@ -167,6 +167,9 @@ export default function MercuryCanvas({
           }}
           overlay={overlay}
           activePhase={activePhase}
+          aetherClock={aetherClock}
+          pendingPhase={pendingPhase}
+          skyOpacities={phaseOpacities}
         />
         <MercurySphere
           activePhase={activePhase}

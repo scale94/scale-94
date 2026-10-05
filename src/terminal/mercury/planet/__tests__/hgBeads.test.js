@@ -3,7 +3,7 @@ import {
   createBeads, spawnBead, spawnFling, spawnSplash, stepBeads, beadRadius, wobbleHz, wobbleGate, WOBBLE_HZ_MIN, WOBBLE_HZ_MAX,
   AMBIENT_RATE, BEAD_ESCAPE_R, BEAD_LIFE, DUST_R, PEARL_R, PEARL_P, EVAP_RATE, FLING_N, FLING_V_MAX, FLING_RADIAL, G_BEAD,
 } from '../hgBeads';
-import { mulberry32 } from '../aetherLobes';
+import { mulberry32 } from '../prng';
 import { SUN_DIR_WORLD } from '../planetFrame';
 
 const CTX = { phase: 'air', coreR: 0.75, calm: false, liquid: true, boil: 0 };

@@ -1,24 +1,22 @@
 // src/terminal/mercury/planet/hgMirrorGlsl.js — the quicksilver mirror, shared by the planet and the droplets.
 //
 // mercuryPlanetShader.js interpolates HG_FRESNEL_GLSL and HG_ENV_GLSL exactly where its own text
-// used to hold them, so PLANET_FS stays byte-identical (pinned snapshot). HG_MIRROR_DECLS_GLSL is
+// used to hold them. PLANET_FS is pinned by its file snapshot; the 2026-10-05 mirror-sky change re-pinned it.
+// HG_MIRROR_DECLS_GLSL is
 // what those chunks read; every one of its lines is also a line of PLANET_FS (tested), so the
 // droplets (dropletShader.js) can never drift from the planet's mirror.
 
 import { glf, v3 } from '../../gl/glf';
 import { HG_N, HG_K } from './hgOptics';
-import { AETHER_LOBES, AETHER_SHAPES } from './aetherLobes';
+import { AETHER_SKY_GLSL } from './aetherSky';
 import {
   EMIT_RADIUS, EMIT_MIN_SIN, EMIT_HORIZON_SOFT, SUN_SHOULDER, AETHER_NIGHT, AETHER_DAY_LO, AETHER_DAY_HI,
-  NIGHT_TINT, AETHER_FRINGE_LO, AETHER_FRINGE_HI, AETHER_SHOULDER, AETHER_PATH_WHITE,
+  NIGHT_TINT, AETHER_SHOULDER, AETHER_PATH_WHITE,
 } from './planetLook';
-
-export const AETHER_SHAPE_GLSL = `const vec2 AETHER_SHAPE[${AETHER_LOBES}] = vec2[${AETHER_LOBES}](${AETHER_SHAPES.map(([w, s]) => `vec2(${glf(w)}, ${glf(s)})`).join(', ')});`;
 
 export const HG_MIRROR_UNIFORMS = [
   'uSunDir', 'uSunIrr', 'uSunSinR', 'uExposure', 'uEmitPos', 'uEmitCol', 'uSunGlint', 'uEmitGain',
-  'uAethDir', 'uAethCol', 'uAetherGain', 'uAetherSinW', 'uAetherSilver', 'uAetherEdge', 'uAetherStretch',
-  'uAetherCurve', 'uAetherCore', 'uRoughLiquid',
+  'uSkyT', 'uSkyPhase', 'uSkyW', 'uAetherGain', 'uAetherSilver', 'uRoughLiquid',
 ];
 
 export const HG_MIRROR_DECLS_GLSL = [
@@ -30,15 +28,11 @@ export const HG_MIRROR_DECLS_GLSL = [
   'uniform vec3 uEmitCol[4];',
   'uniform float uSunGlint;',
   'uniform float uEmitGain;',
-  `uniform vec3 uAethDir[${AETHER_LOBES}];`,
-  `uniform vec3 uAethCol[${AETHER_LOBES}];`,
+  'uniform float uSkyT;',
+  'uniform vec4 uSkyPhase;',
+  'uniform vec4 uSkyW;',
   'uniform float uAetherGain;',
-  'uniform float uAetherSinW;',
   'uniform float uAetherSilver;',
-  'uniform float uAetherEdge;',
-  'uniform float uAetherStretch;',
-  'uniform float uAetherCurve;',
-  'uniform float uAetherCore;',
   'uniform float uRoughLiquid;',
   `const vec3 HG_N = ${v3(HG_N)};`,
   `const vec3 HG_K = ${v3(HG_K)};`,
@@ -46,13 +40,9 @@ export const HG_MIRROR_DECLS_GLSL = [
   `const float EMIT_MIN_SIN = ${glf(EMIT_MIN_SIN)};`,
   `const float EMIT_HORIZON_SOFT = ${glf(EMIT_HORIZON_SOFT)};`,
   `const float SUN_SHOULDER = ${glf(SUN_SHOULDER)};`,
-  `const int AETHER_LOBES = ${AETHER_LOBES};`,
-  AETHER_SHAPE_GLSL,
   `const float AETHER_NIGHT = ${glf(AETHER_NIGHT)};`,
   `const float AETHER_DAY_LO = ${glf(AETHER_DAY_LO)};`,
   `const float AETHER_DAY_HI = ${glf(AETHER_DAY_HI)};`,
-  `const float AETHER_FRINGE_LO = ${glf(AETHER_FRINGE_LO)};`,
-  `const float AETHER_FRINGE_HI = ${glf(AETHER_FRINGE_HI)};`,
   `const float AETHER_SHOULDER = ${glf(AETHER_SHOULDER)};`,
   `const float AETHER_PATH_WHITE = ${glf(AETHER_PATH_WHITE)};`,
   `const vec3 NIGHT_TINT = ${v3(NIGHT_TINT)};`,
@@ -106,51 +96,19 @@ vec3 aetherTint(vec3 nW) {
   return mix(AETHER_NIGHT * NIGHT_TINT, vec3(1.0), dayW);
 }
 
-// An aether lobe's colour, pulled toward neutral silver by uAetherSilver:
+// The sky's colour, pulled toward neutral silver by uAetherSilver:
 // the metal stays quicksilver and the aether only tints it.
 vec3 aetherHue(vec3 col) {
   float l = dot(col, vec3(0.2126, 0.7152, 0.0722));
   return mix(col, vec3(l), uAetherSilver);
 }
 
-// One aether streak in the mirror: an elongated lobe around d, stretched along
-// the orbital flow (azimuth about +Y). Returns (intensity, fringe):
-// intensity = a super-Gaussian silhouette (uAetherEdge: the meniscus edge's
-// hardness) × a curved body inside it (uAetherCurve: brightest at the centre);
-// fringe = 0 in the core, 1 at the edge, where the aether colour lives.
-vec2 aetherStreak(vec3 R, vec3 d, vec2 shape, float rough) {
-  float facing = dot(R, d);
-  if (facing <= 0.0) return vec2(0.0);
-  vec3 flow = normalize(cross(vec3(0.0, 1.0, 0.0), d));
-  vec3 bn = cross(d, flow);
-  float alpha = rough * rough;
-  float wA = uAetherSinW * shape.x;
-  float across = sqrt(wA * wA + alpha * alpha);
-  float along = across * (1.0 + (shape.y - 1.0) * uAetherStretch);
-  float u = dot(R, flow) / along;
-  float v = dot(R, bn) / across;
-  float d2 = u * u + v * v;
-  float silhouette = exp(-pow(d2, max(uAetherEdge, 0.5)));
-  float body = exp(-uAetherCurve * d2);
-  return vec2(smoothstep(0.0, 0.15, facing) * silhouette * body, smoothstep(AETHER_FRINGE_LO, AETHER_FRINGE_HI, d2));
-}
+${AETHER_SKY_GLSL}
 
-// A streak's colour at fringe f: the gas's own hue throughout, brightest in the
-// core (× uAetherCore) and falling to the plain aether hue at the meniscus edge.
-// A neutral white core read as a studio softbox, not as nebula in a mirror.
-vec3 aetherStreakColor(vec3 col, float f) {
-  return aetherHue(col) * mix(uAetherCore, 1.0, f);
-}
-
-// The aether in a mirror of roughness rough: every streak, night-tinted, rolled off. Shared by the liquid
-// (envRadiance) and the planet's frozen Hg (a rough, dark mirror of the same sky).
+// The aether in a mirror of roughness rough: the active element's moving sky (aetherSky.js), night-tinted,
+// rolled off. Shared by the liquid (envRadiance) and the planet's frozen Hg (a rough, dark mirror of the same sky).
 vec3 aetherMirror(vec3 R, float rough, vec3 nW) {
-  vec3 a = vec3(0.0);
-  for (int i = 0; i < AETHER_LOBES; i++) {
-    vec2 s = aetherStreak(R, uAethDir[i], AETHER_SHAPE[i], rough);
-    a += aetherStreakColor(uAethCol[i], s.y) * s.x;
-  }
-  return aetherTint(nW) * aetherShoulder(uAetherGain * a);
+  return aetherTint(nW) * aetherShoulder(uAetherGain * aetherHue(aetherSky(R, rough)));
 }
 
 // What the liquid sees: the Sun disc, the four elements, and the aether that
