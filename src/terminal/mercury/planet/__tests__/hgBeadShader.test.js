@@ -29,11 +29,23 @@ describe('Hg bead shader', () => {
     });
     expect(Object.isFrozen(BEAD_MATERIAL)).toBe(true);
   });
-  it('premultiplied output: a scaled-down body occluder plus an analytic additive sun glint', () => {
+  it('premultiplied output: a pearl-only body occluder plus an additive, gated sun glint', () => {
     expect(BEAD_FS).toContain('fragColor = vec4(srgb * aBody + glint, aBody);');
     expect(BEAD_FS).toContain('normalize(Vc + uSunDir)');
-    expect(BEAD_FS).toContain('vec3 G = min(uBeadSparkle * fresnelHg(dot(H, Vc)) * sh, vec3('); // fresnelHg is vec3: a float G did not compile (live, 2026-10-05)
+    expect(BEAD_FS).toContain('vec3 G = min(gain * fresnelHg(dot(H, Vc)) * sh, vec3('); // fresnelHg is vec3: a float G did not compile (live, 2026-10-05)
     expect(BEAD_UNIFORMS_OWN).toContain('uBeadSparkle');
+    expect(BEAD_UNIFORMS_OWN).toContain('uDustSparkle');
+  });
+  it('dust (< 2 px) has no body and a gated glint; pearls (> 4 px) keep the body and a steady glint', () => {
+    expect(BEAD_VS).toContain('vGate = aBead.z;');
+    expect(BEAD_FS).toContain('float kPearl = smoothstep(2.0, 4.0, vPx);');
+    expect(BEAD_FS).toContain('float aBody = vA * vCover * vCover * edgeK * kPearl;');
+    expect(BEAD_FS).toContain('float gain = mix(uDustSparkle * vGate, uBeadSparkle * mix(0.85, 1.0, vGate), kPearl);');
+    expect(BEAD_FS).not.toContain('bodyK');
+  });
+  it('one glint on a resolved pearl: the analytic glint fades out 4 -> 6 px', () => {
+    expect(BEAD_FS).toContain('float unresolved = 1.0 - smoothstep(4.0, 6.0, vPx);');
+    expect(BEAD_FS).toContain('vec3 glint = G * (w * vA * unresolved);');
   });
   it('aBead carries (radius, alpha, glint gate)', () => {
     expect(BEAD_VS).toContain('attribute vec3 aBead;');

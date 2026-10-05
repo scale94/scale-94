@@ -33,5 +33,7 @@ describe('Hg beads wiring', () => {
   it('the hook uploads the bead sparkle gain', () => {
     expect(hookSrc).toContain('uBeadSparkle: { value: PLANET_TUNE.beadSparkle }');
     expect(hookSrc).toContain('u.uBeadSparkle.value = PLANET_TUNE.beadSparkle;');
+    expect(hookSrc).toContain('uDustSparkle: { value: PLANET_TUNE.dustSparkle }');
+    expect(hookSrc).toContain('u.uDustSparkle.value = PLANET_TUNE.dustSparkle;');
   });
 });

@@ -13,13 +13,12 @@ import { FALLBACK_ALBEDO } from './planetLook';
 
 export const BEAD_MIN_PX = 1.5;
 export const BEAD_RENDER_ORDER = DROPLET_RENDER_ORDER + 1;
-// Premultiplied output (body occludes by its true coverage, the glint adds light): explicit factors, CustomBlending.
+// Premultiplied output (a pearl's body occludes by its true coverage, the glint adds light; dust is glint only): explicit factors, CustomBlending.
 export const BEAD_MATERIAL = Object.freeze({
   transparent: true, depthTest: true, depthWrite: false, blending: THREE.CustomBlending,
   blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor, blendEquation: THREE.AddEquation,
 });
-export const BEAD_UNIFORMS_OWN = ['uViewportPx', 'uPlanetR', 'uLitPen', 'uSunGlint', 'uBeadSparkle'];
-export const BEAD_BODY_SUBPX = 0.35;  // the dark occluding body's opacity scale at sub-pixel radii (to 1 by 5 px)
+export const BEAD_UNIFORMS_OWN = ['uViewportPx', 'uPlanetR', 'uLitPen', 'uSunGlint', 'uBeadSparkle', 'uDustSparkle'];
 export const BEAD_GLINT_MAX = 1.5;    // cap on the analytic glint (sRGB units)
 export const BEAD_GLINT_SIGMA_PX = 0.6; // glint footprint on a large bead: a ~1 px spark
 // The first line of envRadiance, verbatim (the test pins it against HG_ENV_GLSL).
@@ -33,6 +32,7 @@ varying float vR;
 varying float vA;
 varying float vCover;
 varying float vPx;
+varying float vGate;
 void main() {
   vec4 mv = modelViewMatrix * vec4(position, 1.0);
   float px = 2.0 * aBead.x * 0.5 * uViewportPx.y * projectionMatrix[1][1] / -mv.z;
@@ -42,6 +42,7 @@ void main() {
   vC = (modelMatrix * vec4(position, 1.0)).xyz;
   vR = aBead.x;
   vA = aBead.y;
+  vGate = aBead.z;
   gl_Position = projectionMatrix * mv;
 }
 `;
@@ -55,11 +56,13 @@ ${AETHER_SHADOW_GLSL}
 uniform float uPlanetR;
 uniform float uLitPen;
 uniform float uBeadSparkle;
+uniform float uDustSparkle;
 varying vec3 vC;
 varying float vR;
 varying float vA;
 varying float vCover;
 varying float vPx;
+varying float vGate;
 const vec3 PLANET_ALBEDO = ${v3(FALLBACK_ALBEDO)};
 
 vec3 sunTerm(vec3 R, float rough) {
@@ -94,16 +97,22 @@ void main() {
   vec3 col = max(fresnelHg(dot(n, V)) * env, 0.0);
   // Rim AA only where the rim band fits inside the disc; below 4 px vCover^2 already carries the coverage.
   float edgeK = vPx >= 4.0 ? 1.0 - smoothstep(1.0 - 2.0 / vPx, 1.0, sqrt(d2)) : 1.0;
-  float bodyK = mix(${glf(BEAD_BODY_SUBPX)}, 1.0, smoothstep(2.0, 5.0, vPx));
-  float aBody = vA * vCover * vCover * edgeK * bodyK;
+  // Dust below 2 px is glint only; the mirror body fades in to a pearl by 4 px. vPx is floored at
+  // BEAD_MIN_PX (1.5), which is below this ramp, so it equals the true projected size wherever it matters.
+  float kPearl = smoothstep(2.0, 4.0, vPx);
+  float aBody = vA * vCover * vCover * edgeK * kPearl;
   // Guaranteed glint: a mirror sphere has the Sun's image at the point whose normal is H, from every view.
   vec3 Vc = normalize(cameraPosition - vC);
   vec3 H = normalize(Vc + uSunDir);
-  vec3 G = min(uBeadSparkle * fresnelHg(dot(H, Vc)) * sh, vec3(${glf(BEAD_GLINT_MAX)})); // fresnelHg is spectral (vec3): the glint keeps Hg's faint tint
+  // Dust sparks on its wobble gate; a pearl's glint only shimmers (spec §2).
+  float gain = mix(uDustSparkle * vGate, uBeadSparkle * mix(0.85, 1.0, vGate), kPearl);
+  vec3 G = min(gain * fresnelHg(dot(H, Vc)) * sh, vec3(${glf(BEAD_GLINT_MAX)})); // fresnelHg is spectral (vec3): the glint keeps Hg's faint tint
   vec2 qg = (viewMatrix * vec4(H, 0.0)).xy;
   float dpx = length(q - qg) * 0.5 * vPx;
   float w = exp(-dpx * dpx / (2.0 * ${glf(BEAD_GLINT_SIGMA_PX)} * ${glf(BEAD_GLINT_SIGMA_PX)}));
-  vec3 glint = G * (w * vA);
+  // Above 6 px the resolved Sun lobe in envRadiance is the glint: fade the analytic one out (no double glint).
+  float unresolved = 1.0 - smoothstep(4.0, 6.0, vPx);
+  vec3 glint = G * (w * vA * unresolved);
   // Output stage as the droplet pass / planet: exposure is already inside the terms; just sRGB-encode.
   vec3 srgb = mix(col * 12.92, 1.055 * pow(col, vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), col));
   fragColor = vec4(srgb * aBody + glint, aBody);
