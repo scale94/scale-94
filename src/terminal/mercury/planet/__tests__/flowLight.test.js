@@ -11,7 +11,7 @@ describe('flows as sunlit matter', () => {
   for (const [el, [src, v]] of Object.entries(LIT)) {
     it(`${el}: vertex + fragment chunks, the multiply before gl_FragColor, live uniforms`, () => {
       expect(src).toContain('${AETHER_LIGHT_VS}');
-      expect(src).toMatch(/aetherLightVS\(mv\w*\.xyz, gl_PointSize\);/);
+      expect(src).toMatch(/aetherLightVS\(mv\w*\.xyz, (gl_PointSize|size)\);/);
       expect(src).toContain(`\${aetherLightFS('${el}')}`);
       const fs = src.slice(src.indexOf('const fragmentShader'));
       const mul = fs.indexOf(`${v} *= aetherLight();`);

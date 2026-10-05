@@ -25,7 +25,7 @@ describe('flows on the shared clock', () => {
   }
 
   it('the rate literals the clock means are derived from are still in the flows', () => {
-    expect(particleSrc).toContain('fract(aPhase + uPhase * (0.6 + aOffset * 0.4))');
+    expect(particleSrc).toContain('fract(aPhase + ph * (0.6 + aOffset * 0.4))');
     expect(atmoSrc).toContain('(0.4 + aSpeed * 0.7) * direction * ionSpeedMult');
     expect(atmoSrc).toContain('aAlt > 0.5 ? 1.0 : -0.85');
     expect(thermalSrc).toContain('float lifeMult = 0.4 + aSpeed * 0.6;');

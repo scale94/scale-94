@@ -5,6 +5,7 @@ import { PLANET_WINDOW_VS, PLANET_WINDOW_FS } from '../mercury/planet/planetWind
 import { R_SCENE, PLANET_TUNE } from '../mercury/planet/planetLook';
 import { AETHER_LIGHT_VS, aetherLightFS } from '../mercury/planet/aetherLight';
 import { SUN_DIR_WORLD } from '../mercury/planet/planetFrame';
+import { GAS_STREAK_VS, GAS_STREAK_FS, GAS_TUNE_UNIFORMS, writeGasTune } from '../mercury/planet/gasStreak';
 import { createAetherClock, configureAetherClock, tickAetherClock } from '../mercury/planet/aetherClock';
 
 // ── GLSL ───────────────────────────────────────────────────────────────────
@@ -83,31 +84,33 @@ const vertexShader = /* glsl */ `
     return vec3((ny1-ny2)-(nz1-nz2),(nz1-nz2)-(nx1-nx2),(nx1-nx2)-(ny1-ny2))/(2.0*e);
   }
 
-  void main(){
-    // ── Cyclone / helical orbit ──────────────────────────────────────────
+  ${GAS_STREAK_VS}
+
+  // The cyclone orbit alone (the big motion) at air phase ph.
+  vec3 orbitPos(float ph, out float angle) {
     // Orbital radius: widest at mid-altitude (eye-wall), narrows at base and top
-    float altSq       = aAlt * aAlt;
     float eyeWall     = sin(aAlt * 3.14159);           // peaks at mid-altitude
     float baseRadius  = (0.15 + eyeWall * 1.1) * uSpread;
-
     // Ionosphere particles orbit faster at larger radius
     float ionRadius   = 1.35 * uSpread;
     float radius      = mix(baseRadius, ionRadius, aIon);
-
     // Orbit height spans full geode
     float orbitHeight = -1.2 + aAlt * 2.5;
-
     // Contra-rotating layers: lower half CW, upper half CCW (realistic cyclone)
     float direction  = aAlt > 0.5 ? 1.0 : -0.85;
     float ionSpeedMult = mix(1.0, 2.8, aIon); // ionosphere is fast
     float orbitRate  = (0.4 + aSpeed * 0.7) * direction * ionSpeedMult; // × orbitalSpeed lives in uPhase (the clock)
-    float angle      = aPhase * 6.28318 + uPhase * orbitRate;
+    angle            = aPhase * 6.28318 + ph * orbitRate;
+    return vec3(cos(angle) * radius, orbitHeight, sin(angle) * radius);
+  }
 
-    vec3 pos = vec3(
-      cos(angle) * radius,
-      orbitHeight + snoise(vec3(angle * 0.25, uTime * 0.07, aAlt * 4.0)) * 0.15,
-      sin(angle) * radius
-    );
+  void main(){
+    // ── Cyclone / helical orbit (now, and STREAK_DT of clock time ago) ──
+    float angle, anglePrev;
+    vec3 core = orbitPos(uPhase, angle);
+    vec3 prevCore = orbitPos(uPhase - STREAK_DT * uPhaseRate, anglePrev);
+    vec3 pos = core;
+    pos.y += snoise(vec3(angle * 0.25, uTime * 0.07, aAlt * 4.0)) * 0.15;
 
     // ── Atmospheric eddies (slow curl turbulence) ────────────────────────
     float t = uTime * 0.08;
@@ -118,6 +121,7 @@ const vertexShader = /* glsl */ `
     float st = uTime * 0.6;
     pos.x += snoise(pos * 5.0 + vec3(st, 0.0, aPhase)) * 0.03;
     pos.z += snoise(pos * 5.0 + vec3(aPhase, 0.0, st * 1.1)) * 0.03;
+    vec3 prev = prevCore + (pos - core); // the streak shows the current, not the eddies
 
     // Altitude from actual height + inherent layer
     float normY   = clamp((pos.y + 1.2) / 2.5, 0.0, 1.0);
@@ -130,25 +134,31 @@ const vertexShader = /* glsl */ `
 
     // Nebula condensation — see ParticleFlow.jsx for the physics note.
     pos *= 1.0 - uCondense * uCondense;
+    prev *= 1.0 - uCondense * uCondense;
 
     vec4 mvPos = modelViewMatrix * vec4(pos, 1.0);
-    gl_PointSize = baseSize * (260.0 / -mvPos.z) * (1.0 - uCondense * uCondenseSizeBite);
+    vec4 mvPrev = modelViewMatrix * vec4(prev, 1.0);
+    float size = baseSize * (260.0 / -mvPos.z) * (1.0 - uCondense * uCondenseSizeBite) * uGasSize;
     gl_Position  = projectionMatrix * mvPos;
+    gl_PointSize = gasStreak(gl_Position, projectionMatrix * mvPrev, size, STRETCH_MAX);
+    // Lanes across the cyclone: by altitude layer and ionosphere, slowly along the orbit.
+    vLane = gasLane(vec3(aAlt * 4.0, aIon * 2.0 + aSpeed, aPhase * 1.5), uTime) * uGasAlpha;
     planetWindowVS(mvPos.xyz);
-    aetherLightVS(mvPos.xyz, gl_PointSize);
+    aetherLightVS(mvPos.xyz, size);
   }
 `;
 
 const fragmentShader = /* glsl */ `
   ${PLANET_WINDOW_FS}
   ${aetherLightFS('air')}
+  ${GAS_STREAK_FS}
   uniform float uOpacity;
   varying float vAltitude;
   varying float vSpeed;
   varying float vIon;
 
   void main(){
-    float d = length(gl_PointCoord - 0.5) * 2.0;
+    float d = gasStreakDist(gl_PointCoord);
     // Very soft — air has no hard edges
     float alpha = smoothstep(1.0, 0.0, d);
     if (alpha < 0.003) discard;
@@ -193,7 +203,7 @@ const fragmentShader = /* glsl */ `
     // Banding dither — see ParticleFlow.jsx for the physics note.
     float dither = (fract(sin(dot(gl_FragCoord.xy + gl_PointCoord * 61.803, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
     col *= aetherLight();
-    gl_FragColor = vec4(col, (alpha * alphaScale * uOpacity) * planetWindow() + dither);
+    gl_FragColor = vec4(col, (alpha * alphaScale * uOpacity * vLane) * planetWindow() + dither);
   }
 `;
 
@@ -251,6 +261,8 @@ export default function AtmosphericFlow({
   const [uniforms] = useState(() => ({
     uTime: { value: 0 },
     uPhase: { value: 0 },
+    uPhaseRate: { value: 0 },
+    ...GAS_TUNE_UNIFORMS(PLANET_TUNE),
     uTurbulence:   { value: turbulence },
     uSpread:       { value: spread },
     uOpacity:      { value: opacityMultiplier },
@@ -274,6 +286,8 @@ export default function AtmosphericFlow({
     if (mat) {
       mat.uniforms.uTime.value = clk.t;
       mat.uniforms.uPhase.value = clk.phase.air;
+      mat.uniforms.uPhaseRate.value = clk.rate.air;
+      writeGasTune(mat.uniforms, PLANET_TUNE);
       mat.uniforms.uTurbulence.value    = turbulence;
       mat.uniforms.uSpread.value        = spread;
       mat.uniforms.uOpacity.value       = opacityMultiplier;

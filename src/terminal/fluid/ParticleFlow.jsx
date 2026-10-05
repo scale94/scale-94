@@ -5,6 +5,7 @@ import { PLANET_WINDOW_VS, PLANET_WINDOW_FS } from '../mercury/planet/planetWind
 import { R_SCENE, PLANET_TUNE } from '../mercury/planet/planetLook';
 import { AETHER_LIGHT_VS, aetherLightFS } from '../mercury/planet/aetherLight';
 import { SUN_DIR_WORLD } from '../mercury/planet/planetFrame';
+import { GAS_STREAK_VS, GAS_STREAK_FS, GAS_TUNE_UNIFORMS, writeGasTune } from '../mercury/planet/gasStreak';
 import { createAetherClock, configureAetherClock, tickAetherClock } from '../mercury/planet/aetherClock';
 
 // ── Torus Knot parametric helpers ──────────────────────────────────────────
@@ -108,10 +109,12 @@ const vertexShader = /* glsl */ `
     return vec3((R + r * cq) * cp, (R + r * cq) * sp, r * sq);
   }
 
-  void main() {
-    // ── Primary motion: tangential drift along knot ──
-    float t = fract(aPhase + uPhase * (0.6 + aOffset * 0.4));
-    vec3 center = knotCenter(t);
+  ${GAS_STREAK_VS}
+
+  // The knot drift alone (the big motion) at knot phase ph: the particle's place in its tube.
+  vec3 knotPos(float ph, out vec3 center) {
+    float t = fract(aPhase + ph * (0.6 + aOffset * 0.4));
+    center = knotCenter(t);
 
     // Tangent + local Frenet frame
     vec3 tangent = normalize(knotCenter(t + 0.001) - center);
@@ -127,11 +130,16 @@ const vertexShader = /* glsl */ `
     // ── Tube offset: sand-grain position inside tube ──
     float angle = aOffset * 6.283185307;
     float rad = aRadius * uTubeRadius;
-    vec3 localOffset = normal * (cos(angle) * rad + gravNormal)
-                     + binormal * (sin(angle) * rad + gravBinormal);
+    return center + normal * (cos(angle) * rad + gravNormal) + binormal * (sin(angle) * rad + gravBinormal);
+  }
+
+  void main() {
+    // ── Primary motion: tangential drift along knot (now, and STREAK_DT of clock time ago) ──
+    vec3 center, centerPrev;
+    vec3 basePos = knotPos(uPhase, center);
+    vec3 prevCore = knotPos(uPhase - STREAK_DT * uPhaseRate, centerPrev);
 
     // ── Per-particle granular jitter (sand shimmer) ──
-    vec3 basePos = center + localOffset;
     float jx = snoise(basePos * 8.0 + vec3(uTime, 0.0, 0.0)) * 0.012;
     float jy = snoise(basePos * 8.0 + vec3(0.0, uTime, 0.0)) * 0.012;
     float jz = snoise(basePos * 8.0 + vec3(0.0, 0.0, uTime)) * 0.012;
@@ -139,7 +147,8 @@ const vertexShader = /* glsl */ `
     // ── Subtle curl drift (environmental, not primary) ──
     vec3 curl = curlNoise(center * 2.0 + uTime * 0.1) * uCurlAmp;
 
-    vec3 pos = center + localOffset + vec3(jx, jy, jz) + curl;
+    vec3 pos = basePos + vec3(jx, jy, jz) + curl;
+    vec3 prev = prevCore + (pos - basePos); // the streak shows the current, not the shimmer
 
     // ── Harmonic color cycling ──
     vHue = fract(aPhase + uTime * 0.05 + uChromatic * 0.33);
@@ -149,25 +158,32 @@ const vertexShader = /* glsl */ `
     // Squared ease = gravity well (slow drift, fast swallow); the sphere's
     // depth buffer occludes arrivals. Applies to pos, NOT the raw attribute.
     pos *= 1.0 - uCondense * uCondense;
+    prev *= 1.0 - uCondense * uCondense;
 
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-    gl_PointSize = (1.5 + aRadius * 2.0) * (300.0 / -mvPosition.z) * (1.0 - uCondense * uCondenseSizeBite);
+    vec4 mvPrev = modelViewMatrix * vec4(prev, 1.0);
+    float size = (1.5 + aRadius * 2.0) * (300.0 / -mvPosition.z) * (1.0 - uCondense * uCondenseSizeBite) * uGasSize;
     gl_Position = projectionMatrix * mvPosition;
+    gl_PointSize = gasStreak(gl_Position, projectionMatrix * mvPrev, size, STRETCH_MAX);
+    // Lanes across the tube (its cross-section) and, slowly, along it: threads that ride the knot.
+    float laneA = aOffset * 6.283185307;
+    vLane = gasLane(vec3(cos(laneA) * aRadius * 3.0, sin(laneA) * aRadius * 3.0, aPhase * 1.5), uTime) * uGasAlpha;
     planetWindowVS(mvPosition.xyz);
-    aetherLightVS(mvPosition.xyz, gl_PointSize);
+    aetherLightVS(mvPosition.xyz, size);
   }
 `;
 
 const fragmentShader = /* glsl */ `
   ${PLANET_WINDOW_FS}
   ${aetherLightFS('fluid')}
+  ${GAS_STREAK_FS}
   uniform float uOpacity;
   varying float vHue;
   varying float vBrightness;
 
   void main() {
     // Sharp sprite — bright core with tight halo
-    float d = length(gl_PointCoord - 0.5) * 2.0;
+    float d = gasStreakDist(gl_PointCoord);
     float alpha = smoothstep(1.0, 0.3, d);
     if (alpha < 0.01) discard;
 
@@ -192,7 +208,7 @@ const fragmentShader = /* glsl */ `
     float dither = (fract(sin(dot(gl_FragCoord.xy + gl_PointCoord * 61.803, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
 
     color *= aetherLight();
-    gl_FragColor = vec4(color, (alpha * 0.95 * uOpacity) * planetWindow() + dither);
+    gl_FragColor = vec4(color, (alpha * 0.95 * uOpacity * vLane) * planetWindow() + dither);
   }
 `;
 
@@ -246,6 +262,8 @@ export default function ParticleFlow({
   const [uniforms] = useState(() => ({
     uTime: { value: 0 },
     uPhase: { value: 0 },
+    uPhaseRate: { value: 0 },
+    ...GAS_TUNE_UNIFORMS(PLANET_TUNE),
     uCurlAmp:    { value: curlAmp },
     uTubeRadius: { value: tubeRadius },
     uChromatic:  { value: chromatic },
@@ -271,6 +289,8 @@ export default function ParticleFlow({
     if (mat) {
       mat.uniforms.uTime.value = clk.t;
       mat.uniforms.uPhase.value = clk.phase.fluid;
+      mat.uniforms.uPhaseRate.value = clk.rate.fluid;
+      writeGasTune(mat.uniforms, PLANET_TUNE);
       mat.uniforms.uCurlAmp.value = curlAmp;
       mat.uniforms.uTubeRadius.value = tubeRadius;
       mat.uniforms.uChromatic.value = chromatic;

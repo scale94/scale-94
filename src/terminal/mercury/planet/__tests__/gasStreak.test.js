@@ -28,7 +28,7 @@ describe('gasStreak', () => {
   it('the lane mask is ridged noise in the flow\'s labels, evolving in time', () => {
     expect(GAS_STREAK_VS).toContain('float gasLane(vec3 laneCoord, float t) {');
     expect(GAS_STREAK_VS).toContain('snoise(laneCoord * uMaskFreq + vec3(0.0, 0.0, t * MASK_EVOLVE))');
-    expect(GAS_STREAK_VS).toContain('return mix(1.0, pow(1.0 - abs(n), uMaskSharp), uMaskDepth);');
+    expect(GAS_STREAK_VS).toContain('return mix(1.0, pow(max(1.0 - abs(n), 0.0), uMaskSharp), uMaskDepth);');
   });
 
   it('FS: capsule distance, equal to the old round radius when the streak is 0', () => {

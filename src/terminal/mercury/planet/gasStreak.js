@@ -50,7 +50,7 @@ float gasStreak(vec4 clipNow, vec4 clipPrev, float size, float stretchMax) {
 
 float gasLane(vec3 laneCoord, float t) {
   float n = snoise(laneCoord * uMaskFreq + vec3(0.0, 0.0, t * MASK_EVOLVE));
-  return mix(1.0, pow(1.0 - abs(n), uMaskSharp), uMaskDepth);
+  return mix(1.0, pow(max(1.0 - abs(n), 0.0), uMaskSharp), uMaskDepth);
 }
 `;
 
