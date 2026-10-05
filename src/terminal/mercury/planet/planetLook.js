@@ -63,6 +63,12 @@ export const PLANET_TUNE = {
   aetherSilver: 0,   // desaturation toward silver (0: the mirror shows the gas at its own hue, 2026-10-03)
   aetherFloor: 0.2,     // lit element flows never fall below this × their colour (umbra, worst phase) — aetherLight.js
   aetherPenumbra: 0.08, // half-width of the planet shadow cylinder's soft edge, scene units (planet radius 0.75)
+  streakGain: 0.08,  // gas streak shutter (s): a streak shows this much of a particle's on-screen motion (mirror-sky spec §3b)
+  gasSize: 0.34,     // gas sprite size × this (density ×3 → size ⅓; floored at GAS_PX_FLOOR px)
+  gasAlpha: 3,       // gas alpha × this, so the smaller sprites keep the nebula's brightness (look round)
+  maskFreq: 2.5,     // lane mask frequency in the flows' label space
+  maskSharp: 3,      // lane ridge sharpness (higher = thinner filaments)
+  maskDepth: 0.6,    // 0 = no mask, 1 = everything off-ridge is carved away
   rayGain: 1.5,      // fresh crater-ray brightness (scar map G channel); 1.5 tuned 2026-10-02 (Task 7: 2+ flattens rays into a blob)
   modeGain: 1,       // body-mode + spin-bulge amplitude (the bead's wobble)
   waveGain: 1,       // capillary ripple slope
