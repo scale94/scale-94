@@ -35,4 +35,7 @@ describe('Hg bead shader', () => {
     expect(BEAD_FS).toContain('vec3 G = min(uBeadSparkle * fresnelHg(dot(H, Vc)) * sh, vec3('); // fresnelHg is vec3: a float G did not compile (live, 2026-10-05)
     expect(BEAD_UNIFORMS_OWN).toContain('uBeadSparkle');
   });
+  it('aBead carries (radius, alpha, glint gate)', () => {
+    expect(BEAD_VS).toContain('attribute vec3 aBead;');
+  });
 });

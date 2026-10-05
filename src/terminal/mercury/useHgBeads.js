@@ -17,7 +17,7 @@ export default function useHgBeads({ tier, planetMaterial }) {
   const geometry = useMemo(() => {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(sim.outPos, 3).setUsage(THREE.DynamicDrawUsage));
-    g.setAttribute('aBead', new THREE.BufferAttribute(sim.outBead, 2).setUsage(THREE.DynamicDrawUsage));
+    g.setAttribute('aBead', new THREE.BufferAttribute(sim.outBead, 3).setUsage(THREE.DynamicDrawUsage));
     g.setDrawRange(0, 0);
     return g;
   }, [sim]);

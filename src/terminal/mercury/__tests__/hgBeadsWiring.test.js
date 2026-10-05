@@ -11,6 +11,7 @@ describe('Hg beads wiring', () => {
     expect(hookSrc).toContain('...BEAD_MATERIAL');
     expect(hookSrc).toContain('TIERS[tier].beads');
     expect(hookSrc).toContain('setDrawRange(0, n)');
+    expect(hookSrc).toContain('new THREE.BufferAttribute(sim.outBead, 3)');
   });
   it('the planet feeds all three sources and steps once per frame', () => {
     expect(planetSrc).toContain('useHgBeads({ tier, planetMaterial: material })');

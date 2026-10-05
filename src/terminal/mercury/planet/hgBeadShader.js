@@ -27,7 +27,7 @@ export const SUN_TERM_GLSL = 'vec3(softShoulder(uSunGlint * uSunIrr * uExposure 
 
 export const BEAD_VS = /* glsl */ `
 uniform vec2 uViewportPx;
-attribute vec2 aBead; // radius (scene units), alpha
+attribute vec3 aBead; // radius (scene units), alpha, glint gate (hgBeads wobbleGate)
 varying vec3 vC;
 varying float vR;
 varying float vA;

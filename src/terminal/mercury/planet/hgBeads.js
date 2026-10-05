@@ -2,7 +2,7 @@
 // Pure (no three). Sources: an ambient trickle off the sunlit liquid surface (the planet's slow loss to space,
 // × boiling), fling bursts tangential to the spin, splashes at liquid visitor impacts. Motion: gravity toward
 // the planet + drag toward the ACTIVE element's flow velocity. Sinks: life (fade), fire (evaporation), re-entry
-// (merge), the cap (oldest first). Preallocated typed arrays; nothing allocates per frame.
+// (merge), the cap (oldest first). Preallocated typed arrays; nothing allocates per frame. Upload: position + (radius, alpha, glint gate).
 
 import { mulberry32 } from './aetherLobes';
 import { SUN_DIR_WORLD } from './planetFrame';
@@ -24,6 +24,31 @@ export const FLING_GAIN = 1.1;    // × (ω × r) at release
 export const FLING_V_MAX = 2.25;  // launch speed cap (scene units/s): readable arcs, not instant escapes
 export const FLING_DRAG_BOOST = 4; // 1/s extra drag toward the active element's flow just after a fling...
 export const FLING_DRAG_T = 0.45;  // ...decaying with this time constant (s): the throw bends into the flow
+// The glint gate (spec §2 + amendment): a free droplet rings in its l=2 and l=3 shape modes
+// (Rayleigh: f ∝ √(l(l−1)(l+2)) · r^−1.5, ratio √(30/8) ≈ 1.94), and an ejected droplet tumbles, so its
+// wobble axis precesses and the Sun's image swings in and out of reach. 1.94 alone nearly phase-locks
+// (CV 0.01, a metronome); the tumble envelope breaks it (min CV 0.44 over 60 beads). Rates are scaled
+// for legibility, not physical (real droplets this size ring far faster).
+export const WOBBLE_HZ_REF = 0.8;  // at WOBBLE_R_REF
+export const WOBBLE_R_REF = 0.012;
+export const WOBBLE_HZ_MIN = 0.5;
+export const WOBBLE_HZ_MAX = 5;    // dust lives at the clamp: a shimmer, not a strobe
+export const WOBBLE_RATIO = Math.sqrt(30 / 8);
+export const TUMBLE_E = 0.6;       // tumble envelope depth
+export const TUMBLE_K = Object.freeze([0.15, 0.3]); // tumble rate as a fraction of the wobble rate
+export const WOBBLE_K = 3;         // spark sharpness: dark ~90 % of the time
+
+export function wobbleHz(r) {
+  const hz = WOBBLE_HZ_REF * (WOBBLE_R_REF / Math.max(r, 1e-6)) ** 1.5;
+  return Math.min(WOBBLE_HZ_MAX, Math.max(WOBBLE_HZ_MIN, hz));
+}
+
+export function wobbleGate(r, age, ph2, ph3, ph4, tumble) {
+  const wt = 2 * Math.PI * wobbleHz(r) * age;
+  const s = (0.6 * Math.sin(wt + ph2) + 0.4 * Math.sin(WOBBLE_RATIO * wt + ph3))
+    * (1 - TUMBLE_E + TUMBLE_E * Math.sin(tumble * wt + ph4));
+  return s > 0 ? s ** WOBBLE_K : 0;
+}
 const AMBIENT_V = [0.15, 0.35];   // launch speed range (scene units/s), along the surface normal
 const SPLASH_V = 0.35;
 const SUN_MIN = 0.2;              // ambient sources: dot(normal, Sun) above this
@@ -33,7 +58,8 @@ export function createBeads(cap, seed = 0x6867) {
     cap, n: 0, acc: 0, rng: mulberry32(seed),
     pos: new Float32Array(cap * 3), vel: new Float32Array(cap * 3),
     r: new Float32Array(cap), age: new Float32Array(cap), boost: new Float32Array(cap),
-    outPos: new Float32Array(cap * 3), outBead: new Float32Array(cap * 2),
+    ph2: new Float32Array(cap), ph3: new Float32Array(cap), ph4: new Float32Array(cap), tumble: new Float32Array(cap),
+    outPos: new Float32Array(cap * 3), outBead: new Float32Array(cap * 3),
   };
 }
 
@@ -48,6 +74,8 @@ export function spawnBead(b, x, y, z, vx, vy, vz, r) {
   b.pos[3 * i] = x; b.pos[3 * i + 1] = y; b.pos[3 * i + 2] = z;
   b.vel[3 * i] = vx; b.vel[3 * i + 1] = vy; b.vel[3 * i + 2] = vz;
   b.r[i] = r; b.age[i] = 0; b.boost[i] = 0;
+  b.ph2[i] = 2 * Math.PI * b.rng(); b.ph3[i] = 2 * Math.PI * b.rng(); b.ph4[i] = 2 * Math.PI * b.rng();
+  b.tumble[i] = TUMBLE_K[0] + (TUMBLE_K[1] - TUMBLE_K[0]) * b.rng();
   return i;
 }
 
@@ -56,6 +84,7 @@ function remove(b, i) {
   if (i === last) return;
   for (let c = 0; c < 3; c++) { b.pos[3 * i + c] = b.pos[3 * last + c]; b.vel[3 * i + c] = b.vel[3 * last + c]; }
   b.r[i] = b.r[last]; b.age[i] = b.age[last]; b.boost[i] = b.boost[last];
+  b.ph2[i] = b.ph2[last]; b.ph3[i] = b.ph3[last]; b.ph4[i] = b.ph4[last]; b.tumble[i] = b.tumble[last];
 }
 
 // Glitter dust, skewed small, with a rare pearl (spec §1).
@@ -144,7 +173,8 @@ export function stepBeads(b, dt, ctx) {
   for (let i = 0; i < b.n; i++) {
     b.outPos[3 * i] = b.pos[3 * i]; b.outPos[3 * i + 1] = b.pos[3 * i + 1]; b.outPos[3 * i + 2] = b.pos[3 * i + 2];
     const a = Math.min(1, b.age[i] / 0.15, (BEAD_LIFE - b.age[i]) / BEAD_FADE);
-    b.outBead[2 * i] = b.r[i]; b.outBead[2 * i + 1] = Math.max(0, a);
+    b.outBead[3 * i] = b.r[i]; b.outBead[3 * i + 1] = Math.max(0, a);
+    b.outBead[3 * i + 2] = wobbleGate(b.r[i], b.age[i], b.ph2[i], b.ph3[i], b.ph4[i], b.tumble[i]);
   }
   return b.n;
 }
