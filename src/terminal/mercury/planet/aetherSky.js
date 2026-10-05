@@ -21,12 +21,14 @@ export const SKY_W_MIN = 0.004;      // a weight below this is not evaluated
 export const SKY_PING_EXP = 250;     // earth ping lobe sharpness (approved cadence: 1–2 concurrent pings)
 export const SKY_PING_GAIN = 10;
 export const AIR_SHEAR_BAND = 0.12;   // R.y half-width of the equatorial cross-fade between the two rigid air layers
-// Mean radiance of each sky over all directions (linear). PROVISIONAL: measured live in plan Task 5.
+// Mean radiance of each sky over all directions (linear), the value a fully rough mirror sees. Measured 2026-10-05
+// (plan Task 5, .superpowers/sdd/tools/ms-mean.mjs): 128x64 equirect RGBA32F, cos-latitude weighted, rough 0,
+// 5 clock samples (t 0/7/19/31/53 s at speed 0.1, orbitalSpeed 1.2). Re-measure if a sky function changes.
 export const SKY_MEAN = Object.freeze({
-  fluid: [0.02, 0.03, 0.05],
-  thermal: [0.05, 0.012, 0.001],
-  earth: [0.02, 0.012, 0.005],
-  air: [0.01, 0.014, 0.018],
+  fluid: [0.01702, 0.01989, 0.03736],
+  thermal: [0.02917, 0.009297, 0.001092],
+  earth: [0.008526, 0.005284, 0.00242],
+  air: [0.005919, 0.008179, 0.01055],
 });
 
 export const AETHER_SKY_GLSL = /* glsl */ `// ── aether sky (aetherSky.js) ──
