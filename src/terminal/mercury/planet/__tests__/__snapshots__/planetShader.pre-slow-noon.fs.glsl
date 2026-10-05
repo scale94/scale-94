@@ -267,7 +267,7 @@ float lobe(float cosA, float sinR, float rough) {
 float softShoulder(float x, float k) { return k * (1.0 - exp(-x / k)); }
 
 // Hue-preserving roll-off: the brightest channel rolls off toward AETHER_SHOULDER and the other two scale with it.
-// Per channel, a bright magenta core clipped toward pastel (the streak profile, aetherEdge/aetherCurve, sets the volume).
+// Per channel, a bright magenta core clipped toward pastel (the sky's own structure sets the volume).
 // Only the hottest part of a core takes a little path to white (AETHER_PATH_WHITE at full compression), as overexposed
 // emission does: the core reads luminous and curved, the fringe stays the deep gas hue.
 vec3 aetherShoulder(vec3 x) {
@@ -298,6 +298,7 @@ const int SKY_OCTAVES = 5;
 const float FLUID_SKY_RAD = 10.0530965;
 const float AIR_SKY_RAD = 0.750000000;
 const float AIR_LOWER_DIR = -0.850000000;
+const float AIR_SHEAR_BAND = 0.120000000;
 const float FIRE_SKY_RISE = 1.47500000;
 const float EARTH_SKY_SINK = 0.890057143;
 const float SKY_ROUGH_SHARP = 0.150000000;
@@ -387,12 +388,7 @@ vec3 skyEarth(vec3 R, float nOct, float k) {
 
 // Air: thin fast streamlines along the orbit, the upper layer one way, the lower AIR_LOWER_DIR the other;
 // Rayleigh-weighted.
-vec3 skyAir(vec3 R, float nOct) {
-  float az = atan(R.z, R.x);
-  float s = clamp(R.y * 5.0, -1.0, 1.0);
-  s = s * (1.5 - 0.5 * s * s);
-  float dirS = s >= 0.0 ? s : s * -AIR_LOWER_DIR;
-  float ph = az - AIR_SKY_RAD * uSkyPhase.w * dirS;
+vec3 skyAirLayer(vec3 R, float ph, float s, float nOct) {
   vec3 q = vec3(cos(ph) * 1.2, sin(ph) * 1.2, R.y * 8.0);
   float n = skyFbm(q + vec3(0.0, 0.0, skyFbm(q * 0.5, nOct) * 2.0), nOct);
   float lines = pow(1.0 - abs(n * 2.0 - 1.0), 18.0);
@@ -400,6 +396,17 @@ vec3 skyAir(vec3 R, float nOct) {
   float band = smoothstep(0.95, 0.2, abs(R.y));
   float mu = dot(R, uSunDir);
   return vec3(0.55, 0.76, 0.98) * lines * gust * band * (0.5 + 0.5 * (1.0 + mu * mu)) * 0.6;
+}
+
+vec3 skyAir(vec3 R, float nOct) {
+  float az = atan(R.z, R.x);
+  float spin = AIR_SKY_RAD * uSkyPhase.w;
+  // Each hemisphere turns rigidly (upper +1, lower AIR_LOWER_DIR); a sheared single field would wind up without bound.
+  float wUp = smoothstep(-AIR_SHEAR_BAND, AIR_SHEAR_BAND, R.y);
+  vec3 c = vec3(0.0);
+  if (wUp > 0.001) c += wUp * skyAirLayer(R, az - spin, 1.0, nOct);
+  if (wUp < 0.999) c += (1.0 - wUp) * skyAirLayer(R, az - spin * AIR_LOWER_DIR, -1.0, nOct);
+  return c;
 }
 
 // The active element's sky (two during a switch), in a mirror of roughness rough.

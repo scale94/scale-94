@@ -33,7 +33,7 @@ export const EMIT_RADIUS = 0.15;              // scene units — each element re
 export const EMIT_MIN_SIN = 0.05;             // only keeps the lobe resolvable; was 0.6 (≥ 37°): a warm reflector-card wash
 export const EMIT_HORIZON_SOFT = 0.1;         // an element below the local horizon is not reflected
 export const SUN_SHOULDER = 3;                // linear; the Sun term rolls off softly instead of clipping
-// The aether (spec amendment 2026-10-01): soft lobes wrapping the planet on every side.
+// The aether (spec amendment 2026-10-01): the moving element sky wrapping the planet on every side (aetherSky.js, 2026-10-05).
 export const AETHER_NIGHT = 0.2;              // aether strength left on the night hemisphere
 export const AETHER_DAY_LO = -0.15;           // dot(normal, Sun) where the night attenuation is full…
 export const AETHER_DAY_HI = 0.25;            // …and where full day strength is reached
@@ -41,7 +41,7 @@ export const ROUGH_SOLID = 0.55;             // frozen Hg mirror roughness: poly
 export const SOLID_HG_SPECULAR = 0.5;         // frozen Hg reflects at this share of the liquid's Fresnel (grain boundaries scatter the rest)
 export const NIGHT_TINT = [0.45, 0.58, 1.0];  // cold cast on the night side's aether: warm gas sinks to indigo / deep violet / dark cyan
 export const AETHER_SHOULDER = 1;              // knee of the hue-preserving roll-off (Fresnel ≤ 1, so the display never clips a channel)
-export const AETHER_PATH_WHITE = 0.3;          // how far the hottest streak core pales toward white (0: pure hue; the old softbox core was ~1)
+export const AETHER_PATH_WHITE = 0.3;          // how far the hottest sky structure pales toward white (0: pure hue; the old softbox core was ~1)
 export const FRONT_EDGE = 0.12;               // transmutation front noise amplitude (in front units)
 export const FRONT_SOFT = 0.03;               // front edge softness; must stay < FRONT_EDGE / 2
 export const FRONT_NOISE_FREQ = 6;

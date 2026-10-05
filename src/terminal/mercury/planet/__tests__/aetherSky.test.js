@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { glf, v3 } from '../../../gl/glf';
 import {
-  AETHER_SKY_GLSL, SKY_OCTAVES, SKY_ROUGH_SHARP, SKY_ROUGH_FLAT, SKY_W_MIN, SKY_PING_EXP, SKY_PING_GAIN, SKY_MEAN,
+  AETHER_SKY_GLSL, SKY_OCTAVES, SKY_ROUGH_SHARP, SKY_ROUGH_FLAT, SKY_W_MIN, SKY_PING_EXP, SKY_PING_GAIN, SKY_MEAN, AIR_SHEAR_BAND,
 } from '../aetherSky';
 import { FLUID_SKY_RAD, AIR_SKY_RAD, AIR_LOWER_DIR, FIRE_SKY_RISE, EARTH_SKY_SINK } from '../aetherClock';
 import { ROUGH_LIQUID, ROUGH_SOLID } from '../planetLook';
@@ -10,7 +10,7 @@ import { ROUGH_LIQUID, ROUGH_SOLID } from '../planetLook';
 describe('aetherSky', () => {
   it('interpolates every constant from its owner', () => {
     for (const [n, v] of Object.entries({ FLUID_SKY_RAD, AIR_SKY_RAD, AIR_LOWER_DIR, FIRE_SKY_RISE, EARTH_SKY_SINK,
-      SKY_ROUGH_SHARP, SKY_ROUGH_FLAT, SKY_W_MIN, SKY_PING_EXP, SKY_PING_GAIN })) {
+      SKY_ROUGH_SHARP, SKY_ROUGH_FLAT, SKY_W_MIN, SKY_PING_EXP, SKY_PING_GAIN, AIR_SHEAR_BAND })) {
       expect(AETHER_SKY_GLSL).toContain(`const float ${n} = ${glf(v)};`);
     }
     expect(AETHER_SKY_GLSL).toContain(`const int SKY_OCTAVES = ${SKY_OCTAVES};`);
@@ -29,7 +29,9 @@ describe('aetherSky', () => {
     expect(AETHER_SKY_GLSL).toContain('skyRotZ(R, -FLUID_SKY_RAD * uSkyPhase.x)');
     expect(AETHER_SKY_GLSL).toContain('(R.y - FIRE_SKY_RISE * uSkyPhase.y)');
     expect(AETHER_SKY_GLSL).toContain('R + vec3(0.0, EARTH_SKY_SINK * uSkyPhase.z, 0.0)');
-    expect(AETHER_SKY_GLSL).toContain('az - AIR_SKY_RAD * uSkyPhase.w * dirS');
+    expect(AETHER_SKY_GLSL).toContain('skyAirLayer(R, az - spin, 1.0, nOct)');
+    expect(AETHER_SKY_GLSL).toContain('skyAirLayer(R, az - spin * AIR_LOWER_DIR, -1.0, nOct)');
+    expect(AETHER_SKY_GLSL).toContain('float spin = AIR_SKY_RAD * uSkyPhase.w;');
   });
 
   it('the knot centre turns +2·2π per knot phase about +Z, so the water sky rotates by minus it', () => {
@@ -42,7 +44,14 @@ describe('aetherSky', () => {
   });
 
   it('the air contra-rotation: upper layer +1, lower layer AIR_LOWER_DIR', () => {
-    expect(AETHER_SKY_GLSL).toContain('float dirS = s >= 0.0 ? s : s * -AIR_LOWER_DIR;');
+    expect(AETHER_SKY_GLSL).toContain('skyAirLayer(R, az - spin, 1.0, nOct)');
+    expect(AETHER_SKY_GLSL).toContain('skyAirLayer(R, az - spin * AIR_LOWER_DIR, -1.0, nOct)');
+    expect(AETHER_SKY_GLSL).toContain('smoothstep(-AIR_SHEAR_BAND, AIR_SHEAR_BAND, R.y)');
+    expect(AETHER_SKY_GLSL).not.toContain('dirS');
+  });
+
+  it('the old sheared single field is gone for good (it wound up into equatorial bands)', () => {
+    expect(AETHER_SKY_GLSL).not.toMatch(/uSkyPhase\.w \* dirS/);
   });
 
   it('only the weighted elements are evaluated; at or above SKY_ROUGH_FLAT the sky is its mean (no noise)', () => {

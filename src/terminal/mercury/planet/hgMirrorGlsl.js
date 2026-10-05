@@ -77,7 +77,7 @@ float lobe(float cosA, float sinR, float rough) {
 float softShoulder(float x, float k) { return k * (1.0 - exp(-x / k)); }
 
 // Hue-preserving roll-off: the brightest channel rolls off toward AETHER_SHOULDER and the other two scale with it.
-// Per channel, a bright magenta core clipped toward pastel (the streak profile, aetherEdge/aetherCurve, sets the volume).
+// Per channel, a bright magenta core clipped toward pastel (the sky's own structure sets the volume).
 // Only the hottest part of a core takes a little path to white (AETHER_PATH_WHITE at full compression), as overexposed
 // emission does: the core reads luminous and curved, the fringe stays the deep gas hue.
 vec3 aetherShoulder(vec3 x) {
