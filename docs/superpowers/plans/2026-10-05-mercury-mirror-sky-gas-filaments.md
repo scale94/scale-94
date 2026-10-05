@@ -16,7 +16,8 @@ the element gas velocity-aligned filaments. Tie both to one shared clock, so the
 chunk translation), vitest (source-string tests with the `?raw` idiom), CDP live probes
 (`.superpowers/sdd/tools/`, dev server on :5175).
 
-**Spec:** `docs/superpowers/specs/2026-10-05-mercury-mirror-sky-gas-filaments-design.md` (read it first).
+**Spec:** `docs/superpowers/specs/2026-10-05-mercury-mirror-sky-gas-filaments-design.md` (read it first; §3 was
+amended for Option A after Task 7, so the gas tasks are 7b, 8 and 9).
 
 ## Global Constraints
 
@@ -54,7 +55,7 @@ chunk translation), vitest (source-string tests with the `?raw` idiom), CDP live
 |---|---|---|
 | `src/terminal/mercury/planet/aetherClock.js` | new | shared clock, rate constants, sky weights (pure) |
 | `src/terminal/mercury/planet/aetherSky.js` | new | the four element skies + LOD combiner (GLSL string + constants) |
-| `src/terminal/mercury/planet/gasStreak.js` | new | capsule sprite VS/FS chunks + lane mask (GLSL strings + constants) |
+| `src/terminal/mercury/planet/gasStreak.js` | new | two-role gas chunk (fog passthrough + filament capsules), lane mask, `gasRoles`/`gasFogCount` (Task 7b) |
 | `src/terminal/mercury/planet/prng.js` | new | `mulberry32`, moved out of the deleted `aetherLobes.js` |
 | `src/terminal/mercury/planet/aetherLobes.js` | **deleted** | (16 lobes) |
 | `src/terminal/mercury/planet/hgMirrorGlsl.js` | modify | uniforms/decls; `aetherMirror` reads `aetherSky` |
@@ -63,11 +64,11 @@ chunk translation), vitest (source-string tests with the `?raw` idiom), CDP live
 | `src/terminal/mercury/planet/planetQuality.js` | modify | `gasDensity` per tier |
 | `src/terminal/mercury/planet/hgBeads.js` | modify | import `mulberry32` from `prng.js` |
 | `src/terminal/mercury/MercuryPlanet.jsx` | modify | sky uniforms from the clock + weights; lobe code removed |
-| `src/terminal/mercury/MercuryCanvas.jsx` | modify | owns the clock; passes it on; tier density |
-| `src/terminal/fluid/ParticleFlow.jsx` | modify | clocked phase; `knotPos` core; capsule + lane |
-| `src/terminal/air/AtmosphericFlow.jsx` | modify | clocked phase; `orbitPos` core; capsule + lane |
-| `src/terminal/thermal/ThermalFlow.jsx` | modify | clocked phase; `flamePos` core; embers-only stretch; lane |
-| `src/terminal/earth/SedimentFlow.jsx` | modify | clocked phase; `sedimentPos` core; capsule + lane |
+| `src/terminal/mercury/MercuryCanvas.jsx` | modify | owns the clock; passes it on; tier density + base-tied fog count (Task 7b) |
+| `src/terminal/fluid/ParticleFlow.jsx` | modify | clocked phase; `knotPos` core; fog + filament roles (`aRole`) |
+| `src/terminal/air/AtmosphericFlow.jsx` | modify | clocked phase; `orbitPos` core; fog + filament roles (`aRole`) |
+| `src/terminal/thermal/ThermalFlow.jsx` | modify | clocked phase; `flamePos` core; flame-body fog + round embers (`aEmber` = role), no lane |
+| `src/terminal/earth/SedimentFlow.jsx` | modify | clocked phase; `sedimentPos` core; dust fog + settling streaks (`aRole`) |
 
 ---
 
@@ -1548,51 +1549,761 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - [ ] **Step 7 (controller):** Live compile (`errors()` → `[]`) with fluid and air active. Take shots and look at
   them: streaks visible along the knot and the orbit, threads in the fluid tube.
 
+> **Done 39cd6d94: compile OK, LOOK FAIL.**
+> - The plan's premise of several-px sprites was wrong: the real sprites are ~100–260 px.
+> - This recipe rendered opaque blobs (fluid) and white pills (air).
+> - The author ruled Option A (spec §3, amended in session 2). **Task 7b** rebuilds the chunk and retrofits fluid
+>   and air.
+> - Tasks 8 and 9 below are rewritten for Option A.
+
 ---
 
-### Task 8: Filaments in fire and earth; the tier density multiplier
+### Task 7b: Option A, two gas roles in one draw (shared chunk, fluid + air retrofit, tier density)
+
+**Why.** Task 7's look failed. Its recipe assumed several-px sprites, but the real ones are ~100–260 px, so it
+rendered opaque blobs and white pills. The author ruled **Option A** (spec §3b–3g, amended 2026-10-05 session 2):
+
+- **Fog role** (`aRole` 0): the old sprite, a little dimmer.
+- **Filament role** (`aRole` 1): thin, lane-masked micro-streaks. The width is decoupled from the length, the
+  length runs up to ~8× the width, and a per-particle jitter of ±30 % varies it.
+- **Counts:** the fog count is tied to the base count, and the density multiplier feeds the filaments.
+
+This task rebuilds the shared chunk, retrofits the two flows already built (fluid, air) and wires the tier
+density. Fire and earth follow in Task 8.
 
 **Files:**
-- Modify: `src/terminal/thermal/ThermalFlow.jsx`, `src/terminal/earth/SedimentFlow.jsx`,
-  `src/terminal/mercury/MercuryCanvas.jsx`
-- Modify: `src/terminal/mercury/planet/__tests__/flowStreak.test.js`
+- Modify: `src/terminal/mercury/planet/gasStreak.js` (role-aware chunk, role split and counts)
+- Modify: `src/terminal/mercury/planet/__tests__/gasStreak.test.js` (full rewrite below)
+- Modify: `src/terminal/mercury/planet/planetLook.js` (`PLANET_TUNE` gas knobs)
+- Modify: `src/terminal/fluid/ParticleFlow.jsx`, `src/terminal/air/AtmosphericFlow.jsx`
+- Modify: `src/terminal/mercury/MercuryCanvas.jsx` (tier multiplier + fog count for all four flows)
+- Modify: `src/terminal/mercury/planet/__tests__/flowStreak.test.js` (full rewrite below)
+- Controller only, never staged: `.superpowers/sdd/tools/ms-look.mjs`
 
 **Interfaces:**
-- Consumes: Task 6 chunk and Task 7 pattern; `TIERS[TIER].gasDensity` from Task 1.
+- Produces in `gasStreak.js`:
+  - **JS constants:** `STREAK_DT`, `FIL_ASPECT` (8), `FIL_JITTER` (0.3), `FIRE_EMBER_STRETCH` (1.5),
+    `FIRE_EMBER_GAIN` (20), `GAS_PX_FLOOR` (1.5), `GAS_Z_REF` (4.43), `MASK_EVOLVE`, `FOG_SHARE` (0.25),
+    `GAS_DENSITY_REF` (3). `STRETCH_MAX` is **removed**.
+  - **Pure functions:** `gasFogCount(base, total)` and `gasRoles(count, nFog)` → `Float32Array` (0 fog / 1 filament).
+  - **`GAS_STREAK_VS`**. It needs `uViewportPx` and `snoise(vec3)` declared before it. It declares the uniforms
+    `uPhaseRate`, `uStreakGain`, `uFilWidth`, `uFilAlpha`, `uFogAlpha`, `uMaskFreq`, `uMaskSharp` and
+    `uMaskDepth`, and the varyings `vStreakDir`, `vStreakCap` and `vLane`. It defines:
+    - `gasHash(a, b)`;
+    - `gasFilWidth(depth, s01, bite)`;
+    - `gasSprite(clipNow, clipPrev, role, size, aspectMax, jit)`, which returns `gl_PointSize`;
+    - `gasLane(laneCoord, t)`;
+    - `gasAlpha(role, laneCoord, t)`;
+    - `gasRoleAlpha(role)`.
+  - **`GAS_STREAK_FS`:** unchanged.
+  - **`GAS_TUNE_UNIFORMS` / `writeGasTune`** over the knobs `streakGain`, `filWidth`, `filAlpha`, `fogAlpha`,
+    `maskFreq`, `maskSharp` and `maskDepth`.
+- Produces in the flows:
+  - a `fogCount` prop (default `round(count · FOG_SHARE)` for standalone use);
+  - an `aRole` attribute;
+  - the pattern Task 8 repeats: `fogSize` (old formula) / `filW` → `size` → `gasSprite` → `vLane = gasAlpha(...)`.
+- Produces in `MercuryCanvas`: `densityFor` (base × `TIERS[TIER].gasDensity` when active) and `fogFor`.
 
-- [ ] **Step 1: Extend the test (it will fail)**
+**Pixel targets** (spec §3g; drawing-buffer px; probe window 1600 × 1000; fitted camera z 4.43; FOV 42° → ~294 px per
+world unit at the centre):
+- **Fog:** unchanged (fluid 102–237 px, air mean ~113 px).
+- **Filament core:** `filWidth` 2.2 px at z 4.43, ±25 % → 1.5–3.3 px after the 1.5 px floor.
+- **Length:** `streakGain` 0.03 s. Fluid mean ~355 px/s → +10.7 px → ~6× the width. Air mean ~145 px/s → ~3×.
+  Ionosphere → the cap, 8× ± 30 %.
+- **Fog alpha:** `fogAlpha` 0.9 → the fog body ≈ 0.75 × 0.9 ≈ 0.68 of the old one where alpha is low.
+- **Filament alpha:** `filAlpha` 1 = the element's own per-particle alpha.
+- **Mask:** `maskDepth` 0.7, now on filaments only.
 
-In `flowStreak.test.js`, add the imports
-`import thermalSrc from '../../../thermal/ThermalFlow.jsx?raw';`,
-`import sedimentSrc from '../../../earth/SedimentFlow.jsx?raw';` and
-`import canvasSrc from '../../MercuryCanvas.jsx?raw';`. Add to `STREAKED`:
+- [ ] **Step 1: Rewrite the chunk test (it will fail)**
+
+`src/terminal/mercury/planet/__tests__/gasStreak.test.js` (replace the whole file):
 ```js
-  thermal: { src: thermalSrc, core: 'vec3 flamePos(float ph, out float age) {', stretch: 'emberStretch' },
-  earth: { src: sedimentSrc, core: 'vec3 sedimentPos(float ph, out float age, out float sinkOffset) {', stretch: 'sedStretch' },
-```
-Fire's FS clamps `gl_PointCoord` first, so its `d` line differs. Relax the shared assertion to
-`expect(src).toMatch(/float d\s*= gasStreakDist\((gl_PointCoord|pc)\);/);`. Then add:
-```js
-  it('fire: round flame body, embers stretch ≤ 1.5; a respawn never draws a streak', () => {
-    expect(thermalSrc).toContain('float emberStretch = agePrev > age ? 1.0 : mix(1.0, FIRE_EMBER_STRETCH, aEmber);');
+// Gas filaments (mirror-sky spec §3, Option A): two roles in one draw — fog (the old sprite, passed through)
+// and filament capsules (width decoupled from length, jittered). JS replicas mirror the GLSL lines pinned below.
+import { describe, it, expect } from 'vitest';
+import { glf } from '../../../gl/glf';
+import {
+  GAS_STREAK_VS, GAS_STREAK_FS, STREAK_DT, FIL_ASPECT, FIL_JITTER, FIRE_EMBER_STRETCH, FIRE_EMBER_GAIN, GAS_PX_FLOOR,
+  GAS_Z_REF, MASK_EVOLVE, FOG_SHARE, GAS_DENSITY_REF, gasFogCount, gasRoles, GAS_TUNE_UNIFORMS, writeGasTune,
+} from '../gasStreak';
+import { PLANET_TUNE } from '../planetLook';
+import { TIERS } from '../planetQuality';
+
+// Replica of gasSprite(): role 0 passes the size through; role 1 = floored width + jittered, capped length.
+const sprite = (role, size, sp, aspect = FIL_ASPECT, jit = 0.5, gain = PLANET_TUNE.streakGain) => {
+  if (role < 0.5) return { total: size, w: size };
+  const w = Math.max(size, GAS_PX_FLOOR);
+  const L = Math.min(sp * gain, Math.max(aspect - 1, 0) * w) * (1 + FIL_JITTER * (2 * jit - 1));
+  return { total: w + L, w };
+};
+// Replica of gasFilWidth() (the floor is applied in gasSprite).
+const filWidth = (depth, s, bite = 1) => PLANET_TUNE.filWidth * (GAS_Z_REF / Math.max(depth, 0.5)) * (0.75 + 0.5 * s) * bite;
+
+describe('gasStreak constants', () => {
+  it('filament cap ~8x ±30 %, fire embers ≤ 1.5x, no sub-pixel filaments; the old 3x cap is gone', () => {
+    expect(FIL_ASPECT).toBe(8);
+    expect(FIL_JITTER).toBe(0.3);
+    expect(FIRE_EMBER_STRETCH).toBe(1.5);
+    expect(FIRE_EMBER_GAIN).toBe(20);
+    expect(GAS_PX_FLOOR).toBe(1.5);
+    expect(GAS_Z_REF).toBe(4.43);
+    for (const [n, v] of Object.entries({ STREAK_DT, FIL_ASPECT, FIL_JITTER, FIRE_EMBER_STRETCH, FIRE_EMBER_GAIN, GAS_PX_FLOOR, GAS_Z_REF, MASK_EVOLVE })) {
+      expect(GAS_STREAK_VS).toContain(`const float ${n} = ${glf(v)};`);
+    }
+    expect(GAS_STREAK_VS).not.toContain('STRETCH_MAX');
+    for (const u of ['uPhaseRate', 'uStreakGain', 'uFilWidth', 'uFilAlpha', 'uFogAlpha', 'uMaskFreq', 'uMaskSharp', 'uMaskDepth']) {
+      expect(GAS_STREAK_VS).toContain(`uniform float ${u};`);
+    }
+    expect(GAS_STREAK_VS).not.toMatch(/uGasSize|uGasAlpha/);
   });
-  it('earth: no streak across a sink or life respawn', () => {
-    expect(sedimentSrc).toContain('float sedStretch = (agePrev > age || sinkPrev > sinkOffset) ? 1.0 : STRETCH_MAX;');
+});
+
+describe('gas roles (spec §3b, §3e)', () => {
+  it('the fog count follows the base, not the multiplier: 25 % at the full tier, 0.75 x base everywhere', () => {
+    expect(FOG_SHARE).toBe(0.25);
+    expect(GAS_DENSITY_REF).toBe(TIERS.full.gasDensity);
+    expect(gasFogCount(1200, 3600)).toBe(900);  // full, active
+    expect(gasFogCount(600, 1800)).toBe(450);   // phone x3
+    expect(gasFogCount(600, 1200)).toBe(450);   // phone x2
+    expect(gasFogCount(1200, 1200)).toBe(900);  // lite x1
+    expect(gasFogCount(300, 300)).toBe(225);    // ghost
+    expect(gasFogCount(1000, 500)).toBe(500);   // never more fog than particles
   });
-  it('the active flow takes the tier density multiplier; ghosts unchanged', () => {
-    expect(canvasSrc).toContain('Math.round((params.density ?? (isMobile ? 600 : 1200)) * TIERS[TIER].gasDensity)');
-    expect(canvasSrc).toContain(': GHOST_DENSITY;');
+
+  it('gasRoles: exact fog count, deterministic, evenly spread, 0/1 floats', () => {
+    const r = gasRoles(3600, 900);
+    expect(r).toBeInstanceOf(Float32Array);
+    expect(r.length).toBe(3600);
+    expect(r.filter((x) => x === 0).length).toBe(900);
+    expect(r.every((x) => x === 0 || x === 1)).toBe(true);
+    expect(gasRoles(3600, 900)).toEqual(r);
+    for (let i = 0; i + 40 <= 3600; i += 40) {
+      const fog = r.subarray(i, i + 40).filter((x) => x === 0).length;
+      expect(Math.abs(fog - 10)).toBeLessThanOrEqual(1);
+    }
+    expect(gasRoles(10, 0).every((x) => x === 1)).toBe(true);
+    expect(gasRoles(10, 10).every((x) => x === 0)).toBe(true);
+    expect(gasRoles(0, 0).length).toBe(0);
   });
+});
+
+describe('gasSprite (spec §3c)', () => {
+  it('fog passes the old size straight through: round, no floor, no stretch', () => {
+    expect(GAS_STREAK_VS).toContain('float gasSprite(vec4 clipNow, vec4 clipPrev, float role, float size, float aspectMax, float jit) {');
+    expect(GAS_STREAK_VS).toMatch(/if \(role < 0\.5\) \{\s*vStreakDir = vec2\(1\.0, 0\.0\);\s*vStreakCap = vec2\(0\.0, 0\.5\);\s*return size;\s*\}/);
+    expect(sprite(0, 0.4, 999).total).toBe(0.4);
+    expect(sprite(0, 237, 999).total).toBe(237);
+  });
+
+  it('filament: floored width; length = speed x shutter, capped at (aspect - 1) x width, jitter on both', () => {
+    expect(GAS_STREAK_VS).toContain('float w = max(size, GAS_PX_FLOOR);');
+    expect(GAS_STREAK_VS).toContain('v = (clipNow.xy / clipNow.w - clipPrev.xy / clipPrev.w) * 0.5 * uViewportPx / STREAK_DT;');
+    expect(GAS_STREAK_VS).toContain('float L = min(sp * uStreakGain, max(aspectMax - 1.0, 0.0) * w) * (1.0 + FIL_JITTER * (2.0 * jit - 1.0));');
+    expect(GAS_STREAK_VS).toContain('vStreakDir = sp > 1e-3 ? vec2(v.x, -v.y) / sp : vec2(1.0, 0.0);'); // point coords: y down
+    expect(GAS_STREAK_VS).toContain('vStreakCap = vec2(0.5 * L / total, 0.5 * w / total);');
+    expect(sprite(1, 0.5, 0).total).toBe(GAS_PX_FLOOR);                 // calm or sub-pixel → a 1.5 px round dot
+    const f = sprite(1, 2.2, 355);                                      // spec §3g: fluid mean speed, 2.2 px core
+    expect(f.total / f.w).toBeGreaterThan(5);
+    expect(f.total / f.w).toBeLessThan(7);
+    expect(sprite(1, 2.2, 5000).total / 2.2).toBeCloseTo(FIL_ASPECT, 9);           // capped, jitter 0.5
+    expect(sprite(1, 2.2, 5000, FIL_ASPECT, 0).total / 2.2).toBeCloseTo(1 + 7 * 0.7, 9);
+    expect(sprite(1, 2.2, 5000, FIL_ASPECT, 1).total / 2.2).toBeCloseTo(1 + 7 * 1.3, 9);
+    expect(sprite(1, 2.2, 5000, FIRE_EMBER_STRETCH, 0.5).total / 2.2).toBeCloseTo(1.5, 9); // embers pass jit 0.5
+  });
+
+  it('filament width: the knob is px at GAS_Z_REF, ±25 % by a size label, perspective, condensation bite', () => {
+    expect(GAS_STREAK_VS).toContain('float gasFilWidth(float depth, float s01, float bite) {');
+    expect(GAS_STREAK_VS).toContain('return uFilWidth * (GAS_Z_REF / max(depth, 0.5)) * mix(0.75, 1.25, s01) * bite;');
+    expect(filWidth(GAS_Z_REF, 0.5)).toBeCloseTo(PLANET_TUNE.filWidth, 12);
+    // spec §3g: fluid depths 3.7..5.2 → a 1.5..3.3 px core after the floor
+    expect(Math.max(filWidth(5.2, 0), GAS_PX_FLOOR)).toBe(GAS_PX_FLOOR);
+    expect(filWidth(3.7, 1)).toBeLessThan(3.4);
+  });
+
+  it('per-particle jitter hash', () => {
+    expect(GAS_STREAK_VS).toContain('float gasHash(float a, float b) {');
+    expect(GAS_STREAK_VS).toContain('return fract(sin(a * 91.7 + b * 47.3) * 43758.5453);');
+  });
+});
+
+describe('lane mask + role alpha (spec §3d)', () => {
+  it('ridged noise in the flow labels, evolving; only filaments are carved', () => {
+    expect(GAS_STREAK_VS).toContain('float gasLane(vec3 laneCoord, float t) {');
+    expect(GAS_STREAK_VS).toContain('snoise(laneCoord * uMaskFreq + vec3(0.0, 0.0, t * MASK_EVOLVE))');
+    expect(GAS_STREAK_VS).toContain('return mix(1.0, pow(max(1.0 - abs(n), 0.0), uMaskSharp), uMaskDepth);');
+    expect(GAS_STREAK_VS).toMatch(/float gasAlpha\(float role, vec3 laneCoord, float t\) \{\s*if \(role < 0\.5\) return uFogAlpha;\s*return gasLane\(laneCoord, t\) \* uFilAlpha;\s*\}/);
+    expect(GAS_STREAK_VS).toMatch(/float gasRoleAlpha\(float role\) \{\s*return role < 0\.5 \? uFogAlpha : uFilAlpha;\s*\}/);
+  });
+});
+
+describe('FS + varyings', () => {
+  it('capsule distance equals the old round radius when the streak is 0', () => {
+    expect(GAS_STREAK_FS).toContain('float gasStreakDist(vec2 pc) {');
+    expect(GAS_STREAK_FS).toContain('float a = clamp(dot(q, vStreakDir), -vStreakCap.x, vStreakCap.x);');
+    expect(GAS_STREAK_FS).toContain('return length(q - vStreakDir * a) / vStreakCap.y;');
+    const dist = (pc, dir, cap) => {
+      const q = [pc[0] - 0.5, pc[1] - 0.5];
+      const a = Math.min(Math.max(q[0] * dir[0] + q[1] * dir[1], -cap[0]), cap[0]);
+      return Math.hypot(q[0] - dir[0] * a, q[1] - dir[1] * a) / cap[1];
+    };
+    expect(dist([0.8, 0.3], [1, 0], [0, 0.5])).toBeCloseTo(2 * Math.hypot(0.3, 0.2), 12); // the fog role
+    // an 8x capsule along a diagonal: its end cap touches the rim on the axis, inside the sprite square
+    const w = 1, L = 7, total = w + L, d = [Math.SQRT1_2, Math.SQRT1_2];
+    const end = 0.5 * total / total; // centre → tip along the axis = (L/2 + w/2) / total = 0.5
+    expect(dist([0.5 + d[0] * end, 0.5 + d[1] * end], d, [0.5 * L / total, 0.5 * w / total])).toBeCloseTo(1, 12);
+  });
+
+  it('every varying is declared on both sides', () => {
+    for (const v of ['varying vec2 vStreakDir;', 'varying vec2 vStreakCap;', 'varying float vLane;']) {
+      expect(GAS_STREAK_VS).toContain(v);
+      expect(GAS_STREAK_FS).toContain(v);
+    }
+  });
+});
+
+describe('tune knobs (spec §3g)', () => {
+  it('defaults are derived from the px targets; the old gasSize/gasAlpha are gone', () => {
+    expect(PLANET_TUNE).toMatchObject({ filWidth: 2.2, streakGain: 0.03, filAlpha: 1, fogAlpha: 0.9, maskFreq: 2.5, maskSharp: 3, maskDepth: 0.7 });
+    expect(PLANET_TUNE.fogAlpha).toBeLessThan(1);
+    expect('gasSize' in PLANET_TUNE).toBe(false);
+    expect('gasAlpha' in PLANET_TUNE).toBe(false);
+  });
+
+  it('copied per frame without allocation', () => {
+    const u = GAS_TUNE_UNIFORMS(PLANET_TUNE);
+    expect(Object.keys(u).sort()).toEqual(['uFilAlpha', 'uFilWidth', 'uFogAlpha', 'uMaskDepth', 'uMaskFreq', 'uMaskSharp', 'uStreakGain']);
+    expect(u.uFilWidth.value).toBe(PLANET_TUNE.filWidth);
+    const objs = Object.values(u);
+    writeGasTune(u, { ...PLANET_TUNE, fogAlpha: 0.5 });
+    expect(u.uFogAlpha.value).toBe(0.5);
+    expect(Object.values(u)).toEqual(objs);
+  });
+});
 ```
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `npx vitest run src/terminal/mercury/planet/__tests__/flowStreak.test.js` → FAIL (thermal/earth/canvas).
+Run: `npx vitest run src/terminal/mercury/planet/__tests__/gasStreak.test.js` → FAIL (missing exports).
 
-- [ ] **Step 3: Implement ThermalFlow.jsx**
+- [ ] **Step 3: Implement `gasStreak.js`** (replace the whole file)
 
-- Import the chunk as in Task 7. Insert `${GAS_STREAK_VS}` right before `void main(){`.
-- Replace the VS `main` from its first line through the `pos = vec3(...)` construction with:
+```js
+// src/terminal/mercury/planet/gasStreak.js — gas filaments for the element flows (mirror-sky spec §3, Option A).
+//
+// Two particle roles in ONE draw per flow (author, 2026-10-05). aRole 0 = fog: the flow's old round sprite,
+// passed through untouched (size, shape), unmasked, alpha × uFogAlpha. It keeps the nebula's body and colour
+// blending. aRole 1 = filament: a thin capsule whose WIDTH is uFilWidth px at GAS_Z_REF (perspective, ±25 % by a
+// size label, floored at GAS_PX_FLOOR). Its LENGTH beyond the round core is the on-screen speed × uStreakGain (a
+// shutter), capped at (aspectMax − 1) × width, both scaled by a ±FIL_JITTER per-particle jitter so dashes never
+// read uniform. The alpha is lane-masked × uFilAlpha. Each flow samples its big analytic motion twice (phase now,
+// and STREAK_DT of clock time earlier); calm zeroes uPhaseRate, so filaments go round. gasLane() is a ridged
+// simplex in the flow's own cross-stream labels: lanes of particles travelling with the current, slowly evolving.
+// Counts (spec §3e): the fog count is tied to the BASE density (gasFogCount), so the tier multiplier feeds the
+// filaments. gasRoles() spreads the fog slots evenly (exact count, deterministic).
+// Needs uViewportPx (PLANET_WINDOW_VS) and the flow's snoise(vec3) declared before GAS_STREAK_VS.
+
+import { glf } from '../../gl/glf';
+
+export const STREAK_DT = 1 / 30;
+export const FIL_ASPECT = 8;          // filament length cap (× width), author 2026-10-05 (was 3)
+export const FIL_JITTER = 0.3;        // ± per-particle length jitter (cap included)
+export const FIRE_EMBER_STRETCH = 1.5;
+export const FIRE_EMBER_GAIN = 20;    // fire embers: the old 0.006–0.018 alpha was sized for big overlapping discs
+export const GAS_PX_FLOOR = 1.5;      // filaments never go sub-pixel (fog keeps its old size, unfloored)
+export const GAS_Z_REF = 4.43;        // fitted desktop camera distance (look probe 1600×1000): uFilWidth is px here
+export const MASK_EVOLVE = 0.03;
+export const FOG_SHARE = 0.25;        // fog share of the particles at GAS_DENSITY_REF
+export const GAS_DENSITY_REF = 3;     // = TIERS.full.gasDensity
+
+// Fog particles for a flow whose density is `base` before the tier multiplier and `total` after it.
+export function gasFogCount(base, total) {
+  return Math.min(total, Math.round(base * FOG_SHARE * GAS_DENSITY_REF));
+}
+
+// Per-particle role (0 fog / 1 filament): exactly nFog fog slots, evenly spread (Bresenham), deterministic.
+export function gasRoles(count, nFog) {
+  const roles = new Float32Array(count);
+  for (let i = 0; i < count; i++) roles[i] = Math.floor(((i + 1) * nFog) / count) > Math.floor((i * nFog) / count) ? 0 : 1;
+  return roles;
+}
+
+export const GAS_STREAK_VS = /* glsl */ `
+uniform float uPhaseRate;
+uniform float uStreakGain;
+uniform float uFilWidth;
+uniform float uFilAlpha;
+uniform float uFogAlpha;
+uniform float uMaskFreq;
+uniform float uMaskSharp;
+uniform float uMaskDepth;
+varying vec2 vStreakDir;
+varying vec2 vStreakCap;
+varying float vLane;
+const float STREAK_DT = ${glf(STREAK_DT)};
+const float FIL_ASPECT = ${glf(FIL_ASPECT)};
+const float FIL_JITTER = ${glf(FIL_JITTER)};
+const float FIRE_EMBER_STRETCH = ${glf(FIRE_EMBER_STRETCH)};
+const float FIRE_EMBER_GAIN = ${glf(FIRE_EMBER_GAIN)};
+const float GAS_PX_FLOOR = ${glf(GAS_PX_FLOOR)};
+const float GAS_Z_REF = ${glf(GAS_Z_REF)};
+const float MASK_EVOLVE = ${glf(MASK_EVOLVE)};
+
+float gasHash(float a, float b) {
+  return fract(sin(a * 91.7 + b * 47.3) * 43758.5453);
+}
+
+float gasFilWidth(float depth, float s01, float bite) {
+  return uFilWidth * (GAS_Z_REF / max(depth, 0.5)) * mix(0.75, 1.25, s01) * bite;
+}
+
+float gasSprite(vec4 clipNow, vec4 clipPrev, float role, float size, float aspectMax, float jit) {
+  if (role < 0.5) {
+    vStreakDir = vec2(1.0, 0.0);
+    vStreakCap = vec2(0.0, 0.5);
+    return size;
+  }
+  float w = max(size, GAS_PX_FLOOR);
+  vec2 v = vec2(0.0);
+  if (clipNow.w > 1e-4 && clipPrev.w > 1e-4) {
+    v = (clipNow.xy / clipNow.w - clipPrev.xy / clipPrev.w) * 0.5 * uViewportPx / STREAK_DT;
+  }
+  float sp = length(v);
+  float L = min(sp * uStreakGain, max(aspectMax - 1.0, 0.0) * w) * (1.0 + FIL_JITTER * (2.0 * jit - 1.0));
+  float total = w + L;
+  vStreakDir = sp > 1e-3 ? vec2(v.x, -v.y) / sp : vec2(1.0, 0.0);
+  vStreakCap = vec2(0.5 * L / total, 0.5 * w / total);
+  return total;
+}
+
+float gasLane(vec3 laneCoord, float t) {
+  float n = snoise(laneCoord * uMaskFreq + vec3(0.0, 0.0, t * MASK_EVOLVE));
+  return mix(1.0, pow(max(1.0 - abs(n), 0.0), uMaskSharp), uMaskDepth);
+}
+
+float gasAlpha(float role, vec3 laneCoord, float t) {
+  if (role < 0.5) return uFogAlpha;
+  return gasLane(laneCoord, t) * uFilAlpha;
+}
+
+float gasRoleAlpha(float role) {
+  return role < 0.5 ? uFogAlpha : uFilAlpha;
+}
+`;
+
+export const GAS_STREAK_FS = /* glsl */ `
+varying vec2 vStreakDir;
+varying vec2 vStreakCap;
+varying float vLane;
+float gasStreakDist(vec2 pc) {
+  vec2 q = pc - 0.5;
+  float a = clamp(dot(q, vStreakDir), -vStreakCap.x, vStreakCap.x);
+  return length(q - vStreakDir * a) / vStreakCap.y;
+}
+`;
+
+const GAS_TUNE = [['uStreakGain', 'streakGain'], ['uFilWidth', 'filWidth'], ['uFilAlpha', 'filAlpha'],
+  ['uFogAlpha', 'fogAlpha'], ['uMaskFreq', 'maskFreq'], ['uMaskSharp', 'maskSharp'], ['uMaskDepth', 'maskDepth']];
+
+export function GAS_TUNE_UNIFORMS(tune) {
+  return Object.fromEntries(GAS_TUNE.map(([u, k]) => [u, { value: tune[k] }]));
+}
+
+export function writeGasTune(uniforms, tune) {
+  for (let i = 0; i < GAS_TUNE.length; i++) uniforms[GAS_TUNE[i][0]].value = tune[GAS_TUNE[i][1]];
+}
+```
+
+- [ ] **Step 4: `planetLook.js` knobs**
+
+In `PLANET_TUNE`, replace the six gas lines (`streakGain` … `maskDepth`, added by Task 6) with:
+```js
+  streakGain: 0.03,  // filament shutter (s): length beyond the core = on-screen speed × this; fluid ~355 px/s → ~6× width (mirror-sky spec §3g)
+  filWidth: 2.2,     // filament core width, drawing-buffer px at GAS_Z_REF (±25 % per particle, floored at GAS_PX_FLOOR)
+  filAlpha: 1,       // filament alpha × this, on the element's own per-particle alpha (fire embers: × FIRE_EMBER_GAIN too)
+  fogAlpha: 0.9,     // fog role (the old sprite) alpha × this: "a little dimmer" (body ≈ 0.75 count × 0.9)
+  maskFreq: 2.5,     // lane mask frequency in the flows' label space
+  maskSharp: 3,      // lane ridge sharpness (higher = thinner filaments)
+  maskDepth: 0.7,    // filaments only: 0 = no mask, 1 = everything off-ridge is carved away
+```
+
+Run: `npx vitest run src/terminal/mercury/planet/__tests__/gasStreak.test.js` → PASS.
+
+- [ ] **Step 5: Rewrite the flow test (it will fail)**
+
+`src/terminal/mercury/planet/__tests__/flowStreak.test.js` (replace the whole file):
+```js
+// Gas filaments in each flow (mirror-sky spec §3, Option A: fog + filament roles in one draw). Read from the sources.
+import { describe, it, expect } from 'vitest';
+import particleSrc from '../../../fluid/ParticleFlow.jsx?raw';
+import atmoSrc from '../../../air/AtmosphericFlow.jsx?raw';
+import canvasSrc from '../../MercuryCanvas.jsx?raw';
+
+const STREAKED = {
+  fluid: {
+    src: particleSrc,
+    core: 'vec3 knotPos(float ph, out vec3 center) {',
+    fogSize: 'float fogSize = (1.5 + aRadius * 2.0) * (300.0 / -mvPosition.z) * (1.0 - uCondense * uCondenseSizeBite);',
+    filW: 'float filW = gasFilWidth(-mvPosition.z, aRadius, 1.0 - uCondense * uCondenseSizeBite);',
+    sprite: 'gl_PointSize = gasSprite(gl_Position, projectionMatrix * mvPrev, aRole, size, FIL_ASPECT, gasHash(aPhase, aRadius));',
+  },
+  air: {
+    src: atmoSrc,
+    core: 'vec3 orbitPos(float ph, out float angle) {',
+    fogSize: 'float fogSize = baseSize * (260.0 / -mvPos.z) * (1.0 - uCondense * uCondenseSizeBite);',
+    filW: 'float filW = gasFilWidth(-mvPos.z, aSize, 1.0 - uCondense * uCondenseSizeBite);',
+    sprite: 'gl_PointSize = gasSprite(gl_Position, projectionMatrix * mvPrev, aRole, size, FIL_ASPECT, gasHash(aPhase, aSeed));',
+  },
+};
+
+describe('gas filaments: two roles in one draw', () => {
+  for (const [el, { src, core, fogSize, filW, sprite }] of Object.entries(STREAKED)) {
+    it(`${el}: core sampled twice; fog = the old sprite, filament = thin capsule; role alpha; live knobs`, () => {
+      expect(src).toContain('${GAS_STREAK_VS}');
+      expect(src).toContain('${GAS_STREAK_FS}');
+      expect(src.indexOf('${GAS_STREAK_VS}')).toBeGreaterThan(src.indexOf('float snoise('));
+      expect(src).toContain(core);
+      expect(src).toContain('uPhase - STREAK_DT * uPhaseRate');
+      expect(src).toContain('prev *= 1.0 - uCondense * uCondense;');
+      expect(src).toContain('attribute float aRole;');
+      expect(src).toContain(fogSize);
+      expect(src).toContain(filW);
+      expect(src).toContain('float size = aRole < 0.5 ? fogSize : filW;');
+      expect(src).toContain(sprite);
+      expect(src).toContain('vLane = gasAlpha(aRole, ');
+      expect(src).toContain('* vLane');
+      expect(src).toMatch(/float d = gasStreakDist\(gl_PointCoord\);/);
+      expect(src).toContain(`mat.uniforms.uPhaseRate.value = clk.rate.${el};`);
+      expect(src).toContain('...GAS_TUNE_UNIFORMS(PLANET_TUNE),');
+      expect(src).toContain('writeGasTune(mat.uniforms, PLANET_TUNE);');
+      expect(src).toContain('uPhaseRate: { value: 0 },');
+      for (const gone of ['uGasSize', 'uGasAlpha', 'STRETCH_MAX', 'gasStreak(']) expect(src).not.toContain(gone);
+    });
+
+    it(`${el}: buffers carry the deterministic role split; the geometry remounts when the split changes`, () => {
+      expect(src).toContain('fogCount = null,');
+      expect(src).toContain('const N_FOG = fogCount ?? Math.round(PARTICLE_COUNT * FOG_SHARE);');
+      expect(src).toContain('useMemo(() => buildBuffers(PARTICLE_COUNT, N_FOG), [PARTICLE_COUNT, N_FOG])');
+      expect(src).toContain('function buildBuffers(count, nFog) {');
+      expect(src).toContain('roles: gasRoles(count, nFog)');
+      expect(src).toContain('<bufferGeometry key={`${PARTICLE_COUNT}:${N_FOG}`}>');
+      expect(src).toContain('<bufferAttribute attach="attributes-aRole" array={buffers.roles} count={PARTICLE_COUNT} itemSize={1} />');
+    });
+  }
+
+  it('canvas: the active flow takes the tier multiplier, the fog count follows the base (spec §3e), ghosts unchanged', () => {
+    expect(canvasSrc).toContain('const gasBase = params.density ?? (isMobile ? 600 : 1200);');
+    expect(canvasSrc).toContain('phase === activePhase ? Math.round(gasBase * TIERS[TIER].gasDensity) : GHOST_DENSITY;');
+    expect(canvasSrc).toContain('const fogFor = (phase) => gasFogCount(phase === activePhase ? gasBase : GHOST_DENSITY, densityFor(phase));');
+    for (const el of ['fluid', 'thermal', 'earth', 'air']) expect(canvasSrc).toContain(`fogCount={fogFor('${el}')}`);
+  });
+});
+```
+
+Run: `npx vitest run src/terminal/mercury/planet/__tests__/flowStreak.test.js` → FAIL.
+
+- [ ] **Step 6: Retrofit `ParticleFlow.jsx`**
+
+- **Import:** extend the gasStreak import to
+  `import { GAS_STREAK_VS, GAS_STREAK_FS, GAS_TUNE_UNIFORMS, writeGasTune, gasRoles, FOG_SHARE } from '../mercury/planet/gasStreak';`.
+- **VS attribute:** after `attribute float aOffset;`, add
+  `attribute float aRole;   // 0 = fog (the old sprite), 1 = filament (mirror-sky spec §3b)`.
+- **VS tail:** replace from `float size = (1.5 + aRadius * 2.0) …` through `aetherLightVS(mvPosition.xyz, size);` with:
+```glsl
+    // Fog = the old sprite, untouched; filament = a thin capsule (mirror-sky spec §3b/§3c).
+    float fogSize = (1.5 + aRadius * 2.0) * (300.0 / -mvPosition.z) * (1.0 - uCondense * uCondenseSizeBite);
+    float filW = gasFilWidth(-mvPosition.z, aRadius, 1.0 - uCondense * uCondenseSizeBite);
+    float size = aRole < 0.5 ? fogSize : filW;
+    gl_Position = projectionMatrix * mvPosition;
+    gl_PointSize = gasSprite(gl_Position, projectionMatrix * mvPrev, aRole, size, FIL_ASPECT, gasHash(aPhase, aRadius));
+    // Fog: × fogAlpha. Filaments: lanes across the tube (its cross-section) and, slowly, along it, × filAlpha.
+    float laneA = aOffset * 6.283185307;
+    vLane = gasAlpha(aRole, vec3(cos(laneA) * aRadius * 3.0, sin(laneA) * aRadius * 3.0, aPhase * 1.5), uTime);
+    planetWindowVS(mvPosition.xyz);
+    aetherLightVS(mvPosition.xyz, size);
+```
+- **FS:** unchanged. It already uses `gasStreakDist` and `* vLane`.
+- **`buildBuffers`:**
+  - change the signature to `function buildBuffers(count, nFog) {`;
+  - change the return to `return { positions, phases, radii, offsets, roles: gasRoles(count, nFog) };`.
+- **Component:**
+  - add the prop `fogCount = null,` after `density = null,`;
+  - after the `PARTICLE_COUNT` line, add
+    `const N_FOG = fogCount ?? Math.round(PARTICLE_COUNT * FOG_SHARE); // MercuryCanvas passes the base-tied count (spec §3e)`;
+  - change the memo to
+    `const buffers = useMemo(() => buildBuffers(PARTICLE_COUNT, N_FOG), [PARTICLE_COUNT, N_FOG]);`;
+  - change the geometry to `<bufferGeometry key={`${PARTICLE_COUNT}:${N_FOG}`}>`;
+  - add, after the `aOffset` attribute line,
+    `<bufferAttribute attach="attributes-aRole" array={buffers.roles} count={PARTICLE_COUNT} itemSize={1} />`.
+
+- [ ] **Step 7: Retrofit `AtmosphericFlow.jsx`**
+
+- **Import:** the same, adding `gasRoles` and `FOG_SHARE`.
+- **VS attribute:** after `attribute float aIon` (keep its comment), add
+  `attribute float aRole;   // 0 = fog (the old sprite), 1 = filament (mirror-sky spec §3b)`.
+- **VS tail:** replace from `float size = baseSize * (260.0 / -mvPos.z) …` through `aetherLightVS(mvPos.xyz, size);` with:
+```glsl
+    // Fog = the old sprite, untouched; filament = a thin capsule (mirror-sky spec §3b/§3c).
+    float fogSize = baseSize * (260.0 / -mvPos.z) * (1.0 - uCondense * uCondenseSizeBite);
+    float filW = gasFilWidth(-mvPos.z, aSize, 1.0 - uCondense * uCondenseSizeBite);
+    float size = aRole < 0.5 ? fogSize : filW;
+    gl_Position  = projectionMatrix * mvPos;
+    gl_PointSize = gasSprite(gl_Position, projectionMatrix * mvPrev, aRole, size, FIL_ASPECT, gasHash(aPhase, aSeed));
+    // Fog: × fogAlpha. Filaments: lanes by altitude layer and ionosphere, slowly along the orbit, × filAlpha.
+    vLane = gasAlpha(aRole, vec3(aAlt * 4.0, aIon * 2.0 + aSpeed, aPhase * 1.5), uTime);
+    planetWindowVS(mvPos.xyz);
+    aetherLightVS(mvPos.xyz, size);
+```
+- **FS:** unchanged.
+- **`buildBuffers(count, nFog)`:** return `{ positions, phases, speeds, seeds, sizes, alts, ions, roles: gasRoles(count, nFog) }`.
+- **Component:** add `fogCount = null,`, `N_FOG`, the memo, the geometry key, and an `aRole` attribute line after the
+  `aIon` line, exactly as in ParticleFlow.
+
+- [ ] **Step 8: Wire the tier density in `MercuryCanvas.jsx`**
+
+- Import `import { gasFogCount } from './planet/gasStreak';`. `TIERS` and `TIER` are already in scope.
+- Replace `densityFor` with:
+```js
+  // Gas density (mirror-sky spec §3e): the active flow × the tier multiplier; the fog count stays tied to the base,
+  // so the multiplier feeds the filament role. Ghosts keep GHOST_DENSITY (same rule, multiplier 1).
+  const gasBase = params.density ?? (isMobile ? 600 : 1200);
+  const densityFor = (phase) =>
+    phase === activePhase ? Math.round(gasBase * TIERS[TIER].gasDensity) : GHOST_DENSITY;
+  const fogFor = (phase) => gasFogCount(phase === activePhase ? gasBase : GHOST_DENSITY, densityFor(phase));
+```
+- Add `fogCount={fogFor('<el>')}` after each flow's `density={densityFor('<el>')}` line, for all four flows.
+  - Fire and earth ignore the prop until Task 8, so for now they run old-style at ×3 the count.
+  - **Don't judge fire or earth until Task 8.**
+
+- [ ] **Step 9: Run the tests**
+
+- `npx vitest run src/terminal/mercury` → all pass: gasStreak, flowStreak, flowLight (its regex accepts `size`),
+  flowClock and planetQuality.
+- `npm run lint` → 0 errors, warnings ≤ 143.
+
+- [ ] **Step 10: Commit**
+
+```bash
+git add src/terminal/mercury/planet/gasStreak.js src/terminal/mercury/planet/__tests__/gasStreak.test.js src/terminal/mercury/planet/planetLook.js src/terminal/fluid/ParticleFlow.jsx src/terminal/air/AtmosphericFlow.jsx src/terminal/mercury/MercuryCanvas.jsx src/terminal/mercury/planet/__tests__/flowStreak.test.js
+git commit -m "feat(mercury): gas Option A — fog + filament roles in one draw (fluid, air); 8x jittered thin filaments, base-tied fog count, tier gas density
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+```
+
+- [ ] **Step 11 (controller): live compile + the look sheet. Look first, then theorise.**
+
+Dev server preview `scale94-dev-5175`.
+
+**1. Rewrite the probe.** Replace `.superpowers/sdd/tools/ms-look.mjs` (controller scratch; never staged) with the
+role-variant probe below. Its tiles are **1:1 crops**. A 2 px filament vanishes when a 900 px shot is resized to
+450, and the Task 7 sheet was resized.
+
+```js
+// Gas look, Option A (plan Task 7b/8): role variants per element as 1:1 crops + an overview; role-count readback.
+// node ms-look.mjs [tag] [elements=fluid,air]
+import sharp from 'sharp';
+import { openMercury, OUT, sleep } from './openMercury.mjs';
+const { launch } = await import(new URL('file:///F:/scale_9.4/scripts/cdp.mjs'));
+const TAG = process.argv[2] ?? 'b';
+const ELS = (process.argv[3] ?? 'fluid,air').split(',');
+const page = await launch({ url: 'about:blank', width: 1600, height: 1000 });
+const log = [];
+const switchTo = (phase) => page.eval(`(() => { const b = [...document.querySelectorAll('[aria-label]')].find((e) => e.getAttribute('aria-label').endsWith('switch to ${phase} phase')); b.click(); return 1; })()`);
+const DEF = { fogAlpha: 0.9, filWidth: 2.2, filAlpha: 1, streakGain: 0.03, maskFreq: 2.5, maskSharp: 3, maskDepth: 0.7 };
+const VARIANTS = [
+  ['default', {}],
+  ['fog-only', { filAlpha: 0 }],
+  ['fil-only', { fogAlpha: 0 }],
+  ['thin-long', { filWidth: 1.6, streakGain: 0.05 }],
+  ['bold', { filWidth: 3, filAlpha: 1.5 }],
+  ['deep-lanes', { maskDepth: 0.9, maskSharp: 4 }],
+];
+// role counts per flow: fluid/air/earth carry aRole, fire carries aEmber (its role); opacity tells active vs ghost
+const roles = () => page.eval(`(() => { const out = []; window.__mercury.scene.traverse((o) => { const g = o.geometry && o.geometry.attributes; const a = g && (g.aRole || g.aEmber); const u = o.material && o.material.uniforms; if (a && u && u.uOpacity) { let fog = 0; for (let i = 0; i < a.count; i++) if (a.array[i] === 0) fog++; out.push({ attr: g.aRole ? 'aRole' : 'aEmber', n: a.count, fog, op: +u.uOpacity.value.toFixed(2) }); } }); return out; })()`);
+const SHOT = 900, CROP = 450;
+try {
+  const m = await openMercury(page);
+  await sleep(1500);
+  log.push({ cam: await page.eval(`(() => { const c = window.__mercury.camera; return { z: +c.position.length().toFixed(2), dpr: window.devicePixelRatio, bufH: window.__mercury.gl.domElement.height }; })()`) });
+  const rows = [];
+  for (const el of ELS) {
+    await switchTo(el); await sleep(2500);
+    // REFREEZE TRAP: the melted planet refreezes in ~30-60 s of probing. Melt per element and shoot right after,
+    // logging uTau per element, so the mirror under the gas is the liquid one the author will judge.
+    await m.melt(25); await sleep(9000);
+    log.push({ el, st: await m.st(), roles: await roles() });
+    const row = [];
+    for (const [name, v] of VARIANTS) {
+      await page.eval(`Object.assign(window.__mercuryTune.planet, ${JSON.stringify({ ...DEF, ...v })}); 1`); await sleep(700);
+      const p = `${OUT}/ms-look-${TAG}-${el}-${name}.png`; await m.shot(p, SHOT);
+      // 1:1 crop: the right-middle of the frame (the planet's limb + the gas beside it)
+      const c = `${OUT}/ms-look-${TAG}-${el}-${name}-crop.png`;
+      await sharp(p).extract({ left: SHOT - CROP, top: (SHOT - CROP) >> 1, width: CROP, height: CROP }).toFile(c);
+      row.push(name === 'default' ? [p, c] : [c]);
+    }
+    log.push({ el, tauEnd: (await m.st()).tau });
+    rows.push(row.flat());
+  }
+  await page.eval(`Object.assign(window.__mercuryTune.planet, ${JSON.stringify(DEF)}); 1`);
+  const cols = 1 + VARIANTS.length; // overview (resized) + the 1:1 crops
+  const tiles = [];
+  for (let r = 0; r < rows.length; r++) for (let k = 0; k < rows[r].length; k++) {
+    tiles.push({ input: await sharp(rows[r][k]).resize(CROP, CROP).toBuffer(), left: k * CROP, top: r * CROP });
+  }
+  await sharp({ create: { width: cols * CROP, height: rows.length * CROP, channels: 3, background: '#000' } })
+    .composite(tiles).png().toFile(`${OUT}/ms-look-${TAG}-sheet.png`);
+  log.push({ errors: await m.errors() });
+} catch (e) { log.push({ FAIL: e.message }); } finally { console.log(JSON.stringify(log)); await page.close(); process.exit(0); }
+```
+
+**2. Run it:** `node .superpowers/sdd/tools/ms-look.mjs b fluid,air`.
+
+**3. Pass criteria.**
+- `errors` → `[]`.
+- **Role readback** (desktop, density 1200): the active flow has `n` 3600 and `fog` 900; each ghost has `n` 300
+  and `fog` 225.
+- `st.tau` is liquid at the start of each element. If `tauEnd` shows crust, re-run that element.
+
+**4. View the images before claiming anything.** Do this before any theory:
+- the sheet `ms-look-b-sheet.png`;
+- **each `-default-crop.png` at full size**.
+
+The author's bar:
+- **Fog body.** A soft continuous body, similar to the old look and a little dimmer (compare with `fog-only`).
+- **Threads.** Thin threads read *inside* it, following the knot and the orbit.
+- **Never:**
+  - opaque blobs or white pills (the Task 7 failure);
+  - dashed confetti tracks or a vector-field plot (the rejected B: compare with `fil-only`);
+  - uniform dash lengths (the jitter must show).
+
+**5. If the defaults miss,** tune live through `window.__mercuryTune.planet` and re-run with a new tag:
+- the fog/filament balance via `fogAlpha` / `filAlpha`;
+- the thread weight via `filWidth`;
+- the dash length via `streakGain`;
+- the threads-vs-confetti read via `maskDepth` / `maskSharp`.
+
+Change one knob family at a time. When a set reads right, write it into `PLANET_TUNE` **and** the `toMatchObject`
+line of `gasStreak.test.js`, re-run the mercury suite, and commit
+`fix(mercury): gas look defaults from the Option A contact sheet (<knob=value, …>)`.
+
+**6. Record** in the ledger: the px numbers the probe logged (z, DPR, bufH), the role counts, the defaults kept or
+changed, and the sheet path.
+- If DPR ≠ 1, note it. The px targets are drawing-buffer px, so on a DPR-2 panel the filament core is ~half as
+  wide in CSS px (spec §3g DPR note: an author call).
+
+**7. Hand the sheet to the author** before Task 8: Option A's look is theirs to rule.
+
+---
+
+### Task 8: Fire (flame-body fog + embers) and earth (dust fog + settling streaks) on the two-role scheme
+
+**Files:**
+- Modify: `src/terminal/thermal/ThermalFlow.jsx`, `src/terminal/earth/SedimentFlow.jsx`
+- Modify: `src/terminal/mercury/planet/__tests__/flowStreak.test.js`, `src/terminal/mercury/planet/__tests__/flowClock.test.js`
+
+**Interfaces:**
+- **Consumes:**
+  - from Task 7b: the chunk (`gasSprite`, `gasFilWidth`, `gasHash`, `gasAlpha`, `gasRoleAlpha`, `FIRE_EMBER_STRETCH`,
+    `FIRE_EMBER_GAIN`, `FIL_ASPECT`, `gasRoles`, `FOG_SHARE`);
+  - the `fogCount` prop, which `MercuryCanvas` already passes;
+  - from Task 2: `clk` and `uPhase`.
+- **Fire (spec §3f).**
+  - The role attribute **is** `aEmber`: fog = flame body (0), filament = ember (1). It is built by `gasRoles`,
+    replacing the random 15 % ember draw.
+  - Body: the old flame sprite, round, unmasked, × `fogAlpha`.
+  - Embers: small round dots, width `gasFilWidth(depth, aSize, bite · sizeFactor)`, ≤ `FIRE_EMBER_STRETCH`, no
+    lane, alpha × `filAlpha` × `FIRE_EMBER_GAIN`.
+- **Earth.**
+  - `aRole`: fog = the old dust sprite.
+  - Filament = fine settling streaks: the §3c capsule (`FIL_ASPECT`), lane-masked by spawn direction and mass, no
+    streak across a sink or life respawn.
+
+**Open author call (do not resolve silently).** The §3e count rule, applied to fire, makes the full tier 900 body +
+2700 embers (old: ~1020 body + ~180 embers), a ~15× ember count. It follows from decisions 3 + 4 taken together.
+- Step 7 shows it on the sheet.
+- If the author wants fewer embers, the escape hatch is a fire-only fog count: for example `fogFor('thermal')` =
+  N × 0.85 (embers 15 %).
+- That is a one-line canvas change plus its test, applied only on the author's word.
+
+- [ ] **Step 1: Extend the test (it will fail)**
+
+In `flowStreak.test.js`:
+- add the imports `import thermalSrc from '../../../thermal/ThermalFlow.jsx?raw';` and
+  `import sedimentSrc from '../../../earth/SedimentFlow.jsx?raw';`;
+- add to `STREAKED`:
+```js
+  earth: {
+    src: sedimentSrc,
+    core: 'vec3 sedimentPos(float ph, out float age, out float sinkOffset) {',
+    fogSize: 'float fogSize = baseSize * ageFactor * (280.0 / -mvPos.z) * bite;',
+    filW: 'float filW = gasFilWidth(-mvPos.z, aSize, bite);',
+    sprite: 'gl_PointSize = gasSprite(gl_Position, projectionMatrix * mvPrev, aRole, size, sedStretch, gasHash(aPhase, aSeed));',
+  },
+```
+Then add:
+```js
+describe('earth (spec §3f): settling streaks', () => {
+  it('no streak across a sink or life respawn', () => {
+    expect(sedimentSrc).toContain('float sedStretch = (agePrev > age || sinkPrev > sinkOffset) ? 1.0 : FIL_ASPECT;');
+    expect(sedimentSrc).toContain('vLane = gasAlpha(aRole, vec3(sin(theta) * cos(phi) * 2.0, cos(theta) * 2.0, aMass * 2.0), uTime);');
+  });
+});
+
+describe('fire (spec §3f): fog = the flame body, filament = embers only', () => {
+  it('core sampled twice; the role IS aEmber, built by gasRoles (no random ember draw)', () => {
+    expect(thermalSrc).toContain('${GAS_STREAK_VS}');
+    expect(thermalSrc).toContain('${GAS_STREAK_FS}');
+    expect(thermalSrc.indexOf('${GAS_STREAK_VS}')).toBeGreaterThan(thermalSrc.indexOf('float snoise('));
+    expect(thermalSrc).toContain('vec3 flamePos(float ph, out float age) {');
+    expect(thermalSrc).toContain('uPhase - STREAK_DT * uPhaseRate');
+    expect(thermalSrc).toContain('prev *= 1.0 - uCondense * uCondense;');
+    expect(thermalSrc).toContain('function buildBuffers(count, nFog) {');
+    expect(thermalSrc).toContain('const embers    = gasRoles(count, nFog);');
+    for (const gone of ['emberCutoff', 'emberShrink', 'attribute float aRole;', 'uGasSize', 'STRETCH_MAX']) expect(thermalSrc).not.toContain(gone);
+  });
+
+  it('body: the old flame sprite; embers: small round dots ≤ 1.5x, never across a respawn, unmasked, boosted', () => {
+    expect(thermalSrc).toContain('float fogSize = min(baseSize * sizeFactor * (80.0 / depth), uPointSizeMax) * bite;');
+    expect(thermalSrc).toContain('float filW = gasFilWidth(depth, aSize, bite * sizeFactor);');
+    expect(thermalSrc).toContain('float size = aEmber < 0.5 ? fogSize : filW;');
+    expect(thermalSrc).toContain('float emberStretch = agePrev > age ? 1.0 : FIRE_EMBER_STRETCH;');
+    expect(thermalSrc).toContain('gl_PointSize = gasSprite(gl_Position, projectionMatrix * mvPrev, aEmber, size, emberStretch, 0.5);');
+    expect(thermalSrc).toContain('vLane = gasRoleAlpha(aEmber) * mix(1.0, FIRE_EMBER_GAIN, aEmber);');
+    expect(thermalSrc).not.toContain('gasLane(');
+    expect(thermalSrc).not.toContain('gasAlpha(');
+    expect(thermalSrc).toMatch(/float d\s*= gasStreakDist\(pc\);/);
+    expect(thermalSrc).toContain('(finalAlpha * uOpacity * vLane)');
+  });
+
+  it('fire: live knobs, fog count, remount key', () => {
+    expect(thermalSrc).toContain('mat.uniforms.uPhaseRate.value = clk.rate.thermal;');
+    expect(thermalSrc).toContain('...GAS_TUNE_UNIFORMS(PLANET_TUNE),');
+    expect(thermalSrc).toContain('writeGasTune(mat.uniforms, PLANET_TUNE);');
+    expect(thermalSrc).toContain('uPhaseRate: { value: 0 },');
+    expect(thermalSrc).toContain('fogCount = null,');
+    expect(thermalSrc).toContain('const N_FOG = fogCount ?? Math.round(PARTICLE_COUNT * FOG_SHARE);');
+    expect(thermalSrc).toContain('useMemo(() => buildBuffers(PARTICLE_COUNT, N_FOG), [PARTICLE_COUNT, N_FOG])');
+    expect(thermalSrc).toContain('<bufferGeometry key={`${PARTICLE_COUNT}:${N_FOG}`}>');
+  });
+});
+```
+In `flowClock.test.js`, the life and sink phases now read the core function's argument:
+- change `'fract(aPhase + uPhase * lifeMult)'` to `'fract(aPhase + ph * lifeMult)'`;
+- change `'fract(aPhase + uPhase * sinkRate * 0.4)'` to `'fract(aPhase + ph * sinkRate * 0.4)'`;
+- leave the other lines unchanged.
+
+- [ ] **Step 2: Run it to verify it fails**
+
+Run: `npx vitest run src/terminal/mercury/planet/__tests__/flowStreak.test.js src/terminal/mercury/planet/__tests__/flowClock.test.js` → FAIL (thermal/earth).
+
+- [ ] **Step 3: Implement `ThermalFlow.jsx`**
+
+- **Imports:**
+  - `import { R_SCENE, PLANET_TUNE } from '../mercury/planet/planetLook';` (fire didn't import `PLANET_TUNE`);
+  - `import { GAS_STREAK_VS, GAS_STREAK_FS, GAS_TUNE_UNIFORMS, writeGasTune, gasRoles, FOG_SHARE } from '../mercury/planet/gasStreak';`.
+- **VS:**
+  - change the `aEmber` attribute comment to `// role: 0 = flame body (fog), 1 = ember (filament) — mirror-sky spec §3f`;
+  - insert `${GAS_STREAK_VS}` on its own line right before `void main(){`, after `snoise` and `curlNoise`;
+  - replace the `main` start, from `void main(){` through the `vec3 pos = vec3( … );` construction, with:
 ```glsl
   // The flame's own motion alone (rise, taper, ember escape) at life phase ph; age out (respawn guard).
   vec3 flamePos(float ph, out float age) {
@@ -1604,7 +2315,7 @@ Run: `npx vitest run src/terminal/mercury/planet/__tests__/flowStreak.test.js` �
     float spawnAngle = fract(aSeed * 6.3791 + 0.17) * 6.28318;
     float sx = spawnR * cos(spawnAngle);
     float sz = spawnR * sin(spawnAngle);
-    // ── Flame particles: rise with tapering cone shape ───────────────────
+    // ── Flame particles: rise with tapering cone shape; embers drift sideways, escaping the cone ──
     float riseSpeed  = mix(2.4, 3.5, aTemp);   // hot particles rise faster
     float riseY      = age * riseSpeed;
     float taper      = max(0.0, 1.0 - age * 1.35);  // cone narrows to a tip
@@ -1619,16 +2330,16 @@ Run: `npx vitest run src/terminal/mercury/planet/__tests__/flowStreak.test.js` �
     vec3 core = flamePos(uPhase, age);
     vec3 prevCore = flamePos(uPhase - STREAK_DT * uPhaseRate, agePrev);
     vAge = age;
-    float spawnR     = sqrt(aSeed) * uFlameWidth;
-    float spawnAngle = fract(aSeed * 6.3791 + 0.17) * 6.28318;
+    float spawnR = sqrt(aSeed) * uFlameWidth;   // the temperature block's coreProx reads it
     vec3 pos = core;
 ```
-  The life phase now reads the function argument `ph`. Task 2's `flowClock.test.js` pins
-  `fract(aPhase + uPhase * lifeMult)` for thermal: change that expectation to `fract(aPhase + ph * lifeMult)`.
-- Keep the turbulence, shimmer, temperature and alpha blocks unchanged. They use `pos`, `age` and `spawnR`; the
-  temperature block uses `coreProx` from `spawnR`, now declared in `main`.
-- After the shimmer block, add `vec3 prev = prevCore + (pos - core);`.
-- Replace the size/position tail with:
+- **Keep unchanged:** the turbulence, shimmer, temperature and alpha blocks. They read `pos`, `age`, `spawnR`,
+  `aTemp` and `aEmber`. If one reads another local that moved into `flamePos`, redeclare it in `main` from the same
+  expression.
+- After the shimmer block, add `vec3 prev = prevCore + (pos - core); // the streak shows the current, not the turbulence`.
+- Delete the line `float emberShrink = mix(1.0, 0.5, aEmber);` and its comment line. Body particles are the fog
+  role (aEmber 0, where the shrink was 1), and embers take the filament width.
+- Replace the tail, from `// Nebula condensation` through `planetWindowVS(mvPos.xyz);`, with:
 ```glsl
     // Nebula condensation — see ParticleFlow.jsx for the physics note.
     pos *= 1.0 - uCondense * uCondense;
@@ -1637,26 +2348,44 @@ Run: `npx vitest run src/terminal/mercury/planet/__tests__/flowStreak.test.js` �
     vec4 mvPos = modelViewMatrix * vec4(pos, 1.0);
     vec4 mvPrev = modelViewMatrix * vec4(prev, 1.0);
     float depth  = max(-mvPos.z, 0.5);
-    float size = min(baseSize * sizeFactor * emberShrink * (80.0 / depth), uPointSizeMax) * (1.0 - uCondense * uCondenseSizeBite) * uGasSize;
+    float bite = 1.0 - uCondense * uCondenseSizeBite;
+    // Fog = the old flame-body sprite; embers = small round dots that shrink with age (mirror-sky spec §3f).
+    float fogSize = min(baseSize * sizeFactor * (80.0 / depth), uPointSizeMax) * bite;
+    float filW = gasFilWidth(depth, aSize, bite * sizeFactor);
+    float size = aEmber < 0.5 ? fogSize : filW;
     gl_Position  = projectionMatrix * mvPos;
-    // Fire keeps its round flame body; only the fast embers streak, and never across a respawn.
-    float emberStretch = agePrev > age ? 1.0 : mix(1.0, FIRE_EMBER_STRETCH, aEmber);
-    gl_PointSize = gasStreak(gl_Position, projectionMatrix * mvPrev, size, emberStretch);
-    // Lanes across the burner disc: tongues.
-    vLane = gasLane(vec3(cos(spawnAngle) * spawnR * 3.0, sin(spawnAngle) * spawnR * 3.0, aTemp), uTime) * uGasAlpha;
+    // Embers stretch ≤ 1.5x (jitter pinned at 0.5 so the cap is exact), never across a respawn.
+    float emberStretch = agePrev > age ? 1.0 : FIRE_EMBER_STRETCH;
+    gl_PointSize = gasSprite(gl_Position, projectionMatrix * mvPrev, aEmber, size, emberStretch, 0.5);
+    // No lane mask on fire: body × fogAlpha; embers × filAlpha × FIRE_EMBER_GAIN (the old alpha was sized for big discs).
+    vLane = gasRoleAlpha(aEmber) * mix(1.0, FIRE_EMBER_GAIN, aEmber);
     planetWindowVS(mvPos.xyz);
-  }
 ```
-- FS: insert `${GAS_STREAK_FS}` after `${PLANET_WINDOW_FS}`. Replace `float d     = length(pc - 0.5) * 2.0;` with
-  `float d     = gasStreakDist(pc);`. Change the output to
-  `gl_FragColor = vec4(col, (finalAlpha * uOpacity * vLane) * planetWindow() + dither);`.
-- Uniforms and useFrame as in Task 7, with `clk.rate.thermal`. Import `PLANET_TUNE` from
-  `'../mercury/planet/planetLook'` if ThermalFlow doesn't already: fire has no aether light, so check.
+- **FS:**
+  - insert `${GAS_STREAK_FS}` after `${PLANET_WINDOW_FS}`;
+  - replace `float d     = length(pc - 0.5) * 2.0;` with `float d     = gasStreakDist(pc);`;
+  - change the output to `gl_FragColor = vec4(col, (finalAlpha * uOpacity * vLane) * planetWindow() + dither);`.
+- **`buildBuffers`:**
+  - change it to `function buildBuffers(count, nFog) {`;
+  - delete `const emberCutoff = 0.85;` with its comment, `const embers    = new Float32Array(count);`,
+    `const r = Math.random();` and `embers[i]  = r > emberCutoff ? 1.0 : 0.0;`;
+  - after the other array declarations, add
+    `const embers    = gasRoles(count, nFog);   // the filament role IS the ember (mirror-sky spec §3f; was a random 15 %)`;
+  - the return object stays as is.
+- **Component:**
+  - add the prop `fogCount = null,`, `N_FOG`, the memo and the geometry key exactly as in ParticleFlow (Task 7b
+    Step 6);
+  - the uniforms object gets `uPhaseRate: { value: 0 },` and `...GAS_TUNE_UNIFORMS(PLANET_TUNE),`;
+  - in useFrame, after the `uPhase` line, add `mat.uniforms.uPhaseRate.value = clk.rate.thermal;` and
+    `writeGasTune(mat.uniforms, PLANET_TUNE);`.
 
-- [ ] **Step 4: Implement SedimentFlow.jsx**
+- [ ] **Step 4: Implement `SedimentFlow.jsx`**
 
-- Import the chunk; insert `${GAS_STREAK_VS}` before `void main(){`. Replace from the `main` start through
-  `pos = mix(pos, eruptPos, aErupt);` with:
+- **Import:** `import { GAS_STREAK_VS, GAS_STREAK_FS, GAS_TUNE_UNIFORMS, writeGasTune, gasRoles, FOG_SHARE } from '../mercury/planet/gasStreak';`.
+- **VS:**
+  - add `attribute float aRole;    // 0 = fog (the old dust sprite), 1 = settling streak (mirror-sky spec §3f)` after `aErupt`;
+  - insert `${GAS_STREAK_VS}` right before `void main(){`;
+  - replace from the `main` start through `pos = mix(pos, eruptPos, aErupt);` with:
 ```glsl
   // The sediment's own motion alone (sink, eruption arc) at phase ph; age and sinkOffset out (respawn guard).
   vec3 sedimentPos(float ph, out float age, out float sinkOffset) {
@@ -1689,12 +2418,11 @@ Run: `npx vitest run src/terminal/mercury/planet/__tests__/flowStreak.test.js` �
     float theta = fract(aSeed * 3.9301) * 3.14159;
     float phi   = fract(aSeed * 7.1731) * 6.28318;
 ```
-  Update `flowClock.test.js`'s earth expectations: `float sinkRate   = aMass * 2.2;` (unchanged),
-  `fract(aPhase + ph * sinkRate * 0.4)`, `sinkOffset * 2.4` (unchanged), and the age literal for both fire and
-  earth: `fract(aPhase + ph * lifeMult)`.
-- Keep the turbulence, shimmer, strata and alpha blocks unchanged. Add `vec3 prev = prevCore + (pos - core);` after
-  the shimmer.
-- Tail:
+- **Keep unchanged:** the turbulence, shimmer, strata and alpha blocks.
+  - If any of them reads a local that moved into `sedimentPos` (`spawnPos`, `sinkRate`, `eruptPos`), redeclare that
+    local in `main` from the same expression. Don't change the expression.
+  - Add `vec3 prev = prevCore + (pos - core);` after the shimmer.
+- **Tail:** replace from `// Nebula condensation` through `aetherLightVS(mvPos.xyz, gl_PointSize);` with:
 ```glsl
     // Nebula condensation — see ParticleFlow.jsx for the physics note.
     pos *= 1.0 - uCondense * uCondense;
@@ -1702,58 +2430,144 @@ Run: `npx vitest run src/terminal/mercury/planet/__tests__/flowStreak.test.js` �
 
     vec4 mvPos = modelViewMatrix * vec4(pos, 1.0);
     vec4 mvPrev = modelViewMatrix * vec4(prev, 1.0);
-    float size = baseSize * ageFactor * (280.0 / -mvPos.z) * (1.0 - uCondense * uCondenseSizeBite) * uGasSize;
+    float bite = 1.0 - uCondense * uCondenseSizeBite;
+    // Fog = the old dust sprite, untouched; filament = a fine settling streak (mirror-sky spec §3f).
+    float fogSize = baseSize * ageFactor * (280.0 / -mvPos.z) * bite;
+    float filW = gasFilWidth(-mvPos.z, aSize, bite);
+    float size = aRole < 0.5 ? fogSize : filW;
     gl_Position  = projectionMatrix * mvPos;
-    float sedStretch = (agePrev > age || sinkPrev > sinkOffset) ? 1.0 : STRETCH_MAX;
-    gl_PointSize = gasStreak(gl_Position, projectionMatrix * mvPrev, size, sedStretch);
-    // Lanes by spawn direction and mass: strata of dust.
-    vLane = gasLane(vec3(sin(theta) * cos(phi) * 2.0, cos(theta) * 2.0, aMass * 2.0), uTime) * uGasAlpha;
+    float sedStretch = (agePrev > age || sinkPrev > sinkOffset) ? 1.0 : FIL_ASPECT;
+    gl_PointSize = gasSprite(gl_Position, projectionMatrix * mvPrev, aRole, size, sedStretch, gasHash(aPhase, aSeed));
+    // Fog: × fogAlpha. Filaments: lanes by spawn direction and mass (strata of dust), × filAlpha.
+    vLane = gasAlpha(aRole, vec3(sin(theta) * cos(phi) * 2.0, cos(theta) * 2.0, aMass * 2.0), uTime);
     planetWindowVS(mvPos.xyz);
     aetherLightVS(mvPos.xyz, size);
-  }
 ```
-- FS: insert `${GAS_STREAK_FS}` after `${aetherLightFS('earth')}`. Replace `float d = length(gl_PointCoord - 0.5) * 2.0;`
-  with `float d = gasStreakDist(gl_PointCoord);`. Output:
-  `gl_FragColor = vec4(col, (alpha * vAlpha * (0.5 + (1.0 - vStrata) * 0.4) * uOpacity * vLane) * planetWindow() + dither);`.
-- Uniforms + useFrame with `clk.rate.earth`.
+- **FS:**
+  - insert `${GAS_STREAK_FS}` after `${aetherLightFS('earth')}`;
+  - replace `float d = length(gl_PointCoord - 0.5) * 2.0;` with `float d = gasStreakDist(gl_PointCoord);`;
+  - change the output to `gl_FragColor = vec4(col, (alpha * vAlpha * (0.5 + (1.0 - vStrata) * 0.4) * uOpacity * vLane) * planetWindow() + dither);`.
+- **`buildBuffers(count, nFog)`:** add `roles: gasRoles(count, nFog)` to the return.
+- **Component:**
+  - add `fogCount = null,`, `N_FOG`, the memo, the geometry key, and the `aRole` attribute line, as in ParticleFlow;
+  - the uniforms get `uPhaseRate: { value: 0 },` and `...GAS_TUNE_UNIFORMS(PLANET_TUNE),` (`PLANET_TUNE` is
+    already imported);
+  - useFrame gets `mat.uniforms.uPhaseRate.value = clk.rate.earth;` and `writeGasTune(mat.uniforms, PLANET_TUNE);`.
 
-- [ ] **Step 5: Implement the tier density in MercuryCanvas.jsx**
-
-```js
-  const densityFor = (phase) =>
-    phase === activePhase ? Math.round((params.density ?? (isMobile ? 600 : 1200)) * TIERS[TIER].gasDensity) : GHOST_DENSITY;
-```
-
-- [ ] **Step 6: Run everything**
+- [ ] **Step 5: Run everything**
 
 - `npx vitest run src/terminal/mercury` → all pass.
-- `npm run lint` → 0 errors.
+- `npm run lint` → 0 errors, warnings ≤ 143. Check `no-unused-vars` on the removed fire `r`.
 - `npx vitest run` (full suite) → only the known `artComposite compositeDpr` failure.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add src/terminal/thermal/ThermalFlow.jsx src/terminal/earth/SedimentFlow.jsx src/terminal/mercury/MercuryCanvas.jsx src/terminal/mercury/planet/__tests__/flowStreak.test.js src/terminal/mercury/planet/__tests__/flowClock.test.js
-git commit -m "feat(mercury): fire + earth gas filaments (fire: round body, embers ≤1.5x; no streak across respawns), tier gas density x3
+git add src/terminal/thermal/ThermalFlow.jsx src/terminal/earth/SedimentFlow.jsx src/terminal/mercury/planet/__tests__/flowStreak.test.js src/terminal/mercury/planet/__tests__/flowClock.test.js
+git commit -m "feat(mercury): fire + earth on the two-role gas — flame-body fog + round embers (≤1.5x, unmasked), dust fog + settling streaks; no streak across respawns
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
 
+- [ ] **Step 7 (controller): live compile + look**
+
+**1. Run the probe:** `node .superpowers/sdd/tools/ms-look.mjs c thermal,earth`. For fire, add to `VARIANTS` for
+this run:
+- `['embers-dim', { filAlpha: 0.3 }]`;
+- `['body-full', { fogAlpha: 1 }]`.
+
+**2. Pass criteria.**
+- `errors` → `[]`.
+- Fire role readback (`attr` aEmber): active `n` 3600, `fog` 900.
+- Earth (`attr` aRole): active `n` 3600, `fog` 900.
+
+**3. View every default crop at full size.**
+- **Fire:** the body reads as the old flame, a little dimmer, and the embers are small round sparks. Nothing is
+  stretched beyond 1.5×, and no lanes are visible in the fire.
+- **Earth:** dust with fine settling streaks, and the eruption arcs visibly longer. If the earth streaks read as
+  round dots (expected aspect ~1.5×), report it. A per-flow gain is the escape hatch; don't add one unasked.
+
+**4. Hand the fire sheet to the author with the ember-count question.** Under the §3e rule fire has 900 body +
+2700 embers, against the old ~1020 + ~180. Show `embers-dim` beside `default`.
+
 ---
 
-### Task 9 (controller): live gas checks, phone gate, look sheets
+### Task 9 (controller): live checks, frame time, phone gate, gates
 
-- [ ] **Step 1:** Live compile across all four elements, a strike and a fling: `errors()` → `[]`.
-- [ ] **Step 2:** Look sheets `ms-gas-<el>.png` at 900 px, plus a 3× zoom crop per element. **View each.**
-  - Streaks follow the flows, fire's body stays round, threads/lanes are visible.
-  - No lattice or banding: compare two shots 3 s apart and check that the lanes evolve.
-- [ ] **Step 3:** Calm (`?calm=1`): gas and sprites frozen and round (two shots 1 s apart, diff 0).
-- [ ] **Step 4:** Phone gate.
-  - CDP phone profile frame time p50/p95 at `gasDensity` 3. If p50 regresses > 2 ms against the Task 5 baseline, set
-    `TIERS.phone.gasDensity = 2`, re-measure, and record both.
-  - The author's hardware check is listed as an open call; don't claim it.
-- [ ] **Step 5:** Update `.superpowers/sdd/progress.md`.
-- [ ] **Step 6:** Final whole-branch review (opus reviewer), then a fix wave if needed.
-- [ ] **Step 7:** Report the look-round knobs to the author: `aetherGain`, `aetherSilver`, `streakGain`,
-  `maskDepth`/`maskSharp`/`maskFreq`, `gasSize`/`gasAlpha`, and the truth-bound pace shift (spec §5 table).
-  NOT pushed.
+No implementer subagent: the controller runs CDP against preview `scale94-dev-5175`.
+
+- [ ] **Step 1: Compile everywhere.** Probe `ms-flows.mjs t9`, extended or run alongside `ms-sky.mjs`:
+  - all four elements active in turn, a strike (`__mercuryTune.strike('fluid')`) and a fling (`breakNow(12)`);
+  - `errors()` → `[]` after each.
+- [ ] **Step 2: Role counts.** With the `roles()` readback from `ms-look.mjs`, for each element active in turn:
+  - the active flow has N = 3600 and fog = 900 (desktop);
+  - each ghost has 300 / 225;
+  - with `?tier=lite` (or the tier override the HUD uses), the active flow has 1200 / 900.
+- [ ] **Step 3: Look sheet, all four.**
+  - Run `node .superpowers/sdd/tools/ms-look.mjs d fluid,thermal,earth,air` and view the sheet plus every default crop.
+  - **Lanes evolve, never a lattice:** take two default shots per element 3 s apart. The crop's mean abs diff
+    must be > 0. Eyeball both: the threads move with the flow, with no fixed bands.
+- [ ] **Step 4: Calm.**
+  - Reload with `?calm=1` and take two shots 1 s apart per element: the gas crop diff is 0. The only allowed
+    residue is the pre-existing node handles and thread line.
+  - At 3× zoom, the filaments are round dots (`L` = 0) and the mirror sky is frozen.
+- [ ] **Step 5: Cross-fade.**
+  - Switch fluid → air, with shots at 0, 100, 300, 500, 700 and 900 ms.
+  - `uSkyW` has ≤ 2 non-zero weights and is monotone. The gas cross-fades with no pop.
+  - **Watch the switch frame:** `densityFor` changes both flows' counts at the switch (active 3600 ↔ ghost 300),
+    so their geometries remount with fresh random attributes. This is pre-existing, but now 12× the jump. If a pop
+    is visible, record it for the final review; don't fix it here.
+- [ ] **Step 6: Frame time, desktop, against `ac8fa425`.**
+  - **Baseline worktree:**
+    - `git worktree add ../ms-base ac8fa425`, then `cmd /c mklink /J ..\ms-base\node_modules node_modules` (or
+      `npm ci` there);
+    - start `npx vite --port 5176 --strictPort` in it.
+  - **Measure:** `?hud=1` / `window.__mercuryPerf`, p50/p95 over 10 s per element, same window size, both servers,
+    one at a time.
+  - **Record** the numbers. There is no hard desktop gate, but flag p50 > +2 ms.
+  - **Clean up:** remove the worktree (`git worktree remove ../ms-base --force`) and delete the junction first if
+    one was made.
+- [ ] **Step 7: Phone gate. It decides `TIERS.phone.gasDensity`.**
+  - Use the CDP phone profile (the existing phone probe recipe) on both servers, p50/p95 per element at
+    `gasDensity` 3.
+  - **If phone p50 regresses > 2 ms** against the baseline:
+    - set `TIERS.phone.gasDensity = 2` in `src/terminal/mercury/planet/planetQuality.js`. `planetQuality.test.js`
+      already allows 2–3, so no test edit is needed;
+    - re-measure and record both;
+    - commit `perf(mercury): phone gas density 2 (phone gate: p50 <a> → <b> ms)`.
+    - Under §3e the phone fog stays 450, and the filaments drop from 1350 to 750.
+  - **If it is still over at 2,** stop and report. The spec §2 sky fallbacks (water warp 3 → 2 fbm, then
+    `skyOctaves`) are a separate fix task.
+  - The author's hardware check is an open call; don't claim it.
+- [ ] **Step 8: Snapshot discipline.**
+  - Tasks 7b and 8 touch no `aetherSky.js` or `hgMirrorGlsl.js` code, so no planet snapshot may change. If the
+    mercury suite reports a snapshot diff, STOP: a shared chunk changed.
+  - If a re-pin is genuinely intended, use the handover recipe:
+    1. `-u` the full snapshot;
+    2. `git diff` it into a patch written to `$TEMP` (never `../`);
+    3. `patch` both `pre-*.fs.glsl` files; a reject means stop;
+    4. delete the `.orig` files.
+- [ ] **Step 9: Gates.**
+  - `npm run lint`: 0 errors, warnings ≤ 143 (137 at 39cd6d94; record the count).
+  - `npx vitest run src/terminal/mercury`: all pass (record the count; 733 + 2 skipped at 39cd6d94, plus the new
+    tests).
+  - `npx vitest run`: only the known `artComposite compositeDpr` failure.
+- [ ] **Step 10: Ledger.** Record Steps 1–9 in `.superpowers/sdd/progress.md` under `## Mirror sky + gas filaments`:
+  numbers, sheet paths, the phone decision and the gate counts.
+- [ ] **Step 11: Final whole-branch review (controller-run, not an implementer step).** The reviewer must triage:
+  - every Minor listed in the ledger section;
+  - float precision of the unbounded sky phases and the flows' `uPhase` over installation uptime;
+  - the earth ping cadence (~3.45 concurrent vs the approved 1–2; knob `SKY_PING_EXP`);
+  - the truth-bound pace shift (spec §5 table);
+  - air streamline contrast in the ±0.12 equatorial cross-fade;
+  - fire's ember count (Task 8 author call);
+  - `filWidth` vs DPR (spec §3g);
+  - the phase-switch geometry remount (Step 5);
+  - the phone hardware check (the author's);
+  - the stray `F:\ms-aether.patch` / `F:\ms-air.patch` outside the repo.
+- [ ] **Step 12: Report to the author.**
+  - The look-round knobs: `aetherGain`, `aetherSilver`, `streakGain`, `filWidth` / `filAlpha` / `fogAlpha`,
+    `maskDepth` / `maskSharp` / `maskFreq`, and the truth-bound pace shift (spec §5 table).
+  - The sheets.
+  - The open calls above.
+  - **NOT pushed.**

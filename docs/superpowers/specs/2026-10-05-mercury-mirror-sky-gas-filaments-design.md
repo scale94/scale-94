@@ -15,8 +15,10 @@ The author's read of the live scene (2026-10-05): **the liquid looks hit by a ra
 - **The mirror is near-static while the nebula is highly dynamic.** This is the main break, the author's own
   catch. The lobes turn rigidly about +Y at 0.04 rad/s (one turn per 2.6 min, `MercuryPlanet.jsx:691`), while the
   fluid's knot drift loops in ~15 s and the air orbits at ~0.9 rad/s.
-- **The gas itself reads as soft round puffs.** Several-px `smoothstep` discs overlap into fog, and no filaments
-  or currents are visible.
+- **The gas itself reads as soft round puffs.** Large `smoothstep` discs overlap into fog, and no filaments
+  or currents are visible. (Corrected 2026-10-05, session 2: the discs are ~100–260 px, not "several px". The
+  fluid's `(1.5 + 2·aRadius)·300/z` at the fitted camera z 4.43 gives 102–237 px. That wrong premise is why the
+  first gas recipe failed; see §3.)
 - **There is no shared time base.** Each flow integrates its own `uTime` from a random start (air ×100, fire ×120,
   earth ×100) and multiplies it by the *current* speed slider (`uTime · uSpeed`). That is the `rate(x_now) · t`
   trap: moving the slider jumps every particle's phase. The flows also ignore calm (reduced motion).
@@ -34,7 +36,12 @@ The author's read of the live scene (2026-10-05): **the liquid looks hit by a ra
   - Earth v2: slow grainy settling dust, plus rare sharp specular pings off tumbling grains on the sunward dark
     side, 1–2 concurrent.
 - **Build order 3 → 1 → 2:** the shared clock, then the mirror sky, then the gas filaments.
-- **Fire:** keeps round embers. Only the fast sparks get a mild stretch, ≤ 1.5×.
+- **Fire:** keeps round embers. Only the fast sparks get a mild stretch, ≤ 1.5×. (Session 2: fire's fog role is
+  the flame body; its filament role is embers only, see §3f.)
+- **Gas = Option A (session 2, after the Task 7 look failure):** two particle roles in one draw per flow, ~25 % fog
+  (the old sprite look, a little dimmer) and ~75 % filaments (thin, directional, lane-masked micro-streaks). The
+  filament aspect cap is lifted from ≤ 3× to ~8×, with width decoupled from length. Rejected: B (small streaks
+  only: "particle debug paths / vector-field visualisation") and C (old fog only: "stagnant"). See §3.
 - **Mirror shows the active element only,** cross-fading cleanly during a phase switch. Ghosts are not reflected.
 - **Phone budget:** the gas density multiplier is adaptive, keyed to the phone frame-time gate, ≥ 2×.
 - **Calm freezes the entire gas volume** (a new behaviour).
@@ -184,56 +191,168 @@ return aetherTint(nW) * aetherShoulder(uAetherGain * aetherHue(aetherSky(R, roug
 - **Lifecycle wrap guard:** where a particle's `fract()` life wrapped between `prev` and `pos`, the streak length
   is 0, so no streak is drawn across the respawn jump.
 
-**3b. Velocity-aligned capsules.**
-- Project `pos` and `prev` (both after condensation scaling) to pixels: `d = px(pos) − px(prev)`, normalised by
-  `STREAK_DT` into a px/s velocity.
-- **Length:** `L = min(|d| · STREAK_GAIN, (STRETCH_MAX − 1) · size)`.
-- **Sprite size:** `gl_PointSize = size + L`.
-- **Varyings:** `vDir` (unit 2D, point-coord space, y flipped), `vCap = vec2(L, size) / gl_PointSize`.
-- **FS:**
-  - Distance from the fragment to the segment of length `L` through the sprite centre along `vDir`, in units of
-    the sprite radius.
-  - The element's existing radial falloff is applied to that distance, so each element keeps its own edge
-    softness, now on a capsule.
-  - Fragments outside are discarded.
-- **Stretch limits:** `STRETCH_MAX` is 3 for fluid, air and earth. For fire it is 1.5, applied **only to embers**
-  (`aEmber`). Flame body particles stay round.
-- **Calm:** velocity 0 → round sprites.
-- **Fill-rate:** the sprite area grows by up to 3×, with the count capped by §3d.
-- `STREAK_GAIN` is the look knob ("how much speed shows"), tuned live.
+**Amended 2026-10-05, session 2: Option A.** Task 7 built §3a–3c with the first recipe, and the look failed. The
+recipe was ×3 count, ⅓ size, ×3 alpha, ≤ 3× stretch, applied to every particle. The real sprites are ~100–260 px,
+so it rendered opaque 40–90 px blobs (fluid) and white pills (air). The author ruled Option A: **two particle roles
+in one draw**. 3a is unchanged. The old 3b–3d are replaced by 3b–3g below, and every pixel number is re-derived
+from the measured geometry.
 
-**3c. Ridged-noise mask** (per particle, in the VS). Amended at plan time: the mask is sampled in each flow's
-**cross-stream label space**, not in world space.
-- `m = pow(1 − |snoise(maskCoord · uMaskFreq + vec3(0, 0, t · MASK_EVOLVE))|, uMaskSharp)`.
-- `maskCoord` is built from the particle's own constant attributes across the stream:
-  - fluid: its tube cross-section (`aOffset` angle, `aRadius`);
-  - air: altitude, ionosphere and phase;
-  - fire: its spawn-disc position;
-  - earth: its spawn direction.
+**3b. Two roles in one draw (Option A).**
+- **Role attribute.** Each flow's `buildBuffers` fills a per-particle `aRole` attribute: 0 = fog, 1 = filament.
+  - The split is deterministic, in the spirit of hgBeads' dust/pearl split (`PEARL_P`).
+  - It is exact rather than random: `gasRoles(count, nFog)` spreads `nFog` fog slots evenly through the buffer
+    (Bresenham: `role_i = 0` iff `⌊(i+1)·nFog/count⌋ > ⌊i·nFog/count⌋`).
+  - This gives an exact count and is stable across remounts. Every other attribute is iid random, so index order
+    carries no spatial pattern.
+- **Fog role: the old sprite look, a little dimmer.**
+  - Size: the flow's **old size formula**, exactly. No size knob and no floor, so the sprite is bit-for-bit the old
+    `gl_PointSize`.
+  - Shape: no stretch (round, `vStreakCap = (0, 0.5)`), so the FS distance equals the old
+    `length(pc − 0.5)·2`.
+  - Mask: none (`vLane = uFogAlpha`).
+  - Alpha: the element's own alpha × `fogAlpha` (< 1).
+  - The fog keeps the nebula's ambient body and its colour blending.
+- **Filament role: thin, directional, lane-masked micro-streaks** riding the flow tangents, with their own width
+  knob and their own alpha knob.
+- **One draw.** Both roles share the flow's VS/FS. The role only picks the size, stretch and alpha path in the VS.
+  The fog role skips the lane-mask snoise.
+- **Fire is the exception** (§3f): its filament role is embers only.
 
-  So the mask travels with the current exactly: carved regions are *lanes of particles*, which is what a filament
-  is. A world-space mask would stand still while the gas streams through it.
-- The `t · MASK_EVOLVE` term evolves the lanes slowly, so the pattern is never a static lattice
-  (banded/mechanical is a hard fail).
-- **Alpha:** `alpha *= mix(1, m, MASK_DEPTH)`. The mask changes transparency only, never position.
-- **Cost:** one snoise per vertex (two octaves at most).
-- Ghost flows share the shader, so they get streaks and mask too at their existing low density.
+**3c. Filament capsules: width decoupled from length.**
+- Project `pos` and `prev` to drawing-buffer px: `v = Δpx / STREAK_DT` (px/s, as built in Task 7).
+- **Width:** `w = max(filWidth · (GAS_Z_REF / depth) · mix(0.75, 1.25, s) · bite, GAS_PX_FLOOR)`.
+  - `s` is a per-particle size label in [0, 1]: fluid `aRadius`, air and earth `aSize`.
+  - `bite` is the condensation size bite.
+  - `GAS_Z_REF` = 4.43 is the fitted desktop camera distance, so `filWidth` reads as "px at the scene centre".
+- **Length beyond the round core:** `L = min(|v| · streakGain, (FIL_ASPECT − 1) · w) · j`.
+  - `j = 1 + FIL_JITTER · (2·hash − 1)`, a deterministic per-particle hash of two constant attributes, so dashes
+    never read uniform or mechanical.
+  - The jitter scales the cap too. Otherwise every capped (fast) particle would sit at exactly the same length.
+- **Constants:**
+  - `FIL_ASPECT` = 8, the author's lifted cap (was 3);
+  - `FIL_JITTER` = 0.3 (±30 %);
+  - the jittered cap therefore spans 5.9–10.1× around the nominal 8×.
+- **Sprite:** `gl_PointSize = w + L`, `vStreakCap = (0.5·L, 0.5·w) / (w + L)`. The FS capsule distance
+  (`gasStreakDist`) and each element's own radial falloff are unchanged from Task 6/7.
+- **Calm:** `|v|` = 0 → `L` = 0 → a round dot of width `w`.
+- **Respawn guards** (fire, earth) set the aspect to 1 across a `fract()` wrap, as before.
 
-**3d. Density and size.**
-- **Active density:** `base × TIERS[tier].gasDensity`, where base = 1200 desktop / 600 mobile:
+**3d. Lane mask: filament role only.**
+- **Construction is unchanged** from the Task 6/7 build. The mask is sampled in each flow's **cross-stream label
+  space**, not in world space:
+  - `m = pow(max(1 − |snoise(maskCoord · uMaskFreq + vec3(0, 0, t · MASK_EVOLVE))|, 0), uMaskSharp)`;
+  - `maskCoord` comes from the particle's own constant attributes: fluid, the tube cross-section (`aOffset` angle,
+    `aRadius`); air, altitude, ionosphere and phase; earth, spawn direction and mass.
+- So carved regions are *lanes of particles* travelling with the current, which is what a filament is.
+  `t · MASK_EVOLVE` evolves them slowly, so the pattern is never a static lattice.
+- **New since session 2:** it multiplies **only the filament alpha**: `vLane = mix(1, m, maskDepth) · filAlpha`.
+  - The fog gets `vLane = fogAlpha` and is never carved, so the body stays continuous and the threads read
+    *inside* it.
+  - The fog role skips the snoise, so the cost is one snoise per filament vertex.
+- **Fire has no mask at all:** its body is fog and its embers are unmasked (§3f).
+- Ghost flows share the shader, so they get the same two roles at their existing low density (§3e).
+
+**3e. Counts: density mostly feeds the filament role.**
+- **Base count** `base` = `params.density` (1200 desktop / 600 mobile by default; the slider sets it). The active
+  flow's total is `N = round(base · TIERS[tier].gasDensity)`:
   - `full` 3;
-  - `phone` 3 if the phone gate passes, else 2 (never < 2);
+  - `phone` 3, or 2 after the phone gate (never < 2);
   - `lite` 1.
-- **Sprite size:** base size × `GAS_SIZE_SCALE`.
-  - Start at ⅓ per the approved recipe, with a floor of 1.5 px on `gl_PointSize` so sprites never go sub-pixel and
-    shimmer.
-  - Alpha is re-balanced live so the overall nebula brightness holds. At ×3 count, area ÷ 9, opacity needs roughly
-    ×3 as a starting point.
-- **Density slider (amended at plan time):** `params.density` is always set (`MercuryTab` defaults it to
-  1200/600), so the default can't be told apart from a slider value. The tier multiplier therefore applies to
-  `params.density` whatever its source. The slider-min quirk (1000 vs the 600 mobile default) stays as noted in the
-  handover, untouched.
-- `GHOST_DENSITY` is unchanged.
+- **Fog count is tied to the base, not to the multiplier:**
+  `nFog = min(N, round(base · FOG_SHARE · GAS_DENSITY_REF))`, with `FOG_SHARE` = 0.25 and
+  `GAS_DENSITY_REF` = 3 (= `TIERS.full.gasDensity`, pinned by a test). So:
+  - the fog is 25 % of the particles at the full tier;
+  - its count is 0.75 · base on every tier, about the pre-multiplier count, so the fog body never gets 3× denser
+    or brighter;
+  - the filaments get the rest, `N − nFog`.
+
+| Tier / flow | base | N | fog | filaments | fog share |
+|---|---|---|---|---|---|
+| full, active | 1200 | 3600 | 900 | 2700 | 25 % |
+| phone, active (×3) | 600 | 1800 | 450 | 1350 | 25 % |
+| phone, active (×2) | 600 | 1200 | 450 | 750 | 37.5 % |
+| lite, active | 1200 / 600 | ×1 | 0.75·base | 0.25·base | 75 % |
+| ghost (any tier) | 300 / 150 | = base | 225 / 113 | 75 / 37 | 75 % |
+
+- **Ghosts:** `GHOST_DENSITY` is unchanged. The same rule with multiplier 1 gives ghosts the same fog-body ratio
+  as the active flow (0.75 · count × `fogAlpha`) plus a few filaments.
+- **Fog body brightness.**
+  - The flows draw with `NormalBlending` (`MercuryCanvas`), with the active `uOpacity` capped at 0.45, so the
+    coverage composites as `1 − Π(1 − aᵢ)`.
+  - Where per-sprite alpha is low (fire, air, the earth haze), the body's brightness against the old look ≈
+    (fog count / old count) × `fogAlpha` = 0.75 × 0.9 ≈ 0.68.
+  - Where it saturates (the fluid tube core), the body loses less.
+  - "A little dimmer" is a look call, and `fogAlpha` is the live knob for it.
+
+**3f. Fire and earth.**
+- **Fire:**
+  - **Fog role = the flame body.** The old flame sprite: size `min(baseSize·sizeFactor·80/depth, uPointSizeMax) ·
+    bite` (the old `emberShrink` is 1 for body particles), round, unmasked, and its own tiny per-particle alpha × `fogAlpha`.
+  - **Filament role = embers only.** The role attribute *is* `aEmber`: the old random 15 % ember draw is replaced
+    by `gasRoles`.
+  - Embers are **small round dots**:
+    - width `gasFilWidth(depth, aSize, bite · sizeFactor)`, which shrinks with age to the 1.5 px floor;
+    - at most `FIRE_EMBER_STRETCH` = 1.5× stretch, 1 across a respawn;
+    - **no lane mask**;
+    - alpha = the old per-particle alpha × `FIRE_EMBER_GAIN` (20) × `filAlpha`. The old alpha is 0.006–0.018,
+      sized for accumulating hundreds of 20–60 px discs, so a 2 px ember needs ~×20 to be seen (peak ≈ 0.12–0.36).
+  - Rising tongues are the mirror sky's job, not the gas's.
+  - Under the §3e rule, fire's full tier has 900 body + 2700 embers (old: ~1020 body + ~180 embers). This is an
+    open author call, listed in the plan's Task 8.
+- **Earth:**
+  - The fog role is the old settling-dust sprite.
+  - The filament role is **fine settling streaks**: the §3c capsule, lane-masked by spawn direction and mass, with
+    `sedStretch` = 1 across a sink or life respawn.
+  - Expected aspect from the default rates:
+    - settling dust is slow (~40 px/s → ~1.5×);
+    - eruption arcs are faster (~170 px/s → ~3.3×).
+  - If earth's filaments read as round dots on the sheet, a per-flow gain multiplier is the escape hatch. That is a
+    look call, not a default.
+
+**3g. Pixel targets and the knob defaults derived from them.**
+
+All values are drawing-buffer px at the look probe's geometry:
+- a 1600 × 1000 window, DPR as logged by the probe;
+- the fitted camera z 4.43, vertical FOV 42°;
+- so 1 world unit at the scene centre ≈ (1000/2) / tan 21° / 4.43 ≈ **294 px**.
+
+| Quantity | Derivation | Target |
+|---|---|---|
+| Fog sizes (unchanged) | fluid `(1.5+2aR)·300/z`; air `aSize·5·260/z`; earth `aSize·5·280/z·age`; fire `≤ 64` | fluid 102–237 px; air mean ~113 px; earth mean ~137 px; fire mean ~24 px |
+| Filament width | `filWidth` 2.2 × (4.43/z) × 0.75–1.25, floored 1.5. Fluid z 3.7–5.2. | ~1.5–3.3 px (core 1.5–3 px) |
+| Fluid filament speed | knot `\|dC/dt\|` ≈ 2π·√(1.44 + 4ρ²) ≈ 15.1 u per unit t; × speed 0.1 × lane 0.8 → 1.2 u/s × 294 | ~355 px/s mean (150–570) |
+| Fluid filament length | `streakGain` 0.03 s × 355 = 10.7 px beyond a 2.2 px core | total ~13 px ≈ **6× width** (cap 8× ±30 %) |
+| Air filament speed | ω ≈ 0.9 rad/s × r̄ 0.85 u, projected ×2/π, × 294; ionosphere ×2.8 rate at r 1.35 | ~145 px/s mean → ~3×; ionosphere → capped 8× ±30 % |
+| Earth filament | sink ~40 px/s; eruption ~170 px/s | ~1.5×; ~3.3× |
+| Fire ember | width as filaments, × age shrink; ≤ 1.5× | 1.5–3 px round dots |
+
+The knob defaults (`PLANET_TUNE`; `gasSize` and `gasAlpha` are removed):
+
+| Knob | Default | Meaning |
+|---|---|---|
+| `filWidth` | 2.2 | filament core width, px at `GAS_Z_REF` |
+| `streakGain` | 0.03 | filament shutter (s): length beyond the core = on-screen speed × this |
+| `filAlpha` | 1 | filament alpha × this, on the element's own per-particle alpha (fire: × `FIRE_EMBER_GAIN` too) |
+| `fogAlpha` | 0.9 | fog alpha × this |
+| `maskFreq` | 2.5 | lane frequency (unchanged) |
+| `maskSharp` | 3 | lane ridge sharpness (unchanged) |
+| `maskDepth` | 0.7 | was 0.6. It now carves only the threads, so it can go deeper without thinning the body. |
+
+- **Why `filAlpha` = 1.** Each filament draws at its element's own old per-particle alpha.
+  - A 20 px² filament covers < 1 % of a fog disc's area, so 2700 of them change the structure, not the overall
+    brightness. They don't need the old ×3 alpha compensation.
+  - Under `NormalBlending` a fluid filament paints at ≈ 0.95 × 0.45 × lane ≈ 0.43 peak over the fog, which is
+    visible without a boost.
+  - The lane mask is what makes them read as threads.
+- **DPR note.** Like the old sprites, widths are in drawing-buffer px, not CSS px, while streak lengths come from
+  buffer-px velocities. On a DPR-2 panel the filament core is ~half as wide in CSS px and the aspect roughly
+  doubles (until capped). The probe logs DPR. If the author's panel differs from the probe's, `filWidth` × DPR is a
+  look-round call.
+- **Cost.**
+  - Fill rate: the fog area is 0.75× the old one, and filaments add ~20–40 px² each, so the total fill drops below
+    the old look.
+  - Vertex cost: N rises ×3 (2 core evaluations each, plus one snoise per filament).
+  - The phone gate (plan Task 9) decides `TIERS.phone.gasDensity`.
 
 ## §4 Testing
 
@@ -249,6 +368,9 @@ return aetherTint(nW) * aetherShoulder(uAetherGain * aetherHue(aetherSky(R, roug
   - each flow uses `uPhase` and the clock `t`, with no `uTime * uSpeed` left;
   - `FLOW_RATES` constants are present in both the flow and sky sources;
   - capsule FS present, fire stretch ≤ 1.5 and embers-only;
+  - two roles (session 2): `aRole` filled by `gasRoles` with the §3e counts, the fog path passing the old
+    size through untouched, filament width decoupled from length (`FIL_ASPECT` 8, ±`FIL_JITTER`), and the mask on
+    filaments only. `gasRoles` / `gasFogCount` are pure and unit-tested (exact counts, deterministic, even spread);
   - lifecycle wrap guard present;
   - mask present.
 - **Snapshot:** the planet FS snapshot is re-pinned **once**, in the mirror-sky task. The diff must show only the
@@ -272,9 +394,11 @@ return aetherTint(nW) * aetherShoulder(uAetherGain * aetherHue(aetherSky(R, roug
 Settled on the live build, on the author's 360 Hz panel:
 - `uAetherGain` and the sky brightness under the real exposure;
 - `uAetherSilver`;
-- `STREAK_GAIN` (streak length);
-- `MASK_DEPTH` / `MASK_SHARP`;
-- `GAS_SIZE_SCALE` and the alpha balance.
+- `streakGain` (filament length);
+- `filWidth`, `filAlpha` and `fogAlpha` (the fog/filament balance; §3g has the defaults and their derivation);
+- `maskDepth` / `maskSharp` / `maskFreq`;
+- fire's ember count and brightness (`filAlpha` × `FIRE_EMBER_GAIN`, see §3f);
+- whether `filWidth` follows DPR (§3g DPR note).
 
 Exposed on `window.__mercuryTune.planet.*` like the existing knobs.
 
