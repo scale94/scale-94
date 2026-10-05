@@ -4,6 +4,7 @@
 // ?tier= overrides it for HUD sessions. The phone column is set from the author's
 // phone HUD (checkpoint 1), not guessed.
 // drop: the phase-5 droplet field's caps (spec §7.7).
+// gasDensity: active element-flow particle multiplier (mirror-sky spec §3d); phone set by the frame-time gate (≥ 2).
 // The pop rings' size is not a tier axis: it depends on the live canvas, not the device class,
 // so MercuryPlanet sizes it from the screen (mercuryRoil.popZoom → uPopZoom) on mount and resize.
 
@@ -11,13 +12,13 @@ import { SHADOW_STEPS } from './planetLook';
 import { IMPULSE_SLOTS, SHAPE_ITERS } from './mercuryWaves';
 
 export const TIERS = Object.freeze({
-  full: Object.freeze({ dprMax: 2, rippleSlots: IMPULSE_SLOTS, visitSlots: 4, shadowSteps: SHADOW_STEPS, roil: 'pops', exoSteps: 16, beads: 256, beadRate: 1, shapeIters: SHAPE_ITERS, drop: Object.freeze({ bodies: 16, necks: 10, bridges: 12, steps: 48, satellites: true }) }),
+  full: Object.freeze({ dprMax: 2, rippleSlots: IMPULSE_SLOTS, visitSlots: 4, shadowSteps: SHADOW_STEPS, roil: 'pops', exoSteps: 16, beads: 256, beadRate: 1, gasDensity: 3, shapeIters: SHAPE_ITERS, drop: Object.freeze({ bodies: 16, necks: 10, bridges: 12, steps: 48, satellites: true }) }),
   // Measured 2026-10-01 OnePlus 9 Pro (Adreno 660), canvas 492x450 DPR 1.5: drag p50 55-67 / p95 115-130 ms.
   // Root cause was not this tier: 4 hidden transmission-glass meshes drew the scene 9x per frame
   // (removed 56a241a9; author 2026-10-02: "locked at 60 fps"). The interim cut (shapeIters 1,
   // rippleSlots 2) is restored to full liquid detail; re-measure pending.
-  phone: Object.freeze({ dprMax: 1.5, rippleSlots: 4, visitSlots: 2, shadowSteps: 6, roil: 'pops', exoSteps: 8, beads: 128, beadRate: 0.55, shapeIters: SHAPE_ITERS, drop: Object.freeze({ bodies: 8, necks: 6, bridges: 8, steps: 32, satellites: true }) }),
-  lite: Object.freeze({ dprMax: 1, rippleSlots: 2, visitSlots: 1, shadowSteps: 0, roil: 'noise', exoSteps: 0, beads: 32, beadRate: 0.3, shapeIters: 1, drop: Object.freeze({ bodies: 6, necks: 4, bridges: 6, steps: 24, satellites: false }) }),
+  phone: Object.freeze({ dprMax: 1.5, rippleSlots: 4, visitSlots: 2, shadowSteps: 6, roil: 'pops', exoSteps: 8, beads: 128, beadRate: 0.55, gasDensity: 3, shapeIters: SHAPE_ITERS, drop: Object.freeze({ bodies: 8, necks: 6, bridges: 8, steps: 32, satellites: true }) }),
+  lite: Object.freeze({ dprMax: 1, rippleSlots: 2, visitSlots: 1, shadowSteps: 0, roil: 'noise', exoSteps: 0, beads: 32, beadRate: 0.3, gasDensity: 1, shapeIters: 1, drop: Object.freeze({ bodies: 6, necks: 4, bridges: 6, steps: 24, satellites: false }) }),
 });
 export const TIER_NAMES = Object.keys(TIERS);
 

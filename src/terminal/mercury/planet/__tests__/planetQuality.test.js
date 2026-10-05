@@ -82,4 +82,11 @@ describe('planetQuality', () => {
     expect(TIERS.phone.beadRate).toBe(0.55);
     expect(TIERS.lite.beadRate).toBe(0.3);
   });
+
+  it('gas density multiplier per tier (mirror-sky spec §3d): full 3, phone ≥ 2, lite 1', () => {
+    expect(TIERS.full.gasDensity).toBe(3);
+    expect(TIERS.phone.gasDensity).toBeGreaterThanOrEqual(2);
+    expect(TIERS.phone.gasDensity).toBeLessThanOrEqual(3);
+    expect(TIERS.lite.gasDensity).toBe(1);
+  });
 });
