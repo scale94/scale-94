@@ -202,11 +202,19 @@ return aetherTint(nW) * aetherShoulder(uAetherGain * aetherHue(aetherSky(R, roug
 - **Fill-rate:** the sprite area grows by up to 3×, with the count capped by §3d.
 - `STREAK_GAIN` is the look knob ("how much speed shows"), tuned live.
 
-**3c. Ridged-noise mask** (per particle, in the VS):
-- `m = pow(1 − |2·snoise3(worldPos · MASK_FREQ + drift) − 1|, MASK_SHARP)`.
-  - `drift` advances with the element's phase, so the mask travels with the current.
-  - The mask also moves slowly with `t`, so it never sits still (no static lattice: banded/mechanical is a hard
-    fail).
+**3c. Ridged-noise mask** (per particle, in the VS). Amended at plan time: the mask is sampled in each flow's
+**cross-stream label space**, not in world space.
+- `m = pow(1 − |snoise(maskCoord · uMaskFreq + vec3(0, 0, t · MASK_EVOLVE))|, uMaskSharp)`.
+- `maskCoord` is built from the particle's own constant attributes across the stream:
+  - fluid: its tube cross-section (`aOffset` angle, `aRadius`);
+  - air: altitude, ionosphere and phase;
+  - fire: its spawn-disc position;
+  - earth: its spawn direction.
+
+  So the mask travels with the current exactly: carved regions are *lanes of particles*, which is what a filament
+  is. A world-space mask would stand still while the gas streams through it.
+- The `t · MASK_EVOLVE` term evolves the lanes slowly, so the pattern is never a static lattice
+  (banded/mechanical is a hard fail).
 - **Alpha:** `alpha *= mix(1, m, MASK_DEPTH)`. The mask changes transparency only, never position.
 - **Cost:** one snoise per vertex (two octaves at most).
 - Ghost flows share the shader, so they get streaks and mask too at their existing low density.
@@ -221,8 +229,10 @@ return aetherTint(nW) * aetherShoulder(uAetherGain * aetherHue(aetherSky(R, roug
     shimmer.
   - Alpha is re-balanced live so the overall nebula brightness holds. At ×3 count, area ÷ 9, opacity needs roughly
     ×3 as a starting point.
-- **Density slider:** an explicit slider value (`params.density`) is used as is. The tier multiplier applies to
-  the default only. The slider-min quirk (1000 vs the 600 mobile default) stays as noted in the handover, untouched.
+- **Density slider (amended at plan time):** `params.density` is always set (`MercuryTab` defaults it to
+  1200/600), so the default can't be told apart from a slider value. The tier multiplier therefore applies to
+  `params.density` whatever its source. The slider-min quirk (1000 vs the 600 mobile default) stays as noted in the
+  handover, untouched.
 - `GHOST_DENSITY` is unchanged.
 
 ## §4 Testing
@@ -267,6 +277,19 @@ Settled on the live build, on the author's 360 Hz panel:
 - `GAS_SIZE_SCALE` and the alpha balance.
 
 Exposed on `window.__mercuryTune.planet.*` like the existing knobs.
+
+**Expected pace shift, a consequence of binding the sky to the true gas rates** (defaults `speed` 0.1,
+`orbitalSpeed` 1.2):
+
+| Element | True rate | Mockup | Change |
+|---|---|---|---|
+| Fire | tongues scroll 0.15 dir/s | 0.62 dir/s | ~4× slower |
+| Earth | dust sinks 0.09 dir/s | 0.02 dir/s | ~4.5× faster |
+| Water | knot axis turns 1.0 rad/s | 0.5 rad/s | 2× faster |
+| Air | 0.9 rad/s | 0.9 rad/s | already matched |
+
+The look round judges whether the truth-bound pace still reads right. Only the `t`-driven internal motion
+(flicker, warp, tumble) is free to tune; the bound rates stay bound.
 
 ## Appendix — approved sky GLSL (mockup `mirror-sky-v5.html`, verbatim)
 
