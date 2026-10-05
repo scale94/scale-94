@@ -1,8 +1,10 @@
 // src/terminal/mercury/planet/hgBeads.js — liquid Hg beads in the aether (aether spec §3): sources, motion, sinks.
 // Pure (no three). Sources: an ambient trickle off the sunlit liquid surface (the planet's slow loss to space,
 // × boiling), fling bursts tangential to the spin, splashes at liquid visitor impacts. Motion: gravity toward
-// the planet + drag toward the ACTIVE element's flow velocity (flung beads fly free first, FLING_FREE_T). Sinks: life (fade), fire (evaporation), re-entry
-// (merge), the cap (oldest first). Preallocated typed arrays; nothing allocates per frame. Upload: position + (radius, alpha, glint gate).
+// the planet + drag toward the ACTIVE element's flow velocity (flung beads fly free first, FLING_FREE_T).
+// Sinks: life (fade), fire (evaporation), re-entry (merge), the cap (oldest first; only flings and splashes
+// evict, the ambient trickle waits for room). Preallocated typed arrays; nothing allocates per frame.
+// Upload: position + (radius, alpha, glint gate).
 
 import { mulberry32 } from './aetherLobes';
 import { SUN_DIR_WORLD } from './planetFrame';
@@ -27,8 +29,10 @@ export const FLING_RADIAL = 0.25;  // outward launch kick (scene units/s): the s
 // The glint gate (spec §2 + amendment): a free droplet rings in its l=2 and l=3 shape modes
 // (Rayleigh: f ∝ √(l(l−1)(l+2)) · r^−1.5, ratio √(30/8) ≈ 1.94), and an ejected droplet tumbles, so its
 // wobble axis precesses and the Sun's image swings in and out of reach. 1.94 alone nearly phase-locks
-// (CV 0.01, a metronome); the tumble envelope breaks it (min CV 0.44 over 60 beads). Rates are scaled
-// for legibility, not physical (real droplets this size ring far faster).
+// (CV 0.01, a metronome); the tumble envelope breaks it (min CV >= 0.47 over seeded dust beads, see test).
+// The wobble phase is INTEGRATED per bead (b.wph += 2π·wobbleHz(r)·dt): evaporation shrinks r so the wobble
+// quickens, but never past WOBBLE_HZ_MAX. Rates are scaled for legibility, not physical (real droplets this
+// size ring far faster).
 export const WOBBLE_HZ_REF = 0.8;  // at WOBBLE_R_REF
 export const WOBBLE_R_REF = 0.012;
 export const WOBBLE_HZ_MIN = 0.5;
@@ -43,8 +47,7 @@ export function wobbleHz(r) {
   return Math.min(WOBBLE_HZ_MAX, Math.max(WOBBLE_HZ_MIN, hz));
 }
 
-export function wobbleGate(r, age, ph2, ph3, ph4, tumble) {
-  const wt = 2 * Math.PI * wobbleHz(r) * age;
+export function wobbleGate(wt, ph2, ph3, ph4, tumble) {
   const s = (0.6 * Math.sin(wt + ph2) + 0.4 * Math.sin(WOBBLE_RATIO * wt + ph3))
     * (1 - TUMBLE_E + TUMBLE_E * Math.sin(tumble * wt + ph4));
   return s > 0 ? s ** WOBBLE_K : 0;
@@ -58,7 +61,7 @@ export function createBeads(cap, seed = 0x6867) {
     cap, n: 0, acc: 0, rng: mulberry32(seed),
     pos: new Float32Array(cap * 3), vel: new Float32Array(cap * 3),
     r: new Float32Array(cap), age: new Float32Array(cap), free: new Uint8Array(cap),
-    ph2: new Float32Array(cap), ph3: new Float32Array(cap), ph4: new Float32Array(cap), tumble: new Float32Array(cap),
+    ph2: new Float32Array(cap), ph3: new Float32Array(cap), ph4: new Float32Array(cap), tumble: new Float32Array(cap), wph: new Float32Array(cap),
     outPos: new Float32Array(cap * 3), outBead: new Float32Array(cap * 3),
   };
 }
@@ -73,7 +76,7 @@ export function spawnBead(b, x, y, z, vx, vy, vz, r) {
   const i = b.n < b.cap ? b.n++ : oldest(b);
   b.pos[3 * i] = x; b.pos[3 * i + 1] = y; b.pos[3 * i + 2] = z;
   b.vel[3 * i] = vx; b.vel[3 * i + 1] = vy; b.vel[3 * i + 2] = vz;
-  b.r[i] = r; b.age[i] = 0; b.free[i] = 0;
+  b.r[i] = r; b.age[i] = 0; b.free[i] = 0; b.wph[i] = 0;
   b.ph2[i] = 2 * Math.PI * b.rng(); b.ph3[i] = 2 * Math.PI * b.rng(); b.ph4[i] = 2 * Math.PI * b.rng();
   b.tumble[i] = TUMBLE_K[0] + (TUMBLE_K[1] - TUMBLE_K[0]) * b.rng();
   return i;
@@ -84,7 +87,7 @@ function remove(b, i) {
   if (i === last) return;
   for (let c = 0; c < 3; c++) { b.pos[3 * i + c] = b.pos[3 * last + c]; b.vel[3 * i + c] = b.vel[3 * last + c]; }
   b.r[i] = b.r[last]; b.age[i] = b.age[last]; b.free[i] = b.free[last];
-  b.ph2[i] = b.ph2[last]; b.ph3[i] = b.ph3[last]; b.ph4[i] = b.ph4[last]; b.tumble[i] = b.tumble[last];
+  b.ph2[i] = b.ph2[last]; b.ph3[i] = b.ph3[last]; b.ph4[i] = b.ph4[last]; b.tumble[i] = b.tumble[last]; b.wph[i] = b.wph[last];
 }
 
 // Glitter dust, skewed small, with a rare pearl (spec §1).
@@ -96,6 +99,7 @@ export function beadRadius(rng) {
 const radius = (b) => beadRadius(b.rng);
 
 export function spawnFling(b, omega, coreR, n = FLING_N) {
+  n = Math.min(n, b.cap);
   const w = Math.hypot(omega[0], omega[1], omega[2]);
   const ax = w > 1e-6 ? omega[0] / w : 0, ay = w > 1e-6 ? omega[1] / w : 1, az = w > 1e-6 ? omega[2] / w : 0;
   // u ⟂ axis (cross with the least-aligned world axis), v = axis × u
@@ -149,7 +153,7 @@ export function stepBeads(b, dt, ctx) {
   const ER2 = BEAD_ESCAPE_R * BEAD_ESCAPE_R * coreR * coreR;
   if (!calm && liquid) {
     b.acc += AMBIENT_RATE * rateScale * (1 + BOIL_GAIN * boil) * dt;
-    while (b.acc >= 1) { b.acc -= 1; spawnAmbient(b, coreR); }
+    while (b.acc >= 1) { b.acc -= 1; if (b.n < b.cap) spawnAmbient(b, coreR); }
   }
   for (let i = b.n - 1; i >= 0; i--) {
     b.age[i] += dt;
@@ -164,6 +168,7 @@ export function stepBeads(b, dt, ctx) {
         b.pos[3 * i + c] += b.vel[3 * i + c] * dt;
       }
       if (phase === 'thermal') b.r[i] -= EVAP_RATE * dt;
+      b.wph[i] += 2 * Math.PI * wobbleHz(b.r[i]) * dt;
     }
     const x = b.pos[3 * i], y = b.pos[3 * i + 1], z = b.pos[3 * i + 2];
     const inside = x * x + y * y + z * z < coreR * coreR;
@@ -174,7 +179,7 @@ export function stepBeads(b, dt, ctx) {
     b.outPos[3 * i] = b.pos[3 * i]; b.outPos[3 * i + 1] = b.pos[3 * i + 1]; b.outPos[3 * i + 2] = b.pos[3 * i + 2];
     const a = Math.min(1, b.age[i] / 0.15, (BEAD_LIFE - b.age[i]) / BEAD_FADE);
     b.outBead[3 * i] = b.r[i]; b.outBead[3 * i + 1] = Math.max(0, a);
-    b.outBead[3 * i + 2] = wobbleGate(b.r[i], b.age[i], b.ph2[i], b.ph3[i], b.ph4[i], b.tumble[i]);
+    b.outBead[3 * i + 2] = calm ? 0 : wobbleGate(b.wph[i], b.ph2[i], b.ph3[i], b.ph4[i], b.tumble[i]);
   }
   return b.n;
 }

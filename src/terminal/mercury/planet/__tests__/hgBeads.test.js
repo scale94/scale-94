@@ -117,7 +117,7 @@ describe('hgBeads sim', () => {
     expect(b.outPos).toBe(p); expect(b.outBead).toBe(q);
     expect(b.outBead[0]).toBeCloseTo(0.01, 6);
     expect(b.outBead[1]).toBeGreaterThan(0);
-    expect(b.outBead[2]).toBeCloseTo(wobbleGate(0.01, b.age[0], b.ph2[0], b.ph3[0], b.ph4[0], b.tumble[0]), 6);
+    expect(b.outBead[2]).toBeCloseTo(wobbleGate(b.wph[0], b.ph2[0], b.ph3[0], b.ph4[0], b.tumble[0]), 6);
   });
   it('wobble rate ∝ r^-1.5, clamped to [WOBBLE_HZ_MIN, WOBBLE_HZ_MAX]', () => {
     expect(wobbleHz(0.012)).toBeCloseTo(0.8, 6);
@@ -128,7 +128,7 @@ describe('hgBeads sim', () => {
   it('the gate stays in [0, 1]', () => {
     const rng = mulberry32(3);
     for (let k = 0; k < 2000; k++) {
-      const g = wobbleGate(0.0015 + 0.02 * rng(), 20 * rng(), 6.3 * rng(), 6.3 * rng(), 6.3 * rng(), 0.15 + 0.15 * rng());
+      const g = wobbleGate(2 * Math.PI * 5 * 20 * rng(), 6.3 * rng(), 6.3 * rng(), 6.3 * rng(), 0.15 + 0.15 * rng());
       expect(g).toBeGreaterThanOrEqual(0);
       expect(g).toBeLessThanOrEqual(1);
     }
@@ -143,7 +143,7 @@ describe('hgBeads sim', () => {
       const sparks = [];
       let prev = 0;
       for (let s = 0; s < 20 * 240; s++) {
-        const g = wobbleGate(b.r[i], s / 240, b.ph2[i], b.ph3[i], b.ph4[i], b.tumble[i]);
+        const g = wobbleGate(2 * Math.PI * wobbleHz(b.r[i]) * (s / 240), b.ph2[i], b.ph3[i], b.ph4[i], b.tumble[i]);
         if (g > 0.05) lit++;
         if (g > 0.05 && prev <= 0.05) sparks.push(s / 240);
         prev = g; samples++;
@@ -160,10 +160,50 @@ describe('hgBeads sim', () => {
   it('remove keeps the wobble state in step with the swapped bead', () => {
     const b = createBeads(8);
     spawnBead(b, 1, 0, 1, 0, 0, 0, 0.01); spawnBead(b, 1.5, 0, 1, 0, 0, 0, 0.01); spawnBead(b, 2, 0, 1, 0, 0, 0, 0.01);
+    b.wph[2] = 1.25;
     const moved = [b.ph2[2], b.ph3[2], b.ph4[2], b.tumble[2]];
     b.r[1] = 0; // dies on the next step; bead 2 swaps into slot 1
     stepBeads(b, 1 / 60, { ...CTX, liquid: false });
     expect([b.ph2[1], b.ph3[1], b.ph4[1], b.tumble[1]]).toEqual(moved);
+    expect(b.wph[1]).toBeGreaterThan(1.25); // the swapped bead's integrated phase (1.25 + one step)
+    expect(b.wph[1]).toBeLessThan(1.25 + 0.2);
+  });
+  it('wobble phase is integrated: evaporation never pushes the advance past WOBBLE_HZ_MAX', () => {
+    const b = createBeads(8);
+    const i = spawnBead(b, 0, 2, 0, 0, 0, 0, 0.006);
+    b.age[i] = 5;
+    const dt = 1 / 360, cap = 2 * Math.PI * WOBBLE_HZ_MAX * dt + 1e-5; // + Float32 storage rounding
+    let steps = 0;
+    while (b.n > 0 && steps < 360 * 5) {
+      const before = b.wph[0];
+      stepBeads(b, dt, { ...CTX, phase: 'thermal', liquid: false });
+      if (b.n > 0) expect(b.wph[0] - before).toBeLessThanOrEqual(cap);
+      steps++;
+    }
+    expect(b.n).toBe(0);
+    expect(steps).toBeGreaterThan(100);
+  });
+  it('the ambient trickle never evicts: a full cap keeps its beads', () => {
+    const b = createBeads(8);
+    for (let k = 0; k < 8; k++) spawnBead(b, 2 * Math.cos(k), 0, 2 * Math.sin(k), 0, 0, 0, 0.003 + k * 0.001);
+    const before = Array.from(b.r.slice(0, 8)).sort();
+    run(b, 1, { ...CTX, phase: 'none', liquid: true, boil: 1 });
+    expect(b.n).toBe(8);
+    expect(Array.from(b.r.slice(0, 8)).sort()).toEqual(before);
+  });
+  it('calm freezes the twinkle: the uploaded gate is 0', () => {
+    const b = createBeads(8);
+    spawnBead(b, 0, 2, 0, 0, 0, 0, 0.003);
+    b.age[0] = 1;
+    stepBeads(b, 1 / 60, { ...CTX, calm: true });
+    expect(b.n).toBe(1);
+    expect(b.outBead[2]).toBe(0);
+  });
+  it('a fling never exceeds the cap', () => {
+    const b = createBeads(32);
+    spawnFling(b, [0, 1.78, 0], 0.75, FLING_N);
+    expect(b.n).toBe(32);
+    for (let i = 0; i < 32; i++) expect(b.free[i]).toBe(1);
   });
   it('fling launch speed is capped at FLING_V_MAX', () => {
     const b = createBeads(64);
