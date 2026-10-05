@@ -58,16 +58,23 @@ multiplier; at the cap the oldest bead is evicted (already near its fade). `FLIN
 
 **Physics anchor.** A free droplet oscillates in its shape modes. The two lowest (l = 2, 3) have
 Rayleigh frequency ∝ √(l(l−1)(l+2)), a ratio √30 / √8 ≈ 1.94, and both ∝ r^−1.5. The deformation moves
-the specular point and changes its curvature, so the Sun's spark flares and dies. Two incommensurate
-modes never phase-lock, which gives aperiodic twinkle, not a metronome. The rates are scaled for
-legibility; real droplets this size ring far faster.
+the specular point and changes its curvature, so the Sun's spark flares and dies. The rates are scaled
+for legibility; real droplets this size ring far faster.
 
-**Model.** Two phases φ₂, φ₃ ∈ [0, 2π) are drawn at spawn (new `ph2`, `ph3` Float32Arrays, swapped in
-`remove`). Per frame, in `stepBeads`:
+**Amendment (plan-time measurement, 2026-10-05).** 1.94 is close enough to 2 that the two modes alone
+nearly phase-lock: over 60 seeded beads, the most regular one's spark-interval coefficient of variation
+(CV) was 0.01, a metronome. A slow per-bead **tumble** envelope fixes it. An ejected droplet spins, so its
+wobble axis precesses and the Sun's image swings in and out of the wobble's reach. With the envelope
+below, the minimum CV over the same 60 beads is 0.44 and the median 0.66. Duty falls to about 10 %, so
+the specks are dark about 90 % of the time, not 80 %.
+
+**Model.** Three phases φ₂, φ₃, φ₄ ∈ [0, 2π) and a tumble ratio κ ∈ [0.15, 0.30] are drawn at spawn
+(new `ph2`, `ph3`, `ph4`, `tumble` Float32Arrays, swapped in `remove`). Per frame, in `stepBeads`:
 
 ```
 w2   = 2π · WOBBLE_HZ_REF · (WOBBLE_R_REF / r)^1.5,  clamped to 2π · [WOBBLE_HZ_MIN, WOBBLE_HZ_MAX]
-s    = 0.6 · sin(w2 · age + φ₂) + 0.4 · sin(WOBBLE_RATIO · w2 · age + φ₃)
+s    = (0.6 · sin(w2·age + φ₂) + 0.4 · sin(WOBBLE_RATIO · w2·age + φ₃))
+     · (1 − TUMBLE_E + TUMBLE_E · sin(κ · w2·age + φ₄))
 gate = max(0, s)^WOBBLE_K
 ```
 
@@ -77,7 +84,9 @@ gate = max(0, s)^WOBBLE_K
 | `WOBBLE_R_REF` | 0.012 |
 | `WOBBLE_HZ_MIN` / `MAX` | 0.5 / 5 (dust lives at the clamp: shimmer, not strobe, at 360 Hz) |
 | `WOBBLE_RATIO` | 1.94 (`Math.sqrt(30 / 8)`) |
-| `WOBBLE_K` | 6 (spark; dark ~80 % of the time) |
+| `TUMBLE_E` | 0.6 |
+| `TUMBLE_K` | [0.15, 0.30] (κ range) |
+| `WOBBLE_K` | 3 |
 
 `r` here is the bead's current radius (it shrinks under fire evaporation, so the wobble quickens as it
 boils away). `gate ∈ [0, 1]`.
@@ -122,8 +131,8 @@ drag(age) = DRAG · (free ? 1 − exp(−age / FLING_FREE_T) : 1)      FLING_FRE
    - The spawn split over 10 000 draws is 5 % ± 1 % pearls, and every radius is inside its class range.
    - `rateScale` scales the ambient count (0.55 → ≈ 0.55 × spawns over 10 s).
    - The gate is in [0, 1] over many frames, and the w2 clamp holds at both ends.
-   - Aperiodicity: a bead's gate sampled at 60 Hz over 10 s has no lag in [0.1, 5] s with
-     autocorrelation > 0.9.
+   - Aperiodicity: over 60 seeded dust beads (pearls only shimmer), the spark-interval CV (sampled at 240 Hz over 20 s, a spark is
+     an upward crossing of gate 0.05) is ≥ 0.3 for every bead. Duty is between 0.05 and 0.2.
    - Fling: with fixed ω, a flung bead's max r over 1 s is > 1.3 · coreR, in each of the 4 phases.
      This replaces the round-1 cap-only fling test.
 2. **Shader tests:** `aBead` is vec3; `uDustSparkle` is declared and in `BEAD_UNIFORMS_OWN`;
