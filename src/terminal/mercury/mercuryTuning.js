@@ -6,7 +6,6 @@
 // them every frame, so pokes are authoritative and never fight it.
 //
 // Dev console usage (rig registers only when import.meta.env.DEV):
-//   __mercuryTune.set('duckActive', 0.08)     // cloud parting depth
 //   __mercuryTune.planet.relief = 8               // planet look, live
 //   __mercuryTune.elements.thermal.horizonHeight = 0.1  // per-element data, live
 //   __mercuryTune.get()                      // current values
@@ -16,13 +15,6 @@ import { ELEMENTS, NEUTRAL_NIGHT } from './elements';
 import { PLANET_TUNE } from './planet/planetLook';
 
 export const TUNE = {
-  // usePhaseTransition cloud parting (the clouds part for the mirror).
-  // Geometry (condensation) does the clearing now; opacity is an accent —
-  // per-sprite alpha fights overlap logarithmically (coverage ~ 1-(1-a)^N)
-  // and can never empty the sky alone.
-  duckActive:   0.10,  // active phase's cloud opacity during the beats
-  duckGhost:    0.03,  // ghost phases' opacity during the beats
-
   // Nebula condensation (the breath): pos *= 1 - c^2 in the flow shaders.
   condenseBite:     1.0,  // max contraction; 0 disables live from the rig
   condenseSizeBite: 0.6,  // sprite slimming en route into the drop
