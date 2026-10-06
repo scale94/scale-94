@@ -109,6 +109,7 @@ export default function MercuryCanvas({
           fogCount={gasFor('fluid').fog}
           opacityMultiplier={opacityFor('fluid')}
           blending={THREE.NormalBlending}
+          premultiplied
           onFps={activePhase === 'fluid' ? onFps : null}
           condense={condenseFor('fluid')}
           condenseSizeBite={TUNE.condenseSizeBite}
@@ -157,6 +158,7 @@ export default function MercuryCanvas({
           fogCount={gasFor('air').fog}
           opacityMultiplier={opacityFor('air')}
           blending={THREE.NormalBlending}
+          premultiplied
           onFps={activePhase === 'air' ? onFps : null}
           condense={condenseFor('air')}
           condenseSizeBite={TUNE.condenseSizeBite}

@@ -57,6 +57,7 @@ uniform float uDpr;
 varying vec2 vStreakDir;
 varying vec2 vStreakCap;
 varying float vLane;
+varying float vRole;
 const float STREAK_DT = ${glf(STREAK_DT)};
 const float FIL_ASPECT = ${glf(FIL_ASPECT)};
 const float FIL_JITTER = ${glf(FIL_JITTER)};
@@ -75,6 +76,7 @@ float gasFilWidth(float depth, float s01, float bite) {
 }
 
 float gasSprite(vec4 clipNow, vec4 clipPrev, float role, float size, float aspectMax, float jit) {
+  vRole = role;
   if (role < 0.5) {
     vStreakDir = vec2(1.0, 0.0);
     vStreakCap = vec2(0.0, 0.5);
@@ -112,10 +114,20 @@ export const GAS_STREAK_FS = /* glsl */ `
 varying vec2 vStreakDir;
 varying vec2 vStreakCap;
 varying float vLane;
+varying float vRole;
+uniform float uPremult;
 float gasStreakDist(vec2 pc) {
   vec2 q = pc - 0.5;
   float a = clamp(dot(q, vStreakDir), -vStreakCap.x, vStreakCap.x);
   return length(q - vStreakDir * a) / vStreakCap.y;
+}
+// Output for a flow drawn with premultiplied blending (One / OneMinusSrcAlpha), Task 7c. a = the alpha without dither.
+// uPremult 0 (standalone pages, additive/normal blending): the old output. Premultiplied: fog = color * A, A (= normal
+// blending numerically); filament = color * a, alpha 0 (pure additive: adds light, never darkens the fog behind it).
+vec4 gasOut(vec3 color, float a, float dither) {
+  if (uPremult < 0.5) return vec4(color, a + dither);
+  if (vRole < 0.5) return vec4(color * (a + dither), a + dither);
+  return vec4(color * a + dither, 0.0);
 }
 `;
 

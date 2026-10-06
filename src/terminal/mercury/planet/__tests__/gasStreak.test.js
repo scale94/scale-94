@@ -177,3 +177,16 @@ describe('tune knobs (spec §3g)', () => {
     expect(Object.values(u)).toEqual(objs);
   });
 });
+
+describe('gasOut: premultiplied one-draw output (Task 7c)', () => {
+  it('FS defines gasOut + vRole + uPremult; fog = (color*a, a), filament = (color*a, 0.0) with dithered colour; VS writes vRole', () => {
+    expect(GAS_STREAK_FS).toContain('varying float vRole;');
+    expect(GAS_STREAK_FS).toContain('uniform float uPremult;');
+    expect(GAS_STREAK_FS).toContain('vec4 gasOut(vec3 color, float a, float dither)');
+    expect(GAS_STREAK_FS).toContain('if (uPremult < 0.5) return vec4(color, a + dither);');
+    expect(GAS_STREAK_FS).toContain('if (vRole < 0.5) return vec4(color * (a + dither), a + dither);');
+    expect(GAS_STREAK_FS).toContain('return vec4(color * a + dither, 0.0);');
+    expect(GAS_STREAK_VS).toContain('varying float vRole;');
+    expect(GAS_STREAK_VS).toContain('vRole = role;');
+  });
+});

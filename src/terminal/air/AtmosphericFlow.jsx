@@ -207,7 +207,7 @@ const fragmentShader = /* glsl */ `
     // Banding dither — see ParticleFlow.jsx for the physics note.
     float dither = (fract(sin(dot(gl_FragCoord.xy + gl_PointCoord * 61.803, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
     col *= aetherLight();
-    gl_FragColor = vec4(col, (alpha * alphaScale * uOpacity * vLane) * planetWindow() + dither);
+    gl_FragColor = gasOut(col, (alpha * alphaScale * uOpacity * vLane) * planetWindow(), dither);
   }
 `;
 
@@ -253,6 +253,7 @@ export default function AtmosphericFlow({
   condenseSizeBite = 0.6,
   planetWindow = 0,
   blending = THREE.AdditiveBlending,
+  premultiplied = false, // MercuryCanvas: one-draw premultiplied blend, fog = normal, filaments additive (Task 7c)
   aetherClock = null,
 }) {
   const PARTICLE_COUNT = density ?? (isMobile ? 4000 : 10000);
@@ -274,6 +275,7 @@ export default function AtmosphericFlow({
     uOpacity:      { value: opacityMultiplier },
     uCondense:         { value: condense },
     uCondenseSizeBite: { value: condenseSizeBite },
+    uPremult: { value: premultiplied ? 1 : 0 },
     uPlanetWindow: { value: planetWindow },
     uViewportPx: { value: new THREE.Vector2(1, 1) },
     uPlanetRadius: { value: R_SCENE },
@@ -333,7 +335,13 @@ export default function AtmosphericFlow({
         fragmentShader={fragmentShader}
         uniforms={uniforms}
         transparent
-        blending={blending}
+        blending={premultiplied ? THREE.CustomBlending : blending}
+        blendEquation={THREE.AddEquation}
+        blendSrc={THREE.OneFactor}
+        blendDst={THREE.OneMinusSrcAlphaFactor}
+        blendEquationAlpha={THREE.AddEquation}
+        blendSrcAlpha={THREE.OneFactor}
+        blendDstAlpha={THREE.OneMinusSrcAlphaFactor}
         depthWrite={false}
       />
     </points>

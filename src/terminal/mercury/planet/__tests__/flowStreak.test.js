@@ -67,3 +67,29 @@ describe('gas filaments: two roles in one draw', () => {
     expect(canvasSrc).not.toContain('densityFor');
   });
 });
+
+describe('gas filaments glow over the fog: premultiplied one-draw blend (Task 7c)', () => {
+  for (const [el, src] of [['fluid', particleSrc], ['air', atmoSrc]]) {
+    it(`${el}: FS ends in gasOut(); no raw gl_FragColor vec4(color/col, ...) left; opt-in premultiplied prop`, () => {
+      expect(src).toMatch(/gl_FragColor = gasOut\(/);
+      expect(src).not.toMatch(/gl_FragColor = vec4\(/);
+      expect(src).toContain('premultiplied = false,');
+      expect(src).toContain('uPremult: { value: premultiplied ? 1 : 0 },');
+      expect(src).toContain('blending={premultiplied ? THREE.CustomBlending : blending}');
+      expect(src).toContain('blendEquation={THREE.AddEquation}');
+      expect(src).toContain('blendSrc={THREE.OneFactor}');
+      expect(src).toContain('blendDst={THREE.OneMinusSrcAlphaFactor}');
+      expect(src).toContain('blendSrcAlpha={THREE.OneFactor}');
+      expect(src).toContain('blendDstAlpha={THREE.OneMinusSrcAlphaFactor}');
+    });
+  }
+
+  it('canvas: fluid + air premultiplied (CustomBlending path); fire + earth still NormalBlending, not premultiplied', () => {
+    const tag = (name) => canvasSrc.slice(canvasSrc.indexOf(`<${name}`), canvasSrc.indexOf('/>', canvasSrc.indexOf(`<${name}`)));
+    for (const n of ['ParticleFlow', 'AtmosphericFlow']) expect(tag(n)).toContain('premultiplied');
+    for (const n of ['ThermalFlow', 'SedimentFlow']) {
+      expect(tag(n)).not.toContain('premultiplied');
+      expect(tag(n)).toContain('blending={THREE.NormalBlending}');
+    }
+  });
+});
