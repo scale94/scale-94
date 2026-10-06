@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import {
   createBody, stepBody, coolBody, targetFromYaw, rotationError,
   MELT_HEAT_K, FREEZE_HEAT_K, MAX_OMEGA, HEAT_CAP_K, HEAT_OMEGA_FLOOR, TRANSMUTE_S,
-  RECAPTURE_CALM_OMEGA, RECAPTURE_CALM_ZETA,
+  RECAPTURE_CALM_OMEGA, RECAPTURE_CALM_ZETA, TRANSMUTE_HOLD_S, HEAT_LEAK_PER_S,
 } from '../mercuryBody';
 import { rotY } from '../planetFrame';
 
@@ -282,5 +282,48 @@ describe('mercuryBody', () => {
     stepBody(body, NaN, { dragging: true, omegaPtr: [0, 5, 0], target });
     expect(body.omega.length()).toBe(0);
     expect(Number.isFinite(body.q.w)).toBe(true);
+  });
+});
+
+describe('held liquid (neutral state)', () => {
+  const mk = () => createBody(new THREE.Quaternion());
+  const still = (b) => ({ dragging: false, omegaPtr: [0, 0, 0], target: b.q.clone() });
+  it('createBody does not hold', () => {
+    expect(mk().holdLiquid).toBe(false);
+    expect(TRANSMUTE_HOLD_S).toBe(1);
+  });
+  it('while held, heat is floored at MELT_HEAT_K and the body stays liquid through a 600 s cool', () => {
+    const b = mk();
+    b.holdLiquid = true;
+    stepBody(b, 1 / 60, still(b));
+    expect(b.heatK).toBeGreaterThanOrEqual(MELT_HEAT_K);
+    expect(b.liquid).toBe(true);
+    coolBody(b, 600);
+    expect(b.heatK).toBeGreaterThanOrEqual(MELT_HEAT_K);
+    expect(b.liquid).toBe(true);
+  });
+  it('the held melt takes tau 0 to 1 in 1 s +- one step', () => {
+    const b = mk();
+    b.holdLiquid = true;
+    const dt = 1 / 60;
+    let t = 0;
+    while (b.tau < 1 && t < 5) { stepBody(b, dt, still(b)); t += dt; }
+    expect(Math.abs(t - TRANSMUTE_HOLD_S)).toBeLessThanOrEqual(dt + 1e-9);
+  });
+  it('spin heating still adds heat above the floor while held', () => {
+    const b = mk();
+    b.holdLiquid = true;
+    b.omega.set(0, 10, 0);
+    stepBody(b, 0.1, still(b));
+    expect(b.heatK).toBeGreaterThan(MELT_HEAT_K);
+  });
+  it('released, the heat leaks normally from where it was', () => {
+    const b = mk();
+    b.holdLiquid = true;
+    stepBody(b, 1 / 60, still(b));
+    b.holdLiquid = false;
+    const h0 = b.heatK;
+    coolBody(b, 10);
+    expect(b.heatK).toBeCloseTo(h0 * Math.exp(-HEAT_LEAK_PER_S * 10), 9);
   });
 });

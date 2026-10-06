@@ -1,11 +1,10 @@
 // The shared aether clock (mirror-sky spec §1): one integrated time base for the gas and the mirror.
 import { describe, it, expect } from 'vitest';
 import {
-  CLOCK_PHASES, createAetherClock, configureAetherClock, tickAetherClock, skyWeights, GHOST_OPACITY,
+  CLOCK_PHASES, createAetherClock, configureAetherClock, tickAetherClock, skyWeights,
   FLUID_LANE_MEAN, AIR_ORBIT_MEAN, AIR_LOWER_DIR, FIRE_LIFE_MEAN, FIRE_RISE_MEAN, EARTH_MASS_MEAN,
   EARTH_SINK_RATE_K, EARTH_FALL, AETHER_SKY_R, FLUID_SKY_RAD, AIR_SKY_RAD, FIRE_SKY_RISE, EARTH_SKY_SINK,
 } from '../aetherClock';
-import transitionSrc from '../../usePhaseTransition.js?raw';
 
 describe('aetherClock', () => {
   it('integrates t and each phase from its own rate', () => {
@@ -69,31 +68,22 @@ describe('aetherClock', () => {
   });
 });
 
-describe('skyWeights — the mirror shows the active element, cross-fading on a switch', () => {
-  const idle = (a) => Object.fromEntries(CLOCK_PHASES.map((p) => [p, p === a ? 1 : 0.12]));
-  it('the ghost opacity matches usePhaseTransition', () => {
-    expect(transitionSrc).toContain('p === active ? 1.0 : 0.12');
-    expect(GHOST_OPACITY).toBe(0.12);
+describe('skyWeights — the mirror shows each element by its fade', () => {
+  it('weights equal the fades in CLOCK_PHASES order', () => {
+    expect(skyWeights({ fluid: 0, thermal: 0, earth: 1, air: 0 })).toEqual([0, 0, 1, 0]);
+    expect(skyWeights({ fluid: 0.3, thermal: 0, earth: 0, air: 0 })).toEqual([0.3, 0, 0, 0]);
   });
-  it('idle: the active element alone, ghosts never', () => {
-    expect(skyWeights('earth', null, idle('earth'))).toEqual([0, 0, 1, 0]);
+  it('neutral (all fades 0) is the quiet dark sky: all weights 0', () => {
+    expect(skyWeights({ fluid: 0, thermal: 0, earth: 0, air: 0 })).toEqual([0, 0, 0, 0]);
+    expect(skyWeights(null)).toEqual([0, 0, 0, 0]);
   });
-  it('consolidating: the active fades as its cloud ducks; emerging: the pending rises, the old stays out', () => {
-    const w = skyWeights('fluid', 'air', { fluid: 0.56, thermal: 0.03, earth: 0.03, air: 0.03 });
-    expect(w[0]).toBeCloseTo(0.5, 12); expect(w[3]).toBe(0); expect(w[1]).toBe(0);
-    const e = skyWeights('fluid', 'air', { fluid: 0.08, thermal: 0.08, earth: 0.08, air: 0.56 });
-    expect(e).toEqual([0, 0, 0, expect.closeTo(0.5, 12)]);
+  it('normalises when the fades sum above 1', () => {
+    const w = skyWeights({ fluid: 1, thermal: 1, earth: 0, air: 0 });
+    expect(w).toEqual([0.5, 0.5, 0, 0]);
   });
-  it('never more than two non-zero weights, never a sum above 1', () => {
-    const w = skyWeights('fluid', 'air', { fluid: 1, thermal: 1, earth: 1, air: 1 });
-    expect(w.filter((x) => x > 0).length).toBeLessThanOrEqual(2);
-    expect(w.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 12);
-  });
-  it('no opacities given: the active element at full weight', () => {
-    expect(skyWeights('thermal', null, null)).toEqual([0, 1, 0, 0]);
-  });
-  it('writes into the given array (no allocation)', () => {
+  it('writes into the out array it is given', () => {
     const out = [9, 9, 9, 9];
-    expect(skyWeights('air', null, idle('air'), out)).toBe(out);
+    expect(skyWeights({ fluid: 0, thermal: 0, earth: 0, air: 1 }, out)).toBe(out);
+    expect(out).toEqual([0, 0, 0, 1]);
   });
 });

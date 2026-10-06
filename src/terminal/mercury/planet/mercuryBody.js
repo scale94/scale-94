@@ -6,7 +6,7 @@
 // the ephemeris orientation. `recapture` is honest naming: real tidal
 // relaxation takes millions of years; the 3:2 lock is what the ephemeris
 // orientation IS. Dissipated rotation heats a store (H += κ·max(0, |ω| − ω₀)²·dt,
-// leaks λH; below ω₀ a slow stroke adds nothing, so watching the wake never holds the liquid),
+// leaks λH; below ω₀ a slow stroke adds nothing, so watching the wake never holds the liquid; or while neutral holds it (holdLiquid)),
 // and transmutation τ ∈ [0,1] follows melt/freeze thresholds with
 // hysteresis; the store is capped (HEAT_CAP_K), so liquid lingers ≤ ~40 s after a spin.
 // Fixed-size substeps (≤ MAX_SUBSTEP_S) make 60 Hz and 360 Hz agree.
@@ -28,6 +28,7 @@ export const FREEZE_HEAT_K = 25;
 export const HEAT_CAP_K = 80;          // bounds the store: even a hard spin refreezes ~40 s after release,
                                        // and night (100 K floor + cap) stays below the 234 K melt
 export const TRANSMUTE_S = 3;          // τ 0 → 1 duration
+export const TRANSMUTE_HOLD_S = 1;     // τ 0 → 1 while neutral holds the planet liquid (3× the spun melt)
 // Reduced motion (phase-4 spec §5): the hand turns the body directly; nothing spins on.
 export const RECAPTURE_CALM_OMEGA = 1.2; // rad/s natural frequency of the calm return…
 export const RECAPTURE_CALM_ZETA = 2;    // …overdamped: it eases home, never overshoots
@@ -45,6 +46,7 @@ export function createBody(q0) {
     heatK: 0,
     tau: 0,
     liquid: false,
+    holdLiquid: false,
     sinceReleaseS: Infinity,
     held: false,
   };
@@ -128,10 +130,11 @@ function substep(b, h, dragging, omegaPtr, target, calm) {
   const over = Math.max(0, Math.min(len, MAX_OMEGA) - HEAT_OMEGA_FLOOR);
   b.heatK += (HEAT_GAIN * over * over - HEAT_LEAK_PER_S * b.heatK) * h;
   if (b.heatK > HEAT_CAP_K) b.heatK = HEAT_CAP_K;
+  if (b.holdLiquid && b.heatK < MELT_HEAT_K) b.heatK = MELT_HEAT_K; // neutral: held at the melt, spin still heats above it
   if (b.heatK >= MELT_HEAT_K) b.liquid = true;
   else if (b.heatK <= FREEZE_HEAT_K) b.liquid = false;
   const goal = b.liquid ? 1 : 0;
-  const stepTau = h / TRANSMUTE_S;
+  const stepTau = h / (b.holdLiquid ? TRANSMUTE_HOLD_S : TRANSMUTE_S);
   b.tau = goal > b.tau ? Math.min(goal, b.tau + stepTau) : Math.max(goal, b.tau - stepTau);
 }
 
@@ -140,6 +143,7 @@ function substep(b, h, dragging, omegaPtr, target, calm) {
 export function coolBody(b, seconds) {
   if (!(seconds > 0) || !Number.isFinite(seconds)) return b;
   b.heatK *= Math.exp(-HEAT_LEAK_PER_S * seconds);
+  if (b.holdLiquid && b.heatK < MELT_HEAT_K) { b.heatK = MELT_HEAT_K; b.liquid = true; }
   if (b.heatK <= FREEZE_HEAT_K) b.liquid = false;
   return b;
 }

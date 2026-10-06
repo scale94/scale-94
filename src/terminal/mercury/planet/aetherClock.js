@@ -64,21 +64,12 @@ export function tickAetherClock(clock, stamp, delta) {
   return clock;
 }
 
-// usePhaseTransition's idle ghost opacity (idleOpacities). Ghost elements are never reflected.
-export const GHOST_OPACITY = 0.12;
-
-// Mirror weights in CLOCK_PHASES order: the active and the pending element only, each by how far its cloud
-// stands above ghost level. Idle → the active at 1; a switch → the old fades as its cloud ducks, the new rises
-// as its cloud floods back. No opacities → the active at 1.
-export function skyWeights(activePhase, pendingPhase, opacities, out = [0, 0, 0, 0]) {
+// Mirror weights in CLOCK_PHASES order: each element by its fade (transitionMachine). Neutral → all 0, the quiet dark
+// sky (Sun glint + base mirror). Normalised if a cross-fade ever sums above 1.
+export function skyWeights(fades, out = [0, 0, 0, 0]) {
   let sum = 0;
   for (let i = 0; i < CLOCK_PHASES.length; i++) {
-    const p = CLOCK_PHASES[i];
-    let w = 0;
-    if (p === activePhase || p === pendingPhase) {
-      if (!opacities) w = p === activePhase ? 1 : 0;
-      else w = Math.min(Math.max(((opacities[p] ?? 0) - GHOST_OPACITY) / (1 - GHOST_OPACITY), 0), 1);
-    }
+    const w = Math.min(Math.max(fades?.[CLOCK_PHASES[i]] ?? 0, 0), 1);
     out[i] = w;
     sum += w;
   }
