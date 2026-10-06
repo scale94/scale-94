@@ -326,4 +326,44 @@ describe('held liquid (neutral state)', () => {
     coolBody(b, 10);
     expect(b.heatK).toBeCloseTo(h0 * Math.exp(-HEAT_LEAK_PER_S * 10), 9);
   });
+  it('a melt neutral started finishes at the held rate after the hold is released', () => {
+    const b = mk();
+    const dt = 1 / 60;
+    b.holdLiquid = true;
+    let t = 0;
+    while (b.tau < 1 && t < 6) {
+      if (t >= 0.3 - 1e-9) b.holdLiquid = false;
+      stepBody(b, dt, still(b));
+      t += dt;
+    }
+    expect(Math.abs(t - TRANSMUTE_HOLD_S)).toBeLessThanOrEqual(dt + 1e-9);
+  });
+  it('the latch clears at tau 1 and a later freeze runs at the normal rate', () => {
+    const b = mk();
+    const dt = 1 / 60;
+    b.holdLiquid = true;
+    for (let i = 0; i < 18; i++) stepBody(b, dt, still(b));
+    b.holdLiquid = false;
+    let t = 0;
+    while (b.tau < 1 && t < 6) { stepBody(b, dt, still(b)); t += dt; }
+    expect(b.tau).toBe(1);
+    expect(b.heldMelt).toBe(false);
+    const h0 = b.heatK;
+    coolBody(b, 10);
+    expect(b.heatK).toBeCloseTo(h0 * Math.exp(-HEAT_LEAK_PER_S * 10), 9);
+    coolBody(b, 40);
+    expect(b.heatK).toBeLessThanOrEqual(FREEZE_HEAT_K);
+    expect(b.liquid).toBe(false);
+    let f = 0;
+    while (b.tau > 0 && f < 6) { stepBody(b, dt, still(b)); f += dt; }
+    expect(Math.abs(f - TRANSMUTE_S)).toBeLessThanOrEqual(dt + 1e-9);
+  });
+  it('an unheld spin melt still takes TRANSMUTE_S', () => {
+    const b = mk();
+    const dt = 1 / 60;
+    b.heatK = 70;
+    let t = 0;
+    while (b.tau < 1 && t < 6) { stepBody(b, dt, still(b)); t += dt; }
+    expect(Math.abs(t - TRANSMUTE_S)).toBeLessThanOrEqual(dt + 1e-9);
+  });
 });

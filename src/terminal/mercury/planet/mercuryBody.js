@@ -9,6 +9,7 @@
 // leaks λH; below ω₀ a slow stroke adds nothing, so watching the wake never holds the liquid; or while neutral holds it (holdLiquid)),
 // and transmutation τ ∈ [0,1] follows melt/freeze thresholds with
 // hysteresis; the store is capped (HEAT_CAP_K), so liquid lingers ≤ ~40 s after a spin.
+// A melt neutral started finishes at the held rate even after the hold is released.
 // Fixed-size substeps (≤ MAX_SUBSTEP_S) make 60 Hz and 360 Hz agree.
 
 import * as THREE from 'three';
@@ -47,6 +48,7 @@ export function createBody(q0) {
     tau: 0,
     liquid: false,
     holdLiquid: false,
+    heldMelt: false,
     sinceReleaseS: Infinity,
     held: false,
   };
@@ -134,8 +136,11 @@ function substep(b, h, dragging, omegaPtr, target, calm) {
   if (b.heatK >= MELT_HEAT_K) b.liquid = true;
   else if (b.heatK <= FREEZE_HEAT_K) b.liquid = false;
   const goal = b.liquid ? 1 : 0;
-  const stepTau = h / (b.holdLiquid ? TRANSMUTE_HOLD_S : TRANSMUTE_S);
-  b.tau = goal > b.tau ? Math.min(goal, b.tau + stepTau) : Math.max(goal, b.tau - stepTau);
+  if (b.holdLiquid && b.tau < 1) b.heldMelt = true; // a melt neutral forced finishes at the held rate
+  const melting = goal > b.tau;
+  const stepTau = h / ((b.holdLiquid || b.heldMelt) && melting ? TRANSMUTE_HOLD_S : TRANSMUTE_S);
+  b.tau = melting ? Math.min(goal, b.tau + stepTau) : Math.max(goal, b.tau - stepTau);
+  if (!b.liquid || b.tau >= 1) b.heldMelt = false;
 }
 
 // Cools the store over real time the frame clamp dropped (a hidden tab, a slow GPU): heat is a scalar
